@@ -10663,6 +10663,7 @@ function resumeSpeed(){ setSpeed(W.speedBefore||1); }
 let toastTimer=null;
 function toast(msg){
   log(msg);
+  if(typeof B!=="undefined" && B && B.over===null && !(toast._at>performance.now()-1500)){ toast._at=performance.now(); try{ playSE("tap"); }catch(_){} }   // 合戦中の軍師の一言
   let el=document.getElementById("toast");
   if(!el){
     el=document.createElement("div");
@@ -13504,6 +13505,12 @@ function updateBattle(dt){
   if(B.fires && B.fires.length){ for(const u of B.units){ if(u.troops<=.5||u.left) continue;
       { const f=B.fires.find(f=>f.t<f.life&&Math.hypot(f.x-u.x,f.y-u.y)<2.0); if(f && u.morale>0 && u.order.k!=="retreat" && !(u.fireFleeAt>B.elapsed-3)){ u.fireFleeAt=B.elapsed; const ang=Math.atan2(u.y-f.y,u.x-f.x); u.order={k:"move",x:Math.max(.5,Math.min(BF.w-.5,u.x+Math.cos(ang)*5)),y:Math.max(.5,Math.min(BF.h-.5,u.y+Math.sin(ang)*5))}; if(u.side===B.ctx.playerSide) bshout(u.id,"火だ！ 離れろ！",2); } } if(B.fires.some(f=>f.t<f.life&&Math.hypot(f.x-u.x,f.y-u.y)<1.2)){ u.troops=Math.max(0,u.troops-u.troops*0.02*dt); u.morale=Math.max(0,u.morale-3*dt); u.flash=0.1; } } }   // 火の上に立てば焼かれる
   if(B.dust){ for(const d of B.dust) d.t+=dt; B.dust=B.dust.filter(d=>d.t<d.life); }
+  if(B.smoke){ for(const d of B.smoke) d.t+=dt; B.smoke=B.smoke.filter(d=>d.t<d.life); }
+  // 乱戦の周りには砂ぼこりが立つ（接敵中の隊から、四分の一秒ごとに幾つか）
+  if(B.opening<=0 && !(B.dustAt>B.elapsed-0.25)){ B.dustAt=B.elapsed; B.dust=B.dust||[]; let n=0;
+    for(const u of B.units){ if(n>=4) break; if(u.troops<=.5||u.left||u.morale<=0||u.engagedAt===undefined||B.elapsed-u.engagedAt>0.6) continue; if(rnd()<0.5) continue; n++;
+      B.dust.push({x:u.x+(rnd()-.5)*2.4, y:u.y+0.8+(rnd()-.5)*0.8, t:0, life:1.6+rnd()*0.8, soft:true}); }
+    if(B.dust.length>80) B.dust.splice(0,B.dust.length-80); }
   duelCheck();
   // 隊が同じ場所に重なると、どこに誰がいるのか分からなくなる
   for(let i=0;i<B.units.length;i++){
@@ -13843,8 +13850,9 @@ function resolveAttack(a,d){
   if(a.type===3){ if(B.elapsed-(B.lastGun||-9)>0.22){ B.lastGun=B.elapsed; try{ playSE("gun"); }catch(_){} } }   // 鉄砲は撃つたびに近い間で鳴る
   else if(B.elapsed-(B.lastClank||-9)>0.55){
     B.lastClank=B.elapsed;
-    try{ playSE("sword"); }catch(_){}
+    try{ playSE(a.type===0?"spear":"sword"); }catch(_){}
   }
+  if(a.type===2 && aSp && B.elapsed-(B.lastHoof||-9)>1.4){ B.lastHoof=B.elapsed; try{ playSE("horse"); }catch(_){} }   // 突撃の蹄
   { const k0=a.killed||0; a.killed=k0+loss;          // 討ち取った数を控える
     if(a.side===B.ctx.playerSide) for(const m of [300,800,1500]) if(k0<m && a.killed>=m){ toast(`${a.name}隊、討ち取り${m}を超えました`); break; } }
   if(B.hits){
@@ -13889,6 +13897,7 @@ function spawnShot(a,d){
   B.puffs.push({x:a.x+Math.cos(a.face)*1.4, y:a.y+Math.sin(a.face)*1.4, t:0, life:.5, r:1.6});
   for(let k=0;k<2;k++) B.puffs.push({x:a.x+Math.cos(a.face)*(1.6+k*0.8)+(rnd()-.5)*1.0, y:a.y+Math.sin(a.face)*(1.6+k*0.8)+(rnd()-.5)*0.8, t:-k*0.1, life:2.0+rnd()*0.6, r:1.3+k*0.3, big:true});   // 火縄の白煙は列の前にしばらく漂う
   B.flashes=B.flashes||[]; B.flashes.push({x:a.x+Math.cos(a.face)*1.1, y:a.y+Math.sin(a.face)*1.1, t:0, life:0.12, ang:a.face});
+  B.smoke=B.smoke||[]; B.smoke.push({x:a.x+Math.cos(a.face)*1.3+(rnd()-.5)*0.8, y:a.y+Math.sin(a.face)*0.6, t:0, life:1.6+rnd()*0.6, dir:Math.cos(a.face)>=0?1:-1}); if(B.smoke.length>50) B.smoke.shift();
   return {from, to:B.shots.length};
 }
 function stepShots(dt){
@@ -14287,8 +14296,10 @@ function drawPalisades(sx,sy){
     const gap = unbreak && !s.lone && rr<0.10;   // 急ごしらえの隙間（横木が渡されていない）
     const hpk = Math.min(s.a.hpMax?s.a.hp/s.a.hpMax:1, s.b.hpMax?s.b.hp/s.b.hpMax:1);
     const worn = Math.max(s.a.wear||0,s.b.wear||0) + (hpk<0.5?0.5:0);
+    const strong = (s.a.hpMax||0)>=1000 || (s.b.hpMax||0)>=1000;                         // 強化柵：三千挺の柵など、しっかり組んだもの
+    const rails = strong ? [0.72,0.48,0.24] : (s.a.building>0||s.b.building>0||s.a.quick) ? [0.5] : [0.62,0.34];   // 簡易柵は横木一本
     // 横木（杭の後ろ）。傷めば垂れ、ひどければ上の横木が無い
-    if(!gap){ for(const kh of [0.62,0.34]){ if(worn>0.6 && kh===0.62 && rr<0.7) continue; const sag=worn*3*Zf;
+    if(!gap){ for(const kh of rails){ if(worn>0.6 && kh===0.62 && rr<0.7) continue; const sag=worn*3*Zf;
       bctx.strokeStyle="#4E3418"; bctx.lineWidth=3*Zf; bctx.beginPath(); bctx.moveTo(x0,y0-H*kh); bctx.quadraticCurveTo((x0+x1)/2,(y0+y1)/2-H*kh+sag+1.5,x1,y1-H*kh); bctx.stroke();
       bctx.strokeStyle="#9A7650"; bctx.lineWidth=1; bctx.beginPath(); bctx.moveTo(x0,y0-H*kh-1); bctx.quadraticCurveTo((x0+x1)/2,(y0+y1)/2-H*kh+sag,x1,y1-H*kh-1); bctx.stroke(); } }
     // 杭。高さも傾きもばらばら。隙間の所は真ん中の杭が抜け、一本は倒れている
@@ -14299,8 +14310,8 @@ function drawPalisades(sx,sy){
       if(hpk<0.45 && hash(py*0.7,px*0.9)<0.5){ fallen(px,py,sh,hv); continue; }   // 叩かれて弱った柵は杭が倒れる
       let lean=(hv-0.5)*0.16; if(unbreak && hv>0.93) lean+=(hash(py,px)<0.5?-1:1)*0.26;   // 急ごしらえ：十本に一本は大きく傾く
       if(worn>0.25 && hash(px*1.3,py*0.4)<worn) lean+=(hash(py*2,px)<0.5?-1:1)*worn*0.5;   // 当たられて傾く
-      stake(px,py,sh,lean);
-      if(!gap){ for(const kh of [0.62,0.34]){ if(worn>0.6 && kh===0.62 && rr<0.7) continue; bctx.fillStyle="#2E1E0E"; bctx.fillRect(px-w/2-1.5, py-H*kh-1.5, w+3, 3); bctx.fillStyle="#C8B080"; bctx.fillRect(px-w/2-1, py-H*kh-0.5, w+2, 1); } }   // 縄
+      stake(px,py,sh*(strong?1.1:1),lean);
+      if(!gap){ for(const kh of rails){ if(worn>0.6 && kh===rails[0] && rr<0.7) continue; bctx.fillStyle="#2E1E0E"; bctx.fillRect(px-w/2-1.5, py-H*kh-1.5, w+3, 3); bctx.fillStyle="#C8B080"; bctx.fillRect(px-w/2-1, py-H*kh-0.5, w+2, 1); } }   // 縄
     }
     // 筋交い：隣の杭と×に組む。杭の列が一つの柵になる（傷んだ所は片方が折れている）
     if(!gap && !s.lone){ bctx.strokeStyle="#4A3016"; bctx.lineWidth=2.4*Zf; bctx.lineCap="round";
@@ -14697,9 +14708,11 @@ function drawBattle(){
   // 騎馬の土煙
   if(B.dust) for(const d of B.dust){
     const k=d.t/d.life;
+    if(d.soft){ bctx.fillStyle=`rgba(205,185,150,${(1-k)*(1-k)*.22})`; bctx.beginPath(); bctx.ellipse(d.x*sx+k*4, d.y*sy-k*10, 9+k*18, 6+k*10, 0, 0, 7); bctx.fill(); continue; }
     bctx.fillStyle=`rgba(210,190,150,${(1-k)*.5})`;
     bctx.beginPath(); bctx.arc(d.x*sx-k*6, d.y*sy-k*8, 5+k*9, 0, 7); bctx.fill();
   }
+  if(B.smoke) for(const d of B.smoke){ const k=d.t/d.life; bctx.fillStyle=`rgba(235,232,225,${(1-k)*(1-k)*.35})`; bctx.beginPath(); bctx.ellipse(d.x*sx+k*8*d.dir, d.y*sy-6-k*16, 6+k*16, 4+k*9, 0, 0, 7); bctx.fill(); }
   // 複数選択の囲み
   if(B.box){
     const x0=Math.min(B.box.x0,B.box.x1)*sx, y0=Math.min(B.box.y0,B.box.y1)*sy, x1=Math.max(B.box.x0,B.box.x1)*sx, y1=Math.max(B.box.y0,B.box.y1)*sy;
@@ -15184,11 +15197,21 @@ function drawBattle(){
   // 右端の名簿：わが隊を上から並べ、押せば選べる。どの隊が危ないか一目で
   B.roster=[];
   if(!B.rosterOff && B.over===null && W_>=760){
-    const mine=B.units.filter(u=>u.side===B.ctx.playerSide&&u.troops>.5&&!u.left).slice(0,12);
+    let mine=B.units.filter(u=>u.side===B.ctx.playerSide&&u.troops>.5&&!u.left);
+    const dangerOf=u=>(u.morale<=0?0:(u.surrounded?3:0)+(u.troops<u.max*0.3?2:u.troops<u.max*0.5?1:0)+(u.morale<30?1.5:0)+(u.danger?1:0));
+    if(B.rosterSort==="troops") mine=[...mine].sort((a,b)=>b.troops-a.troops); else if(B.rosterSort==="danger") mine=[...mine].sort((a,b)=>dangerOf(b)-dangerOf(a));
+    mine=mine.slice(0,12);
     const compact=W_<1000;   // 狭い画面では名簿が敵陣に被さるので細く
-    const cw=compact?72:124, ch=compact?36:30, gap=3, x0=W_-cw-6, y0=44;
+    const cw=compact?72:124, ch=compact?36:30, gap=3, x0=W_-cw-6, y0=compact?44:58;
     B.roster=[];
     bctx.save();
+    if(!compact){ // 並べ替えの釦
+      const opts=[["pos","配置"],["troops","兵力"],["danger","危険"]]; const bw2=Math.floor((cw-4)/3);
+      opts.forEach(([k,lab],i)=>{ const bx=x0+i*(bw2+2), by=y0-15; const on=(B.rosterSort||"pos")===k;
+        bctx.globalAlpha=.9; bctx.fillStyle=on?"rgba(201,162,39,.85)":"rgba(10,9,8,.72)"; bctx.beginPath(); bctx.roundRect(bx,by,bw2,13,3); bctx.fill();
+        bctx.fillStyle=on?"#1A1208":"#CFC8B8"; bctx.font='800 9px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center"; bctx.textBaseline="alphabetic"; bctx.fillText(lab, bx+bw2/2, by+10);
+        B.roster.push({id:"sort:"+k,x:bx,y:by,w:bw2,h:13}); });
+      bctx.globalAlpha=1; }
     mine.forEach((u,i)=>{
       const y=y0+i*(ch+gap);
       const sel=B.sel===u.id||(B.group&&B.group.includes(u.id));
@@ -15199,7 +15222,7 @@ function drawBattle(){
       bctx.beginPath(); bctx.roundRect(x0,y,cw,ch,4); bctx.stroke();
       bctx.globalAlpha=1;
       bctx.fillStyle="#FFD166"; bctx.font='800 9px "DotGothic16",monospace'; bctx.textAlign="right"; bctx.textBaseline="alphabetic";
-      bctx.fillText(String(i+1), x0+14, y+12);
+      { const pi=B.units.filter(x=>x.side===B.ctx.playerSide&&x.troops>.5&&!x.left).indexOf(u); bctx.fillText(String(pi+1), x0+14, y+12); }
       // 兵種の印（槍・侍・騎・鉄）
       { const tc=["#8FB8FF","#FFD166","#FFA07A","#B8E0FF"][u.type]; bctx.fillStyle=tc; bctx.fillRect(x0+17,y+3,11,11); bctx.fillStyle="#1A1208"; bctx.font='900 9px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center"; bctx.fillText(["槍","侍","騎","鉄"][u.type], x0+22.5, y+12); }
       bctx.textAlign="left"; bctx.fillStyle="#EDE6D6"; bctx.font='700 10px "Zen Kaku Gothic New",sans-serif';
@@ -15501,6 +15524,7 @@ bcanvas.addEventListener("pointerdown",ev=>{
   if(B.roster && B.roster.length && ev.button!==2){
     const rect=bcanvas.getBoundingClientRect(); const px=ev.clientX-rect.left, py=ev.clientY-rect.top;
     const hit=B.roster.find(r=>px>=r.x&&px<=r.x+r.w&&py>=r.y&&py<=r.y+r.h);
+    if(hit && typeof hit.id==="string" && hit.id.startsWith("sort:")){ B.rosterSort=hit.id.slice(5); return; }
     if(hit){
       if(ev.shiftKey){ B.group=(B.group||(B.sel!==null?[B.sel]:[])).filter(id=>id!==hit.id).concat([hit.id]); B.sel=null; }
       else if(B.sel===hit.id && !B.group){ B.sel=null; }
@@ -15917,7 +15941,7 @@ function buildFenceAt(wx,wy){
   // 柵は隙間なく詰めて組む（九本を一・一歩おき）。鉄砲は柵の内から撃てる
   for(let k=-4;k<=4;k++){
     const y=Math.max(1,Math.min(BF.h-1,wy+k*1.1));
-    B.obstacles.push({kind:1, variant:(k+4)%3, x, y, r:1.0, wall:true, fence:true, hp:560, building:8, side:B.ctx.playerSide, lane:"p"+Math.round(x*10)});
+    B.obstacles.push({kind:1, variant:(k+4)%3, x, y, r:1.0, wall:true, fence:true, hp:560, building:8, quick:true, side:B.ctx.playerSide, lane:"p"+Math.round(x*10)});
   }
   B.mode=null; B.paused=false;
   playSE("build");
