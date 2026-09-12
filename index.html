@@ -1511,7 +1511,7 @@ Object.assign(SCENARIO_DEFS, {
    {name:"武田家", reuse:"武田家", crest:"武", daimyo:"武田勝頼", hq:"躑躅ヶ崎館", provs:["甲斐","信濃","駿河"], castles:["箕輪城","高天神城"], gens:["山県昌景","馬場信春","内藤昌豊","高坂昌信","真田信綱","真田昌幸","穴山信君","小山田信茂","武田信廉","土屋昌次","秋山虎繁","仁科盛信"], troops:35000, ai:{agg:.8,dip:.4,eco:.5,risk:.7}},
    {name:"上杉家", reuse:"長尾家", crest:"上", daimyo:"上杉謙信", hq:"春日山城", provs:["越後","越中"], castles:["厩橋城","沼田城"], gens:["柿崎景家","直江景綱","本庄繁長","上杉景勝","直江兼続"], ai:{agg:.7,dip:.4,eco:.5,risk:.6}},
    {name:"北条家", reuse:"北条家", crest:"北", daimyo:"北条氏政", hq:"小田原城", provs:["相模","伊豆","武蔵","下総","上総"], gens:["北条氏直","北条氏照","北条氏規","北条氏邦"], troops:35000, ai:{agg:.5,dip:.5,eco:.6,risk:.4}},
-   {name:"本願寺", reuse:"本願寺", crest:"本", daimyo:"本願寺顕如", hq:"石山本願寺", provs:["越前"], castles:["石山本願寺","尾山御坊"], gens:["下間頼廉","鈴木孫一"], troops:15000, ai:{agg:.5,dip:.4,eco:.5,risk:.5}},
+   {name:"本願寺", reuse:"本願寺", crest:"本", daimyo:"本願寺顕如", hq:"石山本願寺", provs:["越前"], castles:["石山本願寺","尾山御坊"], gens:["下間頼廉","鈴木孫一"], troops:24000, hqTroops:15000, ai:{agg:.5,dip:.4,eco:.5,risk:.5}},
    {name:"長家", reuse:"長家", crest:"長", daimyo:"長続連", hq:"七尾城", castles:["七尾城","富山城","穴水城"], gens:[], ai:{agg:.4,dip:.6,eco:.5,risk:.3}},
    {name:"松永家", crest:"松", daimyo:"松永久秀", hq:"信貴山城", provs:["大和"], gens:["松永久通"], vassalOf:"織田家", ai:{agg:.6,dip:.5,eco:.5,risk:.7}},
    {name:"三好家", reuse:"三好家", crest:"三", daimyo:"三好長治", hq:"勝瑞城", provs:["阿波","讃岐"], gens:["十河存保","三好康長"], ai:{agg:.5,dip:.4,eco:.5,risk:.5}},
@@ -1847,7 +1847,7 @@ function buildWorld(playerClan, scenarioId){
   tidyWorld();   // 開幕の辻褄（城主・当主）をここで合わせておく
   // 家の兵の総数を名指しで決める（世が整ってから。徳川二万・北条四万・大坂の十万 など）
   if(W.scenario==="oke"){ setClanTroops("織田家",10000); setClanTroops("北畠家",15000); setClanTroops("尼子家",9000); }   // 尾張一国の織田は一万。北畠は伊勢の大身。尼子は毛利に食われる側
-  else { for(const h of (SC&&SC.houses)||[]) if(h.troops) setClanTroops(h.name, h.troops); for(const [nm,t] of Object.entries((SC&&SC.extraTroops)||{})) setClanTroops(nm, t); }
+  else { for(const h of (SC&&SC.houses)||[]) if(h.troops) setClanTroops(h.name, h.troops); for(const [nm,t] of Object.entries((SC&&SC.extraTroops)||{})) setClanTroops(nm, t); for(const h of (SC&&SC.houses)||[]) if(h.hqTroops) setHqTroops(h.name, h.hqTroops); }
   if(W.scenario!=="oke") enforceSides(SC);   // 後から立った小家も、陣営に組み入れる
   // 武田の兵は精強。騎馬は強く、兵の質も高い
   { const tk=Object.values(W.clans).find(k=>!k.dead&&k.name==="武田家"); if(tk){ tk.policies.add("騎馬強化"); for(const c of myCastles(tk.id)){ c.quality=(c.quality||[50,50,50,50]).map(q=>Math.max(q,80)); } } }
@@ -1939,7 +1939,7 @@ function enforceSides(sc){
 function fillClanTroops(gs, total){
   const tot=gs.reduce((s2,g)=>s2+g.troops,0); if(tot<=0||!gs.length) return;
   const capSum=gs.reduce((s2,g)=>s2+troopCapOf(g),0);
-  if(total>capSum){ const m=Math.ceil(total/capSum*100)/100; for(const g of gs) g.capMul=m; }
+  if(total>capSum){ const m=Math.ceil(total/capSum*100)/100; for(const g of gs) g.capMul=Math.max(g.capMul||1, (g.capMul||1)*m); }   // すでに大軍の家なら、その上に重ねる
   const f=total/tot; for(const g of gs) g.troops=Math.max(100,Math.min(troopCapOf(g),Math.floor(g.troops*f)));
   for(let pass=0;pass<6;pass++){
     let left=total-gs.reduce((s2,g)=>s2+g.troops,0); if(left<=gs.length) break;
@@ -1955,6 +1955,18 @@ function setClanTroops(name, total){
   const tot=gs.reduce((s2,g)=>s2+g.troops,0); if(tot<=0||!gs.length) return;
   fillClanTroops(gs, total);
   bumpGarrison&&bumpGarrison();
+}
+/* 本拠に決まった数の兵を置く（長篠の石山本願寺に一万五千）。本拠の将が少なければ余所の城から呼ぶ */
+function setHqTroops(name, total){
+  const k=Object.values(W.clans).find(x=>!x.dead&&x.name===name); if(!k) return;
+  const hq=myCastles(k.id).find(c=>c.hq)||myCastles(k.id)[0]; if(!hq) return;
+  const ok=g=>g.clan===k.id&&g.status!=="死亡"&&!isChild(g)&&!(g.status==="捕虜"||g.status==="人質")&&!g.army;
+  let gs=Object.values(W.generals).filter(g=>ok(g)&&g.castle===hq.id);
+  if(gs.length<5){ const others=Object.values(W.generals).filter(g=>ok(g)&&g.castle!==hq.id&&g.castle!==null).sort((a,b)=>b.lea-a.lea);
+    for(const g of others){ if(gs.length>=5) break; const mates=Object.values(W.generals).filter(x=>ok(x)&&x.castle===g.castle); if(mates.length<=1) continue; g.castle=hq.id; gs.push(g); } }
+  if(!gs.length) return;
+  const cur=gs.reduce((s2,g)=>s2+g.troops,0); if(cur>=total) return;
+  fillClanTroops(gs, total); bumpGarrison&&bumpGarrison();
 }
 function absorbClan(name){
   const k=Object.values(W.clans).find(x=>!x.dead&&x.name===name); if(!k||k.id===W.player) return;
@@ -12314,11 +12326,11 @@ EVENTS.push(
    act:()=>{ const tk=clanByName("徳川家"), td=clanByName("武田家"); if(!tk||!td) return; tk.orderTarget={clan:td.id, until:dayNumber()+720}; if(!tk.war.has(td.id)) declareWar(tk.id,td.id,"force"); bigNews("徳川、遠江へ"); if(W.player===0) log("軍師「東は徳川に任せ、殿は西へ。本願寺の石山を落とせば、天下布武は目の前にございます」","dip",true); }},
   {id:1141,name:"信長、石山へ",
    text:["織田信長「武田は当分動けぬ。本願寺と決着をつける」","―― 織田は摂津へ兵を集め、石山本願寺を囲みにかかる"],
-   cond:()=> eraOnly("nagashino")&&W.decisiveWon&&W.decisiveWon.nagashino_open==="def"&&dayNumber()-(W.decisiveDay.nagashino_open||0)>=45&&(()=>{ const od=clanByName("織田家"), hg=clanByName("本願寺"); return od&&hg&&!hg.dead&&Object.values(W.castles).some(c=>c.name==="石山本願寺"&&c.clan===hg.id); })(),
+   cond:()=> false && eraOnly("nagashino")&&W.decisiveWon&&W.decisiveWon.nagashino_open==="def"&&dayNumber()-(W.decisiveDay.nagashino_open||0)>=45&&(()=>{ const od=clanByName("織田家"), hg=clanByName("本願寺"); return od&&hg&&!hg.dead&&Object.values(W.castles).some(c=>c.name==="石山本願寺"&&c.clan===hg.id); })(),
    act:()=>{ const od=clanByName("織田家"), hg=clanByName("本願寺"); if(!od||!hg) return; if(!od.war.has(hg.id)) declareWar(od.id,hg.id,"force"); if(W.player!==od.id){ od.orderTarget={clan:hg.id, until:dayNumber()+720}; } else { const c=Object.values(W.castles).find(x=>x.name==="石山本願寺"); if(c) log(`軍師「狙いは石山本願寺（守兵 ${estimatedGarrison(c.id)}）。落とせば畿内は殿のもの」`,"dip",true); } bigNews("信長、石山へ"); }},
   {id:1142,name:"石山本願寺 開城",
    text:["本願寺顕如「これ以上の血は望まぬ。石山を明け渡す」","―― 十年に及んだ石山合戦、ここに終わる。畿内は織田のものとなった"],
-   cond:()=> eraOnly("nagashino")&&(()=>{ const od=clanByName("織田家"); const c=Object.values(W.castles).find(x=>x.name==="石山本願寺"); return od&&c&&c.clan===od.id&&W.fired.has(1141); })(),
+   cond:()=> false && eraOnly("nagashino")&&(()=>{ const od=clanByName("織田家"); const c=Object.values(W.castles).find(x=>x.name==="石山本願寺"); return od&&c&&c.clan===od.id&&W.fired.has(1141); })(),
    act:()=>{ const od=clanByName("織田家"), hg=Object.values(W.clans).find(k=>k.name==="本願寺"&&!k.dead); if(hg&&od){ makePeace(od.id,hg.id,3650); for(const c of myCastles(hg.id)) if(DATA.provinces[c.prov]&&DATA.provinces[c.prov].n==="越前"){ /* 越前は残る */ } } bigNews("石山本願寺 開城"); if(W.player===od.id){ log("軍師「畿内は殿のもの。あとは毛利と武田を平らげれば、天下布武は成ります」","dip",true); od.money+=30000; } }},
   {id:1143,name:"武田、三河を切り取る",
    text:["武田勝頼「長篠は獲った。次は岡崎じゃ」","―― 柵を破った武田は勢いのまま三河へなだれ込んだ"],
@@ -12800,17 +12812,14 @@ function routArmy(a, winnerClan){
     if(scriptShielded(gid)){ continue; }
     if(g._fated===dayNumber()){ g._fated=undefined; g.troops=Math.floor(g.troops*0.3); continue; }   // 戦の後にすでに運命を引いた将は、兵を失うだけ
     const r=rnd();
-    if(r<0.15){ g.status="死亡"; g.troops=0; g.army=null; killed++; kn.push(g.name);
-      for(const c of Object.values(W.castles)) if(c.lord===g.id) c.lord=null;
-      const wasDaimyo=g.clan!==null&&W.clans[g.clan]&&W.clans[g.clan].daimyo===g.id;
-      if(wasDaimyo) succeed(g);
-    } else if(r<0.45 && winnerClan!==null && winnerClan!==undefined && winnerClan!==g.clan){
+    // 討ち死にはしない（作り手の指示）。捕らわれるか、兵を失って逃げ延びる
+    if(r<0.35 && winnerClan!==null && winnerClan!==undefined && winnerClan!==g.clan){
       g.status="捕虜"; g.captor=winnerClan; g.troops=0; g.army=null; g.task=null; caught++; cn.push(g.name);
     } else { g.troops=Math.floor(g.troops*0.3); }
   }
   a.gens=a.gens.filter(id=>W.generals[id]&&W.generals[id].army===a.id);
   if(a.gens.length) disbandArmy(a); else { delete W.armies[a.id]; bumpGarrison(); }
-  log(`${name}を撃破しました（討ち取り ${killed}${kn.length?"："+kn.join("・"):""}・捕虜 ${caught}${cn.length?"："+cn.join("・"):""}）`,"war");
+  log(`${name}を撃破しました（捕虜 ${caught}${cn.length?"："+cn.join("・"):""}）`,"war");
   if(winnerClan===W.player) bigNews(`${name} 撃破`);
   else if(loserClan===W.player) bigNews(`${name} 壊滅`);
   if(typeof chronicle==="function") chronicle(`${clanName(winnerClan)}、${name}を撃破`);
@@ -13023,7 +13032,7 @@ function startBattle(e){
       { const rx=Math.round(line+dir*4.5); for(let r=0;r<BF.h;r++){ if(B.tiles&&B.tiles[r]&&rx>=0&&rx<BF.w) B.tiles[r][rx]=BT.WATER; } B.bg=null; }
       // 武田の突撃は三波に分かれて来る（山県→馬場→内藤）。後の波は前の波が崩れるか、頃合いが来るまで控える
       if(B.ctx.playerSide===1){ const atk=B.units.filter(u=>u.side===0&&!u.cmd); const n=atk.length; const w1=atk.slice(0,Math.ceil(n/3)), w2=atk.slice(Math.ceil(n/3),Math.ceil(n*2/3)), w3=atk.slice(Math.ceil(n*2/3));
-        B.waves=[{ids:w1.map(u=>u.id),at:0,name:w1[0]?w1[0].name:"",done:true},{ids:w2.map(u=>u.id),at:22,name:w2[0]?w2[0].name:"",done:false},{ids:w3.map(u=>u.id),at:44,name:w3[0]?w3[0].name:"",done:false}];
+        B.waves=[{ids:w1.map(u=>u.id),at:0,name:w1[0]?w1[0].name:"",done:true},{ids:w2.map(u=>u.id),at:7,name:w2[0]?w2[0].name:"",done:false},{ids:w3.map(u=>u.id),at:14,name:w3[0]?w3[0].name:"",done:false}];
         for(const u of w2.concat(w3)){ u.holdUntil=999; u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } }
       // 三千挺の鉄砲。守り手の足軽隊のうち幾つかは鉄砲隊として柵に張り付く（少なくとも六隊）
       { let need=8-B.units.filter(u=>u.side===1&&u.type===3).length; for(const u of B.units){ if(need<=0) break; if(u.side===1&&u.type===0&&!u.cmd){ u.type=3; u.ammo=120; need--; } } }
@@ -13234,16 +13243,16 @@ function unitSlain(d, a){
   // 討たれた隊は野から消えるので、戦果と戦の後のために控えておく
   B.slainRecs=B.slainRecs||[]; B.slainRecs.push({gid:d.gid, name:d.name, side:d.side, unit:d.type, killed:Math.round(d.killed||0), lost:Math.round(d.max), left:0, routed:true, slain:true});
   const foe = d.side!==B.ctx.playerSide;
-  B.bigBanner={t: foe?`敵将 ${d.name} 討ち取ったり`:`${d.name} 討たれる`, at:B.elapsed, good:foe};
+  B.bigBanner={t: foe?`${d.name}隊 撃破`:`${d.name}隊 撃破さる`, at:B.elapsed, good:foe};
   if(PREF.shake) B.shakeT=Math.max(B.shakeT||0,0.18);
   B.slowUntil=B.elapsed+0.45; bCamTo(d.x,d.y);
   B.flashUntil=Math.max(B.flashUntil||0,B.elapsed+0.25);
   // まわりの士気：討たれた側は挫け、討った側は湧く。本陣の将なら大きく
   const r=7, k=d.cmd?1.6:1;
   for(const v of B.units){ if(v===d||v.troops<=.5||v.left) continue; const dd=dist(v,d); if(dd>r) continue; const near=1-dd/r*0.5;
-    if(v.side===d.side){ v.morale=Math.max(0,v.morale-(10+8*near)*k); if(v.morale>0 && rnd()<0.4) bshout(v.id, d.cmd?"殿が……！":`${d.name}様が討たれた！`, 2.2); }
+    if(v.side===d.side){ v.morale=Math.max(0,v.morale-(10+8*near)*k); if(v.morale>0 && rnd()<0.4) bshout(v.id, d.cmd?"本陣が……！":`${d.name}隊が崩れた！`, 2.2); }
     else { v.morale=Math.min(100,v.morale+(6+5*near)*k); } }
-  if(a && a.troops>.5 && a.morale>0) bshout(a.id, `${d.name}、討ち取ったり！`, 3);
+  if(a && a.troops>.5 && a.morale>0) bshout(a.id, `${d.name}隊、撃破！`, 3);
   try{ playSE(foe?"warcry":"rout"); }catch(_){ }
   // 曲を一瞬ひそめる（法螺貝も太鼓も止まる間）
   try{ if(Audio_.bgmGain){ const g=Audio_.bgmGain.gain; g.cancelScheduledValues(Audio_.ctx.currentTime); g.setValueAtTime(g.value,Audio_.ctx.currentTime); g.linearRampToValueAtTime(0.12,Audio_.ctx.currentTime+0.15); } B.duckUntil=performance.now()+2600; }catch(_){ }
@@ -15290,7 +15299,7 @@ function drawBattle(){
     bctx.restore(); }
   // 戦況の知らせ（包囲・突破・波）：上の真ん中に小さな札で。大声で叫ばない
   if(B.banner && !(B.opening>0) && B.elapsed-B.banner.at<3.2 && !(bigOn && B.elapsed-B.bigBanner.at<1.6)){ const age=B.elapsed-B.banner.at; const al = age<0.2 ? age/0.2 : age>2.6 ? Math.max(0,(3.2-age)/0.6) : 1;
-    const t=B.banner.t; const bad = /包囲|崩|討たれ|退|苦/.test(t) && !t.startsWith("敵"); const good = t.startsWith("敵") || /突破|討ち取/.test(t);
+    const t=B.banner.t; const bad = /包囲|崩|討たれ|撃破さる|退|苦/.test(t) && !t.startsWith("敵"); const good = t.startsWith("敵") || /突破|討ち取|撃破$/.test(t);
     bctx.save(); bctx.globalAlpha=al; bctx.font='800 15px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center"; const tw=bctx.measureText(t).width; const px=W_/2-tw/2-16, py=8+(age<0.2?(0.2-age)*-30:0), pw=tw+32, ph=28;
     bctx.fillStyle="rgba(10,8,6,.88)"; bctx.beginPath(); bctx.roundRect(px,py,pw,ph,6); bctx.fill(); bctx.strokeStyle="rgba(255,255,255,.14)"; bctx.lineWidth=1; bctx.stroke();
     bctx.fillStyle= bad ? "#E24A3A" : good ? "#C9A227" : "#8FB8FF"; bctx.fillRect(px,py+4,4,ph-8);
@@ -15539,7 +15548,9 @@ function bPick(wx,wy,side){
   const hit=pool.reduce((p,q)=>Math.hypot(p.x-wx,p.y-wy)<Math.hypot(q.x-wx,q.y-wy)?p:q);
   return Math.hypot(hit.x-wx,hit.y-wy)<5.2 ? hit : null;
 }
+const bPtrs=new Map();   // 触れている指（つまみの寄り引きに使う）
 bcanvas.addEventListener("pointerdown",ev=>{
+  if(ev.pointerType==="touch"){ bPtrs.set(ev.pointerId,{x:ev.clientX,y:ev.clientY}); if(bPtrs.size===2){ const [p,q]=[...bPtrs.values()]; B&&(B.pinch={d:Math.hypot(p.x-q.x,p.y-q.y), z:B.zoom||1, mx:(p.x+q.x)/2, my:(p.y+q.y)/2, cx:B.cx, cy:B.cy}); } }
   if(!B||B.over!==null) return;
   // 二本目の指（つまみ・二本指の触れ）は命令にしない。引いている最中の枠や矢も取り消す
   if(ev.isPrimary===false){ B.box=null; B.drag=null; B.multiUntil=performance.now()+600; try{ bcanvas.releasePointerCapture(ev.pointerId); }catch(_){ } return; }
@@ -15623,6 +15634,12 @@ bcanvas.addEventListener("pointerdown",ev=>{
   renderBattleFoot();
 });
 bcanvas.addEventListener("pointermove",ev=>{
+  if(ev.pointerType==="touch" && bPtrs.has(ev.pointerId)){ bPtrs.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
+    if(B && B.pinch && bPtrs.size===2){ const [p,q]=[...bPtrs.values()]; const d=Math.hypot(p.x-q.x,p.y-q.y); const z=Math.max(1,Math.min(2.8, B.pinch.z*d/Math.max(1,B.pinch.d)));
+      const rect=bcanvas.getBoundingClientRect(); const sx=rect.width/BF.w, sy=rect.height/BF.h; const mx=(p.x+q.x)/2, my=(p.y+q.y)/2;
+      B.zoom=Math.abs(z-1)<0.06?1:z; B.cxT=B.cyT=undefined;
+      // つまんだ所を中心に寄せ、二本指の引きで動かす
+      B.cx=B.pinch.cx-(mx-B.pinch.mx)/(sx*B.zoom); B.cy=B.pinch.cy-(my-B.pinch.my)/(sy*B.zoom); bView(); B.multiUntil=performance.now()+600; return; } }
   if(!B) return;
   const [wx,wy]=bWorld(ev);
   B.hoverXY=[wx,wy];
@@ -15765,6 +15782,7 @@ bcanvas.addEventListener("contextmenu",ev=>{
 });
 bcanvas.addEventListener("pointerup",bEndDrag);
 bcanvas.addEventListener("pointercancel",bEndDrag);
+for(const evn of ["pointerup","pointercancel"]) bcanvas.addEventListener(evn,ev=>{ if(ev.pointerType==="touch"){ bPtrs.delete(ev.pointerId); if(B&&bPtrs.size<2){ B.pinch=null; if(B.zoom&&B.zoom<1.08) B.zoom=1; renderBattleFoot(); } } });
 function renderBattleFoot(){
   const foot=document.getElementById("bfoot");
   if(!B) return;
@@ -15878,7 +15896,7 @@ function renderBattleFoot(){
       ${(B.group&&B.group.length)||B.sel!==null?`<button class="tool" id="bUnsel" title="選択を解く（Esc）">解除</button>`:""}
       <span class="tiny muted" style="flex:1;text-align:center;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${B.mode==="fence"?'<b style="color:var(--kin)">柵を立てる場所を画面で押してください（Esc で取り消し）</b>':B.mode==="fire"?'<b style="color:#FF9A55">火を放つ木立を押してください（Esc で取り消し）</b>':"隊を押して選ぶ → 地面を押せばそこへ、敵を押せば討つ"}</span>
       <button class="tool sub ${B.autoMine?"on":""}" id="bAutoMine" title="自軍の采配も任せる。もう一度押せば戻る">${B.autoMine?"采配 自動":"采配 任せる"}</button>
-      <button class="tool aux" id="bZoom" title="全体・通常・近接の三段（Zキー／ホイール）">${["全体","寄り","近接"][BZOOMS.indexOf(B.zoom||1)]||"全体"}</button>
+      <button class="tool aux" id="bZoom" title="全体・通常・近接の三段（Zキー／ホイール）">${(B.zoom||1)===1?"全体":(B.zoom||1)<2?"寄り":"近接"}</button>
       <button class="tool aux" id="bSpeed">速さ ×${B.rate||1}</button>
       <button class="tool aux" id="bAllRetreat">全軍退却</button>`;
     { const bp=document.getElementById("bPause"); if(bp) bp.onclick=()=>{ B.paused=!B.paused; renderBattleFoot(); }; }
@@ -16152,12 +16170,10 @@ function finishBattle(){
     const g=W.generals[r.gid];
     if(g) g.merit=(g.merit||0)+Math.floor(r.killed/12);
   }
-  // 勝った側でも、隊ごと討ち尽くされた将は三割が討ち死に（残りは手傷を負って戻る）
+  // 隊ごと撃破された将も、野で討たれはしない（作り手の指示：討ち取りはやめ）。手傷を負ってひと月半は出られない
   for(const r of (B.slainRecs||[])){
     if(r.side!==B.over) continue; const g=W.generals[r.gid]; if(!g||g.status==="死亡"||g.status==="捕虜"||scriptShielded(r.gid)) continue;
-    if(rnd()<0.3){ const wasDaimyo = g.clan!==null && W.clans[g.clan] && W.clans[g.clan].daimyo===g.id; g.status="死亡"; g.troops=0; for(const c of Object.values(W.castles)) if(c.lord===g.id) c.lord=null;
-      log(`${g.name}が討ち死にしました`,"war"); if(typeof chronicle==="function") chronicle(`${g.name}、討ち死に`); if(wasDaimyo) succeed(g); }
-    else { g.woundedUntil=dayNumber()+45; if(g.clan===W.player) log(`${g.name}は深手を負いながら生き延びました（ひと月半は出陣できません）`,"war"); }
+    g.woundedUntil=dayNumber()+45; if(g.clan===W.player) log(`${g.name}は隊を失いながらも生き延びました（ひと月半は出陣できません）`,"war");
   }
   // 総崩れになった側の将は、いくらか捕らわれる
   {
@@ -16178,15 +16194,8 @@ function finishBattle(){
       const defClan  = ctx.castle!==null && W.castles[ctx.castle] ? W.castles[ctx.castle].clan
                      : (W.generals[ctx.def[0]] ? W.generals[ctx.def[0]].clan : null);
       const captor = B.over===0 ? armyClan : defClan;
-      if(r2<0.16){
-        const wasDaimyo = g.clan!==null && W.clans[g.clan] && W.clans[g.clan].daimyo===g.id;
-        g.status="死亡"; g.troops=0;
-        for(const c of Object.values(W.castles)) if(c.lord===g.id) c.lord=null;
-        log(`${g.name}が討ち死にしました`,"war");
-        if(typeof chronicle==="function") chronicle(`${g.name}、討ち死に`);
-        // 討ち死にも大きくは出さない（当主なら跡目の知らせが出る）
-        if(wasDaimyo) succeed(g);                    // 当主が討たれたら、その場で跡目を立てる
-      } else if(r2<0.40 && captor!==null && captor!==g.clan){
+      // 討ち死にはしない（作り手の指示）。捕らわれるか、手傷を負って逃げ延びる
+      if(r2<0.40 && captor!==null && captor!==g.clan){
         g.status="捕虜"; g.captor=captor; g.troops=0; g.army=null; g.task=null;
         log(`${g.name}を捕虜としました`,"war");
       }
