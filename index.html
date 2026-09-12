@@ -275,7 +275,7 @@ html.bigtext #panel{font-size:15px} html.bigtext .row{font-size:14px} html.bigte
 #battle.on{display:flex}
 @media (max-width:1120px){ #bfoot .dup{display:none} #bfoot .chip{display:none} #bfoot .tool{padding:6px 9px;font-size:12px} #panel{background:rgb(18,16,14)} }   /* 携帯では札を透かさない（下の地図の数字が透けて読みにくかった） */
 #bfoot .tool.sub{opacity:.85} #bfoot .tool.aux{opacity:.7;font-size:11px;padding:6px 9px}
-#bBeginBig{position:absolute;left:50%;top:60%;transform:translate(-50%,-50%);z-index:47;padding:14px 34px;border-radius:40px;border:3px solid #FFE8A0;background:linear-gradient(180deg,#F2C94C,#C9A227);color:#1A1208;font-size:26px;font-weight:900;letter-spacing:.2em;box-shadow:0 0 0 6px rgba(201,162,39,.25),0 10px 30px rgba(0,0,0,.55);animation:beginPulse 1.4s ease-in-out infinite;display:flex;flex-direction:column;align-items:center;gap:2px;pointer-events:auto}
+#bBeginBig{position:absolute;left:50%;top:60%;transform:translate(-50%,-50%);z-index:47;padding:14px 44px;border-radius:8px;border:3px solid #5C4610;outline:2px solid rgba(255,232,160,.7);outline-offset:-8px;background:linear-gradient(180deg,#E9C65C 0%,#C9A227 55%,#A5841C 100%);color:#1A1208;font-family:"Yuji Syuku","Zen Kaku Gothic New",serif;font-size:34px;font-weight:400;letter-spacing:.3em;text-shadow:0 1px 0 rgba(255,255,255,.5);box-shadow:0 0 0 6px rgba(201,162,39,.25),0 10px 30px rgba(0,0,0,.55);animation:beginPulse 1.4s ease-in-out infinite;display:flex;flex-direction:column;align-items:center;gap:2px;pointer-events:auto}
 #battle:not(.on) #bBeginBig{display:none}
 #bBeginBig small{font-size:11px;letter-spacing:.05em;font-weight:700;opacity:.8}
 @keyframes beginPulse{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.06)}}
@@ -288,7 +288,11 @@ html.bigtext #panel{font-size:15px} html.bigtext .row{font-size:14px} html.bigte
 #unitPop .info{font-size:10px;color:#DCD4C0;white-space:nowrap;padding:0 4px}
 #unitPop .info b.good{color:#8FE08F} #unitPop .info b.bad{color:#FF9A88}
 #bhead{display:flex;align-items:center;gap:8px;padding:6px 12px;flex:none;
-  background:linear-gradient(180deg,#2A231C,#171310);border-bottom:2px solid #6B5A2E;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+  background:linear-gradient(180deg,#2A231C 0%,#1B1610 60%,#12100C 100%);border-bottom:2px solid #8A7030;box-shadow:0 2px 8px rgba(0,0,0,.5), inset 0 -1px 0 rgba(201,162,39,.35)}
+#bhead .side{display:flex;align-items:center;gap:6px;font-family:"Yuji Syuku","Zen Kaku Gothic New",serif;font-size:18px;letter-spacing:.12em;color:#F2E8D0;white-space:nowrap}
+#bhead .side .crest{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;font-style:normal;font-family:"Yuji Syuku",serif;font-size:14px;color:#fff;border:2px solid rgba(255,255,255,.6);box-shadow:0 1px 3px rgba(0,0,0,.6)}
+#bhead .bname{font-family:"Yuji Syuku","Zen Kaku Gothic New",serif;font-size:17px;letter-spacing:.2em;color:#F2C94C;text-shadow:0 1px 2px #000;white-space:nowrap;padding:0 14px;border-bottom:1px solid rgba(201,162,39,.5)}
+@media (max-width:1120px){ #bhead .side b{display:none} #bhead .side{font-size:14px} #bhead .bname{font-size:13px;letter-spacing:.1em;border:none} #bhead .bname small{display:none !important} #bhead .bname:not([hidden])~#bTerrain{display:none} #bhead{padding:4px 8px} }   /* 携帯：頭の帯は二段まで */
 #bhead .num{font-family:"DotGothic16",monospace;font-size:15px;font-weight:700;min-width:120px;text-align:center;
   background:rgba(0,0,0,.45);padding:3px 8px;border-radius:4px;border:1px solid rgba(255,255,255,.12)}
 #bhead .chip{background:rgba(0,0,0,.35);border:1px solid rgba(201,162,39,.35);color:#EDE6D6;font-size:11px}
@@ -308,7 +312,9 @@ html.bigtext #panel{font-size:15px} html.bigtext .row{font-size:14px} html.bigte
   #bfoot{ flex-wrap:wrap; }
 }
 #bfoot{padding:7px 12px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;flex:none;min-height:52px;
-  background:linear-gradient(180deg,#171310,#221C16);border-top:2px solid #6B5A2E;box-shadow:0 -2px 8px rgba(0,0,0,.5)}
+  background:linear-gradient(180deg,#1B1610,#241D15 60%,#17120D);border-top:2px solid #8A7030;box-shadow:0 -2px 8px rgba(0,0,0,.5), inset 0 1px 0 rgba(201,162,39,.35)}
+#bfoot .tool{border-color:rgba(201,162,39,.35);background:linear-gradient(180deg,rgba(80,62,30,.55),rgba(40,30,16,.6));color:#F2E8D0;font-weight:800;letter-spacing:.04em}
+#bfoot .tool.on{background:linear-gradient(180deg,#E3C25A,#9C7C1F);border-color:#6B5210;color:#1A1208}
 .bbar{flex:1;height:12px;background:rgba(0,0,0,.55);border-radius:3px;overflow:hidden;border:1px solid rgba(255,255,255,.12)}
 .bbar i{display:block;height:100%}
 
@@ -736,20 +742,23 @@ body.inbattle #stage.paused::after{ display:none; }
 
     <div id="battle">
       <div id="bhead">
+        <span class="side" id="bSideMine"><i class="crest" id="bCrestMine">我</i><b id="bNameMine">わが軍</b></span>
         <span class="num" id="bMine" style="color:#9FC8FF;border-color:#3D6BCC">0</span>
         <div class="bbar"><i id="bBarMine" style="background:linear-gradient(180deg,#6E98E6,#2E5FBF)"></i></div>
-        <div style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0">
+        <div class="bTitle" style="display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0">
+          <span id="bName" class="bname" hidden>合戦</span>
           <span class="chip" id="bTerrain" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw">平原</span>
           <span class="chip" id="bSit" hidden style="white-space:nowrap;font-weight:800;letter-spacing:.02em">左翼 互角　中央 互角　右翼 互角</span>
           <span style="display:none;gap:6px"><span class="chip" id="bClock">辰の刻</span><span class="chip" id="bForms">陣</span><span class="chip" id="bScore">討0 損0</span></span>
         </div>
         <div class="bbar"><i id="bBarFoe" style="background:linear-gradient(180deg,#E5785C,#B8382A)"></i></div>
         <span class="num" id="bFoe" style="color:#FFB0A0;border-color:#B8382A">0</span>
+        <span class="side foe" id="bSideFoe"><b id="bNameFoe">敵軍</b><i class="crest" id="bCrestFoe">敵</i></span>
       </div>
       <canvas id="bcanvas"></canvas>
       <div id="bfoot"></div>
       <div id="unitPop" hidden></div>
-      <button id="bBeginBig" hidden>開戦<small>押すと始まる（並べ替えは任意）</small></button>
+      <button id="bBeginBig" hidden>開戦<small>―― 両軍、いざ雌雄を決せん ――</small></button>
     </div>
   </div>
 </div>
@@ -9040,19 +9049,23 @@ function devSprite(kind,variant){
 }
 
 /* 兵の絵。兵科ごとに影の形を変え、遠目でも槍か馬か鉄砲か分かるようにする。 */
-function soldierSprite(unit,side,frame,flip){
-  const key=`${unit}-${side}-${frame}-${flip?1:0}`;
+function soldierSprite(unit,side,frame,flip,variant){
+  variant=variant||0;
+  const key=`${unit}-${side}-${frame}-${flip?1:0}-${variant}`;
   if(ART.soldiers.has(key)) return ART.soldiers.get(key);
   const cv=makeCanvas(36,38), g=cv.getContext("2d");
   if(flip){ g.translate(36,0); g.scale(-1,1); }
   const px=(x,y,w,h,c)=>{ g.fillStyle=c; g.fillRect(x,y,w,h); };
-  const armor  = side===0?"#3D6BCC":"#C24A33";
-  const armorD = side===0?"#22417F":"#7E2A18";
-  const armorL = side===0?"#6E98E6":"#E5785C";
+  // 同じ隊の中でも鎧の濃さや兜が少しずつ違う（同じ絵の複写に見えないように）
+  const shade=(hex,k)=>{ const n=parseInt(hex.slice(1),16); const r=(n>>16)&255,g2=(n>>8)&255,b=n&255; const f=v=>Math.max(0,Math.min(255,Math.round(v*k))); return `rgb(${f(r)},${f(g2)},${f(b)})`; };
+  const vk = variant===1?0.82:variant===2?1.12:1;
+  const armor  = shade(side===0?"#3D6BCC":"#C24A33", vk);
+  const armorD = shade(side===0?"#22417F":"#7E2A18", vk);
+  const armorL = shade(side===0?"#6E98E6":"#E5785C", vk);
   const flag   = side===0?"#7FB2FF":"#FF9A7A";
-  const skin="#F0CCA8", steel="#D2D8E2", steelD="#8B93A3", wood="#8C6136", bob=frame%2;
-  // 背中の指物。どの隊も一目で敵味方が分かる
-  const sashimono=(x,y)=>{ px(x,y,1,14,wood); px(x+1,y,5,8,flag); px(x+2,y+2,3,4,armorD); };
+  const skin=variant===1?"#E0B890":"#F0CCA8", steel="#D2D8E2", steelD="#8B93A3", wood="#8C6136", bob=frame%2;
+  // 背中の指物。どの隊も一目で敵味方が分かる（三人に一人は指物なし）
+  const sashimono=(x,y)=>{ if(variant===2) return; px(x,y,1,14,wood); px(x+1,y,5,8,flag); px(x+2,y+2,3,4,armorD); };
 
   if(unit===2){
     // 騎馬。馬体は丸みのある胴・立った首・耳と目のある頭・四本の脚（駆け足の二こま）
@@ -9078,8 +9091,9 @@ function soldierSprite(unit,side,frame,flip){
     px(13,24,3,8-bob,armorD); px(18,24,3,7+bob,armorD);                  // 脚
     px(13,31-bob,4,2,"#333"); px(18,30+bob,4,2,"#333");                  // 草鞋
     px(14,7,6,6,skin);
-    px(10,4,14,2,armorD); px(12,2,10,3,armorD); px(15,1,4,2,armorD);     // 陣笠（笠の形）
-    px(11,5,12,1,"#000000AA");
+    if(variant===1){ px(12,3,10,5,steelD); px(13,2,8,2,steel); px(11,7,12,1,"#000000AA"); }   // 鉢金の兜
+    else { px(10,4,14,2,armorD); px(12,2,10,3,armorD); px(15,1,4,2,armorD);     // 陣笠（笠の形）
+    px(11,5,12,1,"#000000AA"); }
     px(9,15,3,5,skin); px(22,14,3,5,skin);                               // 腕
     px(25,2,2,32,wood); px(24,0,4,7,steel); px(25,7,2,2,steelD);         // 長槍と穂先
     sashimono(9,3);
@@ -12129,7 +12143,7 @@ function fireEvent(id){
    関ヶ原・大坂夏の陣は開幕に、山崎は本能寺の開幕に、賤ヶ岳は羽柴と柴田が戦になった時に、
    両軍が結集して一度の大合戦を行う。城攻めから始まるのではなく、まず野で天下を決する。 */
 const DECISIVE=[
- { id:2101, key:"sekigahara", sc:"sekigahara", when:"open", name:"関ヶ原の戦い", atk:"徳川家", def:"石田家",
+ { id:2101, key:"sekigahara", sub:"天下の行方、ここに決す", sc:"sekigahara", when:"open", name:"関ヶ原の戦い", atk:"徳川家", def:"石田家",
    terrain:0, forts:null, nAtk:14, nDef:14, atkTroops:80000, defTroops:90000,
    atkGens:["徳川家康","本多忠勝","井伊直政","福島正則","黒田長政","細川忠興","加藤嘉明","藤堂高虎","榊原康政","鳥居元忠","松平忠吉","田中吉政","京極高知"],
    defGens:["石田三成","島左近","宇喜多秀家","大谷吉継","小西行長","島津義弘","小早川秀秋","毛利秀元","安国寺恵瓊","長束正家","蒲生郷舎","戸田勝成"],
@@ -12139,7 +12153,7 @@ const DECISIVE=[
    open:"霧の晴れた関ヶ原に、両軍の鉄砲が鳴った。天下分け目の戦が始まる",
    after:{ atkWin:{ text:"三成は伊吹山中で捕らわれ、六条河原に斬られた。西軍の諸家は改易・減封され、天下は徳川のものとなる", kill:"石田三成", spoils:{all:["石田家","宇喜多家","小西家","大谷家"], half:0.5} },
            defWin:{ text:"家康は敗走の途で討たれ、東軍は総崩れとなった。関東の徳川領は西軍に切り取られる", kill:"徳川家康", spoils:{half:0.5} } } },
- { id:2102, key:"osaka", sc:"osaka", when:"open", name:"大坂夏の陣　天王寺・岡山の戦い", atk:"徳川家", def:"豊臣家",
+ { id:2102, key:"osaka", sub:"豊臣、最後の戦", sc:"osaka", when:"open", name:"大坂夏の陣　天王寺・岡山の戦い", atk:"徳川家", def:"豊臣家",
    terrain:0, forts:null, nAtk:14, nDef:10, atkTroops:40000, defTroops:30000,
    atkGens:["徳川家康","徳川秀忠","松平忠直","本多忠朝","伊達政宗","藤堂高虎","井伊直孝","前田利常","水野勝成","細川忠興","加藤嘉明","浅野長晟","榊原康勝","酒井家次"],
    defGens:["真田幸村","毛利勝永","大野治長","大野治房","明石全登","長宗我部盛親","薄田兼相","木村重成","後藤又兵衛","豊臣秀頼"],
@@ -12148,7 +12162,7 @@ const DECISIVE=[
    open:"天王寺口、岡山口。真田の赤備えが家康の本陣めがけて突き進む",
    after:{ atkWin:{ text:"大坂城は炎に包まれ、秀頼と淀殿は山里丸で自害した。豊臣家、ここに滅ぶ", kill:"豊臣秀頼", capture:"大坂城" },
            defWin:{ text:"家康は真田の突撃に討たれ、徳川の大軍は崩れ去った", kill:"徳川家康" } } },
- { id:2103, key:"yamazaki", sc:"honnoji", when:"open", name:"山崎の戦い", atk:"羽柴家", def:"明智家",
+ { id:2103, key:"yamazaki", sub:"天下分け目の天王山", sc:"honnoji", when:"open", name:"山崎の戦い", atk:"羽柴家", def:"明智家",
    terrain:4, forts:"def", nAtk:12, nDef:8, atkTroops:30000, defTroops:13000,
    atkGens:["羽柴秀吉","羽柴秀長","黒田官兵衛","高山右近","中川清秀","池田恒興","堀秀政","丹羽長秀","織田信孝","蜂須賀正勝","加藤清正","福島正則"],
    defGens:["明智光秀","明智秀満","斎藤利三","藤田行政","松田政近","伊勢貞興","阿閉貞征","溝尾茂朝"],
@@ -12157,7 +12171,7 @@ const DECISIVE=[
    open:"天王山の麓、円明寺川を挟んで両軍が対峙した",
    after:{ atkWin:{ text:"光秀は小栗栖の藪で土民に討たれた。三日天下、ここに終わる", kill:"明智光秀" },
            defWin:{ text:"秀吉は天王山の麓で討たれ、光秀は京を守り抜いた", kill:"羽柴秀吉" } } },
- { id:2104, key:"shizugatake", sc:"honnoji", when:"war", name:"賤ヶ岳の戦い", atk:"羽柴家", def:"柴田家",
+ { id:2104, key:"shizugatake", sub:"織田の跡目を決する", sc:"honnoji", when:"war", name:"賤ヶ岳の戦い", atk:"羽柴家", def:"柴田家",
    terrain:1, forts:"def", nAtk:12, nDef:9, atkTroops:25000, defTroops:18000,
    atkGens:["羽柴秀吉","羽柴秀長","加藤清正","福島正則","加藤嘉明","脇坂安治","片桐且元","平野長泰","糟屋武則","黒田官兵衛","堀秀政","丹羽長秀"],
    defGens:["柴田勝家","佐久間盛政","前田利家","柴田勝政","不破勝光","金森長近","徳山則秀","原長頼","拝郷家嘉","佐久間安政"],
@@ -12259,7 +12273,7 @@ EVENTS.push(
 );
 /* 川中島・三方ヶ原・長篠。年月で起こる決戦 */
 DECISIVE.push(
- { id:2205, key:"anegawa", sc:"hoi", when:"open", histWin:"atk", name:"姉川の戦い", atk:"織田家", def:"浅井家", allies:true,
+ { id:2205, key:"anegawa", sub:"浅井・朝倉を討つ", sc:"hoi", when:"open", histWin:"atk", name:"姉川の戦い", atk:"織田家", def:"浅井家", allies:true,
    terrain:4, forts:null, nAtk:14, nDef:10, atkTroops:28000, defTroops:18000,
    atkGens:["織田信長","徳川家康","柴田勝家","木下藤吉郎","丹羽長秀","佐久間信盛","池田恒興","森可成","本多忠勝","榊原康政","酒井忠次","稲葉一鉄","氏家直元","安藤守就"],
    defGens:["浅井長政","朝倉景健","磯野員昌","遠藤直経","海北綱親","浅井久政","朝倉景鏡","山崎吉家","真柄直隆","前波吉継"],
@@ -12268,7 +12282,7 @@ DECISIVE.push(
    open:"姉川。川を挟んで、織田十三段の陣に浅井が食い込み、朝倉に徳川が横から当たる",
    after:{ atkWin:{ text:"浅井・朝倉は姉川に屍を残して退き、横山と佐和山は織田の手に落ちた", capture:"佐和山城" },
            defWin:{ text:"浅井の突撃が織田の陣を十一段まで突き破り、信長は岐阜へ逃げ帰った。近江の諸城は浅井に靡いた", capture:"長光寺城", spoils:{half:0.15} } } },
- { id:2204, key:"nagashino_open", sc:"nagashino", when:"open", histWin:"def", name:"長篠の戦い", atk:"武田家", def:"織田家", allies:true, defAllies:["徳川家"], atkAllies:[],
+ { id:2204, key:"nagashino_open", sub:"三千挺の鉄砲、武田の騎馬を迎え撃つ", sc:"nagashino", when:"open", histWin:"def", name:"長篠の戦い", atk:"武田家", def:"織田家", allies:true, defAllies:["徳川家"], atkAllies:[],
    terrain:0, forts:"def", nAtk:14, nDef:14, atkTroops:25000, defTroops:38000,
    atkGens:["武田勝頼","山県昌景","馬場信春","内藤昌豊","真田信綱","土屋昌次","小山田信茂","穴山信君","武田信廉","原昌胤"],
    defGens:["織田信長","徳川家康","羽柴秀吉","柴田勝家","丹羽長秀","滝川一益","佐久間信盛","明智光秀","本多忠勝","榊原康政","酒井忠次","前田利家","佐々成政","織田信忠"],
@@ -12277,7 +12291,7 @@ DECISIVE.push(
    open:"設楽原。柵の内から三千挺の鉄砲が、武田の騎馬を撃ち崩す",
    after:{ atkWin:{ text:"武田の騎馬が柵を突き破り、織田徳川は敗走した。長篠城は武田の手に落ち、勝頼は矛先を徳川へ向けた", capture:"長篠城", truce:1095, order:["武田家","徳川家"] },
            defWin:{ text:"武田の騎馬は柵の前に屍を重ね、山県・馬場・内藤ら宿将が討ち死にした。信長は東を徳川に任せ、西へ目を向けた。上杉との盟はここで切れた", kills:["山県昌景","馬場信春","内藤昌豊","真田信綱","土屋昌次"], ally:["武田家","上杉家"], breakAlly:["織田家","上杉家"], shrink:{clan:"武田家",k:0.6}, calm:{clan:"武田家",vs:"織田家",days:900}, order:["武田家","徳川家"] } } },
- { id:2206, key:"odawara", sc:"odawara", when:"open", histWin:"atk", name:"小田原の陣", atk:"豊臣家", def:"北条家", allies:true,
+ { id:2206, key:"odawara", sub:"二十万の囲み、関東の総仕上げ", sc:"odawara", when:"open", histWin:"atk", name:"小田原の陣", atk:"豊臣家", def:"北条家", allies:true,
    terrain:0, forts:"def", nAtk:18, nDef:12, atkTroops:120000, defTroops:50000,
    atkGens:["豊臣秀吉","徳川家康","豊臣秀長","前田利家","上杉景勝","織田信雄","蒲生氏郷","池田輝政","堀秀政","細川忠興","黒田官兵衛","石田三成","大谷吉継","加藤清正","福島正則","本多忠勝","井伊直政","榊原康政"],
    defGens:["北条氏直","北条氏政","北条氏照","北条氏規","北条氏邦","松田憲秀","大道寺政繁","成田氏長","北条氏繁","上田朝直","太田氏房","垪和氏続"],
@@ -12286,7 +12300,7 @@ DECISIVE.push(
    open:"小田原城下。総構えの柵と堀を前に、天下の大軍が押し寄せる",
    after:{ atkWin:{ text:"小田原は開城。氏政・氏照は腹を切り、氏直は高野山へ送られた。五代百年の北条は滅び、関東は徳川に与えられる", kills:["北条氏政","北条氏照"], spoils:{all:["北条家"]} },
            defWin:{ text:"小田原の総構えは破れず、兵糧の尽きた豊臣勢は兵を引いた。北条は関東に踏みとどまった", spoils:{half:0.1} } } },
- { id:2207, key:"tedorigawa", sc:["hoi","nagashino"], when:"date", y:1577, m:9, histWin:"atk", name:"手取川の戦い", atk:"上杉家", def:"織田家",
+ { id:2207, key:"tedorigawa", sub:"越後の龍、北陸へ", sc:["hoi","nagashino"], when:"date", y:1577, m:9, histWin:"atk", name:"手取川の戦い", atk:"上杉家", def:"織田家",
    terrain:4, forts:null, nAtk:8, nDef:10, atkTroops:20000, defTroops:30000,
    atkGens:["上杉謙信","柿崎景家","直江景綱","本庄繁長","斎藤朝信","上杉景勝","直江兼続","色部勝長"],
    defGens:["柴田勝家","羽柴秀吉","丹羽長秀","滝川一益","前田利家","佐々成政","佐久間盛政","不破光治","金森長近","堀秀政"],
@@ -12295,7 +12309,7 @@ DECISIVE.push(
    open:"手取川。夜、川を渡りかけた織田勢に上杉が襲いかかる",
    after:{ atkWin:{ text:"織田勢は手取川で崩れ、多くが川に溺れた。加賀と能登は上杉のものとなる", spoils:{half:0.1} },
            defWin:{ text:"柴田は手取川で上杉を押し返し、謙信は越後へ帰った" } } },
- { id:2201, key:"kawanakajima", sc:"oke", when:"date", y:1561, m:9, histWin:"draw", name:"川中島の戦い", atk:"上杉家", altAtk:"長尾家", def:"武田家",
+ { id:2201, key:"kawanakajima", sub:"龍虎、相まみえる", sc:"oke", when:"date", y:1561, m:9, histWin:"draw", name:"川中島の戦い", atk:"上杉家", altAtk:"長尾家", def:"武田家",
    terrain:0, forts:null, nAtk:10, nDef:10, atkTroops:13000, defTroops:20000,
    atkGens:["上杉謙信","長尾景虎","柿崎景家","直江景綱","宇佐美定満","本庄繁長","斎藤朝信","色部勝長","甘粕景持","村上義清"],
    defGens:["武田信玄","武田信繁","山本勘助","山県昌景","馬場信春","高坂昌信","内藤昌豊","飯富虎昌","真田幸隆","武田義信"],
@@ -12304,7 +12318,7 @@ DECISIVE.push(
    open:"霧の八幡原。啄木鳥の策は見破られ、上杉の車懸りが武田本陣に迫った",
    after:{ atkWin:{ text:"上杉の車懸りが武田本陣を衝いた。信繁・勘助は討たれたが、武田は踏みとどまり、両軍は兵を引いた", kills:["武田信繁","山本勘助"], truce:720 },
            defWin:{ text:"武田の別動隊が上杉の背後を衝き、上杉は川を渡って退いた。信繁と勘助はこの戦で討たれた", kills:["武田信繁","山本勘助"], truce:720 } } },
- { id:2202, key:"mikatagahara", when:"date", y:1572, m:12, histWin:"atk", name:"三方ヶ原の戦い", atk:"武田家", def:"徳川家", altDef:"松平家", sc:["oke","hoi"],
+ { id:2202, key:"mikatagahara", sub:"家康、生涯の敗戦", when:"date", y:1572, m:12, histWin:"atk", name:"三方ヶ原の戦い", atk:"武田家", def:"徳川家", altDef:"松平家", sc:["oke","hoi"],
    terrain:0, forts:null, nAtk:12, nDef:8, atkTroops:25000, defTroops:11000,
    atkGens:["武田信玄","山県昌景","馬場信春","内藤昌豊","高坂昌信","武田勝頼","小山田信茂","穴山信君","真田昌幸","土屋昌次"],
    defGens:["徳川家康","本多忠勝","榊原康政","酒井忠次","石川数正","大久保忠世","鳥居元忠","佐久間信盛","平手汎秀"],
@@ -12313,7 +12327,7 @@ DECISIVE.push(
    open:"三方ヶ原の台地。武田の魚鱗に徳川の鶴翼が食い破られる",
    after:{ atkWin:{ text:"徳川は総崩れとなり、家康は浜松へ逃げ帰った。だが武田は深追いせず、西へ向かった", spoils:{half:0.25} },
            defWin:{ text:"徳川は武田の大軍を三方ヶ原で押し返し、信玄の西上は頓挫した" } } },
- { id:2203, key:"nagashino", when:"date", y:1575, m:5, histWin:"def", name:"長篠の戦い", atk:"武田家", def:"織田家", allies:true, defAllies:["徳川家"], atkAllies:[], sc:["oke","hoi"],
+ { id:2203, key:"nagashino", sub:"三千挺の鉄砲、武田の騎馬を迎え撃つ", when:"date", y:1575, m:5, histWin:"def", name:"長篠の戦い", atk:"武田家", def:"織田家", allies:true, defAllies:["徳川家"], atkAllies:[], sc:["oke","hoi"],
    terrain:0, forts:"def", nAtk:14, nDef:14, atkTroops:25000, defTroops:38000,
    atkGens:["武田勝頼","山県昌景","馬場信春","内藤昌豊","真田信綱","土屋昌次","小山田信茂","穴山信君","武田信廉","原昌胤"],
    defGens:["織田信長","徳川家康","羽柴秀吉","木下藤吉郎","柴田勝家","丹羽長秀","滝川一益","佐久間信盛","明智光秀","本多忠勝","榊原康政","酒井忠次","前田利家","佐々成政"],
@@ -12803,8 +12817,11 @@ function startBattle(e){
       else if(shape==="circle") depth += 4-mid*4;   // 方円：丸くまとまる
       else if(shape==="echelon") depth += t*10;     // 雁行：斜めに連なる
       else depth += 2;                              // 長蛇：一列
-      let y=4+(BF.h-8)*t;
+      let y=2.5+(BF.h-5)*t;
       if(shape==="circle") y = BF.h/2 + (y-BF.h/2)*0.62;
+      // 隊が多いときは二列に組む（一列に十二隊では隊の絵が重なる）。前後にずらして自然な軍勢に
+      if(sorted.length>7){ depth += (i%2?1.0:-1.6); y += (i%2?0.4:-0.4); }
+      depth += ((i*7)%3-1)*0.35;
       const reg=(REGIONAL[prov]||{})[g.unit]||1;
       B.units.push({ id:nextUnitId(), gid:g.id, name:g.name, side, type:g.unit, kite:g.unit===3,
         cmd: g.id===(side===0?atkCmd:defCmd),
@@ -12831,7 +12848,7 @@ function startBattle(e){
   place(atk,0,W.castles[a.origin]?.quality||[50,50,40,50], W.castles[a.origin]?.prov||0, atkForm);
   place(def,1,defQ,defProv,defForm);
   // 本陣は列の後ろ、真ん中に。当主が前列で真っ先に討たれては戦にならない
-  for(const side of [0,1]){ const c=B.units.find(u=>u.side===side&&u.cmd); if(!c) continue; const left=sideX(side)==="left"; c.x = left ? 2.6 : BF.w-2.6; c.y=BF.h/2; c.gx=c.x; c.gy=c.y; }
+  for(const side of [0,1]){ const c=B.units.find(u=>u.side===side&&u.cmd); if(!c) continue; const left=sideX(side)==="left"; c.x = left ? 4.2 : BF.w-4.2; c.y=BF.h/2; c.gx=c.x; c.gy=c.y; }   // 端から少し内へ（陣幕と幟を張る余地）
   applyFormation(0); applyFormation(1);
   // 人の隊は命じるまで持ち場を守る（任せてもいないのに勝手に討ちかかっていた）。鉄砲も勝手に下がらない
   if(!autoBattleMode) for(const u of B.units) if(u.side===B.ctx.playerSide){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; u.kite=false; }
@@ -12867,6 +12884,9 @@ function startBattle(e){
     for(const u of B.units) if(u.side===1){ u.defBonus=(u.defBonus||1)*(1-wallF*0.5); u.baseDef=u.defBonus; u.morale=Math.min(100,u.morale+10); }
     B.siegeWall=true;
   }
+  // 決戦の天気は史実どおり（関ヶ原は朝霧のち晴、桶狭間は豪雨、手取川は夜）。行き当たりの雨で盤が暗くならない
+  if(dec && !/okehazama|tedorigawa/.test(dec.key)){ B.weather="晴"; B.night=false; }
+  if(dec) B.obstacles=B.obstacles.filter(o=>o.kind!==1);   // 野にぽつんと立つ柵はやめ（決戦の柵は陣として組む）
   // 決戦で守る側が砦を構えているなら、柵で囲った砦を三つ並べる（賤ヶ岳の砦・山崎の陣）
   if(dec && dec.forts==="def"){
     // 砦は守り手（側1）の陣の前。人が守り手なら左に、寄せ手なら右に（人はつねに左）
@@ -12987,6 +13007,14 @@ function startBattle(e){
   document.body.classList.add("inbattle");
   document.getElementById("bTerrain").textContent=
     (dec?dec.name+"　／　":"")+BTERRAIN[tIdx].n+"　"+terrainNote(tIdx)+"　／　"+B.weather+"　"+WEATHER[B.weather].d+(B.night?"　／　夜戦（暗く、日暮れが近い）":"");
+  // 額：戦の名と副題、両軍の名と家紋（関ヶ原なら西軍・東軍）
+  { const bn=document.getElementById("bName"); if(bn){ bn.hidden=!dec; if(dec){ bn.innerHTML=`${esc(dec.name)}<small style="display:block;font-size:10px;letter-spacing:.15em;color:#D9C48A;opacity:.85;border:none">${esc(dec.sub||"")}</small>`; } }
+    const mineClanId = B.ctx.playerSide===0 ? (W.armies[e.army]||{}).clan : ((e.castle!==null&&e.castle!==undefined&&W.castles[e.castle])?W.castles[e.castle].clan:((W.generals[B.ctx.def[0]]||{}).clan));
+    const foeClanId0 = B.ctx.playerSide===0 ? ((e.castle!==null&&e.castle!==undefined&&W.castles[e.castle])?W.castles[e.castle].clan:((W.generals[B.ctx.def[0]]||{}).clan)) : (W.armies[e.army]||{}).clan;
+    const side=(id,el,cr)=>{ const K=(id!==null&&id!==undefined)?W.clans[id]:null; const nm=document.getElementById(el), c0=document.getElementById(cr); if(!nm||!c0) return; 
+      const sc0=SCENARIO_DEFS[W.scenario]||{}; let label=K?K.name:"—"; if(dec && sc0.sides && K){ const west=sc0.sides[1]===K.name || (K.suzerain!==null&&K.suzerain!==undefined&&W.clans[K.suzerain]&&W.clans[K.suzerain].name===sc0.sides[1]); const east=sc0.sides[0]===K.name || (K.suzerain!==null&&K.suzerain!==undefined&&W.clans[K.suzerain]&&W.clans[K.suzerain].name===sc0.sides[0]); if(west) label="西軍"; else if(east) label="東軍"; }
+      nm.textContent=label; c0.textContent=K?String(K.crest||K.name[0])[0]:"—"; c0.style.background=K?clanColor(K.id):"#555"; };
+    side(mineClanId,"bNameMine","bCrestMine"); side(foeClanId0,"bNameFoe","bCrestFoe"); }
   if(B.night) setTimeout(()=>{ if(B) toast("夜戦。日暮れまで百秒。暗くて鉄砲の狙いが甘く、伏せた隊は見えにくい"); },1200);
   resizeBattle();
   renderBattleFoot();
@@ -14028,7 +14056,7 @@ const BT={GRASS:0,ROAD:1,FOREST:2,HILL:3,WATER:4,FORD:5};
 const BATTLE_DECOR={
   nagashino_open:{ base:"#6A9448", note:"設楽原　連吾川と馬防柵", make:(T,W0,H0,R,set)=>{ for(let i=0;i<5;i++){ set.blob(W0*0.86+R()*4, R()*H0, 2.4,1.8, BT.FOREST,.7); } for(let i=0;i<3;i++){ set.blob(3+R()*4, R()*H0, 2,1.5, BT.FOREST,.6); } } },
   nagashino:{ base:"#6A9448", note:"設楽原　連吾川と馬防柵", make:(T,W0,H0,R,set)=>{ for(let i=0;i<5;i++){ set.blob(W0*0.86+R()*4, R()*H0, 2.4,1.8, BT.FOREST,.7); } } },
-  sekigahara:{ base:"#5E8A3E", note:"関ヶ原　四方を山に囲まれた盆地", make:(T,W0,H0,R,set)=>{ for(let c=0;c<W0;c++){ const top=1+Math.round(Math.sin(c*0.4)*1+R()*1.2), bot=1+Math.round(Math.cos(c*0.3)*1+R()*1.2); for(let r=0;r<top;r++) set.at(c,r,BT.HILL); for(let r=H0-bot;r<H0;r++) set.at(c,r,BT.HILL); } for(let i=0;i<6;i++) set.blob(R()*W0, R()<.5?3:H0-4, 3,1.6, BT.FOREST,.7); } },
+  sekigahara:{ base:"#6A8A46", note:"関ヶ原　四方を山に囲まれた盆地", extras:["marsh","paddy","village","mist"], make:(T,W0,H0,R,set)=>{ for(let c=0;c<W0;c++){ const top=1+Math.round(Math.sin(c*0.4)*1+R()*1.2), bot=1+Math.round(Math.cos(c*0.3)*1+R()*1.2); for(let r=0;r<top;r++) set.at(c,r,BT.HILL); for(let r=H0-bot;r<H0;r++) set.at(c,r,BT.HILL); } for(let i=0;i<6;i++) set.blob(R()*W0, R()<.5?3:H0-4, 3,1.6, BT.FOREST,.7); } },
   osaka:{ base:"#8A8656", note:"天王寺・岡山　干上がった堀と茶臼山", make:(T,W0,H0,R,set)=>{ set.blob(W0*0.72,H0*0.35,3.2,2.2,BT.HILL,.95); set.blob(W0*0.72,H0*0.35,4.6,3.4,BT.FOREST,.35); for(let r=0;r<H0;r++){ set.at(Math.round(W0*0.86),r,BT.ROAD); set.at(Math.round(W0*0.86)+1,r,BT.ROAD); } } },
   yamazaki:{ base:"#4F7F38", note:"山崎　天王山と円明寺川", keepWater:true, make:(T,W0,H0,R,set)=>{ for(let i=0;i<6;i++) set.blob(R()*W0*0.5, H0-2-R()*3, 3,1.8, BT.FOREST,.8); } },
   shizugatake:{ base:"#557F3C", note:"賤ヶ岳　余呉湖と砦の山", make:(T,W0,H0,R,set)=>{ set.blob(W0*0.5,H0+1,9,4.2,BT.WATER,1); for(let i=0;i<4;i++) set.blob(R()*W0, 2+R()*3, 3,1.8, BT.HILL,.8); for(let i=0;i<5;i++) set.blob(R()*W0, 1+R()*6, 3,2, BT.FOREST,.5); } },
@@ -14049,7 +14077,7 @@ function decorateBattlefield(key){
   d.make(T,W0,H0,R,{at,blob});
   // 陣を敷く帯は歩ける
   for(let r=0;r<H0;r++) for(let c=0;c<W0;c++){ if(!(c<=11||c>=W0-12)) continue; if(T[r][c]===BT.HILL && r>3 && r<H0-4) T[r][c]=BT.FOREST; if(T[r][c]===BT.WATER||T[r][c]===BT.FORD) T[r][c]=BT.GRASS; }
-  B.decorBase=d.base; B.decorNote=d.note; B.bg=null;
+  B.decorBase=d.base; B.decorNote=d.note; B.decorExtras=d.extras||[]; B.bg=null;
 }
 function genBattleTiles(t, seed, fort){
   const R=artRng(seed||7), W0=BF.w, H0=BF.h;
@@ -14179,6 +14207,54 @@ function drawPalisades(sx,sy){
   }
   bctx.restore();
 }
+/* 本陣の陣地と両軍の陣旗。総大将が持ち場を守っている間、陣幕を張り、幟を立て、櫓を組む。
+   野の端には家紋の陣旗が並び、どちらの陣かがひと目で分かる */
+function drawCamps(sx,sy){
+  const Z=Math.max(0.9, Math.min(2.6, sx/20)); const W_=sx*BF.w;
+  const nobori=(x,y,h,col,crest,k)=>{ const w=7*Z, wv=Math.sin(B.elapsed*3+k)*2*Z;
+    bctx.fillStyle="rgba(0,0,0,.25)"; bctx.beginPath(); bctx.ellipse(x+2,y+2,4*Z,2*Z,0,0,7); bctx.fill();
+    bctx.fillStyle="#3A2A18"; bctx.fillRect(x-1,y-h,2,h);
+    bctx.fillStyle=col; bctx.beginPath(); bctx.moveTo(x+1,y-h); bctx.quadraticCurveTo(x+1+w*.5,y-h+wv,x+1+w,y-h+wv*.6); bctx.lineTo(x+1+w,y-h*0.35+wv*.6); bctx.quadraticCurveTo(x+1+w*.5,y-h*0.35-wv,x+1,y-h*0.35); bctx.closePath(); bctx.fill();
+    bctx.strokeStyle="rgba(255,255,255,.55)"; bctx.lineWidth=1; bctx.stroke();
+    if(crest){ bctx.fillStyle="#fff"; bctx.font=`900 ${Math.round(6*Z)}px "Yuji Syuku",serif`; bctx.textAlign="center"; bctx.textBaseline="middle"; for(let i=0;i<3;i++) bctx.fillText(crest, x+1+w/2, y-h+h*0.12+i*h*0.2+wv*.3); bctx.textBaseline="alphabetic"; } };
+  const curtain=(x0,y0,x1,y1,col)=>{ const L=Math.hypot(x1-x0,y1-y0); const n=Math.max(2,Math.round(L/(14*Z))); const h=13*Z;
+    for(let i=0;i<n;i++){ const t0=i/n, t1=(i+1)/n; const ax=x0+(x1-x0)*t0, ay=y0+(y1-y0)*t0, bx=x0+(x1-x0)*t1, by=y0+(y1-y0)*t1;
+      bctx.fillStyle="rgba(0,0,0,.28)"; bctx.beginPath(); bctx.moveTo(ax,ay+3); bctx.lineTo(bx,by+3); bctx.lineTo(bx+3,by+6); bctx.lineTo(ax+3,ay+6); bctx.closePath(); bctx.fill();
+      bctx.fillStyle=col; bctx.beginPath(); bctx.moveTo(ax,ay-h); bctx.lineTo(bx,by-h); bctx.lineTo(bx,by); bctx.lineTo(ax,ay); bctx.closePath(); bctx.fill();
+      bctx.fillStyle="rgba(255,255,255,.75)"; bctx.beginPath(); bctx.moveTo(ax,ay-h*0.62); bctx.lineTo(bx,by-h*0.62); bctx.lineTo(bx,by-h*0.42); bctx.lineTo(ax,ay-h*0.42); bctx.closePath(); bctx.fill();   // 白い帯
+      bctx.fillStyle="#3A2A18"; bctx.fillRect(ax-1,ay-h-3*Z,2,h+3*Z); }
+    bctx.fillStyle="#3A2A18"; bctx.fillRect(x1-1,y1-h-3*Z,2,h+3*Z); };
+  const tower=(x,y,col)=>{ const w=16*Z, h=26*Z; bctx.fillStyle="rgba(0,0,0,.3)"; bctx.beginPath(); bctx.ellipse(x,y+3,w*.7,4*Z,0,0,7); bctx.fill();
+    bctx.strokeStyle="#4A3016"; bctx.lineWidth=2.2*Z; bctx.beginPath(); bctx.moveTo(x-w*.45,y); bctx.lineTo(x-w*.3,y-h); bctx.moveTo(x+w*.45,y); bctx.lineTo(x+w*.3,y-h); bctx.moveTo(x-w*.42,y-h*.35); bctx.lineTo(x+w*.42,y-h*.35); bctx.moveTo(x-w*.36,y-h*.68); bctx.lineTo(x+w*.36,y-h*.68); bctx.stroke();
+    bctx.strokeStyle="#6B4A2A"; bctx.lineWidth=1.2*Z; bctx.beginPath(); bctx.moveTo(x-w*.4,y-h*.05); bctx.lineTo(x+w*.36,y-h*.68); bctx.moveTo(x+w*.4,y-h*.05); bctx.lineTo(x-w*.36,y-h*.68); bctx.stroke();
+    bctx.fillStyle="#8A5E36"; bctx.fillRect(x-w*.5,y-h,w,4*Z); bctx.fillStyle="#3A2A18"; bctx.fillRect(x-w*.55,y-h-2*Z,w*1.1,2*Z);   // 物見の床と屋根
+    bctx.fillStyle=col; bctx.fillRect(x+w*.3,y-h-14*Z,2,14*Z); bctx.fillRect(x+w*.3+2,y-h-14*Z,6*Z,7*Z); };
+  for(const side of [0,1]){
+    const u=B.units.find(v=>v.side===side&&v.cmd&&v.troops>.5&&!v.left); if(!u) continue;
+    const g=W.generals[u.gid]; const kc=g&&W.clans[g.clan]; const col=kc?clanColor(kc.id):(side===B.ctx.playerSide?"#3D6BCC":"#B84D33"); const crest=kc?String(kc.crest||kc.name[0])[0]:"";
+    const left = side===B.ctx.playerSide;   // 人は左
+    const dir = left?1:-1;                  // 敵の方向
+    const camp = B.opening>0 || (u.order.k==="guard" && u.morale>0 && !(u.movedAt!==undefined && B.elapsed-u.movedAt<1));
+    const x=u.x*sx, y=u.y*sy;
+    if(camp){
+      bctx.save();
+      bctx.fillStyle="rgba(110,85,50,.22)"; bctx.beginPath(); bctx.ellipse(x-dir*10*Z,y+10*Z,60*Z,26*Z,0,0,7); bctx.fill();   // 踏み固めた地
+      // 陣幕：後ろと上下に張る（敵の方は開けておく）
+      const bx=Math.max(6, Math.min(W_-6, x-dir*36*Z)); curtain(bx, y-30*Z, bx, y+36*Z, col);
+      curtain(bx, y-30*Z, x+dir*22*Z, y-30*Z, col); curtain(bx, y+36*Z, x+dir*22*Z, y+36*Z, col);
+      tower(x-dir*22*Z, y-16*Z, col);
+      for(let i=0;i<4;i++) nobori(x-dir*(14+i*7)*Z, y+26*Z-i*3*Z, 40*Z, col, crest, i+side*3);
+      bctx.restore();
+    }
+  }
+  // 野の端の陣旗：家紋の幟が三本ずつ
+  for(const side of [0,1]){
+    const u=B.units.find(v=>v.side===side&&v.cmd) || B.units.find(v=>v.side===side); if(!u) continue;
+    const g=W.generals[u.gid]; const kc=g&&W.clans[g.clan]; if(!kc) continue; const col=clanColor(kc.id), crest=String(kc.crest||kc.name[0])[0];
+    const left = side===B.ctx.playerSide; const x=(left?1.1:BF.w-1.1)*sx;
+    for(let i=0;i<3;i++){ const y=(4+i*(BF.h-8)/2)*sy; nobori(x+(left?0:-8*Z), y, 46*Z, col, crest, i*2+side); }
+  }
+}
 /* 地形の効き目を短く数字で。選んだ隊の足元と、指図の札に出す */
 function terrainFx(k, type){
   if(k===BT.HILL)   return {n:"高所", fx:["守備+15%", type===3?"鉄砲射程+20%":null, type===2?"騎馬速度-60%":"速度-40%"].filter(Boolean)};
@@ -14244,6 +14320,27 @@ function bakeBattleGround(W_,H_){
     else if(k===BT.WATER){ px(x-1,y-1,sx+2,sy+2,PAL.seaM); px(x+sx*.15,y+sy*.3,sx*.5,sy*.1,PAL.seaL); if(R()<.5) px(x+sx*.5,y+sy*.65,sx*.35,sy*.1,PAL.seaD); }
     else if(k===BT.FORD){ px(x-1,y-1,sx+2,sy+2,"#8FC4E8"); px(x+sx*.2,y+sy*.35,sx*.3,sy*.15,PAL.sand); px(x+sx*.6,y+sy*.6,sx*.25,sy*.15,PAL.sand); }
   }
+  // 湿った土の色味：全体を少し落ち着いた黄土に寄せる（鮮やかな緑一色にしない）
+  px(0,0,W_,H_,"rgba(120,100,60,.08)");
+  const EX=new Set(B.decorExtras||[]);
+  const isGrassAt=(c,r)=>r>=0&&r<BF.h&&c>=0&&c<BF.w&&T[r][c]===BT.GRASS;
+  // 湿地：低い所に水気の多い草地。水たまりの光と葦
+  if(EX.has("marsh")){ for(let i=0;i<7;i++){ const cx=(0.3+R()*0.4)*W_, cy=(0.25+R()*0.5)*H_; const rw=sx*(3+R()*4), rh=sy*(1.2+R()*1.6);
+      g.fillStyle="rgba(60,105,105,.30)"; g.beginPath(); g.ellipse(cx,cy,rw,rh,(R()-.5)*0.8,0,7); g.fill();
+      g.fillStyle="rgba(40,80,90,.25)"; g.beginPath(); g.ellipse(cx+rw*.2,cy+rh*.2,rw*.6,rh*.5,0,0,7); g.fill();
+      g.fillStyle="rgba(200,225,235,.28)"; g.beginPath(); g.ellipse(cx-rw*.2,cy-rh*.1,rw*.35,rh*.18,0,0,7); g.fill();   // 水たまりの光
+      g.strokeStyle="rgba(40,70,35,.55)"; g.lineWidth=1; for(let k=0;k<26;k++){ const a=R()*Math.PI*2; const x=cx+Math.cos(a)*rw*(0.7+R()*0.5), y=cy+Math.sin(a)*rh*(0.7+R()*0.5); g.beginPath(); g.moveTo(x,y); g.lineTo(x+(R()-.5)*3, y-4-R()*6); g.stroke(); } } }   // 葦
+  // 田：畔で囲った段々。道の脇に
+  if(EX.has("paddy")){ for(let i=0;i<4;i++){ const c0=Math.floor(R()*(BF.w-8))+2, r0=Math.floor(R()*(BF.h-6))+2; if(!isGrassAt(c0,r0)||Math.abs(c0-BF.w/2)<5) continue;
+      const w=sx*(2.5+R()*2), h=sy*(1.4+R()*1.2), x=c0*sx, y=r0*sy; g.save(); g.translate(x,y); g.rotate((R()-.5)*0.25);
+      g.fillStyle="rgba(150,160,80,.55)"; g.fillRect(0,0,w,h); for(let k=1;k<5;k++){ g.fillStyle=k%2?"rgba(95,120,60,.45)":"rgba(175,180,100,.35)"; g.fillRect(0,h*k/5,w,h/5*0.8); }
+      g.strokeStyle="rgba(110,85,45,.7)"; g.lineWidth=2; g.strokeRect(0,0,w,h); g.restore(); } }
+  // 里：藁屋根の家が三軒。戦場の端に
+  if(EX.has("village")){ const vx=(R()<.5?0.12:0.86)*W_, vy=(0.35+R()*0.3)*H_; for(let i=0;i<3;i++){ const x=vx+(R()-.5)*sx*4, y=vy+(R()-.5)*sy*2.5, w=sx*1.2, h=sy*0.7;
+      g.fillStyle="rgba(0,0,0,.25)"; g.beginPath(); g.ellipse(x+w*.55,y+h*1.05,w*.7,h*.35,0,0,7); g.fill();
+      px(x,y+h*0.4,w,h*0.6,"#B8A070"); px(x+w*0.15,y+h*0.55,w*0.2,h*0.45,"#5A4020");   // 壁と戸
+      g.fillStyle="#6E5230"; g.beginPath(); g.moveTo(x-w*0.15,y+h*0.45); g.lineTo(x+w*0.5,y-h*0.35); g.lineTo(x+w*1.15,y+h*0.45); g.closePath(); g.fill();   // 藁屋根
+      g.fillStyle="#8B6A3C"; g.beginPath(); g.moveTo(x-w*0.15,y+h*0.45); g.lineTo(x+w*0.5,y-h*0.35); g.lineTo(x+w*0.5,y+h*0.45); g.closePath(); g.fill(); } }
   // 焼け跡
   if(B.ash) for(const [c,r] of B.ash){ px(c*sx,r*sy,sx,sy,"rgba(30,25,20,.55)"); }
   // 手描き風の質感：紙の目のような細かな明暗のむらを全体に
@@ -14265,9 +14362,26 @@ function bakeBattleGround(W_,H_){
       if(k===BT.WATER && R()<0.35){ px(x+R()*sx*.5, y+R()*sy*.8, sx*.3, 1, "rgba(255,255,255,.55)"); }   // 流れの白い筋
     }
   }
+  // 上端・下端に連なる高所は、遠い山並みとして描く（目の三角の列では盆地に見えない）
+  const ridgeTop=[], ridgeBot=[];
+  for(let c=0;c<BF.w;c++){ let t=0; while(t<BF.h && T[t][c]===BT.HILL) t++; ridgeTop.push(t); let b=0; while(b<BF.h && T[BF.h-1-b][c]===BT.HILL) b++; ridgeBot.push(b); }
+  const ridgeRows=new Set();
+  const drawRidge=(arr, top)=>{ if(arr.filter(v=>v>0).length<BF.w*0.5) return; for(let c=0;c<BF.w;c++) for(let k=0;k<arr[c];k++) ridgeRows.add((top?k:BF.h-1-k)*BF.w+c);
+    const yOf=(c,f)=>{ const v=arr[Math.max(0,Math.min(BF.w-1,c))]; return top ? v*sy*f : H_-v*sy*f; };
+    // 遠い山（霞んで青みがかる）、近い山（暗い緑）、稜線の木々
+    const layers=[{f:1.9,col:"rgba(90,125,120,.85)",noise:0.9},{f:1.35,col:"rgba(60,100,70,.95)",noise:0.7},{f:1.0,col:"#2F5A34",noise:0.5}];
+    for(const L of layers){ g.fillStyle=L.col; g.beginPath(); g.moveTo(-10, top?-10:H_+10);
+      for(let c=0;c<=BF.w;c++){ const n=(Math.sin(c*1.7+L.f*3)+Math.sin(c*0.6+L.f))*0.5*sy*L.noise; g.lineTo(c*sx, yOf(c,L.f)+(top?n:-n)); }
+      g.lineTo(W_+10, top?-10:H_+10); g.closePath(); g.fill(); }
+    // 木立の縁：稜線の下に小さな木の影
+    g.fillStyle="#24482A"; for(let c=0;c<BF.w*3;c++){ const cc=c/3; const y0=yOf(cc,1.0); const h=sy*(0.5+R()*0.6), w=sx*0.35; const x=cc*sx+(R()-.5)*sx*.3; g.beginPath(); if(top){ g.moveTo(x-w,y0-2); g.lineTo(x,y0+h); g.lineTo(x+w,y0-2); } else { g.moveTo(x-w,y0+2); g.lineTo(x,y0-h); g.lineTo(x+w,y0+2); } g.closePath(); g.fill(); }
+    // 山裾のもや
+    const grd=top?g.createLinearGradient(0,yOf(BF.w/2,1.0)-sy,0,yOf(BF.w/2,1.0)+sy*1.5):g.createLinearGradient(0,yOf(BF.w/2,1.0)+sy,0,yOf(BF.w/2,1.0)-sy*1.5); grd.addColorStop(0,"rgba(230,235,225,.28)"); grd.addColorStop(1,"rgba(230,235,225,0)"); g.fillStyle=grd; g.fillRect(0,0,W_,H_); };
+  drawRidge(ridgeTop,true); drawRidge(ridgeBot,false);
   // 山と森（立体の層。下の目から順に描いて重なりを作る）
   for(let r=0;r<BF.h;r++) for(let c=0;c<BF.w;c++){
     const k=T[r][c], x=c*sx, y=r*sy;
+    if(k===BT.HILL && ridgeRows.has(r*BF.w+c)) continue;   // 山並みとして描いた
     if(k===BT.HILL){
       // 山の目：暗い緑の三角に明るい左面、稜線
       const hh=sy*1.55, ww=sx*1.3, cx=x+sx/2+(R()-.5)*sx*.3, by=y+sy;
@@ -14311,6 +14425,15 @@ function drawBattle(){
     const pts=B.tramplePts||[]; const tg=B.trampleCv.getContext("2d");
     for(let i=B.trampleDrawn||0;i<pts.length;i++){ const p=pts[i]; tg.fillStyle="rgba(95,70,40,.07)"; tg.beginPath(); tg.ellipse(p.x*sx,p.y*sy+6,sx*1.6,sy*0.7,0,0,7); tg.fill(); tg.fillStyle="rgba(60,45,25,.05)"; tg.beginPath(); tg.ellipse(p.x*sx+(p.j||0)*sx,p.y*sy+4,sx*0.6,sy*0.3,0,0,7); tg.fill(); }
     B.trampleDrawn=pts.length; bctx.drawImage(B.trampleCv,0,0); }
+  // 風に揺れる草：決まった場所の草が、時とともに同じ向きへなびく
+  { if(!B.grassPts){ const R=artRng((B.seed||3)+7); B.grassPts=[]; for(let i=0;i<70;i++) B.grassPts.push({x:R(),y:R(),ph:R()*6.28,n:2+Math.floor(R()*3)}); }
+    const wind=Math.sin(B.elapsed*0.7)*0.6+Math.sin(B.elapsed*1.9)*0.25; bctx.strokeStyle="rgba(40,90,35,.55)"; bctx.lineWidth=1.2;
+    for(const gp of B.grassPts){ const x=gp.x*W_, y=gp.y*H_; if(B.tiles && B.tiles[Math.floor(gp.y*BF.h)] && B.tiles[Math.floor(gp.y*BF.h)][Math.floor(gp.x*BF.w)]!==BT.GRASS) continue;
+      const lean=(wind+Math.sin(B.elapsed*2.3+gp.ph)*0.35)*4; for(let k=0;k<gp.n;k++){ bctx.beginPath(); bctx.moveTo(x+k*3,y); bctx.quadraticCurveTo(x+k*3+lean*0.5, y-4, x+k*3+lean, y-7-k); bctx.stroke(); } } }
+  // 朝霧・地を這うもや：陣立ての間と、霧の日は低く流れる
+  if((B.opening>0 && B.ctx.decisive) || B.weather==="霧" || (B.decorExtras||[]).includes("mist") && B.elapsed<40){ bctx.save(); const k=B.weather==="霧"?1:Math.max(0,1-B.elapsed/40);
+    for(let i=0;i<5;i++){ const xx=((B.elapsed*9+i*260)%(W_+500))-250, yy=H_*(0.35+i*0.13)+Math.sin(B.elapsed*0.4+i)*8; const gr=bctx.createRadialGradient(xx,yy,0,xx,yy,220); gr.addColorStop(0,`rgba(235,238,230,${.16*k})`); gr.addColorStop(1,"rgba(235,238,230,0)"); bctx.fillStyle=gr; bctx.beginPath(); bctx.ellipse(xx,yy,240,40,0,0,7); bctx.fill(); }
+    bctx.restore(); }
   // 川の流れ：白い筋がゆっくり下へ流れ、岸には泡
   if(B.tiles){ const T=B.tiles; bctx.save();
     for(let r=0;r<BF.h;r++) for(let c=0;c<BF.w;c++){ const k=T[r][c]; if(k!==BT.WATER&&k!==BT.FORD) continue; const x=c*sx, y=r*sy;
@@ -14391,6 +14514,7 @@ function drawBattle(){
     else { bctx.font='800 10px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center"; bctx.fillStyle="#FF9A55"; bctx.fillText("破れた門", gx, gy-2.6*sy); } }
   // 柵はひと続きの防柵として描く（杭の列・横木・縄・足元の土。隙間や傾いた杭、当たられた傷も）
   drawPalisades(sx,sy);
+  drawCamps(sx,sy);
   // 木・柵・岩
   for(const o of [...B.obstacles].sort((p,q)=>p.y-q.y)){
     if(o.stone) continue;   // 石垣は上でひと続きに描いた
@@ -14556,10 +14680,10 @@ function drawBattle(){
     bctx.save(); bctx.font='800 11px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="left"; bctx.fillStyle="rgba(255,255,255,.35)"; ["左翼","中央","右翼"].forEach((t,b)=>bctx.fillText(t, 8, b*H_/3+H_/6)); bctx.restore(); }
   const overlays=[];   // 隊 → 目盛り・名札・印 の順に層を分ける
   for(const u of ordered){
-    let showPlate = !dense || u.cmd || B.sel===u.id || B.hover===u.id || (B.group&&B.group.includes(u.id)) || (u.morale>0&&u.morale<30) || u.morale<=0;
+    let showPlate = !dense || B.opening>0 || u.cmd || B.sel===u.id || B.hover===u.id || (B.group&&B.group.includes(u.id)) || (u.morale>0&&u.morale<30) || u.morale<=0;
     { const okey=u.order.k+"|"+(u.order.id??"")+"|"+(u.order.x===undefined?"":Math.round(u.order.x*2)+","+Math.round(u.order.y*2));
       if(u._okey!==okey){ if(u._okey!==undefined) u.orderAt=B.elapsed; u._okey=okey; } }
-    const showOrd = B.sel===u.id || (B.group&&B.group.includes(u.id)) || (u.orderAt!==undefined && B.elapsed-u.orderAt<2.5) || B.opening>0;   // 攻・守・移の小札は選んだときと命じた直後だけ
+    const showOrd = B.opening<=0 && (B.sel===u.id || (B.group&&B.group.includes(u.id)) || (u.orderAt!==undefined && B.elapsed-u.orderAt<2.5));   // 攻・守・移の小札は選んだときと命じた直後だけ（陣立ての間は出さない）
     // 霧と夜では、遠くの敵は影しか見えない
     let dim=false;
     if((B.weather==="霧"||B.night) && u.side!==B.ctx.playerSide && B.over===null){ const see=B.weather==="霧"?9:11; if(!B.units.some(z=>z.side===B.ctx.playerSide&&z.troops>.5&&!z.left&&dist(z,u)<see)){ dim=true; showPlate=false; } }
@@ -14568,7 +14692,7 @@ function drawBattle(){
     let x=(u.x+Math.cos(u.face||0)*lg)*sx, y=(u.y+Math.sin(u.face||0)*lg)*sy;
     if(u.kick && u.kick.t>0){ const kk=u.kick.t/0.18; x+=u.kick.x*kk*Z; y+=u.kick.y*kk*Z*0.7; u.kick.t-=0.016; }
     // 陣幕：持ち場を守る本陣は幕を張る
-    if(u.cmd && u.morale>0 && u.order.k==="guard"){
+    if(false && u.cmd && u.morale>0 && u.order.k==="guard"){
       bctx.save(); bctx.globalAlpha=.55;
       bctx.strokeStyle = u.side===B.ctx.playerSide ? "#1E3A8A" : "#7A1A10"; bctx.lineWidth=4; bctx.setLineDash([10,6]);
       bctx.beginPath(); bctx.ellipse(x, y+8, 46*Z, 22*Z, 0, 0, 7); bctx.stroke(); bctx.setLineDash([]);
@@ -14591,21 +14715,22 @@ function drawBattle(){
     const selNow = B.sel===u.id || (B.group&&B.group.includes(u.id));
     const kc0=W.generals[u.gid]&&W.clans[W.generals[u.gid].clan]; const ccol=kc0?clanColor(kc0.id):(meSide?"#2E5FBF":"#B8382A");
     const fa=u.face||0, fcos=Math.cos(fa), fsin=Math.sin(fa), lxv=-fsin, lyv=fcos;   // 前と横
-    const sprites=Math.max(2,Math.min(9,Math.round(u.troops/300)));
+    const sprites=Math.max(3,Math.min(14,Math.round(u.troops/260)));
     const facingLeft = fcos < 0;
-    const img=soldierSprite(u.type, meSide?0:1, walk, facingLeft);
-    const img2=soldierSprite(u.type, meSide?0:1, 1-walk, facingLeft);
-    const sw=(u.type===2?31:24)*Z, sh=(u.type===2?33:26)*Z;
+    const imgV=(v,f)=>soldierSprite(u.type, meSide?0:1, f, facingLeft, v);
+    const img=imgV(0,walk), img2=imgV(0,1-walk);
+    const dense2 = sprites>9 ? 0.78 : sprites>6 ? 0.9 : 1;   // 大隊は一人ひとりを少し小さく、密に
+    const sw=(u.type===2?31:24)*Z*dense2, sh=(u.type===2?33:26)*Z*dense2;
     // 隊形：槍＝二列横隊、侍＝固まり、騎馬＝楔、鉄砲＝一列横隊
     const items=[];
     const charging = u.type===2 && B.elapsed<u.spUntil;
     const disorder = u.morale>0 ? Math.max(0, (45-u.morale)/45) : 1;   // 士気が下がるほど列が乱れる
-    { const lat = (u.type===2?15:u.type===3?12:13)*(charging?0.7:1), dep = (u.type===2?11:10)*(charging?1.5:1);
+    { const lat = (u.type===2?15:u.type===3?12:13)*(charging?0.7:1)*dense2, dep = (u.type===2?11:10)*(charging?1.5:1)*dense2;
       let placed=0;
       if(u.type===2){ let row=0; while(placed<sprites){ const n=row+1; for(let k=0;k<n&&placed<sprites;k++,placed++){ const off=(k-(n-1)/2)*lat; items.push({o:off, d:row*dep+8}); } row++; } }
-      else if(u.type===3){ const n1=Math.min(6,sprites); for(let k=0;k<sprites;k++){ const r=Math.floor(k/6), n=r===0?n1:sprites-6; const kk=k%6; items.push({o:(kk-(n-1)/2)*lat, d:r*dep+2}); } }
+      else if(u.type===3){ const per=8; const n1=Math.min(per,sprites); for(let k=0;k<sprites;k++){ const r=Math.floor(k/per), n=r===0?n1:sprites-per; const kk=k%per; items.push({o:(kk-(n-1)/2)*lat+(r%2?lat*0.5:0), d:r*dep+2, row:r}); } }
       else { // 足軽・侍：三列まで。列ごとに半歩ずらし、前列は密に、後列は疎らに（完全な格子にしない）
-        const rows = sprites<=3 ? 1 : sprites<=6 ? 2 : 3; const per=Math.ceil(sprites/rows);
+        const rows = sprites<=3 ? 1 : sprites<=6 ? 2 : sprites<=11 ? 3 : 4; const per=Math.ceil(sprites/rows);
         for(let k=0;k<sprites;k++){ const r=Math.floor(k/per), n=Math.min(per, sprites-r*per); const kk=k%per; const spread = r===0 ? 1 : 1.18;
           items.push({o:(kk-(n-1)/2)*lat*spread+(r%2?lat*0.5:0), d:r*dep*0.9+4, row:r}); } }
     }
@@ -14633,7 +14758,7 @@ function drawBattle(){
     }
     // 描く順は奥から手前（画面の y）
     const draws=[];
-    items.forEach((it,k)=>{ const jx=(((k*37+u.id*11)%7)-3)*0.6*Z*(1+disorder*3), jd=(((k*53+u.id*7)%5)-2)*0.5*Z*(1+disorder*3); it.o+=jx; it.d+=jd; const p=toScr(it.o,it.d); draws.push({y:p.y, f:()=>{ const bob = moving ? Math.abs(Math.sin(B.elapsed*12 + k*1.3))*-1.6*Z : Math.sin(B.elapsed*2.1 + k*1.7 + u.id)*0.5*Z; const im=(k+u.id)%3===1?img2:img;
+    items.forEach((it,k)=>{ const jx=(((k*37+u.id*11)%7)-3)*0.6*Z*(1+disorder*3), jd=(((k*53+u.id*7)%5)-2)*0.5*Z*(1+disorder*3); it.o+=jx; it.d+=jd; const p=toScr(it.o,it.d); const vv=(k*7+u.id*3)%3; draws.push({y:p.y, f:()=>{ const bob = moving ? Math.abs(Math.sin(B.elapsed*12 + k*1.3))*-1.6*Z : Math.sin(B.elapsed*2.1 + k*1.7 + u.id)*0.5*Z; const im=imgV(vv,(k+u.id)%3===1?1-walk:walk);
         bctx.globalAlpha*=1; bctx.fillStyle="rgba(0,0,0,.22)"; bctx.beginPath(); bctx.ellipse(p.x, p.y+sh*0.42, sw*0.34, sh*0.11, 0,0,7); bctx.fill();
         bctx.drawImage(im, p.x-sw/2, p.y-sh/2+bob, sw, sh);
         // 槍。前列は前へ突き出し、後列は頭の上に穂先だけ見える（列の奥行きが分かる）
@@ -14644,6 +14769,9 @@ function drawBattle(){
           else { const tx=p.x+dx*sw*0.18+((k*13)%5-2)*Z*0.6; bctx.moveTo(tx, p.y-sh*0.25+bob); bctx.lineTo(tx+dx*2*Z, p.y-sh*(0.85+(k%3)*0.08)+bob); bctx.stroke();
             bctx.fillStyle="#DDE3E8"; bctx.fillRect(tx+dx*2*Z-1.2*Z, p.y-sh*(0.85+(k%3)*0.08)+bob-4*Z, 2.4*Z, 4*Z); }
         } } }); });
+    if((u.type===0||u.type===1) && u.morale>0 && sprites>=6){ const rowsN=Math.max(...items.map(it=>it.row||0)); for(const o of [-1,1]){ const p=toScr(o*(sprites>9?18:14)*Z*dense2, rowsN*10*dense2+6); draws.push({y:p.y+0.02, f:()=>{ const h=(u.cmd?26:20)*Math.min(1.5,Z), w=6*Z, wv=Math.sin(B.elapsed*4+u.id+o)*1.6*Z; bctx.fillStyle="#3A2A18"; bctx.fillRect(p.x-1,p.y-sh*0.4-h,2,h+sh*0.4);
+        bctx.fillStyle=ccol; bctx.beginPath(); bctx.moveTo(p.x+1,p.y-sh*0.4-h); bctx.quadraticCurveTo(p.x+1+w*.5,p.y-sh*0.4-h+wv,p.x+1+w,p.y-sh*0.4-h+wv*.6); bctx.lineTo(p.x+1+w,p.y-sh*0.4-h*0.45+wv*.6); bctx.quadraticCurveTo(p.x+1+w*.5,p.y-sh*0.4-h*0.45-wv,p.x+1,p.y-sh*0.4-h*0.45); bctx.closePath(); bctx.fill(); bctx.strokeStyle="rgba(255,255,255,.5)"; bctx.lineWidth=1; bctx.stroke();
+        if(kc0&&kc0.crest){ bctx.fillStyle="#fff"; bctx.font=`900 ${Math.round(5*Z)}px "Yuji Syuku",serif`; bctx.textAlign="center"; bctx.textBaseline="middle"; bctx.fillText(String(kc0.crest)[0], p.x+1+w/2, p.y-sh*0.4-h*0.72+wv*.3); bctx.textBaseline="alphabetic"; } } }); } }
     { const p=toScr(0,leadD); const LS=1.35; const lw=sw*LS, lh=sh*LS;
       draws.push({y:p.y+0.01, f:()=>{ // 背旗（家紋）
           const droop = u.morale>0 ? Math.max(0,(40-u.morale)/40) : 1;   // 士気が下がると旗が傾く
@@ -14661,7 +14789,7 @@ function drawBattle(){
           bctx.drawImage(img, p.x-lw/2, p.y-lh/2+bob, lw, lh); } }); }
     draws.sort((a,b)=>a.y-b.y); for(const d of draws) d.f();
     // 被弾の光
-    if(u.flash>0){ bctx.globalAlpha=Math.min(.6,u.flash*3); bctx.fillStyle="#fff"; bctx.fillRect(x-30*Z, y-sh, 60*Z, sh*2); bctx.globalAlpha=1; }
+    if(u.flash>0){ bctx.globalAlpha=Math.min(.55,u.flash*3); const gr=bctx.createRadialGradient(x,y,0,x,y,34*Z); gr.addColorStop(0,"rgba(255,250,235,.9)"); gr.addColorStop(1,"rgba(255,250,235,0)"); bctx.fillStyle=gr; bctx.beginPath(); bctx.ellipse(x,y+4*Z,34*Z,sh*0.9,0,0,7); bctx.fill(); bctx.globalAlpha=1; }   // 被弾の光は四角ではなく、ぼんやりと
     bctx.restore();
     // ここから先（顔・目盛り・札・印）は隊の絵の上に重ねる層。全部の隊の絵を描き終えてから描く（札が隣の隊の絵に隠れない）
     overlays.push(()=>{
@@ -14756,17 +14884,20 @@ function drawBattle(){
     }
     bctx.font='800 11px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center";
     const gname=(W.generals[u.gid]||{}).name||u.name;
-    const plate=`${gname} ${Math.round(u.troops).toLocaleString()}`;
+    const quiet = B.opening>0 && !selNow;   // 陣立ての間は名だけ（数字と印で盤を埋めない）
+    const plate= quiet ? gname : `${gname} ${Math.round(u.troops).toLocaleString()}`;
     const tw=bctx.measureText(plate).width, tw2=bctx.measureText(tag).width;
     if(showPlate){
-      bctx.fillStyle="rgba(0,0,0,.78)";
+      bctx.fillStyle="rgba(10,8,6,.82)";
       bctx.fillRect(x-tw/2-5, by+11, tw+10, 15);
+      bctx.strokeStyle= quiet ? "rgba(201,162,39,.55)" : "rgba(255,255,255,.18)"; bctx.lineWidth=1; bctx.strokeRect(x-tw/2-5.5, by+10.5, tw+11, 16);
       bctx.fillStyle = u.side===B.ctx.playerSide ? "#DCEBFF" : "#FFE0D6";
       bctx.fillText(plate,x,by+22);
+      if(!quiet){
       bctx.fillStyle="rgba(0,0,0,.72)";
       bctx.fillRect(x-tw2/2-4, by+27, tw2+8, 14);
       bctx.fillStyle=tagColor; bctx.font='800 10px "Zen Kaku Gothic New",sans-serif';
-      bctx.fillText(tag,x,by+38);
+      bctx.fillText(tag,x,by+38); }
       // 選んだ隊には地形の効き目を添える（高所 守備+15% 鉄砲射程+20% のように）
       if(B.sel===u.id && u.morale>0){ const tf=terrainFx(bTileAt(u.x,u.y), u.type); if(tf){ const tt=`${tf.n}　${tf.fx.join("　")}`; const tw3=bctx.measureText(tt).width;
         bctx.fillStyle="rgba(0,0,0,.72)"; bctx.fillRect(x-tw3/2-5, by+43, tw3+10, 14); bctx.fillStyle="#C9E8A0"; bctx.fillText(tt,x,by+54); } }
@@ -15018,10 +15149,11 @@ function drawBattle(){
     if(shrink<1){
       bctx.globalAlpha=1-shrink;
       const boxW=Math.min(W_-20,600), boxH=118, bx0=(W_-boxW)/2, by0=8;
-      bctx.fillStyle="rgba(0,0,0,.66)"; bctx.beginPath(); bctx.roundRect(bx0,by0,boxW,boxH,8); bctx.fill();
-      bctx.strokeStyle="rgba(201,162,39,.5)"; bctx.lineWidth=1; bctx.stroke();
+      { const gr=bctx.createLinearGradient(0,by0,0,by0+boxH); gr.addColorStop(0,"rgba(38,30,20,.94)"); gr.addColorStop(1,"rgba(16,12,8,.94)"); bctx.fillStyle=gr; bctx.beginPath(); bctx.roundRect(bx0,by0,boxW,boxH,6); bctx.fill(); }
+      bctx.strokeStyle="rgba(201,162,39,.85)"; bctx.lineWidth=2; bctx.stroke();
+      bctx.strokeStyle="rgba(201,162,39,.35)"; bctx.lineWidth=1; bctx.beginPath(); bctx.roundRect(bx0+4,by0+4,boxW-8,boxH-8,4); bctx.stroke();
       bctx.textAlign="center"; bctx.textBaseline="middle";
-      bctx.font='900 26px "Zen Kaku Gothic New",sans-serif'; bctx.fillStyle="#F2C94C"; bctx.fillText("陣立て",W_/2,by0+22);
+      bctx.font='400 28px "Yuji Syuku","Zen Kaku Gothic New",serif'; bctx.fillStyle="#F2C94C"; bctx.fillText("陣 立 て",W_/2,by0+22);
       bctx.font='700 13px "Zen Kaku Gothic New",sans-serif'; bctx.fillStyle="rgba(255,255,255,.92)";
       bctx.fillText(`わが軍 ${mineT.toLocaleString()}　対　敵 ${foeT.toLocaleString()}`,W_/2,by0+46);
       // 分けた札：敵情報・地形・天候
