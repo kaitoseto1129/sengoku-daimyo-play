@@ -281,6 +281,11 @@ html.bigtext #panel{font-size:15px} html.bigtext .row{font-size:14px} html.bigte
 /* canvas は描き込み寸法（正方形）で背丈が決まってしまい、釦の帯を画面外へ押し出していた。
    高さ0から伸ばして、頭と足の帯のあいだを埋めさせる */
 #bcanvas{flex:1 1 0;height:0;min-height:0;width:100%;display:block;touch-action:none}
+@media (orientation:portrait){
+  #bcanvas{ flex:0 0 auto !important; height:auto !important; aspect-ratio:46/26; width:100%; margin:auto 0; }   /* 縦画面：戦場は横長のまま真ん中に（引き伸ばさない） */
+  #battle{ justify-content:center; background:#12100E; }
+  #bfoot{ flex-wrap:wrap; }
+}
 #bfoot{padding:7px 12px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;flex:none;min-height:52px;
   background:linear-gradient(180deg,#171310,#221C16);border-top:2px solid #6B5A2E;box-shadow:0 -2px 8px rgba(0,0,0,.5)}
 .bbar{flex:1;height:12px;background:rgba(0,0,0,.55);border-radius:3px;overflow:hidden;border:1px solid rgba(255,255,255,.12)}
@@ -1714,7 +1719,7 @@ function buildWorld(playerClan, scenarioId){
   // 年表・知らせ・戦の記録・出来事・統計も前の世のものを残さない
   W.chronicle=[]; W.notices=[]; W.battleLog=[]; W.events=[]; W.stats={battles:0,wins:0,losses:0,taken:0,recruited:0}; W.spectating=false; W.resultSeen=null; W.relPrev={}; W.relPrevOld={}; W.delegLog=null; W.concernIdx=0; W.spy={}; W.seq={}; W.yearSnap=null; W.oke1000=0; W.playSec=0; W.shogunate={};
   try{ pendingEnvoy=null; pendingEncounter=null; encounterQueue=[]; if(overlayEl){ overlayEl.remove(); overlayEl=null; } }catch(_){ }   // 世を作り直すとき、前の世の使者や遭遇を残さない
-  W.takedaOfferAt=0; W.tokugawaOfferAt=0; W.takedaWarAt=0; W.openingSallyAsked=false; W.openingSince=undefined; W.openingAt=undefined; W.kiyosuRetried=false; W.decisivePending=null; W.decisiveAt=0; W.shogunDeclinedUntil=0; W.lastEnvoyAt=undefined; W.shogunate={}; W.okeNews=null; W.nagashinoDay=undefined;
+  W.takedaOfferAt=0; W.tokugawaOfferAt=0; W.takedaWarAt=0; W.openingSallyAsked=false; W.openingSince=undefined; W.openingAt=undefined; W.kiyosuRetried=false; W.decisivePending=null; W.decisiveAt=0; W.shogunDeclinedUntil=0; W.lastEnvoyAt=undefined; W.shogunate={}; W.okeNews=null; W.nagashinoDay=undefined; W.preludeDay=undefined;
   CASTLE_KEEP=null;
   usedHouse=new Set();
   W.player = playerClan;
@@ -2526,7 +2531,7 @@ function declareWar(a,b,via){
     } else if(them){
       bigNews(`${foe.name} が宣戦布告`);
       log(`【宣戦布告】${foe.name}がわが家に弓を引きました${wasAlly?"（盟を破っての仕儀）":""}`,"war");
-      if(typeof chronicle==="function") chronicle(`${foe.name}、${A.name}に宣戦`);
+      if(typeof chronicle==="function") chronicle(`${foe.name}、${(W.clans[W.player]||{}).name||"わが家"}に宣戦`);
       pendingAlert={army:null, castle:(myCastles(W.player)[0]||{}).id,
         clan:foe.name, troops:totalTroops(foe.id).toLocaleString(),
         name:"宣戦布告", days:0, war:true};
@@ -8480,7 +8485,7 @@ function serialize(){
     battleLog:W.battleLog||[], oke1000:W.oke1000||0, difficulty:W.difficulty??1, spy:W.spy||{}, yearSnap:W.yearSnap||null,
     nextBandit:W.nextBandit||1, playSec:W.playSec||0, seq:W.seq||{}, okeWon:!!W.okeWon,
     decisivePending:W.decisivePending||null, decisiveAt:W.decisiveAt||0, shogunDeclinedUntil:W.shogunDeclinedUntil||0, lastEnvoyAt:W.lastEnvoyAt, shogunate:W.shogunate||{}, takedaOfferAt:W.takedaOfferAt||0, tokugawaOfferAt:W.tokugawaOfferAt||0, takedaWarAt:W.takedaWarAt||0, kiyosuRetried:!!W.kiyosuRetried,
-    decisiveWon:W.decisiveWon||{}, decisiveDay:W.decisiveDay||{},
+    decisiveWon:W.decisiveWon||{}, decisiveDay:W.decisiveDay||{}, preludeDay:W.preludeDay,
     opening:W.opening||null, openingAt:W.openingAt, openingSince:W.openingSince, openingSallyAsked:!!W.openingSallyAsked,
     scenario:W.scenario||"oke",
     events:(W.events||[]).slice(-80),
@@ -8569,7 +8574,7 @@ function loadGame(){
   W.subj=s.subj||null; W.nextBandit=s.nextBandit||1;
   W.playSec=s.playSec||0; W.events=s.events||[]; W.acc=0; W.seq=s.seq||{}; W.okeWon=!!s.okeWon;
   W.decisivePending=s.decisivePending||null; W.decisiveAt=s.decisiveAt||0; W.shogunDeclinedUntil=s.shogunDeclinedUntil||0; W.lastEnvoyAt=s.lastEnvoyAt; W.shogunate=s.shogunate||{}; W.takedaOfferAt=s.takedaOfferAt||0; W.tokugawaOfferAt=s.tokugawaOfferAt||0; W.takedaWarAt=s.takedaWarAt||0; W.kiyosuRetried=!!s.kiyosuRetried;
-  W.decisiveWon=s.decisiveWon||{}; W.decisiveDay=s.decisiveDay||{};
+  W.decisiveWon=s.decisiveWon||{}; W.decisiveDay=s.decisiveDay||{}; W.preludeDay=s.preludeDay;
   W.opening=s.opening||null; W.openingAt=s.openingAt; W.openingSince=s.openingSince; W.openingSallyAsked=!!s.openingSallyAsked;
   W.scenario=s.scenario||"oke"; W.yearSnap=s.yearSnap||null;
   W.bandits={}; W.wanderers={}; W.result=null; W.spectating=false; W.resultSeen=null; W.speedBefore=1;
@@ -12220,6 +12225,22 @@ function scriptedEnvoys(){
       log("斎藤が倒れ、近江の浅井家が織田に近づいてきた","dip"); }
   }
 }
+
+/* 決戦までの三日の前振り。3＝三日前 … 0＝当日。h は大きな知らせ、t は記録の一行 */
+const PRELUDES={
+ nagashino_open:{ 3:{h:"長篠城 囲まる",t:"武田勢が長篠城を囲んだ。城兵五百、耐えている",run:()=>nagashinoWear()}, 2:{h:"強右衛門 走る",t:"鳥居強右衛門、夜陰に乗じて長篠城を抜け出し、岡崎へ走る",run:()=>nagashinoWear()}, 1:{h:"鳥居強右衛門 磔",t:"鳥居強右衛門、磔にされながら叫ぶ ――「援軍は来る！ あと二、三日、持ちこたえよ！」",run:()=>nagashinoWear()}, 0:{h:"設楽原 着陣",t:"織田・徳川、設楽原に着陣。馬防柵の内で武田を待つ"} },
+ nagashino:{ 3:{h:"長篠城 囲まる",t:"武田勢が長篠城を囲んだ。城兵五百、耐えている",run:()=>nagashinoWear()}, 2:{h:"強右衛門 走る",t:"鳥居強右衛門、夜陰に乗じて長篠城を抜け出し、岡崎へ走る",run:()=>nagashinoWear()}, 1:{h:"鳥居強右衛門 磔",t:"鳥居強右衛門、磔にされながら「援軍は来る」と叫んだ",run:()=>nagashinoWear()}, 0:{h:"設楽原 着陣",t:"織田・徳川、設楽原に着陣。馬防柵の内で武田を待つ"} },
+ sekigahara:{ 3:{h:"小山評定",t:"家康、上杉討伐の途で三成挙兵の報を受ける。小山の評定で諸将は反転を決めた"}, 2:{h:"岐阜城 落つ",t:"福島正則・池田輝政が岐阜城を一日で落とした。西軍は大垣に籠る"}, 1:{h:"三成、関ヶ原へ",t:"三成は大垣を出て関ヶ原に布陣。家康は桃配山に本陣を置いた。夜、雨"}, 0:{h:"霧の関ヶ原",t:"夜明け、関ヶ原は深い霧に包まれている"} },
+ osaka:{ 3:{h:"堀、埋まる",t:"冬の陣の和睦で外堀も内堀も埋められた。大坂城はもはや裸城"}, 2:{h:"道明寺の戦い",t:"後藤又兵衛、道明寺で徳川の先手に討ちかかり、奮戦の末に退いた"}, 1:{h:"赤備え、茶臼山へ",t:"真田幸村、茶臼山に赤備えを布く。「明日、家康の首を獲る」"}, 0:{h:"天王寺・岡山",t:"徳川の大軍が天王寺口と岡山口に迫る。豊臣家、最後の朝"} },
+ yamazaki:{ 3:{h:"中国大返し",t:"秀吉、備中高松の陣を払い、姫路へ二百里を駆ける"}, 2:{h:"富田 着陣",t:"秀吉は摂津富田に着き、池田・中川・高山ら諸将が次々に集まった"}, 1:{h:"光秀、山崎へ",t:"光秀は勝竜寺城を出て山崎に布陣。天王山を巡る前哨が始まる"}, 0:{h:"山崎",t:"円明寺川を挟み、両軍が向かい合った"} },
+ shizugatake:{ 3:{h:"柴田、北近江へ",t:"雪解けを待って、柴田勝家は北ノ庄を発ち北近江へ下った"}, 2:{h:"大岩山 落つ",t:"佐久間盛政が大岩山の砦を落とし、中川清秀が討たれた"}, 1:{h:"美濃大返し",t:"秀吉は大垣から一夜で木之本へ駆け戻った"}, 0:{h:"賤ヶ岳",t:"余呉湖のほとり、砦の柵を挟んで両軍がぶつかる"} },
+ anegawa:{ 3:{h:"横山城 囲まる",t:"織田・徳川は横山城を囲み、浅井を誘い出しにかかった"}, 2:{h:"浅井・朝倉、出陣",t:"浅井長政は朝倉と合わせて小谷を出、大依山に布陣した"}, 1:{h:"姉川に対峙",t:"両軍は姉川を挟んで向かい合った。明日、決戦"}, 0:{h:"姉川",t:"夜明けとともに、浅井が姉川を渡り始めた"} },
+ odawara:{ 3:{h:"二十万、東へ",t:"秀吉は駿府を発った。二十万の大軍が東海道を下る"}, 2:{h:"山中城 半日で落つ",t:"箱根の山中城は半日で落ち、北条は小田原に籠った"}, 1:{h:"石垣山の普請",t:"秀吉は小田原を囲み、石垣山に城を築き始めた"}, 0:{h:"小田原の陣",t:"総構えの柵と堀を前に、天下の大軍が押し寄せる"} },
+ tedorigawa:{ 3:{h:"七尾城 落つ",t:"上杉謙信が七尾城を落とした。能登は上杉のもの"}, 2:{h:"柴田、加賀へ",t:"柴田勝家率いる織田勢が加賀へ進む。秀吉は勝家と諍い、陣を離れた"}, 1:{h:"手取川に至る",t:"織田勢は手取川の南岸に着いた。七尾が落ちたことをまだ知らない"}, 0:{h:"夜討ち",t:"夜、川を渡りかけた織田勢に上杉が襲いかかる"} },
+ kawanakajima:{ 3:{h:"上杉、妻女山へ",t:"謙信は一万三千で信濃に入り、妻女山に陣を取った"}, 2:{h:"武田、海津へ",t:"信玄は二万で海津城に入り、両軍は睨み合った"}, 1:{h:"啄木鳥の策",t:"山本勘助が別動隊で妻女山を衝く策を献じた。謙信はそれを見破り、夜のうちに川を渡る"}, 0:{h:"霧の八幡原",t:"濃い霧の中、上杉の本隊が武田の目の前に現れた"} },
+ mikatagahara:{ 3:{h:"信玄、西上",t:"武田信玄、二万五千で甲府を発ち、遠江へ入った"}, 2:{h:"二俣城 落つ",t:"二俣城が落ちた。信玄は浜松を素通りして三方ヶ原へ向かう"}, 1:{h:"家康、討って出る",t:"家康は「素通りされて黙っていられるか」と浜松を出た。諸将は止めた"}, 0:{h:"三方ヶ原",t:"台地の上、武田の魚鱗が徳川の鶴翼を待ち構えていた"} },
+};
+function nagashinoWear(){ const c=Object.values(W.castles).find(x=>x.name==="長篠城"); const tk=clanByName("武田家"); if(c && c.clan!==null && tk && c.clan!==tk.id){ c.defense=Math.max(Math.floor(maxDefense(c)*0.12), Math.floor(c.defense*0.75)); c.food=Math.floor((c.food||0)*0.8); } }
 function decisiveDaily(){
   if(!W.started) return;
   scriptedEnvoys();
@@ -12243,19 +12264,16 @@ function decisiveDaily(){
       break;
     }
   }
-  // 長篠：決戦までの三日、長篠城は囲まれて削られ、鳥居強右衛門が走る
-  if(W.decisivePending===2204 || W.decisivePending===2203){
-    const left=W.decisiveAt-dayNumber(); const c=Object.values(W.castles).find(x=>x.name==="長篠城");
-    if(c && left>=0 && left<=3 && W.nagashinoDay!==left){ W.nagashinoDay=left;
-      const tk=clanByName("武田家"); if(c.clan!==null && tk && c.clan!==tk.id){ c.defense=Math.max(Math.floor(maxDefense(c)*0.12), Math.floor(c.defense*0.75)); c.food=Math.floor((c.food||0)*0.8); }
-      const txt = left===3 ? "武田勢が長篠城を囲んだ。城兵五百、耐えている"
-                : left===2 ? "鳥居強右衛門、夜陰に乗じて長篠城を抜け出し、岡崎へ走る"
-                : left===1 ? "鳥居強右衛門、磔にされながら叫ぶ ――「援軍は来る！ あと二、三日、持ちこたえよ！」"
-                : "織田・徳川、設楽原に着陣。馬防柵の内で武田を待つ";
-      log(txt,"war",true); if(W.player!==null && W.player!==undefined) bigNews(left===1?"鳥居強右衛門 磔":left===2?"強右衛門 走る":left===3?"長篠城 囲まる":"設楽原 着陣"); }
+  // 決戦までの三日、日ごとに一幕。何が起きて決戦に至るのかが分かる
+  if(W.decisivePending){
+    const d=DECISIVE.find(x=>x.id===W.decisivePending); const pre=d&&PRELUDES[d.key];
+    const left=W.decisiveAt-dayNumber();
+    if(pre && left>=0 && left<=3 && W.preludeDay!==d.key+":"+left){ W.preludeDay=d.key+":"+left;
+      const st=pre[left]; if(st){ log(st.t,"war",true); bigNews(st.h); if(st.run){ try{ st.run(); }catch(e){} } } }
   }
   if(W.decisivePending && dayNumber()>=W.decisiveAt && !pendingEncounter && !overlayEl && !B){
     const d=DECISIVE.find(x=>x.id===W.decisivePending);
+    { const pre=d&&PRELUDES[d.key]; if(pre&&pre[0]&&W.preludeDay!==d.key+":0"){ W.preludeDay=d.key+":0"; log(pre[0].t,"war",true); } }
     W.decisivePending=null;
     if(d) fireDecisive(d);
   }
@@ -12330,6 +12348,19 @@ function decisiveAfter(did, winnerClan){
     if(typeof chronicle==="function") chronicle(`${d.name}、${loser.name}敗れる`);
     return;
   }
+  // 戦勝の分捕り。天下分け目の戦なら、負けた側の領地が大きく動く（改易・減封）
+  if(res.spoils && W.clans[winnerClan] && loser){
+    const win=W.clans[winnerClan]; let taken=0;
+    const give=(c)=>{ const old=c.clan; c.clan=winnerClan; c.hq=false; c.holdOut=false; c.delegate=null;
+      for(const g of Object.values(W.generals)) if(g.castle===c.id&&!g.army&&g.clan===old&&g.status!=="大名"){ g.clan=winnerClan; g.status="家臣"; g.tozama=true; g.loyalty=Math.min(g.loyalty,50); }
+      taken++; };
+    for(const nm of (res.spoils.all||[])){ const k=Object.values(W.clans).find(x=>!x.dead&&x.name===nm); if(!k||k.id===winnerClan) continue; for(const c of myCastles(k.id)) give(c); k.dead=true; forgetClan(k.id); log(`${k.name}は改易され、領地は${win.name}のものとなりました`,"war",true); }
+    // 負けた側と、その戦に加わっていた家は領地の半分を失う
+    const losers=[loser, ...Object.values(W.clans).filter(x=>!x.dead&&x.id!==loser.id&&x.id!==winnerClan&&(x.suzerain===loser.id||(x.allies.has(loser.id)&&x.war.has(winnerClan))))];
+    for(const k of losers){ if(!k||k.dead) continue; const cs=myCastles(k.id).filter(c=>!c.hq).sort((a,b)=>b.koku-a.koku); const n=Math.floor(cs.length*(res.spoils.half||0.5)); for(const c of cs.slice(0,n)) give(c); if(n>0) log(`${k.name}は減封され、${n}城が${win.name}の手に渡りました`,"war",true); if(!myCastles(k.id).length){ k.dead=true; forgetClan(k.id); } }
+    if(taken) bigNews(`${win.name} ${taken}城を得る`);
+    expansionPenalty(winnerClan); checkVictory();
+  }
   const victim = res.kill ? Object.values(W.generals).find(x=>x.name===res.kill&&x.status!=="死亡") : null;
   const text = (res.kill && !victim) ? `${loser?loser.name:"敗れた側"}は総崩れとなり、諸将は散り散りに落ち延びた` : res.text;
   log(`【${d.name}】${text}`,"war");
@@ -12351,19 +12382,6 @@ function decisiveAfter(did, winnerClan){
   if(res.capture){
     const c=Object.values(W.castles).find(x=>x.name===res.capture);
     if(c && c.clan!==winnerClan && W.clans[winnerClan]) captureCastle(c.id, winnerClan, null);
-  }
-  // 戦勝の分捕り。天下分け目の戦なら、負けた側の領地が大きく動く（改易・減封）
-  if(res.spoils && W.clans[winnerClan] && loser){
-    const win=W.clans[winnerClan]; let taken=0;
-    const give=(c)=>{ const old=c.clan; c.clan=winnerClan; c.hq=false; c.holdOut=false; c.delegate=null;
-      for(const g of Object.values(W.generals)) if(g.castle===c.id&&!g.army&&g.clan===old&&g.status!=="大名"){ g.clan=winnerClan; g.status="家臣"; g.tozama=true; g.loyalty=Math.min(g.loyalty,50); }
-      taken++; };
-    for(const nm of (res.spoils.all||[])){ const k=Object.values(W.clans).find(x=>!x.dead&&x.name===nm); if(!k||k.id===winnerClan) continue; for(const c of myCastles(k.id)) give(c); k.dead=true; forgetClan(k.id); log(`${k.name}は改易され、領地は${win.name}のものとなりました`,"war",true); }
-    // 負けた側と、その戦に加わっていた家は領地の半分を失う
-    const losers=[loser, ...Object.values(W.clans).filter(x=>!x.dead&&x.id!==loser.id&&x.id!==winnerClan&&(x.suzerain===loser.id||(x.allies.has(loser.id)&&x.war.has(winnerClan))))];
-    for(const k of losers){ if(!k||k.dead) continue; const cs=myCastles(k.id).filter(c=>!c.hq).sort((a,b)=>b.koku-a.koku); const n=Math.floor(cs.length*(res.spoils.half||0.5)); for(const c of cs.slice(0,n)) give(c); if(n>0) log(`${k.name}は減封され、${n}城が${win.name}の手に渡りました`,"war",true); if(!myCastles(k.id).length){ k.dead=true; forgetClan(k.id); } }
-    if(taken) bigNews(`${win.name} ${taken}城を得る`);
-    expansionPenalty(winnerClan); checkVictory();
   }
   setTimeout(()=>openingBanner(text, 0), 300);
   setTimeout(()=>{ document.getElementById("alertTitle").textContent=`史実の一幕　${d.name}`; }, 320);
