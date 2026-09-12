@@ -87,8 +87,8 @@ button:focus-visible{outline:2px solid var(--kin);outline-offset:2px}
 /* ---------- 大きな知らせ ---------- */
 #bigNews{
   position:absolute;left:50%;top:34%;transform:translate(-50%,-50%);z-index:32;
-  pointer-events:none;text-align:center;
-  font-family:var(--display);font-size:clamp(26px,5vw,46px);letter-spacing:.10em;
+  pointer-events:none;text-align:center;white-space:nowrap;max-width:96vw;
+  font-family:var(--display);font-size:clamp(22px,4.2vw,46px);letter-spacing:.08em;
   color:#fff;
   text-shadow:0 0 5px #000,2px 2px 0 #7A1E10,-2px -2px 0 #7A1E10,2px -2px 0 #7A1E10,-2px 2px 0 #7A1E10;
   animation:newsIn .35s ease-out;
@@ -9508,7 +9508,7 @@ function drawMap(){
       mctx.font='800 '+Math.max(13,Math.round(size*0.36))+'px "DotGothic16",monospace';
       mctx.textAlign="right";
       // 上に置くと隣の城の兵数札と重なるので、城の左脇に添える
-      const dnx=x-size*0.46, dny=y-size*0.30;
+      const dnx=x-size*0.46, dny=y-size*0.16;
       mctx.strokeStyle="rgba(0,0,0,.9)"; mctx.lineWidth=4;
       const dtxt="耐"+Math.round(c.defense).toLocaleString();   // 何の数か分かるように「耐」を添える
       mctx.strokeText(dtxt, dnx, dny);
@@ -11985,7 +11985,8 @@ function decisiveSite(d, A, Bc){
 function mkScriptArmy(clanId, gens, x, y, total){
   const hq=myCastles(clanId).find(c=>c.hq)||myCastles(clanId)[0];
   const id=W.nextArmy++;
-  const cmd=gens.reduce((a,b)=>a.lea>=b.lea?a:b);
+  // 当主が出ているなら当主の本陣。いなければ統率の高い者（馬場が勝頼の上に立っていた）
+  const cmd=gens.find(g=>g.status==="大名") || gens.reduce((a,b)=>a.lea>=b.lea?a:b);
   // 結集：史実の兵数を将に割り振る（大合戦のあいだは平時の上限を超えて率いる）
   if(total){
     const w=gens.map(g=>0.6+0.4*g.lea/100); const sw=w.reduce((a,b)=>a+b,0);
@@ -12320,8 +12321,10 @@ function startBattle(e){
       mods:{0:modOf(a.clan), 1:modOf(foeClan)},
       ctx:{atk:atk.map(g=>g.id), def:def.map(g=>g.id), castle:castleID,
            army:e.army, foeArmy:(e.foeArmy!==null&&e.foeArmy!==undefined)?e.foeArmy:null, playerSide: e.playerAttacks?0:1, sortie: !!e.sortie, decisive: e.decisive||null, oke: !!e.oke} };
-  const atkCmd=atk.reduce((x,y)=>x.lea>=y.lea?x:y).id;
-  const defCmd=def.reduce((x,y)=>x.lea>=y.lea?x:y).id;
+  // 本陣は当主が出ていれば当主。いなければ統率の高い者
+  const pickCmd=gs=>(gs.find(g=>g.status==="大名")||gs.reduce((x,y)=>x.lea>=y.lea?x:y)).id;
+  const atkCmd=pickCmd(atk);
+  const defCmd=pickCmd(def);
   // 画面では常に自分が左、敵が右。守る側でも見え方を変えない
   const playerSide = e.playerAttacks?0:1;
   const sideX = side => (side===playerSide) ? "left" : "right";
