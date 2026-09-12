@@ -15703,6 +15703,10 @@ let chosenScenario="oke";
 /* ---- 筋書きの鍵：桶狭間は無料、長篠は五百円で解除、ほかは近日公開 ---- */
 const FREE_SCENARIOS=new Set(["oke"]);
 const PAID_SCENARIOS={ nagashino:{price:"¥500", sku:"jp.kaitoseto.sengoku.nagashino"} };
+/* ウェブ版の支払い：Stripe の支払いリンク。支払いが済むと、この頁へ ?unlock=<合言葉> で戻ってくる */
+const PAY_LINK="";   // Stripe の支払いリンク（¥500）。空なら「iPhone 版で」とだけ案内
+const UNLOCK_TOKEN="sVzU74z_zZhdYBWsz_Sk-G2d";
+(function(){ try{ const q=new URLSearchParams(location.search); const t=q.get("unlock"); if(t){ if(t===UNLOCK_TOKEN){ const u=(()=>{ try{ return new Set(JSON.parse(localStorage.getItem("sengoku_unlock")||"[]")); }catch(e){ return new Set(); } })(); u.add("nagashino"); localStorage.setItem("sengoku_unlock",JSON.stringify([...u])); setTimeout(()=>{ try{ toast("お支払いありがとうございます。長篠の戦いを解除しました"); refreshScenarioLocks(); }catch(e){} },800); } history.replaceState(null,"",location.pathname); } }catch(e){} })();
 function unlockedScenarios(){ try{ return new Set(JSON.parse(localStorage.getItem("sengoku_unlock")||"[]")); }catch(e){ return new Set(); } }
 function scenarioLocked(id){ return !FREE_SCENARIOS.has(id) && !unlockedScenarios().has(id); }
 function scenarioAvailable(id){ return FREE_SCENARIOS.has(id) || PAID_SCENARIOS[id]!==undefined; }
@@ -15717,11 +15721,12 @@ function requestUnlock(id){
   const dev=/localhost|127\.0\.0\.1|claude\.ai/.test(location.hostname);
   const el=document.createElement("div"); el.className="overlay"; el.style.zIndex=95;
   el.innerHTML=`<div class="dialog" style="max-width:420px;text-align:center"><h3>${esc(SCENARIO_DEFS[id].name)}</h3>
-    <div class="advice">この筋書きは iPhone 版（App Store・近日）で ${info.price} で解除できます。<br>ウェブ版では桶狭間の戦いを遊べます。${dev?"<br>解除の言葉をお持ちなら、ここに入れてください。":""}</div>
+    <div class="advice">${PAY_LINK?`この筋書きは ${info.price} で解除できます（カード・Apple Pay など）。<br>お支払いのあと、この頁に戻ると解除されます。解除はこのブラウザに残ります。`:`この筋書きは iPhone 版（App Store・近日）で ${info.price} で解除できます。<br>ウェブ版では桶狭間の戦いを遊べます。`}${dev?"<br>解除の言葉をお持ちなら、ここに入れてください。":""}</div>
     ${dev?`<input id="unlockCode" placeholder="解除の言葉" style="width:100%;padding:9px 11px;border-radius:6px;border:1px solid rgba(237,230,214,.25);background:rgba(0,0,0,.35);color:#EDE6D6;font:inherit;margin:6px 0">`:""}
-    <div style="display:flex;gap:8px">${dev?`<button class="big gold" style="flex:1" id="ulGo">解除する</button>`:""}<button class="big ghost" style="flex:1" id="ulNo">${dev?"やめる":"閉じる"}</button></div></div>`;
+    <div style="display:flex;gap:8px;flex-wrap:wrap">${PAY_LINK?`<button class="big gold" style="flex:1" id="ulPay">${info.price} で解除する</button>`:""}${dev?`<button class="big gold" style="flex:1" id="ulGo">解除する</button>`:""}<button class="big ghost" style="flex:1" id="ulNo">${dev?"やめる":"閉じる"}</button></div></div>`;
   document.body.appendChild(el);
   el.querySelector("#ulNo").onclick=()=>el.remove();
+  { const pb=el.querySelector("#ulPay"); if(pb) pb.onclick=()=>{ location.href=PAY_LINK; }; }
   { const g=el.querySelector("#ulGo"); if(g) g.onclick=()=>{ const v=(el.querySelector("#unlockCode").value||"").trim().toUpperCase(); if(v==="TENKA"||v==="NAGASHINO500"){ el.remove(); window.sengokuUnlock(id); } else toast("解除の言葉が違います"); }; }
 }
 function refreshScenarioLocks(){
