@@ -12648,13 +12648,16 @@ function fireDecisive(d){
   const aa=mkScriptArmy(A.id, ga, site.x-1, site.y, d.atkTroops);
   const ab=mkScriptArmy(Bc.id, gb, site.x+1, site.y, d.defTroops);
   // 人の将が加わっている側は人が采配を執る（東西どちらかに付いた家も、決戦に出る）
-  const mineIsA = A.id===W.player || ga.some(g=>g.clan===W.player), mineIsB = Bc.id===W.player || gb.some(g=>g.clan===W.player);
+  // 関ヶ原は徳川か石田で遊ぶときだけ人が采配。ほかの家なら史実どおりに決まる（小早川の寝返りで東軍が勝つ）
+  const headOnly = d.key==="sekigahara";
+  const mineIsA = A.id===W.player || (!headOnly && ga.some(g=>g.clan===W.player)), mineIsB = Bc.id===W.player || (!headOnly && gb.some(g=>g.clan===W.player));
   const e={army:aa.id, foeArmy:ab.id, castle:null, playerAttacks:mineIsA, decisive:d.id};
   const mine = mineIsA || mineIsB;
   if(typeof chronicle==="function") chronicle(`${d.name}`);
   document.getElementById("alertBar").hidden=true;
   if(!mine){
-    // 人が関わらぬなら、自動で決する
+    // 人が関わらぬなら、自動で決する（関ヶ原に他家で加わっていれば、史実どおりの結末を報せる）
+    if(headOnly && (ga.some(g=>g.clan===W.player)||gb.some(g=>g.clan===W.player))) bigNews(`${d.name}　史実のとおりに決す`);
     autoBattle(aa, ab);
     return;
   }
