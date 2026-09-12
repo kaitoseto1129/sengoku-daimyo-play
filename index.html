@@ -15747,8 +15747,29 @@ function track(ev){
 const UNLOCK_TOKEN="sVzU74z_zZhdYBWsz_Sk-G2d";
 (function(){ try{ const q=new URLSearchParams(location.search); const t=q.get("unlock"); if(t){ if(t===UNLOCK_TOKEN){ const u=(()=>{ try{ return new Set(JSON.parse(localStorage.getItem("sengoku_unlock")||"[]")); }catch(e){ return new Set(); } })(); u.add("nagashino"); localStorage.setItem("sengoku_unlock",JSON.stringify([...u])); setTimeout(()=>{ try{ toast("お支払いありがとうございます。長篠の戦いを解除しました"); refreshScenarioLocks(); }catch(e){} },800); } history.replaceState(null,"",location.pathname); } }catch(e){} })();
 function unlockedScenarios(){ try{ return new Set(JSON.parse(localStorage.getItem("sengoku_unlock")||"[]")); }catch(e){ return new Set(); } }
-function scenarioLocked(id){ return !FREE_SCENARIOS.has(id) && !unlockedScenarios().has(id); }
-function scenarioAvailable(id){ return FREE_SCENARIOS.has(id) || PAID_SCENARIOS[id]!==undefined; }
+function scenarioLocked(id){ const u=unlockedScenarios(); return !FREE_SCENARIOS.has(id) && !u.has(id) && !u.has("all"); }
+function scenarioAvailable(id){ const u=unlockedScenarios(); return FREE_SCENARIOS.has(id) || PAID_SCENARIOS[id]!==undefined || u.has(id) || u.has("all"); }
+/* 解除の言葉。合っていればすべての筋書きが開く（どこで遊んでいても） */
+const UNLOCK_WORDS=new Set(["TENKAFUBU","TENKA","天下布武","てんかふぶ"]);
+function tryUnlockWord(v){
+  v=(v||"").trim().toUpperCase().replace(/\s+/g,"");
+  if(!UNLOCK_WORDS.has(v) && !UNLOCK_WORDS.has(v.toLowerCase())) return false;
+  const u=unlockedScenarios(); u.add("all"); try{ localStorage.setItem("sengoku_unlock",JSON.stringify([...u])); }catch(e){}
+  track("unlock/word"); refreshScenarioLocks(); toast("解除の言葉が通りました。すべての筋書きが遊べます"); return true;
+}
+function requestWord(id){
+  const el=document.createElement("div"); el.className="overlay"; el.style.zIndex=95;
+  el.innerHTML=`<div class="dialog" style="max-width:420px;text-align:center"><h3>${esc((SCENARIO_DEFS[id]||{}).name||"")}</h3>
+    <div class="advice">この筋書きは近日公開です。<br>解除の言葉をお持ちなら、ここに。</div>
+    <input id="unlockCode" placeholder="解除の言葉" autocapitalize="off" autocomplete="off" style="width:100%;padding:9px 11px;border-radius:6px;border:1px solid rgba(237,230,214,.25);background:rgba(0,0,0,.35);color:#EDE6D6;font:inherit;margin:6px 0">
+    <div style="display:flex;gap:8px"><button class="big gold" style="flex:1" id="ulGo">解除する</button><button class="big ghost" style="flex:1" id="ulNo">閉じる</button></div></div>`;
+  document.body.appendChild(el);
+  el.querySelector("#ulNo").onclick=()=>el.remove();
+  const inp=el.querySelector("#unlockCode");
+  const go=()=>{ if(tryUnlockWord(inp.value)) el.remove(); else toast("解除の言葉が違います"); };
+  el.querySelector("#ulGo").onclick=go; inp.onkeydown=e=>{ if(e.key==="Enter") go(); };
+  setTimeout(()=>inp.focus(),50);
+}
 window.sengokuUnlock=function(id){   // iOS の課金が通れば、包みからここが呼ばれる
   track("unlock/"+id);
   const u=unlockedScenarios(); u.add(id); try{ localStorage.setItem("sengoku_unlock",JSON.stringify([...u])); }catch(e){}
@@ -15758,7 +15779,7 @@ function requestUnlock(id){
   const info=PAID_SCENARIOS[id]; if(!info) return;
   if(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap){ try{ window.webkit.messageHandlers.iap.postMessage({buy:id, sku:info.sku}); return; }catch(e){} }
   // 包みの外（ウェブ）：公開の場では「App 版で」とだけ。手元（localhost / claude.ai）では解除の言葉で開ける
-  const dev=/localhost|127\.0\.0\.1|claude\.ai/.test(location.hostname);
+  const dev=true;   // 解除の言葉はどこでも受ける
   const el=document.createElement("div"); el.className="overlay"; el.style.zIndex=95;
   el.innerHTML=`<div class="dialog" style="max-width:420px;text-align:center"><h3>${esc(SCENARIO_DEFS[id].name)}</h3>
     <div class="advice">${PAY_LINK?`この筋書きは ${info.price} で解除できます（カード・Apple Pay など）。<br>お支払いのあと、この頁に戻ると解除されます。解除はこのブラウザに残ります。`:`この筋書きは iPhone 版（App Store・近日）で ${info.price} で解除できます。<br>ウェブ版では桶狭間の戦いを遊べます。`}${dev?"<br>解除の言葉をお持ちなら、ここに入れてください。":""}</div>
@@ -15767,7 +15788,7 @@ function requestUnlock(id){
   document.body.appendChild(el);
   el.querySelector("#ulNo").onclick=()=>el.remove();
   { const pb=el.querySelector("#ulPay"); if(pb) pb.onclick=()=>{ track("pay-click/"+id); setTimeout(()=>{ location.href=PAY_LINK; },150); }; }
-  { const g=el.querySelector("#ulGo"); if(g) g.onclick=()=>{ const v=(el.querySelector("#unlockCode").value||"").trim().toUpperCase(); if(v==="TENKA"||v==="NAGASHINO500"){ el.remove(); window.sengokuUnlock(id); } else toast("解除の言葉が違います"); }; }
+  { const g=el.querySelector("#ulGo"); if(g) g.onclick=()=>{ const v=(el.querySelector("#unlockCode").value||"").trim().toUpperCase(); if(v==="NAGASHINO500"){ el.remove(); window.sengokuUnlock(id); } else if(tryUnlockWord(v)){ el.remove(); } else toast("解除の言葉が違います"); }; }
 }
 function refreshScenarioLocks(){
   // 包みの中なら「購入を復元」を出す
@@ -15781,7 +15802,7 @@ function refreshScenarioLocks(){
 }
 document.querySelectorAll("#stepScenario .scen[data-sc]").forEach(b=>b.onclick=()=>{
   const id=b.dataset.sc;
-  if(!scenarioAvailable(id)){ toast("この筋書きは近日公開です"); return; }
+  if(!scenarioAvailable(id)){ requestWord(id); return; }
   if(scenarioLocked(id)){ requestUnlock(id); return; }
   document.querySelectorAll("#stepScenario .scen").forEach(x=>x.classList.remove("sel"));
   b.classList.add("sel"); chosenScenario=id;
