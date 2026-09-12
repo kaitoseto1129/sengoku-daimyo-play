@@ -1284,7 +1284,7 @@ const SCENARIO_DEFS = {
    {name:"羽柴家", crest:"羽", daimyo:"羽柴秀吉", hq:"姫路城", provs:["播磨","但馬","因幡","淡路"], gens:["黒田官兵衛","蜂須賀正勝","堀秀政","加藤清正","福島正則","石田三成","大谷吉継","仙石秀久","蜂須賀家政","加藤嘉明","片桐且元"], boost:1.3, ai:{agg:.9,dip:.6,eco:.7,risk:.6}},
    {name:"宇喜多家", crest:"宇", daimyo:"宇喜多秀家", hq:"沼城", provs:["備前","美作"], gens:[], vassalOf:"羽柴家", ai:{agg:.5,dip:.5,eco:.5,risk:.4}},
    {name:"柴田家", crest:"柴", daimyo:"柴田勝家", hq:"北庄城", provs:["越前","加賀"], gens:["佐久間盛政","不破光治","金森長近"], troops:25000, ai:{agg:.8,dip:.3,eco:.4,risk:.7}},
-   {name:"前田家", crest:"前", daimyo:"前田利家", hq:"七尾城", castles:["七尾城","穴水城"], gens:["前田利長"], vassalOf:"柴田家", troops:12000, ai:{agg:.5,dip:.7,eco:.6,risk:.4}},
+   {name:"前田家", crest:"前", daimyo:"前田利家", hq:"七尾城", castles:["七尾城","穴水城"], gens:["前田利長"], vassalOf:"柴田家", loyal:true, troops:12000, ai:{agg:.5,dip:.7,eco:.6,risk:.4}},
    {name:"佐々家", crest:"佐", daimyo:"佐々成政", hq:"富山城", provs:["越中"], gens:[], vassalOf:"柴田家", ai:{agg:.6,dip:.3,eco:.4,risk:.6}},
    {name:"織田家", reuse:"織田家", crest:"織", daimyo:"織田信雄", hq:"清洲城", provs:["尾張","伊勢","志摩","伊賀"], gens:["織田秀信","織田長益","蒲生氏郷","蒲生賢秀","山内一豊"], troops:20000, ai:{agg:.5,dip:.5,eco:.6,risk:.4}},
    {name:"神戸家", crest:"孝", daimyo:"織田信孝", hq:"岐阜城", provs:["美濃"], gens:["森長可"], ai:{agg:.6,dip:.4,eco:.5,risk:.6}},
@@ -1302,6 +1302,7 @@ const SCENARIO_DEFS = {
   absorb:["小笠原家","蘆名家","長家","阿曽沼家"],
   wars:[["明智家","羽柴家"],["明智家","織田家"],["明智家","神戸家"],["明智家","丹羽家"],["明智家","池田家"],["明智家","柴田家"],["明智家","徳川家"],["羽柴家","毛利家"],["柴田家","上杉家"],["北条家","滝川家"],["長宗我部家","織田家"]],
   allies:[["羽柴家","池田家"],["羽柴家","丹羽家"],["羽柴家","徳川家"],["織田家","徳川家"],["柴田家","神戸家"]],
+  neutral:[["織田家","神戸家","丹羽家","池田家","柴田家","羽柴家","滝川家","前田家","佐々家","宇喜多家","徳川家","真田家"]],   // 旧織田家中は互いに弓を引かない（人が引けば別）
   truces:[],
   text:["天正十年六月二日。明智光秀、本能寺に信長を討つ。","「敵は本能寺にあり」―― 京は明智の手に落ちた。","羽柴秀吉は備中高松より兵を返し、山崎へ急ぐ。"],
  },
@@ -1717,7 +1718,7 @@ function applyScenario(sc){
   }
   // ⑨ 盟約
   const K=n=>byName[n]||Object.values(W.clans).find(x=>x.name===n&&!x.dead);
-  for(const h of sc.houses){ if(h.vassalOf){ const v=byName[h.name], l=K(h.vassalOf); if(v&&l){ v.suzerain=l.id; l.vassals.add(v.id); setRel(v.id,l.id,70); setRel(l.id,v.id,70); } } }
+  for(const h of sc.houses){ if(h.vassalOf){ const v=byName[h.name], l=K(h.vassalOf); if(v&&l){ v.suzerain=l.id; l.vassals.add(v.id); setRel(v.id,l.id,70); setRel(l.id,v.id,70); if(h.loyal) v.loyal=true; } } }
   for(const [a,b] of sc.wars||[]){ const A=K(a),B=K(b); if(A&&B){ declareWar(A.id,B.id); setRel(A.id,B.id,-80); setRel(B.id,A.id,-80); } }
   // 傘下ごと戦に入った家の心証も冷ましておく
   for(const k of Object.values(W.clans)) if(!k.dead) for(const w of k.war) if(getRel(k.id,w)>-60) setRel(k.id,w,-60);
@@ -2535,9 +2536,17 @@ function getRel(a,b){ const A=W.clans[a]; return (A&&A.rel&&A.rel[b]) ?? 0; }
 function addRel(a,b,d){ setRel(a,b,getRel(a,b)+d); }
 /* 戦も盟も、片側だけに書かれていては世が食い違う。
    必ず双方の帳面に同じことを書く。 */
+/* 筋書きで「互いに中立」と決めた家どうし（本能寺の旧織田家中）。人が関わる戦は止めない */
+function neutralPair(a,b){
+  const sc=SCENARIO_DEFS[W.scenario]; if(!sc||!sc.neutral) return false;
+  if(a===W.player||b===W.player) return false;
+  const na=clanName(a), nb=clanName(b);
+  return sc.neutral.some(g=>g.includes(na)&&g.includes(nb));
+}
 function declareWar(a,b,via){
   const A=W.clans[a], B=W.clans[b]; if(!A||!B||a===b) return;
   if(sameHouse(a,b)) return;   // 同じ主家に仕える家どうし、主家と傘下は戦にならない
+  if(via!=="force" && neutralPair(a,b)) return;   // 中立と決めた家どうしは弓を引かない
   if(via!=="force" && underTruce(a,b)) return;   // 約定のあるうちは、誰も弓を引かない（連合の誘いでも同じ）
   const wasNew = !A.war.has(b) || !B.war.has(a);
   const wasAlly = A.allies.has(b);
@@ -3972,7 +3981,7 @@ function vassalUnrest(){
   }
   if(W.date.d!==8) return;
   for(const o of Object.values(W.clans)){
-    if(o.dead||o.suzerain===null) continue;
+    if(o.dead||o.suzerain===null||o.loyal) continue;
     const rel=getRel(o.id,o.suzerain);
     if(rel>-45) continue;
     if(rnd()>=(prestigeTier(o.suzerain)>=2?0.09:0.18)) continue;   // 守護職の格があれば背きにくい
@@ -5572,6 +5581,7 @@ function aiMilitary(clan,p){
         if(clan.orderTarget && dayNumber()<clan.orderTarget.until && tc!==clan.orderTarget.clan && W.clans[clan.orderTarget.clan] && !W.clans[clan.orderTarget.clan].dead && myCastles(clan.orderTarget.clan).length) continue;   // 名指しの相手がいるうちは余所を攻めない
         if(W.scenario==="oke" && (clan.id===23||clan.id===1) && !W.okeWon && W.player!==1) continue;   // 桶狭間の前の松平と今川は動かない（上洛勢が本筋）
         if(underTruce(clan.id,tc)) continue;        // 約定のある相手は狙わない
+        if(neutralPair(clan.id,tc)) continue;       // 中立と決めた家（旧織田家中）は狙わない
         { const headT=(W.clans[tc]&&W.clans[tc].suzerain!=null&&W.clans[W.clans[tc].suzerain]&&!W.clans[W.clans[tc].suzerain].dead)?W.clans[tc].suzerain:tc;
           const lordK=(clan.suzerain!=null&&W.clans[clan.suzerain]&&!W.clans[clan.suzerain].dead)?W.clans[clan.suzerain]:null;
           const calmed=k=>k&&k.calm&&((k.calm[tc]&&dayNumber()<k.calm[tc])||(k.calm[headT]&&dayNumber()<k.calm[headT]));
@@ -13673,7 +13683,7 @@ function stepUnit(u,dt){
   // 木や柵に阻まれると足が鈍る
   for(const o of B.obstacles){
     if((o.fence||o.wall) && !o.stone && u.side===(o.side!==undefined?o.side:1)) continue;   // 自分の柵は木戸から抜けられる（砦の柵は守り手＝側1のもの）
-    if(o.building>0) continue;                            // 組んでいる途中の柵はまだ立っていない
+    // 組んでいる途中でも杭は打ち込まれている：敵はもう通れない（八秒の間に敵が抜けて、柵が敵の背中に立っていた）
     const dx=o.x-u.x, dy=o.y-u.y;
     if(dx*dx+dy*dy < o.r*o.r){
       if(o.stone && u.side===0){ speed*=0.15; if(B.gate && !B.gate.open && u.x>o.x-1.0) u.x=o.x-1.0; }   // 石垣は越えられない。門を破るほかない
@@ -14089,7 +14099,7 @@ function battleAI(){
     }
     else {
       // 騎馬は目の前の柵を避けて回り込む
-      const wallAhead=B.obstacles.find(o=>(o.fence||o.wall)&&!(o.building>0)&&Math.abs(o.y-u.y)<2.2&&Math.abs(o.x-u.x)<3.5&&((u.side===0)?(o.x>u.x):(o.x<u.x)));
+      const wallAhead=B.obstacles.find(o=>(o.fence||o.wall)&&!(o.building>0)&&Math.abs(o.y-u.y)<2.2&&Math.abs(o.x-u.x)<3.5&&((u.side===B.ctx.playerSide)?(o.x>u.x):(o.x<u.x)));   // 自分は左、敵は右
       if(wallAhead && B.elapsed<150){
         const gapY = B.obstacles.filter(o=>(o.fence||o.wall)&&Math.abs(o.x-wallAhead.x)<1.5).map(o=>o.y).sort((a,b)=>a-b);
         const span = gapY.length ? gapY[gapY.length-1]-gapY[0] : 0;
@@ -15955,7 +15965,7 @@ function buildFenceAt(wx,wy){
   // 柵は隙間なく詰めて組む（九本を一・一歩おき）。鉄砲は柵の内から撃てる
   for(let k=-4;k<=4;k++){
     const y=Math.max(1,Math.min(BF.h-1,wy+k*1.1));
-    B.obstacles.push({kind:1, variant:(k+4)%3, x, y, r:1.0, wall:true, fence:true, hp:560, building:8, quick:true, side:B.ctx.playerSide, lane:"p"+Math.round(x*10)});
+    B.obstacles.push({kind:1, variant:(k+4)%3, x, y, r:1.0, wall:true, fence:true, hp:560, building:4, quick:true, side:B.ctx.playerSide, lane:"p"+Math.round(x*10)});
   }
   B.mode=null; B.paused=false;
   playSE("build");
