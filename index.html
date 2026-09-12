@@ -15714,10 +15714,12 @@ function track(ev){
   try{
     if(!ANALYTICS) return;
     if(/localhost|127\.0\.0\.1/.test(location.hostname)) return;
+    if(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap) return;
     if(window.goatcounter&&window.goatcounter.count){ window.goatcounter.count({path:"ev/"+ev, title:ev, event:true}); }
   }catch(e){}
 }
-(function(){ if(!ANALYTICS||/localhost|127\.0\.0\.1/.test(location.hostname)) return; const sc=document.createElement("script"); sc.async=true; sc.dataset.goatcounter=ANALYTICS; sc.src="https://gc.zgo.at/count.js"; document.head.appendChild(sc); })();
+(function(){ if(!ANALYTICS||/localhost|127\.0\.0\.1/.test(location.hostname)) return; if(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap) return;   // iPhone 版では計らない（何も送らない）
+  const sc=document.createElement("script"); sc.async=true; sc.dataset.goatcounter=ANALYTICS; sc.src="https://gc.zgo.at/count.js"; document.head.appendChild(sc); })();
 const UNLOCK_TOKEN="sVzU74z_zZhdYBWsz_Sk-G2d";
 (function(){ try{ const q=new URLSearchParams(location.search); const t=q.get("unlock"); if(t){ if(t===UNLOCK_TOKEN){ const u=(()=>{ try{ return new Set(JSON.parse(localStorage.getItem("sengoku_unlock")||"[]")); }catch(e){ return new Set(); } })(); u.add("nagashino"); localStorage.setItem("sengoku_unlock",JSON.stringify([...u])); setTimeout(()=>{ try{ toast("お支払いありがとうございます。長篠の戦いを解除しました"); refreshScenarioLocks(); }catch(e){} },800); } history.replaceState(null,"",location.pathname); } }catch(e){} })();
 function unlockedScenarios(){ try{ return new Set(JSON.parse(localStorage.getItem("sengoku_unlock")||"[]")); }catch(e){ return new Set(); } }
