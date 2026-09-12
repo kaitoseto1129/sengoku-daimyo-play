@@ -9068,23 +9068,36 @@ function soldierSprite(unit,side,frame,flip,variant){
   const sashimono=(x,y)=>{ if(variant===2) return; px(x,y,1,14,wood); px(x+1,y,5,8,flag); px(x+2,y+2,3,4,armorD); };
 
   if(unit===2){
-    // 騎馬。馬体は丸みのある胴・立った首・耳と目のある頭・四本の脚（駆け足の二こま）
-    const horse="#7A5232", horseD="#4E3420", horseL="#9A6C46", mane="#2E2018";
-    px(4,22,22,8,horse); px(6,20,18,3,horse); px(4,29,22,2,horseD);   // 胴
-    px(8,21,14,2,horseL);
-    px(22,12,6,12,horse); px(24,11,4,3,horse);                          // 首
-    px(24,8,8,6,horse); px(30,10,4,3,horseD); px(26,6,2,3,horse);       // 頭・鼻・耳
-    px(29,9,1,1,"#111"); px(20,10,4,4,mane); px(22,8,3,4,mane);         // 目・たてがみ
-    px(1,20,4,3,mane); px(0,23,3,4,mane);                                // 尾
-    if(bob){ px(6,30,3,7,horseD); px(11,30,3,6,horse); px(17,30,3,6,horse); px(23,30,3,7,horseD); }
-    else   { px(5,30,3,6,horseD); px(12,30,3,7,horse); px(16,30,3,7,horse); px(24,30,3,6,horseD); }
-    px(10,19,10,4,armorL); px(10,22,10,2,armorD);                        // 鞍
-    px(11,9,9,10,armor); px(11,9,9,2,armorL);                            // 乗り手の胴
-    px(9,16,3,6,armorD); px(19,16,3,5,armorD);                           // 脚（鐙）
-    px(13,3,6,6,skin);
-    px(11,0,10,4,armorD); px(10,3,12,2,armorD); px(14,-1,4,2,steel);     // 兜
-    px(21,0,2,20,wood); px(20,0,4,5,steel);                              // 長槍
-    sashimono(8,1);
+    // 騎馬。馬は横向きの塊ではなく、長い胴・反った首・たてがみ・流れる尾・四本の脚（駆け足の二こま）。鞍の上に武者
+    const hv=variant===1?0.8:variant===2?1.15:1; const hs=(h)=>shade(h,hv);
+    const horse=hs("#7A5232"), horseD=hs("#4E3420"), horseL=hs("#A5764E"), mane="#2A1C12";
+    const poly=(pts,c)=>{ g.fillStyle=c; g.beginPath(); g.moveTo(pts[0][0],pts[0][1]); for(let i=1;i<pts.length;i++) g.lineTo(pts[i][0],pts[i][1]); g.closePath(); g.fill(); };
+    // 尾（流れる）
+    poly([[5,20],[1,18],[0,22],[2,26],[5,25]],mane); poly([[4,21],[2,24],[4,24]],hs("#3A2A1C"));
+    // 胴：前が高く、腹は丸い
+    poly([[5,19],[9,17],[22,16],[27,18],[28,23],[25,27],[10,28],[6,25]],horse);
+    poly([[8,25],[24,25],[26,27],[10,28]],horseD);                          // 腹の陰
+    poly([[9,18],[22,17],[23,19],[10,20]],horseL);                           // 背の光
+    // 首と頭：首は反って立ち、頭は小さく
+    poly([[22,17],[26,9],[31,7],[32,11],[28,19]],horse);
+    poly([[29,7],[35,9],[35,12],[31,13],[29,11]],horse);                     // 頭
+    px(33,11,2,2,horseD); px(31,9,1,1,"#111"); px(30,6,2,3,horse);           // 鼻・目・耳
+    poly([[23,17],[26,8],[29,7],[26,11],[24,18]],mane);                      // たてがみ
+    // 脚：駆け足（前脚は前へ、後脚は後ろへ蹴る）
+    if(bob){ poly([[24,25],[27,24],[31,31],[30,35],[27,34],[26,29]],horseD); poly([[21,26],[24,26],[25,33],[22,34]],horse);
+             poly([[9,26],[12,26],[7,33],[4,35],[3,33],[8,28]],horseD); poly([[13,26],[16,26],[15,34],[12,34]],horse); }
+    else   { poly([[23,26],[26,26],[27,33],[24,34]],horseD); poly([[19,26],[22,26],[24,31],[26,35],[23,35],[20,30]],horse);
+             poly([[8,26],[11,26],[10,34],[7,34]],horseD); poly([[13,26],[16,26],[12,31],[9,35],[7,34],[12,28]],horse); }
+    px(4,34,30,1,"rgba(0,0,0,.25)");                                         // 蹄の影
+    // 鞍と乗り手
+    px(11,15,10,4,armorD); px(12,14,8,2,armorL);                             // 鞍
+    px(12,6,9,10,armor); px(12,6,9,2,armorL); px(13,10,7,1,armorD);          // 胴（鎧）
+    px(10,12,3,7,armorD); px(20,12,3,6,armorD);                              // 脚（鐙まで）
+    px(14,1,6,6,skin);
+    if(variant===1){ px(12,0,10,3,steelD); px(11,2,12,2,armorD); px(15,-2,4,3,steel); }   // 鉄の兜に前立て
+    else { px(12,-1,10,4,armorD); px(11,2,12,2,armorD); px(15,-2,4,2,steel); }              // 兜
+    px(22,-2,2,22,wood); px(21,-2,4,5,steel);                                // 長槍
+    sashimono(9,-1);
   } else if(unit===0){
     // 足軽。陣笠に長槍、背に指物
     px(12,13,10,11,armor); px(12,13,10,2,armorL); px(13,18,8,1,armorD);
@@ -9109,6 +9122,15 @@ function soldierSprite(unit,side,frame,flip,variant){
     px(24,4,3,3,skin);                                                   // 手
     px(26,-2,3,14,steel); px(25,10,5,3,wood); px(27,-3,2,2,steelD);      // 太刀（振り上げ）
     sashimono(8,3);
+  } else if(unit===3 && variant===3){
+    // 鉄砲の後列：立って銃を斜め上に構える（前列の片膝と重ねて二段の構えに）
+    px(12,13,10,11,armor); px(12,13,10,2,armorL);
+    px(13,24,3,8-bob,armorD); px(18,24,3,7+bob,armorD); px(13,31-bob,4,2,"#333"); px(18,30+bob,4,2,"#333");
+    px(14,7,6,6,skin); px(10,4,14,2,armorD); px(12,2,10,3,armorD); px(11,5,12,1,"#000000AA");
+    px(21,14,3,3,skin); px(27,10,3,3,skin);                                  // 両手
+    g.save(); g.translate(20,17); g.rotate(-0.42); px(0,-1,16,3,wood); px(14,-2,3,3,steelD); px(4,-2,12,1,steelD); px(-3,0,5,5,wood); g.restore();   // 斜めの銃
+    px(25,8,1,1,"#FF6A2A");
+    sashimono(8,4);
   } else {
     // 鉄砲。片膝をついて長い火縄銃を水平に構える。火縄が赤く灯る
     px(11,15,10,9,armor); px(11,15,10,2,armorL);
@@ -14207,10 +14229,34 @@ function drawPalisades(sx,sy){
   }
   bctx.restore();
 }
+/* 床几に座る大将：陣羽織に大きな前立ての兜、軍配を上げる。本陣の陣幕の中に置く */
+function seatedGeneralSprite(side, col, flip){
+  const key=`seat-${side}-${col}-${flip?1:0}`; if(ART.soldiers.has(key)) return ART.soldiers.get(key);
+  const cv=makeCanvas(40,40), g=cv.getContext("2d"); if(flip){ g.translate(40,0); g.scale(-1,1); }
+  const px=(x,y,w,h,c)=>{ g.fillStyle=c; g.fillRect(x,y,w,h); };
+  const poly=(pts,c)=>{ g.fillStyle=c; g.beginPath(); g.moveTo(pts[0][0],pts[0][1]); for(let i=1;i<pts.length;i++) g.lineTo(pts[i][0],pts[i][1]); g.closePath(); g.fill(); };
+  const skin="#F0CCA8", wood="#6B4A2A", gold="#E9C65C", dark="#1E1610";
+  // 床几（脚を×に組んだ腰掛け）
+  g.strokeStyle=wood; g.lineWidth=2; g.beginPath(); g.moveTo(11,26); g.lineTo(25,38); g.moveTo(25,26); g.lineTo(11,38); g.stroke(); px(9,25,18,3,"#3A2A18");
+  // 袴と脚
+  px(12,22,14,6,dark); px(10,27,5,9,dark); px(21,27,5,9,dark); px(9,35,7,3,"#333"); px(21,35,7,3,"#333");
+  // 陣羽織（肩が張る）と胴
+  poly([[8,12],[32,12],[30,24],[10,24]],col); poly([[8,12],[6,20],[10,24],[11,15]],col); poly([[32,12],[34,20],[30,24],[29,15]],col);
+  px(9,12,22,2,gold); px(19,13,2,11,gold);                                    // 金の縁
+  px(14,14,12,9,"#3A2A18");                                                    // 胴の鎧
+  // 首と顔、髭
+  px(17,7,6,6,skin); px(17,11,6,2,"#3A2A18");
+  // 兜と大きな三日月の前立て
+  px(14,3,12,5,dark); px(13,6,14,2,dark); g.strokeStyle=gold; g.lineWidth=2; g.beginPath(); g.arc(20,4,7,Math.PI*1.15,Math.PI*1.85); g.stroke();
+  // 軍配（右手に上げる）
+  px(28,6,2,10,wood); g.fillStyle="#EFE2C0"; g.beginPath(); g.ellipse(29,4,5,4,0,0,7); g.fill(); g.strokeStyle="#8A2A1A"; g.lineWidth=1; g.beginPath(); g.ellipse(29,4,5,4,0,0,7); g.stroke(); px(28,2,2,4,"#C22A1A");
+  px(26,14,3,3,skin);   // 右手
+  const out=outlineCanvas(cv,"#141008",1); ART.soldiers.set(key,out); return out;
+}
 /* 本陣の陣地と両軍の陣旗。総大将が持ち場を守っている間、陣幕を張り、幟を立て、櫓を組む。
    野の端には家紋の陣旗が並び、どちらの陣かがひと目で分かる */
 function drawCamps(sx,sy){
-  const Z=Math.max(0.9, Math.min(2.6, sx/20)); const W_=sx*BF.w;
+  const Z=Math.max(0.9, Math.min(2.6, sx/20)); const W_=sx*BF.w; const gold="#E9C65C";
   const nobori=(x,y,h,col,crest,k)=>{ const w=7*Z, wv=Math.sin(B.elapsed*3+k)*2*Z;
     bctx.fillStyle="rgba(0,0,0,.25)"; bctx.beginPath(); bctx.ellipse(x+2,y+2,4*Z,2*Z,0,0,7); bctx.fill();
     bctx.fillStyle="#3A2A18"; bctx.fillRect(x-1,y-h,2,h);
@@ -14244,6 +14290,11 @@ function drawCamps(sx,sy){
       curtain(bx, y-30*Z, x+dir*22*Z, y-30*Z, col); curtain(bx, y+36*Z, x+dir*22*Z, y+36*Z, col);
       tower(x-dir*22*Z, y-16*Z, col);
       for(let i=0;i<4;i++) nobori(x-dir*(14+i*7)*Z, y+26*Z-i*3*Z, 40*Z, col, crest, i+side*3);
+      // 馬印：太い柱に大きな房。大将の居所の印
+      { const mx=x-dir*8*Z, my=y-20*Z; bctx.fillStyle="#3A2A18"; bctx.fillRect(mx-1.5,my-34*Z,3,34*Z); bctx.fillStyle=gold; bctx.beginPath(); bctx.arc(mx,my-36*Z,5*Z,0,7); bctx.fill();
+        bctx.fillStyle=col; for(let i=0;i<7;i++){ const a=(i/7)*Math.PI*2+B.elapsed*0.8; bctx.beginPath(); bctx.moveTo(mx,my-36*Z); bctx.lineTo(mx+Math.cos(a)*7*Z, my-30*Z+Math.sin(a)*3*Z); bctx.lineTo(mx+Math.cos(a+0.4)*6*Z, my-31*Z+Math.sin(a+0.4)*3*Z); bctx.closePath(); bctx.fill(); } }
+      // 床几の大将（陣幕の奥）
+
       bctx.restore();
     }
   }
@@ -14336,7 +14387,7 @@ function bakeBattleGround(W_,H_){
       g.fillStyle="rgba(150,160,80,.55)"; g.fillRect(0,0,w,h); for(let k=1;k<5;k++){ g.fillStyle=k%2?"rgba(95,120,60,.45)":"rgba(175,180,100,.35)"; g.fillRect(0,h*k/5,w,h/5*0.8); }
       g.strokeStyle="rgba(110,85,45,.7)"; g.lineWidth=2; g.strokeRect(0,0,w,h); g.restore(); } }
   // 里：藁屋根の家が三軒。戦場の端に
-  if(EX.has("village")){ const vx=(R()<.5?0.12:0.86)*W_, vy=(0.35+R()*0.3)*H_; for(let i=0;i<3;i++){ const x=vx+(R()-.5)*sx*4, y=vy+(R()-.5)*sy*2.5, w=sx*1.2, h=sy*0.7;
+  if(EX.has("village")){ const vx=(0.3+R()*0.4)*W_, vy=(R()<.5?0.1:0.9)*H_; /* 里は野の上か下の端（本陣の脇に家が建っていた） */ for(let i=0;i<3;i++){ const x=vx+(R()-.5)*sx*4, y=vy+(R()-.5)*sy*2.5, w=sx*1.2, h=sy*0.7;
       g.fillStyle="rgba(0,0,0,.25)"; g.beginPath(); g.ellipse(x+w*.55,y+h*1.05,w*.7,h*.35,0,0,7); g.fill();
       px(x,y+h*0.4,w,h*0.6,"#B8A070"); px(x+w*0.15,y+h*0.55,w*0.2,h*0.45,"#5A4020");   // 壁と戸
       g.fillStyle="#6E5230"; g.beginPath(); g.moveTo(x-w*0.15,y+h*0.45); g.lineTo(x+w*0.5,y-h*0.35); g.lineTo(x+w*1.15,y+h*0.45); g.closePath(); g.fill();   // 藁屋根
@@ -14715,7 +14766,7 @@ function drawBattle(){
     const selNow = B.sel===u.id || (B.group&&B.group.includes(u.id));
     const kc0=W.generals[u.gid]&&W.clans[W.generals[u.gid].clan]; const ccol=kc0?clanColor(kc0.id):(meSide?"#2E5FBF":"#B8382A");
     const fa=u.face||0, fcos=Math.cos(fa), fsin=Math.sin(fa), lxv=-fsin, lyv=fcos;   // 前と横
-    const sprites=Math.max(3,Math.min(14,Math.round(u.troops/260)));
+    const sprites=u.cmd ? Math.max(3,Math.min(6,Math.round(u.troops/400))) : Math.max(3,Math.min(14,Math.round(u.troops/260)));   // 本陣は馬廻だけを見せ、陣幕の中を空ける
     const facingLeft = fcos < 0;
     const imgV=(v,f)=>soldierSprite(u.type, meSide?0:1, f, facingLeft, v);
     const img=imgV(0,walk), img2=imgV(0,1-walk);
@@ -14758,7 +14809,7 @@ function drawBattle(){
     }
     // 描く順は奥から手前（画面の y）
     const draws=[];
-    items.forEach((it,k)=>{ const jx=(((k*37+u.id*11)%7)-3)*0.6*Z*(1+disorder*3), jd=(((k*53+u.id*7)%5)-2)*0.5*Z*(1+disorder*3); it.o+=jx; it.d+=jd; const p=toScr(it.o,it.d); const vv=(k*7+u.id*3)%3; draws.push({y:p.y, f:()=>{ const bob = moving ? Math.abs(Math.sin(B.elapsed*12 + k*1.3))*-1.6*Z : Math.sin(B.elapsed*2.1 + k*1.7 + u.id)*0.5*Z; const im=imgV(vv,(k+u.id)%3===1?1-walk:walk);
+    items.forEach((it,k)=>{ const jx=(((k*37+u.id*11)%7)-3)*0.6*Z*(1+disorder*3), jd=(((k*53+u.id*7)%5)-2)*0.5*Z*(1+disorder*3); it.o+=jx; it.d+=jd; if(u.cmd) it.d-=22; /* 馬廻は陣幕の前に立ち、幕の中（大将の床几）を空ける */ const p=toScr(it.o,it.d); const vv=(u.type===3 && it.row>0) ? 3 : (k*7+u.id*3)%3; draws.push({y:p.y, f:()=>{ const bob = moving ? Math.abs(Math.sin(B.elapsed*12 + k*1.3))*-1.6*Z : Math.sin(B.elapsed*2.1 + k*1.7 + u.id)*0.5*Z; const im=imgV(vv,(k+u.id)%3===1?1-walk:walk);
         bctx.globalAlpha*=1; bctx.fillStyle="rgba(0,0,0,.22)"; bctx.beginPath(); bctx.ellipse(p.x, p.y+sh*0.42, sw*0.34, sh*0.11, 0,0,7); bctx.fill();
         bctx.drawImage(im, p.x-sw/2, p.y-sh/2+bob, sw, sh);
         // 槍。前列は前へ突き出し、後列は頭の上に穂先だけ見える（列の奥行きが分かる）
@@ -14786,7 +14837,9 @@ function drawBattle(){
           // 武将本体（大きめ）
           const bob=moving?Math.abs(Math.sin(B.elapsed*12))*-1.6*Z:Math.sin(B.elapsed*1.8+u.id)*0.4*Z;
           bctx.fillStyle="rgba(0,0,0,.28)"; bctx.beginPath(); bctx.ellipse(p.x, p.y+lh*0.42, lw*0.36, lh*0.11, 0,0,7); bctx.fill();
-          bctx.drawImage(img, p.x-lw/2, p.y-lh/2+bob, lw, lh); } }); }
+          const camped = u.cmd && (B.opening>0 || (u.order.k==="guard" && !(u.movedAt!==undefined && B.elapsed-u.movedAt<1)));
+          if(camped){ const sp=seatedGeneralSprite(u.side, ccol, facingLeft); bctx.drawImage(sp, p.x-lw*0.62, p.y-lh*0.55, lw*1.25, lh*1.25); }   // 陣中の大将は床几に座る
+          else bctx.drawImage(img, p.x-lw/2, p.y-lh/2+bob, lw, lh); } }); }
     draws.sort((a,b)=>a.y-b.y); for(const d of draws) d.f();
     // 被弾の光
     if(u.flash>0){ bctx.globalAlpha=Math.min(.55,u.flash*3); const gr=bctx.createRadialGradient(x,y,0,x,y,34*Z); gr.addColorStop(0,"rgba(255,250,235,.9)"); gr.addColorStop(1,"rgba(255,250,235,0)"); bctx.fillStyle=gr; bctx.beginPath(); bctx.ellipse(x,y+4*Z,34*Z,sh*0.9,0,0,7); bctx.fill(); bctx.globalAlpha=1; }   // 被弾の光は四角ではなく、ぼんやりと
