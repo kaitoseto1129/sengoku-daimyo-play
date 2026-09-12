@@ -12464,6 +12464,7 @@ function startBattle(e){
   if(B.foeFences) setTimeout(()=>{ if(B) toast(`敵が陣の前に馬防柵を${B.foeFences}列組んでおります。騎馬は止められます`); }, 900);
   if(B.gate) setTimeout(()=>{ if(B) toast(B.ctx.playerSide===0?"石垣は越えられませぬ。城門（真ん中）を叩いて破り、なだれ込みなされ。鉄砲は壁越しに撃てます":"城門を守りなされ。破られれば城内に敵がなだれ込みます"); }, 900);
   W.stats.battles++;
+  track("battle/"+(e.decisive?"decisive":e.castle!==null?"siege":"field"));
   battleEl.classList.add("on");
   document.body.classList.add("inbattle");
   document.getElementById("bTerrain").textContent=
@@ -14848,6 +14849,7 @@ function finishBattle(){
 /* ===================== 結果 ===================== */
 function showResult(){
   setSpeed(0);
+  track("result/"+W.result+"/"+W.scenario+"/"+W.date.y);
   const won=W.result!=="敗北";
   const el=document.createElement("div");
   el.className="overlay";
@@ -15598,6 +15600,7 @@ function beginGame(clanId){
   refreshHUD(); rebuildDevOverlay(); refreshAdvice();
   W.started=true;
   log(`${clanName(clanId)}の家督を継いだ。天下は乱れておる。`);
+  track("start/"+W.scenario+"/"+clanName(clanId));
   setSpeed(1);
   startOpening();
   setTimeout(()=>{ if(W.started && !openingActive()) tutorial("map"); }, 9000);
@@ -15705,12 +15708,23 @@ const FREE_SCENARIOS=new Set(["oke"]);
 const PAID_SCENARIOS={ nagashino:{price:"¥500", sku:"jp.kaitoseto.sengoku.nagashino"} };
 /* ウェブ版の支払い：Stripe の支払いリンク。支払いが済むと、この頁へ ?unlock=<合言葉> で戻ってくる */
 const PAY_LINK="https://buy.stripe.com/test_28E8wP2sgcQI3UkfKP9fW00";   // Stripe の支払いリンク（¥500・いまはテスト用）。空なら「iPhone 版で」とだけ案内
+/* 訪問と遊びの計り（GoatCounter）。ANALYTICS が空なら何も送らない。個人を特定する情報は送らない */
+const ANALYTICS="https://kaito.goatcounter.com/count";   // GoatCounter（訪問・遊び始め・会戦・結び・解除を数える）
+function track(ev){
+  try{
+    if(!ANALYTICS) return;
+    if(/localhost|127\.0\.0\.1/.test(location.hostname)) return;
+    if(window.goatcounter&&window.goatcounter.count){ window.goatcounter.count({path:"ev/"+ev, title:ev, event:true}); }
+  }catch(e){}
+}
+(function(){ if(!ANALYTICS||/localhost|127\.0\.0\.1/.test(location.hostname)) return; const sc=document.createElement("script"); sc.async=true; sc.dataset.goatcounter=ANALYTICS; sc.src="https://gc.zgo.at/count.js"; document.head.appendChild(sc); })();
 const UNLOCK_TOKEN="sVzU74z_zZhdYBWsz_Sk-G2d";
 (function(){ try{ const q=new URLSearchParams(location.search); const t=q.get("unlock"); if(t){ if(t===UNLOCK_TOKEN){ const u=(()=>{ try{ return new Set(JSON.parse(localStorage.getItem("sengoku_unlock")||"[]")); }catch(e){ return new Set(); } })(); u.add("nagashino"); localStorage.setItem("sengoku_unlock",JSON.stringify([...u])); setTimeout(()=>{ try{ toast("お支払いありがとうございます。長篠の戦いを解除しました"); refreshScenarioLocks(); }catch(e){} },800); } history.replaceState(null,"",location.pathname); } }catch(e){} })();
 function unlockedScenarios(){ try{ return new Set(JSON.parse(localStorage.getItem("sengoku_unlock")||"[]")); }catch(e){ return new Set(); } }
 function scenarioLocked(id){ return !FREE_SCENARIOS.has(id) && !unlockedScenarios().has(id); }
 function scenarioAvailable(id){ return FREE_SCENARIOS.has(id) || PAID_SCENARIOS[id]!==undefined; }
 window.sengokuUnlock=function(id){   // iOS の課金が通れば、包みからここが呼ばれる
+  track("unlock/"+id);
   const u=unlockedScenarios(); u.add(id); try{ localStorage.setItem("sengoku_unlock",JSON.stringify([...u])); }catch(e){}
   refreshScenarioLocks(); toast(`${(SCENARIO_DEFS[id]||{}).name||id} を解除しました`);
 };
@@ -15726,7 +15740,7 @@ function requestUnlock(id){
     <div style="display:flex;gap:8px;flex-wrap:wrap">${PAY_LINK?`<button class="big gold" style="flex:1" id="ulPay">${info.price} で解除する</button>`:""}${dev?`<button class="big gold" style="flex:1" id="ulGo">解除する</button>`:""}<button class="big ghost" style="flex:1" id="ulNo">${dev?"やめる":"閉じる"}</button></div></div>`;
   document.body.appendChild(el);
   el.querySelector("#ulNo").onclick=()=>el.remove();
-  { const pb=el.querySelector("#ulPay"); if(pb) pb.onclick=()=>{ location.href=PAY_LINK; }; }
+  { const pb=el.querySelector("#ulPay"); if(pb) pb.onclick=()=>{ track("pay-click/"+id); setTimeout(()=>{ location.href=PAY_LINK; },150); }; }
   { const g=el.querySelector("#ulGo"); if(g) g.onclick=()=>{ const v=(el.querySelector("#unlockCode").value||"").trim().toUpperCase(); if(v==="TENKA"||v==="NAGASHINO500"){ el.remove(); window.sengokuUnlock(id); } else toast("解除の言葉が違います"); }; }
 }
 function refreshScenarioLocks(){
