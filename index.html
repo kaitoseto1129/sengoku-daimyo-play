@@ -905,7 +905,7 @@ const UNITS = [
   {n:"足軽", s:"槍", atk:30,  f:100, sd:60, rd:50, cost:1000, spd:1.00, rng:1.8, sp:"槍衾"},
   {n:"侍",   s:"侍", atk:70,  f:70,  sd:60, rd:60, cost:1500, spd:1.15, rng:1.7, sp:"切り込み"},
   {n:"騎馬", s:"馬", atk:120, f:50,  sd:50, rd:40, cost:2000, spd:1.90, rng:1.7, sp:"騎馬突撃"},
-  {n:"鉄砲", s:"筒", atk:110, f:10,  sd:10, rd:5,  cost:2500, spd:.85,  rng:6.5, sp:"三段撃ち"},
+  {n:"鉄砲", s:"筒", atk:140, f:10,  sd:10, rd:5,  cost:2500, spd:.85,  rng:6.5, sp:"三段撃ち"},
 ];
 const SPECIALS = {
   "槍衾":    {dur:10, atk:1.00, def:1.50, spd:.50, fire:1, anti:1.5, mor:1, runup:0},
@@ -1343,33 +1343,34 @@ const SCENARIO_DEFS = {
   houses:[
    {name:"徳川家", reuse:"松平家", crest:"徳", daimyo:"徳川家康", hq:"江戸城", provs:["武蔵","相模","伊豆","上総","下総","安房","上野","下野","三河","遠江","駿河","甲斐"], gens:["徳川秀忠","本多忠勝","榊原康政","井伊直政","結城秀康","大久保忠隣","鳥居元忠","酒井家次","松平家忠","内藤信成","服部半蔵"], ai:{agg:.8,dip:.7,eco:.8,risk:.4}},
    {name:"石田家", crest:"石", daimyo:"石田三成", hq:"佐和山城", provs:["近江"], gens:["島左近"], boost:1.6, ai:{agg:.7,dip:.6,eco:.6,risk:.6}},
-   {name:"豊臣家", crest:"豊", daimyo:"豊臣秀頼", hq:"大坂城", provs:["摂津","河内","和泉","山城"], gens:["片桐且元","大野治長","加藤嘉明","蜂須賀家政"], vassalOf:"石田家", ai:{agg:.3,dip:.7,eco:.8,risk:.2}},
-   {name:"宇喜多家", crest:"宇", daimyo:"宇喜多秀家", hq:"沼城", provs:["備前","美作"], gens:["明石全登"], vassalOf:"石田家", ai:{agg:.6,dip:.4,eco:.5,risk:.5}},
-   {name:"毛利家", reuse:"毛利家", crest:"毛", daimyo:"毛利輝元", hq:"吉田郡山城", provs:["安芸","周防","長門","石見","出雲","伯耆","備後","備中","隠岐"], gens:["吉川広家","小早川隆景"], vassalOf:"石田家", ai:{agg:.4,dip:.6,eco:.6,risk:.3}},
-   {name:"上杉家", reuse:"長尾家", crest:"上", daimyo:"上杉景勝", hq:"会津若松城", provs:["岩代","磐城"], gens:["直江兼続"], vassalOf:"石田家", troops:20000, ai:{agg:.6,dip:.4,eco:.5,risk:.5}},
-   {name:"島津家", reuse:"島津家", crest:"島", daimyo:"島津義弘", hq:"内城", provs:["薩摩","大隅","日向"], gens:["島津義久","島津忠恒"], vassalOf:"石田家", ai:{agg:.6,dip:.4,eco:.5,risk:.6}},
-   {name:"長宗我部家", reuse:"長宗我部家", crest:"長", daimyo:"長宗我部盛親", hq:"岡豊城", provs:["土佐"], gens:[], vassalOf:"石田家", ai:{agg:.5,dip:.4,eco:.4,risk:.5}},
-   {name:"小早川家", crest:"早", daimyo:"小早川秀秋", hq:"立花山城", provs:["筑前"], gens:[], vassalOf:"石田家", ai:{agg:.3,dip:.5,eco:.5,risk:.3}},
-   {name:"前田家", crest:"前", daimyo:"前田利長", hq:"尾山御坊", provs:["加賀","能登","越中"], gens:["前田利常"], vassalOf:"徳川家", ai:{agg:.4,dip:.7,eco:.7,risk:.3}},
-   {name:"伊達家", reuse:"伊達家", crest:"伊", daimyo:"伊達政宗", hq:"岩出山城", provs:["陸前","陸中"], gens:[], vassalOf:"徳川家", troops:20000, ai:{agg:.7,dip:.5,eco:.5,risk:.6}},
-   {name:"最上家", reuse:"最上家", crest:"最", daimyo:"最上義光", hq:"山形城", provs:["羽前","羽後"], gens:[], vassalOf:"徳川家", ai:{agg:.5,dip:.5,eco:.5,risk:.4}},
-   {name:"佐竹家", reuse:"佐竹家", crest:"佐", daimyo:"佐竹義宣", hq:"太田城", provs:["常陸"], gens:[], vassalOf:"徳川家", ai:{agg:.4,dip:.6,eco:.5,risk:.3}},
-   {name:"加藤家", crest:"加", daimyo:"加藤清正", hq:"熊本城", provs:["肥後"], gens:[], vassalOf:"徳川家", ai:{agg:.7,dip:.4,eco:.5,risk:.6}},
-   {name:"黒田家", crest:"黒", daimyo:"黒田長政", hq:"馬ヶ岳城", provs:["豊前","豊後"], gens:["黒田如水"], vassalOf:"徳川家", ai:{agg:.7,dip:.5,eco:.5,risk:.5}},
-   {name:"鍋島家", crest:"鍋", daimyo:"鍋島直茂", hq:"村中城", provs:["肥前"], gens:["鍋島勝茂"], vassalOf:"石田家", ai:{agg:.4,dip:.6,eco:.5,risk:.4}},
-   {name:"立花家", crest:"立", daimyo:"立花宗茂", hq:"柳川城", provs:["筑後"], gens:[], vassalOf:"石田家", ai:{agg:.7,dip:.4,eco:.4,risk:.6}},
-   {name:"福島家", crest:"福", daimyo:"福島正則", hq:"清洲城", provs:["尾張"], gens:[], vassalOf:"徳川家", ai:{agg:.8,dip:.3,eco:.4,risk:.7}},
-   {name:"池田家", crest:"池", daimyo:"池田輝政", hq:"吉田城", castles:["吉田城","田原城"], gens:[], vassalOf:"徳川家", ai:{agg:.6,dip:.5,eco:.5,risk:.5}},
-   {name:"山内家", crest:"山", daimyo:"山内一豊", hq:"掛川城", castles:["掛川城"], gens:[], vassalOf:"徳川家", ai:{agg:.5,dip:.5,eco:.5,risk:.4}},
-   {name:"細川家", crest:"細", daimyo:"細川忠興", hq:"建部山城", provs:["丹後"], gens:["細川藤孝"], vassalOf:"徳川家", ai:{agg:.6,dip:.5,eco:.5,risk:.5}},
-   {name:"藤堂家", crest:"藤", daimyo:"藤堂高虎", hq:"湯築城", provs:["伊予"], gens:[], vassalOf:"徳川家", ai:{agg:.5,dip:.6,eco:.6,risk:.4}},
-   {name:"真田家", crest:"真", daimyo:"真田昌幸", hq:"上田城", castles:["上田城","塩田城","深志城","高遠城"], gens:["真田幸村"], vassalOf:"石田家", ai:{agg:.6,dip:.5,eco:.4,risk:.6}},
-   {name:"織田家", reuse:"織田家", crest:"織", daimyo:"織田秀信", hq:"岐阜城", provs:["美濃"], gens:["織田信雄","織田長益"], vassalOf:"石田家", ai:{agg:.4,dip:.5,eco:.5,risk:.4}},
-   {name:"大谷家", crest:"谷", daimyo:"大谷吉継", hq:"敦賀城", castles:["敦賀城"], gens:[], vassalOf:"石田家", ai:{agg:.6,dip:.5,eco:.5,risk:.5}},
+   {name:"豊臣家", crest:"豊", daimyo:"豊臣秀頼", hq:"大坂城", provs:["摂津","河内","和泉","山城"], gens:["片桐且元","大野治長","加藤嘉明","蜂須賀家政"], ai:{agg:.3,dip:.7,eco:.8,risk:.2}},
+   {name:"宇喜多家", crest:"宇", daimyo:"宇喜多秀家", hq:"沼城", provs:["備前","美作"], gens:["明石全登"], ai:{agg:.6,dip:.4,eco:.5,risk:.5}},
+   {name:"毛利家", reuse:"毛利家", crest:"毛", daimyo:"毛利輝元", hq:"吉田郡山城", provs:["安芸","周防","長門","石見","出雲","伯耆","備後","備中","隠岐"], gens:["吉川広家","小早川隆景"], ai:{agg:.4,dip:.6,eco:.6,risk:.3}},
+   {name:"上杉家", reuse:"長尾家", crest:"上", daimyo:"上杉景勝", hq:"会津若松城", provs:["岩代","磐城"], gens:["直江兼続"], troops:20000, ai:{agg:.6,dip:.4,eco:.5,risk:.5}},
+   {name:"島津家", reuse:"島津家", crest:"島", daimyo:"島津義弘", hq:"内城", provs:["薩摩","大隅","日向"], gens:["島津義久","島津忠恒"], ai:{agg:.6,dip:.4,eco:.5,risk:.6}},
+   {name:"長宗我部家", reuse:"長宗我部家", crest:"長", daimyo:"長宗我部盛親", hq:"岡豊城", provs:["土佐"], gens:[], ai:{agg:.5,dip:.4,eco:.4,risk:.5}},
+   {name:"小早川家", crest:"早", daimyo:"小早川秀秋", hq:"立花山城", provs:["筑前"], gens:[], ai:{agg:.3,dip:.5,eco:.5,risk:.3}},
+   {name:"前田家", crest:"前", daimyo:"前田利長", hq:"尾山御坊", provs:["加賀","能登","越中"], gens:["前田利常"], ai:{agg:.4,dip:.7,eco:.7,risk:.3}},
+   {name:"伊達家", reuse:"伊達家", crest:"伊", daimyo:"伊達政宗", hq:"岩出山城", provs:["陸前","陸中"], gens:[], troops:20000, ai:{agg:.7,dip:.5,eco:.5,risk:.6}},
+   {name:"最上家", reuse:"最上家", crest:"最", daimyo:"最上義光", hq:"山形城", provs:["羽前","羽後"], gens:[], ai:{agg:.5,dip:.5,eco:.5,risk:.4}},
+   {name:"佐竹家", reuse:"佐竹家", crest:"佐", daimyo:"佐竹義宣", hq:"太田城", provs:["常陸"], gens:[], ai:{agg:.4,dip:.6,eco:.5,risk:.3}},
+   {name:"加藤家", crest:"加", daimyo:"加藤清正", hq:"熊本城", provs:["肥後"], gens:[], ai:{agg:.7,dip:.4,eco:.5,risk:.6}},
+   {name:"黒田家", crest:"黒", daimyo:"黒田長政", hq:"馬ヶ岳城", provs:["豊前","豊後"], gens:["黒田如水"], ai:{agg:.7,dip:.5,eco:.5,risk:.5}},
+   {name:"鍋島家", crest:"鍋", daimyo:"鍋島直茂", hq:"村中城", provs:["肥前"], gens:["鍋島勝茂"], ai:{agg:.4,dip:.6,eco:.5,risk:.4}},
+   {name:"立花家", crest:"立", daimyo:"立花宗茂", hq:"柳川城", provs:["筑後"], gens:[], ai:{agg:.7,dip:.4,eco:.4,risk:.6}},
+   {name:"福島家", crest:"福", daimyo:"福島正則", hq:"清洲城", provs:["尾張"], gens:[], ai:{agg:.8,dip:.3,eco:.4,risk:.7}},
+   {name:"池田家", crest:"池", daimyo:"池田輝政", hq:"吉田城", castles:["吉田城","田原城"], gens:[], ai:{agg:.6,dip:.5,eco:.5,risk:.5}},
+   {name:"山内家", crest:"山", daimyo:"山内一豊", hq:"掛川城", castles:["掛川城"], gens:[], ai:{agg:.5,dip:.5,eco:.5,risk:.4}},
+   {name:"細川家", crest:"細", daimyo:"細川忠興", hq:"建部山城", provs:["丹後"], gens:["細川藤孝"], ai:{agg:.6,dip:.5,eco:.5,risk:.5}},
+   {name:"藤堂家", crest:"藤", daimyo:"藤堂高虎", hq:"湯築城", provs:["伊予"], gens:[], ai:{agg:.5,dip:.6,eco:.6,risk:.4}},
+   {name:"真田家", crest:"真", daimyo:"真田昌幸", hq:"上田城", castles:["上田城","塩田城","深志城","高遠城"], gens:["真田幸村"], ai:{agg:.6,dip:.5,eco:.4,risk:.6}},
+   {name:"織田家", reuse:"織田家", crest:"織", daimyo:"織田秀信", hq:"岐阜城", provs:["美濃"], gens:["織田信雄","織田長益"], ai:{agg:.4,dip:.5,eco:.5,risk:.4}},
+   {name:"大谷家", crest:"谷", daimyo:"大谷吉継", hq:"敦賀城", castles:["敦賀城"], gens:[], ai:{agg:.6,dip:.5,eco:.5,risk:.5}},
   ],
-  sides:["徳川家","石田家"],
-  wars:[["徳川家","石田家"],["徳川家","宇喜多家"],["徳川家","上杉家"],["徳川家","真田家"],["加藤家","立花家"],["黒田家","鍋島家"],["最上家","上杉家"],["前田家","大谷家"]],
-  allies:[],
+  sides:["徳川家","石田家"], sidesAsAllies:true,
+  // 東西の家は徳川・石田の傘下ではなく盟友。東軍の家は石田と、西軍の家は徳川と戦になる
+  wars:[["徳川家","石田家"],["前田家","石田家"],["伊達家","石田家"],["最上家","石田家"],["佐竹家","石田家"],["加藤家","石田家"],["黒田家","石田家"],["福島家","石田家"],["池田家","石田家"],["山内家","石田家"],["細川家","石田家"],["藤堂家","石田家"],["徳川家","豊臣家"],["徳川家","宇喜多家"],["徳川家","毛利家"],["徳川家","上杉家"],["徳川家","島津家"],["徳川家","長宗我部家"],["徳川家","小早川家"],["徳川家","鍋島家"],["徳川家","立花家"],["徳川家","真田家"],["徳川家","織田家"],["徳川家","大谷家"],["加藤家","立花家"],["黒田家","鍋島家"],["最上家","上杉家"],["前田家","大谷家"]],
+  allies:[["徳川家","前田家"],["徳川家","伊達家"],["徳川家","最上家"],["徳川家","佐竹家"],["徳川家","加藤家"],["徳川家","黒田家"],["徳川家","福島家"],["徳川家","池田家"],["徳川家","山内家"],["徳川家","細川家"],["徳川家","藤堂家"],["石田家","豊臣家"],["石田家","宇喜多家"],["石田家","毛利家"],["石田家","上杉家"],["石田家","島津家"],["石田家","長宗我部家"],["石田家","小早川家"],["石田家","鍋島家"],["石田家","立花家"],["石田家","真田家"],["石田家","織田家"],["石田家","大谷家"]],
   text:["慶長五年六月。徳川家康、上杉討伐の名目で会津へ発つ。","石田三成、毛利輝元を総大将に担ぎ西軍を挙げる。","天下分け目の秋が、近づいている。"],
  },
  osaka:{ id:"osaka", name:"大坂夏の陣", y:1615, m:4, era:"慶長二十年", shogun:"徳川家",
@@ -1914,8 +1915,10 @@ function enforceSides(sc){
     for(const k of Object.values(W.clans)){
       if(k.dead||k.id===W.player||k.id===A.id||k.id===Bc.id||!myCastles(k.id).length) continue;
       if(k.suzerain!==null&&k.suzerain!==undefined&&W.clans[k.suzerain]&&!W.clans[k.suzerain].dead) continue;
+      if(k.allies.has(A.id)||k.allies.has(Bc.id)) continue;   // すでにどちらかと盟を結んでいる（関ヶ原の東西）
       const hq=myCastles(k.id)[0]; const d=c=>kmBetween(W.tile[hq.id].c,W.tile[hq.id].r,W.tile[c.id].c,W.tile[c.id].r);
-      const L=(hqA&&hqB) ? (d(hqA)<=d(hqB)?A:Bc) : A;
+      const L=(hqA&&hqB) ? (d(hqA)<=d(hqB)?A:Bc) : A; const F=L===A?Bc:A;
+      if(sc.sidesAsAllies){ k.allies.add(L.id); L.allies.add(k.id); setRel(k.id,L.id,60); setRel(L.id,k.id,60); if(!k.war.has(F.id)) declareWar(k.id,F.id); continue; }   // 関ヶ原：傘下ではなく盟
       k.suzerain=L.id; L.vassals.add(k.id); setRel(k.id,L.id,60); setRel(L.id,k.id,60);
       for(const e of L.war) if(bordersOn(k.id,e)) declareWar(k.id,e);
     }
@@ -12505,7 +12508,7 @@ function stageDecisive(d){
   setTimeout(()=>{ const a=W.armies[W.stage&&W.stage.followId]; const t=a?{c:a.x,r:a.y}:{c:site.x,r:site.y}; cam.x=t.c; cam.y=t.r; cam.scale=viewW()<960?3.2:4.5; camTarget.x=camTarget.y=null; camTarget.scale=null; clampCam(); updateStageBadge(); },0);
 }
 /* 決戦の側（両家とその傘下）は、戦場に着くまで自分では動けない。関わりのない家は動ける */
-function stageLocks(clanId){ if(!W.stage||!W.stage.lock) return false; const K=W.clans[clanId]; if(!K) return false; const sides=new Set(W.stage.armies.map(id=>W.armies[id]&&W.armies[id].clan).filter(x=>x!=null)); return sides.has(clanId) || (K.suzerain!=null && sides.has(K.suzerain)); }
+function stageLocks(clanId){ if(!W.stage||!W.stage.lock) return false; const K=W.clans[clanId]; if(!K) return false; const sides=new Set(W.stage.armies.map(id=>W.armies[id]&&W.armies[id].clan).filter(x=>x!=null)); return sides.has(clanId) || (K.suzerain!=null && sides.has(K.suzerain)) || [...sides].some(id=>K.allies.has(id)); }
 function stageArrived(a){ return !a.route || a.route.length<2 || (dayNumber()-a.day0)>=a.days; }
 function updateStageBadge(){
   let b=document.getElementById("stageBadge");
@@ -12634,8 +12637,10 @@ function fireDecisive(d){
   const site=decisiveSite(d,A,Bc);
   const aa=mkScriptArmy(A.id, ga, site.x-1, site.y, d.atkTroops);
   const ab=mkScriptArmy(Bc.id, gb, site.x+1, site.y, d.defTroops);
-  const e={army:aa.id, foeArmy:ab.id, castle:null, playerAttacks:A.id===W.player, decisive:d.id};
-  const mine = A.id===W.player || Bc.id===W.player;
+  // 人の将が加わっている側は人が采配を執る（東西どちらかに付いた家も、決戦に出る）
+  const mineIsA = A.id===W.player || ga.some(g=>g.clan===W.player), mineIsB = Bc.id===W.player || gb.some(g=>g.clan===W.player);
+  const e={army:aa.id, foeArmy:ab.id, castle:null, playerAttacks:mineIsA, decisive:d.id};
+  const mine = mineIsA || mineIsB;
   if(typeof chronicle==="function") chronicle(`${d.name}`);
   document.getElementById("alertBar").hidden=true;
   if(!mine){
@@ -12644,7 +12649,7 @@ function fireDecisive(d){
     return;
   }
   setSpeed(0);
-  const mineArmy = A.id===W.player ? aa : ab, foe = A.id===W.player ? ab : aa;
+  const mineArmy = mineIsA ? aa : ab, foe = mineIsA ? ab : aa;
   const el=document.createElement("div"); el.className="overlay";
   el.innerHTML=`<div class="dialog" style="max-width:520px;text-align:center">
     <div class="tiny" style="letter-spacing:.3em;color:var(--kin);margin-bottom:4px">決 戦</div>
@@ -13113,7 +13118,8 @@ function startBattle(e){
     const side=(id,el,cr)=>{ const K=(id!==null&&id!==undefined)?W.clans[id]:null; const nm=document.getElementById(el), c0=document.getElementById(cr); if(!nm||!c0) return; 
       const sc0=SCENARIO_DEFS[W.scenario]||{}; let label=K?K.name:"—"; if(dec && sc0.sides && K){ const west=sc0.sides[1]===K.name || (K.suzerain!==null&&K.suzerain!==undefined&&W.clans[K.suzerain]&&W.clans[K.suzerain].name===sc0.sides[1]); const east=sc0.sides[0]===K.name || (K.suzerain!==null&&K.suzerain!==undefined&&W.clans[K.suzerain]&&W.clans[K.suzerain].name===sc0.sides[0]); if(west) label="西軍"; else if(east) label="東軍"; }
       nm.textContent=label; c0.textContent=K?String(K.crest||K.name[0])[0]:"—"; c0.style.background=K?clanColor(K.id):"#555"; };
-    side(mineClanId,"bNameMine","bCrestMine"); side(foeClanId0,"bNameFoe","bCrestFoe"); }
+    side(mineClanId,"bNameMine","bCrestMine"); side(foeClanId0,"bNameFoe","bCrestFoe");
+    B.sideClan={}; B.sideClan[B.ctx.playerSide]=mineClanId; B.sideClan[1-B.ctx.playerSide]=foeClanId0; }
   if(B.night) setTimeout(()=>{ if(B) toast("夜戦。日暮れまで百秒。暗くて鉄砲の狙いが甘く、伏せた隊は見えにくい"); },1200);
   resizeBattle();
   renderBattleFoot();
@@ -13897,7 +13903,7 @@ function spawnShot(a,d){
   B.puffs.push({x:a.x+Math.cos(a.face)*1.4, y:a.y+Math.sin(a.face)*1.4, t:0, life:.5, r:1.6});
   for(let k=0;k<2;k++) B.puffs.push({x:a.x+Math.cos(a.face)*(1.6+k*0.8)+(rnd()-.5)*1.0, y:a.y+Math.sin(a.face)*(1.6+k*0.8)+(rnd()-.5)*0.8, t:-k*0.1, life:2.0+rnd()*0.6, r:1.3+k*0.3, big:true});   // 火縄の白煙は列の前にしばらく漂う
   B.flashes=B.flashes||[]; B.flashes.push({x:a.x+Math.cos(a.face)*1.1, y:a.y+Math.sin(a.face)*1.1, t:0, life:0.12, ang:a.face});
-  B.smoke=B.smoke||[]; B.smoke.push({x:a.x+Math.cos(a.face)*1.3+(rnd()-.5)*0.8, y:a.y+Math.sin(a.face)*0.6, t:0, life:1.6+rnd()*0.6, dir:Math.cos(a.face)>=0?1:-1}); if(B.smoke.length>50) B.smoke.shift();
+  B.smoke=B.smoke||[]; if(rnd()<0.5) B.smoke.push({x:a.x+Math.cos(a.face)*1.3+(rnd()-.5)*0.8, y:a.y+Math.sin(a.face)*0.6, t:0, life:1.4+rnd()*0.5, dir:Math.cos(a.face)>=0?1:-1}); if(B.smoke.length>30) B.smoke.shift();
   return {from, to:B.shots.length};
 }
 function stepShots(dt){
@@ -14148,7 +14154,7 @@ function aiCommandSide(side){
     { const ally=B.units.find(v=>v.side===side&&v!==u&&v.morale>0&&v.morale<25&&dist(u,v)<6&&v.order.k==="attack"); if(ally){ const t=B.units.find(z=>z.id===ally.order.id&&z.troops>.5); if(t){ u.order={k:"attack",id:t.id}; continue; } } }
     { const hq=foes.find(x=>x.cmd); if(hq && !foes.some(x=>x!==hq&&dist(x,hq)<4) && dist(u,hq)<12){ u.order={k:"attack",id:hq.id}; continue; } }
     // 柵の前に来た騎馬は回り込む
-    if(u.type===2){ const wallAhead=B.obstacles.find(o=>(o.fence||o.wall)&&!(o.building>0)&&o.side!==side&&Math.abs(o.y-u.y)<2.2&&Math.abs(o.x-u.x)<3.5&&((side===0)?(o.x>u.x):(o.x<u.x))); if(wallAhead && B.elapsed<150){ const ys=B.obstacles.filter(o=>(o.fence||o.wall)&&Math.abs(o.x-wallAhead.x)<1.5).map(o=>o.y).sort((a,b)=>a-b); const span=ys.length?ys[ys.length-1]-ys[0]:0; if(span<BF.h*0.8){ const ty= u.y<BF.h/2 ? Math.max(1.5, ys[0]-2.6) : Math.min(BF.h-1.5, ys[ys.length-1]+2.6); u.order={k:"move",x:u.x,y:ty}; continue; } } }
+    if(u.type===2){ const wallAhead=B.obstacles.find(o=>(o.fence||o.wall)&&!(o.building>0)&&o.side!==side&&Math.abs(o.y-u.y)<2.2&&Math.abs(o.x-u.x)<3.5&&((side===B.ctx.playerSide)?(o.x>u.x):(o.x<u.x))); if(wallAhead && B.elapsed<150){ const ys=B.obstacles.filter(o=>(o.fence||o.wall)&&Math.abs(o.x-wallAhead.x)<1.5).map(o=>o.y).sort((a,b)=>a-b); const span=ys.length?ys[ys.length-1]-ys[0]:0; if(span<BF.h*0.8){ const ty= u.y<BF.h/2 ? Math.max(1.5, ys[0]-2.6) : Math.min(BF.h-1.5, ys[ys.length-1]+2.6); u.order={k:"move",x:u.x,y:ty}; continue; } } }
     if(u.type===3){
       if(dist(u,near)<3){ const away=(side===B.ctx.playerSide)?-6:6; u.order={k:"move",x:Math.max(1,Math.min(BF.w-1,u.x+away)),y:u.y}; }
       else u.order={k:"attack",id:near.id};
@@ -14320,6 +14326,14 @@ function drawPalisades(sx,sy){
         if(!(worn>0.6 && hash(bx,ay)<0.5)){ bctx.beginPath(); bctx.moveTo(ax, ay-H*0.22); bctx.lineTo(bx, by-H*0.62); bctx.stroke(); } }
       bctx.strokeStyle="rgba(230,205,160,.35)"; bctx.lineWidth=1; for(let i=0;i<n;i++){ const t0=i/n, t1=(i+1)/n; const ax=x0+(x1-x0)*t0, ay=y0+(y1-y0)*t0, bx=x0+(x1-x0)*t1, by=y0+(y1-y0)*t1; bctx.beginPath(); bctx.moveTo(ax, ay-H*0.62-1); bctx.lineTo(bx, by-H*0.22-1); bctx.stroke(); }
       bctx.lineCap="butt"; }
+    // 持ち主の幟：五区切りに一本、家紋の小旗（どちらの柵か一目で）
+    if(!s.lone && s.a.side!==undefined && rr<0.22){ const owner=s.a.side; const K=B.sideClan&&B.sideClan[owner]!==undefined&&B.sideClan[owner]!==null ? W.clans[B.sideClan[owner]] : null;
+      const col = K ? clanColor(K.id) : (owner===B.ctx.playerSide?"#2E5FBF":"#B8382A"); const cr = K ? String(K.crest||K.name[0])[0] : (owner===B.ctx.playerSide?"味":"敵");
+      const fx=x0+(x1-x0)*0.5+(vert?6*Zf:0), fy=y0+(y1-y0)*0.5; const ph=H*1.5, fw=9*Zf, fh=13*Zf; const wave=Math.sin(B.elapsed*3+fx*0.05)*1.5;
+      bctx.save(); bctx.globalAlpha=al; bctx.strokeStyle="#2E1E0E"; bctx.lineWidth=1.6; bctx.beginPath(); bctx.moveTo(fx,fy+2); bctx.lineTo(fx,fy-ph); bctx.stroke();
+      bctx.fillStyle=col; bctx.beginPath(); bctx.moveTo(fx,fy-ph); bctx.lineTo(fx+fw+wave,fy-ph+2); bctx.lineTo(fx+fw+wave,fy-ph+fh); bctx.lineTo(fx,fy-ph+fh+1); bctx.closePath(); bctx.fill();
+      bctx.strokeStyle="rgba(0,0,0,.45)"; bctx.lineWidth=1; bctx.stroke();
+      bctx.fillStyle="#fff"; bctx.font=`900 ${Math.max(7,Math.round(7.5*Zf))}px "Zen Kaku Gothic New",sans-serif`; bctx.textAlign="center"; bctx.textBaseline="middle"; bctx.fillText(cr, fx+fw/2+wave/2, fy-ph+fh/2+1); bctx.restore(); }
     // 当たられた所には木片が散る
     if(worn>0.25){ bctx.fillStyle="#5A3E26"; for(let k=0;k<4;k++){ const t=hash(k+1,rr*9); const px=x0+(x1-x0)*t+(hash(t,k)-0.5)*16*Zf, py=y0+(y1-y0)*t+6+hash(k,t)*4; bctx.save(); bctx.translate(px,py); bctx.rotate(t*6); bctx.fillRect(-3*Zf,-1,6*Zf,2); bctx.restore(); } }
   }
@@ -14712,7 +14726,7 @@ function drawBattle(){
     bctx.fillStyle=`rgba(210,190,150,${(1-k)*.5})`;
     bctx.beginPath(); bctx.arc(d.x*sx-k*6, d.y*sy-k*8, 5+k*9, 0, 7); bctx.fill();
   }
-  if(B.smoke) for(const d of B.smoke){ const k=d.t/d.life; bctx.fillStyle=`rgba(235,232,225,${(1-k)*(1-k)*.35})`; bctx.beginPath(); bctx.ellipse(d.x*sx+k*8*d.dir, d.y*sy-6-k*16, 6+k*16, 4+k*9, 0, 0, 7); bctx.fill(); }
+  if(B.smoke) for(const d of B.smoke){ const k=d.t/d.life; bctx.fillStyle=`rgba(235,232,225,${(1-k)*(1-k)*.16})`; bctx.beginPath(); bctx.ellipse(d.x*sx+k*8*d.dir, d.y*sy-6-k*14, 5+k*12, 3+k*7, 0, 0, 7); bctx.fill(); }
   // 複数選択の囲み
   if(B.box){
     const x0=Math.min(B.box.x0,B.box.x1)*sx, y0=Math.min(B.box.y0,B.box.y1)*sy, x1=Math.max(B.box.x0,B.box.x1)*sx, y1=Math.max(B.box.y0,B.box.y1)*sy;
@@ -15918,7 +15932,7 @@ function renderBattleFoot(){
 }
 /* 馬防柵。銭を投じて自陣の前に柵を築く。騎馬は柵で止まり、ぶつかれば傷む。叩かれ続ければ壊れる */
 const FENCE_COST=2000, FENCE_MAX=4;
-function fenceSideX(){ return B.ctx.playerSide===0 ? 1 : -1; }   // 自陣は左。柵は自陣の前（右向き）に築く
+function fenceSideX(){ return 1; }   // 自陣は常に左。柵は自陣の前（右向き）に築く
 function startFenceMode(){
   if(!B||B.over!==null) return;
   const clan=W.clans[W.player];
@@ -15927,14 +15941,14 @@ function startFenceMode(){
   if(clan.money<FENCE_COST) return toast(`銭が足りませぬ（一列 ${FENCE_COST.toLocaleString()}）`);
   if(B.elapsed>90) return toast("戦が始まって久しく、もう柵を組む暇はありませぬ（開戦から九十秒まで）");
   B.mode="fence"; B.paused=true;
-  toast("柵を立てる場所を押してください（自陣側・縦に一列）");
+  toast("柵を立てる場所を押してください（画面の左半分＝自陣側に、縦一列）");
   renderBattleFoot();
 }
 function buildFenceAt(wx,wy){
   const clan=W.clans[W.player];
   if(clan.money<FENCE_COST) return toast("銭が足りませぬ");
   // 自陣の側でしか組めない（敵陣の目の前に組ませてはもらえない）
-  const mineSideOK = B.ctx.playerSide===0 ? wx<BF.w*0.55 : wx>BF.w*0.45;
+  const mineSideOK = wx<BF.w*0.55;   // 画面では常に自分が左（守る側でも）
   if(!mineSideOK) return toast("柵は自陣の側にしか組めませぬ");
   clan.money-=FENCE_COST; B.fences=(B.fences||0)+1; B.fenceSpent=(B.fenceSpent||0)+FENCE_COST;
   const x=Math.max(1.5,Math.min(BF.w-1.5,wx));
@@ -17098,13 +17112,14 @@ function sideLetters(){
   const me=W.clans[W.player];
   setSpeed(0);
   const el=document.createElement("div"); el.className="overlay";
-  const cur = me.suzerain===A.id ? pair[2] : me.suzerain===Bc.id ? pair[3] : null;
+  const asAlly = sc==="sekigahara";   // 関ヶ原は諸家が東西に盟を結ぶ（傘下ではない）
+  const cur = (me.suzerain===A.id||(asAlly&&me.allies.has(A.id))) ? pair[2] : (me.suzerain===Bc.id||(asAlly&&me.allies.has(Bc.id))) ? pair[3] : null;
   el.innerHTML=`<div class="dialog" style="max-width:560px">
     <div class="tiny" style="letter-spacing:.3em;color:var(--kin);margin-bottom:4px">両 陣 営 か ら の 書 状</div>
     <h3 style="font-size:22px">旗色を決められよ</h3>
     <div class="advice" style="font-style:italic">${esc(W.generals[A.daimyo]?.name||A.name)}「${sc==="sekigahara"?"三成は逆臣。味方すれば恩賞は望みのまま":sc==="osaka"?"大坂の牢人どもを討つ。参陣せねば其方も同じと見なす":"北条は天下に背く者。参陣せねば其方も同じと見なす"}」<br>
       ${esc(W.generals[Bc.daimyo]?.name||Bc.name)}「${sc==="sekigahara"?"内府こそ豊臣を奪う奸物。義によって立たれよ":sc==="osaka"?"秀頼公の御為に、大坂へ馳せ参じられよ":"関東の地は北条のもの。共に上方の大軍を退けよう"}」</div>
-    <div class="tiny muted" style="margin:6px 0">付いた側の傘下に入り、もう一方と戦になります。大合戦にはわが将も加わります。${cur?`いまは${cur}の側です。`:""}${must?"天下は二つに割れており、どちらかに付かねばなりませぬ。":"どちらにも付かなければ、両方から疎まれます（心証-20）。"}</div>
+    <div class="tiny muted" style="margin:6px 0">${asAlly?"付いた側と盟を結び":"付いた側の傘下に入り"}、もう一方と戦になります。大合戦にはわが将も加わります。${cur?`いまは${cur}の側です。`:""}${must?"天下は二つに割れており、どちらかに付かねばなりませぬ。":"どちらにも付かなければ、両方から疎まれます（心証-20）。"}</div>
     <div class="dlg-actions" style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="big gold" style="flex:1" data-s="a">${pair[2]}に付く（${esc(A.name)}）</button>
       <button class="big gold" style="flex:1" data-s="b">${pair[3]}に付く（${esc(Bc.name)}）</button>
@@ -17119,14 +17134,15 @@ function sideLetters(){
     // 前の主家から離れ、選んだ側の傘下へ
     if(me.suzerain!==null&&me.suzerain!==undefined&&W.clans[me.suzerain]&&me.suzerain!==lord.id){ W.clans[me.suzerain].vassals.delete(W.player); me.suzerain=null; }
     if(me.allies.has(foe.id)) breakAlly(W.player,foe.id);
-    me.suzerain=lord.id; lord.vassals.add(W.player);
-    if(me.allies.has(lord.id)) breakAlly(W.player,lord.id);   // 傘下と盟は両立しない
-    for(const v of [...me.vassals]){ const V=W.clans[v]; if(V) V.suzerain=null; } me.vassals.clear();   // 傘下は連れて行けない
+    if(asAlly){ if(me.suzerain===lord.id){ lord.vassals.delete(W.player); me.suzerain=null; } if(!me.allies.has(lord.id)){ me.allies.add(lord.id); lord.allies.add(W.player); } }
+    else { me.suzerain=lord.id; lord.vassals.add(W.player);
+    if(me.allies.has(lord.id)) breakAlly(W.player,lord.id); }   // 傘下と盟は両立しない
+    if(!asAlly){ for(const v of [...me.vassals]){ const V=W.clans[v]; if(V) V.suzerain=null; } me.vassals.clear(); }   // 傘下は連れて行けない（盟なら連れて行ける）
     if(me.war.has(lord.id)) makePeace(W.player,lord.id);
     setRel(W.player,lord.id,70); setRel(lord.id,W.player,60);
     if(!me.war.has(foe.id)) declareWar(W.player,foe.id,"force");
     setRel(foe.id,W.player,-60);
-    log(`${side==="a"?pair[2]:pair[3]}に付き、${lord.name}の傘下に入りました。${foe.name}とは戦になります`,"dip",true);
+    log(`${side==="a"?pair[2]:pair[3]}に付き、${lord.name}${asAlly?"と盟を結びました":"の傘下に入りました"}。${foe.name}とは戦になります`,"dip",true);
     bigNews(`${side==="a"?pair[2]:pair[3]}に付く`);
     if(typeof chronicle==="function") chronicle(`${me.name}、${side==="a"?pair[2]:pair[3]}に付く`);
     setSpeed(1); refreshHUD();
