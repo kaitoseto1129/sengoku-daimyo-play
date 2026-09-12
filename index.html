@@ -15704,7 +15704,7 @@ document.getElementById("btnGameStart").onclick=()=>{ audioInit(); playSE("notif
 document.getElementById("scenBack").onclick=()=>startStep("stepTitle");
 let chosenScenario="oke";
 /* ---- 筋書きの鍵：桶狭間は無料、長篠は五百円で解除、ほかは近日公開 ---- */
-const FREE_SCENARIOS=new Set(["oke"]);
+const FREE_SCENARIOS=new Set(["oke","nagashino"]);   // いまは桶狭間も長篠も無料（長篠を有料にするなら "nagashino" を外す）
 const PAID_SCENARIOS={ nagashino:{price:"¥500", sku:"jp.kaitoseto.sengoku.nagashino"} };
 /* ウェブ版の支払い：Stripe の支払いリンク。支払いが済むと、この頁へ ?unlock=<合言葉> で戻ってくる */
 const PAY_LINK="https://buy.stripe.com/test_28E8wP2sgcQI3UkfKP9fW00";   // Stripe の支払いリンク（¥500・いまはテスト用）。空なら「iPhone 版で」とだけ案内
