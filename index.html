@@ -13160,6 +13160,8 @@ function updateBattle(dt){
     if(u.lunge>0) u.lunge-=dt; if(u.flash>0) u.flash-=dt;
     if(u.morale<=0){ fleeUnit(u,dt); continue; }
     stepUnit(u,dt);
+    // 地形の効き目が働いた瞬間を短く報せる（高所を取った・木立に入った）。同じ隊は三十秒に一度
+    { const tk=bTileAt(u.x,u.y); if(tk!==u._tile){ u._tile=tk; if(u.side===B.ctx.playerSide && B.opening<=0 && !(u.fxCryAt>B.elapsed-30) && (tk===BT.HILL||tk===BT.FOREST)){ u.fxCryAt=B.elapsed; const tf=terrainFx(tk,u.type); bshout(u.id, tk===BT.HILL?`高所を取った！ ${tf.fx.join("・")}`:`木立に入った。${tf.fx.join("・")}`, 2.4); } } }
   }
   // 骸と土煙は時とともに薄れる
   if(B.corpses){ for(const c of B.corpses) c.t+=dt; if(B.corpses.length>80) B.corpses.splice(0,B.corpses.length-80); }
