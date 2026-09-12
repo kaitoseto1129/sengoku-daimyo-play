@@ -13883,6 +13883,10 @@ function bakeBattleGround(W_,H_){
   }
   // うっすらと畝の帯（野に奥行きを）
   for(let r=0;r<BF.h;r+=2){ px(0, r*sy, W_, 1, "rgba(0,0,0,.05)"); }
+  // 絵筆で置いたような大きな色の面（画面の三割ほど）。地面が一枚の絵に見える
+  { for(let i=0;i<14;i++){ const cx=R()*W_, cy=R()*H_, rw=sx*(5+R()*9), rh=sy*(2+R()*4); const k=R();
+      g.fillStyle = k<0.4 ? "rgba(60,110,50,.14)" : k<0.7 ? "rgba(150,160,70,.12)" : "rgba(35,70,40,.13)";
+      g.beginPath(); g.ellipse(cx,cy,rw,rh,(R()-.5)*1.2,0,7); g.fill(); } }
   // 草の色むら：濃い緑・黄ばんだ草・土の露出を、まだらに
   { const n=Math.floor(BF.w*BF.h*0.22); for(let i=0;i<n;i++){ const cx=R()*W_, cy=R()*H_, rw=sx*(1.2+R()*2.4), rh=sy*(0.5+R()*1.0); const k=R();
       g.fillStyle = k<0.45 ? "rgba(30,70,25,.16)" : k<0.8 ? "rgba(180,170,80,.13)" : "rgba(110,80,45,.14)";
@@ -13892,7 +13896,11 @@ function bakeBattleGround(W_,H_){
   // 道・水・浅瀬（地面の層）
   for(let r=0;r<BF.h;r++) for(let c=0;c<BF.w;c++){
     const k=T[r][c], x=c*sx, y=r*sy;
-    if(k===BT.ROAD){ px(x-1,y-1,sx+2,sy+2,"#D9C48A"); if(R()<.3) px(x+R()*sx*.6,y+R()*sy*.6,sx*.2,sy*.12,"#C9B173"); }
+    if(k===BT.ROAD){ px(x-1,y-1,sx+2,sy+2,"#D9C48A"); if(R()<.3) px(x+R()*sx*.6,y+R()*sy*.6,sx*.2,sy*.12,"#C9B173");
+      const vert = (r>0&&T[r-1][c]===BT.ROAD)||(r<BF.h-1&&T[r+1][c]===BT.ROAD);
+      if(vert){ px(x+sx*.28,y-1,1.5,sy+2,"rgba(110,85,50,.45)"); px(x+sx*.66,y-1,1.5,sy+2,"rgba(110,85,50,.45)"); }   // 轍
+      else { px(x-1,y+sy*.3,sx+2,1.5,"rgba(110,85,50,.45)"); px(x-1,y+sy*.68,sx+2,1.5,"rgba(110,85,50,.45)"); }
+      if(R()<.5) px(x+R()*sx*.8,y+R()*sy*.8,2,2,"rgba(90,70,40,.5)"); }   // 蹄の跡
     else if(k===BT.WATER){ px(x-1,y-1,sx+2,sy+2,PAL.seaM); px(x+sx*.15,y+sy*.3,sx*.5,sy*.1,PAL.seaL); if(R()<.5) px(x+sx*.5,y+sy*.65,sx*.35,sy*.1,PAL.seaD); }
     else if(k===BT.FORD){ px(x-1,y-1,sx+2,sy+2,"#8FC4E8"); px(x+sx*.2,y+sy*.35,sx*.3,sy*.15,PAL.sand); px(x+sx*.6,y+sy*.6,sx*.25,sy*.15,PAL.sand); }
   }
@@ -13927,10 +13935,15 @@ function bakeBattleGround(W_,H_){
       g.fillStyle="#4C8E42"; g.beginPath(); g.moveTo(cx-ww/2,by); g.lineTo(cx,by-hh); g.lineTo(cx-ww*.05,by); g.closePath(); g.fill();
       g.fillStyle="#1F4A26"; g.beginPath(); g.moveTo(cx+ww*.05,by); g.lineTo(cx,by-hh*.55); g.lineTo(cx+ww/2,by); g.closePath(); g.fill();
     } else if(k===BT.FOREST){
-      const tw=sx*.95, th=sy*1.25, tx=x+sx/2+(R()-.5)*sx*.4, ty=y+sy;
-      px(tx-sx*.08, ty-sy*.35, sx*.16, sy*.35, PAL.trunk);
-      g.fillStyle=(c+r)%2?PAL.leafM:PAL.leafD; g.beginPath(); g.moveTo(tx-tw/2,ty-sy*.25); g.lineTo(tx,ty-th); g.lineTo(tx+tw/2,ty-sy*.25); g.closePath(); g.fill();
-      g.fillStyle=PAL.leafL; g.beginPath(); g.moveTo(tx-tw*.3,ty-sy*.5); g.lineTo(tx,ty-th); g.lineTo(tx-tw*.05,ty-sy*.5); g.closePath(); g.fill();
+      // 丸い樹冠を二つ三つ重ねる。下に影、右上に光。木立の縁はでこぼこに
+      const tx=x+sx/2+(R()-.5)*sx*.5, ty=y+sy*.9, rr=sx*(.5+R()*.25);
+      g.fillStyle="rgba(0,0,0,.22)"; g.beginPath(); g.ellipse(tx+rr*.3, ty+rr*.15, rr*1.1, rr*.4, 0,0,7); g.fill();
+      px(tx-sx*.06, ty-rr*.6, sx*.12, rr*.7, PAL.trunk);
+      const dark=(c+r)%2?PAL.leafD:"#2E5A2A";
+      g.fillStyle=dark; g.beginPath(); g.arc(tx, ty-rr*.9, rr, 0, 7); g.fill();
+      g.fillStyle=PAL.leafM; g.beginPath(); g.arc(tx-rr*.35, ty-rr*1.1, rr*.75, 0, 7); g.fill(); g.beginPath(); g.arc(tx+rr*.4, ty-rr*1.15, rr*.7, 0, 7); g.fill();
+      g.fillStyle=PAL.leafL; g.beginPath(); g.arc(tx-rr*.15, ty-rr*1.45, rr*.45, 0, 7); g.fill();
+      g.fillStyle="rgba(255,255,220,.25)"; g.beginPath(); g.arc(tx-rr*.3, ty-rr*1.6, rr*.2, 0, 7); g.fill();
     }
   }
   // 地形の札：高所・木立・川のまとまりに、何の地形かを小さく添える（効きめが一目で分かる）
@@ -13958,6 +13971,17 @@ function drawBattle(){
     const pts=B.tramplePts||[]; const tg=B.trampleCv.getContext("2d");
     for(let i=B.trampleDrawn||0;i<pts.length;i++){ const p=pts[i]; tg.fillStyle="rgba(95,70,40,.07)"; tg.beginPath(); tg.ellipse(p.x*sx,p.y*sy+6,sx*1.6,sy*0.7,0,0,7); tg.fill(); tg.fillStyle="rgba(60,45,25,.05)"; tg.beginPath(); tg.ellipse(p.x*sx+(p.j||0)*sx,p.y*sy+4,sx*0.6,sy*0.3,0,0,7); tg.fill(); }
     B.trampleDrawn=pts.length; bctx.drawImage(B.trampleCv,0,0); }
+  // 川の流れ：白い筋がゆっくり下へ流れ、岸には泡
+  if(B.tiles){ const T=B.tiles; bctx.save();
+    for(let r=0;r<BF.h;r++) for(let c=0;c<BF.w;c++){ const k=T[r][c]; if(k!==BT.WATER&&k!==BT.FORD) continue; const x=c*sx, y=r*sy;
+      const ph=((r*7+c*13)%10)/10; const t=((B.elapsed*0.45+ph)%1);
+      bctx.fillStyle=k===BT.WATER?"rgba(255,255,255,.28)":"rgba(255,255,255,.18)"; bctx.fillRect(x+sx*(0.15+((c*3)%4)*0.15), y+sy*t, sx*0.28, 1.5);
+      if(((r*5+c*11)%3)===0){ const t2=((B.elapsed*0.32+ph*0.7)%1); bctx.fillStyle="rgba(200,230,255,.35)"; bctx.fillRect(x+sx*0.55, y+sy*t2, sx*0.2, 1.2); }
+      // 岸の泡
+      const isW=v=>v===BT.WATER||v===BT.FORD; const lf=c>0&&!isW(T[r][c-1]), rt=c<BF.w-1&&!isW(T[r][c+1]);
+      if(lf||rt){ const bx=lf?x+2:x+sx-4; const bob=Math.sin(B.elapsed*3+r*1.3+c)*1.5; bctx.fillStyle="rgba(255,255,255,.55)"; bctx.beginPath(); bctx.arc(bx, y+sy*0.3+bob, 1.4, 0, 7); bctx.arc(bx+1, y+sy*0.7-bob, 1.1, 0, 7); bctx.fill(); }
+    }
+    bctx.restore(); }
 
   // 周辺減光。真ん中に目が行く
   { const g=bctx.createRadialGradient(W_/2,H_/2,Math.min(W_,H_)*0.45,W_/2,H_/2,Math.max(W_,H_)*0.75); g.addColorStop(0,"rgba(0,0,0,0)"); g.addColorStop(1,"rgba(0,0,0,.28)"); bctx.fillStyle=g; bctx.fillRect(0,0,W_,H_); }
@@ -14025,6 +14049,8 @@ function drawBattle(){
       bctx.fillStyle="rgba(0,0,0,.6)"; bctx.fillRect(gx-14, gy+2.6*sy, 28, 4); bctx.fillStyle="#D9B25C"; bctx.fillRect(gx-14, gy+2.6*sy, 28*Math.max(0,B.gate.hp/B.gate.hpMax), 4);
       bctx.font='800 10px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center"; bctx.fillStyle="#fff"; bctx.fillText("城門", gx, gy-2.6*sy); }
     else { bctx.font='800 10px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center"; bctx.fillStyle="#FF9A55"; bctx.fillText("破れた門", gx, gy-2.6*sy); } }
+  // 壊れた柵の残骸
+  if(B.wreck) for(const o of B.wreck){ bctx.save(); bctx.globalAlpha=0.85; bctx.drawImage(propSprite(1,3), o.x*sx-22, o.y*sy-24, 44, 30); bctx.restore(); }
   // 木・柵・岩
   for(const o of [...B.obstacles].sort((p,q)=>p.y-q.y)){
     if(o.stone) continue;   // 石垣は上でひと続きに描いた
@@ -14044,6 +14070,8 @@ function drawBattle(){
       bctx.beginPath(); bctx.moveTo(o.x*sx-6,o.y*sy-10); bctx.lineTo(o.x*sx+2,o.y*sy-2); bctx.lineTo(o.x*sx-3,o.y*sy+3); bctx.stroke();
     }
   }
+  // 木片
+  if(B.chips){ for(const ch of B.chips){ ch.t+=0.016*(B.rate||1); const k=ch.t/ch.life; if(k>=1) continue; const cx=(ch.x+ch.vx*ch.t)*sx, cy=(ch.y+ch.vy*ch.t+4.5*ch.t*ch.t)*sy; bctx.save(); bctx.translate(cx,cy); bctx.rotate(ch.t*9+ch.vx); bctx.fillStyle=k<.5?"#8D6A46":"#5A3E26"; bctx.fillRect(-2.5,-1,5,2); bctx.restore(); } B.chips=B.chips.filter(ch=>ch.t<ch.life); }
   // 炎と煙
   if(B.fires){ for(const f of B.fires){ f.t+=0.016*(B.rate||1); const k=f.t/f.life; if(k>=1) continue; const fl=0.6+Math.sin(B.elapsed*17+f.x*7)*0.4;
       bctx.fillStyle=`rgba(255,${120+Math.floor(fl*80)},30,${(1-k)*.85})`; bctx.beginPath(); bctx.arc(f.x*sx, f.y*sy-6, (5+fl*5)*(1-k*.5), 0, 7); bctx.fill();
@@ -15150,6 +15178,7 @@ function fenceEffects(dt){
         if(o.hp!==undefined) o.hp-=hurt*0.22;
       } else if(o.hp!==undefined){
         o.hp-=u.troops*0.0022*dt;           // 足軽が柵を壊しにかかる（太い丸太はなかなか折れない）
+        if(!o.chipAt || B.elapsed-o.chipAt>0.6){ o.chipAt=B.elapsed; B.chips=B.chips||[]; if(B.chips.length>240) B.chips.splice(0,B.chips.length-240); for(let k=0;k<3;k++) B.chips.push({x:o.x+(rnd()-.5)*0.8, y:o.y-0.6, vx:(rnd()-.5)*3, vy:-2-rnd()*2, t:0, life:0.7+rnd()*0.4}); }
         if(u.type!==3) u.morale=Math.max(0,u.morale-0.25*dt);   // 柵に取り付いている間は矢玉の的
       }
     }
@@ -15160,6 +15189,8 @@ function fenceEffects(dt){
   }
   const broken=B.obstacles.filter(o=>o.hp!==undefined && o.hp<=0);
   if(broken.length){
+    // 折れた柵は木片を散らし、残骸として地面に残る（通れるが跡が見える）
+    B.chips=B.chips||[]; for(const o of broken){ for(let k=0;k<10;k++) B.chips.push({x:o.x+(rnd()-.5)*1.2, y:o.y-0.8, vx:(rnd()-.5)*6, vy:-3-rnd()*4, t:0, life:0.9+rnd()*0.6}); B.wreck=B.wreck||[]; B.wreck.push({x:o.x,y:o.y,variant:3}); }
     B.obstacles=B.obstacles.filter(o=>!(o.hp!==undefined && o.hp<=0));
     if(!B.fenceBreakCry || B.elapsed-B.fenceBreakCry>5){ B.fenceBreakCry=B.elapsed; toast("柵が破られました"); playSE("rout"); }
   }
