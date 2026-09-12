@@ -1464,8 +1464,8 @@ Object.assign(SCENARIO_DEFS, {
   houses:[
    {name:"織田家", reuse:"織田家", crest:"織", daimyo:"織田信長", hq:"岐阜城", provs:["尾張","美濃","伊勢","近江","山城","志摩","伊賀","河内","和泉","若狭","飛騨","摂津"], castles:["観音寺城","佐和山城"],
     gens:["織田信忠","織田信雄","柴田勝家","丹羽長秀","佐久間信盛","滝川一益","羽柴秀吉","明智光秀","池田恒興","森長可","前田利家","佐々成政","蜂須賀正勝","竹中半兵衛","黒田官兵衛","稲葉一鉄","細川藤孝","蒲生氏郷","河尻秀隆","佐久間盛政","堀秀政","荒木村重","高山右近","中川清秀","加藤清正","福島正則"],
-    troops:80000, ai:{agg:.9,dip:.5,eco:.8,risk:.6}},
-   {name:"徳川家", reuse:"松平家", crest:"徳", daimyo:"徳川家康", hq:"浜松城", provs:["三河","遠江"], gens:["本多忠勝","榊原康政","酒井忠次","石川数正","大久保忠世","鳥居元忠","服部半蔵","松平家忠","内藤信成"], troops:20000, ai:{agg:.6,dip:.7,eco:.7,risk:.4}},
+    troops:50000, ai:{agg:.9,dip:.5,eco:.8,risk:.6}},
+   {name:"徳川家", reuse:"松平家", crest:"徳", daimyo:"徳川家康", hq:"浜松城", provs:["三河","遠江"], gens:["本多忠勝","榊原康政","酒井忠次","石川数正","大久保忠世","鳥居元忠","服部半蔵","松平家忠","内藤信成"], troops:15000, ai:{agg:.6,dip:.7,eco:.7,risk:.4}},
    {name:"武田家", reuse:"武田家", crest:"武", daimyo:"武田勝頼", hq:"躑躅ヶ崎館", provs:["甲斐","信濃","駿河"], castles:["箕輪城","高天神城"], gens:["山県昌景","馬場信春","内藤昌豊","高坂昌信","真田信綱","真田昌幸","穴山信君","小山田信茂","武田信廉","土屋昌次","秋山虎繁","仁科盛信"], troops:35000, ai:{agg:.8,dip:.4,eco:.5,risk:.7}},
    {name:"上杉家", reuse:"長尾家", crest:"上", daimyo:"上杉謙信", hq:"春日山城", provs:["越後","越中"], castles:["厩橋城","沼田城"], gens:["柿崎景家","直江景綱","本庄繁長","上杉景勝","直江兼続"], ai:{agg:.7,dip:.4,eco:.5,risk:.6}},
    {name:"北条家", reuse:"北条家", crest:"北", daimyo:"北条氏政", hq:"小田原城", provs:["相模","伊豆","武蔵","下総","上総"], gens:["北条氏直","北条氏照","北条氏規","北条氏邦"], troops:35000, ai:{agg:.5,dip:.5,eco:.6,risk:.4}},
@@ -1480,6 +1480,7 @@ Object.assign(SCENARIO_DEFS, {
    {name:"伊達家", reuse:"伊達家", crest:"伊", daimyo:"伊達輝宗", hq:"米沢城", provs:["羽前"], castles:["米沢城"], gens:["伊達政宗"], ai:{agg:.6,dip:.5,eco:.5,risk:.5}},
   ],
   absorb:["和賀家"],
+  extraTroops:{"島津家":20000},
   wars:[["織田家","武田家"],["徳川家","武田家"],["織田家","本願寺"],["武田家","上杉家"],["北条家","上杉家"],["毛利家","大友家"]],
   allies:[["織田家","徳川家"],["織田家","北条家"],["織田家","上杉家"],["武田家","北条家"],["本願寺","毛利家"],["本願寺","武田家"]],
   truces:[],
@@ -1800,7 +1801,7 @@ function buildWorld(playerClan, scenarioId){
   tidyWorld();   // 開幕の辻褄（城主・当主）をここで合わせておく
   // 家の兵の総数を名指しで決める（世が整ってから。徳川二万・北条四万・大坂の十万 など）
   if(W.scenario==="oke"){ setClanTroops("織田家",10000); setClanTroops("北畠家",15000); setClanTroops("尼子家",9000); }   // 尾張一国の織田は一万。北畠は伊勢の大身。尼子は毛利に食われる側
-  else for(const h of (SC&&SC.houses)||[]) if(h.troops) setClanTroops(h.name, h.troops);
+  else { for(const h of (SC&&SC.houses)||[]) if(h.troops) setClanTroops(h.name, h.troops); for(const [nm,t] of Object.entries((SC&&SC.extraTroops)||{})) setClanTroops(nm, t); }
   if(W.scenario!=="oke") enforceSides(SC);   // 後から立った小家も、陣営に組み入れる
   // 武田の兵は精強。騎馬は強く、兵の質も高い
   { const tk=Object.values(W.clans).find(k=>!k.dead&&k.name==="武田家"); if(tk){ tk.policies.add("騎馬強化"); for(const c of myCastles(tk.id)){ c.quality=(c.quality||[50,50,50,50]).map(q=>Math.max(q,80)); } } }
@@ -5478,6 +5479,7 @@ function aiMilitary(clan,p){
         if(clan.orderTarget && dayNumber()<clan.orderTarget.until && tc!==clan.orderTarget.clan && W.clans[clan.orderTarget.clan] && !W.clans[clan.orderTarget.clan].dead && myCastles(clan.orderTarget.clan).length) continue;   // 名指しの相手がいるうちは余所を攻めない
         if(W.scenario==="oke" && (clan.id===23||clan.id===1) && !W.okeWon && W.player!==1) continue;   // 桶狭間の前の松平と今川は動かない（上洛勢が本筋）
         if(underTruce(clan.id,tc)) continue;        // 約定のある相手は狙わない
+        if(clan.calm && clan.calm[tc] && dayNumber()<clan.calm[tc]) continue;   // 大敗の後は、その相手に攻めかかる余裕がない（戦のままだが守りに回る）
         // 傘下の家は主家の戦にだけ付き合う。主家が戦っていない相手に自分から弓は引かない（攻撃命令があれば別）
         if(clan.suzerain!==null&&clan.suzerain!==undefined&&W.clans[clan.suzerain]&&!W.clans[clan.suzerain].dead){ const L=W.clans[clan.suzerain]; if(!L.war.has(tc) && !(clan.orderTarget&&clan.orderTarget.clan===tc&&dayNumber()<clan.orderTarget.until)) continue; }
         if(tc===W.player && openingActive() && clan.id!==1) continue;   // 開幕の一幕の間、余所は手を出さない
@@ -11944,7 +11946,7 @@ const DECISIVE=[
    defGens:["石田三成","島左近","宇喜多秀家","大谷吉継","小西行長","島津義弘","小早川秀秋","毛利秀元","安国寺恵瓊","長束正家","蒲生郷舎","戸田勝成"],
    turncoat:"小早川秀秋",
    site:["大垣城","佐和山城"],
-   gather:"東西両軍、関ヶ原に集結す。三日の後、天下分け目の決戦",
+   gather:"東西両軍、関ヶ原に集結す。七日の後、天下分け目の決戦",
    open:"霧の晴れた関ヶ原に、両軍の鉄砲が鳴った。天下分け目の戦が始まる",
    after:{ atkWin:{ text:"三成は伊吹山中で捕らわれ、六条河原に斬られた。西軍の諸家は改易・減封され、天下は徳川のものとなる", kill:"石田三成", spoils:{all:["石田家","宇喜多家","小西家","大谷家"], half:0.5} },
            defWin:{ text:"家康は敗走の途で討たれ、東軍は総崩れとなった。関東の徳川領は西軍に切り取られる", kill:"徳川家康", spoils:{half:0.5} } } },
@@ -11953,7 +11955,7 @@ const DECISIVE=[
    atkGens:["徳川家康","徳川秀忠","松平忠直","本多忠朝","伊達政宗","藤堂高虎","井伊直孝","前田利常","水野勝成","細川忠興","加藤嘉明","浅野長晟","榊原康勝","酒井家次"],
    defGens:["真田幸村","毛利勝永","大野治長","大野治房","明石全登","長宗我部盛親","薄田兼相","木村重成","後藤又兵衛","豊臣秀頼"],
    site:["大坂城"],
-   gather:"徳川の大軍、大坂へ迫る。三日の後、天王寺・岡山で最後の決戦",
+   gather:"徳川の大軍、大坂へ迫る。七日の後、天王寺・岡山で最後の決戦",
    open:"天王寺口、岡山口。真田の赤備えが家康の本陣めがけて突き進む",
    after:{ atkWin:{ text:"大坂城は炎に包まれ、秀頼と淀殿は山里丸で自害した。豊臣家、ここに滅ぶ", kill:"豊臣秀頼", capture:"大坂城" },
            defWin:{ text:"家康は真田の突撃に討たれ、徳川の大軍は崩れ去った", kill:"徳川家康" } } },
@@ -11962,7 +11964,7 @@ const DECISIVE=[
    atkGens:["羽柴秀吉","羽柴秀長","黒田官兵衛","高山右近","中川清秀","池田恒興","堀秀政","丹羽長秀","織田信孝","蜂須賀正勝","加藤清正","福島正則"],
    defGens:["明智光秀","明智秀満","斎藤利三","藤田行政","松田政近","伊勢貞興","阿閉貞征","溝尾茂朝"],
    site:["高槻城","芥川山城","二条城","坂本城"],
-   gather:"秀吉、備中より駆け戻る（中国大返し）。三日の後、山崎にて光秀と決戦",
+   gather:"秀吉、備中より駆け戻る（中国大返し）。七日の後、山崎にて光秀と決戦",
    open:"天王山の麓、円明寺川を挟んで両軍が対峙した",
    after:{ atkWin:{ text:"光秀は小栗栖の藪で土民に討たれた。三日天下、ここに終わる", kill:"明智光秀" },
            defWin:{ text:"秀吉は天王山の麓で討たれ、光秀は京を守り抜いた", kill:"羽柴秀吉" } } },
@@ -11971,7 +11973,7 @@ const DECISIVE=[
    atkGens:["羽柴秀吉","羽柴秀長","加藤清正","福島正則","加藤嘉明","脇坂安治","片桐且元","平野長泰","糟屋武則","黒田官兵衛","堀秀政","丹羽長秀"],
    defGens:["柴田勝家","佐久間盛政","前田利家","柴田勝政","不破勝光","金森長近","徳山則秀","原長頼","拝郷家嘉","佐久間安政"],
    site:["長浜城","小谷城","北ノ庄城","佐和山城"],
-   gather:"羽柴と柴田、北近江に兵を集める。三日の後、賤ヶ岳の砦を巡って決戦",
+   gather:"羽柴と柴田、北近江に兵を集める。七日の後、賤ヶ岳の砦を巡って決戦",
    open:"余呉湖のほとり、砦の柵を挟んで両軍がぶつかった",
    after:{ atkWin:{ text:"勝家は北ノ庄へ敗走し、お市とともに城に火を放って自刃した", kill:"柴田勝家" },
            defWin:{ text:"秀吉は賤ヶ岳の砦の前に討たれ、柴田が織田の天下を継いだ", kill:"羽柴秀吉" } } },
@@ -12073,7 +12075,7 @@ DECISIVE.push(
    atkGens:["織田信長","徳川家康","柴田勝家","木下藤吉郎","丹羽長秀","佐久間信盛","池田恒興","森可成","本多忠勝","榊原康政","酒井忠次","稲葉一鉄","氏家直元","安藤守就"],
    defGens:["浅井長政","朝倉景健","磯野員昌","遠藤直経","海北綱親","浅井久政","朝倉景鏡","山崎吉家","真柄直隆","前波吉継"],
    site:["小谷城","佐和山城"],
-   gather:"織田・徳川は横山城を囲み、浅井・朝倉は小谷を出て姉川の北に陣を敷いた。三日の後、決戦",
+   gather:"織田・徳川は横山城を囲み、浅井・朝倉は小谷を出て姉川の北に陣を敷いた。七日の後、決戦",
    open:"姉川。川を挟んで、織田十三段の陣に浅井が食い込み、朝倉に徳川が横から当たる",
    after:{ atkWin:{ text:"浅井・朝倉は姉川に屍を残して退き、横山と佐和山は織田の手に落ちた", capture:"佐和山城" },
            defWin:{ text:"浅井の突撃が織田の陣を十一段まで突き破り、信長は岐阜へ逃げ帰った。近江の諸城は浅井に靡いた", capture:"長光寺城", spoils:{half:0.15} } } },
@@ -12082,16 +12084,16 @@ DECISIVE.push(
    atkGens:["武田勝頼","山県昌景","馬場信春","内藤昌豊","真田信綱","土屋昌次","小山田信茂","穴山信君","武田信廉","原昌胤"],
    defGens:["織田信長","徳川家康","羽柴秀吉","柴田勝家","丹羽長秀","滝川一益","佐久間信盛","明智光秀","本多忠勝","榊原康政","酒井忠次","前田利家","佐々成政","織田信忠"],
    site:["長篠城","岡崎城"],
-   gather:"武田が長篠城を囲む。織田と徳川は設楽原に三重の馬防柵を組んで待ち受けた。三日の後、決戦",
+   gather:"武田が長篠城を囲む。織田と徳川は設楽原に馬防柵を組んで待ち受けた。七日の後、決戦",
    open:"設楽原。柵の内から三千挺の鉄砲が、武田の騎馬を撃ち崩す",
    after:{ atkWin:{ text:"武田の騎馬が柵を突き破り、織田徳川は敗走した。長篠城は武田の手に落ち、勝頼は矛先を徳川へ向けた", capture:"長篠城", truce:1095, order:["武田家","徳川家"] },
-           defWin:{ text:"武田の騎馬は柵の前に屍を重ね、山県・馬場・内藤ら宿将が討ち死にした。信長は東を徳川に任せ、西へ目を向けた。上杉との盟はここで切れた", kills:["山県昌景","馬場信春","内藤昌豊","真田信綱","土屋昌次"], ally:["武田家","上杉家"], breakAlly:["織田家","上杉家"], shrink:{clan:"武田家",k:0.6} } } },
+           defWin:{ text:"武田の騎馬は柵の前に屍を重ね、山県・馬場・内藤ら宿将が討ち死にした。信長は東を徳川に任せ、西へ目を向けた。上杉との盟はここで切れた", kills:["山県昌景","馬場信春","内藤昌豊","真田信綱","土屋昌次"], ally:["武田家","上杉家"], breakAlly:["織田家","上杉家"], shrink:{clan:"武田家",k:0.6}, calm:{clan:"武田家",vs:"織田家",days:900} } } },
  { id:2206, key:"odawara", sc:"odawara", when:"open", histWin:"atk", name:"小田原の陣", atk:"豊臣家", def:"北条家", allies:true,
    terrain:0, forts:"def", nAtk:18, nDef:12, atkTroops:120000, defTroops:50000,
    atkGens:["豊臣秀吉","徳川家康","豊臣秀長","前田利家","上杉景勝","織田信雄","蒲生氏郷","池田輝政","堀秀政","細川忠興","黒田官兵衛","石田三成","大谷吉継","加藤清正","福島正則","本多忠勝","井伊直政","榊原康政"],
    defGens:["北条氏直","北条氏政","北条氏照","北条氏規","北条氏邦","松田憲秀","大道寺政繁","成田氏長","北条氏繁","上田朝直","太田氏房","垪和氏続"],
    site:["小田原城","韮山城"],
-   gather:"秀吉の大軍が箱根を越え、小田原の総構えを二十万で囲む。三日の後、城際の決戦",
+   gather:"秀吉の大軍が箱根を越え、小田原の総構えを二十万で囲む。七日の後、城際の決戦",
    open:"小田原城下。総構えの柵と堀を前に、天下の大軍が押し寄せる",
    after:{ atkWin:{ text:"小田原は開城。氏政・氏照は腹を切り、氏直は高野山へ送られた。五代百年の北条は滅び、関東は徳川に与えられる", kills:["北条氏政","北条氏照"], spoils:{all:["北条家"]} },
            defWin:{ text:"小田原の総構えは破れず、兵糧の尽きた豊臣勢は兵を引いた。北条は関東に踏みとどまった", spoils:{half:0.1} } } },
@@ -12130,7 +12132,7 @@ DECISIVE.push(
    gather:"武田が長篠城を囲む。織田と徳川は設楽原に三重の馬防柵を組んで待ち受けた",
    open:"設楽原。柵の内から三千挺の鉄砲が、武田の騎馬を撃ち崩す",
    after:{ atkWin:{ text:"武田の騎馬が柵を突き破り、織田徳川は敗走した。三河は武田のものとなる", spoils:{half:0.25} },
-           defWin:{ text:"武田の騎馬は柵の前に屍を重ね、山県・馬場・内藤ら宿将が討ち死にした。武田の力は大きく削がれた", kills:["山県昌景","馬場信春","内藤昌豊","真田信綱","土屋昌次"], spoils:{half:0.3} } } }
+           defWin:{ text:"武田の騎馬は柵の前に屍を重ね、山県・馬場・内藤ら宿将が討ち死にした。武田の力は大きく削がれた", kills:["山県昌景","馬場信春","内藤昌豊","真田信綱","土屋昌次"], spoils:{half:0.3}, calm:{clan:"武田家",vs:"織田家",days:900} } } }
 );
 const decAtk = d => clanByName(d.atk)||(d.altAtk?clanByName(d.altAtk):null);
 const decDef = d => clanByName(d.def)||(d.altDef?clanByName(d.altDef):null);
@@ -12185,10 +12187,11 @@ function startDecisiveOpening(){
   const d=DECISIVE.find(x=>decisiveIn(x,sc) && x.when==="open" && !W.fired.has(x.id));
   if(!d) return;
   if(!clanByName(d.atk)||!clanByName(d.def)) return;
-  W.decisivePending=d.id; W.decisiveAt=dayNumber()+3;
+  W.decisivePending=d.id; W.decisiveAt=dayNumber()+7;
   openingBanner(d.gather, 0);
   document.getElementById("alertTitle").textContent=`史実の一幕　${d.name}`;
   log(d.gather,"war");
+  setSpeed(1);   // 前振りを読める速さで
 }
 /* 清洲同盟が成れば、松平は徳川を名乗る（元康は家康と改める） */
 function becomeTokugawa(){
@@ -12257,7 +12260,7 @@ function decisiveDaily(){
         if(A.allies.has(Bc.id)){ if(A.id===W.player||Bc.id===W.player) continue; breakAlly(A.id,Bc.id); log(`${A.name}が${Bc.name}との盟を破りました`,"dip",true); }   // 史実の戦は盟を破って起こる（人の盟は破らない）
         if(underTruce(A.id,Bc.id)){ if(A.truce) delete A.truce[Bc.id]; if(Bc.truce) delete Bc.truce[A.id]; }   // 約定は史実の戦で破れる
       }
-      W.decisivePending=d.id; W.decisiveAt=dayNumber()+3;
+      W.decisivePending=d.id; W.decisiveAt=dayNumber()+7;
       openingBanner(d.gather, 0);
       document.getElementById("alertTitle").textContent=`史実の一幕　${d.name}`;
       log(d.gather,"war"); bigNews(d.name+"　迫る");
@@ -12267,8 +12270,9 @@ function decisiveDaily(){
   // 決戦までの三日、日ごとに一幕。何が起きて決戦に至るのかが分かる
   if(W.decisivePending){
     const d=DECISIVE.find(x=>x.id===W.decisivePending); const pre=d&&PRELUDES[d.key];
-    const left=W.decisiveAt-dayNumber();
-    if(pre && left>=0 && left<=3 && W.preludeDay!==d.key+":"+left){ W.preludeDay=d.key+":"+left;
+    const leftDays=W.decisiveAt-dayNumber();
+    const left = leftDays===6 ? 3 : leftDays===4 ? 2 : leftDays===2 ? 1 : -1;   // 六日前・四日前・二日前に一幕ずつ
+    if(pre && left>0 && W.preludeDay!==d.key+":"+left){ W.preludeDay=d.key+":"+left;
       const st=pre[left]; if(st){ log(st.t,"war",true); bigNews(st.h); if(st.run){ try{ st.run(); }catch(e){} } } }
   }
   if(W.decisivePending && dayNumber()>=W.decisiveAt && !pendingEncounter && !overlayEl && !B){
@@ -12375,6 +12379,7 @@ function decisiveAfter(did, winnerClan){
   }
   for(const nm of (res.kills||[])){ const g=Object.values(W.generals).find(x=>x.name===nm&&x.status!=="死亡"); if(!g) continue; const ar=g.army?W.armies[g.army]:null; if(ar){ ar.gens=ar.gens.filter(x=>x!==g.id); if(!ar.gens.length) delete W.armies[ar.id]; else if(ar.commander===g.id) ar.commander=ar.gens[0]; } g.army=null; kill(g.id); }
   if(res.truce && A && Bc){ makePeace(A.id,Bc.id,res.truce); }
+  if(res.calm){ const K=clanByName(res.calm.clan), T=clanByName(res.calm.vs); if(K&&T){ K.calm=K.calm||{}; K.calm[T.id]=dayNumber()+(res.calm.days||720); log(`${K.name}は大きく傷つき、当分は${T.name}に攻めかかる余裕がありません`,"war"); } }
   if(res.shrink){ const K=clanByName(res.shrink.clan); if(K&&K.id!==winnerClan){ for(const g of Object.values(W.generals)) if(g.clan===K.id&&g.status!=="死亡") g.troops=Math.floor(g.troops*res.shrink.k); bumpGarrison&&bumpGarrison(); log(`${K.name}は兵の多くを失いました`,"war"); } }
   if(res.breakAlly){ const K=clanByName(res.breakAlly[0]), T=clanByName(res.breakAlly[1]); if(K&&T&&K.allies.has(T.id)){ breakAlly(K.id,T.id); setRel(K.id,T.id,-20); setRel(T.id,K.id,-20); log(`${K.name}は${T.name}との盟を解きました`,"dip",true); } }
   if(res.order){ const K=clanByName(res.order[0]), T=clanByName(res.order[1]); if(K&&T){ K.orderTarget={clan:T.id, until:dayNumber()+720}; if(!K.war.has(T.id)) declareWar(K.id,T.id,"force"); } }
@@ -13214,7 +13219,8 @@ function stepUnit(u,dt){
   }
   else if(u.order.k==="attack"){
     const t=B.units.find(x=>x.id===u.order.id&&x.troops>.5);
-    if(t){ target=t; const keep=UNITS[u.type].rng*(u.type===3?.7:.85); if(dist(u,t)>keep) goal=[t.x,t.y]; }   // 鉄砲は間合いを詰めず、届く所で撃つ
+    if(t){ target=t; const keep=UNITS[u.type].rng*(u.type===3?.7:.85); if(dist(u,t)>keep) goal=[t.x,t.y];
+      if(u.type===3 && dist(u,t)>UNITS[u.type].rng && dist(u,nearest)<=UNITS[u.type].rng){ target=nearest; goal=null; } }   // 鉄砲：狙いが遠くても、間合いに入った敵はその場で撃つ
     else u.order={k:"hold"};
   }
   else if(u.order.k==="retreat"){
@@ -13238,12 +13244,15 @@ function stepUnit(u,dt){
     const dx=o.x-u.x, dy=o.y-u.y;
     if(dx*dx+dy*dy < o.r*o.r){
       if(o.stone && u.side===0){ speed*=0.15; if(B.gate && !B.gate.open && u.x>o.x-1.0) u.x=o.x-1.0; }   // 石垣は越えられない。門を破るほかない
-      else if(o.fence && o.hp===undefined){ speed*=0.05; const outside = (o.side===1) ? (B.ctx.playerSide===1 ? 1 : -1) : 0; if(outside!==0){ const lim=o.x+outside*(o.r+0.05); if(outside>0 ? u.x<lim : u.x>lim) u.x=lim; } }   // 破れない馬防柵。攻め寄せても柵の前で止まる
+      else if(o.fence && o.hp===undefined){ speed*=0.05; const outside = (o.side===1) ? (B.ctx.playerSide===1 ? 1 : -1) : 0; if(outside!==0){ const lim=o.x+outside*(o.r+0.05); if(outside>0 ? u.x<lim : u.x>lim) u.x=lim;
+          // 騎馬は柵に当たると馬が棹立ちになり、いったん下がってまた駆ける（波のように寄せる）
+          if(u.type===2 && u.morale>0 && !(u.recoilUntil>B.elapsed) && B.elapsed-(u.recoilAt||-99)>3.5+rnd()*2){ u.recoilAt=B.elapsed; u.recoilUntil=B.elapsed+1.3; u.recoilDir=outside; if(rnd()<0.5) bshout(u.id,["馬が！ 下がれ、立て直せ！","もう一度じゃ！ 駆けよ！"][Math.floor(rnd()*2)],1.8); B.dust=B.dust||[]; for(let k=0;k<3;k++) B.dust.push({x:u.x+(rnd()-.5)*1.5,y:u.y+0.6,t:0,life:0.9}); } } }   // 破れない馬防柵。攻め寄せても柵の前で止まる
       else speed *= (o.kind===1?(u.type===2?0.25:0.45):0.7);
       break; }
   }
   // 霧では鉄砲の間合いが縮み、雪では足が重い（WEATHER の癖に加えて）
   if(B.weather==="雪") speed*=0.85;
+  if(u.recoilUntil>B.elapsed){ const back=(u.recoilDir||1)*2.6*dt; u.x=Math.max(.5,Math.min(BF.w-.5,u.x+back)); u.movedAt=B.elapsed; u.face=Math.atan2(0,-(u.recoilDir||1)); goal=null; target=null; }   // 棹立ちの馬は下がる
   if(goal){
     const dx=goal[0]-u.x, dy=goal[1]-u.y, d=Math.hypot(dx,dy);
     if(d>.05){
@@ -13403,9 +13412,10 @@ function resolveAttack(a,d){
   B.corpses=B.corpses||[]; if(loss>=8 && rnd()<0.5) B.corpses.push({x:d.x+(rnd()-.5)*2.2,y:d.y+(rnd()-.5)*1.4,t:0,side:d.side});
   B.dust=B.dust||[]; if(a.type===2 && rnd()<0.5) B.dust.push({x:a.x+(rnd()-.5)*1.5,y:a.y+0.6,t:0,life:0.9});
   // 刃の音。鳴らしすぎぬよう間を置く
-  if(B.elapsed-(B.lastClank||-9)>0.55){
+  if(a.type===3){ if(B.elapsed-(B.lastGun||-9)>0.22){ B.lastGun=B.elapsed; try{ playSE("gun"); }catch(_){} } }   // 鉄砲は撃つたびに近い間で鳴る
+  else if(B.elapsed-(B.lastClank||-9)>0.55){
     B.lastClank=B.elapsed;
-    try{ playSE(a.type===3?"gun":"sword"); }catch(_){}
+    try{ playSE("sword"); }catch(_){}
   }
   { const k0=a.killed||0; a.killed=k0+loss;          // 討ち取った数を控える
     if(a.side===B.ctx.playerSide) for(const m of [300,800,1500]) if(k0<m && a.killed>=m){ toast(`${a.name}隊、討ち取り${m}を超えました`); break; } }
@@ -13438,7 +13448,7 @@ function spawnShot(a,d){
     const spread=(rnd()-.5)*1.6;
     B.shots.push({ x:a.x, y:a.y, x0:a.x, y0:a.y,
       tx:d.x+(rnd()-.5)*1.4, ty:d.y+spread,
-      t:-i*0.035, life:.30+rnd()*.06, side:a.side, miss:false });
+      t:-i*0.05, life:.42+rnd()*.08, side:a.side, miss:false });
   }
   B.puffs.push({x:a.x+Math.cos(a.face)*1.4, y:a.y+Math.sin(a.face)*1.4, t:0, life:.55, r:1.4});
   B.puffs.push({x:a.x+Math.cos(a.face)*1.9+(rnd()-.5)*0.8, y:a.y+Math.sin(a.face)*1.9+(rnd()-.5)*0.6, t:0, life:1.6, r:1.1, big:true});   // 白い煙はしばらく漂う
@@ -14285,9 +14295,12 @@ function drawBattle(){
     const k=Math.min(1,sh.t/sh.life);
     const x=sh.x0+(sh.tx-sh.x0)*k, y=sh.y0+(sh.ty-sh.y0)*k;
     const px=sh.x0+(sh.tx-sh.x0)*Math.max(0,k-.16), py=sh.y0+(sh.ty-sh.y0)*Math.max(0,k-.16);
-    if(k<.12){ bctx.fillStyle=`rgba(255,200,90,${.9-k*5})`; bctx.beginPath(); bctx.arc(sh.x0*sx,sh.y0*sy,7,0,7); bctx.fill(); }   // 発砲炎
-    bctx.strokeStyle=`rgba(255,236,170,${.85*(1-k*.5)})`; bctx.lineWidth=2; bctx.lineCap="round";
+    if(k<.14){ bctx.fillStyle=`rgba(255,210,100,${.95-k*5})`; bctx.beginPath(); bctx.arc(sh.x0*sx,sh.y0*sy,11-k*30,0,7); bctx.fill(); bctx.fillStyle=`rgba(255,255,220,${.9-k*5})`; bctx.beginPath(); bctx.arc(sh.x0*sx,sh.y0*sy,5,0,7); bctx.fill(); }   // 発砲炎（大きく）
+    bctx.strokeStyle=`rgba(255,200,120,${.5*(1-k*.5)})`; bctx.lineWidth=5; bctx.lineCap="round";
+    bctx.beginPath(); bctx.moveTo(px*sx,py*sy); bctx.lineTo(x*sx,y*sy); bctx.stroke();   // 弾の筋（外側の光）
+    bctx.strokeStyle=`rgba(255,244,200,${.95*(1-k*.4)})`; bctx.lineWidth=2.4;
     bctx.beginPath(); bctx.moveTo(px*sx,py*sy); bctx.lineTo(x*sx,y*sy); bctx.stroke();
+    bctx.fillStyle="#FFF7D0"; bctx.beginPath(); bctx.arc(x*sx,y*sy,2.6,0,7); bctx.fill();   // 弾そのもの
     if(k>.93 && !sh.miss){
       bctx.fillStyle="rgba(255,120,60,.8)";
       bctx.beginPath(); bctx.arc(sh.tx*sx,sh.ty*sy,5,0,7); bctx.fill();
@@ -15329,7 +15342,7 @@ function makeLoop(scene){
   const R = {
     mapCalm:{bpm:74,bars:8,scale:RITSU,root:-7,drum:1,pluck:.34,drone:.16},
     mapTense:{bpm:96,bars:8,scale:IN_SCALE,root:-9,drum:2,pluck:.34,drone:.22},
-    battle:{bpm:132,bars:8,scale:IN_SCALE,root:-12,drum:2,pluck:.32,drone:.24},
+    battle:{bpm:118,bars:8,scale:IN_SCALE,root:-12,drum:2,pluck:.32,drone:.24},
     castle:{bpm:66,bars:8,scale:RITSU,root:-5,drum:0,pluck:.30,drone:.14},
     victory:{bpm:108,bars:4,scale:RITSU,root:0,drum:2,pluck:.40,drone:.12},
     defeat:{bpm:56,bars:4,scale:IN_SCALE,root:-14,drum:0,pluck:.28,drone:.20},
@@ -15366,6 +15379,22 @@ function makeLoop(scene){
     }
   };
 
+  // 合戦の曲：弦は鳴らさず、陣太鼓と法螺貝と低い唸りだけ。前へ前へと急かす
+  if(scene==="battle"){
+    const kaSound=(start,amp)=>{ const s0=Math.floor(start*sr), n=Math.floor(0.07*sr); for(let i=0;i<n;i++){ const idx=s0+i; if(idx>=len) break; const t=i/sr; const v=(Math.sin(2*Math.PI*1900*t)*.5+(rq()*2-1)*.5)*Math.exp(-t*70)*amp; L[idx]+=v*.9; Rc[idx]+=v*1.1; } };
+    const horn=(start,dur,f,amp)=>{ const s0=Math.floor(start*sr), n=Math.floor(dur*sr); for(let i=0;i<n;i++){ const idx=s0+i; if(idx>=len) break; const t=i/sr; const env=Math.min(1,t*3)*Math.min(1,(dur-t)*2.5); const ff=f*(1+Math.sin(t*5.2)*0.01); const v=(Math.sin(2*Math.PI*ff*t)+Math.sin(2*Math.PI*ff*2*t)*.45+Math.sin(2*Math.PI*ff*3*t)*.2)*env*amp; L[idx]+=v*.9; Rc[idx]+=v; } };
+    for(let bar=0;bar<R.bars;bar++){
+      const b0=bar*4*beat;
+      taiko(b0, 0.5, 72); taiko(b0+beat*1.5, 0.28, 100); taiko(b0+beat*2, 0.46, 72); taiko(b0+beat*3, 0.3, 100); taiko(b0+beat*3.5, 0.3, 100);
+      kaSound(b0+beat*0.5, .35); kaSound(b0+beat*2.5, .35); if(bar%2===1) kaSound(b0+beat*3.75, .3);
+      if(bar%4===0) horn(b0+beat*0.25, beat*3.2, freqOf(R.root-5), 0.16);
+      if(bar%4===2) horn(b0+beat*2.0, beat*2.4, freqOf(R.root-3), 0.13);
+    }
+    const df=freqOf(R.root-12);
+    for(let i=0;i<len;i++){ const t=i/sr, tr=0.8+0.2*Math.sin(2*Math.PI*0.5*t); const v=(Math.sin(2*Math.PI*df*t)+Math.sin(2*Math.PI*df*1.5*t)*0.2)*0.16*tr; L[i]+=v; Rc[i]+=v; }
+    const fade0=Math.floor(0.02*sr); for(let i=0;i<fade0;i++){ const g=i/fade0; L[i]*=g; Rc[i]*=g; L[len-1-i]*=g; Rc[len-1-i]*=g; }
+    return buf;
+  }
   let degree=0;
   for(let b=0;b<beats;b++){
     const subs = rq()<0.35 ? 2 : 1;
