@@ -3713,7 +3713,7 @@ function processSieges(){
       }
     }
     const troops=armyTroops(a);
-    if(a.clan!==W.player && a.siegeDays>3 && troops < garrisonTroops(c.id)*1.2 && !a.stage){
+    if(a.clan!==W.player && a.siegeDays>3 && troops < garrisonTroops(c.id)*1.0 && !a.stage){
       log(`${a.name}は守兵に数で及ばず、${c.name}の囲みを解きました`,"war", c.clan===W.player);
       recallArmy(a.id); continue;
     }
@@ -5771,7 +5771,7 @@ function aiMilitary(clan,p){
       if(score<=0.2) continue;
       // 守兵二万の城に一万で寄せる大名はいない。寄せ手は守り手の一・四〜一・七倍は要る。壁が厚いならなおさら
       const ordered = clan.orderTarget && tc===clan.orderTarget.clan && dayNumber()<clan.orderTarget.until;   // 名指しの相手には腰を据えて寄せる
-      const need=Math.max(ordered?Math.max(clanAll>=20000?10000:clanAll>=8000?5000:2500,defT*2.6):minForce, defT*((ordered?2.6:3.0) + (1-p.risk)*0.3), t.defense>6000 ? defT*(ordered?3.0:3.3) : 0);   // 城攻めは守り手の三倍（作り手の指示：七千の城に一万では寄せない）   // 守り手の二倍以上でなければ寄せない   // 名指しの相手には、家中の三割を待たずに寄せる   // 守兵六千に八千で寄せる家はない（一・八倍から）
+      const need=Math.max(ordered?Math.max(clanAll>=20000?10000:clanAll>=8000?5000:2500,defT*2.2):minForce, defT*((ordered?2.2:2.5) + (1-p.risk)*0.3), t.defense>6000 ? defT*(ordered?2.5:2.8) : 0);   // 城攻めは守り手の二倍半〜三倍（作り手の指示：七千の城に一万では寄せない）   // 守り手の二倍以上でなければ寄せない   // 名指しの相手には、家中の三割を待たずに寄せる   // 守兵六千に八千で寄せる家はない（一・八倍から）
       if(mine < need){
         // 足りなければ、まず近くの城から兵をこの城へ集める（小勢で小競り合いには出ない）
         if(!muster||score>muster.score) muster={from:c.id,to:nid,score,need:need-mine};
@@ -5855,7 +5855,7 @@ function aiMuster(clan, toId, targetId, need){
     got+=st; n++;
   }
   if(!n) return;
-  { const t0=W.castles[targetId]; const ordered = t0 && clan.orderTarget && t0.clan===clan.orderTarget.clan && dayNumber()<clan.orderTarget.until; clan.musterAt=dayNumber()+(ordered?25:75); }   // 名指しの相手なら次々に兵を送る
+  { const t0=W.castles[targetId]; const ordered = t0 && clan.orderTarget && t0.clan===clan.orderTarget.clan && dayNumber()<clan.orderTarget.until; clan.musterAt=dayNumber()+(ordered?25:45); }   // 名指しの相手なら次々に兵を送る
   clan.muster={to:toId, target:targetId, until:dayNumber()+120};
   const t=W.castles[targetId];
   if(t && t.clan===W.player && clan.id!==W.player) log(`${clan.name}が${to.name}に兵を集めております（${t.name}を狙っている模様）`,"war");
@@ -14092,10 +14092,12 @@ function autoSiegeAssault(a, sortie){
       // 倍の兵で打って出れば、寄せ手は退くどころではない
       log(`${c.name}の兵が${a.name}を蹴散らしました`,"war");
       routArmy(a, c.clan);
-    } else if(sortie || crush){
+    } else if(crush || (sortie && mine-Math.floor(mine*.28) < garrisonTroops(c.id)*1.2)){
       log(`${c.name}の兵が${a.name}を打ち破り、囲みを解かせました`,"war");
       if(c.clan===W.player) bigNews(`${c.name} 囲みを打ち払う`);
       recallArmy(a.id);
+    } else if(sortie){
+      log(`${c.name}の討って出た兵は${a.name}を押し返したが、囲みは続いています`,"war");   // 小さな討ち出しで囲みは解けない
     } else {
       log(`${a.name}は${c.name}の守りを崩せませんでした`,"war");
     }
@@ -18201,6 +18203,11 @@ function finishBattle(){
     // 寄せ手が四割も残らぬ、あるいは守り手が倍近い数で打ち破ったなら、退くのではなく追い討ちで撃破
     const start=B.startTroops&&B.startTroops[0]||0, start1=B.startTroops&&B.startTroops[1]||0, left=armyTroops(a);
     if(start>0 && !a.oke && (left<=start*0.4 || start1>=start*1.8)){ routArmy(a, defClan); }
+    else if(ctx.castle!==null && ctx.castle!==undefined && W.castles[ctx.castle] && hostile(a.clan,W.castles[ctx.castle].clan) && left>=garrisonTroops(ctx.castle)*1.2){
+      a.mission="包囲"; a.target=ctx.castle; a.px=a.x; a.py=a.y; a.moveT=1; a.mode=1;   // 押し返されたが、囲みは続ける（兵糧攻めに切り替え。小さな戦で退かない）
+      for(const gid of a.gens){ const g=W.generals[gid]; if(g) g.morale=Math.max(10,g.morale-10); }
+      log(`${a.name}は押し返されたが、${W.castles[ctx.castle].name}の囲みを続けます（兵糧攻めに）`,"war",a.clan===W.player);
+    }
     else { recallArmy(ctx.army); log("攻め手は退きました","war"); }
   }
   else if(res===0 && a && ctx.castle===null){
