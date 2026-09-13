@@ -3318,8 +3318,9 @@ function resupply(a){
   if(a.food>=need) return;
   let best=null,bd=1e9;
   const near=nearestCastle(a);
+  const K=W.clans[a.clan];
   for(const c of Object.values(W.castles)){
-    if(c.clan!==a.clan) continue;
+    if(c.clan!==a.clan && !(c.clan!==null && K && (sameHouse(a.clan,c.clan) || K.allies.has(c.clan)))) continue;   // 盟友・同じ家の蔵からも届く
     if((c.food||0) < foodEatenBy(garrisonFast(c.id))*120) continue;   // 留守の分は残す
     // 小荷駄は街道を通る。道でつながっていない蔵からは届かない
     if(near!==null && near!==undefined && roadHops(near,c.id,5)>5) continue;
@@ -3328,7 +3329,8 @@ function resupply(a){
   }
   if(!best || bd>320) return;
   const loss=Math.min(0.5, bd/900);
-  const send=Math.min(best.food*0.06, (need-a.food)*0.5, foodEatenBy(armyTroops(a))*20);
+  const urgent = a.food < foodEatenBy(armyTroops(a))*15;   // 陣中の米が十五日分を切っていれば、蔵から厚く出す
+  const send=Math.min(best.food*(urgent?0.25:0.06), (need-a.food)*(urgent?0.9:0.5), foodEatenBy(armyTroops(a))*(urgent?60:20));
   if(send<=0) return;
   best.food=Math.max(0, best.food-Math.floor(send));
   a.food += send*(1-loss);
@@ -3337,6 +3339,7 @@ function resupply(a){
 function processArmyFood(){
   for(const a of Object.values(W.armies)){
     if(W.date.d%5===0){ a.supplied=false; resupply(a); }   // 届いた印はその日だけ
+    else if(a.food!==undefined && a.food < foodEatenBy(armyTroops(a))*15){ resupply(a); }   // 乏しければ毎日みる（家に米があるのに陣が飢えるのはおかしい）
     if(a.food===undefined) a.food=Math.floor(foodEatenBy(armyTroops(a))*120);
     const eat=foodEatenBy(armyTroops(a))*(seasonOf(W.date.m)==="冬"?1.2:1);
     a.food=Math.max(0,a.food-eat);
@@ -9183,14 +9186,14 @@ const CASTLE_SKIN=[
 function castleDrawSize(c, tier){
   if(tier===undefined) tier=castleTier(c);
   const hqMul=c.hq?1.75:1;   // 本拠はふた回り大きく（どこが本拠か一目で。作り手の指示でさらに大きく）
-  const grade=[0.86,1.05,1.28,1.58][tier]*hqMul;
+  const grade=[0.86,1.05,1.28,1.58,1.85][tier]*hqMul;
   // 寄るほど城は大きく。上限で頭打ちになると、拡大しても城が育たない
   // 引いているときは下限を少し下げ、隣の城と絵が触れ合わないようにする
   return Math.max((cam.scale>=6?54:cam.scale>=3.2?40:32)*hqMul, Math.min(400, cam.scale*5.2*grade));
 }
 function castleTier(c){
   const lv=c.lv||0;
-  return c.hq && lv>=520 ? 3 : lv>=460 ? 3 : lv>=360 ? 2 : lv>=270 ? 1 : 0;
+  return lv>=660 ? 4 : lv>=520 ? 3 : lv>=400 ? 2 : lv>=280 ? 1 : 0;   // 砦／平城／平山城／山城／名城（普請の段と同じ）
 }
 function castleRel(c){
   if(c.clan===W.player) return 0;
@@ -9219,21 +9222,27 @@ function castleSprite(color,hq,tier,rel){
   }
   const cv=makeCanvas(64,64), g=cv.getContext("2d");
   const px=(x,y,w,h,c)=>{ g.fillStyle=c; g.fillRect(x,y,w,h); };
-  // 石垣。格が上がるほど厚く高く積む
-  const base=[10,8,6,4][3-tier], bw=64-base*2;
-  const gy=48-tier*1.5;
+  // 石垣。格が上がるほど厚く高く積む。堀・櫓・二の丸で「強い城」に見せる
+  tier=Math.min(4,tier);
+  const base=[10,8,6,4,3][tier], bw=64-base*2;
+  const gy=[48,47,45,43,41][tier];
+  if(tier>=2){ px(base-2,58,bw+4,5,"#3C5A78"); px(base-2,58,bw+4,1,"#7FA2C4"); }   // 堀（水）
+  if(tier>=3){ px(base-1,gy-6,bw+2,6,S.wall); px(base-1,gy-6,bw+2,2,S.roof); for(let k=base+2;k<base+bw-2;k+=8) px(k,gy-4,3,2,S.roofD); }   // 二の丸の塀
   px(base,gy,bw,64-gy,S.stone);
   for(let x=base;x<base+bw;x+=6) px(x,gy,1,64-gy,S.stoneD);
   px(base,gy+5,bw,1,S.stoneD);
   if(tier>=2){ px(base-3,gy+8,bw+6,3,S.stoneD); }   // 腰巻石垣
+  if(tier>=1){ px(base+1,gy-9,8,9,S.wall); px(base-1,gy-12,12,3,S.roof); px(base+bw-9,gy-9,8,9,S.wall); px(base+bw-11,gy-12,12,3,S.roof); }   // 隅櫓（平城から）
+  if(tier>=4){ px(base+1,gy-16,8,7,S.wall); px(base-1,gy-19,12,3,S.roof); px(base+bw-9,gy-16,8,7,S.wall); px(base+bw-11,gy-19,12,3,S.roof); }   // 名城は二重櫓
   // 天守。段数は格で決まる
-  const layers=[2,3,4,5][tier];
-  let w=[30,34,38,42][tier], y=gy-10, x=32-w/2;
+  const layers=[2,3,4,5,6][tier];
+  let w=[30,34,38,42,44][tier], y=gy-10, x=32-w/2;
   for(let i=0;i<layers;i++){
     px(x,y,w,9,S.wall); px(x,y+7,w,2,S.wallD);
     for(let k=x+4;k<x+w-4;k+=7) px(k,y+2,3,3,S.roofD);   // 狭間
     px(x-3,y-4,w+6,4,S.roof); px(x-4,y-2,w+8,2,S.roofD);
-    w=Math.max(10,w-[7,6,6,6][tier]); y-=[11,10,10,9][tier]; x=32-w/2;
+    if(tier>=3 && i===layers-2){ px(x-6,y-3,4,3,S.roof); px(x+w+2,y-3,4,3,S.roof); }   // 千鳥破風
+    w=Math.max(10,w-[7,6,6,6,5][tier]); y-=[11,10,10,9,8][tier]; x=32-w/2;
   }
   px(x-4,y+2,w+8,4,S.roof); px(x-5,y+4,w+10,2,S.roofD);
   // 大手門に家の色を差す
@@ -11050,14 +11059,14 @@ function openCastle(id){
     acts=`<div class="actbar">
       <button class="big gold" onclick="${besiegedNow?`sallyOut(${id})`:`openDispatch(${id})`}">${besiegedNow?"討って出る":"出陣"}</button>
       <button class="big" onclick="openCouncil(${id})">内政${c.minchu<40?`<span class="cost" style="color:#FFD166">民忠${c.minchu}・施しを</span>`:`<span class="cost">新田・商業・人材登用</span>`}</button>
+      <button class="big ghost" onclick="openConscript(${id})">徴兵<span class="cost">取れる兵 ${regionConscriptable(c).toLocaleString()}</span></button>
       ${myCastles(W.player).length>1?`<button class="big ghost" onclick="openGather(${id})">兵を集める<span class="cost">他の城からこの城へ</span></button>`:""}
       ${besiegedNow?"":`<button class="big ghost" onclick="closePanel();openFound(${id})">築城<span class="cost">陸ならどこでも</span></button>`}
       ${!c.hq&&!besiegedNow&&myCastles(W.player).length>1&&(W.clans[W.player].vassals.size||W.clans[W.player].allies.size)?`<button class="big ghost" onclick="openGiveCastle(${id})">城を譲渡<span class="cost">属国・盟友へ</span></button>`:""}
       ${!besiegedNow&&castleRank(c)<CASTLE_RANKS.length-1?`<button class="big ghost" onclick="upgradeCastle(${id})">普請<span class="cost">${CASTLE_RANKS[castleRank(c)+1].n}へ ${CASTLE_RANKS[castleRank(c)+1].cost.toLocaleString()}</span></button>`:""}
     </div>
-    <details style="margin:-4px 0 8px"><summary style="cursor:pointer;font-size:11px;color:var(--gofun-dim);list-style:none">▸ ほかの手立て（徴兵・自動内政・本拠・隣の家へ譲る）</summary>
+    <details style="margin:-4px 0 8px"><summary style="cursor:pointer;font-size:11px;color:var(--gofun-dim);list-style:none">▸ ほかの手立て（自動内政・本拠・隣の家へ譲る）</summary>
     <div class="actbar" style="margin-top:6px">
-      <button class="big ghost" onclick="openConscript(${id})">徴兵<span class="cost">取れる兵 ${regionConscriptable(c).toLocaleString()}</span></button>
       <button class="big ghost" onclick="openDelegate(${id})">${c.delegate===null?"自動内政":"自動内政 "+FOCUS[c.delegate]}</button>
       ${!c.hq&&!besiegedNow?`<button class="big ghost" onclick="moveHq(${id})">本拠を移す<span class="cost">5,000</span></button>`:""}
       ${!c.hq&&!besiegedNow&&myCastles(W.player).length>1?`<button class="big ghost" onclick="openGiveCastle(${id})">城を譲る<span class="cost">属国・盟友・隣の家へ</span></button>`:""}
