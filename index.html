@@ -3342,7 +3342,11 @@ function processArmyFood(){
     else if(a.food!==undefined && a.food < foodEatenBy(armyTroops(a))*15){ resupply(a); }   // 乏しければ毎日みる（家に米があるのに陣が飢えるのはおかしい）
     if(a.food===undefined) a.food=Math.floor(foodEatenBy(armyTroops(a))*120);
     const eat=foodEatenBy(armyTroops(a))*(seasonOf(W.date.m)==="冬"?1.2:1);
-    a.food=Math.max(0,a.food-eat);
+    // 陣中の米は家の蔵から食う（家全体の兵糧が尽きるまで、隊は飢えない）。近い蔵から順に
+    { let left=eat; const mine=myCastles(a.clan).filter(c=>(c.food||0)>0).sort((x,y)=>kmBetween(a.x,a.y,W.tile[x.id].c,W.tile[x.id].r)-kmBetween(a.x,a.y,W.tile[y.id].c,W.tile[y.id].r));
+      for(const c of mine){ if(left<=0) break; const t=Math.min(c.food,left); c.food-=t; left-=t; }
+      if(left<=0.01){ a.food=Math.max(a.food, foodEatenBy(armyTroops(a))*30); a.starving=false; a.starveDays=0; continue; }
+      a.food=Math.max(0,a.food-left); }
     if(a.food>0){ a.starving=false; continue; }
     a.starving=true;
     // 陣中に米がない。刈田で凌ぐか、逃げ散るか
