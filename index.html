@@ -4549,6 +4549,7 @@ function growGenerals(){
 }
 function processMonth(){
   W._tribIn={};
+  for(const K of Object.values(W.clans)) if(!K.dead&&K.troopMax){ try{ clampClanTroops(K); }catch(_){ } if(W.date.m===1 && K.troopMax<60000){ K.troopMax=Math.round(K.troopMax*1.1); } }   // 大敗の痛手は年ごとに少しずつ癒える（上限が一割ずつ戻る）
   if(W.date.m===1 && W.started){ bigNews(`${W.date.y}年　正月`); log(`年が明けました。${W.date.y}年、${clanName(W.player)}は城${myCastles(W.player).length}・将${Object.values(W.generals).filter(g=>g.clan===W.player&&g.status!=="死亡").length}・兵${totalTroops(W.player).toLocaleString()}`,"growth",true); }
   // 友好の前月の値を控える（外交の札で増減を見せる）
   { const me=W.clans[W.player]; if(me){ W.relPrev=W.relPrev||{}; W.relPrevOld=W.relPrev; W.relPrev={}; for(const o of Object.values(W.clans)) if(!o.dead) W.relPrev[o.id]=getRel(W.player,o.id); } }
@@ -10269,6 +10270,8 @@ function drawMap(){
         mctx.strokeStyle="#FFD166"; mctx.lineWidth=1.8;
         mctx.beginPath(); mctx.arc(x,y,rr+3.5,0,7); mctx.stroke();
       }
+      // 引いた地図でも、敵の家の本拠と小さな家の本拠には家紋の札（豊臣が点に紛れて見えない、を無くす）
+      if(c.hq && c.clan!==null && c.clan!==W.player && W.clans[c.clan] && (rel===2 || myCastles(c.clan).length<=3)){ const K=W.clans[c.clan]; const ch=String(K.crest||K.name[0])[0]; mctx.save(); mctx.fillStyle=clanColor(c.clan); mctx.beginPath(); mctx.arc(x,y-rr-9,8,0,7); mctx.fill(); mctx.strokeStyle=rel===2?"rgba(226,40,26,.9)":"rgba(255,255,255,.7)"; mctx.lineWidth=1.5; mctx.stroke(); mctx.fillStyle="#fff"; mctx.font='900 10px "Yuji Syuku",serif'; mctx.textAlign="center"; mctx.textBaseline="middle"; mctx.fillText(ch,x,y-rr-9); mctx.restore(); }
       if(selected.kind==="castle" && selected.id===c.id){
         mctx.strokeStyle="#C9A227"; mctx.lineWidth=2;
         mctx.beginPath(); mctx.arc(x,y,rr+5,0,7); mctx.stroke();
