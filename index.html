@@ -14299,10 +14299,10 @@ function startBattle(e){
       if(B.ctx.playerSide===1){ const atk=B.units.filter(u=>u.side===0&&!u.cmd); const n=atk.length; const w1=atk.slice(0,Math.ceil(n/3)), w2=atk.slice(Math.ceil(n/3),Math.ceil(n*2/3)), w3=atk.slice(Math.ceil(n*2/3));
         B.waves=[{ids:w1.map(u=>u.id),at:0,name:w1[0]?w1[0].name:"",done:true},{ids:w2.map(u=>u.id),at:10,name:w2[0]?w2[0].name:"",done:false},{ids:w3.map(u=>u.id),at:20,name:w3[0]?w3[0].name:"",done:false}];
         const col=(arr,depth)=>{ arr.forEach((u,i)=>{ u.x=BF.w-depth+((i%2)?0.8:-0.8); u.y=2.2+(BF.h-4.4)*((i+0.5)/Math.max(1,arr.length)); u.gx=u.x; u.gy=u.y; }); };   // 三陣を縦の列に（第一陣が前、後ろに第二・第三陣）
-        col(w1,12); col(w2,17.5); col(w3,23);
+        col(w1,23); col(w2,17.5); col(w3,12);   // 第一陣が敵に近い列
         for(const u of w2.concat(w3)){ u.holdUntil=999; u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } }
       else { const atk=B.units.filter(u=>u.side===0&&!u.cmd); const n=atk.length; const cols=[atk.slice(0,Math.ceil(n/3)), atk.slice(Math.ceil(n/3),Math.ceil(n*2/3)), atk.slice(Math.ceil(n*2/3))];
-        cols.forEach((arr,k)=>arr.forEach((u,i)=>{ u.x=BF.w-(12+k*5.5)+((i%2)?0.8:-0.8); u.y=2.2+(BF.h-4.4)*((i+0.5)/Math.max(1,arr.length)); u.gx=u.x; u.gy=u.y; })); }   // 人が武田でも三陣に並べる
+        cols.forEach((arr,k)=>arr.forEach((u,i)=>{ u.x=BF.w-(23-k*5.5)+((i%2)?0.8:-0.8); u.y=2.2+(BF.h-4.4)*((i+0.5)/Math.max(1,arr.length)); u.gx=u.x; u.gy=u.y; })); }   // 人が武田でも三陣に並べる
       // 三千挺の鉄砲。守り手の足軽隊のうち幾つかは鉄砲隊として柵に張り付く（少なくとも六隊）
       { let need=8-B.units.filter(u=>u.side===1&&u.type===3).length; for(const u of B.units){ if(need<=0) break; if(u.side===1&&u.type===0&&!u.cmd){ u.type=3; u.ammo=120; need--; } } }
       { const guns=B.units.filter(u=>u.side===1&&u.type===3), rest=B.units.filter(u=>u.side===1&&u.type!==3); const back=defLeft?-1:1;
@@ -15783,7 +15783,7 @@ function battleAI(){
     if(u.side!==foeSide||u.morale<=0||u.troops<=.5) continue;
     if(u.holdUntil && B.elapsed<u.holdUntil){ if(u.order.k!=="guard"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } continue; }   // 後の波は頃合いまで控える
     // 本陣は後ろに構える。大きく押しているときだけ前へ出る（当主が先陣を切って討たれるのは戦ではない）
-    if(u.cmd && !(_mt>_ft*1.4) && !B.aiFled && u.order.k!=="retreat" && !(u.order.k==="attack"&&B.units.some(z=>z.id===u.order.id&&z.cmd))){ if(u.order.k!=="guard"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } continue; }
+    if(u.cmd && !u.fleeing && !(_mt>_ft*1.4) && !B.aiFled && u.order.k!=="retreat" && !(u.order.k==="attack"&&B.units.some(z=>z.id===u.order.id&&z.cmd))){ if(u.order.k!=="guard"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } continue; }
     if(u.hillMove && u.order.k==="move" && B.elapsed<30) continue;            // 高所へ向かう途中
     if(B.aiGuardId===u.id){ const cmd=B.units.find(z=>z.side===foeSide&&z.cmd&&z.troops>.5&&z.morale>0); if(cmd && cmd.order.k==="guard" && B.elapsed<120){ const near=B.units.find(z=>z.side!==foeSide&&z.troops>.5&&z.morale>0&&!z.left&&dist(z,cmd)<7); if(near){ u.order={k:"attack",id:near.id}; } else if(dist(u,cmd)>3){ u.order={k:"move",x:cmd.x+(foeSide===1?-2.5:2.5),y:cmd.y}; } else { u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } continue; } }
     // 木立に伏せた隊は、近づくまで敵の目に入らない
