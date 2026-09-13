@@ -345,6 +345,10 @@ html.bigtext #panel{font-size:15px} html.bigtext .row{font-size:14px} html.bigte
 }
 #pickBar .p-hint{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw}
 #pickBar .tool{white-space:nowrap;padding:5px 10px;font-size:12px}
+#foundBar{ position:absolute;left:50%;bottom:12px;transform:translateX(-50%);z-index:29; display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:20px; background:rgba(18,16,14,.92);border:1px solid rgba(201,162,39,.5);max-width:96vw; }
+#foundBar .p-hint{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:50vw}
+#foundBar .tool{white-space:nowrap;padding:6px 12px;font-size:13px}
+#foundBar .tool.gold{background:#C9A227;color:#1A1208;font-weight:800}
 .s-head{padding:22px 24px 14px;text-align:center;flex:none}
 .s-head h1{
   margin:0;font-family:var(--display);font-size:clamp(30px,6vw,50px);font-weight:400;
@@ -645,6 +649,11 @@ body.inbattle #stage.paused::after{ display:none; }
   </div>
 </div>
 
+<div id="foundBar" hidden>
+  <span class="p-hint" id="foundHint">場所を押すと、結ばれる街道が見えます</span>
+  <button class="tool gold" id="foundGo" hidden>ここに築く</button>
+  <button class="tool" id="foundCancel">やめる</button>
+</div>
 <div id="pickBar" hidden>
   <span class="p-hint">城を押して大名家を選ぶ</span>
   <button class="tool" id="pickList">一覧</button>
@@ -744,7 +753,7 @@ body.inbattle #stage.paused::after{ display:none; }
 
     <div id="bigNews" hidden><span id="bigNewsText"></span></div>
 
-    <div id="ticker"><i class="mark"></i><span id="tickerText">評定を開き、国を富ませよ。</span></div>
+    <div id="ticker"><i class="mark"></i><span id="tickerText">内政を開き、国を富ませよ。</span></div>
 
     <div id="panel">
       <div class="p-head">
@@ -1089,7 +1098,7 @@ function thinnedCastles(){
   const byClan={};
   for(const c of DATA.castles){
     if(c.c===null||c.c===undefined) continue;
-    if(SCENARIO_DROP.has(c.n)&&!SCENARIO_KEEP.has(c.n)&&!c.hq) continue;
+    if(SCENARIO_DROP.has(c.n)&&!SCENARIO_KEEP.has(c.n)) continue;   // 名指しで落とす城は、古い世の本拠でも落とす
     (byClan[c.c]=byClan[c.c]||[]).push(c);
   }
   const KINAI=new Set(["山城","河内","和泉","摂津","大和","近江","紀伊","伊勢","伊賀","丹波","播磨","若狭","志摩"]);
@@ -1102,7 +1111,10 @@ function thinnedCastles(){
   // 京のように筋書きに関わる城まで失われる。
   const byProv={};
   for(const c of DATA.castles){ if(SCENARIO_DROP.has(c.n)&&!SCENARIO_KEEP.has(c.n)) continue; (byProv[c.p]=byProv[c.p]||[]).push(c); }
-  for(const list of Object.values(byProv)){
+  // 後の世（長篠以降）では、伊賀・河内・志摩は隣国の城で足りる（畿内の団子を薄くする。作り手の指示）
+  const EMPTY_OK = SCENARIO_DROP.size ? new Set(["伊賀","河内","志摩"]) : new Set();   // 落とす城の名簿があるのは長篠以降の世
+  for(const [pid,list] of Object.entries(byProv)){
+    const pn=(DATA.provinces[+pid]||{}).n; if(EMPTY_OK.has(pn) && !list.some(c=>SCENARIO_KEEP.has(c.n))) continue;
     list.sort((a,b)=> (b.hq?1e9:0)+b.koku - ((a.hq?1e9:0)+a.koku));
     must.add(list[0].id);
   }
@@ -1111,11 +1123,11 @@ function thinnedCastles(){
   const kept=[], pts=[]; const perProv={};
   // 近畿と伊勢は国が小さく城が団子になるので、さらに薄く（小国は一城、あとは二城まで）
   const TIGHT={"山城":1,"河内":1,"和泉":1,"伊賀":1,"志摩":1,"伊勢":1,"摂津":1,"大和":1,"近江":2,"紀伊":1,"若狭":1,"丹波":1,"播磨":2};
-  const capOf=(pid)=>{ const p=DATA.provinces[pid]; if(p&&TIGHT[p.n]!==undefined) return TIGHT[p.n]; const rad=p?p.rad:44; return rad>=55?3:2; };   // 国の広さに応じて城の数を抑える（近畿の団子を防ぐ）
+  const capOf=(pid)=>{ const p=DATA.provinces[pid]; if(p&&EMPTY_OK.has(p.n)) return 0; if(p&&TIGHT[p.n]!==undefined) return TIGHT[p.n]; const rad=p?p.rad:44; return rad>=55?3:2; };   // 国の広さに応じて城の数を抑える（近畿の団子を防ぐ）
   const thinOf=(pid)=>{ const p=DATA.provinces[pid]; return (p&&TIGHT[p.n]!==undefined) ? THIN_TILES*1.25 : THIN_TILES; };
   for(const c of sorted){
     const q=at(c); if(!q) continue;
-    if(SCENARIO_DROP.has(c.n) && !SCENARIO_KEEP.has(c.n) && !c.hq) continue;   // 後の世では落とす小城（家の本拠は残す）
+    if(SCENARIO_DROP.has(c.n) && !SCENARIO_KEEP.has(c.n)) continue;   // 後の世では落とす小城（筋書きに要る城は KEEP で守る）
     if(!c.hq && !must.has(c.id)){
       let close=false; const th=thinOf(c.p);
       for(const r of pts){
@@ -1322,7 +1334,7 @@ const SCENARIO_DEFS = {
   ],
   absorb:["小笠原家","蘆名家","長家","阿曽沼家"],
   wars:[["明智家","羽柴家"],["明智家","織田家"],["明智家","神戸家"],["明智家","丹羽家"],["明智家","池田家"],["明智家","柴田家"],["明智家","徳川家"],["羽柴家","毛利家"],["柴田家","上杉家"],["北条家","滝川家"],["長宗我部家","織田家"]],
-  allies:[["羽柴家","池田家"],["羽柴家","丹羽家"],["羽柴家","徳川家"],["織田家","徳川家"],["柴田家","神戸家"]],
+  allies:[["羽柴家","池田家"],["羽柴家","丹羽家"],["羽柴家","徳川家"],["織田家","徳川家"],["柴田家","神戸家"],["柴田家","毛利家"]],
   neutral:[["織田家","神戸家","丹羽家","池田家","柴田家","羽柴家","滝川家","前田家","佐々家","宇喜多家","徳川家","真田家"]],   // 旧織田家中は互いに弓を引かない（人が引けば別）
   truces:[],
   text:["天正十年六月二日。明智光秀、本能寺に信長を討つ。","「敵は本能寺にあり」―― 京は明智の手に落ちた。","羽柴秀吉は備中高松より兵を返し、山崎へ急ぐ。"],
@@ -1480,13 +1492,13 @@ function scenarioKeepNames(sc){
     "岩村城","深志城","飛騨松倉城","躑躅ヶ崎館","飯盛山城","二条御所","佐和山城","観音寺城","信貴山城","富山城"]);   // 北畠・畠山の家を立てるため、また長篠・高遠の筋書きのために残す城
   if(!sc) return out;
   // 長篠より後の世では、北畠・畠山を立てるための城や志摩・伊賀の小城は要らない（畿内・伊勢の団子を薄く）
-  if(sc.y>=1575) for(const nm of ["霧山城","飯盛山城","鳥羽城","上野城","日野城"]) out.delete(nm);
+  if(sc.y>=1575) for(const nm of ["霧山城","飯盛山城","鳥羽城","上野城","日野城","高屋城","柏原城","芥川山城"]) out.delete(nm);
   for(const h of sc.houses||[]){ out.add(h.hq); for(const c of (h.castles||[])) out.add(c); }
   for(const k of Object.keys(sc.renameC||{})) out.add(k);
   for(const x of sc.wars||[]) for(const nm of x) out.add(nm);
   return out;
 }
-function scenarioDropNames(sc){ return new Set((sc&&sc.y>=1575) ? ["霧山城","飯盛山城","鳥羽城","上野城","日野城"] : []); }
+function scenarioDropNames(sc){ return new Set((sc&&sc.y>=1575) ? ["霧山城","飯盛山城","鳥羽城","上野城","日野城","高屋城","柏原城","芥川山城"] : []); }   // 畿内・伊賀の小城はさらに薄く（作り手の指示、三度目）
 /* 筋書きごとの家の紹介。地図から家を選ぶときの札に出る */
 Object.assign(SCENARIO_DEFS, {
  hoi:{ id:"hoi", name:"信長包囲網", y:1570, m:6, era:"元亀元年",
@@ -1788,7 +1800,7 @@ function buildWorld(playerClan, scenarioId){
   // 前の世界を必ず片づける。残っていると城も武将も二重になる
   W.castles={}; W.generals={}; W.clans={}; W.armies={}; W.tile={};
   W.bandits={}; W.wanderers=W.wanderers?{}:{};
-  try{ reliefPick=null; foundPick=null; foundMarks=null; }catch(_){ }
+  try{ reliefPick=null; foundPick=null; foundMarks=null; foundBarRefresh(); }catch(_){ }
   W.fired=new Set(); W.alerts=new Set();
   W.shogun=null; W.subj=null; W.result=null; W.nextArmy=1; W.okeWon=false; W.opening=null;
   // 年表・知らせ・戦の記録・出来事・統計も前の世のものを残さない
@@ -2012,7 +2024,7 @@ function makeVassalOf(name, lordId){
   k.suzerain=lordId; L.vassals.add(k.id); makePeace(k.id,lordId); breakAlly(k.id,lordId); setRel(k.id,lordId,60); setRel(lordId,k.id,50);
 }
 /* 名のある堅城と各家の本拠は、はじめから固い（小田原・春日山・稲葉山・観音寺・躑躅ヶ崎・駿府・石山 など） */
-const STRONGHOLDS=new Set(["小田原城","春日山城","稲葉山城","岐阜城","観音寺城","安土城","躑躅ヶ崎館","駿府館","石山本願寺","大坂城","吉田郡山城","月山富田城","岡崎城","一乗谷城","小谷城","七尾城","二条御所","江戸城","会津若松城","黒川城","米沢城","内城","岡豊城","犬山城","清洲城","那古野城"]);
+const STRONGHOLDS=new Set(["高天神城","小田原城","春日山城","稲葉山城","岐阜城","観音寺城","安土城","躑躅ヶ崎館","駿府館","石山本願寺","大坂城","吉田郡山城","月山富田城","岡崎城","一乗谷城","小谷城","七尾城","二条御所","江戸城","会津若松城","黒川城","米沢城","内城","岡豊城","犬山城","清洲城","那古野城"]);
 function hardenStrongholds(){
   for(const c of Object.values(W.castles)){
     let lv=null;
@@ -3187,6 +3199,14 @@ function findPath(from,to,clan){
   if(p1.length) return p1;
   return [];
 }
+/* 後詰が届くか：わが城から、敵の城を通らずに七つ以内の道で着けるか（遠国の盟友からの求めは、そもそも使者が来ない） */
+function reliefReachable(clan, tcId){
+  const K=W.clans[clan]; if(!K) return false;
+  const okThrough=id=>{ const c=W.castles[id]; if(!c) return false; if(c.clan===null||c.clan===clan) return true; return sameHouse(clan,c.clan)||K.allies.has(c.clan)||(K.vassals&&K.vassals.has(c.clan)); };
+  const seen=new Set(); const q=[]; for(const c of myCastles(clan)){ seen.add(c.id); q.push([c.id,0]); }
+  let h=0; while(h<q.length){ const [cur,d]=q[h++]; if(cur===tcId) return true; if(d>=7) continue; for(const n of (W.castles[cur]?.neighbors||[])){ if(seen.has(n)) continue; if(n!==tcId && !okThrough(n)) continue; seen.add(n); q.push([n,d+1]); } }
+  return false;
+}
 function nearestCastle(a){
   let best=null,bd=1e9;
   for(const id in W.tile){
@@ -3213,7 +3233,7 @@ function marchSpeed(a){
   const slowest=Math.min(...gens.map(g=>UNITS[g.unit].spd));
   const t=tileAt(Math.round(a.x),Math.round(a.y));
   const mf=[1,1,1,.85,.7,.5,.6][t];
-  let v=11*slowest*(.8+lead/250)*mf*(seasonOf(W.date.m)==="冬"?.75:1)*(_swift?1.2:1);   // 街道の足は一日十一里ほど（十六では速すぎた）
+  let v=5.5*slowest*(.8+lead/250)*mf*(seasonOf(W.date.m)==="冬"?.75:1)*(_swift?1.2:1);   // 街道の足はゆっくり（十六→十一→五・五。作り手の指示で半分に）
   if(seasonOf(W.date.m)==="冬" && snowyAt(a.x,a.y)) v*=0.65;     // 雪国の冬は道が閉ざされる
   if(W.date.m===6) v*=0.85;                                          // 梅雨。道はぬかるむ
   if(W.clans[a.clan].policies.has("街道整備")) v*=1.25;
@@ -3419,6 +3439,8 @@ function arriveAt(cid,a){
       log(`${a.name}が盟友の${c.name}を囲む敵に討ちかかりました`,"war");
       if(a.clan===W.player||bes.clan===W.player)
         queueEncounter({army:bes.id, foeArmy:a.id, castle:null, relief:true, playerAttacks:bes.clan===W.player});
+      else if(c.clan===W.player)   // 盟友がわが城を助けに来た：城の守兵も出て、人が采配を執る会戦
+        queueEncounter({army:bes.id, foeArmy:a.id, castle:null, relief:true, allyRelief:true, joinGarrison:cid, playerAttacks:false});
       else autoBattle(bes,a);
       return;
     }
@@ -3808,6 +3830,7 @@ function relocateHQ(old, lostId){
   const c=W.castles[lostId]; if(!c||!c.hq) return;
   c.hq=false;
   if(old===null||old===undefined) return;
+  { const K=W.clans[old]; if(K){ K.hqLostAt=dayNumber(); K.hqLostTo=c.clan; } }   // 本拠を落とされた家は、落とした家に膝を屈しやすい
   const rest=myCastles(old).filter(x=>x.id!==lostId);
   if(!rest.length) return;
   const nh=rest.reduce((x,y)=>(y.koku+y.com*2)>(x.koku+x.com*2)?y:x);
@@ -5311,9 +5334,11 @@ function diplomacy(kind,me,other,opt){
       const mine=powerScore(me)*(W.shogun===me?1.5:1)*(prestigeTier(me)>=4?1.25:1);
       // 最後の城を囲んでいるなら、力の差がなくとも膝を屈させられる
       const besiegedLast = myCastles(other).length<=1 && Object.values(W.armies).some(a=>a.clan===me&&a.mission==="包囲"&&W.castles[a.target]&&W.castles[a.target].clan===other);
-      if(!besiegedLast && mine <= powerScore(other)*1.8) return `力の差が足りません（こちらの力が相手の${Math.round(mine/Math.max(1,powerScore(other))*100)/100}倍。一・八倍が要ります）`;
+      const hqTaken = B.hqLostTo===me && B.hqLostAt && dayNumber()-B.hqLostAt<540;   // 本拠を落としてから一年半は従えやすい
+      const needK = hqTaken ? 1.1 : 1.8;
+      if(!besiegedLast && mine <= powerScore(other)*needK) return `力の差が足りません（こちらの力が相手の${Math.round(mine/Math.max(1,powerScore(other))*100)/100}倍。${hqTaken?"本拠を落としているので一・一倍":"一・八倍"}が要ります）`;
       if(!neighborClans(me).includes(other)) return "隣り合っておらねば威は届きません";
-      if(Math.floor(rnd()*100) >= (besiegedLast?85:60)*(W.shogun===me?1.5:1)*(prestigeTier(me)>=4?1.2:1)){
+      if(Math.floor(rnd()*100) >= ((besiegedLast||hqTaken)?85:60)*(W.shogun===me?1.5:1)*(prestigeTier(me)>=4?1.2:1)){
         addRel(me,other,-30); addRel(other,me,-30); return "威圧を撥ねつけられました";
       }
       if(B.suzerain!==null&&B.suzerain!==undefined&&W.clans[B.suzerain]) W.clans[B.suzerain].vassals.delete(other);   // 前の主家から外す
@@ -5801,6 +5826,8 @@ function aiRelief(clan,p){
   const already=Object.values(W.armies).some(
     a=>a.clan===clan.id&&a.relief!==undefined&&a.relief!==null&&a.relief===target);
   if(already) return;
+  // 他家（盟友・主家・傘下）の城へは、そうそう出ない（自分の城でなければ五回に一度、本拠なら二回に一度）
+  if(W.castles[target].clan!==clan.id && rnd()>=(W.castles[target].hq?0.5:0.2)) return;
   // 数で見劣りしても、囲みを揺さぶるだけの兵は出す。
   // まして本拠が囲まれているなら、なりふり構ってはおれぬ
   const home=W.castles[target].hq;
@@ -5908,7 +5935,7 @@ function aiEnvoys(){
     } else if(me.vassals.has(o.id)){
       // 傘下の家が囲まれていれば、主家に救いを求めてくる
       const bes=Object.values(W.armies).find(a=>a.mission==="包囲"&&W.castles[a.target]&&W.castles[a.target].clan===o.id&&hostile(a.clan,o.id));
-      if(bes && rnd()<0.4 && !(W.lastHelpAt!==undefined && dayNumber()-W.lastHelpAt<180) && armyTroops(bes)>garrisonTroops(bes.target)*1.2){   // 半年に一度、本当に危ない城だけ
+      if(bes && rnd()<0.4 && !(W.lastHelpAt!==undefined && dayNumber()-W.lastHelpAt<180) && armyTroops(bes)>garrisonTroops(bes.target)*1.2 && reliefReachable(W.player,bes.target)){   // 半年に一度、本当に危ない城だけ。届かぬ遠国からは使者も来ない
         o.envoyAt=dayNumber()+360; W.lastEnvoyAt=dayNumber(); W.lastHelpAt=dayNumber();
         const tc=W.castles[bes.target];
         pendingEnvoy={kind:"援軍", clan:o.id, castle:tc.id, foe:bes.clan,
@@ -5918,7 +5945,7 @@ function aiEnvoys(){
     } else if(me.allies.has(o.id)){
       // 盟友が囲まれていれば、援軍を求めてくる
       const bes=Object.values(W.armies).find(a=>a.mission==="包囲"&&W.castles[a.target]&&W.castles[a.target].clan===o.id&&hostile(a.clan,o.id));
-      if(bes && rnd()<0.4 && !(W.lastHelpAt!==undefined && dayNumber()-W.lastHelpAt<180) && armyTroops(bes)>garrisonTroops(bes.target)*1.2){   // 援軍の求めは半年に一度、本当に危ない城だけ（盟友が多いと使者が絶えない）
+      if(bes && rnd()<0.4 && !(W.lastHelpAt!==undefined && dayNumber()-W.lastHelpAt<180) && armyTroops(bes)>garrisonTroops(bes.target)*1.2 && reliefReachable(W.player,bes.target)){   // 援軍の求めは半年に一度、本当に危ない城だけ（盟友が多いと使者が絶えない）。敵地を抜けねば着けぬ遠国からは来ない
         o.envoyAt=dayNumber()+360; W.lastEnvoyAt=dayNumber(); W.lastHelpAt=dayNumber();
         const tc=W.castles[bes.target];
         pendingEnvoy={kind:"援軍", clan:o.id, castle:tc.id, foe:bes.clan,
@@ -6930,7 +6957,7 @@ function concerns(){
   { const bk=monthlyBooks(W.player); if(bk.net<0 && clan.money<Math.abs(bk.net)*4) out.push({lv:clan.money<Math.abs(bk.net)?2:1, t:`月の収支が ${bk.net.toLocaleString()}。蔵はあと${Math.max(0,Math.floor(clan.money/Math.max(1,-bk.net)))}か月ほど（俸禄${bk.stip.toLocaleString()}・兵糧${bk.feed.toLocaleString()}・城${bk.keep.toLocaleString()}・陣中${bk.field.toLocaleString()}）`, go:null}); }
   const said=new Set();   // 同じ城の同じ憂いを二度は挙げない（民忠・守兵・収支が二行ずつ出ていた）
   for(const c of myCastles(W.player)){
-    if(c.minchu<35){ out.push({lv:c.minchu<20?2:1, t:`${c.name}の民忠が${c.minchu}。評定で「施し」を（一揆の恐れ）`, go:c.id}); said.add("民"+c.id); }
+    if(c.minchu<35){ out.push({lv:c.minchu<20?2:1, t:`${c.name}の民忠が${c.minchu}。内政の「ほかの内政」から「施し」を（一揆の恐れ）`, go:c.id}); said.add("民"+c.id); }
     if(garrisonFast(c.id)===0 && isFrontCastle(c.id)){ out.push({lv:2, t:`${c.name}に守兵がおりませぬ（敵と接しています）。将を移すか兵を集めよ`, go:c.id}); said.add("兵"+c.id); }
   }
   // 兵が上限を大きく割っていれば、徴兵を促す（どうやって兵を増やすのか分からない、を防ぐ）
@@ -7007,7 +7034,7 @@ function gotoCastle(id){
 
 /* ---- 初めての方への手ほどき ---- */
 const TUTORIAL=[
-  {k:"start", t:"まずは城を押してみましょう。〈評定〉から武将に仕事を命じ、国を富ませます。"},
+  {k:"start", t:"まずは城を押してみましょう。〈内政〉から武将に仕事を命じ、国を富ませます。"},
   {k:"council", t:"新田開発は石高を、商業投資は実入りを増やします。施しは民心を戻します。"},
   {k:"dispatch", t:"兵が貯まったら〈出陣〉です。誰を連れ、どこへ向かうかを選びます。"},
   {k:"battle", t:"合戦は「味方の隊を押して選ぶ → 地面を押せばそこへ、敵を押せば討つ」。側面と背面が弱点。右端の名簿からも隊を選べます。"},
@@ -7049,7 +7076,7 @@ const GUIDE={
     "城を<span class='gk'>押す</span>と、その城でできることが札に出ます。まずは自分の城を一つ押してみましょう",
     "七日たつと決戦の窓が開きます。何もしなくても戦は始まるので、慌てなくて大丈夫"]},
   castle:{h:"城の札の見方", lead:"城を押すと、この札が開きます。よく使うのは四つだけ。", steps:[
-    "<span class='gk'>評定</span>：武将に仕事（開墾・商業・徴兵・普請）を命じ、国を富ませます",
+    "<span class='gk'>内政</span>：武将に仕事（新田・商業・人材登用）を命じ、国を富ませます",
     "<span class='gk'>徴兵</span>：民から兵を取ります。取りすぎると民心が落ちます",
     "<span class='gk'>出陣</span>：将と兵を選んで、隣の城を攻めたり味方の城へ動かしたりします",
     "<span class='gk'>救援</span>：囲まれた味方の城へ、いくつかの城から兵を送ります",
@@ -7061,7 +7088,7 @@ const GUIDE={
     "右端の<span class='gk'>名簿</span>からも隊を選べます。赤く点滅する隊は危ない → 選んで<span class='gk'>〈退く〉</span>",
     "迷ったら下の<span class='gk'>〈采配 任せる〉</span>で自動に。もう一度押せば戻ります。<span class='gk'>Z</span>キーや二本指で寄れます"]},
   after:{h:"戦のあと", lead:"お疲れさまでした。ここから先は自由です。", steps:[
-    "勝った兵は城へ戻ります。<span class='gk'>評定</span>で国を富ませ、<span class='gk'>徴兵</span>で兵を増やし、<span class='gk'>出陣</span>で隣の城を取る――この繰り返しです",
+    "勝った兵は城へ戻ります。<span class='gk'>内政</span>で国を富ませ、<span class='gk'>出陣</span>の札の徴兵で兵を増やし、<span class='gk'>出陣</span>で隣の城を取る――この繰り返しです",
     "上の帯の<span class='gk'>気がかり</span>に急ぎの用が並びます。<span class='gk'>N</span>キーで次へ飛べます",
     "外交（<span class='gk'>その他 → 外交</span>）で盟を結んだり、和睦したり。戦も盟も、領地の接している家とだけ",
     "詳しい仕組みは<span class='gk'>その他 → 手引き</span>にまとめてあります。よい戦を"]},
@@ -7070,6 +7097,34 @@ function guideDone(){ try{ return localStorage.getItem("sengoku_guide_done")==="
 function guideOn(){ return !!(W.started && W.scenario==="nagashino" && !guideDone()); }
 function guideSeen(k){ try{ return (JSON.parse(localStorage.getItem("sengoku_guide")||"[]")).includes(k); }catch(e){ return true; } }
 function markGuide(k){ try{ const a=JSON.parse(localStorage.getItem("sengoku_guide")||"[]"); if(!a.includes(k)){ a.push(k); localStorage.setItem("sengoku_guide",JSON.stringify(a)); } }catch(e){} }
+/* はじめての手引き（頁送り）。筋書きを選んだ直後に一度だけ。長篠は筋書きの流れも添える */
+const INTRO_PAGES=(sc)=>{
+  const common=[
+    {h:"この遊びの見方", t:["地図の<b>城を押す</b>と、その城の札が出ます。自分の城は青、敵は赤、盟友は緑。","上の帯は<b>日付・城の数・兵・資金・兵糧</b>。右の釦（▶ ▶▶ ▶▶▶）で時が進み、‖ で止まります。","城と城は<b>街道</b>で結ばれ、軍は街道を歩きます。海路は点線。"]},
+    {h:"城の札で出来ること", t:["<b>出陣</b>：将と兵を選び、隣の城へ。敵の城なら囲みになり、自分の城なら兵を移せます。","<b>内政</b>：<b>新田</b>で石高、<b>商業</b>で実入り、<b>人材登用</b>で将を増やします。","<b>築城</b>は地図で場所を押し、下の帯の〈ここに築く〉で建ちます。<b>普請</b>で城を大きく。"]},
+  ];
+  const nag=[
+    {h:"長篠の筋書き", t:["<b>長篠城</b>は武田 15,000 に囲まれています。織田 25,000 は岐阜を発ち、七日かけて後詰に向かいます。","七日目、両軍は<b>設楽原</b>で決戦。それまでは兵を整え、地図を眺めて待ちます（囲みの軍は勝手に動きません）。","決戦の窓が出たら〈会戦〉を押すと、合戦の画面へ。"]},
+    {h:"合戦の操作", t:["味方の隊を<b>押して選び</b>、地面を押せばそこへ、敵を押せば討ちにゆきます。右の名簿からも選べます。","〈柵を築く〉（B）で馬防柵。武田の騎馬は柵の前で足が止まり、鉄砲の的になります。","二本指で寄せられます。寄せた画面は<b>地面を引けば動きます</b>。整ったら真ん中の大きな〈開戦〉。"]},
+    {h:"勝ったあと", t:["勝てば武田は矛先を徳川へ向け、織田は西へ目を向けます。負ければ長篠城は武田のものに。","城を取り、内政で富ませ、盟と傘下で天下へ。困ったら〈その他〉→〈手引き〉。","この手引きは一度きり。もう一度見るなら〈その他〉→〈手引き〉から。"]},
+  ];
+  const gen=[{h:"合戦の操作", t:["味方の隊を<b>押して選び</b>、地面を押せばそこへ、敵を押せば討ちにゆきます。","〈柵を築く〉（B）で馬防柵。二本指で寄せ、寄せた画面は地面を引けば動きます。","整ったら真ん中の大きな〈開戦〉。困ったら〈その他〉→〈手引き〉。"]}];
+  return common.concat(sc==="nagashino"?nag:gen);
+};
+function showIntroGuide(force){
+  const key="sengoku_intro_"+(W.scenario||"x");
+  try{ if(!force && localStorage.getItem(key)) return false; }catch(e){}
+  if(!force && !guideOn()) return false;
+  const pages=INTRO_PAGES(W.scenario); let i=0;
+  const el=document.createElement("div"); el.className="overlay guide"; el.style.zIndex="96";
+  const draw=()=>{ const g=pages[i]; el.innerHTML=`<div class="dialog" style="max-width:520px"><div class="tiny" style="letter-spacing:.3em;color:var(--kin);margin-bottom:4px">は じ め て の 手 引 き　${i+1}／${pages.length}</div>
+    <h3>${g.h}</h3><ol style="padding-left:20px;line-height:1.7">${g.t.map(t=>`<li>${t}</li>`).join("")}</ol>
+    <div class="dlg-actions" style="display:flex;gap:8px;margin-top:10px">${i>0?`<button class="big ghost" data-g="prev">もどる</button>`:""}<button class="big gold" style="flex:1" data-g="next">${i<pages.length-1?"つぎへ":"はじめる"}</button><button class="big ghost" data-g="skip">とばす</button></div></div>`;
+    el.querySelectorAll("button").forEach(b=>b.onclick=()=>{ const k=b.dataset.g; if(k==="prev"){ i--; draw(); return; } if(k==="next"&&i<pages.length-1){ i++; draw(); return; } el.remove(); try{ localStorage.setItem(key,"1"); }catch(e){} if(!B && !overlayEl && !pendingEncounter && W.speed===0) resumeSpeed(); }); };
+  draw(); document.getElementById("stage").appendChild(el);
+  if(W.speed>0 && !B) setSpeed(0);
+  return true;
+}
 function showGuide(k){
   if(!guideOn()||guideSeen(k)) return false;
   const g=GUIDE[k]; if(!g) return false; markGuide(k);
@@ -7124,8 +7179,9 @@ let noticeFilter="all";
 /* ---- 手引き ---- */
 function openGuide(){
   openPanel("戦国の手引き","遊び方と仕組み",
-   `<div><div class="sec-title">まず何をするか</div><div class="advice">
-     ① 城を押して〈評定〉から武将に仕事を与え、国を富ませる。<br>
+   `<div><button class="big gold" style="margin-bottom:8px" onclick="closePanel();showIntroGuide(true)">はじめての手引きをもう一度見る</button>
+     <div class="sec-title">まず何をするか</div><div class="advice">
+     ① 城を押して〈内政〉から武将に仕事を与え、国を富ませる。<br>
      ② 〈気がかり〉に出る急を先に片づける。<br>
      ③ 兵が貯まったら〈出陣〉で隣の城を攻める。<br>
      ④ 京の二条御所を抑え十二城を領すれば、幕府を開ける。
@@ -7227,7 +7283,7 @@ function upgradeCastle(cid){
   if(i>=CASTLE_RANKS.length-1) return toast("これ以上は大きくできませぬ");
   const next=CASTLE_RANKS[i+1];
   if(clan.money<next.cost) return toast(`資金が足りませぬ（${next.cost.toLocaleString()}）`);
-  if(c.koku < next.lv*40) return toast(`石高が足りませぬ（${(next.lv*40).toLocaleString()}以上）`);
+  // 石高の下限はやめ（銭と普請奉行がいれば大きくできる）
   const worker=Object.values(W.generals).find(
     g=>g.castle===cid&&g.clan===W.player&&!g.army&&!g.task&&g.pol>=45);
   if(!worker) return toast("普請を任せられる武将がおりませぬ");
@@ -7983,9 +8039,18 @@ function foundCells(fromId){
   }
   return cells;
 }
+function foundBarRefresh(){
+  const bar=document.getElementById("foundBar"); if(!bar) return;
+  if(!foundPick){ bar.hidden=true; return; }
+  bar.hidden=false; const go=document.getElementById("foundGo"), hint=document.getElementById("foundHint");
+  if(foundPick.picked){ go.hidden=false; const from=W.castles[foundPick.from]; const roads=siteRoads(foundPick.picked).map(r=>r.name); hint.textContent=`${from?from.name:""}から分知　費え ${NEW_CASTLE_COST.toLocaleString()}　街道：${roads.length?roads.join("・"):"なし"}`; }
+  else { go.hidden=true; hint.textContent="赤い輪の外の陸を押すと、結ばれる街道が見えます"; }
+}
+function endFoundPick(msg){ foundPick=null; foundMarks=null; foundBarRefresh(); if(msg) toast(msg); }
 function startFoundPick(fromId){
-  foundPick={from:fromId, cells:[]};   // どこでも築けるので、光らせる目はない。指の下の輪で可否を示す
-  closePanel();
+  foundPick={from:fromId, cells:[], picked:null};   // どこでも築けるので、光らせる目はない。指の下の輪で可否を示す
+  closePanel(); foundBarRefresh();
+  { const go=document.getElementById("foundGo"), cn=document.getElementById("foundCancel"); if(go) go.onclick=()=>{ if(foundPick&&foundPick.picked) foundCastleAt(foundPick.from, foundPick.picked.c, foundPick.picked.r); }; if(cn) cn.onclick=()=>{ endFoundPick("築城の場所選びをやめました"); resumeSpeed(); }; }
   const from=W.castles[fromId];
   cam.x=W.tile[fromId].c; cam.y=W.tile[fromId].r; cam.scale=Math.max(cam.scale,6); clampCam();
   setSpeed(0);
@@ -8001,8 +8066,7 @@ function foundCastle(fromId, idx, site){
   if(!site){ const sites=buildSites(fromId); site=sites[idx]; }
   if(!site) return toast("そこにはもう建てられませぬ");
   if(clan.money<NEW_CASTLE_COST) return toast(`資金が足りませぬ（${NEW_CASTLE_COST.toLocaleString()}）`);
-  if(from.koku<16000) return toast("元の城の石高が足りませぬ（16,000以上）");
-  if(from.pop<9000) return toast("元の城の民が少なすぎます（人口9,000以上）");
+  // 石高・人口の下限はやめ（分ける分が減るだけ）
   const worker=Object.values(W.generals).find(
     g=>g.castle===fromId&&g.clan===W.player&&!g.army&&!g.task&&g.pol>=50);
   if(!worker) return toast("普請を任せられる武将がおりませぬ（政治50以上の手空き）");
@@ -8033,7 +8097,7 @@ function foundCastle(fromId, idx, site){
   buildRoads(); bakeTerrain(); bakeMinimap(); rebuildDevOverlay();
   log(`${nm}を築きました（${from.name}より石高${koku.toLocaleString()}を分知）`,"growth");
   bigNews(`${nm} 築城`); if(typeof chronicle==="function") chronicle(`${nm}を築く`); try{ playSE("build"); }catch(_){}
-  foundPick=null; foundMarks=null;
+  foundPick=null; foundMarks=null; foundBarRefresh();
   closePanel(); gotoCastle(id); refreshHUD();
 }
 /* 築城の候補地を地図に朱の丸で示す。
@@ -8071,9 +8135,7 @@ function openFound(fromId){
       <div class="s-stat"><span>分ける石高</span><b>${Math.floor(from.koku*0.28).toLocaleString()}</b></div>
       <div class="s-stat"><span>普請奉行</span><b style="font-size:12px">${worker?esc(worker.name):"おりませぬ"}</b></div>
     </div>
-    ${from.koku<16000?'<div class="advice" style="color:#FF9A88">元の城の石高が16,000に満たぬため、分知できませぬ。</div>':""}
-    ${from.pop<9000?'<div class="advice" style="color:#FF9A88">元の城の人口が9,000に満たぬため、分知できませぬ。</div>':""}
-    <button class="big gold" ${(clan.money>=NEW_CASTLE_COST&&worker&&from.koku>=16000)?`onclick="startFoundPick(${fromId})"`:"disabled"}>
+    <button class="big gold" ${(clan.money>=NEW_CASTLE_COST&&worker)?`onclick="startFoundPick(${fromId})"`:"disabled"}>
       地図で場所を選んで築く<span class="cost">陸ならどこでも。他の城に近すぎる所は建ちません。押した所に建ち、街道は自ずと結ばれます</span></button>`);
   setSpeed(0);
 }
@@ -8308,6 +8370,7 @@ function sendRelief(castleId){
         const err=dispatch(fromId, force.map(g=>g.id), rv, 0);
         if(err){ fail.push(`${W.castles[fromId].name}：${err}`); continue; }
         const a=W.armies[W.nextArmy-1]; if(a){ a.reliefVia={target:castleId, at:rv}; }
+        holdIds.push(...force.map(g=>g.id));   // 集まる将の名簿（集合の城にもといた将は連れて行かない）
         n++; tot+=force.reduce((s2,g)=>s2+g.troops,0);
       }
       if(n){
@@ -8343,7 +8406,8 @@ function reliefMusterDaily(){
     delete W.reliefMuster[rvS];
     const stillBesieged=Object.values(W.armies).some(a=>a.mission==="包囲"&&a.target===m.target&&hostile(a.clan,W.player));
     if(!stillBesieged && t.clan===W.player){ log(`${t.name}の囲みは解けており、${c.name}に集めた兵はそのまま留まります`,"war"); continue; }
-    const gens=availableGens(rv).sort((a,b)=>b.troops-a.troops); const force=gens.length>1?gens.slice(0,gens.length-1):gens;
+    // 発つのは集まった将だけ。集合の城の留守居は残る
+    const want=new Set(m.hold||[]); const gens=availableGens(rv).filter(g=>want.has(g.id)).sort((a,b)=>b.troops-a.troops); const force=gens;
     if(!force.length) continue;
     const err=dispatch(rv, force.map(g=>g.id), m.target, 0);
     if(err){ toast(`${c.name}からの救援：${err}`); continue; }
@@ -8926,7 +8990,7 @@ function loadGame(){
   pendingEncounter=null; pendingEnvoy=null; encounterQueue=[];
   if(overlayEl){ overlayEl.remove(); overlayEl=null; }
   // 地図の途中の操作も片づける（築城の場所選び・出陣の選択・指の下の札）
-  foundPick=null; foundMarks=null; if(typeof hideMapTip==="function") hideMapTip();
+  foundPick=null; foundMarks=null; foundBarRefresh(); if(typeof hideMapTip==="function") hideMapTip();
   // 前の局面の帯（史実の一幕・接近の報せ）を残さない
   { const ab=document.getElementById("alertBar"); if(ab){ ab.hidden=true; clearTimeout(ab._auto); } }
   { const mm=document.getElementById("moreMenu"); if(mm) mm.hidden=true; }
@@ -9078,7 +9142,7 @@ const CASTLE_SKIN=[
    片方だけ大きくすると、見えている城を押しても外れる。 */
 function castleDrawSize(c, tier){
   if(tier===undefined) tier=castleTier(c);
-  const hqMul=c.hq?1.45:1;   // 本拠はひと回り大きく（どこが本拠か一目で）
+  const hqMul=c.hq?1.75:1;   // 本拠はふた回り大きく（どこが本拠か一目で。作り手の指示でさらに大きく）
   const grade=[0.86,1.05,1.28,1.58][tier]*hqMul;
   // 寄るほど城は大きく。上限で頭打ちになると、拡大しても城が育たない
   // 引いているときは下限を少し下げ、隣の城と絵が触れ合わないようにする
@@ -9387,7 +9451,7 @@ function bakeTerrain(){
   g.strokeStyle="rgba(200,232,255,.95)"; g.lineWidth=1.4; g.setLineDash([5,5]);
   g.stroke(); g.setLineDash([]);
   // 街道は二度引く。下に土色の縁、上に明るい道筋
-  for(const [col,wid] of [["rgba(96,66,32,.8)",3.4],["rgba(228,196,120,.95)",1.7]]){
+  for(const [col,wid] of [["rgba(84,56,26,.9)",4.6],["rgba(238,208,128,1)",2.4]]){
     const done=new Set();
     g.strokeStyle=col; g.lineWidth=wid; g.beginPath();
     for(const c of Object.values(W.castles)) for(const n of c.neighbors){
@@ -9769,9 +9833,9 @@ function drawMap(){
       for(const o of Object.values(W.castles)){ const t=W.tile[o.id]; const [ox,oy]=toScreen(t.c,t.r); if(ox<-rad||ox>W_+rad||oy<-rad||oy>H_+rad) continue; mctx.beginPath(); mctx.arc(ox,oy,rad,0,7); mctx.fill(); mctx.stroke(); }
       mctx.font='700 12px "Zen Kaku Gothic New",sans-serif'; mctx.textAlign="center"; mctx.fillStyle="rgba(0,0,0,.7)"; mctx.fillRect(W_/2-170,52,340,22); mctx.fillStyle="#FFD400"; mctx.fillText("赤い輪の外の陸ならどこでも築けます。押した場所に築きます（この帯を押せばやめる）", W_/2, 67);
     }
-    // 指の下：ここに建つ、と街道の予告
-    if(foundPick.hover){
-      const {c,r}=foundPick.hover;
+    // 指の下（押した所があればそこ）：ここに建つ、と街道の予告
+    if(foundPick.hover||foundPick.picked){
+      const {c,r}=foundPick.picked||foundPick.hover;
       const chk=canFoundAt(foundPick.from,c,r);
       const [hx,hy]=toScreen(c,r);
       mctx.strokeStyle=chk.ok?"#FFD400":"#FF4A34"; mctx.lineWidth=3;
@@ -10084,17 +10148,18 @@ function drawMap(){
       // 自軍が囲んでいるなら、攻め方の印を出す。押せば改められる
       const myS=sieges0.find(a=>a.target===c.id && a.clan===W.player);
       if(myS){
-        const r2=Math.max(11,size*0.20);
-        const mx=x-size*0.52, my=y-size*0.16;
-        siegeMarks.push({x:mx,y:my,r:r2,army:myS.id});
-        mctx.beginPath(); mctx.arc(mx,my,r2,0,7);
+        // 城の左に大きな札：「力攻め ⇄」「兵糧攻め ⇄」。押せば切り替わる
+        const lab=(myS.mode===1?"兵糧攻め":"力攻め")+" ⇄";
+        mctx.font='800 13px "Zen Kaku Gothic New",sans-serif';
+        const tw=mctx.measureText(lab).width+18, th=24;
+        const mx=x-size*0.52-tw/2, my=y-size*0.16;
+        siegeMarks.push({x:mx,y:my,r:Math.max(th/2,tw/2),army:myS.id});
         mctx.fillStyle = myS.mode===1 ? "#C9A227" : "#C22A22";
-        mctx.fill();
+        mctx.beginPath(); mctx.roundRect(mx-tw/2,my-th/2,tw,th,6); mctx.fill();
         mctx.lineWidth=2; mctx.strokeStyle="rgba(255,255,255,.9)"; mctx.stroke();
-        mctx.font=`900 ${Math.max(10,Math.round(r2*1.15))}px "Zen Kaku Gothic New",sans-serif`;
         mctx.textAlign="center"; mctx.textBaseline="middle";
-        mctx.fillStyle="#fff";
-        mctx.fillText(myS.mode===1?"糧":"力", mx, my+1);
+        mctx.fillStyle="#fff"; mctx.fillText(lab, mx, my+1);
+        mctx.font='700 9px "Zen Kaku Gothic New",sans-serif'; mctx.fillStyle="rgba(255,255,255,.85)"; mctx.fillText("押して切替", mx, my+th/2+7);
         mctx.textBaseline="alphabetic";
       }
       mctx.font='700 14px "Zen Kaku Gothic New",sans-serif';
@@ -10289,7 +10354,7 @@ function drawMap(){
     const edge = mine ? "#8FD0FF" : hostile(a.clan,W.player) ? "#FF9A88" : "#E6DCC6";
     // 兵の多寡で隊の数が変わる
     const blocks=Math.max(1,Math.min(6,Math.round(troops/1500)));
-    const bs=Math.max(8,Math.min(40,cam.scale*0.7));   // 一隊の大きさ。小さすぎては動いている感じが出ない
+    const bs=Math.max(12,Math.min(54,cam.scale*1.05));   // 一隊の大きさ。小さすぎては動いている感じが出ない（作り手の指示で大きく）
 
     // 進む向き。隊列をその向きに揃える
     const dirx=(a.x-(a.px===undefined?a.x:a.px)), diry=(a.y-(a.py===undefined?a.y:a.py));
@@ -10335,9 +10400,12 @@ function drawMap(){
     mctx.fillRect(x-1, y-fh-bs*0.6, 2, fh);
     const wave=1+Math.sin(Date.now()/300+a.id)*0.12;
     mctx.fillStyle=col;
-    mctx.fillRect(x+1, y-fh-bs*0.6, Math.max(9,bs*1.2)*wave, Math.max(11,bs*1.5));
-    mctx.strokeStyle=edge; mctx.lineWidth=1.3;
-    mctx.strokeRect(x+1, y-fh-bs*0.6, Math.max(9,bs*1.2)*wave, Math.max(11,bs*1.5));
+    { const fw=Math.max(12,bs*1.3)*wave, fhh=Math.max(14,bs*1.6);
+      mctx.fillRect(x+1, y-fh-bs*0.6, fw, fhh);
+      mctx.strokeStyle=edge; mctx.lineWidth=1.3;
+      mctx.strokeRect(x+1, y-fh-bs*0.6, fw, fhh);
+      // 幟に家紋（どの家の軍か、動いている間も分かる）
+      const K=W.clans[a.clan]; if(K && K.crest){ mctx.fillStyle="#fff"; mctx.font=`800 ${Math.max(9,Math.floor(fhh*0.62))}px "Zen Kaku Gothic New",sans-serif`; mctx.textAlign="center"; mctx.textBaseline="middle"; mctx.fillText(K.crest, x+1+fw/2, y-fh-bs*0.6+fhh/2+0.5); } }
     // 大将の顔。誰の軍かが一目で分かり、盤の上で人が動いている感じが出る
     if(!besieging && cam.scale>=3){ const cmdG=W.generals[a.commander]; if(cmdG){ const fs=Math.max(18,Math.min(44,bs*1.5)); const fx=x-fs/2-Math.max(9,bs*1.2)*0.6-4, fy=y-fh-bs*0.6-fs*0.15;
       try{ mctx.save(); mctx.fillStyle=col; mctx.fillRect(fx-2,fy-2,fs+4,fs+4); mctx.drawImage(portraitCanvas(cmdG),fx,fy,fs,fs); mctx.strokeStyle=edge; mctx.lineWidth=2; mctx.strokeRect(fx-2,fy-2,fs+4,fs+4); mctx.restore(); }catch(e){} } }
@@ -10488,7 +10556,7 @@ mini.addEventListener("click",e=>{
 /* ===================== 入力 ===================== */
 let selected={kind:null,id:null};
 let drag=null;
-mapCanvas.addEventListener("contextmenu",e=>{ if(foundPick){ e.preventDefault(); foundPick=null; toast("築城の場所選びをやめました"); resumeSpeed(); } });
+mapCanvas.addEventListener("contextmenu",e=>{ if(foundPick){ e.preventDefault(); endFoundPick("築城の場所選びをやめました"); resumeSpeed(); } });
 mapCanvas.addEventListener("pointerdown",e=>{
   if(e.button===2) return;
   drag={x:e.clientX,y:e.clientY,moved:0,camx:cam.x,camy:cam.y}; camTarget.x=camTarget.y=null; if(W.stage) W.stage.follow=false;   // 指で引き始めたら、滑らかな移動の目標は捨てる
@@ -10636,13 +10704,14 @@ function pickAt(sx,sy){
   hideMapTip();
   // 築城の場所を選んでいる最中なら、押した所に築く
   if(foundPick){
-    if(sy<80){ foundPick=null; foundMarks=null; toast("築城の場所選びをやめました"); resumeSpeed(); return; }   // 上の帯（説明）を押せばやめる
+    if(sy<80){ endFoundPick("築城の場所選びをやめました"); resumeSpeed(); return; }   // 上の帯（説明）を押せばやめる
     const [c,r]=toTile(sx,sy);
     const cc=Math.round(c), rr=Math.round(r);
     const chk=canFoundAt(foundPick.from, cc, rr);
-    if(!chk.ok){ foundPick.miss=(foundPick.miss||0)+1; toast(chk.why+(foundPick.miss>=2?"（上の帯を押せばやめられます）":"")); return; }
-    const from=W.castles[foundPick.from];
-    confirmActDialog(`ここに${esc(from.name)}から分知して城を築きますか。<br>費え ${NEW_CASTLE_COST.toLocaleString()}。`, ()=>foundCastleAt(foundPick.from, cc, rr));
+    if(!chk.ok){ foundPick.miss=(foundPick.miss||0)+1; foundPick.hover={c:cc,r:rr}; foundPick.picked=null; toast(chk.why+(foundPick.miss>=2?"（下の〈やめる〉で戻れます）":"")); foundBarRefresh(); return; }
+    // 一度目の押しで印と街道の予告。下の帯の〈ここに築く〉で建てる（同じ所をもう一度押しても建つ）
+    if(foundPick.picked && foundPick.picked.c===cc && foundPick.picked.r===rr){ foundCastleAt(foundPick.from, cc, rr); return; }
+    foundPick.picked={c:cc,r:rr}; foundPick.hover={c:cc,r:rr}; foundBarRefresh();
     return;
   }
   // 救援の城選び：光っているわが城を押せば、そこから出陣の画面へ
@@ -10895,15 +10964,15 @@ function openCastle(id){
     // 囲まれている城では、外へ出る普請や築城はできない。出陣は「討って出る」の意味になる
     acts=`<div class="actbar">
       <button class="big gold" onclick="${besiegedNow?`sallyOut(${id})`:`openDispatch(${id})`}">${besiegedNow?"討って出る":"出陣"}</button>
-      <button class="big" onclick="openCouncil(${id})">評定${c.minchu<40?`<span class="cost" style="color:#FFD166">民忠${c.minchu}・施しを</span>`:""}</button>
-      <button class="big ghost" onclick="openConscript(${id})">徴兵<span class="cost">取れる兵 ${regionConscriptable(c).toLocaleString()}</span></button>
+      <button class="big" onclick="openCouncil(${id})">内政${c.minchu<40?`<span class="cost" style="color:#FFD166">民忠${c.minchu}・施しを</span>`:`<span class="cost">新田・商業・人材登用</span>`}</button>
       ${myCastles(W.player).length>1?`<button class="big ghost" onclick="openGather(${id})">兵を集める<span class="cost">他の城からこの城へ</span></button>`:""}
       ${besiegedNow?"":`<button class="big ghost" onclick="closePanel();openFound(${id})">築城<span class="cost">陸ならどこでも</span></button>`}
       ${!c.hq&&!besiegedNow&&myCastles(W.player).length>1&&(W.clans[W.player].vassals.size||W.clans[W.player].allies.size)?`<button class="big ghost" onclick="openGiveCastle(${id})">城を譲渡<span class="cost">属国・盟友へ</span></button>`:""}
       ${!besiegedNow&&castleRank(c)<CASTLE_RANKS.length-1?`<button class="big ghost" onclick="upgradeCastle(${id})">普請<span class="cost">${CASTLE_RANKS[castleRank(c)+1].n}へ ${CASTLE_RANKS[castleRank(c)+1].cost.toLocaleString()}</span></button>`:""}
     </div>
-    <details style="margin:-4px 0 8px"><summary style="cursor:pointer;font-size:11px;color:var(--gofun-dim);list-style:none">▸ ほかの手立て（自動内政・本拠・隣の家へ譲る）</summary>
+    <details style="margin:-4px 0 8px"><summary style="cursor:pointer;font-size:11px;color:var(--gofun-dim);list-style:none">▸ ほかの手立て（徴兵・自動内政・本拠・隣の家へ譲る）</summary>
     <div class="actbar" style="margin-top:6px">
+      <button class="big ghost" onclick="openConscript(${id})">徴兵<span class="cost">取れる兵 ${regionConscriptable(c).toLocaleString()}</span></button>
       <button class="big ghost" onclick="openDelegate(${id})">${c.delegate===null?"自動内政":"自動内政 "+FOCUS[c.delegate]}</button>
       ${!c.hq&&!besiegedNow?`<button class="big ghost" onclick="moveHq(${id})">本拠を移す<span class="cost">5,000</span></button>`:""}
       ${!c.hq&&!besiegedNow&&myCastles(W.player).length>1?`<button class="big ghost" onclick="openGiveCastle(${id})">城を譲る<span class="cost">属国・盟友・隣の家へ</span></button>`:""}
@@ -11203,8 +11272,9 @@ function doSubvert(cid){
   refreshHUD();
 }
 /* ---- 評定 ---- */
-let councilPick=null;
+let councilPick=null; let councilMore=false;
 const COUNCIL_HIDE=new Set(["検地","治水","鉱山探し","建設","調略","軍事訓練"]);   // 評定は六つ（新田・商業・城の強化・施し・人材登用・親善）
+const COUNCIL_MAIN=new Set(["新田開発","商業投資","人材登用"]);   // 内政の表に出すのは三つ（作り手の指示）。残りは「ほかの内政」に畳む
 function openCouncil(id){
   tutorial("council");
   const c=W.castles[id];
@@ -11217,6 +11287,7 @@ function openCouncil(id){
   <div class="grid g3">
     ${CMDS.map((cmd,i)=>{
       if(COUNCIL_HIDE.has(cmd.n)) return "";   // 評定は九つまで。検地・治水・鉱山探しは委任と機械に任せる
+      if(!COUNCIL_MAIN.has(cmd.n) && !councilMore && councilPick!==i) return "";
       // 余地のない仕事は薄く見せ、理由を添える
       const why = cmd.n==="新田開発"&&c.koku>=kokuCap(c) ? "拓く野なし"
         : cmd.n==="商業投資"&&c.com>=comCap(c) ? "市は満ちた"
@@ -11228,7 +11299,8 @@ function openCouncil(id){
       const est = cmd.n==="新田開発" ? `石高+${Math.floor(1800*(c.buildings.includes("用水路")?1.4:1)).toLocaleString()}前後` : cmd.n==="商業投資" ? `商業+${Math.floor(500*(c.buildings.includes("市場")?1.4:1))}前後` : cmd.n==="城の強化" ? "城Lv+28前後" : cmd.n==="施し" ? "民忠+14前後" : cmd.n==="軍事訓練" ? "兵質+9前後" : cmd.n==="鉱山探し" ? `金脈の見込み ${Math.round((0.18+0.22*Math.min(1,1.0-0.4))*100)}％前後` : cmd.n==="検地" ? `石高+${Math.floor(c.koku*0.1).toLocaleString()}・民忠-8` : cmd.n==="治水" ? "堤+1・民忠+6" : "";
       return `<button class="cmd${councilPick===i?" sel":""}" ${why?'disabled style="opacity:.45"':`onclick="pickCmd(${id},${i})"`} title="${esc(cmd.d)}">
       ${cmd.n}<span class="cost">${why?why:(cmd.cost?"約"+Math.floor(cmd.cost*0.8).toLocaleString()+"〜"+Math.floor(cmd.cost*1.25).toLocaleString():"")}${est?"・"+est:""}</span></button>`; }).join("")}
-  </div>`;
+  </div>
+  <button class="cmd" style="margin:-2px 0 6px;font-size:11px;opacity:.8" onclick="councilMore=!councilMore;openCouncil(${id})">${councilMore?"▾ ほかの内政をしまう":"▸ ほかの内政（施し・城の強化・親善）"}</button>`;
   if(councilPick!==null){
     const cmd=CMDS[councilPick];
     h+=`<div style="background:rgba(237,230,214,.05);padding:12px;border-radius:4px;display:flex;flex-direction:column;gap:8px">
@@ -11261,7 +11333,7 @@ function openCouncil(id){
     h+=`</div>`;
   }
   h+=`<button class="big ghost" onclick="openCastle(${id})">城へ戻る</button>`;
-  openPanel("評定", c.name, h);
+  openPanel("内政", c.name, h);
 }
 function pickCmd(id,i){ councilPick = councilPick===i?null:i; openCouncil(id); }
 function doOrder(cid,kind,payload,gid){
@@ -11683,10 +11755,9 @@ function openArmy(id){
       ${tgt?`<button class="big gold" onclick="closePanel();gotoCastle(${tgt.id})">${a.mission==="包囲"?"囲んでいる城":"行き先の城"}を見る</button>`:""}
     </div>
     ${routeHtml}
-    ${a.mission==="包囲"?`<div class="sec-title">城攻めの方法</div>
-    <div class="grid g3">${SIEGE_MODES.map((m,i)=>`<button class="cmd${a.mode===i?" sel":""}"
-      onclick="W.armies[${id}].mode=${i};openArmy(${id})">${m.n}</button>`).join("")}</div>
-    <div class="tiny muted">${SIEGE_MODES[a.mode].d}</div>
+    ${a.mission==="包囲"?`<div class="sec-title">城攻めの方法（いまは <b style="color:${a.mode===0?"#FF9A88":"#FFD166"}">${SIEGE_MODES[a.mode].n}</b>）</div>
+    <div class="grid g2">${SIEGE_MODES.map((m,i)=>`<button class="big ${a.mode===i?"gold":"ghost"}" style="font-size:16px"
+      onclick="W.armies[${id}].mode=${i};toast('${esc(a.name)}は${m.n}に改めました');openArmy(${id})">${m.n}<span class="cost">${m.d}</span></button>`).join("")}</div>
     <button class="big ghost" onclick="demandSurrender(${id})">開城を勧める<span class="cost">見込み ${surrenderOdds(a)}％・応じれば城と将が手に入る（十日に一度）</span></button>
     <button class="big gold" onclick="assaultNow(${id})">城際の戦を仕掛ける（会戦）<span class="cost">守兵 ${estimatedGarrison(a.target)}・壁を越えて一気に決める</span></button>`:""}
     <div class="sec-title">この軍勢の武将 ${members.length}名</div>
@@ -12159,6 +12230,7 @@ function showEncounter(e){
   overlayEl=document.createElement("div");
   overlayEl.className="overlay";
   const title = e.sortie ? `${W.castles[e.castle]?.name||"城"}の守兵が討って出ました`
+    : e.allyRelief ? `盟友の後詰が${W.castles[W.armies[e.army]?.target]?.name||"城"}の囲みに討ちかかります（守兵も討って出る）`
     : e.relief ? "囲みへ後詰が到着しました"
     : e.castle!==null ? (e.playerAttacks ? `${W.castles[e.castle]?.name||"城"}へ攻めかかります`
                                          : `${W.castles[e.castle]?.name||"城"}に敵が攻め寄せました`)
@@ -12176,7 +12248,7 @@ function showEncounter(e){
     <div class="dlg-actions" style="display:flex;gap:8px">
       <button class="big" data-c="会戦">${defending?"城を出て会戦":"会戦（采配を執る）"}</button>
       <button class="big gold" data-c="自動">自動</button>
-      ${e.relief && !e.playerAttacks && W.armies[e.army] && W.castles[W.armies[e.army].target] && W.castles[W.armies[e.army].target].clan===W.player
+      ${e.relief && !e.playerAttacks && !e.allyRelief && W.armies[e.army] && W.castles[W.armies[e.army].target] && W.castles[W.armies[e.army].target].clan===W.player
         ? `<button class="big ghost" data-c="入城" title="戦わずに囲みをすり抜けて城に入り、籠城する">城に入って籠城</button>`
         : ""}
       ${defending
@@ -12523,13 +12595,13 @@ DECISIVE.push(
    after:{ atkWin:{ text:"浅井・朝倉は姉川に屍を残して退き、横山と佐和山は織田の手に落ちた", capture:"佐和山城" },
            defWin:{ text:"浅井の突撃が織田の陣を十一段まで突き破り、信長は岐阜へ逃げ帰った。近江の諸城は浅井に靡いた", capture:"長光寺城", spoils:{half:0.15} } } },
  { id:2204, key:"nagashino_open", sub:"三千挺の鉄砲、武田の騎馬を迎え撃つ", sc:"nagashino", when:"open", histWin:"def", name:"長篠の戦い", atk:"武田家", def:"織田家", allies:true, defAllies:["徳川家"], atkAllies:[],
-   terrain:0, forts:"def", nAtk:18, nDef:14, atkTroops:28000, defTroops:38000,
+   terrain:0, forts:"def", nAtk:22, nDef:14, atkTroops:32000, defTroops:38000,
    atkGens:["武田勝頼","山県昌景","馬場信春","内藤昌豊","真田信綱","土屋昌次","小山田信茂","穴山信君","武田信廉","原昌胤"],
    defGens:["織田信長","徳川家康","羽柴秀吉","柴田勝家","丹羽長秀","滝川一益","佐久間信盛","明智光秀","本多忠勝","榊原康政","酒井忠次","前田利家","佐々成政","織田信忠"],
    site:["長篠城","岡崎城"],
    gather:"武田一万五千が長篠城を囲む。織田の後詰二万五千が岐阜を発ち、徳川と合わせて設楽原に馬防柵を組む。七日の後、決戦",
    open:"設楽原。柵の内から三千挺の鉄砲が、武田の騎馬を撃ち崩す",
-   after:{ atkWin:{ text:"武田の騎馬が柵を突き破り、織田徳川は敗走した。長篠城は武田の手に落ち、勝頼は矛先を徳川へ向けた", capture:"長篠城", truce:1095, order:["武田家","徳川家"] },
+   after:{ atkWin:{ text:"武田の騎馬が柵を突き破り、織田徳川は敗走した。長篠城は武田の手に落ち、勝頼は矛先を徳川へ向けた", capture:"長篠城", truce:1095, ally:["武田家","上杉家"], order:["武田家","徳川家"] },
            defWin:{ text:"武田の騎馬は柵の前に屍を重ね、山県・馬場・内藤ら宿将が討ち死にした。信長は東を徳川に任せ、西へ目を向けた。上杉との盟はここで切れた", kills:["山県昌景","馬場信春","内藤昌豊","真田信綱","土屋昌次"], ally:["武田家","上杉家"], breakAlly:["織田家","上杉家"], shrink:{clan:"武田家",k:0.6}, calm:{clan:"武田家",vs:"織田家",days:900}, order:["武田家","徳川家"] } } },
  { id:2206, key:"odawara", sub:"二十万の囲み、関東の総仕上げ", sc:"odawara", when:"open", histWin:"atk", name:"小田原の陣", atk:"豊臣家", def:"北条家", allies:true,
    terrain:0, forts:"def", nAtk:18, nDef:12, atkTroops:120000, defTroops:50000,
@@ -12568,7 +12640,7 @@ DECISIVE.push(
    after:{ atkWin:{ text:"徳川は総崩れとなり、家康は浜松へ逃げ帰った。だが武田は深追いせず、西へ向かった", spoils:{half:0.25} },
            defWin:{ text:"徳川は武田の大軍を三方ヶ原で押し返し、信玄の西上は頓挫した" } } },
  { id:2203, key:"nagashino", sub:"三千挺の鉄砲、武田の騎馬を迎え撃つ", when:"date", y:1575, m:5, histWin:"def", name:"長篠の戦い", atk:"武田家", def:"織田家", allies:true, defAllies:["徳川家"], atkAllies:[], sc:["oke","hoi"],
-   terrain:0, forts:"def", nAtk:14, nDef:14, atkTroops:25000, defTroops:38000,
+   terrain:0, forts:"def", nAtk:20, nDef:14, atkTroops:30000, defTroops:38000,
    atkGens:["武田勝頼","山県昌景","馬場信春","内藤昌豊","真田信綱","土屋昌次","小山田信茂","穴山信君","武田信廉","原昌胤"],
    defGens:["織田信長","徳川家康","羽柴秀吉","木下藤吉郎","柴田勝家","丹羽長秀","滝川一益","佐久間信盛","明智光秀","本多忠勝","榊原康政","酒井忠次","前田利家","佐々成政"],
    site:["長篠城","岡崎城"],
@@ -12609,7 +12681,9 @@ function decisiveSite(d, A, Bc){
   return {x,y};
 }
 function mkScriptArmy(clanId, gens, x, y, total){
-  const hq=myCastles(clanId).find(c=>c.hq)||myCastles(clanId)[0];
+  // 戦のあと帰る先：将がいちばん多くいた城（落としたばかりの長篠城を空にして本拠へ帰り、徳川に歩いて取られていた）。なければ本拠
+  let hq=myCastles(clanId).find(c=>c.hq)||myCastles(clanId)[0];
+  { const from=[...new Set(gens.map(g=>g.castle))].map(id=>W.castles[id]).filter(c=>c&&c.clan===clanId); if(from.length){ from.sort((a,b)=>Math.hypot(W.tile[a.id].c-x,W.tile[a.id].r-y)-Math.hypot(W.tile[b.id].c-x,W.tile[b.id].r-y)); hq=from[0]; } }   // 戦場にいちばん近い、将の出た城へ
   const id=W.nextArmy++;
   // 当主が出ているなら当主の本陣。いなければ統率の高い者（馬場が勝頼の上に立っていた）
   const cmd=gens.find(g=>g.status==="大名") || seniorOf(gens);
@@ -12978,7 +13052,7 @@ function autoBattle(a,b){
   if(reliefFor && (reliefFor.clan===W.player || a.clan===W.player || b.clan===W.player)){   // 人の城をめぐる後詰の戦は大きく報せる
     const reliefArmy = (a.relief!==undefined&&a.relief!==null) ? a : b; const won = win===reliefArmy;
     if(won) toast(`${clanName(reliefArmy.clan)}の後詰が${reliefFor.name}の囲みを打ち払いました`);   // 「破れず」の大きな報せは出さない（作り手の指示）
-    log(`${clanName(reliefArmy.clan)}の後詰が${reliefFor.name}を囲む${clanName(won?lose.clan:win.clan)}に討ちかかり、${won?"囲みを打ち払いました":"敗れて退きました"}`,"war",true);
+    log(`${clanName(reliefArmy.clan)}の後詰が${reliefFor.name}を囲む${clanName(won?lose.clan:win.clan)}に討ちかかり、${won?"囲みを打ち払いました":"敗れて退きました"}`,"war");   // 大きくは出さない（作り手の指示）
   }
   if(ours && typeof toast==="function") toast(`合戦。${win.name}が${lose.name}を破りました`);
   if(a.script||b.script){ const d=DECISIVE.find(x=>W.fired.has(x.id) && (decAtk(x)?.id===a.clan||decAtk(x)?.id===b.clan) && (decDef(x)?.id===a.clan||decDef(x)?.id===b.clan)); if(d) decisiveAfter(d.id, win.clan); }
@@ -13077,6 +13151,8 @@ function startBattle(e){
     def=f.gens.map(id=>W.generals[id]).filter(g=>g&&g.troops>0).slice(0,capN);
     defProv=W.castles[f.origin]?.prov||0;
     defQ=W.castles[f.origin]?.quality||defQ;
+    // 盟友の後詰がわが城の囲みに討ちかかる：城の守兵も討って出て、人が采配を執る
+    if(e.joinGarrison!==undefined && W.castles[e.joinGarrison]){ const gc=W.castles[e.joinGarrison]; const gar=Object.values(W.generals).filter(g=>g.castle===gc.id&&g.clan===gc.clan&&inCastle(g)&&g.troops>200&&!isChild(g)).sort((x,y)=>y.troops-x.troops); for(const g of gar){ if(def.length>=capN) break; if(!def.includes(g)) def.push(g); } defProv=gc.prov; defQ=gc.quality; }
   } else if(e.castle!==null){
     const c=W.castles[e.castle];
     def=Object.values(W.generals).filter(g=>g.castle===c.id&&inCastle(g)&&g.troops>0).slice(0,10);
@@ -13229,7 +13305,7 @@ function startBattle(e){
       // 初めての長篠：三つだけ手ほどき（陣立て・開戦・追い討ち）。二度目からは出さない
       if(B.ctx.playerSide===1){ let seen=false; try{ seen=!!localStorage.getItem("sengoku_nag_tut"); }catch(e){} if(!seen){ B.nagTut=true; try{ localStorage.setItem("sengoku_nag_tut","1"); }catch(e){} setTimeout(()=>{ if(B&&B.opening>0) toast("鉄砲隊は柵のすぐ内、ほかの隊はその後ろに並んでいます。このまま〈開戦〉で構いません"); },900); } }
       // 武田は騎馬の軍。寄せ手の足軽・侍のうち、馬を率いられる者は騎馬にする（六割は騎馬）
-      { const atk=B.units.filter(u=>u.side===0&&!u.cmd); const wantCav=Math.round(atk.length*0.72); let cav=atk.filter(u=>u.type===2).length;
+      { const atk=B.units.filter(u=>u.side===0&&!u.cmd); const wantCav=Math.round(atk.length*0.8); let cav=atk.filter(u=>u.type===2).length;
         for(const u of atk){ if(cav>=wantCav) break; if(u.type===2||u.type===3) continue; const g=W.generals[u.gid]; if(g && g.apt && g.apt[2]===null) continue; u.type=2; u.kite=false; cav++; } }
       for(const u of B.units) if(u.side===0 && u.type===2){ u.morale=Math.min(100,u.morale+10); }
       if(B.ctx.flank){
@@ -13783,12 +13859,15 @@ function updateBattle(dt){
       let d=Math.hypot(dx,dy);
       // 味方どうしは間を空けて並ぶ。敵とは刃の届く間合いまで詰める。
       // 敵まで同じ間隔で押し離していたため、槍が届かず睨み合いになっていた
-      const want = (p.side===q.side) ? 2.9 : 2.1;   // 敵とも重ならず、前線どうしが向かい合う（乱戦でも一隊ずつ読める）。刃は 2.4 まで届く
+      const want = (p.side===q.side) ? 2.7 : 2.1;   // 敵とも重ならず、前線どうしが向かい合う（乱戦でも一隊ずつ読める）。刃は 2.4 まで届く
       if(d>=want) continue;
       if(d<0.001){ dx=0.3; dy=(i%2?0.3:-0.3); d=0.42; }
       const push=(want-d)/2*0.5;
-      p.x-=dx/d*push; p.y-=dy/d*push;
-      q.x+=dx/d*push; q.y+=dy/d*push;
+      // 味方どうし：動いている隊は留まっている隊を押しのけて通る（密集して動けなくならないように）
+      let kp=1, kq=1;
+      if(p.side===q.side){ const mv=u=>u.order&&u.order.k==="move"&&!(u.engagedAt!==undefined&&B.elapsed-u.engagedAt<1); const mp=mv(p), mq=mv(q); if(mp&&!mq){ kp=0.3; kq=1.7; } else if(mq&&!mp){ kp=1.7; kq=0.3; } }
+      p.x-=dx/d*push*kp; p.y-=dy/d*push*kp;
+      q.x+=dx/d*push*kq; q.y+=dy/d*push*kq;
       for(const u of [p,q]){
         u.x=Math.max(.5,Math.min(BF.w-.5,u.x));
         u.y=Math.max(.5,Math.min(BF.h-.5,u.y));
@@ -13923,7 +14002,7 @@ function stepUnit(u,dt){
   const sp=SPECIALS[UNITS[u.type].sp];
   const active=B.elapsed<u.spUntil;
   const _wx=WEATHER[B.weather]||WEATHER["晴"];
-  let speed=UNITS[u.type].spd*terrainSpeed(u)*moraleEff(u.morale)*2.2*(u.formSpd||1)*_wx.spd
+  let speed=UNITS[u.type].spd*terrainSpeed(u)*moraleEff(u.morale)*1.5*(u.formSpd||1)*_wx.spd
     *(1-Math.min(0.35,(u.fatigue||0)/100*0.35));
   if(active) speed*=sp.spd;
   if(u.reformUntil && B.elapsed<u.reformUntil) speed*=0.8;   // 陣替えの最中は足も鈍る
@@ -15908,8 +15987,8 @@ bcanvas.addEventListener("pointerdown",ev=>{
     const foe=bPick(wx,wy,1-B.ctx.playerSide);
     B.sel = foe ? foe.id : null;
     if(foe && !B.foeHinted){ B.foeHinted=true; toast("敵の隊です。味方の隊を選んでから押せば討ちにゆきます（二度押しで全軍）"); }
-    // 何もない地面を押して引けば、囲んだ味方をまとめて選ぶ
-    if(!foe){ B.box={x0:wx,y0:wy,x1:wx,y1:wy}; bcanvas.setPointerCapture(ev.pointerId); }
+    // 何もない地面を押して引けば：寄っているときは画面を動かす（作り手の指示）。全体のときは囲んだ味方をまとめて選ぶ
+    if(!foe){ if((B.zoom||1)>1.05){ B.pan={mx:ev.clientX,my:ev.clientY,cx:B.cx,cy:B.cy,moved:false}; } else { B.box={x0:wx,y0:wy,x1:wx,y1:wy}; } bcanvas.setPointerCapture(ev.pointerId); }
   }
   renderBattleFoot();
 });
@@ -15924,6 +16003,7 @@ bcanvas.addEventListener("pointermove",ev=>{
   const [wx,wy]=bWorld(ev);
   B.hoverXY=[wx,wy];
   if(B.box){ B.box.x1=wx; B.box.y1=wy; return; }
+  if(B.pan){ const rect=bcanvas.getBoundingClientRect(); const sx=rect.width/BF.w, sy=rect.height/BF.h; const dx=(ev.clientX-B.pan.mx)/(sx*(B.zoom||1)), dy=(ev.clientY-B.pan.my)/(sy*(B.zoom||1)); if(Math.abs(dx)+Math.abs(dy)>0.3) B.pan.moved=true; B.cx=B.pan.cx-dx; B.cy=B.pan.cy-dy; B.cxT=B.cyT=undefined; bView(); return; }
   if(!B.drag){ const h=bPick(wx,wy); B.hover=h?h.id:null; B.hoverTile=bTileAt(wx,wy); return; }
   B.drag.x=wx; B.drag.y=wy;
   const u=B.units.find(z=>z.id===B.drag.id);
@@ -15949,7 +16029,8 @@ function mergeUnits(src, dst){
 }
 function bEndDrag(ev){
   if(B && ev && ev.isPrimary===false) return;
-  if(B && B.multiUntil>performance.now()){ B.box=null; B.drag=null; return; }   // 二本指のあとの離しは何もしない
+  if(B && B.multiUntil>performance.now()){ B.box=null; B.drag=null; B.pan=null; return; }   // 二本指のあとの離しは何もしない
+  if(B && B.pan){ B.pan=null; return; }
   if(B && B.box){
     const b=B.box; B.box=null;
     const x0=Math.min(b.x0,b.x1), x1=Math.max(b.x0,b.x1), y0=Math.min(b.y0,b.y1), y1=Math.max(b.y0,b.y1);
@@ -16828,12 +16909,11 @@ function toggleSound(){
 function updateMusic(){
   if(!Audio_.enabled) return;
   if(B){
-    // 陣立て中は曲を落として風の音。開戦したら曲。押されていれば張りつめた曲
-    if(B.opening>0){ playScene("battle"); if(Audio_.bgmGain) Audio_.bgmGain.gain.value=0.35; if(!B.windAt||performance.now()-B.windAt>2800){ B.windAt=performance.now(); try{ playSE("wind"); }catch(e){} } return; }
-    if(Audio_.bgmGain && !(B.duckUntil>performance.now())) Audio_.bgmGain.gain.value=0.8;
+    // 合戦に曲は付けない（作り手の指示）。風と太鼓、刃と鉄砲の音だけ。決着だけ勝ち負けの曲
     if(B.over!==null){ playScene(B.over===B.ctx.playerSide?"victory":"defeat"); return; }
-    const mine=B.units.filter(u=>u.side===B.ctx.playerSide&&u.troops>.5&&!u.left).reduce((s2,u)=>s2+u.troops,0), foe=B.units.filter(u=>u.side!==B.ctx.playerSide&&u.troops>.5&&!u.left).reduce((s2,u)=>s2+u.troops,0);
-    playScene(mine<foe*0.75 ? "battleTense" : "battle"); return; }
+    if(Audio_.bgmSrc){ try{ Audio_.bgmSrc.stop(); }catch(e){} Audio_.bgmSrc=null; Audio_.scene=null; }
+    if(!B.windAt||performance.now()-B.windAt>(B.opening>0?2800:9000)){ B.windAt=performance.now(); try{ playSE("wind"); }catch(e){} }
+    return; }
   if(W.result==="敗北"){ playScene("defeat"); return; }
   if(W.result){ playScene("victory"); return; }
   if(!W.started){ playScene("castle"); return; }
@@ -16872,10 +16952,10 @@ function currentAdvice(){
     return {t:`俸禄が収入を上回っております（${inc-pay}/月）。商業投資か新田開発を、あるいは武将の解雇を。`,c:mine[0].id};
 
   const unrest=mine.find(c=>c.minchu<=40);
-  if(unrest) return {t:`${unrest.name}の民が離れかけております。評定から「施し」を。`,c:unrest.id};
+  if(unrest) return {t:`${unrest.name}の民が離れかけております。内政の「ほかの内政」から「施し」を。`,c:unrest.id};
 
   const idle=idleGenerals();
-  if(idle.length>=3) return {t:`手の空いた武将が${idle.length}名おります。評定で仕事を与えなされ。`,c:idle[0].castle};
+  if(idle.length>=3) return {t:`手の空いた武将が${idle.length}名おります。内政で仕事を与えなされ。`,c:idle[0].castle};
 
   // 攻め時の城を探す
   let best=null;
@@ -17379,6 +17459,7 @@ function beginGame(clanId){
   track("start/"+W.scenario+"/"+clanName(clanId));
   setSpeed(1);
   startOpening();
+  setTimeout(()=>{ if(W.started && !openingActive() && !B && !overlayEl) showIntroGuide(); }, 1200);   // はじめての手引き（一度きり）
   setTimeout(()=>{ if(W.started && !openingActive()) tutorial("map"); }, 9000);
   setTimeout(()=>{ if(W.started) showGuide("welcome"); }, 900);   // 初めての人への手ほどき（長篠だけ）
   // 桶狭間編を織田以外で始めたときは、その家の置かれた状況と最初の目標を一言
@@ -17688,7 +17769,7 @@ window.addEventListener("keydown",ev=>{
       if(p){ cam.x=p.x; cam.y=p.y; cam.scale=p.s; clampCam(); }
       break;
     }
-    case "Escape": if(foundPick){ foundPick=null; foundMarks=null; toast("築城の場所選びをやめました"); } if(reliefPick){ reliefPick=null; toast("救援の城選びをやめました"); } closePanel(); break;
+    case "Escape": if(foundPick){ endFoundPick("築城の場所選びをやめました"); } if(reliefPick){ reliefPick=null; toast("救援の城選びをやめました"); } closePanel(); break;
     case "c": case "C": openCastleList(); break;
     case "o": case "O": openOfficers(); break;
     case "m": case "M": openArmyList(); break;
