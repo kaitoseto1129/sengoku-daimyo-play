@@ -9877,6 +9877,7 @@ function mipOf(img, want){
 let tileLayer=null, devVersion=0;     // 敷いた地面の層と、開発の跡の版
 function drawMap(){
   const W_=viewW(), H_=viewH();
+  { const dpr=Math.min(window.devicePixelRatio||1,2); mctx.setTransform(dpr,0,0,dpr,0,0); mctx.globalAlpha=1; mctx.setLineDash([]); }   // 前の描きで変換や透明度が残っていても、毎回まっさらから（地面が消える不具合の備え）
   mctx.fillStyle=TERRAIN_COLOR[T.SEA];
   mctx.fillRect(0,0,W_,H_);
   const detailed = cam.scale >= 8;   // 早めにドット絵へ切り替え、粗い引き伸ばしを見せない
@@ -10271,7 +10272,8 @@ function drawMap(){
         mctx.beginPath(); mctx.arc(x,y,rr+3.5,0,7); mctx.stroke();
       }
       // 引いた地図でも、敵の家の本拠と小さな家の本拠には家紋の札（豊臣が点に紛れて見えない、を無くす）
-      if(c.hq && c.clan!==null && c.clan!==W.player && W.clans[c.clan] && (rel===2 || myCastles(c.clan).length<=3)){ const K=W.clans[c.clan]; const ch=String(K.crest||K.name[0])[0]; mctx.save(); mctx.fillStyle=clanColor(c.clan); mctx.beginPath(); mctx.arc(x,y-rr-9,8,0,7); mctx.fill(); mctx.strokeStyle=rel===2?"rgba(226,40,26,.9)":"rgba(255,255,255,.7)"; mctx.lineWidth=1.5; mctx.stroke(); mctx.fillStyle="#fff"; mctx.font='900 10px "Yuji Syuku",serif'; mctx.textAlign="center"; mctx.textBaseline="middle"; mctx.fillText(ch,x,y-rr-9); mctx.restore(); }
+      if(c.hq && c.clan!==null && c.clan!==undefined && c.clan!==W.player && W.clans[c.clan] && !pickMode){ const K=W.clans[c.clan]; const ch=String((K.crest||K.name||"？"))[0]||"？"; let few=false; try{ few=(rel===2)||myCastles(c.clan).length<=3; }catch(_){ few=false; }
+        if(few){ const ta=mctx.textAlign, tb=mctx.textBaseline, fo=mctx.font; try{ mctx.fillStyle=clanColor(c.clan); mctx.beginPath(); mctx.arc(x,y-rr-9,8,0,7); mctx.fill(); mctx.strokeStyle=rel===2?"rgba(226,40,26,.9)":"rgba(255,255,255,.7)"; mctx.lineWidth=1.5; mctx.stroke(); mctx.fillStyle="#fff"; mctx.font='900 10px "Yuji Syuku",serif'; mctx.textAlign="center"; mctx.textBaseline="middle"; mctx.fillText(ch,x,y-rr-9); }catch(_){ } mctx.textAlign=ta; mctx.textBaseline=tb; mctx.font=fo; } }   // save/restore を使わない（途中で落ちると変換が積もり、地面が画面の外へ行ってしまう）
       if(selected.kind==="castle" && selected.id===c.id){
         mctx.strokeStyle="#C9A227"; mctx.lineWidth=2;
         mctx.beginPath(); mctx.arc(x,y,rr+5,0,7); mctx.stroke();
@@ -19425,6 +19427,8 @@ const BUILD="1.0.0 (2026-09-11)";
 generateTerrain();
 buildWorld(0);
 bakeTiles(); bakeTerrain(); bakeMinimap(); rebuildDevOverlay();
+/* ?pick=1 で表紙を飛ばして「地図から大名家を選ぶ」まで進む（端末での確かめ用） */
+(function(){ try{ const q=new URLSearchParams(location.search); if(!q.get("pick")) return; setTimeout(()=>{ try{ document.getElementById("btnGameStart").click(); document.getElementById("scenNext").click(); setTimeout(()=>{ const tp=document.getElementById("toPick"); if(tp) tp.click(); setTimeout(()=>{ const sc=+q.get("scale"); const at=q.get("at"); if(sc){ cam.scale=sc; } if(at){ const c=Object.values(W.castles).find(x=>x.name===at); if(c){ cam.x=W.tile[c.id].c; cam.y=W.tile[c.id].r; } } camTarget.x=camTarget.y=null; camTarget.scale=null; clampCam(); },600); },300); }catch(e){ console.error(e); } },600); }catch(e){} })();
 resizeCanvas(); zoomFit();
 requestAnimationFrame(loop);
 // 表紙が出た時点で曲を流してみる（iPhone 版はそのまま鳴る。browser が止めるなら最初の一触れで）
