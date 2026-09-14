@@ -3349,7 +3349,7 @@ function nearestCastle(a){
 /* 雪国：北陸・東北・信濃・飛騨・上野の北。冬は道が閉ざされる */
 const SNOWY=new Set(["越後","越中","加賀","能登","越前","佐渡","羽前","羽後","陸奥","陸中","陸前","岩代","磐城","信濃","飛騨","上野","松前"]);
 function snowyAt(x,y){ let best=null,bd=1e9; for(const c of Object.values(W.castles)){ const t=W.tile[c.id]; const d=(t.c-x)*(t.c-x)+(t.r-y)*(t.r-y); if(d<bd){ bd=d; best=c; } } const p=best?DATA.provinces[best.prov]:null; return !!(p&&SNOWY.has(p.n)); }
-const MARCH_BASE=2.75;   // 街道の足の土台（一日に進む里の目安。第90巡で半分に）
+const MARCH_BASE=1.375;   // 街道の足の土台（一日に進む里の目安。第90巡で半分、第105巡でまた半分に：作り手の指示。長篠へ向かう信長も遅くてよい）
 function marchSpeed(a){
   // 疾駆の将がおれば道中が早い
   var _swift = a.gens.some(id=>W.generals[id]&&hasTrait(W.generals[id],"疾駆"));
