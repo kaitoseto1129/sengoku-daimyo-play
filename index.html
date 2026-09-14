@@ -276,7 +276,7 @@ html.bigtext #panel{font-size:15px} html.bigtext .row{font-size:14px} html.bigte
 @media (max-width:1120px){ #bfoot .dup{display:none} #bfoot .chip{display:none} #bfoot .tool{padding:8px 10px;font-size:13px;min-height:42px} #panel{background:rgb(18,16,14)} }   /* 携帯では札を透かさない（下の地図の数字が透けて読みにくかった） */
 #bfoot .tool.sub{opacity:.85} #bfoot .tool.aux{opacity:.7;font-size:12px;padding:7px 10px}
 #bfoot .fsep{display:inline-block;width:1px;height:28px;background:rgba(255,255,255,.2);margin:0 5px;flex:none}
-#bBeginBig{position:absolute;left:50%;top:auto;bottom:58px;transform:translate(-50%,0);z-index:47;padding:8px 26px;opacity:.9;border-radius:8px;border:3px solid #5C4610;outline:2px solid rgba(255,232,160,.7);outline-offset:-8px;background:linear-gradient(180deg,#E9C65C 0%,#C9A227 55%,#A5841C 100%);color:#1A1208;font-family:"Yuji Syuku","Zen Kaku Gothic New",serif;font-size:24px;font-weight:400;letter-spacing:.3em;text-shadow:0 1px 0 rgba(255,255,255,.5);box-shadow:0 0 0 4px rgba(201,162,39,.2),0 8px 22px rgba(0,0,0,.5);animation:beginPulse 1.6s ease-in-out infinite;display:flex;flex-direction:column;align-items:center;gap:2px;pointer-events:auto}
+#bBeginBig{position:absolute;left:50%;top:auto;bottom:74px;transform:translate(-50%,0);z-index:47;padding:8px 26px;opacity:.9;border-radius:8px;border:3px solid #5C4610;outline:2px solid rgba(255,232,160,.7);outline-offset:-8px;background:linear-gradient(180deg,#E9C65C 0%,#C9A227 55%,#A5841C 100%);color:#1A1208;font-family:"Yuji Syuku","Zen Kaku Gothic New",serif;font-size:24px;font-weight:400;letter-spacing:.3em;text-shadow:0 1px 0 rgba(255,255,255,.5);box-shadow:0 0 0 4px rgba(201,162,39,.2),0 8px 22px rgba(0,0,0,.5);animation:beginPulse 1.6s ease-in-out infinite;display:flex;flex-direction:column;align-items:center;gap:2px;pointer-events:auto}
 #battle:not(.on) #bBeginBig{display:none}
 #bBeginBig small{font-size:11px;letter-spacing:.05em;font-weight:700;opacity:.8}
 #bBeginBig:hover{opacity:1}
@@ -324,6 +324,7 @@ html.bigtext #panel{font-size:15px} html.bigtext .row{font-size:14px} html.bigte
   background:linear-gradient(180deg,#1B1610,#241D15 60%,#17120D);border-top:2px solid #8A7030;box-shadow:0 -2px 8px rgba(0,0,0,.5), inset 0 1px 0 rgba(201,162,39,.35)}
 #bfoot .tool{border-color:rgba(201,162,39,.35);background:linear-gradient(180deg,rgba(80,62,30,.55),rgba(40,30,16,.6));color:#F2E8D0;font-weight:800;letter-spacing:.04em}
 #bfoot .tool.on{background:linear-gradient(180deg,#E3C25A,#9C7C1F);border-color:#6B5210;color:#1A1208}
+@media (max-height:560px){ #bfoot{min-height:44px;padding:4px 8px;gap:4px} #bfoot .tool{min-width:44px;min-height:34px;padding:5px 8px;font-size:12px} #bfoot .tool.aux{font-size:11px;padding:4px 7px} #bfoot #bBegin{font-size:13px} #bfoot .fsep{height:22px} }   /* 背の低い画面（横向きの携帯）では帯を二段に膨らませない（並びが後なので効く） */
 .bbar{flex:1;height:12px;background:rgba(0,0,0,.55);border-radius:3px;overflow:hidden;border:1px solid rgba(255,255,255,.12)}
 .bbar i{display:block;height:100%}
 
@@ -446,13 +447,22 @@ body.picking [data-z="home"], body.picking [data-z="save"] { display:none !impor
 .guide .gk{display:inline-block;padding:0 6px;border-radius:4px;background:rgba(201,162,39,.25);color:#FFD166;font-weight:800}
 #bCoach{position:absolute;left:10px;top:52px;z-index:49;max-width:min(340px,60vw);padding:8px 12px;border-radius:8px;background:rgba(14,12,10,.92);border:1px solid rgba(201,162,39,.7);color:#EDE6D6;font-size:12px;line-height:1.6;box-shadow:0 8px 24px rgba(0,0,0,.5);pointer-events:auto}
 #bCoach b.t{display:block;color:#FFD166;font-size:13px;margin-bottom:2px}
-#bSim{position:absolute;left:50%;top:56px;transform:translateX(-50%);z-index:50;width:min(360px,72vw);padding:10px 14px 8px;border-radius:10px;background:rgba(14,12,10,.94);border:1px solid rgba(201,162,39,.8);color:#EDE6D6;font-size:13px;line-height:1.7;box-shadow:0 8px 24px rgba(0,0,0,.55);pointer-events:auto;text-align:center}
-#bSim.right{left:auto;right:12px;top:70px;transform:none}
+#bSim{position:absolute;left:50%;top:222px;transform:translateX(-50%);z-index:50;width:min(360px,72vw);padding:10px 14px 8px;border-radius:10px;background:rgba(14,12,10,.94);border:1px solid rgba(201,162,39,.8);color:#EDE6D6;font-size:13px;line-height:1.7;box-shadow:0 8px 24px rgba(0,0,0,.55);pointer-events:auto;text-align:center}
+#bSim.right{left:auto;right:12px;top:auto;bottom:150px;transform:none}
 #bSim .sim-t{color:#FFD166;font-size:11px;letter-spacing:.2em;margin-bottom:2px}
 #bSim .sim-b{margin-bottom:6px}
 #bSim .sim-b b{color:#FFD166}
 #bSim button.big{width:100%;margin:2px 0 4px;font-size:15px}
 #bSim .sim-x{background:none;border:none;color:rgba(237,230,214,.55);font-size:11px;cursor:pointer;padding:2px 6px}
+#mSim{position:absolute;left:12px;top:64px;z-index:18;width:min(340px,calc(100vw - 24px));padding:10px 14px 8px;border-radius:10px;background:rgba(14,12,10,.94);border:1px solid rgba(201,162,39,.8);color:#EDE6D6;font-size:13px;line-height:1.7;box-shadow:0 8px 24px rgba(0,0,0,.55);pointer-events:auto}
+#mSim .sim-t{color:#FFD166;font-size:11px;letter-spacing:.2em;margin-bottom:2px}
+#mSim .sim-b b{color:#FFD166}
+#mSim .sim-n{display:inline-block;min-width:18px;height:18px;border-radius:9px;background:#C9A227;color:#1A1208;font-weight:900;font-size:11px;text-align:center;line-height:18px;margin-right:6px}
+#mSim button.big{width:100%;margin:6px 0 2px;font-size:14px}
+#mSim .sim-x{background:none;border:none;color:rgba(237,230,214,.55);font-size:11px;cursor:pointer;padding:2px 6px}
+body.panelopen #mSim{left:12px}
+@media (max-width:1120px){ #mSim{top:auto;bottom:64px;width:min(300px,60vw);font-size:12px;padding:7px 10px} }
+@media (max-height:560px){ #bSim{top:auto;bottom:56px;left:12px;transform:none;font-size:12px;padding:6px 10px;width:min(320px,42vw);text-align:left} #bSim.right{left:auto;right:12px;bottom:56px} }   /* 背の低い画面では左下（真ん中に居座らない） */
 #bCoach .st{display:flex;gap:6px;align-items:flex-start}
 #bCoach .st.done{opacity:.55;text-decoration:line-through}
 #bCoach .st i{flex:none;width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,.12);display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-size:10px;font-weight:800;margin-top:2px}
@@ -7468,7 +7478,7 @@ const GUIDE={
     "詳しい仕組みは<span class='gk'>その他 → 手引き</span>にまとめてあります。よい戦を"]},
 };
 function guideDone(){ try{ return localStorage.getItem("sengoku_guide_done")==="1"; }catch(e){ return true; } }
-function guideOn(){ return !!(W.started && W.scenario==="nagashino" && !guideDone()); }
+function guideOn(){ return !!(W.started && !guideDone()); }   /* 手ほどきはどの筋書きでも（作り手の指示：会戦だけでなく全てに） */
 function guideSeen(k){ try{ return (JSON.parse(localStorage.getItem("sengoku_guide")||"[]")).includes(k); }catch(e){ return true; } }
 function markGuide(k){ try{ const a=JSON.parse(localStorage.getItem("sengoku_guide")||"[]"); if(!a.includes(k)){ a.push(k); localStorage.setItem("sengoku_guide",JSON.stringify(a)); } }catch(e){} }
 /* はじめての手引き（頁送り）。筋書きを選んだ直後に一度だけ。長篠は筋書きの流れも添える */
@@ -7514,6 +7524,37 @@ function showGuide(k){
   return true;
 }
 /* 合戦の中の手ほどき：左上の小さな札に、いま何をすればよいかを順に */
+/* ---- 地図の手ほどき：初めての人を「城を押す → 内政 → 日を進める → 決戦 → 城取り → 外交」の順に導く（作り手の指示：会戦だけでなく全てに） ---- */
+function mapSimStart(){ W.msim={step:0, at:dayNumber(), tasks0:mapSimTasks(), taken0:(W.stats&&W.stats.taken)||0, armies0:Object.values(W.armies).filter(a=>a.clan===W.player).length}; }
+function mapSimTasks(){ return Object.values(W.generals).filter(g=>g.clan===W.player&&g.task).length; }
+function mapSimTick(){
+  let el=document.getElementById("mSim");
+  const S=W.msim;
+  if(!S||!W.started||B||pickMode||W.result||(typeof openingActive==="function"&&openingActive())){ if(el) el.hidden=true; return; }
+  if(!el){ el=document.createElement("div"); el.id="mSim"; document.getElementById("stage").appendChild(el); }
+  const nag=W.scenario==="nagashino";
+  const show=(n,txt,opt)=>{ opt=opt||{}; const key=n+"|"+txt+(opt.ok?"|ok":"");
+    if(el._key!==key){ el._key=key; el.innerHTML=`<div class="sim-t">手ほどき　${n==="済"?"おしまい":n+"／7"}</div><div class="sim-b"><span class="sim-n">${n}</span>${txt}</div>${opt.ok?`<button class="big gold" id="mSimOk">${opt.okText||"次へ"}</button>`:""}<button class="sim-x" id="mSimOff">手ほどきをやめる</button>`;
+      const ok=el.querySelector("#mSimOk"); if(ok) ok.onclick=()=>{ S.step++; S.at=dayNumber(); };
+      el.querySelector("#mSimOff").onclick=()=>{ W.msim=null; el.hidden=true; try{ localStorage.setItem("sengoku_msim_done","1"); }catch(_){ } }; }
+    el.hidden=false; };
+  const next=n=>{ S.step=n; S.at=dayNumber(); };
+  const dec=document.querySelector("#dcGo");
+  switch(S.step){
+    case 0: show(1,"これがあなたの領地。<b>青い城</b>が自分の城、<b>赤い城</b>が敵です。<br>まず<b>自分の城を押して</b>みましょう"); if(S.ownOpened) next(1); break;
+    case 1: show(2,"城の札が開きました。<b>〈内政〉</b>を押し、誰か一人に<b>新田開発</b>などを命じましょう（銭を使って国を富ませます）"); if(mapSimTasks()>S.tasks0) next(2); break;
+    case 2: show(3,"命じました。仕事は日が進むと片づきます。<br>右上の<b>▶</b>を押して日を進めましょう（<b>Ⅱ</b>でいつでも止まります）"); if(W.speed>0) next(3); break;
+    case 3: if(!nag){ next(4); break; }
+      if(dec){ show(4,"決戦の窓が開きました。<b>〈采配を取る〉</b>を押しましょう。戦の中でも手ほどきが続きます"); }
+      else show(4,"七日たつと武田との<b>決戦</b>の窓が開きます。そのまま日を進めて待ちましょう（急ぎなら ▶▶）");
+      if(W.decisiveWon&&(W.decisiveWon.nagashino_open||W.decisiveWon.nagashino)) next(4); break;
+    case 4: show(5,"戦の後は<b>城取り</b>。<b>敵（赤）の城を押して</b>みましょう。札に守り手の兵の数が出ます（守り手の二倍半の兵で囲むのが目安）"); if(S.foeOpened) next(5); break;
+    case 5: show(6,"敵の城の札の<b>〈攻める〉</b>を押し、出す城と将を選んで<b>〈出陣〉</b>。軍が着けば囲みが始まり、日がたてば落ちます"); if(Object.values(W.armies).some(a=>a.clan===W.player&&W.castles[a.target]&&W.castles[a.target].clan!==null&&W.castles[a.target].clan!==W.player&&hostile(W.player,W.castles[a.target].clan))) next(6); break;
+    case 6: show(7,"軍が向かっています。城を押せば囲みの様子と<b>落城の見込み</b>が見えます。<br>最後に上の帯の<b>〈外交〉</b>を開いてみましょう（盟・和睦・傘下）"); if(panelKey==="外交"||(W.stats&&W.stats.taken>S.taken0)) next(7); break;
+    case 7: show("済","手ほどきはここまで。困ったら上の<b>〈手空き〉</b>（仕事のない将）と<b>〈気がかり〉</b>を押せば、次にすべきことが分かります",{ok:true,okText:"分かった"}); break;
+    default: W.msim=null; el.hidden=true; try{ localStorage.setItem("sengoku_msim_done","1"); }catch(_){ }
+  }
+}
 /* ---- 長篠の手ほどき：筋書きどおりに一つずつ導く（作り手の指示）
    右へ引く → 武田が迫る（OK） → 武将を押す（OK） → 開戦 → 柵が破られそう：足軽を柵の間へ → 柵が破られた：破れ目に隊を → 別働隊が後ろに：追い討ち ---- */
 function nagSimStart(){ if(!B) return; B.sim={step:0, cx0:B.cx, t:B.elapsed}; B.coachOff=true; }
@@ -7530,7 +7571,8 @@ function nagSimTick(){
       el.classList.toggle("right",!!opt.right);
       const ok=el.querySelector("#bSimOk"); if(ok) ok.onclick=()=>{ S.step++; S.t=B.elapsed; };
       el.querySelector("#bSimOff").onclick=()=>{ B.sim=null; el.hidden=true; }; }
-    el.hidden=false; };
+    el.hidden=false;
+    try{ if(matchMedia("(max-height:560px)").matches){ const f=document.getElementById("bfoot"); const want=((f?f.offsetHeight:44)+8)+"px"; if(el.style.bottom!==want) el.style.bottom=want; } else if(el.style.bottom) el.style.bottom=""; }catch(_){ } };   /* 背の低い画面では帯の高さに合わせて浮かせる */
   const next=(n)=>{ S.step=n; S.t=B.elapsed; };
   const rearX=(B.ctx.playerSide===1)?BF.w-7:7;
   /* 別働隊が後ろに現れたら、どの段にいても追い討ちの段へ */
@@ -7977,6 +8019,7 @@ function doRecruit(cid, wantId){
 /* 名指しで招く。いちばん近い自城の政治家が使者に立つ */
 function recruitNamed(gid){
   const g=W.generals[gid]; if(!g) return;
+  if(!(g.status==="在野"||g.status==="浪人")||isChild(g)) return toast(`${g.name}は招ける身ではありませぬ`);   /* 名指しの相手が在野でないのに、別の者が招かれていた */
   const hosts=myCastles(W.player).filter(c=>Object.values(W.generals).some(x=>x.castle===c.id&&x.clan===W.player&&!x.army&&!x.task&&x.pol>=45&&!isChild(x)));
   if(!hosts.length) return toast("政治45以上の手空きがおりませぬ");
   const from = g.castle!==null&&W.tile[g.castle] ? hosts.sort((a,b)=>kmBetween(W.tile[a.id].c,W.tile[a.id].r,W.tile[g.castle].c,W.tile[g.castle].r)-kmBetween(W.tile[b.id].c,W.tile[b.id].r,W.tile[g.castle].c,W.tile[g.castle].r))[0] : hosts[0];
@@ -8673,6 +8716,7 @@ function openConscript(id){
 /* 牢人を銭で雇う。民を取らずに済むが、高くつき、士気も低い */
 function hireRonin(gid,unit,count){
   const g=W.generals[gid]; if(!g) return "武将がいません";
+  if(g.clan===null||g.clan===undefined||!W.clans[g.clan]) return "在野の武将には兵を付けられませぬ";
   if(g.status==="捕虜"||g.status==="人質"||g.status==="死亡"||g.captor) return `${g.name}は手元におりませぬ`;
   const c=W.castles[g.castle]; if(!c) return "在城していません";
   if(isBesieged(c.id)) return "囲まれた城には牢人も入れませぬ";
@@ -9435,7 +9479,7 @@ function saveGame(){
 function autoSave(){ try{ localStorage.setItem(SAVE_KEY, serialize()); }catch(e){} }
 function hasSave(){ try{ return !!localStorage.getItem(SAVE_KEY); }catch(e){ return false; } }
 /* 筋書きの覚え。記録に残さないと、読み込んだ後に御館の乱や長島の続きが起きなかった */
-const SCEN_FLAGS=["kagetora","nagResult","otate","otateDay","echizenDone","yoshiakiAt","decisiveWaited","lastHelpAt","okeCastle","gennaPending","stageLock","odaUnityAt","shizugatakeAt","nagashimaSiegeAt","moriRiceAt","osakaTennojiAt","okeEscaped","sekPrep","nagashinoDay"];
+const SCEN_FLAGS=["msim","kagetora","nagResult","otate","otateDay","echizenDone","yoshiakiAt","decisiveWaited","lastHelpAt","okeCastle","gennaPending","stageLock","odaUnityAt","shizugatakeAt","nagashimaSiegeAt","moriRiceAt","osakaTennojiAt","okeEscaped","sekPrep","nagashinoDay"];
 function loadGame(){
   let raw; try{ raw=localStorage.getItem(SAVE_KEY); }catch(e){ return false; }
   if(!raw) return false;
@@ -11499,6 +11543,7 @@ function moveHq(id){
 function openCastle(id){
   const c=W.castles[id];
   if(!c) return;
+  if(W.msim){ if(c.clan===W.player) W.msim.ownOpened=true; else if(c.clan!==null&&hostile(W.player,c.clan)) W.msim.foeOpened=true; }   /* 手ほどきの検め */
   // 電話：札は下から出る。押した城が札の陰に入るなら、上の方へ寄せる
   if(W.started && !pickMode && viewW()<=1120){ const t=W.tile[id]; if(t){ const [sx0,sy0]=toScreen(t.c,t.r); if(sy0>viewH()*0.30 || sy0<20){ camTarget.x=t.c; camTarget.y=t.r+(viewH()*0.20)/cam.scale; } } }
   if(c.clan===W.player) tutorial("start");
@@ -19099,7 +19144,7 @@ function frame(dt){
     updateUnitPop();
     try{ updateBattleCoach(); }catch(e){}
     try{ nagSimTick(); }catch(e){}
-    { const bb=document.getElementById("bBeginBig"); if(bb){ const on=!!(B&&B.opening>0&&B.over===null&&!B.mode); if(bb.hidden===on){ bb.hidden=!on; if(on) bb.onclick=()=>{ beginBattleNow(); bb.hidden=true; }; } } }   // 真ん中の大きな〈開戦〉。左下の釦は見落とされる
+    { const bb=document.getElementById("bBeginBig"); if(bb){ const on=!!(B&&B.opening>0&&B.over===null&&!B.mode); if(bb.hidden===on){ bb.hidden=!on; if(on) bb.onclick=()=>{ beginBattleNow(); bb.hidden=true; }; } if(on){ const f=document.getElementById("bfoot"); const want=((f?f.offsetHeight:52)+12)+"px"; if(bb.style.bottom!==want) bb.style.bottom=want; } } }   // 真ん中の大きな〈開戦〉。左下の釦は見落とされる
     if(!B._musicAt || performance.now()-B._musicAt>2000){ B._musicAt=performance.now(); try{ updateMusic(); }catch(e){} }   // 陣立て・開戦・劣勢で曲を切り替える
   } else if(W.started || pickMode){
     if(W.started && W.speed>0 && !pendingEncounter && !W.result){
@@ -19121,6 +19166,7 @@ function frame(dt){
     }
     drawMap();
     drawMinimap();
+    try{ mapSimTick(); }catch(e){}
   }
 }
 window.addEventListener("resize", refitCanvases);
@@ -19309,9 +19355,10 @@ function beginGame(clanId){
   track("start/"+W.scenario+"/"+clanName(clanId));
   setSpeed(1);
   startOpening();
-  setTimeout(()=>{ if(W.started && !openingActive() && !B && !overlayEl) showIntroGuide(); }, 1200);   // はじめての手引き（一度きり）
+  { let done=false; try{ done=!!localStorage.getItem("sengoku_msim_done"); }catch(_){ } if(!done && !guideDone()) mapSimStart(); }   /* 初めての人には、押す所を一つずつ示す手ほどき（頁送りの手引きは〈その他〉から） */
+  setTimeout(()=>{ if(W.started && !openingActive() && !B && !overlayEl && !W.msim) showIntroGuide(); }, 1200);   // はじめての手引き（一度きり。手ほどきが動いているときは出さない）
   setTimeout(()=>{ if(W.started && !openingActive()) tutorial("map"); }, 9000);
-  setTimeout(()=>{ if(W.started && !document.querySelector(".overlay.guide")) showGuide("welcome"); }, 1600);   // 初めての人への手ほどき（長篠だけ）。頁送りの手引きが出ていれば重ねない（二枚が重なっていた）
+  setTimeout(()=>{ if(W.started && !W.msim && !document.querySelector(".overlay.guide")) showGuide("welcome"); }, 1600);   // 初めての人への手ほどき（長篠だけ）。頁送りの手引きが出ていれば重ねない（二枚が重なっていた）
   // 桶狭間編を織田以外で始めたときは、その家の置かれた状況と最初の目標を一言
   const sc=SCENARIO_DEFS[W.scenario]||SCENARIO_DEFS.oke;
   if(sc.id==="oke" && clanId!==0){
