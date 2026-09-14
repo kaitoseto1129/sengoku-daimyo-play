@@ -457,6 +457,34 @@ body.picking [data-z="home"], body.picking [data-z="save"] { display:none !impor
 #bSim .sim-x{background:none;border:none;color:rgba(237,230,214,.55);font-size:11px;cursor:pointer;padding:2px 6px}
 #mSim{position:absolute;left:12px;top:64px;z-index:18;width:min(340px,calc(100vw - 24px));padding:10px 14px 8px;border-radius:10px;background:rgba(14,12,10,.94);border:1px solid rgba(201,162,39,.8);color:#EDE6D6;font-size:13px;line-height:1.7;box-shadow:0 8px 24px rgba(0,0,0,.55);pointer-events:auto}
 #mSim .sim-t{color:#FFD166;font-size:11px;letter-spacing:.2em;margin-bottom:2px}
+/* 軍資金募集 */
+.fund{max-width:640px !important}
+.fund .f-kicker{letter-spacing:.3em;color:var(--kin);font-size:12px;text-align:center}
+.fund h2{margin:0;text-align:center;font-family:var(--display);font-size:26px;color:#F2C94C}
+.fund .f-copy{text-align:center;font-size:14px;color:#EDE6D6;opacity:.9}
+.fund .f-gauge{position:relative;height:30px;border-radius:15px;background:rgba(0,0,0,.55);border:1px solid rgba(201,162,39,.6);overflow:hidden}
+.fund .f-gauge i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#8A6F17,#E3C25A,#FFE28A);transition:width 1.2s ease-out;box-shadow:0 0 14px rgba(255,214,102,.6)}
+.fund .f-gauge b{position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-weight:900;text-shadow:0 1px 3px #000;font-size:14px}
+.fund .f-marks{display:flex;justify-content:space-between;font-size:10px;color:var(--gofun-dim);padding:0 2px}
+.fund .f-nums{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.fund .f-nums div{background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:6px;padding:6px;text-align:center}
+.fund .f-nums span{display:block;font-size:10px;color:var(--gofun-dim)}
+.fund .f-nums b{font-size:15px;color:#FFD166;font-variant-numeric:tabular-nums}
+.fund .f-tier{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:rgba(0,0,0,.25);margin-bottom:5px}
+.fund .f-tier .rank{min-width:64px;font-weight:900;color:#FFD166}
+.fund .f-tier .amt{min-width:64px;font-variant-numeric:tabular-nums}
+.fund .f-tier .desc{flex:1;font-size:11px;color:var(--gofun-dim)}
+.fund .f-bar{height:8px;border-radius:4px;background:rgba(0,0,0,.45);overflow:hidden;margin-top:3px}
+.fund .f-bar i{display:block;height:100%;background:linear-gradient(90deg,#3F9A5C,#7FD39A)}
+.fund .f-vote button{width:100%;text-align:left}
+.fund .f-tabs{display:flex;gap:4px;flex-wrap:wrap}
+.fund .f-tabs button.on{background:var(--kin);color:#1A1208}
+.fund .f-mine{border:1px solid rgba(201,162,39,.7);background:rgba(201,162,39,.12);border-radius:6px;padding:8px;font-size:12px}
+.fund .f-medal{display:inline-block;width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#FFE28A,#8A6F17);color:#1A1208;font-weight:900;font-size:12px;text-align:center;line-height:22px;margin-right:4px;box-shadow:0 1px 3px #000}
+#fundBig{position:absolute;inset:0;z-index:70;display:grid;place-items:center;pointer-events:none}
+#fundBig .fb{background:rgba(14,12,10,.92);border:2px solid #C9A227;border-radius:12px;padding:18px 28px;text-align:center;color:#FFE28A;font-family:var(--display);font-size:26px;box-shadow:0 0 40px rgba(255,214,102,.5);animation:fundPop .5s ease-out}
+#fundBig .fb small{display:block;font-family:inherit;font-size:14px;color:#EDE6D6;margin-top:6px}
+@keyframes fundPop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
 .s-guide{margin:10px auto 0;max-width:520px;padding:8px 12px;border-radius:8px;background:rgba(201,162,39,.12);border:1px solid rgba(201,162,39,.5);color:#FFE7A8;font-size:13px;line-height:1.7;text-align:center}
 .s-guide b{color:#FFD166}
 #pSim{position:absolute;left:50%;top:60px;transform:translateX(-50%);z-index:18;width:min(420px,calc(100vw - 24px));padding:9px 14px;border-radius:10px;background:rgba(14,12,10,.94);border:1px solid rgba(201,162,39,.8);color:#EDE6D6;font-size:13px;line-height:1.7;text-align:center;pointer-events:none}
@@ -597,6 +625,7 @@ body.inbattle #stage.paused::after{ display:none; }
     <div class="s-actions">
       <button class="s-btn gold" id="btnGameStart">ゲームをはじめる</button>
       <button class="s-btn" id="btnContTitle" hidden>つづきから</button>
+      <button class="s-btn" id="btnFundTitle" onclick="openFund()">軍資金募集</button>
     </div>
     <div class="tiny muted" id="buildTag" style="margin-top:14px;letter-spacing:.08em;opacity:.55"></div>
   </div>
@@ -737,6 +766,7 @@ body.inbattle #stage.paused::after{ display:none; }
       <span class="mm-head">その他</span>
       <button class="tool" id="btnGuide" hidden>手引き</button>
       <button class="tool" id="btnLegend">地図の見方</button>
+      <button class="tool" id="btnFund" onclick="openFund()" style="color:#FFD166">軍資金募集</button>
       <button class="tool" id="btnHelp" hidden>見方</button>
       <button class="tool" id="btnSave" hidden>記録する</button>
       <button class="tool" id="btnSystem">記録と設定</button>
@@ -7214,6 +7244,7 @@ function setDifficulty(i){
 function diffAggr(){ return [0.7, 1.0, 1.35][W.difficulty??1]; }
 function diffIncome(){ return [1.15, 1.0, 0.92][W.difficulty??1]; }
 function openSystem(){
+  const fm=fundMine(); const fundRow = fm&&fm.tier ? `<div class="f-mine" style="margin-bottom:8px"><span class="f-medal">${["","壱","弐","参","四","五"][fm.round]||fm.round}</span>称号「第${fm.round}次軍資金提供者」（${esc(fundTierOf(fm.tier).rank)}）　<button class="chip" style="cursor:pointer" onclick="openFund()">軍資金募集を見る</button></div>` : "";
   const rows=SLOT_KEYS.map((k,i)=>{
     const info=slotInfo(k);
     return `<div class="row">
@@ -7228,7 +7259,7 @@ function openSystem(){
       <span style="flex:1"><b>${label}</b><br><span class="tiny muted">${desc}</span></span>
     </div>`;
   openPanel("記録と設定", `${W.date.y}年${W.date.m}月`,
-    `<div><div class="sec-title">記録の枠</div><div class="list">${rows}</div></div>
+    `${fundRow}<div><div class="sec-title">記録の枠</div><div class="list">${rows}</div></div>
      <div><div class="sec-title">見え方</div><div class="list">
        ${sw("bigNews","大きな知らせ","落城などを画面の真ん中に大きく出す")}
        ${sw("shake","攻城の揺れ","囲まれた城を揺らして煙を上げる")}
@@ -9856,7 +9887,7 @@ function soldierSprite(unit,side,frame,flip,variant){
   const armor  = shade(side===0?"#3D6BCC":side===2?"#3F9A5C":"#C24A33", vk);   /* 側2＝味方の他家（緑） */
   const armorD = shade(side===0?"#22417F":side===2?"#215A33":"#7E2A18", vk);
   const armorL = shade(side===0?"#6E98E6":side===2?"#7FD39A":"#E5785C", vk);
-  const flag   = side===0?"#7FB2FF":side===2?"#9BE8B0":"#FF9A7A";
+  const flag   = (side===0 && fundHas("flag")) ? "#FFD166" : side===0?"#7FB2FF":side===2?"#9BE8B0":"#FF9A7A";   /* 軍資金奉納旗（支援者は自軍の指物が金） */
   const skin=variant===1?"#E0B890":"#F0CCA8", steel="#D2D8E2", steelD="#8B93A3", wood="#8C6136", bob=frame%2;
   // 背中の指物。どの隊も一目で敵味方が分かる（三人に一人は指物なし）
   const sashimono=(x,y)=>{ if(variant===2) return; px(x,y,1,14,wood); px(x+1,y,5,8,flag); px(x+2,y+2,3,4,armorD); };
@@ -17085,6 +17116,8 @@ function drawBattle(){
       if(tk===BT.FOREST){ bctx.save(); bctx.fillStyle="rgba(20,60,25,.30)"; bctx.beginPath(); bctx.ellipse(x,y-4*Z,38*Z,24*Z,0,0,7); bctx.fill(); bctx.restore(); }
       else if(tk===BT.HILL){ bctx.save(); bctx.strokeStyle="rgba(255,245,200,.35)"; bctx.lineWidth=1.5; bctx.beginPath(); bctx.ellipse(x,y+10*Z,34*Z,12*Z,0,0,7); bctx.stroke(); bctx.restore(); }
       else if(tk===BT.WATER||tk===BT.FORD){ bctx.save(); bctx.fillStyle="rgba(120,170,220,.18)"; bctx.beginPath(); bctx.ellipse(x,y+8*Z,36*Z,12*Z,0,0,7); bctx.fill(); bctx.restore(); } }
+    // 軍資金の家老以上：本陣の飾り（金の輪。性能は変えない）
+    if(u.cmd && meSide && !u.ally && fundHas("hq")){ bctx.save(); bctx.strokeStyle=`rgba(255,214,102,${.55+.3*Math.sin(B.elapsed*2)})`; bctx.lineWidth=3*Z; bctx.setLineDash([7*Z,5*Z]); bctx.beginPath(); bctx.ellipse(x,y+6*Z,60*Z,26*Z,0,0,7); bctx.stroke(); bctx.restore(); }
     // 武将の顔は小さく、隊の上に。誰の隊かは背旗と名札で分かる
     const g=W.generals[u.gid];
     const big = selNow || B.hover===u.id; const major = u.cmd || (g && ((g.lea+g.war)>=165 || g.status==="大名" || (typeof NAG_HEROES!=="undefined" && NAG_HEROES.has(g.name)) || u.hero || (u.famous===undefined ? (u.famous=!!(portraitData()&&portraitData()[g.name])) : u.famous)));   /* 肖像画の残る将も名のある将 */
@@ -19485,6 +19518,101 @@ function startStep(which){
 document.getElementById("btnGameStart").onclick=()=>{ audioInit(); playSE("notify"); startStep("stepScenario"); };
 document.getElementById("scenBack").onclick=()=>startStep("stepTitle");
 let chosenScenario="nagashino";
+/* =====================================================================
+   軍資金募集（作り手の案：ゲームのアップデート費用を、プレイヤーから期間限定で募る「みんなで次の普請を仕上げる」催し）
+   ・数字（集まった軍資金・参加人数・進捗・投票）は FUND.feed の JSON から読む（公開の場では fund.json。読めなければ下の値）
+   ・支払いは階級ごとの支払いリンク（FUND.tiers[].pay。Stripe など）か iPhone 版の App 内課金。支払い後に ?fund=<合言葉>&tier=<額>&name=<名> で戻れば、この端末に支援者の印が残る
+   ・報酬は性能ではなく「名誉・見た目・限定性」（称号・家紋枠・奉納旗・本陣の飾り・名鑑）
+   ===================================================================== */
+const FUND={
+  round:1, name:"第一次 軍資金募集", theme:"合戦画面・武将グラフィック大改修", copy:"もっと、本物の戦場へ。",
+  goal:3000000, start:"2026-10-01", days:30,
+  feed:"fund.json",   /* 公開の場（GitHub Pages）に置く。中身：{raised, backers, supporters:[{name,tier}], progress:[{n,p}], journal:[{w,t}], vote:{a:n,...}, stretch:[...]} */
+  raised:0, backers:0,
+  uses:[["武将・兵士・本陣・柵・城の絵",1200000],["曲・効果音",400000],["画面まわりの改修",600000],["作り込み",600000],["その他",200000]],
+  stretch:[[1.0,"合戦画面の絵を一新（武将五十名・兵士・本陣・馬防柵・硝煙・騎馬突撃・新曲）"],[1.2,"武将二十名の絵を追加"],[1.5,"新しい曲と効果音"],[2.0,"城攻めの画面を大改修"]],
+  tiers:[
+    {amt:500,   rank:"足軽衆", give:["支援者限定称号「第一次軍資金提供者」","限定家紋枠","勲章「壱」"], pay:""},
+    {amt:1000,  rank:"侍大将", give:["上記すべて","軍資金奉納旗（合戦で自軍の指物が金色に）"], pay:""},
+    {amt:3000,  rank:"奉行",   give:["上記すべて","限定武将の絵「若き日の織田信長」（性能は同じ）"], pay:""},
+    {amt:5000,  rank:"家老",   give:["上記すべて","本陣の飾り（金屏風・大馬印）"], pay:""},
+    {amt:10000, rank:"宿老",   give:["上記すべて","開発支援者名鑑へ永久掲載（希望者のみ）"], pay:""},
+    {amt:30000, rank:"大名",   give:["上記すべて","特別称号・特別旗・名鑑の上位掲載"], pay:""},
+    {amt:50000, rank:"天下人", give:["上記すべて","黄金馬印・黄金本陣・ゲーム内クレジット掲載"], pay:""},
+  ],
+  people:[[500,"全員に兵糧"],[1000,"全員に限定旗"],[2000,"全員に限定の武将背景"],[5000,"全員に記念の品"]],
+  progress:[{n:"馬防柵の絵",p:0},{n:"武将の絵（二十名）",p:0},{n:"硝煙の演出",p:0},{n:"本陣の絵",p:0},{n:"新曲",p:0}],
+  journal:[],
+  vote:{items:[["castle","城攻め大改修"],["faces","武将の絵"],["sea","海戦"],["domestic","内政の強化"]], counts:{}},
+  supporters:[],
+};
+const FUND_TOKEN="gunshikin-2026";   /* 支払いリンクの戻り先に付ける合言葉（?fund=gunshikin-2026&tier=1000&name=…） */
+let fundLive=null;   /* feed から読んだ生の数字 */
+function fundState(){ const f=Object.assign({}, FUND, fundLive||{}); const raised=Math.max(0, f.raised||0), goal=Math.max(1,f.goal||1); const pct=raised/goal; const start=new Date(f.start+"T00:00:00"); const end=new Date(start.getTime()+(f.days||30)*86400000); const now=new Date(); const left=Math.max(0,Math.ceil((end-now)/86400000)); const before=now<start; return {f, raised, goal, pct, left, before, end, start}; }
+function fundMine(){ try{ return JSON.parse(localStorage.getItem("sengoku_fund")||"null"); }catch(e){ return null; } }
+function fundHas(what){ const m=fundMine(); if(!m||!m.tier) return false; const t=m.tier; return what==="title"?t>=500 : what==="flag"?t>=1000 : what==="card"?t>=3000 : what==="hq"?t>=5000 : what==="gold"?t>=50000 : false; }
+function fundLoadFeed(){ try{ if(!FUND.feed||/localhost|127\.0\.0\.1/.test(location.hostname)&&false) return; fetch(FUND.feed,{cache:"no-store"}).then(r=>r.ok?r.json():null).then(j=>{ if(j&&typeof j==="object"){ fundLive=j; fundMilestones(); const el=document.querySelector(".overlay .fund"); if(el) openFund(); } }).catch(()=>{}); }catch(e){} }
+function fundYen(n){ return "¥"+Math.round(n).toLocaleString(); }
+function fundMilestones(){ const st=fundState(); let seen={}; try{ seen=JSON.parse(localStorage.getItem("sengoku_fund_seen")||"{}"); }catch(e){} const key=k=>FUND.round+":"+k; const say=(k,t,sub)=>{ if(seen[key(k)]) return; seen[key(k)]=1; try{ localStorage.setItem("sengoku_fund_seen",JSON.stringify(seen)); }catch(e){} fundBig(t,sub); }; if(st.pct>=1) say("100","軍資金達成！　大普請開始","全国より "+fundYen(st.raised)+" が集まりました"); else if(st.pct>=0.8) say("80","全国より軍資金集まる","目標まであと "+fundYen(st.goal-st.raised)); }
+function fundBig(t,sub){ let el=document.getElementById("fundBig"); if(!el){ el=document.createElement("div"); el.id="fundBig"; document.body.appendChild(el); } el.innerHTML=`<div class="fb">${esc(t)}${sub?`<small>${esc(sub)}</small>`:""}</div>`; el.hidden=false; try{ playSE("coin"); }catch(_){ } setTimeout(()=>{ el.hidden=true; },3600); }
+/* 支払いから戻ったとき（?fund=合言葉&tier=額&name=名&anon=1） */
+(function(){ try{ const q=new URLSearchParams(location.search); const t=q.get("fund"); if(!t) return; if(t===FUND_TOKEN){ const tier=Math.max(500,parseInt(q.get("tier")||"500",10)||500); const name=(q.get("name")||"").slice(0,20); const anon=q.get("anon")==="1"; const prev=fundMine()||{}; const rec={round:FUND.round, tier:Math.max(prev.tier||0,tier), name:name||prev.name||"", anon, at:Date.now(), rounds:Array.from(new Set([...(prev.rounds||[]),FUND.round]))}; localStorage.setItem("sengoku_fund",JSON.stringify(rec)); FUND.raised=(FUND.raised||0)+tier; FUND.backers=(FUND.backers||0)+1; setTimeout(()=>{ fundBig(`${name?name+"殿":"あなた"}より軍資金 ${fundYen(tier)} が届きました`, "総軍資金 "+fundYen(fundState().raised)+"　ありがとうございます"); try{ toast(`${fundTierOf(tier).rank}として軍資金に加わりました。〈軍資金募集〉に印が残ります`); }catch(_){ } },900); } history.replaceState(null,"",location.pathname); }catch(e){} })();
+/* iPhone 版：App 内課金が通れば包みからここが呼ばれる */
+window.sengokuFund=function(amt){ amt=Math.max(500,parseInt(amt,10)||500); const prev=fundMine()||{}; const rec={round:FUND.round, tier:Math.max(prev.tier||0,amt), name:prev.name||"", anon:!!prev.anon, at:Date.now(), rounds:Array.from(new Set([...(prev.rounds||[]),FUND.round]))}; try{ localStorage.setItem("sengoku_fund",JSON.stringify(rec)); }catch(e){} FUND.raised=(FUND.raised||0)+amt; FUND.backers=(FUND.backers||0)+1; fundBig(`あなたより軍資金 ${fundYen(amt)} が届きました`, "総軍資金 "+fundYen(fundState().raised)+"　ありがとうございます"); track("fund/"+amt); const el=document.querySelector(".overlay.fundov"); if(el) openFund(); };
+function fundTierOf(amt){ let best=FUND.tiers[0]; for(const t of FUND.tiers) if(amt>=t.amt) best=t; return best; }
+function fundSupport(i){ const t=FUND.tiers[i]; if(!t) return; if(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap){ try{ window.webkit.messageHandlers.iap.postMessage({fund:true, tier:t.amt, sku:"jp.kaitoseto.sengoku.fund"+t.amt}); return; }catch(e){} } if(t.pay){ track("fund-click/"+t.amt); setTimeout(()=>{ location.href=t.pay; },150); return; } toast("この階級の受付は準備中です（支払いの窓口を整えてから開きます）"); }
+function fundVote(k){ let v={}; try{ v=JSON.parse(localStorage.getItem("sengoku_fund_vote")||"{}"); }catch(e){} v[FUND.round]=k; try{ localStorage.setItem("sengoku_fund_vote",JSON.stringify(v)); }catch(e){} toast("一票を投じました（集計は次の募集の頃に）"); openFund(); }
+function openFund(){
+  fundLoadFeed();
+  const st=fundState(), f=st.f; const pct=Math.min(1.5,st.pct); const mine=fundMine();
+  const marks=[0,25,50,75,100].map(v=>`<span>${v}%</span>`).join("");
+  const nextStretch=(f.stretch||[]).find(([k])=>st.pct<k);
+  const tab=window.__fundTab||"main";
+  const tabs=[["main","募集"],["reward","報酬"],["progress","普請の進み"],["people","軍資金提供者"],["vote","次の普請"]];
+  const supporters=(f.supporters||[]).filter(x=>x&&x.name);
+  const html=`<div class="dialog fund">
+    <div class="f-kicker">第${["","一","二","三","四","五"][f.round]||f.round}次　軍 資 金 募 集</div>
+    <h2>${esc(f.theme)}</h2>
+    <div class="f-copy">「${esc(f.copy)}」</div>
+    <div class="f-tabs">${tabs.map(([k,n])=>`<button class="chip ${tab===k?"on":""}" style="cursor:pointer" onclick="window.__fundTab='${k}';openFund()">${n}</button>`).join("")}</div>
+    ${tab==="main"?`
+    <div class="f-gauge"><i style="width:${(pct*100).toFixed(1)}%"></i><b>${(st.pct*100).toFixed(1)}%${st.pct>=1?"　軍資金達成！":""}</b></div>
+    <div class="f-marks">${marks}</div>
+    <div class="f-nums"><div><span>現在</span><b>${fundYen(st.raised)}</b></div><div><span>目標</span><b>${fundYen(st.goal)}</b></div><div><span>${st.before?"開始まで":"残り"}</span><b>${st.before?Math.ceil((st.start-new Date())/86400000)+"日":st.left+"日"}</b></div><div><span>参加</span><b>${(f.backers||0).toLocaleString()}人</b></div></div>
+    <div class="tiny" style="text-align:center">${st.pct>=1?"目標を越えました。次の段へ："+(nextStretch?esc(nextStretch[1]):"すべての段を達成"):"あと "+fundYen(Math.max(0,st.goal-st.raised))}</div>
+    <div class="advice" style="text-align:left">戦国大名の合戦画面を大きく進化させるため、${f.days}日間の軍資金募集を行います。集まった軍資金は、武将の絵・兵士・馬防柵・本陣・戦場・硝煙・騎馬の演出・曲と効果音など、合戦画面の大改修に使います。<br>この戦国を、皆でさらに面白く。</div>
+    <div><div class="sec-title">用途の内訳</div>${(f.uses||[]).map(([n,v])=>`<div class="row"><span style="flex:1" class="tiny">${esc(n)}</span><span class="tiny num">${fundYen(v)}</span></div><div class="f-bar"><i style="width:${(v/st.goal*100).toFixed(0)}%"></i></div>`).join("")}</div>
+    <div><div class="sec-title">段（達成後も続く）</div>${(f.stretch||[]).map(([k,n])=>`<div class="row"><span class="chip ${st.pct>=k?"kin":""}">${Math.round(k*100)}%　${fundYen(st.goal*k)}</span><span class="tiny" style="flex:1">${esc(n)}</span>${st.pct>=k?'<span class="chip">達成</span>':""}</div>`).join("")}</div>
+    <div><div class="sec-title">参加人数の目標（五百円でも意味がある）</div>${(f.people||[]).map(([n,g])=>`<div class="row"><span class="chip ${(f.backers||0)>=n?"kin":""}">${n.toLocaleString()}人</span><span class="tiny" style="flex:1">${esc(g)}</span></div>`).join("")}</div>
+    <div class="tiny muted">達成のとき、支援していない方にも記念の品（記念旗・兵糧）を配ります。支援者にはさらに限定の品。金銭の配当や利益の分配はありません（開発の応援としての支援です）。目標に届かなかったときは、集まった範囲でできる普請（武将の絵から）を行います。</div>
+    <div class="dlg-actions" style="display:flex;gap:8px"><button class="big gold" style="flex:1" onclick="window.__fundTab='reward';openFund()">軍資金を出す（報酬を見る）</button><button class="big ghost" style="flex:1" data-c="close">閉じる</button></div>`:""}
+    ${tab==="reward"?`
+    ${mine&&mine.tier?`<div class="f-mine"><span class="f-medal">${["","壱","弐","参","四","五"][FUND.round]||FUND.round}</span><b>${esc(fundTierOf(mine.tier).rank)}</b>として第${FUND.round}次軍資金に加わっています（${fundYen(mine.tier)}）。称号「第${FUND.round}次軍資金提供者」${mine.tier>=1000?"・奉納旗":""}${mine.tier>=5000?"・本陣の飾り":""}が付いています。${mine.name?"名鑑の名："+esc(mine.name):""}</div>`:`<div class="tiny muted">支援は性能ではなく「名誉・見た目・限定性」の報酬です。後から始めた人が追いつけなくなる強さは配りません。</div>`}
+    ${(f.tiers||[]).map((t,i)=>`<div class="f-tier"><span class="rank">${esc(t.rank)}</span><span class="amt">${fundYen(t.amt)}</span><span class="desc">${t.give.map(esc).join("・")}</span><button class="chip kin" style="cursor:pointer" onclick="fundSupport(${i})">${t.pay||(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap)?"出す":"近日"}</button></div>`).join("")}
+    <div class="tiny muted">支払いの後にこの頁へ戻ると、この端末に支援者の印が残ります。名は「公開」「ゲーム内の名で公開」「匿名」から選べます（名鑑は希望者のみ）。</div>
+    <div class="dlg-actions" style="display:flex;gap:8px"><button class="big ghost" style="flex:1" data-c="close">閉じる</button></div>`:""}
+    ${tab==="progress"?`
+    <div class="tiny muted">集めて終わりではなく、何を作っているかを見せます。前と後の絵は、出来しだいここに並べます。</div>
+    ${(f.progress||[]).map(x=>`<div class="row"><span class="tiny" style="flex:1">${esc(x.n)}</span><span class="tiny num">${x.p}%</span></div><div class="f-bar"><i style="width:${x.p}%"></i></div>`).join("")}
+    <div><div class="sec-title">軍資金開発報告（週に一度）</div>${(f.journal&&f.journal.length)?f.journal.map(j=>`<div class="row"><span class="chip">${esc(j.w)}</span><span class="tiny" style="flex:1">${esc(j.t)}</span></div>`).join(""):'<div class="tiny muted">募集が始まると、ここに毎週の報告を載せます</div>'}</div>
+    <div class="dlg-actions" style="display:flex;gap:8px"><button class="big ghost" style="flex:1" data-c="close">閉じる</button></div>`:""}
+    ${tab==="people"?`
+    <div style="text-align:center;font-size:22px;color:#FFD166;font-weight:900">${(f.backers||0).toLocaleString()}<span style="font-size:12px;color:var(--gofun-dim)">人が軍資金に加わっています</span></div>
+    <div class="tiny muted" style="text-align:center">額の順ではなく、加わった順。名は希望した人だけ</div>
+    <div class="list">${supporters.length?supporters.map(x=>`<div class="row"><span class="f-medal">${["","壱","弐","参","四","五"][x.round||FUND.round]||""}</span><span style="flex:1">${esc(x.name)}</span><span class="tiny muted">${esc((fundTierOf(x.tier||500)).rank)}</span></div>`).join(""):'<div class="tiny muted">まだ名はありません</div>'}</div>
+    <div class="dlg-actions" style="display:flex;gap:8px"><button class="big ghost" style="flex:1" data-c="close">閉じる</button></div>`:""}
+    ${tab==="vote"?`
+    <div class="tiny muted">次の軍資金募集の普請を、皆で決めます。一票どうぞ。</div>
+    <div class="f-vote">${(f.vote&&f.vote.items||[]).map(([k,n])=>{ const c=(f.vote.counts||{})[k]||0; const tot=Object.values(f.vote.counts||{}).reduce((a,b)=>a+b,0); let mine2=null; try{ mine2=(JSON.parse(localStorage.getItem("sengoku_fund_vote")||"{}"))[FUND.round]; }catch(e){} return `<button class="cmd ${mine2===k?"sel":""}" onclick="fundVote('${k}')">${esc(n)}<span class="cost">${tot?Math.round(c/tot*100)+"%":"—"}${mine2===k?"　（あなたの一票）":""}</span></button>`; }).join("")}</div>
+    <div class="dlg-actions" style="display:flex;gap:8px"><button class="big ghost" style="flex:1" data-c="close">閉じる</button></div>`:""}
+  </div>`;
+  let el=document.querySelector(".overlay.fundov"); if(!el){ el=document.createElement("div"); el.className="overlay fundov"; el.style.zIndex="94"; document.body.appendChild(el); }
+  el.innerHTML=html;
+  el.querySelectorAll('[data-c="close"]').forEach(b=>b.onclick=()=>{ el.remove(); });
+  el.onclick=ev=>{ if(ev.target===el) el.remove(); };
+  track("fund/open");
+}
+setTimeout(()=>{ try{ fundLoadFeed(); }catch(e){} }, 1500);
 /* ---- 筋書きの鍵：長篠は無料、信長包囲網は ¥500、ほかは近日公開（解除の言葉で開く） ---- */
 const IN_APP=!!(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap);   // iPhone 版の包みの中か
 const FREE_SCENARIOS=new Set(["nagashino"]);   // 長篠だけ無料（iPhone 版もウェブ版も）
