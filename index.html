@@ -3349,7 +3349,7 @@ function nearestCastle(a){
 /* 雪国：北陸・東北・信濃・飛騨・上野の北。冬は道が閉ざされる */
 const SNOWY=new Set(["越後","越中","加賀","能登","越前","佐渡","羽前","羽後","陸奥","陸中","陸前","岩代","磐城","信濃","飛騨","上野","松前"]);
 function snowyAt(x,y){ let best=null,bd=1e9; for(const c of Object.values(W.castles)){ const t=W.tile[c.id]; const d=(t.c-x)*(t.c-x)+(t.r-y)*(t.r-y); if(d<bd){ bd=d; best=c; } } const p=best?DATA.provinces[best.prov]:null; return !!(p&&SNOWY.has(p.n)); }
-const MARCH_BASE=1.375;   // 街道の足の土台（一日に進む里の目安。第90巡で半分、第105巡でまた半分に：作り手の指示。長篠へ向かう信長も遅くてよい）
+const MARCH_BASE=2.75;   // 街道の足の土台（一日に進む里の目安。第90巡で半分に）。長篠へ向かう信長の軍だけ遅くする（第106巡）
 function marchSpeed(a){
   // 疾駆の将がおれば道中が早い
   var _swift = a.gens.some(id=>W.generals[id]&&hasTrait(W.generals[id],"疾駆"));
@@ -7493,7 +7493,7 @@ function tutorial(k){
 
 /* ---- 初めての手ほどき（長篠）：初めてこの遊びに触れた人へ、場面ごとに一枚ずつ。〈その他〉の手引きとは別 ---- */
 const GUIDE={
-  welcome:{h:"ようこそ、戦国の世へ", lead:"あなたは織田信長。武田勝頼が長篠城を囲み、七日後に設楽原で決戦になります。まずは画面の見方だけ覚えれば十分です。", steps:[
+  welcome:{h:"ようこそ、戦国の世へ", lead:"あなたは織田信長。武田勝頼が長篠城を囲み、二十日あまりの後に設楽原で決戦になります。まずは画面の見方だけ覚えれば十分です。", steps:[
     "地図の<span class='gk'>青い城</span>があなたの城、<span class='gk'>赤い城</span>が敵。城の下の数字は守っている兵の数です",
     "右上の<span class='gk'>▶ ▶▶</span>で日が進みます（いまは止まっています）。<span class='gk'>Ⅱ</span>でいつでも止められます",
     "城を<span class='gk'>押す</span>と、その城でできることが札に出ます。まずは自分の城を一つ押してみましょう",
@@ -7539,7 +7539,7 @@ const INTRO_PAGES=(sc)=>{
     {h:"城の札で出来ること", t:["<b>出陣</b>：将と兵を選び、隣の城へ。敵の城なら囲みになり、自分の城なら兵を移せます。","<b>内政</b>：<b>新田</b>で石高、<b>商業</b>で実入り、<b>人材登用</b>で将を増やします。","<b>築城</b>は地図で場所を押し、下の帯の〈ここに築く〉で建ちます。<b>普請</b>で城を大きく。"]},
   ];
   const nag=[
-    {h:"長篠の筋書き", t:["<b>長篠城</b>は武田 20,000 に囲まれています。織田 25,000 は岐阜を発ち、七日かけて後詰に向かいます。","七日目、両軍は<b>設楽原</b>で決戦。それまでは兵を整え、地図を眺めて待ちます（囲みの軍は勝手に動きません）。","決戦の窓が出たら〈会戦〉を押すと、合戦の画面へ。"]},
+    {h:"長篠の筋書き", t:["<b>長篠城</b>は武田 20,000 に囲まれています。織田 25,000 は岐阜を発ち、二十日あまりかけて後詰に向かいます。","着いた日、両軍は<b>設楽原</b>で決戦。それまでは兵を整え、地図を眺めて待ちます（囲みの軍は勝手に動きません）。","決戦の窓が出たら〈会戦〉を押すと、合戦の画面へ。"]},
     {h:"合戦の操作", t:["味方の隊を<b>押して選び</b>、升を押せばそこへ、敵を押せば討ちにゆきます。右の名簿からも選べます。","〈柵を築く〉（B）で馬防柵。武田の騎馬は柵の前で足が止まり、鉄砲の的になります。","二本指で寄せられます。寄せた画面は<b>地面を引けば動きます</b>。整ったら真ん中の大きな〈開戦〉。"]},
     {h:"勝ったあと", t:["勝てば武田は矛先を徳川へ向け、織田は西へ目を向けます。負ければ長篠城は武田のものに。","城を取り、内政で富ませ、盟と傘下で天下へ。困ったら〈その他〉→〈手引き〉。","この手引きは一度きり。もう一度見るなら〈その他〉→〈手引き〉から。"]},
   ];
@@ -7594,7 +7594,7 @@ const MSIM_CHAPTERS=[
    {t:"<b>自分の城（青）</b>を押しましょう。<br><span class='tiny muted'>光っている城です</span>", ring:S=>S.hq(), ok:S=>S.ownOpened},
    {t:S=>S.council()?"誰か一人の<b>〈命じる〉</b>を押しましょう（新田開発など）":"城の札の<b>〈内政〉</b>を押しましょう", hot:S=>S.council()?simBtn("命じる"):simBtn("内政"), ok:S=>mapSimTasks()>S.tasks0},
    {t:"右上の<b>▶</b>を押して、日を進めましょう。<br><span class='tiny muted'>Ⅱ でいつでも止まります</span>", hot:'[data-s="1"]', ok:S=>W.speed>0},
-   {t:S=>S.dec()?"決戦です。<b>〈采配を取る〉</b>を押しましょう":"七日たつと武田との<b>決戦</b>の窓が開きます。<br>そのまま待ちましょう（急ぐなら ▶▶）", hot:S=>S.dec()?"#dcGo":null, skip:S=>W.scenario!=="nagashino", ok:S=>!!(W.decisiveWon&&(W.decisiveWon.nagashino_open||W.decisiveWon.nagashino))},
+   {t:S=>S.dec()?"決戦です。<b>〈采配を取る〉</b>を押しましょう":"信長の後詰が長篠へ着くと（二十日あまり）武田との<b>決戦</b>の窓が開きます。<br>そのまま待ちましょう（急ぐなら ▶▶）", hot:S=>S.dec()?"#dcGo":null, skip:S=>W.scenario!=="nagashino", ok:S=>!!(W.decisiveWon&&(W.decisiveWon.nagashino_open||W.decisiveWon.nagashino))},
    {t:"次は城取り。<b>敵の城（赤）</b>を押しましょう。<br><span class='tiny muted'>光っている城です</span>", ring:S=>S.foe(), ok:S=>S.foeOpened},
    {t:S=>S.inDispatch()?"将を選んで、下の<b>〈出陣〉</b>を押しましょう":"城の札の<b>〈この城を攻める〉</b>を押し、兵を出す城を選びましょう", hot:S=>S.inDispatch()?simBtn("出陣"):simBtn("この城を攻める"), ok:S=>S.marching()},
    {t:"軍が向かっています。着けば囲みが始まります。<br>ここまでが第一章。", ok:S=>true, pause:true},
@@ -13461,7 +13461,7 @@ DECISIVE.push(
    atkGens:["武田勝頼","山県昌景","馬場信春","内藤昌豊","真田信綱","土屋昌次","小山田信茂","穴山信君","武田信廉","原昌胤"],
    defGens:["織田信長","徳川家康","羽柴秀吉","柴田勝家","丹羽長秀","滝川一益","佐久間信盛","明智光秀","本多忠勝","榊原康政","酒井忠次","前田利家","佐々成政","織田信忠"],
    site:["長篠城","岡崎城"],
-   gather:"武田二万が長篠城を囲む。織田の後詰二万五千が岐阜を発ち、徳川と合わせて設楽原に馬防柵を組む。七日の後、決戦",
+   gather:"武田二万が長篠城を囲む。織田の後詰二万五千が岐阜を発ち、徳川と合わせて設楽原に馬防柵を組む。二十日あまりの後、決戦",
    open:"設楽原。柵の内から三千挺の鉄砲が、武田の騎馬を撃ち崩す",
    after:{ atkWin:{ text:"武田の騎馬が柵を突き破り、織田徳川は敗走した。長篠城は武田の手に落ち、勝頼は矛先を徳川へ向けた", capture:"長篠城", truce:1095, ally:["武田家","上杉家"], order:["武田家","徳川家"],
              orders:[["本願寺","織田家",540]], rels:[["北条家","武田家",10],["上杉家","武田家",-10],["毛利家","織田家",-10]], news:["武田の勝ちに本願寺が勢いづき、畿内の織田は守りに回る","北条は武田との縁を重んじ、毛利は織田を軽んじ始めた"] },
@@ -13575,7 +13575,7 @@ function startDecisiveOpening(){
   const d=DECISIVE.find(x=>decisiveIn(x,sc) && x.when==="open" && !W.fired.has(x.id));
   if(!d) return;
   if(!clanByName(d.atk)||!clanByName(d.def)) return;
-  W.decisivePending=d.id; W.decisiveAt=dayNumber()+(d.key==="nagashino_open"?12:7);   // 長篠の後詰はゆっくり（作り手の指示）
+  W.decisivePending=d.id; W.decisiveAt=dayNumber()+(d.key==="nagashino_open"?24:7);   // 長篠の後詰はゆっくり（作り手の指示：第106巡で足を半分＝二十四日）
   if(d.key==="nagashino_open"){ try{ stageNagashino(); }catch(e){ console.error(e); } }
   else if(d.stage){ try{ stageDecisive(d); }catch(e){ console.error(e); } }
   openingBanner(d.gather, 0);
@@ -14015,7 +14015,7 @@ function stageNagashino(){
   mk(tk,["武田勝頼","山県昌景","馬場信春","内藤昌豊","真田信綱","土屋昌次"], t.c+0.7, t.r+0.5, "包囲", nag.id, "武田勝頼軍団", 20000);
   const gifu=myCastles(od.id).find(c=>c.hq)||myCastles(od.id)[0];
   if(gifu){ const g0=W.tile[gifu.id]; const rel=mk(od,["織田信長","羽柴秀吉","柴田勝家","丹羽長秀","滝川一益","佐久間信盛"], g0.c, g0.r, "移動", nag.id, "織田信長軍団（後詰）", 25000);
-    if(rel){ const path=findPath(gifu.id,nag.id,od.id); const ids=[gifu.id,...(path||[])]; if(ids[ids.length-1]!==nag.id) ids.push(nag.id); rel.route=ids.map(id=>W.tile[id]).filter(Boolean); rel.day0=dayNumber(); rel.days=12; } }
+    if(rel){ const path=findPath(gifu.id,nag.id,od.id); const ids=[gifu.id,...(path||[])]; if(ids[ids.length-1]!==nag.id) ids.push(nag.id); rel.route=ids.map(id=>W.tile[id]).filter(Boolean); rel.day0=dayNumber(); rel.days=24; }   /* 岐阜から長篠へ二十四日（第106巡：足を半分に） */ }
   bumpGarrison();
   // 画面は長篠城へ。全図のままでは何が起きているか分からない
   setTimeout(()=>{ cam.x=t.c+(viewW()<960?2:3); cam.y=t.r; cam.scale=viewW()<960?4.2:6.5; camTarget.x=camTarget.y=null; camTarget.scale=null; clampCam(); },0);
@@ -15255,8 +15255,7 @@ function unitSlain(d, a){
     else { v.morale=Math.min(100,v.morale+(6+5*near)*k); } }
   if(a && a.troops>.5 && a.morale>0) bshout(a.id, `${d.name}隊、撃破！`, 3);
   try{ playSE(foe?"warcry":"rout"); }catch(_){ }
-  // 曲を一瞬ひそめる（法螺貝も太鼓も止まる間）
-  try{ if(Audio_.bgmGain){ const g=Audio_.bgmGain.gain; g.cancelScheduledValues(Audio_.ctx.currentTime); g.setValueAtTime(g.value,Audio_.ctx.currentTime); g.linearRampToValueAtTime(0.12,Audio_.ctx.currentTime+0.15); } B.duckUntil=performance.now()+2600; }catch(_){ }
+  /* 第106巡：討ち取りで曲をひそめない（曲が止まって聞こえた。作り手の指示：曲は途切れさせない） */
   log(`${d.name}隊が討ち尽くされました`,"war");
 }
 function bshout(id,text,sec){
@@ -16377,6 +16376,7 @@ function aiCommandSide(side, onlyAlly){
   for(const u of B.units){
     if(u.side!==side||u.morale<=0||u.troops<=.5||u.order.k==="retreat") continue;
     if(onlyAlly && !u.ally) continue;
+    if(onlyAlly && B.pursued && u.pursue && u.type!==3 && !u.cmd){ if(u.order.k!=="hold") u.order={k:"hold"}; continue; }   /* 第106巡：〈追い討ち〉には味方の他家の隊も従う（作り手の指示） */
     /* 第102巡：長篠の守り手（織田・徳川）は、追い討ちまで柵を出ない。鉄砲は追い討ちの後も柵の内（作り手の指示：AIの隊も柵を出ない） */
     if(B.nagashino && side===1 && !u.tobiBack && (!B.pursued || u.type===3)){ if(u.order.k!=="guard"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } continue; }
     if(u.cmd){   // 任せたときも本陣は控える
@@ -19001,7 +19001,8 @@ function makeSE(kind){
 }
 function playSE(kind, vol){
   if(!Audio_.enabled||!Audio_.sfx) return;
-  if(B && kind!=="gun" && kind!=="horn") return;   /* 合戦中は曲と鉄砲と法螺貝だけ（討ち取りなどの効果音は要らない。作り手の指示） */
+  if(kind==="horn") return;   /* 第106巡：法螺貝は鳴らさない（作り手の指示） */
+  if(B && kind!=="gun") return;   /* 合戦中は曲と鉄砲だけ（討ち取りなどの効果音は要らない。作り手の指示） */
   audioInit();
   if(!Audio_.ready) return;
   if(!Audio_.se.has(kind)){
@@ -19030,7 +19031,7 @@ function updateMusic(){
     if(B.opening>0){ playScene("battle"); if(Audio_.bgmGain) Audio_.bgmGain.gain.value=0.45; if(!B.windAt||performance.now()-B.windAt>2800){ B.windAt=performance.now(); try{ playSE("wind"); }catch(e){} } return; }
     if(Audio_.bgmGain && !(B.duckUntil>performance.now())) Audio_.bgmGain.gain.value=0.6;
     const mine=B.units.filter(u=>u.side===B.ctx.playerSide&&u.troops>.5&&!u.left).reduce((s2,u)=>s2+u.troops,0), foe=B.units.filter(u=>u.side!==B.ctx.playerSide&&u.troops>.5&&!u.left).reduce((s2,u)=>s2+u.troops,0);
-    playScene(mine<foe*0.75 ? "battleTense" : "battle"); return; }
+    playScene("battle"); return; }   /* 第106巡：押されているときの曲への差し替えはやめ（差し替えのたびに曲が途切れた） */
   if(W.result==="敗北"){ playScene("defeat"); return; }
   if(W.result){ playScene("victory"); return; }
   if(!W.started){ playScene("castle"); return; }
