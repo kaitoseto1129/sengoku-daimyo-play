@@ -17952,7 +17952,7 @@ window.addEventListener("keydown",ev=>{
   else if(ev.key==="w"||ev.key==="W"||ev.key==="v"||ev.key==="V"){ const fwd=(ev.key==="w"||ev.key==="W")?1:-1; const dir=(B.ctx.playerSide===0?1:-1)*fwd; manualCommand(); let n=0; for(const u of B.units){ if(u.side!==B.ctx.playerSide||u.troops<=.5||u.morale<=0||u.left) continue; u.order={k:"move",x:Math.max(.5,Math.min(BF.w-.5,u.x+dir*8)),y:u.y}; u.gx=u.order.x; u.gy=u.order.y; n++; } if(n){ toast(fwd>0?"全軍、八歩前へ":"全軍、八歩下がる"); const c=B.units.find(u=>u.side===B.ctx.playerSide&&u.cmd); if(c) bshout(c.id,fwd>0?"前へ！":"下がれ！",1.6); } renderBattleFoot(); }
   else if(ev.key===" "){ ev.preventDefault(); if(B.opening>0){ B.opening=0; return; } B.paused=!B.paused; renderBattleFoot(); }
   else if(ev.key==="Escape"){ B.sel=null; B.mode=null; B.group=null; B.paused=false; renderBattleFoot(); }
-  else if(ev.key==="e"||ev.key==="E"){ B.group=B.units.filter(u=>u.side===B.ctx.playerSide&&u.troops>.5).map(u=>u.id); B.sel=null; toast(`全軍 ${B.group.length}隊を選びました`); renderBattleFoot(); }
+  else if(ev.key==="e"||ev.key==="E"){ B.group=B.units.filter(u=>u.side===B.ctx.playerSide&&u.troops>.5&&!u.ally).map(u=>u.id); B.sel=null; toast(`全軍 ${B.group.length}隊を選びました`); renderBattleFoot(); }
   else if(ev.key==="b"||ev.key==="B"){ startFenceMode(); }
   else if((ev.key==="v"||ev.key==="V") && B && B.over===null && B.opening<=0){ manualCommand(); const ids=B.units.filter(g=>g.side===B.ctx.playerSide&&g.type===3).map(g=>g.id); if(!nagVolley(ids)) toast("弾込めの最中か、撃てる鉄砲隊がおりませぬ"); }
   else if(ev.key==="f"||ev.key==="F"){ startFireMode(); }
