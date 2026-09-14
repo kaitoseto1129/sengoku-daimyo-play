@@ -15067,8 +15067,11 @@ function nagCouncil(){
 function nagApplyPlan(plan){
   const atk=B.units.filter(u=>u.side===0&&!u.cmd&&u.troops>.5); const cav=atk.filter(u=>u.type===2), inf=atk.filter(u=>u.type!==2&&u.type!==3), rng=atk.filter(u=>u.type===3);
   const laneY=(k)=>k==="top"?BF.h*0.17:k==="bot"?BF.h*0.83:BF.h*0.5;
-  if(plan==="center"){ cav.forEach((u,i)=>{ u.gy=BF.h*0.5+(i%2?1:-1)*(Math.floor(i/2)+0.5)*2.4; u.y=u.gy; }); }
-  else if(plan==="wing"){ const wing=rnd()<0.5?"top":"bot"; B.nagWing=wing; cav.forEach((u,i)=>{ u.gy=laneY(wing)+(i%2?1:-1)*Math.floor(i/2)*2.4; u.y=u.gy; }); }
+  /* 機械の武田（人が織田）は三陣の列に並べてあるので、並びは崩さない（前は騎馬二十四隊を中央に寄せて野の外（y=-24）まではみ出し、開戦で上下から湧いて見えた） */
+  const keepCols = !!(B.waves && B.ctx.playerSide===1);
+  const clampY=y=>Math.max(1.2,Math.min(BF.h-1.2,y));
+  if(plan==="center"){ if(!keepCols){ const n=Math.max(1,cav.length); cav.forEach((u,i)=>{ u.gy=clampY(BF.h*0.5+(i%2?1:-1)*(Math.floor(i/2)+0.5)*Math.min(2.4,(BF.h*0.7)/n)); u.y=u.gy; }); } }
+  else if(plan==="wing"){ const wing=rnd()<0.5?"top":"bot"; B.nagWing=wing; if(!keepCols){ const n=Math.max(1,cav.length); cav.forEach((u,i)=>{ u.gy=clampY(laneY(wing)+(i%2?1:-1)*Math.floor(i/2)*Math.min(2.4,(BF.h*0.3)/n)); u.y=u.gy; }); } }
   else if(plan==="ashigaru"){ inf.forEach((u,i)=>{ u.gx=bcx(0.6); u.x=Math.min(u.x,bcx(0.62)); u.fenceFirst=true; }); cav.forEach(u=>{ u.holdUntil=999; u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; u.waitFence=true; }); if(B.waves) B.waves.forEach(w=>{ w.done=true; }); }
   else if(plan==="guns"){ for(const u of rng.concat(atk.filter(u=>u.type===4))){ u.gunHunter=true; } }
 }
@@ -17624,9 +17627,10 @@ function bView(){
   B.cx=Math.max(hw,Math.min(BF.w-hw,B.cx)); B.cy=Math.max(hh,Math.min(BF.h-hh,B.cy));
   return {z, cx:B.cx, cy:B.cy};
 }
-function bCamTo(x,y){ if(!B) return; B.cxT=x; B.cyT=y; }
+/* 画面を寄せるのは人が押したときだけ（討ち取り・柵の破れなどの出来事で勝手に動かない。作り手の指示） */
+function bCamTo(x,y,byUser){ if(!B||!byUser) return; B.cxT=x; B.cyT=y; }
 function bZoomStep(k){ if(!B) return; const W_=bcanvas.clientWidth||1, H_=bcanvas.clientHeight||1; const s0=H_/BF.h; const step=(W_/s0)*0.5; B.cxT=(B.cxT!==undefined?B.cxT:B.cx)+(k>0?step:-step); B.cyT=BF.h/2; }   /* 〈◀〉〈▶〉：画面ひとつ分の半分だけ横に動く */
-function bBandCam(i){ if(!B) return; if((B.zoom||1)===1) bSetZoom(BZ_NORMAL); const mine=B.units.filter(u=>u.side===B.ctx.playerSide&&u.troops>.5&&!u.left), foe=B.units.filter(u=>u.side!==B.ctx.playerSide&&u.troops>.5&&!u.left); const mx=mine.length?mine.reduce((a,u)=>a+u.x,0)/mine.length:BF.w/2, fx=foe.length?foe.reduce((a,u)=>a+u.x,0)/foe.length:BF.w/2; bCamTo((mx+fx)/2, (i+0.5)*BF.h/3); }
+function bBandCam(i){ if(!B) return; if((B.zoom||1)===1) bSetZoom(BZ_NORMAL); const mine=B.units.filter(u=>u.side===B.ctx.playerSide&&u.troops>.5&&!u.left), foe=B.units.filter(u=>u.side!==B.ctx.playerSide&&u.troops>.5&&!u.left); const mx=mine.length?mine.reduce((a,u)=>a+u.x,0)/mine.length:BF.w/2, fx=foe.length?foe.reduce((a,u)=>a+u.x,0)/foe.length:BF.w/2; bCamTo((mx+fx)/2, (i+0.5)*BF.h/3, true); }
 function bSetZoom(z, fx, fy){ if(!B) return; const old=B.zoom||1; B.zoom=z; if(z>1){ if(fx!==undefined){ B.cx=fx; B.cy=fy; B.cxT=B.cyT=undefined; } else if(old===1){ const su=B.sel!==null?B.units.find(u=>u.id===B.sel):null; const mine=B.units.filter(u=>u.side===B.ctx.playerSide&&u.troops>.5&&!u.left); const p=su||(mine.length?{x:mine.reduce((a,u)=>a+u.x,0)/mine.length,y:mine.reduce((a,u)=>a+u.y,0)/mine.length}:{x:BF.w/2,y:BF.h/2}); B.cx=p.x; B.cy=p.y; B.cxT=B.cyT=undefined; } } bView(); renderBattleFoot(); }
 /* Zキー／〈寄る〉：引ききった姿 → 通常の寄り → 近い寄り、を巡る。寄るときは選んだ隊か自軍の真ん中へ */
 function bCycleZoom(){ if(!B) return; const z=B.zoom||1; const levels=[1,BZ_NORMAL,2.6]; let i=levels.findIndex(v=>Math.abs(v-z)<0.05); i=(i<0?0:i+1)%levels.length; bSetZoom(levels[i]); toast(["引く","寄る","近く"][i]+"（Zキー・ホイール・二本指でも）"); }
@@ -17710,7 +17714,7 @@ bcanvas.addEventListener("pointerdown",ev=>{
       if(ev.shiftKey){ B.group=(B.group||(B.sel!==null?[B.sel]:[])).filter(id=>id!==hit.id).concat([hit.id]); B.sel=null; }
       else if(B.sel===hit.id && !B.group){ B.sel=null; }
       else { B.sel=hit.id; B.group=null; }
-      { const hu=B.units.find(z=>z.id===hit.id); if(hu) bCamTo(hu.x,hu.y); }
+      { const hu=B.units.find(z=>z.id===hit.id); if(hu) bCamTo(hu.x,hu.y,true); }
       B.mode=null; renderBattleFoot(); return;
     }
   }
@@ -18061,22 +18065,19 @@ function renderBattleFoot(){
       ${B.oke&&B.opening<=0&&B.ctx.playerSide===B.okeFoe?`<button class="tool ${B.okeAlertMode?"on":""}" id="bAlert" title="全隊の目を利かせる（見つけやすいが足は遅い）">警戒を強める</button><button class="tool" id="bMuster" title="散らばった隊を本陣へ寄せる">本隊集中</button>`:""}
       <button class="tool" id="bAllGuard" hidden>全軍持ち場</button>
       <button class="tool sub" id="bFence" title="銭を投じて自陣の前に馬防柵を組む（一列2,000・四列まで・開戦九十秒まで／Bキー）" ${(B.fences||0)>=FENCE_MAX||B.elapsed>90?'style="opacity:.55"':""}>柵を築く ${(B.fences||0)}/${FENCE_MAX}</button>
-      <button class="tool sub" id="bSelAll" title="全軍を選び、まとめて命じる（Eキー）">全軍選択</button>
       ${(B.group&&B.group.length)||B.sel!==null?`<button class="tool" id="bUnsel" title="選択を解く（Esc）">解除</button>`:""}
       <span class="tiny muted" style="flex:1;text-align:center;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${B.mode==="fence"?'<b style="color:var(--kin)">柵を立てる場所を画面で押してください（Esc で取り消し）</b>':B.mode==="fire"?'<b style="color:#FF9A55">火を放つ木立を押してください（Esc で取り消し）</b>':"隊を押して選ぶ → 地面を押せばそこへ、敵を押せば討つ"}</span>
       ${B.undo&&B.undo.at>B.elapsed-4?`<button class="tool on" id="bUndo" title="直前の命令を取り消す">取消</button>`:""}
       <button class="tool sub ${B.feedOn?"on":""}" id="bFeed" title="戦況の記録を左上に出す／畳む">記録</button>
       <span class="fsep"></span>
       <button class="tool sub ${B.autoMine?"on":""}" id="bAutoMine" title="自軍の采配も任せる。もう一度押せば戻る">${B.autoMine?"采配：自動":"采配：手動"}</button>
-      <button class="tool aux" data-cam="mine" title="わが本陣へ">本陣</button><button class="tool aux" data-cam="front" title="前線へ">前線</button><button class="tool aux" data-cam="foe" title="敵の本陣へ">敵陣</button>
-      <button class="tool aux" onclick="bZoomStep(-1)" title="左へ（地面を引いても動く）">◀</button><button class="tool aux" onclick="bZoomStep(1)" title="右へ">▶</button><button class="tool aux" id="bZoom" title="寄り引き（Zキー・ホイール・二本指でも）">${(B.zoom||1)<1.05?"寄る":"引く"}</button>
-      <button class="tool aux" id="bSpeed">${B.paused?"▶ 再開":"速さ ×"+(B.rate||1)}</button><button class="tool aux" id="bSound" title="音（曲と効果音）の入り切り">${Audio_.enabled?"♪ 入":"♪ 切"}</button>
+      <button class="tool aux" id="bSpeed" title="速さ（Rキー）">${"速さ ×"+(B.rate||1)}</button><button class="tool aux" id="bSound" title="音（曲と効果音）の入り切り">${(Audio_.enabled&&Audio_.music)?"♪ 入":"♪ 切"}</button>
       <button class="tool aux ${B.retreatArmed?"on":""}" id="bAllRetreat" style="${B.retreatArmed?"color:#FF9A88":""}">${B.retreatArmed?"本当に退く？":"全軍退却"}</button>`;
     { const bp=document.getElementById("bPause"); if(bp) bp.onclick=()=>{ B.paused=!B.paused; renderBattleFoot(); }; }
-    { const bs=document.getElementById("bSound"); if(bs) bs.onclick=()=>{ toggleSound(); renderBattleFoot(); }; }   /* 会戦中にも音の入り切り（作り手の指示） */
+    { const bs=document.getElementById("bSound"); if(bs) bs.onclick=()=>{ if(Audio_.enabled && !Audio_.music){ Audio_.music=true; savePrefs(); Audio_.scene=null; try{ ensureAudioRunning(); updateMusic(); }catch(_){ } } else toggleSound(); if(Audio_.enabled){ Audio_.music=true; savePrefs(); } renderBattleFoot(); }; }   /* 会戦中にも音の入り切り（作り手の指示） */
     { const bf=document.getElementById("bFeed"); if(bf) bf.onclick=()=>{ B.feedOn=!B.feedOn; renderBattleFoot(); }; }
     foot.querySelectorAll("[data-cam]").forEach(b=>b.onclick=()=>{ const k=b.dataset.cam; const mine=B.units.filter(u=>u.side===B.ctx.playerSide&&u.troops>.5&&!u.left), foe=B.units.filter(u=>u.side!==B.ctx.playerSide&&u.troops>.5&&!u.left); const mc=mine.find(u=>u.cmd)||mine[0], fc=foe.find(u=>u.cmd)||foe[0];
-      if(k==="mine"&&mc) bCamTo(mc.x,mc.y); else if(k==="foe"&&fc) bCamTo(fc.x,fc.y); else { const mx=mine.length?mine.reduce((a,u)=>a+u.x,0)/mine.length:BF.w/2, fx=foe.length?foe.reduce((a,u)=>a+u.x,0)/foe.length:BF.w/2; bCamTo((mx+fx)/2, BF.h/2); } });
+      if(k==="mine"&&mc) bCamTo(mc.x,mc.y,true); else if(k==="foe"&&fc) bCamTo(fc.x,fc.y,true); else { const mx=mine.length?mine.reduce((a,u)=>a+u.x,0)/mine.length:BF.w/2, fx=foe.length?foe.reduce((a,u)=>a+u.x,0)/foe.length:BF.w/2; bCamTo((mx+fx)/2, BF.h/2); } });
     { const ba=document.getElementById("bAdvice"); if(ba) ba.onclick=()=>{ B.adviceUntil=B.elapsed+6; B.sitAt=-9; toast(`軍師「${B.nagAdvice}」`); }; const bu=document.getElementById("bUndo"); if(bu) bu.onclick=()=>{ undoCommand(); renderBattleFoot(); }; }
     { const big=document.getElementById("bBeginBig"); if(big){ big.hidden=!(B.opening>0); big.onclick=()=>{ const bb=document.getElementById("bBegin"); if(bb) bb.click(); big.hidden=true; }; } }
     { const bb=document.getElementById("bBegin"); if(bb) bb.onclick=()=>beginBattleNow(); }
@@ -18126,10 +18127,9 @@ function renderBattleFoot(){
       <div class="sec-title">城攻め</div><div class="tiny">石垣は越えられない。城門を叩いて破れば城内へなだれ込める（守りの利が薄れる）。守り手は柵の内から撃ち続ける。</div>
       <button class="big gold" id="bhClose">閉じる</button></div>`; document.getElementById("battle").appendChild(el); el.querySelector("#bhClose").onclick=()=>{ el.remove(); B.paused=false; renderBattleFoot(); }; }; }
     { const bd=document.getElementById("bDuel"); if(bd) bd.onclick=()=>{ if(B.duelDone) return toast("一騎討ちはもう済んでおります"); const a=B.units.find(u=>u.cmd&&u.side===B.ctx.playerSide&&u.morale>0), b=B.units.find(u=>u.cmd&&u.side!==B.ctx.playerSide&&u.morale>0); if(!a||!b) return toast("本陣が立っておりませぬ"); if(dist(a,b)>8) return toast(`敵の本陣が遠い（${Math.round(dist(a,b))}歩、八歩以内で）。本陣を寄せてから`); B.duelForce=true; manualCommand(); a.order={k:"attack",id:b.id}; bshout(a.id,"いざ尋常に勝負！",2.4); toast("大将が敵将へ向かいます。四歩以内で一騎討ちに"); }; }
-    document.getElementById("bSelAll").onclick=()=>{ const all=B.units.filter(u=>u.side===B.ctx.playerSide&&u.troops>.5).map(u=>u.id); if(B.group&&B.group.length===all.length){ B.group=null; toast("選択を解きました"); } else { B.group=all; B.sel=null; toast(`全軍 ${B.group.length}隊を選びました。地面を押せば移動、敵を押せば討ちにゆきます`); } renderBattleFoot(); };
+    { const bsa=document.getElementById("bSelAll"); if(bsa) bsa.onclick=()=>{ const all=B.units.filter(u=>u.side===B.ctx.playerSide&&u.troops>.5).map(u=>u.id); if(B.group&&B.group.length===all.length){ B.group=null; toast("選択を解きました"); } else { B.group=all; B.sel=null; toast(`全軍 ${B.group.length}隊を選びました。地面を押せば移動、敵を押せば討ちにゆきます`); } renderBattleFoot(); }; }
     { const bz=document.getElementById("bZoom"); if(bz) bz.onclick=()=>bCycleZoom(); }
     document.getElementById("bSpeed").onclick=()=>{
-      if(B.paused){ B.paused=false; renderBattleFoot(); return; }
       B.rate = B.rate===1 ? 2 : B.rate===2 ? 4 : B.rate===4 ? 8 : 1;
       PREF.battleRate=B.rate; savePrefs();
       renderBattleFoot();
@@ -18616,8 +18616,8 @@ function makeLoop(scene){
   const R = {
     mapCalm:{bpm:74,bars:8,scale:RITSU,root:-7,drum:1,pluck:.34,drone:.16},
     mapTense:{bpm:96,bars:8,scale:IN_SCALE,root:-9,drum:2,pluck:.34,drone:.22},
-    battle:{bpm:118,bars:8,scale:IN_SCALE,root:-12,drum:2,pluck:.32,drone:.24},
-    battleTense:{bpm:132,bars:8,scale:IN_SCALE,root:-13,drum:2,pluck:.32,drone:.30},
+    battle:{bpm:118,bars:8,scale:RITSU,root:-5,drum:2,pluck:.36,drone:.10},
+    battleTense:{bpm:132,bars:8,scale:IN_SCALE,root:-7,drum:2,pluck:.36,drone:.12},
     castle:{bpm:66,bars:8,scale:RITSU,root:-5,drum:0,pluck:.30,drone:.14},
     victory:{bpm:108,bars:4,scale:RITSU,root:0,drum:2,pluck:.40,drone:.12},
     defeat:{bpm:56,bars:4,scale:IN_SCALE,root:-14,drum:0,pluck:.28,drone:.20},
@@ -18654,8 +18654,8 @@ function makeLoop(scene){
     }
   };
 
-  // 合戦の曲：弦は鳴らさず、陣太鼓と法螺貝と低い唸りだけ。前へ前へと急かす
-  if(scene==="battle"||scene==="battleTense"){
+  // 合戦の曲：低い唸りと法螺貝の不気味な曲はやめ（作り手の指示）。速い刻みの旋律の曲にする（下の一般の作りへ）
+  if(false && (scene==="battle"||scene==="battleTense")){
     const tense=scene==="battleTense";
     const kaSound=(start,amp)=>{ const s0=Math.floor(start*sr), n=Math.floor(0.07*sr); for(let i=0;i<n;i++){ const idx=s0+i; if(idx>=len) break; const t=i/sr; const v=(Math.sin(2*Math.PI*1900*t)*.5+(rq()*2-1)*.5)*Math.exp(-t*70)*amp; L[idx]+=v*.9; Rc[idx]+=v*1.1; } };
     const horn=(start,dur,f,amp)=>{ const s0=Math.floor(start*sr), n=Math.floor(dur*sr); for(let i=0;i<n;i++){ const idx=s0+i; if(idx>=len) break; const t=i/sr; const env=Math.min(1,t*3)*Math.min(1,(dur-t)*2.5); const ff=f*(1+Math.sin(t*5.2)*0.01); const v=(Math.sin(2*Math.PI*ff*t)+Math.sin(2*Math.PI*ff*2*t)*.45+Math.sin(2*Math.PI*ff*3*t)*.2)*env*amp; L[idx]+=v*.9; Rc[idx]+=v; } };
@@ -18713,6 +18713,7 @@ function makeLoop(scene){
 function playScene(scene){
   if(!Audio_.enabled||!Audio_.music){ if(Audio_.bgmSrc){ try{ Audio_.bgmSrc.stop(); }catch(e){} Audio_.bgmSrc=null; Audio_.scene=null; } return; }
   audioInit();
+  try{ if(Audio_.ctx && Audio_.ctx.state!=="running"){ const p=Audio_.ctx.resume(); if(p&&p.then) p.catch(()=>{}); } }catch(_){ }   /* 口が閉じたままだと「入」なのに鳴らない */
   if(!Audio_.ready || (Audio_.scene===scene && Audio_.bgmSrc)) return;   // 同じ曲でも、鳴っていなければ鳴らし直す
   Audio_.scene=scene;
   if(!Audio_.bgm.has(scene)){
@@ -18782,6 +18783,7 @@ function makeSE(kind){
 }
 function playSE(kind, vol){
   if(!Audio_.enabled||!Audio_.sfx) return;
+  if(B && kind!=="gun" && kind!=="horn") return;   /* 合戦中は曲と鉄砲と法螺貝だけ（討ち取りなどの効果音は要らない。作り手の指示） */
   audioInit();
   if(!Audio_.ready) return;
   if(!Audio_.se.has(kind)){
@@ -18807,7 +18809,7 @@ function updateMusic(){
   if(B){
     // 合戦の曲は囃子ふう（太鼓と大鼓と掛け声）。陣立て中は小さく風の音、開戦したら刻み、押されていれば速い刻み
     if(B.over!==null){ playScene(B.over===B.ctx.playerSide?"victory":"defeat"); return; }
-    if(B.opening>0){ playScene("battle"); if(Audio_.bgmGain) Audio_.bgmGain.gain.value=0.25; if(!B.windAt||performance.now()-B.windAt>2800){ B.windAt=performance.now(); try{ playSE("wind"); }catch(e){} } return; }
+    if(B.opening>0){ playScene("battle"); if(Audio_.bgmGain) Audio_.bgmGain.gain.value=0.45; if(!B.windAt||performance.now()-B.windAt>2800){ B.windAt=performance.now(); try{ playSE("wind"); }catch(e){} } return; }
     if(Audio_.bgmGain && !(B.duckUntil>performance.now())) Audio_.bgmGain.gain.value=0.6;
     const mine=B.units.filter(u=>u.side===B.ctx.playerSide&&u.troops>.5&&!u.left).reduce((s2,u)=>s2+u.troops,0), foe=B.units.filter(u=>u.side!==B.ctx.playerSide&&u.troops>.5&&!u.left).reduce((s2,u)=>s2+u.troops,0);
     playScene(mine<foe*0.75 ? "battleTense" : "battle"); return; }
