@@ -487,6 +487,13 @@ body.picking [data-z="home"], body.picking [data-z="save"] { display:none !impor
 @keyframes fundPop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
 .sim-hot{outline:3px solid #FFD166 !important;outline-offset:2px;box-shadow:0 0 0 7px rgba(255,214,102,.28) !important;animation:bbPulse2 .9s ease-out infinite;position:relative;z-index:21}
 #mSim .sim-n{width:26px;height:26px;border-radius:13px;font-size:14px;line-height:26px;min-width:26px}
+#mSim .sim-prog{display:flex;gap:3px;margin:4px 0 6px}
+#mSim .sim-prog i{flex:1;height:5px;border-radius:3px;background:rgba(255,255,255,.14)}
+#mSim .sim-prog i.done{background:#C9A227}
+#mSim .sim-prog i.now{background:#FFE28A;box-shadow:0 0 6px #FFD166}
+#mSim .sim-head{display:flex;align-items:center;gap:8px}
+#mSim .sim-face{width:30px;height:30px;border-radius:50%;background:var(--kin);color:#20180A;font-weight:900;display:grid;place-items:center;flex:none;font-size:13px}
+#mSim button.big.ghost{margin-top:4px;font-size:12px;min-height:30px}
 #mSim .sim-b{font-size:15px;line-height:1.75}
 #bSim .sim-b{font-size:15px}
 .s-guide{margin:10px auto 0;max-width:520px;padding:8px 12px;border-radius:8px;background:rgba(201,162,39,.12);border:1px solid rgba(201,162,39,.5);color:#FFE7A8;font-size:13px;line-height:1.7;text-align:center}
@@ -768,7 +775,7 @@ body.inbattle #stage.paused::after{ display:none; }
       <button class="tool" id="btnPeople">人を集める</button>
       <button class="tool" id="btnSearch" hidden>探す</button>
       <span class="mm-head">その他</span>
-      <button class="tool" id="btnGuide" hidden>手引き</button>
+      <button class="tool" id="btnGuide">手引き・手ほどき</button>
       <button class="tool" id="btnLegend">地図の見方</button>
       <button class="tool" id="btnFund" onclick="openFund()" style="color:#FFD166">軍資金募集</button>
       <button class="tool" id="btnHelp" hidden>見方</button>
@@ -5627,6 +5634,7 @@ function diplomacy(kind,me,other,opt){
       log(`${A.name}が${B.name}に宣戦しました`,"war"); break; }
     default: return "実行できません";
   }
+  if(me===W.player && W.msim){ W.msim.dip=kind; W.msim.dipAt=dayNumber(); }   /* 手ほどきの検め */
   return null;
 }
 /* ---- 捕虜 ---- */
@@ -7570,7 +7578,7 @@ function showGuide(k){
 }
 /* 合戦の中の手ほどき：左上の小さな札に、いま何をすればよいかを順に */
 /* ---- 地図の手ほどき：初めての人を「城を押す → 内政 → 日を進める → 決戦 → 城取り → 外交」の順に導く（作り手の指示：会戦だけでなく全てに） ---- */
-function mapSimStart(){ W.msim={step:0, at:dayNumber(), tasks0:mapSimTasks(), taken0:(W.stats&&W.stats.taken)||0, armies0:Object.values(W.armies).filter(a=>a.clan===W.player).length}; }
+function mapSimStart(ch){ W.msim={ch:ch||1, step:0, at:dayNumber(), tasks0:mapSimTasks(), troops0:totalTroops(W.player), taken0:(W.stats&&W.stats.taken)||0, idle0:idleGenerals().length}; }
 function mapSimTasks(){ return Object.values(W.generals).filter(g=>g.clan===W.player&&g.task).length; }
 function simHot(sel){
   document.querySelectorAll(".sim-hot").forEach(e=>e.classList.remove("sim-hot"));
@@ -7579,40 +7587,82 @@ function simHot(sel){
   if(el && el.offsetParent!==null && !el.hidden){ el.classList.add("sim-hot"); return true; }
   return false;
 }
-function simBtn(text, within){ return ()=>[...document.querySelectorAll((within||"#panel")+" button")].find(b=>!b.hidden&&b.offsetParent!==null&&b.textContent.trim().startsWith(text)); }
+function simBtn(text, within, any){ const f=()=>[...document.querySelectorAll((within||"#panel")+" button, "+(within||"#panel")+" .chip")].find(b=>!b.hidden&&b.offsetParent!==null&&(any?b.textContent.includes(text):b.textContent.trim().startsWith(text))); return f; }
+/* 手ほどきは章立て（作り手の指示でさらに厚く）。章1 はじめの一歩 → 章2 兵を蓄える → 章3 城を落とす → 章4 外交。〈その他 → 手引き・手ほどき〉からどの章でも始め直せる */
+const MSIM_CHAPTERS=[
+ {id:1, name:"はじめの一歩", steps:[
+   {t:"<b>自分の城（青）</b>を押しましょう。<br><span class='tiny muted'>光っている城です</span>", ring:S=>S.hq(), ok:S=>S.ownOpened},
+   {t:S=>S.council()?"誰か一人の<b>〈命じる〉</b>を押しましょう（新田開発など）":"城の札の<b>〈内政〉</b>を押しましょう", hot:S=>S.council()?simBtn("命じる"):simBtn("内政"), ok:S=>mapSimTasks()>S.tasks0},
+   {t:"右上の<b>▶</b>を押して、日を進めましょう。<br><span class='tiny muted'>Ⅱ でいつでも止まります</span>", hot:'[data-s="1"]', ok:S=>W.speed>0},
+   {t:S=>S.dec()?"決戦です。<b>〈采配を取る〉</b>を押しましょう":"七日たつと武田との<b>決戦</b>の窓が開きます。<br>そのまま待ちましょう（急ぐなら ▶▶）", hot:S=>S.dec()?"#dcGo":null, skip:S=>W.scenario!=="nagashino", ok:S=>!!(W.decisiveWon&&(W.decisiveWon.nagashino_open||W.decisiveWon.nagashino))},
+   {t:"次は城取り。<b>敵の城（赤）</b>を押しましょう。<br><span class='tiny muted'>光っている城です</span>", ring:S=>S.foe(), ok:S=>S.foeOpened},
+   {t:S=>S.inDispatch()?"将を選んで、下の<b>〈出陣〉</b>を押しましょう":"城の札の<b>〈この城を攻める〉</b>を押し、兵を出す城を選びましょう", hot:S=>S.inDispatch()?simBtn("出陣"):simBtn("この城を攻める"), ok:S=>S.marching()},
+   {t:"軍が向かっています。着けば囲みが始まります。<br>ここまでが第一章。", ok:S=>true, pause:true},
+ ]},
+ {id:2, name:"兵を蓄える", steps:[
+   {t:"兵は民から取ります。<b>自分の城</b>を押しましょう", ring:S=>S.hq(), ok:S=>S.ownOpened},
+   {t:S=>S.inConscript()?"誰か一人の<b>〈足軽+500〉</b>を押しましょう（足軽が安い）":"城の札の<b>〈徴兵〉</b>を押しましょう", hot:S=>S.inConscript()?simBtn("+500",null,true):simBtn("徴兵"), ok:S=>totalTroops(W.player)>S.troops0+50},
+   {t:"取りすぎると民心が落ち、一揆が起きます。上の<b>兵糧</b>にも目を。兵が増えるほど米を食います", hot:'#uiFood', ok:S=>true, pause:true},
+   {t:"仕事のない将は宝の持ち腐れ。上の<b>〈手空き〉</b>を押し、仕事を割り振りましょう", hot:'#btnIdle', ok:S=>S.idleOpened()||idleGenerals().length<S.idle0},
+   {t:"手空きの札で一人に仕事を命じましょう", hot:S=>simBtn("新田開発"), ok:S=>idleGenerals().length<S.idle0||mapSimTasks()>S.tasks0, skip:S=>idleGenerals().length===0},
+   {t:"第二章はここまで。<b>民心</b>が低い城には〈施し〉、金が余れば〈商業〉。", ok:S=>true, pause:true},
+ ]},
+ {id:3, name:"城を落とす", steps:[
+   {t:"城は一日では落ちません。囲んでいる軍を押してみましょう（地図の軍の印か、囲んでいる城を押す）", ring:S=>S.siegeTarget(), ok:S=>S.armyOpened(), skip:S=>!S.siege()},
+   {t:"囲みには<b>力攻め</b>（早いが兵が減る）と<b>兵糧攻め</b>（遅いが減らない）。押して切り替えてみましょう", hot:S=>simBtn("力攻め")()?simBtn("力攻め"):simBtn("兵糧攻め"), ok:S=>S.modeChanged(), skip:S=>!S.siege()},
+   {t:"目安は守り手の<b>二倍半</b>。足りなければ別の城から足す（出陣の目的地を同じ城に）。落ちるまで日を進めましょう", hot:'[data-s="2"]', ok:S=>(W.stats&&W.stats.taken>S.taken0), skip:S=>!S.siege()&&!(W.stats&&W.stats.taken>S.taken0)},
+   {t:"落とした城は民心が低い。城の札の<b>〈自動内政〉</b>で任せると楽です。第三章はここまで", ok:S=>true, pause:true},
+ ]},
+ {id:4, name:"外交", steps:[
+   {t:"戦ばかりでは持ちません。上の<b>〈その他〉→〈外交〉</b>を開きましょう", hot:S=>{ const m=document.getElementById("moreMenu"); return (m&&!m.hidden)?document.getElementById("btnDiplomacy2"):document.getElementById("btnMore"); }, ok:S=>panelKey==="外交"},
+   {t:"隣の家を一つ選び、<b>〈贈物〉</b>で心証を上げましょう（三千）", hot:S=>simBtn("贈物"), ok:S=>/贈物/.test(String(S.dip||""))},
+   {t:"心証が70を越えれば<b>〈同盟〉</b>、戦の最中なら<b>〈和睦〉</b>。大きな家には<b>〈臣従〉</b>して生き延びる手も。<br>困ったら上の<b>〈気がかり〉</b>が次の一手を教えます", hot:'#btnConcerns', ok:S=>true, pause:true},
+ ]},
+];
+function openTutorialMenu(){
+  let done={}; try{ done=JSON.parse(localStorage.getItem("sengoku_msim_ch")||"{}"); }catch(e){}
+  openPanel("手ほどき","押す所を一つずつ示します",`<div class="list">${MSIM_CHAPTERS.map(c=>`<div class="row"><span class="f-medal" style="background:${done[c.id]?"radial-gradient(circle at 35% 35%,#FFE28A,#8A6F17)":"rgba(255,255,255,.15)"}">${c.id}</span><b style="flex:1">${esc(c.name)}</b><span class="tiny muted">${c.steps.length}段${done[c.id]?"・済":""}</span><button class="chip kin" style="cursor:pointer" onclick="closePanel();mapSimStart(${c.id});toast('手ほどき 第${c.id}章を始めます')">始める</button></div>`).join("")}</div>
+   <div class="tiny muted" style="margin-top:8px">合戦の手ほどき（長篠・織田）は初めての決戦で自ずと始まります。<button class="chip" style="cursor:pointer" onclick="PREF.nagSim=true;savePrefs();toast('次の長篠の決戦で合戦の手ほどきを出します')">次の決戦でもう一度</button></div>`);
+}
 function mapSimTick(){
   let el=document.getElementById("mSim");
   const S=W.msim;
   if(!S||!W.started||B||pickMode||W.result||(typeof openingActive==="function"&&openingActive())){ if(el) el.hidden=true; if(!B) simHot(null); return; }
   if(!el){ el=document.createElement("div"); el.id="mSim"; document.getElementById("stage").appendChild(el); }
-  const nag=W.scenario==="nagashino";
-  const show=(n,txt,opt)=>{ opt=opt||{}; const key=n+"|"+txt+(opt.ok?"|ok":"");
-    if(el._key!==key){ el._key=key; el.innerHTML=`<div class="sim-t">手ほどき　${n==="済"?"おしまい":n+"／7"}</div><div class="sim-b"><span class="sim-n">${n}</span>${txt}</div>${opt.ok?`<button class="big gold" id="mSimOk">${opt.okText||"次へ"}</button>`:""}<button class="sim-x" id="mSimOff">手ほどきをやめる</button>`;
-      const ok=el.querySelector("#mSimOk"); if(ok) ok.onclick=()=>{ S.step++; S.at=dayNumber(); };
-      el.querySelector("#mSimOff").onclick=()=>{ W.msim=null; el.hidden=true; simHot(null); try{ localStorage.setItem("sengoku_msim_done","1"); }catch(_){ } }; }
-    el.hidden=false; };
-  const next=n=>{ S.step=n; S.at=dayNumber(); S.ring=null; };
-  const dec=document.querySelector("#dcGo");
+  const ch=MSIM_CHAPTERS.find(c=>c.id===S.ch)||MSIM_CHAPTERS[0];
   const hq=myCastles(W.player).find(c=>c.hq)||myCastles(W.player)[0];
-  const foeNear=()=>{ if(!hq) return null; let best=null,bd=1e9; for(const c of Object.values(W.castles)){ if(c.clan===null||c.clan===W.player||!hostile(W.player,c.clan)) continue; const d=kmBetween(W.tile[hq.id].c,W.tile[hq.id].r,W.tile[c.id].c,W.tile[c.id].r); if(d<bd){ bd=d; best=c; } } return best; };
-  S.ring=null;
-  switch(S.step){
-    case 0: show(1,"<b>自分の城（青）</b>を押しましょう。<br><span class='tiny muted'>光っている城です</span>"); S.ring=hq?hq.id:null; simHot(null); if(S.ownOpened) next(1); break;
-    case 1: { const council=panelKey&&/内政/.test(String(panelKey)); show(2, council?"誰か一人の<b>〈命じる〉</b>を押しましょう（新田開発など）":"城の札の<b>〈内政〉</b>を押しましょう"); if(!simHot(council?simBtn("命じる"):simBtn("内政"))) simHot(null); if(mapSimTasks()>S.tasks0) next(2); break; }
-    case 2: show(3,"右上の<b>▶</b>を押して、日を進めましょう。<br><span class='tiny muted'>Ⅱ でいつでも止まります</span>"); simHot('[data-s="1"]'); if(W.speed>0) next(3); break;
-    case 3: if(!nag){ next(4); break; }
-      if(dec){ show(4,"決戦です。<b>〈采配を取る〉</b>を押しましょう"); simHot("#dcGo"); } else { show(4,"七日たつと武田との<b>決戦</b>の窓が開きます。<br>そのまま待ちましょう（急ぐなら ▶▶）"); simHot(null); }
-      if(W.decisiveWon&&(W.decisiveWon.nagashino_open||W.decisiveWon.nagashino)) next(4); break;
-    case 4: { const f=foeNear(); show(5,"次は城取り。<b>敵の城（赤）</b>を押しましょう。<br><span class='tiny muted'>光っている城です</span>"); S.ring=f?f.id:null; simHot(null); if(S.foeOpened) next(5); break; }
-    case 5: { const inDispatch=panelKey&&/出陣/.test(String(panelKey)); const inFrom=[...document.querySelectorAll("#panel button")].some(b=>/へ兵を出す城|から出す/.test(b.textContent));
-      if(inDispatch){ show(6,"将を選んで、下の<b>〈出陣〉</b>を押しましょう"); if(!simHot(simBtn("出陣"))) simHot(null); }
-      else show(6,"城の札の<b>〈この城を攻める〉</b>を押し、兵を出す城を選びましょう");
-      if(!inDispatch){ if(!simHot(simBtn("この城を攻める"))) simHot(null); }
-      if(Object.values(W.armies).some(a=>a.clan===W.player&&W.castles[a.target]&&W.castles[a.target].clan!==null&&W.castles[a.target].clan!==W.player&&hostile(W.player,W.castles[a.target].clan))) next(6); break; }
-    case 6: show(7,"軍が向かっています。着けば囲みが始まります。<br>最後に上の<b>〈その他 → 外交〉</b>を開いてみましょう"); if(!simHot(()=>{ const m=document.getElementById("moreMenu"); return (m&&!m.hidden)?document.getElementById("btnDiplomacy2"):document.getElementById("btnMore"); })) simHot(null); if(panelKey==="外交"||(W.stats&&W.stats.taken>S.taken0)) next(7); break;
-    case 7: show("済","手ほどきはここまで。<br>困ったら上の<b>〈手空き〉</b>と<b>〈気がかり〉</b>を押せば、次にすべきことが分かります",{ok:true,okText:"分かった"}); simHot(null); break;
-    default: W.msim=null; el.hidden=true; simHot(null); try{ localStorage.setItem("sengoku_msim_done","1"); }catch(_){ }
-  }
+  /* 検めに使う手 */
+  S.hq=()=>hq?hq.id:null;
+  S.foe=()=>{ if(!hq) return null; let best=null,bd=1e9; for(const c of Object.values(W.castles)){ if(c.clan===null||c.clan===W.player||!hostile(W.player,c.clan)) continue; const d=kmBetween(W.tile[hq.id].c,W.tile[hq.id].r,W.tile[c.id].c,W.tile[c.id].r); if(d<bd){ bd=d; best=c; } } return best?best.id:null; };
+  S.council=()=>!!(panelKey&&/内政/.test(String(panelKey)));
+  S.inConscript=()=>!!(panelKey&&/徴兵/.test(String(panelKey)));
+  S.inDispatch=()=>!!(panelKey&&/出陣/.test(String(panelKey)));
+  S.dec=()=>!!document.querySelector("#dcGo");
+  S.marching=()=>Object.values(W.armies).some(a=>a.clan===W.player&&W.castles[a.target]&&W.castles[a.target].clan!==null&&W.castles[a.target].clan!==W.player&&hostile(W.player,W.castles[a.target].clan));
+  S.siege=()=>Object.values(W.armies).find(a=>a.clan===W.player&&a.mission==="包囲")||null;
+  S.siegeTarget=()=>{ const a=S.siege(); return a?a.target:null; };
+  S.armyOpened=()=>{ const a=S.siege(); if(!a) return false; const k=String(panelKey||""); return k==="army"+a.id||k===a.name||(W.castles[a.target]&&k===W.castles[a.target].name); };
+  S.modeChanged=()=>{ const a=S.siege(); if(!a) return false; if(S.mode0===undefined){ S.mode0=a.mode; return false; } return a.mode!==S.mode0; };
+  S.idleOpened=()=>!!(panelKey&&/手空き/.test(String(panelKey)));
+  const steps=ch.steps; let st=steps[S.step];
+  let guard=0; while(st&&st.skip&&st.skip(S)&&guard++<10){ S.step++; st=steps[S.step]; }
+  if(!st){ let done={}; try{ done=JSON.parse(localStorage.getItem("sengoku_msim_ch")||"{}"); }catch(e){} done[ch.id]=1; try{ localStorage.setItem("sengoku_msim_ch",JSON.stringify(done)); localStorage.setItem("sengoku_msim_done","1"); }catch(_){ }
+    const nextCh=MSIM_CHAPTERS.find(c=>c.id===ch.id+1); simHot(null);
+    if(nextCh){ if(!S.asked){ S.asked=true; el._key=null; el.innerHTML=`<div class="sim-head"><span class="sim-face">軍</span><div class="sim-t">手ほどき　第${ch.id}章 おわり</div></div><div class="sim-b">次は<b>第${nextCh.id}章「${esc(nextCh.name)}」</b>。続けますか？<br><span class="tiny muted">あとで〈その他 → 手引き・手ほどき〉からも始められます</span></div><button class="big gold" id="mSimNext">続ける</button><button class="big ghost" id="mSimLater">あとで</button>`; el.hidden=false;
+        el.querySelector("#mSimNext").onclick=()=>{ mapSimStart(nextCh.id); }; el.querySelector("#mSimLater").onclick=()=>{ W.msim=null; el.hidden=true; simHot(null); }; } return; }
+    W.msim=null; el.hidden=true; toast("手ほどきはすべて終わりました。あとは天下へ"); return; }
+  const txt=typeof st.t==="function"?st.t(S):st.t;
+  const key=ch.id+":"+S.step+"|"+txt+(st.pause?"|ok":"");
+  if(el._key!==key){ el._key=key;
+    const prog=steps.map((x,i)=>`<i class="${i<S.step?"done":i===S.step?"now":""}"></i>`).join("");
+    el.innerHTML=`<div class="sim-head"><span class="sim-face">軍</span><div class="sim-t">手ほどき　第${ch.id}章「${esc(ch.name)}」　${S.step+1}／${steps.length}</div></div><div class="sim-prog">${prog}</div><div class="sim-b"><span class="sim-n">${S.step+1}</span>${txt}</div>${st.pause?`<button class="big gold" id="mSimOk">次へ</button>`:""}<button class="sim-x" id="mSimOff">手ほどきをやめる</button>`;
+    const ok=el.querySelector("#mSimOk"); if(ok) ok.onclick=()=>{ S.step++; S.at=dayNumber(); S.mode0=undefined; };
+    el.querySelector("#mSimOff").onclick=()=>{ W.msim=null; el.hidden=true; simHot(null); try{ localStorage.setItem("sengoku_msim_done","1"); }catch(_){ } }; }
+  el.hidden=false;
+  S.ring = st.ring ? st.ring(S) : null;
+  const hot = st.hot===undefined ? null : (typeof st.hot==="function" ? st.hot(S) : st.hot);
+  if(!simHot(hot)) simHot(null);
+  if(!st.pause && st.ok(S)){ S.step++; S.at=dayNumber(); S.ring=null; S.mode0=undefined; S.ownOpened=false; S.foeOpened=false; S.dip=null; }
 }
 /* 地図に手ほどきの輪（押してほしい城）を描く */
 function drawSimRing(){
@@ -7730,7 +7780,8 @@ let noticeFilter="all";
 /* ---- 手引き ---- */
 function openGuide(){
   openPanel("戦国の手引き","遊び方と仕組み",
-   `<div><button class="big gold" style="margin-bottom:8px" onclick="closePanel();showIntroGuide(true)">はじめての手引きをもう一度見る</button>
+   `<div><button class="big gold" style="margin-bottom:8px" onclick="openTutorialMenu()">手ほどき（押す所を一つずつ示す・四つの章）</button>
+     <button class="big" style="margin-bottom:8px" onclick="closePanel();showIntroGuide(true)">はじめての手引きをもう一度見る</button>
      <div class="tiny muted" style="margin-bottom:8px">武将の肖像は Wikimedia Commons のパブリックドメイン／CC の画像を小さく切り出したもの（出典一覧は同梱の PORTRAITS_CREDITS.md）。肖像の残らない将は描いた顔です。</div>
      <div class="sec-title">まず何をするか</div><div class="advice">
      ① 城を押して〈内政〉から武将に仕事を与え、国を富ませる。<br>
