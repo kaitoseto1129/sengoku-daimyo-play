@@ -15770,7 +15770,7 @@ function stepUnit(u,dt){
   const sp=SPECIALS[UNITS[u.type].sp];
   const active=B.elapsed<u.spUntil;
   const _wx=WEATHER[B.weather]||WEATHER["晴"];
-  let speed=UNITS[u.type].spd*terrainSpeed(u)*moraleEff(u.morale)*1.5*(u.formSpd||1)*_wx.spd
+  let speed=UNITS[u.type].spd*(u.type===2?1.25:1)*terrainSpeed(u)*moraleEff(u.morale)*1.5*(u.formSpd||1)*_wx.spd   /* 騎馬は野でもう少し速く（作り手の指示。街道の足には効かない） */
     *(1-Math.min(0.35,(u.fatigue||0)/100*0.35));
   if(active) speed*=sp.spd;
   if(u.paceMul!==undefined) speed*=u.paceMul;   /* 長篠の波：柵の手前までゆっくり寄せる */
