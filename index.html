@@ -589,17 +589,17 @@ body.inbattle #stage.paused::after{ display:none; }
         <span class="sc-desc">設楽原の馬防柵と三千挺の鉄砲。武田の騎馬は柵を破れるか。<br>
           主役は織田家・武田家。どの家でも継げる。</span>
       </button>
-      <button class="scen" id="scenOke" data-sc="oke">
-        <span class="sc-year">永禄三年（1560年）五月</span>
-        <span class="sc-name">桶狭間の戦い</span>
-        <span class="sc-desc">今川義元、二万五千を率いて西上す。尾張の織田は国も兵も及ばない。<br>
-          日ノ本じゅうの大名家から、いずれを継ぐか選べる。</span>
-      </button>
       <button class="scen" id="scenHoi" data-sc="hoi">
         <span class="sc-year">元亀元年（1570年）六月</span>
         <span class="sc-name">信長包囲網</span>
         <span class="sc-desc">浅井の裏切りから姉川の決戦へ。三好・本願寺・武田が次々に敵へ回る。<br>
           主役は織田家・浅井家・武田家。どの家でも継げる。</span>
+      </button>
+      <button class="scen" id="scenOke" data-sc="oke">
+        <span class="sc-year">永禄三年（1560年）五月</span>
+        <span class="sc-name">桶狭間の戦い</span>
+        <span class="sc-desc">今川義元、二万五千を率いて西上す。尾張の織田は国も兵も及ばない。<br>
+          日ノ本じゅうの大名家から、いずれを継ぐか選べる。</span>
       </button>
       <button class="scen" id="scenKoshu" data-sc="koshu">
         <span class="sc-year">天正十年（1582年）二月</span>
@@ -3272,6 +3272,7 @@ function nearestCastle(a){
 /* 雪国：北陸・東北・信濃・飛騨・上野の北。冬は道が閉ざされる */
 const SNOWY=new Set(["越後","越中","加賀","能登","越前","佐渡","羽前","羽後","陸奥","陸中","陸前","岩代","磐城","信濃","飛騨","上野","松前"]);
 function snowyAt(x,y){ let best=null,bd=1e9; for(const c of Object.values(W.castles)){ const t=W.tile[c.id]; const d=(t.c-x)*(t.c-x)+(t.r-y)*(t.r-y); if(d<bd){ bd=d; best=c; } } const p=best?DATA.provinces[best.prov]:null; return !!(p&&SNOWY.has(p.n)); }
+const MARCH_BASE=2.75;   // 街道の足の土台（一日に進む里の目安。第90巡で半分に）
 function marchSpeed(a){
   // 疾駆の将がおれば道中が早い
   var _swift = a.gens.some(id=>W.generals[id]&&hasTrait(W.generals[id],"疾駆"));
@@ -3287,7 +3288,7 @@ function marchSpeed(a){
   const slowest=Math.min(...gens.map(g=>UNITS[g.unit].spd));
   const t=tileAt(Math.round(a.x),Math.round(a.y));
   const mf=[1,1,1,.85,.7,.5,.6][t];
-  let v=5.5*slowest*(.8+lead/250)*mf*(seasonOf(W.date.m)==="冬"?.75:1)*(_swift?1.2:1);   // 街道の足はゆっくり（十六→十一→五・五。作り手の指示で半分に）
+  let v=MARCH_BASE*slowest*(.8+lead/250)*mf*(seasonOf(W.date.m)==="冬"?.75:1)*(_swift?1.2:1);   // 街道の足はゆっくり（十六→十一→五・五→二・七五。作り手の指示でまた半分に）
   if(seasonOf(W.date.m)==="冬" && snowyAt(a.x,a.y)) v*=0.65;     // 雪国の冬は道が閉ざされる
   if(W.date.m===6) v*=0.85;                                          // 梅雨。道はぬかるむ
   if(W.clans[a.clan].policies.has("街道整備")) v*=1.25;
@@ -11854,7 +11855,9 @@ function marchSpeedOf(gens){
   if(!gens.length) return 1;
   let sp=Infinity;
   for(const g of gens) sp=Math.min(sp, UNITS[g.unit].spd);
-  return Math.max(6, 18*sp);
+  const lead=gens.reduce((s2,g)=>s2+g.lea,0)/gens.length;
+  /* 実際の足（marchSpeed）と同じ土台で見積もる（前は三倍も速く「約N日で着く」と出ていた） */
+  return Math.max(0.5, MARCH_BASE*sp*(.8+lead/250)*(seasonOf(W.date.m)==="冬"?.75:1)*(W.clans[W.player]&&W.clans[W.player].policies.has("街道整備")?1.25:1));
 }
 /* ---- 出陣 ---- */
 let dispatchListOpen=false;   // 将の一覧は畳んでおく（広げるのは選ぶとき）
@@ -19300,11 +19303,11 @@ function startStep(which){
 document.getElementById("btnGameStart").onclick=()=>{ audioInit(); playSE("notify"); startStep("stepScenario"); };
 document.getElementById("scenBack").onclick=()=>startStep("stepTitle");
 let chosenScenario="nagashino";
-/* ---- 筋書きの鍵：長篠だけ無料、ほかは近日公開（解除の言葉で開く） ---- */
+/* ---- 筋書きの鍵：長篠は無料、信長包囲網は ¥500、ほかは近日公開（解除の言葉で開く） ---- */
 const IN_APP=!!(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap);   // iPhone 版の包みの中か
 const FREE_SCENARIOS=new Set(["nagashino"]);   // 長篠だけ無料（iPhone 版もウェブ版も）
-const IAP_ENABLED=false;   // iPhone 版で長篠を ¥500 で売るなら true（App Store Connect に商品 jp.kaitoseto.sengoku.nagashino を作ってから）
-const PAID_SCENARIOS={};   // いまは売り物なし（長篠が無料、ほかは近日公開）。売るなら { oke:{price:"¥500", sku:"..."} } のように
+const IAP_ENABLED=true;   // iPhone 版で信長包囲網を ¥500 で売る（App Store Connect に商品 jp.kaitoseto.sengoku.hoi を作ってから）
+const PAID_SCENARIOS={ hoi:{price:"¥500", sku:"jp.kaitoseto.sengoku.hoi", code:"HOI500"} };   // 売り物：信長包囲網 ¥500（長篠は無料、ほかは近日公開）
 /* ウェブ版の支払い：Stripe の支払いリンク。支払いが済むと、この頁へ ?unlock=<合言葉> で戻ってくる */
 const PAY_LINK="https://buy.stripe.com/test_28E8wP2sgcQI3UkfKP9fW00";   // Stripe の支払いリンク（¥500・いまはテスト用）。空なら「iPhone 版で」とだけ案内
 /* 訪問と遊びの計り（GoatCounter）。ANALYTICS が空なら何も送らない。個人を特定する情報は送らない */
@@ -19320,7 +19323,7 @@ function track(ev){
 (function(){ if(!ANALYTICS||/localhost|127\.0\.0\.1/.test(location.hostname)) return; if(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap) return;   // iPhone 版では計らない（何も送らない）
   const sc=document.createElement("script"); sc.async=true; sc.dataset.goatcounter=ANALYTICS; sc.src="https://gc.zgo.at/count.js"; document.head.appendChild(sc); })();
 const UNLOCK_TOKEN="sVzU74z_zZhdYBWsz_Sk-G2d";
-(function(){ try{ const q=new URLSearchParams(location.search); const t=q.get("unlock"); if(t){ if(t===UNLOCK_TOKEN){ const u=(()=>{ try{ return new Set(JSON.parse(localStorage.getItem("sengoku_unlock")||"[]")); }catch(e){ return new Set(); } })(); u.add("nagashino"); localStorage.setItem("sengoku_unlock",JSON.stringify([...u])); setTimeout(()=>{ try{ toast("お支払いありがとうございます。長篠の戦いを解除しました"); refreshScenarioLocks(); }catch(e){} },800); } history.replaceState(null,"",location.pathname); } }catch(e){} })();
+(function(){ try{ const q=new URLSearchParams(location.search); const t=q.get("unlock"); if(t){ if(t===UNLOCK_TOKEN){ const u=(()=>{ try{ return new Set(JSON.parse(localStorage.getItem("sengoku_unlock")||"[]")); }catch(e){ return new Set(); } })(); for(const k of Object.keys(PAID_SCENARIOS)) u.add(k); localStorage.setItem("sengoku_unlock",JSON.stringify([...u])); setTimeout(()=>{ try{ toast("お支払いありがとうございます。信長包囲網を解除しました"); refreshScenarioLocks(); }catch(e){} },800); } history.replaceState(null,"",location.pathname); } }catch(e){} })();
 function unlockedScenarios(){ try{ return new Set(JSON.parse(localStorage.getItem("sengoku_unlock")||"[]")); }catch(e){ return new Set(); } }
 function scenarioLocked(id){ const u=unlockedScenarios(); return !FREE_SCENARIOS.has(id) && !u.has(id) && !u.has("all"); }
 function scenarioAvailable(id){ const u=unlockedScenarios(); return FREE_SCENARIOS.has(id) || PAID_SCENARIOS[id]!==undefined || u.has(id) || u.has("all"); }
@@ -19363,7 +19366,7 @@ function requestUnlock(id){
   document.body.appendChild(el);
   el.querySelector("#ulNo").onclick=()=>el.remove();
   { const pb=el.querySelector("#ulPay"); if(pb) pb.onclick=()=>{ track("pay-click/"+id); setTimeout(()=>{ location.href=PAY_LINK; },150); }; }
-  { const g=el.querySelector("#ulGo"); if(g) g.onclick=()=>{ const v=(el.querySelector("#unlockCode").value||"").trim().toUpperCase(); if(v==="NAGASHINO500"){ el.remove(); window.sengokuUnlock(id); } else if(tryUnlockWord(v)){ el.remove(); } else toast("解除の言葉が違います"); }; }
+  { const g=el.querySelector("#ulGo"); if(g) g.onclick=()=>{ const v=(el.querySelector("#unlockCode").value||"").trim().toUpperCase(); if(info.code&&v===info.code){ el.remove(); window.sengokuUnlock(id); } else if(tryUnlockWord(v)){ el.remove(); } else toast("解除の言葉が違います"); }; }
 }
 function refreshScenarioLocks(){
   // 包みの中なら「購入を復元」を出す
