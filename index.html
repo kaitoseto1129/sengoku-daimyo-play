@@ -499,7 +499,7 @@ body.picking [data-z="home"], body.picking [data-z="save"] { display:none !impor
 #mSim button.big{width:100%;margin:6px 0 2px;font-size:14px}
 #mSim .sim-x{background:none;border:none;color:rgba(237,230,214,.55);font-size:11px;cursor:pointer;padding:2px 6px}
 body.panelopen #mSim{left:12px}
-@media (max-width:1120px){ #mSim{top:auto;bottom:64px;width:min(300px,60vw);font-size:12px;padding:7px 10px} }
+@media (max-width:1120px){ #mSim{top:auto;bottom:84px;width:min(300px,70vw);font-size:12px;padding:7px 10px} }
 @media (max-height:560px){ #bSim{top:auto;bottom:56px;left:12px;transform:none;font-size:12px;padding:6px 10px;width:min(320px,42vw);text-align:left} #bSim.right{left:auto;right:12px;bottom:56px} }   /* 背の低い画面では左下（真ん中に居座らない） */
 #bCoach .st{display:flex;gap:6px;align-items:flex-start}
 #bCoach .st.done{opacity:.55;text-decoration:line-through}
@@ -557,9 +557,6 @@ button[disabled]{ cursor:default; }
   #panel .p-head::before{ content:""; position:absolute; left:50%; top:4px; width:38px; height:4px; border-radius:2px; background:rgba(237,230,214,.35); transform:translateX(-50%); }
   #panel .p-head{ position:relative; padding-top:10px; }
   .p-close{ width:36px; height:36px; font-size:20px; }
-  /* 電話の横画面：札を開いている間は「時を止めております」を出さない（札の頭に被る）。小さく下に */
-  #stage.paused::after{ top:auto; bottom:52px; font-size:12px; padding:5px 12px; letter-spacing:1px; }
-  body.panelopen #stage.paused::after{ display:none; }
   #panel .p-head{ padding:8px 12px; }
   #panel .p-head h2{ font-size:18px; }
   .p-body{ padding:10px 12px; gap:12px; }
@@ -604,6 +601,9 @@ button[disabled]{ cursor:default; }
   pointer-events:none; }
 #stage.paused{ box-shadow:inset 0 0 0 2px rgba(201,162,39,.35); }
 body.inbattle #stage.paused::after{ display:none; }
+/* 電話：札を開いている間は「時を止めております」を出さない（札の頭に被る）。小さく下に（上の並びより後に置かないと top が残って縦に伸びていた） */
+@media (max-width: 480px){ #btnSound{ display:none; } }   /* 縦持ちの電話では上の帯からはみ出す（音は「記録と設定」から） */
+@media (max-width: 1120px){ #stage.paused::after{ top:6px; font-size:12px; padding:4px 12px; letter-spacing:1px; } body.panelopen #stage.paused::after{ display:none; } }
 
 /* 城の札のいちばん上「誰の城か」 */
 .owner{ display:flex; align-items:center; gap:10px; padding:10px 12px;
@@ -7554,6 +7554,8 @@ function showIntroGuide(force){
 }
 function showGuide(k){
   if(!guideOn()||guideSeen(k)) return false;
+  if(W.msim && k!=="battleBefore" && k!=="after") return false;   /* 押す所を示す手ほどきが動いている間は、文の手引きを重ねない */
+  if(B && k!=="battleBefore") return false;
   const g=GUIDE[k]; if(!g) return false; markGuide(k);
   if(document.querySelector(".overlay.guide")) return false;
   const el=document.createElement("div"); el.className="overlay guide"; el.style.zIndex="95";
@@ -7639,7 +7641,8 @@ function drawSimBattle(W_,H_){
 }
 function nagSimTick(){
   let el=document.getElementById("bSim");
-  if(!B||!B.sim||B.over!==null||B.ctx.playerSide!==1){ if(el) el.hidden=true; return; }
+  if(!B||!B.sim||B.over!==null||B.ctx.playerSide!==1){ if(el) el.hidden=true; if(B&&B._simHotOn){ B._simHotOn=false; simHot(null); } return; }
+  B._simHotOn=true;
   const S=B.sim;
   if(!el){ el=document.createElement("div"); el.id="bSim"; document.getElementById("battle").appendChild(el); }
   const fx=B.nagFenceX!==undefined?B.nagFenceX:(B.padX||0)+NAG_LINE;
@@ -11184,7 +11187,7 @@ mapCanvas.addEventListener("contextmenu",e=>{ if(foundPick){ e.preventDefault();
 mapCanvas.addEventListener("pointerdown",e=>{
   if(e.button===2) return;
   drag={x:e.clientX,y:e.clientY,moved:0,camx:cam.x,camy:cam.y}; camTarget.x=camTarget.y=null; if(W.stage) W.stage.follow=false;   // 指で引き始めたら、滑らかな移動の目標は捨てる
-  mapCanvas.setPointerCapture(e.pointerId); mapCanvas.classList.add("dragging");
+  try{ mapCanvas.setPointerCapture(e.pointerId); }catch(_){ } mapCanvas.classList.add("dragging");
 });
 mapCanvas.addEventListener("pointermove",e=>{
   if(!drag && e.pointerType!=="touch"){ const r0=mapCanvas.getBoundingClientRect(); showMapTip(e.clientX-r0.left, e.clientY-r0.top); }
@@ -14444,6 +14447,7 @@ const BTERRAIN=[
 ];
 function startBattle(e){
   if(!e){ setSpeed(1); return; }
+  document.querySelectorAll(".overlay.guide").forEach(o=>o.remove());   /* 地図の手引きが戦の上に残らない */
   BF.w=BF_CORE_W;   // 野の幅は芯から始める（前の戦で広げた分を戻す）
   try{ autoSave(); }catch(_){ }   // 戦の途中で閉じても、戦の前から始め直せる
   playScene("battle");
@@ -15522,7 +15526,8 @@ function updateBattle(dt){
   // 本陣が崩れかけたら、一度だけ時を止めて知らせる。気づかぬうちに総崩れ、を防ぐ
   if(!B.hqWarned && !B.autoMine && !autoBattleMode){
     const cmd=B.units.find(u=>u.side===B.ctx.playerSide&&u.cmd&&u.troops>.5);
-    if(cmd && cmd.morale>0 && (cmd.morale<30 || cmd.troops<cmd.max*0.35)){
+    if(cmd && cmd.ally && cmd.morale>0 && (cmd.morale<30 || cmd.troops<cmd.max*0.35)){ B.hqWarned=true; toast(`${cmd.name}の本陣が危うい。味方の隊を寄せて守りましょう`); }   /* 他家の本陣は選べない */
+    else if(cmd && cmd.morale>0 && (cmd.morale<30 || cmd.troops<cmd.max*0.35)){
       B.hqWarned=true; B.paused=true; B.sel=cmd.id; B.rate=1; renderBattleFoot();
       bshout(cmd.id,"本陣が危ない！ 下がるか、味方を寄せよ！",3);
       toast("本陣が崩れかけています。後退させるか、隊を寄せてください（下の〈再開〉で続く）");
@@ -17843,7 +17848,7 @@ bcanvas.addEventListener("pointerdown",ev=>{
     if(B.sel===mine.id && !B.group){ B.sel=null; B.drag=null; renderBattleFoot(); return; }   // 同じ隊をもう一度押せば選び直し
     B.sel=mine.id;
     B.drag={id:mine.id, x:wx, y:wy, moved:false, foe:null};
-    bcanvas.setPointerCapture(ev.pointerId);
+    try{ bcanvas.setPointerCapture(ev.pointerId); }catch(_){ }
     if(!B.selHinted){ B.selHinted=true; toast(`${mine.name}隊を選びました。地面を押せばそこへ、敵を押せば討ちにゆきます`); }
   } else if(B.sel!==null && B.units.find(z=>z.id===B.sel && z.side===B.ctx.playerSide)) {
     // 味方を選んだあとで別の場所を押したら、そこへ向かわせる。
@@ -17859,7 +17864,7 @@ bcanvas.addEventListener("pointerdown",ev=>{
     B.sel = foe ? foe.id : null;
     if(foe && !B.foeHinted){ B.foeHinted=true; toast("敵の隊です。味方の隊を選んでから押せば討ちにゆきます（二度押しで全軍）"); }
     // 地面でも敵の隊の上でも、押して引けば画面が横に動く（引かずに離せば押したことになる）
-    B.pan={mx:ev.clientX,my:ev.clientY,cx:B.cx,cy:B.cy,moved:false,foeId:foe?foe.id:null}; bcanvas.setPointerCapture(ev.pointerId);
+    B.pan={mx:ev.clientX,my:ev.clientY,cx:B.cx,cy:B.cy,moved:false,foeId:foe?foe.id:null}; try{ bcanvas.setPointerCapture(ev.pointerId); }catch(_){ }
   }
   renderBattleFoot();
 });
@@ -17909,7 +17914,7 @@ function bEndDrag(ev){
     const b=B.box; B.box=null;
     const x0=Math.min(b.x0,b.x1), x1=Math.max(b.x0,b.x1), y0=Math.min(b.y0,b.y1), y1=Math.max(b.y0,b.y1);
     if(x1-x0>1.5 || y1-y0>1.5){
-      const ids=B.units.filter(u=>u.side===B.ctx.playerSide&&u.troops>.5&&u.x>=x0&&u.x<=x1&&u.y>=y0&&u.y<=y1).map(u=>u.id);
+      const ids=B.units.filter(u=>u.side===B.ctx.playerSide&&!u.ally&&u.troops>.5&&u.x>=x0&&u.x<=x1&&u.y>=y0&&u.y<=y1).map(u=>u.id);
       if(ids.length){ B.group=ids; B.sel=null; toast(`${ids.length}隊を選びました。地面を押せば移動、敵を押せば討ちにゆきます`); renderBattleFoot(); }
     }
     return;
@@ -17965,12 +17970,12 @@ window.addEventListener("keydown",ev=>{
   }
   // 数字で隊を選ぶ。Tab で次の隊へ。指で探さずに済む
   else if(/^[1-9]$/.test(ev.key)){
-    const mine=B.units.filter(x=>x.side===B.ctx.playerSide&&x.troops>.5&&!x.left);
+    const mine=B.units.filter(x=>x.side===B.ctx.playerSide&&x.troops>.5&&!x.left&&!x.ally);
     const u=mine[+ev.key-1]; if(u){ B.sel=u.id; B.mode=null; renderBattleFoot(); }
   }
   else if(ev.key==="Tab"){
     ev.preventDefault();
-    const mine=B.units.filter(x=>x.side===B.ctx.playerSide&&x.troops>.5);
+    const mine=B.units.filter(x=>x.side===B.ctx.playerSide&&x.troops>.5&&!x.ally);
     if(mine.length){ const i=mine.findIndex(x=>x.id===B.sel); B.sel=mine[(i+1)%mine.length].id; B.mode=null; renderBattleFoot(); }
   }
   // 陣は F1〜F5 でも替えられる
@@ -17978,9 +17983,9 @@ window.addEventListener("keydown",ev=>{
   else if(ev.key==="r"||ev.key==="R"){ B.rate = B.rate===1 ? 2 : B.rate===2 ? 4 : B.rate===4 ? 8 : 1; PREF.battleRate=B.rate; savePrefs(); renderBattleFoot(); }
   else if(ev.key==="+"||ev.key==="="){ B.rate=Math.min(8,(B.rate||1)*2); PREF.battleRate=B.rate; savePrefs(); renderBattleFoot(); }
   else if(ev.key==="-"||ev.key==="_"){ B.rate=Math.max(1,(B.rate||1)/2); PREF.battleRate=B.rate; savePrefs(); renderBattleFoot(); }
-  else if(ev.key==="h"||ev.key==="H"){ const c=B.units.find(u=>u.side===B.ctx.playerSide&&u.cmd&&u.troops>.5); if(c){ B.sel=c.id; B.group=null; B.mode=null; renderBattleFoot(); } }
+  else if(ev.key==="h"||ev.key==="H"){ const c=B.units.find(u=>u.side===B.ctx.playerSide&&u.cmd&&u.troops>.5&&!u.ally); if(c){ B.sel=c.id; B.group=null; B.mode=null; renderBattleFoot(); } }
   else if(ev.key==="g"||ev.key==="G"){ const gs=B.group&&B.group.length?B.units.filter(z=>B.group.includes(z.id)):(B.sel!==null?B.units.filter(z=>z.id===B.sel&&z.side===B.ctx.playerSide):[]); if(gs.length){ manualCommand(); for(const z of gs){ z.order={k:"guard"}; z.gx=z.x; z.gy=z.y; } toast(`${gs.length}隊が持ち場を守ります`); renderBattleFoot(); } }
-  else if(ev.key==="q"||ev.key==="Q"){ const mine=B.units.filter(x=>x.side===B.ctx.playerSide&&x.troops>.5&&x.morale>0&&!x.left).sort((a,b)=>a.morale-b.morale); if(mine.length){ B.sel=mine[0].id; B.group=null; renderBattleFoot(); } }
+  else if(ev.key==="q"||ev.key==="Q"){ const mine=B.units.filter(x=>x.side===B.ctx.playerSide&&x.troops>.5&&x.morale>0&&!x.left&&!x.ally).sort((a,b)=>a.morale-b.morale); if(mine.length){ B.sel=mine[0].id; B.group=null; renderBattleFoot(); } }
   else if(ev.key==="x"||ev.key==="X"){ const gs=B.group&&B.group.length?B.units.filter(z=>B.group.includes(z.id)):(B.sel!==null?B.units.filter(z=>z.id===B.sel&&z.side===B.ctx.playerSide):[]); if(gs.length){ manualCommand(); for(const z of gs) z.order={k:"retreat"}; toast(`${gs.length}隊が退きます`); renderBattleFoot(); } }
   else if(ev.key==="t"||ev.key==="T"){ const su=B.sel!==null?B.units.find(z=>z.id===B.sel&&z.side===B.ctx.playerSide):null; if(su){ const foes=B.units.filter(z=>z.side!==su.side&&z.troops>.5&&z.morale>0&&!z.left).sort((a,b)=>dist(su,a)-dist(su,b)); if(foes.length){ const i=su.order.k==="attack"?foes.findIndex(z=>z.id===su.order.id):-1; const t=foes[(i+1)%foes.length]; manualCommand(); su.order={k:"attack",id:t.id}; toast(`${su.name}隊 → ${t.name}隊`); renderBattleFoot(); } } }
   else if(ev.key==="z"||ev.key==="Z"){ bCycleZoom(); }
