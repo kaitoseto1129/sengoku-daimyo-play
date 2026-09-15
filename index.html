@@ -17915,10 +17915,11 @@ function drawBattle(){
     bctx.restore();
   }
 
-  const mine=B.units.filter(u=>u.side===B.ctx.playerSide).reduce((s,u)=>s+u.troops,0);
-  const foe=B.units.filter(u=>u.side!==B.ctx.playerSide).reduce((s,u)=>s+u.troops,0);
-  const mineMax=B.units.filter(u=>u.side===B.ctx.playerSide).reduce((s,u)=>s+u.max,0)||1;
-  const foeMax=B.units.filter(u=>u.side!==B.ctx.playerSide).reduce((s,u)=>s+u.max,0)||1;
+  /* 第111巡：減りの割合は「始めの兵」で割る（討たれた隊は名簿から消えるので、生き残りの器で割ると 54% と出て、決着の七割五分と食い違っていた） */
+  const mine=B.units.filter(u=>u.side===B.ctx.playerSide&&!u.left).reduce((s,u)=>s+u.troops,0);
+  const foe=B.units.filter(u=>u.side!==B.ctx.playerSide&&!u.left).reduce((s,u)=>s+u.troops,0);
+  const mineMax=(B.startTroops&&B.startTroops[B.ctx.playerSide])||B.units.filter(u=>u.side===B.ctx.playerSide).reduce((s,u)=>s+u.max,0)||1;
+  const foeMax=(B.startTroops&&B.startTroops[1-B.ctx.playerSide])||B.units.filter(u=>u.side!==B.ctx.playerSide).reduce((s,u)=>s+u.max,0)||1;
   document.getElementById("bMine").textContent=Math.round(mine).toLocaleString()+"　▼"+Math.round((1-mine/mineMax)*100)+"%";
   // 刻。三百秒で日が暮れる。残りが見えれば、長引く戦の手の打ちようがある
   { const ks=["辰","巳","午","未","申","酉"]; const i=Math.min(5,Math.floor(B.elapsed/((B.dayLen||300)/6)));
