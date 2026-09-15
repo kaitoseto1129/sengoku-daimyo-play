@@ -13458,7 +13458,7 @@ DECISIVE.push(
    after:{ atkWin:{ text:"浅井・朝倉は姉川に屍を残して退き、横山と佐和山は織田の手に落ちた", capture:"佐和山城" },
            defWin:{ text:"浅井の突撃が織田の陣を十一段まで突き破り、信長は岐阜へ逃げ帰った。近江の諸城は浅井に靡いた", capture:"長光寺城", spoils:{half:0.15} } } },
  { id:2204, key:"nagashino_open", sub:"三千挺の鉄砲、武田の騎馬を迎え撃つ", sc:"nagashino", when:"open", histWin:"def", name:"長篠の戦い", atk:"武田家", def:"織田家", allies:true, defAllies:["徳川家"], atkAllies:[],
-   terrain:0, forts:"def", nAtk:40, nDef:18, atkTroops:24000, defTroops:38000, defTroopsIfPlayerAtk:22000,
+   terrain:0, forts:"def", nAtk:40, nDef:22, atkTroops:24000, defTroops:38000, defTroopsIfPlayerAtk:22000,
    atkGens:["武田勝頼","山県昌景","馬場信春","内藤昌豊","真田信綱","土屋昌次","小山田信茂","穴山信君","武田信廉","原昌胤"],
    defGens:["織田信長","徳川家康","羽柴秀吉","柴田勝家","丹羽長秀","滝川一益","佐久間信盛","明智光秀","本多忠勝","榊原康政","酒井忠次","前田利家","佐々成政","織田信忠"],
    site:["長篠城","岡崎城"],
@@ -13505,7 +13505,7 @@ DECISIVE.push(
    after:{ atkWin:{ text:"徳川は総崩れとなり、家康は浜松へ逃げ帰った。だが武田は深追いせず、西へ向かった", spoils:{half:0.25} },
            defWin:{ text:"徳川は武田の大軍を三方ヶ原で押し返し、信玄の西上は頓挫した" } } },
  { id:2203, key:"nagashino", sub:"三千挺の鉄砲、武田の騎馬を迎え撃つ", when:"date", y:1575, m:5, histWin:"def", name:"長篠の戦い", atk:"武田家", def:"織田家", allies:true, defAllies:["徳川家"], atkAllies:[], sc:["oke","hoi"],
-   terrain:0, forts:"def", nAtk:40, nDef:18, atkTroops:24000, defTroops:38000, defTroopsIfPlayerAtk:22000,
+   terrain:0, forts:"def", nAtk:40, nDef:22, atkTroops:24000, defTroops:38000, defTroopsIfPlayerAtk:22000,
    atkGens:["武田勝頼","山県昌景","馬場信春","内藤昌豊","真田信綱","土屋昌次","小山田信茂","穴山信君","武田信廉","原昌胤"],
    defGens:["織田信長","徳川家康","羽柴秀吉","木下藤吉郎","柴田勝家","丹羽長秀","滝川一益","佐久間信盛","明智光秀","本多忠勝","榊原康政","酒井忠次","前田利家","佐々成政"],
    site:["長篠城","岡崎城"],
@@ -14017,6 +14017,10 @@ function stageNagashino(){
   const gifu=myCastles(od.id).find(c=>c.hq)||myCastles(od.id)[0];
   if(gifu){ const g0=W.tile[gifu.id]; const rel=mk(od,["織田信長","羽柴秀吉","柴田勝家","丹羽長秀","滝川一益","佐久間信盛"], g0.c, g0.r, "移動", nag.id, "織田信長軍団（後詰）", 25000);
     if(rel){ const path=findPath(gifu.id,nag.id,od.id); const ids=[gifu.id,...(path||[])]; if(ids[ids.length-1]!==nag.id) ids.push(nag.id); rel.route=ids.map(id=>W.tile[id]).filter(Boolean); rel.day0=dayNumber(); rel.days=24; }   /* 岐阜から長篠へ二十四日（第106巡：足を半分に） */ }
+  /* 第108巡：徳川も同じ頃に着く（作り手の指示：徳川の隊が動いてすらいなかった）。岡崎（徳川の本拠）から長篠へ、信長と同じ二十四日 */
+  { const tk2=clanByName("徳川家"); const oka=tk2&&(myCastles(tk2.id).find(c=>c.hq)||myCastles(tk2.id)[0]);
+    if(tk2 && oka && tk2.id!==tk.id){ const t0=W.tile[oka.id]; const rel2=mk(tk2,["徳川家康","酒井忠次","本多忠勝","榊原康政","鳥居元忠","大久保忠世","石川数正"], t0.c, t0.r, "移動", nag.id, "徳川家康軍団（後詰）", 8000);
+      if(rel2){ const path=findPath(oka.id,nag.id,tk2.id); const ids=[oka.id,...(path||[])]; if(ids[ids.length-1]!==nag.id) ids.push(nag.id); rel2.route=ids.map(id=>W.tile[id]).filter(Boolean); rel2.day0=dayNumber(); rel2.days=24; } } }
   bumpGarrison();
   // 画面は長篠城へ。全図のままでは何が起きているか分からない
   setTimeout(()=>{ cam.x=t.c+(viewW()<960?2:3); cam.y=t.r; cam.scale=viewW()<960?4.2:6.5; camTarget.x=camTarget.y=null; camTarget.scale=null; clampCam(); },0);
@@ -14673,9 +14677,9 @@ function startBattle(e){
         B.waves=[{ids:cols[0].map(u=>u.id),at:0,name:cols[0][0]?cols[0][0].name:"",done:true},{ids:cols[1].map(u=>u.id),at:45,name:cols[1][0]?cols[1][0].name:"",done:false},{ids:cols[2].map(u=>u.id),at:90,name:cols[2][0]?cols[2][0].name:"",done:false,all:true}];
         for(const u of cols[1].concat(cols[2])){ u.holdUntil=999; u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } }
       // 三千挺の鉄砲。守り手の足軽隊のうち幾つかは鉄砲隊として柵に張り付く（少なくとも六隊）
-      { let need=8-B.units.filter(u=>u.side===1&&u.type===3).length; for(const u of B.units){ if(need<=0) break; if(u.side===1&&u.type===0&&!u.cmd){ u.type=3; u.ammo=120; need--; } } }
+      { let need=gRows()-B.units.filter(u=>u.side===1&&u.type===3&&!u.cmd).length;   /* 第108巡：鉄砲隊は縦一列（十三升）を埋めるだけ（作り手の指示） */ for(const u of B.units){ if(need<=0) break; if(u.side===1&&u.type===0&&!u.cmd&&!/酒井忠次|本多忠勝/.test(u.name)){ u.type=3; u.ammo=120; need--; } } for(const u of B.units){ if(need<=0) break; if(u.side===1&&u.type===1&&!u.cmd&&!/酒井忠次|本多忠勝/.test(u.name)){ u.type=3; u.ammo=120; need--; } } }
       { const guns=B.units.filter(u=>u.side===1&&u.type===3), rest=B.units.filter(u=>u.side===1&&u.type!==3); const back=defLeft?-1:1;
-        guns.forEach((u,i)=>{ u.x=line+back*1.6; u.y=1.5+(BF.h-3)*(i+0.5)/Math.max(1,guns.length); });
+        { const gs=guns.filter(u=>!u.cmd); gs.forEach((u,i)=>{ const col=Math.floor(i/gRows()); u.x=line+back*(1.6+col*GC); u.y=(i%gRows())*GC+GC/2; }); }   /* 鉄砲は柵のすぐ内の升を縦一列に（十三隊で埋まる。余れば次の列） */
         { const hq=guns.find(u=>u.cmd); if(hq){ hq.x=line+back*7.6; hq.tough=(hq.tough||1)*2; hq.morRes=0.5; } }   /* 本陣は馬廻が固めて堅い（武田の騎馬を強くした分。第107巡） */   /* 本陣は鉄砲の列より一升後ろ（柵が破れた途端に本陣が崩れていた。第103巡） */
         { const colA=rest.filter((_,i)=>i%2===0), colB=rest.filter((_,i)=>i%2===1);
           colA.forEach((u,i)=>{ u.x=line+back*4.6; u.y=2+(BF.h-4)*(i+0.5)/Math.max(1,colA.length); });
@@ -15131,7 +15135,7 @@ function nagVolleyTick(){
 function nagTobiStart(send){
   B.tobi={sent:!!send, at:B.elapsed, prog:0, done:false};
   if(!send) return;
-  const mine=B.units.filter(u=>u.side===1&&!u.cmd&&u.troops>.5).sort((a,b)=>(a.name==="酒井忠次"?-1:b.name==="酒井忠次"?1:0)||b.troops-a.troops);
+  const mine=B.units.filter(u=>u.side===1&&!u.cmd&&u.troops>.5&&(u.type!==3||u.name==="酒井忠次")).sort((a,b)=>(a.name==="酒井忠次"?-1:b.name==="酒井忠次"?1:0)||b.troops-a.troops);   /* 鉄砲は柵に残す（縦一列を崩さない） */
   const pick=[]; let tot=0; for(const u of mine){ if(pick.length>=2||tot>=3200) break; pick.push(u); tot+=u.troops; }
   B.tobi.units=pick; B.units=B.units.filter(u=>!pick.includes(u));
   B.banner={t:`${pick[0]?pick[0].name:"酒井忠次"}、別働隊を率いて鳶ヶ巣山砦へ`, at:B.elapsed}; log("酒井忠次の別働隊が鳶ヶ巣山砦へ向かいました","war");
