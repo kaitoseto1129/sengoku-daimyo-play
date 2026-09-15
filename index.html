@@ -3609,6 +3609,8 @@ function arriveAt(cid,a){
       if(a.clan!==W.player){ if(a.clan===W.player||c.clan===W.player) log(`${a.name}は${c.name}の主が替わったのを見て引き返しました`,"war"); recallArmy(a.id); return; }
       declareWar(a.clan,c.clan);
     }
+    /* 第110巡：城の兵が自軍より多ければ、機械の軍は攻めずに引き返す（一万の城に三千七百で寄せていた） */
+    if(a.clan!==W.player && !a.script && !a.stage && garrisonTroops(cid)>armyTroops(a)){ if(c.clan===W.player) log(`${a.name}は${c.name}の守りの厚さを見て引き返しました`,"war"); recallArmy(a.id); return; }
     // 守る者がいない城は、戦わずにそのまま接収する
     if(garrisonTroops(cid)<=0){
       log(`${c.name}は無人であった。戦わずして城を接収します`,"war");
@@ -5381,6 +5383,7 @@ function dispatch(from,gids,target,mode){
   const members=gids.map(id=>W.generals[id]).filter(g=>g&&g.castle===from&&g.clan===c.clan&&g.status!=="捕虜"&&g.status!=="人質"&&g.status!=="死亡"&&!g.captor&&!g.task&&!g.army&&!isChild(g)&&!(g.woundedUntil>dayNumber()));
   if(!members.length) return "出陣できる武将がいません";
   if(!members.some(g=>g.troops>0)) return "兵がいません";
+  { const tc=W.castles[target]; if(c.clan!==W.player && tc && tc.clan!==null && tc.clan!==c.clan && hostile(c.clan,tc.clan) && garrisonTroops(target)>members.reduce((s2,g)=>s2+g.troops,0)) return "守兵より少ない勢では攻められませぬ"; }   /* 第110巡 */
   const path=findPath(from,target,c.clan);
   if(!path.length) return "街道がつながっていません（戦でもない他家の城は通れませぬ。盟を結ぶか、道中の城を先に）";
   const commander=seniorOf(members);
