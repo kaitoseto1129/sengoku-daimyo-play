@@ -1571,6 +1571,8 @@ function scenarioKeepNames(sc){
   if(sc.y>=1575) out.add("芥川山城");   /* 高槻城として残す */
   for(const h of sc.houses||[]){ out.add(h.hq); for(const c of (h.castles||[])) out.add(c); }
   for(const nm of sc.keep||[]) out.add(nm);   // 筋書きの支城の網（小田原の忍・玉縄・鉢形など）
+  /* 第110巡：決戦の地を決める城は間引かない（大垣城が間引かれ、関ヶ原が佐和山と江戸の真ん中＝信濃に置かれていた） */
+  try{ for(const d of DECISIVE){ if(d.sc && d.sc!==sc.id) continue; for(const nm of (d.site||[])) out.add(nm); } }catch(e){}
   for(const k of Object.keys(sc.renameC||{})) out.add(k);
   for(const x of sc.wars||[]) for(const nm of x) out.add(nm);
   return out;
@@ -3378,7 +3380,7 @@ function processArmies(){
   for(const a of Object.values(W.armies)){
     if(a.script) continue;
     a.days=(a.days||0)+1;
-    if(a.mission==="包囲" && a.clan!==W.player && !a.stage && a.days%3===0){ const tc=W.castles[a.target]; if(tc && tc.clan!==null && tc.clan!==a.clan && garrisonTroops(tc.id)>armyTroops(a)*1.5){ log(`${a.name||"軍勢"}は${tc.name}の守りに敵わぬと見て、囲みを解きました`,"war"); recallArmy(a.id); continue; } }   /* 第108巡：囲んでいても、城の兵が自軍の一倍半を超えれば引く */
+    if(a.mission==="包囲" && a.clan!==W.player && !a.stage && a.days%3===0){ const tc=W.castles[a.target]; if(tc && tc.clan!==null && tc.clan!==a.clan && garrisonTroops(tc.id)*1.2>armyTroops(a)){ log(`${a.name||"軍勢"}は${tc.name}の守りに敵わぬと見て、囲みを解きました`,"war"); recallArmy(a.id); continue; } }   /* 第108巡：囲んでいても、城の兵が自軍の一倍半を超えれば引く */
     // 盟友の城の門前で待つ軍は、囲みが解けていれば国へ帰る
     if(a.mission==="待機" && !a.sortie && !a.oke){ const nc=W.castles[nearestCastle(a)]; if(nc && nc.clan!==a.clan && !Object.values(W.armies).some(b=>b!==a&&b.mission==="包囲"&&b.target===nc.id&&hostile(b.clan,a.clan))){ recallArmy(a.id); continue; } }
     // 長い出陣は兵の気を細らせる（百二十日を過ぎれば十日に一つ）。自領から遠ければ兵站も細る
@@ -3392,20 +3394,23 @@ function processArmies(){
     if(a.mission==="移動" && a.clan!==W.player && !a.script && a.days%3===0){ const tc=W.castles[a.target]; const K=W.clans[a.clan];
       if(tc && tc.clan!==null && tc.clan!==a.clan && K && !hostile(a.clan,tc.clan) && !K.allies.has(tc.clan) && K.suzerain!==tc.clan && !K.vassals.has(tc.clan) && !sameHouse(a.clan,tc.clan)){ recallArmy(a.id); continue; }
       /* 第108巡：向かう先の城の兵が、道中で自分の軍より多くなっていれば攻めない（作り手の指示：先に目指したからといって攻めるのはおかしい） */
-      if(tc && tc.clan!==null && tc.clan!==a.clan && hostile(a.clan,tc.clan) && garrisonTroops(tc.id)>armyTroops(a)){ log(`${a.name||"軍勢"}は${tc.name}の守りが厚くなったのを見て、兵を返しました`,"war"); recallArmy(a.id); continue; } }
+      if(tc && tc.clan!==null && tc.clan!==a.clan && hostile(a.clan,tc.clan) && garrisonTroops(tc.id)*2>armyTroops(a)){ log(`${a.name||"軍勢"}は${tc.name}の守りが厚くなったのを見て、兵を返しました`,"war"); recallArmy(a.id); continue; } }
     const next=a.path[0];
-    if(next===undefined){ a.mission="待機"; a.px=a.x; a.py=a.y; a.moveT=1; continue; }
+    if(next===undefined){ a.mission="待機"; a.px=a.x; a.py=a.y; a.moveT=1; a.edge=null; continue; }
     const from = a.path.length>1 ? (a.path[a.path.indexOf(next)-1] ?? nearestCastle(a)) : nearestCastle(a);
+    a.edge=[from,next];   /* いま歩いている道（第110巡：別の道を歩く軍とは行き合わない） */
     a.sea = W.castles[from]?.sea.has(next) || false;
     const dest=W.tile[next], spd=marchSpeed(a);
     const dist=kmBetween(a.x,a.y,dest.c,dest.r);
     // 一日ぶんの移動を目標にして、描画側で滑らかに補間する
     a.px=a.x; a.py=a.y;
     if(dist<=spd){
-      a.x=dest.c; a.y=dest.r; a.path.shift();
+      a.x=dest.c; a.y=dest.r; a.path.shift(); a.edge=null;
       const here=W.castles[next];
       // 道中の敵城を横目に通り過ぎることはできない。
       // 背後に敵を残して奥へ進めば、兵糧の道を断たれる
+      /* 第110巡：道中のわが城が囲まれていれば、素通りせずそこで囲みを打ち払う（Bを飛ばしてCへ行っていた） */
+      if(a.mission==="移動" && a.path.length && here && here.clan===a.clan && a.clan===W.player && Object.values(W.armies).some(b=>b!==a&&!b.stage&&b.mission==="包囲"&&b.target===next&&hostile(b.clan,a.clan))){ a.path.length=0; a.target=next; log(`${a.name}は道中の${here.name}が囲まれているのを見て、まずその囲みに討ちかかります`,"war",true); arriveAt(next,a); continue; }
       if(a.mission==="移動" && a.path.length && here && here.clan!==null && hostile(a.clan,here.clan) && !(a.oke && here.clan!==0)){   // 退く軍は素通りする（囲みは始めない）。上洛勢は織田の城まで止まらない
         a.path.length=0; a.target=next;
         if(a.clan===W.player)
@@ -3610,7 +3615,7 @@ function arriveAt(cid,a){
       declareWar(a.clan,c.clan);
     }
     /* 第110巡：城の兵が自軍より多ければ、機械の軍は攻めずに引き返す（一万の城に三千七百で寄せていた） */
-    if(a.clan!==W.player && !a.script && !a.stage && garrisonTroops(cid)>armyTroops(a)){ if(c.clan===W.player) log(`${a.name}は${c.name}の守りの厚さを見て引き返しました`,"war"); recallArmy(a.id); return; }
+    if(a.clan!==W.player && !a.script && !a.stage && garrisonTroops(cid)*2>armyTroops(a)){ if(c.clan===W.player) log(`${a.name}は${c.name}の守りの厚さを見て引き返しました`,"war"); recallArmy(a.id); return; }
     // 守る者がいない城は、戦わずにそのまま接収する
     if(garrisonTroops(cid)<=0){
       log(`${c.name}は無人であった。戦わずして城を接収します`,"war");
@@ -3739,6 +3744,11 @@ function detectContacts(){
     if(a.mission==="包囲"&&b.mission==="包囲") continue;   // 同じ城を囲む二軍は別に扱う
     const d=dayApproach(a,b);
     if(d>=14) continue;
+    /* 第110巡：同じ道の上でなければ行き合わない（駿府—高天神と隣の道が近く、別の道の軍とぶつかっていた） */
+    { const ea=(a.mission==="移動"||a.mission==="帰還")&&a.edge&&a.edge.length===2?a.edge:null, eb=(b.mission==="移動"||b.mission==="帰還")&&b.edge&&b.edge.length===2?b.edge:null;
+      if(ea&&eb){ const same=(ea[0]===eb[0]&&ea[1]===eb[1])||(ea[0]===eb[1]&&ea[1]===eb[0]); if(!same) continue; }
+      else if(ea&&!eb){ if(!ea.includes(nearestCastle(b))) continue; }
+      else if(eb&&!ea){ if(!eb.includes(nearestCastle(a))) continue; } }
     pairs.push([a.id,b.id,d]);
   }
   if(!pairs.length) return;
@@ -5383,7 +5393,7 @@ function dispatch(from,gids,target,mode){
   const members=gids.map(id=>W.generals[id]).filter(g=>g&&g.castle===from&&g.clan===c.clan&&g.status!=="捕虜"&&g.status!=="人質"&&g.status!=="死亡"&&!g.captor&&!g.task&&!g.army&&!isChild(g)&&!(g.woundedUntil>dayNumber()));
   if(!members.length) return "出陣できる武将がいません";
   if(!members.some(g=>g.troops>0)) return "兵がいません";
-  { const tc=W.castles[target]; if(c.clan!==W.player && tc && tc.clan!==null && tc.clan!==c.clan && hostile(c.clan,tc.clan) && garrisonTroops(target)>members.reduce((s2,g)=>s2+g.troops,0)) return "守兵より少ない勢では攻められませぬ"; }   /* 第110巡 */
+  { const tc=W.castles[target]; if(c.clan!==W.player && tc && tc.clan!==null && tc.clan!==c.clan && hostile(c.clan,tc.clan) && garrisonTroops(target)*2>members.reduce((s2,g)=>s2+g.troops,0)) return "守兵の二倍に満たぬ勢では攻められませぬ"; }   /* 第110巡：機械は守兵の二倍がなければ攻めない（作り手の指示） */
   const path=findPath(from,target,c.clan);
   if(!path.length) return "街道がつながっていません（戦でもない他家の城は通れませぬ。盟を結ぶか、道中の城を先に）";
   const commander=seniorOf(members);
@@ -5993,7 +6003,7 @@ function aiMilitary(clan,p){
   if(best.need && sent<best.need){ if(!clan.muster && (!clan.musterAt||dayNumber()>clan.musterAt)) aiMuster(clan, best.from, best.to, best.need-sent); return; }   // 留守居を残すと足りぬなら、まず集める
   // 守り手の半分にも満たぬ勢で押しかけても、ただ討たれるだけ
   const defT2=Object.values(W.generals).filter(g=>g.castle===best.to&&!g.army).reduce((s,g)=>s+g.troops,0);
-  if(sent < defT2*1.0 && defT2>0) return;   /* 第109巡：守兵より少ない勢で押しかけない（八千の城に千で攻めていた。作り手の指示） */
+  if(sent < defT2*2.0 && defT2>0) return;   /* 第110巡：二倍 */   /* 第109巡：守兵より少ない勢で押しかけない（八千の城に千で攻めていた。作り手の指示） */
   const troops=sent;
   // 兵が守り手の倍近くあれば力攻め、そうでなければ干上がらせる。
   // 城耐久（万を越える）と兵数を見比べていたため、いつまでも兵糧攻めしか選ばず、
@@ -8773,7 +8783,7 @@ function reliefBarRefresh(tgt){
   bar.hidden=false; const go=document.getElementById("foundGo"), hint=document.getElementById("foundHint"), cn=document.getElementById("foundCancel");
   const t=W.castles[tgt]; const names=[...reliefSel].map(id=>(W.castles[id]||{}).name).filter(Boolean);
   hint.textContent = names.length ? `${t?t.name:""}の救援：${names.join("・")} から` : "光っている城を押して選ぶ（幾つでも）";
-  go.hidden=!names.length; go.textContent=names.length>1?"この城々から出す":"この城から出す";
+  go.hidden=!names.length; go.textContent=`決定（${names.length}城から出す）`;
   go.onclick=()=>{ if(!reliefSel.size) return; reliefPick=null; bar.hidden=true; sendRelief(tgt); };
   cn.onclick=()=>{ reliefPick=null; reliefSel.clear(); bar.hidden=true; toast("救援の城選びをやめました"); };
 }
@@ -9087,8 +9097,11 @@ function openRelief(castleId){
       </div>`
       :'<div class="tiny muted">いま兵を出せる城がありませぬ</div>'}
     <button class="big ghost" onclick="closePanel();openCastle(${castleId})">城へ戻る</button>`;
-  openPanel("救援",c.name,`<div class="tiny" style="color:#CFE6FF;margin-bottom:6px">地図で光っているわが城を押しても選べます（この札を閉じても、光っている城を押せばそこから出せます）</div>`+h);
-  reliefPick=froms.length?{target:castleId}:null; if(reliefPick) reliefBarRefresh(castleId);
+  /* 第110巡：右の一覧はやめ、地図で光っているわが城を押して選ぶだけ（幾つでも）。下の帯の〈決定〉で出す（作り手の指示） */
+  closePanel();
+  if(!froms.length){ toast("いま兵を出せる城がありませぬ"); return; }
+  reliefPick={target:castleId}; reliefBarRefresh(castleId);
+  toast(`${c.name}の救援：光っているわが城を押して選び（幾つでも）、下の〈決定〉を押してください`);
   mapFocus=castleId; { const t=W.tile[castleId]; if(t){ if(viewW()>1120){ pushCamHistory(); glideTo(t.c,t.r,10); } else { camTarget.x=t.c; camTarget.y=t.r+(viewH()*0.20)/cam.scale; } } }   // 画面を寄せるだけ（gotoCastle は城の札を開いてしまい、救援の札が消えていた）
   setSpeed(0);
 }
@@ -9140,6 +9153,10 @@ function sendRelief(castleId){
 }
 /* 救援の集結：集合の城に皆が着いたら（または四十日たったら）、揃った兵を一つの軍にして救援先へ */
 function reliefMusterDaily(){
+  /* 第110巡：集合の城や救援先が敵の手に落ちたら、向かっていた軍は皆わが城へ戻る（落ちた城へ向かい続けない。作り手の指示） */
+  for(const a of Object.values(W.armies)){ if(a.clan!==W.player||a.stage||a.script) continue;
+    if(a.reliefVia){ const at=W.castles[a.reliefVia.at], t=W.castles[a.reliefVia.target]; if(!at||!t||at.clan!==W.player||(t.clan!==null&&hostile(W.player,t.clan))){ log(`${a.name}は${(!at||at.clan!==W.player)?(at?at.name:"集合の城"):t.name}が落ちたのを見て、兵を返しました`,"war",true); a.reliefVia=null; recallArmy(a.id); continue; } }
+    else if(a.relief!==undefined&&a.relief!==null){ const t=W.castles[a.relief]; if(!t||(t.clan!==null&&hostile(W.player,t.clan))){ log(`${a.name}は${t?t.name:"救援先"}が落ちたのを見て、兵を返しました`,"war",true); a.relief=null; recallArmy(a.id); continue; } } }
   if(!W.reliefMuster) return;
   for(const [rvS,m] of Object.entries(W.reliefMuster)){
     const rv=+rvS; const c=W.castles[rv]; const t=W.castles[m.target];
@@ -10211,8 +10228,11 @@ function bakeTerrain(){
       if(c.sea.has(n)) continue;
       const k=c.id<n?`${c.id}-${n}`:`${n}-${c.id}`;
       if(done.has(k)) continue; done.add(k);
-      g.moveTo(W.tile[c.id].c*TILE_PX,W.tile[c.id].r*TILE_PX);
-      g.lineTo(W.tile[n].c*TILE_PX,W.tile[n].r*TILE_PX);
+      const ax=W.tile[c.id].c, ay=W.tile[c.id].r, bx=W.tile[n].c, by=W.tile[n].r;
+      g.moveTo(ax*TILE_PX,ay*TILE_PX);
+      /* 第110巡：道の上に別の城が乗っていると、その城を経る道に見えてしまう（駿府—高天神の道が掛川に重なっていた）→ 少し膨らませて避ける */
+      let ctrl=null; { const dx=bx-ax, dy=by-ay, L2=dx*dx+dy*dy||1; for(const o of Object.values(W.castles)){ if(o.id===c.id||o.id===n) continue; const ox=W.tile[o.id].c, oy=W.tile[o.id].r; const t=((ox-ax)*dx+(oy-ay)*dy)/L2; if(t<0.15||t>0.85) continue; const px=ax+dx*t, py=ay+dy*t; const dd=Math.hypot(ox-px,oy-py); if(dd<3.2){ const nx=-dy/Math.sqrt(L2), ny=dx/Math.sqrt(L2); const side=((ox-px)*nx+(oy-py)*ny)>0?-1:1; ctrl=[ (ax+bx)/2+nx*side*7, (ay+by)/2+ny*side*7 ]; break; } } }
+      if(ctrl) g.quadraticCurveTo(ctrl[0]*TILE_PX,ctrl[1]*TILE_PX,bx*TILE_PX,by*TILE_PX); else g.lineTo(bx*TILE_PX,by*TILE_PX);
     }
     g.stroke();
   }
@@ -13539,7 +13559,7 @@ DECISIVE.push(
    after:{ atkWin:{ text:"浅井・朝倉は姉川に屍を残して退き、横山と佐和山は織田の手に落ちた", capture:"佐和山城" },
            defWin:{ text:"浅井の突撃が織田の陣を十一段まで突き破り、信長は岐阜へ逃げ帰った。近江の諸城は浅井に靡いた", capture:"長光寺城", spoils:{half:0.15} } } },
  { id:2204, key:"nagashino_open", sub:"三千挺の鉄砲、武田の騎馬を迎え撃つ", sc:"nagashino", when:"open", histWin:"def", name:"長篠の戦い", atk:"武田家", def:"織田家", allies:true, defAllies:["徳川家"], atkAllies:[],
-   terrain:0, forts:"def", nAtk:40, nDef:22, atkTroops:24000, defTroops:38000, defTroopsIfPlayerAtk:22000,
+   terrain:0, forts:"def", nAtk:40, nDef:22, atkTroops:24000, defTroops:38000, defTroopsIfPlayerAtk:18000,
    atkGens:["武田勝頼","山県昌景","馬場信春","内藤昌豊","真田信綱","土屋昌次","小山田信茂","穴山信君","武田信廉","原昌胤"],
    defGens:["織田信長","徳川家康","羽柴秀吉","柴田勝家","丹羽長秀","滝川一益","佐久間信盛","明智光秀","本多忠勝","榊原康政","酒井忠次","前田利家","佐々成政","織田信忠"],
    site:["長篠城","岡崎城"],
@@ -13586,7 +13606,7 @@ DECISIVE.push(
    after:{ atkWin:{ text:"徳川は総崩れとなり、家康は浜松へ逃げ帰った。だが武田は深追いせず、西へ向かった", spoils:{half:0.25} },
            defWin:{ text:"徳川は武田の大軍を三方ヶ原で押し返し、信玄の西上は頓挫した" } } },
  { id:2203, key:"nagashino", sub:"三千挺の鉄砲、武田の騎馬を迎え撃つ", when:"date", y:1575, m:5, histWin:"def", name:"長篠の戦い", atk:"武田家", def:"織田家", allies:true, defAllies:["徳川家"], atkAllies:[], sc:["oke","hoi"],
-   terrain:0, forts:"def", nAtk:40, nDef:22, atkTroops:24000, defTroops:38000, defTroopsIfPlayerAtk:22000,
+   terrain:0, forts:"def", nAtk:40, nDef:22, atkTroops:24000, defTroops:38000, defTroopsIfPlayerAtk:18000,
    atkGens:["武田勝頼","山県昌景","馬場信春","内藤昌豊","真田信綱","土屋昌次","小山田信茂","穴山信君","武田信廉","原昌胤"],
    defGens:["織田信長","徳川家康","羽柴秀吉","木下藤吉郎","柴田勝家","丹羽長秀","滝川一益","佐久間信盛","明智光秀","本多忠勝","榊原康政","酒井忠次","前田利家","佐々成政"],
    site:["長篠城","岡崎城"],
@@ -14296,8 +14316,13 @@ function fireDecisive(d){
   if(!A.war.has(Bc.id)) declareWar(A.id,Bc.id);
   const site=decisiveSite(d,A,Bc);
   B_carry=!!d.carry;
-  const aa=mkScriptArmy(A.id, ga, site.x-1, site.y, d.atkTroops);
-  const ab=mkScriptArmy(Bc.id, gb, site.x+1, site.y, (d.defTroopsIfPlayerAtk && A.id===W.player) ? d.defTroopsIfPlayerAtk : d.defTroops);   // 人が寄せ手なら守り手を控えめに（長篠の武田：勝てる備え）
+  /* 第110巡：盟友の軍が集まる決戦（山崎・関ヶ原）は、集まった将の実の兵が筋書きの数を超えていればそれを使う（筒井・細川が加わっても一万三千のままだった） */
+  const realOf=gs=>gs.reduce((s2,g)=>s2+(g.troops||0),0);
+  const atkT = (d.atkAllies&&d.atkAllies.length>1) ? Math.max(d.atkTroops, realOf(ga)) : d.atkTroops;
+  const defT0 = (d.defTroopsIfPlayerAtk && A.id===W.player) ? d.defTroopsIfPlayerAtk : d.defTroops;
+  const defT = (d.defAllies&&d.defAllies.length>1) ? Math.max(defT0, realOf(gb)) : defT0;
+  const aa=mkScriptArmy(A.id, ga, site.x-1, site.y, atkT);
+  const ab=mkScriptArmy(Bc.id, gb, site.x+1, site.y, defT);   // 人が寄せ手なら守り手を控えめに（長篠の武田：勝てる備え）
   B_carry=false;
   // 人の将が加わっている側は人が采配を執る（東西どちらかに付いた家も、決戦に出る）
   // 関ヶ原は徳川か石田で遊ぶときだけ人が采配。ほかの家なら史実どおりに決まる（小早川の寝返りで東軍が勝つ）
@@ -14748,10 +14773,10 @@ function startBattle(e){
       const gapTop = B.ctx.flank ? BF.h*0.5 : 0;   // 迂回なら上半分の柵がない（夜のうちに柵の端を回った）
       for(let L=0;L<3;L++){ const x=line+dir*L*2.0; for(let y=1.2;y<BF.h-0.6;y+=1.15){ if(y<gapTop) continue;
         /* 第107巡：三列とも上下いっぱいに組む（作り手の指示：馬防柵はしっかり三陣） */
-        const o={kind:1, variant:Math.floor(y*3)%3, x, y, r:0.85, wall:true, fort:true, fence:true, side:1, lane:L}; if(breakable) o.hp=B.ctx.playerSide===1 ? (L===0?112:75) : (L===0?70:50); o.hpMax=o.hp;   /* 人が武田のときの柵（第108巡：強すぎたので釣り合いを取り直し） */   /* 第107巡：柵の耐久を四分の一落とす（作り手の指示） */   /* 第103巡：升目になって柵の破れ目から入りやすくなった分、柵を太く。内の柵はなお太い */ B.obstacles.push(o); } }   // 柵は多く、一本は脆く（壊れる手応え：作り手の指示）
+        const o={kind:1, variant:Math.floor(y*3)%3, x, y, r:0.85, wall:true, fort:true, fence:true, side:1, lane:L}; if(breakable) o.hp=B.ctx.playerSide===1 ? (L===0?112:75) : (L===0?55:40); o.hpMax=o.hp;   /* 人が武田のときの柵（第108巡：強すぎたので釣り合いを取り直し） */   /* 第107巡：柵の耐久を四分の一落とす（作り手の指示） */   /* 第103巡：升目になって柵の破れ目から入りやすくなった分、柵を太く。内の柵はなお太い */ B.obstacles.push(o); } }   // 柵は多く、一本は脆く（壊れる手応え：作り手の指示）
       B.nagashino=true; B.fenceTotal0=B.obstacles.filter(o=>o.fence&&o.hpMax).length;
       if(B.ctx.playerSide===1){ B.mods=B.mods||{}; B.mods[1]={...(B.mods[1]||{cav:1,gunP:1,gunA:1,mor:1}), gunP:((B.mods[1]||{}).gunP||1)*0.75}; }   /* 鉄砲の威力は半分（騎馬が溶けるのが早すぎた。作り手の指示） */
-      if(B.ctx.playerSide===0){ for(const u of B.units) if(u.side===1){ if(u.type===3&&u.ammo!==undefined){ u.ammo=Math.round(u.ammo*0.8); u.ammoMax=Math.max(u.ammo,1); } u.morale=Math.max(20,u.morale-10); } for(const u of B.units) if(u.side===0) u.morale=Math.min(100,u.morale+10); B.mods=B.mods||{}; B.mods[1]={...(B.mods[1]||{cav:1,gunP:1,gunA:1,mor:1}), gunP:((B.mods[1]||{}).gunP||1)*0.6}; }   /* 織田の鉄砲は七割の威力（人が武田のとき。第108巡：騎馬を堅くした分、四割五分から戻す） */
+      if(B.ctx.playerSide===0){ for(const u of B.units) if(u.side===1){ if(u.type===3&&u.ammo!==undefined){ u.ammo=Math.round(u.ammo*0.8); u.ammoMax=Math.max(u.ammo,1); } u.morale=Math.max(20,u.morale-10); } for(const u of B.units) if(u.side===0) u.morale=Math.min(100,u.morale+10); B.mods=B.mods||{}; B.mods[1]={...(B.mods[1]||{cav:1,gunP:1,gunA:1,mor:1}), gunP:((B.mods[1]||{}).gunP||1)*0.5}; }   /* 織田の鉄砲は七割の威力（人が武田のとき。第108巡：騎馬を堅くした分、四割五分から戻す） */
       /* 第108巡：人が武田のときの上乗せ（練度・結束・武勇・騎馬）はやめ。武田家の強さ（第104巡）と騎馬の堅さ二倍（第107巡）で十分に強い（作り手：強すぎる） */
       // 設楽原の連吾川。柵の前を流れ、渡る兵の足が鈍り、川の中では火縄が湿る
       { const rx=Math.round(line+dir*4.5); for(let r=0;r<BF.h;r++){ if(B.tiles&&B.tiles[r]&&rx>=0&&rx<BF.w) B.tiles[r][rx]=(r===Math.round(BF.h*0.3)||r===Math.round(BF.h*0.3)+1||r===Math.round(BF.h*0.72)||r===Math.round(BF.h*0.72)+1) ? BT.FORD : BT.WATER; } B.bg=null; }   // 浅瀬が二か所
@@ -14895,7 +14920,7 @@ function startBattle(e){
   if(B.nagashino){ try{ nagSpread(); }catch(e9){ console.error("spread",e9); } }
   B.opening=PREF.skipSetup?0:999; B.openShownAt=undefined;   // 陣立て。〈開戦〉か空白で始める（設定で飛ばせる）
   if(B.nagashino && !autoBattleMode) setTimeout(()=>{ try{ nagCouncil(); }catch(e){ console.error(e); } }, 400);
-  B.rate=PREF.battleRate||2;         // 前の戦で選んだ速さを引き継ぐ（初期は×2）
+  B.rate=1;         /* 第110巡：戦の速さは毎回×1から（前の戦の×8が残っていた。作り手の指示） */
   setTimeout(()=>tutorial("battle"), 600);
   if(B.foeFences) setTimeout(()=>{ if(B) toast(`敵が陣の前に馬防柵を${B.foeFences}列組んでおります。騎馬は止められます`); }, 900);
   if(B.gate) setTimeout(()=>{ if(B) toast(B.ctx.playerSide===0?"石垣は越えられませぬ。城門（真ん中）を叩いて破り、なだれ込みなされ。鉄砲は壁越しに撃てます":"城門を守りなされ。破られれば城内に敵がなだれ込みます"); }, 900);
@@ -15976,7 +16001,7 @@ function stepUnit(u,dt){
     const t=B.units.find(x=>x.id===u.order.id&&x.troops>.5);
     if(t){ target=t; const keep=u.type===3?UNITS[3].rng*.7:2.9; if(dist(u,t)>keep) goal=approachPoint(u,t);
       if(u.type===3 && dist(u,t)>UNITS[u.type].rng && dist(u,nearest)<=UNITS[u.type].rng){ target=nearest; goal=null; } }   // 鉄砲：狙いが遠くても、間合いに入った敵はその場で撃つ
-    else if(u.side===B.ctx.playerSide && !u.ally && !B.autoMine && !autoBattleMode){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; }   // 討ち終えた隊が勝手に次の敵へ駆け出していた
+    else if(u.side===B.ctx.playerSide && !u.ally && !u.charge && !B.autoMine && !autoBattleMode){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; }   // 討ち終えた隊が勝手に次の敵へ駆け出していた（全軍突撃の隊は次の敵へ）
     else u.order={k:"hold"};
   }
   else if(u.order.k==="retreat"){
@@ -16295,7 +16320,7 @@ function battleAI(){
     const mineS=B.units.filter(u=>u.side===foeSide&&u.troops>.5), foeS=B.units.filter(u=>u.side!==foeSide&&u.troops>.5);
     const mt=mineS.reduce((s2,u)=>s2+u.troops,0), ft=foeS.reduce((s2,u)=>s2+u.troops,0);
     const start=mineS.reduce((s2,u)=>s2+u.max,0);
-    const fleeK = B.ctx.decisive ? [0.3,0.4] : [0.45,0.5];   // 大合戦では四万残して退かない（三割未満・敵の四割未満まで戦う）
+    const fleeK = [0.28,0.4];   /* 第110巡：五割も残して「打ち払われた」は変（作り手）。三割弱まで戦う */   // 大合戦では四万残して退かない（三割未満・敵の四割未満まで戦う）
     if(!B.aiFled && B.elapsed>20 && start>0 && mt/start<fleeK[0] && mt<ft*fleeK[1] && !(B.siegeWall && foeSide===1)){   // 城に籠る側は退かない
       B.aiFled=true;
       for(const u of mineS) u.order={k:"retreat"};
@@ -16501,7 +16526,7 @@ function aiCommandSide(side, onlyAlly){
       continue;
     }
     // 任せたときも、疲れた隊は息を入れ、崩れかけの味方を助け、裸の敵本陣は突く
-    if((u.fatigue||0)>85 && dist(u,near)>3){ if(u.order.k!=="guard"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } continue; }
+    if((u.fatigue||0)>85 && dist(u,near)>8){ if(u.order.k!=="guard"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } continue; }   /* 第110巡：疲れた隊も、近くの敵とは睨み合わずに戦う（両方が持ち場のまま硬直していた） */
     { const ally=B.units.find(v=>v.side===side&&v!==u&&v.morale>0&&v.morale<25&&dist(u,v)<6&&v.order.k==="attack"); if(ally){ const t=B.units.find(z=>z.id===ally.order.id&&z.troops>.5); if(t){ u.order={k:"attack",id:t.id}; continue; } } }
     { const hq=foes.find(x=>x.cmd); if(hq && !foes.some(x=>x!==hq&&dist(x,hq)<4) && dist(u,hq)<12){ u.order={k:"attack",id:hq.id}; continue; } }
     // 柵の前に来た騎馬は回り込む
@@ -17485,7 +17510,7 @@ function drawBattle(){
       + (u.morale>0 && u.type===3 && u.ammo!==undefined && u.ammo<=0 ? "弾" : "")
       + (u.morale>0 && u.morale<40 ? (u.morale<20?"潰":"鈍") : u.morale>0 && u.morale<70 ? "揺" : "")
       + (u.confusedUntil>B.elapsed ? "乱" : "")
-      + (u.morale>0 && (u.fatigue||0)>70 ? "疲" : "")
+
       + (u.morale>0 && u.side===B.ctx.playerSide && hiddenIn(u) ? "伏" : "")
       + (u.morale>0 && u.fenceCover!==undefined && B.elapsed-u.fenceCover<1.5 ? "柵" : "")
       + (u.morale>0 && u.isolated ? "孤" : "");
@@ -17537,7 +17562,7 @@ function drawBattle(){
       const badge=(col,draw)=>{ bctx.save(); bctx.fillStyle=col; bctx.beginPath(); bctx.arc(ix,iy,8,0,7); bctx.fill(); bctx.strokeStyle="rgba(0,0,0,.6)"; bctx.lineWidth=1; bctx.stroke(); draw(); bctx.restore(); ix-=18; };
       if(u.morale<30) badge("rgba(60,110,220,.92)",()=>{ bctx.fillStyle="#fff"; bctx.beginPath(); bctx.moveTo(ix,iy+5); bctx.lineTo(ix-4.5,iy-1); bctx.lineTo(ix-1.5,iy-1); bctx.lineTo(ix-1.5,iy-5); bctx.lineTo(ix+1.5,iy-5); bctx.lineTo(ix+1.5,iy-1); bctx.lineTo(ix+4.5,iy-1); bctx.closePath(); bctx.fill(); });
       if(u.type===3 && u.ammo!==undefined && u.ammo<=0) badge("rgba(90,90,90,.92)",()=>{ bctx.fillStyle="#fff"; bctx.font='900 9px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center"; bctx.fillText("弾",ix,iy+3.5); });
-      if((u.fatigue||0)>80) badge("rgba(160,110,40,.92)",()=>{ bctx.fillStyle="#fff"; bctx.font='900 9px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center"; bctx.fillText("疲",ix,iy+3.5); });
+      if(false && (u.fatigue||0)>80) badge("rgba(160,110,40,.92)",()=>{ bctx.fillStyle="#fff"; bctx.font='900 9px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center"; bctx.fillText("疲",ix,iy+3.5); });
     }
     // 選んだ隊は明るい太い輪、打ち合っている隊は薄い赤の輪
     if(!selNow && !u.danger && u.morale>0 && u.engagedAt!==undefined && B.elapsed-u.engagedAt<0.6){ bctx.save(); bctx.strokeStyle=`rgba(255,90,60,${.25+.15*Math.sin(B.elapsed*5)})`; bctx.lineWidth=1.5; bctx.beginPath(); bctx.ellipse(x,y+12*Z,30*Z,11*Z,0,0,7); bctx.stroke(); bctx.restore(); }
@@ -17556,7 +17581,7 @@ function drawBattle(){
       bctx.save(); bctx.strokeStyle=`rgba(255,80,50,${.35+.6*pulse})`; bctx.lineWidth=2.5+pulse; bctx.shadowColor="rgba(255,60,30,.8)"; bctx.shadowBlur=8*pulse;
       bctx.beginPath(); bctx.ellipse(x,y+10*Z,34*Z,14*Z,0,0,7); bctx.stroke(); bctx.restore();
     }
-    if(u.surrounded && u.morale>0){ const cx=x+30*Z, cy=y-24*Z; bctx.save(); bctx.fillStyle="rgba(200,20,10,.92)"; bctx.beginPath(); bctx.arc(cx,cy,9,0,7); bctx.fill(); bctx.strokeStyle="rgba(0,0,0,.6)"; bctx.lineWidth=1; bctx.stroke();
+    if(false && u.surrounded && u.morale>0){ const cx=x+30*Z, cy=y-24*Z; bctx.save(); bctx.fillStyle="rgba(200,20,10,.92)"; bctx.beginPath(); bctx.arc(cx,cy,9,0,7); bctx.fill(); bctx.strokeStyle="rgba(0,0,0,.6)"; bctx.lineWidth=1; bctx.stroke();
       bctx.fillStyle="#fff"; for(let k=0;k<4;k++){ const a2=k*Math.PI/2; const tx=cx+Math.cos(a2)*6.5, ty=cy+Math.sin(a2)*6.5; bctx.beginPath(); bctx.moveTo(cx+Math.cos(a2)*1.5,cy+Math.sin(a2)*1.5); bctx.lineTo(tx+Math.cos(a2+2.2)*3.2,ty+Math.sin(a2+2.2)*3.2); bctx.lineTo(tx+Math.cos(a2-2.2)*3.2,ty+Math.sin(a2-2.2)*3.2); bctx.closePath(); bctx.fill(); }   // 四方から矢
       bctx.restore(); }
     });
@@ -18433,7 +18458,11 @@ function renderBattleFoot(){
     });
     document.getElementById("bAllCharge").onclick=()=>{
       manualCommand();
-      for(const x of B.units) if(x.side===B.ctx.playerSide){ if(x.cmd||x.type===3){ x.order={k:"guard"}; x.gx=x.x; x.gy=x.y; continue; } x.order={k:"hold"}; x.pursue=false; x.charge=true; x.holdUntil=0; x.paceMul=undefined; }   // 本陣と鉄砲は留まる。第109巡：追い討ちの印（遠ければ止まる）を付けない＝遠くの敵へも向かう（押しても動かなかった）
+      { const foes=B.units.filter(z=>z.side!==B.ctx.playerSide&&z.troops>.5&&z.morale>0&&!z.left); const taken={};
+        for(const x of B.units) if(x.side===B.ctx.playerSide){ if(x.cmd||x.type===3){ x.order={k:"guard"}; x.gx=x.x; x.gy=x.y; continue; } x.pursue=false; x.charge=true; x.holdUntil=0; x.paceMul=undefined;
+          /* 第110巡：全軍突撃は隊ごとに狙う敵を決めて討ちにゆく（近い敵から、同じ敵に固まりすぎない） */
+          const t=foes.slice().sort((p,q)=>(dist(x,p)+(taken[p.id]||0)*5)-(dist(x,q)+(taken[q.id]||0)*5))[0];
+          if(t){ x.order={k:"attack",id:t.id}; taken[t.id]=(taken[t.id]||0)+1; } else x.order={k:"hold"}; } }   // 本陣と鉄砲は留まる。第109巡：追い討ちの印（遠ければ止まる）を付けない＝遠くの敵へも向かう（押しても動かなかった）
       const cmd=B.units.find(u=>u.side===B.ctx.playerSide&&u.cmd); if(cmd) bshout(cmd.id,"全軍、突撃ーッ！",2.4);
       B.chargedAll=true; toast("全軍突撃"); playSE("horse");
     };
