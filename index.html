@@ -18908,12 +18908,7 @@ function makeLoop(scene){
       pluck((b+s/subs)*beat, beat/subs*1.9, f, R.pluck*(0.7+rq()*0.3), 0.5+(rq()-0.5)*0.4);
     }
   }
-  const df=freqOf(R.root-12);
-  for(let i=0;i<len;i++){
-    const t=i/sr, tr=0.85+0.15*Math.sin(2*Math.PI*0.22*t);
-    const v=(Math.sin(2*Math.PI*df*t)+Math.sin(2*Math.PI*df*2*t)*0.25)*R.drone*tr;
-    L[i]+=v; Rc[i]+=v;
-  }
+  /* 第108巡：低い唸り（ずっと鳴る「ぶー」）はどの曲からも外す（作り手の指示：不快） */
   if(R.drum) for(let b=0;b<beats;b++){
     for(let h=0;h<R.drum;h++){
       const strong=(b%4===0&&h===0);
