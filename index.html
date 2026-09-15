@@ -15779,6 +15779,7 @@ function updateBattle(dt){
       });
       applyFormation(side);
       if(side===B.ctx.playerSide && !B.autoMine && !autoBattleMode) for(const u of B.units) if(u.side===side&&u.order.k==="hold"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; }   // 駆けつけた隊も命じるまで動かない
+      if(B.startTroops) B.startTroops[side]=(B.startTroops[side]||0)+gs.reduce((s2,g)=>s2+(g.troops||0),0);   /* 駆けつけた兵も「始めの兵」に足す（減りの割合の元） */
       B.reinforced=(B.reinforced||0)+1;
       B.reinforceAt=B.elapsed;
       B.reinforceName=arm.name;
@@ -15880,7 +15881,8 @@ function updateBattle(dt){
   if(!a.length&&!b.length) return endBattle(1);
   // 兵力が2割を切る、または総大将が崩れれば決着（仕様書 §73）
   const broken=side=>{
-    const start=B.units.filter(u=>u.side===side).reduce((s,u)=>s+u.max,0);
+    /* 第112巡：割る元は「始めに投じた兵」（右上の数の元）。討たれた隊が名簿から消えると元が縮み、早く決着していた（作り手の指示：右上が25%になるまで決めない） */
+    const start=(B.startTroops&&B.startTroops[side])||B.units.filter(u=>u.side===side).reduce((s,u)=>s+u.max,0);
     if(!start) return true;
     // 野に残って戦える隊だけを数える（去った隊・崩れた隊は勘定に入れない）
     const onF=B.units.filter(u=>u.side===side&&!u.left&&u.troops>.5);
