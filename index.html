@@ -15545,7 +15545,7 @@ function approachPoint(u,t){
 }
 function settleGrid(){ }
 /* 引いた道筋から折れ目の升を取り出す（向きが変わる所だけ。まっすぐなら無し） */
-function dragCorners(d){ const tr=(d&&d.trail)||[]; if(tr.length<3) return []; const out=[]; let last=tr[0]; for(let i=1;i<tr.length-1;i++){ const a=tr[i-1], b=tr[i], c=tr[i+1]; const d1=[Math.sign(b[0]-a[0]),Math.sign(b[1]-a[1])], d2=[Math.sign(c[0]-b[0]),Math.sign(c[1]-b[1])]; if((d1[0]!==d2[0]||d1[1]!==d2[1]) && Math.max(Math.abs(b[0]-last[0]),Math.abs(b[1]-last[1]))>=2){ out.push(b); last=b; } } return out; }   /* 指のぶれは拾わない（二升以上離れた折れ目だけ） */
+function dragCorners(d){ const tr=(d&&d.trail)||[]; if(tr.length<3) return []; const out=[]; for(let i=1;i<tr.length-1;i++){ const a=tr[i-1], b=tr[i], c=tr[i+1]; const d1=[Math.sign(b[0]-a[0]),Math.sign(b[1]-a[1])], d2=[Math.sign(c[0]-b[0]),Math.sign(c[1]-b[1])]; if(d1[0]!==d2[0]||d1[1]!==d2[1]) out.push(b); } return out; }   /* 第114巡：向きが変わる升はすべて経由地（右に二つ、上に五つ、と引けばそのとおりに曲がる） */
 /* 二隊の間に立っている柵（相手の柵でも自分の柵でも） */
 function fenceBetween(a,d){ const ax=a.x, ay=a.y, dx=d.x-ax, dy=d.y-ay; const L2=dx*dx+dy*dy||1; for(const o of B.obstacles){ if(!(o.fence||o.wall)) continue; if(o.hp!==undefined&&o.hp<=0) continue; if(Math.abs(o.x-(ax+d.x)/2)>3||Math.abs(o.y-(ay+d.y)/2)>3) continue; let t=((o.x-ax)*dx+(o.y-ay)*dy)/L2; t=Math.max(0,Math.min(1,t)); if(Math.hypot(o.x-(ax+dx*t),o.y-(ay+dy*t))<=o.r*0.9) return o; } return null; }
 /* 名簿の状態の印：交戦（交差の刃）・討つ（刃）・移動（矢）・守り（盾）・危険（！）・潰走（戻る矢）・待機（丸） */
@@ -15742,7 +15742,7 @@ function updateBattle(dt){
       const stA=B.startTroops&&B.startTroops[0]||0, nowA=A.reduce((s2,u)=>s2+u.troops,0), morA=A.filter(u=>u.troops>.5).reduce((s2,u)=>s2+u.morale,0)/Math.max(1,A.filter(u=>u.troops>.5).length);
       const stD=B.startTroops&&B.startTroops[1]||0, nowD=D.reduce((s2,u)=>s2+u.troops,0), morD=D.filter(u=>u.troops>.5).reduce((s2,u)=>s2+u.morale,0)/Math.max(1,D.filter(u=>u.troops>.5).length);
       if(stA>0 && (morA<8 && B.elapsed>90) && !B.nagShownBreak){ B.nagShownBreak=true; B.banner={t:"武田軍 総崩れ", at:B.elapsed}; }   // 知らせだけ。武田は隊を全部潰すか勝頼が退くまで敗れない
-      const odaCmd=B.units.find(u=>u.side===1&&u.cmd); if(stD>0 && ((odaCmd && odaCmd.troops<=.5) || nowD<stD*0.25)){ B.bigBanner={t:`${odaCmd&&W.generals[odaCmd.gid]?clanName(W.generals[odaCmd.gid].clan).replace(/家$/,""):"織田"}本陣 崩る`, at:B.elapsed, good:B.ctx.playerSide===0}; endBattle(0); return; } }
+      const odaCmd=B.units.find(u=>u.side===1&&u.cmd); if(stD>0 && (odaCmd && odaCmd.troops<=.5)){ B.bigBanner={t:`${odaCmd&&W.generals[odaCmd.gid]?clanName(W.generals[odaCmd.gid].clan).replace(/家$/,""):"織田"}本陣 崩る`, at:B.elapsed, good:B.ctx.playerSide===0}; endBattle(0); return; } }
     // 玉薬が乏しい
     for(const g of B.units){ if(g.side!==B.ctx.playerSide||g.type!==3||g.ammo===undefined||g.troops<=.5) continue; if(g.ammo<=25 && !g.ammoCry){ g.ammoCry=true; bshout(g.id,"玉薬が乏しい！",2.2); if(!B.ammoNote){ B.ammoNote=true; toast("鉄砲隊の玉薬が乏しくなってきました（名簿に残弾）"); } } }
     // 追い討ち：武田が半ば崩れたら、柵を越えて追う釦を出す
@@ -15931,7 +15931,7 @@ function updateBattle(dt){
     const onF=B.units.filter(u=>u.side===side&&!u.left&&u.troops>.5);
     if(!onF.length) return true;
     const now=onF.reduce((s,u)=>s+u.troops,0);
-    if(now/start<.25) return true;   /* 七割五分を失えば決着 */   // 長篠の武田は、隊を全部潰すまで負けにしない（作り手の指示）
+    /* 第114巡：兵の割合では決着しない（作り手：七割五分減っても「勝ち」と言われると変）。全滅か本陣の兵が尽きるか、だけ */   // 長篠の武田は、隊を全部潰すまで負けにしない（作り手の指示）
     const c=B.units.find(u=>u.side===side&&u.cmd);
     const lost = !c || c.troops<=.5;   /* 本陣は兵が尽きたときだけ（崩れて逃げているだけでは決着しない） */
     if(!lost) return false;
@@ -16064,6 +16064,7 @@ function stepUnit(u,dt){
     *(1-Math.min(0.35,(u.fatigue||0)/100*0.35));
   if(active) speed*=sp.spd;
   if(u.paceMul!==undefined) speed*=u.paceMul;   /* 長篠の波：柵の手前までゆっくり寄せる */
+  if(u.order.k==="retreat") speed*=1.6;   /* 第114巡：退く隊は足が速い（最後の一隊が野を去るまで戦が終わらなかった） */
   if(u.reformUntil && B.elapsed<u.reformUntil) speed*=0.8;   // 陣替えの最中は足も鈍る
   // 木や柵に阻まれると足が鈍る
   for(const o of B.obstacles){
@@ -18170,7 +18171,7 @@ bcanvas.addEventListener("pointerdown",ev=>{
   if(mine){
     if(B.sel===mine.id && !B.group){ B.sel=null; B.drag=null; renderBattleFoot(); return; }   // 同じ隊をもう一度押せば選び直し
     B.sel=mine.id;
-    B.drag={id:mine.id, x:wx, y:wy, moved:false, foe:null};
+    B.drag={id:mine.id, x:wx, y:wy, moved:false, foe:null, trail:[cellOf(mine.x,mine.y)]};   /* 道筋は隊の升から（第114巡） */
     try{ bcanvas.setPointerCapture(ev.pointerId); }catch(_){ }
     if(!B.selHinted){ B.selHinted=true; toast(`${mine.name}隊を選びました。丸の付いた升を押せばそこへ、敵を押せば討ちにゆきます`); }
   } else if(B.sel!==null && B.units.find(z=>z.id===B.sel && z.side===B.ctx.playerSide)) {
