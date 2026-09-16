@@ -4009,6 +4009,7 @@ function jailFor(captor, x, y){
 }
 function captureCastle(cid,clan,a){
   let diedNames=null;
+  { const c0=W.castles[cid]; if(c0&&c0.name==="大坂城"&&W.osaka&&W.osaka.phase==="winter"){ const tk=clanByName("徳川家"); if(tk&&clan===tk.id){ setTimeout(()=>{ try{ osakaFall(); }catch(e){ console.error(e); } },50); } } }   /* 第116巡：会戦で大坂城が落ちれば冬の陣は終わる */
   bumpGarrison();
   let capNames=null, fledNames=null, fledTo="", retreaters=null, retreatTo=null;
   const c=W.castles[cid], old=c.clan;
@@ -14030,6 +14031,7 @@ function osakaWinterDaily(){
   // 機械の徳川：囲みを締め、砲を撃ち、十日目に真田丸へ寄せる
   if(tk.id!==W.player){ o.siege=Math.min(100,o.siege+2.5); if(o.shots>0 && o.day%2===0){ const r=rnd(); osakaBombard(r<0.4?"honmaru":r<0.7?"wall":"morale", true); }
     if(o.day===10 && o.sanada>0){ osakaSanadaAssault(true); }
+    if(ty.id===W.player && (o.day===14 || (o.battleDay!==undefined && o.day-o.battleDay>=30))){ osakaBattle(true); }   /* 第116巡：機械の徳川も本当の合戦を仕掛ける */
     if(o.day>=45 && ty.id!==W.player && (o.offers===0 || (o.day-(o.offerDay||0))>=20)){ o.offerDay=o.day; osakaOffer(true); }
     if(o.day>=35 && ty.id===W.player && (o.offers===0 || (o.day-(o.offerDay||0))>=25)){ o.offerDay=o.day; osakaOffer(true); } }
   // 機械の豊臣：囲みがきつければ夜襲
@@ -14040,6 +14042,7 @@ function osakaWinterDaily(){
   if(o.food<=0){ o.morale=Math.max(0,o.morale-2); }
   if(o.food<=0 && o.morale<=30 && ty.id!==W.player && o.offers>0){ osakaPeaceAccept(); }
   if(o.day%10===0) toast(`冬の陣 ${o.day}日目：兵糧${Math.round(o.food)}%　包囲${Math.round(o.siege)}%　継戦派${100-Math.round(o.peace)}／和睦派${Math.round(o.peace)}`);
+  if(tk.id===W.player && o.day===3 && !B && !overlayEl){ openOsakaWinter(); toast("大坂城の札から、砲撃・強襲・総攻めの会戦・和睦を選べます"); }   /* 第116巡：人が徳川なら札を開いて手を示す */
   if(panelKey==="osakaWinter") openOsakaWinter();
 }
 function osakaBombard(target, ai){
@@ -14052,6 +14055,16 @@ function osakaBombard(target, ai){
   else { o.morale=Math.max(0,o.morale-6); o.peace+=2; if(!ai) log("城内へ向けて脅しの砲。士気が落ちました","war"); }
   if(!ai){ try{ playSE("siege"); }catch(_){ } if(panelKey==="osakaWinter") openOsakaWinter(); }
 }
+/* 第116巡：冬の陣にも本当の合戦を（作り手：戦が発生しない）。徳川の軍が大坂城へ攻め寄せ、合戦の画面で門を破って本丸へ。勝てば大坂は落ちる */
+function osakaBattle(ai){
+  const o=W.osaka; if(!o||o.phase!=="winter") return; const tk=clanByName("徳川家"), ty=clanByName("豊臣家"); const osk=Object.values(W.castles).find(c=>c.name==="大坂城"); if(!tk||!ty||!osk) return;
+  if(B||pendingEncounter) return;
+  const a=(W.stage&&W.stage.armies||[]).map(id=>W.armies[id]).find(x=>x&&x.clan===tk.id) || Object.values(W.armies).find(x=>x.clan===tk.id&&x.target===osk.id);
+  if(!a) return toast("寄せ手の軍勢がおりませぬ");
+  o.battleDay=o.day; closePanel();
+  queueEncounter({army:a.id, foeArmy:null, castle:osk.id, playerAttacks:tk.id===W.player});
+  if(!ai) log("大坂城へ総攻めをかけます","war",true);
+}
 function osakaAssault(ai){
   const o=W.osaka; const k=osakaLayerNow(); if(!k) return; const L=o.layers;
   const mor=o.morale/100; const dmg=Math.round(18*(1.3-mor)); const loss=Math.round(2500*(0.6+mor)*(k==="honmaru"?1.6:1));
@@ -14062,7 +14075,7 @@ function osakaAssault(ai){
   if(o.layers.honmaru<=0) osakaFall();
   if(!ai && panelKey==="osakaWinter") openOsakaWinter();
 }
-function osakaFall(){ const o=W.osaka; if(o.phase!=="winter") return; o.phase="over"; const osk=Object.values(W.castles).find(c=>c.name==="大坂城"); const tk=clanByName("徳川家"); if(osk&&tk){ captureCastle(osk.id, tk.id, null); } const hy=Object.values(W.generals).find(g=>g.name==="豊臣秀頼"); if(hy && !(tk&&tk.id===W.player)) kill(hy.id); log("大坂城は冬のうちに落ち、豊臣家は滅びました","war",true); bigNews("大坂城 落城"); clearStage(); W.stageLock=false; W.genna=true; setTimeout(()=>gennaEnbu(false),900); }
+function osakaFall(){ const o=W.osaka; if(o.phase!=="winter") return; o.phase="over"; const osk=Object.values(W.castles).find(c=>c.name==="大坂城"); const tk=clanByName("徳川家"); if(osk&&tk&&osk.clan!==tk.id){ captureCastle(osk.id, tk.id, null); } const hy=Object.values(W.generals).find(g=>g.name==="豊臣秀頼"); if(hy && !(tk&&tk.id===W.player)) kill(hy.id); log("大坂城は冬のうちに落ち、豊臣家は滅びました","war",true); bigNews("大坂城 落城"); clearStage(); W.stageLock=false; W.genna=true; setTimeout(()=>gennaEnbu(false),900); }
 /* 元和偃武：豊臣が滅び（または臣従し）、日ノ本の戦がやむ。家康なら秀頼の処遇を選ぶ */
 function gennaEnbu(peaceful){
   if(W.gennaDone) return; W.gennaDone=true; const tk=clanByName("徳川家"), ty=clanByName("豊臣家");
@@ -14137,7 +14150,7 @@ function openOsakaWinter(){
     <div class="grid g2" style="margin-top:4px"><div class="s-stat"><span>徳川の損害</span><b>${o.tkLoss.toLocaleString()}</b></div><div class="s-stat"><span>豊臣の損害</span><b>${o.tyLoss.toLocaleString()}</b></div></div>`;
   if(o.phase==="winter" && mineTk){ h+=`<div class="sec-title">寄せ手の手立て（砲の玉 ${o.shots}）</div>
     <div class="grid g3"><button class="cmd" onclick="osakaBombard('wall')">城壁を砲撃<span class="cost">いまの守り -14</span></button><button class="cmd" onclick="osakaBombard('tower')">櫓を砲撃<span class="cost">-8・士気-2</span></button><button class="cmd" onclick="osakaBombard('gate')">門を砲撃<span class="cost">-10・包囲+3</span></button><button class="cmd" onclick="osakaBombard('honmaru')">本丸へ砲撃<span class="cost">本丸-6・士気-4・和睦派+3</span></button><button class="cmd" onclick="osakaBombard('morale')">脅しの砲<span class="cost">士気-6・和睦派+2</span></button><button class="cmd" onclick="W.osaka.siege=Math.min(100,W.osaka.siege+6);toast('囲みを締めました');openOsakaWinter()">囲みを締める<span class="cost">包囲+6（兵糧の減りが早まる）</span></button></div>
-    <div class="grid g3" style="margin-top:6px"><button class="cmd" onclick="osakaAssault()">${cur?OSAKA_LAYER_N[cur]:"—"}へ強襲<span class="cost">早いが損害が大きい</span></button>${o.sanada>0?`<button class="cmd" onclick="osakaSanadaAssault()">真田丸へ強襲<span class="cost">会戦（土塁と鉄砲が待つ）</span></button><button class="cmd" onclick="W.osaka.sanada=Math.max(0,W.osaka.sanada-10);W.osaka.siege=Math.min(100,W.osaka.siege+2);toast('真田丸を囲みます');openOsakaWinter()">真田丸を包囲<span class="cost">ゆっくり削る（-10）</span></button>`:""}${o.day>=20?`<button class="cmd" onclick="osakaOffer(false)">和睦を申し入れる<span class="cost">和睦派が五割五分を超えていれば通る</span></button>`:""}</div>`; }
+    <div class="grid g3" style="margin-top:6px"><button class="cmd" style="border-color:var(--kin)" onclick="osakaBattle()">総攻めの会戦<span class="cost">合戦の画面へ。門を破り本丸へ攻め込む（勝てば大坂は落ちる）</span></button><button class="cmd" onclick="osakaAssault()">${cur?OSAKA_LAYER_N[cur]:"—"}へ強襲<span class="cost">早いが損害が大きい</span></button>${o.sanada>0?`<button class="cmd" onclick="osakaSanadaAssault()">真田丸へ強襲<span class="cost">会戦（土塁と鉄砲が待つ）</span></button><button class="cmd" onclick="W.osaka.sanada=Math.max(0,W.osaka.sanada-10);W.osaka.siege=Math.min(100,W.osaka.siege+2);toast('真田丸を囲みます');openOsakaWinter()">真田丸を包囲<span class="cost">ゆっくり削る（-10）</span></button>`:""}${o.day>=20?`<button class="cmd" onclick="osakaOffer(false)">和睦を申し入れる<span class="cost">和睦派が五割五分を超えていれば通る</span></button>`:""}</div>`; }
   if(o.phase==="winter" && mineTy){ h+=`<div class="sec-title">城方の手立て</div>
     <div class="grid g3"><button class="cmd" onclick="osakaRaid()">夜襲<span class="cost">六割で囲みが緩む。しくじれば八百を失う</span></button><button class="cmd" onclick="osakaSupply()">兵糧を運び込む<span class="cost">包囲六割未満なら +12</span></button><button class="cmd" onclick="W.osaka.morale=Math.min(100,W.osaka.morale+4);W.osaka.peace=Math.max(5,W.osaka.peace-3);toast('秀頼公が諸将を励ましました');openOsakaWinter()">秀頼公の激励<span class="cost">士気+4・和睦派-3</span></button></div>
     <div class="tiny muted" style="margin-top:4px">和睦の申し入れは徳川から来ます。受けるか、拒むか、条件を交渉するか。</div>`; }
