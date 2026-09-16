@@ -12243,6 +12243,7 @@ function openCouncil(id){
   } else {
     h+=`<div class="tiny muted" style="padding:10px 4px">① 上の仕事を押す → ② 命じる将を選ぶ。手の空いた将 ${officers.length}名（この城）</div>`;   /* 第121巡：何をすればよいか分かるように */
   }
+  h+=`<button class="big ghost" onclick="openDelegate(${id})">${c.delegate===null?"自動内政（この城を任せる）":"自動内政 "+FOCUS[c.delegate]+"（方針を変える）"}</button>`;   /* 第123巡：自動内政は内政の札の中に（作り手の指示） */
   h+=`<button class="big ghost" onclick="openCastle(${id})">城へ戻る</button>`;
   openPanel("内政", c.name, h);
 }
@@ -13422,9 +13423,9 @@ const DECISIVE=[
    after:{ atkWin:{ text:"大坂城は炎に包まれ、秀頼と淀殿は山里丸で自害した。豊臣家、ここに滅ぶ。――元和偃武、戦国の世は終わる", kill:"豊臣秀頼", capture:"大坂城", flag:"genna" },
            defWin:{ text:"徳川の大軍は崩れ去り、豊臣は大坂城を守り抜いた。天下は再び揺れる――外様の諸家が徳川を測り直す", flag:"osakaToyotomiWin", rels:[["伊達家","徳川家",-20],["毛利家","徳川家",-20],["島津家","徳川家",-20],["前田家","徳川家",-15]], news:["豊臣の勝ちに、西国の諸家が徳川を測り直している"] } } },
  { id:2103, key:"yamazaki", sub:"天下分け目の天王山", sc:"honnoji", when:"open", name:"山崎の戦い", atk:"羽柴家", def:"明智家", allies:true, atkAllies:["羽柴家","池田家","丹羽家","神戸家"], defAllies:["明智家","筒井家"],
-   terrain:4, forts:null, nAtk:14, nDef:8, atkTroops:30000, defTroops:13000,
+   terrain:4, forts:null, nAtk:14, nDef:12, atkTroops:30000, defTroops:20000,   /* 第123巡：明智は筒井・細川を合わせて二万（作り手の指示。前は一万三千） */
    atkGens:["羽柴秀吉","羽柴秀長","黒田官兵衛","高山右近","中川清秀","池田恒興","堀秀政","丹羽長秀","織田信孝","蜂須賀正勝","加藤清正","福島正則"],
-   defGens:["明智光秀","明智秀満","斎藤利三","藤田行政","松田政近","伊勢貞興","阿閉貞征","溝尾茂朝"],
+   defGens:["明智光秀","明智秀満","斎藤利三","細川藤孝","細川忠興","筒井順慶","藤田行政","松田政近","伊勢貞興","阿閉貞征","溝尾茂朝","筒井定次"],
    site:["高槻城","勝竜寺城"],   /* 天正の世では芥川山城は高槻城 */
    stage:{days:10, siteName:"山崎", atkFrom:"姫路城", atkSiege:{castle:"備中高松城", days:3, note:"秀吉、備中高松を水攻めに"}, atkVia:["姫路城","三木城","伊丹城"], atkNote:"秀吉、二百里を駆け戻る（中国大返し）",
      defFrom:"二条御所", defDays:9, defNote:"光秀、京を発ち山崎へ",
@@ -15216,6 +15217,7 @@ function sekSetup(){
   if(prep.eKoba) B.koba.east+=10; if(prep.wKoba) B.koba.west+=10; B.koba.east=Math.round(B.koba.east*100/(B.koba.east+B.koba.west)); B.koba.west=100-B.koba.east;
   const mori=B.units.find(u=>/毛利秀元|吉川広家/.test(u.name)&&u.side===1); if(mori){ mori.sekHold=true; mori.order={k:"guard"}; mori.gx=mori.x; mori.gy=mori.y; B.moriId=mori.id; B.moriJoins = prep.wMori ? (rnd()<0.45) : false; if(prep.eKikkawa) B.moriJoins=false; }
   const shim=B.units.find(u=>/島津義弘/.test(u.name)&&u.side===1); if(shim){ shim.sekHold=true; shim.order={k:"guard"}; shim.gx=shim.x; shim.gy=shim.y; }
+  { const kb=B.units.find(u=>/小早川秀秋/.test(u.name)&&u.side===1); if(kb){ kb.sekHold=true; kb.order={k:"guard"}; kb.gx=kb.x; kb.gy=kb.y; } }   /* 第123巡：決めるまでは松尾山を動かない（決める前から西軍として戦っていた） */
   for(const u of B.units) if(u.cmd){ u.tough=(u.tough||1)*6; u.morRes=0.3; }   /* 第120巡：両本陣は堅い（井伊の一隊に八秒で三成本陣が崩れていた） */
   for(const u of B.units){ if(/井伊直政/.test(u.name)){ u.horse=(u.horse||1)*1.25; u.skill="赤備え"; } else if(/本多忠勝/.test(u.name)){ u.tough=(u.tough||1)*1.4; u.skill="無傷"; } else if(/福島正則/.test(u.name)){ u.skillAtk=1.15; u.skill="先鋒"; } else if(/徳川家康/.test(u.name)) u.skill="采配"; else if(/石田三成/.test(u.name)) u.skill="檄";   /* 第117巡b：将の技 */
     u.will = /徳川家康|石田三成|井伊直政|本多忠勝|福島正則|大谷吉継|宇喜多秀家/.test(u.name) ? 100 : /小早川秀秋/.test(u.name) ? 40 : /吉川広家|毛利秀元/.test(u.name) ? 20 : /島津/.test(u.name) ? 50 : /小西行長|黒田長政|細川忠興|加藤嘉明/.test(u.name) ? 85 : 70; }   /* 第117巡：戦意（その大名が本当に戦う気があるか） */
@@ -15683,7 +15685,7 @@ const SIGNATURES={
  ],
  // 関ヶ原：問鉄砲、小早川の寝返り、大谷吉継、島津の退き口
  sekigahara:[
-  { at:0, run:()=>{ const kb=sigUnit("小早川秀秋"), mi=sigCmd(1), ie=sigCmd(0); B.keyPoints=[]; if(kb) B.keyPoints.push({name:"松尾山", x:kb.x, y:kb.y, r:4, owner:1, since:0}); if(mi) B.keyPoints.push({name:"笹尾山", x:mi.x-1, y:mi.y, r:4, owner:1, since:0, hqSide:1}); if(ie) B.keyPoints.push({name:"桃配山", x:ie.x+1, y:ie.y, r:4, owner:0, since:0, hqSide:0}); } },
+  { at:0, run:()=>{ const kb=sigUnit("小早川秀秋"), mi=sigCmd(1), ie=sigCmd(0); B.keyPoints=[]; { const hill=(cx,cy,r)=>{ if(!B.tiles) return; for(let rr=Math.floor(cy-r);rr<=Math.ceil(cy+r);rr++) for(let cc=Math.floor(cx-r);cc<=Math.ceil(cx+r);cc++){ if(rr<0||cc<0||rr>=BF.h||cc>=BF.w) continue; if(Math.hypot(cc+.5-cx,rr+.5-cy)<=r && B.tiles[rr][cc]!==BT.WATER && B.tiles[rr][cc]!==BT.FORD) B.tiles[rr][cc]=BT.HILL; } B.bg=null; }; if(kb) hill(kb.x,kb.y,4); if(mi) hill(mi.x-1,mi.y,3.5); if(ie) hill(ie.x+1,ie.y,3.5); }   /* 第123巡：松尾山・笹尾山・桃配山は本当に丘に */ if(kb) B.keyPoints.push({name:"松尾山", x:kb.x, y:kb.y, r:4, owner:1, since:0}); if(mi) B.keyPoints.push({name:"笹尾山", x:mi.x-1, y:mi.y, r:4, owner:1, since:0, hqSide:1}); if(ie) B.keyPoints.push({name:"桃配山", x:ie.x+1, y:ie.y, r:4, owner:0, since:0, hqSide:0}); } },
   { at:0, run:()=>{ B.weather="霧"; const el=document.getElementById("bTerrain"); if(el) el.textContent="関ヶ原の戦い　／　"+BTERRAIN[B.t].n+"　"+terrainNote(B.t)+"　／　霧　"+WEATHER["霧"].d; sigBanner("朝霧の関ヶ原"); log("関ヶ原は深い朝霧に包まれ、敵の姿が見えません","war"); } },
   { at:14, run:()=>{ B.weather="晴"; const el=document.getElementById("bTerrain"); if(el) el.textContent="関ヶ原の戦い　／　"+BTERRAIN[B.t].n+"　"+terrainNote(B.t)+"　／　晴　障りなし"; sigBanner("霧が晴れた——両軍、動く"); try{ playSE("horn"); }catch(_){ } log("霧が晴れ、両軍が一斉に動き出しました","war"); } },
   { at:60, when:()=>B.elapsed>=60 && B.ctx.playerSide!==0 && B.koba && !B.koba.asked && !B.koba.done && !B.koba.stay, run:()=>{ const k=B.koba; k.asked=true; k.east=Math.min(95,k.east+15); k.west=100-k.east; const c=sigCmd(0); if(c) bshout(c.id,"松尾山に鉄砲を撃ちかけよ！ 秀秋を急かせ！",3); sigBanner("問鉄砲");   /* 第117巡b：帯だけでなく本当に秀秋を傾ける（人が東軍なら〈催促〉の釦で自分でやる） */ try{ playSE("gun"); setTimeout(()=>{ try{ playSE("gun"); }catch(_){ } },200); }catch(_){ } log("家康が松尾山へ鉄砲を撃ちかけ、小早川を急かしました","war"); } },
@@ -15835,7 +15837,7 @@ function updateBattle(dt){
     if(d && d.turncoat){
       const u=B.units.find(x=>x.name===d.turncoat && x.side===1 && x.troops>1);
       if(u){
-        u.side=0; u.cmd=false; u.face=0; u.order={k:"hold"}; u.morale=Math.max(u.morale,60); if(B.ctx.playerSide===0 && !B.autoMine && !autoBattleMode){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; }
+        u.side=0; u.cmd=false; u.face=0; u.order={k:"hold"}; u.morale=Math.max(u.morale,60); u.ally=false; u.turned=true;   /* 第123巡：色も旗も東軍に（緑のままで裏切った感がなかった） */ if(B.ctx.playerSide===0 && !B.autoMine && !autoBattleMode){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; }
         // 側0の将の名簿にも入れる。さもなくば戦の後に兵が戻らない
         if(!B.ctx.atk.includes(u.gid)) B.ctx.atk.push(u.gid);
         B.ctx.def=B.ctx.def.filter(x=>x!==u.gid);
@@ -16326,6 +16328,7 @@ function resolveAttack(a,d){
   if(a.type===3){ a.ammo=(a.ammo===undefined?30:a.ammo)-1; if(a.ammo<=0){ power*=0.45; if(a.ammo===0) bshout(a.id,"玉薬が尽きた！",2); } }
   let loss=Math.max(1, power/Math.max(8,defense)*5*(0.9+rnd()*0.2));   // 7では兵が減りすぎた
   if(d.tough) loss/=d.tough;   /* 堅い隊（武田の騎馬） */
+  if(a.type!==3){ loss*=Math.max(1, Math.pow(d.max/1500, 0.7)); }   /* 第123巡：大きな隊（関ヶ原の三千〜六千）は減りが遅く「何も起こっていない」ように見えた → 隊の大きさに応じて削れる（作り手の指摘） */
   battleSE(a.type===2?"horse":a.type===0?"spear":"clash", d.x, d.y, a.type===2?700:450, 0.45);   /* 第121巡：近くの戦いほど大きく聞こえる */
   if(a.type===0) loss*=(d.type===2?2.2:3.6); else if(a.type===1) loss*=3.0; else if(a.type===2) loss*=2.0;   /* 足軽は騎馬に対しては控えめ（騎馬が足軽に溶けていた） */   /* 第115巡：白兵をさらに重く（鉄砲の持久戦になっていた。作り手の指示） */   /* 第109巡：足軽同士が削り合わず退屈だった（作り手）→ 足軽3.0倍・侍2.2倍。第102巡：白兵はぶつかれば目に見えて減る（足軽同士の千で一分に三十では「じゃれている」ように見えた） */
   if(bTileAt(d.x,d.y)===BT.WATER) loss*=1.25;                            // 川の中で討たれる兵は多い
@@ -17299,7 +17302,7 @@ function drawBattle(){
       bctx.font='800 12px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="left"; bctx.fillStyle="#FFD166"; bctx.fillText(`${n}隊`, x1+6, y1); }
   }
   // 選んだ隊から指先へ予告線（地面なら白の点線、敵の上なら赤）。押せば何が起きるかを先に見せる
-  if(B.hoverXY && B.over===null && !B.drag && !B.box){
+  if(false && B.hoverXY && B.over===null && !B.drag && !B.box){   /* 第123巡：予告線と「ここへ」はやめ（作り手：勝手に行き先が決まって見える） */
     const selU = B.sel!==null ? B.units.find(z=>z.id===B.sel&&z.side===B.ctx.playerSide&&z.troops>.5) : null;
     const gs = B.group&&B.group.length ? B.units.filter(u=>B.group.includes(u.id)&&u.troops>.5) : (selU?[selU]:[]);
     if(gs.length){
@@ -17441,7 +17444,7 @@ function drawBattle(){
       ring(u.x,u.y, selNow?"選んだ。次は光る升へ":"この隊を押す", true); ring(H.x,H.y,"ここへ（破れ目）", false);
       bctx.setLineDash([8,6]); bctx.strokeStyle="rgba(255,214,102,.8)"; bctx.lineWidth=2; bctx.beginPath(); bctx.moveTo(u.x*sx,u.y*sy); bctx.lineTo(H.x*sx,H.y*sy); bctx.stroke(); bctx.setLineDash([]); bctx.restore(); } }
   /* 第117巡：要地の印（金の星と札。持つ側の色） */
-  if(B.keyPoints){ bctx.save(); for(const k of B.keyPoints){ const px=k.x*sx, py=k.y*sy; const col = k.owner===null ? "rgba(255,255,255,.8)" : k.owner===B.ctx.playerSide ? "rgba(120,170,255,.95)" : "rgba(255,110,90,.95)"; bctx.strokeStyle=col; bctx.lineWidth=2; bctx.setLineDash([6,5]); bctx.beginPath(); bctx.arc(px,py,k.r*sx,0,7); bctx.stroke(); bctx.setLineDash([]);
+  if(false && B.keyPoints){ bctx.save(); for(const k of B.keyPoints){ const px=k.x*sx, py=k.y*sy;   /* 第123巡：輪と星と札はやめ（作り手：邪魔）。山は丘の目で見せる */ const col = k.owner===null ? "rgba(255,255,255,.8)" : k.owner===B.ctx.playerSide ? "rgba(120,170,255,.95)" : "rgba(255,110,90,.95)"; bctx.strokeStyle=col; bctx.lineWidth=2; bctx.setLineDash([6,5]); bctx.beginPath(); bctx.arc(px,py,k.r*sx,0,7); bctx.stroke(); bctx.setLineDash([]);
       bctx.fillStyle="#FFD166"; bctx.font='900 16px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center"; bctx.textBaseline="middle"; bctx.fillText("★",px,py-6); bctx.font='800 11px "Zen Kaku Gothic New",sans-serif'; const t=`${k.name}${k.owner===null?"":k.owner===B.ctx.playerSide?"　わが手":"　敵の手"}${k.hold?`　${Math.ceil(6-k.hold)}`:""}`; const tw=bctx.measureText(t).width+12; const ly=py+k.r*sy-2; bctx.fillStyle="rgba(0,0,0,.7)"; bctx.beginPath(); bctx.roundRect(px-tw/2,ly-8,tw,16,5); bctx.fill(); bctx.fillStyle=col; bctx.fillText(t,px,ly); }   /* 札は輪の下の縁に（本陣の札と重なっていた） */
     bctx.restore(); }
   /* 第117巡：命令の線。選んだ隊と、命じてから三秒の隊に、移動＝青の実線・攻撃＝赤の実線に矢尻・退却＝白の破線（色だけに頼らない） */
@@ -17630,7 +17633,7 @@ function drawBattle(){
       bctx.fillRect(bx,by,bw*Math.max(0,r),5);
       bctx.strokeStyle=u.sekHold?"rgba(181,123,238,.9)":u.side===B.ctx.playerSide?"rgba(120,170,255,.85)":"rgba(255,130,110,.85)"; bctx.lineWidth=1; bctx.strokeRect(bx-1.5,by-1.5,bw+3,8); }   // 縁の色で敵味方（太い＝兵力、細い＝士気。静観は紫）
     // 兵科の印は常に（槍・侍・騎・鉄）。わが隊は番号も（名簿と同じ）
-    { const tc=["#8FB8FF","#FFD166","#FFA07A","#B8E0FF"][u.type]; bctx.fillStyle=tc; bctx.fillRect(bx-13,by-2,10,10); bctx.fillStyle="#1A1208"; bctx.font='900 8px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center"; bctx.fillText(["槍","侍","騎","鉄"][u.type], bx-8, by+6);
+    if(false){ const tc=["#8FB8FF","#FFD166","#FFA07A","#B8E0FF"][u.type]; bctx.fillStyle=tc; bctx.fillRect(bx-13,by-2,10,10); bctx.fillStyle="#1A1208"; bctx.font='900 8px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center"; bctx.fillText(["槍","侍","騎","鉄"][u.type], bx-8, by+6);   /* 第123巡：兵科の印と番号はやめ（作り手：いらない） */
       if(u.side===B.ctx.playerSide && u.morale>0){ const idx=B.units.filter(x=>x.side===B.ctx.playerSide&&x.troops>.5&&!x.left).indexOf(u); if(idx>=0 && idx<12){ bctx.fillStyle="rgba(0,0,0,.7)"; bctx.fillRect(bx-25,by-2,10,10); bctx.fillStyle="#FFD166"; bctx.font='800 8px "DotGothic16",monospace'; bctx.fillText(String(idx+1), bx-20, by+6); } } }
     bctx.fillStyle="rgba(0,0,0,.65)"; bctx.fillRect(bx,by+7,bw,2);
     bctx.fillStyle=u.morale>60?"#5FD36A":u.morale>40?"#E8C547":u.morale>20?"#E08A2E":"#E24A3A";   // 士気は四段の色（緑・黄・橙・赤）
@@ -17689,7 +17692,7 @@ function drawBattle(){
       + (u.morale>0 && u.side===B.ctx.playerSide && hiddenIn(u) ? "伏" : "")
       + (u.morale>0 && u.fenceCover!==undefined && B.elapsed-u.fenceCover<1.5 ? "柵" : "")
       + (u.morale>0 && u.isolated ? "孤" : "");
-    { const base = u.morale<=0 ? "潰走" : (u.cmd ? (u.side===B.ctx.playerSide?"本陣":"敵本陣") : UNITS[u.type].s); const extra=tag.slice(base.length); if(!selNow) tag=base; else if(u.surrounded && u.morale>0 && !extra.includes("囲")) tag=base+"囲"+extra; }   // 字の印は選んだ隊だけ全部。ほかは絵の印（囲・揺・弾・疲）で先に
+    { const base = u.morale<=0 ? "潰走" : (u.cmd ? (u.side===B.ctx.playerSide?"本陣":"敵本陣") : ""); const extra=""; tag=base; if(false) tag=base;   /* 第123巡：兵種の字や印はやめ（作り手：いらない） */ else if(u.surrounded && u.morale>0 && !extra.includes("囲")) tag=base+"囲"+extra; }   // 字の印は選んだ隊だけ全部。ほかは絵の印（囲・揺・弾・疲）で先に
     const tagColor = u.morale<=0 ? "#FF7366" : (u.morale<25 && Math.floor(B.elapsed*4)%2===0) ? "#FF6A55" : u.danger ? "#FF9A88" : (u.cmd ? "#C9A227" : "#fff");
     // 命令のありさまを小さな印で。選んだ隊と、命じた直後の隊だけ（常に出すと札が散らかる）
     if(false && u.side===B.ctx.playerSide && u.morale>0 && showOrd){   /* 第102巡：隊の脇の「討・攻」の印は出さない（作り手の指示） */
@@ -17724,11 +17727,11 @@ function drawBattle(){
       bctx.strokeStyle= selNow ? "#FFD166" : stc ? stc : u.cmd ? "#E9C65C" : quiet ? "rgba(201,162,39,.55)" : (u.side===B.ctx.playerSide?"rgba(120,170,255,.6)":"rgba(255,130,110,.6)"); bctx.lineWidth=selNow?1.5:(u.cmd||stc)?2:1; bctx.strokeRect(x-tw/2-5.5, py+10.5, tw+11, 16);
       if(u.cmd){ bctx.fillStyle="#E9C65C"; bctx.beginPath(); bctx.roundRect(x-tw/2-19, py+11, 13, 15, 3); bctx.fill(); bctx.fillStyle="#1A1208"; bctx.font='900 9px "Zen Kaku Gothic New",sans-serif'; bctx.fillText("総", x-tw/2-12.5, py+22); bctx.font='800 11px "Zen Kaku Gothic New",sans-serif'; }   /* 第117巡：総大将の印 */
       /* 第117巡：士気の状態を札の上に。動揺（60未満）／混乱（30未満か柵で乱れ）／潰走は別 */
-      if(!quiet && u.morale<=0 && u.troops>.5){ const stt="潰走"; bctx.font='900 10px "Zen Kaku Gothic New",sans-serif'; const sw=bctx.measureText(stt).width+10; bctx.fillStyle="rgba(0,0,0,.7)"; bctx.fillRect(x-sw/2, py-4, sw, 13); bctx.fillStyle="#BBBBBB"; bctx.fillText(stt, x, py+6); bctx.font='800 11px "Zen Kaku Gothic New",sans-serif'; }
-      else if(!quiet && u.autoAI && u.morale>0 && !u.pendingOrder){ const stt="任せ中"; bctx.font='900 10px "Zen Kaku Gothic New",sans-serif'; const sw=bctx.measureText(stt).width+10; bctx.fillStyle="rgba(0,0,0,.7)"; bctx.fillRect(x-sw/2, py-4, sw, 13); bctx.fillStyle="#CFC8B8"; bctx.fillText(stt, x, py+6); bctx.font='800 11px "Zen Kaku Gothic New",sans-serif'; }
-      else if(!quiet && u.pendingOrder && u.morale>0){ const stt="伝令中"; bctx.font='900 10px "Zen Kaku Gothic New",sans-serif'; const sw=bctx.measureText(stt).width+10; bctx.fillStyle="rgba(0,0,0,.7)"; bctx.fillRect(x-sw/2, py-4, sw, 13); bctx.fillStyle="#9FD8FF"; bctx.fillText(stt, x, py+6); bctx.font='800 11px "Zen Kaku Gothic New",sans-serif'; }
+      if(false && !quiet && u.morale<=0 && u.troops>.5){ const stt="潰走"; bctx.font='900 10px "Zen Kaku Gothic New",sans-serif'; const sw=bctx.measureText(stt).width+10; bctx.fillStyle="rgba(0,0,0,.7)"; bctx.fillRect(x-sw/2, py-4, sw, 13); bctx.fillStyle="#BBBBBB"; bctx.fillText(stt, x, py+6); bctx.font='800 11px "Zen Kaku Gothic New",sans-serif'; }
+      else if(false && !quiet && u.autoAI && u.morale>0 && !u.pendingOrder){ const stt="任せ中"; bctx.font='900 10px "Zen Kaku Gothic New",sans-serif'; const sw=bctx.measureText(stt).width+10; bctx.fillStyle="rgba(0,0,0,.7)"; bctx.fillRect(x-sw/2, py-4, sw, 13); bctx.fillStyle="#CFC8B8"; bctx.fillText(stt, x, py+6); bctx.font='800 11px "Zen Kaku Gothic New",sans-serif'; }
+      else if(false && !quiet && u.pendingOrder && u.morale>0){ const stt="伝令中"; bctx.font='900 10px "Zen Kaku Gothic New",sans-serif'; const sw=bctx.measureText(stt).width+10; bctx.fillStyle="rgba(0,0,0,.7)"; bctx.fillRect(x-sw/2, py-4, sw, 13); bctx.fillStyle="#9FD8FF"; bctx.fillText(stt, x, py+6); bctx.font='800 11px "Zen Kaku Gothic New",sans-serif'; }
       else if(!quiet && u.morale>0 && u.stance && u.stance!=="参戦" && u.stance!=="潰走"){ const stt=u.stance; const sc2 = stt==="離反可能" ? "#C48BFF" : stt==="傍観" ? "#FFE24A" : stt==="離反" ? "#FF8A70" : stt==="予備" ? "#9FD8FF" : "#BBBBBB"; bctx.font='900 10px "Zen Kaku Gothic New",sans-serif'; const sw=bctx.measureText(stt).width+10; bctx.fillStyle="rgba(0,0,0,.7)"; bctx.fillRect(x-sw/2, py-4, sw, 13); bctx.fillStyle=sc2; bctx.fillText(stt, x, py+6); bctx.font='800 11px "Zen Kaku Gothic New",sans-serif'; }
-      else if(!quiet && u.morale>0 && (u.morale<60 || u.confusedUntil>B.elapsed)){ const stt = (u.morale<30||u.confusedUntil>B.elapsed) ? "混乱" : "動揺"; const sc2 = stt==="混乱" ? "#FF8A70" : "#FFD166"; bctx.font='900 10px "Zen Kaku Gothic New",sans-serif'; const sw=bctx.measureText(stt).width+10; bctx.fillStyle="rgba(0,0,0,.7)"; bctx.fillRect(x-sw/2, py-4, sw, 13); bctx.fillStyle=sc2; bctx.fillText(stt, x, py+6); bctx.font='800 11px "Zen Kaku Gothic New",sans-serif'; }
+      else if(false && !quiet && u.morale>0 && (u.morale<60 || u.confusedUntil>B.elapsed)){ const stt = (u.morale<30||u.confusedUntil>B.elapsed) ? "混乱" : "動揺"; const sc2 = stt==="混乱" ? "#FF8A70" : "#FFD166"; bctx.font='900 10px "Zen Kaku Gothic New",sans-serif'; const sw=bctx.measureText(stt).width+10; bctx.fillStyle="rgba(0,0,0,.7)"; bctx.fillRect(x-sw/2, py-4, sw, 13); bctx.fillStyle=sc2; bctx.fillText(stt, x, py+6); bctx.font='800 11px "Zen Kaku Gothic New",sans-serif'; }
       bctx.fillStyle = u.side===B.ctx.playerSide ? "#DCEBFF" : "#FFE0D6";
       bctx.fillText(plate,x,py+22);
       if(!quiet && (big || u.morale<=0 || (V&&V.z>=2.2))){
@@ -17855,7 +17858,7 @@ function drawBattle(){
   flat();
   // 小さな図：寄っているときだけ。野の全体と、いま見ている枠。押せばそこへ
   B.mini=null;
-  if(zoomed && B.over===null){ const mw=Math.min(180,W_*0.16), mh=mw*BF.h/BF.w, mx=W_-mw-8, my=H_-mh-8;
+  if(false && zoomed && B.over===null){ const mw=Math.min(180,W_*0.16), mh=mw*BF.h/BF.w, mx=W_-mw-8, my=H_-mh-8;   /* 第123巡：小さな図はやめ（作り手：いらない） */
     bctx.save(); bctx.globalAlpha=.92; bctx.fillStyle="rgba(10,9,8,.8)"; bctx.fillRect(mx-2,my-2,mw+4,mh+4); bctx.drawImage(B.bg,mx,my,mw,mh); bctx.fillStyle="rgba(0,0,0,.25)"; bctx.fillRect(mx,my,mw,mh);
     for(const u of B.units){ if(u.troops<=.5||u.left) continue; const dng=u.morale>0&&(u.danger||u.surrounded||u.troops<u.max*0.3)&&u.side===B.ctx.playerSide; const fgt=u.engagedAt!==undefined&&B.elapsed-u.engagedAt<1.5;
       bctx.fillStyle = u.morale<=0?"rgba(200,200,200,.6)": u.cmd?"#FFD166": dng?(Math.floor(B.elapsed*4)%2?"#FF2A1A":"#FF9A88"): u.stance==="離反可能"?"#B57BEE": u.bystander?"#FFE24A": u.sekHold?"#B57BEE": fgt?"#FFE24A": u.side===B.ctx.playerSide?"#6FB4FF":"#FF7A66";
@@ -18365,7 +18368,8 @@ bcanvas.addEventListener("pointermove",ev=>{
   if(B.pan){ const rect=bcanvas.getBoundingClientRect(); const sy=rect.height/BF.h, sx=sy; const dx=(ev.clientX-B.pan.mx)/(sx*(B.zoom||1)), dy=(ev.clientY-B.pan.my)/(sy*(B.zoom||1)); if(Math.abs(dx)+Math.abs(dy)>0.3){ B.pan.moved=true; B.follow=null; } B.cx=B.pan.cx-dx; B.cy=(B.zoom||1)>1?B.pan.cy-dy:BF.h/2; B.cxT=B.cyT=undefined; bView(); return; }
   if(!B.drag){ const h=bPick(wx,wy); B.hover=h?h.id:null; B.hoverTile=bTileAt(wx,wy); return; }
   B.drag.x=wx; B.drag.y=wy;
-  { const [c,r]=cellOf(wx,wy); const tr=B.drag.trail=B.drag.trail||[]; const last=tr[tr.length-1]; if(!last||last[0]!==c||last[1]!==r){ if(tr.length&&last&&Math.max(Math.abs(last[0]-c),Math.abs(last[1]-r))>1){ /* 飛んだら間を埋める */ let cc=last[0], rr=last[1]; while(cc!==c||rr!==r){ cc+=Math.sign(c-cc); rr+=Math.sign(r-rr); tr.push([cc,rr]); } } else tr.push([c,r]); } }   /* 第109巡：引いた道筋どおりに曲がって進む */
+  { const [c,r]=cellOf(wx,wy); const tr=B.drag.trail=B.drag.trail||[]; const last=tr[tr.length-1]; if(!last||last[0]!==c||last[1]!==r){ const prev=tr[tr.length-2]; if(prev && prev[0]===c && prev[1]===r){ tr.pop(); }   /* 第123巡：来た道を戻れば消える（描き直せる。作り手の指示） */
+      else if(tr.length&&last&&Math.max(Math.abs(last[0]-c),Math.abs(last[1]-r))>1){ /* 飛んだら間を埋める */ let cc=last[0], rr=last[1]; while(cc!==c||rr!==r){ cc+=Math.sign(c-cc); rr+=Math.sign(r-rr); tr.push([cc,rr]); } } else tr.push([c,r]); } }   /* 第109巡：引いた道筋どおりに曲がって進む */
   const u=B.units.find(z=>z.id===B.drag.id);
   if(u && Math.hypot(u.x-wx,u.y-wy)>1.6) B.drag.moved=true;
   const foe=bPick(wx,wy,1-B.ctx.playerSide);
@@ -18375,7 +18379,7 @@ bcanvas.addEventListener("pointermove",ev=>{
 function manualCommand(){
   if(B) B.manualN=(B.manualN||0)+1;
   if(B && B.sel!==null){ const su=B.units.find(u=>u.id===B.sel); if(su && su.autoAI){ su.autoAI=false; } }   /* 手で命じた隊は任せが解ける */
-  if(B && B.sek && B.opening<=0){ B._ordSnap={}; for(const u of B.units) if(u.side===B.ctx.playerSide) B._ordSnap[u.id]={o:u.order,ta:u.thenAttack,gx:u.gx,gy:u.gy}; }   /* 第117巡：関ヶ原は本陣から遠い隊ほど命令が遅れて届く（伝令）。命じる前の姿を控えて次の刻で見比べる */
+  if(false && B && B.sek && B.opening<=0){ B._ordSnap={}; for(const u of B.units) if(u.side===B.ctx.playerSide) B._ordSnap[u.id]={o:u.order,ta:u.thenAttack,gx:u.gx,gy:u.gy}; }   /* 第117巡：関ヶ原は本陣から遠い隊ほど命令が遅れて届く（伝令）。命じる前の姿を控えて次の刻で見比べる */
   if(B && B.autoMine){ B.autoMine=false; toast("采配を戻しました（任せるのをやめました）"); renderBattleFoot(); }
   // 直前の命令を取り消せるように、命じる前の姿を控える（四秒だけ〈取消〉が出る）
   if(B){ B.undo={at:B.elapsed, snap:B.units.filter(u=>u.side===B.ctx.playerSide).map(u=>({id:u.id, order:{...u.order}, gx:u.gx, gy:u.gy}))}; }
@@ -18410,6 +18414,7 @@ function bEndDrag(ev){
   const d=B.drag; B.drag=null;
   const u=B.units.find(z=>z.id===d.id);
   if(!u||!d.moved) return;
+  if(!d.group && d.trail && d.trail.length<=1 && !d.foe){ B.sel=u.id; renderBattleFoot(); return; }   /* 第123巡：道筋を始めの升まで戻して離せば、動かさない（取り消し） */
   manualCommand();
   if(d.group){ const dx=d.x-d.ox, dy=d.y-d.oy; const gs=B.units.filter(z=>d.group.includes(z.id)&&z.side===B.ctx.playerSide&&z.morale>0&&z.troops>.5); const foe=(d.foe!==null&&d.foe!==undefined)?B.units.find(z=>z.id===d.foe):null; const foes=B.units.filter(z=>z.side!==B.ctx.playerSide&&z.troops>.5&&z.morale>0&&!z.left);
     for(const z of gs){ if(foe){ const px=z.x+dx, py=z.y+dy; const t=foes.filter(f=>Math.hypot(f.x-px,f.y-py)<5).sort((p,q)=>Math.hypot(p.x-px,p.y-py)-Math.hypot(q.x-px,q.y-py))[0]||foe; z.order={k:"attack",id:t.id}; } else { z.order={k:"move",x:Math.max(.5,Math.min(BF.w-.5,z.x+dx)),y:Math.max(.5,Math.min(BF.h-.5,z.y+dy))}; z.gx=z.order.x; z.gy=z.order.y; } }
@@ -18647,7 +18652,7 @@ function renderBattleFoot(){
       renderBattleFoot();
     });
   } else {
-    foot.innerHTML=`${B.opening>0?`<button class="tool on" id="bBegin" style="font-weight:800">開戦</button><button class="tool" id="bBeginAuto" title="いまの陣立てのまま開戦し、采配は任せる（×4）。いつでも戻せる">自動で戦う</button><button class="tool" id="bRealign" hidden title="動かした隊を、いまの陣の形に並べ直す">整列</button><span class="fsep"></span>${(B.form?FORMATIONS.map((f,i)=>`<button class="tool sub ${B.form[B.ctx.playerSide]===i?"on":""}" data-f="${i}" title="${f.d}">${f.n}</button>`).join(""):"")}`:`<button class="tool ${B.paused?"on":""}" id="bPause" style="font-size:20px;font-weight:900;min-width:52px" title="一時停止／再開（空白キー）">${B.paused?"▶":"Ⅱ"}</button><span class="tiny muted" style="display:flex;gap:2px;align-items:center">${[1,2,3].map(r=>`<button class="tool sub ${(B.rate||1)===r?"on":""}" data-rate="${r}" style="min-width:34px;padding:0 6px">×${r}</button>`).join("")}</span>`}
+    foot.innerHTML=`${B.opening>0?`<button class="tool on" id="bBegin" style="font-weight:800">開戦</button><button class="tool" id="bBeginAuto" title="いまの陣立てのまま開戦し、采配は任せる（×4）。いつでも戻せる">自動で戦う</button>`:`<button class="tool ${B.paused?"on":""}" id="bPause" style="font-size:20px;font-weight:900;min-width:52px" title="一時停止／再開（空白キー）">${B.paused?"▶":"Ⅱ"}</button><span class="tiny muted" style="display:flex;gap:2px;align-items:center">${[1,2,3].map(r=>`<button class="tool sub ${(B.rate||1)===r?"on":""}" data-rate="${r}" style="min-width:34px;padding:0 6px">×${r}</button>`).join("")}</span>`}
       <button class="tool ${nagAtkHint()?"hot":""}" id="bAllCharge" ${B.ctx.playerSide===0&&B.opening<=0?"":"hidden"} style="font-weight:800">全軍突撃</button>
       <button class="tool ${B.mode==="multi"?"on":""}" id="bMulti" title="隊を押して幾つも選び、まとめて動かす">複数選択</button>
       ${B.opening<=0&&B.units.some(u=>u.side===B.ctx.playerSide&&u.reserveHold&&u.troops>.5&&u.morale>0)?`<button class="tool on" id="bReserveGo" style="font-weight:800" title="予備隊を一斉に出す（近い敵へ）">予備隊 投入</button>`:""}
@@ -18661,7 +18666,7 @@ function renderBattleFoot(){
       ${(B.group&&B.group.length)||B.sel!==null?`<button class="tool" id="bUnsel" title="選択を解く（Esc）">解除</button>`:""}
       <span class="tiny muted" style="flex:1;text-align:center;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${B.mode==="fence"?'<b style="color:var(--kin)">柵を立てる場所を画面で押してください（Esc で取り消し）</b>':B.mode==="fire"?'<b style="color:#FF9A55">火を放つ木立を押してください（Esc で取り消し）</b>':"隊を押して選ぶ → 升を押せばそこへ、敵を押せば討つ"}</span>
       ${B.undo&&B.undo.at>B.elapsed-4?`<button class="tool on" id="bUndo" title="直前の命令を取り消す">取消</button>`:""}
-      <button class="tool sub ${B.feedOn?"on":""}" id="bFeed" title="戦況の記録を左上に出す／畳む">記録</button>${B.bandNames&&B.opening<=0?B.bandNames.map((n,i)=>`<button class="tool sub" data-band="${i}" title="${n}へ画面を飛ばす">${n.slice(0,1)}</button>`).join("")+`<button class="tool sub" data-band="hq" title="わが本陣へ画面を飛ばす">本</button>`:""}
+
       <span class="fsep"></span>
       <button class="tool sub ${B.autoMine?"on":""}" id="bAutoMine" title="自軍の采配も任せる。もう一度押せば戻る">${B.autoMine?"采配：自動":"采配：手動"}</button>${(B.autoMine||B.units.some(u=>u.side===B.ctx.playerSide&&u.autoAI&&u.troops>.5))?`<button class="tool sub" id="bPolicy" title="任せたときの方針を切り替える（積極→防御→本陣防衛→総大将狙い→側面→鉄砲中心）">方針：${B.aiPolicy||"積極"}</button>`:""}
       <button class="tool aux" id="bSpeed" hidden title="速さ（Rキー）">${"速さ ×"+(B.rate||1)}</button><button class="tool aux" id="bSound" title="音（曲と効果音）の入り切り">${(Audio_.enabled&&Audio_.music)?"♪ 入":"♪ 切"}</button>
