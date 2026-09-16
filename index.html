@@ -15604,7 +15604,7 @@ function gridMove(u,goal,speed,dt){
   const [gc,gr]=cellOf(goal[0],goal[1]);
   if(u.nextCell){
     const [tx,ty]=cellCenter(u.nextCell[0],u.nextCell[1]); const dx=tx-u.x, dy=ty-u.y, d=Math.hypot(dx,dy);
-    const mv=Math.min(speed*dt,d); u.idleAt=undefined; if(d>0.001){ u.x+=dx/d*mv; u.y+=dy/d*mv; u.face=Math.atan2(dy,dx); u.runup+=mv; u.movedAt=B.elapsed; }
+    const mv=Math.min(speed*dt,d); u.idleAt=undefined; if(d>0.001){ u.x+=dx/d*mv; u.y+=dy/d*mv; u.face=Math.atan2(dy,dx); u.faceLock=undefined; u.runup+=mv; u.movedAt=B.elapsed; }
     if(d-mv<=0.02){ occDel(u.cell[0],u.cell[1],u); u.cell=u.nextCell; u.nextCell=null; u.x=tx; u.y=ty; if(gridFreeCell(u.cell[0],u.cell[1],u)) occSet(u.cell[0],u.cell[1],u); }
     return true;
   }
@@ -16125,21 +16125,21 @@ function stepUnit(u,dt){
   let enemies=B.units.filter(x=>x.side!==u.side&&x.troops>.5&&x.morale>0&&!x.left);
   if(B.oke||(B.sekFog&&B.weather==="霧")){ enemies=enemies.filter(x=>okeSeen(x,u.side)); }
   if(u.okeHold||u.sekHold){ if(u.order.k!=="guard"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } }
-  if(!enemies.length){ if(u.order.k==="attack"||u.order.k==="hold"||u.order.k==="move"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } u.face=(u.side===B.ctx.playerSide)?0:Math.PI; return; }   // 敵がいなければ止まって敵陣の方を向く
+  if(!enemies.length){ if(u.order.k==="attack"||u.order.k==="hold"||u.order.k==="move"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } if(u.faceLock===undefined) u.face=(u.side===B.ctx.playerSide)?0:Math.PI; return; }   // 敵がいなければ止まって敵陣の方を向く
   let nearest=enemies.reduce((p,q)=>dist(u,p)<dist(u,q)?p:q);
   if(u.type===3){ const rr=reachOf(u)+1; const conf=enemies.filter(e=>e.confusedUntil>B.elapsed&&dist(u,e)<=rr); if(conf.length) nearest=conf.reduce((p,q)=>dist(u,p)<dist(u,q)?p:q); }   // 鉄砲は柵で混乱した騎馬に集中する
   if(u.gunHunter){ const gs=enemies.filter(e=>e.type===3&&dist(u,e)<=reachOf(u)*1.6); if(gs.length) nearest=gs.reduce((p,q)=>dist(u,p)<dist(u,q)?p:q); }   // 鉄砲を潰す攻め方
   if(u.order.k==="guard"){
     // 持ち場を守る。届く敵だけを討ち、自分から駆け出さない。近い敵の方へ向き直る
     if(u.gx===undefined){ u.gx=u.x; u.gy=u.y; }
-    if(dist(u,nearest)<6 && Math.hypot(u.gx-u.x,u.gy-u.y)<=.6) u.face=Math.atan2(nearest.y-u.y,nearest.x-u.x);
+    if(u.faceLock===undefined && dist(u,nearest)<6 && Math.hypot(u.gx-u.x,u.gy-u.y)<=.6) u.face=Math.atan2(nearest.y-u.y,nearest.x-u.x);
     if(dist(u,nearest)<=reachOf(u)) target=nearest;
-    else if(u.type!==3 && !u.cmd && !u.sekHold && !u.okeHold && !u.reserveHold && dist(u,nearest)<=4.5 && !fenceBetween(u,nearest) && (u.standoffAt===undefined ? (u.standoffAt=B.elapsed, false) : B.elapsed-u.standoffAt>2.5)){ target=nearest; goal=approachPoint(u,nearest); }   /* 第124巡：目の前（四歩半）の敵と睨み合ったままにしない。二秒半にらめば踏み込んで討つ（作り手：膠着してつまらない） */
+    else if(u.type!==3 && !u.cmd && !u.sekHold && !u.okeHold && !u.reserveHold && (u.side!==B.ctx.playerSide||u.ally||u.autoAI||B.autoMine||autoBattleMode) && dist(u,nearest)<=4.5 && !fenceBetween(u,nearest) && (u.standoffAt===undefined ? (u.standoffAt=B.elapsed, false) : B.elapsed-u.standoffAt>2.5)){ target=nearest; goal=approachPoint(u,nearest); }   /* 第124巡：目の前（四歩半）の敵と睨み合ったままにしない。二秒半にらめば踏み込んで討つ（作り手：膠着してつまらない） */
     else if(Math.hypot(u.gx-u.x,u.gy-u.y)>.6) goal=[u.gx,u.gy];
     else if(!u.cmd && (u.side!==B.ctx.playerSide || B.autoMine || autoBattleMode || u.ally) && (()=>{ const hqU=B.units.find(z=>z.side===u.side&&z.cmd&&z.troops>.5&&z.morale>0); if(!hqU||dist(u,hqU)>8) return false; const f=enemies.filter(e=>dist(e,hqU)<4.5).sort((p,q)=>dist(u,p)-dist(u,q))[0]; if(!f) return false; target=f; goal=[f.x,f.y]; return true; })()){ }   // 本陣の脇の隊は、本陣に迫る敵へ討ちかかる（持ち場のまま見ていない）
     if(dist(u,nearest)>4.5) u.standoffAt=undefined;
     if(false){ }
-    else if(dist(u,nearest)>=6){ const want=(u.side===B.ctx.playerSide)?0:Math.PI; let df=want-u.face; while(df>Math.PI) df-=2*Math.PI; while(df<-Math.PI) df+=2*Math.PI; u.face+=Math.sign(df)*Math.min(Math.abs(df),2.5*dt); }   // 止まった隊は敵陣の方を向く（作り手の指示）
+    else if(u.faceLock===undefined && dist(u,nearest)>=6){ const want=(u.side===B.ctx.playerSide)?0:Math.PI; let df=want-u.face; while(df>Math.PI) df-=2*Math.PI; while(df<-Math.PI) df+=2*Math.PI; u.face+=Math.sign(df)*Math.min(Math.abs(df),2.5*dt); }   // 止まった隊は敵陣の方を向く（作り手の指示）
   }
   else if(u.order.k==="hold"){
     if(u.side===B.ctx.playerSide && u.pursue && dist(u,nearest)>30){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; u.pursue=false; }   /* 追い討ち・全軍突撃：追う相手が近くにいなければ野の端まで走らない */
@@ -18453,7 +18453,8 @@ function bEndDrag(ev){
     // 騎馬は助走を取ってから当たる：相手が近ければ三歩下がって突っ込む
     /* 第115巡：敵へ引いたときも、引いた道筋どおりに進み、敵の手前の升（引いて来た升）に立って討つ。その升に味方がいれば入れ替わる（鉄砲の前に立ちふさがる） */
     const tr=(d.trail||[]); const tc=t?cellOf(t.x,t.y):null; let appr=null; for(let i=tr.length-1;i>=0;i--){ const c=tr[i]; if(tc && c[0]===tc[0] && c[1]===tc[1]) continue; if(tc && Math.max(Math.abs(c[0]-tc[0]),Math.abs(c[1]-tc[1]))<=1){ appr=c; break; } }
-    if(t && appr && B.opening<=0){ const pts=dragCorners(d).filter(([c,r])=>!(tc&&c===tc[0]&&r===tc[1])&&!(c===appr[0]&&r===appr[1])); const wps=pts.map(([c,r])=>cellCenter(c,r)); const end=cellCenter(appr[0],appr[1]); const all=wps.concat([end]); const first=all.shift(); u.order={k:"move",x:first[0],y:first[1],wps:all,swap:true}; u.gx=first[0]; u.gy=first[1]; u.thenAttack=t.id; }
+    if(t && B.opening<=0){ u.order={k:"attack",id:t.id}; u.thenAttack=undefined; u.charge=true; }   /* 第126巡：敵の升に落とせば、その敵を狙って追いかける（敵が動けば付いて行く。作り手の指示） */
+    else if(false && t && appr && B.opening<=0){ const pts=dragCorners(d).filter(([c,r])=>!(tc&&c===tc[0]&&r===tc[1])&&!(c===appr[0]&&r===appr[1])); const wps=pts.map(([c,r])=>cellCenter(c,r)); const end=cellCenter(appr[0],appr[1]); const all=wps.concat([end]); const first=all.shift(); u.order={k:"move",x:first[0],y:first[1],wps:all,swap:true}; u.gx=first[0]; u.gy=first[1]; u.thenAttack=t.id; }
     else if(u.type===2 && t && dist(u,t)<4 && u.runup<(SPECIALS["騎馬突撃"].runup||6)){ const ang=Math.atan2(u.y-t.y,u.x-t.x); u.order={k:"move",x:Math.max(.5,Math.min(BF.w-.5,u.x+Math.cos(ang)*3)),y:Math.max(.5,Math.min(BF.h-.5,u.y+Math.sin(ang)*3))}; u.gx=u.order.x; u.gy=u.order.y; u.thenAttack=t.id; bshout(u.id,"間合いを取れ、駆けるぞ！",1.8); }
     else u.order={k:"attack",id:d.foe};
     if(t) bshout(u.id, `${t.name}を討て！`, 2.2);
@@ -18602,6 +18603,7 @@ function renderBattleFoot(){
       <button class="tool" data-b="focus">全軍でこの隊を討つ</button>`}
       ${B.pursueReady&&!B.pursued?`<button class="tool on ${B.pursueHot?"hot":""}" data-b="pursue" style="font-weight:800;color:#FFD166">追い討ち！</button>`:""}${B.ctx.playerSide===0&&B.opening<=0?`<button class="tool ${nagAtkHint()?"hot":""}" data-b="allcharge" style="font-weight:800">全軍突撃</button>`:""}
       ${!u.cmd&&!u.ally?`<button class="tool ${u.autoAI?"on":""}" data-b="autoai" title="この隊だけ采配を任せる（方針に従う）。もう一度押せば戻る">${u.autoAI?"任せ中":"任せる"}</button>`:""}
+      <span class="tiny muted" style="display:flex;gap:2px;align-items:center;margin-left:4px">向き ${[["↖",-3*Math.PI/4],["↑",-Math.PI/2],["↗",-Math.PI/4],["←",Math.PI],["→",0],["↙",3*Math.PI/4],["↓",Math.PI/2],["↘",Math.PI/4]].map(([ch,ang])=>`<button class="tool sub" data-face="${ang}" style="min-width:26px;padding:0 4px">${ch}</button>`).join("")}</span>
       <button class="tool" data-b="close">閉じる</button>
       ${B.mode?`<span class="tiny" style="color:var(--kin)">${B.mode==="move"?"移動先":B.mode==="focusgun"?"鉄砲隊が狙う敵":"攻撃する敵"}を画面でタップ</span>`:""}
       <span style="flex:1"></span>
@@ -18610,6 +18612,7 @@ function renderBattleFoot(){
       <button class="tool" data-b="allretreat">全軍退却</button>`;
     foot.querySelectorAll("button").forEach(b=>b.onclick=()=>{
       const k=b.dataset.b;
+      if(b.dataset.face!==undefined){ manualCommand(); u.face=+b.dataset.face; u.faceLock=u.face; if(u.order.k==="move"||u.order.k==="attack"||u.order.k==="hold"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } u.turning=false; renderBattleFoot(); return; }   /* 第126巡：向きを人が決める（八方） */
       if(["move","attack","hold","charge","retreat","sp"].includes(k) && B.autoMine){ B.autoMine=false; toast("采配を戻しました"); }
       if(k==="focus"){ manualCommand(); for(const x of B.units) if(x.side===B.ctx.playerSide&&x.order.k!=="retreat") x.order={k:"attack",id:u.id}; playSE("horse"); B.sel=null; renderBattleFoot(); return; }
       if(k==="ammo"){ const cmd=B.units.find(z=>z.side===u.side&&z.cmd&&z.troops>.5); if(!cmd||dist(u,cmd)>8) return toast("本陣の八歩以内でなければ玉薬は届きませぬ"); const clan=W.clans[W.player]; if(clan.money<300) return toast("銭が足りませぬ（300）"); clan.money-=300; u.ammo=30; bshout(u.id,"玉薬、届いた！",1.8); toast("玉薬を配り直しました（銭300）"); renderBattleFoot(); return; }
