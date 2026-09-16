@@ -1426,7 +1426,7 @@ const SCENARIO_DEFS = {
  koshu:{ id:"koshu", name:"甲州征伐", y:1582, m:2, era:"天正十年", vassalNeighbors:"織田家",
   desc:"長篠の敗戦から七年。織田信長は総力を挙げて武田領へ攻め込む。勝頼は新府城で三方の敵を迎える。",
   playable:null,
-  dissolve:["今川家","浅井家","朝倉家","六角家","三好家","斎藤家","尼子家","本願寺","鈴木家","三村家","神保家","小田家","河野家","宇都宮家"],
+  dissolve:["今川家","浅井家","朝倉家","六角家","三好家","斎藤家","尼子家","本願寺","鈴木家","三村家","神保家","小田家","河野家","宇都宮家","内ヶ島家"],   /* 第122巡：内ヶ島家は出さない（作り手の指示） */
   renameG:{ "松平元康":"徳川家康", "木下藤吉郎":"羽柴秀吉", "黒田孝高":"黒田官兵衛", "豊臣秀長":"羽柴秀長" },
   renameC:{ "稲葉山城":"岐阜城", "観音寺城":"安土城", "石山本願寺":"大坂城", "曳馬城":"浜松城", "一乗谷城":"北庄城", "躑躅ヶ崎館":"新府城" },
   kill:["宇喜多直家"],
@@ -2806,8 +2806,11 @@ function sameHouse(a,b){
   const headOf=k=>(k.suzerain!==null&&k.suzerain!==undefined&&W.clans[k.suzerain]&&!W.clans[k.suzerain].dead)?k.suzerain:k.id;
   return headOf(A)===headOf(B);
 }
+/* 第122巡：決戦の仕込みの間、筋書きに名のある家どうしは矛を収めない（長篠へ向かう途中で徳川と武田が和睦し、決戦に徳川が出ていなかった。作り手の指摘） */
+function stageClanIds(){ if(!W.stage||!W.stage.key) return null; const key=String(W.stage.key).replace(/_open$|_winter$/,""); const d=DECISIVE.find(x=>x.key===key); if(!d) return null; const ids=new Set(); for(const nm of [d.atk,d.def].concat(d.atkAllies||[],d.defAllies||[])){ const K=clanByName(nm); if(K) ids.add(K.id); } return ids; }
 function makePeace(a,b,days,deep){
   const A=W.clans[a], B=W.clans[b]; if(!A||!B||a===b) return;
+  { const sc=stageClanIds(); if(sc && sc.has(a) && sc.has(b)){ if(a===W.player||b===W.player) toast("決戦の前にございます。矛は収められませぬ"); return; } }
   A.war.delete(b); B.war.delete(a);
   if(!deep){   // 主家が矛を収めれば、傘下も収める（傘下は主家の戦にだけ付き合う）
     const va=[...A.vassals].filter(v=>W.clans[v]&&!W.clans[v].dead), vb=[...B.vassals].filter(v=>W.clans[v]&&!W.clans[v].dead);
@@ -5601,7 +5604,7 @@ function diplomacy(kind,me,other,opt){
       const hqTaken = B.hqLostTo===me && B.hqLostAt && dayNumber()-B.hqLostAt<540;   // 本拠を落としてから一年半は従えやすい
       const needK = hqTaken ? 1.1 : 1.8;
       if(!besiegedLast && mine <= powerScore(other)*needK) return `力の差が足りません（こちらの力が相手の${Math.round(mine/Math.max(1,powerScore(other))*100)/100}倍。${hqTaken?"本拠を落としているので一・一倍":"一・八倍"}が要ります）`;
-      if(!neighborClans(me).includes(other)) return "隣り合っておらねば威は届きません";
+      if(!bordersOn(me,other)) return "隣り合っておらねば威は届きません";   /* 第122巡：傘下の隣も隣（作り手の指示） */
       if(Math.floor(rnd()*100) >= ((besiegedLast||hqTaken)?85:60)*(W.shogun===me?1.5:1)*(prestigeTier(me)>=4?1.2:1)){
         addRel(me,other,-30); addRel(other,me,-30); return "威圧を撥ねつけられました";
       }
@@ -5945,6 +5948,8 @@ function aiMilitary(clan,p){
       if(t.mine) score+=2.5;
       // 主家から名指しの命が出ている相手は、なにより優先して狙う
       if(clan.orderTarget && tc===clan.orderTarget.clan && dayNumber()<clan.orderTarget.until) score+=7 + (clan.orderTarget.castle===t.id?6:0);
+      /* 第122巡：傘下の家は主家の敵の城を自分から攻める（助けに来るだけでなく。作り手の指示）。人の傘下ならなお強く */
+      if(tc!==null && clan.suzerain!==null && clan.suzerain!==undefined && W.clans[clan.suzerain] && !W.clans[clan.suzerain].dead && W.clans[clan.suzerain].war.has(tc)) score += (clan.suzerain===W.player ? 4.5 : 2.5);
       score += (p.agg-.5)*6*diffAggr();
       // 伸びている家は狙われる。プレイヤーだからと見逃さない。
       if(tc!==null){
@@ -7380,8 +7385,8 @@ function openSystem(){
        </div>
      </div></div>
      <div><div class="sec-title">音</div><div class="list">
-       <div class="row"><button class="chip" style="cursor:pointer" onclick="Audio_.enabled=!Audio_.enabled;savePrefs();toast(Audio_.enabled?'音を入れました':'音を切りました');openSystem()">${Audio_.enabled?"音 入":"音 切"}</button>
-       <button class="chip ${Audio_.music?"kin":""}" style="cursor:pointer" onclick="Audio_.music=!Audio_.music;savePrefs();updateMusic();openSystem()">曲 ${Audio_.music?"入":"切"}</button>
+       <div class="row"><button class="chip" style="cursor:pointer" onclick="if(Audio_.enabled) soundOff(); else soundOn(); toast(Audio_.enabled?'音を入れました':'音を切りました');openSystem()">${Audio_.enabled?"音 入":"音 切"}</button>
+       <button class="chip ${Audio_.music?"kin":""}" style="cursor:pointer" onclick="Audio_.music=!Audio_.music;savePrefs();if(Audio_.music){ Audio_.enabled=true; ensureAudioRunning(true); } else updateMusic();openSystem()">曲 ${Audio_.music?"入":"切"}</button>
        <button class="chip ${Audio_.sfx?"kin":""}" style="cursor:pointer" onclick="Audio_.sfx=!Audio_.sfx;savePrefs();openSystem()">効果音 ${Audio_.sfx?"入":"切"}</button>
        <span class="tiny muted" style="flex:1">曲も効果音もその場で合成しています</span></div>
      </div></div>
@@ -7688,7 +7693,7 @@ const MSIM_CHAPTERS=[
    {t:"城は一日では落ちません。囲んでいる軍を押してみましょう（地図の軍の印か、囲んでいる城を押す）", ring:S=>S.siegeTarget(), ok:S=>S.armyOpened(), skip:S=>!S.siege()},
    {t:"囲みには<b>力攻め</b>（早いが兵が減る）と<b>兵糧攻め</b>（遅いが減らない）。押して切り替えてみましょう", hot:S=>simBtn("力攻め")()?simBtn("力攻め"):simBtn("兵糧攻め"), ok:S=>S.modeChanged(), skip:S=>!S.siege()},
    {t:"目安は守り手の<b>二倍半</b>。足りなければ別の城から足す（出陣の目的地を同じ城に）。落ちるまで日を進めましょう", hot:'[data-s="2"]', ok:S=>(W.stats&&W.stats.taken>S.taken0), skip:S=>!S.siege()&&!(W.stats&&W.stats.taken>S.taken0)},
-   {t:"落とした城は民心が低い。城の札の<b>〈自動内政〉</b>で任せると楽です。第三章はここまで", ok:S=>true, pause:true},
+   {t:"落とした城は民心が低い。内政の<b>〈施し〉</b>で民心を戻しましょう。第三章はここまで", ok:S=>true, pause:true},
  ]},
  {id:4, name:"外交", steps:[
    {t:"戦ばかりでは持ちません。上の<b>〈その他〉→〈外交〉</b>を開きましょう", hot:S=>{ const m=document.getElementById("moreMenu"); return (m&&!m.hidden)?document.getElementById("btnDiplomacy2"):document.getElementById("btnMore"); }, ok:S=>panelKey==="外交"},
@@ -11764,6 +11769,8 @@ let mapFocus=null;   // 救援先の城（この城と自城だけを浮かせ�
 function closePanel(){
   panelHist.length=0; { const pb=document.getElementById("pBack"); if(pb) pb.hidden=true; }
   mapFocus=null;
+  /* 第122巡：出陣の札を閉じたら、選んだ将と目的地は忘れる（次に開いたとき、押していない将に印が付き、選んでいない城が目的地になっていた。作り手の指摘） */
+  if(typeof dispatchSel!=="undefined" && !(typeof mapPick!=="undefined" && mapPick)){ dispatchSel.clear(); dispatchTarget=null; showFar=false; armOpen=null; }
   foundMarks=null;                 // 築城の候補地の印を片づける
   panelKey=null; panel.classList.remove("open"); document.body.classList.remove("panelopen"); if(W.speed===0&&!pendingEncounter) resumeSpeed();
   if(pickMode) document.getElementById("pickBar").hidden=false; }
@@ -11862,7 +11869,7 @@ function openCastle(id){
     acts=`<div class="actbar">
       ${W.osaka&&c.name==="大坂城"?`<button class="big gold" onclick="openOsakaWinter()">大坂の陣の札<span class="cost">${W.osaka.phase==="winter"?"夜襲・兵糧・和睦":"堀と夏の陣"}</span></button>`:""}
       ${W.oda&&c.name==="小田原城"?`<button class="big gold" onclick="openOdawara()">小田原評定<span class="cost">籠城・決戦・夜襲・降伏</span></button>`:""}
-      <button class="big gold" onclick="${besiegedNow?`sallyOut(${id})`:`openDispatch(${id})`}">${besiegedNow?"討って出る":"出陣"}</button>
+      <button class="big gold" onclick="${besiegedNow?`sallyOut(${id})`:`dispatchSel.clear();dispatchTarget=null;showFar=false;armOpen=null;openDispatch(${id})`}">${besiegedNow?"討って出る":"出陣"}</button>
       <button class="big" onclick="openCouncil(${id})">内政${c.minchu<40?`<span class="cost" style="color:#FFD166">民忠${c.minchu}・施しを</span>`:`<span class="cost">新田・商業・人材登用</span>`}</button>
       <button class="big ghost" onclick="openConscript(${id})">徴兵<span class="cost">取れる兵 ${regionConscriptable(c).toLocaleString()}</span></button>
       ${myCastles(W.player).length>1?`<button class="big ghost" onclick="openGather(${id})">兵を集める<span class="cost">他の城からこの城へ</span></button>`:""}
@@ -11870,12 +11877,7 @@ function openCastle(id){
       ${!c.hq&&!besiegedNow&&myCastles(W.player).length>1&&(W.clans[W.player].vassals.size||W.clans[W.player].allies.size)?`<button class="big ghost" onclick="openGiveCastle(${id})">城を譲渡<span class="cost">属国・盟友へ</span></button>`:""}
       ${!besiegedNow&&castleRank(c)<CASTLE_RANKS.length-1?`<button class="big ghost" onclick="upgradeCastle(${id})">普請<span class="cost">${CASTLE_RANKS[castleRank(c)+1].n}へ ${CASTLE_RANKS[castleRank(c)+1].cost.toLocaleString()}</span></button>`:""}
     </div>
-    <details style="margin:-4px 0 8px"><summary style="cursor:pointer;font-size:11px;color:var(--gofun-dim);list-style:none">▸ ほかの手立て（自動内政・本拠・隣の家へ譲る）</summary>
-    <div class="actbar" style="margin-top:6px">
-      <button class="big ghost" onclick="openDelegate(${id})">${c.delegate===null?"自動内政":"自動内政 "+FOCUS[c.delegate]}</button>
-      ${!c.hq&&!besiegedNow?`<button class="big ghost" onclick="moveHq(${id})">本拠を移す<span class="cost">5,000</span></button>`:""}
-      ${!c.hq&&!besiegedNow&&myCastles(W.player).length>1?`<button class="big ghost" onclick="openGiveCastle(${id})">城を譲る<span class="cost">属国・盟友・隣の家へ</span></button>`:""}
-    </div></details>`;
+    `;   /* 第122巡：「ほかの手立て」（自動内政・本拠を移す・城を譲る）はやめ（作り手：いらない） */
   } else if(c.clan!==null){
     const oc=W.clans[c.clan], me=W.clans[W.player];
     const rel=getRel(W.player,c.clan);
@@ -12902,7 +12904,7 @@ function openDiplomacy(){
           const rel2=getRel(W.player,o.id), canAsk=rel2>20, canThreat=powerScore(W.player)*(W.shogun===W.player?1.5:1)*(prestigeTier(W.player)>=4?1.25:1)*(1+Math.max(0,((W.warScore||{})[W.player+":"+o.id]||0))*0.12)>powerScore(o.id)*1.8;
           const canSubmit = near && powerScore(o.id)>=powerScore(W.player)*1.2 && W.clans[W.player].suzerain!==o.id;
           const rows = state==="戦争" ? [["和睦","和睦 "+peaceOdds(o.id)+"％",true],["和睦金","金を添えて和睦 1万",true],["贈物","贈物 3千",true],["臣従",canSubmit?"傘下に入る（降伏）":"傘下に入る（相手が大きいとき）",canSubmit]]
-            : state==="同盟" ? [["贈物","贈物 3千",true],["資金要請",canAsk?"資金要請":"資金要請（友好20超で）",canAsk],["攻撃依頼","城攻めを頼む 8千",true],["同盟破棄","同盟を破棄",true]]
+            : state==="同盟" ? [["贈物","贈物 3千",true],["資金要請",canAsk?"資金要請":"資金要請（友好20超で）",canAsk],["攻撃依頼","城攻めを頼む 8千",true],["威圧",canThreat?"従属を迫る（威圧・盟は解ける）":"従属を迫る（国力1.8倍で）",canThreat],["臣従",canSubmit?"傘下に入る（盟は解ける）":"傘下に入る（相手が大きいとき）",canSubmit],["同盟破棄","同盟を破棄",true]]
             : state==="主家" ? [["贈物","贈物 3千",true],["手切れ","主家と手切れ（戦になる）",true]]
             : state==="属国" ? [["贈物","贈物 3千",true],["従える家","従える家の札へ",true]]
             : near ? [["同盟",rel2>=70?"同盟 1万":"同盟（友好70以上で）",rel2>=70],["贈物","贈物 3千",true],["威圧",canThreat?"従属を迫る（威圧）":"従属を迫る（国力1.8倍で）",canThreat],["臣従",canSubmit?"傘下に入る（降伏）":"傘下に入る（相手が大きいとき）",canSubmit],["資金要請",canAsk?"資金要請":"資金要請（友好20超で）",canAsk]]
@@ -13686,7 +13688,8 @@ function decisiveGens(clanId, names, n, foeId, withAllies, allyOnly){
   const K=W.clans[clanId];
   // 盟友を加えるときも、筋書きに名のある家だけ（長篠に上杉が来てはおかしい）
   const allyOk=id=>!allyOnly || id===W.player || allyOnly.includes(clanName(id));   // 人の家は約束どおり加わる
-  const side=id=>id===clanId || (W.clans[id]?.suzerain===clanId&&allyOk(id)) || (withAllies&&K&&K.allies.has(id)&&allyOk(id)&&foeId!==undefined&&W.clans[id]&&W.clans[id].war.has(foeId));
+  const scripted=id=>!!(allyOnly && allyOnly.includes(clanName(id)));   /* 筋書きに名のある家は、戦の有無にかかわらず約束どおり加わる（第122巡） */
+  const side=id=>id===clanId || (W.clans[id]?.suzerain===clanId&&allyOk(id)) || (withAllies&&K&&K.allies.has(id)&&allyOk(id)&&(scripted(id) || (foeId!==undefined&&W.clans[id]&&W.clans[id].war.has(foeId))));
   const ok=g=>g.clan!==null&&g.status!=="死亡"&&g.status!=="捕虜"&&g.status!=="人質"&&!g.captor&&!g.army&&!isChild(g)&&side(g.clan);
   const pool=Object.values(W.generals).filter(ok);
   const out=[];
@@ -18565,7 +18568,6 @@ function renderBattleFoot(){
       ${u.type===3?`<button class="tool ${B.units.some(z=>z.side===u.side&&z.type===3&&B.elapsed<z.spUntil)?"on":""}" data-b="rotate" title="交代射撃：列を替えながら撃ち続ける（十秒）">交代射撃</button><button class="tool" data-b="focusgun" title="鉄砲の隊がみな、押した敵を狙う">集中射撃</button>`:""}`:`<span class="tiny" style="color:#E24A3A">敵の隊</span>
       <button class="tool" data-b="focus">全軍でこの隊を討つ</button>`}
       ${B.pursueReady&&!B.pursued?`<button class="tool on ${B.pursueHot?"hot":""}" data-b="pursue" style="font-weight:800;color:#FFD166">追い討ち！</button>`:""}${B.ctx.playerSide===0&&B.opening<=0?`<button class="tool ${nagAtkHint()?"hot":""}" data-b="allcharge" style="font-weight:800">全軍突撃</button>`:""}
-      <button class="tool ${B.follow===u.id?"on":""}" data-b="follow" title="画面がこの隊を追う（画面を引けば解ける）">追従</button>
       ${!u.cmd&&!u.ally?`<button class="tool ${u.autoAI?"on":""}" data-b="autoai" title="この隊だけ采配を任せる（方針に従う）。もう一度押せば戻る">${u.autoAI?"任せ中":"任せる"}</button>`:""}
       <button class="tool" data-b="close">閉じる</button>
       ${B.mode?`<span class="tiny" style="color:var(--kin)">${B.mode==="move"?"移動先":B.mode==="focusgun"?"鉄砲隊が狙う敵":"攻撃する敵"}を画面でタップ</span>`:""}
@@ -19419,10 +19421,19 @@ function playSE(kind, vol){
   src.connect(g); g.connect(Audio_.master);
   src.start();
 }
+/* 第122巡：音の入り切りを一本に。入れるときは口が死んでいれば作り直してから必ず鳴らす（切って入れ直しても鳴らなかった。作り手の指摘） */
+function soundOff(){ Audio_.enabled=false; if(Audio_.bgmSrc){ try{ Audio_.bgmSrc.stop(); }catch(e){} Audio_.bgmSrc=null; } Audio_.scene=null; savePrefs(); }
+function soundOn(){
+  Audio_.enabled=true; Audio_.music=true; Audio_.sfx=true; savePrefs();
+  audioInit(); const ctx=Audio_.ctx; if(!ctx) return;
+  const restart=()=>{ try{ Audio_.scene=null; if(Audio_.bgmSrc){ try{ Audio_.bgmSrc.stop(); }catch(e){} Audio_.bgmSrc=null; } if(!W.started) startTitleMusic(); else updateMusic(); }catch(e){} };
+  const check=(t0)=>setTimeout(()=>{ try{ const c2=Audio_.ctx; if(!Audio_.enabled||!c2) return; if(c2.state!=="running" || c2.currentTime===t0){ audioRebuild(); const c3=Audio_.ctx; if(c3){ const p=c3.resume(); (p&&p.then?p:Promise.resolve()).then(restart).catch(restart); } } }catch(_){ } }, 900);
+  const t0=ctx.currentTime;
+  if(ctx.state!=="running"){ let p=null; try{ p=ctx.resume(); }catch(_){ } (p&&p.then?p:Promise.resolve()).then(()=>{ restart(); check(t0); }).catch(()=>{ audioRebuild(); restart(); }); }
+  else { restart(); check(t0); }
+}
 function toggleSound(){
-  Audio_.enabled=!Audio_.enabled;
-  if(!Audio_.enabled){ if(Audio_.bgmSrc){ try{Audio_.bgmSrc.stop();}catch(e){} } Audio_.scene=null; }
-  else { audioInit(); Audio_.scene=null; if(Audio_.bgmSrc){ try{Audio_.bgmSrc.stop();}catch(e){} Audio_.bgmSrc=null; } const go=()=>{ Audio_.scene=null; try{ updateMusic(); }catch(e){} }; if(Audio_.ctx&&Audio_.ctx.state==="suspended"){ Audio_.ctx.resume().then(go).catch(go); } else go(); }
+  if(Audio_.enabled) soundOff(); else soundOn();
   const b=document.getElementById("btnSound");
   if(b) b.textContent = Audio_.enabled ? "♪ 音 入" : "♪ 音 切";
   savePrefs();
@@ -20446,6 +20457,16 @@ requestAnimationFrame(loop);
 startTitleMusic();
 /* アプリを閉じて（背景に回して）また開くと、iOS は音の口を止めたままにする。
    表に戻ったとき・次に触れたときに、口を開け直して曲を続ける */
+/* 第122巡：口（AudioContext）を作り直す。iOS はアプリを閉じて開くと、口が「開いている」と言いながら二度と鳴らないことがある（作り手：音が全然鳴らない）。
+   作り直せば必ず鳴る。音の種（効果音の波形・曲の輪）は口ごとに作るので、いっしょに捨てる */
+function audioRebuild(){
+  try{ const old=Audio_.ctx; Audio_.ctx=null; Audio_.master=null; Audio_.ready=false; Audio_.bgmSrc=null; Audio_.bgmGain=null; Audio_.scene=null; Audio_._lastT=undefined; Audio_._stall=0; Audio_._rebuilt=Date.now();
+    if(Audio_.se && Audio_.se.clear) Audio_.se.clear(); if(Audio_.loops && Audio_.loops.clear) Audio_.loops.clear(); if(Audio_.buf && Audio_.buf.clear) Audio_.buf.clear();
+    for(const k of Object.keys(Audio_)) if(Audio_[k] && typeof Audio_[k]==="object" && Audio_[k] instanceof Map) Audio_[k].clear();
+    if(old){ try{ const p=old.close(); if(p&&p.catch) p.catch(()=>{}); }catch(_){ } }
+    audioInit();
+  }catch(e){}
+}
 function ensureAudioRunning(force){
   try{
     if(!Audio_.enabled) return;
@@ -20453,17 +20474,25 @@ function ensureAudioRunning(force){
     const ctx=Audio_.ctx; if(!ctx) return;
     /* 第109巡：iOS は背景から戻ると口は「開いている」と言いながら曲の音源だけ死んでいることがある → 表に戻ったときは必ず鳴らし直す */
     const go=()=>{ try{ if(Audio_.bgmSrc){ try{ Audio_.bgmSrc.stop(); }catch(_){ } Audio_.bgmSrc=null; } Audio_.scene=null; if(!W.started){ startTitleMusic(); } else { updateMusic(); } }catch(e){} };
-    if(ctx.state!=="running"){ const p=ctx.resume(); if(p&&p.then) p.then(go).catch(()=>{}); else go(); }
+    if(ctx.state!=="running"){
+      const t0=ctx.currentTime; const p=ctx.resume(); if(p&&p.then) p.then(go).catch(()=>{}); else go();
+      /* 一秒たっても口が開かない、開いたのに時計が進まないなら、口を作り直して鳴らし直す */
+      setTimeout(()=>{ try{ const c2=Audio_.ctx; if(!c2||!Audio_.enabled) return; if(c2!==ctx) return; if(c2.state!=="running" || c2.currentTime===t0){ audioRebuild(); const c3=Audio_.ctx; if(c3){ const p2=c3.resume(); if(p2&&p2.then) p2.then(go).catch(()=>{}); else go(); } } }catch(_){ } }, 1000);
+    }
     else if(force || (Audio_.music && !Audio_.bgmSrc)){ go(); }
   }catch(e){}
 }
+/* iOS の器から「表に戻った」と告げられたとき */
+window.sengokuResume=function(){ try{ setTimeout(()=>ensureAudioRunning(true),100); }catch(_){ } };
 /* 曲が鳴っているはずなのに時計が進んでいなければ（口が凍っている）鳴らし直す。毎秒確かめる */
-setInterval(()=>{ try{ const ctx=Audio_.ctx; if(!ctx||!Audio_.enabled||!Audio_.music||document.hidden) return; const t=ctx.currentTime; if(Audio_.bgmSrc && Audio_._lastT!==undefined && t===Audio_._lastT){ Audio_._stall=(Audio_._stall||0)+1; if(Audio_._stall>=3){ Audio_._stall=0; ensureAudioRunning(true); } } else Audio_._stall=0; Audio_._lastT=t; }catch(e){} }, 1000);
+setInterval(()=>{ try{ const ctx=Audio_.ctx; if(!ctx||!Audio_.enabled||document.hidden) return; const t=ctx.currentTime; const shouldRun = ctx.state==="running" && (Audio_.bgmSrc || !Audio_.music);
+    if(shouldRun && Audio_._lastT!==undefined && t===Audio_._lastT){ Audio_._stall=(Audio_._stall||0)+1; if(Audio_._stall===3){ ensureAudioRunning(true); } else if(Audio_._stall>=6){ Audio_._stall=0; audioRebuild(); ensureAudioRunning(true); } }   /* 三秒止まれば鳴らし直し、六秒止まれば口を作り直す（第122巡） */
+    else Audio_._stall=0; Audio_._lastT=t; }catch(e){} }, 1000);
 setTimeout(ensureAudioRunning, 800);
 document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) setTimeout(()=>ensureAudioRunning(true), 150); else if(W.started && !B && !W.result) autoSave(); });   // 背景に回るときにも記録（閉じられても続きが残る）
 window.addEventListener("pagehide", ()=>{ if(W.started && !B && !W.result) autoSave(); });
 window.addEventListener("pageshow", ()=>setTimeout(()=>ensureAudioRunning(true),150));
 window.addEventListener("focus", ()=>setTimeout(ensureAudioRunning,150));
-{ let last=0; for(const ev of ["pointerdown","touchstart","keydown"]) window.addEventListener(ev, ()=>{ const now=Date.now(); if(now-last<800) return; last=now; ensureAudioRunning(); }, {passive:true}); }
+{ let last=0; for(const ev of ["pointerdown","touchstart","keydown"]) window.addEventListener(ev, ()=>{ const now=Date.now(); const ctx=Audio_.ctx; const dead = ctx && ctx.state!=="running"; if(now-last<800 && !dead) return; last=now; ensureAudioRunning(dead); }, {passive:true}); }
 </script>
 </body></html>
