@@ -1162,7 +1162,7 @@ function pushFeed(text, kind){
    格の高い城を残し、近すぎる小城を間引いて余白をつくる。 */
 let CASTLE_KEEP=null;
 /* 名指しの街道（史実の往来）。地図の初めに結び、古い記録を読んだときも結び直す */
-const NAMED_ROADS=[["谷村城","川越城"],["谷村城","江戸城"],["谷村城","滝山城"],["富山城","深志城"],["魚津城","飯山城"],["箕輪城","海津城"],["黒川城","沼田城"],["山形城","坂戸城"],
+const NAMED_ROADS=[["長篠城","駿府館"],["谷村城","川越城"],["谷村城","江戸城"],["谷村城","滝山城"],["富山城","深志城"],["魚津城","飯山城"],["箕輪城","海津城"],["黒川城","沼田城"],["山形城","坂戸城"],
     ["岩村城","高遠城"],["深志城","飛騨松倉城"],["躑躅ヶ崎館","海津城"],["躑躅ヶ崎館","滝山城"],["高天神城","駿府館"],["躑躅ヶ崎館","駿府館"],["富山城","魚津城"],["魚津城","春日山城"],["富山城","春日山城"],["飯盛山城","二条御所"],["小谷城","佐和山城"],["観音寺城","信貴山城"],["富山城","海津城"],["三木城","御着城"],["岩村城","岡崎城"]];
 let SCENARIO_KEEP=new Set();     // 筋書きに要る城は間引かない
 let SCENARIO_DROP=new Set();     // 後の世（長篠以降）では畿内・伊勢の小城を落とす（団子を防ぐ）
@@ -17476,7 +17476,7 @@ function drawBattle(){
       bctx.fillStyle="#FFD166"; bctx.font='900 16px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center"; bctx.textBaseline="middle"; bctx.fillText("★",px,py-6); bctx.font='800 11px "Zen Kaku Gothic New",sans-serif'; const t=`${k.name}${k.owner===null?"":k.owner===B.ctx.playerSide?"　わが手":"　敵の手"}${k.hold?`　${Math.ceil(6-k.hold)}`:""}`; const tw=bctx.measureText(t).width+12; const ly=py+k.r*sy-2; bctx.fillStyle="rgba(0,0,0,.7)"; bctx.beginPath(); bctx.roundRect(px-tw/2,ly-8,tw,16,5); bctx.fill(); bctx.fillStyle=col; bctx.fillText(t,px,ly); }   /* 札は輪の下の縁に（本陣の札と重なっていた） */
     bctx.restore(); }
   /* 第117巡：命令の線。選んだ隊と、命じてから三秒の隊に、移動＝青の実線・攻撃＝赤の実線に矢尻・退却＝白の破線（色だけに頼らない） */
-  if(B.over===null && B.opening<=0){ bctx.save(); for(const u of B.units){ if(u.side!==B.ctx.playerSide||u.ally||u.troops<=.5||u.left||u.morale<=0) continue; const sel=B.sel===u.id||(B.group&&B.group.includes(u.id)); const recent=u.orderAt!==undefined&&B.elapsed-u.orderAt<3; if(!sel&&!recent) continue; const k=u.order.k; if(k==="guard") continue;
+  if(false && B.over===null && B.opening<=0){ bctx.save(); for(const u of B.units){ if(u.side!==B.ctx.playerSide||u.ally||u.troops<=.5||u.left||u.morale<=0) continue; const sel=B.sel===u.id||(B.group&&B.group.includes(u.id)); const recent=u.orderAt!==undefined&&B.elapsed-u.orderAt<3; if(!sel&&!recent) continue; const k=u.order.k; if(k==="guard") continue;
       let pts=[[u.x,u.y]]; let col="rgba(120,170,255,.9)", dash=[], arrow=false;
       if(k==="move"){ pts.push([u.order.x,u.order.y]); for(const w of (u.order.wps||[])) pts.push(w); }
       else if(k==="attack"){ const t=B.units.find(z=>z.id===u.order.id&&z.troops>.5); if(!t) continue; pts.push([t.x,t.y]); col="rgba(255,90,70,.95)"; arrow=true; }
@@ -19142,7 +19142,9 @@ function finishBattle(){
     const start0=B.startTroops&&B.startTroops[0]||0;
     if(foeA && start>0 && (armyTroops(foeA)<=start*0.4 || start0>=start*1.8)) routArmy(foeA, a.clan);
     // 後詰が囲みを打ち払ったなら、救った城へ入る（本拠へ帰ってしまわない：作り手の指示）
-    { let rc=(a.relief!==undefined&&a.relief!==null)?W.castles[a.relief]:null; if(!rc && W.castles[a.target] && W.castles[a.target].clan===a.clan) rc=W.castles[a.target]; if(!rc){ const nc=W.castles[nearestCastle(a)]; if(nc && nc.clan===a.clan && kmBetween(a.x,a.y,W.tile[nc.id].c,W.tile[nc.id].r)<25) rc=nc; }   /* 第109巡：〈助ける〉でなく普通の出陣で救った城にも入る */
+    /* 第125巡：囲んでいる側が後詰を打ち破ったときは、囲みをそのまま続ける（掛川を囲む武田が勝ったのに長篠へ帰っていた。作り手の指摘） */
+    if(a.mission==="包囲" && W.castles[a.target] && W.castles[a.target].clan!==null && W.castles[a.target].clan!==a.clan){ a.px=a.x; a.py=a.y; a.moveT=1; log(`${a.name}は後詰を打ち破り、${W.castles[a.target].name}の囲みを続けます`,"war",a.clan===W.player); }
+    else { let rc=(a.relief!==undefined&&a.relief!==null)?W.castles[a.relief]:null; if(!rc && W.castles[a.target] && W.castles[a.target].clan===a.clan) rc=W.castles[a.target]; if(!rc){ const nc=W.castles[nearestCastle(a)]; if(nc && nc.clan===a.clan && kmBetween(a.x,a.y,W.tile[nc.id].c,W.tile[nc.id].r)<25) rc=nc; }   /* 第109巡：〈助ける〉でなく普通の出陣で救った城にも入る */
       if(rc && rc.clan===a.clan && W.armies[a.id]){ a.mission="移動"; a.target=rc.id; a.path=[rc.id]; a.origin=rc.id; a.relief=null; a.px=a.x; a.py=a.y; a.moveT=1; log(`${a.name}は${rc.name}の囲みを打ち払い、城に入ります`,"war",true); } }
   }
   battleEl.classList.remove("on");
