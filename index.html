@@ -15750,7 +15750,8 @@ function updateBattle(dt){
     if(B.ctx.playerSide===1 && !B.pursued){ const foes=B.units.filter(u=>u.side===0); const now=foes.reduce((s2,u)=>s2+(u.left?0:(u.morale>0?u.troops:0)),0), st=(B.startTroops&&B.startTroops[0])||foes.reduce((s2,u)=>s2+u.max,0); const hq=B.hqFell&&B.hqFell[0];   /* 第107巡：討たれた隊は名簿から消えるので、始めの兵で割る（勝頼の本隊だけになっても好機が出なかった） */
       const wavesOut = !B.waves || B.waves.every(w=>w.done);
       if(!B.pursueReady && B.opening<=0){ B.pursueReady=true; renderBattleFoot(); }   /* 〈追い討ち〉は開戦後いつでも押せる（押したいのに押せない、を無くす） */
-      const hot = st>0 && (now/st<0.3 || (hq && now/st<0.45) || (wavesOut && (B.nagDead||[]).length>=3 && now/st<0.4));   /* 第109巡：武田が堅くなった分、好機は三割で */
+      const myHq=B.units.find(u=>u.side===1&&u.cmd&&u.troops>.5); const hqPressed=!!(myHq && foes.some(f=>f.troops>.5&&f.morale>0&&!f.left&&dist(f,myHq)<6)); const hot = !hqPressed && st>0 && (now/st<0.3 || (hq && now/st<0.45) || (wavesOut && (B.nagDead||[]).length>=3 && now/st<0.4));   /* 第115巡：本陣が囲まれている間は追い討ちの好機を出さない（作り手の指示） */   /* 第109巡：武田が堅くなった分、好機は三割で */
+      if(!hot && B.pursueHot && hqPressed){ B.pursueHot=false; renderBattleFoot(); }
       if(hot && !B.pursueHot){ B.pursueHot=true; toast("武田は大きく崩れました。下の〈追い討ち！〉を押しましょう"); B.banner={t:"追い討ちの好機", at:B.elapsed}; renderBattleFoot(); }
       if(B.pursueHot && B.autoMine && !B.pursued){ B.pursued=true; B.banner={t:"追い討ち", at:B.elapsed}; renderBattleFoot(); }   /* 任せているときは好機で自ずと追う（守り手は追い討ちまで柵を出ないので） */ }
   }
@@ -16037,9 +16038,11 @@ function stepUnit(u,dt){
   else if(u.order.k==="move"){
     if(!u.order.snap){ const [c,r]=cellOf(u.order.x,u.order.y); const [cx,cy]=cellCenter(c,r); u.order.x=cx; u.order.y=cy; u.order.snap=true; if(u.gx!==undefined){ u.gx=cx; u.gy=cy; } }   /* 行き先は升の真ん中（第103巡：着いたのに「移動中」のままだった） */
     goal=[u.order.x,u.order.y]; if(dist(u,nearest)<=reachOf(u)) target=nearest;
+    /* 第115巡：人が指した行き先の升に味方がいれば、隣まで来たところで入れ替わる（味方を通り抜けてその前に立つ） */
+    if(u.order.swap && u.cell && !u.nextCell){ const [gc2,gr2]=cellOf(goal[0],goal[1]); const occ=gridOccAt(gc2,gr2); if(occ && occ!==u && occ.side===u.side && !occ.nextCell && Math.max(Math.abs(u.cell[0]-gc2),Math.abs(u.cell[1]-gr2))<=1){ const oc=u.cell; occDel(oc[0],oc[1],u); occ.cell=oc; const [ox,oy]=cellCenter(oc[0],oc[1]); occ.x=ox; occ.y=oy; occ.gx=ox; occ.gy=oy; occ.nextCell=null; occ.path=null; if(occ.order.k==="move") occ.order={k:"guard"}; occSet(oc[0],oc[1],occ); u.cell=[gc2,gr2]; const [nx2,ny2]=cellCenter(gc2,gr2); u.x=nx2; u.y=ny2; u.path=null; occSet(gc2,gr2,u); } }
     // 着いたら、そこを持ち場にする。着いたあとも「移動中」のままでは指図が効かない。目当ての升に誰かいて隣で止まったときも同じ
     const _gc=cellOf(goal[0],goal[1]); const _near=u.cell && Math.max(Math.abs(u.cell[0]-_gc[0]),Math.abs(u.cell[1]-_gc[1]))<=1 && !u.nextCell && u.idleAt!==undefined && B.elapsed-u.idleAt>1.5;
-    if((Math.hypot(goal[0]-u.x,goal[1]-u.y)<=0.3 || _near) && u.order.wps && u.order.wps.length){ const rest=u.order.wps.slice(); const nx=rest.shift(); u.order={k:"move",x:nx[0],y:nx[1],wps:rest}; u.gx=nx[0]; u.gy=nx[1]; goal=[nx[0],nx[1]]; u.idleAt=undefined; }
+    if((Math.hypot(goal[0]-u.x,goal[1]-u.y)<=0.3 || _near) && u.order.wps && u.order.wps.length){ const rest=u.order.wps.slice(); const nx=rest.shift(); u.order={k:"move",x:nx[0],y:nx[1],wps:rest,swap:u.order.swap}; u.gx=nx[0]; u.gy=nx[1]; goal=[nx[0],nx[1]]; u.idleAt=undefined; }
     else if(Math.hypot(goal[0]-u.x,goal[1]-u.y)<=0.3 || _near){ if(u.thenAttack!==undefined){ const t=B.units.find(z=>z.id===u.thenAttack&&z.troops>.5); u.thenAttack=undefined; if(t){ u.order={k:"attack",id:t.id}; goal=[t.x,t.y]; } else { u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; goal=null; } } else { u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; goal=null; } }
   }
   else if(u.order.k==="attack"){
@@ -16235,7 +16238,7 @@ function resolveAttack(a,d){
   if(a.type===3){ a.ammo=(a.ammo===undefined?30:a.ammo)-1; if(a.ammo<=0){ power*=0.45; if(a.ammo===0) bshout(a.id,"玉薬が尽きた！",2); } }
   let loss=Math.max(1, power/Math.max(8,defense)*5*(0.9+rnd()*0.2));   // 7では兵が減りすぎた
   if(d.tough) loss/=d.tough;   /* 堅い隊（武田の騎馬） */
-  if(a.type===0) loss*=3.0; else if(a.type===1) loss*=2.2; else if(a.type===2) loss*=1.25;   /* 第109巡：足軽同士が削り合わず退屈だった（作り手）→ 足軽3.0倍・侍2.2倍。第102巡：白兵はぶつかれば目に見えて減る（足軽同士の千で一分に三十では「じゃれている」ように見えた） */
+  if(a.type===0) loss*=(d.type===2?2.2:3.6); else if(a.type===1) loss*=3.0; else if(a.type===2) loss*=2.0;   /* 足軽は騎馬に対しては控えめ（騎馬が足軽に溶けていた） */   /* 第115巡：白兵をさらに重く（鉄砲の持久戦になっていた。作り手の指示） */   /* 第109巡：足軽同士が削り合わず退屈だった（作り手）→ 足軽3.0倍・侍2.2倍。第102巡：白兵はぶつかれば目に見えて減る（足軽同士の千で一分に三十では「じゃれている」ように見えた） */
   if(bTileAt(d.x,d.y)===BT.WATER) loss*=1.25;                            // 川の中で討たれる兵は多い
   else if(bTileAt(d.x,d.y)===BT.FORD) loss*=1.1;                         // 浅瀬でも足を取られる
   // 崩れて逃げる隊への追い討ちは深く、戦の後に将を捕らえやすい
@@ -18257,7 +18260,10 @@ function bEndDrag(ev){
   if(d.foe!==null && d.foe!==undefined){
     const t=B.units.find(z=>z.id===d.foe);
     // 騎馬は助走を取ってから当たる：相手が近ければ三歩下がって突っ込む
-    if(u.type===2 && t && dist(u,t)<4 && u.runup<(SPECIALS["騎馬突撃"].runup||6)){ const ang=Math.atan2(u.y-t.y,u.x-t.x); u.order={k:"move",x:Math.max(.5,Math.min(BF.w-.5,u.x+Math.cos(ang)*3)),y:Math.max(.5,Math.min(BF.h-.5,u.y+Math.sin(ang)*3))}; u.gx=u.order.x; u.gy=u.order.y; u.thenAttack=t.id; bshout(u.id,"間合いを取れ、駆けるぞ！",1.8); }
+    /* 第115巡：敵へ引いたときも、引いた道筋どおりに進み、敵の手前の升（引いて来た升）に立って討つ。その升に味方がいれば入れ替わる（鉄砲の前に立ちふさがる） */
+    const tr=(d.trail||[]); const tc=t?cellOf(t.x,t.y):null; let appr=null; for(let i=tr.length-1;i>=0;i--){ const c=tr[i]; if(tc && c[0]===tc[0] && c[1]===tc[1]) continue; if(tc && Math.max(Math.abs(c[0]-tc[0]),Math.abs(c[1]-tc[1]))<=1){ appr=c; break; } }
+    if(t && appr && B.opening<=0){ const pts=dragCorners(d).filter(([c,r])=>!(tc&&c===tc[0]&&r===tc[1])&&!(c===appr[0]&&r===appr[1])); const wps=pts.map(([c,r])=>cellCenter(c,r)); const end=cellCenter(appr[0],appr[1]); const all=wps.concat([end]); const first=all.shift(); u.order={k:"move",x:first[0],y:first[1],wps:all,swap:true}; u.gx=first[0]; u.gy=first[1]; u.thenAttack=t.id; }
+    else if(u.type===2 && t && dist(u,t)<4 && u.runup<(SPECIALS["騎馬突撃"].runup||6)){ const ang=Math.atan2(u.y-t.y,u.x-t.x); u.order={k:"move",x:Math.max(.5,Math.min(BF.w-.5,u.x+Math.cos(ang)*3)),y:Math.max(.5,Math.min(BF.h-.5,u.y+Math.sin(ang)*3))}; u.gx=u.order.x; u.gy=u.order.y; u.thenAttack=t.id; bshout(u.id,"間合いを取れ、駆けるぞ！",1.8); }
     else u.order={k:"attack",id:d.foe};
     if(t) bshout(u.id, `${t.name}を討て！`, 2.2);
     playSE("sword");
