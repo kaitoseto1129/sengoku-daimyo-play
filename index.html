@@ -1133,7 +1133,7 @@ function log(text, kind, force){
   const prio = (force && /囲まれ|落ち|滅|討死|討ち死|寝返|裏切|決戦|開城|離反|尽き/.test(text)) ? 3 : (kind==="war"||kind==="bad") ? 2 : kind==="dip" ? 1 : 0;   // 急（赤）・戦（橙）・外交（青）・並（灰）
   if(!routine){ W.notices.push({y:W.date.y,m:W.date.m,d:W.date.d,t:text,k:kind||"info",p:prio}); if(W.notices.length>400) W.notices.shift(); }
   // 急を要する知らせでは時を止める
-  if(typeof PREF!=="undefined" && PREF.autoPause && kind==="bad" && W.speed>0){
+  if(false && typeof PREF!=="undefined" && PREF.autoPause && kind==="bad" && W.speed>0){   /* 第131巡：知らせで勝手に時を止めない（何もしていないのに止まる、との指摘） */
     const urgent=/囲まれ|落ち|尽き|一揆|寝返|滅亡|敗/.test(text);
     if(urgent) setSpeed(0);
   }
@@ -1162,7 +1162,7 @@ function pushFeed(text, kind){
    格の高い城を残し、近すぎる小城を間引いて余白をつくる。 */
 let CASTLE_KEEP=null;
 /* 名指しの街道（史実の往来）。地図の初めに結び、古い記録を読んだときも結び直す */
-const NAMED_ROADS=[["長篠城","駿府館"],["清洲城","日野城"],["清洲城","佐和山城"],["岐阜城","佐和山城"],["谷村城","川越城"],["谷村城","江戸城"],["谷村城","滝山城"],["富山城","深志城"],["魚津城","飯山城"],["箕輪城","海津城"],["黒川城","沼田城"],["山形城","坂戸城"],
+const NAMED_ROADS=[["長篠城","駿府館"],["三木城","八上城"],["三木城","此隅山城"],["此隅山城","八上城"],["魚津城","放生津城"],["高遠城","長篠城"],["清洲城","日野城"],["清洲城","佐和山城"],["岐阜城","佐和山城"],["谷村城","川越城"],["谷村城","江戸城"],["谷村城","滝山城"],["富山城","深志城"],["魚津城","飯山城"],["箕輪城","海津城"],["黒川城","沼田城"],["山形城","坂戸城"],
     ["岩村城","高遠城"],["深志城","飛騨松倉城"],["躑躅ヶ崎館","海津城"],["躑躅ヶ崎館","滝山城"],["高天神城","駿府館"],["躑躅ヶ崎館","駿府館"],["富山城","魚津城"],["魚津城","春日山城"],["富山城","春日山城"],["飯盛山城","二条御所"],["小谷城","佐和山城"],["観音寺城","信貴山城"],["富山城","海津城"],["三木城","御着城"],["岩村城","岡崎城"]];
 let SCENARIO_KEEP=new Set();     // 筋書きに要る城は間引かない
 let SCENARIO_DROP=new Set();     // 後の世（長篠以降）では畿内・伊勢の小城を落とす（団子を防ぐ）
@@ -1575,7 +1575,7 @@ SCENARIO_DEFS.osaka.houses.find(h=>h.name==="山内家").daimyo="山内忠義";
 
 function scenarioKeepNames(sc){
   const out=new Set(["霧山城","穴水城","小谷城","長篠城","高遠城","箕輪城","谷村城","滝山城","海津城","黒川城","沼田城","山形城","坂戸城","大河内城",
-    "岩村城","深志城","飛騨松倉城","躑躅ヶ崎館","飯盛山城","二条御所","佐和山城","観音寺城","信貴山城","富山城"]);   // 北畠・畠山の家を立てるため、また長篠・高遠の筋書きのために残す城
+    "岩村城","深志城","飛騨松倉城","躑躅ヶ崎館","飯盛山城","二条御所","佐和山城","観音寺城","信貴山城","富山城","魚津城"]);   // 北畠・畠山の家を立てるため、また長篠・高遠の筋書きのために残す城
   if(!sc) return out;
   // 長篠より後の世では、北畠・畠山を立てるための城や志摩・伊賀の小城は要らない（畿内・伊勢の団子を薄く）
   if(sc.y>=1575) for(const nm of ["霧山城","飯盛山城","鳥羽城","上野城","日野城","高屋城","柏原城"]) out.delete(nm);
@@ -1637,10 +1637,10 @@ Object.assign(SCENARIO_DEFS, {
     troops:50000, ai:{agg:.9,dip:.5,eco:.8,risk:.6}},
    {name:"徳川家", reuse:"松平家", crest:"徳", daimyo:"徳川家康", hq:"浜松城", provs:["三河","遠江"], gens:["本多忠勝","榊原康政","酒井忠次","石川数正","大久保忠世","鳥居元忠","服部半蔵","松平家忠","内藤信成"], troops:15000, ai:{agg:.6,dip:.7,eco:.7,risk:.4}},
    {name:"武田家", reuse:"武田家", crest:"武", daimyo:"武田勝頼", hq:"躑躅ヶ崎館", provs:["甲斐","信濃","駿河"], castles:["箕輪城","高天神城"], gens:["山県昌景","馬場信春","内藤昌豊","高坂昌信","真田信綱","真田昌幸","穴山信君","小山田信茂","武田信廉","土屋昌次","秋山虎繁","仁科盛信"], troops:35000, boost:1.3, ai:{agg:.8,dip:.4,eco:.5,risk:.7}},
-   {name:"上杉家", reuse:"長尾家", crest:"上", daimyo:"上杉謙信", hq:"春日山城", provs:["越後","越中"], castles:["厩橋城","沼田城"], gens:["柿崎景家","直江景綱","本庄繁長","上杉景勝","上杉景虎","直江兼続"], ai:{agg:.7,dip:.4,eco:.5,risk:.6}},
+   {name:"上杉家", reuse:"長尾家", crest:"上", daimyo:"上杉謙信", hq:"春日山城", provs:["越後","越中"], castles:["厩橋城","沼田城","富山城","魚津城"], gens:["柿崎景家","直江景綱","本庄繁長","上杉景勝","上杉景虎","直江兼続"], ai:{agg:.7,dip:.4,eco:.5,risk:.6}},
    {name:"北条家", reuse:"北条家", crest:"北", daimyo:"北条氏政", hq:"小田原城", provs:["相模","伊豆","武蔵","下総","上総"], gens:["北条氏直","北条氏照","北条氏規","北条氏邦"], troops:35000, ai:{agg:.5,dip:.5,eco:.6,risk:.4}},
    {name:"本願寺", reuse:"本願寺", crest:"本", daimyo:"本願寺顕如", hq:"石山本願寺", provs:["越前"], castles:["石山本願寺","尾山御坊"], gens:["下間頼廉","鈴木孫一"], troops:24000, hqTroops:15000, ai:{agg:.5,dip:.4,eco:.5,risk:.5}},
-   {name:"長家", reuse:"長家", crest:"長", daimyo:"長続連", hq:"七尾城", castles:["七尾城","富山城","穴水城"], gens:[], ai:{agg:.4,dip:.6,eco:.5,risk:.3}},
+   {name:"長家", reuse:"長家", crest:"長", daimyo:"長続連", hq:"七尾城", castles:["七尾城","穴水城"], gens:[], ai:{agg:.4,dip:.6,eco:.5,risk:.3}},   /* 第131巡：富山城は上杉（作り手の指示） */
    {name:"松永家", crest:"松", daimyo:"松永久秀", hq:"信貴山城", provs:["大和"], gens:["松永久通"], vassalOf:"織田家", ai:{agg:.6,dip:.5,eco:.5,risk:.7}},
    {name:"三好家", reuse:"三好家", crest:"三", daimyo:"三好長治", hq:"勝瑞城", provs:["阿波","讃岐"], gens:["十河存保","三好康長"], ai:{agg:.5,dip:.4,eco:.5,risk:.5}},
    {name:"毛利家", reuse:"毛利家", crest:"毛", daimyo:"毛利輝元", hq:"吉田郡山城", provs:["安芸","周防","長門","石見","出雲","伯耆","備後","備中","隠岐","伊予"], gens:["小早川隆景","吉川元春","吉川広家"], ai:{agg:.5,dip:.6,eco:.6,risk:.4}},
@@ -2936,11 +2936,14 @@ function stepDay(){
 const workRate = g => (.4 + 1.6*Math.min(100,g.pol)/100)
   * (hasTrait(g,"民政")?1.5:1) * (hasTrait(g,"築城")?1.2:1)
   * (g.clan!==null ? strategistBonus(g.clan).work : 1);
+/* 第131巡：民から取れる兵は「壮丁の溜まり」（levy）から。溜まりは人口の一割が上限で、月に人口の一分半ずつしか戻らない。
+   戦で五千を失っても、すぐには五千を取り直せない（作り手：本当らしく）。古い記録は初めて見た時に一割で始める */
+function levyOf(c){ if(c.levy===undefined||c.levy===null) c.levy=Math.floor(c.pop*.10); return c.levy; }
 const conscriptable = c => {
   const f=(c.minchu/100)*.6+(c.chian/100)*.4;
   let n=c.pop*.10*(.4+.6*f);
   if(c.buildings.includes("兵舎")) n*=1.3;
-  return Math.floor(n);
+  return Math.max(0,Math.floor(Math.min(n, levyOf(c))));
 };
 /* 徴兵は城下だけでなく、街道二里までの自領の城下からも集める。
    一城の民だけでは大軍は組めない */
@@ -2957,7 +2960,7 @@ function drawTroopsFrom(c, want, clan){
     if(left<=0) break;
     const can=conscriptable(o); if(can<=0) continue;
     const t=Math.min(can,left); left-=t;
-    o.pop=Math.max(500,o.pop-t);
+    o.pop=Math.max(500,o.pop-t); o.levy=Math.max(0,levyOf(o)-t);
     if(!clan.policies.has("兵農分離")) o.minchu=Math.max(0,o.minchu-Math.max(1,Math.round(t/300)));
   }
   return want-left;
@@ -3495,7 +3498,7 @@ function processArmyFood(){
     if(W.date.d%5===0){ a.supplied=false; resupply(a); }   // 届いた印はその日だけ
     else if(a.food!==undefined && a.food < foodEatenBy(armyTroops(a))*15){ resupply(a); }   // 乏しければ毎日みる（家に米があるのに陣が飢えるのはおかしい）
     if(a.food===undefined) a.food=Math.floor(foodEatenBy(armyTroops(a))*120);
-    const eat=foodEatenBy(armyTroops(a))*(seasonOf(W.date.m)==="冬"?1.2:1);
+    const eat=foodEatenBy(armyTroops(a))*(seasonOf(W.date.m)==="冬"?1.2:1)*(a.mission==="包囲" ? (1+Math.min(2,armyTroops(a)/15000)) : 1);   /* 第131巡：囲みは大軍ほど兵糧を食う（一万五千ごとに一倍増し、最大三倍。作り手の指示） */
     // 陣中の米は家の蔵から食う（家全体の兵糧が尽きるまで、隊は飢えない）。近い蔵から順に
     { let left=eat; const mine=myCastles(a.clan).filter(c=>(c.food||0)>0).sort((x,y)=>kmBetween(a.x,a.y,W.tile[x.id].c,W.tile[x.id].r)-kmBetween(a.x,a.y,W.tile[y.id].c,W.tile[y.id].r));
       for(const c of mine){ if(left<=0) break; const t=Math.min(c.food,left); c.food-=t; left-=t; }
@@ -3641,7 +3644,7 @@ function arriveAt(cid,a){
       declareWar(a.clan,c.clan);
     }
     /* 第110巡：城の兵が自軍より多ければ、機械の軍は攻めずに引き返す（一万の城に三千七百で寄せていた） */
-    if(a.clan!==W.player && !a.script && !a.stage && garrisonTroops(cid)*2>armyTroops(a)){ if(c.clan===W.player) log(`${a.name}は${c.name}の守りの厚さを見て引き返しました`,"war"); recallArmy(a.id); return; }
+    if(a.clan!==W.player && !a.stageSiege && garrisonTroops(cid)*2>armyTroops(a)){   /* 第131巡：筋書きの軍（長篠の後詰など）も同じ（一万の城に徳川八千で力攻めしていた） */ if(c.clan===W.player) log(`${a.name}は${c.name}の守りの厚さを見て引き返しました`,"war"); recallArmy(a.id); return; }
     // 守る者がいない城は、戦わずにそのまま接収する
     if(garrisonTroops(cid)<=0){
       log(`${c.name}は無人であった。戦わずして城を接収します`,"war");
@@ -4151,6 +4154,15 @@ function captureCastle(cid,clan,a){
     }
     forgetClan(old);
   }
+  /* 第131巡：盟友・主家・傘下の家が「取られていた城」を取り返したら、もとの持ち主へ戻す（二年以内。作り手の指示）。取られた覚えは c.lostFrom に */
+  { const X=c.lostFrom; const KX=(X!==undefined&&X!==null)?W.clans[X]:null; const KY=W.clans[clan];
+    if(KX && KY && X!==clan && !KX.dead && myCastles(X).length && (KY.allies.has(X)||KY.suzerain===X||KX.suzerain===clan) && !KY.war.has(X) && dayNumber()-(c.lostAt||0)<730){
+      const home=myCastles(clan).filter(x=>x.id!==cid).sort((p,q)=>kmBetween(W.tile[cid].c,W.tile[cid].r,W.tile[p.id].c,W.tile[p.id].r)-kmBetween(W.tile[cid].c,W.tile[cid].r,W.tile[q.id].c,W.tile[q.id].r))[0];
+      for(const g of Object.values(W.generals)){ if(g.castle===cid&&g.clan===clan&&!g.army){ if(home){ g.castle=home.id; g.task=null; } } }
+      c.clan=X; c.hq=false; c.lord=null; c.delegate=null; c.lostFrom=undefined; c.lostAt=undefined;
+      addRel(X,clan,20); log(`${KY.name}は取り返した${c.name}を、もとの持ち主${KX.name}へ返しました`,"dip",true); if(typeof chronicle==="function") chronicle(`${c.name}、${KX.name}へ返される`);
+      if(X===W.player) bigNews(`${c.name} が戻りました`);
+    } else if(old!==null && old!==undefined && hostile(old,clan)){ c.lostFrom=old; c.lostAt=dayNumber(); } else { c.lostFrom=undefined; } }
   expansionPenalty(clan); checkVictory();
 }
 function expansionPenalty(clan){
@@ -4865,6 +4877,8 @@ function processFood(){
     }
     // 流された田畑は、次の実りまで戻らない（毎月消していたので大水が実りに効いていなかった）
     if(W.date.m===4||W.date.m===10) c.famine=false;
+    // 壮丁の溜まりは月に人口の一分半ずつ戻る（上限は一割。兵舎があれば一分八厘）
+    c.levy=Math.min(Math.floor(c.pop*.10), levyOf(c)+Math.floor(c.pop*(c.buildings.includes("兵舎")?.018:.015)));
     // 一月ぶんを食む
     const eat=Math.floor(foodEatenBy(garrisonFast(c.id))*30);
     c.food=Math.max(0, c.food-eat);
@@ -7062,8 +7076,14 @@ function honnojiSplit(){
   if(ak){ for(const k of made){ if(k!==ak) declareWar(ak.id,k.id,"force"); } declareWar(ak.id,0,"force"); const tk=clanByName("徳川家"); if(tk) declareWar(ak.id,tk.id,"force"); }
   for(const k of made){ if(k===ak) continue; makePeace(k.id,0); for(const o of made){ if(o!==k&&o!==ak) makePeace(k.id,o.id); } setRel(k.id,0,40); setRel(0,k.id,40); }
   { const oh=myCastles(0).find(c=>c.hq)||myCastles(0)[0]; for(const g of Object.values(W.generals)){ if(g.status==="死亡") continue; if(g.army) continue; if(g.castle===null||!W.castles[g.castle]) continue; const cc=W.castles[g.castle]; if(cc.clan!==g.clan && g.clan!==null && W.clans[g.clan]){ const mine=myCastles(g.clan); const home=(g.clan===0&&oh)?oh:(mine.find(c=>c.hq)||mine[0]); if(home){ g.castle=home.id; g.task=null; } } } }   /* 他家の城に残った将は自分の家の本拠へ */
+  /* 第131巡：信雄の織田家に残るのは尾張だけ。尾張の外の織田の城は、いちばん近い分かれた家（明智・柴田・羽柴…）へ（作り手の指示） */
+  { const owari=provId("尾張"); const rest=made.filter(k=>!k.dead&&myCastles(k.id).length);
+    if(rest.length){ for(const c of Object.values(W.castles)){ if(c.clan!==0||c.prov===owari) continue; let best=null,bd=1e9; for(const k of rest){ for(const o of myCastles(k.id)){ const d=kmBetween(W.tile[c.id].c,W.tile[c.id].r,W.tile[o.id].c,W.tile[o.id].r); if(d<bd){ bd=d; best=k; } } } if(!best) continue;
+        c.clan=best.id; c.hq=false; c.holdOut=false; c.delegate=null; c.lord=null; for(const g of Object.values(W.generals)){ if(g.castle===c.id&&g.clan===0&&!g.army&&g.status==="家臣"){ g.clan=best.id; g.loyalty=Math.min(g.loyalty||100,70); } } }
+      if(!myCastles(0).some(c=>c.hq)){ const oh=myCastles(0).sort((a,b)=>b.koku-a.koku)[0]; if(oh) oh.hq=true; }
+      if(!myCastles(0).length){ oda.dead=true; forgetClan(0); } } }
   bumpGarrison();
-  log(`旧織田領は${made.map(k=>k.name).join("・")}に分かれました`,"war",true);
+  log(`旧織田領は${made.map(k=>k.name).join("・")}に分かれました（織田家に残るのは尾張のみ）`,"war",true);
   if(typeof bigNews==="function") bigNews("本能寺の変　織田領、家臣たちに分かれる");
 }
 function splitClan(from,leaderID){
@@ -7379,7 +7399,7 @@ function openSystem(){
        ${sw("seasonTint","季節の色","冬は白く、秋は赤らむ地図の色被り")}
        ${sw("skipSetup","会戦の陣立てを飛ばす","会戦が始まると陣立てで止まらず、すぐに開戦する")}
        ${sw("autoSkirmish","小競り合いは自動で決める","双方三千以下の野戦は画面を出さず、その場で決める（決戦と城攻めは出る）")}
-       ${sw("autoPause","急報で止める","自城が囲まれたときなどに時を止める")}
+
        ${sw("borders","勢力の境目","隣り合う家の境に線を引く")}
        ${sw("names","城の名","地図に城の名を出す（消せば地図がすっきりする）")}
        ${sw("bigText","大きな文字","札や帯の文字をひとまわり大きくする")}
@@ -8012,10 +8032,10 @@ function openGiveCastle(cid){
   if(myCastles(W.player).length<=1) return toast("最後の城は譲れませぬ");
   const me=W.clans[W.player];
   const cands=Object.values(W.clans).filter(k=>!k.dead&&k.id!==W.player&&myCastles(k.id).length&&!me.war.has(k.id)
-    &&(me.vassals.has(k.id)||me.allies.has(k.id)||me.suzerain===k.id||c.neighbors.some(n=>W.castles[n]&&W.castles[n].clan===k.id)));
-  if(!cands.length) return toast("譲れる相手がおりませぬ（属国・盟友・主家か、隣の家）");
+    &&(me.vassals.has(k.id)||me.allies.has(k.id)));   /* 第131巡：譲れるのは属国と盟友だけ（作り手の指示） */
+  if(!cands.length) return toast("譲れる相手がおりませぬ（属国か盟友だけ）");
   const rows=cands.map(k=>{ const tag=me.vassals.has(k.id)?"属国":me.allies.has(k.id)?"同盟":me.suzerain===k.id?"主家":"隣の家";
-    return `<div class="row"><span class="ow-crest" style="background:${clanColor(k.id)}">${esc(String(k.crest||k.name[0]))}</span><b style="flex:1">${esc(k.name)}</b><span class="chip tiny">${tag}</span><span class="tiny num">友好 ${getRel(W.player,k.id)}</span><button class="tool" onclick="giveCastle(${cid},${k.id})">この家に譲る</button></div>`; }).join("");
+    return `<div class="row">${monHTML(k,28)}<b style="flex:1;margin-left:6px">${esc(k.name)}</b><span class="chip tiny">${tag}</span><span class="tiny num">友好 ${getRel(W.player,k.id)}</span><button class="tool" onclick="giveCastle(${cid},${k.id})">この家に譲る</button></div>`; }).join("");
   openPanel("城を譲る", esc(c.name), `<div class="tiny muted" style="margin-bottom:6px">${esc(c.name)}を丸ごと譲ります。中の将と兵は近くのわが城へ退きます。譲られた家の心証は大きく良くなります。</div>${rows}
     <div class="s-actions" style="margin-top:10px"><button class="s-btn" onclick="openCastle(${cid})">城へ戻る</button></div>`);
 }
@@ -8568,8 +8588,11 @@ function openVassalCastleAttack(cid){
   if(!o||!me.vassals.has(o.id)) return toast("傘下の城ではありませぬ");
   const gens=Object.values(W.generals).filter(g=>g.castle===cid&&g.clan===o.id&&!g.task&&!g.army&&g.troops>150&&!isChild(g)&&g.status!=="捕虜");
   const tr=gens.reduce((s2,g)=>s2+g.troops,0);
-  const targets=c.neighbors.map(n=>W.castles[n]).filter(t=>t&&t.clan!==null&&t.clan!==o.id&&t.clan!==W.player
-      &&!me.allies.has(t.clan)&&!me.vassals.has(t.clan)&&!o.allies.has(t.clan)&&!underTruce(o.id,t.clan)&&!underTruce(W.player,t.clan));
+  const okT=t=>t&&t.clan!==null&&t.clan!==o.id&&t.clan!==W.player&&!me.allies.has(t.clan)&&!me.vassals.has(t.clan)&&!o.allies.has(t.clan)&&!underTruce(o.id,t.clan)&&!underTruce(W.player,t.clan);
+  /* 第131巡：隣の城に加え、わが家が戦っている家の城で、傘下・わが領・盟友の領地を通って道が続く城も狙える（本願寺を狙えなかった） */
+  const near=c.neighbors.map(n=>W.castles[n]).filter(okT);
+  const far=Object.values(W.castles).filter(t=>okT(t)&&me.war.has(t.clan)&&!near.includes(t)&&roadHops(cid,t.id,4)<=4&&findPath(cid,t.id,o.id).length>0);
+  const targets=near.concat(far);
   const h=`<div class="advice">${esc(c.name)}の手すきの将 ${gens.length}名・兵 ${tr.toLocaleString()} を、隣の城へ向かわせます。<br>
       命じるたびに${esc(o.name)}の心証が下がります（いま ${getRel(o.id,W.player)}）。戦になっていなければ、${esc(o.name)}がその家に弓を引きます。</div>
     <div class="sec-title">狙う城</div>
@@ -9520,7 +9543,7 @@ function openSearch(){
     const cs=Object.values(W.castles).filter(c=>c.name.includes(q)).slice(0,10);
     const gs=Object.values(W.generals).filter(g=>g.status!=="死亡"&&(g.name.includes(q)||(g.kana||"").includes(q))).slice(0,12);
     out.innerHTML =
-      (ks.length?`<div class="sec-title">家</div>`+ks.map(k=>{ const hq=myCastles(k.id).find(c=>c.hq)||myCastles(k.id)[0]; return `<div class="row"><span class="s-crest" style="width:18px;height:18px;font-size:11px;background:${clanColor(k.id)}">${esc(String(k.crest||k.name[0]))}</span><span class="nm">${esc(k.name)}</span><span class="tiny muted">城${myCastles(k.id).length}・兵${totalTroops(k.id).toLocaleString()}</span>${hq?`<button class="chip" style="cursor:pointer;margin-left:auto" onclick="closePanel();gotoCastle(${hq.id})">本拠へ</button>`:""}</div>`; }).join(""):"") +
+      (ks.length?`<div class="sec-title">家</div>`+ks.map(k=>{ const hq=myCastles(k.id).find(c=>c.hq)||myCastles(k.id)[0]; return `<div class="row">${monHTML(k,18,"flex:none")}<span class="nm">${esc(k.name)}</span><span class="tiny muted">城${myCastles(k.id).length}・兵${totalTroops(k.id).toLocaleString()}</span>${hq?`<button class="chip" style="cursor:pointer;margin-left:auto" onclick="closePanel();gotoCastle(${hq.id})">本拠へ</button>`:""}</div>`; }).join(""):"") +
       (cs.length?`<div class="sec-title">城</div>`+cs.map(c=>`<div class="row">
         <span class="nm">${esc(c.name)}</span>
         <span class="tiny muted">${esc(W.clans[c.clan]?clanName(c.clan):"—")}</span>
@@ -10813,7 +10836,7 @@ function drawMap(){
       }
       // 引いた地図でも、敵の家の本拠と小さな家の本拠には家紋の札（豊臣が点に紛れて見えない、を無くす）
       if(c.hq && c.clan!==null && c.clan!==undefined && c.clan!==W.player && W.clans[c.clan] && !pickMode){ const K=W.clans[c.clan]; const ch=String((K.crest||K.name||"？"))[0]||"？"; let few=false; try{ few=(rel===2)||myCastles(c.clan).length<=3; }catch(_){ few=false; }
-        if(few){ const ta=mctx.textAlign, tb=mctx.textBaseline, fo=mctx.font; try{ mctx.fillStyle=clanColor(c.clan); mctx.beginPath(); mctx.arc(x,y-rr-9,8,0,7); mctx.fill(); mctx.strokeStyle=rel===2?"rgba(226,40,26,.9)":"rgba(255,255,255,.7)"; mctx.lineWidth=1.5; mctx.stroke(); mctx.fillStyle="#fff"; mctx.font='900 10px "Yuji Syuku",serif'; mctx.textAlign="center"; mctx.textBaseline="middle"; mctx.fillText(ch,x,y-rr-9); }catch(_){ } mctx.textAlign=ta; mctx.textBaseline=tb; mctx.font=fo; } }   // save/restore を使わない（途中で落ちると変換が積もり、地面が画面の外へ行ってしまう）
+        if(few){ const ta=mctx.textAlign, tb=mctx.textBaseline, fo=mctx.font; try{ mctx.fillStyle=clanColor(c.clan); mctx.beginPath(); mctx.arc(x,y-rr-9,8,0,7); mctx.fill(); mctx.strokeStyle=rel===2?"rgba(226,40,26,.9)":"rgba(255,255,255,.7)"; mctx.lineWidth=1.5; mctx.stroke(); drawMon(mctx,K,x,y-rr-9,7.5,"#fff",null); }catch(_){ } mctx.textAlign=ta; mctx.textBaseline=tb; mctx.font=fo; } }   // save/restore を使わない（途中で落ちると変換が積もり、地面が画面の外へ行ってしまう）
       if(selected.kind==="castle" && selected.id===c.id){
         mctx.strokeStyle="#C9A227"; mctx.lineWidth=2;
         mctx.beginPath(); mctx.arc(x,y,rr+5,0,7); mctx.stroke();
@@ -10895,8 +10918,8 @@ function drawMap(){
       rr2(x-pw/2+br*0.22, by2-ph/2+br*0.22, pw-br*0.44, ph-br*0.44, ph/2); mctx.fillStyle="rgba(250,246,238,.96)"; mctx.fill();
       mctx.lineWidth=Math.max(2,br*0.2); mctx.strokeStyle = ring;
       rr2(x-pw/2, by2-ph/2, pw, ph, ph/2); mctx.stroke();
-      mctx.fillStyle = mine ? "#0A2E8C" : "#2A2622";
-      mctx.fillText(crest, x, by2+br*0.06);
+      if(!mine && kc && monKind(kc)){ drawMon(mctx, kc, x, by2, br*0.86, clanColor(c.clan), null); }   /* 第131巡：家紋の絵（作り手の指示） */
+      else { mctx.fillStyle = mine ? "#0A2E8C" : "#2A2622"; mctx.fillText(crest, x, by2+br*0.06); }
       const pillR = pw/2;   // 右肩・左肩の印は札の端に合わせる
       // 敵の輪には小さく「敵」を添える。家紋だけでは初めて見る家が分からない
       if(rel===2 || rel===1){
@@ -11249,7 +11272,7 @@ function drawMap(){
       const ring=cs*0.62;
       const others=Object.values(W.armies).filter(b=>b.mission==="包囲"&&b.target===a.target);
       const idx=Math.max(0,others.indexOf(a));
-      const label=`${W.clans[a.clan]?String(W.clans[a.clan].crest||W.clans[a.clan].name[0])[0]:"—"} ${mine?troops.toLocaleString():estTroops(a)}　${(SIEGE_MODES[a.mode]||SIEGE_MODES[1]).n}`;   /* 第130巡：家紋で（作り手の指示） */
+      const label=`　 ${mine?troops.toLocaleString():estTroops(a)}　${(SIEGE_MODES[a.mode]||SIEGE_MODES[1]).n}`;   /* 第131巡：左に家紋の絵、続けて数 */
       mctx.font='700 13px "DotGothic16",monospace';
       mctx.textAlign="center"; mctx.textBaseline="middle";
       const tw=mctx.measureText(label).width+14;
@@ -11261,6 +11284,7 @@ function drawMap(){
       mctx.fillStyle="#fff";
       mctx.strokeStyle="rgba(0,0,0,.6)"; mctx.lineWidth=2.5;
       mctx.strokeText(label,lx,lyy); mctx.fillText(label,lx,lyy);
+      if(W.clans[a.clan]) drawMon(mctx, W.clans[a.clan], lx-tw/2+11, lyy, 7.5, "#fff", null);
       mctx.restore();
       continue;
     } else {
@@ -11285,7 +11309,7 @@ function drawMap(){
       mctx.strokeStyle=edge; mctx.lineWidth=1.3;
       mctx.strokeRect(x+1, y-fh-bs*0.6, fw, fhh);
       // 幟に家紋（どの家の軍か、動いている間も分かる）
-      const K=W.clans[a.clan]; if(K && K.crest){ mctx.fillStyle="#fff"; mctx.font=`800 ${Math.max(9,Math.floor(fhh*0.62))}px "Zen Kaku Gothic New",sans-serif`; mctx.textAlign="center"; mctx.textBaseline="middle"; mctx.fillText(K.crest, x+1+fw/2, y-fh-bs*0.6+fhh/2+0.5); } }
+      const K=W.clans[a.clan]; if(K){ drawMon(mctx, K, x+1+fw/2, y-fh-bs*0.6+fhh/2, Math.min(fw,fhh)*0.42, "#fff", null); } }   /* 第131巡：幟に家紋の絵 */
     // 大将の顔。誰の軍かが一目で分かり、盤の上で人が動いている感じが出る
     if(!besieging && cam.scale>=2.2){ const cmdG=W.generals[a.commander]; if(cmdG){ const fs=Math.max(26,Math.min(64,bs*1.9)); const fx=x-fs/2-Math.max(9,bs*1.2)*0.6-4, fy=y-fh-bs*0.6-fs*0.15;
       try{ mctx.save(); mctx.fillStyle=col; mctx.fillRect(fx-2,fy-2,fs+4,fs+4); mctx.drawImage(portraitCanvas(cmdG),fx,fy,fs,fs); mctx.strokeStyle=edge; mctx.lineWidth=2; mctx.strokeRect(fx-2,fy-2,fs+4,fs+4); mctx.restore(); }catch(e){} } }
@@ -12047,7 +12071,7 @@ function openCastle(id){
   const relCol=["#1E78FF","#00A84E","#D31408","#8C8578"][rel0];
   const daimyo = c.clan!==null ? W.generals[W.clans[c.clan].daimyo] : null;
   const owner=`<div class="owner" style="border-color:${relCol}">
-    <span class="ow-crest" style="background:${clanColor(c.clan)}">${c.clan!==null?esc(W.clans[c.clan].crest||"城"):"—"}</span>
+    ${c.clan!==null&&W.clans[c.clan]?monHTML(W.clans[c.clan],34,"margin-right:8px;flex:none"):`<span class="ow-crest" style="background:${clanColor(c.clan)}">—</span>`}
     <div style="flex:1;min-width:0">
       <div class="ow-clan">${c.clan!==null?esc(clanName(c.clan)):"無主"}${(()=>{
         const k=c.clan!==null?W.clans[c.clan]:null;
@@ -12205,6 +12229,8 @@ function doSubvert(cid){
   if(!targets.length) return toast(`${c.name}には寝返らせられる者がおりませぬ（一族と当主は靡きません）`);
   if(Object.values(W.generals).some(g=>g.clan===W.player&&g.task&&g.task.kind==="調略"&&g.task.castle===cid)) return toast(`${c.name}にはすでに調略の手を伸ばしております`);   // 二人同時に同じ城を口説かない
   const victim=targets.reduce((a,b)=>a.loyalty<=b.loyalty?a:b);
+  /* 第131巡：同じ城への調略は九十日に一度。しくじるたびに相手の警戒が上がり（忠誠+8）、何度も押せば必ず通る、を無くす（作り手の指示） */
+  c.subvertLog=c.subvertLog||{}; const lastAt=c.subvertLog[W.player]||-9999; if(dayNumber()-lastAt<90) return toast(`${c.name}は警戒が強く、いまは手が出せませぬ（あと${90-(dayNumber()-lastAt)}日）`);
   const r=order("調略",agent.id,cid);
   if(r) return toast(r);
   const days=CMDS.find(x=>x.n==="調略").work;
@@ -12212,6 +12238,7 @@ function doSubvert(cid){
   if(myCastles(W.player).some(x=>x.buildings.includes("忍者屋敷"))) est*=1.25;
   if(c.buildings.includes("忍者屋敷")) est*=.65;
   est=Math.round(Math.max(2,Math.min(85,est)));
+  c.subvertLog[W.player]=dayNumber(); for(const t of targets) t.loyalty=Math.min(100,(t.loyalty||0)+8);   /* 手を伸ばせば相手の家中も締まる */
   toast(`${agent.name}が${victim.name}（忠誠${victim.loyalty}）の調略にかかります。見込み${est}%・結果はおよそ${days}日後`);
   log(`${agent.name}が${c.name}の${victim.name}（忠誠${victim.loyalty}）に調略の手を伸ばしました`,"dip");
   refreshHUD();
@@ -12334,7 +12361,7 @@ function dispatchPickTarget(id){
   const c=W.castles[id]; if(!c) return;
   const sel=new Set(dispatchSel);
   mapPickStart({kind:"dispatch", from:id, multi:false, hint:`${c.name}からの出陣：目的地の城を押してください`, ok:o=>o.id!==id&&(o.clan===W.player||canMarchTo(o)===null)&&findPath(id,o.id,W.player).length>0,
-    onDone:ids=>{ dispatchSel=sel; dispatchTarget=ids[0]; showFar=true; openDispatch(id, ids[0]); }, onCancel:()=>{ dispatchSel=sel; openDispatch(id); } });
+    onDone:ids=>{ dispatchSel=sel; dispatchTarget=ids[0]; showFar=true; if(dispatchSel.size){ doDispatch(id); if(dispatchTarget===null) return; } openDispatch(id, ids[0]); }, onCancel:()=>{ dispatchSel=sel; openDispatch(id); } });   /* 第131巡：将を選んであれば、目的地を押した時点で出陣（右へ戻らなくてよい。作り手の指示） */
 }
 function openDispatch(id,preTarget){
   if(preTarget===undefined) reliefPick=null;
@@ -12533,6 +12560,7 @@ function doDispatch(cid, sure){
     }
   }
   const why=canMarchTo(W.castles[dispatchTarget]); if(why) return toast(why);
+  { const t=W.castles[dispatchTarget]; if(t && t.clan!==null && t.clan!==W.player && hostile(W.player,t.clan)){ const mineT=[...dispatchSel].reduce((s2,g)=>s2+((W.generals[g]||{}).troops||0),0); const def=garrisonTroops(t.id); if(def>0 && mineT<def*2) return toast(`${t.name}を攻めるには守兵の二倍（${(def*2).toLocaleString()}）が要ります（いま ${mineT.toLocaleString()}）`); } }   /* 第131巡：力攻めでも兵糧攻めでも守兵の二倍が要る（作り手の指示） */
   const r=dispatch(cid,[...dispatchSel],dispatchTarget,dispatchMode);
   if(r) return toast(r);
   dispatchSel.clear(); dispatchTarget=null;
@@ -12741,7 +12769,7 @@ function openFoeArmy(id){
             : hostile(W.player,a.clan) ? "交戦中" : "中立";
   const relCol = (rel==="同盟"||rel==="属国"||rel==="主家") ? "#00A84E" : rel==="交戦中" ? "#E11208" : "#8C8578";
   const h=`<div class="owner" style="border-color:${relCol}">
-      <span class="ow-crest" style="background:${clanColor(a.clan)}">${esc(cl?.crest||"軍")}</span>
+      ${cl?monHTML(cl,34,"margin-right:8px;flex:none"):`<span class="ow-crest" style="background:${clanColor(a.clan)}">軍</span>`}
       <div style="flex:1;min-width:0">
         <div class="ow-clan">${esc(cl?cl.name:"—")}</div>
         <div class="tiny muted">大将 ${esc(W.generals[a.commander]?.name||"—")}</div>
@@ -12923,7 +12951,7 @@ function openDiplomacy(){
     const cls = state==="同盟"?"asagi":state==="戦争"?"shu":state==="中立"?"":"kin";
     const near=adj.has(o.id);
     return `<div style="padding:7px 0;border-bottom:1px solid var(--line)${near?"":";opacity:.72"}">
-      <div class="row"><span class="s-crest" style="width:18px;height:18px;font-size:11px;background:${clanColor(o.id)}">${o.crest}</span>
+      <div class="row">${monHTML(o,18,"flex:none")}
         <span class="nm">${o.name}</span><span class="chip ${cls}">${state}</span>${near?'<span class="chip">隣国</span>':""}
         ${o.suzerain!==null&&o.suzerain!==undefined&&W.clans[o.suzerain]?`<span class="chip tiny" title="この家を攻めれば主家も敵に回ります">${esc(clanName(o.suzerain))}の傘下</span>`:""}
         ${o.vassals&&o.vassals.size?`<span class="chip tiny">従える家 ${o.vassals.size}</span>`:""}
@@ -13043,7 +13071,7 @@ document.getElementById("pickList").onclick=()=>{
     .map(k=>({k, n:myCastles(k.id).length, t:totalTroops(k.id), d:W.generals[k.daimyo], rec:(sc.recommend||[]).includes(k.name)}))
     .sort((a,b)=>(b.rec?1:0)-(a.rec?1:0)||b.n-a.n||b.t-a.t);   /* 第113巡：おすすめの家を先頭に（長篠：織田・徳川・武田） */
   openPanel("大名家を選ぶ", `${rows.length}家`, `<div class="tiny muted" style="margin-bottom:6px">${sc.recommend?`<b style="color:var(--kin)">おすすめ：${sc.recommend.join("・")}</b>　`:""}押すとその家の札が開きます。</div><div class="list">${rows.map(r=>`<div class="row" style="cursor:pointer${r.rec?";background:rgba(201,162,39,.16);outline:1px solid rgba(201,162,39,.6)":""}" onclick="showClanCard(${r.k.id})">
-      <span class="s-crest" style="width:26px;height:26px;font-size:14px;background:${clanColor(r.k.id)}">${esc(String(r.k.crest||r.k.name[0]).slice(0,1))}</span>
+      ${monHTML(r.k,26,"flex:none")}
       <span class="nm" style="font-weight:700">${esc(r.k.name)}</span>${r.rec?'<span class="chip kin">おすすめ</span>':""}<span class="tiny muted">${esc(r.d?r.d.name:"")}</span>
       <span class="tiny num" style="margin-left:auto">城${r.n}　兵${r.t.toLocaleString()}</span></div>`).join("")}</div>`);
 };
@@ -13432,7 +13460,7 @@ const DECISIVE=[
    after:{ atkWin:{ text:"殿軍は崩れ、信長は多くの将を失って京へ逃げ帰った。織田の威は大きく傾く", shrink:{clan:"織田家",k:0.75}, rels:[["朝倉家","織田家",-20]], news:["織田の惨敗に、畿内の反織田勢力が勢いづく"] },
            defWin:{ text:"信長は無事に京へ戻り、殿軍の秀吉・光秀は面目を施した。次は姉川", rels:[["織田家","浅井家",-40]] } } },
  { id:2106, key:"takato", sub:"仁科盛信、最後の城", sc:"koshu", when:"flag", flag:"koTakato", name:"高遠城の戦い", atk:"織田家", def:"武田家",
-   terrain:1, forts:"def", nAtk:10, nDef:5, atkTroops:30000, defTroops:3000,
+   terrain:1, forts:"def", castle:"高遠城", noAllies:true, nAtk:10, nDef:5, atkTroops:30000, defTroops:3000,   /* 第131巡：城攻めの形。他家の将は出ない */
    atkGens:["織田信忠","森長可","団忠正","河尻秀隆","滝川一益","毛利長秀"], defGens:["仁科盛信","小山田昌成","諏訪頼豊","春日昌澄","渡辺金太夫"],
    site:["高遠城","飯田城"],
    holdWin:{side:"def", sec:200, keep:0.3, h:"高遠城、持ちこたえる", t:"仁科盛信は織田の大軍を山城の前で止めた。信忠は兵を退き、伊那の道はしばし閉ざされた"},
@@ -13670,7 +13698,7 @@ DECISIVE.push(
    open:"設楽原。柵の内から三千挺の鉄砲が、武田の騎馬を撃ち崩す",
    after:{ atkWin:{ text:"武田の騎馬が柵を突き破り、織田徳川は敗走した。長篠城は武田の手に落ち、勝頼は矛先を徳川へ向けた", capture:"長篠城", ally:["武田家","北条家"], wars:[["武田家","上杉家"]], order:["武田家","徳川家"],
              orders:[["本願寺","織田家",540]], rels:[["北条家","武田家",10],["上杉家","武田家",-10],["毛利家","織田家",-10]], news:["武田の勝ちに本願寺が勢いづき、畿内の織田は守りに回る","北条は武田との縁を重んじ、毛利は織田を軽んじ始めた"] },
-           defWin:{ text:"武田の騎馬は柵の前に屍を重ね、山県・馬場・内藤ら宿将が討ち死にした。信長は東を徳川に任せ、西へ目を向けた。上杉との盟はここで切れた", kills:["山県昌景","馬場信春","内藤昌豊","真田信綱","土屋昌次"], troopMax:20000, ally:["武田家","上杉家"], wars:[["北条家","武田家"]], breakAlly:["織田家","上杉家"], shrink:{clan:"武田家",k:0.6}, calm:{clan:"武田家",vs:"織田家",days:900}, order:["武田家","徳川家"],
+           defWin:{ text:"武田の騎馬は柵の前に屍を重ね、山県・馬場・内藤ら宿将が討ち死にした。信長は東を徳川に任せ、西へ目を向けた。上杉との盟はここで切れた", kills:["山県昌景","馬場信春","内藤昌豊","真田信綱","土屋昌次"], troopMax:26000, caps:[["徳川家",18000]], ally:["武田家","上杉家"], wars:[["北条家","武田家"]], breakAlly:["織田家","上杉家"], shrink:{clan:"武田家",k:0.6}, calm:{clan:"武田家",vs:"織田家",days:900}, order:["武田家","徳川家"],
              orders:[["上杉家","武田家",540],["織田家","本願寺",720]], rels:[["北条家","武田家",-15],["本願寺","織田家",-10]], news:["武田の大敗に、上杉は北信濃へ目を向け、北条は武田との縁を測り直す","織田は東を徳川に任せ、北陸と畿内へ兵を回す"] } } },
  { id:2206, key:"odawara", sub:"二十万の囲み、関東の総仕上げ", sc:"odawara", when:"flag", flag:"odaBattle", histWin:"atk", name:"小田原の陣", atk:"豊臣家", def:"北条家", allies:true,
    terrain:0, forts:"def", nAtk:18, nDef:12, atkTroops:120000, defTroops:50000,
@@ -13681,14 +13709,14 @@ DECISIVE.push(
    open:"小田原城下。総構えの柵と堀を前に、天下の大軍が押し寄せる",
    after:{ atkWin:{ text:"小田原は開城。氏政・氏照は腹を切り、氏直は高野山へ送られた。五代百年の北条は滅び、関東は徳川に与えられる", kills:["北条氏政","北条氏照"], flag:"odaFall" },
            defWin:{ text:"小田原の総構えは破れず、兵糧の尽きた豊臣勢は兵を引いた。北条は関東に踏みとどまった", spoils:{half:0.1}, flag:"odaHold" } } },
- { id:2207, key:"tedorigawa", sub:"越後の龍、北陸へ", sc:["hoi","nagashino"], when:"date", y:1577, m:9, histWin:"atk", name:"手取川の戦い", atk:"上杉家", def:"織田家",
+ { id:2207, key:"tedorigawa", sub:"越後の龍、北陸へ", sc:["hoi","nagashino"], when:"war", cond:()=>{ const A=clanByName("上杉家"), Bc=clanByName("織田家"); if(!A||!Bc||A.dead||Bc.dead) return false; const ic=Object.values(W.castles).find(c=>c.name==="一乗谷城"); if(ic && ic.clan!==null && W.clans[ic.clan] && W.clans[ic.clan].name==="本願寺") return false; return adjacentClans(A.id).has(Bc.id); }, noAllies:true, histWin:"atk", name:"手取川の戦い", atk:"上杉家", def:"織田家",   /* 第131巡：日付で勝手に起きない（戦になり・接し・越前の本願寺が消えてから）。他家の将は出ない。負けても城は取られない */
    terrain:4, forts:null, nAtk:8, nDef:10, atkTroops:20000, defTroops:30000,
    atkGens:["上杉謙信","柿崎景家","直江景綱","本庄繁長","斎藤朝信","上杉景勝","直江兼続","色部勝長"],
    defGens:["柴田勝家","羽柴秀吉","丹羽長秀","滝川一益","前田利家","佐々成政","佐久間盛政","不破光治","金森長近","堀秀政"],
    site:["七尾城","尾山御坊"],
    gather:"謙信が能登に出て七尾城を落とした。柴田勝家率いる織田勢は加賀へ進む",
    open:"手取川。夜、川を渡りかけた織田勢に上杉が襲いかかる",
-   after:{ atkWin:{ text:"織田勢は手取川で崩れ、多くが川に溺れた。加賀と能登は上杉のものとなる", spoils:{half:0.1} },
+   after:{ atkWin:{ text:"織田勢は手取川で崩れ、多くが川に溺れた。謙信の名は北陸に轟く", rels:[["織田家","上杉家",-30]] },
            defWin:{ text:"柴田は手取川で上杉を押し返し、謙信は越後へ帰った" } } },
  { id:2201, key:"kawanakajima", sub:"龍虎、相まみえる", sc:"oke", when:"date", y:1561, m:9, histWin:"draw", name:"川中島の戦い", atk:"上杉家", altAtk:"長尾家", def:"武田家",
    terrain:0, forts:null, nAtk:10, nDef:10, atkTroops:13000, defTroops:20000,
@@ -14385,6 +14413,7 @@ function decisiveDaily(){
       const A=clanByName(d.atk)||(d.altAtk?clanByName(d.altAtk):null), Bc=clanByName(d.def)||(d.altDef?clanByName(d.altDef):null);
       if(!A||!Bc) continue;
       if(d.when==="war" && !A.war.has(Bc.id)) continue;
+      if(d.cond && !d.cond()) continue;   /* 第131巡：決戦ごとの条件 */
       if(d.when==="date"){
         if(!(W.date.y>d.y || (W.date.y===d.y && W.date.m>=d.m)) || W.date.y>d.y+1) continue;   // 年月が来て、一年以内
         if(sameHouse(A.id,Bc.id)) continue;
@@ -14427,7 +14456,7 @@ function fireDecisive(d){
   if(!A||!Bc) return;
   // 開幕の決戦なら、両家の出先の軍は呼び戻して決戦に加える（仕込みの七日で出ていた将が数に入らず、武田が十四隊に減っていた）
   if(d.when==="open"){ for(const ar of Object.values(W.armies)){ if(ar.script||ar.stage) continue; if(ar.clan!==A.id&&ar.clan!==Bc.id) continue; if(ar.clan===W.player) continue; disbandArmy(ar); } }
-  const ga=decisiveGens(A.id, d.atkGens, d.nAtk, Bc.id, d.key==="sekigahara"||!!d.allies, d.atkAllies), gb=decisiveGens(Bc.id, d.defGens, d.nDef, A.id, d.key==="sekigahara"||!!d.allies, d.defAllies);
+  const ga=decisiveGens(A.id, d.atkGens, d.nAtk, Bc.id, !d.noAllies&&(d.key==="sekigahara"||!!d.allies), d.noAllies?[]:d.atkAllies), gb=decisiveGens(Bc.id, d.defGens, d.nDef, A.id, !d.noAllies&&(d.key==="sekigahara"||!!d.allies), d.noAllies?[]:d.defAllies);
   if(ga.length<2||gb.length<2){ log(`${d.name}は起きなかった（兵を出せる将が足りぬ）`,"war"); return; }
   if(!A.war.has(Bc.id)) declareWar(A.id,Bc.id);
   const site=decisiveSite(d,A,Bc);
@@ -14516,6 +14545,7 @@ function decisiveAfter(did, winnerClan){
   if(playerLost){ log(`${d.name}に敗れた。だが当主は落ち延び、家は残った。ここからは己の手で挽回せよ`,"war"); if(typeof chronicle==="function") chronicle(`${d.name}、${loser.name}敗れる`); }
   // 戦勝の分捕り。天下分け目の戦なら、負けた側の領地が大きく動く（改易・減封）
   if(loser && W.clans[winnerClan] && d.histWin!=="draw"){ loser.calm=loser.calm||{}; loser.calm[winnerClan]=Math.max(loser.calm[winnerClan]||0, dayNumber()+360); if(loser.orderTarget&&loser.orderTarget.clan===winnerClan) loser.orderTarget=null; if(loser.muster) loser.muster=null; if(loser.id!==W.player){ loser.ai={...(loser.ai||{}), agg:Math.max(0.1,((loser.ai||{}).agg||0.5)*0.6)}; } for(const g of Object.values(W.generals)) if(g.clan===loser.id&&g.status!=="死亡") g.morale=Math.max(10,g.morale-20); log(`${loser.name}は${d.name}の痛手で、当分は${W.clans[winnerClan].name}へ攻め込めない`,"war",true); }   // 大合戦に敗れてすぐ攻め返す家はない（作り手の指示）
+  for(const [nm,mx] of (res.caps||[])){ const K=clanByName(nm); if(K&&!K.dead){ K.troopMax=mx; clampClanTroops(K); } }   /* 第131巡：長篠の後、徳川が強すぎ武田が弱すぎた（武田の上限は二万六千、徳川は一万八千から） */
   if(res.troopMax && loser){ loser.troopMax=res.troopMax; clampClanTroops(loser); log(`${loser.name}は大敗の痛手で、抱えられる兵が${res.troopMax.toLocaleString()}までに減った`,"war",true); }
   if(res.spoils && W.clans[winnerClan] && loser){
     const win=W.clans[winnerClan]; let taken=0;
@@ -14879,8 +14909,19 @@ function startBattle(e){
   // 決戦の天気は史実どおり（関ヶ原は朝霧のち晴、桶狭間は豪雨、手取川は夜）。行き当たりの雨で盤が暗くならない
   if(dec && !/okehazama|tedorigawa/.test(dec.key)){ B.weather="晴"; B.night=false; }
   if(dec) B.obstacles=B.obstacles.filter(o=>o.kind!==1);   // 野にぽつんと立つ柵はやめ（決戦の柵は陣として組む）
+  /* 第131巡：城を枕にする決戦（高遠）は、砦でなく石垣と城門を持つ城攻めの形にする（作り手の指示） */
+  if(dec && dec.castle){
+    const c=Object.values(W.castles).find(x=>x.name===dec.castle)||null;
+    const defLeft = B.ctx.playerSide===1; const line = defLeft ? 13 : BF.w-13;
+    for(let i=0;i<6;i++){ B.obstacles.push({kind:1, variant:i%3, x:line+(i%2?0.6:-0.6), y:3+(BF.h-6)*(i+.5)/6, r:2.0, wall:true, hp:500, stone:true}); }
+    B.gate={x:line, y:BF.h/2, hp:Math.max(300, Math.round((c?c.defense:2000)/6)), hpMax:Math.max(300, Math.round((c?c.defense:2000)/6)), open:false};
+    B.obstacles=B.obstacles.filter(o=>!(o.wall && Math.abs(o.y-BF.h/2)<2.4));
+    for(const u of B.units) if(u.side===1){ u.defBonus=(u.defBonus||1)*0.75; u.baseDef=u.defBonus; u.morale=Math.min(100,u.morale+10); if(defLeft ? u.x>line-1.5 : u.x<line+1.5){ u.x=defLeft ? Math.max(1.5,line-3-rnd()*6) : Math.min(BF.w-1.5,line+3+rnd()*6); u.gx=u.x; } }
+    for(const u of B.units) if(u.side===0){ if(defLeft ? u.x<line+8 : u.x>line-8){ u.x=defLeft ? line+10+rnd()*8 : line-10-rnd()*8; u.gx=u.x; } }
+    B.siegeWall=true; B.ctx.castleName=dec.castle;
+  }
   // 決戦で守る側が砦を構えているなら、柵で囲った砦を三つ並べる（賤ヶ岳の砦・山崎の陣）
-  if(dec && dec.forts==="def"){
+  if(dec && dec.forts==="def" && !dec.castle){
     // 砦は守り手（側1）の陣の前。人が守り手なら左に、寄せ手なら右に（人はつねに左）
     const defLeft = B.ctx.playerSide===1;
     const line = defLeft ? NAG_LINE : BF.w-NAG_LINE;   // 守り手は自陣の端に寄せて待ち構える（作り手の指示）
@@ -15058,7 +15099,7 @@ function startBattle(e){
     const foeClanId0 = B.ctx.playerSide===0 ? ((e.castle!==null&&e.castle!==undefined&&W.castles[e.castle])?W.castles[e.castle].clan:((W.generals[B.ctx.def[0]]||{}).clan)) : (W.armies[e.army]||{}).clan;
     const side=(id,el,cr)=>{ const K=(id!==null&&id!==undefined)?W.clans[id]:null; const nm=document.getElementById(el), c0=document.getElementById(cr); if(!nm||!c0) return; 
       const sc0=SCENARIO_DEFS[W.scenario]||{}; let label=K?K.name:"—"; if(dec && sc0.sides && K){ const west=sc0.sides[1]===K.name || (K.suzerain!==null&&K.suzerain!==undefined&&W.clans[K.suzerain]&&W.clans[K.suzerain].name===sc0.sides[1]); const east=sc0.sides[0]===K.name || (K.suzerain!==null&&K.suzerain!==undefined&&W.clans[K.suzerain]&&W.clans[K.suzerain].name===sc0.sides[0]); if(west) label="西軍"; else if(east) label="東軍"; }
-      nm.textContent=label; c0.textContent=K?String(K.crest||K.name[0])[0]:"—"; c0.style.background=K?clanColor(K.id):"#555"; };
+      nm.textContent=label; c0.textContent=K?"":"—"; c0.style.background=K?`${clanColor(K.id)} url(${monDataURL(K,28)}) center/contain no-repeat`:"#555"; };
     side(mineClanId,"bNameMine","bCrestMine"); side(foeClanId0,"bNameFoe","bCrestFoe");
     B.sideClan={}; B.sideClan[B.ctx.playerSide]=mineClanId; B.sideClan[1-B.ctx.playerSide]=foeClanId0; }
   if(B.night) setTimeout(()=>{ if(B) toast("夜戦。日暮れまで百秒。暗くて鉄砲の狙いが甘く、伏せた隊は見えにくい"); },1200);
@@ -16196,7 +16237,7 @@ function stepUnit(u,dt){
   }
   // 間合いを取る鉄砲：敵が二歩まで寄れば、自陣の側へ四歩下がる
   if(u.kite && u.type===3 && u.morale>0 && dist(u,nearest)<=2.9 && !(u.kiteAt>B.elapsed-3)){ u.kiteAt=B.elapsed; const dir=(u.side===B.ctx.playerSide)?-1:1; u.order={k:"move",x:Math.max(.5,Math.min(BF.w-.5,u.x+dir*4)),y:u.y}; u.gx=u.order.x; u.gy=u.order.y; goal=[u.order.x,u.order.y]; target=null; }
-  if(target && u.order.k==="attack"){ u.faceLock=undefined; if(!goal || dist(u,target)<=reachOf(u)) u.face=Math.atan2(target.y-u.y,target.x-u.x); }   /* 第130巡：討つ相手の方を向く（左を向いたまま右の敵を討っていた。作り手の指摘） */
+  if(target && (u.order.k==="attack" || dist(u,target)<=reachOf(u))){ u.faceLock=undefined; if(!goal || dist(u,target)<=reachOf(u)) u.face=Math.atan2(target.y-u.y,target.x-u.x); }   /* 第131巡：どの命令でも、打ち合っている相手の方を向く */   /* 第130巡：討つ相手の方を向く（左を向いたまま右の敵を討っていた。作り手の指摘） */
   if(target && dist(u,target)<=reachOf(u)) u.engagedAt=B.elapsed;
   const sp=SPECIALS[UNITS[u.type].sp];
   const active=B.elapsed<u.spUntil;
@@ -16925,7 +16966,7 @@ function drawPalisades(sx,sy){
       bctx.save(); bctx.globalAlpha=al; bctx.strokeStyle="#2E1E0E"; bctx.lineWidth=1.6; bctx.beginPath(); bctx.moveTo(fx,fy+2); bctx.lineTo(fx,fy-ph); bctx.stroke();
       bctx.fillStyle=col; bctx.beginPath(); bctx.moveTo(fx,fy-ph); bctx.lineTo(fx+fw+wave,fy-ph+2); bctx.lineTo(fx+fw+wave,fy-ph+fh); bctx.lineTo(fx,fy-ph+fh+1); bctx.closePath(); bctx.fill();
       bctx.strokeStyle="rgba(0,0,0,.45)"; bctx.lineWidth=1; bctx.stroke();
-      bctx.fillStyle="#fff"; bctx.font=`900 ${Math.max(7,Math.round(7.5*Zf))}px "Zen Kaku Gothic New",sans-serif`; bctx.textAlign="center"; bctx.textBaseline="middle"; bctx.fillText(cr, fx+fw/2+wave/2, fy-ph+fh/2+1); bctx.restore(); }
+      if(K) drawMon(bctx, K, fx+fw/2+wave/2, fy-ph+fh/2+1, Math.min(fw,fh)*0.42, "#fff", null); else { bctx.fillStyle="#fff"; bctx.font=`900 ${Math.max(7,Math.round(7.5*Zf))}px "Zen Kaku Gothic New",sans-serif`; bctx.textAlign="center"; bctx.textBaseline="middle"; bctx.fillText(cr, fx+fw/2+wave/2, fy-ph+fh/2+1); } bctx.restore(); }
     // 当たられた所には木片が散る
     if(worn>0.25){ bctx.fillStyle="#5A3E26"; for(let k=0;k<4;k++){ const t=hash(k+1,rr*9); const px=x0+(x1-x0)*t+(hash(t,k)-0.5)*16*Zf, py=y0+(y1-y0)*t+6+hash(k,t)*4; bctx.save(); bctx.translate(px,py); bctx.rotate(t*6); bctx.fillRect(-3*Zf,-1,6*Zf,2); bctx.restore(); } }
   }
@@ -16964,7 +17005,7 @@ function drawCamps(sx,sy){
     bctx.fillStyle="#3A2A18"; bctx.fillRect(x-1,y-h,2,h);
     bctx.fillStyle=col; bctx.beginPath(); bctx.moveTo(x+1,y-h); bctx.quadraticCurveTo(x+1+w*.5,y-h+wv,x+1+w,y-h+wv*.6); bctx.lineTo(x+1+w,y-h*0.35+wv*.6); bctx.quadraticCurveTo(x+1+w*.5,y-h*0.35-wv,x+1,y-h*0.35); bctx.closePath(); bctx.fill();
     bctx.strokeStyle="rgba(255,255,255,.55)"; bctx.lineWidth=1; bctx.stroke();
-    if(crest){ bctx.fillStyle="#fff"; bctx.font=`900 ${Math.round(6*Z)}px "Yuji Syuku",serif`; bctx.textAlign="center"; bctx.textBaseline="middle"; for(let i=0;i<3;i++) bctx.fillText(crest, x+1+w/2, y-h+h*0.12+i*h*0.2+wv*.3); bctx.textBaseline="alphabetic"; } };
+    if(crest){ const K=(typeof crest==="object")?crest:null; for(let i=0;i<3;i++){ if(K) drawMon(bctx, K, x+1+w/2, y-h+h*0.12+i*h*0.2+wv*.3, w*0.42, "#fff", null); else { bctx.fillStyle="#fff"; bctx.font=`900 ${Math.round(6*Z)}px "Yuji Syuku",serif`; bctx.textAlign="center"; bctx.textBaseline="middle"; bctx.fillText(crest, x+1+w/2, y-h+h*0.12+i*h*0.2+wv*.3); } } bctx.textBaseline="alphabetic"; } };
   const curtain=(x0,y0,x1,y1,col)=>{ const L=Math.hypot(x1-x0,y1-y0); const n=Math.max(2,Math.round(L/(14*Z))); const h=13*Z;
     for(let i=0;i<n;i++){ const t0=i/n, t1=(i+1)/n; const ax=x0+(x1-x0)*t0, ay=y0+(y1-y0)*t0, bx=x0+(x1-x0)*t1, by=y0+(y1-y0)*t1;
       bctx.fillStyle="rgba(0,0,0,.28)"; bctx.beginPath(); bctx.moveTo(ax,ay+3); bctx.lineTo(bx,by+3); bctx.lineTo(bx+3,by+6); bctx.lineTo(ax+3,ay+6); bctx.closePath(); bctx.fill();
@@ -17003,7 +17044,7 @@ function drawCamps(sx,sy){
   // 野の端の陣旗：家紋の幟が三本ずつ
   for(const side of [0,1]){
     const u=B.units.find(v=>v.side===side&&v.cmd) || B.units.find(v=>v.side===side); if(!u) continue;
-    const g=W.generals[u.gid]; const kc=g&&W.clans[g.clan]; if(!kc) continue; const col=clanColor(kc.id), crest=String(kc.crest||kc.name[0])[0];
+    const g=W.generals[u.gid]; const kc=g&&W.clans[g.clan]; if(!kc) continue; const col=clanColor(kc.id), crest=kc;
     const left = side===B.ctx.playerSide; const x=(left?1.1:BF.w-1.1)*sx;
     for(let i=0;i<3;i++){ const y=(4+i*(BF.h-8)/2)*sy; nobori(x+(left?0:-8*Z), y, 46*Z, col, crest, i*2+side); }
   }
@@ -17294,11 +17335,17 @@ function drawBattle(){
     for(const [y0,y1] of [[0,top],[bot,H_]]){ bctx.fillStyle="#8A8477"; bctx.fillRect(wx-9,y0,18,y1-y0); bctx.fillStyle="#5F5A50"; for(let yy=y0;yy<y1;yy+=sy*0.9) bctx.fillRect(wx-9,yy,18,1.5); bctx.fillStyle="#B0A995"; for(let yy=y0;yy<y1;yy+=sy*0.9) bctx.fillRect(wx-9+((yy/sy|0)%2?0:9),yy+2,9,3); bctx.fillStyle="#3E3A33"; bctx.fillRect(wx+9,y0,3,y1-y0); }
   }
   // 城門
-  if(B.gate){ const gx=B.gate.x*sx, gy=B.gate.y*sy; bctx.fillStyle=B.gate.open?"rgba(80,60,40,.5)":"#5A4634"; bctx.fillRect(gx-7, gy-2.4*sy, 14, 4.8*sy);
+  if(B.gate){ const gx0=B.gate.x*sx, gy=B.gate.y*sy; const hitK=B.gate.hitAt!==undefined?Math.max(0,1-(B.elapsed-B.gate.hitAt)/0.4):0; const gx=gx0+Math.sin(B.elapsed*40)*3*hitK;   /* 第131巡：打たれた門は揺れる */
+    bctx.fillStyle=B.gate.open?"rgba(80,60,40,.5)":"#5A4634"; bctx.fillRect(gx-7, gy-2.4*sy, 14, 4.8*sy);
     if(!B.gate.open){ bctx.fillStyle="#8B6E4E"; bctx.fillRect(gx-5, gy-2.2*sy, 10, 4.4*sy); bctx.fillStyle="#3A2A18"; for(let i=0;i<5;i++) bctx.fillRect(gx-5, gy-2.2*sy+i*sy*0.9, 10, 2);
+      { const dmg=1-Math.max(0,B.gate.hp/B.gate.hpMax); if(dmg>0.15){ bctx.strokeStyle="#1E1208"; bctx.lineWidth=1.2; const n=Math.min(6,Math.floor(dmg*8)); for(let i=0;i<n;i++){ const yy=gy-2*sy+((i*37)%100)/100*4*sy; bctx.beginPath(); bctx.moveTo(gx-5,yy); bctx.lineTo(gx-1+((i*13)%5)-2,yy+((i*7)%9)-4); bctx.lineTo(gx+5,yy+((i*11)%7)-3); bctx.stroke(); } }   /* 傷（割れ目）は減るほど増える */
+        if(dmg>0.5){ bctx.fillStyle="#2A1C10"; bctx.fillRect(gx-5+((B.elapsed*0)|0), gy-0.6*sy, 10, 0.9*sy); }   /* 板が抜けた穴 */ }
       bctx.fillStyle="rgba(0,0,0,.6)"; bctx.fillRect(gx-14, gy+2.6*sy, 28, 4); bctx.fillStyle="#D9B25C"; bctx.fillRect(gx-14, gy+2.6*sy, 28*Math.max(0,B.gate.hp/B.gate.hpMax), 4);
       bctx.font='800 10px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center"; bctx.fillStyle="#fff"; bctx.fillText("城門", gx, gy-2.6*sy); }
-    else { bctx.font='800 10px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center"; bctx.fillStyle="#FF9A55"; bctx.fillText("破れた門", gx, gy-2.6*sy); } }
+    else { bctx.font='800 10px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center"; bctx.fillStyle="#FF9A55"; bctx.fillText("破れた門", gx, gy-2.6*sy); }
+    /* 木片と土煙 */
+    if(B.gateBits){ for(const b of B.gateBits){ b.t+=0.016; b.x+=b.vx*0.016; b.y+=b.vy*0.016; b.vy+=6*0.016; } B.gateBits=B.gateBits.filter(b=>b.t<1.1); bctx.fillStyle="#C9A06A"; for(const b of B.gateBits){ bctx.globalAlpha=Math.max(0,1-b.t); bctx.fillRect(b.x*sx-2,b.y*sy-1,4,2); } bctx.globalAlpha=1;
+      if(hitK>0){ bctx.fillStyle=`rgba(200,180,140,${0.35*hitK})`; bctx.beginPath(); bctx.arc(gx0,gy,18+20*(1-hitK),0,7); bctx.fill(); } } }
   // 柵はひと続きの防柵として描く（杭の列・横木・縄・足元の土。隙間や傾いた杭、当たられた傷も）
   drawPalisades(sx,sy);
   drawCamps(sx,sy);
@@ -17516,14 +17563,10 @@ function drawBattle(){
     bctx.restore(); }
   /* 升目（第103巡）：味方の隊を選んだ・引いている間だけ、動ける升（丸）と敵のいる升（赤い輪）を見せる。ふだんは出さない（作り手の指示） */
   if(B.over===null){ const su=B.sel!==null?B.units.find(z=>z.id===B.sel&&z.side===B.ctx.playerSide&&!z.ally&&z.troops>.5):null; const gsel=B.group&&B.group.length?B.units.filter(z=>B.group.includes(z.id)&&z.troops>.5):[]; const dragU=B.drag?B.units.find(z=>z.id===B.drag.id):null;
-    if(su||gsel.length||dragU){ const anchors=[su,dragU,...gsel].filter(Boolean); const RR=5; const cs=anchors.map(z=>cellOf(z.x,z.y)); const c0=Math.max(0,Math.min(...cs.map(c=>c[0]))-RR), c1=Math.min(gCols()-1,Math.max(...cs.map(c=>c[0]))+RR), r0=Math.max(0,Math.min(...cs.map(c=>c[1]))-RR), r1=Math.min(gRows()-1,Math.max(...cs.map(c=>c[1]))+RR);   /* 第109巡：升目は選んだ隊のまわり五升だけ（画面いっぱいはごちゃごちゃする） */
-      bctx.save(); bctx.lineWidth=1; bctx.strokeStyle="rgba(120,230,255,.22)"; bctx.beginPath(); for(let c=c0;c<=c1+1;c++){ bctx.moveTo(c*GC*sx,r0*GC*sy); bctx.lineTo(c*GC*sx,(r1+1)*GC*sy); } for(let r=r0;r<=r1+1;r++){ bctx.moveTo(c0*GC*sx,r*GC*sy); bctx.lineTo((c1+1)*GC*sx,r*GC*sy); } bctx.stroke();
-      const hov = B.drag ? [B.drag.x,B.drag.y] : (B.hoverXY||null); const hc = hov ? cellOf(hov[0],hov[1]) : null; const rad=GC*sx*0.2;
-      for(let r=r0;r<=r1;r++) for(let c=c0;c<=c1;c++){ const occ=gridOccAt(c,r); const [cx,cy]=cellCenter(c,r); const px=cx*sx, py=cy*sy;
-        if(occ && occ.troops>.5 && !occ.left){ if(occ.side!==B.ctx.playerSide){ if(okeSeen(occ,B.ctx.playerSide)){ bctx.strokeStyle="rgba(255,90,70,.8)"; bctx.lineWidth=2; bctx.beginPath(); bctx.arc(px,py,rad,0,7); bctx.stroke(); } } else if((su&&occ===su)||gsel.includes(occ)||(dragU&&occ===dragU)){ bctx.strokeStyle="rgba(255,214,102,.95)"; bctx.lineWidth=2.5; bctx.strokeRect(c*GC*sx+2,r*GC*sy+2,GC*sx-4,GC*sy-4); } continue; }
-        if(!cellPassable(c,r)) continue;
-        const isHov = hc && hc[0]===c && hc[1]===r;
-        bctx.fillStyle = isHov ? "rgba(255,214,102,.85)" : "rgba(90,210,255,.28)"; bctx.beginPath(); bctx.arc(px,py,isHov?rad*1.15:rad,0,7); bctx.fill(); }
+    if(su||gsel.length||dragU){ const c0=0, c1=gCols()-1, r0=0, r1=gRows()-1;   /* 第131巡：野の全部に升目を薄く（十一升の枠・升の丸・敵の赤い輪はやめ。作り手の指示） */
+      bctx.save(); bctx.lineWidth=1; bctx.strokeStyle="rgba(120,230,255,.16)"; bctx.beginPath(); for(let c=c0;c<=c1+1;c++){ bctx.moveTo(c*GC*sx,r0*GC*sy); bctx.lineTo(c*GC*sx,(r1+1)*GC*sy); } for(let r=r0;r<=r1+1;r++){ bctx.moveTo(c0*GC*sx,r*GC*sy); bctx.lineTo((c1+1)*GC*sx,r*GC*sy); } bctx.stroke();
+      const hov = B.drag ? [B.drag.x,B.drag.y] : (B.hoverXY||null); const hc = hov ? cellOf(hov[0],hov[1]) : null;
+      if(hc && cellPassable(hc[0],hc[1])){ bctx.fillStyle="rgba(255,214,102,.28)"; bctx.fillRect(hc[0]*GC*sx,hc[1]*GC*sy,GC*sx,GC*sy); }
       bctx.restore(); } }
   const overlays=[];   // 隊 → 目盛り・名札・印 の順に層を分ける
   B._plates=[];
@@ -17606,9 +17649,9 @@ function drawBattle(){
     if(u.hero || (!u.cmd && W.generals[u.gid] && (W.generals[u.gid].lea>=88 || W.generals[u.gid].war>=90))){ const wave=Math.sin(B.elapsed*3+u.id)*2.5; const px0=x-fcos*10*Z, py0=y-2*Z; const ph=46*Z, fw=12*Z, fh=26*Z;
       bctx.save(); bctx.strokeStyle="#2E1E0E"; bctx.lineWidth=2; bctx.beginPath(); bctx.moveTo(px0,py0+6*Z); bctx.lineTo(px0,py0-ph); bctx.stroke();
       bctx.fillStyle=ccol; bctx.beginPath(); bctx.moveTo(px0,py0-ph); bctx.lineTo(px0+fw+wave,py0-ph+2); bctx.lineTo(px0+fw+wave,py0-ph+fh); bctx.lineTo(px0,py0-ph+fh+1); bctx.closePath(); bctx.fill(); bctx.strokeStyle="rgba(0,0,0,.5)"; bctx.lineWidth=1; bctx.stroke();
-      bctx.fillStyle="#fff"; bctx.font=`900 ${Math.max(8,Math.round(9*Z))}px "Zen Kaku Gothic New",sans-serif`; bctx.textAlign="center"; bctx.textBaseline="middle"; bctx.fillText(kc0?String(kc0.crest||kc0.name[0])[0]:"将", px0+fw/2+wave/2, py0-ph+fh/2+1); bctx.restore(); }
+      if(kc0) drawMon(bctx, kc0, px0+fw/2+wave/2, py0-ph+fh/2+1, Math.min(fw,fh)*0.42, "#fff", null); else { bctx.fillStyle="#fff"; bctx.font=`900 ${Math.max(8,Math.round(9*Z))}px "Zen Kaku Gothic New",sans-serif`; bctx.textAlign="center"; bctx.textBaseline="middle"; bctx.fillText("将", px0+fw/2+wave/2, py0-ph+fh/2+1); } bctx.restore(); }
     // 選んでいるとき・本陣・崩れかけ：輪
-    if(selNow || u.cmd || (u.morale>0&&u.morale<30) || B.hover===u.id){
+    if(selNow){   /* 第131巡：輪は選んだ隊だけ（本陣の金の輪・崩れかけの赤い輪はやめ） */
       bctx.save(); const ext=Math.max(...items.map(it=>Math.abs(it.o)))*Z+sw*0.7;
       bctx.strokeStyle = selNow ? (meSide?"#8FD0FF":"#FFB090") : (u.morale>0&&u.morale<30) ? `rgba(255,80,60,${.5+.4*Math.sin(B.elapsed*6)})` : B.hover===u.id ? "rgba(255,255,255,.6)" : "rgba(201,162,39,.75)";
       bctx.lineWidth=selNow?Math.max(2,2.2*Z):Math.max(1.4,1.5*Z); if(u.cmd&&!selNow) bctx.setLineDash([5,4]);
@@ -17666,7 +17709,7 @@ function drawBattle(){
     // 地形の効き目が見た目で分かる：木立の中は木陰が被さり、高所は縁が明るい
     if(u.morale>0 && !dim){ const tk=bTileAt(u.x,u.y);
       if(tk===BT.FOREST){ bctx.save(); bctx.fillStyle="rgba(20,60,25,.30)"; bctx.beginPath(); bctx.ellipse(x,y-4*Z,38*Z,24*Z,0,0,7); bctx.fill(); bctx.restore(); }
-      else if(tk===BT.HILL){ bctx.save(); bctx.strokeStyle="rgba(255,245,200,.35)"; bctx.lineWidth=1.5; bctx.beginPath(); bctx.ellipse(x,y+10*Z,34*Z,12*Z,0,0,7); bctx.stroke(); bctx.restore(); }
+      else if(false && tk===BT.HILL){ bctx.save(); bctx.strokeStyle="rgba(255,245,200,.35)"; bctx.lineWidth=1.5; bctx.beginPath(); bctx.ellipse(x,y+10*Z,34*Z,12*Z,0,0,7); bctx.stroke(); bctx.restore(); }   /* 第131巡：高所の輪はやめ（輪っかが邪魔、との指摘） */
       else if(tk===BT.WATER||tk===BT.FORD){ bctx.save(); bctx.fillStyle="rgba(120,170,220,.18)"; bctx.beginPath(); bctx.ellipse(x,y+8*Z,36*Z,12*Z,0,0,7); bctx.fill(); bctx.restore(); } }
     // 軍資金の家老以上：本陣の飾り（金の輪。性能は変えない）
     if(u.cmd && meSide && !u.ally && fundHas("hq")){ bctx.save(); bctx.strokeStyle=`rgba(255,214,102,${.55+.3*Math.sin(B.elapsed*2)})`; bctx.lineWidth=3*Z; bctx.setLineDash([7*Z,5*Z]); bctx.beginPath(); bctx.ellipse(x,y+6*Z,60*Z,26*Z,0,0,7); bctx.stroke(); bctx.restore(); }
@@ -17825,7 +17868,7 @@ function drawBattle(){
       bctx.beginPath(); bctx.ellipse(x,y,26,16,0,0,7); bctx.stroke();
     }
     // 危険な隊（兵三割未満・士気三割未満・包囲）は赤い枠で脈打つ。下がる機を逃さないように
-    if(u.danger && u.morale>0 && !(u.side!==B.ctx.playerSide && B.units.some(z=>z.side===B.ctx.playerSide&&!z.ally&&z.troops>.5&&((z.order.k==="attack"&&z.order.id===u.id)||z.thenAttack===u.id)))){
+    if(false && u.danger && u.morale>0){
       const pulse=.55+.45*Math.sin(B.elapsed*6);
       bctx.save(); bctx.strokeStyle=`rgba(255,80,50,${.35+.6*pulse})`; bctx.lineWidth=2.5+pulse; bctx.shadowColor="rgba(255,60,30,.8)"; bctx.shadowBlur=8*pulse;
       bctx.beginPath(); bctx.ellipse(x,y+10*Z,34*Z,14*Z,0,0,7); bctx.stroke(); bctx.restore();
@@ -18886,7 +18929,7 @@ function fenceEffects(dt){
     }
   }
   if(B.gate && !B.gate.open){
-    for(const u of B.units){ if(u.side!==0||u.troops<=.5||u.morale<=0||u.left) continue; const dgx=Math.abs(u.x-B.gate.x), dgy=Math.abs(u.y-B.gate.y); if(dgx<2.5&&dgy<2.6){ B.gate.hp-=u.troops*0.006*dt*(u.type===0?1.3:1); } }   // 門の前で押し合う（升は石垣で遮られる）
+    for(const u of B.units){ if(u.side!==0||u.troops<=.5||u.morale<=0||u.left) continue; const dgx=Math.abs(u.x-B.gate.x), dgy=Math.abs(u.y-B.gate.y); if(dgx<2.5&&dgy<2.6){ B.gate.hp-=u.troops*0.006*dt*(u.type===0?1.3:1); B.gate.hitAt=B.elapsed; if(!(B.gate.splAt>B.elapsed-0.35)){ B.gate.splAt=B.elapsed; B.gateBits=B.gateBits||[]; for(let k=0;k<4;k++) B.gateBits.push({x:B.gate.x+(rnd()-.5)*0.6, y:B.gate.y+(rnd()-.5)*4, vx:(u.x<B.gate.x?1:-1)*(0.5+rnd()*1.5), vy:-(1+rnd()*2), t:0}); if(B.gateBits.length>60) B.gateBits.splice(0,B.gateBits.length-60); } } }   // 門の前で押し合う（升は石垣で遮られる）。第131巡：打ち込むたびに木片が飛び、門が揺れる
     if(B.gate.hp<=0){ B.gate.open=true; B._fenceVer=(B._fenceVer||0)+1; toast(B.ctx.playerSide===0?"城門を破った！ なだれ込め！":"城門が破られた！"); log("城門が破られました","war"); playSE("siege"); for(const u of B.units) if(u.side===1){ u.morale=Math.max(0,u.morale-15); u.defBonus=(u.defBonus||1)*1.25; } const cmd=B.units.find(u=>u.side===0&&u.cmd); if(cmd) bshout(cmd.id,"門が破れたぞ！ 突き入れ！",2.6); }
   }
   const broken=B.obstacles.filter(o=>o.hp!==undefined && o.hp<=0);
@@ -19506,6 +19549,94 @@ function toggleSound(){
   if(b) b.textContent = Audio_.enabled ? "♪ 音 入" : "♪ 音 切";
   savePrefs();
 }
+
+/* ===== 家紋（第131巡）：家の名から紋の形を決めて、線と面で描く。形のない家は一文字 ===== */
+const MON_KIND=(()=>{ const m={};
+  const set=(kind,names)=>{ for(const n of names) m[n]=kind; };
+  set("mokko",["織田","神戸","北畠","滝川","有馬","朝倉"]);   // 木瓜（朝倉は三つ盛木瓜だが木瓜で）
+  set("hishi",["武田","若狭武田","小笠原","大内"]);           // 武田菱
+  set("aoi",["徳川","松平"]);                                // 三つ葉葵
+  set("uroko",["北条"]);                                      // 三つ鱗
+  set("take",["上杉","長尾","伊達"]);                          // 竹に雀
+  set("mitsuboshi",["毛利","渡辺"]);                           // 一文字三星
+  set("juji",["島津"]);                                        // 丸に十字
+  set("futatsu",["今川","足利","里見","最上","畠山","大崎","斯波","細川京兆"]);   // 二つ引両
+  set("mitsuhiki",["蘆名","吉川","三浦","新田"]);              // 三つ引両
+  set("kikko",["浅井"]);                                       // 三つ盛亀甲
+  set("kiri",["豊臣","羽柴","山名","秀吉"]);                   // 五七桐
+  set("kikyo",["明智","土岐","一色"]);                          // 桔梗
+  set("rokumon",["真田"]);                                      // 六文銭
+  set("katabami",["長宗我部","宇喜多","酒井"]);                 // 酢漿草
+  set("yotsume",["尼子","六角","京極","佐々木"]);               // 四つ目結
+  set("sangai",["三好"]);                                       // 三階菱
+  set("umebachi",["前田","筒井","相良","菅原"]);                // 梅鉢
+  set("sujikai",["丹羽"]);                                      // 直違
+  set("kuyo",["細川","石田","伊東"]);                           // 九曜
+  set("janome",["加藤"]);                                       // 蛇の目
+  set("tomoe",["小早川","黒田","結城","宇都宮","小山","宇佐美","南部"]);   // 三つ巴
+  set("ogi",["佐竹"]);                                          // 五本骨扇
+  set("hiashi",["龍造寺"]);                                     // 日足
+  set("fuji",["本願寺","一向宗","加藤嘉明"]);                    // 下り藤
+  set("oshiki",["河野","稲葉"]);                                // 折敷に三文字
+  set("kashiwa",["山内","牧野"]);                               // 三つ柏
+  set("tsuru",["森","蒲生","南部鶴"]);                          // 鶴の丸
+  set("cho",["池田"]);                                          // 揚羽蝶（簡略）
+  set("karigane",["柴田"]);                                     // 二つ雁金（簡略）
+  set("gion",["立花"]);                                         // 祇園守（簡略）
+  set("omodaka",["福島","水野"]);                               // 沢瀉（簡略）
+  return m; })();
+function monKind(K){ if(!K) return null; const nm=String(K.name||"").replace(/家$/,""); if(MON_KIND[nm]) return MON_KIND[nm]; for(const k of Object.keys(MON_KIND)) if(nm.endsWith(k)||nm.startsWith(k)) return MON_KIND[k]; return null; }
+/* 紋を描く。ctx の (x,y) を真ん中、r が半径。fg が紋の色（普通は白）。bg を渡せば丸い地も敷く */
+function drawMon(ctx,K,x,y,r,fg,bg){
+  const kind=monKind(K); fg=fg||"#fff";
+  ctx.save(); ctx.translate(x,y);
+  if(bg){ ctx.fillStyle=bg; ctx.beginPath(); ctx.arc(0,0,r,0,7); ctx.fill(); }
+  const R=r*0.78; ctx.fillStyle=fg; ctx.strokeStyle=fg; ctx.lineCap="round"; ctx.lineJoin="round";
+  const circ=(cx,cy,rr,fill)=>{ ctx.beginPath(); ctx.arc(cx,cy,rr,0,7); if(fill===false){ ctx.stroke(); } else ctx.fill(); };
+  const poly=(pts,fill)=>{ ctx.beginPath(); pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])); ctx.closePath(); if(fill===false) ctx.stroke(); else ctx.fill(); };
+  const bgc=bg||"rgba(0,0,0,0)"; const hole=(cx,cy,rr)=>{ ctx.save(); ctx.globalCompositeOperation=bg?"source-over":"destination-out"; ctx.fillStyle=bg||"#000"; ctx.beginPath(); ctx.arc(cx,cy,rr,0,7); ctx.fill(); ctx.restore(); };
+  switch(kind){
+    case "mokko": { for(let k=0;k<4;k++){ const a=k*Math.PI/2; circ(Math.cos(a)*R*0.5,Math.sin(a)*R*0.5,R*0.5); } circ(0,0,R*0.62); hole(0,0,R*0.42); for(let k=0;k<4;k++){ const a=k*Math.PI/2+Math.PI/4; circ(Math.cos(a)*R*0.22,Math.sin(a)*R*0.22,R*0.15); } circ(0,0,R*0.12); break; }
+    case "hishi": { const d=R*0.5; for(const [ox,oy] of [[-d,-d],[d,-d],[-d,d],[d,d]]) poly([[ox,oy-d*0.95],[ox+d*0.95,oy],[ox,oy+d*0.95],[ox-d*0.95,oy]]); break; }
+    case "aoi": { ctx.lineWidth=Math.max(1,R*0.12); circ(0,0,R,false); for(let k=0;k<3;k++){ const a=-Math.PI/2+k*Math.PI*2/3; ctx.save(); ctx.rotate(a); ctx.beginPath(); ctx.moveTo(0,-R*0.05); ctx.quadraticCurveTo(R*0.55,-R*0.35,R*0.42,-R*0.72); ctx.quadraticCurveTo(R*0.2,-R*0.92,0,-R*0.82); ctx.quadraticCurveTo(-R*0.2,-R*0.92,-R*0.42,-R*0.72); ctx.quadraticCurveTo(-R*0.55,-R*0.35,0,-R*0.05); ctx.fill(); ctx.restore(); } break; }
+    case "uroko": { const h=R*0.95; poly([[0,-h],[h*0.55,-h*0.05],[-h*0.55,-h*0.05]]); poly([[-h*0.58,h*0.05],[0,h*0.95],[-h*1.0,h*0.95]]); poly([[h*0.58,h*0.05],[h*1.0,h*0.95],[0,h*0.95]]); break; }
+    case "take": { ctx.lineWidth=Math.max(1,R*0.1); circ(0,0,R,false); for(let k=0;k<10;k++){ const a=k*Math.PI/5; ctx.save(); ctx.rotate(a); ctx.beginPath(); ctx.ellipse(0,-R*0.82,R*0.1,R*0.26,0,0,7); ctx.fill(); ctx.restore(); } ctx.beginPath(); ctx.ellipse(-R*0.22,R*0.05,R*0.2,R*0.14,0.5,0,7); ctx.fill(); ctx.beginPath(); ctx.ellipse(R*0.22,-R*0.1,R*0.2,R*0.14,-0.5,0,7); ctx.fill(); circ(-R*0.34,-R*0.1,R*0.09); circ(R*0.34,-R*0.26,R*0.09); break; }
+    case "mitsuboshi": { ctx.fillRect(-R*0.9,-R*0.85,R*1.8,R*0.34); circ(-R*0.55,R*0.42,R*0.3); circ(0,R*0.42,R*0.3); circ(R*0.55,R*0.42,R*0.3); break; }
+    case "juji": { ctx.lineWidth=Math.max(1,R*0.13); circ(0,0,R,false); ctx.lineWidth=Math.max(1.5,R*0.22); ctx.beginPath(); ctx.moveTo(-R*0.75,0); ctx.lineTo(R*0.75,0); ctx.moveTo(0,-R*0.75); ctx.lineTo(0,R*0.75); ctx.stroke(); break; }
+    case "futatsu": { ctx.lineWidth=Math.max(1,R*0.1); circ(0,0,R,false); ctx.fillRect(-R*0.72,-R*0.5,R*1.44,R*0.28); ctx.fillRect(-R*0.72,R*0.2,R*1.44,R*0.28); break; }
+    case "mitsuhiki": { ctx.lineWidth=Math.max(1,R*0.1); circ(0,0,R,false); for(let k=0;k<3;k++) ctx.fillRect(-R*0.7,-R*0.62+k*R*0.46,R*1.4,R*0.24); break; }
+    case "kikko": { ctx.lineWidth=Math.max(1,R*0.14); const hex=(cx,cy,rr)=>{ const pts=[]; for(let k=0;k<6;k++){ const a=k*Math.PI/3+Math.PI/6; pts.push([cx+Math.cos(a)*rr,cy+Math.sin(a)*rr]); } poly(pts,false); circ(cx,cy,rr*0.28); }; hex(0,-R*0.48,R*0.48); hex(-R*0.48,R*0.36,R*0.48); hex(R*0.48,R*0.36,R*0.48); break; }
+    case "kiri": { for(const [ox,dir] of [[-R*0.55,-1],[0,0],[R*0.55,1]]){ ctx.save(); ctx.translate(ox,0); ctx.rotate(dir*0.25); ctx.beginPath(); ctx.moveTo(0,R*0.15); ctx.quadraticCurveTo(-R*0.42,R*0.2,-R*0.36,R*0.85); ctx.quadraticCurveTo(0,R*0.6,R*0.36,R*0.85); ctx.quadraticCurveTo(R*0.42,R*0.2,0,R*0.15); ctx.fill(); ctx.restore(); }
+      const stalk=(ox,n)=>{ ctx.lineWidth=Math.max(1,R*0.08); ctx.beginPath(); ctx.moveTo(ox,R*0.15); ctx.lineTo(ox,-R*0.85); ctx.stroke(); for(let i=0;i<n;i++) circ(ox,-R*0.15-i*R*0.28,R*0.13); }; stalk(-R*0.5,2); stalk(0,3); stalk(R*0.5,2); break; }
+    case "kikyo": { const pts=[]; for(let k=0;k<10;k++){ const a=-Math.PI/2+k*Math.PI/5; const rr=k%2?R*0.45:R; pts.push([Math.cos(a)*rr,Math.sin(a)*rr]); } poly(pts); hole(0,0,R*0.16); break; }
+    case "rokumon": { for(let i=0;i<6;i++){ const cx=(-1+(i%3))*R*0.62, cy=(i<3?-1:1)*R*0.42; circ(cx,cy,R*0.28); hole(cx,cy,R*0.11); } break; }
+    case "katabami": { for(let k=0;k<3;k++){ const a=-Math.PI/2+k*Math.PI*2/3; ctx.save(); ctx.rotate(a); ctx.beginPath(); ctx.moveTo(0,-R*0.1); ctx.quadraticCurveTo(R*0.55,-R*0.45,R*0.35,-R*0.85); ctx.quadraticCurveTo(0,-R*0.7,-R*0.35,-R*0.85); ctx.quadraticCurveTo(-R*0.55,-R*0.45,0,-R*0.1); ctx.fill(); ctx.restore(); } circ(0,0,R*0.12); break; }
+    case "yotsume": { const d=R*0.5, w=R*0.44; for(const [ox,oy] of [[0,-d],[d,0],[0,d],[-d,0]]){ ctx.save(); ctx.translate(ox,oy); ctx.rotate(Math.PI/4); ctx.fillRect(-w/2,-w/2,w,w); ctx.restore(); hole(ox,oy,R*0.12); } break; }
+    case "sangai": { for(let k=0;k<3;k++){ const cy=(k-1)*R*0.58, w=R*(0.55+k*0.18); poly([[0,cy-R*0.3],[w,cy],[0,cy+R*0.3],[-w,cy]]); } break; }
+    case "umebachi": { circ(0,0,R*0.3); for(let k=0;k<5;k++){ const a=-Math.PI/2+k*Math.PI*2/5; circ(Math.cos(a)*R*0.66,Math.sin(a)*R*0.66,R*0.3); } break; }
+    case "sujikai": { ctx.lineWidth=Math.max(2,R*0.3); ctx.beginPath(); ctx.moveTo(-R*0.8,-R*0.8); ctx.lineTo(R*0.8,R*0.8); ctx.moveTo(R*0.8,-R*0.8); ctx.lineTo(-R*0.8,R*0.8); ctx.stroke(); break; }
+    case "kuyo": { circ(0,0,R*0.36); for(let k=0;k<8;k++){ const a=k*Math.PI/4; circ(Math.cos(a)*R*0.72,Math.sin(a)*R*0.72,R*0.2); } break; }
+    case "janome": { ctx.lineWidth=Math.max(2,R*0.4); circ(0,0,R*0.62,false); break; }
+    case "tomoe": { for(let k=0;k<3;k++){ const a=k*Math.PI*2/3; ctx.save(); ctx.rotate(a); circ(0,-R*0.45,R*0.3); ctx.beginPath(); ctx.moveTo(-R*0.3,-R*0.45); ctx.quadraticCurveTo(-R*0.55,R*0.1,R*0.05,R*0.35); ctx.quadraticCurveTo(-R*0.25,R*0.05,-R*0.05,-R*0.2); ctx.closePath(); ctx.fill(); ctx.restore(); } break; }
+    case "ogi": { ctx.beginPath(); ctx.moveTo(0,R*0.8); ctx.arc(0,R*0.8,R*1.5,-Math.PI*0.82,-Math.PI*0.18); ctx.closePath(); ctx.fill(); ctx.save(); ctx.globalCompositeOperation=bg?"source-over":"destination-out"; ctx.strokeStyle=bg||"#000"; ctx.lineWidth=Math.max(1,R*0.07); for(let k=0;k<5;k++){ const a=-Math.PI*0.82+(k+0.5)*(Math.PI*0.64/5); ctx.beginPath(); ctx.moveTo(0,R*0.8); ctx.lineTo(Math.cos(a)*R*1.5,R*0.8+Math.sin(a)*R*1.5); ctx.stroke(); } ctx.beginPath(); ctx.arc(0,R*0.8,R*0.55,-Math.PI*0.9,-Math.PI*0.1); ctx.lineTo(0,R*0.8); ctx.closePath(); ctx.fill(); ctx.restore(); break; }
+    case "hiashi": { circ(0,0,R*0.42); ctx.lineWidth=Math.max(1,R*0.14); for(let k=0;k<12;k++){ const a=k*Math.PI/6; ctx.beginPath(); ctx.moveTo(Math.cos(a)*R*0.55,Math.sin(a)*R*0.55); ctx.lineTo(Math.cos(a)*R*0.95,Math.sin(a)*R*0.95); ctx.stroke(); } break; }
+    case "fuji": { ctx.lineWidth=Math.max(1,R*0.1); for(const sgn of [-1,1]){ ctx.beginPath(); ctx.moveTo(0,-R*0.8); ctx.quadraticCurveTo(sgn*R*0.95,-R*0.6,sgn*R*0.55,R*0.75); ctx.stroke(); for(let i=0;i<5;i++){ const t=(i+1)/6; const px=sgn*(R*0.95*2*t*(1-t)+R*0.55*t*t), py=-R*0.8*(1-t)*(1-t)-R*0.6*2*t*(1-t)+R*0.75*t*t; circ(px,py,R*0.13); } } circ(0,-R*0.75,R*0.16); break; }
+    case "oshiki": { ctx.lineWidth=Math.max(1,R*0.12); ctx.save(); ctx.rotate(Math.PI/4); ctx.strokeRect(-R*0.68,-R*0.68,R*1.36,R*1.36); ctx.restore(); for(let k=0;k<3;k++) ctx.fillRect(-R*0.4,-R*0.38+k*R*0.3,R*0.8,R*0.16); break; }
+    case "kashiwa": { for(let k=0;k<3;k++){ const a=-Math.PI/2+k*Math.PI*2/3; ctx.save(); ctx.rotate(a); ctx.beginPath(); ctx.ellipse(0,-R*0.5,R*0.3,R*0.5,0,0,7); ctx.fill(); ctx.restore(); } break; }
+    case "tsuru": { ctx.lineWidth=Math.max(1,R*0.1); circ(0,0,R,false); ctx.beginPath(); ctx.ellipse(0,R*0.15,R*0.62,R*0.28,0,0,7); ctx.fill(); ctx.beginPath(); ctx.moveTo(-R*0.6,R*0.05); ctx.quadraticCurveTo(-R*0.85,-R*0.5,-R*0.25,-R*0.7); ctx.quadraticCurveTo(0,-R*0.2,-R*0.1,R*0.1); ctx.fill(); ctx.beginPath(); ctx.moveTo(R*0.6,R*0.05); ctx.quadraticCurveTo(R*0.85,-R*0.5,R*0.25,-R*0.7); ctx.quadraticCurveTo(0,-R*0.2,R*0.1,R*0.1); ctx.fill(); circ(0,-R*0.55,R*0.12); break; }
+    case "cho": { ctx.beginPath(); ctx.ellipse(-R*0.42,-R*0.25,R*0.4,R*0.32,0.4,0,7); ctx.fill(); ctx.beginPath(); ctx.ellipse(R*0.42,-R*0.25,R*0.4,R*0.32,-0.4,0,7); ctx.fill(); ctx.beginPath(); ctx.ellipse(-R*0.3,R*0.4,R*0.28,R*0.3,-0.3,0,7); ctx.fill(); ctx.beginPath(); ctx.ellipse(R*0.3,R*0.4,R*0.28,R*0.3,0.3,0,7); ctx.fill(); ctx.beginPath(); ctx.ellipse(0,0,R*0.12,R*0.5,0,0,7); ctx.fill(); break; }
+    case "karigane": { for(const cy of [-R*0.35,R*0.35]){ ctx.beginPath(); ctx.moveTo(-R*0.85,cy+R*0.15); ctx.quadraticCurveTo(-R*0.4,cy-R*0.4,0,cy); ctx.quadraticCurveTo(R*0.4,cy-R*0.4,R*0.85,cy+R*0.15); ctx.quadraticCurveTo(R*0.35,cy,0,cy+R*0.22); ctx.quadraticCurveTo(-R*0.35,cy,-R*0.85,cy+R*0.15); ctx.fill(); } break; }
+    case "gion": { ctx.lineWidth=Math.max(1,R*0.1); circ(0,0,R,false); ctx.lineWidth=Math.max(1.5,R*0.2); ctx.beginPath(); ctx.moveTo(-R*0.6,0); ctx.lineTo(R*0.6,0); ctx.moveTo(0,-R*0.6); ctx.lineTo(0,R*0.6); ctx.stroke(); ctx.lineWidth=Math.max(1,R*0.08); for(let k=0;k<4;k++){ const a=k*Math.PI/2+Math.PI/4; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(a)*R*0.7,Math.sin(a)*R*0.7); ctx.stroke(); } break; }
+    case "omodaka": { for(let k=-1;k<=1;k++){ ctx.save(); ctx.rotate(k*0.5); poly([[0,-R*0.95],[R*0.28,-R*0.25],[0,-R*0.05],[-R*0.28,-R*0.25]]); ctx.restore(); } ctx.beginPath(); ctx.moveTo(-R*0.7,R*0.2); ctx.quadraticCurveTo(0,R*1.05,R*0.7,R*0.2); ctx.quadraticCurveTo(0,R*0.5,-R*0.7,R*0.2); ctx.fill(); break; }
+    default: { const ch=K?String(K.crest||K.name[0])[0]:"—"; ctx.font=`900 ${Math.round(R*1.35)}px "Yuji Syuku","Zen Kaku Gothic New",serif`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(ch,0,R*0.08); }
+  }
+  ctx.restore();
+}
+/* 札や一覧に貼るための小さな絵（家ごとに一度だけ描いて覚える） */
+const _monImg={};
+function monDataURL(K,px){ px=px||28; const key=(K?K.id+":"+monKind(K)+":"+(K.crest||""):"-")+"@"+px+"@"+(K?clanColor(K.id):""); if(_monImg[key]) return _monImg[key];
+  const cv=document.createElement("canvas"); cv.width=cv.height=px*2; const ctx=cv.getContext("2d"); drawMon(ctx,K,px,px,px*0.96,"#fff",K?clanColor(K.id):"#555"); const u=cv.toDataURL(); _monImg[key]=u; return u; }
+function monHTML(K,px,extra){ px=px||26; return `<span class="mon" style="display:inline-block;width:${px}px;height:${px}px;border-radius:50%;background:url(${monDataURL(K,px)}) center/contain no-repeat;vertical-align:middle;${extra||""}"></span>`; }
 /// 状況に合わせてBGMを差し替える
 function updateMusic(){
   if(!Audio_.enabled) return;
@@ -19554,11 +19685,11 @@ function currentAdvice(){
   if(inc-pay<0 && me.money<12000)
     return {t:`俸禄が収入を上回っております（${inc-pay}/月）。商業投資か新田開発を、あるいは武将の解雇を。`,c:mine[0].id};
 
-  const unrest=mine.find(c=>c.minchu<=40);
+  const unrest=null;   /* 第131巡：民心の知らせはやめ（作り手：いらない） */
   if(unrest) return {t:`${unrest.name}の民が離れかけております。内政の「ほかの内政」から「施し」を。`,c:unrest.id};
 
   const idle=idleGenerals();
-  if(idle.length>=3 && !(W.stage&&W.decisiveAt)) return {t:`手の空いた武将が${idle.length}名おります。内政で仕事を与えなされ。`,c:idle[0].castle};   /* 決戦へ向かう間は内政を急かさない（第121巡） */
+   /* 決戦へ向かう間は内政を急かさない（第121巡） */
 
   // 攻め時の城を探す
   let best=null;
@@ -19952,7 +20083,7 @@ function showClanCard(clanId){
 
   const h=`<div style="display:flex;gap:12px;align-items:flex-start">
       ${d?`<img class="face lg" src="${portraitURL(d)}" alt="${esc(d.name)}">`
-         :`<span class="s-crest" style="width:70px;height:70px;font-size:34px;background:${clanColor(clanId)}">${c.crest}</span>`}
+         :monHTML(c,70,"flex:none")}
       <div style="flex:1">
         <div class="tiny muted">${d&&d.kana?esc(d.kana):""}</div>
         <div style="font-family:var(--display);font-size:26px;letter-spacing:.05em">${esc(d?d.name:c.name)}</div>
