@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>戦国大名 管理</title>
+<style>
+:root{ --bg:#17150F; --card:#221E16; --line:#3A3326; --ink:#EDE6D6; --dim:#A79E8C; --kin:#C9A227; --ai:#5B8DEF; --shu:#E24A3A; --moe:#4CC45C; }
+*{ box-sizing:border-box; }
+body{ margin:0; background:var(--bg); color:var(--ink); font-family:"Hiragino Sans","Zen Kaku Gothic New",sans-serif; font-size:14px; }
+header{ display:flex; align-items:center; gap:14px; padding:12px 18px; border-bottom:1px solid var(--line); background:#1B1811; position:sticky; top:0; z-index:2; }
+header h1{ font-size:17px; margin:0; letter-spacing:.08em; }
+header .sub{ color:var(--dim); font-size:12px; margin-left:auto; }
+main{ max-width:1100px; margin:0 auto; padding:16px; }
+.grid{ display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }
+.card{ background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px 16px; }
+.card h2{ font-size:13px; color:var(--dim); margin:0 0 8px; font-weight:600; letter-spacing:.05em; }
+.big{ font-size:30px; font-weight:800; font-variant-numeric:tabular-nums; }
+.big small{ font-size:12px; color:var(--dim); font-weight:500; margin-left:6px; }
+.row{ display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px dashed var(--line); font-variant-numeric:tabular-nums; }
+.row:last-child{ border-bottom:none; }
+.row .n{ font-weight:700; }
+.bar{ height:6px; background:#0F0D09; border-radius:3px; overflow:hidden; margin-top:3px; }
+.bar i{ display:block; height:100%; background:var(--kin); }
+.muted{ color:var(--dim); font-size:12px; }
+.sec{ margin-top:18px; }
+.sec h2{ font-size:15px; margin:0 0 8px; }
+.tabs{ display:flex; gap:6px; margin-left:8px; }
+.tabs button{ background:#0F0D09; color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:5px 10px; cursor:pointer; font-size:12px; }
+.tabs button.on{ background:var(--kin); color:#1A1208; border-color:var(--kin); font-weight:700; }
+svg{ width:100%; height:auto; display:block; }
+.funnel{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; }
+.funnel .st{ background:#0F0D09; border-radius:6px; padding:10px; text-align:center; }
+.funnel .st b{ display:block; font-size:22px; }
+.funnel .st span{ font-size:11px; color:var(--dim); }
+.funnel .st em{ display:block; font-style:normal; font-size:11px; color:var(--kin); margin-top:2px; }
+#gate{ position:fixed; inset:0; background:var(--bg); display:flex; align-items:center; justify-content:center; z-index:9; }
+#gate form{ background:var(--card); border:1px solid var(--line); border-radius:10px; padding:26px 28px; width:min(92vw,360px); display:flex; flex-direction:column; gap:10px; }
+#gate input{ background:#0F0D09; color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:10px; font-size:15px; }
+#gate button{ background:var(--kin); color:#1A1208; border:none; border-radius:6px; padding:11px; font-weight:800; font-size:15px; cursor:pointer; }
+#gate .err{ color:var(--shu); font-size:12px; min-height:16px; }
+a{ color:var(--ai); }
+.note{ background:#0F0D09; border-radius:6px; padding:10px 12px; font-size:12px; color:var(--dim); line-height:1.6; }
+</style>
+</head>
+<body>
+<div id="gate"><form id="loginForm">
+  <div style="font-size:18px;font-weight:800;letter-spacing:.1em">戦国大名　管理</div>
+  <input id="em" type="email" placeholder="メールアドレス" autocomplete="username" required>
+  <input id="pw" type="password" placeholder="合言葉" autocomplete="current-password" required>
+  <button type="submit">入る</button>
+  <div class="err" id="gateErr"></div>
+</form></div>
+
+<header>
+  <h1>戦国大名　管理</h1>
+  <div class="tabs" id="rangeTabs"><button data-r="d7">7日</button><button data-r="d30" class="on">30日</button><button data-r="d90">90日</button></div>
+  <div class="sub" id="updated">読み込み中…</div>
+</header>
+<main id="main"></main>
+
+<script>
+/* 入口：合言葉は手元で照らし合わせる（軽い鍵。数字だけの画面なのでこれで十分）。通れば三十日おぼえる */
+const ALLOW_EMAIL="kaitoseto1129@gmail.com";
+const PW_HASH="57f3833bb5286c81572f087fc31cae5f081e8e7001462e05312832163de6dfc3";
+async function sha256(s){ const b=await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join(""); }
+function opened(){ try{ const t=+localStorage.getItem("sd_admin_ok")||0; return Date.now()-t<30*864e5; }catch(e){ return false; } }
+document.getElementById("loginForm").onsubmit=async e=>{ e.preventDefault(); const em=document.getElementById("em").value.trim().toLowerCase(); const h=await sha256(document.getElementById("pw").value);
+  if(em===ALLOW_EMAIL && h===PW_HASH){ try{ localStorage.setItem("sd_admin_ok", String(Date.now())); }catch(_){ } document.getElementById("gate").style.display="none"; load(); }
+  else document.getElementById("gateErr").textContent="メールアドレスか合言葉が違います"; };
+if(opened()){ document.getElementById("gate").style.display="none"; }
+
+let DATA=null, RANGE="d30";
+document.querySelectorAll("#rangeTabs button").forEach(b=>b.onclick=()=>{ RANGE=b.dataset.r; document.querySelectorAll("#rangeTabs button").forEach(x=>x.classList.toggle("on",x===b)); render(); });
+async function load(){
+  try{ const r=await fetch("stats.json?t="+Date.now(), {cache:"no-store"}); if(!r.ok) throw new Error(r.status); DATA=await r.json(); }
+  catch(e){ document.getElementById("main").innerHTML=`<div class="card"><h2>まだ数がありません</h2><div class="note">stats.json がまだ作られていません。GitHub の <b>sengoku-daimyo-play</b> リポジトリで、<br>① Settings → Secrets and variables → Actions に <b>GOATCOUNTER_TOKEN</b>（GoatCounter の Settings → API tokens で「Read statistics」を付けて作った鍵）を入れる<br>② Actions → <b>stats</b> → Run workflow を一度押す<br>あとは六時間ごとに勝手に更新されます。</div></div>`; return; }
+  document.getElementById("updated").textContent="更新 "+new Date(DATA.generated).toLocaleString("ja-JP");
+  render();
+}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmtN=n=>Number(n||0).toLocaleString("ja-JP");
+function sumStats(h){ return (h.stats||[]).reduce((s,d)=>s+(d.daily||0),0); }
+function render(){
+  if(!DATA) return; const R=DATA.ranges[RANGE]; if(!R){ return; }
+  const hits=(R.hits||[]); const tot=R.total||{};
+  const days=(tot.stats||[]).map(d=>({day:d.day, n:d.daily||0}));
+  const visits=days.reduce((s,d)=>s+d.n,0);
+  const ev=p=>hits.filter(h=>h.event && h.path.startsWith("ev/"+p)).reduce((s,h)=>s+sumStats(h),0);
+  const byPrefix=p=>{ const m={}; for(const h of hits){ if(!h.event||!h.path.startsWith("ev/"+p+"/")) continue; const rest=h.path.slice(("ev/"+p+"/").length); m[rest]=(m[rest]||0)+sumStats(h); } return Object.entries(m).sort((a,b)=>b[1]-a[1]); };
+  const starts=ev("start"), battles=ev("battle"), results=ev("result"), unlocks=ev("unlock"), fundOpen=ev("fund/open"), fundClick=ev("fund-click"), payClick=ev("pay-click"), fundDone=byPrefix("fund").filter(([k])=>k!=="open");
+  const pages=hits.filter(h=>!h.event);
+  const pageviews=pages.reduce((s,h)=>s+sumStats(h),0);
+  const pct=(a,b)=>b?Math.round(a/b*100)+"%":"—";
+  // 遊び始めの内訳：筋書き／家
+  const scen={}, clans={}; for(const [k,n] of byPrefix("start")){ const [sc,cl]=k.split("/"); scen[sc]=(scen[sc]||0)+n; if(cl) clans[cl]=(clans[cl]||0)+n; }
+  const resultKinds={}, resultScen={}; for(const [k,n] of byPrefix("result")){ const [kind,sc]=k.split("/"); resultKinds[kind]=(resultKinds[kind]||0)+n; if(sc) resultScen[sc]=(resultScen[sc]||0)+n; }
+  const battleKinds={}; for(const [k,n] of byPrefix("battle")){ battleKinds[k]=(battleKinds[k]||0)+n; }
+  const list=(obj,label,max)=>{ const es=Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,max||12); const top=es.length?es[0][1]:1; if(!es.length) return `<div class="muted">まだありません</div>`; return es.map(([k,n])=>`<div class="row"><span>${esc(k)}</span><span class="n">${fmtN(n)}</span></div><div class="bar"><i style="width:${Math.round(n/top*100)}%"></i></div>`).join(""); };
+  const bd=DATA.breakdown||{}; const bl=(k,label)=>{ const st=(bd[k]&&bd[k].stats)||[]; if(bd[k]&&bd[k].error) return `<div class="muted">取れませんでした（${esc(bd[k].error)}）</div>`; const top=st.length?st[0].count:1; return st.slice(0,10).map(s=>`<div class="row"><span>${esc(s.name||"（不明）")}</span><span class="n">${fmtN(s.count)}</span></div><div class="bar"><i style="width:${Math.round(s.count/top*100)}%"></i></div>`).join("")||`<div class="muted">まだありません</div>`; };
+  // 日ごとの折れ線
+  const W=900,H=180,pad=28; const mx=Math.max(1,...days.map(d=>d.n)); const xs=i=>pad+(W-pad*2)*(days.length>1?i/(days.length-1):0.5), ys=n=>H-pad-(H-pad*2)*n/mx;
+  const line=days.map((d,i)=>`${i?"L":"M"}${xs(i).toFixed(1)},${ys(d.n).toFixed(1)}`).join(" ");
+  const area=days.length?`${line} L${xs(days.length-1).toFixed(1)},${H-pad} L${xs(0).toFixed(1)},${H-pad} Z`:"";
+  const step=Math.ceil(days.length/8); const ticks=days.map((d,i)=>(days.length<=10||(i%step===0&&days.length-1-i>=step/2)||i===days.length-1)?`<text x="${xs(i)}" y="${H-8}" font-size="10" fill="#A79E8C" text-anchor="middle">${d.day.slice(5)}</text>`:"").join("");
+  const dots=days.map((d,i)=>`<circle cx="${xs(i)}" cy="${ys(d.n)}" r="2.5" fill="#C9A227"><title>${d.day}　${d.n}</title></circle>`).join("");
+  document.getElementById("main").innerHTML=`
+    <div class="grid">
+      <div class="card"><h2>訪問（人）</h2><div class="big">${fmtN(visits)}</div><div class="muted">${R.start}〜${R.end}　一日あたり ${fmtN(Math.round(visits/Math.max(1,days.length)))}</div></div>
+      <div class="card"><h2>遊び始め</h2><div class="big">${fmtN(starts)}<small>訪問の ${pct(starts,visits)}</small></div></div>
+      <div class="card"><h2>会戦</h2><div class="big">${fmtN(battles)}<small>遊び始め一回あたり ${starts?(battles/starts).toFixed(1):"—"}</small></div></div>
+      <div class="card"><h2>結び（勝ち負けまで）</h2><div class="big">${fmtN(results)}<small>遊び始めの ${pct(results,starts)}</small></div></div>
+      <div class="card"><h2>解除・支援</h2><div class="big">${fmtN(unlocks)}<small>解除</small></div><div class="muted">支援の札を開いた ${fmtN(fundOpen)}・額を押した ${fmtN(fundClick)}・払いに進んだ ${fmtN(payClick)}${fundDone.length?`・支援あり ${fundDone.map(([k,n])=>k+"×"+n).join(" ")}`:""}</div></div>
+      <div class="card"><h2>ページ表示</h2><div class="big">${fmtN(pageviews)}</div><div class="muted">${pages.slice(0,3).map(h=>esc(h.path)+" "+fmtN(sumStats(h))).join("　")}</div></div>
+    </div>
+    <div class="sec card"><h2>日ごとの訪問</h2>
+      <svg viewBox="0 0 ${W} ${H}"><path d="${area}" fill="rgba(201,162,39,.15)"/><path d="${line}" fill="none" stroke="#C9A227" stroke-width="2"/>${dots}${ticks}<text x="${pad}" y="14" font-size="11" fill="#A79E8C">最大 ${mx}</text></svg>
+    </div>
+    <div class="sec card"><h2>流れ（訪問 → 遊び始め → 会戦 → 結び）</h2>
+      <div class="funnel">
+        <div class="st"><b>${fmtN(visits)}</b><span>訪問</span><em>100%</em></div>
+        <div class="st"><b>${fmtN(starts)}</b><span>遊び始め</span><em>${pct(starts,visits)}</em></div>
+        <div class="st"><b>${fmtN(battles)}</b><span>会戦</span><em>${pct(battles,visits)}</em></div>
+        <div class="st"><b>${fmtN(results)}</b><span>結び</span><em>${pct(results,visits)}</em></div>
+        <div class="st"><b>${fmtN(unlocks)}</b><span>解除</span><em>${pct(unlocks,visits)}</em></div>
+      </div>
+      <div class="muted" style="margin-top:8px">遊び始めが少なければ入口（題名の画面）、結びが少なければ途中で飽きている、と読めます。iPhone 版は数えていません（ブラウザ版だけ）。</div>
+    </div>
+    <div class="sec grid">
+      <div class="card"><h2>どの筋書きで始めたか</h2>${list(scen)}</div>
+      <div class="card"><h2>どの家で始めたか</h2>${list(clans,"",15)}</div>
+      <div class="card"><h2>結びの種類</h2>${list(resultKinds)}</div>
+      <div class="card"><h2>結びまで行った筋書き</h2>${list(resultScen)}</div>
+      <div class="card"><h2>会戦の種類</h2>${list(battleKinds)}</div>
+    </div>
+    <div class="sec grid">
+      <div class="card"><h2>ブラウザ（30日）</h2>${bl("browsers")}</div>
+      <div class="card"><h2>OS（30日）</h2>${bl("systems")}</div>
+      <div class="card"><h2>画面の大きさ（30日）</h2>${bl("sizes")}</div>
+      <div class="card"><h2>国・地域（30日）</h2>${bl("locations")}</div>
+      <div class="card"><h2>どこから来たか（30日）</h2>${bl("toprefs")}</div>
+      <div class="card"><h2>言語（30日）</h2>${bl("languages")}</div>
+    </div>
+    <div class="sec note">数は GoatCounter（${esc(DATA.site)}）から六時間ごとに写しています。細かい生の数は <a href="${esc(DATA.site)}" target="_blank" rel="noopener">GoatCounter の画面</a>でも見られます。</div>`;
+}
+if(opened()) load();
+</script>
+</body>
+</html>

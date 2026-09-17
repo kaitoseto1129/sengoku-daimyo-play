@@ -1,0 +1,27 @@
+name: stats
+on:
+  schedule:
+    - cron: "17 */6 * * *"   # 六時間ごと
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: GoatCounter から数を取る
+        env:
+          GOATCOUNTER_TOKEN: ${{ secrets.GOATCOUNTER_TOKEN }}
+          GOATCOUNTER_SITE: https://kaito.goatcounter.com
+        run: node admin/fetch.mjs
+      - name: 記録する
+        run: |
+          git config user.name "stats-bot"
+          git config user.email "stats-bot@users.noreply.github.com"
+          git add admin/stats.json
+          git diff --cached --quiet || git commit -m "stats: $(date -u +%Y-%m-%dT%H:%M)"
+          git push
