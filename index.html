@@ -12089,7 +12089,18 @@ function openCastle(id){
   const brief=(t,body,open)=>`<details ${open?"open":""} style="margin:4px 0">
       <summary style="cursor:pointer;font-family:var(--display);font-size:13px;
         color:var(--kin);padding:3px 0;list-style:none">▸ ${t}</summary>${body}</details>`;
-  let h=owner+acts+live+`<div class="row" style="margin-bottom:6px">
+  /* 第132巡：長篠城の攻防（仕込みの間）：城の様子と、武田（人）の攻め方 */
+  let nagBlock="";
+  if(c.name==="長篠城" && typeof nagSiegeOn==="function" && nagSiegeOn()){ const st=nagStatus(); const N=W.nag; const tk=clanByName("武田家"); const meTk=tk&&W.player===tk.id;
+    if(st){ nagBlock=`<div class="sec-title">長篠城の様子（${N.day}日目）</div>
+      <div class="grid g4">
+        <div class="s-stat"><span>守備兵</span><b>${st.troops.toLocaleString()}</b></div><div class="s-stat"><span>士気</span><b style="color:${st.morale<30?'#FF9A88':'#EDE6D6'}">${st.morale}</b></div>
+        <div class="s-stat"><span>兵糧</span><b style="color:${st.food<=3?'#FF9A88':'#EDE6D6'}">${st.food}日</b></div><div class="s-stat"><span>水</span><b>${st.water}</b></div>
+        <div class="s-stat"><span>弾薬</span><b>${st.ammo}</b></div><div class="s-stat"><span>援軍期待</span><b>${st.hope}</b></div><div class="s-stat"><span>城の備え</span><b>${st.def}%</b></div><div class="s-stat"><span>包囲率</span><b>${st.enc}%</b></div>
+      </div>
+      ${N.log.length?`<div class="tiny muted" style="margin:4px 0 6px">${N.log.slice(-3).map(esc).join("<br>")}</div>`:""}
+      ${meTk?`<div class="sec-title">攻め方（一日に一つ）</div><div class="grid g4">${[["兵糧攻め","囲みを固めて待つ"],["正面攻撃","早いが兵が減る"],["夜襲","五分で城兵を討つ"],["火攻め","櫓と米蔵を焼く"],["鉄砲射撃","銭500"],["城門破壊","門を打つ"],["坑道","三日で壁を崩す"],["降伏勧告","士気が低ければ開城"]].map(([k,d])=>`<button class="cmd${N.mode===k?" sel":""}" onclick="const r=nagAction('${k}');if(r)toast(r);openCastle(${id})">${k}<span class="cost">${d}</span></button>`).join("")}</div>`:`<div class="tiny muted">武田勢が囲んでいます。後詰が着けば設楽原で決戦。城が落ちれば武田の手に</div>`}`; } }
+  let h=owner+nagBlock+acts+live+`<div class="row" style="margin-bottom:6px">
     <span class="chip ${garrisonFast(id)===0&&!mine?"kin":"shu"}">守兵 ${estimatedGarrison(id)}${
       (mine||spyKnows(id)||(c.clan!==null&&W.clans[W.player].allies.has(c.clan)))?"":"（見当）"}</span>
     ${!mine?`<span class="chip">将 ${garrisonOfficers(id)}</span>`:""}
@@ -14267,6 +14278,7 @@ function stageNagashino(){
     if(tk2 && oka && tk2.id!==tk.id){ const t0=W.tile[oka.id]; const rel2=mk(tk2,["徳川家康","酒井忠次","本多忠勝","榊原康政","鳥居元忠","大久保忠世","石川数正"], t0.c, t0.r, "移動", nag.id, "徳川家康軍団（後詰）", 8000);
       if(rel2){ const path=findPath(oka.id,nag.id,tk2.id); const ids=[oka.id,...(path||[])]; if(ids[ids.length-1]!==nag.id) ids.push(nag.id); rel2.route=ids.map(id=>W.tile[id]).filter(Boolean); rel2.day0=dayNumber(); rel2.days=24; } } }
   bumpGarrison();
+  try{ nagInit(); }catch(e){ console.error(e); }   /* 第132巡：長篠城の攻防 */
   // 画面は長篠城へ。全図のままでは何が起きているか分からない
   setTimeout(()=>{ cam.x=t.c+(viewW()<960?2:3); cam.y=t.r; cam.scale=viewW()<960?4.2:6.5; camTarget.x=camTarget.y=null; camTarget.scale=null; clampCam(); },0);
 }
@@ -14389,8 +14401,8 @@ function scriptedEnvoys(){
 
 /* 決戦までの三日の前振り。3＝三日前 … 0＝当日。h は大きな知らせ、t は記録の一行 */
 const PRELUDES={
- nagashino_open:{ 3:{h:"長篠城 囲まる",t:"武田勢が長篠城を囲んだ。城兵五百、耐えている",run:()=>nagashinoWear()}, 2:{h:"強右衛門 走る",t:"鳥居強右衛門、夜陰に乗じて長篠城を抜け出し、岡崎へ走る",run:()=>nagashinoWear()}, 1:{h:"鳥居強右衛門 磔",t:"鳥居強右衛門、磔にされながら叫ぶ ――「援軍は来る！ あと二、三日、持ちこたえよ！」",run:()=>nagashinoWear()}, 0:{h:"設楽原 着陣",t:"織田・徳川、設楽原に着陣。馬防柵の内で武田を待つ"} },
- nagashino:{ 3:{h:"長篠城 囲まる",t:"武田勢が長篠城を囲んだ。城兵五百、耐えている",run:()=>nagashinoWear()}, 2:{h:"強右衛門 走る",t:"鳥居強右衛門、夜陰に乗じて長篠城を抜け出し、岡崎へ走る",run:()=>nagashinoWear()}, 1:{h:"鳥居強右衛門 磔",t:"鳥居強右衛門、磔にされながら「援軍は来る」と叫んだ",run:()=>nagashinoWear()}, 0:{h:"設楽原 着陣",t:"織田・徳川、設楽原に着陣。馬防柵の内で武田を待つ"} },
+ nagashino_open:{ 0:{h:"設楽原 着陣",t:"織田・徳川、設楽原に着陣。馬防柵の内で武田を待つ"} },
+ nagashino:{ 0:{h:"設楽原 着陣",t:"織田・徳川、設楽原に着陣。馬防柵の内で武田を待つ"} },
  sekigahara:{ 3:{h:"小山評定",t:"家康、上杉討伐の途で三成挙兵の報を受ける。小山の評定で諸将は反転を決めた"}, 2:{h:"岐阜城 落つ",t:"福島正則・池田輝政が岐阜城を一日で落とした。西軍は大垣に籠る"}, 1:{h:"三成、関ヶ原へ",t:"三成は大垣を出て関ヶ原に布陣。家康は桃配山に本陣を置いた。夜、雨"}, 0:{h:"霧の関ヶ原",t:"夜明け、関ヶ原は深い霧に包まれている"} },
  osaka:{ 3:{h:"堀、埋まる",t:"冬の陣の和睦で外堀も内堀も埋められた。大坂城はもはや裸城"}, 2:{h:"道明寺の戦い",t:"後藤又兵衛、道明寺で徳川の先手に討ちかかり、奮戦の末に退いた"}, 1:{h:"赤備え、茶臼山へ",t:"真田幸村、茶臼山に赤備えを布く。「明日、家康の首を獲る」"}, 0:{h:"天王寺・岡山",t:"徳川の大軍が天王寺口と岡山口に迫る。豊臣家、最後の朝"} },
  yamazaki:{ 3:{h:"中国大返し",t:"秀吉、備中高松の陣を払い、姫路へ二百里を駆ける"}, 2:{h:"富田 着陣",t:"秀吉は摂津富田に着き、池田・中川・高山ら諸将が次々に集まった"}, 1:{h:"光秀、山崎へ",t:"光秀は勝竜寺城を出て山崎に布陣。天王山を巡る前哨が始まる"}, 0:{h:"山崎",t:"円明寺川を挟み、両軍が向かい合った"} },
@@ -14401,10 +14413,132 @@ const PRELUDES={
  kawanakajima:{ 3:{h:"上杉、妻女山へ",t:"謙信は一万三千で信濃に入り、妻女山に陣を取った"}, 2:{h:"武田、海津へ",t:"信玄は二万で海津城に入り、両軍は睨み合った"}, 1:{h:"啄木鳥の策",t:"山本勘助が別動隊で妻女山を衝く策を献じた。謙信はそれを見破り、夜のうちに川を渡る"}, 0:{h:"霧の八幡原",t:"濃い霧の中、上杉の本隊が武田の目の前に現れた"} },
  mikatagahara:{ 3:{h:"信玄、西上",t:"武田信玄、二万五千で甲府を発ち、遠江へ入った"}, 2:{h:"二俣城 落つ",t:"二俣城が落ちた。信玄は浜松を素通りして三方ヶ原へ向かう"}, 1:{h:"家康、討って出る",t:"家康は「素通りされて黙っていられるか」と浜松を出た。諸将は止めた"}, 0:{h:"三方ヶ原",t:"台地の上、武田の魚鱗が徳川の鶴翼を待ち構えていた"} },
 };
+
+/* ===== 長篠城の攻防（第132巡・長篠完全版 第1章）=====
+   仕込みの間（織田の後詰が着くまで）、長篠城は日ごとに削られる。守兵・士気・兵糧・水・弾薬・援軍期待・包囲率を持ち、
+   武田（人）は攻め方を選び、徳川・織田（人）は使者（鳥居強右衛門）を送れる。落ちればそのまま決戦へ（長篠城は武田の手） */
+function nagCastle(){ return Object.values(W.castles).find(c=>c.name==="長篠城")||null; }
+function nagSiegeOn(){ return !!(W.stage && W.stage.key==="nagashino_open" && W.nag && !W.nag.done); }
+function nagInit(){ const c=nagCastle(); if(!c) return; const tk=clanByName("武田家");
+  W.nag={ morale:74, water:100, ammo:40, hope:60, encircle:60, day:0, fell:false, done:false, msg:null, msgDone:false, mode:"兵糧攻め", tunnel:0, lastAct:-99, log:[], food:14 };   /* 米は十二日ぶん（城の蔵とは別に、囲みの中の日数で数える） */
+  c.defense=Math.max(c.defense, Math.floor(maxDefense(c)*0.8)); }
+function nagFoodDays(c){ return Math.max(0,Math.floor((W.nag&&W.nag.food!==undefined)?W.nag.food:0)); }
+function nagStatus(){ const c=nagCastle(); if(!c||!W.nag) return null; const N=W.nag; return { troops:garrisonTroops(c.id), morale:Math.round(N.morale), food:nagFoodDays(c), water:N.water>=60?"十分":N.water>=30?"乏しい":"尽きかけ", ammo:N.ammo>=30?"十分":N.ammo>=12?"少":"尽きかけ", hope:N.hope>=60?"高":N.hope>=30?"並":"低", enc:Math.round(N.encircle), def:Math.round(c.defense/Math.max(1,maxDefense(c))*100) }; }
+function nagLoseTroops(c,n){ let left=Math.max(0,Math.floor(n)); const gs=Object.values(W.generals).filter(g=>g.castle===c.id&&!g.army&&g.clan===c.clan&&g.troops>0).sort((a,b)=>b.troops-a.troops); for(const g of gs){ if(left<=0) break; const t=Math.min(g.troops,left); g.troops-=t; left-=t; } bumpGarrison(); }
+function nagFall(why){ const c=nagCastle(); const tk=clanByName("武田家"); const N=W.nag; if(!c||!tk||!N||N.fell) return; N.fell=true; N.done=true;
+  const a=(W.stage&&W.stage.armies||[]).map(id=>W.armies[id]).find(x=>x&&x.clan===tk.id)||null;
+  if(a && a.stageOrig){ for(const id of a.gens){ const g=W.generals[id]; if(g && a.stageOrig[id]!==undefined) g.troops=a.stageOrig[id]; } a.stageOrig=null; }   /* 仕込みの見せかけの兵を本当の兵に戻してから入城 */
+  const oldClan=c.clan; captureCastle(c.id, tk.id, a); c.clan=tk.id;
+  log(`長篠城、${why}。武田の手に落ちました`,"war",true); if(typeof chronicle==="function") chronicle(`長篠城、${why}（武田の手に）`); bigNews("長篠城 落つ");
+  const tk2=clanByName("徳川家"); if(tk2&&W.clans[tk2.id]) W.clans[tk2.id].nagLost=true;   /* 決戦で徳川の士気は下がり、武田は上がる */ }
+function nagSiegeDaily(){ if(!nagSiegeOn()) return; const c=nagCastle(); const N=W.nag; const tk=clanByName("武田家"); if(!c||!tk){ N.done=true; return; }
+  if(c.clan===tk.id){ N.done=true; return; }
+  N.day++;
+  const army=(W.stage&&W.stage.armies||[]).map(id=>W.armies[id]).find(x=>x&&x.clan===tk.id&&x.target===c.id)||null; const at=army?armyTroops(army):0;
+  N.encircle=Math.min(100, Math.max(N.encircle, 60+N.day*4)); if(at<8000) N.encircle=Math.min(N.encircle,50);
+  /* 兵糧・水・弾薬 */
+  const g=Math.max(1,garrisonTroops(c.id)); N.food=Math.max(0,(N.food||0)-1); N.water=Math.max(0,N.water-(N.encircle>=90?4:2)); N.ammo=Math.max(0,N.ammo-1);
+  /* 士気：日に一つ減る。米が三日を切れば二つ、水が乏しければ一つ、包囲が固ければ一つ。援軍期待が高ければ戻る */
+  let dm=-1; if(nagFoodDays(c)<=3) dm-=1; if(N.water<30) dm-=0.5; if(N.encircle>=90) dm-=0.5; if(N.hope>=70) dm+=1; N.morale=Math.max(0,Math.min(100,N.morale+dm));
+  N.hope=Math.max(0,N.hope-1);
+  /* 脱走：士気が三割を切れば日に一分 */
+  if(N.morale<30){ nagLoseTroops(c, Math.ceil(g*0.02)); if(N.morale<15 && W.player!==tk.id && !N.desertNote){ N.desertNote=true; log("長篠城で脱走が始まりました","war"); } }
+  /* 武田（機械）の攻め方：四日に一度、城の備えが半分より上なら正面攻撃、下なら兵糧攻め。士気が二割五分を切れば降伏勧告 */
+  if(W.player!==tk.id){ if(N.morale<15 && N.day%3===0) nagAction("降伏勧告",true); else if(N.day%5===0 && c.defense>maxDefense(c)*0.45) nagAction("正面攻撃",true); }
+  /* 使者：城が苦しくなれば（八日目か、米が六日を切れば）出す。人が徳川・織田なら選ばせ、機械なら史実どおり */
+  if(!N.msgDone && !N.msg && (N.day>=8 || nagFoodDays(c)<=6)){ const tk2=clanByName("徳川家"), od=clanByName("織田家"); const mineSide = (tk2&&W.player===tk2.id)||(od&&W.player===od.id); N.msg={at:N.day, by:null}; if(mineSide){ openNagMessenger(); } else { nagMessengerAuto(); } }
+  if(N.msg && N.msg.state==="out" && N.day>=N.msg.at+2 && !N.msg.arrived){ N.msg.arrived=true; nagMessengerArrive(); }
+  if(N.msg && N.msg.state==="back" && N.day>=N.msg.backAt && !N.msg.returned){ N.msg.returned=true; nagMessengerReturn(); }
+  /* 落ちる */
+  if(garrisonTroops(c.id)<=0) nagFall("守兵が尽き"); else if(c.defense<=0) nagFall("城壁が崩れ"); else if(N.morale<=0) nagFall("城兵が力尽き"); else if(nagFoodDays(c)<=0 && N.water<=0) nagFall("水も米も尽き");
+}
+/* 武田の攻め方（人と機械の両方から） */
+function nagAction(kind, ai){ const c=nagCastle(); const N=W.nag; const tk=clanByName("武田家"); if(!c||!N||!tk||N.done) return "いまは攻められませぬ";
+  if(!ai && N.lastAct===N.day && kind!=="兵糧攻め") return "今日はもう手を打ちました（一日に一つ）";
+  const army=(W.stage&&W.stage.armies||[]).map(id=>W.armies[id]).find(x=>x&&x.clan===tk.id&&x.target===c.id)||null; const at=army?armyTroops(army):0; const g=garrisonTroops(c.id); const K=W.clans[tk.id];
+  const cut=(n)=>{ if(army) for(const id of army.gens){ const gg=W.generals[id]; if(gg) gg.troops=Math.max(0,gg.troops-Math.ceil(n/army.gens.length)); } };
+  let msg="";
+  switch(kind){
+    case "兵糧攻め": N.mode="兵糧攻め"; msg="囲みを固め、米と水の尽きるのを待ちます"; break;
+    case "正面攻撃": { N.mode="正面攻撃"; c.defense=Math.max(0,c.defense-Math.floor(maxDefense(c)*0.10)); nagLoseTroops(c,Math.ceil(g*0.08)); cut(Math.ceil(at*0.03)); N.morale=Math.max(0,N.morale-5); N.ammo=Math.max(0,N.ammo-4); msg="正面から押し寄せました。城壁は削れたが、こちらも兵を失いました"; break; }
+    case "夜襲": { if(rnd()<0.5){ nagLoseTroops(c,Math.ceil(g*0.10)); N.morale=Math.max(0,N.morale-10); msg="夜襲が図に当たり、城兵を討ち、城内は動揺しました"; } else { cut(Math.ceil(at*0.02)); msg="夜襲は見破られ、兵を失って引き返しました"; } break; }
+    case "火攻め": { c.defense=Math.max(0,c.defense-Math.floor(maxDefense(c)*0.10)); N.food=(N.food||0)*0.8; N.morale=Math.max(0,N.morale-5); msg="火矢を射込み、櫓と米蔵を焼きました"; break; }
+    case "鉄砲射撃": { if(!ai && K.money<500) return "銭が足りませぬ（500）"; if(!ai) K.money-=500; nagLoseTroops(c,Math.ceil(g*0.03)); N.morale=Math.max(0,N.morale-4); msg="鉄砲を撃ちかけ、城兵を削りました"; break; }
+    case "城門破壊": { c.defense=Math.max(0,c.defense-Math.floor(maxDefense(c)*0.20)); cut(Math.ceil(at*0.02)); msg="大木で門を打ち、門は大きく傷みました"; break; }
+    case "坑道": { N.tunnel=(N.tunnel||0)+1; if(N.tunnel>=3){ N.tunnel=0; c.defense=Math.max(0,c.defense-Math.floor(maxDefense(c)*0.30)); msg="坑道が城壁の下に届き、壁が崩れました"; } else msg=`坑道を掘り進めています（あと${3-N.tunnel}日）`; break; }
+    case "降伏勧告": { if(N.morale<15 || (nagFoodDays(c)<=0 && N.water<20)){ nagFall("降伏し"); msg="城は降伏を受け入れました"; } else { N.morale=Math.min(100,N.morale+5); msg="城兵は勧告を撥ねつけ、かえって意気を上げました"; } break; }
+    default: return "そのような手はありませぬ";
+  }
+  N.lastAct=N.day; N.log.push(`${N.day}日目 ${kind}：${msg}`); if(N.log.length>12) N.log.shift();
+  if(!ai) log(`長篠城 ${kind}：${msg}`,"war"); else if(W.player!==null && (clanByName("徳川家")||{}).id===W.player) log(`武田勢、長篠城に${kind}`,"war");
+  if(c.defense<=0 && !N.fell) nagFall("城壁が崩れ");
+  return null;
+}
+/* 使者：人が徳川・織田なら選ぶ。機械なら史実のとおり（鳥居強右衛門が抜け出し、帰りに捕らわれ、磔にされながら「援軍は来る」と叫ぶ） */
+function nagMessengerAuto(){ const N=W.nag; N.msg={at:N.day, by:"鳥居強右衛門", state:"out", auto:true}; log("鳥居強右衛門、夜陰に乗じて長篠城を抜け出し、岡崎へ走る","war",true); }
+function nagRelief(){ return (W.stage&&W.stage.armies||[]).map(id=>W.armies[id]).filter(x=>x&&x.route&&x.route.length>=2&&!stageArrived(x)); }
+function nagMessengerArrive(){ const N=W.nag; const m=N.msg; for(const a of nagRelief()){ a.days=Math.max(1,(a.days||24)-3); } N.hope=Math.min(100,N.hope+30); N.morale=Math.min(100,N.morale+10);
+  log(`${m.by}が岡崎に着き、長篠の危急を告げました。後詰は足を速めます（三日早く着く）`,"war",true); m.state="back"; m.backAt=N.day+2; }
+function nagMessengerReturn(){ const N=W.nag; const m=N.msg; const c=nagCastle(); const tk=clanByName("武田家"); const tk2=clanByName("徳川家"), od=clanByName("織田家"); const mineSide=(tk2&&W.player===tk2.id)||(od&&W.player===od.id);
+  const caught = m.auto ? true : rnd()<0.5;
+  if(!caught){ N.morale=Math.min(100,N.morale+20); N.hope=Math.min(100,N.hope+20); log(`${m.by}が長篠城へ戻り、「援軍は来る」と伝えました。城内は沸き立ちました`,"war",true); N.msgDone=true; N.msg=null; return; }
+  if(mineSide && !m.auto){ /* 人が選ぶ：武田の言うとおり叫ぶか、援軍は来ると叫ぶか */
+    koChoice("使者、捕らわる", `${esc(m.by)}は帰る途中で武田に捕らえられました。<br>武田「城へ向かって『援軍は来ない、開城せよ』と叫べ。さすれば命は助ける」`,
+      [["loyal","『援軍は来る』と叫ぶ",`${esc(m.by)}は磔に。城の士気+30`,()=>nagMessengerShout(true)],["obey","武田の言うとおり叫ぶ",`命は助かる。城の士気-20`,()=>nagMessengerShout(false)]]); }
+  else nagMessengerShout(true); }
+function nagMessengerShout(loyal){ const N=W.nag; const m=N.msg; if(!m) return; const c=nagCastle();
+  if(loyal){ N.morale=Math.min(100,N.morale+30); N.hope=100; W.nag.torii=true; log(`${m.by}、磔にされながら叫ぶ ――「援軍は来る！ あと二、三日、持ちこたえよ！」 城内は歓声に沸き、守りは固くなりました`,"war",true); if(typeof chronicle==="function") chronicle(`鳥居強右衛門、長篠城下に散る`); bigNews(`${m.by}の忠義`); const g=Object.values(W.generals).find(x=>x.name===m.by); if(g){ g.status="死亡"; g.troops=0; } }
+  else { N.morale=Math.max(0,N.morale-20); N.hope=Math.max(0,N.hope-30); log(`${m.by}は武田の言うままに「援軍は来ぬ」と叫び、城内は落胆しました`,"war",true); }
+  N.msgDone=true; N.msg=null; }
+/* 人が徳川・織田：誰を出すか */
+function openNagMessenger(){ const N=W.nag; const c=nagCastle(); if(!c||!N) return;
+  const cands=Object.values(W.generals).filter(g=>g.castle===c.id&&!g.army&&g.status!=="死亡"&&g.status!=="捕虜"&&!isChild(g)).slice(0,6);
+  const rows=[["鳥居強右衛門","足軽。川泳ぎの名手。城の危急を知らせるためなら命を惜しまない"]].concat(cands.map(g=>[g.name,`統${g.lea} 武${g.war}`]));
+  setSpeed(0);
+  const h=`<div class="advice">長篠城は苦しい（士気${Math.round(N.morale)}・米あと${nagFoodDays(c)}日）。夜陰に乗じて岡崎へ使者を出し、後詰を急がせます。<br>武田の哨戒をくぐり抜けねばなりません。</div>
+    <div class="sec-title">誰を出すか</div><div class="list">${rows.map(([n,d])=>`<div class="row"><b style="flex:1">${esc(n)}</b><span class="tiny muted">${esc(d)}</span><button class="chip kin" style="cursor:pointer" onclick="nagStartSneak('${esc(n)}')">出す</button></div>`).join("")}</div>
+    <button class="big ghost" onclick="closePanel();resumeSpeed();W.nag.msg=null;W.nag.msgDone=false;W.nag.msgLater=W.nag.day+3">今は出さない（三日後にまた）</button>`;
+  openPanel("長篠城からの使者","岡崎へ",h,"nagmsg"); }
+function nagStartSneak(name){ closePanel(); W.nag.msg={at:W.nag.day, by:name, state:"sneak", auto:false}; nagSneakStart(); }
+/* 潜入・脱出：小さな野。右の城から左の岡崎の道へ。武田の哨戒（赤い輪）を避けて、押した所へ走る。見つかれば「隠れる」か「迂回」 */
+let NS=null;
+function nagSneakStart(){ const wrap=document.createElement("div"); wrap.className="overlay keep"; wrap.id="nagSneak"; wrap.style.cssText="position:absolute;inset:0;z-index:60;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;";
+  wrap.innerHTML=`<div style="background:#14110B;border:1px solid #4A3F2A;border-radius:10px;padding:12px;max-width:96vw"><div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><b style="color:var(--kin)">夜の脱出 ―― ${esc(W.nag.msg.by)}</b><span class="tiny muted" id="nsHint">押した所へ走ります。赤い輪（哨戒）に入らないように。川は遅い、草むらは隠れやすい</span><span class="tiny num" id="nsTime" style="margin-left:auto">残り 45</span></div><canvas id="nsCv" width="720" height="360" style="width:min(92vw,720px);height:auto;display:block;border-radius:6px;background:#0B1A10"></canvas><div id="nsAsk" hidden style="display:flex;gap:8px;justify-content:center;margin-top:8px"><span style="align-self:center">見つかりそうだ ――</span><button class="tool on" id="nsHide">隠れる</button><button class="tool" id="nsAround">迂回する</button></div></div>`;
+  document.getElementById("stage").appendChild(wrap); overlayEl=wrap; setSpeed(0);
+  const cv=wrap.querySelector("#nsCv"); const ctx=cv.getContext("2d");
+  NS={cv,ctx,wrap, x:640,y:180, tx:null,ty:null, t:45, done:false, ask:false, hidden:0, safe:2.5, pats:[{x:520,y:90,vx:0,vy:1.1,r:46},{x:430,y:260,vx:1.2,vy:0,r:44},{x:300,y:150,vx:0,vy:-1.0,r:42},{x:180,y:250,vx:-1.0,vy:0,r:40}], grass:[{x:560,y:40,w:90,h:70},{x:380,y:290,w:110,h:60},{x:240,y:60,w:100,h:70},{x:120,y:170,w:90,h:80}], river:{x:330,w:60}, last:performance.now()};
+  const P=(ev)=>{ const r=cv.getBoundingClientRect(); const sx=cv.width/r.width, sy=cv.height/r.height; return [(ev.clientX-r.left)*sx,(ev.clientY-r.top)*sy]; };
+  cv.addEventListener("pointerdown",ev=>{ if(!NS||NS.done||NS.ask) return; const [x,y]=P(ev); NS.tx=Math.max(8,Math.min(cv.width-8,x)); NS.ty=Math.max(8,Math.min(cv.height-8,y)); });
+  wrap.querySelector("#nsHide").onclick=()=>{ if(!NS||!NS.ask) return; const inGrass=NS.grass.some(g=>NS.x>=g.x&&NS.x<=g.x+g.w&&NS.y>=g.y&&NS.y<=g.y+g.h); const ok=rnd()<(inGrass?0.85:0.55); NS.ask=false; wrap.querySelector("#nsAsk").hidden=true; if(ok){ NS.hidden=3; NS.tx=NS.ty=null; toastIn("息を殺してやり過ごした"); } else nagSneakEnd(false,"見つかった"); };
+  wrap.querySelector("#nsAround").onclick=()=>{ if(!NS||!NS.ask) return; NS.ask=false; wrap.querySelector("#nsAsk").hidden=true; NS.x=Math.min(cv.width-8,NS.x+40); NS.tx=NS.ty=null; NS.t-=4; NS.safe=2; toastIn("遠回りして間合いを取った"); };
+  const toastIn=(t)=>{ wrap.querySelector("#nsHint").textContent=t; };
+  const tick=()=>{ if(!NS||NS.done) return; const now=performance.now(); const dt=Math.min(0.05,(now-NS.last)/1000); NS.last=now;
+    if(!NS.ask){ NS.t-=dt; if(NS.t<=0){ nagSneakEnd(false,"夜が明けた"); return; } if(NS.hidden>0) NS.hidden-=dt; if(NS.safe>0) NS.safe-=dt;
+      for(const p of NS.pats){ p.x+=p.vx*60*dt; p.y+=p.vy*60*dt; if(p.x<60||p.x>560) p.vx*=-1; if(p.y<40||p.y>320) p.vy*=-1; }
+      if(NS.tx!==null && NS.hidden<=0){ const dx=NS.tx-NS.x, dy=NS.ty-NS.y, d=Math.hypot(dx,dy); const inRiver=Math.abs(NS.x-NS.river.x)<NS.river.w/2; const sp=(inRiver?55:110)*dt; if(d<=sp){ NS.x=NS.tx; NS.y=NS.ty; NS.tx=null; } else { NS.x+=dx/d*sp; NS.y+=dy/d*sp; } }
+      if(NS.x<=30){ nagSneakEnd(true,"岡崎への道に出た"); return; }
+      if(NS.hidden<=0 && !(NS.safe>0)){ for(const p of NS.pats){ if(Math.hypot(p.x-NS.x,p.y-NS.y)<p.r){ NS.ask=true; NS.tx=NS.ty=null; wrap.querySelector("#nsAsk").hidden=false; break; } } } }
+    wrap.querySelector("#nsTime").textContent="残り "+Math.max(0,Math.ceil(NS.t));
+    /* 描く */
+    const c2=ctx; c2.clearRect(0,0,cv.width,cv.height); c2.fillStyle="#0F2214"; c2.fillRect(0,0,cv.width,cv.height);
+    c2.fillStyle="#1B3D6B"; c2.fillRect(NS.river.x-NS.river.w/2,0,NS.river.w,cv.height); c2.fillStyle="rgba(255,255,255,.08)"; for(let i=0;i<12;i++) c2.fillRect(NS.river.x-20+(i%3)*14, (i*31+Math.floor(now/40))%cv.height, 8,2);
+    c2.fillStyle="#1E4A22"; for(const g of NS.grass){ c2.fillRect(g.x,g.y,g.w,g.h); c2.fillStyle="#2B5E2E"; for(let i=0;i<8;i++) c2.fillRect(g.x+(i*17)%g.w, g.y+(i*23)%g.h, 3,6); c2.fillStyle="#1E4A22"; }
+    c2.fillStyle="#5A4634"; c2.fillRect(650,120,60,120); c2.fillStyle="#EDE6D6"; c2.font="12px sans-serif"; c2.textAlign="center"; c2.fillText("長篠城",680,110); c2.fillStyle="#C9A227"; c2.fillRect(0,0,26,cv.height); c2.fillStyle="#1A1208"; c2.save(); c2.translate(13,180); c2.rotate(-Math.PI/2); c2.fillText("岡崎への道",0,4); c2.restore();
+    for(const p of NS.pats){ c2.strokeStyle="rgba(255,80,60,.8)"; c2.lineWidth=2; c2.beginPath(); c2.arc(p.x,p.y,p.r,0,7); c2.stroke(); c2.fillStyle="rgba(255,80,60,.12)"; c2.fill(); c2.fillStyle="#E24A3A"; c2.fillRect(p.x-4,p.y-4,8,8); c2.fillStyle="#FFD166"; c2.fillRect(p.x-2,p.y-14,4,8); }
+    if(NS.tx!==null){ c2.strokeStyle="rgba(255,214,102,.7)"; c2.setLineDash([4,4]); c2.beginPath(); c2.moveTo(NS.x,NS.y); c2.lineTo(NS.tx,NS.ty); c2.stroke(); c2.setLineDash([]); }
+    c2.fillStyle=NS.hidden>0?"rgba(120,200,255,.5)":"#8FD0FF"; c2.beginPath(); c2.arc(NS.x,NS.y,6,0,7); c2.fill(); c2.fillStyle="#fff"; c2.font="11px sans-serif"; c2.fillText(W.nag.msg.by, NS.x, NS.y-10);
+    requestAnimationFrame(tick); };
+  requestAnimationFrame(tick); }
+function nagSneakEnd(ok, why){ if(!NS||NS.done) return; NS.done=true; const N=W.nag; const m=N.msg; const wrap=NS.wrap; setTimeout(()=>{ try{ wrap.remove(); }catch(_){ } if(overlayEl===wrap) overlayEl=null; resumeSpeed(); },900);
+  const c2=NS.ctx; c2.fillStyle="rgba(0,0,0,.6)"; c2.fillRect(0,0,NS.cv.width,NS.cv.height); c2.fillStyle=ok?"#FFD166":"#FF9A88"; c2.font="900 26px sans-serif"; c2.textAlign="center"; c2.fillText(ok?"抜けた！ "+why:"しくじった ―― "+why, NS.cv.width/2, NS.cv.height/2);
+  if(ok){ m.state="out"; log(`${m.by}が武田の哨戒をくぐり抜け、岡崎へ走りました`,"war",true); }
+  else { N.msgDone=true; N.msg=null; N.morale=Math.max(0,N.morale-8); log(`${m.by}は武田に捕らえられ、使者は失敗しました。城内は気落ちしています`,"war",true); const g=Object.values(W.generals).find(x=>x.name===m.by); if(g&&g.castle){ g.status="捕虜"; g.captor=(clanByName("武田家")||{}).id; g.troops=0; } }
+  NS=null; }
 function nagashinoWear(){ const c=Object.values(W.castles).find(x=>x.name==="長篠城"); const tk=clanByName("武田家"); if(c && c.clan!==null && tk && c.clan!==tk.id){ c.defense=Math.max(Math.floor(maxDefense(c)*0.12), Math.floor(c.defense*0.75)); c.food=Math.floor((c.food||0)*0.8); } }
 function decisiveDaily(){
   if(!W.started) return;
   scriptedEnvoys();
+  try{ if(W.nag && W.nag.msgLater!==undefined && !W.nag.msg && !W.nag.msgDone && nagSiegeOn() && W.nag.day>=W.nag.msgLater){ W.nag.msgLater=undefined; W.nag.msg={at:W.nag.day,by:null}; openNagMessenger(); } nagSiegeDaily(); }catch(e){ console.error(e); }
   // 戦の条件（賤ヶ岳）や年月（川中島・三方ヶ原・長篠）で起きる決戦
   if(!W.decisivePending){
     for(const d of DECISIVE){
@@ -14450,6 +14584,7 @@ function decisiveDaily(){
   }
 }
 function fireDecisive(d){
+  if(W.nag && d && /nagashino/.test(d.key)) W.nag.done=true;   /* 長篠城の攻防はここまで（第132巡） */
   W.fired.add(d.id);
   if(d.key==="kawanakajima"){ const tk=clanByName("武田家"); if(tk && !findGeneralByName("武田信繁")){ const g=spawnGeneral("武田信繁",tk.id,null,1500); if(g){ g.family=true; g.loyalty=100; } } }
   const A=clanByName(d.atk)||(d.altAtk?clanByName(d.altAtk):null), Bc=clanByName(d.def)||(d.altDef?clanByName(d.altDef):null);
@@ -14939,6 +15074,8 @@ function startBattle(e){
       B.nagashino=true; B.fenceTotal0=B.obstacles.filter(o=>o.fence&&o.hpMax).length;
       if(B.ctx.playerSide===1){ B.mods=B.mods||{}; B.mods[1]={...(B.mods[1]||{cav:1,gunP:1,gunA:1,mor:1}), gunP:((B.mods[1]||{}).gunP||1)*0.75}; }   /* 鉄砲の威力は半分（騎馬が溶けるのが早すぎた。作り手の指示） */
       if(B.ctx.playerSide===0){ for(const u of B.units) if(u.side===1){ if(u.type===3&&u.ammo!==undefined){ u.ammo=Math.round(u.ammo*0.8); u.ammoMax=Math.max(u.ammo,1); } u.morale=Math.max(20,u.morale-10); } for(const u of B.units) if(u.side===0) u.morale=Math.min(100,u.morale+10); B.mods=B.mods||{}; B.mods[1]={...(B.mods[1]||{cav:1,gunP:1,gunA:1,mor:1}), gunP:((B.mods[1]||{}).gunP||1)*0.4};   /* 第128巡：武田二万・柵+15%の分、人が武田のときの鉄砲は四割に */ }   /* 織田の鉄砲は七割の威力（人が武田のとき。第108巡：騎馬を堅くした分、四割五分から戻す） */
+      if(W.nag && W.nag.fell){ for(const u of B.units){ if(u.side===0) u.morale=Math.min(100,u.morale+10); else if(W.generals[u.gid]&&clanName(W.generals[u.gid].clan)==="徳川家") u.morale=Math.max(10,u.morale-10); } log("長篠城が落ちていたため、武田は意気が上がり、徳川は沈んでいます","war"); }   /* 第132巡：長篠城の攻防の結果 */
+      else if(W.nag && W.nag.torii){ for(const u of B.units) if(u.side===1&&W.generals[u.gid]&&clanName(W.generals[u.gid].clan)==="徳川家") u.morale=Math.min(100,u.morale+5); }
       /* 第108巡：人が武田のときの上乗せ（練度・結束・武勇・騎馬）はやめ。武田家の強さ（第104巡）と騎馬の堅さ二倍（第107巡）で十分に強い（作り手：強すぎる） */
       // 設楽原の連吾川。柵の前を流れ、渡る兵の足が鈍り、川の中では火縄が湿る
       { const rx=Math.round(line+dir*4.5); for(let r=0;r<BF.h;r++){ if(B.tiles&&B.tiles[r]&&rx>=0&&rx<BF.w) B.tiles[r][rx]=(r===Math.round(BF.h*0.3)||r===Math.round(BF.h*0.3)+1||r===Math.round(BF.h*0.72)||r===Math.round(BF.h*0.72)+1) ? BT.FORD : BT.WATER; } B.bg=null; }   // 浅瀬が二か所
