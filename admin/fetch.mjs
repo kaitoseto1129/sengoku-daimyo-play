@@ -30,7 +30,7 @@ for (const [name, days] of [["d7", 6], ["d30", 29], ["d90", 89]]) {
   const start = day(days), end = day(0);
   out.ranges[name] = {
     start, end,
-    total: await get("stats/total", { start, end, daily: "true" }),
+    total: await get("stats/total", { start, end }),
     hits: await hitsAll(start, end),
   };
 }

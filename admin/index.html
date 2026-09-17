@@ -85,7 +85,8 @@ function sumStats(h){ return (h.stats||[]).reduce((s,d)=>s+(d.daily||0),0); }
 function render(){
   if(!DATA) return; const R=DATA.ranges[RANGE]; if(!R){ return; }
   const hits=(R.hits||[]); const tot=R.total||{};
-  const days=(tot.stats||[]).map(d=>({day:d.day, n:d.daily||0}));
+  let days=(tot.stats||[]).map(d=>({day:d.day, n:d.daily||0}));
+  if(!days.length){ const m={}; for(const h of hits){ if(h.event) continue; for(const d of (h.stats||[])) m[d.day]=(m[d.day]||0)+(d.daily||0); } days=Object.keys(m).sort().map(k=>({day:k,n:m[k]})); }   /* 総数が取れなければ、道ごとの数から日ごとに足す */
   const visits=days.reduce((s,d)=>s+d.n,0);
   const ev=p=>hits.filter(h=>h.event && h.path.startsWith("ev/"+p)).reduce((s,h)=>s+sumStats(h),0);
   const byPrefix=p=>{ const m={}; for(const h of hits){ if(!h.event||!h.path.startsWith("ev/"+p+"/")) continue; const rest=h.path.slice(("ev/"+p+"/").length); m[rest]=(m[rest]||0)+sumStats(h); } return Object.entries(m).sort((a,b)=>b[1]-a[1]); };
