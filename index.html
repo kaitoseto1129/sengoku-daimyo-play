@@ -14071,7 +14071,7 @@ const DECISIVE=[
    terrain:1, forts:"def", nAtk:10, nDef:5, atkTroops:35000, defTroops:6500,
    atkGens:["福島正則","池田輝政","浅野幸長","細川忠興","黒田長政","加藤嘉明","井伊直政"], defGens:["織田秀信","百々綱家","木造具康","島清興","舞兵庫"],
    site:["岐阜城","大垣城"],
-   holdWin:{side:"def", sec:160, keep:0.3, h:"岐阜、持ちこたえる", t:"秀信は稲葉山の坂で東軍先鋒を止めた。東軍は足を止め、西軍は大垣で息を継ぐ"},
+   holdWin:{side:"def", sec:200, keep:0.3, h:"岐阜、持ちこたえる", t:"秀信は稲葉山の坂で東軍先鋒を止めた。東軍は足を止め、西軍は大垣で息を継ぐ"},
    gather:"福島正則「岐阜など一日で落とす」。東軍先鋒が木曽川を渡る", open:"岐阜城。稲葉山。秀信の六千五百に東軍三万五千。後詰は来るか",
    after:{ atkWin:{ text:"岐阜城は一日で落ちた。織田秀信は降って高野山へ。西軍は大垣に籠る", capture:"岐阜城", run:()=>{ (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).westMor-=5; } },
            defWin:{ text:"岐阜は持ちこたえ、東軍の先鋒は足を止めた。西軍の意気は上がる", run:()=>{ (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).westMor+=4; W.sekMod.atkTroops-=4000; } } } },
@@ -16340,6 +16340,108 @@ function kizuTick(dt){ const K=B.kz; if(!K||B.over!==null) return; const H=BF.h,
   if(!(K.phaseAt>B.elapsed-1)){ K.phaseAt=B.elapsed; const def=B.units.filter(u=>u.side===1&&u.troops>.5&&!u.left&&!u.sigHidden); const avg=(us)=>us.length?us.reduce((a,u)=>a+u.morale,0)/us.length:0; let ph="接近";
     if(avg(def)<30||avg(atk)<30) ph="総崩れ"; else if((B.gate&&B.gate.open)||atk.some(inFort)) ph="砦突入"; else if(atk.some(u=>Math.abs(u.x-K.fx)<2.5)) ph="柵攻防"; else if(atk.some(u=>{ const t=bTileAt(u.x,u.y); return t===BT.WATER||t===BT.FORD||Math.abs(u.x-K.rx)<2.5; })) ph="渡河戦";
     if(ph!==K.phase){ K.phase=ph; B.banner={t:`――${ph}――`, at:B.elapsed}; B.phaseChip=ph; try{ renderBattleFoot(); }catch(_){ } } } }
+
+/* ===== 第184巡：岐阜城の戦い（慶長五年）――金華山を登りながら防御線を一つずつ突破する山城攻略戦。作り手の仕様書「岐阜城の戦い ステージ全面改善」 =====
+   野は山麓（寄せ手の側の下）から本丸（守り手の側の上）へ斜めに登る。開いた所（山麓・山道・中腹・山上郭・本丸）以外は崖で通れない。
+   門は一ノ門→二ノ門の二つ（共通の門の仕組み B.gate を順に差し替える）。門が破れれば大きな演出、守り手は次の郭へ退く。天守は本丸の奥に常に見える。
+   掟：カメラは勝手に動かさない（仕様の「カメラが上へ」はやらない）。人は左。 */
+function gifuGeom(){ const Wd=BF.w, H=BF.h; const defLeft=B.ctx.playerSide===1; const mx=x=>defLeft?(Wd-1-x):x;
+  const G={defLeft, mx,
+    pockets:[ {k:0,n:"山麓",x0:1,x1:20,y0:13,y1:H-1,lv:0}, {k:2,n:"中腹",x0:34,x1:46,y0:7,y1:17,lv:2}, {k:4,n:"山上郭",x0:58,x1:68,y0:2,y1:10,lv:4}, {k:5,n:"本丸",x0:69,x1:Wd-1,y0:1,y1:9,lv:5} ],
+    roads:[ {k:1,n:"山道",ax:20,ay:19.5,bx:31,by:12.5,w:1.7,lv:1}, {k:3,n:"山道",ax:46,ay:11,bx:56,by:6.5,w:1.4,lv:3} ],
+    gates:[ {k:"g1",n:"一ノ門",x:32,y:12.5,half:2.4,hp:900,lv:2,dx:2.6}, {k:"g2",n:"二ノ門",x:57,y:6.5,half:1.9,hp:700,lv:4,dx:2.4} ],
+    fence:{x:21,y0:13,y1:H-1,gap:[18,21.5]},
+    tenshu:{x:Wd-5,y:6.4}, honmaruRally:{x:Wd-11,y:5.5}, chubanRally:{x:40,y:12}, sanjoRally:{x:63,y:6} };
+  return G; }
+function gifuOpenAt(G,x,y){ /* 開いた所か。返り値：{lv,k} か null */
+  for(const p of G.pockets){ if(x>=p.x0&&x<=p.x1&&y>=p.y0&&y<=p.y1) return p; }
+  for(const g of G.gates){ if(Math.abs(x-g.x)<=g.dx&&Math.abs(y-g.y)<=g.half+0.4) return {lv:g.lv,k:g.k,gate:true}; }
+  for(const r of G.roads){ const dx=r.bx-r.ax, dy=r.by-r.ay; const L2=dx*dx+dy*dy||1; let t=((x-r.ax)*dx+(y-r.ay)*dy)/L2; t=Math.max(0,Math.min(1,t)); const px=r.ax+dx*t, py=r.ay+dy*t; if(Math.hypot(x-px,y-py)<=r.w) return r; }
+  return null; }
+function gifuSetup(){ if(!B||!B.tiles) return; try{ bWiden(); }catch(e){ console.error(e); } const Wd=BF.w, H=BF.h; const G=gifuGeom(); const mx=G.mx; const defLeft=G.defLeft;
+  const R=artRng((B.seed||3)+184);
+  /* 山肌：開いた所以外は崖と山林。開いた所は山麓＝草、山道＝道（坂）、郭＝踏み固めた土 */
+  B.blockCells=new Set(); B.gfLevel=[];
+  for(let r=0;r<H;r++){ B.gfLevel.push([]); for(let c=0;c<Wd;c++){ const o=gifuOpenAt(G, mx(c+0.5), r+0.5); B.gfLevel[r][c]=o?o.lv:-1;
+    if(!o){ B.tiles[r][c]=R()<0.42?BT.FOREST:BT.CLIFF; } else if(o.gate){ B.tiles[r][c]=BT.DIRT; } else if(o.lv===0){ B.tiles[r][c]=R()<0.12?BT.FOREST:BT.GRASS; } else if(o.lv===1||o.lv===3){ B.tiles[r][c]=BT.ROAD; } else { B.tiles[r][c]=R()<0.25?BT.GRASS:BT.DIRT; } } }
+  for(let gc=0;gc<gCols();gc++) for(let gr=0;gr<gRows();gr++){ const [cx,cy]=cellCenter(gc,gr); const o=gifuOpenAt(G, mx(cx), cy); if(!o) B.blockCells.add(gc*1000+gr); }
+  /* 天守の升も通れない */ { const T=G.tenshu; for(let gc=0;gc<gCols();gc++) for(let gr=0;gr<gRows();gr++){ const [cx,cy]=cellCenter(gc,gr); if(Math.abs(mx(cx)-T.x)<=3.2&&Math.abs(cy-T.y)<=2.6) B.blockCells.add(gc*1000+gr); } }
+  /* 第一防御線：柵（守り手の）。真ん中に口 */
+  B.obstacles=B.obstacles.filter(o=>!(o.kind===1)); const F=G.fence; for(let y=F.y0+0.6;y<F.y1;y+=1.3){ if(y>=F.gap[0]&&y<=F.gap[1]) continue; B.obstacles.push({kind:1, variant:Math.floor(y)%3, x:mx(F.x), y, r:0.85, wall:true, fort:true, fence:true, side:1, hp:140, hpMax:140}); }
+  /* 門：一ノ門を共通の門に。二ノ門は控え */
+  const g1=G.gates[0], g2=G.gates[1]; B.gate={x:mx(g1.x), y:g1.y, hp:g1.hp, hpMax:g1.hp, open:false, name:g1.n, half:g1.half}; B.gfGate2={x:mx(g2.x), y:g2.y, hp:g2.hp, hpMax:g2.hp, open:false, name:g2.n, half:g2.half};
+  B.siegeLine0=B.gate.x; B.siegeLayers=1; B.siegeStage=0; B.siegeKoguchi=true; B.moat=null; B.moatPlan=null; B.fires=B.fires||[];
+  const K={G, stage:0, breach:[], honIn:false, atkStart:0, mxv:mx}; B.gf=K; B.siegeName="岐阜城";
+  /* 配置。守り手：一ノ門の内に一隊と鉄砲（門上の石垣＝中腹の縁）、二ノ門の内に一隊、山上郭に一隊、本丸に秀信 */
+  const put=(u,x,y)=>{ u.x=Math.max(1,Math.min(Wd-1.5,mx(x))); u.y=Math.max(1.5,Math.min(H-1.5,y)); u.gx=u.x; u.gy=u.y; u.cell=null; u.nextCell=null; u.stageX=undefined; u.stageY=undefined; u.order={k:"guard"}; };
+  const def=B.units.filter(u=>u.side===1&&u.troops>.5&&!u.sigHidden); const cmd=def.find(u=>u.cmd); const rest=def.filter(u=>!u.cmd); const guns=rest.filter(u=>u.type===3), oth=rest.filter(u=>u.type!==3);
+  const spots=[[35.5,12.5,1],[36,9.5,1],[59.5,6.5,3],[63,4.5,3],[41,14.5,1],[65,8.5,3]]; let si=0;
+  if(guns[0]){ put(guns[0],36,9.5); guns[0].gfZone=1; guns[0].holdUntil=99999; guns[0].hiGround=true; }
+  for(const u of oth.concat(guns.slice(1))){ const sp=spots[si%spots.length]; si++; put(u,sp[0],sp[1]); u.gfZone=sp[2]; u.holdUntil=99999; }
+  if(cmd){ put(cmd, G.honmaruRally.x, G.honmaruRally.y); cmd.gfZone=5; cmd.holdUntil=99999; }
+  for(const u of def){ u.tough=(u.tough||1)*1.15; }
+  /* 寄せ手：山麓に攻めの陣（前列＝足軽・侍、中列＝鉄砲、後列＝騎馬、本陣は奥） */
+  const atk=B.units.filter(u=>u.side===0&&u.troops>.5&&!u.sigHidden); const rows=[atk.filter(u=>!u.cmd&&(u.type===0||u.type===1)), atk.filter(u=>!u.cmd&&u.type===3), atk.filter(u=>!u.cmd&&u.type===2)];
+  rows.forEach((us,ri)=>{ const n=us.length; us.forEach((u,i)=>{ const col=ri===0?(i%2):0; put(u, 15-ri*3.2-col*1.6, 14.5+ (H-1-14.5)*((i+0.5)/Math.max(1,n))); u.order={k:"guard"}; }); });
+  const ac=atk.find(u=>u.cmd); if(ac){ put(ac, 4, 20); }
+  K.atkStart=atk.reduce((a,u)=>a+u.troops,0);
+  try{ gridSettleAll(); }catch(_){ }
+  B.fieldLabels=[{x:mx(10),y:12.2,t:"山麓"},{x:mx(40),y:6.2,t:"中腹"},{x:mx(63),y:1.2,t:"山上郭"},{x:mx(Wd-12),y:0.9,t:"本丸"},{x:mx(Wd-5),y:9.6,t:"岐阜城 天守"}];
+  B.keyPoints=[{name:"本丸", x:mx(G.honmaruRally.x), y:G.honmaruRally.y, r:2.6, owner:1, hqSide:1}];
+  B.objective = B.ctx.playerSide===0 ? "一ノ門を突破せよ（山道は狭い。門の前に固まるな）" : "一ノ門で止めよ。破られたら二ノ門、本丸へ退いて守る";
+  B.phaseChip=null; B.bg=null; B._fenceVer=(B._fenceVer||0)+1; B.cx=mx(18); B.cy=H/2; }   /* 最初の目は山麓（寄せ手の陣）に置く。以後は動かさない */
+function gifuZones(){ const K=B.gf; if(!K) return []; const st=K.stage; const hq=B.units.find(u=>u.side===1&&u.cmd); const hqDown=!hq||hq.troops<=.5||hq.morale<=0; const atk=B.units.filter(u=>u.side===0&&u.troops>.5&&u.morale>0&&!u.left); const lvOf=u=>{ const c=Math.floor(u.x), r=Math.floor(u.y); return (B.gfLevel[r]&&B.gfLevel[r][c]!==undefined)?B.gfLevel[r][c]:-1; }; const deep=atk.length?Math.max(...atk.map(lvOf)):0;
+  return [{n:"山麓",taken:deep>=1},{n:"一ノ門",taken:st>=1},{n:"二ノ門",taken:st>=2},{n:"山上郭",taken:st>=2&&deep>=4},{n:"本丸",taken:B.over===0||hqDown||K.honIn}]; }
+function gifuTick(dt){ const K=B.gf; if(!K||B.over!==null||B.opening>0) return; const G=K.G; const mx=K.mxv;
+  /* 門の煙と火：五割で煙、二割五分で燃える（門の一部だけ。城全体は燃やさない） */
+  if(B.gate&&!B.gate.open){ const k=B.gate.hp/B.gate.hpMax; if(k<0.5&&!(B.gate.smokeAt>B.elapsed-1.2)){ B.gate.smokeAt=B.elapsed; B.decals=B.decals||[]; if(B.decals.length<80) B.decals.push({k:"smoke",x:B.gate.x,y:B.gate.y+(rnd()-.5)*2,t:B.elapsed}); }
+    if(k<0.25&&!B.gate.burning){ B.gate.burning=true; B.fires.push({x:B.gate.x, y:B.gate.y-1.2, t:0, life:45, siege:true}); B.banner={t:`${B.gate.name}が燃え始めた`, at:B.elapsed}; } }
+  /* 一ノ門・二ノ門の突破 */
+  if(B.gate&&B.gate.open&&!B.gate.breached){ B.gate.breached=true; const gname=B.gate.name; K.breach.push({x:B.gate.x,y:B.gate.y,name:gname,at:B.elapsed,half:B.gate.half}); K.stage++;
+    B.shakeT=0.7; B.bigBanner={t:`${gname} 突破`, at:B.elapsed, good:B.ctx.playerSide===0, big:true}; B.chips=B.chips||[]; for(let i=0;i<40;i++) B.chips.push({x:B.gate.x+(rnd()-.5)*1.5, y:B.gate.y+(rnd()-.5)*4, vx:(rnd()-.5)*7, vy:-4-rnd()*5, t:0, life:1+rnd()*0.8}); B.decals=B.decals||[]; for(let i=0;i<4;i++) B.decals.push({k:"smoke",x:B.gate.x+(rnd()-.5)*2,y:B.gate.y+(rnd()-.5)*3,t:B.elapsed}); B.fires.push({x:B.gate.x, y:B.gate.y+1.0, t:0, life:40, siege:true});
+    try{ playSE("siege"); setTimeout(()=>{ try{ playSE("warcry"); }catch(_){ } },500); }catch(_){ }
+    const rally = K.stage===1 ? G.chubanRally : G.sanjoRally; const next = K.stage===1 ? "二ノ門" : "本丸";
+    for(const u of B.units){ if(u.side!==1||u.troops<=.5||u.left||u.morale<=0) continue; if((u.gfZone||0)<=(K.stage===1?1:3)&&!u.cmd){ const tx=mx(rally.x)+(rnd()-.5)*3, ty=rally.y+(rnd()-.5)*3; u.order={k:"move",x:tx,y:ty}; u.gx=tx; u.gy=ty; u.gfZone=K.stage===1?3:5; u.morale=Math.max(0,u.morale-8); u.holdUntil=99999; } }
+    log(`岐阜城の${gname}が破られた。守り手は${next}へ退く`,"war",true);
+    K.switchAt=B.elapsed+2.2; }
+  if(K.switchAt!==undefined&&B.elapsed>=K.switchAt){ K.switchAt=undefined; if(K.stage===1){ B.gate=B.gfGate2; B.siegeLine0=B.gate.x; B._fenceVer=(B._fenceVer||0)+1; B.objective=B.ctx.playerSide===0?"二ノ門へ進軍せよ（山道はさらに狭い。少しずつ押し上げよ）":"二ノ門で止めよ。狭い道なら少数でも守れる"; B.banner={t:"二ノ門を目指せ", at:B.elapsed}; } else { B.gate=null; B._fenceVer=(B._fenceVer||0)+1; B.objective=B.ctx.playerSide===0?"山上郭を制圧し、本丸の織田秀信を討て":"本丸を守れ。秀信が立つ限り岐阜は落ちぬ"; B.banner={t:"山上郭を制圧せよ", at:B.elapsed}; } try{ renderBattleFoot(); renderBattleGoal(); }catch(_){ } }
+  /* 本丸突入 */
+  if(!K.honIn){ const P=G.pockets[3]; if(B.units.some(u=>u.side===0&&u.troops>.5&&u.morale>0&&!u.left&&(()=>{ const x=mx(u.x); return x>=P.x0&&x<=P.x1&&u.y>=P.y0&&u.y<=P.y1; })())){ K.honIn=true; B.bigBanner={t:"本丸突入", at:B.elapsed, good:B.ctx.playerSide===0, big:true}; B.shakeT=0.4; try{ playSE("drum"); }catch(_){ } const cmd=B.units.find(u=>u.side===1&&u.cmd); if(cmd) bshout(cmd.id,"織田の名にかけて、ここは退かぬ！",3); B.objective=B.ctx.playerSide===0?"本丸を攻略せよ。織田秀信の本隊を崩せ":"本丸の決戦。秀信を守り抜け"; log("東軍が岐阜城の本丸へ突入した","war",true); } }
+  /* 高所：郭の守り手は上から撃つ（射程と守りの上乗せ。坂の下の寄せ手は不利） */
+  if(!(K.hiAt>B.elapsed-1)){ K.hiAt=B.elapsed; for(const u of B.units){ if(u.troops<=.5||u.left) continue; const c=Math.floor(u.x), r=Math.floor(u.y); const lv=(B.gfLevel[r]&&B.gfLevel[r][c]!==undefined)?B.gfLevel[r][c]:0; const was=u.gfHi||0; const now=u.side===1&&lv>=2?1:0; if(was!==now){ u.gfHi=now; u.defBonus=(u.defBonus||1)*(now?1.15:1/1.15); u.rngMul=(u.rngMul||1)*(now?1.15:1/1.15); } } }
+  /* 局面の札 */ { const z=gifuZones(); const cur=z.findIndex(x=>!x.taken); const txt=z.map((x,i)=>`${x.n}${x.taken?"✓":i===cur?"●":"○"}`).join(" "); if(txt!==B.phaseChip){ B.phaseChip=txt; try{ renderBattleGoal(); }catch(_){ } } } }
+function drawGifu(sx,sy){ const K=B.gf; if(!K) return; const G=K.G; const mx=K.mxv; const defLeft=G.defLeft; const dirIn=defLeft?-1:1;   /* dirIn：山麓から城へ向く x の向き */
+  const atkClan=(()=>{ const u=B.units.find(z=>z.side===0&&z.cmd&&z.gid&&W.generals[z.gid])||B.units.find(z=>z.side===0&&z.gid&&W.generals[z.gid]); return u&&W.clans[W.generals[u.gid].clan]; })();
+  const defClan=(()=>{ const u=B.units.find(z=>z.side===1&&z.cmd&&z.gid&&W.generals[z.gid])||B.units.find(z=>z.side===1&&z.gid&&W.generals[z.gid]); return u&&W.clans[W.generals[u.gid].clan]; })();
+  const stone=(x,y,w,h)=>{ bctx.fillStyle="#8A8477"; bctx.fillRect(x,y,w,h); bctx.fillStyle="#5F5A50"; for(let yy=y;yy<y+h;yy+=sy*0.45) bctx.fillRect(x,yy,w,1.5); bctx.fillStyle="#B0A995"; for(let yy=y;yy<y+h;yy+=sy*0.45) for(let xx=x+((yy/sy*2|0)%2?sx*0.35:0);xx<x+w;xx+=sx*0.7) bctx.fillRect(xx,yy+2,sx*0.3,sy*0.2); bctx.fillStyle="rgba(0,0,0,.35)"; bctx.fillRect(x,y+h-3,w,3); };
+  const drawGate=(g,broken,isNow)=>{ const gx=mx(g.x)*sx, gy=g.y*sy; const half=(g.half||2.4)*sy; const wallLen=sx*4.5;
+    /* 石垣：門の両脇から崖へ。門の内側（城側）は一段高い石垣 */
+    stone(gx-sx*0.9, gy-half-wallLen, sx*1.8, wallLen); stone(gx-sx*0.9, gy+half, sx*1.8, wallLen);
+    /* 隅櫓 */ for(const ty of [gy-half-wallLen+sy*0.3, gy+half+wallLen-sy*1.7]){ bctx.fillStyle="#EDE6D6"; bctx.fillRect(gx-sx*0.8, ty-sy*1.4, sx*1.6, sy*1.4); bctx.fillStyle="#2E2A28"; bctx.beginPath(); bctx.moveTo(gx-sx*1.05,ty-sy*1.4); bctx.lineTo(gx,ty-sy*2.1); bctx.lineTo(gx+sx*1.05,ty-sy*1.4); bctx.closePath(); bctx.fill(); bctx.fillStyle="#3A2A18"; bctx.fillRect(gx-sx*0.45,ty-sy*1.05,sx*0.2,sy*0.3); bctx.fillRect(gx+sx*0.25,ty-sy*1.05,sx*0.2,sy*0.3); }
+    /* 門櫓：石の台の上に白壁、瓦屋根。門扉は真ん中 */
+    const hitK=(isNow&&g.hitAt!==undefined)?Math.max(0,1-(B.elapsed-g.hitAt)/0.4):0; const shx=Math.sin(B.elapsed*40)*3*hitK;
+    if(!broken){ bctx.fillStyle="#5A4634"; bctx.fillRect(gx-sx*0.7+shx, gy-half, sx*1.4, half*2); bctx.fillStyle="#8B6E4E"; bctx.fillRect(gx-sx*0.5+shx, gy-half+3, sx*1.0, half*2-6); bctx.fillStyle="#3A2A18"; for(let i=0;i<6;i++) bctx.fillRect(gx-sx*0.5+shx, gy-half+3+i*(half*2-6)/6, sx*1.0, 2); bctx.fillStyle="#C9A227"; for(let i=0;i<3;i++){ bctx.beginPath(); bctx.arc(gx-sx*0.25+shx, gy-half*0.6+i*half*0.6, 2, 0, 7); bctx.arc(gx+sx*0.25+shx, gy-half*0.6+i*half*0.6, 2, 0, 7); bctx.fill(); }
+      const dmg=1-Math.max(0,g.hp/g.hpMax); if(dmg>0.15){ bctx.strokeStyle="#1E1208"; bctx.lineWidth=1.2; const n=Math.min(6,Math.floor(dmg*8)); for(let i=0;i<n;i++){ const yy=gy-half*0.8+((i*37)%100)/100*half*1.6; bctx.beginPath(); bctx.moveTo(gx-sx*0.5,yy); bctx.lineTo(gx+((i*13)%5-2),yy+((i*7)%9)-4); bctx.lineTo(gx+sx*0.5,yy+((i*11)%7)-3); bctx.stroke(); } }
+      if(dmg>0.5){ bctx.fillStyle="#2A1C10"; bctx.fillRect(gx-sx*0.5, gy-half*0.25, sx*1.0, half*0.5); }
+    } else { /* 破れた門：倒れた扉、焦げ跡 */ bctx.fillStyle="rgba(30,20,10,.55)"; bctx.beginPath(); bctx.ellipse(gx, gy, sx*2.2, half*1.2, 0, 0, 7); bctx.fill(); bctx.save(); bctx.translate(gx+dirIn*sx*0.8, gy+half*0.5); bctx.rotate(dirIn*0.9); bctx.fillStyle="#5A4634"; bctx.fillRect(-sx*0.5,-half*0.7,sx*1.0,half*1.4); bctx.fillStyle="#2A1C10"; bctx.fillRect(-sx*0.5,-half*0.7,sx*1.0,4); bctx.restore(); bctx.fillStyle="#3A2A18"; bctx.fillRect(gx-sx*0.7, gy-half, sx*0.25, half*2); bctx.fillRect(gx+sx*0.45, gy-half, sx*0.25, half*2); }
+    /* 門の上の櫓（屋根）と旗：破れる前は守り手の家紋、破れれば寄せ手の家紋 */
+    bctx.fillStyle="#EDE6D6"; bctx.fillRect(gx-sx*1.0, gy-half-sy*1.3, sx*2.0, sy*1.1); bctx.fillStyle="#2E2A28"; bctx.beginPath(); bctx.moveTo(gx-sx*1.3,gy-half-sy*1.3); bctx.lineTo(gx,gy-half-sy*2.0); bctx.lineTo(gx+sx*1.3,gy-half-sy*1.3); bctx.closePath(); bctx.fill(); bctx.fillStyle="#3A2A18"; for(let i=0;i<3;i++) bctx.fillRect(gx-sx*0.7+i*sx*0.6, gy-half-sy*1.0, sx*0.25, sy*0.35);
+    const kc=broken?atkClan:defClan; if(kc){ const wv=Math.sin(B.elapsed*4+g.x)*2; bctx.fillStyle="#3A2A18"; bctx.fillRect(gx-1, gy-half-sy*3.4, 2, sy*1.5); bctx.fillStyle=clanColor(kc.id); bctx.beginPath(); bctx.moveTo(gx+1,gy-half-sy*3.4); bctx.lineTo(gx+1+sx*0.7,gy-half-sy*3.4+wv); bctx.lineTo(gx+1+sx*0.7,gy-half-sy*2.7+wv*0.6); bctx.lineTo(gx+1,gy-half-sy*2.7); bctx.closePath(); bctx.fill(); drawMon(bctx,kc,gx+1+sx*0.35,gy-half-sy*3.05+wv*0.4,sx*0.2,"#fff",null); }
+    /* 札：名と耐久 */ bctx.font='800 10px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center"; const lab=broken?`${g.n||g.name} 突破`:`${g.n||g.name} ${Math.round(Math.max(0,g.hp/g.hpMax)*100)}%`; const tw=bctx.measureText(lab).width+10; bctx.fillStyle="rgba(10,8,6,.8)"; bctx.fillRect(gx-tw/2, gy+half+sy*0.2, tw, 14); bctx.fillStyle=broken?"#FF9A55":(g.hp/g.hpMax<0.3?"#FF6A5A":"#fff"); bctx.fillText(lab, gx, gy+half+sy*0.2+11);
+    if(!broken){ bctx.fillStyle="rgba(0,0,0,.6)"; bctx.fillRect(gx-16, gy+half+sy*0.2+16, 32, 4); bctx.fillStyle="#D9B25C"; bctx.fillRect(gx-16, gy+half+sy*0.2+16, 32*Math.max(0,g.hp/g.hpMax), 4); } };
+  /* 一ノ門・二ノ門 */
+  const g1=G.gates[0], g2=G.gates[1]; const b1=K.stage>=1, b2=K.stage>=2;
+  drawGate({x:g1.x,y:g1.y,half:g1.half,n:g1.n,hp:b1?0:(B.gate&&B.gate.name===g1.n?B.gate.hp:g1.hp),hpMax:g1.hp,hitAt:(B.gate&&B.gate.name===g1.n)?B.gate.hitAt:undefined}, b1, !b1);
+  drawGate({x:g2.x,y:g2.y,half:g2.half,n:g2.n,hp:b2?0:(B.gate&&B.gate.name===g2.n?B.gate.hp:B.gfGate2.hp),hpMax:g2.hp,hitAt:(B.gate&&B.gate.name===g2.n)?B.gate.hitAt:undefined}, b2, b1&&!b2);
+  /* 本丸の石垣と天守（三層。常に見える的） */
+  { const T=G.tenshu; const tx=mx(T.x)*sx, ty=T.y*sy; const W1=sx*6.4, H1=sy*2.2; bctx.fillStyle="rgba(0,0,0,.3)"; bctx.beginPath(); bctx.ellipse(tx+sx*0.4, ty+H1*0.9, W1*0.7, sy*1.2, 0, 0, 7); bctx.fill();
+    stone(tx-W1/2, ty, W1, H1);
+    const tier=(w,h,y0)=>{ bctx.fillStyle="#EDE6D6"; bctx.fillRect(tx-w/2, y0-h, w, h); bctx.fillStyle="#3A2A18"; for(let xx=tx-w/2+sx*0.35;xx<tx+w/2-sx*0.3;xx+=sx*0.75) bctx.fillRect(xx, y0-h*0.65, sx*0.28, h*0.35); bctx.fillStyle="#2E2A28"; bctx.beginPath(); bctx.moveTo(tx-w/2-sx*0.5, y0-h); bctx.lineTo(tx-w/2+sx*0.3, y0-h-sy*0.9); bctx.lineTo(tx+w/2-sx*0.3, y0-h-sy*0.9); bctx.lineTo(tx+w/2+sx*0.5, y0-h); bctx.closePath(); bctx.fill(); bctx.fillStyle="#4A4644"; bctx.fillRect(tx-w/2+sx*0.3, y0-h-sy*0.9, w-sx*0.6, 2); return y0-h-sy*0.9; };
+    let y0=ty; y0=tier(W1*0.9, sy*1.6, y0); y0=tier(W1*0.68, sy*1.4, y0); y0=tier(W1*0.46, sy*1.3, y0);
+    bctx.fillStyle="#C9A227"; bctx.fillRect(tx-sx*0.25, y0-sy*0.5, sx*0.5, sy*0.5); /* 鯱の代わりの金 */
+    const kc=(B.over===0||K.honIn&&(B.over===0))?atkClan:defClan; if(kc){ const wv=Math.sin(B.elapsed*3)*2.5; bctx.fillStyle="#3A2A18"; bctx.fillRect(tx+sx*1.6-1, y0-sy*2.2, 2, sy*2.4); bctx.fillStyle=clanColor(kc.id); bctx.beginPath(); bctx.moveTo(tx+sx*1.6+1,y0-sy*2.2); bctx.lineTo(tx+sx*1.6+1+sx*0.9,y0-sy*2.2+wv); bctx.lineTo(tx+sx*1.6+1+sx*0.9,y0-sy*1.3+wv*0.6); bctx.lineTo(tx+sx*1.6+1,y0-sy*1.3); bctx.closePath(); bctx.fill(); drawMon(bctx,kc,tx+sx*1.6+1+sx*0.45,y0-sy*1.75+wv*0.4,sx*0.26,"#fff",null); } }
+  /* 一ノ門の攻防が始まった合図 */ if(B.gate&&!B.gate.open&&B.gate.hitAt!==undefined&&!K.gateCry){ K.gateCry=true; B.bigBanner={t:`${B.gate.name} 攻撃開始`, at:B.elapsed, good:B.ctx.playerSide===0}; try{ playSE("drum"); }catch(_){ } }
+  if(B.gate&&B.gate.name==="二ノ門"&&B.gate.hitAt!==undefined&&!K.gateCry2){ K.gateCry2=true; B.bigBanner={t:"二ノ門 攻撃開始", at:B.elapsed, good:B.ctx.playerSide===0}; } }
 function drawYokoyama(sx,sy){ /* 第181巡：姉川の隅に横山城――丘の上の櫓と、囲む織田の陣幕・篝火（作り手の仕様：戦場の背景に城の目印） */
   const P=B.ane.yokoPt; const x=P.x*sx, y=P.y*sy; const az=clanByName("浅井家"), od=clanByName("織田家");
   bctx.save();
@@ -16781,7 +16883,7 @@ function siegeSetup(c,e){
   siegeZonesUpdate();
 }
 function siegeMoatApply(){ const pl=B.moatPlan; B.moatPlan=null; if(!pl||!B.gate||!B.tiles) return; const mx=Math.round(B.gate.x+pl.dir*3.5); if(mx<1||mx>=BF.w-1) return; const gy=Math.round(BF.h/2); const fords=[Math.round(BF.h*0.22), Math.round(BF.h*0.78)]; for(let r=1;r<BF.h-1;r++){ if(!B.tiles[r]) continue; if(Math.abs(r-gy)<=1) continue; if(fords.includes(r)||fords.includes(r-1)){ B.tiles[r][mx]=BT.FORD; continue; } B.tiles[r][mx]=BT.WATER; } B.moat={x:mx, gy, fords, bridge:{alive:true}}; B.bg=null; }
-function siegeZonesUpdate(){ if(!B||!B.siegeWall) return; const defLeft=siegeDefLeft(); const line0=B.siegeLine0!==undefined?B.siegeLine0:(B.gate?B.gate.x:BF.w/2); const inside=u=>defLeft?(line0-u.x):(u.x-line0); const atk=B.units.filter(u=>u.side===0&&u.troops>.5&&u.morale>0&&!u.left); const deep=atk.length?Math.max(...atk.map(inside)):-99; const L=B.siegeLayers||1; const st=B.siegeStage||0; const hq=B.units.find(u=>u.side===1&&u.cmd); const hqDown=!hq||hq.troops<=.5||hq.morale<=0;
+function siegeZonesUpdate(){ if(!B||!B.siegeWall) return; if(B.gf){ B.siegeZones=gifuZones(); return; } const defLeft=siegeDefLeft(); const line0=B.siegeLine0!==undefined?B.siegeLine0:(B.gate?B.gate.x:BF.w/2); const inside=u=>defLeft?(line0-u.x):(u.x-line0); const atk=B.units.filter(u=>u.side===0&&u.troops>.5&&u.morale>0&&!u.left); const deep=atk.length?Math.max(...atk.map(inside)):-99; const L=B.siegeLayers||1; const st=B.siegeStage||0; const hq=B.units.find(u=>u.side===1&&u.cmd); const hqDown=!hq||hq.troops<=.5||hq.morale<=0;
   const NM=(SIEGE_ZONE_NAMES[B.siegeName]||{}); const nm=(k,d)=>NM[k]||d;
   const z=[{n:nm(0,"城下"),taken:deep>-9},{n:nm(1,"外堀"),taken:deep>-3.5},{n:nm(2,"大手門"),taken:st>=1||(B.gate&&B.gate.hp<=0&&L===1)}]; if(L>=3) z.push({n:nm(3,"三の丸"),taken:st>=2}); if(L>=2) z.push({n:nm(4,"二の丸"),taken:st>=L||(B.gate&&B.gate.hp<=0&&st>=L-1)}); z.push({n:nm(5,"本丸"),taken:B.over===0||hqDown}); B.siegeZones=z; }
 const SIEGE_ZONE_NAMES={ "木津砦":{0:"川原",1:"外柵",2:"大手門",3:"土塁",4:"砦内",5:"兵糧庫"}, "有岡城":{0:"城外",1:"町屋",2:"侍町",3:"岸の砦",4:"上臈塚砦",5:"主郭"}, "高遠城":{0:"城下",1:"外郭",2:"大手門",3:"曲輪",4:"二の丸",5:"本丸"}, "信貴山城":{0:"山麓",1:"外郭",2:"大手門",3:"曲輪",4:"二の丸",5:"本丸"}, "小田原城":{0:"城下",1:"総構",2:"大手門",3:"三の丸",4:"二の丸",5:"本丸"}, "大坂城":{0:"城下",1:"惣構",2:"大手門",3:"三の丸",4:"二の丸",5:"本丸"}, "真田丸":{0:"野",1:"堀と柵",2:"虎口",3:"土塁の内",4:"櫓",5:"退路"} };
@@ -19810,6 +19912,7 @@ function startBattle(e){
   if(dec && (dec.key==="ueda"||dec.key==="ueda1")){ try{ uedaSetup(); }catch(e9){ console.error(e9); } }
   if(dec && dec.key==="saika"){ B.saikaPending=true; }
   if(B.ctx.sanadamaru){ try{ smSetup(); }catch(e9){ console.error(e9); } }   /* 第153巡：真田丸 */
+  if(dec && dec.key==="gifu1600"){ try{ gifuSetup(); }catch(e9){ console.error(e9); } }   /* 第184巡：岐阜城（山城攻略） */
   if(dec && (dec.key==="honnoji"||dec.key==="nijo")){ try{ honSetup(dec.key); }catch(e9){ console.error(e9); } }
   if(dec && dec.key==="yamazaki"){ try{ yamazakiSetup(); }catch(e9){ console.error(e9); } }
   if(dec && (dec.key==="kizu"||dec.key==="tennoji_relief")){ try{ ishiSetup(dec.key); }catch(e10){ console.error(e10); } }
@@ -20243,7 +20346,7 @@ function renderBattleGoal(){ const el=document.getElementById("bGoal"), te=docum
   /* 陣立ての間は地形の札、戦が始まれば同じ場所に目的の札（札を増やすと野がずれる） */
   if(B.opening>0||B.over!==null){ el.hidden=true; if(te) te.hidden=false; return; }
   const g=battleGoals(); if(!g){ el.hidden=true; if(te) te.hidden=false; return; }
-  const html=`${B.kz&&B.phaseChip?`<b style="color:#8FD0FF;margin-right:8px">【${esc(B.phaseChip)}】</b>`:""}<b style="color:#FFD166">目的</b>　${esc(g.main)}${g.subs.length?`<span style="opacity:.8;margin-left:8px">${g.subs.map(x=>`${x.ok?"✓":"・"}${esc(x.t)}`).join("　")}</span>`:""}`;
+  const html=`${(B.kz||B.gf)&&B.phaseChip?`<b style="color:#8FD0FF;margin-right:8px">【${esc(B.phaseChip)}】</b>`:""}<b style="color:#FFD166">目的</b>　${esc(g.main)}${g.subs.length?`<span style="opacity:.8;margin-left:8px">${g.subs.map(x=>`${x.ok?"✓":"・"}${esc(x.t)}`).join("　")}</span>`:""}`;
   if(el._h!==html){ el._h=html; el.innerHTML=html; } el.hidden=false; if(te) te.hidden=true; }
 function sekGrade(){ const g=sekGrade0(); if(g && B.over!==B.ctx.playerSide) g.g="敗北"; return g; }   /* 第121巡：負けた側に「大勝」と出ていた */
 function sekGrade0(){
@@ -20637,7 +20740,7 @@ function gRows(){ return Math.floor(BF.h/GC); }
 function cellOf(x,y){ return [Math.max(0,Math.min(gCols()-1,Math.floor(x/GC))), Math.max(0,Math.min(gRows()-1,Math.floor(y/GC)))]; }
 function cellCenter(c,r){ return [c*GC+GC/2, r*GC+GC/2]; }
 function cellKey(c,r){ return r*1000+c; }
-function cellPassable(c,r){ return !(c<0||r<0||c>=gCols()||r>=gRows()); }   /* 川も通れる（足は遅く、川の中では討たれやすい） */
+function cellPassable(c,r){ if(c<0||r<0||c>=gCols()||r>=gRows()) return false; if(B&&B.blockCells&&B.blockCells.has(c*1000+r)) return false; return true; }   /* 第184巡：岐阜の崖の升は通れない */   /* 川も通れる（足は遅く、川の中では討たれやすい） */
 function gridOccAt(c,r){ return B._occ ? B._occ.get(cellKey(c,r)) : null; }
 function gridFreeCell(c,r,u){ if(!cellPassable(c,r)) return false; const o=gridOccAt(c,r); return !o||o===u; }
 /* 味方のいる升：止まれないが通り抜けられる（第109巡：作り手の指示。前の鉄砲隊が道を塞いでいた） */
@@ -20827,7 +20930,7 @@ const SIGNATURES={
   { at:0, when:()=>B.elapsed>70&&!B.fushimiFire, run:()=>{ B.fushimiFire=true; B.fires=B.fires||[]; const c=sigCmd(1); if(c){ for(let k=0;k<3;k++) B.fires.push({x:c.x+(rnd()-.5)*4,y:c.y+(rnd()-.5)*4,t:0,life:40,siege:true}); } sigBanner("城内に火の手――甲賀者の裏切り"); sigMorale(1,-10); } },
  ],
  gifu1600:[
-  { at:0, run:()=>{ for(const u of B.units){ if(u.troops<=.5) continue; if(u.side===1) u.tough=(u.tough||1)*1.4; else { const g=W.generals[u.gid]; if(g&&/福島正則|池田輝政/.test(g.name)){ u.glory=true; u.gloryHigh=true; u.morale=100; } } } B.fieldLabels=(B.fieldLabels||[]).concat([{x:BF.w/2,y:1,t:"稲葉山　岐阜城"}]); sigBanner("岐阜――福島と池田が先陣を争う"); } },
+  { at:0, run:()=>{ for(const u of B.units){ if(u.troops<=.5) continue; if(u.side===1) u.tough=(u.tough||1)*1.4; else { const g=W.generals[u.gid]; if(g&&/福島正則|池田輝政/.test(g.name)){ u.glory=true; u.gloryHigh=true; u.morale=100; } } } sigBanner("岐阜――金華山を攻め上がり、岐阜城を攻略せよ"); } },
  ],
  otsu:[
   { at:0, run:()=>{ const H=BF.h, Wd=BF.w; const defLeft=B.ctx.playerSide===1; const inn=defLeft?-1:1; const fx=B.gate?B.gate.x:(defLeft?13:Wd-13); for(let r=0;r<Math.round(H*0.25);r++) for(let c=0;c<Wd;c++) if(B.tiles[r]&&B.tiles[r][c]===BT.GRASS) B.tiles[r][c]=BT.WATER; B.bg=null; B.fieldLabels=(B.fieldLabels||[]).concat([{x:Wd/2,y:1,t:"琵琶湖"},{x:fx+inn*3,y:H-1,t:"大津城"}]); for(const u of B.units) if(u.side===1&&u.troops>.5){ u.tough=(u.tough||1)*1.6; u.morRes=Math.min(u.morRes||1,0.7); } sigBanner("大津――湖の岸、立花の鉄砲と長束の大筒"); } },
@@ -21047,6 +21150,7 @@ function updateBattle(dt){
   if(B.ueda){ try{ uedaTick(dt); }catch(e){ console.error(e); } if(B.over!==null) return; }
   if(B.saika){ try{ saikaTick(dt); }catch(e){ console.error(e); } if(B.over!==null) return; }
   if(B.sm){ try{ smTick(dt); }catch(e){ console.error(e); } if(B.over!==null) return; }
+  if(B.gf){ try{ gifuTick(dt); }catch(e){ console.error(e); } if(B.over!==null) return; }
   if(B.hon){ try{ honTick(dt); }catch(e){ console.error(e); } if(B.over!==null) return; }
   if(B.ishi){ try{ ishiTick(dt); }catch(e){ console.error(e); } if(B.over!==null) return; }
   if(B.ted){ try{ tedTick(dt); }catch(e){ console.error(e); } if(B.over!==null) return; }
@@ -21261,7 +21365,7 @@ function updateBattle(dt){
   for(const u of B.units){
     if(u.troops<=.5) continue;
     if(u.lunge>0) u.lunge-=dt; if(u.flash>0) u.flash-=dt;
-    if(u===B.units[0]){ evlogTick(); if(B.nagashino && B.ctx.playerSide===1 && B.opening<=0 && B.over===null){ const fx=B.nagFenceX!==undefined?B.nagFenceX:(B.padX||0)+NAG_LINE; const foes=B.units.filter(z=>z.side===0&&z.troops>.5&&z.morale>0&&!z.left); const guns=B.units.filter(z=>z.side===1&&z.type===3&&z.troops>.5&&!z.left); let best=1e9; for(const g of guns) for(const f of foes){ const d=dist(g,f); if(d<best) best=d; } B.nearM = best<1e9 ? Math.round(best*20/10)*10 : null; const inside=foes.some(f=>f.x<fx-0.8); if(inside && !B.breachNoted){ B.breachNoted=true; B.bigBanner={t:"敵、第一防衛線を突破！", at:B.elapsed, good:false}; log("武田勢が柵の内へ入り込みました","war",true); for(const z of B.units) if(z.side===1&&z.troops>.5&&Math.abs(z.x-fx)<8) z.morale=Math.max(0,z.morale-5); } if(B.nearM!==null && !B.approachNoted && B.nearM<=160){ B.approachNoted=true; B.banner={t:`武田の先手、${B.nearM}mに迫る ―― ${B.gunRangeM||100}mで撃つ`, at:B.elapsed}; } } if(B.over===null && B.opening<=0 && !B.escapePhase){ for(const sd of [0,1]){ if(sd===B.ctx.playerSide && !B.autoMine && !autoBattleMode) continue; const live=B.units.filter(z=>z.side===sd&&z.troops>.5&&!z.left&&z.morale>0); if(live.length===1 && live[0].cmd && !live[0].fleeing && B.elapsed-(B.lastLossAt||0)>0 ){ const c0=live[0]; c0.fleeing=true; c0.order={k:"retreat"}; B.aiFled=true; B.banner={t:`${c0.name}、退く`, at:B.elapsed}; log(`${c0.name}は残る兵を率いて野を去ります`,"war"); } } }   /* 第128巡：本陣だけになった側は早く退く（作り手の指示） */ if(B.opening<=0 && B.over===null && !(B.farDrumAt>B.elapsed-11)){ B.farDrumAt=B.elapsed+Math.random()*4; const far=B.units.filter(z=>z.troops>.5&&!z.left&&z.engagedAt!==undefined&&B.elapsed-z.engagedAt<2&&Math.hypot(z.x-B.cx,z.y-B.cy)>20); if(far.length) battleSE(Math.random()<0.7?"drumfar":"warcry",undefined,undefined,0,0.22); } if(B.chargeBuffUntil && B.elapsed>=B.chargeBuffUntil){ B.chargeBuffUntil=0; for(const z of B.units) if(z.side===B.chargeBuffSide&&z.charge) z.fatigue=Math.min(100,(z.fatigue||0)+15); B.banner={t:"突撃の勢い、尽きる", at:B.elapsed}; } if(B.follow!==null&&B.follow!==undefined){ const fu=B.units.find(z=>z.id===B.follow&&z.troops>.5&&!z.left); if(fu) bCamTo(fu.x,fu.y,true); else B.follow=null; } }
+    if(u===B.units[0]){ evlogTick(); if(B.nagashino && B.ctx.playerSide===1 && B.opening<=0 && B.over===null){ const fx=B.nagFenceX!==undefined?B.nagFenceX:(B.padX||0)+NAG_LINE; const foes=B.units.filter(z=>z.side===0&&z.troops>.5&&z.morale>0&&!z.left); const guns=B.units.filter(z=>z.side===1&&z.type===3&&z.troops>.5&&!z.left); let best=1e9; for(const g of guns) for(const f of foes){ const d=dist(g,f); if(d<best) best=d; } B.nearM = best<1e9 ? Math.round(best*20/10)*10 : null; const inside=foes.some(f=>f.x<fx-0.8); if(inside && !B.breachNoted){ B.breachNoted=true; B.bigBanner={t:"敵、第一防衛線を突破！", at:B.elapsed, good:false}; log("武田勢が柵の内へ入り込みました","war",true); for(const z of B.units) if(z.side===1&&z.troops>.5&&Math.abs(z.x-fx)<8) z.morale=Math.max(0,z.morale-5); } if(B.nearM!==null && !B.approachNoted && B.nearM<=160){ B.approachNoted=true; B.banner={t:`武田の先手、${B.nearM}mに迫る ―― ${B.gunRangeM||100}mで撃つ`, at:B.elapsed}; } } if(B.over===null && B.opening<=0 && !B.escapePhase){ for(const sd of [0,1]){ if(sd===B.ctx.playerSide && !B.autoMine && !autoBattleMode) continue; const live=B.units.filter(z=>z.side===sd&&z.troops>.5&&!z.left&&z.morale>0); if(live.length===1 && live[0].cmd && !live[0].fleeing && !(B.gf&&sd===1) && B.elapsed-(B.lastLossAt||0)>0 ){   /* 第184巡：岐阜の本丸に退路はない（秀信は本丸で受ける） */ const c0=live[0]; c0.fleeing=true; c0.order={k:"retreat"}; B.aiFled=true; B.banner={t:`${c0.name}、退く`, at:B.elapsed}; log(`${c0.name}は残る兵を率いて野を去ります`,"war"); } } }   /* 第128巡：本陣だけになった側は早く退く（作り手の指示） */ if(B.opening<=0 && B.over===null && !(B.farDrumAt>B.elapsed-11)){ B.farDrumAt=B.elapsed+Math.random()*4; const far=B.units.filter(z=>z.troops>.5&&!z.left&&z.engagedAt!==undefined&&B.elapsed-z.engagedAt<2&&Math.hypot(z.x-B.cx,z.y-B.cy)>20); if(far.length) battleSE(Math.random()<0.7?"drumfar":"warcry",undefined,undefined,0,0.22); } if(B.chargeBuffUntil && B.elapsed>=B.chargeBuffUntil){ B.chargeBuffUntil=0; for(const z of B.units) if(z.side===B.chargeBuffSide&&z.charge) z.fatigue=Math.min(100,(z.fatigue||0)+15); B.banner={t:"突撃の勢い、尽きる", at:B.elapsed}; } if(B.follow!==null&&B.follow!==undefined){ const fu=B.units.find(z=>z.id===B.follow&&z.troops>.5&&!z.left); if(fu) bCamTo(fu.x,fu.y,true); else B.follow=null; } }
     if(B.sek && u.morale>0 && u.troops>.5 && !u.left && u.engagedAt!==undefined && B.elapsed-u.engagedAt<2 && !B.units.some(z=>z!==u&&z.side===u.side&&z.troops>.5&&z.morale>0&&!z.left&&dist(z,u)<=6)) u.morale=Math.max(0,u.morale-0.6*dt);   /* 孤立して戦う隊は気が細る（関ヶ原） */
     { const st=unitStance(u); u.stance=st; u.bystander=(st==="傍観"||st==="離反可能"); u.waiting=(st==="待機"); }
     /* 第109巡：兵が残っている隊は士気の底より下がらない（どの出来事で削られても）。本陣は三割超で30 */
@@ -22025,7 +22129,7 @@ function exposure(t,a){
 /* ===================== 戦場の地面（目） =====================
    戦場は無地の緑ではない。山・森・川・道が目ごとに敷かれ、足の速さ・隠れ・高所に効く。
    0=草 1=道 2=森 3=山 4=水 5=浅瀬 */
-const BT={GRASS:0,ROAD:1,FOREST:2,HILL:3,WATER:4,FORD:5,MARSH:6,EARTH:7,MOAT:8,SAKAMOGI:9,DIRT:10};   /* 第174巡：真田丸の土塁・空堀・逆茂木・踏み荒らした土 */   /* 第146巡：湿地（木津の川原） */
+const BT={GRASS:0,ROAD:1,FOREST:2,HILL:3,WATER:4,FORD:5,MARSH:6,EARTH:7,MOAT:8,SAKAMOGI:9,DIRT:10,CLIFF:11};   /* 第184巡：崖（岐阜の山肌。通れない） */   /* 第174巡：真田丸の土塁・空堀・逆茂木・踏み荒らした土 */   /* 第146巡：湿地（木津の川原） */
 /* 決戦ごとの野の作り。地形を書き換え、地面の色を決める */
 const BATTLE_DECOR={
   kizu:{ base:"#6A8E48", note:"木津　湿地と水路と町屋", extras:["village","marsh"], keepWater:true, make:(T,W0,H0,R,set)=>{ for(let i=0;i<3;i++){ const cx=W0*0.45+i*7; for(let r=0;r<H0;r++){ if(r%7===3||r%7===4) continue; set.at(cx,r,BT.WATER); } } for(let k=0;k<6;k++) set.blob(W0*0.5+R()*20-10, 2+R()*(H0-4), 1.6,1.3, BT.FOREST,.9); for(let k=0;k<4;k++) set.blob(W0*0.7+R()*8, 2+R()*(H0-4), 2.2,1.8, BT.FOREST,.5); } },
@@ -22288,11 +22392,13 @@ function terrainFx(k, type){
   if(k===BT.EARTH)  return {n:"土塁", fx:["守り手：上を歩ける・射程+15%・守り+20%","寄せ手：登るのが遅い（−50%）"]};
   if(k===BT.MOAT)   return {n:"空堀", fx:["速度-60%","底では守り-30%"]};
   if(k===BT.SAKAMOGI) return {n:"逆茂木", fx:[type===2?"騎馬速度-70%":"速度-45%"]};
+  if(k===BT.CLIFF) return {n:"崖", fx:["通れない"]};
   if(k===BT.DIRT)   return {n:"踏み荒らした土", fx:[]};
   return null;
 }
 function bTileSpeed(k, type){
-  if(k===BT.ROAD) return 1.15;
+  if(k===BT.CLIFF) return .2;
+  if(k===BT.ROAD) return (typeof B!=="undefined"&&B&&B.gf)?0.82:1.15;   /* 第184巡：岐阜の山道は坂。登りは遅い */
   if(k===BT.EARTH) return type===2?.35:.5;     /* 土塁の斜面：寄せ手は登るのが遅い（守り手は terrainSpeed で戻す） */
   if(k===BT.MOAT) return type===2?.3:.4;        /* 空堀：底に入れば遅い */
   if(k===BT.SAKAMOGI) return type===2?.3:.55;   /* 逆茂木：騎馬はほぼ通れない */
@@ -22377,6 +22483,7 @@ function bakeBattleGround(W_,H_){
     else if(k===BT.MOAT){ px(x-1,y-1,sx+2,sy+2,"#3A2A18"); px(x,y,sx,sy*.35,"rgba(0,0,0,.35)"); px(x,y+sy*.6,sx,sy*.4,"rgba(90,70,45,.5)"); if(R()<.5) px(x+R()*sx*.8,y+sy*.2+R()*sy*.5,2,sy*.4,"rgba(150,120,80,.8)"); if(R()<.3) px(x+R()*sx*.7,y+R()*sy*.7,sx*.25,2,"rgba(20,12,6,.6)"); }   /* 空堀：深く掘った暗い土、杭、崩れ */
     else if(k===BT.SAKAMOGI){ g.strokeStyle="rgba(70,45,20,.9)"; g.lineWidth=1.5; for(let i=0;i<5;i++){ const cx=x+R()*sx, cy=y+R()*sy; g.beginPath(); g.moveTo(cx-3,cy+3); g.lineTo(cx+2,cy-4); g.moveTo(cx-2,cy-3); g.lineTo(cx+3,cy+2); g.stroke(); } px(x+sx*.3,y+sy*.5,sx*.4,2,"rgba(110,80,40,.7)"); }   /* 逆茂木：枝を組んだ棘 */
     else if(k===BT.EARTH){ const d=(B.smD&&B.smD[r]&&B.smD[r][c]!==undefined)?B.smD[r][c]:1; const outer=d<1; px(x-1,y-1,sx+2,sy+2,outer?"#7A5630":"#D9B878"); if(outer){ px(x,y,sx,sy,"rgba(0,0,0,.2)"); for(let i=0;i<4;i++) px(x+R()*sx,y+R()*sy,3,1,"rgba(40,25,10,.6)"); for(let i=0;i<3;i++) px(x+R()*sx,y+R()*sy,1,3,"rgba(255,220,160,.25)"); } else { px(x,y,sx,sy*.3,"rgba(255,245,210,.35)"); if(R()<.5) px(x+R()*sx*.7,y+sy*.4+R()*sy*.4,sx*.25,1.5,"rgba(120,90,50,.5)"); if(R()<.3) px(x+R()*sx*.8,y+R()*sy*.8,2,2,"rgba(90,60,30,.5)"); } }   /* 土塁：斜面は暗く、上面は明るい黄土 */
+    else if(k===BT.CLIFF){ px(x-1,y-1,sx+2,sy+2,"#6E6858"); px(x,y,sx,sy*.5,"rgba(255,245,220,.10)"); for(let i=0;i<3;i++) px(x+R()*sx*.8,y+R()*sy*.8,sx*(.15+R()*.3),1.5,"rgba(30,25,20,.55)"); for(let i=0;i<2;i++) px(x+R()*sx*.8,y+R()*sy*.8,2,sy*(.15+R()*.3),"rgba(30,25,20,.45)"); if(R()<.5) px(x+R()*sx*.7,y+R()*sy*.7,sx*.25,sy*.15,"rgba(200,190,160,.35)"); if(R()<.3) px(x+R()*sx*.7,y+R()*sy*.7,sx*.2,sy*.12,"rgba(60,90,40,.5)"); }   /* 第184巡：崖の岩肌（岐阜） */
     else if(k===BT.MARSH){ px(x-1,y-1,sx+2,sy+2,"#5E6638"); px(x+sx*.1,y+sy*.2,sx*.5,sy*.3,"rgba(120,160,190,.55)"); px(x+sx*.55,y+sy*.6,sx*.35,sy*.25,"rgba(120,160,190,.45)"); px(x+sx*.3,y+sy*.7,sx*.2,sy*.1,"rgba(60,45,30,.5)"); if(R()<.6) px(x+R()*sx*.8,y+R()*sy*.5,1.5,sy*.35,"rgba(80,110,50,.7)"); if(R()<.6) px(x+R()*sx*.8,y+R()*sy*.5,1.5,sy*.3,"rgba(80,110,50,.7)"); }   /* 湿地：泥と水たまりと葦（第146巡） */
   }
   /* 第180巡：地面を密に（作り手の仕様：空白の緑をなくす）。畑の畝、細い小道、石、踏み荒らした土、枯れ草の帯 */
@@ -22399,6 +22506,13 @@ function bakeBattleGround(W_,H_){
     g.strokeStyle="rgba(30,65,25,.35)"; g.lineWidth=1; const nT=Math.floor(BF.w*BF.h*0.5); for(let i=0;i<nT;i++){ const c=Math.floor(R()*BF.w), r=Math.floor(R()*BF.h); if(!isG(c,r)) continue; const x=c*sx+R()*sx, y=r*sy+R()*sy; for(let k=0;k<3;k++){ g.beginPath(); g.moveTo(x+k*2,y); g.lineTo(x+k*2+(R()-.5)*3, y-3-R()*3); g.stroke(); } } }
   // 湿った土の色味：全体を落ち着いた黄土に寄せ、彩度を落とす（鮮やかな緑一色にしない。第180巡：さらに一段暗く）
   px(0,0,W_,H_,"rgba(120,100,60,.08)"); px(0,0,W_,H_,"rgba(60,60,40,.10)");
+  /* 第184巡：岐阜――高さを絵で。上の郭ほど明るく、低い所は暗い。崖の縁（開いた所との境）は暗い側面と明るい稜線。石段風の横線 */
+  if(B.gf&&B.gfLevel){ const L=B.gfLevel; for(let r=0;r<BF.h;r++) for(let c=0;c<BF.w;c++){ const lv=L[r][c]; const x=c*sx, y=r*sy; if(lv>=0){ const a=(5-lv)/5*0.22; px(x,y,sx,sy,`rgba(0,0,0,${a.toFixed(3)})`); px(x,y,sx,sy,`rgba(255,240,200,${(lv/5*0.10).toFixed(3)})`); }
+      else { const dn=r<BF.h-1?L[r+1][c]:-1, up=r>0?L[r-1][c]:-1, lf=c>0?L[r][c-1]:-1, rt=c<BF.w-1?L[r][c+1]:-1;
+        if(dn>=0){ px(x,y+sy*0.55,sx,sy*0.45,"rgba(0,0,0,.45)"); px(x,y+sy*0.45,sx,2,"rgba(255,245,220,.35)"); }   /* 開いた所の上に崖：暗い側面 */
+        if(up>=0){ px(x,y,sx,sy*0.3,"rgba(255,245,220,.18)"); }
+        if(lf>=0){ px(x,y,sx*0.35,sy,"rgba(0,0,0,.35)"); } if(rt>=0){ px(x+sx*0.65,y,sx*0.35,sy,"rgba(0,0,0,.35)"); } } }
+    /* 山道の石段：道の升に横線 */ for(let r=0;r<BF.h;r++) for(let c=0;c<BF.w;c++){ if(T[r][c]!==BT.ROAD) continue; const x=c*sx, y=r*sy; for(let k=0;k<3;k++) px(x+sx*0.1,y+sy*(0.15+k*0.3),sx*0.8,1.2,"rgba(60,45,25,.35)"); } }
   /* 第174巡：真田丸――土塁の稜線と影、六文銭の旗、陣幕、大坂城の壁、徳川の陣 */
   if(B.sm&&B.smD){ try{ smBakeDecor(g,sx,sy,W_,H_,R); }catch(e){ console.error(e); } }
   const EX=new Set(B.decorExtras||[]);
@@ -22627,11 +22741,11 @@ function drawBattle(){
     bctx.globalAlpha=1;
   }
   // 石垣（門の所だけ空く）。真田丸は弧の土塁を焼いた絵で見せる（第174巡）
-  if(B.gate&&!B.sm&&!B.kz){ const wx=B.gate.x*sx, top=(B.gate.y-2.4)*sy, bot=(B.gate.y+2.4)*sy;   /* 木津は土の砦：石垣は描かず、柵と土塁と櫓で見せる（第181巡） */
+  if(B.gate&&!B.sm&&!B.kz&&!B.gf){ const wx=B.gate.x*sx, top=(B.gate.y-2.4)*sy, bot=(B.gate.y+2.4)*sy;   /* 木津は土の砦：石垣は描かず、柵と土塁と櫓で見せる（第181巡） */
     for(const [y0,y1] of [[0,top],[bot,H_]]){ bctx.fillStyle="#8A8477"; bctx.fillRect(wx-9,y0,18,y1-y0); bctx.fillStyle="#5F5A50"; for(let yy=y0;yy<y1;yy+=sy*0.9) bctx.fillRect(wx-9,yy,18,1.5); bctx.fillStyle="#B0A995"; for(let yy=y0;yy<y1;yy+=sy*0.9) bctx.fillRect(wx-9+((yy/sy|0)%2?0:9),yy+2,9,3); bctx.fillStyle="#3E3A33"; bctx.fillRect(wx+9,y0,3,y1-y0); }
   }
   // 城門
-  if(B.gate){ const gx0=B.gate.x*sx, gy=B.gate.y*sy; const hitK=B.gate.hitAt!==undefined?Math.max(0,1-(B.elapsed-B.gate.hitAt)/0.4):0; const gx=gx0+Math.sin(B.elapsed*40)*3*hitK;   /* 第131巡：打たれた門は揺れる */
+  if(B.gate&&!B.gf){ const gx0=B.gate.x*sx, gy=B.gate.y*sy; const hitK=B.gate.hitAt!==undefined?Math.max(0,1-(B.elapsed-B.gate.hitAt)/0.4):0; const gx=gx0+Math.sin(B.elapsed*40)*3*hitK;   /* 第131巡：打たれた門は揺れる */
     bctx.fillStyle=B.gate.open?"rgba(80,60,40,.5)":"#5A4634"; bctx.fillRect(gx-7, gy-2.4*sy, 14, 4.8*sy);
     if(!B.gate.open){ bctx.fillStyle="#8B6E4E"; bctx.fillRect(gx-5, gy-2.2*sy, 10, 4.4*sy); bctx.fillStyle="#3A2A18"; for(let i=0;i<5;i++) bctx.fillRect(gx-5, gy-2.2*sy+i*sy*0.9, 10, 2);
       { const dmg=1-Math.max(0,B.gate.hp/B.gate.hpMax); if(dmg>0.15){ bctx.strokeStyle="#1E1208"; bctx.lineWidth=1.2; const n=Math.min(6,Math.floor(dmg*8)); for(let i=0;i<n;i++){ const yy=gy-2*sy+((i*37)%100)/100*4*sy; bctx.beginPath(); bctx.moveTo(gx-5,yy); bctx.lineTo(gx-1+((i*13)%5)-2,yy+((i*7)%9)-4); bctx.lineTo(gx+5,yy+((i*11)%7)-3); bctx.stroke(); } }   /* 傷（割れ目）は減るほど増える */
@@ -22646,6 +22760,7 @@ function drawBattle(){
   drawPalisades(sx,sy);
   drawCamps(sx,sy);
   if(B.kz){ try{ drawKizu(sx,sy); }catch(e){ } }
+  if(B.gf){ try{ drawGifu(sx,sy); }catch(e){ console.error(e); } }
   if(B.ane&&B.ane.yokoPt){ try{ drawYokoyama(sx,sy); }catch(e){ } }   /* 第181巡：横山城の目印 */
   // 木・柵・岩
   for(const o of [...B.obstacles].sort((p,q)=>p.y-q.y)){
