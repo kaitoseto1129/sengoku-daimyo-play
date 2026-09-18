@@ -17399,7 +17399,7 @@ function mikStart(){
   for(const g of gens) g.army=id; W.armies[id]=a; W.stage.armies.push(id); W.stage.followId=id; W.mik.armyId=id;
   /* 道筋：犬居→二俣（三日囲んで落とす）→三方ヶ原（浜松の北）→野田。全体で十六日 */
   a.route=[{c:t0.c,r:t0.r},{c:t1.c,r:t1.r},{c:t2.c-0.2,r:t2.r-1.6},{c:t3.c,r:t3.r}]; a.day0=dayNumber(); a.days=16;
-  if(futa.clan===tk.id){ a.stageSiege={castle:futa.id, at:dayNumber()+4, note:"信玄、二俣城を囲む"}; a.siegeNote="信玄、二俣城を囲む"; }
+  if(futa.clan===tk.id){ a.stageSiege={castle:futa.id, at:dayNumber()+4, note:"信玄、二俣城を囲む", text:"二俣城は水の手を切られ、開城した。中根正照は生き恥を雪ごうと、浜松へ走った"}; a.siegeNote="信玄、二俣城を囲む"; }
   bumpGarrison();
   if(!tk.war.has(td.id)) declareWar(td.id,tk.id,"force");
   setTimeout(()=>{ cam.x=t2.c; cam.y=t2.r-1; cam.scale=viewW()<960?4.2:6.0; camTarget.x=camTarget.y=null; camTarget.scale=null; clampCam(); },0);
@@ -17412,6 +17412,10 @@ function mikDaily(){
   if(!tk||!td||tk.dead||td.dead){ m.phase="over"; return; }
   if(m.phase==="west2"){ if(dayNumber()>=(m.westAt||0)){ m.phase="over"; const noda=Object.values(W.castles).find(c=>c.name==="野田城"); if(noda&&noda.clan!==td.id&&noda.clan!==W.player){ captureCastle(noda.id, td.id, null); log("野田城は武田の手に落ちました","war",true); } log("信玄の軍は野田に留まり、やがて甲斐へ引き返す（信玄の病は重い）","war",true); const od=clanByName("織田家"); if(od&&!od.dead&&td.id!==W.player){ td.orderTarget={clan:od.id, until:dayNumber()+540}; } } return; }
   if(!a){ if(!W.mikBattle){ m.phase="over"; } else if(m.phase==="hold"){ m.phase="west2"; m.westAt=dayNumber()+5; log("武田は浜松に手を出さず、野田へ向かった","war",true); } return; }
+  /* 第160巡：西上の情報。狙いは最初から分からない。二日ごとに信頼度つきの報が届く */
+  if(tk.id===W.player&&m.phase==="march"&&m.day%2===1&&!m.scouted){ const k2=(dayNumber()-a.day0)/a.days; const R=[["武田軍、二俣方面へ","高"],["浜松城を攻めるとの噂","低"],["武田軍、西へ進軍――三河が狙いか","中"],["武田の狙いは織田領との噂","低"],["信玄は病との噂。急いでいる","中"]]; const r=k2<0.35?R[0]:k2<0.6?R[rnd()<0.5?1:2]:R[rnd()<0.5?2:4]; log(`報：${r[0]}（信頼度：${r[1]}）`,"dip",true); }
+  /* 第160巡：二俣城。囲まれた時に一度だけ問う */
+  if(tk.id===W.player&&m.phase==="march"&&a.stageSiege&&!m.futaAsked&&dayNumber()>=a.stageSiege.at-3&&!overlayEl&&!B){ m.futaAsked=true; setTimeout(()=>mikFutamataAsk(),300); }
   if(m.odaAt!==null && dayNumber()>=m.odaAt && !m.odaCome){ m.odaCome=true; log("織田の援軍、佐久間信盛・平手汎秀の三千が浜松に着きました","war",true); bigNews("織田の援軍、浜松へ"); if(tk.id===W.player && m.phase==="march") setTimeout(()=>mikCouncil(),400); }
   const k=(dayNumber()-a.day0)/a.days;
   if(m.phase==="march" && k>=0.6 && !m.asked){ m.asked=true;
@@ -17420,6 +17424,13 @@ function mikDaily(){
   if(m.phase==="hold" && k>=0.75 && !m.passed){ m.passed=true; m.phase="west"; log("武田は浜松を素通りし、野田城へ向かいました","war",true); bigNews("信玄、浜松を素通り"); if(tk.id===W.player){ for(const g of Object.values(W.generals)) if(g.clan===tk.id&&g.status!=="死亡"){ g.morale=Math.max(10,g.morale-10); if(g.name==="本多忠勝"||g.name==="榊原康政") g.loyalty=Math.max(30,g.loyalty-5); } log("軍師「家中には『名折れ』の声が上がっております（士気−10、忠勝・康政の忠義−5）」","dip",true); } const od=clanByName("織田家"); if(od&&!od.dead&&td.id!==W.player){ td.orderTarget={clan:od.id, until:dayNumber()+540}; log("信玄の矛先は織田へ向いた。包囲網は締まる","dip",true); } }
   if(m.phase==="west" && k>=1){ m.phase="over"; const noda=Object.values(W.castles).find(c=>c.name==="野田城"); clearStage(); if(noda&&noda.clan!==td.id&&noda.clan!==W.player){ captureCastle(noda.id, td.id, null); log("野田城は武田の手に落ちました","war",true); } log("信玄の軍は野田に留まり、やがて甲斐へ引き返す（信玄の病は重い）","war",true); }
 }
+/* 第160巡：二俣城をどうするか */
+function mikFutamataAsk(){ const m=W.mik; const tk=clanByName("徳川家"), td=clanByName("武田家"); const a=W.armies[m.armyId]; if(!m||!a||!a.stageSiege) return; const futa=W.castles[a.stageSiege.castle]; if(!futa||futa.clan!==tk.id) return;
+  koChoice("二俣城、囲まる","信玄の三万が二俣城を囲んだ。城代は中根正照、守兵は千二百。天竜川の水の手が細い。",[
+    ["relief","救援に出る","小勢で囲みの背を突く。三割で二俣が持ち、武田は二日遅れる。七割で六百を失う",()=>{ if(rnd()<0.3){ a.stageSiege=null; a.siegeNote=null; a.days+=2; m.futaHeld=true; log("二俣の救援が図に当たり、囲みは解けた。信玄は二日を失った（家臣は殿を見直す：士気+5）","war",true); for(const g of Object.values(W.generals)) if(g.clan===tk.id&&g.status!=="死亡") g.morale=Math.min(100,g.morale+5); } else { for(const g of Object.values(W.generals)) if(g.clan===tk.id&&g.status!=="死亡"&&!g.army&&g.troops>600){ g.troops-=600; break; } log("救援の小勢は武田の先手に押し返され、六百を失った","war",true); } }],
+    ["hold","籠城を続けさせる（史実）","二俣は三日で水の手を切られて開城。中根正照は生き恥を雪ぐため三方ヶ原で先陣を望む",()=>{ m.futaHold=true; log("家康は二俣に籠城を続けさせた。城は三日ののち水の手を切られる","war",true); }],
+    ["give","城を捨てて退かせる","守兵千二百は浜松へ戻る（兵は残る）。だが家臣は「戦わずに捨てた」と見る（士気−5）",()=>{ a.stageSiege=null; a.siegeNote=null; captureCastle(futa.id,td.id,null); const nc=Object.values(W.castles).find(c=>c.name==="浜松城"&&c.clan===tk.id); for(const g of Object.values(W.generals)) if(g.clan===tk.id&&g.castle===futa.id&&!g.army&&nc) g.castle=nc.id; bumpGarrison(); for(const g of Object.values(W.generals)) if(g.clan===tk.id&&g.status!=="死亡") g.morale=Math.max(10,g.morale-5); log("二俣の守兵は城を捨てて浜松へ退いた。武田は労せず二俣を得る","war",true); }],
+    ["talk","時間を稼ぐ","使者で開城の談合を引き延ばす。五日延び、その間に織田の援軍が近づく",()=>{ a.stageSiege.at+=5; a.days+=5; if(m.odaAt===null){ m.odaAt=dayNumber()+4; } log("二俣は開城の談合で五日を稼いだ。その間に織田の援軍が岐阜を発つ","dip",true); }]]); }
 /* 家臣会議：討って出るか、籠るか。忠勝は出よと言い、数正は籠れと言う */
 function mikCouncil(){
   const m=W.mik; if(!m||m.phase!=="march"||W.mikBattle) return; const tk=clanByName("徳川家"), td=clanByName("武田家"); const a=W.armies[m.armyId]; if(!a) return;
@@ -17461,13 +17472,26 @@ function mikSetup(){
   }
   B.fieldLabels=[{x:BF.w*0.5,y:1.0,t:"三方ヶ原"},{x:mine===1?2.5:BF.w-2.5,y:BF.h-1.0,t:"浜松へ"}];   /* 人の側が左 */
   B.objective=mine===1?"武田を押し返せ（崩れたら家康を浜松へ）":"徳川を崩し、家康を討て";
+  /* 第160巡：徳川は「追撃するつもりの行軍隊形」。整った鶴翼ではなく縦に長く、隊の間は空き、二隊は遅れている。武田は反転して魚鱗を組む */
+  { const H=BF.h, Wd=BF.w; const defLeft=mine===1; const inn=defLeft?1:-1; const tks=B.units.filter(u=>u.side===1&&u.troops>.5&&!u.ally).sort((a,b)=>b.troops-a.troops); const x0=defLeft?Wd*0.42:Wd*0.58;
+    tks.forEach((u,i)=>{ if(u.cmd){ u.x=x0-inn*7; u.y=H/2; } else { u.x=x0-inn*(i*1.4); u.y=H/2+((i%2)?1:-1)*(1.2+Math.floor(i/2)*1.6); } u.x=Math.max(1.5,Math.min(Wd-1.5,u.x)); u.y=Math.max(1.5,Math.min(H-1.5,u.y)); u.gx=u.x; u.gy=u.y; u.cell=null; u.nextCell=null; u.stageX=undefined; u.stageY=undefined; });
+    const late=tks.filter(u=>!u.cmd).slice(-2); for(const u of late){ u.left=true; u.sigHidden=true; u.x=-5; u.mikLate=true; }
+    B.mikLateAt=25; B.mikColumn=true;
+    /* 武田：陣形維持と部隊交代（前衛が疲れれば下がり、後衛が前へ）。命令は速い */ for(const u of B.units) if(u.side===0&&!u.cmd&&u.troops>.5){ u.coh=(u.coh||1)*1.1; u.fatigueMul=0.9; }
+    setTimeout(()=>{ if(B&&B.mikata&&B.over===null) B.banner={t:mine===1?"斥候「武田軍、止まりました……陣を整えています……こちらを向きました！」":"徳川は追撃の隊形のまま。列は長く、後ろの隊は遅れている", at:B.elapsed}; },1500);
+    try{ gridSettleAll(); }catch(_){ } }
 }
 function mikTick(dt){
   if(!B.mikata||B.over!==null) return;
   if(B.escapePhase){ escapeTick(); return; }
+  /* 段階撤退：順に野を去る */ if(B.mikRetMode==="step"){ for(const u of B.units){ if(u.side!==1||u.left||u.troops<=.5||u.mikLeaveAt===undefined) continue; if(B.elapsed>=u.mikLeaveAt){ u.left=true; u.leftTroops=u.troops; u.mikLeaveAt=undefined; } } }
+  /* 第160巡：遅れていた隊が着く */ if(B.mikLateAt&&B.elapsed>=B.mikLateAt&&!B.mikLateDone){ B.mikLateDone=true; const defLeft=B.ctx.playerSide===1; const us=sigReveal(1, defLeft?2:BF.w-3, BF.h/2, "遅れていた隊"); for(const u of us){ u.mikLate=false; } if(us.length) B.banner={t:"遅れていた隊が着いた", at:B.elapsed}; }
+  /* 武田の部隊交代：三十秒ごと、疲れた前衛は下がり、後衛が前へ（機械の武田） */ if(B.ctx.playerSide!==0&&!(B.mikSwapAt>B.elapsed-30)&&B.elapsed>20){ B.mikSwapAt=B.elapsed; const inn=B.ctx.playerSide===1?-1:1; const front=B.units.filter(u=>u.side===0&&!u.cmd&&u.troops>.5&&u.morale>0&&(u.fatigue||0)>55).sort((a,b)=>b.fatigue-a.fatigue).slice(0,2); const rear=B.units.filter(u=>u.side===0&&!u.cmd&&u.troops>.5&&u.morale>0&&(u.fatigue||0)<25&&!(u.order&&u.order.k==="attack")).slice(0,2); if(front.length&&rear.length){ for(const u of front){ u.order={k:"move",x:Math.max(1,Math.min(BF.w-1,u.x+inn*4)),y:u.y}; u.gx=u.order.x; u.gy=u.order.y; u.charge=false; u.holdUntil=B.elapsed+12; } for(const u of rear){ const t=B.units.filter(x=>x.side===1&&x.troops>.5&&x.morale>0&&!x.left).sort((a,b)=>dist(a,u)-dist(b,u))[0]; if(t){ u.order={k:"attack",id:t.id}; u.charge=true; u.holdUntil=0; } } if(B.ctx.playerSide===1&&!(B.mikSwapTold>B.elapsed-60)){ B.mikSwapTold=B.elapsed; B.banner={t:"武田の前衛が下がり、新手が前へ――疲れを知らぬ魚鱗", at:B.elapsed}; } } }
+  /* 家康を前へ出せば士気と命令が速い。だが敵が本陣まで五百メートルなら危機 */ { const ie=B.units.find(u=>u.side===1&&u.cmd&&u.troops>.5); if(ie){ const inn=B.ctx.playerSide===1?1:-1; const front=B.units.filter(u=>u.side===1&&!u.cmd&&u.troops>.5&&u.morale>0&&!u.left); const avg=front.length?front.reduce((s2,u)=>s2+u.x,0)/front.length:ie.x; const forward=inn>0?ie.x>=avg-1:ie.x<=avg+1; if(forward&&!(B.mikFwdAt>B.elapsed-1)){ B.mikFwdAt=B.elapsed; for(const u of front) if(dist(u,ie)<8) u.morale=Math.min(100,u.morale+0.3); } const near=B.units.filter(u=>u.side===0&&u.troops>.5&&u.morale>0&&dist(u,ie)<5).length; if(near&&!(B.mikCrisisAt>B.elapsed-20)){ B.mikCrisisAt=B.elapsed; if(B.ctx.playerSide===1) B.banner={t:"敵先鋒、本陣まで五百メートル――退くなら今", at:B.elapsed}; } } }
+  /* 目的は戦況で変わる */ { const st=B.startTroops&&B.startTroops[1]||0; const now=B.units.filter(u=>u.side===1&&!u.left).reduce((s2,u)=>s2+u.troops,0); const k=st>0?now/st:1; const want=k>0.8?"武田軍を止めよ":k>0.6?"戦線を維持せよ（崩れたら家康を浜松へ）":"家康を浜松城へ帰還させよ（退き陣の釦）"; if(B.ctx.playerSide===1&&B.mikObj!==want){ B.mikObj=want; B.objective=want; } }
   if(B.mikRetreated) return;
   const st=B.startTroops&&B.startTroops[1]||0; const us=B.units.filter(u=>u.side===1&&!u.left); const now=us.reduce((s2,u)=>s2+u.troops,0); const routed=us.filter(u=>u.morale<=0||u.troops<=.5).length; const ie=us.find(u=>u.cmd);
-  if(B.elapsed>12 && st>0 && ie && ie.troops>.5 && (now<st*0.55 || routed>=3)){ B.mikRetreated=true; if(B.ctx.playerSide===1) mikRetreatAsk(); else mikRetreatGo("hill", null); }
+  if(B.elapsed>12 && st>0 && ie && ie.troops>.5 && (now<st*0.55 || routed>=3) && !(B.mikStayAt>B.elapsed-45)){ B.mikRetreated=true; if(B.ctx.playerSide===1) mikRetreatAsk(); else mikRetreatGo("hill", null); }
 }
 /* 家康の退き口：道と殿軍を選ぶ。家康が浜松側（自陣の野の端）に着けば生還 */
 function mikRetreatAsk(){
@@ -17476,24 +17500,30 @@ function mikRetreatAsk(){
   const el=document.createElement("div"); el.className="overlay"; el.style.zIndex="60";
   el.innerHTML=`<div class="dialog" style="max-width:560px"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">退 き 陣</div><h3>家康を浜松へ</h3>
     <div class="advice">酒井忠次「殿、ここは退いて城へ！ 殿軍は我らが」</div>
+    <div class="sec-title">退き方</div>
+    <div class="grid g3"><button class="cmd" data-m="all">全軍撤退<span class="cost">いっせいに退く。道が混む（家康の足−一割）</span></button><button class="cmd" data-m="step">段階撤退<span class="cost">隊が順に退く。損は少ないが時がかかる</span></button><button class="cmd" data-m="hq">本陣だけ先に<span class="cost">家康だけ退き、諸隊は戦い続ける（討たれやすい）</span></button><button class="cmd" data-m="stay">最後まで戦う<span class="cost">退かない。本陣が潰れれば終わり</span></button></div>
     <div class="sec-title">道</div>
     <div class="grid g3"><button class="cmd" data-w="road">街道<span class="cost">近いが武田が総出で追う（八十秒）</span></button><button class="cmd" data-w="hill">山際の道<span class="cost">遠いが追手は騎馬だけ（百二十秒）</span></button><button class="cmd" data-w="night">夜に紛れる<span class="cost">兵を三割捨てるが追手の足は鈍い（百秒）</span></button></div>
     <div class="sec-title">殿軍（追手を食い止める。討たれやすい）</div>
     <div class="grid g3">${cands.map(u=>`<button class="cmd" data-g="${u.id}">${esc(u.name)}<span class="cost">兵${Math.round(u.troops)}</span></button>`).join("")}<button class="cmd" data-g="-1">殿軍なし<span class="cost">全軍で逃げる</span></button></div>
     <div class="dlg-actions" style="margin-top:8px"><button class="big gold" id="mikRetGo">退け！</button></div></div>`;
-  const pick={w:"hill", g:-1}; const mark=()=>{ el.querySelectorAll("[data-w]").forEach(x=>x.classList.toggle("sel",x.dataset.w===pick.w)); el.querySelectorAll("[data-g]").forEach(x=>x.classList.toggle("sel",+x.dataset.g===pick.g)); };
-  el.querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>{ pick.w=b.dataset.w; mark(); }); el.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{ pick.g=+b.dataset.g; mark(); }); mark();
-  el.querySelector("#mikRetGo").onclick=()=>{ el.remove(); if(!B||B.over!==null) return; B.paused=false; mikRetreatGo(pick.w, pick.g>=0?pick.g:null); };
+  const pick={w:"hill", g:-1, m:"all"}; const mark=()=>{ el.querySelectorAll("[data-w]").forEach(x=>x.classList.toggle("sel",x.dataset.w===pick.w)); el.querySelectorAll("[data-g]").forEach(x=>x.classList.toggle("sel",+x.dataset.g===pick.g)); el.querySelectorAll("[data-m]").forEach(x=>x.classList.toggle("sel",x.dataset.m===pick.m)); };
+  el.querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>{ pick.w=b.dataset.w; mark(); }); el.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{ pick.g=+b.dataset.g; mark(); }); el.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{ pick.m=b.dataset.m; mark(); }); mark();
+  el.querySelector("#mikRetGo").onclick=()=>{ el.remove(); if(!B||B.over!==null) return; B.paused=false; if(pick.m==="stay"){ B.mikRetreated=false; B.mikStayAt=B.elapsed; B.banner={t:"家康「退かぬ！」――最後まで戦う", at:B.elapsed}; for(const u of B.units) if(u.side===1&&u.troops>.5) u.morale=Math.min(100,u.morale+8); return; } mikRetreatGo(pick.w, pick.g>=0?pick.g:null, pick.m); };
   document.getElementById("battle").appendChild(el);
 }
-function mikRetreatGo(way, rearId){
+function mikRetreatGo(way, rearId, mode){ mode=mode||"all";
   const ie=B.units.find(u=>u.side===1&&u.cmd&&u.troops>.5); if(!ie){ endBattle(0); return; }
   B.escapePhase=true; B.escapeAt=B.elapsed; B.escapeId=ie.id; B.escapeGid=ie.gid; B.escapeWinner=0; B.escapeLimit= way==="road"?80: way==="night"?100:120; B.escapeWay=way; B.escapeX=(B.ctx.playerSide===1)?0.6:BF.w-0.6; B.escapeCfg={name:"徳川家康", side:1};   /* 自陣の野の端（浜松側）。人の側が左 */
   const mine=B.ctx.playerSide===1;
   for(const u of B.units){ if(u.side!==1||u.troops<=.5||u.left) continue;
     if(u===ie){ u.escapeAt=B.elapsed; u.escapeManual=mine; u.morale=Math.max(u.morale,60); u.charge=false; u.pursue=false; u.holdUntil=0; u.spdMul=(u.spdMul||1)*(mine?1.25:1.4); u.tough=(u.tough||1)*(mine?3:5); if(mine){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } if(way==="night"){ u.troops=Math.max(1,Math.floor(u.troops*0.7)); } continue; }
     if(rearId!==null && u.id===rearId){ u.rearGuard=true; u.tough=(u.tough||1)*1.6; u.morale=100; u.order={k:"hold"}; u.charge=true; u.holdUntil=0; continue; }
+    if(mode==="hq"){ u.order={k:"hold"}; u.morale=Math.max(20,u.morale-10); continue; }   /* 本陣だけ先に：諸隊は残って戦う */
+    if(mode==="step"){ u.mikLeaveAt=B.elapsed+(B.units.indexOf(u)%4)*8; continue; }   /* 段階撤退：順に退く */
     u.left=true; u.leftTroops=u.troops; }
+  if(mode==="all"&&way==="road"){ ie.spdMul=(ie.spdMul||1)*0.9; }   /* 道が混む */
+  B.mikRetMode=mode;
   { const cav=B.units.filter(u=>u.side===0&&u.troops>.5&&u.morale>0&&!u.left&&u.type===2&&!u.cmd).sort((p,q)=>dist(p,ie)-dist(q,ie)); const lim= way==="road"?99: way==="night"?2:3;
     const goers = way==="road" ? B.units.filter(u=>u.side===0&&u.troops>.5&&u.morale>0&&!u.left&&u.type!==3&&!u.cmd) : cav.slice(0,lim);
     for(const u of goers){ u.pursue=true; u.charge=true; u.holdUntil=0; u.reserveHold=false; u.order={k:"attack",id:ie.id}; if(way==="night") u.spdMul=(u.spdMul||1)*0.65; } }
@@ -17506,6 +17536,10 @@ function mikRetreatGo(way, rearId){
 function mikAfterBattle(takedaWon){
   const m=W.mik||{}; const tk=clanByName("徳川家"), td=clanByName("武田家"); const BB=(typeof B!=="undefined"&&B)?B:null; W.mikResult={takedaWon, escaped:!!(BB&&BB.escapeOk), dead:!!(BB&&BB.escapeDead), day:dayNumber()};
   if(!takedaWon){ m.phase="over"; clearStage(); if(tk&&tk.id===W.player) log("軍師「信玄の西上は頓挫。武田は北信濃へ矛先を変えます」","dip",true); return; }
+  /* 第160巡：戦後の反映。出撃したこと自体が家中と国人と織田にどう映ったか */
+  if(tk&&!tk.dead){ const fought=m.choice==="sortie"||m.choice==="harass"||m.choice==="supply"; const st=BB&&BB.startTroops&&BB.startTroops[1]||1; const now=BB?BB.units.filter(u=>u.side===1).reduce((s2,u)=>s2+(u.left?(u.leftTroops||0):u.troops),0):st; const lossK=1-now/Math.max(1,st);
+    tk.fame=(tk.fame||0)+(fought?(lossK>0.5?-1:1):-2); const od=clanByName("織田家"); if(od&&!od.dead){ addRel(od.id,tk.id,fought?6:-6); } for(const g of Object.values(W.generals)) if(g.clan===tk.id&&g.status!=="死亡"){ if(fought){ g.loyalty=Math.min(100,g.loyalty+(lossK>0.5?2:5)); if(g.tozama) g.loyalty=Math.max(10,g.loyalty-(lossK>0.5?6:0)); } }
+    log(fought?`三方ヶ原の敗戦。だが「戦った」ことで家中の信は保たれ、織田は徳川を見直した（威信${lossK>0.5?"−1":"+1"}・織田の心証+6・家臣の忠義+${lossK>0.5?2:5}、国人は${lossK>0.5?"動揺（−6）":"静か"}）`:"三方ヶ原。戦わなかったことで兵は残ったが、家中と織田は徳川を測り直した（威信−2・織田の心証−6）","dip",tk.id===W.player); }
   const ie=Object.values(W.generals).find(g=>g.name==="徳川家康"&&g.status!=="死亡");
   if(W.mikResult.dead && ie && tk && tk.id!==W.player){ /* 機械の徳川の家康が討たれた */ const ar=ie.army?W.armies[ie.army]:null; if(ar){ ar.gens=ar.gens.filter(x=>x!==ie.id); if(!ar.gens.length) delete W.armies[ar.id]; } ie.army=null; kill(ie.id); log("徳川家康、三方ヶ原に討死","war",true); if(typeof chronicle==="function") chronicle("徳川家康、三方ヶ原に討死"); }
   else if(W.mikResult.dead && ie && tk && tk.id===W.player){ const ar=ie.army?W.armies[ie.army]:null; if(ar){ ar.gens=ar.gens.filter(x=>x!==ie.id); if(!ar.gens.length) delete W.armies[ar.id]; } ie.army=null; kill(ie.id); log("徳川家康、三方ヶ原に討死。家督は継がれる","war",true); if(typeof chronicle==="function") chronicle("徳川家康、三方ヶ原に討死"); }
@@ -18001,7 +18035,7 @@ function updateStageBadge(){
 function stageDaily(){
   if(!W.stage) return;
   for(const id of W.stage.armies){ const a=W.armies[id]; if(!a||!a.stageSiege) continue; const c=W.castles[a.stageSiege.castle];
-    if(dayNumber()>=a.stageSiege.at){ if(c && c.clan!==a.clan){ captureCastle(c.id, a.clan, null); bigNews(`${c.name} 開城`); log(`${c.name}は水攻めに耐えかね、開城しました。${a.name}は陣を払い、東へ駆け戻ります`,"war",true); }
+    if(dayNumber()>=a.stageSiege.at){ if(c && c.clan!==a.clan){ captureCastle(c.id, a.clan, null); bigNews(`${c.name} 開城`); log(a.stageSiege.text||(c.name==="備中高松城"?`${c.name}は水攻めに耐えかね、開城しました。${a.name}は陣を払い、東へ駆け戻ります`:`${c.name}は囲みに耐えかね、開城しました。${a.name}は先へ進みます`),"war",true); }   /* 第160巡：二俣が「水攻め」で「東へ駆け戻る」と出ていた */
       a.mission="移動"; a.target=null; a.stageSiege=null; a.siegeNote=null; }
     else if(c && !(a.stageSiege.told)){ a.stageSiege.told=true; } }
   updateStageBadge();
