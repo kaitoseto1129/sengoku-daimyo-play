@@ -15077,7 +15077,8 @@ const KIYO_LORDS=["丹羽家","池田家","前田家","滝川家"];
 function kiyoRole(){ const me=W.clans[W.player]; if(!me) return null; return ["羽柴家","柴田家","丹羽家","池田家"].includes(me.name)?me.name:null; }
 function kiyoStart(){
   if(W.kiyo) return; const hs=clanByName("羽柴家"), sb=clanByName("柴田家"); if(!hs||!sb) return;
-  W.kiyo={day:0, at:dayNumber()+7, sup:{"丹羽家":60,"池田家":55,"前田家":40,"滝川家":35}, promised:{}, acted:-1, done:false, offers:{}, side:null, leak:0, log:[]};
+  W.kiyo={day:0, at:dayNumber()+7, sup:{"丹羽家":60,"池田家":55,"前田家":40,"滝川家":35}, promised:{}, acted:-1, done:false, offers:{}, side:null, leak:0, log:[], pub:{}, seen:{}, wants:{"丹羽家":"近江の安堵と筆頭の格","池田家":"摂津と大坂","前田家":"能登の安堵","滝川家":"伊勢","柴田家":"北陸の支配と信孝様","羽柴家":"畿内の支配と三法師様","織田信雄":"織田の当主","織田信孝":"美濃と跡目"}};
+  /* 第161巡：表向きの支持と本音は別。表向きは本音から±15ずれて見える。直接会う・密約で本音が見える */ for(const n of Object.keys(W.kiyo.sup)) W.kiyo.pub[n]=Math.max(0,Math.min(100,W.kiyo.sup[n]+Math.round((rnd()-0.5)*30)));
   W.stage={armies:[], aiHold:true, key:"kiyosu", badgeText:()=>W.kiyo&&!W.kiyo.done?`清洲会議まで あと${Math.max(0,W.kiyo.at-dayNumber())}日 ―― 根回しは城の札から`:""};
   const role=kiyoRole();
   if(role){ setTimeout(()=>{ if(W.started) openKiyosu(); },600); }
@@ -15098,7 +15099,7 @@ function openKiyosu(){
   const left=Math.max(0,k.at-dayNumber()); const can=k.acted!==k.day;
   let h=`<div class="tiny muted">清洲会議まで あと${left}日。一日に一手。相手の支持は言葉でしか分からない</div>`;
   if(pole!==0){
-    h+=`<div class="sec-title">宿老たちの態度</div><div class="grid g2">${KIYO_LORDS.map(n=>{ const K=clanByName(n); if(!K||K.dead) return ""; const v=k.sup[n]; return `<div class="s-stat"><span>${monHTML(K,14)} ${esc(n)}${n==="前田家"||n==="滝川家"?"（会議には出ぬ）":""}</span><b>${kiyoWord(v)}</b>${k.promised[n]?`<span class="tiny muted">約束：${esc(k.promised[n])}</span>`:""}</div>`; }).join("")}</div>
+    h+=`<div class="sec-title">宿老たちの態度（表向き／本音は会って初めて分かる）</div><div class="grid g2">${KIYO_LORDS.map(n=>{ const K=clanByName(n); if(!K||K.dead) return ""; const v=k.pub[n]!==undefined?k.pub[n]:k.sup[n]; return `<div class="s-stat"><span>${monHTML(K,14)} ${esc(n)}${n==="前田家"||n==="滝川家"?"（会議には出ぬ）":""}</span><b>表：${kiyoWord(v)}</b><span class="tiny muted">${k.seen[n]?"本音："+kiyoWord(k.sup[n]):"本音：不明"}　欲しいもの：${esc(k.wants[n]||"")}</span>${k.promised[n]?`<span class="tiny muted">約束：${esc(k.promised[n])}</span>`:""}</div>`; }).join("")}</div>
       <div class="sec-title">働きかける相手</div><div class="row" style="gap:6px;flex-wrap:wrap">${KIYO_LORDS.map(n=>`<button class="chip ${k.target===n?"kin":""}" style="cursor:pointer" onclick="W.kiyo.target='${n}';openKiyosu()">${esc(n)}</button>`).join("")}</div>`;
     const t=k.target||"丹羽家"; k.target=t;
     const act=(kind)=>`onclick="kiyoAct('${kind}')"`;
@@ -15128,13 +15129,13 @@ function kiyoAct(kind){
   let msg="";
   if(pole!==0){
     if(kind==="letter"){ push(t,3); msg=`${t}へ書状を送った`; }
-    else if(kind==="meet"){ push(t,6); msg=`${t}に会って言葉を尽くした`; }
+    else if(kind==="meet"){ push(t,6); k.seen[t]=true; msg=`${t}に会って言葉を尽くした。本音が見えた（${kiyoWord(k.sup[t])}）`; }
     else if(kind==="gift"){ if(me.money<3000) return toast("銭が足りませぬ"); me.money-=3000; push(t,8); msg=`${t}へ名物を贈った`; }
     else if(kind==="land"){ if(k.promised[t]) return; const lot=t==="丹羽家"?"若狭と近江":t==="池田家"?"摂津と大坂":t==="前田家"?"能登に加えて加賀二郡":"伊勢と北伊勢"; k.promised[t]=lot; push(t,12); msg=`${t}に「${lot}」の安堵を約した`; }
     else if(kind==="rank"){ if(me.money<2000) return toast("銭が足りませぬ"); me.money-=2000; push(t,6); msg=`朝廷に${t}の官位を推した`; }
     else if(kind==="marry"){ k["marry_"+t]=true; push(t,10); msg=`${t}と縁組みを申し込んだ`; if(T) addRel(W.player,T.id,10); }
     else if(kind==="hostage"){ k["hostage_"+t]=true; push(t,15); for(const g of Object.values(W.generals)) if(g.clan===W.player&&g.status!=="死亡") g.loyalty=Math.max(20,g.loyalty-3); msg=`${t}へ人質を送った（家中の忠義−3）`; }
-    else if(kind==="secret"){ if(rnd()<0.2){ k.leak++; push(t,-10); msg=`${t}との密約は漏れた。${pole>0?"勝家":"秀吉"}方に知られ、${t}は身を引いた（−10）`; } else { push(t,10); msg=`${t}と密約を結んだ`; } }
+    else if(kind==="secret"){ if(rnd()<0.2){ k.leak++; push(t,-10); msg=`${t}との密約は漏れた。${pole>0?"勝家":"秀吉"}方に知られ、${t}は身を引いた（−10）`; } else { push(t,10); k.seen[t]=true; msg=`${t}と密約を結んだ。本音が見えた`; } }
     else if(kind==="smear"){ if(rnd()<0.25){ push(t,-8); msg=`${pole>0?"勝家":"秀吉"}の悪評を流したが露見し、${t}の心証を損ねた（−8）`; } else { push(t,6); msg=`${pole>0?"勝家":"秀吉"}の悪評を${t}に吹き込んだ`; } }
   } else {
     const hs=clanByName("羽柴家"), sb=clanByName("柴田家");
@@ -15162,11 +15163,17 @@ function kiyoCouncil(){
       <button class="cmd" data-heir="nobukatsu">織田信雄<span class="cost">信長の次男。凡庸</span></button>
       <button class="cmd" data-heir="nobutaka">織田信孝<span class="cost">信長の三男。勝家に近い</span></button></div>
     ${pole!==0?`<div class="sec-title">領地の分け前（誰に）</div>${lots.map(([id,nm])=>`<div class="row" style="gap:6px;align-items:center;margin:3px 0"><span class="tiny" style="min-width:12em">${nm}</span>${cands.map(c=>`<button class="chip" data-lot="${id}" data-to="${c}" style="cursor:pointer">${c.replace(/家$/,"")}</button>`).join("")}</div>`).join("")}
+    <div class="sec-title">光秀討伐の功績</div><div class="grid g2"><button class="cmd" data-merit="hideyoshi">秀吉一人の功<span class="cost">秀吉の格が上がる。勝家は面白くない</span></button><button class="cmd" data-merit="all">宿老一同の功<span class="cost">秀吉の格は上がらぬが、対立は和らぐ</span></button></div>
+    <div class="sec-title">織田一門の処遇</div><div class="grid g2"><button class="cmd" data-kin="give">信雄に尾張、信孝に美濃<span class="cost">一門は満足。二人の対立は残る</span></button><button class="cmd" data-kin="hold">一門は押さえ、宿老が政を執る<span class="cost">信雄・信孝は不満。宿老の力は増す</span></button></div>
+    <div class="sec-title">軍団長の権限</div><div class="grid g2"><button class="cmd" data-gen="keep">方面軍を認める<span class="cost">勝家は北陸、秀吉は畿内。双方満足</span></button><button class="cmd" data-gen="cut">方面軍を召し上げ、跡目の下に<span class="cost">対立は減るが、力ある者は不満</span></button></div>
+    <div class="sec-title">妥協</div><div class="grid g3"><button class="cmd" data-comp="none">妥協しない<span class="cost"></span></button><button class="cmd" data-comp="heir">跡目を譲る代わりに領地を取る<span class="cost">相手の跡目を認め、山城と丹波を貰う</span></button><button class="cmd" data-comp="land">領地を譲る代わりに後見を取る<span class="cost">北近江を相手に、跡目の後見はこちら</span></button></div>
     <div class="sec-title">別室の交渉（一つだけ）</div><div class="grid g3"><button class="cmd" data-sec="丹羽家">丹羽へ近江安堵を約す<span class="cost">+10</span></button><button class="cmd" data-sec="池田家">池田へ摂津安堵を約す<span class="cost">+10</span></button><button class="cmd" data-sec="none">何もしない<span class="cost"></span></button></div>`
     :`<div class="sec-title">どちらに付くか</div><div class="grid g2"><button class="cmd" data-side="羽柴家">秀吉に付く<span class="cost">${k.offers["羽柴家"]?esc(k.offers["羽柴家"].lot)+"の安堵":"取り分は会議次第"}</span></button><button class="cmd" data-side="柴田家">勝家に付く<span class="cost">${k.offers["柴田家"]?esc(k.offers["柴田家"].lot)+"の安堵":"取り分は会議次第"}</span></button></div>`}
-    <div class="dlg-actions" style="margin-top:8px"><button class="big gold" id="kiyoGo">決を採る</button></div></div>`;
-  const pick={say:null, heir:pole>0?"sanboshi":pole<0?"nobutaka":"sanboshi", lots:{yamashiro:pole>0?"羽柴家":"柴田家", tanba:pole>0?"羽柴家":"柴田家", omi:pole>0?"柴田家":"柴田家"}, sec:"none", side:k.side||null};
-  const mark=()=>{ el.querySelectorAll("[data-say]").forEach(x=>x.classList.toggle("sel",x.dataset.say===pick.say)); el.querySelectorAll("[data-heir]").forEach(x=>x.classList.toggle("sel",x.dataset.heir===pick.heir)); el.querySelectorAll("[data-lot]").forEach(x=>x.classList.toggle("kin",pick.lots[x.dataset.lot]===x.dataset.to)); el.querySelectorAll("[data-sec]").forEach(x=>x.classList.toggle("sel",x.dataset.sec===pick.sec)); el.querySelectorAll("[data-side]").forEach(x=>x.classList.toggle("sel",x.dataset.side===pick.side)); };
+    <div class="dlg-actions" style="margin-top:8px"><button class="big gold" id="kiyoGo">決を採る</button>${pole!==0?`<button class="big" id="kiyoBreak">決裂させる（決定なし）</button>`:""}</div></div>`;
+  const pick={say:null, heir:pole>0?"sanboshi":pole<0?"nobutaka":"sanboshi", lots:{yamashiro:pole>0?"羽柴家":"柴田家", tanba:pole>0?"羽柴家":"柴田家", omi:pole>0?"柴田家":"柴田家"}, sec:"none", side:k.side||null, merit:"hideyoshi", kin:"give", gen:"keep", comp:"none"};
+  const mark=()=>{ el.querySelectorAll("[data-merit]").forEach(x=>x.classList.toggle("sel",x.dataset.merit===pick.merit)); el.querySelectorAll("[data-kin]").forEach(x=>x.classList.toggle("sel",x.dataset.kin===pick.kin)); el.querySelectorAll("[data-gen]").forEach(x=>x.classList.toggle("sel",x.dataset.gen===pick.gen)); el.querySelectorAll("[data-comp]").forEach(x=>x.classList.toggle("sel",x.dataset.comp===pick.comp)); el.querySelectorAll("[data-say]").forEach(x=>x.classList.toggle("sel",x.dataset.say===pick.say)); el.querySelectorAll("[data-heir]").forEach(x=>x.classList.toggle("sel",x.dataset.heir===pick.heir)); el.querySelectorAll("[data-lot]").forEach(x=>x.classList.toggle("kin",pick.lots[x.dataset.lot]===x.dataset.to)); el.querySelectorAll("[data-sec]").forEach(x=>x.classList.toggle("sel",x.dataset.sec===pick.sec)); el.querySelectorAll("[data-side]").forEach(x=>x.classList.toggle("sel",x.dataset.side===pick.side)); };
+  el.querySelectorAll("[data-merit]").forEach(b=>b.onclick=()=>{ pick.merit=b.dataset.merit; mark(); }); el.querySelectorAll("[data-kin]").forEach(b=>b.onclick=()=>{ pick.kin=b.dataset.kin; mark(); }); el.querySelectorAll("[data-gen]").forEach(b=>b.onclick=()=>{ pick.gen=b.dataset.gen; mark(); }); el.querySelectorAll("[data-comp]").forEach(b=>b.onclick=()=>{ pick.comp=b.dataset.comp; mark(); });
+  { const kb=el.querySelector("#kiyoBreak"); if(kb) kb.onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; kiyoBreak(); resumeSpeed(); refreshHUD(); }; }
   el.querySelectorAll("[data-say]").forEach(b=>b.onclick=()=>{ pick.say=b.dataset.say; mark(); }); el.querySelectorAll("[data-heir]").forEach(b=>b.onclick=()=>{ pick.heir=b.dataset.heir; mark(); }); el.querySelectorAll("[data-lot]").forEach(b=>b.onclick=()=>{ pick.lots[b.dataset.lot]=b.dataset.to; mark(); }); el.querySelectorAll("[data-sec]").forEach(b=>b.onclick=()=>{ pick.sec=b.dataset.sec; mark(); }); el.querySelectorAll("[data-side]").forEach(b=>b.onclick=()=>{ pick.side=b.dataset.side; mark(); }); mark();
   el.querySelector("#kiyoGo").onclick=()=>{ if(pole===0&&!pick.side) return toast("どちらに付くか決めてください"); if(!pick.say) return toast("発言を選んでください"); el.remove(); if(overlayEl===el) overlayEl=null; kiyoResolve(pick); resumeSpeed(); refreshHUD(); };
   document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0);
@@ -15180,6 +15187,7 @@ function kiyoResolve(pick){
   if(pick && pole!==0){ if(pick.say==="sanboshi"){ k.sup["丹羽家"]+=4*pole; } else if(pick.say==="merit"){ k.sup["池田家"]+=4*pole; k.sup["丹羽家"]+=2*pole; } else if(pick.say==="senior"){ k.sup["丹羽家"]-=3*pole; k.sup["池田家"]-=3*pole; }
     if(pick.sec&&pick.sec!=="none"){ k.sup[pick.sec]+=10*pole; k.promised[pick.sec]=k.promised[pick.sec]||(pick.sec==="丹羽家"?"近江":"摂津"); } }
   if(pick && pole===0 && pick.side){ k.side=pick.side; k.sup[role]= pick.side==="羽柴家"?85:15; }
+  for(const n of Object.keys(k.sup)) k.sup[n]=Math.max(0,Math.min(100,k.sup[n]));
   const voteH=n=> (k.sup[n]||50)>50;
   const hVotes=1+(voteH("丹羽家")?1:0)+(voteH("池田家")?1:0), sVotes=1+(voteH("丹羽家")?0:1)+(voteH("池田家")?0:1);
   const hideyoshiWins = hVotes>sVotes || (hVotes===sVotes && voteH("丹羽家"));
@@ -15189,6 +15197,10 @@ function kiyoResolve(pick){
   /* 領地 */
   let lots = hideyoshiWins ? {yamashiro:"羽柴家", tanba:"羽柴家", omi:"柴田家"} : {yamashiro:"柴田家", tanba:"羽柴家", omi:"柴田家"};
   if(pick && pole!==0 && ((pole>0&&hideyoshiWins)||(pole<0&&!hideyoshiWins))) lots=pick.lots;
+  /* 第161巡：妥協。跡目を譲れば領地、領地を譲れば後見 */
+  if(pick && pole!==0 && pick.comp==="heir"){ heir = pole>0?"nobutaka":"sanboshi"; lots.yamashiro=role; lots.tanba=role; lots.omi=pole>0?"柴田家":"羽柴家"; k.comp="heir"; }
+  if(pick && pole!==0 && pick.comp==="land"){ heir = pole>0?"sanboshi":"nobutaka"; lots.omi=pole>0?"柴田家":"羽柴家"; lots.yamashiro=pole>0?"柴田家":"羽柴家"; lots.tanba=role; k.comp="land"; }
+  /* 議題：功績・一門・軍団長 */ k.agenda=pick&&pole!==0?{merit:pick.merit, kin:pick.kin, gen:pick.gen}:{merit:"hideyoshi", kin:"give", gen:"keep"};
   /* 約束を守ったか */
   const broken=[]; for(const [n,lot] of Object.entries(k.promised)){ const got=Object.values(lots).includes(n); if(!got && (n==="丹羽家"||n==="池田家")){ k.sup[n]-=20*pole; broken.push(n); } }
   /* 決めた側の宿老の取り分（丹羽・池田で遊ぶ） */
@@ -15197,7 +15209,9 @@ function kiyoResolve(pick){
   /* 支持と恨み */
   const winnerName=hideyoshiWins?"羽柴家":"柴田家", loserName=hideyoshiWins?"柴田家":"羽柴家"; const W2=clanByName(winnerName), L2=clanByName(loserName);
   const loserLots=Object.values(lots).filter(n=>n===loserName).length;
-  const grudge= (loserLots===0?2:loserLots===1?1:0) + (heir!==(hideyoshiWins?"sanboshi":"nobutaka")?0:1);
+  /* 第161巡：満足度。欲しいものを得たか（勝家：北陸と信孝、秀吉：畿内と三法師、信雄：当主、信孝：美濃と跡目、丹羽：近江、池田：摂津） */
+  const sat={}; sat["羽柴家"]=(heir==="sanboshi"?1:0)+(lots.yamashiro==="羽柴家"?1:0)+(k.agenda.merit==="hideyoshi"?1:0)+(k.agenda.gen==="keep"?1:0); sat["柴田家"]=(heir==="nobutaka"?1:0)+(lots.omi==="柴田家"?1:0)+(k.agenda.merit==="all"?1:0)+(k.agenda.gen==="keep"?1:0); sat["織田信雄"]=(heir==="nobukatsu"?2:0)+(k.agenda.kin==="give"?1:0); sat["織田信孝"]=(heir==="nobutaka"?2:0)+(k.agenda.kin==="give"?1:0); sat["丹羽家"]=Object.values(lots).includes("丹羽家")?2:(k.promised["丹羽家"]?0:1); sat["池田家"]=Object.values(lots).includes("池田家")?2:(k.promised["池田家"]?0:1); k.sat=sat;
+  const loserSat=sat[loserName]||0; const grudge= (loserLots===0?2:loserLots===1?1:0) + (heir!==(hideyoshiWins?"sanboshi":"nobutaka")?0:1) + (loserSat<=1?1:0) - (k.comp?1:0) - (k.agenda.gen==="keep"&&k.agenda.merit==="all"?1:0);
   if(W2&&L2){ addRel(L2.id,W2.id,-15-10*grudge); if(grudge>=2) addRel(W2.id,L2.id,-10); }
   for(const n of ["丹羽家","池田家"]){ const K=clanByName(n); if(!K||!hs||!sb) continue; const v=k.sup[n]; setRel(K.id,hs.id,Math.round(40+v*0.5)); setRel(K.id,sb.id,Math.round(40+(100-v)*0.5)); if(Object.values(lots).includes(n)) addRel(K.id,W2.id,10); }
   for(const n of ["前田家","滝川家"]){ const K=clanByName(n); if(!K||!hs||!sb) continue; const v=k.sup[n]; setRel(K.id,hs.id,Math.round(35+v*0.5)); setRel(K.id,sb.id,Math.round(35+(100-v)*0.5)); }
@@ -15210,8 +15224,18 @@ function kiyoResolve(pick){
   const heirName=heir==="sanboshi"?"三法師":heir==="nobukatsu"?"織田信雄":"織田信孝";
   bigNews(`清洲会議　跡目は${heirName}`); if(typeof chronicle==="function") chronicle(`清洲会議：跡目は${heirName}、${winnerName}が主導`);
   log(`【清洲会議】跡目は${heirName}。山城は${lots.yamashiro}、丹波・丹後は${lots.tanba}、北近江は${lots.omi}。${loserName}は${loserLots?"":"何も得られず、"}唇を噛んだ`,"dip",true);
+  log(`会議の後：秀吉 ${["不満","不満","まずまず","満足","満足"][Math.min(4,sat["羽柴家"])]}／勝家 ${["不満","不満","まずまず","満足","満足"][Math.min(4,sat["柴田家"])]}／信雄 ${sat["織田信雄"]>=2?"満足":"不満"}／信孝 ${sat["織田信孝"]>=2?"満足":"不満"}／丹羽 ${sat["丹羽家"]>=2?"満足":sat["丹羽家"]?"まずまず":"不満"}／池田 ${sat["池田家"]>=2?"満足":sat["池田家"]?"まずまず":"不満"}。秀吉と勝家の対立 ${Math.max(0,grudge)}`,"dip",true);
+  if(k.agenda.gen==="cut"){ for(const n of ["羽柴家","柴田家"]){ const K=clanByName(n); if(K&&K.id!==W.player) for(const g of Object.values(W.generals)) if(g.clan===K.id&&g.status!=="死亡") g.loyalty=Math.max(20,g.loyalty-3); } }
+  { const nb=findGeneralByName("織田信雄"), nt=findGeneralByName("織田信孝"); if(k.agenda.kin==="hold"){ for(const g of [nb,nt]) if(g&&g.status!=="死亡"){ g.loyalty=Math.max(10,g.loyalty-15); } } }
   if(role){ setTimeout(()=>kiyoGradeShow(res),500); }
 }
+/* 第161巡：決裂。決定なし。織田家は事実上二つに割れ、賤ヶ岳が早まる */
+function kiyoBreak(){ const k=W.kiyo; if(!k||k.done) return; k.done=true; W.stage=null; updateStageBadge(); const hs=clanByName("羽柴家"), sb=clanByName("柴田家"), od=clanByName("織田家"), kb=clanByName("神戸家");
+  if(od&&kb&&!kb.dead){ const nt=W.generals[kb.daimyo]; if(sb&&sb.id!==W.player&&kb.id!==W.player){ makeAlly(kb.id,sb.id); setRel(kb.id,sb.id,80); } if(hs&&od.id!==W.player&&hs.id!==W.player){ makeAlly(od.id,hs.id); setRel(od.id,hs.id,75); } }
+  for(const n of ["丹羽家","池田家","前田家","滝川家"]){ const K=clanByName(n); if(!K||!hs||!sb) continue; const v=k.sup[n]; setRel(K.id,hs.id,Math.round(40+v*0.5)); setRel(K.id,sb.id,Math.round(40+(100-v)*0.5)); }
+  if(hs&&sb){ addRel(sb.id,hs.id,-30); addRel(hs.id,sb.id,-20); }
+  const res={heir:null, lots:{}, sup:{...k.sup}, winner:null, grudge:3, broken:[], role:kiyoRole(), day:dayNumber(), broke:true}; W.kiyoResult=res; W.shizugatakeAt=dayNumber()+45;
+  bigNews("清洲会議、決裂"); if(typeof chronicle==="function") chronicle("清洲会議、決裂――織田家は二つに割れる"); log("【清洲会議】決まらぬまま宿老たちは席を立った。信雄は秀吉を、信孝は勝家を頼み、織田家は事実上二つに割れた。戦は近い","dip",true); }
 function kiyoApply(heir, lots){
   const od=clanByName("織田家"), kb=clanByName("神戸家"), hs=clanByName("羽柴家"), sb=clanByName("柴田家");
   const give=(names,toName)=>{ const K=clanByName(toName); if(!K||K.dead) return; for(const nm of names){ const c=Object.values(W.castles).find(x=>x.name===nm); if(!c||c.clan===K.id) continue; const old=c.clan; c.clan=K.id; c.hq=false; c.holdOut=false; c.delegate=null; c.lord=null; for(const g of Object.values(W.generals)) if(g.castle===c.id&&!g.army&&g.clan===old&&g.status==="家臣"){ g.clan=K.id; g.tozama=true; g.loyalty=Math.min(g.loyalty,60); } } bumpGarrison(); };
