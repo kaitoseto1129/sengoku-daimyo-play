@@ -300,7 +300,7 @@ html.bigtext #panel{font-size:15px} html.bigtext .row{font-size:14px} html.bigte
 #unitPop .guide{font-size:10px;color:#FFD9A0;white-space:nowrap;padding:0 4px}
 #unitPop button.warn{background:rgba(226,74,58,.8);color:#fff}
 #unitPop button small{font-weight:600;opacity:.8;margin-left:3px;font-size:10px}
-#bhead{display:flex;align-items:center;gap:8px;padding:6px 12px;flex:none;
+#bhead{display:flex;align-items:center;gap:8px;padding:4px 12px;flex:none;
   background:linear-gradient(180deg,#2A231C 0%,#1B1610 60%,#12100C 100%);border-bottom:2px solid #8A7030;box-shadow:0 2px 8px rgba(0,0,0,.5), inset 0 -1px 0 rgba(201,162,39,.35)}
 #bhead .side{display:flex;align-items:center;gap:6px;font-family:"Yuji Syuku","Zen Kaku Gothic New",serif;font-size:18px;letter-spacing:.12em;color:#F2E8D0;white-space:nowrap}
 #bhead .side .crest{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;font-style:normal;font-family:"Yuji Syuku",serif;font-size:14px;color:#fff;border:2px solid rgba(255,255,255,.6);box-shadow:0 1px 3px rgba(0,0,0,.6)}
@@ -636,6 +636,22 @@ body.inbattle #stage.paused::after{ display:none; }
   font-size:11px; font-weight:800; color:#fff; letter-spacing:.08em; }
 /* 大名選択の家名札 */
 .pick-name{ pointer-events:none; }
+
+/* 第182巡：天王寺の軍議（War Room） */
+.wr-intro{padding:60px 20px;text-align:center}.wr-intro-t{font:400 44px "Yuji Syuku",serif;color:#F2C94C;letter-spacing:.3em;animation:wrIn .5s ease-out}.wr-intro-b{margin-top:14px;font-size:15px;color:#EDE6D6;line-height:1.7;animation:wrIn .9s ease-out}
+@keyframes wrIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.wr-sum{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:4px 0 8px}.wr-num{background:rgba(255,255,255,.05);border:1px solid rgba(201,162,39,.35);border-radius:6px;padding:6px 8px;display:flex;flex-direction:column;gap:2px}.wr-num b{font-size:20px;line-height:1.1}.wr-num b small{font-size:11px;color:var(--muted)}.wr-num.hot{border-color:#E24A3A;background:rgba(226,74,58,.12)}.wr-num.hot b{color:#FF6A5A;animation:wrPulse 1.2s ease-in-out infinite}
+@keyframes wrPulse{0%,100%{opacity:1}50%{opacity:.55}}
+.wr-bar{position:relative;height:6px;background:rgba(0,0,0,.5);border-radius:3px;overflow:hidden;margin-top:3px}.wr-bar i{position:absolute;left:0;top:0;height:100%;background:#8FD0FF;border-radius:3px}.wr-bar i.next{background:rgba(143,208,255,.35)}
+.wr-map{width:100%;max-width:430px;display:block;margin:0 auto;border-radius:6px;border:1px solid rgba(201,162,39,.35)}
+.wr-flow{stroke-dasharray:8 6;animation:wrFlow 1.2s linear infinite}@keyframes wrFlow{to{stroke-dashoffset:-14}}
+.wr-march{animation:wrFlow 1.6s linear infinite}.wr-pulse{animation:wrRing 1.2s ease-out infinite;transform-origin:center;transform-box:fill-box}@keyframes wrRing{0%{opacity:1;transform:scale(.8)}100%{opacity:0;transform:scale(1.6)}}
+.wr-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.wr-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:4px}.wr-card.hist{border-color:rgba(201,162,39,.7);background:rgba(201,162,39,.08)}
+.wr-ct{font-weight:800;font-size:14px}.wr-ic{font-size:16px;margin-right:4px}.wr-hist{font-size:9px;color:#1A1208;background:#C9A227;border-radius:3px;padding:0 4px;margin-left:6px;vertical-align:middle}
+.wr-rows{display:grid;grid-template-columns:1fr 1fr;gap:2px 6px;margin:4px 0}.wr-rows>div{display:flex;flex-direction:column}.wr-rows b{font-size:13px}
+.wr-ok{font-size:11px;color:#7ED67E}.wr-ng{font-size:11px;color:#FF9A88}.wr-card .big{margin-top:auto;padding:6px 8px;font-size:13px}
+.wr-confirm{margin-top:8px;padding:10px;border:1px solid #C9A227;border-radius:8px;background:rgba(0,0,0,.35)}
+@media (max-width:700px){.wr-cards{grid-template-columns:1fr}.wr-sum{grid-template-columns:repeat(2,1fr)}}
 </style>
 
 <div id="start">
@@ -16645,11 +16661,58 @@ function ishiMessengerAsk(){ const I=W.ishi; koChoice("京へ伝令", "包囲を
 function ishiMessengerGo(p,days){ const I=W.ishi; const ok=rnd()<p; I.messenger={ok, arriveAt:dayNumber()+days, done:false}; log(ok?`伝令は包囲を抜けた（${days}日で京へ）`:"伝令は包囲を抜けられなかった（明日分かる）","war",true); openIshiyama(); }
 function ishiReliefBegin(){ const I=W.ishi; if(I.phase!=="siege") return; I.phase="relief"; I.relief.day=0; I.relief.gathered=5000; bigNews("急報、京の信長へ"); log(`京の信長に急報が届いた：「原田直政${I.harada==="dead"?"討死":"敗走"}」「天王寺砦包囲」「明智光秀ら危急」`,"war",true); if(ishiSide()==="od"){ setSpeed(0); setTimeout(()=>ishiReliefAsk(),300); } }
 /* 第179巡：信長の判断は札で問う（帳を閉じたまま砦が落ち、天王寺砦の戦いが起きなかった） */
-function ishiReliefAsk(){ const I=W.ishi; if(!I||I.phase!=="relief"||ishiSide()!=="od") return; const R=I.relief; koChoice("天王寺砦 危急――信長の判断",`「原田直政${I.harada==="dead"?"討死":"敗走"}」「天王寺砦包囲」「明智光秀ら危急」。集まった兵 ${R.gathered.toLocaleString()}（明日 +3,000、上限一万五千）。砦はあと${ishiFortDays()}日。`,[
+function ishiReliefAsk(){ const I=W.ishi; if(!I||I.phase!=="relief"||ishiSide()!=="od") return; try{ ishiWarRoom(); }catch(e){ console.error(e); ishiReliefAskPlain(); } }
+function ishiReliefAskPlain(){ const I=W.ishi; const R=I.relief; koChoice("天王寺砦 危急――信長の判断",`「原田直政${I.harada==="dead"?"討死":"敗走"}」「天王寺砦包囲」「明智光秀ら危急」。集まった兵 ${R.gathered.toLocaleString()}（明日 +3,000、上限一万五千）。砦はあと${ishiFortDays()}日。`,[
     ["now","即時出陣（史実）","今の兵で駆けつける。明日、天王寺の救援戦",()=>ishiReliefGo("now")],
     ["wait","援軍の集結を待つ","一日待って兵を増やす。砦は削られる。明日また問う",()=>{ ishiReliefGo("wait"); R.askedDay=R.day; }],
     ["sakuma","佐久間軍のみ救援","五千だけ送る。信長は出ない（成る見込み低い）",()=>ishiReliefGo("sakuma")],
     ["abandon","砦放棄を命じる","明智に退去を命じる。七割で明智は生きて帰る",()=>ishiReliefGo("abandon")]]); }
+/* ===== 第182巡：天王寺砦の軍議（War Room）。作り手の仕様書「天王寺砦の戦い：軍議・戦略判断画面」 =====
+   急報の演出 → 危機の要約（砦持久・援軍・補給・包囲の四つの数字）→ 大坂湾・石山の図（補給線・包囲の輪・天王寺の火・京からの援軍の矢印）→ 軍師の一言 → 決断の札（三つ＋ほかの手）→ 重い決断だけ確かめ → 信長の台詞 → 戦へ */
+function ishiWarRoom(){
+  const I=W.ishi; const R=I.relief; if(overlayEl&&overlayEl.isConnected){ setTimeout(ishiWarRoom,600); return; }
+  const days=ishiFortDays(); const g=R.gathered, gNext=Math.min(15000,g+3000); const M=ishiSupplyLines(); const ring=M.ring; const supply=Math.round(I.supply); const first=R.introDone!==true; R.introDone=true;
+  const akechi=Object.values(W.generals).find(x=>x.name==="明智光秀"&&x.status!=="死亡");
+  const C={g:"#7ED67E",y:"#E2C24A",r:"#E24A3A",kin:"#C9A227"};
+  const cards=[
+    {k:"now", ic:"⚔", t:"即時出陣", sub:"今の兵で天王寺へ向かう", rows:[["兵力",g.toLocaleString(),g<9000?C.r:C.y],["到着","明日（最速）",C.g],["砦救援","高",C.g],["本隊危険","高",C.r]], ok:["砦の救援が間に合いやすい","明智らを生きて拾える"], ng:["兵力不足（敵は 11,000 以上）","信長自身が矢面に立つ"], heavy:true, hist:true},
+    {k:"wait", ic:"⏳", t:"援軍を待つ", sub:"一日待って兵を増やす", rows:[["現在",g.toLocaleString(),C.y],["明日の見込み",gNext.toLocaleString(),C.g],["砦持久",`${days}日 → ${Math.max(0,days-1)}日`,days<=2?C.r:C.y],["本隊危険","中",C.y]], ok:["兵が増え、勝ち目が上がる"], ng:[`砦は削られる（${days<=1?"明日には落ちる":"落ちれば明智が危ない"}）`,"明日また同じ問いになる"], heavy:false},
+    {k:"sakuma", ic:"↗", t:"佐久間軍のみ救援", sub:"信長本隊を温存する", rows:[["救援兵","約 5,000",C.y],["本隊危険","低",C.g],["救援成功","低〜中",C.r],["到着","明日",C.g]], ok:["本隊を失う恐れがない"], ng:["成る見込みは低い","失敗すれば砦も佐久間も失う"], heavy:false},
+    {k:"abandon", ic:"🏳", t:"天王寺砦を放棄", sub:"明智軍を撤退させる", rows:[["本隊安全","高",C.g],["天王寺","喪失",C.r],["包囲","悪化（補給路が戻る）",C.r],["明智生還","約 70％",C.y]], ok:["本隊は無傷"], ng:["石山の包囲網が破れる","三割で明智は退去の途中に討たれる"], heavy:true}];
+  const card=c=>`<div class="wr-card ${c.hist?"hist":""}" data-k="${c.k}"><div class="wr-ct"><span class="wr-ic">${c.ic}</span>${c.t}${c.hist?'<span class="wr-hist">史実</span>':""}</div><div class="tiny muted">${c.sub}</div><div class="wr-rows">${c.rows.map(r=>`<div><span class="tiny muted">${r[0]}</span><b style="color:${r[2]}">${r[1]}</b></div>`).join("")}</div><div class="wr-ok">${c.ok.map(t=>`<div>✓ ${t}</div>`).join("")}</div><div class="wr-ng">${c.ng.map(t=>`<div>！ ${t}</div>`).join("")}</div><button class="big ${c.hist?"gold":"ghost"}" data-pick="${c.k}">この策を選ぶ</button></div>`;
+  /* 大坂湾・石山の図。左が海。石山を真ん中に、天王寺は南西、木津は南、楼の岸は西、京は北東 */
+  const P={ishi:[150,80],tennoji:[105,125],kizu:[150,150],rounokishi:[95,60],sea:[35,95],kyo:[275,18],south:[215,145]};
+  const L=M.lines.map(l=>{ const to=P[l.k]||P.south; const col={green:C.g,yellow:C.y,red:C.r}[l.col]; const cut=l.col==="green"; return `<line x1="${P.ishi[0]}" y1="${P.ishi[1]}" x2="${to[0]}" y2="${to[1]}" stroke="${col}" stroke-width="${cut?2:5}" stroke-linecap="round" ${cut?'stroke-dasharray="3 5"':'class="wr-flow"'}/>${cut?`<text x="${(P.ishi[0]+to[0])/2}" y="${(P.ishi[1]+to[1])/2-4}" fill="${col}" font-size="8" text-anchor="middle">遮断</text>`:""}`; }).join("");
+  const arc=(cx,cy,r,pct)=>{ const a=Math.PI*2*Math.min(1,pct/100); const x=cx+Math.cos(-Math.PI/2+a)*r, y=cy+Math.sin(-Math.PI/2+a)*r; return `M ${cx} ${cy-r} A ${r} ${r} 0 ${a>Math.PI?1:0} 1 ${x} ${y}`; };
+  const svg=`<svg viewBox="0 0 300 170" class="wr-map"><defs><marker id="wrArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#8FD0FF"/></marker></defs>
+    <rect x="0" y="0" width="300" height="170" fill="#141a12"/><path d="M0,0 L70,0 C60,40 75,90 55,170 L0,170 Z" fill="#1d3a4e"/><text x="22" y="100" fill="#8FB8D8" font-size="9" text-anchor="middle">大坂湾</text>
+    <path d="M150,170 C150,150 140,140 150,120" stroke="#3E6E8E" stroke-width="4" fill="none"/><text x="163" y="162" fill="#8FB8D8" font-size="8">木津川</text>
+    ${L}
+    <circle cx="${P.ishi[0]}" cy="${P.ishi[1]}" r="26" fill="none" stroke="rgba(226,74,58,.25)" stroke-width="6"/><path d="${arc(P.ishi[0],P.ishi[1],26,ring)}" fill="none" stroke="${ring>=60?C.g:ring>=30?C.y:C.r}" stroke-width="6" stroke-linecap="round"/>
+    <rect x="${P.ishi[0]-13}" y="${P.ishi[1]-10}" width="26" height="18" fill="#3C2A16" stroke="#C9A227"/><path d="M${P.ishi[0]-16},${P.ishi[1]-10} L${P.ishi[0]},${P.ishi[1]-19} L${P.ishi[0]+16},${P.ishi[1]-10} Z" fill="#5A3E26"/><text x="${P.ishi[0]}" y="${P.ishi[1]+4}" fill="#EDE6D6" font-size="9" text-anchor="middle" font-weight="700">石山</text><text x="${P.ishi[0]}" y="${P.ishi[1]+38}" fill="#EDE6D6" font-size="8" text-anchor="middle">補給 ${supply}％・包囲 ${ring}％</text>
+    <circle cx="${P.tennoji[0]}" cy="${P.tennoji[1]}" r="13" fill="none" stroke="${C.r}" stroke-width="2" class="wr-pulse"/><rect x="${P.tennoji[0]-8}" y="${P.tennoji[1]-6}" width="16" height="12" fill="#2E5FBF" stroke="#8FD0FF"/><text x="${P.tennoji[0]}" y="${P.tennoji[1]+3}" fill="#fff" font-size="7" text-anchor="middle">砦</text><text x="${P.tennoji[0]}" y="${P.tennoji[1]+24}" fill="${C.r}" font-size="9" text-anchor="middle" font-weight="700">🔥 天王寺砦　あと${days}日</text>
+    <text x="${P.kizu[0]}" y="${P.kizu[1]+12}" fill="#EDE6D6" font-size="8" text-anchor="middle">木津</text><text x="${P.rounokishi[0]}" y="${P.rounokishi[1]-6}" fill="#EDE6D6" font-size="8" text-anchor="middle">楼の岸</text>
+    <path d="M${P.kyo[0]},${P.kyo[1]} C 240,40 190,70 ${P.tennoji[0]+14},${P.tennoji[1]-10}" fill="none" stroke="#8FD0FF" stroke-width="3" stroke-dasharray="6 4" marker-end="url(#wrArrow)" class="wr-march"/><text x="${P.kyo[0]}" y="${P.kyo[1]-6}" fill="#8FD0FF" font-size="9" text-anchor="middle" font-weight="700">京　信長 ${g.toLocaleString()}</text>
+  </svg>`;
+  const el=document.createElement("div"); el.className="overlay"; el.innerHTML=`<div class="dialog wr" style="max-width:760px;max-height:92vh;overflow:auto">
+    <div class="wr-intro" ${first?"":"hidden"}><div class="wr-intro-t">急 報</div><div class="wr-intro-b">軍使「原田直政、${I.harada==="dead"?"討死":"敗走"}！<br>天王寺砦、包囲されました！」</div></div>
+    <div class="wr-body" ${first?"hidden":""}>
+      <div class="tiny" style="letter-spacing:.3em;color:var(--kin)">軍 議</div><h3 style="margin:2px 0 6px">⚠ 天王寺砦、危機 ―― 信長の判断</h3>
+      <div class="wr-sum"><div class="wr-num ${days<=3?"hot":""}"><span class="tiny muted">砦持久</span><b>あと ${days}日</b></div><div class="wr-num"><span class="tiny muted">援軍</span><b>${g.toLocaleString()}<small> / 15,000</small></b><div class="wr-bar"><i style="width:${Math.round(g/150)}%"></i><i class="next" style="left:${Math.round(g/150)}%;width:${Math.round((gNext-g)/150)}%"></i></div><span class="tiny muted">明日 +3,000</span></div><div class="wr-num"><span class="tiny muted">本願寺の補給</span><b style="color:${supply>=60?C.r:supply>=30?C.y:C.g}">${supply}％</b></div><div class="wr-num"><span class="tiny muted">石山の包囲</span><b style="color:${ring>=60?C.g:ring>=30?C.y:C.r}">${ring}％</b></div></div>
+      ${svg}
+      <div class="advice" style="margin:6px 0">軍師「御決断を。砦の${akechi?"明智":"守り"}は${days<=2?"もう幾日も持ちませぬ":"持ちこたえておりますが、長くは続きませぬ"}。」　<span class="tiny muted">目的：天王寺砦を落とさせぬこと（落ちれば石山の包囲は破れる）</span></div>
+      <div class="wr-cards">${cards.slice(0,3).map(card).join("")}</div>
+      <button class="chip" id="wrMore" style="cursor:pointer;margin-top:6px">ほかの手 1 ▸</button><div class="wr-cards" id="wrMoreBox" hidden style="margin-top:4px">${card(cards[3])}</div>
+      <div class="wr-confirm" id="wrConfirm" hidden></div>
+    </div></div>`;
+  document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0);
+  if(first){ try{ playSE("horse"); }catch(_){ } setTimeout(()=>{ if(!el.isConnected) return; el.querySelector(".wr-intro").hidden=true; el.querySelector(".wr-body").hidden=false; try{ playSE("drum"); }catch(_){ } },1500); }
+  { const km=el.querySelector("#wrMore"); km.onclick=()=>{ const bx=el.querySelector("#wrMoreBox"); bx.hidden=!bx.hidden; km.textContent=bx.hidden?"ほかの手 1 ▸":"畳む ▾"; }; }
+  const gen=WORLD_GEN; const done=(k)=>{ el.remove(); if(overlayEl===el) overlayEl=null; if(gen!==WORLD_GEN) return; const line={now:"「出るぞ。皆の者、天王寺へ！」",wait:"「一日だけ待つ。兵を集めよ」",sakuma:"「佐久間、五千で行け。わしは動かぬ」",abandon:"「砦は捨てよ。明智を生かして戻せ」"}[k]; bigNews(`信長${line}`); if(k==="wait"){ ishiReliefGo("wait"); R.askedDay=R.day; } else ishiReliefGo(k); resumeSpeed(); refreshHUD(); };
+  el.querySelectorAll("button[data-pick]").forEach(b=>b.onclick=()=>{ const k=b.dataset.pick; const c=cards.find(x=>x.k===k); if(!c.heavy){ done(k); return; }
+    const cf=el.querySelector("#wrConfirm"); cf.hidden=false; cf.innerHTML=`<div class="wr-ct">${c.ic} ${c.t} ―― ${k==="now"?"本当に出陣しますか？":"本当に砦を捨てますか？"}</div><div class="wr-rows">${k==="now"?`<div><span class="tiny muted">兵力</span><b>${g.toLocaleString()}</b></div><div><span class="tiny muted">敵の想定</span><b style="color:${C.r}">11,000＋</b></div>`:`<div><span class="tiny muted">明智生還</span><b>約 70％</b></div><div><span class="tiny muted">石山の包囲</span><b style="color:${C.r}">破れる</b></div>`}</div><div class="dlg-actions"><button class="big gold" id="wrYes">${k==="now"?"出陣":"放棄を命じる"}</button><button class="big ghost" id="wrNo">考え直す</button></div>`; cf.scrollIntoView({block:"nearest"});
+    cf.querySelector("#wrYes").onclick=()=>done(k); cf.querySelector("#wrNo").onclick=()=>{ cf.hidden=true; }; });
+}
 function ishiReliefGo(k){ const I=W.ishi; if(!I||I.phase!=="relief") return; const R=I.relief;
   if(k==="wait"){ R.decided="wait"; closePanel(); log("信長は集結を待った","war",true); return; }
   if(k==="abandon"){ I.phase="after"; clearStage(); const ak=Object.values(W.generals).find(g=>g.name==="明智光秀"&&g.status!=="死亡"); const ok=rnd()<0.7; if(!ok&&ak&&ak.clan!==W.player){ kill(ak.id); log("明智光秀は退去の途中で討たれた（IF：本能寺は起きない）","war",true); } else log("明智らは夜に紛れて砦を捨て、京へ逃れた。天王寺砦は本願寺の手に","war",true); I.results.grade="敗北（砦放棄）"; I.results.text="天王寺砦は放棄された。石山の包囲網は破れ、本願寺の補給路は戻った"; I.supply=Math.min(100,I.supply+40); I.navalAt=dayNumber()+30; bigNews("天王寺砦 放棄"); return; }
@@ -23476,7 +23539,8 @@ function drawBattle(){
   const foeMax=(B.startTroops&&B.startTroops[1-B.ctx.playerSide])||B.units.filter(u=>u.side!==B.ctx.playerSide).reduce((s,u)=>s+u.max,0)||1;
   /* 第117巡：兵力／士気／総大将の三段（「29,999 0%」が何か分からなかった）。関ヶ原のように傍観がいれば「参戦」も */
   { const sideOf=(sd)=>{ const us=B.units.filter(u=>u.side===sd&&u.troops>.5&&(!u.left||u.sigHidden)); const mor=us.length?Math.round(us.reduce((s2,u)=>s2+u.morale,0)/us.length):0; const cmd=us.find(u=>u.cmd); const active=us.filter(u=>!u.bystander&&!u.waiting).reduce((s2,u)=>s2+u.troops,0); const tot=us.reduce((s2,u)=>s2+u.troops,0); return {mor,cmd,active,tot,hasBy:us.some(u=>u.bystander||u.waiting)}; };
-    const mk=(tot,max,st,mineSide)=>`<span class="row"><span class="k">兵力</span><b>${Math.round(tot).toLocaleString()}</b><span class="k" style="margin-left:4px">損害 ${Math.round((1-tot/max)*100)}%</span></span>${st.hasBy?`<span class="row"><span class="k">参戦</span><b>${Math.round(st.active).toLocaleString()}</b></span>`:(padBy?`<span class="row" style="visibility:hidden"><span class="k">参戦</span><b>0</b></span>`:"")}<span class="row"><span class="k">士気</span><b style="color:${st.mor>=60?"#9FE09F":st.mor>=30?"#FFD166":"#FF9A88"}">${st.mor}%</b></span><span class="row cmd"><span class="k">総大将</span><b style="font-family:inherit;font-size:11px">${st.cmd?esc(st.cmd.name):"—"}${st.cmd&&st.cmd.morale<=0?"（崩れ）":""}</b></span>`;
+    /* 第182巡：頭の帯は二段に詰める（兵力・損害・士気を一列、総大将（と参戦）を二列目）。作り手の仕様：上部UIの縮小 */
+    const mk=(tot,max,st,mineSide)=>`<span class="row"><span class="k">兵力</span><b>${Math.round(tot).toLocaleString()}</b><span class="k" style="margin-left:4px">損害 ${Math.round((1-tot/max)*100)}%</span><span class="k" style="margin-left:6px">士気</span><b style="color:${st.mor>=60?"#9FE09F":st.mor>=30?"#FFD166":"#FF9A88"}">${st.mor}%</b></span><span class="row cmd"><span class="k">総大将</span><b style="font-family:inherit;font-size:11px">${st.cmd?esc(st.cmd.name):"—"}${st.cmd&&st.cmd.morale<=0?"（崩れ）":""}</b>${st.hasBy?`<span class="k" style="margin-left:6px">参戦</span><b>${Math.round(st.active).toLocaleString()}</b>`:""}</span>`;
     const stM=sideOf(B.ctx.playerSide), stF=sideOf(1-B.ctx.playerSide);
     /* 第136巡：片側だけ「参戦」の段が出ると頭の帯の高さが変わり、野が下にずれる。もう片側にも見えない段を置く。二段目の波がある戦（長篠）は陣立ての間から段を取っておく */
     const padBy = stM.hasBy || stF.hasBy || B.units.some(u=>u.waiting||u.bystander||u.holdUntil||u.sekHold||u.okeHold||u.reserveHold);
