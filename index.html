@@ -7565,12 +7565,17 @@ function evaluateEvents(dailyOnly){
     if(dailyOnly && !e.daily) continue;
     if(W.fired.has(e.id)) continue;
     if(e.needsAlive && !e.needsAlive.every(n=>{ const names=Array.isArray(n)?n:[n]; return names.some(nm=>{ const g=Object.values(W.generals).find(x=>x.name===nm); return g&&g.status!=="死亡"; }); })) continue;   /* 第151巡：名のある者が世を去っていれば、その者の出来事は起きない */
+    if(e.needsDead && !e.needsDead.every(nm=>{ const g=Object.values(W.generals).find(x=>x.name===nm); return !g||g.status==="死亡"; })) continue;   /* 第177巡：その者が生きていれば起きない出来事（清洲会議に信長・信忠が生きている等） */
+    if(e.maxYear && W.date.y>e.maxYear){ if(!W.evExpired) W.evExpired=[]; if(!W.evExpired.includes(e.id)){ W.evExpired.push(e.id); } continue; }   /* 第177巡：史実の年月を過ぎて条件が揃わなければ、出来事は消える（無理に史実へ戻さない） */
     let ok=false; try{ ok=e.cond(); }catch(_){ ok=false; }
     if(!ok) continue;
     W.fired.add(e.id);
     for(const line of e.text) log(deadSpeakerFix(line));   /* 第151巡：世を去った者に台詞を言わせない */
+    try{ const why=typeof e.why==="function"?e.why():e.why; if(why&&!e.silent) log(`【発生理由】${why}`,"dip"); }catch(_){ }
     // 一つの出来事でつまずいても、世の歩みは止めない
     try{ e.act(); }catch(err){ console.error("event",e.id,err); }
+    try{ const af=typeof e.after==="function"?e.after():e.after; if(af&&!e.silent) log(`【変わったこと】${af}`,"dip"); }catch(_){ }
+    if(!e.silent){ W.evAudit=W.evAudit||[]; W.evAudit.push({id:e.id,n:e.name,y:W.date.y,m:W.date.m}); if(W.evAudit.length>300) W.evAudit.shift(); }
     if(e.silent) continue;   /* 第151巡：月々の払いのような繰り返しは【出来事】として記さない（記録に百回並んでいた） */
     log(`【${e.name}】`,"war");
     if(typeof chronicle==="function" && e.id>=1100) chronicle(e.name);   // 古い出来事は作中で記している
@@ -10137,8 +10142,18 @@ function chronicle(text){
   if(W.chronicle.length>400) W.chronicle.shift();
 }
 let chronFilter="";
+/* 第177巡：史実との比較（作り手の仕様32・33）。史実の年を過ぎた事柄だけ比べる */
+const HIST_FACTS=[["今川義元",1560,"桶狭間で討死"],["武田信玄",1573,"西上の途に病死"],["浅井長政",1573,"小谷城に自刃"],["朝倉義景",1573,"一乗谷を追われ自刃"],["山県昌景",1575,"長篠で討死"],["馬場信春",1575,"長篠で討死"],["上杉謙信",1578,"春日山で急死"],["松平信康",1579,"二俣で自刃"],["武田勝頼",1582,"天目山で自刃"],["織田信長",1582,"本能寺に果てる"],["織田信忠",1582,"二条御所に果てる"],["明智光秀",1582,"山崎に敗れ討たれる"],["柴田勝家",1583,"北ノ庄に自刃"],["石田三成",1600,"関ヶ原に敗れ斬首"],["真田幸村",1615,"大坂夏の陣で討死"],["豊臣秀頼",1615,"大坂城に自刃"]];
+function histCompareRows(){ const rows=[]; for(const [nm,y,hist] of HIST_FACTS){ if(W.date.y<y||(W.date.y===y&&W.date.m<12)) continue; const g=Object.values(W.generals).find(x=>x.name===nm); if(!g) continue; const now=g.status==="死亡"?"死去":g.status==="隠居"?"隠居":g.status==="浪人"||g.status==="在野"?"浪人":"生存"; const diff=(now!=="死去"); rows.push({nm,y,hist,now,diff}); } return rows; }
+function ifFoundList(){ const set=new Set(); for(const e of (W.events||[])) { const m=(e.text||"").match(/（IF[：:]?([^）]*)）/); if(m) set.add(m[1]||"IF"); } for(const c of (W.chronicle||[])) { const m=c.t.match(/IF[：:]?([^）)]*)/); if(m&&m[1]) set.add(m[1]); } return [...set]; }
 function openChronicle(){
-  const kinds=[["","すべて"],["家","わが家"],["戦","戦"],["落","落城"],["盟","盟・従属"],["死","死去・家督"]];
+  const kinds=[["","すべて"],["家","わが家"],["戦","戦"],["落","落城"],["盟","盟・従属"],["死","死去・家督"],["分","分岐"]];
+  if(chronFilter==="分"){ const bar=`<div class="row" style="gap:6px;flex-wrap:wrap">${kinds.map(([k,l])=>`<button class="chip ${chronFilter===k?"kin":""}" style="cursor:pointer" onclick="chronFilter='${k}';openChronicle()">${l}</button>`).join("")}</div>`;
+    const cmp=histCompareRows(); const ifs=ifFoundList(); const tree=[...(W.chronicle||[])].filter(c=>/IF|分岐|生存|逃れ|残った/.test(c.t)).slice(-12);
+    const h=bar+`<div class="sec-title">あなたの歴史と史実</div>`+(cmp.length?cmp.map(r=>`<div class="row"><span class="tiny num" style="width:60px;opacity:.65">${r.y}年</span><span style="flex:1">${esc(r.nm)}　<span class="tiny muted">史実：${esc(r.hist)}</span>　→　<b style="color:${r.diff?"#FFD166":"#CFC8B8"}">あなた：${r.now}${r.diff?"（分岐）":""}</b></span></div>`).join(""):`<div class="muted tiny">まだ史実と比べる事柄はありませぬ</div>`)
+      +`<div class="sec-title">歴史系譜（枝）</div><div class="tiny" style="line-height:1.7">${tree.length?tree.map((c,i)=>`${i?"　├─ ":"　┌─ "}${c.y}年 ${esc(c.t)}`).join("<br>"):"史実どおりに進んでいる（太い線）"}</div>`
+      +`<div class="sec-title">IF図鑑（見つけた分岐 ${ifs.length}）</div><div class="row" style="gap:4px;flex-wrap:wrap">${ifs.map(t=>`<span class="chip">${esc(t)}</span>`).join("")||"<span class='muted tiny'>まだ分岐は起きていない。？？？</span>"}</div>`;
+    openPanel("年表","歴史分岐",`<div class="list">${h}</div>`); setSpeed(0); return; }
   const myN=clanName(W.player).replace(/家$/,"");
   const match=e=> !chronFilter || (chronFilter==="家" ? e.t.includes(myN) : chronFilter==="戦" ? /戦|合戦|撃破/.test(e.t) : chronFilter==="落" ? /落|開城/.test(e.t) : chronFilter==="盟" ? /盟|従属|臣従|和睦|縁組/.test(e.t) : /死|没|家督|継/.test(e.t));
   const bar=`<div class="row" style="gap:6px;flex-wrap:wrap">${kinds.map(([k,l])=>`<button class="chip ${chronFilter===k?"kin":""}" style="cursor:pointer" onclick="chronFilter='${k}';openChronicle()">${l}</button>`).join("")}</div>`;
@@ -10150,6 +10165,9 @@ function openChronicle(){
   setSpeed(0);
 }
 
+/* 第177巡：開発用の時系列監査（作り手の仕様34・35）。console で auditEvents() */
+function auditEvents(){ const rows=[]; const names={}; for(const e of EVENTS){ const src=e.cond.toString(); const m=src.match(/dateFrom\((\d{4})(?:,(\d{1,2}))?\)/); const y=src.match(/W\.date\.y>=(\d{4})/); const era=(src.match(/eraOnly\(([^)]*)\)/)||[])[1]||(src.match(/okeOnly\(\)/)?'"oke"':""); const minY=m?+m[1]:(y?+y[1]:null); rows.push({id:e.id,name:e.name,minY,maxY:e.maxYear||null,era:era.replace(/"/g,""),needsAlive:(e.needsAlive||[]).map(x=>Array.isArray(x)?x.join("/"):x).join(","),needsDead:(e.needsDead||[]).join(","),fired:W.fired.has(e.id)}); names[e.name]=(names[e.name]||0)+1; }
+  const dup=Object.entries(names).filter(([,n])=>n>1).map(([k])=>k); const bad=(W.evAudit||[]).filter(a=>{ const r=rows.find(x=>x.id===a.id); return r&&((r.minY&&a.y<r.minY)||(r.maxY&&a.y>r.maxY)); }); console.table(rows); if(dup.length) console.warn("重複の名："+dup.join("・")); if(bad.length) console.warn("年代の外で起きた出来事：",bad); return {rows,dup,bad,expired:W.evExpired||[]}; }
 /* ---- 財政 ---- */
 function openFinance(){
   const clan=W.clans[W.player];
@@ -15799,6 +15817,9 @@ EVENTS.push(
      if(od.id===W.player) koChoice("小谷城攻め","朝倉の後詰は絶えた。小谷は孤立している。",[["go","総攻め（史実）","二日後に小谷で決戦。秀吉が京極丸を取れば久政と長政は分断される",()=>{ W.odaniBattle=true; }],["ichi","まずお市と娘を引き取る使者を","六割で長政が応じ、お市と三人の娘が戻る（城兵の士気−10）。その上で総攻め",()=>{ if(rnd()<0.6){ W.odaniIchi=true; log("長政はお市と三人の娘を織田の陣へ送り返した。「妻子に罪はない」",'dip',true); bigNews("お市、戻る"); } else log("長政は使者を追い返した。「市はわが妻。共に果てる」",'dip',true); W.odaniBattle=true; }],["sur","降伏を勧める","二割で久政が折れて開城（長政は城を出て浪人）。八割で拒まれ、総攻めに",()=>{ if(rnd()<0.2){ const c=Object.values(W.castles).find(x=>x.name==="小谷城"&&x.clan===az.id); if(c) captureCastle(c.id,od.id,null); log("久政が折れ、小谷は開城した。長政は城を出て北へ落ちた",'dip',true); bigNews("小谷 開城"); } else { log("長政は降伏を拒んだ。「浅井は織田の臣ではない」",'dip',true); W.odaniBattle=true; } }]]);
      else W.odaniBattle=true; }}
 );
+/* 第177巡：出来事の最長年（史実の年月を過ぎれば消える）と、生きていれば起きない相手（作り手の仕様34・35） */
+{ const MAXY={1000:1561,1002:1567,1003:1573,1004:1576,1005:1573,1101:1566,1104:1567,1105:1570,1107:1575,1108:1575,1115:1575,1120:1575,1121:1574,1122:1576,1123:1576,1124:1582,1125:1585,1230:1582,1233:1582,1238:1582,1242:1582,1243:1582,1246:1583,1247:1583,1248:1583,1249:1581,1250:1582,1251:1582,1232:1582,1254:1580,1255:1578,1256:1579,1257:1580,1161:1582,1164:1583,1127:1584,1244:1583,1245:1583}; for(const e of EVENTS) if(MAXY[e.id]&&!e.maxYear) e.maxYear=MAXY[e.id];
+  const DEAD={1123:[],1127:[]}; for(const e of EVENTS){ if(e.name==="清洲会議"||/清洲会議/.test(e.name)) e.needsDead=(e.needsDead||[]).concat(["織田信長"]); } }
 /* 第151巡：信長本人が世を去っていれば起きない出来事（本能寺の後に「安土の茶会」「信長、石山へ」が起きていた） */
 { const NEED_NOBUNAGA=new Set([1124,1252,1256,1251,1232,1249,1250,1141,1177,1233,1234,1235,1236,1238,1242,1243,1247,1248,1150,1151,1152]); for(const e of EVENTS) if(NEED_NOBUNAGA.has(e.id)) e.needsAlive=["織田信長"];
   const H=["羽柴秀吉","豊臣秀吉","木下藤吉郎"], IE=["徳川家康","松平元康"]; const NEED={1255:["上杉謙信"],1248:[H],1192:[H],1194:["柴田勝家",H],1195:["柴田勝家",H],1189:["柴田勝家"],1151:["柴田勝家"],1239:[IE],1140:[IE],1206:[IE],1131:[IE,H],1130:[H,"伊達政宗"],1273:[H]}; for(const e of EVENTS) if(NEED[e.id]) e.needsAlive=(e.needsAlive||[]).concat(NEED[e.id]); }
