@@ -14765,6 +14765,7 @@ DECISIVE.push(
    atkGens:["徳川家康","井伊直政","榊原康政","本多忠勝","水野忠重","大久保忠世","酒井忠次","鳥居元忠","松平家忠"],
    defGens:["羽柴秀次","池田恒興","森長可","堀秀政","池田輝政","加藤嘉明","脇坂安治","片桐且元"],
    site:["岡崎城","清洲城"], gather:"三河へ向かう別働隊を、家康が背後から追う", open:"長久手の野。伸びきった別働隊の列に、徳川が食らいつく",
+   late:[{names:["森長可","堀秀政"], at:40, h:"森隊 着陣"},{names:["羽柴秀次","加藤嘉明","脇坂安治"], at:85, h:"秀次隊 着陣"}],
    after:{ atkWin:{ text:"別働隊は各個に討たれ、池田恒興・森長可が討死した", kills:["池田恒興","森長可"], run:(a,w)=>{ try{ komNagakuteAfter(true); }catch(e){ console.error(e); } } }, defWin:{ text:"別働隊は徳川の追撃を振り切り、三河へ向かった", run:(a,w)=>{ try{ komNagakuteAfter(false); }catch(e){ console.error(e); } } } } },
  { id:2216, key:"ueda1", sub:"二千で七千を退ける", sc:"jingo", when:"flag", flag:"jingoBattle", delayDays:1, histWin:"def", name:"第一次上田合戦", atk:"徳川家", def:"真田家", castle:"上田城", noAllies:true, terrain:1, forts:null, nAtk:8, nDef:5, atkTroops:7000, defTroops:2000,
    atkGens:["鳥居元忠","大久保忠世","平岩親吉","柴田康忠","保科正直","諏訪頼忠","岡部長盛","菅沼定利"], defGens:["真田昌幸","真田信之","真田幸村","矢沢頼綱","禰津幸直"],
@@ -17181,14 +17182,15 @@ function komBadge(){ const k=W.kom; if(!k) return ""; if(k.phase==="face") retur
 function komDaily(){
   const k=W.kom; if(!k||k.phase!=="face") return; k.day++; const hs=clanByName("羽柴家"), tk=clanByName("徳川家"), od=clanByName("織田家"); if(!hs||!tk||hs.dead||tk.dead){ k.phase="over"; return; }
   const side=komSide(); const summer=W.date.m>=6&&W.date.m<=8;
-  for(const s of ["hs","tk"]){ const big=s==="hs"; k.food[s]=Math.max(0,k.food[s]-(big?2.2:1.2)); if(k.day>10) k.mor[s]=Math.max(0,k.mor[s]-0.5); if(summer) k.sick[s]=Math.min(100,k.sick[s]+(big?1.2:0.7)); if(k.food[s]<=0) k.mor[s]=Math.max(0,k.mor[s]-3);
+  for(const s of ["hs","tk"]){ const big=s==="hs"; const w=(k.works&&k.works[s])||{}; k.food[s]=Math.max(0,k.food[s]-(big?2.2:1.2)*(w.store?0.7:1)); if(k.day>10) k.mor[s]=Math.max(0,k.mor[s]-0.5); if(summer) k.sick[s]=Math.min(100,k.sick[s]+(big?1.2:0.7)*(w.road?0.5:1)); if(k.food[s]<=0) k.mor[s]=Math.max(0,k.mor[s]-3);
     const a=W.armies[s==="hs"?k.hsArmy:k.tkArmy]; if(a){ let loss=0; if(k.sick[s]>20) loss+=0.003; if(k.mor[s]<40) loss+=0.005; if(k.food[s]<=0) loss+=0.01; if(loss>0){ for(const gid of a.gens){ const g=W.generals[gid]; if(g){ const d=Math.floor(g.troops*loss); g.troops-=d; k.lost[s]+=d; } } } } }
-  /* 信雄の心：長引くほど講和に傾く。羽柴が伊勢を圧せば早い */
-  if(k.day>=12){ k.nobu+=1.6+(k.mor.tk<50?1:0)+(k.food.tk<30?1:0); }
+  /* 信雄の心：長引くほど講和に傾く。羽柴が伊勢を圧せば早い（第163巡：自領の損害・秀吉への恐怖・家康への信頼・戦の疲れの四つ） */
+  k.nobuV=k.nobuV||{damage:0,fear:20,trust:60,fatigue:0}; const nv=k.nobuV; if(k.day>=12) nv.fatigue=Math.min(100,nv.fatigue+2); nv.fear=Math.min(100,nv.fear+(k.mor.tk<50?1.5:0.5)+(k.won<0?1:0)); nv.trust=Math.max(0,Math.min(100,nv.trust+(k.won>0?0.6:-0.4)-(k.mor.tk<40?0.5:0))); { const od=clanByName("織田家"); if(od){ const lost=Object.values(W.castles).some(c=>c.clan!==od.id&&c.wasOda); } }
+  if(k.day>=12){ k.nobu=Math.max(k.nobu, Math.round((nv.fatigue*0.4+nv.fear*0.4+nv.damage*0.2)*(1-nv.trust/200))); k.nobu+=0.3; }
   /* 機械の羽柴：八日目に別働隊。機械の徳川：見つければ長久手 */
   if(side!=="hs" && k.day===8 && !k.betsu && !k.betsuDone) komSendBetsu(true);
-  if(k.betsu){ k.betsu.day++; const detectP = 0.22 + (tk.id===W.player?0.05:0) + (Object.values(W.generals).some(g=>g.name==="服部半蔵"&&g.clan===tk.id&&g.status!=="死亡")?0.15:0) + (k.scout?0.2:0);
-    if(!k.betsu.detected && rnd()<detectP){ k.betsu.detected=true; log("斥候の報：羽柴の別働隊（秀次・池田・森）が三河へ向かっている！","war",true); bigNews("別働隊、三河へ"); if(side==="tk"){ setSpeed(0); setTimeout(()=>komNagakuteAsk(),300); } else { komNagakuteGo(); } }
+  if(k.betsu){ k.betsu.day++; const wk=(k.works&&k.works.tk)||{}; const detectP = 0.22 + (tk.id===W.player?0.05:0) + (Object.values(W.generals).some(g=>g.name==="服部半蔵"&&g.clan===tk.id&&g.status!=="死亡")?0.15:0) + (k.scout?0.2:0) + (wk.watch?0.15:0) + (k.betsu.size==="big"?0.08:k.betsu.size==="small"?-0.08:0);
+    if(!k.betsu.detected && rnd()<detectP){ k.betsu.detected=true; const src=["百姓の注進","街道の斥候","伊賀の忍び","街道の見張り","捕らえた雑兵の白状","捕らえた伝令"][Math.floor(rnd()*6)]; log(`${src}：羽柴の別働隊（秀次・池田・森）が三河へ向かっている！ 列は伸びきり、前の池田隊と後ろの秀次隊は半日離れている`,"war",true); bigNews("別働隊、三河へ"); if(side==="tk"){ setSpeed(0); setTimeout(()=>komNagakuteAsk(),300); } else { komNagakuteGo(); } }
     else if(k.betsu.day>=5 && !k.betsu.detected){ k.betsuDone=true; k.betsu=null; const oka=Object.values(W.castles).find(c=>c.name==="岡崎城"); if(oka&&oka.clan===tk.id&&tk.id!==W.player){ captureCastle(oka.id, hs.id, null); log("別働隊は誰にも見つからず岡崎を落とした","war",true); bigNews("岡崎 落城"); k.mor.tk-=20; k.nobu+=20; } else if(oka&&oka.clan===tk.id){ oka.defense=Math.max(0,oka.defense-Math.floor(maxDefense(oka)*0.4)); oka.minchu=Math.max(0,(oka.minchu||50)-15); log("別働隊は見つからずに三河へ入り、岡崎の城下を焼いた（岡崎の守り−40%・民心−15）","war",true); bigNews("岡崎、焼かれる"); k.mor.tk-=10; k.nobu+=15; } } }
   if(k.nobu>=60 && !k.nobuDone){ k.nobuDone=true; komNobukatsuPeace(); return; }
   if(k.day>=20 && !k.peaceAsked && side && rnd()<0.15){ k.peaceAsked=true; setSpeed(0); setTimeout(()=>komPeaceAsk(),300); }
@@ -17197,7 +17199,7 @@ function openKomaki(){
   const k=W.kom; if(!k||k.phase!=="face") return; const side=komSide(); if(!side) return; const me=W.clans[W.player]; const foe=side==="hs"?"tk":"hs"; const nm=s=>s==="hs"?"羽柴":"徳川";
   const can=k.acted!==k.day; const bar=(v,col)=>`<div style="height:8px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden"><div style="height:8px;width:${Math.max(0,Math.min(100,v))}%;background:${col}"></div></div>`;
   const row=(s)=>`<div class="s-stat" style="text-align:left"><span>${nm(s)}の陣</span><div class="tiny">兵糧 ${Math.round(k.food[s])}%${bar(k.food[s],"#C9A227")}士気 ${Math.round(k.mor[s])}${bar(k.mor[s],"#6E98E6")}病 ${Math.round(k.sick[s])}${bar(k.sick[s],"#E24A3A")}陣地 ${["野営","柵","柵と土塁","砦と櫓","堅陣"][Math.min(4,k.build[s])]}　病死・脱走 ${k.lost[s].toLocaleString()}</div></div>`;
-  let h=`<div class="tiny muted">対陣 ${k.day}日目。動けば損、動かねば兵糧が減る。信雄の講和心 ${Math.round(k.nobu)}%（六十で独断講和）</div><div class="grid g2" style="margin-top:6px">${row("hs")}${row("tk")}</div>`;
+  let h=`<div class="tiny muted">対陣 ${k.day}日目。動けば損、動かねば兵糧が減る。信雄の講和心 ${Math.round(k.nobu)}%（六十で独断講和）${k.nobuV?`　―― 疲れ ${Math.round(k.nobuV.fatigue)}・秀吉への恐れ ${Math.round(k.nobuV.fear)}・家康への信頼 ${Math.round(k.nobuV.trust)}`:""}</div><div class="grid g2" style="margin-top:6px">${row("hs")}${row("tk")}</div>`;
   const A=(kind)=>`onclick="komAct('${kind}')"`;
   h+=`<div class="sec-title">今日の手（${can?"まだ":"済み"}）</div><div class="grid g3">
     <button class="cmd" ${A("build")} ${can&&me.money>=2000&&k.build[side]<4?"":"disabled"}>陣地を築く<span class="cost">銭2,000。柵→土塁→櫓→堅陣（決戦で守りが固い）</span></button>
@@ -17217,26 +17219,33 @@ function komAct(kind){
   const cut=(a,n)=>{ if(!a) return; for(const gid of a.gens){ const g=W.generals[gid]; if(g) g.troops=Math.max(100,g.troops-Math.round(n/a.gens.length)); } };
   const sortie=(p,why)=>{ if(rnd()<p){ k.phase="battle"; if(side==="hs") W.komBattleTk=true; else W.komBattleHs=true; log(`${why}――敵が陣を出て討ちかかってくる！`,"war",true); bigNews("敵、討って出る"); return true; } return false; };
   let msg="";
-  if(kind==="build"){ if(me.money<2000) return toast("銭が足りませぬ"); me.money-=2000; k.build[side]=Math.min(4,k.build[side]+1); msg=`陣地を築いた（${["野営","柵","柵と土塁","砦と櫓","堅陣"][k.build[side]]}）`; }
+  if(kind==="build"){ if(me.money<2000) return toast("銭が足りませぬ"); k.works=k.works||{}; const w=k.works[side]=k.works[side]||{}; const go=(what)=>{ me.money-=2000; if(what==="wall"){ k.build[side]=Math.min(4,k.build[side]+1); log(`陣地を築いた（${["野営","柵","柵と土塁","砦と櫓","堅陣"][k.build[side]]}）`,"war",true); } else if(what==="watch"){ w.watch=true; log("見張り台を組んだ。敵の別働隊と夜襲が見つけやすい","war",true); } else if(what==="store"){ w.store=true; log("兵糧庫を建てた。米の減りが三割減る","war",true); } else { w.road=true; log("陣の街道を整えた。病が減り、補給の列が襲われにくい","war",true); } k.acted=k.day; openKomaki(); };
+    koChoice("陣を築く（銭二千）","何を築くか。",[["wall","柵・土塁・櫓","決戦で守りが固い",()=>go("wall")],["watch",w.watch?"見張り台（済）":"見張り台","別働隊・夜襲が見つけやすい（+15%）",()=>{ if(w.watch){ toast("もう組んである"); return "retry"; } go("watch"); }],["store",w.store?"兵糧庫（済）":"兵糧庫","米の減りが三割減る",()=>{ if(w.store){ toast("もう建ててある"); return "retry"; } go("store"); }],["road",w.road?"街道（済）":"街道を整える","病が半分、補給襲撃に強い",()=>{ if(w.road){ toast("もう整えてある"); return "retry"; } go("road"); }]]); return; }
   else if(kind==="raid"){ k.mor[foe]-=3; cut(foeArmy,400); msg="小部隊が敵陣の端を襲い、四百を討った"; if(sortie(0.2,"挑発に乗った敵")) msg+="。敵が討って出る"; }
   else if(kind==="night"){ if(rnd()<0.7){ k.mor[foe]-=6; cut(foeArmy,800); msg="夜襲が図に当たり、敵は八百を失って動揺した"; } else { cut(myArmy,300); msg="夜襲は見破られ、三百を失った"; } }
   else if(kind==="fake"){ k.mor[foe]-=2; msg="偽の噂を流した"; if(sortie(0.3,"噂に乗った敵")) msg+="。敵が討って出る"; }
   else if(kind==="supply"){ k.food[foe]=Math.max(0,k.food[foe]-10); msg="敵の補給の列を襲い、兵糧を焼いた"; if(rnd()<0.2){ cut(myArmy,300); msg+="（追われて三百を失った）"; } }
-  else if(kind==="betsu"){ komSendBetsu(false); msg="別働隊を三河へ送った"; }
+  else if(kind==="betsu"){ komBetsuAsk(); k.acted=k.day; return; }
   else if(kind==="scout"){ k.scout=true; msg="半蔵に街道を見張らせた"; }
   else if(kind==="attack"){ k.phase="battle"; if(side==="hs") W.komBattleHs=true; else W.komBattleTk=true; msg="総攻めを命じた（二日後に決戦）"; }
   else if(kind==="peace"){ k.acted=k.day; closePanel(); komPeaceAsk(); return; }
   k.acted=k.day; k.log.push(`${k.day}日目：${msg}`); log(msg,"war",true); if(k.phase==="face") openKomaki(); else closePanel();
 }
-function komSendBetsu(ai){ const k=W.kom; k.betsu={day:0, detected:false, ai}; log(ai?"羽柴の別働隊が動いたらしい――だが行き先は分からない":"秀次・池田恒興・森長可の一万二千が三河へ向かった","war",true); }
+function komSendBetsu(ai, size){ const k=W.kom; size=size||"mid"; k.betsu={day:0, detected:false, ai, size}; const n=size==="big"?16000:size==="small"?8000:12000; if(!ai&&size==="big") k.mor.hs=Math.max(0,k.mor.hs-8); log(ai?"羽柴の別働隊が動いたらしい――だが行き先は分からない":`秀次・池田恒興・森長可の${n.toLocaleString()}が三河へ向かった${size==="big"?"（小牧の本隊は薄くなる）":size==="small"?"（小勢。見つかりにくい）":""}`,"war",true); }
+function komBetsuAsk(){ const k=W.kom; koChoice("別働隊の編成","三河へ回す別働隊の大きさ。大きいほど三河の城を落としやすいが、小牧の本隊は薄く、見つかりやすい。",[["big","大（一万六千）","三河攻めは確実。小牧の士気−8、見つかりやすい（+8%）",()=>komSendBetsu(false,"big")],["mid","中（一万二千・史実）","釣り合い",()=>komSendBetsu(false,"mid")],["small","小（八千）","見つかりにくい（−8%）。岡崎は落とせないが荒らす",()=>komSendBetsu(false,"small")]]); }
 function komNagakuteAsk(){
   const k=W.kom; if(!k||!k.betsu) return;
-  koChoice("別働隊を見つけた", "羽柴の別働隊（秀次・池田・森の一万二千）が三河へ向かっている。列は伸びきっている。", [
-    ["go","背後から追って叩く","長久手で各個に討つ（九千で一万二千。孤立した隊から潰せ）",()=>komNagakuteGo()],
+  koChoice("別働隊を見つけた", "羽柴の別働隊（秀次・池田・森）が三河へ向かっている。列は伸びきっている。小牧の秀吉本隊は健在。", [
+    ["go","主力で追って叩く（史実）","長久手で各個に討つ（九千で一万二千。孤立した隊から潰せ）。小牧は酒井に任せる",()=>komNagakuteGo()],
+    ["part","一部だけ迎撃","榊原・大須賀の四千五百で追う。損は少ないが討ちきれない",()=>{ k.nagakutePart=true; komNagakuteGo(); }],
+    ["wait","さらに進ませてから叩く","一日待つ。列はもっと伸びる（孤立しやすい）が、岡崎の城下は荒らされる",()=>{ k.nagakuteWait=true; const oka=Object.values(W.castles).find(c=>c.name==="岡崎城"); if(oka) oka.minchu=Math.max(0,(oka.minchu||50)-10); log("家康は一日待った。別働隊の列は前後半日以上に伸びた","war",true); komNagakuteGo(); }],
     ["hold","岡崎へ先回りして守る","別働隊は岡崎に跳ね返されるが、討ち漏らす",()=>{ k.betsu=null; k.betsuDone=true; k.mor.hs-=5; log("徳川は岡崎へ先回りし、別働隊は城を攻めきれず引き返した","war",true); }],
+    ["stay","小牧を動かない","三河は荒らされる（岡崎−40%・士気−10）が、本陣は安全",()=>{ k.betsu=null; k.betsuDone=true; const oka=Object.values(W.castles).find(c=>c.name==="岡崎城"); if(oka&&oka.clan===tk.id){ oka.defense=Math.max(0,oka.defense-Math.floor(maxDefense(oka)*0.4)); } k.mor.tk-=10; k.nobu+=10; log("家康は小牧を動かなかった。別働隊は三河を荒らして戻った","war",true); }],
   ]);
 }
-function komNagakuteGo(){ const k=W.kom; k.phase="battle"; k.betsu=null; k.betsuDone=true; W.komNagakute=true; log("家康は小牧の陣を酒井に任せ、別働隊の背後を追った","war",true); }
+function komNagakuteGo(){ const k=W.kom; k.phase="battle"; k.betsu=null; k.betsuDone=true; W.komNagakute=true; log("家康は小牧の陣を酒井に任せ、別働隊の背後を追った","war",true);
+  /* 第163巡：小牧も動いている。秀吉本隊は家康が離れたと知る */ const hs=clanByName("羽柴家"); const go=(kk)=>{ k.hsMove=kk; if(kk==="komaki"){ log("秀吉は家康の留守を突いて小牧山へ寄せた（長久手の後に小牧の決戦）","war",true); } else if(kk==="relief"){ log("秀吉は別働隊の救援に堀秀政を送った。長久手に間に合うか",'war',true); } else if(kk==="nobu"){ k.nobu+=15; log("秀吉は信雄の伊勢へ兵を向け、講和を迫った（信雄の講和心+15）","dip",true); } else log("秀吉は小牧で様子を見た","war",true); };
+  if(hs&&hs.id===W.player) setTimeout(()=>koChoice("家康、小牧を離れる","斥候「家康の主力が小牧山を出て東へ！ 陣には酒井忠次だけ」",[["komaki","小牧山を攻める","家康の留守を突く。長久手の後に小牧で決戦",()=>go("komaki")],["relief","別働隊を救援","堀秀政の三千が長久手へ（守り手+3,000）",()=>go("relief")],["watch","様子を見る","",()=>go("watch")],["nobu","信雄を狙う","伊勢へ兵を向ける（信雄の講和心+15）",()=>go("nobu")]]),400); else go(rnd()<0.4?"relief":rnd()<0.5?"nobu":"watch"); }
 /* 信雄の独断講和：徳川の戦の名分が消える */
 function komNobukatsuPeace(){
   const k=W.kom; const hs=clanByName("羽柴家"), tk=clanByName("徳川家"), od=clanByName("織田家"); if(!hs||!od) return;
@@ -17277,6 +17286,10 @@ function komSetup(key){
   if(key==="komaki_hs"||key==="komaki_tk"){ const defSide=1; const defKey= key==="komaki_hs"?"tk":"hs"; const b=k.build[defKey]||0; for(const o of B.obstacles){ if((o.fort||o.fence)&&o.hp){ o.hp=Math.round(o.hp*(0.6+0.25*b)); if(o.hpMax) o.hpMax=Math.max(o.hpMax,o.hp); } } for(const u of B.units){ if(u.side===defSide){ u.defBonus=(u.defBonus||1)/(1+0.06*b); } const s=u.side===0?(key==="komaki_hs"?"hs":"tk"):defKey; u.morale=Math.max(20,Math.min(100,Math.round(u.morale*(0.6+0.4*(k.mor[s]||80)/100)))); if(u.cmd){ u.tough=(u.tough||1)*3; u.morRes=Math.min(u.morRes||1,0.6); } }
     B.objective=B.ctx.playerSide===0?"敵の陣を破れ（損害が大きければ退け）":"陣を守り抜け"; }
   if(key==="nagakute"){ B.nagakute=true; B.cmdSlow=1; /* 秀次：判断が遅く混乱に弱い */
+    if(k.nagakutePart){ for(const u of B.units) if(u.side===0&&u.troops>.5){ u.troops=Math.round(u.troops*0.5); u.max=u.troops; } }   /* 一部迎撃：四千五百 */
+    if(k.nagakuteWait){ const d0=B.units.filter(u=>u.side===1&&u.troops>.5); d0.forEach((u,i)=>{ u.x=u.x+(i%2?3:-3); }); }   /* 進ませてから：列はさらに伸びる */
+    if(k.hsMove==="relief"){ for(const u of B.units) if(u.side===1&&/堀秀政/.test(u.name)){ u.troops=Math.round(u.troops*1.6); u.max=u.troops; } }
+    { const nm=B.units.filter(u=>u.side===1).map(u=>u.name); if(B.ctx.playerSide===0) setTimeout(()=>{ if(B&&B.over===null) B.banner={t:"前は池田隊、中は森隊（あと四十秒）、後ろは秀次隊（あと八十五秒）――一隊ずつ討て", at:B.elapsed}; },1800); }
     const def=B.units.filter(u=>u.side===1&&u.troops>.5); def.sort((a,b)=>a.y-b.y); const n=def.length; def.forEach((u,i)=>{ u.x=u.x+(i%2?4:-2)+(i-n/2)*1.2; u.y=1.5+(BF.h-3)*(i+0.5)/n; u.gx=u.x; u.gy=u.y; u.cell=null; u.nextCell=null; if(/羽柴秀次/.test(u.name)){ u.coh=(u.coh||1)*0.85; u.morRes=(u.morRes||1)*1.3; u.hidetsugu=true; } if(u.cmd){ u.tough=(u.tough||1)*2; } });
     for(const u of B.units) if(u.side===0&&u.cmd){ u.tough=(u.tough||1)*3; u.morRes=Math.min(u.morRes||1,0.6); }
     try{ gridSettleAll(); }catch(_){ }
@@ -17294,7 +17307,8 @@ function komBattleAfter(who, atkWon){ const k=W.kom; if(!k) return; const side=k
   if(who==="hs"&&atkWon){ k.phase="over"; clearStage(); const tk=clanByName("徳川家"); if(tk&&tk.id!==W.player){ /* 機械の徳川は浜松へ退き講和 */ k.terms="bad"; komEnd("battle"); } else { log("小牧の陣は破られた。浜松に退いて立て直せ","war",true); k.phase="face"; k.nobu=Math.max(k.nobu,50); } return; }
   if(who==="tk"&&atkWon){ k.phase="over"; clearStage(); const hs=clanByName("羽柴家"); k.terms= side==="tk"?"good":"bad"; komEnd("battle"); return; }
   /* 攻めが跳ね返された：対陣に戻る */ k.phase="face"; log("攻めは陣に跳ね返された。対陣に戻る","war",true); }
-function komNagakuteAfter(tkWon){ const k=W.kom; if(!k) return; const side=komSide(); k.won=(k.won||0)+((tkWon?"tk":"hs")===side?1:-1); if(tkWon){ k.mor.hs-=12; k.mor.tk=Math.min(100,k.mor.tk+12); k.nobu=Math.max(0,k.nobu-15); log("長久手の勝ちで、小牧の徳川は意気が上がった。信雄も少し腰を据えた","war",true); } else { k.mor.tk-=12; k.mor.hs=Math.min(100,k.mor.hs+8); k.nobu+=15; const oka=Object.values(W.castles).find(c=>c.name==="岡崎城"); const tk=clanByName("徳川家"); if(oka&&tk&&oka.clan===tk.id){ oka.defense=Math.max(0,oka.defense-Math.floor(maxDefense(oka)*0.3)); log("別働隊は三河へ入り、岡崎の城下を荒らした","war",true); } } k.phase="face"; }
+function komNagakuteAfter(tkWon){ const k=W.kom; if(!k) return; const side=komSide(); k.won=(k.won||0)+((tkWon?"tk":"hs")===side?1:-1);
+  if(k.hsMove==="komaki"){ k.hsMove=null; setTimeout(()=>{ if(W.kom&&W.kom.phase!=="over"){ W.kom.phase="battle"; W.komBattleHs=true; log("秀吉は家康の留守の小牧山へ寄せた。酒井忠次が守る","war",true); } },800); } if(tkWon){ k.mor.hs-=12; k.mor.tk=Math.min(100,k.mor.tk+12); k.nobu=Math.max(0,k.nobu-15); log("長久手の勝ちで、小牧の徳川は意気が上がった。信雄も少し腰を据えた","war",true); } else { k.mor.tk-=12; k.mor.hs=Math.min(100,k.mor.hs+8); k.nobu+=15; const oka=Object.values(W.castles).find(c=>c.name==="岡崎城"); const tk=clanByName("徳川家"); if(oka&&tk&&oka.clan===tk.id){ oka.defense=Math.max(0,oka.defense-Math.floor(maxDefense(oka)*0.3)); log("別働隊は三河へ入り、岡崎の城下を荒らした","war",true); } } k.phase="face"; }
 /* ===== 賤ヶ岳（第137巡）：雪解けの進軍、大岩山、大返しの夜行軍、盛政の抗命、利家の去就、戦線の連鎖崩壊、七本槍、北庄の最後 ===== */
 function shizuStart(){
   if(W.shizu) return; const hs=clanByName("羽柴家"), sb=clanByName("柴田家"); if(!hs||!sb) return;
