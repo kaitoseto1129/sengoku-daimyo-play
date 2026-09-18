@@ -17309,13 +17309,13 @@ function shizuStart(){
   W.stage={armies:[], aiHold:true, key:"shizugatake", badgeText:shizuBadge};
   const mk=(clan,names,x,y,name,total,note)=>{ const gens=names.map(n=>Object.values(W.generals).find(g=>g.name===n&&g.clan===clan.id&&!g.army&&g.status!=="死亡"&&!g.task)).filter(Boolean); if(gens.length<2) return null; const id=W.nextArmy++; const hq=myCastles(clan.id).find(c=>c.hq)||myCastles(clan.id)[0]; const orig={}; gens.forEach(g=>{ orig[g.id]=g.troops; g.troops=Math.round(total/gens.length); }); const a={id,clan:clan.id,gens:gens.map(g=>g.id),commander:gens[0].id,x,y,px:x,py:y,moveT:1,path:[],origin:hq?hq.id:null,target:null,mission:"移動",siegeDays:0,mode:1,pillaging:false,sea:false,food:9000,name,script:true,stage:true,stageOrig:orig,stageNote:note}; for(const g of gens) g.army=id; W.armies[id]=a; W.stage.armies.push(id); return a; };
   const kita=myCastles(sb.id).find(c=>c.name==="北庄城")||myCastles(sb.id).find(c=>c.hq); const naga=Object.values(W.castles).find(c=>c.name==="長浜城"); const gifu=Object.values(W.castles).find(c=>c.name==="岐阜城");
-  if(kita&&naga){ const t0=W.tile[kita.id], t1=W.tile[naga.id]; const a=mk(sb,["柴田勝家","佐久間盛政","柴田勝政","不破勝光","金森長近","徳山則秀","原長頼"], t0.c, t0.r, "柴田勝家軍団", 20000, "勝家、雪解けの北国街道を南へ"); if(a){ const path=findPath(kita.id,naga.id,sb.id); const ids=[kita.id,...(path||[])]; a.route=ids.map(id=>W.tile[id]).filter(Boolean); if(a.route.length<2) a.route=[{c:t0.c,r:t0.r},{c:t1.c,r:t1.r-1}]; else { const last=a.route[a.route.length-1]; a.route[a.route.length-1]={c:last.c, r:last.r-1.2}; } a.day0=dayNumber(); a.days=8; W.shizu.sbArmy=a.id; W.stage.followId=a.id; } }
+  if(kita&&naga){ const t0=W.tile[kita.id], t1=W.tile[naga.id]; const a=mk(sb,["柴田勝家","佐久間盛政","柴田勝政","不破勝光","金森長近","徳山則秀","原長頼"], t0.c, t0.r, "柴田勝家軍団", 20000, "勝家、雪解けの北国街道を南へ"); if(a){ const path=findPath(kita.id,naga.id,sb.id); const ids=[kita.id,...(path||[])]; a.route=ids.map(id=>W.tile[id]).filter(Boolean); if(a.route.length<2) a.route=[{c:t0.c,r:t0.r},{c:t1.c,r:t1.r-1}]; else { const last=a.route[a.route.length-1]; a.route[a.route.length-1]={c:last.c, r:last.r-1.2}; } a.day0=dayNumber(); a.days=8; if(W.date.m<=3||W.date.m>=12){ a.days+=2; a.food=Math.floor(a.food*0.8); W.shizu.snow=true; log("北国街道はまだ雪が深い。柴田の足は鈍り、兵糧は雪で減る（二日遅れ）","war",true); } W.shizu.sbArmy=a.id; W.stage.followId=a.id; } }
   if(gifu){ const t=W.tile[gifu.id]; const a=mk(hs,["羽柴秀吉","羽柴秀長","加藤清正","福島正則","黒田官兵衛","堀秀政","石田三成"], t.c+0.8, t.r+0.6, "羽柴秀吉軍団", 28000, "秀吉、岐阜の信孝を囲む"); if(a){ a.mission="包囲"; a.target=gifu.id; W.shizu.hsArmy=a.id; } }
   bumpGarrison();
   if(hs.id===W.player) log("軍師「柴田は八日で北近江へ着きます。殿は岐阜の信孝を囲んでおりますが、盛政が砦を落とせば大返しの時。夜通し駆けるか、常の足で行くか」","dip",true);
   else if(sb.id===W.player) log("軍師「秀吉は岐阜に釘付け。盛政に大岩山を落とさせ、秀吉が戻る前に砦を固めましょう。ただし盛政は深追いします」","dip",true);
 }
-function shizuBadge(){ const z=W.shizu; if(!z) return ""; const a=W.armies[z.sbArmy]; if(z.phase==="march"&&a){ const left=Math.max(0,a.day0+a.days-dayNumber()); return left>0?`勝家、雪解けの北国街道を南へ ―― 大岩山まで あと${left}日`:"盛政、大岩山の砦に迫る"; } if(z.phase==="battle") return `両軍、賤ヶ岳に集まる ―― 決戦まで あと${Math.max(0,(W.decisiveAt||0)-dayNumber())}日`; return ""; }
+function shizuBadge(){ const z=W.shizu; if(!z) return ""; const a=W.armies[z.sbArmy]; if(z.phase==="march"&&a){ const left=Math.max(0,a.day0+a.days-dayNumber()); return left>0?`勝家、雪解けの北国街道を南へ ―― 大岩山まで あと${left}日`:"盛政、大岩山の砦に迫る"; } if(z.phase==="battle"){ const sb=clanByName("柴田家"); if(sb&&sb.id===W.player&&!z.scouted) return "両軍、賤ヶ岳に集まる ―― 秀吉の到着は分からない（斥候を出せば見える）"; return `両軍、賤ヶ岳に集まる ―― 秀吉の到着まで あと${Math.max(0,(W.decisiveAt||0)-dayNumber())}日`; } return ""; }
 function shizuDaily(){
   const z=W.shizu; if(!z||z.phase==="over"||z.phase==="battle") return; z.day++; const hs=clanByName("羽柴家"), sb=clanByName("柴田家"); if(!hs||!sb||hs.dead||sb.dead){ z.phase="over"; return; }
   const a=W.armies[z.sbArmy]; if(!a){ if(!W.shizuBattle) z.phase="over"; return; }
@@ -17327,20 +17327,22 @@ function shizuDaily(){
 function shizuRushAsk(){
   const z=W.shizu; if(!z||z.phase!=="march") return;
   koChoice("大返し", "盛政が大岩山を落とし、砦の内で勢いづいている。岐阜から賤ヶ岳まで十三里。", [
-    ["rush", "夜通し駆ける", "二日で着く。兵は疲れ、着いてしばらく攻めの力が落ちる。盛政は砦を固めきれない", ()=>shizuGo("rush")],
-    ["slow", "常の足で行く", "四日で着く。兵は元気だが、柴田は砦を固め、利家も腹を決める", ()=>shizuGo("slow")],
+    ["rush", "超急行（夜通し駆ける）", "二日で着く。兵は疲れ（疲労+35）、着いてしばらく攻めの力が落ちる。盛政は砦を固めきれない", ()=>shizuGo("rush")],
+    ["fast", "急行", "三日で着く。疲労+18。砦は半ば固まる", ()=>shizuGo("fast")],
+    ["slow", "通常（常の足）", "四日で着く。兵は元気だが、柴田は砦を固め、利家も腹を決める", ()=>shizuGo("slow")],
     ["gifu", "先に岐阜を落とす", "七日。信孝を降し背後を絶つが、柴田は北近江を固め、砦の柵は太くなる", ()=>shizuGo("gifu")],
   ]);
 }
 /* 勝家：盛政に退けと命じるか。勝っていれば聞かぬ */
 function shizuSakumaAsk(){
   const z=W.shizu; if(!z||z.phase!=="march") return;
-  koChoice("盛政、砦に留まる", "佐久間盛政は大岩山を落として陣を敷いたまま退かない。秀吉は岐阜にいる――今のうちに退かせるか。", [
-    ["back", "即時撤退を命じる", "三割で盛政は「敵は崩れております。今こそ攻め時！」と聞かぬ。聞けば砦を固めて秀吉を待てる", ()=>{ if(rnd()<0.3){ z.sakuma="defy"; log("佐久間盛政「敵は崩れております。今こそ攻め時にございます！」――盛政は退かなかった","war",true); shizuGo("rush"); } else { z.sakuma="obey"; log("盛政は渋々兵を退き、柴田は賤ヶ岳の北に砦を固めた","war",true); shizuGo("slow"); } }],
-    ["stay", "攻めさせる", "盛政の士気+10。秀吉が駆け戻れば砦の外で当たる", ()=>{ z.sakuma="stay"; shizuGo("rush"); }],
-  ]);
+  koChoice("盛政、砦に留まる", `佐久間盛政は大岩山を落として陣を敷いたまま退かない。秀吉は岐阜にいる${z.scouted?"（斥候：秀吉は夜通し駆けて二日で来る）":"――いつ戻るかは分からない"}。`, [
+    ["back", "即時撤退を命じる", "三割で盛政は「敵は崩れております。今こそ攻め時！」と聞かぬ。聞けば砦を固めて秀吉を待てる（砦+20%）", ()=>{ if(rnd()<0.3){ z.sakuma="defy"; log("佐久間盛政「敵は崩れております。今こそ攻め時にございます！」――盛政は退かなかった","war",true); shizuGo("rush"); } else { z.sakuma="obey"; log("盛政は渋々兵を退き、柴田は賤ヶ岳の北に砦を固めた","war",true); shizuGo("slow"); } }],
+    ["more", "もう一日攻めさせる", "岩崎山も落ち、士気+8。だが砦は固まらず（−30%）、秀吉は夜通し駆けて来る", ()=>{ z.sakuma="more"; log("盛政は翌日、岩崎山の砦も落とした。高山右近は逃げた。柴田の陣は勢いづく――秀吉が来るまで", "war", true); shizuGo("rush"); }],
+    ["stay", "そのまま進撃させる", "盛政の士気+10。秀吉が駆け戻れば砦の外で当たる", ()=>{ z.sakuma="stay"; shizuGo("rush"); }],
+  ].concat(z.scouted?[]:[["scout", "敵の援軍を確かめてから", "斥候を出す。秀吉の動きが分かってから決める（一日）", ()=>{ z.scouted=true; z.asked=false; const a=W.armies[z.sbArmy]; if(a) a.days+=1; log("斥候の報：秀吉は岐阜の囲みを解き、夜通し北国街道を駆けている。二日で着く","war",true); toast("明日、もう一度決めます"); }]]));
 }
-function shizuGo(plan){ const z=W.shizu; z.plan=plan; z.phase="battle"; W.shizuBattle=true; const d=DECISIVE.find(x=>x.id===2209); if(d) d.delayDays= plan==="rush"?2: plan==="slow"?4:7;
+function shizuGo(plan){ const z=W.shizu; z.plan=plan; z.phase="battle"; W.shizuBattle=true; const d=DECISIVE.find(x=>x.id===2209); if(d) d.delayDays= plan==="rush"?2: plan==="fast"?3: plan==="slow"?4:7;
   if(plan==="gifu"){ const gifu=Object.values(W.castles).find(c=>c.name==="岐阜城"); const hs=clanByName("羽柴家"); if(gifu&&hs&&gifu.clan!==hs.id&&gifu.clan!==W.player){ setTimeout(()=>{ captureCastle(gifu.id, hs.id, null); log("岐阜城は落ち、信孝は降った","war",true); },50); } }
   log(plan==="rush"?"秀吉は夜通し北国街道を駆けた（大返し）":plan==="slow"?"秀吉は常の足で北近江へ向かった":"秀吉はまず岐阜を落としてから北近江へ向かう","war",true); }
 /* 合戦の仕込み：夜行軍の疲れ、秀吉の在陣、盛政の抗命、利家の傍観 */
@@ -17349,14 +17351,17 @@ function shizuSetup(){
   const hsSide=0; /* 羽柴は寄せ手 */
   for(const u of B.units){
     if(u.side===hsSide && z.plan==="rush"){ u.fatigue=Math.min(100,(u.fatigue||0)+35); u.warF=(u.warF||1)*0.9; u.rushTired=true; }
-    if(u.side===1 && z.plan!=="rush"){ u.defBonus=(u.defBonus||1)/(z.plan==="gifu"?1.25:1.12); u.morale=Math.min(100,u.morale+5); }
+    if(u.side===hsSide && z.plan==="fast"){ u.fatigue=Math.min(100,(u.fatigue||0)+18); u.warF=(u.warF||1)*0.95; u.rushTired=true; }
+    if(u.side===1 && z.plan!=="rush"){ u.defBonus=(u.defBonus||1)/(z.plan==="gifu"?1.25:z.plan==="fast"?1.06:1.12); u.morale=Math.min(100,u.morale+5); }
+    if(u.side===1 && z.sakuma==="more"){ u.morale=Math.min(100,u.morale+8); }   /* もう一日攻めた：岩崎山も落ちて士気が高いが、砦は固まっていない */
     if(/佐久間盛政/.test(u.name)){ u.defiant=true; u.temper="猛"; if(z.sakuma==="stay") u.morale=100; }
     if(u.cmd){ u.tough=(u.tough||1)*3; u.morRes=Math.min(u.morRes||1,0.6); }   /* 本陣はすぐには潰れない */
     if(/前田利家/.test(u.name)&&u.side===1){ u.sekHold=true; u.maeda=true; u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; }
   }
   /* 秀吉（勝家）が野にいれば、その側は士気が上がり命令が早い */
   for(const sd of [0,1]){ const cmd=B.units.find(u=>u.side===sd&&u.cmd); const g=cmd&&W.generals[cmd.gid]; if(g&&W.clans[g.clan]&&W.clans[g.clan].daimyo===g.id){ for(const u of B.units) if(u.side===sd){ u.morale=Math.min(100,u.morale+5); u.morRes=Math.min(u.morRes||1,0.9); } if(sd===B.ctx.playerSide) B.cmdFast=sd; } }
-  for(const o of B.obstacles){ if(!(o.fort||o.fence)||!o.hp) continue; o.hp=Math.round(o.hp*(z.plan==="rush"?0.6:z.plan==="gifu"?1.3:1)); if(o.hpMax) o.hpMax=Math.max(o.hpMax,o.hp); }   /* 夜通し駆ければ砦は固まりきっていない。岐阜を先にすれば太い */
+  for(const o of B.obstacles){ if(!(o.fort||o.fence)||!o.hp) continue; o.hp=Math.round(o.hp*(z.plan==="rush"?0.6:z.plan==="fast"?0.8:z.plan==="gifu"?1.3:1)*(z.sakuma==="more"?0.7:z.sakuma==="obey"?1.2:1)); if(o.hpMax) o.hpMax=Math.max(o.hpMax,o.hp); }
+  B.bandNames=["大岩山","中央（賤ヶ岳）","北側（余呉）"];   /* 第162巡：戦線は別々 */   /* 夜通し駆ければ砦は固まりきっていない。岐阜を先にすれば太い */
   B.fieldLabels=[{x:BF.w*0.5,y:1.0,t:"賤ヶ岳"},{x:BF.w*0.5,y:BF.h-1.0,t:"余呉湖"}];
   B.objective=B.ctx.playerSide===0?"砦を破り、柴田を崩せ":"砦を守り、秀吉を押し返せ";
   if(B.ctx.playerSide===0 && z.plan==="rush") setTimeout(()=>{ if(B&&B.over===null) B.banner={t:"夜通し駆けた兵は疲れている――四十秒ほどは攻めが鈍い", at:B.elapsed}; },1500);
@@ -17371,6 +17376,8 @@ function shizuTick(dt){
       if(sup>=65 || (sup>=50 && hsWinning)){ /* 秀吉に付く */ m.sekHold=false; m.side=0; m.cmd=false; m.ally=true; m.turned=true; m.turnedAt=B.elapsed; m.order={k:"hold"}; m.morale=Math.max(m.morale,60); if(!B.ctx.atk.includes(m.gid)) B.ctx.atk.push(m.gid); B.ctx.def=B.ctx.def.filter(x=>x!==m.gid); B.bigBanner={t:"前田利家、秀吉に付く", at:B.elapsed, good:B.ctx.playerSide===0, big:true}; for(const v of B.units) if(v.side===1&&v!==m&&v.morale>0) v.morale=Math.max(0,v.morale-15); log("前田利家が陣を返し、秀吉に付いた","war",true); B.maedaJoined=true; }
       else if(sup<=45 || hsWinning){ /* 陣を払う */ m.sekHold=false; m.left=true; m.leftTroops=m.troops; B.bigBanner={t:"前田利家、陣を払う", at:B.elapsed, good:B.ctx.playerSide===0, big:true}; for(const v of B.units) if(v.side===1&&v!==m&&v.morale>0) v.morale=Math.max(0,v.morale-12); log("前田利家は戦わずに陣を払い、府中へ退いた","war",true); B.maedaLeft=true; }
       else { m.sekHold=false; m.order={k:"hold"}; m.morale=Math.max(m.morale,70); B.banner={t:"前田利家、柴田のために戦う", at:B.elapsed}; log("前田利家は義理を立て、柴田のために戦った","war",true); } } }
+  /* 第162巡：信孝と勝家の連携。岐阜が落ちていなければ、七十秒で信孝の兵が秀吉の後方を脅かす */
+  if(!B.shizuNobutaka&&B.elapsed>70){ B.shizuNobutaka=true; const kb=clanByName("神戸家"); const z2=W.shizu||{}; if(kb&&!kb.dead&&z2.plan!=="gifu"&&rnd()<0.5){ sigMorale(0,-10); B.banner={t:"急報――信孝の兵が岐阜を出て、秀吉の後方を脅かす（羽柴の士気−10）", at:B.elapsed}; log("岐阜の信孝が秀吉の背後を突こうと兵を出した","war"); } }
   /* 盛政の抗命：人の柴田が「退け」と命じても、勝っていれば三割で聞かぬ */
   for(const u of B.units){ if(!u.defiant||u.troops<=.5||u.morale<=0||u.side!==B.ctx.playerSide) continue; const k=u.order.k; if(u.lastOrdK!==k){ u.lastOrdK=k; if(k==="retreat" && u.morale>60 && (u.killed||0)>(u.max-u.troops)){ if(rnd()<0.3){ u.order={k:"hold"}; u.charge=true; u.pursue=true; u.defyUntil=B.elapsed+15; bshout(u.id,"敵は崩れております。今こそ攻め時！",3); B.banner={t:"佐久間盛政、退却の命に従わず", at:B.elapsed}; log("佐久間盛政は退却の命に従わなかった","war",true); toast("盛政が命に従いません（十五秒）"); } } } }
 }
