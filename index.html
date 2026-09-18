@@ -6955,7 +6955,7 @@ function delegatedFront(c){
 /* ===================== 歴史イベント ===================== */
 const EVENTS=[
   // 今川義元、西上す。まず攻め上ってくる
-  {id:1000,name:"今川義元、西上す",
+  {id:1000,why:()=>"今川は駿河・遠江・三河を固め、尾張へ。織田は家中をまとめたばかり",name:"今川義元、西上す",
    text:["今川義元「上洛の道を開く。尾張の小倅など物の数ではないわ」",
          "―― 二万五千の大軍が東海道を西へ動き始めた"],
    // 家督を継いだばかりの身に、いきなり二万五千は酷い。
@@ -7074,27 +7074,33 @@ const EVENTS=[
      W.takedaOfferAt=dayNumber()+45;
    }},
   {id:1002,name:"清洲同盟",
-   text:["松平元康「今川に義理立てする謂れはもうござらぬ」","織田信長「よかろう 三河は其方に任せる」"],
+   text:["松平元康「今川に義理立てする謂れはもうござらぬ」","織田信長「よかろう。だが境と今川の扱いは決めておく」"],
+   why:()=>`今川の弱体${W.clans[1]&&W.clans[1].dead?"（滅亡）":""}・松平の独立・尾張と三河の境の情勢。共通の敵と国境の安定が盟を求めた`,
    // すでに盟を結んでいる、あるいは人が松平と手切れした後なら、押しつけない
-   cond:()=> W.date.y>=1562&&W.date.y<1566&&!(W.clans[0]||{}).dead&&!W.clans[23].dead&&alive(144)
-             &&!W.clans[0].allies.has(23)&&!W.clans[0].war.has(23)&&getRel(0,23)>=0,
-   act:()=>{ const v=W.clans[23]; if(v.suzerain!==null){ W.clans[v.suzerain].vassals.delete(23); v.suzerain=null; }
-     makeAlly(0,23); setRel(0,23,100); setRel(23,0,100);
-     declareWar(23,1); }},
+   cond:()=> !(overlayEl&&overlayEl.isConnected)&&W.date.y>=1562&&W.date.y<1566&&!(W.clans[0]||{}).dead&&!W.clans[23].dead&&alive(144)
+             &&!W.clans[0].allies.has(23)&&!W.clans[0].war.has(23)&&getRel(0,23)>=0&&!W.kiyoAllyDone,
+   act:()=>{ try{ kiyoAllyStart(); }catch(e){ console.error(e); const v=W.clans[23]; if(v.suzerain!==null){ W.clans[v.suzerain].vassals.delete(23); v.suzerain=null; } makeAlly(0,23); setRel(0,23,100); setRel(23,0,100); declareWar(23,1); } }},
   {id:1003,name:"三国同盟の破綻",
    text:["武田信玄「駿河は貰い受ける 義信には気の毒じゃがのう」"],
+   why:()=>"今川の弱体と義信事件。信玄は海への道（駿河）を欲した", after:()=>"武田―今川：同盟 → 敵対。駿河の危険度 低 → 高",
    cond:()=> W.date.y>=1569&&W.date.y<1572&&!W.clans[2].dead&&!(W.clans[1]||{}).dead,
    act:()=>{ declareWar(2,1); }},
   {id:1004,name:"信長上洛",
    text:["織田信長「天下布武 —— 将軍を奉じて京へ上る」"],
+   why:()=>"美濃を得て岐阜に本拠を置き、足利義昭を奉じる名分と、六角・近江国人を抑える力が揃った", after:()=>"織田の威信+30・銭+20,000。諸家との仲+10。京は織田の手に",
    cond:()=> W.date.y>=1568&&kyotoCastle()&&kyotoCastle().clan===0,
    // 将軍の座は evaluateShogun の決まり（京と十二城）で決める。ここで直に据えると五城でも将軍になってしまう
    act:()=>{ W.clans[0].money+=20000; W.clans[0].prestige=(W.clans[0].prestige||0)+30; for(const o of Object.values(W.clans)) if(!o.dead&&o.id!==0&&!o.war.has(0)) addRel(o.id,0,10); }},
   {id:1005,name:"浅井の離反",
    text:["浅井長政「朝倉との義を捨てることはできぬ」"],
-   cond:()=> W.date.y>=1570&&W.date.y<1573&&!W.clans[6].dead&&!(W.clans[0]||{}).dead&&!W.clans[8].dead&&W.clans[0].war.has(8),
-   act:()=>{ const az=W.clans[6]; if(az.id===W.player){ koChoice("浅井家、どちらに付くか","織田は越前へ攻め入った。朝倉との義か、お市との縁か。",[["oda","織田を支持","朝倉と敵対。織田との盟は固くなる",()=>{ if(!az.war.has(8)) declareWar(6,8,"force"); addRel(0,6,20); log("浅井は織田に付いた。朝倉との縁は切れた",'dip',true); }],["asakura","朝倉を支持","織田と敵対。金ヶ崎で織田を挟む（史実）",()=>{ declareWar(6,0,"force"); makeAlly(6,8); W.kanegasaki=true; log("浅井は朝倉に付き、織田の背後を衝いた",'war',true); bigNews("浅井 離反"); }],["neutral","中立","両者から不信（心証-20）",()=>{ addRel(0,6,-20); addRel(8,6,-20); log("浅井はどちらにも付かず、両家から疑われた",'dip',true); }]]); }
+   why:()=>`織田の朝倉攻め。浅井の信頼 ${W.azaiTrust!==undefined?Math.round(W.azaiTrust):"?"}／久政と古い家臣は朝倉との旧交を重んじ、お市の縁は織田へ引く`,
+   cond:()=> !(overlayEl&&overlayEl.isConnected)&&W.date.y>=1570&&W.date.y<1573&&!W.clans[6].dead&&!(W.clans[0]||{}).dead&&!W.clans[8].dead&&W.clans[0].war.has(8)&&(W.azaiOmen===undefined||W.azaiOmen>=3||W.azaiOmenSkip),
+   act:()=>{ const az=W.clans[6]; if(az.id!==W.player&&W.player!==0){ /* 機械同士：信頼と家中で決まる */ const t=W.azaiTrust!==undefined?W.azaiTrust:50; const r=rnd()*100; if(r<t-20){ if(!az.war.has(8)) declareWar(6,8,"force"); addRel(0,6,20); log("浅井は織田に付いた。朝倉との縁は切れた（IF：浅井が織田側に残る）",'dip',true); return; } if(r<t+10&&t>=45){ log("浅井は中立を保った。金ヶ崎は起きない（IF：浅井の中立化）",'dip',true); W.azaiNeutral=true; return; } } if(az.id===W.player){ koChoice("浅井家、どちらに付くか","織田は越前へ攻め入った。朝倉との義か、お市との縁か。",[["oda","織田を支持","朝倉と敵対。織田との盟は固くなる",()=>{ if(!az.war.has(8)) declareWar(6,8,"force"); addRel(0,6,20); log("浅井は織田に付いた。朝倉との縁は切れた",'dip',true); }],["asakura","朝倉を支持","織田と敵対。金ヶ崎で織田を挟む（史実）",()=>{ declareWar(6,0,"force"); makeAlly(6,8); W.kanegasaki=true; log("浅井は朝倉に付き、織田の背後を衝いた",'war',true); bigNews("浅井 離反"); }],["neutral","中立","両者から不信（心証-20）",()=>{ addRel(0,6,-20); addRel(8,6,-20); log("浅井はどちらにも付かず、両家から疑われた",'dip',true); }]]); }
      else { declareWar(6,0); makeAlly(6,8); W.kanegasaki=true; bigNews("浅井 離反"); } }},
+  {id:1018,daily:true,silent:true,name:"朝倉問題と浅井の前兆",
+   text:[],
+   cond:()=> W.date.y>=1570&&W.date.y<1573&&!W.clans[6].dead&&!(W.clans[0]||{}).dead&&!W.clans[8].dead&&W.clans[0].war.has(8)&&!W.fired.has(1005)&&W.clans[0].allies.has(6)&&!(overlayEl&&overlayEl.isConnected)&&!B,
+   act:()=>{ W.fired.delete(1018); try{ azaiOmenTick(); }catch(e){ console.error(e); } }},
   {id:1008,name:"川中島の激突",
    text:["長尾景虎「車懸りの陣 —— 突き崩せ！」","武田信玄「動かざること山の如し」"],
    cond:()=> dateFrom(1561,9)&&W.date.y<1563&&W.clans[2].war.has(3),
@@ -7358,6 +7364,7 @@ EVENTS.push(
   // 1561 斎藤義龍の死。美濃は揺らぐ
   {id:1101,name:"斎藤義龍の死",
    text:["―― 美濃の斎藤義龍、病に倒れる。跡を継いだ龍興はまだ若く、家中は揺れた"],
+   why:()=>"病。義龍は三十五で没した。龍興は十四歳", after:()=>"斎藤の家臣の忠義−15。美濃の国人は揺れる（織田で遊ぶなら「美濃の国人」の帳から切り崩せる）",
    cond:()=> okeOnly()&&dateFrom(1561,5)&&okeAlive(5)&&!findGeneralByName("斎藤龍興"),
    act:()=>{ const hq=myCastles(5).find(c=>c.hq)||myCastles(5)[0]; const t=spawnGeneral("斎藤龍興",5,hq?hq.id:null,1500); if(t){ t.family=true; t.loyalty=100; }
      if(W.player!==5){ if(alive(65)) kill(65); if(t){ const K=W.clans[5]; if(K.daimyo!==t.id){ const old=W.generals[K.daimyo]; if(old&&old.status==="大名"){ old.status="家臣"; } K.daimyo=t.id; t.status="大名"; } } }
@@ -7384,7 +7391,8 @@ EVENTS.push(
   // 1567 美濃三人衆の調略。稲葉・安藤・氏家が城ごと織田に寝返る
   {id:1105,name:"美濃三人衆の寝返り",
    text:["稲葉一鉄「龍興では美濃は保てぬ。織田に付く」","―― 稲葉・安藤・氏家の三人衆が、城ごと織田に転じた"],
-   cond:()=> okeOnly()&&W.date.y>=1567&&okeAlive(0)&&okeAlive(5)&&W.player!==5,
+   why:()=>W.player===0?"調略の進み：三人衆の織田への好感が忠義を超えた":"龍興の失政と半兵衛の乗っ取りで斎藤の家中は崩れ、三人衆は織田を選んだ", after:()=>"美濃の西半分は織田へ。稲葉山は裸になった",
+   cond:()=> okeOnly()&&W.date.y>=1567&&okeAlive(0)&&okeAlive(5)&&W.player!==5&&(W.player!==0||minoReady()),
    act:()=>{ spawnGeneral("稲葉一鉄",5,null,900); let n=0;
      for(const nm of ["稲葉一鉄","安藤守就","氏家直元"]){ const g=findGeneralByName(nm); if(!g||g.clan!==5||g.status!=="家臣"||g.army) continue;
        const c=Object.values(W.castles).find(x=>x.lord===g.id&&x.clan===5&&!x.hq);
@@ -7398,6 +7406,7 @@ EVENTS.push(
   // 稲葉山を取れば岐阜と改め、天下布武を掲げる
   {id:1106,name:"岐阜と天下布武",
    text:["織田信長「この地を岐阜と改める。天下布武——武をもって天下を布く」"],
+   why:()=>"稲葉山を得た。美濃と尾張を合わせ、京へ上る足場が整った", after:()=>"本拠は岐阜。威信+20・銭+10,000。政権の目標：天下布武",
    cond:()=> okeOnly()&&okeAlive(0)&&(()=>{ const c=Object.values(W.castles).find(x=>x.name==="稲葉山城"); return c&&c.clan===0; })(),
    act:()=>{ const c=Object.values(W.castles).find(x=>x.name==="稲葉山城"); if(c){ c.name="岐阜城"; c.hq=true; for(const o of myCastles(0)) if(o!==c) o.hq=false; }
      W.clans[0].prestige=(W.clans[0].prestige||0)+20; W.clans[0].money+=10000;
@@ -7406,11 +7415,14 @@ EVENTS.push(
   // 1568 明智光秀、織田に仕える
   {id:1107,name:"明智光秀の仕官",
    text:["明智光秀「将軍家の御為、そして織田殿の御為に」"],
-   cond:()=> okeOnly()&&W.date.y>=1568&&okeAlive(0)&&alive(165)&&W.generals[165].clan!==0&&W.generals[165].status!=="大名"&&W.generals[165].clan!==W.player,
-   act:()=>{ if(joinClan("明智光秀",0,1200)&&W.player===0) log("明智光秀が織田家に加わりました","growth",true); }},
+   why:()=>"光秀は浪人の身で義昭に近く、信長の上洛の気配を読んだ。義昭の取り次ぎとして面会を求めた",
+   cond:()=> !(overlayEl&&overlayEl.isConnected)&&okeOnly()&&W.date.y>=1568&&okeAlive(0)&&alive(165)&&W.generals[165].clan!==0&&W.generals[165].status!=="大名"&&W.generals[165].clan!==W.player&&!W.akechiRefused,
+   act:()=>{ const g=W.generals[165]; if(W.player!==0){ if(joinClan("明智光秀",0,1200)) log("明智光秀が織田家に加わりました","growth",false); return; }
+     koChoice("明智光秀、面会を求む",`浪人・明智光秀。統率 ${g.lea}・武勇 ${g.war}・知略 ${g.int}・政治 ${g.pol}。義昭に近く、公家と寺社に顔が利く。`,[["hire","召し抱える","知略と政治の将。義昭との取り次ぎ役に",()=>{ if(joinClan("明智光秀",0,1200)) log("明智光秀が織田家に加わりました","growth",true); }],["test","一年様子を見る","義昭の下に置いたまま。来年また",()=>{ W.fired.delete(1107); W.akechiWait=W.date.y+1; log("光秀は義昭の側に留め、様子を見ることにした","dip",true); }],["refuse","断る","光秀は別の家へ（IF：仕官拒否）",()=>{ W.akechiRefused=true; const cands=Object.values(W.clans).filter(K=>!K.dead&&K.id!==0&&K.id!==W.player&&/朝倉|毛利|上杉/.test(K.name)); const K=cands[0]; if(K){ joinClan("明智光秀",K.id,1200); log(`光秀は断られ、${K.name}へ仕官した（IF）`,"dip",true); } }]]); }},
   // 1568 足利義昭を奉じて上洛（京を押さえたら）
   {id:1108,name:"足利義昭の上洛",
    text:["足利義昭「織田殿、そなたを父とも思うぞ」","―― 義昭は十五代将軍に就き、幕府は名のみ再興された"],
+   why:()=>"京を押さえ、義昭を奉じる名分が立った。六角は退き、近江の国人は靡いた", after:()=>"威信+20、諸家との仲+8。義昭は織田の下に（忠義は低い）",
    cond:()=> okeOnly()&&W.date.y>=1568&&kyotoCastle()&&kyotoCastle().clan===0&&okeAlive(0),
    act:()=>{ const k=kyotoCastle(); const g=spawnGeneral("足利義昭",0,k?k.id:null,300); if(g){ g.loyalty=40; }
      W.clans[0].prestige=(W.clans[0].prestige||0)+20; for(const o of Object.values(W.clans)) if(!o.dead&&o.id!==0&&!o.war.has(0)) addRel(o.id,0,8);
@@ -7444,6 +7456,7 @@ EVENTS.push(
   // 1573 信玄の死
   {id:1114,name:"信玄の死",
    text:["武田信玄「わしの死は三年秘せ。勝頼を頼む」","―― 甲斐の虎、上洛の途に倒れる"],
+   why:()=>"西上の途、病が重くなった", after:()=>"勝頼が家督。武田の家臣の忠義−10。包囲網の要が抜けた",
    cond:()=> eraOnly("oke","hoi")&&dateFrom(1573,4)&&okeAlive(2)&&alive(30)&&W.generals[30].clan===2&&W.player!==2,
    act:()=>{ const kp=findGeneralByName("武田勝頼"); const K=W.clans[2]; kill(30); if(kp&&kp.status!=="死亡"&&K.daimyo!==kp.id){ const old=W.generals[K.daimyo]; if(old&&old.status==="大名"&&old.id!==kp.id) old.status="家臣"; K.daimyo=kp.id; kp.status="大名"; }
      for(const g of Object.values(W.generals)) if(g.clan===2&&g.status==="家臣") g.loyalty=Math.max(0,g.loyalty-10);
@@ -7451,6 +7464,7 @@ EVENTS.push(
   // 1568 今川の終わり：武田と徳川が駿河・遠江を分ける（今川がまだ残っていれば）
   {id:1115,name:"今川の落日",
    text:["―― 武田は駿河へ、徳川は遠江へ。今川氏真は駿府を追われ、北条を頼った"],
+   why:()=>"桶狭間の後の弱体、三国同盟の破綻、徳川の独立。氏真は家中を保てなかった", after:()=>"駿河は武田、遠江は徳川。今川家は滅んだ",
    cond:()=> !(overlayEl&&overlayEl.isConnected)&&okeOnly()&&W.date.y>=1569&&okeAlive(1)&&W.player!==1&&okeAlive(2)&&okeAlive(23),
    act:()=>{ const cs=myCastles(1); for(const c of cs){ const pv=DATA.provinces[c.prov]?DATA.provinces[c.prov].n:""; const to = pv==="遠江" ? 23 : 2; c.clan=to; c.hq=false; c.holdOut=false; for(const g of Object.values(W.generals)) if(g.castle===c.id&&!g.army&&g.clan===1&&g.status==="家臣"){ g.clan=to; g.tozama=true; g.loyalty=50; } }
      const K=W.clans[1]; K.dead=true; forgetClan(1); log("今川家は滅び、氏真は北条を頼って落ち延びました","war",true); bigNews("今川家 滅ぶ"); if(typeof chronicle==="function") chronicle("今川家、滅ぶ"); }}
@@ -13899,7 +13913,9 @@ function fireEvent(id){
   if(!e || W.fired.has(id)) return;
   W.fired.add(id);
   for(const line of e.text) log(line);
+  /* 第173巡：なぜ起きたか（作り手の仕様26） */ try{ const why=typeof e.why==="function"?e.why():e.why; if(why) log(`【発生理由】${why}`,"dip"); }catch(_){ }
   try{ e.act(); }catch(err){ console.error("event",id,err); }
+  /* 何が変わったか */ try{ const af=typeof e.after==="function"?e.after():e.after; if(af) log(`【変わったこと】${af}`,"dip"); }catch(_){ }
   log(`【${e.name}】`,"war");
 }
 /* 上洛勢を破ったか。破って初めて義元の首が上がる */
@@ -14264,10 +14280,11 @@ const decisiveIn = (d,sc) => { const ok = Array.isArray(d.sc) ? d.sc.includes(sc
   return false; };
 EVENTS.push(
   // 1571 比叡山焼き討ち
-  {id:1120,name:"比叡山焼き討ち",
-   text:["織田信長「僧も俗も、女も子も、ことごとく討て」","―― 延暦寺は灰となり、天下は信長を恐れた"],
-   cond:()=> eraOnly("hoi")&&dateFrom(1571,9)&&okeAlive(0),
-   act:()=>{ const K=W.clans[0]; K.prestige=(K.prestige||0)-5; for(const o of Object.values(W.clans)) if(!o.dead&&o.id!==0&&!o.war.has(0)) addRel(o.id,0,-8); if(W.clans[24]&&!W.clans[24].dead) setRel(24,0,-100); if(W.player===0) toast("比叡山を焼きました。諸国の心証が少し落ちましたが、恐れも広まりました"); }},
+  {id:1120,name:"比叡山",
+   text:["―― 比叡山は京・近江・北陸を繋ぐ要。延暦寺は浅井・朝倉を匿い、志賀の陣ではその麓が戦場になった"],
+   why:()=>"志賀の陣で比叡山が浅井・朝倉の拠点になった。京の北東の守りは山の態度しだい",
+   cond:()=> !(overlayEl&&overlayEl.isConnected)&&eraOnly("hoi")&&dateFrom(1571,9)&&okeAlive(0),
+   act:()=>{ try{ hieiStart(); }catch(e){ console.error(e); } }},
   // 1572 武田、織田と手切れ（西上作戦）
   {id:1121,name:"信玄、西上す",
    text:["武田信玄「上洛の時は来た。三河を踏み潰して尾張へ」","―― 武田は織田・徳川との盟を破り、二万五千で甲府を発った"],
@@ -17144,6 +17161,43 @@ function inKyushu(c){ return !!(c && DATA.provinces[c.prov] && KYU_PROVS.has(DAT
 function armyInKyushu(a){ const n=nearestCastle(a); return inKyushu(W.castles[n]); }
 function kyuSide(){ const me=W.clans[W.player]; if(!me) return null; return (me.name==="豊臣家"||me.name==="羽柴家")?"ty":me.name==="島津家"?"sz":null; }
 /* 第165巡：秀吉の停戦命令と島津の返答（作り手の仕様6） */
+/* ===== 第173巡：清洲同盟の交渉（作り手の仕様27） ===== */
+function kiyoAllyStart(){ const od=W.clans[0], tk=W.clans[23], im=W.clans[1]; const mine=W.player===0?"od":W.player===23?"tk":null; const terms={border:"kawa",imagawa:"together",marriage:true,aid:true};
+  const settle=(ok)=>{ W.kiyoAllyDone=true; if(!ok){ log("清洲の交渉は成らなかった。松平は今川との縁を保ち、尾張東部の境は緊張したまま（IF：清洲同盟不成立・家康今川残留）","dip",true); if(im&&!im.dead&&tk.suzerain===null&&W.player!==23){ subordinate(23,1); } addRel(0,23,-10); addRel(23,0,-10); return; }
+    const v=tk; if(v.suzerain!==null){ W.clans[v.suzerain].vassals.delete(23); v.suzerain=null; } makeAlly(0,23); setRel(0,23,terms.marriage?100:80); setRel(23,0,terms.marriage?100:80); if(terms.imagawa==="together"&&im&&!im.dead){ declareWar(23,1); if(!od.war.has(1)) declareWar(0,1); } else if(im&&!im.dead) declareWar(23,1);
+    if(terms.border==="owari"){ const c=myCastles(23).find(x=>DATA.provinces[x.prov]&&DATA.provinces[x.prov].n==="尾張"); if(c) captureCastle(c.id,0,null); } if(terms.border==="mikawa"){ const c=myCastles(0).find(x=>DATA.provinces[x.prov]&&DATA.provinces[x.prov].n==="三河"); if(c) captureCastle(c.id,23,null); }
+    W.kiyoAllyTerms=terms; bigNews("清洲同盟"); log(`【清洲同盟】境は${({kawa:"境川で確認",owari:"尾張東部を織田へ",mikawa:"三河西部を松平へ"})[terms.border]}、今川には${terms.imagawa==="together"?"共に当たる":"松平が当たる"}${terms.marriage?"、五徳と信康の婚約":""}${terms.aid?"、援軍の約":""}。織田―松平：中立 → 同盟。尾張東部の危険度 高 → 低`,"dip",true); if(typeof chronicle==="function") chronicle("清洲同盟"); };
+  const ai=()=>{ /* 相手（機械）が呑むか */ let p=0.8; if(terms.border==="owari"&&mine==="od") p-=0.3; if(terms.border==="mikawa"&&mine==="tk") p-=0.3; if(!terms.aid) p-=0.1; if(terms.imagawa==="together"&&mine==="tk") p-=0.1; p+=(getRel(0,23))/200; settle(rnd()<p); };
+  if(!mine){ settle(true); return; }
+  const step3=()=>koChoice("清洲の交渉（三）婚姻と援軍","盟を固めるか。",[["both","婚姻と援軍の約（史実）","五徳と信康の婚約。互いに援軍。仲100",()=>{ terms.marriage=true; terms.aid=true; ai(); }],["aid","援軍の約だけ","仲80",()=>{ terms.marriage=false; terms.aid=true; ai(); }],["none","不可侵だけ","仲80。援軍なし",()=>{ terms.marriage=false; terms.aid=false; ai(); }]]);
+  const step2=()=>koChoice("清洲の交渉（二）今川への対応","今川をどうする。",[["together","共に今川に当たる（史実）","織田も今川と戦。三河は松平が取る",()=>{ terms.imagawa="together"; step3(); }],["mikawa","松平が当たる","織田は美濃へ。松平は独りで今川と",()=>{ terms.imagawa="tk"; step3(); }]]);
+  koChoice("清洲の交渉（一）国境",`尾張と三河の境。${mine==="od"?"信長":"元康"}はどこで線を引くか。`,[["kawa","境川で確認（史実）","今の境をそのまま。相互不可侵",()=>{ terms.border="kawa"; step2(); }],["owari","尾張東部を織田に","松平の尾張側の城を一つ織田へ。松平は呑みにくい",()=>{ terms.border="owari"; step2(); }],["mikawa","三河西部を松平に","織田の三河側の城を一つ松平へ。織田は呑みにくい",()=>{ terms.border="mikawa"; step2(); }]]); }
+/* ===== 第173巡：美濃の国人（作り手の仕様27）――調略の進み ===== */
+function minoList(){ const sa=W.clans[5]; if(!sa||sa.dead) return []; W.mino=W.mino||{}; return Object.values(W.generals).filter(g=>g.clan===5&&g.status==="家臣"&&!g.army&&Object.values(W.castles).some(c=>c.lord===g.id&&c.clan===5&&!c.hq)).map(g=>{ const c=Object.values(W.castles).find(x=>x.lord===g.id&&x.clan===5); if(W.mino[g.id]===undefined) W.mino[g.id]=/稲葉|安藤|氏家/.test(g.name)?35:20; return {g,c,like:W.mino[g.id]}; }); }
+function minoReady(){ const L=minoList(); const three=L.filter(r=>/稲葉|安藤|氏家/.test(r.g.name)); const ok=three.filter(r=>r.like>=r.g.loyalty).length; return (three.length&&ok>=Math.min(2,three.length))||(W.date.y>=1567&&L.some(r=>r.like>=r.g.loyalty)); }
+function openMino(){ const L=minoList(); const me=W.clans[0]; const can=W.minoActed!==dayNumber(); let h=`<div class="tiny muted">斎藤の家中と美濃の国人。織田への好感が忠義を超えれば、城ごと転じる。一日に一人、銭2,000</div>`; if(!L.length) h+=`<div class="tiny">城を持つ斎藤の家臣はもういない</div>`; for(const r of L){ const st=r.g.loyalty>=70?"高":r.g.loyalty>=45?"中":"低"; h+=`<div class="s-stat" style="text-align:left;display:flex;justify-content:space-between;align-items:center"><span>${esc(r.g.name)}<span class="tiny muted">　${esc(r.c.name)}　忠誠 ${st}（${r.g.loyalty}）　織田への好感 ${r.like}</span></span><button class="chip kin" style="cursor:pointer" onclick="minoAct(${r.g.id})" ${can&&me.money>=2000?"":"disabled"}>調略</button></div>`; } openPanel("美濃の国人","調略の進み",h,"mino"); setSpeed(0); }
+function minoAct(gid){ const me=W.clans[0]; if(W.minoActed===dayNumber()) return; if(me.money<2000) return toast("銭が足りませぬ"); const g=W.generals[gid]; if(!g||g.clan!==5) return; me.money-=2000; W.minoActed=dayNumber(); W.mino=W.mino||{}; const hb=findGeneralByName("竹中半兵衛"); const bonus=(hb&&hb.clan===0)?5:0; W.mino[gid]=Math.min(100,(W.mino[gid]||20)+10+bonus+Math.floor(rnd()*8)); let msg=`${g.name}に使者。好感 ${W.mino[gid]}`; if(W.mino[gid]>=g.loyalty){ const c=Object.values(W.castles).find(x=>x.lord===g.id&&x.clan===5); if(c){ c.clan=0; c.hq=false; c.holdOut=false; c.delegate=null; for(const h2 of Object.values(W.generals)) if(h2.castle===c.id&&!h2.army&&h2.clan===5&&h2.status==="家臣"){ h2.clan=0; h2.tozama=true; h2.loyalty=55; } bumpGarrison(); if(!me.war.has(5)) declareWar(0,5,"force"); msg=`${g.name}が${c.name}ごと織田に転じた`; bigNews(`${g.name}、織田へ`); } } log(msg,"dip",true); openMino(); }
+/* ===== 第173巡：朝倉問題と浅井の前兆（作り手の仕様27） ===== */
+function azaiOmenTick(){ if(W.azaiOmen===undefined){ W.azaiOmen=0; W.azaiOmenAt=dayNumber(); if(W.azaiTrust===undefined) W.azaiTrust=Math.max(35,Math.min(80,55+Math.round((getRel(6,0)-50)/5))); if(W.player===0){ setTimeout(()=>azaiAsakuraAsk(),300); return; } }
+  if(W.azaiOmenSkip) return; const d=dayNumber()-W.azaiOmenAt; const omens=["浅井からの連絡が減った。長政の文が途絶えている","浅井の使者が遅れている。「道が悪い」と言うが","浅井が国境に兵を増やしているとの報"]; if(W.azaiOmen<3&&d>=7*(W.azaiOmen+1)){ log(`【浅井】${omens[W.azaiOmen]}（信頼 ${Math.round(W.azaiTrust)}↓・不穏 ${W.azaiOmen>=1?"高":"中"}）`,"dip",W.player===0||W.player===6); W.azaiOmen++; W.azaiTrust=Math.max(0,W.azaiTrust-4); if(W.azaiOmen===2&&W.player===0&&!W.azaiEnvoyAsked){ W.azaiEnvoyAsked=true; setTimeout(()=>koChoice("浅井、何かおかしい","軍師「浅井の様子が妙です。使者を送りますか」",[["envoy","説明の使者を送る","信頼+10。三割で長政が本心を明かす",()=>{ W.azaiTrust=Math.min(100,W.azaiTrust+10); if(rnd()<0.3) log("長政「朝倉との義を捨てよとは、言うてくれるな」――本心が見えた","dip",true); else log("長政は「変わりなし」と答えた","dip",true); }],["guard","後方に備えを置く","金ヶ崎で退き口の損が減る",()=>{ W.kzGuard=true; log("越前への道に殿軍の備えを置いた","war",true); }],["none","気にしない","",()=>{}]]),300); } } }
+function azaiAsakuraAsk(){ const od=W.clans[0]; koChoice("朝倉問題","越前の朝倉を攻める。だが浅井は朝倉と古い縁がある。",[["go","朝倉攻めを進める（史実）","浅井の家中は割れる。前兆を見逃すな",()=>{ log("信長は朝倉攻めを進めた。浅井の使者は口を濁す","dip",true); }],["envoy","浅井に先に説明する","信頼+15。浅井が織田に残る目が増える",()=>{ W.azaiTrust=Math.min(100,(W.azaiTrust||55)+15); log("信長は浅井に使者を送り、朝倉攻めの筋を説いた（信頼+15）","dip",true); }],["stop","朝倉攻めを中止する","浅井は離反しない。朝倉との戦は続くが越前へは入らない（IF：金ヶ崎は起きない）",()=>{ W.azaiOmenSkip=true; W.azaiStop=true; makePeace(0,8,180); W.azaiTrust=Math.min(100,(W.azaiTrust||55)+10); log("信長は朝倉攻めを止めた。浅井は胸を撫で下ろした（IF）","dip",true); }]]); }
+/* ===== 第173巡：比叡山（作り手の仕様28）――交渉／封鎖／一部制圧／全面攻撃 ===== */
+function hieiStart(){ const od=W.clans[0]; const hg=W.clans[24]; const fin=(k)=>{ const K=od; if(k==="burn"){ K.prestige=(K.prestige||0)-5; for(const o of Object.values(W.clans)) if(!o.dead&&o.id!==0&&!o.war.has(0)) addRel(o.id,0,-8); if(hg&&!hg.dead) setRel(24,0,-100); W.hiei="burn"; W.religiousAnger=(W.religiousAnger||0)+30; const ys=findGeneralByName("足利義昭"); if(ys&&ys.clan===0) ys.loyalty=Math.max(0,ys.loyalty-15); bigNews("比叡山焼き討ち"); log("信長「僧も俗も、女も子も、ことごとく討て」――延暦寺は灰となり、天下は信長を恐れた。浅井・朝倉は山を失い、本願寺と長島の門徒は信長を「仏敵」と呼ぶ（宗教反発+30・義昭の忠義−15）","war",true); if(typeof chronicle==="function") chronicle("比叡山焼き討ち"); }
+    if(k==="part"){ K.prestige=(K.prestige||0)-2; for(const o of Object.values(W.clans)) if(!o.dead&&o.id!==0&&!o.war.has(0)) addRel(o.id,0,-3); if(hg&&!hg.dead) addRel(24,0,-30); W.hiei="part"; W.religiousAnger=(W.religiousAnger||0)+12; log("織田は坂本側の僧坊と山道の砦だけを押さえた。堂塔は残り、浅井・朝倉は山を使えなくなった（宗教反発+12）","war",true); }
+    if(k==="block"){ W.hiei="block"; W.religiousAnger=(W.religiousAnger||0)+4; log("織田は比叡山の麓の道を封じ、米と人の出入りを止めた。山は痩せ、浅井・朝倉の兵は山を下りた（宗教反発+4）","war",true); }
+    if(k==="neutral"){ W.hiei="neutral"; addRel(24,0,5); log("延暦寺は中立を約し、浅井・朝倉の兵を山から下ろした。堂塔は残った（IF：比叡山中立化）","dip",true); }
+    if(k==="fail"){ log("延暦寺は「山門は山門」と答え、浅井・朝倉を匿い続けた","dip",true); W.fired.delete(1120); W.hieiTalked=true; } };
+  if(W.player!==0){ fin("burn"); return; }
+  const talk=()=>koChoice("比叡山との交渉","延暦寺に何を求める。",[["neutral","中立を求める","五割で応じる。応じれば浅井・朝倉は山を下りる",()=>{ if(rnd()<0.5) fin("neutral"); else fin("fail"); }],["cut","浅井・朝倉との断交を求める","三割で応じる",()=>{ if(rnd()<0.3) fin("neutral"); else fin("fail"); }],["gold","銭を贈る（5,000）","七割で応じる",()=>{ if(od.money<5000){ toast("銭が足りませぬ"); return "retry"; } od.money-=5000; if(rnd()<0.7) fin("neutral"); else fin("fail"); }],["threat","威圧する","四割で応じる。応じなければ次は攻める",()=>{ if(rnd()<0.4) fin("neutral"); else fin("fail"); }]]);
+  koChoice("比叡山",`延暦寺は浅井・朝倉を匿っている。京・近江・北陸の結び目。政治の損害・宗教の反発・外交の心証を見よ（宗教反発 ${W.religiousAnger||0}）。`,[["talk","交渉する","中立要求・断交要求・銭・威圧",()=>talk()],["block","封鎖する","麓の道を封じる。損は小さく、効きは遅い",()=>fin("block")],["part","一部施設を制圧","僧坊と砦だけ。堂塔は残す。反発+12",()=>fin("part")],["burn","全面攻撃（史実）","焼き討ち。天下は恐れ、寺社と本願寺と義昭は憎む。反発+30",()=>fin("burn")]]); }
+/* ===== 第173巡：戦争進行（作り手の仕様28）――姉川で勝っても戦は終わらない ===== */
+function hoiWarGauge(){ const od=W.clans[0]; if(!od||od.dead) return null; const az=W.clans[6], ak=W.clans[8], hg=W.clans[24]; const al=K=>K&&!K.dead; const ps=id=>powerScore(id); const p0=Math.max(1,ps(0)); const azP=al(az)?Math.round(Math.min(100,ps(6)/p0*150)):0, akP=al(ak)?Math.round(Math.min(100,ps(8)/p0*150)):0, hgP=al(hg)&&od.war.has(24)?Math.round(Math.min(100,30+ps(24)/p0*120)):0; const foes=[...od.war].filter(id=>W.clans[id]&&!W.clans[id].dead).length; const press=Math.min(100,foes*14+(W.hiei==="burn"?10:0)+(W.religiousAnger||0)/3); const kyoto=kyotoCastle(); const kyotoSafe=kyoto&&kyoto.clan===0?Math.max(0,100-press/2-(W.shiga&&W.shiga.phase!=="over"?30:0)):20; const prog=Math.round(100-(azP+akP)/2); return {press:Math.round(press), kyoto:Math.round(kyotoSafe), az:azP, ak:akP, hg:hgP, prog:Math.max(0,Math.min(100,prog)), foes}; }
+function hoiWarText(){ if(W.scenario!=="hoi"||W.player!==0) return ""; const od=W.clans[0]; if(!od||od.dead) return ""; const az=W.clans[6], ak=W.clans[8]; if(!((az&&!az.dead&&od.war.has(6))||(ak&&!ak.dead&&od.war.has(8)))) return ""; const G=hoiWarGauge(); if(!G) return ""; return `戦争進行 ${G.prog}％ ―― 包囲網圧力 ${G.press}／京都安全 ${G.kyoto}／浅井 ${G.az}／朝倉 ${G.ak}／本願寺 ${G.hg}`; }
+/* ===== 第173巡：朝倉の家中結束（作り手の仕様28） ===== */
+function asakuraBondTick(){ const ak=W.clans[8], od=W.clans[0]; if(!ak||ak.dead||!od||od.dead||!od.war.has(8)||W.date.y<1572) return; if(W.asakuraBond===undefined) W.asakuraBond=78; const cs=myCastles(8).length; const base=W.asakuraBond0===undefined?(W.asakuraBond0=cs):W.asakuraBond0; const lost=Math.max(0,base-cs); const target=78-lost*12-(W.fired.has(2244)?20:0); if(W.asakuraBond>target) W.asakuraBond=Math.max(target,W.asakuraBond-0.5); const b=W.asakuraBond;
+  if(b<51&&!W.asakuraDefect1){ W.asakuraDefect1=true; const gs=Object.values(W.generals).filter(g=>g.clan===8&&g.status==="家臣"&&!g.family&&!g.army).sort((a,b2)=>a.loyalty-b2.loyalty).slice(0,2); for(const g of gs){ const c=Object.values(W.castles).find(x=>x.lord===g.id&&x.clan===8&&!x.hq); g.clan=0; g.tozama=true; g.loyalty=50; if(c){ c.clan=0; c.hq=false; c.lord=g.id; } else { const home=myCastles(0)[0]; if(home) g.castle=home.id; } } bumpGarrison(); log(`朝倉の家中結束 ${Math.round(b)}――${gs.map(g=>g.name).join("・")}が義景を見限り、織田に降った`,"dip",true); }
+  if(b<25&&!W.asakuraFled&&ak.id!==W.player){ W.asakuraFled=true; const ic=Object.values(W.castles).find(c=>c.name==="一乗谷城"&&c.clan===8); const alt=myCastles(8).find(c=>c!==ic); if(ic&&alt){ captureCastle(ic.id,0,null); alt.hq=true; const yk=findGeneralByName("朝倉義景"); if(yk&&!yk.army){ yk.castle=alt.id; bumpGarrison(); } log(`朝倉の家中結束 ${Math.round(b)}――義景は一乗谷を捨てて${alt.name}へ逃れた。国人は次々に織田へ（IF：義景逃亡）`,"war",true); bigNews("義景、一乗谷を捨てる"); } } }
+function asakuraBondText(){ const ak=W.clans[8]; if(!ak||ak.dead||W.asakuraBond===undefined||!(W.player===0||W.player===8)) return ""; return `朝倉家 家中結束 ${Math.round(W.asakuraBond)}`; }
 /* ===== 第172巡：安土の茶会（作り手の仕様24）――茶器で序列を見せる ===== */
 const CHAKAI_WARES=[["hatsuhana","初花肩衝","足利義政ゆかりの大名物。政治の重み最大",95],["narashiba","楢柴肩衝","天下三肩衝の一つ",90],["matsushima","松島の壺","名物茶壺",70],["kizaemon","井戸茶碗","高麗の名碗。珍品",55],["plain","楽の黒茶碗","質素。侘びの心",30]];
 function chakaiStart(){ const od=W.clans[0]; const cands=Object.values(W.generals).filter(g=>g.clan===0&&g.status==="家臣"&&!isChild(g)&&!g.army&&!g.captor).sort((a,b)=>b.merit-a.merit).slice(0,8); if(!cands.length) return; const tk=W.clans[23]; const ie=tk&&!tk.dead&&od.allies.has(23)?findGeneralByName("徳川家康"):null;
@@ -18523,7 +18577,7 @@ function stageArrived(a){ return !a.route || a.route.length<2 || (dayNumber()-a.
 function updateStageBadge(){
   let b=document.getElementById("stageBadge");
   if(!W.started || B){ if(b) b.hidden=true; return; }
-  if(!W.stage){ const rm=W.reliefMuster&&Object.entries(W.reliefMuster)[0]; if(!rm){ const gt=((typeof sekGaugeText==="function")?sekGaugeText():"")||((typeof tkjText==="function")?tkjText():"")||((typeof tottoriText==="function")?tottoriText():"")||((typeof takamatsuText==="function")?takamatsuText():"")||((typeof net3Text==="function")?net3Text():""); if(gt){ if(!b){ b=document.createElement("div"); b.id="stageBadge"; b.style.cssText="position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:23;background:rgba(26,18,8,.86);color:#F3E6C4;border:1px solid rgba(201,162,39,.8);font-weight:800;font-size:14px;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis;padding:6px 14px;border-radius:14px;pointer-events:none"; document.getElementById("stage").appendChild(b); } b.textContent=gt; b.hidden=false; return; } if(b) b.hidden=true; return; }
+  if(!W.stage){ const rm=W.reliefMuster&&Object.entries(W.reliefMuster)[0]; if(!rm){ const gt=((typeof sekGaugeText==="function")?sekGaugeText():"")||((typeof hoiWarText==="function")?hoiWarText():"")||((typeof tkjText==="function")?tkjText():"")||((typeof tottoriText==="function")?tottoriText():"")||((typeof takamatsuText==="function")?takamatsuText():"")||((typeof net3Text==="function")?net3Text():""); if(gt){ if(!b){ b=document.createElement("div"); b.id="stageBadge"; b.style.cssText="position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:23;background:rgba(26,18,8,.86);color:#F3E6C4;border:1px solid rgba(201,162,39,.8);font-weight:800;font-size:14px;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis;padding:6px 14px;border-radius:14px;pointer-events:none"; document.getElementById("stage").appendChild(b); } b.textContent=gt; b.hidden=false; return; } if(b) b.hidden=true; return; }
     if(!b){ b=document.createElement("div"); b.id="stageBadge"; b.style.cssText="position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:23;background:rgba(26,18,8,.86);color:#F3E6C4;border:1px solid rgba(201,162,39,.8);font-weight:800;font-size:14px;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis;padding:6px 16px;border-radius:12px;pointer-events:none"; document.getElementById("stage").appendChild(b); }
     const [rv,m]=rm; const c=W.castles[+rv], t=W.castles[m.target]; const enRoute=Object.values(W.armies).filter(a=>a.reliefVia&&a.reliefVia.at===+rv&&a.clan===W.player).length; const total=(m.hold||[]).length;
     b.textContent=`${t?t.name:"救援先"}の救援 ―― ${c?c.name:""}に集結中（道中 ${enRoute}軍・あと${Math.max(0,m.until-dayNumber())}日で発つ）`; b.hidden=false; return; }
@@ -18905,6 +18959,7 @@ function decisiveDaily(){
   if(W.jingo){ try{ jingoDaily(); }catch(e){ console.error(e); } }
   if(W.jingoAuto&&!W.jingoAuto.done){ try{ jingoAutoTick(); }catch(e){ console.error(e); } }
   if(W.date.d===1){ try{ net3Monthly(); honganjiMonthly(); arakiMonthly(); arikaMonthly(); }catch(e){ console.error(e); } }
+  if(W.date.d%5===0){ try{ asakuraBondTick(); }catch(e){ console.error(e); } }
   if(W.decisivePending && dayNumber()>=W.decisiveAt && !pendingEncounter && !overlayEl && !B){
     const d=DECISIVE.find(x=>x.id===W.decisivePending);
     clearStage();   // 仕込みの軍（長篠城を囲む武田・後詰の織田）は、決戦の軍に置き換わる
