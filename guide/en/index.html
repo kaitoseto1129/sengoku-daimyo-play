@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sengoku Daimyo — Strategy Guide (Battle of Nagashino)</title>
+<meta name="description" content="Strategy guide for Sengoku Daimyo, a free real-time Sengoku strategy game that runs in your browser. How to play the Battle of Nagashino, opening moves, domestic affairs, warfare and tips to win.">
+<meta property="og:title" content="Sengoku Daimyo — Strategy Guide">
+<meta property="og:description" content="How to play the Battle of Nagashino, opening moves, domestic affairs, warfare and tips to win.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E🏯%3C/text%3E%3C/svg%3E">
+<style>
+:root{--bg:#12100E;--paper:#1C1814;--ink:#EDE6D6;--muted:#B8AE9C;--kin:#C9A227;--kin2:#F2C94C;--red:#B8382A;--blue:#3D6BCC;--line:rgba(201,162,39,.35)}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",-apple-system,sans-serif;line-height:1.75;font-size:16px}
+a{color:var(--kin2)}
+header{background:linear-gradient(180deg,#1E1912,#12100E);border-bottom:1px solid var(--line);padding:26px 16px 18px;text-align:center}
+header h1{margin:0;font-size:30px;letter-spacing:.12em;color:var(--kin2);font-weight:900}
+header p{margin:6px 0 0;color:var(--muted);font-size:14px}
+header .cta{display:inline-block;margin-top:14px;background:var(--kin);color:#1A1208;font-weight:900;padding:10px 22px;border-radius:8px;text-decoration:none;letter-spacing:.08em}
+nav{position:sticky;top:0;z-index:5;background:rgba(18,16,14,.96);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);overflow-x:auto;white-space:nowrap;padding:8px 10px}
+nav a{display:inline-block;padding:6px 12px;margin:0 2px;border-radius:999px;font-size:13px;color:var(--ink);text-decoration:none;border:1px solid transparent}
+nav a:hover{border-color:var(--line)}
+main{max-width:920px;margin:0 auto;padding:10px 16px 60px}
+section{margin:38px 0}
+h2{font-size:22px;color:var(--kin2);border-left:5px solid var(--kin);padding-left:12px;margin:0 0 14px;letter-spacing:.05em}
+h3{font-size:17px;color:var(--ink);margin:22px 0 8px;border-bottom:1px dashed var(--line);padding-bottom:4px}
+p{margin:8px 0}
+figure{margin:14px 0;background:var(--paper);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+figure img{display:block;width:100%;height:auto}
+figcaption{padding:8px 12px;font-size:13px;color:var(--muted)}
+.box{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin:12px 0}
+.box.tip{border-color:rgba(61,107,204,.5)}
+.box.warn{border-color:rgba(184,56,42,.6)}
+.box b.l{color:var(--kin2)}
+ul,ol{padding-left:22px}
+li{margin:4px 0}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:10px 0}
+th,td{border:1px solid rgba(201,162,39,.25);padding:6px 8px;text-align:left;vertical-align:top}
+th{background:rgba(201,162,39,.12);color:var(--kin2)}
+.chip{display:inline-block;padding:1px 8px;border-radius:999px;background:rgba(237,230,214,.1);font-size:12px;margin:0 2px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:700px){.grid2{grid-template-columns:1fr}header h1{font-size:24px}}
+footer{border-top:1px solid var(--line);color:var(--muted);font-size:12px;text-align:center;padding:24px 16px}
+.kin{color:var(--kin2)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Sengoku Daimyo — Strategy Guide</h1>
+  <p>A real-time Sengoku-era strategy game in your browser — Battle of Nagashino edition</p>
+  <a class="cta" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">▶ Play now (free)</a>
+  <p style="margin-top:10px"><a href="../">日本語版はこちら</a></p>
+</header>
+<nav>
+  <a href="#about">About</a>
+  <a href="#howto">How to play</a>
+  <a href="#early">Opening</a>
+  <a href="#naisei">Domestic</a>
+  <a href="#gunji">Warfare</a>
+  <a href="#nagashino">Nagashino</a>
+  <a href="#events">What comes after</a>
+  <a href="#tips">Tips</a>
+  <a href="#faq">FAQ</a>
+</nav>
+<main>
+
+<section id="about">
+<h2>What is “Sengoku Daimyo”?</h2>
+<p><b>Sengoku Daimyo</b> is a strategy game in which you lead one clan through the Warring States period — from Okehazama to the Siege of Osaka — in <b>real time</b>. You look over every castle in Japan on a map, enrich your provinces through domestic policy, send armies to besiege castles, and when a battle breaks out you move your units yourself. Nothing to install: it runs in a single browser page, including Safari on iPhone and iPad.</p>
+<figure><img src="../img/01_title.jpg" alt="Title screen"><figcaption>Title screen. Choose a scenario to begin. Press <b>English</b> on the title screen to switch the interface language (event narration remains in Japanese).</figcaption></figure>
+<h3>Start with the Battle of Nagashino</h3>
+<p>The scenario you can play for free is the <b>Battle of Nagashino (1575–)</b>. You can play as Oda, Tokugawa, Takeda or any other clan in the realm. The world keeps going after Nagashino: Tennoji Fort, the Kizu river mouth, Tedorigawa, Araki Murashige's defection, the Otate Rebellion, Takatenjin, the Conquest of Kai, the Honnoji Incident… seven years of events follow one another. Other scenarios unlock with “Tenka Fubu” (an in-app unlock).</p>
+<h3>What this guide covers</h3>
+<ul>
+<li>How to read the screen and what to do in your first 30 days</li>
+<li>Domestic affairs (koku, trade, castles, people's morale, provisions)</li>
+<li>How to send armies, sieges and relief, and how to fight a battle</li>
+<li>The Battle of Nagashino itself (the Shitaragahara setup, palisades, Torii Suneemon, how to win as Takeda)</li>
+<li>A timeline of what comes after Nagashino, and tips for winning</li>
+</ul>
+</section>
+
+<section id="howto">
+<h2>How to play — reading the screen</h2>
+<p>“Start Game” → choose a scenario. The free one is the Battle of Nagashino.</p>
+<figure><img src="../img/02_scenario_select.jpg" alt="Scenario select"><figcaption>Scenario selection.</figcaption></figure>
+<p>“Pick a clan on the map”. Tap a castle to see that clan's profile (difficulty, strengths, weaknesses). You can also pick from the list.</p>
+<figure><img src="../img/02_clan_select.jpg" alt="Clan select"><figcaption>Choosing a clan.</figcaption></figure>
+<figure><img src="../img/04_map.jpg" alt="Map"><figcaption>The map. Castles are painted in their clan's color and armies walk along the highways. The top bar shows the date, gold and provisions; the speed buttons are at the bottom right.</figcaption></figure>
+<h3>Time</h3>
+<p>Time keeps flowing unless you stop it. Press <span class="chip">Ⅱ</span> at the bottom right to pause and <span class="chip">×1</span><span class="chip">×2</span><span class="chip">×3</span> to change speed. <b>When in doubt, pause.</b> You can still open castle cards and councils while paused.</p>
+<h3>The castle card</h3>
+<p>Tap a castle to open its card. Koku, trade, garrison, castellan, people's morale and provisions are shown at a glance, and from here you run domestic affairs, conscription and marching.</p>
+<figure><img src="../img/05_castle.jpg" alt="Castle card"><figcaption>The castle card.</figcaption></figure>
+<ul>
+<li><b>Koku</b>: rice yield. Tax = gold. Grows with land reclamation</li>
+<li><b>Trade</b>: the town's prosperity. Grows with investment and turns into gold</li>
+<li><b>Garrison</b>: total troops of the officers in the castle. Your defense when attacked</li>
+<li><b>Castle level / defense</b>: how strong the castle is. Fortify it to make it harder to take</li>
+<li><b>People's morale</b>: if it drops, uprisings and defections happen. “Alms” restores it</li>
+<li><b>Provisions</b>: food for the troops. When it runs out armies stop and morale drops</li>
+</ul>
+<h3>Crests identify clans</h3>
+<p>Every clan is represented by its <b>crest (kamon)</b> — on castle flags, army banners and battle standards alike. Your own crest is shown at the top left.</p>
+<h3>Domestic card</h3>
+<p>“Domestic” on the castle card: land reclamation, trade investment, fortification, alms and drills are assigned to idle officers. “Auto domestic” lets the castle run itself according to a policy.</p>
+<figure><img src="../img/06_dispatch.jpg" alt="Dispatch"><figcaption>Sending an army.</figcaption></figure>
+<h3>Diplomacy</h3>
+<p>The diplomacy card: alliance, peace, submission and gifts. Each clan's crest and relationship value are listed. A vassal and an ally cannot be the same clan.</p>
+<figure><img src="../img/09_diplomacy.jpg" alt="Diplomacy"><figcaption>Diplomacy.</figcaption></figure>
+</section>
+
+<section id="early">
+<h2>Opening — your first 30 days as Oda</h2>
+<p>If this is your first game, play <b>Oda</b>: many troops, plenty of gold, and at Nagashino you are on the defending (favored) side.</p>
+<figure><img src="../img/03_opening.jpg" alt="Opening"><figcaption>The opening. 15,000 Takeda surround Nagashino Castle and the Oda relief leaves Gifu; it takes some twenty days to reach Shitaragahara.</figcaption></figure>
+<h3>Order of business</h3>
+<ol>
+<li><b>Pause first.</b> Press Ⅱ, look at the map and find your castles and the enemy (Takeda)</li>
+<li><b>Open your home castle's card</b> and check provisions and gold. If you have less than half a year of food, fix that before giving alms</li>
+<li><b>Auto domestic is fine.</b> Choose “Auto domestic (delegate this castle)” on the card and idle officers get work according to the policy. Early on, all castles can run on auto</li>
+<li><b>Go easy on conscription.</b> More troops means less food. The decisive battle's troops are provided by the scenario</li>
+<li><b>Check diplomacy.</b> Tokugawa is your ally (they come to Shitaragahara). Uesugi, Honganji and Mori easily end up at war with you — use peace and pacts so you don't open new fronts</li>
+<li><b>Wait for the day of battle.</b> The top bar shows “Shitaragahara in N days”. When it comes, the council “Preparing Shitaragahara” opens</li>
+</ol>
+<div class="box tip"><b class="l">Tip</b>: Don't attack early. Win at Nagashino and the Takeda veterans fall; then leave the east to Tokugawa and turn west. Scattering troops before the battle thins your relief force.</div>
+<h3>Playing as Takeda</h3>
+<p>Takeda is the <b>attacking side</b> and the harder choice. A frontal assault on the palisades loses. In the council “Deciding how to attack Shitaragahara”, either <b>mass on the left (or right) wing and break one point</b>, or <b>avoid the battle and take Nagashino Castle</b>. Cavalry stop at the palisades, so break the fences with ashigaru before sending in the horse.</p>
+</section>
+
+<section id="naisei">
+<h2>Domestic affairs</h2>
+<figure><img src="../img/08_finance.jpg" alt="Finances"><figcaption>Finances: income, expenses and remaining provisions. Officers' loyalty drops when gold runs out.</figcaption></figure>
+<table><tr><th>Order</th><th>Effect</th><th>When</th></tr>
+<tr><td>Reclaim land</td><td>Koku rises (tax = gold)</td><td>Castles with room to grow. The basic early move</td></tr>
+<tr><td>Invest in trade</td><td>Trade rises (monthly gold)</td><td>Big towns, ports, castles on highways</td></tr>
+<tr><td>Fortify castle</td><td>Castle level and defense rise; gates, moats, towers and stone walls appear</td><td>Castles bordering the enemy, your home castle</td></tr>
+<tr><td>Alms</td><td>People's morale rises</td><td>When morale drops below 40, before an uprising</td></tr>
+<tr><td>Drill troops</td><td>Troop quality (ashigaru, samurai, cavalry, matchlocks) rises</td><td>Before a decisive battle, when gold is plentiful</td></tr>
+<tr><td>Conscript</td><td>Troops rise (people's morale and population drop)</td><td>Only when provisions are plentiful</td></tr>
+</table>
+<div class="box"><b class="l">Provisions</b>: troops eat every day. An army marching out carries 120 days of food from the castle's stores, so sending too many leaves the castle starving. Check remaining days in “Finances” and aim for <b>half a year</b>.</div>
+<div class="box warn"><b class="l">Don't</b>: conscript heavily while ignoring people's morale. When morale falls, uprisings break out and a castle can end up lordless.</div>
+</section>
+
+<section id="gunji">
+<h2>Warfare</h2>
+<h3>Sending an army</h3>
+<p>“March” on the castle card. Pick officers, then tap a destination. Provisions are drawn from the stores.</p>
+<ul>
+<li>Destinations are <b>castles connected by highway</b>. You cannot pass through castles of clans you are not at war with (ally with them, or take the castles on the way first)</li>
+<li>To besiege a castle bring <b>twice the garrison</b>. The AI will not attack with less (you can, but it costs)</li>
+<li>Meeting an enemy army on the road gives a <b>field battle</b>; reaching a castle starts a <b>siege</b>. A siege wears down the castle's defense each day; when it reaches zero the castle falls</li>
+<li>You can send <b>relief</b> to a besieged castle. Come with twice the besieging force to drive them off</li>
+</ul>
+<figure><img src="../img/10_armies.jpg" alt="Armies"><figcaption>The army list: where each army is headed and how many days of food it carries.</figcaption></figure>
+<h3>Fighting a battle</h3>
+<figure><img src="../img/13_battle_setup.jpg" alt="Deployment"><figcaption>Deployment before battle. You are always on the left, the enemy on the right. Drag units to arrange them, then press Begin.</figcaption></figure>
+<ul>
+<li>Tap a unit to select it, <b>tap a square to move</b>, <b>tap an enemy to attack</b>. Drag with your finger and the unit follows the path you drew</li>
+<li>Units <b>do not move until ordered</b> (they hold). Cavalry “Charge” to rush in</li>
+<li>“All-out charge” sends everyone; “Retreat all” ends the battle and withdraws (you lose a few troops)</li>
+<li>Break the enemy <b>HQ</b> (the commander's unit) or drive off every enemy to win</li>
+<li>High ground is easy to defend and matchlocks reach further from it. Rivers, fords and marsh slow you down and cavalry cannot charge there</li>
+<li>Rain dampens the fuses and matchlocks stop working</li>
+</ul>
+<figure><img src="../img/14_battle_mid.jpg" alt="Battle"><figcaption>Mid-battle.</figcaption></figure>
+<div class="box tip"><b class="l">Beginners</b>: when in doubt, press “Auto battle”. You can take command back at any time. Once you're comfortable, put matchlocks behind palisades, spears in front and cavalry on the flanks.</div>
+</section>
+
+<section id="nagashino">
+<h2>The Battle of Nagashino</h2>
+<figure><img src="../img/11_nagashino_pending.jpg" alt="Before Nagashino"><figcaption>When the relief reaches Shitaragahara, the council “Preparing Shitaragahara” opens.</figcaption></figure>
+<h3>Oda and Tokugawa (defending)</h3>
+<p>Choose one of three setups. If unsure, pick <b>Historical</b>. Open “Details” to fine-tune.</p>
+<table><tr><th>Setup</th><th>What it does</th><th>Good for</th></tr>
+<tr><td>Historical</td><td>Three rows of palisades, matchlocks behind them, Sakai's detachment strikes Tobigasu</td><td>First-time players. Easiest to win</td></tr>
+<tr><td>Aggressive</td><td>Thin palisades, push out with cavalry and samurai</td><td>Those who want it over quickly</td></tr>
+<tr><td>Defensive</td><td>Thick palisades, whittle them down with guns. A long fight</td><td>Those who want to minimize losses</td></tr>
+</table>
+<figure><img src="../img/12_battle_prep.jpg" alt="Nagashino deployment"><figcaption>Takeda cavalry stop at the palisades and the matchlocks fire from behind them. Cavalry don't lose men to the fence, but their charge stalls and morale drops.</figcaption></figure>
+<ul>
+<li><b>Fire from behind the palisade.</b> Matchlocks shoot over the fence. Don't send them outside</li>
+<li>When a fence breaks, <b>put samurai or ashigaru into the gap</b>. A “Breach” marker shows where cavalry are coming through</li>
+<li>When the Takeda veterans (Yamagata, Baba, Naito) break, all of Takeda loses morale. Pursue units showing the “badly wounded” banner to finish them</li>
+<li>When Katsuyori starts to withdraw, don't chase too far. Pursue with cavalry and samurai only</li>
+</ul>
+<figure><img src="../img/15_battle_late.jpg" alt="Late battle"><figcaption>When Takeda breaks, Katsuyori withdraws. Pursue with a few units only.</figcaption></figure>
+<h3>Sakai's detachment and Tobigasu Fort</h3>
+<p>In the historical setup, Sakai Tadatsugu's detachment circles along the top of the field to <b>Tobigasu Fort</b> behind the Takeda lines, breaks its fences and takes it. Once the fort falls, Takeda morale drops and their reserves never arrive. Playing as Takeda you can garrison the fort to stop this.</p>
+<h3>Torii Suneemon (the messenger from Nagashino Castle)</h3>
+<p>Playing from Nagashino Castle there is a scene where you <b>run a messenger to Okazaki</b> from the besieged castle. Stay out of the torch cones of the patrols, use grass and darkness. Get through and the castle hears that relief is coming and keeps its morale; get caught and morale falls.</p>
+<h3>Winning as Takeda (attacking)</h3>
+<ul>
+<li>In the council “Deciding how to attack Shitaragahara”, <b>mass on the left or right wing</b> where the fence is thin</li>
+<li><b>Break the fence with ashigaru</b> (a unit of 1,500 takes about a minute per fence). Then send cavalry through the gap</li>
+<li>Don't put cavalry in front of the matchlocks. Rain silences the guns (weather is luck)</li>
+<li>Don't lose the veterans. Pull back units that are “wounded and withdrawing”</li>
+<li>If it can't be won, <b>withdraw</b>. Routes: main highway, mountain path, riverside, the long way round. Up to three rearguard units. Keep Katsuyori alive and the clan survives</li>
+<li>You can also avoid the battle and take Nagashino Castle instead (the clan grumbles, but you keep your men)</li>
+</ul>
+<figure><img src="../img/16_battle_result.jpg" alt="Result"><figcaption>The result: officers defeated, losses and merits.</figcaption></figure>
+</section>
+
+<section id="events">
+<h2>What comes after Nagashino (timeline)</h2>
+<p>The Nagashino scenario doesn't end with one battle. The world goes on, and different events happen depending on your clan. The main ones, by year:</p>
+<figure><img src="../img/17_after.jpg" alt="After"><figcaption>The world keeps moving after the battle. The top bar may show days until the next event.</figcaption></figure>
+<table><tr><th>Year</th><th>Events</th><th>Clans involved</th></tr>
+<tr><td>1575</td><td>Battle of Nagashino / suppression of the Echizen Ikko-ikki</td><td>Oda, Tokugawa, Takeda</td></tr>
+<tr><td>1576</td><td>Building Azuchi / third anti-Nobunaga coalition (Yoshiaki's letters, Mori joins) / <b>Battle of Tennoji Fort</b> (assault on Kizu Fort → Nobunaga rescues Akechi's fort) / first battle of the Kizu river mouth</td><td>Oda, Honganji, Mori</td></tr>
+<tr><td>1577</td><td>Campaign against Saika in Kii / Matsunaga Hisahide's rebellion / <b>Battle of Tedorigawa</b> (news from Nanao, scouts, fighting retreat)</td><td>Oda, Uesugi</td></tr>
+<tr><td>1578</td><td>Araki Murashige's defection and Arioka Castle / Kuki's iron-clad ships and the second Kizu river mouth / Battle of Mimikawa (Kyushu) / the Otate Rebellion</td><td>Oda, Honganji, Mori, Otomo, Shimazu, Uesugi</td></tr>
+<tr><td>1579–81</td><td>Collapse of the Takeda–Hojo alliance / the fight for Takatenjin / building Shinpu Castle / omens of Kiso Yoshimasa's defection</td><td>Takeda, Tokugawa, Hojo</td></tr>
+<tr><td>1582</td><td><b>Conquest of Kai</b> (Takato Castle, the Shinpu council, Tenmokuzan) / the Honnoji Incident (after Takeda falls, by chance)</td><td>Takeda, Oda, Tokugawa</td></tr>
+</table>
+<div class="box"><b class="l">To trigger the Battle of Tennoji Fort</b>: play Oda or Honganji, with Oda and Honganji at war from April 1576. After the assault on Kizu Fort, Akechi Mitsuhide's Tennoji Fort is surrounded and Nobunaga rides to the rescue. The war council screen shows the crisis summary, the supply map and four decisions.</div>
+<div class="box"><b class="l">To trigger the Conquest of Kai</b>: from October 1581, once Kiso Yoshimasa defects from Takeda, Oda and Tokugawa march on Takeda lands (by February 1582 at the latest). Playing Takeda you'll face “Takato surrounded”, “the Shinpu council” and “What to do with Shinpu Castle”.</div>
+</section>
+
+<section id="tips">
+<h2>Tips for winning</h2>
+<div class="grid2">
+<div class="box"><b class="l">1. Don't open more fronts</b><p>Fight one enemy at a time. Keep the others quiet with peace, pacts and alliances. Attacking means declaring war.</p></div>
+<div class="box"><b class="l">2. Attack with double, relieve with double</b><p>Twice the garrison to besiege, twice the besiegers to relieve. Half measures only cost troops.</p></div>
+<div class="box"><b class="l">3. Half a year of provisions</b><p>Check rice before raising troops. Armies carry 120 days of food out of the stores.</p></div>
+<div class="box"><b class="l">4. Keep people's morale above 40</b><p>Uprisings are the main way to lose a castle. Alms are cheap insurance.</p></div>
+<div class="box"><b class="l">5. Ride the historical battles</b><p>The scripted battles (Nagashino, Tennoji, Tedorigawa, Kai) are easy on the winning side. The losing side is where you learn to withdraw.</p></div>
+<div class="box"><b class="l">6. Aim for the HQ</b><p>You don't have to kill everyone. Break the enemy commander's unit and you win. Send cavalry in from the flank.</p></div>
+<div class="box"><b class="l">7. High ground and palisades</b><p>Defend on high ground behind fences. Matchlocks behind, spears in front. Cavalry stop at fences.</p></div>
+<div class="box"><b class="l">8. Vassal or ally, not both</b><p>A clan that submitted only joins its overlord's wars. Vassals never propose alliances.</p></div>
+<div class="box"><b class="l">9. Sieges are about time</b><p>Defending a castle, you don't need to destroy the enemy: hold the main keep until the timer runs out. Put matchlocks on the walls, fire volleys at the crowd before the gate, fall back to the next bailey when a gate is about to break, and keep reserves for the breach.</p></div>
+</div>
+</section>
+
+<section id="faq">
+<h2>FAQ</h2>
+<h3>Where are saves kept?</h3>
+<p>In that device's browser. They can't be moved to another device. On iPhone, “Add to Home Screen” makes them less likely to be cleared.</p>
+<h3>What about the other scenarios (Okehazama, Honnoji, Sekigahara…)?</h3>
+<p>They unlock with “Tenka Fubu”. Even continuing the Nagashino world, after the Honnoji Incident the events of Yamazaki, the Kiyosu conference, Shizugatake, Komaki-Nagakute, Shikoku and Kyushu happen depending on your clan.</p>
+<h3>Do my units move on their own in battle?</h3>
+<p>No. They hold until ordered. Command is delegated only when you press “Auto battle” (or delegate a wing).</p>
+<h3>Can I play on a phone?</h3>
+<p>Yes. Landscape is recommended. Pinch to zoom the map and drag to pan.</p>
+<h3>Is the whole game in English?</h3>
+<p>The interface — menus, castle cards, battle controls, councils and the HUD — is in English. Event narration and officers' lines are still in Japanese for now; officer and clan names are romanized.</p>
+</section>
+
+</main>
+<footer>
+  Sengoku Daimyo — Strategy Guide — <a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">Play the game</a> / <a href="../">日本語</a> / Images on this page are taken from the game.
+</footer>
+</body>
+</html>
