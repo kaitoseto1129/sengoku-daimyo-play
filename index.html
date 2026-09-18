@@ -16339,7 +16339,7 @@ function kizuTick(dt){ const K=B.kz; if(!K||B.over!==null) return; const H=BF.h,
   /* 局面の名（見ているだけで分かる） */
   if(!(K.phaseAt>B.elapsed-1)){ K.phaseAt=B.elapsed; const def=B.units.filter(u=>u.side===1&&u.troops>.5&&!u.left&&!u.sigHidden); const avg=(us)=>us.length?us.reduce((a,u)=>a+u.morale,0)/us.length:0; let ph="接近";
     if(avg(def)<30||avg(atk)<30) ph="総崩れ"; else if((B.gate&&B.gate.open)||atk.some(inFort)) ph="砦突入"; else if(atk.some(u=>Math.abs(u.x-K.fx)<2.5)) ph="柵攻防"; else if(atk.some(u=>{ const t=bTileAt(u.x,u.y); return t===BT.WATER||t===BT.FORD||Math.abs(u.x-K.rx)<2.5; })) ph="渡河戦";
-    if(ph!==K.phase){ K.phase=ph; B.banner={t:`――${ph}――`, at:B.elapsed}; } } }
+    if(ph!==K.phase){ K.phase=ph; B.banner={t:`――${ph}――`, at:B.elapsed}; B.phaseChip=ph; try{ renderBattleFoot(); }catch(_){ } } } }
 function drawYokoyama(sx,sy){ /* 第181巡：姉川の隅に横山城――丘の上の櫓と、囲む織田の陣幕・篝火（作り手の仕様：戦場の背景に城の目印） */
   const P=B.ane.yokoPt; const x=P.x*sx, y=P.y*sy; const az=clanByName("浅井家"), od=clanByName("織田家");
   bctx.save();
@@ -16706,7 +16706,8 @@ function ishiWarRoom(){
       <div class="wr-confirm" id="wrConfirm" hidden></div>
     </div></div>`;
   document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0);
-  if(first){ try{ playSE("horse"); }catch(_){ } setTimeout(()=>{ if(!el.isConnected) return; el.querySelector(".wr-intro").hidden=true; el.querySelector(".wr-body").hidden=false; try{ playSE("drum"); }catch(_){ } },1500); }
+  const countUp=()=>{ el.querySelectorAll(".wr-num b").forEach(b=>{ const txt=b.firstChild&&b.firstChild.nodeType===3?b.firstChild:null; if(!txt) return; const m=txt.nodeValue.match(/([\d,]+)/); if(!m) return; const target=+m[1].replace(/,/g,""); if(!(target>0)) return; const pre=txt.nodeValue.slice(0,m.index), post=txt.nodeValue.slice(m.index+m[1].length); const t0=performance.now(); const tick=()=>{ if(!el.isConnected) return; const k=Math.min(1,(performance.now()-t0)/900); const v=Math.round(target*(1-Math.pow(1-k,3))); txt.nodeValue=pre+(m[1].includes(",")?v.toLocaleString():String(v))+post; if(k<1) requestAnimationFrame(tick); }; tick(); }); };   /* 第183巡：数字は駆け上がる（仕様：数字にAnimation） */
+  if(first){ try{ playSE("horse"); }catch(_){ } setTimeout(()=>{ if(!el.isConnected) return; el.querySelector(".wr-intro").hidden=true; el.querySelector(".wr-body").hidden=false; try{ playSE("drum"); }catch(_){ } countUp(); },1500); } else countUp();
   { const km=el.querySelector("#wrMore"); km.onclick=()=>{ const bx=el.querySelector("#wrMoreBox"); bx.hidden=!bx.hidden; km.textContent=bx.hidden?"ほかの手 1 ▸":"畳む ▾"; }; }
   const gen=WORLD_GEN; const done=(k)=>{ el.remove(); if(overlayEl===el) overlayEl=null; if(gen!==WORLD_GEN) return; const line={now:"「出るぞ。皆の者、天王寺へ！」",wait:"「一日だけ待つ。兵を集めよ」",sakuma:"「佐久間、五千で行け。わしは動かぬ」",abandon:"「砦は捨てよ。明智を生かして戻せ」"}[k]; bigNews(`信長${line}`); if(k==="wait"){ ishiReliefGo("wait"); R.askedDay=R.day; } else ishiReliefGo(k); resumeSpeed(); refreshHUD(); };
   el.querySelectorAll("button[data-pick]").forEach(b=>b.onclick=()=>{ const k=b.dataset.pick; const c=cards.find(x=>x.k===k); if(!c.heavy){ done(k); return; }
@@ -20242,7 +20243,7 @@ function renderBattleGoal(){ const el=document.getElementById("bGoal"), te=docum
   /* 陣立ての間は地形の札、戦が始まれば同じ場所に目的の札（札を増やすと野がずれる） */
   if(B.opening>0||B.over!==null){ el.hidden=true; if(te) te.hidden=false; return; }
   const g=battleGoals(); if(!g){ el.hidden=true; if(te) te.hidden=false; return; }
-  const html=`<b style="color:#FFD166">目的</b>　${esc(g.main)}${g.subs.length?`<span style="opacity:.8;margin-left:8px">${g.subs.map(x=>`${x.ok?"✓":"・"}${esc(x.t)}`).join("　")}</span>`:""}`;
+  const html=`${B.kz&&B.phaseChip?`<b style="color:#8FD0FF;margin-right:8px">【${esc(B.phaseChip)}】</b>`:""}<b style="color:#FFD166">目的</b>　${esc(g.main)}${g.subs.length?`<span style="opacity:.8;margin-left:8px">${g.subs.map(x=>`${x.ok?"✓":"・"}${esc(x.t)}`).join("　")}</span>`:""}`;
   if(el._h!==html){ el._h=html; el.innerHTML=html; } el.hidden=false; if(te) te.hidden=true; }
 function sekGrade(){ const g=sekGrade0(); if(g && B.over!==B.ctx.playerSide) g.g="敗北"; return g; }   /* 第121巡：負けた側に「大勝」と出ていた */
 function sekGrade0(){
@@ -22936,7 +22937,8 @@ function drawBattle(){
     const fa=u.face||0, fcos=Math.cos(fa), fsin=Math.sin(fa), lxv=-fsin, lyv=fcos;   // 前と横
     /* 第180巡：兵の見た目を三〜五倍に（作り手の仕様：500→20〜30、1000→40〜60、2000→80〜100、3000→100〜150。上限あり）。兵が減れば塊も縮む。大合戦・引いた目・画面外は抑える（LOD） */
     const lodMax = !onScreen ? 8 : ordered.length>36 ? 48 : V.z<1.2 ? 72 : 110;
-    const sprites=u.cmd ? Math.max(4,Math.min(14,Math.round(u.troops/200))) : Math.max(6,Math.min(lodMax,Math.round(u.troops/26)));   // 本陣は馬廻だけを見せ、陣幕の中を空ける
+    const engagedNow = u.engagedAt!==undefined && B.elapsed-u.engagedAt<2 && u.morale>0;
+    const sprites=u.cmd ? Math.max(4,Math.min(14,Math.round(u.troops/200))) : Math.max(6,Math.min(lodMax,Math.round(u.troops/26*(engagedNow?1.25:1))));   // 本陣は馬廻だけを見せ、陣幕の中を空ける。第183巡：接敵中の隊は前線が密に見えるよう二割五分増し
     const facingLeft = fcos < 0;
     const imgV=(v,f)=>soldierSprite(u.type, u.ally?2:(meSide?0:1), f, facingLeft, v);
     const img=imgV(0,walk), img2=imgV(0,1-walk);
@@ -22951,7 +22953,7 @@ function drawBattle(){
       if(u.type===2){ let row=0; while(placed<sprites){ const n=Math.min(sprites>50?9:7,row+2); for(let k=0;k<n&&placed<sprites;k++,placed++){ const off=(k-(n-1)/2)*lat; items.push({o:off, d:row*dep+8, row}); } row++; } }   /* 騎馬：楔。九騎で横いっぱい、その後は列 */
       else if(u.type===3){ const per=sprites>60?14:sprites>24?10:sprites>12?8:7; for(let k=0;k<sprites;k++){ const r=Math.floor(k/per), n=Math.min(per, sprites-r*per); const kk=k%per; items.push({o:(kk-(n-1)/2)*lat+(r%2?lat*0.5:0), d:r*dep+2, row:r}); } }   /* 鉄砲：横一列が長く、二列三列に */
       else { // 足軽・侍：横に広く、列を重ねる（面で見せる。第180巡）。列ごとに半歩ずらし、前列は密に、後列はやや疎らに
-        let per = sprites<=6 ? sprites : sprites<12 ? 5 : sprites<24 ? 6 : sprites<40 ? 7 : sprites<70 ? 9 : 11; { const tk0=bTileAt(u.x,u.y); if(tk0===BT.WATER||tk0===BT.FORD||tk0===BT.ROAD) per=Math.min(per,4); }   /* 第180巡：川・浅瀬・道では隊列が細く長くなる（渡河の見た目） */ const rows=Math.ceil(sprites/per);   /* 横は八人まで、あとは列を重ねる（方陣に近い塊） */
+        let per = sprites<=6 ? sprites : sprites<12 ? 5 : sprites<24 ? 6 : sprites<40 ? 7 : sprites<70 ? 9 : 11; { const tk0=bTileAt(u.x,u.y); if(tk0===BT.WATER||tk0===BT.FORD||tk0===BT.ROAD) per=Math.min(per,4); else if(u.movedAt!==undefined && B.elapsed-u.movedAt<0.2 && u.morale>0 && !engagedNow && u.type!==3) per=Math.max(4,per-2); else if(engagedNow) per=Math.min(14,per+2); }   /* 第180巡：川・浅瀬・道では隊列が細く長くなる（渡河の見た目）。第183巡：進軍中はやや縦陣、接敵すれば横に広がる戦闘陣形（隊形の自動変形） */ const rows=Math.ceil(sprites/per);   /* 横は八人まで、あとは列を重ねる（方陣に近い塊） */
         for(let k=0;k<sprites;k++){ const r=Math.floor(k/per), n=Math.min(per, sprites-r*per); const kk=k%per; const spread = r===0 ? 1 : 1.12;
           items.push({o:(kk-(n-1)/2)*lat*spread+(r%2?lat*0.5:0), d:r*dep+4, row:r}); } }
     }
@@ -24060,13 +24062,15 @@ function renderBattleFoot(){
       <button class="tool" data-g="hold">${B.units.filter(u=>B.group.includes(u.id)).every(u=>u.type===2)?"突撃":"攻撃"}</button>
       <button class="tool" data-g="guard">待機</button>
       <button class="tool" data-g="retreat">後退</button>
+      ${B.wingSel?`<button class="tool ${B.units.filter(u=>B.group.includes(u.id)).every(u=>u.autoAI)?"on":""}" data-g="autoai" title="この翼の采配を副将（機械）に任せる。手で命じれば解ける">${B.units.filter(u=>B.group.includes(u.id)).every(u=>u.autoAI)?"任せ中":"この翼は任せる"}</button>`:""}
       <span style="flex:1"></span>
       <button class="tool" data-g="clear">選択を解く</button>
       <button class="tool" data-g="allretreat">全軍退却</button>`;
     foot.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{
       const k=b.dataset.g; manualCommand();
       const gs=B.units.filter(u=>B.group.includes(u.id)&&u.side===B.ctx.playerSide&&u.morale>0);
-      if(k==="clear"){ B.group=null; B.mode=null; }
+      if(k==="clear"){ B.group=null; B.mode=null; B.wingSel=null; }
+      else if(k==="autoai"){ const on=!gs.every(u=>u.autoAI); for(const u of gs){ u.autoAI=on; if(!on){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } } toast(on?`${gs.length}隊の采配を副将に任せました（手で命じれば戻る）`:"翼の采配を戻しました"); renderBattleFoot(); return; }   /* 第183巡：軍団AI副将（仕様「軍勢の迫力と操作性」） */
       else if(k==="allretreat"){
         for(const x of B.units) if(x.side===B.ctx.playerSide){ x.order={k:"retreat"}; x.troops=Math.max(0,Math.floor(x.troops*0.88)); x.morale=Math.max(1,x.morale-20); }
         log("全軍に退き鉦を打ちました","war"); B.group=null; B.sel=null; B.mode=null; endBattle(1-B.ctx.playerSide); return;
