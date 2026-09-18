@@ -4240,6 +4240,7 @@ function processSieges(){
     // 日が経てば普請も傷む。ただし急には効かない
     dmg *= 1 + Math.min(1.0, a.siegeDays/70);
     if(c.toriiMemory) dmg*=0.8;   /* 強右衛門の記憶：長篠城の兵は粘る（第135巡） */
+    if(W.tkj&&W.tkj.phase==="siege"&&W.tkj.cid===c.id) dmg*=0.15;   /* 第154巡：高天神の囲みは兵糧と士気の勝負（壁は総攻めの決戦か飢えでしか落ちない） */
     c.defense=Math.max(0,c.defense-Math.max(0,Math.floor(dmg)));
     // 兵糧攻めは蔵を干上がらせる
     if(a.mode===1){
@@ -10277,7 +10278,7 @@ function saveGame(){
 function autoSave(){ try{ localStorage.setItem(SAVE_KEY, serialize()); }catch(e){} }
 function hasSave(){ try{ return !!localStorage.getItem(SAVE_KEY); }catch(e){ return false; } }
 /* 筋書きの覚え。記録に残さないと、読み込んだ後に御館の乱や長島の続きが起きなかった */
-const SCEN_FLAGS=["msim","kagetora","nagResult","nagShaken","nagGrade","mik","mikBattle","mikResult","kiyo","kiyoResult","shizu","shizuBattle","shizuResult","kom","komBattleHs","komBattleTk","komNagakute","komResult","kyu","kyuResult","shk","shkResult","hon","honBattle","honBattle2","honResult","ueda","uedaBattle","uedaLate","uedaResult","ishi","ishiKizu","ishiRelief","ishiResult","azuchi","naval1","nagCamp","kobaChoice","toyotomiGrudge","sekPrisoners","jingo","jingoBattle","jingoResult","jingoWakaBattle","jingoAuto","otate","otateDay","echizenDone","yoshiakiAt","decisiveWaited","lastHelpAt","okeCastle","gennaPending","stageLock","odaUnityAt","shizugatakeAt","nagashimaSiegeAt","moriRiceAt","osakaTennojiAt","okeEscaped","sekPrep","nagashinoDay","araki","net3","saika","saikaCowed","yamanaAt","hiraguomoDone","negoro","navyPlus","ironShips","ironCfg","kukiBuildAt","kinaiActed","arakiSub","arakiDoubt","arakiSiegeDays","arakiFled","kanbeiSent","kanbeiSaved","kanbeiGrudge","kanbeiRescue","kanbeiFound","arakiId","kanbeiHeld","nagAvoided","honnojiP","akechiShamed","ted","tedResult","tedNext","ane","aneResult","suriDone","odawaraCallDone","mimiAsked","mimiPlan","mimiAfter","okiAfter","okeIntel","okeIntelSrc","okeRoute","okeWait","nag","nagSlain","chugokuCall","honTitles","koFlight","koTakatoMode","koTakatoShake","koTakatoBurn","shikoku","takedaShaken","takatenjin","shinpu","tokugawaTakeda","saikaSplit","saikaWar","warScore","genna","osakaGrudgeDone","scenarioDay0","tedHideyoshiLeft","farWar","shiga","nodaBattle","nodaNight","shigaBattle","nagashimaFinal","nagashimaSeal","odaniBattle","odaniIchi","ichijoBattle","ichijoLater","smaru","smaruResult","smaruHeld"];   /* 第151巡：長篠城の籠城（W.nag）ほか、記録に残っていなかった筋書きの覚えを残す */
+const SCEN_FLAGS=["msim","kagetora","nagResult","nagShaken","nagGrade","mik","mikBattle","mikResult","kiyo","kiyoResult","shizu","shizuBattle","shizuResult","kom","komBattleHs","komBattleTk","komNagakute","komResult","kyu","kyuResult","shk","shkResult","hon","honBattle","honBattle2","honResult","ueda","uedaBattle","uedaLate","uedaResult","ishi","ishiKizu","ishiRelief","ishiResult","azuchi","naval1","nagCamp","kobaChoice","toyotomiGrudge","sekPrisoners","jingo","jingoBattle","jingoResult","jingoWakaBattle","jingoAuto","otate","otateDay","echizenDone","yoshiakiAt","decisiveWaited","lastHelpAt","okeCastle","gennaPending","stageLock","odaUnityAt","shizugatakeAt","nagashimaSiegeAt","moriRiceAt","osakaTennojiAt","okeEscaped","sekPrep","nagashinoDay","araki","net3","saika","saikaCowed","yamanaAt","hiraguomoDone","negoro","navyPlus","ironShips","ironCfg","kukiBuildAt","kinaiActed","arakiSub","arakiDoubt","arakiSiegeDays","arakiFled","kanbeiSent","kanbeiSaved","kanbeiGrudge","kanbeiRescue","kanbeiFound","arakiId","kanbeiHeld","nagAvoided","honnojiP","akechiShamed","ted","tedResult","tedNext","ane","aneResult","suriDone","odawaraCallDone","mimiAsked","mimiPlan","mimiAfter","okiAfter","okeIntel","okeIntelSrc","okeRoute","okeWait","nag","nagSlain","chugokuCall","honTitles","koFlight","koTakatoMode","koTakatoShake","koTakatoBurn","shikoku","takedaShaken","takatenjin","shinpu","tokugawaTakeda","saikaSplit","saikaWar","warScore","genna","osakaGrudgeDone","scenarioDay0","tedHideyoshiLeft","farWar","shiga","nodaBattle","nodaNight","shigaBattle","nagashimaFinal","nagashimaSeal","odaniBattle","odaniIchi","ichijoBattle","ichijoLater","smaru","smaruResult","smaruHeld","tkj","tkjAssault","tkjBreak","tkjMercy","tkjHarsh","arakiBattle","arakiTurned","tottori","tottoriRelief","takamatsu","takamatsuBattle"];   /* 第151巡：長篠城の籠城（W.nag）ほか、記録に残っていなかった筋書きの覚えを残す */
 function loadGame(){
   let raw; try{ raw=localStorage.getItem(SAVE_KEY); }catch(e){ return false; }
   if(!raw) return false;
@@ -13939,6 +13940,47 @@ const DECISIVE=[
    open:"金ヶ崎。前に朝倉、後ろに浅井。殿軍は羽柴・明智・池田。信長を逃がすまで、退くな",
    after:{ atkWin:{ text:"殿軍は崩れ、信長は多くの将を失って京へ逃げ帰った。織田の威は大きく傾く", shrink:{clan:"織田家",k:0.75}, rels:[["朝倉家","織田家",-20]], news:["織田の惨敗に、畿内の反織田勢力が勢いづく"] },
            defWin:{ text:"信長は無事に京へ戻り、殿軍の秀吉・光秀は面目を施した。次は姉川", rels:[["織田家","浅井家",-40]] } } },
+ /* ---- 第154巡：長篠の世の四つの攻城戦（高天神・有岡・鳥取・備中高松） ---- */
+ { id:2245, key:"takatenjin_assault", sub:"山城の尾根", sc:"nagashino", when:"flag", flag:"tkjAssault", delayDays:1, histWin:"atk", name:"高天神城 総攻め", atk:"徳川家", def:"武田家", castle:"高天神城", noAllies:true, atkCmd:"徳川家康", defCmd:"岡部元信",
+   terrain:1, forts:"def", nAtk:9, nDef:4, atkTroops:12000, defTroops:1200,
+   atkGens:["徳川家康","本多忠勝","榊原康政","大久保忠世","石川数正","鳥居元忠","大須賀康高","酒井忠次"], defGens:["岡部元信","栗田寛久","孕石元泰","横田尹松"],
+   site:["高天神城","掛川城"],
+   holdWin:{side:"def", sec:200, keep:0.3, h:"高天神、落ちず", t:"岡部元信は尾根の曲輪で徳川を止めた。家康は囲みに戻る"},
+   gather:"家康は囲みに飽き、高天神へ総攻めをかける", open:"高天神城。狭い尾根に曲輪が連なる。守兵は飢えている",
+   after:{ atkWin:{ text:"高天神は落ちた。岡部元信は討死。勝頼が来なかったことを、武田の家中は忘れない", capture:"高天神城", kills:["岡部元信"], run:()=>{ if(W.tkj) tkjEnd("assault"); } },
+           defWin:{ text:"徳川は尾根の坂で兵を失い、囲みに戻った。城はなお飢える", shrink:{clan:"徳川家",k:0.9}, run:()=>{ if(W.tkj){ W.tkj.assaultFailed=true; W.tkjAssault=false; } } } } },
+ { id:2246, key:"takatenjin_break", sub:"城を捨て、囲みを破る", sc:"nagashino", when:"flag", flag:"tkjBreak", delayDays:1, histWin:"atk", name:"高天神　突破戦", atk:"徳川家", def:"武田家", noAllies:true, atkCmd:"徳川家康", defCmd:"岡部元信",
+   terrain:3, forts:null, nAtk:8, nDef:4, atkTroops:10000, defTroops:900,
+   atkGens:["徳川家康","本多忠勝","榊原康政","大久保忠世","石川数正","鳥居元忠","大須賀康高"], defGens:["岡部元信","栗田寛久","孕石元泰","横田尹松"],
+   site:["高天神城","掛川城"],
+   holdWin:{side:"def", sec:120, keep:0.35, h:"囲みを破る", t:"飢えた城兵は夜陰に紛れて囲みを破り、半ばが駿河へ逃れた。高天神は空になった"},
+   gather:"高天神の城兵は兵糧が尽き、門を開けて囲みを破ることに決めた", open:"夜。高天神の城兵が門を開けて出た。徳川の囲みは砦の網",
+   after:{ atkWin:{ text:"囲みを破ろうとした城兵は砦の網にかかり、岡部元信以下ことごとく討たれた。高天神は落ちた", capture:"高天神城", kills:["岡部元信"], run:()=>{ if(W.tkj) tkjEnd("break_fail"); } },
+           defWin:{ text:"半ばが囲みを破って駿河へ逃れた。空の高天神は徳川の手に落ちたが、岡部元信は生きた", run:()=>{ if(W.tkj) tkjEnd("break_ok"); } } } },
+ { id:2247, key:"arioka", sub:"惣構の城、内応と脱出", sc:"nagashino", when:"flag", flag:"arakiBattle", delayDays:2, histWin:"atk", name:"有岡城の戦い", atk:"織田家", def:"荒木家", castle:"有岡城", noAllies:true, atkCmd:"織田信長", defCmd:"荒木村重",
+   terrain:0, forts:"def", nAtk:10, nDef:6, atkTroops:30000, defTroops:6000,
+   atkGens:["織田信長","織田信忠","滝川一益","明智光秀","丹羽長秀","蜂屋頼隆","中川清秀","高山右近","池田恒興"], defGens:["荒木村重","荒木村次","荒木久左衛門","池田知正","伊丹親興","中西新八郎"],
+   site:["伊丹城","高槻城"],
+   holdWin:{side:"def", sec:220, keep:0.3, h:"有岡、落ちず", t:"惣構の町屋と砦が織田を阻み、寄せ手は退いた。有岡はなお本願寺の海の道につながる"},
+   gather:"信長は有岡へ総攻めを決めた。惣構の町屋を一つずつ潰す", open:"有岡城。町ぐるみの惣構。町屋・侍町・岸の砦・上臈塚砦、その奥に主郭",
+   after:{ atkWin:{ text:"有岡は落ちた。村重は夜に紛れて尼崎へ逃れ、残された妻子と家臣は京の六条河原で処刑された", capture:"有岡城", run:()=>{ const nk=W.arakiId?W.clans[W.arakiId]:null; if(nk&&!nk.dead&&nk.id!==W.player){ const g=W.generals[nk.daimyo]; for(const c of myCastles(nk.id)) if(c.name!=="有岡城") { c.clan=0; c.hq=false; } nk.dead=true; forgetClan(nk.id); if(g&&g.status!=="死亡"){ g.clan=null; g.status="浪人"; g.castle=null; g.troops=0; } W.fired.add(1237); } if(W.kanbeiHeld){ W.kanbeiHeld.at=Math.min(W.kanbeiHeld.at, dayNumber()-360); } } },
+           defWin:{ text:"惣構の町屋で織田の先手が討たれ、信長は囲みに戻した。内応の芽を探す日々が続く", shrink:{clan:"織田家",k:0.92}, calm:{clan:"織田家",vs:"荒木家",days:120} } } },
+ { id:2248, key:"tottori_relief", sub:"渇え殺しの城へ、毛利の後詰", sc:"nagashino", when:"flag", flag:"tottoriRelief", delayDays:2, histWin:"def", name:"鳥取後詰の戦い", atk:"毛利家", def:"織田家", noAllies:true, atkCmd:"吉川元春", defCmd:"羽柴秀吉",
+   terrain:1, forts:"def", nAtk:8, nDef:9, atkTroops:15000, defTroops:20000,
+   atkGens:["吉川元春","吉川元長","小早川隆景","南条元続","杉原盛重"], defGens:["羽柴秀吉","羽柴秀長","黒田官兵衛","蜂須賀正勝","堀秀政","宮部継潤","蜂屋頼隆"],
+   site:["鳥取城","姫路城"],
+   holdWin:{side:"def", sec:170, keep:0.35, h:"後詰、届かず", t:"吉川元春は羽柴の砦の網を破れず、鳥取を見殺しにして引いた"},
+   gather:"吉川元春が鳥取の後詰に出た。羽柴は囲みの砦で迎える", open:"鳥取の山麓。羽柴の砦の網と、それを破ろうとする毛利",
+   after:{ atkWin:{ text:"吉川元春が囲みを破り、鳥取に米が入った。秀吉は因幡から引く", run:()=>{ if(W.tottori) tottoriEnd("relieved"); } },
+           defWin:{ text:"後詰は退いた。鳥取城内の飢えは極まる", run:()=>{ if(W.tottori){ W.tottori.reliefFailed=true; W.tottoriRelief=false; } } } } },
+ { id:2249, key:"takamatsu_field", sub:"高梁川を挟んで", sc:"nagashino", when:"flag", flag:"takamatsuBattle", delayDays:2, histWin:"def", name:"高松城下の対陣", atk:"毛利家", def:"織田家", noAllies:true, atkCmd:"小早川隆景", defCmd:"羽柴秀吉",
+   terrain:4, forts:"def", nAtk:10, nDef:10, atkTroops:30000, defTroops:30000,
+   atkGens:["小早川隆景","吉川元春","毛利輝元","吉川元長","清水宗治","南条元続","杉原盛重"], defGens:["羽柴秀吉","羽柴秀長","黒田官兵衛","蜂須賀正勝","堀秀政","宇喜多秀家","加藤清正","福島正則"],
+   site:["備中松山城","姫路城"],
+   holdWin:{side:"def", sec:180, keep:0.35, h:"毛利、川を渡れず", t:"水に沈む高松を前に、毛利は高梁川を渡って来なかった。講和の使者が行き交う"},
+   gather:"毛利の大軍が高松の西に着いた。水に囲まれた城の前で対陣", open:"高松の水攻め。堤の内は湖、堤の外に毛利。川を渡って来るか",
+   after:{ atkWin:{ text:"毛利は堤を切り、高松の水を落とした。秀吉は備中から引く", run:()=>{ if(W.takamatsu) takamatsuEnd("lost"); } },
+           defWin:{ text:"毛利は渡って来なかった。宗治の切腹と備中東半分で講和が成る", run:()=>{ if(W.takamatsu) takamatsuEnd("peace"); } } } },
  /* ---- 第152巡：信長包囲網の五つの戦い（作り手の一覧「追加するとかなり良くなる戦い」） ---- */
  { id:2240, key:"nodafukushima", sub:"市街と川と砦、本願寺の鐘", sc:"hoi", when:"flag", flag:"nodaBattle", delayDays:2, histWin:"def", name:"野田・福島の戦い", atk:"織田家", def:"三好家", allies:true, defAllies:["本願寺"], atkCmd:"織田信長", defCmd:"三好長逸",
    terrain:4, forts:"def", nAtk:12, nDef:10, atkTroops:30000, defTroops:14000,
@@ -14278,13 +14320,13 @@ EVENTS.push(
   {id:1239,daily:true,name:"高天神城、囲まれる",
    text:["徳川家康「高天神を落とせば遠江は戻る。勝頼は来るか」"],
    cond:()=> eraOnly("nagashino")&&dateFrom(1580,6)&&okeAlive(2)&&(()=>{ const c=Object.values(W.castles).find(x=>x.name==="高天神城"); return c&&c.clan===2&&isBesieged(c.id)&&Object.values(W.armies).some(a=>a.mission==="包囲"&&a.target===c.id&&a.clan===23); })(),
-   act:()=>{ const td=W.clans[2]; const c=Object.values(W.castles).find(x=>x.name==="高天神城"); W.takatenjin={at:dayNumber(), saved:null};
+   act:()=>{ const td=W.clans[2]; const c=Object.values(W.castles).find(x=>x.name==="高天神城"); W.takatenjin={at:dayNumber(), saved:null}; try{ tkjStart(c); }catch(e){ console.error(e); }
      const go=(k)=>{ if(k==="save"){ W.takatenjin.saved=true; td.orderTarget={clan:23, until:dayNumber()+180}; log("勝頼は高天神の救援を決めた。徳川の囲みへ向かえ（軍を出さねば落ちる）","war",true); if(td.id===W.player){ const hq=myCastles(2).find(x=>x.hq); if(hq) log(`軍師「${hq.name}から高天神へ。徳川の囲みは一万。二倍の兵で」`,"dip",true); } }
        else { W.takatenjin.saved=false; for(const g of Object.values(W.generals)) if(g.clan===2&&g.status!=="死亡") g.loyalty=Math.max(10,g.loyalty-10); log("勝頼は高天神を見捨てた。家中は「味方を見捨てる殿」と囁き、忠義が−10","dip",true); } };
      if(td.id===W.player) koChoice("高天神城の救援","徳川が高天神城を囲んだ。救援すれば織田・徳川との大戦になるかもしれぬ。見捨てれば家臣の心が離れる。",[["save","救援する","兵を出す（兵力の損）",()=>go("save")],["leave","見捨てる","家臣の忠義−10、国人離反",()=>go("leave")]]); else go(rnd()<0.3?"save":"leave"); }},
   {id:1240,daily:true,name:"高天神城 落つ",
    text:["―― 高天神城は落ちた。勝頼への信頼は、長篠の敗けよりもここで崩れた"],
-   cond:()=> eraOnly("nagashino")&&!!W.takatenjin&&okeAlive(2)&&(()=>{ const c=Object.values(W.castles).find(x=>x.name==="高天神城"); return c&&c.clan!==2; })(),
+   cond:()=> eraOnly("nagashino")&&!!W.takatenjin&&okeAlive(2)&&(()=>{ const c=Object.values(W.castles).find(x=>x.name==="高天神城"); return c&&c.clan!==2&&!(W.tkj&&W.tkj.how==="peace"); })(),
    act:()=>{ const td=W.clans[2]; td.fame=(td.fame||0)-2; for(const g of Object.values(W.generals)) if(g.clan===2&&g.status!=="死亡"){ g.loyalty=Math.max(10,g.loyalty-8); genMind(g); g.bond=Math.max(10,g.bond-10); } W.takedaShaken=(W.takedaShaken||0)+1; bigNews("高天神城 落つ"); if(typeof chronicle==="function") chronicle("高天神城、落つ"); }},
   {id:1241,name:"新府城築城",
    text:["武田勝頼「躑躅ヶ崎は館。城が要る」"],
@@ -15024,6 +15066,90 @@ function kiyoGradeShow(res){
 /* ===== 天正壬午の乱〜第一次上田合戦（第138巡）：空白の旧武田領、国人の去就、若神子の対陣と講和、真田の生存外交（臣従・人質・密約・二重外交）、上田城築城、沼田領問題、断交と上杉臣従、第一次上田合戦、上田の武名、豊臣臣従 ===== */
 function jingoSide(){ const me=W.clans[W.player]; if(!me) return null; return me.name==="真田家"?"sn":me.name==="徳川家"?"tk":me.name==="北条家"?"hj":me.name==="上杉家"?"ue":null; }
 const JINGO_BIG=["徳川家","北条家","上杉家"];
+/* ===== 第154巡：高天神城の囲み（作り手の仕様13・14）。城を落とす戦いではなく「援軍が来ない状況を作る戦い」 ===== */
+function tkjStart(c){ if(W.tkj||!c) return; W.tkj={cid:c.id, day:0, ring:35, food:100, water:100, ammo:100, morale:70, hurt:0, hope:75, ration:"normal", patrol:1, forts:0, envoy:null, katsuyori:null, phase:"siege", acted:-1, log:[]};
+  if(W.player===23||W.player===2) setTimeout(()=>tkjAsk(),600); }
+function tkjText(){ const T=W.tkj; if(!T||T.phase!=="siege") return ""; return `高天神の囲み ${T.day}日目 ―― 包囲率 ${Math.round(T.ring)}％／城内 兵糧 ${Math.round(T.food)}％・士気 ${Math.round(T.morale)}／援軍の期待 ${Math.round(T.hope)}`; }
+function tkjAsk(){ const T=W.tkj; if(!T||T.phase!=="siege") return; const c=W.castles[T.cid]; if(!c) return; T.acted=T.day; const tk=W.clans[23], td=W.clans[2];
+  if(W.player===23){ koChoice(`高天神の囲み（${T.day}日目）`,`包囲率 ${Math.round(T.ring)}％。城内の兵糧は ${Math.round(T.food)}％、援軍の期待 ${Math.round(T.hope)}。勝頼${T.katsuyori==="save"?"は救援を決めた":T.katsuyori==="none"?"は来ない":"の腹は分からない"}。`,[
+      ["fort","砦を築く","銭二千。包囲率+15、補給の潜入と夜襲を防ぐ",()=>{ if(tk.money<2000){ toast("銭が足りませぬ"); return "retry"; } tk.money-=2000; T.forts++; T.ring=Math.min(100,T.ring+15); log("徳川は高天神の周りに砦を一つ足した（包囲率+15）","war",true); }],
+      ["patrol","哨戒を増やす","補給の潜入を防ぐ。砦の兵は薄れる（夜襲に弱い）",()=>{ T.patrol=2; log("徳川は夜の哨戒を増やした","war",true); }],
+      ["letter","矢文「勝頼は来ぬ」","城内の援軍の期待−15。四割で逆に意地になる（士気+5）",()=>{ if(rnd()<0.6){ T.hope=Math.max(0,T.hope-15); log("矢文が城内に落ちた。「御屋形様は来ぬらしい」と囁きが広がる","dip",true); } else { T.morale=Math.min(100,T.morale+5); log("矢文は城兵の意地を煽った","dip",true); } }],
+      ["assault","総攻め","明日、尾根の曲輪へ。損は大きいが早い",()=>{ W.tkjAssault=true; }],
+      ["wait","囲みを続ける","城は日に飢える",()=>{}]]); }
+  else if(W.player===2){ koChoice(`高天神城内（${T.day}日目）`,`包囲率 ${Math.round(T.ring)}％。兵糧 ${Math.round(T.food)}％・水 ${Math.round(T.water)}％・弾薬 ${Math.round(T.ammo)}％。士気 ${Math.round(T.morale)}、負傷 ${Math.round(T.hurt)}％。`,[
+      ["night","夜襲","小勢で徳川の砦を襲う。成れば包囲率−12、しくじれば守兵−5％",()=>{ const p=0.45-(T.patrol===2?0.15:0)+(T.morale>60?0.1:0); if(rnd()<p){ T.ring=Math.max(10,T.ring-12); T.morale=Math.min(100,T.morale+5); log("夜襲が図に当たり、徳川の砦が一つ焼けた（包囲率−12）","war",true); } else { T.hurt=Math.min(60,T.hurt+5); T.morale=Math.max(0,T.morale-4); nagLoseTroopsSafe(c,0.05); log("夜襲は見破られ、守兵の五分を失った","war",true); } }],
+      ["supply","補給の潜入","夜、少人数の荷駄が哨戒を抜ける。成れば兵糧+25",()=>{ const p=Math.max(0.1,1-T.ring/100*(T.patrol===2?1.2:0.8)); if(rnd()<p){ T.food=Math.min(100,T.food+25); log("荷駄が徳川の哨戒を抜け、城に米が入った（兵糧+25）","dip",true); } else { log("荷駄は哨戒に見つかり、米は奪われた","dip",true); T.ring=Math.min(100,T.ring+3); } }],
+      ["ration","配給を改める",`いま：${T.ration==="normal"?"通常":T.ration==="save"?"節約":"最低限"}。節約は長持ちだが士気が落ちる`,()=>{ koChoice("配給","",[["normal","通常","",()=>{ T.ration="normal"; }],["save","節約","兵糧の減りが六割。士気−1／日",()=>{ T.ration="save"; }],["min","最低限","減りが三割五分。士気−2／日、負傷が増える",()=>{ T.ration="min"; }]]); }],
+      ["envoy","勝頼へ使者","囲みを抜けられるか（包囲率しだい）。届けば勝頼の判断",()=>{ const p=Math.max(0.15,1-T.ring/100); if(rnd()<p){ log("使者が囲みを抜けた。「高天神、危急」の報が新府へ","dip",true); T.envoy="sent"; setTimeout(()=>tkjKatsuyoriAsk(),700); } else { log("使者は徳川の哨戒に捕らえられた","dip",true); } }],
+      ["hold","最後まで籠城","次の月まで持ちこたえる",()=>{}]]); }
+}
+function nagLoseTroopsSafe(c,k){ for(const g of Object.values(W.generals)) if(g.castle===c.id&&g.clan===c.clan&&!g.army&&g.status!=="死亡") g.troops=Math.max(50,Math.floor(g.troops*(1-k))); }
+function tkjKatsuyoriAsk(){ const T=W.tkj; if(!T||T.phase!=="siege") return; const td=W.clans[2], tk=W.clans[23]; if(!td||td.dead) return;
+  const decide=(k)=>{ T.katsuyori=k; if(k==="save"){ W.takatenjin.saved=true; td.orderTarget={clan:23, until:dayNumber()+180}; T.hope=Math.min(100,T.hope+30); T.morale=Math.min(100,T.morale+10); log("勝頼は高天神の救援を決めた。徳川へ「武田の援軍接近」の報","war",true); if(W.player===23) bigNews("武田の援軍、接近"); }
+    else if(k==="part"){ T.hope=Math.min(100,T.hope+10); const hq=myCastles(2).find(x=>x.hq); log("勝頼は小勢の援軍を出した。囲みは破れないが、城内は少し持ち直す","war",true); }
+    else if(k==="feint"){ T.ring=Math.max(10,T.ring-10); log("勝頼は駿河で陽動をかけ、徳川の囲みの一部を引き離した（包囲率−10）","war",true); }
+    else if(k==="none"){ W.takatenjin.saved=false; T.hope=Math.max(0,T.hope-40); log("勝頼は高天神を見捨てた。城内に「御屋形様は来ぬ」の噂が走る","dip",true); for(const g of Object.values(W.generals)) if(g.clan===2&&g.status!=="死亡") g.loyalty=Math.max(10,g.loyalty-6); }
+    else if(k==="peace"){ if(rnd()<0.35){ makePeace(2,23,180); log("勝頼は徳川に講和を申し入れ、徳川は囲みを解いた（半年の約定）","dip",true); tkjEnd("peace"); } else { log("徳川は講和を蹴った。「高天神は貰う」","dip",true); T.hope=Math.max(0,T.hope-10); } } };
+  if(td.id===W.player) koChoice("高天神、危急","高天神から使者。「兵糧尽きかけ、援軍なくば持たず」。徳川の囲みは一万余。",[["save","全軍で救援","新府から高天神へ。徳川と野戦になる。行かねば家中の信は落ちる",()=>decide("save")],["part","一部の援軍","囲みは破れないが城の士気は保つ",()=>decide("part")],["feint","陽動","駿河で徳川の囲みを引き離す（包囲率−10）",()=>decide("feint")],["none","救援しない","高天神を見捨てる。家中の忠義−6、家臣は覚えている",()=>decide("none")],["peace","講和を申し入れる","三割五分で徳川が受ける",()=>decide("peace")]]);
+  else { const r=rnd(); decide(r<0.25?"save":r<0.45?"part":r<0.6?"feint":"none"); } }
+function tkjDaily(){ const T=W.tkj; if(!T||T.phase!=="siege") return; const c=W.castles[T.cid]; if(!c){ tkjEnd("gone"); return; }
+  if(c.clan!==2){ tkjEnd("fell"); return; } if(!isBesieged(c.id)){ T.free=(T.free||0)+1; if(T.free>=20){ tkjEnd("lifted"); return; } return; } T.free=0;
+  T.day++; T.ring=Math.min(100,T.ring+0.25+T.forts*0.1); const rate=(T.ration==="save"?0.6:T.ration==="min"?0.35:1)*(0.55+T.ring/100*0.45); T.food=Math.max(0,T.food-0.7*rate); T.water=Math.max(0,T.water-(T.ring>=90?0.6:0.2)); T.ammo=Math.max(0,T.ammo-0.15);
+  T.hope=Math.max(0,T.hope-(T.katsuyori==="save"?0:T.katsuyori==="none"?0.6:0.25)); T.morale=Math.max(0,Math.min(100,T.morale-(T.ration==="save"?1:T.ration==="min"?2:0.3)*0.5-(T.hope<30?0.5:0)+(T.hope>70?0.2:0)-(T.food<20?1:0)));
+  if(T.ration==="min") T.hurt=Math.min(60,T.hurt+0.3);
+  if(T.day%30===0&&T.acted!==T.day&&(W.player===23||W.player===2)&&!B&&!overlayEl) tkjAsk();
+  if(T.day%30===15&&T.katsuyori===null&&W.player!==2&&rnd()<0.5){ tkjKatsuyoriAsk(); }
+  /* 落城の最終局面 */ if((T.food<=0||T.morale<=5||T.water<=0)&&!T.final){ T.final=true; tkjFinalAsk(); } }
+function tkjFinalAsk(){ const T=W.tkj; const c=W.castles[T.cid]; const tk=W.clans[23];
+  if(W.player===2){ koChoice("高天神、最後の評定","兵糧は尽き、負傷者が溢れる。岡部元信「援軍なき場合、城は持たぬ」。",[
+      ["hold","最後まで籠城","士気の尽きた城は十日で落ちる。岡部は討死",()=>{ T.lastStand=true; }],
+      ["break","夜間突破","門を開けて囲みを破る。明日、突破戦。半ばを逃がせれば岡部は生きる",()=>{ W.tkjBreak=true; }],
+      ["sur","徳川へ降伏","城兵の命は徳川の処遇しだい",()=>{ tkjSurrender(); }],
+      ["envoy","勝頼へ最後の使者","三割で届く。届けば勝頼の最終判断",()=>{ if(rnd()<0.3){ tkjKatsuyoriAsk(); T.final=false; } else { log("使者は戻らなかった","dip",true); T.lastStand=true; } }]]); }
+  else { const r=rnd(); if(r<0.35) W.tkjBreak=true; else if(r<0.6) tkjSurrender(); else T.lastStand=true; }
+}
+function tkjSurrender(){ const T=W.tkj; const c=W.castles[T.cid]; const tk=W.clans[23]; if(!c) return;
+  const fin=(k)=>{ if(k==="all"){ captureCastle(c.id,23,null); log("高天神は開城した。徳川は城兵の命を助けた。武田の他の城は「降れば助かる」と知る","dip",true); W.tkjMercy=true; }
+    else if(k==="gens"){ const gs=Object.values(W.generals).filter(g=>g.castle===c.id&&g.clan===2&&g.status!=="死亡"); captureCastle(c.id,23,null); for(const g of gs) if(g.name==="岡部元信") kill(g.id); log("高天神は開城した。岡部元信は斬られ、兵は助けられた","dip",true); }
+    else { captureCastle(c.id,23,null); for(const g of Object.values(W.generals)) if(g.castle===c.id&&g.clan===23&&g.tozama) kill(g.id); log("徳川は降伏した城兵を皆殺しにした。武田の城は「降っても助からぬ」と知り、抵抗が強まる","war",true); W.tkjHarsh=true; }
+    tkjEnd("surrender"); };
+  if(W.player===23) koChoice("高天神、降伏の申し出","岡部元信が城を開くという。処遇は。",[["all","全員助命","武田の他の城が降りやすくなる",()=>fin("all")],["gens","将だけ処罰","岡部を斬り、兵は助ける",()=>fin("gens")],["none","無条件・皆殺し","武田の抵抗が強まる",()=>fin("none")]]);
+  else fin(rnd()<0.7?"all":"gens"); }
+function tkjEnd(how){ const T=W.tkj; if(!T) return; T.phase="over"; T.how=how; const c=W.castles[T.cid]; const td=W.clans[2];
+  if(how==="assault"||how==="break_fail"||how==="break_ok"||how==="surrender"||how==="fell"){ if(c&&c.clan===2) captureCastle(c.id,23,null); if(td&&!td.dead){ if(W.takatenjin&&W.takatenjin.saved!==true){ W.takedaShaken=(W.takedaShaken||0)+1; log("「高天神を救えず」――武田の国人は御屋形様を疑い始めた（木曽・穴山の離反が近づく）","dip",true); for(const g of Object.values(W.generals)) if(g.clan===2&&g.status!=="死亡"&&g.tozama) g.loyalty=Math.max(10,g.loyalty-6); } } }
+  if(how==="lifted"||how==="relieved"||how==="peace"){ log("高天神の囲みは解けた。勝頼の名は保たれ、家中の信は戻る","dip",true); if(td&&!td.dead) for(const g of Object.values(W.generals)) if(g.clan===2&&g.status!=="死亡") g.loyalty=Math.min(100,g.loyalty+4); }
+  if(T.lastStand&&how==="fell"){ const g=Object.values(W.generals).find(x=>x.name==="岡部元信"&&x.status!=="死亡"); if(g) kill(g.id); }
+  W.tkjAssault=false; W.tkjBreak=false; }
+/* ===== 第154巡：鳥取の渇え殺し ===== */
+function tottoriStart(c){ if(W.tottori||!c) return; W.tottori={cid:c.id, day:0, food:70, forts:false, phase:"siege", relief:false}; }
+function tottoriText(){ const T=W.tottori; if(!T||T.phase!=="siege") return ""; return `鳥取の囲み ${T.day}日目 ―― 城内の兵糧 ${Math.round(T.food)}％${T.relief?"／毛利の後詰、接近":""}`; }
+function tottoriDaily(){ const T=W.tottori; if(!T||T.phase!=="siege") return; const c=W.castles[T.cid]; if(!c||c.clan===0||c.clan===null){ tottoriEnd("fell"); return; } T.day++; T.food=Math.max(0,T.food-0.9);
+  if(T.day===40&&!T.relief&&!T.reliefFailed&&rnd()<0.6){ const mr=clanByName("毛利家"); if(mr&&!mr.dead){ T.relief=true; log("急報：吉川元春が鳥取の後詰に出た","war",true); if(!T.forts||rnd()<0.5) W.tottoriRelief=true; else log("羽柴の砦が堅く、元春は遠巻きに見るだけで動けない","war",true); } }
+  if(T.food<=0&&!T.starved){ T.starved=true; log("鳥取城内は飢えて人が倒れ、木の皮まで食い尽くした。吉川経家が降伏の使者を出す","war",true); tottoriSurrenderAsk(); } }
+function tottoriSurrenderAsk(){ const T=W.tottori; const c=W.castles[T.cid]; const od=W.clans[0];
+  const fin=(k)=>{ const kei=Object.values(W.generals).find(g=>g.name==="吉川経家"&&g.status!=="死亡"); captureCastle(c.id,0,null); if(k==="hist"){ if(kei) kill(kei.id); log("吉川経家は城兵の助命と引き換えに腹を切った。鳥取は開城、秀吉は経家の首を丁重に葬った","dip",true); W.clans[0].fame=(W.clans[0].fame||0)+1; }
+    else if(k==="all"){ log("秀吉は経家も城兵も助けた。因幡の国人は羽柴に靡く","dip",true); addRel(clanByName("毛利家").id,0,5); }
+    else { if(kei) kill(kei.id); for(const g of Object.values(W.generals)) if(g.castle===c.id&&g.tozama&&g.clan===0) kill(g.id); log("秀吉は城兵を許さなかった。因幡は羽柴を恐れる","war",true); W.clans[0].fame=(W.clans[0].fame||0)-1; }
+    tottoriEnd("surrender"); };
+  if(od.id===W.player) koChoice("鳥取城、降伏の申し出","吉川経家「城兵の命と引き換えに、それがしの首を」",[["hist","経家の切腹で城兵助命（史実）","経家の首を葬り、兵は助ける。威信+1",()=>fin("hist")],["all","経家も城兵も助ける","毛利の心証+5",()=>fin("all")],["none","許さない","因幡は羽柴を恐れる。威信−1",()=>fin("none")]]);
+  else fin("hist"); }
+function tottoriEnd(how){ const T=W.tottori; if(!T) return; T.phase="over"; T.how=how; W.tottoriRelief=false; if(how==="relieved"){ log("鳥取に米が入り、囲みは解けた。因幡は毛利の手に残る","dip",true); } else if(how!=="fell"){ bigNews("鳥取城 開城"); if(typeof chronicle==="function") chronicle("鳥取城、渇え殺し"); } }
+/* ===== 第154巡：備中高松の水攻め ===== */
+function takamatsuText(){ const T=W.takamatsu; if(!T||T.done) return ""; return T.phase==="dam"?`備中高松の水攻め ―― 堤 ${Math.round(T.dam)}％${T.rain?"・梅雨":""}`:T.phase==="lake"?`高松は湖に浮く ―― 毛利の大軍 ${T.mori?"着陣":"接近"}／講和の使者`:""; }
+function takamatsuDaily(){ const T=W.takamatsu; if(!T||T.done) return; T.day++; const od=W.clans[0]; if(!od||od.dead){ T.done=true; return; }
+  if(T.phase==="dam"){ if(W.date.m>=5&&W.date.m<=6) T.rain=1; T.dam=Math.min(100,T.dam+(100/12)*(T.rain?1.15:1)); if(T.dam>=100){ T.phase="lake"; T.lakeAt=T.day; log("堤が成り、梅雨の水が高松を囲んだ。城は湖に浮き、清水宗治は舟で見回る","war",true); bigNews("高松城、水に沈む"); } return; }
+  if(T.phase==="lake"){ if(!T.mori&&T.day-T.lakeAt>=6){ T.mori=true; log("毛利輝元・小早川隆景・吉川元春の三万が高松の西、高梁川の対岸に着いた","war",true); if(W.player===0) setTimeout(()=>takamatsuAsk(),600); else if(rnd()<0.3) W.takamatsuBattle=true; else { T.aiWait=T.day; } }
+    if(T.mori&&W.player!==0&&T.aiWait&&T.day-T.aiWait>=10&&!W.takamatsuBattle) takamatsuEnd("peace"); } }
+function takamatsuAsk(){ const T=W.takamatsu; if(!T||T.done||T.phase!=="lake") return; const od=W.clans[0]; koChoice("高松城下、毛利と対陣","水に沈む高松の前に毛利の大軍。宗治は舟の上で腹を切る覚悟という。",[
+    ["peace","宗治の切腹と備中東半分で講和（史実）","毛利は退き、秀吉は東へ自由に動ける",()=>takamatsuEnd("peace")],
+    ["hard","五カ国の割譲を要求","三割で毛利が呑む。呑まねば対陣が長引く（本能寺の報が来れば話は変わる）",()=>{ if(rnd()<0.3){ log("毛利は五カ国を割譲して講和した。秀吉の名は天下に響く","dip",true); takamatsuEnd("peace_big"); } else { log("毛利は蹴った。対陣は続く","dip",true); T.aiWait=T.day; } }],
+    ["battle","川を渡って決戦","二日後に高梁川で毛利と野戦",()=>{ W.takamatsuBattle=true; }]]); }
+function takamatsuEnd(how){ const T=W.takamatsu; if(!T||T.done) return; T.done=true; T.how=how; const mr=clanByName("毛利家"); const od=W.clans[0]; W.takamatsuBattle=false;
+  const muneharu=Object.values(W.generals).find(g=>g.name==="清水宗治"&&g.status!=="死亡");
+  if(how==="peace"||how==="peace_big"){ if(muneharu) kill(muneharu.id); if(mr&&od) makePeace(od.id,mr.id,360); const bm=Object.values(W.castles).find(c=>c.name==="備中松山城"&&c.clan!==0); if(bm&&how==="peace_big") captureCastle(bm.id,0,null); log(how==="peace_big"?"清水宗治は舟の上で舞い、腹を切った。毛利は五カ国を割いて講和":"清水宗治は舟の上で舞い、腹を切った。備中の東半分は羽柴のものとなり、毛利と一年の約定","dip",true); bigNews("高松城 開城"); if(typeof chronicle==="function") chronicle("備中高松、水攻め"); }
+  else if(how==="assault_ok"){ if(muneharu) kill(muneharu.id); log("高松は力攻めで落ちた。宗治は討死","war",true); }
+  else if(how==="lost"){ log("秀吉は備中から引いた。毛利の境目は動かない","war",true); } }
 /* 第152巡：志賀の陣（一五七〇年九月〜十二月）。京近郊で浅井・朝倉と長期対峙。比叡山・本願寺・六角・三好が絡み、月ごとに手を決める */
 function shigaStart(){ if(W.shiga) return; const od=clanByName("織田家"), az=clanByName("浅井家"), ak=clanByName("朝倉家"); if(!od||od.dead) return; const foes=[az,ak].filter(k=>k&&!k.dead); if(!foes.length) return;
   for(const k of foes){ if(!k.war.has(od.id)) declareWar(k.id,od.id,"force"); if(k.id!==W.player) k.orderTarget={clan:od.id, until:dayNumber()+120}; }
@@ -15245,6 +15371,35 @@ EVENTS.push(
    cond:()=> eraOnly("jingo")&&(()=>{ const sn=clanByName("真田家"); const c=Object.values(W.castles).find(x=>x.name==="上田城"); return sn&&sn.id===W.player&&c&&c.clan===sn.id&&!!(W.jingo&&W.jingo.uedaBuiltAt)&&dayNumber()-W.jingo.uedaBuiltAt>=60; })(),
    act:()=>{ const c=Object.values(W.castles).find(x=>x.name==="上田城"); const sn=clanByName("真田家"); if(!c) return;
      koChoice("城下町の整備","上田の城下に誰を集めるか。",[["merchant","商人を集める","商い+30%、銭",()=>{ c.com=Math.floor((c.com||1500)*1.3); sn.money+=3000; log("上田の城下に商人が集まり、市が立った","growth",true); }],["craft","職人を集める","門と城の備えが固くなる",()=>{ c.defense=Math.min(maxDefense(c)*1.1,c.defense+Math.floor(maxDefense(c)*0.1)); W.jingo.craft=true; log("職人が城の普請を仕上げ、備えが固まった","growth",true); }],["temple","寺を建てる","民心+10、治安+10",()=>{ c.minchu=Math.min(100,(c.minchu||50)+10); c.chian=Math.min(100,(c.chian||50)+10); log("寺が建ち、民の心が落ち着いた","growth",true); }],["farm","農民を入れる","人口+20%、兵糧",()=>{ c.pop=Math.floor(c.pop*1.2); c.food=Math.min(foodCap(c),(c.food||0)+Math.floor(foodCap(c)*0.3)); log("田を開き、農民が入った","growth",true); }]]); }},
+);
+/* 第154巡：有岡総攻め・鳥取の渇え殺し・備中高松の水攻め */
+EVENTS.push(
+  {id:1295,daily:true,name:"有岡、総攻めか",
+   text:["織田信長「惣構の町屋を一つずつ潰せ。内応の者には約束を」"],
+   cond:()=> eraOnly("nagashino")&&!!W.arakiId&&W.date.d===10&&(()=>{ const nk=W.clans[W.arakiId]; if(!nk||nk.dead) return false; const ari=myCastles(nk.id).find(c=>c.name==="有岡城"); return !!ari&&isBesieged(ari.id)&&(W.arakiSiegeDays||0)>=60&&!W.arakiBattle&&!W.fired.has(2247); })(),
+   act:()=>{ const nk=W.clans[W.arakiId]; const od=W.clans[0]; if(od.id===W.player) koChoice("有岡城、どう落とす","囲んで二月。町ぐるみの惣構は堅く、村重は本願寺と毛利の海の道を頼んでいる。",[
+       ["assault","総攻め","二日後に有岡で決戦（町屋・侍町・岸の砦・上臈塚砦・主郭）",()=>{ W.arakiBattle=true; }],
+       ["turn","内応を待つ","中川清秀・高山右近の伝手で城内の者を口説く。六割で城の守りが薄れ、しくじれば村重が締め付ける",()=>{ if(rnd()<0.6){ W.arakiTurned=true; log("有岡の城内に内応の者が出た。岸の砦の門は夜に開く（守りが薄れる）","dip",true); } else log("内応は露見し、村重は疑わしい者を斬った。城内の締め付けが強まる","dip",true); W.fired.delete(1295); }],
+       ["wait","囲みを続ける","有岡は飢えてゆく（村重は九十日で城を抜ける）",()=>{ W.fired.delete(1295); }]]);
+     else { W.fired.delete(1295); if((W.arakiSiegeDays||0)>=120&&rnd()<0.5) W.arakiBattle=true; } }},
+  {id:1296,name:"鳥取城、渇え殺し",
+   text:["羽柴秀吉「城を殴るな。米を買え。鳥取の民から米を買い上げ、囲んで待て」"],
+   cond:()=> eraOnly("nagashino")&&dateFrom(1581,6)&&okeAlive(0)&&!W.tottori&&(()=>{ const mr=clanByName("毛利家"); const c=Object.values(W.castles).find(x=>x.name==="鳥取城"); if(!c||c.clan===null||c.clan===0) return false; const K=W.clans[c.clan]; return mr&&!mr.dead&&W.clans[0].war.has(mr.id)&&(c.clan===mr.id||(K&&K.suzerain===mr.id)); })(),
+   act:()=>{ const c=Object.values(W.castles).find(x=>x.name==="鳥取城"); const od=W.clans[0]; tottoriStart(c);
+     if(od.id===W.player) koChoice("鳥取城、どう落とす","因幡の鳥取城。吉川経家が籠る。山城は堅い。",[
+       ["buy","米を買い占める（史実）","銭六千で因幡の米を買い上げる。城内の兵糧は四割減り、干上がるのが早い",()=>{ if(od.money<6000){ toast("銭が足りませぬ"); return "retry"; } od.money-=6000; W.tottori.food=Math.max(0,W.tottori.food-40); log("羽柴は因幡の米を高値で買い上げた。鳥取の蔵は空に近い","dip",true); }],
+       ["siege","囲んで干す","砦の網で囲む。米は日に減る",()=>{}],
+       ["forts","毛利の後詰に備える","砦を増やす（銭四千）。後詰が来ても守りは堅い",()=>{ if(od.money<4000){ toast("銭が足りませぬ"); return "retry"; } od.money-=4000; W.tottori.forts=true; log("羽柴は鳥取の周りに砦を築き、毛利の後詰に備えた","war",true); }]]);
+     bigNews("鳥取城 攻囲"); }},
+  {id:1297,name:"備中高松、水攻め",
+   text:["黒田官兵衛「高松は低い。堤を築いて水を入れれば、城は湖に浮きまする」","羽柴秀吉「梅雨が来る。十二日で堤を成せ」"],
+   cond:()=> eraOnly("nagashino")&&dateFrom(1582,4)&&okeAlive(0)&&!W.takamatsu&&W.fired.has(1127)&&(()=>{ const mr=clanByName("毛利家"); return mr&&!mr.dead&&W.clans[0].war.has(mr.id)&&Object.values(W.generals).some(g=>g.name==="羽柴秀吉"&&g.clan===0&&g.status!=="死亡"); })(),
+   act:()=>{ const od=W.clans[0]; W.takamatsu={phase:"dam", day:0, dam:0, rain:0, mori:false, done:false};
+     if(od.id===W.player) koChoice("備中高松城","毛利の境目の城。清水宗治が籠る。低地の城で、梅雨が近い。",[
+       ["dam","堤を築いて水攻め（史実）","十二日で堤が成り、雨で水が上がる。城は湖に浮く。毛利の大軍が来れば対陣",()=>{ log("秀吉は高松の周りに長さ三千間の堤を築き始めた","war",true); }],
+       ["assault","力攻め","早いが損は大きい。四割で落ちる、六割で退く",()=>{ W.takamatsu.phase="assault"; if(rnd()<0.4){ takamatsuEnd("assault_ok"); } else { log("低地の泥に足を取られ、寄せ手は多くを失って退いた。堤に切り替える","war",true); W.takamatsu.phase="dam"; for(const g of Object.values(W.generals)) if(g.name==="羽柴秀吉"&&g.clan===0) g.troops=Math.floor(g.troops*0.85); } }],
+       ["call","信長に援軍を乞う","中国出陣を早める（本能寺の下地）",()=>{ W.chugokuCall=W.chugokuCall||dayNumber(); log("秀吉は信長に出馬を乞うた。信長は光秀に先陣を命じる","dip",true); }]]);
+     bigNews("備中高松 水攻め"); }}
 );
 /* 第152巡：小谷城攻め・一乗谷撤退戦（浅井・朝倉の滅亡を出来事だけで済ませない） */
 EVENTS.push(
@@ -17124,7 +17279,7 @@ function koTakatenjinAsk(){ const k=W.ko; if(!k) return; const td=clanByName("�
 /* 新府城築城（第二部）：急造・標準・ゆっくり */
 /* 第145巡：侵攻の開始。織田信忠は岩村から高遠へ、徳川は浜松から駿河へ */
 function koInvasionGo(){ const k=W.ko; const td=clanByName("武田家"), od=clanByName("織田家"), tk=clanByName("徳川家"); if(!td||td.dead) return; if(k.invaded) return; k.invaded=true;
-  const go=(clan, fromName, targetName, names, want)=>{ if(!clan||clan.dead||clan.id===W.player) return; if(!clan.war.has(td.id)||clan.allies.has(td.id)||clan.suzerain===td.id) return;   /* 第151巡：武田と戦でない（盟・傘下の）家は動かない */ const from=Object.values(W.castles).find(c=>c.name===fromName&&c.clan===clan.id); const tg=Object.values(W.castles).find(c=>c.name===targetName&&c.clan===td.id); if(!from||!tg) return; const gs=[]; for(const nm of names){ const g=Object.values(W.generals).find(x=>x.name===nm&&x.clan===clan.id&&!x.army&&x.status==="家臣"&&!x.task); if(g){ g.castle=from.id; gs.push(g); } } if(gs.length<2){ for(const g of Object.values(W.generals)) if(g.clan===clan.id&&!g.army&&g.status==="家臣"&&!g.task&&!gs.includes(g)&&g.castle===from.id){ gs.push(g); if(gs.length>=4) break; } } if(!gs.length) return; const tot=gs.reduce((a,g)=>a+g.troops,0); if(tot<want){ const add=Math.round((want-tot)/gs.length); for(const g of gs) g.troops+=add; } bumpGarrison(); from.food=Math.max(from.food||0, foodEatenBy(want)*150); const err=dispatch(from.id, gs.map(g=>g.id), tg.id, 0); if(err) console.warn("koInvasionGo",clan.name,err); else log(`${clan.name}の大軍、${from.name}より${tg.name}へ`,"war",true); };
+  const go=(clan, fromName, targetName, names, want)=>{ if(!clan||clan.dead||clan.id===W.player) return; if(!clan.war.has(td.id)||clan.allies.has(td.id)||clan.suzerain===td.id) return;   /* 第151巡：武田と戦でない（盟・傘下の）家は動かない */ const from=Object.values(W.castles).find(c=>c.name===fromName&&c.clan===clan.id); const tg=Object.values(W.castles).find(c=>c.name===targetName&&c.clan===td.id); if(!from||!tg) return; const gs=[]; for(const nm of names){ const g=Object.values(W.generals).find(x=>x.name===nm&&x.clan===clan.id&&!x.army&&x.status==="家臣"&&!x.task); if(g){ g.castle=from.id; gs.push(g); } } if(gs.length<2){ for(const g of Object.values(W.generals)) if(g.clan===clan.id&&!g.army&&g.status==="家臣"&&!g.task&&!gs.includes(g)&&g.castle===from.id){ gs.push(g); if(gs.length>=4) break; } } if(!gs.length) return; want=Math.max(want, Math.ceil(garrisonFast(tg.id)*2.2));   /* 第154巡：守兵の二倍の決まりに足りる数まで集める（「二倍に満たぬ」で侵攻が止まっていた） */ const tot=gs.reduce((a,g)=>a+g.troops,0); if(tot<want){ const add=Math.round((want-tot)/gs.length); for(const g of gs) g.troops+=add; } bumpGarrison(); from.food=Math.max(from.food||0, foodEatenBy(want)*150); const err=dispatch(from.id, gs.map(g=>g.id), tg.id, 0); if(err) console.warn("koInvasionGo",clan.name,err); else log(`${clan.name}の大軍、${from.name}より${tg.name}へ`,"war",true); };
   go(od,"岩村城","高遠城",["織田信忠","森長可","河尻秀隆","滝川一益","団忠正"],30000);
   go(tk,"浜松城","駿府館",["徳川家康","本多忠勝","榊原康政","井伊直政"],12000);
   k.invadedAt=dayNumber(); if(td.id===W.player) setTimeout(()=>koDefenseLineAsk(),400); }
@@ -17524,7 +17679,7 @@ function stageArrived(a){ return !a.route || a.route.length<2 || (dayNumber()-a.
 function updateStageBadge(){
   let b=document.getElementById("stageBadge");
   if(!W.started || B){ if(b) b.hidden=true; return; }
-  if(!W.stage){ const rm=W.reliefMuster&&Object.entries(W.reliefMuster)[0]; if(!rm){ const gt=((typeof sekGaugeText==="function")?sekGaugeText():"")||((typeof net3Text==="function")?net3Text():""); if(gt){ if(!b){ b=document.createElement("div"); b.id="stageBadge"; b.style.cssText="position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:23;background:rgba(26,18,8,.86);color:#F3E6C4;border:1px solid rgba(201,162,39,.8);font-weight:800;font-size:14px;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis;padding:6px 14px;border-radius:14px;pointer-events:none"; document.getElementById("stage").appendChild(b); } b.textContent=gt; b.hidden=false; return; } if(b) b.hidden=true; return; }
+  if(!W.stage){ const rm=W.reliefMuster&&Object.entries(W.reliefMuster)[0]; if(!rm){ const gt=((typeof sekGaugeText==="function")?sekGaugeText():"")||((typeof tkjText==="function")?tkjText():"")||((typeof tottoriText==="function")?tottoriText():"")||((typeof takamatsuText==="function")?takamatsuText():"")||((typeof net3Text==="function")?net3Text():""); if(gt){ if(!b){ b=document.createElement("div"); b.id="stageBadge"; b.style.cssText="position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:23;background:rgba(26,18,8,.86);color:#F3E6C4;border:1px solid rgba(201,162,39,.8);font-weight:800;font-size:14px;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis;padding:6px 14px;border-radius:14px;pointer-events:none"; document.getElementById("stage").appendChild(b); } b.textContent=gt; b.hidden=false; return; } if(b) b.hidden=true; return; }
     if(!b){ b=document.createElement("div"); b.id="stageBadge"; b.style.cssText="position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:23;background:rgba(26,18,8,.86);color:#F3E6C4;border:1px solid rgba(201,162,39,.8);font-weight:800;font-size:14px;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis;padding:6px 16px;border-radius:12px;pointer-events:none"; document.getElementById("stage").appendChild(b); }
     const [rv,m]=rm; const c=W.castles[+rv], t=W.castles[m.target]; const enRoute=Object.values(W.armies).filter(a=>a.reliefVia&&a.reliefVia.at===+rv&&a.clan===W.player).length; const total=(m.hold||[]).length;
     b.textContent=`${t?t.name:"救援先"}の救援 ―― ${c?c.name:""}に集結中（道中 ${enRoute}軍・あと${Math.max(0,m.until-dayNumber())}日で発つ）`; b.hidden=false; return; }
@@ -17889,6 +18044,9 @@ function decisiveDaily(){
   if(W.ishi){ try{ ishiDaily(); }catch(e){ console.error(e); } }
   if(W.ted&&!W.ted.done){ try{ tedDaily(); }catch(e){ console.error(e); } }
   if(W.shiga&&W.shiga.phase==="standoff"){ try{ shigaDaily(); }catch(e){ console.error(e); } }   /* 第152巡：志賀の陣 */
+  if(W.tkj&&W.tkj.phase==="siege"){ try{ tkjDaily(); }catch(e){ console.error(e); } }   /* 第154巡 */
+  if(W.tottori&&W.tottori.phase==="siege"){ try{ tottoriDaily(); }catch(e){ console.error(e); } }
+  if(W.takamatsu&&!W.takamatsu.done){ try{ takamatsuDaily(); }catch(e){ console.error(e); } }
   if(W.jingo){ try{ jingoDaily(); }catch(e){ console.error(e); } }
   if(W.jingoAuto&&!W.jingoAuto.done){ try{ jingoAutoTick(); }catch(e){ console.error(e); } }
   if(W.date.d===1){ try{ net3Monthly(); honganjiMonthly(); arakiMonthly(); arikaMonthly(); }catch(e){ console.error(e); } }
@@ -19511,6 +19669,23 @@ const SIGNATURES={
   { at:0, run:()=>{ const defLeft=B.ctx.playerSide===1; const rx=Math.round(defLeft?BF.w-6:6); for(let r=0;r<BF.h;r++){ const x=Math.round(rx+Math.sin(r*0.3)); if(B.tiles[r]){ for(const c of [x,x+(defLeft?1:-1)]) if(c>=0&&c<BF.w) B.tiles[r][c]=(r===Math.round(BF.h*0.5)||r===Math.round(BF.h*0.5)+1)?BT.FORD:BT.WATER; } } B.bg=null; B.fieldLabels=(B.fieldLabels||[]).concat([{x:rx,y:BF.h-1,t:"耳川"},{x:BF.w/2,y:1,t:"高城川原"}]); sigHide(["島津家久","新納忠元"],1); for(const u of B.units){ if(u.troops<=.5) continue; if(u.side===1){ if(u.type===3) u.kite=true; u.tough=(u.tough||1)*1.3; u.morRes=Math.min(u.morRes||1,0.7); u.coh=Math.min(1.4,(u.coh||1)+0.15); } else { u.morRes=(u.morRes||1)*1.3; u.warF=(u.warF||1)*0.92; } } sigBanner("高城川原――島津は釣り野伏"); } },
   { at:0, when:()=>B.elapsed>20 && B.units.some(u=>u.side===0&&u.troops>.5&&u.morale>0&&!u.left&&(B.ctx.playerSide===0?u.x>BF.w*0.55:u.x<BF.w*0.45)), run:()=>{ const lead=B.units.filter(u=>u.side===0&&u.troops>.5&&u.morale>0).sort((a,b)=>(B.ctx.playerSide===0?b.x-a.x:a.x-b.x))[0]; if(!lead) return; const y=lead.y<BF.h/2?lead.y+5:lead.y-5; const us=sigReveal(1, Math.max(1,Math.min(BF.w-2,lead.x)), Math.max(1,Math.min(BF.h-2,y)), "釣り野伏"); for(const u of us){ u.order={k:"attack",id:lead.id}; u.charge=true; } sigBanner("釣り野伏！ 島津の伏兵が横腹へ"); sigMorale(0,-12); const c=sigCmd(1); if(c) bshout(c.id,"今じゃ！ 伏せ勢、起てい！",3); log("島津の伏兵が大友の横腹を突いた（釣り野伏）","war"); } },
   { at:0, when:()=>{ const us=B.units.filter(u=>u.side===0&&u.troops>.5&&!u.left); if(!us.length) return false; const bad=us.filter(u=>u.morale<=0).length; return B.elapsed>30 && bad>=us.length*0.4 && !B.mimiRout; }, run:()=>{ B.mimiRout=true; sigBanner("大友勢、耳川へ敗走"); for(const u of B.units) if(u.side===0&&u.morale>0&&u.troops>.5) u.morale=Math.max(0,u.morale-15); log("大友の陣は崩れ、兵は耳川へ殺到した。川は敗走兵で詰まる","war"); } },
+ ],
+ /* ---- 第154巡：高天神・有岡・鳥取・高松 ---- */
+ takatenjin_assault:[
+  { at:0, run:()=>{ const T=W.tkj||{}; for(const u of B.units){ if(u.side===1&&u.troops>.5){ if((T.food||100)<30){ u.morale=Math.max(15,u.morale-20); u.tough=(u.tough||1)*0.85; } else u.tough=(u.tough||1)*1.4; if(T.hope>60) u.morale=Math.min(100,u.morale+10); } } B.fieldLabels=(B.fieldLabels||[]).concat([{x:BF.w/2,y:1,t:"高天神城　尾根の曲輪"}]); sigBanner((T.food||100)<30?"高天神――城兵は飢えている":"高天神――狭い尾根、堅い曲輪"); } },
+ ],
+ takatenjin_break:[
+  { at:0, run:()=>{ const defLeft=B.ctx.playerSide===1; B.night=true; const u=B.units.find(x=>x.side===1&&x.cmd&&x.troops>.5); if(u){ B.escapePhase=true; B.escapeAt=B.elapsed; B.escapeId=u.id; B.escapeGid=u.gid; B.escapeWinner=1; B.escapeLimit=120; B.escapeX=defLeft?0.6:BF.w-0.6; B.escapeCfg={name:"岡部元信", side:1}; u.escapeAt=B.elapsed+5; u.escapeManual=(B.ctx.playerSide===1); u.spdMul=(u.spdMul||1)*1.1; if(B.ctx.playerSide===1){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } } for(const x of B.units){ if(x.side===1&&x.troops>.5){ x.morale=Math.max(40,x.morale); x.spdMul=(x.spdMul||1)*1.05; } } B.objective=B.ctx.playerSide===1?"夜の囲みを抜けて野の端（駿河への道）へ。岡部元信を逃がせ":"囲みを破ろうとする城兵を砦の網で捕らえよ"; sigBanner("夜――高天神の門が開いた"); } },
+ ],
+ arioka:[
+  { at:0, run:()=>{ const H=BF.h, Wd=BF.w; const defLeft=B.ctx.playerSide===1; const inn=defLeft?-1:1; const fx=B.gate?B.gate.x:(defLeft?13:Wd-13); for(let r=Math.round(H*0.15);r<Math.round(H*0.85);r++) for(let k=2;k<=6;k++){ const c=Math.round(fx-inn*k); if(c>=0&&c<Wd&&B.tiles[r]&&(r+k)%3===0&&B.tiles[r][c]===BT.GRASS) B.tiles[r][c]=BT.ROAD; } B.bg=null; B.fieldLabels=(B.fieldLabels||[]).concat([{x:fx-inn*4,y:1,t:"惣構の町屋"},{x:fx+inn*5,y:H-1,t:"有岡城 主郭"}]); if(W.arakiTurned){ if(B.gate){ B.gate.hp=Math.round(B.gate.hp*0.6); } for(const u of B.units) if(u.side===1&&u.troops>.5) u.morale=Math.max(20,u.morale-12); sigBanner("内応――岸の砦の門は開いている"); } else sigBanner("有岡――町ぐるみの惣構"); for(const u of B.units){ if(u.side===1&&u.troops>.5){ u.tough=(u.tough||1)*1.3; } } B.objective=B.ctx.playerSide===0?"町屋の惣構を抜け、主郭の村重を討て。村重は夜に抜けようとする":"惣構で織田を止めよ。村重を抜けさせるか、共に守るか"; } },
+  { at:0, when:()=>B.elapsed>60&&!B.arakiFledB, run:()=>{ B.arakiFledB=true; if(B.ctx.playerSide===1&&rnd()<0.7) return; const u=B.units.find(x=>x.side===1&&x.cmd&&x.troops>.5&&x.morale>0); if(!u) return; u.left=true; u.leftTroops=u.troops; u.escaped=true; sigBanner("村重、夜に紛れて尼崎へ――城は主を失った"); sigMorale(1,-18); log("荒木村重は有岡を抜け出し、尼崎へ走った。残された者は動揺する","war",true); } },
+ ],
+ tottori_relief:[
+  { at:0, run:()=>{ const T=W.tottori||{}; if(T.forts){ for(const u of B.units) if(u.side===1&&u.troops>.5) u.tough=(u.tough||1)*1.25; sigBanner("羽柴の砦の網――後詰は破れるか"); } else sigBanner("鳥取の山麓――吉川元春の後詰"); B.fieldLabels=(B.fieldLabels||[]).concat([{x:BF.w/2,y:1,t:"鳥取城の山麓"}]); } },
+ ],
+ takamatsu_field:[
+  { at:0, run:()=>{ const H=BF.h, Wd=BF.w; const defLeft=B.ctx.playerSide===1; const rx=Math.round(defLeft?Wd*0.4:Wd*0.6); for(let r=0;r<H;r++){ if(!B.tiles[r]) continue; for(const c of [rx-1,rx,rx+1]) if(c>=0&&c<Wd) B.tiles[r][c]=(r===Math.round(H*0.35)||r===Math.round(H*0.65))?BT.FORD:BT.WATER; for(let k=2;k<=4;k++){ const c=rx+(defLeft?1:-1)*k; if(c>=0&&c<Wd&&B.tiles[r][c]===BT.GRASS&&(r+k)%2===0) B.tiles[r][c]=BT.MARSH; } } B.bg=null; B.weather="雨"; B.fieldLabels=(B.fieldLabels||[]).concat([{x:rx,y:1,t:"高梁川"},{x:defLeft?Wd*0.15:Wd*0.85,y:H-1,t:"水に沈む高松城"}]); for(const u of B.units){ if(u.side===1&&u.troops>.5){ u.tough=(u.tough||1)*1.2; } } sigBanner("高梁川――梅雨の増水、渡れるのは浅瀬二つ"); } },
  ],
  /* ---- 第152巡：信長包囲網の五つの戦い ---- */
  // 野田・福島：川に囲まれた市街と砦。石山の鐘で門徒が横腹に現れる。夜襲なら鉄砲が利かず、守り手は不意を突かれる
