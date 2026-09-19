@@ -20198,14 +20198,14 @@ function showEpilogue(title, lead){
 function foldChoiceGrid(el){ const grid=[...el.querySelectorAll(".grid")].find(g=>[...g.children].filter(b=>b.matches("button.cmd[data-k]")).length>3); if(!grid) return; const bs=[...grid.children].filter(b=>b.matches("button.cmd[data-k]")); if(bs.length<=3) return; const more=bs.slice(3); const box=document.createElement("div"); box.className="grid g2"; box.hidden=true; box.style.marginTop="4px"; for(const b of more) box.appendChild(b); const chip=document.createElement("button"); chip.className="chip"; chip.style.cssText="cursor:pointer;margin-top:6px"; chip.textContent=`ほかの手 ${more.length} ▸`; chip.onclick=()=>{ box.hidden=!box.hidden; chip.textContent=box.hidden?`ほかの手 ${more.length} ▸`:"畳む ▾"; }; grid.after(chip); chip.after(box); }
 function koChoice(title, lead, opts, _retry, _gen, _bat){
   if(!W.started) return;
-  /* 第207巡：合戦の中で出した札は、その合戦が終わっていれば出さない（予備隊投入の札が合戦の後に出ていた。作り手の指摘） */ if(_retry===undefined) _bat=(typeof B!=="undefined"&&B&&B.over===null)?B:null; else if(_bat&&(typeof B==="undefined"||B!==_bat||B.over!==null)) return;   /* 第151巡：世が始まっていない（筋書きを切り替えた直後の遅れた札）なら出さない */
+  /* 第207巡：合戦の中で出した札は、その合戦が終わっていれば出さない（予備隊投入の札が合戦の後に出ていた。作り手の指摘） */ if(_retry===undefined){ if(_bat&&(typeof B==="undefined"||B!==_bat||B.over!==null)) return; _bat=(typeof B!=="undefined"&&B&&B.over===null)?B:null; } else if(_bat&&(typeof B==="undefined"||B!==_bat||B.over!==null)) return;   /* 第151巡：世が始まっていない（筋書きを切り替えた直後の遅れた札）なら出さない */
   if(_gen!==undefined&&_gen!==WORLD_GEN) return;   /* 待っている間に世が作り直されていたら、前の世の札は出さない */
   /* 第151巡：別の札（軍議・評定・茶会）が開いている間は重ねず、閉じてから出す（高遠の囲みと防衛線の軍議が二枚重なっていた） */
   if(overlayEl&&overlayEl.isConnected&&overlayEl!==document.querySelector("#stage .overlay.guide")&&(_retry||0)<120){ const gen0=WORLD_GEN; setTimeout(()=>koChoice(title,lead,opts,(_retry||0)+1,gen0,_bat),500); return; }
   /* 第144巡：選択肢は三つまで前に出し、残りは「ほかの手 ▸」に畳む（作り手：選択肢が多すぎる） */
   const main=opts.slice(0,3), more=opts.slice(3);
   const el=document.createElement("div"); el.className="overlay"; el.innerHTML=`<div class="dialog" style="max-width:560px"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">軍 議</div><h3>${title}</h3><div class="advice">${lead}</div><div class="grid g2">${main.map(o=>`<button class="cmd" data-k="${o[0]}">${o[1]}<span class="cost">${o[2]}</span></button>`).join("")}</div>${more.length?`<button class="chip" id="koMore" style="cursor:pointer;margin-top:6px">ほかの手 ${more.length} ▸</button><div class="grid g2" id="koMoreBox" hidden style="margin-top:4px">${more.map(o=>`<button class="cmd" data-k="${o[0]}">${o[1]}<span class="cost">${o[2]}</span></button>`).join("")}</div>`:""}</div>`;
-  document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0);
+  if(_bat) el.dataset.bat="1"; document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0);
   { const km=el.querySelector("#koMore"); if(km) km.onclick=()=>{ const bx=el.querySelector("#koMoreBox"); bx.hidden=!bx.hidden; km.textContent=bx.hidden?`ほかの手 ${more.length} ▸`:"畳む ▾"; }; }
   { const gen=WORLD_GEN; el.querySelectorAll("button[data-k]").forEach(b=>b.onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; if(gen!==WORLD_GEN) return;   /* 前の世の札は押しても何もしない */ const o=opts.find(x=>x[0]===b.dataset.k); if(o){ const r=o[3](); if(r==="retry"){ koChoice(title,lead,opts); return; } }   /* 第151巡：銭が足りない等で手が通らなければ、軍議の札をもう一度出す（前は札が消えて選び直せなかった） */ resumeSpeed(); refreshHUD(); }); }
 }
@@ -21011,7 +21011,9 @@ function fireDecisive(d){
   // 関ヶ原は徳川か石田で遊ぶときだけ人が采配。ほかの家なら史実どおりに決まる（小早川の寝返りで東軍が勝つ）
   const headOnly = d.key==="sekigahara";
   if(d.key==="sekigahara" && W.clans[W.player] && W.clans[W.player].name==="小早川家" && !W.kobaChoice){ setSpeed(0); koChoice("松尾山の決断", "小早川秀秋よ、どちらに付く。戦後の利、家名、戦況を見て決めよ。", [["east","東軍として参戦","家康の加増の約束を取る。大谷の横腹を突く",()=>{ W.kobaChoice="east"; fireDecisive(d); }],["west","西軍として参戦","三成に義理を立てる。負ければ家は危うい",()=>{ W.kobaChoice="west"; fireDecisive(d); }],["hold","まだ動かない","戦の成り行きを松尾山から見る",()=>{ W.kobaChoice="hold"; fireDecisive(d); }],["leave","撤退する","家を守って松尾山を下りる。どちらからも恨まれる",()=>{ W.kobaChoice="leave"; fireDecisive(d); }]]); W.fired.delete(d.id); return; }
-  const mineIsA = A.id===W.player || (!headOnly && ga.some(g=>g.clan===W.player)), mineIsB = Bc.id===W.player || (!headOnly && gb.some(g=>g.clan===W.player));
+  /* 第215巡：わが家が頭でない決戦（長谷堂の最上、味方として二三将が混じるだけ）は人に采配させない――自動で決して報せる（作り手：徳川の武将は参戦していないのに出てくるのはおかしい）。名指しの加勢か、当主が出ているか、わが将が過半なら采配できる */
+  const partOf=(gs,list,named)=>{ const my=gs.filter(g=>g.clan===W.player); if(!my.length) return false; if((list||[]).includes(W.clans[W.player].name)) return true; if(my.some(g=>g.status==="大名")) return true; if(named&&named.length) return my.some(g=>named.some(n=>genNameIs(g,n))); return my.length/gs.length>0.5; };   /* 名指しの加勢か、当主が出ているか、史実の名の将にわが将がいるか（名の列があればそれだけ）、無ければわが将が過半 */
+  const mineIsA = A.id===W.player || (!headOnly && partOf(ga,d.atkAllies,d.atkGens)), mineIsB = Bc.id===W.player || (!headOnly && partOf(gb,d.defAllies,d.defGens));
   const e={army:aa.id, foeArmy:ab.id, castle:null, playerAttacks:mineIsA, decisive:d.id};
   const mine = mineIsA || mineIsB;
   if(typeof chronicle==="function") chronicle(`${d.name}`);
@@ -21019,6 +21021,7 @@ function fireDecisive(d){
   if(!mine){
     // 人が関わらぬなら、自動で決する（関ヶ原に他家で加わっていれば、史実どおりの結末を報せる）
     if(headOnly && (ga.some(g=>g.clan===W.player)||gb.some(g=>g.clan===W.player))) bigNews(`${d.name}　史実のとおりに決す`);
+    else if(ga.some(g=>g.clan===W.player)||gb.some(g=>g.clan===W.player)){ const inA=ga.some(g=>g.clan===W.player); const side=inA?A:Bc; const my=(inA?ga:gb).filter(g=>g.clan===W.player).map(g=>g.name).join("・"); log(`${d.name}――${side.name}の戦に、わが${my}が加勢している（采配は${side.name}）`,"war",true); }
     autoBattle(aa, ab);
     return;
   }
@@ -25732,7 +25735,11 @@ function bPick(wx,wy,side,r){
   return Math.hypot(hit.x-wx,hit.y-wy)<(r||1.6) ? hit : null;
 }
 const bPtrs=new Map();   // 触れている指（つまみの寄り引きに使う）
+let bPtrDown=null;   /* 第215巡：押している指の番号。離しが盤の外や小窓に取られても、長押しの範囲枠が残らないように */
+window.addEventListener("pointerup",ev=>{ if(bPtrDown===ev.pointerId) bPtrDown=null; if(B&&B.box&&ev.target!==bcanvas){ B.box=null; B.pan=null; } },true);
+window.addEventListener("pointercancel",ev=>{ if(bPtrDown===ev.pointerId) bPtrDown=null; if(B){ B.box=null; B.pan=null; } },true);
 bcanvas.addEventListener("pointerdown",ev=>{
+  if(ev.isPrimary!==false){ bPtrDown=ev.pointerId; if(B) B.box=null; }
   if(ev.pointerType==="touch"){ bPtrs.set(ev.pointerId,{x:ev.clientX,y:ev.clientY}); if(bPtrs.size===2){ const [p,q]=[...bPtrs.values()]; if(B){ const rect=bcanvas.getBoundingClientRect(); const sy=rect.height/BF.h; const mx=(p.x+q.x)/2, my=(p.y+q.y)/2; const z0=B.zoom||1; B.pinch={d:Math.hypot(p.x-q.x,p.y-q.y), z:z0, mx, my, cx:B.cx, cy:B.cy, wx:B.cx+((mx-rect.left)-rect.width/2)/(sy*z0), wy:B.cy+((my-rect.top)-rect.height/2)/(sy*z0)}; } } }
   if(!B||B.over!==null) return;
   // 二本目の指（つまみ・二本指の触れ）は命令にしない。引いている最中の枠や矢も取り消す
@@ -25830,7 +25837,7 @@ bcanvas.addEventListener("pointerdown",ev=>{
     if(foe && !B.foeHinted){ B.foeHinted=true; toast("敵の隊です。味方の隊を選んでから押せば討ちにゆきます（二度押しで全軍）"); }
     // 地面でも敵の隊の上でも、押して引けば画面が横に動く（引かずに離せば押したことになる）
     B.pan={mx:ev.clientX,my:ev.clientY,cx:B.cx,cy:B.cy,moved:false,foeId:foe?foe.id:null}; try{ bcanvas.setPointerCapture(ev.pointerId); }catch(_){ }
-    { const pan=B.pan; setTimeout(()=>{ if(B && B.pan===pan && !pan.moved && !foe && B.over===null && B.opening<=0){ B.pan=null; B.box={x0:wx,y0:wy,x1:wx,y1:wy}; if(!B.boxHinted){ B.boxHinted=true; toast("範囲選択：そのまま引いて、囲んだ隊をまとめて選びます"); } } },500); }   /* 第117巡b：地面の長押しで範囲選択 */
+    { const pan=B.pan; setTimeout(()=>{ if(B && B.pan===pan && !pan.moved && !foe && B.over===null && B.opening<=0 && bPtrDown===ev.pointerId && !overlayEl && !document.querySelector("#battle .overlay")){ B.pan=null; B.box={x0:wx,y0:wy,x1:wx,y1:wy}; if(!B.boxHinted){ B.boxHinted=true; toast("範囲選択：そのまま引いて、囲んだ隊をまとめて選びます"); } } },500); }   /* 第117巡b：地面の長押しで範囲選択 */
   }
   renderBattleFoot();
 });
@@ -26343,6 +26350,13 @@ function fenceEffects(dt){
   }
   if(B.gate && !B.gate.open){
     for(const u of B.units){ if(u.side!==0||u.troops<=.5||u.morale<=0||u.left) continue; const dgx=Math.abs(u.x-B.gate.x), dgy=Math.abs(u.y-B.gate.y); if(dgx<2.5&&dgy<2.6){ B.gate.hp-=Math.min(u.troops,900)*0.006*dt*(u.type===0?1.3:1)*(u.ram?2.5:1);   /* 第185巡：門を打つのは隊の前の九百人まで（大軍でも門は一度に少ししか打てない） */ B.gate.hitAt=B.elapsed; if(!(B.gate.splAt>B.elapsed-0.35)){ B.gate.splAt=B.elapsed; B.gateBits=B.gateBits||[]; for(let k=0;k<4;k++) B.gateBits.push({x:B.gate.x+(rnd()-.5)*0.6, y:B.gate.y+(rnd()-.5)*4, vx:(u.x<B.gate.x?1:-1)*(0.5+rnd()*1.5), vy:-(1+rnd()*2), t:0}); if(B.gateBits.length>60) B.gateBits.splice(0,B.gateBits.length-60); } } }   // 門の前で押し合う（升は石垣で遮られる）。第131巡：打ち込むたびに木片が飛び、門が揺れる
+    /* 第215巡：門の攻防――門の内の守り手と門前の寄せ手は門越しに槍と矢で打ち合う（作り手：門の前でお互い待っているだけはシュール）。守り手は石垣の上から打つので有利。機械の守り手は門が打たれれば三隊まで門の内へ寄る */
+    { const g=B.gate; const defLeft=siegeDefLeft(); const dir=defLeft?1:-1; const hot=g.hitAt!==undefined&&B.elapsed-g.hitAt<1.0;
+      const atkAt=B.units.filter(u=>u.side===0&&u.troops>.5&&u.morale>0&&!u.left&&Math.abs(u.x-g.x)<2.6&&Math.abs(u.y-g.y)<2.8);
+      const defAt=B.units.filter(u=>u.side===1&&u.troops>.5&&u.morale>0&&!u.left&&!u.cmd&&(defLeft?u.x<g.x:u.x>g.x)&&Math.abs(u.x-g.x)<3.4&&Math.abs(u.y-g.y)<3.2);
+      if(hot&&atkAt.length&&(B.ctx.playerSide!==1||B.autoMine||autoBattleMode)&&!(B.gateDefAt>B.elapsed-6)){ B.gateDefAt=B.elapsed; const need=3-defAt.length; if(need>0){ const cands=B.units.filter(u=>u.side===1&&u.troops>.5&&u.morale>0&&!u.left&&!u.cmd&&u.type!==3&&!u.reserveHold&&!u.rearGuard&&!u.onTower&&!defAt.includes(u)&&(defLeft?u.x<g.x:u.x>g.x)&&Math.hypot(u.x-g.x,u.y-g.y)<14).sort((a,b)=>Math.hypot(a.x-g.x,a.y-g.y)-Math.hypot(b.x-g.x,b.y-g.y)).slice(0,need); cands.forEach((u,i)=>{ u.order={k:"move",x:Math.max(1,Math.min(BF.w-1,g.x-dir*(1.6+Math.floor(i/2)*1.2))),y:Math.max(1.5,Math.min(BF.h-1.5,g.y+((i%2)?1.4:-1.4)))}; u.gx=u.order.x; u.gy=u.order.y; u.holdUntil=B.elapsed+12; if(i===0&&!(B.gateDefCry>B.elapsed-30)){ B.gateDefCry=B.elapsed; bshout(u.id,"門を守れ！ 石垣の上から突き落とせ！",2.4); } }); } }
+      if(atkAt.length&&defAt.length){ for(const d of defAt){ const t=atkAt[Math.floor(rnd()*atkAt.length)]; const k=Math.min(d.troops,900)*0.0011*dt*(d.type===3?1.4:1); t.troops=Math.max(0,t.troops-k); t.morale=Math.max(0,t.morale-k*0.03); if(!(d.gateFxAt>B.elapsed-0.6)){ d.gateFxAt=B.elapsed; B.dust=B.dust||[]; B.dust.push({x:t.x+(rnd()-.5)*1.2,y:t.y+(rnd()-.5)*1.2,t:0,life:0.5,soft:true}); } d.engagedAt=B.elapsed; t.engagedAt=B.elapsed; }
+        for(const a of atkAt){ const t=defAt[Math.floor(rnd()*defAt.length)]; const k=Math.min(a.troops,900)*0.0004*dt; t.troops=Math.max(0,t.troops-k); } } }
     /* 第192巡：門の傷み具合を段階で報せる（80・60・40・20） */ { const pr=B.gate.hp/Math.max(1,B.gate.hpMax); const st=pr>0.8?0:pr>0.6?1:pr>0.4?2:pr>0.2?3:4; if((B.gate.stage||0)<st){ B.gate.stage=st; const T=["","門が傷みはじめた","門に亀裂――板が軋む","門が大きく傾く","門、破れかける！"][st]; B.banner={t:T, at:B.elapsed}; if(st>=3){ B.shakeT=Math.max(B.shakeT||0,0.2); try{ playSE("crack"); }catch(_){ } } if(st===4&&B.ctx.playerSide===1){ for(const u of B.units) if(u.side===1&&!u.cmd&&Math.abs(u.x-B.gate.x)<4&&Math.abs(u.y-B.gate.y)<4&&rnd()<0.5) bshout(u.id,"門が持たぬ！ 下がる支度を！",2); } } }
     if(B.gate.hp<=0){ B.gate.open=true; B._fenceVer=(B._fenceVer||0)+1; B.bigBanner={t:B.ctx.playerSide===0?"城門、破れる！ なだれ込め":"城門、破られる！", at:B.elapsed, good:B.ctx.playerSide===0, big:true}; if(B.ck) setTimeout(()=>{ try{ ckAfterGate(); }catch(_){ } },600); B.shakeT=Math.max(B.shakeT||0,0.6); B.dust=B.dust||[]; for(let k=0;k<14;k++) B.dust.push({x:B.gate.x+(rnd()-.5)*3,y:B.gate.y+(rnd()-.5)*4,t:-rnd()*0.3,life:1.6+rnd()*0.8}); B.chips=B.chips||[]; for(let k=0;k<24;k++) B.chips.push({x:B.gate.x+(rnd()-.5)*1.5,y:B.gate.y+(rnd()-.5)*4,vx:(rnd()-.5)*7,vy:-3-rnd()*5,t:0,life:1+rnd()*0.8}); log("城門が破られました","war"); playSE("siege"); for(const u of B.units) if(u.side===1){ u.morale=Math.max(0,u.morale-15); u.defBonus=(u.defBonus||1)*1.25; } const cmd=B.units.find(u=>u.side===0&&u.cmd); if(cmd) bshout(cmd.id,"門が破れたぞ！ 突き入れ！",2.6); }
   }
@@ -26413,6 +26427,7 @@ function rallyTroops(){
 }
 function endBattle(winner){
   if(!B || B.over!==null) return;   // 二重に決着させない
+  /* 第215巡：合戦の中で開いていた札（攻城の手など）は決着とともに閉じる（作り手：岐阜城の戦いが終わった後に攻城の手が出ていた） */ document.querySelectorAll('#stage .overlay[data-bat="1"]').forEach(o=>{ o.remove(); if(overlayEl===o) overlayEl=null; });
   B.over=winner; B.overT=B.elapsed; B.overNow=performance.now(); W._lastB={escapeOk:!!B.escapeOk, escapeDead:!!B.escapeDead, honFire:!!B.honFire, key:B.ctx&&B.ctx.decisive, el:Math.round(B.elapsed||0), winner:winner, slain:(B.slainRecs||[]).map(r=>r.name)};
   if(B.ane){ try{ const lossOf=g=>{ const us=B.units.filter(u=>u.aneG===g); const mx=us.reduce((a,u)=>a+(u.max||u.troops),0), now=us.reduce((a,u)=>a+u.troops,0); return mx?Math.round(100*(1-now/mx)):0; }; const slain=(B.slainRecs||[]).map(r=>r.name); const cmd0=B.units.find(u=>u.side===0&&u.cmd); const nobDown=!cmd0||cmd0.troops<=.5; const asaiGrade = (nobDown&&B.ane.yokoRelief)?"S":(winner===1)?"A":B.ane.yokoRelief?"B":null; const K=B.ane; const odaGrade = winner===0 ? (K.yokoRelief||(K.yokoPct||0)<30 ? "B" : (K.yokoPct||0)>=70&&(K.yokoMinPct===undefined||K.yokoMinPct>=50)&&!nobDown ? "S" : "A") : null; W.aneResult={losses:{od:lossOf("od"),tk:lossOf("tk"),as:lossOf("as"),ak:lossOf("ak")}, slain, yokoRelief:!!B.ane.yokoRelief, asaiGrade, odaGrade, yokoPct:K.yokoPct, text:null};
       /* 第207巡：結果に横山の包囲率・最初の突破・側面攻撃・予備投入 */ B.reportExtra=(B.reportExtra||"")+`横山の包囲 ${K.yokoRelief?"解かれた":(K.yokoPct===undefined?"--":K.yokoPct+"%")}${K.yokoMinPct!==undefined&&!K.yokoRelief?`（最低 ${K.yokoMinPct}%）`:""}　最初の突破 ${K.bhFirst?K.bhFirst+"秒":"なし"}　側面攻撃 ${K.flankDone||0}回　予備投入 ${K.resUsed||0}回${K.yokoSortieN?`　城兵の出撃 ${K.yokoSortieN}回`:""}${odaGrade&&B.ctx.playerSide===0?`　評価 ${odaGrade}`:""}　`; }catch(e){ console.error(e); } }
