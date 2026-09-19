@@ -11,7 +11,20 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E🏯%3C/text%3E%3C/svg%3E">
 <style>html,body{margin:0;padding:0;background:#12100E;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}[hidden]{display:none!important}</style>
 <!-- pixel: 計測コード（広告の担当者が管理。消さない・変えない） -->
-<!-- ここに広告の計測コード（Meta Pixel など）を貼る。index.html の <head> に自動で差し込まれる。組み直しでも消えない -->
+<!-- Meta Pixel: 公開ウェブ版のみ。index.html の pixel ブロックと同じ内容を保つ。 -->
+<script>
+(function () {
+  if (location.hostname !== 'kaitoseto1129.github.io') return;
+  if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.iap) return;
+  !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+  n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}
+  (window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+  window.fbq('init', '1134385575587937');
+  window.fbq('track', 'PageView');
+})();
+</script>
 <!-- /pixel -->
 </head><body>
 <title>戦国大名</title>
