@@ -3654,7 +3654,7 @@ function buildRoads(){
       if(d<230 && passable(a,b)) cand.push([b,d]);
     }
     cand.sort((x,y)=>x[1]-y[1]);
-    for(const [b] of cand.slice(0,3)) link(a,b);
+    for(const [b] of cand.slice(0,2)) link(a,b);   /* 第207巡：近い二城まで（作り手：街道が多すぎる） */
   }
 
   // ② 二城の間に第三の城が挟まっていなければ結ぶ（ガブリエル図）。
@@ -3665,13 +3665,14 @@ function buildRoads(){
       const b=ids[j], tb=W.tile[b];
       const d=km(a,b);
       if(d>300) continue;
-      const mx=(ta.c+tb.c)/2, my=(ta.r+tb.r)/2;
-      const rr=((ta.c-tb.c)**2+(ta.r-tb.r)**2)/4;
+      /* 第207巡：ガブリエル図より疎な「相対近傍図」――二城より近い第三の城がどちらにもあれば結ばない（道は減るが全城つながる） */
+      const dd=(ta.c-tb.c)**2+(ta.r-tb.r)**2;
       let blocked=false;
       for(const k of ids){
         if(k===a||k===b) continue;
         const tk=W.tile[k];
-        if((tk.c-mx)**2+(tk.r-my)**2 < rr*0.95){ blocked=true; break; }
+        const da=(tk.c-ta.c)**2+(tk.r-ta.r)**2, db=(tk.c-tb.c)**2+(tk.r-tb.r)**2;
+        if(da<dd*0.98 && db<dd*0.98){ blocked=true; break; }
       }
       if(!blocked && passable(a,b)) link(a,b);
     }
@@ -3777,7 +3778,7 @@ function buildRoads(){
   // ⑧ 一城に五本以上の道は多すぎる。遠い道から外す（外しても行き来できるときだけ）
   for(const a of ids){
     const far=[...(links[a]||[])].sort((x,y)=>km(a,y)-km(a,x));
-    for(const b of far){ if(degree(a)<=4) break; if(degree(b)<=2) continue;
+    for(const b of far){ if(degree(a)<=3) break; if(degree(b)<=2) continue;   /* 第207巡：一城に四本以上は多い（三本まで） */
       links[a].delete(b); links[b].delete(a);
       const seen=new Set([a]); const stack=[a]; let ok=false, steps=0;
       while(stack.length && steps++<4000){ const x=stack.pop(); if(x===b){ ok=true; break; } for(const y of (links[x]||[])) if(!seen.has(y)){ seen.add(y); stack.push(y); } }
@@ -3804,6 +3805,10 @@ function buildRoads(){
     for(const [a,b,d] of allEdges().sort((x,y)=>y[2]-x[2])){ if(!links[a]||!links[a].has(b)) continue; const [ax,ay]=P(a), [bx,by]=P(b); for(const c of ids){ if(c===a||c===b) continue; const [cx,cy]=P(c); const dx=bx-ax, dy=by-ay; const L2=dx*dx+dy*dy||1; let t=((cx-ax)*dx+(cy-ay)*dy)/L2; if(t<0.12||t>0.88) continue; const px=ax+dx*t, py=ay+dy*t; if(kmBetween(cx,cy,px,py)<20){ if(tryCut(a,b)) break; } } }
     /* ①交差：交わる二本のうち長い方を外す */
     for(let pass=0;pass<2;pass++){ const E=allEdges().sort((x,y)=>y[2]-x[2]); for(let i=0;i<E.length;i++){ const [a,b]=E[i]; if(!links[a]||!links[a].has(b)) continue; for(let j=i+1;j<E.length;j++){ const [c,d2]=E[j]; if(!links[c]||!links[c].has(d2)) continue; if(a===c||a===d2||b===c||b===d2) continue; if(cross(P(a),P(b),P(c),P(d2))){ if(tryCut(a,b)) break; else tryCut(c,d2); } } } }
+    /* 第207巡（作り手：街道が複雑すぎる、そんなに見せる必要はない）：③同じ城から狭い角（三十度以内）で出る二本は、長い方を外す ④遠回りしても三割増しで行ける道は外す。どちらも、外しても行き来できるときだけ */
+    for(const a of ids){ let cut=true; while(cut){ cut=false; const nb=[...(links[a]||[])].sort((x,y)=>km(a,y)-km(a,x)); for(let i=0;i<nb.length&&!cut;i++) for(let j=i+1;j<nb.length&&!cut;j++){ const [ax,ay]=P(a), [bx,by]=P(nb[i]), [cx,cy]=P(nb[j]); const ang=Math.abs(Math.atan2(by-ay,bx-ax)-Math.atan2(cy-ay,cx-ax)); const an=Math.min(ang,2*Math.PI-ang); if(an<Math.PI/6){ const longer=km(a,nb[i])>=km(a,nb[j])?nb[i]:nb[j]; if(tryCut(a,longer)) cut=true; } } } }
+    { const hops=(a,b,limit)=>{ const dist0=new Map([[a,0]]); const q=[a]; for(let qi=0;qi<q.length;qi++){ const x=q[qi]; const dx=dist0.get(x); if(dx>limit) break; if(x===b) return dx; for(const y of (links[x]||[])) if(!dist0.has(y)){ dist0.set(y,dx+km(x,y)); q.push(y); } } return dist0.has(b)?dist0.get(b):1e9; };
+      for(const [a,b,d] of allEdges().sort((x,y)=>y[2]-x[2])){ if(d<120) continue; if(!links[a]||!links[a].has(b)) continue; const k=a<b?`${a}-${b}`:`${b}-${a}`; if(named.has(k)) continue; if(degree(a)<=2||degree(b)<=2) continue; links[a].delete(b); links[b].delete(a); const alt=hops(a,b,d*1.3); if(alt>d*1.3){ links[a].add(b); links[b].add(a); } } }
     for(const a of ids) delete W.castles[a].__named; }
   for(const a of ids){
     W.castles[a].neighbors=[...(links[a]||[])].sort((x,y)=>x-y);
@@ -7984,9 +7989,9 @@ const EVENTS=[
    act:()=>{ const tk=clanByName("徳川家"), ue=clanByName("上杉家"), mg=clanByName("最上家"), dt=clanByName("伊達家"); W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0};
      const north=()=>{ if(ue&&mg&&!ue.dead&&!mg.dead){ if(!ue.war.has(mg.id)) declareWar(ue.id,mg.id,"force"); if(ue.id!==W.player) ue.orderTarget={clan:mg.id, until:dayNumber()+120}; if(mg.id!==W.player) mg.orderTarget={clan:ue.id, until:dayNumber()+120}; if(dt&&!dt.dead&&!dt.allies.has(mg.id)) makeAlly(dt.id,mg.id); log("東北では上杉が最上へ攻め入り、伊達が最上を援ける（長谷堂）",'war',true); } };
      if(tk&&tk.id===W.player) koChoice("直江状","上杉景勝は上洛を拒み、直江兼続の書状は家康を嘲った。会津へ向かうか、西に備えるか。",[
-       ["aizu","会津征伐へ発つ（史実）","三成が挙兵し、小山で反転する。東軍の結束+5",()=>{ W.sekMod.eastMor+=5; north(); log("家康は会津へ発った。三成の挙兵を待ち、小山から反転する腹づもり",'war',true); }],
+       ["aizu","会津征伐へ発つ（史実）","三成が挙兵し、小山で反転する。東軍の結束+5",()=>{ W.sekMod.eastMor+=5; north(); try{ sekAizuMarch(true); }catch(e){ console.error(e); } log("家康は会津へ発った。三成の挙兵を待ち、小山から反転する腹づもり",'war',true); }],
        ["west","上杉と和し、西に備える","上杉との戦は止む。だが諸将は家康の弱腰を見る（東軍-5）",()=>{ if(ue&&tk.war.has(ue.id)) makePeace(tk.id,ue.id,365); W.sekMod.eastMor-=5; log("家康は上杉に矛を収め、西に備えた",'dip',true); }]]);
-     else north(); }},
+     else { north(); try{ sekAizuMarch(true); }catch(e){ console.error(e); } } }},
   {id:1201,daily:true,name:"伏見城の戦い",
    text:["鳥居元忠「殿、伏見は捨て石にござる。心置きなく」"],
    cond:()=> eraOnly("sekigahara")&&dayNumber()-(W.scenarioStartDay||dayNumber())>=2,
@@ -7996,7 +8001,7 @@ const EVENTS=[
      else attack(); }},
   {id:1202,daily:true,name:"岐阜城、一日で落つ",
    text:["福島正則「岐阜など一日で落とす。先陣は譲らぬ」"],
-   cond:()=> eraOnly("sekigahara")&&dayNumber()-(W.scenarioStartDay||dayNumber())>=4,
+   cond:()=> eraOnly("sekigahara")&&dayNumber()-(W.scenarioStartDay||dayNumber())>=4+sekOff(),
    act:()=>{ const is=clanByName("石田家"), fk=clanByName("福島家"), od=clanByName("織田家"); W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}; const gifu=Object.values(W.castles).find(c=>c.name==="岐阜城");
      const fall=()=>{ if(gifu&&fk&&gifu.clan!==fk.id){ captureCastle(gifu.id,fk.id,null); } (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).westMor-=5; log("福島正則・池田輝政が岐阜城を一日で落とした。織田秀信は降り、西軍は大垣に籠る",'war',true); bigNews("岐阜城 落つ"); };
      const tkP=clanByName("徳川家"); if(tkP&&tkP.id===W.player){ koChoice("岐阜城、先陣","福島正則「岐阜など一日で落とす。先陣は譲らぬ」。池田輝政も先を争う。",[["go","先陣を許す（史実）","明日、岐阜城で決戦。一日で落とせば西軍は大垣へ籠る",()=>{ sekSubQueue(2260,1); }],["wait","秀忠の中山道軍を待つ","岐阜は落ちない。西軍は美濃で息を継ぐ（西軍の士気+3）",()=>{ (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).westMor+=3; log("家康は先陣を止め、秀忠を待った。岐阜は西軍の手に残る",'war',true); }]]); return; }
@@ -8004,7 +8009,7 @@ const EVENTS=[
      else fall(); }},
   {id:1203,daily:true,name:"大垣か、関ヶ原か",
    text:["島津義弘「今夜、夜襲を」　石田三成「いや、関ヶ原で正面から」"],
-   cond:()=> eraOnly("sekigahara")&&dayNumber()-(W.scenarioStartDay||dayNumber())>=6,
+   cond:()=> eraOnly("sekigahara")&&dayNumber()-(W.scenarioStartDay||dayNumber())>=6+sekOff(),
    act:()=>{ const is=clanByName("石田家"); W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0};
      if(is&&is.id===W.player) koChoice("大垣か、関ヶ原か","東軍は赤坂に着いた。大垣に籠るか、関ヶ原へ出て決戦か、島津の言う夜襲か。",[
        ["seki","関ヶ原へ出て決戦（史実）","陣を布いて待つ。両軍そのまま",()=>{ log("三成は大垣を出て関ヶ原に布陣した",'war',true); }],
@@ -8020,8 +8025,8 @@ const EVENTS=[
      if(tk.id===W.player) koChoice("大坂城の対面","秀頼と対面する。豊臣をどう扱うか。",[["honor","秀頼を立てる","豊臣+15・不満−10。徳川の天下は遠のく",()=>go("honor")],["cut","石高を削る","豊臣の城は本拠だけに。不満+20（大坂の陣の芽）",()=>go("cut")],["rule","仕置は徳川が執る","不満+5",()=>go("rule")]]); else go("rule"); }},
   {id:1208,daily:true,name:"小山評定",
    text:["福島正則「三成憎し。この正則、家康殿にお味方いたす！」","―― 小山の評定。東国へ来ていた諸将は、上方へ取って返すことを決めた"],
-   cond:()=> eraOnly("sekigahara")&&W.date.y===1600&&W.date.m>=7&&dayNumber()-(W.scenarioStartDay||dayNumber())>=20&&(()=>{ const tk=clanByName("徳川家"); return tk&&!tk.dead; })(),
-   act:()=>{ const tk=clanByName("徳川家"); const outer=["福島家","黒田家","細川家","藤堂家","池田家","山内家","加藤家"].map(clanByName).filter(k=>k&&!k.dead);
+   cond:()=> eraOnly("sekigahara")&&W.date.y===1600&&(W.sekAizu&&W.sekAizu.on ? dayNumber()>=W.sekAizu.oyamaAt : (W.date.m>=7&&dayNumber()-(W.scenarioStartDay||dayNumber())>=20))&&(()=>{ const tk=clanByName("徳川家"); return tk&&!tk.dead; })(),
+   act:()=>{ const tk=clanByName("徳川家"); if(W.sekAizu&&W.sekAizu.on&&!W.sekAizu.turned){ W.sekAizu.turned=true; const a=W.stage&&W.armies[W.stage.followId]; if(a){ a.stageNote="家康、小山より反転――東海道を西へ"; } try{ updateStageBadge(); }catch(_){ } } const outer=["福島家","黒田家","細川家","藤堂家","池田家","山内家","加藤家"].map(clanByName).filter(k=>k&&!k.dead);
      const go=(k)=>{ if(k==="persuade"){ for(const x of outer) addRel(x.id,tk.id,10); log("家康は諸将に「妻子を人質に取られている者は西へ帰ってよい」と言い、諸将は感じ入った（東軍諸家の仲+10）","dip",true); } else if(k==="demand"){ for(const x of outer){ addRel(x.id,tk.id,-5); } if(rnd()<0.3){ const x=outer[Math.floor(rnd()*outer.length)]; if(x&&x.id!==W.player){ breakAlly(tk.id,x.id); log(`${x.name}は起請文を拒み、東軍を離れた`,"dip",true); } } log("家康は諸将に起請文を求めた。渋る者もいた","dip",true); } else log("家康は福島の発言に任せ、評定は東軍の結束で終わった","dip",true); };
      if(tk.id===W.player) koChoice("小山評定","上方で三成が挙兵した。東国へ来ている諸将をどう説くか。",[["persuade","去りたい者は去れと言う","諸将は感じ入る（仲+10）",()=>go("persuade")],["demand","起請文を求める","三割で一家が離れる",()=>go("demand")],["let","福島に任せる","そのまま",()=>go("let")]]); else go("let"); }},
   {id:1204,name:"九州の如水",
@@ -8611,7 +8616,7 @@ function loadFromSlot(i){
   if(keep) localStorage.setItem(SAVE_KEY, keep);
   toast("読み込めませんでした");
 }
-const PREF={ shake:true, cries:true, autoPause:true, bigNews:true, borders:true, bigText:false, names:true, hits:true, moneyNews:false, seasonTint:true, skipSetup:false, autoSkirmish:true, battleRate:2 };
+const PREF={ wingBtns:false, shake:true, cries:true, autoPause:true, bigNews:true, borders:true, bigText:false, names:true, hits:true, moneyNews:false, seasonTint:true, skipSetup:false, autoSkirmish:true, battleRate:2 };
 function applyPrefs(){ document.documentElement.classList.toggle("bigtext", !!PREF.bigText); }
 function loadPrefs(){
   try{ Object.assign(PREF, JSON.parse(localStorage.getItem("sengoku_prefs")||"{}")); }catch(e){}
@@ -12533,6 +12538,12 @@ function drawMap(){
       mctx.font=`900 ${Math.max(11,Math.min(20,s*0.8))}px "Noto Serif JP",serif`; mctx.textAlign="center"; mctx.textBaseline="top"; mctx.lineWidth=3; mctx.strokeStyle="rgba(0,0,0,.75)"; mctx.fillStyle="#F6E7B8";
       mctx.strokeText(W.stage.site.name, x, y+s*1.0); mctx.fillText(W.stage.site.name, x, y+s*1.0); mctx.textBaseline="middle"; mctx.restore(); } }
   }
+  /* 第208巡：石山包囲網の砦を地図に（普請中は点線の囲み、成れば木柵と櫓と旗）。成った砦は城とは別の絵 */
+  if(W.ishi&&!pickMode&&cam.scale>=2.2){ try{ const isy=Object.values(W.castles).find(c=>c.name==="石山本願寺"); const od=clanByName("織田家"); if(isy&&od){ const t=W.tile[isy.id]; const offs={noda:[-4,-22],moriguchi:[22,-9],morikawachi:[23,8],tennoji:[3,21]}; const k=Math.max(0.9,Math.min(2.2,cam.scale/3)); const col=clanColor(od.id);
+      for(const [key,nm] of ISHI_FORTS){ const f=W.ishi.forts[key]; if(!f||(!f.gen&&!f.done)) continue; const o=offs[key]; const [x,y]=toScreen(t.c+o[0],t.r+o[1]); if(x<-40||x>W_+40||y<-40||y>H_+40) continue; mctx.save(); mctx.globalAlpha=1;
+        if(!f.done){ mctx.strokeStyle="rgba(201,162,39,.9)"; mctx.setLineDash([3,3]); mctx.lineWidth=1.5; mctx.strokeRect(x-9*k,y-6*k,18*k,12*k); mctx.setLineDash([]); mctx.fillStyle="rgba(10,8,6,.75)"; mctx.fillRect(x-14*k,y+7*k,28*k,10*k); mctx.fillStyle="#FFD166"; mctx.font=`800 ${Math.round(8*k)}px sans-serif`; mctx.textAlign="center"; mctx.fillText(`普請 ${Math.round(Math.min(1,(f.prog||0)/3)*100)}%`,x,y+15*k); }
+        else { mctx.fillStyle="rgba(0,0,0,.25)"; mctx.beginPath(); mctx.ellipse(x,y+6*k,12*k,4*k,0,0,7); mctx.fill(); mctx.fillStyle="#8B6A3E"; mctx.fillRect(x-9*k,y-3*k,18*k,8*k); mctx.fillStyle="#5A3E26"; for(let i=-8;i<=8;i+=4) mctx.fillRect(x+i*k-1,y-6*k,2,4*k); mctx.fillStyle="#EDE6D6"; mctx.fillRect(x-3*k,y-10*k,6*k,7*k); mctx.fillStyle="#3A2A18"; mctx.beginPath(); mctx.moveTo(x-5*k,y-10*k); mctx.lineTo(x,y-14*k); mctx.lineTo(x+5*k,y-10*k); mctx.closePath(); mctx.fill(); mctx.fillStyle="#3A2A18"; mctx.fillRect(x+6*k,y-15*k,1.5,9*k); mctx.fillStyle=col; mctx.fillRect(x+7.5*k,y-15*k,5*k,3.5*k); if(cam.scale>=4){ mctx.fillStyle="rgba(10,8,6,.75)"; mctx.font=`800 ${Math.round(8*k)}px sans-serif`; mctx.textAlign="center"; const tw=mctx.measureText(nm.split("（")[0]+"砦").width+6; mctx.fillRect(x-tw/2,y+8*k,tw,10*k); mctx.fillStyle="#EDE6D6"; mctx.fillText(nm.split("（")[0]+"砦",x,y+16*k); } }
+        mctx.restore(); } } }catch(e){ } }
   drawClashes();
   // 軍勢。点ではなく、幟を掲げた隊列として描く
   for(const a of Object.values(W.armies)){
@@ -15663,13 +15674,13 @@ DECISIVE.push(
  { id:2214, key:"kizu", sub:"補給路を断て", sc:["ishiyama","nagashino"], when:"flag", flag:"ishiKizu", delayDays:1, histWin:"def", name:"木津砦の戦い", atk:"織田家", def:"本願寺", allies:true, atkAllies:["松永家"], defAllies:["鈴木家"], atkCmd:"原田直政", defCmd:"下間頼廉",
    holdWin:{side:"def", sec:240, keep:0.3, h:"木津砦、持ちこたえる", t:"日が傾き、織田の寄せ手は川原に屍を残して退いた。木津の水路は本願寺の手に残る"},
    terrain:0, forts:"def", nAtk:9, nDef:10, atkTroops:10000, defTroops:12000,
-   atkGens:["原田直政","三好康長","明智光秀","佐久間信盛","筒井順慶","細川藤孝","蜂屋頼隆","松永久秀","荒木村重"],
+   atkGens:["原田直政","三好康長","明智光秀","佐久間信盛","筒井順慶","細川藤孝","蜂屋頼隆","荒木村重"], strictAtk:true, disbandFirst:true,   /* 第208巡：木津は原田直政が総大将。名のない将（柴田・松永…）は出さない（作り手の指摘） */
    defGens:["下間頼廉","鈴木孫一"],
    site:["石山本願寺","岸和田城"], gather:"原田直政を先手に、織田は木津の砦へ向かう", open:"木津の湿地と町屋。三好康長の先手が前へ出た――雑賀の鉄砲が待つ",
    after:{ atkWin:{ text:"木津の砦は落ち、本願寺の南西の補給路は断たれた", run:(a,w)=>{ try{ ishiKizuAfter(true); }catch(e){ console.error(e); } } }, defWin:{ text:"織田の先手は雑賀の鉄砲に呑まれ、原田直政隊は崩れた。本願寺勢はそのまま天王寺砦へ押し寄せる", run:(a,w)=>{ try{ ishiKizuAfter(false); }catch(e){ console.error(e); } } } } },
  { id:2215, key:"tennoji_relief", sub:"砦へ、あと五百歩", sc:["ishiyama","nagashino"], when:"flag", flag:"ishiRelief", delayDays:1, histWin:"atk", name:"天王寺砦の戦い", atk:"織田家", def:"本願寺", allies:true, atkAllies:["松永家"], defAllies:["鈴木家"],
    terrain:0, forts:null, nAtk:8, nDef:12, atkTroops:3000, defTroops:8000,
-   atkGens:["織田信長","佐久間信盛","松永久秀","細川藤孝","滝川一益","羽柴秀吉","丹羽長秀","稲葉一鉄","荒木村重"],
+   atkGens:["織田信長","明智光秀","佐久間信盛","松永久秀","細川藤孝","滝川一益","丹羽長秀","稲葉一鉄","荒木村重"], strictAtk:true, disbandFirst:true,   /* 第208巡：明智は砦の中。秀吉は木津・天王寺には出ていない（作り手の指摘） */
    defGens:["下間頼廉","鈴木孫一"],
    site:["石山本願寺","岸和田城"], gather:"信長、京を発ち河内へ。若江で兵を拾いながら天王寺へ", open:"天王寺の野。砦を囲む本願寺勢の背後に、信長の小勢が現れた",
    after:{ atkWin:{ text:"信長は砦に駆け込み、明智と合流して本願寺勢を押し返した", run:(a,w)=>{ try{ ishiReliefAfter(true); }catch(e){ console.error(e); } } }, defWin:{ text:"救援は雑賀の鉄砲の前に止まり、織田は退いた", run:(a,w)=>{ try{ ishiReliefAfter(false); }catch(e){ console.error(e); } } } } },
@@ -15686,7 +15697,10 @@ DECISIVE.push(
 const decAtk = d => clanByName(d.atk)||(d.altAtk?clanByName(d.altAtk):null);
 const decDef = d => clanByName(d.def)||(d.altDef?clanByName(d.altDef):null);
 /* 家（と傘下）の将を、名の順に、足りなければ器量の順に集める */
-function decisiveGens(clanId, names, n, foeId, withAllies, allyOnly){
+/* 第208巡：改名の前後は同じ人（塙直政＝原田直政）。名指しの将が見つからず、余所の将で埋めていた */
+const GEN_ALIAS={"原田直政":["塙直政"],"塙直政":["原田直政"],"羽柴秀吉":["木下藤吉郎","豊臣秀吉"],"木下藤吉郎":["羽柴秀吉"],"徳川家康":["松平元康"],"上杉謙信":["長尾景虎"],"黒田官兵衛":["黒田孝高"],"細川藤孝":["細川幽斎"],"細川幽斎":["細川藤孝"]};
+function genNameIs(g,nm){ return g.name===nm || (GEN_ALIAS[nm]||[]).includes(g.name); }
+function decisiveGens(clanId, names, n, foeId, withAllies, allyOnly, strict){
   const K=W.clans[clanId];
   // 盟友を加えるときも、筋書きに名のある家だけ（長篠に上杉が来てはおかしい）
   const allyOk=id=>!allyOnly || id===W.player || allyOnly.includes(clanName(id));   // 人の家は約束どおり加わる
@@ -15695,7 +15709,8 @@ function decisiveGens(clanId, names, n, foeId, withAllies, allyOnly){
   const ok=g=>g.clan!==null&&g.status!=="死亡"&&g.status!=="捕虜"&&g.status!=="人質"&&!g.captor&&!g.army&&!isChild(g)&&side(g.clan);
   const pool=Object.values(W.generals).filter(ok);
   const out=[];
-  for(const nm of names){ const g=pool.find(x=>x.name===nm&&!out.includes(x)); if(g) out.push(g); if(out.length>=n) break; }
+  for(const nm of names){ const g=pool.find(x=>genNameIs(x,nm)&&!out.includes(x)); if(g) out.push(g); if(out.length>=n) break; }
+  if(strict&&out.length>=2) return out;   /* 第208巡：名指しの将だけで戦う（作り手：参加していない将が出るのはやめ） */
   const rest=pool.filter(g=>!out.includes(g)&&g.status!=="大名").sort((a,b)=>(b.lea+b.war)-(a.lea+a.war));   /* 第144巡：名のない当主は埋め合わせに出さない（木津砦に信長が出ていた） */
   for(const g of rest){ if(out.length>=n) break; out.push(g); }
   if(out.length<n){ for(const g of pool){ if(out.length>=n) break; if(!out.includes(g)) out.push(g); } }
@@ -16552,15 +16567,15 @@ function sekSubTick(){ if(!W.sekSub||!W.sekSub.length||B||pendingEncounter||over
 EVENTS.push(
   {id:1298,daily:true,name:"大津城、京極高次の寝返り",
    text:["京極高次「西軍の船は大津を通さぬ」","―― 大津の京極が東軍に付き、立花宗茂の一万五千が囲みに回された"],
-   cond:()=> eraOnly("sekigahara")&&dayNumber()-(W.scenarioStartDay||dayNumber())>=8&&!W.fired.has(2101)&&(()=>{ const tb=clanByName("立花家"), tk=clanByName("徳川家"); return tb&&tk&&!tb.dead&&!tk.dead; })(),
+   cond:()=> eraOnly("sekigahara")&&dayNumber()-(W.scenarioStartDay||dayNumber())>=8+sekOff()&&!W.fired.has(2101)&&(()=>{ const tb=clanByName("立花家"), tk=clanByName("徳川家"); return tb&&tk&&!tb.dead&&!tk.dead; })(),
    act:()=>{ const is=clanByName("石田家"), tk=clanByName("徳川家"), tb=clanByName("立花家"); if(tk&&!findGeneralByName("京極高次")){ const g=spawnGeneral("京極高次",tk.id,null,3000); if(g){ g.lea=Math.max(g.lea||50,68); } }
      const go=(k)=>{ if(k==="siege"){ sekSubQueue(2261,1); } else if(k==="turn"){ if(rnd()<0.4){ log("高次は再び西軍に戻った。立花の一万五千は関ヶ原へ向かう",'dip',true); (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).defTroops+=2000; } else { log("高次は聞かなかった。立花は大津に釘付け",'dip',true); (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).defTroops-=15000; W.sekOtsu="held"; } } else { log("三成は大津を捨て置いた。立花は関ヶ原へ（西軍の背後に大津の兵が残る：西軍の士気−3）",'war',true); (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).westMor-=3; } };
      if(is&&is.id===W.player) koChoice("大津城、京極の寝返り","大津の京極高次が東軍に付いた。琵琶湖の道が塞がる。立花宗茂に囲ませるか。",[["siege","立花に攻めさせる（史実）","明日、大津で決戦。立花は関ヶ原に間に合わない",()=>go("siege")],["turn","調略で戻す","四割で高次が戻る。しくじれば立花は大津に釘付け",()=>go("turn")],["leave","捨て置く","立花は関ヶ原へ。背後に大津の兵（西軍の士気−3）",()=>go("leave")]]);
-     else if(tk&&tk.id===W.player){ log("大津の京極高次が東軍に付いた。立花の一万五千が囲みに向かう",'dip',true); sekSubQueue(2261,1); }
+     else if(tk&&tk.id===W.player){ log("大津の京極高次が東軍に付き、立花宗茂の一万五千が囲みに回った。大津は落ちるが、立花は関ヶ原に間に合わない（西軍−15,000）",'dip',true); (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).defTroops-=15000; W.sekOtsu="held"; bigNews("大津城、京極が東軍に"); }   /* 第207巡：徳川で遊ぶとき大津は京極の戦（徳川の将は出ていない）――決戦にはしない（作り手の指摘） */
      else go("siege"); }},
   {id:1299,daily:true,name:"田辺城、幽斎籠る",
    text:["細川幽斎「古今伝授は絶やせぬ。だが城は明け渡さぬ」"],
-   cond:()=> eraOnly("sekigahara")&&dayNumber()-(W.scenarioStartDay||dayNumber())>=9&&!W.fired.has(2101)&&(()=>{ const hs=clanByName("細川家"), is=clanByName("石田家"); return hs&&is&&!hs.dead&&!is.dead&&Object.values(W.generals).some(g=>/^細川(幽斎|藤孝)$/.test(g.name)&&g.status!=="死亡"); })(),
+   cond:()=> eraOnly("sekigahara")&&dayNumber()-(W.scenarioStartDay||dayNumber())>=9+sekOff()&&!W.fired.has(2101)&&(()=>{ const hs=clanByName("細川家"), is=clanByName("石田家"); return hs&&is&&!hs.dead&&!is.dead&&Object.values(W.generals).some(g=>/^細川(幽斎|藤孝)$/.test(g.name)&&g.status!=="死亡"); })(),
    act:()=>{ const is=clanByName("石田家"), hs=clanByName("細川家");
      const go=(k)=>{ if(k==="assault"){ sekSubQueue(2262,1); } else if(k==="court"){ log("朝廷の勅命で田辺は開城した。幽斎は生き、囲みの一万五千のうち八千が関ヶ原へ向かう",'dip',true); (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).defTroops-=7000; } else { log("西軍一万五千は田辺を囲んだまま、関ヶ原の日を迎える",'war',true); (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).defTroops-=15000; } };
      if(is&&is.id===W.player) koChoice("田辺城、細川幽斎","丹後の田辺に幽斎が五百で籠る。囲む一万五千は幽斎の歌の弟子ばかり。",[["court","朝廷の勅命で開城を受ける（史実）","幽斎は生き、囲みの半ばが関ヶ原へ",()=>go("court")],["assault","総攻め","明日、田辺で決戦。弟子は本気で撃たない",()=>go("assault")],["hold","囲み続ける","一万五千は関ヶ原に来ない",()=>go("hold")]]);
@@ -16880,7 +16895,10 @@ function honganjiMonthly(){ if(W.scenario!=="nagashino") return; const hg=clanBy
   else { const near=(isy.neighbors||[]).map(id=>W.castles[id]).filter(c=>c&&c.clan===0)[0]; if(near){ near.defense=Math.max(0,Math.floor(near.defense*0.9)); log(`急報：本願寺勢が${near.name}の砦を襲った（備え−一割）`,"war",od.id===W.player); } }
 }
 function ishiFortStrip(){ const I=W.ishi; if(!I||I.phase!=="siege"||!I.fort) return ""; const f=I.fort; const outer=f.hp>=60?"戦闘中":f.hp>=25?"危うい":"破られた"; const gate=f.hp>=40?"保持":f.hp>=15?"押されている":"破られた"; const inner=f.hp>=25?"安全":"危険"; return `【天王寺砦】外郭 ${outer}｜門 ${gate}｜内部 ${inner}｜兵糧 ${Math.round(f.food*100/6)}％｜弾薬 ${Math.round(f.ammo)}％`; }
-function ishiBadge(){ const I=W.ishi; if(!I) return ""; { const st=ishiFortStrip(); if(st) return st; } if(I.phase==="prep") return `石山包囲の普請 ${I.day}日目 ―― 本願寺の補給 ${Math.round(I.supply)}%／木津攻めまで あと${Math.max(0,6-I.day)}日`; if(I.phase==="kizu") return "織田、木津の砦へ ―― 明日決戦"; if(I.phase==="siege") return `天王寺砦、囲まれる ${I.fort.day||0}日目 ―― 砦の備え ${Math.round(I.fort.hp)}%・弾薬 ${Math.round(I.fort.ammo)}%`; if(I.phase==="relief") return `信長、京に在り ―― 集まった兵 ${I.relief.gathered.toLocaleString()}／砦はあと${ishiFortDays()}日`; if(I.phase==="reliefgo") return "信長、天王寺へ ―― 明日救援戦"; if(I.phase==="after") return `石山の戦は続く ―― 本願寺の補給 ${Math.round(I.supply)}%`; return ""; }
+function ishiFortProgress(){ const I=W.ishi; if(!I) return 0; let t=0; for(const [k] of ISHI_FORTS){ const f=I.forts[k]; t+=f.done?1:Math.min(1,(f.prog||0)/3); } return Math.round(t/ISHI_FORTS.length*100); }
+/* 第208巡：石山攻めまでの数え（作り手：木津攻めが急に出てくる。地図の帯に「あと何か月」） */
+function ishiCountText(){ if(W.scenario!=="nagashino"||W.ishi||!W.started) return ""; const od=clanByName("織田家"), hg=clanByName("本願寺"); if(!od||!hg||od.dead||hg.dead) return ""; if(od.id!==W.player&&hg.id!==W.player) return ""; const y=W.date.y, m=W.date.m; if(y>1576||(y===1576&&m>=4)) return ""; if(y<1575||(y===1575&&m<6)) return ""; const months=(1576-y)*12+(4-m); return `石山本願寺攻め（木津・天王寺）まで あと${months<1?"ひと月足らず":months+"か月"} ―― 1576年4月`; }
+function ishiBadge(){ const I=W.ishi; if(!I) return ""; { const st=ishiFortStrip(); if(st) return st; } if(I.phase==="prep") return `石山包囲の普請 ${ishiFortProgress()}%（${I.day}日目） ―― 本願寺の補給 ${Math.round(I.supply)}%／木津攻めまで あと${Math.max(0,6-I.day)}日`; if(I.phase==="kizu") return "織田、木津の砦へ ―― 明日決戦"; if(I.phase==="siege") return `天王寺砦、囲まれる ${I.fort.day||0}日目 ―― 砦の備え ${Math.round(I.fort.hp)}%・弾薬 ${Math.round(I.fort.ammo)}%`; if(I.phase==="relief") return `信長、京に在り ―― 集まった兵 ${I.relief.gathered.toLocaleString()}／砦はあと${ishiFortDays()}日`; if(I.phase==="reliefgo") return "信長、天王寺へ ―― 明日救援戦"; if(I.phase==="after") return `石山の戦は続く ―― 本願寺の補給 ${Math.round(I.supply)}%`; return ""; }
 function ishiFortDays(){ const f=W.ishi.fort; const perDay=22*(f.ring/100)*(f.mode==="save"?1.1:f.mode==="full"?0.7:1); return Math.max(0,Math.ceil(f.hp/Math.max(1,perDay))); }
 function ishiDaily(){
   const I=W.ishi; if(!I||I.phase==="over") return; I.day++; const od=clanByName("織田家"), hg=clanByName("本願寺"); if(!od||!hg||od.dead||hg.dead){ I.phase="over"; return; }
@@ -16921,14 +16939,14 @@ function openIshiyama(){
   const bar=(v,col)=>`<div style="height:8px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden"><div style="height:8px;width:${Math.max(0,Math.min(100,v))}%;background:${col}"></div></div>`;
   let h=`<div class="row" style="gap:8px;align-items:center"><span class="tiny">本願寺の補給</span><div style="flex:1">${bar(I.supply,"#E24A3A")}</div><b>${Math.round(I.supply)}%</b></div>`;
   try{ h+=ishiSupplyMapHTML(); }catch(_){ }
-  if(I.phase==="prep"&&side==="od"){ const need=[]; if(me.money<3000) need.push("銭3,000"); if(I.wood<30) need.push("木材30（下の「木材を集める」）"); if(I.people<25) need.push("人夫25（下の「人夫を募る」）"); h+=`<div class="advice">砦の作り方：下の砦の行で<b>将の名を押す</b>だけ（三日で成る）。${need.length?`いま足りないもの：<b style="color:#FFB0A0">${need.join("・")}</b>`:"いま置ける。四つ成れば本願寺の補給が下がる"}</div>`; }
+  if(I.phase==="prep"&&side==="od"){ const need=[]; if(me.money<3000) need.push("銭3,000"); h+=`<div class="advice">砦の作り方：下の砦の行で<b>将の名を押す</b>だけ（三日で成る。一つに銭3,000）。${need.length?`いま足りないもの：<b style="color:#FFB0A0">${need.join("・")}</b>`:"いま置ける。四つ成れば本願寺の補給が下がる"}</div>`; }
+  if(I.phase==="prep"){ const pg=ishiFortProgress(); h+=`<div class="row" style="gap:8px;align-items:center"><span class="tiny">包囲網の普請</span><div style="flex:1">${bar(pg,"#C9A227")}</div><b>${pg}%</b></div>`; }
   if(I.phase==="prep"){
     { const idle=side==="od"?Object.values(W.generals).filter(g=>g.clan===od.id&&!g.army&&!g.task&&g.status==="家臣"&&!isChild(g)&&!Object.values(I.forts).some(f=>f.gen===g.id)).sort((a,b)=>b.pol-a.pol).slice(0,6):[];
       /* 第144巡：砦ごとに「まだ将がいない → ここの将を押して置く」を一行に（作り手：未着手が分かりづらい） */
-      h+=`<div class="sec-title">包囲網の砦（将を置くと三日で成る。一つに銭3,000・木材30・人夫25）</div>`+ISHI_FORTS.map(([k,nm])=>{ const f=I.forts[k]; const g=f.gen&&W.generals[f.gen]; const st=f.done?`<b style="color:#9FF0A0">成った</b>`:f.gen?`<b>普請中 ${Math.round(f.prog/3*100)}%</b>`:`<b style="color:#FFB0A0">まだ将がいない</b>`; const pick=(!f.gen&&side==="od")?`<span class="tiny" style="margin-left:6px">→ 置く：${idle.map(g2=>`<button class="chip kin" style="cursor:pointer" onclick="ishiAssign('${k}',${g2.id})">${esc(g2.name)}</button>`).join("")||"手空きの将がいない"}</span>`:""; return `<div class="s-stat" style="text-align:left"><span>${nm}</span>${st}<span class="tiny muted">${g?esc(g.name):""}${f.raided?`　夜襲を受けた×${f.raided}`:""}</span>${pick}</div>`; }).join(""); }
+      h+=`<div class="sec-title">包囲網の砦（将を置くと三日で成る。一つに銭3,000）</div>`+ISHI_FORTS.map(([k,nm])=>{ const f=I.forts[k]; const g=f.gen&&W.generals[f.gen]; const st=f.done?`<b style="color:#9FF0A0">成った</b>`:f.gen?`<b>普請中 ${Math.round(f.prog/3*100)}%</b>`:`<b style="color:#FFB0A0">まだ将がいない</b>`; const pick=(!f.gen&&side==="od")?`<span class="tiny" style="margin-left:6px">→ 置く：${idle.map(g2=>`<button class="chip kin" style="cursor:pointer" onclick="ishiAssign('${k}',${g2.id})">${esc(g2.name)}</button>`).join("")||"手空きの将がいない"}</span>`:""; return `<div class="s-stat" style="text-align:left"><span>${nm}</span>${st}<span class="tiny muted">${g?esc(g.name):""}${f.raided?`　夜襲を受けた×${f.raided}`:""}</span>${pick}</div>`; }).join(""); }
     if(side==="od"){
-      h+=`<div class="tiny muted">木材 ${Math.round(I.wood)}　人夫 ${Math.round(I.people)}（砦一つに木材30・人夫25。人夫は摂津の民から集める）</div>
-      <div class="sec-title">今日の手（${can?"まだ":"済み"}）</div><div class="grid g3"><button class="cmd" onclick="ishiAct('wood')" ${can&&me.money>=1000?"":"disabled"}>木材を集める<span class="cost">銭1,000。木材+40</span></button><button class="cmd" onclick="ishiAct('people')" ${can?"":"disabled"}>人夫を集める<span class="cost">人夫+40。摂津の民心−3</span></button><button class="cmd" onclick="ishiAct('scout')" ${can&&!I.scouted?"":"disabled"}>木津を偵察<span class="cost">本願寺の本当の兵数が分かる</span></button><button class="cmd" onclick="ishiAct('blockriver')" ${can&&me.money>=2000?"":"disabled"}>木津川に杭を打つ<span class="cost">銭2,000。補給−8</span></button><button class="cmd" onclick="ishiAct('guard')" ${can?"":"disabled"}>普請場に夜番<span class="cost">今日の夜襲を防ぐ</span></button><button class="cmd" onclick="ishiAllocAsk()">兵力の配分<span class="cost">木津／天王寺／正面。いま：${({kizu:"木津集中",even:"均等",front:"正面集中"})[I.alloc||"even"]}</span></button></div>`; }
+      h+=`<div class="sec-title">今日の手（${can?"まだ":"済み"}）</div><div class="grid g3"><button class="cmd" onclick="ishiAct('scout')" ${can&&!I.scouted?"":"disabled"}>木津を偵察<span class="cost">本願寺の本当の兵数が分かる</span></button><button class="cmd" onclick="ishiAct('blockriver')" ${can&&me.money>=2000?"":"disabled"}>木津川に杭を打つ<span class="cost">銭2,000。補給−8</span></button><button class="cmd" onclick="ishiAct('guard')" ${can?"":"disabled"}>普請場に夜番<span class="cost">今日の夜襲を防ぐ</span></button><button class="cmd" onclick="ishiAllocAsk()">兵力の配分<span class="cost">木津／天王寺／正面。いま：${({kizu:"木津集中",even:"均等",front:"正面集中"})[I.alloc||"even"]}</span></button></div>`; }
     else { h+=`<div class="sec-title">本願寺の手（一日に一手）</div><div class="grid g3">${ISHI_FORTS.filter(([k])=>I.forts[k].gen&&!I.forts[k].done).map(([k,nm])=>`<button class="cmd" onclick="ishiAct('raid:${k}')" ${can?"":"disabled"}>${nm}の普請を夜襲<span class="cost">普請−1日。三割で伏兵−300</span></button>`).join("")}<button class="cmd" onclick="ishiAct('saika')" ${can?"":"disabled"}>雑賀衆を木津へ<span class="cost">木津の鉄砲が厚くなる</span></button><button class="cmd" onclick="ishiAct('mori')" ${can&&!I.moriAsked?"":"disabled"}>毛利へ援軍要請<span class="cost">補給+20、以後四日ごとに+6</span></button><button class="cmd" onclick="ishiAct('monto')" ${can?"":"disabled"}>門徒を募る<span class="cost">兵+1,500（練度は低い）</span></button><button class="cmd" onclick="ishiAct('night')" ${can?"":"disabled"}>織田の陣を夜襲<span class="cost">七割で織田の士気−5</span></button></div>`; }
   }
   else if(I.phase==="siege"){ const f=I.fort;
@@ -16954,7 +16972,7 @@ function ishiSupplyLines(){ const I=W.ishi||{forts:{}}; const f=k=>I.forts&&I.fo
     {k:"south",n:"南方（雑賀・紀州）",col:st(!!W.saikaCowed,!!W.saikaSplit)}]; const ring=Math.round(lines.filter(l=>l.col==="red").length/lines.length*70+lines.filter(l=>l.col==="yellow").length/lines.length*30+(I.riverBlocked?5:0)); return {lines, ring:Math.min(100,ring)}; }
 function ishiSupplyMapHTML(){ const M=ishiSupplyLines(); const C={green:"#7ED67E",yellow:"#E2C24A",red:"#E24A3A"}; const pts={kizu:[110,150],tennoji:[40,80],rounokishi:[110,10],sea:[195,80],south:[170,140]}; const svg=`<svg viewBox="0 0 220 165" style="width:100%;max-width:300px;display:block;margin:4px auto"><rect x="0" y="0" width="220" height="165" fill="rgba(255,255,255,.03)"/>${M.lines.map(l=>{ const [x,y]=pts[l.k]; return `<line x1="110" y1="80" x2="${x}" y2="${y}" stroke="${C[l.col]}" stroke-width="3" stroke-dasharray="${l.col==="red"?"4 4":"0"}"/><text x="${x}" y="${y+(y>80?12:-4)}" fill="${C[l.col]}" font-size="9" text-anchor="middle">${esc(l.n.split("（")[0])}</text>`; }).join("")}<circle cx="110" cy="80" r="14" fill="#3C2A16" stroke="#C9A227"/><text x="110" y="84" fill="#EDE6D6" font-size="9" text-anchor="middle">石山</text></svg>`; return `<div class="sec-title">石山包囲図　包囲率 ${M.ring}％</div>${svg}<div class="tiny muted">${M.lines.map(l=>`<span style="color:${C[l.col]}">●</span>${esc(l.n)}`).join("　")}</div>`; }
 function ishiAllocAsk(){ const I=W.ishi; if(!I) return; koChoice("兵力の配分","木津・天王寺・石山正面。どこへ多く割くか。",[["kizu","木津に集中","木津 12,000／天王寺 4,000／正面 8,000。木津は落としやすいが、天王寺は本願寺の反撃に弱い",()=>{ I.alloc="kizu"; log("兵を木津に集めた。天王寺と正面は薄い","war",true); }],["even","均等","木津 8,000／天王寺 5,000／正面 12,000（史実）",()=>{ I.alloc="even"; log("兵を均等に配した","war",true); }],["front","石山正面に集中","木津 5,000／天王寺 4,000／正面 15,000。木津は落ちにくい",()=>{ I.alloc="front"; log("兵を石山正面に集めた。木津は薄い","war",true); }]]); }
-function ishiAssign(k,gid){ const I=W.ishi; const me=W.clans[W.player]; if(!I||I.forts[k].gen) return; if(me.money<3000) return toast("銭が足りませぬ（3,000）"); if(I.wood<30) return toast("木材が足りませぬ（30）。「木材を集める」を"); if(I.people<25) return toast("人夫が足りませぬ（25）"); me.money-=3000; I.wood-=30; I.people-=25; I.forts[k].gen=gid; const g=W.generals[gid]; log(`${g?g.name:"将"}を${ISHI_FORTS.find(x=>x[0]===k)[1]}の普請に当てた`,"war",true); openIshiyama(); }
+function ishiAssign(k,gid){ const I=W.ishi; const me=W.clans[W.player]; if(!I||I.forts[k].gen) return; if(me.money<3000) return toast("銭が足りませぬ（3,000）"); me.money-=3000;   /* 第208巡：木材・人夫の縛りはやめ（作り手：「木材がありません」ではどうすればいいか分からない） */ I.forts[k].gen=gid; const g=W.generals[gid]; log(`${g?g.name:"将"}を${ISHI_FORTS.find(x=>x[0]===k)[1]}の普請に当てた`,"war",true); openIshiyama(); }
 function ishiAct(k){
   const I=W.ishi; if(!I||I.acted===I.day) return; const side=ishiSide(); const me=W.clans[W.player]; const od=clanByName("織田家"), hg=clanByName("本願寺"); let msg="";
   if(k==="wood"){ if(me.money<1000) return toast("銭が足りませぬ"); me.money-=1000; I.wood+=40; msg="山から木材を切り出した（+40）"; }
@@ -17005,10 +17023,10 @@ function ishiSetup(key){
     try{ kizuBuild(); }catch(e){ console.error(e); } }
   if(key==="tennoji_relief"){ B.routShock=10; const mine=B.ctx.playerSide;
     /* 砦は野の右端（人が織田なら右、本願寺なら左）。守り手は砦の内で待つ */
-    const fx = mine===0 ? BF.w-6 : 6; B.ishiFortX=fx; for(let y=2;y<BF.h-1;y+=1.3){ if(Math.abs(y-BF.h/2)<1.6) continue; B.obstacles.push({kind:1, variant:Math.floor(y)%3, x:fx-(mine===0?2.2:-2.2), y, r:0.85, wall:true, fort:true, fence:true, side:0, hp:120, hpMax:120}); }
-    const atk=B.units.filter(u=>u.side===0&&u.troops>.5); const fortGens=["明智光秀","佐久間信盛","細川藤孝"]; let n=0; for(const u of atk){ if(u.cmd) continue; if(fortGens.some(nm=>u.name.includes(nm))||n<2&&!fortGens.length){ u.fortGuard=true; u.x=fx+(mine===0?1.5:-1.5)+(n%2)*0.8; u.y=BF.h*0.35+n*2.2; u.gx=u.x; u.gy=u.y; u.cell=null; u.nextCell=null; u.holdUntil=99999; u.order={k:"guard"}; u.morale=Math.max(30,Math.round(I.fort.morale)); u.troops=Math.max(300,Math.round(u.troops*Math.max(0.3,I.fort.hp/100))); if(u.type===3&&u.ammo!==undefined){ u.ammo=Math.round(u.ammo*I.fort.ammo/100); } n++; } }
+    const fx = mine===0 ? BF.w-6 : 6; B.ishiFortX=fx; /* 第208巡：天王寺砦は立派な砦（木柵の面・門・櫓・幕舎）。門は本願寺の側 */ try{ B.tnrFort=fortShellBuild(fx, BF.h/2, mine===0?-1:1, 0, {w:7,h:7,cap:3,name:"天王寺砦",hpMul:0.9}); }catch(e){ console.error(e); }
+    const atk=B.units.filter(u=>u.side===0&&u.troops>.5); const fortGens=["明智光秀","佐久間信盛","細川藤孝"]; let n=0; for(const u of atk){ if(u.cmd) continue; if(fortGens.some(nm=>u.name.includes(nm))||n<2&&!fortGens.length){ u.fortGuard=true; u.x=fx+(mine===0?0.8:-0.8)+(n%2)*0.9; u.y=BF.h/2+(n%2?2.0:-2.0)+Math.floor(n/2)*0.4; u.gx=u.x; u.gy=u.y; u.cell=null; u.nextCell=null; u.holdUntil=99999; u.order={k:"guard"}; u.morale=Math.max(30,Math.round(I.fort.morale)); u.troops=Math.max(300,Math.round(u.troops*Math.max(0.3,I.fort.hp/100))); if(u.type===3&&u.ammo!==undefined){ u.ammo=Math.round(u.ammo*I.fort.ammo/100); } n++; } }
     if(atk.some(u=>u.fortGuard&&/明智光秀/.test(u.name))){ for(const u of atk) if(u.fortGuard){ u.morRes=Math.min(u.morRes||1,0.6); u.akechiLed=true; } B.akechiCmd=true; }   /* 明智の守城指揮：砦の兵は折れにくく、命令が早い */
-    if(n===0){ const u=atk.filter(x=>!x.cmd).sort((a,b)=>a.troops-b.troops)[0]; if(u){ u.fortGuard=true; u.x=fx+(mine===0?1.5:-1.5); u.y=BF.h*0.4; u.gx=u.x; u.gy=u.y; u.cell=null; u.nextCell=null; u.holdUntil=99999; u.order={k:"guard"}; } }
+    if(n===0){ const u=atk.filter(x=>!x.cmd).sort((a,b)=>a.troops-b.troops)[0]; if(u){ u.fortGuard=true; u.x=fx+(mine===0?0.8:-0.8); u.y=BF.h/2; u.gx=u.x; u.gy=u.y; u.cell=null; u.nextCell=null; u.holdUntil=99999; u.order={k:"guard"}; } }
     /* 本願寺勢は砦と救援軍の間に。雑賀の鉄砲は救援軍の側 */
     const def=B.units.filter(u=>u.side===1&&u.troops>.5); const facing=def.filter((u,i)=>!u.cmd&&i%10<7), blockers=def.filter(u=>!facing.includes(u));
     /* 砦を囲む隊：砦の手前に上下二手に分かれて張り付く（真ん中の門の道は空く）。信長が砦に着くまで動かない */
@@ -17017,7 +17035,7 @@ function ishiSetup(key){
     blockers.forEach((u,i)=>{ u.x= mine===0 ? BF.w*0.45+(i%3)*3+(u.type===3?-3:0) : BF.w*0.55-(i%3)*3+(u.type===3?3:0); u.y=BF.h*0.32+(BF.h*0.36)*((i+0.5)/Math.max(1,blockers.length)); u.gx=u.x; u.gy=u.y; u.cell=null; u.nextCell=null; if(u.type===3){ u.saika=true; u.gunSkill=(u.gunSkill||1)*1.1; } if(u.cmd){ u.tough=(u.tough||1)*2; u.morRes=Math.min(u.morRes||1,0.7); } u.morale=Math.min(u.morale,65); });
     for(const u of atk){ if(u.fortGuard) continue; u.x= mine===0 ? 3+rnd()*6 : BF.w-3-rnd()*6; u.gx=u.x; u.cell=null; u.nextCell=null; u.tough=(u.tough||1)*2.6; u.morale=100; u.morRes=Math.min(u.morRes||1,0.6); u.spdMul=(u.spdMul||1)*1.15; u.warF=(u.warF||1)*1.15; if(/織田信長/.test(u.name)){ u.nobunaga=true; u.tough=(u.tough||1)*3; u.morRes=0.5; } }   /* 馬廻の精鋭：少数でも押し通る */
     try{ gridSettleAll(); }catch(_){ }
-    B.ishiStage=1; B.fieldLabels=[{x:fx,y:1.0,t:"天王寺砦"},{x:BF.w*0.5,y:BF.h-1.0,t:"天王寺"}]; B.objective=mine===0?"第一段：砦へ達せよ（信長を砦まで）":"砦を落とすか、信長を討て"; }
+    B.ishiStage=1; B.fieldLabels=(B.fieldLabels||[]).filter(l=>l.t!=="天王寺砦").concat([{x:fx,y:Math.max(1.0,BF.h/2-5.2),t:"天王寺砦"},{x:BF.w*0.5,y:BF.h-1.0,t:"天王寺"}]); B.objective=mine===0?"第一段：砦へ達せよ（信長を砦まで）":"砦を落とすか、信長を討て"; }
 }
 /* ===== 第146巡：木津砦 ―― 水路をめぐる補給遮断戦＋砦攻略戦＋局地乱戦（作り手の指摘「木津砦の戦いがチープに見える理由」） =====
    川（木津川）は蛇行し、浅瀬が北と南に一つずつ、真ん中に橋（守り手が落とせる）。川原の湿地は足を取り騎馬は駆けられない。
@@ -17233,7 +17251,11 @@ function drawYokoyama(sx,sy){ /* 第181巡：姉川の隅に横山城――丘�
   bctx.fillStyle="#8A8477"; bctx.fillRect(x-sx*1.0,y-sy*0.5,sx*2.0,sy*0.7); bctx.fillStyle="#5F5A50"; for(let k=0;k<3;k++) bctx.fillRect(x-sx*1.0,y-sy*0.5+k*sy*0.22,sx*2.0,1.2);   /* 石垣 */
   bctx.fillStyle="#EDE6D6"; bctx.fillRect(x-sx*0.6,y-sy*1.5,sx*1.2,sy*1.0); bctx.fillStyle="#3A2A18"; bctx.fillRect(x-sx*0.45,y-sy*1.3,sx*0.15,sy*0.25); bctx.fillRect(x+sx*0.3,y-sy*1.3,sx*0.15,sy*0.25);   /* 櫓 */
   bctx.fillStyle="#2E2A28"; bctx.beginPath(); bctx.moveTo(x-sx*0.8,y-sy*1.5); bctx.lineTo(x,y-sy*2.1); bctx.lineTo(x+sx*0.8,y-sy*1.5); bctx.closePath(); bctx.fill();
-  if(az){ bctx.fillStyle="#3A2A18"; bctx.fillRect(x-1,y-sy*3.0,2,sy*1.0); bctx.fillStyle=clanColor(az.id); bctx.fillRect(x+1,y-sy*3.0,sx*0.5,sy*0.45); drawMon(bctx,az,x+1+sx*0.25,y-sy*2.78,sx*0.15,"#fff",null); }
+  if(az){ bctx.fillStyle="#3A2A18"; bctx.fillRect(x-1,y-sy*3.0,2,sy*1.0); bctx.fillStyle=clanColor(az.id); bctx.fillRect(x+1,y-sy*3.0,sx*0.5,sy*0.45); drawMon(bctx,az,x+1+sx*0.25,y-sy*2.78,sx*0.15,"#fff",null);
+    /* 第207巡：石垣の上の小旗と、野の側の城門。囲みが固ければ城内の炊煙は細い */ const K=B.ane; const dir=(B.ctx.playerSide===0)?1:-1; for(const k of [-0.8,0.8]){ const fx=x+k*sx, fy=y-sy*0.5; bctx.fillStyle="#3A2A18"; bctx.fillRect(fx-0.5,fy-sy*0.7,1,sy*0.7); bctx.fillStyle=clanColor(az.id); bctx.fillRect(fx+0.5,fy-sy*0.7,sx*0.3,sy*0.28); }
+    { const gx=x+dir*sx*1.35, gy=y+sy*0.1; bctx.fillStyle="#5A3E26"; bctx.fillRect(gx-sx*0.25,gy-sy*0.55,sx*0.5,sy*0.65); bctx.fillStyle="#2E2A28"; bctx.fillRect(gx-sx*0.35,gy-sy*0.65,sx*0.7,sy*0.14); bctx.fillStyle="#3A2A18"; bctx.fillRect(gx-sx*0.05,gy-sy*0.5,sx*0.1,sy*0.55); }
+    if(K&&!K.yokoGarDead){ const thin=(K.yokoPct||0)>=80; for(let k=0;k<(thin?1:3);k++){ const t=(B.elapsed*0.35+k*0.37)%1; const px=x+(k-1)*sx*0.4+Math.sin((B.elapsed+k)*1.7)*sx*0.15, py=y-sy*1.6-t*sy*2.2; bctx.fillStyle=`rgba(230,230,220,${(1-t)*0.35})`; bctx.beginPath(); bctx.ellipse(px,py,sx*(0.18+t*0.35),sy*(0.14+t*0.25),0,0,7); bctx.fill(); } }
+    if(K&&K.yokoPct!==undefined&&!K.yokoRelief){ bctx.font=`bold ${Math.max(9,sy*0.42)}px sans-serif`; bctx.textAlign="center"; bctx.fillStyle="rgba(0,0,0,.55)"; bctx.fillRect(x-sx*1.3,y-sy*3.95,sx*2.6,sy*0.5); bctx.fillStyle=(K.yokoPct>=70)?"#B8F0B0":(K.yokoPct>=30)?"#FFE08A":"#FFB0A0"; bctx.fillText(`包囲 ${K.yokoPct}%`,x,y-sy*3.58); } }
   /* 囲みの陣：織田の幕と篝火 */ if(od){ const col=clanColor(od.id); for(let k=0;k<4;k++){ const a=-0.3+k*0.55; const tx=x+Math.cos(a)*sx*4.2, ty=y+Math.sin(a)*sy*2.4; if(tx<sx||tx>BF.w*sx-sx||ty<sy||ty>BF.h*sy-sy) continue;
       bctx.fillStyle=k%2?col:"#F4EEDD"; bctx.fillRect(tx-sx*0.5,ty-sy*0.35,sx*1.0,sy*0.35); bctx.strokeStyle="rgba(0,0,0,.4)"; bctx.strokeRect(tx-sx*0.5,ty-sy*0.35,sx*1.0,sy*0.35); bctx.fillStyle="#3A2A18"; bctx.fillRect(tx-sx*0.5,ty-sy*0.5,1.5,sy*0.5); bctx.fillRect(tx+sx*0.5,ty-sy*0.5,1.5,sy*0.5);
       if(k===1){ const fl=Math.sin(B.elapsed*9+k)*1.5; bctx.fillStyle="#3A2A18"; bctx.fillRect(tx+sx*0.8,ty-sy*0.1,3,sy*0.35); bctx.fillStyle="#FFB040"; bctx.beginPath(); bctx.ellipse(tx+sx*0.8+1.5,ty-sy*0.2+fl,3,5,0,0,7); bctx.fill(); bctx.fillStyle="#FFE08A"; bctx.beginPath(); bctx.ellipse(tx+sx*0.8+1.5,ty-sy*0.2+fl,1.5,2.5,0,0,7); bctx.fill(); } } }
@@ -17414,6 +17436,8 @@ function aneStart(){ if(W.ane) return; W.ane={yoko:"min", reserve:2, scout:false
       ["hold","防御して朝倉の勝ちを待つ","川の北で受ける。朝倉が徳川を破れば横腹へ",()=>{ A.asaiPlan="hold"; }],
       ["yoko","横山城救援","本戦に勝てずとも、横山の囲みを解けば戦略的勝利",()=>{ A.asaiPlan="yoko"; }]]),700); }
   else { A.yoko=rnd()<0.5?"min":"thick"; A.reserve=rnd()<0.5?2:0; A.scout=rnd()<0.5; A.asaiPlan=["center","split","hq","hold"][Math.floor(rnd()*4)]; } }
+/* 第207巡：姉川の四つの瀬（升の行で返す）。北の瀬は三升ぶん広く、中の瀬は二升、南の瀬は一升（騎馬は使いにくい）、下の瀬は野の下端（遠回りだが横腹へ回れる） */
+function aneFordRows(H0){ const cr=Math.floor(H0/2); const mk=(c0,c1,name)=>({r0:c0*2, r1:c1*2+1, name}); return [mk(1,3,"北の瀬"), mk(Math.round(cr*0.42),Math.round(cr*0.42)+1,"中の瀬"), mk(Math.round(cr*0.72),Math.round(cr*0.72),"南の瀬"), mk(cr-1,cr-1,"下の瀬")]; }
 function aneGroupOf(u){ const g=W.generals[u.gid]; const n=g&&g.clan!==null&&W.clans[g.clan]?W.clans[g.clan].name:""; if(n==="徳川家"||n==="松平家") return "tk"; if(n==="朝倉家") return "ak"; if(n==="浅井家") return "as"; if(n==="織田家") return "od"; return u.side===0?"od":"as"; }
 function aneSetup(){ const A=W.ane||{yoko:"min",reserve:2,scout:false,asaiPlan:"center"}; const mine=B.ctx.playerSide; const H=BF.h, Wd=BF.w; const odLeft = mine===0;   /* 織田（側0）は人が織田なら左 */
   const K={yoko:A.yoko, reserve:A.reserve, scout:!!A.scout, asaiPlan:A.asaiPlan, sectors:{}, link:"良好", couriers:[], tkFree:false, akFree:false, yokoSortie:false, yokoRelief:false, hqWarn:0, t0:0, hqFwd:false, plan:A.asaiPlan};
@@ -17424,29 +17448,32 @@ function aneSetup(){ const A=W.ane||{yoko:"min",reserve:2,scout:false,asaiPlan:"
   /* 上：浅井 対 織田。下：朝倉 対 徳川。川は真ん中 */
   const lay=(us, side, top)=>{ const y0=top?2:H*0.55, y1=top?H*0.45:H-2; const n=us.length; us.forEach((u,i)=>{ const depth = u.cmd?9:(u.type===3?4:(i%3)*1.8+3); put(u, cx-side*depth-side*(u.cmd?0:1), y0+(y1-y0)*((i+.5)/Math.max(1,n))); }); };
   lay(grp("od"), odX, true); lay(grp("tk"), odX, false); lay(grp("as"), -odX, true); lay(grp("ak"), -odX, false);
+  /* 第207巡：本陣は瀬の正面を避けて（北の瀬と中の瀬の間、南の瀬と下の瀬の間）。本陣は堅い */ for(const g of ["od","as"]){ const c=grp(g).find(u=>u.cmd); if(c){ put(c, c.x, H*0.34); c.tough=Math.max(c.tough||1,1.5); } } for(const g of ["tk","ak"]){ const c=grp(g).find(u=>u.cmd); if(c){ put(c, c.x, H*0.82); c.tough=Math.max(c.tough||1,1.5); } }
   /* 横山の囲みに残す兵：織田の隊から減らす。全軍なら横山の城兵があとで背後に */
   const od=grp("od"); if(K.yoko==="thick"){ let need=4000; for(const u of od.filter(x=>!x.cmd).sort((a,b)=>a.troops-b.troops)){ const d=Math.min(u.troops-300,need); if(d>0){ u.troops-=d; u.max=Math.max(1,u.troops); need-=d; } if(need<=0) break; } } else if(K.yoko==="min"){ let need=1500; for(const u of od.filter(x=>!x.cmd).sort((a,b)=>a.troops-b.troops)){ const d=Math.min(u.troops-300,need); if(d>0){ u.troops-=d; u.max=Math.max(1,u.troops); need-=d; } if(need<=0) break; } }
   /* 予備隊：本陣の後ろに */ { const cands=od.filter(u=>!u.cmd&&u.type!==3).sort((a,b)=>Math.abs(a.y-H*0.25)-Math.abs(b.y-H*0.25)); const cmd=od.find(u=>u.cmd); cands.slice(0,K.reserve).forEach((u,i)=>{ u.reserveHold=true; u.reserve=true; u.order={k:"guard"}; put(u, (cmd?cmd.x:cx-odX*9)-odX*2, (cmd?cmd.y:H*0.25)+(i%2?2:-2)*(1+Math.floor(i/2))); u.aneReserve=true; }); }
-  /* 浅井の作戦 */ const as=grp("as"); if(K.asaiPlan==="split"){ as.filter((u,i)=>i%2===0).forEach(u=>{ u.aneGo={x:cx+odX*2, y:H*0.5}; }); } else if(K.asaiPlan==="hq"){ as.filter(u=>u.type===2||u.type===1).forEach(u=>{ u.aneHq=true; }); } else if(K.asaiPlan==="hold"){ for(const u of as){ u.holdUntil=99999; u.aneHold=true; u.order={k:"guard"}; } } else if(K.asaiPlan==="yoko"){ K.yokoPt={x:odLeft?4:Wd-5, y:H-3}; B.keyPoints=[{name:"横山城", x:K.yokoPt.x, y:K.yokoPt.y, r:2.5, owner:0, hqSide:0}]; as.filter((u,i)=>i%2===1&&!u.cmd).forEach(u=>{ u.aneGo={x:K.yokoPt.x+odX*2, y:K.yokoPt.y-1}; u.aneYoko=true; }); }
+  /* 浅井の作戦 */ const as=grp("as"); if(K.asaiPlan==="split"){ as.filter((u,i)=>i%2===0).forEach(u=>{ u.aneGo={x:cx+odX*2, y:H*0.5}; }); } else if(K.asaiPlan==="hq"){ as.filter(u=>u.type===2||u.type===1).forEach(u=>{ u.aneHq=true; }); } else if(K.asaiPlan==="hold"){ for(const u of as){ u.holdUntil=99999; u.aneHold=true; u.order={k:"guard"}; } } else if(K.asaiPlan==="yoko"){ K.yokoPt={x:odLeft?4:Wd-5, y:H-3}; as.filter((u,i)=>i%2===1&&!u.cmd).forEach(u=>{ u.aneGo={x:K.yokoPt.x+odX*1.8, y:K.yokoPt.y-1.0}; u.aneYoko=true; }); }
   if(!K.yokoPt){ K.yokoPt={x:odLeft?4:Wd-5, y:H-3}; }
-  /* 斥候：安全な瀬に印。無ければ川で足を取られやすい */ if(K.scout){ B.fieldLabels=(B.fieldLabels||[]).concat([{x:cx,y:H*0.2,t:"浅瀬"},{x:cx,y:H*0.8,t:"浅瀬"}]); } else { K.noScout=true; }
+  /* 第207巡：横山城は要地（浅井が八秒押さえれば囲みが解ける）。城兵と囲みの隊を置く */ B.keyPoints=(B.keyPoints||[]).filter(k=>k.name!=="横山城").concat([{name:"横山城", x:K.yokoPt.x, y:K.yokoPt.y, r:2.5, owner:0, hqSide:0, need:8}]); try{ aneYokoBuild(K, odLeft, odX); }catch(e){ console.error(e); }
+  /* 第207巡：川は深く、渡れるのは四つの瀬だけ（升を塞ぐ）。瀬の名を出す */ try{ B.blockCells=B.blockCells||new Set(); for(let gc=0;gc<gCols();gc++) for(let gr=0;gr<gRows();gr++){ let w=false; for(let dy=0;dy<GC;dy++) for(let dx=0;dx<GC;dx++){ const r=gr*GC+dy, c=gc*GC+dx; if(B.tiles[r]&&B.tiles[r][c]===BT.WATER) w=true; } if(w) B.blockCells.add(gc*1000+gr); } const rx=(Math.round(Wd*0.5)&~1)+1; for(const f of aneFordRows(H)) B.fieldLabels=(B.fieldLabels||[]).concat([{x:rx,y:(f.r0+f.r1)/2+0.5,t:f.name}]); }catch(e){ console.error(e); }
+  /* 斥候：安全な瀬に印。無ければ川で足を取られやすい */ if(!K.scout){ K.noScout=true; }
   /* 浅井の初動は強い（士気高・地元） */ for(const u of as){ u.morale=Math.min(100,u.morale+10); if(!u.cmd) u.warF=(u.warF||1)*1.1; } /* 徳川は統制が高い */ for(const u of grp("tk")){ u.coh=Math.min(1.4,(u.coh||1)+0.15); u.morRes=Math.min(u.morRes||1,0.8); u.tough=(u.tough||1)*1.35; } for(const u of grp("ak")){ u.morRes=(u.morRes||1)*1.1; }
   try{ gridSettleAll(); }catch(_){ }
-  B.ane=K; B.fieldLabels=(B.fieldLabels||[]).concat([{x:cx,y:1.0,t:"姉川"},{x:K.yokoPt.x,y:Math.min(BF.h-0.6,K.yokoPt.y+2.2),t:"横山城"}]);
+  B.ane=K; B.bandNames=["北：織田 対 浅井","中央","南：徳川 対 朝倉"]; B.fieldLabels=(B.fieldLabels||[]).concat([{x:cx,y:1.0,t:"姉川"},{x:K.yokoPt.x,y:Math.min(BF.h-0.6,K.yokoPt.y+2.2),t:"横山城"}]);
   B.objective= mine===0 ? "浅井を押し返し、徳川と連携を保て。信長の本陣を守れ" : (K.asaiPlan==="yoko"?"横山城の囲みを解け（横山を八秒押さえる）。朝倉が徳川を止める間に":"織田の陣を突き破れ。朝倉が徳川を止める間に");
   if(mine===0&&!B.autoMine&&!B.sim){ setTimeout(()=>{ if(B&&B.ane) B.banner={t:`軍議どおり：横山の囲み＝${K.yoko==="thick"?"厚く":K.yoko==="min"?"最低限":"残さず"}・予備${K.reserve}隊・斥候${K.scout?"あり":"なし"}`, at:B.elapsed}; },800); } }
 function aneSector(g1,g2){ const a=B.units.filter(u=>u.aneG===g1&&u.troops>.5&&!u.left), b=B.units.filter(u=>u.aneG===g2&&u.troops>.5&&!u.left); const st=us=>us.reduce((s2,u)=>s2+u.troops*(u.morale>0?(0.5+u.morale/200):0.2),0); const x=st(a), y=st(b); if(!a.length) return {t:"崩壊", k:2}; if(!b.length) return {t:"制圧", k:0}; const r=x/Math.max(1,y); return r>1.35?{t:"優勢",k:0}:r<0.75?{t:"危険",k:2}:{t:"激戦",k:1}; }
 function anePlayerGroup(){ const me=W.clans[W.player]; const n=me?me.name:""; return n==="徳川家"||n==="松平家"?"tk":n==="朝倉家"?"ak":n==="浅井家"?"as":"od"; }
 function aneAllyGroup(){ const g=anePlayerGroup(); return g==="od"?"tk":g==="tk"?"od":g==="as"?"ak":"as"; }
 function aneGroupName(g){ return g==="od"?"織田":g==="tk"?"徳川":g==="as"?"浅井":"朝倉"; }
-function aneTools(){ const K=B.ane; if(!K) return ""; const mine=B.ctx.playerSide; const ally=aneGroupName(aneAllyGroup()); if(mine===0){ const res=B.units.filter(u=>u.aneReserve&&u.reserveHold&&u.troops>.5).length; const sent=K.couriers.some(c=>!c.done); return `<button class="tool sub" id="bAnRes" title="予備隊を投入（中央／浅井正面／本陣前）" ${res?"":'style="opacity:.5"'}>予備隊投入 ${res}</button><button class="tool sub" id="bAnReq" title="${ally}へ要請を送る（伝令が歩く。間に敵がいれば捕まる）" ${sent?'style="opacity:.5"':""}>${ally}へ要請</button><button class="tool sub" id="bAnMenu" title="ほかの手（信長、前へ／追撃中止）">ほかの手 ▸</button>${K.flankOk?`<button class="tool gold" id="bAnFlank" title="崩れた敵戦線の隣へ、勝った戦区の隊を斜めに回す（敵の士気−12）">側面を突け</button>`:""}`; }
+function aneTools(){ const K=B.ane; if(!K) return ""; const mine=B.ctx.playerSide; const ally=aneGroupName(aneAllyGroup()); if(mine===0){ const res=B.units.filter(u=>u.aneReserve&&u.reserveHold&&u.troops>.5).length; const sent=K.couriers.some(c=>!c.done); return `<button class="tool sub" id="bAnRes" title="予備隊を投入（中央／浅井正面／本陣前）" ${res?"":'style="opacity:.5"'}>予備隊投入 ${res}</button><button class="tool sub" id="bAnReq" title="${ally}へ要請を送る（伝令が歩く。間に敵がいれば捕まる）" ${sent?'style="opacity:.5"':""}>${ally}へ要請</button><button class="tool sub" id="bAnYoko" title="横山城の攻囲状況と命令（包囲維持／兵を本戦へ／包囲増強／出撃に備える）">横山 ${K.yokoRelief?"解":(K.yokoPct===undefined?"":K.yokoPct+"%")} ▸</button>${K.flankOk?`<button class="tool gold" id="bAnFlank" title="崩れた敵戦線の隣へ、勝った戦区の隊を斜めに回す（敵の士気−12）">側面を突け</button>`:""}`; }
   return `${K.flankOk?`<button class="tool gold" id="bAnFlank" title="崩れた敵戦線の隣へ、勝った戦区の隊を斜めに回す（敵の士気−12）">側面を突け</button>`:""}<button class="tool sub" id="bAnReq" title="${ally}へ要請を送る（伝令が歩く）" ${K.couriers.some(c=>!c.done)?'style="opacity:.5"':""}>${ally}へ要請</button><button class="tool sub" id="bAnFwd" title="長政が本陣を前へ。士気+10、討死のおそれ" ${K.hqFwd?'style="opacity:.5"':""}>長政、前へ</button>`; }
 /* 第198巡（仕様書「姉川」）：突破後の側面攻撃。人の組の隊が、崩れた敵戦線の隣の敵へ斜めに回る */
 function aneFlank(){ if(!B||!B.ane||B.over!==null||!B.ane.flankOk) return; const K=B.ane; manualCommand(); const mine=B.ctx.playerSide; const myG=anePlayerGroup(); const tgtG=K.flankTarget; const us=B.units.filter(u=>u.aneG===myG&&u.side===mine&&u.troops>.5&&u.morale>0&&!u.left&&!u.cmd&&!u.reserveHold); const foes=B.units.filter(u=>u.aneG===tgtG&&u.troops>.5&&u.morale>0&&!u.left); if(!us.length||!foes.length) return toast("回せる隊がない"); us.forEach(u=>{ const t=foes.slice().sort((a,b)=>dist(u,a)-dist(u,b))[0]; u.order={k:"attack",id:t.id}; u.charge=true; u.pursue=false; u.holdUntil=0; u.morale=Math.min(100,u.morale+10); }); for(const f of foes) f.morale=Math.max(0,f.morale-12); K.flankOk=false; K.flankAt=B.elapsed; K.flankDone=(K.flankDone||0)+1; B.bigBanner={t:`${aneGroupName(myG)}、${aneGroupName(tgtG)}の側面へ！`, at:B.elapsed, good:true, big:true}; log(`${aneGroupName(myG)}勢が${aneGroupName(tgtG)}の横腹へ回った（敵の士気−12）`,"war",true); B.aneLog=(B.aneLog||[]).concat([`${Math.round(B.elapsed)}秒 側面攻撃 → ${aneGroupName(tgtG)}`]); try{ playSE("warcry"); }catch(_){ } try{ renderBattleFoot(); }catch(_){ } }
 function aneMenu(){ if(!B||!B.ane||B.over!==null) return; koChoice("ほかの手","",[["fwd","信長、前へ",B.ane.hqFwd?"もう前に出ている":"全軍の士気+10。浅井に突かれれば危ない",()=>aneCmdForward()],["stop","追撃中止","深追いする隊を戻す（伝令に六秒）",()=>aneStopPursuit()]]); }
 function aneReserveAsk(){ if(!B||!B.ane||B.over!==null) return; const res=B.units.filter(u=>u.aneReserve&&u.reserveHold&&u.troops>.5); if(!res.length) return toast("投入できる予備隊はありません（軍議で全軍を前へ出した）"); const H=BF.h; const cmd=B.units.find(u=>u.side===0&&u.cmd);
-  const go=(where)=>{ manualCommand(); for(const u of res){ u.reserveHold=false; u.reserve=false; u.holdUntil=0; if(where==="center"){ const t=B.units.filter(x=>x.side===1&&x.troops>.5&&x.morale>0&&x.aneG==="as").sort((a,b)=>Math.abs(a.y-H*0.35)-Math.abs(b.y-H*0.35))[0]; u.order=t?{k:"attack",id:t.id}:{k:"hold"}; u.charge=true; } else if(where==="left"){ const t=B.units.filter(x=>x.side===1&&x.troops>.5&&x.morale>0&&x.aneG==="as").sort((a,b)=>a.y-b.y)[0]; u.order=t?{k:"attack",id:t.id}:{k:"hold"}; u.charge=true; } else { if(cmd){ u.order={k:"move",x:cmd.x+(B.ctx.playerSide===0?2:-2),y:cmd.y+(res.indexOf(u)%2?2:-2)}; u.gx=u.order.x; u.gy=u.order.y; } } } B.bigBanner={t:`予備隊投入――${where==="center"?"中央":where==="left"?"浅井正面":"本陣前"}`, at:B.elapsed, good:true}; log(`予備隊${res.length}隊を${where==="center"?"中央":where==="left"?"浅井正面":"本陣の前"}へ投入した`,"war",true); try{ renderBattleFoot(); }catch(_){ } };
-  koChoice("予備隊投入",`${res.map(u=>u.name).join("・")}（${res.length}隊）をどこへ。`,[["center","中央へ","浅井の中央を押し返す",()=>go("center")],["left","浅井正面（左翼）へ","浅井の先手に当てる",()=>go("left")],["hq","本陣前へ","信長を守る",()=>go("hq")]]); }
+  const go=(where)=>{ manualCommand(); B.ane.resUsed=(B.ane.resUsed||0)+1; if(where==="yoko"){ aneYokoThicken(res); return; } for(const u of res){ u.reserveHold=false; u.reserve=false; u.holdUntil=0; if(where==="center"){ const t=B.units.filter(x=>x.side===1&&x.troops>.5&&x.morale>0&&x.aneG==="as").sort((a,b)=>Math.abs(a.y-H*0.35)-Math.abs(b.y-H*0.35))[0]; u.order=t?{k:"attack",id:t.id}:{k:"hold"}; u.charge=true; } else if(where==="left"){ const t=B.units.filter(x=>x.side===1&&x.troops>.5&&x.morale>0&&x.aneG==="as").sort((a,b)=>a.y-b.y)[0]; u.order=t?{k:"attack",id:t.id}:{k:"hold"}; u.charge=true; } else { if(cmd){ u.order={k:"move",x:cmd.x+(B.ctx.playerSide===0?2:-2),y:cmd.y+(res.indexOf(u)%2?2:-2)}; u.gx=u.order.x; u.gy=u.order.y; } } } B.bigBanner={t:`予備隊投入――${where==="center"?"中央":where==="left"?"浅井正面":"本陣前"}`, at:B.elapsed, good:true}; log(`予備隊${res.length}隊を${where==="center"?"中央":where==="left"?"浅井正面":"本陣の前"}へ投入した`,"war",true); try{ renderBattleFoot(); }catch(_){ } };
+  koChoice("予備隊投入",`${res.map(u=>u.name).join("・")}（${res.length}隊）をどこへ。`,[["center","中央へ","浅井の中央を押し返す",()=>go("center")],["left","浅井正面（左翼）へ","浅井の先手に当てる",()=>go("left")],["hq","本陣前へ","信長を守る",()=>go("hq")],["yoko","横山の囲みへ","包囲率を上げ、城兵の出撃を抑える",()=>go("yoko")]]); }
 function aneRequestAsk(){ if(!B||!B.ane||B.over!==null) return; const K=B.ane; if(K.couriers.some(c=>!c.done)) return toast("伝令はまだ着いていない"); const mine=B.ctx.playerSide; const toG=aneAllyGroup(); const toName=aneGroupName(toG); const foeOfAlly=aneGroupName(toG==="tk"?"ak":toG==="od"?"as":toG==="ak"?"tk":"od"); const myFoe=aneGroupName(anePlayerGroup()==="od"?"as":anePlayerGroup()==="tk"?"ak":anePlayerGroup()==="as"?"od":"tk");
   const opts = [["push",`${foeOfAlly}を押し込んでほしい`,`${toName}が前へ出る`,null],["send","一隊をこちらへ",`${toName}の一隊がこちらの正面へ`,null],["flank",`${myFoe}の横腹を攻めてほしい`,`${toName}の二隊が${myFoe}の横腹へ`,null],["hold","追撃を控えてほしい",`${toName}は深追いしない`,null]];
   koChoice(`${toName}への要請`,"命令ではない。伝令が歩き、向こうが決める。",opts.map(o=>[o[0],o[1],o[2],()=>aneSendCourier(o[0],toG)])); }
@@ -17469,23 +17496,67 @@ function aneTick(dt){ const K=B.ane; if(!K||B.over!==null||B.opening>0) return; 
     /* 連携：織田と徳川（浅井と朝倉）の間の距離 */ const cen=g=>{ const us=B.units.filter(u=>u.aneG===g&&u.troops>.5&&!u.left&&u.morale>0); if(!us.length) return null; return {x:us.reduce((a,u)=>a+u.x,0)/us.length, y:us.reduce((a,u)=>a+u.y,0)/us.length}; }; const o=cen("od"), t=cen("tk"), a=cen("as"), b=cen("ak"); const d1=o&&t?Math.hypot(o.x-t.x,o.y-t.y):99; const between=B.units.some(u=>u.side===1&&u.troops>.5&&u.morale>0&&!u.left&&o&&t&&Math.abs(u.x-(o.x+t.x)/2)<4&&u.y>Math.min(o.y,t.y)&&u.y<Math.max(o.y,t.y)); const link = (!o||!t)?"分断":(between||d1>18)?"分断":d1>12?"普通":"良好"; if(link!==K.link){ K.link=link; if(link==="分断"){ B.bigBanner={t:mine===0?"織田と徳川、分断される！":"織田と徳川を分断した！", at:B.elapsed, good:mine!==0, big:true}; } }
     const s1=aneSector("as","od"), s2=aneSector("od","as"), s3=aneSector("tk","ak"), s4=aneSector("ak","tk"); K.sectors={as:s1,od:s2,tk:s3,ak:s4};
     /* 第198巡：橋頭堡――川の向こう岸に二隊以上が六秒立てば「橋頭堡確保」（その隊の士気+8・守り+10%、後続が渡りやすい）。押し戻されれば「橋頭堡崩壊」（士気−8） */
-    { const cx=Wd/2; for(const sd of [0,1]){ const enemyBank=u=> sd===0 ? (odLeft?u.x>cx+1.5:u.x<cx-1.5) : (odLeft?u.x<cx-1.5:u.x>cx+1.5); const across=B.units.filter(u=>u.side===sd&&u.troops>.5&&u.morale>0&&!u.left&&enemyBank(u)); K.bh=K.bh||{}; const st=K.bh[sd]||(K.bh[sd]={hold:0,ok:false}); if(across.length>=2){ st.hold=Math.min(8,st.hold+1); if(st.hold>=6&&!st.ok){ st.ok=true; for(const u of across){ u.morale=Math.min(100,u.morale+8); if(!u.aneBh){ u.aneBh=true; u.defBonus=(u.defBonus||1)*0.9; } } B.bigBanner={t:sd===mine?"橋頭堡確保――後続を渡せ":"敵、対岸に橋頭堡を築く", at:B.elapsed, good:sd===mine}; B.aneLog=(B.aneLog||[]).concat([`${Math.round(B.elapsed)}秒 ${sd===mine?"味方":"敵"}の橋頭堡`]); } } else { st.hold=Math.max(0,st.hold-1); if(st.ok&&across.length===0){ st.ok=false; B.bigBanner={t:sd===mine?"橋頭堡、崩される":"敵の橋頭堡を押し戻した", at:B.elapsed, good:sd!==mine}; for(const u of B.units) if(u.side===sd&&u.aneBh){ u.aneBh=false; u.defBonus=(u.defBonus||1)/0.9; u.morale=Math.max(0,u.morale-8); } } } for(const u of B.units) if(u.side===sd&&u.aneBh&&!enemyBank(u)){ u.aneBh=false; u.defBonus=(u.defBonus||1)/0.9; } st.pct=Math.min(100,Math.round(st.hold/6*100)); } }
+    { const cx=Wd/2; for(const sd of [0,1]){ const enemyBank=u=> sd===0 ? (odLeft?u.x>cx+1.5:u.x<cx-1.5) : (odLeft?u.x<cx-1.5:u.x>cx+1.5); const across=B.units.filter(u=>u.side===sd&&u.troops>.5&&u.morale>0&&!u.left&&enemyBank(u)); K.bh=K.bh||{}; const st=K.bh[sd]||(K.bh[sd]={hold:0,ok:false}); if(across.length>=2){ st.hold=Math.min(8,st.hold+1); if(st.hold>=6&&!st.ok){ st.ok=true; if(sd===mine&&!K.bhFirst) K.bhFirst=Math.round(B.elapsed); for(const u of across){ u.morale=Math.min(100,u.morale+8); if(!u.aneBh){ u.aneBh=true; u.defBonus=(u.defBonus||1)*0.9; } } B.bigBanner={t:sd===mine?"橋頭堡確保――後続を渡せ":"敵、対岸に橋頭堡を築く", at:B.elapsed, good:sd===mine}; B.aneLog=(B.aneLog||[]).concat([`${Math.round(B.elapsed)}秒 ${sd===mine?"味方":"敵"}の橋頭堡`]); } } else { st.hold=Math.max(0,st.hold-1); if(st.ok&&across.length===0){ st.ok=false; B.bigBanner={t:sd===mine?"橋頭堡、崩される":"敵の橋頭堡を押し戻した", at:B.elapsed, good:sd!==mine}; for(const u of B.units) if(u.side===sd&&u.aneBh){ u.aneBh=false; u.defBonus=(u.defBonus||1)/0.9; u.morale=Math.max(0,u.morale-8); } } } for(const u of B.units) if(u.side===sd&&u.aneBh&&!enemyBank(u)){ u.aneBh=false; u.defBonus=(u.defBonus||1)/0.9; } st.pct=Math.min(100,Math.round(st.hold/6*100)); } }
     /* 渡河中：守り−30%・騎馬突撃は止まる */ for(const u of B.units){ if(u.troops<=.5||u.left) continue; const t=bTileAt(u.x,u.y); const inW=(t===BT.WATER||t===BT.FORD); if(inW!==!!u.aneInW){ u.aneInW=inW; u.defBonus=(u.defBonus||1)*(inW?1.3:1/1.3); } if(inW&&u.type===2&&B.elapsed<u.spUntil) u.spUntil=B.elapsed; }
     /* 側面攻撃の好機：人の組の戦区が制圧／敵の隣の戦線が崩壊なら〈側面を突け〉 */ { const myG=anePlayerGroup(); const sec=K.sectors[myG]; const foeAdj = myG==="od"?"ak" : myG==="tk"?"as" : myG==="as"?"tk" : "od"; const ok=!!(sec&&sec.k===0&&sec.t!=="激戦"&&B.units.some(u=>u.aneG===foeAdj&&u.troops>.5&&u.morale>0&&!u.left)&&B.elapsed>20&&!(K.flankAt>B.elapsed-40)); if(ok!==!!K.flankOk){ K.flankOk=ok; K.flankTarget=foeAdj; if(ok) B.banner={t:`${aneGroupName(myG)}の戦区は優勢――〈側面を突け〉で${aneGroupName(foeAdj)}の横腹へ`, at:B.elapsed}; try{ renderBattleFoot(); }catch(_){ } } }
     /* 浅井先鋒と信長本陣の距離 */ const cmd=B.units.find(u=>u.side===0&&u.cmd&&u.troops>.5); const asU=B.units.filter(u=>u.aneG==="as"&&u.troops>.5&&u.morale>0&&!u.left); let dm=99; if(cmd) for(const u of asU){ const d=dist(u,cmd); if(d<dm) dm=d; } const m=Math.round(dm*20); const hqSt = dm<5?"危険":dm<12?"接近":"安全"; if(dm<25&&!(K.distAt>B.elapsed-8)){ K.distAt=B.elapsed; if(mine===0) B.banner={t:`浅井先鋒 → 信長本陣まで ${m}m`, at:B.elapsed}; } if(dm<5&&!K.hqCry){ K.hqCry=true; B.bigBanner={t:"浅井勢、本陣へ接近！", at:B.elapsed, good:mine!==0, big:true}; log("浅井の先手が信長の本陣に迫った","war",true); }
-    const lab=(g,s)=>`${g}${s.t}`; const bhTxt=(K.bh&&K.bh[mine])?`｜橋頭堡 ${K.bh[mine].ok?"確保":K.bh[mine].pct+"%"}`:""; B.objective = mine===0 ? `【浅井方面】${s1.t}｜【織田中央】${s2.t}｜【徳川方面】${s3.t}｜【信長本陣】${hqSt}｜連携 ${K.link}${bhTxt}` : `【織田方面】${s2.t}｜【浅井】${s1.t}｜【朝倉方面】${s4.t}｜【徳川】${s3.t}｜連携 ${K.link}${K.plan==="yoko"?"｜横山："+(K.yokoRelief?"救援済":"囲まれている"):""}`;
+    const lab=(g,s)=>`${g}${s.t}`; const bhTxt=(K.bh&&K.bh[mine])?`｜橋頭堡 ${K.bh[mine].ok?"確保":K.bh[mine].pct+"%"}`:""; const yk=K.yokoRelief?"囲み解けた":`包囲 ${K.yokoPct===undefined?"--":K.yokoPct}%`; B.objective = mine===0 ? `【浅井方面】${s1.t}｜【織田中央】${s2.t}｜【徳川方面】${s3.t}｜【信長本陣】${hqSt}｜【横山城】${yk}｜連携 ${K.link}${bhTxt}` : `【織田方面】${s2.t}｜【浅井】${s1.t}｜【朝倉方面】${s4.t}｜【徳川】${s3.t}｜【横山城】${yk}｜連携 ${K.link}`;
     /* 軍師のひとこと */ if(mine===0&&!B.autoMine){ if(s2.k===2&&!K.adv1&&B.units.some(u=>u.aneReserve&&u.reserveHold)){ K.adv1=true; B.banner={t:"軍師「浅井勢が中央を押しています。予備隊投入を」", at:B.elapsed}; } if(s3.k===0&&!K.adv2&&B.elapsed>30){ K.adv2=true; B.banner={t:"軍師「徳川軍が朝倉を押しています。援軍を要請できます」", at:B.elapsed}; } }
     /* 朝倉戦線の崩壊 → 家康の判断（追撃か、織田援軍か） */ if(!K.tkFree&&s4.k===2&&B.elapsed>30){ K.tkFree=true; const od=clanByName("織田家"), tk=clanByName("徳川家"); const trust=od&&tk?getRel(tk.id,od.id):50; const help = (K.link!=="分断") && (rnd()<0.4+trust/150); const tks=B.units.filter(u=>u.aneG==="tk"&&u.troops>.5&&u.morale>0&&!u.cmd&&!u.aneNoPursue);
       if(help){ const us=tks.slice(0,Math.max(1,Math.ceil(tks.length/2))); for(const u of us){ const tg=asU.sort((p,q)=>dist(p,u)-dist(q,u))[0]; if(tg){ u.order={k:"attack",id:tg.id}; u.charge=true; u.holdUntil=0; u.reserveHold=false; } } for(const u of asU) u.morale=Math.max(0,u.morale-10); B.bigBanner={t:"家康、織田への援軍を決す――徳川隊、浅井の側面へ", at:B.elapsed, good:mine===0, big:true}; log("朝倉勢が崩れ、家康は浅井の横腹へ徳川勢を回した","war",true); }
       else { B.bigBanner={t:"家康、朝倉を追う――織田は独りで浅井を受ける", at:B.elapsed, good:mine!==0}; log("朝倉勢が崩れた。家康は朝倉の追撃を選び、織田の戦線は助からない","war",true); for(const u of tks) u.pursue=true; } }
     /* 徳川戦線の崩壊 → 朝倉が織田の右翼へ（挟撃） */ if(!K.akFree&&s3.k===2&&B.elapsed>30){ K.akFree=true; const aks=B.units.filter(u=>u.aneG==="ak"&&u.troops>.5&&u.morale>0&&!u.cmd); const ods=B.units.filter(u=>u.aneG==="od"&&u.troops>.5&&u.morale>0&&!u.left); for(const u of aks.slice(0,Math.ceil(aks.length/2))){ const tg=ods.sort((p,q)=>dist(p,u)-dist(q,u))[0]; if(tg){ u.order={k:"attack",id:tg.id}; u.charge=true; u.holdUntil=0; } } for(const u of ods) u.morale=Math.max(0,u.morale-10); B.bigBanner={t:"徳川、後退――朝倉勢、織田の右翼へ！", at:B.elapsed, good:mine!==0, big:true}; log("徳川が退き、朝倉勢が織田の右翼へ回った。織田は挟み撃ちに","war",true); }
     /* 浅井の「防御して朝倉を待つ」：朝倉が勝てば横腹へ */ if(K.asaiPlan==="hold"&&K.akFree&&!K.asaiGo){ K.asaiGo=true; for(const u of B.units) if(u.aneHold){ u.aneHold=false; u.holdUntil=0; u.order={k:"hold"}; u.charge=true; } B.bigBanner={t:"浅井、川を渡って攻めに転ず", at:B.elapsed, good:mine!==0}; }
-    /* 横山城：全軍を姉川へ出していれば、城兵が背後に現れる */ if(K.yoko==="all"&&!K.yokoSortie&&B.elapsed>30&&rnd()<0.5){ K.yokoSortie=true; const pool=Object.values(W.generals).filter(g=>(g.status==="家臣"||g.status==="大名")&&!g.army&&!B.units.some(u=>u.gid===g.id)&&clanName(g.clan)==="浅井家").slice(0,2); pool.forEach((g,i)=>{ B.units.push({ id:nextUnitId(), gid:g.id, name:"横山城兵 "+g.name.slice(0,2), side:1, aneG:"as", type:0, cmd:false, troops:1200, max:1200, q:45, apt:.8, warF:.9, coh:.8, tr:traitsOf(g), defBonus:1, gunEye:1, horse:1, fatigue:0, x:K.yokoPt.x+odX*(1+i), y:K.yokoPt.y-1-i, face:0, morale:80, order:{k:"hold"}, spUntil:-1, spReady:B.elapsed+8, atkReady:0, runup:0 }); }); if(pool.length){ B.bigBanner={t:"横山の城兵、囲みを破って背後へ！", at:B.elapsed, good:mine!==0, big:true}; log("囲みを残さなかった横山城の城兵が討って出て、織田の背後に現れた","war",true); for(const u of B.units) if(u.aneG==="od"&&u.morale>0) u.morale=Math.max(0,u.morale-8); } } else if(K.yoko==="all"&&!K.yokoSortie&&B.elapsed>30){ K.yokoSortie=true; }
-    if(K.yoko==="min"&&!K.yokoSortie&&B.elapsed>40){ K.yokoSortie=true; if(rnd()<0.2){ for(const u of B.units) if(u.aneG==="od"&&u.morale>0) u.morale=Math.max(0,u.morale-4); B.banner={t:"横山の城兵が討って出た（囲みは薄い）", at:B.elapsed}; } }
-    /* 横山救援（浅井の作戦）：要地 */ if(K.plan==="yoko"&&B.keyPoints){ const kp=B.keyPoints.find(p=>p.name==="横山城"); if(kp&&kp.owner===1&&!K.yokoRelief){ K.yokoRelief=true; B.bigBanner={t:"横山城の囲み、解かる！", at:B.elapsed, good:mine!==0, big:true}; log("浅井勢が横山城に達し、囲みを解いた（戦略的勝利）","war",true); for(const u of B.units) if(u.aneG==="as"&&u.morale>0) u.morale=Math.min(100,u.morale+12); } }
+    try{ aneYokoTick(); }catch(e){ console.error(e); }
+    /* 横山城：全軍を姉川へ出していれば、城兵が背後に現れる（第207巡：城兵の隊がいる間は aneYokoTick が討って出る） */ if(K.yoko==="all"&&!K.yokoSortie&&!K.yokoHasGar&&B.elapsed>30&&rnd()<0.5){ K.yokoSortie=true; const pool=Object.values(W.generals).filter(g=>(g.status==="家臣"||g.status==="大名")&&!g.army&&!B.units.some(u=>u.gid===g.id)&&clanName(g.clan)==="浅井家").slice(0,2); pool.forEach((g,i)=>{ B.units.push({ id:nextUnitId(), gid:g.id, name:"横山城兵 "+g.name.slice(0,2), side:1, aneG:"as", type:0, cmd:false, troops:1200, max:1200, q:45, apt:.8, warF:.9, coh:.8, tr:traitsOf(g), defBonus:1, gunEye:1, horse:1, fatigue:0, x:K.yokoPt.x+odX*(1+i), y:K.yokoPt.y-1-i, face:0, morale:80, order:{k:"hold"}, spUntil:-1, spReady:B.elapsed+8, atkReady:0, runup:0 }); }); if(pool.length){ B.bigBanner={t:"横山の城兵、囲みを破って背後へ！", at:B.elapsed, good:mine!==0, big:true}; log("囲みを残さなかった横山城の城兵が討って出て、織田の背後に現れた","war",true); for(const u of B.units) if(u.aneG==="od"&&u.morale>0) u.morale=Math.max(0,u.morale-8); } } else if(K.yoko==="all"&&!K.yokoSortie&&B.elapsed>30){ K.yokoSortie=true; }
+    if(K.yoko==="min"&&!K.yokoSortie&&!K.yokoHasGar&&B.elapsed>40){ K.yokoSortie=true; if(rnd()<0.2){ for(const u of B.units) if(u.aneG==="od"&&u.morale>0) u.morale=Math.max(0,u.morale-4); B.banner={t:"横山の城兵が討って出た（囲みは薄い）", at:B.elapsed}; } }
+    /* 横山救援：要地（第207巡：作戦に関わらず、浅井が横山を八秒押さえれば囲みが解ける） */ if(B.keyPoints){ const kp=B.keyPoints.find(p=>p.name==="横山城"); if(kp&&kp.owner===1&&!K.yokoRelief){ K.yokoRelief=true; B.bigBanner={t:"横山城の囲み、解かる！", at:B.elapsed, good:mine!==0, big:true}; log("浅井勢が横山城に達し、囲みを解いた（戦略的勝利）","war",true); for(const u of B.units) if(u.aneG==="as"&&u.morale>0) u.morale=Math.min(100,u.morale+12); for(const u of B.units) if(u.aneG==="od"&&u.morale>0) u.morale=Math.max(0,u.morale-8); B.aneLog=(B.aneLog||[]).concat([`${Math.round(B.elapsed)}秒 横山の囲み解かる`]); } }
     /* 川で足を取られる（斥候なし） */ if(K.noScout&&!(K.riverAt>B.elapsed-4)){ K.riverAt=B.elapsed; for(const u of B.units){ if(u.side!==0||u.troops<=.5||u.left) continue; const k=bTileAt(u.x,u.y); if((k===BT.FORD||k===BT.WATER)&&!u.aneWet){ u.aneWet=true; u.morale=Math.max(0,u.morale-4); if(!K.wetCry){ K.wetCry=true; B.banner={t:"思ったより深い――渡る隊が乱れる（斥候を出していれば瀬が分かった）", at:B.elapsed}; } } } } } }
+/* ===== 第207巡：横山城の攻囲（仕様書「横山城攻囲連動」）。城の中に浅井の城兵、まわりに織田の囲みの隊。包囲率＝囲みの兵÷三千。
+   薄ければ城兵が討って出て織田の背後を突く。浅井が優勢なら救援の隊を横山へ回す。囲みの隊は本戦へ引き抜ける（包囲率が下がる）。予備隊は横山にも回せる ===== */
+function aneYokoBuild(K, odLeft, odX){ const P=K.yokoPt; const H=BF.h, Wd=BF.w; const mk=(g,side,aneG,name,troops,x,y,extra)=>{ const u={ id:nextUnitId(), gid:g.id, name, side, aneG, type:0, cmd:false, troops, max:troops, q:48, apt:.8, warF:.9, coh:.9, tr:traitsOf(g), defBonus:1, gunEye:1, horse:1, fatigue:0, x:Math.max(1,Math.min(Wd-1.5,x)), y:Math.max(1.5,Math.min(H-1.5,y)), face:side===0?0:Math.PI, morale:78, order:{k:"guard"}, spUntil:-1, spReady:B.elapsed+8, atkReady:0, runup:0, holdUntil:99999, postHold:true }; Object.assign(u,extra||{}); u.gx=u.x; u.gy=u.y; B.units.push(u); return u; };
+  const pool=nm=>Object.values(W.generals).filter(g=>(g.status==="家臣"||g.status==="大名")&&!B.units.some(u=>u.gid===g.id)&&clanName(g.clan)===nm&&!isChild(g)).sort((a,b)=>(b.lea||0)-(a.lea||0));
+  /* 城兵：浅井の将（野に出ていない者）。城の中では堅い */ const ag=pool("浅井家")[0]; if(ag){ mk(ag,1,"as",`横山城兵 ${ag.name.slice(0,2)}`,1500,P.x,P.y-0.6,{yokoGar:true, yokoIn:true, tough:2.2, morRes:0.7, morale:72}); K.yokoHasGar=true; K.yokoGarN=1500; }
+  /* 囲みの隊：軍議で残した兵のぶん（厚く＝三隊四千二百・最低限＝一隊千五百・全軍＝無し） */ const want = K.yoko==="thick" ? [1400,1400,1400] : K.yoko==="min" ? [1500] : []; const og=pool("織田家"); const spots=[[4.4,-0.4],[3.2,-3.4],[-0.2,-4.6]];
+  const n=Math.min(want.length, og.length); if(want.length&&!n){ K.yokoNoSiegeGens=true; } for(let i=0;i<n;i++){ const t=(i===n-1)?want.slice(i).reduce((a,b)=>a+b,0):want[i]; const [dx,dy]=spots[i]; mk(og[i],0,"od",`横山囲み ${og[i].name.slice(0,2)}`,t,P.x+odX*dx,P.y+dy,{yokoSiege:true, tough:1.15}); }
+  K.yokoSup=60; K.yokoLow=0; K.yokoSortieN=0; K.reliefHot=0; }
+function aneYokoRing(){ const K=B.ane; const P=K.yokoPt; return B.units.filter(u=>u.side===0&&u.troops>.5&&u.morale>0&&!u.left&&Math.hypot(u.x-P.x,u.y-P.y)<=6.5); }
+function aneYokoTick(){ const K=B.ane; if(!K||!K.yokoPt) return; const P=K.yokoPt; const mine=B.ctx.playerSide; const odX=mine===0?1:-1; const gar=B.units.find(u=>u.yokoGar);
+  const alive=!!(gar&&gar.troops>.5); K.yokoGarN=alive?Math.round(gar.troops):0;
+  const ring=aneYokoRing(); const ringT=ring.reduce((a,u)=>a+u.troops,0); K.yokoRingT=Math.round(ringT);
+  const pct = K.yokoRelief ? 0 : (!alive&&K.yokoHasGar) ? 100 : Math.min(100,Math.round(100*ringT/3000)); const prev=K.yokoPct; K.yokoPct=pct; if(K.yokoMinPct===undefined||pct<K.yokoMinPct) K.yokoMinPct=pct;
+  /* 城内の兵糧：固く囲めば減り、薄ければ入る */ K.yokoSup=Math.max(0,Math.min(100,(K.yokoSup||60)+(pct>=80?-0.12:pct<50?0.15:0)));
+  if(prev!==undefined&&prev>=50&&pct<50&&mine===0&&!K.yokoRelief){ B.banner={t:`横山の囲みが薄い（包囲 ${pct}%）――城兵が討って出るぞ`, at:B.elapsed}; }
+  if(alive&&K.yokoHasGar&&gar.troops<=.5){ }
+  if(K.yokoHasGar&&!alive&&!K.yokoGarDead){ K.yokoGarDead=true; B.bigBanner={t:"横山の城兵、尽きる", at:B.elapsed, good:mine===0}; log("横山城の城兵は討ち尽くされた","war",true); }
+  if(!alive) return;
+  if(!gar.yokoOut){ /* 城の中：囲みが固ければ士気が萎え、薄ければ持ち直す */ if(pct>=80) gar.morale=Math.max(25,gar.morale-0.15); else if(pct<30) gar.morale=Math.min(100,gar.morale+0.3); if(gar.morale<=0) gar.morale=25;
+    if(pct<50&&!K.yokoRelief) K.yokoLow=(K.yokoLow||0)+1; else K.yokoLow=Math.max(0,(K.yokoLow||0)-1);
+    const need=K.yokoReady?60:40; if(K.yokoLow>=12&&B.elapsed>25&&gar.morale>need&&!(K.yokoSortieAt>B.elapsed-60)&&!K.yokoRelief&&!(pct>=30&&rnd()>=0.2&&(K.yokoLow=-20,true))){ const foes=B.units.filter(u=>u.side===0&&u.troops>.5&&u.morale>0&&!u.left&&Math.hypot(u.x-P.x,u.y-P.y)<=18).sort((a,b)=>(b.yokoSiege?1:0)-(a.yokoSiege?1:0)||Math.hypot(a.x-P.x,a.y-P.y)-Math.hypot(b.x-P.x,b.y-P.y)); const t=foes[0]; if(t){ K.yokoSortieAt=B.elapsed; K.yokoSortieN=(K.yokoSortieN||0)+1; K.yokoSortie=true; gar.yokoOut=true; gar.yokoIn=false; gar.yokoOutAt=B.elapsed; gar.postHold=false; gar.holdUntil=0; gar.tough=1.4; gar.order={k:"attack",id:t.id}; gar.charge=true; gar.morale=Math.min(100,gar.morale+10); for(const u of B.units) if(u.side===0&&u.morale>0&&!u.left&&Math.hypot(u.x-P.x,u.y-P.y)<=12) u.morale=Math.max(0,u.morale-(K.yokoReady?2:6)); B.bigBanner={t:"横山の城兵、討って出た！", at:B.elapsed, good:mine!==0, big:true}; log(`横山城の城兵が囲みの薄い所から討って出た（包囲 ${pct}%）`,"war",true); B.aneLog=(B.aneLog||[]).concat([`${Math.round(B.elapsed)}秒 横山の城兵出撃`]); try{ playSE("warcry"); }catch(_){ } try{ renderBattleFoot(); }catch(_){ } } } }
+  else { /* 討って出た城兵：三十五秒か、士気が落ちるか、敵が近くにいなければ城へ戻る */ const foeNear=B.units.some(u=>u.side===0&&u.troops>.5&&u.morale>0&&!u.left&&dist(u,gar)<10); const back=B.elapsed-gar.yokoOutAt>35||gar.morale<25||!foeNear; if(back&&!gar.yokoBack){ gar.yokoBack=true; gar.charge=false; gar.pursue=false; gar.order={k:"move",x:P.x,y:P.y-0.6}; gar.gx=P.x; gar.gy=P.y-0.6; if(gar.morale<25) gar.morale=25; }
+    if(gar.yokoBack&&(Math.hypot(gar.x-P.x,gar.y-(P.y-0.6))<1.6||B.elapsed-gar.yokoOutAt>75)){ gar.yokoOut=false; gar.yokoIn=true; gar.yokoBack=false; gar.postHold=true; gar.holdUntil=99999; gar.tough=2.2; gar.order={k:"guard"}; gar.gx=gar.x; gar.gy=gar.y; gar.morale=Math.max(gar.morale,40); K.yokoLow=0; B.banner={t:"横山の城兵、城へ戻る", at:B.elapsed}; } }
+  /* 浅井の救援（機械の浅井）：浅井の戦区が優勢なら、二隊を横山へ回す */ if((mine!==1||B.autoMine)&&!K.reliefDone&&K.plan!=="yoko"&&B.elapsed>40&&!K.yokoRelief){ const s=K.sectors&&K.sectors.as; K.reliefHot = (s&&s.k===0) ? (K.reliefHot||0)+1 : Math.max(0,(K.reliefHot||0)-1); if(K.reliefHot>=25){ K.reliefDone=true; const us=B.units.filter(u=>u.aneG==="as"&&u.side===1&&!u.cmd&&u.troops>.5&&u.morale>40&&!u.left&&!u.reserveHold).sort((a,b)=>Math.hypot(a.x-P.x,a.y-P.y)-Math.hypot(b.x-P.x,b.y-P.y)).slice(0,2); if(us.length){ for(const u of us){ u.aneYoko=true; u.holdUntil=0; u.aneHold=false; u.charge=false; u.pursue=false; u.order={k:"move",x:P.x+odX*1.8,y:P.y-1.0}; u.gx=u.order.x; u.gy=u.order.y; u.thenHold=true; } B.bigBanner={t:"浅井軍、横山城救援へ進軍！", at:B.elapsed, good:mine!==0, big:true}; log(`浅井勢${us.length}隊が戦線を離れ、横山城の救援へ向かった`,"war",true); B.aneLog=(B.aneLog||[]).concat([`${Math.round(B.elapsed)}秒 浅井、横山救援へ`]); K.reliefAt=B.elapsed; } } }
+  /* 救援の警告（織田）と、機械の織田の受け */ { const rel=B.units.filter(u=>u.aneYoko&&u.side===1&&u.troops>.5&&u.morale>0&&!u.left); const close=rel.filter(u=>Math.hypot(u.x-P.x,u.y-P.y)<=14); K.yokoReliefRisk = K.yokoRelief?"済":close.length?"高":rel.length?"中":(K.sectors&&K.sectors.as&&K.sectors.as.k===0)?"中":"低";
+    if(close.length&&!(K.reliefWarnAt>B.elapsed-40)){ K.reliefWarnAt=B.elapsed; if(mine===0) B.bigBanner={t:`浅井勢、横山へ迫る（${close.length}隊）――囲みの隊が危ない`, at:B.elapsed, good:false}; else if(!B.autoMine) B.banner={t:"救援の隊、横山の囲みに迫る", at:B.elapsed};
+      if(mine!==0||B.autoMine){ const res=B.units.filter(u=>u.aneReserve&&u.reserveHold&&u.troops>.5).slice(0,1); if(res.length) aneYokoThicken(res,true); } } } }
+function aneYokoRisk(){ const K=B.ane; const p=K.yokoPct||0; return K.yokoRelief?"済":!K.yokoHasGar||K.yokoGarDead?"無":K.yokoReady?(p<45?"中":"低"):p<45?"高":p<70?"中":"低"; }
+function aneYokoAsk(){ if(!B||!B.ane||B.over!==null||B.ctx.playerSide!==0) return; const K=B.ane; const gar=B.units.find(u=>u.yokoGar&&u.troops>.5); const pct=K.yokoPct===undefined?0:K.yokoPct; const bar="█".repeat(Math.round(pct/10))+"░".repeat(10-Math.round(pct/10)); const res=B.units.filter(u=>u.aneReserve&&u.reserveHold&&u.troops>.5).length; const sg=B.units.filter(u=>u.yokoSiege&&u.postHold&&u.troops>.5).length;
+  const lead=`包囲率 ${bar} ${pct}%${K.yokoRelief?"（囲みは解かれた）":""}<br>城兵 ${gar?Math.round(gar.troops):0}${gar&&gar.yokoOut?"（討って出ている）":""}｜城兵の士気 ${gar?Math.round(gar.morale):0}%｜城内の兵糧 ${Math.round(K.yokoSup||0)}%<br>囲みの兵 ${K.yokoRingT||0}（${sg}隊）｜城兵出撃の危うさ ${aneYokoRisk()}｜救援の危うさ ${K.yokoReliefRisk||"低"}`;
+  koChoice("横山城 攻囲状況",lead,[
+    ["toMain","兵を本戦へ",sg?`囲みの${Math.ceil(sg/2)}隊を中央へ（包囲率は下がる）`:"囲みの隊はない",()=>aneYokoCmd("toMain")],
+    ["thick","包囲を厚くする",res?`予備隊を一隊、横山へ（予備 ${res}隊）`:"予備隊がない",()=>aneYokoCmd("thick")],
+    ["ready","城兵の出撃に備える",K.yokoReady?"備えは済んでいる":"囲みの隊の守り＋・士気+8。城兵は出にくくなる（一度だけ）",()=>aneYokoCmd("ready")],
+    ["keep","包囲を保つ","このまま",()=>{}]]); }
+function aneYokoCmd(k){ if(!B||!B.ane||B.over!==null) return; const K=B.ane; const P=K.yokoPt; const H=BF.h;
+  if(k==="toMain"){ const sg=B.units.filter(u=>u.yokoSiege&&u.postHold&&u.troops>.5&&u.morale>0); if(!sg.length) return toast("囲みの隊はない"); manualCommand(); const us=sg.slice(0,Math.ceil(sg.length/2)); for(const u of us){ u.postHold=false; u.holdUntil=0; u.yokoSiege=false; const t=B.units.filter(x=>x.side===1&&x.troops>.5&&x.morale>0&&!x.left&&!x.yokoGar&&x.aneG==="as").sort((a,b)=>Math.abs(a.y-H*0.35)-Math.abs(b.y-H*0.35))[0]; u.order=t?{k:"attack",id:t.id}:{k:"hold"}; u.charge=true; } B.bigBanner={t:`横山の囲みから${us.length}隊、中央へ`, at:B.elapsed, good:true}; log(`横山の囲みから${us.length}隊を本戦へ回した（包囲は薄くなる）`,"war",true); B.aneLog=(B.aneLog||[]).concat([`${Math.round(B.elapsed)}秒 囲み${us.length}隊を本戦へ`]); }
+  else if(k==="thick"){ const res=B.units.filter(u=>u.aneReserve&&u.reserveHold&&u.troops>.5).slice(0,1); if(!res.length) return toast("横山へ回せる予備隊がない"); manualCommand(); K.resUsed=(K.resUsed||0)+1; aneYokoThicken(res); }
+  else if(k==="ready"){ if(K.yokoReady) return toast("備えは済んでいる"); manualCommand(); K.yokoReady=true; for(const u of B.units) if(u.yokoSiege&&u.troops>.5){ u.tough=(u.tough||1)*1.3; u.morale=Math.min(100,u.morale+8); u.face=Math.atan2(P.y-u.y,P.x-u.x); } B.banner={t:"囲みの隊、城兵の出撃に備える（守り＋）", at:B.elapsed}; log("横山の囲みは城門に向き直り、城兵の出撃に備えた","war",true); }
+  try{ renderBattleFoot(); }catch(_){ } }
+function aneYokoThicken(res, silent){ const K=B.ane; const P=K.yokoPt; const odX=B.ctx.playerSide===0?1:-1; const spots=[[4.4,-0.4],[3.2,-3.4],[-0.2,-4.6],[4.6,-2.4],[1.6,-4.8]]; const taken=B.units.filter(u=>u.yokoSiege&&u.troops>.5);
+  res.forEach((u,i)=>{ let sp=spots.find(s=>!taken.some(t=>Math.hypot(t.x-(P.x+odX*s[0]),t.y-(P.y+s[1]))<1.2))||spots[(taken.length+i)%spots.length]; u.reserveHold=false; u.reserve=false; u.aneReserve=false; u.holdUntil=99999; u.postHold=true; u.yokoSiege=true; u.order={k:"move",x:P.x+odX*sp[0],y:P.y+sp[1]}; u.gx=u.order.x; u.gy=u.order.y; u.thenHold=false; taken.push({x:u.order.x,y:u.order.y}); });
+  if(!silent){ B.bigBanner={t:`予備隊${res.length}隊、横山の囲みへ`, at:B.elapsed, good:true}; log(`予備隊${res.length}隊を横山の囲みへ回した`,"war",true); B.aneLog=(B.aneLog||[]).concat([`${Math.round(B.elapsed)}秒 予備を横山へ`]); } try{ renderBattleFoot(); }catch(_){ } }
 function aneAfter(atkWon){ const K=W.aneResult||{}; const od=clanByName("織田家"), tk=clanByName("徳川家"), as=clanByName("浅井家"), ak=clanByName("朝倉家");
-  if(K.losses) log(`【姉川 戦後】織田 損害 ${K.losses.od}％｜徳川 ${K.losses.tk}％｜浅井 ${K.losses.as}％｜朝倉 ${K.losses.ak}％｜討ち尽くされた隊 ${K.slain.length?K.slain.slice(0,6).join("・")+(K.slain.length>6?" ほか":""):"なし"}｜横山 ${K.yokoRelief?"救援された":"囲み続く"}${K.asaiGrade?"｜浅井の評価 "+K.asaiGrade:""}`,"war",true);
+  if(K.losses) log(`【姉川 戦後】織田 損害 ${K.losses.od}％｜徳川 ${K.losses.tk}％｜浅井 ${K.losses.as}％｜朝倉 ${K.losses.ak}％｜討ち尽くされた隊 ${K.slain.length?K.slain.slice(0,6).join("・")+(K.slain.length>6?" ほか":""):"なし"}｜横山 ${K.yokoRelief?"救援された":"囲み続く"+(K.yokoPct!==undefined?"（包囲 "+K.yokoPct+"％）":"")}${K.asaiGrade?"｜浅井の評価 "+K.asaiGrade:""}${K.odaGrade?"｜織田の評価 "+K.odaGrade:""}`,"war",true);
   if(typeof chronicle==="function") chronicle("姉川の戦い");
   if(atkWon&&as&&!as.dead){ for(const g of Object.values(W.generals)) if(g.clan===as.id&&g.status==="家臣") g.loyalty=Math.max(10,g.loyalty-6); if(ak&&!ak.dead) for(const g of Object.values(W.generals)) if(g.clan===ak.id&&g.status==="家臣") g.loyalty=Math.max(10,g.loyalty-3); if(od&&tk&&!od.dead&&!tk.dead) addRel(tk.id,od.id,5); }
   if(atkWon&&od&&od.id===W.player&&as&&!as.dead){ setTimeout(()=>koChoice("姉川の後、どう動く","浅井は小谷へ、朝倉は越前へ退いた。兵は疲れている。全部はできない。",[
@@ -17684,22 +17755,25 @@ function siegeSetup(c,e){
 /* ===== 第185巡：籠城戦の仕組み（仕様書「籠城戦システム」）。城でも砦でも同じ：少数でも城郭・門・櫓・高所・鉄砲・時間で大軍と戦える。
    ①守り手が兵で劣れば「持ちこたえ」の勝ち（時間）②城壁の上の隊は守り＋・鉄砲は射程と腕＋ ③門の前は一度に少ししか取り付けない ④予備隊 ⑤機械の寄せ手は波状 ⑥最後の三十秒は総攻撃 ⑦守り切りの評価 ===== */
 /* ===== 第190巡：主砦（野戦の前線拠点）。木柵の面・角の櫓・門・内側の土塁・逆茂木・盾板・幕舎・松明。中の隊は守りが固い（四隊まで）。門と柵が破れれば陥落 ===== */
-function fortMainBuild(line, dir){ const H=BF.h, Wd=BF.w; const w=7, h=7; const cx=line-dir*1.2, cy=H/2; const x0=cx-w/2, x1=cx+w/2, y0=cy-h/2, y1=cy+h/2;
-  const F={cx,cy,x0,x1,y0,y1,dir,w,h,cap:4,hp0:0,fallen:false,weak:false,decor:[]}; B.fortMain=F; B.fortKit=true; B.fortTowers=B.fortTowers||[];
-  const post=(x,y,extra)=>{ B.obstacles.push(Object.assign({kind:1, variant:Math.floor(y+x)%3, x, y, r:0.85, wall:true, fort:true, fence:true, side:1, hp:150, hpMax:150, mainFort:true}, extra||{})); };
+/* 第208巡：砦の骨組み（木柵の面・門・角の櫓・土塁・逆茂木・幕舎・松明・旗）を、どの砦でも同じ手で組む。side＝守る側。opts.w/h 大きさ、opts.name 札、opts.tag 柵に付ける印、opts.noSide 小柵なし */
+function fortShellBuild(cx, cy, dir, side, opts){ const H=BF.h, Wd=BF.w; opts=opts||{}; const w=opts.w||7, h=opts.h||7; const x0=cx-w/2, x1=cx+w/2, y0=cy-h/2, y1=cy+h/2; const hpk=opts.hpMul||1;
+  const F={cx,cy,x0,x1,y0,y1,dir,w,h,cap:opts.cap||4,hp0:0,fallen:false,weak:false,decor:[],side,name:opts.name||"主砦"}; B.fortTowers=B.fortTowers||[];
+  const tag=opts.tag||{}; const post=(x,y,extra)=>{ B.obstacles.push(Object.assign({kind:1, variant:Math.floor(y+x)%3, x, y, r:0.85, wall:true, fort:true, fence:true, side, hp:Math.round(150*hpk), hpMax:Math.round(150*hpk), mainFort:!opts.tagOnly}, tag, extra||{})); };
   const gx=cx+dir*w/2; /* 門は敵の側の真ん中 */
   for(let y=y0;y<=y1+0.01;y+=1.4){ post(x0,y); if(Math.abs(y-cy)>1.5) post(x1,y); }
   for(let x=x0+1.4;x<x1-0.01;x+=1.4){ post(x,y0); post(x,y1); }
-  B.obstacles.push({kind:1, variant:1, x:gx, y:cy, r:0.85, wall:true, fort:true, fence:true, side:1, hp:260, hpMax:260, mainFort:true, mainGate:true}); F.gate=B.obstacles[B.obstacles.length-1];
-  for(const o of B.obstacles) if(o.mainFort) F.hp0+=o.hpMax;
-  /* 小柵：砦の脇に短い柵が二本（砦を支える前線設備） */ for(const sy of [y0-3.2,y1+3.2]) for(let k=0;k<3;k++) B.obstacles.push({kind:1, variant:k%3, x:gx-dir*0.8+dir*k*0, y:sy+(k-1)*1.3, r:0.85, wall:true, fort:true, fence:true, side:1, hp:90, hpMax:90});
-  B.fortTowers.push({x:cx+dir*(w/2-1.0), y:y0+1.0, alive:true},{x:cx+dir*(w/2-1.0), y:y1-1.0, alive:true});
+  B.obstacles.push(Object.assign({kind:1, variant:1, x:gx, y:cy, r:0.85, wall:true, fort:true, fence:true, side, hp:Math.round(260*hpk), hpMax:Math.round(260*hpk), mainFort:!opts.tagOnly, mainGate:!opts.tagOnly, shellGate:true}, tag)); F.gate=B.obstacles[B.obstacles.length-1];
+  for(const o of B.obstacles) if(o.fort&&(opts.tagOnly?Object.keys(tag).every(k=>o[k]===tag[k]):o.mainFort)&&Math.abs(o.x-cx)<=w/2+0.1&&Math.abs(o.y-cy)<=h/2+0.1) F.hp0+=o.hpMax;
+  /* 小柵：砦の脇に短い柵が二本（砦を支える前線設備） */ if(!opts.noSide) for(const sy of [y0-3.2,y1+3.2]) for(let k=0;k<3;k++) B.obstacles.push(Object.assign({kind:1, variant:k%3, x:gx-dir*0.8, y:sy+(k-1)*1.3, r:0.85, wall:true, fort:true, fence:true, side, hp:90, hpMax:90}, tag));
+  F.towers=[{x:cx+dir*(w/2-1.0), y:y0+1.0, alive:true},{x:cx+dir*(w/2-1.0), y:y1-1.0, alive:true}]; B.fortTowers.push(...F.towers);
   if(B.tiles){ for(let r=Math.floor(y0);r<=Math.ceil(y1);r++) for(let c=Math.floor(x0);c<=Math.ceil(x1);c++){ if(r<0||c<0||r>=H||c>=Wd) continue; const edge=(r<=Math.floor(y0)+0||r>=Math.ceil(y1)-0||c<=Math.floor(x0)||c>=Math.ceil(x1)); B.tiles[r][c]=edge?BT.EARTH:BT.DIRT; }
     for(let r=Math.floor(y0)-1;r<=Math.ceil(y1)+1;r++){ for(const k of [2.2,3.4]){ const c=Math.round(gx+dir*k); if(r<0||r>=H||c<0||c>=Wd) continue; if(Math.abs(r-cy)<=1.2) continue; if((r+Math.round(k))%2===0&&B.tiles[r][c]===BT.GRASS) B.tiles[r][c]=BT.SAKAMOGI; } } B.bg=null; }
-  /* 飾り：幕舎・兵糧箱・松明・指揮台・盾板（砦の内） */ const R=artRng((B.seed||3)+190);
+  /* 飾り：幕舎・兵糧箱・松明・指揮台・盾板（砦の内） */ const R=artRng((B.seed||3)+190+Math.round(cx));
   F.decor.push({k:"hut",x:cx-dir*1.6,y:y0+1.6},{k:"hut",x:cx-dir*1.8,y:y1-1.6},{k:"box",x:cx-dir*0.4,y:cy-1.6},{k:"box",x:cx-dir*0.2,y:cy+1.7},{k:"torch",x:cx+dir*1.6,y:y0+0.9},{k:"torch",x:cx+dir*1.6,y:y1-0.9},{k:"dais",x:cx-dir*1.0,y:cy},{k:"shield",x:cx+dir*(w/2-0.6),y:cy-2.6},{k:"shield",x:cx+dir*(w/2-0.6),y:cy+2.6});
   for(let i=0;i<5;i++) F.decor.push({k:"flag",x:x0+0.6+R()*(w-1.2),y:y0+0.5+R()*(h-1),ph:R()*6});
-  B.fieldLabels=(B.fieldLabels||[]).concat([{x:cx,y:y0-1.6,t:"主砦"}]);
+  B.fieldLabels=(B.fieldLabels||[]).concat([{x:cx,y:y0-1.6,t:F.name}]); B._fenceVer=(B._fenceVer||0)+1; return F; }
+function fortMainBuild(line, dir){ const H=BF.h, Wd=BF.w; const w=7, h=7; const cx=line-dir*1.2, cy=H/2;
+  const F=fortShellBuild(cx, cy, dir, 1, {w,h,cap:4,name:"主砦"}); B.fortMain=F; B.fortKit=true; const x0=F.x0, x1=F.x1, y0=F.y0, y1=F.y1, gx=cx+dir*w/2;
   /* 守り手の配置：砦内 四割（鉄砲と槍）・前衛 二割五分（砦の前、川岸）・予備 二割（砦の後ろ）・機動 一割五分（騎馬、脇） */
   const def=B.units.filter(u=>u.side===1&&u.troops>.5&&!u.sigHidden); const cmd=def.find(u=>u.cmd); const rest=def.filter(u=>!u.cmd); const guns=rest.filter(u=>u.type===3), cav=rest.filter(u=>u.type===2), inf=rest.filter(u=>u.type===0||u.type===1);
   const put=(u,x,y,ord)=>{ u.x=Math.max(1,Math.min(Wd-1.5,x)); u.y=Math.max(1.5,Math.min(H-1.5,y)); u.gx=u.x; u.gy=u.y; u.cell=null; u.nextCell=null; u.stageX=undefined; u.stageY=undefined; u.order=ord||{k:"guard"}; };
@@ -17738,7 +17812,7 @@ function fortSortie(){ if(!B||!B.fortMain||B.over!==null||B.ctx.playerSide!==1) 
 function fortBack(){ if(!B||!B.fortMain||B.over!==null||B.ctx.playerSide!==1) return; const F=B.fortMain; const us=(B.group&&B.group.length?B.group:(B.sel!==null?[B.sel]:[])).map(id=>B.units.find(x=>x.id===id&&x.side===1&&x.troops>.5)).filter(Boolean); if(!us.length) return toast("戻す隊を選んでください"); manualCommand(); us.forEach((u,i)=>{ u.sortieUntil=0; u.charge=false; u.pursue=false; u.order={k:"move",x:F.cx-F.dir*0.6,y:F.cy+((i%3)-1)*1.5}; u.gx=u.order.x; u.gy=u.order.y; }); B.banner={t:`${us.length}隊、砦へ戻って再編`, at:B.elapsed}; B.sel=null; B.group=null; try{ renderBattleFoot(); }catch(_){ } }
 /* 第194巡：〈全軍出撃〉――敵の士気が五割を切るか残り六十秒なら。士気+15・足+15%（三十秒）。砦は空になる */
 function fortAllOut(){ if(!B||!B.fortMain||B.over!==null||B.ctx.playerSide!==1) return; const F=B.fortMain; if(!F.allOutOk) return toast("まだ頃合いではない（敵の士気が五割を切るか、残り六十秒）"); if(F.allOut) return; manualCommand(); F.allOut=true; F.allOutUntil=B.elapsed+30; const foes=B.units.filter(f=>f.side===0&&f.troops>.5&&f.morale>0&&!f.left); for(const u of B.units){ if(u.side!==1||u.troops<=.5||u.morale<=0||u.cmd) continue; u.reserveHold=false; u.holdUntil=0; u.sortieUntil=0; u.morale=Math.min(100,u.morale+15); u.spdMul=(u.spdMul||1)*1.15; u.allOutSpd=true; u.charge=true; const t=foes.slice().sort((a,b)=>dist(u,a)-dist(u,b))[0]; if(t) u.order={k:"attack",id:t.id}; } B.bigBanner={t:"全軍出撃！", at:B.elapsed, good:true, big:true}; const c=B.units.find(u=>u.side===1&&u.cmd); if(c) bshout(c.id,"砦を出よ！ 一気に押し潰せ！",3); try{ playSE("warcry"); }catch(_){ } log("砦の全軍が討って出た","war",true); try{ renderBattleFoot(); }catch(_){ } }
-function drawFortMain(sx,sy){ const F=B.fortMain; if(!F) return; const dir=F.dir; const kc=(()=>{ const u=B.units.find(z=>z.side===1&&z.cmd&&z.gid&&W.generals[z.gid])||B.units.find(z=>z.side===1&&z.gid&&W.generals[z.gid]); return u&&W.clans[W.generals[u.gid].clan]; })(); const ac=(()=>{ const u=B.units.find(z=>z.side===0&&z.cmd&&z.gid&&W.generals[z.gid]); return u&&W.clans[W.generals[u.gid].clan]; })();
+function drawFortMain(sx,sy,F0){ const F=F0||B.fortMain; if(!F) return; const dir=F.dir; const sd=F.side===undefined?1:F.side; const kc=(()=>{ const u=B.units.find(z=>z.side===sd&&z.cmd&&z.gid&&W.generals[z.gid])||B.units.find(z=>z.side===sd&&z.gid&&W.generals[z.gid]); return u&&W.clans[W.generals[u.gid].clan]; })();
   bctx.save();
   for(const d of F.decor){ const x=d.x*sx, y=d.y*sy;
     if(d.k==="hut"){ bctx.fillStyle="rgba(0,0,0,.2)"; bctx.beginPath(); bctx.ellipse(x+sx*.1,y+sy*.45,sx*.9,sy*.3,0,0,7); bctx.fill(); bctx.fillStyle="#EDE6D6"; bctx.fillRect(x-sx*.7,y-sy*.3,sx*1.4,sy*.7); bctx.fillStyle=kc?clanColor(kc.id):"#5A3E26"; bctx.fillRect(x-sx*.7,y-sy*.3,sx*1.4,sy*.14); bctx.fillStyle="#3A2A18"; bctx.fillRect(x-sx*.75,y-sy*.6,2,sy*1.0); bctx.fillRect(x+sx*.73,y-sy*.6,2,sy*1.0); }
@@ -17748,7 +17822,7 @@ function drawFortMain(sx,sy){ const F=B.fortMain; if(!F) return; const dir=F.dir
     else if(d.k==="shield"){ bctx.fillStyle="#8B6A3E"; bctx.fillRect(x-3,y-sy*.6,6,sy*1.2); bctx.fillStyle="#3A2A18"; bctx.fillRect(x-3,y-sy*.6,6,2); bctx.fillRect(x-3,y+sy*.55,6,2); }
     else if(d.k==="flag"){ const wv=Math.sin(B.elapsed*3+d.ph)*2; bctx.fillStyle="#3A2A18"; bctx.fillRect(x-1,y-sy*1.6,2,sy*1.6); bctx.fillStyle=kc?clanColor(kc.id):"#B8382A"; bctx.beginPath(); bctx.moveTo(x+1,y-sy*1.6); bctx.lineTo(x+1+sx*.45,y-sy*1.6+wv); bctx.lineTo(x+1+sx*.45,y-sy*1.05+wv*.6); bctx.lineTo(x+1,y-sy*1.05); bctx.closePath(); bctx.fill(); } }
   /* 大旗：陥落すれば倒れる */ { const x=F.cx*sx, y=(F.y0+0.6)*sy; if(F.fallen){ bctx.save(); bctx.translate(x,y); bctx.rotate(dir*1.2); bctx.fillStyle="#3A2A18"; bctx.fillRect(-1,-sy*2.4,2,sy*2.4); bctx.fillStyle="rgba(120,60,50,.8)"; bctx.fillRect(1,-sy*2.4,sx*.9,sy*.7); bctx.restore(); } else { const wv=Math.sin(B.elapsed*2.5)*3; bctx.fillStyle="#3A2A18"; bctx.fillRect(x-1.5,y-sy*3.2,3,sy*3.2); const K=kc; bctx.fillStyle=K?clanColor(K.id):"#B8382A"; bctx.beginPath(); bctx.moveTo(x+1,y-sy*3.2); bctx.lineTo(x+1+sx*1.0,y-sy*3.2+wv); bctx.lineTo(x+1+sx*1.0,y-sy*2.3+wv*.6); bctx.lineTo(x+1,y-sy*2.3); bctx.closePath(); bctx.fill(); if(K) drawMon(bctx,K,x+1+sx*.5,y-sy*2.75+wv*.4,sx*.3,"#fff",null); } }
-  /* 札：耐久と駐留 */ { const ins=B.units.filter(u=>u.side===1&&u.troops>.5&&fortMainInside(F,u)).length; const dur=F.dur===undefined?1:F.dur; const t=F.fallen?"主砦 陥落":`主砦 耐久${Math.round(dur*100)}%　駐留 ${Math.min(ins,F.cap)}/${F.cap}`; bctx.font='800 10px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center"; const tw=bctx.measureText(t).width+12; const x=F.cx*sx, y=(F.y1+0.9)*sy; bctx.fillStyle="rgba(10,8,6,.8)"; bctx.fillRect(x-tw/2,y,tw,15); bctx.fillStyle=F.fallen?"#FF9A55":dur<0.3?"#FF6A5A":dur<0.6?"#FFD166":"#EDE6D6"; bctx.fillText(t,x,y+11); if(!F.fallen){ bctx.fillStyle="rgba(0,0,0,.6)"; bctx.fillRect(x-tw/2,y+16,tw,3); bctx.fillStyle=dur<0.3?"#FF5A44":dur<0.6?"#FFB040":"#7ED67E"; bctx.fillRect(x-tw/2,y+16,tw*dur,3); } }
+  /* 札：耐久と駐留 */ { const ins=B.units.filter(u=>u.side===sd&&u.troops>.5&&fortMainInside(F,u)).length; const dur=F.dur===undefined?1:F.dur; const nm=F.name||"主砦"; const t=F.fallen?`${nm} 陥落`:F.noLabel?"":`${nm} 耐久${Math.round(dur*100)}%　駐留 ${Math.min(ins,F.cap)}/${F.cap}`; if(!t){ bctx.restore(); return; } bctx.font='800 10px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center"; const tw=bctx.measureText(t).width+12; const x=F.cx*sx, y=(F.y1+0.9)*sy; bctx.fillStyle="rgba(10,8,6,.8)"; bctx.fillRect(x-tw/2,y,tw,15); bctx.fillStyle=F.fallen?"#FF9A55":dur<0.3?"#FF6A5A":dur<0.6?"#FFD166":"#EDE6D6"; bctx.fillText(t,x,y+11); if(!F.fallen){ bctx.fillStyle="rgba(0,0,0,.6)"; bctx.fillRect(x-tw/2,y+16,tw,3); bctx.fillStyle=dur<0.3?"#FF5A44":dur<0.6?"#FFB040":"#7ED67E"; bctx.fillRect(x-tw/2,y+16,tw*dur,3); } }
   bctx.restore(); }
 function fieldArrange(sideX){ const H=BF.h;
   for(const side of [0,1]){ const left=sideX(side)==="left"; const dir=left?1:-1; const us=B.units.filter(u=>u.side===side&&u.troops>.5&&!u.sigHidden); if(us.length<3) continue;
@@ -17774,6 +17848,8 @@ function siegeKitSetup(c,e){ if(!B) return; const dec=B.ctx.decisive?DECISIVE.fi
   if(B.ctx.playerSide===1&&B.gate){ const cands=def.filter(u=>!u.cmd&&u.type!==3).sort((a,b)=>Math.hypot(b.x-B.gate.x,b.y-B.gate.y)-Math.hypot(a.x-B.gate.x,a.y-B.gate.y)); const n=Math.min(3,Math.floor(cands.length/3)); cands.slice(0,n).forEach(u=>{ u.reserveHold=true; u.reserve=true; u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; }); }
   /* 波状攻撃：機械の大軍は一度に来ない（第一陣四割五分→四十五秒で第二陣→九十秒で第三陣。前の陣が崩れれば早まる） */
   if(B.ctx.playerSide===1 && atk.filter(u=>!u.cmd).length>=4 && atkT>defT*2 && !B.waves){ const gx=B.gate?B.gate.x:BF.w/2; const us=atk.filter(u=>!u.cmd).sort((a,b)=>Math.abs(a.x-gx)-Math.abs(b.x-gx)); const n1=Math.ceil(us.length*0.45), n2=Math.ceil(us.length*0.3); const w=[{ids:us.slice(0,n1).map(u=>u.id),at:0,done:true},{ids:us.slice(n1,n1+n2).map(u=>u.id),at:45,done:false},{ids:us.slice(n1+n2).map(u=>u.id),at:90,done:false}]; K.waves=w; const back=defLeft?1:-1; w.slice(1).forEach((wv,i)=>{ for(const id of wv.ids){ const u=B.units.find(x=>x.id===id); if(!u) continue; u.waiting=true; u.holdUntil=99999; u.order={k:"guard"}; u.x=Math.max(1.5,Math.min(BF.w-1.5,u.x+back*(4+i*4))); u.gx=u.x; u.gy=u.y; u.cell=null; u.nextCell=null; } }); }
+  /* 第207巡：城の守り手には鉄砲を多めに（作り手：城を守る側に鉄砲兵をもう少し）。鉄砲が三分の一に満たなければ、小さな足軽隊から二隊まで持ち替える */
+  if(B.gate&&!B.gf&&!B.kz&&!B.sm&&!B.ueda&&!B.fortKit&&!B.fsm){ const nc=def.filter(u=>!u.cmd); let need=Math.min(2, Math.ceil(nc.length/3)-nc.filter(u=>u.type===3).length); for(const u of nc.filter(u=>u.type===0&&!u.reserveHold).sort((a,b)=>a.troops-b.troops)){ if(need<=0) break; u.type=3; if(u.ammo===undefined) u.ammo=30; u.sgGunned=true; need--; } }
   /* 守り手の持ち場：鉄砲は城壁の上（門の線のすぐ内側）に並び、足軽・侍は門の内で受ける。本陣と予備は奥 */
   if(B.gate&&!B.gf&&!B.kz&&!B.sm&&!B.ueda){ const line=B.gate.x, dir=defLeft?1:-1; const H=BF.h; const guns=def.filter(u=>u.type===3&&!u.cmd), oth=def.filter(u=>u.type!==3&&!u.cmd&&!u.reserveHold);
     guns.forEach((u,i)=>{ const k=i%2?1:-1; const row=Math.floor(i/2); u.x=line-dir*(1.6+row*0.9); u.y=Math.max(1.5,Math.min(H-1.5,H/2+k*(4.2+row*2.2))); u.gx=u.x; u.gy=u.y; u.cell=null; u.nextCell=null; u.order={k:"guard"}; });
@@ -17842,8 +17918,11 @@ function siegeKitTick(dt){ const K=B.sg; if(!K||B.over!==null||B.opening>0) retu
   /* 第189巡：城の反撃――門上の弓・塀上の鉄砲・石落とし（作り手：城攻めで寄せ手が無傷なのは変。矢倉から撃ってくるべき、損害は大きく）。門の線から五升以内の寄せ手は削られる。城の格（lv）と門が生きているかで強さが変わる。すべての城攻めに */
   if(B.gate&&!(K.fireAt>B.elapsed-1.5)){ K.fireAt=B.elapsed; const lv=(B.siegeCastleLv||300); const gateUp=!B.gate.open&&B.gate.hp>0; const power=(gateUp?1:0.45)*(0.6+lv/500); const defLeft=siegeDefLeft(); let hit=0; const near=[];
     for(const u of B.units){ if(u.side!==0||u.troops<=.5||u.morale<=0||u.left) continue; const dx=defLeft?(u.x-B.gate.x):(B.gate.x-u.x); if(dx<-1||dx>5.5||Math.abs(u.y-B.gate.y)>9) continue; near.push(u); const k=Math.max(0.35,1-dx/6); const loss=Math.min(u.troops, u.troops*0.0075*power*k+6*power); u.troops-=loss; u.morale=Math.max(0,u.morale-0.9*power*k); hit+=loss; u.hitAt=B.elapsed; u.flash=Math.max(u.flash||0,0.12);
-      /* 矢と鉄砲の絵：門と両脇の塀から */ if(rnd()<0.6){ const sx0=B.gate.x+(defLeft?-0.6:0.6), sy0=B.gate.y+(rnd()<0.5?-1:1)*(1+rnd()*5); const gun=rnd()<0.35; B.shots.push({x:sx0,y:sy0,x0:sx0,y0:sy0,tx:u.x+(rnd()-.5)*1.2,ty:u.y+(rnd()-.5)*1.2,t:0,life:gun?0.22:0.42,side:1,miss:false,big:gun,arrow:!gun}); if(gun){ B.puffs.push({x:sx0,y:sy0,t:0,life:1.2,r:1.2,big:true}); } } }
-    if(hit>0){ K.fireTot=(K.fireTot||0)+hit; if(!K.fireCry){ K.fireCry=true; B.bigBanner={t:gateUp?"門上より矢の雨！ 塀の鉄砲が撃ちかける":"城内より応射", at:B.elapsed, good:B.ctx.playerSide===1}; try{ playSE("gun"); }catch(_){ } } if(near.length&&rnd()<0.12&&gateUp){ const u=near.sort((a,b)=>Math.abs(a.x-B.gate.x)-Math.abs(b.x-B.gate.x))[0]; if(u&&Math.abs(u.x-B.gate.x)<2.6&&Math.abs(u.y-B.gate.y)<3){ const d=Math.min(u.troops,60+u.troops*0.02); u.troops-=d; u.morale=Math.max(0,u.morale-4); B.shakeT=Math.max(B.shakeT||0,0.25); B.chips=B.chips||[]; for(let k=0;k<8;k++) B.chips.push({x:u.x+(rnd()-.5)*1.5,y:u.y-0.5,vx:(rnd()-.5)*4,vy:-2-rnd()*3,t:0,life:0.8}); if(!(K.stoneAt>B.elapsed-12)){ K.stoneAt=B.elapsed; B.banner={t:"城兵、門上より石を落とす！", at:B.elapsed}; } } } } }
+      /* 矢と鉄砲の絵：門と両脇の塀から。第207巡：櫓があれば櫓の上からも（作り手：矢倉から目に見えて撃ってほしい） */ if(rnd()<0.75){ const tw=(B.fortTowers||[]).filter(t=>t.alive&&Math.hypot(t.x-u.x,t.y-u.y)<7); const fromT=tw.length&&rnd()<0.5?tw[Math.floor(rnd()*tw.length)]:null; const sx0=fromT?fromT.x:B.gate.x+(defLeft?-0.6:0.6), sy0=fromT?fromT.y-1.8:B.gate.y+(rnd()<0.5?-1:1)*(1+rnd()*5); const gun=rnd()<(fromT?0.5:0.35); B.shots.push({x:sx0,y:sy0,x0:sx0,y0:sy0,tx:u.x+(rnd()-.5)*1.2,ty:u.y+(rnd()-.5)*1.2,t:0,life:gun?0.22:0.42,side:1,miss:false,big:gun,arrow:!gun}); if(gun){ B.puffs.push({x:sx0,y:sy0,t:0,life:1.2,r:1.2,big:true}); } } }
+    if(hit>0){ K.fireTot=(K.fireTot||0)+hit; if(!K.fireCry){ K.fireCry=true; B.bigBanner={t:gateUp?"門上より矢の雨！ 塀の鉄砲が撃ちかける":"城内より応射", at:B.elapsed, good:B.ctx.playerSide===1}; try{ playSE("gun"); }catch(_){ } } if(near.length&&rnd()<0.18&&gateUp){ const u=near.sort((a,b)=>Math.abs(a.x-B.gate.x)-Math.abs(b.x-B.gate.x))[0]; if(u&&Math.abs(u.x-B.gate.x)<2.6&&Math.abs(u.y-B.gate.y)<3){ const d=Math.min(u.troops,60+u.troops*0.02); u.troops-=d; u.morale=Math.max(0,u.morale-4); B.shakeT=Math.max(B.shakeT||0,0.25); B.chips=B.chips||[]; for(let k=0;k<8;k++) B.chips.push({x:u.x+(rnd()-.5)*1.5,y:u.y-0.5,vx:(rnd()-.5)*4,vy:-2-rnd()*3,t:0,life:0.8});
+        /* 第207巡：石が転がってくる絵（門の上から落ち、寄せ手の方へ転がる） */ B.stones=B.stones||[]; const dir=defLeft?1:-1; for(let k=0;k<2;k++) B.stones.push({x0:B.gate.x-dir*0.3+(rnd()-.5)*0.8, y0:B.gate.y+(k?1:-1)*(0.6+rnd()*1.2), tx:u.x+(rnd()-.5)*1.0, ty:u.y+(rnd()-.5)*1.0, dir, t:0, life:0.7+rnd()*0.3, roll:1.2+rnd()*1.2, r:0.22+rnd()*0.14});
+        if(!(K.stoneAt>B.elapsed-12)){ K.stoneAt=B.elapsed; B.banner={t:"城兵、門上より石を落とす！", at:B.elapsed}; } } }
+      /* 第207巡：櫓のそばに取り付いた寄せ手には櫓からも石が落ちる */ if(B.fortTowers&&gateUp&&rnd()<0.1){ for(const t of B.fortTowers){ if(!t.alive) continue; const v=near.find(u=>Math.hypot(u.x-t.x,u.y-t.y)<2.4); if(!v) continue; const d=Math.min(v.troops,40+v.troops*0.012); v.troops-=d; v.morale=Math.max(0,v.morale-3); B.stones=B.stones||[]; B.stones.push({x0:t.x, y0:t.y-1.5, tx:v.x+(rnd()-.5)*0.8, ty:v.y+(rnd()-.5)*0.8, dir:defLeft?1:-1, t:0, life:0.7, roll:1.0+rnd(), r:0.2+rnd()*0.12}); break; } } } }
   /* 門の修復：直す隊が門のそばにいて、敵が門前にいなければ毎秒８ */
   if(B.gate&&B.gate.repair){ const R=B.gate.repair; const u=B.units.find(x=>x.id===R.uid&&x.troops>.5&&x.morale>0); const foeNear=B.units.some(f=>f.side===0&&f.troops>.5&&f.morale>0&&Math.abs(f.x-B.gate.x)<3&&Math.abs(f.y-B.gate.y)<3.5); if(!u||B.elapsed>R.until||B.gate.open){ B.gate.repair=null; if(u){ u.noAttackUntil=0; } try{ renderBattleFoot(); }catch(_){ } } else if(!foeNear&&Math.abs(u.x-B.gate.x)<4&&Math.abs(u.y-B.gate.y)<4){ B.gate.hp=Math.min(B.gate.hpMax,B.gate.hp+8*dt); } }
   /* 寄せ手の疲れ：城攻めは長引くほど士気が減る（守れば守るほど有利） */
@@ -19577,11 +19656,12 @@ function showEpilogue(title, lead){
 /* 第151巡：札を直に開く出来事（今川の落日・安土の茶会・御馬揃え・越前一向一揆・秀吉の死・上田城）は、別の札が開いている日には起こさず翌日に回す（二枚重なりの防止） */
 /* 第151巡：札の手は三つまで前に出し、残りは「ほかの手 ▸」に畳む（軍議以外の札にも同じ決まり。上田城の縄張り・越前一向一揆・浜松の評定・外堀の埋め立てが四つ以上並んでいた） */
 function foldChoiceGrid(el){ const grid=[...el.querySelectorAll(".grid")].find(g=>[...g.children].filter(b=>b.matches("button.cmd[data-k]")).length>3); if(!grid) return; const bs=[...grid.children].filter(b=>b.matches("button.cmd[data-k]")); if(bs.length<=3) return; const more=bs.slice(3); const box=document.createElement("div"); box.className="grid g2"; box.hidden=true; box.style.marginTop="4px"; for(const b of more) box.appendChild(b); const chip=document.createElement("button"); chip.className="chip"; chip.style.cssText="cursor:pointer;margin-top:6px"; chip.textContent=`ほかの手 ${more.length} ▸`; chip.onclick=()=>{ box.hidden=!box.hidden; chip.textContent=box.hidden?`ほかの手 ${more.length} ▸`:"畳む ▾"; }; grid.after(chip); chip.after(box); }
-function koChoice(title, lead, opts, _retry, _gen){
-  if(!W.started) return;   /* 第151巡：世が始まっていない（筋書きを切り替えた直後の遅れた札）なら出さない */
+function koChoice(title, lead, opts, _retry, _gen, _bat){
+  if(!W.started) return;
+  /* 第207巡：合戦の中で出した札は、その合戦が終わっていれば出さない（予備隊投入の札が合戦の後に出ていた。作り手の指摘） */ if(_retry===undefined) _bat=(typeof B!=="undefined"&&B&&B.over===null)?B:null; else if(_bat&&(typeof B==="undefined"||B!==_bat||B.over!==null)) return;   /* 第151巡：世が始まっていない（筋書きを切り替えた直後の遅れた札）なら出さない */
   if(_gen!==undefined&&_gen!==WORLD_GEN) return;   /* 待っている間に世が作り直されていたら、前の世の札は出さない */
   /* 第151巡：別の札（軍議・評定・茶会）が開いている間は重ねず、閉じてから出す（高遠の囲みと防衛線の軍議が二枚重なっていた） */
-  if(overlayEl&&overlayEl.isConnected&&overlayEl!==document.querySelector("#stage .overlay.guide")&&(_retry||0)<120){ const gen0=WORLD_GEN; setTimeout(()=>koChoice(title,lead,opts,(_retry||0)+1,gen0),500); return; }
+  if(overlayEl&&overlayEl.isConnected&&overlayEl!==document.querySelector("#stage .overlay.guide")&&(_retry||0)<120){ const gen0=WORLD_GEN; setTimeout(()=>koChoice(title,lead,opts,(_retry||0)+1,gen0,_bat),500); return; }
   /* 第144巡：選択肢は三つまで前に出し、残りは「ほかの手 ▸」に畳む（作り手：選択肢が多すぎる） */
   const main=opts.slice(0,3), more=opts.slice(3);
   const el=document.createElement("div"); el.className="overlay"; el.innerHTML=`<div class="dialog" style="max-width:560px"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">軍 議</div><h3>${title}</h3><div class="advice">${lead}</div><div class="grid g2">${main.map(o=>`<button class="cmd" data-k="${o[0]}">${o[1]}<span class="cost">${o[2]}</span></button>`).join("")}</div>${more.length?`<button class="chip" id="koMore" style="cursor:pointer;margin-top:6px">ほかの手 ${more.length} ▸</button><div class="grid g2" id="koMoreBox" hidden style="margin-top:4px">${more.map(o=>`<button class="cmd" data-k="${o[0]}">${o[1]}<span class="cost">${o[2]}</span></button>`).join("")}</div>`:""}</div>`;
@@ -19880,6 +19960,23 @@ function stageNagashino(){
 }
 /* 決戦の仕込み（関ヶ原）：寄せ手は本拠（江戸）を発ち、街道を辿って戦場の地へ。守り手は近くの城から先に着いて陣を敷く。
    戦場は城ではなく野の一点（大垣と佐和山の間）。着くまで両側の家は自分では動けず、世も息を潜める */
+/* 決められた宿場（東海道）を順に辿り、戦場に近い城まで街道を行き、そこから野へ出る（第207巡：会津征伐の寄り道でも使うので外に出した） */
+function stageRouteTo(fromC, endX, endY, clanId, via){
+  const near=Object.values(W.castles).filter(c=>c.id!==fromC.id).sort((p,q)=>Math.hypot(W.tile[p.id].c-endX,W.tile[p.id].r-endY)-Math.hypot(W.tile[q.id].c-endX,W.tile[q.id].r-endY))[0];
+  const stops=(via||[]).map(nm=>Object.values(W.castles).find(c=>c.name===nm)).filter(Boolean); if(near) stops.push(near);
+  let ids=[fromC.id]; for(const c of stops){ const cur=ids[ids.length-1]; if(cur===c.id) continue; const path=findPath(cur,c.id)||[]; if(path.length){ ids=ids.concat(path); if(ids[ids.length-1]!==c.id) ids.push(c.id); } else ids.push(c.id); }
+  const pts=ids.map(id=>{ const t=W.tile[id]; return t?{c:t.c,r:t.r,id}:null; }).filter(Boolean); pts.push({c:endX,r:endY}); return pts; }
+/* 第207巡：会津征伐――家康の東軍は江戸から北（宇都宮）へ向かい、三成挙兵の報で小山から反転して東海道を西へ（作り手の指摘：上杉へ向かっている途中で小山評定が開くべき） */
+function sekOff(){ return (W.sekAizu&&W.sekAizu.on&&W.sekAizu.oyamaAt) ? Math.max(0, W.sekAizu.oyamaAt-(W.scenarioStartDay||W.sekAizu.oyamaAt)) : 0; }   /* 第207巡：会津征伐の寄り道のぶん、岐阜・大垣・大津・田辺は後ろへずれる（小山の反転の後に起きる） */
+function sekAizuMarch(on){ if(!W.stage||!W.stage.followId) return; const a=W.armies[W.stage.followId]; const tk=clanByName("徳川家"); if(!a||!tk||a.clan!==tk.id||!W.stage.site) return; const d=DECISIVE.find(x=>x.key==="sekigahara"); if(!d) return;
+  if(!on){ W.sekAizu={on:false}; return; }
+  const edo=Object.values(W.castles).find(c=>c.name==="江戸城")||W.castles[a.origin]; const uts=Object.values(W.castles).find(c=>c.name==="宇都宮城"); if(!edo||!uts) return;
+  const site=W.stage.site; const def=clanByName("石田家"); const defFrom=def&&(myCastles(def.id).find(c=>c.name==="佐和山城")||myCastles(def.id)[0]); const atkEast = defFrom ? W.tile[edo.id].c>=W.tile[defFrom.id].c : true;
+  const route=stageRouteTo(edo, site.x+(atkEast?1.1:-1.1), site.y, tk.id, ["宇都宮城"].concat(d.stage.atkVia||[]));
+  let len=0, turnLen=0; for(let i=1;i<route.length;i++){ len+=Math.hypot(route[i].c-route[i-1].c, route[i].r-route[i-1].r); if(route[i].id===uts.id) turnLen=len; }
+  a.route=route; a.day0=dayNumber(); a.days=Math.max(a.days||1, Math.ceil(len/7)); a.x=W.tile[edo.id].c; a.y=W.tile[edo.id].r; a.px=a.x; a.py=a.y;
+  const oyamaAt=a.day0+Math.max(2,Math.round(a.days*(turnLen/Math.max(1,len)))); W.sekAizu={on:true, oyamaAt, turned:false}; a.stageNote="家康、会津征伐へ――江戸を発ち北へ";
+  if(a.day0+a.days>(W.decisiveAt||0)) W.decisiveAt=a.day0+a.days; updateStageBadge(); }
 function stageDecisive(d){
   const A=clanByName(d.atk), Bc=clanByName(d.def); if(!A||!Bc) return;
   const st=d.stage; const site=decisiveSite(d,A,Bc);
@@ -19892,12 +19989,7 @@ function stageDecisive(d){
     gens.forEach((g,i)=>{ orig[g.id]=g.troops; g.troops=Math.round(total*w[i]/sw); });
     const a={id,clan:clan.id,gens:gens.map(g=>g.id),commander:gens[0].id,x,y,px:x,py:y,moveT:1,path:[],origin:hq?hq.id:null,target:null,mission:"移動",siegeDays:0,mode:1,pillaging:false,sea:false,food:9000,name,script:true,stage:true,stageOrig:orig,stageNote:note};
     for(const g of gens) g.army=id; W.armies[id]=a; W.stage.armies.push(id); return a; };
-  const routeTo=(fromC, endX, endY, clanId, via)=>{
-    // 決められた宿場（東海道）を順に辿り、戦場に近い城まで街道を行き、そこから野へ出る
-    const near=Object.values(W.castles).filter(c=>c.id!==fromC.id).sort((p,q)=>Math.hypot(W.tile[p.id].c-endX,W.tile[p.id].r-endY)-Math.hypot(W.tile[q.id].c-endX,W.tile[q.id].r-endY))[0];
-    const stops=(via||[]).map(nm=>Object.values(W.castles).find(c=>c.name===nm)).filter(Boolean); if(near) stops.push(near);
-    let ids=[fromC.id]; for(const c of stops){ const cur=ids[ids.length-1]; if(cur===c.id) continue; const path=findPath(cur,c.id)||[]; if(path.length){ ids=ids.concat(path); if(ids[ids.length-1]!==c.id) ids.push(c.id); } else ids.push(c.id); }
-    const pts=ids.map(id=>W.tile[id]).filter(Boolean).map(t=>({c:t.c,r:t.r})); pts.push({c:endX,r:endY}); return pts; };
+  const routeTo=stageRouteTo;
   const atkFrom = (st.atkFrom&&Object.values(W.castles).find(c=>c.name===st.atkFrom&&c.clan===A.id)) || myCastles(A.id).find(c=>c.hq) || myCastles(A.id)[0];
   const siegeC = st.atkSiege ? Object.values(W.castles).find(c=>c.name===st.atkSiege.castle) : null;
   const defFrom = (st.defFrom&&Object.values(W.castles).find(c=>c.name===st.defFrom&&c.clan===Bc.id)) || myCastles(Bc.id).find(c=>c.hq) || myCastles(Bc.id)[0];
@@ -19932,7 +20024,7 @@ function updateStageBadge(){ updateStageBadge0(); const b=document.getElementByI
 function updateStageBadge0(){
   let b=document.getElementById("stageBadge");
   if(!W.started || B){ if(b) b.hidden=true; return; }
-  if(!W.stage){ const rm=W.reliefMuster&&Object.entries(W.reliefMuster)[0]; if(!rm){ const gt=((()=>{ const a=(typeof sekGaugeText==="function")?sekGaugeText():""; const b=(typeof sekFrontsText==="function")?sekFrontsText():""; return a&&b?a+"　｜　"+b:a||b; })())||((typeof hoiWarText==="function")?hoiWarText():"")||((typeof tkjText==="function")?tkjText():"")||((typeof tottoriText==="function")?tottoriText():"")||((typeof takamatsuText==="function")?takamatsuText():"")||((typeof net3Text==="function")?net3Text():""); if(gt){ if(!b){ b=document.createElement("div"); b.id="stageBadge"; b.style.cssText="position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:23;background:rgba(26,18,8,.86);color:#F3E6C4;border:1px solid rgba(201,162,39,.8);font-weight:800;font-size:14px;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis;padding:6px 14px;border-radius:14px;pointer-events:none"; document.getElementById("stage").appendChild(b); } b.textContent=gt; b.hidden=false; return; } if(b) b.hidden=true; return; }
+  if(!W.stage){ const rm=W.reliefMuster&&Object.entries(W.reliefMuster)[0]; if(!rm){ const gt=((()=>{ const a=(typeof sekGaugeText==="function")?sekGaugeText():""; const b=(typeof sekFrontsText==="function")?sekFrontsText():""; return a&&b?a+"　｜　"+b:a||b; })())||((typeof ishiCountText==="function")?ishiCountText():"")||((typeof hoiWarText==="function")?hoiWarText():"")||((typeof tkjText==="function")?tkjText():"")||((typeof tottoriText==="function")?tottoriText():"")||((typeof takamatsuText==="function")?takamatsuText():"")||((typeof net3Text==="function")?net3Text():""); if(gt){ if(!b){ b=document.createElement("div"); b.id="stageBadge"; b.style.cssText="position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:23;background:rgba(26,18,8,.86);color:#F3E6C4;border:1px solid rgba(201,162,39,.8);font-weight:800;font-size:14px;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis;padding:6px 14px;border-radius:14px;pointer-events:none"; document.getElementById("stage").appendChild(b); } b.textContent=gt; b.hidden=false; return; } if(b) b.hidden=true; return; }
     if(!b){ b=document.createElement("div"); b.id="stageBadge"; b.style.cssText="position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:23;background:rgba(26,18,8,.86);color:#F3E6C4;border:1px solid rgba(201,162,39,.8);font-weight:800;font-size:14px;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis;padding:6px 16px;border-radius:12px;pointer-events:none"; document.getElementById("stage").appendChild(b); }
     const [rv,m]=rm; const c=W.castles[+rv], t=W.castles[m.target]; const enRoute=Object.values(W.armies).filter(a=>a.reliefVia&&a.reliefVia.at===+rv&&a.clan===W.player).length; const total=(m.hold||[]).length;
     b.textContent=`${t?t.name:"救援先"}の救援 ―― ${c?c.name:""}に集結中（道中 ${enRoute}軍・あと${Math.max(0,m.until-dayNumber())}日で発つ）`; b.hidden=false; return; }
@@ -20351,7 +20443,7 @@ function fireDecisive(d){
   if(!A||!Bc) return;
   // 開幕の決戦なら、両家の出先の軍は呼び戻して決戦に加える（仕込みの七日で出ていた将が数に入らず、武田が十四隊に減っていた）
   if(d.when==="open"||d.disbandFirst){ for(const ar of Object.values(W.armies)){ if(ar.stage) continue; if(!d.disbandFirst&&ar.script) continue; if(ar.clan!==A.id&&ar.clan!==Bc.id) continue; if(ar.clan===W.player&&!d.disbandFirst) continue; disbandArmy(ar); } }
-  const pickGens=()=>[decisiveGens(A.id, d.atkGens, d.nAtk, Bc.id, !d.noAllies&&(d.key==="sekigahara"||!!d.allies), d.noAllies?[]:d.atkAllies), decisiveGens(Bc.id, d.defGens, d.nDef, A.id, !d.noAllies&&(d.key==="sekigahara"||!!d.allies), d.noAllies?[]:d.defAllies)];
+  const pickGens=()=>[decisiveGens(A.id, d.atkGens, d.nAtk, Bc.id, !d.noAllies&&(d.key==="sekigahara"||!!d.allies), d.noAllies?[]:d.atkAllies, !!d.strictAtk), decisiveGens(Bc.id, d.defGens, d.nDef, A.id, !d.noAllies&&(d.key==="sekigahara"||!!d.allies), d.noAllies?[]:d.defAllies, !!d.strictDef)];
   let [ga,gb]=pickGens();
   if(ga.length<2||gb.length<2){ /* 第192巡：将が軍に出払っていて決戦が起きなかった（「天王寺砦の戦い 迫る」と出て何も起きない）→ 両家の出先の軍を呼び戻してもう一度数える */
     for(const K of [A,Bc]){ if(!K) continue; for(const ar of Object.values(W.armies)){ if(ar.clan!==K.id||ar.stage) continue; disbandArmy(ar); } }
@@ -20673,7 +20765,7 @@ function bWiden(){
   // 後方の木立：左右の後ろに小さな林（予備隊や伏兵の置き所）
   for(const sideX of [0,BF.w-M]) for(let k=0;k<3;k++){ const cx=sideX+1+R()*(M-3), cy=2+R()*(BF.h-4), rr=1.2+R()*1.4; for(let r=0;r<BF.h;r++) for(let c=sideX;c<sideX+M;c++){ if(Math.hypot((c+.5-cx),(r+.5-cy)*1.3)<rr && B.tiles[r][c]===BT.GRASS && R()<0.85) B.tiles[r][c]=BT.FOREST; } }
   for(const u of B.units){ u.x+=M; if(u.gx!==undefined) u.gx+=M; if(u.order&&u.order.x!==undefined) u.order.x+=M; if(u.flankPath) for(const p of u.flankPath) p.x+=M; }
-  for(const o of B.obstacles) o.x+=M; if(B.gate) B.gate.x+=M; if(B.gate2) B.gate2.x+=M; if(B.fortTowers) for(const t of B.fortTowers) t.x+=M; if(B.fortMain){ const F=B.fortMain; F.cx+=M; F.x0+=M; F.x1+=M; for(const d of F.decor) d.x+=M; } for(const w of (B.wreck||[])) w.x+=M; for(const l of (B.fieldLabels||[])) l.x+=M; if(B.tennozan) B.tennozan.x+=M;
+  for(const o of B.obstacles) o.x+=M; if(B.gate) B.gate.x+=M; if(B.gate2) B.gate2.x+=M; if(B.fortTowers) for(const t of B.fortTowers) t.x+=M; for(const F of [B.fortMain,B.tnrFort]){ if(!F) continue; F.cx+=M; F.x0+=M; F.x1+=M; for(const d of F.decor) d.x+=M; }   /* 第208巡：天王寺砦の骨組みも一緒にずらす（鳶ヶ巣は広げた後に組む） */ if(B.ishiFortX!==undefined) B.ishiFortX+=M; for(const w of (B.wreck||[])) w.x+=M; for(const l of (B.fieldLabels||[])) l.x+=M; if(B.tennozan) B.tennozan.x+=M;
   for(const k of (B.keyPoints||[])) k.x+=M; if(B.siegeLine0!==undefined) B.siegeLine0+=M;
   /* 第146巡：木津砦の部品（川・櫓・船着場・蔵・裏門）も一緒にずらす */ if(B.kz){ const K=B.kz; K.fx+=M; K.rx+=M; for(const row of K.river) row.cols=row.cols.map(c=>c+M); for(const t of K.towers) t.x+=M; K.dock.x+=M; K.granary.x+=M; K.back.x+=M; for(const b of K.boats) b.x+=M; if(K.debris) for(const d of K.debris) d.x+=M; if(K.port){ for(const k of ["huts","boats","nets"]) for(const o of K.port[k]) o.x+=M; } }
   if(B.ted){ const K=B.ted; K.rx+=M; if(K.riverCols) K.riverCols=K.riverCols.map(([a,b])=>[a+M,b+M]); }
@@ -20749,7 +20841,7 @@ function startBattle(e){
   const pickCmd=gs=>(gs.find(g=>g.status==="大名"&&g.clan===W.player)||gs.find(g=>g.status==="大名")||gs.reduce((x,y)=>x.lea>=y.lea?x:y)).id;   /* 第109巡：自分の家の当主が出ていればそれが本陣（徳川で長篠に出ても家康の本隊が無かった） */
   let atkCmd=pickCmd(atk);
   let defCmd=pickCmd(def);
-  /* 第145巡：筋書きが本陣を指名できる（高遠は仁科盛信。統率の高い真田昌幸が本陣になっていた） */ if(e.decisive){ const dd=DECISIVE.find(x=>x.id===e.decisive); if(dd){ if(dd.atkCmd){ const g=atk.find(x=>x.name===dd.atkCmd); if(g) atkCmd=g.id; } if(dd.defCmd){ const g=def.find(x=>x.name===dd.defCmd); if(g) defCmd=g.id; } } }
+  /* 第145巡：筋書きが本陣を指名できる（高遠は仁科盛信。統率の高い真田昌幸が本陣になっていた） */ if(e.decisive){ const dd=DECISIVE.find(x=>x.id===e.decisive); if(dd){ if(dd.atkCmd){ const g=atk.find(x=>genNameIs(x,dd.atkCmd)); if(g) atkCmd=g.id; } if(dd.defCmd){ const g=def.find(x=>genNameIs(x,dd.defCmd)); if(g) defCmd=g.id; } } }
   // 画面では常に自分が左、敵が右。守る側でも見え方を変えない
   const playerSide = e.playerAttacks?0:1;
   const sideX = side => (side===playerSide) ? "left" : "right";
@@ -21085,7 +21177,7 @@ function applyFormation(side){
 /* 陣を変えたら、実際に並び替える。数だけ変わって形が変わらぬのでは陣ではない */
 function reformSide(side){
   const f=FORMATIONS[B.form[side]], shape=f.shape;
-  const mine=B.units.filter(u=>u.side===side&&u.troops>.5&&u.morale>0);
+  const mine=B.units.filter(u=>u.side===side&&u.troops>.5&&u.morale>0&&!u.left&&!u.sigHidden&&!u.postHold&&!u.reserveHold);   /* 第207巡：持ち場の隊（横山の城兵・囲み）と予備隊は陣替えで動かさない */
   if(!mine.length) return;
   const left = (side===B.ctx.playerSide);
   const anchor = mine.reduce((s2,u)=>s2+u.x,0)/mine.length;   // いまの陣の中心
@@ -21506,12 +21598,9 @@ function nagVolleyTick(){
     for(let k=0;k<5;k++) setTimeout(()=>{ try{ playSE("gun"); }catch(_){ } }, k*45+Math.floor(rnd()*30)); }
 }
 /* 第185巡：鳶ヶ巣山砦を野の上に築く（武田の後ろの上の隅）。柵・櫓・守りの隊。酒井の別働隊は野の上の縁を回って砦を攻め落とす（作り手：徳川勢が攻め落とす感じに） */
-function nagTobiFortBuild(){ if(!B||!B.nagashino||B.tobiFort) return; const Wd=BF.w, H=BF.h; const tkRight=B.ctx.playerSide===1; const fx=tkRight?Wd-7:6.5, fy=3.6; const dir=tkRight?-1:1;   /* dir：砦から主戦場（織田側）へ */
+function nagTobiFortBuild(){ if(!B||!B.nagashino||B.tobiFort) return; const Wd=BF.w, H=BF.h; const tkRight=B.ctx.playerSide===1; const fx=tkRight?Wd-10:10, fy=H/2; const dir=tkRight?-1:1;   /* dir：砦から主戦場（織田側）へ。第208巡：砦は武田の後ろの空いた所に、立派な砦として組む（作り手：矢倉のある砦を真ん中に、そこを攻める感じ） */
   const F={x:fx, y:fy, garrison:[], fallen:false, tkRight}; B.tobiFort=F;
-  for(const [dx,dy] of [[-1.8,-1.6],[0,-1.8],[1.8,-1.6],[-1.8,1.6],[0,1.8],[1.8,1.6],[-2.2,0],[2.2,0]]) B.obstacles.push({kind:1, variant:(dx+dy)&1?1:2, x:fx+dx, y:fy+dy, r:1.4, wall:true, fort:true, fence:true, side:0, hp:60, hpMax:60, tobiFence:true});
-  B.fortTowers=B.fortTowers||[]; B.fortTowers.push({x:fx-dir*0.4, y:fy-0.5, alive:true});
-  if(B.tiles) for(let r=Math.floor(fy-1.8);r<=Math.ceil(fy+1.8);r++) for(let c=Math.floor(fx-2);c<=Math.ceil(fx+2);c++){ if(r<0||c<0||r>=H||c>=Wd) continue; if(Math.hypot(c+0.5-fx,r+0.5-fy)<1.9) B.tiles[r][c]=BT.DIRT; }
-  B.fieldLabels=(B.fieldLabels||[]).concat([{x:fx, y:fy+2.9, t:"鳶ヶ巣山砦"}]);
+  F.shell=fortShellBuild(fx, fy, dir, 0, {w:6, h:6, cap:2, name:"鳶ヶ巣山砦", tag:{tobiFence:true}, tagOnly:true, hpMul:0.5, noSide:true}); F.shell.noLabel=true;
   /* 守りの隊：武田信実の千。武田が砦を固めたなら（tobiGuarded）もう一隊 */
   const base=B.units.find(u=>u.side===0&&!u.cmd&&u.troops>.5); if(!base) return; const mk=(nm,tr,gname)=>{ const g=Object.values(W.generals).find(x=>x.name===gname&&x.status!=="死亡"); const u=JSON.parse(JSON.stringify(base)); u.id=Math.max(...B.units.map(z=>z.id))+1; u.gid=g?g.id:-1; u.name=nm; u.type=0; u.troops=tr; u.max=tr; u.morale=90; u.x=fx; u.y=fy; u.gx=fx; u.gy=fy; u.cell=null; u.nextCell=null; u.order={k:"guard"}; u.holdUntil=99999; u.tobiGuard=true; u.cmd=false; u.hero=false; u.ally=false; u.paceMul=undefined; u.fenceFirst=false; u.charge=false; u.spUntil=0; u.spReady=0; u.movedAt=undefined; u.engagedAt=undefined; u.stageX=undefined; u.stageY=undefined; u.glory=false; u.gloryHigh=false; B.units.push(u); F.garrison.push(u.id); return u; };
   { const g0=mk("武田信実隊",600,"武田信実"); if(g0){ g0.morale=65; g0.warF=(g0.warF||1)*0.7; g0.morRes=(g0.morRes||1)*1.3; } }   /* 手薄な砦（史実：奇襲で落ちた） */ if(B.tobiGuarded) mk("鳶ヶ巣の加勢",1500,"小山田昌行");
@@ -21523,6 +21612,7 @@ function nagTobiStart(send, size, ids){
   if(!send) return;
   const mine=B.units.filter(u=>u.side===1&&!u.cmd&&u.troops>.5&&(u.type!==3||u.name==="酒井忠次")).sort((a,b)=>(a.name==="酒井忠次"?-1:b.name==="酒井忠次"?1:0)||b.troops-a.troops);   /* 鉄砲は柵に残す（縦一列を崩さない） */
   const nmax=B.tobi.size||2; let pick=[]; let tot=0; if(ids&&ids.length){ pick=B.units.filter(u=>ids.includes(u.id)&&u.side===1&&!u.cmd); tot=pick.reduce((a,u)=>a+u.troops,0); B.tobi.size=Math.max(1,pick.length); } else for(const u of mine){ if(pick.length>=nmax||tot>=1600*nmax) break; pick.push(u); tot+=u.troops; }
+  /* 第208巡：人が織田なら別働隊に金森長近の鉄砲隊を付ける（人が動かせる隊が無いと遊べない。作り手の指摘） */ if(B.ctx.playerSide===1&&!pick.some(u=>!u.ally)&&pick.length){ const base=pick[0]; const g=Object.values(W.generals).find(x=>x.name==="金森長近"&&x.status!=="死亡"); const u=JSON.parse(JSON.stringify(base)); u.id=Math.max(...B.units.map(z=>z.id))+1; u.gid=g?g.id:base.gid; u.name=g?"金森長近隊":"金森隊"; u.type=3; u.troops=800; u.max=800; u.ammo=90; u.morale=85; u.ally=false; u.autoAI=false; u.cmd=false; u.hero=false; u.x=base.x; u.y=Math.min(BF.h-1.5,base.y+2); u.gx=u.x; u.gy=u.y; u.cell=null; u.nextCell=null; u.order={k:"guard"}; u.tr=g?traitsOf(g):u.tr; B.units.push(u); pick.push(u); B.startTroops=B.startTroops||{}; if(B.startTroops[1]) B.startTroops[1]+=800; }
   B.tobi.units=pick;
   if(B.tobiFort){ /* 第185巡：別働隊は野の上の縁を回って砦へ（隊は野に残り、絵で見える） */ const F=B.tobiFort; const ex=F.tkRight?F.x-7:F.x+7; pick.forEach((u,i)=>{ u.tobiGo=true; u.tobiBack=false; u.tough=(u.tough||1)*1.5; u.warF=(u.warF||1)*1.2; u.holdUntil=0; u.paceMul=undefined; u.waitFence=false; u.fenceFirst=false; u.charge=false; u.order={k:"move", x:u.x, y:1.6+(i%2)*1.2, wps:[[ex+(F.tkRight?-1:1)*i*1.6, 1.6+(i%2)*1.2]]}; u.gx=u.order.x; u.gy=u.order.y; u.noAttackUntil=B.elapsed+2; }); }
   else B.units=B.units.filter(u=>!pick.includes(u));
@@ -21533,21 +21623,22 @@ function nagTobiFortTick(t){ const F=B.tobiFort; const det=(t.units||[]).filter(
   const dmin=det.length?Math.min(...det.map(u=>Math.hypot(u.x-F.x,u.y-F.y))):99; const d0=Math.hypot((F.tkRight?F.x-7:F.x+7)-(t.x0||0),0)||40;
   t.prog=Math.max(t.prog||0, Math.min(0.95, 1-dmin/Math.max(8,d0)));
   const steps=[[0.3,"酒井別働隊、山道を進む"],[0.6,"酒井別働隊、鳶ヶ巣山砦に迫る"]]; for(const [k,txt] of steps){ if(t.prog>=k && !(t.told&&t.told[k])){ t.told=t.told||{}; t.told[k]=true; if(B.ctx.playerSide===1) B.banner={t:txt, at:B.elapsed}; } }
-  for(const u of det){ if(!u.tobiGo) continue; const near=Math.hypot(u.x-F.x,u.y-F.y)<7;
+  for(const u of det){ if(!u.tobiGo) continue; const near=Math.hypot(u.x-F.x,u.y-F.y)<8;
+    if(B.tobiPhase&&u.side===B.ctx.playerSide&&!u.ally&&!B.autoMine&&!autoBattleMode){ if(near&&!t.cry){ t.cry=true; B.bigBanner={t:"鳶ヶ巣山砦 攻撃開始", at:B.elapsed, good:true}; } continue; }   /* 第208巡：人の隊は人が動かす（柵を押せば叩く） */
     if(near){ if(!t.cry){ t.cry=true; bshout(u.id,"砦へかかれ！ 柵を崩せ！",2.4); B.bigBanner={t:"鳶ヶ巣山砦 攻撃開始", at:B.elapsed, good:B.ctx.playerSide===1}; }
       /* まず手前の柵を崩す（柵のそばに立てば叩く）。柵が空けば守りの隊へ */
       const fences=B.obstacles.filter(o=>o.tobiFence&&o.hp>0); const mine=fences.filter(o=>Math.hypot(o.x-u.x,o.y-u.y)<Math.hypot(F.x-u.x,F.y-u.y)+0.5).sort((a,b)=>Math.hypot(a.x-u.x,a.y-u.y)-Math.hypot(b.x-u.x,b.y-u.y));
-      const gapOpen=fences.length<=4; const g=gar.sort((a,b)=>Math.hypot(a.x-u.x,a.y-u.y)-Math.hypot(b.x-u.x,b.y-u.y))[0];
+      const gapOpen=fences.length<=B.obstacles.filter(o=>o.tobiFence).length-2||fences.every(o=>!o.shellGate); const g=gar.sort((a,b)=>Math.hypot(a.x-u.x,a.y-u.y)-Math.hypot(b.x-u.x,b.y-u.y))[0];
       if(mine.length&&!gapOpen){ const o=mine[0]; const dx=u.x-o.x, dy=u.y-o.y, L=Math.hypot(dx,dy)||1; const tx=o.x+dx/L*1.1, ty=o.y+dy/L*1.1; if(Math.hypot(u.x-tx,u.y-ty)>0.8&&!(u.order.k==="move"&&Math.abs(u.order.x-tx)<0.3&&Math.abs(u.order.y-ty)<0.3)){ u.order={k:"move",x:tx,y:ty}; u.gx=tx; u.gy=ty; } else if(u.order.k!=="move"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } }
       else if(g&&!(u.order.k==="attack"&&u.order.id===g.id)){ u.order={k:"attack",id:g.id}; u.charge=true; } }
-    else { const ex=F.tkRight?F.x-7:F.x+7; if(u.order.k!=="move"){ u.order={k:"move",x:ex,y:2}; u.gx=ex; u.gy=2; } } }
+    else { const ex=F.tkRight?F.x-7:F.x+7; const ey=B.tobiPhase?F.y:2; if(u.order.k!=="move"&&(u.side!==B.ctx.playerSide||u.ally||B.autoMine||!B.tobiPhase)){ u.order={k:"move",x:ex,y:ey}; u.gx=ex; u.gy=ey; } } }
   /* 守りの隊：砦から出ない（入り込んだ敵だけ討つ） */ for(const g of gar){ const foe=det.filter(u=>Math.hypot(u.x-g.x,u.y-g.y)<3.2)[0]; if(foe){ if(!(g.order.k==="attack"&&g.order.id===foe.id)) g.order={k:"attack",id:foe.id}; } else if(g.order.k!=="guard"){ g.order={k:"guard"}; g.gx=F.x; g.gy=F.y; } }
   if(!gar.length){ t.done=true; t.ok=true; t.prog=1; F.fallen=true; const lost=(t.units||[]).reduce((a,u)=>a+(u.max-u.troops),0), tot=(t.units||[]).reduce((a,u)=>a+u.max,0); t.partial=tot>0&&lost/tot>0.35;
     B.bigBanner={t:"鳶ヶ巣山砦 陥落", at:B.elapsed, good:B.ctx.playerSide===1, big:true}; log("酒井忠次、鳶ヶ巣山砦を落としました。武田の退路が脅かされています","war",true); try{ playSE("horn"); }catch(_){ }
     for(const u of B.units) if(u.side===0&&u.troops>.5&&!u.tobiGuard){ u.morale=Math.max(0,u.morale-15); u.defBonus=(u.defBonus||1)*0.9; }
-    if(B.late) B.late=[]; for(const o of B.obstacles) if(o.tobiFence) o.hp=0; B.fires=B.fires||[]; B.fires.push({x:F.x,y:F.y,t:0,life:40,siege:true}); B.decals=B.decals||[]; B.decals.push({k:"smoke",x:F.x,y:F.y,t:B.elapsed});
+    if(B.late) B.late=[]; for(const o of B.obstacles) if(o.tobiFence) o.hp=0; if(F.shell){ F.shell.fallen=true; for(const tw of (F.shell.towers||[])) tw.alive=false; } B.fires=B.fires||[]; B.fires.push({x:F.x,y:F.y,t:0,life:40,siege:true}); B.decals=B.decals||[]; B.decals.push({k:"smoke",x:F.x,y:F.y,t:B.elapsed});
     for(const u of det){ u.tobiGo=false; u.tobiBack=true; u.charge=false; u.morale=Math.min(100,u.morale+15); u.order={k:"hold"}; } if(B.tobiPhase){ nagTobiPhaseEnd(true); return; } B.banner={t:"酒井勢、武田の後ろに現る", at:B.elapsed+2}; B.tobiArrivedAt=B.elapsed; if(B.ctx.playerSide===1&&!B.sim) bCamTo(F.x, F.y, true); return; }
-  const timeout=B.tobiPhase&&B.elapsed-(B.tobiPhaseAt||0)>90;
+  const timeout=B.tobiPhase&&B.elapsed-(B.tobiPhaseAt||0)>150;
   if(!det.length||det.every(u=>u.morale<=0)||timeout){ t.done=true; t.ok=false; t.prog=1; B.banner={t:timeout?"夜が明けた――鳶ヶ巣山砦の奇襲、間に合わず":"鳶ヶ巣山砦の奇襲、しくじる", at:B.elapsed}; log("酒井忠次の奇襲はしくじり、別働隊は損害を出して戻りました","war"); for(const u of B.units) if(u.side===1&&u.troops>.5) u.morale=Math.max(0,u.morale-5); for(const u of det){ u.tobiGo=false; u.order={k:"retreat"}; } if(B.tobiPhase) nagTobiPhaseEnd(false); } }
 /* 織田の牙（機械の織田）：柵の前で怯んだ敵（士気三割五分未満か乱）へ、騎馬と侍が八歩まで討ちかかり、十秒で持ち場へ戻る */
 function nagFangTick(){
@@ -21563,7 +21654,7 @@ function nagFangTick(){
 }
 function nagTobiTick(){
   const t=B.tobi; if(!t) return;
-  /* 第206巡：砦を落とした別働隊は本戦の四十秒後に武田の後ろに現れる */ if(t.done&&t.ok&&!B.tobiPhase){ const back=B.units.filter(u=>u.tobiBackAt!==undefined&&u.sigHidden&&u.troops>.5); if(back.length&&B.elapsed>=back[0].tobiBackAt){ back.forEach((u,i)=>{ u.tobiBackAt=undefined; u.left=false; u.sigHidden=false; u.x=(B.ctx.playerSide===1)?BF.w-7-(i%2)*1.6:7+(i%2)*1.6; u.y=BF.h*0.5+(i-back.length/2)*2.2; u.gx=u.x; u.gy=u.y; u.cell=null; u.nextCell=null; u.order={k:"hold"}; u.face=Math.PI; }); try{ gridSettleAll(); }catch(_){ } B.bigBanner={t:"酒井勢、武田の後ろに現る", at:B.elapsed, good:B.ctx.playerSide===1}; B.tobiArrivedAt=B.elapsed; try{ playSE("horn"); }catch(_){ } if(B.ctx.playerSide===1&&!B.sim) bCamTo(BF.w-7, BF.h*0.5, true); } }
+  /* 第206巡：砦を落とした別働隊は本戦の四十秒後に武田の後ろに現れる。第208巡：武田が突撃してくるまでは砦に駐留（作り手：武田が総攻撃をやってからようやく動かせる） */ if(t.done&&t.ok&&!B.tobiPhase){ const back=B.units.filter(u=>u.tobiBackAt!==undefined&&u.sigHidden&&u.troops>.5); const charged=B.units.some(u=>u.side===0&&u.troops>.5&&!u.left&&(u.nagCharged||u.charge||(u.engagedAt!==undefined)))||B.ctx.playerSide===0; if(back.length&&B.elapsed>=back[0].tobiBackAt&&charged){ back.forEach((u,i)=>{ u.tobiBackAt=undefined; u.left=false; u.sigHidden=false; u.x=(B.ctx.playerSide===1)?BF.w-7-(i%2)*1.6:7+(i%2)*1.6; u.y=BF.h*0.5+(i-back.length/2)*2.2; u.gx=u.x; u.gy=u.y; u.cell=null; u.nextCell=null; u.order={k:"hold"}; u.face=Math.PI; }); try{ gridSettleAll(); }catch(_){ } B.bigBanner={t:"酒井勢、武田の後ろに現る", at:B.elapsed, good:B.ctx.playerSide===1}; B.tobiArrivedAt=B.elapsed; try{ playSE("horn"); }catch(_){ } if(B.ctx.playerSide===1&&!B.sim) bCamTo(BF.w-7, BF.h*0.5, true); } }
   if(t.done) return; if(!t.sent){ t.done=true; return; }
   if(B.tobiFort){ nagTobiFortTick(t); return; }
   t.prog=Math.min(1,(B.elapsed-t.at)/70);
@@ -21654,10 +21745,10 @@ function nagApplyOdaPlan(pick){
 /* ===== 第206巡（作り手の指示）：鳶ヶ巣山砦の奇襲は本戦の前に「それだけ」起こす。別働隊は自陣から野を横切らず、山道の出口（砦のそば）から始める。両軍の本隊は潜んで待ち、砦の成否が決まってから設楽原の本戦が始まる ===== */
 function nagTobiPhaseBegin(){ const t=B.tobi, F=B.tobiFort; if(!t||!F||B.tobiPhase) return; const det=t.units||[]; const ex=F.tkRight?F.x-7:F.x+7;
   for(const u of B.units){ if(u.troops<=.5) continue; if(det.includes(u)||u.tobiGuard) continue; if(u.left||u.sigHidden){ u.tobiWasHidden=true; continue; } u.tobiHide=true; u.tobiHome={x:u.x,y:u.y,gx:u.gx,gy:u.gy,order:u.order,holdUntil:u.holdUntil}; if(u.cell){ try{ occDel(u.cell[0],u.cell[1],u); }catch(_){ } } u.cell=null; u.nextCell=null; u.left=true; u.sigHidden=true; u.x=-5; u.gx=-5; u.gy=u.y; u.order={k:"guard"}; u.path=null; u.holdUntil=99999; }
-  det.forEach((u,i)=>{ u.tobiHome=u.tobiHome||{x:u.x,y:u.y,gx:u.gx,gy:u.gy}; if(u.cell){ try{ occDel(u.cell[0],u.cell[1],u); }catch(_){ } } u.x=Math.max(1,Math.min(BF.w-1,ex+(F.tkRight?-1:1)*(1+i*1.4))); u.y=1.8+(i%2)*1.3; u.gx=u.x; u.gy=u.y; u.cell=null; u.nextCell=null; u.order={k:"move",x:ex,y:2}; u.noAttackUntil=0; });
+  det.forEach((u,i)=>{ u.tobiHome=u.tobiHome||{x:u.x,y:u.y,gx:u.gx,gy:u.gy}; if(u.cell){ try{ occDel(u.cell[0],u.cell[1],u); }catch(_){ } } u.x=Math.max(1,Math.min(BF.w-1,ex+(F.tkRight?-1:1)*(1+Math.floor(i/3)*1.6))); u.y=F.y+((i%3)-1)*2.2; u.gx=u.x; u.gy=u.y; u.cell=null; u.nextCell=null; u.order={k:"guard"}; u.noAttackUntil=0; u.tobiGo=true; });
   try{ gridSettleAll(); }catch(_){ }
-  B.tobiPhase=true; B.tobiPhaseAt=B.elapsed; B.tobiMainStart=null; B.cx=F.x-(F.tkRight?4:-4); B.cy=Math.min(BF.h-4,F.y+3); bCamTo(B.cx,B.cy,true); if((B.zoom||1)===1) try{ bSetZoom(BZ_NORMAL); }catch(_){ }
-  B.bigBanner={t:"鳶ヶ巣山砦の奇襲", at:B.elapsed, good:B.ctx.playerSide===1, big:true}; B.banner={t:"夜明け前、酒井の別働隊が山道を抜けた――砦の柵を崩し、守りを討て。本戦はその後", at:B.elapsed+1.5}; B.objective="鳶ヶ巣山砦を落とせ（柵を崩し、守りの隊を討つ。九十秒で夜が明ける）。設楽原の本戦はその後"; try{ renderBattleGoal(); renderBattleFoot(); }catch(_){ } }
+  B.tobiPhase=true; B.tobiPhaseAt=B.elapsed; B.tobiMainStart=null; B.cx=F.x-(F.tkRight?3:-3); B.cy=F.y; bCamTo(B.cx,B.cy,true); if((B.zoom||1)===1) try{ bSetZoom(BZ_NORMAL); }catch(_){ }
+  B.bigBanner={t:"鳶ヶ巣山砦の奇襲", at:B.elapsed, good:B.ctx.playerSide===1, big:true}; B.banner={t:"夜明け前、酒井の別働隊が山道を抜けた――砦の柵を崩し、守りを討て。本戦はその後", at:B.elapsed+1.5}; B.objective="鳶ヶ巣山砦を落とせ（柵を崩し、守りの隊を討つ。百五十秒で夜が明ける）。設楽原の本戦はその後"; try{ renderBattleGoal(); renderBattleFoot(); }catch(_){ } }
 function nagTobiPhaseEnd(ok){ if(!B||!B.tobiPhase) return; B.tobiPhase=false; const t=B.tobi, F=B.tobiFort; const det=(t&&t.units||[]);
   for(const u of B.units){ if(!u.tobiHide) continue; u.tobiHide=false; u.left=false; u.sigHidden=false; const h=u.tobiHome||{}; u.x=h.x; u.y=h.y; u.gx=h.gx; u.gy=h.gy; if(h.order) u.order=h.order; u.holdUntil=h.holdUntil; u.path=null; u.cell=null; u.nextCell=null; }
   /* 別働隊：成れば四十秒後に武田の後ろに現れる。しくじれば生き残りが自陣へ戻る */ for(const u of det){ if(u.troops<=.5) continue; u.tobiGo=false; u.charge=false; if(ok&&u.morale>0){ u.left=true; u.sigHidden=true; u.tobiBackAt=40; if(u.cell){ try{ occDel(u.cell[0],u.cell[1],u); }catch(_){ } } u.cell=null; u.nextCell=null; u.x=-5; } else { const h=u.tobiHome||{x:u.x,y:u.y}; u.left=false; u.sigHidden=false; u.x=h.x; u.y=h.y; u.gx=h.x; u.gy=h.y; u.cell=null; u.nextCell=null; u.order={k:"guard"}; u.morale=Math.max(u.morale,30); } }
@@ -21665,6 +21756,12 @@ function nagTobiPhaseEnd(ok){ if(!B||!B.tobiPhase) return; B.tobiPhase=false; co
   /* 刻は戻さず（絵の時計が狂う）、波の刻と翼からの回り込みの刻を今から数え直す */ B.mainStart=B.elapsed; B.tobiArrivedAt=undefined; if(B.waves) for(const w of B.waves){ if(w.at>0){ w.at+=B.elapsed; w.done=false; w.staged=false; w.startAt=undefined; w.hitAt=undefined; } } if(B.yamaFlankAt!==undefined) B.yamaFlankAt+=B.elapsed; for(const u of det) if(u.tobiBackAt!==undefined) u.tobiBackAt+=B.elapsed;
   const line=B.nagFenceX!==undefined?B.nagFenceX:(B.padX||0)+NAG_LINE; bCamTo(B.ctx.playerSide===1?line+12:BF.w-(B.padX-4||16)-14, BF.h/2, true);
   B.bigBanner={t:"設楽原、開戦", at:B.elapsed, good:true, big:true}; B.banner={t:ok?"砦は落ちた。酒井勢は武田の後ろへ回っている――本戦へ":"奇襲はしくじった。別働隊の生き残りは柵へ戻る――本戦へ", at:B.elapsed+1.5}; B.objective=undefined; try{ playSE("horn"); }catch(_){ } try{ renderBattleGoal(); renderBattleFoot(); }catch(_){ } }
+/* 第208巡：守り手（織田・徳川）は柵の内に。柵の列の間や前に立ってしまった隊（升の押し合いで前へ出ていた）を、柵のすぐ内の空いた升へ戻す。鉄砲の列に穴があればそこへ（作り手：明智が柵の前に出ていた） */
+function nagBehindFence(){ if(!B||!B.nagashino) return; const fences=B.obstacles.filter(o=>o.fence&&!o.tobiFence&&o.hp>0); if(!fences.length) return; const defLeft=B.ctx.playerSide===1; const xs=fences.map(o=>o.x); const line=defLeft?Math.min(...xs):Math.max(...xs); const inner=x=>defLeft?x<line-0.4:x>line+0.4;
+  const [lc]=cellOf(line,1); const cols=[]; for(let k=1;k<=6;k++){ const c=defLeft?lc-k:lc+k; if(c>=0&&c<gCols()) cols.push(c); }
+  const bad=B.units.filter(u=>u.side===1&&u.troops>.5&&!u.left&&!u.sigHidden&&!u.tobiGo&&!inner(u.x)); if(!bad.length) return;
+  for(const u of bad){ const [,ur]=cellOf(u.x,u.y); let best=null, bd=1e9; for(const c of cols){ for(let r=0;r<gRows();r++){ if(!gridFreeCell(c,r,u)) continue; const d=Math.abs(r-ur)*1.0+cols.indexOf(c)*0.6+(u.type===3?0:cols.indexOf(c)===0?2:0); if(d<bd){ bd=d; best=[c,r]; } } if(best&&cols.indexOf(c)>=1&&bd<3) break; }
+    if(!best) continue; if(u.cell){ try{ occDel(u.cell[0],u.cell[1],u); }catch(_){ } } const [cx,cy]=cellCenter(best[0],best[1]); u.x=cx; u.y=cy; u.gx=cx; u.gy=cy; u.cell=best; u.nextCell=null; u.path=null; occSet(best[0],best[1],u); if(u.order.k==="move") u.order={k:"guard"}; } }
 /* 柵の張り方：三列の柵を組み直す */
 function nagFencePlan(plan, gap){
   const fences=B.obstacles.filter(o=>o.fence); if(!fences.length) return;
@@ -21907,7 +22004,9 @@ function gridBlockedEdge(u,c0,r0,c1,r1){
 }
 const GDIRS=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
 /* 升の道。ほかの隊のいる升は通らない。目当ての升に誰かいれば、その隣で止まる。届かなければ、いちばん近づける升まで */
-function gridPath(u,gc,gr){
+function gridPath(u,gc,gr,avoidIdle){
+  /* 第208巡：止まっている味方の升は道にしない（前が詰まって列ごと川の手前で止まっていた。作り手の指摘）。それで道が無ければ、味方の升も通す道を探す */
+  if(avoidIdle===undefined){ const r1=gridPath(u,gc,gr,true); if(!r1.partial) return r1; const r2=gridPath(u,gc,gr,false); return (r2.partial && r1.path.length>=r2.path.length) ? r1 : (r2.partial ? r1 : r2); }
   const [sc,sr]=u.cell; if(sc===gc&&sr===gr) return {path:[],partial:false};
   const goalOcc=!gridFreeCell(gc,gr,u);
   const prev=new Map(); const q=[[sc,sr]]; prev.set(cellKey(sc,sr),null); let found=null, best=[sc,sr], bestD=1e9;
@@ -21916,7 +22015,7 @@ function gridPath(u,gc,gr){
     if(c===gc&&r===gr){ found=[c,r]; break; }
     if(goalOcc && Math.max(Math.abs(c-gc),Math.abs(r-gr))<=1){ found=[c,r]; break; }
     for(const [dc,dr] of GDIRS){ const nc=c+dc, nr=r+dr; const k=cellKey(nc,nr); if(prev.has(k)) continue; if(!cellPassable(nc,nr)) continue;
-      if(!(nc===gc&&nr===gr) && !gridFreeCell(nc,nr,u) && !gridAllyCell(nc,nr,u)) continue;
+      if(!(nc===gc&&nr===gr) && !gridFreeCell(nc,nr,u)){ if(!gridAllyCell(nc,nr,u)) continue; if(avoidIdle){ const o=gridOccAt(nc,nr); if(o&&!o.nextCell&&o.idleAt!==undefined&&B.elapsed-o.idleAt>0.8) continue; } }
       if(dc&&dr && (!cellPassable(c+dc,r)||!cellPassable(c,r+dr))) continue;
       if(gridBlockedEdge(u,c,r,nc,nr)) continue;
       prev.set(k,[c,r]); q.push([nc,nr]); } }
@@ -22256,7 +22355,7 @@ function updateBattle(dt){
   if(!B || B.over!==null) return;   // 0 は偽値なので null で判定する
   try{ gridSettleAll(); }catch(e){ console.error(e); }   /* 升の主の表（第103巡） */
   /* 第117巡：要地（天王山・松尾山・笹尾山・桃配山）。片方の隊だけが六秒いれば制圧。士気が動き、持つ側は攻めと鉄砲の射程がわずかに増す */
-  if(B.keyPoints && B.opening<=0 && !(B.kpAt>B.elapsed-0.5)){ B.kpAt=B.elapsed; for(const k of B.keyPoints){ const near=B.units.filter(u=>u.troops>.5&&u.morale>0&&!u.left&&Math.hypot(u.x-k.x,u.y-k.y)<=k.r); const s0=near.some(u=>u.side===0), s1=near.some(u=>u.side===1); const side = s0&&!s1 ? 0 : s1&&!s0 ? 1 : null;
+  if(B.keyPoints && B.opening<=0 && !(B.kpAt>B.elapsed-0.5)){ B.kpAt=B.elapsed; for(const k of B.keyPoints){ const near=B.units.filter(u=>u.troops>.5&&u.morale>0&&!u.left&&!u.yokoGar&&Math.hypot(u.x-k.x,u.y-k.y)<=k.r); const s0=near.some(u=>u.side===0), s1=near.some(u=>u.side===1); const side = s0&&!s1 ? 0 : s1&&!s0 ? 1 : null;
       if(side===null || side===k.owner){ k.hold=0; continue; } k.hold=(k.hold||0)+0.5; if(k.hold>=(k.need||6)){ k.hold=0; const prev=k.owner; k.owner=side; const nm=(sd)=>{ const u=B.units.find(z=>z.side===sd&&z.cmd)||B.units.find(z=>z.side===sd); const g=u&&W.generals[u.gid]; return g?clanName(g.clan).replace(/家$/,""):(sd===B.ctx.playerSide?"わが":"敵"); };
         B.bigBanner={t:`${nm(side)}軍、${k.name}を制圧！`, at:B.elapsed, good:side===B.ctx.playerSide}; log(`${nm(side)}軍が${k.name}を押さえました（士気が動く）`,"war",true); for(const u of B.units){ if(u.troops<=.5||u.left) continue; if(u.side===side) u.morale=Math.min(100,u.morale+10); else if(prev===u.side||k.hqSide===u.side) u.morale=Math.max(0,u.morale-12); } } } }
   if(B.yamazaki && B.opening<=0 && B.over===null && !(B.ymAt>B.elapsed-2)){ B.ymAt=B.elapsed; const foeSide=1-B.ctx.playerSide; const fo=B.units.filter(u=>u.side===foeSide&&u.troops>.5&&!u.left);
@@ -22329,6 +22428,7 @@ function updateBattle(dt){
     if(B.nagashino && !B.tobiPhase && B.yamaFlankAt!==undefined && B.elapsed>=B.yamaFlankAt && B.over===null){ B.yamaFlankAt=undefined; const cav=B.units.filter(u=>u.side===0&&u.type===2&&u.troops>.5&&!u.cmd&&u.morale>0); const y=cav.find(u=>/山県/.test(u.name))||cav.sort((a,b)=>b.troops-a.troops)[0]; const hq=B.units.find(u=>u.side===1&&u.cmd); if(y&&hq){ const top=y.y<BF.h/2; y.holdUntil=0; y.paceMul=undefined; y.order={k:"move",x:y.x,y:top?1.2:BF.h-1.2}; y.gx=y.order.x; y.gy=y.order.y; y.flankPath=[{x:hq.x+6,y:top?1.2:BF.h-1.2},{x:hq.x+2,y:hq.y}]; y.aiFlank=true; B.bigBanner={t:`${y.name}、翼から回り込む`, at:B.elapsed, good:false}; log(`${y.name}隊が柵を避け、翼から織田の後ろへ回り込もうとしています`,"war"); } }
     /* 柵の手前七歩で一気に駆ける（ボーンと来る第一波） */
     if(B.waves&&!B.tobiPhase){ const fx=B.nagFenceX!==undefined?B.nagFenceX:(B.padX||0)+NAG_LINE; for(const u of B.units){ if(u.side!==0||u.paceMul===undefined||u.nagCharged||u.troops<=.5) continue; if(u.morale<=0||u.fleeing||u.left||(u.engagedAt!==undefined&&B.elapsed-u.engagedAt<2)){ u.paceMul=undefined; continue; } if(Math.abs(u.x-fx)<7.5){ u.nagCharged=true; u.paceMul=undefined; if(u.type===2){ u.spUntil=B.elapsed+7; u.spReady=B.elapsed+30; u.runup=99; } } } }
+    if(!B.nagBehindDone&&B.elapsed>0.2){ B.nagBehindDone=true; try{ nagBehindFence(); }catch(e){ console.error(e); } }
     nagVolleyTick(); nagTobiTick(); nagFangTick(); woundedTick(); if(B.escapePhase) escapeTick();
     { const h=nagAtkHint(); if(h!==B._atkHintOn){ B._atkHintOn=h; try{ renderBattleFoot(); }catch(e){} } }
     hqCrisisTick();
@@ -22484,7 +22584,7 @@ function updateBattle(dt){
   B.shouts=B.shouts.filter(s=>s.until>B.elapsed);
   if(B.elapsed-(B.lastThink??-9)>1.2){ B.lastThink=B.elapsed; battleAI(); }
   // 敵は押されれば固め、押していれば攻める陣に組み替える
-  if(B.elapsed-(B.lastForm??-99)>14){
+  if(B.elapsed-(B.lastForm??-99)>14 && !B.anegawaLaid){   /* 第207巡：姉川は戦区ごとの布陣なので機械も陣替えしない */
     B.lastForm=B.elapsed;
     const foe=1-B.ctx.playerSide;
     const mine=B.units.filter(u=>u.side===foe&&u.morale>0).reduce((s,u)=>s+u.troops,0);
@@ -22510,7 +22610,7 @@ function updateBattle(dt){
   for(const u of B.units){
     if(u.troops<=.5) continue;
     if(u.lunge>0) u.lunge-=dt; if(u.flash>0) u.flash-=dt;
-    if(u===B.units[0]){ evlogTick(); if(!B.siegeWall&&!B.kz&&!B.sm&&B.units.filter(z=>z.side===B.ctx.playerSide&&!z.cmd&&!z.ally).length>=6){ try{ wingTick(); }catch(e){ console.error(e); } } if(B.nagashino && B.ctx.playerSide===1 && B.opening<=0 && B.over===null){ const fx=B.nagFenceX!==undefined?B.nagFenceX:(B.padX||0)+NAG_LINE; const foes=B.units.filter(z=>z.side===0&&z.troops>.5&&z.morale>0&&!z.left); const guns=B.units.filter(z=>z.side===1&&z.type===3&&z.troops>.5&&!z.left); let best=1e9; for(const g of guns) for(const f of foes){ const d=dist(g,f); if(d<best) best=d; } B.nearM = best<1e9 ? Math.round(best*20/10)*10 : null; const inside=foes.some(f=>f.x<fx-0.8); if(inside && !B.breachNoted){ B.breachNoted=true; B.bigBanner={t:"敵、第一防衛線を突破！", at:B.elapsed, good:false}; log("武田勢が柵の内へ入り込みました","war",true); for(const z of B.units) if(z.side===1&&z.troops>.5&&Math.abs(z.x-fx)<8) z.morale=Math.max(0,z.morale-5); } if(B.nearM!==null && !B.approachNoted && B.nearM<=160){ B.approachNoted=true; B.banner={t:`武田の先手、${B.nearM}mに迫る ―― ${B.gunRangeM||100}mで撃つ`, at:B.elapsed}; } } if(B.over===null && B.opening<=0 && !B.escapePhase){ for(const sd of [0,1]){ if(sd===B.ctx.playerSide && !B.autoMine && !autoBattleMode) continue; const live=B.units.filter(z=>z.side===sd&&z.troops>.5&&(!z.left||z.sigHidden)&&z.morale>0); if(live.length===1 && live[0].cmd && !live[0].fleeing && !((B.gf||B.siegeWall||B.saika)&&sd===1) && B.elapsed-(B.lastLossAt||0)>0 ){   /* 第184巡：岐阜の本丸に退路はない（秀信は本丸で受ける） */ const c0=live[0]; c0.fleeing=true; c0.order={k:"retreat"}; B.aiFled=true; B.banner={t:`${c0.name}、退く`, at:B.elapsed}; log(`${c0.name}は残る兵を率いて野を去ります`,"war"); } } }   /* 第128巡：本陣だけになった側は早く退く（作り手の指示） */ if(B.opening<=0 && B.over===null && !(B.farDrumAt>B.elapsed-11)){ B.farDrumAt=B.elapsed+Math.random()*4; const far=B.units.filter(z=>z.troops>.5&&!z.left&&z.engagedAt!==undefined&&B.elapsed-z.engagedAt<2&&Math.hypot(z.x-B.cx,z.y-B.cy)>20); if(far.length) battleSE(Math.random()<0.7?"drumfar":"warcry",undefined,undefined,0,0.22); } if(B.chargeBuffUntil && B.elapsed>=B.chargeBuffUntil){ B.chargeBuffUntil=0; for(const z of B.units) if(z.side===B.chargeBuffSide&&z.charge) z.fatigue=Math.min(100,(z.fatigue||0)+15); B.banner={t:"突撃の勢い、尽きる", at:B.elapsed}; } if(B.follow!==null&&B.follow!==undefined){ const fu=B.units.find(z=>z.id===B.follow&&z.troops>.5&&!z.left); if(fu) bCamTo(fu.x,fu.y,true); else B.follow=null; } }
+    if(u===B.units[0]){ evlogTick(); if(!B.siegeWall&&!B.kz&&!B.sm&&B.units.filter(z=>z.side===B.ctx.playerSide&&!z.cmd&&!z.ally).length>=6){ try{ wingTick(); }catch(e){ console.error(e); } } if(B.nagashino && B.ctx.playerSide===1 && B.opening<=0 && B.over===null && !B.tobiPhase){ const fx=B.nagFenceX!==undefined?B.nagFenceX:(B.padX||0)+NAG_LINE; const foes=B.units.filter(z=>z.side===0&&z.troops>.5&&z.morale>0&&!z.left); const guns=B.units.filter(z=>z.side===1&&z.type===3&&z.troops>.5&&!z.left); let best=1e9; for(const g of guns) for(const f of foes){ const d=dist(g,f); if(d<best) best=d; } B.nearM = best<1e9 ? Math.round(best*20/10)*10 : null; const inside=foes.some(f=>f.x<fx-0.8); if(inside && !B.breachNoted){ B.breachNoted=true; B.bigBanner={t:"敵、第一防衛線を突破！", at:B.elapsed, good:false}; log("武田勢が柵の内へ入り込みました","war",true); for(const z of B.units) if(z.side===1&&z.troops>.5&&Math.abs(z.x-fx)<8) z.morale=Math.max(0,z.morale-5); } if(B.nearM!==null && !B.approachNoted && B.nearM<=160){ B.approachNoted=true; B.banner={t:`武田の先手、${B.nearM}mに迫る ―― ${B.gunRangeM||100}mで撃つ`, at:B.elapsed}; } } if(B.over===null && B.opening<=0 && !B.escapePhase){ for(const sd of [0,1]){ if(sd===B.ctx.playerSide && !B.autoMine && !autoBattleMode) continue; const live=B.units.filter(z=>z.side===sd&&z.troops>.5&&(!z.left||z.sigHidden)&&z.morale>0); if(live.length===1 && live[0].cmd && !live[0].fleeing && !((B.gf||B.siegeWall||B.saika)&&sd===1) && B.elapsed-(B.lastLossAt||0)>0 ){   /* 第184巡：岐阜の本丸に退路はない（秀信は本丸で受ける） */ const c0=live[0]; c0.fleeing=true; c0.order={k:"retreat"}; B.aiFled=true; B.banner={t:`${c0.name}、退く`, at:B.elapsed}; log(`${c0.name}は残る兵を率いて野を去ります`,"war"); } } }   /* 第128巡：本陣だけになった側は早く退く（作り手の指示） */ if(B.opening<=0 && B.over===null && !(B.farDrumAt>B.elapsed-11)){ B.farDrumAt=B.elapsed+Math.random()*4; const far=B.units.filter(z=>z.troops>.5&&!z.left&&z.engagedAt!==undefined&&B.elapsed-z.engagedAt<2&&Math.hypot(z.x-B.cx,z.y-B.cy)>20); if(far.length) battleSE(Math.random()<0.7?"drumfar":"warcry",undefined,undefined,0,0.22); } if(B.chargeBuffUntil && B.elapsed>=B.chargeBuffUntil){ B.chargeBuffUntil=0; for(const z of B.units) if(z.side===B.chargeBuffSide&&z.charge) z.fatigue=Math.min(100,(z.fatigue||0)+15); B.banner={t:"突撃の勢い、尽きる", at:B.elapsed}; } if(B.follow!==null&&B.follow!==undefined){ const fu=B.units.find(z=>z.id===B.follow&&z.troops>.5&&!z.left); if(fu) bCamTo(fu.x,fu.y,true); else B.follow=null; } }
     if(B.sek && u.morale>0 && u.troops>.5 && !u.left && u.engagedAt!==undefined && B.elapsed-u.engagedAt<2 && !B.units.some(z=>z!==u&&z.side===u.side&&z.troops>.5&&z.morale>0&&!z.left&&dist(z,u)<=6)) u.morale=Math.max(0,u.morale-0.6*dt);   /* 孤立して戦う隊は気が細る（関ヶ原） */
     { const st=unitStance(u); u.stance=st; u.bystander=(st==="傍観"||st==="離反可能"); u.waiting=(st==="待機"); }
     /* 第109巡：兵が残っている隊は士気の底より下がらない（どの出来事で削られても）。本陣は三割超で30 */
@@ -22554,7 +22654,7 @@ function updateBattle(dt){
   { B.goneGids=B.goneGids||new Set(); for(const u of B.units) if(u.troops<=.5) B.goneGids.add(u.gid); }   /* 討ち尽くされた隊の将（第134巡：戦の後に兵を無くすのはこの将だけ） */
   B.units=B.units.filter(u=>u.troops>.5);
   /* 第109巡（作り手の指示）：敵を打ち払ったと言えるのは、敵の隊が全部いなくなった・敵の本陣の兵が尽きた・敵の兵力の七割五分が失われた、のどれか。崩れて逃げている隊はまだ野にいる */
-  const a=B.units.filter(u=>u.side===0&&u.troops>.5&&(!u.left||u.sigHidden)), b=B.units.filter(u=>u.side===1&&u.troops>.5&&(!u.left||u.sigHidden));   /* 隠れている伏兵は野にいる（第137巡） */
+  const a=B.units.filter(u=>u.side===0&&u.troops>.5&&(!u.left||u.sigHidden)&&!u.yokoGar), b=B.units.filter(u=>u.side===1&&u.troops>.5&&(!u.left||u.sigHidden)&&!u.yokoGar);   /* 隠れている伏兵は野にいる（第137巡）。横山の城兵は決着の勘定に入れない（第207巡） */
   if(B.escapePhase){ const shim=B.units.find(u=>u.id===B.escapeId); const done = !shim || shim.troops<=.5 || shim.morale<=0 || shim.left || B.elapsed-B.escapeAt>(B.escapeLimit||100); if(done){ const ok=!!(shim&&shim.escaped); if(B.sek) B.shimazuEscaped=ok; if(B.escapeCfg){ B.escapeOk=ok; B.escapeDead=!ok&&(!shim||shim.troops<=.5||shim.morale<=0); if(ok){ B.bigBanner={t:`${B.escapeCfg.name}、生還`, at:B.elapsed, good:B.ctx.playerSide===B.escapeCfg.side, big:true}; } else if(B.escapeDead){ B.bigBanner={t:`${B.escapeCfg.name}　討死`, at:B.elapsed, good:B.ctx.playerSide!==B.escapeCfg.side, big:true}; log(`${B.escapeCfg.name}、討死`,"war",true); } else log(`${B.escapeCfg.name}は野の端に着けぬまま夜となり、散り散りに退きました`,"war",true); } if(B.nagashino){ B.katsuyoriEscaped=ok; const gid=B.escapeGid; const dead = !ok && (!shim || shim.troops<=.5 || shim.morale<=0); if(dead && gid!==undefined){ B.nagDead=B.nagDead||[]; if(!B.nagDead.includes(gid)) B.nagDead.push(gid); B.bigBanner={t:"武田勝頼　討死", at:B.elapsed, good:B.ctx.playerSide===1, big:true}; log("武田勝頼、長篠に討死","war",true); if(typeof chronicle==="function") chronicle("武田勝頼、長篠に討死"); } else if(!ok){ log("勝頼は野の端に着けぬまま夜となり、散り散りに退きました","war",true); } } return endBattle(B.escapeWinner!==undefined?B.escapeWinner:0); } return; }
   if(B.ted&&!b.length){ try{ tedFinish(); }catch(e){ console.error(e); } if(B.over!==null) return; }   /* 第196巡：手取川で織田が野から消えたら（渡り切ったか崩れたか）渡河率で決める */
   if(!b.length&&a.length) return endBattle(0);
@@ -22566,7 +22666,7 @@ function updateBattle(dt){
     const start=(B.startTroops&&B.startTroops[side])||B.units.filter(u=>u.side===side).reduce((s,u)=>s+u.max,0);
     if(!start) return true;
     // 野に残って戦える隊だけを数える（去った隊・崩れた隊は勘定に入れない）
-    const onF=B.units.filter(u=>u.side===side&&(!u.left||u.sigHidden)&&u.troops>.5);   /* 第204巡：潜む隊（雑賀の伏せ鉄砲・山へ潜んだ頭領）がいる間は決着しない */
+    const onF=B.units.filter(u=>u.side===side&&(!u.left||u.sigHidden)&&u.troops>.5&&!u.yokoGar);   /* 第204巡：潜む隊（雑賀の伏せ鉄砲・山へ潜んだ頭領）がいる間は決着しない */
     if(!onF.length) return true;
     const now=onF.reduce((s,u)=>s+u.troops,0);
     /* 第114巡：兵の割合では決着しない（作り手：七割五分減っても「勝ち」と言われると変）。全滅か本陣の兵が尽きるか、だけ */   // 長篠の武田は、隊を全部潰すまで負けにしない（作り手の指示）
@@ -22655,7 +22755,7 @@ function duelCheck(){
 function stepUnit(u,dt){
   let target=null, goal=null;
   if(u.left) return;                                           // 野を去った隊は戦わない
-  let enemies=B.units.filter(x=>x.side!==u.side&&x.troops>.5&&x.morale>0&&!x.left);
+  let enemies=B.units.filter(x=>x.side!==u.side&&x.troops>.5&&x.morale>0&&!x.left&&!x.yokoIn);   /* 第207巡：城の中の横山城兵は討てない（討って出た時だけ） */
   if(B.oke||(B.sekFog&&B.weather==="霧")){ enemies=enemies.filter(x=>okeSeen(x,u.side)); }
   if(u.okeHold||u.sekHold){ if(u.order.k!=="guard"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } }
   if(!enemies.length){ if(u.order.k==="attack"||u.order.k==="hold"||u.order.k==="move"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } if(u.faceLock===undefined) u.face=(u.side===B.ctx.playerSide)?0:Math.PI; return; }   // 敵がいなければ止まって敵陣の方を向く
@@ -22668,7 +22768,7 @@ function stepUnit(u,dt){
     if(u.gx===undefined){ u.gx=u.x; u.gy=u.y; }
     if(u.faceLock===undefined && dist(u,nearest)<6 && Math.hypot(u.gx-u.x,u.gy-u.y)<=.6) u.face=Math.atan2(nearest.y-u.y,nearest.x-u.x);
     if(dist(u,nearest)<=reachOf(u)) target=nearest;
-    else if(u.type!==3 && !u.cmd && !u.tobiGo && !u.sekHold && !u.okeHold && !u.reserveHold && (u.side!==B.ctx.playerSide||u.ally||u.autoAI||B.autoMine||autoBattleMode) && dist(u,nearest)<=4.5 && !fenceBetween(u,nearest) && (u.standoffAt===undefined ? (u.standoffAt=B.elapsed, false) : B.elapsed-u.standoffAt>2.5)){ target=nearest; goal=approachPoint(u,nearest); }   /* 第124巡：目の前（四歩半）の敵と睨み合ったままにしない。二秒半にらめば踏み込んで討つ（作り手：膠着してつまらない） */
+    else if(u.type!==3 && !u.cmd && !u.tobiGo && !u.sekHold && !u.okeHold && !u.reserveHold && !u.postHold && (u.side!==B.ctx.playerSide||u.ally||u.autoAI||B.autoMine||autoBattleMode) && dist(u,nearest)<=4.5 && !fenceBetween(u,nearest) && (u.standoffAt===undefined ? (u.standoffAt=B.elapsed, false) : B.elapsed-u.standoffAt>2.5)){ target=nearest; goal=approachPoint(u,nearest); }   /* 第124巡：目の前（四歩半）の敵と睨み合ったままにしない。二秒半にらめば踏み込んで討つ（作り手：膠着してつまらない） */
     else if(Math.hypot(u.gx-u.x,u.gy-u.y)>.6) goal=[u.gx,u.gy];
     else if(!u.cmd && (u.side!==B.ctx.playerSide || B.autoMine || autoBattleMode || u.ally) && (()=>{ const hqU=B.units.find(z=>z.side===u.side&&z.cmd&&z.troops>.5&&z.morale>0); if(!hqU||dist(u,hqU)>8) return false; const f=enemies.filter(e=>dist(e,hqU)<4.5).sort((p,q)=>dist(u,p)-dist(u,q))[0]; if(!f) return false; target=f; goal=[f.x,f.y]; return true; })()){ }   // 本陣の脇の隊は、本陣に迫る敵へ討ちかかる（持ち場のまま見ていない）
     if(dist(u,nearest)>4.5) u.standoffAt=undefined;
@@ -22690,7 +22790,7 @@ function stepUnit(u,dt){
     else if(Math.hypot(goal[0]-u.x,goal[1]-u.y)<=0.3 || _near){ if(u.thenAttack!==undefined){ const t=B.units.find(z=>z.id===u.thenAttack&&z.troops>.5); u.thenAttack=undefined; if(t){ u.order={k:"attack",id:t.id}; goal=[t.x,t.y]; } else { u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; goal=null; } } else if(u.thenHold){ u.thenHold=false; u.order={k:"hold"}; goal=null; } else { u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; goal=null; } }
   }
   else if(u.order.k==="attack"){
-    const t=B.units.find(x=>x.id===u.order.id&&x.troops>.5);
+    const t=B.units.find(x=>x.id===u.order.id&&x.troops>.5&&!x.yokoIn);
     if(t){ target=t; const keep=u.type===3?UNITS[3].rng*.7:2.9; if(dist(u,t)>keep) goal=approachPoint(u,t);
       if(u.type===3 && dist(u,t)>UNITS[u.type].rng && dist(u,nearest)<=UNITS[u.type].rng){ target=nearest; goal=null; } }   // 鉄砲：狙いが遠くても、間合いに入った敵はその場で撃つ
     else if(u.side===B.ctx.playerSide && !u.ally && !u.charge && !B.autoMine && !autoBattleMode){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; }   // 討ち終えた隊が勝手に次の敵へ駆け出していた（全軍突撃の隊は次の敵へ）
@@ -22814,6 +22914,7 @@ function terrainAttack(u){
   return m;
 }
 function resolveAttack(a,d){
+  if(d.yokoIn) return;   /* 第207巡：城の中の横山城兵は討てない */
   const f=facingOf(a,d);
   const aSp=B.elapsed<a.spUntil?SPECIALS[UNITS[a.type].sp]:null;
   const dSp=B.elapsed<d.spUntil?SPECIALS[UNITS[d.type].sp]:null;
@@ -23099,7 +23200,7 @@ function battleAI(){
   const _mt=B.units.filter(u=>u.side===foeSide&&u.troops>.5&&!u.left).reduce((s2,u)=>s2+u.troops,0), _ft=B.units.filter(u=>u.side!==foeSide&&u.troops>.5&&!u.left).reduce((s2,u)=>s2+u.troops,0);
   for(const u of B.units){
     if(u.side!==foeSide||u.morale<=0||u.troops<=.5||u.left) continue;   /* 第206巡：野を去った隊・潜む隊には命令を出さない（潜む本隊に命令の線が引かれていた） */
-    if(u.reserveHold){ if(u.order.k!=="guard"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } continue; }   /* 第117巡：予備隊は出すまで動かない */
+    if(u.reserveHold||u.postHold){ if(u.order.k!=="guard"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } continue; }   /* 第117巡：予備隊は出すまで動かない。第207巡：持ち場の隊（横山の城兵・囲み）も */
     if(u.escapeAt && B.elapsed>=u.escapeAt) continue;   /* 退き口の隊は野の端へ走る（機械が上書きしない） */
     if(B.saika&&u.side===1&&(u.saikaAway>B.elapsed||(u.order.k==="move"&&u.saikaHome)||u.saikaShotAt)) continue;   /* 第204巡：雑賀衆の撃って退く動きは機械が上書きしない */
     if(u.rearGuard){ if(u.order.k!=="attack"&&u.order.k!=="hold") u.order={k:"hold"}; continue; }   /* 殿軍はその場で追手を食い止める */
@@ -23237,6 +23338,7 @@ function aiCommandSide(side, onlyAlly){
   for(const u of B.units){
     if(u.side!==side||u.morale<=0||u.troops<=.5||u.order.k==="retreat"||u.left) continue;
     if(onlyAlly && !u.ally && !u.autoAI) continue;   /* 第118巡b：〈この隊は任せる〉の隊も機械が動かす */
+    if(u.postHold){ if(u.order.k!=="guard"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } continue; }   /* 第207巡：持ち場の隊（横山の囲み）は機械が動かさない */
     if(B.saika&&side===1&&(u.holdUntil>B.elapsed||u.saikaAway>B.elapsed||(u.order.k==="move"&&u.saikaHome))) continue;   /* 第197巡：任せた雑賀衆は拠点で待ち、撃っては退く（前へは出ない） */
     if(onlyAlly && B.pursued && u.pursue && u.type!==3 && !u.cmd){ if(u.order.k!=="hold") u.order={k:"hold"}; continue; }   /* 第106巡：〈追い討ち〉には味方の他家の隊も従う（作り手の指示） */
     /* 第185巡：籠城の守り手（任せた采配・砦の守り）は城壁・柵の内から出ない。入り込んだ敵だけ討つ */
@@ -23304,7 +23406,9 @@ const BATTLE_DECOR={
   osaka:{ base:"#8A8656", note:"天王寺・岡山　干上がった堀と茶臼山", make:(T,W0,H0,R,set)=>{ set.blob(W0*0.72,H0*0.35,3.2,2.2,BT.HILL,.95); set.blob(W0*0.72,H0*0.35,4.6,3.4,BT.FOREST,.35); for(let r=0;r<H0;r++){ set.at(Math.round(W0*0.86),r,BT.ROAD); set.at(Math.round(W0*0.86)+1,r,BT.ROAD); } } },
   yamazaki:{ base:"#4F7F38", note:"山崎　天王山と円明寺川", keepWater:true, make:(T,W0,H0,R,set)=>{ for(let i=0;i<6;i++) set.blob(R()*W0*0.5, H0-2-R()*3, 3,1.8, BT.FOREST,.8); } },
   shizugatake:{ base:"#557F3C", note:"賤ヶ岳　余呉湖と砦の山", make:(T,W0,H0,R,set)=>{ set.blob(W0*0.5,H0+1,9,4.2,BT.WATER,1); for(let i=0;i<4;i++) set.blob(R()*W0, 2+R()*3, 3,1.8, BT.HILL,.8); for(let i=0;i<5;i++) set.blob(R()*W0, 1+R()*6, 3,2, BT.FOREST,.5); } },
-  anegawa:{ base:"#5E8C40", note:"姉川　浅い川を挟んで", make:(T,W0,H0,R,set)=>{ const rx=Math.round(W0*0.5); for(let r=0;r<H0;r++){ const x=Math.round(rx+Math.sin(r*0.3)*1.5); set.at(x,r,BT.FORD); set.at(x+1,r,BT.FORD); if(r%5===2) set.at(x-1,r,BT.WATER); } for(let i=0;i<4;i++) set.blob(R()<.5?4:W0-5, R()*H0, 2.4,1.8, BT.FOREST,.6); } },
+  anegawa:{ base:"#5E8C40", note:"姉川　四つの瀬を挟んで", make:(T,W0,H0,R,set)=>{ /* 第207巡：川は深い（升は通れない）。渡れるのは四つの瀬だけ――北の瀬（広い）・中の瀬（最短）・南の瀬（狭い）・下の瀬（遠回り、横腹へ）。升（二升）に揃える */
+      const rx=Math.round(W0*0.5)&~1; const cr=Math.floor(H0/2); const fords=aneFordRows(H0); for(let r=0;r<H0;r++){ const inF=fords.some(f=>r>=f.r0&&r<=f.r1); set.at(rx,r,inF?BT.FORD:BT.WATER); set.at(rx+1,r,inF?BT.FORD:BT.WATER); if(inF){ set.at(rx-1,r,BT.DIRT); set.at(rx+2,r,BT.DIRT); } else if(R()<0.3){ set.at(R()<.5?rx-1:rx+2,r,BT.MARSH); } }
+      for(let i=0;i<4;i++) set.blob(R()<.5?4:W0-5, R()*H0, 2.4,1.8, BT.FOREST,.6); } },
   odawara:{ base:"#6D9046", note:"小田原　総構えの前", make:(T,W0,H0,R,set)=>{ for(let i=0;i<5;i++) set.blob(3+R()*8, R()*H0, 2.6,1.8, BT.FOREST,.7); set.blob(W0*0.35,H0*0.15,3,1.4,BT.WATER,1); } },
   kawanakajima:{ base:"#628E44", note:"八幡原　千曲川の流れ", make:(T,W0,H0,R,set)=>{ for(let c=0;c<W0;c++){ const y=Math.round(H0-4+Math.sin(c*0.25)*1.6); set.at(c,y,BT.WATER); set.at(c,y+1,BT.WATER); set.at(c,y+2,BT.WATER); if(c%9===4) set.at(c,y,BT.FORD); } for(let i=0;i<3;i++) set.blob(R()*W0, 2+R()*3, 2.4,1.5, BT.FOREST,.6); } },
   mikatagahara:{ base:"#7A8E4A", note:"三方ヶ原　枯れ草の台地", make:(T,W0,H0,R,set)=>{ for(let i=0;i<3;i++) set.blob(R()*W0, R()<.5?1.5:H0-2.5, 2,1.2, BT.FOREST,.5); } },
@@ -23928,6 +24032,8 @@ function drawBattle(){
   if(B.kz){ try{ drawKizu(sx,sy); }catch(e){ } }
   if(B.gf){ try{ drawGifu(sx,sy); }catch(e){ console.error(e); } }
   if(B.fortMain){ try{ drawFortMain(sx,sy); }catch(e){ console.error(e); } }
+  if(B.tobiFort&&B.tobiFort.shell){ try{ drawFortMain(sx,sy,B.tobiFort.shell); }catch(e){ console.error(e); } }
+  if(B.tnrFort){ try{ drawFortMain(sx,sy,B.tnrFort); }catch(e){ console.error(e); } }
   if(B.fortTowers){ for(const t of B.fortTowers){ const x=t.x*sx, y=t.y*sy; const S=1.1; bctx.save(); bctx.fillStyle="rgba(0,0,0,.25)"; bctx.beginPath(); bctx.ellipse(x+sx*0.2,y+sy*0.15,sx*0.8*S,sy*0.3*S,0,0,7); bctx.fill(); bctx.fillStyle="#5A3E26"; bctx.fillRect(x-sx*0.45*S,y-sy*1.9*S,4,sy*2.0*S); bctx.fillRect(x+sx*0.45*S-4,y-sy*1.9*S,4,sy*2.0*S); bctx.strokeStyle="#5A3E26"; bctx.lineWidth=2; bctx.beginPath(); bctx.moveTo(x-sx*0.45*S,y-sy*1.2*S); bctx.lineTo(x+sx*0.45*S,y-sy*0.4*S); bctx.moveTo(x+sx*0.45*S,y-sy*1.2*S); bctx.lineTo(x-sx*0.45*S,y-sy*0.4*S); bctx.stroke(); bctx.fillStyle="#8B6A3E"; bctx.fillRect(x-sx*0.6*S,y-sy*1.9*S,sx*1.2*S,sy*0.35*S); bctx.fillStyle="#3A2A18"; bctx.beginPath(); bctx.moveTo(x-sx*0.75*S,y-sy*1.9*S); bctx.lineTo(x,y-sy*2.5*S); bctx.lineTo(x+sx*0.75*S,y-sy*1.9*S); bctx.closePath(); bctx.fill(); bctx.restore(); } }   /* 第185巡：砦の物見櫓 */
   if(B.ane&&B.ane.yokoPt){ try{ drawYokoyama(sx,sy); }catch(e){ } }   /* 第181巡：横山城の目印 */
   // 木・柵・岩
@@ -23951,6 +24057,7 @@ function drawBattle(){
   if(B.wreck && B.over===null && B.opening<=0 && B.ctx.playerSide===0){ const seenY=[];   /* 「突破口」の印は寄せ手（武田で遊ぶ）のときだけ（作り手の指示） */ for(const w of B.wreck){ if(seenY.some(v=>Math.abs(v.y-w.y)<2.6&&Math.abs(v.x-w.x)<2)) continue; seenY.push(w); const x=w.x*sx, y=w.y*sy; const bob=Math.sin(B.elapsed*3)*3;
       bctx.save(); bctx.fillStyle="rgba(255,214,102,.9)"; bctx.beginPath(); bctx.moveTo(x,y-14+bob); bctx.lineTo(x-7,y-24+bob); bctx.lineTo(x+7,y-24+bob); bctx.closePath(); bctx.fill(); bctx.font='800 10px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center"; bctx.fillStyle="rgba(10,8,6,.8)"; bctx.fillRect(x-19,y-38+bob,38,13); bctx.fillStyle="#FFD166"; bctx.fillText("突破口",x,y-28+bob); bctx.restore(); } }
   // 木片
+  /* 第207巡：転がる石――放物線で落ち、着いてから寄せ手の側へ転がって止まる */ if(B.stones&&B.stones.length){ for(const st of B.stones){ st.t+=0.016*(B.rate||1); const k=st.t/st.life; let px,py,ang; if(k<1){ px=st.x0+(st.tx-st.x0)*k; py=st.y0+(st.ty-st.y0)*k-Math.sin(k*Math.PI)*1.6; ang=k*6; } else { const k2=Math.min(1,(st.t-st.life)/0.6); const e=1-(1-k2)*(1-k2); px=st.tx+st.dir*st.roll*e; py=st.ty+0.15*e; ang=6+e*st.roll*4; if(k2>=1) st.done=true; } const R=st.r*sx*(k<1?1+Math.sin(k*Math.PI)*0.25:1); bctx.save(); if(k>=1){ bctx.fillStyle="rgba(0,0,0,.28)"; bctx.beginPath(); bctx.ellipse(px*sx+R*0.2,py*sy+R*0.55,R*1.1,R*0.45,0,0,7); bctx.fill(); } bctx.translate(px*sx,py*sy); bctx.rotate(ang); bctx.fillStyle="#7B7468"; bctx.beginPath(); bctx.arc(0,0,R,0,7); bctx.fill(); bctx.fillStyle="#4E4840"; bctx.beginPath(); bctx.arc(R*0.25,R*0.2,R*0.55,0,7); bctx.fill(); bctx.fillStyle="#9C948A"; bctx.beginPath(); bctx.arc(-R*0.3,-R*0.3,R*0.3,0,7); bctx.fill(); bctx.restore(); } B.stones=B.stones.filter(st=>!st.done&&st.t<st.life+1.5); }
   if(B.chips){ for(const ch of B.chips){ ch.t+=0.016*(B.rate||1); const k=ch.t/ch.life; if(k>=1) continue; const cx=(ch.x+ch.vx*ch.t)*sx, cy=(ch.y+ch.vy*ch.t+4.5*ch.t*ch.t)*sy; bctx.save(); bctx.translate(cx,cy); bctx.rotate(ch.t*9+ch.vx); bctx.fillStyle=k<.5?"#8D6A46":"#5A3E26"; bctx.fillRect(-2.5,-1,5,2); bctx.restore(); } B.chips=B.chips.filter(ch=>ch.t<ch.life); }
   // 炎と煙
   if(B.fires){ for(const f of B.fires){ if(!f.siege) f.t+=0.016*(B.rate||1); const k=f.t/(f.life||45); if(k>=1) continue; const fl=0.6+Math.sin(B.elapsed*17+f.x*7)*0.4;
@@ -24819,12 +24926,13 @@ function drawBattle(){
   }
 
   /* 第111巡：減りの割合は「始めの兵」で割る（討たれた隊は名簿から消えるので、生き残りの器で割ると 54% と出て、決着の七割五分と食い違っていた） */
-  const mine=B.units.filter(u=>u.side===B.ctx.playerSide&&(!u.left||u.sigHidden)).reduce((s,u)=>s+u.troops,0);
-  const foe=B.units.filter(u=>u.side!==B.ctx.playerSide&&(!u.left||u.sigHidden)).reduce((s,u)=>s+u.troops,0);   /* 第151巡：伏せている隊（楼の岸・釣り野伏）を損害に数えない（開戦前から「損害39%」と出ていた） */
-  const mineMax=(B.startTroops&&B.startTroops[B.ctx.playerSide])||B.units.filter(u=>u.side===B.ctx.playerSide).reduce((s,u)=>s+u.max,0)||1;
-  const foeMax=(B.startTroops&&B.startTroops[1-B.ctx.playerSide])||B.units.filter(u=>u.side!==B.ctx.playerSide).reduce((s,u)=>s+u.max,0)||1;
+  const vis=u=>(!u.left||u.sigHidden)&&!(B.tobiPhase&&u.tobiHide);   /* 第208巡：鳶ヶ巣の場は、その場の隊だけを数える（作り手：三万八千対一万六千ではなく、その状況だけ） */
+  const mine=B.units.filter(u=>u.side===B.ctx.playerSide&&vis(u)).reduce((s,u)=>s+u.troops,0);
+  const foe=B.units.filter(u=>u.side!==B.ctx.playerSide&&vis(u)).reduce((s,u)=>s+u.troops,0);   /* 第151巡：伏せている隊（楼の岸・釣り野伏）を損害に数えない（開戦前から「損害39%」と出ていた） */
+  const mineMax=B.tobiPhase?(B.units.filter(u=>u.side===B.ctx.playerSide&&vis(u)).reduce((s,u)=>s+u.max,0)||1):((B.startTroops&&B.startTroops[B.ctx.playerSide])||B.units.filter(u=>u.side===B.ctx.playerSide).reduce((s,u)=>s+u.max,0)||1);
+  const foeMax=B.tobiPhase?(B.units.filter(u=>u.side!==B.ctx.playerSide&&vis(u)).reduce((s,u)=>s+u.max,0)||1):((B.startTroops&&B.startTroops[1-B.ctx.playerSide])||B.units.filter(u=>u.side!==B.ctx.playerSide).reduce((s,u)=>s+u.max,0)||1);
   /* 第117巡：兵力／士気／総大将の三段（「29,999 0%」が何か分からなかった）。関ヶ原のように傍観がいれば「参戦」も */
-  { const sideOf=(sd)=>{ const us=B.units.filter(u=>u.side===sd&&u.troops>.5&&(!u.left||u.sigHidden)); const mor=us.length?Math.round(us.reduce((s2,u)=>s2+u.morale,0)/us.length):0; const cmd=us.find(u=>u.cmd); const active=us.filter(u=>!u.bystander&&!u.waiting).reduce((s2,u)=>s2+u.troops,0); const tot=us.reduce((s2,u)=>s2+u.troops,0); return {mor,cmd,active,tot,hasBy:us.some(u=>u.bystander||u.waiting)}; };
+  { const sideOf=(sd)=>{ const us=B.units.filter(u=>u.side===sd&&u.troops>.5&&vis(u)); const mor=us.length?Math.round(us.reduce((s2,u)=>s2+u.morale,0)/us.length):0; const cmd=us.find(u=>u.cmd); const active=us.filter(u=>!u.bystander&&!u.waiting).reduce((s2,u)=>s2+u.troops,0); const tot=us.reduce((s2,u)=>s2+u.troops,0); return {mor,cmd,active,tot,hasBy:us.some(u=>u.bystander||u.waiting)}; };
     /* 第182巡：頭の帯は二段に詰める（兵力・損害・士気を一列、総大将（と参戦）を二列目）。作り手の仕様：上部UIの縮小 */
     const mk=(tot,max,st,mineSide)=>`<span class="row"><span class="k">兵力</span><b>${Math.round(tot).toLocaleString()}</b><span class="k" style="margin-left:4px">損害 ${Math.round((1-tot/max)*100)}%</span><span class="k" style="margin-left:6px">士気</span><b style="color:${st.mor>=60?"#9FE09F":st.mor>=30?"#FFD166":"#FF9A88"}">${st.mor}%</b></span><span class="row cmd"><span class="k">総大将</span><b style="font-family:inherit;font-size:11px">${st.cmd?esc(st.cmd.name):"—"}${st.cmd&&st.cmd.morale<=0?"（崩れ）":""}</b>${st.hasBy?`<span class="k" style="margin-left:6px">参戦</span><b>${Math.round(st.active).toLocaleString()}</b>`:""}</span>`;
     const stM=sideOf(B.ctx.playerSide), stF=sideOf(1-B.ctx.playerSide);
@@ -24889,6 +24997,7 @@ function drawBattle(){
           let adv=""; if(mineS===1){ let wi=-1, wv=0; cavNear.forEach((n,i)=>{ if(n>wv){ wv=n; wi=i; } }); if(wi>=0 && wv>=1) adv=`${bn[wi]}：武田騎馬${wv}隊が柵へ接近 → 鉄砲を${bn[wi]}へ、寄れば〈一斉射撃〉`; else { const ii=infNear.findIndex(n=>n>=1); if(ii>=0) adv=`${bn[ii]}：足軽が柵に取り付いている → 鉄砲で撃ち払う`; else adv="騎馬はまだ遠い。柵の内で待つ"; } }
           else { let wi=0; fpct.forEach((v,i)=>{ if(v!==null && (fpct[wi]===null||v<fpct[wi])) wi=i; }); adv=`柵は${bn[wi]}が薄い（${fpct[wi]??"-"}%）→ 足軽で崩し、破れたら騎馬を入れる`; }
           B.nagAdvice=adv; B.nagFence=fpct; }
+        if(B.tobiPhase){ el.innerHTML=B.lateChip||""; el.hidden=false; } else   /* 第208巡：鳶ヶ巣の場では本戦の翼・柵の札を出さない（その状況だけ） */
         el.innerHTML=[[bn[0],ws[0]],[bn[1],ws[1]],[bn[2],ws[2]]].map(([n,w],i)=>{ n=`<span onclick="bBandCam(${i})" style="cursor:pointer" title="押せばこの戦線へ">${n}</span>`; if(B.nagashino&&B.nagFence&&B.nagFence[i]!==null&&B.nagFence[i]!==undefined) n=n+`<span style="opacity:.75;font-weight:400;margin-left:3px">柵${B.nagFence[i]}%</span>`; const bg=(w==="○優勢"||w==="確保")?"rgba(70,180,90,.28)":(w==="×劣勢"||w==="敵手")?"rgba(226,74,58,.32)":"rgba(255,255,255,.08)"; const fg=(w==="○優勢"||w==="確保")?"#9FF0A0":(w==="苦戦"||w==="敵手")?"#FFB0A0":"#EDE6D6"; const blink=(w==="×劣勢"||w==="敵手") && Math.floor(B.elapsed*2)%2===0; return `<span style="display:inline-block;padding:1px 8px;border-radius:9px;background:${blink?"rgba(226,40,26,.6)":bg};color:${fg};font-size:12px;margin:0 1px${blink?";box-shadow:0 0 6px rgba(255,60,40,.8)":""}">${n}<b style="margin-left:4px">${w}</b></span>`; }).join("")+(B.lateChip||"")+(B.nagashino&&B.ctx.playerSide===1&&B.opening<=0&&B.nearM!==null&&B.nearM!==undefined?`<span style="display:inline-block;padding:1px 8px;border-radius:9px;background:${B.nearM<=(B.gunRangeM||100)?"rgba(201,162,39,.45)":"rgba(255,255,255,.08)"};color:${B.nearM<=(B.gunRangeM||100)?"#FFD166":"#EDE6D6"};font-size:12px;margin:0 1px">敵まで ${B.nearM}m${B.nearM<=(B.gunRangeM||100)?"　撃てる":""}</span>`:"");   /* 第133巡：劣勢の戦線は赤く点滅。鉄砲から一番近い敵までの間合い */
         if(B.nagashino && B.nagAdvice && B.adviceUntil>B.elapsed){ el.innerHTML += `<span style="display:inline-block;padding:2px 10px;border-radius:12px;background:rgba(201,162,39,.25);color:#FFD166;font-size:12px;margin:0 1px;border:1px solid rgba(255,214,102,.5)">軍師「${B.nagAdvice}」</span>`; }
         el.hidden=false; } } }
@@ -25021,6 +25130,7 @@ bcanvas.addEventListener("pointerdown",ev=>{
   if(B.mode==="fence"){ buildFenceAt(wx,wy); return; }
   /* 第192巡：門を押すと門の様子（耐久・門上の弓・塀の鉄砲・石落とし・搦手） */
   if(B.gate&&B.siegeWall&&!B.gf&&!B.kz&&!B.sm&&B.sel===null&&!B.group&&Math.abs(wx-B.gate.x)<1.4&&Math.abs(wy-B.gate.y)<2.8&&!bPick(wx,wy,undefined,1.2)){ const g=B.gate; const lv=B.siegeCastleLv||300; const guns=B.units.filter(u=>u.side===1&&u.type===3&&u.troops>.5&&u.wallBoost).length; const tw=(B.fortTowers||[]).filter(t=>t.alive).length; toast(`【${(B.siegeZones||[])[2]?(B.siegeZones[2].n):"大手門"}】耐久 ${Math.round(100*Math.max(0,g.hp)/Math.max(1,g.hpMax))}%${g.open?"（破れた）":""}・門上の弓${lv>=250?"あり":"少"}・塀上の鉄砲 ${guns}隊・櫓 ${tw}${lv>=300?"・石落とし":""}${B.gate2?`・搦手 ${B.gate2.open?"破れた":Math.round(100*Math.max(0,B.gate2.hp)/Math.max(1,B.gate2.hpMax))+"%"}`:""}`); return; }
+  if(B.ane&&B.ane.yokoPt&&B.sel===null&&!B.group&&Math.hypot(wx-B.ane.yokoPt.x,wy-B.ane.yokoPt.y)<2.6&&!bPick(wx,wy,undefined,1.0)){ if(B.ctx.playerSide===0) aneYokoAsk(); else { const K=B.ane; toast(`【横山城】包囲 ${K.yokoRelief?"解けた":(K.yokoPct===undefined?"--":K.yokoPct+"%")}・城兵 ${K.yokoGarN||0}・城内の兵糧 ${Math.round(K.yokoSup||0)}%`); } return; }   /* 第207巡：横山城を押せば攻囲の様子 */
   if(B.mode==="fencegap"){ fenceGapAt(wx,wy); return; }
   if(B.mode==="fire"){ fireAt(wx,wy); return; }
   if(B.mode==="ishifire"){ ishiFireAt(wx,wy); return; }
@@ -25390,9 +25500,9 @@ function renderBattleFoot(){
   } else {
     foot.innerHTML=`${B.opening>0?`<button class="tool on" id="bBegin" style="font-weight:800">開戦</button><button class="tool" id="bBeginAuto" title="いまの陣立てのまま開戦し、采配は任せる。いつでも戻せる">自動で戦う</button>`:`<button class="tool ${B.paused?"on":""}" id="bPause" style="font-size:20px;font-weight:900;min-width:52px" title="一時停止／再開（空白キー）">${B.paused?"▶":"Ⅱ"}</button><span class="tiny muted" style="display:flex;gap:2px;align-items:center">${[1,2,3].map(r=>`<button class="tool sub ${(B.rate||1)===r?"on":""}" data-rate="${r}" style="min-width:34px;padding:0 6px">×${r}</button>`).join("")}</span>`}
       <button class="tool ${nagAtkHint()?"hot":""}" id="bAllCharge" ${B.ctx.playerSide===0&&B.opening<=0?"":"hidden"} style="font-weight:800">全軍突撃</button>
-      <button class="tool ${B.mode==="multi"?"on":""}" id="bMulti" title="隊を押して幾つも選び、まとめて動かす">複数選択</button>
-      ${B.opening<=0&&B.over===null&&B.units.filter(u=>u.side===B.ctx.playerSide&&!u.cmd&&!u.ally&&u.troops>.5&&!u.left&&u.morale>0).length>=4?`<span class="tiny muted" style="display:flex;gap:2px;align-items:center" title="翼ごとにまとめて選ぶ（升を押せばそこへ、敵を押せば討つ）">${[["l","左翼"],["c","中央"],["r","右翼"]].map(([k,t])=>`<button class="tool sub ${B.wingSel===k?"on":""}" data-wing="${k}" style="min-width:40px;padding:0 6px">${t}</button>`).join("")}${B.wingSel?`<button class="tool sub gold" id="bWingCmd" title="選んだ翼への方針（攻勢・維持・防御・後退・予備をここへ）">翼の方針 ▸</button>`:""}<button class="tool sub" id="bAllCmd" title="全軍命令（前進・維持・防御・右翼圧力・中央集中・総攻撃）">全軍命令 ▸</button></span>`:""}
-      ${B.opening<=0&&!B.ane&&B.units.some(u=>u.side===B.ctx.playerSide&&u.reserveHold&&u.troops>.5&&u.morale>0)?`<button class="tool on" id="bReserveGo" style="font-weight:800" title="予備隊を一斉に出す（近い敵へ）">予備隊 投入</button>`:""}
+      ${PREF.wingBtns?`<button class="tool ${B.mode==="multi"?"on":""}" id="bMulti" title="隊を押して幾つも選び、まとめて動かす">複数選択</button>`:""}
+      ${PREF.wingBtns&&B.opening<=0&&B.over===null&&B.units.filter(u=>u.side===B.ctx.playerSide&&!u.cmd&&!u.ally&&u.troops>.5&&!u.left&&u.morale>0).length>=4?`<span class="tiny muted" style="display:flex;gap:2px;align-items:center" title="翼ごとにまとめて選ぶ（升を押せばそこへ、敵を押せば討つ）">${[["l","左翼"],["c","中央"],["r","右翼"]].map(([k,t])=>`<button class="tool sub ${B.wingSel===k?"on":""}" data-wing="${k}" style="min-width:40px;padding:0 6px">${t}</button>`).join("")}${B.wingSel?`<button class="tool sub gold" id="bWingCmd" title="選んだ翼への方針（攻勢・維持・防御・後退・予備をここへ）">翼の方針 ▸</button>`:""}<button class="tool sub" id="bAllCmd" title="全軍命令（前進・維持・防御・右翼圧力・中央集中・総攻撃）">全軍命令 ▸</button></span>`:""}
+      ${B.opening<=0&&!B.ane&&B.units.some(u=>u.side===B.ctx.playerSide&&u.reserveHold&&u.troops>.5&&u.morale>0&&!u.left&&!u.tobiHide)?`<button class="tool on" id="bReserveGo" style="font-weight:800" title="予備隊を一斉に出す（近い敵へ）">予備隊 投入</button>`:""}
       ${B.pursueReady?`<button class="tool on ${B.pursueHot&&!B.pursued?"hot":""}" id="bPursue" style="font-weight:800;color:#FFD166">追い討ち！</button>`:""}
       ${B.tennoji&&B.opening<=0&&B.ctx.playerSide===1&&B.units.some(u=>/真田幸村/.test(u.name)&&u.side===1&&u.troops>.5)?`<button class="tool on" id="bSanada" title="真田隊（と毛利隊）が家康本陣へ突き進む">本陣突撃</button>`:""}
 
@@ -25411,12 +25521,12 @@ function renderBattleFoot(){
       ${B.sek&&B.opening<=0&&B.over===null&&B.ctx.playerSide===0&&B.koba&&!B.koba.done&&!B.koba.stay?`<button class="tool sub" id="bToiTeppo" title="松尾山へ威嚇射撃（一度きり。成れば秀秋が決断、しくじれば意地になる）" ${B.toiDone||B.elapsed<30?'style="opacity:.5"':""}>松尾山へ威嚇射撃</button>`:""}
       <!-- 第141巡：柵5・隙間の釦はやめ（作り手：分かりにくい） -->
       ${(B.group&&B.group.length)||B.sel!==null?`<button class="tool" id="bUnsel" title="選択を解く（Esc）">解除</button>`:""}
-      <span class="tiny muted" style="flex:1;text-align:center;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${B.mode==="fence"?'<b style="color:var(--kin)">柵を立てる場所を画面で押してください（Esc で取り消し）</b>':B.mode==="fire"?'<b style="color:#FF9A55">火を放つ木立を押してください（Esc で取り消し）</b>':"隊を押して選ぶ → 升を押せばそこへ、敵を押せば討つ"}</span>
+      <span class="tiny muted" style="flex:1;text-align:center;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${B.mode==="fence"?'<b style="color:var(--kin)">柵を立てる場所を画面で押してください（Esc で取り消し）</b>':B.mode==="fire"?'<b style="color:#FF9A55">火を放つ木立を押してください（Esc で取り消し）</b>':""}</span>
       ${B.undo&&B.undo.at>B.elapsed-4?`<button class="tool on" id="bUndo" title="直前の命令を取り消す">取消</button>`:""}
 
       <span class="fsep"></span>
       <button class="tool sub ${B.autoMine?"on":""}" id="bAutoMine" title="自軍の采配も任せる。もう一度押せば戻る">${B.autoMine?"采配：自動":"采配：手動"}</button>${false?`<button class="tool sub" id="bPolicy" title="任せたときの方針を切り替える（積極→防御→本陣防衛→総大将狙い→側面→鉄砲中心）">方針：${B.aiPolicy||"積極"}</button>`:""}
-      <button class="tool aux ${B.rosterOn?"on":""}" id="bRosterT" title="隊の一覧（織田・徳川・武田に分けて。押せばその隊へ）">隊</button>
+      ${PREF.wingBtns?`<button class="tool aux ${B.rosterOn?"on":""}" id="bRosterT" title="隊の一覧（織田・徳川・武田に分けて。押せばその隊へ）">隊</button>`:""}
       <button class="tool aux" id="bSpeed" hidden title="速さ（Rキー）">${"速さ ×"+(B.rate||1)}</button><button class="tool aux" id="bSound" title="音（曲と効果音）の入り切り">${(Audio_.enabled&&Audio_.music)?"♪ 入":"♪ 切"}</button>
       <button class="tool aux ${B.retreatArmed?"on":""}" id="bAllRetreat" style="${B.retreatArmed?"color:#FF9A88":""}">${B.retreatArmed?"本当に退く？":"全軍退却"}</button>`;
     { const bp=document.getElementById("bPause"); if(bp) bp.onclick=()=>{ B.paused=!B.paused; renderBattleFoot(); }; }
@@ -25476,7 +25586,7 @@ function renderBattleFoot(){
     { const b=document.getElementById("bRally"); if(b) b.onclick=()=>{ rallyTroops(); renderBattleFoot(); }; }
     { const bt=document.getElementById("bToiTeppo"); if(bt) bt.onclick=()=>sekToiTeppo(); }
     { const bm=document.getElementById("bMikRet"); if(bm) bm.onclick=()=>{ if(!B||!B.mikata||B.over!==null) return; manualCommand(); B.mikRetreated=true; B.mikEarly=true; mikRetreatAsk(); }; }
-    if(B.ane){ const q=id=>document.getElementById(id); const bind=(id,fn)=>{ const el=q(id); if(el) el.onclick=fn; }; bind("bAnRes",()=>aneReserveAsk()); bind("bAnReq",()=>aneRequestAsk()); bind("bAnMenu",()=>aneMenu()); bind("bAnFlank",()=>aneFlank()); bind("bAnFwd",()=>aneCmdForward()); bind("bAnStop",()=>aneStopPursuit()); }
+    if(B.ane){ const q=id=>document.getElementById(id); const bind=(id,fn)=>{ const el=q(id); if(el) el.onclick=fn; }; bind("bAnRes",()=>aneReserveAsk()); bind("bAnYoko",()=>aneYokoAsk()); bind("bAnReq",()=>aneRequestAsk()); bind("bAnMenu",()=>aneMenu()); bind("bAnFlank",()=>aneFlank()); bind("bAnFwd",()=>aneCmdForward()); bind("bAnStop",()=>aneStopPursuit()); }
     if(B.ted){ const q=id=>document.getElementById(id); const bind=(id,fn)=>{ const el=q(id); if(el) el.onclick=fn; }; bind("bTdAll",()=>tedAllToRiver()); bind("bTdMenu",()=>tedMenu()); bind("bTdDrop",()=>tedDropGear()); bind("bTdRear",()=>tedRearAsk()); bind("bTdFord",()=>tedFindFord()); bind("bTdSeize",()=>tedSeizeCrossings()); bind("bTdStop",()=>tedStopPursuit()); bind("bTdKen",()=>tedKenshinForward()); }
     if(B.ishi){ const q=id=>document.getElementById(id); const bs=q("bIshiSortie"); if(bs) bs.onclick=()=>ishiSortie(); { const bind=(id,fn)=>{ const el=q(id); if(el) el.onclick=fn; }; bind("bKzFire",()=>kizuFireArrow()); bind("bKzMenu",()=>kizuMenu()); bind("bKzRepair",()=>kizuRepair()); bind("bKzGateRes",()=>kizuGateReserve()); bind("bKzTower",()=>kizuTowerFire()); bind("bKzBridge",()=>kizuBridgeCut()); bind("bKzOut",()=>kizuSortieOut()); bind("bKzGate",()=>siegeGateToggle()); bind("bKzWater",()=>siegeFirefight()); } const bf=q("bIshiFire"); if(bf) bf.onclick=()=>ishiFireMode(); const bg=q("bIshiGeki"); if(bg) bg.onclick=()=>ishiGeki(); const bn=q("bIshiNorth"); if(bn) bn.onclick=()=>ishiFace("north"); const bso=q("bIshiSouth"); if(bso) bso.onclick=()=>ishiFace("south"); const ba=q("bIshiAmmo"); if(ba) ba.onclick=()=>ishiAmmo(); }
     { const bf=document.getElementById("bFortSortie"); if(bf) bf.onclick=()=>fortSortie(); const bb=document.getElementById("bFortBack"); if(bb) bb.onclick=()=>fortBack(); const ba=document.getElementById("bFortAll"); if(ba) ba.onclick=()=>fortAllOut(); if(!B.siegeWall){ const bv=document.getElementById("bSgVolley"); if(bv) bv.onclick=()=>siegeVolley(); } }
@@ -25668,7 +25778,8 @@ function rallyTroops(){
 function endBattle(winner){
   if(!B || B.over!==null) return;   // 二重に決着させない
   B.over=winner; B.overT=B.elapsed; B.overNow=performance.now(); W._lastB={escapeOk:!!B.escapeOk, escapeDead:!!B.escapeDead, honFire:!!B.honFire, key:B.ctx&&B.ctx.decisive, el:Math.round(B.elapsed||0), winner:winner, slain:(B.slainRecs||[]).map(r=>r.name)};
-  if(B.ane){ try{ const lossOf=g=>{ const us=B.units.filter(u=>u.aneG===g); const mx=us.reduce((a,u)=>a+(u.max||u.troops),0), now=us.reduce((a,u)=>a+u.troops,0); return mx?Math.round(100*(1-now/mx)):0; }; const slain=(B.slainRecs||[]).map(r=>r.name); const cmd0=B.units.find(u=>u.side===0&&u.cmd); const nobDown=!cmd0||cmd0.troops<=.5; const asaiGrade = (nobDown&&B.ane.yokoRelief)?"S":(winner===1)?"A":B.ane.yokoRelief?"B":null; W.aneResult={losses:{od:lossOf("od"),tk:lossOf("tk"),as:lossOf("as"),ak:lossOf("ak")}, slain, yokoRelief:!!B.ane.yokoRelief, asaiGrade, text:null}; }catch(e){ console.error(e); } }
+  if(B.ane){ try{ const lossOf=g=>{ const us=B.units.filter(u=>u.aneG===g); const mx=us.reduce((a,u)=>a+(u.max||u.troops),0), now=us.reduce((a,u)=>a+u.troops,0); return mx?Math.round(100*(1-now/mx)):0; }; const slain=(B.slainRecs||[]).map(r=>r.name); const cmd0=B.units.find(u=>u.side===0&&u.cmd); const nobDown=!cmd0||cmd0.troops<=.5; const asaiGrade = (nobDown&&B.ane.yokoRelief)?"S":(winner===1)?"A":B.ane.yokoRelief?"B":null; const K=B.ane; const odaGrade = winner===0 ? (K.yokoRelief||(K.yokoPct||0)<30 ? "B" : (K.yokoPct||0)>=70&&(K.yokoMinPct===undefined||K.yokoMinPct>=50)&&!nobDown ? "S" : "A") : null; W.aneResult={losses:{od:lossOf("od"),tk:lossOf("tk"),as:lossOf("as"),ak:lossOf("ak")}, slain, yokoRelief:!!B.ane.yokoRelief, asaiGrade, odaGrade, yokoPct:K.yokoPct, text:null};
+      /* 第207巡：結果に横山の包囲率・最初の突破・側面攻撃・予備投入 */ B.reportExtra=(B.reportExtra||"")+`横山の包囲 ${K.yokoRelief?"解かれた":(K.yokoPct===undefined?"--":K.yokoPct+"%")}${K.yokoMinPct!==undefined&&!K.yokoRelief?`（最低 ${K.yokoMinPct}%）`:""}　最初の突破 ${K.bhFirst?K.bhFirst+"秒":"なし"}　側面攻撃 ${K.flankDone||0}回　予備投入 ${K.resUsed||0}回${K.yokoSortieN?`　城兵の出撃 ${K.yokoSortieN}回`:""}${odaGrade&&B.ctx.playerSide===0?`　評価 ${odaGrade}`:""}　`; }catch(e){ console.error(e); } }
   if(B.nagashino) W.nagSlain=(B.nagDead||[]).map(g=>W.generals[g]&&W.generals[g].name).filter(Boolean);   /* 長篠で本当に討たれた将（第134巡） */
   // 戦果を控えておく。誰が働いたのかを後で示す
   B.report = B.units.map(u=>({
