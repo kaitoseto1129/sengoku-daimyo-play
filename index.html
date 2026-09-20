@@ -18197,7 +18197,8 @@ function domyojiTick(){ const K=B.dmj; if(!K||K.at>B.elapsed-1) return; K.at=B.e
   const tT=B.units.filter(u=>u.side===toy&&u.troops>.5&&!u.left).reduce((a,u)=>a+u.troops,0), tF=B.units.filter(u=>u.side!==toy&&u.troops>.5&&!u.left).reduce((a,u)=>a+u.troops,0);
   let np=ph; if(ph===1&&foeArrived) np=2; if(ph<=2&&myL&&myL.at-B.elapsed<=25) np=3; if(ph<=3&&joined) np=4; if(ph===4&&(B.elapsed-(K.joinAt||B.elapsed)>=15||tT>=tF*0.95)) np=5;
   if(np!==ph){ K.phase=np; const PN=["","孤立","耐久","援軍の気配","合流","反撃"][np]; const good=np>=3; const msg=["","先手だけが道明寺に――孤立","徳川の第二陣、迫る――退きつつ耐えよ","街道の先に味方の旗――援軍まで少し","援軍、合流――豊臣方、息を吹き返す","反撃の刻――押し返せ"][np]; B.bigBanner={t:msg, at:B.elapsed, good:mine===toy?good:!good, big:np===4}; log(`道明寺：${PN}`,"war");
-    if(np===2){ for(const u of B.units) if(u.side!==toy&&u.troops>.5&&!u.cmd){ u.charge=true; u.holdUntil=0; } }
+    if(np===2){ for(const u of B.units) if(u.side!==toy&&u.troops>.5&&!u.cmd){ u.charge=true; u.holdUntil=0; } const gm=B.units.find(u=>/後藤又兵衛/.test(u.name)&&u.troops>.5); if(gm) bshout(gm.id,"ここを破られては後がない！ 踏み止まれ！",3); }
+    if(np===3){ const ie=B.units.find(u=>/徳川家康/.test(u.name)&&u.troops>.5); if(ie) bshout(ie.id,"急ぐな。後詰を待て",3); }
     if(np===3){ K.joinAt=undefined; try{ playSE("drumfar"); }catch(_){ } }
     if(np===4){ K.joinAt=B.elapsed; for(const u of B.units){ if(u.troops<=.5) continue; if(u.side===toy) u.morale=Math.min(100,u.morale+12); else u.morale=Math.max(0,u.morale-6); } }
     if(np===5){ K.counterUntil=B.elapsed+25; for(const u of B.units) if(u.side===toy&&u.troops>.5){ u.morale=Math.min(100,u.morale+8); u.marchIn=false; } if(mine!==toy||B.autoMine||autoBattleMode){ B.chargeBuffUntil=B.elapsed+20; B.chargeBuffSide=toy; } B.objective=mine===toy?"反撃――押し返せ。又兵衛を生かし、前線を保て":"豊臣方が息を吹き返した。崩れる前に押し切れ"; } }
@@ -23358,6 +23359,7 @@ function runSignatures(){
 }
 function updateBattle(dt){
   if(!B || B.over!==null) return;   // 0 は偽値なので null で判定する
+  if(!B.reserveBacked&&B.opening<=0&&!B.siegeWall&&!B.fortKit&&!B.kz&&!B.sm&&!B.gf){ B.reserveBacked=true; for(const u of B.units){ if(!u.reserveHold||u.troops<=.5||u.left||u.sigHidden) continue; const dir=u.side===B.ctx.playerSide?-1:1; const nx=Math.max(1.5,Math.min(BF.w-1.5,u.x+dir*4.5)); if(Math.abs(nx-u.x)<0.5) continue; u.x=nx; u.gx=nx; u.cell=null; u.nextCell=null; u.stageX=undefined; } try{ gridSettleAll(); }catch(_){ } }   /* 第242巡（仕様書 19）：予備隊は本当に後方に */
   if(B.chargePlan&&B.elapsed>=B.chargePlan.at){ const P=B.chargePlan; B.chargePlan=null; for(const q of P.plan){ const x=B.units.find(u=>u.id===q.id); if(!x||x.troops<=.5||x.morale<=0) continue; x.order=q.order; x.charge=true; x.holdUntil=0; B.dust=B.dust||[]; for(let k=0;k<2;k++) B.dust.push({x:x.x-Math.cos(x.face||0)*0.8+(rnd()-.5)*1.6,y:x.y+0.8,t:-k*0.1,life:1.6,soft:true}); } B.chargeHornAt=B.elapsed; try{ playSE("warcry"); setTimeout(()=>{ try{ playSE("horse"); }catch(_){ } },250); }catch(_){ } }   /* 第241巡：号令のあと一斉に */
   try{ gridSettleAll(); }catch(e){ console.error(e); }   /* 升の主の表（第103巡） */
   /* 第117巡：要地（天王山・松尾山・笹尾山・桃配山）。片方の隊だけが六秒いれば制圧。士気が動き、持つ側は攻めと鉄砲の射程がわずかに増す */
@@ -25512,7 +25514,7 @@ function drawBattle(){
     // 描く順は奥から手前（画面の y）
     const draws=[];
     const engFront = (u.engagedAt!==undefined && B.elapsed-u.engagedAt<0.6 && u.morale>0) ? 1.4 : 0;   // 接敵中は先頭の列だけ乱れる（後列は整ったまま）
-    items.forEach((it,k)=>{ const front = it.row===undefined ? it.d<12 : it.row===0; const tired=(u.fatigue||0)>60?0.7:0; const worn=u.max>0?Math.max(0,1-u.troops/u.max):0; const jm=1+disorder*3+tired+worn*1.2+(front?engFront*(0.6+((k*13+u.id*5)%5)/5):0); if(u.order&&u.order.k==="retreat"&&!front) it.d+=(it.row||1)*3;   /* 第241巡（仕様書 9・10・30）：疲れ・損耗で列が歪み、退く隊は後列が遅れる */ const jx=(((k*37+u.id*11)%7)-3)*0.6*Z*jm, jd=(((k*53+u.id*7)%5)-2)*0.5*Z*jm; it.o+=jx; it.d+=jd; if(u.cmd) it.d-=22; /* 馬廻は陣幕の前に立ち、幕の中（大将の床几）を空ける */ const p=toScr(it.o,it.d); const vv=(u.type===3 && u.reloadRow!==undefined && B.elapsed<u.reloadUntil && (it.row||0)===u.reloadRow) ? 4 : (u.type===3 && it.row>0) ? 3 : (k*7+u.id*3)%3; draws.push({y:p.y, f:()=>{ const bob = moving ? Math.abs(Math.sin(B.elapsed*12 + k*1.3))*-1.6*Z : Math.sin(B.elapsed*2.1 + k*1.7 + u.id)*0.5*Z; const im=imgV(vv,(k+u.id)%3===1?1-walk:walk);
+    items.forEach((it,k)=>{ const front = it.row===undefined ? it.d<12 : it.row===0; const tired=(u.fatigue||0)>60?0.7:0; const worn=u.max>0?Math.max(0,1-u.troops/u.max):0; const jm=1+disorder*3+tired+worn*1.2+(front?engFront*(0.6+((k*13+u.id*5)%5)/5):0); if(u.order&&u.order.k==="retreat"&&!front) it.d+=(it.row||1)*3; else if(u.morale>0&&u.morale<25&&!front) it.d+=(it.row||1)*2;   /* 士気が低いと後列が下がる（仕様書 29） */   /* 第241巡（仕様書 9・10・30）：疲れ・損耗で列が歪み、退く隊は後列が遅れる */ const jx=(((k*37+u.id*11)%7)-3)*0.6*Z*jm, jd=(((k*53+u.id*7)%5)-2)*0.5*Z*jm; it.o+=jx; it.d+=jd; if(u.cmd) it.d-=22; /* 馬廻は陣幕の前に立ち、幕の中（大将の床几）を空ける */ const p=toScr(it.o,it.d); const vv=(u.type===3 && u.reloadRow!==undefined && B.elapsed<u.reloadUntil && (it.row||0)===u.reloadRow) ? 4 : (u.type===3 && it.row>0) ? 3 : (k*7+u.id*3)%3; draws.push({y:p.y, f:()=>{ const bob = moving ? Math.abs(Math.sin(B.elapsed*12 + k*1.3))*-1.6*Z : Math.sin(B.elapsed*2.1 + k*1.7 + u.id)*0.5*Z; const im=imgV(vv,(k+u.id)%3===1?1-walk:walk);
         bctx.globalAlpha*=1; bctx.fillStyle="rgba(0,0,0,.22)"; bctx.beginPath(); bctx.ellipse(p.x, p.y+sh*0.42, sw*0.34, sh*0.11, 0,0,7); bctx.fill();
         { const rw=it.row||0; if(rw>=3){ const kk=Math.max(0.86,1-rw*0.03); bctx.globalAlpha*=0.92; bctx.drawImage(im, p.x-sw*kk/2, p.y-sh*kk/2+bob+sh*(1-kk)*0.5, sw*kk, sh*kk); bctx.globalAlpha/=0.92; } else bctx.drawImage(im, p.x-sw/2, p.y-sh/2+bob, sw, sh); }   /* 第241巡：後列は少し小さく淡く（奥行き） */
         // 槍。前列は前へ突き出し、後列は頭の上に穂先だけ見える（列の奥行きが分かる）
@@ -25529,7 +25531,7 @@ function drawBattle(){
     { const p=toScr(0,leadD); const LS=1.35; const lw=sw*LS, lh=sh*LS;
       draws.push({y:p.y+0.01, f:()=>{ // 背旗（家紋）
           const droop = u.morale>0 ? Math.max(0,(40-u.morale)/40) : 1;   // 士気が下がると旗が傾く
-          const ph=(u.cmd?44:30)*Math.min(1.5,Z)*(1-droop*0.35), pw=(u.cmd?13:9)*Z, wv=Math.sin(B.elapsed*5+u.id)*2.2*Z;
+          const ph=(u.cmd?44:30)*Math.min(1.5,Z)*(1-droop*0.35), pw=(u.cmd?13:9)*Z, wv=Math.sin(B.elapsed*(engagedNow?9:5)+u.id)*(engagedNow?3.4:2.2)*Z;   /* 第242巡（仕様書 16）：戦っている間は旗が激しく揺れる */
           const px0=p.x+(facingLeft?-1:1)*lw*0.30, py0=p.y-lh*0.55-ph;
           if(droop>0){ bctx.save(); bctx.translate(px0,py0+ph+lh*0.5); bctx.rotate((facingLeft?1:-1)*droop*0.5); bctx.translate(-px0,-(py0+ph+lh*0.5)); }
           bctx.fillStyle="#3A2A18"; bctx.fillRect(px0-1, py0, 2, ph+lh*0.5);
@@ -25543,7 +25545,7 @@ function drawBattle(){
           const camped = u.cmd && (B.opening>0 || ((u.order.k==="guard"||u.order.k==="hold") && !(u.movedAt!==undefined && B.elapsed-u.movedAt<1)));
           if(u.cmd){ const px1=p.x+(facingLeft?1:-1)*lw*0.7, top=p.y-lh*0.55-(56)*Math.min(1.5,Z); bctx.fillStyle="#3A2A18"; bctx.fillRect(px1-1.2*Z, top, 2.4*Z, lh*0.55+56*Math.min(1.5,Z)); const rr=9*Math.min(1.5,Z); bctx.fillStyle="#E9C65C"; bctx.beginPath(); bctx.arc(px1, top, rr, 0, 7); bctx.fill(); bctx.strokeStyle="#7A5A10"; bctx.lineWidth=1.5; bctx.stroke(); bctx.fillStyle=ccol; bctx.beginPath(); bctx.arc(px1, top, rr*0.55, 0, 7); bctx.fill(); for(let k=0;k<5;k++){ const a=-Math.PI/2+(k-2)*0.5; bctx.strokeStyle="#E9C65C"; bctx.lineWidth=2; bctx.beginPath(); bctx.moveTo(px1+Math.cos(a)*rr, top+Math.sin(a)*rr); bctx.lineTo(px1+Math.cos(a)*rr*1.7, top+Math.sin(a)*rr*1.7); bctx.stroke(); } }   // 大馬印：高い竿の上の金の日輪
           if(camped){ const sp=seatedGeneralSprite(u.side, ccol, facingLeft); bctx.drawImage(sp, p.x-lw*0.62, p.y-lh*0.55, lw*1.25, lh*1.25); }   // 陣中の大将は床几に座る
-          else bctx.drawImage(img, p.x-lw/2, p.y-lh/2+bob, lw, lh); } }); }
+          else { const named=u.gid!==undefined&&u.gid>=0&&W.generals[u.gid]&&!u.onTower&&u.type!==3; if(named&&u.type!==2){ /* 第242巡（仕様書 17）：名のある将は馬上に、脇に護衛が二人 */ try{ const hm=soldierSprite(2, u.ally?2:(meSide?0:1), walk, facingLeft, 0); const hw=sw*1.55, hh=sh*1.5; bctx.drawImage(hm, p.x-hw/2, p.y-hh*0.62+bob, hw, hh); for(const k of [-1,1]){ const gx=p.x+k*lw*0.75, gy=p.y+lh*0.28; bctx.fillStyle="rgba(0,0,0,.2)"; bctx.beginPath(); bctx.ellipse(gx,gy+sh*0.4,sw*0.3,sh*0.1,0,0,7); bctx.fill(); bctx.drawImage(img, gx-sw*0.45, gy-sh*0.45, sw*0.9, sh*0.9); } }catch(_){ bctx.drawImage(img, p.x-lw/2, p.y-lh/2+bob, lw, lh); } } else bctx.drawImage(img, p.x-lw/2, p.y-lh/2+bob, lw, lh); } } }); }
     draws.sort((a,b)=>a.y-b.y); for(const d of draws) d.f();
     // 被弾の光
     if(u.flash>0){ bctx.globalAlpha=Math.min(.55,u.flash*3); const gr=bctx.createRadialGradient(x,y,0,x,y,34*Z); gr.addColorStop(0,"rgba(255,250,235,.9)"); gr.addColorStop(1,"rgba(255,250,235,0)"); bctx.fillStyle=gr; bctx.beginPath(); bctx.ellipse(x,y+4*Z,34*Z,sh*0.9,0,0,7); bctx.fill(); bctx.globalAlpha=1; }   // 被弾の光は四角ではなく、ぼんやりと
