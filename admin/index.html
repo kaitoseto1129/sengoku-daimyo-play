@@ -98,7 +98,10 @@ function render(){
   const scen={}, clans={}; for(const [k,n] of byPrefix("start")){ const [sc,cl]=k.split("/"); scen[sc]=(scen[sc]||0)+n; if(cl) clans[cl]=(clans[cl]||0)+n; }
   const resultKinds={}, resultScen={}; for(const [k,n] of byPrefix("result")){ const [kind,sc]=k.split("/"); resultKinds[kind]=(resultKinds[kind]||0)+n; if(sc) resultScen[sc]=(resultScen[sc]||0)+n; }
   const battleKinds={}; for(const [k,n] of byPrefix("battle")){ battleKinds[k]=(battleKinds[k]||0)+n; }
-  const list=(obj,label,max)=>{ const es=Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,max||12); const top=es.length?es[0][1]:1; if(!es.length) return `<div class="muted">まだありません</div>`; return es.map(([k,n])=>`<div class="row"><span>${esc(k)}</span><span class="n">${fmtN(n)}</span></div><div class="bar"><i style="width:${Math.round(n/top*100)}%"></i></div>`).join(""); };
+  /* 名の札：筋書きの id と会戦の種類は日本語で（nagashino → 長篠の戦い） */
+  const JA={oke:"桶狭間の戦い",honnoji:"本能寺の変",kiyosu:"清洲会議",shizugatake:"賤ヶ岳の戦い",komaki:"小牧・長久手の戦い",koshu:"甲州征伐",sekigahara:"関ヶ原の戦い",osaka:"大坂の陣",hoi:"信長包囲網",mikata:"三方ヶ原の戦い",nagashino:"長篠の戦い",kyushu:"九州征伐",odawara:"小田原征伐",ishiyama:"石山合戦",decisive:"決戦",siege:"城攻め",field:"野戦",word:"合言葉",open:"札を開いた"};
+  const ja=k=>JA[k]||k;
+  const list=(obj,label,max)=>{ const es=Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,max||12); const top=es.length?es[0][1]:1; if(!es.length) return `<div class="muted">まだありません</div>`; return es.map(([k,n])=>`<div class="row"><span>${esc(ja(k))}</span><span class="n">${fmtN(n)}</span></div><div class="bar"><i style="width:${Math.round(n/top*100)}%"></i></div>`).join(""); };
   const bd=DATA.breakdown||{}; const bl=(k,label)=>{ const st=(bd[k]&&bd[k].stats)||[]; if(bd[k]&&bd[k].error) return `<div class="muted">取れませんでした（${esc(bd[k].error)}）</div>`; const top=st.length?st[0].count:1; return st.slice(0,10).map(s=>`<div class="row"><span>${esc(s.name||"（不明）")}</span><span class="n">${fmtN(s.count)}</span></div><div class="bar"><i style="width:${Math.round(s.count/top*100)}%"></i></div>`).join("")||`<div class="muted">まだありません</div>`; };
   // 日ごとの折れ線
   const W=900,H=180,pad=28; const mx=Math.max(1,...days.map(d=>d.n)); const xs=i=>pad+(W-pad*2)*(days.length>1?i/(days.length-1):0.5), ys=n=>H-pad-(H-pad*2)*n/mx;
