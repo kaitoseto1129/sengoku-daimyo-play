@@ -14936,7 +14936,7 @@ const DECISIVE=[
    terrain:1, forts:"def", nAtk:10, nDef:4, atkTroops:60000, defTroops:4000,
    atkGens:["豊臣秀次","中村一氏","堀尾吉晴","山内一豊","一柳直末","徳川家康","井伊直政","池田輝政"], defGens:["松田康長","間宮康俊","北条氏勝","朝倉景澄"],
    site:["山中城","小田原城"],
-   holdWin:{side:"def", sec:150, keep:0.3, h:"山中、半日を持ちこたえる", t:"障子堀に寄せ手は落ち、松田康長は箱根の関を守り切った。秀吉の威信は翳る"},
+   holdWin:{side:"def", sec:190, keep:0.3, h:"山中、半日を持ちこたえる", t:"障子堀に寄せ手は落ち、松田康長は箱根の関を守り切った。秀吉の威信は翳る"},
    gather:"二十万の大軍が箱根へ。最初の一撃は山中城", open:"山中城。箱根の山、障子堀が畝のように走る。守兵四千、寄せ手は七万",
    after:{ atkWin:{ text:"山中城は半日で落ちた。松田康長は討死。一柳直末も倒れた。「箱根の堅城が半日とは」――小田原は震える", capture:"山中城", kills:["松田康長","一柳直末"], run:()=>{ if(W.oda){ W.oda.surrender+=4; W.oda.morale=Math.max(0,W.oda.morale-5); W.oda.prestige=Math.min(100,(W.oda.prestige??70)+8); W.oda.lost=(W.oda.lost||0)+1; W.oda.branchDone=W.oda.branchDone||{}; W.oda.branchDone["山中城"]=true; } } },
            defWin:{ text:"山中城は持ちこたえた。箱根の関は閉じ、大軍は足止めされる。北条の士気は上がる", shrink:{clan:"豊臣家",k:0.95}, run:()=>{ if(W.oda){ W.oda.morale=Math.min(100,W.oda.morale+10); W.oda.surrender=Math.max(5,W.oda.surrender-6); W.oda.prestige=Math.max(0,(W.oda.prestige??70)-8); } } } } },
@@ -18033,7 +18033,7 @@ function ckRingSetup(K,c,L,defLeft,inn){ const H=BF.h, Wd=BF.w; const ev=v=>Math
   for(let i=0;i<L;i++){ const R=rings[i]; const fx=defLeft?R.x1:R.x0, bx=defLeft?R.x0:R.x1; const hp=Math.round(hp0*(i===0?1:(i>=L-1?0.7:0.5)));
     if(i===0){ B.gate.y=cy; B.gate.dir="x"; B.gate.ring=0; B.gate.half=B.gate.half||1.6; B.gate.name=G[0]; R.gates.push(B.gate); R.front=B.gate; }
     else { R.front=mkGate(R,fx,cy,"x",G[i],hp,i===1&&L>=3?1.8:1.6); K.lines.push({x:fx,y:cy,name:G[i],space:S[i-1]}); }
-    /* 脇の門：外側の曲輪は北門、次は南門、本丸は搦手門 */ if(i===L-1&&L>=2){ mkGate(R,bx,cy,"x","搦手門",Math.round(hp*0.6)); } else if(i%2===0){ mkGate(R,ev(cx+inn*Math.round(R.wx*0.4)),R.y0,"y","北門",Math.round(hp*0.75)); } else { mkGate(R,ev(cx-inn*Math.round(R.wx*0.3)),R.y1,"y","南門",Math.round(hp*0.75)); } }
+    /* 脇の門：外側の曲輪は北門（野が高ければ搦手門も）、次は南門、本丸は搦手門 */ if(i===0&&L>=2&&H>=34&&(defLeft?R.x0>=9:Wd-R.x1>=9)){ mkGate(R,bx,cy,"x","搦手門",Math.round(hp*0.7)); } if(i===L-1&&L>=2){ mkGate(R,bx,cy,"x","搦手門",Math.round(hp*0.6)); } else if(i%2===0){ mkGate(R,ev(cx+inn*Math.round(R.wx*0.4)),R.y0,"y","北門",Math.round(hp*0.75)); } else { mkGate(R,ev(cx-inn*Math.round(R.wx*0.3)),R.y1,"y","南門",Math.round(hp*0.75)); } }
   /* 破口：外郭の正面の壁の一角だけ */ K.breach={x:line0, y:Math.max(rings[0].y0+2.5,Math.min(rings[0].y1-2.5,cy+(defLeft?-7:7))), hp:320, hpMax:320, open:false};
   /* 地面：曲輪の内は踏み固めた土。堀は城の周りをぐるりと（門と破口の所は土橋）。大手へは道 */ if(B.tiles){ const R0=rings[0]; for(let r=0;r<H;r++) for(let cc=0;cc<Wd;cc++){ const t=B.tiles[r][cc]; const inside=cc+0.5>R0.x0&&cc+0.5<R0.x1&&r+0.5>R0.y0&&r+0.5<R0.y1; if(inside){ if(t===BT.GRASS||t===BT.FOREST||t===BT.MARSH||t===BT.ROAD||t===BT.HILL||t===BT.WATER||t===BT.MOAT||t===BT.FORD) B.tiles[r][cc]=BT.DIRT; continue; }
       if(K.style&&K.style!=="plain"){ const dxo=Math.max(R0.x0-(cc+0.5),(cc+0.5)-R0.x1,0), dyo=Math.max(R0.y0-(r+0.5),(r+0.5)-R0.y1,0); const d=Math.max(dxo,dyo); if(d>0.8&&d<2.6&&t!==BT.CLIFF&&t!==BT.HILL){ const bridge=R0.gates.some(g=>Math.abs(cc+0.5-g.x)<2.2&&Math.abs(r+0.5-g.y)<2.2)||(K.breach&&Math.abs(cc+0.5-K.breach.x)<1.6&&Math.abs(r+0.5-K.breach.y)<1.6); B.tiles[r][cc]=bridge?BT.DIRT:(K.style==="water"?BT.WATER:BT.MOAT); } } }
@@ -18047,12 +18047,13 @@ function ckRingSetup(K,c,L,defLeft,inn){ const H=BF.h, Wd=BF.w; const ev=v=>Math
   def.sort((a,b)=>(a.type===3?0:1)-(b.type===3?0:1)); let cursor=0; const counts=plan.map(p=>Math.round(n*p)); while(counts.reduce((a,b)=>a+b,0)<n) counts[counts.length-1]++;
   for(let i=0;i<L;i++){ const cells=spaceCells[i].slice(); const Ri=rings[i]; /* 正面の門に近い升から順に（門の内に守りが厚い） */ cells.sort((a,b)=>Math.hypot(a[0]-Ri.front.x,a[1]-Ri.front.y)-Math.hypot(b[0]-Ri.front.x,b[1]-Ri.front.y)); const used=new Set(); for(let k=0;k<counts[i]&&cursor<n;k++,cursor++){ const u=def[cursor]; let pick=null; for(let j=0;j<cells.length;j++){ const idx=(k<Math.ceil(counts[i]*0.5))?j:Math.floor(R()*cells.length); if(used.has(idx)) continue; pick=idx; break; } if(pick===null) pick=k%Math.max(1,cells.length); used.add(pick); const [px,py]=cells[pick]||[Ri.cx,Ri.cy]; u.x=px; u.y=py; u.gx=px; u.gy=py; u.cell=null; u.nextCell=null; u.order={k:"guard"}; u.holdUntil=99999; u.ckLayer=i; } }
   const cmd=B.units.find(u=>u.side===1&&u.cmd); if(cmd){ cmd.x=Math.max(1.5,Math.min(Wd-1.5,cx-inn*4)); cmd.y=cy; cmd.gx=cmd.x; cmd.gy=cmd.y; cmd.cell=null; cmd.nextCell=null; }
-  /* 寄せ手は城を囲む：六割は大手の前、二割ずつ北と南の外（野が高いときだけ。本陣は大手の前のいちばん奥） */ { const R0=rings[0]; const atk=B.units.filter(u=>u.side===0&&u.troops>.5&&!u.left&&!u.sigHidden&&!u.cmd); const lanes=tall&&R0.y0>=5; const nF=lanes?Math.ceil(atk.length*0.6):atk.length; const rest=atk.length-nF; const nN=Math.floor(rest/2), nS=rest-nN; let i=0;
+  /* 寄せ手は城を囲む：六割は大手の前、二割ずつ北と南の外（野が高いときだけ。本陣は大手の前のいちばん奥） */ { const R0=rings[0]; const atk=B.units.filter(u=>u.side===0&&u.troops>.5&&!u.left&&!u.sigHidden&&!u.cmd); const lanes=tall&&R0.y0>=5; const backRoom=defLeft?(R0.x0>=9):(Wd-R0.x1>=9); const nF=lanes?Math.ceil(atk.length*0.5):atk.length; const rest=atk.length-nF; const nE=(lanes&&backRoom)?Math.floor(rest/3):0; const nN=Math.floor((rest-nE)/2), nS=rest-nE-nN; let i=0;   /* 第243巡（作り手：城を四方から囲う）：大手四割・北二割・南二割・搦手二割 */
     const put=(u,x,y)=>{ u.x=Math.max(1.5,Math.min(Wd-1.5,x)); u.y=Math.max(1.5,Math.min(H-1.5,y)); u.gx=u.x; u.gy=u.y; u.cell=null; u.nextCell=null; u.stageX=undefined; u.stageY=undefined; if(u.order&&u.order.k==="move") u.order={k:"guard"}; };
     const fx=defLeft?R0.x1:R0.x0; atk.sort((a,b)=>(a.type===3?1:0)-(b.type===3?1:0));
     for(let j=0;j<nF;j++,i++){ const u=atk[i]; const col=Math.floor(j/5), row=j%5; put(u, fx-inn*(9+col*2.0+(u.type===3?2:0)), cy+(row-2)*(R0.hy*0.36)); }
     for(let j=0;j<nN;j++,i++){ const u=atk[i]; u.ringPost="N"; put(u, R0.x0+2+(j%6)*Math.max(2,(R0.x1-R0.x0-4)/6), Math.max(1.5,R0.y0-2.6-Math.floor(j/6)*1.8)); }
     for(let j=0;j<nS;j++,i++){ const u=atk[i]; u.ringPost="S"; put(u, R0.x0+2+(j%6)*Math.max(2,(R0.x1-R0.x0-4)/6), Math.min(H-1.5,R0.y1+2.6+Math.floor(j/6)*1.8)); }
+    for(let j=0;j<nE;j++,i++){ const u=atk[i]; u.ringPost="E"; const bx=defLeft?R0.x0:R0.x1; put(u, bx+inn*(4+Math.floor(j/4)*1.8), cy+((j%4)-1.5)*(R0.hy*0.45)); }
     const hq=B.units.find(u=>u.side===0&&u.cmd&&u.troops>.5); if(hq) put(hq, fx-inn*16, cy); }
   { const allT=B.fortTowers.filter(t=>t.alive); const guns=def.filter(u=>u.type===3); const usedT=new Set(); guns.forEach(u=>{ const t=allT.filter(t=>!usedT.has(t)).sort((a,b)=>Math.hypot(a.x-u.x,a.y-u.y)-Math.hypot(b.x-u.x,b.y-u.y))[0]; if(!t||Math.hypot(t.x-u.x,t.y-u.y)>12) return; usedT.add(t); u.x=Math.max(1.5,Math.min(Wd-1.5,t.x)); u.y=Math.max(1.5,Math.min(H-1.5,t.y)); u.gx=u.x; u.gy=u.y; u.cell=null; u.nextCell=null; u.onTower=true; u.ckLayer=t.ring; }); }
   for(const u of B.units){ if(u.troops<=.5) continue; const [gc,gr]=cellOf(u.x,u.y); if(!B.blockCells.has(gc*1000+gr)) continue; for(let k=1;k<8;k++){ let done=false; for(const [dc,dr] of [[0,-k],[0,k],[-k,0],[k,0],[-k,-k],[k,k],[k,-k],[-k,k]]){ const c2=gc+dc, r2=gr+dr; if(cellPassable(c2,r2)){ const [x,y]=cellCenter(c2,r2); u.x=x; u.y=y; u.gx=x; u.gy=y; u.cell=null; u.nextCell=null; done=true; break; } } if(done) break; } }
@@ -21745,7 +21746,7 @@ function startBattle(e){
   if(!e){ setSpeed(1); return; }
   document.querySelectorAll(".overlay.guide").forEach(o=>o.remove());   /* 地図の手引きが戦の上に残らない */
   BF.w=BF_CORE_W;   // 野の幅は芯から始める（前の戦で広げた分を戻す）
-  /* 第240巡（作り手：城が真ん中にあって軍勢が囲む感じに）：輪郭式の城攻めは野を縦に広げ（26→36升）、城の周りを回れるように */ BF.h=BF_CORE_H; { const dk=e.decisive?((DECISIVE.find(x=>x.id===e.decisive)||{}).key||""):""; if(CK_RING && e.castle!==null && e.castle!==undefined && !(dk && (DEC_FORT_NAMES[dk] || /gifu1600|gifu_nobutaka|takato|odani|ichinomiya|arioka|honnoji|nijo|sanadamaru|osaka|kizu|tennoji/.test(dk)))) BF.h=BF_RING_H; }
+  /* 第240巡（作り手：城が真ん中にあって軍勢が囲む感じに）：輪郭式の城攻めは野を縦に広げ（26→36升）、城の周りを回れるように */ BF.h=BF_CORE_H; { const d0=e.decisive?(DECISIVE.find(x=>x.id===e.decisive)||null):null; const dk=d0?(d0.key||""):""; const hasCastle=(e.castle!==null&&e.castle!==undefined)||!!(d0&&d0.castle); if(CK_RING && hasCastle && !(dk && (DEC_FORT_NAMES[dk] || /gifu1600|gifu_nobutaka|takato|odani|ichinomiya|arioka|honnoji|nijo|sanadamaru|osaka|kizu|tennoji/.test(dk)))) BF.h=BF_RING_H; }
   try{ autoSave(); }catch(_){ }   // 戦の途中で閉じても、戦の前から始め直せる
   playScene("battle");
   const a=W.armies[e.army];
@@ -24418,7 +24419,7 @@ function aiCommandSide(side, onlyAlly){
     if(B.gate && !B.gate.open && side===0 && u.type!==3){
       const idx=B.units.filter(x=>x.side===0&&x.troops>.5).indexOf(u);
       let gy=B.gate.y+((idx%5)-2)*1.1, gx=B.gate.x-1.6-(Math.floor(idx/5))*1.4;
-      /* 第240巡：輪郭式の城では、北・南に置いた隊は今の曲輪の脇の門（北門・南門・搦手門）を叩きに回る */ if(B.ck&&B.ck.ring&&u.ringPost){ const R=B.ck.rings[B.siegeStage||0]; const sg=R&&R.gates.find(g=>g!==R.front&&!g.open); if(sg){ const row=idx%4, col=Math.floor(idx/4)%3; if(sg.dir==="y"){ const out=sg.y<=R.y0+0.5?-1:1; gx=sg.x+(row-1.5)*1.2; gy=sg.y+out*(1.8+col*1.4); } else { const out=sg.x<R.cx?-1:1; gx=sg.x+out*(1.8+col*1.4); gy=sg.y+(row-1.5)*1.2; } } }
+      /* 第240巡：輪郭式の城では、北・南に置いた隊は今の曲輪の脇の門（北門・南門・搦手門）を叩きに回る */ if(B.ck&&B.ck.ring&&u.ringPost){ const R=B.ck.rings[B.siegeStage||0]; const cands=R?R.gates.filter(g=>g!==R.front&&!g.open):[]; const pref=cands.find(g=>u.ringPost==="E"?g.dir==="x":(u.ringPost==="N"?(g.dir==="y"&&g.y<=R.y0+0.5):(g.dir==="y"&&g.y>=R.y1-0.5))); const sg=pref||cands[0]; if(sg){ const row=idx%4, col=Math.floor(idx/4)%3; if(sg.dir==="y"){ const out=sg.y<=R.y0+0.5?-1:1; gx=sg.x+(row-1.5)*1.2; gy=sg.y+out*(1.8+col*1.4); } else { const out=sg.x<R.cx?-1:1; gx=sg.x+out*(1.8+col*1.4); gy=sg.y+(row-1.5)*1.2; } } }
       gx=Math.max(1,Math.min(BF.w-1,gx)); gy=Math.max(1.5,Math.min(BF.h-1.5,gy));
       if(Math.hypot(u.x-gx,u.y-gy)>1.2) u.order={k:"move",x:gx,y:gy}; else { u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; }
       continue;
