@@ -388,7 +388,7 @@ details.fold>summary.sec-title::before{content:"▸ "} details.fold[open]>summar
    高さ0から伸ばして、頭と足の帯のあいだを埋めさせる */
 #bcanvas{flex:1 1 0;height:0;min-height:0;width:100%;display:block;touch-action:none}
 @media (orientation:portrait){
-  #bcanvas{ flex:0 0 auto !important; height:auto !important; aspect-ratio:46/26; width:100%; margin:auto 0; }   /* 縦画面：戦場は横長のまま真ん中に（引き伸ばさない） */
+  #bcanvas{ flex:0 0 auto !important; height:auto !important; aspect-ratio:4/3; width:100%; margin:auto 0; }   /* 縦画面：戦場は横長のまま真ん中に（引き伸ばさない）。第226巡（夜53）：46/26 では升が小さすぎたので 4/3（横に少なく見せて升を大きく） */
   #battle{ justify-content:center; background:#12100E; }
   #bfoot{ flex-wrap:wrap; }
 }
@@ -664,6 +664,17 @@ button[disabled]{ cursor:default; }
   .p-body{ padding:8px 10px; gap:8px; }
   .owner{ padding:6px 8px; }
 }
+/* 第226巡（夜51）：iPhone の横持ちで、切り欠き（ノッチ）と角丸の下に日付の札・寄る引くの釦・合戦の一時停止の釦が隠れていた → 安全域の分だけ内側へ（机の上では 0） */
+@supports (padding-left: env(safe-area-inset-left)){
+  @media (max-width: 1120px){
+    #topbar{ padding-left:max(6px, env(safe-area-inset-left)); padding-right:max(6px, env(safe-area-inset-right)); }
+    #leftRail{ left:max(10px, env(safe-area-inset-left)); } #rightRail{ right:max(10px, env(safe-area-inset-right)); }
+    #bhead{ padding-left:max(8px, env(safe-area-inset-left)); padding-right:max(8px, env(safe-area-inset-right)); }
+    #bfoot{ padding-left:max(8px, env(safe-area-inset-left)); padding-right:max(8px, env(safe-area-inset-right)); padding-bottom:max(4px, env(safe-area-inset-bottom)); }
+    #noteStack{ right:max(8px, env(safe-area-inset-right)); }
+    #panel .p-body{ padding-right:max(12px, env(safe-area-inset-right)); }
+  }
+}
 @media (max-width: 760px){
   #topbar .stat{ display:none; }
   #topbar .stat.keep{ display:inline-flex; }
@@ -699,6 +710,8 @@ body.inbattle #toast.on{ transform:translateY(0); }
 body.inbattle #stage.paused::after{ display:none; }
 /* 電話：札を開いている間は「時を止めております」を出さない（札の頭に被る）。小さく下に（上の並びより後に置かないと top が残って縦に伸びていた） */
 @media (max-width: 480px){ #btnSound{ display:none; } }
+/* 第226巡（夜52）：電話の縦持ちで上の帯が右へはみ出し「その他 ▾」が押せなかった → 蔵の数を一つにし、釦を詰め、「手空きの将」は数だけ */
+@media (max-width: 520px){ #topbar{ gap:3px; padding:4px 4px; } #topbar .date{ font-size:10px; padding:3px 6px; } #topbar .stat.keep+.stat.keep{ display:none; } #topbar .stat{ font-size:10px; gap:2px; } #topbar .tool{ padding:4px 6px; font-size:10px; } #topbar #btnIdle{ font-size:0; padding:4px 6px; } #topbar #btnIdle .num{ font-size:11px; } #topbar #btnIdle::before{ content:"手空き"; font-size:10px; margin-right:3px; } }
 /* 第224巡（夜11）：電話では政策の木を縦に（三つ目の札が切れていた）、上の帯の「資金」「兵糧」が二行に折れていた */
 @media (max-width: 520px){ #pBody .poltree{ flex-direction:column; } #pBody .poltree .polarrow{ transform:rotate(90deg); align-self:center; } #pBody .poltree .cmd{ min-width:0; } #topbar .stat span{ white-space:nowrap; } #topbar .stat{ white-space:nowrap; } }   /* 縦持ちの電話では上の帯からはみ出す（音は「記録と設定」から） */
 @media (max-width: 1120px){ #stage.paused::after{ top:6px; font-size:11px; padding:2px 10px; letter-spacing:0; } body.panelopen #stage.paused::after{ display:none; } }
@@ -8923,7 +8936,7 @@ function showGuide(k){
 }
 /* 合戦の中の手ほどき：左上の小さな札に、いま何をすればよいかを順に */
 /* ---- 地図の手ほどき：初めての人を「城を押す → 内政 → 日を進める → 決戦 → 城取り → 外交」の順に導く（作り手の指示：会戦だけでなく全てに） ---- */
-function mapSimStart(ch){ if(ch===undefined && W.stage && W.decisiveAt) ch=0; W.msim={ch:ch===undefined?1:ch, step:0, at:dayNumber(), tasks0:mapSimTasks(), troops0:totalTroops(W.player), taken0:(W.stats&&W.stats.taken)||0, idle0:idleGenerals().length}; }
+function mapSimStart(ch){ if(ch===undefined && W.stage && W.decisiveAt) ch=0; W.msim={ch:ch===undefined?1:ch, step:0, stageChecked:ch!==undefined, at:dayNumber(),   /* 第226巡（夜54）：序章の「次へ」で第1章に入っても、筋書きの決戦が残っていると序章へ戻され、堂々巡りになっていた（関ヶ原） */ tasks0:mapSimTasks(), troops0:totalTroops(W.player), taken0:(W.stats&&W.stats.taken)||0, idle0:idleGenerals().length}; }
 function mapSimTasks(){ return Object.values(W.generals).filter(g=>g.clan===W.player&&g.task).length; }
 function simHot(sel){
   document.querySelectorAll(".sim-hot").forEach(e=>e.classList.remove("sim-hot"));
@@ -8938,16 +8951,16 @@ const MSIM_CHAPTERS=[
  /* 第121巡：決戦へ向かう筋書き（関ヶ原・大坂など）では、まず決戦の手順を示す（内政を押させるのは変。作り手の指摘） */
  {id:0, name:"決戦へ", steps:[
    {t:S=>{ const site=W.stage&&W.stage.site; const left=Math.max(0,(W.decisiveAt||0)-dayNumber()); return `軍は<b>${site?esc(site.name):"決戦の地"}</b>へ向かっています（あと${left}日）。<br>右上の<b>▶</b>で日を進めましょう。<span class='tiny muted'>Ⅱ でいつでも止まります</span>`; }, hot:'[data-s="1"]', ok:S=>W.speed>0, skip:S=>!W.stage},
-   {t:S=>S.dec()?"決戦の窓が開きました。<b>〈采配を取る〉</b>を押しましょう":"着けば<b>決戦の窓</b>が開きます。そのまま待ちましょう（急ぐなら ▶▶）", hot:S=>S.dec()?"#dcGo":'[data-s="2"]', ok:S=>S.decDone(), skip:S=>!W.stage&&!S.decDone()},
+   {t:S=>S.dec()?"決戦の窓が開きました。<b>〈采配を取る〉</b>を押しましょう":"着けば<b>決戦の窓</b>が開きます。そのまま待ちましょう（急ぐなら ▶▶）", hot:S=>S.dec()?"#dcGo":'[data-s="2"]', ok:S=>S.decDone(), skip:S=>!W.stage&&!S.decDone()&&!S.dec()&&!W.decisivePending},   /* 第226巡（夜57）：決戦の窓が開いた瞬間に筋書きが消え、「決戦が終わりました」が窓の下に出ていた */
    {t:"決戦が終わりました。ここからは城の内政・徴兵・出陣で天下を目指します。次の章へ", ok:S=>true, pause:true},
  ]},
  {id:1, name:"はじめの一歩", steps:[
    {t:"<b>自分の城（青）</b>を押しましょう。<br><span class='tiny muted'>光っている城です</span>", ring:S=>S.hq(), ok:S=>S.ownOpened},
-   {t:S=>S.council()?"誰か一人の<b>〈命じる〉</b>を押しましょう（新田開発など）":"城の札の<b>〈内政〉</b>を押しましょう", hot:S=>S.council()?simBtn("命じる"):simBtn("内政"), ok:S=>mapSimTasks()>S.tasks0},
+   {t:S=>S.council()?((typeof councilPick!=="undefined"&&councilPick!==null&&councilPick!==undefined)?"誰か一人の<b>〈命じる〉</b>を押しましょう":"まず仕事を選びます。<b>〈新田開発〉</b>を押しましょう"):"城の札の<b>〈内政〉</b>を押しましょう", hot:S=>S.council()?((typeof councilPick!=="undefined"&&councilPick!==null&&councilPick!==undefined)?simBtn("命じる"):simBtn("新田開発")):simBtn("内政"), ok:S=>mapSimTasks()>S.tasks0},   /* 第226巡（夜55）：内政の札は「仕事を押す→将を選ぶ」の二段なのに、手ほどきは初めから〈命じる〉を光らせようとして何も光らなかった */
    {t:"右上の<b>▶</b>を押して、日を進めましょう。<br><span class='tiny muted'>Ⅱ でいつでも止まります</span>", hot:'[data-s="1"]', ok:S=>W.speed>0},
-   {t:S=>S.dec()?"決戦です。<b>〈采配を取る〉</b>を押しましょう":"信長の後詰が長篠へ着くと（二十日あまり）武田との<b>決戦</b>の窓が開きます。<br>そのまま待ちましょう（急ぐなら ▶▶）", hot:S=>S.dec()?"#dcGo":null, skip:S=>W.scenario!=="nagashino", ok:S=>!!(W.decisiveWon&&(W.decisiveWon.nagashino_open||W.decisiveWon.nagashino))},
+   {t:S=>S.dec()?"決戦です。<b>〈采配を取る〉</b>を押しましょう":"信長の後詰が長篠へ着くと（二十日あまり）武田との<b>決戦</b>の窓が開きます。<br>そのまま待ちましょう（急ぐなら ▶▶）", hot:S=>S.dec()?"#dcGo":null, skip:S=>W.scenario!=="nagashino"||S.decDone(), ok:S=>!!(W.decisiveWon&&(W.decisiveWon.nagashino_open||W.decisiveWon.nagashino))},   /* 第226巡（夜56）：序章で決戦を終えた後に、また「決戦の窓を待て」で止まっていた */
    {t:"次は城取り。<b>敵の城（赤）</b>を押しましょう。<br><span class='tiny muted'>光っている城です</span>", ring:S=>S.foe(), ok:S=>S.foeOpened},
-   {t:S=>S.inDispatch()?"将を選んで、下の<b>〈出陣〉</b>を押しましょう":(typeof mapPick!=="undefined"&&mapPick&&mapPick.kind==="attackFrom")?"地図で<b>光っているわが城</b>を押しましょう（そこから兵を出します）":"城の札の<b>〈この城を攻める〉</b>を押しましょう", hot:S=>S.inDispatch()?simBtn("出陣"):(typeof mapPick!=="undefined"&&mapPick&&mapPick.kind==="attackFrom")?null:simBtn("この城を攻める"), ring:S=>(typeof mapPick!=="undefined"&&mapPick&&mapPick.kind==="attackFrom")?S.hq():null, ok:S=>S.marching()},
+   {t:S=>S.inDispatch()?((typeof dispatchSel!=="undefined"&&dispatchSel.size)?(S.tooFew&&S.tooFew()?"守兵の二倍に足りません。<b>〈徴兵〉</b>で兵を増やすか、いったん閉じて別の城を狙いましょう":"下の<b>〈出陣〉</b>を押しましょう"):"まず将を選びます。<b>〈全員えらぶ〉</b>か将の札を押しましょう"):(typeof mapPick!=="undefined"&&mapPick&&mapPick.kind==="attackFrom")?"地図で<b>光っているわが城</b>を押しましょう（そこから兵を出します）":"城の札の<b>〈この城を攻める〉</b>を押しましょう", hot:S=>S.inDispatch()?((typeof dispatchSel!=="undefined"&&dispatchSel.size)?simBtn("出陣"):simBtn("全員えらぶ",null,true)):(typeof mapPick!=="undefined"&&mapPick&&mapPick.kind==="attackFrom")?null:simBtn("この城を攻める"),   /* 第226巡（夜58）：将を一人も選んでいないのに〈出陣 0将〉を光らせていた → まず〈全員えらぶ〉を光らせる */ ring:S=>(typeof mapPick!=="undefined"&&mapPick&&mapPick.kind==="attackFrom")?S.hq():null, ok:S=>S.marching()},
    {t:"軍が向かっています。着けば囲みが始まります。<br>ここまでが第一章。", ok:S=>true, pause:true},
  ]},
  {id:2, name:"兵を蓄える", steps:[
@@ -8985,11 +8998,12 @@ function mapSimTick(){
   const hq=myCastles(W.player).find(c=>c.hq)||myCastles(W.player)[0];
   /* 検めに使う手 */
   S.hq=()=>hq?hq.id:null;
-  S.foe=()=>{ if(!hq) return null; let best=null,bd=1e9; for(const c of Object.values(W.castles)){ if(c.clan===null||c.clan===W.player||!hostile(W.player,c.clan)) continue; const d=kmBetween(W.tile[hq.id].c,W.tile[hq.id].r,W.tile[c.id].c,W.tile[c.id].r); if(d<bd){ bd=d; best=c; } } return best?best.id:null; };
+  S.foe=()=>{ if(!hq) return null; if(S.foeId!==undefined&&W.castles[S.foeId]&&W.castles[S.foeId].clan!==W.player) return S.foeId; /* 第226巡（夜59）：いちばん近い敵の城が守兵の二倍を要る大城だと「出陣を押しましょう」で詰んでいた（長篠の織田で一乗谷） → 本拠の兵で攻められる城を選ぶ */ const my=Object.values(W.generals).filter(g=>g.castle===hq.id&&g.clan===W.player&&!g.task&&!g.army&&g.status!=="捕虜"&&g.status!=="死亡"&&g.status!=="人質"&&!isChild(g)&&!(g.woundedUntil>dayNumber())).reduce((a,g)=>a+g.troops,0); let best=null,bd=1e9; for(const c of Object.values(W.castles)){ if(c.clan===null||c.clan===W.player||!hostile(W.player,c.clan)) continue; let why=null; try{ why=canMarchTo(c); }catch(_){ } if(why) continue; const d=kmBetween(W.tile[hq.id].c,W.tile[hq.id].r,W.tile[c.id].c,W.tile[c.id].r)+(garrisonTroops(c.id)*2.4>my?1e6:0); if(d<bd){ bd=d; best=c; } } S.foeId=best?best.id:null; return S.foeId; };
   S.council=()=>!!(panelKey&&/内政/.test(String(panelKey)));
   S.inConscript=()=>!!(panelKey&&/徴兵/.test(String(panelKey)));
   S.inDispatch=()=>!!(panelKey&&/出陣/.test(String(panelKey)));
   S.dec=()=>!!document.querySelector("#dcGo");
+  S.tooFew=()=>{ try{ const t=W.castles[dispatchTarget]; if(!t||t.clan===null||t.clan===W.player) return false; const mineT=[...dispatchSel].reduce((s2,g)=>s2+((W.generals[g]||{}).troops||0),0); return garrisonTroops(t.id)*2>mineT; }catch(_){ return false; } };
   S.decDone=()=>!!(W.decisiveDay&&Object.keys(W.decisiveDay).length);
   S.marching=()=>Object.values(W.armies).some(a=>a.clan===W.player&&W.castles[a.target]&&W.castles[a.target].clan!==null&&W.castles[a.target].clan!==W.player&&hostile(W.player,W.castles[a.target].clan));
   S.siege=()=>Object.values(W.armies).find(a=>a.clan===W.player&&a.mission==="包囲")||null;
