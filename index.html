@@ -8941,11 +8941,11 @@ function mapSimTasks(){ return Object.values(W.generals).filter(g=>g.clan===W.pl
 function simHot(sel){
   document.querySelectorAll(".sim-hot").forEach(e=>e.classList.remove("sim-hot"));
   if(!sel) return false;
-  let el=null; try{ el=typeof sel==="function"?sel():document.querySelector(sel); }catch(e){ el=null; }
+  let el=null; try{ el=typeof sel==="function"?sel():(sel instanceof Element?sel:document.querySelector(sel)); }catch(e){ el=null; }   /* 第226巡（夜63）：第4章の〈その他〉は要素そのものを返していて、querySelector に渡して落ち、何も光らなかった */
   if(el && el.offsetParent!==null && !el.hidden){ el.classList.add("sim-hot"); return true; }
   return false;
 }
-function simBtn(text, within, any){ const f=()=>[...document.querySelectorAll((within||"#panel")+" button, "+(within||"#panel")+" .chip")].find(b=>!b.hidden&&b.offsetParent!==null&&(any?b.textContent.includes(text):b.textContent.trim().startsWith(text))); return f; }
+function simBtn(text, within, any){ const f=()=>[...document.querySelectorAll((within||"#panel")+" button, "+(within||"#panel")+" .chip")].find(b=>!b.hidden&&!b.disabled&&b.offsetParent!==null&&(any?b.textContent.includes(text):b.textContent.trim().startsWith(text))); return f; }   /* 第226巡（夜60）：押せない（disabled）釦を光らせていた（徴兵の〈足軽+500〉が手勢の兵種と違う将のものだった） */
 /* 手ほどきは章立て（作り手の指示でさらに厚く）。章1 はじめの一歩 → 章2 兵を蓄える → 章3 城を落とす → 章4 外交。〈その他 → 手引き・手ほどき〉からどの章でも始め直せる */
 const MSIM_CHAPTERS=[
  /* 第121巡：決戦へ向かう筋書き（関ヶ原・大坂など）では、まず決戦の手順を示す（内政を押させるのは変。作り手の指摘） */
@@ -8959,13 +8959,13 @@ const MSIM_CHAPTERS=[
    {t:S=>S.council()?((typeof councilPick!=="undefined"&&councilPick!==null&&councilPick!==undefined)?"誰か一人の<b>〈命じる〉</b>を押しましょう":"まず仕事を選びます。<b>〈新田開発〉</b>を押しましょう"):"城の札の<b>〈内政〉</b>を押しましょう", hot:S=>S.council()?((typeof councilPick!=="undefined"&&councilPick!==null&&councilPick!==undefined)?simBtn("命じる"):simBtn("新田開発")):simBtn("内政"), ok:S=>mapSimTasks()>S.tasks0},   /* 第226巡（夜55）：内政の札は「仕事を押す→将を選ぶ」の二段なのに、手ほどきは初めから〈命じる〉を光らせようとして何も光らなかった */
    {t:"右上の<b>▶</b>を押して、日を進めましょう。<br><span class='tiny muted'>Ⅱ でいつでも止まります</span>", hot:'[data-s="1"]', ok:S=>W.speed>0},
    {t:S=>S.dec()?"決戦です。<b>〈采配を取る〉</b>を押しましょう":"信長の後詰が長篠へ着くと（二十日あまり）武田との<b>決戦</b>の窓が開きます。<br>そのまま待ちましょう（急ぐなら ▶▶）", hot:S=>S.dec()?"#dcGo":null, skip:S=>W.scenario!=="nagashino"||S.decDone(), ok:S=>!!(W.decisiveWon&&(W.decisiveWon.nagashino_open||W.decisiveWon.nagashino))},   /* 第226巡（夜56）：序章で決戦を終えた後に、また「決戦の窓を待て」で止まっていた */
-   {t:"次は城取り。<b>敵の城（赤）</b>を押しましょう。<br><span class='tiny muted'>光っている城です</span>", ring:S=>S.foe(), ok:S=>S.foeOpened},
-   {t:S=>S.inDispatch()?((typeof dispatchSel!=="undefined"&&dispatchSel.size)?(S.tooFew&&S.tooFew()?"守兵の二倍に足りません。<b>〈徴兵〉</b>で兵を増やすか、いったん閉じて別の城を狙いましょう":"下の<b>〈出陣〉</b>を押しましょう"):"まず将を選びます。<b>〈全員えらぶ〉</b>か将の札を押しましょう"):(typeof mapPick!=="undefined"&&mapPick&&mapPick.kind==="attackFrom")?"地図で<b>光っているわが城</b>を押しましょう（そこから兵を出します）":"城の札の<b>〈この城を攻める〉</b>を押しましょう", hot:S=>S.inDispatch()?((typeof dispatchSel!=="undefined"&&dispatchSel.size)?simBtn("出陣"):simBtn("全員えらぶ",null,true)):(typeof mapPick!=="undefined"&&mapPick&&mapPick.kind==="attackFrom")?null:simBtn("この城を攻める"),   /* 第226巡（夜58）：将を一人も選んでいないのに〈出陣 0将〉を光らせていた → まず〈全員えらぶ〉を光らせる */ ring:S=>(typeof mapPick!=="undefined"&&mapPick&&mapPick.kind==="attackFrom")?S.hq():null, ok:S=>S.marching()},
-   {t:"軍が向かっています。着けば囲みが始まります。<br>ここまでが第一章。", ok:S=>true, pause:true},
+   {t:"次は城取り。<b>敵の城（赤）</b>を押しましょう。<br><span class='tiny muted'>光っている城です</span>", ring:S=>S.foe(), ok:S=>S.foeOpened, skip:S=>!!W.stage||!S.foeViable()},   /* 第226巡（夜66）：本拠の兵で攻められる敵の城が無いときは城取りの段を飛ばす（守兵の二倍に足りず詰んでいた） */
+   {t:S=>S.inDispatch()?((typeof dispatchSel!=="undefined"&&dispatchSel.size)?(S.tooFew&&S.tooFew()?"守兵の二倍に足りません。<b>〈徴兵〉</b>で兵を増やすか、いったん閉じて別の城を狙いましょう":"下の<b>〈出陣〉</b>を押しましょう"):"まず将を選びます。<b>〈全員えらぶ〉</b>か将の札を押しましょう"):(typeof mapPick!=="undefined"&&mapPick&&mapPick.kind==="attackFrom")?"地図で<b>光っているわが城</b>を押しましょう（そこから兵を出します）":"城の札の<b>〈この城を攻める〉</b>を押しましょう", hot:S=>S.inDispatch()?((typeof dispatchSel!=="undefined"&&dispatchSel.size)?simBtn("出陣"):simBtn("全員えらぶ",null,true)):(typeof mapPick!=="undefined"&&mapPick&&mapPick.kind==="attackFrom")?null:simBtn("この城を攻める"),   /* 第226巡（夜58）：将を一人も選んでいないのに〈出陣 0将〉を光らせていた → まず〈全員えらぶ〉を光らせる */ ring:S=>(typeof mapPick!=="undefined"&&mapPick&&mapPick.kind==="attackFrom")?S.hq():null, ok:S=>S.marching(), skip:S=>(!!W.stage||!S.foeViable())&&!S.marching()},
+   {t:S=>S.marching()?"軍が向かっています。着けば囲みが始まります。<br>ここまでが第一章。":W.stage?"いまは決戦へ向かう筋書きの最中。決戦が終わってから城取りへ。<br>ここまでが第一章。":"いまは守兵の二倍で攻められる敵の城がありません。<b>徴兵</b>で兵を蓄えてから城取りへ。<br>ここまでが第一章。", ok:S=>true, pause:true},
  ]},
  {id:2, name:"兵を蓄える", steps:[
    {t:"兵は民から取ります。<b>自分の城</b>を押しましょう", ring:S=>S.hq(), ok:S=>S.ownOpened},
-   {t:S=>S.inConscript()?"誰か一人の<b>〈足軽+500〉</b>を押しましょう（足軽が安い）":"城の札の<b>〈徴兵〉</b>を押しましょう", hot:S=>S.inConscript()?simBtn("+500",null,true):simBtn("徴兵"), ok:S=>totalTroops(W.player)>S.troops0+50},
+   {t:S=>S.inConscript()?"誰か一人の<b>〈足軽+500〉</b>を押しましょう（足軽が安い）":"城の札の<b>〈徴兵〉</b>を押しましょう", hot:S=>S.inConscript()?simBtn("+500",null,true):simBtn("徴兵"), ok:S=>totalTroops(W.player)>S.troops0+50, skip:S=>{ const K=W.clans[W.player]; return !!(K&&K.troopMax&&clanTroopTotal(K)>=K.troopMax) || (S.inConscript()&&!simBtn("+500",null,true)()); }},   /* 第226巡（夜62）：家の兵が上限で徴兵できないのに〈+500〉を押させ続けていた → 飛ばす */
    {t:"取りすぎると民心が落ち、一揆が起きます。上の<b>兵糧</b>にも目を。兵が増えるほど米を食います", hot:'#uiFood', ok:S=>true, pause:true},
    {t:"仕事のない将は宝の持ち腐れ。上の<b>〈手空き〉</b>を押し、仕事を割り振りましょう", hot:'#btnIdle', ok:S=>S.idleOpened()||idleGenerals().length<S.idle0},
    {t:"手空きの札で一人に仕事を命じましょう", hot:S=>simBtn("新田開発"), ok:S=>idleGenerals().length<S.idle0||mapSimTasks()>S.tasks0, skip:S=>idleGenerals().length===0},
@@ -8978,8 +8978,8 @@ const MSIM_CHAPTERS=[
    {t:"落とした城は民心が低い。内政の<b>〈施し〉</b>で民心を戻しましょう。第三章はここまで", ok:S=>true, pause:true},
  ]},
  {id:4, name:"外交", steps:[
-   {t:"戦ばかりでは持ちません。上の<b>〈その他〉→〈外交〉</b>を開きましょう", hot:S=>{ const m=document.getElementById("moreMenu"); return (m&&!m.hidden)?document.getElementById("btnDiplomacy2"):document.getElementById("btnMore"); }, ok:S=>panelKey==="外交"},
-   {t:"隣の家を一つ選び、<b>〈贈物〉</b>で心証を上げましょう（三千）", hot:S=>simBtn("贈物"), ok:S=>/贈物/.test(String(S.dip||""))},
+   {t:S=>featureUnlocked("diplomacy")?"戦ばかりでは持ちません。上の<b>〈その他〉→〈外交〉</b>を開きましょう":`外交はあと${Math.max(1,(UNLOCK_DAYS.diplomacy||0)-(dayNumber()-(W.scenarioStartDay||0)))}日で開きます。右上の<b>▶</b>で日を進めましょう`, hot:S=>{ if(!featureUnlocked("diplomacy")) return '[data-s="2"]'; const m=document.getElementById("moreMenu"); return (m&&!m.hidden)?document.getElementById("btnDiplomacy2"):document.getElementById("btnMore"); }, ok:S=>panelKey==="外交"},   /* 第226巡（夜61）：初めての人の段階解禁で外交がまだ開かないのに「外交を開きましょう」と言っていた */
+   {t:S=>(panelKey&&/^外交　/.test(String(panelKey)))?"<b>〈贈物〉</b>を押して心証を上げましょう（三千）":"隣の家を一つ押しましょう（光っている札）", hot:S=>(panelKey&&/^外交　/.test(String(panelKey)))?simBtn("贈物"):(()=>document.querySelector('#panel [onclick^="openDiploClan"]')), ok:S=>/贈物/.test(String(S.dip||""))},   /* 第226巡（夜64）：外交は「家を押す→手を選ぶ」の二段なのに、いきなり〈贈物〉を探して何も光らなかった */
    {t:"心証が70を越えれば<b>〈同盟〉</b>、戦の最中なら<b>〈和睦〉</b>。大きな家には<b>〈臣従〉</b>して生き延びる手も。<br>困ったら上の<b>〈気がかり〉</b>が次の一手を教えます", hot:'#btnConcerns', ok:S=>true, pause:true},
  ]},
 ];
@@ -9003,6 +9003,7 @@ function mapSimTick(){
   S.inConscript=()=>!!(panelKey&&/徴兵/.test(String(panelKey)));
   S.inDispatch=()=>!!(panelKey&&/出陣/.test(String(panelKey)));
   S.dec=()=>!!document.querySelector("#dcGo");
+  S.foeViable=()=>{ const id=S.foe(); if(id===null||id===undefined){ S.foeOk=false; return false; } const my=Object.values(W.generals).filter(g=>g.castle===hq.id&&g.clan===W.player&&!g.task&&!g.army&&g.status!=="捕虜"&&g.status!=="死亡"&&g.status!=="人質"&&!isChild(g)&&!(g.woundedUntil>dayNumber())).reduce((a,g)=>a+g.troops,0); S.foeOk=garrisonTroops(id)*2<=my; return S.foeOk; };
   S.tooFew=()=>{ try{ const t=W.castles[dispatchTarget]; if(!t||t.clan===null||t.clan===W.player) return false; const mineT=[...dispatchSel].reduce((s2,g)=>s2+((W.generals[g]||{}).troops||0),0); return garrisonTroops(t.id)*2>mineT; }catch(_){ return false; } };
   S.decDone=()=>!!(W.decisiveDay&&Object.keys(W.decisiveDay).length);
   S.marching=()=>Object.values(W.armies).some(a=>a.clan===W.player&&W.castles[a.target]&&W.castles[a.target].clan!==null&&W.castles[a.target].clan!==W.player&&hostile(W.player,W.castles[a.target].clan));
@@ -10285,7 +10286,7 @@ function openConscript(id){
       <span class="chip" style="cursor:pointer" title="兵種を改める" onclick="openArms(${id})">${UNITS[g.unit].n} ▸</span>
       <span class="num">兵 ${g.troops.toLocaleString()} / ${troopCapOf(g).toLocaleString()}</span>
       <span style="margin-left:auto;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">
-        ${UNITS.map((u,i)=>{ const locked=g.troops>=100&&g.unit!==i; return `<button class="chip" style="cursor:pointer" title="${locked?"手勢と違う兵種。先に兵種を改める":"民から取る"}" ${g.apt[i]===null||locked||(i===3&&!W.clans[W.player].policies.has("鉄砲伝来"))||can<=0?"disabled":""}
+        ${UNITS.map((u,i)=>{ const locked=g.troops>=100&&g.unit!==i; return `<button class="chip" style="cursor:pointer" title="${locked?"手勢と違う兵種。先に兵種を改める":g.troops>=troopCapOf(g)?"この将は率いられる上限":"民から取る"}" ${g.apt[i]===null||locked||(i===3&&!W.clans[W.player].policies.has("鉄砲伝来"))||can<=0||g.troops>=troopCapOf(g)?"disabled":""}
           onclick="doConscript2(${id},${g.id},${i})">${u.n}+500</button>`; }).join("")}
         ${UNITS.map((u,i)=>{ const locked=g.troops>=100&&g.unit!==i; return `<button class="chip kin" style="cursor:pointer" title="${locked?"手勢と違う兵種。先に兵種を改める":`銭で牢人を雇う（${Math.floor(u.cost*0.5*3.2).toLocaleString()}）`}" ${g.apt[i]===null||locked||(i===3&&!W.clans[W.player].policies.has("鉄砲伝来"))?"disabled":""}
           onclick="doHire(${id},${g.id},${i})">雇${u.n}</button>`; }).join("")}
