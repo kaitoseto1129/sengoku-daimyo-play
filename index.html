@@ -26420,8 +26420,10 @@ function renderBattleFoot(){
         ${top.map(r=>`<span class="tiny">${esc(r.name)} <b class="num">${r.killed}</b>討</span>`).join("")}
         <span class="tiny muted">わが損害 ${mine.reduce((s2,r)=>s2+r.lost,0)}</span>
       </div>
+      <button class="tool" id="bReport" title="戦果の詳しい窓（評価・称号・戦の流れ・隊ごとの数）">戦果 ▸</button>
       <button class="big gold" id="bDone">地図へ戻る</button>`;
     document.getElementById("bDone").onclick=finishBattle;
+    document.getElementById("bReport").onclick=()=>{ try{ showBattleReport(); }catch(e){ console.error(e); } };   /* 第226巡（夜69）：第46巡から戦果の窓を開く釦が無くなり、関ヶ原の称号・桶狭間の大勝／引き分け・長篠と三方ヶ原の評価（S〜C）が一度も人の目に触れていなかった → 〈戦果 ▸〉で開ける（自動では開かない） */
     return;
   }
   const u=B.sel!==null?B.units.find(x=>x.id===B.sel&&x.side===B.ctx.playerSide):null;   // 敵の隊を押しても下の帯はそのまま（作り手の指示）
@@ -26861,11 +26863,11 @@ function showBattleReport(){
   el.className="overlay";
   el.style.zIndex=80;
   el.innerHTML=`<div class="dialog" style="max-width:560px;max-height:86%;overflow:auto">
-    <h3 style="color:${B.draw?"#D9C48A":won?"#F2C94C":"#B9B9B9"}">${B.draw?"引き分け":won?"勝ち戦":"負け戦"}　戦果</h3>
+    <h3 style="color:${B.draw?"#D9C48A":won?"#F2C94C":"#B9B9B9"}">${B.draw?"引き分け":(B.escapeCfg&&B.escapeOk!==undefined&&!B.escapeDead&&B.over===B.escapeCfg.side)?(won?"生還":"取り逃がす"):won?"勝ち戦":"負け戦"}　戦果</h3>
     ${B.nagashinoLine||""}${(()=>{ try{ if(B.siegeWall||B.kz||B.sm||!B.bandTint) return ""; const nm=B.bandNames||["左翼","中央","右翼"]; const w=B.bandTint.map((k,i)=>`${nm[i]} ${k>0.2?"優勢":k<-0.2?"劣勢":"互角"}`).join("・"); return `<div class="tiny muted" style="margin-top:4px">戦線：${esc(w)}${(B.wingLog||B.aneLog)&&((B.wingLog||[]).concat(B.aneLog||[])).length?`　／　${esc((B.wingLog||[]).concat(B.aneLog||[]).slice(0,5).join("、"))}`:""}</div>`; }catch(_){ return ""; } })()}
-    ${(()=>{ const m=B.report.filter(r=>r.side===B.ctx.playerSide).sort((a,b)=>b.killed-a.killed)[0]; const g=m&&W.generals[m.gid]; if(!g) return ""; return `<div class="row" style="justify-content:center;gap:10px">${face(g)}<div><div class="tiny muted">一番手柄</div><b>${esc(g.name)}</b><div class="tiny">撃破 ${m.killed}</div></div></div>`; })()}
+    ${(()=>{ const m=B.report.filter(r=>r.side===B.ctx.playerSide).sort((a,b)=>b.killed-a.killed)[0]; const g=m&&W.generals[m.gid]; if(!g) return ""; return `<div class="row" style="justify-content:center;gap:10px">${face(g)}<div><div class="tiny muted">一番手柄</div><b>${esc(g.name)}</b><div class="tiny">撃破 ${m.killed.toLocaleString()}</div></div></div>`; })()}
     ${(()=>{ const m=B.report.filter(r=>r.side===B.ctx.playerSide), f=B.report.filter(r=>r.side!==B.ctx.playerSide); const mk=m.reduce((s2,r)=>s2+r.killed,0), ml=m.reduce((s2,r)=>s2+r.lost,0); const mx=Math.max(1,mk,ml); return `<div class="tiny" style="display:grid;grid-template-columns:60px 1fr 60px;gap:6px;align-items:center"><span>撃破</span><div style="height:10px;background:rgba(0,0,0,.4);border-radius:3px"><div style="height:100%;width:${Math.round(mk/mx*100)}%;background:#7FE07F;border-radius:3px"></div></div><span class="num">${mk.toLocaleString()}</span><span>損害</span><div style="height:10px;background:rgba(0,0,0,.4);border-radius:3px"><div style="height:100%;width:${Math.round(ml/mx*100)}%;background:#FF7366;border-radius:3px"></div></div><span class="num">${ml.toLocaleString()}</span></div>`; })()}
-    <div class="tiny muted">${BTERRAIN[B.t].n}・${B.weather}・${Math.round(B.elapsed)}秒　${B.reportExtra||""}${(()=>{ const m=B.report.filter(r=>r.side===B.ctx.playerSide); const mvp=m.sort((a,b)=>b.killed-a.killed)[0]; return mvp?`一番手柄 ${esc(mvp.name)}（${mvp.killed}討）`:""; })()}</div>
+    <div class="tiny muted">${BTERRAIN[B.t].n}・${B.weather}・${Math.round(B.elapsed)}秒　${B.reportExtra||""}${(()=>{ const m=B.report.filter(r=>r.side===B.ctx.playerSide); const mvp=m.sort((a,b)=>b.killed-a.killed)[0]; return mvp?`一番手柄 ${esc(mvp.name)}（${mvp.killed.toLocaleString()}討）`:""; })()}</div>
     ${(()=>{ const m=B.report.filter(r=>r.side===B.ctx.playerSide), f=B.report.filter(r=>r.side!==B.ctx.playerSide); const sum=a=>a.reduce((s2,r)=>s2+r.lost,0);
       const byU=a=>UNITS.map((u,i)=>{ const rr=a.filter(r=>r.unit===i); return rr.length?`${u.n} 損${rr.reduce((s2,r)=>s2+r.lost,0)}`:null; }).filter(Boolean).join("　");
       const worst=[...m].sort((a,b)=>b.lost-a.lost)[0];
