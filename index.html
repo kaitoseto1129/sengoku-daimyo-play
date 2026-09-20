@@ -1708,6 +1708,7 @@ document.addEventListener("DOMContentLoaded",()=>{ i18nStart(); document.documen
       <button class="tool" id="btnSuccession">家督</button>
       <button class="tool" id="btnCourt">朝廷</button>
       <span class="mm-head">しらべる</span>
+      <button class="tool" id="btnConcerns2" title="いま手を打つべきこと（N で次へ飛ぶ）">気がかり</button>
       <button class="tool" id="btnStanding">天下の趨勢</button>
       <button class="tool" id="btnChronicle">年表</button>
       <button class="tool" id="btnBattleLog">戦の記録</button>
@@ -8823,7 +8824,7 @@ const TUTORIAL=[
   {k:"dispatch", t:"兵が貯まったら〈出陣〉です。誰を連れ、どこへ向かうかを選びます。"},
   {k:"battle", t:"合戦は「味方の隊を押して選ぶ → 升を押せばそこへ、敵を押せば討つ」。側面と背面が弱点。右端の名簿からも隊を選べます。"},
   {k:"food", t:"城の札の〈兵糧〉から米を買い、他の城へ運べます。陣中で尽きれば兵は飢えます。"},
-  {k:"map", t:"城に指を乗せると、誰の城で守兵がどれほどかが浮かびます。上の〈気がかり〉は困りごとの一覧、N で次の気がかりへ飛べます。"},
+  {k:"map", t:"城に指を乗せると、誰の城で守兵がどれほどかが浮かびます。〈その他 → 気がかり〉は困りごとの一覧、N で次の気がかりへ飛べます。"},
   {k:"siege", t:"囲まれたら〈籠城する〉で守りを固め、頃合いを見て〈討って出る〉。壁が崩れるまでの日数が城の札に出ます。"},
   {k:"diplo", t:"戦も盟も、領地の接している家とだけ結べます。和睦は形勢しだい──押している側からなら通りやすい。"},
 ];
@@ -8882,10 +8883,10 @@ const GUIDE={
     "陣立ての間は敵は動きません。並べ終えたら下の<span class='gk'>〈開戦〉</span>",
     "織田は<span class='gk'>鉄砲隊</span>が柵の内にいます。敵の騎馬が近づけば勝手に撃つので、鉄砲は動かさず<span class='gk'>守る</span>のが肝要",
     "右端の<span class='gk'>名簿</span>からも隊を選べます。赤く点滅する隊は危ない → 選んで<span class='gk'>〈退く〉</span>",
-    "迷ったら下の<span class='gk'>〈采配 任せる〉</span>で自動に。もう一度押せば戻ります。<span class='gk'>Z</span>キーや二本指で寄れます"]},
+    "迷ったら下の<span class='gk'>〈采配：手動〉</span>を押して自動に。もう一度押せば手動に戻ります。<span class='gk'>Z</span>キーや二本指・車輪で寄れます"]},
   after:{h:"戦のあと", lead:"お疲れさまでした。ここから先は自由です。", steps:[
     "勝った兵は城へ戻ります。<span class='gk'>内政</span>で国を富ませ、<span class='gk'>出陣</span>の札の徴兵で兵を増やし、<span class='gk'>出陣</span>で隣の城を取る――この繰り返しです",
-    "上の帯の<span class='gk'>気がかり</span>に急ぎの用が並びます。<span class='gk'>N</span>キーで次へ飛べます",
+    "<span class='gk'>その他 → 気がかり</span>に急ぎの用が並びます。<span class='gk'>N</span>キーで次へ飛べます",
     "外交（<span class='gk'>その他 → 外交</span>）で盟を結んだり、和睦したり。戦も盟も、領地の接している家とだけ",
     "詳しい仕組みは<span class='gk'>その他 → 手引き</span>にまとめてあります。よい戦を"]},
 };
@@ -8983,7 +8984,7 @@ const MSIM_CHAPTERS=[
  {id:4, name:"外交", steps:[
    {t:S=>featureUnlocked("diplomacy")?"戦ばかりでは持ちません。上の<b>〈その他〉→〈外交〉</b>を開きましょう":`外交はあと${Math.max(1,(UNLOCK_DAYS.diplomacy||0)-(dayNumber()-(W.scenarioStartDay||0)))}日で開きます。右上の<b>▶</b>で日を進めましょう`, hot:S=>{ if(!featureUnlocked("diplomacy")) return '[data-s="2"]'; const m=document.getElementById("moreMenu"); return (m&&!m.hidden)?document.getElementById("btnDiplomacy2"):document.getElementById("btnMore"); }, ok:S=>panelKey==="外交"},   /* 第226巡（夜61）：初めての人の段階解禁で外交がまだ開かないのに「外交を開きましょう」と言っていた */
    {t:S=>(panelKey&&/^外交　/.test(String(panelKey)))?"<b>〈贈物〉</b>を押して心証を上げましょう（三千）":"隣の家を一つ押しましょう（光っている札）", hot:S=>(panelKey&&/^外交　/.test(String(panelKey)))?simBtn("贈物"):(()=>document.querySelector('#panel [onclick^="openDiploClan"]')), ok:S=>/贈物/.test(String(S.dip||""))},   /* 第226巡（夜64）：外交は「家を押す→手を選ぶ」の二段なのに、いきなり〈贈物〉を探して何も光らなかった */
-   {t:"心証が70を越えれば<b>〈同盟〉</b>、戦の最中なら<b>〈和睦〉</b>。大きな家には<b>〈臣従〉</b>して生き延びる手も。<br>困ったら上の<b>〈気がかり〉</b>が次の一手を教えます", hot:'#btnConcerns', ok:S=>true, pause:true},
+   {t:"心証が70を越えれば<b>〈同盟〉</b>、戦の最中なら<b>〈和睦〉</b>。大きな家には<b>〈臣従〉</b>して生き延びる手も。<br>困ったら<b>〈その他 → 気がかり〉</b>が次の一手を教えます", hot:S=>{ const m=document.getElementById("moreMenu"); return (m&&!m.hidden)?document.getElementById("btnConcerns2"):document.getElementById("btnMore"); }, ok:S=>true, pause:true},
  ]},
 ];
 function openTutorialMenu(){
@@ -9157,7 +9158,7 @@ function openGuide(){
      <div class="tiny muted" style="margin-bottom:8px">武将の肖像は Wikimedia Commons のパブリックドメイン／CC の画像を小さく切り出したもの（出典一覧は同梱の PORTRAITS_CREDITS.md）。肖像の残らない将は描いた顔です。</div>
      <div class="sec-title">まず何をするか</div><div class="advice">
      ① 城を押して〈内政〉から武将に仕事を与え、国を富ませる。<br>
-     ② 〈気がかり〉に出る急を先に片づける。<br>
+     ② 〈その他 → 気がかり〉に出る急を先に片づける。<br>
      ③ 兵が貯まったら〈出陣〉で隣の城を攻める。<br>
      ④ 京の二条御所を抑え十二城を領すれば、幕府を開ける。
    </div></div>
@@ -27788,6 +27789,7 @@ function openHelp(){
 document.getElementById("btnIdle").onclick=openIdle;
 document.getElementById("btnCastles2").onclick=openCastleList;
 document.getElementById("btnDiplomacy2").onclick=openDiplomacy;
+document.getElementById("btnConcerns2").onclick=openConcerns;   /* 第226巡（夜82）：第47巡で上の帯から外した〈気がかり〉が、鍵盤の G でしか開けず、手引き・手ほどきは「上の〈気がかり〉」と言い続けていた → その他の献立に */
 document.getElementById("btnCastles").onclick=openCastleList;
 document.getElementById("btnHelp").onclick=openHelp;
 document.getElementById("btnSound").onclick=toggleSound;
