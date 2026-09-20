@@ -655,6 +655,15 @@ button[disabled]{ cursor:default; }
   #panel{ width:100%; }
   .tut{ bottom:96px; font-size:11px; }
 }
+/* 第226巡（夜50）：電話の横持ちは背が低く、下から出る札は頭と家の枠しか見えず、手はみな画面の外だった → 横持ちでは右から出る札（幅六割・全高） */
+@media (max-width: 1120px) and (max-height: 500px){
+  #panel{ top:0; bottom:0; left:auto; right:0; width:min(520px,60vw); height:auto; border-radius:0; border-top:none; border-left:1px solid rgba(201,162,39,.45); transform:translateX(104%); box-shadow:-8px 0 24px rgba(0,0,0,.45); }
+  #panel.open{ transform:none; }
+  #panel .p-head::before{ display:none; }
+  #panel .p-head{ padding:6px 12px; }
+  .p-body{ padding:8px 10px; gap:8px; }
+  .owner{ padding:6px 8px; }
+}
 @media (max-width: 760px){
   #topbar .stat{ display:none; }
   #topbar .stat.keep{ display:inline-flex; }
@@ -12487,7 +12496,8 @@ function drawMap(){
   // 季節の色。冬は雪明かりで白く、秋は赤らみ、春は柔らかく
   if(W.started && PREF.seasonTint!==false){ const se=seasonOf(W.date.m); const col= se==="冬" ? "rgba(225,235,250,.16)" : se==="秋" ? "rgba(200,120,40,.10)" : se==="春" ? "rgba(255,200,210,.06)" : null; if(col){ mctx.fillStyle=col; mctx.fillRect(0,0,W_,H_); } }
   // 方位。地図を動かしても東西南北を見失わないように
-  {
+  const smallScr=(W_<=900||H_<=460);   /* 第226巡（夜49）：電話では方位と縮尺が城の札に被る（長島願証寺の兵数に「km」が重なっていた）→ 出さない */
+  if(!smallScr){
     const cx=46, cy=H_-118;
     mctx.save();
     mctx.fillStyle="rgba(10,9,8,.62)";
@@ -12504,7 +12514,7 @@ function drawMap(){
     mctx.restore();
   }
   // 縮尺。何キロぶん見ているのか分かるように
-  {
+  if(!smallScr){
     const targetPx=90;
     const kmPerTile=kmBetween(0,0,1,0);
     let km=Math.round(targetPx/cam.scale*kmPerTile/10)*10;
@@ -18182,10 +18192,10 @@ function ishiTick(dt){
     if(nb && !(B.nbAt>B.elapsed-5)){ B.nbAt=B.elapsed; const foes=B.units.filter(u=>u.side===1&&u.troops>.5&&u.morale>0&&!u.left); const d=foes.length?Math.min(...foes.map(f=>dist(f,nb))):99; const bonus=d<8?20:d<14?10:0; if(bonus!==(B.nbBonus||0)){ B.nbBonus=bonus; for(const u of B.units) if(u.side===0&&!u.fortGuard&&u.morale>0) u.morale=Math.min(100,u.morale+Math.max(0,bonus-(B.nbBonusGiven||0))); B.nbBonusGiven=Math.max(B.nbBonusGiven||0,bonus); if(bonus>=10&&mine===0) B.banner={t:bonus>=20?"信長、最前線に立つ――全軍奮い立つ":"信長、前へ", at:B.elapsed}; }
       const gun=foes.find(f=>f.type===3&&dist(f,nb)<UNITS[3].rng*1.1); if(gun && !B.nbWounded && rnd()<0.3){ B.nbWounded=true; B.paused=true; B.bigBanner={t:"信長公、負傷！", at:B.elapsed, good:mine===1, big:true}; nb.troops=Math.max(1,nb.troops-60); for(const u of B.units) if(u.side===0&&u.morale>0) u.morale=Math.max(0,u.morale-8); log("信長は雑賀の鉄砲に足を撃たれた","war",true); if(mine===0) setTimeout(()=>ishiWoundAsk(nb),100); else { B.paused=false; for(const u of B.units) if(u.side===0&&u.morale>0) u.morale=Math.min(100,u.morale+12); } } }
     /* 第一段：砦へ達す → 第二段：合流 → 第三段：押し返す */
-    if(B.ishiStage===1 && nb && Math.abs(nb.x-fx)<7){ B.ishiStage=2; for(const u of B.units) if(u.fortGuard){ u.holdUntil=0; u.fortGuard=false; u.morale=100; u.order={k:"hold"}; u.charge=true; } for(const u of B.units) if(u.siegeFace){ u.siegeFace=false; u.holdUntil=0; u.order={k:"hold"}; } for(const u of B.units){ if(u.side===0&&u.morale>0) u.morale=Math.min(100,u.morale+15); if(u.side===1&&u.morale>0) u.morale=Math.max(0,u.morale-15); } B.bigBanner={t:"救援成功――砦の門が開く", at:B.elapsed, good:mine===0, big:true}; B.objective=mine===0?"第三段：本願寺勢を押し返せ":"信長は砦に入った。それでも討て"; log("信長は砦に駆け込み、明智らと合流した。織田の士気は跳ね上がる","war",true); try{ renderBattleFoot(); }catch(_){ } }
+    if(B.ishiStage===1 && nb && Math.abs(nb.x-fx)<7){ B.ishiStage=2; for(const u of B.units) if(u.fortGuard){ u.holdUntil=0; u.fortGuard=false; u.morale=100; u.order={k:"hold"}; u.charge=true; } for(const u of B.units) if(u.siegeFace){ u.siegeFace=false; u.holdUntil=0; u.order={k:"hold"}; } for(const u of B.units){ if(u.side===0&&u.morale>0){ u.morale=100; u.tough=(u.tough||1)*1.5; u.morRes=Math.min(u.morRes||1,0.7); } if(u.side===1&&u.morale>0){ u.morale=Math.max(0,u.morale-30); u.morRes=(u.morRes||1)*1.3; } } B.bigBanner={t:"救援成功――砦の門が開く", at:B.elapsed, good:mine===0, big:true};   /* 第226巡（夜48）：合流の後は史実どおり織田が押し返せる釣り合いに（三千対八千で百秒で消えていた） */ B.objective=mine===0?"第三段：本願寺勢を押し返せ":"信長は砦に入った。それでも討て"; log("信長は砦に駆け込み、明智らと合流した。織田の士気は跳ね上がる","war",true); try{ renderBattleFoot(); }catch(_){ } }
     if(B.ishiStage===1 && nb && !(B.nbDistAt>B.elapsed-8)){ B.nbDistAt=B.elapsed; const m=Math.round(Math.abs(nb.x-fx)*20); if(mine===0 && m<400) B.banner={t:`砦まで あと${m}m`, at:B.elapsed}; }
     /* 機械の本願寺：士気が落ちれば石山へ退く */
-    if(mine!==1 && B.ishiStage>=2 && !B.hgRetreat){ const us=B.units.filter(u=>u.side===1&&u.troops>.5&&!u.left); const mor=us.length?us.reduce((s2,u)=>s2+u.morale,0)/us.length:0; if(mor<35 || us.filter(u=>u.morale>0).length<us.length*0.5){ B.hgRetreat=B.elapsed; for(const u of us){ u.order={k:"retreat"}; u.charge=false; u.pursue=false; } B.bigBanner={t:"本願寺勢、木津・楼の岸へ退く", at:B.elapsed, good:mine===0}; log("本願寺勢は士気を失い、石山の方へ退いた","war",true); } }
+    if(mine!==1 && B.ishiStage>=2 && !B.hgRetreat){ const us=B.units.filter(u=>u.side===1&&u.troops>.5&&!u.left); const mor=us.length?us.reduce((s2,u)=>s2+u.morale,0)/us.length:0; if(mor<50 || us.filter(u=>u.morale>0).length<us.length*0.65){ B.hgRetreat=B.elapsed; for(const u of us){ u.order={k:"retreat"}; u.charge=false; u.pursue=false; } B.bigBanner={t:"本願寺勢、木津・楼の岸へ退く", at:B.elapsed, good:mine===0}; log("本願寺勢は士気を失い、石山の方へ退いた","war",true); } }
     /* 退く門徒は石山へ消えてゆく（八秒で野を去る。砦の前を通って本陣を潰さない） */
     if(B.hgRetreat && B.elapsed-B.hgRetreat>8){ for(const u of B.units){ if(u.side===1&&!u.left&&u.troops>.5){ u.left=true; u.leftTroops=u.troops; } } }
   }
@@ -24205,8 +24215,12 @@ function battleAI(){
       u.order={k:"attack",id:near.id};
     }
   }
+  if(B.ishi==="tennoji_relief" && foeSide===0 && B.ishiStage===1){ try{ tnrReliefDrive(); }catch(e){ console.error(e); } }   /* 第226巡（夜48） */
 }
 /* 任せたときの自軍の采配。敵の要点と同じ：近い敵へ、鉄砲は間合いを取る */
+/* 第226巡（夜48）：天王寺砦の救援。機械の織田（任せた采配・人が本願寺）は砦へ駆け込む（信長は真ん中、他は盾）。噛みつかれた隊だけ応戦 */
+function tnrReliefDrive(){ if(B.tnrAutoAt>B.elapsed-6) return; B.tnrAutoAt=B.elapsed; const fx=(B.ishiFortX||0)+(B.padX||0); const dir=fx>BF.w/2?1:-1; const foes=B.units.filter(x=>x.side===1&&x.troops>.5&&x.morale>0&&!x.left); const us=B.units.filter(u=>u.side===0&&u.troops>.5&&!u.left&&u.morale>0&&!u.fortGuard&&u.order.k!=="retreat"); let i=0;
+  for(const u of us){ const near=foes.find(f=>dist(f,u)<2.2); if(near&&!u.nobunaga){ u.order={k:"attack",id:near.id}; continue; } const tx=Math.max(1,Math.min(BF.w-1,fx-dir*(u.nobunaga?2.5:4.5))); const ty=Math.max(1.5,Math.min(BF.h-1.5,BF.h/2+(u.nobunaga?0:((i%3)-1)*3.2))); u.order={k:"move",x:tx,y:ty}; u.gx=tx; u.gy=ty; u.charge=false; u.holdUntil=0; i++; } }
 function aiCommandSide(side, onlyAlly){
   const foes=B.units.filter(x=>x.side!==side&&x.troops>.5&&x.morale>0&&!x.left);
   if(!foes.length) return;
@@ -24216,6 +24230,8 @@ function aiCommandSide(side, onlyAlly){
       for(const u of B.units){ if(u.side!==side||u.troops<=.5||u.left||u.morale<=0||u.order.k==="retreat") continue; const off=u.cmd?(right?-4:4):0; const x=Math.max(1,Math.min(BF.w-1,tx+off)), y=Math.max(1.5,Math.min(BF.h-1.5,ty+((i%3)-1)*3.5)); u.order={k:"move",x,y}; u.gx=x; u.gy=y; u.holdUntil=0; i++; }
       try{ if(!(B.scoutReady>0)) okeScout(); }catch(_){ } }
     return; }
+  /* 第226巡（夜48）：天王寺砦の救援で機械の織田（任せた采配・人が本願寺）は近くの門徒に噛みつき三千が百秒で消えていた → 砦へ駆け込む（信長は真ん中、他は盾）。噛みつかれた隊だけ応戦 */
+  if(B.ishi==="tennoji_relief" && side===0 && !onlyAlly && B.ishiStage===1){ tnrReliefDrive(); return; }
   if(!onlyAlly && B.form && !B.anegawaLaid && B.elapsed>20 && !(B.autoFormAt>B.elapsed)){
     const mt0=B.units.filter(x=>x.side===side&&x.troops>.5&&!x.left).reduce((s2,x)=>s2+x.troops,0), ft0=foes.reduce((s2,x)=>s2+x.troops,0);
     const want = mt0<ft0*0.7 ? 2 : mt0>ft0*1.4 ? 0 : B.form[side];
