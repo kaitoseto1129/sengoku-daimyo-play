@@ -289,6 +289,7 @@ details.fold>summary.sec-title::before{content:"▸ "} details.fold[open]>summar
   max-height:100%;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;
 }
 .dialog>*{flex-shrink:0}
+.dialog .dlg-actions{position:sticky;bottom:-22px;background:var(--kachi);padding:8px 0 4px;margin-bottom:-8px;z-index:1}   /* 第226巡（夜79）：札が背丈より高いとき（関ヶ原の決戦の窓は 720 の高さでも収まらない）、釦は札を送らなくても見えているように。小さな画面だけでなくどこでも */
 /* 携帯の横画面：札が背丈より高いので、詰めて、指で送れるように */
 @media (max-height:560px){
   .overlay{padding:8px}
@@ -297,7 +298,7 @@ details.fold>summary.sec-title::before{content:"▸ "} details.fold[open]>summar
   .dialog .advice{font-size:11px;line-height:1.5}
   .dialog .s-stat b{font-size:16px}
   .dialog button.big{padding:9px 10px;font-size:13px}
-  .dialog .dlg-actions{position:sticky;bottom:-12px;background:var(--kachi);padding-bottom:4px;margin-bottom:-4px}   /* 釦は札を送っても見えている */
+  .dialog .dlg-actions{bottom:-12px}
 }
 .dialog h3{margin:0;font-family:var(--display);font-size:24px;font-weight:400;letter-spacing:.06em;text-align:center;color:var(--kin)}
 .vs{display:flex;align-items:center;justify-content:center;gap:16px}
@@ -21352,9 +21353,9 @@ function fireDecisive(d){
     <div class="tiny muted">${d.forts?(A.id===W.player?"敵は砦と柵を構えて待ち受けております。":"わが軍は砦と柵を構えて敵を待ち受けます。"):""}負けても家は残るが、勝てば天下が大きく傾く。</div>
     <div class="tiny" style="margin-top:6px"><b>わが将</b> ${mineArmy.gens.slice(0,8).map(id=>esc(W.generals[id].name)).join("・")}${mineArmy.gens.length>8?" ほか":""}<br><b>敵将</b> ${foe.gens.slice(0,8).map(id=>esc(W.generals[id].name)).join("・")}${foe.gens.length>8?" ほか":""}</div>
     ${/nagashino/.test(d.key)&&A.id===W.player?`<div class="tiny" style="margin-top:8px;color:var(--kin)">柵は正面からは破れませぬ。夜のうちに柵の端へ回り込めば隙間から入れますが、兵は疲れ、士気も下がります。</div>`:""}
-    <div class="dlg-actions" style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
       ${d.key==="sekigahara"?`<div style="flex-basis:100%"><div class="sec-title">所属と参戦意欲</div><div class="tiny" style="text-align:left">${sekWillText(A.id===W.player)}</div></div>`:""}
       ${d.key==="sekigahara"?`<div style="flex-basis:100%"><div class="sec-title">開戦前の調略（各 3,000）</div><div class="grid g3">${(A.id===W.player?[["eKoba","小早川に接触","東への傾き +10"],["eKobaLand","小早川へ所領保証と加増の約束","東への傾き +15（銭 3,000 追加）"],["eKikkawa","吉川広家に接触","毛利本隊は南宮山を動かない"],["eOath","諸将へ起請文","東軍全隊の士気 +5"],["eThreat","松尾山へ威圧の書状","六割で東 +8、四割で秀秋が意地になり西 +8"]]:[["wKoba","小早川の忠誠を固める","西への傾き +10"],["wHideyori","秀頼名義の命令","小早川・毛利へ西 +8（秀頼の名は重い）"],["wMori","毛利出陣を促す","半々ほどで毛利本隊が六十秒後に動く"],["wOtani","大谷に警戒を命じる","大谷隊が松尾山に備え、寝返りに耐え、秀秋の傾きを抑える"],["wReward","戦後の褒賞を約束","小早川へ西 +10（銭 3,000 追加）"]]).map(([k,n,dsc])=>`<label class="cmd" style="cursor:pointer;text-align:left"><input type="checkbox" data-prep="${k}" style="margin-right:6px">${n}<span class="cost">${dsc}</span></label>`).join("")}</div></div>`:""}
+    <div class="dlg-actions" style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
       <button class="big gold" style="flex:1" id="dcGo">${/nagashino/.test(d.key)&&A.id===W.player?"正面から突撃（会戦）":"采配を執る（会戦）"}</button>
 
       ${/nagashino/.test(d.key)&&A.id===W.player?`<button class="big ghost" style="flex-basis:100%" id="dcRetreat">戦わずに退く（長篠の囲みを解き、兵を保つ。半年の停戦）</button>`:""}
@@ -25886,8 +25887,7 @@ function drawBattle(){
       bctx.font='700 11px "Zen Kaku Gothic New",sans-serif';
       const ws=chips.map(t=>bctx.measureText(t).width+14); const totW=ws.reduce((a,b)=>a+b,0)+8*(chips.length-1); let cx=W_/2-totW/2;
       chips.forEach((t,i)=>{ bctx.fillStyle="rgba(237,230,214,.12)"; bctx.beginPath(); bctx.roundRect(cx,by0+52,ws[i],18,9); bctx.fill(); bctx.fillStyle="#EDE6D6"; bctx.textAlign="left"; bctx.fillText(t,cx+7,by0+61); cx+=ws[i]+8; });
-      bctx.font='600 11px "Zen Kaku Gothic New",sans-serif'; bctx.fillStyle="rgba(255,255,255,.7)";
-      bctx.fillText(W_<900?"隊を引いて並べ替え。整ったら〈開戦〉。隊は命じるまで動かない":"隊を引いて並べ替え、Bで柵。整ったら〈開戦〉。隊は命じるまで持ち場を守る（〈全軍突撃〉で一斉に）",W_/2,by0+boxH+12);   // 狭い画面では短く（端が切れていた）
+      bctx.font='600 11px "Zen Kaku Gothic New",sans-serif'; { const ht=W_<900?"隊を引いて並べ替え。整ったら〈開戦〉。隊は命じるまで動かない":"隊を引いて並べ替え、Bで柵。整ったら〈開戦〉。隊は命じるまで持ち場を守る（〈全軍突撃〉で一斉に）"; const tw=bctx.measureText(ht).width; bctx.fillStyle="rgba(10,9,8,.55)"; bctx.beginPath(); bctx.roundRect(W_/2-tw/2-8,by0+boxH+2,tw+16,18,9); bctx.fill(); bctx.fillStyle="rgba(255,255,255,.8)"; bctx.textAlign="center"; bctx.fillText(ht,W_/2,by0+boxH+12); }   /* 第226巡（夜80）：陣立ての手引きの字が敵の隊の名札に重なって読めなかった → 暗い帯を敷く */   // 狭い画面では短く（端が切れていた）
     } else {
       // 小さな帯
       const t=`軍師「${adv}」　${BTERRAIN[B.t].n}・${B.weather}${B.keyPoints&&B.keyPoints.length?"　要地 "+B.keyPoints.map(k=>k.name).join("・"):""}`; bctx.font='700 12px "Zen Kaku Gothic New",sans-serif'; const w=bctx.measureText(t).width+20;
@@ -25933,7 +25933,7 @@ function drawBattle(){
   /* 第117巡：兵力／士気／総大将の三段（「29,999 0%」が何か分からなかった）。関ヶ原のように傍観がいれば「参戦」も */
   { const sideOf=(sd)=>{ const us=B.units.filter(u=>u.side===sd&&u.troops>.5&&vis(u)); const mor=us.length?Math.round(us.reduce((s2,u)=>s2+u.morale,0)/us.length):0; const cmd=us.find(u=>u.cmd); const active=us.filter(u=>!u.bystander&&!u.waiting).reduce((s2,u)=>s2+u.troops,0); const tot=us.reduce((s2,u)=>s2+u.troops,0); return {mor,cmd,active,tot,hasBy:us.some(u=>u.bystander||u.waiting)}; };
     /* 第182巡：頭の帯は二段に詰める（兵力・損害・士気を一列、総大将（と参戦）を二列目）。作り手の仕様：上部UIの縮小 */
-    const mk=(tot,max,st,mineSide)=>`<span class="row"><span class="k">兵力</span><b>${Math.round(tot).toLocaleString()}</b><span class="k" style="margin-left:4px">損害 ${Math.round((1-tot/max)*100)}%</span><span class="k" style="margin-left:6px">士気</span><b style="color:${st.mor>=60?"#9FE09F":st.mor>=30?"#FFD166":"#FF9A88"}">${st.mor}%</b></span><span class="row cmd"><span class="k">総大将</span><b style="font-family:inherit;font-size:11px">${st.cmd?esc(st.cmd.name):"—"}${st.cmd&&st.cmd.morale<=0?"（崩れ）":""}</b>${st.hasBy?`<span class="k" style="margin-left:6px">参戦</span><b>${Math.round(st.active).toLocaleString()}</b>`:""}</span>`;
+    const mk=(tot,max,st,mineSide)=>`<span class="row"><span class="k">兵力</span><b>${Math.round(tot).toLocaleString()}</b><span class="k" style="margin-left:4px">損害 ${Math.max(0,Math.round((1-tot/max)*100))}%</span><span class="k" style="margin-left:6px">士気</span><b style="color:${st.mor>=60?"#9FE09F":st.mor>=30?"#FFD166":"#FF9A88"}">${st.mor}%</b></span><span class="row cmd"><span class="k">総大将</span><b style="font-family:inherit;font-size:11px">${st.cmd?esc(st.cmd.name):"—"}${st.cmd&&st.cmd.morale<=0?"（崩れ）":""}</b>${st.hasBy?`<span class="k" style="margin-left:6px">参戦</span><b>${Math.round(st.active).toLocaleString()}</b>`:""}</span>`;
     const stM=sideOf(B.ctx.playerSide), stF=sideOf(1-B.ctx.playerSide);
     /* 第136巡：片側だけ「参戦」の段が出ると頭の帯の高さが変わり、野が下にずれる。もう片側にも見えない段を置く。二段目の波がある戦（長篠）は陣立ての間から段を取っておく */
     const padBy = stM.hasBy || stF.hasBy || B.units.some(u=>u.waiting||u.bystander||u.holdUntil||u.sekHold||u.okeHold||u.reserveHold);
