@@ -23621,7 +23621,7 @@ function updateBattle(dt){
     const s1=B.units.filter(u=>u.side===1).reduce((s2,u)=>s2+u.troops,0);
     log("日が暮れ、両軍は兵を引きました","war");
     // 城攻めは、日暮れまでに落とせなければ守り手の勝ち（数が多いだけで城が落ちてはならない）。門を破って押し込んでいれば別
-    if(B.ctx.castle!==null && B.ctx.castle!==undefined && !B.ctx.sortie){ const broke=B.gate&&B.gate.open; return endBattle(broke && s0>s1*1.3 ? 0 : 1); }
+    if(((B.ctx.castle!==null && B.ctx.castle!==undefined) || B.ck || B.gf || B.siegeWall) && !B.ctx.sortie){ const z=B.siegeZones||[];   /* 城の無い決戦でも曲輪の城・岐阜・柵の城攻めなら同じ（上田・八王子など） */ const inner=z.filter(x=>!/本丸$/.test(x.n)&&x.n!=="城下"); const broke=inner.length?inner.every(x=>x.taken):!!(B.gate&&B.gate.open);   /* 第226巡（夜87）：一ノ門を破っただけで日暮れに「寄せ手の勝ち」になっていた（上田で真田が二ノ門・本丸を保っているのに徳川の勝ち）→ 本丸の手前まで全部の門と曲輪を取っていなければ守り手の勝ち */ return endBattle(broke && s0>s1*1.3 ? 0 : 1); }
     { const st0=B.startTroops&&B.startTroops[0]||1, st1=B.startTroops&&B.startTroops[1]||1; if(!B.ctx.decisive && s0/st0>=0.6 && s1/st1>=0.6){ B.draw=true; log("日が暮れ、勝敗つかず。両軍とも陣を払った（引き分け）","war"); return endBattle(B.ctx.playerSide); } }   // 引き分け：数で勝ちにしない
     return endBattle(s0>=s1?0:1);
   }
