@@ -3950,8 +3950,14 @@ const nextGeneralId = () => nextId("general", W.generals);
 const nextCastleId  = () => nextId("castle",  W.castles);
 const seasonOf = m => m>=3&&m<=5 ? "春" : m>=6&&m<=8 ? "夏" : m>=9&&m<=11 ? "秋" : "冬";
 
+/* 第223巡（全体UI仕様書 47）：初めての人には段階解禁。まず地図・城・出陣。内政→外交→政策→財政の順に日を追って開く（経験者はすべて最初から） */
+const UNLOCK_DAYS={council:2, diplomacy:6, policy:12, finance:18};
+function featureUnlocked(k){ if(!W.started||!W.staged) return true; const d0=W.scenarioStartDay||0; return dayNumber()-d0>=(UNLOCK_DAYS[k]||0); }
+function featureGate(k,name){ if(featureUnlocked(k)) return true; const left=(UNLOCK_DAYS[k]||0)-(dayNumber()-(W.scenarioStartDay||0)); toast(`${name}はまだ。まず城と出陣に慣れよ（あと${Math.max(1,left)}日で開く）`); return false; }
+function unlockTick(){ if(!W.started||!W.staged) return; W.unlocked=W.unlocked||{}; for(const [k,nm] of [["council","内政"],["diplomacy","外交"],["policy","政策"],["finance","財政"]]){ if(!W.unlocked[k]&&featureUnlocked(k)){ W.unlocked[k]=true; if(k!=="council") try{ log(`${nm}が開けるようになりました（その他 ▾）`,"growth",true); }catch(_){ } } } try{ refreshUnlockUI(); }catch(_){ } }
+function refreshUnlockUI(){ for(const [k,ids] of [["diplomacy",["btnDiplomacy","btnDiplomacy2"]],["policy",["btnPolicy"]],["finance",["btnFinance"]]]){ const on=featureUnlocked(k); for(const id of ids){ const b=document.getElementById(id); if(b){ b.style.opacity=on?"":".4"; b.title=on?"":"まだ開けませぬ（日を追って開く）"; } } } }
 function stepDay(){
-  bumpGarrison();
+  bumpGarrison(); try{ unlockTick(); }catch(_){ }
   const monthChanged = advanceDay();
   processTasks(); processArmies(); processSieges(); processBandits(); processWanderers(); processUpkeep();
   if(W.date.d%3===0) runDelegated();
@@ -10911,6 +10917,7 @@ function auditEvents(){ const rows=[]; const names={}; for(const e of EVENTS){ c
   const dup=Object.entries(names).filter(([,n])=>n>1).map(([k])=>k); const bad=(W.evAudit||[]).filter(a=>{ const r=rows.find(x=>x.id===a.id); return r&&((r.minY&&a.y<r.minY)||(r.maxY&&a.y>r.maxY)); }); console.table(rows); if(dup.length) console.warn("重複の名："+dup.join("・")); if(bad.length) console.warn("年代の外で起きた出来事：",bad); return {rows,dup,bad,expired:W.evExpired||[]}; }
 /* ---- 財政 ---- */
 function openFinance(){
+  if(!featureGate("finance","財政")) return;
   const clan=W.clans[W.player];
   const owned=myCastles(W.player);
   // 城ごとの内訳も、月の帳面と同じ式で出す（別の式で出すと足しても合わない）
@@ -11595,6 +11602,21 @@ function bakeTerrain(){
     g.stroke();
   }
 }
+/* 第223巡（全体UI仕様書 43・44）：地域の差と季節の色を、焼いた地形の上に被せる層。海岸の砂・南国の暖かい野・北国の冷たい野。春は桜、夏は濃い緑、秋は紅葉、冬は北国と山に雪。季節が替われば焼き直す */
+let seasonCanvas=null;
+function bakeSeason(){ const {cols,rows}=PROJ; const se=W.started?seasonOf(W.date.m):"春"; if(seasonCanvas&&seasonCanvas._se===se&&seasonCanvas.width===cols*TILE_PX) return seasonCanvas; const cv=seasonCanvas||document.createElement("canvas"); cv.width=cols*TILE_PX; cv.height=rows*TILE_PX; cv._se=se; const g=cv.getContext("2d"); g.clearRect(0,0,cv.width,cv.height);
+  const northRow=rowOf(37.2), southRow=rowOf(33.6); const hash=(r,c)=>((r*7349+c*2311)>>>0)%997/997;
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){ const i=r*cols+c; const t=terrain[i]; if(t===T.SEA||t===T.SHALLOW) continue; const x=c*TILE_PX, y=r*TILE_PX; const h=hash(r,c); let col=null;
+    /* 海岸の砂 */ let coast=false; for(const [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){ const j=(r+dr)*cols+(c+dc); if(r+dr<0||r+dr>=rows||c+dc<0||c+dc>=cols) continue; const tt=terrain[j]; if(tt===T.SEA||tt===T.SHALLOW){ coast=true; break; } }
+    if(coast&&t!==T.MOUNTAIN){ g.fillStyle="rgba(228,208,150,.75)"; g.fillRect(x,y,TILE_PX,TILE_PX); }
+    /* 地域：南は暖かく、北は冷たく */ if(r>southRow&&(t===T.PLAIN||t===T.FOREST)) col="rgba(215,200,90,.10)"; else if(r<northRow&&(t===T.PLAIN||t===T.FOREST||t===T.HILL)) col="rgba(150,190,215,.12)";
+    if(col){ g.fillStyle=col; g.fillRect(x,y,TILE_PX,TILE_PX); }
+    /* 季節 */ if(se==="冬"){ if(t===T.MOUNTAIN){ g.fillStyle=`rgba(245,248,252,${0.55+h*0.2})`; g.fillRect(x,y,TILE_PX,TILE_PX); } else if(r<northRow){ g.fillStyle=`rgba(240,244,250,${0.5+h*0.25})`; g.fillRect(x,y,TILE_PX,TILE_PX); } else if(t===T.HILL&&h<0.5){ g.fillStyle="rgba(240,244,250,.35)"; g.fillRect(x,y,TILE_PX,TILE_PX); } else if(t===T.PLAIN){ g.fillStyle="rgba(230,232,236,.14)"; g.fillRect(x,y,TILE_PX,TILE_PX); } }
+    else if(se==="秋"){ if(t===T.FOREST||t===T.HILL){ g.fillStyle=h<0.5?`rgba(205,90,30,${0.30+h*0.3})`:`rgba(220,160,40,${0.25+h*0.2})`; g.fillRect(x,y,TILE_PX,TILE_PX); } else if(t===T.PLAIN){ g.fillStyle="rgba(200,160,60,.12)"; g.fillRect(x,y,TILE_PX,TILE_PX); } }
+    else if(se==="春"){ if((t===T.FOREST||t===T.HILL)&&h<0.16){ g.fillStyle="rgba(255,175,200,.85)"; g.fillRect(x,y,TILE_PX,TILE_PX); } else if(t===T.PLAIN&&h<0.06){ g.fillStyle="rgba(255,190,210,.55)"; g.fillRect(x,y,TILE_PX,TILE_PX); } else if(t===T.PLAIN){ g.fillStyle="rgba(200,230,120,.08)"; g.fillRect(x,y,TILE_PX,TILE_PX); } }
+    else { if(t===T.PLAIN||t===T.FOREST){ g.fillStyle="rgba(20,90,30,.13)"; g.fillRect(x,y,TILE_PX,TILE_PX); } } }
+  seasonCanvas=cv; return cv; }
+function drawSeasonLayer(W_,H_){ if(!terrain||!W.started) return; if(PREF.seasonTint===false) return; let cv=null; try{ cv=bakeSeason(); }catch(_){ return; } if(!cv) return; const s=cam.scale/TILE_PX; mctx.save(); mctx.translate(W_/2 - cam.x*cam.scale, H_/2 - cam.y*cam.scale); mctx.scale(s,s); mctx.imageSmoothingEnabled=true; mctx.drawImage(cv,0,0); mctx.restore(); }
 function resizeCanvas(){
   const dpr=Math.min(window.devicePixelRatio||1,2);
   const st=document.getElementById("stage");
@@ -11748,6 +11770,7 @@ function drawMap(){
       const [x,y]=toScreen(tileLayer.c0,tileLayer.r0);
       mctx.drawImage(tileLayer.canvas,x,y);
     }
+    try{ drawSeasonLayer(W_,H_); }catch(_){ }
     drawRoadsLive(W_,H_);
   } else {
     const s=cam.scale/TILE_PX;
@@ -11761,6 +11784,7 @@ function drawMap(){
     /* 第153巡：焼いた地図が消えていたら（iOS/Safari は背景に回った後に裏の canvas を捨てることがある）焼き直す。海だけの青い地図になっていた */
     try{ mctx.drawImage(terrainCanvas,0,0); }catch(e){ try{ bakeTerrain(); mctx.drawImage(terrainCanvas,0,0); }catch(_){ } }
     mctx.restore();
+    try{ drawSeasonLayer(W_,H_); }catch(_){ }
     /* 第179巡：引いた時も街道は生で引く（焼いた後に足した高天神—浜松・掛川・駿府の道が見えなかった。作り手の指摘） */
     try{ drawRoadsLive(W_,H_, true); }catch(_){ }
   }
@@ -12475,7 +12499,7 @@ function drawMap(){
   // 決戦の仕込み：軍が辿る道筋（残り）と、戦場の地のしるし
   if(W.stage){
     for(const id of W.stage.armies){ const a=W.armies[id]; if(!a||!a.route||a.route.length<2||stageArrived(a)) continue;
-      const k=Math.min(1,(dayNumber()-a.day0)/a.days); const f=k*(a.route.length-1); const i0=Math.min(a.route.length-2,Math.floor(f));
+      const k=Math.max(0,Math.min(1,(dayNumber()-a.day0)/a.days)); const f=k*(a.route.length-1); const i0=Math.max(0,Math.min(a.route.length-2,Math.floor(f)));
       mctx.save(); mctx.strokeStyle=a.clan===W.player?"rgba(255,255,255,.85)":clanColor(a.clan); mctx.globalAlpha=.75; mctx.lineWidth=2.2; mctx.setLineDash([5,6]); mctx.lineCap="round";
       mctx.beginPath(); let [sx0,sy0]=toScreen(a.x,a.y); mctx.moveTo(sx0,sy0); for(let i=i0+1;i<a.route.length;i++){ const [x,y]=toScreen(a.route[i].c,a.route[i].r); mctx.lineTo(x,y); } mctx.stroke(); mctx.restore(); }
     if(W.stage.site){ const [x,y]=toScreen(W.stage.site.x,W.stage.site.y); if(x>-80&&x<W_+80&&y>-80&&y<H_+80){
@@ -13552,6 +13576,7 @@ let councilPick=null; let councilMore=false;
 const COUNCIL_HIDE=new Set(["検地","治水","鉱山探し","建設","調略","軍事訓練"]);   // 評定は六つ（新田・商業・城の強化・施し・人材登用・親善）
 const COUNCIL_MAIN=new Set(["新田開発","商業投資","人材登用"]);   // 内政の表に出すのは三つ（作り手の指示）。残りは「ほかの内政」に畳む
 function openCouncil(id){
+  if(!featureGate("council","内政")) return;
   tutorial("council");
   const c=W.castles[id];
   const clan=W.clans[W.player];
@@ -14240,6 +14265,7 @@ function openOfficers(){
 }
 let diploSort="near";
 function openDiplomacy(){
+  if(!featureGate("diplomacy","外交")) return;
   try{ showGuide("dip"); }catch(_){ }
   setTimeout(()=>tutorial("diplo"), 400);
   const me=W.clans[W.player];
@@ -14308,6 +14334,7 @@ const POLICY_EFFECT={
   "築城術":"城の普請が進み、守りが堅くなる",
 };
 function openPolicy(){
+  if(!featureGate("policy","政策")) return;
   const clan=W.clans[W.player]; const ready=dayNumber()>= (clan.policyReady||0); const slots=policySlots(W.player);
   /* 第221巡（仕様書 23〜25）：政策の木。枝ごとに順に伸ばす。枠は城の数で増え、全部は取れない */
   const h=POLICY_TREE.map(([bn,br])=>`<div class="sec-title">${bn}</div><div style="display:flex;align-items:stretch;gap:4px;margin-bottom:8px;overflow-x:auto">${br.map((nm,k)=>{ const i=POLICIES.findIndex(x=>x.n===nm); const p=POLICIES[i]; const owned=clan.policies.has(nm); const can=!owned&&policyReqOk(W.player,nm)&&clan.money>=p.cost&&ready&&clan.policies.size<slots; const locked=!owned&&!policyReqOk(W.player,nm);
@@ -26327,6 +26354,7 @@ function renderBattleFoot(){
       ${(()=>{ const t=bTileAt(u.x,u.y); return t===BT.WATER?'<span class="chip">川：足が鈍り火縄が湿る</span>':t===BT.FORD?'<span class="chip">浅瀬：足が鈍る</span>':t===BT.MARSH?'<span class="chip">湿地：泥に足を取られ、騎馬は駆けられぬ</span>':t===BT.FOREST?'<span class="chip">木立：騎馬は駆けられぬ・伏せられる</span>':t===BT.HILL?'<span class="chip">高所：守りやすく鉄砲は遠くまで</span>':""; })()}
 
       <button class="tool dup" data-b="guard" title="その場で待機（升を押せば移動、敵を押せば攻撃）">待機</button>
+      ${!u.cmd&&u.morale>0?`<button class="tool dup" data-b="encircle" title="近くの敵を、この隊と手の空いた二隊で半円に囲む（側面と背面から討つ）">囲め</button>`:""}
       ${u.type===2?`<button class="tool dup" data-b="sp" title="騎馬突撃（助走が要る）">突撃</button>`:""}
       ${B.pursueReady?`<button class="tool on ${B.pursueHot&&!B.pursued?"hot":""}" data-b="pursue" style="font-weight:800;color:#FFD166">追い討ち！</button>`:""}${B.ctx.playerSide===0&&B.opening<=0?`<button class="tool ${nagAtkHint()?"hot":""}" data-b="allcharge" style="font-weight:800">全軍突撃</button>`:""}
       <span class="tiny muted" style="display:flex;gap:2px;align-items:center;margin-left:4px">向き ${[["↖",-3*Math.PI/4],["↑",-Math.PI/2],["↗",-Math.PI/4],["←",Math.PI],["→",0],["↙",3*Math.PI/4],["↓",Math.PI/2],["↘",Math.PI/4]].map(([ch,ang])=>`<button class="tool sub" data-face="${ang}" style="min-width:26px;padding:0 4px">${ch}</button>`).join("")}</span>
@@ -26339,6 +26367,7 @@ function renderBattleFoot(){
       const k=b.dataset.b;
       if(b.dataset.face!==undefined){ manualCommand(); u.face=+b.dataset.face; u.faceLock=u.face; if(u.order.k==="move"||u.order.k==="attack"||u.order.k==="hold"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } u.turning=false; renderBattleFoot(); return; }   /* 第126巡：向きを人が決める（八方） */
       if(["move","attack","hold","charge","retreat","sp","guard"].includes(k) && B.autoMine){ B.autoMine=false; toast("采配を戻しました"); }
+      if(k==="encircle"){ manualCommand(); const mine=B.ctx.playerSide; const foes=B.units.filter(z=>z.side!==mine&&z.troops>.5&&z.morale>0&&!z.left&&!z.sigHidden); const t=foes.sort((a,b)=>dist(u,a)-dist(u,b))[0]; if(!t) return toast("囲む敵がいない"); const mates=B.units.filter(z=>z.side===mine&&z!==u&&!z.cmd&&z.troops>.5&&z.morale>0&&!z.left&&!z.ally&&!z.postHold&&!z.fortGuard&&(z.order.k==="guard"||z.order.k==="hold"||z.order.k==="move")&&dist(z,t)<12).sort((a,b)=>dist(a,t)-dist(b,t)).slice(0,2); const team=[u,...mates]; const base=Math.atan2(u.y-t.y,u.x-t.x); const R=Math.max(2.2,reachOf(u)+0.6); team.forEach((z,i)=>{ const a=base+(i===0?0:i===1?Math.PI*0.6:-Math.PI*0.6); const px=Math.max(1,Math.min(BF.w-1,t.x+Math.cos(a)*R)), py=Math.max(1,Math.min(BF.h-1,t.y+Math.sin(a)*R)); z.order={k:"move",x:px,y:py}; z.gx=px; z.gy=py; z.thenAttack=t.id; z.charge=false; z.pursue=false; }); B.tgtRing={id:t.id,at:B.elapsed}; toast(`${t.name}隊を${team.length}隊で囲む`); bshout(u.id,"回り込め！ 囲め！",2.4); B.sel=null; renderBattleFoot(); return; }   /* 第223巡（要件書 4・6）：囲め――半円に回り込み、着けば討つ */
       if(k==="guard"){ manualCommand(); u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; u.charge=false; u.pursue=false; u.thenAttack=undefined; B.mode=null; toast(`${u.name}隊、その場で待機`); renderBattleFoot(); return; }
       if(k==="focus"){ manualCommand(); for(const x of B.units) if(x.side===B.ctx.playerSide&&x.order.k!=="retreat") x.order={k:"attack",id:u.id}; playSE("horse"); B.sel=null; renderBattleFoot(); return; }
       if(k==="ammo"){ const cmd=B.units.find(z=>z.side===u.side&&z.cmd&&z.troops>.5); if(!cmd||dist(u,cmd)>8) return toast("本陣の八歩以内でなければ玉薬は届きませぬ"); const clan=W.clans[W.player]; if(clan.money<300) return toast("銭が足りませぬ（300）"); clan.money-=300; u.ammo=30; bshout(u.id,"玉薬、届いた！",1.8); toast("玉薬を配り直しました（銭300）"); renderBattleFoot(); return; }
@@ -26412,6 +26441,7 @@ function renderBattleFoot(){
   } else {
     foot.innerHTML=`${B.opening>0?`<button class="tool on" id="bBegin" style="font-weight:800">開戦</button><button class="tool" id="bBeginAuto" title="いまの陣立てのまま開戦し、采配は任せる。いつでも戻せる">自動で戦う</button>`:`<button class="tool ${B.paused?"on":""}" id="bPause" style="font-size:20px;font-weight:900;min-width:52px" title="一時停止／再開（空白キー）">${B.paused?"▶":"Ⅱ"}</button><span class="tiny muted" style="display:flex;gap:2px;align-items:center">${[1,2,3].map(r=>`<button class="tool sub ${(B.rate||1)===r?"on":""}" data-rate="${r}" style="min-width:34px;padding:0 6px">×${r}</button>`).join("")}</span>`}
       <button class="tool ${nagAtkHint()?"hot":""}" id="bAllCharge" ${B.ctx.playerSide===0&&B.opening<=0?"":"hidden"} style="font-weight:800">全軍突撃</button>
+      ${B.opening<=0&&B.over===null&&!B.siegeWall?`<button class="tool sub" id="bRegroup" title="崩れた隊・散った隊を本陣の前に集め直す（士気が少し戻る）">再集結</button>`:""}
       ${PREF.wingBtns?`<button class="tool ${B.mode==="multi"?"on":""}" id="bMulti" title="隊を押して幾つも選び、まとめて動かす">複数選択</button>`:""}
       ${PREF.wingBtns&&B.opening<=0&&B.over===null&&B.units.filter(u=>u.side===B.ctx.playerSide&&!u.cmd&&!u.ally&&u.troops>.5&&!u.left&&u.morale>0).length>=4?`<span class="tiny muted" style="display:flex;gap:2px;align-items:center" title="翼ごとにまとめて選ぶ（升を押せばそこへ、敵を押せば討つ）">${[["l","左翼"],["c","中央"],["r","右翼"]].map(([k,t])=>`<button class="tool sub ${B.wingSel===k?"on":""}" data-wing="${k}" style="min-width:40px;padding:0 6px">${t}</button>`).join("")}${B.wingSel?`<button class="tool sub gold" id="bWingCmd" title="選んだ翼への方針（攻勢・維持・防御・後退・予備をここへ）">翼の方針 ▸</button>`:""}<button class="tool sub" id="bAllCmd" title="全軍命令（前進・維持・防御・右翼圧力・中央集中・総攻撃）">全軍命令 ▸</button></span>`:""}
       ${B.opening<=0&&!B.ane&&B.units.some(u=>u.side===B.ctx.playerSide&&u.reserveHold&&u.troops>.5&&u.morale>0&&!u.left&&!u.tobiHide)?`<button class="tool on" id="bReserveGo" style="font-weight:800" title="予備隊を一斉に出す（近い敵へ）">予備隊 投入</button>`:""}
@@ -26459,6 +26489,8 @@ function renderBattleFoot(){
     foot.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{
       setFormation(B.ctx.playerSide, +b.dataset.f); renderBattleFoot();
     });
+    /* 第223巡（合戦画面要件書 4・6）：再集結――散った隊と崩れかけた隊を本陣の前に集め直す。集まれば士気が戻る */
+    { const br=document.getElementById("bRegroup"); if(br) br.onclick=()=>{ manualCommand(); const mine=B.ctx.playerSide; const hq=B.units.find(u=>u.side===mine&&u.cmd&&u.troops>.5&&!u.left); if(!hq) return toast("本陣がない"); const dir=mine===0?1:-1; const us=B.units.filter(u=>u.side===mine&&!u.cmd&&u.troops>.5&&!u.left&&!u.ally&&!u.postHold&&!u.fortGuard&&(u.morale<45||u.engagedAt===undefined||B.elapsed-u.engagedAt>4)); if(!us.length) return toast("集め直す隊がない"); us.sort((a,b)=>a.y-b.y); us.forEach((u,i)=>{ const row=Math.floor(i/2), col=i%2; u.order={k:"move",x:Math.max(1,Math.min(BF.w-1,hq.x+dir*(2.2+col*1.6))),y:Math.max(1,Math.min(BF.h-1,hq.y+(row-(Math.ceil(us.length/2)-1)/2)*1.6))}; u.gx=u.order.x; u.gy=u.order.y; u.charge=false; u.pursue=false; u.thenAttack=undefined; u.regroupAt=B.elapsed; if(u.morale>0) u.morale=Math.min(100,u.morale+6); }); B.bigBanner={t:`再集結――${us.length}隊が本陣の前に集まる`, at:B.elapsed, good:true}; try{ log(`${us.length}隊を本陣の前に集め直した`,"war"); }catch(_){ } if(hq.gid&&W.generals[hq.gid]&&GEN_LINES[W.generals[hq.gid].name]) bshout(hq.id,"旗の下へ集え！",2.6); B.sel=null; renderBattleFoot(); }; }
     document.getElementById("bAllCharge").onclick=()=>{
       manualCommand();
       { const foes=B.units.filter(z=>z.side!==B.ctx.playerSide&&z.troops>.5&&z.morale>0&&!z.left); const taken={};
@@ -27971,7 +28003,7 @@ function beginGame(clanId){
   focusOnRealm();
   { const F={osaka:"大坂城", odawara:"小田原城", sekigahara:"大垣城", koshu:"高遠城", honnoji:"二条御所"}; const nm=F[W.scenario]; const fc=nm&&Object.values(W.castles).find(c=>c.name===nm); if(fc){ const t=W.tile[fc.id]; cam.x=t.c; cam.y=t.r; cam.scale=Math.max(cam.scale,6); camTarget.x=camTarget.y=null; camTarget.scale=null; clampCam(); setTimeout(()=>{ if(W.started&&!B){ cam.x=t.c; cam.y=t.r; camTarget.x=camTarget.y=null; clampCam(); } },50); } }   // 要の城が画面の真ん中に（寄せなくても豊臣が見える）
   refreshHUD(); rebuildDevOverlay(); refreshAdvice();
-  W.started=true; if(W.scenarioStartDay===undefined) W.scenarioStartDay=dayNumber();
+  W.started=true; if(W.scenarioStartDay===undefined) W.scenarioStartDay=dayNumber(); try{ if(W.staged===undefined) W.staged=firstTimer(); }catch(_){ W.staged=false; }
   log(`${clanName(clanId)}の家督を継いだ。天下は乱れておる。`);
   track("start/"+W.scenario+"/"+clanName(clanId));
   setSpeed(1);
