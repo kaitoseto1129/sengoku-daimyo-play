@@ -28782,7 +28782,7 @@ function startTitleMusic(){
   window.addEventListener(ev, ()=>{ if(!W.started && Audio_.music && (!Audio_.ctx || Audio_.ctx.state!=="running" || !Audio_.bgmSrc)) startTitleMusic(); }, {passive:true}));
 
 /* ===================== 起動 ===================== */
-const BUILD="1.0.0 (2026-09-11)";
+const BUILD="1.1.0 (2026-09-21)";
 { const bt=document.getElementById("buildTag"); if(bt) bt.textContent="版 "+BUILD; }
 generateTerrain();
 buildWorld(0);
