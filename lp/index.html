@@ -235,6 +235,13 @@ header nav a:hover{color:var(--kinpaku);opacity:1}
 .glist{margin:16px 0 0;padding:0;list-style:none;font-size:14px;color:var(--kami)}
 .glist li{padding:7px 0;border-top:1px dashed rgba(197,154,53,.3)}
 .glist li::before{content:"◆ ";color:var(--shu2);font-size:10px}
+/* ---- 軍資金募集 ---- */
+.gunshikin-box{max-width:760px;margin:26px auto 0}
+.gtiers{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.gt{display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px 10px;border:1px solid rgba(197,154,53,.5);border-radius:10px;background:rgba(215,200,165,.05);text-decoration:none;color:var(--kami);transition:background .2s,transform .2s}
+.gt:hover{background:rgba(197,154,53,.14);transform:translateY(-2px)}
+.gt b{font-family:var(--min);font-size:20px;color:var(--kin)}
+.gt span{font-family:var(--go);font-size:14px;letter-spacing:.06em}
 /* ---- 目安箱 ---- */
 .meyasu-box{max-width:680px;margin:26px auto 0}
 .meyasu-box textarea{width:100%;padding:14px 16px;border:1px solid rgba(197,154,53,.5);background:rgba(215,200,165,.06);color:var(--shiro);font-family:var(--min);font-size:15px;line-height:1.8;resize:vertical}
@@ -402,7 +409,7 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
 
 <header>
   <a class="logo" href="#hero">戦国大名</a>
-  <nav><a href="#mitsu">特徴</a><a href="#ch3">合戦</a><a href="#gunki">軍記</a><a href="#ch4">軍議</a><a href="#nagashino">長篠</a><a href="#guide">攻略</a><a href="#faq">問答</a><button id="oto" type="button" title="風と太鼓の音（押した時だけ）">♪ 音</button></nav>
+  <nav><a href="#mitsu">特徴</a><a href="#ch3">合戦</a><a href="#gunki">軍記</a><a href="#ch4">軍議</a><a href="#nagashino">長篠</a><a href="#guide">攻略</a><a href="#faq">問答</a><a href="#gunshikin">軍資金</a><a href="#meyasu">目安箱</a><button id="oto" type="button" title="風と太鼓の音（押した時だけ）">♪ 音</button></nav>
 </header>
 
 <!-- 序 -->
@@ -681,6 +688,19 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
   </div>
 </section>
 
+<!-- 軍資金募集 -->
+<section id="gunshikin" style="background:var(--cha)">
+  <div class="wrap">
+    <div class="ar c"><div class="sho" style="display:inline-flex">軍資金募集</div><h2 class="h2">この戦国を、<span class="g">皆でさらに面白く。</span></h2>
+    <p class="kotoba c">合戦画面の大改修（武将の絵・兵士・馬防柵・本陣・硝煙・新曲）のための軍資金を募っています。支援は開発の応援で、特典はありません。額は気持ちで。</p></div>
+    <div class="ar gunshikin-box">
+      <div class="gtiers"><a class="gt" href="https://www.paypal.com/paypalme/sengokudaimyo/500JPY" target="_blank" rel="noopener" data-ev="fund_500"><b>足軽衆</b><span>¥500</span></a><a class="gt" href="https://www.paypal.com/paypalme/sengokudaimyo/1000JPY" target="_blank" rel="noopener" data-ev="fund_1000"><b>侍大将</b><span>¥1,000</span></a><a class="gt" href="https://www.paypal.com/paypalme/sengokudaimyo/3000JPY" target="_blank" rel="noopener" data-ev="fund_3000"><b>奉行</b><span>¥3,000</span></a><a class="gt" href="https://www.paypal.com/paypalme/sengokudaimyo/5000JPY" target="_blank" rel="noopener" data-ev="fund_5000"><b>家老</b><span>¥5,000</span></a><a class="gt" href="https://www.paypal.com/paypalme/sengokudaimyo/10000JPY" target="_blank" rel="noopener" data-ev="fund_10000"><b>宿老</b><span>¥10,000</span></a><a class="gt" href="https://www.paypal.com/paypalme/sengokudaimyo/30000JPY" target="_blank" rel="noopener" data-ev="fund_30000"><b>大名</b><span>¥30,000</span></a><a class="gt" href="https://www.paypal.com/paypalme/sengokudaimyo/50000JPY" target="_blank" rel="noopener" data-ev="fund_50000"><b>天下人</b><span>¥50,000</span></a></div>
+      <p class="soe c">ブラウザ版は PayPal（カード・銀行口座）、iPhone 版はアプリの表紙「軍資金募集」から App 内課金で。</p>
+      <div class="ctas" style="justify-content:center;margin-top:14px"><a class="fuda ghost" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/" data-ev="fund_web_click">ゲームの中の軍資金の札を見る</a></div>
+    </div>
+  </div>
+</section>
+
 <!-- 目安箱 -->
 <section id="meyasu" style="background:var(--sumi)">
   <div class="wrap">
@@ -728,7 +748,7 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
   <div class="monpat"></div>
   <div class="wrap">
     <span class="logo">戦国大名</span>
-    <div class="links"><a href="https://apps.apple.com/jp/app/id6811255282" data-app>App Store</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザ版</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/guide/">攻略</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/privacy.html">プライバシーポリシー</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/support.html">お問い合わせ</a><a href="#meyasu">目安箱</a></div>
+    <div class="links"><a href="https://apps.apple.com/jp/app/id6811255282" data-app>App Store</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザ版</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/guide/">攻略</a><a href="#gunshikin">軍資金募集</a><a href="#meyasu">目安箱</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/privacy.html">プライバシーポリシー</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/support.html">お問い合わせ</a><a href="#meyasu">目安箱</a></div>
     <div class="credits">武将の肖像はパブリックドメインの史料（狩野宗秀筆 織田信長像、狩野光信筆 豊臣秀吉像、狩野探幽筆 徳川家康像 ほか）を用いています。画面はすべて開発中のゲーム画面で、製品版とは異なる場合があります。Apple、App Store は Apple Inc. の商標です。</div>
   </div>
 </footer>

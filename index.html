@@ -564,6 +564,11 @@ body.picking [data-z="home"], body.picking [data-z="save"] { display:none !impor
 .fund .f-tabs button.on{background:var(--kin);color:#1A1208}
 .fund .f-mine{border:1px solid rgba(201,162,39,.7);background:rgba(201,162,39,.12);border-radius:6px;padding:8px;font-size:12px}
 .fund .f-medal{display:inline-block;width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#FFE28A,#8A6F17);color:#1A1208;font-weight:900;font-size:12px;text-align:center;line-height:22px;margin-right:4px;box-shadow:0 1px 3px #000}
+/* 第253巡（作り手：ウェブの軍資金の札が送れず、閉じるも押せない）：軍資金・目安箱の札は画面に固定した箱ごと送る（iPhone の Safari で札の中だけを送る方式が効かないことがある）。右上に × */
+.overlay.scrollov{position:fixed;inset:0;display:block;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;padding:max(10px,env(safe-area-inset-top,0px)) max(10px,env(safe-area-inset-right,0px)) max(10px,env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px))}
+.overlay.scrollov .dialog{max-height:none;overflow:visible;margin:0 auto;position:relative}
+.overlay.scrollov .dialog .dlg-actions{position:static;margin-bottom:0}
+.overlay.scrollov .ovx{position:fixed;top:max(10px,env(safe-area-inset-top,0px));right:max(10px,env(safe-area-inset-right,0px));width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,.6);border:1px solid rgba(237,230,214,.35);color:#EDE6D6;font-size:22px;line-height:36px;text-align:center;z-index:2;cursor:pointer}
 #fundBig{position:absolute;inset:0;z-index:70;display:grid;place-items:center;pointer-events:none}
 #fundBig .fb{background:rgba(14,12,10,.92);border:2px solid #C9A227;border-radius:12px;padding:18px 28px;text-align:center;color:#FFE28A;font-family:var(--display);font-size:26px;box-shadow:0 0 40px rgba(255,214,102,.5);animation:fundPop .5s ease-out}
 #fundBig .fb small{display:block;font-family:inherit;font-size:14px;color:#EDE6D6;margin-top:6px}
@@ -1701,6 +1706,7 @@ document.addEventListener("DOMContentLoaded",()=>{ i18nStart(); document.documen
       <div id="scenChosen" class="tiny" style="width:100%;text-align:center;color:var(--kin);font-weight:800;letter-spacing:.12em;margin-bottom:6px">選んだ筋書き：長篠の戦い</div>
       <button class="s-btn gold" id="scenNext">このシナリオで進む</button>
       <button class="s-btn" id="scenBack">もどる</button>
+      <div class="s-sub" style="width:100%;display:flex;gap:8px;justify-content:center;margin-top:4px"><button class="s-btn" style="font-size:12px;padding:8px 14px;opacity:.8" onclick="openFund()">軍資金募集</button><button class="s-btn" style="font-size:12px;padding:8px 14px;opacity:.8" onclick="openMeyasubako()">目安箱</button></div>
     </div>
   </div>
 
@@ -1714,6 +1720,7 @@ document.addEventListener("DOMContentLoaded",()=>{ i18nStart(); document.documen
       <button class="s-btn gold" id="toPick">地図から大名家を選ぶ</button>
       <button class="s-btn" id="contBtn2">つづきから</button>
       <button class="s-btn" id="startBack">もどる</button>
+      <div class="s-sub" style="width:100%;display:flex;gap:8px;justify-content:center;margin-top:4px"><button class="s-btn" style="font-size:12px;padding:8px 14px;opacity:.8" onclick="openFund()">軍資金募集</button><button class="s-btn" style="font-size:12px;padding:8px 14px;opacity:.8" onclick="openMeyasubako()">目安箱</button></div>
     </div>
     <div class="tiny muted" id="saveInfo"></div>
     <div id="contList" hidden style="margin-top:10px;display:flex;flex-direction:column;gap:6px;max-width:520px;margin-left:auto;margin-right:auto"></div>
@@ -27011,7 +27018,7 @@ function renderBattleFoot(){
       <span class="fsep"></span>
       <button class="tool sub ${B.autoMine?"on":""}" id="bAutoMine" title="自軍の采配も任せる。もう一度押せば戻る">${B.autoMine?"采配：自動":"采配：手動"}</button>${false?`<button class="tool sub" id="bPolicy" title="任せたときの方針を切り替える（積極→防御→本陣防衛→総大将狙い→側面→鉄砲中心）">方針：${B.aiPolicy||"積極"}</button>`:""}
       ${PREF.wingBtns?`<button class="tool aux ${B.rosterOn?"on":""}" id="bRosterT" title="隊の一覧（織田・徳川・武田に分けて。押せばその隊へ）">隊</button>`:""}
-      <button class="tool aux" id="bSpeed" hidden title="速さ（Rキー）">${"速さ ×"+(B.rate||1)}</button><button class="tool aux" id="bSound" title="音（曲と効果音）の入り切り">${(Audio_.enabled&&Audio_.music)?"♪ 入":"♪ 切"}</button>
+      <button class="tool aux" id="bSpeed" hidden title="速さ（Rキー）">${"速さ ×"+(B.rate||1)}</button><button class="tool aux" id="bSound" title="音（曲と効果音）の入り切り">${(Audio_.enabled&&Audio_.music)?"♪ 入":"♪ 切"}</button><button class="tool aux" id="bMeyasu" title="この戦で困った所・欲しい手を作り手へ" onclick="openMeyasubako()">目安箱</button>
       <button class="tool aux ${B.retreatArmed?"on":""}" id="bAllRetreat" style="${B.retreatArmed?"color:#FF9A88":""}">${B.retreatArmed?"本当に退く？":"全軍退却"}</button>`;
     { const bp=document.getElementById("bPause"); if(bp) bp.onclick=()=>{ B.paused=!B.paused; bAct(B.paused?"pause":"resume"); if(B.paused) B._pauses=(B._pauses||0)+1; renderBattleFoot(); }; }
     { const br=document.getElementById("bRosterT"); if(br) br.onclick=()=>{ B.rosterOn=!B.rosterOn; const el=document.getElementById("bRoster"); if(el) el.hidden=!B.rosterOn; if(B.rosterOn) renderRoster(true); renderBattleFoot(); }; }
@@ -27341,7 +27348,7 @@ function showBattleReport(){
     <div><div class="sec-title">わが勢</div>${rows(B.ctx.playerSide)}</div>
     <div><div class="sec-title">敵勢</div>${rows(1-B.ctx.playerSide)}</div>
     <div class="tiny muted">戦のあと、捕らえた将は「人を集める」（その他）で登用・身代金・解放を選べます。</div>
-    <div class="dlg-actions" style="display:flex;gap:8px"><button class="big gold" id="brDone">地図へ戻る</button></div></div>`;
+    <div class="dlg-actions" style="display:flex;gap:8px"><button class="big gold" id="brDone">地図へ戻る</button></div><div class="tiny" style="display:flex;gap:8px;justify-content:center;margin-top:2px;flex-wrap:wrap"><button class="chip" style="cursor:pointer;padding:4px 10px" onclick="openMeyasubako()">目安箱（この戦の感想・困った所）</button><button class="chip kin" style="cursor:pointer;padding:4px 10px" onclick="openFund()">軍資金募集</button></div></div>`;
   document.getElementById("battle").appendChild(el);
   el.querySelector("#brDone").onclick=()=>{ el.remove(); finishBattle(); };
 }
@@ -28725,16 +28732,18 @@ function fundVote(k){ let v={}; try{ v=JSON.parse(localStorage.getItem("sengoku_
 /* 第253巡（作り手）：目安箱――「ここをこうして欲しい」を作り手へ。宛先は作り手の手紙（mailto）。台は要らない */
 const MEYASU_TO="kaitoseto1129@gmail.com";
 function openMeyasubako(){
-  const el=document.createElement("div"); el.className="overlay"; el.style.zIndex=95;
+  const el=document.createElement("div"); el.className="overlay scrollov"; el.style.zIndex=95;
   const app=!!(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap); const where=app?"iPhone 版":"ブラウザ版";
-  el.innerHTML=`<div class="dialog" style="max-width:520px"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">目 安 箱</div><h3>ここをこうして欲しい</h3>
+  el.innerHTML=`<div class="dialog" style="max-width:520px"><button class="ovx" id="meyasuX" aria-label="閉じる">×</button><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">目 安 箱</div><h3>ここをこうして欲しい</h3>
     <div class="advice">遊んで困ったこと、欲しい手、直して欲しい所。何でも。作り手に手紙で届きます。</div>
     <textarea id="meyasuText" rows="6" placeholder="例：木津砦で門を破ったのに隊が入らない／関ヶ原にも軍議が欲しい" style="width:100%;padding:10px 12px;border-radius:6px;border:1px solid rgba(237,230,214,.25);background:rgba(0,0,0,.35);color:#EDE6D6;font:inherit;font-size:14px;line-height:1.6;resize:vertical"></textarea>
     <div class="tiny muted">送ると手紙の窓が開きます（${where}・版 ${BUILD}${W&&W.started&&W.stage&&W.stage.key?"・筋書き "+W.stage.key:""} が添えられます）。宛先：${MEYASU_TO}</div>
     <div class="dlg-actions" style="display:flex;gap:8px"><button class="big gold" style="flex:1" id="meyasuGo">手紙で送る</button><button class="big ghost" style="flex:1" id="meyasuNo">閉じる</button></div></div>`;
-  document.getElementById("stage").appendChild(el); overlayEl=el;
-  el.querySelector("#meyasuNo").onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; };
-  el.querySelector("#meyasuGo").onclick=()=>{ const t=(el.querySelector("#meyasuText").value||"").trim(); if(!t){ toast("何か書いてください"); return; } const sc=(W&&W.started&&W.stage&&W.stage.key)?W.stage.key:"-"; const body=t+"\n\n――\n"+where+"／版 "+BUILD+"／筋書き "+sc+"／"+navigator.userAgent.slice(0,80); const url="mailto:"+MEYASU_TO+"?subject="+encodeURIComponent("【戦国大名 目安箱】")+"&body="+encodeURIComponent(body); try{ track("meyasu/send"); }catch(_){ } location.href=url; setTimeout(()=>{ el.remove(); if(overlayEl===el) overlayEl=null; toast("手紙の窓が開かなければ、"+MEYASU_TO+" へ直接どうぞ"); },600); };
+  document.body.appendChild(el); overlayEl=el;
+  const wasPaused=(typeof B!=="undefined"&&B&&B.over===null)?B.paused:null; if(wasPaused===false){ B.paused=true; try{ renderBattleFoot(); }catch(_){ } }   /* 第253巡：合戦の中から開いたら書いている間は止める */
+  const closeIt=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; if(wasPaused===false&&typeof B!=="undefined"&&B&&B.over===null){ B.paused=false; try{ renderBattleFoot(); }catch(_){ } } };
+  el.querySelector("#meyasuNo").onclick=el.querySelector("#meyasuX").onclick=closeIt;
+  el.querySelector("#meyasuGo").onclick=()=>{ const t=(el.querySelector("#meyasuText").value||"").trim(); if(!t){ toast("何か書いてください"); return; } const sc=(W&&W.started&&W.stage&&W.stage.key)?W.stage.key:"-"; const body=t+"\n\n――\n"+where+"／版 "+BUILD+"／筋書き "+sc+"／"+navigator.userAgent.slice(0,80); const url="mailto:"+MEYASU_TO+"?subject="+encodeURIComponent("【戦国大名 目安箱】")+"&body="+encodeURIComponent(body); try{ track("meyasu/send"); }catch(_){ } location.href=url; setTimeout(()=>{ closeIt(); toast("手紙の窓が開かなければ、"+MEYASU_TO+" へ直接どうぞ"); },600); };
   setTimeout(()=>{ try{ el.querySelector("#meyasuText").focus(); }catch(_){ } },50);
 }
 function openFund(){
@@ -28781,8 +28790,8 @@ function openFund(){
     <div class="f-vote">${(f.vote&&f.vote.items||[]).map(([k,n])=>{ const c=(f.vote.counts||{})[k]||0; const tot=Object.values(f.vote.counts||{}).reduce((a,b)=>a+b,0); let mine2=null; try{ mine2=(JSON.parse(localStorage.getItem("sengoku_fund_vote")||"{}"))[FUND.round]; }catch(e){} return `<button class="cmd ${mine2===k?"sel":""}" onclick="fundVote('${k}')">${esc(n)}<span class="cost">${tot?Math.round(c/tot*100)+"%":"—"}${mine2===k?"　（あなたの一票）":""}</span></button>`; }).join("")}</div>
     <div class="dlg-actions" style="display:flex;gap:8px"><button class="big ghost" style="flex:1" data-c="close">閉じる</button></div>`:""}
   </div>`;
-  let el=document.querySelector(".overlay.fundov"); if(!el){ el=document.createElement("div"); el.className="overlay fundov"; el.style.zIndex="94"; document.body.appendChild(el); }
-  el.innerHTML=html;
+  let el=document.querySelector(".overlay.fundov"); if(!el){ el=document.createElement("div"); el.className="overlay fundov scrollov"; el.style.zIndex="94"; document.body.appendChild(el); }
+  el.innerHTML=html.replace('<div class="dialog fund">','<div class="dialog fund"><button class="ovx" data-c="close" aria-label="閉じる">×</button>');
   el.querySelectorAll('[data-c="close"]').forEach(b=>b.onclick=()=>{ el.remove(); });
   el.onclick=ev=>{ if(ev.target===el) el.remove(); };
   track("fund/open");
