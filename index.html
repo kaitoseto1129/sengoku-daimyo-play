@@ -20442,7 +20442,7 @@ function mikSetup(){
   B.mikata=true; const mine=B.ctx.playerSide;
   for(const u of B.units){ const g=W.generals[u.gid]; const cn=g?clanName(g.clan):"";
     if(u.side===0){ u.coh=(u.coh||1)*1.15; u.morRes=Math.min(u.morRes||1,0.85); if(u.cmd){ u.tough=(u.tough||1)*4; u.morRes=0.5; } }   /* 武田：陣を保つ・士気が折れにくい */
-    else { u.warF=(u.warF||1)*1.08; if(/本多忠勝/.test(u.name)){ u.tough=(u.tough||1)*1.5; u.temper="猛"; } if(u.cmd){ u.tough=(u.tough||1)*4; u.morRes=0.5; } }   /* 徳川：将は強い。本陣はすぐには潰れない */
+    else { u.warF=(u.warF||1)*1.08; u.tough=(u.tough||1)*1.5; u.morRes=Math.min(u.morRes||1,0.8); if(/本多忠勝/.test(u.name)){ u.tough=(u.tough||1)*1.3; u.temper="猛"; } if(u.cmd){ u.tough=(u.tough||1)*2.7; u.morRes=0.5; } }   /* 第253巡：三河武士は堅い（十秒で七隊のうち五隊が崩れ、一分で終わっていた） */   /* 徳川：将は強い。本陣はすぐには潰れない */
   }
   B.fieldLabels=[{x:BF.w*0.5,y:1.0,t:"三方ヶ原"},{x:mine===1?2.5:BF.w-2.5,y:BF.h-1.0,t:"浜松へ"}];   /* 人の側が左 */
   B.objective=mine===1?"武田を押し返せ（崩れたら家康を浜松へ）":"徳川を崩し、家康を討て";
@@ -22160,7 +22160,7 @@ function startBattle(e){
       const gapTop = B.ctx.flank ? BF.h*0.5 : 0;   // 迂回なら上半分の柵がない（夜のうちに柵の端を回った）
       for(let L=0;L<3;L++){ const x=line+dir*L*2.0; for(let y=1.2;y<BF.h-0.6;y+=1.15){ if(y<gapTop) continue;
         /* 第107巡：三列とも上下いっぱいに組む（作り手の指示：馬防柵はしっかり三陣） */
-        const o={kind:1, variant:Math.floor(y*3)%3, x, y, r:0.85, wall:true, fort:true, fence:true, side:1, lane:L}; if(breakable) o.hp=Math.round((B.ctx.playerSide===1 ? (L===0?140:94) : (L===0?55:40))*0.95); o.hpMax=o.hp;   /* 第250巡（作り手：柵が倒れない）：耐久を二割下げた */   /* 第128巡：柵の耐久 +15%（作り手の指示） */   /* 第113巡：人が織田・徳川なら柵をまた二割五分厚く（作り手の指示） */   /* 人が武田のときの柵（第108巡：強すぎたので釣り合いを取り直し） */   /* 第107巡：柵の耐久を四分の一落とす（作り手の指示） */   /* 第103巡：升目になって柵の破れ目から入りやすくなった分、柵を太く。内の柵はなお太い */ B.obstacles.push(o); } }   // 柵は多く、一本は脆く（壊れる手応え：作り手の指示）
+        const o={kind:1, variant:Math.floor(y*3)%3, x, y, r:0.85, wall:true, fort:true, fence:true, side:1, lane:L}; if(breakable) o.hp=Math.round((B.ctx.playerSide===1 ? (L===0?140:94) : (L===0?90:62))*0.95); o.hpMax=o.hp;   /* 第253巡：人が武田の時の織田の柵 55/40→90/62（自動の織田が一分で崩れていた） */   /* 第250巡（作り手：柵が倒れない）：耐久を二割下げた */   /* 第128巡：柵の耐久 +15%（作り手の指示） */   /* 第113巡：人が織田・徳川なら柵をまた二割五分厚く（作り手の指示） */   /* 人が武田のときの柵（第108巡：強すぎたので釣り合いを取り直し） */   /* 第107巡：柵の耐久を四分の一落とす（作り手の指示） */   /* 第103巡：升目になって柵の破れ目から入りやすくなった分、柵を太く。内の柵はなお太い */ B.obstacles.push(o); } }   // 柵は多く、一本は脆く（壊れる手応え：作り手の指示）
       B.nagashino=true; B.fenceTotal0=B.obstacles.filter(o=>o.fence&&o.hpMax).length;
       if(B.ctx.playerSide===1){ B.mods=B.mods||{}; B.mods[1]={...(B.mods[1]||{cav:1,gunP:1,gunA:1,mor:1}), gunP:((B.mods[1]||{}).gunP||1)*0.75}; }   /* 鉄砲の威力は半分（騎馬が溶けるのが早すぎた。作り手の指示） */
       if(B.ctx.playerSide===0){ for(const u of B.units) if(u.side===1){ if(u.type===3&&u.ammo!==undefined){ u.ammo=Math.round(u.ammo*0.8); u.ammoMax=Math.max(u.ammo,1); } u.morale=Math.max(20,u.morale-10); } for(const u of B.units) if(u.side===0) u.morale=Math.min(100,u.morale+10); B.mods=B.mods||{}; B.mods[1]={...(B.mods[1]||{cav:1,gunP:1,gunA:1,mor:1}), gunP:((B.mods[1]||{}).gunP||1)*0.4};   /* 第128巡：武田二万・柵+15%の分、人が武田のときの鉄砲は四割に */ }   /* 織田の鉄砲は七割の威力（人が武田のとき。第108巡：騎馬を堅くした分、四割五分から戻す） */
@@ -22276,7 +22276,7 @@ function startBattle(e){
   if(dec && dec.key==="sekigahara"){ try{ sekSetup(); }catch(e4){ console.error(e4); } }
   if(dec && dec.key==="anegawa"){ try{ anegawaLayout(); }catch(e4){ console.error(e4); } }   /* 第127巡 */
   if(dec && dec.key==="tennoji"){ try{ tennojiSetup(); }catch(e5){ console.error(e5); } }
-  if(dec && dec.key==="mikata_open"){ try{ mikSetup(); }catch(e6){ console.error(e6); } }
+  if(dec && (dec.key==="mikata_open"||dec.key==="mikatagahara")){ try{ mikSetup(); }catch(e6){ console.error(e6); } }   /* 第253巡：桶狭間・包囲網の三方ヶ原も同じ仕込み（三十秒で徳川が総崩れになっていた） */
   if(dec && /shizugatake/.test(dec.key)){ try{ shizuSetup(); }catch(e7){ console.error(e7); } }
   if(dec && /^komaki_|^nagakute$/.test(dec.key)){ try{ komSetup(dec.key); }catch(e8){ console.error(e8); } }
   if(dec && (dec.key==="ueda"||dec.key==="ueda1")){ try{ uedaSetup(); }catch(e9){ console.error(e9); } }
@@ -23397,6 +23397,7 @@ const SIGNATURES={
  kawanakajima:[
   { at:0, run:()=>{ B.weather="霧"; const el=document.getElementById("bTerrain"); if(el) el.textContent="川中島の戦い　／　"+BTERRAIN[B.t].n+"　"+terrainNote(B.t)+"　／　霧　"+WEATHER["霧"].d; sigHide(["高坂昌信","馬場信春"],1); for(const u of B.units) if(u.side===0){ u.coh=(u.coh||1)*1.3; }   // 車懸りの上杉は崩れにくい
       /* 第224巡（夜4）：両本陣は旗本が固めて堅い（景虎の本陣が十七秒で潰れ、戦が始まる前に終わっていた）。上杉は数で劣る分、粘りを足す */ for(const u of B.units){ if(u.troops<=.5) continue; if(u.cmd){ u.tough=(u.tough||1)*2.4; u.morRes=Math.min(u.morRes||1,0.45); } else if(u.side===0){ u.tough=(u.tough||1)*1.2; u.morRes=Math.min(u.morRes||1,0.8); } }
+      /* 第253巡：霧の間は武田も動かず（十一秒で景虎の本陣に敵が付いていた）。景虎の本陣は少し後ろへ */ for(const u of B.units){ if(u.troops<=.5) continue; if(u.side===1&&!u.cmd){ u.holdUntil=B.elapsed+22; } if(u.side===0&&u.cmd){ u.x=Math.max(2,u.x-4); u.gx=u.x; u.cell=null; u.nextCell=null; } } try{ gridSettleAll(); }catch(_){ }
       sigBanner("霧の八幡原"); log("濃い霧が八幡原を包んでいます","war"); } },
   { at:22, run:()=>{ B.weather="晴"; const el=document.getElementById("bTerrain"); if(el) el.textContent="川中島の戦い　／　"+BTERRAIN[B.t].n+"　"+terrainNote(B.t)+"　／　晴　障りなし"; sigBanner("霧が晴れた——車懸り！"); const t=sigCmd(1); for(const u of B.units) if(u.side===0&&u.troops>.5) sigCharge(u, u.cmd?null:t); const c=sigCmd(0); if(c) bshout(c.id,"車懸りじゃ！ 信玄の本陣を衝け！",3); } },
   { at:32, run:()=>{ const a=sigCmd(0), b=sigCmd(1); if(a&&b){ a.order={k:"attack",id:b.id}; B.duelForce=true; bshout(a.id,"信玄、覚悟！",3); sigBanner("謙信、信玄本陣へ斬り込む"); } } },
