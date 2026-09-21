@@ -14941,6 +14941,67 @@ const DECISIVE=[
    gather:"丹後の田辺城に細川幽斎が五百で籠る。西軍一万五千が囲む", open:"田辺城。幽斎は歌を詠み、寄せ手の中の弟子は本気で撃たない",
    after:{ atkWin:{ text:"田辺は落ち、幽斎は捕らえられた。古今伝授は絶えかけた", run:()=>{ (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).defTroops-=5000; } },
            defWin:{ text:"田辺は落ちず、西軍一万五千は丹後に釘付けにされたまま関ヶ原の日を迎えた", run:()=>{ (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).defTroops-=15000; } } } },
+ /* 第253巡（作り手：本能寺・関ヶ原の決戦を増やす）：神流川・安土城・打出浜・黒駒／杭瀬川・安濃津・竹ヶ鼻・白石 */
+ { id:2280, key:"kannagawa", sub:"一益、上野を失う", sc:["honnoji","honnojiPre","jingo","kiyosu","shizugatake","komaki"], when:"never", name:"神流川の戦い", atk:"北条家", def:"滝川家", noAllies:true, atkCmd:"北条氏直", defCmd:"滝川一益", histWin:"atk",
+   terrain:0, forts:null, nAtk:12, nDef:8, atkTroops:50000, defTroops:18000,
+   atkGens:["北条氏直","北条氏邦","北条氏照","北条氏規","大道寺政繁","松田憲秀"], defGens:["滝川一益","滝川益重","篠岡平右衛門","津田秀政","木村高重"],
+   site:["箕輪城","小田原城"],
+   gather:"本能寺の報を聞いた北条は五万で上野へ。滝川一益は厩橋を出て神流川で迎える", open:"神流川。北条の大軍に、滝川の一万八千。二日目、数で押される",
+   after:{ atkWin:{ text:"滝川は神流川で破れ、上野を捨てて伊勢へ落ちた。北条が上野を手にする", shrink:{clan:"滝川家",k:0.6}, rels:[["北条家","滝川家",-30]] },
+           defWin:{ text:"滝川一益は北条の大軍を神流川で押し返した。上野はなお織田の手に", shrink:{clan:"北条家",k:0.9}, calm:{clan:"北条家",vs:"滝川家",days:180} } } },
+ { id:2281, key:"azuchi", sub:"秀満、安土を焼く", sc:["honnoji","honnojiPre"], when:"never", name:"安土城の戦い", atk:"羽柴家", def:"明智家", castle:"安土城", noAllies:true, atkCmd:"堀秀政", defCmd:"明智秀満", histWin:"atk",
+   terrain:0, forts:"def", nAtk:10, nDef:5, atkTroops:15000, defTroops:4000,
+   atkGens:["堀秀政","堀直政","中川清秀","高山右近"], defGens:["明智秀満","明智光忠","溝尾茂朝"],
+   site:["佐和山城","安土城"],
+   holdWin:{side:"def", sec:180, keep:0.3, h:"安土、持ちこたえる", t:"明智秀満は安土の天主を背に堀勢を退けた"},
+   gather:"山崎の敗報が安土に届く。留守を預かる明智秀満へ、堀秀政の一万五千が迫る", open:"安土城。琵琶湖の岸の名城。天主に火が回る前に、門を破れるか",
+   after:{ atkWin:{ text:"安土は落ち、秀満は坂本へ退いて自刃した。天主は炎に包まれた", capture:"安土城", shrink:{clan:"明智家",k:0.7} },
+           defWin:{ text:"秀満は安土を守り抜いた。明智はなお近江に踏みとどまる", shrink:{clan:"羽柴家",k:0.9} } } },
+ { id:2282, key:"uchidehama", sub:"湖岸の追撃戦", sc:["honnoji","honnojiPre"], when:"never", name:"打出浜の戦い", atk:"羽柴家", def:"明智家", noAllies:true, atkCmd:"堀秀政", defCmd:"明智秀満", histWin:"atk",
+   terrain:0, forts:null, nAtk:8, nDef:5, atkTroops:12000, defTroops:5000,
+   atkGens:["堀秀政","堀直政","蜂屋頼隆"], defGens:["明智秀満","明智光忠","三宅弥平次"],
+   site:["安土城","佐和山城"],
+   gather:"安土を出た明智秀満は坂本へ。堀秀政が湖岸の打出浜で追いつく", open:"打出浜。湖に追い詰められた明智勢。秀満は湖水渡りで名を残すか",
+   after:{ atkWin:{ text:"明智勢は打出浜で崩れ、秀満は馬で湖を渡って坂本へ入った。明智の命運は尽きた", shrink:{clan:"明智家",k:0.6} },
+           defWin:{ text:"秀満は追手を退け、明智勢は坂本に入った", shrink:{clan:"羽柴家",k:0.9} } } },
+ { id:2283, key:"kurokoma", sub:"甲斐を守る", sc:["honnoji","honnojiPre","jingo"], when:"never", name:"黒駒の戦い", atk:"北条家", def:"徳川家", noAllies:true, atkCmd:"北条氏忠", defCmd:"鳥居元忠", histWin:"def",
+   terrain:1, forts:null, nAtk:10, nDef:6, atkTroops:10000, defTroops:2000,
+   atkGens:["北条氏忠","北条氏勝","太田氏房"], defGens:["鳥居元忠","三宅康貞","水野勝成"],
+   site:["甲府城","小田原城"],
+   gather:"北条氏忠が郡内から甲斐へ。鳥居元忠の二千が黒駒で迎え撃つ", open:"黒駒。狭い谷の道。数で劣る徳川は、地形で受ける",
+   after:{ atkWin:{ text:"鳥居元忠は黒駒で破れ、甲斐の徳川は揺らいだ", shrink:{clan:"徳川家",k:0.9} },
+           defWin:{ text:"鳥居元忠は北条一万を黒駒で破った。甲斐は徳川のものとなる", shrink:{clan:"北条家",k:0.85}, calm:{clan:"北条家",vs:"徳川家",days:120} } } },
+ { id:2284, key:"kuisegawa", sub:"左近、東軍の鼻先を叩く", sc:["sekigahara","sekbattle","ueda"], when:"never", name:"杭瀬川の戦い", atk:"石田家", def:"徳川家", noAllies:true, atkCmd:"島左近", defCmd:"中村一栄", histWin:"atk",
+   terrain:0, forts:null, nAtk:6, nDef:6, atkTroops:5000, defTroops:5000,
+   atkGens:["島左近","蒲生郷舎","明石全登"], defGens:["中村一栄","有馬豊氏","野一色頼母"],
+   site:["佐和山城","岐阜城"],
+   gather:"大垣に籠る西軍。島左近が五百を率い、杭瀬川で東軍の先手を誘う", open:"杭瀬川。左近の伏兵が、追ってきた中村勢を横から叩く",
+   after:{ atkWin:{ text:"杭瀬川で東軍の先手が崩れた。西軍の士気が上がる", run:()=>{ (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).westMor+=5; } },
+           defWin:{ text:"左近の誘いは通じず、西軍は大垣へ退いた", run:()=>{ (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).eastMor+=3; } } } },
+ { id:2285, key:"anotsu", sub:"伊勢の攻防", sc:["sekigahara","sekbattle","ueda"], when:"never", name:"安濃津城の戦い", atk:"毛利家", def:"徳川家", allies:true, atkAllies:["鍋島家","長宗我部家"], atkCmd:"毛利秀元", defCmd:"富田信高", histWin:"atk",
+   terrain:0, forts:"def", nAtk:12, nDef:5, atkTroops:30000, defTroops:1700,
+   atkGens:["毛利秀元","鍋島直茂","長宗我部盛親","吉川広家","安国寺恵瓊"], defGens:["富田信高","分部光嘉","富田信高の妻"],
+   site:["大河内城","清洲城"],
+   holdWin:{side:"def", sec:200, keep:0.3, h:"安濃津、持つ", t:"富田信高は三万の西軍を城に寄せつけず、和議の時を稼いだ"},
+   gather:"毛利秀元・鍋島直茂の三万が伊勢へ。富田信高の千七百が安濃津に籠る", open:"安濃津城。海辺の平城。信高の妻が甲冑で門を守る",
+   after:{ atkWin:{ text:"安濃津は開城した。だが西軍の三万は伊勢に釘付けになり、関ヶ原に遅れた", run:()=>{ (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).defTroops-=8000; } },
+           defWin:{ text:"安濃津は落ちず、毛利勢は伊勢で足を止めた", run:()=>{ (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).defTroops-=12000; W.sekMod.eastMor+=2; } } } },
+ { id:2286, key:"takegahana", sub:"東軍先鋒、木曽川を渡る", sc:["sekigahara","sekbattle","ueda"], when:"never", name:"竹ヶ鼻城の戦い", atk:"福島家", def:"石田家", noAllies:true, atkCmd:"福島正則", defCmd:"杉浦重勝", histWin:"atk",
+   terrain:0, forts:"def", nAtk:10, nDef:4, atkTroops:16000, defTroops:1000,
+   atkGens:["福島正則","池田輝政","細川忠興","加藤嘉明"], defGens:["杉浦重勝","毛利掃部","梶川三十郎"],
+   site:["清洲城","岐阜城"],
+   holdWin:{side:"def", sec:150, keep:0.3, h:"竹ヶ鼻、一日を稼ぐ", t:"杉浦重勝は一日を稼ぎ、岐阜の織田秀信に備えの時を与えた"},
+   gather:"清洲の東軍先鋒が木曽川を渡る。最初の的は竹ヶ鼻城", open:"竹ヶ鼻城。木曽川べりの小城。杉浦重勝の千が福島の大軍を受ける",
+   after:{ atkWin:{ text:"竹ヶ鼻は落ち、杉浦重勝は自刃した。東軍先鋒は岐阜へ", run:()=>{ (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).eastMor+=2; } },
+           defWin:{ text:"竹ヶ鼻は持ちこたえ、東軍の渡河は一日遅れた", run:()=>{ (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).westMor+=2; } } } },
+ { id:2287, key:"shiroishi", sub:"政宗、上杉の背を突く", sc:["sekigahara","sekbattle","ueda"], when:"never", name:"白石城の戦い", atk:"伊達家", def:"上杉家", noAllies:true, atkCmd:"伊達政宗", defCmd:"甘糟景継", histWin:"atk",
+   terrain:1, forts:"def", nAtk:10, nDef:5, atkTroops:20000, defTroops:3000,
+   atkGens:["伊達政宗","片倉景綱","伊達成実","茂庭綱元","屋代景頼"], defGens:["甘糟景継","登坂勝乗","本庄繁長"],
+   site:["岩出山城","会津若松城"],
+   holdWin:{side:"def", sec:180, keep:0.3, h:"白石、落ちず", t:"甘糟景継は白石を守り、政宗は米沢へ退いた"},
+   gather:"家康の会津征伐に呼応し、伊達政宗が二万で白石城へ", open:"白石城。上杉の南の門。甘糟景継の三千が籠る",
+   after:{ atkWin:{ text:"白石は一日で落ちた。政宗は百万石の墨付きを胸に、上杉の背を脅かす", shrink:{clan:"上杉家",k:0.92}, rels:[["伊達家","上杉家",-30]] },
+           defWin:{ text:"白石は落ちず、政宗は米沢へ退いた", shrink:{clan:"伊達家",k:0.9} } } },
  { id:2263, key:"hasedo", sub:"東北の関ヶ原", sc:["sekigahara","sekbattle","ueda"], when:"never", name:"長谷堂城の戦い", atk:"上杉家", def:"最上家", castle:"長谷堂城", allies:true, defAllies:["伊達家"], atkCmd:"直江兼続", defCmd:"志村光安", histWin:"def",
    terrain:1, forts:"def", nAtk:10, nDef:6, atkTroops:25000, defTroops:7000,
    atkGens:["直江兼続","上泉泰綱","春日元忠","本村造酒丞","溝口左馬助"], defGens:["志村光安","最上義光","鮭延秀綱","留守政景","伊達政宗"],
@@ -16654,6 +16715,41 @@ EVENTS.push(
      if(ue.id===W.player) koChoice("長谷堂、北進","最上義光は東軍。直江兼続を山形へ向けるか。",[["go","長谷堂を攻める（史実）","明日、長谷堂で決戦（東北の関ヶ原）",()=>go("go")],["hold","米沢で守る","伊達に備える",()=>go("hold")]]);
      else if(mg.id===W.player){ log("急報：直江兼続の二万五千が最上領へ。長谷堂城が囲まれる",'war',true); go("go"); }
      else go("go"); }},
+  /* 第253巡：新しい決戦を出す出来事（本能寺の世・関ヶ原の世） */
+  {id:1340,daily:true,name:"神流川、北条の大軍",
+   text:["北条氏直「上野は坂東のもの。滝川を追え」"],
+   cond:()=> eraOnly("honnoji")&&dayNumber()-(W.scenarioStartDay||dayNumber())>=8&&!W.fired.has(2280)&&(()=>{ const hj=clanByName("北条家"), tk=clanByName("滝川家"); return hj&&tk&&!hj.dead&&!tk.dead; })(),
+   act:()=>{ const hj=clanByName("北条家"), tk=clanByName("滝川家"); if(!hj.war.has(tk.id)) declareWar(hj.id,tk.id,"force"); const go=()=>sekSubQueue(2280,1);
+     if(tk.id===W.player) koChoice("神流川","北条五万が上野へ。一万八千で迎え撃つか、伊勢へ退くか。",[["fight","神流川で迎え撃つ（史実）","明日、神流川で決戦",go],["run","戦わず伊勢へ退く","上野を捨てる。兵は残る",()=>{ log("滝川一益は戦わずに上野を捨て、伊勢へ落ちた",'war',true); }]]);
+     else go(); }},
+  {id:1341,daily:true,name:"安土、秀満の留守",
+   text:["堀秀政「安土の留守は明智秀満。落とせば近江は片付く」"],
+   cond:()=> eraOnly("honnoji")&&W.decisiveWon&&W.decisiveWon.yamazaki==="atk"&&dayNumber()-(W.decisiveDay.yamazaki||0)>=2&&!W.fired.has(2281)&&(()=>{ const hs=clanByName("羽柴家"), ak=clanByName("明智家"); return hs&&ak&&!hs.dead&&!ak.dead; })(),
+   act:()=>{ const hs=clanByName("羽柴家"); const go=()=>{ sekSubQueue(2281,1); sekSubQueue(2282,3); };
+     if(hs.id===W.player) koChoice("安土へ","山崎は勝った。近江の安土には明智秀満が残る。堀秀政を向けるか。",[["go","堀秀政を安土へ（史実）","明日、安土城の戦い。続けて打出浜の追撃",go],["wait","京を固める","安土は後回し",()=>{ log("秀吉は京の仕置きを先にした",'dip',true); }]]);
+     else go(); }},
+  {id:1342,daily:true,name:"黒駒、北条の甲斐侵入",
+   text:["北条氏忠「郡内から甲斐へ。徳川の留守を衝く」"],
+   cond:()=> eraOnly("honnoji","jingo")&&W.jingo&&dayNumber()-(W.scenarioStartDay||dayNumber())>=30&&!W.fired.has(2283)&&(()=>{ const hj=clanByName("北条家"), tk=clanByName("徳川家"); return hj&&tk&&!hj.dead&&!tk.dead; })(),
+   act:()=>{ const hj=clanByName("北条家"), tk=clanByName("徳川家"); if(!hj.war.has(tk.id)) declareWar(hj.id,tk.id,"force"); const go=()=>sekSubQueue(2283,1);
+     if(tk.id===W.player) koChoice("黒駒","北条氏忠の一万が郡内から甲斐へ。鳥居元忠の二千で受けるか。",[["fight","黒駒で迎え撃つ（史実）","明日、黒駒の戦い",go],["pull","甲府に籠る","黒駒は捨てる。甲斐の民心-5",()=>{ log("徳川は黒駒を捨て、甲府に籠った",'war',true); }]]);
+     else go(); }},
+  {id:1343,daily:true,name:"白石、政宗の呼応",
+   text:["伊達政宗「百万石の墨付きは頂いた。白石を取る」"],
+   cond:()=> eraOnly("sekigahara")&&dayNumber()-(W.scenarioStartDay||dayNumber())>=20&&!W.fired.has(2287)&&!W.fired.has(2101)&&(()=>{ const dt=clanByName("伊達家"), ue=clanByName("上杉家"); return dt&&ue&&!dt.dead&&!ue.dead; })(),
+   act:()=>{ const dt=clanByName("伊達家"), ue=clanByName("上杉家"); if(!dt.war.has(ue.id)) declareWar(dt.id,ue.id,"force"); const go=()=>sekSubQueue(2287,1);
+     if(dt.id===W.player) koChoice("白石城","家康は会津征伐へ。上杉の南の門・白石を突くか。",[["go","白石を攻める（史実）","明日、白石城の戦い",go],["hold","様子を見る","上杉との戦は先送り",()=>{ log("政宗は動かず、家康と上杉の成り行きを見た",'dip',true); }]]);
+     else go(); }},
+  {id:1344,daily:true,name:"竹ヶ鼻と安濃津",
+   text:["福島正則「木曽川を渡る。竹ヶ鼻から岐阜へ」　毛利秀元「伊勢を取り、東海道を塞ぐ」"],
+   cond:()=> eraOnly("sekigahara")&&dayNumber()-(W.scenarioStartDay||dayNumber())>=30&&!W.fired.has(2286)&&!W.fired.has(2101)&&(()=>{ const fk=clanByName("福島家"), is=clanByName("石田家"); return fk&&is&&!fk.dead&&!is.dead; })(),
+   act:()=>{ const fk=clanByName("福島家"), is=clanByName("石田家"), mr=clanByName("毛利家"), tk=clanByName("徳川家"); if(!fk.war.has(is.id)) declareWar(fk.id,is.id,"force"); sekSubQueue(2286,1); if(mr&&tk&&!mr.dead&&!tk.dead){ if(!mr.war.has(tk.id)) declareWar(mr.id,tk.id,"force"); sekSubQueue(2285,4); } log("東軍先鋒は木曽川を渡って竹ヶ鼻へ。西軍の毛利秀元・鍋島は伊勢の安濃津へ向かう",'war',true); }},
+  {id:1345,daily:true,name:"杭瀬川、左近の誘い",
+   text:["島左近「東軍の鼻先を一度叩いておく。大垣の士気のためだ」"],
+   cond:()=> eraOnly("sekigahara")&&W.fired.has(2260)&&!W.fired.has(2284)&&!W.fired.has(2101)&&dayNumber()-(W.decisiveDay.gifu1600||0)>=2&&(()=>{ const is=clanByName("石田家"), tk=clanByName("徳川家"); return is&&tk&&!is.dead&&!tk.dead; })(),
+   act:()=>{ const is=clanByName("石田家"); const go=()=>sekSubQueue(2284,1);
+     if(is.id===W.player) koChoice("杭瀬川","岐阜は落ちた。家康が赤坂に着く。島左近が五百で東軍の先手を誘い出すと言う。",[["go","左近を出す（史実）","明日、杭瀬川の戦い。勝てば西軍の士気+5",go],["no","大垣で守る","士気は落ちたまま",()=>{ log("三成は左近を出さず、大垣で夜を待った",'war',true); }]]);
+     else go(); }},
   {id:1301,daily:true,name:"石垣原、如水の挙兵",
    text:["黒田如水「天下は、まだ決まっておらぬ」","―― 豊後に上陸した大友義統を、如水は石垣原で迎え撃った"],
    cond:()=> eraOnly("sekigahara")&&dayNumber()-(W.scenarioStartDay||dayNumber())>=35&&!W.fired.has(2101)&&(()=>{ const kr=clanByName("黒田家"); return kr&&!kr.dead&&Object.values(W.generals).some(g=>/^黒田(官兵衛|如水|孝高)$/.test(g.name)&&g.clan===kr.id&&g.status!=="死亡"); })(),
@@ -23909,8 +24005,8 @@ function duelCheck(){
   lose.morale=Math.max(0, lose.morale-32);
   for(const u of B.units) if(u.side===lose.side) u.morale=Math.max(0,u.morale-12);
   for(const u of B.units) if(u.side===win.side) u.morale=Math.min(100,u.morale+10);
-  bshout(win.id, "我こそはと思わん者は出でよ！", 3);
-  log(`${B.duel.winName}と${B.duel.loseName}が一騎討ち。${B.duel.winName}が押した`,"war");
+  /* 第253巡：叫びも出さない */
+  /* 第253巡：記録にも出さない */
   playSE("sword");
 }
 /* 同じ敵へ寄るとき、隊ごとに少しずつ違う角から取り付く（皆が同じ点へ寄ってぎゅうぎゅうに重なっていた） */
@@ -26133,7 +26229,7 @@ function drawBattle(){
     bctx.restore();
   }
   // 一騎討ちの名乗り
-  if(B.duel){
+  if(B.duel && false){   /* 第253巡（作り手）：合戦の画面に「一騎討ち」の文言を一切出さない（対峙しただけで討ち破ったわけではない） */
     const k=Math.min(1,B.duel.t/0.25);
     bctx.save();
     bctx.globalAlpha=Math.min(1, (3.2-B.duel.t)/0.6);
