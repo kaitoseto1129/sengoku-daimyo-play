@@ -28524,16 +28524,16 @@ const FUND={
   raised:0, backers:0,
   uses:[["武将・兵士・本陣・柵・城の絵",1200000],["曲・効果音",400000],["画面まわりの改修",600000],["作り込み",600000],["その他",200000]],
   stretch:[[1.0,"合戦画面の絵を一新（武将五十名・兵士・本陣・馬防柵・硝煙・騎馬突撃・新曲）"],[1.2,"武将二十名の絵を追加"],[1.5,"新しい曲と効果音"],[2.0,"城攻めの画面を大改修"]],
-  tiers:[
-    {amt:500,   rank:"足軽衆", give:["支援者限定称号「第一次軍資金提供者」","限定家紋枠","勲章「壱」"], pay:""},
-    {amt:1000,  rank:"侍大将", give:["上記すべて","軍資金奉納旗（合戦で自軍の指物が金色に）"], pay:""},
-    {amt:3000,  rank:"奉行",   give:["上記すべて","限定武将の絵「若き日の織田信長」（性能は同じ）"], pay:""},
-    {amt:5000,  rank:"家老",   give:["上記すべて","本陣の飾り（金屏風・大馬印）"], pay:""},
-    {amt:10000, rank:"宿老",   give:["上記すべて","開発支援者名鑑へ永久掲載（希望者のみ）"], pay:""},
-    {amt:30000, rank:"大名",   give:["上記すべて","特別称号・特別旗・名鑑の上位掲載"], pay:""},
-    {amt:50000, rank:"天下人", give:["上記すべて","黄金馬印・黄金本陣・ゲーム内クレジット掲載"], pay:""},
+  tiers:[   /* 第253巡（作り手）：特典は無し。開発の応援だけ */
+    {amt:500,   rank:"足軽衆", give:[], pay:""},
+    {amt:1000,  rank:"侍大将", give:[], pay:""},
+    {amt:3000,  rank:"奉行",   give:[], pay:""},
+    {amt:5000,  rank:"家老",   give:[], pay:""},
+    {amt:10000, rank:"宿老",   give:[], pay:""},
+    {amt:30000, rank:"大名",   give:[], pay:""},
+    {amt:50000, rank:"天下人", give:[], pay:""},
   ],
-  people:[[500,"全員に兵糧"],[1000,"全員に限定旗"],[2000,"全員に限定の武将背景"],[5000,"全員に記念の品"]],
+  people:[],
   progress:[{n:"馬防柵の絵",p:0},{n:"武将の絵（二十名）",p:0},{n:"硝煙の演出",p:0},{n:"本陣の絵",p:0},{n:"新曲",p:0}],
   journal:[],
   vote:{items:[["castle","城攻め大改修"],["faces","武将の絵"],["sea","海戦"],["domestic","内政の強化"]], counts:{}},
@@ -28579,7 +28579,7 @@ function openFund(){
   const marks=[0,25,50,75,100].map(v=>`<span>${v}%</span>`).join("");
   const nextStretch=(f.stretch||[]).find(([k])=>st.pct<k);
   const tab=window.__fundTab||"main";
-  const tabs=[["main","募集"],["reward","報酬"],["progress","普請の進み"],["people","軍資金提供者"],["vote","次の普請"]];
+  const tabs=[["main","募集"],["reward","軍資金を出す"],["progress","普請の進み"],["people","軍資金提供者"],["vote","次の普請"]];
   const supporters=(f.supporters||[]).filter(x=>x&&x.name);
   const html=`<div class="dialog fund">
     <div class="f-kicker">第${["","一","二","三","四","五"][f.round]||f.round}次　軍 資 金 募 集</div>
@@ -28594,12 +28594,12 @@ function openFund(){
     <div class="advice" style="text-align:left">戦国大名の合戦画面を大きく進化させるため、${f.days}日間の軍資金募集を行います。集まった軍資金は、武将の絵・兵士・馬防柵・本陣・戦場・硝煙・騎馬の演出・曲と効果音など、合戦画面の大改修に使います。<br>この戦国を、皆でさらに面白く。</div>
     <div><div class="sec-title">用途の内訳</div>${(f.uses||[]).map(([n,v])=>`<div class="row"><span style="flex:1" class="tiny">${esc(n)}</span><span class="tiny num">${fundYen(v)}</span></div><div class="f-bar"><i style="width:${(v/st.goal*100).toFixed(0)}%"></i></div>`).join("")}</div>
     <div><div class="sec-title">段（達成後も続く）</div>${(f.stretch||[]).map(([k,n])=>`<div class="row"><span class="chip ${st.pct>=k?"kin":""}">${Math.round(k*100)}%　${fundYen(st.goal*k)}</span><span class="tiny" style="flex:1">${esc(n)}</span>${st.pct>=k?'<span class="chip">達成</span>':""}</div>`).join("")}</div>
-    <div><div class="sec-title">参加人数の目標（五百円でも意味がある）</div>${(f.people||[]).map(([n,g])=>`<div class="row"><span class="chip ${(f.backers||0)>=n?"kin":""}">${n.toLocaleString()}人</span><span class="tiny" style="flex:1">${esc(g)}</span></div>`).join("")}</div>
-    <div class="tiny muted">達成のとき、支援していない方にも記念の品（記念旗・兵糧）を配ります。支援者にはさらに限定の品。金銭の配当や利益の分配はありません（開発の応援としての支援です）。目標に届かなかったときは、集まった範囲でできる普請（武将の絵から）を行います。</div>
-    <div class="dlg-actions" style="display:flex;gap:8px"><button class="big gold" style="flex:1" onclick="window.__fundTab='reward';openFund()">軍資金を出す（報酬を見る）</button><button class="big ghost" style="flex:1" data-c="close">閉じる</button></div>`:""}
+    ${(f.people||[]).length?`<div><div class="sec-title">参加人数の目標（五百円でも意味がある）</div>${(f.people||[]).map(([n,g])=>`<div class="row"><span class="chip ${(f.backers||0)>=n?"kin":""}">${n.toLocaleString()}人</span><span class="tiny" style="flex:1">${esc(g)}</span></div>`).join("")}</div>`:""}
+    <div class="tiny muted">支援は開発の応援です。特典・金銭の配当・ゲーム内の有利はありません。目標に届かなかったときは、集まった範囲でできる普請（武将の絵から）を行います。</div>
+    <div class="dlg-actions" style="display:flex;gap:8px"><button class="big gold" style="flex:1" onclick="window.__fundTab='reward';openFund()">軍資金を出す</button><button class="big ghost" style="flex:1" data-c="close">閉じる</button></div>`:""}
     ${tab==="reward"?`
-    ${mine&&mine.tier?`<div class="f-mine"><span class="f-medal">${["","壱","弐","参","四","五"][FUND.round]||FUND.round}</span><b>${esc(fundTierOf(mine.tier).rank)}</b>として第${FUND.round}次軍資金に加わっています（${fundYen(mine.tier)}）。称号「第${FUND.round}次軍資金提供者」${mine.tier>=1000?"・奉納旗":""}${mine.tier>=5000?"・本陣の飾り":""}が付いています。${mine.name?"名鑑の名："+esc(mine.name):""}</div>`:`<div class="tiny muted">支援は性能ではなく「名誉・見た目・限定性」の報酬です。後から始めた人が追いつけなくなる強さは配りません。</div>`}
-    ${(f.tiers||[]).map((t,i)=>`<div class="f-tier"><span class="rank">${esc(t.rank)}</span><span class="amt">${fundYen(t.amt)}</span><span class="desc">${t.give.map(esc).join("・")}</span><button class="chip kin" style="cursor:pointer" onclick="fundSupport(${i})">${t.pay||(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap)?"出す":"近日"}</button></div>`).join("")}
+    ${mine&&mine.tier?`<div class="f-mine"><span class="f-medal">${["","壱","弐","参","四","五"][FUND.round]||FUND.round}</span><b>${esc(fundTierOf(mine.tier).rank)}</b>として第${FUND.round}次軍資金に加わっています（${fundYen(mine.tier)}）。ありがとうございます。${mine.name?"名鑑の名："+esc(mine.name):""}</div>`:`<div class="tiny muted">支援は開発の応援です。特典はありません（金銭の配当も、ゲーム内の有利もありません）。額は気持ちで。</div>`}
+    ${(f.tiers||[]).map((t,i)=>`<div class="f-tier"><span class="rank">${esc(t.rank)}</span><span class="amt">${fundYen(t.amt)}</span><span class="desc">${t.give.length?t.give.map(esc).join("・"):"開発の応援"}</span><button class="chip kin" style="cursor:pointer" onclick="fundSupport(${i})">${t.pay||FUND_PAY_TEMPLATE||(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap)?"出す":"近日"}</button></div>`).join("")}
     <div class="tiny muted">ブラウザ版は PayPal（カード・銀行口座）、iPhone 版は App 内課金で。払い終えて〈払いました〉を押すと、この端末に支援者の印が残ります。名は「公開」「ゲーム内の名で公開」「匿名」から選べます（名鑑は希望者のみ）。</div>
     <div class="dlg-actions" style="display:flex;gap:8px"><button class="big ghost" style="flex:1" data-c="close">閉じる</button></div>`:""}
     ${tab==="progress"?`
