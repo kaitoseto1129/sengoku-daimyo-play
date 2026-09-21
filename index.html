@@ -18523,6 +18523,9 @@ function fortShellBuild(cx, cy, dir, side, opts){ const H=BF.h, Wd=BF.w; opts=op
   for(let i=0;i<5;i++) F.decor.push({k:"flag",x:x0+0.6+R()*(w-1.2),y:y0+0.5+R()*(h-1),ph:R()*6});
   B.fieldLabels=(B.fieldLabels||[]).concat([{x:cx,y:y0-1.6,t:F.name}]); B._fenceVer=(B._fenceVer||0)+1;
   return F; }
+/* 第253巡（作り手：砦がみな同じ顔になった。攻めて楽しいように種類を）：砦の型――川砦（水堀・橋・北の浅瀬）、山砦（斜面・崖・逆茂木、正面の坂だけ）、陣城（低い柵・三つの門・幕舎の群れ）、平砦（空堀・馬出） */
+const FORT_KIND={ kyushu_nightraid:"camp", nejirozaka:"hill", tottori_relief:"hill", takamatsu_field:"camp", imafuku:"river", gaikaku:"river", nodafukushima:"river", nagashima:"river", tennoji:"camp", shizugatake:"hill", yamazaki:"plain", kizu:"river" };
+const FORT_KIND_NAME={river:"川砦", hill:"山砦", camp:"陣城", plain:"平砦"};
 const DEC_FORT_NAMES={ kyushu_nightraid:"豊臣の陣城", imafuku:"今福砦", gaikaku:"博労淵砦", nejirozaka:"根白坂の陣城", tottori_relief:"太閤ヶ平の陣", takamatsu_field:"蛙ヶ鼻の陣", nodafukushima:"野田砦", nagashima:"長島の砦", tennoji:"天王寺の陣", shizugatake:"大岩山砦", yamazaki:"勝龍寺の陣", kizu:"木津砦" };   /* 第213巡：決戦の砦はみな名のある砦（作り手：砦が出る決戦は天王寺砦の水準に） */
 function fortMainBuild(line, dir, name){ const H=BF.h, Wd=BF.w; const w=10, h=9; const cx=line-dir*1.2, cy=H/2;
   const F=fortShellBuild(cx, cy, dir, 1, {w,h,cap:4,name:name||"主砦"}); B.fortMain=F; B.fortKit=true; const x0=F.x0, x1=F.x1, y0=F.y0, y1=F.y1, gx=cx+dir*w/2;
@@ -18542,9 +18545,17 @@ function fortMainBuild(line, dir, name){ const H=BF.h, Wd=BF.w; const w=10, h=9;
   B.siegeName=B.siegeName||"砦"; B._fenceVer=(B._fenceVer||0)+1;
   const mine=B.ctx.playerSide; B.objective = mine===1 ? "主砦を保て。中の隊は守りが固い（四隊まで）。前衛は川岸で迎え、危うくなれば砦へ退け" : "主砦を落とせ。門と柵を崩し、中へ入れ。砦の外の敵から片づけるのも手"; }
 /* 第250巡（作り手：砦は木津砦と同じ水準に――鳶ヶ巣・天王寺）：砦を二重にする――外柵の内に本柵（本丸）、外柵の外に空堀（門の前だけ土橋）と逆茂木、柵の内に幕舎・蔵・松明。本柵の櫓は正面の二つだけ残す */
-function fortEnrich(F, fx, fy, dir, side, tag, fortName, per){ const w=F.w||9, h=F.h||9; const hw=w/2, hh=h/2; const iw=Math.max(4,Math.round(w*0.45)); const inner=fortShellBuild(fx, fy, dir, side, {w:iw, h:iw, cap:1, name:"本柵", tag, tagOnly:true, hpMul:0.9, noSide:true, noBack:true}); inner.noLabel=true; B.fieldLabels=(B.fieldLabels||[]).filter(l=>l.t!=="本柵"); const keep=inner.towers.slice(0,2); for(const tw of inner.towers){ if(!keep.includes(tw)){ const i=B.fortTowers.indexOf(tw); if(i>=0) B.fortTowers.splice(i,1); } else { tw.fortName=fortName; tw.per=per||60; tw.side=side; } } inner.towers=keep; F.inner=inner; for(const tw of (F.towers||[])){ tw.side=side; if(per) tw.per=per; }
-  if(B.tiles){ const H=BF.h, Wd=BF.w; const x0=fx-hw, x1=fx+hw, y0=fy-hh, y1=fy+hh; const gx=fx+dir*hw; for(let r=0;r<H;r++) for(let c=0;c<Wd;c++){ const px=c+0.5, py=r+0.5; const dxo=Math.max(x0-px,px-x1,0), dyo=Math.max(y0-py,py-y1,0); const d=Math.max(dxo,dyo); const t=B.tiles[r][c]; if(d>0.6&&d<2.2&&t===BT.GRASS){ const bridge=Math.abs(py-fy)<1.6&&Math.abs(px-gx)<3; B.tiles[r][c]=bridge?BT.DIRT:BT.MOAT; } else if(d>=2.2&&d<3.4&&t===BT.GRASS&&((r+c)%2===0)&&!(Math.abs(py-fy)<1.6&&(px-gx)*dir>0)){ B.tiles[r][c]=BT.SAKAMOGI; } } B.bg=null; }
-  F.decor.push({k:"hut",x:fx-dir*(hw-1.7),y:fy-(hh-1.9)},{k:"hut",x:fx-dir*(hw-1.7),y:fy+(hh-1.9)},{k:"box",x:fx-dir*(hw-1.1),y:fy},{k:"torch",x:fx+dir*(hw-1.9),y:fy-(hh-1.3)},{k:"torch",x:fx+dir*(hw-1.9),y:fy+(hh-1.3)}); return inner; }
+function fortEnrich(F, fx, fy, dir, side, tag, fortName, per, kind){ kind=kind||"plain"; F.kind=kind; const w=F.w||9, h=F.h||9; const hw=w/2, hh=h/2; const iw=Math.max(4,Math.round(w*0.45)); const inner=fortShellBuild(fx, fy, dir, side, {w:iw, h:iw, cap:1, name:"本柵", tag, tagOnly:true, hpMul:kind==="camp"?0.7:0.9, noSide:true, noBack:true}); inner.noLabel=true; B.fieldLabels=(B.fieldLabels||[]).filter(l=>l.t!=="本柵"); const keep=inner.towers.slice(0,2); for(const tw of inner.towers){ if(!keep.includes(tw)){ const i=B.fortTowers.indexOf(tw); if(i>=0) B.fortTowers.splice(i,1); } else { tw.fortName=fortName; tw.per=per||60; tw.side=side; } } inner.towers=keep; F.inner=inner; for(const tw of (F.towers||[])){ tw.side=side; if(per) tw.per=per; }
+  if(B.tiles){ const H=BF.h, Wd=BF.w; const x0=fx-hw, x1=fx+hw, y0=fy-hh, y1=fy+hh; const gx=fx+dir*hw; const isTag=o=>Object.keys(tag).every(k=>o[k]===tag[k]);
+    for(let r=0;r<H;r++) for(let c=0;c<Wd;c++){ const px=c+0.5, py=r+0.5; const dxo=Math.max(x0-px,px-x1,0), dyo=Math.max(y0-py,py-y1,0); const d=Math.max(dxo,dyo); const t=B.tiles[r][c]; if(t!==BT.GRASS) continue; const front=(px-fx)*dir>0; const lane=Math.abs(py-fy)<1.6&&front;
+      if(kind==="river"){ /* 水堀。門の前に橋、北の端に浅瀬（回り込める） */ if(d>0.6&&d<2.4){ const bridge=lane&&Math.abs(px-gx)<3; const ford=py<y0-0.6&&py>y0-2.6&&Math.abs(px-(fx-dir*(hw-1.5)))<1.6; B.tiles[r][c]=bridge?BT.DIRT:ford?BT.FORD:BT.WATER; } }
+      else if(kind==="hill"){ /* 斜面。正面の坂だけ登れ、脇は逆茂木、裏は崖 */ if(d>0.6&&d<3.6){ if(lane&&Math.abs(px-gx)<4.2) B.tiles[r][c]=BT.DIRT; else if(!front&&d>1.4){ B.tiles[r][c]=BT.CLIFF; B.blockCells=B.blockCells||new Set(); const [gc,gr]=cellOf(px,py); B.blockCells.add(gc*1000+gr); } else B.tiles[r][c]=((r+c)%3===0&&d>1.6)?BT.SAKAMOGI:BT.HILL; } }
+      else if(kind==="camp"){ /* 陣城は堀なし。踏み固めた土と、まばらな逆茂木 */ if(d>0.6&&d<1.6) B.tiles[r][c]=BT.DIRT; else if(d>=1.6&&d<3.0&&((r*3+c*5)%7===0)&&!lane) B.tiles[r][c]=BT.SAKAMOGI; }
+      else { /* 平砦：空堀と土橋、外に逆茂木の帯 */ if(d>0.6&&d<2.2){ const bridge=lane&&Math.abs(px-gx)<3; B.tiles[r][c]=bridge?BT.DIRT:BT.MOAT; } else if(d>=2.2&&d<3.4&&((r+c)%2===0)&&!lane){ B.tiles[r][c]=BT.SAKAMOGI; } } }
+    if(kind==="camp"){ /* 脇の門：上下の柵の真ん中を開ける。柵は低い（七割） */ for(const o of B.obstacles){ if(!o.fort||!o.fence||!isTag(o)||o.fmInner||o.tobiInner) continue; if(Math.abs(o.x-fx)<0.8&&(Math.abs(o.y-y0)<0.2||Math.abs(o.y-y1)<0.2)){ o.hp=0; o.sideGate=true; } else { o.hpMax=Math.round(o.hpMax*0.7); o.hp=Math.min(o.hp,o.hpMax); } } B.obstacles=B.obstacles.filter(o=>!(o.sideGate&&o.hp<=0)); F.sideGates=[{x:fx,y:y0},{x:fx,y:y1}]; }
+    if(kind==="plain"){ /* 馬出：門の前に短い柵。左右から回り込ませる */ const mx=gx+dir*3.2; for(const dy of [-1.4,0,1.4]) B.obstacles.push(Object.assign({kind:1, variant:1, x:mx, y:fy+dy, r:0.85, wall:true, fort:true, fence:true, side, hp:110, hpMax:110, umadashi:true}, tag)); }
+    B.bg=null; B._fenceVer=(B._fenceVer||0)+1; }
+  F.decor.push({k:"hut",x:fx-dir*(hw-1.7),y:fy-(hh-1.9)},{k:"hut",x:fx-dir*(hw-1.7),y:fy+(hh-1.9)},{k:"box",x:fx-dir*(hw-1.1),y:fy},{k:"torch",x:fx+dir*(hw-1.9),y:fy-(hh-1.3)},{k:"torch",x:fx+dir*(hw-1.9),y:fy+(hh-1.3)}); if(kind==="camp"){ for(let i=0;i<4;i++) F.decor.push({k:"hut",x:fx-dir*(hw-2.6-(i%2)*1.6),y:fy-(hh-2.4)+i*((h-4.8)/3)}); for(let i=0;i<6;i++) F.decor.push({k:"flag",x:fx-hw+0.8+rnd()*(w-1.6),y:fy-hh+0.6+rnd()*(h-1.2),ph:rnd()*6}); } if(kind==="hill"){ for(let i=0;i<3;i++) F.decor.push({k:"torch",x:fx+dir*(hw+1.2+i*1.1),y:fy+(i-1)*2.6}); } return inner; }
 /* 第239巡（作り手：櫓には必ず隊がいるように。百ずつでよい）：どの砦・城の櫓にも、鉄砲百の隊を据える。既に鉄砲隊が就いている櫓は飛ばす。動かせない（守・櫓） */
 function fortTowerGunners(towers, side, per, name){ if(!B||!towers||!towers.length) return []; const out=[]; per=per||100;
   const base=B.units.find(u=>u.side===side&&!u.cmd&&u.troops>.5&&!u.left)||B.units.find(u=>u.side===side&&!u.cmd)||B.units.find(u=>u.side===side); if(!base) return out;
@@ -18565,25 +18576,32 @@ function fortSiegeKitTick(){ const F=B.fortMain; if(!F||B.kz||B.ctx.playerSide!=
   if(K.stage===0&&(gate<=0||outer<45)){ K.stage=1; B.bigBanner={t:gate<=0?"門、破れた――砦へなだれ込め":"外柵、崩れる――門へ", at:B.elapsed, good:true}; }
   else if(K.stage===1&&(F.fallen||inner<45||reached)){ K.stage=2; B.bigBanner={t:"砦の内へ――本陣を討て", at:B.elapsed, good:true}; }
   const dan=K.stage===0?"第一段：外柵を破れ（門を叩くか、火矢で焼く）":K.stage===1?"第二段：門から砦へなだれ込め":"第三段：本陣を討て";
-  chip(`【${F.name||"砦"}攻略】外柵 ${outer<=0?"破壊済":outer+"%"}｜櫓 ${tw}／${tws.length}｜門 ${gate<=0?"破れた":gate+"%"}${innerP.length?`｜本柵 ${inner<=0?"破壊済":inner+"%"}`:""}｜本陣 ${reached?"到達":"未到達"}${B.fskIsol?"｜"+B.fskIsol:""}｜${dan}`); }
+  chip(`【${F.name||"砦"}攻略・${FORT_KIND_NAME[F.kind]||"砦"}】外柵 ${outer<=0?"破壊済":outer+"%"}｜櫓 ${tw}／${tws.length}｜門 ${gate<=0?"破れた":gate+"%"}${innerP.length?`｜本柵 ${inner<=0?"破壊済":inner+"%"}`:""}｜本陣 ${reached?"到達":"未到達"}${B.fskIsol?"｜"+B.fskIsol:""}｜${dan}`); }
 function fortFireArrow(){ if(!B||!B.fortMain||B.over!==null||B.ctx.playerSide!==0) return; if(B.siegeWall) return siegeFireArrow(); if(B.sgFireAt!==undefined&&B.sgFireAt>B.elapsed-40) return toast("火矢はまだ支度中"); manualCommand(); B.sgFireAt=B.elapsed; const F=B.fortMain; const wx=F.cx+F.dir*F.w/2; const posts=B.obstacles.filter(o=>o.mainFort&&o.fence&&o.hp>0&&Math.abs(o.x-wx)<1.2).sort((a,b)=>a.y-b.y); const pick=posts.length?[posts[0],posts[Math.floor(posts.length/2)],posts[posts.length-1]]:[{x:wx,y:F.cy-3},{x:wx,y:F.cy},{x:wx,y:F.cy+3}];
   B.fires=B.fires||[]; for(const o of pick){ B.fires.push({x:o.x+F.dir*0.4, y:o.y+(rnd()-.5), t:0, life:45, siege:true}); B.decals=B.decals||[]; if(B.decals.length<60) B.decals.push({k:"smoke",x:o.x,y:o.y,t:B.elapsed}); }
   B.bigBanner={t:"火矢、外柵へ", at:B.elapsed, good:true}; log(`${F.name||"砦"}の柵へ火矢を射込んだ。柵が燃える`,"war",true); try{ playSE("siege"); }catch(_){ } try{ renderBattleFoot(); }catch(_){ } }
 function fortPlanAsk(){ if(!B||!B.fortMain||B.kz||B.over!==null||B.fortPlan||B.ctx.playerSide!==0) return; const F=B.fortMain; const go=(k)=>{ B.fortPlan=k; try{ fortApplyPlan(k); }catch(e){ console.error(e); } };
-  koChoice(`${F.name||"砦"}、攻め方`,"外柵と空堀を越え、門を破り、本陣へ。正面は損が大きい。",[
+  const kind=F.kind||"plain"; const K={
+    river:{lead:"川砦。門の前は橋、北の端に浅瀬。橋は速いが櫓に撃たれる。",side:["北の浅瀬から回り込み","半数を北の浅瀬へ。足は遅いが櫓の死角。裏の柵を崩す"]},
+    hill:{lead:"山砦。登れるのは正面の坂だけ。脇は逆茂木、裏は崖。坂の上から撃ち下ろされる。",side:["脇の斜面を這い上がる","半数を逆茂木の斜面へ。遅いが門の櫓に撃たれない"]},
+    camp:{lead:"陣城。柵は低く、門は三つ。守りは薄いが中は広く、幕舎に隊が潜む。",side:["三つの門を同時に","三手に分けて正面と両脇の門へ。守り手が割れる"]},
+    plain:{lead:"平砦。門の前に馬出、周りは空堀と逆茂木。正面は損が大きい。",side:["脇の柵へ回り込み","半数を脇の柵へ。馬出を避けて柵を崩す（守り手が割れる）"]} }[kind];
+  koChoice(`${F.name||"砦"}、攻め方`,K.lead,[
     ["front","正面から総攻撃","門へ押し寄せる。早いが損は大きい",()=>go("front")],
-    ["side","脇の柵へ回り込み","半数を脇の柵へ。門を避けて柵を崩す（守り手が割れる）",()=>go("side")],
+    ["side",K.side[0],K.side[1],()=>go("side")],
     ["fire","火矢で柵を焼く","まず火矢を外柵へ。柵は燃え、守り手は火消しに追われる",()=>go("fire")],
     ["shoot","鉄砲で削ってから突入","鉄砲は柵の外から撃ち、ほかは三十秒待つ",()=>go("shoot")]]); }
 function fortApplyPlan(k){ const F=B.fortMain; if(!F) return; const dir=F.dir; const atk=B.units.filter(u=>u.side===0&&u.troops>.5&&!u.cmd&&!u.left).sort((a,b)=>b.troops-a.troops);
   const at=(u,x,y)=>{ u.x=Math.max(1,Math.min(BF.w-1.5,x)); u.y=Math.max(1.5,Math.min(BF.h-1.5,y)); u.gx=u.x; u.gy=u.y; u.cell=null; u.nextCell=null; };
-  if(k==="side"){ const half=atk.filter(u=>u.type!==3).slice(0,Math.ceil(atk.length/2)); half.forEach((u,i)=>{ const up=i%2===0; const ty=up?Math.max(1.5,F.y0-4.5-Math.floor(i/2)*1.4):Math.min(BF.h-1.5,F.y1+4.5+Math.floor(i/2)*1.4); at(u, F.cx+dir*(F.w/2+7+(i%3)*1.4), ty); u.order={k:"move",x:F.cx+dir*1.5,y:up?Math.max(1.5,F.y0-3):Math.min(BF.h-1.5,F.y1+3)}; u.gx=u.order.x; u.gy=u.order.y; u.holdUntil=0; }); B.banner={t:"半数は脇の柵へ――門を避けて柵を崩す", at:B.elapsed}; }
+  if(k==="side"){ const kind=F.kind||"plain"; const half=atk.filter(u=>u.type!==3).slice(0,kind==="camp"?Math.ceil(atk.length*2/3):Math.ceil(atk.length/2));
+    half.forEach((u,i)=>{ const up=kind==="river"?true:(i%2===0); const ty=up?Math.max(1.5,F.y0-4.5-Math.floor(i/2)*1.4):Math.min(BF.h-1.5,F.y1+4.5+Math.floor(i/2)*1.4); at(u, F.cx+dir*(F.w/2+7+(i%3)*1.4), ty); const gy=up?Math.max(1.5,F.y0-3):Math.min(BF.h-1.5,F.y1+3); u.order={k:"move",x:kind==="river"?F.cx-dir*(F.w/2-1.5):F.cx+dir*1.5,y:kind==="river"?Math.max(1.5,F.y0-1.6):gy}; u.gx=u.order.x; u.gy=u.order.y; u.holdUntil=0; });
+    B.banner={t:kind==="river"?"半数は北の浅瀬へ――櫓の死角から裏の柵を崩す":kind==="hill"?"半数は脇の斜面へ――逆茂木を這い上がる":kind==="camp"?"三手に分かれよ――正面と両脇の門へ":"半数は脇の柵へ――馬出を避けて柵を崩す", at:B.elapsed}; }
   if(k==="fire"){ setTimeout(()=>{ if(B&&B.fortMain&&B.over===null){ B.sgFireAt=undefined; fortFireArrow(); } },800); }
   if(k==="shoot"){ for(const u of atk){ if(u.type===3){ at(u, F.cx+dir*(F.w/2+7.5), u.y); u.order={k:"guard"}; } else { u.holdUntil=B.elapsed+30; } } B.banner={t:"鉄砲は柵の外から。ほかは三十秒待て", at:B.elapsed}; }
   try{ gridSettleAll(); }catch(_){ } try{ renderBattleFoot(); }catch(_){ } }
 function fortMainInside(F,u){ return u.x>=F.x0-0.2&&u.x<=F.x1+0.2&&u.y>=F.y0-0.2&&u.y<=F.y1+0.2; }
 function fortMainTick(dt){ const F=B.fortMain; if(!F||B.over!==null) return; const K=B.sg||(B.sg={});
-  /* 第253巡（作り手：砦の UI/UX を木津砦に揃える）：主砦も二重の柵・空堀と橋・逆茂木・幕舎に、本柵の櫓にも鉄砲。組み立ての途中でなく最初の一手で（組み立ての中で足すと固まった） */ if(!F.enriched){ F.enriched=true; try{ fortEnrich(F, F.cx, F.cy, F.dir, 1, {fmInner:true}, F.name, 60); const gs=fortTowerGunners(F.inner.towers, 1, 60, F.name); for(const u of gs){ u.fortGuard=true; } B._fenceVer=(B._fenceVer||0)+1; B.bg=null; try{ gridSettleAll(); }catch(_){ } }catch(e){ console.error("fortMain enrich",e); } }
+  /* 第253巡（作り手：砦の UI/UX を木津砦に揃える）：主砦も二重の柵・空堀と橋・逆茂木・幕舎に、本柵の櫓にも鉄砲。組み立ての途中でなく最初の一手で（組み立ての中で足すと固まった） */ if(!F.enriched){ F.enriched=true; try{ const dk=B.ctx&&B.ctx.decisive?(DECISIVE.find(x=>x.id===B.ctx.decisive)||{}).key:""; fortEnrich(F, F.cx, F.cy, F.dir, 1, {fmInner:true}, F.name, 60, FORT_KIND[dk]||"plain"); const gs=fortTowerGunners(F.inner.towers, 1, 60, F.name); for(const u of gs){ u.fortGuard=true; } B._fenceVer=(B._fenceVer||0)+1; B.bg=null; try{ gridSettleAll(); }catch(_){ } }catch(e){ console.error("fortMain enrich",e); } }
   if(!(F.at>B.elapsed-0.5)){ F.at=B.elapsed;
     /* 耐久：柵と門の残り */ let hp=0; for(const o of B.obstacles) if(o.mainFort&&o.hp>0) hp+=o.hp; F.dur=Math.max(0,Math.min(1,hp/Math.max(1,F.hp0))); const gateUp=!!(F.gate&&F.gate.hp>0&&B.obstacles.includes(F.gate));
     if(F.dur<0.3&&!F.weak){ F.weak=true; B.banner={t:`${F.name||"主砦"}の柵が崩れかけ――守りの効き目が落ちる`, at:B.elapsed}; }
@@ -22656,7 +22674,7 @@ function nagTobiFortBuild(){ if(!B||!B.nagashino||B.tobiFort) return; const Wd=B
   F.shell=fortShellBuild(fx, fy, dir, 0, {w:11, h:11, cap:3, name:"鳶ヶ巣山砦", tag:{tobiFence:true}, tagOnly:true, hpMul:0.8}); F.shell.noLabel=true;   /* 第239巡（作り手：鳶ヶ巣山砦の質が低い。木津砦の水準に）：脇柵あり、柵は木津並みの堅さ、櫓に鉄砲 */
   for(const tw of (F.shell.towers||[])){ tw.fortName="鳶ヶ巣山砦"; tw.per=60; }
   /* 第250巡（作り手：砦のレベルが木津砦になっていない）：二重の柵――外柵の内に本柵（本丸）、外柵の外に空堀と逆茂木、櫓は六つ、柵の内に幕舎・蔵 */
-  try{ fortEnrich(F.shell, fx, fy, dir, 0, {tobiFence:true, tobiInner:true}, "鳶ヶ巣山砦", 60); F.inner=F.shell.inner; }catch(e){ console.error("tobi inner",e); }
+  try{ fortEnrich(F.shell, fx, fy, dir, 0, {tobiFence:true, tobiInner:true}, "鳶ヶ巣山砦", 60, "hill"); F.inner=F.shell.inner; }catch(e){ console.error("tobi inner",e); }
   /* 守りの隊：武田信実の千。武田が砦を固めたなら（tobiGuarded）もう一隊 */
   const base=B.units.find(u=>u.side===0&&!u.cmd&&u.troops>.5); if(!base) return; const mk=(nm,tr,gname)=>{ const g=Object.values(W.generals).find(x=>x.name===gname&&x.status!=="死亡"); const u=JSON.parse(JSON.stringify(base)); u.id=Math.max(...B.units.map(z=>z.id))+1; u.gid=g?g.id:-1; u.name=nm; u.type=0; u.troops=tr; u.max=tr; u.morale=90; u.x=fx; u.y=fy; u.gx=fx; u.gy=fy; u.cell=null; u.nextCell=null; u.order={k:"guard"}; u.holdUntil=99999; u.tobiGuard=true; u.cmd=false; u.hero=false; u.ally=false; u.paceMul=undefined; u.fenceFirst=false; u.charge=false; u.spUntil=0; u.spReady=0; u.movedAt=undefined; u.engagedAt=undefined; u.stageX=undefined; u.stageY=undefined; u.glory=false; u.gloryHigh=false; B.units.push(u); F.garrison.push(u.id); return u; };
   { const g0=mk("武田信実隊",800,"武田信実"); if(g0){ g0.morale=65; g0.warF=(g0.warF||1)*0.7; g0.morRes=(g0.morRes||1)*1.3; } const g1=mk("砦の番衆",500,"小山田昌行"); if(g1){ g1.x=fx+dir*3.6; g1.y=fy; g1.gx=g1.x; g1.gy=g1.y; g1.morale=70; } }   /* 手薄な砦（史実：奇襲で落ちた） */ if(B.tobiGuarded) mk("鳶ヶ巣の加勢",1500,"小山田昌行");
