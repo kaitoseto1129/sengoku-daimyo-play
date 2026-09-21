@@ -3,6 +3,8 @@
 ブラウザで遊べるリアルタイム戦国戦略ゲーム。桶狭間から天下統一へ。
 
 - 遊ぶ: https://kaitoseto1129.github.io/sengoku-daimyo-play/
+- iPhone 版（App Store）: https://apps.apple.com/jp/app/id6811255282
+- 紹介ページ（LP）: https://kaitoseto1129.github.io/sengoku-daimyo-play/lp/
 - 攻略サイト（長篠の戦い編）: https://kaitoseto1129.github.io/sengoku-daimyo-play/guide/
 - iPhone の Safari でも遊べます（横向き推奨）。記録はその端末の中に残ります。
 
