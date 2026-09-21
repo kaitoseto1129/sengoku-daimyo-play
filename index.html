@@ -11782,6 +11782,8 @@ function drawMap(){
   mctx.imageSmoothingEnabled = true;
   mctx.imageSmoothingQuality = "high";
   if(detailed){
+    /* 第251巡（作り手：アプリで城が大きく見えるほど寄ると、城や街道の後ろが青くなる）：iOS は背景に回った後に小さな canvas（一マスのドット絵）も捨てる。ドット絵が空なら焼き直し、敷いた層も作り直す */
+    if(!(drawMap._tileChk>performance.now()-3000)){ drawMap._tileChk=performance.now(); try{ const t0=(ART.tiles[T.PLAIN]||[])[0]; const d=t0&&t0.getContext("2d").getImageData(8,8,1,1).data; if(!t0||d[3]===0){ bakeTiles(); mipCache.clear(); tileLayer=null; } else if(tileLayer&&tileLayer.canvas){ const c2=tileLayer.canvas; const dd=c2.getContext("2d").getImageData(Math.floor(c2.width/2),Math.floor(c2.height/2),1,1).data; if(dd[3]===0) tileLayer=null; } }catch(_){ } }
     // 寄ったときは1マスずつドット絵を敷く。
     // 毎フレーム一万枚を描いていては重いので、敷いた層を取っておき、
     // 画面が同じ範囲にある間はそれを貼るだけにする
