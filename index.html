@@ -414,6 +414,8 @@ details.fold>summary.sec-title::before{content:"▸ "} details.fold[open]>summar
 #start .s-what{max-width:560px;margin:10px auto 0;font-size:13px;line-height:1.8;color:#DDD4C0} #start .s-what b{color:#FFD166;font-weight:800}
 @media (max-width:640px){ #start .s-what{font-size:12px;line-height:1.7;padding:0 12px} #start .s-actions{flex-wrap:wrap} }
 #start .langBtn{position:fixed;top:12px;right:14px;font-size:12px;padding:6px 12px;opacity:.75;z-index:2}
+#start .sndBtn{position:fixed;top:12px;right:96px;font-size:12px;padding:6px 12px;opacity:.85;z-index:2}
+@supports (top: env(safe-area-inset-top)){ #start .langBtn, #start .sndBtn{ top:max(12px, env(safe-area-inset-top)); } #start .langBtn{ right:max(14px, env(safe-area-inset-right)); } #start .sndBtn{ right:calc(max(14px, env(safe-area-inset-right)) + 82px); } }
 #start.hidden{display:none}
 #start .s-head{margin:0 auto;min-height:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;align-items:center;padding-bottom:40px}
 #start .s-head>*{max-width:100%}
@@ -1544,6 +1546,7 @@ document.addEventListener("DOMContentLoaded",()=>{ i18nStart(); document.documen
   </div>
 
   <!-- ② シナリオを選ぶ -->
+  <button class="s-btn sndBtn" id="btnSoundTitle" onclick="toggleSound()" title="音（曲と効果音）の入り切り" style="font-family:'Zen Kaku Gothic New',sans-serif;letter-spacing:.04em">♪ 音 入</button>   <!-- 第253巡（作り手）：表紙・筋書き選びでも音の入り切りを -->
   <div class="s-head" id="stepScenario" hidden>
     <div class="kicker">シナリオを選ぶ</div>
     <h1>長篠の戦い</h1>
@@ -27617,10 +27620,10 @@ function playSE(kind, vol){
   src.start();
 }
 /* 第122巡：音の入り切りを一本に。入れるときは口が死んでいれば作り直してから必ず鳴らす（切って入れ直しても鳴らなかった。作り手の指摘） */
-function soundOff(){ Audio_.enabled=false; if(Audio_.bgmSrc){ try{ Audio_.bgmSrc.stop(); }catch(e){} Audio_.bgmSrc=null; } Audio_.scene=null; savePrefs(); }
+function soundOff(){ Audio_.enabled=false; try{ if(Audio_._silent) Audio_._silent.pause(); }catch(_){ } if(Audio_.bgmSrc){ try{ Audio_.bgmSrc.stop(); }catch(e){} Audio_.bgmSrc=null; } Audio_.scene=null; savePrefs(); }
 function soundOn(){
   Audio_.enabled=true; Audio_.music=true; Audio_.sfx=true; savePrefs();
-  audioInit(); const ctx=Audio_.ctx; if(!ctx) return;
+  iosUnmute(); audioInit(); const ctx=Audio_.ctx; if(!ctx) return;
   const restart=()=>{ try{ Audio_.scene=null; if(Audio_.bgmSrc){ try{ Audio_.bgmSrc.stop(); }catch(e){} Audio_.bgmSrc=null; } if(!W.started) startTitleMusic(); else updateMusic(); }catch(e){} };
   const check=(t0)=>setTimeout(()=>{ try{ const c2=Audio_.ctx; if(!Audio_.enabled||!c2) return; if(c2.state!=="running" || c2.currentTime===t0){ audioRebuild(); const c3=Audio_.ctx; if(c3){ const p=c3.resume(); (p&&p.then?p:Promise.resolve()).then(restart).catch(restart); } } }catch(_){ } }, 900);
   const t0=ctx.currentTime;
@@ -27629,10 +27632,9 @@ function soundOn(){
 }
 function toggleSound(){
   if(Audio_.enabled) soundOff(); else soundOn();
-  const b=document.getElementById("btnSound");
-  if(b) b.textContent = Audio_.enabled ? "♪ 音 入" : "♪ 音 切";
-  savePrefs();
+  soundBtnRefresh(); savePrefs();
 }
+function soundBtnRefresh(){ for(const id of ["btnSound","btnSoundTitle"]){ const b=document.getElementById(id); if(b) b.textContent = Audio_.enabled ? "♪ 音 入" : "♪ 音 切"; } }
 
 /* ===== 家紋（第131巡）：家の名から紋の形を決めて、線と面で描く。形のない家は一文字 ===== */
 const MON_KIND=(()=>{ const m={};
@@ -28557,7 +28559,7 @@ setTimeout(()=>{ try{ fundLoadFeed(); }catch(e){} }, 1500);
 /* ---- 筋書きの鍵：長篠は無料、信長包囲網は ¥500、ほかは近日公開（解除の言葉で開く） ---- */
 const IN_APP=!!(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap);   // iPhone 版の包みの中か
 const FREE_SCENARIOS=new Set(["nagashino"]);   // 長篠だけ無料（iPhone 版もウェブ版も）
-const IAP_ENABLED=true;   // iPhone 版で信長包囲網を ¥500 で売る（App Store Connect に商品 jp.kaitoseto.sengoku.hoi を作ってから）
+const IAP_ENABLED=false;   // 第253巡：筋書きの課金はやめた（iPhone 版は「天下布武」の言葉で開く）。支援（軍資金）の課金は別（fundSupport）
 const PAID_SCENARIOS={ hoi:{price:"¥500", sku:"jp.kaitoseto.sengoku.hoi", code:"HOI500"} };   // 売り物：信長包囲網 ¥500（長篠は無料、ほかは近日公開）
 /* ウェブ版の支払い：Stripe の支払いリンク。支払いが済むと、この頁へ ?unlock=<合言葉> で戻ってくる */
 const PAY_LINK="";   // ¥500 は iPhone 版（App 内課金）だけ。ウェブでは売らない（作り手の指示）。売るなら Stripe の支払いリンクをここに
@@ -28647,7 +28649,7 @@ function refreshScenarioLocks(){
   document.querySelectorAll("#stepScenario .scen[data-sc]").forEach(b=>{
     const id=b.dataset.sc; let badge=b.querySelector(".sc-lock"); if(!badge){ badge=document.createElement("span"); badge.className="sc-lock tiny"; badge.style.cssText="position:absolute;right:12px;top:10px;padding:3px 8px;border-radius:10px;font-weight:800"; b.style.position="relative"; b.appendChild(badge); }
     if(!scenarioAvailable(id)){ badge.textContent="近日公開"; badge.style.background="rgba(120,120,120,.35)"; badge.style.color="#CFC8B8"; b.style.opacity=".45"; b.classList.add("locked"); }
-    else if(scenarioLocked(id)){ badge.textContent=`🔒 追加シナリオ ${PAID_SCENARIOS[id].price}`; badge.style.background="rgba(201,162,39,.9)"; badge.style.color="#1A1208"; b.style.opacity="1"; b.classList.add("locked"); }
+    else if(scenarioLocked(id)){ badge.textContent=(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap)?"🔒 解除の言葉で":`🔒 追加シナリオ ${PAID_SCENARIOS[id].price}`;   /* 第253巡：iPhone 版は言葉で開く */ badge.style.background="rgba(201,162,39,.9)"; badge.style.color="#1A1208"; b.style.opacity="1"; b.classList.add("locked"); }
     else if(scenHasSave(id)){ badge.textContent="つづきあり"; badge.style.background="rgba(63,110,200,.85)"; badge.style.color="#fff"; b.style.opacity="1"; b.classList.remove("locked"); }
     else { badge.textContent=""; badge.style.background="transparent"; b.style.opacity="1"; b.classList.remove("locked"); }
   });
@@ -28798,9 +28800,12 @@ window.addEventListener("keydown",ev=>{
 
 /* 表紙が出たら、そこから曲を流す。
    多くの browser は人が触れるまで音を出さないので、最初の一触れで始める。 */
+/* 第253巡（作り手：iPhone 版で音楽が無い）：iOS は WebAudio を「環境音」として扱い、消音スイッチで黙る。無音の <audio> を回している間は「再生」の扱いになり、スイッチに関わらず鳴る（unmute の手）。初めの一触れで回す */
+const SILENT_WAV="data:audio/wav;base64,UklGRmQfAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YUAfAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==";
+function iosUnmute(){ try{ const ios=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1)||!!(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap); if(!ios||!Audio_.enabled) return; let a=Audio_._silent; if(!a){ a=document.createElement("audio"); a.setAttribute("x-webkit-airplay","deny"); a.setAttribute("playsinline",""); a.loop=true; a.preload="auto"; a.src=SILENT_WAV; a.volume=0.01; Audio_._silent=a; } if(a.paused){ const p=a.play(); if(p&&p.catch) p.catch(()=>{}); } }catch(_){ } }
 function startTitleMusic(){
   try{
-    audioInit();
+    iosUnmute(); audioInit();
     const ctx=Audio_.ctx; if(!ctx) return;
     // 口が閉じたまま（iOS は触れる前は鳴らせない）なら、開いてから鳴らし直す。開いたつもりで鳴っていない、を防ぐ
     if(ctx.state!=="running"){ const p=ctx.resume(); const go=()=>{ try{ if(Audio_.bgmSrc){ try{ Audio_.bgmSrc.stop(); }catch(_){ } Audio_.bgmSrc=null; } Audio_.scene=null; playScene("castle"); }catch(_){ } }; if(p&&p.then) p.then(go).catch(()=>{}); else go(); }
@@ -28808,11 +28813,12 @@ function startTitleMusic(){
   }catch(e){}
 }
 ["pointerdown","keydown","touchstart"].forEach(ev=>
-  window.addEventListener(ev, ()=>{ if(!W.started && Audio_.music && (!Audio_.ctx || Audio_.ctx.state!=="running" || !Audio_.bgmSrc)) startTitleMusic(); }, {passive:true}));
+  window.addEventListener(ev, ()=>{ if(!W.started && Audio_.music && (!Audio_.ctx || Audio_.ctx.state!=="running" || !Audio_.bgmSrc)) startTitleMusic(); else if(Audio_.enabled && Audio_._silent && Audio_._silent.paused) iosUnmute(); }, {passive:true}));
 
 /* ===================== 起動 ===================== */
 const BUILD="1.1.0 (2026-09-21)";
 { const bt=document.getElementById("buildTag"); if(bt) bt.textContent="版 "+BUILD; }
+try{ soundBtnRefresh(); }catch(_){ }
 generateTerrain();
 buildWorld(0);
 bakeTiles(); bakeTerrain(); bakeMinimap(); rebuildDevOverlay();
@@ -28837,7 +28843,7 @@ function audioRebuild(){
 function ensureAudioRunning(force){
   try{
     if(!Audio_.enabled) return;
-    audioInit();
+    iosUnmute(); audioInit();
     const ctx=Audio_.ctx; if(!ctx) return;
     /* 第109巡：iOS は背景から戻ると口は「開いている」と言いながら曲の音源だけ死んでいることがある → 表に戻ったときは必ず鳴らし直す */
     const go=()=>{ try{ if(Audio_.bgmSrc){ try{ Audio_.bgmSrc.stop(); }catch(_){ } Audio_.bgmSrc=null; } Audio_.scene=null; if(!W.started){ startTitleMusic(); } else { updateMusic(); } }catch(e){} };
