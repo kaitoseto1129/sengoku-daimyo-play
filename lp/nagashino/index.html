@@ -102,7 +102,8 @@ header nav a:hover{color:var(--kinpaku);opacity:1}
 /* ---- 序：ファーストビュー ---- */
 #hero{min-height:100vh;display:flex;align-items:center;padding:130px 0 110px}
 #hero .layer{position:absolute;inset:-6% -4%;will-change:transform}
-#hero .l-bg{background:url(../img/volley.jpg) center 50%/cover no-repeat;filter:saturate(.85) brightness(.55) sepia(.15)}
+#hero .l-bg{overflow:hidden;filter:saturate(.85) brightness(.55) sepia(.15)}
+#hero .l-bg img{width:100%;height:100%;object-fit:cover;object-position:center 56%;display:block}
 #hero .l-haze{background:radial-gradient(ellipse at 70% 40%,rgba(215,200,165,.16),transparent 55%),radial-gradient(ellipse at 20% 80%,rgba(165,42,30,.18),transparent 50%);animation:haze 14s ease-in-out infinite alternate}
 #hero .l-smoke{background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='800'><filter id='s'><feTurbulence type='fractalNoise' baseFrequency='.006' numOctaves='3' seed='3'/><feColorMatrix values='0 0 0 0 .8 0 0 0 0 .74 0 0 0 0 .62 0 0 0 .55 -.25'/></filter><rect width='800' height='800' filter='url(%23s)'/></svg>") 0 0/800px 800px;opacity:.55;animation:smoke 40s linear infinite;mix-blend-mode:screen}
 #hero .l-veil{background:linear-gradient(90deg,rgba(11,9,7,.94) 0%,rgba(11,9,7,.72) 42%,rgba(11,9,7,.2) 100%),linear-gradient(0deg,var(--sumi) 0%,transparent 30%,transparent 78%,rgba(11,9,7,.9) 100%)}
@@ -118,7 +119,7 @@ header nav a:hover{color:var(--kinpaku);opacity:1}
 #hero .scroll{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);font-family:var(--go);font-size:10px;letter-spacing:.4em;color:var(--kami);opacity:.7;text-align:center;z-index:3}
 #hero .scroll i{display:block;width:1px;height:34px;margin:8px auto 0;background:linear-gradient(180deg,var(--kinpaku),transparent);animation:sc 1.8s ease-in-out infinite}
 @keyframes sc{0%{transform:scaleY(0);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}51%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
-@media(max-width:720px){#hero{min-height:auto;padding:110px 0 90px}#hero .l-bg{background-position:36% 55%}#hero .l-veil{background:linear-gradient(0deg,var(--sumi) 0%,rgba(11,9,7,.78) 50%,rgba(11,9,7,.5) 100%)}}
+@media(max-width:720px){#hero{min-height:auto;padding:110px 0 90px}#hero .l-bg img{object-position:36% 55%}#hero .l-veil{background:linear-gradient(0deg,var(--sumi) 0%,rgba(11,9,7,.78) 50%,rgba(11,9,7,.5) 100%)}}
 /* ---- 第一章 大名となれ（古地図） ---- */
 #ch1{background:radial-gradient(ellipse at 20% 30%,#1c1610 0%,var(--sumi) 70%)}
 #ch1 .kochizu{position:absolute;inset:0;background:url(../img/map.jpg) center/cover no-repeat;filter:sepia(1) saturate(.5) contrast(.9) brightness(.35);opacity:.32;mask-image:radial-gradient(ellipse at 50% 50%,#000 30%,transparent 78%);-webkit-mask-image:radial-gradient(ellipse at 50% 50%,#000 30%,transparent 78%)}
@@ -397,7 +398,7 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
 
 <!-- 序 -->
 <section id="hero">
-  <div class="layer l-bg" data-speed="0.18"></div>
+  <div class="layer l-bg" data-speed="0.18" data-seq="56" data-hero="1" data-dir="seqh"><img src="../img/hero.jpg" alt="" fetchpriority="high"></div>
   <div class="layer l-haze" data-speed="0.1"></div>
   <div class="layer l-smoke" data-speed="0.3"></div>
   <div class="layer l-veil"></div>
@@ -765,8 +766,8 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
   document.querySelectorAll('.sanTaku button').forEach(function(b){ b.addEventListener('click',function(){ document.querySelectorAll('.sanTaku button').forEach(function(x){ x.classList.remove('on'); }); b.classList.add('on'); var a=ans[b.dataset.a]; box.innerHTML='<b>'+a.t+'</b>'+a.b+'<span class="shu">ゲームでは、この判断を自分で下す</span>'; }); });
 
   /* 動く絵：連続写真を八枚／秒で入れ替える（見えている間だけ） */
-  document.querySelectorAll('.ugoku[data-seq]').forEach(function(box){ var n=parseInt(box.dataset.seq,10)||0; if(!n||reduce) return; var im=box.querySelector('img'), frames=[], loaded=0, i=0, timer=null, started=false;
-    function load(){ if(started) return; started=true; for(var k=0;k<n;k++){ (function(k){ var f=new Image(); f.onload=function(){ loaded++; }; f.src='img/seq/'+String(k).padStart(3,'0')+'.jpg'; frames[k]=f; })(k); } }
+  document.querySelectorAll('[data-seq]').forEach(function(box){ var n=parseInt(box.dataset.seq,10)||0; if(!n||reduce) return; var im=box.querySelector('img'), frames=[], loaded=0, i=0, timer=null, started=false; if(box.dataset.hero){ setTimeout(load,1500); }
+    function load(){ if(started) return; started=true; for(var k=0;k<n;k++){ (function(k){ var f=new Image(); f.onload=function(){ loaded++; }; f.src='img/'+(box.dataset.dir||'seq')+'/'+String(k).padStart(3,'0')+'.jpg'; frames[k]=f; })(k); } }
     function play(){ if(timer) return; timer=setInterval(function(){ if(loaded<n*0.6) return; i=(i+1)%n; if(frames[i]&&frames[i].complete) im.src=frames[i].src; },125); }
     function stop(){ clearInterval(timer); timer=null; }
     new IntersectionObserver(function(es){ es.forEach(function(e){ if(e.isIntersecting){ load(); play(); } else stop(); }); },{rootMargin:'200px'}).observe(box); });
