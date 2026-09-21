@@ -16931,7 +16931,7 @@ function honSetup(key){ B.hon=key; const defLeft=B.ctx.playerSide===1; const h=W
     B.escapeCfg={name:"織田信長", side:1}; B.escapeX=defLeft?0.6:BF.w-0.6; B.objective=B.ctx.playerSide===1?"時を稼ぎ、信長を裏門から逃がせ（または百二十秒持ちこたえよ）":"本能寺を制圧し、信長を逃がすな";
     B.holdWin={side:"def", sec:120}; B.holdLeft=120;
     if(B.ctx.playerSide===1) setTimeout(()=>honNobunagaAsk(),600); else setTimeout(()=>{ honNobunagaAI(); },800); }
-  else { for(const u of B.units){ if(u.side===1){ u.tough=(u.tough||1)*2.2; u.morRes=0.7; if(u.cmd){ u.tough=(u.tough||1)*2.5; u.morRes=0.5; } } } B.escapeCfg={name:"織田信忠", side:1}; B.escapeX=defLeft?0.6:BF.w-0.6; B.objective=B.ctx.playerSide===1?"囲みを一方向に破って逃れよ（または百五十秒持ちこたえよ）":"二条御所を落とせ"; B.holdWin={side:"def", sec:150}; B.holdLeft=150; if(B.ctx.playerSide===1) setTimeout(()=>honNobutadaBattleAsk(),600); else setTimeout(()=>{ if(rnd()<0.35) honEscapeStart("織田信忠"); },20000); }
+  else { for(const u of B.units){ if(u.side===1){ u.tough=(u.tough||1)*2.2; u.morRes=0.7; if(u.cmd){ u.tough=(u.tough||1)*2.5; u.morRes=0.5; } } } B.escapeCfg={name:"織田信忠", side:1}; B.escapeX=defLeft?0.6:BF.w-0.6; B.objective=B.ctx.playerSide===1?"囲みを一方向に破って逃れよ（または二百秒持ちこたえよ）":"二条御所を落とせ"; B.holdWin={side:"def", sec:200};   /* 第253巡：持ちこたえが効くようになったので百五十→二百秒（自動の明智が二段目で時を切らしていた） */ B.holdLeft=150; if(B.ctx.playerSide===1) setTimeout(()=>honNobutadaBattleAsk(),600); else setTimeout(()=>{ if(rnd()<0.35) honEscapeStart("織田信忠"); },20000); }
   B.fieldLabels=[{x:BF.w*0.5,y:1.0,t:key==="honnoji"?"本能寺":"二条御所"}];
 }
 function honEscapeStart(name){ if(!B||B.over!==null) return; const u=B.units.find(x=>x.side===1&&x.name===name&&x.troops>.5); if(!u) return; B.escapePhase=true; B.escapeAt=B.elapsed; B.escapeId=u.id; B.escapeGid=u.gid; B.escapeWinner=1; B.escapeLimit=90; u.escapeAt=B.elapsed; u.escapeManual=(B.ctx.playerSide===1); u.morale=Math.max(u.morale,70); u.charge=false; u.pursue=false; u.spdMul=(u.spdMul||1)*1.2; if(B.ctx.playerSide===1){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } B.bigBanner={t:`${name}、抜け出す`, at:B.elapsed, good:B.ctx.playerSide===1}; for(const f of B.units){ if(f.side!==0||f.troops<=.5||f.morale<=0) continue; if(rnd()<0.5){ f.order={k:"attack",id:u.id}; f.pursue=true; f.charge=true; } } }
@@ -18488,10 +18488,10 @@ function ishiTick(dt){
     if(B.ishiStage===1 && nb && Math.abs(nb.x-fx)<7){ B.ishiStage=2; for(const u of B.units) if(u.fortGuard){ u.holdUntil=0; u.fortGuard=false; u.morale=100; u.order={k:"hold"}; u.charge=true; } for(const u of B.units) if(u.siegeFace){ u.siegeFace=false; u.holdUntil=0; u.order={k:"hold"}; } for(const u of B.units){ if(u.side===0&&u.morale>0){ u.morale=100; u.tough=(u.tough||1)*1.5; u.morRes=Math.min(u.morRes||1,0.7); } if(u.side===1&&u.morale>0){ u.morale=Math.max(0,u.morale-30); u.morRes=(u.morRes||1)*1.3; } } B.bigBanner={t:"救援成功――砦の門が開く", at:B.elapsed, good:mine===0, big:true};   /* 第226巡（夜48）：合流の後は史実どおり織田が押し返せる釣り合いに（三千対八千で百秒で消えていた） */ B.objective=mine===0?"第三段：本願寺勢を押し返せ":"信長は砦に入った。それでも討て"; log("信長は砦に駆け込み、明智らと合流した。織田の士気は跳ね上がる","war",true); try{ renderBattleFoot(); }catch(_){ } }
     if(B.ishiStage===1 && nb && !(B.nbDistAt>B.elapsed-8)){ B.nbDistAt=B.elapsed; const m=Math.round(Math.abs(nb.x-fx)*20); if(mine===0 && m<400) B.banner={t:`砦まで あと${m}m`, at:B.elapsed}; }
     /* 第239巡（作り手：信長が来ても砦を攻め続けること）：砦攻めの隊は、退くまで砦の中の織田勢を狙い続ける（本陣の顕如と護衛の一隊だけが信長を迎える） */
-    if(mine!==1 && !B.hgRetreat && !B.aiFled && B.tnrFort && !(B.tnrSiegeAt>B.elapsed-2)){ B.tnrSiegeAt=B.elapsed; const F=B.tnrFort; const inside=B.units.filter(u=>u.side===0&&u.troops>.5&&u.morale>0&&!u.left&&(fortMainInside(F,u)||Math.hypot(u.x-F.cx,u.y-F.cy)<F.w/2+2.5));
+    if((mine!==1||B.autoMine) && !B.hgRetreat && !B.aiFled && B.tnrFort && !(B.tnrSiegeAt>B.elapsed-2)){   /* 第253巡：人が本願寺で〈采配：自動〉でも門徒は砦を攻め続ける（救援成功のあと二百秒立ち尽くしていた） */ B.tnrSiegeAt=B.elapsed; const F=B.tnrFort; const inside=B.units.filter(u=>u.side===0&&u.troops>.5&&u.morale>0&&!u.left&&(fortMainInside(F,u)||Math.hypot(u.x-F.cx,u.y-F.cy)<F.w/2+2.5));
       for(const u of B.units){ if(!u.tnrSiege||u.side!==1||u.troops<=.5||u.morale<=0||u.left||u.type===3) continue; if(u.order.k==="retreat") continue; const cur=u.order.k==="attack"?B.units.find(z=>z.id===u.order.id):null; if(cur&&inside.includes(cur)&&cur.troops>.5&&cur.morale>0) continue; const t=inside.slice().sort((a,b)=>dist(a,u)-dist(b,u))[0]; if(t){ u.order={k:"attack",id:t.id}; u.charge=true; u.holdUntil=0; u.siegeFace=false; } else if(!(u.order.k==="move"&&Math.abs(u.order.x-F.cx)<0.5)){ /* 第253巡（作り手：門徒は開戦後もずっと天王寺砦を攻め続ける）：中に討つ相手がなくても柵と門に取り付く */ u.order={k:"move",x:F.cx,y:F.cy+((u.id%3)-1)*1.5}; u.gx=u.order.x; u.gy=u.order.y; u.holdUntil=0; u.charge=true; } } }
     /* 機械の本願寺：士気が落ちれば石山へ退く */
-    if(mine!==1 && B.ishiStage>=2 && !B.hgRetreat){ const us=B.units.filter(u=>u.side===1&&u.troops>.5&&!u.left); const mor=us.length?us.reduce((s2,u)=>s2+u.morale,0)/us.length:0; if(mor<50 || us.filter(u=>u.morale>0).length<us.length*0.65){ B.hgRetreat=B.elapsed; for(const u of us){ u.order={k:"retreat"}; u.charge=false; u.pursue=false; } B.bigBanner={t:"本願寺勢、木津・楼の岸へ退く", at:B.elapsed, good:mine===0}; log("本願寺勢は士気を失い、石山の方へ退いた","war",true); } }
+    if((mine!==1||B.autoMine) && B.ishiStage>=2 && !B.hgRetreat){ const us=B.units.filter(u=>u.side===1&&u.troops>.5&&!u.left); const mor=us.length?us.reduce((s2,u)=>s2+u.morale,0)/us.length:0; if(mor<50 || us.filter(u=>u.morale>0).length<us.length*0.65){ B.hgRetreat=B.elapsed; for(const u of us){ u.order={k:"retreat"}; u.charge=false; u.pursue=false; } B.bigBanner={t:"本願寺勢、木津・楼の岸へ退く", at:B.elapsed, good:mine===0}; log("本願寺勢は士気を失い、石山の方へ退いた","war",true); } }
     /* 退く門徒は石山へ消えてゆく（八秒で野を去る。砦の前を通って本陣を潰さない） */
     if(B.hgRetreat && B.elapsed-B.hgRetreat>8){ for(const u of B.units){ if(u.side===1&&!u.left&&u.troops>.5){ u.left=true; u.leftTroops=u.troops; } } }
   }
@@ -23824,7 +23824,7 @@ function updateBattle(dt){
   if(B.over===null && B.opening<=0){ const d0=B.ctx.decisive?DECISIVE.find(x=>x.id===B.ctx.decisive):null; const hw=(d0&&d0.holdWin)||B.holdWin;   /* 第185巡：決戦でなくても籠城戦なら持ちこたえの勝ちがある（B.holdWin） */
     if(hw){ const side=hw.side==="def"?1:0; const start=(B.startTroops&&B.startTroops[side]||0)+(B.lateTroops||0); const now=B.units.filter(u=>u.side===side&&u.troops>.5&&!u.left).reduce((a,u)=>a+u.troops,0);
       B.holdLeft=Math.max(0,Math.ceil(hw.sec-B.elapsed));
-      if(B.elapsed>=hw.sec && start>0 && now>=start*hw.keep){ let h=hw.h, t=hw.t; if(B.siegeWall&&side===1&&!B.fsm){ const g=siegeHoldGrade(now,start); h=`${hw.h}（${g.g}）`; t=`${hw.t}。${g.t}`; } if(B.fsm){ W.fushimiResult={t:Math.round(B.elapsed),grade:"S"}; log("【伏見城 戦後記録】七分を稼ぎ切った――任務達成度 S","war",true); }   /* 第185巡：守り切りの評価 S/A/B */ B.bigBanner={t:h, at:B.elapsed, good:side===B.ctx.playerSide, big:true}; log(t,"war",true); toast(t); endBattle(side); return; } } }
+      if(B.elapsed>=hw.sec && start>0 && now>0 && now>=start*(hw.keep===undefined?0:hw.keep)){ let h=hw.h||(side===1?"持ちこたえた":"押し切った"), t=hw.t||(side===1?"守り手は時を稼ぎ切り、寄せ手は退いた":"寄せ手は時のうちに押し切った");   /* 第253巡：keep の無い持ちこたえ（本能寺・二条御所の百二十秒／百五十秒）は NaN 比べで決して成らなかった */ if(B.siegeWall&&side===1&&!B.fsm){ const g=siegeHoldGrade(now,start); h=`${hw.h}（${g.g}）`; t=`${hw.t}。${g.t}`; } if(B.fsm){ W.fushimiResult={t:Math.round(B.elapsed),grade:"S"}; log("【伏見城 戦後記録】七分を稼ぎ切った――任務達成度 S","war",true); }   /* 第185巡：守り切りの評価 S/A/B */ B.bigBanner={t:h, at:B.elapsed, good:side===B.ctx.playerSide, big:true}; log(t,"war",true); toast(t); endBattle(side); return; } } }
   // 増援の到着
   if(B_pendingReinforce.length){
     for(const r of B_pendingReinforce.slice()){
@@ -23980,7 +23980,7 @@ function updateBattle(dt){
     const now=onF.reduce((s,u)=>s+u.troops,0);
     /* 第114巡：兵の割合では決着しない（作り手：七割五分減っても「勝ち」と言われると変）。全滅か本陣の兵が尽きるか、だけ */   // 長篠の武田は、隊を全部潰すまで負けにしない（作り手の指示）
     const c=B.units.find(u=>u.side===side&&u.cmd);
-    const lost = !c || c.troops<=.5;   /* 本陣は兵が尽きたときだけ（崩れて逃げているだけでは決着しない） */
+    const lost = !c || c.troops<=.5 || (c.left && !c.sigHidden && !B.escapePhase && !B.ctx.oke && !B.ted && side!==B.ctx.playerSide);   /* 本陣は兵が尽きたときだけ（崩れて逃げているだけでは決着しない）。第253巡：機械の本陣が野を去った（退き切った）なら本陣なしと同じ（大坂城で秀頼が端から消えたあと、櫓の鉄砲三隊を相手に日暮れまで続いていた） */
     if(!lost) return false;
     // 本陣が崩れた。全軍の気が挫ける
     if(!B.hqFell) B.hqFell={};
@@ -24113,6 +24113,8 @@ function stepUnit(u,dt){
     goal=[(u.side===B.ctx.playerSide)?0.6:BF.w-0.6, u.y];
     // 野の端まで退けば、その隊は戦場を去る（端で討たれ続けない。兵は持ち帰る）
     if(Math.abs(u.x-goal[0])<GC*1.6){ u.left=true; if(!u.leftCry){ u.leftCry=true; log(`${u.name}隊は野を去りました`,"war"); } return; }
+    /* 第253巡：端の砦の柵に阻まれて退けず、端で立ち往生していた（長篠の勝頼が 93 で百秒止まり、戦が終わらなかった）→ 端まで八歩以内で五秒動けなければ野を去ったことにする */
+    { const nearEdge=Math.abs(u.x-goal[0])<GC*8; if(u.retStuckX===undefined||Math.abs(u.x-u.retStuckX)>0.3||u.engagedAt>B.elapsed-3){ u.retStuckX=u.x; u.retStuckAt=B.elapsed; } else if(B.elapsed-u.retStuckAt>(nearEdge?5:12)){   /* 野の途中でも十二秒動けなければ散ったことにする（耳川で川に阻まれた大友が二百秒立っていた） */ u.left=true; if(!u.leftCry){ u.leftCry=true; log(`${u.name}隊は野を去りました`,"war"); } return; } }
   }
   // 間合いを取る鉄砲：敵が二歩まで寄れば、自陣の側へ四歩下がる
   if(u.kite && u.type===3 && u.morale>0 && dist(u,nearest)<=2.9 && !(u.kiteAt>B.elapsed-3)){ u.kiteAt=B.elapsed; const dir=(u.side===B.ctx.playerSide)?-1:1; u.order={k:"move",x:Math.max(.5,Math.min(BF.w-.5,u.x+dir*4)),y:u.y}; u.gx=u.order.x; u.gy=u.order.y; goal=[u.order.x,u.order.y]; target=null; }
@@ -24592,8 +24594,11 @@ function battleAI(){
     const hqGuarded=x=>x.cmd&&!B.siegeWall&&!B.fortKit&&(B.elapsed<30||(B.elapsed<90&&foes.some(z=>z!==x&&!z.cmd&&dist(z,x)<5)));   /* 第224巡（夜4）：開戦三十秒は護衛の有無にかかわらず本陣を目当てにしない（川中島で景虎の本陣が十七秒で潰れていた） */   /* 第195巡：護衛のいる敵本陣は開戦九十秒は目当てにしない（武田の騎馬が二十秒で家康本陣へ駆けていた） */
     const laneK=B.fieldLanes&&u.laneY!==undefined&&!u.cmd; const crowd=x=>laneK?B.units.filter(z=>z.side===foeSide&&z!==u&&z.troops>.5&&z.morale>0&&dist(z,x)<2.6).length:0;   /* 第211巡：帯の外の敵は遠く見え、味方が二隊以上取り付いている敵には行かない（戦線が横に広がる）。騎馬は外側、開戦しばらくは中央を避ける */
     const score=x=>dist(u,x)+((taken[x.id]||0)>=3?40:(taken[x.id]||0)*7)-(x.id===cur?4:0)+(hqGuarded(x)?14:0)+(laneK?Math.min(10,Math.abs(x.y-u.laneY)*0.8)+(crowd(x)>=2?9:0)+((u.type===2&&B.elapsed<60&&Math.abs(x.y-BF.h/2)<4)?6:0):0);   // 今の狙いを続けやすく。第209巡：三隊が取り付いている敵には群がらない（団子を避ける） */
+    /* 第253巡：道の無い相手（砦の裏の崖越しなど）に取り付こうとして立ち往生していた（賤ヶ岳で寄せ手四隊が百五十秒睨み合い）→ 五秒動けなければその相手は四十秒よける。よける相手しか無ければ砦の門の前へ回る */
+    { const curU=cur!==null?B.units.find(z=>z.id===cur):null; if(curU && u.pathPartial && u.idleAt!==undefined && B.elapsed-u.idleAt>5 && dist(u,curU)>reachOf(u)+0.6 && !(u.engagedAt>B.elapsed-3)){ u.badT=u.badT||{}; u.badT[cur]=B.elapsed; u.idleAt=undefined; u.path=null; } }
     const pref=[...foes].sort((x,y)=>score(x)-score(y));
-    const near=pref[0];
+    let near=pref.find(x=>!(u.badT&&u.badT[x.id]>B.elapsed-40));
+    if(!near){ const F=B.fortMain; if(F&&F.gate&&u.type!==3&&foeSide===0){ const gx2=Math.max(1,Math.min(BF.w-1,F.gate.x+F.dir*3)), gy2=Math.max(1.5,Math.min(BF.h-1.5,F.gate.y+((u.id%3)-1)*1.4)); if(Math.hypot(u.x-gx2,u.y-gy2)>2){ u.order={k:"move",x:gx2,y:gy2}; continue; } } near=pref[0]; }
     // 疲れ切った隊はいったん下がって息を入れる
     if(u.temper===undefined){ const g0=W.generals[u.gid]; u.temper = !g0 ? "" : g0.war>=88 ? "猛" : (g0.lea-g0.war>=15) ? "慎重" : ""; }   /* 第120巡：将の性格。猛＝疲れても引かない、慎重＝早めに退がる */
     if((u.fatigue||0)>(u.temper==="猛"?95:85) && u.order.k!=="guard" && dist(u,near)>3){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; continue; }
@@ -24701,6 +24706,7 @@ function aiCommandSide(side, onlyAlly){
       const nearest=foes.reduce((p,q)=>dist(u,p)<=dist(u,q)?p:q);
       if(dist(u,nearest)<=5) u.order={k:"attack",id:nearest.id};
       else if(mineT>foeT*1.5 && B.elapsed>40 && side!==B.ctx.playerSide && !B.nagashino && !(B.siegeWall||B.fortKit||B.kz||B.gf||B.ck) ) u.order={k:"attack",id:nearest.id};   /* 第253巡（作り手：自動にすると信長が右端へ行って本陣を構える）：人の側の本陣は自動でも動かない */   /* 第226巡（夜46）：城攻めでは大軍でも本陣は門の下へ出ない（小田原で秀吉本陣が一ノ門の堀端に立っていた） */
+      else if(side===B.ctx.playerSide && B.elapsed>60 && !B.units.some(z=>z.side===side&&!z.cmd&&z.troops>.5&&z.morale>0&&!z.left&&!z.towerGun&&!z.postHold) && !(B.siegeWall||B.fortKit||B.kz||B.gf||B.ck) && foeT<=mineT*1.2) u.order={k:"attack",id:nearest.id};   /* 第253巡：人の側に本陣しか残っていなければ、自動の本陣も討って出る（長島で退く門徒と睨み合ったまま戦が終わらなかった） */
       else if(u.order.k!=="guard"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; }
       continue;
     }
@@ -24708,7 +24714,10 @@ function aiCommandSide(side, onlyAlly){
     /* 第195巡：護衛のいる敵本陣は、開戦九十秒は目当てにしない（武田の騎馬が二十秒で家康本陣へ駆けていた）。護衛が五升以内に無ければ狙う */
     const hqGuarded=x=>x.cmd&&!B.siegeWall&&!B.fortKit&&(B.elapsed<30||(B.elapsed<90&&foes.some(z=>z!==x&&!z.cmd&&dist(z,x)<5)));
     const tk=z=>((taken[z.id]||0)>=3?40:(taken[z.id]||0)*7); const pref=[...foes].sort((x,y)=>(dist(u,x)+tk(x)-(cur&&cur.id===x.id?4:0)+(hqGuarded(x)?14:0)) - (dist(u,y)+tk(y)-(cur&&cur.id===y.id?4:0)+(hqGuarded(y)?14:0)));
-    const near=pref[0];
+    /* 第253巡：道の無い相手（砦の裏の崖越しなど）に取り付こうとして立ち往生していた（賤ヶ岳で寄せ手四隊が百五十秒睨み合い）→ 五秒動けなければその相手は四十秒よける。よける相手しか無ければ砦の門の前へ回る */
+    if(cur && u.pathPartial && u.idleAt!==undefined && B.elapsed-u.idleAt>5 && dist(u,cur)>reachOf(u)+0.6 && !(u.engagedAt>B.elapsed-3)){ u.badT=u.badT||{}; u.badT[cur.id]=B.elapsed; u.idleAt=undefined; u.path=null; }
+    let near=pref.find(x=>!(u.badT&&u.badT[x.id]>B.elapsed-40));
+    if(!near){ const F=B.fortMain; if(F&&F.gate&&u.type!==3){ const gx2=Math.max(1,Math.min(BF.w-1,F.gate.x+F.dir*3)), gy2=Math.max(1.5,Math.min(BF.h-1.5,F.gate.y+((u.id%3)-1)*1.4)); if(Math.hypot(u.x-gx2,u.y-gy2)>2){ u.order={k:"move",x:gx2,y:gy2}; continue; } } near=pref[0]; }
     if(B.gate && !B.gate.open && side===0 && u.type!==3){
       if(u.holdUntil&&B.elapsed<u.holdUntil&&(u.siegeRole==="second"||u.siegeRole==="reserve")){ if(u.order.k!=="guard"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } continue; }   /* 第245巡：第二陣・予備は頃合いまで控える */
       const idx=B.units.filter(x=>x.side===0&&x.troops>.5).indexOf(u);
@@ -27163,7 +27172,7 @@ function fenceEffects(dt){
     if(o.building>0){ o.building-=dt; continue; }
     for(const u of B.units){
       if(u.troops<=.5||u.morale<=0) continue;
-      const dx=o.x-u.x, dy=o.y-u.y; const rch=o.tobiFence?o.r+1.8:o.r+0.7;   /* 第239巡：九升の砦は柵が升の縁に乗り、隣の升からだと届かなかった */ if(dx*dx+dy*dy>rch*rch) continue;   // 柵の外に押し留められた隊も、柵を叩いている（鳶ヶ巣の砦の柵は升の都合で少し遠くからでも）
+      const dx=o.x-u.x, dy=o.y-u.y; const rch=o.tobiFence?o.r+1.8:(o.fort&&o.hp!==undefined)?o.r+2.3:o.r+0.7;   /* 第253巡：砦の柵も隣の升の真ん中から届く（賤ヶ岳で砦の裏に回った寄せ手が柵の一升手前で止まり、百五十秒睨み合っていた） */   /* 第239巡：九升の砦は柵が升の縁に乗り、隣の升からだと届かなかった */ if(dx*dx+dy*dy>rch*rch) continue;   // 柵の外に押し留められた隊も、柵を叩いている（鳶ヶ巣の砦の柵は升の都合で少し遠くからでも）
       const foe = o.side!==undefined ? u.side!==o.side : u.side===0;   // 砦の柵（side なし）は寄せ手＝側0を阻む
       if(!foe){ u.fenceCover=B.elapsed; continue; }   // 自分の柵のそばにいる隊は身を隠せる
       if(u.type===2){
