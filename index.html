@@ -15706,7 +15706,7 @@ EVENTS.push(
 );
 /* 川中島・三方ヶ原・長篠。年月で起こる決戦 */
 DECISIVE.push(
- { id:2205, key:"anegawa", sub:"浅井・朝倉を討つ", sc:["hoi","oke"], when:"open", histWin:"atk", atkCmd:"織田信長", defCmd:"浅井長政", name:"姉川の戦い", atk:"織田家", def:"浅井家", allies:true,
+ { id:2205, key:"anegawa", sub:"浅井・朝倉を討つ", sc:["hoi","oke"], when:"open", y:1570, m:6, histWin:"atk", atkCmd:"織田信長", defCmd:"浅井長政", name:"姉川の戦い", atk:"織田家", def:"浅井家", allies:true,
    terrain:4, forts:null, nAtk:14, nDef:10, atkTroops:28000, defTroops:18000,
    atkGens:["織田信長","徳川家康","柴田勝家","木下藤吉郎","丹羽長秀","佐久間信盛","池田恒興","森可成","本多忠勝","榊原康政","酒井忠次","稲葉一鉄","氏家直元","安藤守就"],
    defGens:["浅井長政","朝倉景健","磯野員昌","遠藤直経","海北綱親","浅井久政","朝倉景鏡","山崎吉家","真柄直隆","前波吉継"],
@@ -15960,7 +15960,7 @@ function startDecisiveOpening(){
   if(sc==="jingo" && !W.jingo){ try{ jingoStart(); }catch(e){ console.error(e); } return; }
   if(sc==="honnojiPre" && !W.hon){ try{ honStart(); }catch(e){ console.error(e); } return; }
   if(sc==="sekbattle"){ const d=DECISIVE.find(x=>x.id===2101); if(d&&!W.fired.has(d.id)){ W.decisivePending=d.id; W.decisiveAt=dayNumber()+1; openingBanner("両軍、関ヶ原に布陣。明朝、決戦",0); log("両軍は関ヶ原に布陣を終えた。明朝、決戦","war"); } return; }
-  const d=DECISIVE.find(x=>decisiveIn(x,sc) && x.when==="open" && !W.fired.has(x.id));
+  const d=DECISIVE.find(x=>decisiveIn(x,sc) && x.when==="open" && !W.fired.has(x.id) && !(sc==="oke"&&x.y));   /* 第253巡：桶狭間では年月付きの開幕決戦（姉川）は開幕にしない */
   if(!d) return;
   if(!clanByName(d.atk)||!clanByName(d.def)) return;
   W.decisivePending=d.id; W.decisiveAt=dayNumber()+(d.key==="nagashino_open"?24:7);   // 長篠の後詰はゆっくり（作り手の指示：第106巡で足を半分＝二十四日）
@@ -17202,7 +17202,7 @@ function ishiSupplyLines(){ const I=W.ishi||{forts:{}}; const f=k=>I.forts&&I.fo
     {k:"south",n:"南方（雑賀・紀州）",col:st(!!W.saikaCowed,!!W.saikaSplit)}]; const ring=Math.round(lines.filter(l=>l.col==="red").length/lines.length*70+lines.filter(l=>l.col==="yellow").length/lines.length*30+(I.riverBlocked?5:0)); return {lines, ring:Math.min(100,ring)}; }
 function ishiSupplyMapHTML(){ const M=ishiSupplyLines(); const C={green:"#7ED67E",yellow:"#E2C24A",red:"#E24A3A"}; const pts={kizu:[110,150],tennoji:[40,80],rounokishi:[110,10],sea:[195,80],south:[170,140]}; const svg=`<svg viewBox="0 0 220 165" style="width:100%;max-width:300px;display:block;margin:4px auto"><rect x="0" y="0" width="220" height="165" fill="rgba(255,255,255,.03)"/>${M.lines.map(l=>{ const [x,y]=pts[l.k]; return `<line x1="110" y1="80" x2="${x}" y2="${y}" stroke="${C[l.col]}" stroke-width="3" stroke-dasharray="${l.col==="red"?"4 4":"0"}"/><text x="${x}" y="${y+(y>80?12:-4)}" fill="${C[l.col]}" font-size="9" text-anchor="middle">${esc(l.n.split("（")[0])}</text>`; }).join("")}<circle cx="110" cy="80" r="14" fill="#3C2A16" stroke="#C9A227"/><text x="110" y="84" fill="#EDE6D6" font-size="9" text-anchor="middle">石山</text></svg>`; return `<div class="sec-title">石山包囲図　包囲率 ${M.ring}％</div>${svg}<div class="tiny muted">${M.lines.map(l=>`<span style="color:${C[l.col]}">●</span>${esc(l.n)}`).join("　")}</div>`; }
 function ishiAllocAsk(){ const I=W.ishi; if(!I) return; koChoice("兵力の配分","木津・天王寺・石山正面。どこへ多く割くか。",[["kizu","木津に集中","木津 12,000／天王寺 4,000／正面 8,000。木津は落としやすいが、天王寺は本願寺の反撃に弱い",()=>{ I.alloc="kizu"; log("兵を木津に集めた。天王寺と正面は薄い","war",true); }],["even","均等","木津 8,000／天王寺 5,000／正面 12,000（史実）",()=>{ I.alloc="even"; log("兵を均等に配した","war",true); }],["front","石山正面に集中","木津 5,000／天王寺 4,000／正面 15,000。木津は落ちにくい",()=>{ I.alloc="front"; log("兵を石山正面に集めた。木津は薄い","war",true); }]]); }
-function ishiAssign(k,gid){ const I=W.ishi; const me=W.clans[W.player]; if(!I||I.forts[k].gen) return; if(me.money<3000) return toast("銭が足りませぬ（3,000）"); me.money-=3000;   /* 第208巡：木材・人夫の縛りはやめ（作り手：「木材がありません」ではどうすればいいか分からない） */ I.forts[k].gen=gid; const g=W.generals[gid]; log(`${g?g.name:"将"}を${ISHI_FORTS.find(x=>x[0]===k)[1]}の普請に当てた`,"war",true); openIshiyama(); }
+function ishiAssign(k,gid){ const I=W.ishi; const me=W.clans[W.player]; if(!I||I.forts[k].gen) return; { const g0=W.generals[gid]; if(!g0||g0.status==="大名"||gid===0) return toast("当主は砦へ置けませぬ"); }   /* 第253巡：将の番号 0（当主）を置くと「置いた」ことにならず銭だけ減っていた */ if(me.money<3000) return toast("銭が足りませぬ（3,000）"); me.money-=3000;   /* 第208巡：木材・人夫の縛りはやめ（作り手：「木材がありません」ではどうすればいいか分からない） */ I.forts[k].gen=gid; const g=W.generals[gid]; log(`${g?g.name:"将"}を${ISHI_FORTS.find(x=>x[0]===k)[1]}の普請に当てた`,"war",true); openIshiyama(); }
 function ishiAct(k){
   const I=W.ishi; if(!I||I.acted===I.day) return; const side=ishiSide(); const me=W.clans[W.player]; const od=clanByName("織田家"), hg=clanByName("本願寺"); let msg="";
   if(k==="wood"){ if(me.money<1000) return toast("銭が足りませぬ"); me.money-=1000; I.wood+=40; msg="山から木材を切り出した（+40）"; }
@@ -21578,13 +21578,14 @@ function decisiveDaily(){
   // 戦の条件（賤ヶ岳）や年月（川中島・三方ヶ原・長篠）で起きる決戦
   if(!W.decisivePending){
     for(const d of DECISIVE){
-      if(!decisiveIn(d,W.scenario) || (d.when!=="war"&&d.when!=="date"&&d.when!=="flag") || W.fired.has(d.id)) continue;
-      if(d.when==="flag" && !W[d.flag]) continue;
+      const when=(d.when==="open"&&W.scenario==="oke"&&d.y)?"date":d.when;   /* 第253巡：桶狭間の筋書きでは、包囲網の開幕の決戦（姉川）は年月で起きる（開幕扱いで一五六〇年五月に姉川が起きていた） */
+      if(!decisiveIn(d,W.scenario) || (when!=="war"&&when!=="date"&&when!=="flag") || W.fired.has(d.id)) continue;
+      if(when==="flag" && !W[d.flag]) continue;
       const A=clanByName(d.atk)||(d.altAtk?clanByName(d.altAtk):null), Bc=clanByName(d.def)||(d.altDef?clanByName(d.altDef):null);
       if(!A||!Bc) continue;
-      if(d.when==="war" && !A.war.has(Bc.id)) continue;
+      if(when==="war" && !A.war.has(Bc.id)) continue;
       if(d.cond && !d.cond()) continue;   /* 第131巡：決戦ごとの条件 */
-      if(d.when==="date"){
+      if(when==="date"){
         if(!(W.date.y>d.y || (W.date.y===d.y && W.date.m>=d.m)) || W.date.y>d.y+1) continue;   // 年月が来て、一年以内
         if(sameHouse(A.id,Bc.id)) continue;
         if(A.allies.has(Bc.id)){ if(A.id===W.player||Bc.id===W.player) continue; breakAlly(A.id,Bc.id); log(`${A.name}が${Bc.name}との盟を破りました`,"dip",true); }   // 史実の戦は盟を破って起こる（人の盟は破らない）
