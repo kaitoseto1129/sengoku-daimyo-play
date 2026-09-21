@@ -232,6 +232,11 @@ header nav a:hover{color:var(--kinpaku);opacity:1}
 .glist{margin:16px 0 0;padding:0;list-style:none;font-size:14px;color:var(--kami)}
 .glist li{padding:7px 0;border-top:1px dashed rgba(197,154,53,.3)}
 .glist li::before{content:"◆ ";color:var(--shu2);font-size:10px}
+/* ---- 目安箱 ---- */
+.meyasu-box{max-width:680px;margin:26px auto 0}
+.meyasu-box textarea{width:100%;padding:14px 16px;border:1px solid rgba(197,154,53,.5);background:rgba(215,200,165,.06);color:var(--shiro);font-family:var(--min);font-size:15px;line-height:1.8;resize:vertical}
+.meyasu-box textarea::placeholder{color:var(--dim)}
+.meyasu-box .fuda{cursor:pointer;font-size:19px;padding:14px 34px}
 /* ---- 問答 ---- */
 .mondo{max-width:780px;margin:30px auto 0}
 .mondo details{border-top:1px solid var(--line);padding:4px 0}
@@ -287,7 +292,7 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
 
 <header>
   <a class="logo" href="#hero">戦国大名</a>
-  <nav><a href="#ch1">大名</a><a href="#ch3">合戦</a><a href="#gunki">軍記</a><a href="#ch4">軍議</a><a href="#retsuden">武将</a><a href="#guide">攻略</a><button id="oto" type="button" title="風と太鼓の音（押した時だけ）">♪ 音</button></nav>
+  <nav><a href="#ch1">大名</a><a href="#ch3">合戦</a><a href="#gunki">軍記</a><a href="#ch4">軍議</a><a href="#retsuden">武将</a><a href="#guide">攻略</a><a href="#meyasu">目安箱</a><button id="oto" type="button" title="風と太鼓の音（押した時だけ）">♪ 音</button></nav>
 </header>
 
 <!-- 序 -->
@@ -499,6 +504,19 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
   </div>
 </section>
 
+<!-- 目安箱 -->
+<section id="meyasu" style="background:var(--sumi)">
+  <div class="wrap">
+    <div class="ar c"><div class="sho" style="display:inline-flex">目安箱</div><h2 class="h2">ここを、<span class="g">こうして欲しい。</span></h2>
+    <p class="kotoba c">遊んで困ったこと、欲しい手、直して欲しい所。何でも作り手へ。手紙の窓が開きます。</p></div>
+    <div class="ar meyasu-box">
+      <textarea id="meyasuText" rows="5" placeholder="例：関ヶ原にも軍議が欲しい／iPhone で音が出ない／この武将を出して欲しい"></textarea>
+      <div class="ctas" style="justify-content:center;margin-top:14px"><button class="fuda" id="meyasuGo" type="button">手紙で送る</button></div>
+      <p class="soe c">宛先 kaitoseto1129@gmail.com ── 手紙の窓が開かなければ、そのまま直接どうぞ。</p>
+    </div>
+  </div>
+</section>
+
 <!-- 問答 -->
 <section id="faq" style="background:var(--sumi)">
   <div class="wrap">
@@ -530,7 +548,7 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
   <div class="monpat"></div>
   <div class="wrap">
     <span class="logo">戦国大名</span>
-    <div class="links"><a href="https://apps.apple.com/jp/app/id6811255282" data-app>App Store</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザ版</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/guide/">攻略</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/privacy.html">プライバシーポリシー</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/support.html">お問い合わせ</a></div>
+    <div class="links"><a href="https://apps.apple.com/jp/app/id6811255282" data-app>App Store</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザ版</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/guide/">攻略</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/privacy.html">プライバシーポリシー</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/support.html">お問い合わせ</a><a href="#meyasu">目安箱</a></div>
     <div class="credits">武将の肖像はパブリックドメインの史料（狩野宗秀筆 織田信長像、狩野光信筆 豊臣秀吉像、狩野探幽筆 徳川家康像 ほか）を用いています。画面はすべて開発中のゲーム画面で、製品版とは異なる場合があります。Apple、App Store は Apple Inc. の商標です。</div>
   </div>
 </footer>
@@ -570,6 +588,9 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
   var ans={ wait:{t:"援軍を待つ",b:"三日のうちに五千が揃う。だが砦の備えは日に二割ずつ削られ、落ちれば石山の門徒は勢いづく。"}, go:{t:"今すぐ向かう",b:"手勢だけで先に着く。砦は持つが、本隊が着くまで敵中で耐えねばならない。信長自らが出るなら、兵は奮い立つ。"}, leave:{t:"砦を捨てる",b:"本隊は無傷。だが天王寺を失えば木津の補給路は開き、石山攻めは一年延びる。"} };
   var box=document.getElementById('kotae');
   document.querySelectorAll('.sanTaku button').forEach(function(b){ b.addEventListener('click',function(){ document.querySelectorAll('.sanTaku button').forEach(function(x){ x.classList.remove('on'); }); b.classList.add('on'); var a=ans[b.dataset.a]; box.innerHTML='<b>'+a.t+'</b>'+a.b+'<span class="shu">ゲームでは、この判断を自分で下す</span>'; }); });
+
+  /* 目安箱 */
+  var mg=document.getElementById('meyasuGo'); if(mg) mg.addEventListener('click',function(){ var t=(document.getElementById('meyasuText').value||'').trim(); if(!t){ alert('何か書いてください'); return; } location.href='mailto:kaitoseto1129@gmail.com?subject='+encodeURIComponent('【戦国大名 目安箱】')+'&body='+encodeURIComponent(t+'\n\n――\nLP より／'+navigator.userAgent.slice(0,80)); });
 
   /* 音（押した時だけ）：風と太鼓 */
   var oto=document.getElementById('oto'), AC=null, on=false, nodes=null, drumT=null;

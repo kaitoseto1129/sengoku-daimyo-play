@@ -62,17 +62,28 @@ a{ color:var(--ai); }
 
 <script>
 /* 入口：合言葉は手元で照らし合わせる（軽い鍵。数字だけの画面なのでこれで十分）。通れば三十日おぼえる */
-const ALLOW_EMAIL="kaitoseto1129@gmail.com";
-const PW_HASH="57f3833bb5286c81572f087fc31cae5f081e8e7001462e05312832163de6dfc3";
+/* 第253巡（作り手：管理画面に人を追加できるように）：入れる人の一覧。足すときは下の「人を足す」で作った行をここに加える（合言葉そのものは置かない） */
+const USERS=[
+  {email:"kaitoseto1129@gmail.com", hash:"57f3833bb5286c81572f087fc31cae5f081e8e7001462e05312832163de6dfc3", name:"作り手"},
+];
 async function sha256(s){ const b=await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join(""); }
 function opened(){ try{ const t=+localStorage.getItem("sd_admin_ok")||0; return Date.now()-t<30*864e5; }catch(e){ return false; } }
 document.getElementById("loginForm").onsubmit=async e=>{ e.preventDefault(); const em=document.getElementById("em").value.trim().toLowerCase(); const h=await sha256(document.getElementById("pw").value);
-  if(em===ALLOW_EMAIL && h===PW_HASH){ try{ localStorage.setItem("sd_admin_ok", String(Date.now())); }catch(_){ } document.getElementById("gate").style.display="none"; load(); }
+  const u=USERS.find(x=>x.email.toLowerCase()===em && x.hash===h);
+  if(u){ try{ localStorage.setItem("sd_admin_ok", String(Date.now())); localStorage.setItem("sd_admin_who", u.name||em); }catch(_){ } document.getElementById("gate").style.display="none"; load(); }
   else document.getElementById("gateErr").textContent="メールアドレスか合言葉が違います"; };
 if(opened()){ document.getElementById("gate").style.display="none"; }
+const _load0=load; load=async function(){ await _load0(); try{ if(!document.getElementById("nuGo")) document.getElementById("main").appendChild(usersCard()); }catch(_){ } };
 
 let DATA=null, RANGE="d30";
 document.querySelectorAll("#rangeTabs button").forEach(b=>b.onclick=()=>{ RANGE=b.dataset.r; document.querySelectorAll("#rangeTabs button").forEach(x=>x.classList.toggle("on",x===b)); render(); });
+/* 人を足す：ここで合言葉の指紋（SHA-256）を作り、その行を作り手に渡す（か admin/index.html の USERS に足す）。合言葉そのものはどこにも送らない */
+function usersCard(){ const el=document.createElement("div"); el.className="card"; el.innerHTML=`<h2>入れる人</h2><div class="note">いま入れる人：${USERS.map(u=>`<b>${u.name||""}</b>（${u.email}）`).join("、")}</div>
+  <div class="note" style="margin-top:8px">人を足す：メールアドレスと合言葉を入れて「行を作る」。出てきた一行を作り手へ渡すと、次の版から入れます。合言葉そのものは送られません（指紋だけ）。</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><input id="nuEm" type="email" placeholder="メールアドレス" style="flex:1;min-width:200px;padding:8px 10px;border-radius:6px;border:1px solid #3a3020;background:#0F0D09;color:#EDE6D6"><input id="nuNm" placeholder="呼び名（例：広告担当）" style="flex:1;min-width:140px;padding:8px 10px;border-radius:6px;border:1px solid #3a3020;background:#0F0D09;color:#EDE6D6"><input id="nuPw" type="password" placeholder="合言葉" style="flex:1;min-width:140px;padding:8px 10px;border-radius:6px;border:1px solid #3a3020;background:#0F0D09;color:#EDE6D6"><button id="nuGo" style="padding:8px 14px;border-radius:6px;border:1px solid #C9A227;background:#C9A227;color:#1A1208;font-weight:800;cursor:pointer">行を作る</button></div>
+  <pre id="nuOut" style="margin-top:10px;white-space:pre-wrap;word-break:break-all;background:#0F0D09;padding:10px;border-radius:6px;font-size:12px;color:#FFD166;display:none"></pre>`;
+  el.querySelector("#nuGo").onclick=async()=>{ const em=el.querySelector("#nuEm").value.trim().toLowerCase(), nm=el.querySelector("#nuNm").value.trim(), pw=el.querySelector("#nuPw").value; if(!em||!pw){ alert("メールアドレスと合言葉を"); return; } const h=await sha256(pw); const line=`  {email:"${em}", hash:"${h}", name:"${nm||em}"},`; const o=el.querySelector("#nuOut"); o.style.display="block"; o.textContent=line+"\n\n↑ この一行をコピーして作り手へ（目安箱でも可）。admin/index.html の USERS に足せば入れるようになります"; try{ await navigator.clipboard.writeText(line); o.textContent+="\n（コピーしました）"; }catch(_){ } el.querySelector("#nuPw").value=""; };
+  return el; }
 async function load(){
   try{ const r=await fetch("stats.json?t="+Date.now(), {cache:"no-store"}); if(!r.ok) throw new Error(r.status); DATA=await r.json(); }
   catch(e){ document.getElementById("main").innerHTML=`<div class="card"><h2>まだ数がありません</h2><div class="note">stats.json がまだ作られていません。GitHub の <b>sengoku-daimyo-play</b> リポジトリで、<br>① Settings → Secrets and variables → Actions に <b>GOATCOUNTER_TOKEN</b>（GoatCounter の Settings → API tokens で「Read statistics」を付けて作った鍵）を入れる<br>② Actions → <b>stats</b> → Run workflow を一度押す<br>あとは六時間ごとに勝手に更新されます。</div></div>`; return; }
