@@ -27,6 +27,7 @@
 
 <!-- /pixel -->
 
+<link rel="preload" as="image" href="img/hero.jpg" fetchpriority="high">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&family=Shippori+Mincho:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap">
@@ -272,6 +273,38 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
 #stick .fuda{width:100%;padding:14px 18px;font-size:19px;letter-spacing:.2em}
 @media(max-width:720px){#stick{display:block}}
 
+/* ---- 動く絵 ---- */
+.ugoku{position:relative;overflow:hidden;background:#000;border:1px solid rgba(197,154,53,.5);box-shadow:0 0 0 6px #0f0c09,0 0 0 7px rgba(197,154,53,.35),0 26px 60px rgba(0,0,0,.75)}
+.ugoku img{width:100%;display:block}
+.ugoku .ov{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;padding:26px;background:linear-gradient(0deg,rgba(11,9,7,.85),transparent 45%);pointer-events:none}
+.ugoku .ov b{font-family:var(--fude);font-size:clamp(20px,3.4vw,40px);letter-spacing:.2em;color:#fff;font-weight:400;text-shadow:0 3px 12px #000}
+.ugoku .rec{position:absolute;left:14px;top:12px;font-family:var(--go);font-size:10px;letter-spacing:.2em;color:var(--kami);background:rgba(11,9,7,.6);padding:3px 8px;border:1px solid var(--line)}
+.ugoku .rec::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--shu2);margin-right:6px;animation:blink 1.2s infinite}
+@keyframes blink{50%{opacity:.2}}
+#ugoku1{padding:0 0 70px}
+#peak{padding:0;background:#000}
+#peak .ugoku{border:none;box-shadow:none}
+#peak .ov b{font-size:clamp(28px,5vw,64px)}
+/* ---- あと何城 ---- */
+.nokori{text-align:center;font-family:var(--fude);font-size:15px;letter-spacing:.4em;color:var(--kin);padding:22px 0 0;opacity:.85}
+.nokori b{font-weight:400;color:var(--kinpaku);font-size:22px;margin:0 6px}
+/* ---- 最初に選ぶなら ---- */
+.erabu{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px;align-items:center}
+.erabu span{font-family:var(--go);font-size:12px;letter-spacing:.2em;color:var(--dim);margin-right:6px}
+.erabu button{font-family:var(--fude);font-size:18px;letter-spacing:.2em;color:var(--shiro);background:linear-gradient(180deg,#2a1f12,#1a120a);border:1px solid rgba(197,154,53,.5);padding:10px 22px;cursor:pointer}
+.erabu button.on{background:linear-gradient(180deg,#5a3a1a,#3a2410);color:var(--kinpaku)}
+.kakejiku.hi{outline:2px solid var(--kinpaku);outline-offset:6px;box-shadow:0 0 30px rgba(230,193,90,.35)}
+/* ---- こんな人へ ---- */
+.who{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 22px;margin-top:26px;max-width:760px;margin-left:auto;margin-right:auto}
+@media(max-width:600px){.who{grid-template-columns:1fr}}
+.who div{padding:12px 16px;border-left:3px solid var(--kin);background:rgba(215,200,165,.04);font-size:15px;text-align:left}
+/* ---- 操作の三歩 ---- */
+.sanpo{display:flex;flex-wrap:wrap;justify-content:center;gap:14px;margin-top:26px}
+.sanpo div{flex:1 1 200px;max-width:280px;padding:18px 16px;border:1px solid var(--line);background:rgba(215,200,165,.04)}
+.sanpo b{display:block;font-family:var(--go);font-size:11px;letter-spacing:.3em;color:var(--kin)}
+.sanpo h4{margin:6px 0 0;font-family:var(--fude);font-size:22px;letter-spacing:.1em;font-weight:400;color:var(--shiro)}
+.sanpo p{margin-top:6px;font-size:14px;color:var(--kami)}
+@media(max-width:720px){.gunki-two{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:12px;margin-left:-22px;margin-right:-22px;padding:0 22px 8px}.gunki-two .maki{flex:0 0 84vw;scroll-snap-align:center}}
 /* ---- 三つの特徴 ---- */
 #mitsu{padding:70px 0;background:var(--sumi)}
 #mitsu .lead-l{font-family:var(--fude);font-size:clamp(22px,3vw,34px);letter-spacing:.14em;text-align:center;color:var(--shiro)}
@@ -375,7 +408,7 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
     <p class="kotoba"><span class="ln">馬防柵。鉄砲。武田騎馬軍団。</span><span class="ln">史実と同じ戦い方を選ぶか。それとも、<b>あなた自身の策</b>で戦うか。</span></p>
     <div class="ctas">
       <a class="fuda" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="hero_appstore_click"><svg><use href="#apple"/></svg>App Storeで無料ダウンロード</a>
-      <a class="inban" href="#ch3">戦場を見る ▾</a>
+      <a class="inban" href="#ugoku1">▶ 動きを見る</a>
     </div>
     <div class="haifu">iPhone / iPad 対応　／　日本語　／　長篠の戦いは無料</div>
   </div>
@@ -383,6 +416,14 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
 </section>
 
 <div class="sumi-line"><svg viewBox="0 0 1200 38" preserveAspectRatio="none"><path d="M0 22 C120 12 220 30 360 20 C500 10 640 28 780 18 C900 10 1040 26 1200 16 L1200 24 C1040 34 900 18 780 26 C640 36 500 18 360 28 C220 38 120 20 0 30 Z" fill="#000" opacity=".9"/><path d="M20 21 C160 13 300 27 460 19 C620 11 760 27 920 19 C1040 13 1120 23 1180 17" fill="none" stroke="#C59A35" stroke-width="1.2" opacity=".6"/></svg></div>
+
+<!-- 動く絵 -->
+<section id="ugoku1">
+  <div class="wrap">
+    <div class="ugoku ar" data-seq="56"><img src="../img/seq/000.jpg" alt="長篠の合戦。武田の騎馬が馬防柵へ" loading="eager"><span class="rec">合戦の画面</span><div class="ov"><b>数千、数万の軍勢を、一つの采配で動かせ。</b></div></div>
+    <p class="soe c">実際の合戦画面をそのまま。一兵ずつではなく、隊で、翼で、軍で動く。</p>
+  </div>
+</section>
 
 <!-- 三つの特徴 -->
 <section id="mitsu">
@@ -395,6 +436,8 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
     </div>
   </div>
 </section>
+
+<div class="nokori">天下統一まで　あと<b>六十</b>城</div>
 
 <!-- 第一章 -->
 <section id="ch1">
@@ -466,6 +509,8 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
   </div>
 </section>
 
+<div class="nokori">天下統一まで　あと<b>三十</b>城</div>
+
 <!-- 軍記 -->
 <section id="gunki">
   <div class="mon" style="right:-100px;bottom:-60px;width:420px;height:420px"><svg><use href="#mon-aoi"/></svg></div>
@@ -526,6 +571,8 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
   </div>
 </section>
 
+<div class="nokori">天下統一まで　あと<b>十</b>城</div>
+
 <!-- 武将列伝 -->
 <section id="retsuden">
   <div class="mon" style="right:-120px;top:-40px;width:480px;height:480px"><svg><use href="#mon-kikyo"/></svg></div>
@@ -534,19 +581,25 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
       <div class="sho">武将列伝</div>
       <h2 class="h2">強い武将を集めるだけでは、<span class="g">勝てない。</span></h2>
       <p class="kotoba">誰を前線へ出すか。誰を本陣に残すか。誰に別働隊を任せるか。配置もまた、采配。</p>
+      <div class="erabu"><span>最初に選ぶなら？</span><button data-house="oda">織田</button><button data-house="takeda">武田</button><button data-house="tokugawa">徳川</button></div>
     </div>
     <div class="kakejiku-row">
-      <div class="kakejiku ar"><div class="kami"><div class="mon"><svg><use href="#mon-oda"/></svg></div><img src="../img/p_織田信長.jpg" alt="織田信長" loading="lazy"></div><div class="na">織田信長</div><div class="kotoba1">天下布武</div></div>
-      <div class="kakejiku ar"><div class="kami"><div class="mon"><svg><use href="#mon-aoi"/></svg></div><img src="../img/p_徳川家康.jpg" alt="徳川家康" loading="lazy"></div><div class="na">徳川家康</div><div class="kotoba1">耐えて、最後に勝つ</div></div>
-      <div class="kakejiku ar"><div class="kami"><div class="mon"><svg><use href="#mon-oda"/></svg></div><img src="../img/p_羽柴秀吉.jpg" alt="羽柴秀吉" loading="lazy"></div><div class="na">羽柴秀吉</div><div class="kotoba1">機を逃さない</div></div>
-      <div class="kakejiku ar"><div class="kami"><div class="mon"><svg><use href="#mon-kikyo"/></svg></div><img src="../img/p_明智光秀.jpg" alt="明智光秀" loading="lazy"></div><div class="na">明智光秀</div><div class="kotoba1">鉄砲と城攻めの名手</div></div>
-      <div class="kakejiku ar"><div class="kami"><div class="mon"><svg><use href="#mon-takeda"/></svg></div><img src="../img/p_武田勝頼.jpg" alt="武田勝頼" loading="lazy"></div><div class="na">武田勝頼</div><div class="kotoba1">騎馬、風の如く</div></div>
-      <div class="kakejiku ar"><div class="kami"><div class="mon"><svg><use href="#mon-oda"/></svg></div><img src="../img/p_柴田勝家.jpg" alt="柴田勝家" loading="lazy"></div><div class="na">柴田勝家</div><div class="kotoba1">掛かれ、掛かれ</div></div>
-      <div class="kakejiku ar"><div class="kami"><div class="mon"><svg><use href="#mon-oda"/></svg></div><img src="../img/p_丹羽長秀.jpg" alt="丹羽長秀" loading="lazy"></div><div class="na">丹羽長秀</div><div class="kotoba1">本陣を支える米五郎左</div></div>
-      <div class="kakejiku ar"><div class="kami"><div class="mon"><svg><use href="#mon-takeda"/></svg></div><img src="../img/p_上杉謙信.jpg" alt="上杉謙信" loading="lazy"></div><div class="na">上杉謙信</div><div class="kotoba1">毘</div></div>
+      <div class="kakejiku ar" data-house="oda"><div class="kami"><div class="mon"><svg><use href="#mon-oda"/></svg></div><img src="../img/p_織田信長.jpg" alt="織田信長" loading="lazy"></div><div class="na">織田信長</div><div class="kotoba1">天下布武</div></div>
+      <div class="kakejiku ar" data-house="tokugawa"><div class="kami"><div class="mon"><svg><use href="#mon-aoi"/></svg></div><img src="../img/p_徳川家康.jpg" alt="徳川家康" loading="lazy"></div><div class="na">徳川家康</div><div class="kotoba1">耐えて、最後に勝つ</div></div>
+      <div class="kakejiku ar" data-house="oda"><div class="kami"><div class="mon"><svg><use href="#mon-oda"/></svg></div><img src="../img/p_羽柴秀吉.jpg" alt="羽柴秀吉" loading="lazy"></div><div class="na">羽柴秀吉</div><div class="kotoba1">機を逃さない</div></div>
+      <div class="kakejiku ar" data-house="oda"><div class="kami"><div class="mon"><svg><use href="#mon-kikyo"/></svg></div><img src="../img/p_明智光秀.jpg" alt="明智光秀" loading="lazy"></div><div class="na">明智光秀</div><div class="kotoba1">鉄砲と城攻めの名手</div></div>
+      <div class="kakejiku ar" data-house="takeda"><div class="kami"><div class="mon"><svg><use href="#mon-takeda"/></svg></div><img src="../img/p_武田勝頼.jpg" alt="武田勝頼" loading="lazy"></div><div class="na">武田勝頼</div><div class="kotoba1">騎馬、風の如く</div></div>
+      <div class="kakejiku ar" data-house="oda"><div class="kami"><div class="mon"><svg><use href="#mon-oda"/></svg></div><img src="../img/p_柴田勝家.jpg" alt="柴田勝家" loading="lazy"></div><div class="na">柴田勝家</div><div class="kotoba1">掛かれ、掛かれ</div></div>
+      <div class="kakejiku ar" data-house="oda"><div class="kami"><div class="mon"><svg><use href="#mon-oda"/></svg></div><img src="../img/p_丹羽長秀.jpg" alt="丹羽長秀" loading="lazy"></div><div class="na">丹羽長秀</div><div class="kotoba1">本陣を支える米五郎左</div></div>
+      <div class="kakejiku ar" data-house="uesugi"><div class="kami"><div class="mon"><svg><use href="#mon-takeda"/></svg></div><img src="../img/p_上杉謙信.jpg" alt="上杉謙信" loading="lazy"></div><div class="na">上杉謙信</div><div class="kotoba1">毘</div></div>
     </div>
     <div class="ar" style="margin-top:36px"><div class="gaku"><span class="kin-corner tr"></span><span class="kin-corner bl"></span><img src="../img/council_oda.jpg" alt="設楽原の備え。武将の陣立てを決める" loading="lazy"></div><p class="soe">設楽原の備え――史実の布陣で行くか、自ら並べるか。</p></div>
   </div>
+</section>
+
+<!-- 感情の頂 -->
+<section id="peak">
+  <div class="ugoku" data-seq="56"><img src="../img/seq/020.jpg" alt="長篠の乱戦" loading="lazy"><div class="ov"><b>ここで、天下が決まる。</b></div></div>
 </section>
 
 <!-- 第五章 -->
@@ -567,7 +620,8 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
     <div class="sho" style="display:inline-flex">ゲームの環</div>
     <h2 class="h2">戦い、広げ、<span class="g">また戦う。</span></h2>
     <div class="cycle"><div>城を治める</div><div>兵を集める</div><div>外交する</div><div>進軍</div><div class="hot">合戦</div><div>領地を獲得</div><div>さらに天下へ</div></div>
-    <p class="kotoba c" style="margin-top:26px">部隊を選ぶ → 進軍先を決める → あとは軍勢が動く。<b>簡単操作。判断は奥深い。</b></p>
+    <div class="sanpo"><div><b>一</b><h4>部隊を選ぶ</h4><p>押すだけ。複数はなぞる。</p></div><div><b>二</b><h4>進軍先を決める</h4><p>行き先を押す。柵へ、川へ、本陣へ。</p></div><div><b>三</b><h4>あとは軍勢が動く</h4><p>一兵ずつは操らない。<b>簡単操作。判断は奥深い。</b></p></div></div>
+    <div class="who"><div>戦国時代が好き</div><div>歴史シミュレーションが好き</div><div>リアルタイムの戦略ゲームが好き</div><div>信長の野望系が好き</div><div>歴史のIFを楽しみたい</div><div>自分で軍を動かしたい</div></div>
   </div>
 </section>
 
@@ -710,6 +764,19 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
   var box=document.getElementById('kotae');
   document.querySelectorAll('.sanTaku button').forEach(function(b){ b.addEventListener('click',function(){ document.querySelectorAll('.sanTaku button').forEach(function(x){ x.classList.remove('on'); }); b.classList.add('on'); var a=ans[b.dataset.a]; box.innerHTML='<b>'+a.t+'</b>'+a.b+'<span class="shu">ゲームでは、この判断を自分で下す</span>'; }); });
 
+  /* 動く絵：連続写真を八枚／秒で入れ替える（見えている間だけ） */
+  document.querySelectorAll('.ugoku[data-seq]').forEach(function(box){ var n=parseInt(box.dataset.seq,10)||0; if(!n||reduce) return; var im=box.querySelector('img'), frames=[], loaded=0, i=0, timer=null, started=false;
+    function load(){ if(started) return; started=true; for(var k=0;k<n;k++){ (function(k){ var f=new Image(); f.onload=function(){ loaded++; }; f.src='img/seq/'+String(k).padStart(3,'0')+'.jpg'; frames[k]=f; })(k); } }
+    function play(){ if(timer) return; timer=setInterval(function(){ if(loaded<n*0.6) return; i=(i+1)%n; if(frames[i]&&frames[i].complete) im.src=frames[i].src; },125); }
+    function stop(){ clearInterval(timer); timer=null; }
+    new IntersectionObserver(function(es){ es.forEach(function(e){ if(e.isIntersecting){ load(); play(); } else stop(); }); },{rootMargin:'200px'}).observe(box); });
+
+  /* 最初に選ぶなら */
+  document.querySelectorAll('.erabu button').forEach(function(b){ b.addEventListener('click',function(){ document.querySelectorAll('.erabu button').forEach(function(x){ x.classList.remove('on'); }); b.classList.add('on'); var h=b.dataset.house; var first=null; document.querySelectorAll('.kakejiku').forEach(function(k){ var on=k.dataset.house===h; k.classList.toggle('hi',on); if(on&&!first) first=k; }); if(first) first.scrollIntoView({behavior:'smooth',block:'center'}); ev('choose_house_'+h); }); });
+
+  /* 序の文言の試し（?hero=b / ?hero=c）。計測に添える */
+  (function(){ var u=new URLSearchParams(location.search); var v=u.get('hero'); var H={b:['もし、関ヶ原を','あなたが指揮したら。'],c:['数万の軍勢を、','その手で動かせ。']}; if(v&&H[v]){ var h1=document.querySelector('#hero h1'); if(h1) h1.innerHTML='<span>'+H[v][0]+'</span><span>'+H[v][1]+'</span>'; } window.__heroVar=v||'a'; })();
+
   /* あなたならどう攻める（木津） */
   var ans2={ bridge:{t:"正面突破",b:"早い。だが門と櫓の鉄砲が橋の上を狙っている。損は大きく、渡った先で柵に取り付く。"}, ford:{t:"浅瀬から迂回",b:"湿地で足が鈍り、時はかかる。だが裏門と北の櫓は手薄。半数を回せば、守り手が割れる。"}, wait:{t:"援軍を待つ",b:"三十秒で鉄砲が揃う。だがその間に補給船が着き、門徒の士気が戻る。時は敵にも味方する。"} };
   var box2=document.getElementById('kotae2');
@@ -717,7 +784,7 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
 
   /* 計測（GoatCounter：本編と同じ台）。localhost では送らない */
   function ev(name){ try{ if(/localhost|127\.0\.0\.1/.test(location.hostname)) return; if(window.goatcounter&&window.goatcounter.count) window.goatcounter.count({path:'ev/lp/'+name, title:'lp '+name, event:true}); else (window._gcq=window._gcq||[]).push(name); }catch(e){} }
-  (function(){ if(/localhost|127\.0\.0\.1/.test(location.hostname)) return; var sc=document.createElement('script'); sc.async=true; sc.dataset.goatcounter='https://kaito.goatcounter.com/count'; sc.src='https://gc.zgo.at/count.js'; sc.onload=function(){ try{ var q=window._gcq||[]; window._gcq=[]; q.forEach(ev); var u=new URLSearchParams(location.search); var src=u.get('utm_source')||'direct', cp=u.get('utm_campaign')||'-'; ev('view/'+src+'/'+cp); }catch(e){} }; document.head.appendChild(sc); })();
+  (function(){ if(/localhost|127\.0\.0\.1/.test(location.hostname)) return; var sc=document.createElement('script'); sc.async=true; sc.dataset.goatcounter='https://kaito.goatcounter.com/count'; sc.src='https://gc.zgo.at/count.js'; sc.onload=function(){ try{ var q=window._gcq||[]; window._gcq=[]; q.forEach(ev); var u=new URLSearchParams(location.search); var src=u.get('utm_source')||'direct', cp=u.get('utm_campaign')||'-'; ev('view/'+src+'/'+cp+'/'+(window.__heroVar||'a')); }catch(e){} }; document.head.appendChild(sc); })();
   document.querySelectorAll('a[data-ev]').forEach(function(a){ a.addEventListener('click',function(){ ev(a.dataset.ev); }); });
   document.querySelectorAll('.mondo details').forEach(function(d){ d.addEventListener('toggle',function(){ if(d.open) ev('faq_open'); }); });
   var seen={}; function depth(){ var h=document.documentElement.scrollHeight-window.innerHeight; if(h<=0) return; var p=Math.round(window.scrollY/h*100); [25,50,75,100].forEach(function(m){ if(p>=m&&!seen[m]){ seen[m]=1; ev('scroll_'+m); } }); var b=document.getElementById('ch3'); if(b&&!seen.b&&b.getBoundingClientRect().top<window.innerHeight*0.6){ seen.b=1; ev('battle_section_view'); } var st=document.getElementById('susumi'); if(st){ var q=Math.min(1,window.scrollY/Math.max(1,h)); st.querySelector('i').style.setProperty('--h',(q*100)+'%'); document.getElementById('susumiT').textContent=q<.2?'一国':q<.45?'三国':q<.7?'十国':q<.92?'畿内':'天下'; } }
