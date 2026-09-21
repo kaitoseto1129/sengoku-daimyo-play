@@ -2,171 +2,107 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>戦国大名 攻略サイト ── 長篠の戦い編</title>
-<meta name="description" content="ブラウザで遊べるリアルタイム戦国戦略ゲーム「戦国大名」の攻略サイト。無料で遊べる「長篠の戦い」の遊び方、序盤攻略、内政・軍事の解説、勝つコツを画像つきで解説。">
-<meta property="og:title" content="戦国大名 攻略サイト ── 長篠の戦い編">
-<meta property="og:description" content="長篠の戦いの遊び方・序盤攻略・内政と軍事・勝つコツ。">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E🏯%3C/text%3E%3C/svg%3E">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>戦国大名 攻略サイト ── 全筋書き対応</title>
+<meta name="description" content="リアルタイム戦国戦略ゲーム「戦国大名」の攻略サイト。画面の見方、内政・外交・軍事、合戦の操作、城攻め・砦攻め、海戦、勝つコツ。長篠・桶狭間・信長包囲網・関ヶ原・大坂の陣など十五の筋書きごとの序盤指針と決戦一覧を画像つきで。">
+<meta property="og:title" content="戦国大名 攻略サイト">
+<meta property="og:image" content="../lp/img/hero.jpg">
+<!-- pixel: 計測コード（広告の担当者が管理。消さない・変えない） -->
+<!-- Meta Pixel: 公開ウェブ版のみ。index.html の pixel ブロックと同じ内容を保つ。 -->
+<script>
+(function () {
+  if (location.hostname !== 'kaitoseto1129.github.io') return;
+  if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.iap) return;
+  !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+  n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}
+  (window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+  window.fbq('init', '1134385575587937');
+  window.fbq('track', 'PageView');
+})();
+</script>
+
+<!-- /pixel -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&family=Shippori+Mincho:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap">
 <style>
-:root{--bg:#12100E;--paper:#1C1814;--ink:#EDE6D6;--muted:#B8AE9C;--kin:#C9A227;--kin2:#F2C94C;--red:#B8382A;--blue:#3D6BCC;--line:rgba(201,162,39,.35)}
-*{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",-apple-system,sans-serif;line-height:1.75;font-size:16px}
-a{color:var(--kin2)}
-header{background:linear-gradient(180deg,#1E1912,#12100E);border-bottom:1px solid var(--line);padding:26px 16px 18px;text-align:center}
-header h1{margin:0;font-size:30px;letter-spacing:.12em;color:var(--kin2);font-weight:900}
-header p{margin:6px 0 0;color:var(--muted);font-size:14px}
-header .cta{display:inline-block;margin-top:14px;background:var(--kin);color:#1A1208;font-weight:900;padding:10px 22px;border-radius:8px;text-decoration:none;letter-spacing:.08em}
-nav{position:sticky;top:0;z-index:5;background:rgba(18,16,14,.96);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);overflow-x:auto;white-space:nowrap;padding:8px 10px}
-nav a{display:inline-block;padding:6px 12px;margin:0 2px;border-radius:999px;font-size:13px;color:var(--ink);text-decoration:none;border:1px solid transparent}
-nav a:hover{border-color:var(--line)}
-main{max-width:920px;margin:0 auto;padding:10px 16px 60px}
-section{margin:38px 0}
-h2{font-size:22px;color:var(--kin2);border-left:5px solid var(--kin);padding-left:12px;margin:0 0 14px;letter-spacing:.05em}
-h3{font-size:17px;color:var(--ink);margin:22px 0 8px;border-bottom:1px dashed var(--line);padding-bottom:4px}
-p{margin:8px 0}
-figure{margin:14px 0;background:var(--paper);border:1px solid var(--line);border-radius:10px;overflow:hidden}
-figure img{display:block;width:100%;height:auto}
-figcaption{padding:8px 12px;font-size:13px;color:var(--muted)}
-.box{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin:12px 0}
-.box.tip{border-color:rgba(61,107,204,.5)}
-.box.warn{border-color:rgba(184,56,42,.6)}
-.box b.l{color:var(--kin2)}
-ul,ol{padding-left:22px}
-li{margin:4px 0}
-table{width:100%;border-collapse:collapse;font-size:14px;margin:10px 0}
-th,td{border:1px solid rgba(201,162,39,.25);padding:6px 8px;text-align:left;vertical-align:top}
-th{background:rgba(201,162,39,.12);color:var(--kin2)}
-.chip{display:inline-block;padding:1px 8px;border-radius:999px;background:rgba(237,230,214,.1);font-size:12px;margin:0 2px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media (max-width:700px){.grid2{grid-template-columns:1fr}header h1{font-size:24px}}
-footer{border-top:1px solid var(--line);color:var(--muted);font-size:12px;text-align:center;padding:24px 16px}
-.kin{color:var(--kin2)}
+:root{--sumi:#0B0907;--cha:#17120D;--kin:#C59A35;--kinpaku:#E6C15A;--shu:#A52A1E;--shu2:#C8321E;--kami:#D7C8A5;--shiro:#EEE6D5;--dim:#9C8F76;--line:rgba(197,154,53,.28);--fude:"Yuji Syuku","Hiragino Mincho ProN",serif;--min:"Shippori Mincho","Hiragino Mincho ProN",serif;--go:"Zen Kaku Gothic New","Hiragino Sans",sans-serif}
+*{box-sizing:border-box} html{scroll-behavior:smooth}
+body{margin:0;background:var(--sumi);color:var(--shiro);font-family:var(--min);line-height:1.9;font-size:15px;-webkit-font-smoothing:antialiased}
+a{color:var(--kinpaku)} img{max-width:100%;display:block} p{margin:0 0 10px}
+h1,h2,h3,h4{margin:0;font-weight:400}
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+header.top{position:sticky;top:0;z-index:20;background:rgba(11,9,7,.94);border-bottom:1px solid var(--line);backdrop-filter:blur(6px)}
+header.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px}
+header.top .logo{font-family:var(--fude);font-size:19px;letter-spacing:.3em;color:var(--shiro);text-decoration:none}
+header.top nav{display:flex;gap:14px;flex-wrap:wrap} header.top nav a{font-family:var(--go);font-size:12px;letter-spacing:.14em;color:var(--kami);text-decoration:none} header.top nav a:hover{color:var(--kinpaku)}
+@media(max-width:720px){header.top nav{display:none}}
+.hero{position:relative;padding:70px 0 50px;overflow:hidden;border-bottom:1px solid var(--line)}
+.hero .bg{position:absolute;inset:0;background:url(../lp/img/hero.jpg) center 55%/cover no-repeat;filter:brightness(.4) saturate(.85)} .hero .veil{position:absolute;inset:0;background:linear-gradient(0deg,var(--sumi),rgba(11,9,7,.5) 60%,rgba(11,9,7,.8))}
+.hero .wrap{position:relative;z-index:2}
+.hero h1{font-family:var(--fude);font-size:clamp(30px,5vw,54px);letter-spacing:.08em;color:#fff;text-shadow:0 3px 14px #000}
+.hero p{color:var(--kami);max-width:640px;margin-top:12px}
+.k{font-family:var(--go);font-size:12px;letter-spacing:.4em;color:var(--kin);font-weight:700}
+.k::before{content:"";display:inline-block;width:22px;height:1px;background:var(--kin);vertical-align:middle;margin-right:10px}
+section{padding:56px 0;border-bottom:1px solid var(--line)} section h2{font-family:var(--fude);font-size:clamp(26px,3.6vw,38px);letter-spacing:.06em;margin-bottom:14px} section h3{font-family:var(--fude);font-size:22px;letter-spacing:.06em;color:var(--kinpaku);margin:30px 0 10px} section h4{font-family:var(--fude);font-size:18px;color:var(--shiro)}
+.fig{margin:16px 0 22px} .fig img{width:100%;border:1px solid rgba(197,154,53,.5);box-shadow:0 0 0 5px #0f0c09,0 0 0 6px rgba(197,154,53,.3),0 18px 40px rgba(0,0,0,.6)} .fig figcaption{font-family:var(--go);font-size:12px;color:var(--dim);margin-top:10px;letter-spacing:.06em}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:18px} @media(max-width:720px){.two{grid-template-columns:1fr}}
+ul.pt{margin:0;padding-left:0;list-style:none} ul.pt li{padding:8px 0 8px 22px;border-top:1px dashed rgba(197,154,53,.28);position:relative} ul.pt li::before{content:"◆";position:absolute;left:2px;top:9px;color:var(--shu2);font-size:10px}
+.note{font-family:var(--go);font-size:12px;color:var(--dim)}
+.box{background:var(--cha);border:1px solid var(--line);padding:16px 18px;margin:14px 0}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 6px}
+.chip{font-family:var(--fude);font-size:16px;letter-spacing:.1em;color:var(--shiro);background:linear-gradient(180deg,#2a1f12,#1a120a);border:1px solid rgba(197,154,53,.5);padding:8px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.chip small{font-family:var(--go);font-size:10px;padding:1px 6px;border:1px solid var(--shu2);color:#F6D9CF}
+.chip.on{background:linear-gradient(180deg,#5a3a1a,#3a2410);color:var(--kinpaku);border-color:var(--kinpaku)}
+.scen-head .era{font-family:var(--go);font-size:13px;letter-spacing:.12em;color:var(--kin);margin-bottom:8px} .scen-head .free{font-size:11px;padding:1px 8px;border:1px solid var(--shu2);color:#F6D9CF}
+.scen-head .lead{font-size:16px;color:var(--kami)}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;margin-top:14px}
+.dcard{background:var(--cha);border:1px solid var(--line);overflow:hidden} .dcard img{width:100%;aspect-ratio:16/9;object-fit:cover;cursor:zoom-in} .dcard .b{padding:10px 12px 12px} .dcard h4{font-size:17px} .dcard .s{font-family:var(--go);font-size:11px;color:var(--dim);letter-spacing:.06em} .dcard .vs{font-family:var(--go);font-size:12px;margin-top:4px;color:var(--kami)} .ao{color:#9CC4EA} .aka{color:#F19A85}
+.nagashino-detail{margin-top:36px;padding-top:10px;border-top:2px solid rgba(197,154,53,.4)} .nagashino-detail img{width:100%;border:1px solid rgba(197,154,53,.4);margin:10px 0} .nagashino-detail h3{color:var(--kinpaku)} .nagashino-detail ul,.nagashino-detail ol{padding-left:20px} .nagashino-detail li{margin:4px 0} .nagashino-detail table{width:100%;border-collapse:collapse;font-size:14px} .nagashino-detail td,.nagashino-detail th{border:1px solid var(--line);padding:6px 8px;text-align:left}
+.faq details{border-top:1px solid var(--line);padding:4px 0} .faq summary{cursor:pointer;padding:12px 0;font-weight:700} .faq summary::before{content:"問";font-family:var(--fude);color:var(--shu2);margin-right:10px;font-weight:400} .faq .a{padding:0 0 14px 28px;color:var(--kami)}
+.meyasu textarea{width:100%;padding:12px 14px;border:1px solid rgba(197,154,53,.5);background:rgba(215,200,165,.06);color:var(--shiro);font:inherit;font-size:15px;line-height:1.8;resize:vertical}
+.fuda{display:inline-flex;align-items:center;justify-content:center;padding:14px 34px;text-decoration:none;font-family:var(--fude);font-size:19px;letter-spacing:.24em;color:#F3E2B0;background:linear-gradient(180deg,#3A2A16,#1A120A);border:1px solid rgba(230,193,90,.75);cursor:pointer;margin-top:12px}
+.inban{display:inline-flex;padding:10px 20px;text-decoration:none;font-family:var(--fude);font-size:16px;letter-spacing:.2em;color:#F6D9CF;border:2px solid var(--shu2);background:rgba(165,42,30,.18)}
+footer{padding:34px 0 60px;font-family:var(--go);font-size:12px;color:var(--dim);text-align:center} footer a{color:var(--kami);text-decoration:none;margin:0 10px}
+#lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;z-index:50;padding:20px;cursor:zoom-out} #lightbox img{max-width:100%;max-height:100%;border:1px solid rgba(197,154,53,.5)}
+.toc{display:flex;flex-wrap:wrap;gap:8px 18px;font-family:var(--go);font-size:13px;margin-top:14px} .toc a{color:var(--kami);text-decoration:none} .toc a:hover{color:var(--kinpaku)}
 </style>
 </head>
 <body>
-<header>
-  <h1>戦国大名 攻略サイト</h1>
-  <p>ブラウザで遊べるリアルタイム戦国戦略ゲーム ── 長篠の戦い編</p>
-  <a class="cta" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">▶ 今すぐ遊ぶ（無料）</a>
-  <p style="margin-top:10px"><a href="en/">English guide</a></p>
-</header>
-<nav>
-  <a href="#about">ゲームとは</a>
-  <a href="#howto">遊び方</a>
-  <a href="#early">序盤攻略</a>
-  <a href="#naisei">内政</a>
-  <a href="#gunji">軍事</a>
-  <a href="#nagashino">長篠の戦い</a>
-  <a href="#events">その後の出来事</a>
-  <a href="#tips">勝つコツ</a>
-  <a href="#faq">よくある質問</a>
-</nav>
-<main>
+<header class="top"><div class="wrap"><a class="logo" href="./">戦国大名 攻略</a><nav><a href="#scen">筋書き別</a><a href="#howto">画面の見方</a><a href="#naisei">内政</a><a href="#gaiko">外交</a><a href="#gunji">軍事</a><a href="#kassen">合戦</a><a href="#shiro">城・砦攻め</a><a href="#kaisen">海戦</a><a href="#tips">勝つコツ</a><a href="#faq">問答</a><a href="#meyasu">目安箱</a><a href="../lp/">紹介</a><a href="../">遊ぶ</a></nav></div></header>
 
-<section id="about">
-  <h2>「戦国大名」とはどんなゲームか</h2>
-  <p>「戦国大名」は、桶狭間から大坂の陣まで、戦国の世を<b>リアルタイム</b>で進めながら一つの家を率いる戦略ゲームです。日本全土の城を地図で眺め、内政で国を肥やし、軍勢を出して城を攻め、合戦になれば自分で隊を動かして戦います。インストール不要、ブラウザ一枚で動き、iPhone・iPad の Safari でも遊べます。</p>
-  <figure><img src="img/01_title.jpg" alt="戦国大名 タイトル画面" loading="lazy"><figcaption>タイトル画面。筋書き（シナリオ）を選んで始めます。</figcaption></figure>
-  <div class="box">
-    <b class="l">まず遊べるのは「長篠の戦い」</b><br>
-    無料で遊べる筋書きは<b>長篠の戦い（1575年〜）</b>です。織田・徳川・武田をはじめ、この世のどの家でも選べます。長篠で始めた世はそのまま続き、天王寺砦・木津川口・手取川・荒木村重の離反・御館の乱・高天神・甲州征伐・本能寺の変……と、七年分の出来事が次々に起きます。他の筋書きは「天下布武」（アプリ内の解錠）で遊べるようになります。
+<div class="hero"><div class="bg"></div><div class="veil"></div><div class="wrap">
+  <div class="k">攻略サイト</div>
+  <h1>戦国大名 攻略 ── 全筋書き対応</h1>
+  <p>画面の見方から、内政・外交・軍事、合戦の操作、城攻め・砦攻め、海戦まで。下の「筋書き別」で遊んでいる筋書きを選ぶと、その筋書きの序盤指針と決戦一覧が出ます。絵はすべて実際のゲーム画面。</p>
+  <div class="toc"><a href="#scen">筋書き別の攻略へ ▾</a><a href="../">ブラウザで遊ぶ</a><a href="https://apps.apple.com/jp/app/id6811255282">iPhone 版（App Store）</a></div>
+</div></div>
+
+<section id="scen"><div class="wrap">
+  <div class="k">筋書き別</div>
+  <h2>遊んでいる筋書きを選ぶ</h2>
+  <div class="chips" id="chips"><button class="chip" data-sc="nagashino">長篠の戦い<small>無料</small></button><button class="chip" data-sc="oke">桶狭間の戦い</button><button class="chip" data-sc="hoi">信長包囲網</button><button class="chip" data-sc="mikata">三方ヶ原の戦い</button><button class="chip" data-sc="ishiyama">天王寺砦の戦い</button><button class="chip" data-sc="koshu">甲州征伐</button><button class="chip" data-sc="honnoji">本能寺の変</button><button class="chip" data-sc="jingo">天正壬午の乱</button><button class="chip" data-sc="shizugatake">賤ヶ岳の戦い</button><button class="chip" data-sc="komaki">小牧・長久手の戦い</button><button class="chip" data-sc="shikoku">四国征伐</button><button class="chip" data-sc="kyushu">九州征伐</button><button class="chip" data-sc="odawara">小田原征伐</button><button class="chip" data-sc="sekigahara">関ヶ原の戦い</button><button class="chip" data-sc="osaka">大坂夏の陣</button></div>
+  <p class="note">選んだ筋書きの部だけが開きます（URL の #sc= で共有できます）。共通の部（画面の見方・内政・外交・軍事・合戦・城攻め）は下に続きます。</p>
+  
+<section class="scen" id="sc-nagashino" hidden>
+  <div class="scen-head">
+    <div class="k">筋書き</div>
+    <h2>長篠の戦い</h2>
+    <div class="era">天正三年（1575年）五月　<span class='free'>無料</span></div>
+    <p class="lead">無料で遊べる筋書き。武田勝頼一万五千が長篠城を囲み、織田・徳川三万八千が設楽原で待ち受ける。守る側（織田・徳川）も、攻める側（武田）も遊べる。</p>
   </div>
-  <h3>この攻略サイトで分かること</h3>
-  <ul>
-    <li>画面の見方と、最初の30日で何をするか</li>
-    <li>内政（石高・商業・城・民心・兵糧）の考え方</li>
-    <li>軍勢の出し方、城攻めと後詰、合戦の操作</li>
-    <li>長篠の戦いそのもの（設楽原の備え・馬防柵・鳥居強右衛門・武田で勝つ方法）</li>
-    <li>長篠のあとに待っている出来事の年表と、勝つためのコツ</li>
-  </ul>
-</section>
-
-<section id="howto">
-  <h2>遊び方 ── 画面の見方</h2>
-  <figure><img src="img/02_scenario_select.jpg" alt="筋書きを選ぶ画面" loading="lazy"><figcaption>「ゲームをはじめる」→ 筋書き（シナリオ）を選びます。まず遊べるのは「長篠の戦い」。</figcaption></figure>
-  <figure><img src="img/02_clan_select.jpg" alt="家を選ぶ画面" loading="lazy"><figcaption>「地図から大名家を選ぶ」。城を押すとその家の紹介（難しさ・強み・弱み）が出ます。「一覧」からも選べます。</figcaption></figure>
-  <figure><img src="img/04_map.jpg" alt="地図画面" loading="lazy"><figcaption>地図画面。城は自分の家の色で塗られ、軍勢は街道の上を歩きます。上の帯に年月と銭・兵糧、右下に速さの釦。</figcaption></figure>
-  <h3>時間の流れ</h3>
-  <p>時間は止めない限り流れます。右下の <span class="chip">Ⅱ</span> で止め、<span class="chip">×1</span><span class="chip">×2</span><span class="chip">×3</span> で速さを変えます。<b>迷ったら止める</b>のが基本です。止めている間も、城の札や評定は開けます。</p>
-  <h3>城の札</h3>
-  <figure><img src="img/05_castle.jpg" alt="城の札" loading="lazy"><figcaption>城を押すと「城の札」。石高・商業・守兵・城主・民心・兵糧が一目で分かり、ここから内政・徴兵・出陣を行います。</figcaption></figure>
-  <ul>
-    <li><b>石高</b>：米の実り。年貢＝銭の元。新田開発で増える</li>
-    <li><b>商業</b>：町の賑わい。商業投資で増え、銭になる</li>
-    <li><b>守兵</b>：その城にいる将の兵の合計。攻められた時の守り</li>
-    <li><b>城Lv・耐久</b>：城の堅さ。強化すると落ちにくい</li>
-    <li><b>民心</b>：民の気持ち。低いと一揆や離反が起きる。「施し」で戻る</li>
-    <li><b>兵糧</b>：兵の飯。尽きると軍勢が動けず、士気が落ちる</li>
-  </ul>
-  <h3>家紋で家を見分ける</h3>
-  <p>この世の家はすべて<b>家紋</b>で表されます。地図の城の旗、軍勢の旗、合戦の背旗、どれも家紋です。自分の家の家紋は左上に出ています。</p>
-  <h3>内政の札</h3>
-  <figure><img src="img/07_council.jpg" alt="内政" loading="lazy"><figcaption>城の札の「内政」。新田開発・商業投資・城の強化・施し・軍事訓練を、手空きの将に命じます。「自動内政」にすれば方針に沿って自動で回ります。</figcaption></figure>
-  <h3>外交</h3>
-  <figure><img src="img/09_diplomacy.jpg" alt="外交" loading="lazy"><figcaption>外交の札。同盟・和睦・従属・贈物。相手の家紋と縁（友好度）が並びます。傘下の家と盟は両立しません。</figcaption></figure>
-</section>
-
-<section id="early">
-  <h2>序盤攻略 ── 織田家で始める最初の30日</h2>
-  <p>初めて遊ぶなら<b>織田家</b>がおすすめです。兵が多く、銭もあり、長篠の決戦では守る側（有利）だからです。</p>
-  <figure><img src="img/03_opening.jpg" alt="長篠の開幕" loading="lazy"><figcaption>開幕。武田一万五千が長篠城を囲み、織田の後詰が岐阜を発ちます。設楽原に着くまで二十日あまり。</figcaption></figure>
-  <h3>やることの順番</h3>
-  <ol>
-    <li><b>まず止める</b>。右下のⅡで止め、地図を眺めて自分の城の位置と敵（武田）の位置を確かめる</li>
-    <li><b>本拠の城の札</b>を開き、兵糧と銭を見る。兵糧が半年分ないなら「施し」より先に米の手当て</li>
-    <li><b>内政は「自動」でよい</b>。城の札の「自動内政（この城を任せる）」を選ぶと、方針に沿って手空きの将に仕事が出る。序盤は全城これで十分</li>
-    <li><b>徴兵は控えめに</b>。兵を増やすと兵糧が減る。決戦の兵は筋書きが用意してくれる</li>
-    <li><b>外交を確かめる</b>。徳川は盟友（長篠では徳川が設楽原に来る）。上杉・本願寺・毛利とは戦になりやすいので、和睦や約定を使って戦線を増やさない</li>
-    <li><b>決戦の日を待つ</b>。上の帯に「設楽原まで あと○日」。日が来たら「設楽原の備え」の軍議が開く</li>
-  </ol>
-  <div class="box tip"><b class="l">コツ</b>：序盤は攻めない。長篠の決戦に勝てば武田の宿将が討たれ、東は徳川に任せて西へ向かえます。決戦の前に兵を散らすと後詰が薄くなります。</div>
-  <h3>武田家で始めるなら</h3>
-  <p>武田は<b>攻める側</b>で難しい家です。設楽原の柵を正面から攻めると負けます。「設楽原、攻め方を決める」の軍議で<b>左翼（または右翼）に集めて一点を破る</b>か、<b>決戦を避けて長篠城を落とす</b>道を選びます。騎馬は柵に当たると止まるので、足軽で柵を崩してから騎馬を入れるのが筋です。</p>
-</section>
-
-<section id="naisei">
-  <h2>内政の解説</h2>
-  <figure><img src="img/08_finance.jpg" alt="財政" loading="lazy"><figcaption>財政の札。収入と支出、兵糧の残りが分かります。銭が尽きると将の忠義が下がります。</figcaption></figure>
-  <table>
-    <tr><th>命令</th><th>効き目</th><th>いつ使う</th></tr>
-    <tr><td>新田開発</td><td>石高が増える（年貢＝銭）</td><td>余地が大きい城。序盤の基本</td></tr>
-    <tr><td>商業投資</td><td>商業が増える（毎月の銭）</td><td>町の大きな城。港・街道沿い</td></tr>
-    <tr><td>城の強化</td><td>城Lvと耐久が上がる。門・堀・櫓・石垣が付く</td><td>敵と接する城、本拠</td></tr>
-    <tr><td>施し</td><td>民心が上がる</td><td>民心が40を切ったら。一揆の前に</td></tr>
-    <tr><td>軍事訓練</td><td>兵質（足軽・侍・騎馬・鉄砲）が上がる</td><td>決戦の前、銭に余裕がある時</td></tr>
-    <tr><td>徴兵</td><td>兵が増える（民心と人口が減る）</td><td>兵糧に余裕がある時だけ</td></tr>
-  </table>
-  <div class="box"><b class="l">兵糧の考え方</b>：兵は毎日米を食べます。軍勢を出すと城の蔵から百二十日分を担いで行くので、出しすぎると留守の城が飢えます。「財政」で残り日数を見て、<b>半年分</b>を目安に。</div>
-  <div class="box warn"><b class="l">やってはいけない</b>：民心を無視した重い徴兵。民心が落ちると一揆が起き、城が無主になることがあります。</div>
-</section>
-
-<section id="gunji">
-  <h2>軍事の解説</h2>
-  <h3>軍勢を出す</h3>
-  <figure><img src="img/06_dispatch.jpg" alt="出陣" loading="lazy"><figcaption>城の札の「出陣」。将を選び、行き先を押します。兵糧は蔵から分けて担ぎます。</figcaption></figure>
-  <ul>
-    <li>行き先は<b>街道でつながった城</b>だけ。戦でもない他家の城は通れません（盟を結ぶか、道中の城を先に）</li>
-    <li>城を攻めるなら<b>守兵の二倍</b>が目安。二倍に満たなければ機械は攻めません（人は攻められますが損が大きい）</li>
-    <li>敵の軍勢と道で行き合えば<b>野戦</b>、城に着けば<b>囲み</b>。囲みは日ごとに城の耐久を削り、耐久が尽きれば落城</li>
-    <li>囲まれた城には<b>後詰</b>（援軍）を送れます。囲む側の二倍で行けば囲みを打ち払えます</li>
-  </ul>
-  <figure><img src="img/10_armies.jpg" alt="軍勢の一覧" loading="lazy"><figcaption>軍勢の一覧。どこへ向かい、兵糧が何日分あるかが分かります。</figcaption></figure>
-  <h3>合戦の操作</h3>
-  <figure><img src="img/13_battle_setup.jpg" alt="陣立て" loading="lazy"><figcaption>合戦の前の陣立て。自分はつねに左、敵は右。隊を引いて並べ替え、整ったら〈開戦〉。</figcaption></figure>
-  <ul>
-    <li>隊を押して選び、<b>升を押せば移動</b>、<b>敵を押せば討ちにゆく</b>。指で引けば道筋どおりに進みます</li>
-    <li>隊は<b>命じるまで動きません</b>（待機）。騎馬は「突撃」で一気に駆けます</li>
-    <li>「全軍突撃」で一斉に、「全軍退却」で戦を終えて退きます（兵は少し減ります）</li>
-    <li>敵の<b>本陣</b>（総大将の隊）を崩すか、敵を残らず打ち払えば勝ち</li>
-    <li>高所は守りやすく鉄砲が遠くまで届く。川・浅瀬・湿地は足が鈍り、騎馬は駆けられません</li>
-    <li>雨が降ると火縄が湿り、鉄砲が効かなくなります</li>
-  </ul>
-  <div class="box tip"><b class="l">初心者の合戦</b>：迷ったら「自動で戦う」。采配を任せても、いつでも自分の手に戻せます。慣れたら鉄砲を柵の内に、槍を前に、騎馬を横に置いてみましょう。</div>
-</section>
-
-<section id="nagashino">
-  <h2>長篠の戦いの攻略</h2>
+  <figure class="fig"><img src="img/map_nagashino.jpg" alt="長篠の戦い の地図" loading="lazy"><figcaption>始まりの地図。遊べる家：織田家（織田信長）、徳川家（徳川家康）、武田家（武田勝頼）、上杉家（上杉謙信）、北条家（北条氏政）、本願寺（本願寺顕如）、長家（長続連）、松永家（松永久秀）、三好家（三好長治）、毛利家（毛利輝元）、河野家（河野通宣）、宇喜多家（宇喜多直家）　ほか</figcaption></figure>
+  <h3>序盤の指針</h3>
+  <ul class="pt"><li>織田家なら、まず岐阜の兵を集めて後詰へ。決戦までの日数は帯に出るので、遅れなければよい</li><li>長篠城は落ちるまでに猶予がある。鳥居強右衛門の使者が着けば城の士気が戻る</li><li>武田家なら、後詰が来る前に長篠城を落とすか、鳶ヶ巣山砦を固める（砦に隊を置く）かを決める</li><li>軍議は史実の布陣で行くのが安全。慣れたら自分で並べ替える</li></ul>
+  <h3>合戦の勘所</h3>
+  <ul class="pt"><li>守る側：柵の内から撃つ。鉄砲は三列の柵の後ろ、槍は柵のすぐ内。武田の騎馬が柵に達したら〈一斉射撃〉</li><li>守る側：鳶ヶ巣山砦へ酒井の別働隊を送ると、砦を落とせば武田の後ろが崩れる。砦の段では〈攻め方〉の軍議、〈火矢〉が使える</li><li>攻める側：柵の薄い翼（帯に「柵 〜%」）へ足軽を当てて崩し、破れたら騎馬を入れる。正面の鉄砲には寄らない</li></ul>
+  <h3>この筋書きで起こりうる決戦（15）</h3>
+  <p class="note">旗が立つと決戦になる。名を押すと拡大。絵はすべて実際のゲーム画面。</p>
+  <div class="dgrid"><div class="dcard"><img src="img/dec/04.jpg" alt="雑賀の里の戦い" loading=lazy><div class="b"><h4>雑賀の里の戦い</h4><div class="s">姿を見せぬ鉄砲</div><div class="vs"><span class="ao">織田家</span>　対　<span class="aka">鈴木家</span></div></div></div><div class="dcard"><img src="img/dec/23.jpg" alt="人取橋の戦い" loading=lazy><div class="b"><h4>人取橋の戦い</h4><div class="s">若き政宗、包囲網に耐える</div><div class="vs"><span class="ao">佐竹家</span>　対　<span class="aka">伊達家</span></div></div></div><div class="dcard"><img src="img/dec/25.jpg" alt="高天神城 総攻め" loading=lazy><div class="b"><h4>高天神城 総攻め</h4><div class="s">山城の尾根</div><div class="vs"><span class="ao">徳川家</span>　対　<span class="aka">武田家</span></div></div></div><div class="dcard"><img src="img/dec/26.jpg" alt="高天神　突破戦" loading=lazy><div class="b"><h4>高天神　突破戦</h4><div class="s">城を捨て、囲みを破る</div><div class="vs"><span class="ao">徳川家</span>　対　<span class="aka">武田家</span></div></div></div><div class="dcard"><img src="img/dec/27.jpg" alt="有岡城の戦い" loading=lazy><div class="b"><h4>有岡城の戦い</h4><div class="s">惣構の城、内応と脱出</div><div class="vs"><span class="ao">織田家</span>　対　<span class="aka">荒木家</span></div></div></div><div class="dcard"><img src="img/dec/28.jpg" alt="鳥取後詰の戦い" loading=lazy><div class="b"><h4>鳥取後詰の戦い</h4><div class="s">渇え殺しの城へ、毛利の後詰</div><div class="vs"><span class="ao">毛利家</span>　対　<span class="aka">織田家</span></div></div></div><div class="dcard"><img src="img/dec/29.jpg" alt="高松城下の対陣" loading=lazy><div class="b"><h4>高松城下の対陣</h4><div class="s">高梁川を挟んで</div><div class="vs"><span class="ao">毛利家</span>　対　<span class="aka">織田家</span></div></div></div><div class="dcard"><img src="img/dec/35.jpg" alt="高遠城の戦い" loading=lazy><div class="b"><h4>高遠城の戦い</h4><div class="s">仁科盛信、最後の城</div><div class="vs"><span class="ao">織田家</span>　対　<span class="aka">武田家</span></div></div></div><div class="dcard"><img src="img/dec/36.jpg" alt="天目山の戦い" loading=lazy><div class="b"><h4>天目山の戦い</h4><div class="s">武田勝頼、最期</div><div class="vs"><span class="ao">織田家</span>　対　<span class="aka">武田家</span></div></div></div><div class="dcard"><img src="img/dec/41.jpg" alt="長篠の戦い" loading=lazy><div class="b"><h4>長篠の戦い</h4><div class="s">三千挺の鉄砲、武田の騎馬を迎え撃つ</div><div class="vs"><span class="ao">武田家</span>　対　<span class="aka">織田家</span></div></div></div><div class="dcard"><img src="img/dec/43.jpg" alt="手取川の戦い" loading=lazy><div class="b"><h4>手取川の戦い</h4><div class="s">越後の龍、北陸へ</div><div class="vs"><span class="ao">上杉家</span>　対　<span class="aka">織田家</span></div></div></div><div class="dcard"><img src="img/dec/44.jpg" alt="耳川の戦い" loading=lazy><div class="b"><h4>耳川の戦い</h4><div class="s">九州三強の勢力図が変わる</div><div class="vs"><span class="ao">大友家</span>　対　<span class="aka">島津家</span></div></div></div><div class="dcard"><img src="img/dec/45.jpg" alt="沖田畷の戦い" loading=lazy><div class="b"><h4>沖田畷の戦い</h4><div class="s">大軍を狭い場所へ誘い込む</div><div class="vs"><span class="ao">龍造寺家</span>　対　<span class="aka">島津家</span></div></div></div><div class="dcard"><img src="img/dec/59.jpg" alt="木津砦の戦い" loading=lazy><div class="b"><h4>木津砦の戦い</h4><div class="s">補給路を断て</div><div class="vs"><span class="ao">織田家</span>　対　<span class="aka">本願寺</span></div></div></div><div class="dcard"><img src="img/dec/60.jpg" alt="天王寺砦の戦い" loading=lazy><div class="b"><h4>天王寺砦の戦い</h4><div class="s">砦へ、あと五百歩</div><div class="vs"><span class="ao">織田家</span>　対　<span class="aka">本願寺</span></div></div></div></div>
+  <div class="nagashino-detail"><h3>長篠の戦い ── くわしい攻略（守る側・攻める側）</h3>
+  
   <figure><img src="img/11_nagashino_pending.jpg" alt="長篠の戦い 迫る" loading="lazy"><figcaption>後詰が設楽原に着くと、決戦の軍議「設楽原の備え」が開きます。</figcaption></figure>
   <h3>織田・徳川（守る側）</h3>
   <figure><img src="img/12_battle_prep.jpg" alt="設楽原の備え" loading="lazy"><figcaption>「設楽原の備え」は三つの型から選びます。迷ったら〈史実寄り〉。細かい設定は「詳しく」を開くと変えられます。</figcaption></figure>
@@ -196,54 +132,346 @@ footer{border-top:1px solid var(--line);color:var(--muted);font-size:12px;text-a
     <li>決戦を避けて長篠城を落とす道もあります（家中は揺れますが兵は残ります）</li>
   </ul>
   <figure><img src="img/16_battle_result.jpg" alt="戦の結果" loading="lazy"><figcaption>戦の結果。討ち取った将、損害、戦功が並びます。</figcaption></figure>
+</div>
 </section>
-
-<section id="events">
-  <h2>長篠のあとに待っている出来事（年表）</h2>
-  <p>長篠の筋書きは一度きりの決戦では終わりません。世はそのまま続き、家によって違う出来事が起きます。主なものを年順に。</p>
-  <figure><img src="img/17_after.jpg" alt="戦のあとの地図" loading="lazy"><figcaption>決戦のあとも世は動きます。上の帯に次の出来事までの日数が出ることがあります。</figcaption></figure>
-  <table>
-    <tr><th>年</th><th>出来事</th><th>関わる家</th></tr>
-    <tr><td>1575</td><td>長篠の戦い／越前一向一揆の討伐</td><td>織田・徳川・武田</td></tr>
-    <tr><td>1576</td><td>安土の普請／第三次信長包囲網（義昭の御内書・毛利参戦）／<b>天王寺砦の戦い</b>（木津砦攻め→明智の砦を信長が救う）／第一次木津川口海戦</td><td>織田・本願寺・毛利</td></tr>
-    <tr><td>1577</td><td>紀州雑賀攻め／松永久秀の叛乱／<b>手取川の戦い</b>（七尾の報・斥候・撤退戦）</td><td>織田・上杉</td></tr>
-    <tr><td>1578</td><td>荒木村重の離反と有岡城／九鬼の鉄甲船と第二次木津川口／耳川の戦い（九州）／御館の乱</td><td>織田・本願寺・毛利・大友・島津・上杉</td></tr>
-    <tr><td>1579〜81</td><td>甲相同盟の破れ／高天神城の攻防／新府築城／木曽義昌の前兆</td><td>武田・徳川・北条</td></tr>
-    <tr><td>1582</td><td><b>甲州征伐</b>（高遠城・新府の評定・天目山）／本能寺の変（武田が滅んだ後、確率で）</td><td>武田・織田・徳川</td></tr>
-  </table>
-  <div class="box"><b class="l">天王寺砦の戦いを起こすには</b>：織田か本願寺で遊び、1576年四月以降に織田と本願寺が戦になっていること。木津砦攻めの後、明智光秀の天王寺砦が囲まれ、信長が救援に出ます。「木津砦の戦い」は水路をめぐる砦攻め（橋頭堡→外柵→兵糧庫の三段）です。</div>
-  <div class="box"><b class="l">甲州征伐を起こすには</b>：1581年十月以降、木曽義昌が武田を離反すると織田・徳川が武田領へ向かいます（遅くとも1582年二月）。武田で遊んでいれば「高遠城、囲まれる」「新府の評定」「新府城、どうするか」と選択が続きます。</div>
-</section>
-
-<section id="tips">
-  <h2>勝つコツ</h2>
-  <div class="grid2">
-    <div class="box"><b class="l">1. 戦線を増やさない</b><br>同時に戦う相手は一つ。他家とは和睦・約定・盟で静かにしておく。攻めれば戦になります（攻撃＝宣戦）。</div>
-    <div class="box"><b class="l">2. 二倍で攻め、二倍で救う</b><br>城攻めは守兵の二倍、後詰は囲む側の二倍。半端な兵は損をするだけです。</div>
-    <div class="box"><b class="l">3. 兵糧は半年分</b><br>兵を増やす前に米を見る。軍勢は蔵から百二十日分を担いで出ます。</div>
-    <div class="box"><b class="l">4. 民心40を切らせない</b><br>一揆は城を失う一番の原因。施しは安い保険です。</div>
-    <div class="box"><b class="l">5. 決戦は筋書きに乗る</b><br>史実の決戦（長篠・天王寺・手取川・甲州）は勝つ側で遊ぶと楽。負ける側は「退き」を学ぶ場です。</div>
-    <div class="box"><b class="l">6. 合戦は本陣を狙う</b><br>敵を全部倒す必要はありません。敵の本陣（総大将）を崩せば勝ちです。騎馬を横から入れましょう。</div>
-    <div class="box"><b class="l">7. 高所と柵</b><br>守る時は高所と柵。鉄砲は柵の内、槍は前。騎馬は柵に当たると止まります。</div>
-    <div class="box"><b class="l">8. 傘下と盟は両立しない</b><br>従属した家は主家の戦にだけ付き合います。属国から盟の申し込みは来ません。</div>
+<section class="scen" id="sc-oke" hidden>
+  <div class="scen-head">
+    <div class="k">筋書き</div>
+    <h2>桶狭間の戦い</h2>
+    <div class="era">永禄三年（1560年）五月</div>
+    <p class="lead">永禄三年五月。今川義元二万五千が尾張へ。織田信長は三千。天候と奇襲で覆す、いちばん短い筋書き。</p>
   </div>
+  <figure class="fig"><img src="img/map_oke.jpg" alt="桶狭間の戦い の地図" loading="lazy"><figcaption>始まりの地図。遊べる家は、筋書きを選んだ次の画面で</figcaption></figure>
+  <h3>序盤の指針</h3>
+  <ul class="pt"><li>織田家なら、鷲津・丸根の砦は見捨てて兵を清洲に集め、今川本陣の位置を探る（物見・報せ）</li><li>雨が降ったら好機。本陣が見えた瞬間に全軍で突く</li><li>今川家なら、本陣を分散させず、織田の少数を数で押す</li></ul>
+  <h3>合戦の勘所</h3>
+  <ul class="pt"><li>桶狭間：今川本陣の在処が「所在不明→位置判明」と絞られていく。判明してから駆けよ。義元は必ず討ち取れる</li></ul>
+  <h3>この筋書きで起こりうる決戦（3）</h3>
+  <p class="note">旗が立つと決戦になる。名を押すと拡大。絵はすべて実際のゲーム画面。</p>
+  <div class="dgrid"><div class="dcard"><img src="img/dec/47.jpg" alt="川中島の戦い" loading=lazy><div class="b"><h4>川中島の戦い</h4><div class="s">龍虎、相まみえる</div><div class="vs"><span class="ao">上杉家</span>　対　<span class="aka">武田家</span></div></div></div><div class="dcard"><img src="img/dec/48.jpg" alt="三方ヶ原の戦い" loading=lazy><div class="b"><h4>三方ヶ原の戦い</h4><div class="s">家康、生涯の敗戦</div><div class="vs"><span class="ao">武田家</span>　対　<span class="aka">徳川家</span></div></div></div><div class="dcard"><img src="img/dec/61.jpg" alt="長篠の戦い" loading=lazy><div class="b"><h4>長篠の戦い</h4><div class="s">三千挺の鉄砲、武田の騎馬を迎え撃つ</div><div class="vs"><span class="ao">武田家</span>　対　<span class="aka">織田家</span></div></div></div></div>
+  
 </section>
-
-<section id="faq">
-  <h2>よくある質問</h2>
-  <h3>記録（セーブ）はどこに残る？</h3>
-  <p>その端末のブラウザの中に残ります。別の端末には持ち出せません。iPhone なら「ホーム画面に追加」で遊ぶと消えにくくなります。</p>
-  <h3>他の筋書き（桶狭間・本能寺・関ヶ原など）は？</h3>
-  <p>「天下布武」で解錠すると遊べます。長篠の世をそのまま進めても、本能寺の変の後は山崎・清洲会議・賤ヶ岳・小牧長久手・四国・九州の出来事が、選んだ家によって起きます。</p>
-  <h3>合戦で自分の隊が勝手に動く？</h3>
-  <p>動きません。命じるまで待機です。「自動で戦う」を押した時だけ采配を任せます。</p>
-  <h3>スマホで遊べる？</h3>
-  <p>遊べます。横向きがおすすめです。二本指で地図を寄せ、指で引いて動かします。</p>
+<section class="scen" id="sc-hoi" hidden>
+  <div class="scen-head">
+    <div class="k">筋書き</div>
+    <h2>信長包囲網</h2>
+    <div class="era">元亀元年（1570年）六月</div>
+    <p class="lead">浅井の裏切りで金ヶ崎から逃げ帰った信長が、姉川で浅井・朝倉に挑む。三好・本願寺・武田が次々に敵へ回る、いちばん長い筋書き。</p>
+  </div>
+  <figure class="fig"><img src="img/map_hoi.jpg" alt="信長包囲網 の地図" loading="lazy"><figcaption>始まりの地図。遊べる家：織田家（織田信長）、北畠家（北畠具房）、浅井家（浅井長政）、朝倉家（朝倉義景）、徳川家（徳川家康）、武田家（武田信玄）、上杉家（上杉謙信）、北条家（北条氏康）、三好家（三好長逸）、本願寺（本願寺顕如）、松永家（松永久秀）、毛利家（毛利元就）　ほか</figcaption></figure>
+  <h3>序盤の指針</h3>
+  <ul class="pt"><li>まず金ヶ崎の退き口を生き延びる。殿（しんがり）は木下・池田に任せ、本隊は先に</li><li>姉川の前に横山城の囲みを決める（厚く／最低限／全軍へ）。囲みを薄くすると本戦は強いが城兵が背後に現れる</li><li>姉川のあとは野田・福島、志賀の陣、長島、小谷と続く。兵と米を切らさないよう、清洲・岐阜の普請と徴兵を回す</li><li>本願寺と武田が動く前に、浅井・朝倉のどちらかを片付けるのが筋</li></ul>
+  <h3>合戦の勘所</h3>
+  <ul class="pt"><li>姉川：川を挟んだ激突。浅瀬を渡る翼と、徳川の別戦線を支える翼を分ける</li><li>小谷城攻め：曲輪の城。門を順に破りながら本丸へ。〈攻城の手〉と〈火矢〉</li></ul>
+  <h3>この筋書きで起こりうる決戦（11）</h3>
+  <p class="note">旗が立つと決戦になる。名を押すと拡大。絵はすべて実際のゲーム画面。</p>
+  <div class="dgrid"><div class="dcard"><img src="img/dec/03.jpg" alt="金ヶ崎の退き口" loading=lazy><div class="b"><h4>金ヶ崎の退き口</h4><div class="s">退き口</div><div class="vs"><span class="ao">朝倉家</span>　対　<span class="aka">織田家</span></div></div></div><div class="dcard"><img src="img/dec/30.jpg" alt="野田・福島の戦い" loading=lazy><div class="b"><h4>野田・福島の戦い</h4><div class="s">市街と川と砦、本願寺の鐘</div><div class="vs"><span class="ao">織田家</span>　対　<span class="aka">三好家</span></div></div></div><div class="dcard"><img src="img/dec/31.jpg" alt="坂本の戦い（志賀の陣）" loading=lazy><div class="b"><h4>坂本の戦い（志賀の陣）</h4><div class="s">志賀の陣、比叡山の麓</div><div class="vs"><span class="ao">織田家</span>　対　<span class="aka">浅井家</span></div></div></div><div class="dcard"><img src="img/dec/32.jpg" alt="長島一向一揆　最終戦" loading=lazy><div class="b"><h4>長島一向一揆　最終戦</h4><div class="s">輪中と川、逃げ道を断つ</div><div class="vs"><span class="ao">織田家</span>　対　<span class="aka">本願寺</span></div></div></div><div class="dcard"><img src="img/dec/33.jpg" alt="小谷城攻め" loading=lazy><div class="b"><h4>小谷城攻め</h4><div class="s">山城、久政と長政</div><div class="vs"><span class="ao">織田家</span>　対　<span class="aka">浅井家</span></div></div></div><div class="dcard"><img src="img/dec/34.jpg" alt="一乗谷撤退戦" loading=lazy><div class="b"><h4>一乗谷撤退戦</h4><div class="s">刀根坂の追撃、一乗谷の炎</div><div class="vs"><span class="ao">織田家</span>　対　<span class="aka">朝倉家</span></div></div></div><div class="dcard"><img src="img/dec/40.jpg" alt="姉川の戦い" loading=lazy><div class="b"><h4>姉川の戦い</h4><div class="s">浅井・朝倉を討つ</div><div class="vs"><span class="ao">織田家</span>　対　<span class="aka">浅井家</span></div></div></div><div class="dcard"><img src="img/dec/43.jpg" alt="手取川の戦い" loading=lazy><div class="b"><h4>手取川の戦い</h4><div class="s">越後の龍、北陸へ</div><div class="vs"><span class="ao">上杉家</span>　対　<span class="aka">織田家</span></div></div></div><div class="dcard"><img src="img/dec/44.jpg" alt="耳川の戦い" loading=lazy><div class="b"><h4>耳川の戦い</h4><div class="s">九州三強の勢力図が変わる</div><div class="vs"><span class="ao">大友家</span>　対　<span class="aka">島津家</span></div></div></div><div class="dcard"><img src="img/dec/48.jpg" alt="三方ヶ原の戦い" loading=lazy><div class="b"><h4>三方ヶ原の戦い</h4><div class="s">家康、生涯の敗戦</div><div class="vs"><span class="ao">武田家</span>　対　<span class="aka">徳川家</span></div></div></div><div class="dcard"><img src="img/dec/61.jpg" alt="長篠の戦い" loading=lazy><div class="b"><h4>長篠の戦い</h4><div class="s">三千挺の鉄砲、武田の騎馬を迎え撃つ</div><div class="vs"><span class="ao">武田家</span>　対　<span class="aka">織田家</span></div></div></div></div>
+  
 </section>
+<section class="scen" id="sc-mikata" hidden>
+  <div class="scen-head">
+    <div class="k">筋書き</div>
+    <h2>三方ヶ原の戦い</h2>
+    <div class="era">元亀三年（1572年）十月</div>
+    <p class="lead">信玄、西上の途につく。三万の武田が遠江を横切り、浜松の目の前を通り過ぎようとしている。家康は討って出るか。</p>
+  </div>
+  <figure class="fig"><img src="img/map_mikata.jpg" alt="三方ヶ原の戦い の地図" loading="lazy"><figcaption>始まりの地図。遊べる家：織田家（織田信長）、北畠家（北畠具房）、浅井家（浅井長政）、朝倉家（朝倉義景）、徳川家（徳川家康）、武田家（武田信玄）、上杉家（上杉謙信）、北条家（北条氏政）、三好家（三好長逸）、本願寺（本願寺顕如）、松永家（松永久秀）、毛利家（毛利輝元）　ほか</figcaption></figure>
+  <h3>序盤の指針</h3>
+  <ul class="pt"><li>徳川家なら、討って出ると史実どおり負ける。籠城して信玄が去るのを待つのも一手（士気は落ちる）</li><li>武田家なら、浜松を素通りして家康を釣り出し、三方ヶ原で魚鱗に組んで受ける</li></ul>
+  <h3>合戦の勘所</h3>
+  <ul class="pt"><li>三方ヶ原：出るなら鶴翼で、武田の魚鱗に横から。本陣が崩れたら退き（浜松へ）を早く</li></ul>
+  <h3>この筋書きで起こりうる決戦（2）</h3>
+  <p class="note">旗が立つと決戦になる。名を押すと拡大。絵はすべて実際のゲーム画面。</p>
+  <div class="dgrid"><div class="dcard"><img src="img/dec/49.jpg" alt="三方ヶ原の戦い" loading=lazy><div class="b"><h4>三方ヶ原の戦い</h4><div class="s">戦うべきか、戦わないべきか</div><div class="vs"><span class="ao">武田家</span>　対　<span class="aka">徳川家</span></div></div></div><div class="dcard"><img src="img/dec/61.jpg" alt="長篠の戦い" loading=lazy><div class="b"><h4>長篠の戦い</h4><div class="s">三千挺の鉄砲、武田の騎馬を迎え撃つ</div><div class="vs"><span class="ao">武田家</span>　対　<span class="aka">織田家</span></div></div></div></div>
+  
+</section>
+<section class="scen" id="sc-ishiyama" hidden>
+  <div class="scen-head">
+    <div class="k">筋書き</div>
+    <h2>天王寺砦の戦い</h2>
+    <div class="era">天正四年（1576年）四月</div>
+    <p class="lead">石山本願寺を囲む織田は木津の補給路を断ちにかかる。雑賀の鉄砲と楼の岸の大軍が先手を呑み、天王寺砦が危機に。</p>
+  </div>
+  <figure class="fig"><img src="img/map_ishiyama.jpg" alt="天王寺砦の戦い の地図" loading="lazy"><figcaption>始まりの地図。遊べる家：織田家（織田信長）、徳川家（徳川家康）、武田家（武田勝頼）、上杉家（上杉謙信）、北条家（北条氏政）、本願寺（本願寺顕如）、長家（長続連）、松永家（松永久秀）、三好家（三好長治）、毛利家（毛利輝元）、河野家（河野通宣）、宇喜多家（宇喜多直家）　ほか</figcaption></figure>
+  <h3>序盤の指針</h3>
+  <ul class="pt"><li>まず四つの砦に将を置く（置かないと木津の段へ進まない）。天王寺砦には多めに</li><li>天王寺砦の軍議：今すぐ出陣か、援軍を待つか。砦の備えと敵の補給を見て決める</li><li>木津砦を落とせば補給路が断てる。木津川口の海戦（毛利の水軍）も待っている</li></ul>
+  <h3>合戦の勘所</h3>
+  <ul class="pt"><li>木津砦：川を渡り橋頭堡→外柵→大手門→兵糧庫→本陣。〈攻め方〉の軍議、〈火矢〉、川沿い別働隊</li><li>天王寺砦：救援戦。中央が崩れたら突破口――左へ、右へ、本陣へ</li></ul>
+  <h3>この筋書きで起こりうる決戦（4）</h3>
+  <p class="note">旗が立つと決戦になる。名を押すと拡大。絵はすべて実際のゲーム画面。</p>
+  <div class="dgrid"><div class="dcard"><img src="img/dec/04.jpg" alt="雑賀の里の戦い" loading=lazy><div class="b"><h4>雑賀の里の戦い</h4><div class="s">姿を見せぬ鉄砲</div><div class="vs"><span class="ao">織田家</span>　対　<span class="aka">鈴木家</span></div></div></div><div class="dcard"><img src="img/dec/44.jpg" alt="耳川の戦い" loading=lazy><div class="b"><h4>耳川の戦い</h4><div class="s">九州三強の勢力図が変わる</div><div class="vs"><span class="ao">大友家</span>　対　<span class="aka">島津家</span></div></div></div><div class="dcard"><img src="img/dec/59.jpg" alt="木津砦の戦い" loading=lazy><div class="b"><h4>木津砦の戦い</h4><div class="s">補給路を断て</div><div class="vs"><span class="ao">織田家</span>　対　<span class="aka">本願寺</span></div></div></div><div class="dcard"><img src="img/dec/60.jpg" alt="天王寺砦の戦い" loading=lazy><div class="b"><h4>天王寺砦の戦い</h4><div class="s">砦へ、あと五百歩</div><div class="vs"><span class="ao">織田家</span>　対　<span class="aka">本願寺</span></div></div></div></div>
+  
+</section>
+<section class="scen" id="sc-koshu" hidden>
+  <div class="scen-head">
+    <div class="k">筋書き</div>
+    <h2>甲州征伐</h2>
+    <div class="era">天正九年（1581年）一月</div>
+    <p class="lead">高天神城は徳川に囲まれ、勝頼は新府の築城に国を疲れさせる。木曽が揺れ、穴山が揺れ、翌年、織田の大軍が甲斐へ。</p>
+  </div>
+  <figure class="fig"><img src="img/map_koshu.jpg" alt="甲州征伐 の地図" loading="lazy"><figcaption>始まりの地図。遊べる家：宇喜多家（宇喜多秀家）、織田家（織田信長）、武田家（武田勝頼）、徳川家（徳川家康）、北条家（北条氏政）、上杉家（上杉景勝）、毛利家（毛利輝元）、長宗我部家（長宗我部元親）、伊達家（伊達輝宗）</figcaption></figure>
+  <h3>序盤の指針</h3>
+  <ul class="pt"><li>織田家なら、木曽・穴山の寝返りを待って一気に。高遠城が最後の砦</li><li>武田家なら、国人の離反を防ぐために民忠と兵の手当てを。高天神を見捨てれば士気が落ちる</li></ul>
+  <h3>合戦の勘所</h3>
+  <ul class="pt"><li>高遠城：山城。一ノ門・二ノ門・本丸と、門を一つずつ。〈攻城の手〉で門へ集中攻撃</li><li>天目山：勝頼の最期。少数で逃げ切るか、討って出るか</li></ul>
+  <h3>この筋書きで起こりうる決戦（4）</h3>
+  <p class="note">旗が立つと決戦になる。名を押すと拡大。絵はすべて実際のゲーム画面。</p>
+  <div class="dgrid"><div class="dcard"><img src="img/dec/23.jpg" alt="人取橋の戦い" loading=lazy><div class="b"><h4>人取橋の戦い</h4><div class="s">若き政宗、包囲網に耐える</div><div class="vs"><span class="ao">佐竹家</span>　対　<span class="aka">伊達家</span></div></div></div><div class="dcard"><img src="img/dec/35.jpg" alt="高遠城の戦い" loading=lazy><div class="b"><h4>高遠城の戦い</h4><div class="s">仁科盛信、最後の城</div><div class="vs"><span class="ao">織田家</span>　対　<span class="aka">武田家</span></div></div></div><div class="dcard"><img src="img/dec/36.jpg" alt="天目山の戦い" loading=lazy><div class="b"><h4>天目山の戦い</h4><div class="s">武田勝頼、最期</div><div class="vs"><span class="ao">織田家</span>　対　<span class="aka">武田家</span></div></div></div><div class="dcard"><img src="img/dec/45.jpg" alt="沖田畷の戦い" loading=lazy><div class="b"><h4>沖田畷の戦い</h4><div class="s">大軍を狭い場所へ誘い込む</div><div class="vs"><span class="ao">龍造寺家</span>　対　<span class="aka">島津家</span></div></div></div></div>
+  
+</section>
+<section class="scen" id="sc-honnoji" hidden>
+  <div class="scen-head">
+    <div class="k">筋書き</div>
+    <h2>本能寺の変</h2>
+    <div class="era">天正十年（1582年）六月</div>
+    <p class="lead">信長は本能寺に斃れた。京を抑えた明智光秀と、中国大返しの羽柴秀吉。天下の行方は山崎で決まる。</p>
+  </div>
+  <figure class="fig"><img src="img/map_honnoji.jpg" alt="本能寺の変 の地図" loading="lazy"><figcaption>始まりの地図。遊べる家：明智家（明智光秀）、筒井家（筒井順慶）、羽柴家（羽柴秀吉）、宇喜多家（宇喜多秀家）、柴田家（柴田勝家）、前田家（前田利家）、佐々家（佐々成政）、織田家（織田信雄）、神戸家（織田信孝）、丹羽家（丹羽長秀）、池田家（池田恒興）、滝川家（滝川一益）　ほか</figcaption></figure>
+  <h3>序盤の指針</h3>
+  <ul class="pt"><li>羽柴家なら、備中から一気に東へ（大返し）。道中の城は味方に付けて兵を膨らませる</li><li>明智家なら、山崎の前に筒井・細川を味方に引き込めるかが命。京の守りを固め、天王山を先に取る</li><li>山崎のあとは清洲会議、そして賤ヶ岳へ続く</li></ul>
+  <h3>合戦の勘所</h3>
+  <ul class="pt"><li>山崎：天王山を取れば鉄砲が伸び、側面の道が開く。高所を先に。中央を押し切るなら羽柴の増援が効く頃まで粘る</li></ul>
+  <h3>この筋書きで起こりうる決戦（16）</h3>
+  <p class="note">旗が立つと決戦になる。名を押すと拡大。絵はすべて実際のゲーム画面。</p>
+  <div class="dgrid"><div class="dcard"><img src="img/dec/05.jpg" alt="豊臣本陣　夜襲" loading=lazy><div class="b"><h4>豊臣本陣　夜襲</h4><div class="s">島津の乾坤一擲</div><div class="vs"><span class="ao">島津家</span>　対　<span class="aka">豊臣家</span></div></div></div><div class="dcard"><img src="img/dec/06.jpg" alt="四国山地の伏撃" loading=lazy><div class="b"><h4>四国山地の伏撃</h4><div class="s">谷で孤立した方面軍を叩く</div><div class="vs"><span class="ao">長宗我部家</span>　対　<span class="aka">羽柴家</span></div></div></div><div class="dcard"><img src="img/dec/19.jpg" alt="北ノ庄城の戦い" loading=lazy><div class="b"><h4>北ノ庄城の戦い</h4><div class="s">勝家とお市、最後の城</div><div class="vs"><span class="ao">羽柴家</span>　対　<span class="aka">柴田家</span></div></div></div><div class="dcard"><img src="img/dec/20.jpg" alt="岐阜城攻め" loading=lazy><div class="b"><h4>岐阜城攻め</h4><div class="s">信孝、岐阜に籠る</div><div class="vs"><span class="ao">羽柴家</span>　対　<span class="aka">神戸家</span></div></div></div><div class="dcard"><img src="img/dec/21.jpg" alt="戸次川の戦い" loading=lazy><div class="b"><h4>戸次川の戦い</h4><div class="s">先発軍、川を渡る</div><div class="vs"><span class="ao">豊臣家</span>　対　<span class="aka">島津家</span></div></div></div><div class="dcard"><img src="img/dec/22.jpg" alt="根白坂の戦い" loading=lazy><div class="b"><h4>根白坂の戦い</h4><div class="s">豊臣の陣地へ、島津最後の総攻め</div><div class="vs"><span class="ao">島津家</span>　対　<span class="aka">豊臣家</span></div></div></div><div class="dcard"><img src="img/dec/23.jpg" alt="人取橋の戦い" loading=lazy><div class="b"><h4>人取橋の戦い</h4><div class="s">若き政宗、包囲網に耐える</div><div class="vs"><span class="ao">佐竹家</span>　対　<span class="aka">伊達家</span></div></div></div><div class="dcard"><img src="img/dec/24.jpg" alt="阿波・一宮城の戦い" loading=lazy><div class="b"><h4>阿波・一宮城の戦い</h4><div class="s">長宗我部、最後の抵抗</div><div class="vs"><span class="ao">羽柴家</span>　対　<span class="aka">長宗我部家</span></div></div></div><div class="dcard"><img src="img/dec/38.jpg" alt="山崎の戦い" loading=lazy><div class="b"><h4>山崎の戦い</h4><div class="s">天下分け目の天王山</div><div class="vs"><span class="ao">羽柴家</span>　対　<span class="aka">明智家</span></div></div></div><div class="dcard"><img src="img/dec/39.jpg" alt="賤ヶ岳の戦い" loading=lazy><div class="b"><h4>賤ヶ岳の戦い</h4><div class="s">織田の跡目を決する</div><div class="vs"><span class="ao">羽柴家</span>　対　<span class="aka">柴田家</span></div></div></div><div class="dcard"><img src="img/dec/45.jpg" alt="沖田畷の戦い" loading=lazy><div class="b"><h4>沖田畷の戦い</h4><div class="s">大軍を狭い場所へ誘い込む</div><div class="vs"><span class="ao">龍造寺家</span>　対　<span class="aka">島津家</span></div></div></div><div class="dcard"><img src="img/dec/46.jpg" alt="摺上原の戦い" loading=lazy><div class="b"><h4>摺上原の戦い</h4><div class="s">伊達政宗、南奥州の主へ</div><div class="vs"><span class="ao">伊達家</span>　対　<span class="aka">蘆名家</span></div></div></div><div class="dcard"><img src="img/dec/50.jpg" alt="賤ヶ岳の戦い" loading=lazy><div class="b"><h4>賤ヶ岳の戦い</h4><div class="s">織田の跡目を決する</div><div class="vs"><span class="ao">羽柴家</span>　対　<span class="aka">柴田家</span></div></div></div><div class="dcard"><img src="img/dec/51.jpg" alt="小牧の合戦" loading=lazy><div class="b"><h4>小牧の合戦</h4><div class="s">小牧山の陣を攻める</div><div class="vs"><span class="ao">羽柴家</span>　対　<span class="aka">徳川家</span></div></div></div><div class="dcard"><img src="img/dec/52.jpg" alt="犬山の合戦" loading=lazy><div class="b"><h4>犬山の合戦</h4><div class="s">犬山の陣を攻める</div><div class="vs"><span class="ao">徳川家</span>　対　<span class="aka">羽柴家</span></div></div></div><div class="dcard"><img src="img/dec/53.jpg" alt="長久手の戦い" loading=lazy><div class="b"><h4>長久手の戦い</h4><div class="s">別働隊を各個に討つ</div><div class="vs"><span class="ao">徳川家</span>　対　<span class="aka">羽柴家</span></div></div></div></div>
+  
+</section>
+<section class="scen" id="sc-jingo" hidden>
+  <div class="scen-head">
+    <div class="k">筋書き</div>
+    <h2>天正壬午の乱</h2>
+    <div class="era">天正十年（1582年）七月</div>
+    <p class="lead">武田が滅び、信長も斃れた。主なき甲斐・信濃・上野へ徳川・北条・上杉が同時に押し寄せる。真田昌幸が揺れる。</p>
+  </div>
+  <figure class="fig"><img src="img/map_jingo.jpg" alt="天正壬午の乱 の地図" loading="lazy"><figcaption>始まりの地図。遊べる家：羽柴家（羽柴秀吉）、宇喜多家（宇喜多秀家）、柴田家（柴田勝家）、前田家（前田利家）、佐々家（佐々成政）、織田家（織田信雄）、神戸家（織田信孝）、丹羽家（丹羽長秀）、池田家（池田恒興）、滝川家（滝川一益）、徳川家（徳川家康）、北条家（北条氏政）　ほか</figcaption></figure>
+  <h3>序盤の指針</h3>
+  <ul class="pt"><li>徳川家なら、甲斐を先に固めて北条と若神子で対峙。真田を味方に付けられれば上野が動く</li><li>北条家なら数で押す。だが補給が伸びる。上杉が北から来る前に決める</li><li>真田は誰に付くかで戦局が変わる。外交の札で関係を見る</li></ul>
+  <h3>合戦の勘所</h3>
+  <ul class="pt"><li>若神子の決戦：数で劣る側は高所と柵で受け、相手の補給が切れるのを待つ</li></ul>
+  <h3>この筋書きで起こりうる決戦（8）</h3>
+  <p class="note">旗が立つと決戦になる。名を押すと拡大。絵はすべて実際のゲーム画面。</p>
+  <div class="dgrid"><div class="dcard"><img src="img/dec/19.jpg" alt="北ノ庄城の戦い" loading=lazy><div class="b"><h4>北ノ庄城の戦い</h4><div class="s">勝家とお市、最後の城</div><div class="vs"><span class="ao">羽柴家</span>　対　<span class="aka">柴田家</span></div></div></div><div class="dcard"><img src="img/dec/20.jpg" alt="岐阜城攻め" loading=lazy><div class="b"><h4>岐阜城攻め</h4><div class="s">信孝、岐阜に籠る</div><div class="vs"><span class="ao">羽柴家</span>　対　<span class="aka">神戸家</span></div></div></div><div class="dcard"><img src="img/dec/21.jpg" alt="戸次川の戦い" loading=lazy><div class="b"><h4>戸次川の戦い</h4><div class="s">先発軍、川を渡る</div><div class="vs"><span class="ao">豊臣家</span>　対　<span class="aka">島津家</span></div></div></div><div class="dcard"><img src="img/dec/22.jpg" alt="根白坂の戦い" loading=lazy><div class="b"><h4>根白坂の戦い</h4><div class="s">豊臣の陣地へ、島津最後の総攻め</div><div class="vs"><span class="ao">島津家</span>　対　<span class="aka">豊臣家</span></div></div></div><div class="dcard"><img src="img/dec/23.jpg" alt="人取橋の戦い" loading=lazy><div class="b"><h4>人取橋の戦い</h4><div class="s">若き政宗、包囲網に耐える</div><div class="vs"><span class="ao">佐竹家</span>　対　<span class="aka">伊達家</span></div></div></div><div class="dcard"><img src="img/dec/24.jpg" alt="阿波・一宮城の戦い" loading=lazy><div class="b"><h4>阿波・一宮城の戦い</h4><div class="s">長宗我部、最後の抵抗</div><div class="vs"><span class="ao">羽柴家</span>　対　<span class="aka">長宗我部家</span></div></div></div><div class="dcard"><img src="img/dec/54.jpg" alt="第一次上田合戦" loading=lazy><div class="b"><h4>第一次上田合戦</h4><div class="s">二千で七千を退ける</div><div class="vs"><span class="ao">徳川家</span>　対　<span class="aka">真田家</span></div></div></div><div class="dcard"><img src="img/dec/57.jpg" alt="若神子の決戦" loading=lazy><div class="b"><h4>若神子の決戦</h4><div class="s">甲斐の決戦</div><div class="vs"><span class="ao">北条家</span>　対　<span class="aka">徳川家</span></div></div></div></div>
+  
+</section>
+<section class="scen" id="sc-shizugatake" hidden>
+  <div class="scen-head">
+    <div class="k">筋書き</div>
+    <h2>賤ヶ岳の戦い</h2>
+    <div class="era">天正十一年（1583年）三月</div>
+    <p class="lead">清洲会議の対立は戦になった。雪解けを待って勝家は北国街道を南へ、秀吉は岐阜の信孝と北近江の間を駆け回る。</p>
+  </div>
+  <figure class="fig"><img src="img/map_shizugatake.jpg" alt="賤ヶ岳の戦い の地図" loading="lazy"><figcaption>始まりの地図。遊べる家：織田家（織田秀信）、羽柴家（羽柴秀吉）、筒井家（筒井順慶）、宇喜多家（宇喜多秀家）、柴田家（柴田勝家）、前田家（前田利家）、佐々家（佐々成政）、神戸家（織田信孝）、丹羽家（丹羽長秀）、池田家（池田恒興）、滝川家（滝川一益）、徳川家（徳川家康）　ほか</figcaption></figure>
+  <h3>序盤の指針</h3>
+  <ul class="pt"><li>羽柴家なら、岐阜の信孝を先に叩き、勝家が砦を攻めている隙に大返しで戻る</li><li>柴田家なら、佐久間の深追いを止め、砦を落としたら退いて秀吉の疲れを待つ</li><li>前田利家が陣を払うと柴田は崩れる。外交で前田を繋ぎ止める</li></ul>
+  <h3>合戦の勘所</h3>
+  <ul class="pt"><li>賤ヶ岳：大岩山砦の攻防。砦は木津砦と同じ手（外柵→門→本陣、火矢）。落としたら深追いしない</li></ul>
+  <h3>この筋書きで起こりうる決戦（7）</h3>
+  <p class="note">旗が立つと決戦になる。名を押すと拡大。絵はすべて実際のゲーム画面。</p>
+  <div class="dgrid"><div class="dcard"><img src="img/dec/19.jpg" alt="北ノ庄城の戦い" loading=lazy><div class="b"><h4>北ノ庄城の戦い</h4><div class="s">勝家とお市、最後の城</div><div class="vs"><span class="ao">羽柴家</span>　対　<span class="aka">柴田家</span></div></div></div><div class="dcard"><img src="img/dec/20.jpg" alt="岐阜城攻め" loading=lazy><div class="b"><h4>岐阜城攻め</h4><div class="s">信孝、岐阜に籠る</div><div class="vs"><span class="ao">羽柴家</span>　対　<span class="aka">神戸家</span></div></div></div><div class="dcard"><img src="img/dec/21.jpg" alt="戸次川の戦い" loading=lazy><div class="b"><h4>戸次川の戦い</h4><div class="s">先発軍、川を渡る</div><div class="vs"><span class="ao">豊臣家</span>　対　<span class="aka">島津家</span></div></div></div><div class="dcard"><img src="img/dec/22.jpg" alt="根白坂の戦い" loading=lazy><div class="b"><h4>根白坂の戦い</h4><div class="s">豊臣の陣地へ、島津最後の総攻め</div><div class="vs"><span class="ao">島津家</span>　対　<span class="aka">豊臣家</span></div></div></div><div class="dcard"><img src="img/dec/23.jpg" alt="人取橋の戦い" loading=lazy><div class="b"><h4>人取橋の戦い</h4><div class="s">若き政宗、包囲網に耐える</div><div class="vs"><span class="ao">佐竹家</span>　対　<span class="aka">伊達家</span></div></div></div><div class="dcard"><img src="img/dec/24.jpg" alt="阿波・一宮城の戦い" loading=lazy><div class="b"><h4>阿波・一宮城の戦い</h4><div class="s">長宗我部、最後の抵抗</div><div class="vs"><span class="ao">羽柴家</span>　対　<span class="aka">長宗我部家</span></div></div></div><div class="dcard"><img src="img/dec/50.jpg" alt="賤ヶ岳の戦い" loading=lazy><div class="b"><h4>賤ヶ岳の戦い</h4><div class="s">織田の跡目を決する</div><div class="vs"><span class="ao">羽柴家</span>　対　<span class="aka">柴田家</span></div></div></div></div>
+  
+</section>
+<section class="scen" id="sc-komaki" hidden>
+  <div class="scen-head">
+    <div class="k">筋書き</div>
+    <h2>小牧・長久手の戦い</h2>
+    <div class="era">天正十二年（1584年）三月</div>
+    <p class="lead">秀吉十万と、家康・信雄の連合一万七千が小牧で睨み合う。動けば損、動かねば兵糧が減る。別働隊、挑発、そして長久手。</p>
+  </div>
+  <figure class="fig"><img src="img/map_komaki.jpg" alt="小牧・長久手の戦い の地図" loading="lazy"><figcaption>始まりの地図。遊べる家：羽柴家（羽柴秀吉）、池田家（池田恒興）、前田家（前田利家）、宇喜多家（宇喜多秀家）、織田家（織田信雄）、徳川家（徳川家康）、佐々家（佐々成政）、北条家（北条氏政）、上杉家（上杉景勝）、毛利家（毛利輝元）、長宗我部家（長宗我部元親）、伊達家（伊達政宗）　ほか</figcaption></figure>
+  <h3>序盤の指針</h3>
+  <ul class="pt"><li>徳川家なら、小牧山の陣は堅い。秀吉の別働隊（三河へ向かう隊）を長久手で叩く</li><li>羽柴家なら、正面は攻めない。別働隊で三河を突くか、兵糧で家康を締める</li><li>犬山の合戦・小牧の合戦は前哨戦。兵を減らしすぎない</li></ul>
+  <h3>合戦の勘所</h3>
+  <ul class="pt"><li>長久手：別働隊が伸び切った所を横から。池田・森の隊が孤立したら本陣を狙う</li></ul>
+  <h3>この筋書きで起こりうる決戦（11）</h3>
+  <p class="note">旗が立つと決戦になる。名を押すと拡大。絵はすべて実際のゲーム画面。</p>
+  <div class="dgrid"><div class="dcard"><img src="img/dec/05.jpg" alt="豊臣本陣　夜襲" loading=lazy><div class="b"><h4>豊臣本陣　夜襲</h4><div class="s">島津の乾坤一擲</div><div class="vs"><span class="ao">島津家</span>　対　<span class="aka">豊臣家</span></div></div></div><div class="dcard"><img src="img/dec/06.jpg" alt="四国山地の伏撃" loading=lazy><div class="b"><h4>四国山地の伏撃</h4><div class="s">谷で孤立した方面軍を叩く</div><div class="vs"><span class="ao">長宗我部家</span>　対　<span class="aka">羽柴家</span></div></div></div><div class="dcard"><img src="img/dec/19.jpg" alt="北ノ庄城の戦い" loading=lazy><div class="b"><h4>北ノ庄城の戦い</h4><div class="s">勝家とお市、最後の城</div><div class="vs"><span class="ao">羽柴家</span>　対　<span class="aka">柴田家</span></div></div></div><div class="dcard"><img src="img/dec/20.jpg" alt="岐阜城攻め" loading=lazy><div class="b"><h4>岐阜城攻め</h4><div class="s">信孝、岐阜に籠る</div><div class="vs"><span class="ao">羽柴家</span>　対　<span class="aka">神戸家</span></div></div></div><div class="dcard"><img src="img/dec/21.jpg" alt="戸次川の戦い" loading=lazy><div class="b"><h4>戸次川の戦い</h4><div class="s">先発軍、川を渡る</div><div class="vs"><span class="ao">豊臣家</span>　対　<span class="aka">島津家</span></div></div></div><div class="dcard"><img src="img/dec/22.jpg" alt="根白坂の戦い" loading=lazy><div class="b"><h4>根白坂の戦い</h4><div class="s">豊臣の陣地へ、島津最後の総攻め</div><div class="vs"><span class="ao">島津家</span>　対　<span class="aka">豊臣家</span></div></div></div><div class="dcard"><img src="img/dec/23.jpg" alt="人取橋の戦い" loading=lazy><div class="b"><h4>人取橋の戦い</h4><div class="s">若き政宗、包囲網に耐える</div><div class="vs"><span class="ao">佐竹家</span>　対　<span class="aka">伊達家</span></div></div></div><div class="dcard"><img src="img/dec/24.jpg" alt="阿波・一宮城の戦い" loading=lazy><div class="b"><h4>阿波・一宮城の戦い</h4><div class="s">長宗我部、最後の抵抗</div><div class="vs"><span class="ao">羽柴家</span>　対　<span class="aka">長宗我部家</span></div></div></div><div class="dcard"><img src="img/dec/51.jpg" alt="小牧の合戦" loading=lazy><div class="b"><h4>小牧の合戦</h4><div class="s">小牧山の陣を攻める</div><div class="vs"><span class="ao">羽柴家</span>　対　<span class="aka">徳川家</span></div></div></div><div class="dcard"><img src="img/dec/52.jpg" alt="犬山の合戦" loading=lazy><div class="b"><h4>犬山の合戦</h4><div class="s">犬山の陣を攻める</div><div class="vs"><span class="ao">徳川家</span>　対　<span class="aka">羽柴家</span></div></div></div><div class="dcard"><img src="img/dec/53.jpg" alt="長久手の戦い" loading=lazy><div class="b"><h4>長久手の戦い</h4><div class="s">別働隊を各個に討つ</div><div class="vs"><span class="ao">徳川家</span>　対　<span class="aka">羽柴家</span></div></div></div></div>
+  
+</section>
+<section class="scen" id="sc-shikoku" hidden>
+  <div class="scen-head">
+    <div class="k">筋書き</div>
+    <h2>四国征伐</h2>
+    <div class="era">天正十三年（1585年）六月</div>
+    <p class="lead">四国をほぼ手にした長宗我部元親に、秀吉は領地処分を命じた。拒めば征伐。阿波・讃岐・伊予の三方から十万。</p>
+  </div>
+  <figure class="fig"><img src="img/map_shikoku.jpg" alt="四国征伐 の地図" loading="lazy"><figcaption>始まりの地図。遊べる家：羽柴家（羽柴秀吉）、池田家（池田恒興）、前田家（前田利家）、宇喜多家（宇喜多秀家）、織田家（織田信雄）、徳川家（徳川家康）、北条家（北条氏政）、上杉家（上杉景勝）、長宗我部家（長宗我部元親）、伊達家（伊達政宗）、真田家（真田昌幸）、十河家（十河存保）　ほか</figcaption></figure>
+  <h3>序盤の指針</h3>
+  <ul class="pt"><li>長宗我部家なら、三方から来る敵を一つずつ。阿波の一宮城で時を稼ぎ、山地で伏撃</li><li>豊臣家なら、三方面を同時に進めて包囲。四国山地の道は細く、伏撃に注意</li></ul>
+  <h3>合戦の勘所</h3>
+  <ul class="pt"><li>阿波・一宮城：城攻め。〈攻城の手〉で門へ。四国山地の伏撃：谷に入った隊を上から叩く</li></ul>
+  <h3>この筋書きで起こりうる決戦（7）</h3>
+  <p class="note">旗が立つと決戦になる。名を押すと拡大。絵はすべて実際のゲーム画面。</p>
+  <div class="dgrid"><div class="dcard"><img src="img/dec/05.jpg" alt="豊臣本陣　夜襲" loading=lazy><div class="b"><h4>豊臣本陣　夜襲</h4><div class="s">島津の乾坤一擲</div><div class="vs"><span class="ao">島津家</span>　対　<span class="aka">豊臣家</span></div></div></div><div class="dcard"><img src="img/dec/06.jpg" alt="四国山地の伏撃" loading=lazy><div class="b"><h4>四国山地の伏撃</h4><div class="s">谷で孤立した方面軍を叩く</div><div class="vs"><span class="ao">長宗我部家</span>　対　<span class="aka">羽柴家</span></div></div></div><div class="dcard"><img src="img/dec/19.jpg" alt="北ノ庄城の戦い" loading=lazy><div class="b"><h4>北ノ庄城の戦い</h4><div class="s">勝家とお市、最後の城</div><div class="vs"><span class="ao">羽柴家</span>　対　<span class="aka">柴田家</span></div></div></div><div class="dcard"><img src="img/dec/20.jpg" alt="岐阜城攻め" loading=lazy><div class="b"><h4>岐阜城攻め</h4><div class="s">信孝、岐阜に籠る</div><div class="vs"><span class="ao">羽柴家</span>　対　<span class="aka">神戸家</span></div></div></div><div class="dcard"><img src="img/dec/21.jpg" alt="戸次川の戦い" loading=lazy><div class="b"><h4>戸次川の戦い</h4><div class="s">先発軍、川を渡る</div><div class="vs"><span class="ao">豊臣家</span>　対　<span class="aka">島津家</span></div></div></div><div class="dcard"><img src="img/dec/22.jpg" alt="根白坂の戦い" loading=lazy><div class="b"><h4>根白坂の戦い</h4><div class="s">豊臣の陣地へ、島津最後の総攻め</div><div class="vs"><span class="ao">島津家</span>　対　<span class="aka">豊臣家</span></div></div></div><div class="dcard"><img src="img/dec/24.jpg" alt="阿波・一宮城の戦い" loading=lazy><div class="b"><h4>阿波・一宮城の戦い</h4><div class="s">長宗我部、最後の抵抗</div><div class="vs"><span class="ao">羽柴家</span>　対　<span class="aka">長宗我部家</span></div></div></div></div>
+  
+</section>
+<section class="scen" id="sc-kyushu" hidden>
+  <div class="scen-head">
+    <div class="k">筋書き</div>
+    <h2>九州征伐</h2>
+    <div class="era">天正十五年（1587年）三月</div>
+    <p class="lead">薩摩の島津が九州をほぼ手にした。秀吉は二十万の大軍を三つの方面軍に分けて海を渡る。大軍は米を食う。</p>
+  </div>
+  <figure class="fig"><img src="img/map_kyushu.jpg" alt="九州征伐 の地図" loading="lazy"><figcaption>始まりの地図。遊べる家：豊臣家（豊臣秀吉）、徳川家（徳川家康）、北条家（北条氏直）、織田家（織田信雄）、前田家（前田利家）、上杉家（上杉景勝）、毛利家（毛利輝元）、宇喜多家（宇喜多秀家）、長宗我部家（長宗我部元親）、島津家（島津義久）、大友家（大友義統）、龍造寺家（龍造寺政家）　ほか</figcaption></figure>
+  <h3>序盤の指針</h3>
+  <ul class="pt"><li>豊臣家なら、兵糧を切らさないのが全て。方面軍を分けて進み、根白坂で島津の夜襲を受け止める</li><li>島津家なら、戸次川で先発隊を釣って包囲（釣り野伏）。数では勝てないので夜襲と伏撃</li></ul>
+  <h3>合戦の勘所</h3>
+  <ul class="pt"><li>根白坂：陣城の守り。砦の手（一斉射撃・出撃）で夜襲を凌ぐ</li><li>戸次川：深く入った敵を少し退いて囲む</li></ul>
+  <h3>この筋書きで起こりうる決戦（6）</h3>
+  <p class="note">旗が立つと決戦になる。名を押すと拡大。絵はすべて実際のゲーム画面。</p>
+  <div class="dgrid"><div class="dcard"><img src="img/dec/05.jpg" alt="豊臣本陣　夜襲" loading=lazy><div class="b"><h4>豊臣本陣　夜襲</h4><div class="s">島津の乾坤一擲</div><div class="vs"><span class="ao">島津家</span>　対　<span class="aka">豊臣家</span></div></div></div><div class="dcard"><img src="img/dec/19.jpg" alt="北ノ庄城の戦い" loading=lazy><div class="b"><h4>北ノ庄城の戦い</h4><div class="s">勝家とお市、最後の城</div><div class="vs"><span class="ao">羽柴家</span>　対　<span class="aka">柴田家</span></div></div></div><div class="dcard"><img src="img/dec/20.jpg" alt="岐阜城攻め" loading=lazy><div class="b"><h4>岐阜城攻め</h4><div class="s">信孝、岐阜に籠る</div><div class="vs"><span class="ao">羽柴家</span>　対　<span class="aka">神戸家</span></div></div></div><div class="dcard"><img src="img/dec/21.jpg" alt="戸次川の戦い" loading=lazy><div class="b"><h4>戸次川の戦い</h4><div class="s">先発軍、川を渡る</div><div class="vs"><span class="ao">豊臣家</span>　対　<span class="aka">島津家</span></div></div></div><div class="dcard"><img src="img/dec/22.jpg" alt="根白坂の戦い" loading=lazy><div class="b"><h4>根白坂の戦い</h4><div class="s">豊臣の陣地へ、島津最後の総攻め</div><div class="vs"><span class="ao">島津家</span>　対　<span class="aka">豊臣家</span></div></div></div><div class="dcard"><img src="img/dec/24.jpg" alt="阿波・一宮城の戦い" loading=lazy><div class="b"><h4>阿波・一宮城の戦い</h4><div class="s">長宗我部、最後の抵抗</div><div class="vs"><span class="ao">羽柴家</span>　対　<span class="aka">長宗我部家</span></div></div></div></div>
+  
+</section>
+<section class="scen" id="sc-odawara" hidden>
+  <div class="scen-head">
+    <div class="k">筋書き</div>
+    <h2>小田原征伐</h2>
+    <div class="era">天正十八年（1590年）三月</div>
+    <p class="lead">天下をほぼ手にした秀吉が、最後に残った北条へ二十万を向ける。小田原に籠るか、天下統一を仕上げるか。</p>
+  </div>
+  <figure class="fig"><img src="img/map_odawara.jpg" alt="小田原征伐 の地図" loading="lazy"><figcaption>始まりの地図。遊べる家：豊臣家（豊臣秀吉）、徳川家（徳川家康）、北条家（北条氏直）、織田家（織田信雄）、前田家（前田利家）、上杉家（上杉景勝）、毛利家（毛利輝元）、宇喜多家（宇喜多秀家）、長宗我部家（長宗我部元親）、島津家（島津義久）、大友家（大友義統）、龍造寺家（龍造寺政家）　ほか</figcaption></figure>
+  <h3>序盤の指針</h3>
+  <ul class="pt"><li>豊臣家なら、山中・八王子・忍の支城を先に落とす。支城が落ちるほど小田原の抗戦意志が下がる</li><li>北条家なら、籠城で時を稼ぎつつ、支城の救援に出るか見捨てるかを評定で決める</li></ul>
+  <h3>合戦の勘所</h3>
+  <ul class="pt"><li>小田原の陣：正面総攻撃は損害大。包囲率を上げ、抗戦意志が三割を切ったら〈降伏勧告〉</li><li>山中城：障子堀の城。堀の中の隊は動けなくなる。畝を埋めてから寄せる</li></ul>
+  <h3>この筋書きで起こりうる決戦（4）</h3>
+  <p class="note">旗が立つと決戦になる。名を押すと拡大。絵はすべて実際のゲーム画面。</p>
+  <div class="dgrid"><div class="dcard"><img src="img/dec/16.jpg" alt="山中城の戦い" loading=lazy><div class="b"><h4>山中城の戦い</h4><div class="s">障子堀の山城、半日</div><div class="vs"><span class="ao">豊臣家</span>　対　<span class="aka">北条家</span></div></div></div><div class="dcard"><img src="img/dec/17.jpg" alt="八王子城の戦い" loading=lazy><div class="b"><h4>八王子城の戦い</h4><div class="s">前田・上杉、北の大軍</div><div class="vs"><span class="ao">豊臣家</span>　対　<span class="aka">北条家</span></div></div></div><div class="dcard"><img src="img/dec/18.jpg" alt="忍城攻め" loading=lazy><div class="b"><h4>忍城攻め</h4><div class="s">沈まない城</div><div class="vs"><span class="ao">豊臣家</span>　対　<span class="aka">北条家</span></div></div></div><div class="dcard"><img src="img/dec/42.jpg" alt="小田原の陣" loading=lazy><div class="b"><h4>小田原の陣</h4><div class="s">二十万の囲み、関東の総仕上げ</div><div class="vs"><span class="ao">豊臣家</span>　対　<span class="aka">北条家</span></div></div></div></div>
+  
+</section>
+<section class="scen" id="sc-sekigahara" hidden>
+  <div class="scen-head">
+    <div class="k">筋書き</div>
+    <h2>関ヶ原の戦い</h2>
+    <div class="era">慶長五年（1600年）六月〜九月十五日</div>
+    <p class="lead">秀吉亡きあと天下は東西に割れた。前哨戦（伏見・岐阜・大津・田辺・長谷堂）を経て、関ヶ原の本戦へ。</p>
+  </div>
+  <figure class="fig"><img src="img/map_sekigahara.jpg" alt="関ヶ原の戦い の地図" loading="lazy"><figcaption>始まりの地図。遊べる家：徳川家（徳川家康）、石田家（石田三成）、豊臣家（豊臣秀頼）、宇喜多家（宇喜多秀家）、毛利家（毛利輝元）、上杉家（上杉景勝）、島津家（島津義弘）、長宗我部家（長宗我部盛親）、小早川家（小早川秀秋）、前田家（前田利長）、伊達家（伊達政宗）、最上家（最上義光）　ほか</figcaption></figure>
+  <h3>序盤の指針</h3>
+  <ul class="pt"><li>徳川なら江戸で兵を集めつつ、東海道の諸城を味方に付ける。西軍なら大坂と岐阜を固める</li><li>前哨戦のひとつひとつが本戦の兵力と士気に響く。岐阜城を落とすと東軍の勢いが増す</li><li>小早川ら日和見の家は本戦の途中で動く。松尾山の帯（東 〜）を見て、威嚇射撃で揺さぶれる</li></ul>
+  <h3>合戦の勘所</h3>
+  <ul class="pt"><li>本戦は六つの局面（布陣→主力戦→膠着→松尾山→一角崩壊→総崩れ）。中央を支えつつ、崩れた一角へ予備隊を投じる</li><li>西軍なら大谷・宇喜多の粘りで時を稼ぎ、東軍の本陣が前に出た所を突く</li></ul>
+  <h3>この筋書きで起こりうる決戦（6）</h3>
+  <p class="note">旗が立つと決戦になる。名を押すと拡大。絵はすべて実際のゲーム画面。</p>
+  <div class="dgrid"><div class="dcard"><img src="img/dec/01.jpg" alt="関ヶ原の戦い" loading=lazy><div class="b"><h4>関ヶ原の戦い</h4><div class="s">天下の行方、ここに決す</div><div class="vs"><span class="ao">徳川家</span>　対　<span class="aka">石田家</span></div></div></div><div class="dcard"><img src="img/dec/11.jpg" alt="伏見城の戦い" loading=lazy><div class="b"><h4>伏見城の戦い</h4><div class="s">捨て石の城</div><div class="vs"><span class="ao">石田家</span>　対　<span class="aka">徳川家</span></div></div></div><div class="dcard"><img src="img/dec/12.jpg" alt="岐阜城の戦い（慶長五年）" loading=lazy><div class="b"><h4>岐阜城の戦い（慶長五年）</h4><div class="s">先陣は譲らぬ</div><div class="vs"><span class="ao">福島家</span>　対　<span class="aka">織田家</span></div></div></div><div class="dcard"><img src="img/dec/13.jpg" alt="大津城の戦い" loading=lazy><div class="b"><h4>大津城の戦い</h4><div class="s">西軍を釘付けにする城</div><div class="vs"><span class="ao">立花家</span>　対　<span class="aka">徳川家</span></div></div></div><div class="dcard"><img src="img/dec/14.jpg" alt="田辺城の戦い" loading=lazy><div class="b"><h4>田辺城の戦い</h4><div class="s">幽斎と古今伝授</div><div class="vs"><span class="ao">石田家</span>　対　<span class="aka">細川家</span></div></div></div><div class="dcard"><img src="img/dec/15.jpg" alt="長谷堂城の戦い" loading=lazy><div class="b"><h4>長谷堂城の戦い</h4><div class="s">東北の関ヶ原</div><div class="vs"><span class="ao">上杉家</span>　対　<span class="aka">最上家</span></div></div></div></div>
+  
+</section>
+<section class="scen" id="sc-osaka" hidden>
+  <div class="scen-head">
+    <div class="k">筋書き</div>
+    <h2>大坂夏の陣</h2>
+    <div class="era">慶長二十年（1615年）四月</div>
+    <p class="lead">方広寺の鐘銘から戦へ。冬は大坂城の堀と真田丸をめぐる包囲戦、和睦で堀を埋められ、夏は城を出て野で徳川と決する。</p>
+  </div>
+  <figure class="fig"><img src="img/map_osaka.jpg" alt="大坂夏の陣 の地図" loading="lazy"><figcaption>始まりの地図。遊べる家：徳川家（徳川家康）、豊臣家（豊臣秀頼）、前田家（前田利常）、伊達家（伊達政宗）、上杉家（上杉景勝）、最上家（最上義俊）、毛利家（毛利輝元）、島津家（島津忠恒）、鍋島家（鍋島勝茂）、黒田家（黒田長政）、加藤家（加藤嘉明）、山内家（山内忠義）　ほか</figcaption></figure>
+  <h3>序盤の指針</h3>
+  <ul class="pt"><li>徳川家なら、冬は真田丸に手を出さず外郭の砦（今福・博労淵）を落として堀を埋めさせる</li><li>豊臣家なら、真田丸で徳川を削り、和睦で堀を埋められる前に有利な条件を</li><li>夏は道明寺・八尾若江・天王寺岡山と続く野戦。兵を分けすぎない</li></ul>
+  <h3>合戦の勘所</h3>
+  <ul class="pt"><li>道明寺：霧の中の遭遇戦。五つの局面がある。後藤の隊が孤立しないよう本隊を急がせる</li><li>天王寺・岡山：真田の本陣突撃。家康本陣までの距離が帯に出る。予備隊で受ける</li></ul>
+  <h3>この筋書きで起こりうる決戦（6）</h3>
+  <p class="note">旗が立つと決戦になる。名を押すと拡大。絵はすべて実際のゲーム画面。</p>
+  <div class="dgrid"><div class="dcard"><img src="img/dec/02.jpg" alt="大坂夏の陣　道明寺の戦い" loading=lazy><div class="b"><h4>大坂夏の陣　道明寺の戦い</h4><div class="s">夏の陣、その一</div><div class="vs"><span class="ao">徳川家</span>　対　<span class="aka">豊臣家</span></div></div></div><div class="dcard"><img src="img/dec/07.jpg" alt="今福・鴫野の戦い" loading=lazy><div class="b"><h4>今福・鴫野の戦い</h4><div class="s">砦の争奪</div><div class="vs"><span class="ao">徳川家</span>　対　<span class="aka">豊臣家</span></div></div></div><div class="dcard"><img src="img/dec/08.jpg" alt="大坂冬の陣・外郭戦（木津川口・博労淵）" loading=lazy><div class="b"><h4>大坂冬の陣・外郭戦（木津川口・博労淵）</h4><div class="s">外郭の陣地が削られる</div><div class="vs"><span class="ao">徳川家</span>　対　<span class="aka">豊臣家</span></div></div></div><div class="dcard"><img src="img/dec/09.jpg" alt="八尾・若江の戦い" loading=lazy><div class="b"><h4>八尾・若江の戦い</h4><div class="s">道明寺と天王寺の間</div><div class="vs"><span class="ao">徳川家</span>　対　<span class="aka">豊臣家</span></div></div></div><div class="dcard"><img src="img/dec/10.jpg" alt="大坂城　最終局面" loading=lazy><div class="b"><h4>大坂城　最終局面</h4><div class="s">大坂城、最後の朝</div><div class="vs"><span class="ao">徳川家</span>　対　<span class="aka">豊臣家</span></div></div></div><div class="dcard"><img src="img/dec/37.jpg" alt="大坂夏の陣　天王寺・岡山の戦い" loading=lazy><div class="b"><h4>大坂夏の陣　天王寺・岡山の戦い</h4><div class="s">豊臣、最後の総攻め</div><div class="vs"><span class="ao">徳川家</span>　対　<span class="aka">豊臣家</span></div></div></div></div>
+  
+</section>
+</div></section>
 
-</main>
-<footer>
-  戦国大名 攻略サイト ── <a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ゲームはこちら</a>　／　この頁の画像はゲーム画面から取ったものです。
-</footer>
+<section id="about"><div class="wrap">
+  <div class="k">共通</div>
+  <h2>「戦国大名」とはどんなゲームか</h2>
+  <p>一国の大名となり、城を治め、諸将を率い、天下を争うリアルタイム戦略シミュレーション。地図の上で内政・外交・軍事を進め、旗が立てば合戦へ。合戦は数千・数万の兵が塊で動くリアルタイム。地形・士気・兵科・援軍、そして采配で勝敗が決まる。</p>
+  <div class="two"><figure class="fig"><img src="img/01_title.jpg" alt="表紙" loading="lazy"><figcaption>表紙。「まず一戦、すぐ遊ぶ」で長篠の合戦だけをすぐ采配できる</figcaption></figure><figure class="fig"><img src="img/02_scenario_select.jpg" alt="筋書き選び" loading="lazy"><figcaption>筋書き選び。長篠の戦いは無料。ほかは順次公開</figcaption></figure></div>
+</div></section>
+
+<section id="howto"><div class="wrap">
+  <div class="k">共通</div>
+  <h2>画面の見方</h2>
+  <figure class="fig"><img src="img/04_map.jpg" alt="地図" loading="lazy"><figcaption>地図。上の帯は日付・大名・城の数・兵・資金・兵糧・月の収支。右上に「目標」「手空きの将」「その他」</figcaption></figure>
+  <ul class="pt"><li><b>城の札</b>：城を押すと出る。出陣・内政・徴兵・兵を集める・築城・普請がここから</li><li><b>時間</b>：右上の ▶ で進める、⏸ で止める。決戦までの日数は帯に出る</li><li><b>目標</b>：この筋書きの目標と、旗の立つ決戦の一覧</li><li><b>手空きの将</b>：仕事のない武将。押すと札が開く</li><li><b>その他 ▾</b>：政策・財政・幕府・縁組・年表・記録と設定・目安箱</li></ul>
+  <div class="two"><figure class="fig"><img src="img/05_castle.jpg" alt="城の札" loading="lazy"><figcaption>城の札。出陣・内政・徴兵・普請</figcaption></figure><figure class="fig"><img src="img/03_opening.jpg" alt="出来事" loading="lazy"><figcaption>出来事の札。筋書きの節目に出る</figcaption></figure></div>
+</div></section>
+
+<section id="naisei"><div class="wrap">
+  <div class="k">共通</div>
+  <h2>内政 ── 兵と米と民忠</h2>
+  <ul class="pt"><li><b>徴兵</b>：兵は城の民から。集めすぎると民忠が下がり、一揆や離反の元</li><li><b>普請</b>：城の守りを上げる。籠城する城は先に</li><li><b>財政</b>：月の収支をプラスに。兵は毎月米を食う。赤字が続くと士気が落ちる</li><li><b>政策</b>：楽市・検地・寺社など。効き目は数か月後に出る</li></ul>
+  <div class="two"><figure class="fig"><img src="img/08_finance.jpg" alt="財政" loading="lazy"><figcaption>財政の札。収入・俸禄・兵糧・普請</figcaption></figure><figure class="fig"><img src="../lp/img/naisei.jpg" alt="城の札" loading="lazy"><figcaption>城の札を開いた所</figcaption></figure></div>
+</div></section>
+
+<section id="gaiko"><div class="wrap">
+  <div class="k">共通</div>
+  <h2>外交 ── 戦わずして有利を作る</h2>
+  <ul class="pt"><li><b>同盟</b>：盟を結んだ家とは戦わない。傘下と盟は両立しない</li><li><b>戦争</b>：隣り合う家としか戦えない。攻めれば戦になる</li><li><b>友好度</b>：贈り物・縁組・人質で上がる。低いと機械の家が敵に回る</li><li><b>幕府・朝廷</b>：官位と討伐令。大義名分は兵の士気になる</li></ul>
+  <div class="two"><figure class="fig"><img src="img/09_diplomacy.jpg" alt="外交" loading="lazy"><figcaption>外交の札。戦争・同盟・中立と友好度</figcaption></figure><figure class="fig"><img src="../lp/img/gaiko.jpg" alt="外交の一覧" loading="lazy"><figcaption>家ごとの関係と手</figcaption></figure></div>
+</div></section>
+
+<section id="gunji"><div class="wrap">
+  <div class="k">共通</div>
+  <h2>軍事 ── 出陣と軍勢</h2>
+  <ul class="pt"><li><b>出陣</b>：城の札から。武将を選び、目当ての城へ。街道を進み、城は軍勢を止める</li><li><b>包囲</b>：敵城に着くと包囲。兵糧攻めか、総攻めか。守りの二倍の兵がないと機械は攻めない</li><li><b>軍議</b>：決戦の前に、史実の備えか自分で並べるかを決める</li><li><b>決戦</b>：旗が立った戦は「采配を執る」で自分で戦える。自動で戦わせることもできる</li></ul>
+  <div class="two"><figure class="fig"><img src="img/06_dispatch.jpg" alt="出陣" loading="lazy"><figcaption>出陣の札。武将と兵を選ぶ</figcaption></figure><figure class="fig"><img src="img/10_armies.jpg" alt="軍勢" loading="lazy"><figcaption>地図の上の軍勢。街道を進む</figcaption></figure></div>
+  <figure class="fig"><img src="img/07_council.jpg" alt="軍議" loading="lazy"><figcaption>決戦の前の軍議。史実の布陣で行くか、自分で細かく並べるか</figcaption></figure>
+</div></section>
+
+<section id="kassen"><div class="wrap">
+  <div class="k">共通</div>
+  <h2>合戦の操作</h2>
+  <ul class="pt"><li><b>隊を選ぶ</b>：押す。複数はドラッグ。選んだら行き先を押すと動く</li><li><b>帯の見方</b>：上の帯に左翼・中央・右翼の優劣、目的、決戦ごとの札（柵の残り・門・本陣など）</li><li><b>足の帯</b>：全軍突撃・再集結・予備隊投入・火矢・攻城の手・采配（自動／手動）・全軍退却</li><li><b>速さ</b>：×1 ×2 ×3。迷ったら止めて考える</li><li><b>寄り引き</b>：ホイール・二本指・Z で寄れる。始めは通常の寄り</li><li><b>勝敗</b>：敵が野から消えるか、敵の本陣が落ちれば勝ち。本陣が崩れると敵は敗走する</li></ul>
+  <figure class="fig"><img src="../lp/img/battle.jpg" alt="合戦" loading="lazy"><figcaption>長篠の合戦。三列の馬防柵に武田の騎馬が達する</figcaption></figure>
+  <div class="two"><figure class="fig"><img src="img/13_battle_setup.jpg" alt="陣立て" loading="lazy"><figcaption>陣立て。隊を引いて並べ、整ったら〈開戦〉</figcaption></figure><figure class="fig"><img src="img/16_battle_result.jpg" alt="勝敗" loading="lazy"><figcaption>勝敗。戦果の札</figcaption></figure></div>
+</div></section>
+
+<section id="shiro"><div class="wrap">
+  <div class="k">共通</div>
+  <h2>城攻め・砦攻め</h2>
+  <p>城は「輪郭式」――本丸が真ん中にあり、寄せ手が四方から囲む。門を一つずつ破りながら本丸へ。砦は木津砦の水準で、二重の柵・空堀と橋・逆茂木・櫓の鉄砲。攻める側には〈攻め方〉の軍議と、砦の札（外柵→門→本陣）、〈火矢〉がある。</p>
+  <ul class="pt"><li><b>攻め方の軍議</b>：正面から総攻撃／脇の柵へ回り込み／火矢で柵を焼く／鉄砲で削ってから突入</li><li><b>火矢</b>：四十秒に一度。外柵が燃え、守り手の士気が落ちる</li><li><b>攻城の手</b>：門へ集中攻撃・援護射撃・搦手進軍・突入・敵射撃隊を狙え</li><li><b>段階</b>：第一段 外柵を破れ → 第二段 門を破れ → 第三段 本陣を討て。帯の札で進み具合が分かる</li><li><b>守る側</b>：門を閉じ、櫓の鉄砲で撃ち、崩れた柵を直す。出撃は十二秒で戻る</li></ul>
+  <div class="two"><figure class="fig"><img src="../lp/img/kizu.jpg" alt="木津砦" loading="lazy"><figcaption>木津砦の戦い。川を渡り、柵を破り、砦の奥へ</figcaption></figure><figure class="fig"><img src="../lp/img/arioka.jpg" alt="有岡城" loading="lazy"><figcaption>有岡城。四方から囲み、門を破り、本丸へ</figcaption></figure></div>
+  <div class="two"><figure class="fig"><img src="../lp/img/tobi_plan.jpg" alt="攻め方の軍議" loading="lazy"><figcaption>鳶ヶ巣山砦の攻め方。四つの手から選ぶ</figcaption></figure><figure class="fig"><img src="../lp/img/gifu.jpg" alt="岐阜城" loading="lazy"><figcaption>山城の岐阜城。一ノ門・二ノ門・本丸</figcaption></figure></div>
+</div></section>
+
+<section id="kaisen"><div class="wrap">
+  <div class="k">共通</div>
+  <h2>海戦 ── 木津川口</h2>
+  <p>石山本願寺の筋書きでは、毛利の水軍と織田の水軍が木津川口でぶつかる。第一次は毛利の焙烙火矢が織田の船を焼く。第二次は九鬼の鉄甲船。船は隊のように動かし、焙烙火矢・射撃・回避・迎撃の手がある。</p>
+  <div class="two"><figure class="fig"><img src="img/dec/63.jpg" alt="第一次木津川口の海戦" loading="lazy"><figcaption>第一次木津川口の海戦（毛利）</figcaption></figure><figure class="fig"><img src="img/dec/64.jpg" alt="第二次木津川口の海戦" loading="lazy"><figcaption>第二次木津川口の海戦（鉄甲船）</figcaption></figure></div>
+</div></section>
+
+<section id="tips"><div class="wrap">
+  <div class="k">共通</div>
+  <h2>勝つコツ</h2>
+  <ul class="pt"><li>合戦の始めは止めて全体を見る。翼の優劣と、敵の本陣の位置</li><li>士気が三割を切った隊は崩れる。崩れかけた隊は下げて、予備隊を入れる</li><li>柵・川・高所は数を打ち消す。守るなら地形に、攻めるなら地形を避けて</li><li>本陣を落とせば勝ち。総大将を前に出しすぎない</li><li>地図では兵より米。赤字の家は戦えない</li><li>決戦の日数は帯に出る。間に合わないなら戦わずに退くのも手</li></ul>
+  <figure class="fig"><img src="img/15_battle_late.jpg" alt="合戦の終盤" loading="lazy"><figcaption>敵の本陣に迫る。ここで予備隊を</figcaption></figure>
+</div></section>
+
+<section id="faq"><div class="wrap">
+  <div class="k">共通</div>
+  <h2>よくある問答</h2>
+  <div class="faq">
+    <details><summary>記録（セーブ）はどこに残る？</summary><div class="a">その端末の中（ブラウザ／iPhone 版）。「その他 ▾ → 記録と設定」から。</div></details>
+    <details><summary>長篠以外の筋書きは？</summary><div class="a">順次公開。筋書きの札で「近日公開」の物は、解除の言葉をお持ちなら開けます。</div></details>
+    <details><summary>合戦で自分の隊が勝手に動く？</summary><div class="a">「采配：自動」だと機械が動かします。手動にすれば、命令を出さない隊は動きません。</div></details>
+    <details><summary>スマホで遊べる？</summary><div class="a">iPhone 版（App Store）と、パソコンのブラウザ。iPhone は横向きで。</div></details>
+    <details><summary>音が出ない</summary><div class="a">表紙の右上〈♪ 音 入〉を押す。iPhone は消音スイッチが入っていても、一度画面に触れれば鳴るようにしてあります。</div></details>
+  </div>
+</div></section>
+
+<section id="meyasu"><div class="wrap">
+  <div class="k">目安箱</div>
+  <h2>ここを、こうして欲しい</h2>
+  <p>攻略で分からない所、ゲームで困った所、欲しい手。何でも作り手へ。手紙の窓が開きます。</p>
+  <div class="meyasu"><textarea id="meyasuText" rows="5" placeholder="例：関ヶ原の松尾山の帯の読み方が分からない／木津砦で門を破ったのに入らない"></textarea><br><button class="fuda" id="meyasuGo" type="button">手紙で送る</button><p class="note">宛先 kaitoseto1129@gmail.com ── 手紙の窓が開かなければ、そのまま直接どうぞ。</p></div>
+</div></section>
+
+<footer><span style="font-family:var(--fude);font-size:18px;letter-spacing:.3em;color:var(--shiro)">戦国大名</span><br><br><a href="../">ブラウザで遊ぶ</a><a href="https://apps.apple.com/jp/app/id6811255282">App Store</a><a href="../lp/">紹介ページ</a><a href="../privacy.html">プライバシーポリシー</a><a href="../support.html">お問い合わせ</a><br><br>画面はすべて開発中のゲーム画面で、製品版とは異なる場合があります。</footer>
+<div id="lightbox"><img alt=""></div>
+<script>
+(function(){
+  var chips=[].slice.call(document.querySelectorAll('#chips .chip')), secs=[].slice.call(document.querySelectorAll('section.scen'));
+  function show(k,push){ chips.forEach(function(c){ c.classList.toggle('on',c.dataset.sc===k); }); secs.forEach(function(s){ s.hidden=(s.id!=='sc-'+k); }); try{ localStorage.setItem('sd_guide_sc',k); }catch(e){} if(push){ try{ history.replaceState(null,'','#sc='+k); }catch(e){} } }
+  chips.forEach(function(c){ c.addEventListener('click',function(){ show(c.dataset.sc,true); document.getElementById('scen').scrollIntoView({behavior:'smooth'}); }); });
+  var m=(location.hash||'').match(/sc=([a-z_]+)/); var k=(m&&m[1])||(function(){ try{ return localStorage.getItem('sd_guide_sc'); }catch(e){ return null; } })()||'nagashino'; if(!secs.some(function(s){ return s.id==='sc-'+k; })) k='nagashino'; show(k,false);
+  var lb=document.getElementById('lightbox'), li=lb.querySelector('img'); document.addEventListener('click',function(e){ var t=e.target; if(t.tagName==='IMG'&&(t.closest('.dcard')||t.closest('.fig')||t.closest('.nagashino-detail'))){ li.src=t.src; li.alt=t.alt; lb.style.display='flex'; } }); lb.addEventListener('click',function(){ lb.style.display='none'; li.src=''; });
+  var mg=document.getElementById('meyasuGo'); if(mg) mg.addEventListener('click',function(){ var t=(document.getElementById('meyasuText').value||'').trim(); if(!t){ alert('何か書いてください'); return; } var sc=(document.querySelector('#chips .chip.on')||{}).dataset; location.href='mailto:kaitoseto1129@gmail.com?subject='+encodeURIComponent('【戦国大名 目安箱】')+'&body='+encodeURIComponent(t+'\n\n――\n攻略サイトより／筋書き '+((sc&&sc.sc)||'-')+'／'+navigator.userAgent.slice(0,80)); });
+})();
+</script>
 </body>
 </html>
