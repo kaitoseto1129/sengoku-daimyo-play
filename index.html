@@ -27,6 +27,7 @@
 </script>
 <!-- /pixel -->
 </head><body>
+<meta charset="utf-8">
 <title>戦国大名</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17652,6 +17653,7 @@ function stageKitTools(){ if(!B||B.opening>0||B.over!==null) return ""; let h=""
   if(B.kwn) h+=`<button class="tool sub" id="bKwnScout" title="斥候を出す（二十秒に一度。霧の中の敵本陣の方角と隊の数）">斥候</button>`;
   if(false&&(B.siegeWall||B.fortMain||B.gf)) h+=`<button class="tool sub ${(B.zoom||1)===1?"on":""}" id="bCkView" title="${B.gate||B.gf?"城全景":"全景"}（引いて全体を見る／戻す）">${B.gate||B.gf?"城全景":"全景"}</button>`;
   if(B.fortMain&&!B.siegeWall&&mine===1) h+=`<button class="tool sub" id="bFortVolley" title="砦の鉄砲が十二秒、一斉に撃つ（渡河中の敵は大きく削れる。二十五秒に一度）" ${B.sgVolleyAt>B.elapsed-25?'style="opacity:.5"':""}>一斉射撃</button>`;
+  if(B.tobiPhase&&mine===1&&B.tobiFort&&!B.tobiFort.fallen) h+=`<button class="tool sub" id="bTobiFire" title="火矢を外柵へ射込む（四十秒に一度。柵が燃え、守り手の士気が落ちる）" ${B.sgFireAt>B.elapsed-40?'style="opacity:.5"':""}>火矢</button>`;   /* 第253巡：鳶ヶ巣も木津砦と同じ手 */
   if(B.nagashino&&mine===0&&!B.nagReplanned&&!B.tobiPhase) h+=`<button class="tool sub" id="bNagReplan" title="軍議をやり直す（一度きり。八秒は陣が乱れ、士気−5）" ${B.elapsed<60?'style="opacity:.5"':""}>作戦変更</button>`;
   if(B.ted&&mine===0) h+=`<button class="tool gold" id="bTdBlock" title="騎馬を渡り場へ先回りさせ、織田の退路を塞ぐ（敵は混乱し別の渡り場へ）">退路を断て</button>`;
   if(B.tkjB&&mine===1){ const sel=B.sel!==null?B.units.find(u=>u.id===B.sel&&u.side===1&&!u.cmd&&u.troops>.5):null; h+=`<button class="tool sub ${sel&&sel.shingari?"on":""}" id="bTkjRear" title="選んだ隊を殿にする（追手を止める。堅いが損害は大きい）" ${sel?"":'style="opacity:.5"'}>${sel&&sel.shingari?"殿を解く":"殿にする"}</button>`; }
@@ -17659,7 +17661,7 @@ function stageKitTools(){ if(!B||B.opening>0||B.over!==null) return ""; let h=""
 function stageKitBind(){ const q=id=>document.getElementById(id); const bind=(id,fn)=>{ const el=q(id); if(el) el.onclick=fn; };
   bind("bKanRear",()=>kanRearToggle()); bind("bMikChase",()=>mikChase()); bind("bOshiDam",()=>oshiDam()); bind("bMikBlock",()=>mikBlock()); bind("bMikBypass",()=>mikBypass()); bind("bNrTorch",()=>nrTorchOut()); bind("bNrEscape",()=>nrEscape()); bind("bAmbGo",()=>ambSpring(true)); bind("bAmbScout",()=>ambScout()); bind("bMoatFill",()=>moatFill());
   bind("bLure",()=>lureGo()); bind("bLureBridge",()=>lureBridge()); bind("bKmDet",()=>komakiDet()); bind("bKmScout",()=>komakiScout()); bind("bTmCharge",()=>temmokuCharge()); bind("bTktA",()=>takatoMode(B.tkt&&B.tkt.mode==="assault"?"normal":"assault")); bind("bTktC",()=>takatoMode(B.tkt&&B.tkt.mode==="careful"?"normal":"careful")); bind("bGfnDet",()=>gifuNDet()); bind("bHitoRear",()=>{ const u=B.sel!==null?B.units.find(x=>x.id===B.sel&&x.side===1&&!x.cmd&&x.troops>.5):null; if(!u) return toast("隊を選んでから"); manualCommand(); if(u.shingari){ u.shingari=false; u.tough=(u.tough||1)/2.4; u.kanTough=false; u.order={k:"guard"}; } else kanMakeRear(u); try{ renderBattleFoot(); }catch(_){ } }); bind("bTkjB",()=>tkjBCharge()); bind("bMmkRet",()=>mimikawaRetreat()); bind("bOktGo",()=>okitaSpring(true)); bind("bKwnScout",()=>kawaScout());
-  bind("bFortVolley",()=>fortVolley()); bind("bCkView",()=>ckView()); bind("bNagReplan",()=>nagReplan()); bind("bTdBlock",()=>tedBlockAsk()); bind("bTkjRear",()=>{ const u=B.sel!==null?B.units.find(x=>x.id===B.sel&&x.side===1&&!x.cmd&&x.troops>.5):null; if(!u) return toast("隊を選んでから"); manualCommand(); if(u.shingari){ u.shingari=false; u.tough=(u.tough||1)/2.4; u.kanTough=false; u.order={k:"guard"}; } else kanMakeRear(u); try{ renderBattleFoot(); }catch(_){ } }); }
+  bind("bFortVolley",()=>fortVolley()); bind("bCkView",()=>ckView()); bind("bNagReplan",()=>nagReplan()); bind("bTobiFire",()=>nagTobiFireArrow()); bind("bTdBlock",()=>tedBlockAsk()); bind("bTkjRear",()=>{ const u=B.sel!==null?B.units.find(x=>x.id===B.sel&&x.side===1&&!x.cmd&&x.troops>.5):null; if(!u) return toast("隊を選んでから"); manualCommand(); if(u.shingari){ u.shingari=false; u.tough=(u.tough||1)/2.4; u.kanTough=false; u.order={k:"guard"}; } else kanMakeRear(u); try{ renderBattleFoot(); }catch(_){ } }); }
 
 /* ---- 金ヶ崎：主力は山道を退き、殿が追手を止める。主力が全部野を去れば退き口は成る ---- */
 function kanSetup(){ const K={evac:0, mainMax:0, shingariN:0, at:0}; B.kan=K; const defLeft=B.ctx.playerSide===1; const names=/羽柴秀吉|明智光秀|池田勝正/;
@@ -18499,7 +18501,7 @@ function fortShellBuild(cx, cy, dir, side, opts){ const H=BF.h, Wd=BF.w; opts=op
   const F={cx,cy,x0,x1,y0,y1,dir,w,h,cap:opts.cap||4,hp0:0,fallen:false,weak:false,decor:[],side,name:opts.name||"主砦"}; B.fortTowers=B.fortTowers||[];
   const tag=opts.tag||{}; const post=(x,y,extra)=>{ B.obstacles.push(Object.assign({kind:1, variant:Math.floor(y+x)%3, x, y, r:0.85, wall:true, fort:true, fence:true, side, hp:Math.round(150*hpk), hpMax:Math.round(150*hpk), mainFort:!opts.tagOnly}, tag, extra||{})); };
   const gx=cx+dir*w/2; /* 門は敵の側の真ん中 */
-  for(let y=y0;y<=y1+0.01;y+=1.4){ post(x0,y); if(Math.abs(y-cy)>1.5) post(x1,y); }
+  for(let y=y0;y<=y1+0.01;y+=1.4){ if(dir<0||Math.abs(y-cy)>1.5) post(x0,y); if(dir>0||Math.abs(y-cy)>1.5) post(x1,y); }   /* 第253巡：門の切れ目は門の側（dir）に。前は右の壁だけが切れていて、門が左（dir<0）の砦では門を破っても柵が残り、寄せ手が入れなかった */
   for(let x=x0+1.4;x<x1-0.01;x+=1.4){ post(x,y0); post(x,y1); }
   B.obstacles.push(Object.assign({kind:1, variant:1, x:gx, y:cy, r:0.85, wall:true, fort:true, fence:true, side, hp:Math.round(260*hpk), hpMax:Math.round(260*hpk), mainFort:!opts.tagOnly, mainGate:!opts.tagOnly, shellGate:true}, tag)); F.gate=B.obstacles[B.obstacles.length-1];
   for(const o of B.obstacles) if(o.fort&&(opts.tagOnly?Object.keys(tag).every(k=>o[k]===tag[k]):o.mainFort)&&Math.abs(o.x-cx)<=w/2+0.1&&Math.abs(o.y-cy)<=h/2+0.1) F.hp0+=o.hpMax;
@@ -22613,7 +22615,7 @@ function nagVolleyTick(){
     for(let k=0;k<5;k++) setTimeout(()=>{ try{ playSE("gun"); }catch(_){ } }, k*45+Math.floor(rnd()*30)); }
 }
 /* 第185巡：鳶ヶ巣山砦を野の上に築く（武田の後ろの上の隅）。柵・櫓・守りの隊。酒井の別働隊は野の上の縁を回って砦を攻め落とす（作り手：徳川勢が攻め落とす感じに） */
-function nagTobiFortBuild(){ if(!B||!B.nagashino||B.tobiFort) return; const Wd=BF.w, H=BF.h; const tkRight=B.ctx.playerSide===1; const fx=tkRight?Wd-10:10, fy=H/2; const dir=tkRight?-1:1;   /* dir：砦から主戦場（織田側）へ。第208巡：砦は武田の後ろの空いた所に、立派な砦として組む（作り手：矢倉のある砦を真ん中に、そこを攻める感じ） */
+function nagTobiFortBuild(){ if(!B||!B.nagashino||B.tobiFort) return; const Wd=BF.w, H=BF.h; const tkRight=B.ctx.playerSide===1; const fx=tkRight?Wd-13:13, fy=H/2; const dir=tkRight?-1:1;   /* 第253巡（作り手：鳶ヶ巣も木津砦と同じ UI/UX に）：砦は端から十三――寄せたとき砦が画面の縁で切れない */   /* dir：砦から主戦場（織田側）へ。第208巡：砦は武田の後ろの空いた所に、立派な砦として組む（作り手：矢倉のある砦を真ん中に、そこを攻める感じ） */
   const F={x:fx, y:fy, garrison:[], fallen:false, tkRight}; B.tobiFort=F;
   F.shell=fortShellBuild(fx, fy, dir, 0, {w:11, h:11, cap:3, name:"鳶ヶ巣山砦", tag:{tobiFence:true}, tagOnly:true, hpMul:0.8}); F.shell.noLabel=true;   /* 第239巡（作り手：鳶ヶ巣山砦の質が低い。木津砦の水準に）：脇柵あり、柵は木津並みの堅さ、櫓に鉄砲 */
   for(const tw of (F.shell.towers||[])){ tw.fortName="鳶ヶ巣山砦"; tw.per=60; }
@@ -22638,17 +22640,17 @@ function nagTobiStart(send, size, ids){
   B.banner={t:`${pick[0]?pick[0].name:"酒井忠次"}、別働隊を率いて鳶ヶ巣山砦へ`, at:B.elapsed}; log("酒井忠次の別働隊が鳶ヶ巣山砦へ向かいました","war");
 }
 /* 第185巡：砦の攻防を絵で。別働隊が砦に近づけば守りの隊へ討ちかかる。守りが尽きれば陥落、別働隊が崩れればしくじり */
-function nagTobiFortTick(t){ const F=B.tobiFort; const det=(t.units||[]).filter(u=>B.units.includes(u)&&u.troops>.5&&!u.left); const gar=B.units.filter(u=>u.tobiGuard&&!u.towerGun&&u.troops>.5&&u.morale>0&&!u.left);   /* 第239巡：櫓の鉄砲は数えない（守りの隊が尽きれば砦は落ち、櫓の鉄砲は逃げる） */
+function nagTobiFortTick(t){ const F=B.tobiFort; if(B.tobiPhase){ try{ nagTobiKitTick(); }catch(e){ console.error(e); } } const det=(t.units||[]).filter(u=>B.units.includes(u)&&u.troops>.5&&!u.left); const gar=B.units.filter(u=>u.tobiGuard&&!u.towerGun&&u.troops>.5&&u.morale>0&&!u.left);   /* 第239巡：櫓の鉄砲は数えない（守りの隊が尽きれば砦は落ち、櫓の鉄砲は逃げる） */
   const dmin=det.length?Math.min(...det.map(u=>Math.hypot(u.x-F.x,u.y-F.y))):99; const d0=Math.hypot((F.tkRight?F.x-7:F.x+7)-(t.x0||0),0)||40;
   t.prog=Math.max(t.prog||0, Math.min(0.95, 1-dmin/Math.max(8,d0)));
   const steps=[[0.3,"酒井別働隊、山道を進む"],[0.6,"酒井別働隊、鳶ヶ巣山砦に迫る"]]; for(const [k,txt] of steps){ if(t.prog>=k && !(t.told&&t.told[k])){ t.told=t.told||{}; t.told[k]=true; if(B.ctx.playerSide===1) B.banner={t:txt, at:B.elapsed}; } }
-  for(const u of det){ if(!u.tobiGo) continue; const near=Math.hypot(u.x-F.x,u.y-F.y)<8;
+  for(const u of det){ if(!u.tobiGo) continue; const near=Math.hypot(u.x-F.x,u.y-F.y)<10;
     if(B.tobiPhase&&u.side===B.ctx.playerSide&&!u.ally&&!B.autoMine&&!autoBattleMode){ if(near&&!t.cry){ t.cry=true; B.bigBanner={t:"鳶ヶ巣山砦 攻撃開始", at:B.elapsed, good:true}; } continue; }   /* 第208巡：人の隊は人が動かす（柵を押せば叩く） */
     if(near){ if(!t.cry){ t.cry=true; bshout(u.id,"砦へかかれ！ 柵を崩せ！",2.4); B.bigBanner={t:"鳶ヶ巣山砦 攻撃開始", at:B.elapsed, good:B.ctx.playerSide===1}; }
       /* まず手前の柵を崩す（柵のそばに立てば叩く）。柵が空けば守りの隊へ */
       const fences=B.obstacles.filter(o=>o.tobiFence&&o.hp>0); const mine=fences.filter(o=>Math.hypot(o.x-u.x,o.y-u.y)<Math.hypot(F.x-u.x,F.y-u.y)+0.5).sort((a,b)=>Math.hypot(a.x-u.x,a.y-u.y)-Math.hypot(b.x-u.x,b.y-u.y));
       const gates=fences.filter(o=>o.shellGate).sort((a,b)=>Math.hypot(a.x-u.x,a.y-u.y)-Math.hypot(b.x-u.x,b.y-u.y)); const gapOpen=!gates.length; const g=gar.sort((a,b)=>Math.hypot(a.x-u.x,a.y-u.y)-Math.hypot(b.x-u.x,b.y-u.y))[0];   /* 第250巡：二重の柵――門を外から順に破る（外門→本柵の門）。門が全部開いてから守りの隊へ */
-      if(!gapOpen){ const o=gates[0]; const dx=u.x-o.x, dy=u.y-o.y, L=Math.hypot(dx,dy)||1; const tx=o.x+dx/L*1.1, ty=o.y+dy/L*1.1; if(Math.hypot(u.x-tx,u.y-ty)>0.8&&!(u.order.k==="move"&&Math.abs(u.order.x-tx)<0.3&&Math.abs(u.order.y-ty)<0.3)){ u.order={k:"move",x:tx,y:ty}; u.gx=tx; u.gy=ty; } else if(u.order.k!=="move"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } }
+      if(!gapOpen){ let o=gates[0]; if(u.tobiWall==='n'){ const wall=fences.filter(z=>!z.tobiInner&&!z.shellGate&&z.y<F.y-3.5).sort((a,b)=>Math.hypot(a.x-u.x,a.y-u.y)-Math.hypot(b.x-u.x,b.y-u.y)); if(wall.length) o=wall[0]; else u.tobiWall=undefined; } const dx=u.x-o.x, dy=u.y-o.y; const ax=Math.abs(dx)>=Math.abs(dy); const dirF=F.tkRight?-1:1; const tx=ax?o.x+Math.sign(dx||dirF)*1.9:o.x, ty=ax?o.y:o.y+Math.sign(dy||-1)*1.9;   /* 第253巡：門の手前一升九分（升は二歩。一歩一分では狙いの升が柵の内側に落ち、道が無くて立ち尽くしていた） */ if(Math.hypot(u.x-tx,u.y-ty)>0.8&&!(u.order.k==="move"&&Math.abs(u.order.x-tx)<0.3&&Math.abs(u.order.y-ty)<0.3)){ u.order={k:"move",x:tx,y:ty}; u.gx=tx; u.gy=ty; u.idleAt=undefined; u.path=null; } else if(u.order.k!=="move"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } }   /* idleAt を消す：隣の升への「動け」は、しばらく立っていた隊だと「着いた」と見なされて捨てられていた */
       else if(g&&!(u.order.k==="attack"&&u.order.id===g.id)){ u.order={k:"attack",id:g.id}; u.charge=true; } }
     else { const ex=F.tkRight?F.x-7:F.x+7; const ey=B.tobiPhase?F.y:2; if(u.order.k!=="move"&&(u.side!==B.ctx.playerSide||u.ally||B.autoMine||!B.tobiPhase)){ u.order={k:"move",x:ex,y:ey}; u.gx=ex; u.gy=ey; } } }
   /* 守りの隊：砦から出ない（入り込んだ敵だけ討つ） */ for(const g of gar){ const foe=det.filter(u=>Math.hypot(u.x-g.x,u.y-g.y)<3.2)[0]; if(foe){ if(!(g.order.k==="attack"&&g.order.id===foe.id)) g.order={k:"attack",id:foe.id}; } else if(g.order.k!=="guard"){ g.order={k:"guard"}; g.gx=F.x; g.gy=F.y; } }
@@ -22768,6 +22770,30 @@ function nagApplyOdaPlan(pick){
   if(pick.t>0&&B.tobi&&B.tobi.sent&&B.tobiFort){ try{ nagTobiPhaseBegin(); }catch(e){ console.error(e); } }
 }
 /* ===== 第206巡（作り手の指示）：鳶ヶ巣山砦の奇襲は本戦の前に「それだけ」起こす。別働隊は自陣から野を横切らず、山道の出口（砦のそば）から始める。両軍の本隊は潜んで待ち、砦の成否が決まってから設楽原の本戦が始まる ===== */
+/* 第253巡（作り手：鳶ヶ巣山砦も木津砦と同じ UI/UX に）：攻め方の軍議、段階（外柵→本柵→守り手）、砦の札、火矢 */
+function nagTobiPlanAsk(){ if(!B||!B.tobiPhase||!B.tobiFort||B.over!==null||B.tobiPlan) return; const F=B.tobiFort; const det=(B.tobi&&B.tobi.units||[]).filter(u=>u.troops>.5&&!u.left); const go=(k)=>{ B.tobiPlan=k; try{ nagTobiApplyPlan(k); }catch(e){ console.error(e); } };
+  koChoice("鳶ヶ巣山砦、攻め方","夜明け前。外柵と空堀を越え、本柵を崩し、守りの隊を討て。正面は損が大きい。",[
+    ["front","正面から総攻撃","門へ押し寄せる。早いが損は大きい",()=>go("front")],
+    ["north","北の柵へ回り込み","半数を北の柵へ。門を避けて柵を崩す（守り手が割れる）",()=>go("north")],
+    ["fire","火矢で柵を焼く","まず火矢を外柵へ。柵は燃え、守り手は火消しに追われる",()=>go("fire")],
+    ["shoot","鉄砲で削ってから突入","鉄砲は柵の外から撃ち、ほかは三十秒待つ",()=>go("shoot")]]); }
+function nagTobiApplyPlan(k){ const F=B.tobiFort; if(!F) return; const dir=F.tkRight?-1:1; const det=(B.tobi&&B.tobi.units||[]).filter(u=>u.troops>.5&&!u.left);
+  const at=(u,x,y)=>{ u.x=Math.max(1,Math.min(BF.w-1.5,x)); u.y=Math.max(1.5,Math.min(BF.h-1.5,y)); u.gx=u.x; u.gy=u.y; u.cell=null; u.nextCell=null; };
+  if(k==="north"){ const half=det.filter(u=>u.type!==3).slice(0,Math.ceil(det.length/2)); half.forEach((u,i)=>{ u.tobiWall="n"; at(u, F.x-dir*(7+(i%2)*1.6), Math.max(1.5,F.y-9-Math.floor(i/2)*1.4)); u.order={k:"move",x:F.x-dir*2,y:Math.max(1.5,F.y-8)}; u.gx=u.order.x; u.gy=u.order.y; }); B.banner={t:"半数は北の柵へ――門を避けて柵を崩す", at:B.elapsed}; }
+  if(k==="fire"){ setTimeout(()=>{ if(B&&B.tobiPhase&&B.over===null) nagTobiFireArrow(true); },800); }
+  if(k==="shoot"){ for(const u of det){ if(u.type===3){ at(u, F.x-dir*8.5, u.y); u.order={k:"guard"}; } else { u.holdUntil=B.elapsed+30; } } B.banner={t:"鉄砲は柵の外から。ほかは三十秒待て", at:B.elapsed}; }
+  try{ gridSettleAll(); }catch(_){ } try{ renderBattleFoot(); }catch(_){ } }
+function nagTobiFireArrow(force){ if(!B||!B.tobiPhase||!B.tobiFort||B.tobiFort.fallen||B.over!==null||B.ctx.playerSide!==1) return; if(!force&&B.sgFireAt!==undefined&&B.sgFireAt>B.elapsed-40) return toast("火矢はまだ支度中"); manualCommand(); B.sgFireAt=B.elapsed; const F=B.tobiFort; const dir=F.tkRight?-1:1; const wx=F.x-dir*((F.shell&&F.shell.w||11)/2);
+  const posts=B.obstacles.filter(o=>o.tobiFence&&!o.tobiInner&&o.hp>0&&Math.abs(o.x-wx)<1.2).sort((a,b)=>a.y-b.y); const pick=posts.length?[posts[0],posts[Math.floor(posts.length/2)],posts[posts.length-1]]:[{x:wx,y:F.y-3},{x:wx,y:F.y},{x:wx,y:F.y+3}];
+  B.fires=B.fires||[]; for(const o of pick){ B.fires.push({x:o.x-dir*0.4, y:o.y+(rnd()-.5), t:0, life:45, siege:true}); B.decals=B.decals||[]; if(B.decals.length<60) B.decals.push({k:"smoke",x:o.x,y:o.y,t:B.elapsed}); }
+  B.bigBanner={t:"火矢、外柵へ", at:B.elapsed, good:true}; log("鳶ヶ巣山砦の柵へ火矢を射込んだ。柵が燃える","war",true); try{ playSE("siege"); }catch(_){ } try{ renderBattleFoot(); }catch(_){ } }
+function nagTobiKitTick(){ const K=B.tobiKit, F=B.tobiFort; if(!K||!F||!B.tobiPhase||K.at>B.elapsed-1) return; const dt=Math.max(0.2,Math.min(2,B.elapsed-K.at)); K.at=B.elapsed;
+  /* 火は柵を焼く（本戦の野には籠城の火の手当てが無いので、ここで） */ for(const f of (B.fires||[])){ if(f.t>=(f.life||45)) continue; for(const o of B.obstacles) if(o.tobiFence&&o.hp>0&&Math.hypot(o.x-f.x,o.y-f.y)<2.5) o.hp-=2*dt; for(const u of B.units) if(u.tobiGuard&&u.troops>.5&&u.morale>0&&Math.hypot(u.x-f.x,u.y-f.y)<3) u.morale=Math.max(0,u.morale-0.4*dt); }
+  const outerP=B.obstacles.filter(o=>o.tobiFence&&!o.tobiInner&&o.hpMax), innerP=B.obstacles.filter(o=>o.tobiFence&&o.tobiInner&&o.hpMax); const sum=(arr)=>arr.reduce((a,o)=>a+Math.max(0,o.hp),0); if(K.outer0===undefined){ K.outer0=outerP.reduce((a,o)=>a+o.hpMax,0)||1; K.inner0=innerP.reduce((a,o)=>a+o.hpMax,0)||1; } const outer=Math.round(100*sum(outerP)/K.outer0), inner=Math.round(100*sum(innerP)/K.inner0);   /* 崩れた柵は障害物から消えるので、初めの総量で割る */
+  const tws=(F.shell&&F.shell.towers||[]).concat(F.inner&&F.inner.towers||[]); const tw=tws.filter(t=>t.alive).length; const gar=B.units.filter(u=>u.tobiGuard&&!u.towerGun&&u.troops>.5&&u.morale>0&&!u.left).length; const gO=outerP.find(o=>o.shellGate), gI=innerP.find(o=>o.shellGate);
+  const mine=B.ctx.playerSide===1; if(K.stage===0&&(!gO||gO.hp<=0||outer<45)){ K.stage=1; B.bigBanner={t:"外柵、破れた――本柵へ", at:B.elapsed, good:mine}; B.objective="第二段：本柵の門を破れ（櫓の鉄砲に気をつけよ）"; try{ renderBattleGoal(); }catch(_){ } }
+  else if(K.stage===1&&(!gI||gI.hp<=0||inner<45)){ K.stage=2; B.bigBanner={t:"本柵、崩れる――守りの隊を討て", at:B.elapsed, good:mine}; B.objective="第三段：守りの隊を討ち、砦を落とせ。本戦はその後"; try{ renderBattleGoal(); }catch(_){ } }
+  chip(`【鳶ヶ巣山砦攻略】外柵 ${outer<=0?"破壊済":outer+"%"}｜本柵 ${inner<=0?"破壊済":inner+"%"}｜櫓 ${tw}／${tws.length}｜守り手 ${gar}隊`); }
 function nagTobiPhaseBegin(){ const t=B.tobi, F=B.tobiFort; if(!t||!F||B.tobiPhase) return; const det=t.units||[]; const ex=F.tkRight?F.x-7:F.x+7;
   for(const u of B.units){ if(u.troops<=.5) continue; if(det.includes(u)||u.tobiGuard) continue; if(u.left||u.sigHidden){ u.tobiWasHidden=true; continue; } u.tobiHide=true; u.tobiHome={x:u.x,y:u.y,gx:u.gx,gy:u.gy,order:u.order,holdUntil:u.holdUntil}; if(u.cell){ try{ occDel(u.cell[0],u.cell[1],u); }catch(_){ } } u.cell=null; u.nextCell=null; u.left=true; u.sigHidden=true; u.x=-5; u.gx=-5; u.gy=u.y; u.order={k:"guard"}; u.path=null; u.holdUntil=99999; }
   det.forEach((u,i)=>{ u.tobiHome=u.tobiHome||{x:u.x,y:u.y,gx:u.gx,gy:u.gy}; if(u.cell){ try{ occDel(u.cell[0],u.cell[1],u); }catch(_){ } } u.x=Math.max(1,Math.min(BF.w-1,ex+(F.tkRight?-1:1)*(1+Math.floor(i/3)*1.6))); u.y=F.y+((i%3)-1)*2.2; u.gx=u.x; u.gy=u.y; u.cell=null; u.nextCell=null; u.order={k:"guard"}; u.noAttackUntil=0; u.tobiGo=true; });
@@ -22776,8 +22802,9 @@ function nagTobiPhaseBegin(){ const t=B.tobi, F=B.tobiFort; if(!t||!F||B.tobiPha
   B.tobiFenceStash=B.obstacles.filter(o=>o.fence&&!o.tobiFence); B.obstacles=B.obstacles.filter(o=>!(o.fence&&!o.tobiFence)); B._fenceVer=(B._fenceVer||0)+1; B.bg=null;
   B.camBox={x0:F.x-24, x1:F.x+24}; try{ const bn=document.getElementById("bName"); if(bn){ bn.hidden=false; bn.innerHTML=`長篠の戦い<small style="display:block;font-size:10px;letter-spacing:.15em;color:#D9C48A;opacity:.85;border:none">鳶ヶ巣山砦の戦い</small>`; } }catch(_){ }
   B.tobiPhase=true; B.tobiPhaseAt=B.elapsed; B.tobiMainStart=null; B.cx=F.x; B.cy=F.y; bCamTo(B.cx,B.cy,true); if((B.zoom||1)===1) try{ bSetZoom(BZ_NORMAL); }catch(_){ }
-  B.bigBanner={t:"鳶ヶ巣山砦の奇襲", at:B.elapsed, good:B.ctx.playerSide===1, big:true}; B.banner={t:"夜明け前、酒井の別働隊が山道を抜けた――砦の柵を崩し、守りを討て。本戦はその後", at:B.elapsed+1.5}; B.objective="鳶ヶ巣山砦を落とせ（外柵と空堀を越え、本柵を崩し、守りの隊を討つ）。設楽原の本戦はその後"; try{ renderBattleGoal(); renderBattleFoot(); }catch(_){ } }
-function nagTobiPhaseEnd(ok){ if(!B||!B.tobiPhase) return; B.tobiPhase=false; B.tobiMainStart=B.elapsed; B.dayLen=(B.dayLen||300)+(B.elapsed-(B.tobiPhaseAt||0)); const t=B.tobi, F=B.tobiFort; const det=(t&&t.units||[]);
+  B.bigBanner={t:"鳶ヶ巣山砦の奇襲", at:B.elapsed, good:B.ctx.playerSide===1, big:true}; B.banner={t:"夜明け前、酒井の別働隊が山道を抜けた――砦の柵を崩し、守りを討て。本戦はその後", at:B.elapsed+1.5}; B.tobiKit={stage:0, at:0}; B.phaseChip=null; B.objective="第一段：外柵を破れ（門を叩くか、火矢で焼く）。設楽原の本戦は砦の後"; try{ renderBattleGoal(); renderBattleFoot(); }catch(_){ }
+  if(B.ctx.playerSide===1&&!B.autoMine&&!autoBattleMode&&!B.sim){ setTimeout(()=>nagTobiPlanAsk(),450); } }
+function nagTobiPhaseEnd(ok){ if(!B||!B.tobiPhase) return; B.tobiPhase=false; B.tobiKit=null; B.phaseChip=null; B._kitChip=false; for(const u of B.units) u.tobiWall=undefined; B.tobiMainStart=B.elapsed; B.dayLen=(B.dayLen||300)+(B.elapsed-(B.tobiPhaseAt||0)); const t=B.tobi, F=B.tobiFort; const det=(t&&t.units||[]);
   if(B.tobiFenceStash){ B.obstacles=B.obstacles.concat(B.tobiFenceStash); B.tobiFenceStash=null; B._fenceVer=(B._fenceVer||0)+1; B.bg=null; } B.camBox=null; try{ const dec=B.ctx&&B.ctx.decisive?DECISIVE.find(x=>x.id===B.ctx.decisive):null; const bn=document.getElementById("bName"); if(bn&&dec) bn.innerHTML=`${esc(dec.name)}<small style="display:block;font-size:10px;letter-spacing:.15em;color:#D9C48A;opacity:.85;border:none">${esc(dec.sub||"")}</small>`; }catch(_){ }
   for(const u of B.units){ if(!u.tobiHide) continue; u.tobiHide=false; u.left=false; u.sigHidden=false; const h=u.tobiHome||{}; u.x=h.x; u.y=h.y; u.gx=h.gx; u.gy=h.gy; if(h.order) u.order=h.order; u.holdUntil=h.holdUntil; u.path=null; u.cell=null; u.nextCell=null; }
   /* 第239巡（作り手：落とした砦には隊を駐屯させ、敵の七割五分が潰れるか敵が退くまで動かせない）：成れば別働隊は砦に入って守りに就く。しくじれば生き残りが自陣へ戻る */ let gi=0; for(const u of det){ if(u.troops<=.5) continue; u.tobiGo=false; u.charge=false; if(ok&&u.morale>0){ const px=F.x+((gi%3)-1)*1.8, py=F.y+(Math.floor(gi/3)-1)*1.8; gi++; if(u.cell){ try{ occDel(u.cell[0],u.cell[1],u); }catch(_){ } } u.cell=null; u.nextCell=null; u.left=false; u.sigHidden=false; u.x=Math.max(1,Math.min(BF.w-1,px)); u.y=Math.max(1.5,Math.min(BF.h-1.5,py)); u.gx=u.x; u.gy=u.y; u.postX=u.x; u.postY=u.y; u.order={k:"guard"}; u.holdUntil=99999; u.fortGuard=true; u.tobiHold=true; u.tobiBack=false; } else { const h=u.tobiHome||{x:u.x,y:u.y}; u.left=false; u.sigHidden=false; u.x=h.x; u.y=h.y; u.gx=h.x; u.gy=h.y; u.cell=null; u.nextCell=null; u.order={k:"guard"}; u.morale=Math.max(u.morale,30); } }
@@ -24448,6 +24475,7 @@ function aiCommandSide(side, onlyAlly){
     if(onlyAlly && !u.ally && !u.autoAI) continue;   /* 第118巡b：〈この隊は任せる〉の隊も機械が動かす */
     if(u.postHold){ if(u.order.k!=="guard"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } continue; }   /* 第207巡：持ち場の隊（横山の囲み）は機械が動かさない */
     if(u.towerGun||u.tobiHold) continue;   /* 第239巡：櫓の鉄砲と鳶ヶ巣の駐屯は機械も動かさない */
+    if(u.tobiGo&&B.tobiPhase) continue;   /* 第253巡：鳶ヶ巣の段の別働隊は砦の手順（nagTobiFortTick）が動かす。機械の「柵の内で待て」に上書きされ、門を破っても中へ入らなかった */
     if(u.tnrSiege&&B.tnrFort&&!B.hgRetreat&&!B.aiFled&&u.order.k==="attack") continue;   /* 第239巡：天王寺砦を攻める門徒は信長に釣られない */
     if(u.ambPush&&B.amb){ if(u.order.k==="guard"){ u.order={k:"hold"}; } continue; }   /* 第209巡：谷を抜けようとする方面軍は前へ */
     if(u.kanMain||u.shingari||u.watcher||(u.nrSleep&&B.nr&&!B.nr.found)) continue;   /* 第209巡：金ヶ崎の主力・殿、夜襲の見張りと眠る陣 */
