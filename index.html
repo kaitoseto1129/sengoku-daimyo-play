@@ -18501,7 +18501,7 @@ function fortShellBuild(cx, cy, dir, side, opts){ const H=BF.h, Wd=BF.w; opts=op
   const F={cx,cy,x0,x1,y0,y1,dir,w,h,cap:opts.cap||4,hp0:0,fallen:false,weak:false,decor:[],side,name:opts.name||"主砦"}; B.fortTowers=B.fortTowers||[];
   const tag=opts.tag||{}; const post=(x,y,extra)=>{ B.obstacles.push(Object.assign({kind:1, variant:Math.floor(y+x)%3, x, y, r:0.85, wall:true, fort:true, fence:true, side, hp:Math.round(150*hpk), hpMax:Math.round(150*hpk), mainFort:!opts.tagOnly}, tag, extra||{})); };
   const gx=cx+dir*w/2; /* 門は敵の側の真ん中 */
-  for(let y=y0;y<=y1+0.01;y+=1.4){ if(dir<0||Math.abs(y-cy)>1.5) post(x0,y); if(dir>0||Math.abs(y-cy)>1.5) post(x1,y); }   /* 第253巡：門の切れ目は門の側（dir）に。前は右の壁だけが切れていて、門が左（dir<0）の砦では門を破っても柵が残り、寄せ手が入れなかった */
+  for(let y=y0;y<=y1+0.01;y+=1.4){ if(dir>0||Math.abs(y-cy)>1.5) post(x0,y); if(dir<0||Math.abs(y-cy)>1.5) post(x1,y); }   /* 第253巡：門の切れ目は門の側（gx=cx+dir*w/2）に。前は右の壁だけが切れていて、門が左（dir<0）の砦では門を破っても柵が残り、寄せ手が入れなかった */
   for(let x=x0+1.4;x<x1-0.01;x+=1.4){ post(x,y0); post(x,y1); }
   B.obstacles.push(Object.assign({kind:1, variant:1, x:gx, y:cy, r:0.85, wall:true, fort:true, fence:true, side, hp:Math.round(260*hpk), hpMax:Math.round(260*hpk), mainFort:!opts.tagOnly, mainGate:!opts.tagOnly, shellGate:true}, tag)); F.gate=B.obstacles[B.obstacles.length-1];
   for(const o of B.obstacles) if(o.fort&&(opts.tagOnly?Object.keys(tag).every(k=>o[k]===tag[k]):o.mainFort)&&Math.abs(o.x-cx)<=w/2+0.1&&Math.abs(o.y-cy)<=h/2+0.1) F.hp0+=o.hpMax;
@@ -20461,7 +20461,7 @@ function koChoice(title, lead, opts, _retry, _gen, _bat){
   /* 第144巡：選択肢は三つまで前に出し、残りは「ほかの手 ▸」に畳む（作り手：選択肢が多すぎる） */
   const main=opts.slice(0,3), more=opts.slice(3);
   const el=document.createElement("div"); el.className="overlay"; el.innerHTML=`<div class="dialog" style="max-width:560px"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">軍 議</div><h3>${title}</h3><div class="advice">${lead}</div><div class="grid g2">${main.map(o=>`<button class="cmd" data-k="${o[0]}">${o[1]}<span class="cost">${o[2]}</span></button>`).join("")}</div>${more.length?`<button class="chip" id="koMore" style="cursor:pointer;margin-top:6px">ほかの手 ${more.length} ▸</button><div class="grid g2" id="koMoreBox" hidden style="margin-top:4px">${more.map(o=>`<button class="cmd" data-k="${o[0]}">${o[1]}<span class="cost">${o[2]}</span></button>`).join("")}</div>`:""}</div>`;
-  if(_bat) el.dataset.bat="1"; document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0);
+  if(_bat){ el.dataset.bat="1"; el.style.zIndex="60"; }   /* 第253巡：合戦の中の軍議は合戦の画面（z 45）より前に。前は z 40 のまま合戦の後ろに隠れ、攻め方の軍議が見えなかった */ document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0);
   { const km=el.querySelector("#koMore"); if(km) km.onclick=()=>{ const bx=el.querySelector("#koMoreBox"); bx.hidden=!bx.hidden; km.textContent=bx.hidden?`ほかの手 ${more.length} ▸`:"畳む ▾"; }; }
   { const gen=WORLD_GEN; el.querySelectorAll("button[data-k]").forEach(b=>b.onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; if(gen!==WORLD_GEN) return;   /* 前の世の札は押しても何もしない */ const o=opts.find(x=>x[0]===b.dataset.k); if(o){ const r=o[3](); if(r==="retry"){ koChoice(title,lead,opts); return; } }   /* 第151巡：銭が足りない等で手が通らなければ、軍議の札をもう一度出す（前は札が消えて選び直せなかった） */ resumeSpeed(); refreshHUD(); }); }
 }
@@ -22114,6 +22114,7 @@ function startBattle(e){
   if(B.fieldOpen) B.obstacles=B.obstacles.filter(o=>o.kind!==1);   /* 第211巡：筋書きのない野戦に柵は置かない（地形そのものが戦場。仕様書） */
   /* 人の側にいる他家（盟友・傘下）の隊は緑で、機械が動かす（人は自分の家の隊だけを采配する。作り手の指示） */
   for(const u of B.units){ if(u.side!==B.ctx.playerSide) continue; const g=W.generals[u.gid]; u.ally=!!(g&&g.clan!==null&&g.clan!==undefined&&g.clan!==W.player)&&!u.cmd; }   /* 第179巡：総大将（本陣）は他家の将でも人が動かす（木津で松永の本陣が動かせなかった） */
+  { const dk0=B.ctx&&B.ctx.decisive?(DECISIVE.find(x=>x.id===B.ctx.decisive)||{}).key:""; if(/^nagashino/.test(dk0||"")&&!B.padWant) B.padWant=BF_PAD+6; }   /* 第253巡：長篠は後方を広く（鳶ヶ巣山砦を武田の後列から離し、寄せた画面に収める） */
   try{ bWiden(); }catch(e9){ console.error("widen",e9); }
   if(B.nagashino){ try{ nagSpread(); }catch(e9){ console.error("spread",e9); } try{ nagTobiFortBuild(); }catch(e9){ console.error("tobi",e9); } }
   try{ fieldKitSetup(); }catch(e){ console.error("field",e); }
@@ -22615,7 +22616,7 @@ function nagVolleyTick(){
     for(let k=0;k<5;k++) setTimeout(()=>{ try{ playSE("gun"); }catch(_){ } }, k*45+Math.floor(rnd()*30)); }
 }
 /* 第185巡：鳶ヶ巣山砦を野の上に築く（武田の後ろの上の隅）。柵・櫓・守りの隊。酒井の別働隊は野の上の縁を回って砦を攻め落とす（作り手：徳川勢が攻め落とす感じに） */
-function nagTobiFortBuild(){ if(!B||!B.nagashino||B.tobiFort) return; const Wd=BF.w, H=BF.h; const tkRight=B.ctx.playerSide===1; const fx=tkRight?Wd-13:13, fy=H/2; const dir=tkRight?-1:1;   /* 第253巡（作り手：鳶ヶ巣も木津砦と同じ UI/UX に）：砦は端から十三――寄せたとき砦が画面の縁で切れない */   /* dir：砦から主戦場（織田側）へ。第208巡：砦は武田の後ろの空いた所に、立派な砦として組む（作り手：矢倉のある砦を真ん中に、そこを攻める感じ） */
+function nagTobiFortBuild(){ if(!B||!B.nagashino||B.tobiFort) return; const Wd=BF.w, H=BF.h; const tkRight=B.ctx.playerSide===1; const fx=tkRight?Wd-10:10, fy=H/2; const dir=tkRight?-1:1;   /* 第253巡：砦は端から十のまま（十三に寄せると空堀・逆茂木が武田の後列にかかって突撃が出なくなった）。代わりに長篠は後方を六升広げ、寄せた画面の縁で砦が切れないように */   /* dir：砦から主戦場（織田側）へ。第208巡：砦は武田の後ろの空いた所に、立派な砦として組む（作り手：矢倉のある砦を真ん中に、そこを攻める感じ） */
   const F={x:fx, y:fy, garrison:[], fallen:false, tkRight}; B.tobiFort=F;
   F.shell=fortShellBuild(fx, fy, dir, 0, {w:11, h:11, cap:3, name:"鳶ヶ巣山砦", tag:{tobiFence:true}, tagOnly:true, hpMul:0.8}); F.shell.noLabel=true;   /* 第239巡（作り手：鳶ヶ巣山砦の質が低い。木津砦の水準に）：脇柵あり、柵は木津並みの堅さ、櫓に鉄砲 */
   for(const tw of (F.shell.towers||[])){ tw.fortName="鳶ヶ巣山砦"; tw.per=60; }
@@ -23857,7 +23858,7 @@ function duelCheck(){
 function stepUnit(u,dt){
   let target=null, goal=null;
   if(u.left) return;                                           // 野を去った隊は戦わない
-  let enemies=B.units.filter(x=>x.side!==u.side&&x.troops>.5&&x.morale>0&&!x.left&&!x.yokoIn);   /* 第207巡：城の中の横山城兵は討てない（討って出た時だけ） */
+  let enemies=B.units.filter(x=>x.side!==u.side&&x.troops>.5&&x.morale>0&&!x.left&&!x.yokoIn&&!x.tobiHold);   /* 第207巡：城の中の横山城兵は討てない（討って出た時だけ）。第253巡：鳶ヶ巣山砦に駐屯した隊も（砦が落ちると武田が設楽原でなく後ろの砦へ向かっていた） */
   if(B.oke||(B.sekFog&&B.weather==="霧")){ enemies=enemies.filter(x=>okeSeen(x,u.side)); }
   if(u.okeHold||u.sekHold){ if(u.order.k!=="guard"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } }
   if(!enemies.length){ if(u.order.k==="attack"||u.order.k==="hold"||u.order.k==="move"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } if(u.faceLock===undefined) u.face=(u.side===B.ctx.playerSide)?0:Math.PI; return; }   // 敵がいなければ止まって敵陣の方を向く
@@ -24343,7 +24344,7 @@ function battleAI(){
     }
     if(B.aiGuardId===u.id){ const cmd=B.units.find(z=>z.side===foeSide&&z.cmd&&z.troops>.5&&z.morale>0); if(cmd && cmd.order.k==="guard" && B.elapsed<120){ const near=B.units.find(z=>z.side!==foeSide&&z.troops>.5&&z.morale>0&&!z.left&&dist(z,cmd)<7); if(near){ u.order={k:"attack",id:near.id}; } else if(dist(u,cmd)>3){ u.order={k:"move",x:cmd.x+(foeSide===1?-2.5:2.5),y:cmd.y}; } else { u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } continue; } }
     // 木立に伏せた隊は、近づくまで敵の目に入らない
-    const foes=B.units.filter(x=>x.side!==foeSide&&x.troops>.5&&x.morale>0&&!x.left&&!(hiddenIn(x)&&dist(u,x)>4));
+    const foes=B.units.filter(x=>x.side!==foeSide&&x.troops>.5&&x.morale>0&&!x.left&&!x.tobiHold&&!(hiddenIn(x)&&dist(u,x)>4));   /* 第253巡：鳶ヶ巣山砦の駐屯隊は狙わない */
     if(!foes.length) continue;
     // 城攻めの寄せ手（側0）は、門が破れるまで門へ群がる（石垣は越えられない）
     if(B.gate && !B.gate.open && foeSide===0 && u.type!==3){
@@ -24451,7 +24452,7 @@ function battleAI(){
 function tnrReliefDrive(){ if(B.tnrAutoAt>B.elapsed-6) return; B.tnrAutoAt=B.elapsed; const fx=(B.ishiFortX||0)+(B.padX||0); const dir=fx>BF.w/2?1:-1; const foes=B.units.filter(x=>x.side===1&&x.troops>.5&&x.morale>0&&!x.left); const us=B.units.filter(u=>u.side===0&&u.troops>.5&&!u.left&&u.morale>0&&!u.fortGuard&&u.order.k!=="retreat"); let i=0;
   for(const u of us){ const near=foes.find(f=>dist(f,u)<2.2); if(near&&!u.nobunaga){ u.order={k:"attack",id:near.id}; continue; } const tx=Math.max(1,Math.min(BF.w-1,fx-dir*(u.nobunaga?2.5:4.5))); const ty=Math.max(1.5,Math.min(BF.h-1.5,BF.h/2+(u.nobunaga?0:((i%3)-1)*3.2))); u.order={k:"move",x:tx,y:ty}; u.gx=tx; u.gy=ty; u.charge=false; u.holdUntil=0; i++; } }
 function aiCommandSide(side, onlyAlly){
-  const foes=B.units.filter(x=>x.side!==side&&x.troops>.5&&x.morale>0&&!x.left);
+  const foes=B.units.filter(x=>x.side!==side&&x.troops>.5&&x.morale>0&&!x.left&&!x.tobiHold);   /* 第253巡：鳶ヶ巣山砦に駐屯した隊は狙わない（砦が落ちると武田が後ろの砦へ向かい、設楽原へ来なかった） */
   if(!foes.length) return;
   /* 第226巡（夜44）：桶狭間で〈采配：自動〉にすると、今川が見えないため織田が六分間その場に立ち尽くしていた → 見えない間は斥候を出しつつ、報せの示す辺りへ全軍で押し出す */
   if(B.oke && side!==B.okeFoe && !onlyAlly && !foes.some(x=>okeSeen(x,side))){
