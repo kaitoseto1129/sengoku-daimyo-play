@@ -29,9 +29,12 @@
 </head><body>
 <meta charset="utf-8">
 <title>戦国大名</title>
+<script>/* 第253巡（作り手：入れたのに固まって動かないと言われる）：起動中に落ちたら黙って真っ暗にせず、短く知らせて目安箱へ添えられるようにする */
+window.__bootErrs=[]; window.addEventListener("error",function(e){ try{ var m=(e&&e.message||"error")+" @"+(e&&e.lineno||0); window.__bootErrs.push(m); localStorage.setItem("sengoku_lasterr",m.slice(0,200)); if(!(window.W&&W._built)&&document.body&&!document.getElementById("bootFail")){ var d=document.createElement("div"); d.id="bootFail"; d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:9999;background:#7A1E10;color:#fff;font:13px -apple-system,sans-serif;padding:8px 12px;text-align:center"; d.textContent="読み込みで止まりました。アプリを閉じて開き直してください（直らなければ目安箱へ："+m.slice(0,80)+"）"; document.body.appendChild(d); } }catch(_){ } });
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=DotGothic16&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=DotGothic16&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=DotGothic16&display=swap"></noscript><!-- 第253巡（作り手：入れたのに固まって動かないと言われる）：字の書体は画面を止めずに後から読む。網が無い・遅い端末で、書体の読み込みを待って真っ暗のまま固まっていた -->
 <style>
 :root{
   --sumi:#12100E;        /* 墨 */
@@ -3321,6 +3324,7 @@ function buildWorld(playerClan, scenarioId){
     const n=myCastles(k.id).length;
     for(const th of [10,20,30,40,50]) if(n>=th) W.alerts.add(k.id*100+th);
   }
+  W._built=true;
   try{ buildRoads(); }catch(e){ console.error(e); }   /* 第253巡：筋書きの仕込みで城が増減・移動したあとに道を結び直す（控えを読み込むと甲府―上田の道が消えるなど、始めの道と読み込み後の道が違っていた） */
 }
 /* 一城だけの小さな家が多すぎると、地図が細切れで読めない。
@@ -28459,6 +28463,7 @@ let lastT=0;
 let loopErrs=0;
 function loop(t){
   const dt=Math.min((t-lastT)/1000||0,.1); lastT=t;
+  if(!(W&&W._built)){ requestAnimationFrame(loop); return; }   /* 第253巡：世が組まれる前は描かない（表紙を先に出すため世組みを後回しにした） */
   try{ frame(dt); }
   catch(e){
     // 一度転んだだけで全部が止まるのがいちばん困る。
@@ -28896,7 +28901,7 @@ function openMeyasubako(){
   const wasPaused=(typeof B!=="undefined"&&B&&B.over===null)?B.paused:null; if(wasPaused===false){ B.paused=true; try{ renderBattleFoot(); }catch(_){ } }   /* 第253巡：合戦の中から開いたら書いている間は止める */
   const closeIt=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; if(wasPaused===false&&typeof B!=="undefined"&&B&&B.over===null){ B.paused=false; try{ renderBattleFoot(); }catch(_){ } } };
   el.querySelector("#meyasuNo").onclick=el.querySelector("#meyasuX").onclick=closeIt;
-  el.querySelector("#meyasuGo").onclick=()=>{ const t=(el.querySelector("#meyasuText").value||"").trim(); if(!t){ toast("何か書いてください"); return; } const sc=(W&&W.started&&W.stage&&W.stage.key)?W.stage.key:"-"; const body=t+"\n\n――\n"+where+"／版 "+BUILD+"／筋書き "+sc+"／"+navigator.userAgent.slice(0,80); const url="mailto:"+MEYASU_TO+"?subject="+encodeURIComponent("【戦国大名 目安箱】")+"&body="+encodeURIComponent(body); try{ track("meyasu/send"); }catch(_){ } location.href=url; setTimeout(()=>{ closeIt(); toast("手紙の窓が開かなければ、"+MEYASU_TO+" へ直接どうぞ"); },600); };
+  el.querySelector("#meyasuGo").onclick=()=>{ const t=(el.querySelector("#meyasuText").value||"").trim(); if(!t){ toast("何か書いてください"); return; } const sc=(W&&W.started&&W.stage&&W.stage.key)?W.stage.key:"-"; let lastErr=""; try{ lastErr=localStorage.getItem("sengoku_lasterr")||""; }catch(_){ } const body=t+"\n\n――\n"+where+"／版 "+BUILD+"／筋書き "+sc+"／"+navigator.userAgent.slice(0,80)+(lastErr?"／最後の不具合 "+lastErr:""); const url="mailto:"+MEYASU_TO+"?subject="+encodeURIComponent("【戦国大名 目安箱】")+"&body="+encodeURIComponent(body); try{ track("meyasu/send"); }catch(_){ } location.href=url; setTimeout(()=>{ closeIt(); toast("手紙の窓が開かなければ、"+MEYASU_TO+" へ直接どうぞ"); },600); };
   setTimeout(()=>{ try{ el.querySelector("#meyasuText").focus(); }catch(_){ } },50);
 }
 function openFund(){
@@ -29217,12 +29222,11 @@ function startTitleMusic(){
 const BUILD="1.1.0 (2026-09-21)";
 { const bt=document.getElementById("buildTag"); if(bt) bt.textContent="版 "+BUILD; }
 try{ soundBtnRefresh(); }catch(_){ }
-generateTerrain();
-buildWorld(0);
-bakeTiles(); bakeTerrain(); bakeMinimap(); rebuildDevOverlay();
+/* 第253巡（作り手：固まって動かない）：世を組む重い仕事は表紙が描かれてから。表紙の釦は世が無くても効く（筋書きを選べば組み直す） */
+function ensureWorldBuilt(){ if(W&&W._built) return; try{ generateTerrain(); buildWorld(0); bakeTiles(); bakeTerrain(); bakeMinimap(); rebuildDevOverlay(); W._built=true; }catch(e){ console.error(e); } }
+setTimeout(()=>{ ensureWorldBuilt(); try{ resizeCanvas(); zoomFit(); }catch(_){ } },0);
 /* ?pick=1 で表紙を飛ばして「地図から大名家を選ぶ」まで進む（端末での確かめ用） */
 (function(){ try{ const q=new URLSearchParams(location.search); if(!q.get("pick")) return; setTimeout(()=>{ try{ document.getElementById("btnGameStart").click(); document.getElementById("scenNext").click(); setTimeout(()=>{ const tp=document.getElementById("toPick"); if(tp) tp.click(); setTimeout(()=>{ const sc=+q.get("scale"); const at=q.get("at"); if(sc){ cam.scale=sc; } if(at){ const c=Object.values(W.castles).find(x=>x.name===at); if(c){ cam.x=W.tile[c.id].c; cam.y=W.tile[c.id].r; } } camTarget.x=camTarget.y=null; camTarget.scale=null; clampCam(); },600); },300); }catch(e){ console.error(e); } },600); }catch(e){} })();
-resizeCanvas(); zoomFit();
 requestAnimationFrame(loop);
 // 表紙が出た時点で曲を流してみる（iPhone 版はそのまま鳴る。browser が止めるなら最初の一触れで）
 startTitleMusic();
