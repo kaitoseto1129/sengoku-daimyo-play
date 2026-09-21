@@ -28619,12 +28619,12 @@ window.sengokuUnlock=function(id){   // iOS の課金が通れば、包みから
 };
 function requestUnlock(id){
   const info=PAID_SCENARIOS[id]; if(!info) return;
-  if(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap){ try{ window.webkit.messageHandlers.iap.postMessage({buy:id, sku:info.sku}); return; }catch(e){} }
+  const app=!!(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap);   /* 第253巡（作り手）：iPhone 版は長篠だけ。ほかは課金でなく「天下布武」の言葉で開く（IAP は呼ばない） */
   // 包みの外（ウェブ）：公開の場では「App 版で」とだけ。手元（localhost / claude.ai）では解除の言葉で開ける
   const dev=true;   // 解除の言葉はどこでも受ける
   const el=document.createElement("div"); el.className="overlay"; el.style.zIndex=95;
   el.innerHTML=`<div class="dialog" style="max-width:420px;text-align:center"><h3>${esc(SCENARIO_DEFS[id].name)}</h3>
-    <div class="advice">${PAY_LINK?`この筋書きは ${info.price} で解除できます（カード・Apple Pay など）。<br>お支払いのあと、この頁に戻ると解除されます。解除はこのブラウザに残ります。`:`この筋書きは iPhone 版（App Store）で ${info.price} で解除できます。<br>ウェブ版では長篠の戦いを遊べます。`}${dev?"<br>解除の言葉をお持ちなら、ここに入れてください。":""}</div>
+    <div class="advice">${app?`この筋書きは、解除の言葉で開きます。`:PAY_LINK?`この筋書きは ${info.price} で解除できます（カード・Apple Pay など）。<br>お支払いのあと、この頁に戻ると解除されます。解除はこのブラウザに残ります。`:`この筋書きは長篠の戦いのあとに。<br>いまは長篠の戦いを遊べます。`}${dev?"<br>解除の言葉をお持ちなら、ここに入れてください。":""}</div>
     ${dev?`<input id="unlockCode" placeholder="解除の言葉" style="width:100%;padding:9px 11px;border-radius:6px;border:1px solid rgba(237,230,214,.25);background:rgba(0,0,0,.35);color:#EDE6D6;font:inherit;margin:6px 0">`:""}
     <div class="dlg-actions" style="display:flex;gap:8px;flex-wrap:wrap">${PAY_LINK?`<button class="big gold" style="flex:1" id="ulPay">${info.price} で解除する</button>`:""}${dev?`<button class="big gold" style="flex:1" id="ulGo">解除する</button>`:""}<button class="big ghost" style="flex:1" id="ulNo">${dev?"やめる":"閉じる"}</button></div></div>`;
   document.body.appendChild(el);
