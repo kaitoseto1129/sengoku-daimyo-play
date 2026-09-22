@@ -279,7 +279,10 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
 @media(min-width:721px){footer{padding-bottom:56px}}
 /* ---- 携帯の下の帯 ---- */
 #stick{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));background:rgba(11,9,7,.95);border-top:1px solid rgba(197,154,53,.5);display:none}
-#stick .fuda{width:100%;padding:14px 18px;font-size:19px;letter-spacing:.2em}
+#stick{display:none}
+#stick .row{display:flex;gap:8px;align-items:stretch}
+#stick .fuda{flex:1.35;padding:13px 10px;font-size:16px;letter-spacing:.12em;white-space:nowrap}
+#stick .inban{flex:1;padding:13px 10px;font-size:15px;letter-spacing:.08em;white-space:nowrap;display:flex;align-items:center;justify-content:center}
 @media(max-width:720px){#stick{display:block}}
 
 /* ---- 動く絵 ---- */
@@ -425,7 +428,7 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
     <p class="kotoba"><span class="ln">馬防柵。鉄砲。武田騎馬軍団。</span><span class="ln">史実と同じ戦い方を選ぶか。それとも、<b>あなた自身の策</b>で戦うか。</span></p>
     <div class="ctas">
       <a class="fuda" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="hero_appstore_click"><svg><use href="#apple"/></svg>App Storeで無料ダウンロード</a>
-      <a class="inban" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザで遊ぶ</a>
+      <a data-play data-ev="play_click" class="inban" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザで遊ぶ</a>
     </div>
     <div class="haifu">iPhone / iPad / ブラウザ　／　長篠の戦いは無料　／　関ヶ原は ¥500</div>
   </div>
@@ -517,7 +520,7 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
     </div>
     <div class="annot-list"><span>三列の馬防柵 ── ここで騎馬を止める</span><br><span>鉄砲は柵の内から ── 寄れば一斉射撃</span><br><span>武田の騎馬、右翼へ ── 予備隊を投入</span><br><span>味方本陣 ── 崩れれば敗走</span></div>
     <p class="soe">絵は実際の合戦画面。押す場所と、見る場所。</p>
-    <div class="ctas" style="justify-content:center;margin-top:26px"><a class="fuda" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="mid_appstore_click"><svg><use href="#apple"/></svg>App Storeで無料ダウンロード</a><a class="inban" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザで遊ぶ</a></div>
+    <div class="ctas" style="justify-content:center;margin-top:26px"><a class="fuda" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="mid_appstore_click"><svg><use href="#apple"/></svg>App Storeで無料ダウンロード</a><a data-play data-ev="play_click" class="inban" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザで遊ぶ</a></div>
     <p class="shinrai c">iPhone / iPad / ブラウザ　／　長篠の戦いは無料　／　関ヶ原は ¥500</p>
   </div>
 </section>
@@ -648,7 +651,7 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
     <p class="kotoba c"><span class="ln">馬防柵。鉄砲。騎馬。</span><span class="ln">史実と同じ戦い方を選ぶか。それとも、あなた自身の策で戦うか。</span></p>
     <div class="gaku" style="margin-top:30px"><span class="kin-corner tr"></span><span class="kin-corner bl"></span><img src="../img/tobi.jpg" alt="夜明け前の鳶ヶ巣山砦" loading="lazy"></div>
     <p class="soe">夜明け前の鳶ヶ巣山砦――別働隊で武田の後ろを突く。</p>
-    <div class="ctas" style="justify-content:center;margin-top:30px"><a class="fuda" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="nagashino_appstore_click"><svg><use href="#apple"/></svg>長篠の戦いを無料で遊ぶ</a><a class="inban" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザで遊ぶ</a></div>
+    <div class="ctas" style="justify-content:center;margin-top:30px"><a class="fuda" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="nagashino_appstore_click"><svg><use href="#apple"/></svg>長篠の戦いを無料で遊ぶ</a><a data-play data-ev="play_click" class="inban" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザで遊ぶ</a></div>
   </div>
 </section>
 
@@ -670,7 +673,7 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
 <style>@media(max-width:860px){#chooseGrid{grid-template-columns:1fr !important}}</style>
 
 <!-- 帯の CTA -->
-<div class="obi"><div class="wrap"><div class="t">読むより、動かせ。</div><a class="fuda" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="prefaq_appstore_click"><svg><use href="#apple"/></svg>今すぐ出陣 ── App Storeで無料</a>　<a class="inban" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザで遊ぶ</a><p class="shinrai">iPhone / iPad / ブラウザ　／　長篠の戦いは無料　／　関ヶ原は ¥500</p></div></div>
+<div class="obi"><div class="wrap"><div class="t">読むより、動かせ。</div><a class="fuda" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="prefaq_appstore_click"><svg><use href="#apple"/></svg>今すぐ出陣 ── App Storeで無料</a>　<a data-play data-ev="play_click" class="inban" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザで遊ぶ</a><p class="shinrai">iPhone / iPad / ブラウザ　／　長篠の戦いは無料　／　関ヶ原は ¥500</p></div></div>
 
 <!-- 攻略 -->
 <section id="guide">
@@ -696,7 +699,7 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
     <div class="ar gunshikin-box">
       <div class="gtiers"><a class="gt" href="https://www.paypal.com/paypalme/sengokudaimyo/500JPY" target="_blank" rel="noopener" data-ev="fund_500"><b>足軽衆</b><span>¥500</span></a><a class="gt" href="https://www.paypal.com/paypalme/sengokudaimyo/1000JPY" target="_blank" rel="noopener" data-ev="fund_1000"><b>侍大将</b><span>¥1,000</span></a><a class="gt" href="https://www.paypal.com/paypalme/sengokudaimyo/3000JPY" target="_blank" rel="noopener" data-ev="fund_3000"><b>奉行</b><span>¥3,000</span></a><a class="gt" href="https://www.paypal.com/paypalme/sengokudaimyo/5000JPY" target="_blank" rel="noopener" data-ev="fund_5000"><b>家老</b><span>¥5,000</span></a><a class="gt" href="https://www.paypal.com/paypalme/sengokudaimyo/10000JPY" target="_blank" rel="noopener" data-ev="fund_10000"><b>宿老</b><span>¥10,000</span></a><a class="gt" href="https://www.paypal.com/paypalme/sengokudaimyo/30000JPY" target="_blank" rel="noopener" data-ev="fund_30000"><b>大名</b><span>¥30,000</span></a><a class="gt" href="https://www.paypal.com/paypalme/sengokudaimyo/50000JPY" target="_blank" rel="noopener" data-ev="fund_50000"><b>天下人</b><span>¥50,000</span></a></div>
       <p class="soe c">ブラウザ版は PayPal（カード・銀行口座）、iPhone 版はアプリの表紙「軍資金募集」から App 内課金で。</p>
-      <div class="ctas" style="justify-content:center;margin-top:14px"><a class="fuda ghost" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/" data-ev="fund_web_click">ゲームの中の軍資金の札を見る</a></div>
+      <div class="ctas" style="justify-content:center;margin-top:14px"><a data-play class="fuda ghost" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/" data-ev="fund_web_click">ゲームの中の軍資金の札を見る</a></div>
     </div>
   </div>
 </section>
@@ -738,7 +741,7 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
       <div class="sho" style="display:inline-flex">結</div>
       <h2 class="h2">天下を取るのは、<br>あなたの<span class="g">采配だ。</span></h2>
       <p class="kotoba c" style="margin-top:16px;font-family:var(--fude);font-size:clamp(18px,2.4vw,26px);letter-spacing:.14em"><span class="ln">歴史を眺めるな。</span><span class="ln">次は、あなたが動かせ。</span></p>
-      <div class="ctas"><a class="fuda" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="final_appstore_click"><svg><use href="#apple"/></svg>App Storeで無料ダウンロード</a><a class="inban" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザで遊ぶ</a></div>
+      <div class="ctas"><a class="fuda" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="final_appstore_click"><svg><use href="#apple"/></svg>App Storeで無料ダウンロード</a><a data-play data-ev="play_click" class="inban" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザで遊ぶ</a></div>
       <p class="shinrai">iPhone / iPad / ブラウザ　／　長篠の戦いは無料　／　関ヶ原は ¥500</p>
     </div>
   </div>
@@ -748,13 +751,13 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
   <div class="monpat"></div>
   <div class="wrap">
     <span class="logo">戦国大名</span>
-    <div class="links"><a href="https://apps.apple.com/jp/app/id6811255282" data-app>App Store</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザ版</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/guide/">攻略</a><a href="#gunshikin">軍資金募集</a><a href="#meyasu">目安箱</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/privacy.html">プライバシーポリシー</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/support.html">お問い合わせ</a><a href="#meyasu">目安箱</a></div>
+    <div class="links"><a href="https://apps.apple.com/jp/app/id6811255282" data-app>App Store</a><a data-play data-ev="play_click" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザ版</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/guide/">攻略</a><a href="#gunshikin">軍資金募集</a><a href="#meyasu">目安箱</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/privacy.html">プライバシーポリシー</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/support.html">お問い合わせ</a><a href="#meyasu">目安箱</a></div>
     <div class="credits">武将の肖像はパブリックドメインの史料（狩野宗秀筆 織田信長像、狩野光信筆 豊臣秀吉像、狩野探幽筆 徳川家康像 ほか）を用いています。画面はすべて開発中のゲーム画面で、製品版とは異なる場合があります。Apple、App Store は Apple Inc. の商標です。</div>
   </div>
 </footer>
 
 <div id="player"><div class="box"><button class="x" type="button">閉じる ×</button><img alt=""><div class="cap"></div><div class="sub"></div></div></div>
-<div id="stick"><a class="fuda" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="sticky_appstore_click"><svg><use href="#apple"/></svg>App Storeで入手</a></div>
+<div id="stick"><div class="row"><a class="fuda" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="sticky_appstore_click"><svg><use href="#apple"/></svg>App Storeで入手</a><a class="inban" data-play data-ev="sticky_play_click" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザで遊ぶ</a></div></div>
 <div id="susumi">天下統一まで<i></i><span id="susumiT">一国</span></div>
 
 <script>
@@ -823,6 +826,16 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
   function ev(name){ try{ if(/localhost|127\.0\.0\.1/.test(location.hostname)) return; if(window.goatcounter&&window.goatcounter.count) window.goatcounter.count({path:'ev/lp/'+name, title:'lp '+name, event:true}); else (window._gcq=window._gcq||[]).push(name); }catch(e){} }
   (function(){ if(/localhost|127\.0\.0\.1/.test(location.hostname)) return; var sc=document.createElement('script'); sc.async=true; sc.dataset.goatcounter='https://kaito.goatcounter.com/count'; sc.src='https://gc.zgo.at/count.js'; sc.onload=function(){ try{ var q=window._gcq||[]; window._gcq=[]; q.forEach(ev); var u=new URLSearchParams(location.search); var src=u.get('utm_source')||'direct', cp=u.get('utm_campaign')||'-'; ev('view/'+src+'/'+cp+'/'+(window.__heroVar||'a')); }catch(e){} }; document.head.appendChild(sc); })();
   document.querySelectorAll('a[data-ev]').forEach(function(a){ a.addEventListener('click',function(){ ev(a.dataset.ev); }); });
+  /* 第253巡（作り手：広告は紹介ページへ、そこから遊ぶ／App Store に分ける）：
+     ① 広告の印（utm_source・src・fbclid）を「ブラウザで遊ぶ」の行き先へ引き継ぐ（本編でも広告から来た人と数えられる）
+     ② 紹介ページを読んでいる間に本編を先に取っておく（押した時にはもう手元にある） */
+  (function(){ var q=new URLSearchParams(location.search); var src=q.get('utm_source')||q.get('src')||(q.get('fbclid')?'meta':''); var cmp=q.get('utm_campaign')||q.get('c')||'';
+    var links=document.querySelectorAll('a[data-play]');
+    if(src){ links.forEach(function(a){ try{ var u=new URL(a.href); u.searchParams.set('src',src); if(cmp) u.searchParams.set('utm_campaign',cmp); u.searchParams.set('from','lp'); a.href=u.toString(); }catch(e){} }); }
+    else links.forEach(function(a){ try{ var u=new URL(a.href); u.searchParams.set('from','lp'); a.href=u.toString(); }catch(e){} });
+    var warm=false; function prefetch(){ if(warm) return; warm=true; try{ var l=document.createElement('link'); l.rel='prefetch'; l.as='document'; l.href='https://kaitoseto1129.github.io/sengoku-daimyo-play/'; document.head.appendChild(l); }catch(e){} }
+    if('requestIdleCallback' in window) requestIdleCallback(prefetch,{timeout:3000}); else setTimeout(prefetch,2500);
+    links.forEach(function(a){ a.addEventListener('pointerenter',prefetch); a.addEventListener('touchstart',prefetch,{passive:true}); }); })();
   document.querySelectorAll('.mondo details').forEach(function(d){ d.addEventListener('toggle',function(){ if(d.open) ev('faq_open'); }); });
   var seen={}; function depth(){ var h=document.documentElement.scrollHeight-window.innerHeight; if(h<=0) return; var p=Math.round(window.scrollY/h*100); [25,50,75,100].forEach(function(m){ if(p>=m&&!seen[m]){ seen[m]=1; ev('scroll_'+m); } }); var b=document.getElementById('ch3'); if(b&&!seen.b&&b.getBoundingClientRect().top<window.innerHeight*0.6){ seen.b=1; ev('battle_section_view'); } var st=document.getElementById('susumi'); if(st){ var q=Math.min(1,window.scrollY/Math.max(1,h)); st.querySelector('i').style.setProperty('--h',(q*100)+'%'); document.getElementById('susumiT').textContent=q<.2?'一国':q<.45?'三国':q<.7?'十国':q<.92?'畿内':'天下'; } }
   window.addEventListener('scroll',depth,{passive:true}); depth();
