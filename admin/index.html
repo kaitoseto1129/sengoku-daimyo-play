@@ -98,9 +98,16 @@ function render(){
   const hits=(R.hits||[]); const tot=R.total||{};
   let days=(tot.stats||[]).map(d=>({day:d.day, n:d.daily||0}));
   if(!days.length){ const m={}; for(const h of hits){ if(h.event) continue; for(const d of (h.stats||[])) m[d.day]=(m[d.day]||0)+(d.daily||0); } days=Object.keys(m).sort().map(k=>({day:k,n:m[k]})); }   /* 総数が取れなければ、道ごとの数から日ごとに足す */
-  const visits=days.reduce((s,d)=>s+d.n,0);
+  /* 第253巡（作り手）：GoatCounter の総数は出来事（ev/…）も含む。人の数は「ページを開いた数」で見る（総数−出来事）。
+     日ごとの線も出来事を除いた数に（広告の日に四倍に見えていた） */
+  const evTot=+(tot.total_events||0), rawTot=days.reduce((s,d)=>s+d.n,0);
+  const evByDay={}; for(const h of hits){ if(!h.event) continue; for(const d of (h.stats||[])) evByDay[d.day]=(evByDay[d.day]||0)+(d.daily||0); }
+  days=days.map(d=>({day:d.day, n:Math.max(0,d.n-(evByDay[d.day]||0))}));
+  const visits=(rawTot&&evTot)?Math.max(0,rawTot-evTot):days.reduce((s,d)=>s+d.n,0);
   const ev=p=>hits.filter(h=>h.event && h.path.startsWith("ev/"+p)).reduce((s,h)=>s+sumStats(h),0);
   const byPrefix=p=>{ const m={}; for(const h of hits){ if(!h.event||!h.path.startsWith("ev/"+p+"/")) continue; const rest=h.path.slice(("ev/"+p+"/").length); m[rest]=(m[rest]||0)+sumStats(h); } return Object.entries(m).sort((a,b)=>b[1]-a[1]); };
+  const act=ev("activation/first-battle-complete"), adClicks=byPrefix("src").filter(([k])=>/^meta/.test(k)).reduce((a,[,n])=>a+n,0)||ev("src/meta");
+  const loadFast=ev("load/1s"), load3=ev("load/3s"), loadSlow=ev("load/8s")+ev("load/slow"), loadTot=loadFast+load3+loadSlow;
   const starts=ev("start"), battles=ev("battle"), results=ev("result"), unlocks=ev("unlock"), fundOpen=ev("fund/open"), fundClick=ev("fund-click"), payClick=ev("pay-click"), fundDone=byPrefix("fund").filter(([k])=>k!=="open");
   const pages=hits.filter(h=>!h.event);
   const pageviews=pages.reduce((s,h)=>s+sumStats(h),0);
@@ -113,7 +120,8 @@ function render(){
   const JA={oke:"桶狭間の戦い",honnoji:"本能寺の変",kiyosu:"清洲会議",shizugatake:"賤ヶ岳の戦い",komaki:"小牧・長久手の戦い",koshu:"甲州征伐",sekigahara:"関ヶ原の戦い",osaka:"大坂の陣",hoi:"信長包囲網",mikata:"三方ヶ原の戦い",nagashino:"長篠の戦い",kyushu:"九州征伐",odawara:"小田原征伐",ishiyama:"石山合戦",decisive:"決戦",siege:"城攻め",field:"野戦",word:"合言葉",open:"札を開いた"};
   const ja=k=>JA[k]||k;
   const list=(obj,label,max)=>{ const es=Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,max||12); const top=es.length?es[0][1]:1; if(!es.length) return `<div class="muted">まだありません</div>`; return es.map(([k,n])=>`<div class="row"><span>${esc(ja(k))}</span><span class="n">${fmtN(n)}</span></div><div class="bar"><i style="width:${Math.round(n/top*100)}%"></i></div>`).join(""); };
-  const bd=DATA.breakdown||{}; const bl=(k,label)=>{ const st=(bd[k]&&bd[k].stats)||[]; if(bd[k]&&bd[k].error) return `<div class="muted">取れませんでした（${esc(bd[k].error)}）</div>`; const top=st.length?st[0].count:1; return st.slice(0,10).map(s=>`<div class="row"><span>${esc(s.name||"（不明）")}</span><span class="n">${fmtN(s.count)}</span></div><div class="bar"><i style="width:${Math.round(s.count/top*100)}%"></i></div>`).join("")||`<div class="muted">まだありません</div>`; };
+  const SZ={phone:"スマホ",tablet:"タブレット",desktop:"パソコン",desktophd:"大きな画面",unknown:"（不明）"};   /* 第253巡：画面の大きさは名が空で返るので id で出す */
+  const bd=DATA.breakdown||{}; const bl=(k,label)=>{ const st=(bd[k]&&bd[k].stats)||[]; if(bd[k]&&bd[k].error) return `<div class="muted">取れませんでした（${esc(bd[k].error)}）</div>`; const top=st.length?st[0].count:1; return st.slice(0,10).map(s=>`<div class="row"><span>${esc(s.name||(k==="sizes"?(SZ[s.id]||s.id):"（不明）"))}</span><span class="n">${fmtN(s.count)}</span></div><div class="bar"><i style="width:${Math.round(s.count/top*100)}%"></i></div>`).join("")||`<div class="muted">まだありません</div>`; };
   // 日ごとの折れ線
   const W=900,H=180,pad=28; const mx=Math.max(1,...days.map(d=>d.n)); const xs=i=>pad+(W-pad*2)*(days.length>1?i/(days.length-1):0.5), ys=n=>H-pad-(H-pad*2)*n/mx;
   const line=days.map((d,i)=>`${i?"L":"M"}${xs(i).toFixed(1)},${ys(d.n).toFixed(1)}`).join(" ");
@@ -124,11 +132,12 @@ function render(){
     <div class="grid">
       <div class="card"><h2>訪問（人）</h2><div class="big">${fmtN(visits)}</div><div class="muted">${R.start}〜${R.end}　一日あたり ${fmtN(Math.round(visits/Math.max(1,days.length)))}</div></div>
       <div class="card"><h2>遊び始め</h2><div class="big">${fmtN(starts)}<small>訪問の ${pct(starts,visits)}</small></div></div>
-      <div class="card"><h2>会戦</h2><div class="big">${fmtN(battles)}<small>遊び始め一回あたり ${starts?(battles/starts).toFixed(1):"—"}</small></div></div>
-      <div class="card"><h2>結び（勝ち負けまで）</h2><div class="big">${fmtN(results)}<small>遊び始めの ${pct(results,starts)}</small></div></div>
+      <div class="card"><h2>会戦</h2><div class="big">${fmtN(battles)}<small>遊び始め一回あたり ${starts?(battles/starts).toFixed(1):"—"}</small></div><div class="muted">初戦を終えた ${fmtN(act)}（遊び始めの ${pct(act,starts)}）</div></div>
+      <div class="card"><h2>結び（天下統一・滅亡まで）</h2><div class="big">${fmtN(results)}<small>遊び始めの ${pct(results,starts)}</small></div><div class="muted">一つの筋書きを最後まで（何時間もかかる）。日ごとの手応えは「初戦を終えた」で見る</div></div>
       <div class="card"><h2>解除・支援</h2><div class="big">${fmtN(unlocks)}<small>解除</small></div><div class="muted">支援の札を開いた ${fmtN(fundOpen)}・額を押した ${fmtN(fundClick)}・払いに進んだ ${fmtN(payClick)}${fundDone.length?`・支援あり ${fundDone.map(([k,n])=>k+"×"+n).join(" ")}`:""}</div></div>
       <div class="card"><h2>LP（紹介ページ）</h2>${(()=>{ const lpv=byPrefix("lp/view"); const views=lpv.reduce((a,[,n])=>a+n,0); const clicks=byPrefix("lp").filter(([k])=>/appstore_click$/.test(k)).reduce((a,[,n])=>a+n,0); const opens=byPrefix("lp").filter(([k])=>k.startsWith("open_")).reduce((a,[,n])=>a+n,0); const src={}; for(const [k,n] of lpv){ const s2=k.split("/")[0]; src[s2]=(src[s2]||0)+n; } const sc={}; for(const [k,n] of byPrefix("lp")){ const m=k.match(/^scroll_(\d+)$/); if(m) sc[m[1]]=(sc[m[1]]||0)+n; } return `<div class="big">${fmtN(views)}<small>表示</small></div><div class="muted">App Store を押した ${fmtN(clicks)}（${pct(clicks,views)}）・動く絵を開いた ${fmtN(opens)}・流入 ${Object.entries(src).map(([k,n])=>k+" "+n).join(" ")||"—"}・読み進み 25%:${sc["25"]||0} 50%:${sc["50"]||0} 75%:${sc["75"]||0} 100%:${sc["100"]||0}</div>`; })()}</div>
       <div class="card"><h2>目安箱・支援（PayPal）</h2><div class="big">${fmtN(ev("meyasu/send"))}<small>目安箱</small></div><div class="muted">払いました（web）${fmtN(byPrefix("fund-paid").reduce((a,[,n])=>a+n,0))}・関ヶ原の払い ${fmtN(ev("paid/sekigahara"))}</div></div>
+      <div class="card"><h2>入口・速さ</h2><div class="big">${fmtN(adClicks)}<small>広告から</small></div><div class="muted">新しい人 ${fmtN(ev("user/new"))}・戻って来た人 ${fmtN(ev("user/return"))}${loadTot?`<br>開くまで 1秒以内 ${pct(loadFast,loadTot)}・3秒 ${pct(load3,loadTot)}・8秒以上 ${pct(loadSlow,loadTot)}`:""}</div></div>
       <div class="card"><h2>ページ表示</h2><div class="big">${fmtN(pageviews)}</div><div class="muted">${pages.slice(0,3).map(h=>esc(h.path)+" "+fmtN(sumStats(h))).join("　")}</div></div>
     </div>
     <div class="sec card"><h2>日ごとの訪問</h2>
@@ -142,7 +151,7 @@ function render(){
         <div class="st"><b>${fmtN(results)}</b><span>結び</span><em>${pct(results,visits)}</em></div>
         <div class="st"><b>${fmtN(unlocks)}</b><span>解除</span><em>${pct(unlocks,visits)}</em></div>
       </div>
-      <div class="muted" style="margin-top:8px">遊び始めが少なければ入口（題名の画面）、結びが少なければ途中で飽きている、と読めます。iPhone 版は数えていません（ブラウザ版だけ）。</div>
+      <div class="muted" style="margin-top:8px">訪問＝ページを開いた数（出来事の数は含めない）。遊び始めが少なければ入口（題名の画面）、初戦を終えた人が少なければ最初の合戦で躓いている、と読めます。結びは筋書きを最後まで遊んだ人だけなので、ふだんは 0 で構いません。iPhone 版は数えていません（ブラウザ版だけ）。</div>
     </div>
     <div class="sec grid">
       <div class="card"><h2>どの筋書きで始めたか</h2>${list(scen)}</div>
