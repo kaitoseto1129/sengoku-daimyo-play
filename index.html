@@ -26091,10 +26091,10 @@ function drawBattle(){
     // 武将の顔は小さく、隊の上に。誰の隊かは背旗と名札で分かる
     const g=W.generals[u.gid];
     const big = selNow || B.hover===u.id; const major = u.cmd || (g && ((g.lea+g.war)>=165 || g.status==="大名" || (typeof NAG_HEROES!=="undefined" && NAG_HEROES.has(g.name)) || u.hero || (u.famous===undefined ? (u.famous=!!(portraitData()&&portraitData()[g.name])) : u.famous)));   /* 肖像画の残る将も名のある将 */
-    const fs=Math.round((big?30:u.cmd?18:B.opening>0?(major?16:12):(major?14:10))*Math.min(1.5,Z)), fx=x-fs/2, fy=y-(dense?44:52)*Math.min(1.5,Z)-8*Z;   /* 第180巡：武将の札は六割に（兵の塊が主役。作り手の仕様） */
+    const fs=Math.round((big?30:u.cmd?18:B.opening>0?(major?16:13):(major?14:12))*Math.min(1.5,Z)), fx=x-fs/2, fy=y-(dense?44:52)*Math.min(1.5,Z)-8*Z;   /* 第180巡：武将の札は六割に（兵の塊が主役。作り手の仕様） */
     const farView = !major;   // 名のある将（宿将・当主）の顔は押さずとも出す。それ以外は選んだときだけ（作り手の指示）
     if(g && u.slain && u.slainAt!==undefined && B.elapsed-u.slainAt<8){ bctx.save(); bctx.globalAlpha=Math.max(0,1-(B.elapsed-u.slainAt)/8); bctx.drawImage(portraitCanvas(g),fx,fy,fs,fs); bctx.fillStyle="rgba(80,80,80,.7)"; bctx.fillRect(fx,fy,fs,fs); bctx.strokeStyle="#777"; bctx.lineWidth=1.5; bctx.strokeRect(fx-.5,fy-.5,fs+1,fs+1); bctx.font='900 10px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center"; bctx.fillStyle="#ddd"; bctx.fillText("討死",x,fy+fs+12); bctx.restore(); }
-    if(g && !u.slain && (u.cmd || big || !farView)){
+    if(g && !u.slain){   /* 第253巡（作り手）：どの隊にも隊長の武将の顔を付ける（信長の隊に信長がいないのは惜しい）。名のある将でなくても常に */
       const danger = u.morale>0 && (u.danger || u.troops<u.max*0.2 || u.surrounded);
       bctx.save(); if(u.morale<=0) bctx.globalAlpha*=0.55;
       bctx.drawImage(portraitCanvas(g),fx,fy,fs,fs);
