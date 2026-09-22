@@ -2751,7 +2751,7 @@ function scenarioKeepNames(sc){
   for(const h of sc.houses||[]){ out.add(h.hq); for(const c of (h.castles||[])) out.add(c); }
   for(const nm of sc.keep||[]) out.add(nm);   // 筋書きの支城の網（小田原の忍・玉縄・鉢形など）
   /* 第110巡：決戦の地を決める城は間引かない（大垣城が間引かれ、関ヶ原が佐和山と江戸の真ん中＝信濃に置かれていた） */
-  try{ for(const d of DECISIVE){ if(d.sc && d.sc!==sc.id) continue; for(const nm of (d.site||[])) out.add(nm); } }catch(e){}
+  try{ for(const d of DECISIVE){ if(d.sc && !(Array.isArray(d.sc)?d.sc.includes(sc.id):d.sc===sc.id)) continue; for(const nm of (d.site||[])) out.add(nm); if(d.castle) out.add(d.castle); } }catch(e){}   /* 第253巡：sc が配列の決戦（天正の八戦・伊賀など）で、戦の地の城が間引かれていた */
   for(const k of Object.keys(sc.renameC||{})) out.add(k);
   for(const x of sc.wars||[]) for(const nm of x) out.add(nm);
   return out;
@@ -15654,6 +15654,18 @@ EVENTS.push(
    act:()=>{ const od=clanByName("織田家"); const c=Object.values(W.castles).find(x=>x.name==="鳥取城"); if(!od||!c) return; const ow=W.clans[c.clan]; if(ow&&!od.war.has(ow.id)) declareWar(od.id,ow.id,"force");
      if(!findGeneralByName("吉川経家")){ const mr=clanByName("毛利家"); try{ spawnGeneral("吉川経家", (ow?ow.id:(mr?mr.id:od.id)), c.id, 1500); }catch(_){ } }
      if(c) c.food=Math.max(0,Math.floor((c.food||0)*0.35)); W.tottoriSiege=true; log("羽柴秀吉は若狭の商人に因幡の米を買い占めさせ、鳥取城を囲んだ","war",true); }},
+  {id:1409,daily:true,name:"第一次天正伊賀の乱",
+   text:["織田信雄「伊賀など、父上に申すまでもない。ひと揉みにしてくれる」","―― 伊賀には大名がおらぬ。地侍が国中で盟い、余所者の兵を入れぬと決めている"],
+   cond:()=> (eraOnly("nagashino")||eraOnly("hoi"))&&dateFrom(1579,9)&&!W.fired.has(2309)&&(()=>{ const od=clanByName("織田家"); const g=findGeneralByName("織田信雄"); const c=Object.values(W.castles).find(x=>/^(上野城|比自山城|柏原城)$/.test(x.name)); return od&&!od.dead&&g&&g.status!=="死亡"&&!!c; })(),
+   act:()=>{ const od=clanByName("織田家"); const ig=igaRise(); if(!od||!ig) return;
+     if(!od.war.has(ig.id)) declareWar(od.id,ig.id,"force");
+     log("織田信雄が父に諮らず、伊賀へ兵を入れた","war",true); try{ sekSubQueue(2309,3); }catch(e){ console.error(e); } }},
+  {id:1410,daily:true,name:"第二次天正伊賀の乱",
+   text:["織田信長「伊賀は一国残らず焼き払え。四方の口を塞いでから入れ」","―― 五万の兵が、六つの口から山の国へ入る"],
+   cond:()=> (eraOnly("nagashino")||eraOnly("hoi"))&&dateFrom(1581,9)&&!W.fired.has(2310)&&(()=>{ const od=clanByName("織田家"); const c=Object.values(W.castles).find(x=>/^(上野城|比自山城|柏原城)$/.test(x.name)); return od&&!od.dead&&!!c; })(),
+   act:()=>{ const od=clanByName("織田家"); const ig=igaRise(); if(!od||!ig) return;
+     if(!od.war.has(ig.id)) declareWar(od.id,ig.id,"force");
+     log("信長は五万を四方の口から伊賀へ入れた","war",true); try{ sekSubQueue(2310,3); }catch(e){ console.error(e); } }},
   {id:1408,daily:true,name:"柴田勝家、越中へ",
    text:["柴田勝家「魚津を落とせば越後の門が開く。上杉の後詰が来る前に」"],
    cond:()=> (eraOnly("nagashino")||eraOnly("honnoji"))&&dateFrom(1582,3)&&W.date.d===15&&!W.uozuSiege&&!W.fired.has(2308)&&(()=>{ const od=clanByName("織田家"); const c=Object.values(W.castles).find(x=>x.name==="魚津城"); return od&&!od.dead&&c&&c.clan!==null&&c.clan!==od.id; })(),
@@ -16250,6 +16262,32 @@ DECISIVE.push(
    gather:"羽柴秀吉、因幡へ。若狭の商人に鳥取の米を買い占めさせ、城を囲む", open:"鳥取城。久松山の上。城には民まで逃げ込み、蔵の米は四月で尽きる――渇え殺しの戦",
    after:{ atkWin:{ text:"鳥取城は飢えて開いた。吉川経家は城兵の助命と引き換えに自害した", capture:"鳥取城", kills:["吉川経家"] },
            defWin:{ text:"毛利の後詰が届き、鳥取の囲みは解けた。因幡はまだ毛利のもの" } } },
+ { id:2309, key:"iga1", sub:"信雄の独り決め、山中の伏兵", sc:["nagashino","oke","hoi","ishiyama"], when:"never", name:"第一次天正伊賀の乱", atk:"織田家", def:"百地家", atkCmd:"織田信雄", defCmd:"百地丹波", histWin:"def",
+   terrain:2, forts:null, noAllies:true, nAtk:5, nDef:6, atkTroops:7000, defTroops:5000,
+   atkGens:["織田信雄","柘植保重","長野左京亮","日置大膳","岡田重孝"],
+   defGens:["百地丹波","藤林長門守","滝野吉政","森田浄雲","福喜多将監"],
+   site:["上野城","霧山城","安濃津城","松ヶ島城"],
+   holdWin:{side:"def", sec:140, keep:0.25, h:"伊賀、国を守る", t:"伊賀の地侍は山と谷を使って織田勢を追い散らした"},
+   gather:"織田信雄が父に諮らず、伊賀へ兵を入れた。山道は細く、谷は深い",
+   open:"伊賀の山中。道は谷筋の一本きり。両脇の林と尾根に、地侍が潜んでいる",
+   after:{ atkWin:{ text:"信雄は伊賀へ攻め入り、国人の砦を焼いた。だが山の民は散っただけで、降ってはいない", run:()=>{ log("信長は独断の出兵を叱りつつ、結果は咎めなかった","dip",true); } },
+           defWin:{ text:"伏兵に囲まれ、柘植保重は討死。信雄は命からがら逃げ帰った。信長は「親子の縁を切る」と激怒した", kills:["柘植保重"], run:()=>{ W.igaFirstLost=true; const g=findGeneralByName("織田信雄"); if(g) g.loyalty=Math.max(20,(g.loyalty||70)-15); log("信長「勝手に兵を出し、しかも敗れるとは。二度と顔を見せるな」","dip",true); } } } },
+ { id:2310, key:"iga2", sub:"四方から五万、比自山と柏原", sc:["nagashino","oke","hoi","ishiyama"], when:"never", name:"第二次天正伊賀の乱", atk:"織田家", def:"百地家", atkCmd:"織田信雄", defCmd:"百地丹波", histWin:"atk",
+   terrain:3, forts:"def", castle:"比自山城", noAllies:true, nAtk:8, nDef:5, atkTroops:30000, defTroops:4000,
+   atkGens:["織田信雄","丹羽長秀","筒井順慶","蒲生氏郷","堀秀政","滝川一益","浅野長吉","日置大膳"],
+   defGens:["百地丹波","藤林長門守","滝野吉政","森田浄雲","町井清兵衛"],
+   site:["上野城","比自山城","柏原城"],
+   holdWin:{side:"def", sec:240, keep:0.25, h:"比自山、なお落ちず", t:"伊賀の者は夜のうちに山を下り、城を空にして散った"},
+   gather:"信長は五万を四方の口から伊賀へ入れた。今度は逃げ道を塞ぐ念の入れよう",
+   open:"比自山城。伊賀の者が女子供まで籠る山城。四方の口はすでに塞がれている",
+   after:{ atkWin:{ text:"比自山も柏原も落ち、伊賀は焼かれた。生き残った者は諸国へ散り、忍びの術だけが残った", capture:"比自山城",
+           run:()=>{ const od=clanByName("織田家"); const ig=(W.igaClan!==undefined&&W.clans[W.igaClan])?W.clans[W.igaClan]:null;
+             if(od&&ig){ for(const c of myCastles(ig.id)) captureCastle(c.id, od.id, null);
+               for(const g of Object.values(W.generals)) if(g.clan===ig.id&&g.status!=="死亡"){ if(rnd()<0.5){ g.clan=null; g.status="浪人"; g.castle=null; g.army=null; g.troops=0; } else kill(g.id); }
+               ig.dead=true; try{ bumpGarrison(); }catch(_){ } }
+             log("伊賀は平定された。散った者たちは、のちに徳川や諸家に仕える","war",true); } },
+           defWin:{ text:"四方の口を塞がれてなお、伊賀は落ちなかった。織田勢は兵糧を使い果たして引いた",
+           run:()=>{ log("信長は伊賀を諦めた。山の国は、そのまま残った","war",true); W.igaHeld=true; } } } },
  { id:2308, key:"uozu", sub:"京で何かが起きている", sc:["nagashino","oke","hoi","ishiyama","honnoji"], when:"flag", flag:"uozuSiege", name:"魚津城の戦い", atk:"織田家", def:"上杉家", atkCmd:"柴田勝家", defCmd:"中条景泰", histWin:"atk",
    terrain:1, forts:"def", castle:"魚津城", noAllies:true, nAtk:8, nDef:5, atkTroops:40000, defTroops:4000,
    atkGens:["柴田勝家","佐々成政","前田利家","佐久間盛政","佐々平左衛門","不破光治","徳山則秀","原長頼"],
@@ -17145,8 +17183,17 @@ function sekSubQueue(id, days){ W.sekSub=W.sekSub||[]; if(W.fired&&W.fired.has(i
 function sekRewardTick(){ const R=W.sekRewardAsk; if(!R||B||pendingEncounter||overlayEl) return; W.sekRewardAsk=null; const D=sekDisc(); const opts=R.present.slice(0,4).map(n=>[n,`${n}を賞する`,`${n}の満足+10（いま${D[n]}）。ほかは−3`,()=>{ for(const m of R.present){ sekDiscAdd(m,m===n?10:-3); } sekTL(`${R.name}：${n}の功を賞す`); }]); opts.push(["none","賞さない","皆の満足−4",()=>{ for(const m of R.present) sekDiscAdd(m,-4); }]); koChoice("功を賞する",`${R.name}の功をどの家に。西軍は功を評価せねば不満が溜まる。`,opts); }
 function sekSubTick(){ try{ sekRewardTick(); }catch(e){ console.error(e); } if(B||pendingEncounter||overlayEl) return;
   if(!W.sekMini&&(!W.sekSub||!W.sekSub.length)) return;   /* 第253巡：行軍中の小さな決戦は、待ち行列が空でも仕上げる（樫井のように一つだけ積んだ戦が、行軍したまま起きなかった） */ /* 第253巡（作り手：戦は突然出ない）：小さな決戦も、軍が街道を歩いて着いてから。まず着いた軍があれば戦を始める */
-  if(W.sekMini){ const M=W.sekMini; const arrived=M.armies.every(id=>{ const a=W.armies[id]; return !a||stageArrived(a); }); if(!arrived) return; const d=DECISIVE.find(x=>x.id===M.id); for(const id of M.armies){ const a=W.armies[id]; if(!a) continue; for(const gid of a.gens){ const g=W.generals[gid]; if(g&&g.army===id) g.army=null; if(g&&a.stageOrig&&a.stageOrig[gid]!==undefined) g.troops=a.stageOrig[gid]; } delete W.armies[id]; if(W.stage) W.stage.armies=W.stage.armies.filter(x=>x!==id); } if(W.stage){ if(M.prevFollow!==undefined){ W.stage.followId=M.prevFollow; W.stage.follow=!!M.prevFollow; } if(W.stage.tmp&&!W.stage.armies.length) W.stage=null; } W.sekMini=null; bumpGarrison(); try{ updateStageBadge(); }catch(_){ } if(d&&!W.fired.has(d.id)){ try{ fireDecisive(d); }catch(e){ console.error(e); } } return; }
-  const q=W.sekSub[0]; if(dayNumber()<q.at) return; W.sekSub.shift(); const d=DECISIVE.find(x=>x.id===q.id); if(!d||W.fired.has(d.id)) return; let ok=false; try{ ok=miniMarch(d); }catch(e){ console.error(e); } if(!ok){ try{ fireDecisive(d); }catch(e){ console.error(e); } } }
+  if(W.sekMini){ const M=W.sekMini; const arrived=M.armies.every(id=>{ const a=W.armies[id]; return !a||stageArrived(a); });
+    /* 第253巡（bot の報せ：待ち行列の決戦が四十七日起きない）：行軍が長引きすぎたら、待たせずにその場で戦う */
+    if(!arrived && M.at!==undefined && dayNumber()-M.at>25){ const d0=DECISIVE.find(x=>x.id===M.id);
+      for(const id of M.armies){ const a=W.armies[id]; if(a){ try{ disbandArmy(a); }catch(_){ delete W.armies[id]; } } }
+      if(W.stage&&W.stage.armies) W.stage.armies=W.stage.armies.filter(x=>!M.armies.includes(x));
+      if(W.stage) W.stage.followId=M.prevFollow; W.sekMini=null;
+      if(d0&&!W.fired.has(d0.id)){ log(`${d0.name}――軍は道に手間取ったが、ついに相見えた`,"war",true); try{ fireDecisive(d0); }catch(e){ console.error(e); } }
+      return; }
+    if(!arrived) return; const d=DECISIVE.find(x=>x.id===M.id); for(const id of M.armies){ const a=W.armies[id]; if(!a) continue; for(const gid of a.gens){ const g=W.generals[gid]; if(g&&g.army===id) g.army=null; if(g&&a.stageOrig&&a.stageOrig[gid]!==undefined) g.troops=a.stageOrig[gid]; } delete W.armies[id]; if(W.stage) W.stage.armies=W.stage.armies.filter(x=>x!==id); } if(W.stage){ if(M.prevFollow!==undefined){ W.stage.followId=M.prevFollow; W.stage.follow=!!M.prevFollow; } if(W.stage.tmp&&!W.stage.armies.length) W.stage=null; } W.sekMini=null; bumpGarrison(); try{ updateStageBadge(); }catch(_){ } if(d&&!W.fired.has(d.id)){ try{ fireDecisive(d); }catch(e){ console.error(e); } } return; }
+  const q=W.sekSub[0]; if(dayNumber()<q.at) return; W.sekSub.shift(); const d=DECISIVE.find(x=>x.id===q.id); if(!d||W.fired.has(d.id)) return; let ok=false; const late=(dayNumber()-q.at>30);   /* 第253巡：三十日以上待たされた戦は、行軍を省いてすぐ起こす */
+  if(!late){ try{ ok=miniMarch(d); }catch(e){ console.error(e); } } if(!ok){ try{ fireDecisive(d); }catch(e){ console.error(e); } } }
 /* 小さな決戦の行軍：寄せ手（城攻めでなければ守り手も）がいちばん近い城から戦場へ歩く。着けば戦。主の仕込み（関ヶ原の本戦など）と同居できる */
 function miniMarch(d){ const A=(d.atkClanOf&&decClanOf(d.atkClanOf))||clanByName(d.atk)||(d.altAtk?clanByName(d.altAtk):null), Bc=(d.defClanOf&&decClanOf(d.defClanOf))||clanByName(d.def)||(d.altDef?clanByName(d.altDef):null); if(!A||!Bc||W.sekMini) return false; let site; try{ site=decisiveSite(d,A,Bc); }catch(e){ return false; } if(!site) return false;
   const near=(K)=>{ const cs=myCastles(K.id); if(!cs.length) return null; return cs.map(c=>[c,Math.hypot(W.tile[c.id].c-site.x,W.tile[c.id].r-site.y)]).sort((a,b)=>a[1]-b[1])[0][0]; };
@@ -17157,7 +17204,7 @@ function miniMarch(d){ const A=(d.atkClanOf&&decClanOf(d.atkClanOf))||clanByName
   const prevFollow=W.stage.followId; const armies=[];
   const a=mk(A, ga.map(g=>W.generals[g.id]||g).filter(Boolean), af, atkEast?1.1:-1.1, d.atkTroops||8000, `${W.generals[ga[0].id].name}軍団`); if(!a) return false; W.stage.armies.push(a.id); armies.push(a.id);
   if(!d.castle){ const df=near(Bc); const gb=decisiveGens(Bc.id, d.defGens, d.nDef, A.id, true, d.defAllies); if(df&&gb&&gb.length){ const b=mk(Bc, gb.map(g=>W.generals[g.id]||g).filter(Boolean), df, atkEast?-1.1:1.1, d.defTroops||6000, `${W.generals[gb[0].id].name}軍団`); if(b){ W.stage.armies.push(b.id); armies.push(b.id); } } }
-  const mineA=armies.map(id=>W.armies[id]).find(x=>x.clan===W.player); W.stage.followId=(mineA||W.armies[armies[0]]).id; W.stage.follow=true; W.sekMini={id:d.id, armies, prevFollow};
+  const mineA=armies.map(id=>W.armies[id]).find(x=>x.clan===W.player); W.stage.followId=(mineA||W.armies[armies[0]]).id; W.stage.follow=true; W.sekMini={id:d.id, armies, prevFollow, at:dayNumber()};   /* 第253巡：発った日を控える（行軍が長引いて戦が起きないのを防ぐ） */
   bumpGarrison(); try{ updateStageBadge(); }catch(_){ } openingBanner(d.gather||`${d.name}へ`,0); log(`${d.name}――軍が${af.name}を発った`,"war"); return true; }
 EVENTS.push(
   {id:1298,daily:true,name:"大津城、京極高次の寝返り",
@@ -18225,11 +18272,11 @@ function aneYokoThicken(res, silent){ const K=B.ane; const P=K.yokoPt; const odX
 
 /* ===== 第209巡：決戦ごとの仕組み（仕様書「各ステージ改善」）。金ヶ崎＝殿軍と主力撤退、夜襲＝警戒度と発見、四国＝伏撃地点と退路遮断、田辺＝交渉の進み ===== */
 function stageKitSetup(dec){ if(!B||!dec) return; const k=dec.key; try{
-  if(k==="kanegasaki") kanSetup(); else if(k==="kyushu_nightraid") nrSetup(); else if(k==="shikoku_counter") ambSetup(); else if(k==="tanabe") negoSetup(); else if(k==="hasedo") hillSetup(); else if(k==="yamanaka") moatSetup(); else if(k==="hachioji") hachiSetup(); else if(k==="oshi") oshiSetup(); else if(k==="gaikaku") gaikSetup(); else if(k==="yamazato") yamazatoSetup(); else if(k==="imafuku") imafukuSetup(); else if(k==="yao") yaoSetup();
+  if(k==="kanegasaki") kanSetup(); else if(k==="kyushu_nightraid") nrSetup(); else if(k==="shikoku_counter") ambSetup(); else if(k==="tanabe") negoSetup(); else if(k==="hasedo") hillSetup(); else if(k==="yamanaka") moatSetup(); else if(k==="hachioji") hachiSetup(); else if(k==="oshi") oshiSetup(); else if(k==="gaikaku") gaikSetup(); else if(k==="yamazato") yamazatoSetup(); else if(k==="imafuku") imafukuSetup(); else if(k==="iga1") igaSetup(); else if(k==="yao") yaoSetup();
   else if(k==="ueda1"||k==="ueda") lureSetup(k); else if(k==="nagakute") nagakuteSetup(); else if(k==="komaki_hs") komakiSetup(); else if(k==="komaki_tk") inuyamaSetup(); else if(k==="odani") odaniSetup(); else if(k==="temmoku") temmokuSetup(); else if(k==="takato") takatoSetup(); else if(k==="ichijodani") B.icj=true; else if(k==="kitanosho") kitanoshoSetup(); else if(k==="gifu_nobutaka") gifuNSetup(); else if(k==="hetsugigawa") hetsugiSetup(); else if(k==="nejirozaka") nejiroSetup(); else if(k==="hitotoribashi") hitoSetup(); else if(k==="ichinomiya") ichinomiyaSetup(); else if(k==="takatenjin_assault") tkjASetup(); else if(k==="takatenjin_break") tkjBSetup(); else if(k==="tottori_relief") tottoriSetup(); else if(k==="takamatsu_field") takamatsuSetup(); else if(k==="nodafukushima") nodaSetup(); else if(k==="sakamoto") sakamotoSetup(); else if(k==="nagashima") nagashimaSetup(); else if(k==="mimikawa") mimikawaSetup(); else if(k==="okitanawate") okitaSetup(); else if(k==="suriagehara") suriSetup(); else if(k==="kawanakajima") kawaSetup(); else if(k==="shizugatake"||k==="shizugatake_open") shizuSetup(); else if(k==="wakamiko") wakaSetup(); else if(k==="honnoji") honnojiKitSetup(); else if(k==="nijo") nijoKitSetup(); else if(k==="kizu") B.kzk=true; else if(k==="tennoji_relief") B.tnrk=true; else if(k==="yamazaki") B.ymk=true; else if(k==="odawara") odawaraKitSetup(); else if(k==="tennoji") tennojiKitSetup(); else if(k==="arioka") B.ark=true; else if(k==="osaka") domyojiSetup(); else if(k==="sekigahara") sekDecorSetup();
  }catch(e){ console.error("stageKit",e); } }
 function stageKitTick(dt){ if(!B||B.over!==null||B.opening>0) return; if(!B.towerFillDone&&B.elapsed>0.2){ B.towerFillDone=true; try{ fortTowersFill(); }catch(e){ console.error("towerFill",e); } }   /* 第239巡：櫓に鉄砲百の隊 */ if(B.dmj){ try{ domyojiTick(); }catch(e){ console.error(e); } } if(B.mikata&&B.escapePhase&&B.ctx.playerSide===0){ try{ mikChaseTick(); }catch(e){ console.error(e); } } try{
-  if(B.kan) kanTick(dt); if(B.nr) nrTick(dt); if(B.amb) ambTick(dt); if(B.nego) negoTick(dt); if(B.hill) hillTick(dt); if(B.moatKit) moatTick(dt); if(B.hachi) hachiTick(dt); if(B.oshi) oshiTick(dt); if(B.gaik) gaikTick(dt); if(B.yz) yamazatoTick(dt); if(B.imafuku) imafukuTick(dt); if(B.riverX!==undefined) riverTick(dt);
+  if(B.kan) kanTick(dt); if(B.nr) nrTick(dt); if(B.amb) ambTick(dt); if(B.nego) negoTick(dt); if(B.hill) hillTick(dt); if(B.moatKit) moatTick(dt); if(B.hachi) hachiTick(dt); if(B.oshi) oshiTick(dt); if(B.gaik) gaikTick(dt); if(B.yz) yamazatoTick(dt); if(B.imafuku) imafukuTick(dt); if(B.iga) igaTick(dt); if(B.riverX!==undefined) riverTick(dt);
   if(B.escapePhase&&B.escapeCfg) escapeChipTick(); if(B.icj&&B.escapePhase) ichijoRearTick(); if(B.nk) nagakuteBlockTick(); if(B.ari) ariRoleTick();
   if(B.lure) lureTick(dt); if(B.nk) nagakuteTick(dt); if(B.km) komakiTick(dt); if(B.inu) inuyamaTick(dt); if(B.odn) odaniTick(dt); if(B.tm) temmokuTick(dt); if(B.tkt) takatoTick(dt); if(B.icj) ichijoTick(dt); if(B.kts) kitanoshoTick(dt); if(B.gfn) gifuNTick(dt); if(B.htg) hetsugiTick(dt); if(B.njr) nejiroTick(dt); if(B.hito) hitoTick(dt); if(B.icm) ichinomiyaTick(dt); if(B.tkjA) tkjATick(dt); if(B.tkjB) tkjBTick(dt); if(B.ttr) tottoriTick(dt); if(B.tkm) takamatsuTick(dt); if(B.nod) nodaTick(dt); if(B.skm) sakamotoTick(dt); if(B.ngs) nagashimaTick(dt); if(B.mmk) mimikawaTick(dt); if(B.okt) okitaTick(dt); if(B.sur) suriTick(dt); if(B.kwn) kawaTick(dt); if(B.szk) shizuTick(dt); if(B.wk) wakaTick(dt); if(B.hnj) honnojiKitTick(dt); if(B.njo) nijoTick(dt); if(B.kzk) kizuKitTick(dt); if(B.tnrk) tnrKitTick(dt); if(B.ymk) yamazakiKitTick(dt); if(B.odw) odawaraKitTick(dt); if(B.tnj2) tennojiKitTick(dt); if(B.ark) ariKitTick(dt);
  }catch(e){ console.error("stageKitTick",e); } }
@@ -18369,6 +18416,24 @@ function imafukuTick(dt){ const K=B.imafukuBanks; if(!K) return;
     const nOwn=s=>B.units.filter(u=>u.side===s&&u.troops>.5&&!u.left&&u.morale>0&&Math.abs(u.y-K.n)<2.2).length;
     const sOwn=s=>B.units.filter(u=>u.side===s&&u.troops>.5&&!u.left&&u.morale>0&&Math.abs(u.y-K.s)<2.2).length;
     chip(`【鴫野の堤】寄せ手 ${nOwn(0)}／守り ${nOwn(1)}　｜　【今福の堤】寄せ手 ${sOwn(0)}／守り ${sOwn(1)}　｜　泥田：足 −二割・騎馬は使えぬ`); } }
+/* ---- 第253巡：天正伊賀の乱（伏兵・ゲリラ・山岳）。谷筋の細い道が一本、両脇は杉林と尾根 ---- */
+function igaSetup(){ const H=BF.h, Wd=BF.w;
+  for(let r=0;r<H;r++){ if(!B.tiles[r]) continue; for(let c=0;c<Wd;c++){ const t=B.tiles[r][c]; if(t===BT.WATER||t===BT.FORD||t===BT.MOAT) continue;
+    const d=Math.abs(r-H/2);
+    B.tiles[r][c] = d<=1.2 ? BT.ROAD : d<=3.0 ? (((r*5+c*3)%7===0)?BT.FOREST:BT.GRASS) : d<=5.5 ? (((r+c)%3===0)?BT.HILL:BT.FOREST) : (((r*3+c)%4===0)?BT.FOREST:BT.HILL); } }
+  /* 谷を横切る小さな沢 */
+  for(const cx of [Math.round(Wd*0.35), Math.round(Wd*0.62)]) for(let r=0;r<H;r++){ if(!B.tiles[r]) continue; if(Math.abs(r-H/2)<=1.2){ B.tiles[r][cx]=BT.FORD; continue; } B.tiles[r][cx]=BT.WATER; }
+  B.bg=null; B.iga=true;
+  B.fieldLabels=(B.fieldLabels||[]).concat([{x:Wd*0.5,y:H/2-2.2,t:"谷筋の道"},{x:Wd*0.25,y:2,t:"杉林と尾根"},{x:Wd*0.72,y:H-2,t:"杉林と尾根"}]);
+  B.bandNames=["北の尾根","谷筋の道","南の尾根"];
+  B.objective=B.ctx.playerSide===1?"道に敵を引き込み、尾根の伏兵で横腹を突け。谷を出させるな":"谷筋の道を抜けよ。林と尾根には伏兵がいる――道を外れれば足が止まる"; }
+function igaTick(dt){ if(!B.iga||(B.igaAt>B.elapsed-1)) return; B.igaAt=B.elapsed;
+  /* 尾根と林の伊賀勢は、見つかりにくく、足が速い。寄せ手は道を外れると遅い */
+  for(const u of B.units){ if(u.troops<=.5||u.left) continue; const t=bTileAt(u.x,u.y);
+    if(u.side===1){ const hid=(t===BT.FOREST||t===BT.HILL); if(!!u.igaHide!==hid){ u.igaHide=hid; u.defBonus=(u.defBonus||1)*(hid?1.35:1/1.35); } }
+    else { const off=(t===BT.FOREST||t===BT.HILL); if(!!u.igaOff!==off){ u.igaOff=off; u.spdMul=(u.spdMul||1)*(off?0.75:1/0.75); } } }
+  const onRoad=B.units.filter(u=>u.side===0&&u.troops>.5&&!u.left&&Math.abs(u.y-BF.h/2)<=1.6).length;
+  chip(`【谷筋】織田勢 道の上 ${onRoad}隊　｜　尾根と林の伊賀勢は見つかりにくく、寄せ手は道を外れると足が鈍る`); }
 /* ---- 八尾・若江：二つの戦区。長瀬川は浅瀬（三つ）と橋 ---- */
 function yaoSetup(){ const H=BF.h, Wd=BF.w; const rx=Math.round(Wd*0.5); B.riverX=rx+0.5; B.riverLeftSide=B.ctx.playerSide; for(let r=0;r<H;r++){ if(!B.tiles[r]) continue; const ford=(Math.abs(r-H*0.2)<=0.6||Math.abs(r-H*0.8)<=0.6), bridge=Math.abs(r-H*0.5)<=0.6; if(rx>=0&&rx<Wd) B.tiles[r][rx]=bridge?BT.ROAD:ford?BT.FORD:BT.WATER; } B.bg=null;
   B.blockCells=B.blockCells||new Set(); for(let gc=0;gc<gCols();gc++) for(let gr=0;gr<gRows();gr++){ let w=false, ok=false; for(let dy=0;dy<GC;dy++) for(let dx=0;dx<GC;dx++){ const r=gr*GC+dy, c=gc*GC+dx; const t=B.tiles[r]&&B.tiles[r][c]; if(t===BT.WATER) w=true; if(t===BT.FORD||t===BT.ROAD) ok=true; } if(w&&!ok) B.blockCells.add(gc*1000+gr); }
@@ -22312,6 +22377,30 @@ function decisiveDaily(){
     if(d) fireDecisive(d);
   }
 }
+/* ---- 第253巡（作り手：天正伊賀の乱を出来事＋決戦に。伏兵・ゲリラ・山岳）――伊賀には大名がいない。地侍が盟い、百地丹波を旗頭に立てる ---- */
+function igaRise(){
+  if(W.igaClan!==undefined&&W.igaClan!==null&&W.clans[W.igaClan]&&!W.clans[W.igaClan].dead) return W.clans[W.igaClan];
+  const cs=Object.values(W.castles).filter(c=>/^(上野城|比自山城|柏原城)$/.test(c.name));
+  if(!cs.length) return null;
+  const hq=cs.find(c=>c.name==="上野城")||cs[0];
+  let lord=findGeneralByName("百地丹波"); if(!lord||lord.status==="死亡") lord=findGeneralByName("藤林長門守");
+  if(!lord||lord.status==="死亡"){ try{ lord=spawnGeneral("百地丹波",null,hq.id,0); }catch(_){ lord=null; } }
+  if(!lord) return null;
+  const id=nextClanId();
+  W.clans[id]={ id, name:"百地家", daimyo:lord.id, color:pickDistinctColor(id), crest:"百", money:9000, rel:{},
+    allies:new Set(), war:new Set(), vassals:new Set(), suzerain:null, truce:{}, policies:new Set(), dead:false, ai:{agg:.35,dip:.3,eco:.5,risk:.85} };
+  W.igaClan=id;
+  lord.clan=id; lord.status="大名"; lord.castle=hq.id; lord.army=null; lord.troops=Math.max(lord.troops,1400); lord.loyalty=100;
+  for(const c of cs){ c.clan=id; c.hq=(c.id===hq.id); c.lord=(c.id===hq.id)?lord.id:null; c.delegate=null; c.holdOut=false; }
+  const names=["藤林長門守","滝野吉政","森田浄雲","福喜多将監","町井清兵衛","植田光次"];
+  cs.forEach((c,i)=>{ const nm=names[i%names.length]; });
+  let k=0;
+  for(const nm of names){ if(nm===lord.name) continue; let g=findGeneralByName(nm); if(!g){ try{ g=spawnGeneral(nm,id,cs[k%cs.length].id,900); }catch(_){ g=null; } }
+    if(!g||g.status==="死亡") continue; g.clan=id; g.status="家臣"; g.castle=cs[k%cs.length].id; g.army=null; g.task=null; g.loyalty=95; g.troops=Math.max(g.troops,900); k++; }
+  try{ bumpGarrison(); }catch(_){ }
+  log("伊賀の地侍たちは国中を挙げて盟い、百地丹波を旗頭に立てた。国に大名は置かぬという","dip",true);
+  return W.clans[id];
+}
 function fireDecisive(d){
   if(W.nag && d && /nagashino/.test(d.key)) W.nag.done=true;   /* 長篠城の攻防はここまで（第132巡） */
   W.fired.add(d.id);
@@ -24321,6 +24410,25 @@ const SIGNATURES={
   { at:0, when:()=>B.elapsed>25&&!B.shkAmbush&&!B.amb, run:()=>{ B.shkAmbush=true; const lead=B.units.filter(u=>u.side===1&&u.troops>.5&&u.morale>0).sort((a,b)=>b.troops-a.troops)[0]; if(!lead) return; const us=sigReveal(0, Math.max(1,Math.min(BF.w-2,lead.x)), lead.y<BF.h/2?Math.min(BF.h-2,lead.y+4):Math.max(1.5,lead.y-4), "山岳伏撃"); for(const u of us){ u.order={k:"attack",id:lead.id}; u.charge=true; } sigBanner("山岳伏撃――山上から矢玉"); sigMorale(1,-12); } },
  ],
  /* ---- 第158巡：今福鴫野・外郭・八尾若江・山里丸 ---- */
+ iga1:[
+  { at:0, run:()=>{ const H=BF.h, Wd=BF.w; sigHide(["藤林長門守","滝野吉政","森田浄雲","福喜多将監"],1);
+    for(const u of B.units){ if(u.troops<=.5) continue; if(u.side===1){ u.spdMul=(u.spdMul||1)*1.2; u.morRes=Math.min(u.morRes||1,0.6); u.tough=(u.tough||1)*1.5; if(u.type===3) u.gunSkill=(u.gunSkill||1)*1.3; } else { u.flankVuln=1.5; u.morRes=(u.morRes||1)*1.2; } }
+    sigBanner("伊賀の山中――道は谷筋の一本。林と尾根に人の気配"); } },
+  { at:25, run:()=>{ const us=sigReveal(1, B.ctx.playerSide===1?BF.w*0.45:BF.w*0.55, 3.0, "北の尾根に伏兵");
+    if(us.length){ sigBanner("北の尾根から石と矢――伏兵"); sigMorale(0,-8); for(const u of us) u.charge=true; } } },
+  { at:55, run:()=>{ const us=sigReveal(1, B.ctx.playerSide===1?BF.w*0.55:BF.w*0.45, BF.h-3.0, "南の尾根にも伏兵");
+    if(us.length){ sigBanner("南の尾根からも――谷は袋になった"); sigMorale(0,-10); for(const u of us) u.charge=true; } } },
+  { at:95, run:()=>{ if(B.igaBurn) return; B.igaBurn=true; sigBanner("行く手の小屋に火――煙が谷にこもる");
+    for(const u of B.units){ if(u.side===0&&u.troops>.5&&Math.abs(u.y-BF.h/2)<=2) u.morale=Math.max(0,u.morale-6); } } },
+ ],
+ iga2:[
+  { at:0, run:()=>{ sigHide(["滝野吉政","町井清兵衛"],1);
+    for(const u of B.units){ if(u.troops<=.5) continue; if(u.side===1){ u.tough=(u.tough||1)*1.1; u.morRes=Math.min(u.morRes||1,0.75); } else { u.warF=(u.warF||1)*1.1; } }
+    sigBanner("比自山城――女子供まで籠る山城。四方の口はすでに塞がれている"); } },
+  { at:110, run:()=>{ const us=sigReveal(1, B.ctx.playerSide===1?BF.w*0.3:BF.w*0.7, BF.h*0.85, "背後の谷から夜討ち");
+    if(us.length){ sigBanner("背後の谷から夜討ち――囲みの後ろが崩れる"); sigMorale(0,-8); for(const u of us) u.charge=true; } } },
+  { at:200, run:()=>{ if(B.igaSlip) return; B.igaSlip=true; sigBanner("山の者は、落ちぬまま少しずつ消えてゆく"); } },
+ ],
  imafuku:[
   { at:0, run:()=>{ const H=BF.h, Wd=BF.w; const K=B.imafukuBanks||{n:Math.round(H*0.28),s:Math.round(H*0.70),rx:Math.round(Wd*0.5)}; const dl=(B.ctx.playerSide===1);   /* 守り手（豊臣）が左 */
     B.keyPoints=(B.keyPoints||[]).concat([{name:"鴫野砦", x:K.rx+(dl?-4:4), y:K.n+0.5, r:2.2, owner:1, hqSide:1},{name:"今福砦", x:K.rx+(dl?-4:4), y:K.s+0.5, r:2.2, owner:1, hqSide:1}]);
