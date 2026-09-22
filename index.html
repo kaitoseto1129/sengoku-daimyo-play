@@ -12848,7 +12848,12 @@ function drawMap(){
     mctx.textAlign="center";
     const label = mine ? `${a.name} ${Math.round(troops).toLocaleString()}` : estTroops(a);   // 桁区切り（3491 では読みにくい）
     if(W.kom&&W.kom.phase==="face"&&(a.id===W.kom.hsArmy||a.id===W.kom.tkArmy)){ const lv=W.kom.build[a.id===W.kom.hsArmy?"hs":"tk"]||0; if(lv>0){ mctx.save(); mctx.strokeStyle="#8A6A3A"; mctx.lineWidth=2; const n=Math.min(4,lv)*2; for(let i=0;i<n;i++){ const xx=x-n*2.5+i*5; mctx.beginPath(); mctx.moveTo(xx,y+bs*1.2); mctx.lineTo(xx,y+bs*1.2+8); mctx.stroke(); } mctx.beginPath(); mctx.moveTo(x-n*2.5-2,y+bs*1.2+4); mctx.lineTo(x-n*2.5+n*5,y+bs*1.2+4); mctx.stroke(); mctx.restore(); } }   /* 第139巡：対陣の陣地（柵の印） */
-    const ly2=y-fh-bs*1.4;
+    let ly2=y-fh-bs*1.4;
+    /* 第253巡（作り手と遊んで）：城のそばにいる軍の名札が、城の名と兵数に重なって読めなかった。城の札より上へ逃がす */
+    { let onCastle=null, cdd=1e9;
+      for(const c of Object.values(W.castles)){ const t=W.tile[c.id]; if(!t) continue; const d=Math.hypot(t.c-a.x,t.r-a.y); if(d<0.75&&d<cdd){ cdd=d; onCastle=c; } }
+      if(onCastle){ const cs2=castleDrawSize(onCastle); ly2=Math.min(ly2, y-cs2*0.78-16); } }
+    { const tw2=mctx.measureText(label).width+10; mctx.fillStyle="rgba(10,9,8,.55)"; mctx.fillRect(x-tw2/2, ly2-9, tw2, 17); }
     mctx.strokeStyle="rgba(0,0,0,.85)"; mctx.lineWidth=3.4;
     mctx.strokeText(label,x,ly2);
     mctx.fillStyle = mine ? "#CFE6FF" : hostile(a.clan,W.player) ? "#FFC9BE" : "#EDE6D6";
@@ -27131,10 +27136,14 @@ function drawBattle(){
     // 武将の顔は小さく、隊の上に。誰の隊かは背旗と名札で分かる
     const g=W.generals[u.gid];
     const big = selNow || B.hover===u.id; const major = u.cmd || (g && ((g.lea+g.war)>=165 || g.status==="大名" || (typeof NAG_HEROES!=="undefined" && NAG_HEROES.has(g.name)) || u.hero || (u.famous===undefined ? (u.famous=!!(portraitData()&&portraitData()[g.name])) : u.famous)));   /* 肖像画の残る将も名のある将 */
-    const fs=Math.round((big?30:u.cmd?18:B.opening>0?(major?16:13):(major?14:12))*Math.min(1.5,Z)), fx=x-fs/2, fy=y-(dense?44:52)*Math.min(1.5,Z)-8*Z;   /* 第180巡：武将の札は六割に（兵の塊が主役。作り手の仕様） */
+    const fs=Math.round((big?30:u.cmd?18:B.opening>0?(major?16:13):(major?14:12))*Math.min(1.5,Z)); let fx=x-fs/2, fy=y-(dense?44:52)*Math.min(1.5,Z)-8*Z;
+    /* 第253巡（作り手と遊んで）：画面の端に寄った隊の武将札が切れて、戦場に重なって見えた。札は画面の内に収める */
+    { const cw0=bcanvas.clientWidth||bcanvas.width, chh=bcanvas.clientHeight||bcanvas.height;
+      if(x<-40||x>cw0+40||y<-40||y>chh+40){ /* 画面の外の隊の札は描かない */ }
+      else { fx=Math.max(2,Math.min(cw0-fs-2,fx)); fy=Math.max(2,Math.min(chh-fs-24,fy)); } }   /* 第180巡：武将の札は六割に（兵の塊が主役。作り手の仕様） */
     const farView = !major;   // 名のある将（宿将・当主）の顔は押さずとも出す。それ以外は選んだときだけ（作り手の指示）
     if(g && u.slain && u.slainAt!==undefined && B.elapsed-u.slainAt<8){ bctx.save(); bctx.globalAlpha=Math.max(0,1-(B.elapsed-u.slainAt)/8); bctx.drawImage(portraitCanvas(g),fx,fy,fs,fs); bctx.fillStyle="rgba(80,80,80,.7)"; bctx.fillRect(fx,fy,fs,fs); bctx.strokeStyle="#777"; bctx.lineWidth=1.5; bctx.strokeRect(fx-.5,fy-.5,fs+1,fs+1); bctx.font='900 10px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center"; bctx.fillStyle="#ddd"; bctx.fillText("討死",x,fy+fs+12); bctx.restore(); }
-    if(g && !u.slain){   /* 第253巡（作り手）：どの隊にも隊長の武将の顔を付ける（信長の隊に信長がいないのは惜しい）。名のある将でなくても常に */
+    if(g && !u.slain && x>-40 && x<(bcanvas.clientWidth||bcanvas.width)+40 && y>-40 && y<(bcanvas.clientHeight||bcanvas.height)+40){   /* 第253巡（作り手）：どの隊にも隊長の武将の顔を付ける（信長の隊に信長がいないのは惜しい）。名のある将でなくても常に */
       const danger = u.morale>0 && (u.danger || u.troops<u.max*0.2 || u.surrounded);
       bctx.save(); if(u.morale<=0) bctx.globalAlpha*=0.55;
       bctx.drawImage(portraitCanvas(g),fx,fy,fs,fs);
@@ -28131,7 +28140,29 @@ bcanvas.addEventListener("pointerup",bEndDrag);
 bcanvas.addEventListener("pointercancel",bEndDrag);
 for(const evn of ["pointerup","pointercancel"]) bcanvas.addEventListener(evn,ev=>{ if(ev.pointerType==="touch"){ bPtrs.delete(ev.pointerId); if(B&&bPtrs.size<2){ B.pinch=null; if(B.zoom&&B.zoom<1) B.zoom=1; renderBattleFoot(); } } });
 /* 開戦。足の帯の〈開戦〉も真ん中の大きな〈開戦〉も同じここへ（隊を選んだまま大きな釦を押すと開戦しなかった） */
-function beginBattleNow(){ if(!B||B.opening<=0) return; B.opening=0; B.bigBanner={t:"開戦", at:B.elapsed, good:true, big:true}; B.openFxAt=B.elapsed; B.shakeT=0.4; B.dust=B.dust||[]; for(const u of B.units){ if(u.troops<=.5||u.left) continue; for(let k=0;k<3;k++) B.dust.push({x:u.x+(rnd()-.5)*2.6, y:u.y+0.9+(rnd()-.5)*0.8, t:0, life:1.2+rnd()*0.8, soft:true}); }   /* 第180巡：開戦の演出――一瞬暗くなり、地が揺れ、全隊の足元から土煙（鬨の声）。カメラは動かさない（掟） */ { const big=document.getElementById("bBeginBig"); if(big) big.hidden=true; } playSE("horn"); setTimeout(()=>{ try{ playSE("horse"); }catch(_){ } },500); setTimeout(()=>{ try{ playSE("warcry"); }catch(_){ } },900); setTimeout(()=>{ try{ playSE("drum"); }catch(_){ } },1500);   /* どの戦でも開戦に法螺貝（作り手の指示）。続いて馬・鬨・陣太鼓 */
+function bFitOpening(){
+  /* 第253巡（作り手と遊んで：開戦の眺めに敵が一隊も入っていない）：開戦の一度だけ、両軍が入る眺めにする。
+     以後はカメラを動かさない（作り手の掟）。人がすでに動かしていれば触らない */
+  try{
+    if(!B||B.camMoved||B.fitDone) return; B.fitDone=true;
+    const us=B.units.filter(u=>u.troops>.5&&!u.left&&!u.sigHidden&&u.x>=0);
+    if(us.length<2) return;
+    const x0=Math.min(...us.map(u=>u.x)), x1=Math.max(...us.map(u=>u.x));
+    const y0=Math.min(...us.map(u=>u.y)), y1=Math.max(...us.map(u=>u.y));
+    const wNeed=Math.max(8,(x1-x0)+6), hNeed=Math.max(6,(y1-y0)+4);
+    const rect=bcanvas.getBoundingClientRect(); const syB=rect.height/BF.h, sxB=syB*B_SQ;
+    const zx=rect.width/(sxB*wNeed), zy=rect.height/(syB*hNeed);
+    const z=Math.max(1, Math.min(B.zoom||1.5, zx, zy));   /* 引ききった姿（1）より小さくはしない（それ以下は絵が描かれない） */
+    B.zoom=z;
+    const visW=rect.width/(sxB*z);
+    if((x1-x0)+6<=visW){ B.cx=(x0+x1)/2; }
+    else { /* 両軍は入り切らない。わが軍を左端に置き、その先の敵を見せる（わが軍は常に左） */
+      const mineUs=us.filter(u=>u.side===B.ctx.playerSide); const mx0=mineUs.length?Math.min(...mineUs.map(u=>u.x)):x0;
+      B.cx=mx0-2+visW/2; }
+    B.cy=(y0+y1)/2; B.cxT=B.cyT=undefined;
+  }catch(e){ console.error(e); }
+}
+function beginBattleNow(){ if(!B||B.opening<=0) return; B.opening=0; try{ bFitOpening(); }catch(e){ console.error(e); } B.bigBanner={t:"開戦", at:B.elapsed, good:true, big:true}; B.openFxAt=B.elapsed; B.shakeT=0.4; B.dust=B.dust||[]; for(const u of B.units){ if(u.troops<=.5||u.left) continue; for(let k=0;k<3;k++) B.dust.push({x:u.x+(rnd()-.5)*2.6, y:u.y+0.9+(rnd()-.5)*0.8, t:0, life:1.2+rnd()*0.8, soft:true}); }   /* 第180巡：開戦の演出――一瞬暗くなり、地が揺れ、全隊の足元から土煙（鬨の声）。カメラは動かさない（掟） */ { const big=document.getElementById("bBeginBig"); if(big) big.hidden=true; } playSE("horn"); setTimeout(()=>{ try{ playSE("horse"); }catch(_){ } },500); setTimeout(()=>{ try{ playSE("warcry"); }catch(_){ } },900); setTimeout(()=>{ try{ playSE("drum"); }catch(_){ } },1500);   /* どの戦でも開戦に法螺貝（作り手の指示）。続いて馬・鬨・陣太鼓 */
         if(B.nagashino && B.ctx.playerSide===1 && B.nagTut && !B.sim){ setTimeout(()=>{ if(B&&B.over===null) toast("敵が鉄砲の間合いに入れば、交代射撃が自ずと放たれる。隊は〈守る〉のまま柵の内で待つのが肝要"); },1500); }
         if(B.nagashino){ for(let k=0;k<3;k++) setTimeout(()=>{ try{ if(B) playSE("drum",0.5); }catch(_){ } },300+k*420); }   /* 開戦の陣太鼓 ドンドンドン */ { const mc=B.units.find(u=>u.side===B.ctx.playerSide&&u.cmd), fc=B.units.find(u=>u.side!==B.ctx.playerSide&&u.cmd); if(B.ctx.oke) B.banner={t:"桶狭間　豪雨", at:B.elapsed}; else if(mc&&fc) B.banner={t:`${mc.name} 対 ${fc.name}`, at:B.elapsed}; } bshout((B.units.find(u=>u.side===B.ctx.playerSide&&u.cmd)||{}).id,"かかれぇーッ！",2.4); renderBattleFoot();  }
 function renderBattleFoot(){
