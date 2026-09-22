@@ -128,7 +128,37 @@ function render(){
   const area=days.length?`${line} L${xs(days.length-1).toFixed(1)},${H-pad} L${xs(0).toFixed(1)},${H-pad} Z`:"";
   const step=Math.ceil(days.length/8); const ticks=days.map((d,i)=>(days.length<=10||(i%step===0&&days.length-1-i>=step/2)||i===days.length-1)?`<text x="${xs(i)}" y="${H-8}" font-size="10" fill="#A79E8C" text-anchor="middle">${d.day.slice(5)}</text>`:"").join("");
   const dots=days.map((d,i)=>`<circle cx="${xs(i)}" cy="${ys(d.n)}" r="2.5" fill="#C9A227"><title>${d.day}　${d.n}</title></circle>`).join("");
+  /* 第253巡（作り手：このデータを元に、こうした方がいいという改善点も載せて）：数から読み取れることと、次の一手 */
+  const adv=(()=>{ const out=[]; const add=(lv,t,why,how)=>out.push({lv,t,why,how});
+    const pct0=(a,b)=>b?Math.round(a/b*100):0;
+    const startPct=pct0(starts,visits), actPct=pct0(act,starts), lateSlow=pct0(loadSlow,loadTot||1);
+    const lpv=byPrefix("lp/view").reduce((a,[,n])=>a+n,0); const fromLp=ev("from/lp");
+    const appClicks=byPrefix("lp").filter(([k])=>/appstore_click$/.test(k)).reduce((a,[,n])=>a+n,0);
+    const iosShare=(()=>{ const st=((DATA.breakdown||{}).systems||{}).stats||[]; const tot=st.reduce((a,x)=>a+x.count,0)||1; const ios=(st.find(x=>/iOS/i.test(x.name||x.id||""))||{}).count||0; return Math.round(ios/tot*100); })();
+    /* 古い数では、外のブラウザの失敗も ev/err に混ざっている（第253巡で err-ext に分けた）。文で見分ける */
+    const errRows=byPrefix("err").concat(byPrefix("err-ext"));
+    const isExt=k=>/postMessage|Script error|ResizeObserver|fbclid|instantMessag/i.test(k);
+    const extErr=errRows.filter(([k])=>isExt(k)).reduce((a,[,n])=>a+n,0)+ev("err-ext");
+    const ownErr=errRows.filter(([k])=>!isExt(k)).reduce((a,[,n])=>a+n,0);
+    const ret=ev("user/return"), neu=ev("user/new");
+    if(loadTot>=20 && lateSlow>=35) add("急","開くのが遅い（八秒以上が "+lateSlow+"％）","広告から来た人は数秒で去る。ここが一番大きな漏れ口","広告の行き先を紹介ページ（/lp/）にして、読んでいる間に本編を先に取らせる。表紙はすぐ出るようにしてあるので、あとは本体の読み込みを軽くする");
+    if(visits>=80 && startPct<20) add("急","遊び始めが少ない（訪問の "+startPct+"％）","表紙で止まっている。何のゲームか、一目で分からない恐れ","表紙の一文と絵を見直す。〈ゲームをはじめる〉までの手数を増やさない");
+    else if(visits>=80 && startPct>=35) add("良","入口は通っている（訪問の "+startPct+"％が遊び始め）","表紙は効いている","この率を保ったまま、人を増やす（広告・紹介ページ）");
+    if(starts>=20 && actPct<40) add("急","最初の合戦を終えた人が少ない（遊び始めの "+actPct+"％）","最初の戦で躓いている。操作か難しさ","長篠の最初の戦を易しく。〈自動で戦う〉をもっと目立たせる。手引きの一行を戦の始めに出す");
+    else if(starts>=20 && actPct>=60) add("良","最初の合戦まで届いている（"+actPct+"％）","合戦は伝わっている","次は二戦目・筋書きの続きへ（結びの数を見る）");
+    if(adClicks>=50 && lpv<adClicks*0.3) add("中","広告が本編に直行している（紹介ページの表示 "+lpv+"／広告 "+adClicks+"）","重い本編に直接落としている。紹介ページなら軽くて速い","広告の行き先を https://kaitoseto1129.github.io/sengoku-daimyo-play/lp/?src=meta&utm_campaign=… に変える");
+    if(fromLp>0) add("良","紹介ページから本編へ "+fromLp+"人","導線は働いている","この数と遊び始めの率を見比べる（LP 経由のほうが良ければ広告は全部 LP へ）");
+    if(iosShare>=60 && appClicks===0 && lpv>=10) add("中","iPhone の人が "+iosShare+"％なのに App Store が押されていない","ブラウザ版で完結している。アプリの利点が伝わっていない","紹介ページの App Store の札を上に。ブラウザ版の画面にも「アプリなら続きが残る」の一行を");
+    if(fundOpen>=10 && fundClick===0) add("中","軍資金の札は "+fundOpen+"回開かれたが、額を押した人は 0","札の一枚目で金額に届いていなかった（直したので次の数字を見る）","一枚目の大きな〈軍資金を出す〉が効いているか、次の三十日で確かめる");
+    if(neu>=30 && ret/Math.max(1,neu)<0.12) add("中","戻って来る人が少ない（新しい人 "+neu+"／戻って来た人 "+ret+"）","一度きりで終わっている。続きを残せると伝わっていない","〈つづきから〉を表紙で目立たせる。一戦終えた人に「続きは残ります」と一言");
+    if(extErr>0) add("良","外のブラウザの失敗 "+extErr+"件（こちらの不具合ではない）","Facebook・Instagram のアプリ内ブラウザが差し込む script の失敗","err/（こちらの不具合）だけを見ればよい"+(ownErr?"。いまは "+ownErr+"件":"。いまは 0件"));
+    if(ownErr>0) add("急","こちらの不具合が "+ownErr+"件","ゲームの中で落ちている","どの画面で出たかを見て直す");
+    if(results===0 && starts>=20) add("良","結びが 0 なのは普通","一つの筋書きを最後（天下統一・滅亡）まで遊ぶには何時間もかかる","日ごとの手応えは「初戦を終えた」で見る");
+    if(!out.length) add("良","まだ数が少ない","読み取るには人が足りない","広告か紹介で人を増やしてから見る");
+    return out; })();
+  const advHtml=`<div class="sec card"><h2>読み取れること・次の一手</h2>${adv.map(a=>`<div style="margin:10px 0;padding:10px 12px;border-radius:8px;background:#0F0D09;border-left:3px solid ${a.lv==="急"?"#E2762A":a.lv==="中"?"#C9A227":"#4C9A5A"}"><div style="font-weight:700;color:var(--kin)"><span style="display:inline-block;min-width:34px;font-size:11px;opacity:.8">${a.lv}</span>${esc(a.t)}</div><div class="note" style="margin-top:6px;background:none;padding:0">なぜ：${esc(a.why)}<br>どうする：${esc(a.how)}</div></div>`).join("")}<div class="note" style="margin-top:8px">この欄は数から自動で書いています（人の判断ではありません）。数が少ないうちは当てになりません。</div></div>`;
   document.getElementById("main").innerHTML=`
+    ${advHtml}
     <div class="grid">
       <div class="card"><h2>訪問（人）</h2><div class="big">${fmtN(visits)}</div><div class="muted">${R.start}〜${R.end}　一日あたり ${fmtN(Math.round(visits/Math.max(1,days.length)))}</div></div>
       <div class="card"><h2>遊び始め</h2><div class="big">${fmtN(starts)}<small>訪問の ${pct(starts,visits)}</small></div></div>
@@ -136,7 +166,11 @@ function render(){
       <div class="card"><h2>結び（天下統一・滅亡まで）</h2><div class="big">${fmtN(results)}<small>遊び始めの ${pct(results,starts)}</small></div><div class="muted">一つの筋書きを最後まで（何時間もかかる）。日ごとの手応えは「初戦を終えた」で見る</div></div>
       <div class="card"><h2>解除・支援</h2><div class="big">${fmtN(unlocks)}<small>解除</small></div><div class="muted">支援の札を開いた ${fmtN(fundOpen)}・額を押した ${fmtN(fundClick)}・払いに進んだ ${fmtN(payClick)}${fundDone.length?`・支援あり ${fundDone.map(([k,n])=>k+"×"+n).join(" ")}`:""}</div></div>
       <div class="card"><h2>LP（紹介ページ）</h2>${(()=>{ const lpv=byPrefix("lp/view"); const views=lpv.reduce((a,[,n])=>a+n,0); const clicks=byPrefix("lp").filter(([k])=>/appstore_click$/.test(k)).reduce((a,[,n])=>a+n,0); const opens=byPrefix("lp").filter(([k])=>k.startsWith("open_")).reduce((a,[,n])=>a+n,0); const src={}; for(const [k,n] of lpv){ const s2=k.split("/")[0]; src[s2]=(src[s2]||0)+n; } const sc={}; for(const [k,n] of byPrefix("lp")){ const m=k.match(/^scroll_(\d+)$/); if(m) sc[m[1]]=(sc[m[1]]||0)+n; } return `<div class="big">${fmtN(views)}<small>表示</small></div><div class="muted">App Store を押した ${fmtN(clicks)}（${pct(clicks,views)}）・動く絵を開いた ${fmtN(opens)}・流入 ${Object.entries(src).map(([k,n])=>k+" "+n).join(" ")||"—"}・読み進み 25%:${sc["25"]||0} 50%:${sc["50"]||0} 75%:${sc["75"]||0} 100%:${sc["100"]||0}</div>`; })()}</div>
-      <div class="card"><h2>目安箱・支援（PayPal）</h2><div class="big">${fmtN(ev("meyasu/send"))}<small>目安箱</small></div><div class="muted">払いました（web）${fmtN(byPrefix("fund-paid").reduce((a,[,n])=>a+n,0))}・関ヶ原の払い ${fmtN(ev("paid/sekigahara"))}</div></div>
+      <div class="card"><h2>お便りと支払い</h2>
+        <div class="row"><span>目安箱に届いたお便り</span><span class="n">${fmtN(ev("meyasu/send"))}</span></div>
+        <div class="row"><span>軍資金を「払いました」と押した人</span><span class="n">${fmtN(byPrefix("fund-paid").reduce((a,[,n])=>a+n,0))}</span></div>
+        <div class="row"><span>関ヶ原（¥500）を「払いました」と押した人</span><span class="n">${fmtN(ev("paid/sekigahara"))}</span></div>
+        <div class="note" style="margin-top:8px">お便りはメールで届きます（この数は送った人の数）。支払いは PayPal の頁へ送ったあと、ゲームに戻って自分で「払いました」を押した数――実際に入金があったかどうかは PayPal の明細で確かめてください。iPhone 版の課金はここには出ません（App Store Connect で見る）。</div></div>
       <div class="card"><h2>入口・速さ</h2><div class="big">${fmtN(adClicks)}<small>広告から</small></div><div class="muted">新しい人 ${fmtN(ev("user/new"))}・戻って来た人 ${fmtN(ev("user/return"))}${loadTot?`<br>開くまで 1秒以内 ${pct(loadFast,loadTot)}・3秒 ${pct(load3,loadTot)}・8秒以上 ${pct(loadSlow,loadTot)}`:""}</div></div>
       <div class="card"><h2>ページ表示</h2><div class="big">${fmtN(pageviews)}</div><div class="muted">${pages.slice(0,3).map(h=>esc(h.path)+" "+fmtN(sumStats(h))).join("　")}</div></div>
     </div>
