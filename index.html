@@ -11115,6 +11115,7 @@ function openSekFronts(){
     `<div class="metric"><label>東西</label><div class="track" style="background:#7A1E10"><div class="fill" style="width:${t}%;background:#2E5E9E"></div></div><b>東${t}</b></div>
      <div class="tiny muted">地方の戦の一つ一つが、本戦の兵数・士気・小早川や毛利の去就に残ります。</div>
      ${body}
+     ${W.sekAfter?`<div class="row" style="margin:8px 0"><button class="big gold" onclick="openSekAfterPanel()">関ヶ原の戦後処理<span class="cost">諸家の去就（降る・抗う・独立）</span></button></div>`:""}
      <div class="sec-title">この戦役の年表（あなたの関ヶ原）</div>${tl}`);
   setSpeed(0);
 }
@@ -11308,7 +11309,7 @@ function saveGame(){
 function autoSave(){ try{ localStorage.setItem(SAVE_KEY, serialize()); }catch(e){} }
 function hasSave(){ try{ return !!localStorage.getItem(SAVE_KEY); }catch(e){ return false; } }
 /* 筋書きの覚え。記録に残さないと、読み込んだ後に御館の乱や長島の続きが起きなかった */
-const SCEN_FLAGS=["sekIntroDone","sekPlan","hidetadaJoins","sekMini","sekRewardAsk","msim","kagetora","nagResult","nagShaken","nagGrade","mik","mikBattle","mikResult","kiyo","kiyoResult","shizu","shizuBattle","shizuResult","kom","komBattleHs","komBattleTk","komNagakute","komResult","kyu","kyuResult","shk","shkResult","hon","honBattle","honBattle2","honResult","ueda","uedaBattle","uedaLate","uedaResult","ishi","ishiKizu","ishiRelief","ishiResult","azuchi","naval1","nagCamp","kobaChoice","toyotomiGrudge","sekPrisoners","jingo","jingoBattle","jingoResult","jingoWakaBattle","jingoAuto","otate","otateDay","echizenDone","yoshiakiAt","decisiveWaited","lastHelpAt","okeCastle","gennaPending","stageLock","odaUnityAt","shizugatakeAt","nagashimaSiegeAt","moriRiceAt","osakaTennojiAt","okeEscaped","sekPrep","nagashinoDay","araki","net3","saika","saikaCowed","yamanaAt","hiraguomoDone","negoro","navyPlus","ironShips","ironCfg","kukiBuildAt","kinaiActed","arakiSub","arakiDoubt","arakiSiegeDays","arakiFled","kanbeiSent","kanbeiSaved","kanbeiGrudge","kanbeiRescue","kanbeiFound","arakiId","kanbeiHeld","nagAvoided","honnojiP","akechiShamed","ted","tedResult","tedNext","ane","aneResult","suriDone","odawaraCallDone","mimiAsked","mimiPlan","mimiAfter","okiAfter","okeIntel","okeIntelSrc","okeRoute","okeWait","nag","nagSlain","chugokuCall","honTitles","koFlight","koTakatoMode","koTakatoShake","koTakatoBurn","shikoku","takedaShaken","takatenjin","shinpu","tokugawaTakeda","saikaSplit","saikaWar","warScore","genna","osakaGrudgeDone","scenarioDay0","tedHideyoshiLeft","farWar","shiga","nodaBattle","nodaNight","shigaBattle","nagashimaFinal","nagashimaSeal","odaniBattle","odaniIchi","ichijoBattle","ichijoLater","smaru","smaruResult","smaruHeld","tkj","tkjAssault","tkjBreak","tkjMercy","tkjHarsh","arakiBattle","arakiTurned","tottori","tottoriRelief","takamatsu","takamatsuBattle","kitanoshoBattle","kitanoshoAt","kitanoshoIchi","gifuBattle","gifuAt","kyuHetsugi","kyuNejiro","kyuNejiroNight","shkLastStand","odaYamanaka","odaHachioji","oshiBattle","sekSub","sekOtsu","sekIshigaki","osakaFinalAsked","osakaHideyoriFled","osakaYaoWon","ishiyamaPeaceAt","kyonyoStayed","shkDip","shkCounter","kyuDip","kyuRaidHon","ueda1Mode","ueda1Plan","tkjBreakSmall","shinpu2","azuchiSkip","azuchiHub","kenshinIll","kenshinSurvive","kenshinIllAt","ishiP","chakai","chakaiResult","culture","ieyWary","uma","umaResult","shkSet","shkSettle","tdSet","tdSettle","tdKeptTakeda","iey","ieyResult","ieyasuSakai","ieyasuNotInvited","chugokuWho","nobunagaWest","chugokuNoHelp","courtRel","saika","saikaBattle","saikaGunDeal","nobu","nobuHeir","nobuConfined","nobuRevolt","azuchiPadre","azuchiIeyasu","sects","shuron","shuronResult","shuronLingering","sobujirei","katanagari","bunroku","bunrokuSkipped","hidetsuguAlive","mitsunariRetired","moriStayed","asakuraBond","asakuraBond0","asakuraDefect1","asakuraFled","staged","rankPrev","relPrev"];   /* 第226巡（夜72）：朝倉の家中結束・初めての人の段階解禁・趨勢の前月の順位が記録に残っていなかった */   /* 第151巡：長篠城の籠城（W.nag）ほか、記録に残っていなかった筋書きの覚えを残す */
+const SCEN_FLAGS=["sekIntroDone","sekPlan","hidetadaJoins","sekMini","sekRewardAsk","sekAfter","sekSub","osakaCarry","smaru","msim","kagetora","nagResult","nagShaken","nagGrade","mik","mikBattle","mikResult","kiyo","kiyoResult","shizu","shizuBattle","shizuResult","kom","komBattleHs","komBattleTk","komNagakute","komResult","kyu","kyuResult","shk","shkResult","hon","honBattle","honBattle2","honResult","ueda","uedaBattle","uedaLate","uedaResult","ishi","ishiKizu","ishiRelief","ishiResult","azuchi","naval1","nagCamp","kobaChoice","toyotomiGrudge","sekPrisoners","jingo","jingoBattle","jingoResult","jingoWakaBattle","jingoAuto","otate","otateDay","echizenDone","yoshiakiAt","decisiveWaited","lastHelpAt","okeCastle","gennaPending","stageLock","odaUnityAt","shizugatakeAt","nagashimaSiegeAt","moriRiceAt","osakaTennojiAt","okeEscaped","sekPrep","nagashinoDay","araki","net3","saika","saikaCowed","yamanaAt","hiraguomoDone","negoro","navyPlus","ironShips","ironCfg","kukiBuildAt","kinaiActed","arakiSub","arakiDoubt","arakiSiegeDays","arakiFled","kanbeiSent","kanbeiSaved","kanbeiGrudge","kanbeiRescue","kanbeiFound","arakiId","kanbeiHeld","nagAvoided","honnojiP","akechiShamed","ted","tedResult","tedNext","ane","aneResult","suriDone","odawaraCallDone","mimiAsked","mimiPlan","mimiAfter","okiAfter","okeIntel","okeIntelSrc","okeRoute","okeWait","nag","nagSlain","chugokuCall","honTitles","koFlight","koTakatoMode","koTakatoShake","koTakatoBurn","shikoku","takedaShaken","takatenjin","shinpu","tokugawaTakeda","saikaSplit","saikaWar","warScore","genna","osakaGrudgeDone","scenarioDay0","tedHideyoshiLeft","farWar","shiga","nodaBattle","nodaNight","shigaBattle","nagashimaFinal","nagashimaSeal","odaniBattle","odaniIchi","ichijoBattle","ichijoLater","smaru","smaruResult","smaruHeld","tkj","tkjAssault","tkjBreak","tkjMercy","tkjHarsh","arakiBattle","arakiTurned","tottori","tottoriRelief","takamatsu","takamatsuBattle","kitanoshoBattle","kitanoshoAt","kitanoshoIchi","gifuBattle","gifuAt","kyuHetsugi","kyuNejiro","kyuNejiroNight","shkLastStand","odaYamanaka","odaHachioji","oshiBattle","sekSub","sekOtsu","sekIshigaki","osakaFinalAsked","osakaHideyoriFled","osakaYaoWon","ishiyamaPeaceAt","kyonyoStayed","shkDip","shkCounter","kyuDip","kyuRaidHon","ueda1Mode","ueda1Plan","tkjBreakSmall","shinpu2","azuchiSkip","azuchiHub","kenshinIll","kenshinSurvive","kenshinIllAt","ishiP","chakai","chakaiResult","culture","ieyWary","uma","umaResult","shkSet","shkSettle","tdSet","tdSettle","tdKeptTakeda","iey","ieyResult","ieyasuSakai","ieyasuNotInvited","chugokuWho","nobunagaWest","chugokuNoHelp","courtRel","saika","saikaBattle","saikaGunDeal","nobu","nobuHeir","nobuConfined","nobuRevolt","azuchiPadre","azuchiIeyasu","sects","shuron","shuronResult","shuronLingering","sobujirei","katanagari","bunroku","bunrokuSkipped","hidetsuguAlive","mitsunariRetired","moriStayed","asakuraBond","asakuraBond0","asakuraDefect1","asakuraFled","staged","rankPrev","relPrev"];   /* 第226巡（夜72）：朝倉の家中結束・初めての人の段階解禁・趨勢の前月の順位が記録に残っていなかった */   /* 第151巡：長篠城の籠城（W.nag）ほか、記録に残っていなかった筋書きの覚えを残す */
 function loadGame(){
   let raw; try{ raw=localStorage.getItem(SAVE_KEY); }catch(e){ return false; }
   if(!raw) return false;
@@ -14987,10 +14988,10 @@ const DECISIVE=[
    site:["大垣城","佐和山城"],
    gather:"東西両軍、関ヶ原に集結す。七日の後、天下分け目の決戦",
    open:"霧の晴れた関ヶ原に、両軍の鉄砲が鳴った。天下分け目の戦が始まる",
-   after:{ atkWin:{ text:"西軍は崩れ、三成は伊吹山中へ逃れた。だが戦はまだ終わらない――佐和山、水口、そして九州の後始末が残っている", spoils:{all:["宇喜多家","小西家"], half:0.35}, run:(a,w)=>{ try{ sekTL("関ヶ原：東軍の勝ち"); sekPursue(); setTimeout(()=>sekChronicleCard(),1500);
+   after:{ atkWin:{ text:"西軍は崩れ、三成は伊吹山中へ逃れた。だが戦はまだ終わらない――佐和山、水口、そして九州の後始末が残っている", spoils:{all:["宇喜多家","小西家"], half:0.35}, run:(a,w)=>{ try{ sekTL("関ヶ原：東軍の勝ち"); sekPursue(); sekAfterStart(true); setTimeout(()=>sekChronicleCard(),1500);
        /* 第253巡：本戦で終わらせない。翌日に佐和山、その先に水口。九州は石垣原からの続き */ sekSubQueue(2318,1); if(!W.fired.has(2315)) sekSubQueue(2315,3); if(!W.fired.has(2317)&&!W.fired.has(2316)) sekSubQueue(2316,6);
        log("関ヶ原は終わった。だが佐和山にはまだ石田の一門が籠り、九州では戦が続いている","war",true); }catch(e){ console.error(e); } } },
-           defWin:{ text:"東軍は総崩れとなり、家康は伊勢路へ逃れた。だが天下が定まったわけではない――東軍諸将の去就、九州と東北の戦は続く", spoils:{half:0.4}, run:(a,w)=>{ try{ sekTL("関ヶ原：西軍の勝ち"); sekWestAfter();
+           defWin:{ text:"東軍は総崩れとなり、家康は伊勢路へ逃れた。だが天下が定まったわけではない――東軍諸将の去就、九州と東北の戦は続く", spoils:{half:0.4}, run:(a,w)=>{ try{ sekTL("関ヶ原：西軍の勝ち"); sekWestAfter(); sekAfterStart(false);
        /* 第253巡：西軍が勝っても即天下ではない。九州・東北の戦は続く */ if(!W.fired.has(2315)) sekSubQueue(2315,3); if(!W.fired.has(2317)) sekSubQueue(2317,7);
        log("関ヶ原は西軍の勝ち。だが九州と東北では、まだ戦が続いている","war",true); }catch(e){ console.error(e); } } } } },
  { id:2102, key:"osaka", sub:"夏の陣、その二", sc:"osaka", when:"never",   /* 第253巡：夏の陣は 樫井 → 道明寺 → 誉田・小松山 → 八尾・若江 → 天王寺・岡山 → 真田最期 → 山里丸 の順（樫井の決着から呼ぶ） */ name:"大坂夏の陣　道明寺の戦い", atk:"徳川家", def:"豊臣家",
@@ -22293,6 +22294,7 @@ function decisiveDaily(){
   if(W.shiga&&W.shiga.phase==="standoff"){ try{ shigaDaily(); }catch(e){ console.error(e); } }   /* 第152巡：志賀の陣 */
   if(W.tkj&&W.tkj.phase==="siege"){ try{ tkjDaily(); }catch(e){ console.error(e); } }   /* 第154巡 */
   try{ sekSubTick(); }catch(e){ console.error(e); }   /* 第157巡 */
+  if(W.sekAfter){ try{ sekAfterDaily(); }catch(e){ console.error(e); } }   /* 第253巡：関ヶ原の戦後処理 */
   if(W.kitanoshoAt&&dayNumber()>=W.kitanoshoAt&&!W.fired.has(2250)){ W.kitanoshoAt=null; const sb=clanByName("柴田家"); if(sb&&!sb.dead&&Object.values(W.castles).some(c=>c.name==="北庄城"&&c.clan===sb.id)) W.kitanoshoBattle=true; }   /* 第155巡 */
   if(W.gifuAt&&dayNumber()>=W.gifuAt&&!W.fired.has(2251)){ W.gifuAt=null; const kb=clanByName("神戸家"); if(kb&&!kb.dead&&Object.values(W.castles).some(c=>c.name==="岐阜城"&&c.clan===kb.id)) W.gifuBattle=true; }
   if(W.tottori&&W.tottori.phase==="siege"){ try{ tottoriDaily(); }catch(e){ console.error(e); } }
@@ -23425,6 +23427,97 @@ function sekWestAfter(){ const is=clanByName("石田家"), tk=clanByName("徳川
   const envoys=()=>{ const names=["福島家","黒田家","細川家","池田家","浅野家"]; let n=0; for(const nm of names){ const K=clanByName(nm); if(!K||K.dead||!is) continue; if(rnd()<0.5){ if(tk&&K.allies.has(tk.id)) breakAlly(K.id,tk.id); if(K.war.has(is.id)) makePeace(K.id,is.id,360); n++; } } log(`東軍諸将へ使者を送り、${n}家が徳川から離れた`,"war",true); sekTL(`東軍諸将の去就：${n}家が離れる`); };
   if(is&&is.id===W.player){ koChoice("関ヶ原のあと","東軍は崩れた。次の手は。",[["chase","家康を追う","伊勢路へ追手。五割で討ち取る",()=>{ chase(); setTimeout(()=>sekChronicleCard(),900); }],["omi","近江を固める","佐和山・大津・大垣の守り+15。威信+2",()=>{ omi(); setTimeout(()=>sekChronicleCard(),900); }],["envoy","東軍諸将へ使者","福島・黒田・細川・池田・浅野の去就を問う（半々で徳川から離れる）",()=>{ envoys(); setTimeout(()=>sekChronicleCard(),900); }]]); }
   else { if(rnd()<0.5) chase(); else omi(); setTimeout(()=>sekChronicleCard(),1500); } }
+/* ---- 第253巡（関ヶ原本戦後の進行 仕様書 0〜4・39〜45）：本戦は終点ではなく、全国の勢力が組み替わる出来事。敗者は消えず、降る・抗う・独立する ---- */
+const SEK_ST={talk:"降伏交渉中", submit:"臣従希望", resist:"徹底抗戦", flee:"当主逃亡", riot:"領国混乱", indep:"独立を宣言", done:"決着"};
+const SEK_ST_TAG={talk:"warn", submit:"ok", resist:"bad", flee:"warn", riot:"warn", indep:"kin", done:"info"};
+function sekSideOf(k){ const tk=clanByName("徳川家"), is=clanByName("石田家"); if(!k||!tk||!is) return "none";
+  if(k.id===tk.id) return "east"; if(k.id===is.id) return "west";
+  if(k.allies.has(tk.id)||k.suzerain===tk.id) return "east"; if(k.allies.has(is.id)||k.suzerain===is.id) return "west"; return "none"; }
+function sekAfterStart(eastWon){
+  if(W.sekAfter) return; const tk=clanByName("徳川家"), is=clanByName("石田家"); if(!tk||!is) return;
+  const winner=eastWon?tk:is, loser=eastWon?is:tk; const st={};
+  for(const k of Object.values(W.clans)){
+    if(k.dead||k.id===W.player||k.id===winner.id) continue; if(!myCastles(k.id).length) continue;
+    const sd=sekSideOf(k); const lost=(sd===(eastWon?"west":"east"));
+    if(k.id===loser.id){ st[k.id]="resist"; continue; }
+    if(lost){ const r=rnd()+(k.suzerain===loser.id?0.1:0); st[k.id]= r<0.34?"talk": r<0.58?"submit": r<0.78?"resist": r<0.9?"flee":"riot"; }
+    else if(sd==="none"){ const r=rnd(); st[k.id]= r<0.5?"neutral": r<0.82?"submit":"talk"; }
+  }
+  W.sekAfter={at:dayNumber(), east:!!eastWon, winner:winner.id, loser:loser.id, st, done:0};
+  log(eastWon?"関ヶ原の報が国々を駆ける。西軍の諸家は、降るか、抗うか、国元で決めねばならぬ":"関ヶ原の報が国々を駆ける。東軍の諸家は、降るか、抗うか、国元で決めねばならぬ","war",true);
+  try{ sekTL("戦後――諸家の去就が動き始める"); }catch(_){ }
+  setTimeout(()=>{ try{ sekAfterPlayerAsk(eastWon); }catch(e){ console.error(e); } },2400);
+}
+/* 人の家の去就（仕様書 12・20・26・33）。負けた側なら抗う・降る・独立・安堵交渉、勝った側なら恩賞 */
+function sekAfterPlayerAsk(eastWon){
+  const A=W.sekAfter; if(!A||A.asked) return; A.asked=true; const me=W.clans[W.player]; if(!me||me.dead) return;
+  const tk=clanByName("徳川家"), is=clanByName("石田家"); const winner=W.clans[A.winner]; if(!winner||winner.id===me.id) return sekRewardAsk();
+  const sd=sekSideOf(me); const lost=(sd===(eastWon?"west":"east"));
+  if(!lost) return sekRewardAsk();
+  const lord=me.suzerain!==null&&me.suzerain!==undefined?W.clans[me.suzerain]:null;
+  koChoice("関ヶ原のあと――わが家の去就", `${eastWon?"西軍":"東軍"}は崩れた。${lord?`主家の${lord.name}も揺れている。`:""}国元で家中の評定が開かれる。`,[
+    ["fight","徹底抗戦","城に籠って抗う（全城の守り+15・兵の士気+10）。勝者は必ず攻めてくる",()=>{ for(const c of myCastles(me.id)) c.defense=Math.min(maxDefense(c),c.defense+15); for(const g of Object.values(W.generals)) if(g.clan===me.id&&g.status!=="死亡") g.morale=Math.min(100,g.morale+10); log(`${me.name}は徹底抗戦を選んだ`,"war",true); try{ sekTL(`${me.name}：徹底抗戦`); }catch(_){ } }],
+    ["indep","独立する", lord?`${lord.name}との縁を切り、どこにも属さぬ（主家の心証−30）`:"どこにも属さず、国を保つ",()=>{ if(lord){ lord.vassals.delete(me.id); me.suzerain=null; addRel(lord.id,me.id,-30); } for(const k of [tk,is]) if(k&&me.allies.has(k.id)) breakAlly(me.id,k.id); log(`${me.name}は独立を宣言した`,"dip",true); try{ sekTL(`${me.name}：独立を宣言`); }catch(_){ } }],
+    ["talk","領地安堵を交渉する", `${winner.name}へ使者を送る。関ヶ原での働き次第で、安堵・減封・改易が決まる`,()=>{ const pts=sekMerit(); const r=rnd()+pts/200; if(r>0.75){ log(`${winner.name}は${me.name}の本領を安堵した`,"dip",true); try{ makePeace(me.id,winner.id,720); }catch(_){ } try{ sekTL(`${me.name}：本領安堵`); }catch(_){ } }
+      else if(r>0.4){ const cs=myCastles(me.id); if(cs.length>1){ const c=cs[cs.length-1]; captureCastle(c.id, winner.id, null); } for(const g of Object.values(W.generals)) if(g.clan===me.id&&g.status!=="死亡") g.troops=Math.floor(g.troops*0.7); try{ makePeace(me.id,winner.id,720); }catch(_){ } log(`${me.name}は減封となった（城と兵を減らされた）`,"dip",true); try{ sekTL(`${me.name}：減封`); }catch(_){ } }
+      else { log(`${winner.name}は${me.name}の申し出を退けた。改易を迫られている`,"bad",true); try{ sekTL(`${me.name}：改易を迫られる`); }catch(_){ } } }],
+    ["submit","降って属国となる", `${winner.name}の傘下に入る。家は残るが、命に従わねばならぬ`,()=>{ try{ makePeace(me.id,winner.id,3650); subordinate(me.id,winner.id); }catch(_){ } log(`${me.name}は${winner.name}に降り、その傘下に入った`,"dip",true); try{ sekTL(`${me.name}：${winner.name}へ降る`); }catch(_){ } }]]);
+}
+/* 関ヶ原の功績（仕様書 37）：戦に出た数・勝ち・城・兵 */
+function sekMerit(){ const won=W.decisiveWon||{}; let p=0; for(const k of Object.keys(won)) if(SEK_TIDE[k]||k==="sekigahara") p+=6;
+  p+=Math.min(30, Math.round(totalTroops(W.player)/2000)); p+=Math.min(20, myCastles(W.player).length*2); return Math.round(p); }
+/* 恩賞（仕様書 37・38）：勝った側の家に、功に応じて城・金・兵。不満なら再交渉できる */
+function sekRewardAsk(){
+  const A=W.sekAfter; if(!A||A.rewardDone) return; const me=W.clans[W.player]; const winner=W.clans[A.winner]; if(!me||!winner||me.dead) return;
+  if(sekSideOf(me)!==(A.east?"east":"west")) return; A.rewardDone=true;
+  const pts=sekMerit(); const gold=2000+pts*300, tr=Math.round(500+pts*60);
+  const grant=(g,t,c)=>{ me.money=(me.money||0)+g; const gens=Object.values(W.generals).filter(x=>x.clan===me.id&&x.status!=="死亡"); const per=Math.floor(t/Math.max(1,gens.length)); for(const x of gens) x.troops+=per;
+    if(c){ const cand=Object.values(W.castles).filter(x=>x.clan===A.loser||(W.clans[x.clan]&&sekSideOf(W.clans[x.clan])===(A.east?"west":"east"))).sort((x,y)=>kmBetween(W.tile[x.id].c,W.tile[x.id].r,0,0)-kmBetween(W.tile[y.id].c,W.tile[y.id].r,0,0));
+      const near=cand.sort((x,y)=>{ const hq=myCastles(me.id)[0]; if(!hq) return 0; const t0=W.tile[hq.id]; return kmBetween(W.tile[x.id].c,W.tile[x.id].r,t0.c,t0.r)-kmBetween(W.tile[y.id].c,W.tile[y.id].r,t0.c,t0.r); })[0];
+      if(near){ captureCastle(near.id, me.id, null); log(`${near.name}が恩賞として与えられた`,"growth",true); } }
+    refreshHUD(); };
+  koChoice("関ヶ原の恩賞", `${winner.name}から使者が来た。関ヶ原での働き（功 ${pts}）に応じて、恩賞が示されている。`,[
+    ["take", `受ける（銭 ${gold.toLocaleString()}・兵 ${tr.toLocaleString()}${pts>=45?"・城 一つ":""}）`, "素直に受ければ、主家との仲は良くなる",()=>{ grant(gold,tr,pts>=45); addRel(winner.id,W.player,8); log(`${me.name}は恩賞を受けた`,"growth",true); try{ sekTL(`${me.name}：恩賞を受ける`); }catch(_){ } }],
+    ["more","再交渉する","半々。通れば倍、しくじれば主家の心証−15",()=>{ if(rnd()<0.5){ grant(gold*2,tr*2,pts>=35); log(`${me.name}の申し立ては通り、恩賞は倍になった`,"growth",true); try{ sekTL(`${me.name}：恩賞の再交渉に成功`); }catch(_){ } } else { grant(Math.round(gold*0.6),Math.round(tr*0.6),false); addRel(winner.id,W.player,-15); log(`${me.name}の申し立ては退けられ、恩賞は減らされた`,"bad",true); try{ sekTL(`${me.name}：恩賞の再交渉に失敗`); }catch(_){ } } }],
+    ["none","辞退する","恩賞は受けず、主家の心証+20。のちの独立の下地になる",()=>{ addRel(winner.id,W.player,20); log(`${me.name}は恩賞を辞退した。その謙譲は諸家に知れ渡った`,"dip",true); try{ sekTL(`${me.name}：恩賞を辞退`); }catch(_){ } }]]);
+}
+/* 戦後の勢力図は、数日〜数週かけて少しずつ変わる（仕様書 42） */
+function sekAfterDaily(){
+  const A=W.sekAfter; if(!A) return; if(B||pendingEncounter||overlayEl) return;
+  const d=dayNumber()-A.at; if(d<2) return; if((d%3)!==0) return; if(A.lastAt===d) return; A.lastAt=d;
+  const winner=W.clans[A.winner]; if(!winner||winner.dead) return;
+  const ids=Object.keys(A.st).map(Number).filter(id=>A.st[id]&&A.st[id]!=="done"&&W.clans[id]&&!W.clans[id].dead&&myCastles(id).length);
+  if(!ids.length){ if(!A.overTold){ A.overTold=true; log("関ヶ原の戦後処理は、ひとまず片が付いた。あとは城と国を一つずつ","dip",true); } return; }
+  const id=ids[Math.floor(rnd()*ids.length)]; const k=W.clans[id]; const st=A.st[id];
+  const say=(t,kind)=>{ log(t,kind||"dip",true); try{ sekTL(t); }catch(_){ } };
+  if(st==="submit"||(st==="talk"&&rnd()<0.55)){
+    try{ makePeace(k.id,winner.id,3650); }catch(_){ }
+    if(k.id!==A.loser && rnd()<0.75){ try{ subordinate(k.id,winner.id); }catch(_){ } say(`${k.name}は${winner.name}に降り、その傘下に入った`); }
+    else { say(`${k.name}は${winner.name}と和を結び、兵を収めた`); }
+    A.st[id]="done"; A.done++;
+  } else if(st==="talk"){ A.st[id]=rnd()<0.5?"submit":"resist"; }
+  else if(st==="resist"){ for(const c of myCastles(k.id)) c.defense=Math.min(maxDefense(c),c.defense+6);
+    if(!k.resistTold){ k.resistTold=true; say(`${k.name}は城を固め、なお抗おうとしている`,"war"); } if(rnd()<0.25) A.st[id]="talk"; }
+  else if(st==="flee"){ const lord=W.generals[k.daimyo];
+    if(lord&&lord.status!=="死亡"){ const g0=Object.assign({},lord); lord.status="浪人"; lord.clan=null; lord.castle=null; lord.army=null; lord.troops=0; try{ succeed(g0); }catch(_){ } if(W.generals[k.daimyo]===lord||W.clans[k.id].daimyo===g0.id){ const heir=Object.values(W.generals).find(g=>g.clan===k.id&&g.status!=="死亡"&&g.id!==g0.id); if(heir) k.daimyo=heir.id; else { A.st[id]="done"; A.done++; return; } } }
+    for(const g of Object.values(W.generals)) if(g.clan===k.id&&g.status!=="死亡") g.troops=Math.floor(g.troops*0.7);
+    say(`${k.name}の当主は国を捨てて落ち延びた。家中は割れている`,"bad"); A.st[id]="talk"; }
+  else if(st==="riot"){ for(const g of Object.values(W.generals)) if(g.clan===k.id&&g.status!=="死亡") g.troops=Math.floor(g.troops*0.85);
+    say(`${k.name}の国元は乱れ、兵が減っている`,"bad"); A.st[id]="talk"; }
+  else if(st==="neutral"){ if(rnd()<0.35){ A.st[id]="submit"; } }
+  else if(st==="indep"){ if(k.suzerain!==null&&k.suzerain!==undefined&&W.clans[k.suzerain]){ W.clans[k.suzerain].vassals.delete(k.id); k.suzerain=null; } say(`${k.name}は独立を宣言した`); A.st[id]="done"; }
+  if(panelKey==="sekAfter") openSekAfterPanel();
+}
+function openSekAfterPanel(){
+  const A=W.sekAfter; if(!A) return; const winner=W.clans[A.winner];
+  const rows=Object.keys(A.st).map(Number).filter(id=>W.clans[id]&&!W.clans[id].dead&&myCastles(id).length).map(id=>{ const k=W.clans[id]; const st=A.st[id]; const w=SEK_ST[st]||(st==="neutral"?"中立":"――");
+    return `<div class="row"><span style="width:10px;height:10px;border-radius:2px;background:${clanColor(id)};display:inline-block"></span><span class="nm">${esc(k.name)}</span><span class="stag ${SEK_ST_TAG[st]||"info"}">${w}</span><span class="tiny muted" style="margin-left:auto">${myCastles(id).length}城・兵${totalTroops(id).toLocaleString()}</span></div>`; }).join("")||`<div class="tiny muted">諸家の去就は定まった</div>`;
+  openPanel("関ヶ原　戦後処理", `${winner?winner.name:""}の勝ち　・　決着した家 ${A.done}　・　${sekTideWord()}`,
+    `<div class="tiny muted">関ヶ原は終わりではありません。降る家、抗う家、独立する家が、日を追って定まっていきます。早く手を打てば、あなたの属国にできる家もあります（外交から「従属を求める」、あるいは城攻めで）。</div>
+     <div class="sec-title">諸家の去就</div><div class="list">${rows}</div>
+     <div class="tiny muted">臣従希望・降伏交渉中の家は、外交で降しやすい。徹底抗戦の家は城攻めでしか動かぬ。</div>`);
+  setSpeed(0);
+}
 /* 仕様書 50・51：「自分の関ヶ原」――年表と、何が勝敗を分けたか */
 function sekChronicleCard(){ const m=W.sekMod||{}; const tl=(m.tl||[]); const won=W.decisiveWon&&W.decisiveWon.sekigahara; const tk=clanByName("徳川家"); const east=tk&&tk.id===W.player; const iWon=(won==="atk")===!!east;
   const why=[]; const bd=sekBond(); const D=sekDisc(); const dw=W.decisiveWon||{};
@@ -29554,12 +29647,18 @@ function openMeyasubako(){
     <div class="advice">遊んで困ったこと、欲しい手、直して欲しい所。何でも。作り手に手紙で届きます。</div>
     <textarea id="meyasuText" rows="6" placeholder="例：木津砦で門を破ったのに隊が入らない／関ヶ原にも軍議が欲しい" style="width:100%;padding:10px 12px;border-radius:6px;border:1px solid rgba(237,230,214,.25);background:rgba(0,0,0,.35);color:#EDE6D6;font:inherit;font-size:14px;line-height:1.6;resize:vertical"></textarea>
     <div class="tiny muted">送ると手紙の窓が開きます（${where}・版 ${BUILD}${W&&W.started&&W.stage&&W.stage.key?"・筋書き "+W.stage.key:""} が添えられます）。宛先：${MEYASU_TO}</div>
-    <div class="dlg-actions" style="display:flex;gap:8px"><button class="big gold" style="flex:1" id="meyasuGo">手紙で送る</button><button class="big ghost" style="flex:1" id="meyasuNo">閉じる</button></div></div>`;
+    <div class="dlg-actions" style="display:flex;gap:8px;flex-wrap:wrap"><button class="big gold" style="flex:1 1 46%" id="meyasuGo">手紙で送る</button><button class="big ghost" style="flex:1 1 46%" id="meyasuCopy">文を写す</button><button class="big ghost" style="flex:1 1 100%" id="meyasuNo">閉じる</button></div></div>`;
   document.body.appendChild(el); overlayEl=el;
   const wasPaused=(typeof B!=="undefined"&&B&&B.over===null)?B.paused:null; if(wasPaused===false){ B.paused=true; try{ renderBattleFoot(); }catch(_){ } }   /* 第253巡：合戦の中から開いたら書いている間は止める */
   const closeIt=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; if(wasPaused===false&&typeof B!=="undefined"&&B&&B.over===null){ B.paused=false; try{ renderBattleFoot(); }catch(_){ } } };
   el.querySelector("#meyasuNo").onclick=el.querySelector("#meyasuX").onclick=closeIt;
   el.querySelector("#meyasuGo").onclick=()=>{ const t=(el.querySelector("#meyasuText").value||"").trim(); if(!t){ toast("何か書いてください"); return; } const sc=(W&&W.started&&W.stage&&W.stage.key)?W.stage.key:"-"; let lastErr=""; try{ lastErr=localStorage.getItem("sengoku_lasterr")||""; }catch(_){ } const body=t+"\n\n――\n"+where+"／版 "+BUILD+"／筋書き "+sc+"／"+navigator.userAgent.slice(0,80)+(lastErr?"／最後の不具合 "+lastErr:""); const url="mailto:"+MEYASU_TO+"?subject="+encodeURIComponent("【戦国大名 目安箱】")+"&body="+encodeURIComponent(body); try{ track("meyasu/send"); }catch(_){ } location.href=url; setTimeout(()=>{ closeIt(); toast("手紙の窓が開かなければ、"+MEYASU_TO+" へ直接どうぞ"); },600); };
+  /* 第253巡（作り手：目安箱に来たものは、言われなくても直しに取り入れる）：手紙の窓が開かない端末でも文が消えないよう、控えを残して写せるように */
+  el.querySelector("#meyasuCopy").onclick=()=>{ const t=(el.querySelector("#meyasuText").value||"").trim(); if(!t){ toast("何か書いてください"); return; }
+    const sc=(W&&W.started&&W.stage&&W.stage.key)?W.stage.key:"-"; const line=`- [${new Date().toISOString().slice(0,10)}] ${t.replace(/\n/g," ")}（版 ${BUILD}・筋書き ${sc}）`;
+    try{ const box=JSON.parse(localStorage.getItem("sengoku_meyasu")||"[]"); box.push(line); localStorage.setItem("sengoku_meyasu", JSON.stringify(box.slice(-50))); }catch(_){ }
+    try{ navigator.clipboard.writeText(line); toast("写しました。作り手に貼って送れます"); }catch(_){ try{ el.querySelector("#meyasuText").select(); document.execCommand("copy"); toast("写しました"); }catch(__){ toast("写せませんでした"); } }
+    try{ track("meyasu/copy"); }catch(_){ } };
   setTimeout(()=>{ try{ el.querySelector("#meyasuText").focus(); }catch(_){ } },50);
 }
 function openFund(){
