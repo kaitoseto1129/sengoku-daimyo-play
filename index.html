@@ -23244,6 +23244,7 @@ function startBattle(e){
   if((B.zoom||1)===1&&!B.sim){ B.zoom=BZ_NORMAL; try{ bView(); }catch(_){ } }   /* 第241巡（仕様書 6）：初めから通常の寄りで（兵が駒でなく人に見える高さ）。引きたければ Z */
   /* （野を広げた後に組む） */
   B.opening=PREF.skipSetup?0:999; B.openShownAt=undefined;   // 陣立て。〈開戦〉か空白で始める（設定で飛ばせる）
+  if(B.nagashino && B.ctx.playerSide!==1){ try{ if(typeof nagApplyOdaPlan==="function" && typeof NAG_PRESETS!=="undefined") nagApplyOdaPlan(Object.assign({tobi:null}, NAG_PRESETS.hist)); }catch(e){ console.error(e); } }   /* 第253巡：人が武田のときも、織田は史実の備え（三列の柵・予備三隊）で受ける */
   if(B.nagashino && !autoBattleMode) setTimeout(()=>{ try{ nagCouncil(); }catch(e){ console.error(e); } }, 400);
   B.rate=1;         /* 第110巡：戦の速さは毎回×1から（前の戦の×8が残っていた。作り手の指示） */
   setTimeout(()=>tutorial("battle"), 600);
@@ -24121,9 +24122,6 @@ function nagTobiTick(){
 function nagCouncil(){
   if(!B||!B.nagashino||B.nagCouncilDone) return; B.nagCouncilDone=true;
   const mine=B.ctx.playerSide;
-  /* 第253巡（作り手と遊んで気づいた）：人が武田のとき、織田側は軍議をしないので柵も予備も史実の備えにならず、
-     四十秒で織田が崩れていた。機械の織田には史実寄りの備え（三列の柵・予備三隊・別働隊二隊）をそのまま与える */
-  if(mine!==1){ try{ nagApplyOdaPlan(Object.assign({tobi:null}, NAG_PRESETS.hist)); }catch(e){ console.error(e); } }
   if(mine===1) nagOdaCouncil(); else nagTakedaCouncil();
 }
 /* ===== 第142巡：設楽原の軍議（織田・徳川）。決めたことがそのまま戦場に現れる ===== */
