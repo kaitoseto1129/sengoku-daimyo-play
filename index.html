@@ -4956,7 +4956,16 @@ function underTruce(a,b){
 let pendingEncounter=null;
 /* 知らせが重なると、後から来た戦が黙って消えていた。順に見せる */
 let encounterQueue=[];
+/* 第253巡（作り手：大坂の陣で、色々なものが始まる前に城を囲まれているとこれが出てしまう）：
+   筋書きが自前で囲みを回している城（大坂の陣の大坂城・上田合戦の上田城・石山の石山本願寺）は、
+   ふつうの「城に敵が攻め寄せました」の札を出さない。包囲の進みや兵糧はそれぞれの札で見る */
+function scriptedSiegeCastle(cid){ const c=W.castles[cid]; if(!c) return false;
+  if(W.osaka && W.osaka.phase!=="over" && c.name==="大坂城") return true;
+  if(W.ueda && W.ueda.phase!=="over" && c.name==="上田城") return true;
+  if(W.ishi && /^(prep|kizu|relief)$/.test(W.ishi.phase||"") && c.name==="石山本願寺") return true;   /* 石山は砦と木津の段の間だけ（囲みの段に入れば、ふつうに攻められる） */
+  return false; }
 function queueEncounter(e){
+  if(e && e.castle!==null && e.castle!==undefined && scriptedSiegeCastle(e.castle)) return;
   {
     const a=W.armies[e.army], b=e.foeArmy!==null&&e.foeArmy!==undefined?W.armies[e.foeArmy]:null;
     if(a && b && !a.script && !b.script){
