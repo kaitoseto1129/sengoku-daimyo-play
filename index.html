@@ -211,7 +211,8 @@ body.inbattle #feed{display:none}
 #pBack{margin-left:auto;margin-right:6px}
 #pBack+#pClose{margin-left:0}
 .p-body{overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:16px;flex:1 1 auto;min-height:0;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y}
-.p-body>*{flex-shrink:0}   /* 縦に並べた中身が、札の高さに合わせて潰れないように（横並びの城の列が4pxに潰れていた） */
+.p-body>*{flex-shrink:0}
+.p-body>.big,.p-body>button.big{flex:0 0 auto}   /* 第253巡（作り手と遊んで）：札の中で一つだけの釦が縦に伸びて、黒い空白が広がっていた */   /* 縦に並べた中身が、札の高さに合わせて潰れないように（横並びの城の列が4pxに潰れていた） */
 html.bigtext #panel{font-size:15px} html.bigtext .row{font-size:14px} html.bigtext .tiny{font-size:12px} html.bigtext .chip{font-size:12px} html.bigtext #log{font-size:13px} html.bigtext .s-stat b{font-size:17px}
 
 /* ---------- 部品 ---------- */
@@ -3353,6 +3354,7 @@ function buildWorld(playerClan, scenarioId){
     for(const th of [10,20,30,40,50]) if(n>=th) W.alerts.add(k.id*100+th);
   }
   W._built=true;
+  W.castles0=Object.keys(W.castles).length;   /* 第253巡：はじめの城の数（機械の築城の上限に使う） */
   try{ buildRoads(); }catch(e){ console.error(e); }   /* 第253巡：筋書きの仕込みで城が増減・移動したあとに道を結び直す（控えを読み込むと甲府―上田の道が消えるなど、始めの道と読み込み後の道が違っていた） */
 }
 /* 一城だけの小さな家が多すぎると、地図が細切れで読めない。
@@ -4975,7 +4977,7 @@ function queueEncounter(e){
   if(e && e.castle!==null && e.castle!==undefined && !e.sortie && !e.sanadamaru && W.castles[e.castle]){
     const c=W.castles[e.castle]; const a=W.armies[e.army];
     const gar=a?garrisonTroops(c.id):0, atkT=a?armyTroops(a):0;
-    if(a && c.clan!==a.clan && (gar<200 || (gar<900 && gar<atkT/12)) && (!e.foeArmy||!W.armies[e.foeArmy])){
+    if(a && c.clan!==a.clan && (gar<200 || (gar<1500 && gar<atkT/8)) && (!e.foeArmy||!W.armies[e.foeArmy])){
       log(`${c.name}には守る兵がおらず、戦わずに開きました`,"war", a.clan===W.player||c.clan===W.player);
       try{ captureCastle(c.id, a.clan, a); }catch(err){ console.error(err); }
       return; } }   /* 第253巡（作り手：真田丸の戦いが起きない）：筋書き自身が起こす戦（真田丸・総攻め）は通す。ふつうの城攻めの札だけを止める */
@@ -7093,6 +7095,7 @@ function runAI(){
     if(W.date.d%10!==5) aiUpkeepForces(clan,p);
     if(W.date.d%15===0) aiFortify(clan,p);        // 15・30日
     aiFound(clan,p);
+    try{ aiBetray(clan,p); }catch(e){ console.error(e); }   /* 第253巡：強い家は弱い隣の盟を破って攻める（世が止まらないように） */
   }
   if(W.date.d===20) aiCaptives();
   aiCoalition();
@@ -7725,6 +7728,11 @@ function aiFound(clan,p){
   // 国力に見合わぬ数の城は抱えられない
   const totalKoku=owned.reduce((s2,c)=>s2+c.koku,0);
   if(owned.length >= Math.floor(totalKoku/26000)+2) return;
+  /* 第253巡（作り手と遊んで：三十五年で城が百三十四→三百十四に増え、天下統一が遠のいていた）
+     日ノ本の城の数には上限を置く（はじめの数の二割増しまで）。一家が抱える数も十二まで */
+  { const cap=Math.round((W.castles0||Object.keys(W.castles).length)*1.2);
+    if(Object.keys(W.castles).length>=cap) return;
+    if(owned.length>=12) return; }
   // 一度に大金を握ることは稀なので、毎月すこしずつ普請金を積む。
   const cost=NEW_CASTLE_COST;
   clan.buildFund=clan.buildFund||0;
@@ -7782,6 +7790,30 @@ function aiFound(clan,p){
 }
 
 /* 大きくなりすぎた家には、諸国が手を結んで当たる */
+/* 第253巡（作り手と遊んで：三十年たっても大名家が三十二のまま＝誰も誰かを滅ぼさない）
+   野心のある家は、弱い隣の盟友との盟を解いて攻めかかる。戦国の世は、そうして片が付いていく。
+   人の家は対象にしない（勝手に盟を切られるのは理不尽なので、人へは従来どおり心証と膨張で動く） */
+function aiBetray(clan,p){
+  if(W.date.d!==24) return; if(!clan||clan.dead) return;
+  if(clan.suzerain!==null&&clan.suzerain!==undefined) return;
+  const mine=myCastles(clan.id); if(mine.length<4) return;
+  if(clan.war.size>=2) return;
+  const amb=(p&&p.agg!==undefined)?p.agg:0.5; if(amb<0.5) return;
+  for(const a of [...clan.allies]){
+    if(a===W.player) continue; const K=W.clans[a]; if(!K||K.dead) continue;
+    if(!bordersOn(clan.id,a)) continue;
+    if(underTruce(clan.id,a)) continue;
+    const theirs=myCastles(a).length; if(!theirs) continue;
+    if(mine.length < theirs*1.8) continue;                 /* 明らかに強い時だけ */
+    if(totalTroops(clan.id) < totalTroops(a)*1.6) continue;
+    if(rnd() > 0.02*(0.5+amb)) continue;
+    try{ breakAlly(clan.id,a); }catch(_){ }
+    addRel(clan.id,a,-40); addRel(a,clan.id,-40);
+    try{ declareWar(clan.id,a); }catch(_){ }
+    log(`${clan.name}が${K.name}との盟を破り、兵を向けました`,"dip",true);
+    return;
+  }
+}
 function aiCoalition(){
   if(W.date.d!==10) return;      // runAI が回る日に合わせる
   const alive=Object.values(W.clans).filter(c=>!c.dead&&myCastles(c.id).length);
@@ -7812,6 +7844,7 @@ function aiCoalition(){
       if(c.allies.has(d.id)) continue;
       if(!d.war.has(top.id)) continue;
       if(!bordersOn(c.id,d.id)) continue;   // 盟は接する家どうしだけ
+      if(c.allies.size>=3 || d.allies.size>=3) continue;   /* 第253巡：盟は三つまで（皆が隣と結び合い、三十年誰も攻めない世になっていた） */
       if(rnd()<0.15 && getRel(c.id,d.id)>0){
         makeAlly(c.id, d.id);
         addRel(c.id,d.id,20); addRel(d.id,c.id,20);
@@ -22469,6 +22502,23 @@ function decisiveDaily(){
   if(W.ted&&!W.ted.done){ try{ tedDaily(); }catch(e){ console.error(e); } }
   if(W.shiga&&W.shiga.phase==="standoff"){ try{ shigaDaily(); }catch(e){ console.error(e); } }   /* 第152巡：志賀の陣 */
   if(W.tkj&&W.tkj.phase==="siege"){ try{ tkjDaily(); }catch(e){ console.error(e); } }   /* 第154巡 */
+  /* 第253巡（作り手と遊んで：三十年たっても誰も誰かを滅ぼさない）
+     仕込みの「世は息を潜める（aiHold）」が石山の段で立ったまま残り、以後ずっと機械が誰も攻めなくなっていた。
+     元の筋書きが終わっていれば仕込みを解く。終わっていなくても百五十日で足止めは解く（足止めは支度の間だけのもの） */
+  if(W.stage && (W.stage.aiHold||W.stage.lock)){
+    if(W.stage.holdAt===undefined) W.stage.holdAt=dayNumber();
+    const k=String(W.stage.key||"");
+    const over = (k==="ishiyama" && (!W.ishi||W.ishi.phase==="over"))
+      || (k==="osaka_winter" && (!W.osaka||W.osaka.phase!=="winter"))
+      || (k==="koshu" && (!W.ko||W.ko.phase==="over"))
+      || (k==="honnoji" && (!W.hon||W.hon.phase==="post"))
+      || (k==="ueda" && (!W.ueda||W.ueda.phase==="over"))
+      || (k==="jingo" && (!W.jingo||W.jingo.phase==="post"))
+      || (k==="tedorigawa" && (!W.ted||W.ted.done))
+      || (k==="shizugatake" && (!W.shizu||W.shizu.phase==="over"));
+    if(over){ try{ clearStage(); }catch(e){ console.error(e); } W.stageLock=false; }
+    else if(dayNumber()-W.stage.holdAt>150){ W.stage.aiHold=false; W.stage.lock=false; W.stageLock=false; }
+  }
   try{ sekSubTick(); }catch(e){ console.error(e); }   /* 第157巡 */
   if(W.sekAfter){ try{ sekAfterDaily(); }catch(e){ console.error(e); } }   /* 第253巡：関ヶ原の戦後処理 */
   if(W.kitanoshoAt&&dayNumber()>=W.kitanoshoAt&&!W.fired.has(2250)){ W.kitanoshoAt=null; const sb=clanByName("柴田家"); if(sb&&!sb.dead&&Object.values(W.castles).some(c=>c.name==="北庄城"&&c.clan===sb.id)) W.kitanoshoBattle=true; }   /* 第155巡 */
@@ -23128,6 +23178,9 @@ function startBattle(e){
     const near=[];
     for(const other of Object.values(W.armies)){
       if(other.id===e.army) continue;
+      /* 第253巡（作り手と遊んで）：筋書きの軍（長篠へ向かう信長の後詰、長篠城を囲む勝頼）が、
+         関わりのない小さな城攻めに後詰として吸い込まれ、決戦の前日に主力が横取りされていた */
+      if(other.stage||other.script) continue;
       const side = other.clan===a.clan ? 0 : (foeClan!==null && other.clan===foeClan) ? 1 : -1;
       if(side<0) continue;
       const d=kmBetween(other.x,other.y,a.x,a.y);
@@ -23188,6 +23241,19 @@ function startBattle(e){
   if(dec && dec.key==="saika"){ B.saikaPending=true; }
   if(B.ctx.sanadamaru){ try{ smSetup(); }catch(e9){ console.error(e9); } }   /* 第153巡：真田丸 */
   try{ sekApplyWear(); }catch(e){ console.error(e); }   /* 第253巡（関ヶ原 全体設計 2）：前の戦の疲れと弾薬を持ち越す */
+  /* 第253巡（作り手と遊んで）：陣立ての眺めに自分の軍が入っていなかった（城攻めで、城の中だけが見えていた）。
+     わが軍と（城攻めなら）門が見える所から始める。以後はカメラを動かさない */
+  try{ if(!B.sm && !B.tobiPhase){
+    const mineU=B.units.filter(u=>u.side===B.ctx.playerSide&&u.troops>.5&&!u.left&&u.x>=0);
+    if(mineU.length){
+      const mx0=Math.min(...mineU.map(u=>u.x)), mx1=Math.max(...mineU.map(u=>u.x));
+      const gx=(B.gate&&B.gate.x!==undefined)?B.gate.x:mx1+6;
+      const x0=Math.min(mx0,gx)-3, x1=Math.max(mx1,gx)+3;
+      const rect=bcanvas.getBoundingClientRect(); const syB=rect.height/BF.h, sxB=syB*B_SQ;
+      const need=Math.max(10,x1-x0);
+      const z=Math.max(1, Math.min(B.zoom||1.5, rect.width/(sxB*need)));
+      B.zoom=z; B.cx=(x0+x1)/2; B.cy=(B.gate&&B.gate.y!==undefined)?B.gate.y:BF.h/2; B.cxT=B.cyT=undefined;
+    } } }catch(e){ console.error(e); }
   /* 第253巡（bot：合戦に目的の文が出ていない）：ふつうの城攻め・野戦にも、何をすればよいかの一行を必ず出す */
   if(!B.objective){ const mine=B.ctx.playerSide; const siege=(B.ctx.castle!==null&&B.ctx.castle!==undefined)&&!B.ctx.sortie;
     const cn=siege&&W.castles[B.ctx.castle]?W.castles[B.ctx.castle].name:"";
