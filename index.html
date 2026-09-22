@@ -6125,7 +6125,18 @@ function processMonth(){
   growCastles(); growGenerals(); aging(); autoSave();
 }
 /* 七日ごとにも記録する。月に一度では、閉じたときに三週間ぶんが消える */
-function weeklyAutoSave(){ if(W.started && !B && dayNumber()%7===0) autoSave(); }
+function weeklyAutoSave(){ if(W.started && !B && dayNumber()%7===0) autoSave();
+  /* 第253巡（作り手：毎月の初めに自動セーブ）：月が替わったら、ふだんの自動保存とは別に「月初の控え」を残す（三つまで巡らせる）。
+     戦の最中は書かない（戦が終われば次の月初に残る） */
+  if(W.started && !B && W.date && W.date.d===1){
+    const tag=`${W.date.y}/${W.date.m}`;
+    if(W.monthSaveAt!==tag){ W.monthSaveAt=tag;
+      try{ const n=(W.monthSaveN||0)%3; W.monthSaveN=n+1; localStorage.setItem(MONTH_KEYS[n], serialize());
+        log(`${W.date.y}年${W.date.m}月――月初の記録を残しました（月初の控え ${n+1}）`,"dip");
+      }catch(e){ }
+    }
+  }
+}
 /* 秋に米が実り、日々兵が食む。蔵が尽きれば兵は減り、士気も落ちる。 */
 function processFood(){
   const season=seasonOf(W.date.m);
@@ -8111,7 +8122,7 @@ const EVENTS=[
      else attack(); }},
   {id:1202,daily:true,name:"岐阜城、一日で落つ",
    text:["福島正則「岐阜など一日で落とす。先陣は譲らぬ」"],
-   cond:()=> eraOnly("sekigahara")&&dayNumber()-(W.scenarioStartDay||dayNumber())>=4+sekOff(),
+   cond:()=> eraOnly("sekigahara")&&dayNumber()-(W.scenarioStartDay||dayNumber())>=4+sekOff()&&!(W.sekSub&&W.sekSub.some(q=>q.id===2320))&&(W.fired.has(2320)||dayNumber()-(W.scenarioStartDay||dayNumber())>=9+sekOff()),   /* 第253巡：米野の河原の戦いが先。米野が済んでから岐阜城へ */
    act:()=>{ const is=clanByName("石田家"), fk=clanByName("福島家"), od=clanByName("織田家"); W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}; const gifu=Object.values(W.castles).find(c=>c.name==="岐阜城");
      const fall=()=>{ if(gifu&&fk&&gifu.clan!==fk.id){ captureCastle(gifu.id,fk.id,null); } (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).westMor-=5; log("福島正則・池田輝政が岐阜城を一日で落とした。織田秀信は降り、西軍は大垣に籠る",'war',true); bigNews("岐阜城 落つ"); };
      const tkP=clanByName("徳川家"); if(tkP&&tkP.id===W.player){ koChoice("岐阜城、先陣","福島正則「岐阜など一日で落とす。先陣は譲らぬ」。池田輝政も先を争う。",[["go","先陣を許す（史実）","明日、岐阜城で決戦。一日で落とせば西軍は大垣へ籠る",()=>{ sekSubQueue(2260,1); }],["wait","秀忠の中山道軍を待つ","岐阜は落ちない。西軍は美濃で息を継ぐ（西軍の士気+3）",()=>{ (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).westMor+=3; log("家康は先陣を止め、秀忠を待った。岐阜は西軍の手に残る",'war',true); }]]); return; }
@@ -11168,6 +11179,7 @@ function saveScen(){ return (W && W.started && W.scenario) ? W.scenario : ((type
 function saveKeyFor(sc){ return SAVE_BASE+":"+sc; }
 Object.defineProperty(window, "SAVE_KEY", { get:()=>saveKeyFor(saveScen()) });
 Object.defineProperty(window, "SLOT_KEYS", { get:()=>{ const k=SAVE_KEY; return [k, k+"_2", k+"_3"]; } });
+Object.defineProperty(window, "MONTH_KEYS", { get:()=>{ const k=SAVE_KEY; return [k+"_m1", k+"_m2", k+"_m3"]; } });   /* 第253巡：月初の自動控え（三つを順に巡る） */
 /* 昔の記録（筋書きの別なし）は、その中の筋書きの枠へ移す */
 (function migrateSaves(){
   try{
@@ -14936,9 +14948,13 @@ const DECISIVE=[
    site:["大垣城","佐和山城"],
    gather:"東西両軍、関ヶ原に集結す。七日の後、天下分け目の決戦",
    open:"霧の晴れた関ヶ原に、両軍の鉄砲が鳴った。天下分け目の戦が始まる",
-   after:{ atkWin:{ text:"西軍は崩れ、三成は伊吹山中へ逃れた。西軍の諸家は改易・減封され、天下は徳川のものとなる", spoils:{all:["石田家","宇喜多家","小西家","大谷家"], half:0.5}, run:(a,w)=>{ try{ sekTL("関ヶ原：東軍の勝ち"); sekPursue(); setTimeout(()=>sekChronicleCard(),1500); }catch(e){ console.error(e); } } },
-           defWin:{ text:"東軍は総崩れとなり、家康は伊勢路へ逃れた。関東の徳川領は西軍に切り取られる", spoils:{half:0.5}, run:(a,w)=>{ try{ sekTL("関ヶ原：西軍の勝ち"); sekWestAfter(); }catch(e){ console.error(e); } } } } },
- { id:2102, key:"osaka", sub:"夏の陣、その一", sc:"osaka", when:"flag", flag:"osakaSummer", name:"大坂夏の陣　道明寺の戦い", atk:"徳川家", def:"豊臣家",
+   after:{ atkWin:{ text:"西軍は崩れ、三成は伊吹山中へ逃れた。だが戦はまだ終わらない――佐和山、水口、そして九州の後始末が残っている", spoils:{all:["宇喜多家","小西家"], half:0.35}, run:(a,w)=>{ try{ sekTL("関ヶ原：東軍の勝ち"); sekPursue(); setTimeout(()=>sekChronicleCard(),1500);
+       /* 第253巡：本戦で終わらせない。翌日に佐和山、その先に水口。九州は石垣原からの続き */ sekSubQueue(2318,1); if(!W.fired.has(2315)) sekSubQueue(2315,3); if(!W.fired.has(2317)&&!W.fired.has(2316)) sekSubQueue(2316,6);
+       log("関ヶ原は終わった。だが佐和山にはまだ石田の一門が籠り、九州では戦が続いている","war",true); }catch(e){ console.error(e); } } },
+           defWin:{ text:"東軍は総崩れとなり、家康は伊勢路へ逃れた。だが天下が定まったわけではない――東軍諸将の去就、九州と東北の戦は続く", spoils:{half:0.4}, run:(a,w)=>{ try{ sekTL("関ヶ原：西軍の勝ち"); sekWestAfter();
+       /* 第253巡：西軍が勝っても即天下ではない。九州・東北の戦は続く */ if(!W.fired.has(2315)) sekSubQueue(2315,3); if(!W.fired.has(2317)) sekSubQueue(2317,7);
+       log("関ヶ原は西軍の勝ち。だが九州と東北では、まだ戦が続いている","war",true); }catch(e){ console.error(e); } } } } },
+ { id:2102, key:"osaka", sub:"夏の陣、その二", sc:"osaka", when:"never",   /* 第253巡：夏の陣は 樫井 → 道明寺 → 誉田・小松山 → 八尾・若江 → 天王寺・岡山 → 真田最期 → 山里丸 の順（樫井の決着から呼ぶ） */ name:"大坂夏の陣　道明寺の戦い", atk:"徳川家", def:"豊臣家",
    /* 第253巡（作り手：これ道明寺の戦いじゃない）：慶長二十年五月六日の道明寺・小松山。秀頼は城に、家康と秀忠は星田・枚方にいて出ていない。
       先手は後藤又兵衛の二千八百、徳川は水野勝成・伊達政宗の先手。長宗我部と木村は同じ日に八尾・若江（別の決戦） */
    terrain:0, forts:null, nAtk:12, nDef:9, atkTroops:23000, defTroops:12000, atkCmd:"水野勝成", defCmd:"後藤又兵衛",
@@ -14951,8 +14967,8 @@ const DECISIVE=[
    holdWin:{side:"def", sec:230, keep:0.42, h:"豊臣方、道明寺を持ちこたえる", t:"徳川の進撃鈍る。豊臣方は前線を保ったまま大坂へ退いた"},
    gather:"徳川の大軍、大坂へ迫る。九日の後、道明寺にて豊臣方が迎え撃つ",
    open:"道明寺。霧の中、後藤又兵衛の先手が徳川の大軍とぶつかった。毛利勝永も真田幸村も、まだ着いていない――少数の豊臣方が地形を使い、時を稼ぐ",
-   after:{ atkWin:{ text:"道明寺の豊臣方は崩れ、大坂へ退いた。徳川は天王寺・岡山へ陣を進める。決着は近い", flag:"osakaTennoji", run:()=>{ sekSubQueue(2267,1); } },
-           defWin:{ run:()=>{ sekSubQueue(2267,1); }, text:"豊臣方は道明寺で徳川の先手を押し返し、大坂へ退いた。徳川は陣を立て直し、天王寺・岡山へ", flag:"osakaTennoji" } } },
+   after:{ atkWin:{ text:"道明寺の豊臣方は崩れ、誉田へ退いた。小松山を下りた徳川勢が追ってくる", run:()=>{ sekSubQueue(2334,1); sekSubQueue(2267,1); } },
+           defWin:{ run:()=>{ sekSubQueue(2334,1); sekSubQueue(2267,2); }, text:"豊臣方は道明寺で徳川の先手を押し返した。だが誉田にはもう徳川の別隊が来ている" } } },
  { id:2108, key:"kanegasaki", sub:"退き口", sc:["hoi","oke"], when:"flag", flag:"kanegasaki", name:"金ヶ崎の退き口", atk:"朝倉家", def:"織田家", allies:true, atkAllies:["朝倉家","浅井家"],
    terrain:1, forts:null, nAtk:10, nDef:6, atkTroops:25000, defTroops:12000,
    atkGens:["朝倉義景","朝倉景健","朝倉景鏡","浅井長政","磯野員昌","遠藤直経","海北綱親","朝倉景恒"], defGens:["羽柴秀吉","明智光秀","池田勝正","織田信長","柴田勝家","丹羽長秀"],
@@ -15011,8 +15027,8 @@ const DECISIVE=[
    site:["大坂城","岸和田城"],
    holdWin:{side:"def", sec:160, keep:0.35, h:"八尾・若江、押し返す", t:"長宗我部盛親は藤堂の先手を八尾で打ち破り、木村重成は若江で井伊を止めた"},
    gather:"道明寺の同じ日、大坂の南東でも徳川の別軍が迫る", open:"八尾と若江。長瀬川の堤。長宗我部は藤堂を、木村は井伊を受ける",
-   after:{ atkWin:{ text:"若江で木村重成は討死し、盛親は八尾で藤堂を破ったものの大坂へ退いた。「重成の首は香を焚いていた」", kills:["木村重成"], run:()=>{ if(W.osaka) W.osaka.morale=Math.max(0,W.osaka.morale-6); } },
-           defWin:{ text:"長宗我部と木村が藤堂・井伊を押し返した。徳川の右翼は崩れ、天王寺の総攻めは重くなる", run:()=>{ if(W.osaka) W.osaka.morale=Math.min(100,W.osaka.morale+8); (W.sekMod=W.sekMod||{}); W.osakaYaoWon=true; } } } },
+   after:{ atkWin:{ text:"若江で木村重成は討死し、盛親は八尾で藤堂を破ったものの大坂へ退いた。「重成の首は香を焚いていた」", kills:["木村重成"], run:()=>{ if(W.osaka) W.osaka.morale=Math.max(0,W.osaka.morale-6); W.osakaTennoji=true; if(W.osaka&&!W.osaka.chausuDone&&!W.fired.has(2335)){ W.osaka.chausuDone=true; try{ sekSubQueue(2335,1); }catch(e){} } } },
+           defWin:{ text:"長宗我部と木村が藤堂・井伊を押し返した。徳川の右翼は崩れ、天王寺の総攻めは重くなる", run:()=>{ W.osakaTennoji=true; if(W.osaka) W.osaka.morale=Math.min(100,W.osaka.morale+8); (W.sekMod=W.sekMod||{}); W.osakaYaoWon=true; } } } },
  { id:2268, key:"yamazato", sub:"大坂城、最後の朝", sc:"osaka", when:"never", name:"大坂城　最終局面", atk:"徳川家", def:"豊臣家", castle:"大坂城", noAllies:true, atkCmd:"徳川秀忠", defCmd:"豊臣秀頼", histWin:"atk",
    terrain:0, forts:"def", nAtk:12, nDef:6, atkTroops:50000, defTroops:6000,
    atkGens:["徳川秀忠","松平忠直","井伊直孝","藤堂高虎","本多忠政","松平忠明","伊達政宗","前田利常"], defGens:["豊臣秀頼","大野治長","大野治房","毛利勝永","速水守久","真田幸村"],
@@ -15303,14 +15319,14 @@ const DECISIVE=[
    open:"天目山。狭い山道、退路はない。土屋昌恒「殿はお退きを。ここは某が」――武田、最後の戦",
    after:{ atkWin:{ text:"武田勝頼、天目山に自刃。新羅三郎以来の名家、ここに滅ぶ", kill:"武田勝頼", dissolve:"武田家", run:()=>{ try{ koOdaScore("撃破"); }catch(e){ console.error(e); } } },
            defWin:{ text:"勝頼は山中へ逃れた。武田の家は絶えぬ――再興の日を待つ", flag:"koEscaped", run:()=>{ try{ koOdaScore("逃走"); }catch(e){ console.error(e); } } } } },
- { id:2105, key:"tennoji", sub:"豊臣、最後の総攻め", sc:"osaka", when:"flag", flag:"osakaTennoji", carry:true, atkCmd:"徳川家康", defCmd:"真田幸村", name:"大坂夏の陣　天王寺・岡山の戦い", atk:"徳川家", def:"豊臣家",
+ { id:2105, key:"tennoji", sub:"豊臣、最後の総攻め", sc:"osaka", when:"flag", flag:"osakaTennoji", cond:()=>!(W.osaka&&W.osaka.chausuDone&&!W.fired.has(2335)),   /* 第253巡：茶臼山（真田の本陣）が済んでから天王寺・岡山 */ carry:true, atkCmd:"徳川家康", defCmd:"真田幸村", name:"大坂夏の陣　天王寺・岡山の戦い", atk:"徳川家", def:"豊臣家",
    terrain:0, forts:"def", atkMin:110000, atkMax:120000, defMin:50000, defMax:60000,   /* 第194巡：天王寺砦は野戦拠点（主砦）。出て戻り、再編して、また出る。徳川は十一万以上 */   /* 第253巡（作り手：三千対十万）：豊臣は城の兵を出して五万以上（前の戦で痩せていても、城には牢人衆が残っている） */ nAtk:16, nDef:12, atkTroops:null, defTroops:null,
    atkGens:["徳川家康","徳川秀忠","松平忠直","本多忠朝","伊達政宗","藤堂高虎","井伊直孝","前田利常","水野勝成","細川忠興","加藤嘉明","浅野長晟","榊原康勝","酒井家次","本多忠政","松平忠明"],
    defGens:["真田幸村","毛利勝永","大野治長","大野治房","明石全登","長宗我部盛親","大野治房","木村重成","豊臣秀頼","渡辺糺","御宿政友","大谷吉治"],
    site:["大坂城","岸和田城"],
    gather:"徳川の大軍、天王寺・岡山に陣す。豊臣方は城を出て、最後の総攻めに賭ける",
    open:"天王寺・岡山。真田の赤備えと毛利勝永が徳川の陣へ突き進む。狙うは家康の首ただ一つ",
-   after:{ atkWin:{ text:"大坂城は炎に包まれ、秀頼と淀殿は山里丸で自害した。豊臣家、ここに滅ぶ。――元和偃武、戦国の世は終わる", kill:"豊臣秀頼", capture:"大坂城", flag:"genna" },
+   after:{ atkWin:{ text:"天王寺・岡山の戦線は崩れた。真田信繁は安居神社へ、秀頼と淀殿は山里丸へ――大坂城の最後の朝が来る", run:()=>{ try{ if(!W.fired.has(2336)) sekSubQueue(2336,1); sekSubQueue(2268,3); }catch(e){ console.error(e); } }, flag:"osakaSanadaLast" },
            defWin:{ text:"徳川の大軍は崩れ去り、豊臣は大坂城を守り抜いた。天下は再び揺れる――外様の諸家が徳川を測り直す", flag:"osakaToyotomiWin", rels:[["伊達家","徳川家",-20],["毛利家","徳川家",-20],["島津家","徳川家",-20],["前田家","徳川家",-15]], news:["豊臣の勝ちに、西国の諸家が徳川を測り直している"] } } },
  { id:2103, key:"yamazaki", sub:"天下分け目の天王山", sc:["honnoji","honnojiPre"], when:"open", atkCmd:"羽柴秀吉", defCmd:"明智光秀", name:"山崎の戦い", atk:"羽柴家", def:"明智家", allies:true, atkAllies:["羽柴家","池田家","丹羽家","神戸家"], defAllies:["明智家","筒井家"],
    terrain:4, forts:null, nAtk:14, nDef:12, atkTroops:30000, defTroops:20000,   /* 第123巡：明智は筒井・細川を合わせて二万（作り手の指示。前は一万三千） */
@@ -15560,6 +15576,51 @@ EVENTS.push(
        else if(k==="hostage"){ if(rnd()<0.5){ makePeace(0,mt.id,3650); const T=subordinate(mt.id,0); if(T) setRel(mt.id,0,45); log("人質の孫を盾に、久秀は折れた","dip",true); } else log("久秀は人質を見捨てた。信貴山は固い","dip",true); }
        else { od.orderTarget={clan:mt.id, until:dayNumber()+360}; log("軍師「信貴山を囲みます。二倍の兵で」","dip",true); } };
      if(W.player===0) setTimeout(()=>koChoice("松永久秀の叛乱","久秀が信貴山城に籠った。",[["sur","降伏を勧める","四割で降る（家臣として残る）",()=>go("sur")],["atk","攻城","信貴山を囲む",()=>go("atk")],["hostage","人質で迫る","五割で折れる",()=>go("hostage")]]),300); else { od.orderTarget={clan:mt.id, until:dayNumber()+360}; } }},
+  /* ===== 第253巡（作り手：これイベント作って決戦）：天正の城攻めと内乱を呼ぶ出来事。長篠の世（および天正三年五月を過ぎた桶狭間・包囲網・三方ヶ原の世）で起きる ===== */
+  {id:1401,daily:true,name:"岩村城、武田の手に",
+   text:["秋山虎繁「東美濃は貰い受ける。岩村は武田の城じゃ」","―― 長篠に勝った織田は、東美濃を取り返しにかかる"],
+   cond:()=> eraOnly("nagashino")&&dateFrom(1575,10)&&W.date.d===5&&!W.iwamuraSiege&&!W.fired.has(2301)&&(()=>{ const od=clanByName("織田家"), tk=clanByName("武田家"); const c=Object.values(W.castles).find(x=>x.name==="岩村城"); return od&&tk&&!od.dead&&!tk.dead&&c; })(),
+   act:()=>{ const od=clanByName("織田家"), tk=clanByName("武田家"); const c=Object.values(W.castles).find(x=>x.name==="岩村城"); if(!od||!tk||!c) return;
+     if(c.clan!==tk.id){ try{ captureCastle(c.id, tk.id, null); }catch(e){ console.error(e); } }
+     if(!findGeneralByName("秋山虎繁")){ try{ spawnGeneral("秋山虎繁", tk.id, c.id, 2500); }catch(_){ } }
+     if(!od.war.has(tk.id)) declareWar(od.id,tk.id,"force"); W.iwamuraSiege=true; log("織田信忠が東美濃へ向かった。岩村城には武田方の秋山虎繁が籠る","war",true); }},
+  {id:1402,daily:true,name:"上杉謙信、能登へ",
+   text:["上杉謙信「能登を平らげ、加賀へ出る。七尾の城を囲め」"],
+   cond:()=> eraOnly("nagashino")&&dateFrom(1577,7)&&W.date.d===10&&!W.nanaoSiege&&!W.fired.has(2302)&&(()=>{ const ue=clanByName("上杉家"), cho=clanByName("長家"); const c=Object.values(W.castles).find(x=>x.name==="七尾城"); return ue&&cho&&!ue.dead&&!cho.dead&&c&&c.clan===cho.id; })(),
+   act:()=>{ const ue=clanByName("上杉家"), cho=clanByName("長家"); if(!ue||!cho) return; if(!ue.war.has(cho.id)) declareWar(ue.id,cho.id,"force"); W.nanaoSiege=true; log("上杉謙信の二万が能登へ。支城を落としながら七尾城を孤立させる","war",true); }},
+  {id:1403,daily:true,name:"松永久秀、再び叛く",
+   text:["松永久秀「信長に従うて十年。もう十分じゃ。信貴山に籠る」","―― 天王寺の陣を引き払い、大和へ戻った"],
+   cond:()=> eraOnly("nagashino")&&dateFrom(1577,9)&&W.date.d===12&&!W.shigisanSiege&&!W.fired.has(2303)&&(()=>{ const od=clanByName("織田家"), mn=clanByName("松永家"); const c=Object.values(W.castles).find(x=>x.name==="信貴山城"); return od&&mn&&!od.dead&&!mn.dead&&c&&c.clan===mn.id; })(),
+   act:()=>{ const od=clanByName("織田家"), mn=clanByName("松永家"); if(!od||!mn) return; for(const a of [...mn.allies]) breakAlly(mn.id,a); if(mn.suzerain!==null&&mn.suzerain!==undefined){ const lord=W.clans[mn.suzerain]; if(lord) lord.vassals.delete(mn.id); mn.suzerain=null; } if(!od.war.has(mn.id)) declareWar(od.id,mn.id,"force"); W.shigisanSiege=true; log("松永久秀が信貴山城に籠った。信忠の大軍が大和へ向かう","war",true); }},
+  {id:1404,daily:true,name:"別所長治、毛利に付く",
+   text:["別所長治「羽柴の下風には立たぬ。三木は毛利と共に戦う」"],
+   cond:()=> eraOnly("nagashino")&&dateFrom(1578,3)&&W.date.d===20&&!W.mikiSiege&&!W.fired.has(2304)&&(()=>{ const od=clanByName("織田家"), bs=clanByName("別所家"); const c=Object.values(W.castles).find(x=>x.name==="三木城"); return od&&bs&&!od.dead&&!bs.dead&&c&&c.clan===bs.id; })(),
+   act:()=>{ const od=clanByName("織田家"), bs=clanByName("別所家"), mr=clanByName("毛利家"); if(!od||!bs) return; if(bs.suzerain===od.id){ od.vassals.delete(bs.id); bs.suzerain=null; } if(!od.war.has(bs.id)) declareWar(od.id,bs.id,"force"); if(mr&&!mr.dead&&!bs.allies.has(mr.id)){ try{ makeAlly(bs.id,mr.id); }catch(_){ } } W.mikiSiege=true; log("別所長治が毛利に付いた。羽柴秀吉は三木城を囲み、兵糧の道を断ちにかかる","war",true); }},
+  {id:1405,daily:true,name:"謙信急逝、跡目の争い",
+   text:["―― 上杉謙信、春日山で倒れる。跡目を定めぬままに","上杉景勝「春日山の蔵と金は押さえた」　上杉景虎「小田原の兄が黙ってはおらぬ」"],
+   cond:()=> eraOnly("nagashino")&&dateFrom(1578,3)&&W.date.d===13&&!W.otateWar&&!W.fired.has(2305)&&(()=>{ const ue=clanByName("上杉家"), hj=clanByName("北条家"); return ue&&hj&&!ue.dead&&!hj.dead&&(()=>{ const k=Object.values(W.generals).find(g=>g.name==="上杉謙信"||g.name==="長尾景虎"); return !k||k.status==="死亡"||W.date.y>=1578; })(); })(),
+   act:()=>{ const ue=clanByName("上杉家"), hj=clanByName("北条家"); if(!ue||!hj) return;
+     const k=Object.values(W.generals).find(g=>(g.name==="上杉謙信"||g.name==="長尾景虎")&&g.status!=="死亡"); if(k){ try{ kill(k.id); }catch(_){ } }
+     if(!findGeneralByName("上杉景勝")){ try{ spawnGeneral("上杉景勝", ue.id, null, 4000); }catch(_){ } }
+     if(!findGeneralByName("上杉景虎")){ try{ spawnGeneral("上杉景虎", hj.id, null, 3000); }catch(_){ } }
+     if(!ue.war.has(hj.id)) declareWar(ue.id,hj.id,"force"); W.otateWar=true; bigNews("御館の乱"); log("謙信が世を去り、越後は景勝と景虎に割れた","war",true); }},
+  {id:1406,daily:true,name:"明智光秀、丹波へ",
+   text:["明智光秀「丹波を平らげねば、山陰の道は開かぬ。八上を囲む」"],
+   cond:()=> eraOnly("nagashino")&&dateFrom(1578,6)&&W.date.d===8&&!W.yakamiSiege&&!W.fired.has(2306)&&(()=>{ const od=clanByName("織田家"), ht=clanByName("波多野家"); const c=Object.values(W.castles).find(x=>x.name==="八上城"); return od&&ht&&!od.dead&&!ht.dead&&c&&c.clan===ht.id; })(),
+   act:()=>{ const od=clanByName("織田家"), ht=clanByName("波多野家"); if(!od||!ht) return; if(!od.war.has(ht.id)) declareWar(od.id,ht.id,"force"); W.yakamiSiege=true; log("明智光秀が丹波へ。八上城の周りに付城を築き、糧道を断つ","war",true); }},
+  {id:1407,daily:true,name:"鳥取の米を買い占めよ",
+   text:["羽柴秀吉「城を殴るな。因幡の米を買え。鳥取は自ら飢える」"],
+   cond:()=> eraOnly("nagashino")&&dateFrom(1581,6)&&W.date.d===25&&!W.tottoriSiege&&!W.fired.has(2307)&&(()=>{ const od=clanByName("織田家"), ym=clanByName("山名家"); const c=Object.values(W.castles).find(x=>x.name==="鳥取城"); return od&&ym&&!od.dead&&!ym.dead&&c&&c.clan!==od.id; })(),
+   act:()=>{ const od=clanByName("織田家"); const c=Object.values(W.castles).find(x=>x.name==="鳥取城"); if(!od||!c) return; const ow=W.clans[c.clan]; if(ow&&!od.war.has(ow.id)) declareWar(od.id,ow.id,"force");
+     if(!findGeneralByName("吉川経家")){ const mr=clanByName("毛利家"); try{ spawnGeneral("吉川経家", (ow?ow.id:(mr?mr.id:od.id)), c.id, 1500); }catch(_){ } }
+     if(c) c.food=Math.max(0,Math.floor((c.food||0)*0.35)); W.tottoriSiege=true; log("羽柴秀吉は若狭の商人に因幡の米を買い占めさせ、鳥取城を囲んだ","war",true); }},
+  {id:1408,daily:true,name:"柴田勝家、越中へ",
+   text:["柴田勝家「魚津を落とせば越後の門が開く。上杉の後詰が来る前に」"],
+   cond:()=> (eraOnly("nagashino")||eraOnly("honnoji"))&&dateFrom(1582,3)&&W.date.d===15&&!W.uozuSiege&&!W.fired.has(2308)&&(()=>{ const od=clanByName("織田家"); const c=Object.values(W.castles).find(x=>x.name==="魚津城"); return od&&!od.dead&&c&&c.clan!==null&&c.clan!==od.id; })(),
+   act:()=>{ const od=clanByName("織田家"); const c=Object.values(W.castles).find(x=>x.name==="魚津城"); if(!od||!c) return; const ue=clanByName("上杉家");
+     /* 御館の乱で越後が割れていれば、魚津は上杉（景勝）の城として戻す（決戦は織田 対 上杉） */
+     if(ue&&!ue.dead&&c.clan!==ue.id){ try{ captureCastle(c.id, ue.id, null); }catch(e){ console.error(e); } }
+     const ow=W.clans[c.clan]; if(ow&&!od.war.has(ow.id)) declareWar(od.id,ow.id,"force"); W.uozuSiege=true; log("柴田勝家の四万が越中へ。魚津城を囲む","war",true); }},
   {id:1235,daily:true,name:"荒木村重、有岡に叛く",
    text:["荒木村重「本願寺と毛利が背にある。信長の疑いの目に耐えるより、立つ」"],
    cond:()=> eraOnly("nagashino")&&dateFrom(1578,10)&&W.date.d===20&&okeAlive(0)&&(()=>{ const g=Object.values(W.generals).find(x=>x.name==="荒木村重"&&x.status!=="死亡"); if(!g||g.clan!==0||g.army||W.player===0&&g.loyalty>=70) return false; const hg=clanByName("本願寺"), mr=clanByName("毛利家"); const p=0.2+(hg&&!hg.dead?0.25:0)+(mr&&W.clans[0].war.has(mr.id)?0.2:0)+(g.loyalty<50?0.2:0); return rnd()<p; })(),
@@ -15925,10 +15986,245 @@ DECISIVE.push(
    gather:"武田が長篠城を囲む。織田と徳川は設楽原に三重の馬防柵を組んで待ち受けた",
    open:"設楽原。柵の内から三千挺の鉄砲が、武田の騎馬を撃ち崩す",
    after:{ atkWin:{ text:"武田の騎馬が柵を突き破り、織田徳川は敗走した。三河は武田のものとなる", spoils:{half:0.25} },
-           defWin:{ text:"武田の騎馬は柵の前に屍を重ね、山県・馬場・内藤ら宿将が討ち死にした。武田の力は大きく削がれた", kills:["山県昌景","馬場信春","内藤昌豊","真田信綱","土屋昌次"], spoils:{half:0.3}, troopMax:20000, calm:{clan:"武田家",vs:"織田家",days:900} } } }
+           defWin:{ text:"武田の騎馬は柵の前に屍を重ね、山県・馬場・内藤ら宿将が討ち死にした。武田の力は大きく削がれた", kills:["山県昌景","馬場信春","内藤昌豊","真田信綱","土屋昌次"], spoils:{half:0.3}, troopMax:20000, calm:{clan:"武田家",vs:"織田家",days:900} } } },
+ /* ===== 第253巡（作り手：大坂の陣の追加戦）：冬の陣の外郭戦と夜討ち、夏の陣の緒戦と最終局面 ===== */
+ { id:2331, key:"nodafukushima_o", sub:"冬の陣、淀川の中州", sc:["osaka"], when:"never", name:"野田・福島の戦い（冬の陣）", atk:"徳川家", def:"豊臣家", atkCmd:"蜂須賀至鎮", defCmd:"大野治胤", histWin:"atk",
+   terrain:4, forts:"def", noAllies:true, nAtk:7, nDef:5, atkTroops:9000, defTroops:3000,
+   atkGens:["蜂須賀至鎮","浅野長晟","池田忠雄","石川忠総","九鬼守隆","向井忠勝","堀直寄"],
+   defGens:["大野治胤","米田是季","南部左衛門","飯田家貞","古沢将監"],
+   site:["大坂城","岸和田城"],
+   holdWin:{side:"def", sec:190, keep:0.3, h:"野田・福島、なお保つ", t:"淀川の中州の砦は落ちず、大坂城の西の口は開かなかった"},
+   gather:"徳川は大坂城の西、淀川の中州に築かれた野田・福島の砦を狙う",
+   open:"野田・福島。川と中州と葦の原。船と橋と堤の上でしか戦えぬ、狭い戦場",
+   after:{ atkWin:{ text:"野田・福島の砦は焼け、大坂城の西の口が開いた（包囲+8）", run:()=>{ const o=W.osaka; if(o){ o.siege=Math.min(100,o.siege+8); o.defense=Math.max(0,o.defense-6); } } },
+           defWin:{ text:"中州の砦は保たれ、徳川の船は淀川を遡れない（包囲−6）", run:()=>{ const o=W.osaka; if(o){ o.siege=Math.max(0,o.siege-6); o.morale=Math.min(100,o.morale+4); } } } } },
+ { id:2332, key:"honmachibashi", sub:"冬の陣、夜討ち", sc:["osaka"], when:"never", name:"本町橋の夜討ち", atk:"豊臣家", def:"徳川家", atkCmd:"塙団右衛門", defCmd:"蜂須賀至鎮", histWin:"atk",
+   terrain:0, forts:null, noAllies:true, nAtk:5, nDef:6, atkTroops:1800, defTroops:5000,
+   atkGens:["塙団右衛門","米田是季","飯田家貞","御宿政友","渡辺糺"],
+   defGens:["蜂須賀至鎮","中村重勝","森甚五兵衛","稲田示植","池田忠雄","石川忠総"],
+   site:["大坂城"],
+   holdWin:{side:"atk", sec:120, keep:0.5, h:"夜討ち、成る", t:"塙団右衛門は蜂須賀の陣に斬り込み、名を残して城へ帰った"},
+   gather:"冬の陣、夜。豊臣方が城を出て、本町橋の徳川の陣へ斬り込む",
+   open:"本町橋。月のない夜。篝火を目当てに、塙団右衛門の一隊が堀を出る",
+   after:{ atkWin:{ text:"夜討ちは成り、中村重勝は討たれた。城内の士気が上がる", kills:["中村重勝"], run:()=>{ const o=W.osaka; if(o){ o.morale=Math.min(100,o.morale+8); o.peace=Math.max(0,o.peace-4); } } },
+           defWin:{ text:"夜討ちは見破られ、豊臣方は堀へ追い返された（城内の士気−）", run:()=>{ const o=W.osaka; if(o){ o.morale=Math.max(0,o.morale-6); } } } } },
+ { id:2333, key:"kashii", sub:"夏の陣、緒戦", sc:["osaka"], when:"never", name:"樫井の戦い", atk:"徳川家", def:"豊臣家", atkCmd:"浅野長晟", defCmd:"大野治房", histWin:"atk",
+   terrain:0, forts:null, noAllies:true, nAtk:6, nDef:5, atkTroops:5000, defTroops:3000,
+   atkGens:["浅野長晟","亀田高綱","上田重安","浅野知近","八木新左衛門","三浦茂政"],
+   defGens:["大野治房","塙団右衛門","淡輪重政","岡部則綱","槇島重利"],
+   site:["岸和田城","大坂城"],
+   gather:"夏の陣、開戦。紀州へ向かった豊臣方の先手が、浅野勢と樫井でぶつかる",
+   open:"樫井。紀州街道の狭い町中と川原。先陣を争った塙団右衛門が、ひとりで前へ出すぎている",
+   after:{ atkWin:{ text:"樫井で豊臣方は崩れ、塙団右衛門・淡輪重政は討死した。夏の陣は不吉な出だしとなる", kills:["塙団右衛門","淡輪重政"], run:()=>{ const o=W.osaka; if(o) o.morale=Math.max(0,o.morale-6); try{ sekSubQueue(2102,2); }catch(e){ console.error(e); } } },
+           defWin:{ text:"樫井で浅野勢を押し返した。紀州路は豊臣方に開かれる", run:()=>{ const o=W.osaka; if(o) o.morale=Math.min(100,o.morale+6); try{ sekSubQueue(2102,2); }catch(e){ console.error(e); } } } } },
+ { id:2334, key:"konda", sub:"夏の陣、道明寺の続き", sc:["osaka"], when:"never", name:"誉田・小松山の戦い", atk:"徳川家", def:"豊臣家", atkCmd:"伊達政宗", defCmd:"薄田兼相", histWin:"atk",
+   terrain:1, forts:null, noAllies:true, nAtk:7, nDef:6, atkTroops:12000, defTroops:6000,
+   atkGens:["伊達政宗","片倉重長","水野勝成","本多忠政","松平忠明","堀直寄","神保相茂"],
+   defGens:["薄田兼相","明石全登","山川賢信","北川宣勝","毛利勝永","渡辺糺"],
+   site:["大坂城","岸和田城"],
+   holdWin:{side:"def", sec:200, keep:0.3, h:"誉田、支え切る", t:"豊臣方は誉田の林と小松山の裾を保ち、道明寺の味方を助けた"},
+   gather:"道明寺のすぐ後。小松山を下りた徳川勢と、遅れて着いた豊臣の後続が誉田でぶつかる",
+   open:"誉田。松林と段丘。先に着いた者から順に戦いへ加わる――数の揃わぬまま",
+   after:{ atkWin:{ text:"誉田でも豊臣方は押され、薄田兼相は討死した。道明寺の戦線は崩れる", kills:["薄田兼相"] },
+           defWin:{ text:"誉田で徳川の先手を止め、豊臣方は隊列を整えて大坂へ退いた", run:()=>{ const o=W.osaka; if(o) o.morale=Math.min(100,o.morale+4); } } } },
+ { id:2335, key:"chausuyama", sub:"夏の陣、天王寺の要", sc:["osaka"], when:"never", name:"茶臼山の戦い", atk:"徳川家", def:"豊臣家", atkCmd:"松平忠直", defCmd:"真田幸村", histWin:"atk",
+   terrain:1, forts:"def", noAllies:true, nAtk:8, nDef:6, atkTroops:15000, defTroops:5000,
+   atkGens:["松平忠直","本多忠朝","小笠原秀政","榊原康勝","仙石忠政","諏訪忠恒","保科正光","酒井家次"],
+   defGens:["真田幸村","真田大助","伊木遠雄","福島正守","渡辺糺","大谷吉治"],
+   site:["大坂城"],
+   holdWin:{side:"def", sec:210, keep:0.3, h:"茶臼山、保つ", t:"真田の赤備えは茶臼山を守り切り、家康の本陣へ道を開けなかった"},
+   gather:"天王寺口の高み、茶臼山。真田幸村がここに本陣を置いた",
+   open:"茶臼山。大坂城と天王寺の間の小高い丘。赤備えの旗が、松平忠直の越前勢を待ち受ける",
+   after:{ atkWin:{ text:"茶臼山は越前勢に奪われた。真田は丘を下り、家康本陣へ賭ける", flag:"osakaSanadaLast" },
+           defWin:{ text:"茶臼山は保たれ、徳川の左翼は前へ出られない", run:()=>{ const o=W.osaka; if(o) o.morale=Math.min(100,o.morale+6); } } } },
+ { id:2336, key:"yasui", sub:"夏の陣、真田最期", sc:["osaka"], when:"flag", flag:"osakaSanadaLast", name:"安居神社　真田信繁 最期", atk:"徳川家", def:"豊臣家", atkCmd:"西尾宗次", defCmd:"真田幸村", histWin:"atk",
+   terrain:0, forts:null, noAllies:true, nAtk:5, nDef:3, atkTroops:4000, defTroops:600,
+   atkGens:["西尾宗次","松平忠直","本多忠朝","小笠原秀政","仙石忠政"],
+   defGens:["真田幸村","真田大助","伊木遠雄"],
+   site:["大坂城"],
+   holdWin:{side:"def", sec:130, keep:0.25, h:"信繁、なお立つ", t:"疲れ切った赤備えは、それでも神社の松の下で刃を返し続けた"},
+   gather:"本陣突撃は三度まで届いた。だが兵は尽き、信繁は安居神社の松の下で息をついでいる",
+   open:"安居神社。大軍の戦ではない。崩れたあとの、数百の兵と一人の将の最期の場",
+   after:{ atkWin:{ text:"真田信繁は安居神社で討たれた。「日本一の兵」と敵方までが記した", kills:["真田幸村"], flag:"osakaYamazato" },
+           defWin:{ text:"信繁は追手を払い、わずかな兵と共に城へ戻った――物語は、まだ終わらない", flag:"osakaYamazato" } } },
+ /* ===== 第253巡（作り手：関ヶ原は全国で同時に起きている一つの戦争）：東北・北陸・九州・本戦後の戦いを十 ===== */
+ { id:2311, key:"hataya", sub:"長谷堂の前日譚", sc:["sekigahara","sekbattle","ueda"], when:"never", name:"畑谷城の戦い", atk:"上杉家", def:"最上家", atkCmd:"直江兼続", defCmd:"江口光清", histWin:"atk",
+   terrain:1, forts:"def", castle:"畑谷城", noAllies:true, nAtk:7, nDef:3, atkTroops:18000, defTroops:500,
+   atkGens:["直江兼続","春日元忠","上泉泰綱","溝口左馬助","本村造酒丞","横田旨俊","安田能元"],
+   defGens:["江口光清","江口五兵衛","小国政光"],
+   site:["山形城","米沢城"],
+   holdWin:{side:"def", sec:170, keep:0.2, h:"畑谷、なお落ちず", t:"三百の城兵が上杉の大軍を半日食い止めた。長谷堂に備えの時ができた"},
+   gather:"直江兼続の大軍が最上領へ。最初に立ち塞がるのは畑谷の小城",
+   open:"畑谷城。守るは江口光清ら三百。退けと言われても、城を枕にすると決めた者たち",
+   after:{ atkWin:{ text:"畑谷は落ち、江口光清は討死した。上杉は長谷堂へ進む", capture:"畑谷城", kills:["江口光清"], run:()=>{ try{ sekSubQueue(2263,2); }catch(e){ console.error(e); } } },
+           defWin:{ text:"畑谷はなお落ちず、上杉の足は止まった。山形に備えの時ができた", run:()=>{ (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).eastMor+=3; } } } },
+ { id:2312, key:"kaminoyama", sub:"東北の別戦線", sc:["sekigahara","sekbattle","ueda"], when:"never", name:"上山城の戦い", atk:"上杉家", def:"最上家", atkCmd:"本庄繁長", defCmd:"里見民部", histWin:"def",
+   terrain:1, forts:"def", castle:"上山城", noAllies:true, nAtk:6, nDef:4, atkTroops:5000, defTroops:1500,
+   atkGens:["本庄繁長","下吉忠","栗田国時","色部光長","水原親憲","黒金泰忠"],
+   defGens:["里見民部","草苅虎之助","最上義光","鮭延秀綱"],
+   site:["山形城","米沢城"],
+   holdWin:{side:"def", sec:190, keep:0.3, h:"上山、持ちこたえる", t:"里見民部は伏兵で上杉勢を谷に誘い込み、追い返した"},
+   gather:"上杉の別働隊が上山へ。長谷堂の南、もう一つの戦線",
+   open:"上山城。最上の南の押さえ。里見民部は城外の林に兵を伏せて待つ",
+   after:{ atkWin:{ text:"上山は落ち、最上の南が開いた。山形は二方から圧される", capture:"上山城" },
+           defWin:{ text:"上杉の別働隊は伏兵に崩れ、栗田国時は討たれた。最上の南は保たれた", kills:["栗田国時"], run:()=>{ (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).eastMor+=3; } } } },
+ { id:2313, key:"daishoji", sub:"北陸戦線、その一", sc:["sekigahara","sekbattle","ueda"], when:"never", name:"大聖寺城の戦い", atk:"前田家", def:"大谷家", atkCmd:"前田利長", defCmd:"山口宗永", histWin:"atk",
+   terrain:1, forts:"def", castle:"大聖寺城", noAllies:true, nAtk:7, nDef:3, atkTroops:25000, defTroops:1500,
+   atkGens:["前田利長","前田利政","山崎長徳","篠原一孝","奥村栄明","長連龍","村井長頼"],
+   defGens:["山口宗永","山口修弘","高畠定吉"],
+   site:["尾山御坊","敦賀城"],
+   holdWin:{side:"def", sec:170, keep:0.22, h:"大聖寺、なお落ちず", t:"山口宗永は加賀の小城で前田の大軍を食い止めた"},
+   gather:"前田利長の二万五千が南下。加賀の入口、大聖寺城を囲む",
+   open:"大聖寺城。守るは山口宗永の千五百。北陸の関ヶ原は、この城から始まる",
+   after:{ atkWin:{ text:"大聖寺は落ち、山口宗永父子は自害した。前田は越前へ進む", capture:"大聖寺城", kills:["山口宗永"], run:()=>{ try{ sekSubQueue(2314,2); }catch(e){ console.error(e); } } },
+           defWin:{ text:"大聖寺は持ちこたえ、前田は加賀で足を止めた。北陸の西軍はまだ生きている", run:()=>{ (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).westMor+=3; } } } },
+ { id:2314, key:"asainawate", sub:"北陸版関ヶ原", sc:["sekigahara","sekbattle","ueda"], when:"never", name:"浅井畷の戦い", atk:"丹羽家", def:"前田家", altAtk:"大谷家", atkCmd:"丹羽長重", defCmd:"前田利長", histWin:"def",
+   terrain:4, forts:null, noAllies:true, nAtk:5, nDef:7, atkTroops:4000, defTroops:20000,
+   atkGens:["丹羽長重","江口三郎右衛門","太田長知","坂井直政","上田重安"],
+   defGens:["前田利長","前田利政","長連龍","山崎長徳","奥村栄明","篠原一孝","村井長頼"],
+   site:["尾山御坊","敦賀城"],
+   holdWin:{side:"atk", sec:150, keep:0.4, h:"浅井畷、丹羽の伏兵成る", t:"退く前田勢の側面を丹羽が突き、北陸の前田軍は動けなくなった"},
+   gather:"大聖寺を落とした前田利長は、伊勢方面の報せに驚いて金沢へ引き返す。丹羽長重はその退き口を狙う",
+   open:"浅井畷。細い畷道と深田。退く大軍の列が伸びきったところへ、丹羽の伏兵が横から出る",
+   after:{ atkWin:{ text:"前田勢は畷で崩され、北陸の東軍は金沢に釘付けとなった", run:()=>{ (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).atkTroops+=4000; log("北陸の前田軍は動けず、関ヶ原の東軍は四千少ない","war",true); } },
+           defWin:{ text:"前田利長は殿を固めて畷を抜け、金沢へ帰り着いた。北陸は東軍が押さえる", run:()=>{ (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).eastMor+=3; } } } },
+ { id:2315, key:"ishigakibaru", sub:"九州版関ヶ原", sc:["sekigahara","sekbattle","ueda"], when:"never", name:"石垣原の戦い", atk:"黒田家", def:"大友家", altDef:"石田家", atkCmd:"黒田官兵衛", defCmd:"大友義統", histWin:"atk",
+   terrain:0, forts:null, noAllies:true, nAtk:7, nDef:5, atkTroops:9000, defTroops:3500,
+   atkGens:["黒田官兵衛","井上之房","母里友信","黒田三左衛門","時枝平大夫","久野重勝","曽我部五右衛門"],
+   defGens:["大友義統","吉弘統幸","宗像鎮続","田原紹忍","母里吉兵衛"],
+   site:["中津城","府内城","小倉城"],
+   gather:"関ヶ原の報が届く前に、豊後で大友義統が旗を挙げた。黒田如水は中津の蔵を開いて兵を集める",
+   open:"石垣原。別府の湯けむりの見える野。如水の寄せ集めの九千と、大友の三千五百",
+   after:{ atkWin:{ text:"大友義統は降り、吉弘統幸は討死した。九州の西軍は一つ消えた", kills:["吉弘統幸"], run:()=>{ (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).eastMor+=4; try{ sekSubQueue(2316,3); }catch(e){ console.error(e); } } },
+           defWin:{ text:"大友義統が石垣原を制した。九州の東軍は中津に押し込められる", run:()=>{ (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).westMor+=4; } } } },
+ { id:2316, key:"uto", sub:"九州戦線、その二", sc:["sekigahara","sekbattle","ueda"], when:"never", name:"宇土城の戦い", atk:"加藤家", atkClanOf:"加藤清正", def:"石田家", atkCmd:"加藤清正", defCmd:"小西行景", histWin:"atk",
+   terrain:1, forts:"def", castle:"宇土城", noAllies:true, nAtk:6, nDef:3, atkTroops:10000, defTroops:1500,
+   atkGens:["加藤清正","加藤重次","飯田直景","森本一久","庄林一心","下川元宣"],
+   defGens:["小西行景","結城弥平次","小西隼人"],
+   site:["熊本城","柳川城"],
+   holdWin:{side:"def", sec:180, keep:0.25, h:"宇土城、なお開かず", t:"小西の留守居は主の帰りを信じて城を保った"},
+   gather:"関ヶ原の報が届く。加藤清正は肥後の小西領へ兵を出した",
+   open:"宇土城。主の小西行長は美濃にあり、城を守るのは弟の行景。海に面した城に、加藤の一万が寄せる",
+   after:{ atkWin:{ text:"宇土城は開き、小西の肥後は加藤のものとなった", capture:"宇土城", run:()=>{ try{ sekSubQueue(2317,4); }catch(e){ console.error(e); } } },
+           defWin:{ text:"宇土は落ちず、加藤は囲みを解いた。肥後の南はまだ小西の手にある" } } },
+ { id:2317, key:"yanagawa", sub:"九州戦線、その三", sc:["sekigahara","sekbattle","ueda"], when:"never", name:"柳川城の戦い", atk:"鍋島家", def:"立花家", atkCmd:"鍋島直茂", defCmd:"立花宗茂", histWin:"atk",
+   terrain:4, forts:"def", castle:"柳川城", allies:true, atkAllies:["加藤家","黒田家"], nAtk:8, nDef:5, atkTroops:32000, defTroops:5000,
+   atkGens:["鍋島直茂","鍋島勝茂","加藤清正","黒田官兵衛","鍋島茂里","龍造寺家晴","成富茂安","井上之房"],
+   defGens:["立花宗茂","小野鎮幸","由布惟信","十時連貞","立花統次"],
+   site:["柳川城","熊本城"],
+   holdWin:{side:"def", sec:200, keep:0.3, h:"柳川、開かず", t:"立花宗茂は水郷の城を守り切った。九州の西軍はまだ立っている"},
+   gather:"大津から戻った立花宗茂が柳川に籠る。鍋島・加藤・黒田の三万が囲む",
+   open:"柳川城。掘割と沼に囲まれた水の城。攻め口は限られ、立花の兵は精強",
+   after:{ atkWin:{ text:"立花宗茂は清正の仲立ちで城を開いた。宗茂は浪々の身となる", capture:"柳川城", run:()=>{ (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).eastMor+=3; } },
+           defWin:{ text:"柳川は落ちず、立花宗茂の武名はいよいよ高い。九州の戦はまだ終わらない", run:()=>{ (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).westMor+=4; } } } },
+ { id:2318, key:"sawayama", sub:"本戦の後、三成の居城", sc:["sekigahara","sekbattle","ueda"], when:"never", name:"佐和山城の戦い", atk:"徳川家", def:"石田家", atkCmd:"井伊直政", defCmd:"石田正継", histWin:"atk",
+   terrain:1, forts:"def", castle:"佐和山城", allies:true, atkAllies:["福島家","小早川家","池田家"], nAtk:9, nDef:4, atkTroops:35000, defTroops:2800,
+   atkGens:["井伊直政","小早川秀秋","田中吉政","脇坂安治","朽木元綱","小川祐忠","赤座直保","本多正信","寺沢広高"],
+   defGens:["石田正継","石田正澄","津田清幽","長谷川守知"],
+   site:["佐和山城","大垣城"],
+   holdWin:{side:"def", sec:170, keep:0.2, h:"佐和山、なお開かず", t:"石田の一門は本丸に籠り、東軍は一日で落とせなかった"},
+   gather:"関ヶ原の翌日、東軍は佐和山へ向かう。城を守るのは三成の父と兄",
+   open:"佐和山城。琵琶湖を見下ろす山城。寝返った小早川・脇坂の隊が先手に立つ",
+   after:{ atkWin:{ text:"佐和山は落ち、石田正継・正澄は自害した。三成の家は根を断たれた", capture:"佐和山城", kills:["石田正継","石田正澄"], run:()=>{ try{ sekSubQueue(2319,2); }catch(e){ console.error(e); } } },
+           defWin:{ text:"佐和山はなお落ちず。東軍は囲みを置いて西へ進んだ" } } },
+ { id:2319, key:"minakuchi", sub:"本戦の後、西軍の後始末", sc:["sekigahara","sekbattle","ueda"], when:"never", name:"水口城の戦い", atk:"徳川家", def:"石田家", atkCmd:"池田輝政", defCmd:"長束正家", histWin:"atk",
+   terrain:1, forts:"def", castle:"水口城", noAllies:true, nAtk:6, nDef:3, atkTroops:12000, defTroops:1200,
+   atkGens:["池田輝政","亀井茲矩","山内一豊","堀尾忠氏","中村一忠","有馬豊氏"],
+   defGens:["長束正家","長束直吉","高野越中"],
+   site:["佐和山城","二条御所"],
+   holdWin:{side:"def", sec:160, keep:0.2, h:"水口、なお開かず", t:"長束正家は城に拠って東軍の使者を追い返した"},
+   gather:"関ヶ原の後、近江の西軍の城が次々と開く。残るは長束正家の水口",
+   open:"水口城。東海道の宿場の城。開城の使者が来ているが、城内はまだ決めかねている",
+   after:{ atkWin:{ text:"水口は開き、長束正家は自害した。近江の西軍はここに絶えた", capture:"水口城", kills:["長束正家"] },
+           defWin:{ text:"水口はなお開かず。東軍は囲みを置いて先へ進んだ" } } },
+ { id:2320, key:"komeno", sub:"岐阜城攻めの前哨", sc:["sekigahara","sekbattle","ueda"], when:"never", name:"米野の戦い", atk:"福島家", def:"織田家", atkCmd:"福島正則", defCmd:"百々綱家", histWin:"atk",
+   terrain:4, forts:null, allies:true, atkAllies:["徳川家","池田家","細川家"], nAtk:8, nDef:5, atkTroops:18000, defTroops:4500,
+   atkGens:["福島正則","池田輝政","浅野幸長","山内一豊","堀尾忠氏","一柳直盛","中村一忠","徳永寿昌"],
+   defGens:["百々綱家","飯沼長資","杉浦重勝","木造具康","津田藤三郎"],
+   site:["岐阜城","清洲城"],
+   gather:"東軍先鋒が木曽川を渡る。岐阜城の織田秀信は、川を前にして迎え撃つ",
+   open:"米野の河原。木曽川を渡り切った東軍の先手に、岐阜の兵が正面からぶつかる",
+   after:{ atkWin:{ text:"米野で岐阜勢は崩れ、織田秀信は城へ退いた。東軍は岐阜城へ迫る", run:()=>{ try{ sekSubQueue(2260,1); }catch(e){ console.error(e); } } },
+           defWin:{ text:"東軍の先手は河原で押し返された。岐阜の守りはまだ堅い", run:()=>{ (W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}).westMor+=3; } } } },
+ /* ===== 第253巡（作り手：これイベント作って決戦）：天正の城攻めと内乱を八つ。信長包囲網・桶狭間の世でも、天正三年五月を過ぎれば起こる（eraOnly） ===== */
+ { id:2301, key:"iwamura", sub:"長篠の後、武田の東美濃", sc:["nagashino","oke","hoi","ishiyama"], when:"flag", flag:"iwamuraSiege", name:"岩村城の戦い", atk:"織田家", def:"武田家", atkCmd:"織田信忠", defCmd:"秋山虎繁", histWin:"atk",
+   terrain:1, forts:"def", castle:"岩村城", noAllies:true, nAtk:8, nDef:4, atkTroops:15000, defTroops:2500,
+   atkGens:["織田信忠","河尻秀隆","毛利長秀","団忠正","森長可","池田恒興","塚本小大膳","佐藤秀方"],
+   defGens:["秋山虎繁","大島杢之助","座光寺為清","日向宗立"],
+   site:["岐阜城","高遠城"],
+   holdWin:{side:"def", sec:210, keep:0.28, h:"岩村城、持ちこたえる", t:"秋山虎繁は山城に拠って織田の囲みを凌いだ。武田の東美濃はまだ生きている"},
+   gather:"長篠の後、織田信忠が東美濃へ。武田方の岩村城を囲む", open:"岩村城。三方を谷に囲まれた山城。水の手と兵糧を断たれ、秋山虎繁の二千五百が籠る",
+   after:{ atkWin:{ text:"岩村城は落ち、秋山虎繁は長良川で磔にされた。東美濃は織田のものとなる", capture:"岩村城", kills:["秋山虎繁"] },
+           defWin:{ text:"岩村は落ちず、織田信忠は兵を退いた。東美濃の国人はなお武田を見ている", calm:{clan:"織田家",vs:"武田家",days:45} } } },
+ { id:2302, key:"nanao", sub:"能登の山城、内から崩れる", sc:["nagashino","oke","hoi","ishiyama"], when:"flag", flag:"nanaoSiege", name:"七尾城の戦い", atk:"上杉家", def:"長家", atkCmd:"上杉謙信", defCmd:"長続連", histWin:"atk",
+   terrain:1, forts:"def", castle:"七尾城", noAllies:true, nAtk:8, nDef:5, atkTroops:20000, defTroops:5000,
+   atkGens:["上杉謙信","直江景綱","柿崎景家","斎藤朝信","河田長親","鯵坂長実","山浦景国","上条政繁"],
+   defGens:["長続連","長綱連","温井景隆","三宅長盛","遊佐続光"],
+   site:["春日山城","魚津城"],
+   holdWin:{side:"def", sec:220, keep:0.3, h:"七尾城、持ちこたえる", t:"長続連は山城を守り切り、上杉は能登の冬を前に兵を退いた"},
+   gather:"上杉謙信、能登へ。七尾城の支城を一つずつ落として山城を孤立させる", open:"七尾城。石動山の尾根に段々と続く曲輪。城内は疫と内応で揺れている",
+   after:{ atkWin:{ text:"七尾城は内応によって開き、長続連は討たれた。謙信は加賀へ――手取川はその先にある", capture:"七尾城", kills:["長続連"], flag:"nanaoFell" },
+           defWin:{ text:"七尾は落ちず、謙信は越後へ退いた。能登の冬は早い" } } },
+ { id:2303, key:"shigisan", sub:"松永久秀、最後の叛", sc:["nagashino","oke","hoi","ishiyama"], when:"flag", flag:"shigisanSiege", name:"信貴山城の戦い", atk:"織田家", def:"松永家", atkCmd:"織田信忠", defCmd:"松永久秀", histWin:"atk",
+   terrain:1, forts:"def", castle:"信貴山城", noAllies:true, nAtk:9, nDef:4, atkTroops:40000, defTroops:8000,
+   atkGens:["織田信忠","佐久間信盛","羽柴秀吉","明智光秀","筒井順慶","細川藤孝","丹羽長秀","中川清秀","池田恒興"],
+   defGens:["松永久秀","松永久通","海老名友清","森好久"],
+   site:["二条御所","岸和田城"],
+   holdWin:{side:"def", sec:180, keep:0.3, h:"信貴山城、なお落ちず", t:"松永久秀は山城に拠り、織田の大軍を十日凌いだ"},
+   gather:"松永久秀、再び信長に叛く。信貴山城に籠り、平蜘蛛の釜を抱えた", open:"信貴山城。大和の山上の城。信忠の大軍が谷を埋め、筒井順慶が道を案内する",
+   after:{ atkWin:{ text:"信貴山城は落ち、松永久秀は平蜘蛛の釜を砕いて自害した", capture:"信貴山城", kills:["松永久秀","松永久通"] },
+           defWin:{ text:"信貴山は落ちず、織田は囲みを解いた。大和の国人は松永の粘りを見ている" } } },
+ { id:2304, key:"miki", sub:"三木の干殺し", sc:["nagashino","oke","hoi","ishiyama"], when:"flag", flag:"mikiSiege", name:"三木合戦（干殺し）", atk:"織田家", def:"別所家", atkCmd:"羽柴秀吉", defCmd:"別所長治", histWin:"atk",
+   terrain:1, forts:"def", castle:"三木城", noAllies:true, nAtk:9, nDef:5, atkTroops:25000, defTroops:6500,
+   atkGens:["羽柴秀吉","竹中半兵衛","黒田官兵衛","羽柴秀長","蜂須賀正勝","浅野長政","前野長康","神子田正治","生駒親正"],
+   defGens:["別所長治","別所友之","別所吉親","後藤基国","淡河定範"],
+   site:["姫路城","岸和田城"],
+   holdWin:{side:"def", sec:230, keep:0.25, h:"三木城、なお開かず", t:"別所長治は兵糧の道を細々と保ち、羽柴の囲みを凌いだ"},
+   gather:"別所長治が毛利に付いた。羽柴秀吉は三木城を囲み、兵糧の道を一つずつ断つ", open:"三木城。力攻めはせぬ。付城と柵で囲み、米の道を断つ――二年に及ぶ干殺しの戦",
+   after:{ atkWin:{ text:"三木城は兵糧尽きて開いた。別所長治は城兵の助命と引き換えに自害した", capture:"三木城", kills:["別所長治"] },
+           defWin:{ text:"毛利の兵糧が三木に入り、羽柴の囲みは緩んだ。播磨の国人はまだ毛利を見ている" } } },
+ { id:2305, key:"otate", sub:"上杉の家、二つに割れる", sc:["nagashino","oke","hoi","ishiyama"], when:"flag", flag:"otateWar", name:"御館の乱", atk:"上杉家", def:"北条家", atkCmd:"上杉景勝", defCmd:"上杉景虎", histWin:"atk",
+   terrain:1, forts:"def", castle:"御館", noAllies:true, nAtk:7, nDef:6, atkTroops:8000, defTroops:6000,
+   atkGens:["上杉景勝","直江兼続","斎藤朝信","安田顕元","樋口与六","狩野秀治","須田満親"],
+   defGens:["上杉景虎","北条景広","本庄秀綱","神余親綱","堀江宗親","山本寺定長"],
+   site:["春日山城","坂戸城"],
+   holdWin:{side:"def", sec:200, keep:0.3, h:"御館、持ちこたえる", t:"景虎は御館を保ち、小田原からの後詰を待つ"},
+   gather:"謙信急逝。跡目を巡って景勝と景虎が春日山で相対した", open:"春日山の下、御館。同じ上杉の旗が二つに分かれ、越後の雪の中で刃を交える",
+   after:{ atkWin:{ text:"御館は焼け、景虎は鮫ヶ尾で自害した。上杉は景勝のものとなる", kills:["上杉景虎"] },
+           defWin:{ text:"景虎が春日山を制し、越後は小田原の後ろ盾を得た。上杉の向きが変わる" } } },
+ { id:2306, key:"yakami", sub:"丹波、三年の囲み", sc:["nagashino","oke","hoi","ishiyama"], when:"flag", flag:"yakamiSiege", name:"八上城の戦い", atk:"織田家", def:"波多野家", atkCmd:"明智光秀", defCmd:"波多野秀治", histWin:"atk",
+   terrain:1, forts:"def", castle:"八上城", noAllies:true, nAtk:7, nDef:4, atkTroops:15000, defTroops:3000,
+   atkGens:["明智光秀","明智秀満","斎藤利三","藤田行政","溝尾茂朝","並河易家","松田政近"],
+   defGens:["波多野秀治","波多野秀尚","荒木氏綱","籾井教業"],
+   site:["二条御所","亀山城"],
+   holdWin:{side:"def", sec:210, keep:0.28, h:"八上城、なお落ちず", t:"波多野秀治は丹波の山城を守り切った。明智の丹波攻略はまた延びる"},
+   gather:"明智光秀、丹波へ。八上城の周りに付城を築き、糧道を断つ", open:"八上城。高城山の上の城。囲みは三年に及び、城内では草木も食い尽くされた",
+   after:{ atkWin:{ text:"八上城は開き、波多野秀治は安土で磔にされた。丹波は明智のものとなる", capture:"八上城", kills:["波多野秀治"] },
+           defWin:{ text:"八上は落ちず、明智は囲みを解いた。丹波の国人はまだ波多野を見ている" } } },
+ { id:2307, key:"tottori_siege", sub:"渇え殺し", sc:["nagashino","oke","hoi","ishiyama"], when:"flag", flag:"tottoriSiege", name:"鳥取城の渇え殺し", atk:"織田家", def:"山名家", atkCmd:"羽柴秀吉", defCmd:"吉川経家", histWin:"atk",
+   terrain:1, forts:"def", castle:"鳥取城", noAllies:true, nAtk:9, nDef:4, atkTroops:20000, defTroops:4000,
+   atkGens:["羽柴秀吉","黒田官兵衛","羽柴秀長","蜂須賀正勝","宮部継潤","荒木重堅","木下重堅","浅野長政","亀井茲矩"],
+   defGens:["吉川経家","森下道誉","中村春続","奈佐日本之助"],
+   site:["姫路城","岡山城"],
+   holdWin:{side:"def", sec:230, keep:0.25, h:"鳥取城、なお開かず", t:"吉川経家は城兵をまとめ、毛利の後詰が届くまで持ちこたえた"},
+   gather:"羽柴秀吉、因幡へ。若狭の商人に鳥取の米を買い占めさせ、城を囲む", open:"鳥取城。久松山の上。城には民まで逃げ込み、蔵の米は四月で尽きる――渇え殺しの戦",
+   after:{ atkWin:{ text:"鳥取城は飢えて開いた。吉川経家は城兵の助命と引き換えに自害した", capture:"鳥取城", kills:["吉川経家"] },
+           defWin:{ text:"毛利の後詰が届き、鳥取の囲みは解けた。因幡はまだ毛利のもの" } } },
+ { id:2308, key:"uozu", sub:"京で何かが起きている", sc:["nagashino","oke","hoi","ishiyama","honnoji"], when:"flag", flag:"uozuSiege", name:"魚津城の戦い", atk:"織田家", def:"上杉家", atkCmd:"柴田勝家", defCmd:"中条景泰", histWin:"atk",
+   terrain:1, forts:"def", castle:"魚津城", noAllies:true, nAtk:8, nDef:5, atkTroops:40000, defTroops:4000,
+   atkGens:["柴田勝家","佐々成政","前田利家","佐久間盛政","佐々平左衛門","不破光治","徳山則秀","原長頼"],
+   defGens:["中条景泰","吉江宗信","寺島長資","竹俣慶綱","安部政吉"],
+   site:["春日山城","尾山御坊"],
+   holdWin:{side:"def", sec:220, keep:0.25, h:"魚津城、持ちこたえる", t:"中条景泰らは城を保ち、上杉は越中の足がかりを失わずに済んだ"},
+   gather:"柴田勝家の四万が越中へ。魚津城を囲む。同じ頃、京では――", open:"魚津城。海と川に挟まれた平城。城兵四千。上杉景勝の後詰は、間に合うかどうか",
+   after:{ atkWin:{ text:"魚津城は落ち、城将十三人は名を記して自害した。その翌日、本能寺の報が北陸に届く", capture:"魚津城", kills:["中条景泰"] },
+           defWin:{ text:"魚津は落ちず、柴田は越中で足を止めた。京からの報せは、まだ届かない" } } },
 );
-const decAtk = d => clanByName(d.atk)||(d.altAtk?clanByName(d.altAtk):null);
-const decDef = d => clanByName(d.def)||(d.altDef?clanByName(d.altDef):null);
+/* 第253巡（作り手：宇土城で加藤を選んでも合戦が開かない）：同じ名の家が二つある世がある（加藤清正の加藤家と加藤嘉明の加藤家）。
+   決戦に atkClanOf／defClanOf（将の名）があれば、その将のいる家を使う */
+function decClanOf(nm){ if(!nm) return null; const g=Object.values(W.generals).find(x=>genNameIs(x,nm)&&x.clan!==null&&x.status!=="死亡"&&!x.captor); return g?W.clans[g.clan]||null:null; }
+const decAtk = d => (d.atkClanOf&&decClanOf(d.atkClanOf))||clanByName(d.atk)||(d.altAtk?clanByName(d.altAtk):null);
+const decDef = d => (d.defClanOf&&decClanOf(d.defClanOf))||clanByName(d.def)||(d.altDef?clanByName(d.altDef):null);
 /* 家（と傘下）の将を、名の順に、足りなければ器量の順に集める */
 /* 第208巡：改名の前後は同じ人（塙直政＝原田直政）。名指しの将が見つからず、余所の将で埋めていた */
 const GEN_ALIAS={"原田直政":["塙直政"],"塙直政":["原田直政"],"羽柴秀吉":["木下藤吉郎","豊臣秀吉"],"木下藤吉郎":["羽柴秀吉"],"豊臣秀吉":["羽柴秀吉","木下藤吉郎"],"徳川家康":["松平元康"],"上杉謙信":["長尾景虎"],"黒田官兵衛":["黒田孝高"],"細川藤孝":["細川幽斎"],"細川幽斎":["細川藤孝"],"羽柴秀長":["豊臣秀長"],"豊臣秀長":["羽柴秀長"],"豊臣秀次":["羽柴秀次"],"羽柴秀次":["豊臣秀次"],"雑賀孫市":["鈴木孫一"],"鈴木孫一":["雑賀孫市"],"片倉小十郎":["片倉景綱"],"伊達成実":["伊達成實"],"武田信玄":["武田晴信"],"武田晴信":["武田信玄"],"斎藤道三":["斎藤利政"],"明智光秀":["惟任光秀"],"松永久秀":["松永弾正"],"北条氏康":["北條氏康"]};   /* 第217巡：同じ人の別名（秀長・秀次・雑賀孫市…）を一人として探す（別名で二人目が生まれていた） */
@@ -16807,11 +17103,12 @@ EVENTS.push(
 function sekSubQueue(id, days){ W.sekSub=W.sekSub||[]; W.sekSub.push({id, at:dayNumber()+(days||1)}); }
 /* 第253巡（仕様書 20）：前哨戦のあと、西軍の人は功を賞する。賞した大名は満足+10、ほかは−3。賞さなければ皆−4 */
 function sekRewardTick(){ const R=W.sekRewardAsk; if(!R||B||pendingEncounter||overlayEl) return; W.sekRewardAsk=null; const D=sekDisc(); const opts=R.present.slice(0,4).map(n=>[n,`${n}を賞する`,`${n}の満足+10（いま${D[n]}）。ほかは−3`,()=>{ for(const m of R.present){ sekDiscAdd(m,m===n?10:-3); } sekTL(`${R.name}：${n}の功を賞す`); }]); opts.push(["none","賞さない","皆の満足−4",()=>{ for(const m of R.present) sekDiscAdd(m,-4); }]); koChoice("功を賞する",`${R.name}の功をどの家に。西軍は功を評価せねば不満が溜まる。`,opts); }
-function sekSubTick(){ try{ sekRewardTick(); }catch(e){ console.error(e); } if(!W.sekSub||!W.sekSub.length||B||pendingEncounter||overlayEl) return; /* 第253巡（作り手：戦は突然出ない）：小さな決戦も、軍が街道を歩いて着いてから。まず着いた軍があれば戦を始める */
+function sekSubTick(){ try{ sekRewardTick(); }catch(e){ console.error(e); } if(B||pendingEncounter||overlayEl) return;
+  if(!W.sekMini&&(!W.sekSub||!W.sekSub.length)) return;   /* 第253巡：行軍中の小さな決戦は、待ち行列が空でも仕上げる（樫井のように一つだけ積んだ戦が、行軍したまま起きなかった） */ /* 第253巡（作り手：戦は突然出ない）：小さな決戦も、軍が街道を歩いて着いてから。まず着いた軍があれば戦を始める */
   if(W.sekMini){ const M=W.sekMini; const arrived=M.armies.every(id=>{ const a=W.armies[id]; return !a||stageArrived(a); }); if(!arrived) return; const d=DECISIVE.find(x=>x.id===M.id); for(const id of M.armies){ const a=W.armies[id]; if(!a) continue; for(const gid of a.gens){ const g=W.generals[gid]; if(g&&g.army===id) g.army=null; if(g&&a.stageOrig&&a.stageOrig[gid]!==undefined) g.troops=a.stageOrig[gid]; } delete W.armies[id]; if(W.stage) W.stage.armies=W.stage.armies.filter(x=>x!==id); } if(W.stage){ if(M.prevFollow!==undefined){ W.stage.followId=M.prevFollow; W.stage.follow=!!M.prevFollow; } if(W.stage.tmp&&!W.stage.armies.length) W.stage=null; } W.sekMini=null; bumpGarrison(); try{ updateStageBadge(); }catch(_){ } if(d&&!W.fired.has(d.id)){ try{ fireDecisive(d); }catch(e){ console.error(e); } } return; }
   const q=W.sekSub[0]; if(dayNumber()<q.at) return; W.sekSub.shift(); const d=DECISIVE.find(x=>x.id===q.id); if(!d||W.fired.has(d.id)) return; let ok=false; try{ ok=miniMarch(d); }catch(e){ console.error(e); } if(!ok){ try{ fireDecisive(d); }catch(e){ console.error(e); } } }
 /* 小さな決戦の行軍：寄せ手（城攻めでなければ守り手も）がいちばん近い城から戦場へ歩く。着けば戦。主の仕込み（関ヶ原の本戦など）と同居できる */
-function miniMarch(d){ const A=clanByName(d.atk)||(d.altAtk?clanByName(d.altAtk):null), Bc=clanByName(d.def)||(d.altDef?clanByName(d.altDef):null); if(!A||!Bc||W.sekMini) return false; let site; try{ site=decisiveSite(d,A,Bc); }catch(e){ return false; } if(!site) return false;
+function miniMarch(d){ const A=(d.atkClanOf&&decClanOf(d.atkClanOf))||clanByName(d.atk)||(d.altAtk?clanByName(d.altAtk):null), Bc=(d.defClanOf&&decClanOf(d.defClanOf))||clanByName(d.def)||(d.altDef?clanByName(d.altDef):null); if(!A||!Bc||W.sekMini) return false; let site; try{ site=decisiveSite(d,A,Bc); }catch(e){ return false; } if(!site) return false;
   const near=(K)=>{ const cs=myCastles(K.id); if(!cs.length) return null; return cs.map(c=>[c,Math.hypot(W.tile[c.id].c-site.x,W.tile[c.id].r-site.y)]).sort((a,b)=>a[1]-b[1])[0][0]; };
   const mk=(clan,gens,from,dx,total,name)=>{ if(gens.length<1) return null; const t0=W.tile[from.id]; const id=W.nextArmy++; const orig={}; const w=gens.map(g=>0.6+0.4*g.lea/100), sw=w.reduce((a,b)=>a+b,0); gens.forEach((g,i)=>{ orig[g.id]=g.troops; g.troops=Math.round(total*w[i]/sw); }); const a={id,clan:clan.id,gens:gens.map(g=>g.id),commander:gens[0].id,x:t0.c,y:t0.r,px:t0.c,py:t0.r,moveT:1,path:[],origin:from.id,target:null,mission:"移動",siegeDays:0,mode:1,pillaging:false,sea:false,food:9000,name,script:true,stage:true,stageOrig:orig,stageNote:`${name}、${from.name}を発つ`,mini:d.id}; for(const g of gens) g.army=id; W.armies[id]=a; a.route=stageRouteTo(from, site.x+dx, site.y, clan.id); a.day0=dayNumber(); let len=0; for(let i=1;i<(a.route||[]).length;i++) len+=Math.hypot(a.route[i].c-a.route[i-1].c,a.route[i].r-a.route[i-1].r); a.days=Math.max(2,Math.min(8,Math.ceil(len/7))); if(!a.route||a.route.length<2){ a.route=[{c:t0.c,r:t0.r},{c:site.x+dx,r:site.y}]; a.days=2; } return a; };
   const af=near(A); if(!af) return false; const atkEast=W.tile[af.id].c>=site.x;
@@ -16839,6 +17136,31 @@ EVENTS.push(
      if(is&&is.id===W.player) koChoice("田辺城、細川幽斎","丹後の田辺に幽斎が五百で籠る。囲む一万五千は幽斎の歌の弟子ばかり。",[["court","朝廷の勅命で開城を受ける（史実）","幽斎は生き、囲みの半ばが関ヶ原へ",()=>go("court")],["assault","総攻め","明日、田辺で決戦。弟子は本気で撃たない",()=>go("assault")],["hold","囲み続ける","一万五千は関ヶ原に来ない",()=>go("hold")]]);
      else if(hs&&hs.id===W.player){ koChoice("田辺城、囲まれる","幽斎の五百に西軍一万五千。",[["hold","籠城（史実）","明日、田辺で決戦。弟子は本気で撃たない",()=>go("assault")],["court","朝廷に仲介を頼む","勅命で開城。幽斎は生きる",()=>go("court")]]); }
      else go(rnd()<0.6?"court":"hold"); }},
+  /* ===== 第253巡（作り手：関ヶ原は全国同時の一つの戦争）：東北・北陸・九州・本戦後の戦いを呼ぶ出来事 ===== */
+  {id:1420,daily:true,name:"畑谷城、三百の籠城",
+   text:["直江兼続「まず畑谷を潰す。山形への道を開け」","江口光清「退けと言われても、城を枕にする」"],
+   cond:()=> eraOnly("sekigahara")&&dayNumber()-(W.scenarioStartDay||dayNumber())>=28&&!W.fired.has(2311)&&!W.fired.has(2263)&&!W.fired.has(2101)&&(()=>{ const ue=clanByName("上杉家"), mg=clanByName("最上家"); return ue&&mg&&!ue.dead&&!mg.dead; })(),
+   act:()=>{ const ue=clanByName("上杉家"), mg=clanByName("最上家"); if(!ue||!mg) return; if(!ue.war.has(mg.id)) declareWar(ue.id,mg.id,"force");
+     sekSubQueue(2311,1); sekSubQueue(2312,4); log("直江兼続の大軍が最上領へ入った。畑谷の小城が最初に立ち塞がる",'war',true); }},
+  {id:1421,daily:true,name:"前田利長、南下す",
+   text:["前田利長「加賀の西軍を払い、越前へ出る。まず大聖寺じゃ」"],
+   cond:()=> eraOnly("sekigahara")&&dayNumber()-(W.scenarioStartDay||dayNumber())>=24&&!W.fired.has(2313)&&!W.fired.has(2101)&&(()=>{ const mf=clanByName("前田家"), ot=clanByName("大谷家"); return mf&&ot&&!mf.dead&&!ot.dead; })(),
+   act:()=>{ const mf=clanByName("前田家"), ot=clanByName("大谷家"); if(!mf||!ot) return; if(!mf.war.has(ot.id)) declareWar(mf.id,ot.id,"force");
+     if(!findGeneralByName("山口宗永")){ try{ spawnGeneral("山口宗永", ot.id, null, 1500); }catch(_){ } }
+     if(!findGeneralByName("丹羽長重")){ try{ spawnGeneral("丹羽長重", ot.id, null, 4000); }catch(_){ } }
+     sekSubQueue(2313,1); log("前田利長の二万五千が南下。加賀の大聖寺城を囲む",'war',true); }},
+  {id:1422,daily:true,name:"黒田如水、豊後へ",
+   text:["黒田官兵衛「中津の蔵を開け。兵を集めよ。天下は、まだ決まっておらぬ」","大友義統「豊後を取り戻す。毛利が背にある」"],
+   cond:()=> eraOnly("sekigahara")&&dayNumber()-(W.scenarioStartDay||dayNumber())>=32&&!W.fired.has(2315)&&!W.fired.has(2101)&&(()=>{ const kd=clanByName("黒田家"); return kd&&!kd.dead; })(),
+   act:()=>{ const kd=clanByName("黒田家"), is=clanByName("石田家"); if(!kd) return;
+     if(!findGeneralByName("黒田官兵衛")){ try{ spawnGeneral("黒田官兵衛", kd.id, null, 3000); }catch(_){ } }
+     if(is&&!kd.war.has(is.id)) declareWar(kd.id,is.id,"force");
+     sekSubQueue(2315,1); log("黒田如水が中津で兵を集め、豊後の大友義統と石垣原で相対する",'war',true); }},
+  {id:1423,daily:true,name:"木曽川を渡る",
+   text:["福島正則「川を渡る。岐阜の秀信は野で迎え撃つつもりらしい」"],
+   cond:()=> eraOnly("sekigahara")&&dayNumber()-(W.scenarioStartDay||dayNumber())>=2&&!W.fired.has(2320)&&!W.fired.has(2260)&&!W.fired.has(2101)&&(()=>{ const fk=clanByName("福島家"), od=clanByName("織田家"); return fk&&od&&!fk.dead&&!od.dead&&Object.values(W.castles).some(c=>c.name==="岐阜城"&&c.clan===od.id); })(),
+   act:()=>{ const fk=clanByName("福島家"), od=clanByName("織田家"); if(!fk||!od) return; if(!fk.war.has(od.id)) declareWar(fk.id,od.id,"force");
+     sekSubQueue(2320,1); log("東軍先鋒が木曽川を渡った。米野の河原で岐阜勢とぶつかる",'war',true); }},
   {id:1300,daily:true,name:"長谷堂、直江の北進",
    text:["直江兼続「最上を切り取り、伊達を押さえる。上方の決戦は三成殿に」"],
    cond:()=> eraOnly("sekigahara")&&dayNumber()-(W.scenarioStartDay||dayNumber())>=30&&!W.fired.has(2101)&&(()=>{ const ue=clanByName("上杉家"), mg=clanByName("最上家"); return ue&&mg&&!ue.dead&&!mg.dead&&Object.values(W.castles).some(c=>c.name==="山形城"&&c.clan===mg.id); })(),
@@ -20986,6 +21308,11 @@ function osakaWinterDaily(){
   o.food=Math.max(0, o.food - 0.35*(1+o.siege/100));
   if(o.food<50) o.peace+=0.8; if(o.food<20) o.peace+=1.2;
   if(o.day>30) o.peace+=0.5; if(o.day>60) o.peace+=0.6;   // 冬が深まるほど淀殿の声が通る
+  /* 第253巡（作り手：大坂の陣を一本の物語に）：冬の陣は 木津川口・博労淵 → 野田・福島 → 今福・鴫野 → 本町橋の夜討ち → 真田丸 → 和議 の順に起こす */
+  if(o.day===3&&!o.nodaDone){ o.nodaDone=true; sekSubQueue(2331,1); if(ty.id===W.player) log("徳川の水軍と陸の兵が、淀川の中州の野田・福島の砦へ向かっている",'war',true); }
+  if(o.day===12&&!o.yoruDone&&o.morale>=40){ o.yoruDone=true; const go=(k)=>{ if(k==="go") sekSubQueue(2332,1); else { log("豊臣方は夜討ちを見送った（城内の士気−3）",'war',true); o.morale=Math.max(0,o.morale-3); } };
+    if(ty.id===W.player) koChoice("本町橋の夜討ち","塙団右衛門「夜のうちに堀を出て、蜂須賀の陣へ斬り込みまする」。成れば城内の意気は上がるが、しくじれば兵を失う。",[["go","夜討ちをかける（史実）","明夜、本町橋で夜戦",()=>go("go")],["hold","見送る","兵を損なわぬ（士気−3）",()=>go("hold")]]);
+    else go(rnd()<0.7?"go":"hold"); }
   /* 第158巡：五日目 今福・鴫野、七日目 外郭戦 */
   if(o.day===5&&!o.imafukuDone){ o.imafukuDone=true; const go=(k)=>{ if(k==="fight") sekSubQueue(2265,1); else { log("豊臣方は今福・鴫野の砦を捨てて城へ退いた（包囲+8）",'war',true); o.siege=Math.min(100,o.siege+8); } }; if(ty.id===W.player) koChoice("今福・鴫野の砦","大和川の両岸の砦に佐竹・上杉が迫る。木村重成と後藤又兵衛が出るか。",[["fight","討って出る（史実）","明日、川の両岸で砦の争奪",()=>go("fight")],["give","砦を捨てて城へ","損はないが包囲が締まる",()=>go("give")]]); else go("fight"); }
   if(o.day===7&&!o.gaikakuDone){ o.gaikakuDone=true; sekSubQueue(2266,1); if(ty.id===W.player) log("徳川の船が木津川口へ。博労淵の砦の薄田兼相は遊女屋にいて留守",'war',true); }
@@ -21118,7 +21445,17 @@ function osakaMoatEvent(){
   else finish(base,"外堀も二の丸も埋められ、大坂城は裸城となった");
 }
 function osakaApplyDefense(){ const o=W.osaka; const osk=Object.values(W.castles).find(c=>c.name==="大坂城"); if(!osk) return; if(!o.baseLv) o.baseLv=osk.lv; osk.lv=Math.max(120,Math.round(o.baseLv*o.defense/100)); osk.defense=Math.min(osk.defense, maxDefense(osk)); }
-function osakaBetweenDaily(){ const o=W.osaka; if(!o||o.phase!=="between") return; if(dayNumber()>=o.summerAt){ o.phase="summer"; W.osakaSummer=true; log("慶長二十年夏。徳川は再び大坂へ。豊臣方は裸城に籠るより、城を出て野で戦う道を選んだ","war",true); bigNews("大坂夏の陣"); } }
+function osakaBetweenDaily(){ const o=W.osaka; if(!o||o.phase!=="between") return; if(dayNumber()>=o.summerAt){ o.phase="summer"; W.osakaSummer=true; log("慶長二十年夏。徳川は再び大坂へ。豊臣方は裸城に籠るより、城を出て野で戦う道を選んだ","war",true); bigNews("大坂夏の陣");
+  /* 第253巡（作り手：冬の結果を夏へ引き継ぐ）：冬にどう戦ったかで、夏の始まりが変わる */
+  try{ const M=W.osakaCarry={}; const tkLoss=Math.round(o.tkLoss||0), tyLoss=Math.round(o.tyLoss||0);
+    M.eastMinus = Math.min(20000, Math.round(tkLoss*0.5) + ((W.smaruResult&&/^[SA]$/.test(W.smaruResult.grade||""))?6000:0));   /* 真田丸で大勝すれば徳川は夏に六千少ない */
+    M.westMinus = Math.min(12000, Math.round(tyLoss*0.5));                                                                     /* 冬に兵を損なえば夏の予備が減る */
+    M.defense   = Math.max(0, Math.round(o.defense||0));                                                                        /* 外郭をどれだけ残したか（和議の条件に効く） */
+    M.moat      = !!o.moatFilled;                                                                                               /* 外堀を埋められたか */
+    log(`冬の陣の結末が夏へ――徳川は${M.eastMinus.toLocaleString()}少なく、豊臣の予備は${M.westMinus.toLocaleString()}少ない（城の守り ${M.defense}％${M.moat?"・外堀は埋められた":""}）`,"war",true);
+  }catch(e){ console.error(e); }
+  /* 夏の陣は樫井から始まる（緒戦） */ try{ sekSubQueue(2333,2); }catch(e){ console.error(e); } }
+}
 function openOsakaWinter(){
   const o=W.osaka; if(!o) return; const tk=clanByName("徳川家"), ty=clanByName("豊臣家"); const mineTk=tk&&tk.id===W.player, mineTy=ty&&ty.id===W.player;
   const bar=(v,m,col)=>`<div style="height:8px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden"><div style="height:8px;width:${Math.max(0,Math.min(100,v/m*100))}%;background:${col}"></div></div>`;
@@ -21230,7 +21567,7 @@ function stageDecisive(d){
 function stageLocks(clanId){ if(!W.stage||!W.stage.lock) return false; const K=W.clans[clanId]; if(!K) return false; const sides=new Set(W.stage.armies.map(id=>W.armies[id]&&W.armies[id].clan).filter(x=>x!=null)); return sides.has(clanId) || (K.suzerain!=null && sides.has(K.suzerain)) || [...sides].some(id=>K.allies.has(id)); }
 function stageArrived(a){ return !a.route || a.route.length<2 || (dayNumber()-a.day0)>=a.days; }
 /* 第253巡（作り手：戦は突然出てはいけない。長篠の後詰のように、自分の軍が街道を歩いて城に着いてから始まる。全ての筋書きで）：stage の無い決戦にも、いちばん近い城から戦場へ歩く仕込みを自動で組む。城攻めなら守り手は城にいる */
-function autoStage(d){ if(!d||W.stage) return false; const A=clanByName(d.atk)||(d.altAtk?clanByName(d.altAtk):null), Bc=clanByName(d.def)||(d.altDef?clanByName(d.altDef):null); if(!A||!Bc) return false; if(d.stage){ try{ stageDecisive(d); return true; }catch(e){ console.error(e); return false; } }
+function autoStage(d){ if(!d||W.stage) return false; const A=(d.atkClanOf&&decClanOf(d.atkClanOf))||clanByName(d.atk)||(d.altAtk?clanByName(d.altAtk):null), Bc=(d.defClanOf&&decClanOf(d.defClanOf))||clanByName(d.def)||(d.altDef?clanByName(d.altDef):null); if(!A||!Bc) return false; if(d.stage){ try{ stageDecisive(d); return true; }catch(e){ console.error(e); return false; } }
   let site=null; try{ site=decisiveSite(d,A,Bc); }catch(e){ return false; } if(!site) return false;
   const near=(K)=>{ const cs=myCastles(K.id); if(!cs.length) return null; return cs.map(c=>[c,Math.hypot(W.tile[c.id].c-site.x,W.tile[c.id].r-site.y)]).sort((a,b)=>a[1]-b[1])[0][0]; };
   const af=near(A), df=near(Bc); if(!af) return false; const dist0=Math.hypot(W.tile[af.id].c-site.x,W.tile[af.id].r-site.y); const days=Math.max(2,Math.min(10,Math.ceil(dist0/7)));
@@ -21793,7 +22130,7 @@ function decisiveDaily(){
       const when=(d.when==="open"&&W.scenario==="oke"&&d.y)?"date":d.when;   /* 第253巡：桶狭間の筋書きでは、包囲網の開幕の決戦（姉川）は年月で起きる（開幕扱いで一五六〇年五月に姉川が起きていた） */
       if(!decisiveIn(d,W.scenario) || (when!=="war"&&when!=="date"&&when!=="flag") || W.fired.has(d.id)) continue;
       if(when==="flag" && !W[d.flag]) continue;
-      const A=clanByName(d.atk)||(d.altAtk?clanByName(d.altAtk):null), Bc=clanByName(d.def)||(d.altDef?clanByName(d.altDef):null);
+      const A=(d.atkClanOf&&decClanOf(d.atkClanOf))||clanByName(d.atk)||(d.altAtk?clanByName(d.altAtk):null), Bc=(d.defClanOf&&decClanOf(d.defClanOf))||clanByName(d.def)||(d.altDef?clanByName(d.altDef):null);
       if(!A||!Bc) continue;
       if(when==="war" && !A.war.has(Bc.id)) continue;
       if(d.cond && !d.cond()) continue;   /* 第131巡：決戦ごとの条件 */
@@ -21823,7 +22160,8 @@ function decisiveDaily(){
   }
   stageDaily();
   if(W.osakaDelayUntil && !W.osaka && dayNumber()>=W.osakaDelayUntil){ W.osakaDelayUntil=null; W.osakaBell="war"; log("一年が過ぎ、徳川はふたたび大坂に矛を向けた",'war',true); osakaRonin(); }
-  if(W.osaka){ try{ osakaWinterDaily(); if(W.osaka.phase==="peace"&&!W.osaka.moatAsked&&!B&&!overlayEl){ W.osaka.moatAsked=true; osakaMoatEvent(); } osakaBetweenDaily(); }catch(e){ console.error(e); } }   /* 第253巡：和睦の八百ミリ秒後の堀の札が来なかった時（控えの読み込み直後など）も翌日に出す */
+  if(W.osaka){ try{ osakaWinterDaily(); if(W.osaka.phase==="peace"&&!W.osaka.moatAsked&&!B&&!overlayEl){ W.osaka.moatAsked=true; osakaMoatEvent(); } osakaBetweenDaily();
+ }catch(e){ console.error(e); } }   /* 第253巡：和睦の八百ミリ秒後の堀の札が来なかった時（控えの読み込み直後など）も翌日に出す */
   if(W.ko){ try{ koshuDaily(); }catch(e){ console.error(e); } }
   if(W.oda){ try{ odaDaily(); }catch(e){ console.error(e); } }
   if(W.mik){ try{ mikDaily(); }catch(e){ console.error(e); } }
@@ -21862,7 +22200,7 @@ function fireDecisive(d){
   if(W.nag && d && /nagashino/.test(d.key)) W.nag.done=true;   /* 長篠城の攻防はここまで（第132巡） */
   W.fired.add(d.id);
   if(d.key==="kawanakajima"){ const tk=clanByName("武田家"); if(tk && !findGeneralByName("武田信繁")){ const g=spawnGeneral("武田信繁",tk.id,null,1500); if(g){ g.family=true; g.loyalty=100; } } }
-  const A=clanByName(d.atk)||(d.altAtk?clanByName(d.altAtk):null), Bc=clanByName(d.def)||(d.altDef?clanByName(d.altDef):null);
+  const A=(d.atkClanOf&&decClanOf(d.atkClanOf))||clanByName(d.atk)||(d.altAtk?clanByName(d.altAtk):null), Bc=(d.defClanOf&&decClanOf(d.defClanOf))||clanByName(d.def)||(d.altDef?clanByName(d.altDef):null);
   if(!A||!Bc) return;
   // 開幕の決戦なら、両家の出先の軍は呼び戻して決戦に加える（仕込みの七日で出ていた将が数に入らず、武田が十四隊に減っていた）
   if(d.when==="open"||d.disbandFirst){ for(const ar of Object.values(W.armies)){ if(ar.stage) continue; if(!d.disbandFirst&&ar.script) continue; if(ar.clan!==A.id&&ar.clan!==Bc.id) continue; if(ar.clan===W.player&&!d.disbandFirst) continue; disbandArmy(ar); } }
@@ -21881,10 +22219,13 @@ function fireDecisive(d){
   let atkT = (d.atkAllies&&d.atkAllies.length>1) ? Math.max(d.atkTroops, realOf(ga)) : d.atkTroops;
   if(d.key==="sekigahara" && W.ueda && W.ueda.phase!=="over"){ W.ueda.late=true; W.uedaLate=true; try{ uedaLeave(); }catch(e){ console.error(e); } }   /* 関ヶ原の日にまだ上田にいれば、間に合わない */
   /* 第253巡（作り手：西軍十二万・東軍六万になっていた）：関ヶ原の兵数は筋書きの数を軸に（集まった将の実の兵で膨らまない。上限は一割五分増し）。秀忠の遅れは「東軍が減る」のでなく「間に合えば東軍に加わる」に */
+  /* 第253巡：大坂夏の陣は、冬の陣の結末を引き継ぐ（徳川は減り、豊臣の予備も減る） */
+  if(W.osakaCarry && /^(osaka|yao|tennoji|yamazato|konda|chausuyama|yasui|kashii)$/.test(d.key)){ const M=W.osakaCarry; if(M.eastMinus) atkT=Math.max(Math.round(atkT*0.55), atkT-Math.round(M.eastMinus*(d.key==="tennoji"?1:0.5))); }
   if(d.key==="sekigahara"){ atkT=Math.min(atkT, Math.round(d.atkTroops*1.15)); if(W.uedaLate) log("秀忠の三万八千は上田に足を取られ、関ヶ原に間に合わなかった","war",true); else if(W.hidetadaJoins){ atkT+=20000; log("秀忠の本隊が中山道を抜けて関ヶ原に着いた（東軍 +二万）","war",true); } }
   const defT0 = (d.defTroopsIfPlayerAtk && A.id===W.player) ? d.defTroopsIfPlayerAtk : d.defTroops;
   const defT = (d.defAllies&&d.defAllies.length>1) ? Math.min(d.key==="sekigahara"?Math.round(defT0*1.15):1e9, Math.max(defT0, realOf(gb))) : defT0;
   let atkT2=atkT, defT2=defT;
+  if(W.osakaCarry && W.osakaCarry.westMinus && /^(osaka|yao|tennoji|yamazato|konda|chausuyama|yasui|kashii)$/.test(d.key)) defT2=Math.max(Math.round((defT2||defT||1)*0.6), (defT2||defT||0)-Math.round(W.osakaCarry.westMinus*0.5));   /* 第253巡：冬に損なった兵は夏の予備から引く */
   /* 第145巡：高遠城の攻め方・守り方（軍議で決めた手が兵数に映る） */ if(d.key==="takato"){ const m=W.koTakatoMode; if(m==="siege") defT2=Math.round(defT*0.85); if(m==="fire"){ defT2=Math.round(defT*0.8); W.koTakatoBurn=true; } if(m==="hold") defT2=Math.round(defT*1.15); if(m==="night"){ if(rnd()<0.3){ atkT2=Math.round(atkT*0.85); log("夜襲が織田の先手を崩した（寄せ手−15%・城兵の士気+10）","war",true); } else { defT2=Math.max(500,defT-300); log("夜襲はしくじった（守兵−300）","war",true); } } if(W.koTakatoShake) defT2=Math.round(defT2*0.9); }
   if(d.key==="temmoku"&&W.ko&&W.ko.oyamadaLoyal){ defT2=Math.round((defT2||realOf(gb))*1.3); log("岩殿の城兵が勝頼に付いた（守り手+30%）","war",true); }
   if(d.key==="mimikawa"&&W.mimiPlan==="siege"){ atkT2=Math.round(atkT*0.85); log("高城の囲みに兵を残したまま、大友は川原へ出た（寄せ手−15%）","war",true); }
@@ -29302,6 +29643,8 @@ function showContinueList(){
   const auto=info(SAVE_KEY);
   rows.push({k:SAVE_KEY, label:"自動記録（記録1）", i:auto});
   SLOT_KEYS.forEach((k,idx)=>{ if(k===SAVE_KEY) return; rows.push({k, label:`記録${idx+1}`, i:info(k)}); });
+  /* 第253巡（作り手：毎月の初めに自動セーブ）：月初の控えも「つづきから」に並べる（新しい順） */
+  MONTH_KEYS.map((k,idx)=>({k, label:`月初の控え${idx+1}`, i:info(k)})).filter(r=>r.i).sort((a,b)=>(b.i.at?b.i.at.getTime():0)-(a.i.at?a.i.at.getTime():0)).forEach(r=>rows.push(r));
   const fmt=d=>d?`${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`:"";
   cl.innerHTML=rows.map(r=>`<button class="s-btn" style="text-align:left;display:flex;gap:10px;align-items:center" ${r.i?`onclick="continueFrom('${r.k}')"`:"disabled style='opacity:.4;text-align:left'"}>
       <span style="min-width:64px">${r.label}</span><span style="flex:1">${r.i?esc(r.i.summary):"（空）"}</span><span class="tiny muted">${r.i?fmt(r.i.at):""}</span></button>`).join("")
