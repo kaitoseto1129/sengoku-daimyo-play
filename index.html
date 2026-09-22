@@ -23459,6 +23459,26 @@ function sekCouncilAsk(done){
 }
 const SEK_PLAN_NAME={quick:"早期決戦（宇喜多）",align:"足並みを揃える（三成）",otani:"松尾山を警戒（大谷）",night:"夜襲（島津）",center:"中央突破（本多）",fukushima:"福島先鋒",koba:"松尾山へ催促（黒田）",nangu:"南宮山の押さえ（井伊）",reserve:"予備温存（家康）"};
 /* 小早川の去就の言葉（仕様書 21）：六つの段 */
+/* ---- 第253巡（関ヶ原 全体設計 36・37）：伝令と情報の遅れ。総大将は神ではない ---- */
+function sekCourier(u){
+  if(!B||!B.sek||!u||B.over!==null||B.opening>0) return; if(u.side!==B.ctx.playerSide) return;
+  const hq=B.units.find(x=>x.side===B.ctx.playerSide&&x.cmd&&x.troops>.5); if(!hq||u.cmd) return;
+  const d=Math.hypot(u.x-hq.x,u.y-hq.y); if(d<12) return;
+  const jam=B.units.filter(x=>x.side!==u.side&&x.troops>.5&&!x.left&&Math.hypot(x.x-u.x,x.y-u.y)<5).length;
+  const sec=Math.min(7, (d-12)/7 + jam*0.6);
+  if(sec<0.8) return;
+  u.holdUntil=Math.max(u.holdUntil||0, B.elapsed+sec); u.sekCourierUntil=B.elapsed+sec;
+  if(!(B.sekCourierTold>B.elapsed-12)){ B.sekCourierTold=B.elapsed; B.banner={t:`伝令が走る――${u.name}に届くまで ${Math.round(sec)}秒（遠い隊ほど遅い）`, at:B.elapsed}; }
+}
+function sekFogWord(band){
+  /* 遠い戦線の様子は、すぐには分からない。物見が戻るまでは大まかに */
+  if(!B||!B.sek) return null; const hq=B.units.find(x=>x.side===B.ctx.playerSide&&x.cmd&&x.troops>.5); if(!hq) return null;
+  const H=BF.h; const by=(band+0.5)*(H/3); const far=Math.abs(hq.y-by)>H/3*1.1;
+  if(!far) return null;
+  B.sekLate=B.sekLate||{}; const L=B.sekLate; const now=Math.floor(B.elapsed);
+  if(!L[band]||now-L[band].at>=15){ L[band]={at:now, w:bandWord(band)}; return {w:"（報せ待ち）", age:0}; }
+  return {w:L[band].w, age:now-L[band].at};
+}
 function sekKobaWord(){ const k=B&&B.koba; if(!k) return ""; if(k.done) return "参戦（東軍）"; if(k.stay) return B.kobaNever?"傍観":"参戦（西軍）"; if(B.kobaStage) return "参戦準備"; const e=k.east; return e<35?"西軍寄り":e<50?"静観":e<62?"動揺":"東軍寄り"; }
 function sekMoriWord(){ if(!B) return ""; if(B.moriMoved) return "参戦"; if(B.moriJoins) return "出陣要請中"; if(B.moriNote||B.kikkawaNote) return "傍観"; return "待機"; }
 function sekSetup(){
@@ -23503,8 +23523,31 @@ function sekSetup(){
       const cut=(side,red)=>{ if(!red) return; const us=B.units.filter(u=>u.side===side); const tot=us.reduce((s2,u)=>s2+u.troops,0); if(tot<=red) return; const f=1-red/tot; for(const u of us){ u.troops=Math.floor(u.troops*f); u.max=Math.max(1,Math.floor(u.max*f)); } };
       cut(0,m.atkTroops||0); cut(1,m.defTroops||0); if(m.ogaki){ B.koba.east=Math.min(95,B.koba.east+8); for(const u of B.units) if(u.side===1){ u.fatigue=0; u.morale=Math.min(100,u.morale+5); } }   /* 大垣に籠れば兵は休める（仕様書 14） */ if(m.westPrep){ for(const u of B.units) if(u.side===1) u.defBonus=(u.defBonus||1)*(1+0.03*m.westPrep); } } }
 }
+/* ---- 第253巡（関ヶ原 全体設計 28・29・30）：戦線は線で動く。押している／押されている、そして隣への波及 ---- */
+function sekLineTick(){
+  if(!B||!B.sek||B.over!==null||B.opening>0) return; if(B.sekLineAt>B.elapsed-2) return; B.sekLineAt=B.elapsed;
+  const H=BF.h; B.sekLine=B.sekLine||[null,null,null]; const mineLeft=true;
+  for(let i=0;i<3;i++){
+    const inB=u=>u.troops>.5&&!u.left&&u.morale>0&&Math.min(2,Math.floor(u.y/(H/3)))===i;
+    const mine=B.units.filter(u=>u.side===B.ctx.playerSide&&inB(u)), foe=B.units.filter(u=>u.side!==B.ctx.playerSide&&inB(u));
+    if(!mine.length||!foe.length){ B.sekLine[i]=B.sekLine[i]||null; continue; }
+    const wm=mine.reduce((a,u)=>a+u.troops,0), wf=foe.reduce((a,u)=>a+u.troops,0);
+    const mx=mine.reduce((a,u)=>a+u.x*u.troops,0)/Math.max(1,wm), fx=foe.reduce((a,u)=>a+u.x*u.troops,0)/Math.max(1,wf);
+    const line=(mx+fx)/2; const prev=B.sekLine[i];
+    const dir=(B.ctx.playerSide===1)?1:-1;   /* 守り手は左、寄せ手は右。前へ押すと線はどちらへ動くか */
+    B.sekLine[i]={x:line, d:prev?(line-prev.x)*dir:0};
+  }
+  /* 隣への波及：大きく押し込まれた戦線の隣は、横腹が空く */
+  for(let i=0;i<3;i++){ const L=B.sekLine[i]; if(!L||L.d>-1.2) continue;
+    for(const j of [i-1,i+1]){ if(j<0||j>2) continue; const inB=u=>u.troops>.5&&!u.left&&Math.min(2,Math.floor(u.y/(H/3)))===j;
+      for(const u of B.units){ if(u.side!==B.ctx.playerSide||!inB(u)) continue; u.morale=Math.max(0,u.morale-1.2); u.flankVuln=Math.max(u.flankVuln||1,1.2); } }
+    if(!(B.sekFlankTold>B.elapsed-25)){ B.sekFlankTold=B.elapsed; const bn=(B.bandNames||["北部","中央","南部"])[i];
+      B.banner={t:`${bn}が押し込まれている――隣の戦線の横腹が空く`, at:B.elapsed}; }
+  }
+}
 function sekTick(dt){
-  if(!B.sek||B.over!==null) return; const k=B.koba; if(!k) return;
+  if(!B.sek||B.over!==null) return;
+  try{ sekLineTick(); }catch(e){ console.error(e); }   /* 第253巡：戦線の押し引き */ const k=B.koba; if(!k) return;
   /* 第117巡：命令の遅れ（伝令）。本陣から十二歩より遠い隊は、遠さに応じて最大二秒半ほど遅れて動き出す。命令そのものは変えない */
   if(B._ordSnap){ const snap=B._ordSnap; B._ordSnap=null; const cmd=B.units.find(u=>u.side===B.ctx.playerSide&&u.cmd&&u.troops>.5&&!u.left);
     if(cmd) for(const u of B.units){ const sn=snap[u.id]; if(!sn||u.cmd||u.side!==B.ctx.playerSide||u.order===sn.o||u.charge||u.pursue) continue; const d=dist(u,cmd); if(d<=12) continue; const delay=Math.min(u.slowOrd?12:6,(d-12)/(B.sekFastOrd?8:u.slowOrd?2.5:4)); u.pendingOrder={o:u.order,ta:u.thenAttack,gx:u.gx,gy:u.gy,at:B.elapsed+delay}; u.order=sn.o; u.thenAttack=sn.ta; u.gx=sn.gx; u.gy=sn.gy; } }
@@ -27523,7 +27566,7 @@ function drawBattle(){
           else { let wi=0; fpct.forEach((v,i)=>{ if(v!==null && (fpct[wi]===null||v<fpct[wi])) wi=i; }); adv=`柵は${bn[wi]}が薄い（${fpct[wi]??"-"}%）→ 足軽で崩し、破れたら騎馬を入れる`; }
           B.nagAdvice=adv; B.nagFence=fpct; }
         if(B.tobiPhase){ el.innerHTML=B.lateChip||""; el.hidden=false; } else   /* 第208巡：鳶ヶ巣の場では本戦の翼・柵の札を出さない（その状況だけ） */
-        el.innerHTML=[[bn[0],ws[0]],[bn[1],ws[1]],[bn[2],ws[2]]].map(([n,w],i)=>{ n=`<span onclick="bBandCam(${i})" style="cursor:pointer" title="押せばこの戦線へ">${n}</span>`; if(B.nagashino&&B.nagFence&&B.nagFence[i]!==null&&B.nagFence[i]!==undefined) n=n+`<span style="opacity:.75;font-weight:400;margin-left:3px">柵${B.nagFence[i]}%</span>`; const bg=(w==="○優勢"||w==="確保")?"rgba(201,162,39,.22)":(w==="×劣勢"||w==="敵手")?"rgba(140,50,30,.38)":"rgba(255,255,255,.06)"; const fg=(w==="○優勢"||w==="確保")?"#F3E6C4":(w==="×劣勢"||w==="苦戦"||w==="敵手")?"#F0C0A8":"#DDD4C0"; const warn=(w==="×劣勢"||w==="敵手"); return `<span style="display:inline-block;padding:1px 8px;border-radius:3px;background:${bg};color:${fg};font-size:12px;margin:0 1px;border:1px solid ${warn?"rgba(226,110,80,.55)":"rgba(201,162,39,.25)"}">${n}<b style="margin-left:4px">${w}</b></span>`;   /* 第241巡（仕様書 24）：色を金・焦茶・生成りに。点滅はやめ */ }).join("")+(B.lateChip||"")+(B.nagashino&&B.ctx.playerSide===1&&B.opening<=0&&B.nearM!==null&&B.nearM!==undefined?`<span style="display:inline-block;padding:1px 8px;border-radius:9px;background:${B.nearM<=(B.gunRangeM||100)?"rgba(201,162,39,.45)":"rgba(255,255,255,.08)"};color:${B.nearM<=(B.gunRangeM||100)?"#FFD166":"#EDE6D6"};font-size:12px;margin:0 1px">敵まで ${B.nearM}m${B.nearM<=(B.gunRangeM||100)?"　撃てる":""}</span>`:"");   /* 第133巡：劣勢の戦線は赤く点滅。鉄砲から一番近い敵までの間合い */
+        el.innerHTML=[[bn[0],ws[0]],[bn[1],ws[1]],[bn[2],ws[2]]].map(([n,w],i)=>{ n=`<span onclick="bBandCam(${i})" style="cursor:pointer" title="押せばこの戦線へ">${n}</span>`; if(B.sek){ try{ const fg2=sekFogWord(i); if(fg2){ w=fg2.w; n=n+`<span style="opacity:.6;font-weight:400;margin-left:3px">${fg2.age?`${fg2.age}秒前の報せ`:"物見"}</span>`; } }catch(_){ } }   /* 第253巡（関ヶ原 全体設計 37）：遠い戦線の様子は遅れて届く */ if(B.nagashino&&B.nagFence&&B.nagFence[i]!==null&&B.nagFence[i]!==undefined) n=n+`<span style="opacity:.75;font-weight:400;margin-left:3px">柵${B.nagFence[i]}%</span>`; const bg=(w==="○優勢"||w==="確保")?"rgba(201,162,39,.22)":(w==="×劣勢"||w==="敵手")?"rgba(140,50,30,.38)":"rgba(255,255,255,.06)"; const fg=(w==="○優勢"||w==="確保")?"#F3E6C4":(w==="×劣勢"||w==="苦戦"||w==="敵手")?"#F0C0A8":"#DDD4C0"; const warn=(w==="×劣勢"||w==="敵手"); return `<span style="display:inline-block;padding:1px 8px;border-radius:3px;background:${bg};color:${fg};font-size:12px;margin:0 1px;border:1px solid ${warn?"rgba(226,110,80,.55)":"rgba(201,162,39,.25)"}">${n}<b style="margin-left:4px">${w}</b></span>`;   /* 第241巡（仕様書 24）：色を金・焦茶・生成りに。点滅はやめ */ }).join("")+(B.lateChip||"")+(B.nagashino&&B.ctx.playerSide===1&&B.opening<=0&&B.nearM!==null&&B.nearM!==undefined?`<span style="display:inline-block;padding:1px 8px;border-radius:9px;background:${B.nearM<=(B.gunRangeM||100)?"rgba(201,162,39,.45)":"rgba(255,255,255,.08)"};color:${B.nearM<=(B.gunRangeM||100)?"#FFD166":"#EDE6D6"};font-size:12px;margin:0 1px">敵まで ${B.nearM}m${B.nearM<=(B.gunRangeM||100)?"　撃てる":""}</span>`:"");   /* 第133巡：劣勢の戦線は赤く点滅。鉄砲から一番近い敵までの間合い */
         if(B.sek&&B.koba){ const kw=sekKobaWord(), mw=sekMoriWord(); const col=v=>/東軍|参戦（東/.test(v)?"rgba(140,50,30,.38)":/西軍|参戦（西/.test(v)?"rgba(201,162,39,.22)":"rgba(255,255,255,.06)"; el.innerHTML += `<span style="display:inline-block;padding:2px 8px;border-radius:12px;background:${col(mw)};font-size:12px;margin:0 1px" title="毛利・吉川の去就">南宮山 ${mw}</span><span onclick="sekScout()" style="display:inline-block;padding:2px 8px;border-radius:12px;background:rgba(201,162,39,.25);color:#FFD166;font-size:12px;margin:0 1px;cursor:pointer;border:1px solid rgba(255,214,102,.5)" title="松尾山・南宮山・敵の予備を確かめる（六十秒に一度）">〈物見〉</span>`; }   /* 第253巡（仕様書 21・24・53） */
         if(B.nagashino && B.nagAdvice && B.adviceUntil>B.elapsed){ el.innerHTML += `<span style="display:inline-block;padding:2px 10px;border-radius:12px;background:rgba(201,162,39,.25);color:#FFD166;font-size:12px;margin:0 1px;border:1px solid rgba(255,214,102,.5)">軍師「${B.nagAdvice}」</span>`; }
         el.hidden=false; } } }
@@ -27837,6 +27880,7 @@ function bEndDrag(ev){
     else if(u.type===2 && t && dist(u,t)<4 && u.runup<(SPECIALS["騎馬突撃"].runup||6)){ const ang=Math.atan2(u.y-t.y,u.x-t.x); u.order={k:"move",x:Math.max(.5,Math.min(BF.w-.5,u.x+Math.cos(ang)*3)),y:Math.max(.5,Math.min(BF.h-.5,u.y+Math.sin(ang)*3))}; u.gx=u.order.x; u.gy=u.order.y; u.thenAttack=t.id; bshout(u.id,"間合いを取れ、駆けるぞ！",1.8); }
     else u.order={k:"attack",id:d.foe};
     if(t) bshout(u.id, `${t.name}を討て！`, 2.2);
+    try{ sekCourier(u); }catch(e){ console.error(e); }   /* 第253巡（関ヶ原 全体設計 36）：遠い隊には伝令が走る。届くまで動かぬ */
     playSE("sword");
   } else {
     const pts=dragCorners(d); const [ec,er]=cellOf(d.x,d.y); const wps=pts.filter(([c,r])=>!(c===ec&&r===er)).map(([c,r])=>cellCenter(c,r));
