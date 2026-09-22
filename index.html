@@ -22999,6 +22999,10 @@ function startBattle(e){
         /* 第107巡：三列とも上下いっぱいに組む（作り手の指示：馬防柵はしっかり三陣） */
         const o={kind:1, variant:Math.floor(y*3)%3, x, y, r:0.85, wall:true, fort:true, fence:true, side:1, lane:L}; if(breakable) o.hp=Math.round((B.ctx.playerSide===1 ? (L===0?140:94) : (L===0?90:62))*0.95); o.hpMax=o.hp;   /* 第253巡：人が武田の時の織田の柵 55/40→90/62（自動の織田が一分で崩れていた） */   /* 第250巡（作り手：柵が倒れない）：耐久を二割下げた */   /* 第128巡：柵の耐久 +15%（作り手の指示） */   /* 第113巡：人が織田・徳川なら柵をまた二割五分厚く（作り手の指示） */   /* 人が武田のときの柵（第108巡：強すぎたので釣り合いを取り直し） */   /* 第107巡：柵の耐久を四分の一落とす（作り手の指示） */   /* 第103巡：升目になって柵の破れ目から入りやすくなった分、柵を太く。内の柵はなお太い */ B.obstacles.push(o); } }   // 柵は多く、一本は脆く（壊れる手応え：作り手の指示）
       B.nagashino=true; B.fenceTotal0=B.obstacles.filter(o=>o.fence&&o.hpMax).length;
+      /* 第253巡（bot：合戦に目的の文が出ていない）：長篠にも目的の一行を */
+      if(!B.objective) B.objective = B.ctx.playerSide===1
+        ? "三重の馬防柵の内で武田の騎馬を受け、撃ち崩せ。柵を越えさせるな――柵が破られた所には予備を回せ"
+        : "馬防柵を破って織田・徳川の本陣へ。正面から当たれば鉄砲に溶ける。柵の切れ目と側面を衝き、鳶ヶ巣の後詰に気を配れ";
       if(B.ctx.playerSide===1){ B.mods=B.mods||{}; B.mods[1]={...(B.mods[1]||{cav:1,gunP:1,gunA:1,mor:1}), gunP:((B.mods[1]||{}).gunP||1)*0.75}; }   /* 鉄砲の威力は半分（騎馬が溶けるのが早すぎた。作り手の指示） */
       if(B.ctx.playerSide===0){ for(const u of B.units) if(u.side===1){ if(u.type===3&&u.ammo!==undefined){ u.ammo=Math.round(u.ammo*0.8); u.ammoMax=Math.max(u.ammo,1); } u.morale=Math.max(20,u.morale-10); } for(const u of B.units) if(u.side===0) u.morale=Math.min(100,u.morale+10); B.mods=B.mods||{}; B.mods[1]={...(B.mods[1]||{cav:1,gunP:1,gunA:1,mor:1}), gunP:((B.mods[1]||{}).gunP||1)*0.4};   /* 第128巡：武田二万・柵+15%の分、人が武田のときの鉄砲は四割に */ }   /* 織田の鉄砲は七割の威力（人が武田のとき。第108巡：騎馬を堅くした分、四割五分から戻す） */
       if(W.nag && W.nag.fell){ for(const u of B.units){ if(u.side===0) u.morale=Math.min(100,u.morale+10); else if(W.generals[u.gid]&&clanName(W.generals[u.gid].clan)==="徳川家") u.morale=Math.max(10,u.morale-10); } log("長篠城が落ちていたため、武田は意気が上がり、徳川は沈んでいます","war"); }   /* 第132巡：長篠城の攻防の結果 */
@@ -23121,6 +23125,14 @@ function startBattle(e){
   if(dec && dec.key==="saika"){ B.saikaPending=true; }
   if(B.ctx.sanadamaru){ try{ smSetup(); }catch(e9){ console.error(e9); } }   /* 第153巡：真田丸 */
   try{ sekApplyWear(); }catch(e){ console.error(e); }   /* 第253巡（関ヶ原 全体設計 2）：前の戦の疲れと弾薬を持ち越す */
+  /* 第253巡（bot：合戦に目的の文が出ていない）：ふつうの城攻め・野戦にも、何をすればよいかの一行を必ず出す */
+  if(!B.objective){ const mine=B.ctx.playerSide; const siege=(B.ctx.castle!==null&&B.ctx.castle!==undefined)&&!B.ctx.sortie;
+    const cn=siege&&W.castles[B.ctx.castle]?W.castles[B.ctx.castle].name:"";
+    B.objective = siege
+      ? (mine===0 ? `${cn}を落とせ。門を破って本丸へ――日暮れ（${Math.round((B.dayLen||300))}秒）までに落とせなければ兵を退く`
+                  : `${cn}を日暮れまで守り切れ。門を破られても、曲輪ごとに粘れ`)
+      : (mine===0 ? "敵の本陣を崩せ。横から衝けば早い――背を見せた隊は追い討ちできる"
+                  : "敵の本陣を崩すか、日暮れまで持ちこたえよ。崩れた隊は下げて立て直せ"); }
   if(dec && dec.key==="gifu1600"){ try{ gifuSetup("岐阜城"); }catch(e9){ console.error(e9); } }   /* 第184巡：岐阜城（山城攻略） */
   if(dec && /^(gifu_nobutaka|takato|odani|ichinomiya)$/.test(dec.key)){ try{ gifuSetup({gifu_nobutaka:"岐阜城",takato:"高遠城",odani:"小谷城",ichinomiya:"一宮城"}[dec.key]); }catch(e9){ console.error(e9); } }   /* 第210巡：山城の攻略は岐阜城の仕組み（山麓→一ノ門→中腹→二ノ門→山上郭→本丸） */
   if(dec && (dec.key==="honnoji"||dec.key==="nijo")){ try{ honSetup(dec.key); }catch(e9){ console.error(e9); } }
@@ -29649,7 +29661,10 @@ function openingBanner(text, sec){
   { let b=document.getElementById("simBadge"); if(!b){ b=document.createElement("div"); b.id="simBadge"; b.style.cssText="position:absolute;left:50%;top:46px;transform:translateX(-50%);z-index:23;background:rgba(201,162,39,.95);color:#1A1208;font-weight:900;font-size:15px;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis;padding:7px 18px;border-radius:14px;letter-spacing:.12em;box-shadow:0 4px 14px rgba(0,0,0,.5)"; document.getElementById("stage").appendChild(b); }
     b.textContent="桶狭間　自動で進みます"; b.hidden=!(W.opening); }
   // 帯は出さない（上の「シミュレーション中」の札と知らせで足りる）
-  log(text,"war",true);
+  /* 第253巡（bot：記録の一行が長すぎて読み切れない）：長い前置きは、句点と「／」で行を分けて記す */
+  { const t0=String(text||""); if(t0.length>90){ const parts=t0.split(/　\/　|\n/).flatMap(x=>x.split(/(?<=。)　/)).map(x=>x.trim()).filter(Boolean);
+      for(const pt of parts) log(pt,"war",true); }
+    else log(text,"war",true); }
   bar.hidden=true;
   clearTimeout(bar._auto);
   return;
