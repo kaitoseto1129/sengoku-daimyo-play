@@ -11114,6 +11114,9 @@ function openSekFronts(){
     `天下の趨勢：${sekTideWord(t)}（東 ${t}／西 ${100-t}）　・　西軍の結束 ${Math.round(bd)}`,
     `<div class="metric"><label>東西</label><div class="track" style="background:#7A1E10"><div class="fill" style="width:${t}%;background:#2E5E9E"></div></div><b>東${t}</b></div>
      <div class="tiny muted">地方の戦の一つ一つが、本戦の兵数・士気・小早川や毛利の去就に残ります。</div>
+     ${(()=>{ try{ const P=sekPace(); if(!P) return ""; const wear=Object.keys(W.sekWear||{}).filter(n=>{ const w=W.sekWear[n]; return w&&dayNumber()-(w.at||0)<=20&&w.fat>=15; }).length;
+       return `<div class="row"><span class="nm">費やした日数</span><span class="stag ${P.fast?"ok":"warn"}">${P.days}日（目安 ${P.want}日）</span><span class="tiny muted" style="margin-left:auto">${P.fast?"早い――東軍は勢いのまま":"長い――西軍は備える時を得た"}</span></div>
+       <div class="row"><span class="nm">疲れの残る将</span><span class="stag ${wear>=4?"bad":wear?"warn":"ok"}">${wear}人</span><span class="tiny muted" style="margin-left:auto">続けて戦えば、次の戦は士気と弾薬が減ったまま</span></div>`; }catch(_){ return ""; } })()}
      ${body}
      ${W.sekAfter?`<div class="row" style="margin:8px 0"><button class="big gold" onclick="openSekAfterPanel()">関ヶ原の戦後処理<span class="cost">諸家の去就（降る・抗う・独立）</span></button></div>`:""}
      <div class="sec-title">この戦役の年表（あなたの関ヶ原）</div>${tl}`);
@@ -23117,6 +23120,7 @@ function startBattle(e){
   if(dec && (dec.key==="ueda"||dec.key==="ueda1")){ try{ uedaSetup(); }catch(e9){ console.error(e9); } }
   if(dec && dec.key==="saika"){ B.saikaPending=true; }
   if(B.ctx.sanadamaru){ try{ smSetup(); }catch(e9){ console.error(e9); } }   /* 第153巡：真田丸 */
+  try{ sekApplyWear(); }catch(e){ console.error(e); }   /* 第253巡（関ヶ原 全体設計 2）：前の戦の疲れと弾薬を持ち越す */
   if(dec && dec.key==="gifu1600"){ try{ gifuSetup("岐阜城"); }catch(e9){ console.error(e9); } }   /* 第184巡：岐阜城（山城攻略） */
   if(dec && /^(gifu_nobutaka|takato|odani|ichinomiya)$/.test(dec.key)){ try{ gifuSetup({gifu_nobutaka:"岐阜城",takato:"高遠城",odani:"小谷城",ichinomiya:"一宮城"}[dec.key]); }catch(e9){ console.error(e9); } }   /* 第210巡：山城の攻略は岐阜城の仕組み（山麓→一ノ門→中腹→二ノ門→山上郭→本丸） */
   if(dec && (dec.key==="honnoji"||dec.key==="nijo")){ try{ honSetup(dec.key); }catch(e9){ console.error(e9); } }
@@ -23459,6 +23463,39 @@ function sekCouncilAsk(done){
 }
 const SEK_PLAN_NAME={quick:"早期決戦（宇喜多）",align:"足並みを揃える（三成）",otani:"松尾山を警戒（大谷）",night:"夜襲（島津）",center:"中央突破（本多）",fukushima:"福島先鋒",koba:"松尾山へ催促（黒田）",nangu:"南宮山の押さえ（井伊）",reserve:"予備温存（家康）"};
 /* 小早川の去就の言葉（仕様書 21）：六つの段 */
+/* ---- 第253巡（関ヶ原 全体設計 2・17）：兵は毎戦もとに戻らない。疲れと弾薬は次の戦へ持ち越し、費やした日数も効く ---- */
+function sekWearRecord(){
+  try{
+    if(!B||!/^(sekigahara|ueda|sekbattle)$/.test(W.scenario||"")) return;
+    W.sekWear=W.sekWear||{};
+    for(const u of B.units){ const g=W.generals[u.gid]; if(!g||u.troops<=0.5) continue;
+      const spent=(u.ammoMax&&u.ammo!==undefined)?Math.max(0,1-u.ammo/Math.max(1,u.ammoMax)):(u.type===3?0.45:0.2);
+      const w=W.sekWear[g.name]||{fat:0,ammo:0,at:0};
+      w.fat=Math.min(70, Math.round(w.fat*0.5 + Math.min(60,(u.fatigue||0))));
+      w.ammo=Math.min(0.7, w.ammo*0.5 + spent*0.6);
+      w.at=dayNumber(); W.sekWear[g.name]=w; }
+  }catch(e){ console.error(e); }
+}
+function sekApplyWear(){
+  if(!B||!/^(sekigahara|ueda|sekbattle)$/.test(W.scenario||"")) return; const WR=W.sekWear; if(!WR) return;
+  let n=0;
+  for(const u of B.units){ const g=W.generals[u.gid]; if(!g) continue; const w=WR[g.name]; if(!w) continue;
+    const days=dayNumber()-(w.at||0); if(days>20||days<0) continue;   /* 二十日も休めば癒える */
+    const k=Math.max(0,1-days/20);
+    u.fatigue=Math.min(100,(u.fatigue||0)+Math.round(w.fat*k));
+    if(u.ammo!==undefined) u.ammo=Math.max(1, Math.round(u.ammo*(1-w.ammo*k*0.8)));
+    u.morale=Math.max(20, u.morale-Math.round(6*k));
+    if(w.fat*k>=15) n++; }
+  if(n>0) B.banner={t:`前の戦の疲れが残る隊 ${n}――士気と弾薬が減っている`, at:B.elapsed};
+}
+/* 費やした日数（仕様書 17）。前哨戦を早く片付けたか、長引かせたか */
+function sekPace(){
+  const D=W.decisiveDay||{}; const keys=Object.keys(SEK_TIDE).filter(k=>D[k]!==undefined&&k!=="sawayama"&&k!=="minakuchi");
+  if(!keys.length) return null; const s0=W.scenarioStartDay||0;
+  const last=Math.max(...keys.map(k=>D[k]-s0));
+  const want=Math.max(28, keys.length*9);
+  return {n:keys.length, days:last, fast:last<=want, want};
+}
 /* ---- 第253巡（関ヶ原 全体設計 36・37）：伝令と情報の遅れ。総大将は神ではない ---- */
 function sekCourier(u){
   if(!B||!B.sek||!u||B.over!==null||B.opening>0) return; if(u.side!==B.ctx.playerSide) return;
@@ -23489,6 +23526,11 @@ function sekSetup(){
   if(W.kobaChoice){ const kc=W.kobaChoice; if(kc==="east"){ B.koba.east=95; B.koba.west=5; } else if(kc==="west"){ B.koba.stay=true; B.koba.west=95; B.koba.east=5; B.kobaWestNow=true; } else if(kc==="hold"){ B.koba.stay=true; B.kobaNever=true; } else if(kc==="leave"){ B.kobaLeave=true; } }
   { const bd=sekBond(); const sh=Math.round((bd-60)/3); if(W.sekMod){ B.koba.west=Math.max(5,Math.min(95,B.koba.west+sh)); B.koba.east=100-B.koba.west; } }   /* 第247巡：西軍の結束が高ければ小早川は西に寄る */
   /* 第253巡（仕様書 11・16）：天下の趨勢――地方の戦で西軍が勝っていれば、秀秋は東へ踏み切りにくい */
+  /* 第253巡（仕様書 17）：時間は資源。前哨戦を早く片付けていれば東軍は勢いのまま、長引いていれば西軍は備える時を得た */
+  { const P=sekPace(); if(P&&P.n>=2){ const d=P.fast?3:-3; try{ sekTideAdd(d, P.fast?`前哨戦を${P.days}日で片付けた`:`前哨戦に${P.days}日かかった`); }catch(_){ }
+      const M=(W.sekMod=W.sekMod||{eastMor:0,westMor:0,atkTroops:0,defTroops:0}); if(P.fast) M.eastMor+=3; else { M.westMor+=3; M.defTroops+=3000; }
+      B.sekPaceWord=P.fast?`前哨戦は${P.days}日で片付いた――東軍は勢いのまま野へ`:`前哨戦に${P.days}日かかった――西軍は備える時を得た`;
+      log(B.sekPaceWord,"war",true); } }
   { const t=sekTide(); const sh=Math.round((t-50)/2.5); B.koba.east=Math.max(5,Math.min(95,B.koba.east+sh)); B.koba.west=100-B.koba.east; B.sekTide=t;
     if(Math.abs(sh)>=4) log(`天下の趨勢は${sekTideWord(t)}――松尾山の旗は${sh>0?"東":"西"}へ傾いている`,"war"); }
   { const conf=Math.round(40+B.koba.east*0.5); B.kobaConf=conf; log(`小早川秀秋の内応の見込み：${conf}%（戦場で動くまで確かではない）`,"war",false); }
@@ -28474,6 +28516,7 @@ function finishBattle(){
   if(W.quick&&!W.quickTold){ W.quickTold=true; track("quick/done"); setTimeout(()=>{ try{ koChoice("一戦、お疲れさま","本編では全国地図から、城の内政・外交・出陣、そして六十余の決戦を采配できます。このまま織田家で続けられます。",[["go","このまま続ける（織田家）","地図へ",()=>{ W.quick=false; setSpeed(1); }],["title","表紙へ戻る","筋書きと家を選び直す",()=>{ location.reload(); }]]); }catch(_){ } },900); }
   bumpGarrison();
   const ctx=B.ctx;
+  try{ sekWearRecord(); }catch(e){ console.error(e); }   /* 第253巡：疲れと弾薬を次の戦へ */
   if(W.osakaSanadaBattle){ if(B&&B.ctx&&B.ctx.sanadamaru){ try{ osakaSanadaResult(B.over===0); }catch(e){ console.error(e); } } else { W.osakaSanadaBattle=false; } }   /* 第253巡（作り手：真田丸の戦いが起きていないのに「真田丸 落つ」と出る）：ほかの戦（外郭・今福・本町橋）の結末を真田丸の結末にしていた */   /* 第153巡：真田丸の勝敗を冬の陣へ（showBattleReport は呼ばれておらず、結果が反映されていなかった） */
   // 早々に退いた側にも追い討ち：負けた側が兵の六割五分以上を残して退くなら、退き際に一割二分を失う（戦って何も減らない、を無くす）
   if(B.over!==null && B.startTroops){ const ls=1-B.over; const st=B.startTroops[ls]||0; const now=B.units.filter(u=>u.side===ls).reduce((s2,u)=>s2+u.troops,0); if(st>0 && now>st*0.65){ for(const u of B.units) if(u.side===ls&&u.troops>.5) u.troops=Math.floor(u.troops*0.88); log(`退く${ls===ctx.playerSide?"わが軍":"敵"}は追い討ちを受け、兵を失いました`,"war"); } }
