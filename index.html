@@ -22710,11 +22710,23 @@ function fireDecisive(d){
   try{ if(decTooEarly(d)) return; }catch(e){ console.error(e); }
   /* 第253巡（作り手：「岩村城の戦い」と出ているのに、岩村城ではない所で起きている）
      名指しの城が、守るはずの家の手にないなら、その戦は起こらない */
+  /* 第253巡（作り手：岩村城がもう織田の城なのに「岩村城の戦い」が起きるのはおかしい）
+     決戦と盤面の食い違いを、起こす前に見る――
+     ①名指しの城が、守るはずの家の手にない（攻め手が既に持っている）②守り手が城を持っていない・滅んだ
+     ③攻め手が城を持っていない・滅んだ。どれかなら、その戦は起こさない */
   try{
-    if(d.castle && !d.site){
+    const A0=(d.atkClanOf&&decClanOf(d.atkClanOf))||clanByName(d.atk)||(d.altAtk?clanByName(d.altAtk):null);
+    const D0=(d.defClanOf&&decClanOf(d.defClanOf))||clanByName(d.def)||(d.altDef?clanByName(d.altDef):null);
+    const drop=(why)=>{ if(W.decisivePending===d.id){ W.decisivePending=null; W.decisiveAt=null; } try{ console.info("決戦を見送り",d.key,why); }catch(_){ } };
+    if(d.castle){
       const c0=Object.values(W.castles).find(x=>x.name===d.castle);
-      const D0=(d.defClanOf&&decClanOf(d.defClanOf))||clanByName(d.def)||(d.altDef?clanByName(d.altDef):null);
-      if(!c0 || (D0 && c0.clan!==D0.id)){ if(W.decisivePending===d.id){ W.decisivePending=null; W.decisiveAt=null; } return; }
+      if(!c0){ drop("城が無い"); return; }
+      if(D0 && c0.clan!==D0.id){ drop("名指しの城が守り手の手にない"); return; }
+      if(A0 && c0.clan===A0.id){ drop("名指しの城は既に攻め手のもの"); return; }
+    }
+    if(!d.noSideCheck){
+      if(D0 && (D0.dead || !myCastles(D0.id).length)){ drop("守り手がもう城を持たない"); return; }
+      if(A0 && (A0.dead || !myCastles(A0.id).length)){ drop("攻め手がもう城を持たない"); return; }
     }
   }catch(e){ console.error(e); }
   if(W.nag && d && /nagashino/.test(d.key)) W.nag.done=true;   /* 長篠城の攻防はここまで（第132巡） */
@@ -25626,8 +25638,15 @@ function stepUnit(u,dt){
     if(u.faceLock===undefined && dist(u,nearest)<6 && Math.hypot(u.gx-u.x,u.gy-u.y)<=.6) u.face=Math.atan2(nearest.y-u.y,nearest.x-u.x);
     if(dist(u,nearest)<=reachOf(u)) target=nearest;
     else if(u.type!==3 && !u.cmd && !u.tobiGo && !u.sekHold && !u.okeHold && !u.reserveHold && !u.postHold && (u.side!==B.ctx.playerSide||u.ally||u.autoAI||B.autoMine||autoBattleMode) && dist(u,nearest)<=4.5 && !fenceBetween(u,nearest) && (u.standoffAt===undefined ? (u.standoffAt=B.elapsed, false) : B.elapsed-u.standoffAt>2.5)){ target=nearest; goal=approachPoint(u,nearest); }   /* 第124巡：目の前（四歩半）の敵と睨み合ったままにしない。二秒半にらめば踏み込んで討つ（作り手：膠着してつまらない） */
-    else if(Math.hypot(u.gx-u.x,u.gy-u.y)>.6) goal=[u.gx,u.gy];
+    else if(Math.hypot(u.gx-u.x,u.gy-u.y)>.6){ goal=[u.gx,u.gy];
+      /* 第253巡（bot：持ち場へ戻れずに何十秒もその場で足踏みする／右往左往する）
+         戻れないなら、いま立っている所を持ち場にする */
+      const dg2=Math.hypot(u.gx-u.x,u.gy-u.y);
+      if(u._gp===undefined || dg2<u._gp-0.05){ u._gp=dg2; u._gpAt=B.elapsed; }
+      else if(B.elapsed-(u._gpAt||B.elapsed)>9){ u._gp=undefined; u.gx=u.x; u.gy=u.y; u.path=null; u.nextCell=null; goal=null; }
+    }
     else if(!u.cmd && (u.side!==B.ctx.playerSide || B.autoMine || autoBattleMode || u.ally) && (()=>{ const hqU=B.units.find(z=>z.side===u.side&&z.cmd&&z.troops>.5&&z.morale>0); if(!hqU||dist(u,hqU)>8) return false; const f=enemies.filter(e=>dist(e,hqU)<4.5).sort((p,q)=>dist(u,p)-dist(u,q))[0]; if(!f) return false; target=f; goal=[f.x,f.y]; return true; })()){ }   // 本陣の脇の隊は、本陣に迫る敵へ討ちかかる（持ち場のまま見ていない）
+    if(Math.hypot(u.gx-u.x,u.gy-u.y)<=.6) u._gp=undefined;
     if(dist(u,nearest)>4.5) u.standoffAt=undefined;
     if(false){ }
     else if(u.faceLock===undefined && dist(u,nearest)>=6){ const want=(u.side===B.ctx.playerSide)?0:Math.PI; let df=want-u.face; while(df>Math.PI) df-=2*Math.PI; while(df<-Math.PI) df+=2*Math.PI; u.face+=Math.sign(df)*Math.min(Math.abs(df),2.5*dt); }   // 止まった隊は敵陣の方を向く（作り手の指示）
@@ -30601,12 +30620,18 @@ const ANALYTICS="https://kaito.goatcounter.com/count";   // GoatCounter（訪問
    ・端末の種類と画面（dev/mobile/375x812 など）、流入元（src/…）、読み込みの速さ（load/…）を一度だけ
    ・合戦：始まり、初めての命令、30秒・1分・3分・5分・10分の節目、一時停止・速さ・退却、決着（勝ち負けと長さ）、途中で閉じた（exit と最後の手）
    ・誤り（err/…）、こま数（fps/…）、初めての一戦の完了（activation）、再訪（ret/dayN） */
-function trackOff(){ try{ if(/localhost|127\.0\.0\.1/.test(location.hostname)) return true; if(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap) return true; const q=new URLSearchParams(location.search); if(q.get("notrack")||q.has("pixel_check")){ localStorage.setItem("sengoku_notrack","1"); } if(localStorage.getItem("sengoku_notrack")==="1") return true; }catch(_){ } return false; }
+function trackOff(){ try{ if(/localhost|127\.0\.0\.1/.test(location.hostname)) return true;
+  /* 第253巡（作り手：管理画面でウェブとアプリの数を分けて）：アプリの中でも、こちらの数取り（GoatCounter）は動かす。
+     広告の Pixel は今までどおりアプリでは送らない（pixel.html の側の決まり。触らない） */ const q=new URLSearchParams(location.search); if(q.get("notrack")||q.has("pixel_check")){ localStorage.setItem("sengoku_notrack","1"); } if(localStorage.getItem("sengoku_notrack")==="1") return true; }catch(_){ } return false; }
+const PLAT=(()=>{ try{ return (window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap)?"app":"web"; }catch(_){ return "web"; } })();
+const PLAT_KEYS=/^(start|activation|result|fund|fund-click|pay-click|load|src|user|unlock|battle|from)\b/;
 function track(ev){
   try{
     if(!ANALYTICS) return; if(trackOff()) return;
-    if(window.goatcounter&&window.goatcounter.count){ window.goatcounter.count({path:"ev/"+ev, title:ev, event:true}); }
-    else { (window._gcQueue=window._gcQueue||[]).push(ev); }
+    const send=(p)=>{ if(window.goatcounter&&window.goatcounter.count){ window.goatcounter.count({path:p, title:p.slice(3), event:true}); } else { (window._gcQueue=window._gcQueue||[]).push(p); } };   /* 第253巡：溜めるのも道筋のまま（数が二重にならないように） */
+    send("ev/"+ev);
+    /* 第253巡：肝心の数だけ、アプリとウェブに分けても数える（管理画面の内訳に使う） */
+    if(PLAT_KEYS.test(String(ev))) send("ev/plat/"+PLAT+"/"+ev);
   }catch(e){}
 }
 function trackOnce(key, ev){ try{ const k="sengoku_t1_"+key; if(sessionStorage.getItem(k)) return; sessionStorage.setItem(k,"1"); track(ev); }catch(_){ track(ev); } }
@@ -30620,7 +30645,7 @@ function trackDevice(){ try{ const w=window.innerWidth, h=window.innerHeight; co
 document.addEventListener("visibilitychange",()=>{ try{ if(document.visibilityState!=="hidden") return; if(B&&B.over===null&&B.opening<=0&&!B._exitSent){ B._exitSent=true; const t=Math.round(B.elapsed); const bk=t<30?"30s":t<60?"1m":t<180?"3m":t<300?"5m":t<600?"10m":"long"; track(`battle-exit/${bk}/${(B._acts||[]).slice(-3).join("-")||"none"}`); } }catch(_){ } });
 function bAct(k){ if(!B) return; (B._acts=B._acts||[]).push(k); if(B._acts.length>8) B._acts.shift(); if(!B._firstCmd&&B.opening<=0){ B._firstCmd=true; track("battle-first-command/"+Math.round(B.elapsed)); } }
 (function(){ if(!ANALYTICS||/localhost|127\.0\.0\.1/.test(location.hostname)) return; if(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap) return;   // iPhone 版では計らない（何も送らない）
-  if(trackOff()) return; const sc=document.createElement("script"); sc.async=true; sc.dataset.goatcounter=ANALYTICS; sc.src="https://gc.zgo.at/count.js"; sc.onload=()=>{ try{ trackDevice(); const q=window._gcQueue||[]; window._gcQueue=[]; for(const ev of q) track(ev); }catch(_){ } }; document.head.appendChild(sc); })();
+  if(trackOff()) return; const sc=document.createElement("script"); sc.async=true; sc.dataset.goatcounter=ANALYTICS; sc.src="https://gc.zgo.at/count.js"; sc.onload=()=>{ try{ trackDevice(); const q=window._gcQueue||[]; window._gcQueue=[]; for(const p of q){ try{ window.goatcounter.count({path:(String(p).startsWith("ev/")?p:"ev/"+p), title:String(p).replace(/^ev\//,""), event:true}); }catch(_){ } } }catch(_){ } }; document.head.appendChild(sc); })();
 const UNLOCK_TOKEN="sVzU74z_zZhdYBWsz_Sk-G2d";
 (function(){ try{ const q=new URLSearchParams(location.search); const t=q.get("unlock"); if(t){ if(t===UNLOCK_TOKEN){ const u=(()=>{ try{ return new Set(JSON.parse(localStorage.getItem("sengoku_unlock")||"[]")); }catch(e){ return new Set(); } })(); for(const k of Object.keys(PAID_SCENARIOS)) u.add(k); localStorage.setItem("sengoku_unlock",JSON.stringify([...u])); setTimeout(()=>{ try{ toast("お支払いありがとうございます。信長包囲網を解除しました"); refreshScenarioLocks(); }catch(e){} },800); } history.replaceState(null,"",location.pathname); } }catch(e){} })();
 function unlockedScenarios(){ try{ return new Set(JSON.parse(localStorage.getItem("sengoku_unlock")||"[]")); }catch(e){ return new Set(); } }

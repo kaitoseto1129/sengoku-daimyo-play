@@ -166,8 +166,20 @@ function render(){
     if(results===0 && starts>=20) add("良","結びが 0 なのは普通","一つの筋書きを最後（天下統一・滅亡）まで遊ぶには何時間もかかる","日ごとの手応えは「初戦を終えた」で見る");
     if(!out.length) add("良","まだ数が少ない","読み取るには人が足りない","広告か紹介で人を増やしてから見る");
     return out; })();
+  /* 第253巡（作り手：ウェブとアプリで数を分けて）：肝心の数の内訳 */
+  const platRow=(k)=>{ const app=ev("plat/app/"+k), web=ev("plat/web/"+k); return {app,web,tot:app+web}; };
+  const platHtml=(()=>{
+    const keys=[["start","遊び始め"],["activation/first-battle-complete","初戦を終えた"],["result","結び"],["fund/open","軍資金の札"],["fund-click","額を押した"],["user/new","新しい人"],["user/return","戻って来た人"]];
+    const rows=keys.map(([k,n])=>[n,platRow(k)]);
+    const any=rows.some(([,r])=>r.tot>0);
+    if(!any) return `<div class="sec card"><h2>アプリとウェブの内訳</h2><div class="note">まだ分けた数が溜まっていません（この版を出した後の数から分かれます）。アプリの入手数は App Store Connect の Analytics を見てください。</div></div>`;
+    return `<div class="sec card"><h2>アプリとウェブの内訳</h2>
+      <div class="list">${rows.map(([n,r])=>`<div class="row"><span>${esc(n)}</span><span class="num"><b>${fmtN(r.tot)}</b><span class="tiny muted">　アプリ ${fmtN(r.app)}／ウェブ ${fmtN(r.web)}</span></span></div>`).join("")}</div>
+      <div class="note" style="margin-top:8px">アプリの中でもこちらの数取りは動きます（広告の Pixel はアプリでは送りません）。入手数・課金は App Store Connect を。</div></div>`;
+  })();
   const advHtml=`<div class="sec card"><h2>読み取れること・次の一手</h2>${adv.map(a=>`<div style="margin:10px 0;padding:10px 12px;border-radius:8px;background:#0F0D09;border-left:3px solid ${a.lv==="急"?"#E2762A":a.lv==="中"?"#C9A227":"#4C9A5A"}"><div style="font-weight:700;color:var(--kin)"><span style="display:inline-block;min-width:34px;font-size:11px;opacity:.8">${a.lv}</span>${esc(a.t)}</div><div class="note" style="margin-top:6px;background:none;padding:0">なぜ：${esc(a.why)}<br>どうする：${esc(a.how)}</div></div>`).join("")}<div class="note" style="margin-top:8px">この欄は数から自動で書いています（人の判断ではありません）。数が少ないうちは当てになりません。</div></div>`;
   document.getElementById("main").innerHTML=`
+    ${platHtml}
     ${advHtml}
     <div class="sec card" id="kaizenCard" hidden><h2>クロードが自分でやったこと（毎朝九時）</h2><div id="kaizenBody"></div>
       <div class="note" style="margin-top:8px">この欄は、上の「読み取れること」を見て、作り手に聞かずに手を打った記録です。</div></div>

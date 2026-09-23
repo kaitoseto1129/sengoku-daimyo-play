@@ -43,6 +43,10 @@ export function insights(c){
   const ownErr=errRows.filter(([k])=>!isExt(k)).reduce((a,[,n])=>a+n,0);
   const ownErrTop=errRows.filter(([k])=>!isExt(k)).slice(0,5);
   const ret=c.ev('user/return'), neu=c.ev('user/new');
+  /* 第253巡：アプリとウェブの内訳（この版から分かれる） */
+  const appStart=c.ev('plat/app/start'), webStart=c.ev('plat/web/start');
+  if(appStart+webStart>=20 && appStart>0 && appStart<(appStart+webStart)*0.15)
+    add('中',`遊び始めのうちアプリは ${Math.round(appStart/(appStart+webStart)*100)}％`,'ほとんどがブラウザ版で、アプリに来ていない','紹介ページと本編で App Store の札を上に','plat-app');
   if(c.loadTot>=20&&lateSlow>=35) add('急',`開くのが遅い（八秒以上が ${lateSlow}％）`,'広告から来た人は数秒で去る。ここが一番大きな漏れ口','本編の読み込みを軽くする（絵と台本の後回し）。広告の行き先は紹介ページ（/lp/）に','load');
   if(c.visits>=80&&startPct<20) add('急',`遊び始めが少ない（訪問の ${startPct}％）`,'表紙で止まっている。何のゲームか、一目で分からない恐れ','表紙の一文と絵を見直す。〈ゲームをはじめる〉までの手数を増やさない','start');
   else if(c.visits>=80&&startPct>=35) add('良',`入口は通っている（訪問の ${startPct}％が遊び始め）`,'表紙は効いている','この率を保ったまま人を増やす','start-ok');
