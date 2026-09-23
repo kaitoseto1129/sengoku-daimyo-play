@@ -4421,7 +4421,9 @@ function completeTask(g,t){
       if(c.buildings.includes("市場")) gain=Math.floor(gain*1.4);
       const capC=comCap(c);
       if(c.com>=capC){
-        log(`${c.name}の市はもう賑わいきっております（商業 ${c.com.toLocaleString()}）`,"growth"); break; }
+        /* 第253巡（bot：同じ報せが五日に四度出ていた）：言うのは半年に一度でよい */
+        { const k="comFull_"+c.id; if(!W._told) W._told={}; if(!W._told[k]||dayNumber()-W._told[k]>180){ W._told[k]=dayNumber(); log(`${c.name}の市はもう賑わいきっております（商業 ${c.com.toLocaleString()}）`,"growth"); } }
+        break; }
       gain=Math.min(gain, capC-c.com);
       c.com+=gain;
       log(`${c.name}の商業投資が完了 商業+${gain}（残る余地 ${(capC-c.com).toLocaleString()}）`,"growth"); break; }
@@ -4647,7 +4649,7 @@ function processArmies(){
   for(const a of Object.values(W.armies)){
     if(a.script) continue;
     a.days=(a.days||0)+1;
-    if(a.mission==="包囲" && a.clan!==W.player && !a.stage && a.days%3===0){ const tc=W.castles[a.target]; if(tc && tc.clan!==null && tc.clan!==a.clan && garrisonTroops(tc.id)*1.2>armyTroops(a)){ log(`${a.name||"軍勢"}は${tc.name}の守りに敵わぬと見て、囲みを解きました`,"war"); recallArmy(a.id); continue; } }   /* 第108巡：囲んでいても、城の兵が自軍の一倍半を超えれば引く */
+    if(a.mission==="包囲" && a.clan!==W.player && !a.stage && a.days%3===0){ const tc=W.castles[a.target]; if(tc && tc.clan!==null && tc.clan!==a.clan && garrisonTroops(tc.id)*1.0>besiegeForce(tc.id,a.clan)){ log(`${a.name||"軍勢"}は${tc.name}の守りに敵わぬと見て、囲みを解きました`,"war"); recallArmy(a.id); continue; } }   /* 第108巡：囲んでいても、城の兵が自軍の一倍半を超えれば引く */
     // 盟友の城の門前で待つ軍は、囲みが解けていれば国へ帰る
     if(a.mission==="待機" && !a.sortie && !a.oke){ const nc=W.castles[nearestCastle(a)]; if(nc && nc.clan!==a.clan && !Object.values(W.armies).some(b=>b!==a&&b.mission==="包囲"&&b.target===nc.id&&hostile(b.clan,a.clan))){ recallArmy(a.id); continue; } }
     // 長い出陣は兵の気を細らせる（百二十日を過ぎれば十日に一つ）。自領から遠ければ兵站も細る
@@ -4661,7 +4663,7 @@ function processArmies(){
     if(a.mission==="移動" && a.clan!==W.player && !a.script && a.days%3===0){ const tc=W.castles[a.target]; const K=W.clans[a.clan];
       if(tc && tc.clan!==null && tc.clan!==a.clan && K && !hostile(a.clan,tc.clan) && !K.allies.has(tc.clan) && K.suzerain!==tc.clan && !K.vassals.has(tc.clan) && !sameHouse(a.clan,tc.clan)){ recallArmy(a.id); continue; }
       /* 第108巡：向かう先の城の兵が、道中で自分の軍より多くなっていれば攻めない（作り手の指示：先に目指したからといって攻めるのはおかしい） */
-      if(tc && tc.clan!==null && tc.clan!==a.clan && hostile(a.clan,tc.clan) && garrisonTroops(tc.id)*2>armyTroops(a)){ log(`${a.name||"軍勢"}は${tc.name}の守りが厚くなったのを見て、兵を返しました`,"war"); recallArmy(a.id); continue; } }
+      if(tc && tc.clan!==null && tc.clan!==a.clan && hostile(a.clan,tc.clan) && garrisonTroops(tc.id)*1.5>armyTroops(a)){ log(`${a.name||"軍勢"}は${tc.name}の守りが厚くなったのを見て、兵を返しました`,"war"); recallArmy(a.id); continue; } }   /* 第253巡：二倍 → 一倍半 */
     const next=a.path[0];
     if(next===undefined){ a.mission="待機"; a.px=a.x; a.py=a.y; a.moveT=1; a.edge=null; continue; }
     const from = a.path.length>1 ? (a.path[a.path.indexOf(next)-1] ?? nearestCastle(a)) : nearestCastle(a);
@@ -4883,7 +4885,7 @@ function arriveAt(cid,a){
       if(!W.clans[a.clan].war.has(c.clan)){ log(`${a.name}は${c.name}の前で足を止めた。${clanName(c.clan)}とは約定があり、弓は引けない`,"war",true); recallArmy(a.id); return; }   /* 第151巡：約定（停戦）の相手の城へ着いても戦にならず、そのまま無人の城を接収したり囲んだりしていた */
     }
     /* 第110巡：城の兵が自軍より多ければ、機械の軍は攻めずに引き返す（一万の城に三千七百で寄せていた） */
-    if(a.clan!==W.player && !a.stageSiege && garrisonTroops(cid)*2>armyTroops(a)){   /* 第131巡：筋書きの軍（長篠の後詰など）も同じ（一万の城に徳川八千で力攻めしていた） */ if(c.clan===W.player) log(`${a.name}は${c.name}の守りの厚さを見て引き返しました`,"war"); recallArmy(a.id); return; }
+    if(a.clan!==W.player && !a.stageSiege && garrisonTroops(cid)*1.35>armyTroops(a)+besiegeForce(cid,a.clan)){   /* 第253巡：二倍 → 一倍三分五厘（せっかく寄せた軍がほとんど門前で引き返していた） */   /* 第131巡：筋書きの軍（長篠の後詰など）も同じ（一万の城に徳川八千で力攻めしていた） */ if(c.clan===W.player) log(`${a.name}は${c.name}の守りの厚さを見て引き返しました`,"war"); recallArmy(a.id); return; }
     // 守る者がいない城は、戦わずにそのまま接収する
     if(garrisonTroops(cid)<=0){
       log(`${c.name}は無人であった。戦わずして城を接収します`,"war");
@@ -5067,13 +5069,26 @@ function siegeDamagePerDay(a,c){
   const troops=armyTroops(a), defTroops=garrisonTroops(c.id), mode=SIEGE_MODES[a.mode]||SIEGE_MODES[1];
   const defMul = (1 + c.lv/260)*(c.buildings.includes("櫓")?1.35:1)*(c.buildings.includes("石垣")?1.25:1)*(c.buildings.includes("堀")?1.15:1)
     *(c.clan!==null ? strategistBonus(c.clan).def : 1)*(1 + Math.min(2.6, defTroops/1500));
-  let dmg = troops/48/defMul*mode.dmg;
+  let dmg = troops/62/defMul*mode.dmg;   /* 第253巡：見込みの日数は、下の実際の削りと同じ式で出す（別の数を使っていて、いつまでも合わなかった） */
   if(a.pillaging) dmg*=1.2;
   if(c.holdOut) dmg*=0.62;
   const ratio = troops/Math.max(300,defTroops);
-  dmg *= Math.max(0.15, Math.min(2.0, (ratio-0.7)*0.9));
+  dmg *= Math.max(0.15, Math.min(1.6, (ratio-0.7)*0.9));
   dmg *= 1 + Math.min(1.0, (a.siegeDays||0)/70);
+  if(c.toriiMemory) dmg*=0.8;
+  if(W.tkj&&W.tkj.phase==="siege"&&W.tkj.cid===c.id) dmg*=0.15;
   return dmg;
+}
+/* 同じ城に寄せている味方（自家・傘下・盟友）の勢を合わせて数える。
+   第253巡（作り手と遊んで）：城攻めは方々から寄せて囲むもの。一軍ずつ守兵と比べていたため、
+   二方面から寄せた軍が両方とも「数で及ばず」と退いていた */
+function besiegeForce(cid, clan){
+  let t=0;
+  for(const a of Object.values(W.armies)){
+    if(a.mission!=="包囲"||a.target!==cid) continue;
+    if(a.clan===clan || sameHouse(a.clan,clan) || (W.clans[clan]&&W.clans[clan].allies.has(a.clan))) t+=armyTroops(a);
+  }
+  return t;
 }
 function siegeEtaDays(c){
   const sieges=Object.values(W.armies).filter(a=>a.mission==="包囲"&&a.target===c.id);
@@ -5117,7 +5132,7 @@ function processSieges(){
       }
     }
     const troops=armyTroops(a);
-    if(a.clan!==W.player && a.siegeDays>3 && troops < garrisonTroops(c.id)*1.0 && !a.stage){
+    if(a.clan!==W.player && a.siegeDays>3 && besiegeForce(c.id,a.clan) < garrisonTroops(c.id)*1.0 && !a.stage){
       log(`${a.name}は守兵に数で及ばず、${c.name}の囲みを解きました`,"war", c.clan===W.player);
       recallArmy(a.id); continue;
     }
@@ -5143,7 +5158,7 @@ function processSieges(){
       * (c.buildings.includes("堀")?1.15:1)
       * (c.clan!==null ? strategistBonus(c.clan).def : 1)
       * (1 + Math.min(2.6, defTroops/1500));      // 籠る兵が多いほど落ちない（千の守兵で一・七倍、四千で三・六倍）
-    let dmg = troops/90/defMul*mode.dmg;   /* 第144巡：城攻めはゆっくり（作り手：城はそう簡単に落ちない。48→90） */
+    let dmg = troops/62/defMul*mode.dmg;   /* 第144巡：48→90／第253巡（作り手と遊んで）：二百日たっても壁が崩れず、どの城攻めも兵糧切れか和議で解けていた。90→62 */
     if(a.pillaging) dmg*=1.2;
     if(c.holdOut) dmg*=0.62;                    // 門を閉ざし、ひたすら凌ぐ
     // 兵力の差。互角では壁は崩れない
@@ -5157,7 +5172,7 @@ function processSieges(){
     // 兵糧攻めは蔵を干上がらせる
     if(a.mode===1){
       // 囲まれれば城下の民の口も城の蔵にかかる。守兵の分だけでは干上がるのに一年かかる
-      c.food=Math.max(0, Math.floor(c.food - foodEatenBy(defTroops + c.pop*0.06)*2.2*(seasonOf(W.date.m)==="冬"?1.2:1)));
+      c.food=Math.max(0, Math.floor(c.food - foodEatenBy(defTroops + c.pop*0.09)*3.2*(seasonOf(W.date.m)==="冬"?1.2:1)));   /* 第253巡：干上がるのに一年以上かかり、囲む側の辛抱（百八十日）が先に尽きていた */
     } else {
       c.food=Math.max(0, Math.floor(c.food - foodEatenBy(defTroops)*(c.holdOut?0.9:0.4)));
     }
@@ -5173,7 +5188,7 @@ function processSieges(){
     // 力攻めは双方の兵を削る。兵糧攻めは兵を損なわず、城下を干す
     if(a.mode===0 && a.siegeDays%2===0){
       for(const g of defenders){
-        const per=Math.max(4,Math.floor(g.troops*0.008*(c.holdOut?0.7:1)));   // 籠る兵はそう減らない
+        const per=Math.max(4,Math.floor(g.troops*0.012*(c.holdOut?0.7:1)));   // 籠る兵はそう減らない（第253巡：寄せ手ばかりが痩せていた）
         g.troops=Math.max(0,g.troops-per);
         g.morale=Math.max(3,g.morale-2);
       }
@@ -5185,7 +5200,7 @@ function processSieges(){
       for(const g of defenders) g.morale=Math.max(3,g.morale-3);
     }
     // 半年囲んで落ちぬなら、いったん兵を退く
-    if(a.siegeDays>180){
+    if(a.siegeDays>((c.food<=0||c.defense<maxDefense(c)*0.35)?260:180)){   /* 第253巡：蔵が尽きかけ、壁が崩れかけているのに、百八十日で必ず退いていた */
       log(`${a.name}は${c.name}を落とせず、囲みを解きました`,"war");
       recallArmy(a.id); a.mission="帰還"; a.target=a.origin; a.siegeDays=0;
       continue;
@@ -5199,7 +5214,7 @@ function processSieges(){
       for(const g of defenders) g.morale=Math.max(5,g.morale-2);
     }
     let loss=troops*.004*mode.loss;
-    if(a.mode===0) loss*=1+Math.min(2.5, defTroops/1200);   // 力攻めは守兵が多いほど寄せ手が削られる（千二百の守兵で二倍、三千で三倍半）
+    if(a.mode===0) loss*=1+Math.min(1.5, defTroops/2200);   // 力攻めは守兵が多いほど寄せ手が削られる（第253巡：三千の守兵で三倍半は削りすぎ。六十日で寄せ手が三分の一になっていた）
     if(seasonOf(W.date.m)==="冬") loss*=1.3;       // 冬の陣は寒さと病で痩せる
     if(a.siegeDays>90 && a.siegeDays%10===0){       // 陣中の病。長い囲みは双方を蝕む
       inflict(a, Math.floor(troops*0.01));
@@ -5207,14 +5222,14 @@ function processSieges(){
       if(a.clan===W.player||c.clan===W.player) log(`${c.name}の陣中に病が出て、双方の兵が痩せております`,"bad");
     }
     if(c.holdOut) loss*=1.35;                      // 籠る兵は寄せ手をよく削る
-    if(c.buildings.includes("堀")) loss*=1.6;      // 堀は寄せ手を削る
+    if(c.buildings.includes("堀")) loss*=1.35;      // 堀は寄せ手を削る（第253巡：一・六倍 → 一・三五倍）
     if(c.buildings.includes("櫓")){
       if(c.towerHP<=0){
         c.buildings=c.buildings.filter(b=>b!=="櫓"); if(c.defense>maxDefense(c)) c.defense=maxDefense(c);
         log(`${c.name}の櫓が破壊されました`,"war");
       } else {
         if(a.mode===0) c.towerHP=Math.max(0,c.towerHP-Math.floor(troops*.006));
-        loss += troops*.004*(a.mode===0?2:.6);
+        loss += troops*.003*(a.mode===0?1.4:.5);
         for(const id of a.gens) W.generals[id].morale=Math.max(10,W.generals[id].morale-1);
       }
     }
@@ -6907,6 +6922,13 @@ function diplomacy(kind,me,other,opt){
       if(pressing) chance-=20;                               // 押している最中は聞かぬ
       if(foes>=2) chance+=12;                                // 他にも敵を抱えていれば手を打ちたい
       if(me===W.player){ const ws=(W.warScore||{})[me+":"+other]||0; chance+=ws*6; }   /* 勝ち星（負け星）で動く */
+      /* 第253巡（作り手と遊んで：せっかくの囲みが和議で解けてばかりだった）
+         城を囲んで押している最中は、よほど相手が大きくないかぎり和議には応じない */
+      if(pressing && !pressed && ratio<1.4) chance=Math.min(chance,4);
+      /* 機械の家も、断られた翌日にまた使者は出さない（毎日のように和議を申し入れて、囲みが解けていた） */
+      if(me!==W.player){ A.peaceAsk=A.peaceAsk||{};
+        if(dayNumber()-(A.peaceAsk[other]||-9999)<40) return "使者を送ったばかりです";
+        A.peaceAsk[other]=dayNumber(); }
       /* 第109巡：敵の属国とは和睦できない。主家と和議を */
       if(me===W.player && B.suzerain!==null && B.suzerain!==undefined && W.clans[B.suzerain] && !W.clans[B.suzerain].dead && A.war.has(B.suzerain)) return `${B.name}は${W.clans[B.suzerain].name}の傘下。和議は主家の${W.clans[B.suzerain].name}と結ばれよ`;
       // 断られた直後に、同じ使者を何度も送っても答えは変わらない（銭を取る前に確かめる。取ってから断っていた）
@@ -7212,16 +7234,30 @@ function aiDiplomacy(clan,p){
       const atWar = clan.war.has(other);
       const besieged = Object.values(W.armies).some(
         a=>a.clan===other && a.mission==="包囲" && W.castles[a.target] && W.castles[a.target].clan===clan.id);
-      const weak = myCastles(clan.id).length<=2 && totalTroops(clan.id) < totalTroops(other)*0.18;
+      /* 第253巡：一城二城に追い詰められた家が、心証の悪さだけで降らずに居座り、世が固まらなかった */
+      const weak = myCastles(clan.id).length<=2 && totalTroops(clan.id) < totalTroops(other)*0.35;
       const desperate = besieged || (atWar && weak);
-      if(desperate && rnd()<0.5 && getRel(clan.id,other)>-70){
+      if(desperate && rnd()<(weak?0.7:0.5) && getRel(clan.id,other)>-95){
         diplomacy("降伏",clan.id,other); return;
       }
     }
     // 人の家と勝手に盟を結ばない。人には使者を立てて伺いを立てる
+    /* 第253巡（作り手と遊んで：二十年たっても大名家が減らない）
+       心証さえ良ければ次々と盟を結び、やがて隣がみな盟友になって、誰も攻められなくなっていた。
+       盟は「共に抱える敵がいる」「隣に手に余る大家がいる」時に結ぶ。数も二つまで */
+    const shareFoe=[...clan.war].some(e=>W.clans[other]&&W.clans[other].war.has(e));
+    const bigNear=Object.values(W.clans).some(k=>!k.dead&&k.id!==clan.id&&k.id!==other&&myCastles(k.id).length&&bordersOn(clan.id,k.id)&&powerScore(k.id)>powerScore(clan.id)*1.8);
     if(!clan.war.has(other) && getRel(clan.id,other)>=100 && !clan.allies.has(other)
-       && other!==W.player && rnd()<p.dip){
+       && other!==W.player && clan.allies.size<2 && W.clans[other].allies.size<2
+       && (shareFoe||bigNear) && rnd()<p.dip){
       diplomacy("同盟",clan.id,other); return;
+    }
+    /* 共に戦う敵もないまま歳月が過ぎれば、盟の縁は薄れて切れる（世が固まらないように） */
+    if(clan.allies.has(other) && other!==W.player && !shareFoe && !underTruce(clan.id,other) && rnd()<0.015){
+      try{ breakAlly(clan.id,other); }catch(_){ }
+      addRel(clan.id,other,-8); addRel(other,clan.id,-8);
+      log(`${clan.name}と${W.clans[other].name}の盟は、年月とともに切れました`,"dip");
+      return;
     }
     if(getRel(clan.id,other)<100 && !clan.war.has(other) && rnd()<p.dip*.5 && clan.money>15000){
       const envoy=Object.values(W.generals).find(g=>g.clan===clan.id&&!g.task&&!g.army&&g.pol>55&&g.castle!==null);
@@ -7248,7 +7284,9 @@ function aiMilitary(clan,p){
   // 千の兵で小競り合いには出ない。攻めるなら家の兵をまとめて出す（家の手すきの兵の三割、少なくとも二千五百）
   const clanIdle=Object.values(W.generals).filter(g=>g.clan===clan.id&&!g.army&&!g.task&&!isChild(g)&&g.status!=="捕虜"&&g.status!=="死亡").reduce((s,g)=>s+g.troops,0);
   const clanAll=Object.values(W.generals).filter(g=>g.clan===clan.id&&g.status!=="死亡"&&g.status!=="捕虜").reduce((s,g)=>s+g.troops,0);
-  const minForce=Math.max(Math.min(Math.max(2500, clanIdle*0.3), Math.max(1200, clanIdle*0.7)), clanAll>=20000 ? 10000 : clanAll>=8000 ? 5000 : 0);   // 大きな家は一万、並の家も五千を集めてから寄せる（二千・四千の小競り合いはしない）
+  /* 第253巡（作り手と遊んで：大きな家ほど動かず、二十年睨み合ったまま）
+     一城に一万を揃えるのは至難で、大家ほど攻めに出られなかった。六千／三千に下げる */
+  const minForce=Math.max(Math.min(Math.max(2500, clanIdle*0.3), Math.max(1200, clanIdle*0.7)), clanAll>=20000 ? 6000 : clanAll>=8000 ? 3000 : 0);   // 大きな家は六千、並の家も三千を集めてから寄せる（千・二千の小競り合いはしない）
   if(clan.muster && (dayNumber()>clan.muster.until || !W.castles[clan.muster.target] || (W.castles[clan.muster.target].clan!==null && !hostile(clan.id,W.castles[clan.muster.target].clan)))) clan.muster=null;   // 和睦・盟で敵でなくなれば集め
   if(clan.muster && clan.orderTarget && dayNumber()<clan.orderTarget.until && clan.musterAt && dayNumber()>clan.musterAt) clan.muster=null;   // 名指しの相手がいるうちは、間を置かず次の集めを考えるは解く
   for(const c of myCastles(clan.id)){
@@ -7312,13 +7350,16 @@ function aiMilitary(clan,p){
       if(score<=0.2) continue;
       // 守兵二万の城に一万で寄せる大名はいない。寄せ手は守り手の一・四〜一・七倍は要る。壁が厚いならなおさら
       const ordered = clan.orderTarget && tc===clan.orderTarget.clan && dayNumber()<clan.orderTarget.until;   // 名指しの相手には腰を据えて寄せる
-      const need=Math.max(ordered?Math.max(clanAll>=20000?10000:clanAll>=8000?5000:2500,defT*2.2):minForce, defT*((ordered?2.2:2.5) + (1-p.risk)*0.3), t.defense>6000 ? defT*(ordered?2.5:2.8) : 0);   // 城攻めは守り手の二倍半〜三倍（作り手の指示：七千の城に一万では寄せない）   // 守り手の二倍以上でなければ寄せない   // 名指しの相手には、家中の三割を待たずに寄せる   // 守兵六千に八千で寄せる家はない（一・八倍から）
-      if(mine < need){
+      /* 第253巡（作り手と遊んで：どの家も二倍半を揃えられず、二十年睨み合ったまま大名家が減らなかった）
+         囲めば兵糧が尽きて守兵は減る。要る兵を二倍半→一倍七分に下げる（攻め気の強い家はもう少し低く） */
+      const need=Math.max(ordered?Math.max(clanAll>=20000?6000:clanAll>=8000?3000:1800,defT*1.6):minForce, defT*((ordered?1.6:1.7) + (1-p.risk)*0.25), t.defense>6000 ? defT*(ordered?1.8:2.0) : 0);   // 城攻めは守り手の一倍七分〜三倍（作り手の指示：七千の城に一万では寄せない）   // 守り手の二倍以上でなければ寄せない   // 名指しの相手には、家中の三割を待たずに寄せる   // 守兵六千に八千で寄せる家はない（一・八倍から）
+      const joined = besiegeForce(nid, clan.id);   /* 既にこの城を囲んでいる味方の勢（第253巡） */
+      if(mine + joined < need){
         // 足りなければ、まず近くの城から兵をこの城へ集める（小勢で小競り合いには出ない）
-        if(!muster||score>muster.score) muster={from:c.id,to:nid,score,need:need-mine};
+        if(!muster||score>muster.score) muster={from:c.id,to:nid,score,need:need-mine-joined};
         continue;
       }
-      if(!best||score>best.score) best={from:c.id,to:nid,score,force:garrison,need};
+      if(!best||score>best.score) best={from:c.id,to:nid,score,force:garrison,need,joined};
     }
   }
   if(!best){
@@ -7364,30 +7405,32 @@ function aiMilitary(clan,p){
     force.push(g.id); sent+=g.troops;
   }
   if(!force.length) return;
-  if(best.need && sent<best.need){ if(!clan.muster && (!clan.musterAt||dayNumber()>clan.musterAt)) aiMuster(clan, best.from, best.to, best.need-sent); return; }   // 留守居を残すと足りぬなら、まず集める
+  if(best.need && sent+(best.joined||0)<best.need){ if(!clan.muster && (!clan.musterAt||dayNumber()>clan.musterAt)) aiMuster(clan, best.from, best.to, best.need-sent); return; }   // 留守居を残すと足りぬなら、まず集める
   // 守り手の半分にも満たぬ勢で押しかけても、ただ討たれるだけ
   const defT2=Object.values(W.generals).filter(g=>g.castle===best.to&&!g.army).reduce((s,g)=>s+g.troops,0);
-  if(sent < defT2*2.0 && defT2>0) return;   /* 第110巡：二倍 */   /* 第109巡：守兵より少ない勢で押しかけない（八千の城に千で攻めていた。作り手の指示） */
+  /* 第253巡（作り手と遊んで：二十年たっても大名家が減らない）：二倍を揃えられる家は稀で、どの家も睨み合いのまま動かなかった。
+     囲めば兵糧が尽きて守兵は減る。一倍半あれば囲みにかかる（ただし守兵より少ない勢では出さない、は守る） */
+  if(sent + (best.joined||0) < defT2*1.5 && defT2>0) return;   /* 第110巡：二倍 → 第253巡：一倍半 */   /* 第109巡：守兵より少ない勢で押しかけない（八千の城に千で攻めていた。作り手の指示） */
   const troops=sent;
   // 兵が守り手の倍近くあれば力攻め、そうでなければ干上がらせる。
   // 城耐久（万を越える）と兵数を見比べていたため、いつまでも兵糧攻めしか選ばず、
   // 六千で千五百の城を二百日も囲んでいた
-  const mode = troops >= defT2*1.8 ? 0 : 1;
+  const mode = troops + (best.joined||0) >= defT2*1.8 ? 0 : 1;
   dispatch(best.from,force,best.to,mode);
 }
 /* 攻める前に兵を集める。近く（街道三区間まで）の自城から手すきの将を寄せ、留守居は残す */
 function aiMuster(clan, toId, targetId, need){
   const to=W.castles[toId]; if(!to||to.clan!==clan.id) return;
   let got=0, n=0;
-  const srcs=myCastles(clan.id).filter(c=>c.id!==toId && roadHops(c.id,toId,3)<=3)
-    .sort((a,b)=>roadHops(a.id,toId,3)-roadHops(b.id,toId,3));
+  const srcs=myCastles(clan.id).filter(c=>c.id!==toId && roadHops(c.id,toId,4)<=4)
+    .sort((a,b)=>roadHops(a.id,toId,4)-roadHops(b.id,toId,4));   /* 第253巡：三区間では兵が足りず寄せ手が揃わない。四区間先からも呼ぶ */
   for(const c of srcs){
     if(got>=need*1.15) break;
     const gens=Object.values(W.generals).filter(g=>g.castle===c.id&&g.clan===clan.id&&!g.task&&!g.army&&!isChild(g)&&g.status!=="捕虜"&&g.status!=="死亡"&&g.troops>150).sort((a,b)=>b.troops-a.troops);
     if(gens.length<=1) continue;                                   // 留守居は残す
     const front=c.neighbors.some(x=>{const o=W.castles[x].clan; return o!==null&&o!==clan.id&&hostile(clan.id,o);});
     const total=gens.reduce((s2,g)=>s2+g.troops,0);
-    const keepT= front ? total*0.45 : 0;
+    const keepT= front ? total*0.35 : 0;   /* 第253巡：前線に半分近く据え置くと、いつまでも寄せ手が揃わなかった */
     const send=[]; let st=0;
     for(const g of gens){ if(send.length>=gens.length-1) break; if(st+g.troops>total-keepT) break; send.push(g.id); st+=g.troops; if(got+st>=need*1.15) break; }
     if(!send.length) continue;
@@ -7396,7 +7439,7 @@ function aiMuster(clan, toId, targetId, need){
     got+=st; n++;
   }
   if(!n) return;
-  { const t0=W.castles[targetId]; const ordered = t0 && clan.orderTarget && t0.clan===clan.orderTarget.clan && dayNumber()<clan.orderTarget.until; clan.musterAt=dayNumber()+(ordered?25:45); }   // 名指しの相手なら次々に兵を送る
+  { const t0=W.castles[targetId]; const ordered = t0 && clan.orderTarget && t0.clan===clan.orderTarget.clan && dayNumber()<clan.orderTarget.until; clan.musterAt=dayNumber()+(ordered?25:30); }   // 名指しの相手なら次々に兵を送る
   clan.muster={to:toId, target:targetId, until:dayNumber()+120};
   const t=W.castles[targetId];
   if(t && t.clan===W.player && clan.id!==W.player) log(`${clan.name}が${to.name}に兵を集めております（${t.name}を狙っている模様）`,"war");
@@ -7794,23 +7837,48 @@ function aiFound(clan,p){
    野心のある家は、弱い隣の盟友との盟を解いて攻めかかる。戦国の世は、そうして片が付いていく。
    人の家は対象にしない（勝手に盟を切られるのは理不尽なので、人へは従来どおり心証と膨張で動く） */
 function aiBetray(clan,p){
-  if(W.date.d!==24) return; if(!clan||clan.dead) return;
+  if(W.date.d!==25) return;   /* 第253巡：諸家の思案は五日ごと。二十四日では一度も回らず、この手立ては死んでいた */ if(!clan||clan.dead) return;
   if(clan.suzerain!==null&&clan.suzerain!==undefined) return;
   const mine=myCastles(clan.id); if(mine.length<4) return;
   if(clan.war.size>=2) return;
-  const amb=(p&&p.agg!==undefined)?p.agg:0.5; if(amb<0.5) return;
+  const amb=(p&&p.agg!==undefined)?p.agg:0.5; if(amb<0.45) return;
+  /* 第253巡（作り手と遊んで：二十年たっても大名家が減らない）
+     大きな家ほど隣がみな盟友・傘下になり、攻める先が一つも無くなって兵を遊ばせていた。
+     戦国の世は盟も傘下も永くは続かぬ。攻め先を失った家は、盟を破り、傘下を取り潰しにかかる */
+  let open=0;
+  for(const c of mine) for(const nid of c.neighbors){
+    const tc=W.castles[nid].clan;
+    if(tc===null||tc===clan.id) continue;
+    if(clan.allies.has(tc)||clan.suzerain===tc||clan.vassals.has(tc)||sameHouse(clan.id,tc)||underTruce(clan.id,tc)||neutralPair(clan.id,tc)) continue;
+    open++;
+  }
+  const boxed = open===0 && totalTroops(clan.id)>=6000;
   for(const a of [...clan.allies]){
     if(a===W.player) continue; const K=W.clans[a]; if(!K||K.dead) continue;
     if(!bordersOn(clan.id,a)) continue;
     if(underTruce(clan.id,a)) continue;
     const theirs=myCastles(a).length; if(!theirs) continue;
-    if(mine.length < theirs*1.8) continue;                 /* 明らかに強い時だけ */
-    if(totalTroops(clan.id) < totalTroops(a)*1.6) continue;
-    if(rnd() > 0.02*(0.5+amb)) continue;
+    if(mine.length < theirs*(boxed?1.1:1.8)) continue;                 /* 明らかに強い時だけ（攻め先が無ければ、互角でも）*/
+    if(totalTroops(clan.id) < totalTroops(a)*(boxed?1.05:1.6)) continue;
+    if(rnd() > (boxed?0.30:0.05)*(0.5+amb)) continue;
     try{ breakAlly(clan.id,a); }catch(_){ }
     addRel(clan.id,a,-40); addRel(a,clan.id,-40);
     try{ declareWar(clan.id,a); }catch(_){ }
     log(`${clan.name}が${K.name}との盟を破り、兵を向けました`,"dip",true);
+    return;
+  }
+  /* 傘下の取り潰し（下剋上の裏返し）。攻める先を失った大家が、傘下の国を召し上げにかかる */
+  if(!boxed || mine.length<6) return;
+  for(const v of [...clan.vassals]){
+    if(v===W.player) continue; const K=W.clans[v]; if(!K||K.dead) continue;
+    if(!bordersOn(clan.id,v)) continue;
+    const theirs=myCastles(v).length; if(!theirs) continue;
+    if(totalTroops(clan.id) < totalTroops(v)*1.2) continue;
+    if(rnd() > 0.18*(0.5+amb)) continue;
+    try{ clan.vassals.delete(v); K.suzerain=null; }catch(_){ }
+    addRel(clan.id,v,-50); addRel(v,clan.id,-60);
+    try{ declareWar(clan.id,v); }catch(_){ }
+    log(`${clan.name}が傘下の${K.name}を取り潰しにかかりました`,"dip",true);
     return;
   }
 }
@@ -28591,9 +28659,9 @@ function fenceEffects(dt){
     B.obstacles=B.obstacles.filter(o=>!(o.hp!==undefined && o.hp<=0)); B._fenceVer=(B._fenceVer||0)+1;
     if(broken.some(o=>o.fence&&o.hpMax>0) && (!B.fenceBreakCry || B.elapsed-B.fenceBreakCry>12)){ B.fenceBreakCry=B.elapsed; toast("柵が破られました"); playSE("rout"); }   /* 第253巡（bot：二十五秒に六回は多すぎる）／（作り手と遊んで）：開戦した瞬間に「柵が破られました」と出ていた。柵が壊れた時だけ言う */
     /* 第108巡：柵が破れたら「この隊をここへ」を画面で示す（手ほどきでなくても分かるように） */
-    if(B.ctx.playerSide!==undefined && !B.autoMine && !B.sim && B.over===null && !(B.gapHint && B.elapsed-B.gapHint.at<8)){ const o=broken.find(x=>x.fence && (x.side!==undefined?x.side:1)===B.ctx.playerSide); if(o){ const inside=(B.ctx.playerSide===1)?-1:1; const [gc,gr]=cellOf(o.x+inside*1.0,o.y); const [gx,gy]=cellCenter(gc,gr);
+    if(B.ctx.playerSide!==undefined && !B.autoMine && !B.sim && B.over===null && !(B.gapHint && B.elapsed-B.gapHint.at<25)){ const o=broken.find(x=>x.fence && (x.side!==undefined?x.side:1)===B.ctx.playerSide); if(o){ const inside=(B.ctx.playerSide===1)?-1:1; const [gc,gr]=cellOf(o.x+inside*1.0,o.y); const [gx,gy]=cellCenter(gc,gr);
         const cand=B.units.filter(u=>u.side===B.ctx.playerSide&&!u.ally&&!u.cmd&&u.type!==3&&u.troops>.5&&u.morale>0&&!u.left&&u.order.k==="guard"&&!(u.cell&&u.cell[0]===gc&&u.cell[1]===gr)).sort((a,b)=>Math.hypot(a.x-gx,a.y-gy)-Math.hypot(b.x-gx,b.y-gy))[0];
-        if(cand){ toast(`柵が破れました。隊を破れ目へ`); } } }
+        if(cand){ B.gapHint={at:B.elapsed, x:gx, y:gy}; toast(`柵が破れました。隊を破れ目へ`); } } }   /* 第253巡（bot：二十五秒に六度も同じ報せが出ていた）：一度出したら間を置く */
   }
 }
 /* 鼓舞。大将のまわりの味方が奮い立つ。一戦に三度、二十五秒の間を置く */
@@ -29007,8 +29075,135 @@ function makeNohLoop(kind){
   for(let i=0;i<len;i++){ L[i]=Math.max(-1,Math.min(1,L[i])); R[i]=Math.max(-1,Math.min(1,R[i])); }
   return buf;
 }
+/* ===== 合戦・決戦の曲「鬨（とき）」 =====
+   第253巡（作り手の指示）：会戦・決戦の曲はこれにする。
+   都節（みやこぶし）ニ調。地鳴りの上に大太鼓と締太鼓が刻み、尺八が謡い、琵琶の撥と鉦が挟む。
+   十六小節でひと回り。音は端で折り返して書くので、継ぎ目が鳴らない。法螺貝は入れない（作り手の掟）。 */
+function makeKassen(hot){
+  const ctx=Audio_.ctx, sr=ctx.sampleRate;
+  const bpm = hot?132:118, beat=60/bpm, bars=16;
+  const len=Math.round(bars*4*beat*sr), dur=len/sr;
+  const buf=ctx.createBuffer(2,len,sr); const L=buf.getChannelData(0), Rc=buf.getChannelData(1);
+  let seed=hot?20250929:1129;
+  const rq=()=>{ seed^=seed<<13; seed>>>=0; seed^=seed>>>17; seed^=seed<<5; seed>>>=0; return seed/4294967296; };
+  const mono=new Float32Array(len);
+  const add=(t0,arr,g)=>{ let s0=Math.round(t0*sr)%len; if(s0<0) s0+=len; const n=Math.min(arr.length,len); for(let i=0;i<n;i++){ let k=s0+i; if(k>=len) k-=len; mono[k]+=arr[i]*g; } };
+  const hz=m=>440*Math.pow(2,(m-69)/12);
+  const TAU=2*Math.PI;
+
+  // 太鼓：打面の音が下がり、革の胴が鳴る
+  const taiko=(d,f0,amp,bright,body)=>{ const n=Math.floor(d*sr); const o=new Float32Array(n); let ph=0, lp=0;
+    for(let i=0;i<n;i++){ const t=i/sr; const f=f0*(1+1.9*Math.exp(-t*34)); ph+=TAU*f/sr;
+      const e=Math.exp(-t*7.5/body);
+      const skin=Math.sin(ph)*e+0.35*Math.sin(2.13*ph)*Math.exp(-t*17);
+      lp=lp*0.55+(rq()*2-1)*0.45;
+      o[i]=(skin*0.95+lp*Math.exp(-t*95)*0.9*bright)*amp; }
+    return o; };
+  // 鉦（かね）：うねりのある金物
+  const kane=(d,f0,amp)=>{ const n=Math.floor(d*sr); const o=new Float32Array(n);
+    const rs=[1,2.74,4.19,5.93], ds=[6,9,13,18], ps=[0,0,0,0];
+    for(let i=0;i<n;i++){ const t=i/sr; let v=0;
+      for(let k=0;k<4;k++){ ps[k]+=TAU*f0*rs[k]/sr; v+=Math.sin(ps[k])*Math.exp(-t*ds[k])/(k+1.4); }
+      o[i]=v*amp; }
+    return o; };
+  // 尺八：息と揺り（ゆり）、吹き込みの当たり
+  const fue=(d,m,amp,vib,breath)=>{ const n=Math.floor(d*sr); const o=new Float32Array(n); const f0=hz(m);
+    const ph=[0,0,0,0,0,0], A=[1,.40,.20,.10,.05,.03]; let lp=0, lp2=0;
+    const at=Math.max(1,Math.floor(0.055*sr)), rl=Math.max(1,Math.floor(Math.min(0.35,d*0.45)*sr));
+    for(let i=0;i<n;i++){ const t=i/sr;
+      const vb=1+vib*0.013*Math.sin(TAU*5.1*t)*Math.min(1,Math.max(0,(t-0.25)*2.2));
+      const f=f0*vb*(1-0.035*Math.exp(-t*24));
+      let v=0; for(let k=0;k<6;k++){ ph[k]+=TAU*f*(k+1)/sr; v+=Math.sin(ph[k])*A[k]; }
+      lp=lp*0.72+(rq()*2-1)*0.28; lp2=lp2*0.72+lp*0.28;
+      let e=1; if(i<at) e=i/at; else if(i>n-rl) e=Math.max(0,(n-i)/rl); else e=0.86;
+      o[i]=(v*0.55+lp2*(0.16*Math.exp(-t*9)+0.05)*breath)*e*amp; }
+    return o; };
+  // 琵琶・箏の撥（はつ）
+  const koto=(d,m,amp,biwa)=>{ const n=Math.floor(d*sr); const o=new Float32Array(n); const f0=hz(m);
+    const K=6, ph=new Float32Array(K), A=[], dc=[];
+    for(let k=0;k<K;k++){ A.push(biwa?1/(k*0.95+1):1/(k*1.5+1)); dc.push(biwa?2.4+k*1.0:3.2+k*1.35); }
+    let lp=0;
+    for(let i=0;i<n;i++){ const t=i/sr; let v=0;
+      for(let k=0;k<K;k++){ ph[k]+=TAU*f0*(k+1)*(1+0.0004*k*k)/sr; v+=Math.sin(ph[k])*A[k]*Math.exp(-t*dc[k]); }
+      lp=lp*0.4+(rq()*2-1)*0.6;
+      o[i]=(v*0.5+lp*Math.exp(-t*150)*0.5)*amp; }
+    return o; };
+  // 遠い鬨の声（ざわめきが膨らんで引く）
+  const toki=(d,amp,cent)=>{ const n=Math.floor(d*sr); const o=new Float32Array(n); const lp=[0,0,0,0];
+    for(let i=0;i<n;i++){ const t=i/sr;
+      const e=Math.min(1,t*3.2)*Math.exp(-Math.max(0,t-0.55)*1.5);
+      const f=cent*(1+0.35*Math.sin(TAU*0.7*t)), a=1-Math.exp(-TAU*f/sr);
+      lp[0]+=a*((rq()*2-1)-lp[0]); lp[1]+=a*(lp[0]-lp[1]); lp[2]+=a*(lp[1]-lp[2]); lp[3]+=a*(lp[2]-lp[3]);
+      o[i]=lp[3]*e*amp*14; }
+    return o; };
+
+  const D=62, Eb=63, G=67, A=69, Bb=70;                 // 都節（ニ）
+  const BT=(bar,b)=>((bar*4+(b||0))*beat);
+
+  // 地鳴り：ひと回りでちょうど巡る波にして、継ぎ目を鳴らさない
+  const droneAdd=(m,amp)=>{ const f0=Math.round(hz(m)*dur)/dur; const f1=Math.round(hz(m)*1.003*dur)/dur;
+    for(let i=0;i<len;i++){ const t=i/sr;
+      mono[i]+=(Math.sin(TAU*f0*t)+0.8*Math.sin(TAU*f1*t)+0.25*Math.sin(TAU*f0*2*t))*amp*(0.85+0.15*Math.sin(TAU*(2/dur)*t)); } };
+  droneAdd(26,0.055); droneAdd(38,0.035);
+
+  // 太鼓の型
+  const beatBar=(bar,heavy,doko,kaneOn)=>{
+    const P=[[0,44,1.0],[1.5,58,0.42],[2,48,0.85],[3,58,0.38],[3.5,58,0.34]];
+    for(const [t,m,a] of P) add(BT(bar,t), taiko(1.5,hz(m),a*heavy,1,1), 1);
+    if(doko) for(let k=0;k<4;k++) add(BT(bar,3+k*0.25), taiko(0.7,hz(60),0.30*heavy,1.2,0.6), 1);
+    if(kaneOn){ add(BT(bar,1), kane(0.8,1180,0.16), 1); add(BT(bar,3), kane(0.6,1180,0.11), 1); }
+  };
+  for(let b=0;b<bars;b++){
+    beatBar(b, hot?1.0:0.85, hot? (b%2===1) : (b%4===3), hot? true : (b%2===0));
+    if(hot) add(BT(b,0), taiko(1.8,hz(40),0.55,0.8,1.5), 1);
+    if(hot && b>=12) for(let k=0;k<8;k++) add(BT(b,k*0.5), taiko(0.9,hz(k%2?58:46),0.30+(k%4===0?0.28:0),1.1,0.8), 1);
+  }
+
+  // 旋律（十六小節でひと回り）
+  const MEL=[[0,2,A],[2,1,Bb],[3,1,A],[4,3,G],[7,1,Eb],[8,4,D],[14,2,G],
+             [16,2,D+12],[18,2,Bb],[20,1.5,A],[21.5,0.5,G],[22,2,A],[24,3,Eb],[27,1,D],[28,4,D],
+             [32,1,A],[33,1,Bb],[34,2,D+12],[36,2,Eb+12],[38,2,D+12],[40,3,Bb],[43,1,A],[44,4,G],
+             [48,0.5,D],[48.5,0.5,Eb],[49,0.5,G],[49.5,0.5,A],[50,2,Bb],[52,4,A],[56,4,D+12],[60,2,A],[62,2,G]];
+  for(const [t,d,m] of MEL){
+    add(t*beat, fue(d*beat*0.96, hot?m+12:m, hot?0.20:0.28, 1, hot?1.3:1), 1);
+    if(hot) add(t*beat, fue(d*beat*0.96, m, 0.13, 0.8, 1), 1);
+  }
+  // 撥（はつ）：琵琶の低い刻みと、寄せの段の箏
+  const ARP=[D,G,A,Bb,A,G,Eb,D];
+  for(let b=0;b<bars;b++){
+    if(!hot && b<8) continue;
+    for(let k=0;k<8;k++) add(BT(b,k*0.5), koto(1.0, ARP[(k+b)%8]-12, 0.09+(k===0?0.03:0), false), 1);
+  }
+  for(let b=0;b<bars;b+=4) add(BT(b,0), koto(1.4, D-24, 0.12, true), 1);
+  // 遠い鬨の声
+  add(BT(7,2), toki(3.0,0.12,340), 1);
+  add(BT(15,2), toki(3.2,hot?0.16:0.13,300), 1);
+
+  // 谷あいの反し（端で折り返すので継ぎ目が鳴らない）
+  const wet=new Float32Array(len);
+  const taps=[[0.061,0.30],[0.083,0.24],[0.107,0.19],[0.139,0.15],[0.191,0.10],[0.247,0.07]];
+  for(const [dl,g] of taps){ const Dn=Math.round(dl*sr)%len;
+    for(let i=0;i<len;i++){ let j=i-Dn; if(j<0) j+=len; wet[i]+=mono[j]*g; } }
+  const dl2=Math.round(0.011*sr)%len;
+  let peak=1e-6;
+  for(let i=0;i<len;i++){ const v=mono[i]+wet[i]*0.6; if(Math.abs(v)>peak) peak=Math.abs(v); }
+  const nrm=0.95/peak;
+  for(let i=0;i<len;i++){
+    const v=Math.tanh((mono[i]+wet[i]*0.6)*nrm*1.2)*0.62;
+    let j=i-dl2; if(j<0) j+=len;
+    const w=(mono[j]+wet[j]*0.6)*nrm*0.30;
+    L[i]=Math.max(-1,Math.min(1, v+w));
+    Rc[i]=Math.max(-1,Math.min(1, v-w*0.7));
+  }
+  /* 段（攻め立て）によって音の太さが変わらないように、実効の大きさで揃える */
+  { let sum=0, pk2=1e-6; for(let i=0;i<len;i++){ sum+=L[i]*L[i]; const a=Math.abs(L[i]); if(a>pk2) pk2=a; }
+    const rms=Math.sqrt(sum/len); const g=Math.min(0.105/Math.max(1e-6,rms), 0.78/pk2, 2.2);
+    if(g<0.98||g>1.02) for(let i=0;i<len;i++){ L[i]*=g; Rc[i]*=g; } }
+  return buf;
+}
 function makeLoop(scene){
   // 曲は元の旋律のものに戻す（囃子ふうはやめ。作り手の指示）
+  if(scene==="battle"||scene==="battleTense") return makeKassen(scene==="battleTense");   /* 第253巡：合戦・決戦は「鬨」 */
   const ctx=Audio_.ctx, sr=ctx.sampleRate;
   const R = {
     mapCalm:{bpm:74,bars:8,scale:RITSU,root:-7,drum:1,pluck:.34,drone:.16},
@@ -29360,11 +29555,19 @@ function updateMusic(){
   if(B){
     // 合戦の曲は囃子ふう（太鼓と大鼓と掛け声）。陣立て中は小さく風の音、開戦したら刻み、押されていれば速い刻み
     if(B.over!==null){ playScene(B.over===B.ctx.playerSide?"victory":"defeat"); return; }
-    if(B.opening>0){ playScene("mapCalm"); if(Audio_.bgmGain) Audio_.bgmGain.gain.value=0.45; if(!B.windAt||performance.now()-B.windAt>2800){ B.windAt=performance.now(); try{ playSE("wind"); }catch(e){} } return; }
+    if(B.opening>0){ playScene("mapCalm"); if(Audio_.bgmGain) Audio_.bgmGain.gain.value=0.45;
+      /* 第253巡：合戦の曲は作るのに半秒ほどかかる。陣立ての間に用意しておく（開戦で固まらないように） */
+      if(!Audio_._warm && Audio_.ready && Audio_.enabled && Audio_.music){ Audio_._warm=true;
+        setTimeout(()=>{ try{ if(!Audio_.bgm.has("battle")) Audio_.bgm.set("battle", makeLoop("battle")); }catch(_){ } },120);
+        setTimeout(()=>{ try{ if(!Audio_.bgm.has("battleTense")) Audio_.bgm.set("battleTense", makeLoop("battleTense")); }catch(_){ } },900); } if(!B.windAt||performance.now()-B.windAt>2800){ B.windAt=performance.now(); try{ playSE("wind"); }catch(e){} } return; }
     /* 第241巡（仕様書 36）：静かな間は曲を絞って風の音、戦っている間は曲を戻す */ const busy=B.units.some(u=>u.troops>.5&&!u.left&&u.morale>0&&u.engagedAt!==undefined&&B.elapsed-u.engagedAt<3);
-    if(Audio_.bgmGain && !(B.duckUntil>performance.now())) Audio_.bgmGain.gain.value=busy?0.6:0.38;
+    if(Audio_.bgmGain && !(B.duckUntil>performance.now())) Audio_.bgmGain.gain.value=busy?0.62:0.40;
     if(!busy&&(!B.windAt||performance.now()-B.windAt>3200)){ B.windAt=performance.now(); try{ playSE("wind"); }catch(e){} }
-    playScene("mapCalm"); return; }   /* 第127巡：合戦中も穏やかな曲（作り手の指示） */
+    /* 第253巡（作り手の指示）：合戦・決戦の曲は「鬨」。押されていれば刻みが速くなる */
+    if(B._hotAt===undefined || performance.now()-B._hotAt>2500){ B._hotAt=performance.now();
+      let mine=0, foe=0; for(const u of B.units){ if(u.left||u.troops<=0.5) continue; (u.side===B.ctx.playerSide?(mine+=u.troops):(foe+=u.troops)); }
+      B._hot = (mine>0 && foe>mine*1.15) || (B.elapsed>150 && busy); }
+    playScene(B._hot?"battleTense":"battle"); return; }
   if(W.result==="敗北"){ playScene("defeat"); return; }
   if(W.result){ playScene("victory"); return; }
   if(!W.started){ playScene("castle"); return; }
