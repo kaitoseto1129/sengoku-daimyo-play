@@ -4454,7 +4454,7 @@ function completeTask(g,t){
     case "軍事訓練":{
       const gain=Math.floor(9*skill);
       c.quality[g.unit]=Math.min(100,c.quality[g.unit]+gain);
-      log(`${c.name}の軍事訓練が完了 ${UNITS[g.unit].n}の兵質+${gain}`,"growth"); break; }
+      log(`${c.name}の軍事訓練が完了 ${UNITS[g.unit].n}の兵質+${gain}（${g.name}）`,"growth"); break; }
     case "施し":{
       const gain=Math.floor(14*skill);
       c.minchu=Math.min(100,c.minchu+gain); c.chian=Math.min(100,c.chian+Math.floor(gain/3));   // 施しは治安にも少し効く
@@ -4990,7 +4990,7 @@ function queueEncounter(e){
     const c=W.castles[e.castle]; const a=W.armies[e.army];
     const gar=a?garrisonTroops(c.id):0, atkT=a?armyTroops(a):0;
     /* 第253巡（bot：城攻めが0〜7秒で終わる。遊ぶ間がなく、ただ画面が切り替わるだけだった） */
-    if(a && c.clan!==a.clan && (gar<400 || (gar<2000 && gar<atkT/10)) && (!e.foeArmy||!W.armies[e.foeArmy])){
+    if(a && c.clan!==a.clan && (gar<400 || (gar<2500 && gar<atkT/7)) && (!e.foeArmy||!W.armies[e.foeArmy])){   /* 第253巡（bot：城攻めが二〜七秒で終わる）：守兵が寄せ手の七分の一にも満たなければ、戦わずに開く */
       log(`${c.name}には守る兵がおらず、戦わずに開きました`,"war", a.clan===W.player||c.clan===W.player);
       try{ captureCastle(c.id, a.clan, a); }catch(err){ console.error(err); }
       return; } }   /* 第253巡（作り手：真田丸の戦いが起きない）：筋書き自身が起こす戦（真田丸・総攻め）は通す。ふつうの城攻めの札だけを止める */
@@ -23125,6 +23125,12 @@ function startBattle(e){
   };
   const foeClan = (e.foeArmy!==null&&W.armies[e.foeArmy]) ? W.armies[e.foeArmy].clan
                 : (e.castle!==null ? W.castles[e.castle].clan : null);
+  /* 第253巡（作り手と遊んで：一万五千対三千の決戦が、零秒で両軍とも消えて終わった）
+     どちらかに戦える将がいないなら、合戦の画面は開かない（地図の上で片が付く） */
+  if(!atk.length || !def.length){
+    try{ log(`${(e.castle!==null&&W.castles[e.castle])?W.castles[e.castle].name:"その地"}では戦にならなかった（片方に兵がおりませぬ）`,"war"); }catch(_){ }
+    pendingEncounter=null; B=null; return;
+  }
   B={ units:[], t:tIdx, weather, elapsed:0, over:null, sel:null, mode:null, paused:false, shouts:[], obstacles:[],
       shots:[], puffs:[], hits:[], drag:null, hover:null, overT:0,
       mods:{0:modOf(a.clan), 1:modOf(foeClan)},
@@ -24433,7 +24439,7 @@ function nagTobiKitTick(){ const K=B.tobiKit, F=B.tobiFort; if(!K||!F||!B.tobiPh
   const mine=B.ctx.playerSide===1; if(K.stage===0&&(!gO||gO.hp<=0||outer<45)){ K.stage=1; B.bigBanner={t:"外柵、破れた――本柵へ", at:B.elapsed, good:mine}; B.objective="第二段：本柵の門を破れ（櫓の鉄砲に気をつけよ）"; try{ renderBattleGoal(); }catch(_){ } }
   else if(K.stage===1&&(!gI||gI.hp<=0||inner<45)){ K.stage=2; B.bigBanner={t:"本柵、崩れる――守りの隊を討て", at:B.elapsed, good:mine}; B.objective="第三段：守りの隊を討ち、砦を落とせ。本戦はその後"; try{ renderBattleGoal(); }catch(_){ } }
   chip(`【鳶ヶ巣山砦攻略】外柵 ${outer<=0?"破壊済":outer+"%"}｜櫓 ${tw}／${tws.length}｜門 ${!gO||gO.hp<=0?"破れた":Math.round(100*gO.hp/gO.hpMax)+"%"}｜本柵 ${inner<=0?"破壊済":inner+"%"}｜守り手 ${gar}隊`); }
-function nagTobiPhaseBegin(){ const t=B.tobi, F=B.tobiFort; if(!t||!F||B.tobiPhase) return; const det=t.units||[]; const ex=F.tkRight?F.x-7:F.x+7;
+function nagTobiPhaseBegin(){ const t=B.tobi, F=B.tobiFort; if(!t||!F||B.tobiPhase) return; B._warpAt=B.elapsed;   /* 第253巡：段の切り替えで隊を隠す。その飛びは並べ替え */ const det=t.units||[]; const ex=F.tkRight?F.x-7:F.x+7;
   for(const u of B.units){ if(u.troops<=.5) continue; if(det.includes(u)||u.tobiGuard) continue; if(u.left||u.sigHidden){ u.tobiWasHidden=true; continue; } u.tobiHide=true; u.tobiHome={x:u.x,y:u.y,gx:u.gx,gy:u.gy,order:u.order,holdUntil:u.holdUntil}; if(u.cell){ try{ occDel(u.cell[0],u.cell[1],u); }catch(_){ } } u.cell=null; u.nextCell=null; u.left=true; u.sigHidden=true; u.x=-5; u.gx=-5; u.gy=u.y; u.order={k:"guard"}; u.path=null; u.holdUntil=99999; }
   det.forEach((u,i)=>{ u.tobiHome=u.tobiHome||{x:u.x,y:u.y,gx:u.gx,gy:u.gy}; if(u.cell){ try{ occDel(u.cell[0],u.cell[1],u); }catch(_){ } } u.x=Math.max(1,Math.min(BF.w-1,ex+(F.tkRight?-1:1)*(1+Math.floor(i/3)*1.6))); u.y=F.y+((i%3)-1)*2.2; u.gx=u.x; u.gy=u.y; u.cell=null; u.nextCell=null; u.order={k:"guard"}; u.noAttackUntil=0; u.tobiGo=true; });
   try{ gridSettleAll(); }catch(_){ }
@@ -25620,12 +25626,12 @@ function stepUnit(u,dt){
   }
   /* 第253巡（作り手：指示した道だけを歩いてほしい。勝手に突破口を探して動き回るのはやめて）
      進めなくなったら、その場で止まって、人には一言だけ知らせる */
-  if(u.order.k==="move" && goal){
+  if((u.order.k==="move"||u.order.k==="attack") && goal){
     const dg=Math.hypot(goal[0]-u.x, goal[1]-u.y);
     if(u._pg===undefined || dg < u._pg-0.05){ u._pg=dg; u._pgAt=B.elapsed; }
-    else if(B.elapsed-(u._pgAt||B.elapsed) > 9){
+    else if(B.elapsed-(u._pgAt||B.elapsed) > (u.order.k==="attack"?22:9)){
       u._pg=undefined; u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; u.path=null; u.nextCell=null;
-      if(u.side===B.ctx.playerSide && !u.ally && !B.autoMine && !autoBattleMode && !B.sim && !(B._stuckTold>B.elapsed-8)){ B._stuckTold=B.elapsed; try{ toast(`${u.name}はそこへ進めませぬ（道が塞がっております）`); }catch(_){ } }
+      if(u.side===B.ctx.playerSide && !u.ally && !B.autoMine && !autoBattleMode && !B.sim && !(B._stuckTold>B.elapsed-8)){ B._stuckTold=B.elapsed; try{ toast(`${u.name}はそこへ進めませぬ。門か、開いている所から回られよ`); }catch(_){ } }
     }
   } else { u._pg=undefined; }
   if(u.order.k==="attack"){
@@ -25800,10 +25806,15 @@ function resolveAttack(a,d){
   }
   if(B.keyPoints && B.keyPoints.some(k=>k.owner===a.side)) power*=1.05;   /* 要地を持つ側は攻めがわずかに増す */
   if(aSp && !(a.type===2 && (bTileAt(a.x,a.y)===BT.WATER||bTileAt(a.x,a.y)===BT.FORD||bTileAt(a.x,a.y)===BT.MARSH))) power*=aSp.atk;   /* 川・浅瀬の中では騎馬突撃は効かない（第120巡） */
+  let overWall=1;
   if(a.type!==3){ const fo=fenceBetween(a,d); if(fo && ((fo.side!==undefined?fo.side:1)!==a.side)){
+    /* 第253巡（作り手：砦の六十の鉄砲に大軍が一方的に削られ、相手は全然減らない）
+       柵・塀に取り付いた者どうしは、越しにも槍を入れられる（利は守り手に） */
+    if(dist(a,d)<=1.8){ overWall=0.35; }
+    else {
     /* 第253巡（作り手：門以外の所からは越えられないのだから、そう言うべき）：人の隊が柵越しに斬りかかっていたら、一度だけ知らせる */
-    if(a.side===B.ctx.playerSide && !a.ally && !B.autoMine && !autoBattleMode && !B.sim && !(B._fenceTold>B.elapsed-10)){ B._fenceTold=B.elapsed; try{ toast("柵・塀越しには刃が届きませぬ。まず崩すか、門へ"); }catch(_){ } }
-    return; } }   /* 相手の柵越しには刃が届かない。まず柵を崩す（第103巡）。守り手は柵の内から槍を出せる */
+      if(a.side===B.ctx.playerSide && !a.ally && !B.autoMine && !autoBattleMode && !B.sim && !(B._fenceTold>B.elapsed-10)){ B._fenceTold=B.elapsed; try{ toast("柵・塀越しには刃が届きませぬ。まず崩すか、門へ"); }catch(_){ } }
+      return; } } }   /* 相手の柵越しには刃が届かない。まず柵を崩す（第103巡）。守り手は柵の内から槍を出せる */
   power*=counterMul(a.type, d.type);
   // 一番槍。その戦で最初に刃を交えた隊は、しばらく奮う
   if(!B.firstBlood){ B.firstBlood={id:a.id, at:B.elapsed, name:a.name}; B.banner={t:`一番槍 ${a.name}`, at:B.elapsed}; log(`${a.name}隊が一番槍をつけました`,"war"); if(a.side===B.ctx.playerSide) bshout(a.id,"一番槍、頂戴した！",2.2); }
@@ -25874,6 +25885,7 @@ function resolveAttack(a,d){
   /* 第253巡（作り手：砦の百の鉄砲隊に、大きな隊がみるみる削られる。逆に相手は全然減らない）
      一度の打ち合いで与えられるのは、自分の兵の半分まで。小勢が大軍を薙ぎ払うことはない */
   loss=Math.min(loss, Math.max(1, a.troops*0.5));
+  if(overWall!==1) loss*=overWall;   /* 柵越しの一突きは浅い（第253巡） */
   d.troops=Math.max(0,d.troops-loss);
   if(a.type!==3 && rnd()<0.05){ B.decals=B.decals||[]; if(B.decals.length<70) B.decals.push({k:"mud", x:d.x+(rnd()-.5)*1.5, y:d.y+(rnd()-.5)*1.0, t:B.elapsed}); }   // 踏み荒らしの跡
   // 討ち尽くされるか、崩れて逃げる隊が追い討ちで三割を切れば、将の首が上がる
@@ -25920,7 +25932,7 @@ function resolveAttack(a,d){
     // 兵の少ない隊が崩れれば、将は乱戦の中で討たれることがある（首が上がる）
     if(!d.slain && !d.left && d.troops<d.max*0.4 && rnd()<(d.cmd?0.15:0.45)){ slayGate(d, a); return; }
     { const now=(typeof B!=="undefined"&&B)?B.elapsed:0; if(!B||!(B._routCry>now-6)){ if(B) B._routCry=now; log(`${d.name}隊が崩れました`,"war"); } }   /* 第253巡（bot：同じ報せが何度も出る） */
-    if(d.side===B.ctx.playerSide){ toast(`${d.name}隊が崩れました！ 退くか、味方を寄せてください`); try{ playSE("rout"); }catch(_){} } else { B.banner={t:`${d.name}隊 崩る`, at:B.elapsed}; try{ playSE("rout",0.35); }catch(_){} }
+    if(d.side===B.ctx.playerSide){ if(!(B._routTold>B.elapsed-12)){ B._routTold=B.elapsed; toast(`${d.name}隊が崩れました！ 退くか、味方を寄せてください`); try{ playSE("rout"); }catch(_){} } }   /* 第253巡（bot：二十五秒に六度も出ていた）：十二秒に一度まで */ else { B.banner={t:`${d.name}隊 崩る`, at:B.elapsed}; try{ playSE("rout",0.35); }catch(_){} }
     for(const v of B.units){ if(v===d||v.side!==d.side||v.troops<=.5||v.morale<=0) continue; if(dist(v,d)<=6) v.morale=Math.max(v.troops>v.max*0.5?10:0,v.morale-(B.routShock||5)); }   /* 賤ヶ岳は戦線が連鎖して崩れる（−15） */   // 隣の隊も動揺する（戦線が連鎖して崩れる。第109巡：兵の残る隊は底あり）
     B.decals=B.decals||[]; if(B.decals.length<40) B.decals.push({k:"flag", x:d.x, y:d.y, side:d.side, t:B.elapsed, small:true});
     bshout(d.id,pickCry(SITUATION_CRY.breaking));
@@ -26233,6 +26245,11 @@ function aiCommandSide(side, onlyAlly){
        && !u.postHold && !u.reserveHold && !u.tobiHold){
       const near=foes.filter(f=>dist(u,f)<=3.4 && !fenceBetween(u,f)).sort((p,q)=>dist(u,p)-dist(u,q))[0];
       if(near){ u.order={k:"attack",id:near.id}; continue; }
+      /* 少し離れていても、味方の他家の隊は自分から寄せる（突っ立ったまま撃たれるだけ、をやめる） */
+      const far=foes.filter(f=>dist(u,f)<=12).sort((p,q)=>dist(u,p)-dist(u,q))[0];
+      if(far){ if(u.allyIdleAt===undefined) u.allyIdleAt=B.elapsed;
+        if(B.elapsed-u.allyIdleAt>8){ u.allyIdleAt=B.elapsed; u.order={k:"attack",id:far.id}; continue; } }
+      else u.allyIdleAt=undefined;
     }
     if(u.tobiGo&&B.tobiPhase) continue;   /* 第253巡：鳶ヶ巣の段の別働隊は砦の手順（nagTobiFortTick）が動かす。機械の「柵の内で待て」に上書きされ、門を破っても中へ入らなかった */
     if(u.tnrSiege&&B.tnrFort&&!B.hgRetreat&&!B.aiFled) continue;   /* 第239巡：天王寺砦を攻める門徒は信長に釣られない。第253巡：命令の種類に関わらず */
