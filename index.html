@@ -82,7 +82,7 @@ button:focus-visible{outline:2px solid var(--kin);outline-offset:2px}
 .lord{font-family:var(--display);font-size:18px;letter-spacing:.04em}
 .stat{display:flex;align-items:baseline;gap:4px}
 .stat b{font-family:var(--data);font-size:14px;color:var(--kin);font-weight:400;font-variant-numeric:tabular-nums}
-.stat span{font-size:10px;color:var(--gofun-dim);letter-spacing:.08em}
+.stat span{font-size:11px;color:var(--gofun-dim);letter-spacing:.08em}   /* 第253巡：十px は読めない */
 .spacer{flex:1}
 .tool{
   font-size:11px;font-weight:700;padding:5px 9px;border-radius:3px;
@@ -128,7 +128,7 @@ button:focus-visible{outline:2px solid var(--kin);outline-offset:2px}
   width:24px;height:24px;border-radius:50%;flex:none;display:grid;place-items:center;
   background:var(--kin);color:#20180A;font-weight:900;font-size:12px;
 }
-#adviser button{font-size:10px;padding:4px 7px}
+#adviser button{font-size:11px;padding:4px 7px}
 #ticker{cursor:pointer}
 #ticker:hover{background:rgba(18,16,14,.99)}
 /* ---------- ミニマップ ---------- */
@@ -147,7 +147,7 @@ button:focus-visible{outline:2px solid var(--kin);outline-offset:2px}
 #noteStack{position:absolute;right:66px;top:50px;width:290px;display:flex;flex-direction:column;gap:5px;z-index:16;pointer-events:none}
 #noteStack .nc{background:rgba(18,16,14,.9);border:1px solid var(--line);border-left:4px solid var(--kin);color:#EDE6D6;font-size:12px;line-height:1.45;padding:6px 10px;border-radius:3px;animation:fdIn .25s ease-out;transition:opacity .6s;pointer-events:auto;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.5)}
 #noteStack .nc.war{border-left-color:#E5734D} #noteStack .nc.bad{border-left-color:#E24A3A} #noteStack .nc.dip{border-left-color:#5B9BD5} #noteStack .nc.growth{border-left-color:#7ED67E}
-#noteStack .nc .k{font-size:10px;opacity:.7;margin-right:6px;font-weight:800;letter-spacing:.08em}
+#noteStack .nc .k{font-size:11px;opacity:.7;margin-right:6px;font-weight:800;letter-spacing:.08em}
 body.inbattle #noteStack, body.panelopen #noteStack{display:none}
 @media (max-width: 1120px){ #noteStack{ right:8px; top:46px; width:min(70vw,260px); } }
 #feed .fd{background:rgba(18,16,14,.88);border:1px solid var(--line);border-left:4px solid var(--kin);
@@ -160,7 +160,7 @@ body.inbattle #noteStack, body.panelopen #noteStack{display:none}
 #feed .fd b{color:var(--kin)}
 @keyframes fdIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
 body.inbattle #feed{display:none}
-#topbar .stat.hud-link{cursor:pointer}
+#topbar .stat.hud-link{cursor:pointer;align-items:center;min-height:28px;padding:0 4px;margin:0 -2px;border-radius:6px}   /* 第253巡：押せる所は指で押せる高さに */
 #topbar .stat.hud-link:hover b{color:var(--kin)}
 .overlay, .overlay *, #alertBar, #pickBar, #topbar, #ticker, .toast, #bfoot, #rightRail, .tools { user-select:none; -webkit-user-select:none; }
 #alertBar{ display:none !important; }
@@ -218,7 +218,7 @@ html.bigtext #panel{font-size:15px} html.bigtext .row{font-size:14px} html.bigte
 /* ---------- 部品 ---------- */
 .metrics{display:flex;flex-direction:column;gap:7px}
 .metric{display:grid;grid-template-columns:52px 1fr 62px;align-items:center;gap:8px}
-.metric label{font-size:10px;color:var(--gofun-dim);letter-spacing:.06em}
+.metric label{font-size:11px;color:var(--gofun-dim);letter-spacing:.06em}
 .metric .track{height:8px;background:rgba(237,230,214,.1);border-radius:1px;overflow:hidden}
 .metric .fill{height:100%;background:var(--kin)}
 .metric .fill.shu{background:var(--shu)}
@@ -237,31 +237,34 @@ html.bigtext #panel{font-size:15px} html.bigtext .row{font-size:14px} html.bigte
   border:1px solid var(--line);font-size:11px;font-weight:700;text-align:center;
   display:flex;flex-direction:column;gap:2px;align-items:center;min-height:42px;justify-content:center;
 }
+.cmd.sel .cost,.cmd.on .cost{color:#FFE9B0}   /* 第253巡（bot の検分）：朱に沈んだ金文字は読めない */
 .cmd:hover:not(:disabled){background:rgba(201,162,39,.25);border-color:var(--kin)}
 .cmd:disabled{opacity:.35;cursor:not-allowed}
-.cmd .cost{font-family:var(--data);font-size:10px;color:var(--kin);font-weight:400}
+.cmd .cost{font-family:var(--data);font-size:11px;color:var(--kin);font-weight:400}
 .cmd.sel{background:var(--shu);border-color:var(--shu);color:#fff}
 
 .big{
   padding:12px;border-radius:4px;font-size:14px;font-weight:900;letter-spacing:.08em;
   background:var(--shu);color:#fff;flex:1;text-align:center;
 }
-.big .cost{display:block;font-size:10px;font-weight:400;letter-spacing:.02em;opacity:.85;margin-top:3px;line-height:1.35;white-space:normal}
+.big .cost{display:block;font-size:11px;font-weight:400;letter-spacing:.02em;opacity:.85;margin-top:3px;line-height:1.35;white-space:normal}
 .big.gold{background:var(--kin);color:#20180A}
 .big.ghost{background:rgba(237,230,214,.1);border:1px solid var(--line);color:var(--gofun)}
 .big:hover{filter:brightness(1.12)}
 
 .sec-title{
-  font-size:10px;letter-spacing:.16em;color:var(--gofun-dim);
+  font-size:11px;letter-spacing:.16em;color:var(--gofun-dim);   /* 第253巡：十px は読めない */
   border-bottom:1px solid var(--line);padding-bottom:5px;margin-bottom:2px;
 }
 .row{display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0}
 .row .nm{font-weight:700;min-width:88px}
 .row.sel{background:rgba(201,162,39,.14);border-radius:4px;padding-left:4px;padding-right:4px}
 .chip{
-  font-size:10px;padding:1px 6px;border-radius:8px;
+  font-size:11px;padding:1px 6px;   /* 第253巡（bot の検分）：十px は読めない */border-radius:8px;
   background:rgba(237,230,214,.12);letter-spacing:.04em;white-space:nowrap;
 }
+/* 第253巡（bot の UI/UX 検分・作り手の指示）：押せる小札は、指で押せる大きさと読める字に */
+button.chip,a.chip,summary.chip,.chip[onclick]{font-size:11px;padding:4px 9px;min-height:28px;display:inline-flex;align-items:center;justify-content:center}
 .chip.shu{background:rgba(200,50,30,.35)}
 /* 第221巡（全体UI仕様書 2・13・34・58）：状態の札。色の役目は固定＝赤は敵・危険、橙は前線・注意、翠は安全・盟、金は要の手、灰は補助 */
 .stag{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:3px;font-size:11px;font-weight:900;letter-spacing:.06em;border:1px solid transparent}
@@ -271,7 +274,7 @@ html.bigtext #panel{font-size:15px} html.bigtext .row{font-size:14px} html.bigte
 .stag.info{background:rgba(237,230,214,.08);border-color:rgba(237,230,214,.25);color:var(--gofun-dim)}
 .stag.kin{background:rgba(201,162,39,.2);border-color:rgba(201,162,39,.7);color:#FFE08A}
 .kstat{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:6px 0 8px}
-.kstat .s-stat b{font-size:17px} .kstat .s-stat b.bad{color:#FF9A88} .kstat .s-stat b.warn{color:#FFD166} .kstat .s-stat small{display:block;font-size:10px;font-weight:800;margin-top:2px}
+.kstat .s-stat b{font-size:17px} .kstat .s-stat b.bad{color:#FF9A88} .kstat .s-stat b.warn{color:#FFD166} .kstat .s-stat small{display:block;font-size:11px;font-weight:800;margin-top:2px}
 .kstat .s-stat small.bad{color:#FF9A88} .kstat .s-stat small.warn{color:#FFD166} .kstat .s-stat small.ok{color:#9FE0A8}
 details.fold>summary{cursor:pointer;list-style:none;user-select:none} details.fold>summary::-webkit-details-marker{display:none}
 details.fold>summary.sec-title::before{content:"▸ "} details.fold[open]>summary.sec-title::before{content:"▾ "}
@@ -279,7 +282,8 @@ details.fold>summary.sec-title::before{content:"▸ "} details.fold[open]>summar
 .chip.asagi{background:rgba(74,143,168,.35)}
 .num{font-family:var(--data);font-variant-numeric:tabular-nums}
 .muted{color:var(--gofun-dim)}
-.tiny{font-size:10px}
+.tiny{font-size:11px}   /* 第253巡（bot の検分）：十px は読めない。下限を十一pxに */
+.nm{min-height:26px;display:inline-flex;align-items:center}   /* 第253巡：一覧の名は押せる。指で押せる高さに */
 .scroll-x{overflow-x:auto;display:flex;gap:6px;padding-bottom:4px}
 
 /* ---------- 遭遇・会戦・結果 ---------- */
@@ -339,13 +343,13 @@ details.fold>summary.sec-title::before{content:"▸ "} details.fold[open]>summar
 #unitPop{position:absolute;z-index:48;display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 6px;border-radius:16px;background:rgba(14,12,10,.92);border:1px solid rgba(201,162,39,.55);box-shadow:0 4px 14px rgba(0,0,0,.5);pointer-events:auto;transform:translate(-50%,-100%)}
 #unitPop button{font-size:12px;font-weight:800;padding:6px 10px;border-radius:14px;background:rgba(237,230,214,.1);color:#EDE6D6;white-space:nowrap}
 #unitPop button.k{background:rgba(201,162,39,.85);color:#1A1208}
-#unitPop .hint{font-size:10px;color:#CFC8B8;align-self:center;padding:0 4px;white-space:nowrap}
+#unitPop .hint{font-size:11px;color:#CFC8B8;align-self:center;padding:0 4px;white-space:nowrap}
 #unitPop .row{display:flex;gap:6px;align-items:center}
-#unitPop .info{font-size:10px;color:#DCD4C0;white-space:nowrap;padding:0 4px}
+#unitPop .info{font-size:11px;color:#DCD4C0;white-space:nowrap;padding:0 4px}
 #unitPop .info b.good{color:#8FE08F} #unitPop .info b.bad{color:#FF9A88}
-#unitPop .guide{font-size:10px;color:#FFD9A0;white-space:nowrap;padding:0 4px}
+#unitPop .guide{font-size:11px;color:#FFD9A0;white-space:nowrap;padding:0 4px}
 #unitPop button.warn{background:rgba(226,74,58,.8);color:#fff}
-#unitPop button small{font-weight:600;opacity:.8;margin-left:3px;font-size:10px}
+#unitPop button small{font-weight:600;opacity:.8;margin-left:3px;font-size:11px}
 #naval #nvHead{display:flex;align-items:center;gap:8px;padding:4px 12px;flex:none;background:linear-gradient(180deg,#2A231C 0%,#1B1610 60%,#12100C 100%);border-bottom:2px solid #8A7030;box-shadow:0 2px 8px rgba(0,0,0,.5), inset 0 -1px 0 rgba(201,162,39,.35)}
 #naval #nvHead .side{display:flex;align-items:center;gap:6px;font-family:"Yuji Syuku","Zen Kaku Gothic New",serif;font-size:18px;letter-spacing:.12em;color:#F2E8D0;white-space:nowrap}
 #naval #nvHead .side .crest{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;font-style:normal;font-family:"Yuji Syuku",serif;font-size:14px;color:#fff;border:2px solid rgba(255,255,255,.6);box-shadow:0 1px 3px rgba(0,0,0,.6)}
@@ -359,11 +363,11 @@ details.fold>summary.sec-title::before{content:"▸ "} details.fold[open]>summar
 #naval #nvFoot{padding:8px 12px;display:flex;gap:7px;align-items:center;flex-wrap:wrap;flex:none;min-height:58px;background:linear-gradient(180deg,#1B1610,#241D15 60%,#17120D);border-top:2px solid #8A7030;box-shadow:0 -2px 8px rgba(0,0,0,.5), inset 0 1px 0 rgba(201,162,39,.35)}
 #naval #nvFoot .grp{display:flex;gap:6px;flex-wrap:wrap} #naval #nvFoot .fsep{display:inline-block;width:1px;height:28px;background:rgba(255,255,255,.2);margin:0 5px;flex:none}
 #naval #nvFoot .tool{min-width:56px;min-height:42px;text-align:center;padding:8px 12px;border-radius:6px;font-size:14px;font-weight:800;color:#EDE6D6;border:1px solid rgba(201,162,39,.45);background:linear-gradient(180deg,rgba(237,230,214,.16),rgba(237,230,214,.06))}
-#naval #nvFoot .tool.sub{opacity:.85;font-size:12px;min-height:36px;padding:6px 10px} #naval #nvFoot .tool.aux{opacity:.75;font-size:12px;padding:6px 10px;min-height:36px} #naval #nvFoot .tool small{font-weight:600;opacity:.8;margin-left:2px;font-size:10px}
+#naval #nvFoot .tool.sub{opacity:.85;font-size:12px;min-height:36px;padding:6px 10px} #naval #nvFoot .tool.aux{opacity:.75;font-size:12px;padding:6px 10px;min-height:36px} #naval #nvFoot .tool small{font-weight:600;opacity:.8;margin-left:2px;font-size:11px}
 #naval #nvFoot .tool.on{background:linear-gradient(180deg,#C9A227,#8A6F17);color:#1A1208;border-color:#5C4610} #naval #nvFoot .tool.hot{background:linear-gradient(180deg,#FFE58A,#C9961E);color:#1A1208;outline:2px solid #FFF1B8}
 #naval #nvFoot .chip{background:rgba(0,0,0,.35);border:1px solid rgba(201,162,39,.35);color:#EDE6D6;font-size:12px;padding:4px 8px;border-radius:4px}
 #naval #nvMore{position:absolute;left:12px;bottom:70px;z-index:5;background:#14110B;border:1px solid #4A3F2A;border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:6px;min-width:240px;max-width:min(92vw,420px);box-shadow:0 4px 16px rgba(0,0,0,.6)}
-#naval #nvMore .tool{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:8px 10px;font-size:13px;color:#EDE6D6} #naval #nvMore .tool small{font-size:10px;opacity:.75;font-weight:600} #naval #nvMore .tool.on{background:linear-gradient(180deg,#C9A227,#8A6F17);color:#1A1208}
+#naval #nvMore .tool{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:8px 10px;font-size:13px;color:#EDE6D6} #naval #nvMore .tool small{font-size:11px;opacity:.75;font-weight:600} #naval #nvMore .tool.on{background:linear-gradient(180deg,#C9A227,#8A6F17);color:#1A1208}
 #naval #nvMore.info{left:auto;right:12px;bottom:70px}
 #bhead{display:flex;align-items:center;gap:8px;padding:4px 12px;flex:none;
   background:linear-gradient(180deg,#2A231C 0%,#1B1610 60%,#12100C 100%);border-bottom:2px solid #8A7030;box-shadow:0 2px 8px rgba(0,0,0,.5), inset 0 -1px 0 rgba(201,162,39,.35)}
@@ -380,7 +384,9 @@ details.fold>summary.sec-title::before{content:"▸ "} details.fold[open]>summar
 #bSitBar .bar{width:150px;height:9px;border-radius:5px;background:rgba(255,255,255,.12);overflow:hidden;display:flex;border:1px solid rgba(255,255,255,.18)}
 #bSitBar .bar i{display:block;height:100%}
 #bSitBar .lab{font-weight:800;color:#FFD166}
-@media (max-width:1120px){ #bhead .num{min-width:86px;font-size:10px} #bhead .num b{font-size:12px} #bhead .num .row.cmd{display:none} #bSitBar .bar{width:90px}
+/* 第253巡（bot の検分・携帯）：兵力／損害／士気が横に入り切らず「士…」で切れていた。折り返して見せる */
+@media (max-width:560px){ #bhead .num{min-width:0;flex:1 1 auto;font-size:11px} #bhead .num .row{flex-wrap:wrap;row-gap:0} }
+@media (max-width:1120px){ #bhead .num{min-width:86px;font-size:11px} #bhead .num b{font-size:12px} #bhead .num .row.cmd{display:none} #bSitBar .bar{width:90px}
   /* 第225巡（夜33）：電話の横持ちで、局面の札（城下○ 一ノ門○…）が左右の兵力の箱に重なっていた → 真ん中の列は箱の分だけ幅を絞り、はみ出しは…で切る */
   #bhead .bTitle{max-width:calc(100vw - 340px);overflow:hidden} #bhead .bTitle>*{max-width:100% !important;overflow:hidden;text-overflow:ellipsis} #bSit,#bGoal{display:block;max-width:100%} }
 @media (max-width:900px){ #bhead .num .row:nth-child(n+2){display:none} #bhead .num{overflow:hidden;flex:0 0 auto;padding:3px 6px} #bhead .bTitle{max-width:calc(100vw - 380px)} }
@@ -476,7 +482,7 @@ details.fold>summary.sec-title::before{content:"▸ "} details.fold[open]>summar
 .s-detail h2{margin:0;font-family:var(--display);font-size:32px;font-weight:400;letter-spacing:.06em}
 .s-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .s-stat{background:rgba(237,230,214,.06);border-radius:3px;padding:8px;text-align:center}
-.s-stat span{display:block;font-size:10px;color:var(--gofun-dim);letter-spacing:.06em}
+.s-stat span{display:block;font-size:11px;color:var(--gofun-dim);letter-spacing:.06em}
 .s-stat b{font-family:var(--data);font-size:16px;font-weight:400;color:var(--kin);font-variant-numeric:tabular-nums}
 .stars{color:var(--kin);letter-spacing:.1em;font-size:13px}
 @media(max-width:720px){
@@ -560,10 +566,10 @@ body.picking [data-z="home"], body.picking [data-z="save"] { display:none !impor
 .fund .f-gauge{position:relative;height:30px;border-radius:15px;background:rgba(0,0,0,.55);border:1px solid rgba(201,162,39,.6);overflow:hidden}
 .fund .f-gauge i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#8A6F17,#E3C25A,#FFE28A);transition:width 1.2s ease-out;box-shadow:0 0 14px rgba(255,214,102,.6)}
 .fund .f-gauge b{position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-weight:900;text-shadow:0 1px 3px #000;font-size:14px}
-.fund .f-marks{display:flex;justify-content:space-between;font-size:10px;color:var(--gofun-dim);padding:0 2px}
+.fund .f-marks{display:flex;justify-content:space-between;font-size:11px;color:var(--gofun-dim);padding:0 2px}
 .fund .f-nums{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .fund .f-nums div{background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:6px;padding:6px;text-align:center}
-.fund .f-nums span{display:block;font-size:10px;color:var(--gofun-dim)}
+.fund .f-nums span{display:block;font-size:11px;color:var(--gofun-dim)}
 .fund .f-nums b{font-size:15px;color:#FFD166;font-variant-numeric:tabular-nums}
 .fund .f-tier{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:rgba(0,0,0,.25);margin-bottom:5px}
 .fund .f-tier .rank{min-width:64px;font-weight:900;color:#FFD166}
@@ -610,7 +616,7 @@ body.panelopen #mSim{left:12px}
 @media (max-height:560px){ #bSim{top:auto;bottom:56px;left:12px;transform:none;font-size:12px;padding:6px 10px;width:min(320px,42vw);text-align:left} #bSim.right{left:auto;right:12px;bottom:56px} }   /* 背の低い画面では左下（真ん中に居座らない） */
 #bCoach .st{display:flex;gap:6px;align-items:flex-start}
 #bCoach .st.done{opacity:.55;text-decoration:line-through}
-#bCoach .st i{flex:none;width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,.12);display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-size:10px;font-weight:800;margin-top:2px}
+#bCoach .st i{flex:none;width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,.12);display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-size:11px;font-weight:800;margin-top:2px}
 #bCoach .st.done i{background:#4CC45C;color:#1A1208}
 #bCoach .st.now i{background:#FFD166;color:#1A1208}
 #bCoach button{margin-top:6px;font-size:11px;padding:3px 10px;border-radius:10px;background:rgba(255,255,255,.1);color:#EDE6D6}
@@ -623,7 +629,7 @@ body.panelopen #mSim{left:12px}
 .tut-mark{ flex:none; padding:2px 8px; border-radius:4px; font-weight:800;
   background:#C9A227; color:#1A1208; }
 
-#moreMenu .mm-head{ grid-column:1 / -1; font-size:10px; letter-spacing:2px; color:#C9A227;
+#moreMenu .mm-head{ grid-column:1 / -1; font-size:11px; letter-spacing:2px; color:#C9A227;
   padding:5px 4px 1px; border-top:1px solid rgba(237,230,214,.12); }
 #moreMenu .mm-head:first-child{ border-top:none; }
 
@@ -734,7 +740,7 @@ body.inbattle #stage.paused::after{ display:none; }
 /* 電話：札を開いている間は「時を止めております」を出さない（札の頭に被る）。小さく下に（上の並びより後に置かないと top が残って縦に伸びていた） */
 @media (max-width: 480px){ #btnSound{ display:none; } }
 /* 第226巡（夜52）：電話の縦持ちで上の帯が右へはみ出し「その他 ▾」が押せなかった → 蔵の数を一つにし、釦を詰め、「手空きの将」は数だけ */
-@media (max-width: 520px){ #topbar{ gap:3px; padding:4px 4px; } #topbar .date{ font-size:10px; padding:3px 6px; } #topbar .stat.keep+.stat.keep{ display:none; } #topbar .stat{ font-size:10px; gap:2px; } #topbar .tool{ padding:4px 6px; font-size:10px; } #topbar #btnIdle{ font-size:0; padding:4px 6px; } #topbar #btnIdle .num{ font-size:11px; } #topbar #btnIdle::before{ content:"手空き"; font-size:10px; margin-right:3px; } }
+@media (max-width: 520px){ #topbar{ gap:3px; padding:4px 4px; } #topbar .date{ font-size:11px; padding:3px 6px; } #topbar .stat.keep+.stat.keep{ display:none; } #topbar .stat{ font-size:11px; gap:2px; } #topbar .tool{ padding:4px 6px; font-size:11px; } #topbar #btnIdle{ font-size:0; padding:4px 6px; } #topbar #btnIdle .num{ font-size:11px; } #topbar #btnIdle::before{ content:"手空き"; font-size:11px; margin-right:3px; } }
 /* 第224巡（夜11）：電話では政策の木を縦に（三つ目の札が切れていた）、上の帯の「資金」「兵糧」が二行に折れていた */
 @media (max-width: 520px){ #pBody .poltree{ flex-direction:column; } #pBody .poltree .polarrow{ transform:rotate(90deg); align-self:center; } #pBody .poltree .cmd{ min-width:0; } #topbar .stat span{ white-space:nowrap; } #topbar .stat{ white-space:nowrap; } }   /* 縦持ちの電話では上の帯からはみ出す（音は「記録と設定」から） */
 @media (max-width: 1120px){ #stage.paused::after{ top:6px; font-size:11px; padding:2px 10px; letter-spacing:0; } body.panelopen #stage.paused::after{ display:none; } }
@@ -4415,7 +4421,7 @@ function completeTask(g,t){
         { const k="kokuFull_"+c.id; if(!W._told) W._told={}; if(!W._told[k]||dayNumber()-W._told[k]>180){ W._told[k]=dayNumber(); log(`${c.name}にはもう拓ける野が残っておりませぬ（石高 ${c.koku.toLocaleString()}）`,"growth"); } } break; }   /* 第253巡（bot：同じ報せが何度も出る）：同じ城の「もう拓けぬ」は半年に一度だけ */
       gain=Math.min(gain, capK-c.koku);
       c.koku+=gain; c.pop=Math.min(popCap(c), c.pop+Math.floor(gain/3));
-      log(`${c.name}の新田開発が完了 石高+${gain}（残る余地 ${(capK-c.koku).toLocaleString()}）`,"growth"); break; }
+      log(`${c.name}の新田開発が完了 石高+${gain}（残る余地 ${(capK-c.koku).toLocaleString()}／${g.name}）`,"growth"); break; }
     case "商業投資":{
       let gain=Math.floor(500*skill);
       if(c.buildings.includes("市場")) gain=Math.floor(gain*1.4);
@@ -4426,7 +4432,7 @@ function completeTask(g,t){
         break; }
       gain=Math.min(gain, capC-c.com);
       c.com+=gain;
-      log(`${c.name}の商業投資が完了 商業+${gain}（残る余地 ${(capC-c.com).toLocaleString()}）`,"growth"); break; }
+      log(`${c.name}の商業投資が完了 商業+${gain}（残る余地 ${(capC-c.com).toLocaleString()}／${g.name}）`,"growth"); break; }
     case "城の強化":{
       let gain=Math.floor(28*skill);
       if(c.buildings.includes("櫓")) gain=Math.floor(gain*1.25);
@@ -4448,7 +4454,7 @@ function completeTask(g,t){
     case "施し":{
       const gain=Math.floor(14*skill);
       c.minchu=Math.min(100,c.minchu+gain); c.chian=Math.min(100,c.chian+Math.floor(gain/3));   // 施しは治安にも少し効く
-      log(`${c.name}の施しが完了 民忠+${gain}`,"growth"); break; }
+      log(`${c.name}の施しが完了 民忠+${gain}（${g.name}）`,"growth"); break; }
     case "検地":{
       // 隠田を洗い出す。石高は増えるが、民は嫌がる
       const gain=Math.min(Math.floor(c.koku*0.10*Math.min(1.4,skill)), Math.max(0,kokuCap(c)-c.koku));
@@ -4979,7 +4985,8 @@ function queueEncounter(e){
   if(e && e.castle!==null && e.castle!==undefined && !e.sortie && !e.sanadamaru && W.castles[e.castle]){
     const c=W.castles[e.castle]; const a=W.armies[e.army];
     const gar=a?garrisonTroops(c.id):0, atkT=a?armyTroops(a):0;
-    if(a && c.clan!==a.clan && (gar<200 || (gar<1500 && gar<atkT/8)) && (!e.foeArmy||!W.armies[e.foeArmy])){
+    /* 第253巡（bot：城攻めが0〜7秒で終わる。遊ぶ間がなく、ただ画面が切り替わるだけだった） */
+    if(a && c.clan!==a.clan && (gar<400 || (gar<2000 && gar<atkT/10)) && (!e.foeArmy||!W.armies[e.foeArmy])){
       log(`${c.name}には守る兵がおらず、戦わずに開きました`,"war", a.clan===W.player||c.clan===W.player);
       try{ captureCastle(c.id, a.clan, a); }catch(err){ console.error(err); }
       return; } }   /* 第253巡（作り手：真田丸の戦いが起きない）：筋書き自身が起こす戦（真田丸・総攻め）は通す。ふつうの城攻めの札だけを止める */
@@ -9597,7 +9604,7 @@ function openArms(cid){
 function switchArm(gid,unit){
   const g=W.generals[gid], clan=W.clans[W.player];
   if(!g||g.apt[unit]===null) return toast("その兵は率いられませぬ");
-  if(g.unit===unit) return;
+  if(g.unit===unit) return toast(`${g.name}の手勢は、すでに${UNITS[unit].n}にございます`);   /* 第253巡（作り手：押しても何も起きない釦は困る） */
   const cost=Math.ceil(UNITS[unit].cost*g.troops/1000*0.6*(unit===3&&clan.gunCheap?0.75:1));
   if(clan.money<cost) return toast(`資金が足りませぬ（${cost.toLocaleString()}必要）`);
   clan.money-=cost; g.unit=unit;
@@ -9766,7 +9773,7 @@ function openPeople(){
     <div class="grid g2">
       ${free.map(g=>`<div style="border:1px solid var(--line);border-radius:6px;padding:8px;display:flex;flex-direction:column;gap:5px">
         <div class="row" style="gap:6px">${face(g,"sm")}<div style="flex:1;min-width:0"><div class="nm" style="cursor:pointer;text-decoration:underline dotted" onclick="openGeneral(${g.id})">${esc(g.name)}</div><div class="tiny muted">${ageOf(g)}歳　${g.castle!==null&&W.castles[g.castle]?esc(W.castles[g.castle].name)+"の辺り":"行方知れず"}</div></div></div>
-        <div class="row" style="gap:4px;flex-wrap:wrap">${genTags(g).map(t=>`<span class="stag kin" style="padding:1px 6px">${t}</span>`).join("")}${traitsOf(g).slice(0,1).map(t=>`<span class="chip tiny" title="${TRAITS[t].d}">${TRAITS[t].icon}${t}</span>`).join("")}</div>
+        <div class="row" style="gap:4px;flex-wrap:wrap">${genTags(g).map(t=>`<span class="stag kin" style="padding:1px 6px">${t}</span>`).join("")}${traitsOf(g).slice(0,1).map(t=>`<span class="chip tiny" title="${TRAITS[t].d}">${t}</span>`).join("")}</div>
         <div class="row" style="gap:8px;font-size:11px"><span>統率 <b style="color:var(--kin)">${statGrade(g.lea)}</b></span><span>武勇 <b style="color:var(--kin)">${statGrade(g.war)}</b></span><span>知略 <b style="color:var(--kin)">${statGrade(g.int)}</b></span><span>政治 <b style="color:var(--kin)">${statGrade(g.pol)}</b></span></div>
         <div class="row" style="gap:6px"><span class="tiny muted">登用費 2,000</span><button class="chip kin" style="cursor:pointer;margin-left:auto" onclick="recruitNamed(${g.id})">登用</button></div>
       </div>`).join("")||'<div class="muted tiny">おりませぬ</div>'}
@@ -10989,7 +10996,7 @@ function openGeneral(gid){
   const bestApt=g.apt.reduce((bi,v,i)=>(v!==null&&(g.apt[bi]===null||v>g.apt[bi]))?i:bi,0);
   const aptRow=UNITS.map((u,i)=>{
     const v=g.apt[i];
-    return `<div class="s-stat" style="${i===bestApt?"outline:1px solid rgba(201,162,39,.6)":""}"><span>${u.n}${i===bestApt?"（得意）":""}</span><b style="color:${v===null?"#7A756A":v>=15?"#F2C94C":"#EDE6D6"}">${aptGrade(v)}<small style="font-size:10px;opacity:.7;margin-left:3px">${v===null?"":v+"/20"}</small></b></div>`;
+    return `<div class="s-stat" style="${i===bestApt?"outline:1px solid rgba(201,162,39,.6)":""}"><span>${u.n}${i===bestApt?"（得意）":""}</span><b style="color:${v===null?"#7A756A":v>=15?"#F2C94C":"#EDE6D6"}">${aptGrade(v)}<small style="font-size:11px;opacity:.7;margin-left:3px">${v===null?"":v+"/20"}</small></b></div>`;
   }).join("");
   openPanel(g.name, `${cl?esc(cl.name):esc(g.status)}　・　${ageOf(g)}歳`,
    `<div class="row" style="gap:12px;align-items:flex-start">
@@ -19666,7 +19673,7 @@ function siegeAtkMenu(){ if(!B||B.over!==null||B.ctx.playerSide!==0||!B.gate) re
 function siegeFireArrow(){ if(!B||B.over!==null||B.ctx.playerSide!==0) return; if(B.sgFireAt>B.elapsed-40) return toast("火矢はまだ支度中"); manualCommand(); B.sgFireAt=B.elapsed; const defLeft=siegeDefLeft(); const gx=B.gate?B.gate.x:BF.w/2; B.fires=B.fires||[]; for(let k=0;k<3;k++){ const x=defLeft?Math.max(1.5,gx-2-rnd()*6):Math.min(BF.w-1.5,gx+2+rnd()*6); const y=2+rnd()*(BF.h-4); B.fires.push({x,y,t:0,life:45,siege:true}); B.decals=B.decals||[]; if(B.decals.length<60) B.decals.push({k:"smoke",x,y,t:B.elapsed}); } B.bigBanner={t:"火矢、城内へ", at:B.elapsed, good:true}; log(`${B.siegeName||"城"}へ火矢を射込んだ。城内で火の手が上がる`,"war",true); try{ playSE("siege"); }catch(_){ } try{ renderBattleFoot(); }catch(_){ } }
 function siegeDemand(){ if(!B||B.over!==null||B.ctx.playerSide!==0) return; if(B.sgDemandAt>B.elapsed-60) return toast("使者はまだ戻っていない"); manualCommand(); B.sgDemandAt=B.elapsed; const def=B.units.filter(u=>u.side===1&&!u.left); const tot=def.reduce((a,u)=>a+u.troops,0), max=def.reduce((a,u)=>a+(u.max||u.troops),0); const alive=def.filter(u=>u.troops>.5&&u.morale>0); const mor=alive.reduce((a,u)=>a+u.morale,0)/Math.max(1,alive.length); const ok = max>0 && !B.siegeRelief && !B.ueda && (tot/max<0.45 || (mor<35&&(B.siegeStage||0)>=1) || (B.ck&&B.ck.encT>=90&&mor<50)); if(ok){ B.bigBanner={t:"城方、降伏を受け入れる", at:B.elapsed, good:true, big:true}; siegeSurrender(false); } else { B.banner={t:"城方「まだ矢玉は尽きておらぬ」――勧告を蹴った", at:B.elapsed}; log(`${B.siegeName||"城"}は降伏勧告を蹴った`,"war"); for(const u of alive) u.morale=Math.min(100,u.morale+3); } try{ renderBattleFoot(); }catch(_){ } }
 function siegeGateToggle(){ if(!B||!B.gate||B.over!==null) return; manualCommand(); if(B.gate.hp<=0) return toast("門は破られております"); B.gate.open=!B.gate.open; B.gate.manual=true; if(!B.gate.open){ const line=B.gate.x; const inside=B.units.filter(x=>x.side===0&&x.troops>.5&&(siegeDefLeft()?x.x<line:x.x>line)); for(const f of inside){ f.morale=Math.max(0,f.morale-20); f.surrounded=true; } if(inside.length){ B.bigBanner={t:"門が閉じた――入り込んだ敵を袋の鼠に", at:B.elapsed, good:true, big:true}; } else toast("門を閉じました"); } else toast("門を開きました。出撃できるが敵もなだれ込む"); try{ renderBattleFoot(); }catch(_){ } }
-function siegeFirefight(){ if(!B||B.over!==null||B.ctx.playerSide!==1) return; if(!(B.fires&&B.fires.length)) return toast("火の手はありませぬ"); const u=B.sel!==null?B.units.find(x=>x.id===B.sel&&x.side===1&&x.troops>.5):null; if(!u) return toast("火消しに回す隊を選んでください"); manualCommand(); u.noAttackUntil=B.elapsed+15; const f=B.fires.reduce((p,q)=>Math.hypot(q.x-u.x,q.y-u.y)<Math.hypot(p.x-u.x,p.y-u.y)?q:p); u.order={k:"move",x:Math.max(1,Math.min(BF.w-1,f.x)),y:Math.max(1,Math.min(BF.h-1,f.y))}; u.gx=u.order.x; u.gy=u.order.y; bshout(u.id,"火を消せ！ 桶を持て！",2); toast(`${u.name}隊を火消しに回しました（十五秒は戦えない）`); B.sel=null; try{ renderBattleFoot(); }catch(_){ } }
+function siegeFirefight(){ if(!B||B.over!==null||B.ctx.playerSide!==1) return; if(!(B.fires&&B.fires.length)) return toast("火の手はありませぬ。まず火矢で火をかけられよ");   /* 第253巡：断るときは次の道を添える */ const u=B.sel!==null?B.units.find(x=>x.id===B.sel&&x.side===1&&x.troops>.5):null; if(!u) return toast("火消しに回す隊を選んでください"); manualCommand(); u.noAttackUntil=B.elapsed+15; const f=B.fires.reduce((p,q)=>Math.hypot(q.x-u.x,q.y-u.y)<Math.hypot(p.x-u.x,p.y-u.y)?q:p); u.order={k:"move",x:Math.max(1,Math.min(BF.w-1,f.x)),y:Math.max(1,Math.min(BF.h-1,f.y))}; u.gx=u.order.x; u.gy=u.order.y; bshout(u.id,"火を消せ！ 桶を持て！",2); toast(`${u.name}隊を火消しに回しました（十五秒は戦えない）`); B.sel=null; try{ renderBattleFoot(); }catch(_){ } }
 function siegeBreakBridge(){ if(!B||B.over!==null||!B.moat||!B.moat.bridge.alive) return; manualCommand(); const m=B.moat; for(let r=m.gy-1;r<=m.gy+1;r++){ if(B.tiles[r]) B.tiles[r][m.x]=BT.WATER; } m.bridge.alive=false; B.bg=null; B.bigBanner={t:"橋を落とした――寄せ手は浅瀬を渡るしかない", at:B.elapsed, good:true}; log(`${B.siegeName||"城"}の門の前の橋が落とされた`,"war",true); try{ renderBattleFoot(); }catch(_){ } }
 function siegeOpenCastle(){ if(!B||B.over!==null||B.ctx.playerSide!==1) return; manualCommand(); if(B.ueda&&typeof uedaSurrender==="function"){ B.bigBanner={t:"開城", at:B.elapsed, good:false, big:true}; siegeSurrender(true); return; } siegeSurrender(true); }
 /* 開城：城は渡すが、将は落ち延びる（討ち尽くされない） */
@@ -22573,6 +22580,12 @@ function decisiveDaily(){
   /* 第253巡（作り手と遊んで：三十年たっても誰も誰かを滅ぼさない）
      仕込みの「世は息を潜める（aiHold）」が石山の段で立ったまま残り、以後ずっと機械が誰も攻めなくなっていた。
      元の筋書きが終わっていれば仕込みを解く。終わっていなくても百五十日で足止めは解く（足止めは支度の間だけのもの） */
+  /* 第253巡（bot：属国と主家が戦をしている）：傘下に入った時点で、主家との戦は終わっている */
+  for(const k of Object.values(W.clans)){
+    if(k.dead||k.suzerain===null||k.suzerain===undefined) continue;
+    const L=W.clans[k.suzerain]; if(!L||L.dead) continue;
+    if(k.war.has(L.id)||L.war.has(k.id)){ k.war.delete(L.id); L.war.delete(k.id); }
+  }
   if(W.stage && (W.stage.aiHold||W.stage.lock)){
     if(W.stage.holdAt===undefined) W.stage.holdAt=dayNumber();
     const k=String(W.stage.key||"");
@@ -22708,8 +22721,8 @@ function fireDecisive(d){
     <h3 style="font-size:24px">${esc(d.name)}</h3>
     <div class="advice" style="font-style:italic">${esc(d.open)}</div>
     <div class="grid g2" style="margin:8px 0">
-      <div class="s-stat"><span>わが軍</span><b>${(armyTroops(mineArmy)+(mineIsA?(d.atkExtra||0):0)).toLocaleString()}（${mineArmy.gens.length+(mineIsA?(d.atkExtraGens||0):0)}将）</b>${(mineIsA&&d.atkExtraNote)?`<small style="display:block;font-size:10px;opacity:.8">${esc(d.atkExtraNote)}</small>`:""}</div>
-      <div class="s-stat"><span>敵軍 ${esc(clanName(foe.clan))}</span><b>${(armyTroops(foe)+(mineIsA?0:(d.atkExtra||0))).toLocaleString()}（${foe.gens.length+(mineIsA?0:(d.atkExtraGens||0))}将）</b>${(!mineIsA&&d.atkExtraNote)?`<small style="display:block;font-size:10px;opacity:.8">${esc(d.atkExtraNote)}</small>`:""}</div>
+      <div class="s-stat"><span>わが軍</span><b>${(armyTroops(mineArmy)+(mineIsA?(d.atkExtra||0):0)).toLocaleString()}（${mineArmy.gens.length+(mineIsA?(d.atkExtraGens||0):0)}将）</b>${(mineIsA&&d.atkExtraNote)?`<small style="display:block;font-size:11px;opacity:.8">${esc(d.atkExtraNote)}</small>`:""}</div>
+      <div class="s-stat"><span>敵軍 ${esc(clanName(foe.clan))}</span><b>${(armyTroops(foe)+(mineIsA?0:(d.atkExtra||0))).toLocaleString()}（${foe.gens.length+(mineIsA?0:(d.atkExtraGens||0))}将）</b>${(!mineIsA&&d.atkExtraNote)?`<small style="display:block;font-size:11px;opacity:.8">${esc(d.atkExtraNote)}</small>`:""}</div>
     </div>
     <div class="tiny muted">${d.forts?(A.id===W.player?"敵は砦と柵を構えて待ち受けております。":"わが軍は砦と柵を構えて敵を待ち受けます。"):""}負けても家は残るが、勝てば天下が大きく傾く。</div>
     <div class="tiny" style="margin-top:6px"><b>わが将</b> ${mineArmy.gens.slice(0,8).map(id=>esc(W.generals[id].name)).join("・")}${mineArmy.gens.length>8?" ほか":""}<br><b>敵将</b> ${foe.gens.slice(0,8).map(id=>esc(W.generals[id].name)).join("・")}${foe.gens.length>8?" ほか":""}</div>
@@ -23392,7 +23405,7 @@ function startBattle(e){
     (dec?dec.name+"　／　":"")+BTERRAIN[tIdx].n+"　"+terrainNote(tIdx)+"　／　"+B.weather+"　"+WEATHER[B.weather].d+(B.night?"　／　夜戦（暗く、日暮れが近い）":"");
   try{ renderBattleGoal(); }catch(_){ }
   // 額：戦の名と副題、両軍の名と家紋（関ヶ原なら西軍・東軍）
-  { const bn=document.getElementById("bName"); if(bn){ bn.hidden=!dec; if(dec){ bn.innerHTML=`${esc(dec.name)}<small style="display:block;font-size:10px;letter-spacing:.15em;color:#D9C48A;opacity:.85;border:none">${esc(dec.sub||"")}</small>`; } }
+  { const bn=document.getElementById("bName"); if(bn){ bn.hidden=!dec; if(dec){ bn.innerHTML=`${esc(dec.name)}<small style="display:block;font-size:11px;letter-spacing:.15em;color:#D9C48A;opacity:.85;border:none">${esc(dec.sub||"")}</small>`; } }
     const mineClanId = B.ctx.playerSide===0 ? (W.armies[e.army]||{}).clan : ((e.castle!==null&&e.castle!==undefined&&W.castles[e.castle])?W.castles[e.castle].clan:((W.generals[B.ctx.def[0]]||{}).clan));
     const foeClanId0 = B.ctx.playerSide===0 ? ((e.castle!==null&&e.castle!==undefined&&W.castles[e.castle])?W.castles[e.castle].clan:((W.generals[B.ctx.def[0]]||{}).clan)) : (W.armies[e.army]||{}).clan;
     const side=(id,el,cr)=>{ const K=(id!==null&&id!==undefined)?W.clans[id]:null; const nm=document.getElementById(el), c0=document.getElementById(cr); if(!nm||!c0) return; 
@@ -24366,12 +24379,12 @@ function nagTobiPhaseBegin(){ const t=B.tobi, F=B.tobiFort; if(!t||!F||B.tobiPha
   try{ gridSettleAll(); }catch(_){ }
   /* 第239巡（作り手：砦を攻めている間、左へ動かすと長篠の馬防柵が見える。前哨戦なので砦だけの野に）：本戦の柵は仕舞い、砦の周りだけを見せる。題も「鳶ヶ巣山砦の戦い」 */
   B.tobiFenceStash=B.obstacles.filter(o=>o.fence&&!o.tobiFence); B.obstacles=B.obstacles.filter(o=>!(o.fence&&!o.tobiFence)); B._fenceVer=(B._fenceVer||0)+1; B.bg=null;
-  B.camBox={x0:F.x-24, x1:F.x+24}; try{ const bn=document.getElementById("bName"); if(bn){ bn.hidden=false; bn.innerHTML=`長篠の戦い<small style="display:block;font-size:10px;letter-spacing:.15em;color:#D9C48A;opacity:.85;border:none">鳶ヶ巣山砦の戦い</small>`; } }catch(_){ }
+  B.camBox={x0:F.x-24, x1:F.x+24}; try{ const bn=document.getElementById("bName"); if(bn){ bn.hidden=false; bn.innerHTML=`長篠の戦い<small style="display:block;font-size:11px;letter-spacing:.15em;color:#D9C48A;opacity:.85;border:none">鳶ヶ巣山砦の戦い</small>`; } }catch(_){ }
   B.tobiPhase=true; B.tobiPhaseAt=B.elapsed; B.tobiMainStart=null; B.cx=F.x; B.cy=F.y; bCamTo(B.cx,B.cy,true); if((B.zoom||1)===1) try{ bSetZoom(BZ_NORMAL); }catch(_){ }
   B.bigBanner={t:"鳶ヶ巣山砦の奇襲", at:B.elapsed, good:B.ctx.playerSide===1, big:true}; B.banner={t:"夜明け前、酒井の別働隊が山道を抜けた――砦の柵を崩し、守りを討て。本戦はその後", at:B.elapsed+1.5}; B.tobiKit={stage:0, at:0}; B.phaseChip=null; B.objective="第一段：外柵を破れ（門を叩くか、火矢で焼く）。設楽原の本戦は砦の後"; try{ renderBattleGoal(); renderBattleFoot(); }catch(_){ }
   if(B.ctx.playerSide===1&&!B.autoMine&&!autoBattleMode&&!B.sim){ setTimeout(()=>nagTobiPlanAsk(),450); } }
 function nagTobiPhaseEnd(ok){ if(!B||!B.tobiPhase) return; B.tobiPhase=false; B.tobiKit=null; B.phaseChip=null; B._kitChip=false; for(const u of B.units) u.tobiWall=undefined; B.tobiMainStart=B.elapsed; B.dayLen=(B.dayLen||300)+(B.elapsed-(B.tobiPhaseAt||0)); const t=B.tobi, F=B.tobiFort; const det=(t&&t.units||[]);
-  if(B.tobiFenceStash){ B.obstacles=B.obstacles.concat(B.tobiFenceStash); B.tobiFenceStash=null; B._fenceVer=(B._fenceVer||0)+1; B.bg=null; } B.camBox=null; try{ const dec=B.ctx&&B.ctx.decisive?DECISIVE.find(x=>x.id===B.ctx.decisive):null; const bn=document.getElementById("bName"); if(bn&&dec) bn.innerHTML=`${esc(dec.name)}<small style="display:block;font-size:10px;letter-spacing:.15em;color:#D9C48A;opacity:.85;border:none">${esc(dec.sub||"")}</small>`; }catch(_){ }
+  if(B.tobiFenceStash){ B.obstacles=B.obstacles.concat(B.tobiFenceStash); B.tobiFenceStash=null; B._fenceVer=(B._fenceVer||0)+1; B.bg=null; } B.camBox=null; try{ const dec=B.ctx&&B.ctx.decisive?DECISIVE.find(x=>x.id===B.ctx.decisive):null; const bn=document.getElementById("bName"); if(bn&&dec) bn.innerHTML=`${esc(dec.name)}<small style="display:block;font-size:11px;letter-spacing:.15em;color:#D9C48A;opacity:.85;border:none">${esc(dec.sub||"")}</small>`; }catch(_){ }
   for(const u of B.units){ if(!u.tobiHide) continue; u.tobiHide=false; u.left=false; u.sigHidden=false; const h=u.tobiHome||{}; u.x=h.x; u.y=h.y; u.gx=h.gx; u.gy=h.gy; if(h.order) u.order=h.order; u.holdUntil=h.holdUntil; u.path=null; u.cell=null; u.nextCell=null; }
   /* 第239巡（作り手：落とした砦には隊を駐屯させ、敵の七割五分が潰れるか敵が退くまで動かせない）：成れば別働隊は砦に入って守りに就く。しくじれば生き残りが自陣へ戻る */ let gi=0; for(const u of det){ if(u.troops<=.5) continue; u.tobiGo=false; u.charge=false; if(ok&&u.morale>0){ const px=F.x+((gi%3)-1)*1.8, py=F.y+(Math.floor(gi/3)-1)*1.8; gi++; if(u.cell){ try{ occDel(u.cell[0],u.cell[1],u); }catch(_){ } } u.cell=null; u.nextCell=null; u.left=false; u.sigHidden=false; u.x=Math.max(1,Math.min(BF.w-1,px)); u.y=Math.max(1.5,Math.min(BF.h-1.5,py)); u.gx=u.x; u.gy=u.y; u.postX=u.x; u.postY=u.y; u.order={k:"guard"}; u.holdUntil=99999; u.fortGuard=true; u.tobiHold=true; u.tobiBack=false; } else { const h=u.tobiHome||{x:u.x,y:u.y}; u.left=false; u.sigHidden=false; u.x=h.x; u.y=h.y; u.gx=h.x; u.gy=h.y; u.cell=null; u.nextCell=null; u.order={k:"guard"}; u.morale=Math.max(u.morale,30); } }
   try{ gridSettleAll(); }catch(_){ }
@@ -27853,7 +27866,7 @@ function drawBattle(){
           else { let wi=0; fpct.forEach((v,i)=>{ if(v!==null && (fpct[wi]===null||v<fpct[wi])) wi=i; }); adv=`柵は${bn[wi]}が薄い（${fpct[wi]??"-"}%）→ 足軽で崩し、破れたら騎馬を入れる`; }
           B.nagAdvice=adv; B.nagFence=fpct; }
         if(B.tobiPhase){ el.innerHTML=B.lateChip||""; el.hidden=false; } else   /* 第208巡：鳶ヶ巣の場では本戦の翼・柵の札を出さない（その状況だけ） */
-        el.innerHTML=[[bn[0],ws[0]],[bn[1],ws[1]],[bn[2],ws[2]]].map(([n,w],i)=>{ n=`<span onclick="bBandCam(${i})" style="cursor:pointer" title="押せばこの戦線へ">${n}</span>`; if(B.sek){ try{ const fg2=sekFogWord(i); if(fg2){ w=fg2.w; n=n+`<span style="opacity:.6;font-weight:400;margin-left:3px">${fg2.age?`${fg2.age}秒前の報せ`:"物見"}</span>`; } }catch(_){ } }   /* 第253巡（関ヶ原 全体設計 37）：遠い戦線の様子は遅れて届く */ if(B.nagashino&&B.nagFence&&B.nagFence[i]!==null&&B.nagFence[i]!==undefined) n=n+`<span style="opacity:.75;font-weight:400;margin-left:3px">柵${B.nagFence[i]}%</span>`; const bg=(w==="○優勢"||w==="確保")?"rgba(201,162,39,.22)":(w==="×劣勢"||w==="敵手")?"rgba(140,50,30,.38)":"rgba(255,255,255,.06)"; const fg=(w==="○優勢"||w==="確保")?"#F3E6C4":(w==="×劣勢"||w==="苦戦"||w==="敵手")?"#F0C0A8":"#DDD4C0"; const warn=(w==="×劣勢"||w==="敵手"); return `<span style="display:inline-block;padding:1px 8px;border-radius:3px;background:${bg};color:${fg};font-size:12px;margin:0 1px;border:1px solid ${warn?"rgba(226,110,80,.55)":"rgba(201,162,39,.25)"}">${n}<b style="margin-left:4px">${w}</b></span>`;   /* 第241巡（仕様書 24）：色を金・焦茶・生成りに。点滅はやめ */ }).join("")+(B.lateChip||"")+(B.nagashino&&B.ctx.playerSide===1&&B.opening<=0&&B.nearM!==null&&B.nearM!==undefined?`<span style="display:inline-block;padding:1px 8px;border-radius:9px;background:${B.nearM<=(B.gunRangeM||100)?"rgba(201,162,39,.45)":"rgba(255,255,255,.08)"};color:${B.nearM<=(B.gunRangeM||100)?"#FFD166":"#EDE6D6"};font-size:12px;margin:0 1px">敵まで ${B.nearM}m${B.nearM<=(B.gunRangeM||100)?"　撃てる":""}</span>`:"");   /* 第133巡：劣勢の戦線は赤く点滅。鉄砲から一番近い敵までの間合い */
+        el.innerHTML=[[bn[0],ws[0]],[bn[1],ws[1]],[bn[2],ws[2]]].map(([n,w],i)=>{ n=`<span onclick="bBandCam(${i})" style="cursor:pointer;display:inline-block;padding:5px 6px;margin:-5px -2px" title="押せばこの戦線へ">${n}</span>`; if(B.sek){ try{ const fg2=sekFogWord(i); if(fg2){ w=fg2.w; n=n+`<span style="opacity:.6;font-weight:400;margin-left:3px">${fg2.age?`${fg2.age}秒前の報せ`:"物見"}</span>`; } }catch(_){ } }   /* 第253巡（関ヶ原 全体設計 37）：遠い戦線の様子は遅れて届く */ if(B.nagashino&&B.nagFence&&B.nagFence[i]!==null&&B.nagFence[i]!==undefined) n=n+`<span style="opacity:.75;font-weight:400;margin-left:3px">柵${B.nagFence[i]}%</span>`; const bg=(w==="○優勢"||w==="確保")?"rgba(201,162,39,.22)":(w==="×劣勢"||w==="敵手")?"rgba(140,50,30,.38)":"rgba(255,255,255,.06)"; const fg=(w==="○優勢"||w==="確保")?"#F3E6C4":(w==="×劣勢"||w==="苦戦"||w==="敵手")?"#F0C0A8":"#DDD4C0"; const warn=(w==="×劣勢"||w==="敵手"); return `<span style="display:inline-block;padding:1px 8px;border-radius:3px;background:${bg};color:${fg};font-size:12px;margin:0 1px;border:1px solid ${warn?"rgba(226,110,80,.55)":"rgba(201,162,39,.25)"}">${n}<b style="margin-left:4px">${w}</b></span>`;   /* 第241巡（仕様書 24）：色を金・焦茶・生成りに。点滅はやめ */ }).join("")+(B.lateChip||"")+(B.nagashino&&B.ctx.playerSide===1&&B.opening<=0&&B.nearM!==null&&B.nearM!==undefined?`<span style="display:inline-block;padding:1px 8px;border-radius:9px;background:${B.nearM<=(B.gunRangeM||100)?"rgba(201,162,39,.45)":"rgba(255,255,255,.08)"};color:${B.nearM<=(B.gunRangeM||100)?"#FFD166":"#EDE6D6"};font-size:12px;margin:0 1px">敵まで ${B.nearM}m${B.nearM<=(B.gunRangeM||100)?"　撃てる":""}</span>`:"");   /* 第133巡：劣勢の戦線は赤く点滅。鉄砲から一番近い敵までの間合い */
         if(B.sek&&B.koba){ const kw=sekKobaWord(), mw=sekMoriWord(); const col=v=>/東軍|参戦（東/.test(v)?"rgba(140,50,30,.38)":/西軍|参戦（西/.test(v)?"rgba(201,162,39,.22)":"rgba(255,255,255,.06)"; el.innerHTML += `<span style="display:inline-block;padding:2px 8px;border-radius:12px;background:${col(mw)};font-size:12px;margin:0 1px" title="毛利・吉川の去就">南宮山 ${mw}</span><span onclick="sekScout()" style="display:inline-block;padding:2px 8px;border-radius:12px;background:rgba(201,162,39,.25);color:#FFD166;font-size:12px;margin:0 1px;cursor:pointer;border:1px solid rgba(255,214,102,.5)" title="松尾山・南宮山・敵の予備を確かめる（六十秒に一度）">〈物見〉</span>`; }   /* 第253巡（仕様書 21・24・53） */
         if(B.nagashino && B.nagAdvice && B.adviceUntil>B.elapsed){ el.innerHTML += `<span style="display:inline-block;padding:2px 10px;border-radius:12px;background:rgba(201,162,39,.25);color:#FFD166;font-size:12px;margin:0 1px;border:1px solid rgba(255,214,102,.5)">軍師「${B.nagAdvice}」</span>`; }
         el.hidden=false; } } }
@@ -28329,7 +28342,7 @@ function renderBattleFoot(){
 
       ${B.kz?"":`<button class="tool dup" data-b="guard" title="その場で待機（升を押せば移動、敵を押せば攻撃）">待機</button>`}
       ${u.type===2?`<button class="tool" data-b="sp" title="騎馬突撃（助走が要る）">突撃</button>`:""}
-      ${B.pursueReady?`<button class="tool on ${B.pursueHot&&!B.pursued?"hot":""}" data-b="pursue" style="font-weight:800;color:#FFD166">追い討ち！</button>`:""}${B.ctx.playerSide===0&&B.opening<=0?`<button class="tool ${nagAtkHint()?"hot":""}" data-b="allcharge" style="font-weight:800">全軍突撃</button>`:""}
+      ${B.pursueReady?`<button class="tool on ${B.pursueHot&&!B.pursued?"hot":""}" data-b="pursue" style="font-weight:800">追い討ち！</button>`:""}${B.ctx.playerSide===0&&B.opening<=0?`<button class="tool ${nagAtkHint()?"hot":""}" data-b="allcharge" style="font-weight:800">全軍突撃</button>`:""}
       ${u.morale>0?`<span class="tiny muted faceset">向き ${[["↖",-3*Math.PI/4],["↑",-Math.PI/2],["↗",-Math.PI/4],["←",Math.PI],["→",0],["↙",3*Math.PI/4],["↓",Math.PI/2],["↘",Math.PI/4]].map(([ch,ang])=>`<button class="tool sub${Math.abs(((u.face||0)-ang+Math.PI*3)%(Math.PI*2)-Math.PI)<0.35?" on":""}" data-face="${ang}" title="この向きに構える（横腹と背中を取られにくい）" style="min-width:28px;padding:2px 5px">${ch}</button>`).join("")}</span>`:""}
       <button class="tool" data-b="close">閉じる</button>
       ${B.mode?`<span class="tiny" style="color:var(--kin)">${B.mode==="move"?"移動先":"攻撃する敵"}を画面でタップ</span>`:""}
@@ -28419,7 +28432,7 @@ function renderBattleFoot(){
       ${PREF.wingBtns&&B.opening<=0&&B.over===null&&B.units.filter(u=>u.side===B.ctx.playerSide&&!u.cmd&&!u.ally&&u.troops>.5&&!u.left&&u.morale>0).length>=4?`<span class="tiny muted" style="display:flex;gap:2px;align-items:center" title="翼ごとにまとめて選ぶ（升を押せばそこへ、敵を押せば討つ）">${[["l","左翼"],["c","中央"],["r","右翼"]].map(([k,t])=>`<button class="tool sub ${B.wingSel===k?"on":""}" data-wing="${k}" style="min-width:40px;padding:0 6px">${t}</button>`).join("")}${B.wingSel?`<button class="tool sub gold" id="bWingCmd" title="選んだ翼への方針（攻勢・維持・防御・後退・予備をここへ）">翼の方針 ▸</button>`:""}<button class="tool sub" id="bAllCmd" title="全軍命令（前進・維持・防御・右翼圧力・中央集中・総攻撃）">全軍命令 ▸</button></span>`:""}
       ${B.wingFlank&&!B.ane&&B.opening<=0&&B.over===null?`<button class="tool gold" id="bWingFlank" title="崩れた敵の戦線の隣へ、勝った戦線の隊を回す（敵の士気−12）">側面を突け</button>`:""}
       ${(B.nagashino&&!B.tobiPhase&&B.opening<=0&&B.over===null&&B.ctx.playerSide===1&&B.units.some(u=>u.side===1&&u.type===3&&u.troops>.5))?`<button class="tool on" id="bNagVolley" title="鉄砲隊がいっせいに撃つ（十二秒に一度・Vキー）">一斉射撃</button>`:""}
-      ${B.pursueReady?`<button class="tool on ${B.pursueHot&&!B.pursued?"hot":""}" id="bPursue" style="font-weight:800;color:#FFD166">追い討ち！</button>`:""}
+      ${B.pursueReady?`<button class="tool on ${B.pursueHot&&!B.pursued?"hot":""}" id="bPursue" style="font-weight:800">追い討ち！</button>`:""}
       ${B.tennoji&&B.opening<=0&&B.ctx.playerSide===1&&B.units.some(u=>/真田幸村/.test(u.name)&&u.side===1&&u.troops>.5)?`<button class="tool on" id="bSanada" title="真田隊（と毛利隊）が家康本陣へ突き進む">本陣突撃</button>`:""}
 
       ${B.oke&&B.opening<=0&&B.ctx.playerSide!==B.okeFoe?`<button class="tool" id="bScout" title="斥候を出して敵の居所を探る（二十五秒に一度）">斥候を出す</button>`:""}
@@ -30467,7 +30480,7 @@ function requestUnlock(id){
 /* 第221巡（仕様書 5）：筋書きの札に難易度・想定時間・主な勢力・特徴を足し、上に「おすすめ／年代順／購入済み／難易度」の絞り込み */
 const SCEN_META={ nagashino:{diff:2,time:"30〜45分",who:"織田・徳川 / 武田",tags:["鉄砲","柵","騎馬","野戦"],rec:true,year:1575}, hoi:{diff:4,time:"60〜90分",who:"織田 / 浅井・朝倉・本願寺・武田",tags:["包囲網","外交","水軍","籠城"],rec:true,year:1570}, oke:{diff:3,time:"45〜60分",who:"織田 / 今川",tags:["奇襲","少数","天候"],year:1560}, mikata:{diff:3,time:"30〜45分",who:"徳川 / 武田",tags:["籠城","野戦","騎馬"],year:1572}, koshu:{diff:2,time:"30〜45分",who:"織田・徳川 / 武田",tags:["城攻め","山城","追撃"],year:1581}, honnoji:{diff:4,time:"45〜60分",who:"羽柴 / 明智",tags:["謀反","大返し","外交"],rec:true,year:1582}, jingo:{diff:3,time:"30〜45分",who:"徳川 / 北条・真田",tags:["対陣","国人","城下"],year:1582}, shizugatake:{diff:3,time:"30〜45分",who:"羽柴 / 柴田",tags:["砦","雪","追撃"],year:1583}, komaki:{diff:3,time:"45〜60分",who:"羽柴 / 徳川・織田",tags:["対陣","別働隊","講和"],year:1584}, shikoku:{diff:3,time:"45〜60分",who:"羽柴 / 長宗我部",tags:["渡海","山岳","調略"],year:1585}, kyushu:{diff:4,time:"60分",who:"豊臣 / 島津",tags:["遠征","兵站","港"],year:1587}, odawara:{diff:2,time:"45〜60分",who:"豊臣 / 北条",tags:["大軍","包囲","支城"],year:1590}, sekigahara:{diff:3,time:"60〜90分",who:"徳川 / 石田",tags:["東西","裏切り","全国"],rec:true,year:1600}, osaka:{diff:3,time:"45〜60分",who:"徳川 / 豊臣",tags:["籠城","真田丸","牢人"],year:1615}, ishiyama:{diff:4,time:"60分",who:"織田 / 本願寺",tags:["包囲網","砦","海戦"],year:1576} };
 let scenFilter="rec";
-function scenMetaApply(){ document.querySelectorAll("#stepScenario .scen[data-sc]").forEach(b=>{ const m=SCEN_META[b.dataset.sc]; if(!m||b.querySelector(".sc-meta")) return; const el=document.createElement("span"); el.className="sc-meta tiny"; el.style.cssText="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;color:#CFC8B8;align-items:center"; el.innerHTML=`<span>${esc(m.who)}</span><span style="display:flex;gap:4px">${m.tags.map(t=>`<span class="chip" style="font-size:10px;padding:1px 6px">${t}</span>`).join("")}</span>${m.rec?`<span class="stag ok" style="padding:1px 6px">おすすめ</span>`:""}`; b.appendChild(el); });
+function scenMetaApply(){ document.querySelectorAll("#stepScenario .scen[data-sc]").forEach(b=>{ const m=SCEN_META[b.dataset.sc]; if(!m||b.querySelector(".sc-meta")) return; const el=document.createElement("span"); el.className="sc-meta tiny"; el.style.cssText="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;color:#CFC8B8;align-items:center"; el.innerHTML=`<span>${esc(m.who)}</span><span style="display:flex;gap:4px">${m.tags.map(t=>`<span class="chip" style="font-size:11px;padding:1px 6px">${t}</span>`).join("")}</span>${m.rec?`<span class="stag ok" style="padding:1px 6px">おすすめ</span>`:""}`; b.appendChild(el); });
   let bar=document.getElementById("scenFilterBar"); const list=document.querySelector("#stepScenario .scen-list"); if(!bar&&list){ bar=document.createElement("div"); bar.id="scenFilterBar"; bar.style.cssText="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin:10px 0 -6px"; list.parentNode.insertBefore(bar,list); }
   if(bar){ bar.innerHTML=[["rec","おすすめ"],["year","年代順"],["owned","購入済み"]].map(([k,n])=>`<button class="chip ${scenFilter===k?"kin":""}" style="cursor:pointer;padding:5px 12px">${n}</button>`).join(""); [...bar.children].forEach((c,i)=>{ c.onclick=()=>{ scenFilter=[["rec"],["year"],["owned"],["easy"]][i][0]; scenMetaApply(); }; }); }
   if(list){ const items=[...list.querySelectorAll(".scen[data-sc]")]; const key=b=>{ const m=SCEN_META[b.dataset.sc]||{diff:3,year:9999}; if(scenFilter==="rec") return (m.rec?0:1)*100000+m.diff*10000+m.year; if(scenFilter==="easy") return m.diff*10000+m.year; return m.year; }; items.sort((a,b)=>key(a)-key(b)); for(const it of items){ list.appendChild(it); const hiddenByFlag=it.hasAttribute("hidden")&&it.style.display==="none"; if(hiddenByFlag) continue; it.style.display=(scenFilter==="owned"&&(scenarioLocked(it.dataset.sc)||!scenarioAvailable(it.dataset.sc)))?"none":""; } } }
