@@ -19445,6 +19445,56 @@ function fortEnrich(F, fx, fy, dir, side, tag, fortName, per, kind){ kind=kind||
       else { /* 平砦：空堀と土橋、外に逆茂木の帯 */ if(d>0.6&&d<2.2){ const bridge=lane&&Math.abs(px-gx)<3; B.tiles[r][c]=bridge?BT.DIRT:BT.MOAT; } else if(d>=2.2&&d<3.4&&((r+c)%2===0)&&!lane){ B.tiles[r][c]=BT.SAKAMOGI; } } }
     if(kind==="camp"){ /* 脇の門：上下の柵の真ん中を開ける。柵は低い（七割） */ for(const o of B.obstacles){ if(!o.fort||!o.fence||!isTag(o)||o.fmInner||o.tobiInner) continue; if(Math.abs(o.x-fx)<0.8&&(Math.abs(o.y-y0)<0.2||Math.abs(o.y-y1)<0.2)){ o.hp=0; o.sideGate=true; } else { o.hpMax=Math.round(o.hpMax*0.7); o.hp=Math.min(o.hp,o.hpMax); } } B.obstacles=B.obstacles.filter(o=>!(o.sideGate&&o.hp<=0)); F.sideGates=[{x:fx,y:y0},{x:fx,y:y1}]; }
     if(kind==="plain"){ /* 馬出：門の前に短い柵。左右から回り込ませる */ const mx=gx+dir*3.2; for(const dy of [-1.4,0,1.4]) B.obstacles.push(Object.assign({kind:1, variant:1, x:mx, y:fy+dy, r:0.85, wall:true, fort:true, fence:true, side, hp:110, hpMax:110, umadashi:true}, tag)); }
+    /* ===== 第253巡（作り手の仕様書：砦を「土塁・空堀・曲輪・虎口で守る不整形の多層砦」に。全ての砦へ） ===== */
+    try{
+      const R2=artRng((B.seed||7)+311+Math.round(fx*3)+Math.round(fy));
+      /* ① 真四角をやめる：外柵の杭を少しずらし、辺ごとに張り出し・引っ込みを作る */
+      const wob=(v)=>(R2()-0.42)*1.1;
+      for(const o of B.obstacles){
+        if(!o.fort||!o.fence||!isTag(o)||o.fmInner||o.tobiInner||o.inner) continue;
+        const onX=Math.abs(Math.abs(o.x-fx)-hw)<0.45, onY=Math.abs(Math.abs(o.y-fy)-hh)<0.45;
+        if(o.shellGate||o.backGate||o.mainGate) continue;
+        if(onX){ o.x+=Math.sign(o.x-fx)*Math.abs(wob()); o.y+=wob()*0.35; }
+        else if(onY){ o.y+=Math.sign(o.y-fy)*Math.abs(wob()); o.x+=wob()*0.35; }
+      }
+      /* ② 土塁：外柵のすぐ内は掻き揚げの土（一段高い。守り手に利） */
+      if(B.tiles){ const H2=BF.h, W2=BF.w;
+        for(let r=0;r<H2;r++) for(let c=0;c<W2;c++){
+          const px=c+0.5, py=r+0.5;
+          const dxo=Math.max(fx-hw-px, px-(fx+hw), 0), dyo=Math.max(fy-hh-py, py-(fy+hh), 0);
+          const dOut=Math.max(dxo,dyo);
+          if(dOut>0.01) continue;                     /* 砦の外は触らない */
+          const din=Math.min(px-(fx-hw), (fx+hw)-px, py-(fy-hh), (fy+hh)-py);   /* 内へどれだけ入ったか */
+          if(din<1.1 && B.tiles[r][c]!==BT.MOAT) B.tiles[r][c]=BT.EARTH;        /* 土塁の天端 */
+        }
+      }
+      /* ③ 副郭：主郭の手前に仕切りの柵を一本（木戸を一つ）。取られても主郭が残る */
+      { const sx=fx+dir*(hw*0.18);   /* 主郭と外郭の間 */
+        const gy2=fy+(R2()<0.5?-1:1)*(hh*0.42);
+        for(let y=fy-hh+1.2; y<=fy+hh-1.2; y+=1.3){
+          if(Math.abs(y-gy2)<0.9) continue;           /* 木戸（狭い通り口） */
+          B.obstacles.push(Object.assign({kind:1, variant:Math.floor(y)%3, x:sx+(R2()-0.5)*0.5, y, r:0.85, wall:true, fort:true, fence:true, side,
+            hp:Math.round(110*(F.hpMul||1)), hpMax:Math.round(110*(F.hpMul||1)), fortSub:true}, tag));
+        }
+        F.sub={x:sx,y:gy2};
+      }
+      /* ④ 折れ虎口：門の内に袖の柵。まっすぐ入れず、横へ曲がってから中へ */
+      { const gx2=fx+dir*hw;
+        const sideSign=(R2()<0.5?-1:1);
+        for(let k=0;k<3;k++){
+          B.obstacles.push(Object.assign({kind:1, variant:k%3, x:gx2-dir*1.5, y:fy+sideSign*(0.6+k*1.05), r:0.85, wall:true, fort:true, fence:true, side,
+            hp:Math.round(120*(F.hpMul||1)), hpMax:Math.round(120*(F.hpMul||1)), koguchi:true}, tag));
+        }
+        /* 門の両脇に張り出し（横矢がかかる） */
+        for(const sy of [-1.5,1.5]) B.obstacles.push(Object.assign({kind:1, variant:1, x:gx2+dir*0.9, y:fy+sy, r:0.85, wall:true, fort:true, fence:true, side,
+            hp:Math.round(120*(F.hpMul||1)), hpMax:Math.round(120*(F.hpMul||1)), koguchi:true}, tag));
+        F.koguchi={x:gx2-dir*1.5, y:fy+sideSign*1.6};
+        /* 門の前に逆茂木を少し（近づくだけで足が鈍る） */
+        if(B.tiles){ for(let k=0;k<5;k++){ const rr=Math.round(fy+(R2()-0.5)*5), cc=Math.round(gx2+dir*(2.4+R2()*1.6));
+          if(rr>0&&rr<BF.h&&cc>0&&cc<BF.w&&B.tiles[rr][cc]===BT.GRASS) B.tiles[rr][cc]=BT.SAKAMOGI; } }
+      }
+      B.bg=null; B._fenceVer=(B._fenceVer||0)+1;
+    }catch(e){ console.error("fort rich", e); }
     B.bg=null; B._fenceVer=(B._fenceVer||0)+1; }
   F.decor.push({k:"hut",x:fx-dir*(hw-1.7),y:fy-(hh-1.9)},{k:"hut",x:fx-dir*(hw-1.7),y:fy+(hh-1.9)},{k:"box",x:fx-dir*(hw-1.1),y:fy},{k:"torch",x:fx+dir*(hw-1.9),y:fy-(hh-1.3)},{k:"torch",x:fx+dir*(hw-1.9),y:fy+(hh-1.3)}); if(kind==="camp"){ for(let i=0;i<4;i++) F.decor.push({k:"hut",x:fx-dir*(hw-2.6-(i%2)*1.6),y:fy-(hh-2.4)+i*((h-4.8)/3)}); for(let i=0;i<6;i++) F.decor.push({k:"flag",x:fx-hw+0.8+rnd()*(w-1.6),y:fy-hh+0.6+rnd()*(h-1.2),ph:rnd()*6}); } if(kind==="hill"){ for(let i=0;i<3;i++) F.decor.push({k:"torch",x:fx+dir*(hw+1.2+i*1.1),y:fy+(i-1)*2.6}); } return inner; }
 /* 第239巡（作り手：櫓には必ず隊がいるように。百ずつでよい）：どの砦・城の櫓にも、鉄砲百の隊を据える。既に鉄砲隊が就いている櫓は飛ばす。動かせない（守・櫓） */
@@ -25613,6 +25663,9 @@ function bannerTick(){
   }
 }
 function stepUnit(u,dt){
+  /* 第253巡（bot：櫓の鉄砲が右往左往していた）：櫓に就いた隊は動かない。狙いだけ変える */
+  if(u.onTower||u.towerGun){ if(u.towerAt===undefined){ u.towerAt={x:u.x,y:u.y}; } else { u.x=u.towerAt.x; u.y=u.towerAt.y; }
+    if(u.order.k!=="guard"&&u.order.k!=="attack"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } }
   let target=null, goal=null;
   if(u.left) return;                                           // 野を去った隊は戦わない
   let enemies=B.units.filter(x=>x.side!==u.side&&x.troops>.5&&x.morale>0&&!x.left&&!x.yokoIn&&!x.tobiHold);   /* 第207巡：城の中の横山城兵は討てない（討って出た時だけ）。第253巡：鳶ヶ巣山砦に駐屯した隊も（砦が落ちると武田が設楽原でなく後ろの砦へ向かっていた） */
