@@ -43,6 +43,7 @@
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;background:var(--sumi);color:var(--shiro);font-family:var(--min);line-height:1.9;-webkit-font-smoothing:antialiased;overflow-x:hidden;font-size:16px}
+html,body{overflow-x:hidden}   /* 第253巡（bot の見回り・携帯）：飾りの層が横にはみ出して、横に振れてしまっていた */
 body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:var(--washi);opacity:.55;mix-blend-mode:screen}
 body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:var(--sumi-nijimi) center/900px 900px;opacity:.35}
 img{max-width:100%;display:block}
@@ -94,7 +95,7 @@ section{position:relative;padding:96px 0;overflow:hidden}
 header{position:absolute;top:0;left:0;right:0;z-index:6;display:flex;align-items:center;justify-content:space-between;padding:20px 22px;max-width:1200px;margin:0 auto}
 header .logo{font-family:var(--fude);font-size:22px;letter-spacing:.42em;color:var(--shiro);text-decoration:none;text-shadow:0 2px 10px #000}
 header nav{display:flex;align-items:center;gap:16px}
-header nav a{font-family:var(--go);font-size:12px;letter-spacing:.18em;color:var(--kami);text-decoration:none;opacity:.85}
+header nav a{font-family:var(--go);font-size:13px;letter-spacing:.18em;color:var(--kami);text-decoration:none;opacity:.85;display:inline-flex;align-items:center;min-height:30px;padding:0 4px}   /* 第253巡（bot の見回り）：指で押せる大きさに */
 header nav a:hover{color:var(--kinpaku);opacity:1}
 #oto{font-family:var(--go);font-size:12px;letter-spacing:.08em;color:var(--kami);background:rgba(11,9,7,.6);border:1px solid var(--line);padding:6px 12px;cursor:pointer}
 #oto.on{color:var(--kinpaku);border-color:var(--kinpaku)}
@@ -116,7 +117,7 @@ header nav a:hover{color:var(--kinpaku);opacity:1}
 #hero h1 span{display:block}
 #hero .kotoba{margin-top:26px;font-size:clamp(15px,1.8vw,19px);text-shadow:0 2px 8px #000}
 #hero .ctas{margin-top:34px}
-#hero .scroll{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);font-family:var(--go);font-size:10px;letter-spacing:.4em;color:var(--kami);opacity:.7;text-align:center;z-index:3}
+#hero .scroll{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);font-family:var(--go);font-size:11px;letter-spacing:.4em;color:var(--kami);opacity:.7;text-align:center;z-index:3}
 #hero .scroll i{display:block;width:1px;height:34px;margin:8px auto 0;background:linear-gradient(180deg,var(--kinpaku),transparent);animation:sc 1.8s ease-in-out infinite}
 @keyframes sc{0%{transform:scaleY(0);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}51%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
 @media(max-width:720px){#hero{min-height:auto;padding:110px 0 90px}#hero .l-bg img{object-position:36% 55%}#hero .l-veil{background:linear-gradient(0deg,var(--sumi) 0%,rgba(11,9,7,.78) 50%,rgba(11,9,7,.5) 100%)}}
@@ -174,7 +175,7 @@ header nav a:hover{color:var(--kinpaku);opacity:1}
 .nenpyo div::before{content:"";position:absolute;left:50%;top:-31px;width:9px;height:9px;transform:translateX(-50%) rotate(45deg);background:var(--kinpaku);box-shadow:0 0 10px rgba(230,193,90,.6)}
 .nenpyo b{display:block;font-family:var(--go);font-size:13px;letter-spacing:.14em;color:var(--kinpaku);font-weight:700}
 .nenpyo span{display:block;font-family:var(--fude);font-size:clamp(13px,1.8vw,19px);letter-spacing:.14em;color:var(--shiro);margin-top:2px}
-.nenpyo small{display:block;font-family:var(--go);font-size:10px;color:var(--dim);letter-spacing:.1em}
+.nenpyo small{display:block;font-family:var(--go);font-size:11px;color:var(--dim);letter-spacing:.1em}
 @media(max-width:720px){.nenpyo{flex-wrap:wrap;gap:22px 0}.nenpyo div{flex:0 0 33%}}
 /* ---- 第四章 決断せよ ---- */
 #ch4{background:radial-gradient(ellipse at 80% 20%,#1a140e 0%,var(--sumi) 60%)}
@@ -234,7 +235,7 @@ header nav a:hover{color:var(--kinpaku);opacity:1}
 .shojo h3{font-family:var(--fude);font-size:26px;letter-spacing:.1em;color:var(--kinpaku)}
 .glist{margin:16px 0 0;padding:0;list-style:none;font-size:14px;color:var(--kami)}
 .glist li{padding:7px 0;border-top:1px dashed rgba(197,154,53,.3)}
-.glist li::before{content:"◆ ";color:var(--shu2);font-size:10px}
+.glist li::before{content:"◆ ";color:var(--shu2);font-size:11px}
 /* ---- 軍資金募集 ---- */
 .gunshikin-box{max-width:760px;margin:26px auto 0}
 .gtiers{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
@@ -273,7 +274,7 @@ footer .monpat{position:absolute;left:0;right:0;top:0;height:120px;opacity:.07;b
 footer .wrap{text-align:center}
 footer .logo{font-family:var(--fude);font-size:24px;letter-spacing:.42em;color:var(--shiro);display:block;margin-bottom:14px}
 footer .links{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 22px;margin-top:14px}
-footer a{text-decoration:none;color:var(--kami);letter-spacing:.14em}
+footer a{text-decoration:none;color:var(--kami);letter-spacing:.14em;display:inline-flex;align-items:center;min-height:30px;padding:0 6px}   /* 第253巡（bot の見回り）：指で押せる大きさに */
 footer a:hover{color:var(--kinpaku)}
 footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-width:760px;margin-left:auto;margin-right:auto}
 @media(min-width:721px){footer{padding-bottom:56px}}
@@ -290,7 +291,7 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
 .ugoku img{width:100%;display:block}
 .ugoku .ov{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;padding:26px;background:linear-gradient(0deg,rgba(11,9,7,.85),transparent 45%);pointer-events:none}
 .ugoku .ov b{font-family:var(--fude);font-size:clamp(20px,3.4vw,40px);letter-spacing:.2em;color:#fff;font-weight:400;text-shadow:0 3px 12px #000}
-.ugoku .rec{position:absolute;left:14px;top:12px;font-family:var(--go);font-size:10px;letter-spacing:.2em;color:var(--kami);background:rgba(11,9,7,.6);padding:3px 8px;border:1px solid var(--line)}
+.ugoku .rec{position:absolute;left:14px;top:12px;font-family:var(--go);font-size:11px;letter-spacing:.2em;color:var(--kami);background:rgba(11,9,7,.6);padding:3px 8px;border:1px solid var(--line)}
 .ugoku .rec::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--shu2);margin-right:6px;animation:blink 1.2s infinite}
 @keyframes blink{50%{opacity:.2}}
 #ugoku1{padding:0 0 70px}
@@ -331,7 +332,7 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
 .mitsu{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:34px}
 @media(max-width:720px){.mitsu{grid-template-columns:1fr}}
 .mitsu div{position:relative;padding:26px 22px 24px;border-top:2px solid var(--kin);background:linear-gradient(180deg,rgba(215,200,165,.05),transparent)}
-.mitsu b{display:block;font-family:var(--go);font-size:12px;letter-spacing:.4em;color:var(--kin)}
+.mitsu b{display:block;font-family:var(--go);font-size:12px;letter-spacing:.4em;color:#E3C766}   /* 第253巡（bot の見回り）：金が沈んで読みにくかった */
 .mitsu h3{font-family:var(--fude);font-size:clamp(22px,2.4vw,28px);letter-spacing:.08em;color:var(--shiro);margin-top:6px}
 .mitsu p{margin-top:8px;font-size:15px;color:var(--kami)}
 /* ---- 帯の CTA（途中） ---- */
@@ -343,7 +344,7 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
 .annot .co{position:absolute;z-index:3;font-family:var(--go);font-size:12px;font-weight:700;letter-spacing:.06em;color:#fff;background:rgba(11,9,7,.82);border:1px solid var(--kinpaku);padding:6px 10px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.6)}
 .annot .co::before{content:"";position:absolute;width:10px;height:10px;background:var(--kinpaku);border-radius:50%;box-shadow:0 0 0 4px rgba(230,193,90,.25)}
 .annot .co.l::before{left:-16px;top:50%;transform:translateY(-50%)} .annot .co.r::before{right:-16px;top:50%;transform:translateY(-50%)} .annot .co.b::before{left:50%;bottom:-16px;transform:translateX(-50%)}
-@media(max-width:720px){.annot .co{font-size:10px;padding:4px 7px}}
+@media(max-width:720px){.annot .co{font-size:11px;padding:4px 7px}}
 /* ---- 戦場（大小のリズム） ---- */
 .gunki-big{position:relative;margin-top:30px;overflow:hidden;border:1px solid rgba(197,154,53,.45);background:#000;min-height:min(60vw,520px)}
 .gunki-big .bg{position:absolute;inset:0;background-size:cover;background-position:center;filter:saturate(.95) brightness(.9)}
@@ -368,7 +369,7 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
 .cycle div.hot{background:rgba(165,42,30,.35);border-color:var(--shu2);color:#fff}
 @media(max-width:720px){.cycle{flex-direction:column;align-items:stretch}.cycle div{text-align:center}.cycle div::after{content:"↓";right:auto;left:50%;top:auto;bottom:-22px;transform:translateX(-50%)}}
 /* ---- 進み（天下統一まで） ---- */
-#susumi{position:fixed;right:14px;top:50%;transform:translateY(-50%);z-index:25;font-family:var(--go);font-size:10px;letter-spacing:.2em;color:var(--kami);opacity:.75;text-align:center;pointer-events:none}
+#susumi{position:fixed;right:14px;top:50%;transform:translateY(-50%);z-index:25;font-family:var(--go);font-size:11px;letter-spacing:.2em;color:var(--kami);opacity:.75;text-align:center;pointer-events:none}
 #susumi i{display:block;width:2px;height:120px;margin:8px auto;background:rgba(197,154,53,.25);position:relative}
 #susumi i::after{content:"";position:absolute;left:-2px;top:0;width:6px;height:var(--h,0%);background:var(--kinpaku)}
 @media(max-width:720px){#susumi{display:none}}

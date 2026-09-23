@@ -264,7 +264,7 @@ html.bigtext #panel{font-size:15px} html.bigtext .row{font-size:14px} html.bigte
   background:rgba(237,230,214,.12);letter-spacing:.04em;white-space:nowrap;
 }
 /* 第253巡（bot の UI/UX 検分・作り手の指示）：押せる小札は、指で押せる大きさと読める字に */
-button.chip,a.chip,summary.chip,.chip[onclick]{font-size:11px;padding:4px 9px;min-height:28px;display:inline-flex;align-items:center;justify-content:center}
+button.chip,a.chip,summary.chip,.chip[onclick]{font-size:11px;padding:5px 10px;min-height:30px;display:inline-flex;align-items:center;justify-content:center}
 .chip.shu{background:rgba(200,50,30,.35)}
 /* 第221巡（全体UI仕様書 2・13・34・58）：状態の札。色の役目は固定＝赤は敵・危険、橙は前線・注意、翠は安全・盟、金は要の手、灰は補助 */
 .stag{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:3px;font-size:11px;font-weight:900;letter-spacing:.06em;border:1px solid transparent}
@@ -283,7 +283,7 @@ details.fold>summary.sec-title::before{content:"▸ "} details.fold[open]>summar
 .num{font-family:var(--data);font-variant-numeric:tabular-nums}
 .muted{color:var(--gofun-dim)}
 .tiny{font-size:11px}   /* 第253巡（bot の検分）：十px は読めない。下限を十一pxに */
-.nm{min-height:26px;display:inline-flex;align-items:center}   /* 第253巡：一覧の名は押せる。指で押せる高さに */
+.nm{min-height:30px;display:inline-flex;align-items:center}   /* 第253巡：一覧の名は押せる。指で押せる高さに（携帯でも三十px） */
 .scroll-x{overflow-x:auto;display:flex;gap:6px;padding-bottom:4px}
 
 /* ---------- 遭遇・会戦・結果 ---------- */
@@ -409,7 +409,7 @@ details.fold>summary.sec-title::before{content:"▸ "} details.fold[open]>summar
    高さ0から伸ばして、頭と足の帯のあいだを埋めさせる */
 #bcanvas{flex:1 1 0;height:0;min-height:0;width:100%;display:block;touch-action:none}
 @media (orientation:portrait){
-  #bcanvas{ flex:0 0 auto !important; height:auto !important; aspect-ratio:4/3; width:100%; margin:auto 0; }   /* 縦画面：戦場は横長のまま真ん中に（引き伸ばさない）。第226巡（夜53）：46/26 では升が小さすぎたので 4/3（横に少なく見せて升を大きく） */
+  #bcanvas{ flex:1 1 auto !important; height:auto !important; aspect-ratio:auto; width:100%; min-height:52vh; margin:0; }   /* 第253巡（bot・携帯）：野が画面の三割五分しかなかった */   /* 縦画面：戦場は横長のまま真ん中に（引き伸ばさない）。第226巡（夜53）：46/26 では升が小さすぎたので 4/3（横に少なく見せて升を大きく） */
   #battle{ justify-content:center; background:#12100E; }
   #bfoot{ flex-wrap:wrap; }
 }
@@ -653,7 +653,7 @@ body.panelopen #mSim{left:12px}
 .tut{ bottom:120px; }
 
 /* 触れる的を大きくする（指でも押せるように） */
-#panel button.chip{ min-height:24px; padding:3px 9px; }
+#panel button.chip{ min-height:30px; padding:5px 10px; }   /* 第253巡（bot・携帯）：札の中の小札も指で押せる大きさに */
 .cmd{ min-height:34px; }
 
 /* 一覧が長いときの区切りを見やすく */
@@ -744,7 +744,7 @@ body.inbattle #stage.paused::after{ display:none; }
 /* 電話：札を開いている間は「時を止めております」を出さない（札の頭に被る）。小さく下に（上の並びより後に置かないと top が残って縦に伸びていた） */
 @media (max-width: 480px){ #btnSound{ display:none; } }
 /* 第226巡（夜52）：電話の縦持ちで上の帯が右へはみ出し「その他 ▾」が押せなかった → 蔵の数を一つにし、釦を詰め、「手空きの将」は数だけ */
-@media (max-width: 520px){ #topbar{ gap:3px; padding:4px 4px; } #topbar .date{ font-size:11px; padding:3px 6px; } #topbar .stat.keep+.stat.keep{ display:none; } #topbar .stat{ font-size:11px; gap:2px; } #topbar .tool{ padding:4px 6px; font-size:11px; } #topbar #btnIdle{ font-size:0; padding:4px 6px; } #topbar #btnIdle .num{ font-size:11px; } #topbar #btnIdle::before{ content:"手空き"; font-size:11px; margin-right:3px; } }
+@media (max-width: 520px){ #topbar{ gap:3px; padding:4px 4px; } #topbar .date{ font-size:11px; padding:3px 6px; } #topbar .stat.keep+.stat.keep{ display:none; } #topbar .stat{ font-size:11px; gap:2px; } #topbar .tool{ padding:4px 8px; font-size:11px; min-height:30px; display:inline-flex; align-items:center; } #topbar{ gap:6px }  #topbar #btnIdle{ font-size:0; padding:4px 6px; } #topbar #btnIdle .num{ font-size:11px; } #topbar #btnIdle::before{ content:"手空き"; font-size:11px; margin-right:3px; } }
 /* 第224巡（夜11）：電話では政策の木を縦に（三つ目の札が切れていた）、上の帯の「資金」「兵糧」が二行に折れていた */
 @media (max-width: 520px){ #pBody .poltree{ flex-direction:column; } #pBody .poltree .polarrow{ transform:rotate(90deg); align-self:center; } #pBody .poltree .cmd{ min-width:0; } #topbar .stat span{ white-space:nowrap; } #topbar .stat{ white-space:nowrap; } }   /* 縦持ちの電話では上の帯からはみ出す（音は「記録と設定」から） */
 @media (max-width: 1120px){ #stage.paused::after{ top:6px; font-size:11px; padding:2px 10px; letter-spacing:0; } body.panelopen #stage.paused::after{ display:none; } }
@@ -23254,17 +23254,28 @@ function startBattle(e){
       const breakable = true;   // 柵は必ず体力を持つ。崩さぬかぎり通れない（人が守るときは太い柵）
       B.weather="晴"; B.night=false;   // 設楽原は雨上がりの晴れ。鉄砲が効く
       // 柵は一本ずつ見えるように間を空ける。寄せ手が「迂回」を選んだなら、上の端に隙間が開いている
-      const gapTop = B.ctx.flank ? BF.h*0.5 : 0;   // 迂回なら上半分の柵がない（夜のうちに柵の端を回った）
+      /* 第253巡（作り手：長篠は守り手をもう少し粘らせて）：迂回でも柵が無いのは上の三割まで。
+         そして織田は端の備えを固める（夜明けに気づいて、槍の隊を回した） */
+      const gapTop = B.ctx.flank ? BF.h*0.3 : 0;   // 迂回なら上の三割の柵がない
       for(let L=0;L<3;L++){ const x=line+dir*L*2.0; for(let y=1.2;y<BF.h-0.6;y+=1.15){ if(y<gapTop) continue;
         /* 第107巡：三列とも上下いっぱいに組む（作り手の指示：馬防柵はしっかり三陣） */
-        const o={kind:1, variant:Math.floor(y*3)%3, x, y, r:0.85, wall:true, fort:true, fence:true, side:1, lane:L}; if(breakable) o.hp=Math.round((B.ctx.playerSide===1 ? (L===0?140:94) : (L===0?135:96))*0.95);   /* 第253巡（作り手と遊んで）：人が武田のとき、柵が早く割れて織田が五十秒で崩れていた。守り手のときと同じくらい堅くする */ o.hpMax=o.hp;   /* 第253巡：人が武田の時の織田の柵 55/40→90/62（自動の織田が一分で崩れていた） */   /* 第250巡（作り手：柵が倒れない）：耐久を二割下げた */   /* 第128巡：柵の耐久 +15%（作り手の指示） */   /* 第113巡：人が織田・徳川なら柵をまた二割五分厚く（作り手の指示） */   /* 人が武田のときの柵（第108巡：強すぎたので釣り合いを取り直し） */   /* 第107巡：柵の耐久を四分の一落とす（作り手の指示） */   /* 第103巡：升目になって柵の破れ目から入りやすくなった分、柵を太く。内の柵はなお太い */ B.obstacles.push(o); } }   // 柵は多く、一本は脆く（壊れる手応え：作り手の指示）
+        const o={kind:1, variant:Math.floor(y*3)%3, x, y, r:0.85, wall:true, fort:true, fence:true, side:1, lane:L}; if(breakable) o.hp=Math.round((B.ctx.playerSide===1 ? (L===0?140:94) : (L===0?190:134))*0.95);   /* 第253巡（作り手：長篠は守り手をもう少し粘らせて）：人が武田のとき、柵をさらに堅く（135/96→190/134） */   /* 第253巡（作り手と遊んで）：人が武田のとき、柵が早く割れて織田が五十秒で崩れていた。守り手のときと同じくらい堅くする */ o.hpMax=o.hp;   /* 第253巡：人が武田の時の織田の柵 55/40→90/62（自動の織田が一分で崩れていた） */   /* 第250巡（作り手：柵が倒れない）：耐久を二割下げた */   /* 第128巡：柵の耐久 +15%（作り手の指示） */   /* 第113巡：人が織田・徳川なら柵をまた二割五分厚く（作り手の指示） */   /* 人が武田のときの柵（第108巡：強すぎたので釣り合いを取り直し） */   /* 第107巡：柵の耐久を四分の一落とす（作り手の指示） */   /* 第103巡：升目になって柵の破れ目から入りやすくなった分、柵を太く。内の柵はなお太い */ B.obstacles.push(o); } }   // 柵は多く、一本は脆く（壊れる手応え：作り手の指示）
       B.nagashino=true; B.fenceTotal0=B.obstacles.filter(o=>o.fence&&o.hpMax).length;
+      /* 迂回のときは、織田・徳川の槍の隊を二つ、開いた端へ回して備える */
+      if(B.ctx.flank){ setTimeout(()=>{ try{
+        if(!B||!B.nagashino) return;
+        const line0=B.nagFenceX!==undefined?B.nagFenceX:(B.padX||0)+NAG_LINE;
+        const defLeft=B.ctx.playerSide===1;
+        const cand=B.units.filter(u=>u.side===1&&!u.cmd&&u.type!==3&&u.troops>.5).sort((a2,b2)=>b2.troops-a2.troops).slice(0,2);
+        cand.forEach((u,i)=>{ const y=1.6+i*1.4; u.gx=line0+(defLeft?1:-1)*(1.2+i*0.8); u.gy=y; u.order={k:"guard"}; u.x=u.gx; u.y=u.gy; u.cell=null; u.nextCell=null; u.path=null; });
+        try{ gridSettleAll(); }catch(_){ }
+      }catch(_){ } }, 0); }
       /* 第253巡（bot：合戦に目的の文が出ていない）：長篠にも目的の一行を */
       if(!B.objective) B.objective = B.ctx.playerSide===1
         ? "三重の馬防柵の内で武田の騎馬を受け、撃ち崩せ。柵を越えさせるな――柵が破られた所には予備を回せ"
         : "馬防柵を破って織田・徳川の本陣へ。正面から当たれば鉄砲に溶ける。柵の切れ目と側面を衝き、鳶ヶ巣の後詰に気を配れ";
       if(B.ctx.playerSide===1){ B.mods=B.mods||{}; B.mods[1]={...(B.mods[1]||{cav:1,gunP:1,gunA:1,mor:1}), gunP:((B.mods[1]||{}).gunP||1)*0.75}; }   /* 鉄砲の威力は半分（騎馬が溶けるのが早すぎた。作り手の指示） */
-      if(B.ctx.playerSide===0){ for(const u of B.units) if(u.side===1){ if(u.type===3&&u.ammo!==undefined){ u.ammo=Math.round(u.ammo*0.9); u.ammoMax=Math.max(u.ammo,1); } u.morale=Math.max(20,u.morale-5); u.morRes=Math.min(u.morRes===undefined?1:u.morRes,0.78); if(u.cmd){ u.tough=(u.tough||1)*2.4; u.morRes=Math.min(u.morRes,0.5); u.troops=Math.max(u.troops,3200); u.max=Math.max(u.max||0,u.troops); } }   /* 第253巡：本陣（信長の旗本三千）はそう易々とは崩れない。千二百の小勢だったので、二万六千を残したまま本陣だけ潰れて戦が終わっていた */ for(const u of B.units) if(u.side===0) u.morale=Math.min(100,u.morale+6);   /* 第253巡：柵の内の織田は粘る（四十秒で総崩れはあっけない） */ B.mods=B.mods||{}; B.mods[1]={...(B.mods[1]||{cav:1,gunP:1,gunA:1,mor:1}), gunP:((B.mods[1]||{}).gunP||1)*0.62};   /* 第253巡（作り手と遊んで：人が武田だと織田が四十秒で崩れる）：鉄砲を四割まで弱めていたのを六割二分に戻す。武田は一万五千、織田は二万六千 */ }   /* 織田の鉄砲は七割の威力（人が武田のとき。第108巡：騎馬を堅くした分、四割五分から戻す） */
+      if(B.ctx.playerSide===0){ for(const u of B.units) if(u.side===1){ u.morRes=Math.min(u.morRes===undefined?1:u.morRes,0.92); u.tough=(u.tough||1)*1.75; if(u.type===3&&u.ammo!==undefined){ u.ammo=Math.round(u.ammo*1.6); u.ammoMax=u.ammo; }   /* 第253巡（作り手：守り手をもう少し粘らせて）：柵の内の織田・徳川は堅く、玉薬も十分（三千挺） */   /* 第253巡（作り手：長篠は守り手をもう少し粘らせて）：玉薬を削り、士気を下げ、崩れやすくしていたのをやめる */ if(u.cmd){ u.tough=(u.tough||1)*2.4; u.morRes=Math.min(u.morRes,0.5); u.troops=Math.max(u.troops,4200); u.max=Math.max(u.max||0,u.troops); } }   /* 第253巡：本陣（信長の旗本三千）はそう易々とは崩れない。千二百の小勢だったので、二万六千を残したまま本陣だけ潰れて戦が終わっていた */ for(const u of B.units) if(u.side===0) u.morale=Math.min(100,u.morale+2);   /* 第253巡：柵の内の織田は粘る（四十秒で総崩れはあっけない） */ B.mods=B.mods||{}; B.mods[1]={...(B.mods[1]||{cav:1,gunP:1,gunA:1,mor:1}), gunP:((B.mods[1]||{}).gunP||1)*1.0};   /* 第253巡（作り手と遊んで：人が武田だと織田が四十秒で崩れる）：鉄砲を四割まで弱めていたのを六割二分に戻す。武田は一万五千、織田は二万六千 */ }   /* 織田の鉄砲は七割の威力（人が武田のとき。第108巡：騎馬を堅くした分、四割五分から戻す） */
       if(W.nag && W.nag.fell){ for(const u of B.units){ if(u.side===0) u.morale=Math.min(100,u.morale+10); else if(W.generals[u.gid]&&clanName(W.generals[u.gid].clan)==="徳川家") u.morale=Math.max(10,u.morale-10); } log("長篠城が落ちていたため、武田は意気が上がり、徳川は沈んでいます","war"); }   /* 第132巡：長篠城の攻防の結果 */
       else if(W.nag && W.nag.torii){ for(const u of B.units) if(u.side===1&&W.generals[u.gid]&&clanName(W.generals[u.gid].clan)==="徳川家") u.morale=Math.min(100,u.morale+5); }
       /* 第108巡：人が武田のときの上乗せ（練度・結束・武勇・騎馬）はやめ。武田家の強さ（第104巡）と騎馬の堅さ二倍（第107巡）で十分に強い（作り手：強すぎる） */
@@ -23457,7 +23468,7 @@ function startBattle(e){
   if((B.zoom||1)===1&&!B.sim){ B.zoom=BZ_NORMAL; try{ bView(); }catch(_){ } }   /* 第241巡（仕様書 6）：初めから通常の寄りで（兵が駒でなく人に見える高さ）。引きたければ Z */
   /* （野を広げた後に組む） */
   B.opening=PREF.skipSetup?0:999; B.openShownAt=undefined;   // 陣立て。〈開戦〉か空白で始める（設定で飛ばせる）
-  if(B.nagashino && B.ctx.playerSide!==1){ try{ if(typeof nagApplyOdaPlan==="function" && typeof NAG_PRESETS!=="undefined") nagApplyOdaPlan(Object.assign({tobi:null}, NAG_PRESETS.hist)); }catch(e){ console.error(e); } }   /* 第253巡：人が武田のときも、織田は史実の備え（三列の柵・予備三隊）で受ける */
+  if(B.nagashino && B.ctx.playerSide!==1){ try{ if(typeof nagApplyOdaPlan==="function" && typeof NAG_PRESETS!=="undefined") nagApplyOdaPlan(Object.assign({tobi:null}, NAG_PRESETS.hist, {hq:"rear"})); }catch(e){ console.error(e); } }   /* 第253巡（作り手：守り手をもう少し粘らせて）：信長の本陣は柵の奥に置く（前寄りだと二十秒で潰される） */   /* 第253巡：人が武田のときも、織田は史実の備え（三列の柵・予備三隊）で受ける */
   if(B.nagashino && !autoBattleMode) setTimeout(()=>{ try{ nagCouncil(); }catch(e){ console.error(e); } }, 400);
   B.rate=1;         /* 第110巡：戦の速さは毎回×1から（前の戦の×8が残っていた。作り手の指示） */
   setTimeout(()=>tutorial("battle"), 600);
@@ -25467,7 +25478,13 @@ function updateBattle(dt){
     const now=onF.reduce((s,u)=>s+u.troops,0);
     /* 第114巡：兵の割合では決着しない（作り手：七割五分減っても「勝ち」と言われると変）。全滅か本陣の兵が尽きるか、だけ */   // 長篠の武田は、隊を全部潰すまで負けにしない（作り手の指示）
     const c=B.units.find(u=>u.side===side&&u.cmd);
-    const lost = !c || c.troops<=.5 || (c.left && !c.sigHidden && !B.escapePhase && !B.ctx.oke && !B.ted && side!==B.ctx.playerSide);   /* 本陣は兵が尽きたときだけ（崩れて逃げているだけでは決着しない）。第253巡：機械の本陣が野を去った（退き切った）なら本陣なしと同じ（大坂城で秀頼が端から消えたあと、櫓の鉄砲三隊を相手に日暮れまで続いていた） */
+    let lost = !c || c.troops<=.5 || (c.left && !c.sigHidden && !B.escapePhase && !B.ctx.oke && !B.ted && side!==B.ctx.playerSide);
+    /* 第253巡（作り手：長篠は守り手をもう少し粘らせて）
+       柵の内に兵が四割残っているうちは、本陣が潰れても戦は終わらない（旗本の代わりが立つ）。長篠の守り手だけ */
+    if(lost && B.nagashino && side===1 && now>start*0.4 && onF.length>=3){
+      if(!B._hqFellTold){ B._hqFellTold=true; B.bigBanner={t:"織田の本陣、崩る――されど柵は破られず、諸隊は踏みとどまる", at:B.elapsed, big:true}; }
+      lost=false;
+    }   /* 本陣は兵が尽きたときだけ（崩れて逃げているだけでは決着しない）。第253巡：機械の本陣が野を去った（退き切った）なら本陣なしと同じ（大坂城で秀頼が端から消えたあと、櫓の鉄砲三隊を相手に日暮れまで続いていた） */
     if(!lost) return false;
     // 本陣が崩れた。全軍の気が挫ける
     if(!B.hqFell) B.hqFell={};
@@ -25598,6 +25615,11 @@ function stepUnit(u,dt){
     const nx=enemies.filter(z=>z.morale>0&&z.troops>.5&&!z.left&&(u.charge||u.pursue||dist(u,z)<=7)&&!fenceBetween(u,z)).sort((p,q)=>dist(u,p)-dist(u,q))[0];
     if(nx) u.order={k:"attack",id:nx.id}; else { u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } } }   /* 全軍突撃・追い討ちの隊は次の敵へ */   /* 第128巡：狙った敵が崩れて逃げる・野を去ったら狙いは解く（作り手の指示） */
   if(u.nrSleep&&B.nr&&!B.nr.found){ if(dist(u,nearest)<=2.5){ target=nearest; } if(target&&dist(u,target)<=reachOf(u)) u.engagedAt=B.elapsed; if(target){ resolveAttack(u,target); } return; }   /* 第209巡：眠る陣は隣に来た敵しか討たない */
+  if(u.cmd && B.nagashino && u.side===1 && u.morale<45 && u.troops<u.max*0.6 && !(u.hqBackAt>B.elapsed-14)){
+    /* 第253巡（作り手：長篠の守り手をもう少し粘らせて）：本陣が削られたら、旗本は柵の奥へ下がって立て直す */
+    u.hqBackAt=B.elapsed; const defLeft=B.ctx.playerSide===1; const dir=defLeft?-1:1;
+    u.order={k:"move", x:Math.max(1.5,Math.min(BF.w-1.5,u.x+dir*4)), y:u.y}; u.gx=u.order.x; u.gy=u.y;
+  }
   if(u.order.k==="guard"){
     // 持ち場を守る。届く敵だけを討ち、自分から駆け出さない。近い敵の方へ向き直る
     if(u.gx===undefined){ u.gx=u.x; u.gy=u.y; }
@@ -28581,7 +28603,7 @@ function renderBattleFoot(){
       renderBattleFoot();
     });
   } else {
-    foot.innerHTML=`${B.opening>0?`<button class="tool on" id="bBegin" style="font-weight:800">開戦</button><button class="tool" id="bBeginAuto" title="いまの陣立てのまま開戦し、采配は任せる。いつでも戻せる" style="font-weight:800;outline:2px solid rgba(201,162,39,.85);outline-offset:-2px">自動で戦う</button>${(PREF.playedBattles||0)<3?`<span class="tiny" style="color:#FFD166;margin-left:6px;align-self:center">采配が難しければ〈自動で戦う〉。いつでも手に戻せます</span>`:""}`:`<button class="tool ${B.paused?"on":""}" id="bPause" style="font-size:20px;font-weight:900;min-width:52px" title="一時停止／再開（空白キー）">${B.paused?"▶":"Ⅱ"}</button><span class="tiny muted" style="display:flex;gap:2px;align-items:center">${[1,2,3].map(r=>`<button class="tool sub ${(B.rate||1)===r?"on":""}" data-rate="${r}" style="min-width:34px;padding:0 6px">×${r}</button>`).join("")}</span>`}
+    foot.innerHTML=`${B.opening>0?`<button class="tool on" id="bBegin" style="font-weight:800">開戦</button><button class="tool" id="bBeginAuto" title="いまの陣立てのまま開戦し、采配は任せる。いつでも戻せる" style="font-weight:800;outline:2px solid rgba(201,162,39,.85);outline-offset:-2px">自動で戦う</button>${(PREF.playedBattles||0)<3?`<span class="tiny" style="color:#FFD166;margin-left:6px;align-self:center">采配が難しければ〈自動で戦う〉。いつでも手に戻せます</span>`:""}`:`<button class="tool ${B.paused?"on":""}" id="bPause" style="font-size:20px;font-weight:900;min-width:52px" title="一時停止／再開（空白キー）">${B.paused?"▶":"Ⅱ"}</button><span class="tiny muted" style="display:flex;gap:2px;align-items:center">${[1,2,3].map(r=>`<button class="tool sub ${(B.rate||1)===r?"on":""}" data-rate="${r}" style="min-width:34px;padding:0 6px;margin:0 3px">×${r}</button>`).join("")}</span>`}
       ${/* 第253巡（作り手：全軍突撃の釦はいらない）。A キーでは今までどおり */""}
       <!-- 第253巡（作り手）：〈再集結〉〈予備隊 投入〉〈取消〉〈出撃〉〈目安箱〉は合戦の帯から外す（無駄な釦を増やさない）。一斉射撃は一つだけ -->
       ${PREF.wingBtns?`<button class="tool ${B.mode==="multi"?"on":""}" id="bMulti" title="隊を押して幾つも選び、まとめて動かす">複数選択</button>`:""}
