@@ -4047,7 +4047,7 @@ function sameHouse(a,b){
 function stageClanIds(){ if(!W.stage||!W.stage.key) return null; const key=String(W.stage.key).replace(/_open$|_winter$/,""); const d=DECISIVE.find(x=>x.key===key); if(!d) return null; const ids=new Set(); for(const nm of [d.atk,d.def].concat(d.atkAllies||[],d.defAllies||[])){ const K=clanByName(nm); if(K) ids.add(K.id); } return ids; }
 function makePeace(a,b,days,deep){
   const A=W.clans[a], B=W.clans[b]; if(!A||!B||a===b) return;
-  { const sc=stageClanIds(); if(sc && sc.has(a) && sc.has(b)){ if(a===W.player||b===W.player) toast("決戦の前にございます。矛は収められませぬ"); return; } }
+  { const sc=stageClanIds(); if(sc && sc.has(a) && sc.has(b)){ if(a===W.player||b===W.player) toast("決戦の前ゆえ、いまは矛を収められませぬ（決戦が済んでから和議をお試しくだされ）"); return; } }
   A.war.delete(b); B.war.delete(a);
   if(!deep){   // 主家が矛を収めれば、傘下も収める（傘下は主家の戦にだけ付き合う）
     const va=[...A.vassals].filter(v=>W.clans[v]&&!W.clans[v].dead), vb=[...B.vassals].filter(v=>W.clans[v]&&!W.clans[v].dead);
@@ -5027,7 +5027,7 @@ function queueEncounter(e){
     const c=W.castles[e.castle]; const a=W.armies[e.army];
     const gar=a?garrisonTroops(c.id):0, atkT=a?armyTroops(a):0;
     /* 第253巡（bot：城攻めが0〜7秒で終わる。遊ぶ間がなく、ただ画面が切り替わるだけだった） */
-    if(a && c.clan!==a.clan && (gar<900 || (gar<4000 && gar<atkT/5)) && (!e.foeArmy||!W.armies[e.foeArmy])){   /* 第253巡（bot：城攻めが四〜五秒で終わる）：開く目安を上げ、一瞬で終わる合戦を開かない */   /* 第253巡（bot：城攻めが二〜七秒で終わる）：守兵が寄せ手の七分の一にも満たなければ、戦わずに開く */
+    if(a && c.clan!==a.clan && (gar<900 || (gar<5000 && gar<atkT/4)) && (!e.foeArmy||!W.armies[e.foeArmy])){   /* 第253巡（bot：城攻めが四〜五秒で終わる）：開く目安を上げ、一瞬で終わる合戦を開かない */   /* 第253巡（bot：城攻めが二〜七秒で終わる）：守兵が寄せ手の七分の一にも満たなければ、戦わずに開く */
       log(`${c.name}には守る兵がおらず、戦わずに開きました`,"war", a.clan===W.player||c.clan===W.player);
       try{ captureCastle(c.id, a.clan, a); }catch(err){ console.error(err); }
       return; } }   /* 第253巡（作り手：真田丸の戦いが起きない）：筋書き自身が起こす戦（真田丸・総攻め）は通す。ふつうの城攻めの札だけを止める */
@@ -18360,7 +18360,8 @@ function tedUesugiAsk(){ if(!B||!B.ted||B.over!==null) return; const ueSide=0; c
   koChoice("謙信の追撃","織田は川を背にしている。どう追う。",[["all","全軍追撃","正面から押す。損もある",()=>go("all")],["seize","渡河地点を先取り","騎馬を橋と浅瀬へ。織田の退き口を塞ぐ（最も危険で最も効く）",()=>go("seize")],["cav","騎馬のみ追撃","歩兵は四十秒待つ。泥で馬は遅い",()=>go("cav")],["flank","側面迂回","半数が北と南の岸へ回る",()=>go("flank")],["stop","深追いしない","損を抑える。評価は下がる",()=>go("stop")]]); }
 function tedTools(){ const K=B.ted; if(!K) return ""; const mine=B.ctx.playerSide; if(mine===1){ return `<button class="tool sub" id="bTdAll" title="殿軍を除く全隊を、いちばん近い渡り場へ（橋か浅瀬）">全軍、川へ</button><button class="tool sub" id="bTdMenu" title="退きの手（武具を捨てる・殿を残す・浅瀬を探す）">退きの手 ▸</button>`; }
   return `<button class="tool sub" id="bTdMenu" title="追撃の手（渡河地点を先取り・謙信前へ・追撃止め）">追撃の手 ▸</button>`; }   /* 第151巡：足の帯は簡素に */
-function tedMenu(){ if(!B||!B.ted||B.over!==null) return; const K=B.ted; const mine=B.ctx.playerSide; if(mine===1){ const opts=[["drop","武具を捨てる","選んだ隊が武具を捨てて渡る（川の中で速い。以後の守りは弱い）",()=>tedDropGear()]]; if(!K.rearChosen) opts.push(["rear","殿を残す","殿軍を決める",()=>tedRearAsk()]); if(!K.safe) opts.push(["ford","浅瀬を探す","選んだ隊で南の浅瀬を探す（二十秒）",()=>tedFindFord()]); koChoice("退きの手","隊を選んでから使う手もある。",opts); }
+function tedMenu(){ if(!B||!B.ted||B.over!==null) return; const K=B.ted; const mine=B.ctx.playerSide; if(mine===1){ const opts=[["drop","武具を捨てる","選んだ隊が武具を捨てて渡る（川の中で速い。以後の守りは弱い）",()=>tedDropGear()]]; if(!K.rearChosen) opts.push(["rear","殿を残す","殿軍を決める",()=>tedRearAsk()]); if(!K.safe) opts.push(["ford","浅瀬を探す","選んだ隊で南の浅瀬を探す（二十秒）",()=>tedFindFord()]); opts.push(["none","このまま渡る","手を加えず、いまの並びのまま川を渡る",()=>{}]);   /* 第253巡（bot：選べる手が一つしかない問い）：いつも本当の選択にする */
+    koChoice("退きの手","隊を選んでから使う手もある。",opts); }
   else { koChoice("追撃の手（謙信）","",[["chase","追撃せよ","全軍が近い織田勢を追う（退く敵には士気の打撃+25%・足+10%）",()=>tedChaseAll()],["cut","退路を断て ▸","選んだ騎馬（無ければ全騎馬）を渡り場へ先回りさせる",()=>tedCutAsk()],["river","敵を川へ追え","全軍で川岸へ押し、渡り場に詰まった敵を討つ",()=>tedPushRiver()],["ken","謙信、前へ",K.kenFwd?"もう前に出ている":"士気+10、鉄砲の的になる",()=>tedKenshinForward()],["stop","追撃止め","追撃を止め、隊を整える",()=>tedStopPursuit()]]); } }
 /* 第196巡：謙信の手（仕様書「手取川」） */
 function tedChaseAll(){ if(!B||!B.ted||B.over!==null) return; manualCommand(); const foes=B.units.filter(f=>f.side===1&&f.troops>.5&&f.morale>0&&!f.left); if(!foes.length) return toast("敵はもう川の向こう"); for(const u of B.units){ if(u.side!==0||u.troops<=.5||u.morale<=0||u.cmd) continue; u.holdUntil=0; u.reserveHold=false; const t=foes.slice().sort((a,b)=>dist(u,a)-dist(u,b))[0]; u.order={k:"attack",id:t.id}; u.pursue=true; } B.bigBanner={t:"追撃せよ！ 一人も返すな", at:B.elapsed, good:true}; B.ted.stopped=false; try{ playSE("warcry"); }catch(_){ } try{ renderBattleFoot(); }catch(_){ } }
@@ -20702,7 +20703,7 @@ function smRetreat(mode){ if(!B||!B.sm||B.over!==null) return; manualCommand(); 
 function smStopVan(){ if(!B||!B.sm||B.over!==null) return; manualCommand(); let n=0; for(const f of B.units){ if(f.side!==0||f.troops<=.5||f.morale<=0||f.cmd||f.left) continue; if(f.charge||f.pursue||(f.order&&f.order.k==="attack")){ f.order={k:"hold"}; f.charge=false; f.pursue=false; f.holdUntil=B.elapsed+10; f.gloryStop=(f.gloryStop||0)+1; n++; } } const c=B.units.find(u=>u.side===0&&u.cmd); if(c) bshout(c.id,"止まれ！ 深入りするな！",2.2); B.banner={t:n?`前衛${n}隊に止まれの伝令（届くまで少し）`:"前へ出ている隊はない", at:B.elapsed}; try{ renderBattleFoot(); }catch(_){ } }
 function smCannon(){ if(!B||!B.sm||B.over!==null) return; const K=B.sm; if(K.cannonAt>B.elapsed-40) return toast("大砲はまだ支度中"); manualCommand(); K.cannonAt=B.elapsed; const walls=B.obstacles.filter(o=>o.smWall&&o.hp>0); const hit=rnd()<0.6&&walls.length; try{ playSE("siege"); }catch(_){ } if(hit){ const o=walls[Math.floor(rnd()*walls.length)]; o.hp=Math.max(0,o.hp-260); B.decals=B.decals||[]; if(B.decals.length<60) B.decals.push({k:"smoke",x:o.x,y:o.y,t:B.elapsed}); for(const u of B.units) if(u.side===1&&u.troops>.5&&Math.hypot(u.x-o.x,u.y-o.y)<3.5) u.morale=Math.max(0,u.morale-6); K.wallDmg=(K.wallDmg||0)+5; B.bigBanner={t:"大砲、土塁に当たる", at:B.elapsed, good:true}; } else { B.banner={t:"大砲は外れた", at:B.elapsed}; } try{ renderBattleFoot(); }catch(_){ } }
 function smFlank(auto){ if(!B||!B.sm||B.over!==null) return; if(!auto) manualCommand(); const K=B.sm; const H=BF.h; const us=B.units.filter(u=>u.side===0&&u.troops>.5&&u.morale>0&&!u.cmd&&!u.left&&u.type!==3).sort((a,b)=>b.troops-a.troops); const half=us.slice(0,Math.ceil(us.length/2)); half.forEach((u,i)=>{ const top=i%2===0; u.holdUntil=0; u.charge=false; u.flankPath=[{x:K.fx-K.inn*9,y:top?H/2-5.5-9*0.35:H/2+5.5+9*0.35},{x:K.fx-K.inn*3.5,y:top?H/2-5.5-1.2:H/2+5.5+1.2},{x:K.fx+K.inn*1.5,y:top?H/2-5.5:H/2+5.5}];   /* 第253巡：北・南の副攻路から攻め口へ */ const p=u.flankPath.shift(); u.order={k:"move",x:p.x,y:p.y}; u.gx=p.x; u.gy=p.y; }); B.banner={t:`${half.length}隊が柵の端から回り込む`, at:B.elapsed}; K.flanking=true; if(B.ctx.playerSide===1) setTimeout(()=>{ if(B&&B.over===null) B.banner={t:"徳川の一部が柵の端へ――側面に回る動き", at:B.elapsed}; },3000); try{ renderBattleFoot(); }catch(_){ } }
-function smCallOffAsk(){ if(!B||!B.sm||B.over!==null) return; koChoice("攻撃を中止するか","真田丸は落ちない。兵を退き、砲と囲みに切り替える。",[["go","攻めを続ける","",()=>{}],["off","攻撃中止","寄せ手は退く（真田丸は落ちず）",()=>smCallOff()]]); }
+function smCallOffAsk(){ if(!B||!B.sm||B.over!==null) return; koChoice("攻撃を中止するか","真田丸は落ちない。兵を退き、砲と囲みに切り替える。",[["go","攻めを続ける","このまま柵と空堀を攻める（損は増えるが、落とせば大坂の南が開く）",()=>{}],["off","攻撃中止","寄せ手は退く（真田丸は落ちず）",()=>smCallOff()]]); }
 function smCallOff(){ if(!B||!B.sm||B.over!==null) return; const K=B.sm; K.callOff=true; for(const f of B.units){ if(f.side!==0||f.troops<=.5) continue; f.order={k:"retreat"}; f.charge=false; f.pursue=false; } B.bigBanner={t:"徳川軍、後退", at:B.elapsed, good:B.ctx.playerSide===1}; log("徳川は真田丸の正面攻撃を中止し、兵を退いた","war",true); K.callOffAt=B.elapsed; }
 /* 決着と評価 */
 function smFinish(winner){ if(!B||!B.sm||B.over!==null) return; const K=B.sm; const tkNow=B.units.filter(u=>u.side===0).reduce((s2,u)=>s2+(u.troops>.5?u.troops:0),0); const tyNow=B.units.filter(u=>u.side===1).reduce((s2,u)=>s2+(u.troops>.5?u.troops:0),0); const tkPct=100*(1-tkNow/Math.max(1,K.tkStart)), tyPct=100*(1-tyNow/Math.max(1,K.tyStart)); const yuki=B.units.find(u=>u.side===1&&u.cmd); const alive=!!(yuki&&yuki.troops>.5&&yuki.morale>0);
@@ -25945,7 +25946,7 @@ function stallTick(){
     u._stuckN=(u._stuckN||0)+1;
     if(u._stuckN>=2){ u._stuckN=0;
       try{ const [gc,gr]=cellOf(u.x,u.y); let best=null, bd=1e9;
-        for(let dc=-4; dc<=4; dc++) for(let dr=-4; dr<=4; dr++){
+        for(let dc=-8; dc<=8; dc++) for(let dr=-8; dr<=8; dr++){
           const c2=gc+dc, r2=gr+dr; if(!cellPassable(c2,r2)) continue;
           const [px,py]=cellCenter(c2,r2); const d2=Math.hypot(px-u.gx,py-u.gy);
           if(d2<bd){ bd=d2; best=[px,py]; } }
