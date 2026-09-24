@@ -8,6 +8,9 @@
 <meta property="og:title" content="戦国大名">
 <meta property="og:description" content="桶狭間から天下統一へ。ブラウザで遊べるリアルタイム戦国戦略ゲーム。">
 <meta name="theme-color" content="#12100E">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-title" content="戦国大名">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E🏯%3C/text%3E%3C/svg%3E">
 <style>html,body{margin:0;padding:0;background:#12100E;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}[hidden]{display:none!important}</style>
 <!-- pixel: 計測コード（広告の担当者が管理。消さない・変えない） -->
@@ -5403,7 +5406,81 @@ function jailFor(captor, x, y){
   for(const c of myCastles(captor)){ const d=(x===undefined)?0:kmBetween(x,y,W.tile[c.id].c,W.tile[c.id].r); if(d<bd){ bd=d; best=c; } }
   return best?best.id:null;
 }
+
+/* ===== 第254巡（作り手：誰も最後まで行かない。途中に区切りが無い）＝＝＝＝＝
+   一区切りの手柄を、その場で讃えて年表に刻む。やめ時が「飽きた時」にならないように。 */
+function milestone(key, title, sub){
+  try{
+    if(!W.miles) W.miles={};
+    if(W.miles[key]) return false;
+    W.miles[key]={d:dayNumber(), t:title};
+    /* 第254巡（bot：同じ報せが四度出る）：始めから持っている分は黙って控えるだけ */
+    if(W._mileSilent) return false;
+    bigNews(title, true);
+    if(sub) setTimeout(()=>{ try{ toast(sub); }catch(_){ } }, 900);
+    try{ chronicle(title); }catch(_){ }
+    try{ log(title+(sub?"　──　"+sub:""),"growth",true); }catch(_){ }
+    try{ playSE("horn"); }catch(_){ }
+    try{ track("mile/"+key); }catch(_){ }
+    return true;
+  }catch(_){ return false; }
+}
+/* 第254巡（作り手：目安箱にお便りがゼロ）：初めての戦が終わった時だけ、ひとこと求める（帯には足さない） */
+function askFirstWord(){
+  try{
+    if(localStorage.getItem("sengoku_word_asked")) return;
+    localStorage.setItem("sengoku_word_asked","1");
+  }catch(_){ }
+  setTimeout(()=>{
+    try{
+      const el=document.createElement("div"); el.className="overlay"; el.style.zIndex=95;
+      el.innerHTML=`<div class="dialog" style="max-width:400px;text-align:center">
+        <h3>初めての戦、お疲れさまでした</h3>
+        <div class="advice">遊んでみて、分かりにくかった所や「ここをこうして欲しい」を、ひとことだけ聞かせてください。作り手に直接届きます。</div>
+        <div class="grid g2" style="margin-top:12px">
+          <button class="big gold" id="wOk" style="cursor:pointer">ひとこと書く</button>
+          <button class="big ghost" id="wNo" style="cursor:pointer">いまはいい</button>
+        </div></div>`;
+      document.body.appendChild(el);
+      el.querySelector("#wNo").onclick=()=>{ el.remove(); try{ track("word/skip"); }catch(_){ } };
+      el.querySelector("#wOk").onclick=()=>{ el.remove(); try{ track("word/open"); }catch(_){ } try{ openMeyasubako(); }catch(_){ } };
+      try{ track("word/ask"); }catch(_){ }
+    }catch(_){ }
+  }, 2600);
+}
+function milestoneCheck(){
+  try{
+    if(!W.started || W.player===null || W.player===undefined) return;
+    if(!W.milesInit){ W.milesInit=true; W._mileSilent=true; try{ milestoneCheck(); }finally{ W._mileSilent=false; } return; }
+    const mine=myCastles(W.player); const n=mine.length;
+    for(const k of [3,5,10,20,30,50]) if(n>=k) milestone("castle"+k, `城 ${k} ── ${clanName(W.player)}の版図`, "ここまで来れば、もう小勢ではありません");
+    /* 一国を平定 */
+    const byProv={};
+    for(const c of Object.values(W.castles)){ if(c.prov===undefined||c.prov===null) continue; (byProv[c.prov]=byProv[c.prov]||[]).push(c); }
+    for(const pv in byProv){
+      const all=byProv[pv]; if(all.length<2) continue;
+      if(all.every(c=>c.clan===W.player)){
+        const P0=DATA.provinces.find(x=>String(x.id)===String(pv));
+        if(!P0) continue;   /* 第254巡（bot：「一国 平定」が四度出た）：国の名が引けないものは讃えない */
+        const pn=P0.n||P0.name||"";
+        if(!pn) continue;
+        milestone("prov"+pv, `${pn}　平定`, "国が一つ、まるごとあなたのものに");
+      }
+    }
+    /* 宿敵を滅ぼす：わが手で城を奪い切った家 */
+    for(const k of Object.values(W.clans)){
+      if(!k || !k.dead || k.id===W.player) continue;
+      if(!(W.killedBy && W.killedBy[k.id]===W.player)) continue;
+      milestone("foe"+k.id, `${k.name}　滅亡`, "宿敵が世から消えました");
+    }
+  }catch(_){ }
+}
+
 function captureCastle(cid,clan,a){
+  try{ const c0=W.castles[cid]; if(c0 && c0.clan!==null && c0.clan!==undefined && c0.clan!==clan){
+    const rest=Object.values(W.castles).filter(x=>x.clan===c0.clan && x.id!==cid).length;
+    if(rest===0){ W.killedBy=W.killedBy||{}; W.killedBy[c0.clan]=clan; } } }catch(_){ }
+  try{ setTimeout(milestoneCheck, 400); }catch(_){ }   /* 第254巡：区切りの手柄を検める */
   let diedNames=null;
   { const c0=W.castles[cid]; if(c0&&c0.scorched){ c0.food=0; c0.scorched=false; } }   /* 焦土：落ちた城の蔵は空（第137巡） */
   { const c0=W.castles[cid]; if(c0&&c0.lastStand&&c0.clan!==clan){ const K=W.clans[c0.clan]; const dm=K&&W.generals[K.daimyo]; if(dm&&dm.castle===cid&&dm.status!=="死亡"&&K.id!==W.player){ c0.lastStand=false; setTimeout(()=>{ try{ kill(dm.id); log(`${dm.name}は${c0.name}に火を放ち、自刃した`,"war",true); }catch(e){} },50); } else if(dm&&K.id===W.player){ c0.lastStand=false; log(`${c0.name}は落ちた。${dm.name}は落ち延びた`,"war",true); } } }   /* 徹底抗戦の城が落ちれば当主は自刃（人の当主は落ち延びる） */
@@ -26450,7 +26527,7 @@ function nagTobiFortBuild(){ if(!B||!B.nagashino||B.tobiFort) return; const Wd=B
   { const g0=mk("武田信実隊",800,"武田信実"); if(g0){ g0.morale=65; g0.warF=(g0.warF||1)*0.7; g0.morRes=(g0.morRes||1)*1.3; } const g1=mk("砦の番衆",500,"小山田昌行"); if(g1){ g1.x=fx+dir*3.6; g1.y=fy; g1.gx=g1.x; g1.gy=g1.y; g1.morale=70; } }   /* 手薄な砦（史実：奇襲で落ちた） */ if(B.tobiGuarded) mk("鳶ヶ巣の加勢",1500,"小山田昌行");
   B.startTroops=B.startTroops||{}; if(B.startTroops[0]) B.startTroops[0]+=B.tobiGuarded?2800:1300;
   try{ const gs=fortTowerGunners(F.shell.towers, 0, 100, "鳶ヶ巣山砦"); for(const u of gs){ u.tobiGuard=true; F.garrison.push(u.id); } }catch(e){ console.error(e); }
-  B.bg=null; B._fenceVer=(B._fenceVer||0)+1; try{ gridSettleAll(); }catch(_){ } }
+  B.bg=null; B._fenceVer=(B._fenceVer||0)+1; try{ gridSettleAll(); }catch(_){ } try{ B._warpAt=B.elapsed; }catch(_){ }   /* 第254巡（bot：一秒で十八歩）：砦の守兵を据えたのは並べ直しであって、歩いた飛びではない */ }
 /* 鳶ヶ巣山砦：酒井忠次の別働隊。送れば主戦場の兵は減るが、成れば武田の後ろが崩れる */
 function nagTobiStart(send, size, ids){
   B.tobi={sent:!!send, at:B.elapsed, prog:0, done:false, size:size||2};
@@ -31351,7 +31428,7 @@ function showBattleReport(){
 }
 function finishBattle(){
   if(!B || B.done) return;           // 二度押しで落ちないように
-  try{ if(!B.sim&&B.ctx&&!B._endSent){ B._endSent=true; const t=Math.round(B.elapsed); const bk=t<60?"1m":t<180?"3m":t<300?"5m":t<600?"10m":"long"; const won=B.over===B.ctx.playerSide; track(`battle-end/${B.over===null?"quit":won?"win":"lose"}/${bk}/p${B._pauses||0}`); const fps=B._fpsN?Math.round(B._fpsSum/B._fpsN):0; if(fps) track(`fps/${fps<20?"under20":fps<40?"20-40":"40plus"}`); if(B.over!==null&&!localStorage.getItem("sengoku_act1")){ localStorage.setItem("sengoku_act1","1"); track("activation/first-battle-complete/"+(won?"win":"lose")); } } }catch(_){ }
+  try{ if(!B.sim&&B.ctx&&!B._endSent){ B._endSent=true; const t=Math.round(B.elapsed); const bk=t<60?"1m":t<180?"3m":t<300?"5m":t<600?"10m":"long"; const won=B.over===B.ctx.playerSide; track(`battle-end/${B.over===null?"quit":won?"win":"lose"}/${bk}/p${B._pauses||0}`); const fps=B._fpsN?Math.round(B._fpsSum/B._fpsN):0; if(fps) track(`fps/${fps<20?"under20":fps<40?"20-40":"40plus"}`); if(B.over!==null&&!localStorage.getItem("sengoku_act1")){ localStorage.setItem("sengoku_act1","1"); track("activation/first-battle-complete/"+(won?"win":"lose")); try{ askFirstWord(); }catch(_){ } } } }catch(_){ }
   if(W.quick&&!W.quickTold){ W.quickTold=true; track("quick/done"); setTimeout(()=>{ try{ koChoice("一戦、お疲れさま","本編では全国地図から、城の内政・外交・出陣、そして六十余の決戦を采配できます。このまま織田家で続けられます。",[["go","このまま続ける（織田家）","地図へ",()=>{ W.quick=false; setSpeed(1); }],["title","表紙へ戻る","筋書きと家を選び直す",()=>{ location.reload(); }]]); }catch(_){ } },900); }
   bumpGarrison();
   const ctx=B.ctx;
@@ -33468,6 +33545,10 @@ function openFund(){
     <div class="f-copy">「${esc(f.copy)}」</div>
     <div class="f-tabs">${tabs.map(([k,n])=>`<button class="chip ${tab===k?"on":""}" style="cursor:pointer" onclick="window.__fundTab='${k}';openFund()">${n}</button>`).join("")}</div>
     ${tab==="main"?`
+    <div class="tiny" style="text-align:center;color:var(--gofun-dim);margin:10px 0 6px">集まったぶんは、合戦画面の絵と曲に使います。特典はありません。<br>遊ぶのに払いは要りません</div>
+    <div class="grid g3" style="margin-bottom:4px">${[0,1,3].map(i=>{const t=FUND.tiers[i]; return t?`<button class="cmd" style="cursor:pointer;min-height:54px" onclick="fundSupport(${i})">¥${t.amt.toLocaleString()}<span class="cost">${esc(t.rank)}</span></button>`:""; }).join("")}</div>
+    `:""}
+    ${tab==="main"?`
     <div class="f-gauge"><i style="width:${(pct*100).toFixed(1)}%"></i><b>${(st.pct*100).toFixed(1)}%${st.pct>=1?"　軍資金達成！":""}</b></div>
     <div class="f-marks">${marks}</div>
     <div class="f-nums"><div><span>現在</span><b>${fundYen(st.raised)}</b></div><div><span>目標</span><b>${fundYen(st.goal)}</b></div><div><span>${st.before?"開始まで":"残り"}</span><b>${st.before?Math.ceil((st.start-new Date())/86400000)+"日":st.left+"日"}</b></div><div><span>参加</span><b>${(f.backers||0).toLocaleString()}人</b></div></div>
@@ -33848,6 +33929,12 @@ window.addEventListener("focus", ()=>setTimeout(ensureAudioRunning,150));
 /* 第254巡（作り手：開くまで8秒以上が半分）：表紙を先に出してから本体を読む。
    本体は Blob にして <script> で読むので、画面が出てから組み立てが走る */
 (function(){
+  /* 第254巡：二度目からすぐ開くように、控え（service worker）を入れる。配信のウェブ版だけ */
+  try{
+    if("serviceWorker" in navigator && location.protocol==="https:" && !(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap)){
+      window.addEventListener("load", function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); });
+    }
+  }catch(_){ }
   var st=document.getElementById("bootState");
   function go(){
     var el=document.getElementById("coreJs"); if(!el) return;
