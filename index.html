@@ -13606,8 +13606,10 @@ function moveHq(id){
 /* 第221巡（仕様書 13・34・40）：城の状態の札。包囲中／敵軍接近（あとN日）／前線／兵糧不足／兵力不足／安全／本城 */
 function castleStatus(c){ const tags=[]; const id=c.id; const mine=c.clan===W.player; const sieges=Object.values(W.armies).filter(a=>a.mission==="包囲"&&a.target===id); let danger=0;
   if(sieges.length){ tags.push({k:"bad",t:"包囲中"}); danger=3; }
-  let near=null; for(const a of Object.values(W.armies)){ if(a.clan===c.clan||!a.path||!a.path.length||c.clan===null||!hostile(a.clan,c.clan)) continue; if(a.path[a.path.length-1]!==id) continue; if(!mine&&!visible(a)) continue; let d=null; try{ d=arrivalDays(a); }catch(_){ } if(near===null||(d!==null&&d<near)) near=d===null?near:d; if(near===null) near=99; }
-  if(near!==null&&!sieges.length){ tags.push({k:"bad",t:near>=99?"敵軍接近":`敵軍接近 あと${Math.max(1,Math.round(near))}日`}); danger=Math.max(danger,2); }
+  let near=null, nearWho=null; for(const a of Object.values(W.armies)){ if(a.clan===c.clan||!a.path||!a.path.length||c.clan===null||!hostile(a.clan,c.clan)) continue; if(a.path[a.path.length-1]!==id) continue; if(!mine&&!visible(a)) continue; let d=null; try{ d=arrivalDays(a); }catch(_){ } if(d!==null&&(near===null||d<near)){ near=d; nearWho=(W.clans[a.clan]||{}).name||null; } if(near===null){ near=99; nearWho=(W.clans[a.clan]||{}).name||null; } }
+  /* 第253巡（作り手：「敵軍 あと30日」と出ても何も起きないことがある。急すぎるし意味がない）
+     十四日より先の接近は出さない。出す時は、どこの勢かを添える */
+  if(near!==null&&!sieges.length&&near<=14){ const who=nearWho?String(nearWho).replace(/家$/,"")+"勢 ":""; tags.push({k:"bad",t:`${who}接近 あと${Math.max(1,Math.round(near))}日`}); danger=Math.max(danger,2); }
   const front=c.clan!==null&&c.neighbors.some(n=>{ const o=W.castles[n]; return o&&o.clan!==null&&o.clan!==c.clan&&hostile(o.clan,c.clan); });
   if(front&&!sieges.length){ tags.push({k:"warn",t:"前線"}); danger=Math.max(danger,1); }
   if(mine){ const fd=foodDays(c); if(fd<60){ tags.push({k:fd<20?"bad":"warn",t:"兵糧不足"}); danger=Math.max(danger,fd<20?2:1); } const gar=garrisonFast(id); const cap=Object.values(W.generals).filter(g=>g.castle===id&&g.clan===W.player&&!g.army&&g.status!=="死亡"&&!isChild(g)).reduce((s2,g)=>s2+troopCapOf(g),0); if(gar<1000||(cap>0&&gar<cap*0.3)){ tags.push({k:front||near!==null?"bad":"warn",t:"兵不足"}); danger=Math.max(danger,front||near!==null?2:1); } if(c.minchu<=30) tags.push({k:"warn",t:"民心不安"}); }
@@ -17895,7 +17897,11 @@ function openIshiyama(){ if(W.ishi&&W.ishi.phase==="prep"&&(W.ishi.day||0)<(W.is
   else if(I.phase==="relief"){ const R=I.relief;
     h+=`<div class="sec-title">京の信長へ急報</div><div class="tiny">「原田直政${I.harada==="dead"?"討死":"敗走"}」「天王寺砦包囲」「明智光秀ら危急」</div><div class="grid g2" style="margin-top:6px"><div class="s-stat"><span>集まった兵</span><b>${R.gathered.toLocaleString()}</b><span class="tiny muted">明日 +3,000（上限一万五千）</span></div><div class="s-stat"><span>砦が持つ見込み</span><b>あと${ishiFortDays()}日</b><span class="tiny muted">備え ${Math.round(I.fort.hp)}%</span></div></div>`;
     if(side==="od"){ h+=`<div class="sec-title">信長の判断</div><div class="grid g2"><button class="cmd" onclick="ishiReliefGo('wait')">援軍の集結を待つ<span class="cost">一日待って兵を増やす。砦は削られる</span></button><button class="cmd" onclick="ishiReliefGo('now')">即時出陣<span class="cost">今の兵で駆けつける（明日救援戦）</span></button><button class="cmd" onclick="ishiReliefGo('sakuma')">佐久間軍のみ救援<span class="cost">五千だけ送る。信長は出ない（成る見込み低い）</span></button><button class="cmd" onclick="ishiReliefGo('abandon')">砦放棄を命じる<span class="cost">明智に退去を命じる。七割で明智は生きて帰る</span></button></div>`; }
-    else h+=`<div class="tiny muted">信長は京で兵を集めている。集まる前に砦を落とせ</div>`;
+    else h+=`<div class="tiny muted">信長は京で兵を集めている。集まる前に砦を落とせ</div>
+      <div class="sec-title">本願寺の手（一日に一手）</div><div class="grid g2">
+        <button class="cmd" onclick="ishiAct('pressFort')" ${can?"":"disabled"}>砦へ総攻め<span class="cost">砦の備え−15・こちらも兵を損なう</span></button>
+        <button class="cmd" onclick="ishiAct('blockRoad')" ${can?"":"disabled"}>街道を塞ぐ<span class="cost">信長の救援が一日遅れる</span></button>
+      </div>`;   /* 第253巡（作り手：天王寺砦の札を押しても何も起きない）：守り手の側にも手を置く */
   }
   else if(I.phase==="after"){ const r=I.results; h+=`<div class="sec-title">結果</div><div class="tiny">${r.text||""}</div><div class="tiny muted">次は木津川口。毛利の水軍が石山へ米を運ぶ（${I.navalAt?Math.max(0,I.navalAt-dayNumber())+"日後":"—"}）</div>`; }
   h+=`<div class="tiny muted" style="margin-top:6px">${I.log.slice(-4).map(esc).join("<br>")}</div>`;
@@ -17914,6 +17920,8 @@ function ishiAssign(k,gid){ const I=W.ishi; const me=W.clans[W.player]; if(!I||I
 function ishiAct(k){
   const I=W.ishi; if(!I||I.acted===I.day) return; const side=ishiSide(); const me=W.clans[W.player]; const od=clanByName("織田家"), hg=clanByName("本願寺"); let msg="";
   if(k==="wood"){ if(me.money<1000) return toast("銭が足りませぬ"); me.money-=1000; I.wood+=40; msg="山から木材を切り出した（+40）"; }
+  else if(k==="pressFort"){ if(I.fort){ I.fort.hp=Math.max(0, I.fort.hp-15); I.fort.mor=Math.max(0,(I.fort.mor===undefined?70:I.fort.mor)-8); } msg="門徒が砦へ総攻めをかけた（砦の備え−15）"; }
+  else if(k==="blockRoad"){ if(I.relief){ I.relief.at=(I.relief.at||dayNumber())+1; I.relief.blocked=(I.relief.blocked||0)+1; } msg="街道に柵と伏兵を置き、信長の救援を一日遅らせた"; }
   else if(k==="people"){ I.people+=40; for(const c of myCastles(0)) if(DATA.provinces[c.prov]&&DATA.provinces[c.prov].n==="摂津") c.minchu=Math.max(0,(c.minchu||50)-3); msg="摂津の村から人夫を集めた（+40、民心−3）"; }
   else if(k==="scout"){ I.scouted=true; msg="物見の報：木津には雑賀の鉄砲に楼の岸の門徒を合わせ、およそ一万二千。三千などではない"; }
   else if(k==="blockriver"){ if(me.money<2000) return toast("銭が足りませぬ"); me.money-=2000; I.supply=Math.max(0,I.supply-8); I.riverBlocked=true; msg="木津川に杭を打ち、舟の道を狭めた"; }
