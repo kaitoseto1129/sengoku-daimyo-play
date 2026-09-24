@@ -6992,6 +6992,11 @@ function disbandArmy(a){
 }
 function recallArmy(id){
   const a=W.armies[id]; if(!a||a.stage) return;   // 仕込みの軍は引き返さない
+  /* 第254巡（bot：同じ二つの城を行ったり来たり）：囲みを解いて退いたら、その城はしばらく諦める */
+  try{ if(a.mission==="包囲" && a.target!==undefined && a.target!==null && W.castles[a.target]){
+    const k=W.clans[a.clan];
+    if(k){ k.repulsed=k.repulsed||{}; k.repulsed[a.target]={until:dayNumber()+45, garrison:garrisonTroops(a.target)}; }
+  } }catch(_){ }
   // 出どころの城が落ちていれば、いちばん近い自城へ戻る
   const home=W.castles[a.origin];
   if(!home || home.clan!==a.clan){
@@ -7489,6 +7494,13 @@ function aiMilitary(clan,p){
       const t=W.castles[nid], tc=t.clan;
       if(tc===clan.id) continue;
       if(decReservedCastle(t.name)) continue;   /* 近く決戦が起きる城は横取りしない（第253巡） */
+      /* 第254巡（bot：軍が同じ二つの城の間を行ったり来たり）：いちど寄せて退いた城には、しばらく寄せ直さない。
+         守りが目に見えて薄くなったなら、その限りではない */
+      { const rp=clan.repulsed && clan.repulsed[nid];
+        if(rp && dayNumber()<rp.until){
+          const nowG=garrisonTroops(nid);
+          if(!(nowG < rp.garrison*0.6)) continue;
+        } }
       if(tc!==null){
         if(clan.allies.has(tc)||clan.suzerain===tc||clan.vassals.has(tc)) continue;
         if(sameHouse(clan.id,tc)) continue;         // 同じ主家の下の家は狙わない
@@ -15896,6 +15908,15 @@ function demandSurrender(id){
 function assaultNow(id){
   const a=W.armies[id]; if(!a||a.mission!=="包囲"||!W.castles[a.target]) return toast("囲んでいる城がありませぬ");
   if(garrisonTroops(a.target)<=0){ captureCastle(a.target,a.clan,a); closePanel(); refreshHUD(); return; }
+  /* 第254巡（bot：合戦が四秒で終わる。遊ぶ間がない）：守りが桁違いに薄ければ、戦場を開かずに城を開かせる */
+  try{ const gar=garrisonTroops(a.target), atk=armyTroops(a);
+    if(gar>0 && atk>0 && gar < atk*0.06 && !decReservedCastle(W.castles[a.target].name)){
+      const c=W.castles[a.target];
+      const loss=Math.max(0, Math.floor(gar*0.7));
+      bigNews(`${c.name} 開城`);
+      log(`${c.name}の守兵${gar.toLocaleString()}は、${atk.toLocaleString()}の寄せ手を前に戦わずして城を開きました`,"war",true);
+      captureCastle(c.id, a.clan, a); closePanel(); refreshHUD(); resumeSpeed(); return;
+    } }catch(_){ }
   closePanel();
   queueEncounter({army:a.id, foeArmy:null, castle:a.target, playerAttacks:true});
   resumeSpeed(); refreshHUD();
@@ -21778,7 +21799,8 @@ function siegeKitTick(dt){ const K=B.sg; if(!K||B.over!==null||B.opening>0) retu
       /* 第253巡（bot：どの城でも寄せ手が全滅する）：竹束。四十五秒すぎに楯が前へ運ばれ、塀からの矢玉が三割減る */
       const take = B.elapsed>45 ? 0.68 : 1;
       if(B.elapsed>45 && !B._takebaSaid){ B._takebaSaid=true; B.banner={t:"竹束が前へ運ばれた――塀からの矢玉が効きにくくなる", at:B.elapsed}; }
-      const loss=Math.min(u.troops, (u.troops*0.005*power*k+3.2*power)*take);   /* 第253巡：一律の分を 6→3.2（小勢が溶けていた） */ u.troops-=loss; u.morale=Math.max(0,u.morale-0.45*power*k*take);   /* 第253巡：塀の矢玉で寄せ手の心が折れるのが早すぎた（城が一つも落ちない） */ hit+=loss; u.hitAt=B.elapsed; u.flash=Math.max(u.flash||0,0.12);
+      const big=Math.max(1, Math.min(2.4, Math.sqrt(u.troops/1200)));   /* 第254巡（bot：数で勝る隊が小勢に一方的に削られる）：大勢ほど「一人あたり」は当たりにくい。壁からの矢玉は守り手の数で決まるのであって、寄せ手が大きいほど倍々に増えるものではない */
+      const loss=Math.min(u.troops, (u.troops*0.005*power*k/big+3.2*power)*take); u.troops-=loss; u.morale=Math.max(0,u.morale-0.45*power*k*take);   /* 第253巡：塀の矢玉で寄せ手の心が折れるのが早すぎた（城が一つも落ちない） */ hit+=loss; u.hitAt=B.elapsed; u.flash=Math.max(u.flash||0,0.12);
       /* 矢と鉄砲の絵：門と両脇の塀から。第207巡：櫓があれば櫓の上からも（作り手：矢倉から目に見えて撃ってほしい） */ if(rnd()<0.75){ const tw=(B.fortTowers||[]).filter(t=>t.alive&&Math.hypot(t.x-u.x,t.y-u.y)<7); const fromT=tw.length&&rnd()<0.5?tw[Math.floor(rnd()*tw.length)]:null; const sx0=fromT?fromT.x:B.gate.x+(defLeft?-0.6:0.6), sy0=fromT?fromT.y-1.8:B.gate.y+(rnd()<0.5?-1:1)*(1+rnd()*5); const gun=rnd()<(fromT?0.5:0.35); B.shots.push({x:sx0,y:sy0,x0:sx0,y0:sy0,tx:u.x+(rnd()-.5)*1.2,ty:u.y+(rnd()-.5)*1.2,t:0,life:gun?0.22:0.42,side:1,miss:false,big:gun,arrow:!gun}); if(gun){ B.puffs.push({x:sx0,y:sy0,t:0,life:1.2,r:1.2,big:true}); } } }
     /* 第253巡（bot：どの城でも寄せ手が全滅し、守り手は一兵も減らない）――寄せ手も撃ち返す。
        塀に取り付いた隊の鉄砲・弓が、壁際と櫓の守り手を削る（城攻めが一方的な的当てにならないように） */
@@ -28280,7 +28302,9 @@ function resolveAttack(a,d){
   else loss=Math.min(loss, Math.max(1,d.max)*(d.cmd?0.07:(aSp&&UNITS[a.type].sp==="騎馬突撃")?0.18:0.13));   /* 第224巡（夜13）：どの戦でも一度の打ち合いで隊の一割三分（本陣は七分）より減らない（川中島で景虎の本陣が四隊の騎馬に五秒で消えていた） */
   /* 第253巡（作り手：砦の百の鉄砲隊に、大きな隊がみるみる削られる。逆に相手は全然減らない）
      一度の打ち合いで与えられるのは、自分の兵の半分まで。小勢が大軍を薙ぎ払うことはない */
-  loss=Math.min(loss, Math.max(1, a.troops*0.5));
+  loss=Math.min(loss, Math.max(1, a.troops*0.2));   /* 第254巡（bot：小勢が大軍を削り倒す）：一度に討てるのは自分の兵の二割まで（半分は多すぎた） */
+  /* 第254巡：数で大きく勝る側は、相手をより速く崩せる（受け手の上限を、兵数の差に応じて緩める） */
+  if(a.troops>d.troops*2){ const k2=Math.max(1, Math.min(2.2, a.troops/Math.max(1,d.troops)/2)); loss*=k2; }
   if(overWall!==1) loss*=overWall;   /* 柵越しの一突きは浅い（第253巡） */
   d.troops=Math.max(0,d.troops-loss);
   if(a.type!==3 && rnd()<0.05){ B.decals=B.decals||[]; if(B.decals.length<70) B.decals.push({k:"mud", x:d.x+(rnd()-.5)*1.5, y:d.y+(rnd()-.5)*1.0, t:B.elapsed}); }   // 踏み荒らしの跡
@@ -33383,7 +33407,7 @@ function beginGame(clanId){
     const lore=scenarioLore(clanName(clanId));
     openingBanner((sc.text||[]).join("　")+(lore?"　／　"+lore.sum:""), 0);
     document.getElementById("alertTitle").textContent=`${sc.era}　${sc.name}`;
-    for(const t of (sc.text||[])) log(t,"dip");
+    if(!W._introLogged){ W._introLogged=true; for(const t of (sc.text||[])) log(t,"dip"); }   /* 第254巡（bot：同じ報せが四度出る）：筋書きの粗筋は一度だけ */
   }
   startDecisiveOpening();
   // 関ヶ原（と小田原）で徳川・石田（豊臣・北条）以外を継いだなら、両陣営から書状が届く。旗色を決める
