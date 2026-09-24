@@ -106,20 +106,19 @@ function sumStats(h){ return (h.stats||[]).reduce((s,d)=>s+(d.daily||0),0); }
 function render(){
   if(!DATA) return; const R=DATA.ranges[RANGE]; if(!R){ return; }
   const hits=(R.hits||[]); const tot=R.total||{};
-  let days=(tot.stats||[]).map(d=>({day:d.day, n:d.daily||0}));
-  if(!days.length){ const m={}; for(const h of hits){ if(h.event) continue; for(const d of (h.stats||[])) m[d.day]=(m[d.day]||0)+(d.daily||0); } days=Object.keys(m).sort().map(k=>({day:k,n:m[k]})); }   /* 総数が取れなければ、道ごとの数から日ごとに足す */
-  /* 第253巡（作り手）：GoatCounter の総数は出来事（ev/…）も含む。人の数は「ページを開いた数」で見る（総数−出来事）。
-     日ごとの線も出来事を除いた数に（広告の日に四倍に見えていた） */
-  const evTot=+(tot.total_events||0), rawTot=days.reduce((s,d)=>s+d.n,0);
-  const evByDay={}; for(const h of hits){ if(!h.event) continue; for(const d of (h.stats||[])) evByDay[d.day]=(evByDay[d.day]||0)+(d.daily||0); }
-  days=days.map(d=>({day:d.day, n:Math.max(0,d.n-(evByDay[d.day]||0))}));
-  const visits=(rawTot&&evTot)?Math.max(0,rawTot-evTot):days.reduce((s,d)=>s+d.n,0);
-  const ev=p=>hits.filter(h=>h.event && h.path.startsWith("ev/"+p)).reduce((s,h)=>s+sumStats(h),0);
+  /* 第254巡（作り手）：訪問は「出来事でない道（ページ）の数」だけから数える。
+     以前は総数から出来事を引いていたが、7日ぶんの stats/total が取れない日に二重に引かれ、656 が 21 になっていた */
+  const pageHits=hits.filter(h=>!h.event);
+  const dmap={}; for(const h of pageHits){ for(const d of (h.stats||[])) dmap[d.day]=(dmap[d.day]||0)+(d.daily||0); }
+  let days=Object.keys(dmap).sort().map(k=>({day:k,n:dmap[k]}));
+  const visits=days.reduce((s,d)=>s+d.n,0);
+  /* 第254巡：道の区切りまで見て数える。前は ev/battle に ev/battle-end・ev/battle-30s なども混ざり、会戦が三倍に見えていた */
+  const ev=p=>hits.filter(h=>h.event && (h.path==="ev/"+p || h.path.startsWith("ev/"+p+"/"))).reduce((s,h)=>s+sumStats(h),0);
   const byPrefix=p=>{ const m={}; for(const h of hits){ if(!h.event||!h.path.startsWith("ev/"+p+"/")) continue; const rest=h.path.slice(("ev/"+p+"/").length); m[rest]=(m[rest]||0)+sumStats(h); } return Object.entries(m).sort((a,b)=>b[1]-a[1]); };
   const act=ev("activation/first-battle-complete"), adClicks=byPrefix("src").filter(([k])=>/^meta/.test(k)).reduce((a,[,n])=>a+n,0)||ev("src/meta");
   const loadFast=ev("load/1s"), load3=ev("load/3s"), loadSlow=ev("load/8s")+ev("load/slow"), loadTot=loadFast+load3+loadSlow;
   const starts=ev("start"), battles=ev("battle"), results=ev("result"), unlocks=ev("unlock"), fundOpen=ev("fund/open"), fundClick=ev("fund-click"), payClick=ev("pay-click"), fundDone=byPrefix("fund").filter(([k])=>k!=="open");
-  const pages=hits.filter(h=>!h.event);
+  const pages=pageHits;
   const pageviews=pages.reduce((s,h)=>s+sumStats(h),0);
   const pct=(a,b)=>b?Math.round(a/b*100)+"%":"—";
   // 遊び始めの内訳：筋書き／家

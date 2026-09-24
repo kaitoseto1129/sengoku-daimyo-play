@@ -8,8 +8,12 @@ const H = { "Authorization": "Bearer " + TOKEN, "Content-Type": "application/jso
 async function get(path, params) {
   const u = new URL(SITE + "/api/v0/" + path); for (const [k, v] of Object.entries(params || {})) u.searchParams.set(k, v);
   await new Promise(r => setTimeout(r, 300));   // 秒に四つまで
-  const r = await fetch(u, { headers: H });
-  const text = await r.text();
+  let r = await fetch(u, { headers: H });
+  let text = await r.text();
+  if (!r.ok) {   /* 第254巡：たまに 404 が返る。一度だけ取り直す */
+    await new Promise(x => setTimeout(x, 1200));
+    r = await fetch(u, { headers: H }); text = await r.text();
+  }
   if (!r.ok) return { error: r.status + " " + text.slice(0, 200) };
   try { return JSON.parse(text); } catch (e) { return { error: "json: " + text.slice(0, 200) }; }
 }
@@ -19,9 +23,14 @@ async function hitsAll(start, end) {
   for (let i = 0; i < 20; i++) {
     const r = await get("stats/hits", { start, end, daily: "true", limit: 100, ...(after !== undefined ? { after } : {}) });
     if (r.error) { out.error = r.error; break; }
-    out.push(...(r.hits || []));
-    if (!r.more || !r.hits || !r.hits.length) break;
-    after = r.hits[r.hits.length - 1].path_id;
+    const got = r.hits || [];
+    out.push(...got);
+    /* 第254巡：more が返らない版があり、百の道で切れていた（数の少ない道が丸ごと落ちる）。
+       百ぴったり返ってきたら続きがあると見なして取りに行く */
+    if (got.length < 100) break;
+    const last = got[got.length - 1].path_id;
+    if (last === undefined || last === after) break;
+    after = last;
   }
   return out;
 }
