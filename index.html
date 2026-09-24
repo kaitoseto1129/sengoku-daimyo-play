@@ -23438,7 +23438,7 @@ function fireDecisive(d){
     const D0=(d.defClanOf&&decClanOf(d.defClanOf))||clanByName(d.def)||(d.altDef?clanByName(d.altDef):null);
     const drop=(why)=>{ if(W.decisivePending===d.id){ W.decisivePending=null; W.decisiveAt=null; }
       /* 第253巡：盤面が食い違ったままなら、毎日同じ戦を試して見送り続けることになる。何度か見送ったら、その戦はもう起こさない */
-      W.decDrops=W.decDrops||{}; const n=(W.decDrops[d.id]=(W.decDrops[d.id]||0)+1); if(n>=6 && W.fired) W.fired.add(d.id);
+      W.decDrops=W.decDrops||{}; const n=(W.decDrops[d.id]=(W.decDrops[d.id]||0)+1); if(n>=6 && W.fired){ W.fired.add(d.id); if(d.when==="flag"&&d.flag) W[d.flag]=false; }
       try{ console.info("決戦を見送り",d.key,why+(n>=6?"（もう起こさない）":"")); }catch(_){ } };
     if(d.castle){
       const c0=Object.values(W.castles).find(x=>x.name===d.castle);
@@ -23454,6 +23454,7 @@ function fireDecisive(d){
   }catch(e){ console.error(e); }
   if(W.nag && d && /nagashino/.test(d.key)) W.nag.done=true;   /* 長篠城の攻防はここまで（第132巡） */
   W.fired.add(d.id);
+  if(d.when==="flag"&&d.flag) W[d.flag]=false;   /* 第253巡（bot：二条御所の戦いが三度起きた）：旗で起きる戦は、起きたら旗を下ろす */
   if(d.key==="kawanakajima"){ const tk=clanByName("武田家"); if(tk && !findGeneralByName("武田信繁")){ const g=spawnGeneral("武田信繁",tk.id,null,1500); if(g){ g.family=true; g.loyalty=100; } } }
   /* 第253巡（作り手：木津砦の戦いの大将が明智光秀になっている。原田直政でしょう）
      筋書きが名指しした総大将が世にいなければ、その戦のために呼び出す。名指しの将が出ない戦にはしない */
@@ -27118,6 +27119,14 @@ function aiCommandSide(side, onlyAlly){
     if(u.cmd && side===B.ctx.playerSide && u.order.k==="retreat" && u.morale>0 && !B.retreatAll && !B.playerFled){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; }
     if(u.side!==side||u.morale<=0||u.troops<=.5||u.order.k==="retreat"||u.left) continue;
     if(onlyAlly && !u.ally && !u.autoAI) continue;   /* 第118巡b：〈この隊は任せる〉の隊も機械が動かす */
+    /* 第253巡（bot：同盟の隊が敵のそばで二十六秒突っ立っている）：持ち場の隊でなければ、近くの敵に掛かる */
+    if(u.ally && !u.postHold && !u.reserveHold && !u.towerGun && !u.tobiHold && !u.fortGuard){
+      const near2=foes.filter(f=>f.troops>.5&&f.morale>0&&!f.left&&dist(f,u)<11).sort((a2,b2)=>dist(a2,u)-dist(b2,u))[0];
+      if(near2 && (u.order.k==="hold"||u.order.k==="guard")){
+        u._allyIdle=(u._allyIdle||0)+1;
+        if(u._allyIdle>=3){ u._allyIdle=0; u.order={k:"attack", id:near2.id}; u.holdUntil=0; continue; }
+      } else u._allyIdle=0;
+    }
     if(u.postHold){ if(u.order.k!=="guard"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } continue; }   /* 第207巡：持ち場の隊（横山の囲み）は機械が動かさない */
     if(u.towerGun||u.tobiHold) continue;   /* 第239巡：櫓の鉄砲と鳶ヶ巣の駐屯は機械も動かさない */
     /* 第253巡（作り手：同盟の隊が突っ立ったまま、攻撃されるばかりで何もしない）
