@@ -65,7 +65,7 @@ button:focus-visible{outline:2px solid var(--kin);outline-offset:2px}
 
 /* ---------- 画面全体 ---------- */
 #app{position:fixed;inset:0;display:flex;flex-direction:column}
-#stage{position:relative;flex:1;overflow:hidden;background:#2F6F94}
+#stage{position:relative;flex:1;overflow:hidden;background:#1187EE}
 #map{position:absolute;inset:0;touch-action:none;cursor:grab}
 #map.dragging{cursor:grabbing}
 
@@ -135,7 +135,7 @@ button:focus-visible{outline:2px solid var(--kin);outline-offset:2px}
 #minimap{
   position:absolute;right:56px;bottom:14px;z-index:15;
   width:104px;border:1px solid rgba(237,230,214,.45);border-radius:3px;
-  background:#2F6F94;cursor:crosshair;
+  background:#1187EE;cursor:crosshair;
 }
 /* ---------- 接近の報せ ---------- */
 #mapTip{position:absolute;z-index:16;pointer-events:none;background:rgba(18,16,14,.92);border:1px solid var(--line);
@@ -1966,7 +1966,8 @@ function fbm(x,y,oct){
 }
 
 const T = { SEA:0, SHALLOW:1, PLAIN:2, FOREST:3, HILL:4, MOUNTAIN:5, RIVER:6 };
-const TERRAIN_COLOR = ["#3A9BE0","#66C0F0","#8CCB5C","#63A84E","#8FAE68","#A6A48E","#70C4F2"];
+/* 第254巡（作り手：色をもっと鮮やかに）：地の色を彩度高く */
+const TERRAIN_COLOR = ["#1187EE","#4FCBFF","#7EE04F","#2E9E33","#B2D84F","#B98B45","#4FCBFF"];
 let terrain = null, provinceOf = null;
 
 function generateTerrain(){
@@ -12044,8 +12045,8 @@ function bakeSeason(){ const {cols,rows}=PROJ; const se=W.started?seasonOf(W.dat
   const northRow=rowOf(37.2), southRow=rowOf(33.6); const hash=(r,c)=>((r*7349+c*2311)>>>0)%997/997;
   for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){ const i=r*cols+c; const t=terrain[i]; if(t===T.SEA||t===T.SHALLOW) continue; const x=c*TILE_PX, y=r*TILE_PX; const h=hash(r,c); let col=null;
     /* 海岸の砂 */ let coast=false; for(const [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){ const j=(r+dr)*cols+(c+dc); if(r+dr<0||r+dr>=rows||c+dc<0||c+dc>=cols) continue; const tt=terrain[j]; if(tt===T.SEA||tt===T.SHALLOW){ coast=true; break; } }
-    if(coast&&t!==T.MOUNTAIN){ g.fillStyle="rgba(228,208,150,.75)"; g.fillRect(x,y,TILE_PX,TILE_PX); }
-    /* 地域：南は暖かく、北は冷たく */ if(r>southRow&&(t===T.PLAIN||t===T.FOREST)) col="rgba(215,200,90,.10)"; else if(r<northRow&&(t===T.PLAIN||t===T.FOREST||t===T.HILL)) col="rgba(150,190,215,.12)";
+    if(coast&&t!==T.MOUNTAIN){ g.fillStyle="rgba(244,216,132,.8)"; g.fillRect(x,y,TILE_PX,TILE_PX); }
+    /* 地域：南は暖かく、北は冷たく */ if(r>southRow&&(t===T.PLAIN||t===T.FOREST)) col="rgba(225,205,70,.07)"; else if(r<northRow&&(t===T.PLAIN||t===T.FOREST||t===T.HILL)) col="rgba(150,195,225,.08)";
     if(col){ g.fillStyle=col; g.fillRect(x,y,TILE_PX,TILE_PX); }
     /* 季節 */ if(se==="冬"){ if(t===T.MOUNTAIN){ g.fillStyle=`rgba(245,248,252,${0.55+h*0.2})`; g.fillRect(x,y,TILE_PX,TILE_PX); } else if(r<northRow){ g.fillStyle=`rgba(240,244,250,${0.5+h*0.25})`; g.fillRect(x,y,TILE_PX,TILE_PX); } else if(t===T.HILL&&h<0.5){ g.fillStyle="rgba(240,244,250,.35)"; g.fillRect(x,y,TILE_PX,TILE_PX); } else if(t===T.PLAIN){ g.fillStyle="rgba(230,232,236,.14)"; g.fillRect(x,y,TILE_PX,TILE_PX); } }
     /* 第239巡（作り手：春に地図が桃色になるのも、秋の色もやめる）：季節の色は冬の雪だけ */ }
@@ -13146,7 +13147,7 @@ function bakeMinimap(){
   miniBaked=document.createElement("canvas");
   miniBaked.width=mini.width; miniBaked.height=mini.height;
   const g=miniBaked.getContext("2d");
-  g.fillStyle="#2F6F94"; g.fillRect(0,0,mini.width,mini.height);
+  g.fillStyle="#1187EE"; g.fillRect(0,0,mini.width,mini.height);
   const sx=mini.width/PROJ.cols, sy=mini.height/PROJ.rows;
   g.fillStyle="#5C8A4C";
   for(let r=0;r<PROJ.rows;r++) for(let c=0;c<PROJ.cols;c++)
