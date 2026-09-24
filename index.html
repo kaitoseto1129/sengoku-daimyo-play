@@ -4150,7 +4150,7 @@ function stepDay(){
   try{ for(const c of Object.values(W.castles)) c.foodMax=foodCap(c); }catch(_){ }
   if(/^(sekigahara|ueda|sekbattle)$/.test(W.scenario)){ for(const g of Object.values(W.generals)) if(g.fatigue>0) g.fatigue=Math.max(0,g.fatigue-4); }   /* 疲れは一日に四ずつ抜ける（休ませれば戻る） */   /* 第253巡：石高が筋書きの仕込みで跳ねた城の蔵の上限が、読み込むまで古いままだった（控えの往復で差が出た） */
   const monthChanged = advanceDay();
-  processTasks(); processArmies(); processSieges(); processBandits(); processWanderers(); processUpkeep();
+  processTasks(); processArmies(); try{ armiesOffCastles(); }catch(_){ } processSieges(); processBandits(); processWanderers(); processUpkeep();   /* 第253巡：軍が動いた直後に、城の升に重なった軍を城下へずらす */
   if(W.date.d%3===0) runDelegated();
   if(monthChanged){ processMonth(); evaluateEvents(); evaluateShogun(); if(W.date.m===1) yearEnd(); }
   evaluateEvents(true);   // 日ごとに見る出来事（本能寺の報の時間差など）
@@ -4168,6 +4168,7 @@ function stepDay(){
   // 城を失う道は落城だけではない。一揆でも断絶でも滅びは滅び
   if(!W.result && W.started) checkVictory();
   warnApproachingArmies();
+  try{ armiesOffCastles(); }catch(_){ }   /* 第253巡：一日の終わりにも、城に重なった軍を城下へ */
 }
 
 const workRate = g => (.4 + 1.6*Math.min(100,g.pol)/100)
@@ -5027,7 +5028,7 @@ function queueEncounter(e){
     const c=W.castles[e.castle]; const a=W.armies[e.army];
     const gar=a?garrisonTroops(c.id):0, atkT=a?armyTroops(a):0;
     /* 第253巡（bot：城攻めが0〜7秒で終わる。遊ぶ間がなく、ただ画面が切り替わるだけだった） */
-    if(a && c.clan!==a.clan && (gar<900 || (gar<5000 && gar<atkT/4)) && (!e.foeArmy||!W.armies[e.foeArmy])){   /* 第253巡（bot：城攻めが四〜五秒で終わる）：開く目安を上げ、一瞬で終わる合戦を開かない */   /* 第253巡（bot：城攻めが二〜七秒で終わる）：守兵が寄せ手の七分の一にも満たなければ、戦わずに開く */
+    if(a && c.clan!==a.clan && (gar<900 || (gar<6000 && gar<atkT/3)) && (!e.foeArmy||!W.armies[e.foeArmy])){   /* 第253巡（bot：城攻めが四〜五秒で終わる）：開く目安を上げ、一瞬で終わる合戦を開かない */   /* 第253巡（bot：城攻めが二〜七秒で終わる）：守兵が寄せ手の七分の一にも満たなければ、戦わずに開く */
       log(`${c.name}には守る兵がおらず、戦わずに開きました`,"war", a.clan===W.player||c.clan===W.player);
       try{ captureCastle(c.id, a.clan, a); }catch(err){ console.error(err); }
       return; } }   /* 第253巡（作り手：真田丸の戦いが起きない）：筋書き自身が起こす戦（真田丸・総攻め）は通す。ふつうの城攻めの札だけを止める */
@@ -5166,7 +5167,20 @@ function decReservedCastle(name){
     if(W._decRes.set.has(name)) return true;
   }catch(_){ }
   return false; }
+/* 第253巡（bot：敵の城の上に軍が重なって見える）：城の升に重なった軍は、城下へ少しずらして描く */
+function armiesOffCastles(){
+  try{ for(const a of Object.values(W.armies)){
+    if(!a||a.stage) continue;
+    for(const c of Object.values(W.castles)){
+      const t=W.tile[c.id]; if(!t) continue;
+      if(Math.abs(t.c-a.x)>0.45||Math.abs(t.r-a.y)>0.45) continue;
+      if(c.clan===a.clan||c.clan===null) continue;
+      if(a.mission==="包囲"&&a.target===c.id) continue;
+      a.y = t.r + ((a.id%2)?1.5:-1.5); a.x = t.c + (((a.id%3)-1)*0.8);
+      break; } } }catch(_){ }
+}
 function processSieges(){
+  try{ armiesOffCastles(); }catch(_){ }
   for(const a of Object.values(W.armies)){
     if(a.mission!=="包囲" || a.stage) continue;
     const c=W.castles[a.target];
@@ -21569,7 +21583,7 @@ function kyuDaily(){
   /* 島津の遊撃：九州の奥に入った豊臣の軍は、補給の列を襲われ、橋を落とされる */
   for(const a of Object.values(W.armies)){ if(a.clan!==ty.id||!armyInKyushu(a)) continue; const near=nearestCastle(a); const nc=W.castles[near]; const safe = nc && (nc.clan===ty.id || (W.clans[nc.clan]&&W.clans[nc.clan].suzerain===ty.id)) && kmBetween(a.x,a.y,W.tile[near].c,W.tile[near].r)<40;
     if(safe) continue; const big=armyTroops(a)>=30000; const pRaid= 0.12*(big?1.3:1) + (sz.id===W.player?0:0) ; 
-    if(rnd()<pRaid){ k.raids++; const lostF=Math.floor(a.food*0.3); a.food-=lostF; let t=0; for(const gid of a.gens){ const g=W.generals[gid]; if(g&&g.troops>200){ const d=Math.min(g.troops-100,Math.round(150/a.gens.length)); g.troops-=d; t+=d; } } log(`${a.name}の補給の列が島津の伏兵に襲われた（兵糧−三割・兵−${t}）`,"war",ty.id===W.player); if(sz.id===W.player) log(`伏兵が${a.name}の補給の列を焼いた`,"war",true); }
+    if(rnd()<pRaid){ k.raids++; const lostF=Math.floor(a.food*0.3); a.food-=lostF; let t=0; for(const gid of a.gens){ const g=W.generals[gid]; if(g&&g.troops>200){ const d=Math.min(g.troops-100,Math.round(150/a.gens.length)); g.troops-=d; t+=d; } } k._raidSaid=k._raidSaid||-99; const sayRaid=(dayNumber()-k._raidSaid>=3); if(sayRaid) k._raidSaid=dayNumber(); if(sayRaid) log(`${a.name}の補給の列が島津の伏兵に襲われた（兵糧−三割・兵−${t}）`,"war",ty.id===W.player); if(sz.id===W.player) log(`伏兵が${a.name}の補給の列を焼いた`,"war",true); }
     else if(rnd()<0.06){ a.tiredUntil=dayNumber()+2; log(`${a.name}の行く手の橋が落とされていた（二日足止め）`,"war",ty.id===W.player); } }
   /* 国人：大軍が隣に来れば靡く。秀吉が九州にいればなお */
   if(k.day%3===0){ for(const [cid,st] of Object.entries(k.stance)){ const K=W.clans[+cid]; if(!K||K.dead||K.suzerain!==null&&K.suzerain!==undefined) continue; const cs=myCastles(K.id); if(!cs.length) continue;
