@@ -1059,7 +1059,7 @@ body.inbattle #stage.paused::after{ display:none; }
           <span id="bName" class="bname" hidden>合戦</span>
           <span class="chip" id="bTerrain" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw">平原</span>
           <span id="bSitBar" hidden><span id="bSitL"></span><span class="bar"><i id="bSitMine" style="background:linear-gradient(90deg,#6E98E6,#2E5FBF)"></i><i id="bSitFoe" style="background:linear-gradient(90deg,#B8382A,#E5785C);margin-left:auto"></i></span><span id="bSitR"></span><span class="lab" id="bSitLab"></span></span>
-          <span class="chip" id="bSit" hidden style="white-space:nowrap;font-weight:800;letter-spacing:.02em">左翼 互角　中央 互角　右翼 互角</span>
+          <span class="chip" id="bSit" hidden style="white-space:nowrap;font-weight:800;letter-spacing:.02em;pointer-events:none">左翼 互角　中央 互角　右翼 互角</span>
           <span class="chip" id="bGoal" hidden style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw"></span>
           <span style="display:none;gap:6px"><span class="chip" id="bClock">辰の刻</span><span class="chip" id="bForms">陣</span><span class="chip" id="bScore">討0 損0</span></span>
         </div>
@@ -17767,7 +17767,14 @@ function yamazakiSetup(){ const h=W.hon; if(!h) return; B.yamazaki=true; const a
   /* 大返しの疲れ */ if(h.speed==="fast"){ for(const u of B.units) if(u.side===hsSide) u.fatigue=Math.min(100,(u.fatigue||0)+25); } else if(h.speed==="rush"){ for(const u of B.units) if(u.side===hsSide){ u.fatigue=Math.min(100,(u.fatigue||0)+40); u.troops=Math.round(u.troops*0.9); } }
   /* 姫路の報奨 */ if(h.reward){ for(const u of B.units) if(u.side===hsSide) u.morale=Math.min(100,u.morale+8); }
   /* 明智の構え */ if(h.stance==="yodo"){ for(const u of B.units) if(u.side===akSide) u.morale=Math.min(100,u.morale+6); B.banner={t:"明智は淀川を前に陣を敷いた", at:B.elapsed+2}; } if(h.stance==="yamazaki"&&B.keyPoints){ const tz=B.keyPoints.find(k=>/天王山/.test(k.name)); if(tz){ tz.owner=akSide; } B.banner={t:"明智が天王山を先に取った", at:B.elapsed+2}; }
-  /* 細川・筒井の援軍 */ const mk=(name,total,n)=>{ const us=[]; for(let i=0;i<n;i++){ us.push({id:nextUnitId(), gid:-1, name:name+(i?"の隊":""), side:akSide, type:i%2, troops:total/n, max:total/n, morale:90, x:akSide===0?1.5:BF.w-1.5, y:BF.h*(0.3+0.4*i/Math.max(1,n-1)), gx:0, gy:0, order:{k:"hold"}, warF:1.0, q:60, coh:1.1, apt:1, spUntil:-1, spReady:0, face:0, fatigue:0}); } return us; };
+  /* 細川・筒井の援軍（第253巡：中身の揃った隊を写して作る。素の札から作ると後の仕掛けが undefined で落ちていた） */
+  const mk=(name,total,n)=>{ const us=[]; const base=B.units.find(u=>u.side===akSide&&!u.cmd&&u.troops>.5)||B.units.find(u=>u.troops>.5); if(!base) return us;
+    for(let i=0;i<n;i++){ const u=JSON.parse(JSON.stringify(base));
+      u.id=nextUnitId(); u.gid=-1; u.name=name+(i?"の隊":""); u.side=akSide; u.type=i%2;
+      u.troops=Math.round(total/n); u.max=u.troops; u.morale=90; u.fatigue=0; u.ammo=u.type===3?60:(u.ammo||0);
+      u.x=akSide===0?1.5:BF.w-1.5; u.y=BF.h*(0.3+0.4*i/Math.max(1,n-1)); u.gx=u.x; u.gy=u.y;
+      u.cell=null; u.nextCell=null; u.path=null; u.order={k:"guard"}; u.cmd=false; u.hero=false; u.ally=false; u.left=false; u.sigHidden=false;
+      us.push(u); } return us; };
   if(h.hosokawa==="参戦"){ B.late=B.late||[]; B.late.push({at:B.elapsed+30, h:"細川勢 着陣", units:mk("細川藤孝",5000,3)}); } if(h.tsutsui==="明智"){ B.late=B.late||[]; B.late.push({at:B.elapsed+45, h:"筒井勢 着陣", units:mk("筒井順慶",8000,4)}); }
   if(h.katsuieFirst){ B.late=B.late||[]; B.late.push({at:B.elapsed+50, h:"柴田勝家 着陣", units:mk("柴田勝家",6000,3).map(u=>Object.assign(u,{side:hsSide}))}); }
   B.objective=B.ctx.playerSide===akSide?"秀吉が揃う前に崩せ。天王山と淀川":"集結を待ち、天王山を取って押し切れ";
@@ -19721,7 +19728,7 @@ function aneAfter(atkWon){ const K=W.aneResult||{}; const od=clanByName("織田�
     ["asakura","朝倉を追う","朝倉の損は増える。横山の圧力は下がる",()=>{ if(ak&&!ak.dead) od.orderTarget={clan:ak.id, until:dayNumber()+120}; log("織田は朝倉を追った","war",true); }],
     ["yoko","横山（浅井の支城）攻略","勝ちに乗じて城へ圧力（守りが二割減る）",()=>{ let c=Object.values(W.castles).find(x=>x.name==="横山城"); if(!c){ const sw=Object.values(W.castles).find(x=>x.name==="佐和山城"); const cs=myCastles(as.id).filter(x=>!x.hq); if(cs.length&&sw) c=cs.sort((p,q)=>kmBetween(W.tile[p.id].c,W.tile[p.id].r,W.tile[sw.id].c,W.tile[sw.id].r)-kmBetween(W.tile[q.id].c,W.tile[q.id].r,W.tile[sw.id].c,W.tile[sw.id].r))[0]; else c=cs[0]; }   /* 第151巡：横山城は地図に無い（近江の支城で代える） */ if(c){ c.defense=Math.max(1,Math.round(c.defense*0.8)); log(`織田は${c.name}へ圧力をかけた（守り−20%）`,"war",true); } else log("圧力をかける浅井の支城が無い","war",true); }],
     ["rest","兵を休ませる","疲れを癒す（全将の士気+8）。追撃はしない",()=>{ for(const g of Object.values(W.generals)) if(g.clan===od.id) g.morale=Math.min(100,(g.morale||70)+8); log("織田は兵を休ませた","war",true); }]]),900); } }
-function ishiTools(){ const mine=B.ctx.playerSide; const hgTools=`<button class="tool sub" id="bIshiFire" title="火矢で町屋を焼く（敵の隠れ場と士気を削るが、民の支持が下がる）">火攻め</button><button class="tool sub" id="bIshiGeki" title="顕如の檄（一度きり。全隊の信仰の士気+15）" ${B.ishiGeki?'style="opacity:.5"':""}>顕如の檄</button>`;
+function ishiTools(){ const mine=B.ctx.playerSide; const hgTools=`<button class="tool sub" id="bIshiFire" title="火矢で町屋を焼く（敵の隠れ場と士気を削るが、民の支持が下がる）">火攻め</button>`+(B.ishiGeki?"":`<button class="tool sub" id="bIshiGeki" title="顕如の檄（一度きり。全隊の信仰の士気+15）">顕如の檄</button>`);   /* 第253巡：使い切った釦は消す */
   if(B.ishi==="kizu"&&mine===1){ const hid=(B.ishiHidden||[]).filter(id=>B.units.some(x=>x.id===id&&x.sigHidden)).length; return (hid?`<button class="tool sub" id="bIshiSortie" title="楼の岸に隠した門徒を出す（敵の横腹へ）">楼の岸から出撃 ${hid}</button>`:"")   /* 第253巡：隠した隊が無いときは釦を出さない（押しても何も起きない釦を置かない） */+(B.ishiGeki?"":`<button class="tool sub" id="bIshiGeki" title="顕如の檄（一度きり。全隊の信仰の士気+15）">顕如の檄</button>`)   /* 第253巡：使い切った釦は消す */+kizuDefTools(); }
   if(B.ishi==="kizu"&&mine===0){ return `<button class="tool sub" id="bKzFire" title="火矢を柵へ射込む（四十秒に一度。柵と櫓が燃え、守り手は火消しに追われる）" ${B.sgFireAt>B.elapsed-40?'style="opacity:.5"':""}>火矢</button>`; }   /* 第239巡（作り手：城全景と川沿い別働隊の釦はいらない。押しても何も起きない）：二つとも外した */
   if(B.ishi==="tennoji_relief"&&mine===1) return hgTools;
