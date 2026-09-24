@@ -5027,7 +5027,7 @@ function queueEncounter(e){
     const c=W.castles[e.castle]; const a=W.armies[e.army];
     const gar=a?garrisonTroops(c.id):0, atkT=a?armyTroops(a):0;
     /* 第253巡（bot：城攻めが0〜7秒で終わる。遊ぶ間がなく、ただ画面が切り替わるだけだった） */
-    if(a && c.clan!==a.clan && (gar<700 || (gar<3500 && gar<atkT/6)) && (!e.foeArmy||!W.armies[e.foeArmy])){   /* 第253巡（bot：城攻めが四〜五秒で終わる）：開く目安を上げ、一瞬で終わる合戦を開かない */   /* 第253巡（bot：城攻めが二〜七秒で終わる）：守兵が寄せ手の七分の一にも満たなければ、戦わずに開く */
+    if(a && c.clan!==a.clan && (gar<900 || (gar<4000 && gar<atkT/5)) && (!e.foeArmy||!W.armies[e.foeArmy])){   /* 第253巡（bot：城攻めが四〜五秒で終わる）：開く目安を上げ、一瞬で終わる合戦を開かない */   /* 第253巡（bot：城攻めが二〜七秒で終わる）：守兵が寄せ手の七分の一にも満たなければ、戦わずに開く */
       log(`${c.name}には守る兵がおらず、戦わずに開きました`,"war", a.clan===W.player||c.clan===W.player);
       try{ captureCastle(c.id, a.clan, a); }catch(err){ console.error(err); }
       return; } }   /* 第253巡（作り手：真田丸の戦いが起きない）：筋書き自身が起こす戦（真田丸・総攻め）は通す。ふつうの城攻めの札だけを止める */
@@ -7526,6 +7526,7 @@ function aiMuster(clan, toId, targetId, need){
     for(const g of gens){ if(send.length>=gens.length-1) break; if(st+g.troops>total-keepT) break; send.push(g.id); st+=g.troops; if(got+st>=need*1.15) break; }
     if(!send.length) continue;
     if((c.food||0) < foodEatenBy(st)*20) continue;
+    { W._disp=W._disp||{}; const kR=`${clan.id}:${toId}:${c.id}`; if(W._disp[kR]!==undefined && dayNumber()-W._disp[kR]<14) continue; W._disp[`${clan.id}:${c.id}:${toId}`]=dayNumber(); }
     const err=dispatch(c.id, send, toId, 1); if(err) continue;
     got+=st; n++;
   }
@@ -25933,6 +25934,16 @@ function stallTick(){
     if(!done){ const ang=((u.id%8)/8)*Math.PI*2;
       u.order={k:"move", x:Math.max(1,Math.min(BF.w-1,u.x+Math.cos(ang)*2.6)), y:Math.max(1.5,Math.min(BF.h-1.5,u.y+Math.sin(ang)*2.6))};
       u.gx=u.order.x; u.gy=u.order.y; }
+    /* それでも二十秒動けなければ、通れる升へ引き上げる（二百九秒その場から動かない隊が出ていた） */
+    u._stuckN=(u._stuckN||0)+1;
+    if(u._stuckN>=2){ u._stuckN=0;
+      try{ const [gc,gr]=cellOf(u.x,u.y); let best=null, bd=1e9;
+        for(let dc=-4; dc<=4; dc++) for(let dr=-4; dr<=4; dr++){
+          const c2=gc+dc, r2=gr+dr; if(!cellPassable(c2,r2)) continue;
+          const [px,py]=cellCenter(c2,r2); const d2=Math.hypot(px-u.gx,py-u.gy);
+          if(d2<bd){ bd=d2; best=[px,py]; } }
+        if(best){ u.x=best[0]; u.y=best[1]; u.cell=null; u.nextCell=null; }
+      }catch(_){ } }
   }
 }
 function updateBattle(dt){
