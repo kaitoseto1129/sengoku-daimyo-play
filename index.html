@@ -12016,11 +12016,32 @@ function bakeTerrain(){
   g.fillStyle=TERRAIN_COLOR[T.SEA];
   g.fillRect(0,0,terrainCanvas.width,terrainCanvas.height);
   try{ SEA_RGB=[...g.getImageData(0,0,1,1).data].slice(0,3); }catch(_){ }
+  /* 第254巡（作り手：色を鮮やかに／山を塊に見せない）：升ごとに濃淡を散らし、寄ると木立と岩肌に見えるようにする */
+  const shade=(hex,k)=>{ const v=parseInt(hex.slice(1),16); let R=(v>>16)&255,G=(v>>8)&255,B=v&255;
+    R=Math.max(0,Math.min(255,Math.round(R*k))); G=Math.max(0,Math.min(255,Math.round(G*k))); B=Math.max(0,Math.min(255,Math.round(B*k)));
+    return "#"+((R<<16)|(G<<8)|B).toString(16).padStart(6,"0"); };
+  const th=(r,c)=>{ let v=(r*73856093)^(c*19349663); v=(v^(v>>>13))>>>0; return (v%1000)/1000; };
+  const TONE={};
+  for(const t of [T.PLAIN,T.FOREST,T.HILL,T.MOUNTAIN,T.SHALLOW,T.RIVER]){
+    TONE[t]=[shade(TERRAIN_COLOR[t],0.90), TERRAIN_COLOR[t], shade(TERRAIN_COLOR[t],1.08)]; }
   for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
     const t=terrain[r*cols+c];
     if(t===T.SEA) continue;
-    g.fillStyle=TERRAIN_COLOR[t];
+    const h=th(r,c);
+    const tone=TONE[t];
+    if(tone){
+      /* 森と山は濃淡を強く（茂みと岩肌）、平地と丘は控えめに */
+      const strong=(t===T.FOREST||t===T.MOUNTAIN);
+      const k=h<0.34?0:(h<0.72?1:2);
+      g.fillStyle = strong ? tone[k] : (h<0.5?tone[1]:tone[k]);
+    } else g.fillStyle=TERRAIN_COLOR[t];
     g.fillRect(c*TILE_PX,r*TILE_PX,TILE_PX,TILE_PX);
+    /* 森は升の中に一点、濃い緑を落として茂みの粒に */
+    if(t===T.FOREST && h>0.45){ g.fillStyle=shade(TERRAIN_COLOR[t],0.72);
+      g.fillRect(c*TILE_PX+(h>0.72?1:0), r*TILE_PX+(h>0.6?1:0), 1, 1); }
+    /* 山は明るい尾根を一点 */
+    if(t===T.MOUNTAIN && h>0.5){ g.fillStyle=shade(TERRAIN_COLOR[t],1.22);
+      g.fillRect(c*TILE_PX+(h>0.75?1:0), r*TILE_PX, 1, 1); }
   }
   // 海の網目
   g.strokeStyle="rgba(255,255,255,.12)"; g.lineWidth=1; g.beginPath();
