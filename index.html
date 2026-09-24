@@ -17724,7 +17724,10 @@ function honNobutadaAfter(akWon){ const h=W.hon||(W.hon={}); const nt=Object.val
 /* 変の後：世が動き出す */
 function honAfter(){ const h=W.hon; if(h.phase==="post") return; h.phase="post"; const ak=clanByName("明智家"), od=clanByName("織田家"); const nobD=h.nobunaga==="dead", ntD=h.nobutada==="dead"||!Object.values(W.generals).some(x=>x.name==="織田信忠"&&x.status!=="死亡"&&x.clan===od.id);   /* 第151巡：信忠が既に世を去っていれば（別の戦で討たれた等）「信忠が継いだ」と言わない */
   W.scenarioStartDay=dayNumber();   /* 以後の出来事（東海・備中への報、細川・筒井、北条・上杉）はここから数える */
-  /* 京と安土 */ const nijo=Object.values(W.castles).find(c=>c.name==="二条御所"); if(nijo&&nijo.clan===od.id){ nijo.clan=ak.id; nijo.hq=false; nijo.lord=null; } if(nobD){ const az=Object.values(W.castles).find(c=>c.name==="安土城"&&c.clan===od.id); if(az&&ntD){ az.clan=ak.id; az.hq=false; az.lord=null; log("明智秀満が安土に入り、天守の財宝を分けた","war",true); } }
+  /* 京と安土 */ const nijo=Object.values(W.castles).find(c=>c.name==="二条御所");
+  /* 第253巡（bot：二条御所の戦いで、明智が自分の城を攻めていた）：二条御所の戦いがこれから起きるなら、城はまだ渡さない */
+  const nijoPending = !!W.honBattle2 && !(W.fired&&W.fired.has(2219));
+  if(nijo&&nijo.clan===od.id&&!nijoPending){ nijo.clan=ak.id; nijo.hq=false; nijo.lord=null; } if(nobD){ const az=Object.values(W.castles).find(c=>c.name==="安土城"&&c.clan===od.id); if(az&&ntD){ az.clan=ak.id; az.hq=false; az.lord=null; log("明智秀満が安土に入り、天守の財宝を分けた","war",true); } }
   /* 織田の当主 */ if(nobD){ if(!ntD){ const nt=Object.values(W.generals).find(x=>x.name==="織田信忠"&&x.status!=="死亡"); if(nt){ nt.status="大名"; od.daimyo=nt.id; for(const g of Object.values(W.generals)) if(g.clan===od.id&&g.id!==nt.id&&g.status==="大名") g.status="家臣"; } log("織田信忠が織田家を継いだ。秀吉も勝家も信忠の家臣のまま（IF4：織田の嫡流）","dip",true); if(typeof chronicle==="function") chronicle("織田信忠、家督を継ぐ"); }
     else { const nk=Object.values(W.generals).find(x=>x.name==="織田信雄"&&x.status!=="死亡"&&x.clan===od.id); if(nk){ nk.status="大名"; od.daimyo=nk.id; for(const g of Object.values(W.generals)) if(g.clan===od.id&&g.id!==nk.id&&g.status==="大名") g.status="家臣"; }
       /* 統率崩壊：軍団は独り立ち */ for(const v of [...od.vassals]){ const V=W.clans[v]; if(!V||V.dead) continue; if(/^(羽柴家|柴田家|丹羽家|池田家|神戸家|滝川家|筒井家)$/.test(V.name)){ od.vassals.delete(v); V.suzerain=null; } }
@@ -25928,7 +25931,13 @@ function stallTick(){
     if(u.troops<=.5||u.left||u.morale<=0||u.onTower||u.towerGun) continue;   /* 第253巡：本陣も見る（顕如が二百九秒動かなかった） */
     if(u.postHold && !(u.order&&u.order.k==="move")) continue;   /* 持ち場の隊は、進めと命じられた時だけ見る */
     const k=u.order&&u.order.k;
-    if(k!=="move"&&k!=="attack"){ u._sx=u.x; u._sy=u.y; u._sT=B.elapsed; continue; }
+    if(k!=="move"&&k!=="attack"){
+      /* 第253巡（bot：城攻めで持ち場の隊が八〜十二歩うろつく）：押し合いで持ち場から流された隊は、少しずつ戻す */
+      if(k==="guard" && u.gx!==undefined && u.gy!==undefined){
+        const dx=u.gx-u.x, dy=u.gy-u.y, d2=Math.hypot(dx,dy);
+        if(d2>2.2 && d2<14){ u.x+=dx/d2*0.7; u.y+=dy/d2*0.7; }
+      }
+      u._sx=u.x; u._sy=u.y; u._sT=B.elapsed; continue; }
     if(k==="attack"){ const t=B.units.find(z=>z.id===u.order.id); if(t&&Math.hypot(t.x-u.x,t.y-u.y)<2.6){ u._sx=u.x; u._sy=u.y; u._sT=B.elapsed; continue; } }
     if(u._sx===undefined||u._sT===undefined){ u._sx=u.x; u._sy=u.y; u._sT=B.elapsed; continue; }
     if(Math.hypot(u.x-u._sx,u.y-u._sy)>0.4){ u._sx=u.x; u._sy=u.y; u._sT=B.elapsed; continue; }
