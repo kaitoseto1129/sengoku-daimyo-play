@@ -9422,6 +9422,88 @@ function drawSimBattle(W_,H_){ if(B&&B.tobiPhase) return;
   else if(S.step===8.5){ const g=S.gap; if(g) ring(g.x,g.y,"破れ目：ここへ動かす"); }
   else if(S.step===8 && B.tobiArrivedAt!==undefined){ const u=B.units.find(x=>x.side===B.ctx.playerSide&&x.x>BF.w-12&&x.troops>.5); if(u) ring(u.x,u.y,"別働隊"); }
 }
+
+/* ===== 第254巡（作り手：初戦で半分の人が一度も命令しない）：どの合戦でも出る、指で触らせる手ほどき =====
+   ①味方の隊を押す ②行き先の升を押す ③開戦 ── 実際に押すまで次へ進まない。一度やったら二度と出ない。 */
+function bCoachStart(){
+  if(!B || B.sim || B.sim2 || B.coachOff) return;
+  if(B.ctx && B.ctx.sim) return;
+  let seen=false; try{ seen=!!localStorage.getItem("sengoku_bcoach"); }catch(_){ }
+  if(seen && !PREF.bCoachAlways) return;
+  B.bc={step:-1, at:(B.elapsed||0), done:false};   /* 陣立ての間は出さない（画面が混む）。開戦してから */
+}
+function bCoachDone(){ if(!B||!B.bc) return; B.bc=null; try{ localStorage.setItem("sengoku_bcoach","1"); }catch(_){ } }
+function bCoachTick(){
+  const C=B&&B.bc; if(!C||C.done) return;
+  if(B.over!==null && B.over!==undefined){ bCoachDone(); return; }
+  if(C.step===-1){ if(B.opening<=0){ C.step=0; C.at=B.elapsed; } return; }
+  if(C.step===0){ if(B.sel!==null && B.sel!==undefined){ C.step=1; C.at=B.elapsed; C.selId=B.sel; } }
+  else if(C.step===1){
+    const u=B.units.find(x=>x.id===C.selId);
+    if(!u){ C.step=0; return; }
+    if(u.order && (u.order.k==="move"||u.order.k==="attack") && u.orderAt!==undefined && u.orderAt>=C.at-0.1){ C.step=2; C.at=B.elapsed; }
+  }
+  else if(C.step===2){ if(B.opening<=0){ C.step=3; C.at=B.elapsed; } }
+  else if(C.step===3){ if(B.elapsed-C.at>3.4){ C.done=true; bCoachDone(); } }
+}
+function drawBCoach(W_,H_){
+  const C=B&&B.bc; if(!C||C.done||C.step<0) return;
+  const now=performance.now();
+  /* 味方の隊の足もとに青い輪（どれが自分か） */
+  if(C.step<=1){
+    bctx.save(); bctx.globalAlpha=0.9;
+    for(const u of B.units){
+      if(u.side!==B.ctx.playerSide||u.ally||u.troops<=.5||u.left) continue;
+      const [x,y]=bScreenOf(u.x,u.y);
+      bctx.strokeStyle="rgba(110,180,255,.95)"; bctx.lineWidth=2.5;
+      bctx.beginPath(); bctx.ellipse(x,y+9,15,6,0,0,7); bctx.stroke();
+    }
+    bctx.restore();
+  }
+  const ring=(wx,wy,label)=>{
+    const [x,y]=bScreenOf(wx,wy); const k=(now%1000)/1000;
+    bctx.save();
+    bctx.strokeStyle=`rgba(255,214,102,${1-k})`; bctx.lineWidth=5;
+    bctx.beginPath(); bctx.arc(x,y,30+k*30,0,7); bctx.stroke();
+    bctx.strokeStyle="#FFD166"; bctx.lineWidth=4; bctx.beginPath(); bctx.arc(x,y,28,0,7); bctx.stroke();
+    /* 指 */
+    const fy=y+38+Math.sin(now/200)*5;
+    bctx.fillStyle="#FFD166"; bctx.beginPath(); bctx.moveTo(x,fy-16); bctx.lineTo(x-11,fy+4); bctx.lineTo(x+11,fy+4); bctx.closePath(); bctx.fill();
+    if(label){ bctx.font='900 15px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center";
+      bctx.lineWidth=5; bctx.strokeStyle="rgba(0,0,0,.85)"; bctx.strokeText(label,x,fy+24); bctx.fillStyle="#FFF1B8"; bctx.fillText(label,x,fy+24); }
+    bctx.restore();
+  };
+  let head="", sub="";
+  if(C.step===0){
+    head="① 味方の隊を押す"; sub="青い輪が、あなたの隊です";
+    const u=B.units.filter(x=>x.side===B.ctx.playerSide&&!x.ally&&x.troops>.5&&!x.left&&!x.onTower)
+      .sort((a,b)=>Math.hypot(a.x-B.cx,a.y-B.cy)-Math.hypot(b.x-B.cx,b.y-B.cy))[0];
+    if(u) ring(u.x,u.y,"ここを押す");
+  } else if(C.step===1){
+    head="② 行かせたい所を押す"; sub="敵を押せば、その敵を討ちにいきます";
+    const u=B.units.find(x=>x.id===C.selId);
+    if(u){ const dx=(B.ctx.playerSide===0?1:-1);
+      ring(Math.max(2,Math.min(BF.w-2,u.x+dx*5)), u.y, "ここへ動かす"); }
+  } else if(C.step===2){
+    head="③ 並べ終えたら〈開戦〉"; sub="下の大きな釦。押すまで敵は動きません";
+  } else if(C.step===3){
+    head="これが采配です"; sub="隊を押して、行き先を押す。それだけ";
+  }
+  /* 上の帯 */
+  bctx.save();
+  const bw=Math.min(W_-24, 460), bx=(W_-bw)/2, by=Math.max(10, H_*0.11);
+  bctx.fillStyle="rgba(14,12,10,.88)"; bctx.strokeStyle="rgba(201,162,39,.8)"; bctx.lineWidth=2;
+  bctx.beginPath(); bctx.roundRect ? bctx.roundRect(bx,by,bw,52,10) : bctx.rect(bx,by,bw,52); bctx.fill(); bctx.stroke();
+  bctx.textAlign="center"; bctx.fillStyle="#FFE08A"; bctx.font='900 18px "Zen Kaku Gothic New",sans-serif';
+  bctx.fillText(head, bx+bw/2, by+24);
+  bctx.fillStyle="#DCD4C0"; bctx.font='600 12px "Zen Kaku Gothic New",sans-serif';
+  bctx.fillText(sub, bx+bw/2, by+42);
+  bctx.restore();
+  B.bcHit={x:bx+bw-46, y:by+4, w:44, h:24};
+  bctx.save(); bctx.fillStyle="rgba(237,230,214,.55)"; bctx.font='700 11px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="right";
+  bctx.fillText("あとで", bx+bw-10, by+18); bctx.restore();
+}
+
 function nagSimTick(){
   let el=document.getElementById("bSim");
   if(B&&B.tobiPhase){ if(el) el.hidden=true; return; }   /* 第206巡：鳶ヶ巣の奇襲の間は手ほどきを進めない */
@@ -20201,7 +20283,8 @@ function encRatio(cx,cy,rad,side){ let n=0; for(let k=0;k<8;k++){ const a0=k/8*M
 function coreX(k){ const px=B.padX||0, cw=B.coreW||BF.w; return px+cw*k; }
 function mineLeftX(k){ return B.ctx.playerSide===0?coreX(k):coreX(1-k); }   /* 側0から見て k（0=側0の端） */
 function sideX0(k){ return coreX(k); }
-function chip(t){ B._kitChip=true; if(B.phaseChip===t&&B._objSeen===B.objective) return; B.phaseChip=t; B._objSeen=B.objective; try{ renderBattleGoal(); }catch(_){ } }
+function chip(t){ if(B&&B.bc&&!B.bc.done&&B.bc.step>=0&&B.bc.step<=1) return;   /* 第254巡：手ほどきの間は場面の札を出さない */
+  B._kitChip=true; if(B.phaseChip===t&&B._objSeen===B.objective) return; B.phaseChip=t; B._objSeen=B.objective; try{ renderBattleGoal(); }catch(_){ } }
 /* 敵の隊の孤立度：味方が七歩以内にいないほど高い（長久手・戸次川） */
 function isoOf(u,side){ const mates=B.units.filter(v=>v!==u&&v.side===side&&v.troops>.5&&v.morale>0&&!v.left); const near=mates.filter(v=>dist(u,v)<=7).length; const near2=mates.filter(v=>dist(u,v)<=14).length; return Math.max(0,Math.min(100,Math.round(100-near*40-near2*10))); }
 /* 隊の周りの包囲（三方以上に敵） */
@@ -25562,6 +25645,7 @@ function startBattle(e){
   if((B.zoom||1)===1&&!B.sim){ B.zoom=BZ_NORMAL; try{ bView(); }catch(_){ } }   /* 第241巡（仕様書 6）：初めから通常の寄りで（兵が駒でなく人に見える高さ）。引きたければ Z */
   /* （野を広げた後に組む） */
   B.opening=PREF.skipSetup?0:999; B.openShownAt=undefined;   // 陣立て。〈開戦〉か空白で始める（設定で飛ばせる）
+  try{ bCoachStart(); }catch(_){ }   /* 第254巡：初めての合戦は、指で触らせる手ほどきを出す */
   if(B.nagashino && B.ctx.playerSide!==1){ try{ if(typeof nagApplyOdaPlan==="function" && typeof NAG_PRESETS!=="undefined") nagApplyOdaPlan(Object.assign({tobi:null}, NAG_PRESETS.hist, {hq:"rear"})); }catch(e){ console.error(e); } }   /* 第253巡（作り手：守り手をもう少し粘らせて）：信長の本陣は柵の奥に置く（前寄りだと二十秒で潰される） */   /* 第253巡：人が武田のときも、織田は史実の備え（三列の柵・予備三隊）で受ける */
   if(B.nagashino && !autoBattleMode) setTimeout(()=>{ try{ nagCouncil(); }catch(e){ console.error(e); } }, 400);
   B.rate=1;         /* 第110巡：戦の速さは毎回×1から（前の戦の×8が残っていた。作り手の指示） */
@@ -26787,6 +26871,7 @@ function deferOrder(u, prev){ const delay=orderDelayFor(u); if(delay<=0.08) retu
   if(B.sek && hq){ const mx=(hq.x+u.x)/2, my=(hq.y+u.y)/2; const foeNear=B.units.some(z=>z.side!==u.side&&z.troops>.5&&z.morale>0&&!z.left&&Math.hypot(z.x-mx,z.y-my)<3.5); if(foeNear){ const r=rnd(); if(r<0.15) u.pending.lost=true; else if(r<0.25){ u.pending.at+=delay; u.pending.lostWay=true; } } } }
 function pendingTick(){ for(const u of B.units){ const p=u.pending; if(!p) continue; if(u.troops<=.5||u.morale<=0||u.left){ u.pending=null; continue; } if(B.elapsed>=p.at){ u.pending=null; if(p.lost){ if(u.side===B.ctx.playerSide){ B.banner={t:`${u.name}隊への伝令、敵に討たれる――命令は届かず`, at:B.elapsed}; bshout(u.id,"伝令が来ぬ……",1.5); } continue; } if(p.lostWay&&u.side===B.ctx.playerSide) B.banner={t:`${u.name}隊への伝令、道に迷って遅れる`, at:B.elapsed}; u.order=p.order; u.gx=p.gx; u.gy=p.gy; u.thenAttack=p.thenAttack; u.charge=p.charge; u.pursue=p.pursue; u.orderAt=B.elapsed; if(u.side===B.ctx.playerSide) bshout(u.id,"承知！",1.1); } } }
 function bshout(id,text,sec){
+  if(B&&B.bc&&!B.bc.done&&B.bc.step>=0&&B.bc.step<=1) return;   /* 第254巡：手ほどきの間は掛け声を出さない（画面が混む） */
   if(!PREF.cries) return;
   B.shouts=B.shouts.filter(s=>s.u!==id);
   // 大合戦で台詞が一斉に重なると読めない。同時に出すのは二つまで。直前に誰かが叫んでいたら、大将でなければ黙る
@@ -27306,6 +27391,7 @@ function stallTick(){
   }
 }
 function updateBattle(dt){
+  try{ bCoachTick(); }catch(_){ }   /* 第254巡：手ほどきの進み */
   if(!B || B.over!==null) return;   // 0 は偽値なので null で判定する
   try{ stallTick(); }catch(e){ console.error("stall",e); }
   if(B.opening<=0&&!B.sim){ B._ms=B._ms||{}; for(const [k,sec] of [["30s",30],["1m",60],["3m",180],["5m",300],["10m",600]]){ if(!B._ms[k]&&B.elapsed>=sec){ B._ms[k]=true; track("battle-"+k); } } }
@@ -30050,7 +30136,7 @@ function drawBattle(){
   // 選んだ隊の狙いの名
   if(B.sel!==null){ const su=B.units.find(z=>z.id===B.sel); if(su && su.order.k==="attack"){ const t=B.units.find(z=>z.id===su.order.id); if(t){ bctx.font='700 11px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center"; bctx.fillStyle="rgba(0,0,0,.7)"; const tw=bctx.measureText("→ "+t.name).width; bctx.fillRect(su.x*sx-tw/2-5, su.y*sy-70, tw+10, 15); bctx.fillStyle="#FFD166"; bctx.fillText("→ "+t.name, su.x*sx, su.y*sy-59); } } }
   // 止めている間は薄暗く「停止中」
-  hud(()=>{ try{ drawSimBattle(W_,H_); }catch(e){} });
+  hud(()=>{ try{ drawSimBattle(W_,H_); }catch(e){} try{ drawBCoach(W_,H_); }catch(e){} });
   /* 第107巡：追い討ちの好機は、下の釦へ大きな矢印で示す（勝頼の本隊だけになっても押す所が分かるように） */
   if(B.pursueHot && !B.pursued && B.over===null && !B.autoMine){ hud(()=>drawBtnArrow('#bPursue,[data-b=pursue]',"追い討ち！ を押す",W_,H_)); }
   if(B.selPause && B.over===null){ hud(()=>{ try{ bctx.save(); bctx.font='800 13px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center"; bctx.textBaseline="middle"; const t="時は止まっています（升か敵を押せば進む）"; bctx.font='700 11px "Zen Kaku Gothic New",sans-serif'; const tw=bctx.measureText(t).width+18; bctx.fillStyle="rgba(0,0,0,.5)"; bctx.beginPath(); bctx.roundRect(W_/2-tw/2,H_-96,tw,20,10); bctx.fill(); bctx.fillStyle="#EDE6D6"; bctx.fillText(t,W_/2,H_-86); bctx.restore(); }catch(e){} }); }
@@ -30403,6 +30489,12 @@ bcanvas.addEventListener("pointerdown",ev=>{
   if(ev.isPrimary!==false){ bPtrDown=ev.pointerId; if(B) B.box=null; }
   if(ev.pointerType==="touch"){ bPtrs.set(ev.pointerId,{x:ev.clientX,y:ev.clientY}); if(bPtrs.size===2){ const [p,q]=[...bPtrs.values()]; if(B){ const rect=bcanvas.getBoundingClientRect(); const sy=rect.height/BF.h; const mx=(p.x+q.x)/2, my=(p.y+q.y)/2; const z0=B.zoom||1; B.pinch={d:Math.hypot(p.x-q.x,p.y-q.y), z:z0, mx, my, cx:B.cx, cy:B.cy, wx:B.cx+((mx-rect.left)-rect.width/2)/(sy*z0), wy:B.cy+((my-rect.top)-rect.height/2)/(sy*z0)}; } } }
   if(!B||B.over!==null) return;
+  /* 第254巡：手ほどきの「あとで」 */
+  if(B.bc && B.bcHit){ const r0=bcanvas.getBoundingClientRect(); const px=(ev.clientX-r0.left)*(bcanvas.width/r0.width)/(window.devicePixelRatio&&bcanvas.width>r0.width?1:1);
+    const sx=(ev.clientX-r0.left)*(bcanvas.width/r0.width), sy=(ev.clientY-r0.top)*(bcanvas.height/r0.height);
+    const dpr=Math.min(window.devicePixelRatio||1,2);
+    const hx=B.bcHit.x*dpr, hy=B.bcHit.y*dpr, hw=B.bcHit.w*dpr, hh=B.bcHit.h*dpr;
+    if(sx>=hx&&sx<=hx+hw&&sy>=hy&&sy<=hy+hh){ bCoachDone(); return; } }
   // 二本目の指（つまみ・二本指の触れ）は命令にしない。引いている最中の枠や矢も取り消す
   if(ev.isPrimary===false){ B.box=null; B.drag=null; B.multiUntil=performance.now()+600; try{ bcanvas.releasePointerCapture(ev.pointerId); }catch(_){ } return; }
   if(B.multiUntil>performance.now()) return;
