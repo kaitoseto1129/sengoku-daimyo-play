@@ -4721,7 +4721,7 @@ function processArmies(){
       }
       else if(a.mission==="帰還" && a.path.length && here && here.clan!==null && hostile(a.clan,here.clan) && a.slip){
         /* 第253巡（作り手・bot：帰る軍が敵の城の上に乗っている）：城の上には乗せず、城下を回らせる */
-        a.y = a.y + ((a.id%2)?1.1:-1.1); a.x = a.x + (((a.id%3)-1)*0.6);
+        a.y = a.y + ((a.id%2)?1.7:-1.7); a.x = a.x + (((a.id%3)-1)*0.9);
         if(a.clan===W.player||here.clan===W.player) log(`${a.name}は${here.name}の城下を夜陰に紛れて通り抜けました`,"war");
       }
       else if(a.mission==="帰還" && a.path.length && here && here.clan!==null && hostile(a.clan,here.clan) && !a.slip){
@@ -4731,7 +4731,7 @@ function processArmies(){
           log(`${a.name}は${here.name}の城下で追い討ちを受け、散り散りになりました`,"war");
           routArmy(a, here.clan); continue;
         }
-        a.y = a.y + ((a.id%2)?1.1:-1.1); a.x = a.x + (((a.id%3)-1)*0.6);   /* 城の上には乗せない */
+        a.y = a.y + ((a.id%2)?1.7:-1.7); a.x = a.x + (((a.id%3)-1)*0.9);   /* 城の上には乗せない */
         const loss=Math.floor(tr*(garr>0?0.15:0.05));
         if(loss>0){ inflict(a,loss); for(const gid of a.gens){ const g=W.generals[gid]; if(g) g.morale=Math.max(10,g.morale-8); }
           if(a.clan===W.player||here.clan===W.player) log(`${a.name}は${here.name}の城下で追い討ちを受け、${loss.toLocaleString()}を失いました`,"war"); }
@@ -7503,6 +7503,10 @@ function aiMilitary(clan,p){
   // 城耐久（万を越える）と兵数を見比べていたため、いつまでも兵糧攻めしか選ばず、
   // 六千で千五百の城を二百日も囲んでいた
   const mode = troops + (best.joined||0) >= defT2*1.8 ? 0 : 1;
+  /* 第253巡（bot：軍が同じ二つの城の間を行ったり来たりしている）：直前に逆向きへ出していたら、しばらく見送る */
+  W._disp=W._disp||{}; const kFwd=`${clan.id}:${best.from}:${best.to}`, kRev=`${clan.id}:${best.to}:${best.from}`;
+  if(W._disp[kRev]!==undefined && dayNumber()-W._disp[kRev] < 14) return;
+  W._disp[kFwd]=dayNumber();
   dispatch(best.from,force,best.to,mode);
 }
 /* 攻める前に兵を集める。近く（街道三区間まで）の自城から手すきの将を寄せ、留守居は残す */
@@ -20330,7 +20334,7 @@ function siegeAtkMenu(){ if(!B||B.over!==null||B.ctx.playerSide!==0||!B.gate) re
   const opts=[
     ["gate","門へ集中攻撃",`足軽と侍が門前へ寄せる（門は一度に三隊まで。残りは順を待つ）${g.open?"――門は開いている":""}`,()=>{ manualCommand(); let i=0; for(const u of mine){ if(u.type===3) continue; go(u, g.x+dir*(1.5+Math.floor(i/3)*1.6), g.y+((i%3)-1)*1.6); i++; } B.banner={t:"門へ集中攻撃", at:B.elapsed}; }],
     ["cover","援護射撃","鉄砲隊が門の手前に並び、塀と門上の守り手を撃つ",()=>{ manualCommand(); let i=0; for(const u of mine){ if(u.type!==3) continue; go(u, g.x+dir*(5.2+(i%2)*1.2), g.y+(i%2?1:-1)*(1.5+Math.floor(i/2)*1.6)); u.holdFire=false; i++; } B.banner={t:"援護射撃――塀の上を狙え", at:B.elapsed}; }],
-    ["rear",B.gate2?"搦手進軍":"搦手進軍（道なし）",B.gate2?(B.gate2.open?"搦手は破れている。三隊を裏から入れる":"足軽三隊が林の道を抜けて搦手の門へ（遅いが挟み撃ちになる）"):"この城には搦手の道がない",()=>{ if(!B.gate2) return toast("搦手の道がありませぬ"); manualCommand(); const inf=mine.filter(u=>u.type!==3&&u.type!==2&&!u.ram).sort((a,b)=>b.troops-a.troops).slice(0,3); const g2=B.gate2; inf.forEach((u,i)=>{ go(u, g2.open?g2.x-dir*2.5:g2.x+dir*(1.4+i*1.2), g2.y+(g2.open?(i-1)*1.2:0)); u.rearGo=true; }); B.banner={t:`${inf.length}隊、搦手道へ`, at:B.elapsed}; }],
+    ["rear",B.gate2?"搦手進軍":"搦手進軍（道なし）",B.gate2?(B.gate2.open?"搦手は破れている。三隊を裏から入れる":"足軽三隊が林の道を抜けて搦手の門へ（遅いが挟み撃ちになる）"):"この城には搦手の道がない",()=>{ if(!B.gate2) return toast("この城に搦手の道はありませぬ。〈門へ集中攻撃〉か〈城壁上を狙え〉、あるいは〈城を囲め〉で兵糧を断ちませ"); manualCommand(); const inf=mine.filter(u=>u.type!==3&&u.type!==2&&!u.ram).sort((a,b)=>b.troops-a.troops).slice(0,3); const g2=B.gate2; inf.forEach((u,i)=>{ go(u, g2.open?g2.x-dir*2.5:g2.x+dir*(1.4+i*1.2), g2.y+(g2.open?(i-1)*1.2:0)); u.rearGo=true; }); B.banner={t:`${inf.length}隊、搦手道へ`, at:B.elapsed}; }],
     ["in","突入",g.open?"破れた門から全軍が城内へ":"門はまだ破れていない",()=>{ if(!g.open) return toast("門はまだ破れておりませぬ"); manualCommand(); const hq=B.units.find(u=>u.side===1&&u.cmd); let i=0; for(const u of mine){ u.charge=true; if(hq) u.order={k:"attack",id:hq.id}; else go(u, g.x-dir*(3+Math.floor(i/3)*1.5), g.y+((i%3)-1)*1.5); i++; } B.bigBanner={t:"突入！", at:B.elapsed, good:true}; try{ playSE("warcry"); }catch(_){ } }],
     ["wall","城壁上を狙え","鉄砲隊が城壁上の守り手を三十秒狙う（門前の攻城隊が進みやすくなる）",()=>ckWallHunt()],
     ["enc","城を囲め","足軽と侍を城の前に広く散らして囲む。囲みが七割を超えれば城兵の士気が二十秒ごとに落ち、降伏勧告が通りやすくなる（門は攻めない）",()=>ckEncircle()],
@@ -31521,12 +31525,23 @@ function requestUnlock(id){
   const app=!!(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap);
   /* 第253巡（作り手）：関ヶ原は ¥500。iPhone は App 内課金、ウェブは PayPal（払い終えたら〈払いました〉。払いの知らせは戻らないので本人の申告）。解除の言葉も受ける */
   const el=document.createElement("div"); el.className="overlay"; el.style.zIndex=95;
+  /* 第253巡（App Review 2.1(b)：App 内課金が見つけられない。関ヶ原を押したら解除の言葉を入れさせられた）
+     買う釦を真ん中に大きく。解除の言葉は小さな行の裏に畳む */
   el.innerHTML=`<div class="dialog" style="max-width:440px;text-align:center"><h3>${esc(SCENARIO_DEFS[id].name)}</h3>
-    <div class="advice">${app?`この筋書きは ${info.price} で解除できます（App 内課金）。解除はこの Apple ID に残ります。`:`この筋書きは ${info.price} で解除できます（PayPal：カード・銀行口座）。<br>払い終えたら〈払いました〉を押してください。解除はこのブラウザに残ります。`}<br><span class="tiny muted">解除の言葉をお持ちなら、下に。</span></div>
-    <input id="unlockCode" placeholder="解除の言葉" autocapitalize="off" autocomplete="off" style="width:100%;padding:9px 11px;border-radius:6px;border:1px solid rgba(237,230,214,.25);background:rgba(0,0,0,.35);color:#EDE6D6;font:inherit;margin:6px 0">
-    <div class="dlg-actions" style="display:flex;gap:8px;flex-wrap:wrap"><button class="big gold" style="flex:1 1 100%" id="ulPay">${info.price} で解除する</button><button class="big ghost" style="flex:1" id="ulGo">言葉で解除</button><button class="big ghost" style="flex:1" id="ulNo">やめる</button></div></div>`;
+    <div class="advice">${app?`この筋書きは <b>${info.price}</b> の App 内課金で解除できます。解除はこの Apple ID に残り、〈購入を復元〉でいつでも戻せます。`:`この筋書きは ${info.price} で解除できます（PayPal：カード・銀行口座）。<br>払い終えたら〈払いました〉を押してください。解除はこのブラウザに残ります。`}</div>
+    <div class="dlg-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+      <button class="big gold" style="flex:1 1 100%;font-size:17px;padding:14px" id="ulPay">${info.price} で購入して解除</button>
+      ${app?`<button class="big ghost" style="flex:1 1 100%" id="ulRestore">購入を復元</button>`:""}
+      <button class="big ghost" style="flex:1 1 100%" id="ulNo">やめる</button></div>
+    <div style="margin-top:10px"><a href="#" id="ulCodeOpen" class="tiny muted" style="text-decoration:underline;cursor:pointer">解除の言葉をお持ちの方はこちら</a></div>
+    <div id="ulCodeBox" hidden style="margin-top:6px">
+      <input id="unlockCode" placeholder="解除の言葉" autocapitalize="off" autocomplete="off" style="width:100%;padding:9px 11px;border-radius:6px;border:1px solid rgba(237,230,214,.25);background:rgba(0,0,0,.35);color:#EDE6D6;font:inherit;margin:6px 0">
+      <button class="big ghost" style="width:100%" id="ulGo">言葉で解除</button></div></div>`;
   document.body.appendChild(el);
   el.querySelector("#ulNo").onclick=()=>el.remove();
+  { const op=el.querySelector("#ulCodeOpen"), bx=el.querySelector("#ulCodeBox");
+    if(op&&bx) op.onclick=(e)=>{ e.preventDefault(); bx.hidden=false; op.style.display="none"; try{ el.querySelector("#unlockCode").focus(); }catch(_){ } }; }
+  { const rb=el.querySelector("#ulRestore"); if(rb) rb.onclick=()=>{ try{ window.webkit.messageHandlers.iap.postMessage({restore:true}); toast("購入を復元しています…"); }catch(_){ } }; }
   el.querySelector("#ulPay").onclick=()=>{ track("pay-click/"+id);
     if(app){ try{ window.webkit.messageHandlers.iap.postMessage({buy:id, sku:info.sku}); }catch(e){} el.remove(); return; }
     const u=info.pay||(FUND_PAY_TEMPLATE?FUND_PAY_TEMPLATE.replace("{amt}","500"):""); if(!u){ toast("いまは受け付けていません"); return; }
@@ -31549,7 +31564,7 @@ function refreshScenarioLocks(){
   document.querySelectorAll("#stepScenario .scen[data-sc]").forEach(b=>{
     const id=b.dataset.sc; let badge=b.querySelector(".sc-lock"); if(!badge){ badge=document.createElement("span"); badge.className="sc-lock tiny"; badge.style.cssText="position:absolute;right:12px;top:10px;padding:3px 8px;border-radius:10px;font-weight:800"; b.style.position="relative"; b.appendChild(badge); }
     if(!scenarioAvailable(id)){ badge.textContent="近日公開"; badge.style.background="rgba(120,120,120,.35)"; badge.style.color="#CFC8B8"; b.style.opacity=".45"; b.classList.add("locked"); }
-    else if(scenarioLocked(id)){ badge.textContent=`🔒 ${PAID_SCENARIOS[id].price} で解除`; badge.style.background="rgba(201,162,39,.9)"; badge.style.color="#1A1208"; b.style.opacity="1"; b.classList.add("locked"); }
+    else if(scenarioLocked(id)){ const inApp=!!(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap); badge.textContent=inApp?`🔒 ${PAID_SCENARIOS[id].price}（App内課金）`:`🔒 ${PAID_SCENARIOS[id].price} で解除`;   /* 第253巡（App Review）：課金で開くことが札で分かるように */ badge.style.background="rgba(201,162,39,.9)"; badge.style.color="#1A1208"; b.style.opacity="1"; b.classList.add("locked"); }
     else if(scenHasSave(id)){ badge.textContent="つづきあり"; badge.style.background="rgba(63,110,200,.85)"; badge.style.color="#fff"; b.style.opacity="1"; b.classList.remove("locked"); }
     else { badge.textContent=""; badge.style.background="transparent"; b.style.opacity="1"; b.classList.remove("locked"); }
   });
