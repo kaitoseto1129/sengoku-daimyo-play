@@ -20596,8 +20596,19 @@ function wakaSetup(){ const H=BF.h, Wd=BF.w; kpAdd("北街道",coreX(0.5),H*0.15
 function wakaTick(dt){ const K=B.wk; if(K.at>B.elapsed-1) return; K.at=B.elapsed; const mine=B.ctx.playerSide; const c=kpGet("中央の交差点"); for(const u of B.units){ if(u.troops<=.5) continue; const on=(c&&c.owner===u.side); if(!!u.wkRoad!==on){ u.wkRoad=on; u.spdMul=(u.spdMul||1)*(on?1.12:1/1.12); } } const kps=["北街道","中央の交差点","南街道"].map(kpGet).filter(Boolean); const my=kps.filter(k=>k.owner===mine).length; const stab=(sd)=>{ const us=B.units.filter(u=>u.side===sd&&u.troops>.5&&!u.left); if(!us.length) return "—"; const m=us.reduce((a,u)=>a+u.morale,0)/us.length; return m>=70?"高":m>=45?"中":m>=25?"低":"崩壊"; }; chip(`【街道】${kps.map(k=>k.name.replace("中央の","")+" "+(k.owner===mine?"味方":k.owner===null?"中立":"敵")).join("｜")}｜陣形の安定 味方 ${stab(mine)}／敵 ${stab(1-mine)}`); }
 
 /* ---- 本能寺：四方の包囲率。開いている方角から信長が逃げる。全部塞げば逃げ道なし ---- */
-function honnojiKitSetup(){ B.hnj={at:0}; try{ honGroundsBuild(); }catch(e){ console.error(e); } const c=B.units.find(u=>u.side===1&&u.cmd); B.hnj.c=c?{x:c.x,y:c.y}:{x:BF.w/2,y:BF.h/2}; B.objective=B.ctx.playerSide===0?"門を叩く前に逃げ道を消せ。北・東・南・西に隊を置き、包囲率を上げよ。開いている方角から信長は逃げる":"開いている方角を探し、時を稼いで信長を逃がせ"; }
-function honnojiKitTick(dt){ const K=B.hnj; if(K.at>B.elapsed-1) return; K.at=B.elapsed; const c=K.c; const sec={"北":[c.x,c.y-6],"東":[c.x+7,c.y],"南":[c.x,c.y+6],"西":[c.x-7,c.y]}; let n=0; const st={}; for(const [k,[x,y]] of Object.entries(sec)){ const m=B.units.filter(u=>u.side===0&&u.troops>.5&&u.morale>0&&!u.left&&Math.hypot(u.x-x,u.y-y)<5).length; st[k]=m>=2?"○":m===1?"△":"×"; if(m>=1) n++; } const pct=Math.round(n/4*100); if(pct>=100&&!K.full){ K.full=true; B.bigBanner={t:"本能寺 完全包囲――逃げ道なし", at:B.elapsed, good:B.ctx.playerSide===0, big:true}; for(const u of B.units) if(u.side===1&&u.troops>.5) u.morale=Math.max(0,u.morale-12); if(B.escapeLimit) B.escapeLimit=Math.min(B.escapeLimit,(B.elapsed-(B.escapeAt||0))+20); } chip(`【本能寺包囲】北${st["北"]} 東${st["東"]} 南${st["南"]} 西${st["西"]}｜包囲率 ${pct}%`); }
+function honnojiKitSetup(){ B.hnj={at:0};
+  /* 第254巡（bot：本能寺が四秒で終わる）：信長と近習は寺を背に粘る。四秒で消えては、最期の意味がない */
+  try{ for(const u of B.units){ if(u.side!==1) continue;
+    u.tough=(u.tough||1)*2.6; u.morRes=Math.min(u.morRes||1,0.5); u.morale=Math.min(100,(u.morale||80)+12);
+    if(u.cmd){ u.tough=(u.tough||1)*1.5; } } }catch(_){ } try{ honGroundsBuild(); }catch(e){ console.error(e); } const c=B.units.find(u=>u.side===1&&u.cmd); B.hnj.c=c?{x:c.x,y:c.y}:{x:BF.w/2,y:BF.h/2}; B.objective=B.ctx.playerSide===0?"門を叩く前に逃げ道を消せ。北・東・南・西に隊を置き、包囲率を上げよ。開いている方角から信長は逃げる":"開いている方角を探し、時を稼いで信長を逃がせ"; }
+function honnojiKitTick(dt){ const K=B.hnj;
+  /* 第254巡（bot：本能寺が四秒で終わる）：信長と近習は、寺に火が回るまで部屋を移りながら粘る。
+     はじめの三十五秒は、守り手が全滅しきらない（史実でも小半刻は保った） */
+  try{ if(B.elapsed<35){ for(const u of B.units){ if(u.side!==1||u.left) continue;
+    const floorT=Math.max(1, (u.max||u.troops)*0.14);
+    if(u.troops>0 && u.troops<floorT) u.troops=floorT;
+    if(u.morale<8) u.morale=8; } } }catch(_){ }
+  if(K.at>B.elapsed-1) return; K.at=B.elapsed; const c=K.c; const sec={"北":[c.x,c.y-6],"東":[c.x+7,c.y],"南":[c.x,c.y+6],"西":[c.x-7,c.y]}; let n=0; const st={}; for(const [k,[x,y]] of Object.entries(sec)){ const m=B.units.filter(u=>u.side===0&&u.troops>.5&&u.morale>0&&!u.left&&Math.hypot(u.x-x,u.y-y)<5).length; st[k]=m>=2?"○":m===1?"△":"×"; if(m>=1) n++; } const pct=Math.round(n/4*100); if(pct>=100&&!K.full){ K.full=true; B.bigBanner={t:"本能寺 完全包囲――逃げ道なし", at:B.elapsed, good:B.ctx.playerSide===0, big:true}; for(const u of B.units) if(u.side===1&&u.troops>.5) u.morale=Math.max(0,u.morale-12); if(B.escapeLimit) B.escapeLimit=Math.min(B.escapeLimit,(B.elapsed-(B.escapeAt||0))+20); } chip(`【本能寺包囲】北${st["北"]} 東${st["東"]} 南${st["南"]} 西${st["西"]}｜包囲率 ${pct}%`); }
 
 /* ---- 二条御所：中庭を一つずつ。三段（正門→第一中庭→第二中庭→御殿） ---- */
 function nijoKitSetup(){ B.siegeLayers=Math.max(B.siegeLayers||1,3); B.njo={at:0}; try{ honGroundsBuild(); }catch(e){ console.error(e); } B.objective=B.ctx.playerSide===0?"正門を破っても中庭で守り手が待つ。中庭を一つずつ突破せよ。側門からも入れる":"中庭ごとに守れ。危うくなれば〈次の丸へ退く〉で次の中庭へ"; }
@@ -30615,13 +30626,22 @@ function bPick(wx,wy,side,r){
     if(inBox.length) return inBox.reduce((p,q)=>Math.hypot(p.x-wx,p.y-wy)<Math.hypot(q.x-wx,q.y-wy)?p:q); }
   { const [c,r_]=cellOf(wx,wy); const inCell=pool.find(x=>(x.cell&&x.cell[0]===c&&x.cell[1]===r_)||(x.nextCell&&x.nextCell[0]===c&&x.nextCell[1]===r_)); if(inCell) return inCell; }   /* 押した升の隊（第103巡）。動いている隊は次の升でも当たる（第113巡：引いた先の敵が討つ相手にならなかった） */
   const hit=pool.reduce((p,q)=>Math.hypot(p.x-wx,p.y-wy)<Math.hypot(q.x-wx,q.y-wy)?p:q);
-  return Math.hypot(hit.x-wx,hit.y-wy)<(r||1.6) ? hit : null;
+  /* 第254巡（作り手：97%が携帯、390×700。指では隊を押しにくい）：指で触った時は当たりを広く取る。
+     升が小さく見えている（引いている）ときほど広く */
+  let rr = r || 1.6;
+  if(r===undefined){
+    const touch = (B._lastPtr==="touch");
+    const px = (bcanvas && bcanvas.clientHeight) ? (bcanvas.clientHeight/BF.h) : 20;   /* 一升が画面で何ピクセルか */
+    if(touch) rr = Math.max(1.6, Math.min(3.4, 26/Math.max(6,px)));   /* 指の幅（およそ26px）ぶん */
+  }
+  return Math.hypot(hit.x-wx,hit.y-wy)<rr ? hit : null;
 }
 const bPtrs=new Map();   // 触れている指（つまみの寄り引きに使う）
 let bPtrDown=null;   /* 第215巡：押している指の番号。離しが盤の外や小窓に取られても、長押しの範囲枠が残らないように */
 window.addEventListener("pointerup",ev=>{ if(bPtrDown===ev.pointerId) bPtrDown=null; if(B&&B.box&&ev.target!==bcanvas){ B.box=null; B.pan=null; } },true);
 window.addEventListener("pointercancel",ev=>{ if(bPtrDown===ev.pointerId) bPtrDown=null; if(B){ B.box=null; B.pan=null; } },true);
 bcanvas.addEventListener("pointerdown",ev=>{
+  if(B) B._lastPtr=ev.pointerType;   /* 第254巡：指か、マウスか */
   if(ev.isPrimary!==false){ bPtrDown=ev.pointerId; if(B) B.box=null; }
   if(ev.pointerType==="touch"){ bPtrs.set(ev.pointerId,{x:ev.clientX,y:ev.clientY}); if(bPtrs.size===2){ const [p,q]=[...bPtrs.values()]; if(B){ const rect=bcanvas.getBoundingClientRect(); const sy=rect.height/BF.h; const mx=(p.x+q.x)/2, my=(p.y+q.y)/2; const z0=B.zoom||1; B.pinch={d:Math.hypot(p.x-q.x,p.y-q.y), z:z0, mx, my, cx:B.cx, cy:B.cy, wx:B.cx+((mx-rect.left)-rect.width/2)/(sy*z0), wy:B.cy+((my-rect.top)-rect.height/2)/(sy*z0)}; } } }
   if(!B||B.over!==null) return;
