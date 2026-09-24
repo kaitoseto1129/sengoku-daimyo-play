@@ -11639,12 +11639,13 @@ function outlineCanvas(cv, color, pad){
 function artRng(seed){ let s=(seed*2654435761)>>>0|1;
   return ()=>{ s^=s<<13; s>>>=0; s^=s>>>17; s^=s<<5; s>>>=0; return s/4294967296; }; }
 
+/* 第254巡（作り手：色を鮮やかに）：升のドット絵も地の色に合わせて鮮やかに */
 const PAL = {
-  grassL:"#9ED466", grassM:"#85C254", grassD:"#66A642",
-  leafL:"#6DB25A", leafM:"#4E9448", leafD:"#376F39",
-  hillBg:"#A9C27A", mtnBg:"#B6B39A", mtnBgD:"#9C9A84",
-  trunk:"#66452A", rockL:"#8C8577", rockM:"#6B635A", rockD:"#4D4742",
-  snow:"#F0F2F5", seaM:"#52A8E6", seaL:"#73C2F2", seaD:"#3885CC", sand:"#E0D49E",
+  grassL:"#A9E86B", grassM:"#7EE04F", grassD:"#5BBE3A",
+  leafL:"#5FC04F", leafM:"#2E9E33", leafD:"#1B7327",
+  hillBg:"#B2D84F", mtnBg:"#B98B45", mtnBgD:"#9C7133",
+  trunk:"#6B4526", rockL:"#DCBA7C", rockM:"#A9834C", rockD:"#7A5A32",
+  snow:"#F4F7FA", seaM:"#1187EE", seaL:"#4FCBFF", seaD:"#0B6BC4", sand:"#F4D884",
 };
 function bakeTiles(){
   const kinds=[T.SEA,T.SHALLOW,T.PLAIN,T.FOREST,T.HILL,T.MOUNTAIN,T.RIVER];
@@ -12189,7 +12190,7 @@ function drawMap(){
   mctx.fillRect(0,0,W_,H_);
   /* 第153巡：焼いた地図が消えていたら（iOS/Safari は背景に回った後に裏の canvas を捨てることがある）焼き直す。海だけの青い地図になっていた */
   try{ if(!terrainCanvas||!terrainCanvas.width) bakeTerrain(); else if(!(drawMap._chkAt>performance.now()-4000)){ drawMap._chkAt=performance.now(); if(terrainBlank()){ bakeTerrain(); bakeMinimap(); tileLayer=null; } } }catch(_){ }
-  const detailed = cam.scale >= 8;   // 早めにドット絵へ切り替え、粗い引き伸ばしを見せない
+  const detailed = cam.scale >= 4.0;   /* 第254巡（作り手：絵を置く層も）：もっと引いた所からドット絵（木立・岩・草）に切り替える */
   // 寄っても引いても角が立たぬように、地図はつねに滑らかに描く
   mctx.imageSmoothingEnabled = true;
   mctx.imageSmoothingQuality = "high";
@@ -12199,7 +12200,7 @@ function drawMap(){
     // 寄ったときは1マスずつドット絵を敷く。
     // 毎フレーム一万枚を描いていては重いので、敷いた層を取っておき、
     // 画面が同じ範囲にある間はそれを貼るだけにする
-    const M=6;
+    const M=cam.scale>=8?16:8;   /* 第254巡：浅い寄りでは升の数が増えるので余白は控えめに（敷き直しの引っかかりを小さく） */
     const c0=Math.max(0,Math.floor(cam.x-W_/cam.scale/2)-1-M);
     const c1=Math.min(PROJ.cols,Math.ceil(cam.x+W_/cam.scale/2)+1+M);
     const r0=Math.max(0,Math.floor(cam.y-H_/cam.scale/2)-1-M);
