@@ -5498,6 +5498,7 @@ function askFirstWord(){
     if(localStorage.getItem("sengoku_word_asked")) return;
     localStorage.setItem("sengoku_word_asked","1");
   }catch(_){ }
+  try{ if(!localStorage.getItem("sengoku_survey_asked")){ askSurvey(); return; } }catch(_){ }   /* 第255巡：初戦の後は、ひとことより先に五段階の検証を */
   setTimeout(()=>{
     try{
       const el=document.createElement("div"); el.className="overlay"; el.style.zIndex=95;
@@ -5514,6 +5515,67 @@ function askFirstWord(){
       try{ track("word/ask"); }catch(_){ }
     }catch(_){ }
   }, 2600);
+}
+/* 第255巡（作り手：初めて遊ぶ人に評価してもらって、それを直しに使う）
+   初戦の直後の「試遊の検証」。五段階が六問と、ひとこと。数は印として送り、文は目安箱と同じ道で届く。
+   合戦の帯には足さない（overlay で出す）。一度きり。 */
+const SURVEY_Q=[
+  "合戦は、自分が采配している手応えがあった",
+  "初めの戦で、何をすればよいか分かった",
+  "城や国を取った時、嬉しかった",
+  "隊への指図（進め・討て・持ち場）は分かりやすかった",
+  "戦の勝ち負けに、納得がいった",
+  "次の戦も遊びたくなった"
+];
+function openSurvey(from){
+  try{ if(document.getElementById("survOv")) return; }catch(_){ }
+  const el=document.createElement("div"); el.className="overlay scrollov"; el.id="survOv"; el.style.zIndex=96;
+  const rows=SURVEY_Q.map((q,i)=>`<div style="margin:10px 0 4px;font-size:13px;line-height:1.5">${i+1}. ${q}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">${[1,2,3,4,5].map(v=>`<button class="tool sv" data-q="${i}" data-v="${v}" style="flex:1 1 0;min-width:52px;min-height:40px">${v}</button>`).join("")}</div>`).join("");
+  el.innerHTML=`<style>#survOv button.sv{background:rgba(237,230,214,.10);border:1px solid rgba(237,230,214,.28);color:var(--gofun);font-weight:700}#survOv button.sv.on{background:linear-gradient(180deg,#E9C65C,#C9A227);border-color:#5C4610;color:#1A1208}</style><div class="dialog" style="max-width:520px">
+    <button class="ovx" id="survX" aria-label="閉じる">×</button>
+    <div class="tiny" style="letter-spacing:.3em;color:var(--kin)">試 遊 の 検 証</div>
+    <h3 style="margin-top:2px">遊んでみて、どうでしたか</h3>
+    <div class="advice" style="text-align:left">一＝そう思わない　〜　五＝とてもそう思う。三十秒で終わります。答えは作り手だけが見ます。</div>
+    ${rows}
+    <div style="margin:12px 0 4px;font-size:13px">気づいたこと・面白かった所・分かりにくかった所</div>
+    <textarea id="survText" rows="4" placeholder="例：柵の内から撃つ所が面白かった／隊の進め方が分からなかった" style="width:100%;padding:10px 12px;border-radius:6px;border:1px solid rgba(237,230,214,.25);background:rgba(0,0,0,.35);color:var(--gofun);font-family:inherit;font-size:14px"></textarea>
+    <div class="dlg-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+      <button class="big gold" style="flex:1 1 46%" id="survGo">送る</button>
+      <button class="big ghost" style="flex:1 1 46%" id="survNo">いまはいい</button>
+    </div></div>`;
+  document.body.appendChild(el);
+  const wasPaused=(typeof B!=="undefined"&&B&&B.over===null)?B.paused:null;
+  if(wasPaused===false){ B.paused=true; try{ renderBattleFoot(); }catch(_){ } }
+  const ans={};
+  el.querySelectorAll("button.sv").forEach(b=>{ b.onclick=()=>{ const q=b.dataset.q;
+    ans[q]=+b.dataset.v;
+    el.querySelectorAll(`button.sv[data-q="${q}"]`).forEach(x=>x.classList.remove("on"));
+    b.classList.add("on"); }; });
+  const closeIt=()=>{ el.remove(); if(overlayEl===el) overlayEl=null;
+    if(wasPaused===false&&typeof B!=="undefined"&&B&&B.over===null){ B.paused=false; try{ renderBattleFoot(); }catch(_){ } } };
+  el.querySelector("#survX").onclick=el.querySelector("#survNo").onclick=()=>{ try{ track("survey/skip"); }catch(_){ } closeIt(); };
+  el.querySelector("#survGo").onclick=()=>{
+    const t=(el.querySelector("#survText").value||"").trim();
+    const keys=Object.keys(ans);
+    if(!keys.length && !t){ toast("一つでも選ぶか、ひとこと書いてください"); return; }
+    try{ for(const q of keys) track("survey/q"+(+q+1)+"/"+ans[q]); }catch(_){ }
+    try{ const sum=keys.map(q=>"q"+(+q+1)+"="+ans[q]).join(" ");
+      const line=`- [${new Date().toISOString().slice(0,10)}] 試遊の検証 ${sum}${t?"／"+t.replace(/\n/g," "):""}（版 ${BUILD}・${from||"初戦"}）`;
+      const box=JSON.parse(localStorage.getItem("sengoku_meyasu")||"[]"); box.push(line);
+      localStorage.setItem("sengoku_meyasu", JSON.stringify(box.slice(-50)));
+      localStorage.setItem("sengoku_survey_done","1");
+      if(t){ try{ const sc=(W&&W.started&&W.stage&&W.stage.key)?W.stage.key:"-";
+        location.href=`mailto:${MEYASU_TO}?subject=${encodeURIComponent("戦国大名 試遊の検証")}&body=${encodeURIComponent(sum+"\n\n"+t+"\n\n（版 "+BUILD+"・筋書き "+sc+"）")}`; }catch(_){ } }
+    }catch(_){ }
+    try{ track("survey/send"); }catch(_){ }
+    closeIt(); toast("ありがとうございます。直しに使います");
+  };
+  try{ track("survey/open"+(from?"-"+from:"")); }catch(_){ }
+}
+function askSurvey(){
+  try{ if(localStorage.getItem("sengoku_survey_asked")) return; localStorage.setItem("sengoku_survey_asked","1"); }catch(_){ }
+  setTimeout(()=>{ try{ openSurvey("初戦"); }catch(_){ } }, 2400);
 }
 function milestoneCheck(){
   try{
@@ -27774,24 +27836,26 @@ function moveWatchdog(){
   for(const u of B.units){
     if(u.troops<=.5||u.left||u.morale<=0){ u._wdD=undefined; continue; }
     const o=u.order;
-    /* 行き先は命令より gx,gy を見る（命令が毎瞬書き換わる所でも、行き先は残る） */
-    if(!o||o.k==="attack"||o.k==="retreat"){ u._wdD=undefined; u._wdN=0; continue; }
+    /* 命令の中身は毎瞬書き換わることがあるので、「どれだけ動けたか」で見る */
+    if(!o||o.k==="retreat"){ u._wdD=undefined; u._wdN=0; continue; }
+    if(u._pX===undefined || Math.hypot(u.x-u._pX, u.y-u._pY)>1.5){ u._pX=u.x; u._pY=u.y; u._pT=B.elapsed; u._wdN=0; continue; }
+    if(B.elapsed-(u._pT||B.elapsed)<15) continue;
+    /* 持ち場に落ち着いている隊と、組み合っている隊は除く */
+    if((o.k==="guard"||o.k==="hold") && u.gx!==undefined && Math.hypot(u.x-u.gx,u.y-u.gy)<2.0){ u._pT=B.elapsed; continue; }
     /* 敵と組み合っている隊は動けない。それは道理だが、黙っていると「命じたのに動かない」に見える。一度だけ告げる */
-    if(u.engagedAt>B.elapsed-3){
+    if(u.engagedAt>B.elapsed-10){
       u._pinT=(u._pinT===undefined)?B.elapsed:u._pinT;
       if(B.elapsed-u._pinT>10 && !u._pinTold && u.side===B.ctx.playerSide && !u.ally && !B.autoMine && o.k==="move"){
         u._pinTold=true;
         if(!(B._pinTold>B.elapsed-20)){ B._pinTold=B.elapsed; try{ toast(`${u.name}隊は敵と組み合っていて、その場を離れられません`); }catch(_){ } }
       }
-      u._wdD=undefined; u._wdN=0; continue; }
+      u._pT=B.elapsed; continue; }
     u._pinT=undefined;
     const gx9=(o.k==="move"&&o.x!==undefined)?o.x:u.gx, gy9=(o.k==="move"&&o.y!==undefined)?o.y:u.gy;
-    if(gx9===undefined||gy9===undefined){ u._wdD=undefined; u._wdN=0; continue; }
+    if(gx9===undefined||gy9===undefined){ u._pT=B.elapsed; continue; }
     const d=Math.hypot(u.x-gx9, u.y-gy9);
-    if(d<1.6){ u._wdD=undefined; u._wdN=0; continue; }
-    if(u._wdD===undefined || d<u._wdD-0.5){ u._wdD=d; u._wdT=B.elapsed; continue; }
-    if(B.elapsed-(u._wdT||B.elapsed)<12) continue;
-    u._wdT=B.elapsed; u._wdD=d; u._wdN=(u._wdN||0)+1;
+    if(d<1.6){ u._pT=B.elapsed; continue; }
+    u._pT=B.elapsed; u._wdN=(u._wdN||0)+1;
     u.holdUntil=0; u.waitFence=false; u.fenceFirst=false; u.reserveHold=false; u.ckEnc=false;
     u.sekHold=false; u.tobiHold=false; u.breakTo=null; u.path=null; u.cell=null; u.nextCell=null; u.standoffAt=undefined;
     if(u._wdN===1){   /* まずは横へずらして道を取り直す */
@@ -27986,6 +28050,7 @@ function updateBattle(dt){
     for(const L of B.late.slice()){ if(B.elapsed<L.at) continue; B.late=B.late.filter(x=>x!==L);
       if(!L.units||!L.units.length) continue;   /* 第254巡：空の援軍（山崎で後続が一隊しかない時、後半の組が空になり落ちていた） */
       L.units.forEach((u,i)=>{ const left=u.side===B.ctx.playerSide; u.x=left?1.5:BF.w-1.5; u.y=4+(BF.h-8)*((i+.5)/L.units.length); u.face=left?0:Math.PI; u.spReady=B.elapsed+8; const mx=left?7+(i%3)*1.4:BF.w-7-(i%3)*1.4; u.order={k:"move",x:mx,y:u.y}; u.gx=mx; u.gy=u.y; u.marchIn=true; B.units.push(u); });   /* 行軍して野に入る（着いた所で止まる） */
+      B._warpAt=B.elapsed;   /* 第254巡：援軍は野の端に現れる。置き直しであって「一息で飛んだ」のではない */
       B.bigBanner={t:L.h, at:B.elapsed, good:L.units[0].side===B.ctx.playerSide}; try{ playSE("horse"); }catch(_){ }
       for(const v of B.units) if(v.side===L.units[0].side && v.morale>0) v.morale=Math.min(100,v.morale+10);
       log(`${L.h}`,"war"); }
@@ -28611,7 +28676,12 @@ function resolveAttack(a,d){
   loss=Math.min(loss, Math.max(1, a.troops*0.2));   /* 第254巡（bot：小勢が大軍を削り倒す）：一度に討てるのは自分の兵の二割まで（半分は多すぎた） */
   /* 第254巡：数で大きく勝る側は、相手をより速く崩せる（受け手の上限を、兵数の差に応じて緩める） */
   if(a.troops>d.troops*2){ const k2=Math.max(1, Math.min(2.2, a.troops/Math.max(1,d.troops)/2)); loss*=k2; }
-  if(a.troops < d.troops*0.5){ const r2=a.troops/Math.max(1,d.troops); loss*=Math.max(0.3, r2*2); }   /* 第254巡：小勢の一撃は、数の開きだけ浅い（百の隊が千の隊を薙ぐことはない） */   /* 第254巡（bot：九百の隊が八十の隊に四百を削られる）：四分の一にも満たぬ小勢の一撃は、それだけ浅い */
+  if(a.troops < d.troops*0.5){ const r2=a.troops/Math.max(1,d.troops); loss*=Math.max(0.3, r2*2); }
+  /* 第254巡（bot：二隊の守りが六秒で消える）：一つの隊に取り付ける数には限りがある。
+     同じ隊へ一秒のうちに何隊も殺到しても、前に出られるのは三隊ぶんまで */
+  { if(d._swAt===undefined || B.elapsed-d._swAt>1){ d._swAt=B.elapsed; d._swN=0; }
+    d._swN=(d._swN||0)+1;
+    if(d._swN>3) loss*=Math.max(0.35, 3/d._swN); }   /* 第254巡：小勢の一撃は、数の開きだけ浅い（百の隊が千の隊を薙ぐことはない） */   /* 第254巡（bot：九百の隊が八十の隊に四百を削られる）：四分の一にも満たぬ小勢の一撃は、それだけ浅い */
   if(overWall!==1) loss*=overWall;   /* 柵越しの一突きは浅い（第253巡） */
   d.troops=Math.max(0,d.troops-loss);
   if(a.type!==3 && rnd()<0.05){ B.decals=B.decals||[]; if(B.decals.length<70) B.decals.push({k:"mud", x:d.x+(rnd()-.5)*1.5, y:d.y+(rnd()-.5)*1.0, t:B.elapsed}); }   // 踏み荒らしの跡
@@ -33929,12 +33999,14 @@ function openMeyasubako(){
   el.innerHTML=`<div class="dialog" style="max-width:520px"><button class="ovx" id="meyasuX" aria-label="閉じる">×</button><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">目 安 箱</div><h3>ここをこうして欲しい</h3>
     <div class="advice">遊んで困ったこと、欲しい手、直して欲しい所。何でも。作り手に手紙で届きます。</div>
     <textarea id="meyasuText" rows="6" placeholder="例：木津砦で門を破ったのに隊が入らない／関ヶ原にも軍議が欲しい" style="width:100%;padding:10px 12px;border-radius:6px;border:1px solid rgba(237,230,214,.25);background:rgba(0,0,0,.35);color:#EDE6D6;font:inherit;font-size:14px;line-height:1.6;resize:vertical"></textarea>
+    <div class="tiny" style="margin:2px 0 8px"><button class="chip kin" id="meyasuSurv" style="cursor:pointer">試遊の検証に答える（五段階・三十秒）</button></div>
     <div class="tiny muted">送ると手紙の窓が開きます（${where}・版 ${BUILD}${W&&W.started&&W.stage&&W.stage.key?"・筋書き "+W.stage.key:""} が添えられます）。宛先：${MEYASU_TO}</div>
     <div class="dlg-actions" style="display:flex;gap:8px;flex-wrap:wrap"><button class="big gold" style="flex:1 1 46%" id="meyasuGo">手紙で送る</button><button class="big ghost" style="flex:1 1 46%" id="meyasuCopy">文を写す</button><button class="big ghost" style="flex:1 1 100%" id="meyasuNo">閉じる</button></div></div>`;
   document.body.appendChild(el); overlayEl=el;
   const wasPaused=(typeof B!=="undefined"&&B&&B.over===null)?B.paused:null; if(wasPaused===false){ B.paused=true; try{ renderBattleFoot(); }catch(_){ } }   /* 第253巡：合戦の中から開いたら書いている間は止める */
   const closeIt=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; if(wasPaused===false&&typeof B!=="undefined"&&B&&B.over===null){ B.paused=false; try{ renderBattleFoot(); }catch(_){ } } };
   el.querySelector("#meyasuNo").onclick=el.querySelector("#meyasuX").onclick=closeIt;
+  { const sv=el.querySelector("#meyasuSurv"); if(sv) sv.onclick=()=>{ closeIt(); try{ openSurvey("目安箱"); }catch(_){ } }; }
   el.querySelector("#meyasuGo").onclick=()=>{ const t=(el.querySelector("#meyasuText").value||"").trim(); if(!t){ toast("何か書いてください"); return; } const sc=(W&&W.started&&W.stage&&W.stage.key)?W.stage.key:"-"; let lastErr=""; try{ lastErr=localStorage.getItem("sengoku_lasterr")||""; }catch(_){ } const body=t+"\n\n――\n"+where+"／版 "+BUILD+"／筋書き "+sc+"／"+navigator.userAgent.slice(0,80)+(lastErr?"／最後の不具合 "+lastErr:""); const url="mailto:"+MEYASU_TO+"?subject="+encodeURIComponent("【戦国大名 目安箱】")+"&body="+encodeURIComponent(body); try{ track("meyasu/send"); }catch(_){ } location.href=url; setTimeout(()=>{ closeIt(); toast("手紙の窓が開かなければ、"+MEYASU_TO+" へ直接どうぞ"); },600); };
   /* 第253巡（作り手：目安箱に来たものは、言われなくても直しに取り入れる）：手紙の窓が開かない端末でも文が消えないよう、控えを残して写せるように */
   el.querySelector("#meyasuCopy").onclick=()=>{ const t=(el.querySelector("#meyasuText").value||"").trim(); if(!t){ toast("何か書いてください"); return; }
