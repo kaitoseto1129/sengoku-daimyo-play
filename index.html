@@ -4470,7 +4470,8 @@ function completeTask(g,t){
       }
       c.lv=Math.min(capLv, c.lv+gain);
       c.defense=Math.min(maxDefense(c), c.defense+gain*6);
-      log(`${c.name}の城の強化が完了 城Lv+${gain}`,"growth"); break; }
+      /* 第254巡（bot：同じ報せが五日に四度）：同じ城の普請は一日に一度だけ告げる（幾人が同時に終えても） */
+      { const dy=dayNumber(); if(c._upSaid!==dy){ c._upSaid=dy; log(`${c.name}の城の強化が完了 城Lv+${gain}`,"growth"); } } break; }
     case "軍事訓練":{
       const gain=Math.floor(9*skill);
       c.quality[g.unit]=Math.min(100,c.quality[g.unit]+gain);
@@ -5042,7 +5043,7 @@ function queueEncounter(e){
     const c=W.castles[e.castle]; const a=W.armies[e.army];
     const gar=a?garrisonTroops(c.id):0, atkT=a?armyTroops(a):0;
     /* 第253巡（bot：城攻めが0〜7秒で終わる。遊ぶ間がなく、ただ画面が切り替わるだけだった） */
-    if(a && c.clan!==a.clan && (gar<900 || (gar<6000 && gar<atkT/3)) && (!e.foeArmy||!W.armies[e.foeArmy])){   /* 第253巡（bot：城攻めが四〜五秒で終わる）：開く目安を上げ、一瞬で終わる合戦を開かない */   /* 第253巡（bot：城攻めが二〜七秒で終わる）：守兵が寄せ手の七分の一にも満たなければ、戦わずに開く */
+    if(a && c.clan!==a.clan && (gar<900 || gar<atkT*0.09) && (!e.foeArmy||!W.armies[e.foeArmy])){   /* 第254巡（bot：まだ三〜八秒の城攻めが出る）：兵の絶対数ではなく、寄せ手との釣り合いで決める（六千の守りに十万で寄せても一瞬で終わる） */   /* 第253巡（bot：城攻めが四〜五秒で終わる）：開く目安を上げ、一瞬で終わる合戦を開かない */   /* 第253巡（bot：城攻めが二〜七秒で終わる）：守兵が寄せ手の七分の一にも満たなければ、戦わずに開く */
       log(`${c.name}には守る兵がおらず、戦わずに開きました`,"war", a.clan===W.player||c.clan===W.player);
       try{ captureCastle(c.id, a.clan, a); }catch(err){ console.error(err); }
       return; } }   /* 第253巡（作り手：真田丸の戦いが起きない）：筋書き自身が起こす戦（真田丸・総攻め）は通す。ふつうの城攻めの札だけを止める */
@@ -21277,7 +21278,7 @@ function ishiTools(){ const mine=B.ctx.playerSide; const hgTools=`<button class=
   if(B.ishi==="kizu"&&mine===0){ return `<button class="tool sub" id="bKzFire" title="火矢を柵へ射込む（四十秒に一度。柵と櫓が燃え、守り手は火消しに追われる）" ${B.sgFireAt>B.elapsed-40?'style="opacity:.5"':""}>火矢</button>`; }   /* 第239巡（作り手：城全景と川沿い別働隊の釦はいらない。押しても何も起きない）：二つとも外した */
   if(B.ishi==="tennoji_relief"&&mine===1) return hgTools;
   if(B.ishi==="tennoji_relief"&&mine===0&&B.ishiStage>=2){ return `<button class="tool sub" id="bIshiAmmo" title="砦の鉄砲の弾を惜しむ／惜しまない">${B.ishiSave?"全力射撃":"弾薬節約"}</button>`; } return ""; }
-function ishiSortie(){ if(!B||B.over!==null) return; manualCommand(); const hid=B.units.filter(x=>x.sigHidden&&x.side===1); if(!hid.length) return toast("隠した隊はありません"); const foes=B.units.filter(x=>x.side===0&&x.troops>.5&&x.morale>0&&!x.left); const lead=foes.sort((a,b)=>(B.ctx.playerSide===0?b.x-a.x:a.x-b.x))[0]; if(!lead) return; const x=lead.x+(B.ctx.playerSide===0?3:-3), y=lead.y<BF.h/2?lead.y+4:lead.y-4; sigReveal(1, Math.max(1,Math.min(BF.w-1,x)), Math.max(1,Math.min(BF.h-1,y)), "楼の岸"); for(const h of hid){ h.order={k:"attack",id:lead.id}; h.charge=true; } for(const f of foes) f.morale=Math.max(0,f.morale-12); B.bigBanner={t:"敵大軍、楼の岸より出撃！", at:B.elapsed, good:B.ctx.playerSide===1, big:true}; log("楼の岸から本願寺の大軍が現れ、織田の横腹を突いた","war",true); B.ishiSortied=true; try{ renderBattleFoot(); }catch(_){ } }
+function ishiSortie(){ if(!B||B.over!==null) return; manualCommand(); const hid=B.units.filter(x=>x.sigHidden&&x.side===1); if(!hid.length){ if(!(B._noHidAt>B.elapsed-8)){ B._noHidAt=B.elapsed; toast("隠した隊はありません"); } return; }   /* 第254巡（bot：同じ報せが二十五秒に六度）：言い直しは八秒に一度 */ const foes=B.units.filter(x=>x.side===0&&x.troops>.5&&x.morale>0&&!x.left); const lead=foes.sort((a,b)=>(B.ctx.playerSide===0?b.x-a.x:a.x-b.x))[0]; if(!lead) return; const x=lead.x+(B.ctx.playerSide===0?3:-3), y=lead.y<BF.h/2?lead.y+4:lead.y-4; sigReveal(1, Math.max(1,Math.min(BF.w-1,x)), Math.max(1,Math.min(BF.h-1,y)), "楼の岸"); for(const h of hid){ h.order={k:"attack",id:lead.id}; h.charge=true; } for(const f of foes) f.morale=Math.max(0,f.morale-12); B.bigBanner={t:"敵大軍、楼の岸より出撃！", at:B.elapsed, good:B.ctx.playerSide===1, big:true}; log("楼の岸から本願寺の大軍が現れ、織田の横腹を突いた","war",true); B.ishiSortied=true; try{ renderBattleFoot(); }catch(_){ } }
 /* 第139巡：火攻め（本願寺）。押した所の町屋を焼く。煙で目が利かず、中の隊は士気と兵を失う。民の支持は下がる */
 function ishiFireMode(){ if(!B||B.over!==null) return; B.mode="ishifire"; toast("焼く所を押してください（町屋の木立が燃える）"); }
 function ishiFireAt(wx,wy){ if(!B) return; B.mode=null; manualCommand(); let n=0; const c0=Math.round(wx), r0=Math.round(wy); for(let r=r0-2;r<=r0+2;r++) for(let c=c0-2;c<=c0+2;c++){ if(r<0||c<0||r>=BF.h||c>=BF.w) continue; if(B.tiles[r][c]===BT.FOREST){ B.tiles[r][c]=BT.GRASS; n++; B.decals=B.decals||[]; if(B.decals.length<60) B.decals.push({k:"smoke", x:c+.5, y:r+.5, t:B.elapsed}); } } B.bg=null;
@@ -27125,8 +27126,19 @@ function approachPoint(u,t){
   if(!u.cell || !t) return [t.x,t.y];
   const keep = u.type===3 ? UNITS[3].rng*0.7 : 2.9;
   if(dist(u,t)<=keep) return cellCenter(u.cell[0],u.cell[1]);
+  /* 第254巡（bot：命じていない隊が四〜五回向きを変えて八〜十歩うろつく）
+     寄る先の升を毎度選び直すと、相手が動くたびに行き先が入れ替わって往復する。
+     いちど決めた升は、空いていて相手のそばにある限り使い続ける */
+  if(u.apCell && u.apT===t.id && B.elapsed-(u.apAt||-9)<4.0){
+    const [ac,ar]=u.apCell;
+    if(gridFreeCell(ac,ar,u)){
+      const [ax,ay]=cellCenter(ac,ar);
+      if(Math.hypot(ax-t.x,ay-t.y)<=keep+1.6) return [ax,ay];
+    }
+  }
   const [tc,tr]=cellOf(t.x,t.y); const R = u.type===3 ? Math.ceil(keep/GC) : 1; let best=null, bd=1e9;
   for(let dr=-R; dr<=R; dr++) for(let dc=-R; dc<=R; dc++){ if(!dr&&!dc) continue; const c=tc+dc, r=tr+dr; if(!gridFreeCell(c,r,u)) continue; const [cx,cy]=cellCenter(c,r); if(u.type===3 && Math.hypot(cx-t.x,cy-t.y)>keep) continue; const dd=Math.hypot(cx-u.x,cy-u.y)+(((c+r*7)%3)*0.15); if(dd<bd){ bd=dd; best=[cx,cy]; } }
+  if(best){ const [bc,br]=cellOf(best[0],best[1]); u.apCell=[bc,br]; u.apT=t.id; u.apAt=B.elapsed; }
   return best||[t.x,t.y];
 }
 function settleGrid(){ }
@@ -28675,6 +28687,18 @@ function aiCommandSide(side, onlyAlly){
     if(u.cmd && side===B.ctx.playerSide && u.order.k==="retreat" && u.morale>0 && !B.retreatAll && !B.playerFled){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; }
     if(u.side!==side||u.morale<=0||u.troops<=.5||u.order.k==="retreat"||u.left) continue;
     if(onlyAlly && !u.ally && !u.autoAI) continue;   /* 第118巡b：〈この隊は任せる〉の隊も機械が動かす */
+    /* 第254巡（bot：命じていない隊が四〜五回向きを変えて八〜十歩うろつく）
+       いちど狙いを定めたら、しばらくは変えない。狙いが生きていて、まだ届いていないなら考え直さない */
+    if(u.aiAt!==undefined && B.elapsed-u.aiAt<3.5){
+      if(u.order.k==="attack"){
+        const t0=B.units.find(z=>z.id===u.order.id);
+        if(t0 && t0.troops>.5 && t0.morale>0 && !t0.left) continue;
+      } else if(u.order.k==="move"){
+        /* 行き先へまだ着いていないなら、道を引き直さない（行ったり戻ったりの元） */
+        if(Math.hypot(u.x-(u.order.x||u.x), u.y-(u.order.y||u.y))>1.4) continue;
+      }
+    }
+    u.aiAt=B.elapsed;
     /* 第253巡（bot：同盟の隊が敵のそばで二十六秒突っ立っている）：持ち場の隊でなければ、近くの敵に掛かる */
     if(u.ally && !u.postHold && !u.reserveHold && !u.towerGun && !u.tobiHold && !u.fortGuard){
       const near2=foes.filter(f=>f.troops>.5&&f.morale>0&&!f.left&&dist(f,u)<11).sort((a2,b2)=>dist(a2,u)-dist(b2,u))[0];
