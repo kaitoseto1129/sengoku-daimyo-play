@@ -5446,6 +5446,13 @@ function milestone(key, title, sub){
     W.miles[key]={d:dayNumber(), t:title};
     /* 第254巡（bot：同じ報せが四度出る）：始めから持っている分は黙って控えるだけ */
     if(W._mileSilent) return false;
+    /* 第254巡（bot：「国が一つ、まるごとあなたのものに」が五日のうちに四度）：同じ題の報せは、続けて出さずにまとめる */
+    { const last=W._mileLast; const d0=dayNumber();
+      if(last && last.t===title && d0-last.d<=10){ last.n=(last.n||1)+1; last.d=d0;
+        try{ log(`${title}（これで${last.n}つめ）`,"growth",true); }catch(_){ }
+        try{ chronicle(title); }catch(_){ }
+        return true; }
+      W._mileLast={t:title, d:d0, n:1}; }
     bigNews(title, true);
     if(sub) setTimeout(()=>{ try{ toast(sub); }catch(_){ } }, 900);
     try{ chronicle(title); }catch(_){ }
@@ -21988,7 +21995,11 @@ function siegeKitTick(dt){ const K=B.sg; if(!K||B.over!==null||B.opening>0) retu
       const take = B.elapsed>45 ? 0.68 : 1;
       if(B.elapsed>45 && !B._takebaSaid){ B._takebaSaid=true; B.banner={t:"竹束が前へ運ばれた――塀からの矢玉が効きにくくなる", at:B.elapsed}; }
       const big=Math.max(1, Math.min(2.4, Math.sqrt(u.troops/1200)));   /* 第254巡（bot：数で勝る隊が小勢に一方的に削られる）：大勢ほど「一人あたり」は当たりにくい。壁からの矢玉は守り手の数で決まるのであって、寄せ手が大きいほど倍々に増えるものではない */
-      const loss=Math.min(u.troops, (u.troops*0.005*power*k/big+3.2*power)*take); u.troops-=loss; u.morale=Math.max(0,u.morale-0.45*power*k*take);   /* 第253巡：塀の矢玉で寄せ手の心が折れるのが早すぎた（城が一つも落ちない） */ hit+=loss; u.hitAt=B.elapsed; u.flash=Math.max(u.flash||0,0.12);
+      /* 第254巡（bot：百十一の城兵に、九百七十九の隊が六百八十五を削られる）
+         塀から降る矢玉の総量は、そこにいる守り手の数で頭打ちにする（寄せ手の数だけ増えていた） */
+      const shareN=Math.max(1, B.units.filter(z=>z.side===0&&z.troops>.5&&z.morale>0&&!z.left&&Math.hypot(z.x-(B.gate?B.gate.x:z.x),z.y-(B.gate?B.gate.y:z.y))<14).length);
+      const cap=Math.max(0.6, defNow*0.012/shareN);
+      const loss=Math.min(u.troops, cap, (u.troops*0.005*power*k/big+3.2*power)*take); u.troops-=loss; u.morale=Math.max(0,u.morale-0.45*power*k*take);   /* 第253巡：塀の矢玉で寄せ手の心が折れるのが早すぎた（城が一つも落ちない） */ hit+=loss; u.hitAt=B.elapsed; u.flash=Math.max(u.flash||0,0.12);
       /* 矢と鉄砲の絵：門と両脇の塀から。第207巡：櫓があれば櫓の上からも（作り手：矢倉から目に見えて撃ってほしい） */ if(rnd()<0.75){ const tw=(B.fortTowers||[]).filter(t=>t.alive&&Math.hypot(t.x-u.x,t.y-u.y)<7); const fromT=tw.length&&rnd()<0.5?tw[Math.floor(rnd()*tw.length)]:null; const sx0=fromT?fromT.x:B.gate.x+(defLeft?-0.6:0.6), sy0=fromT?fromT.y-1.8:B.gate.y+(rnd()<0.5?-1:1)*(1+rnd()*5); const gun=rnd()<(fromT?0.5:0.35); B.shots.push({x:sx0,y:sy0,x0:sx0,y0:sy0,tx:u.x+(rnd()-.5)*1.2,ty:u.y+(rnd()-.5)*1.2,t:0,life:gun?0.22:0.42,side:1,miss:false,big:gun,arrow:!gun}); if(gun){ B.puffs.push({x:sx0,y:sy0,t:0,life:1.2,r:1.2,big:true}); } } }
     /* 第253巡（bot：どの城でも寄せ手が全滅し、守り手は一兵も減らない）――寄せ手も撃ち返す。
        塀に取り付いた隊の鉄砲・弓が、壁際と櫓の守り手を削る（城攻めが一方的な的当てにならないように） */
@@ -27655,6 +27666,12 @@ function runSignatures(){
 function stallTick(){
   if(!B||B.over!==null||B.opening>0) return;
   if(B._stallAt>B.elapsed-2) return; B._stallAt=B.elapsed;
+  /* 第254巡（bot：潰走した隊が二百九秒その場から動かない）：逃げ場を失って壁際で止まった隊は、散り散りになって野を去る */
+  for(const u of B.units){
+    if(u.troops<=.5||u.left||u.morale>0) continue;
+    if(u._fx!==undefined && Math.hypot(u.x-u._fx,u.y-u._fy)<0.4){ if(B.elapsed-(u._fT||B.elapsed)>15){ u.left=true; u.troops=Math.max(0,u.troops*0.5); continue; } }
+    else { u._fx=u.x; u._fy=u.y; u._fT=B.elapsed; }
+  }
   for(const u of B.units){
     if(u.troops<=.5||u.left||u.morale<=0||u.onTower||u.towerGun) continue;   /* 第253巡：本陣も見る（顕如が二百九秒動かなかった） */
     if(u.postHold && !(u.order&&u.order.k==="move")) continue;   /* 持ち場の隊は、進めと命じられた時だけ見る */
@@ -27663,7 +27680,7 @@ function stallTick(){
       /* 第253巡（bot：城攻めで持ち場の隊が八〜十二歩うろつく）：押し合いで持ち場から流された隊は、少しずつ戻す */
       if(k==="guard" && u.gx!==undefined && u.gy!==undefined){
         const dx=u.gx-u.x, dy=u.gy-u.y, d2=Math.hypot(dx,dy);
-        if(d2>1.6 && d2<14){ u.x+=dx/d2*Math.min(1.2,0.5+d2*0.2); u.y+=dy/d2*Math.min(1.2,0.5+d2*0.2); }   /* 第254巡（bot：持ち場の隊が十九歩うろつく）：離れるほど強く戻す */
+        if(d2>1.6 && d2<14){ const st2=Math.min(1.2, d2*0.35); u.x+=dx/d2*st2; u.y+=dy/d2*st2; if(d2>3) u.face=Math.atan2(dy,dx); }   /* 第254巡（bot：持ち場の隊が右往左往）：行き過ぎない歩幅で戻す */   /* 第254巡（bot：持ち場の隊が十九歩うろつく）：離れるほど強く戻す */
       }
       u._sx=u.x; u._sy=u.y; u._sT=B.elapsed; continue; }
     if(k==="attack"){ const t=B.units.find(z=>z.id===u.order.id); if(t&&Math.hypot(t.x-u.x,t.y-u.y)<2.6){ u._sx=u.x; u._sy=u.y; u._sT=B.elapsed; continue; } }
@@ -27701,6 +27718,9 @@ function stallTick(){
       u.gx=u.order.x; u.gy=u.order.y; }
     /* それでも二十秒動けなければ、通れる升へ引き上げる（二百九秒その場から動かない隊が出ていた） */
     u._stuckN=(u._stuckN||0)+1;
+    /* 第254巡（bot：二百九秒その場から動かない隊）：三度試して駄目なら、足を止めている縛りを全部解く */
+    if(u._stuckN>=3){ u.holdUntil=0; u.waitFence=false; u.fenceFirst=false; u.reserveHold=false; u.ckEnc=false;
+      u.sekHold=false; u.tobiHold=false; u.postHold=false; u.breakTo=null; u.sigHidden=false; u.wait=0; }
     /* 第254巡（bot：命じたのに二十秒動かない）：三度試して駄目なら、命令を取り消して正直に言う。
        黙って止まっているのが一番きらわれる */
     if(u._stuckN>=2 && u.side===B.ctx.playerSide && !u.ally && !B.autoMine){
@@ -27717,8 +27737,16 @@ function stallTick(){
           const [px,py]=cellCenter(c2,r2); if(Math.hypot(px-u.x,py-u.y)>4.5) continue;
           const d2=Math.hypot(px-u.gx,py-u.gy);
           if(d2<bd){ bd=d2; best=[px,py]; } }
+        if(!best){   /* 第254巡（bot：二十秒その場から動かない）：近くに通れる升が無ければ、少し広く探す */
+          for(let dc=-6; dc<=6; dc++) for(let dr=-6; dr<=6; dr++){
+            const c2=gc+dc, r2=gr+dr; if(!cellPassable(c2,r2)) continue;
+            const [px,py]=cellCenter(c2,r2); const d2=Math.hypot(px-u.gx,py-u.gy);
+            if(d2<bd){ bd=d2; best=[px,py]; } } }
         if(best){ const dx=best[0]-u.x, dy=best[1]-u.y, dd=Math.hypot(dx,dy)||1, st=Math.min(dd,3);
           u.x+=dx/dd*st; u.y+=dy/dd*st; u.cell=null; u.nextCell=null; }
+        else { /* それでも無ければ、持ち場に切り替えて「行けない」と告げる（黙って止まらない） */
+          u.order={k:"guard"}; u.gx=u.x; u.gy=u.y;
+          if(u.side===B.ctx.playerSide && !u.ally && !(B._stuckTold>B.elapsed-12)){ B._stuckTold=B.elapsed; try{ toast(`${u.name}隊は道がなく、そこまで行けません`); }catch(_){ } } }
       }catch(_){ } }
   }
 }
@@ -28225,7 +28253,7 @@ function stepUnit(u,dt){
     if(u.gx===undefined){ u.gx=u.x; u.gy=u.y; }
     if(u.faceLock===undefined && dist(u,nearest)<6 && Math.hypot(u.gx-u.x,u.gy-u.y)<=.6) u.face=Math.atan2(nearest.y-u.y,nearest.x-u.x);
     if(dist(u,nearest)<=reachOf(u)) target=nearest;
-    else if(u.type!==3 && !u.cmd && !u.tobiGo && !u.sekHold && !u.okeHold && !u.reserveHold && !u.postHold && (u.side!==B.ctx.playerSide||u.ally||u.autoAI||B.autoMine||autoBattleMode) && dist(u,nearest)<=4.5 && !fenceBetween(u,nearest) && (u.standoffAt===undefined ? (u.standoffAt=B.elapsed, false) : B.elapsed-u.standoffAt>2.5)){ target=nearest; goal=approachPoint(u,nearest); }   /* 第124巡：目の前（四歩半）の敵と睨み合ったままにしない。二秒半にらめば踏み込んで討つ（作り手：膠着してつまらない） */
+    else if(u.type!==3 && !u.cmd && !u.tobiGo && !u.sekHold && !u.okeHold && !u.reserveHold && !u.postHold && (u.side!==B.ctx.playerSide||u.ally||u.autoAI||B.autoMine||autoBattleMode) && dist(u,nearest)<=4.5 && Math.hypot(u.gx-u.x,u.gy-u.y)<=1.6 && !fenceBetween(u,nearest) && (u.standoffAt===undefined ? (u.standoffAt=B.elapsed, false) : B.elapsed-u.standoffAt>2.5)){ target=nearest; goal=approachPoint(u,nearest); }   /* 第254巡（bot：持ち場の隊が右往左往）：持ち場から離れている隊は踏み込まない（出ては戻るの繰り返しが右往左往に見えていた） */   /* 第124巡：目の前（四歩半）の敵と睨み合ったままにしない。二秒半にらめば踏み込んで討つ（作り手：膠着してつまらない） */
     else if(Math.hypot(u.gx-u.x,u.gy-u.y)>.6){ goal=[u.gx,u.gy];
       /* 第253巡（bot：持ち場へ戻れずに何十秒もその場で足踏みする／右往左往する）
          戻れないなら、いま立っている所を持ち場にする */
@@ -28518,7 +28546,7 @@ function resolveAttack(a,d){
   loss=Math.min(loss, Math.max(1, a.troops*0.2));   /* 第254巡（bot：小勢が大軍を削り倒す）：一度に討てるのは自分の兵の二割まで（半分は多すぎた） */
   /* 第254巡：数で大きく勝る側は、相手をより速く崩せる（受け手の上限を、兵数の差に応じて緩める） */
   if(a.troops>d.troops*2){ const k2=Math.max(1, Math.min(2.2, a.troops/Math.max(1,d.troops)/2)); loss*=k2; }
-  if(a.troops < d.troops*0.25) loss*=0.8;   /* 第254巡（bot：九百の隊が八十の隊に四百を削られる）：四分の一にも満たぬ小勢の一撃は、それだけ浅い */
+  if(a.troops < d.troops*0.5){ const r2=a.troops/Math.max(1,d.troops); loss*=Math.max(0.3, r2*2); }   /* 第254巡：小勢の一撃は、数の開きだけ浅い（百の隊が千の隊を薙ぐことはない） */   /* 第254巡（bot：九百の隊が八十の隊に四百を削られる）：四分の一にも満たぬ小勢の一撃は、それだけ浅い */
   if(overWall!==1) loss*=overWall;   /* 柵越しの一突きは浅い（第253巡） */
   d.troops=Math.max(0,d.troops-loss);
   if(a.type!==3 && rnd()<0.05){ B.decals=B.decals||[]; if(B.decals.length<70) B.decals.push({k:"mud", x:d.x+(rnd()-.5)*1.5, y:d.y+(rnd()-.5)*1.0, t:B.elapsed}); }   // 踏み荒らしの跡
