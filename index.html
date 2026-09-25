@@ -4159,6 +4159,22 @@ function featureUnlocked(k){ if(!W.started||!W.staged) return true; const d0=W.s
 function featureGate(k,name){ if(featureUnlocked(k)) return true; const left=(UNLOCK_DAYS[k]||0)-(dayNumber()-(W.scenarioStartDay||0)); toast(`${name}はまだ。まず城と出陣に慣れよ（あと${Math.max(1,left)}日で開く）`); return false; }
 function unlockTick(){ if(!W.started||!W.staged) return; W.unlocked=W.unlocked||{}; for(const [k,nm] of [["council","内政"],["diplomacy","外交"],["policy","政策"],["finance","財政"]]){ if(!W.unlocked[k]&&featureUnlocked(k)){ W.unlocked[k]=true; if(k!=="council") try{ log(`${nm}が開けるようになりました（その他 ▾）`,"growth",true); }catch(_){ } } } try{ refreshUnlockUI(); }catch(_){ } }
 function refreshUnlockUI(){ for(const [k,ids] of [["diplomacy",["btnDiplomacy","btnDiplomacy2"]],["policy",["btnPolicy"]],["finance",["btnFinance"]]]){ const on=featureUnlocked(k); for(const id of ids){ const b=document.getElementById(id); if(b){ b.style.opacity=on?"":".4"; b.title=on?"":"まだ開けませぬ（日を追って開く）"; } } } }
+/* 第254巡（bot：知らせも無く城を失った）：どの筋道で移ろうと、わが城が他家の手に渡れば必ず告げる。
+   落城・調略・寝返り・筋書き――取りこぼしの無いように、日ごとに見比べる */
+function lostCastleWatch(){
+  try{
+    if(!W.started||W.player===null||W.player===undefined) return;
+    const now={}; for(const c of Object.values(W.castles)) if(c.clan===W.player) now[c.id]=1;
+    const was=W._mine0;
+    if(was){ for(const id in was){ if(now[id]) continue; const c=W.castles[id]; if(!c) continue;
+      if(c._lostTold===dayNumber()) continue; c._lostTold=dayNumber();
+      const who=(c.clan===null||c.clan===undefined)?"":clanName(c.clan);
+      bigNews(`${c.name} 失う`);
+      log(who?`${c.name}が${who}の手に渡りました`:`${c.name}を失いました`,"bad",true);
+    } }
+    W._mine0=now;
+  }catch(_){ }
+}
 function stepDay(){
   bumpGarrison(); try{ unlockTick(); }catch(_){ }
   try{ for(const c of Object.values(W.castles)) c.foodMax=foodCap(c); }catch(_){ }
@@ -4167,6 +4183,7 @@ function stepDay(){
   processTasks(); processArmies(); try{ armiesOffCastles(); }catch(_){ } processSieges(); processBandits(); processWanderers(); processUpkeep();   /* 第253巡：軍が動いた直後に、城の升に重なった軍を城下へずらす */
   if(W.date.d%3===0) runDelegated();
   if(monthChanged){ processMonth(); evaluateEvents(); evaluateShogun(); if(W.date.m===1) yearEnd(); }
+  try{ lostCastleWatch(); }catch(_){ }
   evaluateEvents(true);   // 日ごとに見る出来事（本能寺の報の時間差など）
   if(W.date.d%5===0) runAI();
   stepOpening();
@@ -4182,6 +4199,7 @@ function stepDay(){
   // 城を失う道は落城だけではない。一揆でも断絶でも滅びは滅び
   if(!W.result && W.started) checkVictory();
   warnApproachingArmies();
+  try{ lostCastleWatch(); }catch(_){ }   /* 第254巡：出来事や筋書きで城が移ることもある。一日の終わりにもう一度見比べる */
   try{ armiesOffCastles(); }catch(_){ }   /* 第253巡：一日の終わりにも、城に重なった軍を城下へ */
 }
 
@@ -4982,6 +5000,12 @@ function arriveAt(cid,a){
       return;
     }
     a.mission="包囲"; a.target=cid; a.siegeDays=0;
+    /* 第254巡（bot：知らせも無く城を失った）：わが城が囲まれたら必ず告げる。落ちてから気づくのは理不尽 */
+    try{ if(c.clan===W.player && !(c._siegeTold===dayNumber())){ c._siegeTold=dayNumber();
+      const gar=garrisonTroops(cid), atk=armyTroops(a);
+      bigNews(`${c.name} 囲まれる`);
+      log(`${clanName(a.clan)}の${atk.toLocaleString()}が${c.name}を囲みました（守兵 ${gar.toLocaleString()}）。放っておけば落ちます`,"bad",true);
+    } }catch(_){ }
     a.px=a.x; a.py=a.y; a.moveT=1;   // 止まった軍勢が往復して見えないように
     if(c.clan===W.player) setTimeout(()=>tutorial("siege"), 800);
     if(a.clan===W.player) setTimeout(()=>{ try{ showGuide("siege"); }catch(_){ } }, 600);
@@ -5043,7 +5067,7 @@ function queueEncounter(e){
     const c=W.castles[e.castle]; const a=W.armies[e.army];
     const gar=a?garrisonTroops(c.id):0, atkT=a?armyTroops(a):0;
     /* 第253巡（bot：城攻めが0〜7秒で終わる。遊ぶ間がなく、ただ画面が切り替わるだけだった） */
-    if(a && c.clan!==a.clan && (gar<900 || gar<atkT*0.09) && (!e.foeArmy||!W.armies[e.foeArmy])){   /* 第254巡（bot：まだ三〜八秒の城攻めが出る）：兵の絶対数ではなく、寄せ手との釣り合いで決める（六千の守りに十万で寄せても一瞬で終わる） */   /* 第253巡（bot：城攻めが四〜五秒で終わる）：開く目安を上げ、一瞬で終わる合戦を開かない */   /* 第253巡（bot：城攻めが二〜七秒で終わる）：守兵が寄せ手の七分の一にも満たなければ、戦わずに開く */
+    if(a && c.clan!==a.clan && (gar<1200 || gar<atkT*0.14) && (!e.foeArmy||!W.armies[e.foeArmy])){   /* 第254巡（bot：まだ三〜八秒の城攻めが出る）：兵の絶対数ではなく、寄せ手との釣り合いで決める（六千の守りに十万で寄せても一瞬で終わる） */   /* 第253巡（bot：城攻めが四〜五秒で終わる）：開く目安を上げ、一瞬で終わる合戦を開かない */   /* 第253巡（bot：城攻めが二〜七秒で終わる）：守兵が寄せ手の七分の一にも満たなければ、戦わずに開く */
       log(`${c.name}には守る兵がおらず、戦わずに開きました`,"war", a.clan===W.player||c.clan===W.player);
       try{ captureCastle(c.id, a.clan, a); }catch(err){ console.error(err); }
       return; } }   /* 第253巡（作り手：真田丸の戦いが起きない）：筋書き自身が起こす戦（真田丸・総攻め）は通す。ふつうの城攻めの札だけを止める */
@@ -5207,6 +5231,11 @@ function processSieges(){
     if(decReservedCastle(c.name) && !a.script){ continue; }   /* 決戦を待つ城は、普通の囲みでは落ちない（第253巡） */
     if(c.clan!==null && !hostile(a.clan,c.clan)){ recallArmy(a.id); continue; }
     a.siegeDays++;
+    /* 第254巡（bot：知らせも無く城を失った＝囲みの知らせが四十二日前きり）：囲まれている間は言い続ける */
+    try{ if(c.clan===W.player && a.siegeDays>0 && a.siegeDays%12===0){
+      const gar=garrisonTroops(c.id), atk=armyTroops(a);
+      log(`${c.name}はまだ囲まれております（守兵 ${gar.toLocaleString()}／寄せ手 ${atk.toLocaleString()}／${a.siegeDays}日）`,"bad");
+    } }catch(_){ }
     if(a.pillageOn && c.clan!==a.clan){ const got=Math.floor(armyTroops(a)*0.02); a.food=(a.food||0)+got; if(a.siegeDays%3===0){ c.minchu=Math.max(0,c.minchu-1); c.pop=Math.max(1000,c.pop-60); } if(c.clan!==null && a.siegeDays%15===0) addRel(c.clan,a.clan,-1); }
     // 城際で刃を交えている、という印を絶えず出す
     // 城際に刃の印は出さない。囲みは城のまわりの陣で見せる
@@ -5501,6 +5530,11 @@ function milestoneCheck(){
 }
 
 function captureCastle(cid,clan,a){
+  /* 第254巡（bot：知らせも無く城を失った）：わが城が落ちたら必ず大きく告げる */
+  try{ const c9=W.castles[cid]; if(c9 && c9.clan===W.player && clan!==W.player){
+    c9._lostTold=dayNumber();
+    bigNews(`${c9.name} 落城`); log(`${c9.name}が${clanName(clan)}の手に落ちました`,"bad",true);
+  } }catch(_){ }
   try{ const c0=W.castles[cid]; if(c0 && c0.clan!==null && c0.clan!==undefined && c0.clan!==clan){
     const rest=Object.values(W.castles).filter(x=>x.clan===c0.clan && x.id!==cid).length;
     if(rest===0){ W.killedBy=W.killedBy||{}; W.killedBy[c0.clan]=clan; } } }catch(_){ }
@@ -16053,7 +16087,7 @@ function assaultNow(id){
   if(garrisonTroops(a.target)<=0){ captureCastle(a.target,a.clan,a); closePanel(); refreshHUD(); return; }
   /* 第254巡（bot：合戦が四秒で終わる。遊ぶ間がない）：守りが桁違いに薄ければ、戦場を開かずに城を開かせる */
   try{ const gar=garrisonTroops(a.target), atk=armyTroops(a);
-    if(gar>0 && atk>0 && gar < atk*0.06 && !decReservedCastle(W.castles[a.target].name)){
+    if(gar>0 && atk>0 && gar < atk*0.14 && !decReservedCastle(W.castles[a.target].name)){
       const c=W.castles[a.target];
       const loss=Math.max(0, Math.floor(gar*0.7));
       bigNews(`${c.name} 開城`);
@@ -27634,8 +27668,8 @@ function stallTick(){
       u._sx=u.x; u._sy=u.y; u._sT=B.elapsed; continue; }
     if(k==="attack"){ const t=B.units.find(z=>z.id===u.order.id); if(t&&Math.hypot(t.x-u.x,t.y-u.y)<2.6){ u._sx=u.x; u._sy=u.y; u._sT=B.elapsed; continue; } }
     if(u._sx===undefined||u._sT===undefined){ u._sx=u.x; u._sy=u.y; u._sT=B.elapsed; continue; }
-    if(Math.hypot(u.x-u._sx,u.y-u._sy)>0.4){ u._sx=u.x; u._sy=u.y; u._sT=B.elapsed; continue; }
-    if(B.elapsed-u._sT<10) continue;
+    if(Math.hypot(u.x-u._sx,u.y-u._sy)>0.4){ u._sx=u.x; u._sy=u.y; u._sT=B.elapsed; u._pStuck=0; continue; }
+    if(B.elapsed-u._sT<8) continue;
     u._sT=B.elapsed; u._sx=u.x; u._sy=u.y; u.cell=null; u.nextCell=null;
     /* 柵を壊し終えていれば、元の行き先へ続ける */
     if(u.breakTo){ const still=B.obstacles.some(o=>o.wall&&o.hp>0&&Math.hypot(o.x-u.gx,o.y-u.gy)<1.1);
@@ -27646,6 +27680,11 @@ function stallTick(){
       if(u.order.k==="move"){ const ang=((u.id%8)/8)*Math.PI*2; u.waitFence=false; u.fenceFirst=false; u.holdUntil=0;
         u.x=Math.max(1,Math.min(BF.w-1, u.x+Math.cos(ang)*1.7)); u.y=Math.max(1.5,Math.min(BF.h-1.5, u.y+Math.sin(ang)*1.7));
         u.gx=u.order.x; u.gy=u.order.y; }
+      /* 第254巡（bot：命じたのに二十秒動かない隊）：二度ずらしても駄目なら、黙って止まっていないで命令を取り消し、正直に言う */
+      u._pStuck=(u._pStuck||0)+1;
+      if(u._pStuck>=2){ u._pStuck=0; u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; u.breakTo=null; u.waitFence=false; u.fenceFirst=false;
+        if(!(B._stuckTold>B.elapsed-12)){ B._stuckTold=B.elapsed;
+          try{ toast(`${u.name}隊は道がなく、そこまで行けません（門か破れ目から）`); }catch(_){ } } }
       continue; }
     let done=false;
     if(u.side===0 && B.ck && B.ck.ring){
@@ -27662,6 +27701,14 @@ function stallTick(){
       u.gx=u.order.x; u.gy=u.order.y; }
     /* それでも二十秒動けなければ、通れる升へ引き上げる（二百九秒その場から動かない隊が出ていた） */
     u._stuckN=(u._stuckN||0)+1;
+    /* 第254巡（bot：命じたのに二十秒動かない）：三度試して駄目なら、命令を取り消して正直に言う。
+       黙って止まっているのが一番きらわれる */
+    if(u._stuckN>=2 && u.side===B.ctx.playerSide && !u.ally && !B.autoMine){
+      u._stuckN=0; u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; u.breakTo=null;
+      if(!(B._stuckTold>B.elapsed-12)){ B._stuckTold=B.elapsed;
+        try{ toast(`${u.name}隊は道がなく、そこまで行けません（門か破れ目から）`); }catch(_){ } }
+      continue;
+    }
     if(u._stuckN>=2){ u._stuckN=0;
       /* 第254巡（bot：一秒で十五〜三十九歩＝目に見える瞬間移動）：引き上げは近くの升まで。遠くへは飛ばさない */
       try{ const [gc,gr]=cellOf(u.x,u.y); let best=null, bd=1e9;
