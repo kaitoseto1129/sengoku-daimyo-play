@@ -12097,11 +12097,33 @@ function devSprite(kind,variant){
 }
 
 /* 兵の絵。兵科ごとに影の形を変え、遠目でも槍か馬か鉄砲か分かるようにする。 */
+
+/* 第254巡（bot：押してから画面が返るまで269ミリ秒固まる）：兵の絵は台を二倍にしたので、
+   初めて使う時の焼き込みが重い。陣立ての間に、出てくる組み合わせだけ先に焼いておく */
+function warmSprites(){
+  try{
+    if(!B||B._warmSpr) return; B._warmSpr=true;
+    const types=[...new Set(B.units.map(u=>u.type))];
+    const sides=[...new Set(B.units.map(u=>u.ally?2:(u.side===B.ctx.playerSide?0:1)))];
+    const jobs=[];
+    for(const t of types) for(const sd of sides) for(const fr of [0,1]) for(const v of [0,1,2]) for(const fl of [false,true]) jobs.push([t,sd,fr,fl,v]);
+    let i=0;
+    const step=()=>{ const t0=performance.now();
+      while(i<jobs.length && performance.now()-t0<8){ const j=jobs[i++]; try{ soldierSprite(j[0],j[1],j[2],j[3],j[4]); }catch(_){ } }
+      if(i<jobs.length) setTimeout(step, 24); };
+    setTimeout(step, 120);
+  }catch(_){ }
+}
+
 function soldierSprite(unit,side,frame,flip,variant){
+  const lac0=()=>"#2B2118";
   variant=variant||0;
   const key=`${unit}-${side}-${frame}-${flip?1:0}-${variant}`;
   if(ART.soldiers.has(key)) return ART.soldiers.get(key);
-  const cv=makeCanvas(36,38), g=cv.getContext("2d");
+  /* 第254巡（作り手：これくらい格好いい部隊っぽくしたい）：台を二倍にして描き込みを細かくする。
+     画面に貼る大きさは変えないので、同じ大きさで密度だけ上がる。中の座標は今までどおり 36×38 で書ける */
+  const cv=makeCanvas(72,76), g=cv.getContext("2d");
+  g.scale(2,2);
   if(flip){ g.translate(36,0); g.scale(-1,1); }
   const px=(x,y,w,h,c)=>{ g.fillStyle=c; g.fillRect(x,y,w,h); };
   // 同じ隊の中でも鎧の濃さや兜が少しずつ違う（同じ絵の複写に見えないように）
@@ -12150,10 +12172,41 @@ function soldierSprite(unit,side,frame,flip,variant){
     px(12,6,9,10,armor); px(12,6,9,2,armorL); px(13,10,7,1,armorD);          // 胴（鎧）
     px(10,12,3,7,armorD); px(20,12,3,6,armorD);                              // 脚（鐙まで）
     px(14,1,6,6,skin);
-    if(variant===1){ px(12,0,10,3,steelD); px(11,2,12,2,armorD); px(15,-2,4,3,steel); }   // 鉄の兜に前立て
-    else { px(12,-1,10,4,armorD); px(11,2,12,2,armorD); px(15,-2,4,2,steel); }              // 兜
-    /* 第254巡：槍を長く斜めに（写真の要）。穂先は白銀、石突まで通す */
-    { g.save(); g.translate(21,4); g.rotate(-0.42); px(0,-20,2,34,wood); px(-1,-24,4,6,steel); px(0,-26,2,3,steel); px(-1,12,4,2,steelD); g.restore(); }
+    /* 第254巡（参考の絵）：騎馬武者の兜――丸い鉢、眉庇、両脇に吹返、面頬で顔を締める */
+    { const lacq=variant===1?steelD:armorD;
+      g.save(); g.fillStyle=lacq; g.beginPath(); g.moveTo(11.6,3.2);
+      g.bezierCurveTo(11.6,-1.8,20.4,-1.8,20.4,3.2); g.closePath(); g.fill();
+      g.fillStyle=shade(lacq,1.4); g.beginPath(); g.moveTo(13.2,2.6);
+      g.bezierCurveTo(13.4,0.2,16.4,-0.4,17,1.4); g.closePath(); g.fill();
+      g.restore();
+      px(10.6,3.2,10.8,1.4,lacq);
+      px(9.4,3.6,2,2.6,lacq); px(20.6,3.6,2,2.6,lacq);
+      px(11.4,5,1.2,2.4,lacq); px(19.4,5,1.2,2.4,lacq);
+      px(13.4,5.6,5.2,1.6,"#2B2118");
+    }
+    /* 第254巡：槍を長く斜めに（写真の要）。穂先は白銀、石突まで通す。
+       三人に一人は太刀を振り上げる（参考の絵の騎馬武将） */
+    if(variant===2){
+      g.save(); g.translate(20,6); g.rotate(-1.05);
+      px(0,-22,1.6,26,steel); px(-0.4,-24.5,2.4,3,steel); px(0,4,1.6,3,lac0()); px(-1.2,6.5,4,1.6,"#C9A227");
+      g.restore();
+    } else {
+      g.save(); g.translate(21,4); g.rotate(-0.42); px(0,-20,2,34,wood); px(-1,-24,4,6,steel); px(0,-26,2,3,steel); px(-1,12,4,2,steelD); g.restore();
+    }
+    /* 第254巡：騎馬武者の描き込み ── 鹿角の前立（曲がり）、馬面、鞍と鐙、手綱、母衣 */
+    { const kin="#E3C463", kinD="#9C7E1C", lac="#2B2118";
+      /* 鹿角（左右に枝を張る） */
+      px(14.5,-3,1,4,kin); px(13.5,-6,1,3.5,kin); px(12.5,-8,1,2.5,kin); px(11.5,-6.5,1,2,kin);
+      px(19.5,-3,1,4,kin); px(20.5,-6,1,3.5,kin); px(21.5,-8,1,2.5,kin); px(22.5,-6.5,1,2,kin);
+      px(16,-2.5,4,1.5,kinD);                                   /* 鍬形台 */
+      /* 鞍と鐙 */ px(13,17,7,2,lac); px(12.5,19,2,3,lac); px(19,19,2,3,lac);
+      /* 第254巡（参考の絵に合わせて）：手綱と面懸は朱。馬の顔に朱の革が渡る */
+      const aka="#C8321E", akaD="#8E2415";
+      px(21,15.6,7.5,1,aka); px(28,12.6,1,4,aka);                /* 手綱 */
+      px(29.5,9.5,5.5,1,aka); px(31.5,7.5,1,3.5,aka);            /* 面懸（鼻革と頬革） */
+      px(30.5,8,3,1,steel); px(31,9,1,2.5,steelD);               /* 面の金具 */
+      /* 胸繋（むながい）の朱と房 */ px(24,19.5,4.5,1,aka); px(25.5,20.5,1,2.5,akaD);
+    }
     maedate(17,-1);
     /* 馬鎧と胸の房（赤備えの見せ場） */
     px(10,20,13,3,armorD); px(11,23,11,1,armor);
@@ -12171,12 +12224,22 @@ function soldierSprite(unit,side,frame,flip,variant){
     px(13,31-bob,4,2,"#333"); px(18,30+bob,4,2,"#333");                  // 草鞋
     px(14,7,6,6,skin);
     if(variant===1){ px(12,3,10,5,steelD); px(13,2,8,2,steel); px(11,7,12,1,"#000000AA"); }   // 鉢金の兜
-    else { px(10,4,14,2,armorD); px(12,2,10,3,armorD); px(15,1,4,2,armorD);     // 陣笠（笠の形）
-    px(11,5,12,1,"#000000AA"); }
+    else {
+      /* 第254巡（参考の絵に合わせて）：広い黒の陣笠と、首を覆う白い錣 */
+      px(11.6,7.4,1.6,4.6,"#EFE9DC"); px(19.2,7.4,1.6,4.6,"#EFE9DC");
+      g.save(); g.fillStyle="#23262C"; g.beginPath();
+      g.moveTo(16,0.6); g.lineTo(24.8,6.6); g.lineTo(7.2,6.6); g.closePath(); g.fill();
+      g.fillStyle="#3A3F48"; g.beginPath(); g.moveTo(16,1.6); g.lineTo(20.2,6); g.lineTo(14.2,6); g.closePath(); g.fill();
+      g.fillStyle="#00000077"; g.fillRect(7,6.6,17.8,0.9);
+      g.restore();
+    }
     px(9,15,3,5,skin); px(22,14,3,5,skin);                               // 腕
-    /* 第254巡：長槍を斜めに揃える（隊で見ると槍の林になる） */
-    { g.save(); g.translate(24,10); g.rotate(-0.30); px(0,-24,2,38,wood); px(-1,-29,4,7,steel); px(0,-31,2,3,steel); g.restore(); }
-    sashimono(9,3);
+    /* 第254巡（参考の絵）：長槍は水平にやや上へ、前へ突き出す（突撃の構え）。隊で並ぶと槍の林になる */
+    { g.save(); g.translate(20,16); g.rotate(-0.12);
+      px(-4,0,40,1.8,wood); px(34,-0.8,5,3,steel); px(38.5,0.2,2.5,1.4,steel); px(-6,0.2,2.5,1.4,steelD);
+      g.restore(); }
+    px(19,15,3,3,skin); px(26,15.4,3,3,skin);   /* 柄を握る両手 */
+    { const y0=3; px(8,y0-6,1.2,22,wood); px(9.2,y0-6,8.5,13,"#F2EFE4"); px(9.2,y0-1.5,8.5,1.2,armorD); px(10.4,y0-4.5,6,2,armorD); }   /* 第254巡：大きな指物（参考の絵） */
   } else if(unit===1){
     // 侍。鍬形の兜、大袖、太刀を振り上げる
     px(11,13,12,11,armor); px(11,13,12,2,armorL);
@@ -12208,17 +12271,39 @@ function soldierSprite(unit,side,frame,flip,variant){
     px(25,8,1,1,"#FF6A2A");
     sashimono(8,4);
   } else {
-    // 鉄砲。片膝をついて長い火縄銃を水平に構える。火縄が赤く灯る
-    px(11,15,10,9,armor); px(11,15,10,2,armorL);
-    px(11,24,4,6,armorD); px(19,24,4,3,armorD); px(17,27,7,3,armorD);   // 立て膝
-    px(12,30,4,2,"#333"); px(21,30,4,2,"#333");
-    px(13,9,6,6,skin);
-    px(10,6,12,2,armorD); px(12,4,8,3,armorD);                           // 陣笠
-    px(20,17,3,3,skin); px(27,16,3,3,skin);                              // 両手
-    px(19,17,16,3,wood); px(33,16,3,3,steelD); px(23,16,12,1,steelD);   // 銃身
-    px(17,19,5,5,wood);                                                  // 銃床
-    px(24,14,2,3,steelD); px(25,13,1,1,"#FF6A2A");                       // 火挟みと火縄
-    if(bob) px(35,15,1,1,"#FFD27A");
+    /* 第254巡（作り手：鉄砲隊もこんな感じに）── 片膝立ち、広い陣笠に白い錣、
+       長い火縄銃を水平に、火縄が曲がって垂れ灯る、胴乱、脛当、草鞋 */
+    const nawa="#D8C38A", nawaL="#F2E4B0", brass="#C9A227";
+    /* 胴（胸板と草摺） */
+    px(11,15,10,9,armor); px(11,15,10,2,armorL); px(12,16,8,1,armorL);
+    px(10.5,21,11,3,armorD); for(let q=0;q<4;q++) px(11.5+q*2.5,21.5,1,2.5,shade(armorD,1.35));
+    /* 袖と籠手 */ px(9,15,2.5,4,armorD); px(21,15,2,3.5,armorD);
+    /* 片膝立ち：前脚を折り、後脚を伸ばす */
+    px(11,24,4,6,armorD); px(19,24,4,3,armorD); px(17,27,7,3,armorD);
+    px(11.5,27,3.5,3,shade(armor,0.8)); px(19.5,25,3,2,shade(armor,0.8));   /* 脛当 */
+    px(12,30,4.5,2,"#C8A46A"); px(21,30,4.5,2,"#C8A46A");                   /* 草鞋 */
+    /* 顔と陣笠（広く、白い錣が首を覆う） */
+    px(13,9,6,6,skin); px(13.5,11.5,5,1,shade(skin,0.82));
+    /* 錣（首を覆う白布）は笠の下に */
+    px(11.5,9.5,1.6,5,"#EFE9DC"); px(19.2,9.5,1.6,5,"#EFE9DC"); px(12.5,13.5,7,1.2,"#E4DECF");
+    /* 陣笠：三角の笠（角ばった箱ではなく、円錐に） */
+    { g.save(); g.fillStyle=armorD; g.beginPath();
+      g.moveTo(16,2.4); g.lineTo(24.5,8.2); g.lineTo(7.5,8.2); g.closePath(); g.fill();
+      g.fillStyle=shade(armorD,1.35); g.beginPath();
+      g.moveTo(16,3.2); g.lineTo(20,7.6); g.lineTo(14.5,7.6); g.closePath(); g.fill();
+      g.fillStyle="#00000066"; g.fillRect(7.2,8.2,17.3,0.9);
+      g.fillStyle=shade(armorD,0.7); g.fillRect(15.4,1.8,1.2,1.2);   /* 笠の頂 */
+      g.restore(); }
+    /* 両手と長い火縄銃（水平） */
+    px(20,17,3,3,skin); px(28,16.5,3,3,skin);
+    px(18,17.5,19,2.4,wood); px(36.5,16.8,2.5,2,steelD);                     /* 銃身 */
+    px(22,17,15,0.8,steelD); px(16.5,19,5,5,wood); px(16,23.5,3,1.5,wood);    /* 銃床と尻 */
+    /* 火挟み・火皿・火縄（曲がって垂れる） */
+    px(24.5,15.5,2,2.5,brass); px(23.5,16.5,1.5,1,brass);
+    px(25,14.5,1,1,nawa); px(25.5,13.8,1,1,nawa); px(26.5,13.4,1,1,nawaL); px(27.5,13.8,1,1,nawa); px(28,15,1,1,nawa);
+    px(26.5,12.8,0.8,0.8,"#FF7A2A");
+    /* 胴乱（腰の弾薬入れ） */ px(9.5,19.5,2.5,2.5,"#8A6B3A"); px(9.5,19.5,2.5,0.8,brass);
+    /* 硝煙 */ if(bob){ px(37.5,15.5,1.5,1.5,"#E8E4DAAA"); px(39,14.5,1,1,"#E8E4DA88"); }
     sashimono(8,5);
   }
   const outlined=outlineCanvas(cv,"#141008",1);   // 輪郭で兵を締める
@@ -25810,6 +25895,7 @@ function startBattle(e){
   /* （野を広げた後に組む） */
   B.opening=PREF.skipSetup?0:999; B.openShownAt=undefined;   // 陣立て。〈開戦〉か空白で始める（設定で飛ばせる）
   try{ bCoachStart(); }catch(_){ }   /* 第254巡：初めての合戦は、指で触らせる手ほどきを出す */
+  try{ warmSprites(); }catch(_){ }   /* 第254巡：兵の絵を陣立ての間に焼いておく */
   /* 第254巡（作り手：初戦で負けて終わる・長くて飽きる）：初めての合戦だけ、短く・勝ちやすく */
   try{ if(B.bc){ B.firstB=true;
     for(const u of B.units){ if(u.side===B.ctx.playerSide&&!u.ally){ u.tough=(u.tough||1)*1.25; u.morale=Math.min(100,u.morale+8); u.morRes=Math.min(u.morRes||1,0.75); } }
