@@ -2199,6 +2199,13 @@ function bigNews(text, force){
 }
 
 function log(text, kind, force){
+  /* 第254巡（bot：同じ報せが五日のうちに四度出る）：まったく同じ文は、三日のうちは繰り返さない（合戦の最中の報せは除く） */
+  try{ if(typeof W!=="undefined" && W && W.date && !(typeof B!=="undefined" && B && B.over===null) && typeof text==="string" && text.length>12){
+    W._logSeen=W._logSeen||{}; const d0=dayNumber(); const prev=W._logSeen[text];
+    if(prev!==undefined && d0-prev<3) return;
+    W._logSeen[text]=d0;
+    if(Math.random()<0.02){ for(const k in W._logSeen) if(d0-W._logSeen[k]>10) delete W._logSeen[k]; }
+  } }catch(_){ }
   // 合戦中の出来事は、合戦の画面の左上にも流す（地図の帯は見えない）
   if(typeof B!=="undefined" && B && B.over===null){ B.feed=B.feed||[]; B.feed.push({t:text, at:B.elapsed}); if(B.feed.length>6) B.feed.shift(); B.timeline=B.timeline||[]; if(B.timeline.length<18) B.timeline.push({t:text.replace(/^【[^】]*】/,"").slice(0,60), at:B.elapsed||0}); }
   const mine = !!force || concernsPlayer(text);   // force＝家の滅亡など、誰の話でも前に出す
@@ -25868,6 +25875,8 @@ function startBattle(e){
     if(dec.hero){ const h=B.units.find(u=>u.name===dec.hero); if(h){ h.hero=true; h.morale=100; h.coh=(h.coh||1)*1.25; h.defBonus=(h.defBonus||1)*1.15; } } }
   /* 第253巡：決戦ごとの堅さ（defTough／atkTough は隊の堅さの倍率、defMorRes／atkMorRes は士気の折れにくさ）。黒駒の鳥居元忠二千が北条一万に四十秒で消えていた */ if(dec){ for(const u of B.units){ const t=u.side===1?dec.defTough:dec.atkTough, m=u.side===1?dec.defMorRes:dec.atkMorRes; if(t) u.tough=(u.tough||1)*t; if(m) u.morRes=Math.min(u.morRes||1,m); } }
   B.startTroops={0:B.units.filter(u=>u.side===0).reduce((s2,u)=>s2+u.troops,0), 1:B.units.filter(u=>u.side===1).reduce((s2,u)=>s2+u.troops,0)};
+  /* 第254巡（bot：城攻めが二〜八秒で終わる）：本陣の無い側（城兵だけの守り）が、始めから「本陣を失った」と見なされて即座に敗れていた */
+  B._hadCmd={0:B.units.some(u=>u.side===0&&u.cmd), 1:B.units.some(u=>u.side===1&&u.cmd)};
   B.fieldOpen = castleID===null && !dec && !e.oke && !B.fort;   /* 第211巡：筋書きのない野戦 */
   B.tiles=genBattleTiles(tIdx, B.seed, !!B.fort, B.fieldOpen);
   // 決戦ごとの野。同じ草原ではなく、その戦らしい地形に
@@ -27680,13 +27689,19 @@ function stallTick(){
       /* 第253巡（bot：城攻めで持ち場の隊が八〜十二歩うろつく）：押し合いで持ち場から流された隊は、少しずつ戻す */
       if(k==="guard" && u.gx!==undefined && u.gy!==undefined){
         const dx=u.gx-u.x, dy=u.gy-u.y, d2=Math.hypot(dx,dy);
-        if(d2>1.6 && d2<14){ const st2=Math.min(1.2, d2*0.35); u.x+=dx/d2*st2; u.y+=dy/d2*st2; if(d2>3) u.face=Math.atan2(dy,dx); }   /* 第254巡（bot：持ち場の隊が右往左往）：行き過ぎない歩幅で戻す */   /* 第254巡（bot：持ち場の隊が十九歩うろつく）：離れるほど強く戻す */
+        if(d2>3.2){ if(u._gpW===undefined) u._gpW=B.elapsed; else if(B.elapsed-u._gpW>8){ u._gpW=undefined; u.gx=u.x; u.gy=u.y; u.path=null; u.nextCell=null; } } else u._gpW=undefined;   /* 第254巡（bot：持ち場の隊が十二〜十八歩うろつく）：ここで引き戻すと隊を動かす仕掛けと綱引きになる。押し流されたら、いま立っている所を持ち場とする */
       }
       u._sx=u.x; u._sy=u.y; u._sT=B.elapsed; continue; }
     if(k==="attack"){ const t=B.units.find(z=>z.id===u.order.id); if(t&&Math.hypot(t.x-u.x,t.y-u.y)<2.6){ u._sx=u.x; u._sy=u.y; u._sT=B.elapsed; continue; } }
-    if(u._sx===undefined||u._sT===undefined){ u._sx=u.x; u._sy=u.y; u._sT=B.elapsed; continue; }
-    if(Math.hypot(u.x-u._sx,u.y-u._sy)>0.4){ u._sx=u.x; u._sy=u.y; u._sT=B.elapsed; u._pStuck=0; continue; }
+    if(u._sx===undefined||u._sT===undefined){ u._sx=u.x; u._sy=u.y; u._sT=B.elapsed; u._sD=undefined; continue; }
+    /* 第254巡（bot：二百九秒その場から動かない＝実は壁際で小刻みに震えていた）
+       「動いたか」ではなく「行き先に近づけたか」で見る */
+    { const gx2=(k==="move")?(u.order.x!==undefined?u.order.x:u.gx):undefined, gy2=(k==="move")?(u.order.y!==undefined?u.order.y:u.gy):undefined;
+      const dg=(gx2===undefined)?Math.hypot(u.x-u._sx,u.y-u._sy):Math.hypot(u.x-gx2,u.y-gy2);
+      if(gx2===undefined){ if(dg>0.4){ u._sx=u.x; u._sy=u.y; u._sT=B.elapsed; u._pStuck=0; continue; } }
+      else { if(u._sD===undefined || dg<u._sD-0.5){ u._sD=dg; u._sx=u.x; u._sy=u.y; u._sT=B.elapsed; u._pStuck=0; continue; } } }
     if(B.elapsed-u._sT<8) continue;
+    u._sD=undefined;
     u._sT=B.elapsed; u._sx=u.x; u._sy=u.y; u.cell=null; u.nextCell=null;
     /* 柵を壊し終えていれば、元の行き先へ続ける */
     if(u.breakTo){ const still=B.obstacles.some(o=>o.wall&&o.hp>0&&Math.hypot(o.x-u.gx,o.y-u.gy)<1.1);
@@ -27750,10 +27765,59 @@ function stallTick(){
       }catch(_){ } }
   }
 }
+/* 第254巡（bot：二百秒動かない隊が城攻めで必ず出る）――見張り番。
+   行き先へ十二秒ぶん近づけない隊は、縛りを解いて回り道させ、それでも駄目なら持ち場に戻して正直に告げる。
+   詰まりの仕掛け（stallTick）とは別に、これ一つで必ず効くようにする */
+function moveWatchdog(){
+  if(!B||B.over!==null||B.opening>0) return;
+  if(B._wdAt>B.elapsed-1) return; B._wdAt=B.elapsed;
+  for(const u of B.units){
+    if(u.troops<=.5||u.left||u.morale<=0){ u._wdD=undefined; continue; }
+    const o=u.order;
+    /* 行き先は命令より gx,gy を見る（命令が毎瞬書き換わる所でも、行き先は残る） */
+    if(!o||o.k==="attack"||o.k==="retreat"){ u._wdD=undefined; u._wdN=0; continue; }
+    /* 敵と組み合っている隊は動けない。それは道理だが、黙っていると「命じたのに動かない」に見える。一度だけ告げる */
+    if(u.engagedAt>B.elapsed-3){
+      u._pinT=(u._pinT===undefined)?B.elapsed:u._pinT;
+      if(B.elapsed-u._pinT>10 && !u._pinTold && u.side===B.ctx.playerSide && !u.ally && !B.autoMine && o.k==="move"){
+        u._pinTold=true;
+        if(!(B._pinTold>B.elapsed-20)){ B._pinTold=B.elapsed; try{ toast(`${u.name}隊は敵と組み合っていて、その場を離れられません`); }catch(_){ } }
+      }
+      u._wdD=undefined; u._wdN=0; continue; }
+    u._pinT=undefined;
+    const gx9=(o.k==="move"&&o.x!==undefined)?o.x:u.gx, gy9=(o.k==="move"&&o.y!==undefined)?o.y:u.gy;
+    if(gx9===undefined||gy9===undefined){ u._wdD=undefined; u._wdN=0; continue; }
+    const d=Math.hypot(u.x-gx9, u.y-gy9);
+    if(d<1.6){ u._wdD=undefined; u._wdN=0; continue; }
+    if(u._wdD===undefined || d<u._wdD-0.5){ u._wdD=d; u._wdT=B.elapsed; continue; }
+    if(B.elapsed-(u._wdT||B.elapsed)<12) continue;
+    u._wdT=B.elapsed; u._wdD=d; u._wdN=(u._wdN||0)+1;
+    u.holdUntil=0; u.waitFence=false; u.fenceFirst=false; u.reserveHold=false; u.ckEnc=false;
+    u.sekHold=false; u.tobiHold=false; u.breakTo=null; u.path=null; u.cell=null; u.nextCell=null; u.standoffAt=undefined;
+    if(u._wdN===1){   /* まずは横へずらして道を取り直す */
+      const ang=((u.id%8)/8)*Math.PI*2;
+      u.x=Math.max(1,Math.min(BF.w-1, u.x+Math.cos(ang)*2.2)); u.y=Math.max(1.5,Math.min(BF.h-1.5, u.y+Math.sin(ang)*2.2));
+      continue; }
+    /* 二度めは、通れる升をひろく探して寄せる */
+    let best=null, bd=1e9;
+    try{ const [gc,gr]=cellOf(u.x,u.y);
+      for(let dc=-7; dc<=7; dc++) for(let dr=-7; dr<=7; dr++){
+        const c2=gc+dc, r2=gr+dr; if(!cellPassable(c2,r2)) continue;
+        const [px,py]=cellCenter(c2,r2); const dd=Math.hypot(px-gx9,py-gy9);
+        if(dd<d-1.0 && dd<bd){ bd=dd; best=[px,py]; } } }catch(_){ }
+    if(best){ const dx=best[0]-u.x, dy=best[1]-u.y, dd=Math.hypot(dx,dy)||1, st=Math.min(dd,3.2);
+      u.x+=dx/dd*st; u.y+=dy/dd*st; continue; }
+    /* それでも進めないなら、命令を取り消して正直に言う */
+    u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; u._wdD=undefined; u._wdN=0;
+    if(u.side===B.ctx.playerSide && !u.ally && !B.autoMine && !(B._stuckTold>B.elapsed-12)){
+      B._stuckTold=B.elapsed; try{ toast(`${u.name}隊は道がなく、そこまで行けません（門か破れ目から）`); }catch(_){ } }
+  }
+}
 function updateBattle(dt){
   try{ bCoachTick(); }catch(_){ }   /* 第254巡：手ほどきの進み */
   if(!B || B.over!==null) return;   // 0 は偽値なので null で判定する
   try{ stallTick(); }catch(e){ console.error("stall",e); }
+  try{ moveWatchdog(); }catch(e){ console.error("wd",e); }
   if(B.opening<=0&&!B.sim){ B._ms=B._ms||{}; for(const [k,sec] of [["30s",30],["1m",60],["3m",180],["5m",300],["10m",600]]){ if(!B._ms[k]&&B.elapsed>=sec){ B._ms[k]=true; track("battle-"+k); } } }
   if(!B.reserveBacked&&B.opening<=0&&!B.siegeWall&&!B.fortKit&&!B.kz&&!B.sm&&!B.gf){ B.reserveBacked=true; for(const u of B.units){ if(!u.reserveHold||u.troops<=.5||u.left||u.sigHidden) continue; const dir=u.side===B.ctx.playerSide?-1:1; const nx=Math.max(1.5,Math.min(BF.w-1.5,u.x+dir*4.5)); if(Math.abs(nx-u.x)<0.5) continue; u.x=nx; u.gx=nx; u.cell=null; u.nextCell=null; u.stageX=undefined; } try{ gridSettleAll(); }catch(_){ } }   /* 第242巡（仕様書 19）：予備隊は本当に後方に */
   /* 第250巡（作り手：本陣が潰されても相手が敗走しないのはおかしい）：機械の側の本陣が崩れて（士気ゼロ）八秒経てば、残りの隊は退き始める（籠城の守り手・脱出の段・持ちこたえの戦は別） */
@@ -28080,21 +28144,22 @@ function updateBattle(dt){
   if(B.ted&&!b.length){ try{ tedFinish(); }catch(e){ console.error(e); } if(B.over!==null) return; }   /* 第196巡：手取川で織田が野から消えたら（渡り切ったか崩れたか）渡河率で決める */
   /* 第253巡（作り手：道明寺で先手が潰れた途端に戦が終わっていた）：まだ着いていない援軍がある側は、野から隊が消えても敗れない（旗が見えるまで待つ） */
   const lateLeft=(sd)=>!!(B.late&&B.late.some(L=>!L.done&&(L.units||[]).some(u=>u.side===sd&&u.troops>.5)));
-  if(!b.length&&a.length&&!lateLeft(1)) return endBattle(0);
-  if(!a.length&&b.length&&!lateLeft(0)) return endBattle(1);
-  if(!a.length&&!b.length&&!lateLeft(0)&&!lateLeft(1)) return endBattle(1);
+  if(!b.length&&a.length&&!lateLeft(1)){ B._overWhy="敵の隊が野にいない"; return endBattle(0); }
+  if(!a.length&&b.length&&!lateLeft(0)){ B._overWhy="味方の隊が野にいない"; return endBattle(1); }
+  if(!a.length&&!b.length&&!lateLeft(0)&&!lateLeft(1)){ B._overWhy="双方の隊が野にいない"; return endBattle(1); }
   // 兵力が2割を切る、または総大将が崩れれば決着（仕様書 §73）
   const broken=side=>{
     /* 第112巡：割る元は「始めに投じた兵」（右上の数の元）。討たれた隊が名簿から消えると元が縮み、早く決着していた（作り手の指示：右上が25%になるまで決めない） */
     const start=(B.startTroops&&B.startTroops[side])||B.units.filter(u=>u.side===side).reduce((s,u)=>s+u.max,0);
-    if(!start) return true;
+    if(!start){ B._overWhy="始めの兵が零"; return true; }
     // 野に残って戦える隊だけを数える（去った隊・崩れた隊は勘定に入れない）
     const onF=B.units.filter(u=>u.side===side&&(!u.left||u.sigHidden)&&u.troops>.5&&!u.yokoGar);   /* 第204巡：潜む隊（雑賀の伏せ鉄砲・山へ潜んだ頭領）がいる間は決着しない */
-    if(!onF.length) return true;
+    if(!onF.length){ B._overWhy="野に立つ隊がない（側"+side+"）"; return true; }
     const now=onF.reduce((s,u)=>s+u.troops,0);
     /* 第114巡：兵の割合では決着しない（作り手：七割五分減っても「勝ち」と言われると変）。全滅か本陣の兵が尽きるか、だけ */   // 長篠の武田は、隊を全部潰すまで負けにしない（作り手の指示）
     const c=B.units.find(u=>u.side===side&&u.cmd);
-    let lost = !c || c.troops<=.5 || (c.left && !c.sigHidden && !B.escapePhase && !B.ctx.oke && !B.ted && side!==B.ctx.playerSide);
+    let lost = c ? (c.troops<=.5 || (c.left && !c.sigHidden && !B.escapePhase && !B.ctx.oke && !B.ted && side!==B.ctx.playerSide)) : !!(B._hadCmd && B._hadCmd[side]);   /* 第254巡：初めから本陣の無い側は、本陣を失ってはいない */
+    if(lost) B._overWhy="本陣が崩れた（側"+side+"）";
     /* 第253巡（作り手：長篠は守り手をもう少し粘らせて）
        柵の内に兵が四割残っているうちは、本陣が潰れても戦は終わらない（旗本の代わりが立つ）。長篠の守り手だけ */
     if(lost && B.nagashino && side===1 && now>start*0.4 && onF.length>=3){
@@ -32422,7 +32487,7 @@ function quitBeacon(){
 try{
   window.addEventListener("pagehide", quitBeacon);
   document.addEventListener("visibilitychange", function(){ if(document.visibilityState==="hidden") quitBeacon(); else { try{ W._quitSent=false; }catch(_){ } } });
-  setInterval(function(){ try{ scrTick(); if(!W._t0) W._t0=Date.now(); }catch(_){ } }, 2000);
+  setInterval(function(){ try{ scrTick(); if(!W._t0) W._t0=Date.now(); }catch(_){ } try{ lostCastleWatch(); }catch(_){ }   /* 第254巡：どの筋道で城が移っても、二秒のうちに必ず告げる */ }, 2000);
 }catch(_){ }
 
 /* ===================== 家紋（紋帳の形） =====================
