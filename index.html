@@ -5063,7 +5063,7 @@ function scriptedSiegeCastle(cid){ const c=W.castles[cid]; if(!c) return false;
 function queueEncounter(e){
   if(e && !e.scripted && e.castle!==null && e.castle!==undefined && scriptedSiegeCastle(e.castle)) return;
   /* 第253巡（bot：合戦が一瞬で終わる＝遊ぶ間がない）：守兵がほとんどいない城は、合戦の画面を開かずに開く */
-  if(e && e.castle!==null && e.castle!==undefined && !e.sortie && !e.sanadamaru && W.castles[e.castle]){
+  if(e && e.castle!==null && e.castle!==undefined && !e.sortie && !e.sanadamaru && !e.scripted && !e.stage && !e.dec && !scriptedSiegeCastle(e.castle) && W.castles[e.castle]){   /* 第254巡：名のある決戦（三木・鳥取・大坂…）は、釣り合いがどうあれ必ず戦う。絵も撮れなくなっていた */
     const c=W.castles[e.castle]; const a=W.armies[e.army];
     const gar=a?garrisonTroops(c.id):0, atkT=a?armyTroops(a):0;
     /* 第253巡（bot：城攻めが0〜7秒で終わる。遊ぶ間がなく、ただ画面が切り替わるだけだった） */
