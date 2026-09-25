@@ -34363,6 +34363,9 @@ try{ soundBtnRefresh(); }catch(_){ }
 function ensureWorldBuilt(){ if(W&&W._built) return; try{ generateTerrain(); buildWorld(0); bakeTiles(); bakeTerrain(); bakeMinimap(); rebuildDevOverlay(); W._built=true; }catch(e){ console.error(e); } }
 setTimeout(()=>{ ensureWorldBuilt(); try{ resizeCanvas(); zoomFit(); }catch(_){ } },0);
 /* ?pick=1 で表紙を飛ばして「地図から大名家を選ぶ」まで進む（端末での確かめ用） */
+/* 第255巡（作り手：LPと攻略サイトにも入口を）：?survey=1 で試遊の検証を開く */
+(function(){ try{ const q=new URLSearchParams(location.search); if(!q.get("survey")&&location.hash!=="#survey") return;
+  setTimeout(()=>{ try{ openSurvey("入口"); }catch(_){ } }, 1200); }catch(_){ } })();
 (function(){ try{ const q=new URLSearchParams(location.search); if(!q.get("pick")) return; setTimeout(()=>{ try{ document.getElementById("btnGameStart").click(); document.getElementById("scenNext").click(); setTimeout(()=>{ const tp=document.getElementById("toPick"); if(tp) tp.click(); setTimeout(()=>{ const sc=+q.get("scale"); const at=q.get("at"); if(sc){ cam.scale=sc; } if(at){ const c=Object.values(W.castles).find(x=>x.name===at); if(c){ cam.x=W.tile[c.id].c; cam.y=W.tile[c.id].r; } } camTarget.x=camTarget.y=null; camTarget.scale=null; clampCam(); },600); },300); }catch(e){ console.error(e); } },600); }catch(e){} })();
 requestAnimationFrame(loop);
 // 表紙が出た時点で曲を流してみる（iPhone 版はそのまま鳴る。browser が止めるなら最初の一触れで）

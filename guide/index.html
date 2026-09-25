@@ -67,6 +67,8 @@ ul.pt{margin:0;padding-left:0;list-style:none} ul.pt li{padding:8px 0 8px 22px;b
 .gt:hover{background:rgba(197,154,53,.14)}
 .gt b{font-family:var(--fude);font-size:20px;color:var(--kin)}
 .gt span{font-size:13px;letter-spacing:.06em}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 22px;margin-top:8px;border:1px solid rgba(197,154,53,.7);background:rgba(197,154,53,.14);color:var(--shiro);text-decoration:none;letter-spacing:.12em;border-radius:4px}
+.btn:hover{background:rgba(197,154,53,.28)}
 .meyasu textarea{width:100%;padding:12px 14px;border:1px solid rgba(197,154,53,.5);background:rgba(215,200,165,.06);color:var(--shiro);font:inherit;font-size:15px;line-height:1.8;resize:vertical}
 .fuda{display:inline-flex;align-items:center;justify-content:center;padding:14px 34px;text-decoration:none;font-family:var(--fude);font-size:19px;letter-spacing:.24em;color:#F3E2B0;background:linear-gradient(180deg,#3A2A16,#1A120A);border:1px solid rgba(230,193,90,.75);cursor:pointer;margin-top:12px}
 .inban{display:inline-flex;padding:10px 20px;text-decoration:none;font-family:var(--fude);font-size:16px;letter-spacing:.2em;color:#F6D9CF;border:2px solid var(--shu2);background:rgba(165,42,30,.18)}
@@ -76,7 +78,7 @@ footer{padding:34px 0 60px;font-family:var(--go);font-size:12px;color:var(--dim)
 </style>
 </head>
 <body>
-<header class="top"><div class="wrap"><a class="logo" href="./">戦国大名 攻略</a><nav><a href="bushou.html">武将名鑑</a><a href="#scen">筋書き別</a><a href="#howto">画面の見方</a><a href="#naisei">内政</a><a href="#gaiko">外交</a><a href="#gunji">軍事</a><a href="#kassen">合戦</a><a href="#shiro">城・砦攻め</a><a href="#kaisen">海戦</a><a href="#tips">勝つコツ</a><a href="#faq">問答</a><a href="#gunshikin">軍資金</a><a href="#meyasu">目安箱</a><a href="../lp/">紹介</a><a href="../">遊ぶ</a></nav></div></header>
+<header class="top"><div class="wrap"><a class="logo" href="./">戦国大名 攻略</a><nav><a href="bushou.html">武将名鑑</a><a href="#meyasu">検証・目安箱</a><a href="#scen">筋書き別</a><a href="#howto">画面の見方</a><a href="#naisei">内政</a><a href="#gaiko">外交</a><a href="#gunji">軍事</a><a href="#kassen">合戦</a><a href="#shiro">城・砦攻め</a><a href="#kaisen">海戦</a><a href="#tips">勝つコツ</a><a href="#faq">問答</a><a href="#gunshikin">軍資金</a><a href="#meyasu">目安箱</a><a href="../lp/">紹介</a><a href="../">遊ぶ</a></nav></div></header>
 
 <div class="hero"><div class="bg"></div><div class="veil"></div><div class="wrap">
   <div class="k">攻略サイト</div>
@@ -335,6 +337,11 @@ footer{padding:34px 0 60px;font-family:var(--go);font-size:12px;color:var(--dim)
   <h2>ここを、こうして欲しい</h2>
   <p>攻略で分からない所、ゲームで困った所、欲しい手。何でも作り手へ。手紙の窓が開きます。</p>
   <div class="meyasu"><textarea id="meyasuText" rows="5" placeholder="例：関ヶ原の松尾山の帯の読み方が分からない／木津砦で門を破ったのに入らない"></textarea><br><button class="fuda" id="meyasuGo" type="button">手紙で送る</button><p class="note">宛先 kaitoseto1129@gmail.com ── 手紙の窓が開かなければ、そのまま直接どうぞ。</p></div>
+  <!-- 第255巡：試遊の検証（初めて遊んだ人に五段階で聞く） -->
+  <div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--line)">
+    <p>初めて遊んだ方へ。<b>三十秒の検証</b>（五段階・六問）にご協力いただけると、直すべき所が分かります。遊んでから開いてください。</p>
+    <p><a class="btn" href="../?survey=1">試遊の検証に答える</a></p>
+  </div>
 </div></section>
 
 <footer><span style="font-family:var(--fude);font-size:18px;letter-spacing:.3em;color:var(--shiro)">戦国大名</span><br><br><a href="../">ブラウザで遊ぶ</a><a href="https://apps.apple.com/jp/app/id6811255282">App Store</a><a href="../lp/">紹介ページ</a><a href="../privacy.html">プライバシーポリシー</a><a href="../support.html">お問い合わせ</a><br><br>画面はすべて開発中のゲーム画面で、製品版とは異なる場合があります。</footer>
