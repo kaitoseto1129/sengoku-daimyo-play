@@ -5427,6 +5427,29 @@ function milestone(key, title, sub){
   }catch(_){ return false; }
 }
 /* 第254巡（作り手：目安箱にお便りがゼロ）：初めての戦が終わった時だけ、ひとこと求める（帯には足さない） */
+/* 第254巡：負けた直後の気持ちも拾う（初めの三戦まで・一度だけ） */
+function askLostWord(){
+  try{
+    if(localStorage.getItem("sengoku_word_lost")) return;
+    localStorage.setItem("sengoku_word_lost","1");
+  }catch(_){ }
+  setTimeout(()=>{
+    try{
+      const el=document.createElement("div"); el.className="overlay"; el.style.zIndex=95;
+      el.innerHTML=`<div class="dialog" style="max-width:400px;text-align:center">
+        <h3>惜しい戦でした</h3>
+        <div class="advice">どこで負けたと思いますか。分かりにくかった所、思い通りに動かなかった所を、ひとことだけ。作り手に直接届きます。</div>
+        <div class="grid g2" style="margin-top:12px">
+          <button class="big gold" id="lOk" style="cursor:pointer">ひとこと書く</button>
+          <button class="big ghost" id="lNo" style="cursor:pointer">いまはいい</button>
+        </div></div>`;
+      document.body.appendChild(el);
+      el.querySelector("#lNo").onclick=()=>{ el.remove(); try{ track("word/lost-skip"); }catch(_){ } };
+      el.querySelector("#lOk").onclick=()=>{ el.remove(); try{ track("word/lost-open"); }catch(_){ } try{ openMeyasubako(); }catch(_){ } };
+      try{ track("word/lost-ask"); }catch(_){ }
+    }catch(_){ }
+  }, 2200);
+}
 function askFirstWord(){
   try{
     if(localStorage.getItem("sengoku_word_asked")) return;
@@ -12090,7 +12113,15 @@ function soldierSprite(unit,side,frame,flip,variant){
   const flag   = (side===0 && fundHas("flag")) ? "#FFD166" : side===0?"#7FB2FF":side===2?"#9BE8B0":"#FF9A7A";   /* 軍資金奉納旗（支援者は自軍の指物が金） */
   const skin=variant===1?"#E0B890":"#F0CCA8", steel="#D2D8E2", steelD="#8B93A3", wood="#8C6136", bob=frame%2;
   // 背中の指物。どの隊も一目で敵味方が分かる（三人に一人は指物なし）
-  const sashimono=(x,y)=>{ if(variant===2) return; px(x,y,1,14,wood); px(x+1,y,5,8,flag); px(x+2,y+2,3,4,armorD); };
+  /* 第254巡（作り手：これくらい格好いい部隊っぽくしたい）：背の指物を大きく、竿を長く、旗に横縞を一本 */
+  const sashimono=(x,y)=>{ if(variant===2) return; px(x,y-4,1,19,wood); px(x+1,y-4,7,11,flag); px(x+2,y-1,5,2,armorD); px(x+1,y+4,7,1,armorD); };
+  /* 兜の前立（金）。武者ごとに鹿角・三日月・日輪を替える */
+  const maedate=(cx,cy)=>{ const kin="#E3C463", kinD="#A0821F";
+    const k=(variant+unit)%3;
+    if(k===0){ px(cx-4,cy-6,1,6,kin); px(cx-5,cy-9,1,4,kin); px(cx+3,cy-6,1,6,kin); px(cx+4,cy-9,1,4,kin); }   /* 鹿角 */
+    else if(k===1){ px(cx-4,cy-3,9,1,kin); px(cx-5,cy-5,2,3,kin); px(cx+4,cy-5,2,3,kin); px(cx-1,cy-6,3,2,kin); }   /* 三日月 */
+    else { px(cx-2,cy-6,5,2,kin); px(cx-1,cy-8,3,2,kin); px(cx-3,cy-4,7,1,kinD); }   /* 日輪 */
+  };
 
   if(unit===2){
     // 騎馬。馬は横向きの塊ではなく、長い胴・反った首・たてがみ・流れる尾・四本の脚（駆け足の二こま）。鞍の上に武者
@@ -12121,11 +12152,21 @@ function soldierSprite(unit,side,frame,flip,variant){
     px(14,1,6,6,skin);
     if(variant===1){ px(12,0,10,3,steelD); px(11,2,12,2,armorD); px(15,-2,4,3,steel); }   // 鉄の兜に前立て
     else { px(12,-1,10,4,armorD); px(11,2,12,2,armorD); px(15,-2,4,2,steel); }              // 兜
-    px(22,-2,2,22,wood); px(21,-2,4,5,steel);                                // 長槍
+    /* 第254巡：槍を長く斜めに（写真の要）。穂先は白銀、石突まで通す */
+    { g.save(); g.translate(21,4); g.rotate(-0.42); px(0,-20,2,34,wood); px(-1,-24,4,6,steel); px(0,-26,2,3,steel); px(-1,12,4,2,steelD); g.restore(); }
+    maedate(17,-1);
+    /* 馬鎧と胸の房（赤備えの見せ場） */
+    px(10,20,13,3,armorD); px(11,23,11,1,armor);
+    { const fs=side===0?"#8FB6FF":side===2?"#9BE8B0":"#E2553A"; px(26,20,2,5,fs); px(28,21,2,4,fs); px(24,22,2,4,fs); }
     sashimono(9,-1);
   } else if(unit===0){
     // 足軽。陣笠に長槍、背に指物
     px(12,13,10,11,armor); px(12,13,10,2,armorL); px(13,18,8,1,armorD);
+    /* 第254巡（作り手：これくらい格好いい部隊っぽく）：具足らしく――胸板の艶、草摺、袖、威糸の一筋 */
+    px(13,14,8,1,armorL);                                                 // 胸板の艶
+    px(11,20,12,4,armorD); { const ito=side===0?"#8FB6FF":side===2?"#B8F0C8":"#F0A08A";
+      for(let q=0;q<4;q++) px(12+q*3,21,1,3,ito); }                       // 草摺と威糸
+    px(9,13,3,5,armorD); px(22,13,3,5,armorD);                            // 袖（肩当て）
     px(13,24,3,8-bob,armorD); px(18,24,3,7+bob,armorD);                  // 脚
     px(13,31-bob,4,2,"#333"); px(18,30+bob,4,2,"#333");                  // 草鞋
     px(14,7,6,6,skin);
@@ -12133,7 +12174,8 @@ function soldierSprite(unit,side,frame,flip,variant){
     else { px(10,4,14,2,armorD); px(12,2,10,3,armorD); px(15,1,4,2,armorD);     // 陣笠（笠の形）
     px(11,5,12,1,"#000000AA"); }
     px(9,15,3,5,skin); px(22,14,3,5,skin);                               // 腕
-    px(25,2,2,32,wood); px(24,0,4,7,steel); px(25,7,2,2,steelD);         // 長槍と穂先
+    /* 第254巡：長槍を斜めに揃える（隊で見ると槍の林になる） */
+    { g.save(); g.translate(24,10); g.rotate(-0.30); px(0,-24,2,38,wood); px(-1,-29,4,7,steel); px(0,-31,2,3,steel); g.restore(); }
     sashimono(9,3);
   } else if(unit===1){
     // 侍。鍬形の兜、大袖、太刀を振り上げる
@@ -12144,6 +12186,7 @@ function soldierSprite(unit,side,frame,flip,variant){
     px(14,7,6,6,skin);
     px(11,2,12,6,armorD); px(10,7,14,2,armorD); px(12,9,10,1,"#000000AA");  // 兜
     px(13,-1,3,4,steel); px(18,-1,3,4,steel); px(15,1,4,2,steel);       // 鍬形
+     maedate(17,-1);   /* 第254巡：侍の兜にも金の前立 */
     px(24,4,3,3,skin);                                                   // 手
     px(26,-2,3,14,steel); px(25,10,5,3,wood); px(27,-3,2,2,steelD);      // 太刀（振り上げ）
     sashimono(8,3);
@@ -31496,7 +31539,7 @@ function showBattleReport(){
 }
 function finishBattle(){
   if(!B || B.done) return;           // 二度押しで落ちないように
-  try{ if(!B.sim&&B.ctx&&!B._endSent){ B._endSent=true; const t=Math.round(B.elapsed); const bk=t<60?"1m":t<180?"3m":t<300?"5m":t<600?"10m":"long"; const won=B.over===B.ctx.playerSide; track(`battle-end/${B.over===null?"quit":won?"win":"lose"}/${bk}/p${B._pauses||0}`); const fps=B._fpsN?Math.round(B._fpsSum/B._fpsN):0; if(fps) track(`fps/${fps<20?"under20":fps<40?"20-40":"40plus"}`); if(B.over!==null&&!localStorage.getItem("sengoku_act1")){ localStorage.setItem("sengoku_act1","1"); track("activation/first-battle-complete/"+(won?"win":"lose")); try{ askFirstWord(); }catch(_){ } } } }catch(_){ }
+  try{ if(!B.sim&&B.ctx&&!B._endSent){ B._endSent=true; const t=Math.round(B.elapsed); const bk=t<60?"1m":t<180?"3m":t<300?"5m":t<600?"10m":"long"; const won=B.over===B.ctx.playerSide; track(`battle-end/${B.over===null?"quit":won?"win":"lose"}/${bk}/p${B._pauses||0}`); if(!won&&B.over!==null&&((PREF&&PREF.playedBattles)||0)<=3&&!B.sim){ try{ askLostWord(); }catch(_){ } } const fps=B._fpsN?Math.round(B._fpsSum/B._fpsN):0; if(fps) track(`fps/${fps<20?"under20":fps<40?"20-40":"40plus"}`); if(B.over!==null&&!localStorage.getItem("sengoku_act1")){ localStorage.setItem("sengoku_act1","1"); track("activation/first-battle-complete/"+(won?"win":"lose")); try{ askFirstWord(); }catch(_){ } } } }catch(_){ }
   if(W.quick&&!W.quickTold){ W.quickTold=true; track("quick/done"); setTimeout(()=>{ try{ koChoice("一戦、お疲れさま","本編では全国地図から、城の内政・外交・出陣、そして六十余の決戦を采配できます。このまま織田家で続けられます。",[["go","このまま続ける（織田家）","地図へ",()=>{ W.quick=false; setSpeed(1); }],["title","表紙へ戻る","筋書きと家を選び直す",()=>{ location.reload(); }]]); }catch(_){ } },900); }
   bumpGarrison();
   const ctx=B.ctx;
@@ -32145,6 +32188,67 @@ function toggleSound(){
 function soundBtnRefresh(){ for(const id of ["btnSound","btnSoundTitle"]){ const b=document.getElementById(id); if(b) b.textContent = Audio_.enabled ? "♪ 音 入" : "♪ 音 切"; } }
 
 /* ===== 家紋（第131巡）：家の名から紋の形を決めて、線と面で描く。形のない家は一文字 ===== */
+
+/* ===== 第254巡（作り手：人の気持ちを拾えるようにしたい）＝＝＝＝＝
+   どこで諦めたかを記録する。いまは「遊び始め」と「初戦を終えた」しか分からず、
+   その間のどこで画面を閉じたのかが見えなかった。 */
+function uiScreen(){
+  try{
+    if(typeof B!=="undefined" && B){
+      if(B.over!==null && B.over!==undefined) return "battle-result";
+      if(B.opening>0) return "battle-setup";
+      return "battle";
+    }
+    const ov=document.querySelector(".overlay");
+    if(ov){
+      const h=ov.querySelector("h2,h3");
+      const t=(h&&h.textContent||"").trim().slice(0,12);
+      return "dialog:"+(t||"？");
+    }
+    const pn=document.getElementById("panel");
+    if(pn && pn.classList.contains("open")){
+      const t=(document.getElementById("pTitle")||{}).textContent||"";
+      return "panel:"+String(t).trim().slice(0,12);
+    }
+    const st=document.getElementById("start");
+    if(st && getComputedStyle(st).display!=="none"){
+      if(!document.getElementById("guideStart")||document.getElementById("guideStart").hidden===false) return "title-house";
+      return "title";
+    }
+    if(typeof W!=="undefined" && W && W.started) return "map";
+    return "title";
+  }catch(_){ return "?"; }
+}
+function scrTick(){
+  try{
+    const s=uiScreen();
+    if(W._scr!==s){ W._scrPrev=W._scr; W._scr=s; W._scrAt=Date.now(); }
+  }catch(_){ }
+}
+/* 画面を閉じる・裏へ回す瞬間に、最後に見ていた画面と居た時間を送る */
+function quitBeacon(){
+  try{
+    if(W._quitSent) return; W._quitSent=true;
+    scrTick();
+    const scr=(W._scr||"?").replace(/[^-\w:ぁ-んァ-ヶ一-龠]/g,"").slice(0,24);
+    const mins=Math.round((Date.now()-(W._scrAt||Date.now()))/60000);
+    const b=mins<1?"1m":mins<3?"3m":mins<10?"10m":mins<30?"30m":"long";
+    const total=W._t0?Math.round((Date.now()-W._t0)/60000):0;
+    const tb=total<1?"1m":total<5?"5m":total<15?"15m":total<45?"45m":"long";
+    const paths=["ev/quit/"+scr+"/"+b, "ev/stay/"+tb];
+    if(trackOff && trackOff()) return;
+    for(const p of paths){
+      const u=ANALYTICS+"?p="+encodeURIComponent(p)+"&e=1&t="+encodeURIComponent(p.slice(3))+"&r=&rnd="+Math.random();
+      try{ const im=new Image(); im.src=u; }catch(_){ }
+    }
+  }catch(_){ }
+}
+try{
+  window.addEventListener("pagehide", quitBeacon);
+  document.addEventListener("visibilitychange", function(){ if(document.visibilityState==="hidden") quitBeacon(); else { try{ W._quitSent=false; }catch(_){ } } });
+  setInterval(function(){ try{ scrTick(); if(!W._t0) W._t0=Date.now(); }catch(_){ } }, 2000);
+}catch(_){ }
+
 /* ===================== 家紋（紋帳の形） =====================
    一つのパス＋evenodd で塗りと抜きを表す。canvas は Path2D、SVG は <path> で同じ形を描く。
    100×100 の升、真ん中 (50,50)、外径 46。 */
