@@ -12122,8 +12122,8 @@ function soldierSprite(unit,side,frame,flip,variant){
   if(ART.soldiers.has(key)) return ART.soldiers.get(key);
   /* 第254巡（作り手：これくらい格好いい部隊っぽくしたい）：台を二倍にして描き込みを細かくする。
      画面に貼る大きさは変えないので、同じ大きさで密度だけ上がる。中の座標は今までどおり 36×38 で書ける */
-  const cv=makeCanvas(72,76), g=cv.getContext("2d");
-  g.scale(2,2);
+  const cv=makeCanvas(108,114), g=cv.getContext("2d");
+  g.scale(3,3);
   if(flip){ g.translate(36,0); g.scale(-1,1); }
   const px=(x,y,w,h,c)=>{ g.fillStyle=c; g.fillRect(x,y,w,h); };
   // 同じ隊の中でも鎧の濃さや兜が少しずつ違う（同じ絵の複写に見えないように）
@@ -12166,12 +12166,26 @@ function soldierSprite(unit,side,frame,flip,variant){
              poly([[9,26],[12,26],[7,33],[4,35],[3,33],[8,28]],horseD); poly([[13,26],[16,26],[15,34],[12,34]],horse); }
     else   { poly([[23,26],[26,26],[27,33],[24,34]],horseD); poly([[19,26],[22,26],[24,31],[26,35],[23,35],[20,30]],horse);
              poly([[8,26],[11,26],[10,34],[7,34]],horseD); poly([[13,26],[16,26],[12,31],[9,35],[7,34],[12,28]],horse); }
+    /* 第254巡：馬を描き込む――首筋の艶、たてがみの房、尾の流れ、蹄 */
+    px(24,12,1,5,hs("#C08A5E")); px(26.6,10,0.8,4,hs("#C08A5E"));             /* 首筋の艶 */
+    for(let q=0;q<4;q++) px(24.6+q*0.7,8.4-q*0.5,0.7,2.4,mane);               /* たてがみの房 */
+    px(30.6,10.6,1.4,0.7,"#F2EADA"); px(33.4,10.4,1.2,0.7,horseD);            /* 鼻先と口 */
+    px(2.6,19,1.4,4,mane); px(1.6,21.6,1.2,3,mane);                            /* 尾の流れ */
+    px(11.6,26.6,2,0.8,"#2A1C12"); px(20.6,26.6,2,0.8,"#2A1C12");             /* 蹄 */
     px(4,34,30,1,"rgba(0,0,0,.25)");                                         // 蹄の影
     // 鞍と乗り手
     px(11,15,10,4,armorD); px(12,14,8,2,armorL);                             // 鞍
-    px(12,6,9,10,armor); px(12,6,9,2,armorL); px(13,10,7,1,armorD);          // 胴（鎧）
+    /* 第254巡（三倍の台で描き直し）：胴丸に草摺、大袖、佩楯。細かい所は三分の一升で置ける */
+    px(12,6,9,10,armor); px(12,6,9,1.7,armorL); px(12.7,7.7,7.6,0.7,shade(armorL,1.1));
+    for(let q=0;q<4;q++) px(12.4,9+q*1.7,8.2,0.7,armorD);                    /* 横板の筋 */
+    px(11.4,13.6,10.2,2.6,armorD);                                            /* 草摺 */
+    for(let q=0;q<5;q++) px(12+q*2,14,0.7,2.2,shade(armorD,1.45));            /* 威糸 */
+    px(9.8,6.6,2.8,5.4,armorD); px(10.2,7,2,0.7,armorL);                      /* 大袖（左） */
+    for(let q=0;q<3;q++) px(10.2,8.4+q*1.2,2,0.6,shade(armorD,1.4));
+    px(20.6,7,2.2,4.6,armorD);                                                /* 大袖（右・奥） */
     px(10,12,3,7,armorD); px(20,12,3,6,armorD);                              // 脚（鐙まで）
-    px(14,1,6,6,skin);
+    px(11.4,16.6,3,2.4,armorD); px(11.8,17,2.2,0.7,shade(armorD,1.4));        /* 佩楯 */
+    px(14,1,6,6,skin); px(14.6,4.2,4.8,0.7,shade(skin,0.84));                 /* 面（頬の影） */
     /* 第254巡（参考の絵）：騎馬武者の兜――丸い鉢、眉庇、両脇に吹返、面頬で顔を締める */
     { const lacq=variant===1?steelD:armorD;
       g.save(); g.fillStyle=lacq; g.beginPath(); g.moveTo(11.6,3.2);
