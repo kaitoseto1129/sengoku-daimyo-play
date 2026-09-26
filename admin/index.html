@@ -42,6 +42,22 @@ svg{ width:100%; height:auto; display:block; }
 #gate .err{ color:var(--shu); font-size:12px; min-height:16px; }
 a{ color:var(--ai); }
 .note{ background:#0F0D09; border-radius:6px; padding:10px 12px; font-size:12px; color:var(--dim); line-height:1.6; }
+/* 左上の切り替え（戦国大名 ⇄ 戦国立身）：押せる所は 44px 以上。キーボードでも（Enter・矢印・Esc） */
+.gsw{ position:relative; }
+.gsw > button{ min-height:44px; min-width:44px; display:flex; align-items:center; gap:8px; background:transparent; color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:6px 12px; cursor:pointer; font:inherit; }
+.gsw > button:hover{ border-color:var(--kin); }
+.gsw > button:focus-visible, .gsw [role=menuitemradio]:focus-visible{ outline:2px solid var(--kin); outline-offset:2px; }
+.gsw > button h1{ font-size:17px; margin:0; letter-spacing:.08em; }
+.gsw > button .tag{ font-size:11px; font-weight:800; padding:2px 7px; border-radius:4px; background:var(--kin); color:#1A1208; letter-spacing:.05em; }
+.gsw > button .tag.r{ background:var(--ai); color:#fff; }
+.gsw > button .car{ color:var(--dim); font-size:12px; }
+.gsw [role=menu]{ position:absolute; left:0; top:calc(100% + 6px); background:var(--card); border:1px solid var(--line); border-radius:8px; padding:6px; min-width:300px; box-shadow:0 10px 30px rgba(0,0,0,.5); z-index:5; }
+.gsw [role=menuitemradio]{ display:flex; align-items:center; gap:10px; width:100%; min-height:48px; padding:8px 12px; background:transparent; color:var(--ink); border:none; border-radius:6px; cursor:pointer; font:inherit; font-size:15px; text-align:left; white-space:nowrap; }
+.gsw [role=menuitemradio]:hover{ background:#0F0D09; }
+.gsw [role=menuitemradio] .ck{ width:18px; color:var(--kin); font-weight:900; }
+.gsw [role=menuitemradio][aria-checked=true]{ background:#0F0D09; font-weight:800; }
+.gsw [role=menuitemradio] small{ color:var(--dim); font-size:11px; margin-left:auto; }
+body.risshin header{ border-bottom-color:var(--ai); }
 </style>
 </head>
 <body>
@@ -54,7 +70,13 @@ a{ color:var(--ai); }
 </form></div>
 
 <header>
-  <h1>戦国大名　管理</h1>
+  <div class="gsw" id="gsw">
+    <button type="button" id="gameBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="gameMenu" title="管理する遊びを切り替える"><h1 id="gameTitle">戦国大名　管理</h1><span class="tag" id="gameTag">大名</span><span class="car" aria-hidden="true">▾</span></button>
+    <div role="menu" id="gameMenu" aria-label="管理する遊び" hidden>
+      <button type="button" role="menuitemradio" data-g="daimyo" aria-checked="true"><span class="ck" aria-hidden="true"></span>戦国大名<small>/sengoku-daimyo-play/</small></button>
+      <button type="button" role="menuitemradio" data-g="risshin" aria-checked="false"><span class="ck" aria-hidden="true"></span>戦国立身<small>/risshin/</small></button>
+    </div>
+  </div>
   <div class="tabs" id="rangeTabs"><button data-r="d1">1日</button><button data-r="d7">7日</button><button data-r="d30" class="on">30日</button><button data-r="d90">90日</button></div>
   <div class="sub" id="updated">読み込み中…</div>
 </header>
@@ -76,6 +98,45 @@ if(opened()){ document.getElementById("gate").style.display="none"; }
 const _load0=load; load=async function(){ await _load0(); try{ if(!document.getElementById("nuGo")) document.getElementById("main").appendChild(usersCard()); }catch(_){ } };
 
 let DATA=null, RANGE="d30";
+/* 遊びの切り替え（戦国大名 ⇄ 戦国立身）。中身は同じ作りで、数は GoatCounter の道の頭で分ける：
+   戦国立身は /risshin/（頁）と risshin/ev/…（出来事）。戦国大名はそれ以外。?game=risshin か #risshin で開ける */
+const GAMES={ daimyo:{name:"戦国大名", tag:"大名"}, risshin:{name:"戦国立身", tag:"立身"} };
+let GAME=(()=>{ try{ const q=new URLSearchParams(location.search).get("game"); if(q&&GAMES[q]) return q; if(/^#?risshin$/.test(location.hash)) return "risshin"; }catch(_){ } return "daimyo"; })();
+const RISSHIN_RE=/^\/?risshin(\/|$)/;
+function gameHits(hits){
+  const out=[];
+  for(const h of (hits||[])){ const p=String(h.path||""); const isR=RISSHIN_RE.test(p);
+    if(GAME==="risshin"){ if(!isR) continue; out.push(h.event?{...h, path:p.replace(/^\/?risshin\//,"")}:h); }
+    else if(!isR) out.push(h); }
+  return out;
+}
+function setGame(g, focus){
+  if(!GAMES[g]) return; GAME=g;
+  try{ const u=new URL(location.href); if(g==="daimyo") u.searchParams.delete("game"); else u.searchParams.set("game",g); u.hash=""; history.replaceState(null,"",u); }catch(_){ }
+  applyGame(); render(); loadExtras();
+  if(focus) document.getElementById("gameBtn").focus();
+}
+function applyGame(){
+  const G=GAMES[GAME]; document.getElementById("gameTitle").textContent=G.name+"　管理"; document.title=G.name+" 管理";
+  const tag=document.getElementById("gameTag"); tag.textContent=G.tag; tag.classList.toggle("r",GAME==="risshin");
+  document.getElementById("gameBtn").setAttribute("aria-label","いま："+G.name+" の管理。押すと切り替え");
+  document.body.classList.toggle("risshin",GAME==="risshin");
+  document.querySelectorAll("#gameMenu [role=menuitemradio]").forEach(b=>{ const on=b.dataset.g===GAME; b.setAttribute("aria-checked",on?"true":"false"); b.querySelector(".ck").textContent=on?"✓":""; });
+}
+(function(){ const btn=document.getElementById("gameBtn"), menu=document.getElementById("gameMenu"); const items=()=>[...menu.querySelectorAll("[role=menuitemradio]")];
+  const open=()=>{ menu.hidden=false; btn.setAttribute("aria-expanded","true"); (items().find(b=>b.dataset.g===GAME)||items()[0]).focus(); };
+  const close=(f)=>{ menu.hidden=true; btn.setAttribute("aria-expanded","false"); if(f) btn.focus(); };
+  btn.onclick=()=>{ if(menu.hidden) open(); else close(); };
+  btn.onkeydown=e=>{ if(e.key==="ArrowDown"||e.key==="ArrowUp"){ e.preventDefault(); open(); } };
+  menu.onkeydown=e=>{ const it=items(), i=it.indexOf(document.activeElement);
+    if(e.key==="ArrowDown"){ e.preventDefault(); it[(i+1)%it.length].focus(); }
+    else if(e.key==="ArrowUp"){ e.preventDefault(); it[(i-1+it.length)%it.length].focus(); }
+    else if(e.key==="Escape"){ e.preventDefault(); close(true); }
+    else if(e.key==="Tab"){ close(false); } };
+  items().forEach(b=>b.onclick=()=>{ close(false); setGame(b.dataset.g, true); });
+  document.addEventListener("click",e=>{ if(!menu.hidden&&!document.getElementById("gsw").contains(e.target)) close(false); });
+  applyGame();
+})();
 document.querySelectorAll("#rangeTabs button").forEach(b=>b.onclick=()=>{ RANGE=b.dataset.r; document.querySelectorAll("#rangeTabs button").forEach(x=>x.classList.toggle("on",x===b)); render(); });
 /* 人を足す：ここで合言葉の指紋（SHA-256）を作り、その行を作り手に渡す（か admin/index.html の USERS に足す）。合言葉そのものはどこにも送らない */
 function usersCard(){ const el=document.createElement("div"); el.className="card"; el.innerHTML=`<h2>入れる人</h2><div class="note">いま入れる人：${USERS.map(u=>`<b>${u.name||""}</b>（${u.email}）`).join("、")}</div>
@@ -89,23 +150,51 @@ async function load(){
   catch(e){ document.getElementById("main").innerHTML=`<div class="card"><h2>まだ数がありません</h2><div class="note">stats.json がまだ作られていません。GitHub の <b>sengoku-daimyo-play</b> リポジトリで、<br>① Settings → Secrets and variables → Actions に <b>GOATCOUNTER_TOKEN</b>（GoatCounter の Settings → API tokens で「Read statistics」を付けて作った鍵）を入れる<br>② Actions → <b>stats</b> → Run workflow を一度押す<br>あとは六時間ごとに勝手に更新されます。</div></div>`; return; }
   document.getElementById("updated").textContent="更新 "+new Date(DATA.generated).toLocaleString("ja-JP");
   render();
-  /* 第253巡（作り手：管理画面を見なくても、クロードが自分で手を打つ）：その記録を載せる */
+  loadExtras();
+}
+/* 第253巡（作り手：管理画面を見なくても、クロードが自分で手を打つ）：その記録を載せる。
+   戦国立身の時は ../risshin/data/kaizen.json（夜の順番表で済にした物）と、テストプレイヤー（bot）の声 ../risshin/data/players.md（あれば） */
+async function loadExtras(){
+  const g=GAME;
   try{
-    const kr=await fetch("kaizen.json?t="+Date.now(), {cache:"no-store"});
-    if(kr.ok){ const K=await kr.json(); const it=(K.items||[]).slice(-12).reverse();
-      if(it.length){ document.getElementById("kaizenCard").hidden=false;
+    const kr=await fetch((g==="risshin"?"../risshin/data/kaizen.json":"kaizen.json")+"?t="+Date.now(), {cache:"no-store"});
+    if(kr.ok&&g===GAME){ const K=await kr.json(); const it=(K.items||[]).slice(-12).reverse();
+      const card=document.getElementById("kaizenCard"); if(it.length&&card){ card.hidden=false;
         document.getElementById("kaizenBody").innerHTML=it.map(x=>`<div style="margin:8px 0;padding:8px 10px;border-radius:8px;background:#0F0D09;border-left:3px solid #4C9A5A">
           <div style="font-weight:700;color:var(--kin)">${esc(x.date||"")}　${esc(x.title||"")}</div>
           <div class="note" style="margin-top:4px">やったこと：${esc(x.did||"")}</div>
           ${x.from?`<div class="note">きっかけ：${esc(x.from)}</div>`:""}</div>`).join(""); } }
   }catch(_){ }
+  if(g!=="risshin") return;
+  try{
+    const r=await fetch("../risshin/data/players.md?t="+Date.now(), {cache:"no-store"});
+    const card=document.getElementById("voicesCard");
+    if(r.ok&&card&&g===GAME){ const md=await r.text(); if(md.trim()&&!/^\s*<!doctype/i.test(md)){ card.hidden=false; document.getElementById("voicesBody").innerHTML=mdHtml(md); } }
+  }catch(_){ }
+}
+/* 声のまとめ（Markdown）をかんたんに HTML に：見出し・箇条・表・段落だけ。中身はすべて esc する */
+function mdHtml(md){
+  const inl=t=>esc(t).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/`([^`]+)`/g,"<code>$1</code>");
+  const out=[]; let list=false, tbl=false;
+  const endL=()=>{ if(list){ out.push("</ul>"); list=false; } if(tbl){ out.push("</table>"); tbl=false; } };
+  for(const line of md.split("\n")){
+    const h=line.match(/^(#{1,4})\s+(.+)/), li=line.match(/^\s*[-*]\s+(.+)/), tr=/^\s*\|.*\|\s*$/.test(line);
+    if(h){ endL(); out.push(`<div style="font-weight:800;color:var(--kin);margin:${h[1].length<=2?12:8}px 0 4px">${inl(h[2])}</div>`); }
+    else if(li){ if(tbl){ out.push("</table>"); tbl=false; } if(!list){ out.push('<ul style="margin:4px 0;padding-left:20px;line-height:1.7">'); list=true; } out.push(`<li>${inl(li[1])}</li>`); }
+    else if(tr){ if(/^\s*\|[\s:|-]+\|\s*$/.test(line)) continue; if(list){ out.push("</ul>"); list=false; } if(!tbl){ out.push('<table style="border-collapse:collapse;font-size:12px;margin:6px 0;width:100%">'); tbl=true; } out.push("<tr>"+line.trim().slice(1,-1).split("|").map(c=>`<td style="border-bottom:1px dashed var(--line);padding:4px 6px">${inl(c.trim())}</td>`).join("")+"</tr>"); }
+    else if(line.trim()){ endL(); out.push(`<p style="margin:4px 0;line-height:1.7">${inl(line)}</p>`); }
+    else endL();
+  }
+  endL(); return out.join("");
 }
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fmtN=n=>Number(n||0).toLocaleString("ja-JP");
 function sumStats(h){ return (h.stats||[]).reduce((s,d)=>s+(d.daily||0),0); }
 function render(){
   if(!DATA) return; const R=DATA.ranges[RANGE]; if(!R){ return; }
-  const hits=(R.hits||[]); const tot=R.total||{};
+  const hits=gameHits(R.hits); const tot=R.total||{};
+  const RS=GAME==="risshin";   /* 戦国立身：同じ作りで、言葉と一部の欄だけ替える */
+  const L=RS?{battle:"出陣",result:"筋書きを終えた",resultLong:"筋書きを終えた（最後の戦まで）",startBy:"どの遊び方で始めたか",resultKinds:"終わり方",resultScen:"最後まで遊んだ筋書き",battleKinds:"出陣した戦"}:{battle:"会戦",result:"結び",resultLong:"結び（天下統一・滅亡まで）",startBy:"どの家で始めたか",resultKinds:"結びの種類",resultScen:"結びまで行った筋書き",battleKinds:"会戦の種類"};
   /* 第254巡（作り手）：訪問は「出来事でない道（ページ）の数」だけから数える。
      以前は総数から出来事を引いていたが、7日ぶんの stats/total が取れない日に二重に引かれ、656 が 21 になっていた */
   const pageHits=hits.filter(h=>!h.event);
@@ -130,7 +219,8 @@ function render(){
   const resultKinds={}, resultScen={}; for(const [k,n] of byPrefix("result")){ const [kind,sc]=k.split("/"); resultKinds[kind]=(resultKinds[kind]||0)+n; if(sc) resultScen[sc]=(resultScen[sc]||0)+n; }
   const battleKinds={}; for(const [k,n] of byPrefix("battle")){ battleKinds[k]=(battleKinds[k]||0)+n; }
   /* 名の札：筋書きの id と会戦の種類は日本語で（nagashino → 長篠の戦い） */
-  const JA={oke:"桶狭間の戦い",honnoji:"本能寺の変",kiyosu:"清洲会議",shizugatake:"賤ヶ岳の戦い",komaki:"小牧・長久手の戦い",koshu:"甲州征伐",sekigahara:"関ヶ原の戦い",osaka:"大坂の陣",hoi:"信長包囲網",mikata:"三方ヶ原の戦い",nagashino:"長篠の戦い",kyushu:"九州征伐",odawara:"小田原征伐",ishiyama:"石山合戦",decisive:"決戦",siege:"城攻め",field:"野戦",word:"合言葉",open:"札を開いた"};
+  const JA={oke:"桶狭間の戦い",honnoji:"本能寺の変",kiyosu:"清洲会議",shizugatake:"賤ヶ岳の戦い",komaki:"小牧・長久手の戦い",koshu:"甲州征伐",sekigahara:"関ヶ原の戦い",osaka:"大坂の陣",hoi:"信長包囲網",mikata:"三方ヶ原の戦い",nagashino:"長篠の戦い",kyushu:"九州征伐",odawara:"小田原征伐",ishiyama:"石山合戦",decisive:"決戦",siege:"城攻め",field:"野戦",word:"合言葉",open:"札を開いた",
+    ashigaru:"足軽から（はじめから・つづき）",lord:"織田信長で",samurai:"侍大将で（試し）",practice:"章を選んで",dojo:"稽古場",map:"天下の地図（城攻め）",clear:"最後の戦まで",dead:"討死（難）"};
   const ja=k=>JA[k]||k;
   const list=(obj,label,max)=>{ const es=Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,max||12); const top=es.length?es[0][1]:1; if(!es.length) return `<div class="muted">まだありません</div>`; return es.map(([k,n])=>`<div class="row"><span>${esc(ja(k))}</span><span class="n">${fmtN(n)}</span></div><div class="bar"><i style="width:${Math.round(n/top*100)}%"></i></div>`).join(""); };
   const SZ={phone:"スマホ",tablet:"タブレット",desktop:"パソコン",desktophd:"大きな画面",unknown:"（不明）"};   /* 第253巡：画面の大きさは名が空で返るので id で出す */
@@ -184,7 +274,7 @@ function render(){
     return out; })();
   /* 第253巡（作り手：ウェブとアプリで数を分けて）：肝心の数の内訳 */
   const platRow=(k)=>{ const app=ev("plat/app/"+k), web=ev("plat/web/"+k); return {app,web,tot:app+web}; };
-  const platHtml=(()=>{
+  const platHtml=RS?"":(()=>{
     const keys=[["start","遊び始め"],["activation/first-battle-complete","初戦を終えた"],["result","結び"],["fund/open","軍資金の札"],["fund-click","額を押した"],["user/new","新しい人"],["user/return","戻って来た人"]];
     const rows=keys.map(([k,n])=>[n,platRow(k)]);
     const any=rows.some(([,r])=>r.tot>0);
@@ -197,20 +287,24 @@ function render(){
   document.getElementById("main").innerHTML=`
     ${platHtml}
     ${advHtml}
-    <div class="sec card" id="kaizenCard" hidden><h2>クロードが自分でやったこと（毎朝九時）</h2><div id="kaizenBody"></div>
-      <div class="note" style="margin-top:8px">この欄は、上の「読み取れること」を見て、作り手に聞かずに手を打った記録です。</div></div>
+    ${RS?`<div class="sec card" id="voicesCard" hidden><h2>テストプレイヤー（bot）の声</h2><div id="voicesBody"></div>
+      <div class="note" style="margin-top:8px">reports/players/まとめ.md を、公開のたびに写した物です（tools/mkpages.mjs）。</div></div>`:""}
+    <div class="sec card" id="kaizenCard" hidden><h2>${RS?"改善の記録（夜の順番表で済にした物）":"クロードが自分でやったこと（毎朝九時）"}</h2><div id="kaizenBody"></div>
+      <div class="note" style="margin-top:8px">${RS?"docs/overnight-backlog.md で済にした改善を、公開のたびに写しています（tools/mkadmin.mjs → mkpages.mjs）。":"この欄は、上の「読み取れること」を見て、作り手に聞かずに手を打った記録です。"}</div></div>
     <div class="grid">
       <div class="card"><h2>訪問（人）</h2><div class="big">${fmtN(visits)}</div><div class="muted">${R.start}〜${R.end}　一日あたり ${fmtN(Math.round(visits/Math.max(1,days.length)))}</div></div>
       <div class="card"><h2>遊び始め</h2><div class="big">${fmtN(starts)}<small>訪問の ${pct(starts,visits)}</small></div></div>
-      <div class="card"><h2>会戦</h2><div class="big">${fmtN(battles)}<small>遊び始め一回あたり ${starts?(battles/starts).toFixed(1):"—"}</small></div><div class="muted">初戦を終えた ${fmtN(act)}（遊び始めの ${pct(act,starts)}）</div></div>
-      <div class="card"><h2>結び（天下統一・滅亡まで）</h2><div class="big">${fmtN(results)}<small>遊び始めの ${pct(results,starts)}</small></div><div class="muted">一つの筋書きを最後まで（何時間もかかる）。日ごとの手応えは「初戦を終えた」で見る</div></div>
-      <div class="card"><h2>解除・支援</h2><div class="big">${fmtN(unlocks)}<small>解除</small></div><div class="muted">支援の札を開いた ${fmtN(fundOpen)}・額を押した ${fmtN(fundClick)}・払いに進んだ ${fmtN(payClick)}${fundDone.length?`・支援あり ${fundDone.map(([k,n])=>k+"×"+n).join(" ")}`:""}</div></div>
+      <div class="card"><h2>${L.battle}</h2><div class="big">${fmtN(battles)}<small>遊び始め一回あたり ${starts?(battles/starts).toFixed(1):"—"}</small></div><div class="muted">初戦を終えた ${fmtN(act)}（遊び始めの ${pct(act,starts)}）</div></div>
+      <div class="card"><h2>${L.resultLong}</h2><div class="big">${fmtN(results)}<small>遊び始めの ${pct(results,starts)}</small></div><div class="muted">一つの筋書きを最後まで（何時間もかかる）。日ごとの手応えは「初戦を終えた」で見る</div></div>
+      ${RS?(()=>{ const be={}; for(const [k,n] of byPrefix("battle-end")){ const o=k.split("/")[0]; be[o]=(be[o]||0)+n; } const mi={}; for(const [k,n] of byPrefix("mission")){ const o=k.split("/")[0]; mi[o]=(mi[o]||0)+n; } const pr=byPrefix("promote");
+        return `<div class="card"><h2>戦を終えた（勝ち負け・任務）</h2><div class="big">${fmtN((be.win||0)+(be.lose||0)+(be.dead||0))}<small>出陣の ${pct((be.win||0)+(be.lose||0)+(be.dead||0),battles)}</small></div><div class="muted">勝ち ${fmtN(be.win||0)}・負け ${fmtN(be.lose||0)}・討死 ${fmtN(be.dead||0)}　任務を果たした ${fmtN(mi.ok||0)}／果たせず ${fmtN(mi.ng||0)}（${pct(mi.ok||0,(mi.ok||0)+(mi.ng||0))}）</div></div>
+      <div class="card"><h2>昇進</h2><div class="big">${fmtN(pr.reduce((a,[,n])=>a+n,0))}<small>回</small></div><div class="muted">${pr.map(([k,n])=>esc(k)+" "+fmtN(n)).join("・")||"まだありません"}</div></div>`; })():`<div class="card"><h2>解除・支援</h2><div class="big">${fmtN(unlocks)}<small>解除</small></div><div class="muted">支援の札を開いた ${fmtN(fundOpen)}・額を押した ${fmtN(fundClick)}・払いに進んだ ${fmtN(payClick)}${fundDone.length?`・支援あり ${fundDone.map(([k,n])=>k+"×"+n).join(" ")}`:""}</div></div>
       <div class="card"><h2>LP（紹介ページ）</h2>${(()=>{ const lpv=byPrefix("lp/view"); const views=lpv.reduce((a,[,n])=>a+n,0); const clicks=byPrefix("lp").filter(([k])=>/appstore_click$/.test(k)).reduce((a,[,n])=>a+n,0); const opens=byPrefix("lp").filter(([k])=>k.startsWith("open_")).reduce((a,[,n])=>a+n,0); const src={}; for(const [k,n] of lpv){ const s2=k.split("/")[0]; src[s2]=(src[s2]||0)+n; } const sc={}; for(const [k,n] of byPrefix("lp")){ const m=k.match(/^scroll_(\d+)$/); if(m) sc[m[1]]=(sc[m[1]]||0)+n; } return `<div class="big">${fmtN(views)}<small>表示</small></div><div class="muted">App Store を押した ${fmtN(clicks)}（${pct(clicks,views)}）・動く絵を開いた ${fmtN(opens)}・流入 ${Object.entries(src).map(([k,n])=>k+" "+n).join(" ")||"—"}・読み進み 25%:${sc["25"]||0} 50%:${sc["50"]||0} 75%:${sc["75"]||0} 100%:${sc["100"]||0}</div>`; })()}</div>
       <div class="card"><h2>お便りと支払い</h2>
         <div class="row"><span>目安箱に届いたお便り</span><span class="n">${fmtN(ev("meyasu/send"))}</span></div>
         <div class="row"><span>軍資金を「払いました」と押した人</span><span class="n">${fmtN(byPrefix("fund-paid").reduce((a,[,n])=>a+n,0))}</span></div>
         <div class="row"><span>関ヶ原（¥500）を「払いました」と押した人</span><span class="n">${fmtN(ev("paid/sekigahara"))}</span></div>
-        <div class="note" style="margin-top:8px">お便りはメールで届きます（この数は送った人の数）。支払いは PayPal の頁へ送ったあと、ゲームに戻って自分で「払いました」を押した数――実際に入金があったかどうかは PayPal の明細で確かめてください。iPhone 版の課金はここには出ません（App Store Connect で見る）。</div></div>
+        <div class="note" style="margin-top:8px">お便りはメールで届きます（この数は送った人の数）。支払いは PayPal の頁へ送ったあと、ゲームに戻って自分で「払いました」を押した数――実際に入金があったかどうかは PayPal の明細で確かめてください。iPhone 版の課金はここには出ません（App Store Connect で見る）。</div></div>`}
       
       <div class="card"><h2>ページ表示</h2><div class="big">${fmtN(pageviews)}</div><div class="muted">${pages.slice(0,3).map(h=>esc(h.path)+" "+fmtN(sumStats(h))).join("　")}</div></div>
     </div>
@@ -238,12 +332,12 @@ function render(){
       </svg>
     </div>
     <div class="sec card"><h2>どこまで進んだか（人の数）</h2>
-      ${(()=>{ const d=byPrefix("depth"); const order=["始めた","城3","城5","城10","城20","城30","城50"];
+      ${(()=>{ const d=byPrefix("depth"); const order=RS?["始めた","足軽組頭候補","足軽組頭","足軽大将候補","足軽大将"]:["始めた","城3","城5","城10","城20","城30","城50"];
         const rows=order.map(k=>[k, (d.find?0:0)]); const m={}; for(const [k,n] of d) m[k]=n;
         const top=Math.max(1,...order.map(k=>m[k]||0));
         return order.map(k=>`<div class="row"><span style="min-width:72px;display:inline-block">${k}</span><span class="bar" style="display:inline-block;height:10px;background:#C9A227;width:${Math.round((m[k]||0)/top*70)}%"></span> <b>${fmtN(m[k]||0)}</b></div>`).join("");
       })()}
-      <div class="note">城がいくつになったかで数えています（人は追いかけていません）。</div>
+      <div class="note">${RS?"身分がどこまで上がったかで数えています（一度の遊びで一回。人は追いかけていません）。":"城がいくつになったかで数えています（人は追いかけていません）。"}</div>
     </div>
     <div class="sec card"><h2>一回にどれだけ遊んだか（人の数）</h2>
       ${(()=>{ const d=byPrefix("stay"); const order=["1分","5分","15分","30分","60分","120分"];
@@ -252,24 +346,25 @@ function render(){
         return order.map(k=>`<div class="row"><span style="min-width:72px;display:inline-block">${k}以上</span><span style="display:inline-block;height:10px;background:#5B9BD5;width:${Math.round((m[k]||0)/top*70)}%"></span> <b>${fmtN(m[k]||0)}</b></div>`).join("");
       })()}
     </div>
-    <div class="sec card"><h2>流れ（訪問 → 遊び始め → 会戦 → 結び）</h2>
+    <div class="sec card"><h2>流れ（訪問 → 遊び始め → ${L.battle} → ${L.result}）</h2>
       <div class="funnel">
         <div class="st"><b>${fmtN(visits)}</b><span>訪問</span><em>100%</em></div>
         <div class="st"><b>${fmtN(starts)}</b><span>遊び始め</span><em>${pct(starts,visits)}</em></div>
-        <div class="st"><b>${fmtN(battles)}</b><span>会戦</span><em>${pct(battles,visits)}</em></div>
-        <div class="st"><b>${fmtN(results)}</b><span>結び</span><em>${pct(results,visits)}</em></div>
-        <div class="st"><b>${fmtN(unlocks)}</b><span>解除</span><em>${pct(unlocks,visits)}</em></div>
+        <div class="st"><b>${fmtN(battles)}</b><span>${L.battle}</span><em>${pct(battles,visits)}</em></div>
+        <div class="st"><b>${fmtN(results)}</b><span>${L.result}</span><em>${pct(results,visits)}</em></div>
+        ${RS?`<div class="st"><b>${fmtN(act)}</b><span>初戦を終えた</span><em>${pct(act,visits)}</em></div>`:`<div class="st"><b>${fmtN(unlocks)}</b><span>解除</span><em>${pct(unlocks,visits)}</em></div>`}
       </div>
       <div class="muted" style="margin-top:8px">訪問＝ページを開いた数（出来事の数は含めない）。遊び始めが少なければ入口（題名の画面）、初戦を終えた人が少なければ最初の合戦で躓いている、と読めます。結びは筋書きを最後まで遊んだ人だけなので、ふだんは 0 で構いません。iPhone 版は数えていません（ブラウザ版だけ）。</div>
     </div>
     <div class="sec grid">
       <div class="card"><h2>どの筋書きで始めたか</h2>${list(scen)}</div>
-      <div class="card"><h2>どの家で始めたか</h2>${list(clans,"",15)}</div>
-      <div class="card"><h2>結びの種類</h2>${list(resultKinds)}</div>
-      <div class="card"><h2>結びまで行った筋書き</h2>${list(resultScen)}</div>
-      <div class="card"><h2>会戦の種類</h2>${list(battleKinds)}</div>
+      <div class="card"><h2>${L.startBy}</h2>${list(clans,"",15)}</div>
+      <div class="card"><h2>${L.resultKinds}</h2>${list(resultKinds)}</div>
+      <div class="card"><h2>${L.resultScen}</h2>${list(resultScen)}</div>
+      <div class="card"><h2>${L.battleKinds}</h2>${list(battleKinds)}</div>
     </div>
     <div class="sec grid">
+      ${RS?`<div class="note" style="grid-column:1/-1">下の内訳（ブラウザ・OS・国など）は GoatCounter のサイト全体の数で、戦国大名と戦国立身をあわせた物です。</div>`:""}
       <div class="card"><h2>ブラウザ（30日）</h2>${bl("browsers")}</div>
       <div class="card"><h2>OS（30日）</h2>${bl("systems")}</div>
       <div class="card"><h2>画面の大きさ（30日）</h2>${bl("sizes")}</div>

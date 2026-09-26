@@ -1,0 +1,2998 @@
+import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { S as SETTINGS } from './settings.js';
+import { flagTexture, jinmakuTexture } from './textures.js';
+import { grassTex, dirtTex, mudTex, stoneTex, macroTex, barkTex, leafTex, thatchTex } from './nature.js';
+
+// 地形・植生・天候・時間帯
+export const HALF = 180;
+const SEG = 144;
+
+export function rng(seed) {
+  let s = seed >>> 0;
+  return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+}
+
+export function distToPolyline(x, z, pts) {
+  let best = Infinity;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, az] = pts[i], [bx, bz] = pts[i + 1];
+    const dx = bx - ax, dz = bz - az;
+    const l2 = dx * dx + dz * dz || 1;
+    let t = ((x - ax) * dx + (z - az) * dz) / l2;
+    t = Math.max(0, Math.min(1, t));
+    const px = ax + dx * t - x, pz = az + dz * t - z;
+    best = Math.min(best, px * px + pz * pz);
+  }
+  return Math.sqrt(best);
+}
+
+// 時間と天気の見え方。vis は見通し（霞がおよそ八割五分になる距離）、cloud は雲の影の濃さ、top は天頂の色
+// morning は「朝」の戦（def.mood が 'morning' か、朝靄の戦）で day の代わりに使う
+const TIME = {
+  day: { sky: 0xa6b4bc, fog: 0xa2b0b8, sun: 0xfff0d8, sunI: 2.1, hemiSky: 0xbfccd6, hemiGround: 0x4a4432, hemiI: 1.0, sunPos: [70, 72, -50], vis: 620, cloud: 0.5, top: 0x5d7fa3, cover: 0.4, glowK: 0 },
+  morning: { sky: 0xb9b8b0, fog: 0xa9aeac, sun: 0xffdcaa, sunI: 2.2, hemiSky: 0xbcc6ce, hemiGround: 0x4a4232, hemiI: 1.1, sunPos: [70, 40, 85], vis: 460, cloud: 0.4, top: 0x7489a0, cover: 0.34, glowK: 0.22, glow: 0xffc890 },
+  storm: { sky: 0x646c6e, fog: 0x7a8284, sun: 0xb8c0c4, sunI: 0.8, hemiSky: 0x8c979a, hemiGround: 0x34322a, hemiI: 1.3, sunPos: [30, 120, 20], vis: 150, cloud: 0, top: 0x4a5153, cover: 0.85, glowK: 0 },
+  after: { sky: 0x93a1a3, fog: 0x929e9f, sun: 0xffe8c8, sunI: 1.7, hemiSky: 0xb3bfc2, hemiGround: 0x3e3a2c, hemiI: 0.95, sunPos: [-70, 58, 30], vis: 400, cloud: 0.45, top: 0x6b7f92, cover: 0.55, glowK: 0.1, glow: 0xffc890 },
+  dusk: { sky: 0xa58468, fog: 0x8c7462, sun: 0xffa868, sunI: 1.45, hemiSky: 0x8e8290, hemiGround: 0x3a2e24, hemiI: 0.8, sunPos: [-120, 17, -24], vis: 470, cloud: 0.25, top: 0x5a6582, cover: 0.45, glowK: 0.75, glow: 0xff8a40 },
+};
+// 戦の定義に mood が無いときの仮の割り当て（設楽原は夜明けから始まった戦なので朝の光）
+const MOOD_BY_SEED = { 57: 'morning' };
+
+// ---------------- 空気の遠近と雲の影（全ての材質に効く） ----------------
+// 霧：距離で指数的に霞み、低い所ほど濃く（谷の靄）、太陽の方は日の色に明るむ
+// 雲の影：流れる雲の下では日差しだけが弱まる（兵・木・地面すべて）
+// scene.fog の near と far に値を詰めて渡す（全ての材質に新しい値を配る口が他に無いため）
+//   fog.near ＝ 雲の流れた距離、fog.far ＝ 見通し（整数部）＋ 雲の影の濃さ（小数部）
+THREE.ShaderChunk.fog_pars_vertex = '#ifdef USE_FOG\n varying float vFogDepth;\n varying vec3 vFogOff;\n#endif';
+THREE.ShaderChunk.fog_vertex = '#ifdef USE_FOG\n vFogDepth = - mvPosition.z;\n vFogOff = transpose(mat3(viewMatrix)) * mvPosition.xyz;\n#endif';
+THREE.ShaderChunk.fog_pars_fragment = `#ifdef USE_FOG
+ uniform vec3 fogColor;
+ varying float vFogDepth;
+ varying vec3 vFogOff;
+ #ifdef FOG_EXP2
+  uniform float fogDensity;
+ #else
+  uniform float fogNear;
+  uniform float fogFar;
+  float cloudH(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+  float cloudN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(cloudH(i), cloudH(i + vec2(1.0, 0.0)), f.x), mix(cloudH(i + vec2(0.0, 1.0)), cloudH(i + vec2(1.0, 1.0)), f.x), f.y); }
+  // 雲の影（1 ＝ 日なた）。雲は風下へ流れる（硝煙と同じ向き）
+  float cloudShade(vec3 wp) {
+   float s = fract(fogFar);
+   if (s < 0.01) return 1.0;
+   vec2 q = (wp.xz - vec2(0.565, 0.825) * fogNear) * 0.0065;
+   float n = cloudN(q) * 0.62 + cloudN(q * 2.7 + 7.3) * 0.38;
+   return 1.0 - s * smoothstep(0.52, 0.66, n);
+  }
+ #endif
+#endif`;
+THREE.ShaderChunk.fog_fragment = `#ifdef USE_FOG
+ #ifdef FOG_EXP2
+  float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );
+  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );
+ #else
+  float fogD = length(vFogOff);
+  float fogVis = max(20.0, floor(fogFar));
+  // 低い所ほど濃い（自分より下の谷は霞み、梢や峰は抜ける）
+  float fogHf = exp(-clamp(vFogOff.y, -30.0, 120.0) * 0.024);
+  float fogFactor = 1.0 - exp(-fogD / fogVis * 1.9 * fogHf);
+  vec3 fogC = fogColor;
+  #if defined(LIT_PARS) && NUM_DIR_LIGHTS > 0
+   // 日の方角の霞は、日の色に明るむ
+   vec3 fogSun = normalize(transpose(mat3(viewMatrix)) * directionalLights[0].direction);
+   float fogS = pow(max(dot(vFogOff / max(fogD, 0.001), fogSun), 0.0), 6.0);
+   fogC += directionalLights[0].color * fogS * 0.07;
+  #endif
+  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogC, fogFactor );
+ #endif
+#endif`;
+THREE.ShaderChunk.lights_pars_begin = '#define LIT_PARS 1\n' + THREE.ShaderChunk.lights_pars_begin;
+THREE.ShaderChunk.lights_fragment_begin = THREE.ShaderChunk.lights_fragment_begin.replace(
+  'getDirectionalLightInfo( directionalLight, directLight );',
+  `getDirectionalLightInfo( directionalLight, directLight );
+  #if defined(USE_FOG) && !defined(FOG_EXP2)
+   directLight.color *= cloudShade(cameraPosition + vFogOff);
+  #endif`);
+
+// 霞の量（霧の式と同じ。遠景の山など、霧を使わない物の色合わせに使う）
+export function hazeAt(dist, vis, dy = 0) {
+  const hf = Math.exp(-Math.max(-30, Math.min(120, dy)) * 0.024);
+  return 1 - Math.exp(-dist / Math.max(20, vis) * 1.9 * hf);
+}
+
+// 風：向きはそろえ、強さはときどき変わる（突風が野を渡る）。旗や草が同じ風を使う
+export const WIND_STATE = { t: 0, gust: 1, dirX: 0.565, dirZ: 0.825 };
+export const GUST = { value: 1 };
+// 濡れ具合（0〜1）：雨の中の旗は色が濃く、重く垂れる
+export const WET = { value: 0 };
+
+// 風で揺れる草木（頂点をずらす）
+// 突風は風下へ波のように野を渡る。草は風下へ傾き、踏み荒らされた所では倒れている
+const WIND = { value: 0 };
+const WEAR = { value: null };
+// 遠景の大軍の、待つ間の小さな動き（体の揺れ・見回し・隊の中の入れ替わり）の強さ。見比べる時は 0 に
+export const ARMY_IDLE = { value: 1 };
+function sway(mat, amp, minY = 0, o = {}) {
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uWind = WIND;
+    sh.uniforms.uGust = GUST;
+    if (o.wear) sh.uniforms.tWear = WEAR;
+    sh.vertexShader = `uniform float uWind, uGust;\n${o.wear ? 'uniform sampler2D tWear;\n' : ''}` + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      #ifdef USE_INSTANCING
+        vec2 wpos = instanceMatrix[3].xz;
+      #else
+        vec2 wpos = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz;
+      #endif
+      float ph = wpos.x * 0.35 + wpos.y * 0.21;
+      float k = max(0.0, position.y - ${minY.toFixed(2)});
+      // 突風の波：風の向きに進む帯
+      float gw = uGust * (0.45 + 0.55 * smoothstep(-0.3, 0.9, sin(dot(wpos, vec2(${WIND_STATE.dirX}, ${WIND_STATE.dirZ})) * 0.05 - uWind * 1.2)));
+      ${o.wear ? `float wr = texture2D(tWear, (wpos + ${HALF.toFixed(1)}) / ${(HALF * 2).toFixed(1)}).r;
+      transformed.y *= 1.0 - wr * 0.72;
+      k *= 1.0 - wr * 0.8;` : ''}
+      vec3 swayOff = vec3(${WIND_STATE.dirX}, 0.0, ${WIND_STATE.dirZ}) * (0.35 + 0.65 * gw) * gw * ${(amp * 1.1).toFixed(3)} * k;
+      swayOff.x += sin(uWind * (1.6 + gw) + ph) * ${amp.toFixed(3)} * k * (0.5 + gw * 0.5);
+      swayOff.z += cos(uWind * 1.3 + ph * 1.3) * ${(amp * 0.6).toFixed(3)} * k * (0.5 + gw * 0.5);`)
+      .replace('#include <project_vertex>', THREE.ShaderChunk.project_vertex.replace('mvPosition = modelViewMatrix * mvPosition;', 'mvPosition.xyz += swayOff;\n mvPosition = modelViewMatrix * mvPosition;'));
+    if (o.after) o.after(sh);
+  };
+  return mat;
+}
+
+// 透ける葉の板：絵が縮んで（遠くで）ぼやけるほど不透明の度合いを上げ、葉の塊が痩せないようにする
+function keepAlpha(sh) {
+  sh.fragmentShader = sh.fragmentShader.replace('#include <alphatest_fragment>', `
+    #ifdef USE_MAP
+      vec2 atx = dFdx(vMapUv * 256.0), aty = dFdy(vMapUv * 256.0);
+      float mipL = max(0.0, 0.5 * log2(max(dot(atx, atx), dot(aty, aty))));
+      diffuseColor.a *= 1.0 + mipL * 0.28;
+    #endif
+    #include <alphatest_fragment>`);
+}
+
+// ---------------- 遠景の軍勢（軽い作りの兵） ----------------
+// 一人ずつ、頭・笠か兜・肩・胴・脚と得物の形が影で分かる。動きは形の側（頂点）で付ける：
+// 足踏み・見回し・向き直り・槍の傾きと持ち替え・隣へ寄る。進む・退く・崩れて逃げるも同じ仕組み
+// 足もとの高さは地面の高さの絵から読む（隊ごと動かしても、坂で浮いたり埋まったりしない）
+// 兵の種類（aInfo.y）：0 槍　1 鉄砲　2 弓　3 侍（兜）　4 旗持ち　5 騎馬（馬に乗る）　6 床几に座る大将
+const ARMY_GLSL = `
+uniform float uAT, uGust, uIdle, uMarch, uCharge, uTurn, uRout, uRoutT;
+uniform sampler2D uHgt; uniform vec3 uHP;
+attribute vec4 aInfo; attribute vec2 aInfo2; attribute float aPart;
+mat3 aRotX(float a) { float c = cos(a), s = sin(a); return mat3(1.0, 0.0, 0.0, 0.0, c, s, 0.0, -s, c); }
+mat3 aRotY(float a) { float c = cos(a), s = sin(a); return mat3(c, 0.0, -s, 0.0, 1.0, 0.0, s, 0.0, c); }
+mat3 aRotZ(float a) { float c = cos(a), s = sin(a); return mat3(c, s, 0.0, -s, c, 0.0, 0.0, 0.0, 1.0); }
+float aTerrain(vec2 p) {
+  vec2 f = clamp((p + uHP.x) / uHP.y, vec2(0.0), vec2(uHP.z - 0.001));
+  ivec2 i = ivec2(floor(f)); vec2 t = f - vec2(i);
+  float a = texelFetch(uHgt, i, 0).r, b = texelFetch(uHgt, i + ivec2(1, 0), 0).r;
+  float c = texelFetch(uHgt, i + ivec2(0, 1), 0).r, d = texelFetch(uHgt, i + ivec2(1, 1), 0).r;
+  return mix(mix(a, b, t.x), mix(c, d, t.x), t.y);
+}
+struct APose { float show, yaw, tilt, fall, leg, spear, spLen, lift, kneel, nod, run; vec3 off; };
+APose aPose() {
+  APose P;
+  float sd = aInfo.x, kd = aInfo.y, hm = aInfo.z, ex = aInfo.w, s2 = aInfo2.y, pt = aPart;
+  float T = uAT + sd * 97.0;
+  // 見せる部品（種類に合わない得物はたたむ）
+  P.show = 1.0;
+  if (pt == 1.0) P.show = 1.0 - hm;
+  else if (pt == 2.0) P.show = hm;
+  else if (pt == 3.0) P.show = (kd == 0.0 || kd == 5.0) ? 1.0 : 0.0;
+  else if (pt == 4.0) P.show = kd == 1.0 ? 1.0 : 0.0;
+  else if (pt == 5.0) P.show = kd == 2.0 ? 1.0 : 0.0;
+  else if (pt == 6.0) P.show = kd == 4.0 ? 1.0 : 0.0;
+  else if (pt == 8.0 || pt == 9.0) P.show = kd == 5.0 ? 0.0 : 1.0;
+  else if (pt == 10.0 || pt == 11.0) P.show = aInfo2.x;
+  // 崩れて逃げる：一人ずつ少し遅れて踵を返し、ばらばらの向きへ走る。一割ほどは倒れて動かない
+  float rt = uRout * max(0.0, uRoutT - sd * 1.6);
+  float run = step(0.001, rt);
+  float fallAt = 1.2 + s2 * 50.0;
+  float falls = step(s2, 0.1) * run;
+  float down = falls * smoothstep(fallAt, fallAt + 0.5, rt);
+  float rtm = mix(rt, min(rt, fallAt), falls);
+  float spd = 3.0 + sd * 2.2;
+  P.run = run;
+  // 足踏み：ときどき足を踏みかえる。進む時は歩き、逃げる時は走る
+  float stepG = smoothstep(0.55, 0.95, sin(T * mix(0.11, 0.23, uIdle) + sd * 31.0));
+  float gait = max(uMarch, run);
+  // 隊の中の入れ替わり：ときどき一人が横へ数歩ずれて、しばらくして戻る（その間は歩く）
+  float swp = uIdle * smoothstep(0.86, 1.0, sin(T * 0.027 + sd * 53.0)) * (1.0 - min(1.0, gait)) * step(kd, 4.5);
+  float swk = swp * (1.0 - swp) * 4.0;
+  float fq = run > 0.5 ? 10.5 : (uMarch > 0.01 || swk > 0.3 ? 5.6 : 6.5);
+  float amp = max(max(stepG * 0.2, uMarch * 0.42), swk * 0.4);
+  amp = mix(amp, 0.7, run) * (1.0 - down);
+  float ph = sin(T * fq);
+  P.leg = ph * amp;
+  P.lift = abs(ph) * (0.012 + amp * 0.07);
+  // 見回し・ときどきの向き直り（進む・逃げる時はしない）
+  float look = 0.2 * sin(T * 0.07) * sin(T * 0.031 + sd * 9.0) + 0.6 * smoothstep(0.88, 1.0, sin(T * 0.045 + sd * 20.0)) * (sd > 0.5 ? 1.0 : -1.0);
+  // 小さな見回し（人ごとに速さが違う）と、ずれる時は歩く向きへ少し顔を向ける
+  look += uIdle * (0.16 * sin(T * (0.3 + s2 * 0.25) + sd * 23.0) + swk * 0.5 * (s2 > 0.5 ? 1.0 : -1.0));
+  look *= 1.0 - min(1.0, gait) * 0.85;
+  P.yaw = look + uTurn * 3.14159 + run * (3.14159 + (s2 - 0.5) * 1.7);
+  // 体の左右の揺れ（重心の移し替え）と息づかいの上下
+  P.tilt = 0.035 * sin(T * 0.23 + sd * 5.0) + (1.0 - run) * ((s2 - 0.5) * 0.05 + uIdle * 0.03 * sin(T * (0.8 + sd * 0.5) + s2 * 40.0));
+  P.fall = down * 1.45;
+  // 槍：人ごとに傾きが違い、ゆっくり揺れ、ときどき持ち替える。進む時は少し前へ、かかる時は穂先を下ろし、逃げる時は肩に担ぐか放り出す
+  float regrip = smoothstep(0.9, 1.0, sin(T * 0.083 + sd * 41.0));
+  P.spear = (sd - 0.5) * 0.24 + 0.05 * sin(T * 0.37) + regrip * 0.35 + uMarch * 0.1 + uCharge * 1.15 * (1.0 - run) - run * 0.55;
+  P.spLen = kd == 0.0 ? max(1.0, ex) : 1.0;
+  if ((pt == 3.0 || pt == 4.0) && run > 0.5 && s2 > 0.55) P.show = 0.0;
+  P.kneel = (kd == 1.0 && ex > 0.5) ? mix(0.7, 1.0, min(1.0, gait)) : 1.0;
+  // 馬の首：ときどき振る・下げる
+  P.nod = 0.1 * sin(T * 0.5) + 0.35 * smoothstep(0.9, 1.0, sin(T * 0.06 + sd * 13.0)) * (1.0 - gait) - gait * 0.15;
+  // 隣へ寄る・少し離れる（その場でゆっくり）
+  vec3 wand = vec3(0.24 * sin(T * 0.013 + sd * 7.0), 0.0, 0.18 * sin(T * 0.017 + sd * 3.0)) * (1.0 - min(1.0, gait));
+  wand += vec3((s2 > 0.5 ? 1.0 : -1.0) * 0.9, 0.0, -0.45) * swp;
+  P.lift += uIdle * 0.012 * (1.0 - run) * sin(T * 1.7 + sd * 30.0);
+  P.off = wand + aRotY(P.yaw) * vec3(0.0, 0.0, rtm * spd * (kd == 5.0 ? 2.0 : 1.0));
+  P.lift += down * 0.12;
+  if (kd == 5.0 && pt < 20.0) P.lift += 0.98;
+  if (kd == 6.0) { P.lift -= 0.34; P.yaw = look * 0.5; P.off = vec3(0.0); }
+  return P;
+}
+vec3 aApply(APose P, vec3 v, float isN) {
+  float pt = aPart, kd = aInfo.y, sd = aInfo.x, pos = 1.0 - isN;
+  vec3 q = v;
+  // 旗の布：竿から離れるほどはためく（突風で大きく）
+  if (pt == 11.0 && isN < 0.5) { float k = clamp(q.x / 0.34, 0.0, 1.0); q.z += sin(uAT * (3.0 + uGust) + q.x * 9.0 + q.y * 3.0 + sd * 20.0) * 0.05 * (0.5 + uGust * 0.5) * k; }
+  if (pt == 12.0 && isN < 0.5) { float k = clamp((q.x - 0.3) / 0.72, 0.0, 1.0); float kk = k * (0.4 + clamp((5.2 - q.y) / 2.6, 0.0, 1.0) * 0.6);
+    q.z += (sin(uAT * (2.4 + uGust * 0.8) + q.x * 6.0 + q.y * 1.5 + sd * 30.0) * 0.12 * (0.5 + uGust * 0.5) + sin(uAT * 1.2 + sd * 9.0) * 0.06) * kk; }
+  if (pt == 8.0 || pt == 9.0) {
+    float a = kd == 6.0 ? -1.25 : (pt == 8.0 ? P.leg : -P.leg);
+    vec3 hp = vec3(0.0, 0.82, 0.0) * pos; q = aRotX(a) * (q - hp) + hp;
+  }
+  if (pt == 3.0 || pt == 6.0 || pt == 12.0) {
+    vec3 hp = vec3(0.3, 1.15, 0.14) * pos; vec3 r = q - hp;
+    if (pt == 3.0 && isN < 0.5) r.y *= P.spLen;
+    q = aRotX(P.spear * (pt == 3.0 ? 1.0 : 0.25)) * r + hp;
+  }
+  if (pt == 4.0) { vec3 hp = vec3(0.22, 1.1, 0.15) * pos; q = aRotX(P.spear * 0.3) * (q - hp) + hp; }
+  if (pt == 21.0 || pt == 22.0) {
+    vec3 hp = vec3(0.0, 1.0, q.z > 0.0 ? 0.62 : -0.62) * pos;
+    q = aRotX((pt == 21.0 ? P.leg : -P.leg) * 0.8) * (q - hp) + hp;
+  }
+  if (pt == 23.0) { vec3 hp = vec3(0.0, 1.5, 0.72) * pos; q = aRotX(P.nod) * (q - hp) + hp; }
+  q *= P.show;
+  if (isN < 0.5) q.y *= P.kneel;
+  q = aRotY(P.yaw) * (aRotX(P.fall) * (aRotZ(P.tilt) * q));
+  if (isN < 0.5) q += vec3(0.0, P.lift, 0.0) + P.off;
+  return q;
+}
+`;
+function armyShader(mat, U) {
+  mat.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, U);
+    sh.vertexShader = ARMY_GLSL + sh.vertexShader
+      .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n APose AP = aPose(); objectNormal = normalize(aApply(AP, objectNormal, 1.0) + vec3(0.0, 1e-4, 0.0));')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed = aApply(AP, transformed, 0.0);')
+      .replace('#include <project_vertex>', `vec4 aIP = vec4(transformed, 1.0), aFP = vec4(AP.off.x, 0.0, AP.off.z, 1.0);
+        #ifdef USE_INSTANCING
+          aIP = instanceMatrix * aIP; aFP = instanceMatrix * aFP;
+        #endif
+        vec4 aW = modelMatrix * aIP, aWF = modelMatrix * aFP;
+        aW.y += aTerrain(aWF.xz) - aWF.y;
+        vec4 mvPosition = viewMatrix * aW;
+        gl_Position = projectionMatrix * mvPosition;`);
+  };
+  return mat;
+}
+
+// ---------------- 軽い大軍の合戦（前線どうしのぶつかり合い） ----------------
+// 兵を一人ずつ計算せず、幅 6m ほどの「塊」ごとに、前線の位置・討たれた数・崩れを持つ。動きは形の側（頂点）で：
+// 前の列は槍を振り上げては叩き下ろし、押し合って前後する。討たれた者は倒れ姿を残し、列が減れば後ろの列が詰める
+// uBlk[塊]：x 前線のずれ（m、A の向きへ）・z 討たれた数・w 崩れてからの秒（0 は崩れていない）
+// uBlk2[塊]：x 打ち合いの強さ・y 歩き・z 一列の人数・w 隠す（本物の兵に置き換えた塊）
+// aClash：x 塊の番号・y 塊の中の順番（前の列から討たれる）・z 列（0 が一番前）・w 倒れた者なら 1
+const CLASH_NB = 40, CLASH_ROW = 1.15;
+// （元の形の uMarch・uCharge は、塊ごとに変わるので、ここでは cInit で決める値にする）
+const CLASH_GLSL = ARMY_GLSL.replace(/uMarch, uCharge, /, '').replace('attribute float aPart;', `attribute float aPart;
+uniform vec4 uBlk[${CLASH_NB}], uBlk2[${CLASH_NB}]; uniform float uSide, uApp, uAppM, uAppC, uNearHide;
+attribute vec4 aClash;
+float uMarch, uCharge, cRt, cFight, cHide; vec3 cOff;
+void cInit(float sd) {
+  int j = int(aClash.x + 0.5);
+  vec4 B = uBlk[j], B2 = uBlk2[j];
+  cOff = vec3(0.0); cFight = 0.0; cHide = 0.0; cRt = 0.0; uMarch = 0.0; uCharge = 0.0;
+  if (aClash.w > 0.5) return;
+  float kc = B.z / max(1.0, B2.z), fr = floor(kc), row = aClash.z;
+  cHide = max(B2.w, step(aClash.y + 0.5, B.z));
+  // 前の列が減るほど、後ろの列が前へ詰める
+  float sh = row <= fr + 0.5 ? fr : kc;
+  cOff = vec3(0.0, 0.0, uSide * B.x + sh * ${CLASH_ROW.toFixed(2)} + uApp);
+  cRt = B.w > 0.0 ? max(0.0, B.w - sd * 1.6) : 0.0;
+  cFight = B2.x * (1.0 - smoothstep(fr + 1.5, fr + 3.0, row));
+  uMarch = max(B2.y, uAppM);
+  uCharge = max(cFight * 0.85, uAppC);
+}`).replace('float rt = uRout * max(0.0, uRoutT - sd * 1.6);', 'cInit(sd); float rt = cRt;') + `
+void cPose(inout APose P) {
+  float sd = aInfo.x, T = uAT + sd * 97.0;
+  P.off += cOff;
+  if (cHide > 0.5) P.show = 0.0;
+  // カメラのすぐ近くの者は描かない（近くでは箱に見えるので。そこは本物の兵に替える）
+  #ifdef USE_INSTANCING
+    vec4 cw = modelMatrix * instanceMatrix * vec4(P.off.x, 0.0, P.off.z, 1.0);
+    P.show *= smoothstep(uNearHide, uNearHide + 4.0, distance(cw.xz, cameraPosition.xz));
+  #endif
+  if (aClash.w > 0.5) {
+    // 倒れた者：うつ伏せか仰向け。向きはばらばら
+    P.fall = aInfo2.y > 0.5 ? 1.5 : -1.45; P.yaw = sd * 6.2832; P.off = vec3(0.0); P.leg = 0.0; P.lift = 0.16;
+    P.tilt = (aInfo2.y - 0.5) * 0.5; P.spear = 1.3; P.kneel = 1.0; P.nod = 0.0;
+    return;
+  }
+  if (cFight > 0.01 && P.run < 0.5) {
+    // 槍の叩き合い：振り上げては打ち下ろす（人ごとに拍子が違う）。突いては引き、押されてよろける
+    float f = cFight, beat = sin(T * (2.0 + sd * 1.5));
+    P.spear += f * (0.42 * beat - 0.12);
+    P.off.z += f * (0.28 * sin(T * 1.6 + sd * 11.0) + 0.1 * beat);
+    P.off.x += f * 0.12 * sin(T * 0.9 + sd * 17.0);
+    P.tilt += f * 0.08 * sin(T * 1.3 + sd * 5.0);
+    P.yaw = mix(P.yaw, (sd - 0.5) * 0.35, f);
+    P.leg += f * 0.2 * sin(T * 2.6 + sd * 7.0);
+  }
+}
+`;
+function clashShader(mat, U) {
+  mat.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, U);
+    sh.vertexShader = CLASH_GLSL + sh.vertexShader
+      .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n APose AP = aPose(); cPose(AP); objectNormal = normalize(aApply(AP, objectNormal, 1.0) + vec3(0.0, 1e-4, 0.0));')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed = aApply(AP, transformed, 0.0);')
+      .replace('#include <project_vertex>', `vec4 aIP = vec4(transformed, 1.0), aFP = vec4(AP.off.x, 0.0, AP.off.z, 1.0);
+        #ifdef USE_INSTANCING
+          aIP = instanceMatrix * aIP; aFP = instanceMatrix * aFP;
+        #endif
+        vec4 aW = modelMatrix * aIP, aWF = modelMatrix * aFP;
+        aW.y += aTerrain(aWF.xz) - aWF.y;
+        vec4 mvPosition = viewMatrix * aW;
+        gl_Position = projectionMatrix * mvPosition;`);
+  };
+  return mat;
+}
+
+// 形の部品に色と部品の番号を付ける
+function armyPart(list, geo, hex, part) {
+  const g = geo.index ? geo.toNonIndexed() : geo;
+  const n = g.attributes.position.count, c = new THREE.Color(hex);
+  const col = new Float32Array(n * 3), pa = new Float32Array(n).fill(part);
+  for (let i = 0; i < n; i++) { col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b; }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  g.setAttribute('aPart', new THREE.BufferAttribute(pa, 1));
+  if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(n * 2), 2));
+  list.push(g);
+}
+// 兵一人の形（near は近くで見る少人数向けに角を増やす）
+const SOLDIER_GEO = new Map();
+function soldierGeo(armor, near) {
+  const key = armor + (near ? 'n' : 'f');
+  if (SOLDIER_GEO.has(key)) return SOLDIER_GEO.get(key);
+  const P = [], s = near ? 7 : 4;
+  const arm = new THREE.Color(armor), dark = arm.clone().multiplyScalar(0.72).getHex(), lite = arm.clone().lerp(new THREE.Color(0x8a8070), 0.18).getHex();
+  const cyl = (rt, rb, h, seg, x, y, z) => { const g = new THREE.CylinderGeometry(rt, rb, h, seg, 1, !near); g.translate(x, y, z); return g; };
+  // 脚（脛当て・脚絆の暗い色）
+  for (const [sx, pt] of [[-0.11, 8], [0.11, 9]]) armyPart(P, cyl(0.075, 0.06, 0.84, s, sx, 0.41, 0), 0x2a2620, pt);
+  // 草摺（腰の裾）と胴。胴は少し平たく
+  const skirt = cyl(0.2, 0.28, 0.36, s + 1, 0, 0.9, 0); skirt.scale(1, 1, 0.8); armyPart(P, skirt, dark, 0);
+  const dou = cyl(0.22, 0.18, 0.52, s + 1, 0, 1.33, 0); dou.scale(1, 1, 0.74); armyPart(P, dou, armor, 0);
+  // 袖（肩の板）：左右に張り出して、遠目にも肩の線が分かる
+  for (const sx of [-1, 1]) { const b = new THREE.BoxGeometry(0.17, 0.3, 0.24); b.rotateZ(sx * 0.3); b.translate(sx * 0.27, 1.42, 0); armyPart(P, b, lite, 0); }
+  // 腕：左は垂らし、右は得物を持って少し前へ
+  const la = cyl(0.045, 0.04, 0.5, 3, -0.3, 1.18, 0.02); armyPart(P, la, 0x2a2620, 0);
+  const ra = cyl(0.045, 0.04, 0.5, 3, 0, 0, 0); ra.rotateX(-0.45); ra.translate(0.3, 1.2, 0.08); armyPart(P, ra, 0x2a2620, 0);
+  // 頭（顔の色）
+  const head = near ? new THREE.SphereGeometry(0.105, 8, 6) : new THREE.OctahedronGeometry(0.12, 0); head.scale(1, 1.1, 1); head.translate(0, 1.7, 0.01); armyPart(P, head, 0x9a7454, 0);
+  // 陣笠（平たく広い笠）
+  const kasa = new THREE.ConeGeometry(0.32, 0.13, near ? 12 : 6); kasa.translate(0, 1.82, 0); armyPart(P, kasa, 0x2c261e, 1);
+  const kb = new THREE.CylinderGeometry(0.32, 0.32, 0.01, near ? 12 : 6); kb.translate(0, 1.755, 0); armyPart(P, kb, 0x1e1a14, 1);
+  // 兜：鉢と、下へ広がる錣。近くでは金の前立
+  const hachi = new THREE.SphereGeometry(0.14, near ? 8 : 5, near ? 4 : 2, 0, Math.PI * 2, 0, Math.PI / 2); hachi.translate(0, 1.75, 0); armyPart(P, hachi, 0x1c1a18, 2);
+  const shikoro = new THREE.CylinderGeometry(0.15, 0.25, 0.12, near ? 10 : 5, 1, true); shikoro.translate(0, 1.72, -0.02); armyPart(P, shikoro, 0x24201c, 2);
+  if (near) { const md = new THREE.BoxGeometry(0.26, 0.14, 0.01); md.translate(0, 1.93, 0.13); armyPart(P, md, 0xb08a3a, 2); }
+  // 背の指物の竿
+  armyPart(P, cyl(0.012, 0.012, 1.4, 3, 0, 1.95, -0.17), 0x2f2419, 10);
+  // 槍（長さは人ごとに伸ばす）と穂先
+  armyPart(P, cyl(0.016, 0.02, 4.3, 3, 0.3, 2.1, 0.14), 0x3b2a1a, 3);
+  const ho = new THREE.ConeGeometry(0.028, 0.3, 3); ho.translate(0.3, 4.4, 0.14); armyPart(P, ho, 0x9a9a98, 3);
+  // 鉄砲：右の肩に担ぐ
+  const gun = cyl(0.025, 0.03, 1.3, 3, 0, 0, 0); gun.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0.85, -0.5).normalize())); gun.translate(0.22, 1.1 + 0.55, 0.15 - 0.33); armyPart(P, gun, 0x3a2a1a, 4);
+  // 弓と、背の箙
+  const bow = cyl(0.012, 0.012, 2.1, 3, 0, 0, 0); bow.rotateZ(0.12); bow.translate(-0.32, 1.25, 0.08); armyPart(P, bow, 0x4a3020, 5);
+  const ebira = new THREE.BoxGeometry(0.1, 0.5, 0.1); ebira.rotateZ(-0.3); ebira.translate(0.14, 1.35, -0.2); armyPart(P, ebira, 0x3a2a1a, 5);
+  // 幟の竿と横木（旗持ち）
+  armyPart(P, cyl(0.028, 0.034, 5.4, 4, 0.3, 2.6, 0.14), 0x2f2419, 6);
+  const bar = cyl(0.018, 0.018, 0.8, 3, 0, 0, 0); bar.rotateZ(Math.PI / 2); bar.translate(0.7, 5.22, 0.14); armyPart(P, bar, 0x2f2419, 6);
+  const g = mergeGeometries(P);
+  g.computeBoundingSphere();
+  SOLDIER_GEO.set(key, g);
+  return g;
+}
+// 馬（騎馬の兵の下に置く）。胴・首・頭・脚・尾。馬具の色を o.tack で
+let HORSE_GEO = null;
+function horseGeo() {
+  if (HORSE_GEO) return HORSE_GEO;
+  const P = [];
+  const body = new THREE.CylinderGeometry(0.3, 0.28, 1.5, 6); body.rotateX(Math.PI / 2); body.scale(0.9, 1.15, 1); body.translate(0, 1.28, 0); armyPart(P, body, 0xffffff, 20);
+  const neck = new THREE.BoxGeometry(0.2, 0.62, 0.3); neck.rotateX(0.62); neck.translate(0, 1.66, 0.8); armyPart(P, neck, 0xffffff, 23);
+  const hd = new THREE.BoxGeometry(0.17, 0.2, 0.52); hd.rotateX(0.5); hd.translate(0, 1.84, 1.12); armyPart(P, hd, 0xffffff, 23);
+  const mane = new THREE.BoxGeometry(0.05, 0.5, 0.12); mane.rotateX(0.62); mane.translate(0, 1.8, 0.66); armyPart(P, mane, 0x1a1512, 23);
+  // 鞍と泥障（あおり）：馬具の色
+  const kura = new THREE.BoxGeometry(0.66, 0.4, 0.5); kura.translate(0, 1.26, -0.05); armyPart(P, kura, 0x3a1a14, 20);
+  for (const [x, z, pt] of [[-0.16, 0.6, 21], [0.16, 0.6, 22], [-0.16, -0.6, 22], [0.16, -0.6, 21]]) {
+    const l = new THREE.CylinderGeometry(0.085, 0.06, 1.02, 4, 1, true); l.translate(x, 0.5, z); armyPart(P, l, 0xd8d0c8, pt);
+  }
+  const tail = new THREE.CylinderGeometry(0.05, 0.1, 0.7, 3, 1, true); tail.rotateX(-0.35); tail.translate(0, 1.05, -0.85); armyPart(P, tail, 0x1a1512, 20);
+  HORSE_GEO = mergeGeometries(P);
+  return HORSE_GEO;
+}
+// 背の指物の布（竿から横へ）と、幟の布（竿の横木から垂れる）
+let SASHI_GEO = null, BANNER_GEO = null;
+function clothGeo(w, h, sx, sy, x0, y0, z0, part) {
+  const g = new THREE.PlaneGeometry(w, h, sx, sy); g.translate(x0 + w / 2, y0 - h / 2, z0);
+  g.setAttribute('aPart', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count).fill(part), 1));
+  return g;
+}
+
+// 隊の並び：兵一人ずつの置き場所と種類を作る
+// kind：'mixed'（前に鉄砲、中に槍、後ろに旗と騎馬の備え）・'spear'（槍の林）・'gun'（鉄砲の横列）・'bow'・'cavalry'（騎馬の塊）・'honjin'（陣幕の本陣）
+function armyLayout(o, R) {
+  const N = o.count || 300, w = o.w || 20, d = o.d || 10, kind = o.kind || 'mixed';
+  const flagP = o.flagRate ?? (kind === 'cavalry' ? 0.95 : 0.85);
+  const S = [];
+  const put = (lx, lz, k, x = {}) => S.push({
+    lx, lz, k, helm: x.helm ?? (k === 3 || k === 5 || k === 6 ? 1 : (R() < 0.08 ? 1 : 0)),
+    ex: x.ex ?? 0, flag: x.flag ?? (k === 4 || k === 6 ? 0 : (R() < flagP ? 1 : 0)), yaw: x.yaw || 0, imp: k >= 3 ? 1 : 0,
+  });
+  // 四角の中に n 人を横の間 sx・縦の間 sz で前から詰める（入りきらなければ縦を詰める）
+  const block = (n, x0, x1, z0, z1, k, sx, sz, f) => {
+    if (n <= 0) return;
+    const cols = Math.max(1, Math.min(n, Math.round((x1 - x0) / sx)));
+    const rows = Math.ceil(n / cols);
+    const gz = Math.min(sz, Math.max(0.5, (z1 - z0)) / rows);
+    const ph = R() * 6;
+    for (let i = 0; i < n; i++) {
+      const r = Math.floor(i / cols), c = i % cols;
+      const inRow = r === rows - 1 ? n - r * cols : cols;
+      const cx = c + (cols - inRow) / 2;
+      const lx = x0 + (cx + 0.5) * (x1 - x0) / cols + (R() - 0.5) * sx * 0.35;
+      const lz = z1 - (r + 0.5) * gz + Math.sin(lx * 0.23 + ph + r) * 0.25 + (R() - 0.5) * gz * 0.3;
+      put(lx, lz, k, f ? f(r, c, rows) : {});
+    }
+  };
+  const hw = w / 2, hd = d / 2;
+  const nb = o.banners ?? Math.max(1, Math.min(12, Math.round(w / 4), Math.round(N * 0.08)));
+  const banners = (z) => { for (let i = 0; i < nb; i++) put(-hw + (i + 0.5) * w / nb + (R() - 0.5) * 0.8, z + (R() - 0.5) * 0.5, 4); };
+  const spearF = () => ({ ex: 1.25 + R() * 0.3 });
+  if (kind === 'spear') {
+    banners(-hd + 0.5);
+    put(0, hd - 0.2, 3); put(-hw * 0.5, hd - 0.2, 3);
+    block(N - nb - 2, -hw, hw, -hd + 1.3, hd - 1.0, 0, 0.95, 1.0, spearF);
+  } else if (kind === 'gun' || kind === 'bow') {
+    const k = kind === 'gun' ? 1 : 2;
+    const nr = Math.max(1, Math.min(3, Math.floor(d / 2)));
+    banners(-hd + 0.4);
+    put(0, -hd + 1.4, 3); put(hw * 0.6, -hd + 1.4, 3);
+    const n = N - nb - 2, per = Math.ceil(n / nr);
+    for (let r = 0; r < nr; r++) {
+      const z = hd - 0.4 - r * Math.min(2.2, (d - 1.5) / nr);
+      block(Math.min(per, n - r * per), -hw, hw, z - 0.5, z + 0.5, k, Math.max(0.9, w / per), 1, () => ({ ex: k === 1 && r === 0 ? 1 : 0 }));
+    }
+  } else if (kind === 'cavalry') {
+    // 騎馬は塊ごとに間を空け、塊の中は前後左右に詰める。後ろに徒の旗持ち
+    const foot = Math.min(nb, 6);
+    for (let i = 0; i < foot; i++) put(-hw + (i + 0.5) * w / foot, -hd + 0.4, 4);
+    put(0, hd - 0.6, 5, { helm: 1 });
+    const n = N - foot - 1;
+    const clumps = Math.max(1, Math.round(w / 9));
+    const cw = w / clumps;
+    for (let c = 0; c < clumps; c++) {
+      const m = Math.round(n / clumps) + (c === clumps - 1 ? n - Math.round(n / clumps) * clumps : 0);
+      block(m, -hw + c * cw + 0.8, -hw + (c + 1) * cw - 0.8, -hd + 1.6, hd - 2.2, 5, 1.25, 2.7, () => ({ helm: R() < 0.6 ? 1 : 0 }));
+    }
+  } else if (kind === 'honjin') {
+    // 真ん中に陣幕。中の奥に床几の大将、左右に並ぶ旗本。幕の後ろに旗の林、周りを槍の備えが囲む
+    const jw = Math.min(16, w * 0.55), jd = Math.min(12, d * 0.55), jz = -hd * 0.1;
+    o._maku = { w: jw, d: jd, z: jz };
+    put(0, jz - jd / 2 + 1.8, 6, { flag: 0 });
+    for (let i = 0; i < 4; i++) for (const sx of [-1, 1]) put(sx * (jw / 2 - 1.6), jz - jd / 2 + 3.2 + i * 1.5, 3, { yaw: -sx * Math.PI / 2, flag: 1 });
+    const nbj = Math.min(26, Math.max(6, Math.round(N * 0.14)));
+    for (let i = 0; i < nbj; i++) put(-jw / 2 + (i % 13 + 0.5) * jw / 13 + (R() - 0.5) * 0.4, jz - jd / 2 - 1.2 - Math.floor(i / 13) * 1.4, 4);
+    const rest = N - S.length;
+    const front = Math.round(rest * 0.45), side = Math.round(rest * 0.2);
+    block(front, -hw, hw, jz + jd / 2 + 1.5, hd, 0, 1.0, 1.0, spearF);
+    block(side, -hw, -jw / 2 - 1.2, -hd, jz + jd / 2, 0, 1.0, 1.0, spearF);
+    block(side, jw / 2 + 1.2, hw, -hd, jz + jd / 2, 0, 1.0, 1.0, spearF);
+    block(rest - front - side * 2, -hw, hw, -hd, jz - jd / 2 - 3.2, 3, 1.1, 1.1);
+  } else if (Math.min(w, d) < 7) {
+    // 細長い列：長い辺の後ろに旗、前に鉄砲が一列（入る時だけ）、あとは槍
+    const long = w >= d;
+    const nb2 = Math.max(1, Math.round(Math.max(w, d) / 5));
+    for (let i = 0; i < nb2; i++) { const t = (i + 0.5) / nb2 - 0.5; if (long) put(t * w, -hd + 0.3, 4); else put(-hw + 0.3, t * d, 4); }
+    if (long && d >= 3) { const g = Math.round(w / 1.1); block(g, -hw, hw, hd - 0.8, hd, 1, 1.1, 1, () => ({ ex: 1 })); }
+    block(N - S.length, long ? -hw : -hw + 0.8, hw, -hd + (long ? 0.8 : 0), long && d >= 3 ? hd - 1.2 : hd, 0, 0.95, 1.0, spearF);
+  } else {
+    // 混ぜた備え：前に鉄砲の二列（前列は片膝）、次に弓、中は槍、後ろに旗持ちと騎馬の武者
+    const gunN = Math.round(N * 0.16), bowN = Math.round(N * 0.07), cav = N >= 120 && d >= 8 ? Math.min(10, Math.round(N * 0.04)) : 0;
+    banners(-hd + 0.4);
+    put(-hw * 0.3, hd - 2.8, 3); put(hw * 0.3, -hd + 1.6, 5, { helm: 1 });
+    const g1 = Math.ceil(gunN / 2);
+    block(g1, -hw, hw, hd - 0.9, hd - 0.1, 1, Math.max(0.9, w / g1), 1, () => ({ ex: 1 }));
+    block(gunN - g1, -hw, hw, hd - 2.2, hd - 1.2, 1, Math.max(0.9, w / (gunN - g1 || 1)), 1);
+    block(bowN, -hw, hw, hd - 3.4, hd - 2.5, 2, Math.max(0.9, w / (bowN || 1)), 1);
+    block(cav, -Math.min(hw, 6), Math.min(hw, 6), -hd + 1.0, -hd + 3.8, 5, 1.3, 2.6);
+    const spN = N - S.length;
+    block(spN, -hw, hw, -hd + (cav ? 4.2 : 1.2), hd - 3.6, 0, 0.95, 1.0, spearF);
+  }
+  // 大事な者（旗持ち・侍・騎馬・大将）を先に、残りは混ぜる。遠くで数を間引く時に、旗と騎馬が残るように
+  const imp = S.filter((s) => s.imp || s.k === 4), rest = S.filter((s) => !(s.imp || s.k === 4));
+  for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
+  return { list: imp.concat(rest), nImp: imp.length };
+}
+
+// 空の映り込み（漆や鉄に空が映る）を作るために、描画器を借りる
+let RENDERER = null;
+export function setRenderer(r) { RENDERER = r; }
+
+export class World {
+  constructor(scene, def) {
+    this.scene = scene;
+    this.def = def;
+    this.grid = new Float32Array((SEG + 1) * (SEG + 1));
+    this.step = (HALF * 2) / SEG;
+    for (let j = 0; j <= SEG; j++) {
+      for (let i = 0; i <= SEG; i++) {
+        const x = -HALF + i * this.step, z = -HALF + j * this.step;
+        let h = def.height(x, z);
+        // 細かな起伏：数メートルごとのうねり（平らすぎる地面をなくす）
+        const pd = def.paddy ? def.paddy(x, z) : 0;
+        const flat = (def.clear && def.clear(x, z)) || pd > 0;
+        if (!flat) h += (Math.sin(x * 0.31 + Math.cos(z * 0.23) * 2) * Math.cos(z * 0.27 - x * 0.05) * 0.28 + Math.sin(x * 0.83 + z * 0.61) * 0.07);
+        // 田は畦より一段低い（水を張った面が畦に囲まれて見える）
+        h -= pd * 0.16;
+        // 小川：流れに沿って地面を掘り下げる
+        for (const st of def.streams || []) {
+          const d = distToPolyline(x, z, st.pts);
+          if (d < st.w * 2) h -= st.depth * Math.pow(1 - d / (st.w * 2), 1.5);
+        }
+        this.grid[j * (SEG + 1) + i] = h;
+      }
+    }
+    // 朝の戦か（def.mood が無ければ、朝靄の戦を朝とみなす）
+    this.mood = def.mood || MOOD_BY_SEED[def.seed] || (def.mist ? 'morning' : 'plain');
+    this.buildLights();
+    this.buildWear();
+    this.buildTerrain();
+    this.buildVegetation();
+    if (def.water) { this.buildWater(def.water); this.buildReeds(); }
+    for (const st of def.streams || []) this.buildStream(st);
+    this.buildRain();
+    this.buildSky();
+    this.buildFarLand();
+    this.buildDust();
+    this.buildBirds();
+    this.fires = [];
+    this.cloudPhase = (def.seed || 0) * 37 % 900;
+    this.setTime(def.time || 'day');
+    this.rainLevel = 0;
+    this.targetRain = 0;
+  }
+
+  // その地点の草の割合（地面を混ぜた割合から読む。0〜1）
+  grassAt(x, z) {
+    if (!this.splat) return 1;
+    const i = Math.max(0, Math.min(SEG, Math.round((x + HALF) / this.step))), j = Math.max(0, Math.min(SEG, Math.round((z + HALF) / this.step)));
+    const k = j * (SEG + 1) + i;
+    return this.waterW[k] > 0.3 ? 0 : this.splat[k * 3];
+  }
+
+  heightAt(x, z) {
+    const fx = (x + HALF) / this.step, fz = (z + HALF) / this.step;
+    const i = Math.max(0, Math.min(SEG - 1, Math.floor(fx)));
+    const j = Math.max(0, Math.min(SEG - 1, Math.floor(fz)));
+    const tx = Math.max(0, Math.min(1, fx - i)), tz = Math.max(0, Math.min(1, fz - j));
+    const g = this.grid, W = SEG + 1;
+    const a = g[j * W + i], b = g[j * W + i + 1], c = g[(j + 1) * W + i], d = g[(j + 1) * W + i + 1];
+    return (a * (1 - tx) + b * tx) * (1 - tz) + (c * (1 - tx) + d * tx) * tz;
+  }
+
+  buildLights() {
+    this.hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
+    this.scene.add(this.hemi);
+    this.sun = new THREE.DirectionalLight(0xffffff, 2);
+    this.sun.castShadow = true;
+    this.sun.shadow.mapSize.set(2048, 2048);
+    const s = this.sun.shadow.camera;
+    s.left = -45; s.right = 45; s.top = 45; s.bottom = -45; s.near = 1; s.far = 300;
+    this.sun.shadow.bias = -0.0008;
+    this.sun.shadow.normalBias = 0.04;
+    this.scene.add(this.sun);
+    this.scene.add(this.sun.target);
+    this.scene.fog = new THREE.Fog(0xaaaaaa, 40, 230);
+  }
+
+  // ---------------- 踏み荒らし ----------------
+  // 兵が歩いた所ほど草が倒れ、土と泥が出る（戦が進むほど足もとが荒れる）。1枚の小さな絵に踏まれた量を貯める
+  buildWear() {
+    const S = 256;
+    this.wearS = S;
+    this.wearData = new Uint8Array(S * S);
+    this.wearTex = new THREE.DataTexture(this.wearData, S, S, THREE.RedFormat, THREE.UnsignedByteType);
+    this.wearTex.magFilter = THREE.LinearFilter; this.wearTex.minFilter = THREE.LinearFilter;
+    this.wearTex.needsUpdate = true;
+    WEAR.value = this.wearTex;
+    this.wearDirty = 0;
+  }
+  // (x, z) の周り半径 r m を踏む（amt は一度に増える量 0〜255）
+  stampWear(x, z, r = 1.2, amt = 10) {
+    const S = this.wearS, k = S / (HALF * 2);
+    const cx = (x + HALF) * k, cz = (z + HALF) * k, rr = Math.max(0.6, r * k);
+    const x0 = Math.max(0, Math.floor(cx - rr)), x1 = Math.min(S - 1, Math.ceil(cx + rr));
+    const z0 = Math.max(0, Math.floor(cz - rr)), z1 = Math.min(S - 1, Math.ceil(cz + rr));
+    for (let j = z0; j <= z1; j++) for (let i = x0; i <= x1; i++) {
+      const d = Math.hypot(i - cx, j - cz) / rr;
+      if (d >= 1) continue;
+      const o = j * S + i;
+      this.wearData[o] = Math.min(255, this.wearData[o] + amt * (1 - d * d));
+    }
+    this.wearDirty++;
+  }
+  // その地点の踏み荒らし（0〜1）
+  wearAt(x, z) {
+    const S = this.wearS, i = Math.max(0, Math.min(S - 1, Math.round((x + HALF) / (HALF * 2) * S))), j = Math.max(0, Math.min(S - 1, Math.round((z + HALF) / (HALF * 2) * S)));
+    return this.wearData[j * S + i] / 255;
+  }
+
+  // ---------------- 地図の外の遠景 ----------------
+  // 戦場の外にも野と丘が続き、杉林・田・村の家並みが霞の中に見える（兵は入らない。軽い作り）
+  buildFarLand() {
+    const def = this.def, R = rng((def.seed || 1) * 7 + 3);
+    const EXT = 330, STEP = 10, N = Math.round(EXT * 2 / STEP);
+    const W = def.water;
+    const inWater = (x) => W && x > W.x - 3 && x < (W.x2 ?? 1e9) + 3;
+    // 小川は地図の端から先へまっすぐ延ばす
+    const streams = (def.streams || []).map((st) => {
+      const p = st.pts, a = p[0], b = p[1], y = p[p.length - 1], z = p[p.length - 2];
+      const ext = (u, v) => { const dx = u[0] - v[0], dz = u[1] - v[1], l = Math.hypot(dx, dz) || 1; return [u[0] + dx / l * 250, u[1] + dz / l * 250]; };
+      return { pts: [ext(a, b), ...p, ext(y, z)], w: st.w };
+    });
+    const clamp = (v) => Math.max(-HALF, Math.min(HALF, v));
+    const out = (x, z) => Math.max(Math.abs(x) - HALF, Math.abs(z) - HALF);
+    const hills = (x, z) => 6 + Math.sin(x * 0.013 + 1.7) * Math.cos(z * 0.011 - 0.4) * 9 + Math.sin(x * 0.031 - z * 0.027) * 3.5 + Math.sin(z * 0.05 + x * 0.004) * 1.5;
+    const riverAt = (x, z) => { let d = Infinity; for (const st of streams) d = Math.min(d, distToPolyline(x, z, st.pts) - st.w * 1.5); return d; };
+    this.farH = (x, z) => {
+      const o = out(x, z);
+      const edge = this.heightAt(clamp(x), clamp(z));
+      if (o <= 0.01) return edge - 0.35;
+      const t = Math.min(1, o / 110), s = t * t * (3 - 2 * t);
+      let h = edge + (hills(x, z) - 2) * s - 0.35 * (1 - s);
+      if (inWater(x)) h = Math.min(h, W.level - 1.2);
+      const rd = riverAt(x, z);
+      if (rd < 8) h = Math.min(h, edge - 1.2 + Math.max(0, rd) * 0.4);
+      return h;
+    };
+    const pos = [], col = [], idx = [];
+    const c = new THREE.Color();
+    for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) {
+      const x = -EXT + i * STEP, z = -EXT + j * STEP;
+      const h = this.farH(x, z);
+      pos.push(x, h, z);
+      // 低い所は田と畑（明るい緑と土色の区画）、丘は雑木と杉の森（暗い緑）
+      const forest = Math.sin(x * 0.021 + 2.1) * Math.cos(z * 0.017 - 1.2) * 0.5 + 0.5 + (R() - 0.5) * 0.3 + (h - 6) * 0.03;
+      if (forest > 0.55) c.setRGB(0.1 + R() * 0.03, 0.15 + R() * 0.04, 0.09);
+      else {
+        const f = ((Math.floor(x / 23) + Math.floor(z / 17)) & 3);
+        c.setRGB(...[[0.3, 0.38, 0.18], [0.36, 0.4, 0.2], [0.34, 0.3, 0.2], [0.26, 0.34, 0.16]][f]);
+      }
+      if (riverAt(x, z) < 6 || inWater(x)) c.setRGB(0.24, 0.25, 0.2);
+      col.push(c.r, c.g, c.b);
+      if (i < N && j < N) {
+        const x1 = x + STEP, z1 = z + STEP;
+        // 地図の中に隠れる区画は作らない
+        if (!(x >= -HALF && x1 <= HALF && z >= -HALF && z1 <= HALF)) {
+          const k = j * (N + 1) + i;
+          idx.push(k, k + N + 1, k + 1, k + 1, k + N + 1, k + N + 2);
+        }
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    const land = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true }));
+    this.scene.add(land);
+    this.farLand = land;
+    const okFar = (x, z) => out(x, z) > 6 && !inWater(x) && riverAt(x, z) > 10;
+    // 遠くの森：杉の円錐と、丸い雑木の樹冠（一つの形にまとめて並べる）
+    {
+      const parts = [];
+      const put = (geo, hex) => { const cc = new THREE.Color(hex); const n = geo.attributes.position.count; const a = new Float32Array(n * 3); for (let q = 0; q < n; q++) { a[q * 3] = cc.r; a[q * 3 + 1] = cc.g; a[q * 3 + 2] = cc.b; } geo.setAttribute('color', new THREE.BufferAttribute(a, 3)); parts.push(geo.index ? geo.toNonIndexed() : geo); };
+      const sugi = new THREE.ConeGeometry(2.2, 11, 6); sugi.translate(0, 7.5, 0); put(sugi, 0x1f3122);
+      const trunk = new THREE.CylinderGeometry(0.2, 0.3, 3, 4); trunk.translate(0, 1.5, 0); put(trunk, 0x2e2418);
+      const sugiG = mergeGeometries(parts);
+      parts.length = 0;
+      const crown = new THREE.IcosahedronGeometry(3, 0); crown.scale(1, 0.8, 1); crown.translate(0, 5.5, 0); put(crown, 0x2c3f24);
+      const trunk2 = new THREE.CylinderGeometry(0.25, 0.35, 4, 4); trunk2.translate(0, 2, 0); put(trunk2, 0x30261a);
+      const broadG = mergeGeometries(parts);
+      const NT = 1000;
+      const mats = new THREE.MeshLambertMaterial({ vertexColors: true });
+      const sm = new THREE.InstancedMesh(sugiG, mats, NT), bm = new THREE.InstancedMesh(broadG, mats, NT);
+      const d = new THREE.Object3D(); let ns = 0, nb = 0;
+      const tc = new THREE.Color();
+      for (let tries = 0; tries < NT * 6 && (ns < NT || nb < NT); tries++) {
+        const x = (R() * 2 - 1) * (EXT - 10), z = (R() * 2 - 1) * (EXT - 10);
+        if (!okFar(x, z)) continue;
+        const h = this.farH(x, z);
+        const forest = Math.sin(x * 0.021 + 2.1) * Math.cos(z * 0.017 - 1.2) * 0.5 + 0.5 + (h - 6) * 0.03;
+        if (forest < 0.5 + R() * 0.15) continue;
+        const sc = 0.8 + R() * 0.6;
+        d.position.set(x, h - 0.5, z); d.rotation.set(0, R() * 6, 0); d.scale.set(sc, sc * (0.85 + R() * 0.4), sc); d.updateMatrix();
+        tc.setScalar(0.8 + R() * 0.4);
+        if (R() < 0.6) { if (ns < NT) { sm.setMatrixAt(ns, d.matrix); sm.setColorAt(ns, tc); ns++; } }
+        else if (nb < NT) { bm.setMatrixAt(nb, d.matrix); bm.setColorAt(nb, tc); nb++; }
+      }
+      sm.count = ns; bm.count = nb;
+      this.scene.add(sm, bm);
+    }
+    // 村：茅葺きの家並み（寄棟の屋根）と納屋。炊事の煙が昇る
+    this.buildSmokeColumns();
+    const houses = [];
+    for (let v = 0, tries = 0; v < 3 && tries < 200; tries++) {
+      const a = R() * Math.PI * 2, dist = HALF + 40 + R() * 70;
+      const vx = Math.sin(a) * dist, vz = Math.cos(a) * dist;
+      if (Math.max(Math.abs(vx), Math.abs(vz)) > EXT - 30 || !okFar(vx, vz) || out(vx, vz) < 30) continue;
+      // 村同士は離す
+      if (houses.some((hh) => Math.hypot(hh[0] - vx, hh[1] - vz) < 90)) continue;
+      const n = 6 + Math.floor(R() * 6);
+      for (let k = 0; k < n; k++) {
+        const hx = vx + (R() - 0.5) * 50, hz = vz + (R() - 0.5) * 34;
+        if (!okFar(hx, hz)) continue;
+        houses.push([hx, hz, R() * Math.PI, 0.8 + R() * 0.5, v]);
+        if (R() < 0.45) this.addSmokeColumn(hx + (R() - 0.5) * 2, this.farH(hx, hz) + 6, hz + (R() - 0.5) * 2, { size: 1.6 });
+      }
+      v++;
+    }
+    if (houses.length) {
+      const wall = new THREE.BoxGeometry(7, 2.6, 5); wall.translate(0, 1.3, 0);
+      // 寄棟の茅葺き：急な四つの面と、低く張り出した軒
+      const roof = new THREE.ConeGeometry(5.6, 4.2, 4, 1); roof.rotateY(Math.PI / 4); roof.scale(1.18, 1, 0.86); roof.translate(0, 2.6 + 2.0, 0);
+      const wm = new THREE.InstancedMesh(wall, new THREE.MeshLambertMaterial({ color: 0x6e5a44 }), houses.length);
+      const rm = new THREE.InstancedMesh(roof, new THREE.MeshLambertMaterial({ map: thatchTex(), color: 0xa89878 }), houses.length);
+      const d = new THREE.Object3D();
+      houses.forEach(([x, z, r, s], i) => {
+        d.position.set(x, this.farH(x, z) - 0.2, z); d.rotation.set(0, r, 0); d.scale.setScalar(s); d.updateMatrix();
+        wm.setMatrixAt(i, d.matrix); rm.setMatrixAt(i, d.matrix);
+      });
+      this.scene.add(wm, rm);
+    }
+  }
+
+  // ---------------- 立ち昇る煙（村の炊事・陣の鍋） ----------------
+  // 位置だけを覚え、昇る・流れる・薄れるは描くときに計算する（毎コマの手間がない）
+  buildSmokeColumns() {
+    if (this.smokeCol) return;
+    const CAP = 48, PER = 16;
+    const pos = new Float32Array(CAP * PER * 3), seed = new Float32Array(CAP * PER * 2);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('seed', new THREE.BufferAttribute(seed, 2));
+    geo.setDrawRange(0, 0);
+    if (!this.puffTex) this.makePuffTex();
+    const mat = new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false,
+      uniforms: { map: { value: this.puffTex }, uTime: { value: 0 }, color: { value: new THREE.Color(0xc8c6c0) }, scale: { value: 420 }, wind: { value: new THREE.Vector2(WIND_STATE.dirX, WIND_STATE.dirZ) } },
+      vertexShader: `attribute vec2 seed; uniform float uTime, scale; uniform vec2 wind; varying float vA;
+        void main(){
+          // seed.x ＝ 位相、seed.y ＝ 大きさ
+          float t = fract(uTime * 0.045 + seed.x);
+          vec3 p = position;
+          p.y += t * 16.0 * seed.y;
+          p.xz += wind * t * t * 12.0 * seed.y + vec2(sin(t * 9.0 + seed.x * 30.0), cos(t * 7.0 + seed.x * 20.0)) * 0.4 * t;
+          vA = smoothstep(0.0, 0.08, t) * (1.0 - t) * (1.0 - t);
+          vec4 mv = modelViewMatrix * vec4(p, 1.0);
+          gl_PointSize = (0.8 + t * 5.0) * seed.y * scale / -mv.z;
+          gl_Position = projectionMatrix * mv;
+        }`,
+      fragmentShader: 'uniform sampler2D map; uniform vec3 color; varying float vA; void main(){ vec4 t = texture2D(map, gl_PointCoord); gl_FragColor = vec4(color, t.a * vA * 0.42); if (gl_FragColor.a < 0.004) discard; }',
+    });
+    const pts = new THREE.Points(geo, mat);
+    pts.frustumCulled = false;
+    this.scene.add(pts);
+    this.smokeCol = { pts, pos, seed, n: 0, CAP, PER };
+  }
+  // 煙の柱を足す（x, y, z は煙の出る所）。o.size で太さ
+  addSmokeColumn(x, y, z, o = {}) {
+    if (!this.smokeCol) this.buildSmokeColumns();
+    const S = this.smokeCol;
+    if (S.n >= S.CAP) return null;
+    const i0 = S.n * S.PER, ph = Math.random();
+    for (let k = 0; k < S.PER; k++) {
+      const i = i0 + k;
+      S.pos[i * 3] = x; S.pos[i * 3 + 1] = y; S.pos[i * 3 + 2] = z;
+      S.seed[i * 2] = ph + k / S.PER; S.seed[i * 2 + 1] = o.size || 1;
+    }
+    S.n++;
+    const g = S.pts.geometry;
+    g.attributes.position.needsUpdate = true; g.attributes.seed.needsUpdate = true;
+    g.setDrawRange(0, S.n * S.PER);
+    return S.n - 1;
+  }
+  // 煙の柱を消す（addSmokeColumn の返り値を渡す）
+  removeSmokeColumn(id) {
+    const S = this.smokeCol;
+    if (!S || id == null) return;
+    for (let k = 0; k < S.PER; k++) S.pos[(id * S.PER + k) * 3 + 1] = -9999;
+    S.pts.geometry.attributes.position.needsUpdate = true;
+  }
+
+  // 時間帯の見え方を一式で作る（戦の途中で変わるときは、しばらくかけて移ろう）
+  lookOf(key) {
+    const t = (key === 'day' && this.mood === 'morning') ? TIME.morning : TIME[key];
+    return {
+      sky: new THREE.Color(t.sky), fog: new THREE.Color(t.fog), sun: new THREE.Color(t.sun), sunI: t.sunI,
+      hemiSky: new THREE.Color(t.hemiSky), hemiGround: new THREE.Color(t.hemiGround), hemiI: t.hemiI,
+      sunDir: new THREE.Vector3(...t.sunPos).normalize(), top: new THREE.Color(t.top), glow: new THREE.Color(t.glow || 0xff9a50),
+      glowK: t.glowK, cover: t.cover, cloudDark: key === 'storm' ? 0.55 : 0.1, vis: t.vis, cloud: t.cloud,
+      // 山の地の色（霞は別に掛ける）：近い山は濃い杉の緑、遠いほど青い
+      mount: key === 'dusk' ? [0x2c2a2c, 0x3a3a44, 0x4a4c5a] : key === 'storm' ? [0x2a302e, 0x384040, 0x464e50] : [0x24332c, 0x33443e, 0x4a5a5e],
+    };
+  }
+  // 今の見え方を読み取る（ほかの戦が直に書き換えた値も拾う）
+  currentLook() {
+    const U = this.skyMat.uniforms;
+    return {
+      sky: this.scene.background.clone(), fog: this.scene.fog.color.clone(), sun: this.sun.color.clone(), sunI: this.sun.intensity,
+      hemiSky: this.hemi.color.clone(), hemiGround: this.hemi.groundColor.clone(), hemiI: this.baseHemi ?? this.hemi.intensity,
+      sunDir: this.sunOffset.clone().normalize(), top: U.top.value.clone(), glow: U.glow.value.clone(), glowK: U.glowK.value, cover: U.cover.value, cloudDark: U.cloudDark.value,
+      vis: this.look ? this.look.vis : 500, cloud: this.look ? this.look.cloud : 0.4,
+      mount: this.mountMats.map((m) => m.color.getHex()),
+    };
+  }
+  applyLook(L) {
+    this.look = L;
+    this.scene.background.copy(L.sky);
+    this.scene.fog.color.copy(L.fog);
+    this.sun.color.copy(L.sun);
+    this.sun.intensity = L.sunI;
+    this.hemi.color.copy(L.hemiSky);
+    this.hemi.groundColor.copy(L.hemiGround);
+    this.hemi.intensity = L.hemiI;
+    this.baseHemi = L.hemiI;
+    this.sunOffset.copy(L.sunDir).multiplyScalar(120);
+    const U = this.skyMat.uniforms;
+    U.top.value.copy(L.top); U.bottom.value.copy(L.fog);
+    U.sunDir.value.copy(L.sunDir); U.sunCol.value.copy(L.sun);
+    U.cover.value = L.cover; U.cloudDark.value = L.cloudDark;
+    U.glow.value.copy(L.glow); U.glowK.value = L.glowK;
+    this.mountMats.forEach((m, k) => m.color.set(L.mount[k]));
+  }
+
+  setTime(key) {
+    const prev = this.timeKey;
+    this.timeKey = key;
+    if (!this.scene.background || !this.scene.background.isColor) this.scene.background = new THREE.Color();
+    if (!this.sunOffset) this.sunOffset = new THREE.Vector3();
+    const to = this.lookOf(key);
+    // 戦の途中で夕暮れ・雨・雨上がりへ変わるときは、二十秒ほどかけて移ろう（朝や昼へ戻すときは、戦の側が直に値を触ることがあるのですぐ変える）
+    if (prev && prev !== key && key !== 'day' && (this.time || 0) > 10) {
+      this.fade = { from: this.currentLook(), to, t: 0, dur: key === 'storm' ? 12 : 24, env: 0 };
+    } else {
+      this.fade = null;
+      this.applyLook(to);
+      this.updateEnv();
+    }
+    for (const f of this.fires || []) if (f.light) f.light.intensity = key === 'dusk' || key === 'storm' ? 2.2 : 0;
+  }
+
+  // 見え方の移ろい
+  updateFade(dt) {
+    const F = this.fade;
+    if (!F) return;
+    F.t += dt;
+    const k = Math.min(1, F.t / F.dur), s = k * k * (3 - 2 * k);
+    const a = F.from, b = F.to;
+    const c = (p) => a[p].clone().lerp(b[p], s), n = (p) => a[p] + (b[p] - a[p]) * s;
+    const m = a.mount.map((h, i) => new THREE.Color(h).lerp(new THREE.Color(b.mount[i]), s).getHex());
+    this.applyLook({ sky: c('sky'), fog: c('fog'), sun: c('sun'), sunI: n('sunI'), hemiSky: c('hemiSky'), hemiGround: c('hemiGround'), hemiI: n('hemiI'),
+      sunDir: a.sunDir.clone().lerp(b.sunDir, s).normalize(), top: c('top'), glow: c('glow'), glowK: n('glowK'), cover: n('cover'), cloudDark: n('cloudDark'), vis: n('vis'), cloud: n('cloud'), mount: m });
+    // 映り込みは時々作り直す
+    F.env += dt;
+    if (F.env > 4 || k >= 1) { F.env = 0; this.updateEnv(); }
+    if (k >= 1) this.fade = null;
+  }
+
+  buildSky() {
+    // 空：地平から天頂への色、太陽と光の輪、ゆっくり流れる雲（雑音を重ねて作る）
+    this.skyMat = new THREE.ShaderMaterial({
+      side: THREE.BackSide, depthWrite: false, fog: false,
+      uniforms: {
+        top: { value: new THREE.Color(0x6a88a8) }, bottom: { value: new THREE.Color(0xa9b7bd) }, glow: { value: new THREE.Color(0xff9a50) }, glowK: { value: 0 }, flash: { value: 0 },
+        sunDir: { value: new THREE.Vector3(0.4, 0.7, 0.3) }, sunCol: { value: new THREE.Color(0xfff0d8) }, time: { value: 0 }, cover: { value: 0.4 }, cloudDark: { value: 0.1 },
+      },
+      vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+      fragmentShader: `
+        uniform vec3 top, bottom, glow, sunCol, sunDir; uniform float glowK, flash, time, cover, cloudDark; varying vec3 vP;
+        float h(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float n(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h(i), h(i+vec2(1,0)), f.x), mix(h(i+vec2(0,1)), h(i+vec2(1,1)), f.x), f.y); }
+        float fbm(vec2 p){ float v = 0.0, a = 0.5; for (int k = 0; k < 5; k++) { v += a * n(p); p *= 2.03; a *= 0.5; } return v; }
+        void main(){
+          vec3 d = normalize(vP);
+          float hgt = clamp(d.y * 1.5 + 0.04, 0.0, 1.0);
+          vec3 c = mix(bottom, top, pow(hgt, 0.8));
+          float sd = max(0.0, dot(d, normalize(sunDir)));
+          c += sunCol * (pow(sd, 8.0) * 0.18 + pow(sd, 64.0) * 0.35) * (1.0 - cover * 0.6);
+          c += sunCol * smoothstep(0.9993, 0.9997, sd) * 1.2 * (1.0 - cover);
+          // 朝焼け・夕焼け：日の沈む（昇る）方の地平ほど濃い
+          float toSun = max(0.0, dot(normalize(d.xz + 0.0001), normalize(sunDir.xz + 0.0001)));
+          c += glow * glowK * exp(-abs(d.y) * 7.0) * (0.25 + 0.75 * toSun * toSun);
+          c = mix(c, c * vec3(1.02, 0.97, 1.05), glowK * (1.0 - toSun) * smoothstep(0.0, 0.3, d.y));
+          // 雲：空の丸天井に投影した雑音
+          if (d.y > 0.0) {
+            vec2 uv = d.xz / (d.y + 0.12) * 1.3 + vec2(time * 0.006, time * 0.003);
+            float cl = fbm(uv * 1.4);
+            float dens = smoothstep(1.0 - cover - 0.1, 1.0 - cover + 0.25, cl);
+            float lit = 0.75 + 0.35 * fbm(uv * 1.4 + normalize(sunDir).xz * 0.08) - cloudDark;
+            vec3 ccol = mix(vec3(0.62, 0.64, 0.66), vec3(1.0, 0.98, 0.95), clamp(lit, 0.0, 1.0)) * mix(vec3(1.0), sunCol, 0.25);
+            float fade = smoothstep(0.0, 0.18, d.y);
+            c = mix(c, ccol * (0.55 + hgt * 0.55), dens * fade * 0.92);
+          }
+          c += vec3(0.8, 0.85, 1.0) * flash;
+          gl_FragColor = vec4(c, 1.0);
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
+        }`,
+    });
+    this.sky = new THREE.Mesh(new THREE.SphereGeometry(470, 32, 16), this.skyMat);
+    this.sky.renderOrder = -2;
+    this.scene.add(this.sky);
+    // 遠くの山並み：三重に重ね、遠いほど霞ませる。山肌には杉林の筋と雑木の斑、近い山の裾には棚田
+    const M = rng(this.def.seed || 5);
+    this.mountMats = [];
+    this.mountains = new THREE.Group();
+    this.mountU = { hazeCol: { value: new THREE.Color() }, sunDir: this.skyMat.uniforms.sunDir, sunCol: this.skyMat.uniforms.sunCol, mist: { value: 0 }, vis: { value: 500 }, rain: { value: 0 } };
+    [[330, 28, 1.0], [385, 50, 0.7], [440, 84, 0.45]].forEach(([rad, H, sharp], layer) => {
+      const N = 240, ROWS = 5, pos = [], uv = [], idx = [];
+      const ph = M() * 10, ph2 = M() * 10;
+      for (let i = 0; i <= N; i++) {
+        const a = (i / N) * Math.PI * 2;
+        const ridge = Math.abs(Math.sin(a * 5 + ph)) * 0.5 + Math.abs(Math.sin(a * 11 + ph2)) * 0.3 * sharp + Math.sin(a * 23 + ph) * 0.12 * sharp + Math.sin(a * 47 + ph2) * 0.04 + M() * 0.05;
+        const hh = H * (0.25 + ridge) - layer * 4;
+        for (let r = 0; r <= ROWS; r++) {
+          const f = r / ROWS, y = -12 + (hh + 12) * f;
+          pos.push(Math.sin(a) * rad, y, Math.cos(a) * rad);
+          uv.push(a * rad, y);
+          if (i < N && r < ROWS) { const k = i * (ROWS + 1) + r, k2 = k + ROWS + 1; idx.push(k, k2, k + 1, k + 1, k2, k2 + 1); }
+        }
+      }
+      const mg = new THREE.BufferGeometry();
+      mg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      mg.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      mg.setIndex(idx);
+      const mat = new THREE.ShaderMaterial({
+        fog: false, side: THREE.DoubleSide,
+        uniforms: { ...this.mountU, color: { value: new THREE.Color(0x33443e) }, haze: { value: 0.5 }, layer: { value: layer } },
+        vertexShader: 'varying vec2 vUv; varying vec3 vP; varying vec3 vW; void main(){ vUv = uv; vP = position; vW = (modelMatrix * vec4(position, 1.0)).xyz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+        fragmentShader: `
+          uniform vec3 color, hazeCol, sunDir, sunCol; uniform float haze, layer, mist, vis, rain; varying vec2 vUv; varying vec3 vP; varying vec3 vW;
+          float h(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+          float n(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h(i), h(i+vec2(1,0)), f.x), mix(h(i+vec2(0,1)), h(i+vec2(1,1)), f.x), f.y); }
+          void main(){
+            vec2 q = vUv;
+            // 杉林の筋：斜面を縦に走る濃い帯。雑木の斑は明るい
+            float streak = n(vec2(q.x * 0.09, q.y * 0.012 + q.x * 0.004));
+            float patchy = n(q * vec2(0.02, 0.05) + 3.1) * 0.6 + n(q * vec2(0.06, 0.12)) * 0.4;
+            vec3 c = color * mix(0.72, 1.18, patchy);
+            c *= mix(1.0, 0.7, smoothstep(0.55, 0.75, streak) * (1.0 - layer * 0.35));
+            // 日の当たる側の山は明るく、日を背にした山は影になる
+            vec3 d = normalize(vP);
+            float lit = clamp(dot(-d.xz, normalize(sunDir.xz + 0.0001)) * 0.5 + 0.5, 0.0, 1.0);
+            c *= mix(0.75, 1.25, lit) * mix(vec3(1.0), sunCol, 0.15);
+            // 近い山の裾の棚田：段ごとの細い明るい筋
+            if (layer < 0.5) {
+              float band = smoothstep(0.82, 0.95, fract(q.y * 0.28 + n(vec2(q.x * 0.01, 0.0)) * 2.0));
+              float mask = smoothstep(0.6, 0.72, n(vec2(q.x * 0.012, 7.0))) * (1.0 - smoothstep(-2.0, 8.0, q.y));
+              c = mix(c, c * 1.35 + vec3(0.02, 0.025, 0.0), band * mask);
+              c = mix(c, c * 1.2, mask * 0.35);
+            }
+            // 霞：遠いほど、低いほど（谷の靄）。日の方角は明るむ
+            // 霧の式と同じ量（カメラからの距離と高さの差）で霞ませる。手前の森や野より山が濃く見えることがないように
+            vec3 dv = vW - cameraPosition;
+            float hf = exp(-clamp(dv.y, -30.0, 120.0) * 0.024);
+            float fogK = 1.0 - exp(-length(dv) / max(20.0, vis) * 1.9 * hf);
+            float hz = clamp(max(fogK * 0.97, haze) + (1.0 - smoothstep(-12.0, 30.0, vP.y)) * (0.08 + mist * 0.3) + rain * 0.2, 0.0, 0.97);
+            float sI = pow(max(dot(d, normalize(sunDir)), 0.0), 6.0);
+            vec3 hc = hazeCol + sunCol * sI * 0.12;
+            gl_FragColor = vec4(mix(c, hc, hz), 1.0);
+            #include <tonemapping_fragment>
+            #include <colorspace_fragment>
+          }`,
+      });
+      // 戦の側から m.color で色を変えられるように
+      mat.color = mat.uniforms.color.value;
+      this.mountMats.push(mat);
+      const m = new THREE.Mesh(mg, mat);
+      m.renderOrder = -1 - layer * 0.1;
+      m.userData.rad = rad;
+      this.mountains.add(m);
+    });
+    this.scene.add(this.mountains);
+  }
+
+  // 空を小さく焼いて、映り込みの光にする（時間帯が変わるたびに作り直す）
+  updateEnv() {
+    if (!RENDERER) return;
+    if (!this.pmrem) this.pmrem = new THREE.PMREMGenerator(RENDERER);
+    const es = new THREE.Scene();
+    const sky = new THREE.Mesh(new THREE.SphereGeometry(10, 32, 16), this.skyMat);
+    es.add(sky);
+    // 地面の照り返し
+    const gnd = new THREE.Mesh(new THREE.CircleGeometry(9.9, 24), new THREE.MeshBasicMaterial({ color: new THREE.Color(this.hemi.groundColor).multiplyScalar(0.8) }));
+    gnd.rotation.x = -Math.PI / 2; gnd.position.y = -0.5; es.add(gnd);
+    if (this.envRT) this.envRT.dispose();
+    this.envRT = this.pmrem.fromScene(es, 0.02);
+    this.scene.environment = this.envRT.texture;
+    sky.geometry.dispose(); gnd.geometry.dispose(); gnd.material.dispose();
+  }
+
+  // 柔らかい丸い粒の絵
+  makePuffTex() {
+    const c = document.createElement('canvas'); c.width = c.height = 64;
+    const g = c.getContext('2d');
+    const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+    this.puffTex = new THREE.CanvasTexture(c);
+  }
+  // 土ぼこり・泥はね：柔らかい粒が広がりながら薄れる（一粒ごとに大きさと濃さを変える）
+  makePuffs(N, color, grow, alpha) {
+    const P = { pos: new Float32Array(N * 3), vel: new Float32Array(N * 3), life: new Float32Array(N), max: new Float32Array(N).fill(1), i: 0 };
+    for (let i = 0; i < N; i++) P.pos[i * 3 + 1] = -999;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(P.pos, 3));
+    geo.setAttribute('life', new THREE.BufferAttribute(P.life, 1));
+    geo.setAttribute('lmax', new THREE.BufferAttribute(P.max, 1));
+    if (!this.puffTex) this.makePuffTex();
+    const mat = new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false,
+      uniforms: { map: { value: this.puffTex }, color: { value: new THREE.Color(color) }, scale: { value: 420 } },
+      vertexShader: `attribute float life; attribute float lmax; varying float vA; uniform float scale; void main(){ float t = 1.0 - clamp(life / lmax, 0.0, 1.0); vA = life > 0.0 ? (1.0 - t) * smoothstep(0.0, 0.15, t) : 0.0; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_PointSize = (0.25 + t * ${grow.toFixed(2)}) * scale / -mv.z; gl_Position = projectionMatrix * mv; }`,
+      fragmentShader: `uniform sampler2D map; uniform vec3 color; varying float vA; void main(){ vec4 t = texture2D(map, gl_PointCoord); gl_FragColor = vec4(color, t.a * vA * ${alpha.toFixed(2)}); if (gl_FragColor.a < 0.004) discard; }`,
+    });
+    P.points = new THREE.Points(geo, mat);
+    P.points.frustumCulled = false;
+    this.scene.add(P.points);
+    return P;
+  }
+  buildDust() {
+    // 粒は小さな点に見えないよう大きく広げて薄く（色も日なたで黄ばみすぎない土色）
+    this.dustP = this.makePuffs(260, 0x857a66, 4.2, 0.2);
+    this.mudP = this.makePuffs(160, 0x3a2e22, 0.5, 0.75);
+    this.dustMat = this.dustP.points.material;
+    this.buildHaze();
+  }
+
+  // ---------------- 硝煙の名残 ----------------
+  // 鉄砲の煙（兵の側で出す一瞬の煙）の跡に、低くたなびく大きな薄い煙を残す。何挺も撃つと、しばらく前が霞む
+  buildHaze() {
+    this.haze = this.makeVeil(0xd6d4ce, 160, 404, 0.7);
+    // 土煙：騎馬や隊が駆けた後に、低く大きく残る土色の雲（乾いた日だけ）
+    this.dustVeil = this.makeVeil(0xa89878, 120, 505, 0.55);
+  }
+  // 低くたなびく大きな薄い雲（硝煙・土煙）。日の方を向くと透けて明るく、日を背にすると灰に沈む
+  // 生まれたては濃く色が強く、流れるうちに周りの霞の色へ褪せる
+  makeVeil(color, CAP, seed, flat) {
+    const quad = new THREE.PlaneGeometry(1, 1);
+    const geo = new THREE.InstancedBufferGeometry();
+    geo.index = quad.index; geo.setAttribute('position', quad.attributes.position); geo.setAttribute('uv', quad.attributes.uv);
+    const ctr = new Float32Array(CAP * 3), dat = new Float32Array(CAP * 3);
+    geo.setAttribute('ctr', new THREE.InstancedBufferAttribute(ctr, 3));
+    geo.setAttribute('dat', new THREE.InstancedBufferAttribute(dat, 3));
+    geo.instanceCount = 0;
+    if (!this.puffTex) this.makePuffTex();
+    // もこもこした煙の絵
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const g = c.getContext('2d');
+    const R = rng(seed);
+    for (let i = 0; i < 30; i++) {
+      const a = R() * 6.28, r = R() * 34, px = 64 + Math.cos(a) * r, py = 70 + Math.sin(a) * r * 0.6, rr = 16 + R() * 26;
+      const gr = g.createRadialGradient(px, py, 0, px, py, rr); gr.addColorStop(0, 'rgba(255,255,255,.3)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+    }
+    const tex = new THREE.CanvasTexture(c);
+    const mat = new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false,
+      uniforms: { map: { value: tex }, color: { value: new THREE.Color(color) }, fogC: { value: new THREE.Color(0xaaaaaa) }, sunDir: this.skyMat.uniforms.sunDir, sunCol: this.skyMat.uniforms.sunCol },
+      // dat.x ＝ 大きさ、dat.y ＝ 濃さ、dat.z ＝ 年（0 生まれたて〜1 消える）
+      vertexShader: `attribute vec3 ctr; attribute vec3 dat; uniform vec3 sunDir, sunCol, color, fogC; varying vec2 vUv; varying float vA; varying vec3 vC;
+        void main(){
+          vUv = uv;
+          vec4 mv = modelViewMatrix * vec4(ctr, 1.0);
+          mv.xy += position.xy * vec2(dat.x * 1.6, dat.x * ${flat.toFixed(2)});
+          // カメラのすぐ前では薄く（板が顔を横切らないように）
+          vA = dat.y * smoothstep(4.0, 16.0, -mv.z);
+          // 日の光：日の方を見ると光を通して明るく、日を背にすると陰の灰
+          vec3 vd = normalize(ctr - cameraPosition);
+          float fw = pow(max(dot(vd, normalize(sunDir)), 0.0), 3.0);
+          vec3 c = mix(color, fogC * 1.02, smoothstep(0.1, 0.9, dat.z) * 0.6);
+          vC = c * (0.82 + fw * 0.45) + sunCol * fw * 0.1;
+          gl_Position = projectionMatrix * mv;
+        }`,
+      fragmentShader: 'uniform sampler2D map; varying vec2 vUv; varying float vA; varying vec3 vC; void main(){ vec2 dd = (vUv - 0.5) * 2.0; float a = texture2D(map, vUv).a * vA * (1.0 - smoothstep(0.35, 1.0, length(dd))); if (a < 0.003) discard; gl_FragColor = vec4(vC, a); }',
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.frustumCulled = false;
+    mesh.renderOrder = 2;
+    this.scene.add(mesh);
+    return { mesh, ctr, dat, CAP, list: [], seen: new WeakSet(), scanT: 0, load: 0, k: 0 };
+  }
+  // 硝煙の名残を一つ置く（兵の側からも呼べる：world.gunSmoke(x, z)）
+  gunSmoke(x, z, tint) {
+    const H = this.haze;
+    if (!H) return;
+    if (H.list.length >= H.CAP) H.list.shift();
+    H.list.push({ x: x + (Math.random() - 0.5) * 2, z: z + (Math.random() - 0.5) * 2, t: 0, life: 32 + Math.random() * 22, s0: 4 + Math.random() * 2, s1: 13 + Math.random() * 8, a: 0.035 + Math.random() * 0.03 });
+    H.fresh = (H.fresh || 0) + 1;
+    if (tint) H.mesh.material.uniforms.color.value.set(tint);
+  }
+  // 土煙を一つ置く（騎馬ほど大きい）
+  dustCloud(x, z, big) {
+    const D = this.dustVeil;
+    if (!D) return;
+    if (D.list.length >= D.CAP) D.list.shift();
+    D.list.push({ x: x + (Math.random() - 0.5) * 1.5, z: z + (Math.random() - 0.5) * 1.5, t: 0, life: (big ? 9 : 6) + Math.random() * 6, s0: big ? 2.5 : 1.6, s1: (big ? 8 : 5) + Math.random() * 4, a: (big ? 0.1 : 0.06) + Math.random() * 0.04, rise: 0.15 + Math.random() * 0.2 });
+    D.fresh = (D.fresh || 0) + (big ? 0.4 : 0.15);
+  }
+  // 雲の群れを流して、描く数と位置を詰め直す
+  flowVeil(H, dt) {
+    const wx = WIND_STATE.dirX * 0.6 * WIND_STATE.gust, wz = WIND_STATE.dirZ * 0.6 * WIND_STATE.gust;
+    for (let i = H.list.length - 1; i >= 0; i--) {
+      const p = H.list[i];
+      p.t += dt;
+      if (p.t >= p.life) { H.list.splice(i, 1); continue; }
+      p.x += wx * dt; p.z += wz * dt;
+    }
+    let n = 0;
+    for (const p of H.list) {
+      const k = p.t / p.life, s = p.s0 + (p.s1 - p.s0) * Math.sqrt(k);
+      H.ctr[n * 3] = p.x; H.ctr[n * 3 + 1] = this.heightAt(p.x, p.z) + s * 0.22 + 0.4 + (p.rise || 0) * p.t; H.ctr[n * 3 + 2] = p.z;
+      H.dat[n * 3] = s; H.dat[n * 3 + 1] = p.a * Math.min(1, p.t * 0.6) * (1 - k) * (1 - k * 0.5); H.dat[n * 3 + 2] = k;
+      n++;
+    }
+    const g = H.mesh.geometry;
+    g.instanceCount = n;
+    H.mesh.visible = n > 0;
+    if (n) { g.attributes.ctr.needsUpdate = true; g.attributes.dat.needsUpdate = true; }
+    H.mesh.material.uniforms.fogC.value.copy(this.scene.fog.color);
+  }
+  updateHaze(dt, focus) {
+    const H = this.haze;
+    if (!H) return;
+    // 兵の側の煙（ふつうの重ね方の Sprite は硝煙だけ）を見つけて、名残を置く
+    H.scanT -= dt;
+    if (H.scanT <= 0) {
+      H.scanT = 0.25;
+      let load = 0;
+      for (const o of this.scene.children) {
+        if (!o.isSprite || o.material.blending !== THREE.NormalBlending) continue;
+        if (!H.seen.has(o)) { H.seen.add(o); if (Math.random() < 0.25) this.gunSmoke(o.position.x, o.position.z); }
+        const d = Math.hypot(o.position.x - focus.x, o.position.z - focus.z);
+        if (d < 80) load += o.material.opacity * (1 - d / 80);
+      }
+      H.load = load;
+    }
+    // 近くの煙が多いほど見通しが悪くなり、煙が消えてもしばらく残る
+    const target = Math.min(1, H.load / 22 + Math.min(0.5, (H.fresh || 0) * 0.004));
+    H.fresh = Math.max(0, (H.fresh || 0) - dt * 2);
+    H.k += (target - H.k) * Math.min(1, dt * (target > H.k ? 0.8 : 0.07));
+    this.flowVeil(H, dt);
+    // 戦塵：土煙が多く立つほど、戦場の空気が黄ばんで霞む
+    const D = this.dustVeil;
+    if (D) {
+      D.fresh = Math.max(0, (D.fresh || 0) - dt * 0.25);
+      const dT = Math.min(1, (D.fresh || 0) / 12);
+      D.k += (dT - D.k) * Math.min(1, dt * (dT > D.k ? 0.5 : 0.05));
+      this.flowVeil(D, dt);
+    }
+  }
+
+  // 乾いた地面なら土ぼこり、濡れていれば泥はね（歩いた所は踏み荒らされていく）
+  puff(x, z, n = 2) {
+    const wet = this.rainLevel > 0.4 || (this.wetness || 0) > 0.5;
+    this.stampWear(x, z, 1.1, wet ? 16 : 10);
+    const P = wet ? this.mudP : this.dustP;
+    const y = this.heightAt(x, z);
+    // 乾いた地面では、駆けた後に大きな土煙がしばらく残る（騎馬ほど多く）
+    if (!wet && Math.random() < (n >= 2 ? 0.3 : 0.05)) this.dustCloud(x, z, n >= 2);
+    for (let k = 0; k < n; k++) {
+      const i = P.i = (P.i + 1) % P.life.length;
+      P.pos[i * 3] = x + (Math.random() - 0.5) * 0.5; P.pos[i * 3 + 1] = y + 0.1; P.pos[i * 3 + 2] = z + (Math.random() - 0.5) * 0.5;
+      if (wet) { P.vel[i * 3] = (Math.random() - 0.5) * 1.6; P.vel[i * 3 + 1] = 1.2 + Math.random() * 1.2; P.vel[i * 3 + 2] = (Math.random() - 0.5) * 1.6; P.life[i] = P.max[i] = 0.35 + Math.random() * 0.2; }
+      else { P.vel[i * 3] = (Math.random() - 0.5) * 0.5 + 0.25; P.vel[i * 3 + 1] = 0.25 + Math.random() * 0.3; P.vel[i * 3 + 2] = (Math.random() - 0.5) * 0.5; P.life[i] = P.max[i] = 1.4 + Math.random() * 1.2; }
+    }
+  }
+  updatePuffs(P, dt, grav) {
+    for (let i = 0; i < P.life.length; i++) {
+      if (P.life[i] <= 0) continue;
+      P.life[i] -= dt;
+      if (P.life[i] <= 0) { P.pos[i * 3 + 1] = -999; continue; }
+      P.vel[i * 3 + 1] -= grav * dt;
+      for (let a = 0; a < 3; a++) { P.pos[i * 3 + a] += P.vel[i * 3 + a] * dt; if (!grav) P.vel[i * 3 + a] *= 1 - dt * 0.8; }
+    }
+    const g = P.points.geometry.attributes;
+    g.position.needsUpdate = true; g.life.needsUpdate = true; g.lmax.needsUpdate = true;
+  }
+
+  // 雨上がりの水たまり（道の上）
+  addPuddles(n = 26) {
+    const mat = new THREE.MeshPhongMaterial({ color: 0x28313a, shininess: 120, specular: 0xb8c4cc, transparent: true, opacity: 0.75, depthWrite: false });
+    const paths = this.def.paths || [];
+    const R = rng(77);
+    // 縁のいびつな水たまりを何通りか作る（丸い円板が並ばないように）
+    const shapes = [0, 1, 2, 3].map(() => {
+      const g = new THREE.CircleGeometry(1, 18); const P = g.attributes.position;
+      const f1 = 1 + Math.floor(R() * 3), f2 = 3 + Math.floor(R() * 3), p1 = R() * 6, p2 = R() * 6;
+      for (let k = 1; k < P.count; k++) { const x = P.getX(k), y = P.getY(k), a = Math.atan2(y, x); const m = 1 + Math.sin(a * f1 + p1) * 0.22 + Math.sin(a * f2 + p2) * 0.1; P.setXY(k, x * m, y * m); }
+      g.rotateX(-Math.PI / 2); return g;
+    });
+    for (let i = 0; i < n && paths.length; i++) {
+      const p = paths[Math.floor(R() * paths.length)];
+      const k = Math.floor(R() * (p.length - 1)), t = R();
+      const x = p[k][0] + (p[k + 1][0] - p[k][0]) * t + (R() - 0.5) * 3, z = p[k][1] + (p[k + 1][1] - p[k][1]) * t + (R() - 0.5) * 3;
+      const m = new THREE.Mesh(shapes[i % 4], mat);
+      m.position.set(x, this.heightAt(x, z) + 0.04, z);
+      m.scale.set(0.6 + R() * 1.4, 1, 0.4 + R() * 0.9);
+      m.rotation.y = R() * 3;
+      this.scene.add(m);
+    }
+  }
+
+  // 川辺の葦
+  buildReeds() {
+    const w = this.def.water;
+    const geo = new THREE.ConeGeometry(0.05, 1.6, 3); geo.translate(0, 0.8, 0);
+    const N = 700;
+    const mesh = new THREE.InstancedMesh(geo, sway(new THREE.MeshStandardMaterial({ color: 0x8a8a52, roughness: 0.9 }), 0.08, 0.3), N);
+    const d = new THREE.Object3D();
+    const R = rng(55);
+    for (let i = 0; i < N; i++) {
+      // こちら岸と向こう岸の両方
+      const far = w.x2 && i % 3 === 0;
+      const x = far ? w.x2 + 1 + R() * 6 : w.x - 1 - R() * 7, z = (R() * 2 - 1) * 175;
+      d.position.set(x, this.heightAt(x, z) - 0.1, z);
+      d.rotation.set((R() - 0.5) * 0.3, R() * 6, (R() - 0.5) * 0.3);
+      d.scale.setScalar(0.7 + R() * 0.8);
+      d.updateMatrix(); mesh.setMatrixAt(i, d.matrix);
+    }
+    this.scene.add(mesh);
+  }
+
+  // 遠景の軍勢（軽い作りの兵を一度に描く。兵力の数には入れない）
+  // o：{ x, z, w, d, count, facing, armor, flagTex か flag（家紋の鍵）, seed, kind, mon, tack, people }
+  //   kind は並び（'mixed'・'spear'・'gun'・'bow'・'cavalry'・'honjin'）。people を渡すと、その場所に一人ずつ置く
+  //   people：[{ x, z, facing, k: 'spear'|'gun'|'bow'|'samurai'|'banner'|'rider'|'seated', flag, helm }]（世界の座標）
+  // 返す物（THREE.Group）で、戦の側から隊を動かせる：
+  //   army.advance(dist, secs, { charge })  前へ dist m を secs 秒で（charge で槍を下ろす）
+  //   army.retreat(dist, secs)              背を向けて退き、着いたら向き直る
+  //   army.rout({ hideAfter })              崩れて散る（ばらばらに逃げ、何人かは倒れる。hideAfter 秒で消す。既定 40）
+  //   army.halt()・army.reform()            止まる・元の並びに戻す
+  //   army.follow(fn, { gap })              fn() が返す { x, z, facing } の後ろへ付いて歩く（null で止まる）
+  addDistantArmy(o) {
+    const R = rng(o.seed || 9);
+    if (!this.hgtTex) {
+      const t = new THREE.DataTexture(this.grid, SEG + 1, SEG + 1, THREE.RedFormat, THREE.FloatType);
+      t.needsUpdate = true;
+      this.hgtTex = t;
+    }
+    const facing = o.facing || 0;
+    let L;
+    if (o.people) {
+      const KD = { spear: 0, gun: 1, bow: 2, samurai: 3, banner: 4, rider: 5, seated: 6 };
+      L = { list: o.people.map((p) => ({ wx: p.x, wz: p.z, yawW: p.facing ?? facing, k: KD[p.k] ?? (p.k | 0), helm: p.helm ?? (KD[p.k] >= 3 ? 1 : 0), ex: p.ex ?? (p.k === 'spear' ? 1.2 : 0), flag: p.flag ?? (p.k === 'banner' || p.k === 'seated' ? 0 : 1), yaw: 0 })) };
+    } else L = armyLayout(o, R);
+    const S = L.list, N = S.length;
+    const near = o.near ?? N <= 60;
+    const armor = o.armor || 0x2b3140;
+    const flagTex = o.flagTex || flagTexture(o.flag || o.mon || 'tokugawa');
+    const U = {
+      uAT: WIND, uGust: GUST, uIdle: ARMY_IDLE, uMarch: { value: 0 }, uCharge: { value: 0 }, uTurn: { value: 0 }, uRout: { value: 0 }, uRoutT: { value: 0 },
+      uHgt: { value: this.hgtTex }, uHP: { value: new THREE.Vector3(HALF, this.step, SEG) },
+    };
+    const body = new THREE.InstancedMesh(soldierGeo(armor, near), armyShader(new THREE.MeshLambertMaterial({ vertexColors: true }), U), N);
+    if (!SASHI_GEO) { SASHI_GEO = clothGeo(0.34, 0.62, 3, 1, 0, 2.62, -0.17, 11); BANNER_GEO = clothGeo(0.72, 2.6, 3, 6, 0.3, 5.2, 0.14, 12); }
+    const flagMat = armyShader(new THREE.MeshLambertMaterial({ map: flagTex, side: THREE.DoubleSide }), U);
+    const flags = new THREE.InstancedMesh(SASHI_GEO, flagMat, N);
+    const info = new Float32Array(N * 4), info2 = new Float32Array(N * 2);
+    const d = new THREE.Object3D(), col = new THREE.Color(), cf = Math.cos(facing), sf = Math.sin(facing);
+    const riders = [], bearers = [];
+    let sx = 0, sz = 0;
+    S.forEach((s, i) => {
+      let x, z, yaw;
+      if (s.wx !== undefined) { x = s.wx; z = s.wz; yaw = s.yawW; } else {
+        x = o.x + s.lx * cf + s.lz * sf; z = o.z - s.lx * sf + s.lz * cf;
+        yaw = facing + s.yaw + (R() - 0.5) * 0.24;
+      }
+      sx += x; sz += z;
+      // 高さは形の側で地面から読み直す（ここの高さは画面の外かどうかの判断用）
+      d.position.set(x, this.heightAt(x, z), z);
+      d.rotation.set(0, yaw, 0);
+      d.scale.set(0.93 + R() * 0.14, 0.9 + R() * 0.18, 0.93 + R() * 0.14);
+      d.updateMatrix();
+      body.setMatrixAt(i, d.matrix); flags.setMatrixAt(i, d.matrix);
+      // 一人ずつ少し色が違う（使い込んだ具足）
+      const v = 0.82 + R() * 0.3;
+      col.setRGB(v * (0.97 + R() * 0.06), v, v * (0.95 + R() * 0.06)); body.setColorAt(i, col);
+      info.set([R(), s.k, s.helm, s.ex], i * 4); info2.set([s.flag, R()], i * 2);
+      if (s.k === 5) riders.push(i);
+      if (s.k === 4) bearers.push(i);
+    });
+    const setInfo = (mesh, idx) => {
+      const a = new Float32Array(idx.length * 4), b = new Float32Array(idx.length * 2);
+      idx.forEach((j, n) => { a.set(info.subarray(j * 4, j * 4 + 4), n * 4); b.set(info2.subarray(j * 2, j * 2 + 2), n * 2); });
+      mesh.geometry = mesh.geometry.clone();
+      mesh.geometry.setAttribute('aInfo', new THREE.InstancedBufferAttribute(a, 4));
+      mesh.geometry.setAttribute('aInfo2', new THREE.InstancedBufferAttribute(b, 2));
+    };
+    const all = S.map((_, i) => i);
+    setInfo(body, all); setInfo(flags, all);
+    const grp = new THREE.Group();
+    grp.add(body, flags);
+    const m4 = new THREE.Matrix4();
+    const copyTo = (mesh, idx) => { idx.forEach((j, n) => { body.getMatrixAt(j, m4); mesh.setMatrixAt(n, m4); }); setInfo(mesh, idx); };
+    // 幟（旗持ちの竿から垂れる）
+    let banners = null;
+    if (bearers.length) {
+      banners = new THREE.InstancedMesh(BANNER_GEO, armyShader(new THREE.MeshLambertMaterial({ map: flagTex, side: THREE.DoubleSide }), U), bearers.length);
+      copyTo(banners, bearers); grp.add(banners);
+    }
+    // 馬
+    let horses = null;
+    if (riders.length) {
+      horses = new THREE.InstancedMesh(horseGeo(), armyShader(new THREE.MeshLambertMaterial({ vertexColors: true }), U), riders.length);
+      copyTo(horses, riders);
+      const HC = [0x3a2a1e, 0x4e3624, 0x2a221c, 0x5e4430, 0x6a5040, 0x1e1a18];
+      riders.forEach((_, n) => { col.set(HC[Math.floor(R() * HC.length)]).multiplyScalar(0.9 + R() * 0.2); horses.setColorAt(n, col); });
+      grp.add(horses);
+    }
+    // 本陣：陣幕と馬印
+    if (o.kind === 'honjin' && o._maku) this.honjinDressing(grp, o, facing);
+    this.scene.add(grp);
+    const cx = o.people ? sx / N : o.x, cz = o.people ? sz / N : o.z;
+    const A = { mesh: grp, x0: 0, U, body, flags, n: N, nImp: L.nImp || N, cx, cz, facing, face0: facing, off: new THREE.Vector3(), tw: null, rout: 0, followFn: null };
+    // 遠くほど軽く：カメラから離れた隊は兵を間引き（旗と騎馬は残す）、背の指物をやめる
+    const cw = new THREE.Vector3();
+    const lod = (cam) => {
+      cw.set(A.cx + A.off.x, 0, A.cz + A.off.z).applyMatrix4(grp.matrixWorld);
+      const dd = Math.hypot(cam.position.x - cw.x, cam.position.z - cw.z);
+      // 霧の奥（見通しの一倍半より先）はほとんど見えないので描かない
+      const vis = this.vis || 230, gone = dd > vis * 1.5 + 30;
+      const near0 = Math.min(110, vis * 0.6);
+      const keep = dd < near0 ? 1 : Math.max(0.4, 1 - (dd - near0) / 260);
+      return { n: gone ? 0 : Math.max(A.nImp, Math.ceil(N * keep)), flags: !gone && dd < Math.min(190, vis), gone };
+    };
+    body.onBeforeRender = (r, sc, cam) => { body.count = lod(cam).n; };
+    flags.onBeforeRender = (r, sc, cam) => { const l = lod(cam); flags.count = l.flags ? l.n : 0; };
+    const lodAll = (mesh) => { const n0 = mesh.count; mesh.onBeforeRender = (r, sc, cam) => { mesh.count = lod(cam).gone ? 0 : n0; }; };
+    if (banners) lodAll(banners);
+    if (horses) lodAll(horses);
+    // 逃げる兵は隊の外へ出るので、画面の外かどうかの判断をやめる
+    for (const c of grp.children) if (c.isInstancedMesh) c.computeBoundingSphere();
+    const ctl = (v) => { for (const c of grp.children) c.position.copy(A.off); return v; };
+    grp.advance = (dist, secs, opt = {}) => {
+      const fx = Math.sin(A.face0), fz = Math.cos(A.face0);
+      A.tw = { from: A.off.clone(), to: A.off.clone().add(new THREE.Vector3(fx * dist, 0, fz * dist)), t: 0, secs: secs || Math.abs(dist) / (opt.charge ? 3 : 1.3), charge: !!opt.charge, back: dist < 0 && opt.turn !== false };
+      return grp;
+    };
+    grp.retreat = (dist, secs) => grp.advance(-Math.abs(dist), secs || Math.abs(dist) / 1.3);
+    grp.halt = () => { A.tw = null; return grp; };
+    grp.rout = (opt = {}) => {
+      if (A.rout) return grp;
+      A.rout = 1; A.routHide = opt.hideAfter ?? 40; A.tw = null;
+      U.uRout.value = 1; U.uRoutT.value = 0;
+      for (const c of grp.children) c.frustumCulled = false;
+      return grp;
+    };
+    grp.reform = () => {
+      A.rout = 0; A.tw = null; A.off.set(0, 0, 0); ctl();
+      U.uRout.value = 0; U.uRoutT.value = 0; U.uMarch.value = 0; U.uCharge.value = 0; U.uTurn.value = 0;
+      for (const c of grp.children) { c.visible = true; c.frustumCulled = true; }
+      return grp;
+    };
+    grp.follow = (fn, opt = {}) => { A.followFn = fn; A.gap = opt.gap ?? A.gap ?? 0; return grp; };
+    grp.army = A;
+    // 本物の兵に置き換える時に使う：家紋・並び・人ごとの種類（0 槍 1 鉄砲 2 弓 3 侍 4 旗持ち 5 騎馬 6 床几）
+    A.mon = o.mon || o.flag || null; A.armor = armor; A.kind = o.kind || (o.people ? 'people' : 'mixed'); A.people = !!o.people;
+    A.kinds = S.map((s) => s.k); A.taken = new Uint8Array(N); A.took = 0;
+    // (x, z) に近い、まだ置き換えていない兵を n 人まで選んで隠し、その場所・向き・種類を返す（r m より遠い者は選ばない）
+    // 隠した兵は、大きさを 0 にするだけ（場所は残すので、隊の広がりの計算は変わらない）
+    const tq = new THREE.Quaternion(), tp = new THREE.Vector3(), ts = new THREE.Vector3(), z3 = new THREE.Vector3(0, 0, 0);
+    grp.take = (x, z, n, r = 1e9, pick = null) => {
+      grp.updateMatrixWorld(true);
+      const cand = [];
+      for (let i = 0; i < N; i++) {
+        if (A.taken[i]) continue;
+        body.getMatrixAt(i, m4); tp.setFromMatrixPosition(m4).add(A.off); grp.localToWorld(tp);
+        const d = Math.hypot(tp.x - x, tp.z - z);
+        if (d < r && (!pick || pick(A.kinds[i]))) cand.push({ i, d, x: tp.x, z: tp.z, yaw: Math.atan2(m4.elements[8], m4.elements[10]) + grp.rotation.y + (A.tw && A.tw.back ? Math.PI : 0) });
+      }
+      cand.sort((a, b) => a.d - b.d);
+      const out = cand.slice(0, n);
+      const hide = (mesh, j) => { mesh.getMatrixAt(j, m4); m4.decompose(tp, tq, ts); m4.compose(tp, tq, z3); mesh.setMatrixAt(j, m4); mesh.instanceMatrix.needsUpdate = true; };
+      for (const c of out) {
+        A.taken[c.i] = 1; A.took++;
+        hide(body, c.i); hide(flags, c.i);
+        if (banners) { const j = bearers.indexOf(c.i); if (j >= 0) hide(banners, j); }
+        if (horses) { const j = riders.indexOf(c.i); if (j >= 0) hide(horses, j); }
+        c.k = A.kinds[c.i];
+      }
+      return out;
+    };
+    A.tick = (dt) => {
+      let moving = 0, charge = 0, turn = 0;
+      if (A.rout) {
+        U.uRoutT.value += dt;
+        if (A.routHide && U.uRoutT.value > A.routHide) for (const c of grp.children) c.visible = false;
+      } else if (A.tw) {
+        const T = A.tw; T.t += dt;
+        const k = Math.min(1, T.t / T.secs), e = k * k * (3 - 2 * k);
+        A.off.lerpVectors(T.from, T.to, e); ctl();
+        moving = 1; charge = T.charge ? 1 : 0; turn = T.back ? 1 : 0;
+        if (k >= 1) A.tw = null;
+      } else if (A.followFn) {
+        const t = A.followFn();
+        if (t) {
+          // 後ろへ付く：隊の真ん中を、相手の後ろ gap m に置く。向きもゆっくり合わせる
+          const dh = Math.atan2(Math.sin(t.facing - A.facing), Math.cos(t.facing - A.facing));
+          const tx = t.x - Math.sin(t.facing) * A.gap, tz = t.z - Math.cos(t.facing) * A.gap;
+          const px = grp.position.x + A.cx, pz = grp.position.z + A.cz;
+          const dx = tx - px, dz = tz - pz, dl = Math.hypot(dx, dz);
+          const step = Math.min(dl, dt * 2.6);
+          if (dl > 0.6) { grp.position.x += dx / dl * step; grp.position.z += dz / dl * step; A.x0 = grp.position.x; moving = 1; }
+          if (Math.abs(dh) > 0.05) {
+            const r = Math.sign(dh) * Math.min(Math.abs(dh), dt * 0.5);
+            A.facing += r; grp.rotation.y += r;
+            // 回った分だけ、隊の真ん中がずれないように置き直す
+            const c = Math.cos(r), s = Math.sin(r), qx = A.cx, qz = A.cz;
+            A.cx = qx * c + qz * s; A.cz = -qx * s + qz * c;
+            grp.position.x = px - A.cx; grp.position.z = pz - A.cz; A.x0 = grp.position.x;
+            moving = 1;
+          }
+        }
+      }
+      // 歩き出し・止まりはなめらかに
+      U.uMarch.value += (moving - U.uMarch.value) * Math.min(1, dt * 2.5);
+      U.uCharge.value += (charge - U.uCharge.value) * Math.min(1, dt * 1.5);
+      U.uTurn.value += (turn - U.uTurn.value) * Math.min(1, dt * 1.8);
+    };
+    this.armies = this.armies || [];
+    this.armies.push(A);
+    return grp;
+  }
+
+  // 本陣の飾り：陣幕（家紋入り）と、大将の後ろに立つ馬印（金の扇）
+  honjinDressing(grp, o, facing) {
+    const M = o._maku, cf = Math.cos(facing), sf = Math.sin(facing);
+    const W = (lx, lz) => [o.x + lx * cf + lz * sf, o.z - lx * sf + lz * cf];
+    const cloths = [], wood = [];
+    const hw = M.w / 2, hd = M.d / 2, gap = 3;
+    const sides = [[-hw, -hd, hw, -hd], [-hw, -hd, -hw, hd], [hw, -hd, hw, hd], [-hw, hd, -gap, hd], [gap, hd, hw, hd]];
+    for (const [ax, az, bx, bz] of sides) {
+      const len = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.round(len / 3));
+      for (let i = 0; i < n; i++) {
+        const t0 = i / n, t1 = (i + 1) / n;
+        const [x0, z0] = W(ax + (bx - ax) * t0, az + M.z + (bz - az) * t0), [x1, z1] = W(ax + (bx - ax) * t1, az + M.z + (bz - az) * t1);
+        const y0 = this.heightAt(x0, z0), y1 = this.heightAt(x1, z1);
+        // 柱の間の布（少したるむ）
+        const g = new THREE.PlaneGeometry(1, 1.5, 4, 1);
+        const P = g.attributes.position, UV = g.attributes.uv;
+        for (let k = 0; k < P.count; k++) {
+          const u = P.getX(k) + 0.5, v = P.getY(k);
+          const x = x0 + (x1 - x0) * u, z = z0 + (z1 - z0) * u, y = y0 + (y1 - y0) * u + 1.2 + v - Math.sin(u * Math.PI) * 0.08 * (v + 0.75);
+          P.setXYZ(k, x, y, z); UV.setX(k, (i + u) * len / n / 4);
+        }
+        g.computeVertexNormals(); cloths.push(g);
+        const p = new THREE.CylinderGeometry(0.05, 0.05, 2.2, 4); p.translate(x0, y0 + 1.1, z0); armyPart(wood, p, 0x3a2c1c, 0);
+      }
+    }
+    const tex = jinmakuTexture(o.mon).clone(); tex.needsUpdate = true; tex.wrapS = THREE.RepeatWrapping;
+    const maku = new THREE.Mesh(mergeGeometries(cloths), new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide }));
+    // 馬印：大将の後ろに高く立てる金の扇
+    const [ux, uz] = W(0, M.z - hd - 0.8), uy = this.heightAt(ux, uz);
+    const pole = new THREE.CylinderGeometry(0.05, 0.06, 7, 5); pole.translate(ux, uy + 3.5, uz); armyPart(wood, pole, 0x2a2018, 0);
+    const fan = new THREE.CircleGeometry(0.9, 10, 0, Math.PI); fan.rotateY(facing); fan.translate(ux, uy + 6.6, uz); armyPart(wood, fan, 0xc9a040, 0);
+    armyPart(wood, new THREE.CircleGeometry(0.9, 10, 0, Math.PI).rotateY(facing + Math.PI).translate(ux, uy + 6.6, uz), 0xb89030, 0);
+    const wm = new THREE.Mesh(mergeGeometries(wood), new THREE.MeshLambertMaterial({ vertexColors: true }));
+    grp.add(maku, wm);
+  }
+
+  // 戦う隊の後ろに、同じ旗・同じ並びの軽い兵を続けて置く（戦う兵と遠景の境目を消す）
+  // o：{ x, z, facing, flag（家紋の鍵）か flagTex, armor, kind, w, depth, count, gap, seed }
+  //   (x, z) は戦う隊の真ん中、facing はその向き。軽い兵はその後ろ gap m（既定 5）から depth m の奥行きで並ぶ
+  // 返す物は addDistantArmy と同じ（advance・rout・follow が使える）。
+  //   隊に付いて歩かせるには：b.follow(() => g.count ? { ...centerOf(g), facing: g.facing } : null)
+  addBacking(o) {
+    const w = o.w || 16, depth = o.depth || 10, gap = o.gap ?? 5, f = o.facing || 0;
+    const back = gap + depth / 2;
+    const grp = this.addDistantArmy({
+      x: 0, z: 0, w, d: depth, count: o.count || Math.round(w * depth * 0.8), facing: f, armor: o.armor, flagTex: o.flagTex, flag: o.flag, seed: o.seed || 77, kind: o.kind || 'spear',
+    });
+    grp.position.set(o.x - Math.sin(f) * back, 0, o.z - Math.cos(f) * back);
+    grp.army.x0 = grp.position.x;
+    grp.army.gap = back;
+    return grp;
+  }
+
+  // 軽い大軍の合戦：二つの軽い大軍が一本の前線で向き合い、前の列どうしで槍を叩き合い、押し合う（兵力の数には入れない）
+  // o：{ x, z, facing, w, gap, gap0, closeSpeed, seed, A, B, play, smoke, link, killRate, maxDrift, noRout, noWake, nearHide }
+  //   (x, z) は前線の真ん中、facing は A の向き（B はその逆を向く）、w は前線の幅、gap は前の列どうしの間（既定 3.4m）
+  //   A・B：{ flag か flagTex, armor, count, guns（二列目が鉄砲）, bows（後ろから矢）, flagRate }
+  //          team（0 味方・1 敵）・faction（兵の家）を渡すと本物の兵に替えられる。hidden で描かない（柵の内の本物の兵が受ける側など）
+  //   gap0：はじめの間（0 ならはじめから組み合っている。go() で寄せ合う）
+  //   play(音, 位置, 大きさ)・smoke(x, y, z, fx, fz)：戦の側の音と硝煙（rt.army.play・rt.army.smoke）
+  //   link()：本物の兵の前線の場所 { x, z } を返す（その近くの前線は、本物の押し引きに合わせて動く）
+  // 返す物（C）：
+  //   C.go()                      寄せ合って組み合う
+  //   C.push(side, k)             side（'A'|'B'）の側へ押す力を足す（k は 0〜1。0 で戻す）
+  //   C.shake(side, v)            side の士気を v 下げる（寝返り・横槍など）
+  //   C.rout(side, { from, hideAfter, minFight })   side が崩れて逃げる（from：-1 左の端から・1 右の端から・0 ばらばら。minFight 秒は組み合ってから待つ）
+  //   C.cavalry(side, { from, count, flag, armor, delay })   side の騎馬の塊が、相手の横（from の端）へ突っ込む
+  //   C.volley(side)・C.arrows(side)   鉄砲の一斉射撃（煙）・矢の雨
+  //   C.take(side, x, z, n, r)    (x, z) に近い兵を n 人隠し、その場所・向き・種類を返す（本物の兵に置き換える時に。addDistantArmy の take と同じ形）
+  //   C.stat()                    { phase, A: 生きている数, B, mA: 士気, mB, lostA, lostB }
+  addClash(o) {
+    const R = rng(o.seed || 5);
+    if (!this.hgtTex) {
+      const t = new THREE.DataTexture(this.grid, SEG + 1, SEG + 1, THREE.RedFormat, THREE.FloatType);
+      t.needsUpdate = true;
+      this.hgtTex = t;
+    }
+    const F = o.facing || 0, cf = Math.cos(F), sf = Math.sin(F);
+    const W = o.w || 60, gap = o.gap ?? 3.4;
+    const nb = Math.max(1, Math.min(CLASH_NB, Math.round(W / (o.bw || 6))));
+    const bwr = W / nb, cols = Math.max(2, Math.round(bwr / 0.95));
+    const toW = (lx, lz) => [o.x + lx * cf + lz * sf, o.z - lx * sf + lz * cf];
+    const C = { o, nb, cols, t: 0, phase: o.gap0 ? 'wait' : 'fight', app: o.gap0 ? -o.gap0 / 2 : 0, drift: 0, bias: 0, fx: { dust: 0, snd: 1, shout: 4, gun: 5, bow: 7 }, cav: [], later: [], x: o.x, z: o.z, facing: F };
+    C.blocks = Array.from({ length: nb }, (_, j) => ({ j, lx: -W / 2 + (j + 0.5) * bwr, f: 0, ph: R() * 6.3, fight: o.gap0 ? 0 : 1, hide: 0 }));
+    if (!SASHI_GEO) { SASHI_GEO = clothGeo(0.34, 0.62, 3, 1, 0, 2.62, -0.17, 11); BANNER_GEO = clothGeo(0.72, 2.6, 3, 6, 0.3, 5.2, 0.14, 12); }
+    const grp = new THREE.Group();
+    const m4 = new THREE.Matrix4(), q4 = new THREE.Quaternion(), p3 = new THREE.Vector3(), s3 = new THREE.Vector3(1, 1, 1), z3 = new THREE.Vector3(0, 0, 0), yAx = new THREE.Vector3(0, 1, 0);
+    const mkAttr = (geo, n) => {
+      const g = geo.clone();
+      g.setAttribute('aInfo', new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4));
+      g.setAttribute('aInfo2', new THREE.InstancedBufferAttribute(new Float32Array(n * 2), 2));
+      g.setAttribute('aClash', new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4));
+      return g;
+    };
+    const setOne = (mesh, i, s, dead) => {
+      const g = mesh.geometry;
+      g.attributes.aInfo.array.set([s.sd, s.k, s.helm, s.ex], i * 4);
+      g.attributes.aInfo2.array.set([dead ? 0 : s.flag, dead ? R() : s.r2], i * 2);
+      g.attributes.aClash.array.set([s.j, s.slot, s.row, dead ? 1 : 0], i * 4);
+    };
+    const place = (mesh, i, x, z, yaw, sc) => {
+      p3.set(x, this.heightAt(x, z), z); q4.setFromAxisAngle(yAx, yaw);
+      m4.compose(p3, q4, sc || s3); mesh.setMatrixAt(i, m4);
+    };
+    // 片方の側を作る
+    const side = (key, sgn) => {
+      const P = o[key] || {};
+      const armor = P.armor || 0x2b3140;
+      const flagTex = P.flagTex || flagTexture(P.flag || 'tokugawa');
+      const rows = Math.max(3, Math.round((P.count || nb * cols * 8) / nb / cols)), per = rows * cols;
+      const U = {
+        uAT: WIND, uGust: GUST, uIdle: typeof ARMY_IDLE !== 'undefined' ? ARMY_IDLE : { value: 0 }, uTurn: { value: 0 }, uRout: { value: 0 }, uRoutT: { value: 0 },
+        uHgt: { value: this.hgtTex }, uHP: { value: new THREE.Vector3(HALF, this.step, SEG) },
+        uBlk: { value: Array.from({ length: CLASH_NB }, () => new THREE.Vector4()) }, uBlk2: { value: Array.from({ length: CLASH_NB }, () => new THREE.Vector4(0, 0, cols, 0)) },
+        uSide: { value: sgn }, uApp: { value: C.app }, uAppM: { value: 0 }, uAppC: { value: 0 }, uNearHide: { value: o.nearHide ?? 14 },
+      };
+      const S = { key, sgn, P, U, rows, per, n0: per * nb, alive: per * nb, lost: 0, mod: 0, m: 100, routed: false, blk: [], slots: [], near: [], far: [], all: [] };
+      for (let j = 0; j < nb; j++) {
+        const b = C.blocks[j];
+        const perm = Array.from({ length: cols }, (_, c) => c);
+        for (let i = cols - 1; i > 0; i--) { const q = Math.floor(R() * (i + 1)); [perm[i], perm[q]] = [perm[q], perm[i]]; }
+        const sl = [];
+        for (let r = 0; r < rows; r++) for (let c = 0; c < cols && sl.length < per; c++) {
+          const last = r === rows - 1;
+          let k = 0;
+          if (last && c % 4 === 1) k = 4;
+          else if (P.guns && r === 1) k = 1;
+          else if (P.bows && r === rows - 2) k = 2;
+          else if (R() < 0.12) k = 3;
+          const lx = b.lx + (c + 0.5 - cols / 2) * (bwr / cols) + (R() - 0.5) * 0.3;
+          const lz = -sgn * (gap / 2 + r * CLASH_ROW + (R() - 0.5) * 0.35);
+          const s = { j, row: r, slot: r * cols + perm[c], lx, lz, yaw: F + (sgn > 0 ? 0 : Math.PI) + (R() - 0.5) * 0.3, k, sd: R(), r2: R(),
+            helm: k === 3 ? 1 : R() < 0.08 ? 1 : 0, ex: k === 0 ? 1.25 + R() * 0.3 : k === 1 && r === 1 ? 1 : 0, flag: k === 4 ? 0 : R() < (P.flagRate ?? 0.8) ? 1 : 0, sc: [0.93 + R() * 0.14, 0.9 + R() * 0.18, 0.93 + R() * 0.14] };
+          sl.push(s);
+          (r < 3 ? S.near : S.far).push(s);
+        }
+        sl.sort((a, c) => a.slot - c.slot);
+        S.slots.push(sl);
+        S.blk.push({ k: 0, kd: 0, rt: 0, rDelay: -1, n0: sl.length });
+      }
+      // 遠くで間引く時に後ろの列がまだらに残るよう、後ろの者は混ぜる
+      for (let i = S.far.length - 1; i > 0; i--) { const q = Math.floor(R() * (i + 1)); [S.far[i], S.far[q]] = [S.far[q], S.far[i]]; }
+      S.all = S.near.concat(S.far);
+      const matB = clashShader(new THREE.MeshLambertMaterial({ vertexColors: true }), U);
+      const bodyN = new THREE.InstancedMesh(mkAttr(soldierGeo(armor, true), S.near.length), matB, S.near.length);
+      const bodyF = new THREE.InstancedMesh(mkAttr(soldierGeo(armor, false), Math.max(1, S.far.length)), matB, Math.max(1, S.far.length));
+      bodyF.count = S.far.length;
+      const flags = new THREE.InstancedMesh(mkAttr(SASHI_GEO, S.all.length), clashShader(new THREE.MeshLambertMaterial({ map: flagTex, side: THREE.DoubleSide }), U), S.all.length);
+      const bear = S.all.filter((s) => s.k === 4);
+      const banners = new THREE.InstancedMesh(mkAttr(BANNER_GEO, Math.max(1, bear.length)), clashShader(new THREE.MeshLambertMaterial({ map: flagTex, side: THREE.DoubleSide }), U), Math.max(1, bear.length));
+      banners.count = bear.length;
+      const CAP = o.corpses ?? 360;
+      const dead = new THREE.InstancedMesh(mkAttr(soldierGeo(armor, false), CAP), matB, CAP);
+      dead.count = 0;
+      const col = new THREE.Color();
+      const put = (mesh, list, tag) => list.forEach((s, i) => {
+        const [x, z] = toW(s.lx, s.lz);
+        place(mesh, i, x, z, s.yaw, p3.clone().set(...s.sc));
+        setOne(mesh, i, s, false);
+        if (tag) { s[tag] = i; s.mesh = mesh; }
+      });
+      put(bodyN, S.near, 'mi'); put(bodyF, S.far, 'mi');
+      for (const [mesh, list] of [[bodyN, S.near], [bodyF, S.far]]) list.forEach((s, i) => { const v = 0.82 + R() * 0.3; col.setRGB(v * (0.97 + R() * 0.06), v, v * (0.95 + R() * 0.06)); mesh.setColorAt(i, col); });
+      S.all.forEach((s, i) => { s.fi = i; });
+      put(flags, S.all, null);
+      bear.forEach((s) => { s.bi = bear.indexOf(s); });
+      put(banners, bear, null);
+      for (let i = 0; i < CAP; i++) { dead.setColorAt(i, col.setRGB(0.85, 0.85, 0.85)); }
+      S.meshes = { bodyN, bodyF, flags, banners, dead, CAP, nd: 0 };
+      grp.add(bodyN, bodyF, flags, banners, dead);
+      for (const m of [bodyN, bodyF, flags, banners, dead]) { m.frustumCulled = false; if (P.hidden) m.visible = false; }
+      return S;
+    };
+    C.A = side('A', 1); C.B = side('B', -1);
+    this.scene.add(grp);
+    C.mesh = grp;
+    // 遠くほど軽く：後ろの列を間引き、背の指物をやめる。霧の奥は描かない
+    const lod = (cam) => {
+      const dx = cam.position.x - o.x, dz = cam.position.z - o.z;
+      const lx = Math.max(0, Math.abs(dx * cf - dz * sf) - W / 2), lz = Math.max(0, Math.abs(dx * sf + dz * cf) - 12);
+      const dd = Math.hypot(lx, lz), vis = this.vis || 230;
+      const gone = dd > vis * 1.5 + 30, near0 = Math.min(90, vis * 0.5);
+      return { gone, keep: dd < near0 ? 1 : Math.max(0.3, 1 - (dd - near0) / 220), flags: !gone && dd < Math.min(170, vis) };
+    };
+    for (const S of [C.A, C.B]) {
+      const M = S.meshes, nF = S.far.length, nA = S.all.length, nN = S.near.length;
+      M.bodyN.onBeforeRender = (r, sc, cam) => { M.bodyN.count = lod(cam).gone ? 0 : nN; };
+      M.bodyF.onBeforeRender = (r, sc, cam) => { const l = lod(cam); M.bodyF.count = l.gone ? 0 : Math.ceil(nF * l.keep); };
+      M.flags.onBeforeRender = (r, sc, cam) => { const l = lod(cam); M.flags.count = l.flags ? nN + Math.ceil(nF * l.keep) : 0; };
+      const nb0 = M.banners.count;
+      M.banners.onBeforeRender = (r, sc, cam) => { M.banners.count = lod(cam).gone ? 0 : nb0; };
+    }
+    const other = (S) => (S === C.A ? C.B : C.A);
+    const sideOf = (k) => (k === 'B' ? C.B : C.A);
+    // 塊 j の前線の世界の場所
+    C.frontAt = (j, dz = 0) => { const b = C.blocks[j]; const [x, z] = toW(b.lx, b.f + dz); return { x, z }; };
+    C.blockNear = (x, z) => {
+      const dx = x - o.x, dz = z - o.z, lx = dx * cf - dz * sf;
+      const j = Math.max(0, Math.min(nb - 1, Math.floor((lx + W / 2) / bwr)));
+      const p = C.frontAt(j);
+      return { j, d: Math.hypot(p.x - x, p.z - z) };
+    };
+    // 兵 s の今の世界の場所
+    const posOf = (S, s) => {
+      const B = S.blk[s.j], kc = B.kd / cols, fr = Math.floor(kc);
+      const sh = s.row <= fr ? fr : kc;
+      const off = S.sgn * C.blocks[s.j].f + sh * CLASH_ROW + C.app;
+      return toW(s.lx, s.lz + S.sgn * off);
+    };
+    // 一人討たれる：塊の前の列から。倒れ姿を残す
+    const kill = (S, j) => {
+      const B = S.blk[j];
+      if (B.k >= B.n0 - 1 || B.rt > 0) return false;
+      const s = S.slots[j][B.k];
+      B.k++; S.alive--; S.lost++;
+      if (s && !s.taken) {
+        const M = S.meshes, i = M.nd % M.CAP;
+        const [x, z] = posOf(S, s);
+        const fwd = S.sgn * 0.8;
+        const [x2, z2] = [x + sf * fwd * (R() - 0.3), z + cf * fwd * (R() - 0.3)];
+        place(M.dead, i, x2, z2, R() * 6.28);
+        setOne(M.dead, i, s, true);
+        M.nd++; M.dead.count = Math.min(M.nd, M.CAP);
+        M.dead.instanceMatrix.needsUpdate = true;
+        for (const a of ['aInfo', 'aInfo2', 'aClash']) M.dead.geometry.attributes[a].needsUpdate = true;
+        if (R() < 0.3) this.puff(x2, z2, 1);
+      }
+      return true;
+    };
+    const wetGround = () => this.rainLevel > 0.4 || (this.wetness || 0) > 0.5;
+    const play = (k, p, v) => { if (o.play) o.play(k, p, v); };
+    C.go = () => { if (C.phase === 'wait') C.phase = 'close'; return C; };
+    C.push = (k, v) => { C.bias = (k === 'B' ? -1 : 1) * v; return C; };
+    C.shake = (k, v) => { sideOf(k).mod -= v; return C; };
+    C.rout = (k, opt = {}) => {
+      const S = sideOf(k);
+      if (S.routed) return C;
+      // minFight：組み合ってからその秒が経つまでは崩れない（寄せてすぐ崩れて、ぶつかり合いが見えないことのないように）
+      const left = (opt.minFight || 0) - (C.fightT || 0) + (C.phase === 'fight' ? 0 : -C.app / 2.5);
+      if (left > 0) { if (!S.routWait) { S.routWait = true; C.later.push({ t: left, fn: () => { S.routWait = false; C.rout(k, { ...opt, minFight: 0 }); } }); } return C; }
+      S.routed = true; S.hideAfter = opt.hideAfter ?? 45; S.routT = 0;
+      const from = opt.from ?? 0;
+      C.blocks.forEach((b, j) => {
+        const B = S.blk[j];
+        if (B.rDelay >= 0) return;
+        const ord = from > 0 ? nb - 1 - j : from < 0 ? j : R() * nb * 0.5;
+        B.rDelay = ord * 0.45 + R() * 1.2;
+      });
+      C.winner = other(S); C.pursueT = 0;
+      play('eshout', { x: o.x, z: o.z }, 2);
+      return C;
+    };
+    // 塊をいくつか崩す（横を突かれた端から）
+    const routBlocks = (S, js) => { for (const j of js) { const B = S.blk[j]; if (B.rDelay < 0) B.rDelay = R() * 1.5; } };
+    C.volley = (k) => {
+      const S = sideOf(k), E = other(S);
+      if (S.routed) return C;
+      let n = 0;
+      for (let j = 0; j < nb; j++) {
+        if (R() < 0.35 || S.blk[j].rDelay >= 0) continue;
+        const p = C.frontAt(j, -S.sgn * (gap / 2 + CLASH_ROW * 1.2));
+        if (o.smoke) o.smoke(p.x, this.heightAt(p.x, p.z) + 1.4, p.z, sf * S.sgn, cf * S.sgn);
+        if (n++ % 3 === 0) this.gunSmoke(p.x, p.z);   // 硝煙の名残は間引く（見通しが煙で埋まらないように）
+        if (R() < 0.6) kill(E, j);
+      }
+      play('volley', { x: o.x, z: o.z }, 1.2);
+      return C;
+    };
+    // 矢の雨：後ろの列から相手の真ん中へ、弧を描いて落ちる
+    C.arrows = (k) => {
+      const S = sideOf(k), E = other(S);
+      if (S.routed) return C;
+      const A = this.clashArrows || this.buildClashArrows();
+      for (let i = 0; i < 70; i++) {
+        const j = Math.floor(R() * nb);
+        const a = C.frontAt(j, -S.sgn * (gap / 2 + S.rows * CLASH_ROW * 0.8)), b = C.frontAt(j, S.sgn * (gap / 2 + 3 + R() * E.rows * CLASH_ROW * 0.8));
+        const lat = (R() - 0.5) * bwr;
+        A.list.push({ x0: a.x + cf * lat, z0: a.z - sf * lat, x1: b.x + cf * lat + (R() - 0.5) * 2, z1: b.z - sf * lat + (R() - 0.5) * 2, t: -R() * 0.8, dur: 2.2 + R() * 0.6, h: 16 + R() * 8 });
+      }
+      if (A.list.length > A.CAP) A.list.splice(0, A.list.length - A.CAP);
+      play('volleyBow', { x: o.x, z: o.z }, 1);
+      C.later.push({ t: 2.6, fn: () => { for (let j = 0; j < nb; j++) if (R() < 0.3) kill(E, j); } });
+      return C;
+    };
+    C.cavalry = (k, opt = {}) => {
+      const S = sideOf(k), E = other(S);
+      const from = opt.from || (R() < 0.5 ? -1 : 1);
+      // 相手の横の端から 40m ほど外、相手の列の中ほどの深さから駆ける
+      const lz = E.sgn * -1 * (gap / 2 + E.rows * CLASH_ROW * 0.5) + C.drift;
+      const lx0 = from * (W / 2 + 42);
+      const [x, z] = toW(lx0, lz);
+      const [tx, tz] = toW(from * (W / 2 - bwr), lz);
+      const face = Math.atan2(tx - x, tz - z);
+      const grp2 = this.addDistantArmy({ x, z, w: 12, d: 16, count: opt.count || 70, facing: face, armor: opt.armor || S.P.armor, flagTex: opt.flagTex, flag: opt.flag || S.P.flag, seed: 300 + C.cav.length, kind: 'cavalry' });
+      grp2.visible = false;
+      const cv = { grp: grp2, from, E, t: -(opt.delay || 0), secs: 9, hit: false, x, z, tx, tz };
+      C.cav.push(cv);
+      return grp2;
+    };
+    // 本物の兵に置き換える：(x, z) に近いまだ生きている兵を n 人隠し、その場所・向き・種類を返す
+    C.take = (k, x, z, n, r = 1e9) => {
+      const S = sideOf(k);
+      const cand = [];
+      for (const s of S.all) {
+        if (s.taken || s.slot < S.blk[s.j].k || S.blk[s.j].rt > 0) continue;
+        const [px, pz] = posOf(S, s);
+        const d = Math.hypot(px - x, pz - z);
+        if (d < r) cand.push({ s, d, x: px, z: pz, yaw: s.yaw, k: s.k });
+      }
+      cand.sort((a, b) => a.d - b.d);
+      const out = cand.slice(0, n);
+      const M = S.meshes;
+      const hide = (mesh, i) => { mesh.getMatrixAt(i, m4); m4.decompose(p3, q4, s3); m4.compose(p3, q4, z3); mesh.setMatrixAt(i, m4); mesh.instanceMatrix.needsUpdate = true; s3.set(1, 1, 1); };
+      for (const c of out) {
+        c.s.taken = true; S.alive--;
+        hide(c.s.mesh, c.s.mi); hide(M.flags, c.s.fi);
+        if (c.s.bi !== undefined) hide(M.banners, c.s.bi);
+      }
+      return out.map(({ x, z, yaw, k }) => ({ x, z, yaw, k }));
+    };
+    C.stat = () => ({ phase: C.phase, A: C.A.alive, B: C.B.alive, mA: Math.round(C.A.m), mB: Math.round(C.B.m), lostA: C.A.lost, lostB: C.B.lost, drift: +C.drift.toFixed(1), routed: C.A.routed ? 'A' : C.B.routed ? 'B' : '' });
+    // 毎こま：寄せ・押し合い・討たれる者・崩れ・音と土煙
+    C.tick = (dt, focus) => {
+      C.t += dt;
+      const t = C.t;
+      for (let i = C.later.length - 1; i >= 0; i--) { const L = C.later[i]; L.t -= dt; if (L.t <= 0) { C.later.splice(i, 1); L.fn(); } }
+      if (C.phase === 'close') {
+        const sp = Math.max(C.app > -8 ? 3.2 : 1.5, o.closeSpeed || 0);
+        C.app = Math.min(0, C.app + sp * dt);
+        for (const S of [C.A, C.B]) { S.U.uAppM.value = 1; S.U.uAppC.value = C.app > -12 ? 1 : 0; }
+        if (C.fx.dust <= 0 && !wetGround()) { C.fx.dust = 0.25; const j = Math.floor(R() * nb); for (const S of [C.A, C.B]) { const p = C.frontAt(j, -S.sgn * (gap / 2 - C.app)); this.dustCloud(p.x, p.z, false); } }
+        if (C.app >= 0) {
+          C.phase = 'fight';
+          play('eshout', { x: o.x, z: o.z }, 2.2);
+          for (let i = 0; i < 3; i++) play('clash', C.frontAt(Math.floor(R() * nb)), 1);
+          for (const S of [C.A, C.B]) { S.U.uAppM.value = 0; S.U.uAppC.value = 0; }
+        }
+      }
+      C.fx.dust -= dt;
+      const fight = C.phase === 'fight';
+      if (fight) C.fightT = (C.fightT || 0) + dt;
+      // 士気：生きている割合と、戦の側から与えた揺さぶり
+      for (const S of [C.A, C.B]) {
+        S.m = Math.max(0, Math.min(100, 100 * (S.alive / S.n0 - 0.3) / 0.7 + S.mod));
+        if (fight && !S.routed && !o.noRout && S.m <= 0) C.rout(S.key);
+      }
+      // 押し合いの流れ：強い側が少しずつ押す。戦の側の push でも押す
+      const adv = Math.max(-1, Math.min(1, (C.A.m - C.B.m) / 100 + C.bias));
+      const maxD = o.maxDrift ?? 10;
+      if (fight && !C.winner) C.drift = Math.max(-maxD, Math.min(maxD, C.drift + adv * dt * 0.35));
+      // 崩れた後：勝った側が 12 秒ほど追って前へ出る
+      if (C.winner) {
+        C.pursueT += dt;
+        if (C.pursueT < 12) C.drift += C.winner.sgn * dt * 1.3;
+      }
+      // 本物の兵の前線（その近くの塊はそれに合わせる）
+      let L = null;
+      if (o.link) { const p = o.link(); if (p) { const dx = p.x - o.x, dz = p.z - o.z; L = { lx: dx * cf - dz * sf, lz: dx * sf + dz * cf }; } }
+      const kr = (o.killRate ?? 0.09) * dt;
+      for (const b of C.blocks) {
+        const j = b.j;
+        let tg = C.drift + (fight ? 1.3 * Math.sin(t * 0.42 + b.ph) + 0.6 * Math.sin(t * 1.05 + j * 2.1) : 0);
+        if (L) { const w = Math.exp(-Math.abs(b.lx - L.lx) / 26); tg += (Math.max(-maxD - 4, Math.min(maxD + 4, L.lz)) - tg) * w * 0.85; }
+        const f0 = b.f;
+        b.f += (tg - b.f) * Math.min(1, dt * 0.9);
+        const v = (b.f - f0) / Math.max(dt, 1e-3);
+        const want = fight && !C.winner ? 1 : 0;
+        b.fight += (want - b.fight) * Math.min(1, dt * 1.5);
+        for (const S of [C.A, C.B]) {
+          const B = S.blk[j];
+          // 崩れ：遅れの秒が過ぎたら、その塊は踵を返して逃げる
+          if (B.rDelay >= 0) { B.rDelay -= dt; if (B.rDelay < 0) { B.rDelay = 1e9; B.rt = 0.001; } }
+          if (B.rt > 0) B.rt += dt;
+          // 討たれる：押されている側ほど多く
+          if (fight && !C.winner && b.fight > 0.5) {
+            const lose = 1 - adv * S.sgn * 0.7 - (v * S.sgn < -0.3 ? -0.3 : 0);
+            if (R() < kr * Math.max(0.2, lose) && (S.alive / S.n0 > 0.35 || S.routed)) kill(S, j);
+          }
+          B.kd += (B.k - B.kd) * Math.min(1, dt * 1.2);
+          const U = S.U;
+          U.uBlk.value[j].set(b.f, 0, B.kd, B.rt);
+          const mv = C.winner === S && C.pursueT < 12 ? 1 : Math.min(1, Math.abs(v) * 0.8);
+          U.uBlk2.value[j].set(S.routed || B.rt > 0 ? 0 : b.fight, mv, cols, b.hide);
+        }
+      }
+      for (const S of [C.A, C.B]) {
+        S.U.uApp.value = C.app;
+        if (S.routed) {
+          S.routT += dt;
+          if (S.routT > S.hideAfter) for (const k of ['bodyN', 'bodyF', 'flags', 'banners']) S.meshes[k].visible = false;
+        }
+      }
+      // 騎馬の横槍：駆けて、着いたら相手の端の塊を崩す
+      for (const cv of C.cav) {
+        if (cv.t < 0) { cv.t += dt; if (cv.t >= 0) { cv.grp.visible = true; cv.grp.advance(Math.hypot(cv.tx - cv.x, cv.tz - cv.z), cv.secs, { charge: true }); play('gallop', { x: cv.x, z: cv.z }, 1.5); } continue; }
+        cv.t += dt;
+        if (!cv.hit && !wetGround() && R() < dt * 4) { const k = Math.min(1, cv.t / cv.secs); this.dustCloud(cv.x + (cv.tx - cv.x) * k, cv.z + (cv.tz - cv.z) * k, true); }
+        if (!cv.hit && cv.t > cv.secs * 0.9) {
+          cv.hit = true;
+          const tgt = cv.E;
+          const js = cv.from > 0 ? [nb - 1, nb - 2, nb - 3] : [0, 1, 2];
+          for (const jj of js) if (jj >= 0 && jj < nb) { for (let q = 0; q < 6; q++) kill(tgt, jj); }
+          tgt.mod -= 25;
+          routBlocks(tgt, js.filter((jj) => jj >= 0 && jj < nb).slice(0, 2));
+          play('eshout', { x: cv.tx, z: cv.tz }, 2);
+        }
+      }
+      if (!fight) return;
+      // 音：槍の打ち合う音と遠い喚き、ときどき鬨の声。鉄砲・弓の側は時々撃つ
+      C.fx.snd -= dt; C.fx.shout -= dt; C.fx.gun -= dt; C.fx.bow -= dt;
+      if (C.fx.snd <= 0) { C.fx.snd = 0.9 + R() * 1.6; const p = C.frontAt(Math.floor(R() * nb)); play(R() < 0.5 ? 'clash' : 'far', p, 0.9); if (R() < 0.3) play('umeki', p, 0.6); }
+      if (C.fx.shout <= 0) { C.fx.shout = 9 + R() * 8; play(R() < 0.5 ? 'eshout' : 'toki', C.frontAt(Math.floor(R() * nb)), 1.4); }
+      if (C.fx.dust <= 0 && !wetGround()) { C.fx.dust = 0.5; const p = C.frontAt(Math.floor(R() * nb)); this.dustCloud(p.x, p.z, false); }
+      if (C.fx.gun <= 0) { C.fx.gun = 7 + R() * 6; for (const S of [C.A, C.B]) if (S.P.guns && !S.routed && !C.winner) C.volley(S.key); }
+      if (C.fx.bow <= 0) { C.fx.bow = 10 + R() * 6; for (const S of [C.A, C.B]) if (S.P.bows && !S.routed && !C.winner) C.arrows(S.key); }
+      C.fx.wake = (C.fx.wake || 0) - dt;
+      if (C.fx.wake <= 0) { C.fx.wake = 0.3; wakeTick(); }
+    };
+    // 本物の兵に替える（b_nagashinojo の wake と同じ決まり：take で軽い兵を隠してその場に本物を立てる・g.guard・戦う兵が 235 人を超えたら替えない）
+    // 合戦では、プレイヤーが前線の 30m ほどに寄った所の両方の側を替え、本物どうしで斬り合わせる。軽い側が崩れたら、替えた兵も崩れる
+    // o.rt（戦）と、A・B の team（0 味方・1 敵）・faction（兵の家）を渡した時だけ
+    const WAKE_TYPE = ['ashigaru', 'gun', 'bow', 'samurai', 'ashigaru', 'cavalry', 'samurai'];
+    C.woke = [];
+    const wakeTick = () => {
+      const rt = o.rt;
+      for (const q of C.woke) for (const g of q.groups) if (g.count && !g.routed && g.clashSide.routed) { g.noRout = false; g.morale = 0; }
+      if (!rt || rt.over || o.noWake || C.winner || (rt.def && rt.def.noWake)) return;
+      const P = rt.player && rt.player.u;
+      if (!P || !P.alive) return;
+      const nbk = C.blockNear(P.pos.x, P.pos.z);
+      if (nbk.d > (o.wakeR ?? 30)) return;
+      const at = C.frontAt(nbk.j);
+      if (C.woke.some((q) => Math.hypot(q.x - at.x, q.z - at.z) < 22 && q.groups.some((g) => g.count > 2 && !g.routed))) return;
+      let alive = 0;
+      for (const u of rt.army.units) if (u.alive) alive++;
+      const n = Math.min(8, Math.floor((235 - alive) / 2));
+      if (n < 3) return;
+      const q = { x: at.x, z: at.z, groups: [] };
+      for (const S of [C.A, C.B]) {
+        if (S.P.team === undefined) continue;
+        const pts = C.take(S.key, at.x, at.z, n, 20);
+        if (pts.length < 2) continue;
+        let x = 0, z = 0;
+        for (const p of pts) { x += p.x; z += p.z; }
+        x /= pts.length; z /= pts.length;
+        const face = F + (S.sgn > 0 ? 0 : Math.PI);
+        const g = rt.army.addGroup({ team: S.P.team, faction: S.P.faction || (S.P.team === 0 ? 'tokugawa' : 'saito'), name: '備の兵', order: 'attack', formation: 'line', anchor: { x, z }, facing: face,
+          width: Math.max(4, Math.min(12, pts.length * 1.1)), aggro: 12, seekRange: 22, morale: 80, speed: 2.6, fleeDir: { x: -Math.sin(face), z: -Math.cos(face) } });
+        rt.army.spawn(g, pts.map((p) => ({ type: WAKE_TYPE[p.k] || 'ashigaru', n: 1, o: { x: p.x, z: p.z, heading: face, armor: S.P.armor, flag: S.P.flag } })));
+        g.leader = g.units.find((u) => u.type === 'samurai') || null;
+        g.guard = true; g.clashSide = S;
+        q.groups.push(g);
+      }
+      if (q.groups.length) { C.woke.push(q); play('eshout', at, 1.2); }
+    };
+    this.clashes = this.clashes || [];
+    this.clashes.push(C);
+    return C;
+  }
+  // 本物の兵の遠い者を、軽い兵の形でまとめて描く（units.js の Army.updateImpostors が使う）
+  // 甲冑の色と旗ごとに一つ。一人ずつの形の代わりに、胴・旗の二度の描画で何十人も描ける
+  // 返す物：{ put(i, x, z, yaw, k, helm, ex, flag, sd), commit(n), dispose() }（k は軽い兵の種類：0 槍 1 鉄砲 2 弓 3 侍）
+  makeImpostor(armor, flag, cap = 160) {
+    if (!this.hgtTex) {
+      const t = new THREE.DataTexture(this.grid, SEG + 1, SEG + 1, THREE.RedFormat, THREE.FloatType);
+      t.needsUpdate = true;
+      this.hgtTex = t;
+    }
+    if (!SASHI_GEO) { SASHI_GEO = clothGeo(0.34, 0.62, 3, 1, 0, 2.62, -0.17, 11); BANNER_GEO = clothGeo(0.72, 2.6, 3, 6, 0.3, 5.2, 0.14, 12); }
+    const U = {
+      uAT: WIND, uGust: GUST, uIdle: ARMY_IDLE, uMarch: { value: 0 }, uCharge: { value: 0 }, uTurn: { value: 0 }, uRout: { value: 0 }, uRoutT: { value: 0 },
+      uHgt: { value: this.hgtTex }, uHP: { value: new THREE.Vector3(HALF, this.step, SEG) },
+    };
+    const mk = (geo) => {
+      const g = geo.clone();
+      g.setAttribute('aInfo', new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4).setUsage(THREE.DynamicDrawUsage));
+      g.setAttribute('aInfo2', new THREE.InstancedBufferAttribute(new Float32Array(cap * 2), 2).setUsage(THREE.DynamicDrawUsage));
+      return g;
+    };
+    const body = new THREE.InstancedMesh(mk(soldierGeo(armor, true)), armyShader(new THREE.MeshLambertMaterial({ vertexColors: true }), U), cap);
+    const flags = new THREE.InstancedMesh(mk(SASHI_GEO), armyShader(new THREE.MeshLambertMaterial({ map: flagTexture(flag || 'tokugawa'), side: THREE.DoubleSide }), U), cap);
+    for (const m of [body, flags]) { m.count = 0; m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); this.scene.add(m); }
+    const col = new THREE.Color(1, 1, 1);
+    for (let i = 0; i < cap; i++) body.setColorAt(i, col);
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sc = new THREE.Vector3(1, 1, 1), yAx = new THREE.Vector3(0, 1, 0);
+    const A = body.geometry.attributes, B = flags.geometry.attributes;
+    return {
+      cap,
+      put: (i, x, z, yaw, k, helm, ex, fl, sd) => {
+        if (i >= cap) return;
+        p.set(x, this.heightAt(x, z), z); q.setFromAxisAngle(yAx, yaw); m4.compose(p, q, sc);
+        body.setMatrixAt(i, m4); flags.setMatrixAt(i, m4);
+        A.aInfo.array.set([sd, k, helm, ex], i * 4); B.aInfo.array.set([sd, k, helm, ex], i * 4);
+        A.aInfo2.array[i * 2] = B.aInfo2.array[i * 2] = fl; A.aInfo2.array[i * 2 + 1] = B.aInfo2.array[i * 2 + 1] = sd;
+      },
+      commit: (n) => {
+        n = Math.min(n, cap);
+        body.count = flags.count = n;
+        if (!n) return;
+        for (const m of [body, flags]) { m.instanceMatrix.needsUpdate = true; m.geometry.attributes.aInfo.needsUpdate = true; m.geometry.attributes.aInfo2.needsUpdate = true; }
+      },
+      dispose: () => { this.scene.remove(body, flags); },
+    };
+  }
+  // 合戦の矢（細い棒を弧に沿って飛ばす。落ちたら少しの間地面に刺さったまま）
+  buildClashArrows() {
+    const CAP = 280;
+    const g = new THREE.BoxGeometry(0.025, 0.025, 0.9);
+    const mesh = new THREE.InstancedMesh(g, new THREE.MeshLambertMaterial({ color: 0x2e241a }), CAP);
+    mesh.count = 0; mesh.frustumCulled = false;
+    this.scene.add(mesh);
+    this.clashArrows = { mesh, list: [], CAP };
+    return this.clashArrows;
+  }
+  updateClashArrows(dt) {
+    const A = this.clashArrows;
+    if (!A) return;
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), d = new THREE.Vector3(), s = new THREE.Vector3(1, 1, 1), zf = new THREE.Vector3(0, 0, 1);
+    let n = 0;
+    for (let i = A.list.length - 1; i >= 0; i--) {
+      const a = A.list[i];
+      a.t += dt;
+      if (a.t > a.dur + 6) { A.list.splice(i, 1); continue; }
+    }
+    for (const a of A.list) {
+      if (a.t < 0) continue;
+      const k = Math.min(1, a.t / a.dur);
+      const x = a.x0 + (a.x1 - a.x0) * k, z = a.z0 + (a.z1 - a.z0) * k;
+      const y0 = this.heightAt(a.x0, a.z0) + 2, y1 = this.heightAt(a.x1, a.z1) + 0.25;
+      const y = y0 + (y1 - y0) * k + a.h * 4 * k * (1 - k);
+      d.set(a.x1 - a.x0, (y1 - y0) + a.h * 4 * (1 - 2 * Math.min(k, 0.98)), a.z1 - a.z0).normalize();
+      if (k >= 1) d.set((a.x1 - a.x0) * 0.3, -1, (a.z1 - a.z0) * 0.3).normalize();
+      q.setFromUnitVectors(zf, d);
+      p.set(x, y, z);
+      m4.compose(p, q, s);
+      A.mesh.setMatrixAt(n++, m4);
+      if (n >= A.CAP) break;
+    }
+    A.mesh.count = n;
+    if (n) A.mesh.instanceMatrix.needsUpdate = true;
+  }
+
+  // 火を消す（addFire の返り値を渡す）
+  removeFire(f) {
+    if (!f) return;
+    this.scene.remove(f.flame, f.inner);
+    if (f.glow) this.scene.remove(f.glow);
+    if (f.light) this.scene.remove(f.light);
+    this.removeSmokeColumn(f.smoke);
+    this.fires = this.fires.filter((q) => q !== f);
+  }
+
+  // 火の粉：近くの火から、ときどき小さな光の粒が舞い上がって消える
+  buildEmbers() {
+    const N = 160;
+    const pos = new Float32Array(N * 3).fill(-999), life = new Float32Array(N);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('life', new THREE.BufferAttribute(life, 1));
+    const mat = new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      vertexShader: 'attribute float life; varying float vA; void main(){ vA = clamp(life, 0.0, 1.0); vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_PointSize = 26.0 / -mv.z; gl_Position = projectionMatrix * mv; }',
+      fragmentShader: 'varying float vA; void main(){ float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.1, d) * vA; if (a < 0.01) discard; gl_FragColor = vec4(vec3(1.0, 0.62, 0.25) * a, a); }',
+    });
+    this.embers = { pts: new THREE.Points(geo, mat), pos, life, vel: new Float32Array(N * 3), i: 0, N };
+    this.embers.pts.frustumCulled = false;
+    this.scene.add(this.embers.pts);
+  }
+  updateEmbers(dt, focus) {
+    if (!this.fires.length) return;
+    if (!this.embers) this.buildEmbers();
+    const E = this.embers;
+    for (const f of this.fires) {
+      if (Math.hypot(f.x - focus.x, f.z - focus.z) > 45 || Math.random() > dt * (f.torch ? 1.2 : 3.5)) continue;
+      const i = E.i = (E.i + 1) % E.N;
+      E.pos[i * 3] = f.x + (Math.random() - 0.5) * 0.2; E.pos[i * 3 + 1] = f.base + f.size * 0.3; E.pos[i * 3 + 2] = f.z + (Math.random() - 0.5) * 0.2;
+      E.vel[i * 3] = (Math.random() - 0.5) * 0.5; E.vel[i * 3 + 1] = 1.2 + Math.random() * 1.5; E.vel[i * 3 + 2] = (Math.random() - 0.5) * 0.5;
+      E.life[i] = 1 + Math.random() * 1.2;
+    }
+    const wx = WIND_STATE.dirX * WIND_STATE.gust * 0.8, wz = WIND_STATE.dirZ * WIND_STATE.gust * 0.8;
+    for (let i = 0; i < E.N; i++) {
+      if (E.life[i] <= 0) continue;
+      E.life[i] -= dt;
+      if (E.life[i] <= 0) { E.pos[i * 3 + 1] = -999; continue; }
+      E.pos[i * 3] += (E.vel[i * 3] + wx + Math.sin(this.time * 7 + i) * 0.3) * dt;
+      E.pos[i * 3 + 1] += E.vel[i * 3 + 1] * dt;
+      E.pos[i * 3 + 2] += (E.vel[i * 3 + 2] + wz) * dt;
+    }
+    E.pts.geometry.attributes.position.needsUpdate = true; E.pts.geometry.attributes.life.needsUpdate = true;
+  }
+
+  // 焚き火・篝火（炎が揺れる。篝火は夕暮れに灯りをともす）
+  addFire(x, z, o = {}) {
+    const y = this.heightAt(x, z) + (o.h || 0.15);
+    // 炎：重ねた光の粒（加算で光る）。外は橙、芯は黄白
+    if (!this.flameTex) {
+      const c = document.createElement('canvas'); c.width = 64; c.height = 128;
+      const g = c.getContext('2d');
+      const gr = g.createRadialGradient(32, 92, 2, 32, 80, 60);
+      gr.addColorStop(0, 'rgba(255,240,200,1)'); gr.addColorStop(0.25, 'rgba(255,170,60,.9)'); gr.addColorStop(0.6, 'rgba(220,80,20,.35)'); gr.addColorStop(1, 'rgba(120,30,0,0)');
+      g.fillStyle = gr;
+      g.beginPath(); g.moveTo(32, 4); g.bezierCurveTo(58, 50, 62, 110, 32, 124); g.bezierCurveTo(2, 110, 6, 50, 32, 4); g.fill();
+      this.flameTex = new THREE.CanvasTexture(c);
+    }
+    const mk = (sc, op) => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.flameTex, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: op, fog: true })); sp.scale.set(sc * 0.5, sc, 1); this.scene.add(sp); return sp; };
+    const size = o.torch ? 0.7 : 1.3;
+    const outer = mk(size, 0.9), inner = mk(size * 0.55, 1);
+    const base = y + size * (o.torch ? 0.3 : 0.35);
+    outer.position.set(x, base, z); inner.position.set(x, base - size * 0.08, z);
+    // 足もとの照り返し：火の周りの地面がほのかに赤い（夕暮れと雨の中で強く）
+    if (!this.puffTex) this.makePuffTex();
+    if (!this.glowGeo) { this.glowGeo = new THREE.PlaneGeometry(1, 1); this.glowGeo.rotateX(-Math.PI / 2); }
+    const glow = new THREE.Mesh(this.glowGeo, new THREE.MeshBasicMaterial({ map: this.puffTex, color: 0xff7a30, transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false, fog: true }));
+    glow.scale.setScalar(o.torch ? 5 : 7);
+    glow.position.set(x, this.heightAt(x, z) + 0.06, z);
+    glow.renderOrder = 1;
+    this.scene.add(glow);
+    const f = { flame: outer, inner, glow, base, size, x, z, seed: Math.random() * 10, torch: !!o.torch };
+    // 炎の上に細い煙が昇り、風下へ流れる
+    f.smoke = this.addSmokeColumn(x, base + size * 0.5, z, { size: o.torch ? 0.35 : 0.7 });
+    if (o.torch && this.fires.filter((q) => q.light).length < 4) {
+      f.light = new THREE.PointLight(0xff9a4a, 0, 16, 1.6);
+      f.light.position.set(x, y + 0.8, z);
+      this.scene.add(f.light);
+    }
+    this.fires.push(f);
+    return f;
+  }
+
+
+  // 地面：草・踏み固めた土・泥・岩肌を場所ごとに混ぜる（頂点に混ぜる割合を持たせ、絵は世界の座標で貼る）
+  buildTerrain() {
+    const geo = new THREE.PlaneGeometry(HALF * 2, HALF * 2, SEG, SEG);
+    geo.rotateX(-Math.PI / 2);
+    const pos = geo.attributes.position;
+    const splat = new Float32Array(pos.count * 3);
+    const water = new Float32Array(pos.count);
+    const c = new THREE.Color();
+    const R = rng(7);
+    const paths = this.def.paths || [];
+    const muddy = this.def.muddy ?? 0.35;
+    for (let k = 0; k < pos.count; k++) {
+      const x = pos.getX(k), z = pos.getZ(k);
+      const i = Math.round((x + HALF) / this.step), j = Math.round((z + HALF) / this.step);
+      const h = this.grid[j * (SEG + 1) + i];
+      pos.setY(k, h);
+      const n = Math.sin(x * 0.21) * Math.cos(z * 0.17) * 0.5 + (R() - 0.5) * 0.35;
+      c.setRGB(0.26 + n * 0.05, 0.33 + n * 0.06, 0.17 + n * 0.03);
+      let pd = Infinity;
+      for (const p of paths) pd = Math.min(pd, distToPolyline(x, z, p));
+      if (pd < 3.2) c.setRGB(0.36 + n * 0.04, 0.30 + n * 0.03, 0.21);
+      else if (pd < 5) c.lerp(new THREE.Color(0.34, 0.31, 0.21), 0.5);
+      if (this.def.tint) this.def.tint(x, z, h, c);
+      // 色から、草・土・泥の割合を読む（緑が勝つほど草）
+      let grass = Math.max(0, Math.min(1, (c.g - (c.r + c.b) / 2 - 0.02) / 0.08));
+      // 道の縁は草がまばらに残る
+      if (pd >= 2.2 && pd < 5) grass = Math.max(grass, Math.min(1, (pd - 2.2) / 2.8) * (0.6 + R() * 0.4));
+      let dirt = 1 - grass;
+      // 泥：道の真ん中と、低い所の水はけの悪い所
+      const wetSpot = Math.max(0, Math.sin(x * 0.09 + 1.3) * Math.cos(z * 0.11) - 0.55) * 2.2;
+      let mud = Math.min(1, (pd < 1.8 ? 0.8 : 0) * muddy + wetSpot * muddy * (dirt > 0.5 ? 1 : 0.5));
+      dirt *= 1 - mud * 0.8; grass *= 1 - mud * 0.6;
+      // 小川の岸は泥と土
+      for (const st of this.def.streams || []) { const d = distToPolyline(x, z, st.pts); if (d < st.w * 1.8) { const b = 1 - d / (st.w * 1.8); mud = Math.max(mud, b * 0.8); grass *= 1 - b; } }
+      const t = grass + dirt + mud || 1;
+      splat[k * 3] = grass / t; splat[k * 3 + 1] = dirt / t; splat[k * 3 + 2] = mud / t;
+      // 水を張った田
+      water[k] = this.def.paddy ? this.def.paddy(x, z) : 0;
+    }
+    geo.setAttribute('splat', new THREE.BufferAttribute(splat, 3));
+    this.splat = splat; this.waterW = water;
+    geo.setAttribute('water', new THREE.BufferAttribute(water, 1));
+    geo.computeVertexNormals();
+    const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0, envMapIntensity: 0.55 });
+    this.groundU = { tGrass: { value: grassTex() }, tDirt: { value: dirtTex() }, tMud: { value: mudTex() }, tStone: { value: stoneTex() }, tMacro: { value: macroTex() }, uWet: { value: 0 }, tWear: WEAR, uTime: WIND };
+    mat.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, this.groundU);
+      sh.vertexShader = 'attribute vec3 splat;\nattribute float water;\nvarying float vWater;\nvarying vec3 vSplat;\nvarying vec3 vWP;\nvarying vec3 vWN;\n' + sh.vertexShader
+        .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n vWN = normalize(mat3(modelMatrix) * objectNormal);')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\n vWater = water;\n vSplat = splat;\n vWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      sh.fragmentShader = 'uniform sampler2D tGrass, tDirt, tMud, tStone, tMacro, tWear;\nuniform float uWet, uTime;\nvarying float vWater;\nvarying vec3 vSplat;\nvarying vec3 vWP;\nvarying vec3 vWN;\n' + sh.fragmentShader
+        .replace('#include <map_fragment>', `
+          vec2 wuv = vWP.xz;
+          float macro = texture2D(tMacro, wuv * 0.006).r;
+          float macro2 = texture2D(tMacro, wuv * 0.023 + 0.37).r;
+          vec3 grass = texture2D(tGrass, wuv * 0.21).rgb * mix(0.8, 1.2, texture2D(tGrass, wuv * 0.037).g * 1.6);
+          grass = mix(grass, grass * vec3(1.12, 1.02, 0.8), smoothstep(0.55, 0.8, macro2));   // 枯れ色の斑
+          vec3 dirt = texture2D(tDirt, wuv * 0.23).rgb * mix(0.85, 1.12, macro2);
+          vec3 mud = texture2D(tMud, wuv * 0.26).rgb;
+          vec3 stone = texture2D(tStone, wuv * 0.12).rgb;
+          vec3 w = vSplat;
+          // 境目を絵の濃淡でぎざぎざにする
+          float edge = texture2D(tMacro, wuv * 0.09).r;
+          w.x = clamp(w.x + (edge - 0.5) * 0.6 * w.x * (1.0 - w.x) * 4.0, 0.0, 1.0);
+          // 踏み荒らされた所：草が倒れて土が出て、濡れていれば泥になる（縁は絵の濃淡でばらつかせる）
+          float wear = texture2D(tWear, (vWP.xz + ${HALF.toFixed(1)}) / ${(HALF * 2).toFixed(1)}).r;
+          wear = smoothstep(0.05, 0.75, wear * (0.75 + edge * 0.5));
+          float trod = wear * (1.0 - smoothstep(0.3, 0.8, vWater));
+          w.y += w.x * trod * (0.75 - uWet * 0.35);
+          w.z += (w.x + w.y * 0.4) * trod * (0.25 + uWet * 0.45);
+          w.x *= 1.0 - trod * 0.85;
+          w /= max(0.001, w.x + w.y + w.z);
+          // 倒れた草は色が褪せて黄ばむ
+          grass = mix(grass, grass * vec3(1.05, 0.95, 0.72), trod);
+          vec3 col = grass * w.x + dirt * w.y + mud * w.z;
+          float steep = smoothstep(0.28, 0.55, 1.0 - vWN.y);
+          col = mix(col, stone, steep);
+          col *= mix(0.82, 1.14, macro);
+          // 雨で濡れると暗く
+          col *= 1.0 - uWet * (0.28 + w.z * 0.15);
+          // 田の水面：濁った水の色。空は映すが、ぎらつかせない（照り返しは下で弱める）
+          float wat = smoothstep(0.3, 0.8, vWater);
+          col = mix(col, vec3(0.075, 0.08, 0.06) + mud * 0.22 + grass * 0.05, wat * 0.92);
+          diffuseColor.rgb *= col;`)
+        .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+          // 細かな凹凸：絵の明るさを高さとみなし、その傾きで法線を傾ける（小石・轍・草の株）
+          {
+            vec2 q = vWP.xz; float e = 0.06;
+            float wd = vSplat.y + vSplat.z * 0.6, wg = vSplat.x;
+            #define HGT(p) (dot(texture2D(tDirt, (p) * 0.23).rgb, vec3(0.33)) * wd + dot(texture2D(tGrass, (p) * 0.21).rgb, vec3(0.33)) * wg * 0.6)
+            float h0 = HGT(q), hx = HGT(q + vec2(e, 0.0)), hz = HGT(q + vec2(0.0, e));
+            float wt = smoothstep(0.3, 0.8, vWater);
+            vec3 bw = vec3(-(hx - h0), 0.0, -(hz - h0)) * 5.0 * (1.0 - wt);
+            // 水面の小さなさざ波（風で揺れる）
+            vec2 rq = q * 0.9 + vec2(uTime * 0.05, uTime * 0.035);
+            bw += vec3(texture2D(tMacro, rq).r - 0.5, 0.0, texture2D(tMacro, rq.yx + 0.5).r - 0.5) * 0.09 * wt;
+            normal = normalize(normal + (viewMatrix * vec4(bw, 0.0)).xyz);
+          }`)
+        .replace('#include <roughnessmap_fragment>', `
+          float roughnessFactor = roughness;
+          roughnessFactor = mix(roughnessFactor, 0.55, vSplat.z * 0.7);
+          roughnessFactor = mix(roughnessFactor, 0.42, uWet * (0.5 + vSplat.z * 0.5));
+          roughnessFactor = mix(roughnessFactor, 0.42, smoothstep(0.3, 0.8, vWater));`)
+        // 田の照り返しは空の半分ほどに（白く光りすぎないように）
+        .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+          // 遠くの田は浅い角度で空を映しきって白い紙のようになるので、遠いほど照り返しを抑える
+          float watFar = smoothstep(40.0, 160.0, length(vWP - cameraPosition));
+          reflectedLight.indirectSpecular *= 1.0 - wat * (0.5 + watFar * 0.3);
+          reflectedLight.directSpecular *= 1.0 - wat * 0.6;`);
+    };
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.receiveShadow = true;
+    this.scene.add(mesh);
+    this.terrain = mesh;
+  }
+
+  buildVegetation() {
+    const R = rng(this.def.seed || 11);
+    const clear = this.def.clear || (() => false);
+    const paths = this.def.paths || [];
+    const ok = (x, z, pad) => {
+      if (clear(x, z)) return false;
+      for (const p of paths) if (distToPolyline(x, z, p) < pad) return false;
+      if (this.def.water && x > this.def.water.x - 4 && x < (this.def.water.x2 ?? 1e9) + 3) return false;
+      for (const st of this.def.streams || []) if (distToPolyline(x, z, st.pts) < st.w * 1.6 + pad * 0.3) return false;
+      if (this.def.paddy && this.def.paddy(x, z) > 0.3) return false;
+      return true;
+    };
+    // 木：杉・松・広葉樹・竹。幹は樹皮の絵、葉は透ける板を束ねる（同じ形が並ばないよう、形を何通りか作って回す）
+    const trees = { sugi: [], matsu: [], broad: [], take: [] };
+    const treeCount = this.def.trees ?? 520;
+    const extra = this.def.groves || [];
+    const place = (x, z, inGrove) => {
+      const y = this.heightAt(x, z);
+      const s = 0.75 + R() * 0.6;
+      const r = R();
+      const kind = inGrove && r < 0.12 ? 'take' : r < 0.46 ? 'sugi' : r < 0.66 ? 'matsu' : 'broad';
+      trees[kind].push([x, y, z, s, R()]);
+    };
+    let tries = 0;
+    let placed = 0;
+    while (placed < treeCount && tries < treeCount * 12) {
+      tries++;
+      const x = (R() * 2 - 1) * (HALF - 4), z = (R() * 2 - 1) * (HALF - 4);
+      if (!ok(x, z, 7)) continue;
+      const dens = this.def.treeDensity ? this.def.treeDensity(x, z) : 1;
+      if (R() > dens) continue;
+      place(x, z, false); placed++;
+      // 森らしく、近くにもう一、二本
+      if (R() < 0.45) { const a = R() * 6.28, d = 3 + R() * 4; const x2 = x + Math.cos(a) * d, z2 = z + Math.sin(a) * d; if (ok(x2, z2, 6)) { place(x2, z2, false); placed++; } }
+    }
+    for (const g of extra) {
+      for (let k = 0; k < g.n; k++) {
+        const a = R() * Math.PI * 2, r = Math.sqrt(R()) * g.r;
+        place(g.x + Math.cos(a) * r * (g.sx || 1), g.z + Math.sin(a) * r * (g.sz || 1), true);
+      }
+    }
+    const autumn = !!this.def.autumn;
+    // 葉：遠くでも葉の塊が痩せて板の形が見えないよう、絵が縮むほど不透明の度合いを上げる。空の映り込みは控えめ（白く浮かないように）
+    const leafMat = (kind, tint, amp) => sway(new THREE.MeshStandardMaterial({ map: leafTex(kind), color: tint, alphaTest: 0.42, side: THREE.DoubleSide, roughness: 0.9, metalness: 0, envMapIntensity: 0.35 }), amp, 2.5, { after: keepAlpha });
+    const barkMat = (kind) => new THREE.MeshStandardMaterial({ map: barkTex(kind), roughness: 0.95, metalness: 0 });
+    // 葉の板：外向きの法線にして、塊が丸く照らされるようにする
+    const card = (parts, cx, cy, cz, w, h, ry, rx, ox, oy, oz) => {
+      const g = new THREE.PlaneGeometry(w, h);
+      g.rotateX(rx); g.rotateY(ry); g.translate(cx, cy, cz);
+      const n = g.attributes.normal, p = g.attributes.position;
+      for (let k = 0; k < p.count; k++) {
+        const v = new THREE.Vector3(p.getX(k) - ox, (p.getY(k) - oy) * 0.6, p.getZ(k) - oz).normalize();
+        n.setXYZ(k, v.x, Math.max(0.25, v.y + 0.35), v.z);
+      }
+      parts.push(g);
+    };
+    const T = rng(4242);
+    const makeVariant = (kind) => {
+      const bark = [], leaves = [];
+      if (kind === 'sugi') {
+        const H = 10 + T() * 7;
+        const tr = new THREE.CylinderGeometry(0.12, 0.34, H, 7); tr.translate(0, H / 2, 0); bark.push(tr);
+        // 下枝を落とした細長い樹冠。枝の段はそろえず、ところどころ欠け、頂は細く尖らせすぎない
+        const c0 = H * (0.25 + T() * 0.18), R0 = 1.8 + T() * 0.9;
+        for (let y = c0; y < H + 0.4; y += 0.45 + T() * 0.35) {
+          const t = (y - c0) / (H + 0.4 - c0);
+          const rad = (Math.pow(1 - t, 0.85) * R0 + 0.4) * (0.8 + T() * 0.35);
+          const n = Math.max(3, Math.round(rad * 3.2));
+          for (let k = 0; k < n; k++) {
+            if (t < 0.7 && T() < 0.18) continue;
+            const a = (k / n) * Math.PI * 2 + T() * 0.9;
+            const yy = y + (T() - 0.5) * 0.4, rr = rad * (0.45 + T() * 0.25);
+            card(leaves, Math.cos(a) * rr, yy, Math.sin(a) * rr, rad * (1.1 + T() * 0.35), rad * (0.8 + T() * 0.4), -a + Math.PI / 2, -0.15 - T() * 0.45, 0, yy, 0);
+          }
+        }
+        // 樹冠を縦に貫く葉の板：上から見ても段の梯子に見えず、塊に見える
+        for (let k = 0; k < 3; k++) {
+          const ch = (H + 0.4 - c0) * 0.85;
+          card(leaves, 0, c0 + ch * 0.45, 0, R0 * 1.3, ch, (k / 3) * Math.PI + T() * 0.3, 0, 0, c0 + ch * 0.45, 0);
+        }
+      } else if (kind === 'matsu') {
+        // 曲がった幹と、枝先の平たい葉の雲
+        let x = 0, z = 0, y = 0;
+        const lean = T() * 6.28, H = 7 + T() * 4;
+        for (let k = 0; k < 4; k++) {
+          const nx = x + Math.cos(lean + k * 0.7) * 0.6, nz = z + Math.sin(lean + k * 0.7) * 0.6, ny = y + H / 4;
+          const seg = new THREE.CylinderGeometry(0.2 - k * 0.03, 0.28 - k * 0.03, H / 4 + 0.1, 6);
+          const dir = new THREE.Vector3(nx - x, ny - y, nz - z);
+          seg.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize()));
+          seg.translate((x + nx) / 2, (y + ny) / 2, (z + nz) / 2);
+          bark.push(seg);
+          x = nx; y = ny; z = nz;
+        }
+        for (let c = 0; c < 5; c++) {
+          const a = T() * 6.28, d = 1 + T() * 2.2, cy = H * (0.55 + T() * 0.45);
+          const cx = x * (cy / H) + Math.cos(a) * d, cz = z * (cy / H) + Math.sin(a) * d;
+          const br = new THREE.CylinderGeometry(0.05, 0.09, d, 4);
+          br.rotateZ(Math.PI / 2); br.rotateY(-a); br.translate(x * (cy / H) + Math.cos(a) * d / 2, cy - 0.2, z * (cy / H) + Math.sin(a) * d / 2); bark.push(br);
+          for (let k = 0; k < 7; k++) card(leaves, cx + (T() - 0.5) * 1.4, cy + (T() - 0.3) * 0.5, cz + (T() - 0.5) * 1.4, 1.6 + T(), 1.1 + T() * 0.6, T() * 6.28, -1.2 + T() * 0.5, cx, cy - 0.4, cz);
+        }
+      } else if (kind === 'broad') {
+        const H = 5 + T() * 3;
+        const tr = new THREE.CylinderGeometry(0.16, 0.32, H, 7); tr.translate(0, H / 2, 0); bark.push(tr);
+        for (let k = 0; k < 3; k++) { const a = T() * 6.28; const br = new THREE.CylinderGeometry(0.06, 0.12, 2.2, 5); br.rotateZ(0.8); br.rotateY(a); br.translate(Math.cos(a) * 0.6, H * 0.85, -Math.sin(a) * 0.6); bark.push(br); }
+        const cy = H + 1.2, R0 = 2.4 + T() * 0.8;
+        for (let k = 0; k < 46; k++) {
+          const u = T() * 2 - 1, a = T() * 6.28, r = R0 * (0.55 + T() * 0.45);
+          const px = Math.sqrt(1 - u * u) * Math.cos(a) * r, py = u * r * 0.75, pz = Math.sqrt(1 - u * u) * Math.sin(a) * r;
+          card(leaves, px, cy + py, pz, 1.9, 1.9, T() * 6.28, (T() - 0.5) * 1.6, 0, cy, 0);
+        }
+      } else {
+        // 竹：細い稈を何本も束ね、上に葉
+        for (let k = 0; k < 7; k++) {
+          const a = T() * 6.28, d = T() * 1.2, H = 9 + T() * 4;
+          const cx = Math.cos(a) * d, cz = Math.sin(a) * d;
+          const cul = new THREE.CylinderGeometry(0.05, 0.06, H, 5); cul.translate(cx, H / 2, cz); cul.rotateZ((T() - 0.5) * 0.06); bark.push(cul);
+          for (let q = 0; q < 6; q++) card(leaves, cx + (T() - 0.5) * 1.6, H * (0.6 + T() * 0.4), cz + (T() - 0.5) * 1.6, 1.8, 1.4, T() * 6.28, (T() - 0.5) * 0.8, cx, H * 0.7, cz);
+        }
+      }
+      const fix = (arr) => { const m = mergeGeometries(arr.map((g) => (g.index ? g.toNonIndexed() : g))); return m; };
+      return { bark: fix(bark), leaves: fix(leaves) };
+    };
+    const dummy = new THREE.Object3D();
+    const tintOf = {
+      sugi: () => new THREE.Color().setRGB(0.55 + R() * 0.1, 0.62 + R() * 0.12, 0.5),
+      matsu: () => new THREE.Color().setRGB(0.6 + R() * 0.1, 0.7 + R() * 0.1, 0.55),
+      broad: () => autumn ? new THREE.Color([0xc9a060, 0xd08040, 0xa8a050, 0xe0b050][Math.floor(R() * 4)]) : new THREE.Color().setRGB(0.72 + R() * 0.15, 0.8 + R() * 0.12, 0.6),
+      take: () => new THREE.Color().setRGB(0.85, 0.95, 0.7),
+    };
+    const barkKind = { sugi: 'cedar', matsu: 'pine', broad: 'cedar', take: 'bamboo' };
+    this.treeMeshes = [];
+    for (const kind of Object.keys(trees)) {
+      const list = trees[kind];
+      if (!list.length) continue;
+      const VAR = kind === 'take' ? 2 : 3;
+      for (let v = 0; v < VAR; v++) {
+        const mine = list.filter((t, i) => i % VAR === v);
+        if (!mine.length) continue;
+        const g = makeVariant(kind);
+        const bm = new THREE.InstancedMesh(g.bark, barkMat(barkKind[kind]), mine.length);
+        const lm = new THREE.InstancedMesh(g.leaves, leafMat(kind === 'broad' ? 'broad' : kind === 'take' ? 'bamboo' : 'needle', 0xffffff, kind === 'take' ? 0.05 : 0.02), mine.length);
+        mine.forEach(([x, y, z, sc, r], i) => {
+          dummy.position.set(x, y - 0.25, z);
+          dummy.rotation.set((r - 0.5) * 0.06, r * 6.28, (r - 0.5) * 0.06);
+          dummy.scale.set(sc, sc * (0.9 + r * 0.25), sc);
+          dummy.updateMatrix();
+          bm.setMatrixAt(i, dummy.matrix); lm.setMatrixAt(i, dummy.matrix);
+          lm.setColorAt(i, tintOf[kind]());
+        });
+        for (const m of [bm, lm]) { m.castShadow = true; m.receiveShadow = true; this.scene.add(m); this.treeMeshes.push(m); }
+      }
+    }
+    this.treePoints = Object.values(trees).flat().map(([x, , z]) => [x, z]);
+
+    // 草むら
+    // 草むら：葉の絵を十字に組んだ板（遠目に草原らしく見える）
+    const tufts = Math.round((this.def.tufts ?? 5000) * 1.5);
+    const gc = document.createElement('canvas'); gc.width = 64; gc.height = 64;
+    const gg = gc.getContext('2d');
+    for (let i = 0; i < 26; i++) {
+      const x = 4 + Math.random() * 56, h = 30 + Math.random() * 32, lean = (Math.random() - 0.5) * 16;
+      const v = 180 + Math.random() * 75;
+      // 根元は暗く、葉先ほど明るく（地面に生えて見える）
+      const lg = gg.createLinearGradient(0, 64, 0, 64 - h);
+      lg.addColorStop(0, `rgb(${v * 0.35},${v * 0.35},${v * 0.35})`); lg.addColorStop(0.5, `rgb(${v * 0.8},${v * 0.8},${v * 0.8})`); lg.addColorStop(1, `rgb(${v},${v},${v})`);
+      gg.strokeStyle = lg; gg.lineWidth = 1.5 + Math.random() * 2;
+      gg.beginPath(); gg.moveTo(x, 64); gg.quadraticCurveTo(x + lean * 0.3, 64 - h * 0.6, x + lean, 64 - h); gg.stroke();
+    }
+    const gtex = new THREE.CanvasTexture(gc);
+    gtex.colorSpace = THREE.SRGBColorSpace;
+    const blades = [];
+    for (let k = 0; k < 3; k++) {
+      const pg = new THREE.PlaneGeometry(0.9, 0.75);
+      pg.translate(0, 0.33, 0);
+      pg.rotateY((k / 3) * Math.PI);
+      blades.push(pg);
+    }
+    const tuftGeo = mergeGeometries(blades);
+    const tuftMesh = new THREE.InstancedMesh(tuftGeo, sway(new THREE.MeshStandardMaterial({ color: 0xffffff, map: gtex, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.9, envMapIntensity: 0.85 }), 0.12, 0, { wear: true }), tufts);
+    const tc = new THREE.Color();
+    let n = 0;
+    for (let tries = 0; n < tufts && tries < tufts * 8; tries++) {
+      const x = (R() * 2 - 1) * (HALF - 2), z = (R() * 2 - 1) * (HALF - 2);
+      // 踏み固めた土・陣の中には草むらを生やさない（草の割合に合わせて間引く）
+      if (R() > this.grassAt(x, z) * 1.15 - 0.05) continue;
+      if (this.def.water && x > this.def.water.x - 2 && x < (this.def.water.x2 ?? 1e9) + 2) continue;
+      let onPath = false;
+      for (const p of paths) if (distToPolyline(x, z, p) < 2.5) { onPath = true; break; }
+      if (onPath) continue;
+      if (this.def.paddy && this.def.paddy(x, z) > 0.3) continue;
+      let inStream = false;
+      for (const st of this.def.streams || []) if (distToPolyline(x, z, st.pts) < st.w * 1.2) inStream = true;
+      if (inStream) continue;
+      dummy.position.set(x, this.heightAt(x, z) - 0.1, z);
+      const s = 0.55 + R() * 0.8;
+      dummy.scale.set(s, s * (0.8 + R() * 0.8), s);
+      dummy.rotation.set((R() - 0.5) * 0.25, R() * 6, (R() - 0.5) * 0.25);
+      dummy.updateMatrix();
+      tuftMesh.setMatrixAt(n, dummy.matrix);
+      // 地面の草の色に合わせ、ところどころ枯れ色
+      tc.setRGB(0.25 + R() * 0.1, 0.34 + R() * 0.1, 0.13 + R() * 0.05);
+      if (R() < 0.14) tc.setRGB(0.55 + R() * 0.1, 0.5 + R() * 0.08, 0.3);
+      tuftMesh.setColorAt(n, tc);
+      n++;
+    }
+    tuftMesh.count = n;
+    tuftMesh.receiveShadow = true;
+    this.scene.add(tuftMesh);
+    // 薄（ススキ）の株と野の花：まとまって生える
+    const patch = (kind, count, size, clumps) => {
+      const pg = []; for (let k = 0; k < 2; k++) { const g = new THREE.PlaneGeometry(size, size); g.translate(0, size / 2, 0); g.rotateY((k / 2) * Math.PI); pg.push(g); }
+      const mesh = new THREE.InstancedMesh(mergeGeometries(pg), sway(new THREE.MeshStandardMaterial({ map: leafTex(kind), alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.9, envMapIntensity: 0.4 }), kind === 'susuki' ? 0.09 : 0.05, 0, { wear: true }), count);
+      let m = 0;
+      for (let cI = 0; cI < clumps && m < count; cI++) {
+        const cx = (R() * 2 - 1) * (HALF - 6), cz = (R() * 2 - 1) * (HALF - 6);
+        if (!ok(cx, cz, 4)) continue;
+        const per = Math.ceil(count / clumps);
+        for (let q = 0; q < per && m < count; q++) {
+          const x = cx + (R() - 0.5) * 7, z = cz + (R() - 0.5) * 7;
+          if (this.grassAt(x, z) < 0.4) continue;
+          dummy.position.set(x, this.heightAt(x, z) - 0.05, z);
+          const sc = 0.7 + R() * 0.6; dummy.scale.set(sc, sc * (0.8 + R() * 0.5), sc); dummy.rotation.set(0, R() * 6, 0);
+          dummy.updateMatrix(); mesh.setMatrixAt(m++, dummy.matrix);
+        }
+      }
+      mesh.count = m;
+      this.scene.add(mesh);
+    };
+    // 石：斜面ほど多く、半分ほど土に埋まる
+    {
+      const rg = new THREE.IcosahedronGeometry(1, 1);
+      const rp = rg.attributes.position, RR = rng(99);
+      for (let k = 0; k < rp.count; k++) { const f = 0.75 + RR() * 0.4; rp.setXYZ(k, rp.getX(k) * f, rp.getY(k) * f * 0.7, rp.getZ(k) * f); }
+      rg.computeVertexNormals();
+      const N = this.def.rocks ?? 260;
+      const rocks = new THREE.InstancedMesh(rg, new THREE.MeshStandardMaterial({ map: stoneTex(), color: 0xb8b2a6, roughness: 0.92, flatShading: true }), N);
+      let m = 0;
+      for (let tries = 0; tries < N * 8 && m < N; tries++) {
+        const x = (R() * 2 - 1) * (HALF - 3), z = (R() * 2 - 1) * (HALF - 3);
+        if (!ok(x, z, 3)) continue;
+        const sl = Math.abs(this.heightAt(x + 2, z) - this.heightAt(x - 2, z)) + Math.abs(this.heightAt(x, z + 2) - this.heightAt(x, z - 2));
+        if (R() > 0.25 + sl * 0.5) continue;
+        const sc = 0.18 + Math.pow(R(), 2.5) * 1.3;
+        dummy.position.set(x, this.heightAt(x, z) - sc * 0.25, z);
+        dummy.rotation.set(R() * 0.5, R() * 6, R() * 0.5);
+        dummy.scale.set(sc * (0.8 + R() * 0.6), sc, sc * (0.8 + R() * 0.6));
+        dummy.updateMatrix(); rocks.setMatrixAt(m++, dummy.matrix);
+      }
+      rocks.count = m; rocks.castShadow = true; rocks.receiveShadow = true;
+      this.scene.add(rocks);
+    }
+    // 低木：林の縁に葉の塊
+    {
+      const bushG = [];
+      const TB = rng(123);
+      for (let k = 0; k < 9; k++) { const g = new THREE.PlaneGeometry(1.3, 1.1); g.rotateX((TB() - 0.5) * 1.2); g.rotateY(TB() * 6.28); g.translate((TB() - 0.5) * 1.0, 0.5 + TB() * 0.5, (TB() - 0.5) * 1.0); bushG.push(g); }
+      const pts = this.treePoints || [];
+      const N = Math.min(420, pts.length);
+      const bush = new THREE.InstancedMesh(mergeGeometries(bushG), sway(new THREE.MeshStandardMaterial({ map: leafTex('broad'), alphaTest: 0.42, side: THREE.DoubleSide, roughness: 0.9, envMapIntensity: 0.35 }), 0.04, 0.3, { after: keepAlpha }), N);
+      const col = new THREE.Color();
+      let m = 0;
+      for (let k = 0; k < N; k++) {
+        const [tx, tz] = pts[Math.floor(R() * pts.length)];
+        const a = R() * 6.28, d = 2 + R() * 4, x = tx + Math.cos(a) * d, z = tz + Math.sin(a) * d;
+        if (!ok(x, z, 3) || this.grassAt(x, z) < 0.3) continue;
+        dummy.position.set(x, this.heightAt(x, z) - 0.1, z); dummy.rotation.set(0, R() * 6, 0);
+        const sc = 0.7 + R() * 0.8; dummy.scale.set(sc, sc * (0.7 + R() * 0.5), sc);
+        dummy.updateMatrix(); bush.setMatrixAt(m, dummy.matrix);
+        bush.setColorAt(m, this.def.autumn ? col.setRGB(0.75 + R() * 0.2, 0.6 + R() * 0.2, 0.35) : col.setRGB(0.55 + R() * 0.15, 0.65 + R() * 0.15, 0.45));
+        m++;
+      }
+      bush.count = m; bush.castShadow = true;
+      this.scene.add(bush);
+    }
+    patch('susuki', Math.round(tufts * 0.08), 1.5, 60);
+    // 足もとの草：自分の周り 24m に細かな草を敷きつめ、歩けばついて来る（遠くは今の草むらに任せる）
+    {
+      const N = 4200, G = 24;
+      const bg = []; for (let k = 0; k < 2; k++) { const g = new THREE.PlaneGeometry(0.45, 0.38); g.translate(0, 0.17, 0); g.rotateY(k * Math.PI / 2 + 0.3); bg.push(g); }
+      this.nearGrass = new THREE.InstancedMesh(mergeGeometries(bg), sway(new THREE.MeshStandardMaterial({ color: 0xffffff, map: gtex, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.9, envMapIntensity: 0.85 }), 0.1, 0, { wear: true }), N);
+      this.nearGrass.frustumCulled = false;
+      this.nearGrass.receiveShadow = true;
+      this.nearN = N; this.nearG = G;
+      this.nearOff = [];
+      const RN = rng(2024);
+      const col = new THREE.Color();
+      for (let i = 0; i < N; i++) {
+        this.nearOff.push([RN() * G * 2, RN() * G * 2, 0.7 + RN() * 0.7, RN() * 6.28]);
+        col.setRGB(0.24 + RN() * 0.1, 0.33 + RN() * 0.1, 0.12 + RN() * 0.05);
+        if (RN() < 0.12) col.setRGB(0.5 + RN() * 0.1, 0.46 + RN() * 0.08, 0.28);
+        this.nearGrass.setColorAt(i, col);
+      }
+      this.nearCell = null;
+      this.scene.add(this.nearGrass);
+    }
+    // 田植えを終えたばかりの苗：田の中に列をなして並ぶ
+    if (this.def.paddy) {
+      const rows = [];
+      for (let z = -HALF + 2; z < HALF - 2; z += 0.9) for (let x = -130; x < 130; x += 0.8) if (this.def.paddy(x, z) > 0.6) rows.push([x, z]);
+      const sg = []; for (let k = 0; k < 2; k++) { const g = new THREE.PlaneGeometry(0.28, 0.3); g.translate(0, 0.15, 0); g.rotateY(k * Math.PI / 2); sg.push(g); }
+      const rice = new THREE.InstancedMesh(mergeGeometries(sg), sway(new THREE.MeshStandardMaterial({ color: 0x8aa050, map: gtex, alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.8 }), 0.06, 0), rows.length);
+      rows.forEach(([x, z], i) => { dummy.position.set(x + (R() - 0.5) * 0.1, this.heightAt(x, z) - 0.02, z + (R() - 0.5) * 0.1); dummy.rotation.set(0, R() * 3, 0); const sc = 0.8 + R() * 0.4; dummy.scale.set(sc, sc, sc); dummy.updateMatrix(); rice.setMatrixAt(i, dummy.matrix); });
+      this.scene.add(rice);
+    }
+    patch('flower', Math.round(tufts * 0.05), 0.7, 50);
+  }
+
+  buildWater(w) {
+    // 川は地図の外（遠景）まで続ける
+    const wide = w.x2 ? w.x2 - w.x + 6 : 700;
+    const geo = new THREE.PlaneGeometry(wide, 700);
+    geo.rotateX(-Math.PI / 2);
+    // 川面：流れる筋の模様
+    const c = document.createElement('canvas'); c.width = 64; c.height = 256;
+    const g = c.getContext('2d');
+    g.fillStyle = '#40545a'; g.fillRect(0, 0, 64, 256);
+    for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(200,215,220,${0.05 + Math.random() * 0.08})`; g.fillRect(Math.random() * 64, Math.random() * 256, 1 + Math.random() * 3, 10 + Math.random() * 30); }
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(w.x2 ? (w.x2 - w.x) / 16 : 40, 12);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    this.waterTex = tex;
+    // 川面：空を映す（粗さを低く）。流れの筋が動く
+    const mat = new THREE.MeshStandardMaterial({ map: tex, color: 0x7e8c88, roughness: 0.3, metalness: 0, transparent: true, opacity: 0.93, envMapIntensity: 0.7 });
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(w.x2 ? (w.x + w.x2) / 2 : w.x + wide / 2, w.level, 0);
+    this.scene.add(m);
+  }
+
+  // 足もとの草を、自分を中心に敷き直す（格子ごとに一つの位置を持ち、端を越えたら反対側へ回す）
+  updateNearGrass(focus) {
+    if (!this.nearGrass) return;
+    const cx = Math.round(focus.x / 1.5), cz = Math.round(focus.z / 1.5);
+    if (this.nearCell && this.nearCell[0] === cx && this.nearCell[1] === cz) return;
+    this.nearCell = [cx, cz];
+    const G = this.nearG, d = new THREE.Object3D();
+    const paths = this.def.paths || [];
+    for (let i = 0; i < this.nearN; i++) {
+      const [ox, oz, sc, rot] = this.nearOff[i];
+      // 自分の周りの正方形に、ずれないよう巻き戻して置く
+      const wrap = (o, f) => f - G + ((((o - (f - G)) % (G * 2)) + G * 2) % (G * 2));
+      const x = wrap(ox, focus.x), z = wrap(oz, focus.z);
+      const gw = this.grassAt(x, z);
+      let show = gw > 0.35 && ((i * 7919) % 100) / 100 < gw;
+      if (show) for (const p of paths) if (distToPolyline(x, z, p) < 2.2) { show = false; break; }
+      if (show && this.def.water && x > this.def.water.x - 2 && x < (this.def.water.x2 ?? 1e9) + 2) show = false;
+      d.position.set(x, show ? this.heightAt(x, z) - 0.04 : -999, z);
+      d.rotation.set(0, rot, 0);
+      d.scale.set(sc, sc * (0.8 + (i % 5) * 0.1), sc);
+      d.updateMatrix();
+      this.nearGrass.setMatrixAt(i, d.matrix);
+    }
+    this.nearGrass.instanceMatrix.needsUpdate = true;
+  }
+
+  // 空の鳥：烏の群れ・高く輪を描く鳶・朝夕に遠くを渡る雁の列（どれも同じ形を大きさと色を変えて一度に描く）
+  // 形：くちばしの頭・胴・扇の尾と、二節に折れる翼。羽ばたきは翼の先ほど大きく上下する
+  // 烏は羽ばたきと滑空を繰り返し、群れの形は遅れてついて行くので流れて伸び縮みする。ときどき野に降りて歩き、ついばむ
+  // （人が近づくと飛び立つ）。world.addCarrion(x, z) で倒れた者の場所を教えると、戦の後にその近くへ降りる
+  buildBirds() {
+    const V = [];
+    const tri = (a, b, c) => V.push(...a, ...b, ...c);
+    const head = [0, 0.02, 0.42], neck = [0, 0.03, 0.22], tailL = [-0.16, 0, -0.5], tailR = [0.16, 0, -0.5], rump = [0, 0.02, -0.22];
+    for (const sd of [-1, 1]) {
+      const inF = [0.07 * sd, 0.02, 0.16], inB = [0.07 * sd, 0.02, -0.12];
+      const midF = [0.5 * sd, 0.04, 0.1], midB = [0.45 * sd, 0.03, -0.16];
+      const tip = [1.0 * sd, 0.0, -0.14], tip2 = [0.85 * sd, 0.0, -0.24];
+      tri(inF, midF, inB); tri(inB, midF, midB);
+      tri(midF, tip, midB); tri(midB, tip, tip2);
+      // 胴の脇と、胴の下のふくらみ（降りた時に塊に見える）
+      tri(head, neck, inF); tri(neck, inB, inF); tri(inB, rump, [0, 0.02, -0.12]);
+      tri([0.07 * sd, 0.02, 0.16], [0, -0.1, 0.02], [0.07 * sd, 0.02, -0.12]);
+    }
+    tri(rump, tailL, tailR);
+    tri(head, [0.05, -0.02, 0.2], [-0.05, -0.02, 0.2]);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(V, 3));
+    g.computeVertexNormals();
+    const NC = 20, NK = 2, NG = 11, N = NC + NK + NG;
+    const fl = new Float32Array(N * 4);
+    const mat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+    mat.onBeforeCompile = (sh) => {
+      sh.uniforms.uT = WIND;
+      // aBird：x 羽ばたきの強さ（0 は滑空）・y 位相・z 翼をたたむ（降りた時 1）・w 羽ばたきの速さ
+      sh.vertexShader = 'uniform float uT;\nattribute vec4 aBird;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+        float ax = abs(position.x), fold = aBird.z;
+        float fl = sin(uT * aBird.w + aBird.y);
+        vec3 fly = transformed;
+        fly.y += fl * aBird.x * (ax * 0.55 + max(0.0, ax - 0.45) * 0.5) + (1.0 - aBird.x) * ax * 0.1;
+        fly.z -= abs(fl) * aBird.x * ax * 0.08;
+        // たたんだ翼：胴に沿わせて後ろへ
+        vec3 rest = vec3(sign(position.x) * min(ax, 0.1) + position.x * 0.06, position.y + min(ax, 0.6) * 0.1, position.z - max(0.0, ax - 0.1) * 0.35);
+        transformed = mix(fly, rest, fold);`);
+    };
+    this.birds = new THREE.InstancedMesh(g, mat, N);
+    this.birds.geometry.setAttribute('aBird', new THREE.InstancedBufferAttribute(fl, 4));
+    this.birdFl = fl;
+    const R = rng(8);
+    const col = new THREE.Color();
+    // 群れの中心はゆっくり流れる
+    this.birdFlocks = [0, 1].map(() => ({ cx: (R() - 0.5) * 80, cz: (R() - 0.5) * 80, ph: R() * 6.28, landT: 20 + R() * 30 }));
+    this.birdData = [];
+    for (let i = 0; i < N; i++) {
+      const type = i < NC ? 'crow' : i < NC + NK ? 'kite' : 'goose';
+      const b = { type, f: i % 2, r: 16 + R() * 26, a: R() * 6.28, h: 30 + R() * 25, sp: (0.07 + R() * 0.05) * (i % 3 ? 1 : -1) * (i % 2 ? 1 : -1), ph: R() * 6.28,
+        ox: (R() - 0.5) * 18, oz: (R() - 0.5) * 18, p: new THREE.Vector3(0, -999, 0), v: new THREE.Vector3(), state: 'air', flap: 1, flapK: 1, flapT: R() * 3, fold: 0, yaw: 0, bank: 0, pitch: 0, sc: 0.8, hop: 0, hopT: 1, peck: 0, fs: 7 + R() * 2 };
+      if (type === 'crow') col.setRGB(0.15, 0.145, 0.14);
+      else if (type === 'kite') { col.setRGB(0.36, 0.28, 0.2); b.h = 85 + R() * 20; b.r = 40 + R() * 15; b.sp = 0.07 * (i % 2 ? 1 : -1); b.fs = 5; }
+      else { col.setRGB(0.42, 0.4, 0.36); b.fs = 6.5 + R() * 0.6; b.k = i - NC - NK; }
+      this.birds.setColorAt(i, col);
+      this.birdData.push(b);
+    }
+    this.geese = { t: 20 + R() * 40, on: false };
+    this.carrion = [];
+    this.birds.frustumCulled = false;
+    this.scene.add(this.birds);
+    this.birdDummy = new THREE.Object3D();
+  }
+
+  // 倒れた者の場所（烏が戦の後に降りてくる）
+  addCarrion(x, z) {
+    this.carrion.push({ x, z });
+    if (this.carrion.length > 40) this.carrion.shift();
+  }
+
+  // 烏の降りる場所：倒れた者の近く、なければ人から離れた草の野
+  birdSpot(F, focus) {
+    if (this.carrion.length && Math.random() < 0.85) {
+      const c = this.carrion[Math.floor(Math.random() * this.carrion.length)];
+      if (Math.hypot(c.x - focus.x, c.z - focus.z) > 14) return { x: c.x, z: c.z, carrion: true };
+    }
+    for (let k = 0; k < 12; k++) {
+      const a = Math.random() * 6.28, r = 30 + Math.random() * 60;
+      const x = focus.x + Math.cos(a) * r, z = focus.z + Math.sin(a) * r;
+      if (Math.abs(x) > HALF * 0.9 || Math.abs(z) > HALF * 0.9) continue;
+      if (this.grassAt(x, z) < 0.35) continue;
+      return { x, z };
+    }
+    return null;
+  }
+
+  updateBirds(dt, focus) {
+    if (!this.birds) return;
+    const d = this.birdDummy, T = this.time, fl = this.birdFl;
+    const dusk = this.timeKey === 'dusk' || (this.mood === 'morning' && T < 240);
+    // 雁：朝と夕に、遠くを V の字の列で渡る
+    const G = this.geese;
+    G.t -= dt;
+    if (!G.on && G.t <= 0 && dusk && this.timeKey !== 'storm') {
+      const a = Math.random() * 6.28;
+      G.on = true; G.s = 0; G.dir = new THREE.Vector2(Math.cos(a), Math.sin(a));
+      const side = new THREE.Vector2(-G.dir.y, G.dir.x).multiplyScalar(150 + Math.random() * 70);
+      G.o = new THREE.Vector2(focus.x + side.x - G.dir.x * 280, focus.z + side.y - G.dir.y * 280); G.h = 60 + Math.random() * 25;
+    }
+    if (G.on) { G.s += dt * 11; if (G.s > 560) { G.on = false; G.t = 70 + Math.random() * 80; } }
+    for (let i = 0; i < this.birdData.length; i++) {
+      const b = this.birdData[i];
+      if (b.type === 'goose') {
+        if (!G.on) { d.position.set(0, -999, 0); d.scale.setScalar(0.001); } else {
+          const rank = Math.ceil(b.k / 2), sd = b.k % 2 ? 1 : -1;
+          const bx = G.o.x + G.dir.x * (G.s - rank * 2.4) + (-G.dir.y) * sd * rank * 2.0, bz = G.o.y + G.dir.y * (G.s - rank * 2.4) + G.dir.x * sd * rank * 2.0;
+          d.position.set(bx, G.h + Math.sin(T * 0.7 + b.ph) * 0.4, bz);
+          d.rotation.set(0, Math.atan2(G.dir.x, G.dir.y), 0, 'YXZ');
+          d.scale.setScalar(0.85);
+        }
+        fl.set([1, b.ph, 0, b.fs], i * 4);
+      } else if (b.type === 'kite') {
+        // 鳶：高く大きな輪を、翼を張ったまま描く。ときどき二三度羽ばたく
+        const F = this.birdFlocks[b.f];
+        b.a += b.sp * dt;
+        const cx = F.cx + Math.sin(T * 0.01 + F.ph) * 30, cz = F.cz + Math.cos(T * 0.008 + F.ph) * 30;
+        d.position.set(cx + Math.cos(b.a) * b.r, b.h + Math.sin(T * 0.1 + b.ph) * 4, cz + Math.sin(b.a) * b.r);
+        const dir = b.sp > 0 ? 1 : -1;
+        d.rotation.set(0, Math.atan2(-Math.sin(b.a) * dir, Math.cos(b.a) * dir), -0.3 * dir, 'YXZ');
+        d.scale.setScalar(1.05);
+        const flap = Math.sin(T * 0.21 + b.ph) > 0.93 ? 1 : 0;
+        b.flapK += (flap - b.flapK) * Math.min(1, dt * 4);
+        fl.set([b.flapK * 0.8, b.ph, 0, b.fs], i * 4);
+      } else this.updateCrow(b, i, dt, focus, d, fl);
+      d.updateMatrix();
+      this.birds.setMatrixAt(i, d.matrix);
+    }
+    for (const F of this.birdFlocks) {
+      F.landT -= dt;
+      if (F.landT > 0) continue;
+      F.landT = (this.carrion.length ? 14 : 30) + Math.random() * 30;
+      const s = this.birdSpot(F, focus);
+      if (!s) continue;
+      // 群れの半分ほどが降りる
+      for (const b of this.birdData) {
+        if (b.type !== 'crow' || b.f !== this.birdFlocks.indexOf(F) || b.state !== 'air' || Math.random() > 0.6) continue;
+        const a = Math.random() * 6.28, r = Math.random() * 4 + (s.carrion ? 1.5 : 0);
+        b.state = 'down'; b.tx = s.x + Math.cos(a) * r; b.tz = s.z + Math.sin(a) * r; b.stay = (s.carrion ? 25 : 9) + Math.random() * 16;
+      }
+    }
+    this.birds.instanceMatrix.needsUpdate = true;
+    this.birds.geometry.attributes.aBird.needsUpdate = true;
+  }
+
+  updateCrow(b, i, dt, focus, d, fl) {
+    const F = this.birdFlocks[b.f], T = this.time;
+    if (b.p.y < -100) {
+      // 始め：群れの輪の上に置く
+      b.p.set(F.cx + b.ox + Math.cos(b.a) * b.r, b.h, F.cz + b.oz + Math.sin(b.a) * b.r);
+    }
+    let tx, ty, tz, maxV = 9;
+    if (b.state === 'air' || b.state === 'up') {
+      b.a += b.sp * dt;
+      const fx = F.cx + Math.sin(T * 0.013 + F.ph) * 45, fz = F.cz + Math.cos(T * 0.011 + F.ph * 1.3) * 45;
+      tx = fx + b.ox + Math.cos(b.a) * b.r; tz = fz + b.oz + Math.sin(b.a) * b.r;
+      ty = b.h + Math.sin(T * 0.3 + b.ph) * 3;
+      if (b.state === 'up' && b.p.y - this.heightAt(b.p.x, b.p.z) > 14) b.state = 'air';
+    } else if (b.state === 'down') {
+      tx = b.tx; tz = b.tz; ty = this.heightAt(tx, tz) + 0.12; maxV = 7;
+      const dl = Math.hypot(tx - b.p.x, tz - b.p.z);
+      // 降りる時は、遠くでは高さを保ち、近づくほど下りる
+      ty = Math.max(ty, ty + Math.min(40, dl * 0.5));
+      if (dl < 1.2 && b.p.y - ty < 1.2) { b.state = 'ground'; b.p.set(tx, ty, tz); b.v.set(0, 0, 0); b.t = 0; }
+      if (Math.hypot(focus.x - tx, focus.z - tz) < 12) b.state = 'up';
+    }
+    if (b.state === 'ground') {
+      // 地面：跳ねて歩き、ついばむ。人が近づくか、しばらくすると飛び立つ
+      b.t += dt; b.hopT -= dt;
+      if (b.hopT <= 0) {
+        b.hopT = 0.5 + Math.random() * 1.4;
+        if (Math.random() < 0.55) { b.yaw += (Math.random() - 0.5) * 2; b.hop = 0.28; }
+        else b.peck = 0.6;
+      }
+      if (b.hop > 0) {
+        b.hop -= dt;
+        b.p.x += Math.sin(b.yaw) * dt * 1.4; b.p.z += Math.cos(b.yaw) * dt * 1.4;
+      }
+      b.peck = Math.max(0, b.peck - dt);
+      const gy = this.heightAt(b.p.x, b.p.z) + 0.12;
+      b.p.y = gy + (b.hop > 0 ? Math.sin((b.hop / 0.28) * Math.PI) * 0.12 : 0);
+      b.fold += (1 - b.fold) * Math.min(1, dt * 5);
+      b.sc += (0.42 - b.sc) * Math.min(1, dt * 3);
+      b.pitch = -0.35 + (b.peck > 0 ? Math.sin((b.peck / 0.6) * Math.PI * 2) * 0.5 + 0.5 : 0);
+      if (b.t > b.stay || Math.hypot(focus.x - b.p.x, focus.z - b.p.z) < 11) { b.state = 'up'; b.v.set(Math.sin(b.yaw) * 2, 4, Math.cos(b.yaw) * 2); b.flap = 1; b.flapT = 3; }
+      d.position.copy(b.p);
+      d.rotation.set(b.pitch, b.yaw, 0, 'YXZ');
+      d.scale.setScalar(b.sc);
+      fl.set([0, b.ph, b.fold, b.fs], i * 4);
+      return;
+    }
+    // 飛ぶ：目当てへ向かう速さに、遅れて追いつく（群れの形が流れて伸び縮みする）
+    const dx = tx - b.p.x, dy = ty - b.p.y, dz = tz - b.p.z;
+    const dl = Math.hypot(dx, dy, dz) || 1, want = Math.min(maxV, dl * 0.7);
+    const k = Math.min(1, dt * (b.state === 'up' ? 2.2 : 1.1));
+    const ovx = b.v.x, ovz = b.v.z;
+    b.v.x += (dx / dl * want - b.v.x) * k; b.v.y += (dy / dl * want - b.v.y) * k; b.v.z += (dz / dl * want - b.v.z) * k;
+    if (b.state === 'up') b.v.y = Math.max(b.v.y, 3);
+    b.p.addScaledVector(b.v, dt);
+    const hs = Math.hypot(b.v.x, b.v.z);
+    if (hs > 0.3) {
+      const ny = Math.atan2(b.v.x, b.v.z);
+      // 曲がる側へ傾く
+      const turn = (ovx * b.v.z - ovz * b.v.x) / Math.max(1, hs * hs) / Math.max(dt, 1e-3);
+      b.bank += (Math.max(-0.7, Math.min(0.7, -turn * 0.6)) - b.bank) * Math.min(1, dt * 3);
+      b.yaw = ny;
+    }
+    // 羽ばたきと滑空の繰り返し（昇る時と飛び立つ時は羽ばたく）
+    b.flapT -= dt;
+    if (b.flapT <= 0) { b.flap = b.flap ? 0 : 1; b.flapT = b.flap ? 1.2 + Math.random() * 2.5 : 1 + Math.random() * 2.5; }
+    const flap = b.state === 'up' || b.v.y > 0.8 ? 1 : b.flap;
+    b.flapK += (flap - b.flapK) * Math.min(1, dt * 4);
+    b.fold += (0 - b.fold) * Math.min(1, dt * 6);
+    b.sc += (0.8 - b.sc) * Math.min(1, dt * 1.5);
+    d.position.copy(b.p);
+    d.rotation.set(-Math.max(-0.5, Math.min(0.5, b.v.y / 9)) * 0.6, b.yaw, b.bank, 'YXZ');
+    d.scale.setScalar(b.sc);
+    fl.set([b.flapK, b.ph, b.fold, b.state === 'up' ? 13 : b.fs], i * 4);
+  }
+
+  // 小川：掘った溝に水の帯を流す
+  buildStream(st) {
+    const pts = st.pts;
+    const posA = [], idx = [];
+    const seg = 4;
+    let n = 0;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [ax, az] = pts[i], [bx, bz] = pts[i + 1];
+      const L = Math.hypot(bx - ax, bz - az), steps = Math.ceil(L / seg);
+      const nx = -(bz - az) / L, nz = (bx - ax) / L;
+      for (let k = 0; k <= steps; k++) {
+        if (i > 0 && k === 0) continue;
+        const t = k / steps, x = ax + (bx - ax) * t, z = az + (bz - az) * t;
+        const y = this.heightAt(x, z) + st.depth * 0.55;
+        posA.push(x + nx * st.w, y, z + nz * st.w, x - nx * st.w, y, z - nz * st.w);
+        if (n > 0) { const a = (n - 1) * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+        n++;
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(posA, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    // 小川：濁った流れ。空は映すが、白い帯に見えないよう照り返しを抑える
+    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0x323d38, roughness: 0.26, metalness: 0, transparent: true, opacity: 0.9, side: THREE.DoubleSide, envMapIntensity: 0.55 }));
+    m.receiveShadow = true;
+    this.scene.add(m);
+  }
+
+  buildRain() {
+    const N = 5000;
+    const pos = new Float32Array(N * 6);
+    this.rainData = new Float32Array(N * 3);
+    for (let i = 0; i < N; i++) {
+      this.rainData[i * 3] = (Math.random() - 0.5) * 70;
+      this.rainData[i * 3 + 1] = Math.random() * 30;
+      this.rainData[i * 3 + 2] = (Math.random() - 0.5) * 70;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const mat = new THREE.LineBasicMaterial({ color: 0xc9d2d6, transparent: true, opacity: 0.45 });
+    this.rain = new THREE.LineSegments(geo, mat);
+    this.rain.frustumCulled = false;
+    this.rain.visible = false;
+    this.scene.add(this.rain);
+    // 地面で跳ねる雨粒
+    // 跳ね：小さな冠（三本の短い飛沫が外へ開く）
+    const SN = 400;
+    this.splash = new Float32Array(SN * 3);
+    this.splashT = new Float32Array(SN);
+    this.splashLine = new Float32Array(SN * 18);
+    const sg = new THREE.BufferGeometry();
+    sg.setAttribute('position', new THREE.BufferAttribute(this.splashLine, 3));
+    this.splashPts = new THREE.LineSegments(sg, new THREE.LineBasicMaterial({ color: 0xd8e0e4, transparent: true, opacity: 0.5, depthWrite: false }));
+    this.splashPts.frustumCulled = false;
+    this.splashPts.visible = false;
+    this.scene.add(this.splashPts);
+  }
+
+  setRainTarget(v) { this.targetRain = v; }
+
+  update(dt, focus) {
+    this.time = (this.time || 0) + dt;
+    WIND.value = this.time;
+    // 風の強弱：ゆっくりした息と、ときどきの突風（嵐は強く）
+    const T = this.time;
+    const storm = this.timeKey === 'storm' ? 1 : 0;
+    const breath = 0.5 + 0.5 * Math.sin(T * 0.13) * Math.sin(T * 0.071 + 1.3);
+    const gustPulse = Math.pow(Math.max(0, Math.sin(T * 0.29 + Math.sin(T * 0.05) * 3)), 6);
+    WIND_STATE.gust = 0.55 + breath * 0.45 + gustPulse * 0.7 + storm * 0.6 + this.rainLevel * 0.3;
+    WIND_STATE.t = T;
+    GUST.value = WIND_STATE.gust;
+    this.updateFade(dt);
+    // 雲の影の流れ（強い風ほど速い）
+    this.cloudPhase = (this.cloudPhase + dt * (3 + WIND_STATE.gust * 2.5)) % 20000;
+    if (this.smokeCol) {
+      // 煙の色は空の明るさに合わせる（夕暮れ・雨の中で白く光らないように）
+      const sc = this.smokeCol.pts.material.uniforms.color.value;
+      sc.set(0xc8c6c0).multiply(this.hemi.color).multiplyScalar(1.05).lerp(this.scene.fog.color, 0.35);
+      this.smokeCol.pts.material.uniforms.uTime.value = T;
+      this.smokeCol.pts.material.uniforms.wind.value.set(WIND_STATE.dirX, WIND_STATE.dirZ).multiplyScalar(0.6 + WIND_STATE.gust * 0.4);
+    }
+    // 歩いた所を踏む（自分の足もと）。踏み荒らしの絵は時々送り直す
+    if (focus && this.lastFoot) {
+      const mv = Math.hypot(focus.x - this.lastFoot.x, focus.z - this.lastFoot.z);
+      if (mv > 0.6) { this.stampWear(focus.x, focus.z, 0.8, 5); this.lastFoot.copy(focus); }
+    } else if (focus) this.lastFoot = focus.clone();
+    this.wearT = (this.wearT || 0) + dt;
+    if (this.wearDirty && this.wearT > 0.5) { this.wearT = 0; this.wearDirty = 0; this.wearTex.needsUpdate = true; }
+    this.updateHaze(dt, focus);
+    if (this.haze) this.haze.mesh.material.uniforms.color.value.set(this.timeKey === 'dusk' ? 0xcbb4a0 : this.timeKey === 'storm' ? 0x9a9e9e : 0xd4d2cc);
+    if (this.dustVeil) this.dustVeil.mesh.material.uniforms.color.value.set(this.timeKey === 'dusk' ? 0xb08a68 : 0xa89878);
+    // 稲光（豪雨のとき）
+    if (this.def.lightning && this.rainLevel > 0.7) {
+      this.boltT = (this.boltT ?? 6) - dt;
+      if (this.boltT <= 0) { this.boltT = 8 + Math.random() * 9; this.flashT = 0.35; if (this.onBolt) this.onBolt(); }
+    }
+    if (this.flashT > 0) {
+      this.flashT -= dt;
+      const f = Math.max(0, this.flashT / 0.35) * (Math.random() < 0.7 ? 1 : 0.3);
+      this.skyMat.uniforms.flash.value = f * 0.6;
+      this.hemi.intensity = (this.baseHemi || this.hemi.intensity) + f * 2.2;
+    } else if (this.skyMat.uniforms.flash.value) { this.skyMat.uniforms.flash.value = 0; this.hemi.intensity = this.baseHemi; }
+    // 遠景の軍勢がゆっくり揺れる
+    // 遠景の軍勢：兵の動きは形の側。ここでは進む・退く・崩れる・付いて歩くを進める
+    for (const a of this.armies || []) { a.mesh.position.x = a.x0; if (a.tick) a.tick(dt); }
+    // 軽い大軍の合戦（前線の押し合い・討たれる者・崩れ）と、その矢
+    for (const c of this.clashes || []) c.tick(dt, focus);
+    this.updateClashArrows(dt);
+    this.sky.position.set(focus.x, 0, focus.z);
+    this.mountains.position.set(focus.x, 0, focus.z);
+    this.skyMat.uniforms.time.value = this.time;
+    this.updateNearGrass(focus);
+    this.updateBirds(dt, focus);
+    if (this.waterTex) { this.waterTex.offset.y += dt * 0.03; }
+    // 雨で地面が濡れて暗くなる
+    // 雨で地面が濡れて暗く、少し光る。雨が止んでもしばらく濡れたまま
+    this.wetness = Math.max(this.rainLevel, (this.wetness || (this.def.wetStart || 0)) - dt * 0.004);
+    this.groundU.uWet.value = this.wetness;
+    WET.value = this.wetness;
+    if (this.onWet) this.onWet(this.wetness);
+    // 炎の揺らめき
+    for (const f of this.fires) {
+      const k = 0.85 + Math.sin(this.time * 13 + f.seed) * 0.1 + Math.sin(this.time * 7.3 + f.seed * 2) * 0.08;
+      // 揺らめき：縦に伸び縮みし、少し横に揺れる
+      f.flame.scale.set(f.size * 0.5 * (0.9 + Math.sin(this.time * 9 + f.seed) * 0.08), f.size * k, 1);
+      f.inner.scale.set(f.size * 0.27, f.size * 0.55 * (0.8 + k * 0.25), 1);
+      f.flame.position.x = f.x + Math.sin(this.time * 5 + f.seed) * 0.03;
+      f.flame.position.y = f.base + (k - 0.85) * f.size * 0.3;
+      if (f.light && f.light.intensity > 0) f.light.intensity = 1.9 + k * 0.5;
+      if (f.glow) f.glow.material.opacity = (this.timeKey === 'dusk' || this.timeKey === 'storm' ? 0.34 : 0.1) * (0.8 + k * 0.25);
+    }
+    this.updateEmbers(dt, focus);
+    // 土ぼこりと泥はね
+    this.updatePuffs(this.dustP, dt, 0);
+    this.updatePuffs(this.mudP, dt, 9);
+    // 影の範囲をプレイヤー周辺に追従
+    this.sun.position.copy(focus).add(this.sunOffset);
+    this.sun.target.position.copy(focus);
+    // 雨量を緩やかに変化
+    this.rainLevel += (this.targetRain - this.rainLevel) * Math.min(1, dt * 0.4);
+    const r = this.rainLevel;
+    // 見通し：時間帯の見通しに、戦ごとの霧の遠さ・描画距離の設定・雨・朝靄・硝煙を掛ける
+    const L = this.look || TIME.day;
+    let vis = L.vis * ((this.def.fogFar || 230) / 230) * (this.distMul || 1);
+    // 朝靄：戦の始めは霧が深く、一分ほどでしだいに晴れる（晴れても薄い靄は残る）
+    const mist = this.def.mist ? Math.max(0, 1 - this.time / 60) : 0;
+    vis = vis + (95 - vis) * mist * mist * (3 - 2 * mist) * 0.9;
+    // 雨は遠くを白く隠す
+    vis = vis + (80 - vis) * r;
+    if (this.haze) vis /= 1 + this.haze.k * 0.9 + (this.dustVeil ? this.dustVeil.k * 0.35 : 0);
+    this.vis = vis;
+    // 雲の影は、雨・画質「低」では無し
+    const cloud = Math.min(0.95, (L.cloud || 0) * (1 - r) * (SETTINGS.quality === 'low' ? 0 : 1));
+    this.scene.fog.near = this.cloudPhase;
+    this.scene.fog.far = Math.floor(Math.max(20, vis)) + Math.max(0, Math.min(0.95, cloud));
+    // 遠景の山の霞を、霧の式に合わせる
+    this.mountU.hazeCol.value.copy(this.scene.fog.color);
+    this.mountU.mist.value = Math.max(mist, r, this.mood === 'morning' ? 0.35 : 0);
+    this.mountU.vis.value = vis; this.mountU.rain.value = r;
+    // 遠い層ほど少なくともこれだけは霞む（晴れた日でも遠い峰は青く抜ける）
+    for (const m of this.mountains.children) m.material.uniforms.haze.value = Math.min(0.9, 0.18 + m.material.uniforms.layer.value * 0.14);
+    this.rain.visible = r > 0.03;
+    if (!this.rain.visible) { this.splashPts.visible = false; return; }
+    this.rain.material.opacity = 0.45 * r;
+    const arr = this.rain.geometry.attributes.position.array;
+    const d = this.rainData;
+    const N = d.length / 3;
+    const count = Math.floor(N * r);
+    // 雨筋は風下へ斜めに流れ、突風で強く傾く。粒ごとに速さと長さが違う（近い粒ほど長い筋に見える）
+    const wk = 2.5 + WIND_STATE.gust * 4.5, wdx = WIND_STATE.dirX * wk, wdz = WIND_STATE.dirZ * wk;
+    for (let i = 0; i < N; i++) {
+      const sp = 24 + (i % 7) * 1.6;
+      d[i * 3 + 1] -= dt * sp;
+      d[i * 3] += dt * wdx; d[i * 3 + 2] += dt * wdz;
+      if (d[i * 3 + 1] < 0) { d[i * 3 + 1] += 30; d[i * 3] = (Math.random() - 0.5) * 70; d[i * 3 + 2] = (Math.random() - 0.5) * 70; }
+      const x = focus.x + d[i * 3], y = focus.y - 6 + d[i * 3 + 1], z = focus.z + d[i * 3 + 2];
+      const o = i * 6;
+      if (i >= count) { arr[o] = arr[o + 3] = x; arr[o + 1] = arr[o + 4] = -999; arr[o + 2] = arr[o + 5] = z; continue; }
+      const len = 0.035 * (0.7 + (i % 5) * 0.15);
+      arr[o] = x; arr[o + 1] = y; arr[o + 2] = z;
+      arr[o + 3] = x - wdx * len; arr[o + 4] = y + sp * len; arr[o + 5] = z - wdz * len;
+    }
+    this.rain.geometry.attributes.position.needsUpdate = true;
+    // 跳ね：足もと20mほどの地面に、雨の強さに応じて
+    this.splashPts.visible = true;
+    const sp = this.splash, SN = this.splashT.length, SL = this.splashLine;
+    for (let i = 0; i < SN; i++) {
+      this.splashT[i] -= dt;
+      if (this.splashT[i] <= 0) {
+        if (Math.random() > r) { sp[i * 3 + 1] = -999; this.splashT[i] = 0.1; }
+        else {
+          const a = Math.random() * 6.28, d = Math.sqrt(Math.random()) * 20;
+          const x = focus.x + Math.cos(a) * d, z = focus.z + Math.sin(a) * d;
+          sp[i * 3] = x; sp[i * 3 + 1] = this.heightAt(x, z) + 0.02; sp[i * 3 + 2] = z;
+          this.splashT[i] = 0.08 + Math.random() * 0.12;
+        }
+      }
+      // 冠は跳ねた直後に開き、すぐ消える
+      const k = 1 - Math.max(0, this.splashT[i]) / 0.2, x = sp[i * 3], y = sp[i * 3 + 1], z = sp[i * 3 + 2];
+      for (let q = 0; q < 3; q++) {
+        const a = q * 2.09 + i, o = i * 18 + q * 6, rr = 0.03 + k * 0.05;
+        SL[o] = x + Math.cos(a) * 0.015; SL[o + 1] = y; SL[o + 2] = z + Math.sin(a) * 0.015;
+        SL[o + 3] = x + Math.cos(a) * rr; SL[o + 4] = y + 0.04 + k * 0.05; SL[o + 5] = z + Math.sin(a) * rr;
+      }
+    }
+    this.splashPts.geometry.attributes.position.needsUpdate = true;
+  }
+}

@@ -1,0 +1,54 @@
+{
+ "note": "戦国立身：夜の順番表で済にした改善（tools/mkadmin.mjs → mkpages.mjs）",
+ "made": "2026-09-26T22:59:50.171Z",
+ "items": [
+  {
+   "date": "",
+   "title": "J. kaito の寝る前の注文",
+   "did": "筋書きを選べるように：タイトルに五つの筋書きを全部並べた（22時 主が直した）",
+   "from": "夜の順番表（docs/overnight-backlog.md）"
+  },
+  {
+   "date": "",
+   "title": "L. 寝ている間に足す物",
+   "did": "英語版：やらない（kaito 2026-09-26「英語やめて」）",
+   "from": "夜の順番表（docs/overnight-backlog.md）"
+  },
+  {
+   "date": "",
+   "title": "M. iOS アプリの係から、ゲームの側に要る変更",
+   "did": "PV の作り直し：やらない（kaito 2026-09-26「PVはなしでいいや」。今ある reports/pv/pv.webm はそのまま）",
+   "from": "夜の順番表（docs/overnight-backlog.md）"
+  },
+  {
+   "date": "2026-09-25 09:20",
+   "title": "0. 長篠編",
+   "did": "家紋と旗印を足す：三つ葉葵・武田菱・奥平団扇・丸に片喰・大久保藤・「厭離穢土欣求浄土」「風林火山」「永楽通宝」の旗（src/textures.js の drawMon）",
+   "from": "夜の順番表（docs/overnight-backlog.md）"
+  },
+  {
+   "date": "2026-09-25 10:30",
+   "title": "0. 長篠編",
+   "did": "馬防柵の小道具：三重の柵・横木二段・縄・虎口・前の空堀・後ろの土盛り、柵の体力（src/props.js）",
+   "from": "夜の順番表（docs/overnight-backlog.md）"
+  },
+  {
+   "date": "2026-09-25 10:30",
+   "title": "0. 長篠編",
+   "did": "筋書きの選び方：タイトルに「長篠編（はじめから）」を先頭に、「桶狭間編」は「別の筋書き」から。四つの筋書きを順に遊ぶ流れ",
+   "from": "夜の順番表（docs/overnight-backlog.md）"
+  },
+  {
+   "date": "2026-09-25 10:30",
+   "title": "0. 長篠編",
+   "did": "三．設楽原の決戦を作る（馬防柵・連吾川・一斉射撃の号令・武田騎馬の波・宿将の討死・勝頼の決断・追い討ち）。長篠編の山場なので先に",
+   "from": "夜の順番表（docs/overnight-backlog.md）"
+  },
+  {
+   "date": "2026-09-25 昼",
+   "title": "0. 長篠編",
+   "did": "設楽原：遠くの武田の大軍が点の格子に見える（addDistantArmy の並びを密に・奥へ）",
+   "from": "夜の順番表（docs/overnight-backlog.md）"
+  }
+ ]
+}

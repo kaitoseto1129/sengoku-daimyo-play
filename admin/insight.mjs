@@ -10,7 +10,8 @@ const HERE=path.dirname(fileURLToPath(import.meta.url));
 
 export function derive(DATA, RANGE='d7'){
   const R=(DATA.ranges||{})[RANGE]; if(!R) return null;
-  const hits=R.hits||[], tot=R.total||{};
+  /* 戦国立身（/risshin/・risshin/ev/…）も同じサイトに入る。ここは戦国大名だけを読む（管理画面の gameHits と同じ分け方） */
+  const hits=(R.hits||[]).filter(h=>!/^\/?risshin(\/|$)/.test(String(h.path||''))), tot=R.total||{};
   const sumStats=h=>(h.stats||[]).reduce((s,d)=>s+(d.daily||0),0);
   let days=(tot.stats||[]).map(d=>({day:d.day,n:d.daily||0}));
   if(!days.length){ const m={}; for(const h of hits){ if(h.event) continue; for(const d of (h.stats||[])) m[d.day]=(m[d.day]||0)+(d.daily||0); } days=Object.keys(m).sort().map(k=>({day:k,n:m[k]})); }

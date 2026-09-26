@@ -19,18 +19,16 @@ async function get(path, params) {
 }
 async function hitsAll(start, end) {
   // 道（path）ごとの数。多ければ続きも取る
-  const out = []; let after = undefined;
-  for (let i = 0; i < 20; i++) {
-    const r = await get("stats/hits", { start, end, daily: "true", limit: 100, ...(after !== undefined ? { after } : {}) });
+  /* 戦国立身（/risshin/・risshin/ev/…）も同じサイトに入るので、道はもっと増える。
+     GoatCounter の stats/hits は「after」を知らず（一枚目の百で切れていた）、続きは exclude_paths（取った道の id をカンマで）で取る。
+     more が true の間、最大 30 枚（3000 の道）まで */
+  const out = []; const seen = new Set();
+  for (let i = 0; i < 30; i++) {
+    const r = await get("stats/hits", { start, end, daily: "true", limit: 100, ...(seen.size ? { exclude_paths: [...seen].join(",") } : {}) });
     if (r.error) { out.error = r.error; break; }
-    const got = r.hits || [];
-    out.push(...got);
-    /* 第254巡：more が返らない版があり、百の道で切れていた（数の少ない道が丸ごと落ちる）。
-       百ぴったり返ってきたら続きがあると見なして取りに行く */
-    if (got.length < 100) break;
-    const last = got[got.length - 1].path_id;
-    if (last === undefined || last === after) break;
-    after = last;
+    const got = (r.hits || []).filter(h => !seen.has(h.path_id));
+    for (const h of got) { seen.add(h.path_id); out.push(h); }
+    if (!got.length || r.more === false || (r.more === undefined && (r.hits || []).length < 100)) break;
   }
   return out;
 }
@@ -42,6 +40,7 @@ for (const [name, days] of [["d1", 0], ["d7", 6], ["d30", 29], ["d90", 89]]) {  
     total: await get("stats/total", { start, end }),
     hits: await hitsAll(start, end),
   };
+  if (out.ranges[name].hits.error) out.ranges[name].hitsError = out.ranges[name].hits.error;   // 配列の印は JSON に残らないので別に書く
 }
 // 三十日ぶんの内訳
 { const start = day(29), end = day(0);
@@ -50,4 +49,4 @@ for (const [name, days] of [["d1", 0], ["d7", 6], ["d30", 29], ["d90", 89]]) {  
 }
 import { writeFileSync } from "node:fs";
 writeFileSync(new URL("./stats.json", import.meta.url), JSON.stringify(out));
-console.log("wrote stats.json", Object.keys(out.ranges).map(k => k + ":" + ((out.ranges[k].hits || []).length) + "paths").join(" "));
+console.log("wrote stats.json", Object.keys(out.ranges).map(k => k + ":" + ((out.ranges[k].hits || []).length) + "paths" + (out.ranges[k].hitsError ? "(err " + out.ranges[k].hitsError + ")" : "") + " risshin:" + (out.ranges[k].hits || []).filter(h => /^\/?risshin(\/|$)/.test(h.path || "")).length).join(" "));

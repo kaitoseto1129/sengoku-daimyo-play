@@ -13,6 +13,7 @@ self.addEventListener("fetch", e => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;
+  if (url.pathname.includes("/risshin/")) return;   // 戦国立身（別の遊び・版ごとに入れ替わる）は控えに取らない
   e.respondWith((async () => {
     try {
       const net = await fetch(req);
