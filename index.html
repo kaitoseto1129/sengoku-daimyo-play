@@ -424,7 +424,7 @@ details.fold>summary.sec-title::before{content:"▸ "} details.fold[open]>summar
    携帯では、字は十四px を保ったまま、余白と並びで詰める。押せる所は四十四px を割らない */
 @media (max-width:560px){
   #bfoot{gap:6px;padding:7px 8px;min-height:0}
-  #bfoot .tool{min-width:0;padding:8px 11px;font-size:14px;min-height:44px;letter-spacing:0}
+  #bfoot .tool{min-width:44px;padding:8px 11px;font-size:14px;min-height:44px;letter-spacing:0}
   #bfoot .tool.aux,#bfoot .tool.sub{padding:7px 10px;font-size:14px;min-height:44px}
   #bfoot .fsep{display:none}
   #bhead{padding:3px 8px;gap:6px}
@@ -838,6 +838,8 @@ html:not(.booting) #bootState{display:none}
   #topbar{ flex-wrap:wrap !important; gap:10px !important; row-gap:8px; padding:8px 10px; }
   #topbar .spacer{ display:none !important; }
   #topbar button, #topbar .tool, #topbar .stat.hud-link{ min-height:44px !important; }
+  #bfoot .tool, #bfoot button{ min-width:44px !important; min-height:44px !important; }
+  #leftRail button, #rightRail button{ min-width:44px !important; }
   #topbar .date, #topbar .lord{ min-height:44px; display:inline-flex; align-items:center; }
   /* 押せる小札も四十四px */
   button.chip, a.chip, summary.chip, .chip[onclick], .nm{ min-height:44px !important; padding:8px 12px; }
@@ -31979,6 +31981,30 @@ if(W._scr!==s){ W._scrPrev=W._scr; W._scr=s; W._scrAt=Date.now(); }
 }catch(_){ }
 }
 
+function depthMark(){
+try{
+if(!W.started||W.player===null||W.player===undefined) return;
+const n=myCastles(W.player).length;
+const st=[[1,"始めた"],[3,"城3"],[5,"城5"],[10,"城10"],[20,"城20"],[30,"城30"],[50,"城50"]];
+let name=null; for(const [k,t] of st) if(n>=k) name=t;
+if(!name) return;
+W._depthSent=W._depthSent||{};
+if(W._depthSent[name]) return; W._depthSent[name]=1;
+try{ track("depth/"+name); }catch(_){ }
+}catch(_){ }
+}
+function stayMark(){
+try{
+if(!W._t0) return;
+const m=(Date.now()-W._t0)/60000;
+const st=[[1,"1分"],[5,"5分"],[15,"15分"],[30,"30分"],[60,"60分"],[120,"120分"]];
+let name=null; for(const [k,t] of st) if(m>=k) name=t;
+if(!name) return;
+W._staySent=W._staySent||{};
+if(W._staySent[name]) return; W._staySent[name]=1;
+try{ track("stay/"+name); }catch(_){ }
+}catch(_){ }
+}
 function quitBeacon(){
 try{
 if(W._quitSent) return; W._quitSent=true;
@@ -31999,7 +32025,7 @@ try{ const im=new Image(); im.src=u; }catch(_){ }
 try{
 window.addEventListener("pagehide", quitBeacon);
 document.addEventListener("visibilitychange", function(){ if(document.visibilityState==="hidden") quitBeacon(); else { try{ W._quitSent=false; }catch(_){ } } });
-setInterval(function(){ try{ scrTick(); if(!W._t0) W._t0=Date.now(); }catch(_){ } try{ lostCastleWatch(); }catch(_){ }     }, 2000);
+setInterval(function(){ try{ scrTick(); if(!W._t0) W._t0=Date.now(); }catch(_){ } try{ depthMark(); stayMark(); }catch(_){ } try{ lostCastleWatch(); }catch(_){ }     }, 2000);
 }catch(_){ }
 
 (function(){

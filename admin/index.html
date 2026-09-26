@@ -111,6 +111,10 @@ function render(){
   const pageHits=hits.filter(h=>!h.event);
   const dmap={}; for(const h of pageHits){ for(const d of (h.stats||[])) dmap[d.day]=(dmap[d.day]||0)+(d.daily||0); }
   let days=Object.keys(dmap).sort().map(k=>({day:k,n:dmap[k]}));
+  /* 第256巡（作り手：遊び始め率・継続率・離脱率もグラフで）：日ごとの系列を作る */
+  const dailyOf=(p)=>{ const m={}; for(const h of hits){ if(!h.event) continue;
+      if(!(h.path==="ev/"+p || h.path.startsWith("ev/"+p+"/"))) continue;
+      for(const d of (h.stats||[])) m[d.day]=(m[d.day]||0)+(d.daily||0); } return m; };
   const visits=days.reduce((s,d)=>s+d.n,0);
   /* 第254巡：道の区切りまで見て数える。前は ev/battle に ev/battle-end・ev/battle-30s なども混ざり、会戦が三倍に見えていた */
   const ev=p=>hits.filter(h=>h.event && (h.path==="ev/"+p || h.path.startsWith("ev/"+p+"/"))).reduce((s,h)=>s+sumStats(h),0);
@@ -135,6 +139,19 @@ function render(){
   const W=900,H=180,pad=28; const mx=Math.max(1,...days.map(d=>d.n)); const xs=i=>pad+(W-pad*2)*(days.length>1?i/(days.length-1):0.5), ys=n=>H-pad-(H-pad*2)*n/mx;
   const line=days.map((d,i)=>`${i?"L":"M"}${xs(i).toFixed(1)},${ys(d.n).toFixed(1)}`).join(" ");
   const area=days.length?`${line} L${xs(days.length-1).toFixed(1)},${H-pad} L${xs(0).toFixed(1)},${H-pad} Z`:"";
+  /* 三本の折れ線（訪問・遊び始め・初戦を終えた）と、率の折れ線（遊び始め率・継続率・離脱率） */
+  const dStart=dailyOf("start"), dAct=dailyOf("activation/first-battle-complete"), dBat=dailyOf("battle");
+  const series=days.map(d=>({day:d.day, v:d.n, s:dStart[d.day]||0, a:dAct[d.day]||0, b:dBat[d.day]||0}));
+  const mx2=Math.max(1,...series.map(d=>Math.max(d.v,d.s,d.a,d.b)));
+  const ys2=n=>H-pad-(H-pad*2)*n/mx2;
+  const path=(key)=>series.map((d,i)=>`${i?"L":"M"}${xs(i).toFixed(1)},${ys2(d[key]).toFixed(1)}`).join(" ");
+  const RH=170, rpad=28;                                  /* 率のグラフ */
+  const yr=v=>RH-rpad-(RH-rpad*2)*Math.max(0,Math.min(100,v))/100;
+  const rate=(num,den)=>series.map((d,i)=>{ const b=d[den]||0, a=d[num]||0; const v=b?a/b*100:0;
+      return `${i?"L":"M"}${xs(i).toFixed(1)},${yr(v).toFixed(1)}`; }).join(" ");
+  const rateStart=rate("s","v"), rateAct=rate("a","s");
+  const leave=series.map((d,i)=>{ const v=d.s?(1-(d.a||0)/d.s)*100:0; return `${i?"L":"M"}${xs(i).toFixed(1)},${yr(v).toFixed(1)}`; }).join(" ");
+  const gridY=[0,25,50,75,100].map(v=>`<line x1="${rpad}" y1="${yr(v)}" x2="${W-rpad}" y2="${yr(v)}" stroke="rgba(237,230,214,.10)"/><text x="4" y="${yr(v)+3}" font-size="9" fill="#9a927f">${v}%</text>`).join("");
   const step=Math.ceil(days.length/8); const ticks=days.map((d,i)=>(days.length<=10||(i%step===0&&days.length-1-i>=step/2)||i===days.length-1)?`<text x="${xs(i)}" y="${H-8}" font-size="10" fill="#A79E8C" text-anchor="middle">${d.day.slice(5)}</text>`:"").join("");
   const dots=days.map((d,i)=>`<circle cx="${xs(i)}" cy="${ys(d.n)}" r="2.5" fill="#C9A227"><title>${d.day}　${d.n}</title></circle>`).join("");
   /* 第253巡（作り手：このデータを元に、こうした方がいいという改善点も載せて）：数から読み取れることと、次の一手 */
@@ -176,7 +193,7 @@ function render(){
       <div class="list">${rows.map(([n,r])=>`<div class="row"><span>${esc(n)}</span><span class="num"><b>${fmtN(r.tot)}</b><span class="tiny muted">　アプリ ${fmtN(r.app)}／ウェブ ${fmtN(r.web)}</span></span></div>`).join("")}</div>
       <div class="note" style="margin-top:8px">アプリの中でもこちらの数取りは動きます（広告の Pixel はアプリでは送りません）。入手数・課金は App Store Connect を。</div></div>`;
   })();
-  const advHtml=`<div class="sec card"><h2>読み取れること・次の一手</h2>${adv.map(a=>`<div style="margin:10px 0;padding:10px 12px;border-radius:8px;background:#0F0D09;border-left:3px solid ${a.lv==="急"?"#E2762A":a.lv==="中"?"#C9A227":"#4C9A5A"}"><div style="font-weight:700;color:var(--kin)"><span style="display:inline-block;min-width:34px;font-size:11px;opacity:.8">${a.lv}</span>${esc(a.t)}</div><div class="note" style="margin-top:6px;background:none;padding:0">なぜ：${esc(a.why)}<br>どうする：${esc(a.how)}</div></div>`).join("")}<div class="note" style="margin-top:8px">この欄は数から自動で書いています（人の判断ではありません）。数が少ないうちは当てになりません。</div></div>`;
+  const advHtml="";   /* 第256巡（作り手）：読み取れることは載せない。クロードが自分で直す */
   document.getElementById("main").innerHTML=`
     ${platHtml}
     ${advHtml}
@@ -194,11 +211,46 @@ function render(){
         <div class="row"><span>軍資金を「払いました」と押した人</span><span class="n">${fmtN(byPrefix("fund-paid").reduce((a,[,n])=>a+n,0))}</span></div>
         <div class="row"><span>関ヶ原（¥500）を「払いました」と押した人</span><span class="n">${fmtN(ev("paid/sekigahara"))}</span></div>
         <div class="note" style="margin-top:8px">お便りはメールで届きます（この数は送った人の数）。支払いは PayPal の頁へ送ったあと、ゲームに戻って自分で「払いました」を押した数――実際に入金があったかどうかは PayPal の明細で確かめてください。iPhone 版の課金はここには出ません（App Store Connect で見る）。</div></div>
-      <div class="card"><h2>入口・速さ</h2><div class="big">${fmtN(adClicks)}<small>広告から</small></div><div class="muted">新しい人 ${fmtN(ev("user/new"))}・戻って来た人 ${fmtN(ev("user/return"))}${loadTot?`<br>開くまで 1秒以内 ${pct(loadFast,loadTot)}・3秒 ${pct(load3,loadTot)}・8秒以上 ${pct(loadSlow,loadTot)}`:""}</div></div>
+      
       <div class="card"><h2>ページ表示</h2><div class="big">${fmtN(pageviews)}</div><div class="muted">${pages.slice(0,3).map(h=>esc(h.path)+" "+fmtN(sumStats(h))).join("　")}</div></div>
     </div>
-    <div class="sec card"><h2>日ごとの訪問</h2>
-      <svg viewBox="0 0 ${W} ${H}"><path d="${area}" fill="rgba(201,162,39,.15)"/><path d="${line}" fill="none" stroke="#C9A227" stroke-width="2"/>${dots}${ticks}<text x="${pad}" y="14" font-size="11" fill="#A79E8C">最大 ${mx}</text></svg>
+    <div class="sec card"><h2>日ごと（訪問・遊び始め・初戦を終えた）</h2>
+      <svg viewBox="0 0 ${W} ${H}">
+        <path d="${path('v')}" fill="none" stroke="#C9A227" stroke-width="2"/>
+        <path d="${path('s')}" fill="none" stroke="#5B9BD5" stroke-width="2"/>
+        <path d="${path('a')}" fill="none" stroke="#7ED67E" stroke-width="2"/>
+        ${ticks}
+        <text x="${pad}" y="14" font-size="11" fill="#C9A227">訪問</text>
+        <text x="${pad+46}" y="14" font-size="11" fill="#5B9BD5">遊び始め</text>
+        <text x="${pad+116}" y="14" font-size="11" fill="#7ED67E">初戦を終えた</text>
+      </svg>
+      <div class="note">いちばん多い日を天井にした目安です。数字は下の流れの欄に。</div>
+    </div>
+    <div class="sec card"><h2>日ごとの率（遊び始め率・継続率・離脱率）</h2>
+      <svg viewBox="0 0 ${W} ${RH}">
+        ${gridY}
+        <path d="${rateStart}" fill="none" stroke="#5B9BD5" stroke-width="2"/>
+        <path d="${rateAct}" fill="none" stroke="#7ED67E" stroke-width="2"/>
+        <path d="${leave}" fill="none" stroke="#E24A3A" stroke-width="2" stroke-dasharray="4 3"/>
+        <text x="${rpad}" y="14" font-size="11" fill="#5B9BD5">遊び始め率（訪問のうち）</text>
+        <text x="${rpad+150}" y="14" font-size="11" fill="#7ED67E">継続率（遊び始めのうち初戦を終えた）</text>
+        <text x="${rpad+380}" y="14" font-size="11" fill="#E24A3A">離脱率</text>
+      </svg>
+    </div>
+    <div class="sec card"><h2>どこまで進んだか（人の数）</h2>
+      ${(()=>{ const d=byPrefix("depth"); const order=["始めた","城3","城5","城10","城20","城30","城50"];
+        const rows=order.map(k=>[k, (d.find?0:0)]); const m={}; for(const [k,n] of d) m[k]=n;
+        const top=Math.max(1,...order.map(k=>m[k]||0));
+        return order.map(k=>`<div class="row"><span style="min-width:72px;display:inline-block">${k}</span><span class="bar" style="display:inline-block;height:10px;background:#C9A227;width:${Math.round((m[k]||0)/top*70)}%"></span> <b>${fmtN(m[k]||0)}</b></div>`).join("");
+      })()}
+      <div class="note">城がいくつになったかで数えています（人は追いかけていません）。</div>
+    </div>
+    <div class="sec card"><h2>一回にどれだけ遊んだか（人の数）</h2>
+      ${(()=>{ const d=byPrefix("stay"); const order=["1分","5分","15分","30分","60分","120分"];
+        const m={}; for(const [k,n] of d) m[k]=n;
+        const top=Math.max(1,...order.map(k=>m[k]||0));
+        return order.map(k=>`<div class="row"><span style="min-width:72px;display:inline-block">${k}以上</span><span style="display:inline-block;height:10px;background:#5B9BD5;width:${Math.round((m[k]||0)/top*70)}%"></span> <b>${fmtN(m[k]||0)}</b></div>`).join("");
+      })()}
     </div>
     <div class="sec card"><h2>流れ（訪問 → 遊び始め → 会戦 → 結び）</h2>
       <div class="funnel">
