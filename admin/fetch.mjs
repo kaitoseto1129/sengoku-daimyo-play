@@ -35,7 +35,7 @@ async function hitsAll(start, end) {
   return out;
 }
 const out = { site: SITE, generated: new Date().toISOString(), ranges: {} };
-for (const [name, days] of [["d7", 6], ["d30", 29], ["d90", 89]]) {
+for (const [name, days] of [["d1", 0], ["d7", 6], ["d30", 29], ["d90", 89]]) {   /* 第255巡（作り手）：一日ぶんも見る */
   const start = day(days), end = day(0);
   out.ranges[name] = {
     start, end,

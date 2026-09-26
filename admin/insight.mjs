@@ -1,7 +1,7 @@
 /* 第253巡（作り手：管理画面を見なくても、毎朝クロードが数を読んで、自分で手を打てるように）
    admin/stats.json から「読み取れること・次の一手」を出す。admin/index.html の同じ規則を
    ここに写してある（どちらかを直したら、もう一方も直すこと）。
-   使い方: node admin/insight.mjs [d7|d30|all] [--json] */
+   使い方: node admin/insight.mjs [d1|d7|d30|d90|all] [--json] */
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -70,7 +70,7 @@ export function read(range='d7'){
 }
 
 if(process.argv[1] && process.argv[1].endsWith('insight.mjs')){
-  const range=process.argv.find(a=>/^(d7|d30|all)$/.test(a))||'d7';
+  const range=process.argv.find(a=>/^(d1|d7|d30|d90|all)$/.test(a))||'d7';
   const r=read(range);
   if(process.argv.includes('--json')) console.log(JSON.stringify(r,null,1));
   else {
