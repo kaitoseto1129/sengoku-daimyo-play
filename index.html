@@ -829,6 +829,25 @@ body.inbattle #stage.paused::after{ display:none; }
 @keyframes bootPulse{0%,100%{opacity:.55}50%{opacity:1}}
 html.booting #start button{opacity:.45;pointer-events:none}
 html:not(.booting) #bootState{display:none}
+
+/* ===== 第255巡：携帯の作り（Apple HIG／Material 3／デジタル庁デザインシステム）=====
+   押せる所は四十四px 以上、間は八px 以上、字は十四px 以上。
+   ここは他の決まりより後に置く（前に置くと「どの幅でも折り返さない」に負ける） */
+@media (max-width:560px){
+  /* 上の帯：携帯では二段に折り返す（折り返さないと釦が画面の外に出ていた） */
+  #topbar{ flex-wrap:wrap !important; gap:10px !important; row-gap:8px; padding:8px 10px; }
+  #topbar .spacer{ display:none !important; }
+  #topbar button, #topbar .tool, #topbar .stat.hud-link{ min-height:44px !important; }
+  #topbar .date, #topbar .lord{ min-height:44px; display:inline-flex; align-items:center; }
+  /* 押せる小札も四十四px */
+  button.chip, a.chip, summary.chip, .chip[onclick], .nm{ min-height:44px !important; padding:8px 12px; }
+  #panel button, .dialog button, #moreMenu button{ min-height:44px !important; }
+  .ovx, .p-close{ min-width:44px !important; min-height:44px !important; }
+  #leftRail button, #rightRail button{ width:48px; height:44px; }
+  /* 本文の行は一.五倍以上 */
+  #log, .advice, .p-body .row, #bGoal, #start .s-what{ line-height:1.6; }
+}
+
 </style>
 
 
