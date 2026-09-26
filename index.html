@@ -843,6 +843,8 @@ html:not(.booting) #bootState{display:none}
   button.chip, a.chip, summary.chip, .chip[onclick], .nm{ min-height:44px !important; padding:8px 12px; }
   #panel button, .dialog button, #moreMenu button{ min-height:44px !important; }
   .ovx, .p-close{ min-width:44px !important; min-height:44px !important; }
+  /* 札の中の押せる小札（「城22」「本拠へ」など）も四十四px */
+  #panel [onclick], .dialog [onclick], #panel .chip, .dialog .chip{ min-height:44px !important; min-width:44px; justify-content:center; display:inline-flex; align-items:center; }
   #leftRail button, #rightRail button{ width:48px; height:44px; }
   /* 本文の行は一.五倍以上 */
   #log, .advice, .p-body .row, #bGoal, #start .s-what{ line-height:1.6; }
@@ -21327,6 +21329,8 @@ if(c && lv>=350 && !B.ueda && !CK_RING){ B.moatPlan={dir}; }
 if(c){ const K=W.clans[c.clan]; const friendly=k=>k===c.clan||(K&&(K.allies.has(k)||K.suzerain===k||K.vassals.has(k))); const relief=Object.values(W.armies).some(a=>a.clan!==null&&friendly(a.clan)&&a.target===c.id&&!(e&&a.id===e.army)&&a.mission!=="包囲"); const atk=e&&e.army?W.armies[e.army]:null; const days=atk?(atk.siegeDays||0):0;
 if(relief){ for(const u of B.units) if(u.side===1) u.morale=Math.min(100,u.morale+10); B.siegeRelief=true; setTimeout(()=>{ if(B&&B.over===null) B.banner={t:"城兵「援軍が来る」――士気が保たれている（+10）", at:B.elapsed}; },1800); }
 else if(days>20){ for(const u of B.units) if(u.side===1) u.morale=Math.max(10,u.morale-10); B.siegeNoRelief=true; setTimeout(()=>{ if(B&&B.over===null) B.banner={t:`囲まれて${days}日、援軍は来ない――城兵の士気が落ちている（−10）`, at:B.elapsed}; },1800); } }
+
+try{ for(const u of B.units) if(u.side===1 && u.troops>.5) u.morale=Math.max(u.morale, 25); }catch(_){ }
 siegeZonesUpdate();
 try{ siegeKitSetup(c,e); }catch(err){ console.error(err); }
 }
