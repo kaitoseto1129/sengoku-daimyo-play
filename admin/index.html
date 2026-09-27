@@ -159,7 +159,7 @@ async function loadExtras(){
   try{
     const kr=await fetch((g==="risshin"?"../risshin/data/kaizen.json":"kaizen.json")+"?t="+Date.now(), {cache:"no-store"});
     if(kr.ok&&g===GAME){ const K=await kr.json(); const it=(K.items||[]).slice(-12).reverse();
-      const card=document.getElementById("kaizenCard"); if(it.length&&card){ card.hidden=false;
+      const card=document.getElementById("kaizenCard"); if(false && it.length&&card){ card.hidden=false;   /* 第256巡（作り手）：この欄は出さない。記録は kaizen.json に残す */
         document.getElementById("kaizenBody").innerHTML=it.map(x=>`<div style="margin:8px 0;padding:8px 10px;border-radius:8px;background:#0F0D09;border-left:3px solid #4C9A5A">
           <div style="font-weight:700;color:var(--kin)">${esc(x.date||"")}　${esc(x.title||"")}</div>
           <div class="note" style="margin-top:4px">やったこと：${esc(x.did||"")}</div>
