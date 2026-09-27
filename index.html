@@ -838,6 +838,19 @@ html:not(.booting) #bootState{display:none}
   #topbar{ flex-wrap:wrap !important; gap:10px !important; row-gap:8px; padding:8px 10px; }
   #topbar .spacer{ display:none !important; }
   #topbar button, #topbar .tool, #topbar .stat.hud-link{ min-height:44px !important; }
+  /* 第256巡（作り手：上の帯が画面の三割を食う／地図が見たい）
+     携帯では一段に収める。細かい数字は〈その他〉と各札で読む */
+  #topbar{ flex-wrap:nowrap !important; overflow-x:auto; overflow-y:hidden; gap:8px !important; padding:6px 8px !important; }
+  #topbar::-webkit-scrollbar{ display:none }
+  #uiTroops, #uiFood, #uiNet, #uiLord, #uiGenerals, #btnGoal, #btnBakufu{ display:none !important; }
+  #topbar .stat span{ font-size:14px }
+  #topbar .date{ padding:4px 8px }
+  /* 手ほどきは地図を覆わない。下に敷いて、いつでも閉じられる */
+  #mSim{ left:8px !important; right:8px !important; bottom:8px !important; top:auto !important;
+         width:auto !important; max-width:none !important; max-height:26vh; overflow:auto;
+         padding:10px 12px !important; border-radius:12px; }
+  #mSim .sim-head{ position:sticky; top:0 }
+  #minimap{ display:none }
   #bfoot .tool, #bfoot button{ min-width:44px !important; min-height:44px !important; }
   #leftRail button, #rightRail button{ min-width:44px !important; }
   #topbar .date, #topbar .lord{ min-height:44px; display:inline-flex; align-items:center; }
@@ -33647,8 +33660,15 @@ function scenMetaApply(){ document.querySelectorAll("#stepScenario .scen[data-sc
 let bar=document.getElementById("scenFilterBar"); const list=document.querySelector("#stepScenario .scen-list"); if(!bar&&list){ bar=document.createElement("div"); bar.id="scenFilterBar"; bar.style.cssText="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin:10px 0 -6px"; list.parentNode.insertBefore(bar,list); }
 if(bar){ bar.innerHTML=[["rec","おすすめ"],["year","年代順"],["owned","購入済み"]].map(([k,n])=>`<button class="chip ${scenFilter===k?"kin":""}" style="cursor:pointer;padding:5px 12px">${n}</button>`).join(""); [...bar.children].forEach((c,i)=>{ c.onclick=()=>{ scenFilter=[["rec"],["year"],["owned"],["easy"]][i][0]; scenMetaApply(); }; }); }
 if(list){ const items=[...list.querySelectorAll(".scen[data-sc]")]; const key=b=>{ const m=SCEN_META[b.dataset.sc]||{diff:3,year:9999}; if(scenFilter==="rec") return (m.rec?0:1)*100000+m.diff*10000+m.year; if(scenFilter==="easy") return m.diff*10000+m.year; return m.year; }; items.sort((a,b)=>key(a)-key(b)); for(const it of items){ list.appendChild(it); const hiddenByFlag=it.hasAttribute("hidden")&&it.style.display==="none"; if(hiddenByFlag) continue; it.style.display=(scenFilter==="owned"&&(scenarioLocked(it.dataset.sc)||!scenarioAvailable(it.dataset.sc)))?"none":""; } } }
+const SHOWN_SCENARIOS=new Set(["nagashino","sekigahara"]);
 function refreshScenarioLocks(){
 try{ scenMetaApply(); }catch(_){ }
+
+try{ const u=unlockedScenarios(); const all=u.has("all");
+document.querySelectorAll("#stepScenario .scen[data-sc]").forEach(b=>{
+const id=b.dataset.sc; const show = all || u.has(id) || SHOWN_SCENARIOS.has(id);
+b.hidden=!show; b.style.display=show?"":"none";
+}); }catch(_){ }
 
 if(IAP_ENABLED&&window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap){ let r=document.getElementById("iapRestore"); if(!r){ r=document.createElement("button"); r.id="iapRestore"; r.className="tool"; r.textContent="購入を復元"; r.style.cssText="margin:8px auto 0;display:block"; r.onclick=()=>{ try{ window.webkit.messageHandlers.iap.postMessage({restore:true}); }catch(e){} }; const list=document.querySelector("#stepScenario .scen-list"); if(list) list.appendChild(r); } }
 document.querySelectorAll("#stepScenario .scen[data-sc]").forEach(b=>{
