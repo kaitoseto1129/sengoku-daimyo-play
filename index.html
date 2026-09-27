@@ -849,6 +849,10 @@ html:not(.booting) #bootState{display:none}
   #panel [onclick], .dialog [onclick], #panel .chip, .dialog .chip{ min-height:44px !important; min-width:44px; justify-content:center; display:inline-flex; align-items:center; }
   /* 押せる所どうしは八px 以上あける（Material 3） */
   #panel details>summary{ margin-bottom:8px; }
+  #panel .row, .dialog .row{ gap:10px; padding:8px 0; }
+  #panel .row+details, #panel details+.row, #panel .row+.row{ margin-top:8px; }
+  #panel .row button, .dialog .row button, #panel .row .chip, .dialog .row .chip{ margin-left:8px; }
+  .dialog button, .dialog .big, #start .s-btn, .tool{ min-height:44px; }
   #panel details>*:not(summary){ margin-top:8px; }
   #stepScenario .scen{ padding:14px 12px; }
   #stepScenario .scen .sc-desc{ margin-top:8px; line-height:1.6; }
@@ -2263,7 +2267,7 @@ function log(text, kind, force){
 
 try{ if(typeof W!=="undefined" && W && W.date && !(typeof B!=="undefined" && B && B.over===null) && typeof text==="string" && text.length>12){
 W._logSeen=W._logSeen||{}; const d0=dayNumber(); const prev=W._logSeen[text];
-if(prev!==undefined && d0-prev<3) return;
+if(prev!==undefined && d0-prev<6) return;
 W._logSeen[text]=d0;
 if(Math.random()<0.02){ for(const k in W._logSeen) if(d0-W._logSeen[k]>10) delete W._logSeen[k]; }
 } }catch(_){ }
@@ -5499,7 +5503,7 @@ const el=document.createElement("div"); el.className="overlay scrollov"; el.id="
 const rows=SURVEY_Q.map((q,i)=>`<div style="margin:10px 0 4px;font-size:14px;line-height:1.5">${i+1}. ${q}</div>
 <div style="display:flex;gap:6px;flex-wrap:wrap">${[1,2,3,4,5].map(v=>`<button class="tool sv" data-q="${i}" data-v="${v}" aria-label="${i+1}問目に ${v}" title="${i+1}問目：${["そう思わない","あまり思わない","どちらとも","そう思う","とてもそう思う"][v-1]}" style="flex:1 1 0;min-width:52px;min-height:40px">${v}</button>`).join("")}</div>`).join("");
 el.innerHTML=`<style>#survOv button.sv{background:rgba(237,230,214,.10);border:1px solid rgba(237,230,214,.28);color:var(--gofun);font-weight:700}#survOv button.sv.on{background:linear-gradient(180deg,#E9C65C,#C9A227);border-color:#5C4610;color:#1A1208}</style><div class="dialog" style="max-width:520px">
-<button class="ovx" id="survX" aria-label="閉じる">×</button>
+<button class="ovx" id="survX" aria-label="窓を閉じる（右上）">×</button>
 <div class="tiny" style="letter-spacing:.3em;color:var(--kin)">試 遊 の 検 証</div>
 <h3 style="margin-top:2px">遊んでみて、どうでしたか</h3>
 <div class="advice" style="text-align:left">一＝そう思わない　〜　五＝とてもそう思う。三十秒で終わります。答えは作り手だけが見ます。</div>
@@ -15051,7 +15055,27 @@ function portraitCanvas(g){
 if(!faceCanvasCache.has(g.id)) portraitURL(g);
 return faceCanvasCache.get(g.id);
 }
-const face = (g,cls) => `<img class="face ${cls||""}" src="${portraitURL(g)}" alt="${esc(g.name)}">`;
+
+const faceReady = new Set();
+const face = (g,cls) => {
+try{
+if(faceCache.has(g.id) || faceReady.has(g.id)) return `<img class="face ${cls||""}" src="${portraitURL(g)}" alt="${esc(g.name)}">`;
+faceLater.push(g.id);
+return `<img class="face ${cls||""}" data-face="${g.id}" alt="${esc(g.name)}" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">`;
+}catch(_){ return `<img class="face ${cls||""}" src="${portraitURL(g)}" alt="${esc(g.name)}">`; }
+};
+var faceLater=[];
+function faceFill(){
+if(!faceLater.length) return;
+const ids=faceLater.splice(0,8);
+for(const id of ids){ const g=W.generals[id]; if(!g) continue;
+faceReady.add(id);
+const u=portraitURL(g);
+document.querySelectorAll(`img[data-face="${id}"]`).forEach(im=>{ im.src=u; im.removeAttribute("data-face"); });
+}
+if(faceLater.length) requestAnimationFrame(faceFill);
+}
+setInterval(()=>{ try{ if(faceLater.length) requestAnimationFrame(faceFill); }catch(_){ } }, 400);
 
 const panel=document.getElementById("panel"),
 pTitle=document.getElementById("pTitle"),
@@ -26169,7 +26193,7 @@ why.push(`西軍の結束 ${bd}（${bd>=75?"固い":bd>=55?"並":"割れてい�
 const kb=tl.find(x=>/小早川/.test(x.t)); if(kb) why.push(kb.t.replace(/^関ヶ原：/,"")); const mo=tl.find(x=>/毛利、南宮山を下る/.test(x.t)); if(mo) why.push("毛利が南宮山を下った");
 const sulk=Object.entries(D).filter(([n,v])=>v<35).map(([n])=>n); if(sulk.length) why.push(`${sulk.join("・")}が不満で傍観した`);
 const el=document.createElement("div"); el.className="overlay scrollov"; el.style.zIndex=96;
-el.innerHTML=`<div class="dialog" style="max-width:560px"><button class="ovx" data-c="close" aria-label="閉じる">×</button><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">自 分 の 関 ヶ 原</div><h3>${iWon?"天下分け目、制す":"天下分け目、敗れる"}</h3>
+el.innerHTML=`<div class="dialog" style="max-width:560px"><button class="ovx" data-c="close" aria-label="窓を閉じる（右上）">×</button><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">自 分 の 関 ヶ 原</div><h3>${iWon?"天下分け目、制す":"天下分け目、敗れる"}</h3>
 <div class="sec-title">年表</div><div style="font-size:14px;line-height:1.8">${tl.length?tl.map(x=>`<div><span class="num" style="color:var(--kin);margin-right:8px">${x.y}年${x.m}月${x.d}日</span>${esc(x.t)}</div>`).join(""):'<div class="muted tiny">記録なし</div>'}</div>
 ${(()=>{ const L=m.last; if(!L) return ""; return `<div class="sec-title">本戦のあらまし</div><div style="font-size:14px;line-height:1.8">東軍の損害 ${(L.lossE||0).toLocaleString()}　西軍の損害 ${(L.lossW||0).toLocaleString()}<br>寝返り：${L.turned.length?L.turned.map(esc).join("・"):"なし"}<br>傍観：${L.watched.length?L.watched.map(esc).join("・"):"なし"}${L.dead&&L.dead.length?`<br>討死：${L.dead.map(esc).join("・")}`:""}</div>`; })()}
 <div class="sec-title">何が分けたか</div><ul style="margin:0;padding-left:1.2em;font-size:14px;line-height:1.8">${why.map(w=>`<li>${esc(w)}</li>`).join("")}</ul>
@@ -33439,7 +33463,7 @@ const MEYASU_TO="kaitoseto1129@gmail.com";
 function openMeyasubako(){
 const el=document.createElement("div"); el.className="overlay scrollov"; el.style.zIndex=95;
 const app=!!(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap); const where=app?"iPhone 版":"ブラウザ版";
-el.innerHTML=`<div class="dialog" style="max-width:520px"><button class="ovx" id="meyasuX" aria-label="閉じる">×</button><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">目 安 箱</div><h3>ここをこうして欲しい</h3>
+el.innerHTML=`<div class="dialog" style="max-width:520px"><button class="ovx" id="meyasuX" aria-label="窓を閉じる（右上）">×</button><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">目 安 箱</div><h3>ここをこうして欲しい</h3>
 <div class="advice">遊んで困ったこと、欲しい手、直して欲しい所。何でも。作り手に手紙で届きます。</div>
 <textarea id="meyasuText" rows="6" placeholder="例：木津砦で門を破ったのに隊が入らない／関ヶ原にも軍議が欲しい" style="width:100%;padding:10px 12px;border-radius:6px;border:1px solid rgba(237,230,214,.25);background:rgba(0,0,0,.35);color:#EDE6D6;font:inherit;font-size:14px;line-height:1.6;resize:vertical"></textarea>
 <div class="tiny" style="margin:2px 0 8px"><button class="chip kin" id="meyasuSurv" style="cursor:pointer">試遊の検証に答える（五段階・三十秒）</button></div>
@@ -33509,7 +33533,7 @@ ${tab==="vote"?`
 <div class="dlg-actions" style="display:flex;gap:8px"><button class="big ghost" style="flex:1" data-c="close">閉じる</button></div>`:""}
 </div>`;
 let el=document.querySelector(".overlay.fundov"); if(!el){ el=document.createElement("div"); el.className="overlay fundov scrollov"; el.style.zIndex="94"; document.body.appendChild(el); }
-el.innerHTML=html.replace('<div class="dialog fund">','<div class="dialog fund"><button class="ovx" data-c="close" aria-label="閉じる">×</button>');
+el.innerHTML=html.replace('<div class="dialog fund">','<div class="dialog fund"><button class="ovx" data-c="close" aria-label="窓を閉じる（右上）">×</button>');
 el.querySelectorAll('[data-c="close"]').forEach(b=>b.onclick=()=>{ el.remove(); });
 el.onclick=ev=>{ if(ev.target===el) el.remove(); };
 track("fund/open");
