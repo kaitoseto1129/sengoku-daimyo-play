@@ -400,7 +400,7 @@ details.fold>summary.sec-title::before{content:"▸ "} details.fold[open]>summar
 @media (max-width:640px){ #bhead .bTitle{max-width:calc(100vw - 250px)} #bhead .num{min-width:70px} }
 /* 第226巡（夜35）：電話の縦持ちでは、題と局面の札が消えて兵力の箱だけになっていた → 頭の帯を二段に折り、札の列は下の段いっぱいに */
 @media (max-width:640px) and (orientation:portrait){ #bhead{flex-wrap:wrap;justify-content:space-between;row-gap:3px} #bhead .bTitle{order:9;flex:1 0 100%;max-width:100% !important} #bhead .bbar{display:none} #bhead .side{gap:2px} #bhead .num{min-width:0;flex:1 1 30%;padding:3px 5px} #bhead .num .row:nth-child(n+2){display:none} #bTerrain,#bGoal{max-width:100% !important} }
-#bhead .chip{background:rgba(0,0,0,.35);border:1px solid rgba(201,162,39,.35);color:#EDE6D6;font-size:14px}
+#bhead .chip{background:rgba(10,8,6,.8);border:1px solid rgba(201,162,39,.45);color:#F3E6C4;font-size:14px}
 #bfoot .tool{min-width:60px;min-height:46px;text-align:center;padding:9px 13px;border-radius:6px;font-size:14px;
   background:linear-gradient(180deg,rgba(237,230,214,.16),rgba(237,230,214,.06));border:1px solid rgba(237,230,214,.28);box-shadow:0 2px 0 rgba(0,0,0,.45)}
 #bfoot .tool:hover{background:linear-gradient(180deg,rgba(237,230,214,.28),rgba(237,230,214,.12))}
@@ -857,13 +857,27 @@ html:not(.booting) #bootState{display:none}
 @media (max-height:520px) and (orientation:landscape){
   #topbar{ padding:4px 8px !important; gap:8px !important; }
   #topbar .date{ padding:3px 8px; font-size:14px }
-  #topbar button, #topbar .tool, #topbar .stat.hud-link{ min-height:40px !important; }   /* 指は届く。高さは削る */
+  #topbar button, #topbar .tool, #topbar .stat.hud-link{ min-height:44px !important; padding:4px 10px !important; }
   #mSim{ left:auto !important; right:8px !important; bottom:8px !important; width:min(46vw,340px) !important; max-height:44vh; }
   #bhead{ padding:2px 8px !important; gap:4px !important; }
   #bhead .num{ padding:2px 6px !important; }
   #bhead .bname{ display:none }
-  #bfoot{ padding:5px 8px !important; gap:5px !important; min-height:0 !important; }
-  #bfoot .tool{ min-height:40px !important; padding:6px 10px !important; }
+  /* 第256巡（遊びやすく・見やすく）：横持ちでは 帯は一段・低く、野は画面の八割を取る */
+  #bhead{ padding:1px 6px !important; gap:4px !important; flex-wrap:nowrap !important; }
+  #bhead .num{ padding:1px 5px !important; line-height:1.15 !important; }
+  #bhead .num .row:nth-child(n+2){ display:none }
+  #bhead .bTitle{ gap:0 !important }
+  #bhead #bSitBar{ display:none }
+  /* 題・目的の行は、帯の高さを食わずに野の上へ重ねる（野を広く） */
+  #bhead{ position:relative; }
+  #bhead .bTitle{ position:absolute !important; left:8px; right:8px; top:100%; z-index:6;
+    background:rgba(10,8,6,.55); border-radius:0 0 8px 8px; padding:2px 8px !important; pointer-events:none; }
+  #bhead .bTitle .chip{ background:rgba(10,8,6,.75) !important; }
+  #bGoal{ font-size:14px !important; padding:0 4px !important; line-height:1.5 !important; max-height:21px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis }
+  #bfoot{ padding:1px 6px !important; gap:4px !important; min-height:0 !important; flex-wrap:nowrap !important; overflow-x:auto; }
+  #bfoot::-webkit-scrollbar{ display:none }
+  #bfoot .tool{ min-height:44px !important; padding:4px 9px !important; flex:0 0 auto }   /* 指は四十四px を守る。帯の余白だけ削る */
+  #bfoot .tool.aux, #bfoot .tool.sub{ min-height:44px !important; padding:4px 8px !important; }
   .rail button{ height:40px }
   #adviser{ bottom:6px; padding:6px 8px }
   #bfoot .tool, #bfoot button{ min-width:44px !important; min-height:44px !important; }
