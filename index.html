@@ -833,7 +833,8 @@ html:not(.booting) #bootState{display:none}
 /* ===== 第255巡：携帯の作り（Apple HIG／Material 3／デジタル庁デザインシステム）=====
    押せる所は四十四px 以上、間は八px 以上、字は十四px 以上。
    ここは他の決まりより後に置く（前に置くと「どの幅でも折り返さない」に負ける） */
-@media (max-width:560px){
+@media (max-width:560px), (max-height:520px){
+  /* 第256巡（作り手：携帯は横画面で見る）：狭い幅だけでなく、低い高さ（横持ち）でも効かせる */
   /* 上の帯：携帯では二段に折り返す（折り返さないと釦が画面の外に出ていた） */
   #topbar{ flex-wrap:wrap !important; gap:10px !important; row-gap:8px; padding:8px 10px; }
   #topbar .spacer{ display:none !important; }
@@ -842,7 +843,7 @@ html:not(.booting) #bootState{display:none}
      携帯では一段に収める。細かい数字は〈その他〉と各札で読む */
   #topbar{ flex-wrap:nowrap !important; overflow-x:auto; overflow-y:hidden; gap:8px !important; padding:6px 8px !important; }
   #topbar::-webkit-scrollbar{ display:none }
-  #uiTroops, #uiFood, #uiNet, #uiLord, #uiGenerals, #btnGoal, #btnBakufu{ display:none !important; }
+  .sp-hide, #uiLord, #uiGenerals, #btnGoal, #btnBakufu{ display:none !important; }   /* 兵・兵糧・月の収支は札の中で読む（見出しごと隠す） */
   #topbar .stat span{ font-size:14px }
   #topbar .date{ padding:4px 8px }
   /* 手ほどきは地図を覆わない。下に敷いて、いつでも閉じられる */
@@ -851,6 +852,20 @@ html:not(.booting) #bootState{display:none}
          padding:10px 12px !important; border-radius:12px; }
   #mSim .sim-head{ position:sticky; top:0 }
   #minimap{ display:none }
+}
+/* 横持ちの携帯（高さが低い）：縦の余白をとにかく削り、地図と野を広く */
+@media (max-height:520px) and (orientation:landscape){
+  #topbar{ padding:4px 8px !important; gap:8px !important; }
+  #topbar .date{ padding:3px 8px; font-size:14px }
+  #topbar button, #topbar .tool, #topbar .stat.hud-link{ min-height:40px !important; }   /* 指は届く。高さは削る */
+  #mSim{ left:auto !important; right:8px !important; bottom:8px !important; width:min(46vw,340px) !important; max-height:44vh; }
+  #bhead{ padding:2px 8px !important; gap:4px !important; }
+  #bhead .num{ padding:2px 6px !important; }
+  #bhead .bname{ display:none }
+  #bfoot{ padding:5px 8px !important; gap:5px !important; min-height:0 !important; }
+  #bfoot .tool{ min-height:40px !important; padding:6px 10px !important; }
+  .rail button{ height:40px }
+  #adviser{ bottom:6px; padding:6px 8px }
   #bfoot .tool, #bfoot button{ min-width:44px !important; min-height:44px !important; }
   #leftRail button, #rightRail button{ min-width:44px !important; }
   #topbar .date, #topbar .lord{ min-height:44px; display:inline-flex; align-items:center; }
@@ -1047,10 +1062,10 @@ html:not(.booting) #bootState{display:none}
     <span class="lord" id="uiLord">織田信長</span>
     <span class="stat hud-link" title="押すと城一覧" onclick="if(W.started)openCastleList()"><span>城</span><b id="uiCastles">0</b></span>
     <span class="stat hud-link" hidden onclick="if(W.started)openOfficers()"><span>将</span><b id="uiGenerals">0</b></span>
-    <span class="stat hud-link" title="いまの兵数 ／ 将が率いられる上限（押すと武将の一覧）" onclick="if(W.started){officerSort='troops';openOfficers();}"><span>兵</span><b id="uiTroops">0</b></span>
+    <span class="stat hud-link sp-hide" title="いまの兵数 ／ 将が率いられる上限（押すと武将の一覧）" onclick="if(W.started){officerSort='troops';openOfficers();}"><span>兵</span><b id="uiTroops">0</b></span>
     <span class="stat keep hud-link" title="押すと財政" onclick="if(W.started)openFinance()"><span>資金</span><b id="uiMoney">0</b></span>
-    <span class="stat keep hud-link" title="全城の蔵にある米。押すと城一覧（兵糧順）" onclick="if(W.started){castleSort='food';openCastleList();}"><span>兵糧</span><b id="uiFood">0</b></span>
-    <span class="stat hud-link" title="月の実入りから俸禄・兵糧代・城の維持を引いた額。押すと財政" onclick="if(W.started)openFinance()"><span>月の収支</span><b id="uiNet">0</b></span>
+    <span class="stat keep hud-link sp-hide" title="全城の蔵にある米。押すと城一覧（兵糧順）" onclick="if(W.started){castleSort='food';openCastleList();}"><span>兵糧</span><b id="uiFood">0</b></span>
+    <span class="stat sp-hide hud-link" title="月の実入りから俸禄・兵糧代・城の維持を引いた額。押すと財政" onclick="if(W.started)openFinance()"><span>月の収支</span><b id="uiNet">0</b></span>
     <span class="spacer"></span>
     <button class="tool" id="btnArmies" hidden>出陣中の軍</button>
     <button class="tool" id="btnOfficers" hidden>家臣一覧</button>
