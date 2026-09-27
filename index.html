@@ -484,7 +484,7 @@ details.fold>summary.sec-title::before{content:"▸ "} details.fold[open]>summar
 #start .s-head>*{max-width:100%}
 .s-actions{display:flex;gap:10px;justify-content:center;margin-top:22px;flex-wrap:wrap}   /* 第253巡：軍資金・目安箱の小さな釦を下の段に折る（釦が縦長に潰れていた） */
 @media (pointer:coarse){ .kbd-hint{display:none} }
-#stepScenario .s-actions{position:sticky;bottom:0;width:100%;padding:8px 0 14px;margin-top:10px;flex-wrap:wrap;background:linear-gradient(180deg,rgba(18,16,14,0),rgba(18,16,14,.96) 40%)}   /* 筋書きの一覧が長くても「進む」はいつも見える */
+#stepScenario .s-actions{position:sticky;bottom:0;width:100%;padding:12px 0 16px;margin-top:10px;flex-wrap:wrap;background:#12100E;border-top:1px solid rgba(237,230,214,.16);box-shadow:0 -8px 20px rgba(18,16,14,.9)}   /* 第256巡：透けていて札と重なって見えた。帯は不透明にして境目を出す */   /* 筋書きの一覧が長くても「進む」はいつも見える */
 .s-btn{
   font-size:16px;font-weight:900;letter-spacing:.06em;padding:14px 26px;border-radius:8px;
   background:rgba(237,230,214,.12);border:1px solid var(--line);color:var(--gofun);
@@ -565,7 +565,7 @@ body.picking [data-z="home"], body.picking [data-z="save"] { display:none !impor
 
 /* 表紙・シナリオ選び */
 #start .s-head[hidden]{ display:none !important; }
-.scen-list{ display:flex; flex-direction:column; gap:8px; width:min(560px,86vw); margin:14px 0; }
+.scen-list{ display:flex; flex-direction:column; gap:10px; width:min(560px,86vw); margin:14px 0 0; padding-bottom:132px; }   /* 第256巡（五人の試遊者：札と〈このシナリオで進む〉が重なる）：下に貼り付く帯のぶん空ける */
 .scen{ text-align:left; display:flex; flex-direction:column; gap:3px;
   padding:12px 14px; border-radius:7px; cursor:pointer;
   background:rgba(237,230,214,.06); color:#EDE6D6;
@@ -847,6 +847,12 @@ html:not(.booting) #bootState{display:none}
   .ovx, .p-close{ min-width:44px !important; min-height:44px !important; }
   /* 札の中の押せる小札（「城22」「本拠へ」など）も四十四px */
   #panel [onclick], .dialog [onclick], #panel .chip, .dialog .chip{ min-height:44px !important; min-width:44px; justify-content:center; display:inline-flex; align-items:center; }
+  /* 押せる所どうしは八px 以上あける（Material 3） */
+  #panel details>summary{ margin-bottom:8px; }
+  #panel details>*:not(summary){ margin-top:8px; }
+  #stepScenario .scen{ padding:14px 12px; }
+  #stepScenario .scen .sc-desc{ margin-top:8px; line-height:1.6; }
+  #stepScenario .scen .sc-title,#stepScenario .scen h3{ margin-bottom:6px; }
   #leftRail button, #rightRail button{ width:48px; height:44px; }
   /* 本文の行は一.五倍以上 */
   #log, .advice, .p-body .row, #bGoal, #start .s-what{ line-height:1.6; }
@@ -1131,7 +1137,7 @@ html:not(.booting) #bootState{display:none}
         <div class="bbar"><i id="bBarMine" style="background:linear-gradient(180deg,#6E98E6,#2E5FBF)"></i></div>
         <div class="bTitle" style="display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0">
           <span id="bName" class="bname" hidden>合戦</span>
-          <span class="chip" id="bTerrain" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw">平原</span>
+          <span class="chip" id="bTerrain" title="押すと全部読めます" onclick="try{ if(this.dataset.full) toast(this.dataset.full); }catch(_){}" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw;cursor:pointer">平原</span>
           <span id="bSitBar" hidden><span id="bSitL"></span><span class="bar"><i id="bSitMine" style="background:linear-gradient(90deg,#6E98E6,#2E5FBF)"></i><i id="bSitFoe" style="background:linear-gradient(90deg,#B8382A,#E5785C);margin-left:auto"></i></span><span id="bSitR"></span><span class="lab" id="bSitLab"></span></span>
           <span class="chip" id="bSit" hidden style="white-space:nowrap;font-weight:800;letter-spacing:.02em;pointer-events:none">左翼 互角　中央 互角　右翼 互角</span>
           <span class="chip" id="bGoal" hidden style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw"></span>
@@ -15323,7 +15329,7 @@ const rel0=castleRel(c);
 const relName = (c.clan!==null&&W.clans[W.player]&&W.clans[W.player].vassals&&W.clans[W.player].vassals.has(c.clan)) ? "属国"
 : (c.clan!==null&&W.clans[W.player]&&W.clans[W.player].suzerain===c.clan) ? "主家"
 : ["わが城","同盟","交戦中","中立"][rel0];
-const relCol=["#1E78FF","#00A84E","#D31408","#8C8578"][rel0];
+const relCol=["#00339C","#00713A","#B01008","#6B655C"][rel0];
 const daimyo = c.clan!==null ? W.generals[W.clans[c.clan].daimyo] : null;
 const owner=`<div class="owner" style="border-color:${relCol}">
 ${c.clan!==null&&W.clans[c.clan]?monHTML(W.clans[c.clan],34,"margin-right:8px;flex:none"):`<span class="ow-crest" style="background:${clanColor(c.clan)}">—</span>`}
@@ -15341,9 +15347,9 @@ ${mine&&isFrontCastle(c.id)?`<span class="chip shu" title="敵の城と街道で
 ${c.clan!==null&&c.clan!==W.player&&underTruce(W.player,c.clan)?`<span class="chip kin">停戦あと${Math.ceil(((W.clans[W.player].truce||{})[c.clan]-dayNumber())/30)}か月</span>`:""}
 </div>`;
 
-const brief=(t,body,open)=>`<details ${open?"open":""} style="margin:4px 0">
+const brief=(t,body,open)=>`<details ${open?"open":""} style="margin:6px 0">
 <summary style="cursor:pointer;font-family:var(--display);font-size:14px;
-color:var(--kin);padding:3px 0;list-style:none">▸ ${t}</summary>${body}</details>`;
+color:var(--kin);padding:10px 2px;min-height:44px;display:flex;align-items:center;list-style:none">▸ ${t}</summary>${body}</details>`;
 
 let nagBlock="";
 if(c.name==="長篠城" && typeof nagSiegeOn==="function" && nagSiegeOn()){ const st=nagStatus(); const N=W.nag; const tk=clanByName("武田家"); const meTk=tk&&W.player===tk.id;
@@ -16167,6 +16173,7 @@ openPanel("軍勢","",h); setSpeed(0);
 }
 let officerSort="troops";
 let officerFilter="all";
+var officerShowAll=false;
 function openOfficers(){
 const list=Object.values(W.generals).filter(g=>g.clan===W.player&&g.status!=="死亡"&&g.status!=="捕虜");
 const keys={troops:"兵数",lea:"統率",pol:"政治",loyalty:"忠誠",age:"齢"};
@@ -16181,7 +16188,7 @@ const h=`<div class="scroll-x">${Object.entries(keys).map(([k,n])=>
 <div class="scroll-x">${[["all","すべて"],["idle","手空き"],["risk","気がかり"],["wounded","負傷"]].map(([k,n])=>
 `<button class="chip ${officerFilter===k?"kin":""}" style="cursor:pointer" onclick="officerFilter='${k}';openOfficers()">${n}</button>`).join("")}
 <button class="chip" style="cursor:pointer;margin-left:auto" onclick="closePanel();assignAllIdle()">手空きに一括で命じる</button></div>
-${shown.map(g=>{
+${(officerShowAll?shown:shown.slice(0,24)).map(g=>{
 const lm=lifeMark(g);
 return `<div style="padding:6px 0;border-bottom:1px solid var(--line);display:flex;gap:10px">
 ${face(g)}
@@ -16204,7 +16211,8 @@ ${g.task?`<span class="chip kin">${g.task.kind}</span>`:""}
 ${g.castle!==null&&!g.army?`<button class="chip" style="cursor:pointer;margin-left:auto" onclick="closePanel();gotoCastle(${g.castle})">城へ</button>`:""}</div>
 <div class="tiny muted">${esc(g.bio)}</div>
 </div>
-</div>`;}).join("")}`;
+</div>`;}).join("")}
+${(!officerShowAll && shown.length>24)?`<div style="text-align:center;margin:12px 0"><button class="chip kin" style="cursor:pointer" onclick="officerShowAll=true;openOfficers()">残り ${shown.length-24}名を見る</button></div>`:""}`;
 { const idle=list.filter(g=>!g.task&&!g.army&&!isChild(g)&&g.status!=="人質"&&g.status!=="隠居"&&g.status!=="捕虜").length, wd=list.filter(g=>g.woundedUntil>dayNumber()).length, low=list.filter(g=>g.loyalty<50&&g.status==="家臣").length;
 openPanel(`武将 ${shown.length}名`, `${officerFilter==="all"?`全${list.length}名`:`全${list.length}名のうち`}　手空き${idle}${wd?`・負傷${wd}`:""}${low?`・忠誠50未満 ${low}`:""}`, h); }
 setSpeed(0);
@@ -25588,8 +25596,7 @@ W.stats.battles++;
 track("battle/"+(e.decisive?"decisive":e.castle!==null?"siege":"field"));
 battleEl.classList.add("on");
 document.body.classList.add("inbattle");
-document.getElementById("bTerrain").textContent=
-(dec?dec.name+"　／　":"")+BTERRAIN[tIdx].n+"　"+terrainNote(tIdx)+"　／　"+B.weather+"　"+WEATHER[B.weather].d+(B.night?"　／　夜戦（暗く、日暮れが近い）":"");
+setTerrainChip((dec?dec.name+"　／　":"")+BTERRAIN[tIdx].n+"　"+terrainNote(tIdx)+"　／　"+B.weather+"　"+WEATHER[B.weather].d+(B.night?"　／　夜戦（暗く、日暮れが近い）":""));
 try{ renderBattleGoal(); }catch(_){ }
 
 { const bn=document.getElementById("bName"); if(bn){ bn.hidden=!dec; if(dec){ bn.innerHTML=`${esc(dec.name)}<small style="display:block;font-size:14px;letter-spacing:.15em;color:#D9C48A;opacity:.85;border:none">${esc(dec.sub||"")}</small>`; } }
@@ -26254,9 +26261,15 @@ else if(B.oke){ const foeOke=me!==B.okeFoe; if(!main) main=foeOke?"今川の本�
 else { if(!main) main=(B.ctx.castle!==null&&B.ctx.castle!==undefined)?(me===0?"城を落とせ":"城を守り抜け"):"敵の本陣を崩すか、敵を全て退かせよ"; subs.push({t:"総大将を生かす", ok:!!(myCmd&&myCmd.troops>.5&&myCmd.morale>0)}); subs.push({t:"兵を六割以上残す", ok:mineNow>=mineMax*0.6}); if(foeCmd) subs.push({t:"敵の本陣を崩す", ok:foeCmd.troops<=.5||foeCmd.morale<=0}); }
 return {main, subs};
 }
+
+function setTerrainChip(t){ const te=document.getElementById("bTerrain"); if(!te) return;
+te.dataset.full=t;
+const narrow=(window.innerWidth||999)<=560;
+te.textContent = narrow ? t.split("／").map(x=>x.trim().split(/[　 ]/)[0]).filter(Boolean).join("・") : t;
+}
 function renderBattleGoal(){ const el=document.getElementById("bGoal"), te=document.getElementById("bTerrain"); if(!el||!B) return;
 
-if(B.tobiPhase){ if(te) te.textContent="鳶ヶ巣山砦の奇襲　／　山の砦　坂と柵　／　夜明け前"; const fe0=document.getElementById("bForms"); if(fe0) fe0.textContent=""; }
+if(B.tobiPhase){ setTerrainChip("鳶ヶ巣山砦の奇襲　／　山の砦　坂と柵　／　夜明け前"); const fe0=document.getElementById("bForms"); if(fe0) fe0.textContent=""; }
 
 if(B.opening>0||B.over!==null){ el.hidden=true; if(te) te.hidden=false; return; }
 const g=battleGoals(); if(!g){ el.hidden=true; if(te) te.hidden=false; return; }
