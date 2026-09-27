@@ -850,6 +850,12 @@ html:not(.booting) #bootState{display:none}
   /* 押せる所どうしは八px 以上あける（Material 3） */
   #panel details>summary{ margin-bottom:8px; }
   #panel .row, .dialog .row{ gap:10px; padding:8px 0; }
+  /* 押せる所どうしは八px 以上（Material 3）。並びの札・折りたたみの見出しも */
+  #panel .grid, .dialog .grid{ gap:10px !important; }
+  #panel .cmd, .dialog .cmd{ margin:0; }
+  #panel details{ margin:10px 0 !important; }
+  #panel .scroll-x{ gap:10px; padding-bottom:6px; }
+  #panel .scroll-x .chip, .dialog .scroll-x .chip{ margin:0 2px; }
   #panel .row+details, #panel details+.row, #panel .row+.row{ margin-top:8px; }
   #panel .row button, .dialog .row button, #panel .row .chip, .dialog .row .chip{ margin-left:8px; }
   .dialog button, .dialog .big, #start .s-btn, .tool{ min-height:44px; }
@@ -15411,7 +15417,7 @@ const col=rel===0?"asagi":rel===1?"":rel===2?"shu":"kin";
 return `<button class="cmd" style="min-width:104px" onclick="closePanel();gotoCastle(${n})">
 ${esc(o.name)}<span class="cost">${kmv}km ・ ${["自","盟","敵","中"][rel]} ・ 兵${estimatedGarrison(n)}</span></button>`;
 }).join("")}
-</div></details>`:""}
+</div></details><div style="height:10px"></div>`:""}
 <details class="fold"><summary class="sec-title">城データ<span class="tiny muted" style="font-weight:400;margin-left:8px">石高 ${Math.round(c.koku).toLocaleString()}・人口 ${Math.round(c.pop).toLocaleString()}・民忠 ${c.minchu}・治安 ${c.chian}</span></summary>
 <div class="metrics">
 ${bar("石高",c.koku,100000,"kin")}
