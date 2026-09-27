@@ -168,7 +168,7 @@ const bodyMats = new Map();
 function bodyMaterial(look, dm = false) {
   const cloth = look.cloth || 0x2b2622, skin = look.skin || 0xb58c68;
   const hakama = look.tier === 0 ? cloth : new THREE.Color(cloth).multiplyScalar(0.8).getHex();
-  // 僧兵は体の胴を描かない（体の肩の形が衣の肩から突き出るので。胴は衣が覆う）
+  // 僧兵は体の胴と腕を描かない（体の肩の形が衣から突き出るので。胴は衣、腕は広い袖が覆う）
   const nt = !!look.sohei;
   const k = cloth + '|' + skin + '|' + look.tier + (dm ? '|dm' : '') + (nt ? '|nt' : '');
   if (bodyMats.has(k)) return bodyMats.get(k);
@@ -182,7 +182,7 @@ function bodyMaterial(look, dm = false) {
     sh.vertexShader = 'attribute float part;\nvarying float vPart;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vPart = part;');
     sh.fragmentShader = 'uniform vec3 cTorso, cArm, cHand, cLeg, cFoot, cNeck;\nvarying float vPart;\n' + sh.fragmentShader
       .replace('#include <map_fragment>', `
-        if (vPart > 3.5${dm ? ' || (vPart > 1.5 && vPart < 2.5)' : ''}${nt ? ' || vPart < 0.5' : ''}) discard;
+        if (vPart > 3.5${dm ? ' || (vPart > 1.5 && vPart < 2.5)' : ''}${nt ? ' || vPart < 1.5' : ''}) discard;
         vec4 tA = texture2D(map, vMapUv);
         float lumA = dot(tA.rgb, vec3(0.3, 0.59, 0.11));
         int pA = int(vPart + 0.5);

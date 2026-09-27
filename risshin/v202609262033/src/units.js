@@ -2331,9 +2331,9 @@ function soheiBody(ck, o, hi, grp) {
   }
   // 五条袈裟：左の肩から右の脇へ斜めに掛ける布の帯。厚み（表と裏）、縁取り、条の縫い目、しわ
   {
-    const yK = (th) => { let y = 1.19; for (let k = 0; k < 5; k++) y = Math.min(1.462, 1.19 - 0.82 * Math.sin(th) * rY(y)); return y - 0.012 * Math.max(0, Math.cos(th)); };
+    const yK = (th) => { let y = 1.19; for (let k = 0; k < 5; k++) y = Math.min(1.375, 1.19 - 0.82 * Math.sin(th) * rY(y)); return y - 0.012 * Math.max(0, Math.cos(th)); };
     const hw = 0.078;
-    const kp = (th, v, add) => { const y = Math.min(1.47, yK(th) + (v - 0.5) * 2 * hw); const w = hi ? 0.003 * Math.sin(th * 11 + v * 5) + 0.002 * Math.sin(th * 23) : 0; return robePt(th, y, 0.014 + add + w); };
+    const kp = (th, v, add) => { const y = Math.min(1.452, yK(th) + (v - 0.5) * 2 * hw); const w = hi ? 0.003 * Math.sin(th * 11 + v * 5) + 0.002 * Math.sin(th * 23) : 0; return robePt(th, y, 0.014 + add + w); };
     const nu = hi ? 48 : 16;
     PT.torso.push(P(surf(nu, hi ? 3 : 1, (u, v) => kp(-Math.PI + u * Math.PI * 2, v, 0)), kesa, { reg: 'cloth', dirt: 0.45 }));
     if (hi) PT.torso.push(P(flipG(surf(nu, 1, (u, v) => kp(-Math.PI + u * Math.PI * 2, v, -0.007))), darker(kesa, 0.6), { reg: 'cloth' }));
@@ -2407,7 +2407,7 @@ function soheiArm(o, sd, hi, part) {
   DIRT = o.dirt ?? 0.6;
   const robe = o.cloth || 0x222120, skin = o.skin || 0xb58c68;
   const P_ = [];
-  if (!part) P_.push(P(at(ball(0.07, 0.075, 0.07, hi ? 10 : 6, 6), 0, -0.02, 0), robe, { reg: 'cloth' }));
+  if (!part || part === 'upper') P_.push(P(at(ball(0.07, 0.075, 0.07, hi ? 10 : 6, 6), 0, -0.02, 0), robe, { reg: 'cloth' }));
   if (!part || part === 'upper') {
     const up = (u, v, inner) => { const a = -Math.PI + u * Math.PI * 2, y = -0.29 + v * 0.3, t = (0.01 - y) / 0.3; const r = 0.078 + 0.016 * t - (inner ? 0.005 : 0); return [Math.sin(a) * r, y, Math.cos(a) * r - 0.012 * t * Math.max(0, -Math.cos(a))]; };
     P_.push(P(surf(hi ? 14 : 6, hi ? 3 : 1, (u, v) => up(u, v, false)), robe, { reg: 'cloth' }));
@@ -5100,7 +5100,7 @@ export class Army {
       u.pos.y = this.world.heightAt(u.pos.x, u.pos.z);
       this.animate(u, dt, near);
     }
-    this.updateImpostors();
+    this.updateImpostors(cam);
     this.updateArrows(dt);
     this.updateSmoke(dt);
     this.updateParticles(dt);
@@ -5109,9 +5109,10 @@ export class Army {
   }
 
   // 遠い兵をまとめて描く（IMP）。甲冑の色と旗ごとに、軽い兵の形の束を一つ持つ
-  updateImpostors() {
+  updateImpostors(cam) {
     if (!this.world.makeImpostor) return;
     const I = this.imp || (this.imp = new Map());
+    if (cam) this.impCam = { x: cam.x, z: cam.z };
     for (const st of I.values()) st.n = 0;
     const KIND = { ashigaru: 0, gun: 1, bow: 2, samurai: 3 };
     for (const u of this.units) {
@@ -5123,7 +5124,16 @@ export class Army {
       u.mesh.visible = false;
       const key = u.look.armor + '|' + (u.look.flag || '');
       let st = I.get(key);
-      if (!st) { st = { im: this.world.makeImpostor(u.look.armor, u.look.flag || 'tokugawa', 160), n: 0 }; I.set(key, st); }
+      if (!st) {
+        st = { im: this.world.makeImpostor(u.look.armor, u.look.flag || 'tokugawa', 160), n: 0 }; I.set(key, st);
+        // 兵の更新なしにカメラだけ大きく動いた（写真モード）：そのカメラからの遠さでまとめ直す
+        st.im.onCam = (p) => {
+          const c = this.impCam;
+          if (c && Math.hypot(p.x - c.x, p.z - c.z) < 8) return;
+          for (const q of this.units) q.camD = Math.hypot(q.pos.x - p.x, q.pos.z - p.z);
+          this.updateImpostors(p);
+        };
+      }
       if (st.n >= st.im.cap) { u.imp = false; u.mesh.visible = true; continue; }
       const helm = u.look.hat && u.look.hat.startsWith('kabuto') ? 1 : 0;
       st.im.put(st.n++, u.pos.x, u.pos.z, u.heading, k, helm, k === 0 ? 1.25 : 0, u.look.flag ? 1 : 0, (u.id * 0.618) % 1);

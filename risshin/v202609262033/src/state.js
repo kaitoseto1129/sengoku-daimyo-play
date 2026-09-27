@@ -57,7 +57,7 @@ export function ladderStep(G) {
   return i < 0 ? 0 : i;
 }
 // 画面に出す身分の名（試しのときは試している段の名）
-export function rankLabel(G) { return G.trialStep != null ? LADDER[G.trialStep].name : RANKS[G.rank].name; }
+export function rankLabel(G) { if (G.lordTitle) return G.lordTitle; return G.trialStep != null ? LADDER[G.trialStep].name : RANKS[G.rank].name; }
 // 馬に乗れるか（足軽大将から）
 export function canRide(G) { return ladderStep(G) >= 2; }
 

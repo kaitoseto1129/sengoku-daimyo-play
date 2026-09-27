@@ -172,22 +172,23 @@ window.addEventListener('blur', () => input.clear());
 let locked = false;
 function requestLock() {
   if (game.noLock || !canvas.requestPointerLock) return;
+  autoTry = false;
   try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => { game.noLock = true; setPause(false); }); } catch (err) { game.noLock = true; }
 }
 // 出陣の釦を押した時（その押した勢いのうちに）マウスを捕まえる。だめでも noLock にはせず、下に小さな案内を出すだけ
-// （しくじりは Promise と pointerlockerror の両方で届くことがあるので、2秒の間はどちらも「自動の試み」として扱う）
-let autoTry = 0;
-const autoTrying = () => performance.now() - autoTry < 2000;
+// （しくじりは Promise と pointerlockerror の両方で届くことがあるので、次に自分で捕まえに行くまで「自動の試み」の印を残す）
+let autoTry = false;
 function autoLock() {
   if (game.noLock || locked || !canvas.requestPointerLock) return;
-  autoTry = performance.now();
-  try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => { if (game.battle) lockHint(true); }); } catch (err) { autoTry = 0; }
+  autoTry = true;
+  try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => { if (game.battle) lockHint(true); }); } catch (err) { /* 案内を出すだけ */ }
 }
 // 戦を始める：マウスを捕まえていれば（捕まえられない環境でも）そのまま始める。捕まえ損ねたら案内だけ出して始める
 function beginPlay() {
   game.starting = false;
   setPause(false);
-  if (!game.noLock && !locked) lockHint(true);
+  // 開戦の見出し（3.5秒）と重ならないよう、その後に出す
+  if (!game.noLock && !locked) setTimeout(() => { if (game.battle && !game.noLock && !locked) lockHint(true); }, 4200);
 }
 // 画面の下の小さな案内「画面を押すと視点を動かせます」（大きな一時停止の画面にはしない）
 function lockHint(on) {
@@ -229,11 +230,11 @@ window.addEventListener('error', (e) => {
 });
 document.addEventListener('pointerlockchange', () => {
   locked = document.pointerLockElement === canvas;
-  if (locked) { autoTry = 0; lockHint(false); }
+  if (locked) { autoTry = false; lockHint(false); }
   if (!locked && game.battle && !game.battle.over && !game.helpOpen && !game.mapOpen) setPause(true);
   if (locked) setPause(false);
 });
-document.addEventListener('pointerlockerror', () => { if (autoTrying()) { if (game.battle) lockHint(true); return; } game.noLock = true; setPause(false); });
+document.addEventListener('pointerlockerror', () => { if (autoTry) { autoTry = false; if (game.battle) lockHint(true); return; } game.noLock = true; setPause(false); });
 // 別のタブに移ったら止める
 document.addEventListener('visibilitychange', () => {
   duck(document.hidden);

@@ -644,7 +644,7 @@ export class Battle {
     const roster = (this.G.roster || []).filter((r) => r.alive);
     for (const spec of list) {
       if (!spec.n) continue;
-      const g = this.army.addGroup({ team: 0, faction: scenario().faction, order: 'follow', formation: 'line', facing, anchor: { ...center }, isPlayerSquad: true, dmgMult: lead, aggro: 8, spacing: 1.6 });
+      const g = this.army.addGroup({ team: 0, faction: this.G.lordFaction || scenario().faction, order: 'follow', formation: 'line', facing, anchor: { ...center }, isPlayerSquad: true, dmgMult: lead, aggro: 8, spacing: 1.6 });
       g.kind = spec.kind;
       g.fire = true;
       g.morale = Math.min(100, 90 + (this.G.stats.lead - 1) * 3 + (this.G.equip.coat ? 5 : 0) + (this.G.feast ? 10 : 0));

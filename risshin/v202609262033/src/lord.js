@@ -39,7 +39,7 @@ export const lordOf = (id) => LORD_BATTLES.find((b) => b.id === id);
 export function lordGame(k) {
   const G = newGame(LORD.name, 'normal', k);
   G.practice = true; G.injured = false;
-  G.lord = LORD.key; G.lordTitle = LORD.title; G.lordClan = LORD.clan;
+  G.lord = LORD.key; G.lordTitle = LORD.title; G.lordClan = LORD.clan; G.lordFaction = 'oda';
   // 見た目の段は「城主」（金の馬具・金扇の馬印）。号令は全部使える
   G.rank = 4; G.trialStep = 6; G.merit = 400;
   G.stats = { spear: 3, vit: 3, lead: 3 };

@@ -282,6 +282,7 @@ export class Hud {
     }
     for (const g of allies) {
       const gen = groupGeneral(g);
+      if (!gen || !gen.name) continue;   // 武将が討たれても隊が残る時がある
       const nm = gen.name.replace(/^.* /, '');
       const fighting = g.units.some((u) => u.alive && (u.target || u.atk));
       const st = g.routed ? '潰走' : g.order === 'retreat' || g.order === 'flee' ? '退く' : fighting ? '交戦' : g.order === 'move' || g.order === 'path' ? '進む' : '控え';

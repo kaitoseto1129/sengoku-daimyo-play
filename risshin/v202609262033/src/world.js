@@ -1954,7 +1954,10 @@ export class World {
     for (let i = 0; i < cap; i++) body.setColorAt(i, col);
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sc = new THREE.Vector3(1, 1, 1), yAx = new THREE.Vector3(0, 1, 0);
     const A = body.geometry.attributes, B = flags.geometry.attributes;
-    return {
+    // 描く直前のカメラを知らせる（写真モードなどで、兵の更新なしにカメラが動いた時に、まとめ直してもらう）
+    const R = { onCam: null };
+    body.onBeforeRender = (r, sc, cam) => { if (R.onCam) R.onCam(cam.position); };
+    return Object.assign(R, {
       cap,
       put: (i, x, z, yaw, k, helm, ex, fl, sd) => {
         if (i >= cap) return;
@@ -1970,7 +1973,7 @@ export class World {
         for (const m of [body, flags]) { m.instanceMatrix.needsUpdate = true; m.geometry.attributes.aInfo.needsUpdate = true; m.geometry.attributes.aInfo2.needsUpdate = true; }
       },
       dispose: () => { this.scene.remove(body, flags); },
-    };
+    });
   }
   // 合戦の矢（細い棒を弧に沿って飛ばす。落ちたら少しの間地面に刺さったまま）
   buildClashArrows() {

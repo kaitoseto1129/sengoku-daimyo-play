@@ -815,6 +815,7 @@ function watchStep(b, dt, c) {
 // 監査の目（四つの目）の記録を、その人の重みで「困った事」に換える
 function fromAudit(aud, c) {
   const per = c.per;
+  const res = [];
   // 同じ見出しの物（「HUD の札どうしが重なる」の組み合わせ違いなど）は一つに束ねる
   const G = new Map();
   for (const it of aud.items) {
@@ -835,10 +836,11 @@ function fromAudit(aud, c) {
   out.sort((a, b) => b.score - a.score);
   for (const { g, score } of out.slice(0, 10)) {
     const s0 = g.samples[0] || {};
-    const pr = c.add('aud:' + g.cat + '|' + g.title, g.title, g.samples.slice(0, 2).map((x) => `${x.who ? x.who + '：' : ''}${x.what || ''}`).join('／'), score >= 12 ? 3 : score >= 6 ? 2 : 1, { cat: g.cat, where: s0.where || '', fix: g.fix });
-    pr.count = Math.max(pr.count, g.count);
+    const pr = { key: 'aud:' + g.cat + '|' + g.title, cat: g.cat, title: g.title, what: g.samples.slice(0, 2).map((x) => `${x.who ? x.who + '：' : ''}${x.what || ''}`).join('／'), sev: score >= 12 ? 3 : score >= 6 ? 2 : 1, count: g.count, where: s0.where || '', battles: [], fix: g.fix, shot: null, from: per.key };
     for (const x of g.samples) { const bid = (x.where || '').split('・')[0]; if (bid && !pr.battles.includes(bid)) pr.battles.push(bid); }
+    res.push(pr);
   }
+  return res;
 }
 
 // 遊べる戦の一覧（筋書きごと。信長で出陣・日本地図の城攻め・稽古場も）
@@ -858,10 +860,13 @@ function listPlayable() {
   return L;
 }
 
+// 一回の持ち時間（実時間の秒。?budget=。botrun が上限の20分から余裕を引いて渡す）。過ぎたら今の戦を切り上げる
+const BUDGET_END = { t: Infinity };
+
 // 写真：描画を一時だけ戻し、外（botrun）に撮ってもらう
 let shotN = 0;
 async function shot(game, label) {
-  if (!Q.has('shots') || shotN >= 9) return null;
+  if (!Q.has('shots') || shotN >= 7) return null;
   const id = ++shotN;
   const r = game.renderer;
   if (r && r.__r0) r.render = r.__r0;
@@ -972,7 +977,7 @@ async function gunbaiTry(game, b, pad, c, aud, name, rep) {
 async function playPersona(game, spec, aud, c) {
   const per = c.per, name = spec.name;
   c.battle = name; c.bid = name; c.where = name;
-  const rep = { battle: name, key: spec.id, kind: spec.kind, scn: spec.scn || '', errors: [], stuck: [], waits: [], flow: [], named: [], time: 0, merit: 0, main: false, squad: '—', down: false, lines: '', loadMs: 0, storyLen: 0, kills: 0, hits: 0, attacks: 0, shots: [] };
+  const rep = c.curRep = { battle: name, key: spec.id, kind: spec.kind, scn: spec.scn || '', errors: [], stuck: [], waits: [], flow: [], named: [], time: 0, merit: 0, main: false, squad: '—', down: false, lines: '', loadMs: 0, storyLen: 0, kills: 0, hits: 0, attacks: 0, shots: [] };
   // ---- 始める（戦の前の札 → 押して出陣） ----
   let tClick = performance.now();
   if (spec.kind === 'dojo') { game.startDojo(); }
@@ -1057,7 +1062,7 @@ async function playPersona(game, spec, aud, c) {
   const prof = { brain: 0, pad: 0, tf: 0, upd: 0, eye: 0 };
   const tLoop = performance.now();
   try {
-    while (game.battle === b && !b.ended && t < cap) {
+    while (game.battle === b && !b.ended && t < cap && performance.now() < BUDGET_END.t) {
       inp.e.clear(); inp.leftPressed = false; inp.quickCmd = null; inp.k.delete('KeyS'); inp.runHeld = false; inp.chargeHold = false;
       for (const k of c.releaseKeys) pad.real && pad.real.keys.delete(k);
       c.releaseKeys.length = 0;
@@ -1105,7 +1110,7 @@ async function playPersona(game, spec, aud, c) {
       if (dist(up, lastPos) < 0.02 && inp.k.has('KeyW')) idle += dt; else idle = 0;
       if (idle > 8) { rep.stuck.push(`${Math.round(t)}秒：前へ進めない（${Math.round(up.x)}, ${Math.round(up.z)}・段 ${b.phase || '―'}）`); c.add(`stuck:${spec.id}:${Math.round(up.x / 10)},${Math.round(up.z / 10)}`, '前へ進もうとしても進めない所があった', `(${Math.round(up.x)}, ${Math.round(up.z)})・段 ${b.phase || '―'}`, 2, { cat: '辻褄', shot: true, fix: '当たり（柵・建物・地形）と道のつながりを見直す' }); idle = -30; }
       lastPos = { x: up.x, z: up.z };
-      if (frames % 200 === 0) await wait(0);
+      if (frames % 200 === 0) { rep.time = Math.round(b.t); rep.merit = b.tracker.total(); rep.down = !P.alive; await wait(0); }
     }
   } catch (e) { rep.errors.push(String(e && e.stack || e).split('\n').slice(0, 3).join(' ')); }
   window.removeEventListener('error', onErr);
@@ -1116,6 +1121,7 @@ async function playPersona(game, spec, aud, c) {
   rep.realSec = Math.round((performance.now() - tLoop) / 1000);
   b.update = step;
   rep.timeout = t >= cap && !b.over;
+  if (performance.now() >= BUDGET_END.t && !b.over) { rep.cut = true; rep.battle += '（途中で打ち切り）'; }
   rep.named = aud.endCheck(b, rep.timeout && cap >= 900);
   rep.time = Math.round(b.t);
   rep.merit = b.tracker.total();
@@ -1190,8 +1196,20 @@ async function runPersona(game, key) {
   if (per.key === 'sen' && !only && !plan.some((x) => x.kind === 'lord') && Math.random() < 0.5) { const l = all.filter((x) => x.kind === 'lord'); if (l.length) plan[0] = pick(l); }
   const reports = [];
   const t0 = performance.now();
-  const partial = () => { window.__botPartial = { persona: per.key, size: `${innerWidth}×${innerHeight}`, dpr: devicePixelRatio, touch: isTouch, quality: S.quality, plan: plan.map((x) => x.name), battles: reports, problems: c.problems, audit: aud.items.length }; };
+  if (+Q.get('budget') > 0) BUDGET_END.t = t0 + +Q.get('budget') * 1000;
+  // 途中で打ち切られても感想が残るように、戦を一つ終えるごとに書き直す
+  const partial = () => {
+    const cur = c.curRep && !reports.includes(c.curRep) ? [{ ...c.curRep, cut: true, battle: c.curRep.battle + '（途中で打ち切り）' }] : [];
+    const done = [...reports, ...cur];
+    const probs = [...c.problems, ...fromAudit(aud, c).filter((x) => !c.byKey.has(x.key))];
+    // 写真の無い困り事には、その戦の山場の写真を添える
+    for (const it of probs) if (!it.shot) { const r = reports.find((x) => it.battles.includes(x.battle)) || reports[0]; const sh = r && r.shots && (r.shots.find((x) => x.label === '山場') || r.shots[0]); if (sh) it.shotNear = sh.file; }
+    window.__botPartial = { persona: per.key, size: `${innerWidth}×${innerHeight}`, dpr: devicePixelRatio, touch: isTouch, quality: S.quality, plan: plan.map((x) => x.name), battles: done, problems: probs, audit: aud.items.length, feel: voiceOf(per, done, probs, c) };
+  };
+  window.__botFlush = () => { try { partial(); } catch (e) { /* 書けなくても続ける */ } return 1; };
   for (const spec of plan) {
+    // 持ち時間の半分を過ぎていたら、次の戦は始めない
+    if (performance.now() > t0 + (BUDGET_END.t - t0) * 0.5) { say(`持ち時間が足りないので${spec.name}は遊ばない`); break; }
     say(`${per.name}：${spec.name}を遊んでいます…`);
     let r;
     try { r = await playPersona(game, spec, aud, c); } catch (e) { r = { battle: spec.name, key: spec.id, errors: [String(e && e.stack || e).split('\n').slice(0, 3).join(' ')], stuck: [], waits: [], flow: [], named: [], time: 0, merit: 0, main: false, squad: '—', down: false, shots: [] }; if (game.battle) game.stopBattle(); }
@@ -1199,10 +1217,6 @@ async function runPersona(game, key) {
     say(`${spec.name}：${r.time}秒・任務${r.main === true ? '達成' : '失敗'}${r.down ? '・倒れた' : ''}`);
     partial();
   }
-  fromAudit(aud, c);
-  // 写真の無い困り事には、その戦の山場の写真を添える
-  for (const it of c.problems) if (!it.shot) { const r = reports.find((x) => it.battles.includes(x.key)) || reports[0]; const s = r && (r.shots.find((x) => x.label === '山場') || r.shots[0]); if (s) it.shotNear = s.file; }
   partial();
-  window.__botPartial.feel = voiceOf(per, reports, c.problems, c);
   window.__botData = { ...window.__botPartial, sec: Math.round((performance.now() - t0) / 1000), done: true };
 }
