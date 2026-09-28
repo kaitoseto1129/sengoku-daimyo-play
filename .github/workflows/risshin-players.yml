@@ -1,11 +1,16 @@
-# 戦国立身：1000人のテストプレイヤー（kaito「テストプレイヤーを1000人に。GitHub Actions で回して、Claude は結果を読んで直すだけ」2026-09-27）
-# 一回に100人（20本を同時に × 1本5人）。表（risshin-bot/players1000.mjs）を順に回し、どこまで回したかは risshin-players/cursor.json
-# 2時間ごと × 100人 ＝ 約20時間で1000人が一回り。結果は risshin-players/まとめ.md（直近1000人のうち何人が困ったか順）
+# 戦国立身：1万人のテストプレイヤー（kaito「1万人が git でプレイするように」2026-09-28）
+# 人数・時間・回す間は risshin-bot/players.json で決める（この yml は触らずに済むように。元は prototype/tools/players.json → mkpages が写す）
+#   既定：一回に200人（20本を同時に × 1本10人・一人6分まで・1本55分まで）を毎時。約50時間で1万人が一回り
+#   止めるには players.json の "enabled" を false に（手動の Run workflow は動く）
+# 表（risshin-bot/players-table.mjs）を順に回し、どこまで回したかは risshin-players/cursor.json
+# 結果は risshin-players/まとめ.md（直近1万人のうち何人が困ったか順）
+# 前の回がまだ動いていたら重ねない（concurrency）。待たされて、前の回の終わりから minGapMinutes 分たっていなければ、その回は飛ばす
 # 遊ぶのは公開中の risshin/（その場で python の簡単なサーバーで開く）。遊び手の頭（playbot.js・audit.js）だけ risshin-bot/ から重ねる
+# 今すぐ回す：Actions の画面の「Run workflow」、または risshin-bot/run-now.json を変えて push
 name: risshin-players
 on:
   schedule:
-    - cron: "40 */2 * * *"
+    - cron: "17 * * * *"
   workflow_dispatch:
     inputs:
       start:
@@ -13,13 +18,13 @@ on:
         required: false
         default: ""
       per:
-        description: "1本あたりの人数（20本なので ×20 人）"
+        description: "1本あたりの人数（空なら players.json）"
         required: false
-        default: "5"
+        default: ""
       limit:
-        description: "一人の上限（分）"
+        description: "一人の上限（分・空なら players.json）"
         required: false
-        default: "10"
+        default: ""
   push:
     branches: [main]
     paths: ["risshin-bot/run-now.json"]
@@ -33,9 +38,14 @@ jobs:
   plan:
     runs-on: ubuntu-latest
     outputs:
+      run: ${{ steps.p.outputs.run }}
       start: ${{ steps.p.outputs.start }}
       per: ${{ steps.p.outputs.per }}
       limit: ${{ steps.p.outputs.limit }}
+      shards: ${{ steps.p.outputs.shards }}
+      count: ${{ steps.p.outputs.count }}
+      total: ${{ steps.p.outputs.total }}
+      jobmin: ${{ steps.p.outputs.jobmin }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -43,32 +53,47 @@ jobs:
             risshin-players
             risshin-bot
           filter: blob:none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - id: p
         env:
           IN_START: ${{ github.event.inputs.start }}
           IN_PER: ${{ github.event.inputs.per }}
           IN_LIMIT: ${{ github.event.inputs.limit }}
         run: |
-          node -e '
-            const fs = require("fs");
-            let cur = {}; try { cur = JSON.parse(fs.readFileSync("risshin-players/cursor.json", "utf8")); } catch (e) {}
-            let now = {}; if (process.env.GITHUB_EVENT_NAME === "push") { try { now = JSON.parse(fs.readFileSync("risshin-bot/run-now.json", "utf8")); } catch (e) {} }
-            const start = process.env.IN_START !== undefined && process.env.IN_START !== "" ? +process.env.IN_START : (now.start ?? cur.next ?? 0);
-            const per = Math.max(1, Math.min(5, +(process.env.IN_PER || now.per || 5)));
-            const limit = Math.max(4, Math.min(11, +(process.env.IN_LIMIT || now.limit || 10)));
-            fs.appendFileSync(process.env.GITHUB_OUTPUT, `start=${start % 1000}\nper=${per}\nlimit=${limit}\n`);
-            console.log({ start, per, limit });
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const J = (f, d) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch (e) { return d; } };
+            const cfg = J("risshin-bot/players.json", {}), cur = J("risshin-players/cursor.json", {});
+            const ev = process.env.GITHUB_EVENT_NAME;
+            const now = ev === "push" ? J("risshin-bot/run-now.json", {}) : {};
+            const { TOTAL } = await import(process.cwd() + "/risshin-bot/players-table.mjs");
+            let run = cfg.enabled !== false || ev !== "schedule";
+            const last = (cur.history || []).slice(-1)[0];
+            const gap = last ? (Date.now() - Date.parse(last.at)) / 60000 : 1e9;
+            if (ev === "schedule" && gap < (cfg.minGapMinutes ?? 10)) { run = false; console.log(`前の回の終わりから ${Math.round(gap)} 分なので飛ばす`); }
+            const num = (...a) => { for (const x of a) if (x !== undefined && x !== null && x !== "") return +x; };
+            const start = num(process.env.IN_START, now.start, cur.next, 0) % TOTAL;
+            const per = Math.max(1, Math.min(15, num(process.env.IN_PER, now.per, cfg.per, 10)));
+            const limit = Math.max(3, Math.min(11, num(process.env.IN_LIMIT, now.limit, cfg.limit, 6)));
+            const nsh = Math.max(1, Math.min(20, num(now.shards, cfg.shards, 20)));
+            const jobmin = Math.max(10, Math.min(57, num(cfg.jobMinutes, 55)));
+            const o = { run, start, per, limit, shards: JSON.stringify([...Array(nsh).keys()]), count: per * nsh, total: TOTAL, jobmin };
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, Object.entries(o).map(([k, v]) => `${k}=${v}`).join("\n") + "\n");
+            console.log(o);
           '
 
   play:
     needs: plan
+    if: needs.plan.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
       fail-fast: false
       max-parallel: 20
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -89,6 +114,8 @@ jobs:
           START: ${{ needs.plan.outputs.start }}
           PER: ${{ needs.plan.outputs.per }}
           LIMIT: ${{ needs.plan.outputs.limit }}
+          TOTAL: ${{ needs.plan.outputs.total }}
+          JOBMIN: ${{ needs.plan.outputs.jobmin }}
           SHARD: ${{ matrix.shard }}
         run: |
           set +e
@@ -100,13 +127,13 @@ jobs:
           mkdir -p out/shots
           T0=$(date +%s)
           for k in $(seq 0 $((PER - 1))); do
-            ROW=$(( (START + SHARD * PER + k) % 1000 ))
-            # 60分の枠に収める：残りの時間を残りの人数で割る（上限 LIMIT 分）
-            LEFT=$(( 55 - ( $(date +%s) - T0 ) / 60 ))
+            ROW=$(( (START + SHARD * PER + k) % TOTAL ))
+            # 1本の枠（JOBMIN 分）に収める：残りの時間を残りの人数で割る（上限 LIMIT 分）
+            LEFT=$(( JOBMIN - ( $(date +%s) - T0 ) / 60 ))
             L=$(( LEFT / (PER - k) )); [ $L -gt $LIMIT ] && L=$LIMIT
-            if [ $L -lt 4 ]; then echo "$(date -u +%FT%T) ${ROW}番：時間が足りないので遊ばない" >> out/loop.log; continue; fi
+            if [ $L -lt 3 ]; then echo "$(date -u +%FT%T) ${ROW}番：時間が足りないので遊ばない" >> out/loop.log; continue; fi
             echo "::group::${ROW}番（${L}分まで）"
-            timeout -k 20 $(( L * 60 + 40 )) node risshin-bot/botrun.mjs --row=$ROW --out=out --limit=$L 2>&1 | tee -a out/loop.log | tail -40
+            timeout -k 20 $(( L * 60 + 30 )) node risshin-bot/botrun.mjs --row=$ROW --out=out --limit=$L 2>&1 | tee -a out/loop.log | tail -40
             RC=${PIPESTATUS[0]}
             [ $RC -ne 0 ] && echo "$(date -u +%FT%T) ${ROW}番：打ち切り・失敗（終わりの印 $RC）" >> out/loop.log
             pkill -f "sengoku-risshin-" 2>/dev/null; sleep 2; pkill -9 -f "sengoku-risshin-" 2>/dev/null
@@ -119,12 +146,12 @@ jobs:
         with:
           name: shard-${{ matrix.shard }}
           path: out/
-          retention-days: 7
+          retention-days: 3
           if-no-files-found: ignore
 
   gather:
     needs: [plan, play]
-    if: always() && needs.plan.result == 'success'
+    if: always() && needs.plan.outputs.run == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -142,14 +169,14 @@ jobs:
           pattern: shard-*
           path: in
       - name: 合わせて まとめ.md を書く
-        run: node risshin-bot/players-gather.mjs --in=in --dest=risshin-players --start=${{ needs.plan.outputs.start }} --count=$(( ${{ needs.plan.outputs.per }} * 20 ))
+        run: node risshin-bot/players-gather.mjs --in=in --dest=risshin-players --start=${{ needs.plan.outputs.start }} --count=${{ needs.plan.outputs.count }} --config=risshin-bot/players.json
       - name: 置き場に記録する（ぶつかったら pull --rebase してやり直す）
         run: |
           git config user.name "risshin-players-bot"
           git config user.email "risshin-players-bot@users.noreply.github.com"
           git add -A risshin-players
           git diff --cached --quiet && exit 0
-          git commit -q -m "risshin-players: $(date -u +%Y-%m-%dT%H:%M) ${{ needs.plan.outputs.start }}番から$(( ${{ needs.plan.outputs.per }} * 20 ))人"
+          git commit -q -m "risshin-players: $(date -u +%Y-%m-%dT%H:%M) ${{ needs.plan.outputs.start }}番から${{ needs.plan.outputs.count }}人"
           for i in 1 2 3 4 5; do
             git pull --rebase -q origin main && git push -q origin HEAD:main && exit 0
             git rebase --abort 2>/dev/null
