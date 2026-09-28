@@ -20,8 +20,8 @@ import { ensureServer, openChrome, sleep } from './cdp.mjs';
 process.on('uncaughtException', (e) => { if (String(e && e.stack).includes('undici')) { console.error('（通信の部品の一時的な誤りを無視）'); return; } console.error(e); process.exit(1); });
 
 const args = process.argv.slice(2);
-// --row=番号：1000人の表（players1000.mjs）のその人として遊ぶ（性格・戦の数・画面・変わり目を表から足す）
-{ const ra = args.find((a) => a.startsWith('--row=')); if (ra) { const m = await import('./players1000.mjs'); args.push(...m.argsOf(m.ROWS[+ra.slice(6) % m.TOTAL])); } }
+// --row=番号：1000人の表（players-table.mjs）のその人として遊ぶ（性格・戦の数・画面・変わり目を表から足す）
+{ const ra = args.find((a) => a.startsWith('--row=')); if (ra) { const m = await import('./players-table.mjs'); args.push(...m.argsOf(m.ROWS[+ra.slice(6) % m.TOTAL])); } }
 const N = +(args.find((a) => /^\d+$/.test(a)) || 3);
 const RENDER = args.includes('--render');
 const ONLY = (args.find((a) => a.startsWith('--only=')) || '').slice(7);
@@ -34,7 +34,7 @@ const MOBILE = args.includes('--mobile');
 const PERSONA = (args.find((a) => a.startsWith('--persona=')) || '').slice(10);
 const NBAT = (args.find((a) => a.startsWith('--n=')) || '').slice(4);
 const LIMIT_MIN = +((args.find((a) => a.startsWith('--limit=')) || '').slice(8) || 20);
-// 1000人の表（tools/players1000.mjs）から：--size=844x390（1280x720 はパソコン＝指でなく鍵盤とマウス）・--id=番号・--q=ページへ渡す変わり目
+// 1000人の表（tools/players-table.mjs）から：--size=844x390（1280x720 はパソコン＝指でなく鍵盤とマウス）・--id=番号・--q=ページへ渡す変わり目
 //   --out=置き場（GitHub Actions で。まとめ・管理画面の書き出しはせず、感想・写真（jpg・小さく）・history.jsonl だけ書く）
 const arg = (k) => (args.find((a) => a.startsWith(`--${k}=`)) || '').slice(k.length + 3);
 const SIZE = arg('size') ? arg('size').split('x').map(Number) : null;
@@ -43,7 +43,7 @@ const PID = arg('id');
 const VQ = arg('q');
 const OUT = arg('out');
 const MAXSHOTS = +(arg('maxshots') || (OUT ? 3 : 7));
-const VL = PID ? await import('./players1000.mjs').then((m) => m.labelOf(m.ROWS[+PID % m.TOTAL])).catch(() => '') : '';
+const VL = PID ? await import('./players-table.mjs').then((m) => m.labelOf(m.ROWS[+PID % m.TOTAL])).catch(() => '') : '';
 const PNAME = { chu: ['中学生', 'はじめての中学生', 'ハルト（13歳・中学一年）'], reki: ['歴史好き', '歴史好きの大人', 'ミチオ（62歳・郷土史の会）'], act: ['アクション好き', 'アクション好き', 'ソウタ（24歳・アクションゲーム好き）'], sen: ['戦略家', '指揮好きの戦略家', 'ケイコ（45歳・将棋と戦略ゲーム好き）'], sek: ['せっかち', 'せっかちな社会人', 'ユウキ（35歳・昼休みに遊ぶ会社員）'] };
 const SEV = { 3: '★★★ やめたくなった', 2: '★★ かなり困った', 1: '★ 少し気になった' };
 await ensureServer();
@@ -168,9 +168,10 @@ async function playOnce() {
   const d = new Date();
   const st = PID ? `p${PID}` : `${d.toLocaleDateString('sv-SE')}-${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}`;
   const t0 = Date.now();
-  const deadline = t0 + LIMIT_MIN * 60e3 - 150e3;
+  // GitHub Actions（--out）は機械が空いていて後片付けも速いので、余りを短く（一人5〜6分の枠を遊びに使う）
+  const deadline = t0 + LIMIT_MIN * 60e3 - (OUT ? 45e3 : 150e3);
   // 画面の中の遊びは、上限から4分引いた持ち時間で切り上げさせる（読み込み・後片付け・写真の分）
-  const budget = Math.max(120, LIMIT_MIN * 60 - 240);
+  const budget = Math.max(120, LIMIT_MIN * 60 - (OUT ? 80 : 240));
   // 混んだ機械では一回の問い合わせが返らないことがあるので、待つのは60秒まで
   const ev = (x) => Promise.race([c.ev(x), sleep(45e3).then(() => { throw new Error('ページが60秒答えない'); })]);
   let data = null, cut = '', c = null;

@@ -1,0 +1,11 @@
+{
+  "note": "テストプレイヤー（1万人）の回し方。workflow（.github/workflows/risshin-players.yml）はこれを読むので、人数・時間はここを変えて push するだけでよい",
+  "enabled": true,
+  "shards": 20,
+  "per": 10,
+  "limit": 6,
+  "jobMinutes": 55,
+  "minGapMinutes": 10,
+  "window": 10000,
+  "topShots": 30
+}

@@ -15,8 +15,8 @@ import { lordGame, LORD_BATTLES } from './lord.js';
 const Q = new URLSearchParams(location.search);
 const ONLY = Q.get('only') ? new Set(Q.get('only').split(',')) : null;
 // 1000人の遊び手の変わり目（tools/players1000.mjs の表から。無ければ今までの五人の遊び方のまま）
-//   habit ren|kamae|hashiri|mayoi|yomu ／ mode tooshi|one|lord ／ spd 1〜3 ／ prog 0〜3 ／ buy uma|teppo|tomo|buki|nashi ／ view tp|fp ／ pick 種 ／ pc=1 パソコン ／ maxshots
-const V = { row: Q.get('row'), habit: Q.get('habit') || '', mode: Q.get('mode') || '', spd: +(Q.get('spd') || 2), prog: +(Q.get('prog') || 0), buy: Q.get('buy') || '', view: Q.get('view') || '', pick: +(Q.get('pick') || 0), pc: Q.get('pc') === '1' };
+//   sens 見回しの感度（0.6・1・1.6）／ pausy=1 途中で一時停止を開く人 ／ habit ren|kamae|hashiri|mayoi|yomu ／ mode tooshi|one|lord ／ spd 1〜3 ／ prog 0〜3 ／ buy uma|teppo|tomo|buki|nashi ／ view tp|fp ／ pick 種 ／ pc=1 パソコン ／ maxshots
+const V = { row: Q.get('row'), habit: Q.get('habit') || '', mode: Q.get('mode') || '', spd: +(Q.get('spd') || 2), prog: +(Q.get('prog') || 0), buy: Q.get('buy') || '', view: Q.get('view') || '', pick: +(Q.get('pick') || 0), pc: Q.get('pc') === '1', sens: +(Q.get('sens') || 0), pausy: Q.get('pausy') === '1' };
 const want = (key) => !ONLY || ONLY.has(key);
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -1219,7 +1219,7 @@ async function playPersona(game, spec, aud, c) {
   window.addEventListener('error', onErr);
   const s0 = await shot(game, `${name}・開戦`); if (s0) rep.shots.push({ label: '開戦', file: s0 });
   // 一時停止の札も、左上の「止める」から一度だけ見る（中学生・せっかち）
-  let paused1 = !(per.key === 'chu' || per.key === 'sek');
+  let paused1 = !(per.key === 'chu' || per.key === 'sek' || V.pausy);
   let overShot = false, stepMs = 0;
   const prof = { brain: 0, pad: 0, tf: 0, upd: 0, eye: 0 };
   const tLoop = performance.now();
@@ -1386,7 +1386,8 @@ async function runPersona(game, key) {
     }
     if (!plan.length) plan.push(all[V.pick % all.length]);
   }
-  if (V.view === 'tp') c.fp = true;   // 三人称の人：歴史好きでも一人称へ替えない
+  if (V.view === 'tp') c.fp = true;
+  if (V.sens > 0) S.sens = V.sens;   // 見回しの感度（設定の画面で替える人の真似）   // 三人称の人：歴史好きでも一人称へ替えない
   const reports = [];
   const t0 = performance.now();
   if (+Q.get('budget') > 0) BUDGET_END.t = t0 + +Q.get('budget') * 1000;
