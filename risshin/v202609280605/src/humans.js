@@ -19,7 +19,7 @@ import { WIND_STATE, WET, ARMY_P } from './world.js';
 // budget：一コマに人を作ってよい時間（ms）。戦の始まりに止まらないよう、少しずつ作る
 // lite：その先は見回し・左手を省く・dead：倒れた兵を人にする距離
 // fx：指の握り・息と疲れ・坂の足・振り向きの遅れ（重さを比べる時に切れるように）
-export const HUM = { fx: true, ready: false, failed: false, on: true, near: 42, max: 64, far: 70, ik: 18, lite: 28, fine: 12, face: 12, lod: 15, budget: 4, dead: 20 };
+export const HUM = { fx: true, ready: false, failed: false, on: true, near: 42, max: 64, far: 70, ik: 18, lite: 28, fine: 12, face: 15, lod: 15, budget: 4, dead: 20 };
 // 画質ごとの数（「低」は今の形のまま）
 // 画質「低」でも自分（と名のある武将のごく近く）だけは本物の体にする
 // must：この近さ（m）より内の兵は、上限を越えても必ず骨の入った人にする（カメラの前に軽い形の兵を出さない）。その分は遠い者から軽い形へ
@@ -352,7 +352,7 @@ const bodyMats = new Map();
 const CLOTH_W = { value: new THREE.Vector4(0.565, 0.825, 1, 0) };
 // 戦が進むほどの汚れ（0..1。戦の時間から）
 const GRIME = { value: 0 };
-// 本人の腕の材質：兵の材質と同じ描き方で、一人称（FP_ARM が 1）の時は籠手の絵（鎖）の所だけ 3 倍細かく繰り返す
+// 本人の腕の材質：兵の材質と同じ描き方で、一人称（FP_ARM が 1）の時は籠手の絵（鎖）の所だけ 1.5 倍細かく繰り返す
 const FP_ARM = { value: 0 };
 let fpArmM = null;
 function fpArmMat() {
@@ -368,9 +368,9 @@ function fpArmMat() {
       vec2 kUv(vec2 uv) {
         vec2 q = (uv - vec2(${u0.toFixed(5)}, ${v0.toFixed(5)})) / vec2(${du.toFixed(5)}, ${dv.toFixed(5)});
         if (uFpArm < 0.5 || q.x < 0.0 || q.y < 0.0 || q.x > 1.0 || q.y > 1.0) return uv;
-        return vec2(${u0.toFixed(5)}, ${v0.toFixed(5)}) + fract(q * 3.0) * vec2(${du.toFixed(5)}, ${dv.toFixed(5)}) * 0.98 + vec2(${(du * 0.01).toFixed(5)}, ${(dv * 0.01).toFixed(5)});
+        return vec2(${u0.toFixed(5)}, ${v0.toFixed(5)}) + fract(q * 1.5) * vec2(${du.toFixed(5)}, ${dv.toFixed(5)}) * 0.98 + vec2(${(du * 0.01).toFixed(5)}, ${(dv * 0.01).toFixed(5)});
       }
-      vec4 kTex(sampler2D t, vec2 uv) { return textureGrad(t, kUv(uv), dFdx(uv) * (uFpArm > 0.5 ? 3.0 : 1.0), dFdy(uv) * (uFpArm > 0.5 ? 3.0 : 1.0)); }
+      vec4 kTex(sampler2D t, vec2 uv) { return textureGrad(t, kUv(uv), dFdx(uv) * (uFpArm > 0.5 ? 1.5 : 1.0), dFdy(uv) * (uFpArm > 0.5 ? 1.5 : 1.0)); }
       `;
     sh.fragmentShader = sh.fragmentShader.replace('void main() {', fn + 'void main() {')
       .replace('texture2D(map, vMapUv)', 'kTex(map, vMapUv)')
@@ -823,6 +823,11 @@ function headMaterial(key, look, F) {
       const sun = 0.14 * Gs(x0, y - 2.35, 0.9, 0.45) + 0.08 * Gs(x0 - 1.2, y - 1.35, 0.3, 0.25);
       const tri = (r, g_, b_, al_) => { if (al_ < 0.005) return; tg.fillStyle = `rgba(${r},${g_},${b_},${Math.min(0.85, al_ * fr)})`; tg.beginPath(); tg.moveTo(uv.getX(a) * N, uv.getY(a) * N); tg.lineTo(uv.getX(b) * N, uv.getY(b) * N); tg.lineTo(uv.getX(cc) * N, uv.getY(cc) * N); tg.closePath(); tg.fill(); };
       tri(150, 60, 45, red * 0.6); tri(95, 55, 30, sun * 0.6); tri(122, 86, 66, Math.min(1, 1.1 * lip));
+      // 戦場の汚れ：頬・額・顎の土と汗の筋（型ごとに場所が違う）。目の下と小鼻の脇の陰（彫りを深く見せる）
+      const sd = ((look.face | 0) % 12) * 1.7 + 0.3;
+      const mud = 0.16 * Gs(x0 - 0.9 - 0.3 * Math.sin(sd), y - 0.9 - 0.8 * Math.cos(sd * 1.3), 0.35, 0.28) + 0.1 * Gs(x + 0.6 * Math.sin(sd * 2.1), y - 2.3, 0.4, 0.18) + 0.08 * Gs(x0, y + 0.55, 0.5, 0.25);
+      const hol = 0.12 * Gs(x0 - 0.62, y - 1.5, 0.3, 0.1) + 0.1 * Gs(x0 - 0.33, y - 0.95, 0.1, 0.18);
+      tri(72, 56, 40, mud); tri(60, 36, 28, hol);
     }
     if (named) {
       // 肌の色むら：鼻・頬の赤み、額・鼻筋・頬骨の日焼け、目の下の影。年ごとのしわ（額の横じわ・目尻・ほうれい線）
@@ -1649,7 +1654,7 @@ function addEyesFast(hm, F, tint = null) {
   }
   // まぶたの色を顔の肌の色（材質の色 tint）に合わせる：色の違うまぶたは、顔に貼った目の絵に見える。材質は肌の色ごとに一つ
   const tc = tint ? tint.getHexString() : '-';
-  if (!EYE_FAST_MATS.has(tc)) { const mm = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.22 }); if (tint) mm.color.copy(tint).multiply(EYE_REF_INV); EYE_FAST_MATS.set(tc, mm); }
+  if (!EYE_FAST_MATS.has(tc)) { const mm = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.12, envMapIntensity: 1.3 }); if (tint) mm.color.copy(tint).multiply(EYE_REF_INV); EYE_FAST_MATS.set(tc, mm); }
   const m = new THREE.Mesh(eyeFast.get(key), EYE_FAST_MATS.get(tc));
   m.frustumCulled = false; m.receiveShadow = true;   // 笠の影の中の目は暗く（白目が光って見開いた目に見えないよう）
   hm.add(m);
@@ -1975,13 +1980,15 @@ function driveHuman(h, dt, fine = true, arms = true) {
   // 当たった時の体の反応（units.js の u.hit）：のけぞる・首が跳ねる・横へ折れる・よろめく
   if (u.hit && u.alive) hitReact(h, B, u.hit);
   // 振りの体の入り（u.swing）：振りかぶりで胸をひねり、振り抜きで戻す
-  if (u.swing && u.alive && !u.mounted) {
+  if (u.swing && u.alive && !u.mounted && w !== 'spear') {
     const q = clamp01(u.swing.t / Math.max(0.05, u.swing.dur));
     const tw = (u.swing.side || 1) * (q < 0.35 ? q / 0.35 : 1 - (q - 0.35) / 0.65) * 0.3;
     rotWorld(B.Spine1, _up, -tw); rotWorld(B.Spine, _right, 0.12 * Math.sin(q * Math.PI));
   }
   // 馬上：鞍にまたがる。腰は馬の背の弾みを受け、上体は駆ける波に合わせて揺れる
   if (u.mounted) rideHuman(h, dt);
+  // 槍の突き・刀の振りに体を入れる（腰を落とし、後ろ足で押して踏み込む。馬上は鐙に立つ）
+  if (u.alive && (w === 'spear' || w === 'sword')) attackBody(h, B, u, w, dt);
   // 頭：体が傾いても顔は前を見る（首で七割ほど戻す）
   if (B.HeadTop_End && u.alive) {
     B.Head.getWorldPosition(v0); B.HeadTop_End.getWorldPosition(_tgt);
@@ -2425,6 +2432,8 @@ function armsPose(h, B, dt, time, w) {
     k += G.k; lift = Math.sin(clamp01(G.lift / 0.35) * Math.PI) * 0.06;
   }
   if (h.far) return;   // 遠い人は左手を省く（録った動きのまま）
+  // 槍をしごく：突き出す間、前の左手は柄の上を滑ってその場に残り、後ろの右手だけが前へ押し出す（両手が一緒に動く棒突きにしない）
+  if (w === 'spear' && h.atkB && h.atkB.L > 0.01) k = Math.max(0.1, k - 0.5 * h.atkB.L);
   _tgt2.copy(_tgt).addScaledVector(dir, k).addScaledVector(_right, -0.05).addScaledVector(_up, lift);
   const calm = !u.atk && !u.target && !(u.strikeT > 0) && (u.moving || 0) < 0.3 && !aimGun && !u.isPlayer;
   // 火縄を袖で庇う：待つ鉄砲足軽は、時々左の袖で火皿と火縄を覆う（風が強いほど、雨の時ほど多く）
@@ -2591,6 +2600,14 @@ function gripPose(h, dt) {
     // 刀を振りかぶる時は、手を頭の上まで上げずに右の肩の前で止める（籠手が画面の下半分をふさがない）
     const top = hd.position.y + base + dy - 1.28;
     if (w === 'sword' && top > 0) { dy -= top * 0.65 * u.fpk; dx += Math.min(0.3, top * 0.9) * u.fpk; dz += Math.min(0.12, top * 0.4) * u.fpk; }
+    // 刀を振る間は、手を目の高さより十分下・腕の長さほど前に保つ（振り下ろす腕の籠手が目の前をふさがず、刃の弧が見える）
+    if (w === 'sword' && (u.swing || u.pAtk)) {
+      const y1 = hd.position.y + base + dy, z1 = hd.position.z + dz, capY = eyeY - 0.3;
+      const capY2 = capY - 0.12;
+      if (y1 > capY2) dy -= (y1 - capY2) * u.fpk;
+      if (z1 < 0.62) dz += (0.62 - z1) * u.fpk;
+      dx += 0.24 * u.fpk;
+    }
     // 鉄砲は筒を右へ少し寄せる（支える左の前腕が画面の真ん中をふさがない）
     if (w === 'gun') dx += 0.07 * u.fpk;
     hd.position.x += dx; hd.position.y += dy; hd.position.z += dz;
@@ -2735,6 +2752,50 @@ function rideHuman(h, dt) {
   rotWorld(B.Spine, _right, lean + bob * 0.5);
   rotWorld(B.Spine2, _right, -bob * 0.35);
   rotWorld(B.Spine, _fwd, -(h.turn || 0) * 0.25);
+}
+// 突き・振りの体：W 溜め（引いて腰を落とし、後ろ足に乗る）・L 突き出し／振り下ろし（前へ踏み込み、腰を切る）。
+// どちらもならして（一コマで跳ばない）骨に重ねる。馬上は踏み込む代わりに鐙に立ち、上から突き・払う
+function atkPhase(u, w) {
+  let W = 0, L = 0, tw = 0;
+  const a = u.atk && !u.atk.ranged ? u.atk : u.pAtk;
+  if (a && (a.dur || u.windup)) W = clamp01(1 - Math.max(0, a.t) / (a.dur || u.windup));
+  const sw = u.swing;
+  if (sw && sw.t < sw.dur + 0.3) {
+    const p = sw.t / Math.max(0.05, sw.dur);
+    if (w === 'spear' && (sw.kind === 'thrust' || sw.kind === 'charge')) L = p < 0.5 ? Math.sin(p / 0.5 * Math.PI / 2) : p < 0.75 ? 1 : Math.max(0, 1 - (p - 0.75) / 0.8);
+    else { const q = clamp01(p); L = p <= 1 ? Math.sin(Math.min(1, q * 1.3) * Math.PI / 2) : Math.max(0, 1 - (sw.t - sw.dur) / 0.3); tw = (sw.side || 1) * (q < 0.3 ? -q / 0.3 : -1 + 2 * Math.min(1, (q - 0.3) / 0.6)); }
+    W = 0;
+  } else if (u.strikeT > 0 && u.isPlayer) L = Math.sin((1 - u.strikeT / 0.2) * Math.PI);
+  if (u.sweepT > 0) { L = Math.max(L, Math.sin((1 - u.sweepT / 0.35) * Math.PI) * 0.7); tw = Math.sin((1 - u.sweepT / 0.35) * Math.PI * 2) * 0.8; }
+  return [W, L, tw];
+}
+function attackBody(h, B, u, w, dt) {
+  const [W, L, tw] = atkPhase(u, w);
+  const A = h.atkB || (h.atkB = { W: 0, L: 0, t: 0 });
+  const k = Math.min(1, dt * 22);
+  A.W += (W - A.W) * k; A.L += (L - A.L) * k; A.t += (tw - A.t) * k;
+  const w0 = A.W, l0 = A.L, t0 = A.t;
+  if (w0 < 0.01 && l0 < 0.01 && Math.abs(t0) < 0.01) return;
+  if (u.mounted) {
+    // 馬上：溜めでは上体を引き、突き・振りでは鐙に立って腰を浮かせ、上から前へ体を預ける
+    h.model.position.y += 0.1 * l0 - 0.02 * w0;
+    rotWorld(B.RightLeg, _right, -0.45 * l0); rotWorld(B.LeftLeg, _right, -0.45 * l0);
+    rotWorld(B.Spine, _right, 0.22 * l0 - 0.1 * w0);
+    rotWorld(B.Spine1, _up, (w === 'spear' ? 0.25 * w0 - 0.2 * l0 : 0) - t0 * 0.3);
+    return;
+  }
+  const sp = w === 'spear';
+  // 溜め：腰を落とし、上体を少し引いて後ろ（右）足に乗る。槍は右の肩を引いて胸を開く
+  h.model.position.y -= 0.05 * w0 + 0.07 * l0;
+  rotWorld(B.RightUpLeg, _right, -0.2 * w0); rotWorld(B.RightLeg, _right, 0.35 * w0);
+  rotWorld(B.Spine, _right, -0.08 * w0 + (sp ? 0.16 : 0.12) * l0);
+  if (sp) rotWorld(B.Spine1, _up, 0.22 * w0 - 0.18 * l0);
+  // 突き出し・振り下ろし：後ろ足で地を押して前へ踏み込む（前の左足は膝を曲げ、後ろの右足は伸びる）
+  h.model.position.z += (sp ? 0.16 : 0.1) * l0;
+  rotWorld(B.LeftUpLeg, _right, -0.4 * l0); rotWorld(B.LeftLeg, _right, 0.5 * l0);
+  rotWorld(B.RightUpLeg, _right, 0.3 * l0); rotWorld(B.RightLeg, _right, 0.08 * l0);
+  // 刀：肩から腰を回して振る（腰が先、胸が後から付いて来る）
+  if (!sp && Math.abs(t0) > 0.01) { rotWorld(B.Hips, _up, -t0 * 0.18); rotWorld(B.Spine1, _up, -t0 * 0.22); rotWorld(B.Neck, _up, t0 * 0.3); }
 }
 // 草摺・袖の揺れ（ばね）
 // 支点（体の座標）：草摺は腰、袖は肩、陣羽織は肩の下、母衣は背の上

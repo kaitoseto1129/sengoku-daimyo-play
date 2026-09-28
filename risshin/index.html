@@ -1,7 +1,7 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202609280039 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202609280605 として写した） -->
 <title>戦国立身 3D</title>
-<link rel="icon" type="image/png" sizes="32x32" href="./v202609280039/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202609280039/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202609280039/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202609280039/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202609280605/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202609280605/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202609280605/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202609280605/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1248,7 +1248,8 @@ html.touch:has(#hud.lean.calm) #tc .stick.idle { opacity: .18; }
 #screen .story.short .st-more summary { color: var(--kin); font-size: 13px; }
 #screen .story.short .st-more[open] p { animation: none; opacity: 1; }
 /* 枠の中（claude.ai のアプリの Artifact）：上の角にアプリの「×」「共有」が重なるので、HUD を上 64px 空けて並べる */
-html.touch.inframe #hud { top: 64px; }
+/* HUD 全体を下げると、画面を覆う物（周辺減光など）の縁が線になって見えるので、上に付く札だけを下げる */
+html.touch.inframe #hud :is(.tl, .tr, #compass, #armybar, #situation, #boss, #bark, #tutorial, #choice, #cmdpanel, #skiphint) { margin-top: 64px; }
 html.touch.inframe #tc .hint { top: calc(70px + env(safe-area-inset-top, 0px)); }
 /* スマホ横：札と丸を重ねないための並べ方 */
 @media (max-height: 500px) {
@@ -1357,4 +1358,4 @@ html.touch.inframe #tc .hint { top: calc(70px + env(safe-area-inset-top, 0px)); 
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
 } }
 </script>
-<script type="module" src="./v202609280039/src/main.js"></script>
+<script type="module" src="./v202609280605/src/main.js"></script>

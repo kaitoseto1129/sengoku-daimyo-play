@@ -162,9 +162,9 @@ const anegawa = {
     const realFront = () => { const e = [F.iso, F.third, F.second].find((q) => q && !gone(q)); if (!e || F.step !== 1 || !F.mori.count) return null; const c = e.center(); return { x: c.x, z: (c.z + F.mori.center().z) / 2 }; };
     F.clash = [
       // 正面いっぱい（西の瀬の -158 から東の 120 まで。森の備の前の -12〜60 だけは本物の兵が受け持つ）
-      clash(rt, { x: -120, z: 2, facing: Math.PI, w: 76, gap0: 30, seed: 181, noRout: true, A: side('tokugawa', TK, 700, 0, 'tokugawa', { guns: true }), B: side('asakura', ASAKURA.armor, 760, 1, 'saito', { bows: true }) }),
-      clash(rt, { x: -44, z: 3, facing: Math.PI, w: 64, gap0: 26, seed: 182, noRout: true, A: side('oda', OD, 600, 0, 'oda'), B: side('azai', AZAI.armor, 640, 1, 'saito'), link: realFront }),
-      clash(rt, { x: 90, z: 3, facing: Math.PI, w: 60, gap0: 26, seed: 183, noRout: true, A: side('oda', OD, 560, 0, 'oda', { guns: true }), B: side('azai', AZAI.armor, 600, 1, 'saito'), link: realFront }),
+      clash(rt, { x: -120, z: 2, facing: Math.PI, w: 76, gap0: 30, seed: 181, noRout: true, surge: { k: 'B', every: 50, count: 160, flank: 0.30 }, A: side('tokugawa', TK, 700, 0, 'tokugawa', { guns: true }), B: side('asakura', ASAKURA.armor, 920, 1, 'saito', { bows: true }) }),
+      clash(rt, { x: -44, z: 3, facing: Math.PI, w: 64, gap0: 26, seed: 182, noRout: true, surge: { k: 'B', every: 45, count: 150, flank: 0.35 }, A: side('oda', OD, 600, 0, 'oda'), B: side('azai', AZAI.armor, 800, 1, 'saito'), link: realFront }),
+      clash(rt, { x: 90, z: 3, facing: Math.PI, w: 60, gap0: 26, seed: 183, noRout: true, surge: { k: 'B', every: 55, count: 140, flank: 0.30 }, A: side('oda', OD, 560, 0, 'oda', { guns: true }), B: side('azai', AZAI.armor, 760, 1, 'saito'), link: realFront }),
     ];
 
     rt.world.setTime('day');
@@ -362,6 +362,20 @@ const anegawa = {
     rt.banner('浅井勢、崩れる', '姉川を渡り、追い落とせ');
     rt.say('森可成', '浅井が退くぞ！　川を渡れ！　向こう岸の殿を崩せば、この戦は勝ちじゃ！', 4.5);
     rt.obj('pursue', '姉川を渡り、向こう岸で踏みとどまる浅井の殿（しんがり）を崩せ', 'main');
+    // 判断：浅井の殿を追うか、西の瀬で押し合う徳川を助けに回るか
+    if (!rt.G.lord) rt.after(4, () => rt.choose('西の瀬で徳川が朝倉の残りと押し合っている。どうする？', [
+      { label: '川を渡り、浅井の殿を追う', note: '森の備と一緒に向こう岸へ。追い討ちの手柄' },
+      { label: '西の瀬へ回り、徳川を助ける', note: '朝倉の残りの横を突く。徳川との仲の手柄。浅井の殿は森の備に任せる' },
+    ], (i) => {
+      if (i === 1) {
+        F.helpTk = true;
+        F.akRest = enemyGroup(rt, { faction: 'saito', name: '朝倉の残り', anchor: { x: -64, z: -2 }, facing: -Math.PI / 2, order: 'attack', seekRange: 60, aggro: 14, width: 14, morale: 90, fleeDir: { x: -0.5, z: -1 } },
+          dress([{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 18 }, { type: 'gun', n: 2 }], ASAKURA));
+        rt.obj('tk', '西の瀬へ回り、朝倉の残りの横を突け', 'main');
+        rt.marker('akr', centerOf(F.akRest), () => `朝倉の残り・${moraleWord(F.akRest.morale)}`, { red: true, group: F.akRest });
+        rt.say('森可成', 'よし、西へ行け！　徳川殿に借りを返せ。浅井の殿はわしが受け持つ', 3.5);
+      } else rt.say('森可成', 'よし、続け！　向こう岸じゃ！', 2.5);
+    }, 18));
     for (const g of [F.mori, F.ikeda, F.kino, F.inaba, F.shibata]) if (g && g.count) { g.order = 'attack'; g.seekRange = 70; g.formation = 'line'; }
     const R = enemyGroup(rt, { faction: 'saito', name: '浅井の殿', anchor: { x: 24, z: -36 }, facing: 0, fleeDir: { x: 0.1, z: -1 }, aggro: 12, width: 16, morale: 85 },
       dress([{ type: 'busho', n: 1, o: { name: '浅井の殿の侍大将', horse: true, hat: 'kabuto_m', haori: 0x3a4a3a } }, { type: 'samurai', n: 5 }, { type: 'ashigaru', n: 26 }, { type: 'gun', n: 5 }], AZAI));
@@ -443,7 +457,19 @@ const anegawa = {
     if (F.step === 2) {
       const R = F.rear;
       rt.objProgress('pursue', `浅井の殿 ${R.count}人`);
-      if (gone(R) || rt.t - F.stepT > 160) {
+      // 徳川を助けに回った時は、朝倉の残りを崩せば勝ち（浅井の殿は森の備が崩す）
+      if (F.helpTk && F.akRest && !F.tkHelped) {
+        rt.objProgress('tk', `朝倉の残り ${gone(F.akRest) ? 0 : F.akRest.count}人`);
+        if (F.akRest.count < 6 && !gone(F.akRest)) F.akRest.morale = Math.min(F.akRest.morale, 20);
+        if (gone(F.akRest)) {
+          F.tkHelped = true; rt.unmark('akr'); rt.objDone('tk');
+          rt.award((t) => { t.special = { label: '西の瀬で徳川を助けた', pts: 25 }; }, '西の瀬で徳川を助けた');
+          rt.say('徳川の侍', 'かたじけない！　織田の方の助太刀、家康公に申し伝えまする', 3.5);
+          R.noRout = false; R.morale = Math.min(R.morale, 15);
+        }
+      }
+      if (gone(R) || rt.t - F.stepT > (F.helpTk ? 200 : 160)) {
+        if (F.helpTk && !F.tkHelped) { rt.objFail('tk'); rt.unmark('akr'); }
         F.ending = true;
         rt.unmark('rear');
         if (gone(R)) { rt.objDone('pursue'); rt.award((t) => { t.special = { label: '追い討ち', pts: 25 }; }, '浅井の殿を崩した'); }

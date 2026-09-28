@@ -150,10 +150,11 @@ const mikatagahara = {
     // 追手
     F.chase = [];
     const mk = (x, z, name, list) => {
-      const g = enemyGroup(rt, { faction: 'takeda', name, anchor: { x, z }, facing: 0, order: 'attack', seekRange: 60, aggro: 14, width: 10, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 0.55, speed: 3.2 }, dress(list, TAKEDA));
+      const g = enemyGroup(rt, { faction: 'takeda', name, anchor: { x, z }, facing: 0, order: 'attack', seekRange: 60, aggro: 14, width: 10, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 0.75, speed: 3.2 }, dress(list, TAKEDA));
       F.chase.push(g);
       rt.marker('c' + F.chase.length, centerOf(g), () => `${name}・${moraleWord(g.morale)}`, { red: true, group: g });
     };
+    F.mk = mk;
     // 追手は途切れない：足を止めれば、後ろから次々に追いつかれる（城へ入るまで 22 秒ごとに新手）
     rt.after(6, () => mk(-20, 0, '追ってくる武田の騎馬', [{ type: 'samurai', n: 1, o: { horse: true } }, { type: 'cavalry', n: 8 }]));
     rt.after(34, () => { if (!F.ending) mk(30, 40, '回り込んだ武田勢', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 14 + more(rt, 0.3) }]); });
@@ -220,11 +221,23 @@ const mikatagahara = {
       if (rt.t > F.chaseT && F.chaseN < 4) {
         F.chaseT = rt.t + 22; F.chaseN++;
         const pu = rt.player.u;
-        mk(pu.pos.x + (Math.random() - 0.5) * 30, pu.pos.z - 45, ['追いすがる騎馬', '馬場の手', '追手の新手', '内藤の騎馬'][F.chaseN - 1], [{ type: 'samurai', n: 1, o: { horse: true } }, { type: 'cavalry', n: 5 }, { type: 'ashigaru', n: 6 }]);
+        F.mk(pu.pos.x + (Math.random() - 0.5) * 30, pu.pos.z - 45, ['追いすがる騎馬', '馬場の手', '追手の新手', '内藤の騎馬'][F.chaseN - 1], [{ type: 'samurai', n: 1, o: { horse: true } }, { type: 'cavalry', n: 5 }, { type: 'ashigaru', n: 6 }]);
         rt.bark('後ろから新手の追手！　足を止めるな！', true);
       }
-      if (d < 10) this.win(rt);
-      else if (rt.t - F.stepT > 170) this.lose(rt);
+      // 城門の前：逃げ込む味方が入りきるまで、門の前で追手を食い止める（45 秒）
+      if (d < 10 && !F.gateHold) {
+        F.gateHold = rt.t;
+        rt.banner('浜松城の門', '逃げ込む味方が入りきるまで、門の前で追手を止めよ');
+        rt.say('佐久間信盛', '門の前で踏みとどまれ！　後ろの者が入りきるまでじゃ！', 3.5);
+        rt.obj('main', '浜松城の門の前で、追手を食い止めよ（味方が入りきるまで）', 'main');
+        const pu = rt.player.u;
+        F.mk(pu.pos.x - 10, pu.pos.z - 30, '門へ迫る武田勢', [{ type: 'samurai', n: 2, o: { horse: true } }, { type: 'cavalry', n: 4 }, { type: 'ashigaru', n: 12 }]);
+      }
+      if (F.gateHold) {
+        const left = Math.max(0, 45 - (rt.t - F.gateHold));
+        rt.objProgress('main', `味方が入りきるまで ${Math.ceil(left)}秒`);
+        if (left <= 0) this.win(rt);
+      } else if (rt.t - F.stepT > 170) this.lose(rt);
     }
   },
 

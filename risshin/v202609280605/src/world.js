@@ -1067,9 +1067,8 @@ export class World {
     const m = a.mount.map((h, i) => new THREE.Color(h).lerp(new THREE.Color(b.mount[i]), s).getHex());
     this.applyLook({ sky: c('sky'), fog: c('fog'), sun: c('sun'), sunI: n('sunI'), hemiSky: c('hemiSky'), hemiGround: c('hemiGround'), hemiI: n('hemiI'),
       sunDir: a.sunDir.clone().lerp(b.sunDir, s).normalize(), top: c('top'), glow: c('glow'), glowK: n('glowK'), cover: n('cover'), cloudDark: n('cloudDark'), vis: n('vis'), cloud: n('cloud'), mount: m });
-    // 映り込みは時々作り直す
-    F.env += dt;
-    if (F.env > 4 || k >= 1) { F.env = 0; this.updateEnv(); }
+    // 映り込みは移ろい終わった時に一度だけ作り直す（途中で何度も焼き直すと、一回ごとにコマが大きく止まる）
+    if (k >= 1) this.updateEnv();
     if (k >= 1) this.fade = null;
   }
 
@@ -1292,16 +1291,20 @@ export class World {
   updateEnv() {
     if (!RENDERER) return;
     if (!this.pmrem) this.pmrem = new THREE.PMREMGenerator(RENDERER);
-    const es = new THREE.Scene();
-    const sky = new THREE.Mesh(new THREE.SphereGeometry(10, 32, 16), this.skyMat);
-    es.add(sky);
+    // 焼くための小さな場面（空と地面）は一度だけ作って使い回す（毎回 new して捨てない）
+    if (!this.envScene) {
+      const es = new THREE.Scene();
+      es.add(new THREE.Mesh(new THREE.SphereGeometry(10, 32, 16), this.skyMat));
+      const gnd = new THREE.Mesh(new THREE.CircleGeometry(9.9, 24), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+      gnd.rotation.x = -Math.PI / 2; gnd.position.y = -0.5; es.add(gnd);
+      this.envScene = { es, gnd };
+    }
     // 地面の照り返し
-    const gnd = new THREE.Mesh(new THREE.CircleGeometry(9.9, 24), new THREE.MeshBasicMaterial({ color: new THREE.Color(this.hemi.groundColor).multiplyScalar(0.8) }));
-    gnd.rotation.x = -Math.PI / 2; gnd.position.y = -0.5; es.add(gnd);
-    if (this.envRT) this.envRT.dispose();
-    this.envRT = this.pmrem.fromScene(es, 0.02);
+    this.envScene.gnd.material.color.copy(this.hemi.groundColor).multiplyScalar(0.8);
+    const old = this.envRT;
+    this.envRT = this.pmrem.fromScene(this.envScene.es, 0.02);
     this.scene.environment = this.envRT.texture;
-    sky.geometry.dispose(); gnd.geometry.dispose(); gnd.material.dispose();
+    if (old) old.dispose();
   }
 
   // 柔らかい丸い粒の絵
@@ -1352,7 +1355,7 @@ export class World {
     // 地を這う靄：朝靄の戦・朝・雨上がりに、野の低い所を白い靄の層がゆっくり流れる
     this.mistVeil = this.makeVeil(0xe2e4e2, 70, 606, 0.3);
     // 血の霧：打たれた所に一瞬ふっと立ち、すぐ薄れる細かな赤い霧（カメラのすぐ前でも見える）
-    this.bloodVeil = this.makeVeil(0x4a0f0a, 40, 707, 0.85, [0.6, 1.8]);
+    this.bloodVeil = this.makeVeil(0x7a1812, 40, 707, 0.85, [0.6, 1.8]);
   }
   // 血の霧を一つ置く（y：打たれた高さ。amt：0〜1、設定の blood で強さを変えて渡す）
   bloodMist(x, y, z, amt = 1) {
@@ -1360,7 +1363,7 @@ export class World {
     if (!B || amt <= 0) return;
     if (B.list.length >= B.CAP) B.list.shift();
     const gy = this.heightAt(x, z);
-    B.list.push({ x, z, t: 0, life: 0.9 + Math.random() * 0.5, s0: 0.35, s1: 1.1 + amt * 0.6, a: 0.28 * amt, fin: 14, rise: (y - gy - 0.55) / 0.02, yOff: true });
+    B.list.push({ x, z, t: 0, life: 0.9 + Math.random() * 0.5, s0: 0.35, s1: 1.1 + amt * 0.6, a: 0.6 * amt, fin: 14, rise: (y - gy - 0.55) / 0.02, yOff: true });
   }
   updateGroundMist(dt, focus) {
     const M = this.mistVeil;
@@ -2227,6 +2230,37 @@ export class World {
         if (sv.bi !== undefined) { place(M.banners, sv.bi, x, z, sv.yaw, sc); M.banners.instanceMatrix.needsUpdate = true; }
       }
     };
+    // 新手（あらて）：k の側の後ろから、新しい軍勢が駆けつけて前線に加わる（着けば、その側は士気を取り戻し、しばらく押す）
+    //   o.surge = { k: 'B', every: 50, count: 120, flank: 0.3 }：組み合っている間、every 秒ごと。flank の割合で、相手の横の端へ回り込む騎馬
+    C.surges = 0;
+    // 新手・回り込みの知らせ：本人から 90m 内の時だけ、25 秒に一度まで（同じ知らせを繰り返さない）
+    const surgeSay = (k, p, flank) => {
+      const rt = o.rt, P = rt && rt.player && rt.player.u;
+      if (!P || !rt.bark || Math.hypot(p.x - P.pos.x, p.z - P.pos.z) > 90 || (rt.t - (this.surgeSaid || -99)) < 25) return;
+      this.surgeSaid = rt.t;
+      const foe = sideOf(k).P.team !== 0;
+      rt.bark(foe ? (flank ? '敵の騎馬が横へ回り込むぞ！' : '敵の新手が来るぞ！') : (flank ? '味方の騎馬が敵の横へ回った！' : '味方の後詰が来たぞ！'), foe);
+    };
+    C.reinforce = (k, opt = {}) => {
+      const S = sideOf(k), E = other(S);
+      if (S.routed || C.winner) return C;
+      const j = Math.floor(R() * nb);
+      const back = -S.sgn * (gap / 2 + S.rows * CLASH_ROW + 34);
+      const p0 = C.frontAt(j, back), face = F + (S.sgn > 0 ? 0 : Math.PI);
+      const g2 = this.addDistantArmy({ x: p0.x, z: p0.z, w: Math.min(bwr * 4, 30), d: 10, count: opt.count || 120, facing: face, armor: S.P.armor, flagTex: S.P.flagTex, flag: S.P.flag, seed: 500 + C.surges * 7 + (k === 'B' ? 1 : 0), kind: 'spear' });
+      C.surges++;
+      g2.advance(28, 11);
+      play('toki', p0, 1.6);
+      C.later.push({ t: 11, fn: () => {
+        g2.visible = false;
+        S.mod += 18; S.alive = Math.min(S.n0, S.alive + Math.round((opt.count || 120) * 0.4));
+        const old = C.bias; C.push(k, 0.35);
+        C.later.push({ t: 16, fn: () => { C.bias = old; } });
+        play('eshout', C.frontAt(j), 2);
+      } });
+      if (o.onSurge) o.onSurge(k, p0); else surgeSay(k, p0, false);
+      return C;
+    };
     C.stat = () => ({ phase: C.phase, A: C.A.alive, B: C.B.alive, mA: Math.round(C.A.m), mB: Math.round(C.B.m), lostA: C.A.lost, lostB: C.B.lost, drift: +C.drift.toFixed(1), routed: C.A.routed ? 'A' : C.B.routed ? 'B' : '' });
     // 毎こま：寄せ・押し合い・討たれる者・崩れ・音と土煙
     C.tick = (dt, focus) => {
@@ -2332,6 +2366,16 @@ export class World {
         }
       }
       if (!fight) return;
+      // 新手と、横へ回り込む騎馬（o.surge）
+      if (o.surge && !C.winner) {
+        const Su = o.surge;
+        C.fx.surge = (C.fx.surge ?? (Su.first ?? Su.every * 0.6)) - dt;
+        if (C.fx.surge <= 0) {
+          C.fx.surge = Su.every * (0.8 + R() * 0.4);
+          if (R() < (Su.flank ?? 0.3) && C.cav.length < 3) { C.cavalry(Su.k, { count: 60, delay: 0 }); if (o.onSurge) o.onSurge(Su.k, null, 'flank'); else surgeSay(Su.k, { x: o.x, z: o.z }, true); }
+          else C.reinforce(Su.k, { count: Su.count });
+        }
+      }
       // 音：槍の打ち合う音と遠い喚き、ときどき鬨の声。鉄砲・弓の側は時々撃つ
       C.fx.snd -= dt; C.fx.shout -= dt; C.fx.gun -= dt; C.fx.bow -= dt;
       if (C.fx.snd <= 0) { C.fx.snd = 0.9 + R() * 1.6; const p = C.frontAt(Math.floor(R() * nb)); play(R() < 0.5 ? 'clash' : 'far', p, 0.9); if (R() < 0.3) play('umeki', p, 0.6); }

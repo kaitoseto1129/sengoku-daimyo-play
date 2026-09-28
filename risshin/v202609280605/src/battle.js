@@ -306,7 +306,7 @@ export class Battle {
     this.army.maxAttackers = this.D.attackers;
     // 足軽の最初の二戦（普通）は、本人へ同時に打ちかかる敵を二人までに（受ける傷の 0.6 倍は player.js）
     this.firstFights = this.D === DIFFICULTY.normal && index <= 1 && !this.G.lord && !def.dojo && !def.mapCastle && (this.G.rank || 0) === 0;
-    if (this.firstFights) this.army.maxAttackers = Math.min(this.army.maxAttackers, 2);
+    if (this.firstFights) { this.army.maxAttackers = Math.min(this.army.maxAttackers, 2); this.army.mobCapMax = 4; }   // 初めの戦は、囲まれても同時に打つのは四人まで
     this.tracker = new MeritTracker(def.trackerIndex ?? index);
     this.objectives = [];
     this.markers = [];

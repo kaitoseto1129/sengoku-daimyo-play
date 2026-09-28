@@ -903,19 +903,26 @@ export function village(world, x, z, o = {}) {
 let tileTexC = null;
 function tileTex() {
   if (tileTexC) return tileTexC;
-  const c = document.createElement('canvas'); c.width = 64; c.height = 64;
+  // 本瓦葺き：丸瓦の列（丸みを明暗の帯で）と、その間の平瓦。瓦は一枚ずつ段になり、段の下に影。雨だれの白い筋と苔
+  const c = document.createElement('canvas'); c.width = 128; c.height = 128;
   const g = c.getContext('2d');
-  g.fillStyle = '#4a4846'; g.fillRect(0, 0, 64, 64);
-  for (let x = 0; x < 64; x += 8) { g.fillStyle = '#2c2b2a'; g.fillRect(x, 0, 3, 64); g.fillStyle = '#5a5856'; g.fillRect(x + 3, 0, 1, 64); }
-  for (let y = 0; y < 64; y += 16) { g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(0, y, 64, 2); }
-  // 雨だれの汚れと、ところどころの苔
-  for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(${60 + Math.random() * 30},${70 + Math.random() * 30},50,${Math.random() * 0.15})`; g.fillRect(Math.random() * 64, Math.random() * 64, 2 + Math.random() * 4, 2 + Math.random() * 6); }
+  g.fillStyle = '#3e3d3b'; g.fillRect(0, 0, 128, 128);
+  for (let x = 0; x < 128; x += 16) {
+    // 平瓦（谷）
+    g.fillStyle = '#34332f'; g.fillRect(x, 0, 16, 128);
+    // 丸瓦（山）：左が明るく右が暗い丸み
+    const gr = g.createLinearGradient(x + 9, 0, x + 16, 0); gr.addColorStop(0, '#6a6966'); gr.addColorStop(0.45, '#4e4d4a'); gr.addColorStop(1, '#232220');
+    g.fillStyle = gr; g.fillRect(x + 9, 0, 7, 128);
+  }
+  for (let y = 0; y < 128; y += 16) { g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(0, y, 128, 2); g.fillStyle = 'rgba(255,255,255,.06)'; g.fillRect(0, y + 2, 128, 1); }
+  for (let i = 0; i < 60; i++) { g.fillStyle = `rgba(${70 + Math.random() * 30},${80 + Math.random() * 30},52,${Math.random() * 0.18})`; g.fillRect(Math.random() * 128, Math.random() * 128, 2 + Math.random() * 5, 2 + Math.random() * 8); }
+  for (let i = 0; i < 20; i++) { g.fillStyle = 'rgba(200,196,186,0.07)'; g.fillRect(Math.random() * 128, 0, 1, 128); }
   tileTexC = new THREE.CanvasTexture(c);
   tileTexC.wrapS = tileTexC.wrapT = THREE.RepeatWrapping;
   tileTexC.colorSpace = THREE.SRGBColorSpace;
   return tileTexC;
 }
-const TILE = new THREE.MeshStandardMaterial({ map: tileTex(), bumpMap: tileTex(), bumpScale: 1.4, roughness: 0.72, metalness: 0.05, side: THREE.DoubleSide });
+const TILE = new THREE.MeshStandardMaterial({ map: tileTex(), bumpMap: tileTex(), bumpScale: 3, roughness: 0.68, metalness: 0.08, side: THREE.DoubleSide });
 
 // 寄棟の屋根の形（軒 ex×ez、高さ rh、棟の半分 rl、軒先の反り）。y は軒の高さ
 function hipGeo(ex, ez, rh, y, rl = Math.max(0.4, ex - ez)) {
@@ -1209,33 +1216,70 @@ function stoneFace(kind) {
     for (let i = 0; i < 26; i++) { g.fillStyle = 'rgba(20,22,18,0.10)'; g.fillRect(R() * 256, 0, 2 + R() * 3, 256); }
   });
 }
+// 石の肌理：一つの石の面に貼る細かい凹凸（斑・小さな窪み・鑿の跡）
+function stoneGrain(seed) {
+  const R = rnd(seed * 31 + 3);
+  return cnv(128, 128, (g) => {
+    g.fillStyle = '#b8b2a6'; g.fillRect(0, 0, 128, 128);
+    for (let i = 0; i < 900; i++) { const v = 120 + R() * 120; g.fillStyle = `rgba(${v},${v - 4},${v - 12},0.35)`; g.fillRect(R() * 128, R() * 128, 1 + R() * 3, 1 + R() * 3); }
+    for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(40,38,34,${0.15 + R() * 0.2})`; g.beginPath(); g.ellipse(R() * 128, R() * 128, 1 + R() * 3, 1 + R() * 2, R() * 3, 0, 7); g.fill(); }
+    if (seed === 2) for (let i = 0; i < 30; i++) { g.strokeStyle = 'rgba(60,56,50,0.25)'; g.lineWidth = 1; g.beginPath(); const x = R() * 128, y = R() * 128; g.moveTo(x, y); g.lineTo(x + 6, y + 3); g.stroke(); }
+  });
+}
 // 白壁：雨だれの筋・軒下の影・足もとの泥はね
-const plasterTex = () => cnv(128, 128, (g) => {
+const plasterTex = () => cnv(256, 256, (g) => {
   const R = rnd(5);
-  g.fillStyle = '#f2eee4'; g.fillRect(0, 0, 128, 128);
-  for (let i = 0; i < 60; i++) { g.fillStyle = `rgba(90,84,72,${0.03 + R() * 0.07})`; g.fillRect(R() * 128, 0, 1 + R() * 2, 20 + R() * 90); }
-  const gr = g.createLinearGradient(0, 0, 0, 128); gr.addColorStop(0, 'rgba(60,56,48,.28)'); gr.addColorStop(0.18, 'rgba(60,56,48,0)'); gr.addColorStop(0.82, 'rgba(80,66,48,0)'); gr.addColorStop(1, 'rgba(80,66,48,.35)');
-  g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+  g.fillStyle = '#f0ebe0'; g.fillRect(0, 0, 256, 256);
+  // 漆喰のむら（塗り重ねの跡）
+  for (let i = 0; i < 160; i++) { g.fillStyle = `rgba(${200 + R() * 40},${196 + R() * 36},${180 + R() * 30},0.18)`; g.beginPath(); g.ellipse(R() * 256, R() * 256, 8 + R() * 30, 4 + R() * 14, R() * 3, 0, 7); g.fill(); }
+  // 雨だれの筋（上から下へ、細く長く）
+  for (let i = 0; i < 90; i++) { const x = R() * 256, l = 30 + R() * 200; const gr = g.createLinearGradient(0, 0, 0, l); gr.addColorStop(0, `rgba(80,74,62,${0.12 + R() * 0.12})`); gr.addColorStop(1, 'rgba(80,74,62,0)'); g.fillStyle = gr; g.fillRect(x, 0, 1 + R() * 2.5, l); }
+  // 剥げて土壁がのぞく所（縁は崩れた漆喰）
+  for (let i = 0; i < 5; i++) {
+    const x = R() * 230, y = 60 + R() * 170, w = 10 + R() * 26, h = 8 + R() * 18;
+    g.fillStyle = 'rgba(214,206,190,1)'; g.beginPath(); g.ellipse(x, y, w * 0.62, h * 0.62, R(), 0, 7); g.fill();
+    g.fillStyle = '#8a6f50'; g.beginPath(); for (let k = 0; k < 9; k++) { const a = k / 9 * 6.28, r = 0.4 + R() * 0.2; g.lineTo(x + Math.cos(a) * w * r, y + Math.sin(a) * h * r); } g.closePath(); g.fill();
+    for (let k = 0; k < 12; k++) { g.fillStyle = 'rgba(60,44,30,0.4)'; g.fillRect(x - w * 0.3 + R() * w * 0.6, y - h * 0.3 + R() * h * 0.6, 3, 1); }
+  }
+  // 細い罅
+  g.strokeStyle = 'rgba(70,64,54,0.35)'; g.lineWidth = 0.8;
+  for (let i = 0; i < 10; i++) { let x = R() * 256, y = R() * 256; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 5; k++) { x += (R() - 0.5) * 18; y += R() * 14; g.lineTo(x, y); } g.stroke(); }
+  // 軒下の影と、足もとの泥はね
+  const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, 'rgba(50,46,40,.35)'); gr.addColorStop(0.14, 'rgba(50,46,40,0)'); gr.addColorStop(0.85, 'rgba(90,72,50,0)'); gr.addColorStop(1, 'rgba(90,72,50,.4)');
+  g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
 });
-// 下見板：黒く塗った板を横に重ね張り（板の継ぎ目と、日に焼けて褪せた所）
-const shitamiTex = () => cnv(128, 128, (g) => {
+// 下見板：黒く塗った板を横に重ね張りし、縦に押縁を打つ。板の木目・継ぎ目・日に焼けて褪せた所・剥げた墨
+const shitamiTex = () => cnv(256, 256, (g) => {
   const R = rnd(9);
-  g.fillStyle = '#26221e'; g.fillRect(0, 0, 128, 128);
-  for (let y = 0; y < 128; y += 16) { g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(0, y + 13, 128, 3); g.fillStyle = `rgba(120,110,95,${0.05 + R() * 0.08})`; g.fillRect(0, y, 128, 5); }
-  for (let x = 0; x < 128; x += 32) { g.fillStyle = 'rgba(0,0,0,.5)'; g.fillRect(x + R() * 4, 0, 3, 128); }
+  g.fillStyle = '#2a2521'; g.fillRect(0, 0, 256, 256);
+  for (let y = 0; y < 256; y += 32) {
+    // 木目
+    for (let k = 0; k < 16; k++) { g.strokeStyle = `rgba(${90 + R() * 40},${80 + R() * 30},${66 + R() * 20},${0.06 + R() * 0.08})`; g.lineWidth = 0.8; g.beginPath(); const yy = y + 3 + R() * 24; g.moveTo(0, yy); for (let x = 0; x <= 256; x += 16) g.lineTo(x, yy + Math.sin(x * 0.05 + k) * 1.5); g.stroke(); }
+    g.fillStyle = `rgba(150,136,116,${0.05 + R() * 0.07})`; g.fillRect(0, y, 256, 8);         // 上の縁は日に焼けて褪せる
+    g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(0, y + 28, 256, 4);                          // 重ねの影
+    for (let x = R() * 80; x < 256; x += 80 + R() * 80) { g.fillStyle = 'rgba(0,0,0,.5)'; g.fillRect(x, y, 2, 28); }   // 板の継ぎ目
+  }
+  // 押縁（縦の細い材）
+  for (let x = 20; x < 256; x += 64) { g.fillStyle = '#1c1916'; g.fillRect(x, 0, 7, 256); g.fillStyle = 'rgba(140,126,106,.12)'; g.fillRect(x, 0, 2, 256); }
+  // 墨が剥げて木地がのぞく所
+  for (let i = 0; i < 14; i++) { g.fillStyle = `rgba(110,90,64,${0.15 + R() * 0.2})`; g.fillRect(R() * 256, R() * 256, 4 + R() * 16, 2 + R() * 5); }
 });
 let CK = null;
 function ck() {
   if (CK) return CK;
-  const st = (t) => new THREE.MeshStandardMaterial({ vertexColors: true, map: t, bumpMap: t, bumpScale: 2.2, roughness: 0.95, metalness: 0 });
+  const st = (t) => new THREE.MeshStandardMaterial({ vertexColors: true, map: t, bumpMap: t, bumpScale: 3, roughness: 0.95, metalness: 0 });
   CK = {
-    nozura: st(stoneFace('nozura')), uchikomi: st(stoneFace('uchikomi')),
-    plaster: new THREE.MeshStandardMaterial({ vertexColors: true, map: plasterTex(), roughness: 0.92, metalness: 0 }),
-    shitami: new THREE.MeshStandardMaterial({ vertexColors: true, map: shitamiTex(), roughness: 0.85, metalness: 0 }),
+    nozura: st(stoneGrain(1)), uchikomi: st(stoneGrain(2)),
+    face: st(stoneFace('nozura')),   // 大きな面に石の並びを描いた物（城攻めの石垣の箱が使う）
+    plaster: (() => { const t = plasterTex(); return new THREE.MeshStandardMaterial({ vertexColors: true, map: t, bumpMap: t, bumpScale: 0.8, roughness: 0.92, metalness: 0 }); })(),
+    shitami: (() => { const t = shitamiTex(); return new THREE.MeshStandardMaterial({ vertexColors: true, map: t, bumpMap: t, bumpScale: 2.2, roughness: 0.85, metalness: 0 }); })(),
     wood: MAT, tile: TILE, iron: IRON,
   };
   return CK;
 }
+// 城攻め（b_castle.js）も同じ石垣の素材を使う
+export function castleStoneMat() { return ck().face; }
+export function castleMat(k) { return ck()[k]; }
 // 部品を素材ごとに集める入れ物
 const kit = () => ({ nozura: [], uchikomi: [], plaster: [], shitami: [], wood: [], tile: [], iron: [] });
 function kitMesh(B, cam = true) {
@@ -1258,40 +1302,122 @@ function kbox(P, hex, x, y, z, w, h, d, rot = 0, uvk = 0) {
 }
 // 寄棟の瓦屋根（軒 w×d、高さ h、軒の高さ y）。hipGeo の形に瓦の絵
 function ktile(P, x, y, z, w, d, h, rot = 0, ridge = 0.35) {
-  const g = hipGeo(w / 2, d / 2, h, 0, Math.max(0.3, (w - d) / 2 + ridge));
+  const rl = Math.max(0.3, (w - d) / 2 + ridge);
+  const g = hipGeo(w / 2, d / 2, h, 0, rl);
   if (rot) g.rotateY(rot);
   g.translate(x, y, z);
   P.push(g);
+  const Q = Lr(x, z, rot);
+  // 軒先：軒瓦の丸い縁（四方）
+  for (const [lx, lz, L, a] of [[0, d / 2, w, 0], [0, -d / 2, w, 0], [w / 2, 0, d, Math.PI / 2], [-w / 2, 0, d, Math.PI / 2]]) {
+    const e = new THREE.CylinderGeometry(0.1, 0.1, L, 6, 1, true); e.rotateZ(Math.PI / 2); e.rotateY(rot + a);
+    const [ex, ez] = Q(lx, lz); e.translate(ex, y - 0.05, ez); P.push(paint(e, 0x3a3937));
+  }
+  // 棟：太い熨斗瓦の積み（丸い筒で）と、両端の鬼瓦
+  const rg = new THREE.CylinderGeometry(0.2, 0.22, rl * 2 + 0.2, 8); rg.rotateZ(Math.PI / 2); rg.rotateY(rot); rg.translate(x, y + h + 0.1, z); P.push(paint(rg, 0x2e2d2b));
+  for (const s of [-1, 1]) { const [ox, oz] = Q(s * (rl + 0.12), 0); const o = new THREE.BoxGeometry(0.16, 0.55, 0.5); o.rotateY(rot); o.translate(ox, y + h + 0.3, oz); P.push(paint(o, 0x2a2927)); }
+  // 隅棟（四隅から棟の端へ）
+  for (const [cx, cz, sx] of [[-w / 2, -d / 2, -1], [w / 2, -d / 2, 1], [w / 2, d / 2, 1], [-w / 2, d / 2, -1]]) {
+    const [ax2, az2] = Q(cx, cz), [bx2, bz2] = Q(sx * rl, 0);
+    const dv = new THREE.Vector3(bx2 - ax2, h, bz2 - az2), L = dv.length();
+    const hg = new THREE.CylinderGeometry(0.12, 0.13, L, 6); hg.translate(0, L / 2, 0); hg.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(UPV, dv.normalize())); hg.translate(ax2, y + 0.02, az2); P.push(paint(hg, 0x2e2d2b));
+  }
 }
 const Lr = (x, z, rot) => (lx, lz) => [x + lx * Math.cos(rot) + lz * Math.sin(rot), z - lx * Math.sin(rot) + lz * Math.cos(rot)];
 
+// ---- 石を一つずつ積む（A4）：石は凹凸のある小さな塊で、目地は奥の暗い裏込めが覗く。下ほど苔、ところどころ雨だれの筋
+// 面の向き N（外向き）、線 a→b、上の高さ top と下の高さ bot（各点で関数）、勾配 lean と反り（下ほど外へ開く）
+const hsh = (a, b) => { let h = Math.imul(Math.floor(a * 73.1) ^ Math.imul(Math.floor(b * 91.7), 2654435761), 1597334677) >>> 0; h ^= h >>> 15; return (h % 10007) / 10007; };
+const UPV = new THREE.Vector3(0, 1, 0);
+const _q = new THREE.Quaternion(), _m = new THREE.Matrix4(), _e = new THREE.Euler();
+function stoneGeo(w, h, d, kind, seed, seg = 2) {
+  const g = new THREE.BoxGeometry(w, h, d, seg, seg, 1);
+  const P = g.attributes.position, round = kind === 'nozura' ? 0.34 : 0.14;
+  for (let i = 0; i < P.count; i++) {
+    let x = P.getX(i), y = P.getY(i), z = P.getZ(i);
+    const fx = Math.abs(x) / (w / 2), fy = Math.abs(y) / (h / 2);
+    // 前の面の縁ほど奥へ（角が丸い石）。同じ所の頂点は同じだけ動かす（割れ目を作らない）
+    if (z > 0) z -= (Math.max(fx, fy) ** 2) * d * round + hsh(seed + x * 3, y * 5) * d * (kind === 'nozura' ? 0.25 : 0.06);
+    x *= 1 + (hsh(seed, y * 7 + 1) - 0.5) * (kind === 'nozura' ? 0.16 : 0.04);
+    y *= 1 + (hsh(seed + 2, x * 7) - 0.5) * (kind === 'nozura' ? 0.14 : 0.04);
+    P.setXYZ(i, x, y, z);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+function stoneCourse(B, kind, ax, az, bx, bz, topAt, botAt, lean, side, seed, big = 1) {
+  const len = Math.hypot(bx - ax, bz - az); if (len < 0.3) return;
+  const tx = (bx - ax) / len, tz = (bz - az) / len, nx = -tz * side, nz = tx * side;
+  const face = Math.atan2(nx, nz);
+  const noz = kind === 'nozura';
+  const gap = noz ? 0.07 : 0.018;
+  // 裏込め（目地の奥の暗い面）
+  const midTop = topAt(0.5), midBot = botAt(0.5), Hm = midTop - midBot;
+  if (Hm > 0.2) { const g = new THREE.PlaneGeometry(len, Math.hypot(Hm, Hm * lean)); g.rotateX(-Math.atan(lean)); g.rotateY(face); g.translate((ax + bx) / 2 + nx * (Hm * lean * 0.5 + 0.05), midBot + Hm / 2, (az + bz) / 2 + nz * (Hm * lean * 0.5 + 0.05)); B[kind].push(paint(g, 0x1c1a17)); }
+  let y0 = 0, row = 0;
+  const Hmax = Math.max(...[0, 0.25, 0.5, 0.75, 1].map((t) => topAt(t) - botAt(t)));
+  while (y0 < Hmax - 0.05) {
+    const rh = (noz ? 0.34 + hsh(seed + row, 3.3) * 0.36 : 0.42 + hsh(seed + row, 1.7) * 0.1) * big;
+    let u = -hsh(seed + row, 9.1) * 0.6;
+    let k = 0;
+    while (u < len) {
+      const sw = (noz ? 0.45 + hsh(seed + row * 31, u * 3 + 0.3) * 0.75 : 0.7 + hsh(seed + row * 17, u * 2) * 0.35) * big;
+      const u0 = Math.max(0, u), u1 = Math.min(len, u + sw);
+      u += sw; k++;
+      if (u1 - u0 < 0.15) continue;
+      const t = (u0 + u1) / 2 / len, bot = botAt(t), top = topAt(t), H = top - bot;
+      const yb = y0, yt = Math.min(y0 + rh, H);
+      if (yt - yb < 0.12 || yb >= H) continue;
+      // 反り：上ほど立ち、下ほど外へ（高さの割合 q の所の張り出し）
+      const q = 1 - (yb + yt) / 2 / Math.max(0.5, H);
+      const out = H * lean * Math.pow(q, 1.5) + 0.12;
+      const wS = u1 - u0 - gap, hS = yt - yb - gap, dS = noz ? 0.55 : 0.45;
+      const g = stoneGeo(wS, hS, dS, kind, seed * 13 + row * 101 + k, big > 1 ? 1 : 2);
+      const tilt = Math.atan(lean * 1.5 * Math.pow(Math.max(q, 0.01), 0.5));
+      _e.set(-tilt, face, 0, 'YXZ'); g.applyQuaternion(_q.setFromEuler(_e));
+      const cx = ax + tx * (u0 + u1) / 2 + nx * out, cz = az + tz * (u0 + u1) / 2 + nz * out;
+      g.translate(cx, bot + (yb + yt) / 2, cz);
+      // 色：石ごとの濃淡、下ほど苔の緑、雨だれの筋（縦に並ぶ石が暗い）
+      const r = hsh(seed + k * 7, row * 3 + 0.5), streak = hsh(Math.floor(cx * 1.3 + cz * 1.3), 7.7) < 0.12 ? 0.8 : 1;
+      const c = new THREE.Color(noz ? 0xa29d90 : 0xb0aa9c).multiplyScalar((0.72 + r * 0.42) * streak);
+      if (r < 0.3) c.lerp(new THREE.Color(0x9a8a70), 0.35);           // 赤みの石
+      const moss = Math.max(0, 1 - (yb / Math.max(0.5, H)) * 2.2) * (0.25 + hsh(k, row) * 0.5);
+      c.lerp(new THREE.Color(0x4e5a38), moss);
+      B[kind].push(paint(g, c.getHex()));
+    }
+    y0 += rh; row++;
+  }
+}
 // 石垣：点の並び pts に沿って、進む向きの左手側（o.out = -1 で右手側）へ張り出す石の面。上端は線の地面の高さ + o.top、
-// 下は外の地面より o.sink 深く。勾配（上が内へ寄る）を付ける。o.kind：'nozura'（既定）か 'uchikomi'
+// 下は外の地面より o.sink 深く（o.maxH まで）。o.kind：'nozura'（野面積み・既定）か 'uchikomi'（打込接）
 export function ishigaki(world, pts, o = {}) {
   const B = kit(), kind = o.kind || 'nozura', side = o.out || 1;
+  const lean = o.lean ?? (kind === 'nozura' ? 0.34 : 0.26);
   for (let s = 0; s < pts.length - 1; s++) {
     const [ax, az] = pts[s], [bx, bz] = pts[s + 1];
     const len = Math.hypot(bx - ax, bz - az); if (len < 0.5) continue;
     const nx = -(bz - az) / len * side, nz = (bx - ax) / len * side;
-    const n = Math.max(1, Math.round(len / 3));
-    for (let i = 0; i < n; i++) {
-      const t = (i + 0.5) / n, x = ax + (bx - ax) * t, z = az + (bz - az) * t;
-      const top = world.heightAt(x, z) + (o.top ?? 0.4);
-      const bot = Math.min(world.heightAt(x + nx * 2.5, z + nz * 2.5), world.heightAt(x + nx * 5, z + nz * 5), top - (o.minH ?? 2)) - (o.sink ?? 0.5);
-      // 高さは o.maxH まで（急な山では下を斜面に埋める）
-      const h = Math.min(o.maxH ?? 4, top - bot), lean = kind === 'nozura' ? 0.3 : 0.22;
-      const bot2 = top - h;
-      const g = new THREE.BoxGeometry(len / n + 0.08, h, 1.6);
-      const uv = g.attributes.uv; for (let k = 0; k < uv.count; k++) uv.setXY(k, uv.getX(k) * (len / n) / 2.6, uv.getY(k) * h / 2.6);
-      g.rotateX(-lean); g.rotateY(Math.atan2(nx, nz));
-      const off = 0.6 + h * lean * 0.5;
-      g.translate(x + nx * off, bot2 + h / 2, z + nz * off);
-      B[kind].push(paint(g, vary(kind === 'nozura' ? 0x8e897d : 0x9c968a, i + s * 5)));
-      // 天端の石（笠石）
-      kbox(B[kind], vary(0x9c968a, i + 3), x + nx * 0.35, top + 0.08, z + nz * 0.35, len / n + 0.1, 0.3, 1.0, Math.atan2(bx - ax, bz - az) - Math.PI / 2, 1.3);
-    }
+    const P = (t) => [ax + (bx - ax) * t, az + (bz - az) * t];
+    const topAt = (t) => { const [x, z] = P(t); return world.heightAt(x, z) + (o.top ?? 0.4); };
+    const botAt = (t) => { const [x, z] = P(t); const tp = topAt(t); const b = Math.min(world.heightAt(x + nx * 2.5, z + nz * 2.5), world.heightAt(x + nx * 5, z + nz * 5), tp - (o.minH ?? 2)) - (o.sink ?? 0.4); return Math.max(b, tp - (o.maxH ?? 4)); };
+    stoneCourse(B, kind, ax, az, bx, bz, topAt, botAt, lean, side, s * 17 + Math.round(ax * 3 + az * 5), o.big || 1);
+    // 天端の笠石：平たい石を一列（板に見えないよう、一つずつ）
+    stoneCourse(B, kind, ax, az, bx, bz, (t) => topAt(t) + 0.22, (t) => topAt(t) - 0.02, 0, side, s * 23 + 7, o.big || 1);
   }
   return kitMesh(B);
+}
+// 四角い台（櫓・天守・門の脇）を石で積む：中心 x,z、幅 w・奥行き d、回り rot、高さ h（下は地面より 0.6 深く）
+function stoneBase(B, world, kind, x, z, w, d, rot, h) {
+  const P = Lr(x, z, rot), top = world.heightAt(x, z) - 0.3 + h;
+  const c = [P(-w / 2, -d / 2), P(w / 2, -d / 2), P(w / 2, d / 2), P(-w / 2, d / 2)];
+  const lean = kind === 'nozura' ? 0.22 : 0.16;
+  for (let i = 0; i < 4; i++) {
+    const [ax, az] = c[i], [bx, bz] = c[(i + 1) % 4];
+    // 角を順に回ると外は右手側（side = -1）
+    stoneCourse(B, kind, ax, az, bx, bz, () => top, (t) => Math.min(top - 0.5, world.heightAt(ax + (bx - ax) * t, az + (bz - az) * t) - 0.6), lean, -1, i * 29 + Math.round(x * 7 + z * 3));
+  }
+  kbox(B[kind], 0x8e897d, x, top + 0.06, z, w + 0.2, 0.16, d + 0.2, rot, 1.4);
+  return top;
 }
 
 // 土塀（wallLine の mesh にそのまま渡せる形）：石の腰・白い漆喰・長押の黒い筋・瓦の笠。両の面に狭間
@@ -1306,7 +1432,8 @@ export function dobei(world, seg, o = {}) {
   for (let i = 0; i < n; i++) {
     const t0 = i / n, t1 = (i + 1) / n, mx = ax + (bx - ax) * (t0 + t1) / 2, mz = az + (bz - az) * (t0 + t1) / 2;
     const y = world.heightAt(mx, mz), L = len / n + 0.02;
-    kbox(B.nozura, vary(0x8a8579, i), mx, y + 0.3, mz, L, 1.1, 0.7, rot, 1.4);            // 腰の石
+    if (i === 0) stoneCourse(B, 'nozura', ax, az, bx, bz, (t) => world.heightAt(ax + (bx - ax) * t, az + (bz - az) * t) + 0.75, (t) => world.heightAt(ax + (bx - ax) * t, az + (bz - az) * t) - 0.3, 0.1, 1, Math.round(ax * 5 + az * 3));   // 腰の石（外の面）
+    kbox(B.nozura, 0x3a3630, mx, y + 0.3, mz, L, 1.1, 0.6, rot, 1.4);                     // 腰の芯（目地の奥）
     kbox(B.plaster, vary(0xc9c2b0, i), mx, y + 0.85 + (H - 0.85) / 2, mz, L, H - 0.85, 0.36, rot, 0);   // 漆喰
     kbox(B.shitami, 0x9a948a, mx, y + 1.05, mz, L, 0.5, 0.38, rot, 1.2);                   // 腰の下見板
     kbox(B.wood, 0x2c2622, mx, y + H - 0.12, mz, L, 0.1, 0.38, rot);                       // 長押
@@ -1331,7 +1458,7 @@ export function sumiyagura(world, x, z, o = {}) {
   const P = Lr(x, z, rot);
   const base = o.base ?? 2.2;
   // 台の石垣（四方へ少し裾を広げる）
-  { const g = new THREE.CylinderGeometry(Math.SQRT1_2, Math.SQRT1_2 * 1.28, 1, 4, 1, true); g.rotateY(Math.PI / 4); g.scale(w + 1.2, base + 0.8, d + 1.2); const uv = g.attributes.uv; for (let k = 0; k < uv.count; k++) uv.setXY(k, uv.getX(k) * (w + d) / 2, uv.getY(k) * base / 2.4); if (rot) g.rotateY(rot); g.translate(x, y + (base + 0.8) / 2 - 0.8, z); B[o.stone || 'uchikomi'].push(paint(g, 0xb0aa9c)); }
+  stoneBase(B, world, o.stone || 'uchikomi', x, z, w + 1.2, d + 1.2, rot, base + 0.3);
   let yy = y + base;
   // 一重：腰は下見板、上は白壁
   kbox(B.shitami, 0xa8a298, x, yy + 1.0, z, w, 2.0, d, rot, 2);
@@ -1360,7 +1487,7 @@ export function yaguramon(world, x, z, w = 5, rot = 0, o = {}) {
   for (const sx of [-1, 1]) {
     const [px, pz] = P(sx * (w / 2 + 1.4), 0);
     solidRect(px, pz, 2.6, 4, rot);
-    kbox(B[o.stone || 'uchikomi'], 0xb0aa9c, px, y + 1.2, pz, 2.6, 3.2, 4, rot, 2.4);
+    stoneBase(B, world, o.stone || 'uchikomi', px, pz, 2.6, 4, rot, 2.9);
     const [cx, cz] = P(sx * (w / 2 + 0.1), 0);
     kbox(B.wood, 0x3e2e22, cx, y + 1.9, cz, 0.45, 3.8, 0.45, rot);
   }
@@ -1369,8 +1496,15 @@ export function yaguramon(world, x, z, w = 5, rot = 0, o = {}) {
   kbox(B.shitami, 0xa8a298, x, y + 4.5, z, Lw - 0.2, 1.0, 3.8, rot, 2);
   kbox(B.plaster, 0xcdc6b4, x, y + 5.5, z, Lw - 0.2, 1.0, 3.8, rot);
   for (const s of [-1, 1]) for (const q of [-1, 0, 1]) { const [wx, wz] = P(q * 2.4, s * 1.92); kbox(B.iron, 0x121110, wx, y + 5.4, wz, 1.0, 0.5, 0.04, rot); }
-  // 扉（開いたまま、内へ）
-  for (const sx of [-1, 1]) { const [dx, dz] = P(sx * (w / 2 - 0.2), -1.4); kbox(B.wood, 0x3a2c20, dx, y + 1.6, dz, 0.18, 3.2, 2.4, rot); }
+  // 冠木（太い横木）と、柱の根巻きの金具・鎹
+  kbox(B.wood, 0x33261b, x, y + 3.55, z, w + 1.2, 0.45, 0.5, rot);
+  for (const sx of [-1, 1]) { const [cx, cz] = P(sx * (w / 2 + 0.1), 0); kbox(B.iron, 0x1a1816, cx, y + 0.35, cz, 0.52, 0.6, 0.52, rot); kbox(B.iron, 0x1a1816, cx, y + 3.2, cz, 0.5, 0.14, 0.5, rot); }
+  // 扉（開いたまま、内へ）：縦の板に、黒い鉄の帯と乳金物
+  for (const sx of [-1, 1]) {
+    const [dx, dz] = P(sx * (w / 2 - 0.2), -1.4); kbox(B.wood, 0x3a2c20, dx, y + 1.6, dz, 0.18, 3.2, 2.4, rot);
+    for (const yy of [0.5, 1.6, 2.7]) kbox(B.iron, 0x161412, dx, y + yy, dz, 0.22, 0.14, 2.42, rot);
+    for (const zz of [-0.8, 0, 0.8]) for (const yy of [0.5, 1.6, 2.7]) { const [nx2, nz2] = P(sx * (w / 2 - 0.2) + sx * 0.12, -1.4 + zz); kbox(B.iron, 0x201d1a, nx2, y + yy, nz2, 0.06, 0.12, 0.12, rot); }
+  }
   ktile(B.tile, x, y + 6.0, z, Lw + 1.6, 5.6, 1.6, rot, 0.3);
   return kitMesh(B);
 }
@@ -1382,7 +1516,7 @@ export function tenshu(world, x, z, o = {}) {
   const y0 = world.heightAt(x, z) - 0.4;
   solidRect(x, z, b + 3, b * 0.86 + 3, rot);
   const base = o.base ?? 4;
-  { const g = new THREE.CylinderGeometry(Math.SQRT1_2, Math.SQRT1_2 * 1.3, 1, 4, 1, true); g.rotateY(Math.PI / 4); g.scale(b + 1.4, base + 1, b * 0.86 + 1.4); const uv = g.attributes.uv; for (let k = 0; k < uv.count; k++) uv.setXY(k, uv.getX(k) * b / 1.3, uv.getY(k) * base / 2.4); if (rot) g.rotateY(rot); g.translate(x, y0 + (base + 1) / 2 - 1, z); B[o.stone || 'nozura'].push(paint(g, 0xb0aa9c)); }
+  stoneBase(B, world, o.stone || 'nozura', x, z, b + 1.4, b * 0.86 + 1.4, rot, base + 0.1);
   let y = y0 + base, w = b, d = b * 0.86;
   for (let k = 0; k < floors; k++) {
     const top = k === floors - 1, fh = top ? 2.9 : 3.2;

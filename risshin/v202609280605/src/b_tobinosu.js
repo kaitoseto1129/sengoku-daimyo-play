@@ -595,6 +595,8 @@ export const tobinosu = {
     f.fallen = true;
     F.fallen++;
     openGate(rt, f);
+    // 砦を一つ落とすごとに、次の砦へ向かう間に息を整え、傷を縛る（五つの砦を続けて攻める長い夜明け。組頭候補まで）
+    { const u = rt.player.u; if (u.alive && !rt.G.lord && (rt.G.rank || 0) <= 1 && u.hp < u.maxHp * 0.7) { u.hp = Math.min(u.maxHp, u.hp + u.maxHp * 0.3); rt.bark('砦を落とした。息を整え、傷を縛った'); } }
     f.yagura.userData.lookout.visible = false;
     for (const g of f.def) if (g.count) { g.noRout = false; g.morale = 0; }
     rt.obj('forts', `尾根の砦を落とせ（${F.fallen}/5）`, 'main');

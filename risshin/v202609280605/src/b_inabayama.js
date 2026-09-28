@@ -183,15 +183,17 @@ const inabayama = {
     // ---- 本丸：柵の囲いと、櫓・小屋。口は西（搦手）に一つ ----
     F.hwall = noT(ringWall(rt, HON.x, HON.z, 15, { gapAt: GAP_A, gapW: 0.6, team: 1, hp: 1e9, name: '本丸の柵', segLen: 5 }));
     // 本丸の奥の館は、二重の櫓に（下から見上げて城と分かるように。A4）
-    rt.scene.add(sumiyagura(W, HON.x + 4, HON.z - 6, { rot: 0.1, w: 7, d: 5.5, base: 1, stone: 'nozura' }), hut(W, HON.x + 7, HON.z + 6, 6, 4, -0.2));
+    rt.scene.add(sumiyagura(W, HON.x + 5, HON.z + 7, { rot: 0.05, w: 7, d: 5.5, base: 1.6, stone: 'nozura' }), hut(W, HON.x + 4, HON.z - 6, 6, 4, -0.2));
     rt.scene.add(yagura(W, HON.x - 6, HON.z - 8), yagura(W, HON.x + 10, HON.z - 12));
     rt.scene.add(yagura(W, OTE.x + 12, OTE.z - 6));
     // 城の見栄え（A4）：本丸の柵の外に野面積みの石垣（搦手の口は空ける）、本丸の北の頂に二重の櫓、大手の前に逆茂木、木戸に篝火
     {
       const arc = (a0, a1, r) => { const n = Math.max(2, Math.round(r * (a1 - a0) / 3)); return Array.from({ length: n + 1 }, (_, i) => { const a = a0 + (a1 - a0) * i / n; return [HON.x + Math.sin(a) * r, HON.z + Math.cos(a) * r]; }); };
-      rt.scene.add(ishigaki(W, arc(GAP_A - Math.PI * 2 + 0.55, GAP_A - 0.55, 16.2), { top: -0.3, minH: 2.2, maxH: 3 }));
+      rt.scene.add(ishigaki(W, arc(GAP_A - Math.PI * 2 + 0.55, GAP_A - 0.55, 17.4), { top: 1.5, minH: 2.6, maxH: 3.4, lean: 0.12 }));
       rt.scene.add(sakamogi(W, OTE.x - 13, OTE.z + 9, 0.2, 7), sakamogi(W, OTE.x + 13, OTE.z + 9, -0.2, 7));
       for (const [x, z] of [[OTE.x - 5.5, OTE.z + 2], [OTE.x + 5.5, OTE.z + 2]]) { rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { h: 1.4 }); }
+      // 本丸に詰める城兵（軽い大軍の作り。見上げると塀の内に人と旗が見える）
+      W.addDistantArmy({ x: HON.x - 3, z: HON.z - 2, w: 12, d: 6, count: 45, facing: 0, armor: 0x33302a, flagTex: flagTexture('saito'), seed: 15677 });
     }
     for (const [x, z] of [[HON.x - 4, HON.z + 10], [HON.x + 10, HON.z + 2], [OTE.x - 8, OTE.z - 6], [OTE.x + 8, OTE.z - 6], [-30, -120]]) rt.scene.add(nobori(W, x, z, 'saito', 6));
     // 山の上の小屋（二の丸・三の丸の見え）

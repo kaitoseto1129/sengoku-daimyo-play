@@ -90,7 +90,7 @@ const odani = {
     // 城の見栄え（A4）：曲輪の縁に野面積みの石垣（口は空ける）、本丸の南に二重の櫓、東の登り口に逆茂木
     {
       const arcP = (c, a0, a1, r) => { const n = Math.max(2, Math.round(r * (a1 - a0) / 3)); return Array.from({ length: n + 1 }, (_, i) => { const a = a0 + (a1 - a0) * i / n; return [c.x + Math.sin(a) * r, c.z + Math.cos(a) * r]; }); };
-      const st = (c, a0, a1) => rt.scene.add(ishigaki(W, arcP(c, a0, a1, c.r + 1.3), { top: 0.15, minH: 2, maxH: 2.8 }));
+      const st = (c, a0, a1) => rt.scene.add(ishigaki(W, arcP(c, a0, a1, c.r + 1.3), { top: 1.1, minH: 2.2, maxH: 3, lean: 0.12 }));
       st(HON, -P * 0.8, P * 0.8);
       st(KYO, 0.4, P / 2 - 0.35); st(KYO, P / 2 + 0.35, P - 0.4); st(KYO, P + 0.4, 2 * P - 0.4);
       st(KOM, 0.45, 2 * P - 0.45);

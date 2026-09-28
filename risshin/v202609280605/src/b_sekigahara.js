@@ -136,9 +136,9 @@ const sekigahara = {
     const east = (flag, armor, count, x = {}) => ({ flag, armor, count, team: 0, faction: 'tokugawa', ...x });
     const west = (flag, armor, count, x = {}) => ({ flag, armor, count, team: 1, faction: 'saito', ...x });
     F.clash = [
-      clash(rt, { x: -26, z: -22, facing: -Math.PI / 2, w: 88, gap0: 36, seed: 171, noRout: true, A: east('maru', TK, 760, { guns: true }), B: west('ukita', WS, 820, { bows: true }),
+      clash(rt, { x: -26, z: -22, facing: -Math.PI / 2, w: 88, gap0: 36, seed: 171, noRout: true, surge: { k: 'B', every: 50, count: 180, flank: 0.30 }, A: east('maru', TK, 760, { guns: true }), B: west('ukita', WS, 1000, { bows: true }),
         link: () => (F.step >= 1 && F.step < 3 && !gone(F.hira) && F.todo2.count ? { x: (F.todo2.center().x + F.hira.center().x) / 2, z: 30 } : null) }),
-      clash(rt, { x: -72, z: -98, facing: -Math.PI / 2, w: 60, gap0: 30, seed: 172, noRout: true, A: east('kuroda', TK, 520, { guns: true }), B: west('ishida', WS, 520, { guns: true }) }),   // 正面いっぱい：北の端（-128）から南の藤堂の押し合い（22）まで切れ目なく
+      clash(rt, { x: -72, z: -98, facing: -Math.PI / 2, w: 60, gap0: 30, seed: 172, noRout: true, surge: { k: 'B', every: 55, count: 150, flank: 0.30 }, A: east('kuroda', TK, 520, { guns: true }), B: west('ishida', WS, 680, { guns: true }) }),   // 正面いっぱい：北の端（-128）から南の藤堂の押し合い（22）まで切れ目なく
     ];
 
     rt.world.setTime('day');

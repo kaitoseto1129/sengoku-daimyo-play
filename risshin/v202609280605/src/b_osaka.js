@@ -355,7 +355,7 @@ const sanadamaru = {
       soften(g);
       // 馬上の将は、殿の足軽ひとりを斬り伏せるより、兵を率いて押すのが役目（一太刀を軽く）
       for (const u of g.units) if (u.type === 'busho') u.dmg *= 0.5;
-      if (!rt.squad.length) for (const u of g.units) if (u.type === 'samurai') u.dmg *= 0.8;
+      if (!rt.squad.length) for (const u of g.units) if (u.type === 'samurai') u.dmg *= 0.8; else if (u.type === 'gun') u.dmg *= 0.75;
       rt.marker('so' + s, centerOf(g), () => `${name}の隊・${moraleWord(g.morale)}`, { red: true, group: g });
       return g;
     };

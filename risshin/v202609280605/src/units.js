@@ -106,6 +106,33 @@ export const GENERALS = {
     face: { w: 0.97, jaw: 1.05, chin: 1.0, cheek: 1.25, gaunt: 0.9, brow: 1.3, nose: 1.05, nw: 1.0, eye: 1.25, t: 4, hair: 0x15110d, age: 38, beard: { mus: 0.6, musW: 0.9, droop: 0.45, goat: 0.3, side: 0, stub: 0.8 } } },
   '黒田官兵衛': { armor: 0x151312, lace: 0x3a3a3a, hat: 'kabuto_m', haori: 0x2a2a2a, horo: 0, mon: 'kuroda', haoriMonCol: 0xe6dfcf, skin: 0xb08664, tack: 0x2a2a2a,
     face: { w: 0.95, jaw: 0.9, chin: 1.1, cheek: 1.15, gaunt: 0.9, brow: 1.1, nose: 1.1, nw: 0.95, eye: 1.2, t: 3, hair: 0x15110d, age: 33, beard: { mus: 0.4, musW: 0.75, musH: 0.6, droop: 0.25, goat: 0.2, side: 0, stub: 0.5 } } },
+  // 敵方の武将（夜の計画 A1）：織田方と同じ作り込み。家ごとの威の色・陣羽織・兜の立物と、人ごとの顔
+  '斎藤龍興': { armor: 0x22241e, lace: 0x6a5a8a, hat: 'kabuto_w', haori: 0x4a3a5a, horo: 0, mon: 'saito', haoriMonCol: 0xe6dfcf, skin: 0xc09a74, tack: 0x3a2a4a,
+    face: { w: 0.94, jaw: 0.85, chin: 1.05, cheek: 0.95, gaunt: 0.4, brow: 0.95, nose: 1.05, nw: 0.95, eye: 1.0, t: 0, hair: 0x15110d, age: 20, beard: { mus: 0.05, musW: 0.5, goat: 0, side: 0, stub: 0.25 } } },
+  '稲葉良通': { armor: 0x24221f, lace: 0x3a5a3a, hat: 'kabuto_m', haori: 0x3a4632, horo: 0, mon: 'inaba', haoriMonCol: 0xe6dfcf, skin: 0xa87f5c, tack: 0x2a3a2a,
+    face: { w: 1.02, jaw: 1.15, chin: 0.95, cheek: 1.25, gaunt: 0.8, brow: 1.3, nose: 1.0, nw: 1.1, eye: 1.25, t: 6, hair: 0x4a4640, age: 52, beard: { mus: 0.7, musW: 0.95, droop: 0.6, goat: 0.65, side: 0.3, stub: 1.0 } } },
+  '山崎吉家': { armor: 0x24221f, lace: 0x3a5a3a, hat: 'kabuto_f', haori: 0x3a4a2a, horo: 0, mon: 'asakura', haoriMonCol: 0xe6dfcf, skin: 0xa87f5c, tack: 0x2a3a2a,
+    face: { w: 1.04, jaw: 1.2, chin: 0.9, cheek: 1.2, gaunt: 0.6, brow: 1.3, nose: 0.95, nw: 1.15, eye: 1.25, t: 5, hair: 0x2a2622, age: 45, beard: { mus: 0.8, musW: 1, droop: 0.5, goat: 0.6, side: 0.5, stub: 1.1 } } },
+  '松井宗信': { armor: 0x221816, lace: 0x9a2e20, hat: 'kabuto_w', haori: 0x6a2418, horo: 0, mon: 'imagawa', haoriMonCol: 0xc9a24a, skin: 0xa87f5c, tack: 0x6a1c14,
+    face: { w: 1.0, jaw: 1.1, chin: 0.95, cheek: 1.2, gaunt: 0.7, brow: 1.25, nose: 1.0, nw: 1.05, eye: 1.2, t: 4, hair: 0x15110d, age: 40, beard: { mus: 0.65, musW: 0.9, droop: 0.45, goat: 0.45, side: 0.1, stub: 0.9 } } },
+  '仁科盛信': { armor: 0x3a2622, lace: 0x9a2e20, hat: 'kabuto_f', haori: 0x2a2622, horo: 0, mon: 'takeda', haoriMonCol: 0xe6dfcf, skin: 0xb08664, tack: 0x5a1c14,
+    face: { w: 0.95, jaw: 0.95, chin: 1.1, cheek: 1.15, gaunt: 0.8, brow: 1.15, nose: 1.1, nw: 0.95, eye: 1.15, t: 1, hair: 0x15110d, age: 26, beard: { mus: 0.2, musW: 0.6, musH: 0.6, goat: 0.05, side: 0, stub: 0.5 } } },
+  '今福浄閑': { armor: 0x2a2420, lace: 0x7a2a1c, hat: 'kabuto_m', haori: 0x3a2a1a, horo: 0, mon: 'takeda', haoriMonCol: 0xe6dfcf, skin: 0x9c7453, tack: 0x4a2a1c,
+    face: { w: 1.0, jaw: 1.05, chin: 0.95, cheek: 1.35, gaunt: 1.1, brow: 1.2, nose: 1.0, nw: 1.05, eye: 1.3, t: 7, hair: 0x9a948a, age: 62, beard: { mus: 0.75, musW: 0.9, droop: 0.7, goat: 0.8, side: 0.5, stub: 1.0 } } },
+  '土屋昌続': { armor: 0x3a2622, lace: 0x9a2e20, hat: 'kabuto_m', haori: 0x3a2622, horo: 0, mon: 'takeda', haoriMonCol: 0xe6dfcf, skin: 0xa87f5c, tack: 0x5a1c14,
+    face: { w: 0.97, jaw: 1.0, chin: 1.05, cheek: 1.15, gaunt: 0.7, brow: 1.2, nose: 1.05, nw: 1.0, eye: 1.15, t: 3, hair: 0x15110d, age: 31, beard: { mus: 0.45, musW: 0.8, musH: 0.6, droop: 0.25, goat: 0.2, side: 0, stub: 0.6 } } },
+  '土屋昌恒': { armor: 0x3a2622, lace: 0x9a2e20, hat: 'kabuto_b', haori: 0x2a2622, horo: 0, mon: 'takeda', haoriMonCol: 0xe6dfcf, skin: 0xb08664, tack: 0x5a1c14,
+    face: { w: 0.95, jaw: 0.95, chin: 1.1, cheek: 1.2, gaunt: 0.9, brow: 1.15, nose: 1.1, nw: 0.95, eye: 1.2, t: 1, hair: 0x15110d, age: 27, beard: { mus: 0.25, musW: 0.6, goat: 0.05, side: 0, stub: 0.6 } } },
+  '河窪信実': { armor: 0x2a2420, lace: 0x9a2e20, hat: 'kabuto_w', haori: 0x3a2a22, horo: 0, mon: 'takeda', haoriMonCol: 0xe6dfcf, skin: 0xa87f5c, tack: 0x5a1c14,
+    face: { w: 1.02, jaw: 1.1, chin: 0.95, cheek: 1.2, gaunt: 0.6, brow: 1.25, nose: 1.0, nw: 1.1, eye: 1.2, t: 5, hair: 0x2a2622, age: 45, beard: { mus: 0.8, musW: 1, droop: 0.5, goat: 0.6, side: 0.4, stub: 1.0 } } },
+  '島津義弘': { armor: 0x1c1a1a, lace: 0x2a2a2a, hat: 'kabuto_m', haori: 0x2a2a2a, horo: 0, mon: 'shimazu', haoriMonCol: 0xe6dfcf, skin: 0x8e6446, tack: 0x2a2420,
+    face: { w: 1.05, jaw: 1.2, chin: 0.9, cheek: 1.4, gaunt: 1.1, brow: 1.4, nose: 1.0, nw: 1.15, eye: 1.35, t: 7, hair: 0x9a948a, age: 66, esp: 0.97, beard: { mus: 0.85, musW: 1.0, droop: 0.7, goat: 0.9, goatW: 0.9, side: 0.6, stub: 1.1 } } },
+  '島津豊久': { armor: 0x1c1a1a, lace: 0x2a2a2a, hat: 'kabuto_b', haori: 0x2a2a2a, horo: 0, mon: 'shimazu', haoriMonCol: 0xe6dfcf, skin: 0x9c7453, tack: 0x2a2420,
+    face: { w: 0.97, jaw: 1.05, chin: 1.05, cheek: 1.2, gaunt: 0.7, brow: 1.2, nose: 1.05, nw: 1.0, eye: 1.2, t: 3, hair: 0x15110d, age: 31, beard: { mus: 0.5, musW: 0.85, droop: 0.3, goat: 0.25, side: 0, stub: 0.7 } } },
+  '平塚為広': { armor: 0x24221f, lace: 0x5a5a3a, hat: 'kabuto_m', haori: 0x3a3a2a, horo: 0, mon: 'none', skin: 0xa87f5c,
+    face: { w: 1.0, jaw: 1.1, chin: 0.95, cheek: 1.25, gaunt: 0.9, brow: 1.25, nose: 1.0, nw: 1.05, eye: 1.25, t: 6, hair: 0x4a4640, age: 50, beard: { mus: 0.7, musW: 0.9, droop: 0.55, goat: 0.6, side: 0.2, stub: 0.9 } } },
+  '薄田兼相': { armor: 0x2a1c18, lace: 0x7a5a2a, hat: 'kabuto_g', haori: 0x5a3a1a, horo: 0, mon: 'toyotomi', haoriMonCol: 0xe6dfcf, skin: 0x9c7453, tack: 0x4a2a1c,
+    face: { w: 1.1, jaw: 1.3, chin: 0.9, cheek: 1.2, gaunt: 0.3, brow: 1.4, nose: 0.95, nw: 1.25, eye: 1.3, t: 5, hair: 0x15110d, age: 40, beard: { mus: 0.9, musW: 1.1, droop: 0.5, goat: 0.7, side: 0.7, stub: 1.2 } } },
 };
 // 馬具の色（名のある武将）：家の色。書いていない武将は、陣羽織・威の色から
 for (const [nm, g] of Object.entries(GENERALS)) {
@@ -238,10 +265,11 @@ function makeAtlas() {
   clip(ALL, REG.kote, () => {
     const [x0, y0, w, h] = REG.kote;
     for (let y = y0; y < y0 + h; y += 3) { G.fillStyle = gray(y % 6 < 3 ? 214 : 190); G.fillRect(x0, y, w, 1.5); }
-    for (let y = y0 + 6, j = 0; y < y0 + h; y += 12, j++) for (let x = x0 + 6 + (j % 2) * 6; x < x0 + w; x += 12) {
-      R.strokeStyle = gray(255); R.lineWidth = 2.2; R.beginPath(); R.arc(x, y, 3.6, 0, 7); R.stroke();
-      G.strokeStyle = gray(240); G.lineWidth = 1.2; G.beginPath(); G.arc(x, y, 3.6, Math.PI, Math.PI * 1.8); G.stroke();
-      G.strokeStyle = gray(90); G.beginPath(); G.arc(x, y, 3.6, 0, Math.PI * 0.8); G.stroke();
+    // 鎖の目：本物の籠手の鎖は目が細かい（一目 1cm に満たない）。小さな輪を詰めて編み、陰は控えめに（大きな丸の模様に見せない）
+    for (let y = y0 + 3, j = 0; y < y0 + h; y += 5, j++) for (let x = x0 + 3 + (j % 2) * 2.5; x < x0 + w; x += 5) {
+      R.strokeStyle = gray(255); R.lineWidth = 1.2; R.beginPath(); R.arc(x, y, 1.7, 0, 7); R.stroke();
+      G.strokeStyle = gray(232); G.lineWidth = 0.7; G.beginPath(); G.arc(x, y, 1.7, Math.PI, Math.PI * 1.8); G.stroke();
+      G.strokeStyle = gray(130); G.beginPath(); G.arc(x, y, 1.7, 0, Math.PI * 0.8); G.stroke();
     }
     for (let i = 0; i < 10; i++) { const x = x0 + 10 + (i % 5) * 50, y = y0 + 20 + Math.floor(i / 5) * 120; R.fillStyle = gray(255); R.fillRect(x, y, 22, 36); G.fillStyle = gray(225); G.fillRect(x, y, 22, 36); G.fillStyle = gray(90); G.fillRect(x, y + 34, 22, 2); }
     mottle(REG.kote, 1200, 0.1, 0.45, 0.5);
@@ -2865,7 +2893,7 @@ export class Group {
   }
   forward() { return { x: Math.sin(this.facing), z: Math.cos(this.facing) }; }
   // 鉄砲の段の数（鉄砲の隊だけ。ranks で決められる。1 なら一列）
-  gunRanks() { return this.isGun && (this.formation === 'line' || this.formation === 'yari') && !this.marching ? Math.max(1, this.ranks || (Math.max(this.initial, this._spawnN || 0) >= 12 ? 3 : 2)) : 1; }   // 十二人より多い鉄砲組は三段（撃つ・込める・待つの三列）
+  gunRanks() { return this.isGun && (this.formation === 'line' || this.formation === 'yari') && !this.marching ? Math.max(1, this.ranks || 2) : 1; }   // 三段は戦の定義の g.ranks = 3 で（既定の二段の方が一度に撃つ数が多い）
   // 並び方：横に何人、横の間（sp）と段の間（sd）
   //   横陣は横を詰め（1.1m ほど）、段の間を少し空けた（1.6m ほど）浅く広い形。正面の幅で大軍に見せる
   //   騎馬の隊は 2〜3 段の塊（馬は横 2m・前後 3m ほど場所をとる）
@@ -3309,7 +3337,7 @@ export class Army {
     if (t.invuln && !this.mayWound(t, src)) { if (out) out.res = 'armor'; return; }
     const kind = opts.kind || 'thrust';
     // 騎馬武者を狙った弾・矢が、大きな的の馬に当たることがある：馬が倒れ、乗り手は生きたまま投げ出される（名のある者・本人は除く）
-    if ((kind === 'gun' || kind === 'arrow') && t.mounted && t.horse && t.type === 'cavalry' && !t.isPlayer && !t.name && !t.invuln && Math.random() < (kind === 'gun' ? 0.3 : 0.18)) {
+    if ((kind === 'gun' || kind === 'arrow') && t.mounted && t.horse && t.type === 'cavalry' && !t.isPlayer && !t.name && !t.invuln && Math.random() < 0.08) {
       this.horseShot(t, src);
       if (out) out.res = 'hit';
       return;
@@ -3921,6 +3949,9 @@ export class Army {
     }
     t.pos.y = this.world.heightAt(t.pos.x, t.pos.z);
     t.lastHit = t.hit; t.lastKneelT = this.time; t.mv.x = t.mv.z = 0;
+    // 落ちた乗り手も無傷ではない（体力の三割から四割を失う。尽きればその場で討たれる）
+    t.hp -= t.maxHp * (0.45 + Math.random() * 0.15); t.lastHitT = 0;
+    if (t.hp <= 0) { this.kill(t, src); return; }
     if (t.group) t.group.morale -= 2;
     this.burst(t.pos.x, t.pos.y + 0.1, t.pos.z, 6, 'dust', fx, fz);
   }
@@ -4026,9 +4057,12 @@ export class Army {
     const hw = t.mounted ? 0.55 : 0.24, hh = t.mounted ? 1.05 : 0.8;
     let hit = erf(hw / (sig * 1.414)) * erf(hh / (sig * 1.414)) * this.coverBetween(u.pos, t.pos, u.team);
     if (t.isPlayer) hit = Math.min(hit, 0.45);  // 自分への一発は外れもある（避けようのない即死にしない）
+    // 一発が重くなった（体力の六割）ぶん、遠い弾は当たりにくく：15m より遠ければ 7 割、30m より遠ければ 4 割（火縄銃の遠い狙いは当てにくい）
+    if (t.isPlayer) hit *= d > 30 ? 0.4 : d > 15 ? 0.7 : 1;
     if (t.isPlayer && t.u_dodging) hit = 0;
     const dmg = u.dmg * (t.isPlayer ? 0.75 : 1) * (0.85 + Math.random() * 0.3);
-    if (Math.random() < hit) this.damage(t, dmg, u, { kind: 'gun', d });
+    const struck = Math.random() < hit;
+    if (struck) this.damage(t, dmg, u, { kind: 'gun', d });
     else {
       // 外れ弾：密な隊なら隣や後ろの者に当たることがある。当たらなければ土が跳ねる
       let other = null;
@@ -4044,7 +4078,15 @@ export class Army {
     if (t.isPlayer && this.hooks.onGunAtPlayer) this.hooks.onGunAtPlayer(u);
     // 自分のすぐそば（2.5m）を抜けた弾は「ひゅっ」と空を切る音で分かる
     const P = this.playerUnit;
-    if (P && t !== P && P.team !== u.team && distToSeg(P.pos.x, P.pos.z, [u.pos.x, u.pos.z, t.pos.x + (t.pos.x - u.pos.x) * 0.3, t.pos.z + (t.pos.z - u.pos.z) * 0.3]) < 2.5) this.play('crack', P.pos, 0.5);
+    // 自分を狙って外れた弾も、耳の横を抜ける（鋭い破裂音と、ひゅんと遠ざかる唸り）。近い弾ほど大きい
+    if (P && P.alive && P.team !== u.team && !(t === P && struck)) {
+      const dm = t === P ? 0.6 + Math.random() * 1.2 : distToSeg(P.pos.x, P.pos.z, [u.pos.x, u.pos.z, t.pos.x + (t.pos.x - u.pos.x) * 0.3, t.pos.z + (t.pos.z - u.pos.z) * 0.3]);
+      if (dm < 2.5) {
+        // 弾筋に直角に、左か右の耳のそばから鳴らす（どちら側を抜けたかが耳で分かる）
+        const bl = d || 1, sx = -(t.pos.z - u.pos.z) / bl, sz = (t.pos.x - u.pos.x) / bl, sd = Math.random() < 0.5 ? -1 : 1;
+        this.play('whiz', { x: P.pos.x + sx * sd * 1.5, y: P.pos.y, z: P.pos.z + sz * sd * 1.5 }, 1.3 - dm * 0.3);
+      }
+    }
     return true;
   }
   // 込め直し：筒を立てて火薬と弾を落とし、込め矢で突き固め、火皿に口薬を盛って火蓋を閉じ、火縄を挟み直す
@@ -5710,7 +5752,8 @@ export class Army {
       // どちらがどれだけ退くか：遊び手は徒歩の兵には押されにくく、馬には押される。徒歩の兵は馬から退く
       let share;
       // （味方の徒歩の兵は、遊び手に道を譲る：人垣で前へ進めなくならないように）
-      if (u.isPlayer) share = o.mounted && !u.mounted ? 1 : u.mounted && !o.mounted ? 0.1 : o.team === u.team ? 0.08 : 0.3;
+      // （人足・荷を担ぐ者は、遊び手を止めない）
+      if (u.isPlayer) share = o.type === 'porter' ? 0 : o.mounted && !u.mounted ? 1 : u.mounted && !o.mounted ? 0.1 : o.team === u.team ? 0.08 : 0.3;
       else if (o.isPlayer) share = u.mounted && !o.mounted ? 0.3 : 1;
       else if (u.mounted !== !!o.mounted) share = u.mounted ? 0.15 : 1;
       else share = 0.5;
@@ -5754,7 +5797,12 @@ export class Army {
       if (!s.alive || !s.solidR) continue;
       const dx = u.pos.x - s.x, dz = u.pos.z - s.z;
       const d = Math.hypot(dx, dz);
-      if (d < s.solidR && d > 1e-4) { u.pos.x = s.x + dx / d * s.solidR; u.pos.z = s.z + dz / d * s.solidR; }
+      if (d < s.solidR && d > 1e-4) {
+        // 真っすぐ突き当たっても止まりきらないよう、遊び手は小屋の縁に沿って少し横へ滑る（向いている側へ）
+        let nx = dx / d, nz = dz / d;
+        if (u.isPlayer) { const side = Math.sin(u.heading) * nz - Math.cos(u.heading) * nx >= 0 ? 1 : -1; const a = 0.06 * side; const c = Math.cos(a), sn = Math.sin(a); const tx = nx * c - nz * sn; nz = nx * sn + nz * c; nx = tx; }
+        u.pos.x = s.x + nx * s.solidR; u.pos.z = s.z + nz * s.solidR;
+      }
     }
     // 建物・陣幕・置き物（props.js の SOLIDS。battle.js が army.solids に渡す）：押し戻すだけ
     const SO = this.solids;
@@ -6067,6 +6115,8 @@ export class Army {
       else if (sw.res === 'armor' || sw.res === 'block') e = Math.min(e, sw.d - 0.3 - cur + (sw.res === 'block' ? -0.15 : 0));
       else if (sw.res === 'miss') ry = sw.side * 0.22 * out;
       ext = Math.max(-0.4, e);
+      // 馬上は鐙に立ち、上から斜め下へ突き込む（穂先を少し下げる）
+      if (u.mounted) rx += 0.2 * out;
       if (sw.res === 'block' && p > 0.5) rx -= 0.25 * out;   // 受けられて穂先が上へ逸れる
     } else if (sw && sw.kind === 'slam' && sw.t < sw.dur + 0.3) {
       // 叩き：振り上げた長柄を、しなりを利かせて打ち下ろす
@@ -6100,7 +6150,9 @@ export class Army {
     const s = u.spr || (u.spr = { rx, ry, sl: slide });
     const kk = Math.min(1, dt * (sw || a ? 30 : 10));
     s.rx += (rx - s.rx) * kk; s.ry += (ry - s.ry) * kk; s.sl += (slide - s.sl) * Math.min(1, dt * 8);
-    h.rotation.x = s.rx; h.rotation.y = s.ry; h.position.z = 0.18 + ext;
+    // 手の前後も速くならす（引いて溜めた所から突き出す時に、手が一コマで跳ばない。突きの速さは残す）
+    s.ex = s.ex === undefined ? ext : s.ex + (ext - s.ex) * Math.min(1, dt * 28);
+    h.rotation.x = s.rx; h.rotation.y = s.ry; h.position.z = 0.18 + s.ex;
     if (w) w.position.z = s.sl;
     // しなり：近くの兵だけ。柄が水平に近いほど先が垂れる
     if (w) flexSpear(w, dt, u.camD < 26, Math.cos(s.rx));
@@ -6124,7 +6176,11 @@ export class Army {
       const stop = sw.res === 'block' ? 0.45 : sw.res === 'armor' ? 0.65 : 1;
       q = Math.min(q, stop);
       P = lerpPose(SW_POSE[sw.kind + '0'], SW_POSE[sw.kind + '1'], q);
-      if (sw.t > sw.dur) P = lerpPose(P, C, Math.min(1, (sw.t - sw.dur) / 0.3));
+      // 刀は肩を中心に弧を描いて振られる：途中では手が体の前へ張り出す（二つの形をまっすぐ結ぶと、手が胸に寄って縮こまる）
+      const arc = Math.sin(q * Math.PI);
+      P[2] += arc * 0.2; P[1] += arc * 0.04;
+      // 振り抜いたら、なめらかに構えへ戻る
+      if (sw.t > sw.dur) { const r = Math.min(1, (sw.t - sw.dur) / 0.3); P = lerpPose(P, C, r * r * (3 - 2 * r)); }
     } else if (u.strikeT > 0 && u.isPlayer) {
       P = lerpPose(SW_POSE.kesa0, SW_POSE.kesa1, 1 - u.strikeT / 0.2);
     }
@@ -6349,7 +6405,7 @@ export class Army {
       });
       this.playerCrowd = foe;
       this.playerMobbed = foe >= 4 && ally * 1.5 < foe;   // 味方の支えが薄いまま囲まれている
-      this.attackCap = this.playerMobbed ? Math.max(this.maxAttackers || 3, Math.min(8, foe)) : (this.maxAttackers || 3);
+      this.attackCap = this.playerMobbed ? Math.max(this.maxAttackers || 3, Math.min(this.mobCapMax || 8, foe)) : (this.maxAttackers || 3);
       if (P) P.mobbed = this.playerMobbed;
     }
     this.updateGroups(dt);

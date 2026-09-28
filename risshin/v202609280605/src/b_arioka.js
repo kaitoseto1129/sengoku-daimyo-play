@@ -56,8 +56,8 @@ const arioka = {
     F.step = 0; F.ek = 0; F.ak = 0;
     // ---- 惣構えの柵（真ん中に木戸。内応で開く） ----
     const noT = (segs) => { for (const s of segs) { s.noTarget = true; s.wall = true; } return segs; };
-    noT(wallLine(rt, [[-90, WALL_Z], [-3.5, WALL_Z]], { team: 1, hp: 1e9, name: '塀', segLen: 6, mesh: dobei }));
-    noT(wallLine(rt, [[3.5, WALL_Z], [90, WALL_Z]], { team: 1, hp: 1e9, name: '塀', segLen: 6, mesh: dobei }));
+    noT(wallLine(rt, [[-90, WALL_Z], [-3.5, WALL_Z]], { team: 1, hp: 1e9, name: '塀', segLen: 6, mesh: dobei, sama: 1.5 }));
+    noT(wallLine(rt, [[3.5, WALL_Z], [90, WALL_Z]], { team: 1, hp: 1e9, name: '塀', segLen: 6, mesh: dobei, sama: 1.5 }));
     F.gate = rt.army.addStruct({ seg: [-3.5, WALL_Z, 3.5, WALL_Z], nx: 0, nz: 1, hp: 1e9, maxHp: 1e9, team: 1, name: '砦の木戸' });
     F.gate.noTarget = true;
     const dm = new THREE.Mesh(new THREE.BoxGeometry(6.8, 2.9, 0.2), new THREE.MeshStandardMaterial({ color: 0x3e3024, roughness: 0.95 }));
@@ -76,6 +76,7 @@ const arioka = {
     // 本丸：台地の縁に打込接の石垣（牢へ上る道は空ける）と、石垣の上に三重の天守（有岡は早い天守を持った城）
     rt.scene.add(ishigaki(W, [[-90, -84], [-46, -84]], { kind: 'uchikomi', top: 0.1, minH: 2.6 }), ishigaki(W, [[-8, -84], [90, -84]], { kind: 'uchikomi', top: 0.1, minH: 2.6 }));
     rt.scene.add(tenshu(W, -8, -122, { floors: 3, b: 10, old: true, stone: 'uchikomi' }));
+    W.addDistantArmy({ x: 12, z: -104, w: 16, d: 6, count: 50, facing: 0, armor: 0x2e2a26, flagTex: flagTexture('maru'), seed: 15792 });   // 本丸に詰める荒木の城兵
     F.rou = hut(W, ROU.x, ROU.z, 4, 3.4, 0.3, { h: 1.8, wall: 0x3a3228 });
     rt.scene.add(F.rou);
     for (const [x, z] of [[-10, WALL_Z - 6], [10, WALL_Z - 6], [0, -100], [18, -100]]) rt.scene.add(nobori(W, x, z, 'maru', 6));
@@ -127,6 +128,10 @@ const arioka = {
     F.g1 = enemyGroup(rt, { faction: 'saito', name: '砦の荒木勢', anchor: { x: 6, z: WALL_Z - 16 }, facing: 0, order: 'attack', seekRange: 60, aggro: 16, width: 14, morale: 85, fleeDir: { x: 0, z: -1 }, dmgMult: 0.64 },
       dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 16 + more(rt) }, { type: 'gun', n: 2 }], ARAKI));
     for (const u of F.g1.units) if (u.type === 'gun') u.dmg *= 0.45;
+    // 塀の狭間に付く守り（A4）：木戸の左右の塀の内から、鉄砲と弓で寄せ手を撃つ（任務の数には入れない）
+    F.wallG = [-26, 26].map((x) => enemyGroup(rt, { faction: 'saito', name: '塀の守り', anchor: { x, z: WALL_Z - 2.5 }, facing: 0, order: 'hold', aggro: 30, width: 10, morale: 70, fleeDir: { x: 0, z: -1 }, dmgMult: 0.5 },
+      dress([{ type: 'gun', n: 3 }, { type: 'bow', n: 3 }], ARAKI)));
+    for (const g of F.wallG) for (const u of g.units) u.dmg *= 0.5;
     rt.marker('g1', centerOf(F.g1), () => `砦の荒木勢・${moraleWord(F.g1.morale)}`, { red: true, group: F.g1 });
     // 城下に火の手（味方が火を放つ）
     F.houses.forEach((h, i) => rt.after(20 + i * 12, () => { if (!F.ending) burnHouse(rt, h); }));

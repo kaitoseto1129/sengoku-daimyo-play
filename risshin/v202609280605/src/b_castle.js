@@ -12,7 +12,7 @@
 // ======================================================================
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { jinmaku, nobori, hut, tawara, campfire, stumps, solidRect, solidCircle } from './props.js';
+import { jinmaku, nobori, hut, tawara, campfire, stumps, solidRect, solidCircle, castleStoneMat, castleMat, ishigaki } from './props.js';
 import { woodTex } from './nature.js';
 import { flagTexture } from './textures.js';
 import { RANKS } from './state.js';
@@ -145,7 +145,10 @@ function mats() {
   MATS = {
     plain: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }),
     wood: new THREE.MeshStandardMaterial({ vertexColors: true, map: woodTex(), roughness: 0.9, metalness: 0 }),
-    stone: new THREE.MeshStandardMaterial({ vertexColors: true, map: stoneTex(), roughness: 0.96, metalness: 0 }),
+    // 石垣は props.js の野面積みの面（苔と水の筋、凹凸つき）を使い回す（A4）
+    stone: castleStoneMat(),
+    // 白壁（汚れ・剥げ・雨だれ）と本瓦（丸瓦の列）は props.js の素材を使い回す（A4）
+    plaster: castleMat('plaster'), tile: castleMat('tile'),
     water: new THREE.MeshStandardMaterial({ color: 0x2c3a36, roughness: 0.2, metalness: 0, transparent: true, opacity: 0.92, envMapIntensity: 0.6 }),
   };
   return MATS;
@@ -161,13 +164,16 @@ function paint(geo, hex) {
 }
 const vary = (hex, k) => new THREE.Color(hex).multiplyScalar(0.86 + (((Math.abs(k) * 7919) % 37) / 37) * 0.28).getHex();
 // 形を集める入れ物：素材ごと（白壁や瓦 = plain、木 = wood、石垣 = stone）
-const bag = () => ({ plain: [], wood: [], stone: [] });
+const bag = () => ({ plain: [], wood: [], stone: [], plaster: [], tile: [] });
 // 入れ物の中身を形にして場に置く（cam：カメラがめり込まない相手にする）
 function flush(rt, B, cam = true) {
   const M = mats();
-  for (const k of ['plain', 'wood', 'stone']) {
+  for (const k of ['plain', 'wood', 'stone', 'plaster', 'tile']) {
     if (!B[k].length) continue;
-    const m = new THREE.Mesh(mergeGeometries(B[k]), M[k]);
+    const geo = mergeGeometries(B[k]);
+    // 白壁と瓦は、絵の大きさを世界の大きさにそろえる（大きな面で伸びないように）
+    if (k === 'plaster' || k === 'tile') { const P = geo.attributes.position, U = geo.attributes.uv, n = geo.attributes.normal, kk = k === 'tile' ? 0.45 : 0.4; for (let i = 0; i < P.count; i++) { const ax = Math.abs(n.getX(i)) > Math.abs(n.getZ(i)); U.setXY(i, (ax ? P.getZ(i) : P.getX(i)) * kk, (k === 'tile' ? (ax ? P.getX(i) : P.getZ(i)) * 0.3 + P.getY(i) : P.getY(i) - 0.3) * kk); } }
+    const m = new THREE.Mesh(geo, M[k]);
     m.castShadow = true; m.receiveShadow = true;
     m.userData.camBlock = cam;
     rt.scene.add(m);
@@ -266,13 +272,13 @@ function dobeiLine(B, W, pts, c, o = {}) {
       const y = Math.min(W.heightAt(mx - N.x * 0.4, mz - N.z * 0.4), W.heightAt(mx, mz) + 0.3);
       const tone = [0xd8d1c0, 0xd2cab8, 0xdcd6c6, 0xcfc7b3][k % 4];
       boxAlong(B.stone, vary(0x767166, k * 3), x0, z0, x1, z1, 1.02, 1.3, 0.62, y + 0.05);    // 腰の石（石垣より暗く、苔で青み）
-      boxAlong(B.plain, tone, x0, z0, x1, z1, 1.02, 1.8, 0.36, y + 1.55);         // 漆喰の壁
+      boxAlong(B.plaster, tone, x0, z0, x1, z1, 1.02, 1.8, 0.36, y + 1.55);         // 漆喰の壁
       // 漆喰の汚れ：軒下の雨だれの筋、足もとの泥はね、ところどころ剥げて土壁がのぞく
       boxAlong(B.plain, shade(tone, 0.78), x0, z0, x1, z1, 1.02, 0.22, 0.37, y + 2.12);
       boxAlong(B.plain, shade(tone, 0.72), x0, z0, x1, z1, 1.02, 0.28, 0.37, y + 0.78);
       if ((k * 7919) % 11 < 2) boxAlong(B.plain, 0x8a7254, mx - (x1 - x0) * 0.2, mz - (z1 - z0) * 0.2, mx + (x1 - x0) * 0.15, mz + (z1 - z0) * 0.15, 1, 0.35 + ((k * 31) % 5) * 0.06, 0.375, y + 1.1 + ((k * 13) % 7) * 0.1);
       boxAlong(B.plain, 0x2f2c28, x0, z0, x1, z1, 1.02, 0.1, 0.38, y + 2.3);       // 長押
-      boxAlong(B.plain, 0x3b3a3a, x0, z0, x1, z1, 1.04, 0.14, 1.1, y + 2.5);       // 瓦
+      boxAlong(B.tile, 0x3b3a3a, x0, z0, x1, z1, 1.04, 0.14, 1.1, y + 2.5);       // 瓦
       boxAlong(B.plain, 0x2e2d2d, x0, z0, x1, z1, 1.04, 0.18, 0.28, y + 2.64);     // 棟
       // 狭間（外と内の両の面に、同じ所に穴）。鉄砲狭間は構えた筒の高さ。穴の所は o.holes に書き、城兵が真後ろに立って撃つ
       const hy = y + (k % 2 ? 1.85 : 1.3), hh = k % 2 ? 0.36 : 0.22;
@@ -367,10 +373,10 @@ function koraimon(B, W, g) {
     const [kx, kz] = P(sx * (w / 2 + 0.15), -2.3);
     box(B.wood, 0x4e3a28, kx, y + 1.3, kz, 0.28, 2.6, 0.28, rot);
     const [rx, rz] = P(sx * (w / 2 + 0.15), -1.15);
-    gable(B.plain, 0x3b3a3a, rx, y + 2.65, rz, 2.7, 1.1, rot + Math.PI / 2, 0.4, 0.1);
+    gable(B.tile, 0x3b3a3a, rx, y + 2.65, rz, 2.7, 1.1, rot + Math.PI / 2, 0.4, 0.1);
   }
   box(B.wood, 0x3f2e20, c.x, y + 3.85, c.z, w + 1.7, 0.38, 0.42, rot);
-  gable(B.plain, 0x3b3a3a, c.x, y + 4.15, c.z, w + 2.8, 2.0, rot, 0.45);
+  gable(B.tile, 0x3b3a3a, c.x, y + 4.15, c.z, w + 2.8, 2.0, rot, 0.45);
 }
 // 櫓門：門の上に白壁の渡櫓を渡す。窓（武者窓）と、扉の上の石落とし
 function yaguramon(B, W, g) {
@@ -382,11 +388,11 @@ function yaguramon(B, W, g) {
     const [px, pz] = P(sx * (w / 2 + 0.2), 0); box(B.wood, 0x4e3a28, px, y + 1.9, pz, 0.5, 3.8, 0.5, rot);
     const [ex, ez] = P(sx * (w / 2 + 1.2), 0);
     stoneBox(B.stone, 0x9a958a, ex, y + 0.6, ez, 1.9, 1.2, 3.2, rot);
-    box(B.plain, 0xd6cfbe, ex, y + 2.5, ez, 1.8, 2.6, 3.0, rot);
+    box(B.plaster, 0xd6cfbe, ex, y + 2.5, ez, 1.8, 2.6, 3.0, rot);
   }
   const Lw = w + 4.2;
   box(B.wood, 0x3a2a1c, c.x, y + 3.95, c.z, Lw, 0.3, 3.4, rot);                 // 床
-  box(B.plain, 0xd6cfbe, c.x, y + 5.1, c.z, Lw - 0.2, 2.0, 3.0, rot);            // 白壁
+  box(B.plaster, 0xd6cfbe, c.x, y + 5.1, c.z, Lw - 0.2, 2.0, 3.0, rot);            // 白壁
   box(B.plain, 0x2f2c28, c.x, y + 6.1, c.z, Lw, 0.1, 3.1, rot);
   for (let k = -1; k <= 1; k++) {
     // 武者窓（格子）：外と内に
@@ -398,9 +404,9 @@ function yaguramon(B, W, g) {
   }
   // 石落とし：扉の真上に張り出す（床の隙間から石を落とす）
   const [sx0, sz0] = P(0, 1.8);
-  box(B.plain, 0xd6cfbe, sx0, y + 4.6, sz0, 2.4, 1.2, 0.7, rot);
+  box(B.plaster, 0xd6cfbe, sx0, y + 4.6, sz0, 2.4, 1.2, 0.7, rot);
   box(B.plain, 0x161412, sx0, y + 4.02, sz0, 2.2, 0.05, 0.6, rot);
-  gable(B.plain, 0x3b3a3a, c.x, y + 6.15, c.z, Lw + 1.4, 4.0, rot, 0.5);
+  gable(B.tile, 0x3b3a3a, c.x, y + 6.15, c.z, Lw + 1.4, 4.0, rot, 0.5);
 }
 // 木戸：門柱に冠木と小さな板屋根（山城・砦の門）
 function kido(B, W, g) {
@@ -425,20 +431,20 @@ function sumiyagura(B, W, t) {
   const { x, z, deck } = t;
   const y = W.heightAt(x, z);
   stoneBox(B.stone, 0x9a958a, x, y + 0.3, z, 5.8, 1.2, 5.8);
-  box(B.plain, 0xd6cfbe, x, y + deck / 2 + 0.35, z, 4.9, deck - 0.6, 4.9);
+  box(B.plaster, 0xd6cfbe, x, y + deck / 2 + 0.35, z, 4.9, deck - 0.6, 4.9);
   box(B.plain, 0x2f2c28, x, y + deck - 0.3, z, 5.0, 0.12, 5.0);
   for (const r of [0, Math.PI / 2]) for (const s of [-1, 1]) {
     box(B.plain, 0x161412, x + Math.sin(r) * s * 2.47, y + deck * 0.55, z + Math.cos(r) * s * 2.47, 0.8, 0.45, 0.05, r);
     box(B.plain, 0x161412, x + Math.sin(r) * s * 2.47 + Math.cos(r) * 1.4, y + 1.4, z + Math.cos(r) * s * 2.47 - Math.sin(r) * 1.4, 0.18, 0.22, 0.05, r);
   }
-  box(B.plain, 0x3b3a3a, x, y + deck - 0.1, z, 6.0, 0.14, 6.0);                 // 一階の庇
+  box(B.tile, 0x3b3a3a, x, y + deck - 0.1, z, 6.0, 0.14, 6.0);                 // 一階の庇
   box(B.wood, 0x5a4430, x, y + deck - 0.02, z, 4.9, 0.16, 4.9);               // 上の床
   for (const [dx, dz, w, d] of [[0, -2.4, 4.9, 0.08], [0, 2.4, 4.9, 0.08], [-2.4, 0, 0.08, 4.9], [2.4, 0, 0.08, 4.9]]) box(B.wood, 0x6b5238, x + dx, y + deck + 0.5, z + dz, w, 0.85, d);
   for (const dx of [-2.3, 2.3]) for (const dz of [-2.3, 2.3]) box(B.wood, 0x4e3a28, x + dx, y + deck + 1.25, z + dz, 0.18, 2.5, 0.18);
-  hipRoof(B.plain, 0x3b3a3a, x, y + deck + 2.45, z, 6.4, 6.4, 1.8, 0, 0.15);
+  hipRoof(B.tile, 0x3b3a3a, x, y + deck + 2.45, z, 6.4, 6.4, 1.8, 0, 0.15);
   // 石落とし：外の二つの面に、床の張り出し
   for (const [dx, dz] of t.out || [[0, 1]]) {
-    box(B.plain, 0xd6cfbe, x + dx * 2.8, y + deck - 0.9, z + dz * 2.8, dz ? 2.2 : 0.7, 1.1, dx ? 2.2 : 0.7);
+    box(B.plaster, 0xd6cfbe, x + dx * 2.8, y + deck - 0.9, z + dz * 2.8, dz ? 2.2 : 0.7, 1.1, dx ? 2.2 : 0.7);
     box(B.plain, 0x161412, x + dx * 2.8, y + deck - 1.46, z + dz * 2.8, dz ? 2.0 : 0.55, 0.04, dx ? 2.0 : 0.55);
   }
   // 梯子段（内側の面）
@@ -549,22 +555,22 @@ function goten(B, W, g) {
   // 屋根：入母屋（寄棟の上に小さな切妻）と、深い軒
   const roofCol = g.tile ? 0x3b3a3a : 0x5a4a38;
   box(B.plain, 0x2f2a24, x, fy + H + 0.35, z, w + 0.3, 0.6, d + 0.3);
-  hipRoof(B.plain, roofCol, x, fy + H + 0.55, z, w + 3.2, d + 3.4, 2.4, 0, 0.45);
-  gable(B.plain, roofCol, x, fy + H + 2.9, z, (w + 3.2) * 0.45, (d + 3.4) * 0.45, 0, 0.62, 0.14);
+  hipRoof(g.tile ? B.tile : B.plain, roofCol, x, fy + H + 0.55, z, w + 3.2, d + 3.4, 2.4, 0, 0.45);
+  gable(g.tile ? B.tile : B.plain, roofCol, x, fy + H + 2.9, z, (w + 3.2) * 0.45, (d + 3.4) * 0.45, 0, 0.62, 0.14);
   // 渡り廊下（東へ、蔵の方へ）
   if (g.rouka) {
     const [rx0, rz, rx1] = g.rouka;
     for (let q = 0; q <= Math.round((rx1 - rx0) / 1.8); q++) for (const s of [-1, 1]) { const px = rx0 + q * 1.8; box(B.wood, 0x5a4430, px, fy + 1.3, rz + s * 0.9, 0.16, 2.6, 0.16); }
     box(B.wood, 0x7a6040, (rx0 + rx1) / 2, fy - 0.02, rz, rx1 - rx0, 0.08, 1.9);
     box(B.plain, 0x2a2622, (rx0 + rx1) / 2, (fy + yb) / 2, rz, rx1 - rx0, fy - yb, 1.7);
-    gable(B.plain, roofCol, (rx0 + rx1) / 2, fy + 2.6, rz, rx1 - rx0 + 0.6, 2.6, 0, 0.45);
+    gable(g.tile ? B.tile : B.plain, roofCol, (rx0 + rx1) / 2, fy + 2.6, rz, rx1 - rx0 + 0.6, 2.6, 0, 0.45);
   }
 }
 // 長屋：白壁と下見板の長い平屋、戸口を並べる（足軽の住まい・城の蔵）
 function nagaya(B, W, x, z, w, d, rot, tile) {
   const y = Math.min(W.heightAt(x, z), W.heightAt(...L(x, z, rot)(w / 2, 0)), W.heightAt(...L(x, z, rot)(-w / 2, 0))) - 0.1;
   box(B.stone, 0x8a857a, x, y + 0.25, z, w + 0.2, 0.5, d + 0.2, rot);
-  box(B.plain, 0xd6cfbe, x, y + 1.7, z, w, 2.4, d, rot);
+  box(B.plaster, 0xd6cfbe, x, y + 1.7, z, w, 2.4, d, rot);
   box(B.wood, 0x3a3026, x, y + 1.05, z, w + 0.04, 1.1, d + 0.04, rot);
   const P = L(x, z, rot);
   const n = Math.max(2, Math.round(w / 3));
@@ -573,7 +579,7 @@ function nagaya(B, W, x, z, w, d, rot, tile) {
     const [dx, dz] = P(lx - 0.4, d / 2 + 0.03); box(B.wood, 0x2a2018, dx, y + 1.3, dz, 0.9, 1.8, 0.05, rot);
     const [wx, wz] = P(lx + 0.7, d / 2 + 0.03); box(B.plain, 0x1e1a16, wx, y + 1.9, wz, 0.7, 0.4, 0.05, rot);
   }
-  gable(B.plain, tile ? 0x3b3a3a : 0x5a4a38, x, y + 2.9, z, w + 0.8, d + 1.4, rot, 0.5);
+  gable(tile ? B.tile : B.plain, tile ? 0x3b3a3a : 0x5a4a38, x, y + 2.9, z, w + 0.8, d + 1.4, rot, 0.5);
 }
 // 蔵（土蔵）：白壁に瓦、鉄の扉
 function kura(B, W, x, z, w, d, rot = 0) {
@@ -584,7 +590,7 @@ function kura(B, W, x, z, w, d, rot = 0) {
   const P = L(x, z, rot);
   const [dx, dz] = P(0, d / 2 + 0.04); box(B.plain, 0x2f2c28, dx, y + 1.6, dz, 1.3, 2.0, 0.07, rot);
   const [wx, wz] = P(0, d / 2 + 0.04); box(B.plain, 0x2f2c28, wx, y + 3.1, wz, 0.6, 0.5, 0.07, rot);
-  gable(B.plain, 0x3b3a3a, x, y + 3.75, z, w + 0.8, d + 1.2, rot, 0.5);
+  gable(B.tile, 0x3b3a3a, x, y + 3.75, z, w + 0.8, d + 1.2, rot, 0.5);
 }
 // 井戸：石の井筒、屋根と釣瓶の滑車
 function ido(B, W, x, z) {
@@ -622,7 +628,7 @@ function yashiki(B, W, x, z, w, d, rot, tile) {
   box(B.stone, 0x8a857a, hx, y + 0.3, hz, w * 0.72 + 0.2, 0.6, d * 0.55 + 0.2, rot);
   box(B.wood, 0x5a4632, hx, y + 1.6, hz, w * 0.72, 2.2, d * 0.55, rot);
   for (let k = -1; k <= 1; k++) { const [sx, sz] = P(k * w * 0.2, -d * 0.12 + d * 0.275 + 0.03); box(B.plain, 0xefe9da, sx, y + 1.6, sz, w * 0.18, 1.7, 0.04, rot); }
-  hipRoof(B.plain, tile ? 0x3b3a3a : 0x5a4a38, hx, y + 2.7, hz, w * 0.72 + 1.8, d * 0.55 + 1.8, 1.7, rot, 0.35);
+  hipRoof(tile ? B.tile : B.plain, tile ? 0x3b3a3a : 0x5a4a38, hx, y + 2.7, hz, w * 0.72 + 1.8, d * 0.55 + 1.8, 1.7, rot, 0.35);
   // 板塀（前に冠木門の口）
   const fence = [[-w / 2, d / 2, -1.4, d / 2], [1.4, d / 2, w / 2, d / 2], [w / 2, d / 2, w / 2, -d / 2], [w / 2, -d / 2, -w / 2, -d / 2], [-w / 2, -d / 2, -w / 2, d / 2]];
   for (const [ax, az, bx, bz] of fence) {
@@ -646,7 +652,7 @@ function tenshu(B, W, x, z, b, floors, old) {
   for (let k = 0; k < floors; k++) {
     const top = k === floors - 1;
     const fh = top ? 2.8 : 3.1;
-    box(B.plain, 0xdcd6c6, x, y + fh / 2, z, w, fh, d);
+    box(B.plaster, 0xdcd6c6, x, y + fh / 2, z, w, fh, d);
     if (old) box(B.wood, 0x221e1a, x, y + fh * 0.3, z, w + 0.04, fh * 0.6, d + 0.04);
     // 窓（格子の窓と、狭間）
     const nw = Math.max(2, Math.round(w / 2.4));
@@ -661,14 +667,14 @@ function tenshu(B, W, x, z, b, floors, old) {
       // 廻縁と高欄
       box(B.wood, 0x3a2a1c, x, y + 0.1, z, w + 1.4, 0.12, d + 1.4);
       for (const [dx, dz, ww, dd] of [[0, (d + 1.3) / 2, w + 1.4, 0.06], [0, -(d + 1.3) / 2, w + 1.4, 0.06], [(w + 1.3) / 2, 0, 0.06, d + 1.4], [-(w + 1.3) / 2, 0, 0.06, d + 1.4]]) box(B.wood, 0x3a2a1c, x + dx, y + 0.65, z + dz, ww, 0.08, dd);
-      hipRoof(B.plain, 0x363738, x, y + fh, z, w + 2.2, d + 2.2, 2.2, 0, 0.35);
-      gable(B.plain, 0x363738, x, y + fh + 2.05, z, (w + 2.2) * 0.42, (d + 2.2) * 0.42, 0, 0.62, 0.14);
+      hipRoof(B.tile, 0x363738, x, y + fh, z, w + 2.2, d + 2.2, 2.2, 0, 0.35);
+      gable(B.tile, 0x363738, x, y + fh + 2.05, z, (w + 2.2) * 0.42, (d + 2.2) * 0.42, 0, 0.62, 0.14);
       // 鯱
       for (const s of [-1, 1]) { const g = new THREE.BoxGeometry(0.22, 0.6, 0.3); g.rotateZ(s * 0.35); g.translate(x + s * (w + 2.2) * 0.21, y + fh + 2.05 + Math.tan(0.62) * (d + 2.2) * 0.21 + 0.35, z); B.plain.push(paint(g, 0x8a7640)); }
     } else {
       // 庇の屋根と、正面の千鳥破風
-      hipRoof(B.plain, 0x363738, x, y + fh - 0.1, z, w + 2.4, d + 2.4, 1.0, 0, 0.72);
-      if (k % 2 === 0) gable(B.plain, 0x363738, x, y + fh + 0.1, z + d / 2 + 0.3, w * 0.45, 1.6, Math.PI / 2, 0.6, 0.12);
+      hipRoof(B.tile, 0x363738, x, y + fh - 0.1, z, w + 2.4, d + 2.4, 1.0, 0, 0.72);
+      if (k % 2 === 0) gable(B.tile, 0x363738, x, y + fh + 0.1, z + d / 2 + 0.3, w * 0.45, 1.6, Math.PI / 2, 0.6, 0.12);
     }
     y += fh + 0.35; w *= 0.8; d *= 0.8;
   }
@@ -1291,7 +1297,12 @@ export function castleBattle(info) {
           for (const piece of chop(pts, 20)) {
             if (wl.kind === 'saku') sakuLine(B, W, piece, wl.h || 2.6);
             else dobeiLine(B, W, piece, wl.c, { holes });
-            if (wl.stone) ishigakiLine(B, W, piece, wl.c, { skip: pg.c });
+            // 石垣は石を一つずつ積んだ形（props.js の ishigaki）。門の口の所は空ける（A4）
+            if (wl.stone) for (const run of cutAt(piece, pg.c, 3.5)) if (run.length > 1) {
+              const [ax, az] = run[0], [bx, bz] = run[1], N = outN(ax, az, bx, bz, wl.c), L = Math.hypot(bx - ax, bz - az) || 1;
+              const side = (-(bz - az) / L) * N.x + ((bx - ax) / L) * N.z > 0 ? 1 : -1;
+              rt.scene.add(ishigaki(W, run, { out: side, top: 0.25, minH: 1.5, maxH: 9, sink: 0.6, big: 1.5 }));
+            }
             flush(rt, B);
           }
           if (wl.kind !== 'saku') attachSama(segs, holes);

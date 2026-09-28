@@ -305,6 +305,8 @@ export function sfx(name, vol = 1) {
       break;
     }
     // 近い落雷の「バリッ」と裂ける音
+    // 耳の横を抜ける弾：鋭い「ぱしっ」という空気の裂ける音と、ひゅんと下がって遠ざかる唸り
+    case 'whiz': { noise(0.012, 'highpass', 4200, 0.7, 0.45 * vol); const o = tone('sine', 2400 + Math.random() * 500, 700, 0.22, 0.05 * vol, 0.005); const f = noise(0.2, 'bandpass', 3800, 3, 0.2 * vol, 0.005); if (f.frequency) f.frequency.exponentialRampToValueAtTime(900, ctx.currentTime + 0.2); break; }
     case 'crack': noise(0.05, 'highpass', 2200, 0.7, 0.55 * vol); noise(0.35, 'bandpass', 900, 0.8, 0.45 * vol, 0.02); noise(0.5, 'lowpass', 400, 0.6, 0.5 * vol, 0.08); break;
     case 'far': through(1100, () => crowd('toki', 4, vol * 0.5, 1.3, 0.85)); break;
     case 'kill': tone('sine', 110, 60, 0.25, 0.25 * vol); noise(0.12, 'lowpass', 600, 1, 0.2 * vol); break;
@@ -656,6 +658,8 @@ let crowdLv = 0;
 // fire：近くの火の近さ 0〜1、fireFar：遠くの大きな火 0〜1、hail：雹の強さ 0〜1（world.js が渡す）
 const scene = { river: 0, night: false, wind: 0, birds: true, rainLv: 0, fire: 0, fireFar: 0, hail: 0 };
 let fireNode = null, crackT = 0, hailT = 0;
+// 迫る大軍と張り詰め（player.js の senseWar が渡す）
+let rumbleNode = null, tenseNode = null, foeDrumT = 3, foeShoutT = 8, clankT = 1, lastCrumble = 0;
 export function setScene(o = {}) { Object.assign(scene, o); }
 
 let gustT = 2, gustV = 1, kiteT = 20, insectT = 1, dripT = 0, stepT = 0, crowdT = 0;
@@ -703,6 +707,56 @@ export function ambience(dt, o) {
       const v = 0.02 + scene.fire * 0.05, n = Math.random() < 0.3 ? 2 : 1;
       onBus(ambBus, () => { for (let i = 0; i < n; i++) noise(0.012 + Math.random() * 0.02, 'highpass', 1800 + Math.random() * 2600, 0.8, v * (0.5 + Math.random()), i * 0.03); });
     }
+  }
+  // 迫る大軍：地鳴り（大勢の足音）が近づくほど厚く、甲冑の擦れがざわざわと重なり、敵の陣太鼓と鬨の声が向こうの方角から大きくなる
+  const ap = scene.approach || 0, apPan = scene.approachPan || 0, apD = scene.approachDist || 80;
+  if (ap > 0.02 || rumbleNode) {
+    if (!rumbleNode) rumbleNode = loop(95, 'lowpass', 0.9);
+    rumbleNode.g.gain.setTargetAtTime(0.16 * ap, now, 1.2);
+    rumbleNode.f.frequency.setTargetAtTime(80 + ap * 90, now, 1.5);
+  }
+  if (ap > 0.12) {
+    clankT -= dt;
+    if (clankT <= 0) {
+      clankT = 0.12 + (1 - ap) * 0.5;
+      onBus(ambBus, () => { for (let i = 0; i < 2; i++) noise(0.03, 'bandpass', 2600 + Math.random() * 1800, 5, 0.012 * ap, i * 0.05); });
+    }
+    foeDrumT -= dt;
+    if (foeDrumT <= 0) {
+      // 近いほど速く打つ（遠い：ゆっくり二つ、近い：早打ち）
+      foeDrumT = 2.6 - ap * 1.6;
+      const lag = Math.min(0.4, apD / 343), v = 0.25 + ap * 0.6, n = ap > 0.5 ? 3 : 2;
+      onBus(ambBus, () => withPanAmb(apPan * 0.9, () => through(Math.max(500, 4000 - apD * 20), () => { for (let i = 0; i < n; i++) tone('sine', 88, 40, 0.6, 0.35 * v, lag + i * (ap > 0.5 ? 0.22 : 0.45)); }, 5)));
+    }
+    foeShoutT -= dt;
+    if (foeShoutT <= 0) {
+      foeShoutT = 7 + Math.random() * 6 - ap * 4;
+      onBus(ambBus, () => withPanAmb(apPan * 0.9, () => through(Math.max(700, 5000 - apD * 25), () => foeShout(0.4 + ap * 0.8))));
+    }
+  }
+  // 押されている時：低く張り詰めた弦のような唸りが下に敷かれ、曲も厚くなる
+  const ten = scene.tense || 0;
+  if (ten > 0.05 || tenseNode) {
+    if (!tenseNode) {
+      const o1 = ctx.createOscillator(); o1.type = 'sawtooth'; o1.frequency.value = 55;
+      const o2 = ctx.createOscillator(); o2.type = 'sawtooth'; o2.frequency.value = 55 * 1.498;
+      const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 260; f.Q.value = 2;
+      const g = ctx.createGain(); g.gain.value = 0;
+      const lfo = ctx.createOscillator(); lfo.frequency.value = 5.5; const lg = ctx.createGain(); lg.gain.value = 0; lfo.connect(lg); lg.connect(g.gain);
+      o1.connect(f); o2.connect(f); f.connect(g); g.connect(musicBus || master); o1.start(); o2.start(); lfo.start();
+      tenseNode = { g, f, lg };
+    }
+    tenseNode.g.gain.setTargetAtTime(0.03 * ten, now, 1.5);
+    tenseNode.lg.gain.setTargetAtTime(0.012 * ten, now, 1.5);
+    tenseNode.f.frequency.setTargetAtTime(220 + ten * 400, now, 2);
+    if (music && ten > 0.3) music.setIntensity(Math.min(1, Math.max(heatLv, crowdLv) + ten * 0.4));
+  }
+  // 味方が崩れかけた瞬間：後ろの本陣から法螺貝が鳴り、味方の叫びが上がる（二十五秒に一度まで）
+  if (scene.crumble && now - lastCrumble > 20) {
+    lastCrumble = now; scene.crumble = 0;
+    onBus(ambBus, () => { withPanAmb(-apPan * 0.5, () => through(2600, () => horagai(0.6))); });
+    sfx('shout', 0.9);
+    sfx('umeki', 0.5);
   }
   // 雹：石まじりの雨が笠と具足を硬く叩く（かち、こつ）
   if (scene.hail > 0.02) {
@@ -847,7 +901,8 @@ export function silence() {
   setCrowd(0);
   if (crowdNode) crowdNode.g.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
   if (windNode) windNode.g.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
-  for (const n of [riverNode, marchNode, cicadaNode, fireNode]) if (n) n.g.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
-  Object.assign(scene, { river: 0, night: false, wind: 0, birds: true, rainLv: 0, fire: 0, fireFar: 0, hail: 0 });
+  for (const n of [riverNode, marchNode, cicadaNode, fireNode, rumbleNode, tenseNode]) if (n) n.g.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
+  Object.assign(scene, { river: 0, night: false, wind: 0, birds: true, rainLv: 0, fire: 0, fireFar: 0, hail: 0, approach: 0, tense: 0, crumble: 0 });
+  if (tenseNode) tenseNode.lg.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
   quiet = false; warT = 0; calmT = 0;
 }

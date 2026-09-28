@@ -1062,13 +1062,17 @@ export class Hud {
       const fighting = P.lock === u || P.aimed === u || (u.target && u.target.isPlayer && d < 10) || (u.lastHitT < 3 && d < 7);
       // 味方の棒と名は、深手（六割を切った）の時だけ（乱戦で組の名が並ばないように。Alt で全部）
       const hurt = u.hp < u.maxHp * 0.6 && u.lastHitT < 10;
-      const showBar = u.team !== 0 ? fighting : (hurt || (P.showSquad && u.isSub));
+      // 武将（busho・名のある者）は、敵も味方も近ければ（18m 以内）いつも棒を出す（大将の傷み具合が戦の流れを決めるので）
+      const general = d < 18 && (u.type === 'busho' || (!!u.name && !u.isSub && u.type !== 'ashigaru'));
+      const showBar = general || (u.team !== 0 ? fighting : (hurt || (P.showSquad && u.isSub)));
       // 組の者の名は、傷ついた時と Alt の時だけ（いつも出すと戦場が字だらけになる）
       // 名は名のある者だけ。名の無い侍・武将は狙った時と Alt の時だけ「侍」「武将」と出す（戦場を字で埋めない）
       let named = d < 18 && !(u.isSub && !hurt && !P.showSquad) && (u.name || ((u.type === 'samurai' || u.type === 'busho') && (P.lock === u || P.aimed === u || P.showSquad)));
       // 最小のスマホ横：名は狙っている相手と、名のある武将（busho）だけ
       if (named && leanHud() && !(P.lock === u || P.aimed === u || (u.type === 'busho' && u.name))) named = false;
       if (!showBar && !named) continue;
+      // 札や指の丸の上には描かない（重ねて読めなくしない）
+      if (this.hudRects().some((r) => s.x > r.left - 20 && s.x < r.right + 20 && s.y > r.top - 16 && s.y < r.bottom + 4)) continue;
       const k = Math.max(0.45, Math.min(1.2, 9 / d));
       const w = 34 * k, h = Math.max(3, 4 * k);
       const x = s.x / zoom - w / 2, y = s.y / zoom;

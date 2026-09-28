@@ -114,7 +114,7 @@ const kanegasaki = {
       dress([{ type: 'samurai', n: 1, o: { name: '明智光秀', invuln: true, hat: 'kabuto_w', haori: 0x3a3a52 } }, { type: 'gun', n: 10 }], ODA));
     F.akeU = F.akechi.units[0];
     F.tono = [F.kino, F.ikeda, F.akechi];
-    for (const g of F.tono) { g.defMult = 1.05; g.dmgMult = 1; }
+    for (const g of F.tono) { g.defMult = 1.05; g.dmgMult = 0.8; }
     const n = RANKS[rt.G.rank].squad;
     if (n) rt.makeSquad({ x: L.x + 4, z: L.z + 8 }, Math.PI, [{ kind: 'spear', n }]);
 
@@ -274,6 +274,14 @@ const kanegasaki = {
       dress([{ type: 'busho', n: 1, o: { name: '朝倉の侍大将', horse: true, invuln: true, hat: 'kabuto_w', haori: 0x4a3a1a } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 22 }, { type: 'gun', n: 2 }], ASAKURA)));
     for (const u of g.units) if (u.type === 'busho') { u.dmg *= 0.5; u.announced = true; }
     F.w3 = [g];
+    // 苦しい戦：本隊の後ろから、もう一つの備が続いて狭路へ押し込む（大軍の厚み）
+    rt.after(24, () => { if (F.ending || F.step !== 5) return;
+    const g1b = soften(enemyGroup(rt, { faction: 'saito', name: '朝倉の二の備', anchor: { x: 14, z: -30 }, facing: 0, order: 'attack', seekRange: 140, aggro: 12, width: 14, morale: 95, noRout: true, fleeDir: { x: 0.1, z: -1 }, dmgMult: 0.6, speed: 2.6 },
+      dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 16 }, { type: 'bow', n: 3 }], ASAKURA)));
+    F.w3.push(g1b);
+    rt.say('足軽', '後ろからもう一つ備が来る……！', 2.5);
+    rt.after(40, () => { if (!F.ending) g1b.noRout = false; });
+    });
     rt.after(26, () => {
       if (F.step !== 5 || F.ending) return;
       const g2 = soften(enemyGroup(rt, { faction: 'saito', name: '朝倉の新手', anchor: { x: 30, z: 0 }, facing: -0.3, order: 'attack', seekRange: 140, aggro: 12, width: 12, morale: 75, fleeDir: { x: 0.2, z: -1 }, dmgMult: 0.42, speed: 2.8 },
@@ -392,7 +400,10 @@ const kanegasaki = {
       if (F.w3[0].count < 8) { F.w3[0].noRout = false; F.w3[0].morale = Math.min(F.w3[0].morale, 20); }
       // 主力が退ききり、寄せが一息ついたら（あるいは長く持ちこたえたら）退き口成る
       // 藤吉郎の手（しんがり）が尽きかけたら崩れる
-      if (F.kino.count <= Math.max(3, Math.round(F.kino.initial * 0.2)) && pct < 100) { this.lose(rt); return; }
+      // しんがり（藤吉郎の手と池田の手）の合わせて二割を切ったら崩れる
+      const tono = F.kino.count + F.ikeda.count, tono0 = F.kino.initial + F.ikeda.initial;
+      if (tono <= Math.max(5, Math.round(tono0 * 0.2)) && pct < 100) { this.lose(rt); return; }
+      if (tono <= Math.round(tono0 * 0.4) && !F.tonoWarn) { F.tonoWarn = true; rt.bark('しんがりが崩れかけている！　踏みとどまれ！', true); }
       if (pct >= 100 && (F.w3.length >= 2 && F.w3.every(gone))) this.win(rt, '朝倉の寄せを退け、殿も闇にまぎれて退く');
       else if (pct >= 100 && rt.t - F.stepT > 75) this.win(rt, '主力は朽木へ抜けた。殿も闇にまぎれて退く');
       else if (F.w3.length >= 2 && F.w3.every(gone) && !F.w3more && pct < 90) {

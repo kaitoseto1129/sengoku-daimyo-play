@@ -675,7 +675,11 @@ export class Player {
     hud.hurt(0.3 + 0.6 * w);
     this.addShake(0.1 + 0.32 * w);
     // 血の霧：打たれた所（胸の高さ）にふっと赤い霧が立つ。設定の blood（on／low／off）に従う
-    { const lv = bloodLv(); if (lv && rt.world.bloodMist) rt.world.bloodMist(u.pos.x - dx * 0.2, u.pos.y + 1.25, u.pos.z - dz * 0.2, (lv === 2 ? 0.7 : 0.35) * (0.5 + 0.5 * w)); }
+    // （体の陰に隠れないよう、カメラの側へ 0.6m、横へ少しずらして置く）
+    { const lv = bloodLv(); if (lv && rt.world.bloodMist) {
+      const c = rt.camera ? rt.camera.position : u.pos, cx = c.x - u.pos.x, cz = c.z - u.pos.z, cl = Math.hypot(cx, cz) || 1, sd = (Math.random() - 0.5) * 0.6;
+      rt.world.bloodMist(u.pos.x + cx / cl * 0.6 - cz / cl * sd, u.pos.y + 1.3, u.pos.z + cz / cl * 0.6 + cx / cl * sd, (lv === 2 ? 1 : 0.5) * (0.6 + 0.4 * w));
+    } }
     if (heavy) POST.dark = Math.max(POST.dark || 0, 0.45 * w);
     this.fovKick = -(2.5 + 5 * w);
     // 白く飛ぶのは一瞬だけ：続けて打たれても重ねない（乱戦で画面が白いままにならないように）
@@ -1667,7 +1671,7 @@ export class Player {
   // 戦っている時・一人称の時は撮らない（操作を奪わない）
   showShot(from, at, dur = 2.5, o = {}) {
     if (this.inCombatT > 0 || this.lock || S.reduceMotion) return false;
-    this.shot = { from, at, dur, t: 0, ...o };
+    this.camShot = { from, at, dur, t: 0, ...o };
     return true;
   }
 
@@ -1738,7 +1742,9 @@ export class Player {
         if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
         const bs = o.geometry.boundingSphere;
         _fpS.copy(bs.center).applyMatrix4(o.matrixWorld);
-        if (_fpS.distanceTo(cam.position) - bs.radius * o.matrixWorld.getMaxScaleOnAxis() < 0.12) { o.visible = false; hid.push(o); }
+        // 二の腕は目のそばに来やすい（刀を振る時など）ので、少し遠くから隠す
+        const near = /^upper|^sleeve/.test(k) ? 0.22 : 0.12;
+        if (_fpS.distanceTo(cam.position) - bs.radius * o.matrixWorld.getMaxScaleOnAxis() < near) { o.visible = false; hid.push(o); }
       }
     }
     if (h && h.root.visible && h.root.parent && h.bones && h.bones.Head) {
@@ -1752,6 +1758,37 @@ export class Player {
       for (const o of [u.body, u.head]) if (o && o.visible) { o.visible = false; hid.push(o); }
     }
     this.hid = hid;
+  }
+
+  // 戦の気配を音へ渡す（1 秒おき）：
+  //   approach：こちらへ寄せてくる敵の大勢（近いほど・多いほど大きい）と、その向き（左右の振り）・遠さ
+  //   tense：押されている度合い（近くの敵が味方より多い・味方の士気が落ちている）。crumble：近くの味方の隊が崩れかけた瞬間
+  senseWar(dt) {
+    this.warT = (this.warT || 0) - dt;
+    if (this.warT > 0 || !this.rt.army || !this.u.alive) return;
+    this.warT = 1;
+    const u = this.u, army = this.rt.army;
+    let ap = 0, ax = 0, az = 0, apN = 0, foes = 0, friends = 0, low = 0;
+    for (const o of army.units) {
+      if (!o.alive || o.isStruct || o === u) continue;
+      const dx = o.pos.x - u.pos.x, dz = o.pos.z - u.pos.z, d = Math.hypot(dx, dz);
+      if (d > 160) continue;
+      if (o.team !== u.team) {
+        if (d < 30) foes++;
+        const v = o.vel || { x: 0, z: 0 }, sp = Math.hypot(v.x, v.z);
+        // 寄せてくる：こちらへ向かう速さがある者
+        if (d > 6 && sp > 0.8 && -(v.x * dx + v.z * dz) / (d * sp) > 0.5) { const w = (1 - d / 160) * (o.mounted ? 2 : 1); ap += w; ax += dx * w; az += dz * w; apN++; }
+      } else if (d < 30) { friends++; if (o.fleeing || (o.group && o.group.morale < 35)) low++; }
+    }
+    const approach = Math.min(1, ap / 25);
+    // 向き：自分の見ている向きに対して左右どちらから来るか
+    const al = Math.hypot(ax, az) || 1, fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
+    const pan = apN ? Math.max(-1, Math.min(1, -((ax / al) * fz - (az / al) * fx))) : 0;
+    const dist = apN ? al / ap : 0;
+    const tense = Math.min(1, Math.max(0, (foes - friends) / 10) + (friends ? low / friends : 0) * 0.8);
+    const crumble = friends >= 4 && low / friends > 0.4 && !((this.crumbleT ?? -99) + 25 > this.rt.t);
+    if (crumble) this.crumbleT = this.rt.t;
+    setScene({ approach, approachPan: pan, approachDist: dist, tense, crumble: crumble ? 1 : 0 });
   }
 
   // 描く直前（cam）と後（null）：カメラと自分の間に入った小さな建て物（足場・櫓・小屋など、差し渡し 16m まで）を隠す
@@ -1884,6 +1921,7 @@ export class Player {
       }
     }
     edgeDark(this.rt.game && this.rt.game.paused ? 0 : dt);
+    this.senseWar(dt);
     // 世界の側（手前の雨筋など）が視点の場所を知れるように
     if (this.rt.world) {
       this.rt.world.camRef = camera;
@@ -2080,12 +2118,12 @@ export class Player {
       const k = Math.min(1, this.knockT / 0.5) * (S.reduceMotion ? 0.35 : 1);
       camera.position.y -= 0.9 * k; look.y -= 0.7 * k; roll += 0.12 * k;
     }
-    // 見せ場の一枚（shot）：低い所から見上げる数秒の絵。終われば元の視点へなめらかに戻る
-    if (this.shot) {
-      const sh = this.shot;
+    // 見せ場の一枚（camShot。火縄の this.shot とは別）：低い所から見上げる数秒の絵。終われば元の視点へなめらかに戻る
+    if (this.camShot) {
+      const sh = this.camShot;
       sh.t += dt;
       const W = this.rt.world, k = S.reduceMotion ? 0 : Math.min(1, sh.t / 0.4, (sh.dur - sh.t) / 0.6);
-      if (sh.t >= sh.dur) this.shot = null;
+      if (sh.t >= sh.dur) this.camShot = null;
       else if (k > 0) {
         const kk = k * k * (3 - 2 * k);
         const fx = typeof sh.from === 'function' ? sh.from() : sh.from, at = typeof sh.at === 'function' ? sh.at() : sh.at;
