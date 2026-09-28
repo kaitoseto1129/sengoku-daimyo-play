@@ -352,8 +352,10 @@ function render(){
         <div class="st"><b>${fmtN(starts)}</b><span>遊び始め</span><em>${pct(starts,visits)}</em></div>
         <div class="st"><b>${fmtN(battles)}</b><span>${L.battle}</span><em>${pct(battles,visits)}</em></div>
         <div class="st"><b>${fmtN(results)}</b><span>${L.result}</span><em>${pct(results,visits)}</em></div>
-        ${RS?`<div class="st"><b>${fmtN(act)}</b><span>初戦を終えた</span><em>${pct(act,visits)}</em></div>`:`<div class="st"><b>${fmtN(unlocks)}</b><span>解除</span><em>${pct(unlocks,visits)}</em></div>`}
+        ${RS?`<div class="st"><b>${fmtN(act)}</b><span>初戦を終えた</span><em>${pct(act,visits)}</em></div>`:``}
+        <div class="st"><b>${fmtN(unlocks)}</b><span>課金（解除）</span><em>${pct(unlocks,visits)}</em></div>
       </div>
+      ${(()=>{ const u=platRow("unlock"); return `<div class="muted" style="margin-top:6px">課金の内訳：アプリ ${fmtN(u.app)}／ウェブ ${fmtN(u.web)}${u.tot?"":"（まだ一件もありません）"}</div>`; })()}
       <div class="muted" style="margin-top:8px">訪問＝ページを開いた数（出来事の数は含めない）。遊び始めが少なければ入口（題名の画面）、初戦を終えた人が少なければ最初の合戦で躓いている、と読めます。結びは筋書きを最後まで遊んだ人だけなので、ふだんは 0 で構いません。iPhone 版は数えていません（ブラウザ版だけ）。</div>
     </div>
     <div class="sec grid">
