@@ -1,0 +1,158 @@
+# 戦国立身：1000人のテストプレイヤー（kaito「テストプレイヤーを1000人に。GitHub Actions で回して、Claude は結果を読んで直すだけ」2026-09-27）
+# 一回に100人（20本を同時に × 1本5人）。表（risshin-bot/players1000.mjs）を順に回し、どこまで回したかは risshin-players/cursor.json
+# 2時間ごと × 100人 ＝ 約20時間で1000人が一回り。結果は risshin-players/まとめ.md（直近1000人のうち何人が困ったか順）
+# 遊ぶのは公開中の risshin/（その場で python の簡単なサーバーで開く）。遊び手の頭（playbot.js・audit.js）だけ risshin-bot/ から重ねる
+name: risshin-players
+on:
+  schedule:
+    - cron: "40 */2 * * *"
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "始める番（空なら cursor.json の続き）"
+        required: false
+        default: ""
+      per:
+        description: "1本あたりの人数（20本なので ×20 人）"
+        required: false
+        default: "5"
+      limit:
+        description: "一人の上限（分）"
+        required: false
+        default: "10"
+  push:
+    branches: [main]
+    paths: ["risshin-bot/run-now.json"]
+permissions:
+  contents: write
+concurrency:
+  group: risshin-players
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      start: ${{ steps.p.outputs.start }}
+      per: ${{ steps.p.outputs.per }}
+      limit: ${{ steps.p.outputs.limit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            risshin-players
+            risshin-bot
+          filter: blob:none
+      - id: p
+        env:
+          IN_START: ${{ github.event.inputs.start }}
+          IN_PER: ${{ github.event.inputs.per }}
+          IN_LIMIT: ${{ github.event.inputs.limit }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            let cur = {}; try { cur = JSON.parse(fs.readFileSync("risshin-players/cursor.json", "utf8")); } catch (e) {}
+            let now = {}; if (process.env.GITHUB_EVENT_NAME === "push") { try { now = JSON.parse(fs.readFileSync("risshin-bot/run-now.json", "utf8")); } catch (e) {} }
+            const start = process.env.IN_START !== undefined && process.env.IN_START !== "" ? +process.env.IN_START : (now.start ?? cur.next ?? 0);
+            const per = Math.max(1, Math.min(5, +(process.env.IN_PER || now.per || 5)));
+            const limit = Math.max(4, Math.min(11, +(process.env.IN_LIMIT || now.limit || 10)));
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `start=${start % 1000}\nper=${per}\nlimit=${limit}\n`);
+            console.log({ start, per, limit });
+          '
+
+  play:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            risshin
+            risshin-bot
+          filter: blob:none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: 日本語の字（無いと字が豆腐になり、札の幅も測れない）
+        run: |
+          sudo apt-get update -qq >/dev/null
+          sudo apt-get install -y -qq --no-install-recommends fonts-noto-cjk >/dev/null
+          google-chrome --version
+      - name: 遊ぶ
+        env:
+          START: ${{ needs.plan.outputs.start }}
+          PER: ${{ needs.plan.outputs.per }}
+          LIMIT: ${{ needs.plan.outputs.limit }}
+          SHARD: ${{ matrix.shard }}
+        run: |
+          set +e
+          V=$(ls -d risshin/v*/ | head -1); V=${V%/}
+          export RISSHIN_VER=$(basename "$V")
+          cp risshin-bot/playbot.js risshin-bot/audit.js "$V/src/"
+          (cd risshin && nohup python3 -m http.server 8765 >/dev/null 2>&1 &)
+          sleep 2
+          mkdir -p out/shots
+          T0=$(date +%s)
+          for k in $(seq 0 $((PER - 1))); do
+            ROW=$(( (START + SHARD * PER + k) % 1000 ))
+            # 60分の枠に収める：残りの時間を残りの人数で割る（上限 LIMIT 分）
+            LEFT=$(( 55 - ( $(date +%s) - T0 ) / 60 ))
+            L=$(( LEFT / (PER - k) )); [ $L -gt $LIMIT ] && L=$LIMIT
+            if [ $L -lt 4 ]; then echo "$(date -u +%FT%T) ${ROW}番：時間が足りないので遊ばない" >> out/loop.log; continue; fi
+            echo "::group::${ROW}番（${L}分まで）"
+            timeout -k 20 $(( L * 60 + 40 )) node risshin-bot/botrun.mjs --row=$ROW --out=out --limit=$L 2>&1 | tee -a out/loop.log | tail -40
+            RC=${PIPESTATUS[0]}
+            [ $RC -ne 0 ] && echo "$(date -u +%FT%T) ${ROW}番：打ち切り・失敗（終わりの印 $RC）" >> out/loop.log
+            pkill -f "sengoku-risshin-" 2>/dev/null; sleep 2; pkill -9 -f "sengoku-risshin-" 2>/dev/null
+            echo "::endgroup::"
+          done
+          ls out | head -20
+          exit 0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shard-${{ matrix.shard }}
+          path: out/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  gather:
+    needs: [plan, play]
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            risshin-players
+            risshin-bot
+          filter: blob:none
+          fetch-depth: 20
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: shard-*
+          path: in
+      - name: 合わせて まとめ.md を書く
+        run: node risshin-bot/players-gather.mjs --in=in --dest=risshin-players --start=${{ needs.plan.outputs.start }} --count=$(( ${{ needs.plan.outputs.per }} * 20 ))
+      - name: 置き場に記録する（ぶつかったら pull --rebase してやり直す）
+        run: |
+          git config user.name "risshin-players-bot"
+          git config user.email "risshin-players-bot@users.noreply.github.com"
+          git add -A risshin-players
+          git diff --cached --quiet && exit 0
+          git commit -q -m "risshin-players: $(date -u +%Y-%m-%dT%H:%M) ${{ needs.plan.outputs.start }}番から$(( ${{ needs.plan.outputs.per }} * 20 ))人"
+          for i in 1 2 3 4 5; do
+            git pull --rebase -q origin main && git push -q origin HEAD:main && exit 0
+            git rebase --abort 2>/dev/null
+            sleep $(( i * 20 ))
+          done
+          exit 1
