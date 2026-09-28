@@ -356,6 +356,13 @@ function render(){
         <div class="st"><b>${fmtN(unlocks)}</b><span>課金（解除）</span><em>${pct(unlocks,visits)}</em></div>
       </div>
       ${(()=>{ const u=platRow("unlock"); return `<div class="muted" style="margin-top:6px">課金の内訳：アプリ ${fmtN(u.app)}／ウェブ ${fmtN(u.web)}${u.tot?"":"（まだ一件もありません）"}</div>`; })()}
+      <div id="salesBox" class="muted" style="margin-top:6px"></div>
+      <script>fetch("sales.json?"+Date.now()).then(r=>r.ok?r.json():null).then(s=>{ if(!s) return;
+        const el=document.getElementById("salesBox"); if(!el) return;
+        const last=(s.days||[]).slice(-7).map(d=>d.d.slice(5)+" "+d.units+"本").join("・");
+        el.innerHTML="App Store の実績：<b>"+s.total_units+"本</b>／入金 "+s.total_proceeds+" "+(s.cur||"")+
+          (last?"（直近："+last+"）":"")+" <span style='opacity:.6'>"+(s.updated||"").slice(0,16)+" 取得</span>";
+      }).catch(()=>{});</script>
       <div class="muted" style="margin-top:8px">訪問＝ページを開いた数（出来事の数は含めない）。遊び始めが少なければ入口（題名の画面）、初戦を終えた人が少なければ最初の合戦で躓いている、と読めます。結びは筋書きを最後まで遊んだ人だけなので、ふだんは 0 で構いません。iPhone 版は数えていません（ブラウザ版だけ）。</div>
     </div>
     <div class="sec grid">
