@@ -1618,7 +1618,8 @@ function soldierTint(skin) {
   return new THREE.Color().setRGB(Math.min(255, 140 + tn.r * 110) / 255, Math.min(255, 150 + tn.g * 115) / 255, Math.min(255, 145 + tn.b * 110) / 255, THREE.SRGBColorSpace);
 }
 function addEyesFast(hm, F, tint = null) {
-  const w = F.w || 1, open = 1 / (F.eye || 1);
+  // 目の開きは細めに（白目が広く見えると、貼った目の絵に見える。日焼けした兵の目は細く、影に沈む）
+  const w = F.w || 1, open = 0.78 / (F.eye || 1);
   const key = w.toFixed(2) + '|' + open.toFixed(2);
   if (!eyeFast.has(key)) {
     const gs = [];
@@ -1635,8 +1636,8 @@ function addEyesFast(hm, F, tint = null) {
       const put = (g, hex, x, y, z, sy) => { g.scale(1, sy, 1); g.translate(x, y, z); g.applyMatrix4(M); gs.push(col(g, hex)); };
       const s = (rx, ry, rz, ws, hs, a, b) => { const g = new THREE.SphereGeometry(1, ws, hs, 0, Math.PI * 2, 0, b ?? Math.PI); g.scale(rx, ry, rz); return g; };
       // 白目は真っ白にしない（影の中の白目は灰色がかった黄み）。上下のまぶたが黒目の縁に掛かる（白目が黒目を囲むと、見開いた人形の目になる）
-      put(s(0.25, 0.072, 0.06, 12, 8), 0x6e6458, 0, 0, 0, open);
-      put(s(0.085, 0.078, 0.03, 10, 6), 0x2a1a10, 0.01, 0.006, 0.045, open);
+      put(s(0.25, 0.072, 0.06, 12, 8), 0x5a5044, 0, 0, 0, open);
+      put(s(0.095, 0.085, 0.03, 10, 6), 0x24160e, 0.01, 0.006, 0.045, open);
       put(s(0.036, 0.036, 0.012, 6, 4), 0x050303, 0.01, 0.006, 0.068, open);
       put(s(0.29, 0.07, 0.085, 12, 6, 0, Math.PI * 0.55), 0x7e5842, 0, 0.043 + 0.02 * (1 - open), 0.004, 1);
       { const lo = s(0.28, 0.05, 0.08, 12, 5, 0, Math.PI * 0.5); lo.rotateZ(Math.PI); put(lo, 0x7e5842, 0, -0.04, -0.002, 1); }

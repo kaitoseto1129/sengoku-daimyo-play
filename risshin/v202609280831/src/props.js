@@ -1332,7 +1332,7 @@ const UPV = new THREE.Vector3(0, 1, 0);
 const _q = new THREE.Quaternion(), _m = new THREE.Matrix4(), _e = new THREE.Euler();
 function stoneGeo(w, h, d, kind, seed, seg = 2) {
   const g = new THREE.BoxGeometry(w, h, d, seg, seg, 1);
-  const P = g.attributes.position, round = kind === 'nozura' ? 0.34 : 0.14;
+  const P = g.attributes.position, round = kind === 'nozura' ? 0.38 : 0.24;
   for (let i = 0; i < P.count; i++) {
     let x = P.getX(i), y = P.getY(i), z = P.getZ(i);
     const fx = Math.abs(x) / (w / 2), fy = Math.abs(y) / (h / 2);
@@ -1378,9 +1378,10 @@ function stoneCourse(B, kind, ax, az, bx, bz, topAt, botAt, lean, side, seed, bi
       const cx = ax + tx * (u0 + u1) / 2 + nx * out, cz = az + tz * (u0 + u1) / 2 + nz * out;
       g.translate(cx, bot + (yb + yt) / 2, cz);
       // 色：石ごとの濃淡、下ほど苔の緑、雨だれの筋（縦に並ぶ石が暗い）
-      const r = hsh(seed + k * 7, row * 3 + 0.5), streak = hsh(Math.floor(cx * 1.3 + cz * 1.3), 7.7) < 0.12 ? 0.8 : 1;
-      const c = new THREE.Color(noz ? 0xa29d90 : 0xb0aa9c).multiplyScalar((0.72 + r * 0.42) * streak);
-      if (r < 0.3) c.lerp(new THREE.Color(0x9a8a70), 0.35);           // 赤みの石
+      const r = hsh(seed + k * 7, row * 3 + 0.5), r2 = hsh(seed + k * 3, row * 5 + 0.7), streak = hsh(Math.floor(cx * 1.3 + cz * 1.3), 7.7) < 0.12 ? 0.8 : 1;
+      const c = new THREE.Color(noz ? 0xa29d90 : 0xb0aa9c).multiplyScalar((0.62 + r * 0.55) * streak);
+      if (r2 < 0.3) c.lerp(new THREE.Color(0xa08a6a), 0.45);           // 赤み・黄みの石
+      else if (r2 > 0.8) c.lerp(new THREE.Color(0x7e8890), 0.35);      // 青みの石
       const moss = Math.max(0, 1 - (yb / Math.max(0.5, H)) * 2.2) * (0.25 + hsh(k, row) * 0.5);
       c.lerp(new THREE.Color(0x4e5a38), moss);
       B[kind].push(paint(g, c.getHex()));

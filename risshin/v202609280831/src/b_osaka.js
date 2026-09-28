@@ -360,6 +360,8 @@ const sanadamaru = {
       return g;
     };
     F.nobushige = mk(1, '真田信繁', true);
+    // 組を持たない足軽の殿の時は、丸の塀の上の鉄砲も狙いが粗い（退く味方の群れへ撃ちかける）：一発を軽く
+    if (!rt.squad.length) for (const u of rt.army.units) if (u.alive && u.type === 'gun' && u.team !== rt.player.u.team && !u._softGun) { u._softGun = true; u.dmg *= 0.6; }
     // 堀の底で撃たれた寄せ手の大勢は崩れて退き、前田の鉄砲の列も下がる
     F.surgeDA.forEach((m, i) => rt.after(2 + i * 4, () => m.rout({ hideAfter: 50 })));
     rt.after(8, () => F.maedaDA[0].retreat(24, 20));

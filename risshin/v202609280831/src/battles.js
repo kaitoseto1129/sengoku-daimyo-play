@@ -505,13 +505,19 @@ const okehazama = {
   stages(rt, dt) {
     const F = rt.flags;
     if (rt.G.lord || F.ending) return;
-    if (!F.stage) { F.stage = 1; F.stageT = rt.t; rt.obj('st', '坂の下の今川の先手を突き崩せ', 'main'); }
+    if (!F.stage) {
+      F.stage = 1; F.stageT = rt.t; rt.obj('st', '坂の下の今川の先手を突き崩せ', 'main');
+      // 本陣の印は、本陣へ寄れる段（判断②の後）まで出さない。今は目の前の先手へ
+      rt.objRemove('honjin'); rt.unmark('honjin'); rt.unzone('honjin');
+      const g0 = F.enemies.find((g) => g.count && !g.routed);
+      if (g0) rt.marker('st1', centerOf(g0), () => `今川の先手・${moraleWord(g0.morale)}`, { red: true, group: g0 });
+    }
     const el = rt.t - F.stageT;
     const next = (k) => { F.stage = k; F.stageT = rt.t; };
     if (F.stage === 1) {
       const first = F.enemies.slice(0, 3), down = first.filter((g) => !g.count || g.routed).length;
       rt.objProgress('st', `崩した先手 ${down}/3`);
-      if (down >= 2 || el > 110) { rt.objDone('st'); next(2); this.choiceYohei(rt); }
+      if (down >= 2 || el > 110) { rt.unmark('st1'); rt.objDone('st'); next(2); this.choiceYohei(rt); }
     }
     if (F.stage === 2.5) {
       const g = F.flankE;
@@ -584,7 +590,8 @@ const okehazama = {
       if (i === 0) {
         F.stage = 2.5; F.stageT = rt.t;
         F.flankE = enemyGroup(rt, { faction: 'imagawa', name: '横槍の今川勢', anchor: { x: yc.x + 26, z: yc.z - 8 }, facing: -Math.PI / 2, order: 'attack', seekRange: 60, aggro: 14, width: 10, morale: 90, fleeDir: { x: 1, z: -0.5 } },
-          [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 14 }]);
+          [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 9 }]);
+        F.flankE.dmgMult = 0.6;   // 初陣：組と一緒なら崩せる強さ
         F.flankE.focus = Y.units.find((u) => u.alive) || null;
         rt.obj('st', '与兵衛の組を助け、横槍の今川勢を崩せ', 'main');
         rt.marker('flankE', centerOf(F.flankE), () => `横槍の今川勢・${moraleWord(F.flankE.morale)}`, { red: true, group: F.flankE });
@@ -602,8 +609,11 @@ const okehazama = {
   frontGuard(rt) {
     const F = rt.flags;
     F.front = enemyGroup(rt, { faction: 'imagawa', name: '本陣の前備え', anchor: { x: HONJIN.x, z: HONJIN.z + 26 }, facing: 0, order: 'hold', aggro: 16, width: 16, morale: 95, fleeDir: { x: 0, z: -1 }, formation: 'yari' },
-      [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: F.pushed ? 14 : 18 }, { type: 'bow', n: 3 }]);
-    rt.obj('st', '本陣の前を固める備えを崩せ（槍衾。横から突け）', 'main');
+      [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: F.pushed ? 12 : 14 }, { type: 'bow', n: 2 }]);
+    // 初陣の足軽が一人で当たっても一撃で崩れない強さに（味方の組と囲めば崩せる）
+    F.front.dmgMult = 0.6;
+    for (const g of F.cols) if (g.count) { g.order = 'attack'; g.seekRange = 40; g.anchor = { x: HONJIN.x + (Math.random() - 0.5) * 16, z: HONJIN.z + 34 }; }
+    rt.obj('st', '本陣の前を固める備えを崩せ（槍衾。味方の組と横から突け）', 'main');
     rt.marker('front', centerOf(F.front), () => `本陣の前備え・${moraleWord(F.front.morale)}`, { red: true, group: F.front });
     rt.say('源八', '本陣の前に槍衾じゃ。正面から当たるな、横へ回れ！', 3.5);
     rt.after(16, () => { if (F.front && !gone(F.front)) { F.front.order = 'attack'; F.front.seekRange = 30; } });
@@ -623,6 +633,8 @@ const okehazama = {
       { label: '幔幕の口から正面に押し入る', note: '味方の組と一緒に押し入る。旗本は幔幕の内で固い' },
       { label: '北へ回り込み、輿の行く手を断つ', note: '幔幕の外を走る。着けば旗本は陣を組めない。遅れれば輿は逃げる' },
     ], (i) => {
+      // 選ぶ間に、もう本陣へなだれ込んでいたら何もしない
+      if (F.entered) { F.stage = 5; F.stageT = rt.t; return; }
       if (i === 1) {
         F.stage = 4.5; F.stageT = rt.t;
         F.cutPt = { x: HONJIN.x - 4, z: HONJIN.z - 24 };
@@ -631,17 +643,24 @@ const okehazama = {
         F.hatamoto.anchor = { x: HONJIN.x - 2, z: HONJIN.z - 10 };
         rt.say('源八', 'よし、ついて来い！　幕の外を回るぞ', 3);
         // 遅すぎれば、輿は北の谷へ抜けて前の流れ（口から）に戻る
-        rt.after(70, () => { if (F.stage === 4.5 && !F.entered) { rt.unmark('cut'); rt.unzone('cut'); rt.objFail('st'); rt.say('源八', '遅かったか……輿は幕の内へ戻った。口から押し入れ！', 3); F.stage = 5; F.stageT = rt.t; } });
-      } else { F.stage = 5; F.stageT = rt.t; rt.say('源八', 'よし、口から押し入る。組で固まれ！', 3); }
+        rt.after(70, () => { if (F.stage === 4.5 && !F.entered) { rt.unmark('cut'); rt.unzone('cut'); rt.objFail('st'); rt.say('源八', '遅かったか……輿は幕の内へ戻った。口から押し入れ！', 3); F.stage = 5; F.stageT = rt.t; this.honjinMark(rt); } });
+      } else { F.stage = 5; F.stageT = rt.t; rt.say('源八', 'よし、口から押し入る。組で固まれ！', 3); this.honjinMark(rt); }
     }, 20);
+  },
+  honjinMark(rt) {
+    if (rt.flags.entered) return;
+    rt.obj('honjin', '幔幕の口から今川本陣に突入せよ', 'main');
+    rt.marker('honjin', { x: HONJIN.x, z: HONJIN.z + 9 }, '今川本陣の口');
+    rt.zone('honjin', HONJIN.x, HONJIN.z, 14);
   },
   // 段五（義元討死の後）：北の谷から今川の後詰が引き返してくる。本陣の跡を守り抜け
   lastStand(rt) {
     const F = rt.flags;
     F.stage = 6; F.stageT = rt.t;
     F.matsui = enemyGroup(rt, { faction: 'imagawa', name: '引き返す今川勢', anchor: { x: HONJIN.x, z: -168 }, facing: 0, order: 'attack', seekRange: 90, aggro: 16, width: 14, morale: 100, noRout: true, fleeDir: { x: 0, z: -1 } },
-      [{ type: 'busho', n: 1, o: { name: '松井宗信' } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: F.pushed ? 22 : 16 }]);
-    rt.after(40, () => { if (F.matsui) F.matsui.noRout = false; });
+      [{ type: 'busho', n: 1, o: { name: '松井宗信' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: F.pushed ? 14 : 10 }]);
+    F.matsui.dmgMult = 0.6;
+    rt.after(20, () => { if (F.matsui) F.matsui.noRout = false; });
     rt.banner('今川勢、引き返す', '北の谷から、主の仇を討たんと');
     rt.say('足軽', '北から今川勢が引き返してくる！　義元の仇討ちじゃと！', 3.5);
     rt.say('源八', '首は捨てよ。本陣の跡で槍を揃えて受けよ！', 3.5);
@@ -1063,14 +1082,14 @@ const moribe = {
       rt.say('大沢勘兵衛', 'よう持ちこたえた！', 3);
     }
     // 判断：日比野の備が本備を押している（先手を崩して 30 秒後に一度だけ）
-    if (F.vBroken && !F.mChoice && F.vBrokenT && rt.t - F.vBrokenT > 30 && !rt.G.lord && F.M.count > 6) {
+    if (F.vBroken && !F.mChoice && F.vBrokenT && rt.t - F.vBrokenT > 30 && !rt.G.lord && F.M.count > 6 && !F.M.routed) {
       F.mChoice = true;
       rt.say('伝令', '本備が日比野の備に押されておりまする！', 3);
       rt.choose('日比野の備が本備を押している。どうする？', [
         { label: '組を連れて西へ回り、日比野の横腹を突く', note: '日比野が早く崩れる。林の端は空く（東の新手は大沢の組が受ける）' },
         { label: '林の端に残り、東の新手に備える', note: '持ち場を守る。日比野との押し合いは長引く' },
       ], (i) => {
-        if (i === 0) {
+        if (i === 0 && !F.M.routed && F.M.count) {
           F.helpM = true;
           rt.obj('hm', '西へ回り、日比野の備の横腹を突け', 'side');
           const c = F.M.center();
@@ -1078,9 +1097,11 @@ const moribe = {
           rt.zone('hm', c.x + 14, c.z, 8);
           F.hmPt = { x: c.x + 14, z: c.z };
           rt.say('大沢勘兵衛', 'よし、行け！　林はわしが持つ', 3);
-        } else { rt.say('大沢勘兵衛', '持ち場を離れぬか。……よかろう、東を頼む', 3); F.M.morale = Math.min(100, F.M.morale + 10); }
+        } else if (!F.M.routed && F.M.count) { rt.say('大沢勘兵衛', '持ち場を離れぬか。……よかろう、東を頼む', 3); F.M.morale = Math.min(100, F.M.morale + 10); }
       }, 20);
     }
+    // 日比野が先に崩れたら、横腹を突く下知は畳む
+    if (F.helpM && !F.hmDone && (F.M.routed || !F.M.count)) { F.hmDone = true; rt.unmark('hm'); rt.unzone('hm'); rt.objRemove('hm'); }
     if (F.helpM && !F.hmDone && F.hmPt) {
       const p = rt.player.u.pos;
       if (Math.hypot(p.x - F.hmPt.x, p.z - F.hmPt.z) < 8) {
@@ -1478,6 +1499,7 @@ const sunomata = {
 
   wave2(rt) {
     const F = rt.flags;
+    if (F.W2) return;
     F.wave = 2; F.waveT = 0;
     rt.setPhase('w2');
     // 波ごとに日が傾く：二の手は昼下がり、三の手で夕焼け
@@ -1655,7 +1677,7 @@ const sunomata = {
       }
     }
     if (F.wave === 1 && gone(F.W1) && !F.next2) {
-      F.next2 = true;
+      F.next2 = true; F.next2T = rt.t;
       rt.unmark('w');
       rt.say('木下藤吉郎', 'ようやった！　じゃが、まだ来るぞ。今のうちに備えを直せ', 4);
       rt.after(12, () => rt.say('木下藤吉郎', '世間では一夜で城が建つなどと言うておるらしい。大げさじゃ。一夜では柵も結えぬわ', 4.5));
@@ -1675,6 +1697,8 @@ const sunomata = {
         }
       }, 18));
     }
+    // 保険：判断の段で二の手が始まらないまま長引いたら、二の手を始める
+    if (F.next2T && !F.W2 && !F.wave2Q && rt.t - F.next2T > 110) { F.wave2Q = true; this.wave2(rt); }
     if (F.scoutOut && !F.scoutDone) {
       const q = F.scoutOut;
       if (gone(q) || rt.t - F.scoutT > 70) {
@@ -2237,6 +2261,8 @@ const shitaragahara = {
   // 判断①：北隣の柵が破れかけている。組を回して塞ぐか、持ち場を固めるか
   choiceGap(rt) {
     const F = rt.flags;
+    // 保険：選びが何かで失われても、60 秒で次の波
+    rt.after(60, () => { if (F.wave === 1 && !F.pursuit) this.wave(rt); });
     rt.say('伝令', '北の柵、二か所が破れかけておる！　手が足りぬ！', 3);
     rt.choose('北の柵が破れかけている。どうする？', [
       { label: '組を連れて北の柵へ回り、破れ目を塞ぐ', note: '柵を結い直す（二の波の柵が固くなる）。持ち場の前は手薄になる' },
@@ -2255,6 +2281,7 @@ const shitaragahara = {
   // 判断②：柵の前に討ち漏らした武田の者が倒れた馬の陰に潜み、柵を撃つ。虎口から出て片付けるか、柵の内から撃ち合うか
   choiceSortie(rt) {
     const F = rt.flags;
+    rt.after(70, () => { if (F.wave === 2 && !F.pursuit) this.wave(rt); });
     F.lurk = enemyGroup(rt, { faction: 'takeda', name: '馬の陰の鉄砲', anchor: { x: SB.x0 + 16, z: 8 }, facing: -Math.PI / 2, order: 'hold', aggro: 40, width: 8, morale: 80, fleeDir: { x: 1, z: 0 } }, [{ type: 'samurai', n: 1 }, { type: 'gun', n: 5 }, { type: 'ashigaru', n: 4 }]);
     rt.say('足軽', '柵の前、倒れた馬の陰から撃ってくる！', 3);
     rt.choose('柵の前の討ち漏らしが柵を撃ってくる。どうする？', [
@@ -2413,6 +2440,10 @@ okehazama.botBrain = (b, inp, { goTo }) => {
     inp.guardHold = (b.army.threats || []).length > 0 && Math.random() < 0.6;
     return;
   }
+  // 段ごとの的（先手・横槍・前備え・輿の行く手・引き返す今川勢）
+  const stT = F.stage === 1 ? F.enemies.find((g) => g.count && !g.routed) : F.stage === 2.5 ? F.flankE : F.stage === 3 ? F.front : F.stage === 6 ? F.matsui : null;
+  if (stT && stT.count && !stT.routed) { const q = stT.center(); goTo(p, inp, q.x, q.z, 3); return; }
+  if (F.stage === 4.5 && F.cutPt && !F.entered) { goTo(p, inp, F.cutPt.x, F.cutPt.z, 2); return; }
   // 本陣へ：味方の組と一緒に寄せる（組より先へ出すぎない）
   const c = host.center();
   const tgt = F.entered ? HONJIN : Math.hypot(u.pos.x - HONJIN.x, u.pos.z - HONJIN.z) > Math.hypot(c.x - HONJIN.x, c.z - HONJIN.z) + 6 ? c : HONJIN;
