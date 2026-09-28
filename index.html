@@ -875,6 +875,7 @@ html:not(.booting) #bootState{display:none}
   #bhead .bTitle .chip{ background:rgba(10,8,6,.75) !important; }
   #bGoal{ font-size:14px !important; padding:0 4px !important; line-height:1.5 !important; max-height:21px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis }
   #bfoot{ padding:1px 6px !important; gap:4px !important; min-height:0 !important; flex-wrap:nowrap !important; overflow-x:auto; }
+  #bfoot .fgap{ display:none !important; }   /* 第257巡（十人が「全軍退却が画面の外」と言った）：横に送る帯では隙間で右へ押しやらない */
   #bfoot::-webkit-scrollbar{ display:none }
   #bfoot .tool{ min-height:44px !important; padding:4px 9px !important; flex:0 0 auto }   /* 指は四十四px を守る。帯の余白だけ削る */
   #bfoot .tool.aux, #bfoot .tool.sub{ min-height:44px !important; padding:4px 8px !important; }
@@ -886,7 +887,12 @@ html:not(.booting) #bootState{display:none}
   /* 押せる小札も四十四px */
   button.chip, a.chip, summary.chip, .chip[onclick], .nm{ min-height:44px !important; padding:8px 12px; }
   #panel button, .dialog button, #moreMenu button{ min-height:44px !important; }
-  .ovx, .p-close{ min-width:44px !important; min-height:44px !important; }
+  .ovx, .p-close{ min-width:46px !important; min-height:46px !important; }   /* 第257巡：端数で四十四を割ることがあったので二px 余らせる */
+}
+/* 第257巡（十人が「全軍退却が画面の外」と言った）：とても狭い携帯（640幅など）では、
+   向きの斜め四つを畳んで帯を画面の内に収める。844幅では八方向のまま */
+@media (max-width:760px){
+  #bfoot .faceset .tool.diag{ display:none !important; }
   /* 札の中の押せる小札（「城22」「本拠へ」など）も四十四px */
   #panel [onclick], .dialog [onclick], #panel .chip, .dialog .chip{ min-height:44px !important; min-width:44px; justify-content:center; display:inline-flex; align-items:center; }
   /* 押せる所どうしは八px 以上あける（Material 3） */
@@ -4241,6 +4247,22 @@ const who=(c.clan===null||c.clan===undefined)?"":clanName(c.clan);
 bigNews(`${c.name} 失う`);
 log(who?`${c.name}が${who}の手に渡りました`:`${c.name}を失いました`,"bad",true);
 } }
+
+const besieged={};
+for(const a of Object.values(W.armies)){
+if(a.mission!=="包囲"||a.target===undefined) continue;
+const c=W.castles[a.target]; if(!c||c.clan!==W.player) continue;
+besieged[c.id]=1;
+const gar=garrisonTroops(c.id);
+if(c._sieg0===undefined||gar>c._sieg0) c._sieg0=gar;
+if(!c._sieg0) continue;
+if(gar<=c._sieg0*0.2 && !c._siegLow){ c._siegLow=1; c._siegHalf=1;
+bigNews(`${c.name} 危うし`);
+log(`${c.name}は落ちかけています（守兵 ${Math.round(gar).toLocaleString()}／囲み ${a.siegeDays||0}日）。後詰が要ります`,"bad",true); }
+else if(gar<=c._sieg0*0.5 && !c._siegHalf){ c._siegHalf=1;
+log(`${c.name}の守兵が半ばまで減りました（${Math.round(gar).toLocaleString()}／囲み ${a.siegeDays||0}日）。放っておけば落ちます`,"bad",true); }
+}
+for(const id in now){ const c=W.castles[id]; if(c && !besieged[id] && c._sieg0!==undefined){ c._sieg0=undefined; c._siegHalf=0; c._siegLow=0; } }
 W._mine0=now;
 }catch(_){ }
 }
@@ -27959,6 +27981,11 @@ if(u.left) return;
 let enemies=B.units.filter(x=>x.side!==u.side&&x.troops>.5&&x.morale>0&&!x.left&&!x.yokoIn&&!x.tobiHold);
 if(B.oke||(B.sekFog&&B.weather==="霧")){ enemies=enemies.filter(x=>okeSeen(x,u.side)); }
 if(u.okeHold||u.sekHold){ if(u.order.k!=="guard"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } }
+
+if(u.order.k==="move" && u.holdUntil && B.elapsed<u.holdUntil && !u.smWaiting && !u.onTower && !u.towerGun){
+if(u.side===B.ctx.playerSide && !u.ally && !B.autoMine && !autoBattleMode) u.holdUntil=0;
+else { u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; }
+}
 if(!enemies.length){ if(u.order.k==="attack"||u.order.k==="hold"||u.order.k==="move"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } if(u.faceLock===undefined) u.face=(u.side===B.ctx.playerSide)?0:Math.PI; return; }
 let nearest=enemies.reduce((p,q)=>dist(u,p)<dist(u,q)?p:q);
 if(u.type===3){ const rr=reachOf(u)+1; const conf=enemies.filter(e=>e.confusedUntil>B.elapsed&&dist(u,e)<=rr); if(conf.length) nearest=conf.reduce((p,q)=>dist(u,p)<dist(u,q)?p:q); }
@@ -30629,6 +30656,7 @@ if(!mineHit || foe){
 manualCommand();
 const gs=B.units.filter(u=>B.group.includes(u.id)&&u.side===B.ctx.playerSide&&u.morale>0);
 gs.forEach((u,i)=>{
+handOrder(u);
 const cx=gs.reduce((s2,z)=>s2+z.x,0)/gs.length, cy=gs.reduce((s2,z)=>s2+z.y,0)/gs.length; const ox=u.x-cx, oy=u.y-cy;
 if(foe){ const foes=B.units.filter(z=>z.side!==B.ctx.playerSide&&z.troops>.5&&z.morale>0&&!z.left); const px=foe.x+ox, py=foe.y+oy; const t=foes.filter(z=>Math.hypot(z.x-px,z.y-py)<5).sort((p,q)=>Math.hypot(p.x-px,p.y-py)-Math.hypot(q.x-px,q.y-py))[0]||foe; u.order={k:"attack",id:t.id}; }
 else { u.order={k:"move",x:Math.max(.5,Math.min(BF.w-.5,wx+ox)),y:Math.max(.5,Math.min(BF.h-.5,wy+oy))}; u.gx=u.order.x; u.gy=u.order.y; }
@@ -30642,14 +30670,14 @@ renderBattleFoot(); return;
 }
 if(B.mode==="move"&&B.sel!==null){
 const u=B.units.find(x=>x.id===B.sel);
-if(u){ u.order={k:"move",x:wx,y:wy}; u.gx=wx; u.gy=wy; }
+if(u){ handOrder(u); u.order={k:"move",x:wx,y:wy}; u.gx=wx; u.gy=wy; }
 B.mode=null; renderBattleFoot(); return;
 }
 if(B.mode==="focusgun"){ const t=bPick(wx,wy,1-B.ctx.playerSide); if(t){ manualCommand(); for(const g of B.units) if(g.side===B.ctx.playerSide&&g.type===3&&g.troops>.5&&g.order.k!=="retreat"){ g.order={k:"attack",id:t.id}; } B.banner={t:`鉄砲隊、${t.name}隊へ集中射撃`, at:B.elapsed}; toast(`鉄砲隊がみな${t.name}隊を狙います`); } B.mode=null; renderBattleFoot(); return; }
 if(B.mode==="attack"&&B.sel!==null){
 const t=bPick(wx,wy,1-B.ctx.playerSide,3.0) || B.units.filter(x=>x.side!==B.ctx.playerSide)[0];
 const u=B.units.find(x=>x.id===B.sel);
-if(u&&t) u.order={k:"attack",id:t.id};
+if(u&&t){ handOrder(u); u.order={k:"attack",id:t.id}; }
 B.mode=null; renderBattleFoot(); return;
 }
 const mine=bPick(wx,wy,B.ctx.playerSide);
@@ -30670,6 +30698,7 @@ const u=B.units.find(z=>z.id===B.sel);
 const foe=bPick(wx,wy,1-B.ctx.playerSide);
 (B.ripples=B.ripples||[]).push({x:foe?foe.x:wx,y:foe?foe.y:wy,t:0,foe:!!foe});
 const prevOrd={order:u.order,gx:u.gx,gy:u.gy,thenAttack:u.thenAttack,charge:u.charge,pursue:u.pursue};
+handOrder(u);
 if(foe){ u.order={k:"attack",id:foe.id}; bshout(u.id,`${foe.name}を討て！`,2.2); playSE("sword"); }
 else { u.order={k:"move",x:wx,y:wy}; u.gx=wx; u.gy=wy; }
 deferOrder(u, prevOrd);
@@ -30707,6 +30736,12 @@ const foe=bPick(wx,wy,1-B.ctx.playerSide);
 B.drag.foe = foe ? foe.id : null;
 });
 
+function handOrder(u){
+if(!u||!B) return;
+if(u.smWaiting||u.onTower||u.towerGun||u.towerFixed) return;
+u.holdUntil=0; u.reserveHold=false; u.reserve=false; u.postHold=false; u.thenHold=false; u.stageDelay=false;
+u.userMoved=true; u.userAt=B.elapsed;
+}
 function manualCommand(){
 if(B) B.manualN=(B.manualN||0)+1; try{ bAct("cmd"); }catch(_){ }
 if(B && B.sel!==null){ const su=B.units.find(u=>u.id===B.sel); if(su && su.autoAI){ su.autoAI=false; } }
@@ -30747,9 +30782,10 @@ const u=B.units.find(z=>z.id===d.id);
 if(!u||!d.moved) return;
 if(!d.group && d.trail && d.trail.length<=1 && !d.foe){ B.sel=u.id; renderBattleFoot(); return; }
 manualCommand();
+handOrder(u);
 const prevOrd={order:u.order,gx:u.gx,gy:u.gy,thenAttack:u.thenAttack,charge:u.charge,pursue:u.pursue};
 if(d.group){ const dx=d.x-d.ox, dy=d.y-d.oy; const gs=B.units.filter(z=>d.group.includes(z.id)&&z.side===B.ctx.playerSide&&z.morale>0&&z.troops>.5); const foe=(d.foe!==null&&d.foe!==undefined)?B.units.find(z=>z.id===d.foe):null; const foes=B.units.filter(z=>z.side!==B.ctx.playerSide&&z.troops>.5&&z.morale>0&&!z.left);
-for(const z of gs){ if(foe){ const px=z.x+dx, py=z.y+dy; const t=foes.filter(f=>Math.hypot(f.x-px,f.y-py)<5).sort((p,q)=>Math.hypot(p.x-px,p.y-py)-Math.hypot(q.x-px,q.y-py))[0]||foe; z.order={k:"attack",id:t.id}; } else { z.order={k:"move",x:Math.max(.5,Math.min(BF.w-.5,z.x+dx)),y:Math.max(.5,Math.min(BF.h-.5,z.y+dy))}; z.gx=z.order.x; z.gy=z.order.y; } }
+for(const z of gs){ handOrder(z); if(foe){ const px=z.x+dx, py=z.y+dy; const t=foes.filter(f=>Math.hypot(f.x-px,f.y-py)<5).sort((p,q)=>Math.hypot(p.x-px,p.y-py)-Math.hypot(q.x-px,q.y-py))[0]||foe; z.order={k:"attack",id:t.id}; } else { z.order={k:"move",x:Math.max(.5,Math.min(BF.w-.5,z.x+dx)),y:Math.max(.5,Math.min(BF.h-.5,z.y+dy))}; z.gx=z.order.x; z.gy=z.order.y; } }
 (B.ripples=B.ripples||[]).push({x:d.x,y:d.y,t:0,foe:!!foe}); if(gs[0]) bshout(gs[0].id, foe?`${foe.name}を討て！`:"進め！",2); playSE(foe?"sword":"horse"); B.group=null; B.sel=null; B.mode=null; renderBattleFoot(); return; }
 { const mate=bPick(d.x,d.y,B.ctx.playerSide); if(mate && mate.id!==u.id && mate.type===u.type && (B.opening<=0 || u.troops<u.max*0.5)){ mergeUnits(u,mate); renderBattleFoot(); return; } }
 if(d.foe!==null && d.foe!==undefined){
@@ -30941,10 +30977,10 @@ ${(()=>{ const t=bTileAt(u.x,u.y); return t===BT.WATER?'<span class="chip">川�
 ${B.kz?"":`<button class="tool dup" data-b="guard" title="その場で待機（升を押せば移動、敵を押せば攻撃）">待機</button>`}
 ${u.type===2?`<button class="tool" data-b="sp" title="騎馬突撃（助走が要る）">突撃</button>`:""}
 ${B.pursueReady?`<button class="tool on ${B.pursueHot&&!B.pursued?"hot":""}" data-b="pursue" style="font-weight:800">追い討ち！</button>`:""}${ ""}
-${u.morale>0?`<span class="tiny muted faceset">向き ${[["↖",-3*Math.PI/4],["↑",-Math.PI/2],["↗",-Math.PI/4],["←",Math.PI],["→",0],["↙",3*Math.PI/4],["↓",Math.PI/2],["↘",Math.PI/4]].map(([ch,ang])=>`<button class="tool sub${Math.abs(((u.face||0)-ang+Math.PI*3)%(Math.PI*2)-Math.PI)<0.35?" on":""}" data-face="${ang}" title="この向きに構える（横腹と背中を取られにくい）" style="min-width:28px;padding:2px 5px">${ch}</button>`).join("")}</span>`:""}
+${u.morale>0?`<span class="tiny muted faceset">向き ${[["↖",-3*Math.PI/4,1],["↑",-Math.PI/2,0],["↗",-Math.PI/4,1],["←",Math.PI,0],["→",0,0],["↙",3*Math.PI/4,1],["↓",Math.PI/2,0],["↘",Math.PI/4,1]].map(([ch,ang,diag])=>`<button class="tool sub${diag?" diag":""}${Math.abs(((u.face||0)-ang+Math.PI*3)%(Math.PI*2)-Math.PI)<0.35?" on":""}" data-face="${ang}" title="この向きに構える（横腹と背中を取られにくい）" style="min-width:28px;padding:2px 5px">${ch}</button>`).join("")}</span>`:""}
 <button class="tool" data-b="close">閉じる</button>
 ${B.mode?`<span class="tiny" style="color:var(--kin)">${B.mode==="move"?"移動先":"攻撃する敵"}を画面でタップ</span>`:""}
-<span style="flex:1"></span>
+<span class="fgap" style="flex:1"></span>
 <button class="tool" data-b="multi">複数選択</button>
 <button class="tool" data-b="allretreat">全軍退却</button>`;
 foot.querySelectorAll("button").forEach(b=>b.onclick=()=>{
