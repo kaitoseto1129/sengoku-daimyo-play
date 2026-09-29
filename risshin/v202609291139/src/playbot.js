@@ -1206,7 +1206,21 @@ async function playPersona(game, spec, aud, c) {
   const dmg0 = b.army.damage.bind(b.army);
   b.army.damage = (t, amount, src, opts) => { const r = dmg0(t, amount, src, opts); if (src === P && t && !t.isStruct && amount > 0) { rep.hits++; if (game.hitstop > 0 || game.slowmo > 0) c.feel = (c.feel || 0) + 1; if (t.invuln && (t.type === 'busho' || t.name)) c.invulnHit = t.name || '武将'; } return r; };
   const kill0 = b.army.kill.bind(b.army);
-  b.army.kill = (t, src) => { if (src === P) rep.kills++; return kill0(t, src); };
+  b.army.kill = (t, src) => { if (src === P) rep.kills++; else if (src && src.team === P.team && t && t.team !== P.team) rep.allyKills = (rep.allyKills || 0) + 1; return kill0(t, src); };
+  // 味方の隊の働き：5 秒ごとに、味方の隊（組を除く）の中心の動いた距離と、敵が 60m 内にいるのに 20 秒動かない隊を数える
+  const AM = { at: 0, pos: new Map(), move: 0, idle: 0, samp: 0, low: 0 };
+  const allyTick = () => {
+    if (b.t < AM.at) return; AM.at = b.t + 5;
+    let real = 0; for (const u of b.army.units) if (u.alive && u.team === P.team && !u.isPlayer && !u.fleeing) real++;
+    if (real < 5 && b.t > 30) AM.low++;
+    for (const g of b.army.groups) {
+      if (g.team !== P.team || g.isPlayerSquad || g.routed || !g.count) continue;
+      const c = g.center(), q = AM.pos.get(g);
+      if (q) { const d = Math.hypot(c.x - q.x, c.z - q.z); AM.move += d; q.still = d < 1 ? q.still + 5 : 0; AM.samp++; if (q.still >= 20 && !g.units.some((u) => u.alive && (u.target || u.atk)) && b.army.nearestEnemy({ pos: c, team: P.team }, 60, (o) => !o.fleeing)) { AM.idle++; q.still = 0; } q.x = c.x; q.z = c.z; }
+      else AM.pos.set(g, { x: c.x, z: c.z, still: 0 });
+    }
+    rep.ally = `隊${AM.pos.size}・動いた計${Math.round(AM.move)}m・味方の討ち取り${rep.allyKills || 0}・敵を前に20秒止まった${AM.idle}回・本物の味方5人未満${AM.low * 5}秒`;
+  };
   const hurt = {};
   const td = b.player.takeDamage.bind(b.player);
   b.player.takeDamage = (a, src) => { const d = td(a, src); const k = src ? (src.isStruct ? '柵' : ({ bow: '弓', gun: '鉄砲', cavalry: '騎馬', samurai: '侍', busho: '武将', ashigaru: '足軽' }[src.type] || src.type)) : '?'; hurt[k] = (hurt[k] || 0) + (d || 0); if (src && (src.type === 'bow' || src.type === 'gun') && d > 0) { b.botShotT = b.t; b.botShooter = src; } return d; };
@@ -1279,6 +1293,7 @@ async function playPersona(game, spec, aud, c) {
         const bt = document.getElementById('tc-pause');
         if (pad.tap(bt, '止める')) { await wait(500); aud.scanDom(`${name}・一時停止`); const rs = [...document.querySelectorAll('#pause button')].find((x) => /再開|戻る|続け/.test(x.textContent)); if (rs) pad.tap(rs, '再開'); else { game.paused = false; document.getElementById('pause').hidden = true; c.add('pause-noresume', '一時停止の札に「再開」の釦が見つからない', '#pause の中', 2); } await wait(300); game.paused = false; document.getElementById('pause').hidden = true; }
       }
+      allyTick();
       const mo = b.objectives.filter((q) => q.kind === 'main').map((q) => q.text + (q.state ? `〔${q.state === 'done' ? '済' : '失'}〕` : '')).join('／');
       if (mo !== lastMain) { lastMain = mo; if (rep.flow.length < 14) rep.flow.push(`${Math.round(b.t)}s ${mo || '（任務なし）'}`); }
       const up = P.pos;

@@ -382,6 +382,7 @@ vec3 aApply(APose P, vec3 v, float isN) {
 // （消すと目の前の大軍が空になるので、大軍のまま外へ下がって見える。内は本物の兵が受け持つ）。ARMY_P はカメラの場所（humans.js が毎コマ写す。影を描く時も同じ場所で押す）
 export const ARMY_NEAR = { value: 14 };   // 14m 内の軽い兵は見せない（その内は wake が骨の入った本物の兵に替える。外は人の形の軽い兵のまま、数を減らさない）
 export const ARMY_P = { value: new THREE.Vector2(1e5, 1e5) };
+const _lodV = new THREE.Vector3();
 // 見せない輪を一時だけ広げる頼み（本物の兵に替える枠が尽きた時）。頼みの中の一番大きい半径を使い、無ければ 14m
 const NEAR_REQ = {};
 export function nearHideRequest(key, r) {
@@ -537,45 +538,48 @@ function armyPart(list, geo, hex, part) {
 }
 // 兵一人の形（near は近くで見る少人数向けに角を増やす）
 const SOLDIER_GEO = new Map();
+// near：true＝近く（十角）・false＝中ほど（七角）・'lo'＝遠く（五角。38m より遠い塊だけに使う＝lodTwin）
 function soldierGeo(armor, near) {
-  const key = armor + (near ? 'n' : 'f');
+  const lo = near === 'lo';
+  if (lo) near = false;
+  const key = armor + (near ? 'n' : lo ? 'l' : 'f');
   if (SOLDIER_GEO.has(key)) return SOLDIER_GEO.get(key);
   // 角の少ない筒は遠目でも四角い箱に見えるので、遠い形でも六角より上にする（近くは十角）。肩は箱でなく曲げた板、頭は丸
   // 中くらいの遠さ（14〜80m）でも人の形に見えるよう、遠い形も七角で蓋を閉じる（棒の束に見えないように）
-  const P = [], s = near ? 10 : 7;
+  const P = [], s = near ? 10 : lo ? 5 : 7, s2 = lo ? 6 : s + 2, sp = lo ? 4 : s;
   const arm = new THREE.Color(armor), dark = arm.clone().multiplyScalar(0.72).getHex(), lite = arm.clone().lerp(new THREE.Color(0x8a8070), 0.18).getHex();
   const cyl = (rt, rb, h, seg, x, y, z) => { const g = new THREE.CylinderGeometry(rt, rb, h, seg, 1, false); g.translate(x, y, z); return g; };
   // 脚：袴の腿（ふくらむ）・脚絆の脛（細い）・足
   for (const [sx, pt] of [[-0.11, 8], [0.11, 9]]) {
     armyPart(P, cyl(0.085, 0.07, 0.4, s, sx, 0.62, 0), 0x2e2a24, pt);
     armyPart(P, cyl(0.062, 0.05, 0.42, s, sx, 0.23, 0), 0x24201a, pt);
-    const ft = new THREE.SphereGeometry(0.055, s, 3); ft.scale(1, 0.5, 1.8); ft.translate(sx, 0.03, 0.05); armyPart(P, ft, 0x3a3228, pt);
+    const ft = new THREE.SphereGeometry(0.055, sp, lo ? 2 : 3); ft.scale(1, 0.5, 1.8); ft.translate(sx, 0.03, 0.05); armyPart(P, ft, 0x3a3228, pt);
   }
   // 草摺（腰の裾）と胴。胴は少し平たく、胸から腰へ絞る
-  const skirt = cyl(0.19, 0.27, 0.34, s + 2, 0, 0.9, 0); skirt.scale(1, 1, 0.8); armyPart(P, skirt, dark, 0);
-  const dou = cyl(0.21, 0.175, 0.5, s + 2, 0, 1.33, 0); dou.scale(1, 1, 0.74); armyPart(P, dou, armor, 0);
+  const skirt = cyl(0.19, 0.27, 0.34, s2, 0, 0.9, 0); skirt.scale(1, 1, 0.8); armyPart(P, skirt, dark, 0);
+  const dou = cyl(0.21, 0.175, 0.5, s2, 0, 1.33, 0); dou.scale(1, 1, 0.74); armyPart(P, dou, armor, 0);
   // 肩の丸み（胴の上を閉じる）と首
-  const sh = new THREE.SphereGeometry(0.21, s + 2, 4, 0, Math.PI * 2, 0, Math.PI / 2); sh.scale(1, 0.4, 0.74); sh.translate(0, 1.57, 0); armyPart(P, sh, armor, 0);
+  const sh = new THREE.SphereGeometry(0.21, s2, lo ? 2 : 4, 0, Math.PI * 2, 0, Math.PI / 2); sh.scale(1, 0.4, 0.74); sh.translate(0, 1.57, 0); armyPart(P, sh, armor, 0);
   armyPart(P, cyl(0.05, 0.055, 0.1, s, 0, 1.63, 0.01), 0x8a6a4e, 0);
   // 袖（肩の板）：肩の丸みに沿って垂れる曲げた板（箱にしない）
   for (const sx of [-1, 1]) {
-    const b = new THREE.CylinderGeometry(0.13, 0.15, 0.26, near ? 8 : 5, 1, true, sx > 0 ? -Math.PI * 0.1 : Math.PI * 0.9, Math.PI * 1.2);
+    const b = new THREE.CylinderGeometry(0.13, 0.15, 0.26, near ? 8 : lo ? 4 : 5, 1, true, sx > 0 ? -Math.PI * 0.1 : Math.PI * 0.9, Math.PI * 1.2);
     b.scale(0.75, 1, 1); b.rotateZ(sx * 0.2); b.translate(sx * 0.22, 1.43, 0); armyPart(P, b, lite, 0);
   }
   // 腕（小袖の袖）と手：左は垂らし、右は得物を持って少し前へ
   const la = cyl(0.05, 0.042, 0.5, s, -0.29, 1.2, 0.02); armyPart(P, la, 0x2a2620, 0);
-  const lh = new THREE.SphereGeometry(0.042, s, 3); lh.translate(-0.29, 0.93, 0.03); armyPart(P, lh, 0x8a6a4e, 0);
+  const lh = new THREE.SphereGeometry(0.042, sp, lo ? 2 : 3); lh.translate(-0.29, 0.93, 0.03); armyPart(P, lh, 0x8a6a4e, 0);
   const ra = cyl(0.05, 0.042, 0.5, s, 0, 0, 0); ra.rotateX(-0.45); ra.translate(0.29, 1.2, 0.08); armyPart(P, ra, 0x2a2620, 0);
-  const rh = new THREE.SphereGeometry(0.042, s, 3); rh.translate(0.29, 0.97, 0.19); armyPart(P, rh, 0x8a6a4e, 0);
+  const rh = new THREE.SphereGeometry(0.042, sp, lo ? 2 : 3); rh.translate(0.29, 0.97, 0.19); armyPart(P, rh, 0x8a6a4e, 0);
   // 頭（顔の色）：いつも丸く
-  const head = new THREE.SphereGeometry(0.105, near ? 10 : 7, near ? 7 : 5); head.scale(0.95, 1.12, 1); head.translate(0, 1.72, 0.01); armyPart(P, head, 0x9a7454, 0);
+  const head = new THREE.SphereGeometry(0.105, near ? 10 : lo ? 6 : 7, near ? 7 : lo ? 4 : 5); head.scale(0.95, 1.12, 1); head.translate(0, 1.72, 0.01); armyPart(P, head, 0x9a7454, 0);
   // 陣笠（なだらかに反った笠）
   const kp = [[0.0, 0.13], [0.08, 0.115], [0.2, 0.07], [0.3, 0.02], [0.33, 0.0]].map(([r, y]) => new THREE.Vector2(r, y));
-  const kasa = new THREE.LatheGeometry(kp, near ? 14 : 8); kasa.translate(0, 1.76, 0); armyPart(P, kasa, 0x2c261e, 1);
-  const kb = new THREE.CylinderGeometry(0.33, 0.33, 0.012, near ? 14 : 8, 1, true); kb.translate(0, 1.757, 0); armyPart(P, kb, 0x1e1a14, 1);
+  const kasa = new THREE.LatheGeometry(lo ? [kp[0], kp[2], kp[4]] : kp, near ? 14 : lo ? 6 : 8); kasa.translate(0, 1.76, 0); armyPart(P, kasa, 0x2c261e, 1);
+  const kb = new THREE.CylinderGeometry(0.33, 0.33, 0.012, near ? 14 : lo ? 6 : 8, 1, true); kb.translate(0, 1.757, 0); armyPart(P, kb, 0x1e1a14, 1);
   // 兜：鉢と、下へ広がる錣。近くでは金の前立
-  const hachi = new THREE.SphereGeometry(0.14, near ? 10 : 7, near ? 5 : 3, 0, Math.PI * 2, 0, Math.PI / 2); hachi.translate(0, 1.75, 0); armyPart(P, hachi, 0x1c1a18, 2);
-  const shikoro = new THREE.CylinderGeometry(0.15, 0.24, 0.12, near ? 12 : 7, 1, true, Math.PI * 0.3, Math.PI * 1.4); shikoro.translate(0, 1.72, -0.02); armyPart(P, shikoro, 0x24201c, 2);
+  const hachi = new THREE.SphereGeometry(0.14, near ? 10 : lo ? 5 : 7, near ? 5 : lo ? 2 : 3, 0, Math.PI * 2, 0, Math.PI / 2); hachi.translate(0, 1.75, 0); armyPart(P, hachi, 0x1c1a18, 2);
+  const shikoro = new THREE.CylinderGeometry(0.15, 0.24, 0.12, near ? 12 : lo ? 5 : 7, 1, true, Math.PI * 0.3, Math.PI * 1.4); shikoro.translate(0, 1.72, -0.02); armyPart(P, shikoro, 0x24201c, 2);
   if (near) { for (const sd of [-1, 1]) { const md = new THREE.BoxGeometry(0.03, 0.16, 0.008); md.rotateZ(-sd * 0.35); md.translate(sd * 0.05, 1.93, 0.13); armyPart(P, md, 0xb08a3a, 2); } }
   // 背の指物の竿
   armyPart(P, cyl(0.012, 0.012, 1.4, 3, 0, 1.95, -0.17), 0x2f2419, 10);
@@ -2063,6 +2067,7 @@ export class World {
     };
     const all = S.map((_, i) => i);
     setInfo(body, all); setInfo(flags, all);
+    this.lodTwin(body, armor);
     const grp = new THREE.Group();
     grp.add(body, flags);
     const m4 = new THREE.Matrix4();
@@ -2559,6 +2564,7 @@ export class World {
       for (let i = 0; i < CAP; i++) { dead.setColorAt(i, col.setRGB(0.85, 0.85, 0.85)); }
       S.meshes = { bodyN, bodyF, flags, banners, dead, CAP, nd: 0 };
       grp.add(bodyN, bodyF, flags, banners, dead);
+      if (!P.hidden) for (const m of [bodyN, bodyF, dead]) this.lodTwin(m, armor);
       for (const m of [bodyN, bodyF, flags, banners, dead]) { m.frustumCulled = false; if (P.hidden) m.visible = false; }
       // 後詰め：組み合う列の後ろに、同じ旗の軽い兵を厚く続ける（前線が押し引きすると一緒に動く。崩れる時は一緒に逃げる）
       if (!P.hidden && o.host !== false) {
@@ -2925,13 +2931,16 @@ export class World {
     const wakeTick = () => {
       const rt = o.rt;
       for (const q of C.woke) for (const g of q.groups) if (g.count && !g.routed && g.clashSide.routed) { g.noRout = false; g.morale = 0; }
-      if (!rt || rt.over || o.noWake || C.winner || (rt.def && rt.def.noWake)) return;
+      if (!rt || rt.over || o.noWake || (rt.def && rt.def.noWake)) return;
       const P = rt.player && rt.player.u;
       if (!P || !P.alive) return;
       // 遠くなった所（本人から 80m より先）の本物の兵は、斬り合っていなければ軽い兵へ戻して、本人のまわりへ回す枠を空ける
       for (let i = C.woke.length - 1; i >= 0; i--) {
         const q = C.woke[i];
-        if (Math.hypot(q.x - P.pos.x, q.z - P.pos.z) < 80) continue;
+        // 片方の側だけが残り（相手の本物が討ち尽くされた）、残った兵のだれも的を持たないまま 6 秒たてば、軽い兵の列へ戻す（前線の軽い兵の前で立ち尽くさない）
+        const lone = q.groups.length > 0 && !(q.groups.length === 2 && q.groups.every((g) => g.count > 2 && !g.routed)) && !q.groups.some((g) => g.units.some((u) => u.alive && (u.target || u.atk)));
+        q.loneT = lone ? (q.loneT || 0) + 0.3 : 0;
+        if (Math.hypot(q.x - P.pos.x, q.z - P.pos.z) < 80 && q.loneT < 6) continue;
         const busy = q.groups.some((g) => g.units.some((u) => u.alive && u.target && u.target.isPlayer));
         if (busy) continue;
         for (const g of q.groups) {
@@ -2941,6 +2950,8 @@ export class World {
         }
         C.woke.splice(i, 1);
       }
+      // 勝ち負けが決まった合戦では、新しくは替えない（残った兵は上の決まりで軽い兵の列へ戻る）
+      if (C.winner) return;
       // 本人のまわり 40m の前線を、近い所から順に本物の兵に替える（一度に一か所。0.3 秒ごとに次の所へ）。すでに替えた所から 12m 内は替えない
       const nbk = C.blockNear(P.pos.x, P.pos.z);
       const R0 = o.wakeR ?? 20;
@@ -2948,7 +2959,8 @@ export class World {
       for (let jj = Math.max(0, nbk.j - 6); jj <= Math.min(nb - 1, nbk.j + 6); jj++) {
         const p = C.frontAt(jj), d = Math.hypot(p.x - P.pos.x, p.z - P.pos.z);
         if (d >= bd) continue;
-        if (C.woke.some((q) => Math.hypot(q.x - p.x, q.z - p.z) < 12 && q.groups.some((g) => g.count > 2 && !g.routed))) continue;
+        // （片方の側の本物が討ち尽くされた所は、もう一度替えて、残った兵の前に次の相手を立てる。勝った兵が軽い兵の前で立ち尽くさないように）
+        if (C.woke.some((q) => Math.hypot(q.x - p.x, q.z - p.z) < 12 && q.groups.every((g) => g.count > 2 && !g.routed))) continue;
         bd = d; at = p;
       }
       if (!at) { nearHideRequest(C.nearKey, 0); return; }
@@ -4198,8 +4210,31 @@ export class World {
     }
   }
 
+  // 遠い軽い兵の塊（いちばん近い端が 38m より先。人の背丈が画面の一割に満たない）は角の少ない形で描く。並び・色・動きの入れ物（兵ごとの属性）は同じ物を使い回し、形だけ替える
+  lodTwin(mesh, armor) {
+    const g = soldierGeo(armor, 'lo').clone();
+    for (const k in mesh.geometry.attributes) { const at = mesh.geometry.attributes[k]; if (at.isInstancedBufferAttribute) g.setAttribute(k, at); }
+    mesh.userData.lod = { hi: mesh.geometry, lo: g, n: -1, far: false };
+    (this.lodList || (this.lodList = [])).push(mesh);
+  }
+  lodTick(dt) {
+    if (!this.lodList || (this.lodT = (this.lodT || 0) - dt) > 0) return;
+    this.lodT = 0.25;
+    const cx = ARMY_P.value.x, cz = ARMY_P.value.y;
+    if (cx > 9e4) return;
+    for (const m of this.lodList) {
+      const L = m.userData.lod;
+      if (!m.parent || !m.count) continue;
+      if (L.n !== m.count || !m.boundingSphere) { m.computeBoundingSphere(); L.n = m.count; }
+      m.updateWorldMatrix(true, false);
+      _lodV.copy(m.boundingSphere.center).applyMatrix4(m.matrixWorld);
+      const far = Math.hypot(_lodV.x - cx, _lodV.z - cz) - m.boundingSphere.radius > (L.far ? 32 : 38);
+      if (far !== L.far) { L.far = far; m.geometry = far ? L.lo : L.hi; }
+    }
+  }
   update(dt, focus) {
     this.assignFireLights(dt, focus);
+    this.lodTick(dt);
     // 小川の石のまわりの泡がゆらぐ
     if (this.streamFoam) for (const f of this.streamFoam) f.material.opacity = 0.28 + Math.sin((this.time || 0) * 3.1) * 0.07;
     this.time = (this.time || 0) + dt;

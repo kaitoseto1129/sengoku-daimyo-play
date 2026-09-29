@@ -144,12 +144,12 @@ export class Auditor {
       const g = u.group;
       // ついて来いの兵は、組頭（遊び手）が止まっている間・すぐそばに着いている間は立って待ってよい
       const leaderStill = g && g.order === 'follow' && (Math.hypot(P.vel ? P.vel.x : 0, P.vel ? P.vel.z : 0) < 0.3 || Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 12);
-      const mayIdle = IDLE_OK_TYPES.has(u.type) || u.noTarget || u.fleeing || !g || IDLE_OK_ORDERS.has(g.order) || u.target || u.atk || (g.leader === u && g.order === 'hold') || leaderStill;
+      const mayIdle = IDLE_OK_TYPES.has(u.type) || u.noTarget || u.fleeing || !g || IDLE_OK_ORDERS.has(g.order) || g.holdFire || u.target || u.atk || (g.leader === u && g.order === 'hold') || leaderStill;
       const moved = Math.hypot(u.vel.x, u.vel.z) > 0.15;
       if (!mayIdle && !moved && b.t > 20 && !b.paused) {
         const n = (this.idle.get(u) || 0) + step;
         this.idle.set(u, n);
-        if (n > 20) { this.add('辻褄', 'stuck:' + (g.name || g.label || u.type), '行き先があるのに20秒動かない兵', `${who(u)}（号令：${g.order}）at (${Math.round(u.pos.x)},${Math.round(u.pos.z)})`, '道が塞がれていないか、行き先に着いたと見なせているかを見る', who(u)); this.idle.set(u, -60); }
+        if (n > 20) { this.add('辻褄', 'stuck:' + (g.name || g.label || u.type), '行き先があるのに20秒動かない兵', `${who(u)}（号令：${g.order}・${g.name || '名なし'}・頭：${g._ai ? (g._ai.ctl || '無') + '/' + (g._ai.mode || '―') : '無'}${g.guard ? '・守り' : ''}${g.focus ? '・的あり' : ''}）at (${Math.round(u.pos.x)},${Math.round(u.pos.z)})`, '道が塞がれていないか、行き先に着いたと見なせているかを見る', who(u)); this.idle.set(u, -60); }
       } else this.idle.set(u, 0);
       // 自分のすぐそばで何もしない敵（持ち場の者・敗走中は除く）
       if (P.alive && u.team !== P.team && !u.fleeing && !IDLE_OK_TYPES.has(u.type) && !u.noTarget && Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 3.5 && !u.target && !u.atk && !(g && g.order === 'hold')) {

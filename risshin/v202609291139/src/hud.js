@@ -613,11 +613,11 @@ export class Hud {
   }
 
   // ヒント：手ほどきと同じ札に出す（札は一度に一つ。ヒントの間は手ほどきを少し休む）
-  hint(text, keys) {
+  hint(text, keys, ms) {
     this.hintCur = { text, keys };
     clearTimeout(this.hintTimer);
-    // 低い画面（スマホ横）では上の真ん中に短く出して、5 秒で消す
-    this.hintTimer = setTimeout(() => { this.hintCur = null; this.drawCard(); }, innerHeight < 500 ? 5000 : 8000);
+    // 低い画面（スマホ横）では上の真ん中に短く出して、5 秒で消す（技の札のように長い物は ms で長く）
+    this.hintTimer = setTimeout(() => { this.hintCur = null; this.drawCard(); }, ms || (innerHeight < 500 ? 5000 : 8000));
     this.drawCard();
   }
   hintBusy() { return !!this.hintCur; }

@@ -193,10 +193,14 @@ export const ArmyAnim = {
       // 本人を狙う一撃は、振りかぶりを大きく見せる（朱の弧に頼らず、構えの形で読めるように）
       const big = a.target && a.target.isPlayer ? 1.35 : 1;
       if (a.kind === 'slam') { rx = Math.min(rx, -0.1) - 1.0 * k * big; ext = -0.15 * k * big; }
-      else if (a.kind === 'sweep') { ry = 0.8 * k * big; rx = -0.1; }
+      else if (a.kind === 'sweep') { ry = 0.8 * k * big * (a.dir || 1); rx = -0.1; }
+      // 振り回しの溜め：槍の中ほどを握り直し、頭の上へ差し上げて水平に寝かせる
+      else if (a.kind === 'spinW') { lift = 0.55 * k; rx = rx * (1 - k) - 0.08 * k; slide = Math.min(slide, -1.1 * k); ext = -0.2 * k; }
+      // 石突きの溜め：柄を前へ滑らせ、手元を体の前へ引き寄せる
+      else if (a.kind === 'butt') { ext = 0.15 * k; slide = Math.min(slide, 0.5 * k); }
       else { ext = -0.35 * k * big; u.spW = k * big; }
       // 馬上の突きは片手：拳を肩の上へ引き上げ、穂先を下へ向けて溜める（上から突き下ろす）
-      if (u.mounted && a.kind !== 'slam' && a.kind !== 'sweep') { lift = 0.3 * k; rx += 0.18 * k; ext = -0.25 * k; }
+      if (u.mounted && a.kind !== 'slam' && a.kind !== 'sweep' && a.kind !== 'spinW' && a.kind !== 'butt') { lift = 0.3 * k; rx += 0.18 * k; ext = -0.25 * k; }
     }
     if (sw && (sw.kind === 'thrust' || sw.kind === 'charge') && sw.t < sw.dur + 0.3) {
       // 突き：まっすぐ出して、引く。当たれば穂先は相手の所で止まり、外れれば体の脇を抜ける
@@ -225,14 +229,27 @@ export const ArmyAnim = {
       rx = p < 1 ? hi + (end - hi) * p * p : end + Math.min(0.5, (sw.t - sw.dur * sw.at) * 0.6) * (sw.res === 'miss' ? 1 : 0.2);
       if (p >= 1) rx = rx * (1 - back) + rxK * back;
       ext = -0.1 * (1 - back);
+    } else if (sw && sw.kind === 'spin' && sw.t < sw.dur + 0.35) {
+      // 振り回し：頭の上で槍を水平に一回り半…ではなく、ちょうど一回り（二度目の構えで向きが跳ねない）。振り終えたら中段へ下ろす
+      const q0 = Math.min(1, sw.t / sw.dur), q = q0 * q0 * (3 - 2 * q0), d = sw.dir || 1;
+      const r = clamp01((sw.t - sw.dur) / 0.35), back = r * r * (3 - 2 * r);
+      if (q0 >= 1 && !sw.wrapped && u.spr) { u.spr.ry -= d * Math.PI * 2; sw.wrapped = true; }
+      ry = q0 < 1 ? d * q * Math.PI * 2 : 0;
+      rx = -0.08 * (1 - back) + rxK * back; lift = 0.55 * (1 - back); slide = Math.min(slide, -1.1 * (1 - back)); ext = -0.2 * (1 - back);
+    } else if (sw && sw.kind === 'butt' && sw.t < sw.dur + 0.3) {
+      // 石突き：柄を握ったまま、尻を前（背後の敵なら後ろ）へ鋭く突き出す。前へは柄を手前へ滑らせて穂先を肩の上へ立て、後ろへは両手で引き抜くように
+      const p = sw.t / sw.dur, out = thrustOut(Math.min(1, p), sw.dur);
+      if (sw.rear) { ext = -0.55 * out; slide = Math.min(slide, -0.9 * out); rx = rx * (1 - out) - 0.25 * out; }
+      else { rx = rx * (1 - out) - 1.25 * out; ext = 0.1 * out; slide = Math.max(slide, 1.0 * out); }
+    } else if (sw && sw.kind === 'sweep' && sw.t < sw.dur + 0.3) {
+      // 払い：振りかぶった側から逆の側まで、腰で長柄を横に払い抜け、中くらいの速さで中段へ戻す
+      const d = sw.dir || 1;
+      if (sw.t < sw.dur) { const q0 = sw.t / sw.dur, q = q0 * q0 * (3 - 2 * q0); ry = d * (0.8 - 1.8 * q); rx = -0.1; }
+      else { const r = Math.min(1, (sw.t - sw.dur) / 0.28), e = 1 - r * r * (3 - 2 * r); ry = ry * (1 - e) - d * 1.0 * e; rx = rxK * (1 - e) - 0.1 * e; }
     } else if (u.sweepT > 0) {
       const p = 1 - u.sweepT / 0.35;
       ry = Math.sin(p * Math.PI * 2) * 0.9;
       if (!u.isPlayer && sw && sw.kind === 'sweep') { const q0 = Math.min(1, sw.t / sw.dur), q = q0 * q0 * (3 - 2 * q0); ry = 0.8 - 1.8 * q; rx = -0.1; }
-    } else if (sw && sw.kind === 'sweep' && sw.t < sw.dur + 0.3) {
-      // 払い抜けた穂先を、中くらいの速さで中段へ戻す
-      const r = Math.min(1, (sw.t - sw.dur) / 0.28), e = 1 - r * r * (3 - 2 * r);
-      ry = ry * (1 - e) - 1.0 * e; rx = rxK * (1 - e) - 0.1 * e;
     } else if (u.slamT > 0 && u.isPlayer) { rx = -1.05 + (1 - u.slamT / 0.26) * 1.35; }
     else if (u.strikeT > 0 && u.isPlayer && !sw) ext = Math.sin((1 - u.strikeT / 0.2) * Math.PI) * 0.6;
     // 右手の握りは体の右にあるので、穂先を相手の真ん中へ少し内へ向ける
@@ -260,7 +277,8 @@ export const ArmyAnim = {
     s.ex = s.ex === undefined ? ext : s.ex + (ext - s.ex) * Math.min(1, dt * (hot ? 28 : 16));
     h.rotation.x = s.rx; h.rotation.y = s.ry; h.position.z = 0.18 + s.ex;
     // 馬上の片手突き：拳の上げ下げ（前のコマの分を戻してから置く）
-    s.lf = u.mounted ? (s.lf || 0) + (lift - (s.lf || 0)) * Math.min(1, dt * (hot ? 24 : 12)) : 0;
+    s.lf = u.mounted || lift || s.lf ? (s.lf || 0) + (lift - (s.lf || 0)) * Math.min(1, dt * (hot ? 24 : 12)) : 0;
+    if (!u.mounted && Math.abs(s.lf) < 0.002 && !lift) s.lf = 0;
     h.position.y += s.lf - (u.spLift || 0); u.spLift = s.lf;
     if (w) w.position.z = s.sl;
     // しなり：近くの兵だけ。柄が水平に近いほど先が垂れる

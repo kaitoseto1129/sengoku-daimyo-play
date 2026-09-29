@@ -191,7 +191,7 @@ export class Commander {
     if (!A) A = this.init(g);
     // 味方の持ち場の隊（塀・柵の内でも控えでも守りの隊でもない）は、戦が始まって 8 秒たち、70m 内に敵の隊が来たら自分から出て戦う
     //   （味方が何もせず突っ立って待っているように見えないように。戦の定義が g.stay = true にした隊は動かさない）
-    if (g.team === (this.rt.player ? this.rt.player.u.team : 0) && g.order === 'hold' && !g.stay && !g.guard && !g.reserve && !g.noAI && !g.isPlayerSquad && !A.walled && !A.fort && this.rt.t > 8 && !(A.wakeT > this.rt.t)) {
+    if (g.team === (this.rt.player ? this.rt.player.u.team : 0) && g.order === 'hold' && !g.stay && !g.guard && !g.reserve && !g.noAI && !g.isPlayerSquad && !g.holdFire && !A.walled && !A.fort && this.rt.t > 8 && !(A.wakeT > this.rt.t)) {
       A.wakeT = this.rt.t + 1.5;
       for (const o of this.S.values()) {
         if (!o.g || o.team === g.team || o.routed || o.n < 2) continue;
@@ -394,9 +394,9 @@ export class Commander {
     let aware = (A.garrison ? 42 : Math.max(55, base * 1.5)) * this.vis();
     let leash = A.garrison ? 16 : Math.max(45, base * 1.3);
     // 遊び手の側の「かかれ」（order が attack）の隊は、持ち場に縛らない：持ち場を今いる所へ寄せ続け、遠くの敵まで寄って戦う
-    //   （かかれの号令や乱戦の段で、持ち場の近くに縛られて 20 秒も動かないように。塀の内の城兵・守りの隊・控えは除く）
-    const loose = g.order === 'attack' && g.team === (rt.player ? rt.player.u.team : 0) && !A.garrison && !g.guard && !g.reserve && !g.isPlayerSquad;
-    if (loose) { leash = Math.max(leash, 120); aware = Math.max(aware, 100 * this.vis()); A.home = { x: s.c.x, z: s.c.z }; }
+    //   （かかれの号令や乱戦の段で、持ち場の近くに縛られて 20 秒も動かないように。塀の内の城兵・守りの隊・控えは除く。合戦の前線で替えた「備の兵」は含める）
+    const loose = g.order === 'attack' && g.team === (rt.player ? rt.player.u.team : 0) && !A.garrison && (!g.guard || g.clashSide) && !g.reserve && !g.isPlayerSquad;
+    if (loose) { leash = Math.max(leash, 120); aware = Math.max(aware, 100 * this.vis()); A.home = { x: s.c.x, z: s.c.z }; if (A.spot && !(A.pressT > t - 12) && dist(A.spot, s.c) > 12) A.spot = null; }
     const foes = [];
     for (const o of this.S.values()) {
       if (o.team === g.team || o.routed) continue;
@@ -552,10 +552,17 @@ export class Commander {
         return;
       }
     }
+    // 撃てる所にいるつもりでも、兵のだれも的を持たない（隊の端の兵には遠い・塀や柵の陰）が 2 度続けば、もっと寄る
+    //   （「放て」を待つ一斉射の組＝holdFire は、その場で待つ）
+    if (g.holdFire) { this.release(g, A); g.facing = ang(s.c, tgt.c); return; }
+    const aimless = td <= range * 0.95 && !g.units.some((u) => u.alive && (u.target || u.atk));
+    A.aimless = aimless ? (A.aimless || 0) + 1 : 0;
     // 間合いの外：撃てる所まで寄る（高い所を選ぶ）
-    if (td > range * 0.95) {
+    if (td > range * 0.8 || A.aimless >= 2) {
+      const r = A.aimless >= 2 ? Math.max(12, range * 0.45) : range * 0.7;
+      if (A.aimless >= 2) A.aimless = 0;
       const a = ang(tgt.c, s.c);
-      const q = this.spot({ x: tgt.c.x + Math.sin(a) * range * 0.75, z: tgt.c.z + Math.cos(a) * range * 0.75 }, s, sk, 6);
+      const q = this.spot({ x: tgt.c.x + Math.sin(a) * r, z: tgt.c.z + Math.cos(a) * r }, s, sk, 6);
       this.setMode(g, A, 'approach', q, g.speed, { tg: tgt.key, until: t + 25 });
       return;
     }
@@ -780,15 +787,17 @@ export class Commander {
     for (const o of this.S.values()) if (o.team !== g.team && !o.routed) { const d = dist(o.c, s.c); if (d < nd) { nd = d; near = o; } }
     // 「かかれ」の隊が、討つ相手の見えないまま 15 秒たったら、近い相手の隊（敵の隊は 120m・味方の隊は 90m 以内）の方へ持ち場を 20m ずつ詰める
     //   （行き先に着いたまま立ち尽くさない。控え・城兵・持ち場の隊・遊び手ひとりの所へは詰めない）
-    if (g.order === 'attack' && g.ai !== true && !g.reserve && !g.isPlayerSquad && !A.garrison && !A.fort && near && !near.player && nd < (g.team !== 0 ? 120 : 90)) {
+    if (g.order === 'attack' && g.ai !== true && !g.reserve && !g.isPlayerSquad && !A.garrison && !A.fort && near && !near.player && nd < (g.team !== (this.rt.player ? this.rt.player.u.team : 0) ? 120 : 150)) {
       if (A.idleAt == null || t - (A.idleLast || 0) > 8) A.idleAt = t;
       A.idleLast = t;
-      if (t - A.idleAt > 15) {
-        const k = Math.min(20, nd - 25);
+      // 遊び手の側の隊は 4 秒で詰め、一度に 30m 詰める（かかれの号令の後に立ち尽くさない）
+      const mine = g.team === (this.rt.player ? this.rt.player.u.team : 0);
+      if (t - A.idleAt > (mine ? 4 : 15)) {
+        const k = Math.min(mine ? 30 : 20, nd - (s.missile ? 30 : 12));
         if (k > 3) {
           const a = ang(s.c, near.c);
           A.home = { x: A.home.x + Math.sin(a) * k, z: A.home.z + Math.cos(a) * k };
-          A.spot = { ...A.home }; A.idleAt = t;
+          A.spot = { ...A.home }; A.idleAt = t; A.pressT = t;
           this.log(g, 'press 相手が見えない、前へ詰める');
         }
       }

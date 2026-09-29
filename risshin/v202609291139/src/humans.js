@@ -1465,6 +1465,8 @@ export function makeHuman(u, look0) {
   L.sohei = sohei;
   const _t1 = performance.now();
   const root = new THREE.Group();
+  // 隠れている人（使い回しを待つ人）は、骨の行列を毎コマ計算しない（描く時に scene が全部を辿って重くなるので）
+  root.updateMatrixWorld = skipHiddenMW;
   const model = skClone(SRC.scene);
   const _t2 = performance.now();
   model.scale.set(SRC.kH, SRC.kH, -SRC.kH);
@@ -3756,6 +3758,9 @@ function carryFlag(h, on) {
     f.position.y = base + (u.mounted ? RIDE.y : 0);
   }
 }
+// 隠れた人の根元：見えない間は子（骨）の行列を辿らない。見せた時は次の描画で直る
+const _umw = THREE.Object3D.prototype.updateMatrixWorld;
+function skipHiddenMW(force) { if (this.visible) _umw.call(this, force); }
 // 毎コマ：本人・カメラの近くの兵・名のある武将を骨の入った人で描く（battle.js から）
 let lastArmy = null;
 const _pv = new THREE.Matrix4(), _fr = new THREE.Frustum(), _sph = new THREE.Sphere(new THREE.Vector3(), 2.2);

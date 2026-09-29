@@ -915,9 +915,13 @@ export class Player {
     if (S.guardToggle && input.rightPressed) this.guardOn = !this.guardOn;
     const rightHeld = S.guardToggle ? this.guardOn : input.right;
     const ranged = this.weapon === 'gun' || this.weapon === 'bow';
-    this.aiming = ranged && rightHeld && (!this.mounted || this.weapon === 'gun');
+    // パソコンの鉄砲：左を押し続けると構える（右が無いマウスパッドでも撃てるように）。押し続けて狙いが定まると放つ
+    const padGun = this.weapon === 'gun' && !isTouch;
+    this.lHoldT = padGun && input.left ? (this.lHoldT || 0) + dt : 0;
+    this.aiming = ranged && (rightHeld || (padGun && this.lHoldT > 0.2)) && (!this.mounted || this.weapon === 'gun');
     const wantGuard = !ranged && rightHeld && this.sta > 0 && this.guardBroken <= 0;
     if (wantGuard && !this.guard) { this.guardT = 0; sfx('kozane', 0.45); }   // 構える時の具足の擦れる音
+    if (this.guard && !wantGuard) this.guardOffT = this.time;   // 構えを解いた時（直後の一押しも「構えから」の技に数える）
     this.guard = wantGuard;
     if (this.guard) this.guardT += dt;
     u.guard = this.guard;
@@ -1009,7 +1013,8 @@ export class Player {
     this.counterT -= dt;
     this.buffer -= dt;
     if (u.alive) this.updateTells(dt);
-    if (input.leftPressed) { this.buffer = 0.22; this.chargeT = 0; }
+    // 押した時に、構えから（構えている・解いた直後 0.4 秒）かを覚える
+    if (input.leftPressed) { this.buffer = 0.22; this.chargeT = 0; this.pressGrd = this.guard || this.time - (this.guardOffT ?? -9) < 0.4; }
     // 竹束などを担いでいる間（戦の定義の flags.carry）は、両手がふさがって突けない
     if (this.rt.flags && this.rt.flags.carry) {
       if (input.leftPressed && !(this.carryWarnT > this.rt.t)) { this.carryWarnT = this.rt.t + 3; this.rt.hud.flash('担いでいる間は突けない（据えてから）', 'dim'); }
@@ -1019,38 +1024,56 @@ export class Player {
     if (this.weapon === 'gun' || this.weapon === 'bow') { this.rangedUpdate(dt, input); this.buffer = 0; }
     else this.rangedIdle();
     // 押し続けると溜め突き（離したときに出る）
-    if (input.left && this.weapon === 'spear' && !this.guard && !this.pending) this.chargeT += dt;
-    this.charging = this.chargeT > 0.25 && input.left;
+    const blade = this.weapon === 'spear' || this.weapon === 'sword';
+    if (input.left && blade && !this.guard && !this.pending) this.chargeT += dt;
+    this.charging = this.chargeT > 0.25 && input.left && blade;
+    // 刀の長押し：溜める間、刀を頭上（上段）へ振りかぶって見せる。槍は引いて溜め、さらに長く押せば頭上へ上げる
+    if (this.charging && !this.pending) {
+      const kd = this.weapon === 'sword' ? 'kara' : this.chargeT > 1.0 ? 'spinW' : 'thrust';
+      u.pAtk = { kind: kd, t: Math.max(0, (this.weapon === 'sword' ? 0.7 : kd === 'spinW' ? 1.4 : 0.7) - this.chargeT), dur: kd === 'spinW' ? 0.4 : 0.45 };
+      if (!this.chargeCue && this.chargeT > (this.weapon === 'sword' ? 0.7 : 1.4)) { this.chargeCue = true; sfx('kozane', 0.6); }
+    } else if (!this.pending && u.pAtk && this.chargeT > 0 && !input.left) u.pAtk = null;
+    if (!input.left) this.chargeCue = false;
     // 長く押し続けて（1.4 秒）離すと、槍を頭上で振り回して四方を払う（気力を多く使う）
     if (!input.left && this.chargeT > 1.4 && this.sta >= 30 && !this.pending && this.weapon === 'spear') {
       this.sta -= 30; this.staDelay = 1.0;
       this.pending = { t: 0.12, kind: 'spin' };
       this.cd = 1.2; this.buffer = 0; u.sweepT = 0.6;
       sfx('swing', 1.2); this.techNote('spin');
+    } else if (!input.left && this.chargeT > 0.7 && this.sta >= 20 && !this.pending && this.weapon === 'sword') {
+      // 刀の長押し：上段から真っ向に斬り下ろす（重く、兜の上からも効く）
+      this.sta -= 20; this.staDelay = 0.8;
+      this.pending = { t: 0.1, kind: 'kara' };
+      this.cd = 0.8; this.buffer = 0;
+      sfx('slash', 1.3); this.techNote('kara');
     } else if (!input.left && this.chargeT > 0.7 && this.sta >= 22 && !this.pending) {
       this.sta -= 22; this.staDelay = 0.8;
       this.pending = { t: 0.08, kind: 'charged' };
       this.cd = 0.9; this.buffer = 0;
-      sfx('thrust', 1.3);
+      sfx('thrust', 1.3); this.techNote('charged');
     }
     if (!input.left) this.chargeT = 0;
-    if (this.buffer > 0 && this.cd <= 0 && !this.pending && this.dodgeT <= 0) {
+    // 槍・刀は、押している間は一撃を待たせ、離した時に出す（短く押せばすぐ、長く押せば溜めの技だけが出る。二度出ない）
+    const held = input.left && blade && !this.guard;
+    if (held && this.buffer > 0) this.buffer = Math.max(this.buffer, 0.1);
+    if (!held && this.buffer > 0 && this.cd <= 0 && !this.pending && this.dodgeT <= 0) {
       this.buffer = 0;
       // 槍の技：構えて前へ押しながら＝叩き下ろし、構えながら・横へ押しながら＝払う、後ろへ押しながら＝石突き、そのほか＝突き（続けて突く）
+      // 構えを解いた直後（0.4 秒）の一押しも「構えから」に数える（指の端末は「構え」と「突く」を一つの親指で続けて押す）
       const side = Math.abs(this.inX || 0) > 0.5 && Math.abs(this.inZ || 0) < 0.5, backK = (this.inZ || 0) < -0.5;
+      const grd = this.guard || !!this.pressGrd;
       if (this.weapon === 'spear') {
-        if (this.guard && (this.inZ || 0) > 0.5 && this.sta >= 18) {
+        if (grd && (this.inZ || 0) > 0.5 && this.sta >= 18) {
           // 構えて前へ押しながら：叩き下ろし
           this.sta -= 18; this.staDelay = 0.7;
           this.pending = { t: 0.26, kind: 'slam' };
           this.cd = 1.0;
           sfx('swing'); this.techNote('slam');
-        } else if ((this.guard || side) && this.sta >= (this.guard ? 18 : 14)) {
+        } else if ((grd || side) && this.sta >= (grd ? 18 : 14)) {
           // 構えながら（今までどおりの薙ぎ払い）か、横へ押しながら：払う
-          this.sta -= this.guard ? 18 : 14; this.staDelay = 0.7;
-          this.pending = { t: 0.22, kind: 'sweep' };
-          u.sweepT = 0.35;
-          this.cd = this.guard ? 1.0 : 0.9;
+          this.sta -= grd ? 18 : 14; this.staDelay = 0.7;
+          this.pending = { t: 0.22, kind: 'sweep', dir: side && (this.inX || 0) < 0 ? -1 : 1 };
+          this.cd = grd ? 1.0 : 0.9;
           sfx('swing'); if (side) this.techNote('sweep');
         } else if (backK && this.sta >= 6) {
           this.sta -= 6; this.staDelay = 0.4;
@@ -1069,9 +1092,14 @@ export class Player {
         } else rt.hud.flash('気力が足りない（少し構えを解くと戻る）', 'dim');
       } else if (this.sta >= 5) {
         this.sta -= 5; this.staDelay = 0.4;
-        // 打刀：構えながらなら突き、そうでなければ斬り。続けて押せば切り返し（素早く逆から）、三つ目は踏み込んだ重い袈裟
-        if (this.guard) { this.pending = { t: 0.1, kind: 'kthrust' }; this.cd = 0.55; sfx('thrust'); }
-        else {
+        // 打刀：構えから（解いた直後も）なら突き、横へ押しながらなら横薙ぎ（二、三人をまとめて）、そうでなければ斬り。
+        // 続けて押せば切り返し（素早く逆から）、三つ目は踏み込んだ重い袈裟
+        if (grd) { this.pending = { t: 0.1, kind: 'kthrust' }; this.cd = 0.55; sfx('thrust'); this.techNote('ktsuki'); }
+        else if (side && this.sta >= 5) {
+          this.sta -= 5; this.kCombo = 0;
+          this.pending = { t: 0.16, kind: 'nagi', dir: (this.inX || 0) < 0 ? -1 : 1 };
+          this.cd = 0.6; sfx('slash', 1.1); this.techNote('nagi');
+        } else {
           this.kCombo = this.comboT > 0 ? (this.kCombo || 0) + 1 : 1;
           const third = this.kCombo >= 3;
           if (third) { this.kCombo = 0; this.sta -= 4; this.techNote('kesa'); } else if (this.kCombo === 2) this.techNote('kaeshi');
@@ -1088,12 +1116,13 @@ export class Player {
       // 構えから溜める動き（刀は振りかぶり、槍は引いて溜める）を見せる
       const p0 = this.pending;
       if (!p0.dur) p0.dur = Math.max(0.05, p0.t + dt);
-      const pk = p0.kind === 'slash' ? this.nextSlash() : p0.kind === 'kthrust' ? 'tsuki' : p0.kind === 'sweep' || p0.kind === 'spin' ? 'sweep' : p0.kind === 'slam' ? 'slam' : p0.kind === 'butt' ? 'butt' : 'thrust';
+      const pk = p0.kind === 'slash' ? this.nextSlash() : p0.kind === 'kthrust' ? 'tsuki' : p0.kind === 'nagi' ? 'yoko' : p0.kind === 'kara' ? 'kara' : p0.kind === 'spin' ? 'spinW' : p0.kind === 'sweep' ? 'sweep' : p0.kind === 'slam' ? 'slam' : p0.kind === 'butt' ? 'butt' : 'thrust';
       u.pAtk = { kind: pk, t: p0.t, dur: p0.dur };
       if (this.pending.t <= 0) {
         const p = this.pending;
         this.pending = null;
         u.pAtk = null;
+        this.pendDir = p.dir || 1;
         this.strike(p.kind, p.third);
       }
     }
@@ -1173,6 +1202,7 @@ export class Player {
     u.hand.add(u.wpn);
     u.wpnKind = w;
     this.weapon = w;
+    if (w === 'gun' && !isTouch && !this.padTipShown) { this.padTipShown = true; this.rt.hud.flash('鉄砲：左を押し続けると構え、狙いが定まれば放つ（さっと押すと腰だめ）', 'dim'); }
     this.reachT = 2;   // 足もとに間合いの輪を 2 秒（battle.js updateSquadAids）
     // 持ち替えの音：刀は鞘走り（しゃっ）、ほかは柄と具足の擦れる音。画面の音（ui）は鳴らさない
     sfx(w === 'sword' ? 'saya' : 'kozane', w === 'sword' ? 0.8 : 0.7);
@@ -1300,7 +1330,15 @@ export class Player {
         if (this.shot.t <= 0) { const aimed = this.shot.aimed, pan = this.shot.pan; this.shot = null; u.atk = null; this.fireShot(aimed || this.aiming, pan); }
       } else if (this.aiming && this.gunLoaded) u.atk = { ranged: true, t: 1, dur: 2, target: this.groundTarget() };
       else if (u.atk && u.atk.ranged) u.atk = null;
-      if (input.leftPressed && this.cd <= 0 && !this.shot) {
+      // パソコン：左を押し続けて 0.9 秒構えたら放つ（一押しに一発）。さっと押して放すと腰だめで放つ
+      let pull = input.leftPressed;
+      if (!isTouch) {
+        pull = false;
+        if (input.left && this.lHoldT > 1.1 && !this.padFired) { pull = true; this.padFired = true; }
+        if (!input.left) { if (this.padPrevT > 0 && this.padPrevT <= 0.2 && !this.padFired) pull = true; this.padFired = false; }
+        this.padPrevT = this.lHoldT;
+      }
+      if (pull && this.cd <= 0 && !this.shot) {
         if (!this.gunLoaded) rt.hud.flash(`込め直している（${Math.round(this.gunReload * 100)}%）。止まっていれば早い`, 'dim');
         else {
           // 火蓋を切って放つ。構えていなければ、構えるぶん少し遅い
@@ -1336,7 +1374,7 @@ export class Player {
     if (T.has(k)) return;
     T.add(k);
     const guardK = isTouch ? '「構え」' : '右クリック';
-    const msg = { slam: `叩き下ろし（${guardK}で構え、前へ押しながら突く）`, butt: '石突き（後ろへ押しながら突く）', sweep: '払い（横へ押しながら突く）', spin: '振り回し（長く押して離す）', kaeshi: '切り返し（続けて斬る）', kesa: '踏み込み袈裟（三つ目の斬り）' }[k];
+    const msg = { slam: `叩き下ろし（${guardK}で構え、前へ押しながら突く）`, butt: '石突き（後ろへ押しながら突く。後ろの敵も打つ）', sweep: '払い（横へ押しながら突く）', spin: '振り回し（うんと長く押して離す）', charged: '溜め突き（長く押して離す）', kaeshi: '切り返し（続けて斬る）', kesa: '踏み込み袈裟（三つ目の斬り）', nagi: '横薙ぎ（横へ押しながら斬る）', kara: '真っ向斬り（長く押して離す）', ktsuki: `突き（${guardK}で構えてから斬る）` }[k];
     if (msg) this.rt.hud.flash(msg, 'dim');
   }
   // 火縄銃を放つ：狙う相手は照準の先（構えて狙えば細く正確に、腰だめでは外れやすい）
@@ -1421,7 +1459,7 @@ export class Player {
   strike(kind, third) {
     const u = this.u;
     const army = this.rt.army;
-    const swKind = kind === 'thrust' || kind === 'charged' ? 'thrust' : kind === 'sweep' || kind === 'spin' ? 'sweep' : kind === 'slam' ? 'slam' : kind === 'butt' ? 'butt' : kind === 'kthrust' ? 'tsuki' : this.nextSlash();
+    const swKind = kind === 'thrust' || kind === 'charged' ? 'thrust' : kind === 'sweep' ? 'sweep' : kind === 'spin' ? 'spin' : kind === 'slam' ? 'slam' : kind === 'butt' ? 'butt' : kind === 'kthrust' ? 'tsuki' : kind === 'nagi' ? 'yoko' : kind === 'kara' ? 'kara' : this.nextSlash();
     if (kind === 'slash') this.slashN++;
     const reachExtra = ITEMS[this.G.equip.weapon].reach || 0;
     u.strikeT = 0.2;
@@ -1460,13 +1498,23 @@ export class Player {
     // 叩き下ろし：柄のしなりで上から打つ。狭く重く、兜の上から効く
     else if (kind === 'slam') { hits = arc(3.0 + reachExtra + ride, 0.4, 1); dmg = this.spearDmg() * 1.6 * rush; }
     // 石突き：懐に入った敵を柄の尻で突き放す（軽いが、相手を押し退けてよろめかせる）
-    else if (kind === 'butt') { hits = arc(1.7, 0.7, 1); dmg = this.spearDmg() * 0.45; }
+    // 後ろへ柄を突き出すので、背後に寄った敵も打つ
+    else if (kind === 'butt') {
+      hits = arc(1.7, 0.7, 1);
+      if (!hits.length) hits = army.enemiesInArc(u.pos, heading + Math.PI, 2.3, 0.8, u.team, false).slice(0, 1);
+      dmg = this.spearDmg() * 0.45;
+    }
+    // 刀の横薙ぎ：体をひねって横一文字に。浅いが二、三人をまとめて
+    else if (kind === 'nagi') { hits = arc(2.2, 1.15, 3); dmg = 15 * (1 + 0.06 * (this.G.stats.spear - 1)); }
+    // 刀の真っ向斬り：上段から頭へまっすぐ。狭く重い
+    else if (kind === 'kara') { hits = arc(2.2, 0.45, 1); dmg = 34 * (1 + 0.06 * (this.G.stats.spear - 1)); }
     // 振り回し：頭上で槍を回し、ぐるりと四方の敵を払う
     else if (kind === 'spin') { hits = arc(2.9 + ride, Math.PI, 6); dmg = this.spearDmg() * 0.8 * rush; }
     else { hits = arc(2.0, 0.8, 2); dmg = 19 * (1 + 0.06 * (this.G.stats.spear - 1)) * (third ? 1.45 : 1); }
     // 振りの記録（穂先・刃がどこで止まったかを見せる）
     // 薙ぎ（長柄の叩き）は重い柄を振り回すので、突きより長く（0.42 秒）
-    u.swing = { kind: swKind, t: 0, dur: kind === 'spin' ? 0.6 : kind === 'sweep' || kind === 'slam' ? 0.42 : 0.22, at: 0, done: true, res: null, target: hits[0] ? hits[0].u : null, d: hits[0] ? hits[0].d : 0, side: 1 };
+    const dir = (this.pendDir || 1);
+    u.swing = { kind: swKind, t: 0, dur: kind === 'spin' ? 0.9 : kind === 'sweep' || kind === 'slam' ? 0.42 : kind === 'kara' ? 0.3 : kind === 'nagi' ? 0.28 : 0.22, at: kind === 'slam' ? 0.67 : 0, dir, rear: kind === 'butt' && hits[0] && ((hits[0].u.pos.x - u.pos.x) * Math.sin(heading) + (hits[0].u.pos.z - u.pos.z) * Math.cos(heading)) < 0,  done: true, res: null, target: hits[0] ? hits[0].u : null, d: hits[0] ? hits[0].d : 0, side: 1 };
     const counter = this.counterT > 0 && hits.length > 0;
     if (counter) { this.counterT = 0; this.rt.hud.flash(this.counterPerfect ? '見切りの反撃' : '反撃', 'gold'); }
     // 槍の癖：味方と肩を並べる密集では強く、懐に入られると弱い
@@ -1495,8 +1543,8 @@ export class Player {
       if (kind === 'charged') this.rt.tutMark('charged');
       if (kind === 'sweep') this.rt.tutMark('sweep');
       // 薙ぎ・溜め突き・反撃・背後からの一撃は、敵の構えでは防げない
-      const wk = { thrust: 'thrust', charged: 'thrust', sweep: 'sweep', spin: 'sweep', slam: 'slam', butt: 'butt', kthrust: 'tsuki' }[kind] || swKind;
-      army.damage(t, dmg * m, u, { kind: wk, out: h === hits[0] ? u.swing : null, pierce: kind === 'sweep' || kind === 'charged' || counter || facing < -0.2 });
+      const wk = { thrust: 'thrust', charged: 'thrust', sweep: 'sweep', spin: 'sweep', slam: 'slam', butt: 'butt', kthrust: 'tsuki', kara: 'slam', nagi: 'yoko' }[kind] || swKind;
+      army.damage(t, dmg * m, u, { kind: wk, out: h === hits[0] ? u.swing : null, pierce: kind === 'sweep' || kind === 'charged' || kind === 'kara' || counter || facing < -0.2 });
       if (h === hits[0] && u.swing.res && u.swing.res !== 'miss' && this.weapon === 'spear') { const F = u.wpn && u.wpn.userData.flex; if (F) F.vel += (u.swing.res === 'hit' ? 1.6 : 3) * F.G.sp.bend; }
       if (t.alive && t.atk && kind !== 'sweep' && t.lastStagT === army.time && Math.random() < 0.35) { t.atk = null; t.cd = 0.8; }
     }
