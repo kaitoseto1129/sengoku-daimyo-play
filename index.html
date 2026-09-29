@@ -889,6 +889,17 @@ html:not(.booting) #bootState{display:none}
   button.chip, a.chip, summary.chip, .chip[onclick], .nm{ min-height:44px !important; padding:8px 12px; }
   #panel button, .dialog button, #moreMenu button{ min-height:44px !important; }
   .ovx, .p-close{ min-width:46px !important; min-height:46px !important; }   /* 第257巡：端数で四十四を割ることがあったので二px 余らせる */
+  /* 第257巡（管理画面：題名で1分以内に181人が離れていた）：横画面の携帯では、題名を
+     文字の壁にしない。長い説明は畳み、「はじめる」を大きく、他は小さく。送らずに収める */
+  #start h1{ font-size:34px !important; margin:2px 0 4px !important; }
+  #start .s-lead{ font-size:14px !important; line-height:1.5 !important; margin:0 !important; }
+  #start #sWhat{ display:none !important; }
+  #start p{ font-size:14px !important; line-height:1.5 !important; margin:2px 0 !important; }
+  #start .s-actions{ gap:8px !important; margin-top:8px !important; }
+  #start .s-btn{ min-height:52px !important; font-size:18px !important; padding:10px 26px !important; }
+  #start .s-btn.s-sub{ min-height:44px !important; font-size:14px !important; padding:8px 12px !important; }
+  #start #buildTag{ display:none !important; }
+  #start #pcHint{ margin-top:6px !important; }
 }
 /* 第257巡（十人が「全軍退却が画面の外」と言った）：とても狭い携帯（640幅など）では、
    向きの斜め四つを畳んで帯を画面の内に収める。844幅では八方向のまま */
@@ -33507,7 +33518,7 @@ let chosenScenario="nagashino";
 
 const FUND={
 round:1, name:"第一次 軍資金募集", theme:"合戦画面・武将グラフィック大改修", copy:"もっと、本物の戦場へ。",
-goal:3000000, start:"2026-10-01", days:30,
+goal:3000000, start:"2026-09-29", days:30,
 feed:"fund.json",
 raised:0, backers:0,
 uses:[["武将・兵士・本陣・柵・城の絵",1200000],["曲・効果音",400000],["画面まわりの改修",600000],["作り込み",600000],["その他",200000]],
