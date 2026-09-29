@@ -537,21 +537,21 @@ export class Army {
 
   // 軽い兵（本物の人になっていない兵）をまとめて描く：兵の材質の部品を、形ごとに一つの InstancedMesh へ入れる
   //   （一人 8〜10 回描いていたのを、全員で形の数だけに）。描く直前（行列が新しくなった後）に Battle が呼ぶ
-  //   まとめるのはカメラから LOD.near より遠く、影を落とさない部品だけ（近い兵・影の出る兵は今までどおり一つずつ）。
+  //   形（近い形・遠い形）と影を落とすかどうかで束を分ける。画面の外の兵は束ねない（影だけ今までどおり一つずつ落とす）。
   //   まとめた部品は layers を空にして、本来の描画と影から外す（行列の更新と動きは今までどおり）
   batchDraw(cam) {
-    const B = this.batch || (this.batch = { map: new Map(), prev: [], cur: [], tag: 0, fr: new THREE.Frustum(), pm: new THREE.Matrix4(), sph: new THREE.Sphere(new THREE.Vector3(), 3.4) });
+    const B = this.batch || (this.batch = { map: new Map(), mapC: new Map(), maps: null, d2: 0, prev: [], cur: [], tag: 0, fr: new THREE.Frustum(), pm: new THREE.Matrix4(), sph: new THREE.Sphere(new THREE.Vector3(), 3.4) });
+    if (!B.maps) B.maps = [B.map, B.mapC];
     const tag = ++B.tag;
-    for (const e of B.map.values()) e.n = 0;
+    for (const bm of B.maps) for (const e of bm.values()) e.n = 0;
     if (BATCH.on && cam) {
       B.pm.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse); B.fr.setFromProjectionMatrix(B.pm);
       const ce = cam.matrixWorld.elements, cx = ce[12], cy = ce[13], cz = ce[14];
-      const nr = LOD.near + 1.5, nr2 = nr * nr;
       for (const u of this.units) {
         const m = u.mesh;
         if (!m || !m.visible || !m.parent || u.imp || u.isPlayer) continue;
         const e = m.matrixWorld.elements, dx = e[12] - cx, dy = e[13] - cy, dz = e[14] - cz;
-        if (dx * dx + dy * dy + dz * dz < nr2) continue;
+        B.d2 = dx * dx + dy * dy + dz * dz;
         B.sph.center.set(e[12], e[13] + 1, e[14]);
         if (!B.fr.intersectsSphere(B.sph)) continue;
         this.batchWalk(m, u.human && u.human.root, tag, B);
@@ -560,7 +560,7 @@ export class Army {
     // 前のコマでまとめていて今は外れた部品を、元の描き方へ戻す
     for (const c of B.prev) if (c.userData.bT !== tag) c.layers.mask = 1;
     const t = B.prev; B.prev = B.cur; B.cur = t; t.length = 0;
-    for (const e of B.map.values()) {
+    for (const bm of B.maps) for (const e of bm.values()) {
       e.im.count = e.n; e.im.visible = e.n > 0;
       if (e.n) e.im.instanceMatrix.needsUpdate = true;
     }
@@ -570,12 +570,14 @@ export class Army {
     for (let i = 0; i < ch.length; i++) {
       const c = ch[i];
       if (!c.visible || c === skip) continue;
-      if (c.isMesh && c.material === MAT && !c.castShadow && !c.isSkinnedMesh && !c.isInstancedMesh) {
+      if (c.isMesh && c.material === MAT && !c.isSkinnedMesh && !c.isInstancedMesh) {
         const L = c.userData.lod;
         if (L || c.onBeforeRender === NO_OBR) {
-          const geo = L ? (LOD.on ? L[1] : L[0]) : c.geometry;
-          let e = B.map.get(geo);
-          if (!e || e.n >= e.cap) e = this.batchGrow(geo, e, B);
+          let geo = c.geometry;
+          if (L) { const nr = L[2] ?? LOD.near; geo = !LOD.on || B.d2 < nr * nr ? L[0] : L[1]; }
+          const bm = c.castShadow ? B.mapC : B.map;
+          let e = bm.get(geo);
+          if (!e || e.n >= e.cap) e = this.batchGrow(geo, e, bm, c.castShadow);
           c.matrixWorld.toArray(e.arr, e.n * 16); e.n++;
           c.layers.mask = 0; c.userData.bT = tag; B.cur.push(c);
         }
@@ -583,14 +585,14 @@ export class Army {
       if (c.children.length) this.batchWalk(c, skip, tag, B);
     }
   }
-  batchGrow(geo, e, B) {
+  batchGrow(geo, e, bm, cast) {
     const cap = e ? e.cap * 2 : 16;
     const im = new THREE.InstancedMesh(geo, MAT, cap);
-    im.matrixAutoUpdate = false; im.frustumCulled = false; im.name = 'unitBatch';
+    im.matrixAutoUpdate = false; im.frustumCulled = false; im.name = 'unitBatch'; im.castShadow = !!cast;
     im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     const ne = { im, cap, n: e ? e.n : 0, arr: im.instanceMatrix.array };
     if (e) { ne.arr.set(e.arr.subarray(0, e.n * 16)); this.scene.remove(e.im); e.im.dispose(); }
-    this.scene.add(im); B.map.set(geo, ne);
+    this.scene.add(im); bm.set(geo, ne);
     return ne;
   }
 

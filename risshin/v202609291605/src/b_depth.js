@@ -227,6 +227,8 @@ export function hold(o) {
         rt.army.play('eshout', w.foes(rt, m).reduce((q, sp) => { spawnFoes(rt, C, ctx, C.at, sp); return sp.from || q; }, C.at), 1.6);
       }
       for (const g of alive(C.groups)) if (g.count < 4) { g.noRout = false; g.morale = Math.min(g.morale, 15); }
+      // 持ちこたえる刻が過ぎ、寄せも尽きたら、残りの敵は気が挫けて崩れやすくなる（いつまでも斬り合いが続かない）
+      if (el >= dur && !C.waves.length) for (const g of alive(C.groups)) { g.noRout = false; g.morale = Math.min(g.morale, 30); }
       nudge(C, el);
       const p = rt.player.u.pos;
       // 持ち場の前へ出て戦っている間も、持ち場を守っていることにする（遠く離れて追い回した時だけ外す）
@@ -329,8 +331,9 @@ function depthBot0(b, inp, goTo) {
   // 深手：構えたまま、味方の組の中へ下がって息を整える（素直な遊び手の真似。戻れば、また前へ）
   if (u.hp < u.maxHp * 0.5) b.flags.dpBack = true;
   if (b.flags.dpBack && u.hp > u.maxHp * 0.75) b.flags.dpBack = false;
-  if (b.flags.dpBack && D && D.ctx && D.ctx.friends) {
-    const fr = D.ctx.friends(b).filter((g) => g && g.count);
+  if (b.flags.dpBack && D && D.ctx) {
+    // 下がる先：味方の組・加勢の一手・自分の組（味方の組が尽きても、加勢か自分の組の後ろへ下がる）
+    const fr = [...(D.ctx.friends ? D.ctx.friends(b) : []), D.ctx.aidG, ...(b.squadGroups || [])].filter((g) => g && g.count && !g.routed);
     const g = fr.sort((a, c) => { const pa = a.center(), pc = c.center(); return Math.hypot(pa.x - u.pos.x, pa.z - u.pos.z) - Math.hypot(pc.x - u.pos.x, pc.z - u.pos.z); })[0];
     if (g) {
       // 味方の組の後ろ（段の的から見て向こう側）へ

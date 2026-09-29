@@ -926,7 +926,11 @@ function listPlayable() {
   // 織田家編（筋書きの鍵 oda）ができていれば、それを主に遊ぶ
   if (SCENARIOS.oda) {
     setScenario('oda');
-    BATTLES.forEach((bt, i) => L.push({ kind: 'camp', scn: 'oda', i, id: bt.id, name: bt.name, rank: 0 }));
+    BATTLES.forEach((bt, i) => {
+      L.push({ kind: 'camp', scn: 'oda', i, id: bt.id, name: bt.name, rank: 0 });
+      // 織田家編の戦を信長で遊ぶ（本能寺など）。&only=honnoji&mode=lord で信長の方だけを選べる
+      if (lordList().some((l) => l.id === bt.id && l.scn === 'oda')) L.push({ kind: 'lord', scn: 'oda', i, id: bt.id, name: `${bt.name}（信長で出陣）`, rank: 4 });
+    });
   }
   for (const sk of SCENARIO_ORDER) {
     if (!SCENARIOS[sk]) continue;
@@ -1386,7 +1390,7 @@ async function runPersona(game, key) {
   // 何を遊ぶか：その人の好みから、ばらばらに n 戦
   const all = listPlayable();
   const n = clamp(+(Q.get('n') || 1 + Math.floor(Math.random() * 3)), 1, 3);
-  const only = ONLY ? all.filter((x) => ONLY.has(x.id)) : null;
+  const only = ONLY ? all.filter((x) => ONLY.has(x.id) && (V.mode !== 'lord' || x.kind === 'lord')) : null;
   const pool = only && only.length ? only : (per.prefer(all).length ? per.prefer(all) : all);
   const plan = [];
   // 半分は好みから、半分は全体から（いろいろな戦に当たるように）

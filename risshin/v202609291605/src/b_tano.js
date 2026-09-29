@@ -145,10 +145,10 @@ const tano = {
     const go = (g, x, z) => { g.order = 'move'; g.dest = { x, z }; g.speed = 2.4; g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 40; q.anchor = { x, z }; }; };
     go(F.taki, -70, 2); go(F.kawa, -84, -4);
     F.r1 = enemyGroup(rt, { faction: 'takeda', name: '武田の殿', anchor: { x: -40, z: 2 }, facing: -Math.PI / 2, order: 'hold', aggro: 18, width: 12, morale: 95, fleeDir: { x: 1, z: 0 }, dmgMult: 0.6, formation: 'yari' },
-      dress([{ type: 'samurai', n: 3 }, { type: 'cavalry', n: 3 }, { type: 'ashigaru', n: 10 + more(rt, 0.4) }, { type: 'gun', n: 2 }], TAKEDA));
+      dress([{ type: 'samurai', n: 4 }, { type: 'cavalry', n: 1 }, { type: 'ashigaru', n: 11 + more(rt, 0.4) }, { type: 'gun', n: 2 }], TAKEDA));
     // 谷の奥に、まだ武田の騎馬が固まっている（軽い作り）
     horseHost(rt, 168, 4, 22, 12, 110, -Math.PI / 2, 15829);
-    for (const u of F.r1.units) if (u.type === 'gun') u.dmg *= 0.45;
+    for (const u of F.r1.units) if (u.type === 'gun') u.dmg *= 0.45; else if (u.type === 'cavalry') u.dmg *= 0.6;
     KIT.backOf(rt, F.r1, { flag: 'takeda', armor: KIT.ARMOR.takeda, kind: 'spear', w: 14, depth: 10, count: 150, seed: 15830 });
     rt.marker('r1', centerOf(F.r1), () => `武田の殿・${moraleWord(F.r1.morale)}`, { red: true, group: F.r1 });
     // 谷の入り口から武田の殿まで長く歩かせない：途中の藪に、足止めの物見が潜む
@@ -286,7 +286,8 @@ const tano = {
         rt.after(25, () => {
           if (F.step !== 1 || F.ending) return;
           F.r1b = enemyGroup(rt, { faction: 'takeda', name: '回り込む武田の騎馬', anchor: { x: -20, z: -22 }, facing: -Math.PI * 0.7, order: 'attack', seekRange: 60, aggro: 18, width: 8, morale: 85, fleeDir: { x: 1, z: 0 }, dmgMult: 0.6 },
-            dress([{ type: 'cavalry', n: 5 }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6 }], TAKEDA));
+            dress([{ type: 'cavalry', n: 3 }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 7 }], TAKEDA));
+          for (const u of F.r1b.units) if (u.type === 'cavalry') u.dmg *= 0.55;
           KIT.backOf(rt, F.r1b, { flag: 'takeda', armor: KIT.ARMOR.takeda, kind: 'cavalry', w: 12, depth: 10, count: 40, seed: 15834 });
           rt.marker('r1b', centerOf(F.r1b), () => `回り込む騎馬・${moraleWord(F.r1b.morale)}`, { red: true, group: F.r1b });
           rt.say('滝川一益', '右から騎馬じゃ！　槍を揃えて止めよ。止まった馬は脆い', 3.5);
@@ -366,7 +367,7 @@ function stepsA(rt) {
       say: [['滝川一益', '口は狭い。一度に出て来る数は少ない。槍を揃えて、出て来る所を突け']],
       waves: [
         { t: 4, say: ['足軽', '崖道から武田の侍が駆け出てくる！'], foes: () => [{ name: '打って出る武田勢', from: { x: NARROW.x0 + 6, z: 0 }, list: [uS(3), uA(9)], mass: 140, noRout: 20 }] },
-        { t: 30, say: ['滝川一益', '騎馬じゃ！　槍を揃えよ。止まった馬は脆い'], foes: () => [{ name: '崖道を駆け下りる騎馬', from: { x: NARROW.x0 + 8, z: 0 }, list: [uC(3), uS(1), uA(4)], mass: 0, dmg: 0.5, morale: 75 }] },
+        { t: 30, say: ['滝川一益', '騎馬じゃ！　槍を揃えよ。止まった馬は脆い'], foes: () => [{ name: '崖道を駆け下りる騎馬', from: { x: NARROW.x0 + 8, z: 0 }, list: [uC(2), uS(1), uA(5)], mass: 0, dmg: 0.42, morale: 75 }] },
         { t: 50, foes: () => [{ name: '武田の弓衆', from: { x: NARROW.x0 + 4, z: 3 }, list: [uS(1), uB(5), uA(5)], mass: 60 }] },
         { t: 68, say: ['滝川一益', 'これが崖道の口の最後の寄せじゃ。凌げば、土屋の衆は裸になる'], foes: () => [{ name: '土屋の手の侍', from: { x: NARROW.x0 + 6, z: -2 }, list: [uS(3), uA(6)], mass: 60 }] },
       ], reward: '崖道の口を守った' }),
@@ -390,9 +391,9 @@ function stepsB(rt) {
     hold({ at: (rt2, m) => (m.yari ? { x: 80, z: 0 } : { x: 88, z: -20 }), dur: 110, r: 14, title: '武田の最後の突撃', sub: '谷の奥の騎馬が、一つの塊になって駆け下りる', label: '受ける所', obj: '武田の最後の突撃を受け止めよ',
       say: [['滝川一益', '来るぞ！　足を止めさせれば、こちらの勝ちじゃ']],
       waves: (rt2, m) => [
-        { t: 4, say: ['足軽', '地が揺れる……騎馬じゃ！'], foes: () => [{ name: '武田の騎馬の塊', from: { x: 150, z: 2 }, list: [uC(5), uS(2)], mass: 110, kind: 'cavalry', dmg: m.yari ? 0.56 : 0.46, morale: m.yari ? 80 : 95, noRout: m.yari ? 0 : 25 }] },
+        { t: 4, say: ['足軽', '地が揺れる……騎馬じゃ！'], foes: () => [{ name: '武田の騎馬の塊', from: { x: 150, z: 2 }, list: [uC(4), uS(2)], mass: 110, kind: 'cavalry', dmg: m.yari ? 0.46 : 0.4, morale: m.yari ? 80 : 95, noRout: m.yari ? 0 : 25 }] },
         { t: 30, say: ['滝川一益', '騎馬の後ろから、徒の侍も来るぞ。槍を下ろすな'], foes: () => [{ name: '騎馬に続く武田勢', from: { x: 145, z: -4 }, list: [uS(3), uA(9)], mass: 160 }] },
-        { t: 55, say: ['足軽', 'また騎馬！　これが最後の塊じゃ！'], foes: () => [{ name: '最後の騎馬', from: { x: 150, z: 6 }, list: [uC(4), uS(1)], mass: 70, kind: 'cavalry', dmg: m.yari ? 0.56 : 0.46 }] },
+        { t: 55, say: ['足軽', 'また騎馬！　これが最後の塊じゃ！'], foes: () => [{ name: '最後の騎馬', from: { x: 150, z: 6 }, list: [uC(3), uS(1)], mass: 70, kind: 'cavalry', dmg: m.yari ? 0.46 : 0.4 }] },
         { t: 78, say: ['滝川一益', '勝頼殿の近習が、槍を取って出て来たぞ。最後まで気を抜くな'], foes: () => [{ name: '勝頼の近習', from: { x: 140, z: -6 }, list: [uS(3), uA(5)], mass: 50 }] },
       ], reward: '武田の最後の突撃を受け止めた' }),
     rest({ dur: 7, heal: 0.35, say: [['滝川一益', '……騎馬は尽きたようじゃ。あの林の向こうが田野、勝頼殿の陣よ']] }),
