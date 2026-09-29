@@ -67,6 +67,7 @@ body.risshin header{ border-bottom-color:var(--ai); }
   <input id="pw" type="password" placeholder="合言葉" autocomplete="current-password">
   <button type="submit">入る</button>
   <div class="err" id="gateErr"></div>
+  <button type="button" id="mkHash" style="background:none;border:none;color:#C9A227;font-size:14px;text-decoration:underline;padding:6px;min-height:44px;cursor:pointer">入れない時：合言葉のしるしを出す</button>
 </form></div>
 
 <header>
@@ -100,6 +101,16 @@ document.getElementById("loginForm").onsubmit=async e=>{ e.preventDefault();
   const u=USERS.find(x=>x.email.toLowerCase()===em && x.hash===h);
   if(u){ try{ localStorage.setItem("sd_admin_ok", String(Date.now())); localStorage.setItem("sd_admin_who", u.name||em); }catch(_){ } document.getElementById("gate").style.display="none"; load(); }
   else document.getElementById("gateErr").textContent="メールアドレスか合言葉が違います"; };
+/* 第257巡（kaito：入れない）：合言葉そのものは誰にも渡さず、「しるし」（SHA-256）だけを出す。
+   これを作り手に送れば、この画面の名簿を書き換えて入れるようになる */
+document.getElementById("mkHash").onclick=async()=>{
+  const pw=document.getElementById("pw").value;
+  const er=document.getElementById("gateErr");
+  if(!pw){ er.textContent="先に合言葉の欄に、使いたい合言葉を入れてください"; document.getElementById("pw").focus(); return; }
+  const h=await sha256(pw);
+  er.innerHTML="この長い字を作り手に送ってください（合言葉そのものは送らないで）<br><span style=\"user-select:all;word-break:break-all;color:#EDE6D6\">"+h+"</span>";
+  try{ await navigator.clipboard.writeText(h); er.innerHTML+="<br>（写し取りました）"; }catch(_){ }
+};
 if(opened()){ document.getElementById("gate").style.display="none"; }
 const _load0=load; load=async function(){ await _load0(); try{ if(!document.getElementById("nuGo")) document.getElementById("main").appendChild(usersCard()); }catch(_){ } };
 
