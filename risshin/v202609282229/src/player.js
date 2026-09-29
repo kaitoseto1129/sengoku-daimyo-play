@@ -625,7 +625,7 @@ export class Player {
     mult = Math.min(this.u.mobbed ? 1.5 : 1.35, mult);
     // def.foeHit：戦ごとの敵の打ち込みの重さ（楽すぎる戦を締める。無ければ 1）
     // 筋書きの最初の戦（手ほどきの戦・普通の難しさ）は、受ける傷を六割軽く（初めての人が手ほどきの中で倒れきらない）
-    let taken = amount * mult * (1 - this.def) * this.D.taken * (rt.def.foeHit || 1) * (rt.firstFights && rt.index === 0 ? 0.22 : rt.D === DIFFICULTY.hard ? 1 : 0.41);   // 恐さは見せ方と音で。易・普通の打ち込みは二割軽く（組と戦えば凌げる）
+    let taken = amount * mult * (1 - this.def) * this.D.taken * (rt.def.foeHit || 1) * (rt.firstFights && rt.index === 0 ? 0.3 : rt.D === DIFFICULTY.hard ? 1 : 0.55);   // 恐さは見せ方と音で。易・普通の打ち込みは二割軽く（組と戦えば凌げる）
     // 乱戦で一息に（1秒に）三本より多く浴びた時だけ、四本目から少し浅手に（難しさ「難」では緩めない）
     {
       const now = rt.t;
@@ -647,7 +647,7 @@ export class Player {
     this.inCombatT = 4;
     // 戦ごとに弱めた鉄砲（u.dmg を下げた物）も、重さは大きくは変えない（0.85〜1.15 倍）
     const k = Math.max(0.85, Math.min(1.15, (src && src.dmg ? src.dmg : 34) / 34));
-    let taken = u.maxHp * 0.32 * k * (0.9 + Math.random() * 0.2) * (1 - this.def * 0.5) * this.D.taken * (rt.firstFights && rt.index === 0 ? 0.75 : 1);
+    let taken = u.maxHp * 0.42 * k * (0.9 + Math.random() * 0.2) * (1 - this.def * 0.5) * this.D.taken * (rt.firstFights && rt.index === 0 ? 0.75 : 1);
     // 一発は満ちた体力の 65% まで（一撃で即死しない）
     taken = Math.min(taken, u.maxHp * 0.65);
     if (this.lastHit) this.lastHit.ranged = true;
