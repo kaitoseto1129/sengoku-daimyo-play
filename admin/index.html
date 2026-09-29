@@ -63,8 +63,8 @@ body.risshin header{ border-bottom-color:var(--ai); }
 <body>
 <div id="gate"><form id="loginForm">
   <div style="font-size:18px;font-weight:800;letter-spacing:.1em">戦国大名　管理</div>
-  <input id="em" type="email" placeholder="メールアドレス" autocomplete="username" required>
-  <input id="pw" type="password" placeholder="合言葉" autocomplete="current-password" required>
+  <input id="em" type="email" placeholder="メールアドレス" autocomplete="username">
+  <input id="pw" type="password" placeholder="合言葉" autocomplete="current-password">
   <button type="submit">入る</button>
   <div class="err" id="gateErr"></div>
 </form></div>
@@ -90,7 +90,13 @@ const USERS=[
 ];
 async function sha256(s){ const b=await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join(""); }
 function opened(){ try{ const t=+localStorage.getItem("sd_admin_ok")||0; return Date.now()-t<30*864e5; }catch(e){ return false; } }
-document.getElementById("loginForm").onsubmit=async e=>{ e.preventDefault(); const em=document.getElementById("em").value.trim().toLowerCase(); const h=await sha256(document.getElementById("pw").value);
+/* 第257巡（kaito：管理画面に入れない）：入れていないと、ブラウザの吹き出しが題の上に出るだけで
+   どこが足りないか分からなかった。自分で確かめて、札の中に日本語で出す */
+document.getElementById("loginForm").onsubmit=async e=>{ e.preventDefault();
+  { const e1=document.getElementById("em").value.trim(), p1=document.getElementById("pw").value;
+    if(!e1||!p1){ document.getElementById("gateErr").textContent=!e1&&!p1?"メールアドレスと合言葉を入れてください":(!e1?"メールアドレスを入れてください":"合言葉を入れてください（自動入力が入っていないことがあります。一度押して入れ直してください）");
+      document.getElementById(!e1?"em":"pw").focus(); return; } }
+  const em=document.getElementById("em").value.trim().toLowerCase(); const h=await sha256(document.getElementById("pw").value);
   const u=USERS.find(x=>x.email.toLowerCase()===em && x.hash===h);
   if(u){ try{ localStorage.setItem("sd_admin_ok", String(Date.now())); localStorage.setItem("sd_admin_who", u.name||em); }catch(_){ } document.getElementById("gate").style.display="none"; load(); }
   else document.getElementById("gateErr").textContent="メールアドレスか合言葉が違います"; };
