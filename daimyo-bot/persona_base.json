@@ -1,0 +1,306 @@
+{
+ "hajime": {
+  "name": "初めての人",
+  "voice": "分からない",
+  "view": [
+   844,
+   390
+  ],
+  "guide": false,
+  "auto": 0.55,
+  "orderRate": 0.25,
+  "clickRate": 0.55,
+  "dullDays": 35,
+  "shortBattleSec": 12,
+  "stuckSec": 12,
+  "waitMs": 700,
+  "minTap": 44,
+  "minFont": 14,
+  "cares": [
+   "分からない",
+   "押しても何も起きない",
+   "字が小さい",
+   "何の釦か分からない",
+   "手ほどき"
+  ],
+  "say": {
+   "dull": "何をすればいいのか分からなくなった",
+   "short": "始まった途端に終わって、何が起きたのか分からない"
+  }
+ },
+ "sekkachi": {
+  "name": "せっかちな人",
+  "voice": "待てない",
+  "view": [
+   852,
+   393
+  ],
+  "guide": true,
+  "auto": 0.8,
+  "orderRate": 0.5,
+  "clickRate": 0.7,
+  "speed": 3,
+  "dullDays": 20,
+  "shortBattleSec": 5,
+  "stuckSec": 6,
+  "waitMs": 300,
+  "minTap": 44,
+  "minFont": 14,
+  "cares": [
+   "待たされる",
+   "固まる",
+   "開くのが遅い",
+   "合戦が終わらない",
+   "動かない"
+  ],
+  "say": {
+   "dull": "手応えが無くて退屈",
+   "short": "一瞬すぎる",
+   "slow": "待たされて苛々する"
+  }
+ },
+ "rekishi": {
+  "name": "歴史に詳しい人",
+  "voice": "史実と違う",
+  "view": [
+   932,
+   430
+  ],
+  "guide": true,
+  "auto": 0.3,
+  "orderRate": 0.6,
+  "clickRate": 0.4,
+  "dullDays": 60,
+  "shortBattleSec": 8,
+  "stuckSec": 20,
+  "waitMs": 1500,
+  "minTap": 44,
+  "minFont": 14,
+  "cares": [
+   "辻褄",
+   "札に無い将",
+   "起きるはずの事が起きていない",
+   "文の粗",
+   "家紋",
+   "官位"
+  ],
+  "say": {
+   "dull": "史実の流れが見えてこない",
+   "short": "名のある戦がこれで終わるのはおかしい"
+  }
+ },
+ "kouritsu": {
+  "name": "突き詰める人",
+  "voice": "釣り合いがおかしい",
+  "view": [
+   874,
+   402
+  ],
+  "guide": true,
+  "auto": 0.2,
+  "orderRate": 0.85,
+  "clickRate": 0.5,
+  "dullDays": 80,
+  "shortBattleSec": 8,
+  "stuckSec": 15,
+  "waitMs": 1200,
+  "minTap": 44,
+  "minFont": 14,
+  "cares": [
+   "数がおかしい",
+   "数で勝る隊が",
+   "押しても何も起きない",
+   "決まらない",
+   "効かない"
+  ],
+  "say": {
+   "dull": "伸ばす先が無くなった",
+   "short": "数の差だけで決まってしまう"
+  }
+ },
+ "keitai": {
+  "name": "片手で遊ぶ人",
+  "voice": "押しにくい",
+  "view": [
+   667,
+   375
+  ],
+  "guide": false,
+  "auto": 0.7,
+  "orderRate": 0.2,
+  "clickRate": 0.75,
+  "dullDays": 30,
+  "shortBattleSec": 10,
+  "stuckSec": 12,
+  "waitMs": 800,
+  "minTap": 44,
+  "minFont": 14,
+  "strictMobile": true,
+  "cares": [
+   "携帯で崩れる",
+   "押せる所が",
+   "字が十四px",
+   "はみ出",
+   "重なって",
+   "近すぎ"
+  ],
+  "say": {
+   "dull": "続ける気が起きない",
+   "short": "見る間もなく終わる"
+  }
+ },
+ "ui": {
+  "name": "画面にうるさい人",
+  "voice": "作りが揃っていない",
+  "view": [
+   896,
+   414
+  ],
+  "guide": true,
+  "auto": 0.5,
+  "orderRate": 0.4,
+  "clickRate": 0.8,
+  "dullDays": 50,
+  "shortBattleSec": 8,
+  "stuckSec": 15,
+  "waitMs": 600,
+  "minTap": 44,
+  "minFont": 14,
+  "strictMobile": true,
+  "strictRules": true,
+  "cares": [
+   "決まりに反する",
+   "携帯で崩れる",
+   "字が",
+   "対比",
+   "四十四px",
+   "行の高さ",
+   "はみ出",
+   "重なっ"
+  ],
+  "say": {
+   "dull": "見ていて落ち着かない",
+   "short": "何が起きたか画面から読み取れない"
+  }
+ },
+ "ux": {
+  "name": "使い勝手にうるさい人",
+  "voice": "迷う・戻れない",
+  "view": [
+   844,
+   390
+  ],
+  "guide": false,
+  "auto": 0.35,
+  "orderRate": 0.5,
+  "clickRate": 0.9,
+  "dullDays": 40,
+  "shortBattleSec": 9,
+  "stuckSec": 12,
+  "waitMs": 400,
+  "minTap": 44,
+  "minFont": 14,
+  "cares": [
+   "押しても何も起きない",
+   "閉じられない",
+   "手ごたえ",
+   "同じ名の釦",
+   "何の釦か分からない",
+   "待たされる",
+   "戻れない"
+  ],
+  "say": {
+   "dull": "次に何をすればいいか分からない",
+   "short": "選ぶ間もなく終わる"
+  }
+ },
+ "futsuu_ikusa": {
+  "name": "合戦が好きな人",
+  "voice": "戦がしたい",
+  "view": [
+   852,
+   393
+  ],
+  "guide": true,
+  "auto": 0.6,
+  "orderRate": 0.7,
+  "clickRate": 0.45,
+  "dullDays": 45,
+  "shortBattleSec": 10,
+  "stuckSec": 14,
+  "waitMs": 900,
+  "minTap": 44,
+  "minFont": 14,
+  "cares": [
+   "合戦",
+   "一瞬",
+   "決まらない",
+   "動かない",
+   "右往左往",
+   "釣り合い"
+  ],
+  "say": {
+   "dull": "戦が起きなくて暇",
+   "short": "せっかくの戦があっけない"
+  }
+ },
+ "futsuu_sodate": {
+  "name": "国を育てたい人",
+  "voice": "のんびり育てたい",
+  "view": [
+   932,
+   430
+  ],
+  "guide": true,
+  "auto": 0.5,
+  "orderRate": 0.35,
+  "clickRate": 0.5,
+  "dullDays": 70,
+  "shortBattleSec": 8,
+  "stuckSec": 20,
+  "waitMs": 1500,
+  "minTap": 44,
+  "minFont": 14,
+  "cares": [
+   "内政",
+   "石高",
+   "普請",
+   "手応え",
+   "良い報せ",
+   "分からない"
+  ],
+  "say": {
+   "dull": "育てている実感が無い",
+   "short": "戦が一瞬で終わって手応えが無い"
+  }
+ },
+ "futsuu_kachi": {
+  "name": "勝ちたい人",
+  "voice": "難しいと投げる",
+  "view": [
+   874,
+   402
+  ],
+  "guide": false,
+  "auto": 0.75,
+  "orderRate": 0.55,
+  "clickRate": 0.6,
+  "dullDays": 30,
+  "shortBattleSec": 9,
+  "stuckSec": 12,
+  "waitMs": 700,
+  "minTap": 44,
+  "minFont": 14,
+  "cares": [
+   "理不尽",
+   "負け",
+   "分からない",
+   "勝てない",
+   "知らせ"
+  ],
+  "say": {
+   "dull": "勝ち筋が見えない",
+   "short": "何もできずに終わった"
+  }
+ }
+}

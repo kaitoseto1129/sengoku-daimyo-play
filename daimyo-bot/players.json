@@ -1,0 +1,14 @@
+{
+  "note": "戦国大名のテストプレイヤー（名簿は一万人）の回し方。workflow（.github/workflows/daimyo-players.yml）はこれを読むので、人数・時間はここを変えて push するだけでよい。止めるには enabled を false に（手動の Run workflow は動く）",
+  "enabled": true,
+  "shards": 5,
+  "per": 40,
+  "jobs": 2,
+  "days": 90,
+  "plays": 1,
+  "personSeconds": 900,
+  "jobMinutes": 50,
+  "minGapMinutes": 10,
+  "sc": "nagashino",
+  "clans": "織田家,武田家,上杉家,徳川家"
+}
