@@ -301,7 +301,12 @@ function setupTouch({ input, game, setPause, toggleBigMap }) {
         const d = T.radialDrag; T.radialDrag = null;
         if (!d) break;
         // 滑らせて選んだ → 放して決める。滑らせずに放した → 輪を開いたまま、行き先を叩いて選ぶ
-        if (d.moved > 24) { feedDrag(d); input.keys.delete('Tab'); }
+        if (d.moved > 24) {
+          // 輪が開く前（0.22秒より短い）に素早くなぞって放した時も、なぞった向きの号令を出す（指揮の札を開かない）
+          const p = game.battle && game.battle.player;
+          if (p && !p.radial && p.flickRadial) p.flickRadial(d.vx, d.vy); else feedDrag(d);
+          input.keys.delete('Tab');
+        }
         else { T.sticky = true; showHint(innerHeight < 500 ? 'なぞって放す' : '号令の輪：選ぶ号令を指で押して放す（なぞってもよい・真ん中でやめる）', true); }
         break;
       }
@@ -609,7 +614,9 @@ export function touchFrame(dt) {
   const low = innerHeight < 500;
   // 馬上・空馬の手綱を取れる時は「降りる／手綱」を狙いより先に（畳むと馬を降りられなくなる）。
   // 鉄砲・弓を持てる時は「持替」を鼓舞より先に（鉄砲へ持ち替えるのに「…」を開かなくて済む）
-  const order = rid || p.takeO ? ['atk', 'grd', 'dodge', 'cmd', 'use', 'mount', 'lock', 'rally', 'wpn']
+  // 降りた馬がすぐそば（乗れる所）にいる時も「乗る」を先に（畳むと、降りた後にすぐ乗り直せない）
+  const L = p.loose, nearHorse = !rid && p.canRide && L && L.mode !== 'fled' && Math.hypot(L.x - p.u.pos.x, L.z - p.u.pos.z) < 3.2;
+  const order = rid || p.takeO || nearHorse ? ['atk', 'grd', 'dodge', 'cmd', 'use', 'mount', 'lock', 'rally', 'wpn']
     : wl.includes('gun') || wl.includes('bow') ? ['atk', 'grd', 'dodge', 'cmd', 'use', 'lock', 'wpn', 'mount', 'rally']
       : ['atk', 'grd', 'dodge', 'cmd', 'use', 'lock', 'mount', 'rally', 'wpn'];
   const want = order.filter((id) => !btn[id].hidden);

@@ -454,16 +454,19 @@ function farPoints(world) {
     grp.updateMatrixWorld(true);
     const body = grp.children[0];
     const n = body.count || 0;
-    let sx = 0, sz = 0;
+    let sx = 0, sz = 0, vn = 0;
     for (let i = 0; i < n; i++) {
       body.getMatrixAt(i, _m4);
+      // 道を譲って隠した兵（yieldArmies）・本物に替えた兵（take）は大きさ 0。見えないので数えない
+      const e = _m4.elements;
+      if (!(e[0] * e[0] + e[1] * e[1] + e[2] * e[2] >= 1e-4)) continue;
       _v.setFromMatrixPosition(_m4).applyMatrix4(body.matrixWorld);
-      sx += _v.x; sz += _v.z;
+      sx += _v.x; sz += _v.z; vn++;
       const key = Math.floor(_v.x / C) + ',' + Math.floor(_v.z / C);
       let c = grid.get(key); if (!c) grid.set(key, (c = []));
       c.push(_v.x, _v.z, k);
     }
-    info.push({ x: Math.round(sx / Math.max(1, n)), z: Math.round(sz / Math.max(1, n)), n });
+    info.push({ x: Math.round(sx / Math.max(1, vn)), z: Math.round(sz / Math.max(1, vn)), n: vn });
   });
   return {
     info,

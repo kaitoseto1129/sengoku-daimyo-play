@@ -1679,6 +1679,19 @@ export class Player {
     sfx('ui');
   }
   // 号令の輪の四つ目を、選んだ隊に合わせて「槍衾」か「放て／やめ」にする
+  // 指の端末：号令の丸を素早くなぞって放した（輪が開く前の）時、なぞった向きの号令を出す
+  flickRadial(vx, vy) {
+    if (Math.hypot(vx, vy) < 25) return false;
+    this.syncRadial();
+    const a = (Math.atan2(vx, -vy) + Math.PI * 2) % (Math.PI * 2);
+    const it = RADIAL[Math.round(a / (Math.PI / 4)) % 8];
+    this.tabT = null;
+    if (it.min && this.G.rank < it.min) return true;
+    if (it.id === 'rally') this.rally(); else this.command(it.id);
+    if (this.rt.tutMark) this.rt.tutMark('radial');
+    return true;
+  }
+
   syncRadial() {
     const gs = this.selectedGroups().filter((g) => g.count > 0);
     const sh = gs.some((g) => g.kind === 'bow' || g.kind === 'gun');

@@ -15,7 +15,7 @@ import { moraleWord } from './hud.js';
 import { gauss, enemyGroup, allyGroup, nm, centerOf, unitPos } from './bhelp.js';
 import { dress, gone, volleyWatch } from './b_inabayama.js';
 import { KIT } from './b_nagashinojo.js';
-import { depthStart, depthTick, rest, pick, fight, hold } from './b_depth.js';
+import { depthStart, depthTick, depthBot, rest, pick, fight, hold } from './b_depth.js';
 import { distToPolyline } from './world.js';
 import { camp } from './b_mid.js';
 
@@ -248,7 +248,7 @@ const tonezaka = {
       if ((d < 8 && gone(F.r4)) || rt.t - F.stepT > 120 || (gone(F.r4) && rt.t - F.stepT > 75)) {
         rt.unmark('pass'); rt.unzone('pass'); rt.unmark('r4');
         if (F.r4 && !gone(F.r4)) F.r4.morale = 0;
-        this.win(rt);   // 峠の後の段（C）は、戦が長くなるので省く
+        this.deep(rt, 'C', () => this.win(rt));   // 峠の向こうから引き返す朝倉の捨て石（三つ目の判断）
       }
     }
   },
@@ -293,6 +293,7 @@ tonezaka.botBrain = (b, inp, { goTo }) => {
   inp.quickCmd = null;
   inp.k.delete('KeyW'); inp.k.delete('KeyE');
   if (!u.alive || F.ending) return;
+  if (F.dpOn) { depthBot(b, inp, goTo); return; }
   if (u.hp < u.maxHp * 0.5) b.botRest = true;
   if (b.botRest && u.hp > u.maxHp * 0.85) b.botRest = false;
   const c = F.uma.center();
@@ -320,7 +321,10 @@ const uS = (n) => ({ type: 'samurai', n }), uA = (n) => ({ type: 'ashigaru', n }
 const gunLine = (name, from, n, o = {}) => ({ name, from, list: [uS(1), uG(n)], formation: 'line', seek: 70, mass: 80, kind: 'gun', ...o });
 function tzCtx(rt) {
   const F = rt.flags;
-  return { faction: 'saito', flag: 'asakura', armor: 0x33291f, dmg: 0.64, mass: 260, look: (l) => dress(l, ASA),
+  return { faction: 'saito', flag: 'asakura', armor: 0x33291f, dmg: 0.56, mass: 260, look: (l) => dress(l, ASA),
+    // 遅れていた諸将の手が、段ごとに追いついてくる（信長公記：先手の諸将は遅れて追いついた）
+    aid: { name: '追いついた丹羽長秀の手', faction: 'oda', flag: 'oda', list: [uS(2), uA(10)] },
+    aidSaid: '丹羽長秀の手が追いついた！',
     friends: () => [F.uma, F.late].filter((g) => g && g.count && !g.routed) };
 }
 // A 殿の一の手を破った後：返し合わせ → 信長公を守るか、荷駄を押さえるか
@@ -328,20 +332,21 @@ function tzA() {
   const at = { x: 4, z: -30 };
   return [
     rest({ dur: 7, heal: 0.3, say: [['足軽', '殿（しんがり）を破った……じゃが、嵐で前が見えぬ'], ['織田信長', '止まるな。……いや、待て。前の闇が動いておる']] }),
-    hold({ at, dur: 90, r: 14, title: '返し合わせ', sub: '退くと見せた朝倉勢が、大勢で向き直る', label: '信長の馬廻', obj: '峠道で、向き直った朝倉勢を受けよ（信長公のそばを離れるな）',
-      say: [['織田信長', '返してきたか。面白い、受けよ！']],
+    hold({ at, dur: 112, r: 14, title: '返し合わせ', sub: '退くと見せた朝倉勢が、大勢で向き直る', label: '信長の馬廻', obj: (rt) => (hi(rt) ? '預かった一手を信長公の前に並べ、向き直った朝倉勢を受けよ' : '峠道で、向き直った朝倉勢を受けよ（信長公のそばを離れるな）'),
+      say: [['織田信長', '返してきたか。面白い、受けよ！'], ['柴田勝家', '先頭の侍を討て。頭が落ちれば、後ろの足軽は崩れる']],
       waves: [
         { t: 4, say: ['足軽', '嵐の中から、一面に槍が……！'], foes: () => [{ name: '返し合わせる朝倉勢', from: { x: 6, z: -76 }, list: [uS(3), uA(13)], mass: 380, noRout: 25 }] },
         { t: 28, say: ['足軽', '火縄の火が並んでおる！　鉄砲じゃ、伏せよ！'], foes: () => [gunLine('朝倉の鉄砲衆', { x: 24, z: -64 }, 8)] },
         { t: 52, say: ['足軽', '左の尾根から下りてくる！　馬廻の横を突く気じゃ！'], foes: () => [{ name: '左の尾根の朝倉勢', from: { x: -48, z: -40 }, off: { x: -8, z: 0 }, list: [uS(2), uA(10)], mass: 260 }] },
         { t: 78, say: ['柴田勝家', '右もじゃ！　殿（信長公）をお守りせよ！'], foes: () => [{ name: '右の尾根の朝倉勢', from: { x: 48, z: -20 }, off: { x: 8, z: 4 }, list: [uS(2), uA(10)], mass: 240 }] },
+        { t: 102, say: ['織田信長', 'まだ来るか。……これが最後の返しじゃ、押し返せ！'], foes: () => [{ name: '返し合わせの二の波', from: { x: -4, z: -80 }, list: [uS(3), uA(12)], mass: 360 }] },
       ],
       reward: '返し合わせる朝倉勢を受け止めた', lost: ['柴田勝家', '押し返されたか……！　殿、お下がりを！'] }),
     rest({ dur: 7, bark: '立て直し：嵐の中で組を集める', say: [['足軽', '道の脇に、朝倉の荷駄が捨ててある……兵糧と鉄砲の玉薬じゃ'], ['柴田勝家', '拾うておる暇はない。……いや、あれを取られたまま退かれては']] }),
     pick({ title: '朝倉の荷駄（兵糧と玉薬）が道の脇に残っている。どうする？',
       options: [{ label: '西の沢の荷駄を押さえ、焼き払う', note: '朝倉の鉄砲の玉薬が尽き、後で鉄砲が少なくなる。守りの者と斬り合う' }, { label: '構わず、信長公について坂を追い上げる', note: '早く追いつける。朝倉は鉄砲を残したまま坂の上で待つ' }],
       on: (rt, m, i) => { m.tzCart = i === 0; rt.say('柴田勝家', i === 0 ? '焼け！　玉薬に火をつけるなよ、離れて焼け' : '坂じゃ！　殿に遅れるな', 3); } }),
-    fight({ skip: (rt, m) => !m.tzCart, at: { x: -34, z: -56 }, title: '西の沢の荷駄', sub: '荷駄を守る朝倉の者が、槍を構える', obj: '西の沢の荷駄を守る朝倉勢を崩せ',
+    fight({ skip: (rt, m) => !m.tzCart, at: { x: -34, z: -56 }, title: '西の沢の荷駄', sub: '荷駄を守る朝倉の者が、槍を構える', obj: (rt) => (hi(rt) ? '一手を率いて西の沢へ下り、荷駄を守る朝倉勢を崩せ' : '西の沢の荷駄を守る朝倉勢を崩せ'),
       foes: () => [{ name: '荷駄を守る朝倉勢', from: { x: -50, z: -80 }, list: [uS(2), uA(11)], mass: 200 }],
       later: [{ t: 36, title: '横槍', sub: '朝倉の騎馬が荷駄を取り返しに', say: ['足軽', '騎馬が引き返してきた！'], foes: () => [{ name: '引き返す朝倉の騎馬', from: { x: -20, z: -96 }, list: [uS(1), uC(5), uA(3)], mass: 100, kind: 'cavalry' }] }],
       max: 130, reward: (t) => { t.special = { label: '朝倉の荷駄を焼いた', pts: 15 }; }, rewardLabel: '朝倉の荷駄を焼いた',
@@ -356,16 +361,17 @@ function tzB() {
     pick({ title: '坂の上の朝倉の後備えを、どう攻める？',
       options: [{ label: '馬廻と一緒に、坂を正面から押し上がる', note: '味方と一緒に押す。坂の上からの鉄砲と槍を正面で受ける' }, { label: '組を連れて東の尾根を回り、後備えの横を突く', note: '横から突けば後備えは崩れやすい。尾根の上で待ち伏せに遭うかもしれぬ' }],
       on: (rt, m, i) => { m.tzRidge = i === 1; rt.say('織田信長', i === 1 ? '行け。横から突け' : '押し上がれ！', 3); } }),
-    fight({ skip: (rt, m) => !m.tzRidge, at: { x: 40, z: -100 }, title: '東の尾根', sub: '尾根の上に、朝倉の伏兵', obj: '東の尾根の伏兵を崩し、後備えの横へ出よ',
+    fight({ skip: (rt, m) => !m.tzRidge, at: { x: 40, z: -100 }, title: '東の尾根', sub: '尾根の上に、朝倉の伏兵', obj: (rt) => (hi(rt) ? '一手を率いて東の尾根の伏兵を崩し、後備えの横へ出よ' : '東の尾根の伏兵を崩し、後備えの横へ出よ'),
       foes: () => [{ name: '尾根の伏兵', from: { x: 56, z: -120 }, list: [uS(2), uA(10)], mass: 200 }],
       max: 100, reward: '東の尾根を取った' }),
-    hold({ at, dur: 100, r: 14, title: '朝倉の後備え', sub: '坂の上から、朝倉の後備えが大勢で押し下る', label: '坂の途中', obj: '坂の途中で、朝倉の後備えの大波を受け止めよ',
+    hold({ at, dur: 118, r: 14, title: '朝倉の後備え', sub: '坂の上から、朝倉の後備えが大勢で押し下る', label: '坂の途中', obj: (rt) => (hi(rt) ? '預かった一手で信長公の脇を固め、後備えの大波を受け止めよ' : '坂の途中で、朝倉の後備えの大波を受け止めよ'),
       waves: [
         { t: 4, say: ['足軽', '上から、大勢で押し下ってくる！'], foes: (rt, m) => [{ name: '朝倉の後備え', from: { x: at.x, z: at.z - 56 }, list: [uS(4), uA(m.tzRidge ? 10 : 14)], mass: m.tzRidge ? 280 : 420, noRout: 25, morale: m.tzRidge ? 75 : 95 }] },
         { t: 26, if: (rt, m) => !m.tzCart, say: ['足軽', '坂の上に鉄砲衆じゃ！　木の陰へ寄れ！'], foes: () => [gunLine('坂の上の朝倉の鉄砲衆', { x: at.x + 18, z: at.z - 44 }, 10)] },
         { t: 26, if: (rt, m) => m.tzCart, say: ['柴田勝家', '玉薬を焼いたおかげで、鉄砲は少ないぞ！'], foes: () => [gunLine('朝倉の鉄砲', { x: at.x + 18, z: at.z - 44 }, 4)] },
         { t: 54, say: ['足軽', '左の谷から回り込んできた！'], foes: () => [{ name: '谷を回る朝倉勢', from: { x: at.x - 50, z: at.z - 10 }, off: { x: -8, z: 0 }, list: [uS(2), uA(10)], mass: 260 }] },
         { t: 80, say: ['柴田勝家', '後ろじゃ！　下の道に朝倉の一手が回った！'], foes: () => [{ name: '後ろへ回った朝倉勢', from: { x: at.x - 10, z: at.z + 56 }, list: [uS(2), uA(10)], mass: 240 }] },
+        { t: 106, say: ['織田信長', '後備えの旗本じゃ。あれを崩せば、朝倉はもう返せぬ！'], foes: () => [{ name: '朝倉の後備えの旗本', from: { x: at.x + 6, z: at.z - 58 }, list: [uS(4), uA(10)], mass: 320 }] },
       ],
       reward: '朝倉の後備えを受け止めた', lost: ['柴田勝家', '押し下げられた……！　じゃが、朝倉も息が切れておる'] }),
   ];
@@ -378,16 +384,17 @@ function tzC() {
     pick({ title: '峠の向こうから、朝倉の一手が引き返してくる。どうする？',
       options: [{ label: '峠を越え、下り坂で迎え撃つ', note: '越前の谷へ踏み込む。討てば大手柄。深入りすれば囲まれる' }, { label: '峠の上で槍を揃え、後から来る味方を待つ', note: '峠の上は守りやすい。手柄は手堅い' }],
       on: (rt, m, i) => { m.tzOver = i === 0; rt.say('織田信長', i === 0 ? '越えよ。一人も越前へ帰すな' : 'よし、峠を押さえよ。勝家、後の者を急がせよ', 3); } }),
-    fight({ skip: (rt, m) => !m.tzOver, at: { x: -4, z: -176 }, title: '峠の向こう', sub: '越前の谷へ下る道で、朝倉の捨て石が向き直る', obj: '峠の向こうの下り坂で、引き返す朝倉勢を崩せ',
-      foes: () => [{ name: '引き返す朝倉勢', from: { x: -4, z: -206 }, list: [uS(3), uA(13)], mass: 360, noRout: 20 }],
-      later: [{ t: 30, title: '鉄砲', sub: '谷の下から鉄砲衆が撃ち上げる', say: ['足軽', '谷の下に鉄砲が並んだ！'], foes: () => [gunLine('谷の鉄砲衆', { x: 16, z: -200 }, 8)] },
-        { t: 60, title: '囲まれる', sub: '左右の藪から朝倉勢が', say: ['足軽', '藪の左右から出てきた！　囲まれるぞ！'], foes: () => [{ name: '左の藪の朝倉勢', from: { x: -40, z: -180 }, list: [uS(1), uA(9)], mass: 180 }, { name: '右の藪の朝倉勢', from: { x: 32, z: -176 }, list: [uS(1), uA(9)], mass: 180 }] }],
+    fight({ skip: (rt, m) => !m.tzOver, at: { x: -4, z: -160 }, title: '峠の向こう', sub: '越前の谷へ下る道で、朝倉の捨て石が向き直る', obj: (rt) => (hi(rt) ? '一手を率いて峠を越え、引き返す朝倉勢を崩せ' : '峠の向こうの下り坂で、引き返す朝倉勢を崩せ'),
+      foes: () => [{ name: '引き返す朝倉勢', from: { x: -6, z: -174 }, list: [uS(3), uA(13)], mass: 360, noRout: 20 }],
+      say: [['織田信長', '下り坂じゃ。勢いで押し崩せ。止まれば囲まれるぞ']],
+      later: [{ t: 30, title: '鉄砲', sub: '谷の下から鉄砲衆が撃ち上げる', say: ['足軽', '谷の下に鉄砲が並んだ！　寄って斬れば撃てぬ！'], foes: () => [gunLine('谷の鉄砲衆', { x: 20, z: -172 }, 8)] },
+        { t: 60, title: '囲まれる', sub: '左右の藪から朝倉勢が', say: ['足軽', '藪の左右から出てきた！　囲まれるぞ！'], foes: () => [{ name: '左の藪の朝倉勢', from: { x: -40, z: -164 }, list: [uS(1), uA(9)], mass: 180 }, { name: '右の藪の朝倉勢', from: { x: 34, z: -162 }, list: [uS(1), uA(9)], mass: 180 }] }],
       max: 160, reward: (t) => { t.special = { label: '峠を越えて朝倉の捨て石を崩した', pts: 25 }; }, rewardLabel: '峠を越えて朝倉の捨て石を崩した' }),
-    hold({ skip: (rt, m) => m.tzOver, at, dur: 100, r: 12, title: '峠の上', sub: '峠へ押し上がってくる朝倉の捨て石', label: '刀根坂の峠', obj: '峠の上で、押し上がってくる朝倉勢を防げ',
+    hold({ skip: (rt, m) => m.tzOver, at, dur: 100, r: 12, title: '峠の上', sub: '峠へ押し上がってくる朝倉の捨て石', label: '刀根坂の峠', obj: (rt) => (hi(rt) ? '預かった一手で峠の上を押さえ、後の味方が来るまで防げ' : '峠の上で、押し上がってくる朝倉勢を防げ'),
       waves: [
-        { t: 4, say: ['足軽', '来たぞ、峠の向こうから！'], foes: () => [{ name: '引き返す朝倉勢', from: { x: -4, z: -196 }, list: [uS(3), uA(12)], mass: 320 }] },
-        { t: 40, say: ['足軽', '鉄砲を並べて撃ち上げてくる！'], foes: () => [gunLine('谷の鉄砲衆', { x: 14, z: -190 }, 8)] },
-        { t: 66, say: ['柴田勝家', '最後の一押しじゃ！'], foes: () => [{ name: '朝倉の最後の一手', from: { x: -20, z: -196 }, list: [uS(2), uA(11)], mass: 260 }] },
+        { t: 4, say: ['足軽', '来たぞ、峠の向こうから！'], foes: () => [{ name: '引き返す朝倉勢', from: { x: 4, z: -174 }, list: [uS(3), uA(12)], mass: 320 }] },
+        { t: 40, say: ['足軽', '鉄砲を並べて撃ち上げてくる！'], foes: () => [gunLine('谷の鉄砲衆', { x: 22, z: -172 }, 8)] },
+        { t: 66, say: ['柴田勝家', '最後の一押しじゃ！'], foes: () => [{ name: '朝倉の最後の一手', from: { x: -22, z: -172 }, list: [uS(2), uA(11)], mass: 260 }] },
       ],
       reward: '刀根坂の峠を守り抜いた' }),
   ];

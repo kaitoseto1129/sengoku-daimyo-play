@@ -5,6 +5,7 @@
 // 信長は囲んで兵糧を断つことにし、十月、次男の茶筅丸（のちの信雄）を北畠の養子とすることで和を結んだ。
 // 足軽は丹羽長秀の手。①雨の夜、西の搦手の木戸へ寄せ、木戸を破る組を守る ②雨で鉄砲の撃てぬ中、打って出た城兵を受け止める
 // ③退きの下知。追ってくる城兵を防ぎながら、陣まで退く
+// ②と③の間・③の後に段（b_depth.js）：塀の下で囲まれた池田の手（助けるか木戸を保つか）→退き遅れた稲葉の手（殿に残るか）→陣の前の追っ手（鉄砲で待つか槍で出るか）
 // 向き：北（-z）の丘の上に大河内城。南（+z）に織田の陣
 // ======================================================================
 import * as THREE from 'three';
@@ -18,6 +19,9 @@ import { dress, gone, more } from './b_inabayama.js';
 import { KIT } from './b_nagashinojo.js';
 import { camp } from './b_mid.js';
 import { volleyTick } from './b_sekigahara.js';
+import { volleyAt } from './b_tano.js';
+import { depthStart, depthTick, rest, pick, fight, hold } from './b_depth.js';
+import { uS, uA, uB, gunLine, lines } from './b_mid.js';
 // 上の身分（足軽大将候補より上）：丹羽の手の一手を預かり、退きでは殿を務める
 const HI = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
 
@@ -119,6 +123,13 @@ const okawachi = {
     R.order = 'assault'; R.formation = 'line'; R.aggro = 2; R.assault = () => (F.gate.alive ? F.gate : null);
     for (const [g, x] of [[F.niwa, 0], [F.ikeda, -20], [F.inaba, 20]]) { g.order = 'move'; g.dest = { x, z: WALL_Z + 16 }; g.speed = 2.2; g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 30; }; }
     rt.marker('gate', GATE, () => `木戸 ${Math.round(Math.max(0, F.gate.hp) / F.gate.maxHp * 100)}%`, { h: 4 });
+    // 塀の左右いっぱいに、織田の寄せ手と塀の内の北畠勢が押し合う（軽い作り）。木戸の前は空けておく
+    F.lines = lines(rt, [
+      { x: -52, z: WALL_Z + 8, facing: Math.PI, w: 44, gap0: 20, seed: 15694, A: ['oda', 0x2b3140, 380, 'oda'], B: ['maru', KIT.ARMOR.saito, 320, 'saito'], bowsB: true, surge: { every: 55, count: 120, flank: 0.1 } },
+      { x: 52, z: WALL_Z + 8, facing: Math.PI, w: 44, gap0: 20, seed: 15695, A: ['inaba', 0x2b3140, 360, 'oda'], B: ['maru', KIT.ARMOR.saito, 320, 'saito'], bowsB: true, surge: { every: 55, count: 120, flank: 0.1 } },
+    ]);
+    F.lines.forEach((c, i) => rt.after(3 + i * 2, () => c.go()));
+    rt.after(24, () => { if (F.step === 1) rt.say('丹羽長秀', '左右の塀には池田殿・稲葉殿の手が取り付いた。木戸さえ破れば、中へ入れる', 4); });
     rt.after(8, () => rt.say('足軽', '……鉄砲が、撃てぬ！　火が消える！', 3));
     rt.after(16, () => {
       if (F.step !== 1) return;
@@ -157,6 +168,30 @@ const okawachi = {
     KIT.backOf(rt, F.push[0], { flag: 'maru', armor: KIT.ARMOR.saito, kind: 'spear', w: 18, depth: 10, count: 90, seed: 71 });
   },
 
+  // ②の後の段：塀の下の池田の手・退き遅れた稲葉の手 → ③へ
+  midA(rt) {
+    const F = rt.flags;
+    if (F.step >= 2.5) return;
+    F.step = 2.5;
+    for (let i = 1; i <= 2; i++) rt.unmark('p' + i);
+    for (const q of F.push || []) if (!gone(q)) { q.noRout = false; q.morale = Math.min(q.morale, 15); }
+    rt.award((t) => t.side.push('城兵の打って出を受け止めた'), '打って出を受け止めた');
+    F.pushDone = true;
+    rt.obj('main', HI(rt) ? '丹羽の手の一手を預かり、搦手の前を保て' : '搦手の前で、城兵を押し返せ', 'main');
+    depthStart(rt, okCtx(rt), okA(), () => this.retreat(rt));
+  },
+  // ③の後の段：陣の前まで追ってきた城兵 → 勝ち
+  midB(rt) {
+    const F = rt.flags;
+    if (F.step >= 3.5) return;
+    F.step = 3.5;
+    rt.unmark('camp'); rt.unzone('camp');
+    if (F.chaser && !gone(F.chaser)) F.chaser.morale = Math.min(F.chaser.morale, 20);
+    rt.award((t) => t.side.push('追っ手を防ぎながら陣まで退いた'), '陣まで退いた');
+    rt.obj('main', HI(rt) ? '殿の一手を陣の前に並べ、追ってきた城兵を退けよ' : '陣の前で、追ってきた城兵を退けよ', 'main');
+    depthStart(rt, okCtx(rt), okB(), () => this.win(rt));
+  },
+
   // ③ 退く
   retreat(rt) {
     const F = rt.flags;
@@ -164,12 +199,13 @@ const okawachi = {
     F.step = 3; F.stepT = rt.t;
     rt.setPhase('retreat');
     for (let i = 1; i <= 2; i++) rt.unmark('p' + i);
-    rt.award((t) => t.side.push('城兵の打って出を受け止めた'), '打って出を受け止めた');
+    if (!F.pushDone) rt.award((t) => t.side.push('城兵の打って出を受け止めた'), '打って出を受け止めた');
     sfx('horagai', 0.6);
     rt.banner('退きの下知', '夜攻めは破れた。陣まで退く');
     rt.say('丹羽長秀', '退け！　……今夜はここまでじゃ。雨に負けた。組をまとめて退け！', 4);
     rt.obj('main', HI(rt) ? '殿を務め、追ってくる城兵を防ぎながら陣まで退け' : '追ってくる城兵を防ぎながら、陣まで退け', 'main');
     if (HI(rt)) rt.after(1.5, () => rt.say('丹羽長秀', `${nm(rt)}、その方の手が殿じゃ。皆が退くまで追っ手を食い止め、しまいに陣へ入れ`, 4));
+    for (const c of F.lines || []) c.rout('B', { from: 0, hideAfter: 24, minFight: 0 });   // 塀に取り付いていた城兵も、城の内へ引き上げる
     rt.marker('camp', CAMP, '陣', { h: 2 });
     rt.zone('camp', CAMP.x, CAMP.z - 6, 8);
     for (const g of [F.niwa, F.ikeda, F.inaba, F.ram]) { g.order = 'move'; g.dest = { x: g.anchor.x * 0.5, z: CAMP.z - 16 }; g.speed = 2.6; g.onArrive = (q) => { q.order = 'hold'; }; }
@@ -193,6 +229,7 @@ const okawachi = {
     rt.setPhase('end');
     rt.unmark('camp'); rt.unzone('camp'); rt.unmark('ch');
     for (const q of [...(F.push || []), F.chaser, F.s1]) if (q && !gone(q)) { q.order = 'hold'; q.morale = Math.min(q.morale, 30); }
+    for (const c of F.lines || []) c.rout('B', { from: 0, hideAfter: 20, minFight: 0 });
     rt.objDone('main');
     rt.tracker.main = true;
     rt.award((t) => { t.main = true; t.special = { label: '雨の夜攻めから組をまとめて退いた', pts: 18 }; }, '任務達成・陣まで退いた');
@@ -210,6 +247,9 @@ const okawachi = {
     // 控えは前の隊が崩れたら一緒に崩れる（KIT.backTick は遠くの軍勢まで本物に替えるので、崩れだけを見る）
     for (const q of F.backs || []) if (!q.gone && (q.g.routed || !q.g.count)) { q.gone = true; q.b.rout({ hideAfter: 16 }); rt.after(16.5, () => { q.b.visible = false; }); }
     if (F.ending) return;
+    // 近寄って目を覚ました控えの兵は、当たりを弱める（雨の闇で大軍に呑まれて倒れ続けないように）
+    if ((F.wkT = (F.wkT || 0) - dt) <= 0) { F.wkT = 0.5; for (const g of rt.army.groups) if (g.woke && g.team === 1 && !g.wkDm) { g.wkDm = true; g.dmgMult = (g.dmgMult || 1) * 0.55; } }
+    depthTick(rt, dt);
     volleyTick(rt, dt, F.vol);
     const p = rt.player.u.pos;
     if (F.step === 1) {
@@ -222,13 +262,13 @@ const okawachi = {
       const L = F.push || [];
       rt.objProgress('main', `北畠勢 ${L.reduce((a, q) => a + (gone(q) ? 0 : q.count), 0)}人`);
       for (const q of L) if (q.count < 5 && !gone(q)) q.morale = Math.min(q.morale, 25);
-      if ((L.length >= 2 && L.every(gone)) || rt.t - F.stepT > 130) this.retreat(rt);
+      if ((L.length >= 2 && L.every(gone)) || rt.t - F.stepT > 130) this.midA(rt);
     }
     if (F.step === 3) {
       const d = Math.hypot(p.x - CAMP.x, p.z - (CAMP.z - 6));
       rt.objProgress('main', `陣まで ${Math.max(0, Math.round(d))}m`);
       if (F.chaser.count < 4 && !gone(F.chaser)) F.chaser.morale = Math.min(F.chaser.morale, 20);
-      if (d < 8 || rt.t - F.stepT > 120) this.win(rt);
+      if (d < 8 || rt.t - F.stepT > 120) this.midB(rt);
     }
   },
 
@@ -237,7 +277,9 @@ const okawachi = {
     if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
   },
   onRout(rt, g) {
-    if (g.team !== 1) return;
+    const F = rt.flags;
+    if (g.team !== 1 || rt.t < (F.routSayT || 0)) return;
+    F.routSayT = rt.t + 10;
     rt.say('足軽', `${g.name}が城へ退いた`, 2.5);
   },
   onStructHit(rt, s) {
@@ -248,6 +290,84 @@ const okawachi = {
     if (next) { F.saidPct = [...(F.saidPct || []), next]; rt.bark(`木戸がきしむ（残り ${pct}%）`); }
   },
 };
+
+// ---------------- 搦手の前・退き・陣の前の段 ----------------
+const IKEDA = { x: -30, z: WALL_Z + 14 };   // 塀の下の池田の手
+const INABA = { x: 26, z: WALL_Z + 26 };    // 退き遅れた稲葉の手
+const FRONT = { x: 0, z: WALL_Z + 16 };     // 搦手の前
+const CAMPF = { x: CAMP.x, z: CAMP.z - 16 }; // 陣の前
+const KB = (l) => dress(l, KITABATAKE);
+function okCtx(rt) {
+  const F = rt.flags;
+  return { faction: 'saito', flag: 'maru', armor: KIT.ARMOR.saito, dmg: 0.58, look: KB, friends: () => [F.niwa, F.ikeda, F.inaba].filter((g) => g && g.count), aid: { name: '丹羽の手の一組', list: [uS(1), uA(8)] }, aidSaid: '丹羽の手から一組が加わった', botSteer: wallStop };
+}
+// bot が塀に突っかからないように：塀の手前では、塀へ向かって歩かない（木戸の口は通す）
+function wallStop(b, inp) {
+  const p = b.player, u = p.u;
+  if (inp.k.has('KeyW') && u.pos.z < WALL_Z + 3 && Math.cos(p.yaw) < 0 && (Math.abs(u.pos.x) > 3 || (b.flags.gate && b.flags.gate.alive))) inp.k.delete('KeyW');
+}
+const bowLine = (name, from, at, n = 9, x = {}) => gunLine(name, from, at, n, { list: [uS(1), uB(n)], kind: 'spear', ...x });
+function okA() {
+  return [
+    rest({ dur: 8, say: [['足軽', '……雨が強うなった。塀の上から矢が降ってくる'], ['丹羽長秀', '息を整えよ。城兵はまだ出てくるぞ']] }),
+    pick({ title: '池田恒興の手が、西の塀の下で城兵に囲まれた。どうする？',
+      pre: (rt) => { rt.army.play('eshout', IKEDA, 1.8); rt.say('伝令', '池田殿の手が塀の下で囲まれております！', 3); },
+      options: [{ label: '池田の手を助けに走る', note: '池田の手を救えば手柄。塀の下で弓に横から射られる' }, { label: '搦手の前を保つ', note: '木戸の前を渡さずに済む。池田の手は大きく討たれる' }],
+      on: (rt, m, i) => { m.okIkeda = i === 0; rt.say('丹羽長秀', i === 0 ? '行け！　塀から離れて横から突け。塀の下に張り付くと、上から射られるぞ' : 'よし、木戸の前を固めよ。ここを渡せば、皆が討たれる', 3.5); } }),
+    fight({ skip: (rt, m) => !m.okIkeda, at: IKEDA, max: 150, title: '西の塀の下', sub: '雨の闇の中、池田の手が城兵に囲まれている',
+      obj: (rt) => (HI(rt) ? '預かった一手で池田の手を囲む城兵を横から突き崩せ' : '池田の手を囲む城兵を崩せ'),
+      foes: () => [{ name: '池田の手を囲む北畠勢', from: { x: -44, z: WALL_Z + 4 }, list: [uS(3), uA(14)], mass: 240, noRout: 20 }],
+      later: [
+        { t: 30, title: '塀の下の弓', sub: '北畠の弓が、塀の下に並んで射る', say: ['足軽', '塀の下に弓が並んだ……！　並ぶ前に突け！'], foes: () => [bowLine('塀の下の北畠の弓', { x: -30, z: WALL_Z + 3 }, IKEDA, 10, { off: { x: 0, z: -9 } })] },
+        { t: 65, title: '新手', sub: '木戸から、北畠の新手が回ってくる', say: ['足軽', '木戸の方から新手が……挟まれるぞ！'], foes: () => [{ name: '木戸から回った北畠の新手', from: { x: -6, z: WALL_Z + 2 }, list: [uS(2), uA(12)], mass: 200 }] },
+      ],
+      reward: (t) => { t.special = { label: '塀の下で囲まれた池田の手を救った', pts: 15 }; }, rewardLabel: '池田の手を救った' }),
+    hold({ skip: (rt, m) => m.okIkeda, at: FRONT, dur: 90, r: 14, title: '搦手の前', sub: '木戸から、城兵が繰り返し打って出る', label: '搦手の前',
+      obj: (rt) => (HI(rt) ? '預かった一手を木戸の前に並べ、打って出る城兵を押し返せ' : '木戸の前で、打って出る城兵を押し返せ'),
+      waves: [
+        { t: 5, say: ['足軽', '木戸からまた出てきた……！'], foes: () => [{ name: '木戸から出た北畠勢', from: { x: 0, z: WALL_Z - 2 }, list: [uS(2), uA(16)], mass: 260, noRout: 15 }] },
+        { t: 35, say: ['足軽', '木戸の脇に弓が並んだ……！　並ぶ前に突け！'], foes: () => [bowLine('木戸の脇の北畠の弓', { x: 14, z: WALL_Z + 3 }, FRONT, 10, { off: { x: 10, z: -10 } })] },
+        { t: 62, say: ['足軽', '西から……池田殿の手を破った者どもが来る！'], foes: () => [{ name: '池田の手を破った北畠勢', from: { x: -44, z: WALL_Z + 10 }, list: [uS(2), uA(14)], mass: 220 }] },
+      ],
+      reward: '搦手の前を保った', onEnd: (rt) => rt.say('伝令', '……池田殿の手は、大きく討たれたとのこと', 3.5) }),
+    rest({ dur: 6, heal: 0.25, say: [['丹羽長秀', '……もう無理じゃ。殿から退きの下知が出た'], ['足軽', '東の稲葉殿の手が、塀の下から離れられずにおる！']] }),
+    pick({ title: '退きの下知。東の塀の下で、稲葉の手が退き遅れている。どうする？',
+      options: [{ label: '残って、稲葉の手が退くまで支える', note: '稲葉の手を救えば大手柄。城兵の追い討ちを一手に受ける' }, { label: '皆と共に、すぐ陣へ退く', note: '組は減らさずに済む。稲葉の手は置き去りになる' }],
+      on: (rt, m, i) => { m.okWait = i === 0; rt.say('丹羽長秀', i === 0 ? 'よう言うた。稲葉殿の手が抜けるまで、あの田の畦で追っ手を止めよ' : '……やむを得ぬ。退け、退け！', 3.5); } }),
+    hold({ skip: (rt, m) => !m.okWait, at: INABA, dur: 75, r: 14, title: '稲葉の手を待つ', sub: '雨の田の畦で、城兵の追い討ちを受け止める', label: '田の畦',
+      obj: (rt) => (HI(rt) ? '預かった一手で田の畦を守り、稲葉の手が退くまで追っ手を止めよ' : '田の畦で、稲葉の手が退くまで追っ手を止めよ'),
+      waves: [
+        { t: 4, say: ['足軽', '城兵が追ってくる……！'], foes: () => [{ name: '追い討ちの北畠勢', from: { x: 30, z: WALL_Z + 4 }, list: [uS(2), uA(16)], mass: 260, noRout: 15 }] },
+        { t: 30, say: ['稲葉良通', 'かたじけない！　今のうちに抜けるぞ！'], foes: (rt) => { const g = rt.flags.inaba; if (g) { g.order = 'move'; g.dest = { x: 20, z: CAMP.z - 18 }; g.speed = 2.6; g.onArrive = (q) => { q.order = 'hold'; }; } return []; } },
+        { t: 40, say: ['足軽', '横からも……！　塀の東の端から回ってきた！'], foes: () => [{ name: '東から回った北畠勢', from: { x: 62, z: WALL_Z + 20 }, list: [uS(2), uA(12)], mass: 200 }] },
+      ],
+      reward: (t) => { t.special = { label: '殿に残って稲葉の手を退かせた', pts: 18 }; }, rewardLabel: '稲葉の手を退かせた' }),
+  ];
+}
+function okB() {
+  return [
+    rest({ dur: 6, heal: 0.3, say: [['足軽', '陣じゃ……！　……だが、後ろにまだ松明が見える'], ['丹羽長秀', '城兵め、陣まで追ってくる気か']] }),
+    pick({ title: '城兵が陣の前まで追ってきた。陣幕の下で火縄を守っておいた鉄砲組がいる。どうする？',
+      options: [{ label: '陣の前まで引きつけ、鉄砲で撃つ', note: '雨の中の一度きりの斉射。それまで槍で陣の前を支える' }, { label: '槍で打って出て、追い返す', note: '城兵を討てば手柄。雨の闇の中へ出る' }],
+      on: (rt, m, i) => { m.okGun = i === 0; rt.say('丹羽長秀', i === 0 ? '火蓋を切るな。一度しか撃てぬ。十分に引きつけよ' : 'よし、出よ！　深追いはするな。城の塀まで行くでないぞ', 3.5); } }),
+    hold({ skip: (rt, m) => !m.okGun, at: CAMPF, dur: 80, r: 14, title: '陣の前', sub: '松明を掲げた城兵が、雨の中を押してくる', label: '陣の前',
+      obj: (rt) => (HI(rt) ? '殿の一手を陣の前に並べ、鉄砲の斉射まで城兵を支えよ' : '陣の前で、鉄砲の斉射まで城兵を支えよ'),
+      waves: [
+        { t: 4, say: ['足軽', '来たぞ……数が多い！'], foes: () => [{ name: '陣まで追ってきた北畠勢', from: { x: 0, z: CAMP.z - 60 }, list: [uS(3), uA(16)], mass: 300, noRout: 25 }] },
+        { t: 20, foes: (rt) => { const F = rt.flags; volleyAt(rt, { guns: () => [F.campGun], foes: () => (F.dp && F.dp.cur ? F.dp.cur.groups : []), near: 26, max: 40, drop: 45, who: '丹羽長秀', say: '今じゃ、放てぇっ！', line: '陣の鉄砲組が、雨の中でそろって火を吹いた' }); return []; } },
+        { t: 45, say: ['足軽', '横からも……！　西の田から回ってきた！'], foes: () => [{ name: '西から回った北畠勢', from: { x: -46, z: CAMP.z - 24 }, list: [uS(2), uA(12)], mass: 200 }] },
+      ],
+      reward: (t) => { t.special = { label: '雨の中の斉射で追っ手を止めた', pts: 14 }; }, rewardLabel: '陣の前で追っ手を止めた' }),
+    fight({ skip: (rt, m) => m.okGun, at: { x: CAMP.x, z: CAMP.z - 40 }, max: 140, title: '打って出る', sub: '雨の闇の中へ、追ってきた城兵を押し返す',
+      obj: (rt) => (HI(rt) ? '殿の一手を率いて打って出、追ってきた城兵を押し返せ' : '打って出て、追ってきた城兵を押し返せ'),
+      foes: () => [{ name: '陣まで追ってきた北畠勢', from: { x: 0, z: CAMP.z - 70 }, list: [uS(3), uA(16)], mass: 300, noRout: 20 }],
+      later: [
+        { t: 35, title: '塀の弓', sub: '城兵の後ろから弓が並ぶ', say: ['足軽', '後ろに弓が並んだ……！'], foes: () => [bowLine('北畠の弓', { x: 10, z: CAMP.z - 80 }, { x: CAMP.x, z: CAMP.z - 40 }, 10)] },
+        { t: 70, title: '新手', sub: '城から、北畠の新手', say: ['足軽', 'まだ来る……！'], foes: () => [{ name: '北畠の新手', from: { x: -30, z: CAMP.z - 76 }, list: [uS(2), uA(14)], mass: 220 }] },
+      ],
+      reward: (t) => { t.special = { label: '打って出て追っ手を押し返した', pts: 16 }; }, rewardLabel: '追っ手を押し返した' }),
+  ];
+}
 
 // 両軍の総勢（織田 七万余り、大河内城の北畠勢 八千ほど。数には諸説ある）
 okawachi.force = (rt) => {
@@ -271,7 +391,7 @@ okawachi.botBrain = (b, inp, { goTo }) => {
   if (!u.alive || F.ending) return;
   if (F.step === 3) {
     const e3 = b.army.nearestEnemy(u, 5, (o) => !o.fleeing);
-    if (e3 && u.hp > u.maxHp * 0.4) { p.yaw = Math.atan2(e3.pos.x - u.pos.x, e3.pos.z - u.pos.z); if (Math.random() < 0.5) inp.leftPressed = true; return; }
+    if (e3 && u.hp > u.maxHp * 0.6) { p.yaw = Math.atan2(e3.pos.x - u.pos.x, e3.pos.z - u.pos.z); if (Math.random() < 0.5) inp.leftPressed = true; return; }
     goTo(p, inp, CAMP.x, CAMP.z - 6, 3);
     return;
   }

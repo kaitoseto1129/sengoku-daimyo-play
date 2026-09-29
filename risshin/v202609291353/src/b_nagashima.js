@@ -116,7 +116,7 @@ const nagashima = {
     W.addDistantArmy({ x: 18, z: -82, w: 10, d: 8, count: 60, facing: 0, armor: IKKO.armor, flagTex: flagTexture('namu'), seed: 15745 });
     W.addDistantArmy({ x: -14, z: -78, w: 8, d: 6, count: 36, facing: 0, armor: IKKO.armor, flagTex: flagTexture('namu'), seed: 15746 });
     // ---- こちらの岸：織田の陣（信長と旗本。後ろの大軍が控え） ----
-    F.odaCamp = camp(rt, { x: 0, z: 44, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', general: { name: '織田信長' }, guard: 15, reserve: 0, runTo: { x: 0, z: BANK_Z + 8 } });
+    F.odaCamp = camp(rt, { x: 0, z: 44, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', general: { name: '織田信長' }, guard: 18, reserve: 260, runTo: { x: 0, z: BANK_Z + 8 } });
     rt.scene.add(tawara(W, -14, 30, 0.3, 6));
     for (const [x, z, k] of [[-8, 34, 'oda'], [8, 34, 'eiraku'], [-40, BANK_Z + 10, 'oda'], [40, BANK_Z + 10, 'oda']]) rt.scene.add(nobori(W, x, z, k, 6));
     for (const s of SPOTS) rt.scene.add(tawara(W, s.x + 4, s.z + 8, 0.2, 2));
@@ -316,6 +316,8 @@ const nagashima = {
   update(rt, dt) {
     const F = rt.flags;
     KIT.backTick(rt);
+    // 近寄って目を覚ました控えの兵は、当たりを弱める（大軍に呑まれて倒れ続けないように。一揆・地侍の雑兵は具足も槍も粗い）
+    if ((F.wkT = (F.wkT || 0) - dt) <= 0) { F.wkT = 0.5; for (const g of rt.army.groups) if (g.woke && g.team === 1 && !g.wkDm) { g.wkDm = true; g.dmgMult = (g.dmgMult || 1) * 0.55; } }
     depthTick(rt, dt);
     // 崩れた隊の印は消す（古い印が「あちらじゃ」の行き先にならないように）
     for (const m of rt.markers.slice()) if (m.group && gone(m.group)) rt.unmark(m.id);
@@ -382,6 +384,7 @@ const nagashima = {
 // ---------------- 夕暮れの岸と、夜の一門の陣の段 ----------------
 const FEN = { x: 0, z: BANK_Z + 5 };        // 柵の内
 const REED = { x: 64, z: -14 };             // 東の葦原
+const SAND = { x: 40, z: -18 };             // 東の砂州
 function ngCtx(rt) {
   const F = rt.flags;
   return { faction: 'saito', flag: 'namu', armor: IKKO.armor, dmg: 0.6, look: (l) => dress(l, IKKO), friends: () => [F.shiba].filter((g) => g && g.count), aid: { name: '柴田の手の一組', list: [uS(1), uA(8)] }, aidSaid: '柴田の手から一組が加わった' };
@@ -394,14 +397,14 @@ function ngA() {
     pick({ title: '舟から上がった者の残りが、東の葦原に潜んだ。どうする？',
       options: [{ label: '葦原に斬り込み、潜んだ者を追い出す', note: '夜討ちの芽を摘めば手柄。葦の中は見通しが利かない' }, { label: '柵の内へ戻り、夜に備える', note: '柵を背に守れる。夜、葦原から背を突かれる' }],
       on: (rt, m, i) => { m.ngReed = i === 0; rt.say('柴田勝家', i === 0 ? '行け！　葦の中では槍を短く持て' : '柵の内へ戻れ。見張りを倍にせよ', 3); } }),
-    fight({ skip: (rt, m) => !m.ngReed, at: REED, max: 150, title: '東の葦原', sub: '背丈より高い葦の中に、門徒が潜む', obj: '東の葦原に潜んだ門徒を追い出せ',
+    fight({ skip: (rt, m) => !m.ngReed, at: REED, max: 150, title: '東の葦原', sub: '背丈より高い葦の中に、門徒が潜む', obj: (rt) => (hi(rt) ? '預かった一手で葦原に斬り込み、潜んだ門徒を追い出せ' : '東の葦原に潜んだ門徒を追い出せ'),
       foes: () => [{ name: '葦原に潜んだ門徒', from: { x: 90, z: -26 }, list: [uS(2, mon()), uA(12)], mass: 160 }],
       later: [
         { t: 30, title: '舟の鉄砲', sub: '川の舟から、鉄砲が並んで撃つ', say: ['足軽', '川の舟の上に鉄砲が並んだ……！'], foes: () => [gunLine('舟の上の鉄砲衆', { x: 70, z: -44 }, REED, 9, { off: { x: 4, z: -18 } })] },
         { t: 60, title: '囲まれる', sub: '葦の中から、四方に念仏が起こる', say: ['足軽', '後ろからも念仏が……囲まれておる！'], foes: () => [{ name: '後ろの葦の門徒', from: { x: 50, z: 14 }, list: [uS(1, mon()), uA(10)], mass: 140 }] },
       ],
       reward: (t) => { t.special = { label: '葦原に潜んだ門徒を追い出した', pts: 15 }; }, rewardLabel: '葦原の門徒を追い出した' }),
-    hold({ at: FEN, dur: 90, r: 14, title: '川を渡る群れ', sub: '砦から、門徒の群れが川へ入る', label: '柵の内', obj: '柵の内で、川を渡ってくる門徒の群れを受け止めよ',
+    hold({ at: FEN, dur: 90, r: 14, title: '川を渡る群れ', sub: '砦から、門徒の群れが川へ入る', label: '柵の内', obj: (rt) => (hi(rt) ? '持ち場の柵に一手を並べ、川を渡る門徒の群れを受け止めよ' : '柵の内で、川を渡ってくる門徒の群れを受け止めよ'),
       say: [['柴田勝家', '川を渡ってくるぞ！　水から上がる所を叩け！']],
       waves: [
         { t: 5, say: ['一揆の門徒', '南無阿弥陀仏……南無阿弥陀仏……！'], foes: () => [{ name: '川を渡る門徒の群れ', from: { x: 0, z: -56 }, list: [uS(2, mon()), uA(16)], mass: 300, noRout: 20 }] },
@@ -410,6 +413,29 @@ function ngA() {
         { t: 80, say: ['柴田勝家', '西の川筋からも……！　背を合わせよ！'], foes: () => [{ name: '西から渡る門徒', from: R.left, list: [uS(1, mon()), uA(12)], mass: 180 }] },
       ],
       reward: '川を渡る群れを柵で受け止めた' }),
+    // 砂州の鉄砲：舟で東の砂州に上がった鉄砲衆が、柵を横から撃つ
+    rest({ dur: 6, heal: 0.25, say: [['足軽', '東の砂州で火縄の火が並んだ……柵を横から撃つ気じゃ'], ['柴田勝家', '九鬼の船は川下じゃ。呼べば来るが、間に合うか']] }),
+    pick({ title: '舟で東の砂州に上がった門徒の鉄砲衆が、柵を横から撃ちかける。どうする？',
+      options: [{ label: '砂州へ走り、鉄砲衆を潰す', note: '鉄砲衆を討てば手柄。撃たれながら、ぬかるみを走る' }, { label: '九鬼の船を呼び、柵の陰で耐える', note: '船の大鉄砲が砂州を撃つ。それまで柵の陰で寄せを受ける' }],
+      on: (rt, m, i) => { m.ngSand = i === 0; rt.say('柴田勝家', i === 0 ? '走れ！　鉄砲は一度放てば、込め直す間は撃てぬ。放った後に詰めよ' : 'よし、狼煙を上げよ！　船が来るまで、柵の陰から出るな', 3.5); } }),
+    fight({ skip: (rt, m) => !m.ngSand, at: SAND, max: 130, title: '東の砂州', sub: 'ぬかるみの砂州に、門徒の鉄砲衆が並ぶ',
+      obj: (rt) => (hi(rt) ? '預かった一手で砂州へ走り、門徒の鉄砲衆を潰せ' : '東の砂州で、門徒の鉄砲衆を潰せ'),
+      foes: () => [gunLine('砂州の門徒の鉄砲衆', { x: SAND.x + 18, z: SAND.z - 8 }, SAND, 9, { list: dress([uS(1, mon()), uG(9)], IKKO), mass: 80 }), { name: '鉄砲衆を守る門徒', from: { x: SAND.x + 24, z: SAND.z + 4 }, list: [uS(1, mon()), uA(12)], mass: 160 }],
+      later: [{ t: 40, title: '舟の新手', sub: '川から、舟で門徒が上がってくる', say: ['足軽', '舟がもう一艘……！　砂州に着いたぞ'], foes: () => [{ name: '舟から上がった門徒', from: { x: SAND.x + 10, z: SAND.z - 14 }, list: [uS(1, mon()), uA(12)], mass: 140 }] }],
+      reward: (t) => { t.special = { label: '砂州の鉄砲衆を潰した', pts: 15 }; }, rewardLabel: '砂州の鉄砲衆を潰した' }),
+    hold({ skip: (rt, m) => m.ngSand, at: FEN, dur: 70, r: 14, title: '船を待つ', sub: '狼煙を見た九鬼の船が、川を上ってくる', label: '柵の内',
+      obj: (rt) => (hi(rt) ? '預かった一手を柵の陰に伏せ、九鬼の船が来るまで寄せを受けよ' : '柵の陰で、九鬼の船が来るまで寄せを受けよ'),
+      waves: [
+        { t: 4, say: ['足軽', '砂州から撃ってくる……！　柵の陰へ！'], foes: () => [gunLine('砂州の門徒の鉄砲衆', { x: SAND.x + 18, z: SAND.z - 8 }, FEN, 9, { list: dress([uS(1, mon()), uG(9)], IKKO), mass: 80 })] },
+        { t: 25, say: ['柴田勝家', '撃たせておいて、川から寄せる気か。槍を揃えよ！'], foes: () => [{ name: '撃たれる間に寄せる門徒', from: { x: 10, z: -52 }, list: [uS(2, mon()), uA(14)], mass: 220 }] },
+        { t: 55, say: ['足軽', '九鬼の船じゃ！　大鉄砲が砂州を撃っておる！'], foes: (rt) => {
+          const P = rt.flags.ship && rt.flags.ship.position;
+          if (P) for (let k = 0; k < 3; k++) rt.after(k * 0.7, () => { rt.army.play('gun', { x: P.x, z: P.z }, 1); rt.army.smoke(P.x - 3, P.y + 4, P.z, -1, 0, 1.4); });
+          for (const g of rt.army.groups) if (g.team === 1 && g.name === '砂州の門徒の鉄砲衆' && g.count) { g.noRout = false; g.morale = 0; }
+          return [];
+        } },
+      ],
+      reward: '九鬼の船が来るまで柵を守った' }),
   ];
 }
 function ngB() {
@@ -421,14 +447,14 @@ function ngB() {
       pre: (rt) => { rt.army.play('eshout', ICH, 2); rt.say('伝令', '西の御一門の陣へ、門徒が死に物狂いで斬り込みました！', 3.5); },
       options: [{ label: '西の一門の陣へ助けに走る', note: '一門の陣を守れば大手柄。死に物狂いの群れの真ん中へ入る' }, { label: '柵を守り、川を渡る者を止める', note: '柵は守れる。一門の陣は大きく討たれる' }],
       on: (rt, m, i) => { m.ngIchi = i === 0; rt.say('柴田勝家', i === 0 ? '走れ！　あの者らは死ぬ気じゃ。まともに受けるな、横から突け' : '柵を固めよ！　一人も渡すな', 3.5); } }),
-    fight({ skip: (rt, m) => !m.ngIchi, at: ICH, max: 170, title: '一門の陣', sub: '鎧もつけぬ門徒が、陣幕を斬り裂いてなだれ込む', obj: '一門の陣へ斬り込んだ門徒の群れを崩せ',
+    fight({ skip: (rt, m) => !m.ngIchi, at: ICH, max: 170, title: '一門の陣', sub: '鎧もつけぬ門徒が、陣幕を斬り裂いてなだれ込む', obj: (rt) => (hi(rt) ? '預かった一手を率いて一門の陣へ走り、斬り込んだ門徒を崩せ' : '一門の陣へ斬り込んだ門徒の群れを崩せ'),
       foes: () => [{ name: '斬り込んだ門徒の群れ', from: R.front, list: [uS(3, mon()), uA(18)], mass: 320, noRout: 30, morale: 100 }],
       later: [
         { t: 30, title: '左右から', sub: '川筋を渡った門徒が、左右から', say: ['足軽', '左右からも……数が知れぬ！'], foes: () => [{ name: '左の門徒', from: R.left, list: [uS(1, mon()), uA(12)], mass: 180 }, { name: '右の門徒', from: R.right, list: [uS(1, mon()), uA(12)], mass: 180 }] },
         { t: 70, say: ['足軽', '砦の方で火縄の火が並んだ……！'], foes: () => [gunLine('川向こうの鉄砲衆', { x: -70, z: -40 }, ICH, 10, { off: { x: 0, z: -34 } })] },
       ],
       reward: (t) => { t.special = { label: '一門の陣へ斬り込んだ門徒を退けた', pts: 25 }; }, rewardLabel: '一門の陣を守った' }),
-    hold({ skip: (rt, m) => m.ngIchi, at: FEN, dur: 85, r: 14, title: '柵の夜', sub: '西の陣の叫びが聞こえる。川を渡る者は絶えない', label: '柵の内', obj: '柵の内で、川を渡る門徒を止めよ',
+    hold({ skip: (rt, m) => m.ngIchi, at: FEN, dur: 85, r: 14, title: '柵の夜', sub: '西の陣の叫びが聞こえる。川を渡る者は絶えない', label: '柵の内', obj: (rt) => (hi(rt) ? '持ち場の柵を一手で固め、川を渡る門徒を止めよ' : '柵の内で、川を渡る門徒を止めよ'),
       waves: [
         { t: 5, say: ['足軽', '西の陣で叫びが……！　こちらにも来るぞ'], foes: () => [{ name: '川を渡る門徒', from: { x: -20, z: -56 }, list: [uS(2, mon()), uA(14)], mass: 260 }] },
         { t: 40, say: ['足軽', '西の陣を破った者どもが、柵の横へ回ってきた……！'], foes: () => [{ name: '西から回った門徒', from: { x: -64, z: -10 }, list: [uS(2, mon()), uA(12)], mass: 220 }] },

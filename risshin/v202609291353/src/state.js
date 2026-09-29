@@ -106,6 +106,7 @@ export const ODA_LINE = [
   { id: 'sunomata', name: '墨俣築城防衛', cap: 320, year: '永禄九年（1566）九月', place: '美濃国 墨俣', ceil: 2, town: '小牧山', boss: '普請奉行 木下藤吉郎', rel: 'tokichiro' },
   { id: 'inabayama', name: '稲葉山城の戦い', cap: 240, year: '永禄十年（1567）八月', place: '美濃国 稲葉山城', ceil: 2, town: '小牧山', boss: '木下藤吉郎', rel: 'tokichiro' },
   { id: 'mitsukuri', name: '箕作城の戦い', cap: 240, year: '永禄十一年（1568）九月十二日', place: '近江国 箕作城', ceil: 2, town: '岐阜', boss: '木下藤吉郎', rel: 'tokichiro' },
+  { id: 'okawachi', name: '大河内城の戦い', cap: 240, year: '永禄十二年（1569）九月八日', place: '伊勢国 大河内城', ceil: 2, town: '岐阜', boss: '丹羽長秀', rel: 'tokichiro' },
   { id: 'kanegasaki', name: '金ヶ崎の退き口', cap: 210, year: '元亀元年（1570）四月二十八日', place: '越前国 金ヶ崎', ceil: 2, town: '岐阜', boss: '木下藤吉郎', rel: 'tokichiro' },
   { id: 'anegawa', name: '姉川の戦い', cap: 290, year: '元亀元年（1570）六月二十八日', place: '近江国 姉川', ceil: 3, town: '岐阜', boss: '森可成', rel: 'mori' },
   { id: 'nodafukushima', name: '野田・福島の戦い', cap: 240, year: '元亀元年（1570）九月十二日', place: '摂津国 野田・福島', ceil: 3, town: '岐阜', boss: '前田利家', rel: 'toshiie' },

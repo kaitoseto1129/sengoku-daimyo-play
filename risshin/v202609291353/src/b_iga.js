@@ -260,6 +260,8 @@ const iga = {
   update(rt, dt) {
     const F = rt.flags;
     KIT.backTick(rt);
+    // 近寄って目を覚ました控えの兵は、当たりを弱める（大軍に呑まれて倒れ続けないように。一揆・地侍の雑兵は具足も槍も粗い）
+    if ((F.wkT = (F.wkT || 0) - dt) <= 0) { F.wkT = 0.5; for (const g of rt.army.groups) if (g.woke && g.team === 1 && !g.wkDm) { g.wkDm = true; g.dmgMult = (g.dmgMult || 1) * 0.55; } }
     depthTick(rt, dt);
     // 崩れた隊の印は消す（古い印が「あちらじゃ」の行き先にならないように）
     for (const m of rt.markers.slice()) if (m.group && gone(m.group)) rt.unmark(m.id);

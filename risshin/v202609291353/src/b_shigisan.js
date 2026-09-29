@@ -16,7 +16,7 @@ import { gauss, enemyGroup, allyGroup, nm, centerOf, unitPos, wallLine, ringWall
 import { more, dress, gone } from './b_inabayama.js';
 import { KIT } from './b_nagashinojo.js';
 import { volleyAt } from './b_tano.js';
-import { depthStart, depthTick, rest, pick, fight, hold } from './b_depth.js';
+import { depthStart, depthTick, rest, pick, fight, hold, steerRing } from './b_depth.js';
 import { camp } from './b_mid.js';
 // 足軽大将候補より上（信長で遊ぶ時は除く）：任務の文を「一手を預かる」者の役目に
 const HI = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
@@ -276,6 +276,8 @@ const shigisan = {
     // 崩れた隊の印は消す（古い印が「あちらじゃ」の行き先にならないように）
     for (const m of rt.markers.slice()) if (m.group && gone(m.group)) rt.unmark(m.id);
     KIT.backTick(rt);
+    // 近寄って目を覚ました控えの兵は、当たりを弱める（山の上から大軍に呑まれて倒れ続けないように）
+    if ((F.wkT = (F.wkT || 0) - dt) <= 0) { F.wkT = 0.5; for (const g of rt.army.groups) if (g.woke && g.team === 1 && !g.wkDm) { g.wkDm = true; g.dmgMult = (g.dmgMult || 1) * 0.55; } }
     if (F.ending) return;
     const p = rt.player.u.pos;
     depthTick(rt, dt);
@@ -296,7 +298,7 @@ const shigisan = {
         g.assault = F.ram.assault;
       }
       if (F.sally && F.sally.count < 5 && !gone(F.sally)) F.sally.morale = Math.min(F.sally.morale, 20);
-      if (rt.t - F.stepT > 140 && F.gate.alive) rt.army.damage(F.gate, 99999, null);
+      if (rt.t - F.stepT > 95 && F.gate.alive) rt.army.damage(F.gate, 99999, null);
       // 門が破れるまで、筒井・明智の手は門の前で構えて待つ（塀の向こうの敵へは届かないので「かかれ」のまま立ち尽くさない）。
       // 打って出た松永勢が寄れば、またかかる
       F.calmT = (F.calmT || 0) - dt;
@@ -317,10 +319,11 @@ const shigisan = {
       const L = F.last || [];
       rt.objProgress('main', `松永勢 ${L.reduce((a, q) => a + (gone(q) ? 0 : q.count), 0)}人`);
       for (const q of L) if (q.count < 6 && q.noRout) { q.noRout = false; q.morale = Math.min(q.morale, 25); }
-      if ((L.length >= 2 && L.every(gone)) || rt.t - F.stepT > 140) {
+      if ((L.length >= 2 && L.every(gone)) || rt.t - F.stepT > 105) {
         rt.unmark('l1'); rt.unmark('l2');
         for (const q of L) if (!gone(q)) { q.noRout = false; q.morale = 0; }
-        this.win(rt);   // 燃える天守の前の段は省く（一つの戦を長くしすぎない）
+        F.step = 4.5;
+        this.deep(rt, 'C', () => this.win(rt));   // 燃える天守の前：落ちる者を追うか、火を防ぐか
       }
     }
   },
@@ -381,7 +384,8 @@ shigisan.skip = (rt) => { for (const tm of rt.timers) tm.t = Math.min(tm.t, 0.2)
 shigisan.history = '天正五年（1577）八月、石山本願寺を囲む陣にいた松永久秀は、勝手に陣を払って大和の信貴山城に籠もり、再び信長に背いた。信長は嫡男の織田信忠を大将に、明智光秀・羽柴秀吉・筒井順慶・細川藤孝らを向かわせ、支城の片岡城を落としてから信貴山城を囲んだ。十月十日、城は落ち、久秀は天守に火を放って自害した。この日は、十年前に東大寺の大仏殿が焼けた日と同じで、人々は因果と噂したと『信長公記』は伝える。久秀が名物の茶釜「平蜘蛛」を打ち砕いて死んだという話は、のちの伝えである。大和はその後、筒井順慶が治めた（大和一国を正式に任されたのは天正八年）。松永の紋は蔦で、ここでは近い形の蔦の紋で旗を描いている。兵の数には諸説ある。';
 
 // 素直な遊び手：筒井について登り、伏兵と戦い、櫓に火をかけ、門を破る組を守り、天守の前で戦う
-shigisan.botBrain = (b, inp, { goTo }) => {
+shigisan.botBrain = (b, inp, o) => { sgBot(b, inp, o); steerRing(b, inp, HONMARU); gateSteer(b, inp); };
+function sgBot(b, inp, { goTo }) {
   const p = b.player, u = p.u, F = b.flags;
   inp.quickCmd = null;
   inp.k.delete('KeyW'); inp.k.delete('KeyE');
@@ -409,7 +413,7 @@ shigisan.botBrain = (b, inp, { goTo }) => {
     return;
   }
   const a = F.tsuU.pos; goTo(p, inp, a.x + 3, a.z + 3, 3);
-};
+}
 
 // ---------------- 一つの戦を濃くする段（b_depth.js） ----------------
 // 山城の攻め：松永勢は坂の上から大勢で逆落としに来る。尾根の左右からも回り込み、鉄砲組が並んで撃ち下ろす
@@ -417,34 +421,45 @@ const uS = (n) => ({ type: 'samurai', n }), uA = (n) => ({ type: 'ashigaru', n }
 const gunLine = (name, from, n, o = {}) => ({ name, from, list: [uS(1), uG(n)], formation: 'line', seek: 70, mass: 80, kind: 'gun', ...o });
 function sgCtx(rt) {
   const F = rt.flags;
-  return { faction: 'saito', flag: 'todo', armor: 0x2a2622, dmg: 0.64, mass: 240, look: (l) => dress(l, MATSU),
-    friends: () => [F.tsutsui, F.ake].filter((g) => g && g.count && !g.routed) };
+  return { faction: 'saito', flag: 'todo', armor: 0x2a2622, dmg: 0.58, mass: 240, look: (l) => dress(l, MATSU),
+    friends: () => [F.tsutsui, F.ake].filter((g) => g && g.count && !g.routed), ring: HONMARU, botSteer: gateSteer };
+}
+// bot が門の左右の柵や本丸の柵に突っかからないように：柵の線を越える時は、門の口へ回る
+const HONMARU = { x: TOP.x, z: TOP.z, r: TOP.r, gap: 0 };
+function gateSteer(b, inp) {
+  if (!inp.k.has('KeyW') || (b.flags.gate && b.flags.gate.alive)) return;
+  const p = b.player, u = p.u, fx = Math.sin(p.yaw), fz = Math.cos(p.yaw);
+  const az = u.pos.z + fz * 3, ax = u.pos.x + fx * 3;
+  if (Math.abs(u.pos.x) < 2.5 || Math.abs(u.pos.x) > 30 || Math.abs(ax) < 2.5) return;
+  const wz = GATE.z + (Math.min(28, Math.abs(u.pos.x)) - 3.5) / 24.5 * 4;   // その x での柵の z
+  if (u.pos.z > wz + 0.3 && az < wz + 1.5) p.yaw = Math.atan2(-u.pos.x, GATE.z + 4 - u.pos.z);
+  else if (u.pos.z < wz - 0.3 && az > wz - 1.5) p.yaw = Math.atan2(-u.pos.x, GATE.z - 3 - u.pos.z);
 }
 // A 伏兵を退けた後：坂の上からの逆落とし → 西の出丸を取るか → 門の前の押し合い
 function sgA() {
   const at = { x: 2, z: -26 };
   return [
     rest({ dur: 8, heal: 0.3, say: [['筒井順慶', '伏兵は退けた。……じゃが、上を見よ'], ['足軽', '坂の上に、松永の旗がずらりと……'], ['筒井順慶', '逆落としに来るぞ。槍を上へ向けよ！']] }),
-    hold({ at, dur: 84, r: 14, title: '逆落とし', sub: '松永勢が坂の上から一気に駆け下りる', label: '尾根道', obj: '尾根道で、坂の上から駆け下りる松永勢を受け止めよ',
+    hold({ at, dur: 70, r: 14, title: '逆落とし', sub: '松永勢が坂の上から一気に駆け下りる', label: '尾根道', obj: (rt) => (HI(rt) ? '預かった一手を尾根道に並べ、駆け下りる松永勢を受け止めよ' : '尾根道で、坂の上から駆け下りる松永勢を受け止めよ'),
       waves: [
         { t: 4, say: ['足軽', '来た！　上から一気に来る！'], foes: () => [{ name: '駆け下りる松永勢', from: { x: 0, z: -56 }, list: [uS(3), uA(13)], mass: 340, noRout: 25 }] },
         { t: 28, say: ['明智光秀', '門の脇に鉄砲衆が並んだ。撃ち下ろしてくるぞ、伏せよ！'], foes: () => [gunLine('坂の上の松永の鉄砲衆', { x: 18, z: -54 }, 8)] },
-        { t: 52, say: ['足軽', '西の尾根からも下りてくる！'], foes: () => [{ name: '西の尾根の松永勢', from: { x: -50, z: -40 }, off: { x: -8, z: 0 }, list: [uS(2), uA(10)], mass: 240 }] },
+        { t: 46, say: ['足軽', '西の尾根からも下りてくる！'], foes: () => [{ name: '西の尾根の松永勢', from: { x: -50, z: -40 }, off: { x: -8, z: 0 }, list: [uS(2), uA(10)], mass: 240 }] },
       ],
       reward: '尾根道で逆落としを受け止めた', lost: ['筒井順慶', '押し戻された……！　まだじゃ、登れ！'] }),
     rest({ dur: 7, bark: '尾根の陰で、組を寄せ直す', say: [['筒井順慶', '西の尾根の上に出丸がある。あそこから鉄砲で横を撃たれては、門に寄れぬ']] }),
     pick({ title: '西の尾根の出丸から、門へ寄る道が撃たれる。どうする？',
       options: [{ label: '西の尾根の出丸を攻め取る', note: '取れば門の前で横から撃たれない。手柄。門攻めは遅れる' }, { label: '構わず、門の前へ押し出す', note: '門へ早く寄れる。出丸の鉄砲が横から撃ち続ける' }],
       on: (rt, m, i) => { m.sgDemaru = i === 0; rt.say('筒井順慶', i === 0 ? 'よし、出丸じゃ！　尾根はわしらが知っておる、ついて来い' : 'よし、押し出せ！　横の鉄砲に気をつけよ', 3); } }),
-    fight({ skip: (rt, m) => !m.sgDemaru, at: { x: -40, z: -44 }, title: '西の出丸', sub: '尾根の上の小さな曲輪に、松永の鉄砲衆', obj: '西の尾根の出丸の松永勢を崩せ',
+    fight({ skip: (rt, m) => !m.sgDemaru, at: { x: -40, z: -44 }, title: '西の出丸', sub: '尾根の上の小さな曲輪に、松永の鉄砲衆', obj: (rt) => (HI(rt) ? '預かった一手で西の尾根の出丸を攻め取れ' : '西の尾根の出丸の松永勢を崩せ'),
       foes: () => [gunLine('出丸の鉄砲衆', { x: -46, z: -58 }, 9), { name: '出丸の守り', from: { x: -30, z: -58 }, list: [uS(2), uA(10)], mass: 220 }],
       later: [{ t: 40, title: '後詰', sub: '城から出丸へ後詰が下りる', say: ['足軽', '城から後詰じゃ！'], foes: () => [{ name: '出丸の後詰', from: { x: -20, z: -60 }, list: [uS(2), uA(11)], mass: 260 }] }],
-      max: 140, reward: (t) => { t.special = { label: '西の出丸を攻め取った', pts: 20 }; }, rewardLabel: '西の出丸を攻め取った' }),
-    hold({ at: { x: 2, z: GATE.z + 22 }, dur: 60, r: 13, title: '門の前の押し合い', sub: '柵の外へ出た松永勢が、門の前を固める', label: '門の前', obj: '門の前で、柵の外に出た松永勢を押し返せ',
+      max: 110, reward: (t) => { t.special = { label: '西の出丸を攻め取った', pts: 20 }; }, rewardLabel: '西の出丸を攻め取った' }),
+    hold({ at: { x: 2, z: GATE.z + 22 }, dur: 48, r: 13, title: '門の前の押し合い', sub: '柵の外へ出た松永勢が、門の前を固める', label: '門の前', obj: '門の前で、柵の外に出た松永勢を押し返せ',
       waves: [
         { t: 4, foes: () => [{ name: '門の前の松永勢', from: { x: -10, z: GATE.z + 6 }, list: [uS(2), uA(12)], mass: 260 }] },
-        { t: 30, if: (rt, m) => !m.sgDemaru, say: ['足軽', '横の出丸から撃ってくる！'], foes: () => [gunLine('出丸の鉄砲衆', { x: -40, z: -50 }, 8)] },
-        { t: 44, say: ['足軽', '東の柵の端から回り込んできた！'], foes: () => [{ name: '柵の端を回る松永勢', from: { x: 36, z: GATE.z + 8 }, list: [uS(1), uA(9)], mass: 200 }] },
+        { t: 22, if: (rt, m) => !m.sgDemaru, say: ['足軽', '横の出丸から撃ってくる！'], foes: () => [gunLine('出丸の鉄砲衆', { x: -40, z: -50 }, 8)] },
+        { t: 36, say: ['足軽', '東の柵の端から回り込んできた！'], foes: () => [{ name: '柵の端を回る松永勢', from: { x: 36, z: GATE.z + 8 }, list: [uS(1), uA(9)], mass: 200 }] },
       ],
       reward: '門の前を取った' }),
   ];
@@ -453,12 +468,12 @@ function sgA() {
 function sgB() {
   const at = { x: 0, z: GATE.z - 12 };
   return [
-    hold({ at, dur: 72, r: 12, title: '門の内', sub: '曲輪の中から、松永勢が左右から押し寄せる', label: '門の内の曲輪', obj: '門の内の曲輪を取れ（左右から来る松永勢を防げ）',
+    hold({ at, dur: 62, r: 12, title: '門の内', sub: '曲輪の中から、松永勢が左右から押し寄せる', label: '門の内の曲輪', obj: (rt) => (HI(rt) ? '一手を率いて門の内の曲輪を取り、左右から来る松永勢を防げ' : '門の内の曲輪を取れ（左右から来る松永勢を防げ）'),
       say: [['筒井順慶', '門の内を取れ！　ここで押し戻されたら、また一からじゃ！']],
       waves: [
         { t: 3, say: ['足軽', '蔵の陰から湧いて出る！'], foes: () => [{ name: '曲輪の松永勢', from: { x: -20, z: GATE.z - 20 }, list: [uS(2), uA(11)], mass: 160 }, { name: '東の曲輪の松永勢', from: { x: 20, z: GATE.z - 22 }, list: [uS(2), uA(9)], mass: 140 }] },
         { t: 34, say: ['明智光秀', '本丸の柵に鉄砲が並んだ！　曲輪の陰へ！'], foes: () => [gunLine('本丸の柵の鉄砲衆', { x: 8, z: TOP.z + TOP.r + 2 }, 8, { mass: 0 })] },
-        { t: 60, say: ['足軽', 'まだ来る！'], foes: () => [{ name: '本丸から下りる松永勢', from: { x: 0, z: TOP.z + TOP.r + 2 }, list: [uS(3), uA(12)], mass: 160 }] },
+        { t: 52, say: ['足軽', 'まだ来る！'], foes: () => [{ name: '本丸から下りる松永勢', from: { x: 0, z: TOP.z + TOP.r + 2 }, list: [uS(3), uA(12)], mass: 160 }] },
       ],
       reward: '門の内の曲輪を取った' }),
     rest({ dur: 7, bark: '曲輪の陰で、息を整える', say: [['筒井順慶', '本丸へは二つ。正面の坂か、北の搦手（からめて）か'], ['足軽', '正面は鉄砲が並んでおる……']] }),
@@ -468,31 +483,24 @@ function sgB() {
     fight({ skip: (rt, m) => m.sgKarame, at: { x: 0, z: TOP.z + TOP.r + 6 }, title: '正面の坂', sub: '本丸の口の前に、鉄砲と槍が並ぶ', obj: '本丸の口の前の松永勢を崩せ',
       foes: () => [gunLine('本丸の口の鉄砲衆', { x: -6, z: TOP.z + TOP.r + 1 }, 10, { mass: 0 }), { name: '本丸の口の槍', from: { x: 8, z: TOP.z + TOP.r + 2 }, list: [uS(2), uA(12)], mass: 120 }],
       later: [{ t: 36, say: ['足軽', '横の曲輪からも来る！'], foes: () => [{ name: '横の曲輪の松永勢', from: { x: -26, z: TOP.z + 28 }, list: [uS(1), uA(10)], mass: 140 }] }],
-      max: 130, reward: '正面の坂を駆け上がった' }),
+      max: 105, reward: '正面の坂を駆け上がった' }),
     fight({ skip: (rt, m) => !m.sgKarame, at: { x: 26, z: TOP.z + 8 }, title: '搦手の崖道', sub: '本丸の東の崖を回る細い道', obj: '搦手の崖道の松永勢を崩せ',
       foes: () => [{ name: '搦手の守り', from: { x: 30, z: TOP.z - 10 }, list: [uS(3), uA(9)], mass: 100 }],
       later: [{ t: 34, say: ['足軽', '上から石を落としてくる！　その後ろから槍じゃ！'], foes: () => [{ name: '搦手の後詰', from: { x: 34, z: TOP.z - 20 }, list: [uS(2), uA(8)], mass: 100 }] }],
-      max: 130, reward: (t) => { t.special = { label: '搦手から本丸へ回り込んだ', pts: 20 }; }, rewardLabel: '搦手から本丸へ回り込んだ' }),
+      max: 105, reward: (t) => { t.special = { label: '搦手から本丸へ回り込んだ', pts: 20 }; }, rewardLabel: '搦手から本丸へ回り込んだ' }),
   ];
 }
 // C 旗本を崩した後：燃える天守から、最後の衆が死にものぐるいで打って出る
 function sgC() {
-  const at = { x: 0, z: TOP.z + TOP.r + 4 };
   return [
-    rest({ dur: 7, heal: 0.25, say: [['足軽', '天守が……燃えておる'], ['筒井順慶', '弾正は、首を渡さぬ気じゃ。……まだ中に者がおる。気を抜くな']] }),
-    hold({ at, dur: 80, r: 12, title: '燃える天守の前', sub: '火の中から、松永の最後の衆が打って出る', label: '本丸の口', obj: '燃える天守の前で、打って出る最後の松永勢を退けよ',
-      waves: [
-        { t: 4, say: ['松永の侍', '弾正様の最期を、邪魔させはせぬ！'], foes: () => [{ name: '松永の死兵', from: { x: -6, z: TOP.z }, list: [uS(4), uA(10)], mass: 0, morale: 100, noRout: 30 }] },
-        { t: 36, say: ['足軽', '煙の中から、まだ来る！'], foes: () => [{ name: '煙の中の松永勢', from: { x: 8, z: TOP.z - 4 }, list: [uS(2), uA(9)], mass: 0 }, gunLine('天守の下の鉄砲', { x: -10, z: TOP.z - 2 }, 6, { mass: 0 })] },
-      ],
-      reward: '燃える天守の前で最後の衆を退けた' }),
+    rest({ dur: 7, heal: 0.25, say: [['足軽', '天守が……燃えておる'], ['筒井順慶', '弾正は、首を渡さぬ気じゃ。……城の者が逃げ出すぞ、気を抜くな']] }),
     pick({ title: '城の者たちが、西の尾根から落ちていく。どうする？',
       pre: (rt) => rt.say('足軽', '西の曲輪から、松永の者が尾根へ落ちていく！', 3),
       options: [{ label: '組を連れて、落ちていく松永勢を追い討つ', note: '首を挙げられる。尾根で踏みとどまった者と斬り合う' }, { label: '追わず、本丸の火が曲輪へ回らぬよう防ぐ', note: '手柄は小さい。筒井の者に喜ばれる（大和の城は筒井に渡る）' }],
       on: (rt, m, i) => { m.sgChase = i === 0; rt.say('筒井順慶', i === 0 ? 'よし、行け。深追いはするな' : 'かたじけない。この城は、いずれ大和の者の城になる', 3); if (i === 1) rt.award((t) => t.side.push('本丸の火が曲輪へ回るのを防いだ'), '本丸の火を防いだ'); } }),
-    fight({ skip: (rt, m) => !m.sgChase, at: { x: -34, z: GATE.z - 20 }, title: '落ちる者', sub: '西の尾根で、松永の殿（しんがり）が向き直る', obj: '西の尾根へ落ちる松永勢を追い討て',
+    fight({ skip: (rt, m) => !m.sgChase, at: { x: -34, z: GATE.z - 20 }, title: '落ちる者', sub: '西の尾根で、松永の殿（しんがり）が向き直る', obj: (rt) => (HI(rt) ? '預かった一手で、西の尾根へ落ちる松永勢を追い討て' : '西の尾根へ落ちる松永勢を追い討て'),
       foes: () => [{ name: '松永の殿', from: { x: -50, z: GATE.z - 30 }, list: [uS(3), uA(10)], mass: 160 }],
-      max: 110, reward: (t) => { t.special = { label: '落ちる松永勢を追い討った', pts: 15 }; }, rewardLabel: '落ちる松永勢を追い討った' }),
+      max: 100, reward: (t) => { t.special = { label: '落ちる松永勢を追い討った', pts: 15 }; }, rewardLabel: '落ちる松永勢を追い討った' }),
   ];
 }
 

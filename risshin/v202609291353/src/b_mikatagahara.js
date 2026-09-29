@@ -16,7 +16,7 @@ import { gauss, enemyGroup, allyGroup, nm, centerOf, unitPos } from './bhelp.js'
 import { dress, gone, more, applyLook, NIGHT } from './b_inabayama.js';
 import { KIT } from './b_nagashinojo.js';
 import { clash } from './b_sekigahara.js';
-import { depthStart, depthTick, rest, pick, fight, hold, move } from './b_depth.js';
+import { depthStart, depthTick, depthBot, rest, pick, fight, hold, move } from './b_depth.js';
 import { volleyScene } from './b_shiga.js';
 import { camp } from './b_mid.js';
 // 足軽大将より上の身分で出た時は、一手を預かる
@@ -140,6 +140,10 @@ const mikatagahara = {
     F['dp' + which] = true; F.dpOn = true;
     for (const k of ['w1', 'aka']) rt.unmark(k);
     if (which === 'A') this.plainClash(rt);
+    // 赤備えは駆け抜けて、徳川の鶴翼の方へ去る（平手の手を包むのは武田の本隊）
+    // 城へ入れば、追手は篝火を怪しんで退く（門を守る段・夜討ちの段は新しい敵で）
+    if (which === 'C') for (const q of F.chase || []) if (!gone(q)) { q.noRout = false; q.morale = 0; }
+    if (which === 'B' && F.aka && !gone(F.aka)) { F.aka.order = 'hold'; F.aka.anchor = { x: -70, z: -60 }; F.aka.aggro = 6; rt.bark('赤備えが駆け抜けていく……徳川の手の方へ'); }
     depthStart(rt, mkCtx(rt), which === 'A' ? mkA() : which === 'B' ? mkB() : mkC(), () => {
       F.dpOn = false;
       if (which === 'A') this.crash(rt);
@@ -169,11 +173,36 @@ const mikatagahara = {
     rt.unmark('w1');
     sfx('horagai', 1);
     rt.banner('赤備え', '山県昌景の赤い騎馬が、横から突っ込んでくる');
-    rt.obj('main', '横から来る赤備えの騎馬を食い止めよ', 'main');
+    rt.obj('main', HI(rt) ? '預かった一手を右へ向け直し、赤備えの騎馬を食い止めよ' : '横から来る赤備えの騎馬を食い止めよ', 'main');
     for (const h of F.host) h.advance(40, 30, { charge: true });
-    F.aka = enemyGroup(rt, { faction: 'akazonae', name: '山県の赤備え', anchor: { x: 70, z: -60 }, facing: -Math.PI * 0.8, order: 'attack', seekRange: 140, aggro: 18, width: 14, morale: 100, noRout: true, fleeDir: { x: 1, z: -1 }, dmgMult: 0.55 },
-      dress([{ type: 'busho', n: 1, o: { name: '山県昌景', invuln: true, horse: true } }, { type: 'cavalry', n: 14 + more(rt, 0.2) }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }], AKA));
+    F.aka = enemyGroup(rt, { faction: 'akazonae', name: '山県の赤備え', anchor: { x: 70, z: -60 }, facing: -Math.PI * 0.8, order: 'hold', seekRange: 140, aggro: 10, width: 14, morale: 100, noRout: true, fleeDir: { x: 1, z: -1 }, dmgMult: 0.34 },
+      dress([{ type: 'busho', n: 1, o: { name: '山県昌景', invuln: true, horse: true } }, { type: 'cavalry', n: 9 + more(rt, 0.2) }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 10 }], AKA));
     F.aka.units[0].dmg *= 0.4;
+    F.aka0 = F.aka.count;
+    // 判断：赤備えをどう受けるか（時間切れは槍衾。受け方で傷と手柄が変わる）。赤備えは森の際で馬を揃えてから駆け出す
+    const go = () => { if (F.aka && !gone(F.aka) && F.aka.order === 'hold') { F.aka.order = 'attack'; F.aka.aggro = 18; rt.say('足軽', '駆け出した！　来るぞ！', 2.5); } };
+    rt.after(17, go);
+    rt.after(1, () => {
+      if (F.step !== 2 || F.ending) return;
+      rt.choose('赤備えの騎馬が右から来る。どう受ける？', [
+        { label: '鉄砲の前で槍衾を組んで受ける', note: '馬を槍先で止める。傷は浅い。鉄砲が馬を撃つ' },
+        { label: '森の陰を回り、横腹を突く', note: '騎馬の足が乱れる。手柄は大きい。囲まれやすい' },
+      ], (i) => {
+        F.mkFlank = i === 1;
+        rt.after(i === 1 ? 8 : 3, go);
+        if (i === 0) {
+          F.aka.dmgMult = 0.26;
+          for (const g of [F.hirate, F.saku]) if (g && g.count) { g.order = 'hold'; g.anchor = { x: 14, z: LINE_Z - 2 }; g.aggro = 14; }
+          rt.say('平手汎秀', '槍を揃えよ！　馬の胸を狙え。槍の石突きを地に立てよ！', 3.5);
+          rt.marker('pike', { x: 14, z: LINE_Z - 2 }, '槍衾の場', { h: 2 });
+          rt.after(25, () => rt.unmark('pike'));
+        } else {
+          rt.say('平手汎秀', '行け！　森の陰から、赤備えの横腹へ回れ！', 3.5);
+          rt.marker('pike', { x: 46, z: -44 }, '森の陰（横腹）', { h: 2 });
+          rt.after(18, () => { rt.unmark('pike'); if (F.aka && !gone(F.aka)) { F.aka.morale = Math.max(30, F.aka.morale - 30); rt.bark('赤備えの足が乱れた！　横腹を突け！'); } });
+        }
+      }, 12);
+    });
     rt.army.play('gallop', { x: 60, z: -50 }, 1.8);
     rt.marker('aka', centerOf(F.aka), () => `山県の赤備え・${moraleWord(F.aka.morale)}`, { red: true, group: F.aka });
     rt.say('足軽', '赤い騎馬じゃ！　右から来る！', 3);
@@ -204,7 +233,7 @@ const mikatagahara = {
     // 追手
     F.chase = [];
     const mk = (x, z, name, list) => {
-      const g = enemyGroup(rt, { faction: 'takeda', name, anchor: { x, z }, facing: 0, order: 'attack', seekRange: 60, aggro: 14, width: 10, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 0.62, speed: 3.2 }, dress(list, TAKEDA));
+      const g = enemyGroup(rt, { faction: 'takeda', name, anchor: { x, z }, facing: 0, order: 'attack', seekRange: 60, aggro: 14, width: 10, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 0.5, speed: 3.2 }, dress(list, TAKEDA));
       F.chase.push(g);
       rt.marker('c' + F.chase.length, centerOf(g), () => `${name}・${moraleWord(g.morale)}`, { red: true, group: g });
       return g;
@@ -262,6 +291,8 @@ const mikatagahara = {
     const F = rt.flags;
     for (const m of rt.markers.slice()) if (m.group && gone(m.group)) rt.unmark(m.id);
     KIT.backTick(rt);
+    // 目を覚ました武田の兵（控えの軽い兵から替わった者）は当たりを弱める：大軍に呑まれて倒れ続けないように
+    if ((F.wkT = (F.wkT || 0) - dt) <= 0) { F.wkT = 0.5; for (const g of rt.army.groups) if (g.woke && g.team === 1 && !g.wkDm) { g.wkDm = true; g.dmgMult = (g.dmgMult || 1) * 0.5; } }
     if (F.ending) return;
     const p = rt.player.u.pos;
     depthTick(rt, dt);
@@ -273,7 +304,15 @@ const mikatagahara = {
     }
     if (F.step === 2) {
       rt.objProgress('main', `赤備え ${F.aka.count}人`);
-      if (rt.t - F.stepT > 70 || (F.aka.count < 8 && rt.t - F.stepT > 40)) this.deep(rt, 'B');
+      if (rt.t - F.stepT > 55 || (F.aka.count < 8 && rt.t - F.stepT > 35)) {
+        rt.unmark('pike');
+        if (rt.player.u.alive && !F.akaPaid) {
+          F.akaPaid = true;
+          if (F.mkFlank && F.aka.count <= F.aka0 * 0.6) rt.award((t) => { t.special = { label: '赤備えの横腹を突いた', pts: Math.max(t.special ? t.special.pts : 0, 20) }; }, '赤備えの横腹を突いた');
+          else if (!F.mkFlank) rt.award((t) => t.side.push('槍衾で赤備えを受け止めた'), '槍衾で赤備えを受け止めた');
+        }
+        this.deep(rt, 'B');
+      }
     }
     if (F.step === 3) {
       const d = Math.hypot(p.x - HAMA.x, p.z - HAMA.z);
@@ -336,6 +375,7 @@ mikatagahara.botBrain = (b, inp, { goTo }) => {
   inp.quickCmd = null;
   inp.k.delete('KeyW'); inp.k.delete('KeyE');
   if (!u.alive || F.ending) return;
+  if (F.dpOn && F.dp && F.dp.on) { depthBot(b, inp, goTo); return; }
   if (F.step === 3) {
     const e3 = b.army.nearestEnemy(u, 4, (o) => !o.fleeing);
     if (e3 && u.hp > u.maxHp * 0.4) { p.yaw = Math.atan2(e3.pos.x - u.pos.x, e3.pos.z - u.pos.z); if (Math.random() < 0.5) inp.leftPressed = true; return; }
@@ -366,7 +406,7 @@ const aka = (list) => ({ faction: 'akazonae', flag: 'akazonae', armor: KIT.ARMOR
 const gunLine = (name, from, n, o = {}) => ({ name, from, list: [uS(1), uG(n)], formation: 'line', seek: 70, mass: 90, kind: 'gun', ...o });
 function mkCtx(rt) {
   const F = rt.flags;
-  return { faction: 'takeda', flag: 'takeda', armor: KIT.ARMOR.takeda, dmg: 0.72, mass: 260, look: (l) => dress(l, TAKEDA),
+  return { faction: 'takeda', flag: 'takeda', armor: KIT.ARMOR.takeda, dmg: 0.6, mass: 260, look: (l) => dress(l, TAKEDA),
     friends: () => [F.hirate, F.saku, F.toku].filter((g) => g && g.count && !g.routed) };
 }
 // A 先手の後：魚鱗の寄せ → 赤備えの気配
@@ -383,7 +423,7 @@ function mkA() {
         { t: 76, say: ['佐久間信盛', '右からもじゃ！　押し包まれるぞ！'], foes: () => [{ name: '右へ回る武田勢', from: { x: 56, z: LINE_Z - 10 }, off: { x: 8, z: 4 }, list: [uS(2), uA(10), uB(3)], mass: 260 }] },
       ],
       reward: '魚鱗の寄せを受け止めた', lost: ['平手汎秀', '押し込まれた……！　立て直せ！'] }),
-    rest({ dur: 7, bark: '立て直し：右へ槍を向け直す', say: [['足軽', '……右の森の向こう、赤いものが動いておる'], ['平手汎秀', '赤備えか……！　右じゃ、右に槍を向けよ！']] }),
+    rest({ dur: 7, heal: 0.35, bark: '立て直し：右へ槍を向け直す（手傷を縛った）', say: [['足軽', '……右の森の向こう、赤いものが動いておる'], ['平手汎秀', '赤備えか……！　右じゃ、右に槍を向けよ！']] }),
   ];
 }
 // B 赤備えの後：平手殿と残るか、佐久間殿と退くか
@@ -392,8 +432,8 @@ function mkB() {
   return [
     rest({ dur: 7, heal: 0.25, bark: '息を整える間もない', say: [['佐久間信盛', '平手殿、もう持たぬ！　退くのじゃ！'], ['平手汎秀', '退かぬ。殿の名代が背を見せては、織田の名折れじゃ'], ['平手汎秀', (rt) => `${nm(rt)}、お主は佐久間殿と退け。……いや、残るも退くも、己で決めよ`]] }),
     pick({ title: '平手汎秀は踏みとどまると言う。どうする？',
-      options: [{ label: '平手殿と共に踏みとどまる', note: '四方を囲まれる。生き延びれば大手柄。死ぬかもしれぬ' }, { label: '佐久間殿と共に、南へ退く', note: '台地を南へ走る。途中で回り込んだ武田勢に遭う' }],
-      on: (rt, m, i) => { m.mkStay = i === 0; rt.say(i === 0 ? '平手汎秀' : '佐久間信盛', i === 0 ? '……馬鹿者め。ならば、共に死に花を咲かせようぞ' : 'ついて来い！　遅れるでないぞ！', 3); } }),
+      options: [{ label: '佐久間殿と共に、南へ退く', note: '台地を南へ走る。途中で回り込んだ武田勢に遭う' }, { label: '平手殿と共に踏みとどまる', note: '四方を囲まれる。生き延びれば大手柄。死ぬかもしれぬ' }],
+      on: (rt, m, i) => { m.mkStay = i === 1; rt.say(i === 1 ? '平手汎秀' : '佐久間信盛', i === 1 ? '……馬鹿者め。ならば、共に死に花を咲かせようぞ' : 'ついて来い！　遅れるでないぞ！', 3); } }),
     hold({ skip: (rt, m) => !m.mkStay, at, dur: 85, r: 12, title: '平手の最期', sub: '武田の大軍が、平手の手を四方から押し包む', label: '平手の陣', obj: '平手汎秀のそばで、四方から来る武田勢に耐えよ',
       waves: [
         { t: 3, say: ['足軽', '前も右も武田じゃ……！'], foes: () => [{ name: '押し包む武田勢', from: { x: 0, z: LINE_Z - 56 }, list: [uS(3), uA(13)], mass: 380, noRout: 30 }, { name: '右から押す赤備え', ...aka([uS(1), uC(4), uA(6)]), from: { x: 54, z: LINE_Z - 14 }, mass: 160, kind: 'cavalry' }] },
@@ -413,8 +453,8 @@ function mkC() {
   return [
     rest({ dur: 8, heal: 0.4, bark: '城の中で、手傷を縛った', say: [['足軽', '門を……閉めぬのか？'], ['徳川の侍', '殿（家康公）の下知じゃ。門は開け放ち、篝火を焚け。武田は罠を疑うて入って来ぬ'], ['大久保忠世', '武田は犀ヶ崖の北に陣を張った。今宵、鉄砲を撃ちかけて一泡吹かせてやる。……織田の衆も来るか']] }),
     pick({ title: '大久保忠世が、犀ヶ崖の武田の陣へ夜討ちをかけると言う。どうする？',
-      options: [{ label: '夜討ちに加わる', note: '犀ヶ崖で武田の陣を撃つ。手柄は大きい。追われれば崖に追い詰められる' }, { label: '城に残り、開けた門を守る', note: '武田の物見が寄せてくる。門を守り抜けば手堅い手柄' }],
-      on: (rt, m, i) => { m.mkRaid = i === 0; rt.say(i === 0 ? '大久保忠世' : '佐久間信盛', i === 0 ? 'よし、鉄砲を持て。声を立てるなよ' : '門を守れ。ここを抜かれれば、城が落ちる', 3); } }),
+      options: [{ label: '城に残り、開けた門を守る', note: '武田の物見が寄せてくる。門を守り抜けば手堅い手柄' }, { label: '夜討ちに加わる', note: '犀ヶ崖で武田の陣を撃つ。手柄は大きい。追われれば崖に追い詰められる' }],
+      on: (rt, m, i) => { m.mkRaid = i === 1; rt.say(i === 1 ? '大久保忠世' : '佐久間信盛', i === 1 ? 'よし、鉄砲を持て。声を立てるなよ' : '門を守れ。ここを抜かれれば、城が落ちる', 3); } }),
     fight({ skip: (rt, m) => !m.mkRaid, at: { x: 0, z: 104 }, title: '犀ヶ崖', sub: '闇の中、武田の陣へ鉄砲を撃ちかける', obj: '犀ヶ崖の北の武田の陣を突き崩せ',
       say: [['大久保忠世', '放て！　……よし、槍を入れよ！']],
       foes: () => [{ name: '犀ヶ崖の武田の陣', from: { x: -6, z: 70 }, list: [uS(2), uA(12)], mass: 300, morale: 70 }],

@@ -145,6 +145,10 @@ const WEAR = { value: null };
 // 遠景の大軍の、待つ間の小さな動き（体の揺れ・見回し・隊の中の入れ替わり）の強さ。見比べる時は 0 に
 export const ARMY_IDLE = { value: 1 };
 function sway(mat, amp, minY = 0, o = {}) {
+  // 揺れの強さ・後の直し（草・葉・苗）ごとに別の絵の作りにする。無いと three は同じ関数の字面で作りを使い回し、
+  // 先に作られた物（低木の葉の作り）を草の株に当てて、画質「低」で草むらが黒い塊に見えた
+  const key = `sway|${amp}|${minY}|${o.wear ? 1 : 0}|${o.after ? o.after.toString() : ''}`;
+  mat.customProgramCacheKey = () => key;
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uWind = WIND;
     sh.uniforms.uGust = GUST;
@@ -235,6 +239,8 @@ function grassLit(sh) {
 
 // 水面のさざ波：流れに沿って動く二枚の濃淡から面の向きを揺らし、空の映り込みを細かく砕く（のっぺりした一枚の板に見えないように）
 function rippleWater(mat, fx, fz, amt = 3.5) {
+  // 流れの向きごとに別の作り（同じ字面の関数だと、先の川の向きが使い回される）
+  mat.customProgramCacheKey = () => `ripple|${fx.toFixed(3)}|${fz.toFixed(3)}|${amt}`;
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.tMacro = { value: macroTex() };
     sh.uniforms.uTime = WIND;
@@ -2157,13 +2163,16 @@ export class World {
       const cand = [];
       for (let i = 0; i < N; i++) {
         if (A.taken[i]) continue;
-        body.getMatrixAt(i, m4); tp.setFromMatrixPosition(m4).add(A.off); grp.localToWorld(tp);
+        // 道を譲って隠した兵（大きさ 0）は、元の置き場の行列から向きを取る
+        if (A.base && A.hid[i] > 0) m4.fromArray(A.base, i * 16); else body.getMatrixAt(i, m4);
+        tp.setFromMatrixPosition(m4).add(A.off); grp.localToWorld(tp);
         const d = Math.hypot(tp.x - x, tp.z - z);
         if (d < r && (!pick || pick(A.kinds[i]))) cand.push({ i, d, x: tp.x, z: tp.z, yaw: Math.atan2(m4.elements[8], m4.elements[10]) + grp.rotation.y + (A.tw && A.tw.back ? Math.PI : 0) });
       }
       cand.sort((a, b) => a.d - b.d);
       const out = cand.slice(0, n);
-      const hide = (mesh, j) => { mesh.getMatrixAt(j, m4); m4.decompose(tp, tq, ts); m4.compose(tp, tq, z3); mesh.setMatrixAt(j, m4); mesh.instanceMatrix.needsUpdate = true; };
+      // 大きさ 0 に（道を譲って既に 0 の兵を分解すると向きが NaN になるので、場所だけ残す）
+      const hide = (mesh, j) => { mesh.getMatrixAt(j, m4); tp.setFromMatrixPosition(m4); m4.makeScale(0, 0, 0).setPosition(tp); mesh.setMatrixAt(j, m4); mesh.instanceMatrix.needsUpdate = true; };
       // 隠す前の形を覚えておく（give で軽い兵に戻す時に使う）
       const keep = (mesh, j) => { const mm = new THREE.Matrix4(); mesh.getMatrixAt(j, mm); return [mesh, j, mm]; };
       for (const c of out) {
@@ -2268,7 +2277,8 @@ export class World {
     const m4 = new THREE.Matrix4(), tp = new THREE.Vector3(), tq = new THREE.Quaternion(), ts = new THREE.Vector3();
     for (const A of AR) {
       const P = A.parts;
-      if (!P || A.rout || !P.grp.visible) continue;
+      // 崩れた大軍も、本物の兵のそばは隠す（崩れ始めはまだ元の所に立っている）
+      if (!P || !P.grp.visible) continue;
       // まず隊の真ん中がまわり 80m に本物の兵がいなければ、見ない（軽く）
       P.grp.updateMatrixWorld(true);
       tp.set(A.cx + A.off.x, 0, A.cz + A.off.z).applyMatrix4(P.grp.matrixWorld);
@@ -2279,7 +2289,7 @@ export class World {
       const set = (mesh, j, i, show) => {
         if (!mesh) return;
         if (show) m4.fromArray(A.base, i * 16);   // 旗・影・幟・馬も、体と同じ置き場の行列
-        else { mesh.getMatrixAt(j, m4); m4.decompose(tp, tq, ts); m4.compose(tp, tq, ts.set(0, 0, 0)); }
+        else { mesh.getMatrixAt(j, m4); tp.setFromMatrixPosition(m4); m4.makeScale(0, 0, 0).setPosition(tp); }
         mesh.setMatrixAt(j, m4); mesh.instanceMatrix.needsUpdate = true;
       };
       let changed = 0;

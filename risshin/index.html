@@ -1,7 +1,7 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202609291302 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202609291353 として写した） -->
 <title>戦国立身 3D</title>
-<link rel="icon" type="image/png" sizes="32x32" href="./v202609291302/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202609291302/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202609291302/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202609291302/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202609291353/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202609291353/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202609291353/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202609291353/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1417,6 +1417,19 @@ html.touch .slots { gap: 8px; }
 html.touch details > summary { min-height: 44px; display: flex; align-items: center; }
 html.touch .tabs button { min-height: 44px; }
 html.touch .keyhint, html.touch .hintk { display: none; }
+/* 低い画面（スマホ横）：札は一度に一つ。大事な札が出ている間は、ほかの札を引っ込める（重ねて読めなくしない） */
+@media (max-height: 500px) {
+  /* 選ぶ札が一番。一時の字・指揮の札は出さない */
+  #hud:has(#choice:not([hidden])) :is(#flash, #cmdpanel) { visibility: hidden; }
+  /* 一時の字（1秒ほど）・飛ばせる場面の札の間は、知らせを休む */
+  #hud:has(#flash:not([hidden])) #bark, #hud:has(#skiphint:not([hidden])) #bark { visibility: hidden; }
+  /* 手ほどきの札の間は、左上の戦功の札を引っ込め、札は字幕に届かない高さで止める */
+  #hud:has(#tutorial:not([hidden])) .tl { visibility: hidden; }
+  #hud #tutorial { max-height: calc(100vh - 96px - 150px); overflow: hidden; box-sizing: border-box; }
+  /* 兵力の帯は一行に（方角の帯へ伸びない） */
+  #hud #armybar .side .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #hud #armybar { max-height: 48px; overflow: hidden; }
+}
 </style>
 
 <canvas id="view"></canvas>
@@ -1492,4 +1505,4 @@ html.touch .keyhint, html.touch .hintk { display: none; }
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
 } }
 </script>
-<script type="module" src="./v202609291302/src/main.js"></script>
+<script type="module" src="./v202609291353/src/main.js"></script>

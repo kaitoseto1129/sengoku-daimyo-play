@@ -217,7 +217,7 @@ async function playOne(game, i, G, aud, o = {}) {
 async function playMap(game, aud, k) {
   const G = newGame('bot', 'normal', 'nagashino');
   G.practice = true; G.rank = 3; G.aijirushi = 'maru'; G.owned.push('katana');
-  const mk = MAP_KEYS[k % MAP_KEYS.length];
+  const mk = MAP_KEYS[(Q.get('mapk') != null ? +Q.get('mapk') : k) % MAP_KEYS.length];   // &mapk=番号：地図を決めて試す
   G.japan = null; ensureJapan(G, mk);
   game.G = G;
   game.japanMap('title', true);

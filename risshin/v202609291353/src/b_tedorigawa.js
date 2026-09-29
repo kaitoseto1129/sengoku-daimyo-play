@@ -48,7 +48,7 @@ const tedorigawa = {
     paths: [[[0, -200], [2, -60], [FORD.x, FORD.z], [SOUTH.x, SOUTH.z], [6, 160]]],
     height,
     tint(x, z, h, c) { if (z > -14 && z < 20) c.lerp({ r: 0.42, g: 0.42, b: 0.36 }, 0.4); },
-    clear: (x, z) => Math.abs(x) < 110 && z > -120 && z < 80,
+    clear: (x, z) => (Math.abs(x) < 110 && z > -120 && z < 80) || Math.hypot(x - 34, z - 104) < 20,
     trees: 320,
     tufts: 5200,
     treeDensity: (x, z) => (Math.abs(x) < 120 && z > -130 && z < 90 ? 0.1 : 0.8),
@@ -81,6 +81,8 @@ const tedorigawa = {
     F.host = [DA(0, -190, 60, 16, 340, 0, 0x2a2a2a, 'uesugi', 15773), DA(-70, -180, 30, 14, 220, 0.3, 0x2a2a2a, 'uesugi', 15774)];
     for (const [x, z] of [[-20, -80], [24, -84]]) { rt.scene.add(campfire(W, x, z)); W.addFire(x, z); }
     // 北の上杉謙信の本陣（遠く。見に行けば謙信と旗本がいる）
+    // 南の岸の織田の本陣（滝川一益が退く列を受け取る）
+    F.honjin = camp(rt, { x: 34, z: 104, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', general: { name: '滝川一益', hat: 'kabuto_m', haori: 0x2a3440 }, guard: 15, reserve: 200, runTo: { x: SOUTH.x, z: SOUTH.z + 10 } });
     F.ehon = camp(rt, { x: 64, z: -206, facing: 0, team: 1, faction: 'saito', mon: 'uesugi', armor: 0x2a2a2a, general: { name: '上杉謙信', hat: 'hachimaki', haori: 0xd8d2c0 }, guard: 15, reserve: 300, runTo: { x: 0, z: -150 } });
 
     rt.setPhase('brief');
@@ -294,6 +296,24 @@ function tedoB() {
         { t: 60, if: (rt, m) => m.tdSave, say: ['足軽', '上の浅瀬からも……横へ回られる！'], foes: () => [{ name: '上の浅瀬を渡った上杉勢', from: RS.left, list: [uS(1), uA(10), uC(3)], mass: 140 }] },
       ],
       reward: '南の岸を守りぬいた' }),
+    // 南の岸の後ろ：上杉の騎馬が上の浅瀬を渡り、退く味方の列（手負いと荷駄）へ回り込む
+    rest({ dur: 8, heal: 0.3, say: [['伝令', '上の浅瀬を、上杉の騎馬が渡りました！　退く列の手負いと荷駄を狙っておりまする'], ['柴田勝家', 'しつこい……謙信め、一人も帰さぬ気か']] }),
+    pick({ title: '上杉の騎馬が、退く列の後ろへ回る。どう防ぐ？',
+      options: [{ label: '列の後ろに付き、手負いと荷駄を守って退く', note: '手負いが助かる。騎馬の寄せを受け続ける' }, { label: '土手の上の竹藪に伏せ、騎馬の横を突く', note: '当たれば騎馬は二度と来ない。遅れれば列が崩れる' }],
+      on: (rt, m, i) => { m.tdAmb = i === 1; rt.say('柴田勝家', i === 0 ? 'よし、列の尻に付け。手負いを一人も置いていくな' : '藪に伏せよ。馬が通り過ぎる所を、横から槍を入れよ', 3.5); } }),
+    hold({ skip: (rt, m) => m.tdAmb, at: { x: 14, z: 56 }, dur: 80, r: 14, title: '退く列の後ろ', sub: '手負いと荷駄を背に、上杉の騎馬を受ける', label: '列の後ろ', obj: '退く列の後ろに付き、上杉の騎馬から手負いを守れ',
+      waves: [
+        { t: 4, say: ['足軽', '騎馬じゃ！　槍を下ろせ！'], foes: () => [{ name: '上の浅瀬を渡った上杉の騎馬', from: { x: -60, z: 40 }, list: [uS(1, { horse: true }), uC(8), uA(6)], mass: 140, noRout: 20 }] },
+        { t: 34, say: ['足軽', '川からも、歩きの者が上がってくる！'], foes: () => [{ name: '川を渡った上杉勢', from: { x: -20, z: 10 }, list: [uS(2), uA(12)], mass: 200 }] },
+        { t: 60, say: ['柴田勝家', 'これが最後の寄せじゃ。凌げば、上杉は川を越えては来ぬ！'], foes: () => [{ name: '上杉の騎馬の新手', from: { x: 60, z: 30 }, list: [uC(6), uA(8)], mass: 120 }] },
+      ],
+      reward: '退く列の後ろで、手負いと荷駄を守りぬいた', lost: ['柴田勝家', '列が乱れた……じゃが、まだ崩れてはおらぬ'] }),
+    fight({ skip: (rt, m) => !m.tdAmb, at: { x: -20, z: 52 }, max: 130, title: '竹藪の横槍', sub: '通り過ぎる上杉の騎馬の横腹へ', obj: '竹藪から躍り出て、上杉の騎馬を崩せ',
+      say: [['柴田勝家', '今じゃ、突けっ！']],
+      foes: () => [{ name: '上の浅瀬を渡った上杉の騎馬', from: { x: -60, z: 44 }, list: [uS(1, { horse: true }), uC(8), uA(6)], mass: 140, morale: 70 }],
+      later: [{ t: 40, title: '新手', sub: '川から上杉の歩きの者が上がる', say: ['足軽', '川から上がってくる……挟まれるぞ！'], foes: () => [{ name: '川を渡った上杉勢', from: { x: -20, z: 10 }, list: [uS(2), uA(12)], mass: 200 }] }],
+      reward: (t) => { t.special = { label: '竹藪に伏せ、上杉の騎馬の横を突いた', pts: 20 }; }, rewardLabel: '上杉の騎馬の横を突いた' }),
+    rest({ dur: 6, say: [['足軽', '……騎馬が、川の向こうへ引いていく'], ['柴田勝家', '雨がやんだら、川はもう渡れぬ。……わしらの勝ちよ、生きて帰ればな']] }),
   ];
 }
 

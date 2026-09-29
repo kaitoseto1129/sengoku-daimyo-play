@@ -18,7 +18,7 @@ import { gauss, enemyGroup, allyGroup, nm, centerOf, unitPos, ringWall } from '.
 import { more, dress, gone, DAWN, applyLook } from './b_inabayama.js';
 import { KIT } from './b_nagashinojo.js';
 import { volleyAt } from './b_tano.js';
-import { depthStart, depthTick, rest, pick, fight, hold } from './b_depth.js';
+import { depthStart, depthTick, rest, pick, fight, hold, steerRing } from './b_depth.js';
 import { uS, uA, uG, uB, round, gunLine, lines, leanAll, volleyAll, camp } from './b_mid.js';
 // 足軽大将候補より上（信長で遊ぶ時は除く）：任務の文を「一手を預かる」者の役目に
 const HI = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
@@ -280,6 +280,8 @@ const miki = {
   update(rt, dt) {
     const F = rt.flags;
     KIT.backTick(rt);
+    // 近寄って目を覚ました控えの兵は、当たりを弱める（大軍に呑まれて倒れ続けないように。一揆・地侍の雑兵は具足も槍も粗い）
+    if ((F.wkT = (F.wkT || 0) - dt) <= 0) { F.wkT = 0.5; for (const g of rt.army.groups) if (g.woke && g.team === 1 && !g.wkDm) { g.wkDm = true; g.dmgMult = (g.dmgMult || 1) * 0.55; } }
     depthTick(rt, dt);
     // 崩れた隊の印は消す（古い印が「あちらじゃ」の行き先にならないように）
     for (const m of rt.markers.slice()) if (m.group && gone(m.group)) rt.unmark(m.id);
@@ -320,11 +322,12 @@ const miki = {
 };
 
 // ---------------- 付城の攻防・西の谷道・城の手前の段 ----------------
-const GATE = { x: HIRATA.x, z: HIRATA.z + HIRATA.r + 6 };     // 平田の付城の口（南）の前
+const GATE = { x: HIRATA.x, z: HIRATA.z + HIRATA.r + 6 };
+const RING = { x: HIRATA.x, z: HIRATA.z, r: HIRATA.r, gap: 0 };   // bot が付城の柵に突っかからないように（口は南）     // 平田の付城の口（南）の前
 const VALLEY = { x: -88, z: -66 };                           // 西の谷道
 function mikiCtx(rt) {
   const F = rt.flags;
-  return { faction: 'saito', flag: 'maru', armor: 0x33302a, dmg: 0.62, look: (l) => dress(l, BESSHO), friends: () => [F.hide, F.hirata].filter((g) => g && g.count), aid: { name: '羽柴の手の一組', list: [uS(1), uA(8)] }, aidSaid: '羽柴の手から一組が加わった' };
+  return { faction: 'saito', flag: 'maru', armor: 0x33302a, dmg: 0.62, look: (l) => dress(l, BESSHO), friends: () => [F.hide, F.hirata].filter((g) => g && g.count), ring: RING, aid: { name: '羽柴の手の一組', list: [uS(1), uA(8)] }, aidSaid: '羽柴の手から一組が加わった' };
 }
 function mikiA() {
   const R = round(GATE, Math.PI, 52);
@@ -395,7 +398,8 @@ miki.skip = (rt) => { for (const tm of rt.timers) tm.t = Math.min(tm.t, 0.2); };
 miki.history = '天正六年（1578）、播磨の別所長治は織田に背いて三木城に籠もった。羽柴秀吉は城のまわりに付城を並べ、土塁と柵で囲んで兵糧の道を断った（三木の干殺し）。天正七年九月十日、毛利方は兵糧を城へ運び込もうとし、城からも別所勢が打って出て秀吉方の平田の付城を襲い、守っていた谷大膳（衛好）は討ち死にした。しかし秀吉はすぐに駆けつけ、大村坂で別所・毛利勢を破り、兵糧は城へ入らなかった。城の中の飢えはひどくなり、翌天正八年正月、別所長治は城兵の命を助けることと引き換えに、一族とともに自害した。別所の紋は無いので、ここでは丸の旗で代えている。兵の数には諸説ある。';
 
 // 素直な遊び手：護衛と戦い、俵を奪い、平田の付城へ駆けつけ、大村坂で戦う
-miki.botBrain = (b, inp, { goTo }) => {
+miki.botBrain = (b, inp, o) => { mikiBot(b, inp, o); steerRing(b, inp, RING); };
+function mikiBot(b, inp, { goTo }) {
   const p = b.player, u = p.u, F = b.flags;
   inp.quickCmd = null;
   inp.k.delete('KeyW'); inp.k.delete('KeyE');
@@ -423,6 +427,6 @@ miki.botBrain = (b, inp, { goTo }) => {
   if (F.step === 2) { const q = (F.sallies || []).find((x) => !gone(x)); if (q) { const t = q.center(); goTo(p, inp, t.x, t.z, 2); return; } goTo(p, inp, HIRATA.x + 4, HIRATA.z + 20, 2); return; }
   if (F.step === 3) { const q = (F.last || []).find((x) => !gone(x)); if (q) { const t = q.center(); goTo(p, inp, t.x, t.z, 2); return; } }
   goTo(p, inp, c.x + 2, c.z + 4, 3);
-};
+}
 
 export { miki };

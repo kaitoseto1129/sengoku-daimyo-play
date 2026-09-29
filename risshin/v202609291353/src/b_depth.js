@@ -292,6 +292,37 @@ export function move(o) {
 
 // bot（自動の遊び手）：段の間は、目の前の敵を突き、いなければ段の的へ
 export function depthBot(b, inp, goTo) {
+  depthBot0(b, inp, goTo);
+  const D = b.flags.dp;
+  if (D && D.ctx && D.ctx.ring) steerRing(b, inp, D.ctx.ring);
+  if (D && D.ctx && D.ctx.botSteer) D.ctx.botSteer(b, inp);
+}
+// 柵の輪（付城など）に bot が突っかからないよう、歩く向きを輪の外回りへ曲げる。ring = { x, z, r, gap（口の向き。0 = +z） }
+//   外から輪に当たりそうなら輪に沿って回り、口の前まで来たら入る。内から出る時は口へ向かう
+export function steerRing(b, inp, ring) {
+  if (!inp.k.has('KeyW')) return;
+  const p = b.player, u = p.u;
+  const dx = u.pos.x - ring.x, dz = u.pos.z - ring.z, d = Math.hypot(dx, dz) || 1;
+  const fx = Math.sin(p.yaw), fz = Math.cos(p.yaw), g = ring.gap || 0, gx = Math.sin(g), gz = Math.cos(g);
+  const off = Math.abs(Math.atan2(dx * gz - dz * gx, dx * gx + dz * gz));   // 口からの角度のずれ
+  if (d < ring.r - 0.4) {
+    const ax = dx + fx * 3, az = dz + fz * 3;
+    if (Math.hypot(ax, az) > ring.r - 1 && off > 0.3) {
+      const ix = ring.x + gx * (ring.r - 3), iz = ring.z + gz * (ring.r - 3);
+      const tx = Math.hypot(u.pos.x - ix, u.pos.z - iz) > 2 ? ix : ring.x + gx * (ring.r + 5), tz = Math.hypot(u.pos.x - ix, u.pos.z - iz) > 2 ? iz : ring.z + gz * (ring.r + 5);
+      p.yaw = Math.atan2(tx - u.pos.x, tz - u.pos.z);
+    }
+    return;
+  }
+  const ax = dx + fx * 4, az = dz + fz * 4;
+  if (Math.hypot(ax, az) > ring.r + 2.5) { b.ringSide = 0; return; }
+  if (off < 0.45 && fx * dx + fz * dz < 0) return;       // 口の前：そのまま入る
+  const t1x = -dz / d, t1z = dx / d;
+  if (!b.ringSide) b.ringSide = t1x * fx + t1z * fz >= 0 ? 1 : -1;
+  const s = b.ringSide, nx = t1x * s + (dx / d) * 0.35, nz = t1z * s + (dz / d) * 0.35;
+  p.yaw = Math.atan2(nx, nz);
+}
+function depthBot0(b, inp, goTo) {
   const p = b.player, u = p.u, D = b.flags.dp;
   inp.k.delete('KeyW'); inp.k.delete('KeyE'); inp.guardHold = false;
   if (!u.alive) return;

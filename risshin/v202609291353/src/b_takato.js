@@ -145,8 +145,8 @@ const takato = {
     for (const u of F.wallGun.units) if (u.type === 'gun') u.dmg *= 0.4;
     // ---- 陣と大軍（軽い作り） ----
     rt.scene.add(tawara(W, CAMP.x + 16, CAMP.z - 6, 0.3, 6));
-    // 信忠の本陣（信忠は自ら塀に取り付くので、陣には旗本の残りが守る。控えは後ろの大軍）
-    F.honjin = camp(rt, { x: CAMP.x, z: CAMP.z, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', guard: 15, reserve: 0, runTo: { x: -24, z: 20 } });
+    // 信忠の本陣（信忠は自ら塀に取り付くので、陣は河尻秀隆が預かる。控えは後ろの大軍）
+    F.honjin = camp(rt, { x: CAMP.x, z: CAMP.z, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', general: { name: '河尻秀隆', hat: 'kabuto_m', haori: 0x3a3228 }, guard: 15, reserve: 200, runTo: { x: -24, z: 20 } });
     F.honjin.guard.name = '信忠の本陣の守り';
     for (const [x, z, k] of [[CAMP.x - 8, CAMP.z - 8, 'oda'], [CAMP.x + 6, CAMP.z - 8, 'eiraku'], [-40, 14, 'oda'], [40, 12, 'oda'], [-20, 24, 'oda']]) rt.scene.add(nobori(W, x, z, k, 6));
     const DA = (x, z, w, d, count, facing, armor, flag, seed) => W.addDistantArmy({ x, z, w, d, count, facing, armor, flagTex: flagTexture(flag), seed });
@@ -258,6 +258,7 @@ const takato = {
     F.step = 3.5;
     rt.unmark('ni');
     if (!gone(F.ni)) { F.ni.noRout = false; F.ni.morale = Math.min(F.ni.morale, 15); }
+    rt.obj('main', HI(rt) ? '預かった一手を率い、本丸へ寄せよ' : '本丸へ寄せよ', 'main');
     depthStart(rt, tkCtx(rt), tkB(), () => this.honmaru(rt));
   },
 
@@ -312,6 +313,17 @@ const takato = {
       rt.say('仁科の侍', '殿（盛信）をお守りせよ！　一人でも多く道連れにせよ！', 3.5);
       rt.marker('boss2', centerOf(F.boss2), () => `盛信の旗本・${moraleWord(F.boss2.morale)}`, { red: true, group: F.boss2 });
     });
+    rt.after(40, () => {   // 本丸の奥の最後の衆（女や小者までが刀を取った）。後ろに控えの数百
+      if (F.ending) return;
+      F.boss3 = enemyGroup(rt, { faction: 'takeda', name: '本丸の奥の最後の衆', anchor: { x: HON.x - 8, z: HON.z - 10 }, facing: 0, order: 'attack', seekRange: 70, aggro: 16, width: 12, morale: 100, noRout: true, fleeDir: { x: 0, z: -1 }, dmgMult: 0.6 },
+        dress([{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 16 }], TAKEDA));
+      rt.after(25, () => { if (F.boss3) F.boss3.noRout = false; });
+      KIT.backOf(rt, F.boss3, { flag: 'takeda', armor: 0x3a2622, kind: 'spear', w: 18, depth: 10, count: 160, seed: 15831 });
+      rt.army.play('eshout', { x: HON.x, z: HON.z - 8 }, 1.6);
+      rt.say('足軽', '本丸の奥から、まだ出てくる……小者までが刀を取っておる！', 3.5);
+      rt.say('森長可', '盛信殿の衆を先に崩せ。大将が崩れれば、奥の者も続かぬ', 3.5);
+      rt.marker('boss3', centerOf(F.boss3), () => `本丸の奥の最後の衆・${moraleWord(F.boss3.morale)}`, { red: true, group: F.boss3 });
+    });
   },
 
   win(rt) {
@@ -319,12 +331,12 @@ const takato = {
     if (F.ending) return;
     F.ending = true;
     rt.setPhase('end');
-    rt.unmark('boss'); rt.unmark('boss2');
+    rt.unmark('boss'); rt.unmark('boss2'); rt.unmark('boss3');
     for (const c of F.lines || []) c.rout('B', { from: 0, hideAfter: 20, minFight: 0 });
     rt.objDone('main');
     rt.tracker.main = true;
     rt.award((t) => { t.main = true; t.special = { label: '高遠城の本丸まで攻め入った', pts: 20 }; }, '任務達成・高遠城を落とした');
-    for (const q of [F.boss, F.boss2, F.ni, F.niGun, F.san, F.san2, F.wallGun, F.sally]) if (q && !gone(q)) { q.noRout = false; q.morale = 0; }
+    for (const q of [F.boss, F.boss2, F.boss3, F.ni, F.niGun, F.san, F.san2, F.wallGun, F.sally]) if (q && !gone(q)) { q.noRout = false; q.morale = 0; }
     if (F.bossU) { F.bossU.announced = true; if (F.bossU.alive) { F.bossU.invuln = false; F.bossU.noTarget = true; } }
     rt.world.addFire(HON.x - 2, HON.z - 6, { h: 2 }); rt.world.addSmokeColumn(HON.x - 2, rt.world.heightAt(HON.x, HON.z) + 7, HON.z - 6, { size: 3 });
     sfx('horagai', 0.8); rt.after(1, () => sfx('toki', 0.8));
@@ -369,7 +381,10 @@ const takato = {
       const g = F.boss, b2 = F.boss2;
       rt.objProgress('main', `盛信の衆 ${g.count}人${b2 ? `・旗本 ${gone(b2) ? 0 : b2.count}人` : ''}`);
       if (b2 && b2.count < 4 && !gone(b2)) b2.morale = Math.min(b2.morale, 20);
-      if ((g.count <= 5 && b2 && gone(b2)) || rt.t - F.stepT > 170) this.win(rt);
+      const b3 = F.boss3;
+      if (b3 && b3.count < 4 && !gone(b3)) b3.morale = Math.min(b3.morale, 20);
+      if (g.count <= 5 && b3 && !gone(b3)) { b3.noRout = false; b3.morale = Math.min(b3.morale, 30); }
+      if ((g.count <= 5 && b2 && gone(b2) && b3 && gone(b3)) || rt.t - F.stepT > 200) this.win(rt);
     }
   },
 
@@ -379,6 +394,9 @@ const takato = {
   },
   onRout(rt, g) {
     if (g.team !== 1) return;
+    const F = rt.flags;
+    if (rt.t - (F.routSayT || -99) < 8) return;   // 同じ知らせを続けて出さない
+    F.routSayT = rt.t;
     rt.say('足軽', `${g.name}が奥へ退いていく！`, 2.5);
   },
   onStructHit(rt, s) {
@@ -429,7 +447,7 @@ function tkA() {
       later: [{ t: 35, say: ['足軽', '長屋の方から撃ってくる……！　背を撃たれるぞ！'], foes: () => [gunLine('長屋の鉄砲衆', { x: 20, z: -52 }, { x: -44, z: -44 }, 9, { off: { x: 24, z: -6 } })] }],
       reward: '搦手の味方を引き入れた', onEnd: (rt, m, won) => { if (won) { m.tkKara = true; rt.say('足軽', '搦手の味方が入ってきた！', 3); } } }),
     rest({ dur: 8, say: [['森長可', '……二の丸の門の向こうで、太鼓が鳴っておる'], ['足軽', '来るぞ、来るぞ……']] }),
-    hold({ at: SAN, dur: 80, r: 14, title: '二の丸からの逆襲', sub: '二の丸の門が開き、仁科の兵がどっと押し出す', label: '三の丸の真ん中', obj: '三の丸を守り、二の丸からの逆襲を押し返せ',
+    hold({ at: SAN, dur: 95, r: 14, title: '二の丸からの逆襲', sub: '二の丸の門が開き、仁科の兵がどっと押し出す', label: '三の丸の真ん中', obj: '三の丸を守り、二の丸からの逆襲を押し返せ',
       say: [['森長可', '逆襲じゃ！　三の丸を取り返されるな！']],
       waves: [
         { t: 4, say: ['足軽', '門から……城兵があふれ出てくる！'], foes: (rt, m) => [{ name: '二の丸から押し出す城兵', from: { x: 0, z: NI_Z + 2 }, list: [uS(3), uA(m.tkKara ? 12 : 16)], mass: 260, noRout: 25 }] },
@@ -452,6 +470,22 @@ function tkB() {
       foes: () => [{ name: '細道の城兵', from: { x: -30, z: HON.z }, list: [uS(2), uA(10)], mass: 140 }],
       later: [{ t: 25, title: '待ち伏せ', sub: '後ろの藪から、城兵が出る', say: ['足軽', '後ろから……！　細道で挟まれた！'], foes: () => [{ name: '藪に潜んだ城兵', from: { x: -40, z: NI_Z - 12 }, list: [uS(1), uA(8)], mass: 100 }] }],
       reward: (t) => { t.special = { label: '崖沿いの細道を抜けた', pts: 15 }; }, rewardLabel: '崖沿いの細道を抜けた' }),
+    // 本丸の脇の館：城の女たちまでが刀を取って籠もる（諏訪勝右衛門の妻が薙刀で戦ったと伝わる）
+    rest({ dur: 7, heal: 0.3, say: [['足軽', '本丸の脇の館から……女が薙刀を構えて出てきおった！'], ['森長可', '諏訪勝右衛門の妻じゃ。……この城は、女までが降らぬのか']] }),
+    pick({ title: '本丸の脇の館に、城の女たちと侍が籠もって刀を取る。どうする？',
+      options: [{ label: '館を囲み、降るよう呼びかける', note: '刃向かわぬ者は助かる。囲む間、本丸から寄せを受け続ける' }, { label: 'かまわず本丸の口へ押す', note: '早く盛信へ届く。館の者に横と背を突かれる' }],
+      on: (rt, m, i) => { m.tkCall = i === 0; rt.say('森長可', i === 0 ? '……囲め。刃向かわぬ者には手を出すな。本丸から来る者だけを突け' : '館は捨ておけ！　本丸の口へ押せ！', 3.5); } }),
+    hold({ skip: (rt, m) => !m.tkCall, at: { x: -24, z: -76 }, dur: 90, r: 13, title: '館を囲む', sub: '本丸から、盛信の侍が館を救いに打って出る', label: '館の前', obj: '館を囲み、本丸から救いに来る城兵を退けよ',
+      waves: [
+        { t: 4, say: ['仁科の侍', '館の者を見殺しにするな！'], foes: () => [{ name: '館を救いに出た城兵', from: { x: 0, z: HON.z + 4 }, list: [uS(3), uA(12)], mass: 200, noRout: 25 }] },
+        { t: 30, say: ['足軽', '館の中から打って出た……！'], foes: () => [{ name: '館の衆', from: { x: -34, z: -84 }, list: [uS(3), uA(6)], mass: 0 }] },
+        { t: 55, say: ['足軽', '本丸の柵の上から弓じゃ！'], foes: () => [{ name: '本丸の弓衆', from: { x: -14, z: HON.z + 6 }, list: [uS(1), uB(6), uA(6)], mass: 100 }] },
+      ],
+      reward: '館を囲み、刃向かわぬ者を助けた', onEnd: (rt, m, won) => { if (won) rt.say('足軽', '……館の者が、刀を置いた', 3); } }),
+    fight({ skip: (rt, m) => m.tkCall, at: { x: -6, z: HON.z + HON.r + 6 }, max: 120, title: '本丸の口', sub: '本丸の口を、盛信の侍が固める', obj: '本丸の口の城兵を崩せ',
+      foes: () => [{ name: '本丸の口の城兵', from: { x: 0, z: HON.z + 4 }, list: [uS(3), uA(12)], mass: 200, noRout: 25 }],
+      later: [{ t: 30, title: '横槍', sub: '脇の館から、薙刀の衆が打って出る', say: ['足軽', '横じゃ！　館の衆が出てきた！'], foes: () => [{ name: '館の衆', from: { x: -34, z: -84 }, list: [uS(4), uA(6)], mass: 0 }] }],
+      reward: (t) => { t.special = { label: '本丸の口を一番に破った', pts: 20 }; }, rewardLabel: '本丸の口を一番に破った' }),
   ];
 }
 
@@ -481,7 +515,7 @@ takato.botBrain = (b, inp, { goTo }) => {
   if (F.step === 1) { if (F.sally && !gone(F.sally)) { const c = F.sally.center(); goTo(p, inp, c.x, c.z, 2); return; } goTo(p, inp, 4, FRONT_Z + 7, 2); return; }
   if (F.step === 2) { const q = [F.san, F.san2].find((x) => x && !gone(x)); const c = q ? q.center() : { x: 0, z: -44 }; via(c.x, c.z, FRONT_Z); return; }
   if (F.step === 3) { const c = gone(F.ni) ? { x: 0, z: NI_Z - 6 } : F.ni.center(); if (u.pos.z > FRONT_Z - 2) { via(c.x, c.z, FRONT_Z); return; } via(c.x, c.z, c.z < NI_Z ? NI_Z : -999); return; }
-  if (F.step === 4) { const q = [F.boss2, F.boss].find((x) => x && !gone(x)) || F.boss; const c = q.center(); if (u.pos.z > FRONT_Z - 2) { via(c.x, c.z, FRONT_Z); return; } if (u.pos.z > NI_Z - 2) { via(c.x, c.z, NI_Z); return; } goTo(p, inp, c.x, c.z, 2); return; }
+  if (F.step === 4) { const q = [F.boss2, F.boss, F.boss3].find((x) => x && !gone(x)) || F.boss; const c = q.center(); if (u.pos.z > FRONT_Z - 2) { via(c.x, c.z, FRONT_Z); return; } if (u.pos.z > NI_Z - 2) { via(c.x, c.z, NI_Z); return; } goTo(p, inp, c.x, c.z, 2); return; }
   const a = F.moriU.pos; goTo(p, inp, a.x + 3, a.z + 3, 3);
 };
 

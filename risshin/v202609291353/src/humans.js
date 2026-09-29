@@ -19,12 +19,13 @@ import { WIND_STATE, WET, ARMY_P } from './world.js';
 // fine：草摺の揺れ・実写の顔まで細かくする距離・ik：腕を毎コマ武器へ合わせる距離（その先は間引く）
 // budget：一コマに人を作ってよい時間（ms）。戦の始まりに止まらないよう、少しずつ作る
 // lite：その先は見回し・左手を省く・dead：倒れた兵を人にする距離
+// lod：その先は体ごと一つの軽い形（骨組み一つ・描く回数一回）・shadow：その先の人は影を描かない
 // fx：指の握り・息と疲れ・坂の足・振り向きの遅れ（重さを比べる時に切れるように）
-export const HUM = { fx: true, ready: false, failed: false, on: true, near: 42, max: 64, far: 70, ik: 18, lite: 28, fine: 12, face: 15, lod: 15, budget: 4, dead: 20 };
+export const HUM = { fx: true, ready: false, failed: false, on: true, near: 42, max: 64, far: 70, ik: 18, lite: 28, fine: 12, face: 15, lod: 15, shadow: 15, budget: 4, dead: 20 };
 // 画質ごとの数（「低」は今の形のまま）
 // 画質「低」でも自分（と名のある武将のごく近く）だけは本物の体にする
 // must：この近さ（m）より内の兵は、上限を越えても必ず骨の入った人にする（カメラの前に軽い形の兵を出さない）。その分は遠い者から軽い形へ
-const HUM_Q = { high: { near: 42, max: 80, must: 34, mustMax: 170 }, mid: { near: 32, max: 40, must: 29, mustMax: 110 }, low: { near: 0, max: 4, far: 12 } };
+export const HUM_Q = { high: { near: 42, max: 80, must: 34, mustMax: 170 }, mid: { near: 32, max: 40, must: 29, mustMax: 110 }, low: { near: 0, max: 4, far: 12 } };
 const q0 = new THREE.Quaternion(), q1 = new THREE.Quaternion(), v0 = new THREE.Vector3(), v1 = new THREE.Vector3(), v2 = new THREE.Vector3(), v3 = new THREE.Vector3(), m0 = new THREE.Matrix4(), m1 = new THREE.Matrix4();
 
 let SRC = null;      // 元の体（骨・形・動き・骨ごとの位置）
@@ -1483,6 +1484,8 @@ export function makeHuman(u, look0) {
     const bs = h.seed, bx = 0.95 + ((bs * 13.13) % 1) * 0.12, by = 0.97 + ((bs * 29.7) % 1) * 0.06;
     model.scale.x *= bx; model.scale.z *= bx; model.scale.y *= by;
   }
+  // 遠い人（lodFar）は指・つま先・頭の先の骨の行列を毎コマ辿らない（描くのは体ごとまとめた軽い形で、その骨を使わない。要る時は getWorldPosition が親から求め直す）
+  for (const nm of ['LeftHand', 'RightHand', 'LeftToeBase', 'RightToeBase', 'Head']) if (bones[nm]) { bones[nm].updateMatrixWorld = tipMW; bones[nm].userData.h = h; }
   h.lookSrc = look0;   // 作った時の元の姿（本人の姿が差し替えられたら作り直すため）
   // 型（立ち姿の骨の行列を測るため）を一度だけ作る
   if (!SRC.template) {
@@ -1723,9 +1726,9 @@ const crowdGeos = new Map();
 let crowdInv = null;
 // 胴丸の侍に重ねる部品（兜・顔・母衣・陣羽織）
 const DM_KEEP = new Set(['hat', 'back', 'haori', 'koshi', 'pole']);
-function crowdGeometry(P, L, only = null) {
+function crowdGeometry(P, L, only = null, face = false) {
   const list = [];
-  layParts(P, L, (k, nm, geo, fit) => { if (k !== 'face' && geo && geo.attributes.position.count && (!only || only.has(k))) list.push({ bn: PART_BONE[k] || nm, geo, fit }); });
+  layParts(P, L, (k, nm, geo, fit) => { if ((face || k !== 'face') && geo && geo.attributes.position.count && (!only || only.has(k))) list.push({ bn: PART_BONE[k] || nm, geo, fit }); });
   const key = list.map((p) => p.geo.uuid).join('|');
   if (crowdGeos.has(key)) return crowdGeos.get(key);
   const gs = [];
@@ -1753,9 +1756,11 @@ function crowdGeometry(P, L, only = null) {
 }
 const BSPH = new THREE.Sphere(new THREE.Vector3(0, 1.0, 0), 1.9);
 // 近くは細かい形、遠く（HUM.lod より先）と影は軽い形（描く直前に距離で入れ替える）
-function lodGeo(m, hi, lo) {
+function lodGeo(m, hi, lo, h = null) {
   if (!lo || hi === lo) return;
   m.onBeforeRender = (r, s, cam) => {
+    // 遠い人（h.lodFar）は、体ごと一つにまとめた軽い形
+    if (h && h.lodFar) { if (m.geometry !== h.geoFar) m.geometry = h.geoFar; return; }
     const e = m.matrixWorld.elements, c = cam.matrixWorld.elements;
     const d2 = (e[12] - c[12]) ** 2 + (e[13] - c[13]) ** 2 + (e[14] - c[14]) ** 2;
     const want = !cam.isOrthographicCamera && d2 < HUM.lod * HUM.lod ? hi : lo;
@@ -1808,6 +1813,8 @@ function dressCrowd(h, P, L, only = null, look = L) {
   // 遠く（と影）は units.js の軽い形をまとめた物
   const Plo = lookParts(look, false);
   const geoLo = crowdGeometry(Plo, L, only);
+  // 遠く（HUM.lod より先）は、体（骨の入った人形・胴丸）を隠し、units.js の軽い体と顔まで一つの形にまとめる（骨組み一つ・描く回数一回・三角は一割ほど）
+  h.geoFar = crowdGeometry(Plo, L, null, true);
   // 揺れる部品・顔の骨を足す（立ち姿では親の骨と同じ所）
   h.xb = {};
   for (const [nm, par] of Object.entries(XB)) {
@@ -1821,7 +1828,7 @@ function dressCrowd(h, P, L, only = null, look = L) {
   // 影を受ける：笠が顔に、腕が胴に、胴が脚に落とす影で、体の厚みが出る（受けないと、日なたで平らに光る人形になる）
   m.castShadow = true; m.receiveShadow = true;
   m.boundingSphere = BSPH;
-  lodGeo(m, geo, geoLo);
+  lodGeo(m, geo, geoLo, h);
   h.root.add(m);
   h.parts.armor = m;
   h.F = P.F;
@@ -1842,7 +1849,16 @@ function crowdFace(h, on) {
   }
   h.scanOn = on;
   if (h.parts.face) h.parts.face.visible = on;
-  if (h.parts.pface) h.parts.pface.visible = !on;
+  if (h.parts.pface) h.parts.pface.visible = !on && !h.lodFar;
+}
+// 遠い人の軽い形へ替える・戻す（体・胴丸・顔を隠し、甲冑の形を体ごとまとめた物に）
+function setFar(h, far) {
+  if (!h.geoFar || !h.parts.armor || !!h.lodFar === far) return;
+  if (far) crowdFace(h, false);
+  h.lodFar = far;
+  if (!h.domaru) h.body.visible = !far;
+  if (h.parts.domaru) h.parts.domaru.visible = !far;
+  if (h.parts.pface) h.parts.pface.visible = !far && !h.scanOn;
 }
 let madeFaces = 0;
 // 実写の顔を頭の骨に付ける（full：本人と武将。兵は軽い目）
@@ -3761,6 +3777,14 @@ function carryFlag(h, on) {
 // 隠れた人の根元：見えない間は子（骨）の行列を辿らない。見せた時は次の描画で直る
 const _umw = THREE.Object3D.prototype.updateMatrixWorld;
 function skipHiddenMW(force) { if (this.visible) _umw.call(this, force); }
+function tipMW(force) {
+  const h = this.userData.h;
+  if (!h || !h.lodFar) { _umw.call(this, force); return; }
+  if (this.matrixAutoUpdate) this.updateMatrix();
+  if (this.matrixWorldNeedsUpdate || force) { this.matrixWorld.multiplyMatrices(this.parent.matrixWorld, this.matrix); this.matrixWorldNeedsUpdate = false; force = true; }
+  // 骨でない子（顔・部品）と、頭に付けた揺れる骨（笠）は辿る
+  for (const c of this.children) if (!c.isBone || c.name.startsWith('sw')) c.updateMatrixWorld(force);
+}
 // 毎コマ：本人・カメラの近くの兵・名のある武将を骨の入った人で描く（battle.js から）
 let lastArmy = null;
 const _pv = new THREE.Matrix4(), _fr = new THREE.Frustum(), _sph = new THREE.Sphere(new THREE.Vector3(), 2.2);
@@ -3824,6 +3848,8 @@ function humansStep(rt, dt, army, cam) {
     const named = u.look && isNamed(u.look);
     if (!useHuman(u, u.isPlayer)) continue;   // 名のある武将は先に作る（並びの先頭）が、一コマの枠は守る（何人も一度に作って止まらないよう）
     const h = u.human;
+    // 遠い人は軽い形（本人・名のある武将は替えない）。境目で行き来しないよう 1m の幅を持たせる
+    if (h.geoFar && !u.isPlayer && !named) setFar(h, c.dist > HUM.lod + (h.lodFar ? -1 : 0));
     if (!u.alive) h.deadAge = (h.deadAge || 0) + dt; else h.still = false;
     // 武器の握りは毎コマ（動きを間引く人でも、武器が units.js の所へ跳ねないよう）
     gripPose(h, dt);
@@ -3840,12 +3866,12 @@ function humansStep(rt, dt, army, cam) {
     // 馬上の人：兵の根元と鞍の入れ物の行列を今のコマに合わせてから動かす
     if (u.mounted && u.seat) { u.mesh.updateMatrix(); u.mesh.updateWorldMatrix(false, false); u.seat.updateWorldMatrix(false, false); }
     // 倒れた者も近くは実写の顔のまま（亡骸の顔が人形の顔に戻らないよう）
-    if (h.xb) crowdFace(h, d < HUM.face);
+    if (h.xb) crowdFace(h, d < HUM.face && !h.lodFar);
     h.far = !u.isPlayer && !named && d > HUM.lite;
-    // 重さの取り返し：人が多い時（40人より上）は、20m より遠い人の影を描かない（切り替わった時だけ辿る）
-    //   人一人の影は体と具足で一万五千の三角＝影の描き込みの大半。20m より先の足もとは接地の影（仕上げ）で足りる
-    const noSh = !u.isPlayer && !named && want.size > 40 && d > 20;
-    if (h.noSh !== noSh) { h.noSh = noSh; h.root.traverse((o) => { if (o.isMesh) o.castShadow = !noSh; }); }
+    // 影は近くの人だけ（HUM.shadow より先は描かない。切り替わった時だけ辿る。元から影を落とさない物は戻さない）
+    //   人一人の影は体と具足で一万五千の三角＝影の描き込みの大半。先の足もとは接地の影（仕上げ）で足りる
+    const noSh = !u.isPlayer && !named && d > HUM.shadow + (h.noSh ? -1 : 0);
+    if (h.noSh !== noSh) { h.noSh = noSh; h.root.traverse((o) => { if (!o.isMesh) return; if (o.userData.cs0 === undefined) o.userData.cs0 = o.castShadow; o.castShadow = !noSh && o.userData.cs0; }); }
     h.near = named || d < HUM.fine;
     driveHuman(h, step, u.isPlayer || named || d < HUM.fine, true);
     HSTAT.driven++;

@@ -106,7 +106,7 @@ const tennoji = {
     // ---- 大軍（軽い作り）：砦を囲む本願寺勢、遠くの石山本願寺 ----
     const nt = flagTexture('namu'), st = flagTexture('sagarifuji');
     const DA = (x, z, w, d, count, facing, armor, tex, seed) => W.addDistantArmy({ x, z, w, d, count, facing, armor, flagTex: tex, seed });
-    F.hostE = [DA(-60, -70, 20, 40, 260, Math.PI / 2, 0x3a342c, nt, 15761), DA(60, -70, 20, 40, 260, -Math.PI / 2, 0x3a342c, st, 15762), DA(0, -120, 50, 16, 320, Math.PI, 0x3a342c, nt, 15763), DA(-50, -10, 26, 12, 200, 0.4, 0x3a342c, st, 15764)];
+    F.hostE = [DA(-60, -70, 20, 40, 260, Math.PI / 2, 0x3a342c, nt, 15761), DA(60, -70, 20, 40, 260, -Math.PI / 2, 0x3a342c, st, 15762), DA(0, -120, 50, 16, 320, Math.PI, 0x3a342c, nt, 15763), DA(-84, -22, 26, 12, 200, 0.9, 0x3a342c, st, 15764)];
     for (const [x, z, w, d] of [[HONGAN.x, HONGAN.z, 18, 11], [HONGAN.x - 26, HONGAN.z + 12, 10, 7]]) rt.scene.add(hut(W, x, z, w, d, 0.3, { h: 3.8, wall: 0x7a5a3c, roof: 0x3a3430 }));
     for (const [x, z] of [[HONGAN.x - 10, HONGAN.z + 22], [HONGAN.x + 12, HONGAN.z + 20]]) rt.scene.add(nobori(W, x, z, 'sagarifuji', 7));
     rt.scene.add(tawara(W, 16, 140, 0.3, 5));
