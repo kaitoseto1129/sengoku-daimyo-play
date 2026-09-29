@@ -1,7 +1,8 @@
 // 自動テストプレイ：裏の Chrome で bot（index.html?bot）を何回か走らせ、日本語の報告書にまとめる
 // 使い方: node prototype/tools/botrun.mjs [回数=3] [--only=nagashinojo,castle]
 //   --only：遊ぶ戦を鍵で絞る（okehazama moribe sunomata nagashinojo tobinosu shitaragahara suwahara anegawa sekigahara sanadamaru castle dojo town）。絞ったときの報告は bot-日時-only.md
-//   --render：3D も描く（ふだんは描かない＝速い。描画の不具合も見たい時だけ付ける）
+//   --render：3D も描く（ふだんは描かない＝速い。描画の不具合も見たい時だけ付ける）。--norender：明に描かないと指定する（既定と同じ。--render と両方あれば描かない方を勝たせる）
+//   --speed=N：描かない時、1コマに戦の計算を N 回回して早送りする（既定 1・最大 8。当たり判定の刻みは細かいままで、回す回数だけ増える）
 //   日本地図の城攻めは、回ごとに地図の筋書き（長篠・保井・関ヶ原・大坂）を替えて、攻められる城から一つを選ぶ
 // 正体は「不満を持ちまくる遊び手」：落ちた・辻褄・使いづらい・数と文の粗 の四つの目で見る（src/audit.js）
 // 画面の広さを回ごとに変える（1600×900 → 1280×720 → 1920×1080）
@@ -23,7 +24,8 @@ const args = process.argv.slice(2);
 // --row=番号：1000人の表（players-table.mjs）のその人として遊ぶ（性格・戦の数・画面・変わり目を表から足す）
 { const ra = args.find((a) => a.startsWith('--row=')); if (ra) { const m = await import('./players-table.mjs'); args.push(...m.argsOf(m.ROWS[+ra.slice(6) % m.TOTAL])); } }
 const N = +(args.find((a) => /^\d+$/.test(a)) || 3);
-const RENDER = args.includes('--render');
+const RENDER = args.includes('--render') && !args.includes('--norender');
+const SPEED = Math.min(8, Math.max(1, Math.round(+((args.find((a) => a.startsWith('--speed=')) || '').slice(8) || 1)) || 1));
 const ONLY = (args.find((a) => a.startsWith('--only=')) || '').slice(7);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const now = new Date();
@@ -64,7 +66,7 @@ for (let i = 0; i < N; i++) {
   const c = await openChrome({ width, height });
   try {
     if (MOBILE) await toPhone(c);
-    await c.goto(`http://localhost:8765/?bot&k=${i + Math.floor(Math.random() * 4)}${ONLY ? '&only=' + ONLY : ''}${RENDER ? '' : '&norender'}&r=${Date.now()}`, 3000);
+    await c.goto(`http://localhost:8765/?bot&k=${i + Math.floor(Math.random() * 4)}${ONLY ? '&only=' + ONLY : ''}${RENDER ? '' : '&norender' + (SPEED > 1 ? '&speed=' + SPEED : '')}&r=${Date.now()}`, 3000);
     await c.ev('Storage.prototype.setItem = function () {}; return 1;');
     let data = null;
     // 一回に長くて40分（戦が増えたので）。途中で落ちたら（ページのエラー）そのことも拾う

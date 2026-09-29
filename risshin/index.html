@@ -1,7 +1,7 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202609280831 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202609282051 として写した） -->
 <title>戦国立身 3D</title>
-<link rel="icon" type="image/png" sizes="32x32" href="./v202609280831/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202609280831/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202609280831/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202609280831/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202609282051/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202609282051/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202609282051/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202609282051/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1283,6 +1283,72 @@ html.touch.inframe #tc .hint { top: calc(70px + env(safe-area-inset-top, 0px)); 
   #screen .base .tabs { margin-bottom: 10px; }
   #screen .base .tabs button { padding: 8px 9px; letter-spacing: .04em; }
 }
+/* ==== 墨の HUD（2026-09-29）：戦場を邪魔しない画面。漆の札・金の枠・派手な色をやめ、和紙の字・墨のにじみ・筆の細い線で ====
+   置き場と出し入れ（hudMode・.lean・.calm・.hc・.subbg）は上のまま。ここは見た目だけを上書きする。
+   --fude は hud.js が一度だけ描く筆の線の形（マスク）。無い時はただの細い線になる */
+#hud { --ink-sh: 0 1px 2px rgba(0,0,0,.6), 0 0 10px rgba(0,0,0,.35); --fude-shu: #b8452e; --fude-bg: rgba(236,228,210,.14); }
+/* 左下：体力・気力・士気。札の地をやめ、足元の薄い墨だまりに筆で引いた細い線 */
+#hud:not(.hc) .bl { background: radial-gradient(closest-side at 50% 55%, rgba(12,10,8,.46), rgba(12,10,8,.24) 60%, rgba(12,10,8,0)); box-shadow: none; border: 0; }
+#hud .bl .who { font-family: var(--display); font-size: 16px; text-shadow: var(--ink-sh); }
+#hud .bl .bar { color: var(--washi-dim); text-shadow: var(--ink-sh); }
+#hud .bl .bar i { height: 5px; background: var(--fude-bg); border: 0; box-shadow: none; -webkit-mask: var(--fude) center / 100% 100% no-repeat; mask: var(--fude) center / 100% 100% no-repeat; }
+#hud .bl .bar.sta i, #hud .bl .bar.horse i { height: 4px; }
+#hud .bl .bar.mor i, #hud .bl .bar.breath i { height: 3px; }
+#hud .bl .bar.hp i b { background: var(--fude-shu); }
+#hud .bl .bar.hp i s { background: rgba(236,228,210,.42); }
+#hud .bl .bar.sta i b { background: #d6cdb8; }
+#hud .bl .bar.mor i b { background: #7c915d; }
+#hud .bl .bar.horse i b { background: #9c7a50; }
+#hud .bl .bar.breath i b { background: #b9b09c; }
+#hud .bl .bar em { color: var(--washi-dim); }
+#hud .bar.low i { box-shadow: none; animation: fudeLow 1.3s ease-in-out infinite alternate; }
+@keyframes fudeLow { from { opacity: 1; } to { opacity: .5; } }
+body.rm #hud .bar.low i { animation: none; }
+#hud.lean .bl #h-hp i { height: 4px; }
+/* 戦功の札・任務の札：金の縁をやめ、墨を刷いた地に字だけ */
+#hud:not(.hc) .plaque { background: linear-gradient(90deg, rgba(12,10,8,.5), rgba(12,10,8,0)); box-shadow: none; border-left: 2px solid rgba(194,162,90,.5); }
+#hud .plaque strong { color: var(--washi); text-shadow: var(--ink-sh); }
+#hud:not(.hc) #objectives { background: linear-gradient(90deg, rgba(10,9,7,0), rgba(10,9,7,.4) 34%); box-shadow: none; }
+#hud #objectives h4 { color: var(--washi-dim); font-weight: 600; }
+#hud #objectives li { text-shadow: var(--ink-sh); }
+#hud #objectives li .tag { border: 0; padding: 0; margin-right: 6px; color: var(--washi-faint); }
+#hud #objectives li.order .tag { color: var(--shu-text, #e38a74); }
+#hud #minimap { border: 1px solid rgba(236,228,210,.14); box-shadow: 0 0 22px rgba(0,0,0,.4); }
+/* 下の札：箱をやめ、にじんだ墨の上に絵と字。選んだ物は下の筆の線（色と形の両方で） */
+#hud:not(.hc) .slot { background: radial-gradient(closest-side, rgba(10,9,7,.6), rgba(10,9,7,.3) 62%, rgba(10,9,7,0)); border-color: transparent; box-shadow: none; }
+#hud:not(.hc) .slot.on { box-shadow: inset 0 -2px 0 var(--kin); }
+#hud:not(.hc) .slot.cmd.on { color: var(--shu-text, #e38a74); box-shadow: inset 0 -2px 0 var(--fude-shu); }
+#hud .slot em { color: var(--washi-faint); }
+/* 台詞・知らせ：和紙の色の字に薄い影。白く縁取った字と、明るい黄の警告をやめる */
+#hud #subtitle { font-family: var(--display); font-weight: 600; letter-spacing: .03em; text-shadow: 0 1px 2px rgba(0,0,0,.75), 0 0 14px rgba(0,0,0,.5); }
+#hud.hc #subtitle { text-shadow: 0 0 4px #000, 0 0 8px #000, 0 0 12px #000; }
+#hud #bark .bk { color: var(--washi); -webkit-text-stroke: 0; text-shadow: 0 1px 2px rgba(0,0,0,.75), 0 0 12px rgba(0,0,0,.5); }
+#hud #bark .bk.warn { color: var(--shu-text, #e38a74); }
+#hud .toast { text-shadow: var(--ink-sh); }
+/* 照準：小さな点ひとつ。届く間合いで朱に。構え・返しの輪は細く薄く */
+#hud #crosshair:not([data-style="cross"]) i { width: 3px; height: 3px; margin: -1.5px 0 0 -1.5px; background: rgba(236,228,210,.85); box-shadow: 0 0 3px rgba(0,0,0,.75); }
+#hud #crosshair.inrange:not([data-style="cross"]) i { background: var(--shu-text, #e38a74); transform: scale(1.6); }
+#hud #crosshair::before, #hud #crosshair::after { border-width: 1px; }
+#hud #crosshair.inrange::before { border-color: transparent; }
+#hud #crosshair.guard::after { border-color: rgba(236,228,210,.3); border-radius: 50%; }
+#hud #crosshair.counter::before { border-color: rgba(194,162,90,.7); }
+#hud #crosshair.charge::before { border-color: rgba(236,228,210,.35); }
+#hud #crosshair.charged::before { border-color: rgba(194,162,90,.75); border-width: 1px; }
+/* 敵将・狙う敵の体力：細い朱の一筆 */
+#hud #boss { font-size: 15px; letter-spacing: .2em; gap: 6px; text-shadow: var(--ink-sh); }
+#hud #boss i { width: min(360px, 52vw); height: 3px; background: var(--fude-bg); border: 0; -webkit-mask: var(--fude) center / 100% 100% no-repeat; mask: var(--fude) center / 100% 100% no-repeat; }
+#hud #boss i b { background: var(--fude-shu); }
+#hud #target { text-shadow: var(--ink-sh); }
+#hud #target i { height: 2px; background: var(--fude-bg); -webkit-mask: var(--fude) center / 100% 100% no-repeat; mask: var(--fude) center / 100% 100% no-repeat; }
+#hud #target i b { background: var(--fude-shu); }
+#hud #target span .kd { border: 0; padding: 0; }
+body.ca #hud #boss i b, body.ca #hud #target i b { background: #ff9a1a; }
+/* 狙う敵の頭の「！」：燃える橙をやめ、朱の字 */
+#hud .threat { color: var(--shu-text, #e38a74); font-size: 20px; text-shadow: 0 0 6px rgba(0,0,0,.85); }
+#hud .threat.edge { font-size: 22px; color: var(--shu-text, #e38a74); }
+body.ca #hud .threat { color: #ff9a1a; }
+/* スマホ横「最小」の字幕：四角い地をやめ、左右の端が消える墨の帯に */
+#hud.lean:not(.subbg) #subtitle { background: linear-gradient(90deg, rgba(10,9,7,0), rgba(10,9,7,.44) 16%, rgba(10,9,7,.44) 84%, rgba(10,9,7,0)) !important; padding-inline: 22px !important; }
 </style>
 
 <canvas id="view"></canvas>
@@ -1358,4 +1424,4 @@ html.touch.inframe #tc .hint { top: calc(70px + env(safe-area-inset-top, 0px)); 
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
 } }
 </script>
-<script type="module" src="./v202609280831/src/main.js"></script>
+<script type="module" src="./v202609282051/src/main.js"></script>
