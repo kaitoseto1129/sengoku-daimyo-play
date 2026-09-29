@@ -114,8 +114,21 @@ document.getElementById("mkHash").onclick=async()=>{
 if(opened()){ document.getElementById("gate").style.display="none"; }
 function showSales(){ try{ fetch("sales.json?"+Date.now()).then(r=>r.ok?r.json():null).then(x=>{ if(!x) return;
   const el=document.getElementById("salesBox"); if(!el) return;
-  const last=(x.days||[]).slice(-7).map(d=>d.d.slice(5)+" "+d.new+"人").join("・");
-  el.innerHTML="App Store の実績（三十日）：入れた <b>"+(x.total_new||0)+"人</b>／課金 <b>"+x.total_units+"本</b>／入金 "+x.total_proceeds+" "+(x.cur||"")+(last?"（直近："+last+"）":"")+"　<span style='opacity:.6'>"+(x.updated||"").slice(0,16)+" 取得</span>";
+  const ds=(x.days||[]).slice(-30); const mx=Math.max(1,...ds.map(d=>d.new||0));
+  const W=640,H=90,p=6, xs=i2=>p+(W-p*2)*(ds.length>1?i2/(ds.length-1):.5);
+  const bars=ds.map((d,i2)=>{ const h=Math.round((H-20)*(d.new||0)/mx); const w=Math.max(3,(W-p*2)/Math.max(1,ds.length)-2);
+    return `<rect x="${(xs(i2)-w/2).toFixed(1)}" y="${H-10-h}" width="${w.toFixed(1)}" height="${h}" fill="${d.units?'#E3C25A':'#6b5a2a'}" rx="1"><title>${d.d} 入れた ${d.new||0}人${d.units?'・課金 '+d.units+'本':''}</title></rect>`; }).join("");
+  const last=ds.length?ds[ds.length-1]:null;
+  el.innerHTML=`<div style="border-top:1px solid rgba(237,230,214,.12);margin-top:10px;padding-top:10px">
+    <div style="font-size:14px;letter-spacing:.08em;color:#C9A227">App Store（アプリ）</div>
+    <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:baseline;margin-top:4px">
+      <div><b style="font-size:26px">${x.total_new||0}</b><span class="muted"> 人が入れた（30日）</span></div>
+      <div><b style="font-size:26px">${x.total_units||0}</b><span class="muted"> 本の課金</span></div>
+      <div><b style="font-size:26px">${x.total_proceeds||0}</b><span class="muted"> ${x.cur||"JPY"} の入金</span></div>
+    </div>
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:640px;height:auto;margin-top:6px">${bars}</svg>
+    <div class="muted" style="font-size:14px">日ごとに入れた人（金色の日は課金あり）${last?`／最後の日 ${last.d} は ${last.new||0}人`:""}。
+    Apple の集計は一〜二日遅れます。${(x.updated||"").slice(0,16)} 取得</div></div>`;
 }).catch(()=>{}); }catch(_){ } }
 const _load0=load; load=async function(){ await _load0(); try{ if(!document.getElementById("nuGo")) document.getElementById("main").appendChild(usersCard()); }catch(_){ } showSales(); };
 
