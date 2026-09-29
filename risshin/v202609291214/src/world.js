@@ -2938,9 +2938,10 @@ export class World {
       for (let i = C.woke.length - 1; i >= 0; i--) {
         const q = C.woke[i];
         // 片方の側だけが残り（相手の本物が討ち尽くされた）、残った兵のだれも的を持たないまま 6 秒たてば、軽い兵の列へ戻す（前線の軽い兵の前で立ち尽くさない）
-        const lone = q.groups.length > 0 && !(q.groups.length === 2 && q.groups.every((g) => g.count > 2 && !g.routed)) && !q.groups.some((g) => g.units.some((u) => u.alive && (u.target || u.atk)));
+        const pair = q.groups.length === 2 && q.groups.every((g) => g.count > 2 && !g.routed);
+        const lone = q.groups.length > 0 && !q.groups.some((g) => g.units.some((u) => u.alive && (u.target || u.atk)));
         q.loneT = lone ? (q.loneT || 0) + 0.3 : 0;
-        if (Math.hypot(q.x - P.pos.x, q.z - P.pos.z) < 80 && q.loneT < 6) continue;
+        if (Math.hypot(q.x - P.pos.x, q.z - P.pos.z) < 80 && q.loneT < (pair ? 1e9 : 6)) continue;
         const busy = q.groups.some((g) => g.units.some((u) => u.alive && u.target && u.target.isPlayer));
         if (busy) continue;
         for (const g of q.groups) {

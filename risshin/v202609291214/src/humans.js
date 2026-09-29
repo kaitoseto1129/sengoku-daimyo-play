@@ -3842,8 +3842,9 @@ function humansStep(rt, dt, army, cam) {
     // 倒れた者も近くは実写の顔のまま（亡骸の顔が人形の顔に戻らないよう）
     if (h.xb) crowdFace(h, d < HUM.face);
     h.far = !u.isPlayer && !named && d > HUM.lite;
-    // 重さの取り返し：人が多い時は、30m より遠い人の影を描かない（切り替わった時だけ辿る）
-    const noSh = !u.isPlayer && !named && want.size > 64 && d > 30;
+    // 重さの取り返し：人が多い時（40人より上）は、20m より遠い人の影を描かない（切り替わった時だけ辿る）
+    //   人一人の影は体と具足で一万五千の三角＝影の描き込みの大半。20m より先の足もとは接地の影（仕上げ）で足りる
+    const noSh = !u.isPlayer && !named && want.size > 40 && d > 20;
     if (h.noSh !== noSh) { h.noSh = noSh; h.root.traverse((o) => { if (o.isMesh) o.castShadow = !noSh; }); }
     h.near = named || d < HUM.fine;
     driveHuman(h, step, u.isPlayer || named || d < HUM.fine, true);

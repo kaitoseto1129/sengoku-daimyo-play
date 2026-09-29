@@ -191,7 +191,7 @@ export class Commander {
     if (!A) A = this.init(g);
     // 味方の持ち場の隊（塀・柵の内でも控えでも守りの隊でもない）は、戦が始まって 8 秒たち、70m 内に敵の隊が来たら自分から出て戦う
     //   （味方が何もせず突っ立って待っているように見えないように。戦の定義が g.stay = true にした隊は動かさない）
-    if (g.team === (this.rt.player ? this.rt.player.u.team : 0) && g.order === 'hold' && !g.stay && !g.guard && !g.reserve && !g.noAI && !g.isPlayerSquad && !g.holdFire && !A.walled && !A.fort && this.rt.t > 8 && !(A.wakeT > this.rt.t)) {
+    if (g.team === (this.rt.player ? this.rt.player.u.team : 0) && g.order === 'hold' && !g.stay && !g.guard && !g.reserve && !g.noAI && !g.isPlayerSquad && !g.holdFire && !g.focus && g !== this.rt.hostGroup && !A.walled && !A.fort && this.rt.t > 8 && !(A.wakeT > this.rt.t)) {
       A.wakeT = this.rt.t + 1.5;
       for (const o of this.S.values()) {
         if (!o.g || o.team === g.team || o.routed || o.n < 2) continue;
@@ -800,6 +800,17 @@ export class Commander {
           A.spot = { ...A.home }; A.idleAt = t; A.pressT = t;
           this.log(g, 'press 相手が見えない、前へ詰める');
         }
+      }
+    }
+    // 遊び手の側の「かかれ」の隊で、150m 内に本物の敵がいない（軽い大軍の前で立ち尽くす）：遊び手の戦う所へ寄る（25m 手前まで）
+    const P = this.rt.player && this.rt.player.u;
+    if (P && P.alive && g.order === 'attack' && g.team === P.team && g.ai !== true && !g.reserve && (!g.guard || g.clashSide) && !A.garrison && !A.fort && (!near || nd >= 150) && t - (A.pressT || -99) > 6) {
+      const dp = dist(s.c, P.pos);
+      if (dp > 30) {
+        const a = ang(s.c, P.pos), k = Math.min(40, dp - 25);
+        A.home = { x: s.c.x + Math.sin(a) * k, z: s.c.z + Math.cos(a) * k };
+        A.spot = { ...A.home }; A.pressT = t;
+        this.log(g, 'join 近くに敵がいない、遊び手の方へ寄る');
       }
     }
     const face = near && nd < 250 ? ang(s.c, near.c) : g.facing;
