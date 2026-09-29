@@ -333,7 +333,7 @@ function render(){
       <div class="card"><h2>${L.resultLong}</h2><div class="big">${fmtN(results)}<small>遊び始めの ${pct(results,starts)}</small></div><div class="muted">一つの筋書きを最後まで（何時間もかかる）。日ごとの手応えは「初戦を終えた」で見る</div></div>
       ${RS?(()=>{ const be={}; for(const [k,n] of byPrefix("battle-end")){ const o=k.split("/")[0]; be[o]=(be[o]||0)+n; } const mi={}; for(const [k,n] of byPrefix("mission")){ const o=k.split("/")[0]; mi[o]=(mi[o]||0)+n; } const pr=byPrefix("promote");
         return `<div class="card"><h2>戦を終えた（勝ち負け・任務）</h2><div class="big">${fmtN((be.win||0)+(be.lose||0)+(be.dead||0))}<small>出陣の ${pct((be.win||0)+(be.lose||0)+(be.dead||0),battles)}</small></div><div class="muted">勝ち ${fmtN(be.win||0)}・負け ${fmtN(be.lose||0)}・討死 ${fmtN(be.dead||0)}　任務を果たした ${fmtN(mi.ok||0)}／果たせず ${fmtN(mi.ng||0)}（${pct(mi.ok||0,(mi.ok||0)+(mi.ng||0))}）</div></div>
-      <div class="card"><h2>昇進</h2><div class="big">${fmtN(pr.reduce((a,[,n])=>a+n,0))}<small>回</small></div><div class="muted">${pr.map(([k,n])=>esc(k)+" "+fmtN(n)).join("・")||"まだありません"}</div></div>`; })():`<div class="card"><h2>解除・支援</h2><div class="big">${fmtN(unlocks)}<small>解除</small></div><div class="muted">支援の札を開いた ${fmtN(fundOpen)}・額を押した ${fmtN(fundClick)}・払いに進んだ ${fmtN(payClick)}${fundDone.length?`・支援あり ${fundDone.map(([k,n])=>k+"×"+n).join(" ")}`:""}</div></div>
+      `; })():`<div class="card"><h2>解除・支援</h2><div class="big">${fmtN(unlocks)}<small>解除</small></div><div class="muted">支援の札を開いた ${fmtN(fundOpen)}・額を押した ${fmtN(fundClick)}・払いに進んだ ${fmtN(payClick)}${fundDone.length?`・支援あり ${fundDone.map(([k,n])=>k+"×"+n).join(" ")}`:""}</div></div>
       <div class="card"><h2>LP（紹介ページ）</h2>${(()=>{ const lpv=byPrefix("lp/view"); const views=lpv.reduce((a,[,n])=>a+n,0); const clicks=byPrefix("lp").filter(([k])=>/appstore_click$/.test(k)).reduce((a,[,n])=>a+n,0); const opens=byPrefix("lp").filter(([k])=>k.startsWith("open_")).reduce((a,[,n])=>a+n,0); const src={}; for(const [k,n] of lpv){ const s2=k.split("/")[0]; src[s2]=(src[s2]||0)+n; } const sc={}; for(const [k,n] of byPrefix("lp")){ const m=k.match(/^scroll_(\d+)$/); if(m) sc[m[1]]=(sc[m[1]]||0)+n; } return `<div class="big">${fmtN(views)}<small>表示</small></div><div class="muted">App Store を押した ${fmtN(clicks)}（${pct(clicks,views)}）・動く絵を開いた ${fmtN(opens)}・流入 ${Object.entries(src).map(([k,n])=>k+" "+n).join(" ")||"—"}・読み進み 25%:${sc["25"]||0} 50%:${sc["50"]||0} 75%:${sc["75"]||0} 100%:${sc["100"]||0}</div>`; })()}</div>
       <div class="card"><h2>お便りと支払い</h2>
         <div class="row"><span>目安箱に届いたお便り</span><span class="n">${fmtN(ev("meyasu/send"))}</span></div>
@@ -341,7 +341,7 @@ function render(){
         <div class="row"><span>関ヶ原（¥500）を「払いました」と押した人</span><span class="n">${fmtN(ev("paid/sekigahara"))}</span></div>
         <div class="note" style="margin-top:8px">お便りはメールで届きます（この数は送った人の数）。支払いは PayPal の頁へ送ったあと、ゲームに戻って自分で「払いました」を押した数――実際に入金があったかどうかは PayPal の明細で確かめてください。iPhone 版の課金はここには出ません（App Store Connect で見る）。</div></div>`}
       
-      <div class="card"><h2>ページ表示</h2><div class="big">${fmtN(pageviews)}</div><div class="muted">${pages.slice(0,3).map(h=>esc(h.path)+" "+fmtN(sumStats(h))).join("　")}</div></div>
+      
     </div>
     <div class="sec card"><h2>日ごと（訪問・遊び始め・初戦を終えた）</h2>
       <svg viewBox="0 0 ${W} ${H}">
@@ -398,17 +398,17 @@ function render(){
       <div class="card"><h2>どの筋書きで始めたか</h2>${list(scen)}</div>
       <div class="card"><h2>${L.startBy}</h2>${list(clans,"",15)}</div>
       <div class="card"><h2>${L.resultKinds}</h2>${list(resultKinds)}</div>
-      <div class="card"><h2>${L.resultScen}</h2>${list(resultScen)}</div>
+      
       <div class="card"><h2>${L.battleKinds}</h2>${list(battleKinds)}</div>
     </div>
     <div class="sec grid">
       ${RS?`<div class="note" style="grid-column:1/-1">下の内訳（ブラウザ・OS・国など）は GoatCounter のサイト全体の数で、戦国大名と戦国立身をあわせた物です。</div>`:""}
-      <div class="card"><h2>ブラウザ（30日）</h2>${bl("browsers")}</div>
+      
       <div class="card"><h2>OS（30日）</h2>${bl("systems")}</div>
       <div class="card"><h2>画面の大きさ（30日）</h2>${bl("sizes")}</div>
-      <div class="card"><h2>国・地域（30日）</h2>${bl("locations")}</div>
+      
       <div class="card"><h2>どこから来たか（30日）</h2>${bl("toprefs")}</div>
-      <div class="card"><h2>言語（30日）</h2>${bl("languages")}</div>
+      
     </div>
     <div class="sec note">数は GoatCounter（${esc(DATA.site)}）から六時間ごとに写しています。細かい生の数は <a href="${esc(DATA.site)}" target="_blank" rel="noopener">GoatCounter の画面</a>でも見られます。</div>`;
 }
