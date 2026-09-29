@@ -114,8 +114,8 @@ document.getElementById("mkHash").onclick=async()=>{
 if(opened()){ document.getElementById("gate").style.display="none"; }
 function showSales(){ try{ fetch("sales.json?"+Date.now()).then(r=>r.ok?r.json():null).then(x=>{ if(!x) return;
   const el=document.getElementById("salesBox"); if(!el) return;
-  const last=(x.days||[]).slice(-7).map(d=>d.d.slice(5)+" "+d.units+"本").join("・");
-  el.innerHTML="App Store の実績："+"<b>"+x.total_units+"本</b>／入金 "+x.total_proceeds+" "+(x.cur||"")+(last?"（直近："+last+"）":"");
+  const last=(x.days||[]).slice(-7).map(d=>d.d.slice(5)+" "+d.new+"人").join("・");
+  el.innerHTML="App Store の実績（三十日）：入れた <b>"+(x.total_new||0)+"人</b>／課金 <b>"+x.total_units+"本</b>／入金 "+x.total_proceeds+" "+(x.cur||"")+(last?"（直近："+last+"）":"")+"　<span style='opacity:.6'>"+(x.updated||"").slice(0,16)+" 取得</span>";
 }).catch(()=>{}); }catch(_){ } }
 const _load0=load; load=async function(){ await _load0(); try{ if(!document.getElementById("nuGo")) document.getElementById("main").appendChild(usersCard()); }catch(_){ } showSales(); };
 
