@@ -337,7 +337,7 @@ function curlFingers(h, sd, grip) {
     const f = fi < 4 ? FINGERS[fi] : 'Thumb';
     // 小指ほど深く握る。人ごとに少し違う
     // 本人は親指も柄・手綱に回して押さえる（一人称で親指が柄に沿って突き出て、指さしに見えないよう）
-    const k = f === 'Thumb' ? (h.u && (h.u.isPlayer || h.u.mounted) ? 0.35 + 0.55 * grip : 0.35) : 0.92 + fi * 0.05 + (s - 0.5) * 0.08;
+    const k = f === 'Thumb' ? (h.u && h.u.isPlayer ? 0.5 + 0.75 * grip : h.u && h.u.mounted ? 0.35 + 0.55 * grip : 0.35) : 0.92 + fi * 0.05 + (s - 0.5) * 0.08;
     for (let j = 1; j <= 3; j++) {
       const nm = sd + 'Hand' + f + j, e = F[nm], b = B[nm];
       if (!e || !b) continue;
@@ -1762,7 +1762,7 @@ function lodGeo(m, hi, lo) {
 }
 // 近くの兵の具足と着物：兵の材質（UNIT_MAT）に、一人ずつの使い込みを足す（四通り。材質は四つまで）
 //   着物：日焼けの褪せ（肩ほど白っぽく）・汗じみ・裾の泥はね。漆：角の擦れと掻き傷、剥げ。陣笠：縁の欠けと雨じみ。どれも近くの兵だけ（遠くは元の材質のまま）
-const CROWD_V = [[0.2, 0.4, 0.3, 1.7], [0.55, 0.8, 0.6, 4.3], [0.35, 1.0, 0.9, 7.1], [0.8, 0.6, 0.45, 2.9]];
+const CROWD_V = [[0.15, 0.45, 0.3, 1.7], [0.7, 0.95, 0.6, 4.3], [0.35, 1.35, 0.9, 7.1], [1.0, 0.7, 0.45, 2.9]];
 const crowdMats = [];
 function nearCrowdMat(v) {
   if (crowdMats[v]) return crowdMats[v];
@@ -1781,8 +1781,8 @@ function nearCrowdMat(v) {
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.33))) * 1.2 + 0.025, sun * 0.45);
           float sweat = smoothstep(0.55, 0.85, n1) * smoothstep(0.95, 1.2, vObjP.y) * smoothstep(1.5, 1.3, vObjP.y);
           diffuseColor.rgb *= 1.0 - sweat * (0.15 + 0.2 * uGrimeC);
-          float spl = smoothstep(0.8, 0.9, n3) * smoothstep(0.7, 0.1, vObjP.y) + smoothstep(0.5, 0.05, vObjP.y) * (0.3 + 0.5 * n1);
-          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.08, 0.062, 0.043), clamp(spl * uCV.y * (0.6 + 0.6 * uGrimeC), 0.0, 1.0) * 0.7);
+          float spl = smoothstep(0.76, 0.9, n3) * smoothstep(0.95, 0.1, vObjP.y) + smoothstep(0.62, 0.05, vObjP.y) * (0.35 + 0.55 * n1);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.08, 0.062, 0.043), clamp(spl * uCV.y * (0.6 + 0.6 * uGrimeC), 0.0, 1.0) * 0.82);
         } else if (mkA == 1 || mkB == 1) {
           // 漆：擦れて下地の茶が覗く斑と、細い掻き傷
           float chip = smoothstep(0.78, 0.92, n2 * 0.6 + n3 * 0.4) * uCV.z;
@@ -3206,15 +3206,15 @@ function gripPose(h, dt) {
     // 刀を振る間は、手を目の高さより十分下・腕の長さほど前に保つ（振り下ろす腕の籠手が目の前をふさがず、刃の弧が見える）
     if (w === 'sword' && (u.swing || u.pAtk)) {
       const y1 = hd.position.y + base + dy, z1 = hd.position.z + dz, capY = eyeY - 0.3;
-      const capY2 = capY - 0.12;
+      const capY2 = capY + 0.02;
       if (y1 > capY2) dy -= (y1 - capY2) * u.fpk;
-      if (z1 < 0.62) dz += (0.62 - z1) * u.fpk;
-      dx += 0.24 * u.fpk;
+      if (z1 < 0.74) dz += (0.74 - z1) * u.fpk;
+      dx += 0.1 * u.fpk;
     }
     // 鉄砲は筒を右へ少し寄せる（支える左の前腕が画面の真ん中をふさがない）
     if (w === 'gun') dx -= 0.1 * u.fpk;
     // 槍は手を低めに（前の左の前腕が画面の真ん中をふさがない）
-    if (w === 'spear') dy -= 0.08 * u.fpk;
+    if (w === 'spear') { dy -= 0.14 * u.fpk; dx -= 0.08 * u.fpk; }
     // 握りが右の肩から腕の長さより遠い時は、肩の方へ引き寄せる（腕が届かず、拳が柄から離れて武器だけ浮いて見えない。馬上で多い）
     const RB = h.bones;
     if (u.mounted && RB && RB.RightArm && RB.RightForeArm && RB.RightHand && hd.parent) {
@@ -4265,6 +4265,8 @@ function tackGeometry(st) {
   if (HR.tack.has(key)) return HR.tack.get(key);
   const big = !!st.big;
   const out = {};
+  // 鞍褥・下鞍の布は日と汗で褪せる：羽織の鮮やかな色のままにせず、くすんだ土色へ寄せて暗める（青く浮かない）
+  const cushion = new THREE.Color(st.cushion ?? 0x3a2a20).lerp(new THREE.Color(0x4a4034), 0.5).multiplyScalar(0.82).getHex();
   // 鞍（背の骨）
   {
     const G = [], M = [];
@@ -4283,11 +4285,11 @@ function tackGeometry(st) {
     for (const sd of [1, -1]) G.push(colGeo(tf(new THREE.BoxGeometry(0.1, 0.026, 0.42), sd * 0.085, 1.3, -0.005, 0, 0, -sd * 0.32), st.saddle));
     // 鞍褥（座る所の敷物）
     const cu = new THREE.SphereGeometry(1, 14, 8); cu.scale(0.15, 0.036, 0.17);
-    M.push(colGeo(tf(cu, 0, 1.335, -0.01), st.cushion));
+    M.push(colGeo(tf(cu, 0, 1.335, -0.01), cushion));
     // 下鞍（背を覆う布）：胴の丸みに沿う
     const sh = new THREE.CylinderGeometry(0.262, 0.262, 0.56, 22, 1, true, Math.PI - 1.48, 2.96);
     sh.rotateX(Math.PI / 2); sh.scale(1, 1.06, 1);
-    M.push(colGeo(tf(sh, 0, 1.0, -0.01), st.cushion));
+    M.push(colGeo(tf(sh, 0, 1.0, -0.01), cushion));
     // 障泥（泥よけ）：鞍の下に左右へ大きく垂れる。縁は紐の色
     for (const sd of [1, -1]) {
       const s = new THREE.Shape();

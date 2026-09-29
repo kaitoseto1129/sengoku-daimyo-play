@@ -40,8 +40,11 @@ const _cv = new THREE.Color(), _cw = new THREE.Color();
 function clothVar(hex, k) {
   if (!k) return hex;
   _cv.setHex(hex);
-  if (k === 1) { _cv.multiplyScalar(0.94); _cv.lerp(_cw.setHex(0x5a3522), 0.06); }
-  else { _cv.multiplyScalar(1.06); _cv.lerp(_cw.setHex(0x5c5a52), 0.08); }
+  // 1：柿渋・土に染まって赤茶へ　2：日に褪せて灰がかる　3：洗いざらしで白ちゃける　4：泥で暗く濁る
+  if (k === 1) { _cv.multiplyScalar(0.95); _cv.lerp(_cw.setHex(0x5a3522), 0.16); }
+  else if (k === 2) { _cv.multiplyScalar(1.1); _cv.lerp(_cw.setHex(0x5c5a52), 0.2); }
+  else if (k === 3) { _cv.lerp(_cw.setHex(0x6a6454), 0.3); }
+  else { _cv.multiplyScalar(0.82); _cv.lerp(_cw.setHex(0x3a2e20), 0.2); }
   return _cv.getHex();
 }
 
@@ -112,7 +115,7 @@ export class Army {
       face: o.face ?? (gen.face ? 'g:' + o.name.replace(/^.* /, '') : (u.id * 7) % 12),
       // 鎧下・袴の色：藍・茶・鼠・黒
       //   同じ色でも人ごとに明るさと色あいを ±6% ずらす（褪せた藍・柿渋寄り・生成り寄り。形の数が増えすぎないよう三通り）
-      cloth: o.cloth ?? clothVar((fac.cloth || [0x2b2622, 0x262c3a, 0x3a2e24, 0x34342e, 0x262c3a, 0x2b2622])[vi], Math.floor(u.id / 6) % 3),
+      cloth: o.cloth ?? clothVar((fac.cloth || [0x2b2622, 0x262c3a, 0x3a2e24, 0x34342e, 0x262c3a, 0x2b2622])[vi], Math.floor(u.id / 6) % 5),
       saya: u.type === 'samurai' || u.type === 'busho' || u.type === 'cavalry' || o.saya,
       menpo: o.menpo ?? (gen.armor ? gen.menpo || 0 : (u.type === 'busho' && vi % 2 === 0 ? 0x6a1c14 : u.type === 'samurai' && u.id % 2 === 0 ? 0x1c1a18 : 0)),
       menpoStyle: o.menpoStyle ?? gen.menpoStyle ?? (u.type === 'busho' ? 'hanbo' : 'full'),
