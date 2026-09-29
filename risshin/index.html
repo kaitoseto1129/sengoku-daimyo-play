@@ -1,7 +1,7 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202609290944 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202609291006 として写した） -->
 <title>戦国立身 3D</title>
-<link rel="icon" type="image/png" sizes="32x32" href="./v202609290944/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202609290944/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202609290944/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202609290944/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202609291006/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202609291006/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202609291006/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202609291006/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -213,6 +213,8 @@ pre.copy { white-space: pre-wrap; background: var(--sumi-2); border: 1px solid v
 
 #pause { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(10,9,7,.72); overflow-y: auto; }
 #pause[hidden] { display: none !important; }
+/* 一時停止の間は、下の台詞・知らせ・任務の札を隠す（止めた画面の釦に字が透けて重ならないように） */
+body:has(#pause:not([hidden])) #hud :is(#subtitle, #bark, #banner, #objectives, #markers, #hint, #tutorial) { visibility: hidden; }
 #pause div { text-align: center; }
 #pause h3 { font-family: var(--display); font-size: 32px; letter-spacing: .3em; margin: 0 0 10px; }
 #pause p { color: var(--washi-dim); font-size: 13px; }
@@ -477,8 +479,8 @@ body.rm .toast, body.rm #banner.show, body.rm .ln, body.rm .promo, body.rm .stor
 #intro .date { font-size: 13px; color: var(--washi-dim); letter-spacing: .3em; margin-top: 8px; animation: introIn 3.4s ease-out forwards; text-shadow: 0 1px 3px #000; }
 @keyframes introIn { 0% { opacity: 0; transform: scale(1.12); } 12% { opacity: 1; transform: scale(1); } 78% { opacity: 1; } 100% { opacity: 0; } }
 /* 開戦の題の札（映画の題のように、静かに浮かんで消える） */
-#intro .card { animation: introCard 4.5s ease-out forwards; padding: 0 16px; }
-#intro .card .date { font-family: var(--display); font-size: clamp(12px, 1.4vw, 15px); letter-spacing: .45em; color: #d8cfb8; margin: 0 0 14px; animation: none; }
+#intro .card { animation: introCard 4.5s ease-out forwards; padding: 26px 72px; background: radial-gradient(ellipse closest-side, rgba(10,8,6,.5), rgba(10,8,6,.28) 60%, transparent); }
+#intro .card .date { font-family: var(--display); font-size: clamp(12px, 1.4vw, 15px); letter-spacing: .45em; color: #d8cfb8; margin: 0 0 14px; animation: none; text-shadow: 0 1px 4px #000, 0 0 10px rgba(0,0,0,.8); }
 #intro .card .ttl { font-family: var(--display); font-weight: 600; font-size: clamp(30px, 5vw, 60px); letter-spacing: .32em; padding-left: .32em; color: #efe7d4; text-shadow: 0 2px 14px rgba(0,0,0,.9), 0 0 2px rgba(0,0,0,.9); line-height: 1.2; }
 #intro .card .rule { display: block; width: min(420px, 64vw); height: 1px; margin: 16px auto 12px; background: linear-gradient(90deg, transparent, rgba(236,228,210,.7), transparent); }
 #intro .card .sides { font-family: var(--display); font-size: clamp(14px, 1.7vw, 19px); letter-spacing: .35em; color: #e4dac2; text-shadow: 0 1px 6px #000; }
@@ -834,6 +836,11 @@ body.mincho, body.mincho button, body.mincho .note { font-family: var(--display)
 .jp-map canvas { display: block; cursor: grab; touch-action: none; }
 .jp-season { position: absolute; left: 16px; top: 14px; z-index: 1; display: flex; align-items: center; gap: 10px; padding: 7px 14px 7px 7px; background: rgba(236,226,202,.92); color: #241c14; box-shadow: 0 0 0 1px rgba(60,45,30,.4), 0 3px 10px rgba(0,0,0,.25); }
 .jp-season b { font-family: var(--display); font-size: 26px; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; background: #8e2f1f; color: #f3ead6; }
+.jp-loop { list-style: none; margin: 0 0 10px; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.jp-loop button { width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 2px 4px; background: rgba(44,40,33,.9); color: var(--washi); border: 1px solid rgba(194,162,90,.4); font: 600 13px var(--ui); cursor: pointer; }
+.jp-loop button i { font-style: normal; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; border: 1px solid var(--kin); color: var(--kin); }
+.jp-loop button.ok i { background: var(--kin); color: #14120f; }
+.jp-loop button.on { border-color: var(--kin); background: rgba(194,162,90,.18); }
 .jp-season span { font-family: var(--display); font-size: 13px; line-height: 1.5; letter-spacing: .06em; }
 .jp-moves { position: absolute; left: 16px; top: 80px; z-index: 1; padding: 6px 12px 8px; background: rgba(236,226,202,.92); color: #241c14; box-shadow: 0 0 0 1px rgba(60,45,30,.4); max-width: min(300px, 44%); }
 .jp-moves[hidden] { display: none; }
@@ -963,6 +970,8 @@ details[open] > summary::before { transform: rotate(90deg); }
 /* タイトル：主の操作を下の帯に常に見せる */
 .title-act { position: sticky; bottom: 0; z-index: 2; margin: 22px calc(50% - 50vw + 8px) 0; padding: 14px calc(50vw - 50% - 8px) 16px; background: linear-gradient(180deg, rgba(20,18,15,0), rgba(20,18,15,.92) 26%); display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
 #screen { overflow-x: hidden; }
+/* 設定（スマホ横）：左上に「戻る」があるので、下の帯は張り付けない（設定の行を隠さないように） */
+@media (max-height: 520px) { .title-act.st-act { position: static; background: none; } }
 .title-act .hintk { font-size: 13px; color: var(--washi-dim); margin-left: auto; }
 .title-more { margin-top: 12px; }
 .title-more .lbl { font-size: 12px; letter-spacing: .2em; color: var(--washi-dim); margin-bottom: 8px; }
@@ -1287,6 +1296,14 @@ html.touch:has(#hud.lean.calm) #tc .stick.idle { opacity: .18; }
 #hud.lean .mk b { font-size: 12px; padding: 0 5px; }
 /* 戦の前の札（背の低い画面）：一画面に収める */
 #screen .story.short .st-who { font-size: 12px; margin-bottom: 8px; }
+/* パソコンの 900 の高さでも、進む釦が下へはみ出さないように詰める */
+@media (min-height: 520px) and (max-height: 980px) { #screen .story:not(.short) p { margin-bottom: 12px; } #screen .story:not(.short) h2 { margin: 8px 0 14px; } #screen .story:not(.short) .st-tip { margin-bottom: 16px; } }
+#screen .story.short .st-who + .st-who { margin-top: 0 !important; }
+#screen .story.short h2 { font-size: 34px; margin: 2px 0 6px; }
+#screen .story.short .ill-band { max-height: 48px; overflow: hidden; margin: 0 auto 4px; }
+#screen .story.short .st-more { margin: 0 auto 6px; }
+#screen .story.short p { margin-bottom: 4px; line-height: 1.8; }
+#screen .story.short .st-tip { margin: 2px auto 10px; padding: 6px 12px; }
 #screen .story.short .st-more summary { color: var(--kin); font-size: 13px; }
 #screen .story.short .st-more[open] p { animation: none; opacity: 1; }
 /* 枠の中（claude.ai のアプリの Artifact）：上の角にアプリの「×」「共有」が重なるので、HUD を上 64px 空けて並べる */
@@ -1475,4 +1492,4 @@ html.touch .keyhint, html.touch .hintk { display: none; }
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
 } }
 </script>
-<script type="module" src="./v202609290944/src/main.js"></script>
+<script type="module" src="./v202609291006/src/main.js"></script>
