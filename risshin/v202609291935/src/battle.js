@@ -12,6 +12,7 @@ import { TITLES } from './state.js';
 import { Commander } from './ai.js';
 import { isTouch } from './touch.js';
 import { SOLIDS } from './props.js';
+import { kumiList, kamaeTick } from './kumi.js';
 const TOFF = typeof location !== 'undefined' && /[?&]toff\b/.test(location.search);   // 試し：緊迫の仕組みを切る
 
 // 遠くまで届く音：音の名 → 半分ほどの大きさに落ちる遠さ（m）。ここに無い音は 55m で聞こえなくなる
@@ -311,6 +312,12 @@ function applySnap(g, s) {
 }
 const RELAYED = new Set(['follow', 'hold', 'attack', 'retreat', 'focus', 'move', 'yari', 'face', 'gather']);
 
+// 線分 (a→b) と柵の線分 seg が交わるか（湧く所をずらす時、柵や塀の向こうへ出さない）
+function segX(ax, az, bx, bz, [cx, cz, dx, dz]) {
+  const d1 = (bx - ax) * (cz - az) - (bz - az) * (cx - ax), d2 = (bx - ax) * (dz - az) - (bz - az) * (dx - ax);
+  const d3 = (dx - cx) * (az - cz) - (dz - cz) * (ax - cx), d4 = (dx - cx) * (bz - cz) - (dz - cz) * (bx - cx);
+  return d1 * d2 < 0 && d3 * d4 < 0;
+}
 export class Battle {
   constructor(game, index, def) {
     this.game = game;
@@ -441,6 +448,8 @@ export class Battle {
     SOLIDS.length = 0;
     this.army.solids = SOLIDS;
     def.setup(this);
+    // 戦が始まった後に出る敵は、見える所（カメラから 60m 内で画面の中）に湧かせない（guardSpawn）
+    this.army.spawnGuard = (g, list) => this.guardSpawn(g, list);
     // 隊を動かす大将の頭（ai.js）。戦の定義の下知の中で、寄せ・回り込み・入れ替わりを決める
     this.ai = new Commander(this);
     // 侍大将（出世の道の四段目）で出たときは、鉄砲隊と騎馬隊も率いる。組の無い戦でも槍・弓の組をつける
@@ -928,6 +937,62 @@ export class Battle {
   groupAlive(g) { return g.count > 0 && !g.routed; }
 
   distTo(p) { const u = this.player.u.pos; return Math.hypot(p.x - u.x, p.z - u.z); }
+  // 敵の新手・待ち伏せが、目の前の何もない所から湧かないように：
+  //   出る所がカメラから 60m 内で画面に入る（または 28m 内）なら、見えない所（画面の外か 60m より遠く）まで出る所をずらし、
+  //   そこから元の持ち場へ駆けて来させる。ずらす時は、その向きから鬨の声・土煙と「どちらから来る」の知らせで接近を分からせる
+  //   軽い兵を本物に替えた隊（wake・合戦の備の兵）は、見えている軽い兵の場所に立つのでずらさない。戦の定義は g.noGuard で外せる
+  guardSpawn(g, list) {
+    if (this.t < 1 || this.over || g.noGuard || !this.player || g.team === this.player.u.team) return list;
+    if (g.name === '備の兵' || g.name === '陣の者' || g.name === '本陣の旗本') return list;
+    const cam = this.camera; if (!cam) return list;
+    // 出る所の真ん中（持ち場か、置き場を決めた兵の真ん中）と広がり
+    let cx = 0, cz = 0, k = 0;
+    for (const s of list) if (s.o && s.o.x != null) { cx += s.o.x; cz += s.o.z; k++; }
+    if (k) { cx /= k; cz /= k; } else { cx = g.anchor.x; cz = g.anchor.z; }
+    const n = list.reduce((a, s) => a + s.n, 0);
+    const rad = 3 + Math.min(14, Math.sqrt(n) * 1.3);
+    cam.updateMatrixWorld(); this.projView.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse); this.frustum.setFromProjectionMatrix(this.projView);
+    const c = cam.position, sph = this._gsS || (this._gsS = new THREE.Sphere());
+    const hidden = (x, z) => {
+      const d = Math.hypot(x - c.x, z - c.z);
+      if (d >= 62 + rad) return true;
+      if (d < 28 + rad) return false;
+      sph.center.set(x, this.world.heightAt(x, z) + 1, z); sph.radius = rad + 2;
+      return !this.frustum.intersectsSphere(sph);
+    };
+    if (hidden(cx, cz)) return list;
+    // 見えない所を探す：元の所から離れる向き（カメラから外へ）を先に、近い所から
+    const L = 172, away = Math.atan2(cx - c.x, cz - c.z);
+    const cross = (ax, az, bx, bz) => (this.army.structs || []).some((s) => s.alive && s.seg && segX(ax, az, bx, bz, s.seg));
+    let best = null;
+    for (const r of [20, 30, 42, 56, 72, 90]) {
+      for (const da of [0, 0.5, -0.5, 1, -1, 1.6, -1.6, 2.3, -2.3, Math.PI]) {
+        const x = cx + Math.sin(away + da) * r, z = cz + Math.cos(away + da) * r;
+        if (Math.abs(x) > L || Math.abs(z) > L || !hidden(x, z) || cross(x, z, cx, cz)) continue;
+        best = { x, z }; break;
+      }
+      if (best) break;
+    }
+    if (!best) return list;
+    const dx = best.x - cx, dz = best.z - cz;
+    // 持ち場はそのまま（ずらした所から歩いて来る）。置き場を決めた兵も同じだけずらす
+    if (!k) { const a0 = { ...g.anchor }; g.anchor = { x: a0.x + dx, z: a0.z + dz }; this.after(0, () => { if (g.anchor.x === a0.x + dx && g.anchor.z === a0.z + dz) g.anchor = a0; }); }
+    const out = list.map((s) => (s.o && s.o.x != null ? { ...s, o: { ...s.o, x: s.o.x + dx, z: s.o.z + dz } } : s));
+    // 駆けて来る（着くまで少し速く）
+    const sp0 = g.speed; g.speed = Math.max(sp0, 3.3); this.after(Math.hypot(dx, dz) / 3.3 + 2, () => { g.speed = sp0; });
+    // 接近の知らせ：その向きから鬨の声と土煙、少し遅れて「どちらから来る」
+    this.army.play('toki', best, 1.5);
+    if (n >= 8) this.army.play('tramp', best, 1.2);
+    if (!(this.world.rainLevel > 0.4)) { this.world.dustCloud(best.x, best.z, n >= 10); this.world.dustCloud(best.x + dz * 0.1, best.z - dx * 0.1, false); }
+    if ((this.approachSaid ?? -99) + 8 < this.t) {
+      this.approachSaid = this.t;
+      const P = this.player.u, a = Math.atan2(best.x - P.pos.x, best.z - P.pos.z) - (P.heading || 0);
+      const w = Math.atan2(Math.sin(a), Math.cos(a));
+      const dir = Math.abs(w) < 0.6 ? '前' : Math.abs(w) > 2.4 ? '後ろ' : w > 0 ? '左手' : '右手';
+      this.after(0.8, () => { if (!this.over) this.bark(`${dir}から敵が来るぞ！`, true); });
+    }
+    return out;
+  }
 
   // 左右の定位（カメラの右が +1）
   panAt(p) {
@@ -986,6 +1051,10 @@ export class Battle {
     const flag = this.G.aijirushi || 'ichimonji';
     const lead = 1 + 0.08 * (this.G.stats.lead - 1);   // 陣羽織の効き目は、下の組の士気（+5）で出す
     const roster = (this.G.roster || []).filter((r) => r.alive);
+    // 城下・出陣の前で決めた組の中身（G.kumi）があれば、戦の定義の決め打ちより優先する（侍大将の試しは除く）
+    const km = this.G.trialStep >= 3 ? null : kumiList(this.G, list.reduce((a, s) => a + (s.n || 0), 0));
+    if (km) list = km;
+    let ri = 0;
     for (const spec of list) {
       if (!spec.n) continue;
       const g = this.army.addGroup({ team: 0, faction: this.G.lordFaction || scenario().faction, order: 'follow', formation: 'line', facing, anchor: { ...center }, isPlayerSquad: true, dmgMult: lead, aggro: 8, spacing: 1.6 });
@@ -996,7 +1065,7 @@ export class Battle {
       if (spec.ranks) g.ranks = spec.ranks;
       const type = { bow: 'bow', gun: 'gun', cavalry: 'cavalry' }[spec.kind] || 'ashigaru';
       const units = this.army.spawn(g, [{ type, n: spec.n, o: { flag } }]);
-      const mine = roster.filter((r) => r.kind === spec.kind);
+      const mine = km ? roster.slice(ri, ri += spec.n) : roster.filter((r) => r.kind === spec.kind);
       units.forEach((u, i) => {
         u.isSub = true;
         // 名簿の者を割り当てる。古参ほど強い
@@ -1457,6 +1526,7 @@ export class Battle {
     this.updateFences(dt);
     this.updateReserves();
     this.regroupSquad();
+    kamaeTick(this);
     if (this.over && this.endT !== undefined) {
       this.endT -= dt;
       if (this.endT <= 0 && !this.ended) { this.ended = true; this.game.endBattle(this); }

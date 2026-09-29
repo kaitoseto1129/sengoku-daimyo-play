@@ -599,8 +599,8 @@ const dmMats = new Map();
 const armorTint = (hex) => { const c = new THREE.Color(hex ?? 0x1c1a1a); const hsl = c.getHSL({}); return hsl.s > 0.35 && hsl.l > 0.12 ? c : null; };
 // 人形の顔と面頬の所（胴丸の形の座標：前が +z）。この中の頭の頂点を抜く
 const DM_FACE = { z: 0.02, x: 0.105, y: 1.695 };
-// 武将の兜の合わせ：鉢の広げ（前後左右）と下げ（m）
-const HELM_FIT = { w: 1.08, dy: 0.025 };
+// 武将の兜の合わせ：鉢の広げ（前後左右）と下げ（m）。実写の顔は人形の顔より小さく低いので、眉庇が眉の少し上に来るまで深くかぶせる
+const HELM_FIT = { w: 1.08, dy: 0.055 };
 // 胴丸の材質の道具（値の揺らぎと、高さの変わりから法線を傾ける）
 const DM_GLSL = `
 float dmHb(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
@@ -1632,7 +1632,7 @@ function dressNamed(h, P, L) {
 }
 // 兜の形から、鉢・錣・吹返し・眉庇を除き、前立などの飾りだけを残す（三角の中心で選ぶ）
 // 残す物：白い毛（諏訪法性の白熊）、眉庇より上で金の物、鉢から離れて立つ物（鹿角・鯰尾・天衝）
-const CREST_OFF = { y: -0.003, z: -0.03 };
+const CREST_OFF = { y: -0.033, z: -0.03 };   // y は兜の下げ（HELM_FIT.dy）に合わせる
 const crestGeos = new Map();
 function crestOnly(g) {
   if (!g) return g;
@@ -2916,6 +2916,12 @@ function armsPose(h, B, dt, time, w) {
     RIGHT_POLE.addScaledVector(_right, S.eb).addScaledVector(_up, -S.dn); LEFT_POLE.addScaledVector(_right, -S.eb * 0.8).addScaledVector(_up, -S.dn);
   }
   if (w === 'bow' && own) {
+    // 騎射：鞍の上で腰から左へひねり、左の肩を的へ向けて引く（馬の首を越えて射る）
+    if (u.mounted) {
+      const dr = u.bowPh === 'draw' || u.bowPh === 'kai' || u.bowPh === 'raise' || u.bowPh === 'nock';
+      h.kisha = (h.kisha || 0) + ((dr ? 1 : 0) - (h.kisha || 0)) * Math.min(1, dt * 5);
+      if (h.kisha > 0.02) { rotWorld(B.Spine, _up, 0.22 * h.kisha * (fpg ? 0.5 : 1)); rotWorld(B.Spine1, _up, 0.3 * h.kisha * (fpg ? 0.5 : 1)); rotWorld(B.Spine1, _right, 0.08 * h.kisha); }
+    }
     ik2(B.LeftArm, B.LeftForeArm, B.LeftHand, _tgt, _pole.copy(_right).multiplyScalar(-0.6).addScaledVector(_up, -1));
     if (u.bowR) {
       _tgt2.copy(u.bowR);
@@ -2950,6 +2956,25 @@ function armsPose(h, B, dt, time, w) {
   const shouldered = !u.mounted && !fpg && (w === 'spear' ? (h.upK || 0) > 0.5 : w === 'gun' && hd.rotation.x < -0.4);
   const reload = w === 'gun' && !u.isPlayer && u.cd > 0.6 && !u.atk && (u.moving || 0) < 0.6 && !u.mounted;
   const aimGun = w === 'gun' && (u.gunPh !== undefined ? u.gunPh === 'aim' || u.gunPh === 'fire' : u.atk && u.atk.ranged);
+  // 一人称の込め直し（馬上も）：gripPose が筒を体の前へ斜めに下げてある。左手は筒を支え、右手は込め矢を握って突く
+  if (fpg && w === 'gun' && (h.fpRl || 0) > 0.5 && u.wpn) {
+    const gw = u.wpn, R = gw.userData.ram;
+    gw.updateWorldMatrix(false, false);
+    // 左手：筒の中ほど（肩から届く所）を下から支える
+    fpReach(B, 'Left', _tgt2.set(0, -0.02, 0.55), _tgt3.set(0, -0.02, 0.2), gw);
+    ik2(B.LeftArm, B.LeftForeArm, B.LeftHand, _tgt2, _pole.copy(_right).multiplyScalar(-0.6).addScaledVector(_up, -0.8).addScaledVector(_fwd, -0.3));
+    gripHand(B, 'Left', _tgt2, dir, _gU.set(e[0], e[1], e[2]).normalize(), 0.2, _pole);
+    // 右手：突き固める間は込め矢の頭、火薬・弾は筒口の上、ほかは握り
+    const ph = u.gunPh;
+    if (ph === 'ram' && R) fpReach(B, 'Right', _tgt3.set(0, R.position.y, R.position.z + 0.86), _tgt2.set(0, 0.034, 1.0), gw);
+    else if (ph === 'powder' || ph === 'ball') { _tgt3.set(0.02, 0.06, 1.08); gw.localToWorld(_tgt3); }
+    else _tgt3.copy(_tgt);
+    const rp = _pole.copy(_right).multiplyScalar(0.7).addScaledVector(_up, -0.8).addScaledVector(_fwd, -0.3);
+    ik2(B.RightArm, B.RightForeArm, B.RightHand, _tgt3, rp);
+    if (ph === 'ram') gripHand(B, 'Right', _tgt3, dir, _gU.set(e[0], e[1], e[2]).normalize(), 0.3, rp);
+    if (h.rod) h.rod.visible = false;
+    return;
+  }
   // 込め直し：units.js が左手の置き所（u.lh：筒先・火皿）を出す時はそれに従う
   if (w === 'gun' && u.lh && !u.mounted) {
     ik2(B.RightArm, B.RightForeArm, B.RightHand, _tgt, RIGHT_POLE);
@@ -3255,6 +3280,17 @@ function gripPose(h, dt) {
       const L = _fpC.length();
       if (L > reach && reach > 0.1) { const k = (1 - reach / L) * u.fpk; dx -= _fpC.x * k; dy -= _fpC.y * k; dz -= _fpC.z * k; }
     }
+    // 一人称の込め直し：筒を立てて目の前をふさがないよう、体の前で斜めに下げ、筒口を画面の下の右寄りへ（台尻は腿の上）
+    const rl = w === 'gun' && FP_RELOAD.has(u.gunPh);
+    h.fpRl = (h.fpRl || 0) + ((rl ? 1 : 0) - (h.fpRl || 0)) * Math.min(1, dt * 6);
+    // 一人称で担いだ鉄砲は、筒先を立てずに前へ寝かせる（筒が画面を縦に割って前をふさがない）
+    if (w === 'gun' && (u.gunPh === 'carry' || u.gunPh === 'ready') && hd.rotation.x < -0.3) hd.rotation.x += (-0.3 - hd.rotation.x) * u.fpk;
+    if (h.fpRl > 0.01) {
+      const k = h.fpRl * u.fpk, ang = 0.85, my = eyeY - 0.3, mz = 0.5, mx = 0.15;
+      const gy = my - Math.sin(ang) * 1.02, gz = mz - Math.cos(ang) * 1.02;
+      dx += (mx - (hd.position.x + dx)) * k; dy += (gy - (hd.position.y + dy)) * k; dz += (gz - (hd.position.z + dz)) * k;
+      hd.rotation.x += (-ang - hd.rotation.x) * k;
+    }
     hd.position.x += dx; hd.position.y += dy; hd.position.z += dz;
     h.fpOff = { dx, dy, dz, lx: hd.position.x, ly: hd.position.y, lz: hd.position.z };
   }
@@ -3264,6 +3300,17 @@ function gripPose(h, dt) {
 }
 // 一人称で手を見える所へ寄せる量 [上へ, 前へ]（体の座標）。目から前へ 0.5m より近ければ前へ、目から 24° より下なら上へ
 const _fl = [0, 0];
+// 一人称で筒を斜めに下げて込める手順（units.js の RELOAD の前半）
+const FP_RELOAD = new Set(['lower', 'powder', 'ball', 'ram']);
+// 武器の上の二点 a→b（武器の座標）を世界へ移し、肩から腕の長さで届く所まで a を b の方へ寄せる（結果は a に入る）
+const _frS = new THREE.Vector3(), _frE = new THREE.Vector3(), _frH = new THREE.Vector3();
+function fpReach(B, sd, a, b, gw) {
+  gw.localToWorld(a); gw.localToWorld(b);
+  B[sd + 'Arm'].getWorldPosition(_frS); B[sd + 'ForeArm'].getWorldPosition(_frE); B[sd + 'Hand'].getWorldPosition(_frH);
+  const reach = (_frS.distanceTo(_frE) + _frE.distanceTo(_frH)) * 0.97;
+  for (let i = 0; i < 8 && a.distanceTo(_frS) > reach; i++) a.lerp(b, 0.25);
+  return a;
+}
 function fpLift(y, z, eyeY, k, capY = 0.34, capZ = 0.4) {
   const dz = Math.min(capZ, Math.max(0, 0.5 - (z - 0.1)));
   const ahead = z + dz - 0.1, drop = eyeY - y;
@@ -3482,7 +3529,11 @@ function atkPhase(u, w) {
   if (sw && sw.t < sw.dur + 0.3) {
     const p = sw.t / Math.max(0.05, sw.dur);
     if (w === 'spear' && (sw.kind === 'thrust' || sw.kind === 'charge')) L = thrustOut(p, sw.dur);
-    else {
+    else if (w === 'spear' && sw.kind === 'hook') {
+      // 引き倒し：突きで踏み込み、引く時は腰を落として後ろ足へ体を預ける
+      const x = clamp01(p / 0.35), y = clamp01((p - 0.4) / 0.45), r = clamp01((sw.t - sw.dur) / 0.3);
+      L = (x * x * (3 - 2 * x) * (1 - y) - 0.3 * y * y * (3 - 2 * y)) * (1 - r * r * (3 - 2 * r));
+    } else {
       // 振り抜いたら残心（一呼吸とどめる）、それから中くらいの速さで構えへ
       const q = clamp01(p), r = clamp01((sw.t - sw.dur - 0.08) / 0.22);
       L = p <= 1 ? Math.sin(Math.min(1, q * 1.3) * Math.PI / 2) : 1 - r * r * (3 - 2 * r); tw = (sw.side || 1) * (q < 0.3 ? -q / 0.3 : -1 + 2 * Math.min(1, (q - 0.3) / 0.6)); }
@@ -3523,15 +3574,20 @@ function swordGrip(h, u, hd, dt) {
   if (u.mounted && sw) { hd.position.x += side; hd.rotation.x += pitch; hd.rotation.z += side * 1.8; }
   if (!sw && S.guard < 0.01 && Math.abs(S.roll) < 0.01 && S.zan < 0.01 && u.mounted) h.swd = null;
 }
+// 速さを持ったばね（army_anim.js の spr2 と同じ）：目当てへ行き過ぎずに寄せ、速さが一コマで跳ばない
+function spr2(s, k, to, w, dt) {
+  const vk = 'v' + k, y = s[k] - to, v = s[vk] || 0, e = Math.exp(-w * dt), c = (v + w * y) * dt;
+  s[k] = to + (y + c) * e; s[vk] = (v - w * c) * e;
+}
 function attackBody(h, B, u, w, dt) {
   let [W, L, tw] = atkPhase(u, w);
   const A = h.atkB || (h.atkB = { W: 0, L: 0, t: 0 });
   // 振り出す間は、溜めの形を打ちの伸びと入れ替えて解く（溜めが一コマで消えて体が跳ねない）
   if (u.swing && u.swing.t < u.swing.dur) W = Math.min(A.W, 1 - L);
-  const k = Math.min(1, dt * 22);
-  A.W += (W - A.W) * k; A.L += (L - A.L) * k; A.t += (tw - A.t) * k;
-  const w0 = A.W, l0 = A.L, t0 = A.t;
-  if (w0 < 0.01 && l0 < 0.01 && Math.abs(t0) < 0.01) return;
+  // 速さを持ったばねで寄せる（溜め→踏み込み→戻り→次の踏み込みで、腰と足が一コマで跳ばない）
+  spr2(A, 'W', W, 30, dt); spr2(A, 'L', L, 34, dt); spr2(A, 't', tw, 30, dt);
+  const w0 = Math.max(0, A.W), l0 = Math.max(-0.35, A.L), t0 = A.t;
+  if (w0 < 0.01 && Math.abs(l0) < 0.01 && Math.abs(t0) < 0.01) return;
   if (u.mounted) {
     // 馬上：溜めでは上体を引き、突き・振りでは鐙に立って腰を浮かせ、上から前へ体を預ける
     h.model.position.y += 0.1 * l0 - 0.02 * w0;

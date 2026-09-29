@@ -230,6 +230,7 @@ export const ITEMS = {
   spear1: { slot: 'weapon', name: '上質な槍', note: '鍛えのよい穂先で、突くと深く通る（威力 +20%）', mult: 1.2, reach: 0, cost: 12 },
   spear2: { slot: 'weapon', name: '大身槍', note: '穂先が一尺を超える重い槍。一突きは重いが、突いた後の戻りが遅い（威力 +35%・間合い +0.3・突きの間 2割長い）', mult: 1.35, reach: 0.3, cd: 1.2, cost: 22 },
   spear3: { slot: 'weapon', name: '長柄槍', note: '三間を超える長柄。敵より先に届くが、懐に入られると扱えない。組で並べて槍衾にすると真価（間合い +0.8・威力 +10%）', mult: 1.1, reach: 0.8, cd: 1.1, close: 0.45, cost: 18 },
+  spear4: { slot: 'weapon', name: '十文字槍', note: '穂の根元の両脇に鎌刃を張り出した槍。突きは素槍と同じ。後ろへ押しながら突けば鎌で引っかけて引き倒し（騎馬武者も鞍から崩す）、横へ押しながら突けば鎌で二人をまとめて薙ぐ（威力 +15%・間合い +0.1）', mult: 1.15, reach: 0.1, cd: 1.05, cost: 26, jumonji: true },
   hat0: { slot: 'hat', name: '陣笠', note: '竹と紙を漆で固めた笠。日と雨を避けるだけの物（守り 0%）', def: 0, look: 'jingasa' },
   hat1: { slot: 'hat', name: '塗り陣笠', note: '漆を厚く塗り重ねた笠。浅い斬りなら滑らせる（守り 4%）', def: 0.04, look: 'jingasa_n' },
   hat2: { slot: 'hat', name: '頭形兜', note: '鉄の板を打ち合わせた兜。頭への一撃を受け止める（守り 10%）', def: 0.10, look: 'kabuto', cost: 14 },

@@ -95,6 +95,9 @@ function wake(rt) {
       const lx = Math.abs(dx * cf - dz * sf) - A._ext.hw, lz = Math.abs(dx * sf + dz * cf) - A._ext.hd;
       const edge = Math.hypot(Math.max(0, lx), Math.max(0, lz));
       if (edge < (A.followFn ? 24 : A.kind === 'honjin' ? 58 : 40)) who = P;
+      // 後詰め（隊の後ろの厚い層。軽い兵の本体より奥）の中に踏み込んだか：そこは本体の兵が取れないので hostFill で埋める
+      const bz = dx * sf + dz * cf;
+      if (A.hostD && !A.rout && Math.abs(dx * cf - dz * sf) < A._ext.hw * 1.2 + 4 && bz < -A._ext.hd + 4 && bz > -A._ext.hd - A.hostD - 6) { who = P; hostFill(rt, A, team, P, alive); }
     }
     if (!who) continue;
     // 替える所：本人から WAKE_R m の内に残っている軽い兵を、近い者から（毎 0.3 秒、一つの隊で十数人ずつ。内に残る者が尽きるまで続ける）
@@ -123,6 +126,34 @@ function wake(rt) {
   }
   // 枠が尽きて替えきれない時だけ、軽い兵を見せない輪を本人のまわりの替える所ほどに広げる（替えが進めば元へ）
   nearHideRequest('wake', starved ? WAKE_R + 6 : 0);
+}
+// 後詰めの中へ踏み込んだ時：後詰めの軽い兵は本人の 24m 内で見せないので、そこに本物の兵を立てて「大軍の中にいる」ようにする
+//   本人のまわり 16m に同じ側の本物が 12 人より少なければ、6〜18m の後詰めの中へ 12 人ずつ（一つの隊で 40 人まで・枠 WAKE_ROOM を守る）
+//   立てた兵は戻せる隊（遠くなれば静かに外す）
+function hostFill(rt, A, team, P, alive) {
+  const W = A.wk; if (!W) return;
+  if ((W.hostT || 0) > rt.t || (W.hostN || 0) >= 40) return;
+  W.hostT = rt.t + 1.2;
+  let near = 0; rt.army.forNear(P.pos.x, P.pos.z, 16, (u) => { if (u.alive && u.team === team && !u.isPlayer && u !== P) near++; });
+  if (near >= 12) return;
+  let n = Math.min(12, 40 - (W.hostN || 0), WAKE_ROOM - alive);
+  if (n < 12 && WAKE_ROOM - alive < 12) n = Math.min(12, n + recycle(rt, 12 - n, P));
+  if (n < 3) return;
+  const cx = A.mesh.position.x + A.cx + A.off.x, cz = A.mesh.position.z + A.cz + A.off.z, cf = Math.cos(A.facing), sf = Math.sin(A.facing);
+  const hw = A._ext.hw, hd = A._ext.hd, pts = [];
+  for (let k = 0; k < n * 4 && pts.length < n; k++) {
+    const a = Math.random() * Math.PI * 2, r = 6 + Math.random() * 12;
+    const x = P.pos.x + Math.sin(a) * r, z = P.pos.z + Math.cos(a) * r;
+    const dx = x - cx, dz = z - cz, lx = dx * cf - dz * sf, lz = dx * sf + dz * cf;
+    if (Math.abs(lx) > hw * 1.15 || lz > -hd + 1 || lz < -hd - A.hostD || Math.abs(x) > 172 || Math.abs(z) > 172) continue;
+    pts.push({ x, z, k: Math.random() < 0.8 ? 0 : 3 });
+  }
+  if (pts.length < 3) return;
+  const g = wakeGroup(rt, A, team, pts, P);
+  g.name = '後詰の兵'; g.defRecycle = true;
+  g.units.forEach((u) => { u.wkFrom = null; });
+  W.hostN = (W.hostN || 0) + g.count;
+  W.groups.push(g);
 }
 // 遠い戻せる兵を n 人まで大軍へ帰す（戦っていない・名のない・カメラから遠い者から）。帰した数を返す
 // 戦の定義から：任務に数えていない隊（柵の内の後ろの控え・遠い控え・通り過ぎた隊）は markRecyclable(g) で戻せる隊にする

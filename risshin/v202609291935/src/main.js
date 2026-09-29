@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { newGame, load, save, settle, BATTLES, RANKS, RANK_CEIL, TITLES, fillRoster, clearSave, setScenario, scenarioKey, SCENARIOS, ladderStep } from './state.js';
 import { Battle } from './battle.js';
+import { kumiHtml, kumiBind } from './kumi.js';
 import { BATTLE_DEFS, dojo } from './battles.js';
 import { Hud } from './hud.js';
 import { setRenderer } from './world.js';
@@ -54,6 +55,13 @@ try {
 }
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+// 不透明な物は、同じ描き方（シェーダー）ごとに並べて描く（切り替えるたびに光・カメラの値を送り直す手間を減らす）。
+//   three は材質の番号順に並べるので、同じシェーダーの材質（人ごとの顔・兵の材質など）が間に挟まって何度も切り替わっていた
+if (!/[?&]nosort\b/.test(location.search)) {
+  const PROPS = renderer.properties;
+  const pid = (m) => { const p = PROPS.get(m).currentProgram; return p ? p.id : 0; };
+  renderer.setOpaqueSort((a, b) => a.groupOrder - b.groupOrder || a.renderOrder - b.renderOrder || pid(a.material) - pid(b.material) || a.material.id - b.material.id || a.z - b.z || a.id - b.id);
+}
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.12;
@@ -837,6 +845,9 @@ const game = {
     const aim = G.practice || G.lord ? '' : nr && G.rank < (RANK_CEIL[i] ?? 9) ? `この戦の働き次第で「${nr.name}」に取り立てられる（累計戦功 ${nr.min} から）` : nr ? 'この戦では身分は上がらない。戦功と銭を積んでおけ' : '';
     const onBack = i > 0 && !G.practice && !G.lord && G.battle === i ? () => this.base() : null;
     storyCard({ ...storyOf(i)(this.G), tips: tipOf(i), aim, onBack }, () => this.startBattle(i));
+    // 出陣の前に、連れて行く組の中身（槍・鉄砲・弓・騎馬）を決められる（kumi.js）
+    const nb = document.getElementById('b-next'), row = nb && nb.closest('.row');
+    if (row && RANKS[G.rank].squad) { row.insertAdjacentHTML('beforebegin', kumiHtml(G)); kumiBind(G, row.parentElement, () => { if (!G.practice) save(G); }); }
   },
 
   startBattle(i) {

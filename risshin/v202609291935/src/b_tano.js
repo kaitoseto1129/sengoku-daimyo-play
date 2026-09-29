@@ -373,7 +373,8 @@ const uS = (n) => ({ type: 'samurai', n }), uA = (n) => ({ type: 'ashigaru', n }
 function tanoCtx(rt) {
   const F = rt.flags;
   return { faction: 'takeda', flag: 'takeda', armor: KIT.ARMOR.takeda, dmg: 0.52, mass: 110, scale: 1.4, look: (l) => dress(l, TAKEDA),
-    friends: () => [F.taki, F.kawa].filter((g) => g && g.count && !g.routed) };
+    friends: () => [F.taki, F.kawa].filter((g) => g && g.count && !g.routed),
+    aid: { name: '滝川の後詰め', faction: 'oda', flag: 'oda', list: dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 2 }], ODA) }, aidSaid: '滝川の後詰めが追いついた' };
 }
 // A：殿を退けた後。崖道の土屋をどう破るか（鉄砲で崩す＝崖道の口で寄せを受ける／尾根へ回る＝伏兵と斬り合う）
 function stepsA(rt) {

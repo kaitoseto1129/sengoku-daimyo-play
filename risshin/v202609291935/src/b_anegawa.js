@@ -494,7 +494,7 @@ const anegawa = {
         else { rt.objFail('pursue'); R.noRout = false; R.morale = 0; }
         if (F.akRest && !gone(F.akRest)) { F.akRest.noRout = false; F.akRest.morale = 0; }
         // 向こう岸を取った後も段を重ねる（長政の後備えか横山城か→退き口）
-        if (!rt.G.lord) { depthStart(rt, aneCtx(rt, undefined, 0.52), aneB(), () => this.ending(rt)); return; }
+        if (!rt.G.lord) { depthStart(rt, aneCtx(rt, undefined, 0.48), aneB(), () => this.ending(rt)); return; }
         this.ending(rt);
       }
     }
@@ -646,11 +646,11 @@ function aneB() {
     pick({ title: '朝倉の残りが、川を渡って戻る味方の背を狙う。どうする？',
       options: [{ label: '川岸で踏みとどまり、渡る味方を守る', note: '味方が無事に戻れる。朝倉の寄せを受け続ける' }, { label: '西へ打って出て、朝倉の残りを突く', note: '朝倉の残りを崩せば手柄。追い返せば戦は早く終わる' }],
       on: (rt, m, i) => { m.aneGuard = i === 0; } }),
-    hold({ skip: (rt, m) => !m.aneGuard, at: { x: 6, z: -16 }, dur: 90, r: 13, title: '退き口', sub: '川を渡って戻る味方の背を守る', label: '川岸の退き口', obj: '川岸で踏みとどまり、渡って戻る味方を守れ',
+    hold({ skip: (rt, m) => !m.aneGuard, at: { x: 6, z: -16 }, dur: 75, r: 13, title: '退き口', sub: '川を渡って戻る味方の背を守る', label: '川岸の退き口', obj: '川岸で踏みとどまり、渡って戻る味方を守れ',
       waves: [
-        { t: 5, say: ['足軽', '西から朝倉勢じゃ！'], foes: () => [{ name: '朝倉の残り', from: { x: -60, z: -30 }, flag: 'asakura', armor: ASAKURA.armor, list: dress([uS(1), uA(10)], ASAKURA) }] },
-        { t: 38, say: ['足軽', '鉄砲を撃ちかけてくる！'], foes: () => [{ name: '朝倉の鉄砲', from: { x: -50, z: -60 }, flag: 'asakura', armor: ASAKURA.armor, list: dress([uG(3), uA(6)], ASAKURA) }] },
-        { t: 64, say: ['森可成', 'これで最後じゃ！　踏みとどまれ！'], foes: () => [{ name: '朝倉の騎馬', from: { x: -70, z: -44 }, flag: 'asakura', armor: ASAKURA.armor, list: dress([uC(2), uA(6)], ASAKURA), morale: 70 }] },
+        { t: 5, say: ['足軽', '西から朝倉勢じゃ！'], foes: () => [{ name: '朝倉の残り', from: { x: -60, z: -30 }, flag: 'asakura', armor: ASAKURA.armor, list: dress([uS(1), uA(8)], ASAKURA) }] },
+        { t: 32, say: ['足軽', '鉄砲を撃ちかけてくる！'], foes: () => [{ name: '朝倉の鉄砲', from: { x: -50, z: -60 }, flag: 'asakura', armor: ASAKURA.armor, list: dress([uG(2), uA(5)], ASAKURA) }] },
+        { t: 52, say: ['森可成', 'これで最後じゃ！　踏みとどまれ！'], foes: () => [{ name: '朝倉の騎馬', from: { x: -70, z: -44 }, flag: 'asakura', armor: ASAKURA.armor, list: dress([uC(2), uA(5)], ASAKURA), morale: 70 }] },
       ],
       reward: '退き口を守った' }),
     fight({ skip: (rt, m) => m.aneGuard, at: { x: -46, z: -22 }, title: '朝倉の残りを突く', sub: '西の瀬から戻る朝倉勢の横を突く', obj: '戻ってくる朝倉の残りを崩せ',

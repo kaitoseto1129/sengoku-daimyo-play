@@ -6,6 +6,7 @@ import { S, saveSettings, resetHints, resetSettings, BIND_DEFAULTS, BIND_LABELS,
 import { Preview } from './preview.js';
 import { illustHtml, illustKey, mountIllust } from './illust.js';
 import { odaTown, setOdaDiagram, ODA_REL_NAME } from './oda_town.js';
+import { kumiHtml, kumiBind } from './kumi.js';
 import { toiyaHtml, toiyaBind, TOIYA_ICON, toiyaCheap, spendLog, tnote } from './toiya.js';
 
 // ボタンに触れたときの小さな音
@@ -1940,7 +1941,10 @@ const TOWN_CSS = `<style>
     .base .tw-h { margin: 10px 0 6px; }
     .base .tw-mis { padding: 4px 4px 4px 10px; }
     .base .tw-mis .m { font-size: 15px; }
-    #screen .base .th { height: 66px; }
+    #screen .base .th { height: 54px; }
+    #screen .base .th .tt small { display: none; }
+    #screen .base .th .tt { bottom: 8px; }
+    .base .tw-mis { margin-top: 8px; }
   }
   @media (max-width: 560px) { .base .tw-cards { grid-template-columns: 1fr; } }
   @media (max-width: 900px) { .base .roster .rr { grid-template-columns: minmax(7em, 1fr) 28px 50px 40px 48px 44px 90px; gap: 6px; } }
@@ -1970,6 +1974,7 @@ export function baseScreen(G, town0, lastResult, game) {
   // ---- 入口の「今日やると良いこと」：やった事と、その場で見せる効き目 ----
   const res = {};          // 札の鍵 → { big, lbl, sub }（やった後に札へ出す）
   let pickKeys = null;     // 城下に入った時に決めた三つ（やっても入れ替えない）
+  const pickT = {};        // その札の題
   let popKey = null;       // いま光らせる札
   const talkGain = {};     // 話の id → 上官の評価の前後
   const trainK = (k) => {
@@ -2030,7 +2035,7 @@ export function baseScreen(G, town0, lastResult, game) {
   };
   const pickNow = () => {
     const C = candidates();
-    if (!pickKeys) pickKeys = C.slice(0, 3).map((c) => c.k + ':' + (c.id || ''));
+    if (!pickKeys) { pickKeys = C.slice(0, 3).map((c) => c.k + ':' + (c.id || '')); C.slice(0, 3).forEach((c) => { pickT[c.k + ':' + (c.id || '')] = c.t; }); }
     return pickKeys.map((key) => {
       const [k, id] = key.split(':');
       return { key, k, id, c: C.find((c) => c.k === k && (c.id || '') === id), r: res[key] };
@@ -2093,7 +2098,7 @@ export function baseScreen(G, town0, lastResult, game) {
       ${G.rank >= 4 || G.battle >= BATTLES.length ? `<div class="tw-realm" role="group" aria-label="天下の地図"><small>天下の地図</small><div class="row"><button class="btn small" data-jp="naisei">領地と内政</button><button class="btn small" data-jp="busho">家臣</button><button class="btn small" data-jp="shiro">城攻めと外交</button><button class="btn small" data-jp="tenka">天下の動き</button></div></div>` : ''}
       <div style="height:12px"></div>
       ${next ? `<div class="tw-prog" role="progressbar" aria-label="次の身分「${esc(next.name)}」まで" aria-valuemin="${RANKS[G.rank].min}" aria-valuemax="${next.min}" aria-valuenow="${Math.min(next.min, G.merit)}" aria-valuetext="累計戦功 ${G.merit}／${next.min}"><div class="lbl"><span>次は「${esc(next.name)}」</span><b>あと ${Math.max(0, next.min - G.merit)}</b></div><i><b style="width:${Math.min(100, Math.max(0, (G.merit - RANKS[G.rank].min) / (next.min - RANKS[G.rank].min)) * 100)}%"></b></i><small>累計戦功 ${G.merit} ／ ${next.min}</small></div>` : `<div class="stat"><span>累計戦功</span><b>${G.merit}</b></div>`}
-      <div class="tw-sup" role="group" aria-label="上官の評価 ${G.superior}。昇進には50が要る"><div class="lbl"><span>上官の評価</span><b>${G.superior}<small>／昇進に 50</small></b></div><i><b style="width:${G.superior}%" class="${G.superior < 50 ? 'lo' : ''}"></b><s></s></i><small>${G.superior < 50 ? `<em>あと ${50 - G.superior} で昇進できる。</em>` : ''}上げ方：任務を果たす +10・手柄一つ +5・上役と話す +2</small></div>
+      <div class="tw-sup" role="group" aria-label="上官の評価 ${G.superior}。昇進には50が要る"><div class="lbl"><span>上官の評価</span><b>${G.superior}<small>／昇進に 50</small></b></div><i><b style="width:${G.superior}%" class="${G.superior < 50 ? 'lo' : ''}"></b><s></s></i><small>${G.superior < 50 ? `<em>あと ${50 - G.superior} で昇進できる。</em>` : ''}上げ方：任務 +10・手柄 +5・上役と話す +2</small></div>
       <div class="stat"><span>所持金</span><b>${free ? '使い放題<small class="tw-free">試しの間</small>' : zeni(G.kan)}</b></div>
       ${G.injured ? '<div class="stat"><span>負傷</span><b style="color:#e38a74">重傷（要休息）</b></div>' : ''}
       <details class="tw-more"><summary>細かな力　<small>槍${G.stats.spear}・体${G.stats.vit}・統${G.stats.lead}・防${Math.round(equipDef(G) * 100)}%</small></summary>
@@ -2124,17 +2129,17 @@ export function baseScreen(G, town0, lastResult, game) {
       // 入口：次の任務と出陣を一行 → 今日やると良いこと三つ → 人との出来事。細かな表は畳む
       const P = pickNow();
       const cardHtml = ({ key, k, id, c, r }) => {
-        if (r) return `<div class="tw-card done ${popKey === key ? 'pop' : ''}" role="group" aria-label="済んだ：${esc(r.lbl)} ${esc(r.big)}"><span class="ic" aria-hidden="true">${PICK_IC[k] || TAB_ICON.shop}</span><b class="t">${esc((c && c.t) || r.t || '')}</b><div class="res"><b>${esc(r.big)}</b><span>${esc(r.lbl)}</span><small>${esc(r.sub)}</small></div></div>`;
-        if (!c) return `<div class="tw-card off"><span class="ic" aria-hidden="true">${PICK_IC[k] || TAB_ICON.shop}</span><b class="t">${k === 'talk' ? '話は済んだ' : '今日はもうできない'}</b><p class="ef">${G.actions <= 0 ? '今日の時間はもう無い' : '済んだ'}</p></div>`;
+        if (r) return `<div class="tw-card done ${popKey === key ? 'pop' : ''}" role="group" aria-label="済んだ：${esc(r.lbl)} ${esc(r.big)}"><span class="ic" aria-hidden="true">${PICK_IC[k] || TAB_ICON.shop}</span><b class="t">${esc(pickT[key] || r.t || '')}</b><div class="res"><b>${esc(r.big)}</b><span>${esc(r.lbl)}</span><small>${esc(r.sub)}</small></div></div>`;
+        if (!c) return `<div class="tw-card off"><span class="ic" aria-hidden="true">${PICK_IC[k] || TAB_ICON.shop}</span><b class="t">${esc(pickT[key] || '')}</b><p class="ef">${G.actions <= 0 ? '今日の時間はもう無い' : '済んだ'}</p></div>`;
         const ic = k === 'buy' ? TAB_ICON.shop : PICK_IC[k];
         return `<div class="tw-card"><span class="ic" aria-hidden="true">${ic}</span><b class="t">${esc(c.t)}</b><p class="ef">${esc(c.ef)}</p><button class="btn small ${k === 'rest' ? 'primary' : ''}" data-pick="${esc(key)}">${esc(c.btn)}</button></div>`;
       };
       const allDone = P.length && P.every((p) => p.r || !p.c);
       body = `
-        <div class="tw-mis"><div class="m"><small>次の任務</small>${esc(m.title)}</div><button class="btn primary" id="go">${G.injured ? '休んでから出陣' : '任務を受けて出陣'}</button></div>
-        <details class="tw-more tw-misd"><summary>任務の中身と図を見る</summary><p class="note">${esc(m.text)}</p>${TW.diagram(town)}</details>
         <h2 class="tw-h">今日やると良いこと<small>${G.actions ? `残り ${G.actions} 刻` : '今日の時間は使い切った'}</small></h2>
         ${P.length ? `<div class="tw-cards">${P.map(cardHtml).join('')}</div>${allDone ? '<p class="note tw-ready">備えは整った。いつでも出陣できる。</p>' : ''}` : '<p class="note tw-ready">備えは整っている。いつでも出陣できる。</p>'}
+        <div class="tw-mis"><div class="m"><small>次の任務</small>${esc(m.title)}</div><button class="btn primary" id="go">${G.injured ? '休んでから出陣' : '任務を受けて出陣'}</button></div>
+        <details class="tw-more tw-misd"><summary>任務の中身と図を見る</summary><p class="note">${esc(m.text)}</p>${TW.diagram(town)}</details>
         ${confirmGo ? `<div class="confirm-row"><b>出陣の前に</b>
           <div class="note">身につけた物：${esc(eqNames)}${G.owned.includes('katana') ? '・打刀' : ''}</div>
           <div class="note">組：${R0.length}人（${[['spear', '槍'], ['bow', '弓']].map(([k, n]) => [n, R0.filter((r) => r.kind === k).length]).filter(([, c]) => c).map(([n, c]) => `${n} ${c}`).join('・') || 'なし'}／古参 ${R0.filter((r) => r.battles > 0).length}人${hurt ? `・手負い ${hurt}人` : ''}）　・　組の人数の上限 ${RANKS[G.rank].squad}人</div>
@@ -2214,7 +2219,7 @@ export function baseScreen(G, town0, lastResult, game) {
       body = R.length ? `<p class="note">${esc(G.aijirushi ? '合印を掲げる' : '')}組の者たち（${R.length}人${hurt ? `・手負い ${hurt}人` : ''}）。生き残った者は古参となり、練度が上がる。</p>
         ${G.recruitsNote ? `<p class="note" style="color:var(--kin)">${esc(G.recruitsNote)}</p>` : ''}
         ${arriveNotes.length ? `<p class="note" style="color:#e3a08c">${arriveNotes.map(esc).join('<br>')}</p>` : ''}
-        ${G.rank >= 2 ? `<div class="item"><div class="n">組の編成</div><div class="x">弓組の割合を決める（次の戦から）</div><div class="a"><select id="bowratio" aria-label="弓組の割合"><option value="0" ${G.bowRatio === 0 ? 'selected' : ''}>弓なし（槍だけ）</option><option value="0.33" ${G.bowRatio === undefined || G.bowRatio === 0.33 ? 'selected' : ''}>弓を三分の一</option><option value="0.5" ${G.bowRatio === 0.5 ? 'selected' : ''}>弓を半分</option></select></div></div>` : ''}
+        ${kumiHtml(G)}
         <div class="row" style="margin:10px 0 4px" role="group" aria-label="並べ替え">${[['battles', '戦歴'], ['kills', '討取'], ['wound', '負傷'], ['loyal', '忠誠']].map(([k, n]) => `<button class="btn small ${rosterSort === k ? 'tw-sorton' : ''}" data-sort="${k}" aria-pressed="${rosterSort === k}">${n}の順</button>`).join('')}</div>
         <div class="roster" role="table" aria-label="組の名簿"><div class="rr head" role="row">${['名', '役', '戦歴', '討取', '練度', '負傷', '忠誠'].map((h) => `<span role="columnheader">${h}</span>`).join('')}</div>
         ${[...R].sort((x, y) => key(y) - key(x)).map((r) => `<div class="rr" role="row" data-who="${esc(r.name)}"><div role="cell" class="${r.battles > 0 ? 'vet' : ''}">${esc(r.name)}<small style="color:var(--washi-faint);font-size: 12px">${r.special === 'yashichi' ? '（同輩）' : r.battles >= 2 ? '（古参）' : r.battles === 1 ? '（二度目）' : '（新参）'}</small><button class="talkb" data-spk="${esc(r.id)}" ${r.spoke === town ? 'disabled' : ''} title="声をかける（忠誠 +3・城下ごとに一度）" aria-label="${esc(r.name)}${r.spoke === town ? 'とはもう話した' : 'に声をかける'}">${r.spoke === town ? '話した' : '声をかける'}</button><button class="talkb" data-ren="${esc(r.id)}" title="名を改める" aria-label="${esc(r.name)}の名を改める">改名</button></div>
@@ -2396,8 +2401,8 @@ export function baseScreen(G, town0, lastResult, game) {
     const oo = $('own-only');
     if (oo) oo.onclick = () => { G.shopOwned = !G.shopOwned; render(); };
     document.querySelectorAll('[data-sort]').forEach((b) => b.onclick = () => { rosterSort = b.dataset.sort; render(); });
-    const br = $('bowratio');
-    if (br) br.onchange = () => { G.bowRatio = +br.value; saved(); };
+    // 組の中身（槍・鉄砲・弓・騎馬の割り振り。kumi.js）
+    kumiBind(G, $('screen'), saved);
     document.querySelectorAll('[data-ren]').forEach((b) => b.onclick = (ev) => {
       ev.stopPropagation();
       const r = (G.roster || []).find((x) => x.id === b.dataset.ren);

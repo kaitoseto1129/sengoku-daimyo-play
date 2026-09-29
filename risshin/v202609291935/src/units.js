@@ -183,6 +183,8 @@ export class Army {
 
   // 部隊を陣形どおりに一括配置
   spawn(g, list) {
+    // 戦が始まった後の敵は、見える所に湧かせない（battle.js の guardSpawn が出る所をずらす）
+    if (this.spawnGuard) list = this.spawnGuard(g, list) || list;
     const n = list.reduce((a, s) => a + s.n, 0);
     const total = g.units.length + n;
     // 隊の種類：六割より多くが鉄砲なら鉄砲の隊（段を組んで入れ替わる）、騎馬なら騎馬の隊（間を広くとる）

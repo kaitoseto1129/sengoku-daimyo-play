@@ -1420,6 +1420,7 @@ export const SPEARS = {
   su: { L: 2.9, grip: 0.95, ho: 'sankaku', hoL: 0.2, r: 0.016, bend: 0.45 },       // 素槍（一間半ほど）：侍・騎馬・本人
   omi: { L: 3.2, grip: 1.0, ho: 'omi', hoL: 0.48, r: 0.018, bend: 0.4 },           // 大身槍：穂が一尺半
   naga: { L: 4.5, grip: 1.35, ho: 'sankaku', hoL: 0.18, r: 0.017, bend: 0.8 },     // 長柄（二間半）：本人の長柄
+  jumonji: { L: 3.0, grip: 0.95, ho: 'jumonji', hoL: 0.26, r: 0.017, bend: 0.42 },  // 十文字槍：穂の根元の両脇に鎌刃
   nagae: { L: 5.4, grip: 1.6, ho: 'sankaku', hoL: 0.16, r: 0.019, bend: 1 },       // 足軽の長柄（三間）
   nagae35: { L: 6.3, grip: 1.9, ho: 'sankaku', hoL: 0.16, r: 0.02, bend: 1.15 },   // 織田の長柄（三間半）
 };
@@ -1447,7 +1448,24 @@ function spearGeometry(sp) {
   sec[2].push(P(at(new THREE.CylinderGeometry(rad(zh) + 0.001, rad(zh) + 0.0035, 0.1, 8), 0, 0, zh - 0.06, Math.PI / 2), 0x3a3e42, { mk: MK.iron, reg: 'iron' }));
   // 塩首（穂の根元の細い首）
   sec[2].push(P(at(new THREE.CylinderGeometry(0.0055, 0.009, 0.035, 6), 0, 0, zh - 0.0, Math.PI / 2), 0x55595c, { mk: MK.iron }));
-  if (sp.ho === 'omi') {
+  if (sp.ho === 'jumonji') {
+    // 十文字：まっすぐな両刃の穂と、根元から左右へ張り出して先が前へ反る鎌刃（上から見て十の字）
+    sec[2].push(P(loft(DIA, 10, (v) => { const w = 0.014 * (v < 0.1 ? 0.75 + v * 2.5 : 1 - v * 0.25) * Math.min(1, (1 - v) / 0.25); return [zh + 0.015 + v * hoL, 0, w, 0.0055 * Math.min(1, (1 - v) / 0.25 + 0.2)]; }), 0xb6babc, { mk: MK.iron, reg: 'iron' }));
+    const z0k = zh + 0.035;
+    for (const sd of [-1, 1]) {
+      // 腕：根元は太く、先へ細る。平たい菱の断面
+      const arm = new THREE.CylinderGeometry(0.004, 0.015, 0.1, 4);
+      arm.scale(0.35, 1, 1); arm.rotateZ(-sd * Math.PI / 2); arm.rotateY(-sd * 0.22);
+      arm.translate(sd * 0.05 * Math.cos(0.22), 0, z0k + 0.05 * Math.sin(0.22));
+      sec[2].push(P(arm, 0xb0b4b6, { mk: MK.iron, reg: 'iron' }));
+      // 先：前へ曲がる小さな切っ先（引っかける所）
+      const ex = sd * 0.1 * Math.cos(0.22), ez = z0k + 0.1 * Math.sin(0.22);
+      const hook = new THREE.CylinderGeometry(0.0008, 0.0036, 0.05, 4);
+      hook.scale(1, 1, 0.45); hook.rotateX(Math.PI / 2); hook.rotateY(-sd * 0.35);
+      hook.translate(ex + sd * 0.008, 0, ez + 0.022);
+      sec[2].push(P(hook, 0xb8bcbe, { mk: MK.iron, reg: 'iron' }));
+    }
+  } else if (sp.ho === 'omi') {
     // 大身：長い両刃の穂。鎬で菱の断面、先で細る
     sec[2].push(P(loft(DIA, 12, (v) => { const w = 0.019 * (v < 0.08 ? 0.7 + v * 3.7 : 1 - v * 0.2) * Math.min(1, (1 - v) / 0.22); return [zh + 0.015 + v * hoL, 0, w, 0.006 * (1 - v * 0.5) * Math.min(1, (1 - v) / 0.22 + 0.2)]; }), 0xb8bcbe, { mk: MK.iron, reg: 'iron' }));
   } else {

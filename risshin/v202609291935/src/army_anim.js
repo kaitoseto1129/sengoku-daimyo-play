@@ -6,6 +6,14 @@ import { IDLE, muddyFlag } from './units_flags.js';
 import { TYPES } from './units_data.js';
 import * as THREE from 'three';
 
+// 形のならし：目当ての値へ、速さを持ったばねで寄せる（臨界の減衰。行き過ぎず、速さが一コマで跳ばない）。
+//   一次のならし（x += (目当て − x)·k）は目当てが変わった瞬間に速さが跳ぶので、技のつなぎで手がカクつく。ばねは速さも続く
+//   s[k] が値、s['v' + k] が速さ。w が大きいほど速く追う（w=40 で 0.1 秒ほど）。どんな dt でも崩れない解き方
+export function spr2(s, k, to, w, dt) {
+  const vk = 'v' + k, y = s[k] - to, v = s[vk] || 0, e = Math.exp(-w * dt), c = (v + w * y) * dt;
+  s[k] = to + (y + c) * e; s[vk] = (v - w * c) * e;
+}
+
 // Army の手法（units.js の class Army に足す）
 export const ArmyAnim = {
 
@@ -241,6 +249,18 @@ export const ArmyAnim = {
       const p = sw.t / sw.dur, out = thrustOut(Math.min(1, p), sw.dur);
       if (sw.rear) { ext = -0.55 * out; slide = Math.min(slide, -0.9 * out); rx = rx * (1 - out) - 0.25 * out; }
       else { rx = rx * (1 - out) - 1.25 * out; ext = 0.1 * out; slide = Math.max(slide, 1.0 * out); }
+    } else if (sw && sw.kind === 'hook' && sw.t < sw.dur + 0.3) {
+      // 十文字槍の引き倒し：まっすぐ突き出し（前の三割半）、鎌刃を掛けたまま穂先を下げて手前へ強く引き込み、腰へ引き付けてから中段へ戻す
+      const p = sw.t / sw.dur;
+      const x = clamp01(p / 0.35), out = x * x * (3 - 2 * x);
+      const y = clamp01((p - 0.4) / 0.45), pull = y * y * (3 - 2 * y);
+      const r = clamp01((sw.t - sw.dur) / 0.3), back = r * r * (3 - 2 * r);
+      let e = 0.55 * out;
+      const cur = (reach0 + slide) * Math.cos(rx);
+      if (sw.res === 'hit' || sw.res === 'armor') e = Math.min(e, sw.d - 0.05 - cur);
+      ext = (e * (1 - pull) - 0.42 * pull) * (1 - back);
+      rx = rxK + 0.32 * pull * (1 - back); ry = -0.14 * pull * (1 - back) * (sw.side || 1);
+      u.spW = 0;
     } else if (sw && sw.kind === 'sweep' && sw.t < sw.dur + 0.3) {
       // 払い：振りかぶった側から逆の側まで、腰で長柄を横に払い抜け、中くらいの速さで中段へ戻す
       const d = sw.dir || 1;
@@ -272,10 +292,11 @@ export const ArmyAnim = {
     const s = u.spr || (u.spr = { rx, ry, sl: slide });
     // 打つ間は速く、振り抜いた後の戻りは中くらい（止まった形へ一コマで跳ばない）
     const hot = a || (sw && sw.t < sw.dur);
-    const kk = Math.min(1, dt * (hot ? 30 : sw ? 16 : 10));
-    s.rx += (rx - s.rx) * kk; s.ry += (ry - s.ry) * kk; s.sl += (slide - s.sl) * Math.min(1, dt * 8);
-    // 手の前後も速くならす（引いて溜めた所から突き出す時に、手が一コマで跳ばない。突きの速さは残す）
-    s.ex = s.ex === undefined ? ext : s.ex + (ext - s.ex) * Math.min(1, dt * (hot ? 28 : 16));
+    // 速さを持ったばねで寄せる：溜め→突き→戻り→次の突きが、止まらず・跳ばずに一続きの動きになる
+    const wk = hot ? 46 : sw ? 26 : 16;
+    spr2(s, 'rx', rx, wk, dt); spr2(s, 'ry', ry, wk, dt); spr2(s, 'sl', slide, hot ? 26 : 14, dt);
+    // 手の前後も同じばねで（引いて溜めた所から突き出す時に、手が一コマで跳ばない。突きの速さは残す）
+    if (s.ex === undefined) s.ex = ext; else spr2(s, 'ex', ext, hot ? 48 : 26, dt);
     h.rotation.x = s.rx; h.rotation.y = s.ry; h.position.z = 0.18 + s.ex;
     // 馬上の片手突き：拳の上げ下げ（前のコマの分を戻してから置く）
     s.lf = u.mounted || lift || s.lf ? (s.lf || 0) + (lift - (s.lf || 0)) * Math.min(1, dt * (hot ? 24 : 12)) : 0;
@@ -297,9 +318,12 @@ export const ArmyAnim = {
     // 馬上の斬りは、すれ違う徒歩の相手へ右の脇へ斬り下ろす（袈裟・逆袈裟・横はどれも馬の右の低い所へ）
     const K = (k) => (u.mounted && (k === 'kesa' || k === 'gyaku' || k === 'yoko') ? 'uma' : k);
     if (a && SW_POSE[K(a.kind) + '0']) {
-      // 溜め：ゆっくり振りかぶり、振りかぶり切った所で一瞬ためる
+      // 溜め：ゆっくり振りかぶり、振りかぶり切った所で一瞬ためる。
+      //   前の太刀の残心・戻りの途中から振りかぶる時は、構え（中段）へ戻らず、今の刀の所から次の振りかぶりへ流れる（切り返し）
       const k0 = Math.min(1, 1 - Math.max(0, a.t) / (a.dur || u.windup)), k = k0 * k0 * (3 - 2 * k0);
-      P = lerpPose(C, SW_POSE[K(a.kind) + '0'], k);
+      if (!u.swFrom || u.swAk !== a.kind || k0 < (u.swK0 ?? 1) - 0.02) { u.swFrom = (u.swp || C).slice(); u.swAk = a.kind; }
+      u.swK0 = k0;
+      P = lerpPose(u.swFrom, SW_POSE[K(a.kind) + '0'], k);
     } else if (sw && SW_POSE[K(sw.kind) + '0'] && sw.t < sw.dur + 0.3) {
       // 振り：振りかぶりから加速して一気に斬り抜き（出の 0.85 で振り切る）、当たった所で止まる（受けられれば途中で弾かれ、甲冑なら浅く止まる）
       const p = Math.min(1, sw.t / (sw.dur * 0.85));
@@ -316,12 +340,14 @@ export const ArmyAnim = {
     } else if (u.strikeT > 0 && u.isPlayer) {
       P = lerpPose(SW_POSE.kesa0, SW_POSE.kesa1, 1 - u.strikeT / 0.2);
     }
+    if (!a) u.swFrom = null;
     if (u.guard || u.guardFlash > 0 || u.guarding > 0) P = SW_POSE.uke;
     if (u.cheer > 0) P = SW_POSE.cheer;
     const s = u.swp || (u.swp = P.slice());
     // 打つ間は速く、残心からの戻りは中くらい、構えの移りはゆっくり
-    const kk = Math.min(1, dt * (a || (sw && sw.t < sw.dur) ? 35 : sw ? 16 : 10));
-    for (let i = 0; i < 6; i++) s[i] += (P[i] - s[i]) * kk;
+    // 速さを持ったばねで寄せる（袈裟から逆袈裟への切り返しで、刀が一コマで向きを変えない）
+    const wk = a || (sw && sw.t < sw.dur) ? 50 : sw ? 26 : 16;
+    for (let i = 0; i < 6; i++) spr2(s, i, P[i], wk, dt);
     h.position.set(s[0], s[1] + oy, s[2]);
     h.rotation.set(s[3], s[4], s[5]);
   },

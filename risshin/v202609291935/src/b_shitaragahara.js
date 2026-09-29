@@ -489,7 +489,8 @@ shitaragahara.date = (rt) => `天正三年五月二十一日　${seasonOf('五�
 // ---- 設楽原 ----
 function shiCtx(rt) {
   const F = rt.flags;
-  return { faction: 'takeda', dmg: 0.6, friends: () => [], aid: { name: F.oda ? '佐々の槍組' : '大久保の槍組', faction: F.oda ? 'oda' : 'tokugawa', flag: F.oda ? 'oda' : 'tokugawa', list: [uS(1), uA(9)] }, aidSaid: '槍組が一手、加わった' };
+  // 自分の槍組（組頭が不死）を味方の組にして、段の場所へ一緒に押し出す（深手の時に下がる先にもなる）
+  return { faction: 'takeda', dmg: 0.54, friends: () => [F.spears && F.spears[0]].filter((g) => g && g.count && !g.routed), aid: { name: F.oda ? '佐々の槍組' : '大久保の槍組', faction: F.oda ? 'oda' : 'tokugawa', flag: F.oda ? 'oda' : 'tokugawa', list: [uS(1), uA(9)] }, aidSaid: '槍組が一手、加わった' };
 }
 // 三の波の後、追い討ちの前：立て直し → 柵の南の端を回る武田勢 → 判断（どこから打って出るか）
 function shiA(rt) {
@@ -527,20 +528,20 @@ function shiB(rt) {
       options: [{ label: '丘へ駆け上がり、武田の旗を奪う', note: '旗を奪えば大手柄。丘の上は鉄砲に狙われる' }, { label: `南へ回り、囲まれた${pal}の組を助ける`, note: `${pal}との仲の手柄。味方が一組救われる` }],
       on: (rt, m, i) => { m.shiFlag = i === 0; } }),
     DP.fight({ skip: (rt, m) => !m.shiFlag, at: { x: 128, z: -14 }, title: '本陣の跡', sub: '勝頼の本陣の跡で、旗を守る武田勢', obj: '勝頼の本陣の跡で、旗を守る武田勢を崩せ',
-      foes: () => [{ name: '旗を守る武田勢', from: { x: 150, z: -16 }, list: [uS(2), uA(12), uG(3)], noRout: 25 }],
+      foes: () => [{ name: '旗を守る武田勢', from: { x: 150, z: -16 }, list: [uS(2), uA(10), uG(2)], noRout: 20 }],
       later: [{ t: 30, say: ['足軽', '旗奉行じゃ！　あの旗を奪え！'], foes: () => [{ name: '武田の旗奉行', from: { x: 156, z: 10 }, list: [uS(2, { name: '武田の旗奉行', flag: 'takeda', flagScale: 1.8 }), uA(8)] }] }],
       reward: (t) => { t.c.flag++; t.special = { label: '武田の旗を奪った', pts: 25 }; }, rewardLabel: '武田の旗を奪った' }),
     DP.fight({ skip: (rt, m) => m.shiFlag, at: { x: 80, z: 72 }, title: `囲まれた${pal}の組`, sub: '南の田で、味方の一組が武田勢に囲まれている', obj: `囲まれた${pal}の組を救え`,
       foes: () => [{ name: '囲む武田勢', from: { x: 112, z: 92 }, list: [uS(2), uA(15)] }],
       later: [{ t: 28, say: ['足軽', '田の向こうから騎馬が来る！'], foes: () => [{ name: '武田の騎馬', from: { x: 124, z: 104 }, list: [uC(3), uA(6)] }] }],
       reward: `囲まれた${pal}の組を救った` }),
-    DP.rest({ dur: 10, say: [['伝令', '勝頼は甲斐へ落ちていく！　退き口の橋で、勝頼の旗本が踏みとどまっておりまする'], [B, '下知は「深追いするな」じゃ。……だが橋の旗本だけは、崩せば大きいぞ']] }),
+    DP.rest({ dur: 12, heal: 0.6, say: [['伝令', '勝頼は甲斐へ落ちていく！　退き口の橋で、勝頼の旗本が踏みとどまっておりまする'], [B, '下知は「深追いするな」じゃ。……だが橋の旗本だけは、崩せば大きいぞ']] }),
     DP.pick({ title: '退き口の橋で、勝頼の旗本が踏みとどまっている。どうする？',
       options: [{ label: '許しを得て、橋の旗本を崩しに行く', note: '崩せば大手柄。武田の最後の手強い者たち' }, { label: '下知に従い、組を引き上げる', note: '戦はここで終える。組を減らさない' }],
       on: (rt, m, i) => { m.shiBridge = i === 0; if (i === 1) rt.award((t) => t.side.push('深追いせず下知を守った'), '深追いせず下知を守った'); } }),
     DP.fight({ skip: (rt, m) => !m.shiBridge, at: { x: 124, z: 34 }, title: '退き口の橋', sub: '勝頼を逃がすため、旗本が橋の前で踏みとどまる', obj: '退き口の橋で踏みとどまる勝頼の旗本を崩せ',
-      foes: () => [{ name: '勝頼の旗本', from: { x: 150, z: 44 }, list: [uS(3), uC(3), uA(8)], morale: 100, noRout: 30 }],
-      later: [{ t: 40, say: ['足軽', '橋の向こうから、まだ来るぞ！'], foes: () => [{ name: '引き返す武田勢', from: { x: 156, z: 70 }, list: [uS(2), uA(10)] }] }],
+      foes: () => [{ name: '勝頼の旗本', from: { x: 150, z: 44 }, list: [uS(2), uC(2), uA(7)], morale: 90, noRout: 20, dmg: 0.48 }],
+      later: [{ t: 40, say: ['足軽', '橋の向こうから、まだ来るぞ！'], foes: () => [{ name: '引き返す武田勢', from: { x: 156, z: 70 }, list: [uS(1), uA(7)], morale: 70, dmg: 0.48 }] }],
       reward: (t) => { t.special = { label: '退き口の旗本を崩した', pts: 25 }; }, rewardLabel: '退き口の旗本を崩した' }),
   ];
 }
