@@ -194,6 +194,80 @@ const PEOPLE = [
 const REL = [['genpachi', '源八'], ['yashichi', '弥七'], ['tokichiro', '藤吉郎'], ['mori', '森可成'], ['akechi', '明智光秀'], ['toshiie', '前田利家'], ['shibata', '柴田勝家'], ['nagayoshi', '森長可'], ['nobutada', '織田信忠']];
 export const ODA_REL_NAME = { mori: '森可成', akechi: '明智光秀', toshiie: '前田利家', shibata: '柴田勝家', nagayoshi: '森長可', nobutada: '織田信忠' };
 
+// 戦と戦の間の短い出来事（次の戦の id で引く）。at：boss（上役の屋敷）・inn（宿）。kan：もらう銭（貫）
+// 字は少なく（一行 30 字ほどまで・二行）。{n} は自分の名、{sub} は組の者の名に替える
+const EVENTS = {
+  inabayama: [{ id: 'e_koi1', who: '弥七', rel: 'yashichi', at: 'inn',
+    lines: ['{n}、宿の娘のお鶴から文じゃ。わしが預かった', '「ご無事のお帰りを待ちまする」とさ。……羨ましいのう'],
+    choices: [{ t: '大事に懐へ入れておく', fx: { like: 3 }, reply: 'お守りじゃな。死ねぬ訳ができたのう' },
+      { t: 'からかうな、弥七', fx: { like: 2 }, reply: '照れるな照れるな。返しの文はわしが届けてやる' }] }],
+  mitsukuri: [{ id: 'e_hobi1', who: '木下藤吉郎', rel: 'tokichiro', at: 'boss',
+    lines: ['{n}、稲葉山の働き、殿のお耳に入れておいた', '殿から銭を賜った。組の者にも分けてやれ'],
+    choices: [{ t: '組の者に等しく分けます', fx: { trust: 4 }, sup: 2, kan: 2, reply: 'それでよい。人は銭より、分け方を覚えておるものよ' },
+      { t: '傷を負うた者に厚く配ります', fx: { respect: 4 }, sup: 2, kan: 2, reply: 'ほう、よう見ておるな。わしもそうする' }] }],
+  okawachi: [{ id: 'e_kenka1', who: '宿の主', rel: 'yashichi', at: 'inn',
+    lines: ['お武家様、奥で尾張の衆と美濃の衆が刀を抜きかけて……', '桶狭間と稲葉山、どちらの手柄が上かで揉めておりまする'],
+    choices: [{ t: '双方に酒を注ぎ、手打ちにさせる', fx: { like: 4 }, reply: '助かりました。……皆、次は同じ陣で戦う身でございますからな' },
+      { t: '刀を抜いた者を叱りつける', fx: { respect: 4 }, reply: '二人とも縮み上がって帰りました。お見事で' }] }],
+  nodafukushima: [{ id: 'e_mino1', who: '{sub}', rel: 'yashichi', at: 'inn',
+    lines: ['国の田は兄が継ぎました。わしは口減らしで出て来た身で', '手柄を立てて、母に米を送りたいのでございます'],
+    choices: [{ t: '次の戦では、お主の横で槍を振るおう', fx: { trust: 4 }, reply: 'は、ははっ……！　必ずお役に立ちまする' },
+      { t: '生きて帰るのが、一番の孝行ぞ', fx: { like: 4 }, reply: '……はい。肝に銘じまする' }] }],
+  shiga: [{ id: 'e_uwasa1', who: '行商の男', rel: 'yashichi', at: 'inn',
+    lines: ['石山の本願寺が、諸国の門徒に檄を飛ばしたそうな', '「織田と戦え」と。近江でも一揆が起きるやもしれませぬ'],
+    choices: [{ t: '組の者には黙っておけ', fx: { trust: 2 }, reply: 'へえ。怯えさせても仕方ありませんからな' },
+      { t: '門徒の多い村を教えてくれ', fx: { respect: 2 }, reply: '堅田と、湖の東の村々でございます' }] }],
+  mikatagahara: [{ id: 'e_yobi1', who: '佐久間信盛', rel: 'nobutada', at: 'boss',
+    lines: ['{n}、遠江への加勢は三千だけじゃ。信玄の三万には敵わぬ', 'わしは無理をするつもりはない。その方もそのつもりでおれ'],
+    choices: [{ t: '承知。退き際を見ておきます', fx: { trust: 3 }, sup: 2, reply: 'うむ。死ぬのは徳川の者だけで十分じゃ' },
+      { t: '徳川殿を見捨てるのですか', fx: { respect: 3, wary: 2 }, reply: '……口の過ぎる奴じゃ。じゃが、覚えておこう' }] }],
+  tonezaka: [{ id: 'e_kenka2', who: '弥七', rel: 'yashichi', at: 'inn',
+    lines: ['{n}、組の二人が、分捕りの刀を取り合うて殴り合いじゃ', 'どちらも「わしが先に拾うた」と言うて聞かん'],
+    choices: [{ t: '刀は組の物とし、手柄の順に使わせる', fx: { trust: 4 }, reply: 'なるほど。これなら二人とも次の戦で気張るわ' },
+      { t: '二人とも一日、飯抜きじゃ', fx: { respect: 3, like: -2 }, reply: 'はっは、しょげておったぞ。……まあ、けじめじゃな' }] }],
+  odani: [{ id: 'e_yobi2', who: '羽柴秀吉', rel: 'tokichiro', at: 'boss',
+    lines: ['{n}、小谷にはお市の方と姫たちがおられる', '城は落とす。じゃが、姫たちだけは何としても助けたい'],
+    choices: [{ t: '女子供は決して斬らせませぬ', fx: { trust: 5 }, sup: 3, reply: '頼んだぞ。殿の妹君じゃ。……わしにとっても大事なお方よ' },
+      { t: '浅井殿は降りませぬか', fx: { respect: 3 }, reply: '長政殿は義に厚い。……降らぬじゃろうな' }] }],
+  nagashima: [{ id: 'e_mino2', who: '{sub}', rel: 'yashichi', at: 'inn',
+    lines: ['実は……長島には、門徒になった弟がおりまする', '戦場で顔を合わせたら、わしはどうすれば'],
+    choices: [{ t: '見つけたら捕らえよ。命は助ける', fx: { like: 5 }, reply: '……かたじけのうございます' },
+      { t: '戦場で情けは禁物じゃ', fx: { respect: 3 }, reply: '……はい。覚悟はしておりまする' }] }],
+  echizen: [{ id: 'e_uwasa2', who: '弥七', rel: 'yashichi', at: 'inn',
+    lines: ['設楽原の話が、町で大きくなっておるぞ', '鉄砲三千挺で、武田の騎馬が一騎残らず倒れたとさ'],
+    choices: [{ t: '柵と槍があってこその勝ちじゃ', fx: { trust: 3 }, reply: 'そうじゃ。わしらの槍も忘れんでほしいのう' },
+      { t: '話が大きい方が、敵は怖がる', fx: { like: 3 }, reply: 'はっは、それもそうじゃ' }] }],
+  tennoji: [{ id: 'e_hobi2', who: '明智光秀', rel: 'akechi', at: 'boss',
+    lines: ['安土に殿の御殿が建ちつつある。見たか、あの天主を', '殿が、越前での働きを覚えておられた。これを取らす'],
+    choices: [{ t: 'ありがたく頂戴いたします', fx: { trust: 3 }, sup: 2, kan: 3, reply: 'うむ。次は天王寺じゃ。わしの命も、その方らに預ける' },
+      { t: '明智様のお引き立てのおかげにて', fx: { like: 4 }, sup: 2, kan: 3, reply: '世辞はよい。働きで返せ' }] }],
+  saika: [{ id: 'e_koi2', who: '弥七', rel: 'yashichi', at: 'inn',
+    lines: ['小牧山のお鶴から、また文が来たぞ', '「安土は遠うございます。お顔を忘れそうで」とさ'],
+    choices: [{ t: '戦が済んだら迎えに行く', fx: { like: 5 }, reply: 'おお、言うたな！　わしが証人じゃぞ' },
+      { t: '返しの文を、今夜書こう', fx: { like: 3 }, reply: '字が下手でも、気持ちは届くもんじゃ' }] }],
+  kizugawa: [{ id: 'e_mino3', who: '{sub}', rel: 'yashichi', at: 'inn',
+    lines: ['わしは美濃の山の生まれで、海を見たことがありませぬ', '船の上で槍が振れるかどうか……'],
+    choices: [{ t: '腰を落とせば、陸と同じじゃ', fx: { trust: 3 }, reply: 'は、はい！　稽古しておきまする' },
+      { t: 'わしも海は初めてじゃ', fx: { like: 4 }, reply: 'お頭もでございますか。……少し気が楽になりました' }] }],
+  arioka: [{ id: 'e_kenka3', who: '弥七', rel: 'yashichi', at: 'inn',
+    lines: ['組の者が、摂津の生まれの男を「荒木の間者じゃ」と責めておる', 'あやつの叔父が、有岡の城の中におるらしい'],
+    choices: [{ t: '縁は罪ではない。わしが預かる', fx: { trust: 5 }, reply: 'あやつ、泣いておったぞ。お主に命を預けるとさ' },
+      { t: '次の戦は、後ろに回しておけ', fx: { respect: 2 }, reply: '……まあ、それが無難かのう' }] }],
+  takato: [{ id: 'e_hobi3', who: '織田信忠', rel: 'nobutada', at: 'boss',
+    lines: ['{n}、甲斐へ出る。武田を終わらせる戦じゃ', '父上から具足代を預かった。組の備えを整えよ'],
+    choices: [{ t: '若殿の先手を務めまする', fx: { trust: 4 }, sup: 3, kan: 3, reply: 'うむ。わしも塀に取り付くつもりじゃ。遅れるなよ' },
+      { t: '組の者の具足に充てまする', fx: { respect: 4 }, sup: 2, kan: 3, reply: '良い心がけじゃ。父上にも申し上げておく' }] }],
+  honnoji: [{ id: 'e_uwasa3', who: '宿の主', rel: 'yashichi', at: 'inn',
+    lines: ['丹波の明智様の兵が、妙に早う支度を終えたそうで', '中国へ向かうなら西へ出るはず。……考えすぎでございましょうな'],
+    choices: [{ t: '若殿のお耳に入れておく', fx: { trust: 3 }, reply: 'へえ。何事もなければよいのですが' },
+      { t: '噂は噂じゃ', fx: { like: 2 }, reply: 'そうでございますな。京はいま、祭りの支度で賑やかで' }] }],
+};
+function events(G, id) {
+  const sub = ((G.roster || []).find((r) => r.alive && r.name && !r.special) || {}).name || '組の者';
+  const f = (x) => x.replace(/\{n\}/g, G.name).replace(/\{sub\}/g, sub);
+  return (EVENTS[id] || []).map((e) => ({ ...e, who: f(e.who), lines: e.lines.map(f) }));
+}
+
 // 城下での会話（上役の屋敷 boss・宿 inn）。n：名、last：前の戦の結果
 function talks(G, i, last) {
   const id = BATTLES[i] && BATTLES[i].id;
@@ -274,6 +348,7 @@ function talks(G, i, last) {
       lines: [`${n}、次は${b.name.replace(/の戦い$/, '')}じゃ。${b.place}へ向かう`, '備えを整えておけ'],
       choices: [{ t: '承知いたしました', fx: { trust: 3 }, sup: 2, reply: 'うむ。励め' }] });
   }
+  if (id) T.push(...events(G, id));
   return T;
 }
 

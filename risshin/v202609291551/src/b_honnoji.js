@@ -19,6 +19,7 @@ import { applyLook, DAWN, dress, gone } from './b_inabayama.js';
 import { KIT } from './b_nagashinojo.js';
 import { volleyAt } from './b_tano.js';
 import { camp } from './b_mid.js';
+import { depthStart, depthTick, depthBot, rest, pick, fight, hold } from './b_depth.js';
 // 足軽大将候補より上（信長で遊ぶ時は除く）：任務の文を「一手を預かる」者の役目に
 const HI = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
 
@@ -146,6 +147,8 @@ const honnoji = {
     F.cord = enemyGroup(rt, { faction: 'saito', name: '通りを塞ぐ明智勢', anchor: { x: -27, z: 42 }, facing: -Math.PI * 0.4, width: 12, aggro: 16, morale: 90, fleeDir: { x: -1, z: 1 }, dmgMult: 0.66, formation: 'yari' },
       dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 2 }], AKECHI));
     for (const u of F.cord.units) if (u.type === 'gun') u.dmg *= 0.45;
+    // 後ろの控えは見せるだけ（はじめの斬り合いで本物の兵に替えない）
+    KIT.backOf(rt, F.cord, { flag: 'akechi', armor: 0x2a2a30, kind: 'spear', w: 14, depth: 10, count: 140, seed: 15849 }).army.noWake = true;
 
     applyLook(rt, DAWN);
     rt.setPhase('brief');
@@ -185,18 +188,28 @@ const honnoji = {
     const W = rt.world;
     for (const [x, z] of [[HONNO.x - 2, HONNO.z - 2], [HONNO.x + 4, HONNO.z + 2], [HONNO.x - 8, HONNO.z + 8], [HONNO.x + 6, HONNO.z - 10]]) { W.addFire(x, z, { h: 2.6 }); W.addSmokeColumn(x, 9, z, { size: 3.2 }); }
     rt.banner('本能寺、炎上', '寺の奥から火の手が上がった');
-    rt.obj('main', '本能寺の門の前へ走れ', 'main');
-    rt.marker('gate', HONNO_GATE, '本能寺の門', { h: 3 });
-    rt.zone('gate', HONNO_GATE.x + 8, HONNO_GATE.z, 6);
+    rt.obj('main', '燃える本能寺へ。上様（信長公）の安否を確かめよ', 'main');
+    this.deep(rt, 'A');
+  },
+  // 段を重ねる（b_depth.js）：A 燃える本能寺の前（斬り込むか、裏へ回るか）→ B 二条御所の門（閉ざすか打って出るか・屋根の鉄砲）
+  deep(rt, which) {
+    const F = rt.flags;
+    if (F['dp' + which]) return;
+    F['dp' + which] = true; F.dpOn = true;
+    depthStart(rt, hCtx(rt), which === 'A' ? stepsA(rt) : stepsB(rt), () => {
+      F.dpOn = false;
+      rt.after(3, () => { if (rt.objectives.some((q) => q.id === 'dp')) rt.objRemove('dp'); });
+      if (which === 'A') this.news(rt); else this.escape(rt);
+    });
   },
   news(rt) {
     const F = rt.flags;
     if (F.newsHeard) return;
     F.newsHeard = true;
-    rt.unmark('gate'); rt.unzone('gate');
     sfx('kane', 0.4);
-    // 寺から逃れてきた中間
-    const g = allyGroup(rt, { name: '寺から逃れた中間', anchor: { x: HONNO_GATE.x + 6, z: HONNO_GATE.z - 4 }, facing: Math.PI / 2, width: 3, aggro: 0, noRout: true },
+    // 寺から逃れてきた中間（自分のそばへ駆け寄る）
+    const pp = rt.player.u.pos;
+    const g = allyGroup(rt, { name: '寺から逃れた中間', anchor: { x: pp.x + 3, z: pp.z + 2 }, facing: Math.PI / 2, width: 3, aggro: 0, noRout: true },
       [{ type: 'porter', n: 2, o: { flag: null, hat: 'none', armor: 0x4a4034 } }]);
     for (const u of g.units) { u.noTarget = true; u.invuln = true; }
     F.chugen = g;
@@ -224,7 +237,8 @@ const honnoji = {
     F.tadaU = F.tada.units[0];
     // 通りの見回り
     F.patrol = enemyGroup(rt, { faction: 'saito', name: '明智の見回り', anchor: { x: 2, z: -27 }, facing: -Math.PI / 2, width: 8, aggro: 14, morale: 80, fleeDir: { x: 0, z: 1 }, dmgMult: 0.64 },
-      dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 8 }], AKECHI));
+      dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 10 }], AKECHI));
+    KIT.backOf(rt, F.patrol, { flag: 'akechi', armor: 0x2a2a30, kind: 'spear', w: 12, depth: 8, count: 90, seed: 15850 }).army.noWake = true;
   },
   arrive(rt) {
     const F = rt.flags;
@@ -234,30 +248,15 @@ const honnoji = {
     rt.unmark('nijo');
     rt.say('織田信忠', '……父上が。……明智はここへも来よう。囲まれた今、逃げても討たれるだけじゃ。ここで戦う', 5);
     rt.say('村井貞勝', '親王様（誠仁親王）は、御所を出て内裏へお移りいただきました。存分に戦えまする', 4.5);
-    rt.obj('main', HI(rt) ? '二条御所の西の門の一手を預かり、守れ' : '二条御所の西の門を守れ', 'main');
-    rt.zone('ng', NIJO_GATE.x + 3, NIJO_GATE.z, 5);
+    rt.obj('main', HI(rt) ? '二条御所の西の門の一手を預かり、中将様（信忠）をお守りせよ' : '二条御所で、中将様（信忠）をお守りせよ', 'main');
     F.tada.order = 'hold'; F.tada.anchor = { x: NIJO_GATE.x + 6, z: NIJO_GATE.z }; F.tada.aggro = 12;
     F.waves = [];
-    const mk = (x, z, name, list) => {
-      const g = enemyGroup(rt, { faction: 'saito', name, anchor: { x, z }, facing: Math.PI / 2, order: 'attack', seekRange: 90, aggro: 16, width: 12, morale: 95, fleeDir: { x: -1, z: 0.3 }, dmgMult: 0.62 }, dress(list, AKECHI));
-      for (const u of g.units) if (u.type === 'gun') u.dmg *= 0.45;
-      F.waves.push(g);
-      rt.marker('w' + F.waves.length, centerOf(g), () => `${name}・${moraleWord(g.morale)}`, { red: true, group: g });
-      rt.army.play('eshout', { x, z }, 1.6);
-      return g;
-    };
-    // 明智勢は南と北の通りから大きな塊で寄せる（後ろに通りを埋める軽い軍勢）
-    const nearGate = (g) => () => Math.hypot(g.center().x - NIJO_GATE.x, g.center().z - NIJO_GATE.z) < 18;
-    const back = (g, seed) => KIT.backOf(rt, g, { flag: 'akechi', armor: 0x33302a, kind: 'spear', w: 12, depth: 12, count: 130, seed, stop: nearGate(g) });
-    rt.after(8, () => { back(mk(27, -6, '明智勢', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 14 }, { type: 'gun', n: 3 }]), 15851); sfx('horagai', 0.7); rt.say('足軽', '桔梗の旗が、通りを埋めて来る！', 3); });
-    rt.after(22, () => { if (F.step === 4) { back(mk(27, -104, '明智勢の新手', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 3 }]), 15852); rt.say('足軽', '隣の屋敷の屋根から、鉄砲を撃ちかけてくる！', 3.5); } });
     // 勝ち筋：門は狭い。門の内の鉄砲組が、門の前に詰まった明智勢をそろって撃つ
     F.ngun = allyGroup(rt, { name: '御所の鉄砲組', anchor: { x: NIJO_GATE.x + 9, z: NIJO_GATE.z }, facing: -Math.PI / 2, width: 12, aggro: 4, noRout: true, formation: 'line' },
       dress([{ type: 'samurai', n: 1 }, { type: 'gun', n: 10 }], ODA));
-    rt.after(3, () => rt.say('織田信忠', '門は狭い。門の外へは出るな。明智勢が門の前に詰まった所を、鉄砲でそろって撃て', 4.5));
-    volleyAt(rt, { guns: () => [F.ngun], foes: () => F.waves, who: '織田信忠', near: 24, drop: 28, max: 60, say: '門の前に詰まったぞ……放てぇっ！', line: '御所の鉄砲がそろって火を吹いた。桔梗の旗が門の前でたじろぐ' });
     // 隣の屋敷の屋根からの鉄砲（音と煙）
     F.roofT = 50;
+    this.deep(rt, 'B');
   },
 
   // ④ 裏の口から落ちる
@@ -281,7 +280,8 @@ const honnoji = {
     rt.zone('out', OUT.x, OUT.z, 7);
     // 北の口の外に明智の兵が少し
     F.north = enemyGroup(rt, { faction: 'saito', name: '北の口の明智勢', anchor: { x: NIJO_BACK.x + 4, z: NIJO_BACK.z - 26 }, facing: 0, width: 8, aggro: 12, morale: 75, fleeDir: { x: 1, z: 0 }, dmgMult: 0.6 },
-      dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 6 }], AKECHI));
+      dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }], AKECHI));
+    KIT.backOf(rt, F.north, { flag: 'akechi', armor: 0x2a2a30, kind: 'spear', w: 10, depth: 8, count: 80, seed: 15853 });
     rt.marker('north', centerOf(F.north), () => `北の口の明智勢・${moraleWord(F.north.morale)}`, { red: true, group: F.north });
     // 甚兵衛たちは殿を務める
     F.mates.order = 'hold'; F.mates.anchor = { x: NIJO.x, z: NIJO.z - 8 };
@@ -313,18 +313,13 @@ const honnoji = {
     KIT.backTick(rt);
     if (F.ending) return;
     const p = rt.player.u.pos;
+    if (F.dpOn) depthTick(rt, dt);
     // 本能寺の方の鉄砲の音（はじめのうち）
     if (F.step <= 2 && Math.random() < dt * 0.6) { rt.army.play('gun', { x: HONNO.x + (Math.random() - 0.5) * 30, z: HONNO.z + (Math.random() - 0.5) * 30 }, 0.5); }
     if (F.step === 1) {
       rt.objProgress('main', `明智勢 ${F.cord.count}人`);
       if (F.cord.count < 5 && !gone(F.cord)) F.cord.morale = Math.min(F.cord.morale, 20);
       if (gone(F.cord) || rt.t - F.stepT > 120) this.burning(rt);
-    }
-    if (F.step === 2) {
-      const d = Math.hypot(p.x - (HONNO_GATE.x + 8), p.z - HONNO_GATE.z);
-      if (!F.newsHeard) rt.objProgress('main', `門まで ${Math.max(0, Math.round(d))}m`);
-      if (!F.newsHeard && d >= 9 && rt.t - F.stepT > 20 && !F.gateCall) { F.gateCall = true; rt.say('組頭 甚兵衛', `${nm(rt)}、門の前へ！　寺から誰か逃れて来ぬか、見に行くぞ`, 3.5); }
-      if (!F.newsHeard && (d < 9 || rt.t - F.stepT > 42)) this.news(rt);
     }
     if (F.step === 3) {
       const d = Math.hypot(p.x - NIJO_GATE.x, p.z - NIJO_GATE.z);
@@ -336,16 +331,12 @@ const honnoji = {
       if (d < 10 || rt.t - F.stepT > 120) { rt.unmark('patrol'); this.arrive(rt); }
     }
     if (F.step === 4) {
-      const L = F.waves || [];
-      const left = Math.max(0, 130 - (rt.t - F.stepT));
-      rt.objProgress('main', `明智勢 ${L.reduce((s, q) => s + (gone(q) ? 0 : q.count), 0)}人`);
-      for (const q of L) if (q.count < 5 && !gone(q)) q.morale = Math.min(q.morale, 20);
-      if ((F.roofT -= dt) <= 0 && L.length >= 2) {
+      // 隣の屋敷（近衛殿）の屋根からの鉄砲：黙らせるまで鳴り続ける
+      if (!(F.dpMem || {}).roofDone && (F.roofT -= dt) <= 0 && rt.t - F.stepT > 40) {
         F.roofT = 2 + Math.random() * 3;
         const x = NIJO.x - NIJO.h - 12, z = NIJO.z - 12 + Math.random() * 10;
         rt.army.play('gun', { x, z }, 0.7); rt.army.smoke(x, 4.5, z, 1, 0, 0.8);
       }
-      if ((L.length >= 2 && L.every(gone)) || left <= 0) this.escape(rt);
     }
     if (F.step === 5) {
       const d = Math.hypot(p.x - OUT.x, p.z - OUT.z);
@@ -361,7 +352,9 @@ const honnoji = {
     if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
   },
   onRout(rt, g) {
-    if (g.team !== 1) return;
+    const F = rt.flags;
+    if (rt.G.lord || g.team !== 1 || !g.name || /備の兵|控え/.test(g.name) || rt.t - (F.routSaidT || -99) < 8) return;
+    F.routSaidT = rt.t;
     rt.say('足軽', `${g.name}が退いた！`, 2.5);
   },
 };
@@ -369,15 +362,15 @@ const honnoji = {
 // ======================================================================
 // 信長で遊ぶ時の本能寺（rt.G.lord の時だけ。足軽の流れは上のまま）
 // 始まりは境内の奥。供は森蘭丸ら小姓衆と、わずかな者（二十数人）。明智の一万余りが築地を幾重にも囲む
-// ①弓と槍で表門を防ぐ ②表門・裏門が破られ、奥（御殿の裏）へ下がる ③御殿に火を放つ ④囲みを破って落ちのびる（勝ち）
+// ①弓と槍で表門を防ぐ（判断：門の内で射るか、打って出るか）②表門が破られる（判断：自ら槍を取るか、すぐ奥へ）
+// ③奥へ下がり、御殿に火を放つ ④囲みを破る（判断：小姓衆を連れるか、囮にするか）⑤築地の外で落ちる先を決める（妙覚寺か東山か）→ 着けば勝ち
 // 討たれる・炎に呑まれる＝史実どおりの最期（負け）
-// 囲みの破れ目は、時と場所で開く（火を放ってから）：
-//   北の裏門……はじめから開いているが、外に北の囲み。二十秒ほどで北の囲みが表へ回され、薄くなる
-//   西の築地……裏の松の枝を伝って越えられる（E 長押し）。四十秒ほどで西の囲みが表へ回され、薄くなる
-//   南の築地……六十秒ほどで火が回って崩れ、南の囲みは火と煙を避けて退く
-// 築地の外には四つの辻を固める明智勢（南の築地が崩れると、南西の辻は煙で浮き足立つ）。
-// 外へ出れば、明智の追手（騎馬）がかかる。本能寺から八十余り m 離れれば、京の町に紛れて落ちのびる
-// 百五十秒で炎が御殿を包む。その時まだ築地の内にいれば、最期
+// 囲みの破れ目は、時と場所で開く（火を放ってから。蘭丸らを囮にすれば早く開く）：
+//   北の裏門……はじめから開いているが、外に北の囲み。しばらくで北の囲みが表へ回され、薄くなる
+//   西の築地……裏の松の枝を伝って越えられる（E 長押し）。その後に西の囲みが表へ回され、薄くなる
+//   南の築地……火が回って崩れ、南の囲みは火と煙を避けて退く
+// 築地の外には四つの辻を固める明智勢。外へ出れば、明智の追手（騎馬）がかかる
+// 百七十秒で炎が御殿を包む。その時まだ築地の内にいれば、最期
 // ======================================================================
 const L_START = { x: HONNO.x - 8, z: HONNO.z - 12 };            // 始まり：境内の奥（御殿の北西）
 const OKU = { x: HONNO.x - 12.6, z: HONNO.z - 2 };              // 御殿の裏（奥）
@@ -385,7 +378,8 @@ const WALL_W = { x: HONNO.x - HONNO.h + 1.7, z: HONNO.z + 8 };  // 西の築地�
 const WALL_W_OUT = { x: HONNO.x - HONNO.h - 3.4, z: HONNO.z + 8 };
 const GATE_N = { x: HONNO.x, z: HONNO.z - HONNO.h };             // 裏門（北）
 const S_BREAK = { x: HONNO.x - 3, z: HONNO.z + HONNO.h };       // 火が回って崩れる南の築地
-const ESC_R = 76;                                                // 本能寺からこれだけ離れれば落ちのびた
+const MYO = { x: 22, z: -22 };                                   // 妙覚寺（信忠の宿所。北東の町）
+const HIGASHI = { x: 112, z: 50 };                               // 東山の麓（東の町はずれ）
 const inHonno = (x, z, m = 0) => Math.abs(x - HONNO.x) < HONNO.h + m && Math.abs(z - HONNO.z) < HONNO.h + m;
 function gateDoors(W, x, z, w, rotY) {
   const grp = new THREE.Group();
@@ -486,12 +480,31 @@ Object.assign(honnoji, {
     rt.obj('main', '弓と槍で、表門に寄せる明智勢を防げ', 'main');
     rt.marker('gE', { x: HONNO_GATE.x, z: HONNO_GATE.z }, () => `表門・${Math.max(0, Math.round(F.gE.hp / F.gE.maxHp * 100))}%`, { h: 3 });
     rt.say('森蘭丸', '供の者は、表門の内に弓を並べよ！　槍は門の脇じゃ！', 3.5);
+    // 判断①：表門の防ぎ方
+    F.gateHold = 100; F.gateMax = 170;
+    rt.after(4, () => rt.choose('表門をどう防ぐ？', [
+      { label: '門の内に弓を並べ、寄せる者を射る', note: '門は長く持つ。ただ、寄せは幾度も来る' },
+      { label: '門を開いて打って出て、先手を突き崩す', note: '先手は崩れ、門の前が空く。ただ、外は明智の大軍の前' },
+    ], (i) => {
+      F.sally = i === 1;
+      if (!F.sally) { F.gateHold = 140; rt.say('織田信長', '弓を持て。門に寄る者から射よ。……門は、そう容易くは破れぬ', 3.5); return; }
+      F.gateHold = 90; F.gateMax = 150;
+      rt.say('織田信長', '門を開け。……先手を突き崩して、すぐ戻る。続け！', 3);
+      rt.obj('sally', '門の外の明智の先手を崩し、門の内へ戻れ', 'side');
+      F.sallyT = rt.t;
+      for (const g of F.foes) if (!gone(g) && g.gate === F.gE) { g.order = 'attack'; g.seekRange = 60; g.assault = null; g.morale = Math.min(g.morale, 70); g.noRout = false; g.sallied = true; }
+    }, 16));
     const E = (dx, dz) => ({ x: HONNO_GATE.x + 16 + dx, z: HONNO_GATE.z + dz });
     rt.after(3, () => this.lordWave(rt, '明智の先手', E(0, -4), F.gE, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 14 }]));
     rt.after(10, () => this.lordWave(rt, '築地の外の鉄砲', E(-4, 9), null, [{ type: 'gun', n: 5 }, { type: 'bow', n: 3 }], { order: 'hold', aggro: 26 }));
     rt.after(22, () => this.lordWave(rt, '明智の二の手', E(4, 4), F.gE, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 14 }, { type: 'gun', n: 2 }]));
     rt.after(34, () => { this.lordWave(rt, '裏門へ回った明智勢', { x: GATE_N.x + 6, z: GATE_N.z - 14 }, F.gN, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 12 }]); rt.say('小姓', '裏門にも寄せてまいりました！', 3); rt.marker('gN', { x: GATE_N.x, z: GATE_N.z }, () => `裏門・${Math.max(0, Math.round(F.gN.hp / F.gN.maxHp * 100))}%`, { h: 3 }); });
     rt.after(48, () => this.lordWave(rt, '明智の三の手', E(0, 0), F.gE, [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 16 }]));
+    // 門が持つ間も、明智勢は切れ目なく寄せる（大きな波）
+    rt.after(66, () => { if (F.lstep === 1) { this.lordWave(rt, '明智の四の手', E(2, -6), F.gE, [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 14 }, { type: 'gun', n: 3 }]); rt.say('森蘭丸', '桔梗の旗が、通りを埋めて参ります！　矢を惜しむな！', 3); } });
+    rt.after(84, () => { if (F.lstep === 1) this.lordWave(rt, '築地を越えようとする明智勢', { x: HONNO.x + HONNO.h + 6, z: HONNO.z + 12 }, null, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }], { order: 'hold', aggro: 20 }); });
+    rt.after(100, () => { if (F.lstep === 1) this.lordWave(rt, '明智の五の手', E(0, 4), F.gE, [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 16 }]); });
+    rt.after(122, () => { if (F.lstep === 1) { this.lordWave(rt, '明智の大手', E(-2, 0), F.gE, [{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 16 }]); rt.say('小姓', '門の閂が、もう持ちませぬ！', 3); } });
   },
   // 明智の一隊（門があれば門を打ち、無ければ寺の内へ討ち入る）
   lordWave(rt, name, at, gate, list, o = {}) {
@@ -510,18 +523,49 @@ Object.assign(honnoji, {
   },
   lordGateDown(rt, gate) {
     const F = rt.flags;
+    if (gate.downDone) return;
+    gate.downDone = true;
     if (gate.alive) { gate.hp = 0; gate.alive = false; rt.army.structFall(gate); }
     rt.unmark(gate === F.gE ? 'gE' : 'gN');
     sfx('taiko', 0.8);
     rt.banner(`${gate.name}、破らる`, gate === F.gE ? '明智勢が境内へなだれ込む' : '裏からも明智勢が入ってくる');
     for (const g of F.foes) if (g.gate === gate) { g.order = 'attack'; g.seekRange = 140; g.aggro = 40; g.assault = null; }
-    if (gate === F.gE) this.lordBack(rt);
+    if (gate === F.gE) this.lordCourt(rt);
+  },
+  // 判断②：表門が破られた。自ら槍を取るか、すぐ奥へ下がるか
+  lordCourt(rt) {
+    const F = rt.flags;
+    if (F.lstep >= 1.5) return;
+    F.lstep = 1.5; F.stepT = rt.t;
+    rt.objDone('sally'); rt.objRemove('sally');
+    rt.say('森蘭丸', '殿！　門が破られました。奥へお下がりくだされ！', 3);
+    rt.choose('表門が破られた。どうする？', [
+      { label: '自ら槍を取り、境内で明智勢を押し返す', note: '供の者が奮い立つ。ただ、手傷を負うおそれ' },
+      { label: '蘭丸らに任せ、すぐに奥へ下がる', note: '火を放つ支度が早くできる。ただ、小姓衆が削られる' },
+    ], (i) => {
+      if (i === 1) {
+        // 小姓衆が身代わりに削られる（蘭丸は残す）
+        let n = 0;
+        for (const u of F.kosho.units) if (u.alive && u !== F.ran && n < 2) { u.invuln = false; rt.army.kill(u, null); n++; }
+        this.lordBack(rt);
+        return;
+      }
+      F.court = rt.t;
+      rt.say('織田信長', '槍を持て！　……わしの首が欲しくば、取りに来い', 3);
+      rt.obj('main', '境内で明智勢を押し返せ', 'main');
+      rt.marker('court', { x: HONNO.x + 8, z: HONNO.z - 2 }, '境内', { h: 2 });
+      for (const g of rt.squadGroups) { g.order = 'hold'; g.anchor = { x: HONNO.x + 6, z: HONNO.z - 12 }; g.aggro = 10; g.morale = Math.min(100, g.morale + 30); }
+      F.kosho.morale = 100;
+      this.lordWave(rt, '境内へなだれ込む明智勢', { x: HONNO_GATE.x + 10, z: HONNO_GATE.z + 4 }, null, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 10 }]);
+      rt.after(28, () => { if (F.lstep === 1.5) { this.lordWave(rt, '門から続く明智の新手', { x: HONNO_GATE.x + 12, z: HONNO_GATE.z - 4 }, null, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }]); rt.say('小姓', '新手が門から！　殿、もう十分にございます！', 3); } });
+    }, 16);
   },
 
   // ② 奥へ下がる
   lordBack(rt) {
     const F = rt.flags;
     if (F.lstep >= 2) return;
+    if (F.court) { rt.unmark('court'); if (!F.ending) rt.award((t) => t.side.push('自ら槍を取り、境内で明智勢を押し返した'), '自ら槍を振るった'); }
     F.lstep = 2; F.stepT = rt.t;
     rt.setPhase('back');
     rt.say('森蘭丸', '殿、ここは我らが防ぎまする。奥へお下がりくだされ！', 3.5);
@@ -577,16 +621,31 @@ Object.assign(honnoji, {
     rt.addInteract('wallW', WALL_W, '築地を越える（松の枝を伝う）', () => this.lordOverWall(rt), { r: 2.6, hold: 1.8, prio: 6 });
     rt.marker('outW', WALL_W, '西の築地（越えられる）', { h: 2.5 });
     rt.bark('落ち口は北の裏門と西の築地。西は松の枝を伝って越えよ。囲みの薄くなる時を見よ');
-    // 時とともに開く破れ目
-    rt.after(20, () => { if (F.ending) return; this.lordPull(rt, F.ringN); rt.bark('北の囲みが表へ回された。裏門の外が薄い！'); });
-    rt.after(40, () => { if (F.ending) return; this.lordPull(rt, F.ringW); rt.bark('西の囲みが表へ回された。西の築地の外が薄い！'); });
-    rt.after(60, () => { if (!F.ending) this.lordSouth(rt); });
+    // 判断③：小姓衆をどうするか。囲みの破れ目の開く時が変わる
+    const open = (a, b, c) => {
+      rt.after(a, () => { if (F.ending) return; this.lordPull(rt, F.ringN); rt.bark('北の囲みが表へ回された。裏門の外が薄い！'); });
+      rt.after(b, () => { if (F.ending) return; this.lordPull(rt, F.ringW); rt.bark('西の囲みが表へ回された。西の築地の外が薄い！'); });
+      rt.after(c, () => { if (!F.ending) this.lordSouth(rt); });
+    };
+    rt.choose('囲みを破る。小姓衆をどうする？', [
+      { label: '小姓衆を連れ、共に落ちる', note: '供が守ってくれる。ただ、囲みの破れ目は時を待たねばならぬ' },
+      { label: '蘭丸らに表で鬨を上げさせ、囲みを引きつける', note: '囲みが早く表へ回る。ただ、小姓衆は戻らぬ' },
+    ], (i) => {
+      if (i === 0) { open(20, 40, 60); rt.say('森蘭丸', 'お供つかまつる！　煙の薄い所を探しまする', 3); return; }
+      F.decoy = true;
+      F.koshoStay = Infinity; F.kosho.anchor = { x: HONNO_GATE.x - 3, z: HONNO_GATE.z }; F.kosho.aggro = 18;
+      rt.say('森蘭丸', '……承知。我ら、表で鬨を上げまする。殿、どうかご無事で', 4);
+      rt.after(3, () => rt.army.play('shout', { x: HONNO_GATE.x, z: HONNO_GATE.z }, 1.4));
+      rt.award((t) => t.side.push('蘭丸らに囲みを引きつけさせた'), '蘭丸らが囲みを引きつけた');
+      open(8, 18, 40);
+    }, 14);
     // 境内へ新手が入り続ける
     F.moreT = rt.t + 8;
   },
   // 囲みの一手を、表門の前へ回す（その辺りが手薄になる）
   lordPull(rt, g) {
     if (gone(g)) return;
+    if (g === rt.flags.ringN) rt.flags.nOpen = true; else rt.flags.wOpen = true;
     g.order = 'move'; g.dest = { x: HONNO_GATE.x + 18, z: HONNO_GATE.z + (g === rt.flags.ringN ? -12 : 12) }; g.speed = 2.6;
     g.onArrive = (q) => { q.order = 'hold'; q.anchor = { ...q.dest }; };
   },
@@ -638,7 +697,8 @@ Object.assign(honnoji, {
     rt.award((t) => { t.main = true; t.special = { label: '本能寺の囲みを破って落ちのびた', pts: 40 }; }, '任務達成・囲みを破った');
     sfx('kane', 0.5);
     rt.banner('本能寺を落ちのびる', '――もしも、信長が生きていたら');
-    rt.say('', '――煙と夜明けの闇に紛れ、信長は京の町へ落ちのびた。背の本能寺は、なお燃えている', 6);
+    rt.unmark('dest'); rt.unzone('dest'); rt.unmark('block');
+    rt.say('', F.dest && F.dest.i === 0 ? '――煙と夜明けの闇に紛れ、信長は妙覚寺の信忠のもとへたどり着いた。背の本能寺は、なお燃えている' : '――煙と夜明けの闇に紛れ、信長は東山の麓へ落ちのびた。背の本能寺は、なお燃えている', 6);
     rt.after(6, () => rt.say('', '――史実の信長は、ここで火をかけ自害した。享年四十九。遺体は見つからなかった', 5.5));
     rt.player.u.invuln = true;
     rt.finish({}, 13);
@@ -669,10 +729,25 @@ Object.assign(honnoji, {
     if (F.lstep === 1) {
       const t = rt.t - F.stepT;
       // 表門は四十五秒は持つ。裏門は六十秒（それより前に崩れそうでも、門の者が支える）
-      if (t < 45 && F.gE.alive && F.gE.hp < 200) F.gE.hp = 200;
-      if (t < 60 && F.gN.alive && F.gN.hp < 200) F.gN.hp = 200;
+      if (t < F.gateHold && F.gE.alive && F.gE.hp < 200) F.gE.hp = 200;
+      if (t < F.gateHold + 10 && F.gN.alive && F.gN.hp < 200) F.gN.hp = 200;
       rt.objProgress('main', `表門 ${Math.max(0, Math.round(F.gE.hp / F.gE.maxHp * 100))}%`);
-      if (!F.gE.alive || t > 95) this.lordGateDown(rt, F.gE);
+      // 打って出た先手を崩した
+      if (F.sally && !F.sallyDone) {
+        const S = F.foes.filter((g) => g.sallied);
+        if (S.every((g) => gone(g) || g.count <= 2)) {
+          F.sallyDone = true; rt.objDone('sally');
+          rt.award((t2) => t2.side.push('門を開いて打って出て、明智の先手を崩した'), '先手を崩した');
+          rt.say('森蘭丸', '先手が崩れました！　殿、門の内へお戻りを！', 3);
+          for (const g of S) if (!gone(g)) g.morale = 0;
+        } else if (rt.t - F.sallyT > 60) { F.sallyDone = true; rt.objFail('sally'); }
+      }
+      if (!F.gE.alive || t > F.gateMax) this.lordGateDown(rt, F.gE);
+    }
+    if (F.lstep === 1.5 && F.court) {
+      const left = Math.max(0, 55 - (rt.t - F.court));
+      rt.objProgress('main', `押し返す あと${Math.ceil(left)}秒`);
+      if (left <= 0) this.lordBack(rt);
     }
     if (F.gN.alive === false && !F.gNDown) { F.gNDown = true; if (F.lstep < 4) this.lordGateDown(rt, F.gN); }
     else if (F.gN.alive === false) F.gNDown = true;
@@ -690,15 +765,37 @@ Object.assign(honnoji, {
       if (g && F.lstep >= 4) g.focus = u;   // 火を放った後の新手は、信長の首を探す
     }
     if (F.lstep === 4) {
-      const left = Math.max(0, 150 - (rt.t - F.escT));
+      const left = Math.max(0, 170 - (rt.t - F.escT));
       const inside = inHonno(p.x, p.z, 0.5);
       const far = Math.hypot(p.x - HONNO.x, p.z - HONNO.z);
-      rt.objProgress('main', inside ? `炎が御殿を包むまで ${Math.round(left)}秒` : `本能寺から ${Math.round(far)}m／${ESC_R}m`);
+      if (!F.dest) rt.objProgress('main', inside ? `炎が御殿を包むまで ${Math.round(left)}秒` : `本能寺から ${Math.round(far)}m`);
       if (!inside && !F.outT) rt.objDone('side');
       if (!inside) { if (!F.outT) { F.outT = rt.t; F.chaseT = rt.t + 10; } }
-      if (F.chaseT && rt.t > F.chaseT && (F.chaseN || 0) < 4) { F.chaseT = rt.t + 15; this.lordChase(rt); }
+      if (F.chaseT && rt.t > F.chaseT && (F.chaseN || 0) < (F.chaseMax || 4)) { F.chaseT = rt.t + 15; this.lordChase(rt); }
       if (left <= 0 && inside) { this.lordEnd(rt, 'fire'); return; }
-      if (far >= ESC_R) this.lordWin(rt);
+      // 判断④：築地の外へ出たら、どこへ落ちるかを決める
+      if (!inside && !F.destAsk) {
+        F.destAsk = true;
+        rt.choose('築地の外へ出た。どこへ落ちる？', [
+          { label: '妙覚寺の信忠のもとへ（北東の町）', note: '近い。ただ、通りを明智の兵が固めている' },
+          { label: '東山へ走り、山に紛れる（東）', note: '遠い。追手の騎馬が幾度もかかる' },
+        ], (i) => {
+          F.dest = i === 0 ? { ...MYO, name: '妙覚寺', i } : { ...HIGASHI, name: '東山の麓', i };
+          rt.marker('dest', F.dest, F.dest.name, { h: 3 });
+          rt.zone('dest', F.dest.x, F.dest.z, 8);
+          rt.obj('main', `${F.dest.name}へ落ちのびよ`, 'main');
+          if (i === 0) {
+            const g = this.lordWave(rt, '通りを固める明智勢', { x: -4, z: 4 }, null, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 10 }], { order: 'hold', aggro: 16, dmgMult: 0.7 });
+            if (g) { g.noRout = false; rt.marker('block', centerOf(g), () => `通りを固める明智勢・${moraleWord(g.morale)}`, { red: true, group: g }); }
+            rt.say('小姓', '辻の先に桔梗の旗！　通りを固めております。脇をすり抜けるか、割るか……', 3.5);
+          } else { F.chaseMax = 6; rt.say('小姓', '東山までは遠うございます。追手に追いつかれぬよう、足を止めずに！', 3.5); }
+        }, 12);
+      }
+      if (F.dest) {
+        const dd = Math.hypot(p.x - F.dest.x, p.z - F.dest.z);
+        rt.objProgress('main', `${F.dest.name}まで ${Math.round(dd)}m`);
+        if (dd < 9 || (F.outT && rt.t - F.outT > 240)) this.lordWin(rt);
+      }
     }
   },
 });
@@ -729,19 +826,20 @@ function lordBot(b, inp, goTo) {
     goTo(p, inp, w[0], w[1], 1);
   };
   const step = F.lstep || 0;
-  if (step <= 1) { if (fight(8)) return; goTo(p, inp, HONNO.x + 6, HONNO.z, 2); return; }
-  if (step === 2) { if (fight(1.8)) return; follow('oku', [[HONNO.x - 4, HONNO.z - 11], [OKU.x, HONNO.z - 11], [OKU.x, OKU.z]]); return; }
+  if (step < 2) { if (fight(8)) return; follow('gate', [[HONNO.x - 2, HONNO.z - 14.5], [HONNO.x + 12, HONNO.z - 14.5], [HONNO.x + 12, HONNO.z]]); return; }   // 御殿の北を回って表門の内へ
+  if (step === 2) { if (fight(1.8)) return; follow('oku', [[HONNO.x + 12, HONNO.z - 14.5], [HONNO.x - 2, HONNO.z - 14.5], [OKU.x, HONNO.z - 11], [OKU.x, OKU.z]]); return; }
   if (step === 3) { const it = b.nearestInteract(); if (!it || it.id !== 'fire') { goTo(p, inp, OKU.x, OKU.z, 1); return; } inp.k.add('KeyE'); return; }   // 斬りかかられても、火を放つ手は止めない
   // ④ 落ち口：素直な bot は開いている所へすぐ走る（北の裏門）。賢い bot は南が崩れるまで待つ
   const smart = typeof window !== 'undefined' && window.__lordSmart;
   const inside = inHonno(u.pos.x, u.pos.z, 0.5);
-  if (!b.botRoute) b.botRoute = smart ? (F.sOpen ? 's' : '') : 'n';
+  if (!b.botRoute) b.botRoute = smart ? (F.sOpen ? 's' : '') : (F.nOpen ? 'n' : '');   // 素直な bot も、北の囲みが表へ回るまでは奥で待つ
   if (smart && !b.botRoute && F.sOpen) b.botRoute = 's';
   if (!b.botRoute) { if (fight(3)) return; goTo(p, inp, OKU.x, OKU.z + 4, 1.5); return; }
   if (!inside && fight(1.3)) return;   // 外では斬り合わず走る
   if (inside && fight(1.4)) return;
-  if (b.botRoute === 'n') follow('n', [[OKU.x, HONNO.z - 11], [GATE_N.x, GATE_N.z + 3], [GATE_N.x, GATE_N.z - 4], [HONNO.x + 24, HONNO.z - 36], [HONNO.x + 56, HONNO.z - 64]]);
-  else follow('s', [[OKU.x - 0.4, HONNO.z + 6], [OKU.x - 0.4, S_BREAK.z - 2], [S_BREAK.x - 3, S_BREAK.z - 1.5], [S_BREAK.x - 3, S_BREAK.z + 5], [HONNO.x - 20, HONNO.z + 38], [HONNO.x - 22, HONNO.z + 80]]);   // 辻の固めの脇をすり抜ける
+  const fin = F.dest ? [[F.dest.x, F.dest.z]] : [];
+  if (b.botRoute === 'n') follow('n', [[OKU.x, HONNO.z - 11], [GATE_N.x, GATE_N.z + 3], [GATE_N.x, GATE_N.z - 4], [HONNO.x + 24, HONNO.z - 36], ...fin]);
+  else follow('s', [[OKU.x - 0.4, HONNO.z + 6], [OKU.x - 0.4, S_BREAK.z - 2], [S_BREAK.x - 3, S_BREAK.z - 1.5], [S_BREAK.x - 3, S_BREAK.z + 5], [HONNO.x - 20, HONNO.z + 38], ...(fin.length ? fin : [[HONNO.x - 22, HONNO.z + 80]])]);   // 辻の固めの脇をすり抜ける
 }
 
 // 両軍の総勢（京にいた織田の者 千五百ほど。明智 一万三千ほど。数には諸説ある）
@@ -757,6 +855,77 @@ honnoji.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? (rt.G.lord ? '話�
 honnoji.skip = (rt) => { for (const tm of rt.timers) tm.t = Math.min(tm.t, 0.2); };
 honnoji.history = '天正十年（1582）六月二日の夜明け前、中国の毛利攻めに向かうはずだった明智光秀の軍一万三千ほどが、京の本能寺を囲んだ。わずかな供と泊まっていた織田信長は、明智の謀反と知って「是非に及ばず」と言い、自ら弓や槍を取って戦ったが、傷を負って奥へ入り、火を放って自害したと『信長公記』は伝える。森成利（蘭丸）ら小姓衆も討ち死にした。近くの妙覚寺にいた嫡男の信忠は、村井貞勝らと二条御所（二条新御所）に移り、誠仁親王を御所の外へ移してから戦ったが、明智勢は隣の近衛前久の屋敷の屋根から鉄砲を撃ちかけ、信忠も自害した。信長の遺体は見つからなかった。十一日後、中国から引き返した羽柴秀吉が山崎の戦いで光秀を破る。この戦の主人公と組頭の甚兵衛は、遊びのための人物である。兵の数には諸説ある。';
 
+// ---------------- 足軽の流れの段（b_depth.js） ----------------
+const uS = (n) => ({ type: 'samurai', n }), uA = (n) => ({ type: 'ashigaru', n }), uG = (n) => ({ type: 'gun', n }), uB = (n) => ({ type: 'bow', n });
+function hCtx(rt) {
+  const F = rt.flags;
+  return { faction: 'saito', flag: 'akechi', armor: 0x2a2a30, dmg: 0.6, mass: 160, scale: 1.4, look: (l) => dress(l, AKECHI),
+    friends: () => [F.mates].filter((g) => g && g.count) };
+}
+// A：燃える本能寺の前。表門へ斬り込むか、裏へ回って逃れた者を探すか
+function stepsA(rt) {
+  const gate = { x: HONNO_GATE.x + 12, z: HONNO_GATE.z };
+  const back = { x: HONNO.x + 4, z: HONNO.z - HONNO.h - 10 };
+  return [
+    pick({ title: '本能寺が燃えている。どうする？', time: 18,
+      options: [{ label: '表門の明智勢へ斬り込み、上様のもとへ', note: '明智の大軍の真ん中へ。苦しいが、門の内の様子が分かる' },
+        { label: '寺の裏へ回り、逃れて来る者を探す', note: '囲みの薄い所を行く。裏の明智勢とぶつかる' }],
+      on: (rt2, m, i) => { m.charge = i === 0; rt2.say('組頭 甚兵衛', m.charge ? 'よう言うた！　門の前の明智勢を割って、寺の内を見るぞ' : '裏じゃな。寺から逃れる者がおれば、上様のことが分かる', 3.5); } }),
+    fight({ skip: (rt2, m) => !m.charge, at: gate, title: '本能寺の表門', sub: '門の前に、桔梗の旗が幾重にも並ぶ', obj: '表門の前の明智勢を割れ',
+      say: [['組頭 甚兵衛', '固まって当たれ！　ばらけたら、あの数に呑まれるぞ']],
+      foes: () => [{ name: '表門を囲む明智勢', from: { x: HONNO_GATE.x + 16, z: HONNO_GATE.z + 8 }, list: [uS(3), uA(10)], mass: 220, noRout: 15 }],
+      later: [
+        { t: 25, say: ['足軽', '門の脇に鉄砲が並んだ！'], foes: () => [{ name: '門の脇の鉄砲衆', from: { x: HONNO_GATE.x + 10, z: HONNO_GATE.z - 12 }, list: [uS(1), uG(5)], formation: 'line', mass: 60 }] },
+        { t: 50, say: ['組頭 甚兵衛', '南の通りから新手じゃ！　押し返せ、もう一息！'], foes: () => [{ name: '南から来る明智の新手', from: { x: HONNO_GATE.x + 20, z: HONNO_GATE.z + 22 }, list: [uS(2), uA(8)], mass: 140 }] },
+      ], reward: '本能寺の表門へ斬り込んだ' }),
+    fight({ skip: (rt2, m) => m.charge, at: back, title: '本能寺の裏', sub: '裏の築地の外にも、明智の兵が固めている', obj: '裏を固める明智勢を破れ',
+      foes: () => [{ name: '裏を固める明智勢', from: { x: HONNO.x - 6, z: HONNO.z - HONNO.h - 18 }, list: [uS(2), uA(9)], mass: 130 }],
+      later: [
+        { t: 28, say: ['足軽', '西からも来る！　弓じゃ！'], foes: () => [{ name: '西の辻の明智勢', from: { x: HONNO.x - 30, z: HONNO.z - HONNO.h - 8 }, list: [uS(1), uA(6), uB(4)], mass: 90 }] },
+        { t: 55, foes: () => [{ name: '裏へ回った明智の侍衆', from: { x: HONNO.x + 20, z: HONNO.z - HONNO.h - 20 }, list: [uS(3), uA(5)], mass: 60 }] },
+      ], reward: '本能寺の裏の囲みを破った' }),
+  ];
+}
+// B：二条御所。門を閉ざすか打って出るか → 門を守る → 屋根の鉄砲をどうするか → 最後の寄せ
+function stepsB(rt) {
+  const F = rt.flags;
+  const gateIn = { x: NIJO_GATE.x + 2, z: NIJO_GATE.z };
+  const volley = () => volleyAt(rt, { guns: () => [F.ngun], foes: () => (F.dp && F.dp.cur ? F.dp.cur.groups : []), who: '織田信忠', near: 24, drop: 28, max: 50, say: '門の前に詰まったぞ……放てぇっ！', line: '御所の鉄砲がそろって火を吹いた。桔梗の旗が門の前でたじろぐ' });
+  return [
+    pick({ title: '明智勢が御所へ寄せて来る。門をどう守る？', time: 18,
+      pre: (rt2) => rt2.say('織田信忠', '門は狭い。明智勢が門の前に詰まった所を、鉄砲でそろって撃てる', 4),
+      options: [{ label: '門を閉ざし、鉄砲で撃ち崩す', note: '門の内で待つ。寄せは大きいが、鉄砲が助ける' },
+        { label: '門の外へ打って出て、寄せの先を崩す', note: '先を崩せば後が楽になる。外は囲まれやすい' }],
+      on: (rt2, m, i) => { m.sally = i === 1; } }),
+    fight({ skip: (rt2, m) => !m.sally, at: { x: 22, z: -54 }, title: '打って出る', sub: '御所の門を開き、寄せる明智勢の先へ', obj: '寄せる明智勢の先を崩せ',
+      foes: () => [{ name: '明智の先手', from: { x: 2, z: -50 }, list: [uS(2), uA(10)], mass: 160 }],
+      later: [{ t: 30, say: ['足軽', '北の通りからも来る！　門へ戻れぬようになるぞ！'], foes: () => [{ name: '北から回る明智勢', from: { x: 27, z: -90 }, list: [uS(1), uA(7)], mass: 80 }] }],
+      reward: '打って出て明智の先手を崩した', onEnd: (rt2, m, won) => { m.sallyWon = won; } }),
+    hold({ at: gateIn, dur: 110, r: 12, title: '二条御所の門', sub: '桔梗の旗が、通りを埋めて寄せて来る', label: '西の門', obj: '二条御所の西の門を守れ',
+      say: [['織田信忠', '門の外へは出るな。詰まった所を撃つ。槍は門の口を固めよ']],
+      waves: (rt2, m) => { volley(); return [
+        { t: 4, say: ['足軽', '桔梗の旗が、通りを埋めて来る！'], foes: () => [{ name: '明智勢', from: { x: 27, z: -10 }, list: [uS(2), uA(m.sallyWon ? 8 : 12), uG(2)], mass: 200 }] },
+        { t: 32, say: ['足軽', '北の通りから新手じゃ！'], foes: () => [{ name: '明智勢の新手', from: { x: 27, z: -100 }, list: [uS(2), uA(10), uG(2)], mass: 180 }] },
+        { t: 62, say: ['村井貞勝', '正面の通りからも！　これが大きな寄せじゃ、崩れるな！'], foes: () => [{ name: '明智の侍衆', from: { x: -4, z: -54 }, list: [uS(3), uA(10)], mass: 200 }] },
+      ]; }, reward: '二条御所の門を守った' }),
+    rest({ dur: 8, heal: 0.5, say: [['村井貞勝', '寄せが引いた……じゃが、隣の屋敷の屋根から鉄砲を撃ちかけて来ておる'], ['足軽', '屋根の上に、鉄砲がずらりと……']] }),
+    pick({ title: '隣の屋敷の屋根から、明智の鉄砲が撃ちかけて来る。どうする？', time: 18,
+      options: [{ label: '屋敷へ斬り込み、屋根の鉄砲を黙らせる', note: '門を離れる。ただ、撃たれ続けずに済む' },
+        { label: '御所の内へ下がり、塀の陰で最後の寄せを受ける', note: '門の内で戦える。ただ、鉄砲に撃たれ続ける' }],
+      on: (rt2, m, i) => { m.roof = i === 0; } }),
+    fight({ skip: (rt2, m) => !m.roof, at: { x: NIJO.x - NIJO.h - 12, z: NIJO.z - 8 }, title: '隣の屋敷', sub: '屋根の上の鉄砲衆と、その下を守る明智勢', obj: '屋根の鉄砲を黙らせよ',
+      foes: () => [{ name: '屋敷の鉄砲衆', from: { x: NIJO.x - NIJO.h - 16, z: NIJO.z - 14 }, list: [uS(1), uG(5)], formation: 'line', mass: 0, dmg: 0.45 },
+        { name: '屋敷を守る明智勢', from: { x: NIJO.x - NIJO.h - 20, z: NIJO.z - 4 }, list: [uS(1), uA(6)], mass: 50, dmg: 0.55 }],
+      reward: '屋根の鉄砲を黙らせた', onEnd: (rt2, m, won) => { m.roofDone = won; } }),
+    hold({ at: { x: NIJO_GATE.x + 6, z: NIJO.z + 2 }, dur: 80, r: 12, title: '最後の寄せ', sub: '明智勢が、御所の四方から寄せて来る', label: '御殿の前', obj: '御殿の前で、最後の寄せを凌げ',
+      say: [['織田信忠', '……これが最後の寄せじゃ。凌げば、そなたらを落とす間ができる']],
+      waves: (rt2, m) => [
+        { t: 4, say: ['足軽', '門が破られた！　なだれ込んで来る！'], foes: () => [{ name: '御所へなだれ込む明智勢', from: { x: NIJO_GATE.x - 4, z: NIJO_GATE.z }, list: [uS(2), uA(10)], mass: 150 }] },
+        { t: 30, foes: () => [{ name: '塀を越える明智勢', from: { x: NIJO.x - 4, z: NIJO.z + NIJO.h + 6 }, list: m.roofDone ? [uS(2), uA(6)] : [uS(2), uA(6), uG(4)], mass: 80 }] },
+      ], reward: '最後の寄せを凌いだ' }),
+  ];
+}
+
 // 素直な遊び手：通りの明智勢を破り、本能寺の門の前で話を聞き、二条御所の門を守り、北の口から落ちる
 honnoji.botBrain = (b, inp, { goTo }) => {
   if (b.G.lord) { lordBot(b, inp, goTo); return; }
@@ -764,6 +933,7 @@ honnoji.botBrain = (b, inp, { goTo }) => {
   inp.quickCmd = null;
   inp.k.delete('KeyW'); inp.k.delete('KeyE');
   if (!u.alive || F.ending) return;
+  if (F.dpOn && F.dp && F.dp.on) { depthBot(b, inp, goTo); return; }
   if (u.hp < u.maxHp * 0.45 && F.step !== 5) b.botRest = true;
   if (b.botRest && u.hp > u.maxHp * 0.85) b.botRest = false;
   const rest = F.step >= 3 ? { x: NIJO.x - 4, z: NIJO.z } : { x: START.x, z: START.z };
@@ -786,10 +956,9 @@ honnoji.botBrain = (b, inp, { goTo }) => {
     goTo(p, inp, w[0], w[1], 1.2);
   };
   if (F.step <= 1) { if (F.step === 1 && !gone(F.cord)) { const c = F.cord.center(); if (u.pos.x > -20) { follow('a', [[-27, 27]]); return; } goTo(p, inp, c.x, c.z, 2); return; } return; }
-  if (F.step === 2) { follow('b', [[-27, 27], [-27, 54], [HONNO_GATE.x + 8, HONNO_GATE.z]]); return; }
   if (F.step === 3) { if (F.patrolOn && !gone(F.patrol)) { const c = F.patrol.center(); goTo(p, inp, c.x, c.z, 2); return; } follow('c', [[-27, 54], [-27, -27], [27, -27], [27, -54], [NIJO_GATE.x - 3, NIJO_GATE.z]]); return; }
-  if (F.step === 4) { const q = (F.waves || []).find((x) => !gone(x)); if (q) { const c = q.center(); if (Math.hypot(c.x - NIJO_GATE.x, c.z - NIJO_GATE.z) < 30) { goTo(p, inp, c.x, c.z, 2); return; } } goTo(p, inp, NIJO_GATE.x - 1, NIJO_GATE.z, 2); return; }
-  if (F.step === 5) follow('d', [[NIJO_GATE.x + 4, NIJO_GATE.z], [NIJO.x, NIJO.z - 4], [NIJO_BACK.x, NIJO_BACK.z + 2], [NIJO_BACK.x, NIJO_BACK.z - 6], [OUT.x, OUT.z]]);
+  if (F.step === 4 || F.step === 2) { goTo(p, inp, NIJO_GATE.x + 3, NIJO_GATE.z, 2); return; }
+  if (F.step === 5) follow('d', [[NIJO_GATE.x + 5, NIJO.z - 12], [NIJO.x, NIJO.z - 13], [NIJO_BACK.x, NIJO_BACK.z + 2], [NIJO_BACK.x, NIJO_BACK.z - 6], [OUT.x, OUT.z]]);
 };
 
 export { honnoji };

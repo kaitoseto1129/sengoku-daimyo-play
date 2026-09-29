@@ -131,11 +131,14 @@ export const LOD = { near: 16, on: true };
 // 遠い兵（カメラから far m より先）は、一人ずつの形をやめて軽い兵の形でまとめて描く（world.makeImpostor。描く回数を減らす）
 // 騎馬・武将・名のある者・倒れかけの者は、そのまま一人ずつ描く
 export const IMP = { on: true, far: 48 };
+// 軽い兵をまとめて描く（Army.batchDraw）。?nobatch で切る（比べる時）
+export const BATCH = { on: typeof location === 'undefined' || !/[?&]nobatch\b/.test(location.search) };
 // 待つ兵の小さな動き（idleFx・遠くの兵の揺れ）。見比べる時は on を false に
 export const IDLE = { on: true };
 function lodSwap(mesh, hi, lo, near) {
   mesh.geometry = hi;
   if (hi === lo) return;
+  mesh.userData.lod = [hi, lo, near];   // まとめて描く時（Army.batchDraw）に、遠さに合う形を選ぶ
   mesh.onBeforeRender = (r, s, cam) => {
     const e = mesh.matrixWorld.elements, c = cam.matrixWorld.elements;
     const dx = e[12] - c[12], dy = e[13] - c[13], dz = e[14] - c[14];

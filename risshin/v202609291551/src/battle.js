@@ -231,14 +231,14 @@ function buildStandard(kind, mon, fac, own) {
 const FOE_TONGUE = {
   takeda: { waver: ['甲斐の者が退くか！', 'お屋形様の御前ぞ、踏みとどまれ！'], push: ['風林火山の旗を見よ！', '甲斐の武者に続け！'] },
   imagawa: { waver: ['駿河の衆、崩れるな！', 'ここは御本陣の前ぞ！'], push: ['駿河勢の数を見よ！', '尾張の小勢、踏み潰せ！'] },
-  saito: { waver: ['美濃の者が逃げるか！', '城へ戻れ、城へ！'], push: ['美濃の地ぞ、追い返せ！'] },
-  azai: { waver: ['近江の者、退くな！', '小谷の殿に顔向けできぬ！'], push: ['浅井の意地を見せよ！'] },
-  asakura: { waver: ['越前へ戻るぞ！', '一乗谷まで持たぬ……！'], push: ['越前の衆、かかれ！'] },
+  saito: { waver: ['美濃の者が逃げるか！', '城へ戻れ、城へ！', '稲葉山まで退け！'], push: ['美濃の地ぞ、追い返せ！', '尾張のうつけの兵ぞ、恐れるな！', '美濃の衆、押し出せ！'] },
+  azai: { waver: ['近江の者、退くな！', '小谷の殿に顔向けできぬ！', '姉川を渡って退け！'], push: ['浅井の意地を見せよ！', '裏切り者の織田を討て！', '近江の衆、押し込め！'] },
+  asakura: { waver: ['越前へ戻るぞ！', '一乗谷まで持たぬ……！', '国へ帰らせてくれ……！'], push: ['越前の衆、かかれ！', '朝倉の名にかけて！', '三つ盛木瓜の旗に続け！'] },
   namu: { waver: ['南無阿弥陀仏……！', '退けば地獄ぞ、退くな！'], push: ['進めば極楽、退けば地獄！', '南無阿弥陀仏！'] },
-  mori: { waver: ['安芸の者、崩れるな！'], push: ['毛利の旗の下に集え！'] },
-  uesugi: { waver: ['毘の旗を守れ！'], push: ['毘沙門天の加護ぞ！', '越後の衆、かかれ！'] },
-  miyoshi: { waver: ['阿波へ戻れ！'], push: ['三好の衆、押し返せ！'] },
-  akechi: { waver: ['惟任の衆、退くな！'], push: ['敵は本能寺にあり！'] },
+  mori: { waver: ['安芸の者、崩れるな！', '船へ戻れ、船へ！'], push: ['毛利の旗の下に集え！', '三本の矢の結束を見よ！'] },
+  uesugi: { waver: ['毘の旗を守れ！', '越後へ引け！'], push: ['毘沙門天の加護ぞ！', '越後の衆、かかれ！', '懸かり乱れ龍の旗ぞ！'] },
+  miyoshi: { waver: ['阿波へ戻れ！', '畿内を捨てるか……！'], push: ['三好の衆、押し返せ！', '都は渡さぬ！'] },
+  akechi: { waver: ['惟任の衆、退くな！', '坂本へ引け！'], push: ['敵は本能寺にあり！', '桔梗の旗に続け！', '天下はもう我らの物ぞ！'] },
 };
 const VOICE = {
   waverA: ['持たぬ……！', '押されておるぞ！', '下がれ、下がれ！', '足が止まらぬ……！', 'だめじゃ、押し返せぬ！', '列が崩れる！'],
@@ -249,23 +249,38 @@ const VOICE = {
   subDie: ['ぐあっ…！', '{boss}、お先に…', 'やられた…！', 'む、無念…', '母上……'],
   shaky: ['お、おう……', '……は、はい', 'う、承知……', 'は、ははっ……'],
   rout: ['敵が崩れて逃げていく！', '敵が背を見せた！　追え！', '敵が崩れた！　今ぞ、押せ！', '敵が槍を捨てて逃げていく！'],
-  regroup: ['敵が下がって立て直そうとしている。今が押し時！', '敵が退いて列を組み直す。休ませるな！'],
-  gunLine: ['鉄砲衆が並んで構えた！　物陰へ、味方の陰へ！', '鉄砲の列が火蓋を切るぞ！　身を低く！'],
+  regroup: ['敵が下がって立て直そうとしている。今が押し時！', '敵が退いて列を組み直す。休ませるな！', '敵が息を継いでおる。今のうちに寄せよ！', '敵の列が乱れておる。組み直す前に突け！'],
+  gunLine: ['鉄砲衆が並んで構えた！　物陰へ、味方の陰へ！', '鉄砲の列が火蓋を切るぞ！　身を低く！', '筒先が揃うた！　撃たれる前に伏せよ！', '火縄の煙が上がる……一斉に来るぞ！'],
   gunOne: ['敵の鉄砲が構えた！　伏せよ！', '火縄の匂いじゃ……撃って来るぞ！', '鉄砲が狙っておる！　伏せよ！'],
-  gunAtMe: ['鉄砲だ！　狙われているぞ', '鉄砲がこちらを狙っておる！'],
-  reload: ['今じゃ！　弾を込めている間に詰めよ！', '玉込めの隙じゃ！　一気に寄せよ！'],
-  encircle2: ['囲まれた！　退き口が塞がる、一点を破って抜けよ！', '四方から敵じゃ！　一所を破って抜けよ！'],
-  encircle1: ['敵が左右から回り込んで来る……囲まれつつあるぞ！', '横へ回られるぞ！　囲まれる前に動け！'],
-  arrow: ['矢が来る！', '矢じゃ、顔を上げるな！', '矢の雨じゃ！'],
-  cavStop: ['騎馬を槍衾で止めたぞ！', '馬が止まった！　槍で突き落とせ！'],
-  cavStopFence: ['騎馬が柵に当たって止まった！　今じゃ、突け！', '馬が柵で足を止めた！　突き伏せよ！'],
+  gunAtMe: ['鉄砲だ！　狙われているぞ', '鉄砲がこちらを狙っておる！', '筒先がこっちを向いた！', '狙い撃ちじゃ、足を止めるな！'],
+  reload: ['今じゃ！　弾を込めている間に詰めよ！', '玉込めの隙じゃ！　一気に寄せよ！', '次の玉まで間がある、走れ！', '撃ち終えたぞ！　今のうちに寄せよ！'],
+  encircle2: ['囲まれた！　退き口が塞がる、一点を破って抜けよ！', '四方から敵じゃ！　一所を破って抜けよ！', '後ろにも敵じゃ！　固まって一方を破れ！', '取り籠められた！　薄い所を突き抜けよ！'],
+  encircle1: ['敵が左右から回り込んで来る……囲まれつつあるぞ！', '横へ回られるぞ！　囲まれる前に動け！', '敵の翼が伸びて来る。退き口を見ておけ！', '脇へ回る敵がおる！　背を取られるな！'],
+  arrow: ['矢が来る！', '矢じゃ、顔を上げるな！', '矢の雨じゃ！', '笠を傾けよ、矢じゃ！'],
+  cavStop: ['騎馬を槍衾で止めたぞ！', '馬が止まった！　槍で突き落とせ！', '馬が棹立ちじゃ！　引きずり下ろせ！', '槍の穂先に馬がひるんだ！'],
+  cavStopFence: ['騎馬が柵に当たって止まった！　今じゃ、突け！', '馬が柵で足を止めた！　突き伏せよ！', '柵の前で馬が詰まった！　隙間から突け！'],
   cavCome: ['騎馬が来るぞ！', '騎馬じゃ！　槍を揃えよ！', '馬蹄の音じゃ……騎馬が来る！'],
-  leader: ['組頭を討ち取った！　敵が乱れているぞ', '敵の頭を討った！　敵が浮き足立つ！'],
+  leader: ['組頭を討ち取った！　敵が乱れているぞ', '敵の頭を討った！　敵が浮き足立つ！', '頭を失うて、敵がうろたえておる！', '敵の組頭が倒れた！　押し込め！'],
   focusDone: ['討ち取りました！', '首尾よく仕留めましたぞ！', 'あやつを討ち取った！'],
   praise: ['ようやった！', '見事じゃ、その調子で押せ', 'よし、よう働いた！', 'やるではないか', 'その槍、見事なり！', 'それでこそ男じゃ！'],
   praiseLord: ['お見事にござる！', '殿、さすがの御働き！', '殿に続け！　押せ押せ！', '敵が崩れまするぞ！', '天晴れ、殿！'],
-  retreatMe: ['下がれ！　死ぬぞ！', '一人で出るな、下がれ！', '死に急ぐな、下がれ！'],
-  flag: ['旗を守れ！　旗を立てよ！', '旗を倒すな！　立てい！'],
+  retreatMe: ['下がれ！　死ぬぞ！', '一人で出るな、下がれ！', '死に急ぐな、下がれ！', '深入りじゃ、戻れ！'],
+  flag: ['旗を守れ！　旗を立てよ！', '旗を倒すな！　立てい！', '旗が傾いた！　誰ぞ支えよ！', '旗を拾え！　皆の目印ぞ！'],
+  // 開戦（はじめて槍を合わせた時）。低い身分は組頭が、高い身分は組の者が言う
+  openLow: ['槍を揃えよ！　かかれ！', '腰を落とせ、ひるむな！', '突け、突け！　一人で出るな！', '肩を並べよ、ここが死に場所ぞ！'],
+  openHigh: ['{boss}に続け！', '{boss}の御前ぞ、遅れるな！', 'かかれ、かかれい！', '一番槍は我らの組ぞ！'],
+  openLord: ['殿の御前ぞ、かかれ！', '織田の旗を前へ！', '者ども、殿に遅れるな！', '木瓜の旗に続け！'],
+  // 押す（敵がひるんだ時）
+  push: ['押せ、押せ！', '敵は崩れかけておる！', 'もう一押しじゃ！', '今ぞ、槍を入れよ！', '足を止めるな、押し込め！'],
+  // 武将を討った時（味方の喜び）
+  bushoKilled: ['敵の大将が倒れたぞ！', '名のある武者を討ったり！', '旗が倒れた！　敵が崩れる！', '大将首じゃ！　皆に知らせよ！'],
+  // 味方の武将が倒れた時
+  allyBushoFall: ['味方の侍大将が討たれた……！', 'お味方の旗が倒れたぞ！', '大将が……持ちこたえよ！', '馬印が倒れた！　踏みとどまれ！'],
+  // 勝ち（主の任務が済み戦が終わる時）
+  winLow: ['生きておるか。勝ち戦ぞ！', 'ようやった。皆、よう生き残った', '勝った……勝ったぞ！', '槍を立てよ。勝鬨じゃ！'],
+  winHigh: ['{boss}、勝ち戦にござる！', '勝ちましたぞ、{boss}！', 'ご無事で何より。勝ち戦じゃ！', '{boss}の采配のおかげにござる！'],
+  // 退く（味方の隊が崩れた時・負け戦）
+  withdraw: ['退き口を守れ、背を見せるな！', '固まって退け！　散れば討たれる！', '殿を残して下がれ！', '無駄死にするな、引け！', '負傷の者を担げ、置いて行くな！'],
 };
 // 近くに使った言葉を避けて一つ選ぶ（鍵ごとに、束の半分まで覚える）。{boss} は呼び名に替える
 function voice(rt, key, extra = null, boss = '') {
@@ -326,6 +341,7 @@ export class Battle {
       onWaver: (g) => {
         const line = g.team === 0 ? voice(this, 'waverA') : voice(this, 'waverB', foeTongue(this, 'waver'));
         this.bark(`${g.team === 0 ? '味方' : '敵'}の足軽「${line}」`, g.team === 0);
+        if (g.team !== 0 && (this.pushSayT ?? -99) + 20 < this.t && this.distTo(g.center()) < 50) { this.pushSayT = this.t; this.after(1.8, () => { if (!this.over) this.bark(`味方「${voice(this, 'push')}」`); }); }
         const u = g.units.find((x) => x.alive);
         if (u) this.army.play('cry', u.pos, 0.9);
       },
@@ -411,6 +427,8 @@ export class Battle {
     this.hintQ = [];      // 後に回したヒント
     this.holdLeft = 0;    // 手ほどきの間に、敵の寄せを遅らせてよい残りの秒
     this.player = new Player(this, def.spawn);
+    // 描く直前（行列を新しくした後）に、遠い軽い兵の部品をまとめる（Army.batchDraw）
+    { const ob = this.scene.onBeforeRender; this.scene.onBeforeRender = (r, sc, cam, rt) => { ob.call(sc, r, sc, cam, rt); if (this.army) this.army.batchDraw(cam); }; }
     // 馬上で始まるときは、乗り方を一度だけ教える
     if (this.player.mounted) this.after(4, () => this.hint('ride'));
     this.army.playerUnit = this.player.u;
@@ -573,6 +591,14 @@ export class Battle {
   banner(t, s) { this.hud.banner(t, s); }
   // 束ねて出さない知らせは、HUD に渡す前に止める（同じ知らせを何度も呼ばない）
   bark(text, warn) { if (this.hud.barkOk && !this.hud.barkOk(text, warn)) return; this.hud.bark(text, warn); }
+  // 場面の声（開戦・勝ち）：殿なら旗本、組があれば組の者、無ければ組頭が言う。言葉づかいは身分で変える
+  cry(k) {
+    const lord = !!this.G.lord, sub = this.squad && this.squad.find((x) => x.alive);
+    const boss = lord ? '殿' : this.G.rank >= 4 ? '御大将' : this.G.rank >= 3 ? 'お頭' : '組頭';
+    const who = lord ? '旗本' : sub ? (sub.name || '組の者') : '組頭';
+    const key = k + (lord && k === 'open' ? 'Lord' : lord || sub ? 'High' : 'Low');
+    this.say(who, voice(this, key, null, boss), 2);
+  }
 
   hint(id) {
     if (!S.hints || hintSeen(id) || !HINTS[id]) return;
@@ -1077,6 +1103,11 @@ export class Battle {
       this.army.play('cry', v.pos, 1.3); this.after(0.35, () => this.army.play('eshout', v.pos, 1.2));
       if (this.distTo(v.pos) < 70) { this.hud.cineFlash(2.2); if ((this.hushT ?? -99) + 20 < this.t) { this.hushT = this.t; hush(2.5); } }
       for (const st of (v.group && v.group.stds) || []) if (st.userData && st.userData.std) st.userData.std.dipT = 1.6;
+      if (!this.over && (this.bushoSayT ?? -99) + 10 < this.t && this.distTo(v.pos) < 90) {
+        this.bushoSayT = this.t;
+        if (v.team !== 0) this.after(1.4, () => { if (!this.over) this.bark(`味方「${voice(this, 'bushoKilled')}」`); });
+        else this.after(0.8, () => { if (!this.over) this.bark(`味方の足軽「${voice(this, 'allyBushoFall')}」`, true); });
+      }
     }
     // 名のある敵将が味方に討たれた時は、戦っていなければその方へ一瞬目を向ける（大事な瞬間を見逃さない）
     if (v.name && v.type === 'busho' && v.team !== 0 && !(k && k.isPlayer) && !this.player.lock && !(this.player.inCombatT > 0) && this.distTo(v.pos) < 70) this.player.cine = { x: v.pos.x, z: v.pos.z, t: 1.2 };
@@ -1142,6 +1173,7 @@ export class Battle {
       this.army.play('cry', c, 1.6);
       this.after(0.3, () => this.army.play('cry', c, 1.2));
     }
+    else if (!this.over && (this.withdrawT ?? -99) + 25 < this.t && this.distTo(g.center()) < 60) { this.withdrawT = this.t; this.bark(`味方の侍「${voice(this, 'withdraw')}」`, true); }
     if (this.def.onRout) this.def.onRout(this, g);
   }
 
@@ -1431,6 +1463,7 @@ export class Battle {
     }
     this.t += dt;
     this.pt += dt;
+    if (!this.openSaid && this.player.inCombatT > 0 && this.t > 4 && !this.over && !this.def.dojo) { this.openSaid = true; this.cry('open'); }
     // 手ほどきの間は、戦の段取り（after の時計）をゆっくり進め、敵の寄せを遅らせる（def.tutorialHold の秒まで）
     let tdt = dt;
     if (this.holdLeft > 0) {
@@ -1749,9 +1782,11 @@ export class Battle {
       const n = this.army.units.filter((o) => o.alive && o.team === 0).length;
       const v = 0.55 + Math.min(0.55, n / 160);
       for (const t of [1.1, 3.3, 5.5]) this.after(t, () => sfx('eiei', v));
+      if (!this.def.dojo) this.after(2, () => this.cry('win'));
     } else if (!info.down && this.tracker.main === false) {
       // 負け戦：退き鉦が鳴り、遠くで敵の勝鬨が上がる
       sfx('sig_hike', 0.7);
+      this.after(1, () => this.bark(`味方の侍「${voice(this, 'withdraw')}」`, true));
       this.after(2.4, () => { hush(4); sfx('far', 0.8); });
     }
     this.tutEnd();

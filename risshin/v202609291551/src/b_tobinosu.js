@@ -532,6 +532,7 @@ export const tobinosu = {
       rt.award((t) => t.side.push('見つからずに寄せた'), '副任務：見つからずに寄せた');
     }
     rt.objDone('wait'); rt.objRemove('wait');
+    rt.after(5, () => { rt.objRemove('yose'); if (!F.detected) rt.objRemove('stealth'); });
     // 見張りは砦へ逃げ込む
     F.watch.forEach((g, i) => { rt.unmark('watch' + i); rt.scene.remove(g.ringM); if (g.count) { g.noRout = false; g.morale = 0; } });
     // 列が着いていなければ、そのまま寄せ場へ急がせる
@@ -795,6 +796,7 @@ export const tobinosu = {
     this.fortFell(rt, 4);
     rt.unmark('fort'); rt.unmark('mouth'); rt.unmark('nobu');
     rt.objDone('forts'); rt.objDone('nobuzane');
+    rt.after(4, () => { for (const id of ['forts', 'nobuzane', 'yose', 'stealth']) rt.objRemove(id); });
     rt.banner('鳶ヶ巣山、落ちる', '河窪信実、討死');
     rt.award((t) => { t.c.capture++; }, '鳶ヶ巣山砦を落とした');
     rt.say('酒井忠次', '鳶ヶ巣山、落ちたぞ！　勝鬨を上げよ！', 3.5);
@@ -909,7 +911,13 @@ function tbCtx(rt) {
   const F = rt.flags, T = FORTS[4];
   return { faction: 'takeda', flag: 'takeda', armor: 0x3a2622, dmg: 0.58, mass: 220,
     friends: () => [...F.spears, F.sakaiG].filter((g) => g && g.count && !g.routed),
-    ring: { x: T.x, z: T.z, r: (T.rx + T.rz) / 2 + 0.6, gap: Math.PI },
+    botSteer: (b, inp) => {
+      // 砦の中にいて段の的が外なら、まず木戸から出る（柵に突っかからない）
+      const u = b.player.u, D = b.flags.dp, q = D && D.cur && D.cur.goal, f = b.flags.forts[4];
+      if (!q || !inFort(u.pos, f) || inFort(q, f)) return;
+      const w = exitWp(f, u.pos);
+      b.player.yaw = Math.atan2(w.x - u.pos.x, w.z - u.pos.z); inp.k.add('KeyW');
+    },
     aid: { name: '酒井の手の後続', faction: 'tokugawa', flag: 'katabami', list: [uS(1), uA(9)] }, aidSaid: '酒井の手の後続が加わった' };
 }
 function tbSteps() {
@@ -918,7 +926,7 @@ function tbSteps() {
     pick({ title: '谷の有海村に、武田の陣が残る。どうする？',
       options: [{ label: '尾根の下で構え、寄せる武田勢を待ち受ける', note: '尾根を背に受ける。手柄は並' }, { label: '谷へ攻め下り、有海村の陣を焼く', note: '大手柄。陣の兵が大勢で向かってくる' }],
       on: (rt, m, i) => { m.down = i === 1; rt.say('酒井忠次', i === 1 ? 'よし、攻め下れ！　陣に火をかければ、設楽原の武田にも煙が見える' : 'よし、ここで受ける。坂の上の方が強い、下りてくるな', 3.5); } }),
-    hold({ skip: (rt, m) => m.down, at: { x: -92, z: -66 }, dur: 62, r: 13, title: '尾根の下', sub: '砦を取り返しに、武田勢が谷から上がってくる', label: '尾根の下', obj: (rt) => (HIr(rt) ? '預かった一手を尾根の下に並べ、寄せる武田勢を防げ' : '尾根の下で、寄せる武田勢を防げ'),
+    hold({ skip: (rt, m) => m.down, at: { x: -92, z: -66 }, dur: 72, r: 13, title: '尾根の下', sub: '砦を取り返しに、武田勢が谷から上がってくる', label: '尾根の下', obj: (rt) => (HIr(rt) ? '預かった一手を尾根の下に並べ、寄せる武田勢を防げ' : '尾根の下で、寄せる武田勢を防げ'),
       waves: [
         { t: 4, say: ['足軽', '来た！　谷から、どっと上がってくる！'], foes: () => [{ name: '砦を取り返しに来た武田勢', from: { x: -76, z: -100 }, list: [uS(2), uA(12)], mass: 300, noRout: 18 }] },
         { t: 28, say: ['酒井忠次', '騎馬じゃ！　槍を立てよ、坂の上から突き落とせ！'], foes: () => [{ name: '武田の騎馬', from: { x: -118, z: -96 }, list: [uS(1), uC(5)], mass: 140, kind: 'cavalry' }] },
@@ -943,6 +951,14 @@ function tbSteps() {
       foes: (rt, m) => [{ name: '武田の殿', from: { x: -100, z: -112 }, list: [uS(3), uA(12)], mass: 260, morale: m.gun ? 55 : 95 }],
       later: [{ t: 40, say: ['足軽', '谷の奥から、まだ来る！'], foes: (rt, m) => [{ name: '殿の後ろの武田勢', from: { x: -80, z: -118 }, list: [uS(2), uA(10)], mass: 220, morale: m.gun ? 60 : 90 }] }],
       max: 130, reward: (t, m) => { if (m.gun) t.side.push('武田の殿を崩した'); else t.special = { label: '槍で武田の殿を崩した', pts: 15 }; }, rewardLabel: '武田の殿を崩した' }),
+    hold({ at: { x: -94, z: -98 }, dur: 55, r: 12, title: '谷の渡し', sub: '長篠城の城兵が川を渡ってくる。渡し場を守る', label: '谷の渡し',
+      say: [['酒井忠次', '長篠城の城兵が打って出るぞ！　渡し場を守れ。城兵が渡りきるまで、武田を寄せるな', 4.5]],
+      obj: (rt) => (HIr(rt) ? '預かった一手で谷の渡し場を守り、長篠城の城兵を迎えよ' : '谷の渡し場を守り、長篠城の城兵を迎えよ'),
+      waves: [
+        { t: 4, say: ['足軽', '退き遅れた武田勢が、渡しへ寄せてくる！'], foes: () => [{ name: '退き遅れた武田勢', from: { x: -62, z: -102 }, list: [uS(2), uA(11)], mass: 240 }] },
+        { t: 26, say: ['酒井忠次', '騎馬じゃ！　渡しの前で槍を立てよ！'], foes: () => [{ name: '谷の西の騎馬', from: { x: -130, z: -96 }, list: [uS(1), uC(5)], mass: 140, kind: 'cavalry' }] },
+      ],
+      reward: '谷の渡し場を守った' }),
   ];
 }
 

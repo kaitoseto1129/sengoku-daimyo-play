@@ -9,7 +9,7 @@ import { Group, Unit } from './units_group.js';
 import { FACTION, TYPES, GENERALS, SKIN_TONES } from './units_data.js';
 import { buildModel } from './units_look.js';
 import { horseStyleFor, buildHorse, paint, at, MAT, P, merge, RIDE, seatLegs, rng } from './units_model.js';
-import { numberedFlag, FLAG_T, FLAG_W, fadedFlag, IMP } from './units_flags.js';
+import { numberedFlag, FLAG_T, FLAG_W, fadedFlag, IMP, BATCH, LOD } from './units_flags.js';
 import { ArmyCombat } from './army_combat.js';
 import { ArmyFx } from './army_fx.js';
 import { ArmyRanged } from './army_ranged.js';
@@ -26,7 +26,8 @@ export { TYPES, GENERALS, SKIN_TONES, FACTION, RIDE, seatLegs, horseStyleFor, bu
 export { HOUSE_NAME, SWING, STAIN_PLANE, STAIN_TEX, roundDot, PCOL, erf, segHit, TOFF, clamp01, SW_POSE, SW_HASSO, SW_JODAN, lerpPose, RELOAD, GUN_POSE, BOW_POSE, _nk, _dUp, _dN, _dQ, _dI };
 
 const TOFF = typeof location !== 'undefined' && /[?&]toff\b/.test(location.search);   // 試し：緊迫の仕組みを切る
-let TATAKE_GEO = null;   // 竹束の形（giveTatake で一度だけ作る）
+let TATAKE_GEO = null;
+const NO_OBR = THREE.Object3D.prototype.onBeforeRender;   // 部品ごとの描く前の仕掛けが無い印   // 竹束の形（giveTatake で一度だけ作る）
 // 重なる音をまとめる：[そのまま鳴らす数, まとめた音の名]
 const SOUND_BUNCH = { gun: [2, 'volley'], string: [3, 'volleyBow'], arrow: [3, null], hooves: [2, 'gallop'], neigh: [2, null], kin: [3, null], yoroi: [3, null], thunk: [3, null], hizara: [2, null], hit: [4, null] };
 // 史実で生き延びる武将（invuln）の体力の下限（最大の何割）。ここまで削ると手傷を負って退く
@@ -532,6 +533,65 @@ export class Army {
       st.im.put(st.n++, u.pos.x, u.pos.z, u.heading, k, helm, k === 0 ? 1.25 : 0, u.look.flag ? 1 : 0, (u.id * 0.618) % 1);
     }
     for (const st of I.values()) st.im.commit(st.n);
+  }
+
+  // 軽い兵（本物の人になっていない兵）をまとめて描く：兵の材質の部品を、形ごとに一つの InstancedMesh へ入れる
+  //   （一人 8〜10 回描いていたのを、全員で形の数だけに）。描く直前（行列が新しくなった後）に Battle が呼ぶ
+  //   まとめるのはカメラから LOD.near より遠く、影を落とさない部品だけ（近い兵・影の出る兵は今までどおり一つずつ）。
+  //   まとめた部品は layers を空にして、本来の描画と影から外す（行列の更新と動きは今までどおり）
+  batchDraw(cam) {
+    const B = this.batch || (this.batch = { map: new Map(), prev: [], cur: [], tag: 0, fr: new THREE.Frustum(), pm: new THREE.Matrix4(), sph: new THREE.Sphere(new THREE.Vector3(), 3.4) });
+    const tag = ++B.tag;
+    for (const e of B.map.values()) e.n = 0;
+    if (BATCH.on && cam) {
+      B.pm.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse); B.fr.setFromProjectionMatrix(B.pm);
+      const ce = cam.matrixWorld.elements, cx = ce[12], cy = ce[13], cz = ce[14];
+      const nr = LOD.near + 1.5, nr2 = nr * nr;
+      for (const u of this.units) {
+        const m = u.mesh;
+        if (!m || !m.visible || !m.parent || u.imp || u.isPlayer) continue;
+        const e = m.matrixWorld.elements, dx = e[12] - cx, dy = e[13] - cy, dz = e[14] - cz;
+        if (dx * dx + dy * dy + dz * dz < nr2) continue;
+        B.sph.center.set(e[12], e[13] + 1, e[14]);
+        if (!B.fr.intersectsSphere(B.sph)) continue;
+        this.batchWalk(m, u.human && u.human.root, tag, B);
+      }
+    }
+    // 前のコマでまとめていて今は外れた部品を、元の描き方へ戻す
+    for (const c of B.prev) if (c.userData.bT !== tag) c.layers.mask = 1;
+    const t = B.prev; B.prev = B.cur; B.cur = t; t.length = 0;
+    for (const e of B.map.values()) {
+      e.im.count = e.n; e.im.visible = e.n > 0;
+      if (e.n) e.im.instanceMatrix.needsUpdate = true;
+    }
+  }
+  batchWalk(o, skip, tag, B) {
+    const ch = o.children;
+    for (let i = 0; i < ch.length; i++) {
+      const c = ch[i];
+      if (!c.visible || c === skip) continue;
+      if (c.isMesh && c.material === MAT && !c.castShadow && !c.isSkinnedMesh && !c.isInstancedMesh) {
+        const L = c.userData.lod;
+        if (L || c.onBeforeRender === NO_OBR) {
+          const geo = L ? (LOD.on ? L[1] : L[0]) : c.geometry;
+          let e = B.map.get(geo);
+          if (!e || e.n >= e.cap) e = this.batchGrow(geo, e, B);
+          c.matrixWorld.toArray(e.arr, e.n * 16); e.n++;
+          c.layers.mask = 0; c.userData.bT = tag; B.cur.push(c);
+        }
+      }
+      if (c.children.length) this.batchWalk(c, skip, tag, B);
+    }
+  }
+  batchGrow(geo, e, B) {
+    const cap = e ? e.cap * 2 : 16;
+    const im = new THREE.InstancedMesh(geo, MAT, cap);
+    im.matrixAutoUpdate = false; im.frustumCulled = false; im.name = 'unitBatch';
+    im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    const ne = { im, cap, n: e ? e.n : 0, arr: im.instanceMatrix.array };
+    if (e) { ne.arr.set(e.arr.subarray(0, e.n * 16)); this.scene.remove(e.im); e.im.dispose(); }
+    this.scene.add(im); B.map.set(geo, ne);
+    return ne;
   }
 
   despawn(u) {

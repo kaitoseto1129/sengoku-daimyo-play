@@ -191,7 +191,8 @@ const shitaragahara = {
     // 織田家編：柵の内へ抜けてきた騎馬に、足軽大将がひと当たりで討たれないよう、寄せの騎馬の打ちを軽くする（柵の外の迫力は変えない）
     if (F.oda) for (const u of g.units) if (u.type === 'cavalry') u.dmg *= 0.6;
     // 織田家編の三の波の馬場信春は、この後で殿（しんがり）に残る：ここでは討たれずに退く
-    if (w.sub) g.units[0].invuln = true;
+    // 討たれない馬場は、打ちも軽くする（倒せない相手に削られ続けないように）
+    if (w.sub) { g.units[0].invuln = true; if (F.oda) g.units[0].dmg *= 0.35; }
     // 寄せの後ろから、武田の鉄砲と弓の組が川の手前まで出て、柵の内へ撃ちかける（騎馬の突っ込みを援ける）。
     //   柵に取り付かず、寄せの隊が崩れれば一緒に退く
     const mis = enemyGroup(rt, { faction: w.fac, name: w.name + '隊の鉄砲・弓', anchor: { x: 112, z: w.z + 14 }, facing: -Math.PI / 2, fleeDir: { x: 1, z: 0 }, aggro: 6, width: 14, morale: 85, speed: 2.6 },
@@ -257,6 +258,9 @@ const shitaragahara = {
     // 織田家編：大軍から本物に替わった武田の騎馬（wake）も、寄せの騎馬と同じく打ちを軽くする（柵ぎわの足軽大将が数秒で討たれないように）
     if (F.oda && (F.wkT = (F.wkT || 0) - dt) <= 0) {
       F.wkT = 0.5;
+      // 柵の内にいる間は、武田の大軍を本物に替えない（柵ぎわに立つだけで、替わった騎馬が二十騎も内へ押し寄せていた）。柵の外へ出れば替わる
+      const inside = p.x < SH_FRONT + 4;
+      for (const A of rt.world.armies || []) if (A.team === 1 || ['takeda', 'akazonae', 'furin'].includes(A.mon)) A.noWake = inside;
       for (const g of rt.army.groups) if (g.team !== 0 && (g.woke || g.clashSide) && !g._shDmg) { g._shDmg = true; for (const u of g.units) if (u.type === 'cavalry') u.dmg *= 0.6; }
     }
     // 遠くの寄せ：丘を下って柵へ駆け、四十間（七十m）ほどで撃ち崩されて散る

@@ -2327,6 +2327,7 @@ export function baseScreen(G, town0, lastResult, game) {
       const R = relOf(G, t.rel);
       for (const [k, v] of Object.entries(c.fx)) R[k] = Math.max(0, Math.min(100, (R[k] || 0) + v));
       if (c.sup) G.superior = Math.min(100, G.superior + c.sup);
+      if (c.kan) G.kan = (G.kan || 0) + c.kan;
       if (c.join === 'yashichi' && !(G.roster || []).some((r) => r.special === 'yashichi')) {
         G.roster = G.roster || [];
         // 弥七は古参として組に加わる（新参の一人と入れ替え）
@@ -2350,6 +2351,7 @@ export function baseScreen(G, town0, lastResult, game) {
     const parts = [];
     if (c.sup) parts.push(`<i class="up">上官の評価 +${c.sup}</i>`);
     for (const [k, n] of REL_KEYS) { const v = c.fx[k]; if (v) parts.push(`<i class="${(k === 'wary' ? -v : v) > 0 ? 'up' : 'dn'}">${n} ${sgn(v)}</i>`); }
+    if (c.kan) parts.push(`<i class="up">銭 +${zeni(c.kan)}</i>`);
     if (c.join) parts.push('<i class="up">組に加わる</i>');
     return parts.length ? `<span class="fx">${parts.join('')}</span>` : '';
   };
