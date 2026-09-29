@@ -2193,6 +2193,8 @@ export class Player {
       }
     }
     // 揺れ：毎フレームのでたらめな跳びではなく、なめらかな揺れ（重なった波）で、強いほど速く・大きく。少し傾きも入る
+    // 倒れた後は揺らさない（揺れ・首の振られ・押しを止め、静かに上へ離れるだけ）
+    if (!u.alive) { this.shake = 0; this.camPush = null; this.neckV = null; }
     this.shakeT = (this.shakeT || 0) + dt * (14 + this.shake * 30);
     let roll = 0;
     if (this.shake > 0.001) {
