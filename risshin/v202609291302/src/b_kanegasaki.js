@@ -633,7 +633,8 @@ const az = (list) => ({ flag: 'azai', armor: AZAI.armor, list: dress(list, AZAI)
 const gunLine = (name, from, n, o = {}) => ({ name, from, list: [uS(1), uG(n)], formation: 'line', seek: 70, mass: 90, kind: 'gun', ...o });
 function kgCtx(rt) {
   const F = rt.flags;
-  return { faction: 'saito', flag: 'asakura', armor: ASAKURA.armor, dmg: 0.72, mass: 240, look: (l) => dress(l, ASAKURA),
+  return { faction: 'saito', flag: 'asakura', armor: ASAKURA.armor, dmg: 0.55, mass: 240, look: (l) => dress(l, ASAKURA),
+    aid: { name: '殿の新手', faction: 'oda', list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 10 }] }, aidSaid: '殿の新手が駆けつけた。組の横に付け',
     friends: () => [F.kino, F.ikeda, F.akechi, F.tez].filter((g) => g && g.count && !g.routed) };
 }
 // A 一の備：朝倉の総掛かり → 天筒山の城兵を救うか
@@ -659,7 +660,7 @@ function kgA() {
         else rt.say('木下藤吉郎', 'よし、行け！　深入りはするな、救い出したらすぐ戻れ', 3);
       } }),
     fight({ skip: (rt, m) => !m.kgSave, at: { x: 34, z: -76 }, title: '天筒山の麓', sub: '取り残された城兵を、朝倉が取り巻いている', obj: '天筒山の麓で、城兵を取り巻く朝倉勢を崩せ',
-      foes: () => [{ name: '天筒山を囲む朝倉勢', from: { x: 58, z: -96 }, list: [uS(2), uA(11)], mass: 260 }, gunLine('山腹の朝倉の鉄砲', { x: 20, z: -104 }, 6)],
+      foes: () => [{ name: '天筒山を囲む朝倉勢', from: { x: 58, z: -96 }, list: [uS(2), uA(9)], mass: 260 }, gunLine('山腹の朝倉の鉄砲', { x: 20, z: -104 }, 6)],
       later: [{ t: 40, title: '横槍', sub: '朝倉の騎馬が浜から', say: ['足軽', '浜から騎馬じゃ！　帰り道を断つ気じゃ！'], foes: () => [{ name: '朝倉の騎馬', from: { x: 80, z: -40 }, list: [uS(1), uC(4), uA(4)], mass: 120, kind: 'cavalry' }] }],
       max: 140,
       reward: '天筒山の城兵を救い出した',

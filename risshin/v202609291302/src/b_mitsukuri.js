@@ -18,7 +18,7 @@ import { gauss, enemyGroup, allyGroup, nm, centerOf, unitPos, wallLine, ringWall
 import { applyLook, NIGHT, customFlag, dress, gone, volleyWatch } from './b_inabayama.js';
 import { KIT } from './b_nagashinojo.js';
 import { depthStart, depthTick, rest, pick, fight, hold } from './b_depth.js';
-import { uS, uA, uG, uB, round, gunLine, lines, leanAll, camp } from './b_mid.js';
+import { uS, uA, uG, uB, uBu, round, gunLine, lines, leanAll, camp } from './b_mid.js';
 
 const C = { x: 0, z: -98 };               // 箕作城の主郭
 const R = 18;                              // 主郭の柵の半径
@@ -161,7 +161,7 @@ const mitsukuri = {
     if (n) rt.makeSquad({ x: CAMP.x + 8, z: CAMP.z + 4 }, Math.PI, [{ kind: 'spear', n }]);
     // ---- 陣と旗 ----
     // 織田の本陣：信長と旗本（後ろの大軍が控え。信長で遊ぶ時は旗本だけ）
-    F.odaCamp = camp(rt, { x: CAMP.x, z: CAMP.z + 22, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', general: { name: '織田信長' }, guard: 15, reserve: 0, runTo: { x: CAMP.x, z: CAMP.z - 6 } });
+    F.odaCamp = camp(rt, { x: CAMP.x, z: CAMP.z + 22, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', general: { name: '織田信長' }, guard: 18, reserve: 260, runTo: { x: CAMP.x, z: CAMP.z - 6 } });
     rt.scene.add(tawara(W, CAMP.x - 14, CAMP.z + 16, 0.3, 6));
     for (const [x, z, k] of [[CAMP.x - 8, CAMP.z + 14, 'oda'], [CAMP.x + 8, CAMP.z + 14, 'eiraku'], [CAMP.x - 26, CAMP.z + 4, 'oda'], [CAMP.x + 28, CAMP.z + 4, 'oda']]) rt.scene.add(nobori(W, x, z, k, 6));
     for (const [x, z] of [[CAMP.x - 16, CAMP.z + 2], [CAMP.x + 18, CAMP.z + 6]]) { rt.scene.add(campfire(W, x, z)); W.addFire(x, z); }
@@ -530,6 +530,18 @@ function mkA() {
         { t: 55, say: ['足軽', '柵の前に鉄砲が並んだ……！　松明を狙っておる！'], foes: () => [gunLine('柵の前の六角の鉄砲組', RR.front, RD, 8)] },
       ],
       reward: '松明の道を守りぬいた' }),
+    // 和田山城の後詰：止めに行けば手柄。行かなければ木戸攻めの背へ回られる
+    rest({ dur: 6, heal: 0.25, say: [['伝令', '申し上げます！　西の和田山城から、六角の後詰が松明を消して下りてまいります！']] }),
+    pick({ title: '和田山城から六角の後詰が下りてくる。どうする？',
+      options: [{ label: '西の麓へ回り、後詰の頭を叩く', note: '木戸攻めの背が安くなる。木戸へ着くのが遅れる' }, { label: '構わず、木戸へ急ぐ', note: '木戸を早く破れる。木戸攻めの最中に背へ回られる' }],
+      on: (rt, m, i) => { m.mkLetBack = i === 1; rt.say('木下藤吉郎', i === 0 ? '西へ回れ！　麓の田の畦で待ち受けよ。道が狭い所で頭を叩けば、後ろは続けぬ' : 'よし、木戸じゃ！　背には気を配っておけ', 3.5); } }),
+    fight({ skip: (rt, m) => m.mkLetBack, at: { x: -30, z: -22 }, max: 150, title: '和田山の後詰', sub: '麓の細い道で、後詰の頭を叩く',
+      obj: (rt) => (hi(rt) ? '預かった一隊で麓の道を塞ぎ、和田山の後詰を崩せ' : '麓の道で、和田山の後詰を崩せ'),
+      say: [['木下藤吉郎', '道は細い。先頭の侍を倒せば、後ろの足軽は続かぬぞ', 4]],
+      foes: () => [{ name: '和田山からの後詰', from: { x: -66, z: -44 }, list: [uS(2), uA(14)], mass: 240, noRout: 20 }],
+      later: [{ t: 40, title: '後詰の二の手', sub: '和田山の弓が、田の向こうから射かける', say: ['足軽', '二の手じゃ！　弓を連れておる！'], foes: () => [{ name: '和田山の二の手', from: { x: -70, z: -30 }, list: [uS(1), uA(10), uB(4)], mass: 180 }] }],
+      reward: (t) => { t.special = { label: '和田山の後詰を麓で止めた', pts: 15 }; }, rewardLabel: '和田山の後詰を止めた',
+      onEnd: (rt, m, won) => { if (won) rt.say('木下藤吉郎', 'これで背は安い。木戸へ戻れ！', 3); } }),
   ];
 }
 function mkB() {
@@ -549,6 +561,25 @@ function mkB() {
         { t: 45, say: ['足軽', '鉄砲を撃ちかけてくる！'], foes: () => [gunLine('後詰の鉄砲組', { x: 30, z: -56 }, OG, 7)] },
       ],
       reward: '城に火をかけ、観音寺の後詰を怯ませた', onEnd: (rt, m, won) => { if (won) rt.say('木下藤吉郎', '見よ、観音寺の松明が退いていく……燃える箕作を見て、気が萎えたか', 4); } }),
+    // 夜更け：六角の殿を追うか、箕作を固めて夜明けを待つか
+    rest({ dur: 6, heal: 0.3, say: [['足軽', '観音寺の山で、松明が右へ左へ乱れておる……'], ['木下藤吉郎', '六角父子が城を捨てる支度か。殿の兵が麓に残っておるぞ']] }),
+    pick({ title: '六角父子が観音寺城を捨てて落ちる構え。麓に殿（しんがり）が残る。どうする？',
+      options: [{ label: '繖山の麓へ追い討ちをかける', note: '殿を崩せば大手柄。暗い山道で、横から鉄砲を受ける' }, { label: '箕作を固め、夜明けを待つ', note: '取った城を失わない。夜討ちの取り返しを受け止める' }],
+      on: (rt, m, i) => { m.mkChase = i === 0; rt.say('木下藤吉郎', i === 0 ? '追え！　殿を崩せば、観音寺は戦わずに開くぞ' : 'よし、木戸の前で槍を揃えよ。取った城は渡さぬ', 3.5); } }),
+    fight({ skip: (rt, m) => !m.mkChase, at: { x: 50, z: -112 }, max: 160, title: '追い討ち', sub: '繖山の麓で、六角の殿とぶつかる',
+      obj: (rt) => (hi(rt) ? '預かった一隊を率い、繖山の麓で六角の殿を崩せ' : '繖山の麓で、六角の殿を崩せ'),
+      say: [['木下藤吉郎', '殿の侍大将を狙え。頭が倒れれば、殿は散る', 4]],
+      foes: () => [{ name: '六角の殿', from: { x: 72, z: -126 }, list: [uBu('六角の殿の侍大将', { hat: 'kabuto_m', haori: 0x33291f }), uS(3), uA(14)], mass: 260, noRout: 25 }],
+      later: [{ t: 35, title: '横から鉄砲', sub: '山腹の鉄砲衆が、追う者の横を撃つ', say: ['足軽', '山腹から鉄砲じゃ！　伏せよ！'], foes: () => [gunLine('山腹の六角の鉄砲衆', { x: 82, z: -100 }, { x: 50, z: -112 }, 8)] },
+        { t: 70, say: ['足軽', '観音寺の旗本が下りてきた！　これが最後の手じゃ'], foes: () => [{ name: '六角の旗本', from: { x: 84, z: -136 }, list: [uS(3), uA(10)], mass: 200 }] }],
+      reward: (t) => { t.special = { label: '六角の殿を追い崩した', pts: 25 }; }, rewardLabel: '六角の殿を崩した' }),
+    hold({ skip: (rt, m) => m.mkChase, at: OG, dur: 85, r: 12, title: '夜明けを待つ', sub: '取り返しに来る六角の夜討ちを受け止める', label: '木戸の前',
+      obj: (rt) => (hi(rt) ? '預かった一隊で木戸の前を固め、夜明けまで箕作を守れ' : '木戸の前で、夜明けまで箕作を守れ'),
+      waves: [
+        { t: 8, say: ['足軽', '西の尾根から、夜討ちじゃ！'], foes: () => [{ name: '夜討ちの六角勢', from: { x: -30, z: -118 }, list: [uS(2), uA(12)], mass: 200 }] },
+        { t: 40, say: ['足軽', '東からも来る！　松明を投げ込む気じゃ'], foes: () => [{ name: '東の夜討ち', from: { x: 34, z: -120 }, list: [uS(2), uA(10), uB(3)], mass: 180 }] },
+      ],
+      reward: '夜明けまで箕作を守りぬいた' }),
   ];
 }
 

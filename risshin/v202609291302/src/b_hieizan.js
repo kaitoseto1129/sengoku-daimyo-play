@@ -19,6 +19,8 @@ import { moraleWord } from './hud.js';
 import { gauss, enemyGroup, allyGroup, nm, centerOf, unitPos, wallLine } from './bhelp.js';
 import { volleyScene } from './b_shiga.js';
 import { camp } from './b_mid.js';
+import { depthStart, depthTick, depthBot, rest, pick, fight, hold, move } from './b_depth.js';
+import { backTick } from './b_nagashinojo.js';
 
 const GATE = { x: 8, z: 0 };               // 山門（東向き）
 const SAKA = { x: 96, z: 6 };              // 坂本（湖のほとり）
@@ -261,6 +263,26 @@ const hieizan = {
       banner: ['一斉射', '明智の鉄砲が、山門の前の僧兵を撃ちすくめる'] });
     rt.marker('front', centerOf(F.front), () => `山門の僧兵・${moraleWord(F.front.morale)}`, { red: true, group: F.front });
     rt.after(14, () => { rt.army.play('eshout', { x: GATE.x + 12, z: 0 }, 1.6); rt.say('僧兵', '仏敵じゃ！　この御山に一歩も入れるな！', 3); });
+    // 判断①：山門の前の僧兵をどう崩すか
+    rt.after(7, () => {
+      if (F.step !== 1 || F.ending) return;
+      rt.choose('山門の前を僧兵が固めている。どう崩す？', [
+        { label: '鉄砲の一斉射を待ち、崩れた所へ寄る', note: '確かな手。門の前に着くのは少し遅れる' },
+        { label: '佐久間の手と南の杉木立を回り、横から突く', note: '早く崩せる。木立の中で僧兵の弓に狙われる' },
+      ], (i) => {
+        F.flank = i === 1;
+        if (i === 0) { rt.say('明智光秀', 'よし。鉄砲が放ったら、一息に寄れ', 3); return; }
+        rt.say('佐久間信盛', '南の木立を回るぞ！　横腹を突け！', 3);
+        const S = F.saku; S.order = 'move'; S.speed = 2.8; S.dest = { x: GATE.x + 20, z: -20 };
+        S.onArrive = (gg) => { gg.order = 'attack'; gg.seekRange = 50; gg.focus = F.front.units.find((u) => u.alive) || null; };
+        rt.obj('flank', '佐久間の手と南の杉木立を回り、山門の僧兵の横を突け', 'side');
+        rt.marker('flank', { x: GATE.x + 20, z: -20 }, '南の杉木立', { h: 3 });
+        const b = enemyGroup(rt, { faction: 'saito', name: '木立の僧兵の弓', anchor: { x: GATE.x + 14, z: -30 }, facing: Math.PI / 2, order: 'attack', seekRange: 40, aggro: 12, width: 6, morale: 70, fleeDir: { x: -1, z: 0 }, dmgMult: 0.5 },
+          dress([{ type: 'samurai', n: 1, o: { hat: 'hachimaki', weapon: 'spear' } }, { type: 'bow', n: 5 }, { type: 'ashigaru', n: 6 }], SOHEI));
+        F.woodBow = b;
+        rt.after(3, () => rt.say('足軽', '木立の中から矢じゃ！', 2.5));
+      }, 14);
+    });
     rt.after(26, () => this.assault(rt));
   },
 
@@ -292,11 +314,22 @@ const hieizan = {
     rt.after(24, () => {
       if (F.step !== 2) return;
       const g = enemyGroup(rt, { faction: 'saito', name: '打って出た僧兵', anchor: { x: GATE.x + 6, z: 30 }, facing: Math.PI / 2, order: 'attack', seekRange: 60, aggro: 12, width: 8, morale: 85, fleeDir: { x: -1, z: 0 }, dmgMult: 0.6 },
-        dress([{ type: 'samurai', n: 1, o: { hat: 'hachimaki', weapon: 'spear' } }, { type: 'ashigaru', n: 10 }], SOHEI));
+        dress([{ type: 'samurai', n: 2, o: { hat: 'hachimaki', weapon: 'spear' } }, { type: 'ashigaru', n: 16 }], SOHEI));
       g.focus = R.units.find((u) => u.alive) || null;
       F.sally = g;
       rt.say('足軽', '塀の脇から僧兵が！　門を破る組を狙っておる！', 3);
       rt.marker('sally', centerOf(g), () => `打って出た僧兵・${moraleWord(g.morale)}`, { red: true, group: g });
+    });
+    // 北の塀の脇からも、二度目の打って出
+    rt.after(58, () => {
+      if (F.step !== 2) return;
+      const g = enemyGroup(rt, { faction: 'saito', name: '北から打って出た僧兵', anchor: { x: GATE.x + 6, z: -30 }, facing: Math.PI / 2, order: 'attack', seekRange: 60, aggro: 12, width: 10, morale: 85, fleeDir: { x: -1, z: 0 }, dmgMult: 0.6 },
+        dress([{ type: 'samurai', n: 2, o: { hat: 'hachimaki', weapon: 'spear' } }, { type: 'ashigaru', n: 14 }, { type: 'bow', n: 3 }], SOHEI));
+      g.focus = (F.ram.units.find((u) => u.alive)) || null;
+      F.sally2 = g;
+      rt.army.play('eshout', { x: GATE.x + 6, z: -30 }, 1.4);
+      rt.say('明智光秀', '北からも来た！　門を破る組を囲ませるな！', 3);
+      rt.marker('sally2', centerOf(g), () => `北の僧兵・${moraleWord(g.morale)}`, { red: true, group: g });
     });
   },
 
@@ -330,7 +363,7 @@ const hieizan = {
     if (F.step >= 3) return;
     F.step = 3; F.stepT = rt.t;
     rt.setPhase('inside');
-    rt.unmark('gate'); rt.unmark('front'); rt.unmark('sally');
+    rt.unmark('gate'); rt.unmark('front'); rt.unmark('sally'); rt.unmark('sally2');
     rt.award((t) => t.side.push('山門を破った'), '山門を破った');
     sfx('taiko', 1); rt.after(0.5, () => sfx('horagai', 0.9));
     rt.banner('山門、破れる', '門の内から、僧兵の大将が打って出る');
@@ -346,7 +379,16 @@ const hieizan = {
     F.ram.assault = null;
     // 逃げる僧や里の者（戦わない。誰にも狙われない。自分で討てば下知違反）
     F.civ = [];
-    const civ = (x, z, n2, name) => {
+    const civ = (x, z, n2, name) => this.civ(rt, x, z, n2, name);
+    civ(-30, 16, 5, '逃げる僧'); civ(-40, -18, 4, '逃げる里の者');
+    rt.after(20, () => { if (!F.ending) civ(-56, 8, 5, '逃げる僧'); });
+    rt.after(10, () => rt.bark('手向かわずに逃げる僧や里の者は追うな。討てば下知に背くぞ'));
+    this.insideRest(rt, g);
+  },
+  // 逃げる僧や里の者（戦わない。誰にも狙われない。自分で討てば下知違反）
+  civ(rt, x, z, n2, name) {
+    const F = rt.flags;
+    {
       const c = enemyGroup(rt, { faction: 'imagawa', name, anchor: { x, z }, facing: -Math.PI / 2, width: 4, aggro: 0, morale: 0, fleeDir: { x: -1, z: z > 0 ? 0.3 : -0.3 }, speed: 2.6 },
         // 今川の色が混じらないよう、姿は全部ここで決める（僧は墨染の衣、里の者は野良着）
         [{ type: 'porter', n: n2, o: name.includes('僧') ? { flag: null, hat: 'none', armor: 0x1e1c1a, lace: 0x2a2826, cloth: 0x24221f, haori: null, mon: null } : { flag: null, hat: 'none', armor: 0x4a4034, lace: 0x5a4e3c, cloth: 0x6a5a44, haori: null, mon: null } }]);
@@ -354,10 +396,10 @@ const hieizan = {
       for (const u of c.units) { u.fleeing = true; u.noTarget = true; u.dmg = 0; }
       c.civ = true;
       F.civ.push(c);
-    };
-    civ(-30, 16, 5, '逃げる僧'); civ(-40, -18, 4, '逃げる里の者');
-    rt.after(20, () => { if (!F.ending) civ(-56, 8, 5, '逃げる僧'); });
-    rt.after(10, () => rt.bark('手向かわずに逃げる僧や里の者は追うな。討てば下知に背くぞ'));
+    }
+  },
+  insideRest(rt, g) {
+    const F = rt.flags;
     // 豪盛は討たれない（山を逃れ、のちに甲斐の武田信玄を頼った）。衆が減れば退く
     F.goseiU.announced = true;
     rt.after(70, () => { g.noRout = false; });
@@ -412,12 +454,28 @@ const hieizan = {
     if (F.crowd && F.crowd.rout) F.crowd.rout({ hideAfter: 30 });
   },
 
+  // 段を重ねる（b_depth.js）：中堂の前 → 尾根道の朝倉・浅井 → 追うか、人を救うか
+  deep(rt) {
+    const F = rt.flags;
+    if (F.deep || F.ending) return;
+    F.deep = true;
+    rt.unmark('gosei'); rt.unmark('gosei2');
+    for (const q of [F.gosei, F.gosei2]) if (q && !gone(q)) { q.noRout = false; q.morale = 0; }
+    rt.award((t) => t.side.push('門の内で豪盛の衆を退けた'), '豪盛の衆を退けた');
+    rt.banner('豪盛の衆、退く', '中堂の奥で、僧兵が集まり直している');
+    rt.obj('main', '中堂を押さえ、寄せてくる僧兵と朝倉・浅井の兵を退けよ', 'main');
+    const ctx = { faction: 'saito', flag: 'hikyaku', armor: 0xcfc7b4, dmg: 0.6, mass: 140, look: (l) => dress(l, SOHEI),
+      friends: () => F.oda.filter((g) => g && g.count && !g.routed),
+      aid: { name: '明智の後詰', faction: 'oda', list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 10 }] }, aidSaid: '明智の後詰が山門をくぐって加わった' };
+    depthStart(rt, ctx, hzSteps(this), (rt2, m) => this.win(rt2, m.hChase ? '退く殿の手を崩し、山の戦は終わった' : '逃げ遅れた人々を堂から出し、山の戦は終わった'));
+  },
+
   win(rt, how) {
     const F = rt.flags;
     if (F.ending) return;
     F.ending = true;
     rt.setPhase('end');
-    rt.unmark('gosei'); rt.unmark('gosei2');
+    rt.unmark('gosei'); rt.unmark('gosei2'); rt.unmark('dp'); rt.unzone('dp');
     rt.objDone('main');
     rt.tracker.main = true;
     rt.award((t) => { t.main = true; t.special = { label: '山門を破り、僧兵を退けた', pts: 20 }; }, '任務達成・僧兵を退けた');
@@ -433,6 +491,15 @@ const hieizan = {
   update(rt, dt) {
     const F = rt.flags;
     if (F.ending) return;
+    if (F.flank && !F.flankDone) {
+      const p = rt.player.u.pos;
+      if (Math.hypot(p.x - GATE.x - 20, p.z + 20) < 12) {
+        F.flankDone = true; rt.unmark('flank'); rt.objDone('flank');
+        if (F.front && !gone(F.front)) F.front.morale -= 35;
+        rt.bark('横を突かれて、山門の僧兵が乱れた');
+        rt.award((t) => t.side.push('杉木立を回り、僧兵の横を突いた'), '僧兵の横を突いた');
+      } else if (F.step >= 3) { F.flankDone = true; rt.unmark('flank'); rt.objRemove('flank'); }
+    }
     if (F.step === 1) {
       const d = Math.hypot(rt.player.u.pos.x - GATE.x, rt.player.u.pos.z - GATE.z);
       rt.objProgress('main', `山門まで ${Math.max(0, Math.round(d))}m`);
@@ -466,14 +533,15 @@ const hieizan = {
     if (F.step !== 2) for (const g of [F.ake, F.saku]) if (g && g.calm && g.order === 'hold') { g.calm = false; g.order = 'attack'; }
     if (F.step === 3) {
       const g = F.gosei;
-      rt.objProgress('main', `僧兵 ${g.count + (F.gosei2 ? F.gosei2.count : 0)}人`);
+      if (!F.deep) rt.objProgress('main', `僧兵 ${g.count + (F.gosei2 ? F.gosei2.count : 0)}人`);
       if (rt.t - F.stepT > 25) this.burn(rt);
       if (rt.t - F.stepT > 30) this.burnHalls(rt);
+      if (F.deep) { depthTick(rt, dt); backTick(rt); return; }
       if (g.count < 6 && g.noRout) { g.noRout = false; g.morale = Math.min(g.morale, 20); }
-      if (gone(g) && F.gosei2 && gone(F.gosei2)) this.win(rt, '正覚院豪盛は山の奥へ退いた');
+      if (gone(g) && F.gosei2 && gone(F.gosei2)) this.deep(rt);
       else if (rt.t - F.stepT > 150) { for (const q of [g, F.gosei2]) if (q) { q.noRout = false; q.morale = 0; } }
-      // 保険：崩れても散り残りが居座る時は、時が経てば山は落ちたものとする
-      if (rt.t - F.stepT > 200 && !F.ending) this.win(rt, '僧兵は散り散りに山の奥へ退いた');
+      // 保険：崩れても散り残りが居座る時は、時が経てば次の段へ
+      if (rt.t - F.stepT > 200 && !F.deep) this.deep(rt);
     }
   },
 
@@ -539,6 +607,7 @@ hieizan.botBrain = (b, inp, { goTo }) => {
   if (u.hp < u.maxHp * 0.55) b.botRest = true;
   if (b.botRest && u.hp > u.maxHp * 0.85) b.botRest = false;
   if (b.botRest) { inp.guardHold = false; goTo(p, inp, GATE.x + 40, 4, 2); return; }
+  if (F.deep) { depthBot(b, inp, goTo); return; }
   const inside = F.step >= 3;
   const e = b.army.nearestEnemy(u, inside ? 16 : 12, (o) => !o.fleeing && !o.invuln && !(o.group && o.group.civ) && (inside || o.pos.x > GATE.x + 0.5));
   if (e) {
@@ -555,5 +624,70 @@ hieizan.botBrain = (b, inp, { goTo }) => {
   if (F.step === 1) { goTo(p, inp, GATE.x + 20, 2, 3); return; }
   const a = F.akeU.pos; goTo(p, inp, a.x + 4, a.z + 3, 3);
 };
+
+// ---- 門の内から先の段 ----
+const SO = (s, a, bw) => [{ type: 'samurai', n: s, o: { hat: 'hachimaki', weapon: 'spear' } }, { type: 'ashigaru', n: a }, { type: 'bow', n: bw }];
+// 山にかくまわれていた朝倉・浅井の兵（僧兵の姿を外す）
+const armed = (flag, armor, lace, list) => ({ flag, armor, list: list.map((q) => ({ ...q, o: { sohei: 0, armor, lace, cloth: 0x3a3228, flag, hat: q.type === 'samurai' ? 'kabuto_m' : 'jingasa_n', ...(q.o || {}) } })) });
+const asa = (list) => armed('asakura', 0x33291f, 0x7a5a2a, list);
+const aza = (list) => armed('azai', 0x2e2a26, 0x3c5a48, list);
+const A = (n) => ({ type: 'ashigaru', n }), S = (n) => ({ type: 'samurai', n }), G = (n) => ({ type: 'gun', n });
+function hzSteps(def) {
+  return [
+    rest({ dur: 10, heal: 0.3, say: [['明智光秀', '豪盛の衆は退いた。……じゃが、まだ終わらぬ'], ['伝令', '根本中堂の奥に、僧兵が集まり直しておりまする！　逃げ込んだ人々も混じって'], ['明智光秀', '中堂を押さえれば、この山の戦は終わる。刃向かう者だけを見よ']] }),
+    pick({ title: '中堂の前に、僧兵と逃げ込んだ人々が混じっている。どうする？',
+      options: [{ label: '人々を先に山の奥へ逃がし、堂の前で僧兵を受ける', note: '非戦の者を守れる。そのあいだ、僧兵の寄せを受け続ける' }, { label: 'すぐに僧兵へかかり、中堂を押さえる', note: '早く片づく。人々が混じり、刃が迷う' }],
+      on: (rt, m, i) => {
+        m.hLet = i === 0;
+        def.civ(rt, -60, -14, 5, '逃げる僧'); def.civ(rt, -64, 16, 5, '逃げる里の者');
+        rt.say('明智光秀', i === 0 ? 'よう申した。道を空けよ、人々を奥へ通せ！' : 'よし、かかれ。……逃げる者には刃を向けるなよ', 3.5);
+      } }),
+    hold({ skip: (rt, m) => !m.hLet, at: { x: -34, z: 2 }, dur: 90, r: 14, title: '中堂の前', sub: '人々が逃れるまで、僧兵の寄せを受ける', label: '中堂の前', obj: '人々が山の奥へ逃れるまで、中堂の前で僧兵を受けよ',
+      waves: [
+        { t: 4, say: ['足軽', '中堂から僧兵が押し出してくる！'], foes: () => [{ name: '中堂の僧兵', from: { x: -84, z: -6 }, list: SO(3, 13, 3), noRout: 25 }] },
+        { t: 34, say: ['足軽', '右の堂の陰からも来る！'], foes: () => [{ name: '堂の陰の僧兵', from: { x: -72, z: 30 }, list: SO(2, 11, 2) }] },
+        { t: 60, say: ['明智光秀', '堂の縁に弓が並んだ。組を固めて寄れ！'], foes: () => [{ name: '堂の縁の弓衆', from: { x: -76, z: -28 }, list: SO(1, 5, 6) }] },
+      ],
+      reward: '中堂の前で人々を逃がした', lost: ['明智光秀', '押し込まれたか……じゃが、人々は奥へ逃れた'] }),
+    fight({ skip: (rt, m) => m.hLet, at: { x: -46, z: 0 }, title: '中堂へかかれ', sub: '僧兵が中堂の石段を固めている', obj: '中堂の前の僧兵を崩し、中堂を押さえよ',
+      foes: () => [{ name: '中堂を固める僧兵', from: { x: -82, z: -4 }, list: SO(3, 15, 3), noRout: 25 }],
+      later: [{ t: 30, say: ['足軽', '堂の陰から、また出てくる！'], foes: () => [{ name: '堂の陰の僧兵', from: { x: -72, z: 28 }, list: SO(2, 12, 2) }] }],
+      max: 140, reward: '中堂を押さえた' }),
+    rest({ dur: 8, bark: '組を寄せ直し、息を整えよ', say: [['足軽', '西の尾根道に……甲冑の者じゃ！　僧兵ではないぞ'], ['明智光秀', '三つ盛木瓜……朝倉じゃ。山にかくまわれていた兵が下りてくる']] }),
+    pick({ title: '尾根道から朝倉と浅井の兵が下りてくる。どう受ける？',
+      options: [{ label: '杉木立に伏せ、下りきった所を横から突く', note: 'うまくいけば一息に崩せる。遅れれば挟まれる' }, { label: '堂の前に槍を揃えて、正面で受ける', note: '崩れにくい。重い甲冑の兵と、長く押し合う' }],
+      on: (rt, m, i) => { m.hAmb = i === 0; rt.say('明智光秀', i === 0 ? '木立に伏せよ。旗を伏せ、声を立てるな……' : '槍を揃えよ！　一歩も退くな！', 3); } }),
+    fight({ skip: (rt, m) => !m.hAmb, at: { x: -46, z: -36 }, title: '横槍', sub: '杉木立から、尾根道を下る朝倉勢の横腹へ', obj: '杉木立から躍り出て、尾根道の朝倉勢を崩せ',
+      say: [['明智光秀', '今じゃ、かかれっ！']],
+      foes: () => [{ name: '尾根道の朝倉勢', from: { x: -90, z: -40 }, ...asa([S(2), A(12), G(2)]), morale: 70, mass: 200 }],
+      later: [{ t: 75, say: ['明智光秀', '尾根の上に鉄砲が並んだ！　木の陰を伝って寄れ'], foes: () => [{ name: '尾根の朝倉の鉄砲', from: { x: -86, z: -46 }, ...asa([S(1), G(5), A(6)]), mass: 100 }] }, { t: 40, title: '新手', sub: '浅井の兵も尾根を下りてくる', say: ['足軽', '北の尾根からも来る！　あれは浅井の旗じゃ！'], foes: () => [{ name: '浅井の兵', from: { x: -88, z: 30 }, ...aza([S(2), A(11)]), mass: 180 }] }],
+      max: 150, reward: (t) => { t.special = { label: '伏せて朝倉勢の横腹を突いた', pts: 20 }; }, rewardLabel: '伏せて朝倉勢の横腹を突いた' }),
+    hold({ skip: (rt, m) => m.hAmb, at: { x: -40, z: 0 }, dur: 100, r: 14, title: '朝倉・浅井の寄せ', sub: '尾根道から、甲冑の兵が押し寄せる', label: '堂の前', obj: '堂の前で槍を揃え、朝倉・浅井の兵を受けよ',
+      waves: [
+        { t: 4, say: ['足軽', '来たぞ、甲冑の兵じゃ！'], foes: () => [{ name: '尾根道の朝倉勢', from: { x: -88, z: -30 }, ...asa([S(3), A(13), G(2)]), mass: 260, noRout: 25 }] },
+        { t: 38, say: ['足軽', '北の尾根から浅井の旗！'], foes: () => [{ name: '浅井の兵', from: { x: -86, z: 30 }, ...aza([S(2), A(11)]), mass: 200 }] },
+        { t: 68, say: ['明智光秀', '最後の寄せじゃ。これを凌げば山は落ちる！'], foes: () => [{ name: '残った僧兵', from: { x: -84, z: 0 }, list: SO(2, 12, 2) }] },
+      ],
+      reward: '堂の前で朝倉・浅井の寄せを受け止めた', lost: ['明智光秀', '押し込まれた……じゃが、まだ崩れてはおらぬ！'] }),
+    rest({ dur: 8, say: [['伝令', '豪盛と朝倉の残りが、西塔の方へ落ちていきまする！'], ['足軽', '……燃える堂の中から、声がする']] }),
+    pick({ title: '西塔へ落ちる兵がいる。燃える堂には逃げ遅れた人がいる。どうする？',
+      options: [{ label: '追わず、燃える堂から逃げ遅れた人々を出す', note: '下知に沿う。人を救えば、後の噂も違う' }, { label: '追い討ちをかけ、退く殿の手を崩す', note: '手柄になる。山の奥で殿の手とぶつかる' }],
+      on: (rt, m, i) => { m.hChase = i === 1; rt.say('明智光秀', i === 0 ? 'それでよい。……堂へ行け、煙に巻かれるなよ' : '深追いはするな。殿の手を崩したら戻れ', 3.5); } }),
+    move({ skip: (rt, m) => m.hChase, to: { x: -24, z: -22 }, r: 8, label: '燃える堂', obj: '燃える堂へ行き、逃げ遅れた人々を外へ出せ',
+      say: [['足軽', '中に人が……！　手を貸せ！']],
+      onEnd: (rt, m, arr) => { if (arr) { def.civ(rt, -28, -18, 4, '救い出した人々'); rt.award((t) => { t.special = { label: '燃える堂から人々を救い出した', pts: 15 }; }, '燃える堂から人々を救い出した'); rt.say('明智光秀', '……ようやった。この山で、それが一番の働きかもしれぬ', 4); } } }),
+    fight({ skip: (rt, m) => !m.hChase, at: { x: -78, z: -6 }, title: '追い討ち', sub: '西塔へ落ちる殿の手', obj: '西塔へ落ちる殿の手を崩せ',
+      foes: () => [{ name: '朝倉の殿', from: { x: -96, z: -10 }, ...asa([S(2), A(10)]), mass: 120 }, { name: '豪盛の殿の僧兵', from: { x: -96, z: 12 }, list: SO(2, 8, 2), mass: 80 }],
+      max: 110, reward: '退く殿の手を崩した' }),
+    rest({ dur: 7, heal: 0.25, say: [['足軽', '西塔の方から、鐘と鬨の声が……！'], ['明智光秀', '豪盛が西塔の衆を率いて、取って返してきたか。これが最後じゃ']] }),
+    hold({ at: { x: -40, z: 0 }, dur: 80, r: 14, title: '豪盛の取って返し', sub: '西塔の僧兵と朝倉の残りが、一つになって押し寄せる', label: '中堂の前', obj: '中堂の前で、豪盛の最後の寄せを受けよ',
+      say: [['明智光秀', '組を固めよ！　これを凌げば、山の戦は終わる']],
+      waves: [
+        { t: 4, say: ['正覚院豪盛', '仏敵を山から追い落とせ！'], foes: () => [{ name: '西塔の僧兵', from: { x: -86, z: 8 }, list: SO(3, 14, 3), mass: 200, noRout: 25 }] },
+        { t: 36, say: ['足軽', '北の木立から、朝倉の兵も！'], foes: () => [{ name: '朝倉の残り', from: { x: -80, z: 34 }, ...asa([S(2), A(10), G(2)]), mass: 160 }] },
+      ],
+      reward: '豪盛の最後の寄せを退けた', lost: ['明智光秀', '押されたが……僧兵も尽きた'] }),
+  ];
+}
 
 export { hieizan };

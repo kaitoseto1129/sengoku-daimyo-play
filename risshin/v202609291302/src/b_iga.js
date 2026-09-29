@@ -65,13 +65,14 @@ const iga = {
     F.step = 0; F.ek = 0; F.ak = 0; F.doused = 0;
     // ---- 丹羽の陣：陣幕と小屋 ----
     // 総大将 織田信雄の本陣（陣幕・旗本・控え）
-    F.honjin = camp(rt, { x: CAMP.x + 6, z: CAMP.z + 18, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', general: { name: '織田信雄', hat: 'kabuto_m', haori: 0x6a1d2a }, guard: 15, reserve: 200, runTo: { x: 0, z: 36 } });
+    F.honjin = camp(rt, { x: CAMP.x + 6, z: CAMP.z + 18, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', general: { name: '織田信雄', hat: 'kabuto_m', haori: 0x6a1d2a }, guard: 15, reserve: 260, runTo: { x: 0, z: 36 } });
     F.huts = [[-20, 30, 0.1], [18, 26, -0.2], [-8, 60, 0.2], [26, 56, 0]].map(([x, z, r]) => { const m = hut(W, x, z, 7, 5, r, { wall: 0x6e5a40 }); rt.scene.add(m); return { x, z, m }; });
     rt.scene.add(tawara(W, 4, 34, 0.3, 6), tawara(W, -30, 46, -0.2, 5));
     for (const [x, z, k] of [[-10, 20, 'oda'], [10, 20, 'eiraku'], [-34, 30, 'oda'], [34, 34, 'oda']]) rt.scene.add(nobori(W, x, z, k, 6));
     for (const [x, z] of [[-4, 44], [14, 40]]) { rt.scene.add(campfire(W, x, z)); W.addFire(x, z); }
     // ---- 比自山城：柵の囲いと木戸 ----
-    for (const s of ringWall(rt, FORT.x, FORT.z, FORT.r, { gapAt: 0, gapW: 0.3, team: 1, hp: 1e9, name: '柵', segLen: 5 })) { s.noTarget = true; s.wall = true; }
+    F.ring = ringWall(rt, FORT.x, FORT.z, FORT.r, { gapAt: 0, gapW: 0.3, team: 1, hp: 1e9, name: '柵', segLen: 5 });
+    for (const s of F.ring) { s.noTarget = true; s.wall = true; }
     const n0 = Math.max(6, Math.round((2 * Math.PI * FORT.r) / 5)), a1 = (2 * Math.PI) / n0;
     const seg = [FORT.x - FORT.r * Math.sin(a1), FORT.z + FORT.r * Math.cos(a1), FORT.x + FORT.r * Math.sin(a1), FORT.z + FORT.r * Math.cos(a1)];
     F.gate = rt.army.addStruct({ seg, nx: 0, nz: 1, hp: 1500, maxHp: 1500, armor: 0.2, team: 1, name: '木戸' });
@@ -164,7 +165,10 @@ const iga = {
     rt.unmark('last');
     if (F.last && !gone(F.last)) { F.last.noRout = false; F.last.morale = 0; }
     rt.award((t) => t.side.push('城に残った伊賀衆を退けた'), '城の内を取った');
-    this.win(rt);   // 柏原へ退く殿の段は省く（一つの戦を長くしすぎない）
+    // 城の裏の柵は、伊賀衆が抜けるために破ってあった（裏の山道の段へ出られるように）
+    for (const q of F.ring || []) if ((q.seg[1] + q.seg[3]) / 2 < FORT.z - FORT.r * 0.8 && q.alive) { q.alive = false; q.hp = 0; rt.army.structFall(q); }
+    rt.obj('main', HI(rt) ? '手の者を率い、比自山城を確かに取れ' : '比自山城を確かに取れ', 'main');
+    depthStart(rt, igaCtx(rt), igaB(), () => this.win(rt));
   },
 
   // ② 夜明け、比自山城の木戸
@@ -370,14 +374,14 @@ function igaA() {
       pre: (rt) => { rt.army.play('eshout', TS, 1.6); rt.say('伝令', '筒井殿の陣に伊賀衆が斬り込みました！　数は知れませぬ！', 3.5); },
       options: [{ label: '筒井殿の陣へ助けに走る', note: '筒井の手が残り、朝の城攻めで味方が厚い。丹羽の陣が手薄になる' }, { label: '丹羽の陣の周りを固める', note: '陣は固い。筒井の手は押され、四方の林から来る' }],
       on: (rt, m, i) => { m.igTs = i === 0; rt.say('丹羽長秀', i === 0 ? '行け！　闇で味方を斬るなよ、合言葉は「山」「川」じゃ' : 'よし、陣の火を背に、四方へ槍を向けよ', 3.5); } }),
-    fight({ skip: (rt, m) => !m.igTs, at: TS, max: 120, title: '筒井の陣', sub: '闇の中で、伊賀衆と筒井の手が入り乱れる', obj: '筒井殿の陣に斬り込んだ伊賀衆を崩せ',
+    fight({ skip: (rt, m) => !m.igTs, at: TS, max: 120, title: '筒井の陣', sub: '闇の中で、伊賀衆と筒井の手が入り乱れる', obj: (rt) => (HI(rt) ? '預かった一手で筒井殿の陣へ入り、斬り込んだ伊賀衆を崩せ' : '筒井殿の陣に斬り込んだ伊賀衆を崩せ'),
       foes: () => [({ name: '斬り込んだ伊賀衆', from: { x: -60, z: 20 }, list: [uS(2, { hat: 'hachimaki', flag: null }), uA(12)], mass: 180 })],
       later: [
         { t: 30, title: '後ろから', sub: '陣の裏の林から、別の伊賀衆', say: ['足軽', '後ろじゃ！　林から来る！'], foes: () => [({ name: '裏の林の伊賀衆', from: { x: -40, z: 80 }, list: [uS(1, { hat: 'hachimaki', flag: null }), uA(10)], mass: 140 })] },
         { t: 60, say: ['足軽', '林の縁で火縄が光った……並んでおる！'], foes: () => [gunLine('林の縁の伊賀の鉄砲組', { x: -60, z: 56 }, TS, 8, { list: dress([uS(1, { hat: 'hachimaki', flag: null }), uG(8)], IGA), mass: 60 })] },
       ],
       reward: (t) => { t.special = { label: '筒井殿の陣を夜討ちから救った', pts: 20 }; }, rewardLabel: '筒井殿の陣を救った' }),
-    hold({ skip: (rt, m) => m.igTs, at: CAMP, dur: 85, r: 14, title: '四方の林', sub: '闇の四方から、伊賀衆が陣へ寄せる', label: '丹羽の陣', obj: '丹羽の陣を固め、四方から寄せる伊賀衆を退けよ',
+    hold({ skip: (rt, m) => m.igTs, at: CAMP, dur: 85, r: 14, title: '四方の林', sub: '闇の四方から、伊賀衆が陣へ寄せる', label: '丹羽の陣', obj: (rt) => (HI(rt) ? '預かった一手を四方へ向け、丹羽の陣を固めよ' : '丹羽の陣を固め、四方から寄せる伊賀衆を退けよ'),
       waves: [
         { t: 5, say: ['足軽', '右の林から来る！'], foes: () => [({ name: '右の林の伊賀衆', from: { x: 48, z: 30 }, list: [uS(2, { hat: 'hachimaki', flag: null }), uA(12)], mass: 180 })] },
         { t: 30, say: ['足軽', '左からも……！'], foes: () => [({ name: '左の林の伊賀衆', from: { x: -48, z: 50 }, list: [uS(1, { hat: 'hachimaki', flag: null }), uA(12)], mass: 180 })] },
@@ -391,7 +395,7 @@ function igaA() {
       on: (rt, m, i) => { m.igChase = i === 0; rt.say('丹羽長秀', i === 0 ? 'よし、追え。ただし道から外れるな' : 'よし、夜明けを待つ。見張りを倍にせよ', 3); } }),
     move({ skip: (rt, m) => !m.igChase, to: { x: 0, z: -30 }, r: 8, label: '山道の上', obj: '組を連れて、山道を追え',
       ambush: { d: 30, t: 40, title: '待ち伏せ', sub: '山道の左右の林から', say: ['足軽', '左右から……！　誘い込まれた！'], foes: () => [({ name: '左の林の伏兵', from: { x: -40, z: -20 }, list: [uS(1, { hat: 'hachimaki', flag: null }), uA(10)], mass: 140 }), ({ name: '右の林の伏兵', from: { x: 40, z: -30 }, list: [uS(1, { hat: 'hachimaki', flag: null }), uA(10)], mass: 140 })] } }),
-    fight({ skip: (rt, m) => !m.igChase, at: { x: 0, z: -40 }, max: 140, title: '城の手前', sub: '城の手前の伊賀衆が向き直る', obj: '城の手前の伊賀衆を崩せ',
+    fight({ skip: (rt, m) => !m.igChase, at: { x: 0, z: -40 }, max: 140, title: '城の手前', sub: '城の手前の伊賀衆が向き直る', obj: (rt) => (HI(rt) ? '預かった一手で、城の手前の伊賀衆を崩せ' : '城の手前の伊賀衆を崩せ'),
       foes: () => [({ name: '城の手前の伊賀衆', from: { x: 0, z: -66 }, list: [uS(2, { hat: 'hachimaki', flag: null }), uA(12)], mass: 200 }), gunLine('柵の上の鉄砲組', { x: 10, z: -70 }, { x: 0, z: -40 }, 8, { list: dress([uS(1, { hat: 'hachimaki', flag: null }), uG(8)], IGA) })],
       later: [{ t: 40, say: ['足軽', '後ろを断たれる……！　下から来るぞ！'], foes: () => [({ name: '後ろへ回った伊賀衆', from: { x: 10, z: 10 }, list: [uS(1, { hat: 'hachimaki', flag: null }), uA(8)], mass: 120 })] }],
       reward: (t) => { t.special = { label: '夜の山道で伊賀衆を叩いた', pts: 20 }; }, rewardLabel: '夜の山道で伊賀衆を叩いた' }),
@@ -409,14 +413,15 @@ function igaB() {
     pick({ title: '城の裏の山道を、伊賀衆の殿（しんがり）が柏原へ退いていく。どうする？',
       options: [{ label: '城の脇を回り、殿を追う', note: '殿を崩せば大手柄。裏の尾根は伊賀衆の庭じゃ' }, { label: '城に火をかけ、木戸の前を固める', note: '城を確かに取る。尾根から伊賀衆が取り返しに来る' }],
       on: (rt, m, i) => { m.igBack = i === 0; rt.say('丹羽長秀', i === 0 ? 'よし、追え！　尾根へは上がるなよ' : 'よし、火をかけよ。裏の口に槍を揃えよ', 3); } }),
-    fight({ skip: (rt, m) => !m.igBack, at: BK, max: 150, title: '裏の山道', sub: '柏原へ退く伊賀衆の殿が、向き直る', obj: '裏の山道で、伊賀衆の殿を崩せ',
+    fight({ skip: (rt, m) => !m.igBack, at: BK, max: 150, title: '裏の山道', sub: '柏原へ退く伊賀衆の殿が、向き直る', obj: (rt) => (HI(rt) ? '預かった一手で裏の山道を追い、伊賀衆の殿を崩せ' : '裏の山道で、伊賀衆の殿を崩せ'),
+      say: [['丹羽長秀', '殿は少ない。頭の地侍を倒せば、残りは散る。尾根の鉄砲が並んだら、岩の陰へ寄れ', 4.5]],
       foes: () => [({ name: '伊賀衆の殿', from: { x: 0, z: -124 }, list: [uS(3, { hat: 'hachimaki', flag: null }), uA(12)], mass: 200, noRout: 20 })],
       later: [
         { t: 25, title: '尾根の鉄砲', sub: '左右の尾根に、火縄の火が並ぶ', say: ['足軽', '左右の尾根から撃ってくる……！　岩の陰へ！'], foes: () => [gunLine('左の尾根の鉄砲組', { x: -40, z: -112 }, BK, 7, { list: dress([uS(1, { hat: 'hachimaki', flag: null }), uG(7)], IGA), mass: 60 }), gunLine('右の尾根の鉄砲組', { x: 40, z: -112 }, BK, 7, { list: dress([uS(1, { hat: 'hachimaki', flag: null }), uG(7)], IGA), mass: 60 })] },
         { t: 60, title: '囲まれる', sub: '城の脇を回った伊賀衆が、背へ', say: ['足軽', '背に回られた！　城の脇から来おった！'], foes: () => [({ name: '城の脇を回った伊賀衆', from: { x: 36, z: -84 }, list: [uS(1, { hat: 'hachimaki', flag: null }), uA(10)], mass: 140 })] },
       ],
       reward: (t) => { t.special = { label: '伊賀衆の殿を崩した', pts: 25 }; }, rewardLabel: '伊賀衆の殿を崩した' }),
-    hold({ skip: (rt, m) => m.igBack, at: GT, dur: 100, r: 12, title: '燃える城', sub: '城の左右から、伊賀衆が取り返しに回り込む', label: '木戸の前', obj: '燃える城の木戸の前を守り、取り返しに来る伊賀衆を退けよ',
+    hold({ skip: (rt, m) => m.igBack, at: GT, dur: 100, r: 12, title: '燃える城', sub: '城の左右から、伊賀衆が取り返しに回り込む', label: '木戸の前', obj: (rt) => (HI(rt) ? '預かった一手で木戸の前を固め、取り返しに来る伊賀衆を退けよ' : '燃える城の木戸の前を守り、取り返しに来る伊賀衆を退けよ'),
       waves: [
         { t: 6, say: ['足軽', '城の西を回って来る！'], foes: () => [({ name: '取り返しに来た伊賀衆', from: { x: -40, z: -100 }, list: [uS(2, { hat: 'hachimaki', flag: null }), uA(12)], mass: 180 })] },
         { t: 35, say: ['足軽', '柵の外に鉄砲が並んだ……！'], foes: () => [gunLine('城の東の鉄砲組', { x: 36, z: -92 }, GT, 8, { list: dress([uS(1, { hat: 'hachimaki', flag: null }), uG(8)], IGA) })] },

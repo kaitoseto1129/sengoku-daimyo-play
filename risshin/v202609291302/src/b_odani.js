@@ -15,6 +15,8 @@ import { gauss, enemyGroup, allyGroup, nm, centerOf, unitPos, wallLine } from '.
 import { applyLook, NIGHT, dress, gone, volleyWatch } from './b_inabayama.js';
 import { KIT } from './b_nagashinojo.js';
 import { camp } from './b_mid.js';
+import { volleyScene } from './b_shiga.js';
+import { depthStart, depthTick, depthBot, rest, pick, fight, hold } from './b_depth.js';
 
 const HON = { x: 0, z: 0, r: 16 };          // 本丸（長政）
 const KYO = { x: 0, z: -55, r: 13 };        // 京極丸
@@ -191,6 +193,19 @@ const odani = {
     for (const g of F.oda) { g.order = 'attack'; g.seekRange = 40; g.formation = 'line'; }
     F.kyo.order = 'attack'; F.kyo.seekRange = 30;
     rt.marker('kyo', centerOf(F.kyo), () => `京極丸の守り・${moraleWord(F.kyo.morale)}`, { red: true, group: F.kyo });
+    F.kyo.noRout = true; rt.after(25, () => { F.kyo.noRout = false; });
+    KIT.backOf(rt, F.kyo, { flag: 'azai', armor: 0x2e2a26, kind: 'spear', w: 12, depth: 8, count: 90, seed: 15741 });
+    // 本丸から京極丸へ加勢が駆けつける（京極丸は、ただの小勢の曲輪ではない）
+    rt.after(16, () => {
+      if (F.step !== 2) return;
+      const g = enemyGroup(rt, { faction: 'saito', name: '本丸からの加勢', anchor: { x: 0, z: -24 }, facing: Math.PI, order: 'attack', seekRange: 70, aggro: 14, width: 10, morale: 90, fleeDir: { x: 0, z: 1 }, dmgMult: 0.62 },
+        dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 14 }, { type: 'bow', n: 2 }], AZAI));
+      F.kyoAid = g;
+      KIT.backOf(rt, g, { flag: 'azai', armor: 0x2e2a26, kind: 'spear', w: 14, depth: 8, count: 110, seed: 15742 });
+      rt.army.play('eshout', { x: 0, z: -26 }, 1.5);
+      rt.say('羽柴秀吉', '本丸から加勢が来た！　京極丸に入れるな、南の口を塞げ！', 3.5);
+      rt.marker('kyoAid', centerOf(g), () => `本丸からの加勢・${moraleWord(g.morale)}`, { red: true, group: g });
+    });
   },
 
   // ③ 本丸と小丸からの寄せ
@@ -231,6 +246,22 @@ const odani = {
       rt.say('足軽', '北の小丸からも来るぞ！　後ろじゃ！', 3);
       rt.marker('fk', centerOf(F.fromKom), () => `小丸の兵・${moraleWord(F.fromKom.morale)}`, { red: true, group: F.fromKom });
     });
+  },
+
+  // 段を重ねる（b_depth.js）：小丸を叩くか京極丸で受けるか → 本丸の精兵をどう受けるか
+  deep(rt, late = false) {
+    const F = rt.flags;
+    if (F.deep) return;
+    F.deep = true;
+    rt.unmark('fh'); rt.unmark('fk'); rt.unzone('kyo');
+    for (const q of [F.fromHon, F.fromKom]) if (q && !gone(q)) { q.noRout = false; q.morale = 0; }
+    if (!late) rt.award((t) => t.side.push('京極丸で最初の寄せを退けた'), '最初の寄せを退けた');
+    rt.banner('寄せを退けた', '本丸も小丸も、まだ兵を集め直している');
+    rt.obj('main', '京極丸を保ち、本丸と小丸の浅井勢を退けよ', 'main');
+    const ctx = { faction: 'saito', flag: 'azai', armor: 0x2e2a26, dmg: 0.6, mass: 160, look: (l) => dress(l, AZAI),
+      friends: () => [F.hide, F.hachi, F.gunH].filter((g) => g && g.count && !g.routed),
+      aid: { name: '羽柴の後詰', faction: 'oda', list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 10 }] }, aidSaid: '谷から羽柴の後詰が登ってきた' };
+    depthStart(rt, ctx, odSteps(), () => this.escort(rt, true));
   },
 
   // ④ お市の方の一行を供する
@@ -303,20 +334,21 @@ const odani = {
       if ((d < 22 && gone(F.watch)) || Math.hypot(hc.x - 30, hc.z + 56) < 6 || rt.t - F.stepT > 130) { rt.unmark('watch'); this.assault(rt); }
     }
     if (F.step === 2) {
-      rt.objProgress('main', `守り ${F.kyo.count}人`);
+      rt.objProgress('main', `守り ${F.kyo.count + (F.kyoAid && !gone(F.kyoAid) ? F.kyoAid.count : 0)}人`);
       if (F.kyo.count < 5 && !gone(F.kyo)) F.kyo.morale = Math.min(F.kyo.morale, 20);
-      if (gone(F.kyo)) this.cut(rt);
+      if (gone(F.kyo) && rt.t - F.stepT > 18 && (!F.kyoAid || gone(F.kyoAid))) { rt.unmark('kyoAid'); this.cut(rt); }
       else if (rt.t - F.stepT > 130) this.cut(rt, true);
     }
     if (F.step === 3) {
       const qs = [F.fromHon, F.fromKom].filter(Boolean);
-      rt.objProgress('main', `寄せる兵 ${qs.reduce((s, q) => s + (gone(q) ? 0 : q.count), 0)}人`);
+      if (!F.deep) rt.objProgress('main', `寄せる兵 ${qs.reduce((s, q) => s + (gone(q) ? 0 : q.count), 0)}人`);
       volleyWatch(rt, 'hon', { guns: () => F.gunH, foes: () => [F.fromHon], r: 22, who: '羽柴秀吉', line: '道の出口まで来た……鉄砲、放て！', sub: '京極丸の口から、羽柴の鉄砲衆' });
       for (const q of qs) if (q.count < 5 && !gone(q)) q.morale = Math.min(q.morale, 20);
-      if (qs.length === 2 && qs.every(gone)) this.escort(rt);
-      else if (rt.t - F.stepT > 170) this.escort(rt, true);
+      if (F.deep) { depthTick(rt, dt); KIT.backTick(rt); return; }
+      if (qs.length === 2 && qs.every(gone)) this.deep(rt);
+      else if (rt.t - F.stepT > 170) this.deep(rt, true);
       // 京極丸の輪から出たら、秀吉が呼び戻す
-      if (rt.t - F.stepT > 12 && Math.hypot(p.x - KYO.x, p.z - KYO.z) > KYO.r + 9 && !(F.kyoCallT > rt.t)) { F.kyoCallT = rt.t + 14; rt.say('羽柴秀吉', `${nm(rt)}、どこへ行く！　京極丸を空けるな、戻れ！`, 3); }
+      if (!F.deep && rt.t - F.stepT > 12 && Math.hypot(p.x - KYO.x, p.z - KYO.z) > KYO.r + 9 && !(F.kyoCallT > rt.t)) { F.kyoCallT = rt.t + 14; rt.say('羽柴秀吉', `${nm(rt)}、どこへ行く！　京極丸を空けるな、戻れ！`, 3); }
     }
     if (F.step === 4) {
       const c = F.esc.center();
@@ -346,10 +378,20 @@ const odani = {
       if (!F.ochiOn && (F.esc.pathIdx || 0) >= 4) {
         F.ochiOn = true;
         F.esc.order = 'hold'; F.esc.anchor = { x: c.x, z: c.z };
-        F.ochi = enemyGroup(rt, { faction: 'saito', name: '落ち武者', anchor: { x: 40, z: -34 }, facing: -Math.PI / 2, order: 'attack', seekRange: 40, aggro: 12, width: 4, morale: 60, fleeDir: { x: 0, z: 1 }, dmgMult: 0.6 }, dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 4 }], AZAI));
+        F.ochi = enemyGroup(rt, { faction: 'saito', name: '落ち武者', anchor: { x: 40, z: -34 }, facing: -Math.PI / 2, order: 'attack', seekRange: 40, aggro: 12, width: 8, morale: 60, fleeDir: { x: 0, z: 1 }, dmgMult: 0.55 }, dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 10 }], AZAI));
         rt.say('足軽', '林から落ち武者じゃ！　一行を守れ！', 3);
+        // 判断③：一行を止めて追い払うか、先へ急がせて後ろを守るか
+        rt.choose('林から落ち武者が出た。一行をどうする？', [
+          { label: '一行を止め、落ち武者を追い払ってから進む', note: '一行は安心。陣に着くのは遅れる' },
+          { label: '一行を先へ急がせ、組の者と後ろを守る', note: '早く陣に着ける。落ち武者を一人で引き受ける' },
+        ], (i) => {
+          if (i !== 1) return;
+          F.ochiOn = 'done'; F.ochiRear = true; F.esc.order = 'path';
+          rt.say('藤掛永勝', '承知！　お市様、急ぎまするぞ', 3);
+        }, 12);
         rt.marker('ochi', centerOf(F.ochi), () => `落ち武者・${moraleWord(F.ochi.morale)}`, { red: true, group: F.ochi });
       }
+      if (F.ochiRear && F.ochi && gone(F.ochi)) { F.ochiRear = false; rt.unmark('ochi'); rt.award((t) => t.side.push('一行を止めずに落ち武者を退けた'), '一行を止めずに落ち武者を退けた'); }
       if (F.ochi && gone(F.ochi) && F.ochiOn !== 'done') { F.ochiOn = 'done'; rt.unmark('ochi'); F.esc.order = 'path'; rt.say('藤掛永勝', 'かたじけない。……参りましょう', 2.5); }
       rt.objProgress('main', `陣まで ${Math.round(Math.hypot(c.x - VALLEY.x, c.z - VALLEY.z))}m`);
       if (rt.t - F.stepT > 200) this.win(rt);
@@ -401,6 +443,7 @@ odani.botBrain = (b, inp, { goTo }) => {
   if (!u.alive || F.ending) return;
   if (u.hp < u.maxHp * 0.5) b.botRest = true;
   if (b.botRest && u.hp > u.maxHp * 0.85) b.botRest = false;
+  if (F.deep && F.step === 3) { depthBot(b, inp, goTo); return; }
   if (b.botRest && F.step < 4) { inp.guardHold = false; const c = F.hide.center(); goTo(p, inp, c.x + 4, c.z, 2); return; }
   const e = b.army.nearestEnemy(u, 12, (o) => !o.fleeing);
   if (e && F.step < 4) {
@@ -429,5 +472,59 @@ odani.botBrain = (b, inp, { goTo }) => {
   }
   if (F.step === 4 && F.esc) { const c = F.esc.center(); goTo(p, inp, c.x + 2, c.z + 2, 3); }
 };
+
+// ---- 京極丸を取った後の段 ----
+const uS = (n) => ({ type: 'samurai', n }), uA = (n) => ({ type: 'ashigaru', n }), uG = (n) => ({ type: 'gun', n }), uB = (n) => ({ type: 'bow', n });
+function odSteps() {
+  return [
+    rest({ dur: 10, heal: 0.3, say: [['羽柴秀吉', '一度は退けた。……じゃが、見よ。本丸にも小丸にも、まだ篝火が増えておる'], ['足軽', '小丸の方で、鬨の声が……'], ['羽柴秀吉', '小丸の久政殿を追い詰めれば、本丸の長政殿は動けぬ。じゃが、京極丸を空ければ取り返される']] }),
+    pick({ title: '小丸の兵がまた集まっている。どうする？',
+      options: [{ label: '北の小丸へ攻め上がり、寄せる前に叩く', note: '小丸が早く落ちる。京極丸は蜂須賀の手に任せる' }, { label: '京極丸に構え、両方からの寄せを受ける', note: '京極丸は固い。北と南から、何度も寄せが来る' }],
+      on: (rt, m, i) => { m.oKom = i === 0; rt.say('羽柴秀吉', i === 0 ? 'よし、小丸へ登れ！　久政殿の旗を倒せ！' : '構えよ！　京極丸を一歩も渡すな！', 3); } }),
+    fight({ skip: (rt, m) => !m.oKom, at: { x: 0, z: -84 }, title: '小丸へ', sub: '北の曲輪へ攻め上がる', obj: '小丸の前の浅井勢を崩せ',
+      foes: () => [{ name: '小丸の守り', from: { x: 0, z: -104 }, list: [uS(3), uA(12), uB(3)], mass: 180, noRout: 25 }],
+      later: [{ t: 35, title: '横から', sub: '小丸の西の腰曲輪から', say: ['足軽', '西の腰曲輪から、また出てくる！'], foes: () => [{ name: '腰曲輪の兵', from: { x: -26, z: -96 }, list: [uS(2), uA(10), uG(2)], mass: 140 }] },
+        { t: 70, say: ['羽柴秀吉', '小丸の最後の守りじゃ！　押し切れ！'], foes: () => [{ name: '久政の旗本', from: { x: 0, z: -108 }, list: [uS(3), uA(10)], mass: 120 }] }],
+      max: 150, reward: (t) => { t.special = { label: '小丸へ攻め上がり、守りを崩した', pts: 20 }; }, rewardLabel: '小丸の守りを崩した' }),
+    hold({ skip: (rt, m) => m.oKom, at: { x: 0, z: -55 }, dur: 95, r: 13, title: '南北からの寄せ', sub: '本丸と小丸が、代わる代わる寄せてくる', label: '京極丸', obj: '京極丸を守れ：北と南から代わる代わる寄せてくる',
+      waves: [
+        { t: 4, say: ['足軽', '小丸から来た！　北じゃ！'], foes: () => [{ name: '小丸の兵', from: { x: 0, z: -100 }, list: [uS(2), uA(12), uG(2)], mass: 180, noRout: 20 }] },
+        { t: 34, say: ['足軽', '南の本丸からもじゃ！'], foes: () => [{ name: '本丸の兵', from: { x: 0, z: -12 }, list: [uS(2), uA(12), uB(2)], mass: 180 }] },
+        { t: 64, say: ['羽柴秀吉', '北の腰曲輪からも登ってくる！　背を合わせよ！'], foes: () => [{ name: '腰曲輪の兵', from: { x: -24, z: -90 }, list: [uS(2), uA(10)], mass: 140 }] },
+      ],
+      reward: '京極丸で南北の寄せを受け止めた', lost: ['羽柴秀吉', '押された……じゃが、京極丸はまだ我らのものじゃ！'] }),
+    rest({ dur: 8, bark: '組を集め直せ', say: [['足軽', '北の山王丸から、松明が下りてくる！'], ['羽柴秀吉', '山王丸の兵が小丸を救いに来たか。京極丸の北で止めよ']] }),
+    hold({ at: { x: 0, z: -72 }, dur: 90, r: 13, title: '山王丸の兵', sub: '北の尾根の出丸から、浅井勢が下りてくる', label: '京極丸の北', obj: '京極丸の北で、山王丸から下りる浅井勢を止めよ',
+      waves: [
+        { t: 4, say: ['足軽', '来たぞ、山王丸の兵じゃ！'], foes: () => [{ name: '山王丸の兵', from: { x: -6, z: -110 }, list: [uS(3), uA(13), uG(2)], mass: 200, noRout: 20 }] },
+        { t: 36, say: ['足軽', '西の谷からも登ってくる！'], foes: () => [{ name: '西の谷の浅井勢', from: { x: -34, z: -80 }, list: [uS(2), uA(10), uB(2)], mass: 140 }] },
+        { t: 62, say: ['羽柴秀吉', '山王丸の二の手じゃ！　槍を揃えよ！'], foes: () => [{ name: '山王丸の二の手', from: { x: 4, z: -112 }, list: [uS(2), uA(12)], mass: 160 }] },
+      ],
+      reward: '山王丸から下りる浅井勢を止めた', lost: ['羽柴秀吉', '押されたが……小丸へは通しておらぬ'] }),
+    rest({ dur: 8, bark: '組を集め直し、南の本丸の方を向け', say: [['伝令', '本丸から、浅井の精兵が京極丸を取り返しに出てまいりまする！'], ['羽柴秀吉', '長政殿の旗本じゃ。本丸からの道は細い。……さて、どう受ける']] }),
+    pick({ title: '本丸から浅井の精兵が来る。どう受ける？',
+      options: [{ label: '細い道の出口に鉄砲を並べ、出てくる所を撃つ', note: '数を削れる。撃ち漏らしは京極丸で槍で受ける' }, { label: '道の中へ打って出て、細い所で突き崩す', note: '大手柄になる。狭い道で、前の敵と押し合う' }],
+      on: (rt, m, i) => {
+        m.oOut = i === 1;
+        const F = rt.flags;
+        if (i === 0 && F.gunH && F.gunH.count) {
+          F.gunH.anchor = { x: 2, z: -40 }; F.gunH.formation = 'line';
+          volleyScene(rt, { guns: () => [F.gunH], at: { x: 0, z: -32 }, r: 26, who: '羽柴秀吉', shots: 3, wait: '道の出口まで引きつけよ……', fire: '出てきた！　放てぇっ！', hit: 18 });
+        } else rt.say('羽柴秀吉', 'よし、道へ出よ！　細い所なら数は関わりない！', 3);
+      } }),
+    hold({ skip: (rt, m) => m.oOut, at: { x: 0, z: -48 }, dur: 100, r: 13, title: '本丸の精兵', sub: '浅井長政の旗本が、京極丸を取り返しに来る', label: '京極丸の南の口', obj: '京極丸の南の口で、本丸の精兵を受けよ',
+      waves: [
+        { t: 4, say: ['浅井の侍', '京極丸を取り返せ！　殿の御前ぞ！'], foes: () => [{ name: '浅井の旗本', from: { x: 0, z: -12 }, list: [uS(4), uA(12)], mass: 220, noRout: 25 }] },
+        { t: 40, say: ['足軽', '本丸の西の崖を回ってくる！'], foes: () => [{ name: '崖を回る浅井勢', from: { x: -26, z: -26 }, list: [uS(2), uA(10), uG(2)], mass: 140 }] },
+        { t: 66, say: ['羽柴秀吉', '最後の寄せじゃ！　これを凌げ！'], foes: () => [{ name: '本丸の最後の寄せ', from: { x: 0, z: -10 }, list: [uS(3), uA(12)], mass: 200 }] },
+      ],
+      reward: '京極丸で本丸の精兵を受け止めた', lost: ['羽柴秀吉', '押し込まれたか……じゃが、まだ持っておる！'] }),
+    fight({ skip: (rt, m) => !m.oOut, at: { x: 0, z: -30 }, title: '細い道の戦い', sub: '本丸と京極丸をつなぐ道で、浅井の旗本とぶつかる', obj: '細い道で、浅井の旗本を突き崩せ',
+      foes: () => [{ name: '浅井の旗本', from: { x: 0, z: -10 }, list: [uS(4), uA(12)], mass: 220, noRout: 25 }],
+      later: [{ t: 45, title: '新手', sub: '本丸から、また押し出してくる', say: ['足軽', '後ろからまだ来る！'], foes: () => [{ name: '本丸の新手', from: { x: 0, z: -8 }, list: [uS(2), uA(12), uG(2)], mass: 180 }] }],
+      max: 150, reward: (t) => { t.special = { label: '細い道で浅井の旗本を突き崩した', pts: 20 }; }, rewardLabel: '細い道で浅井の旗本を突き崩した' }),
+    rest({ dur: 8, heal: 0.25, say: [['足軽', '……小丸の方から煙が上がっておる'], ['羽柴秀吉', '久政殿が……。京極丸が持ったおかげで、本丸は小丸を救えなんだ']] }),
+  ];
+}
 
 export { odani };

@@ -235,7 +235,8 @@ body.rm #hud #tutorial.coach.in { animation: none; }
 @media (prefers-reduced-motion: reduce) { #hud #tutorial.coach.in { animation: none; } }
 /* 携帯の横向き：左上の釦と戦功の札の下、歩く棒の上に小さく */
 @media (max-height: 500px) {
-  #hud #tutorial.coach { top: calc(128px + env(safe-area-inset-top, 0px)); left: calc(76px + env(safe-area-inset-left, 0px)); width: 236px; padding: 7px 11px 8px; }
+  /* 幅は中身に合わせる（短い札で戦場を横に長くふさがない） */
+  #hud #tutorial.coach { top: calc(128px + env(safe-area-inset-top, 0px)); left: calc(76px + env(safe-area-inset-left, 0px)); width: max-content; min-width: 140px; max-width: 236px; padding: 7px 11px 8px; }
   #hud #tutorial.coach .what { font-size: 16px; }
   #hud #tutorial.coach .how { font-size: 13px; }
   #hud #tutorial.coach .what.sm { font-size: 14px; }

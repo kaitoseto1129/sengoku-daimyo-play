@@ -90,7 +90,7 @@ const miki = {
     if (n) rt.makeSquad({ x: 36, z: 52 }, Math.PI, [{ kind: 'spear', n }]);
     // ---- 平井山の本陣と大軍（軽い作り） ----
     // 平井山の本陣（秀吉は前へ出ているので、弟の秀長が留守を預かる）と、三木城の別所長治の陣所
-    F.honjin = camp(rt, { x: 0, z: 122, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', general: { name: '羽柴秀長', hat: 'kabuto_m', haori: 0x5a4a2a }, guard: 15, reserve: 200, runTo: { x: 24, z: 56 } });
+    F.honjin = camp(rt, { x: 0, z: 122, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', general: { name: '羽柴秀長', hat: 'kabuto_m', haori: 0x5a4a2a }, guard: 15, reserve: 260, runTo: { x: 24, z: 56 } });
     F.ehon = camp(rt, { x: MIKI.x + 42, z: MIKI.z - 6, facing: 0, team: 1, faction: 'saito', mon: 'maru', general: { name: '別所長治', hat: 'kabuto_m', haori: 0x3a2e2a }, guard: 15, reserve: 150, runTo: { x: MIKI.x, z: MIKI.z + 30 } });
     const DA = (x, z, w, d, count, facing, armor, flag, seed) => W.addDistantArmy({ x, z, w, d, count, facing, armor, flagTex: flagTexture(flag), seed });
     DA(-20, 110, 40, 12, 260, Math.PI, 0x2b3140, 'oda', 15795);
@@ -205,7 +205,8 @@ const miki = {
     for (const q of F.last || []) if (!gone(q)) { q.noRout = false; q.morale = Math.min(q.morale, 15); }
     leanAll(F.lines, 'A', 0.4);
     rt.award((t) => t.side.push('大村坂で別所・毛利勢を崩した'), '大村坂を崩した');
-    this.win(rt);   // 城の手前・最後の打って出の段は省く（一つの戦を長くしすぎない）
+    rt.obj('main', HI(rt) ? '預かった一手で大村坂を押さえ、城の者を二度と出すな' : '大村坂を押さえ、城の者を二度と出すな', 'main');
+    depthStart(rt, mikiCtx(rt), mikiB(), () => this.win(rt));
   },
 
   // ③ 大村坂
@@ -333,14 +334,14 @@ function mikiA() {
       pre: (rt) => rt.say('伝令', '別所の新手、北と東西から付城へ寄せまする！　鉄砲も連れておると！', 3.5),
       options: [{ label: '付城の口を固めて守る', note: '柵を背に守れる。三方から囲まれ、鉄砲を浴びる' }, { label: '付城の外へ打って出て、寄せ手の横を突く', note: '寄せ手を先に崩せば手柄。付城の守りが薄くなる' }],
       on: (rt, m, i) => { m.mkOut = i === 1; rt.say('羽柴秀吉', i === 0 ? 'よし、口を固めよ！　一人も入れるな' : 'よし、打って出よ！　寄せ手の横腹を突け！', 3); } }),
-    hold({ skip: (rt, m) => m.mkOut, at: GATE, dur: 84, r: 13, title: '付城の口', sub: '三方から、別所の旗が付城を囲む', label: '付城の口', obj: '付城の口を守り、囲みに来る別所勢を退けよ',
+    hold({ skip: (rt, m) => m.mkOut, at: GATE, dur: 84, r: 13, title: '付城の口', sub: '三方から、別所の旗が付城を囲む', label: '付城の口', obj: (rt) => (HI(rt) ? '預かった一手で付城の口を固め、囲みに来る別所勢を退けよ' : '付城の口を守り、囲みに来る別所勢を退けよ'),
       waves: [
         { t: 5, say: ['足軽', '東から来る！'], foes: () => [{ name: '東から寄せる別所勢', from: R.right, list: [uS(2), uA(12)], mass: 200 }] },
         { t: 30, say: ['足軽', '西からもじゃ……囲まれるぞ！'], foes: () => [{ name: '西から寄せる別所勢', from: R.left, list: [uS(2), uA(12), uB(3)], mass: 200 }] },
         { t: 55, say: ['足軽', '北に鉄砲が並んだ……！　柵の陰へ！'], foes: () => [gunLine('別所の鉄砲衆', { x: HIRATA.x + 24, z: HIRATA.z - 30 }, GATE, 10)] },
       ],
       reward: '付城の口を守りぬいた' }),
-    fight({ skip: (rt, m) => !m.mkOut, at: { x: HIRATA.x + 22, z: HIRATA.z - 18 }, max: 120, title: '打って出る', sub: '付城を囲む別所勢の横腹へ', obj: '付城を囲む別所勢の横を突いて崩せ',
+    fight({ skip: (rt, m) => !m.mkOut, at: { x: HIRATA.x + 22, z: HIRATA.z - 18 }, max: 120, title: '打って出る', sub: '付城を囲む別所勢の横腹へ', obj: (rt) => (HI(rt) ? '預かった一手を率いて打って出、付城を囲む別所勢の横を突け' : '付城を囲む別所勢の横を突いて崩せ'),
       foes: () => [{ name: '付城を囲む別所勢', from: { x: HIRATA.x + 10, z: HIRATA.z - 60 }, list: [uS(3), uA(14)], mass: 260, noRout: 20 }],
       later: [
         { t: 30, title: '鉄砲', sub: '別所の鉄砲衆が並んで構える', say: ['足軽', '鉄砲が揃えて構えた……！　伏せろ！'], foes: () => [gunLine('別所の鉄砲衆', { x: HIRATA.x + 50, z: HIRATA.z - 40 }, { x: HIRATA.x + 22, z: HIRATA.z - 18 }, 9)] },
@@ -351,7 +352,7 @@ function mikiA() {
     pick({ title: '毛利の荷駄の残りが、西の谷道を抜けようとしている。どうする？',
       options: [{ label: '西の谷道へ走り、荷駄を焼く', note: '荷駄を焼けば、大村坂の毛利の鉄砲衆が加わらない。谷道は狭く、待ち伏せがあるかもしれぬ' }, { label: '秀吉の手に付いて、大村坂へ急ぐ', note: 'すぐ大村坂へ。荷駄を守ってきた毛利の鉄砲衆が坂に加わる' }],
       on: (rt, m, i) => { m.mkBurn = i === 0; rt.say('羽柴秀吉', i === 0 ? 'よし、行け！　一俵も入れるな、焼き捨てよ！' : 'よし、坂へ急ぐぞ。荷駄は付城の者に任せる', 3); } }),
-    fight({ skip: (rt, m) => !m.mkBurn, at: VALLEY, max: 110, title: '西の谷道', sub: '荷駄を守る毛利勢が、谷の口で向き直る', obj: '西の谷道で、荷駄を守る毛利勢を崩せ',
+    fight({ skip: (rt, m) => !m.mkBurn, at: VALLEY, max: 110, title: '西の谷道', sub: '荷駄を守る毛利勢が、谷の口で向き直る', obj: (rt) => (HI(rt) ? '預かった一手で西の谷道を塞ぎ、毛利の荷駄を焼け' : '西の谷道で、荷駄を守る毛利勢を崩せ'),
       foes: () => [{ name: '荷駄を守る毛利勢', from: { x: -100, z: -104 }, flag: 'mori', list: dress([uS(2), uA(12)], MORI), mass: 200 }, gunLine('谷の上の毛利の鉄砲組', { x: -60, z: -100 }, VALLEY, 8, { flag: 'mori', list: dress([uS(1), uG(8)], MORI) })],
       later: [{ t: 40, title: '待ち伏せ', sub: '谷の両側から、毛利勢が下りてくる', say: ['足軽', '谷の上から……！　挟まれた！'], foes: () => [{ name: '谷の上の毛利勢', from: { x: -114, z: -40 }, flag: 'mori', list: dress([uS(1), uA(10)], MORI), mass: 150 }, { name: '後ろへ回った毛利勢', from: { x: -60, z: -30 }, flag: 'mori', list: dress([uS(1), uA(8)], MORI), mass: 120 }] }],
       reward: (t) => { t.special = { label: '西の谷道で毛利の荷駄を焼いた', pts: 15 }; }, rewardLabel: '毛利の荷駄を焼いた' }),
@@ -365,14 +366,14 @@ function mikiB() {
     pick({ title: '崩れた別所・毛利勢が城へ逃げ込む。どうする？',
       options: [{ label: '城の手前まで追い討つ', note: '逃げる者を討てば大手柄。城から新手と鉄砲が出る' }, { label: '坂の上で踏みとどまり、城からの打って出に備える', note: '坂の上は固い。城の者はまた打って出る' }],
       on: (rt, m, i) => { m.mkChase = i === 0; rt.say('羽柴秀吉', i === 0 ? '追え！　ただし城の堀へは寄るな！' : 'よし、坂の上に槍を揃えよ', 3); } }),
-    fight({ skip: (rt, m) => !m.mkChase, at: NC, max: 160, title: '城の手前', sub: '逃げ込む別所勢を追う。城の門が開いた', obj: '城の手前で、逃げ込む別所勢と城からの新手を崩せ',
+    fight({ skip: (rt, m) => !m.mkChase, at: NC, max: 160, title: '城の手前', sub: '逃げ込む別所勢を追う。城の門が開いた', obj: (rt) => (HI(rt) ? '預かった一手で追い討ち、城の手前で別所勢を崩せ' : '城の手前で、逃げ込む別所勢と城からの新手を崩せ'),
       foes: () => [{ name: '逃げ込む別所勢', from: R.front, list: [uS(2), uA(12)], mass: 200 }],
       later: [
         { t: 20, title: '城の鉄砲', sub: '城から鉄砲衆が出て、並んで撃つ', say: ['足軽', '城から鉄砲衆が出てきた……並んで構えたぞ！'], foes: () => [gunLine('城から出た鉄砲衆', R.fl, NC, 10)] },
         { t: 55, title: '囲まれる', sub: '城の新手が左右へ回る', say: ['羽柴秀吉', '深入りしすぎじゃ……！　左右から来るぞ、退きながら突け！'], foes: () => [{ name: '左へ回る城の新手', from: R.left, list: [uS(2), uA(10)], mass: 160 }, { name: '右へ回る城の新手', from: R.right, list: [uS(2), uA(10)], mass: 160 }] },
       ],
       reward: (t) => { t.special = { label: '城の手前まで追い討った', pts: 25 }; }, rewardLabel: '城の手前まで追い討った' }),
-    hold({ at: OMURA, dur: 90, r: 14, title: '最後の打って出', sub: '飢えた城兵が、死にもの狂いで坂へ打って出る', label: '大村坂の上', obj: '大村坂の上で、城からの最後の打って出を受け止めよ',
+    hold({ at: OMURA, dur: 90, r: 14, title: '最後の打って出', sub: '飢えた城兵が、死にもの狂いで坂へ打って出る', label: '大村坂の上', obj: (rt) => (HI(rt) ? '預かった一手を坂の上に並べ、城からの最後の打って出を受け止めよ' : '大村坂の上で、城からの最後の打って出を受け止めよ'),
       say: [['羽柴秀吉', 'これが最後じゃ。……飢えた者は死にもの狂いで来る。気を抜くな']],
       waves: [
         { t: 5, say: ['足軽', '来た……痩せこけておるのに、目だけが光っておる'], foes: (rt, m) => [{ name: '死にもの狂いの城兵', from: { x: OMURA.x - 10, z: OMURA.z - 50 }, list: [uS(2), uA(m.mkChase ? 10 : 14)], mass: 220, morale: 100 }] },

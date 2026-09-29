@@ -271,7 +271,7 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
       const b = new THREE.BoxGeometry(len / n - 0.012, H, 0.05);
       b.rotateY(Math.atan2(bx - ax, bz - az) + Math.PI / 2);
       b.translate(bx2, H / 2, bz2);
-      parts.push(paint(b, vary(o.wall || 0x7b6448, k++)));
+      parts.push(paint(b, vary(o.wall || (o.ita ? 0x756c5e : 0x7b6448), k++)));
     }
   }
   void boards;
@@ -297,7 +297,7 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
   for (const zz of [d / 2, -d / 2]) {
     const tri = new THREE.Shape([new THREE.Vector2(-w / 2, 0), new THREE.Vector2(w / 2, 0), new THREE.Vector2(0, rh * (w / 2) / (w / 2 + eave))]);
     const tg = new THREE.ShapeGeometry(tri); if (zz < 0) tg.rotateY(Math.PI); tg.translate(0, H, zz);
-    parts.push(paint(tg, vary(o.wall || 0x7b6448, 5)));
+    parts.push(paint(tg, vary(o.wall || (o.ita ? 0x756c5e : 0x7b6448), 5)));
   }
   // o.ita：板葺きの屋根に石を並べて置く（石置き屋根）。茅の代わりに灰茶の板と、押さえの丸太・石
   if (o.ita) {
@@ -305,7 +305,7 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
     for (const sd of [1, -1]) for (let q = 0; q < 3; q++) {
       const t = (q + 0.5) / 3, lx = sd * (w / 2 + eave) * t, ly = H + rh * (1 - t) + 0.2;
       const bar = new THREE.CylinderGeometry(0.06, 0.06, d + eave * 2, 5); bar.rotateX(Math.PI / 2); bar.translate(lx, ly, 0); parts.push(paint(bar, 0x4e473c));
-      for (let k2 = 0; k2 < 5; k2++) { const st = new THREE.DodecahedronGeometry(0.16 + ((q * 5 + k2) % 3) * 0.04, 0); st.scale(1.2, 0.7, 1); st.translate(lx, ly + 0.1, -d / 2 - eave + (k2 + 0.5) * (d + eave * 2) / 5); parts.push(paint(st, vary(0x7d7a72, q * 7 + k2))); }
+      for (let k2 = 0; k2 < 5; k2++) { const st = new THREE.DodecahedronGeometry(0.16 + ((q * 5 + k2) % 3) * 0.04, 0); st.scale(1.2, 0.7, 1); st.translate(lx, ly + 0.1, -d / 2 - eave + (k2 + 0.5) * (d + eave * 2) / 5); parts.push(paint(st, vary(0x8a867c, q * 7 + k2))); }
     }
     void th; void slope;
   }

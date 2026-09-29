@@ -66,7 +66,7 @@ for (let i = 0; i < N; i++) {
   const c = await openChrome({ width, height });
   try {
     if (MOBILE) await toPhone(c);
-    await c.goto(`http://localhost:8765/?bot&k=${i + Math.floor(Math.random() * 4)}${ONLY ? '&only=' + ONLY : ''}${RENDER ? '' : '&norender' + (SPEED > 1 ? '&speed=' + SPEED : '')}&r=${Date.now()}`, 3000);
+    await c.goto(`http://localhost:8765/?bot&k=${i + Math.floor(Math.random() * 4)}${ONLY ? '&only=' + ONLY : ''}${RENDER ? '' : '&norender' + (SPEED > 1 ? '&speed=' + SPEED : '')}${VQ ? '&' + VQ : ''}&r=${Date.now()}`, 3000);
     await c.ev('Storage.prototype.setItem = function () {}; return 1;');
     let data = null;
     // 一回に長くて40分（戦が増えたので）。途中で落ちたら（ページのエラー）そのことも拾う

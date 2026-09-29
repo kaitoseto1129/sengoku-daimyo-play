@@ -172,7 +172,7 @@ const shiga = {
     rt.banner('朝倉の先手', '湖の西の道を、朝倉の旗が下ってくる');
     rt.obj('main', '町口で朝倉の先手を迎え撃て', 'main');
     for (const h of F.host) h.advance(40, 60);
-    const g = enemyGroup(rt, { faction: 'saito', name: '朝倉の先手', anchor: { x: 22, z: -70 }, facing: 0, order: 'attack', seekRange: 90, aggro: 14, width: 16, morale: 95, fleeDir: { x: 0, z: -1 }, dmgMult: 0.66, formation: 'yari' },
+    const g = enemyGroup(rt, { faction: 'saito', name: '朝倉の先手', anchor: { x: 22, z: -70 }, facing: 0, order: 'attack', seekRange: 90, aggro: 14, width: 16, morale: 95, fleeDir: { x: 0, z: -1 }, dmgMult: 0.55, formation: 'yari' },
       dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 18 }, { type: 'bow', n: 3 }], ASA));
     F.w1 = g;
     KIT.backOf(rt, g, { flag: 'asakura', armor: 0x33291f, kind: 'spear', w: 24, depth: 12, count: 260, seed: 15794 });
@@ -193,7 +193,7 @@ const shiga = {
       banner: ['一斉射', '町口の鉄砲が、寄せる先手の頭を叩く'], clash: () => F.lines });
     rt.after(34, () => {
       if (F.step !== 1) return;
-      F.w1b = enemyGroup(rt, { faction: 'saito', name: '朝倉の二の手', anchor: { x: 44, z: -70 }, facing: 0, order: 'attack', seekRange: 90, aggro: 14, width: 12, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 0.66 },
+      F.w1b = enemyGroup(rt, { faction: 'saito', name: '朝倉の二の手', anchor: { x: 44, z: -70 }, facing: 0, order: 'attack', seekRange: 90, aggro: 14, width: 12, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 0.55 },
         dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 14 }, { type: 'gun', n: 2 }], ASA));
       for (const u of F.w1b.units) if (u.type === 'gun') u.dmg *= 0.45;
       KIT.backOf(rt, F.w1b, { flag: 'asakura', armor: 0x33291f, kind: 'spear', w: 20, depth: 10, count: 200, seed: 15797 });
@@ -319,6 +319,8 @@ const shiga = {
     const F = rt.flags;
     KIT.backTick(rt);
     depthTick(rt, dt);
+    // 大軍から目を覚ました敵の兵は、名のある組より当たりを弱める（三万に一人で呑まれて、町口で倒れ続けないように）
+    if ((F.wkT = (F.wkT || 0) - dt) <= 0) { F.wkT = 0.5; for (const g of rt.army.groups) if (g.woke && g.team === 1 && !g.shDm) { g.shDm = true; g.dmgMult = (g.dmgMult || 1) * 0.55; } }
     // 崩れた隊の印は消す（古い印が「あちらじゃ」の行き先にならないように）
     for (const m of rt.markers.slice()) if (m.group && gone(m.group)) rt.unmark(m.id);
     if (F.ending) return;
@@ -395,6 +397,7 @@ function shigaCtx(rt) {
   return { faction: 'saito', flag: 'asakura', armor: 0x33291f, dmg: 0.64, look: (l) => dress(l, ASA), friends: () => (F.step < 2 ? [F.mori, F.nobuharu] : [F.keep]).filter((g) => g && g.count), aid: { name: '森の手の一組', list: [uS(1), uA(8)] }, aidSaid: '森の手から一組が加わった' };
 }
 // 木戸の外（寄せ手の来る側）
+const WELL = { x: USA.x - 20, z: USA.z + 18 };   // 城の裏の谷の井戸（水の手）
 const outGate = (rt, k = 8) => ({ x: rt.flags.gateC.x + rt.flags.gateN.x * k, z: rt.flags.gateC.z + rt.flags.gateN.z * k });
 function shigaA() {
   const T = { x: TOWN.x, z: TOWN.z - 4 };
@@ -444,11 +447,26 @@ function shigaB() {
         { t: 85, say: ['足軽', '右の尾根も……囲まれた！'], foes: (rt) => { const o = outGate(rt, 6); return [{ name: '右の尾根の浅井勢', from: { x: o.x + 40, z: o.z + 10 }, flag: 'azai', list: dress([uS(1), uA(10)], AZA), mass: 160 }]; } },
       ],
       reward: '夜の木戸を守りぬいた' }),
+    // 夜更け：水の手（谷の井戸）を断ちにかかる浅井の手
+    rest({ dur: 6, heal: 0.25, say: [['足軽', '……城の裏の谷で、松明が動いておる'], ['各務元正', '水の手じゃ。井戸を断たれれば、城は三日と持たぬ']] }),
+    pick({ title: '夜更け、浅井の手が城の水の手（谷の井戸）を断ちにかかる。どうする？',
+      options: [{ label: '谷へ下りて、水の手を守る', note: '水があれば明日も戦える。そのあいだ木戸が手薄になる' }, { label: '水を分けて耐え、木戸を固める', note: '木戸は固い。喉の渇いた兵で、夜明けの総攻めを受ける' }],
+      on: (rt, m, i) => { m.sgDry = i === 1; rt.say('各務元正', i === 0 ? '谷へ下りよ！　井戸の口を背にして槍を揃えれば、狭い谷は一人で三人を止められる' : 'よし、水は一人一口ずつじゃ。木戸の前を固めよ', 3.5); } }),
+    fight({ skip: (rt, m) => m.sgDry, at: WELL, max: 150, title: '水の手', sub: '城の裏の谷で、井戸を断ちに来た浅井の手とぶつかる',
+      obj: (rt) => (HI(rt) ? '預かった手を連れて谷へ下り、水の手を守りぬけ' : '谷の水の手で、井戸を断ちに来た浅井の手を退けよ'),
+      foes: () => [{ name: '水の手を断つ浅井勢', from: { x: WELL.x - 30, z: WELL.z - 8 }, flag: 'azai', list: dress([uS(2), uA(14)], AZA), mass: 220, noRout: 20 }],
+      later: [{ t: 40, title: '谷の上から', sub: '尾根の浅井の弓が、谷へ射下ろす', say: ['足軽', '尾根の上から矢じゃ！　井戸の陰へ！'], foes: () => [{ name: '尾根の浅井の弓', from: { x: WELL.x - 20, z: WELL.z + 26 }, flag: 'azai', list: dress([uS(1), uA(6), uB(6)], AZA), mass: 140 }] }],
+      reward: (t) => { t.special = { label: '宇佐山城の水の手を守りぬいた', pts: 20 }; }, rewardLabel: '水の手を守った',
+      onEnd: (rt, m, won) => { if (won) rt.say('各務元正', 'ようやった。これで明日も戦える。木戸へ戻れ！', 3); } }),
+    hold({ skip: (rt, m) => !m.sgDry, at: (rt) => outGate(rt, 6), dur: 55, r: 11, title: '渇きの夜', sub: '水の手を断たれ、喉が焼ける', label: '木戸の前',
+      obj: (rt) => (HI(rt) ? '預かった手を木戸の前に並べ、夜討ちを受けよ' : '木戸の前で、夜討ちを受けよ'),
+      waves: [{ t: 6, say: ['足軽', '夜討ちじゃ……！　喉がからからで、声も出ぬ'], foes: (rt) => { const o = outGate(rt, 6); return [{ name: '夜討ちの浅井勢', from: { x: o.x - 30, z: o.z - 30 }, flag: 'azai', list: dress([uS(2), uA(12)], AZA), mass: 200 }]; } }],
+      reward: '渇きの夜を耐えた' }),
     rest({ dur: 10, bark: '夜が白む。息を整えよ', say: [['足軽', '……夜が明ける。まだ生きておる'], ['各務元正', '寄せ手が、坂の下で揃うておる。……最後の総攻めじゃ']], fn: (rt) => rt.world.setTime('morning') }),
     hold({ at: (rt) => outGate(rt, 6), dur: 70, r: 11, title: '夜明けの総攻め', sub: '浅井・朝倉の旗が、坂の下を埋める', label: '木戸の前', obj: '夜明けの総攻めを、木戸の前で受け止めよ（後詰まで）',
       say: [['各務元正', '持ちこたえよ！　上様は、もうそこまで来ておられる！']],
       waves: [
-        { t: 4, say: ['足軽', '坂の下が旗で埋まった……！'], foes: (rt, m) => { const o = outGate(rt, 6); return [{ name: '朝倉の総攻め', from: { x: o.x + 10, z: o.z - 46 }, list: [uS(3), uA(m.sgOut ? 12 : 16)], mass: 320, noRout: 25 }, gunLine('朝倉の鉄砲衆', { x: o.x + 36, z: o.z - 36 }, o, 10)]; } },
+        { t: 4, say: ['足軽', '坂の下が旗で埋まった……！'], foes: (rt, m) => { const o = outGate(rt, 6); return [{ name: '朝倉の総攻め', from: { x: o.x + 10, z: o.z - 46 }, list: [uS(3), uA((m.sgOut ? 12 : 16) + (m.sgDry ? 4 : 0))], mass: 320, noRout: 25 }, gunLine('朝倉の鉄砲衆', { x: o.x + 36, z: o.z - 36 }, o, 10)]; } },
         { t: 45, say: ['足軽', '浅井の新手が尾根から……！'], foes: (rt) => { const o = outGate(rt, 6); return [{ name: '浅井の新手', from: { x: o.x - 44, z: o.z - 20 }, flag: 'azai', list: dress([uS(2), uA(12)], AZA), mass: 220 }]; } },
       ],
       reward: '夜明けの総攻めを受け止めた' }),

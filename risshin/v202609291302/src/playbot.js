@@ -227,7 +227,10 @@ async function playMap(game, aud, k) {
   const J = window.__japan;
   const fail = (msg) => ({ battle: '日本地図の城攻め', note: mk, errors: [msg], stuck: [], waits: [], flow: [], named: [], time: 0, msPerFrame: 0, merit: 0, main: false, squad: '—', down: false, lines: '' });
   if (!J) return fail('日本地図が開かなかった（window.__japan が無い）');
-  const ids = Object.keys(J.J.own).filter((id) => J.attackable(id));
+  let ids = Object.keys(J.J.own).filter((id) => J.attackable(id));
+  // &ctype=toride|yama|hira：城の形を絞って試す（無ければ絞らない）
+  const ct = Q.get('ctype');
+  if (ct && ids.some((id) => J.D.byId[id].type === ct)) ids = ids.filter((id) => J.D.byId[id].type === ct);
   if (!ids.length) return fail(`攻められる城が一つもない（${mk}）`);
   const id = ids[Math.floor(Math.random() * ids.length)];
   J.select(id); await wait(500);

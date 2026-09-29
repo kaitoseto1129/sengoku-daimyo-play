@@ -368,19 +368,25 @@ function ishigakiLine(B, W, pts, c, o = {}) {
   }
 }
 // 柵：先を尖らせた丸太を隙間なく並べ、横木二本で結ぶ
-function sakuLine(B, W, pts, h = 2.5) {
+// 杭の柵：先を尖らせた丸太を並べ、横木を二段に渡して縄で結ぶ。木は風雨で灰茶に褪せた色（gap：杭の間）
+function sakuLine(B, W, pts, h = 2.5, gap = 0.32) {
   let k = 0;
   for (let i = 0; i < pts.length - 1; i++) {
     const [ax, az] = pts[i], [bx, bz] = pts[i + 1];
-    const len = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.round(len / 0.32));
+    const len = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.round(len / gap));
+    const ya = W.heightAt(ax, az), yb = W.heightAt(bx, bz);
+    const px = -(bz - az) / (len || 1), pz = (bx - ax) / (len || 1);
     for (let j = 0; j < n; j++, k++) {
       const t = (j + 0.5) / n, x = ax + (bx - ax) * t, z = az + (bz - az) * t, y = W.heightAt(x, z);
-      const hh = h * (0.9 + ((k * 37) % 10) / 45);
-      const cyl = new THREE.CylinderGeometry(0.11, 0.13, hh + 0.5, 5, 1, true); cyl.translate(x, y + hh / 2 - 0.25, z); B.wood.push(paint(cyl, vary(0x6b5238, k)));
-      const tip = new THREE.ConeGeometry(0.11, 0.34, 5, 1, true); tip.translate(x, y + hh + 0.17, z); B.wood.push(paint(tip, vary(0x8a6d4a, k)));
+      const hh = h * (0.88 + ((k * 37) % 10) / 40), rr = 0.1 + ((k * 13) % 5) * 0.012;
+      const cyl = new THREE.CylinderGeometry(rr, rr * 1.15, hh + 0.5, 5, 1, true);
+      cyl.rotateZ((((k * 29) % 9) - 4) * 0.012);
+      cyl.translate(x, y + hh / 2 - 0.25, z); B.wood.push(paint(cyl, vary(0x6f675a, k)));
+      const tip = new THREE.ConeGeometry(rr, 0.42 + ((k * 7) % 4) * 0.06, 5, 1, true); tip.translate(x, y + hh + 0.2, z); B.wood.push(paint(tip, vary(0x8c8272, k + 3)));
+      // 縄の結び目：二本に一つ、横木と杭の交わる所
+      if (k % 2 === 0) for (const r of [0.55, h - 0.5]) { const kn = new THREE.CylinderGeometry(rr + 0.035, rr + 0.035, 0.09, 5, 1, true); kn.translate(x, mix(ya, yb, t) + r, z); B.wood.push(paint(kn, 0x8e7d5a)); }
     }
-    const ya = W.heightAt(ax, az), yb = W.heightAt(bx, bz);
-    for (const r of [0.5, h - 0.45]) beam(B.wood, ax, ya + r, az, bx, yb + r, bz, 0.06, 0x4e3a28, 4);
+    for (const r of [0.55, h - 0.5]) beam(B.wood, ax + px * 0.14, ya + r, az + pz * 0.14, bx + px * 0.14, yb + r, bz + pz * 0.14, 0.065, 0x5c554a, 4);
   }
 }
 
@@ -429,7 +435,7 @@ function yaguramon(B, W, g) {
   for (const sx of [-1, 1]) {
     const [px, pz] = P(sx * (w / 2 + 0.2), 0); box(B.wood, 0x4e3a28, px, y + 1.9, pz, 0.5, 3.8, 0.5, rot);
     const [ex, ez] = P(sx * (w / 2 + 1.2), 0);
-    stoneBox(B.stone, 0x9a958a, ex, y + 0.6, ez, 1.9, 1.2, 3.2, rot);
+    stoneBox(B.stone, 0x9a958a, ex, y - 0.6, ez, 1.9, 3.6, 3.2, rot);   // 下は坂の地の中まで埋める（浮いて見えないように）
     box(B.plaster, 0xd6cfbe, ex, y + 2.5, ez, 1.8, 2.6, 3.0, rot);
   }
   const Lw = w + 4.2;
@@ -458,9 +464,21 @@ function kido(B, W, g) {
   const P = L(c.x, c.z, face);
   for (const sx of [-1, 1]) {
     const [px, pz] = P(sx * (w / 2 + 0.1), 0);
-    beam(B.wood, px, y - 0.5, pz, px, y + 3.6, pz, 0.21, 0x5a4430, 7);
+    beam(B.wood, px, y - 0.5, pz, px, y + 3.6, pz, 0.21, g.kabuki ? 0x645c4f : 0x5a4430, 7);
     const [kx, kz] = P(sx * (w / 2 + 0.1), -1.6);
-    beam(B.wood, kx, y - 0.2, kz, px, y + 2.4, pz, 0.09, 0x4e3a28, 5);
+    beam(B.wood, kx, y - 0.2, kz, px, y + 2.4, pz, 0.09, g.kabuki ? 0x5c554a : 0x4e3a28, 5);
+  }
+  if (g.kabuki) {
+    // 冠木門：柱の上に太い冠木を、柱の外まで突き出して渡す。下に貫。屋根は無い。継ぎ目は縄で巻く
+    const [ax, az] = P(-w / 2 - 1.2, 0), [bx, bz] = P(w / 2 + 1.2, 0);
+    beam(B.wood, ax, y + 3.45, az, bx, y + 3.45, bz, 0.2, 0x625a4d, 7);
+    const [cx0, cz0] = P(-w / 2 - 0.45, 0), [cx1, cz1] = P(w / 2 + 0.45, 0);
+    beam(B.wood, cx0, y + 2.75, cz0, cx1, y + 2.75, cz1, 0.1, 0x5c554a, 5);
+    for (const sx of [-1, 1]) for (const yy of [3.45, 2.75]) {
+      const [px, pz] = P(sx * (w / 2 + 0.1), 0);
+      const kn = new THREE.CylinderGeometry(0.27, 0.27, 0.16, 6, 1, true); kn.translate(px, y + yy, pz); B.wood.push(paint(kn, 0x8e7d5a));
+    }
+    return;
   }
   const [ax, az] = P(-w / 2 - 0.8, 0), [bx, bz] = P(w / 2 + 0.8, 0);
   beam(B.wood, ax, y + 3.3, az, bx, y + 3.3, bz, 0.17, 0x4e3a28, 6);
@@ -503,21 +521,21 @@ function monomi(B, W, t) {
   const H = t.deck;
   const y0 = W.heightAt(x, z);
   const P = B.wood;
-  for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) beam(P, x + sx * 1.55, y0 - 0.3, z + sz * 1.55, x + sx * 1.15, y0 + H, z + sz * 1.15, 0.13, 0x5a4430, 6);
+  for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) beam(P, x + sx * 1.55, y0 - 0.3, z + sz * 1.55, x + sx * 1.15, y0 + H, z + sz * 1.15, 0.13, 0x5f584c, 6);
   for (const yy of [H * 0.3, H * 0.65]) {
     const w = 1.55 - (0.4 * yy) / H;
-    for (const [ax, az, bx, bz] of [[-1, -1, 1, -1], [-1, 1, 1, 1], [-1, -1, -1, 1], [1, -1, 1, 1]]) beam(P, x + ax * w, y0 + yy, z + az * w, x + bx * w, y0 + yy, z + bz * w, 0.06, 0x5a4430, 4);
+    for (const [ax, az, bx, bz] of [[-1, -1, 1, -1], [-1, 1, 1, 1], [-1, -1, -1, 1], [1, -1, 1, 1]]) beam(P, x + ax * w, y0 + yy, z + az * w, x + bx * w, y0 + yy, z + bz * w, 0.06, 0x5f584c, 4);
   }
-  for (const [ax, az, bx, bz] of [[-1, -1, 1, -1], [-1, 1, 1, 1], [-1, -1, -1, 1], [1, -1, 1, 1]]) beam(P, x + ax * 1.45, y0 + 0.4, z + az * 1.45, x + bx * 1.2, y0 + H - 0.8, z + bz * 1.2, 0.045, 0x4e3a28, 4);
-  box(P, 0x6b5238, x, y0 + H, z, 3.2, 0.16, 3.2);
-  box(P, 0x6e5a40, x, y0 + H + 0.55, z - 1.58, 3.2, 1.0, 0.07);
-  box(P, 0x6e5a40, x - 1.58, y0 + H + 0.55, z, 0.07, 1.0, 3.2);
-  box(P, 0x6e5a40, x + 1.58, y0 + H + 0.55, z, 0.07, 1.0, 3.2);
-  box(P, 0x6e5a40, x - 0.8, y0 + H + 0.55, z + 1.58, 1.6, 1.0, 0.07);
-  for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) beam(P, x + sx * 1.45, y0 + H, z + sz * 1.45, x + sx * 1.45, y0 + H + 2.2, z + sz * 1.45, 0.06, 0x5a4430, 4);
-  hipRoof(P, 0x4a3e30, x, y0 + H + 2.2, z, 3.8, 3.8, 1.2, 0, 0.1);
-  for (const lx of [0.45, 0.95]) beam(P, x + lx, y0, z + 2.3, x + lx, y0 + H, z + 1.6, 0.04, 0x5a4430, 4);
-  for (let r = 0; r < 11; r++) { const q = (r + 0.5) / 11; box(P, 0x6b5238, x + 0.7, y0 + q * H, z + 2.3 - 0.7 * q, 0.55, 0.05, 0.06); }
+  for (const [ax, az, bx, bz] of [[-1, -1, 1, -1], [-1, 1, 1, 1], [-1, -1, -1, 1], [1, -1, 1, 1]]) beam(P, x + ax * 1.45, y0 + 0.4, z + az * 1.45, x + bx * 1.2, y0 + H - 0.8, z + bz * 1.2, 0.045, 0x544d43, 4);
+  box(P, 0x6a6254, x, y0 + H, z, 3.2, 0.16, 3.2);
+  box(P, 0x72695a, x, y0 + H + 0.55, z - 1.58, 3.2, 1.0, 0.07);
+  box(P, 0x72695a, x - 1.58, y0 + H + 0.55, z, 0.07, 1.0, 3.2);
+  box(P, 0x72695a, x + 1.58, y0 + H + 0.55, z, 0.07, 1.0, 3.2);
+  box(P, 0x72695a, x - 0.8, y0 + H + 0.55, z + 1.58, 1.6, 1.0, 0.07);
+  for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) beam(P, x + sx * 1.45, y0 + H, z + sz * 1.45, x + sx * 1.45, y0 + H + 2.2, z + sz * 1.45, 0.06, 0x5f584c, 4);
+  hipRoof(P, 0x57524a, x, y0 + H + 2.2, z, 3.8, 3.8, 1.2, 0, 0.1);
+  for (const lx of [0.45, 0.95]) beam(P, x + lx, y0, z + 2.3, x + lx, y0 + H, z + 1.6, 0.04, 0x5f584c, 4);
+  for (let r = 0; r < 11; r++) { const q = (r + 0.5) / 11; box(P, 0x6a6254, x + 0.7, y0 + q * H, z + 2.3 - 0.7 * q, 0.55, 0.05, 0.06); }
 }
 
 // ---------------- 城の中の建物 ----------------
@@ -727,11 +745,11 @@ function tenshu(B, W, x, z, b, floors, old) {
 function sakamogi(B, W, x, z, out) {
   const y = W.heightAt(x, z);
   const tx = Math.cos(out), tz = -Math.sin(out), nx = Math.sin(out), nz = Math.cos(out);
-  beam(B.wood, x - tx * 1.1, y + 0.25, z - tz * 1.1, x + tx * 1.1, y + 0.3, z + tz * 1.1, 0.1, 0x4a3a2a, 5);
+  beam(B.wood, x - tx * 1.1, y + 0.25, z - tz * 1.1, x + tx * 1.1, y + 0.3, z + tz * 1.1, 0.1, 0x575045, 5);
   for (let b = 0; b < 5; b++) {
     const o = (b - 2) * 0.45, j = (((Math.abs(Math.round(x * 13 + z * 7)) + b * 7) % 10) / 10);
     const bx = x + tx * o, bz = z + tz * o;
-    beam(B.wood, bx, y + 0.3, bz, bx + nx * (1.2 + j * 0.5) + tx * (j - 0.5) * 0.5, y + 0.9 + j * 0.5, bz + nz * (1.2 + j * 0.5) + tz * (j - 0.5) * 0.5, 0.035, vary(0x5a4634, b + Math.round(x)), 4);
+    beam(B.wood, bx, y + 0.3, bz, bx + nx * (1.2 + j * 0.5) + tx * (j - 0.5) * 0.5, y + 0.9 + j * 0.5, bz + nz * (1.2 + j * 0.5) + tz * (j - 0.5) * 0.5, 0.035, vary(0x6a6254, b + Math.round(x)), 4);
   }
 }
 // 乱杭：先を尖らせた杭を不揃いに打ち込む
@@ -741,7 +759,7 @@ function rankui(B, W, x, z, k) {
   const g = new THREE.CylinderGeometry(0.02, 0.09, h, 5);
   g.rotateX(((k * 13) % 9 - 4) * 0.07); g.rotateZ(((k * 29) % 9 - 4) * 0.07);
   g.translate(x, y + h / 2 - 0.15, z);
-  B.wood.push(paint(g, [0x6b5238, 0x5a4430, 0x7a5c40][k % 3]));
+  B.wood.push(paint(g, [0x6f675a, 0x5f584c, 0x7d7466][k % 3]));
 }
 // 竹束：青竹を束ねて縄で縛った楯（原点に、前 = -z を向けて作る。動かすので一つずつの形）
 let TABA_GEO = null;
@@ -979,40 +997,62 @@ function planYama(t, S, o) {
   const out0 = rings[0];
   const nat = (x, z) => {
     let h = 0.6 * Math.sin(x * 0.05) * Math.cos(z * 0.04) + 0.4 * Math.sin(z * 0.08 + x * 0.03);
-    h += 17 * Math.exp(-(x * x) / (2 * 50 * 50 * S * S) - ((z - out0.cz) ** 2) / (2 * 54 * 54 * S * S));
-    h += 9 * Math.exp(-(x * x) / (2 * 34 * 34)) * sm(out0.cz - 40 * S, out0.cz - 110, z);   // 北へ続く尾根
+    h += 27 * Math.exp(-(x * x) / (2 * 56 * 56 * S * S) - ((z - out0.cz) ** 2) / (2 * 60 * 60 * S * S));   // 山そのもの
+    h += 16 * Math.exp(-(x * x) / (2 * 38 * 38)) * sm(out0.cz - 30 * S, out0.cz - 110, z);   // 北へ続く尾根
     h += 12 * gauss(x, z, -120, -90, 4000) + 10 * gauss(x, z, 125, -100, 4200) + 5 * gauss(x, z, -130, 60, 2600);
     return h;
   };
   const g0 = nat(0, out0.cz + out0.rz);
-  rings.forEach((R, k) => { R.level = g0 + 4.6 * (k + 1); R.gx = 0; });
+  rings.forEach((R, k) => { R.level = g0 + 5.6 * (k + 1); R.gx = 0; });
   const P = { type: 'yama', t, S, big, stone: o.stone, regs: [null], gates: [], walls: [], towers: [], ladders: [], bld: [], water: [], rankui: [], sakamogi: [], rings };
   const inner = rings[rings.length - 1];
   const G = { x: -4 * S, z: inner.cz - 1.5 * S, w: 11 * S, d: 6.4 * S, fy: inner.level + 0.6, tile: o.stone };
   P.goten = G;
   P.court = { x: G.x, z: G.z + G.d / 2 + 4.5 };
-  const zk = out0.cz - out0.rz - 12;   // 堀切
+  // 外の曲輪の下に、腰曲輪・帯曲輪を四段（左右へ互い違いにずらし、段違いに重ねる）。前は細く、横と奥は広い
+  const TY = terraceSet(out0, nat, 4, { shift: 2.6, back: 1.0, wx: 7.5 * S, wz: 7, minStep: 2.8, lift: 1.4 });
+  const TYO = TY[TY.length - 1];
+  P.terr = TY;
+  const zk = TYO.cz - TYO.rz - 7;   // 堀切（尾根を断つ）
+  // 畝状竪堀：一番外の段の下から、両の脇の斜面を縦に落ちる堀を、畝のように並べる
+  const UNE = [];
+  for (const sd of [-1, 1]) for (let a = 1.05; a <= 2.35; a += 0.13) {
+    const r = (TYO.rx + TYO.rz) / 2;
+    UNE.push([TYO.cx + Math.sin(a * sd) * (TYO.rx + 4.5), TYO.cz + Math.cos(a * sd) * (TYO.rz + 4.5), TYO.cx + Math.sin(a * sd) * (TYO.rx + 4.5 + 26), TYO.cz + Math.cos(a * sd) * (TYO.rz + 4.5 + 26 * TYO.rz / TYO.rx)]);
+    void r;
+  }
+  // 大手道：麓の大手口から、段を切り通して何度も折れて登り、外の曲輪の門の前へ出る（坂の途中は上の段から横矢が掛かる）
+  const fz = out0.cz + out0.rz, TF = TYO.cz + TYO.rz;
+  const OTE = [[0, fz + 7], [-14 * S, fz + 10], [12 * S, fz + 17], [-10 * S, TF + 1], [3, TF + 10]];
+  const oteTop = rings[0].level - 3.4, oteBot = nat(3, TF + 10), oteLen = polyAt(OTE, 3, TF + 10).len;
+  P.ote = OTE;
   P.height = (x, z) => {
-    let h = nat(x, z);
+    const h0 = nat(x, z);
+    let h = h0;
     const e0 = ellD(out0, x, z);
-    const bridge = Math.abs(x) < 3.4 && z > out0.cz;
-    if (!bridge) h -= 2.8 * trap(Math.abs(e0 - 7.5), 3.2, 1.6);                 // 横堀
-    h -= 6 * trap(Math.abs(z - zk), 3.4, 2.2) * sm(50, 38, Math.abs(x)) * (e0 > 4 ? 1 : 0);   // 堀切
-    // 竪堀：斜面を縦に落ちる堀（両の脇に二本ずつ）
-    for (const a of [1.2, 1.8]) for (const s of [-1, 1]) {
-      const ax = out0.cx + Math.sin(a * s) * (out0.rx + 4), az = out0.cz + Math.cos(a * s) * (out0.rz + 4);
-      const bx = out0.cx + Math.sin(a * s) * (out0.rx + 34), bz = out0.cz + Math.cos(a * s) * (out0.rz + 34);
-      h -= 2.2 * trap(segDist(x, z, ax, az, bx, bz), 2.2, 1.2);
+    const op = e0 > 2 && e0 < 44 ? polyAt(OTE, x, z) : null;
+    const bridge = op && op.d < 3.4;
+    if (e0 < 70) {
+      h = terraceH(TY, h, x, z);
+      const eo = ellD(TYO, x, z);
+      if (!bridge) h -= 2.6 * trap(Math.abs(eo - 3.6), 2.4, 1.3);                 // 横堀（一番外の段の下）
+      if (eo > 3 && eo < 36) for (const u of UNE) { const d = segDist(x, z, u[0], u[1], u[2], u[3]); if (d < 2.4) h -= 1.9 * trap(d, 1.5, 0.9); }
+      // 大手道：道のりに沿って一様に下る。段を横切る所は切り通し・盛り土、堀は土橋で渡る
+      if (op && op.d < 3.8) h = mix(h, mix(oteTop, oteBot, op.s / oteLen), sm(3.8, 2.3, op.d));
     }
+    h -= 6 * trap(Math.abs(z - zk), 3.4, 2.2) * sm(56, 44, Math.abs(x)) * (e0 > 4 ? 1 : 0);   // 堀切
     for (const R of rings) {
       const e = ellD(R, x, z);
-      if (e > 12) continue;
+      // 大手の坂は、外の曲輪の門から段を切り通して、堀の先の地まで一筋に下る
+      const rl = 9;
+      if (e > rl + 3) continue;
       const hPrev = h;
-      const lip = 1.1 * trap(Math.abs(e + 1.5), 1.2, 0.9);
-      const normal = mix(hPrev, R.level + lip, sm(3.4, 0, e));
+      // 石垣の曲輪は、塀の下からすぐ石垣で落とす（土の曲輪は草の土塁を盛って、切岸で落とす）
+      const lip = R.stone ? 0 : 1.1 * trap(Math.abs(e + 1.5), 1.2, 0.9);
+      const normal = mix(hPrev, R.level + lip, R.stone ? sm(0.5, -0.9, e) : sm(2.2, 0, e));
       const cor = sm(4.4, 2.6, Math.abs(x - R.gx)) * (z > R.cz ? 1 : 0);
-      if (cor > 0 && e > -4 && e < 10) {
-        const ramp = mix(hPrev, R.level, sm(9, -2.5, e));
+      if (cor > 0 && e > -4 && e < rl + 1) {
+        const ramp = mix(R === out0 ? oteTop : hPrev, R.level, sm(rl, -2.5, e));
         h = mix(normal, Math.max(ramp, e < -2 ? normal : -99), cor);
         if (e < -2) h = mix(normal, R.level, cor);
       } else h = normal;
@@ -1022,19 +1062,29 @@ function planYama(t, S, o) {
   };
   P.tint = (x, z, h, c) => {
     const e0 = ellD(out0, x, z);
-    if (e0 < 0) c.setRGB(c.r * 0.55 + 0.2, c.g * 0.45 + 0.13, c.b * 0.45 + 0.08);
-    else if (e0 < 12) c.setRGB(c.r * 0.7 + 0.12, c.g * 0.66 + 0.1, c.b * 0.58 + 0.06);   // 切岸と堀の土肌
+    if (e0 < 0) c.setRGB(c.r * 0.78 + 0.1, c.g * 0.72 + 0.07, c.b * 0.64 + 0.05);   // 曲輪の平場は踏まれた草
+    else if (e0 < 3.4) c.setRGB(c.r * 0.7 + 0.12, c.g * 0.66 + 0.1, c.b * 0.58 + 0.06);   // 切岸の土肌
+    else if (e0 < 70) {
+      // 段の切岸は草の間に土がのぞき、平場は草。堀と竪堀の底は湿った土
+      for (const E of TY) { const ek = ellD(E, x, z); if (ek > -0.3 && ek < 1.9) { c.setRGB(c.r * 0.62 + 0.15, c.g * 0.56 + 0.12, c.b * 0.5 + 0.08); break; } }
+      const eo = ellD(TYO, x, z);
+      if (Math.abs(eo - 3.6) < 1.7) c.setRGB(c.r * 0.6 + 0.1, c.g * 0.56 + 0.08, c.b * 0.5 + 0.05);
+      else if (eo > 3 && eo < 36 && UNE.some((u) => segDist(x, z, u[0], u[1], u[2], u[3]) < 1.3)) c.setRGB(c.r * 0.66 + 0.1, c.g * 0.6 + 0.08, c.b * 0.52 + 0.05);
+    }
     if (ellD(inner, x, z) < 0) c.setRGB(0.52, 0.46, 0.37);
-    if (Math.abs(x) < 3 && z > out0.cz + out0.rz && z < 60) c.setRGB(0.44, 0.38, 0.28);
+    if (Math.abs(x) < 3 && z > out0.cz + out0.rz && z < out0.cz + out0.rz + 9) c.setRGB(0.44, 0.38, 0.28);   // 門の前の坂（下は大手道の色）
   };
-  P.clear = (x, z) => ellD(out0, x, z) < 22 || (Math.abs(x) < 46 && z > out0.cz && z < 110);
+  // 麓：大手の脇に城主の館（土塁と柵で囲う）、反対の脇に城下の町屋
+  const footZ = TYO.cz + TYO.rz + 22;
+  P.foot = { yakata: { x: 50 * S + 8, z: footZ, w: 11, d: 9 }, town: { x: -(56 * S + 12), z: footZ + 12, rot: 0.25 } };
+  const FY = P.foot.yakata, FT = P.foot.town;
+  P.clear = (x, z) => ellD(TYO, x, z) < 14 || (Math.abs(x) < 46 && z > out0.cz && z < 110) || Math.hypot(x - FY.x, z - FY.z) < 18 || Math.hypot(x - FT.x, z - FT.z) < 26;
   // 曲輪・門・柵
   const names = big ? ['三の曲輪', '二の曲輪', '本丸'] : ['二の曲輪', '本丸'];
-  const gnames = big ? ['大手 木戸', '二の曲輪 門', '本丸 櫓門'] : ['大手 木戸', t >= 1 ? '本丸 櫓門' : '本丸 木戸'];
+  const gnames = big ? ['大手 一の門', '二の曲輪 門', '本丸 櫓門'] : ['大手 一の門', t >= 1 ? '本丸 櫓門' : '本丸 木戸'];
   rings.forEach((R, k) => {
     const nextR = rings[k + 1];
     const obst = nextR ? [{ x0: nextR.cx - nextR.rx - 1, x1: nextR.cx + nextR.rx + 1, z0: nextR.cz - nextR.rz - 1, z1: nextR.cz + nextR.rz + 1, soft: true }] : [gotenBox(G)];
-    P.regs.push(ringReg(names[k], R, obst));
     // 柵の輪は縁の少し内（土塁の上）
     const r = (R.rx + R.rz) / 2, f = 1 - 1.0 / r;
     const rx = R.rx * f, rz = R.rz * f;
@@ -1045,10 +1095,31 @@ function planYama(t, S, o) {
     for (let j = 0; j <= n; j++) { const a = hA + (j / n) * (Math.PI * 2 - 2 * hA); pts.push([R.cx + Math.sin(a) * rx, R.cz + Math.cos(a) * rz]); }
     const inner1 = k === rings.length - 1;
     const kind = (inner1 && t >= 2) || o.stone ? 'dobei' : 'saku';
-    P.walls.push({ pts, kind, c: { x: R.cx, z: R.cz }, stone: false });
+    // 上の曲輪（本丸と、大きな城は二の曲輪も）の切岸は野面積みの石垣
+    R.stone = k >= rings.length - (big ? 2 : 1);
+    P.walls.push({ pts, kind, c: { x: R.cx, z: R.cz }, stone: R.stone, minH: 3.2 });
     const gz = R.cz + Math.cos(hA) * rz;
     const gk = inner1 && t >= 1 ? 'yagura' : big && k === 1 ? 'korai' : 'kido';
-    P.gates.push(gateOf(k, { x: 0, z: gz }, { x: 0, z: 1 }, gw, gk, gnames[k], 10));
+    if (k === 0) {
+      // 大手の枡形：大手道を登りきった一の門をくぐると、四方を柵で囲った狭い枡形。右（東）へ直角に折れて二の門から曲輪へ入る
+      // 奥行きは、次の曲輪の門の前（坂虎口の柵の先）を塞がない長さに
+      const nz = nextR.cz + nextR.rz + 11.5;
+      const D = Math.max(7, Math.min(10, gz - nz)), hwM = 6;
+      const M = { x0: -hwM, x1: hwM, z0: gz - D, z1: gz };
+      P.masuM = M;
+      P.regs.push(rectReg('枡形', M));
+      P.gates.push(gateOf(0, { x: 0, z: gz }, { x: 0, z: 1 }, gw, gk, gnames[0], 10));
+      P.regs.push(ringReg(names[0], R, [...obst, grow(M, 1.0)]));
+      const g2z = gz - D / 2 - 0.4, g2w = 4;
+      P.gates.push(gateOf(1, { x: M.x1, z: g2z }, { x: -1, z: 0 }, g2w, t >= 1 ? 'yagura' : 'kido', '大手 二の門', 3.6));
+      const zf = (x) => R.cz + rz * Math.sqrt(Math.max(0, 1 - (x / rx) ** 2)) + 0.2;   // 柵の輪に継ぐ
+      const mc = { x: 0, z: gz - D / 2 };
+      P.walls.push({ pts: [[M.x0, zf(M.x0)], [M.x0, M.z0], [M.x1, M.z0], [M.x1, g2z - g2w / 2]], kind, c: mc, h: kind === 'saku' ? 2.6 : undefined });
+      P.walls.push({ pts: [[M.x1, g2z + g2w / 2], [M.x1, zf(M.x1)]], kind, c: mc });
+    } else {
+      P.regs.push(ringReg(names[k], R, obst));
+      P.gates.push(gateOf(P.regs.length - 2, { x: 0, z: gz }, { x: 0, z: 1 }, gw, gk, gnames[k], 10));
+    }
     // 坂虎口：門の前の坂道の両脇に柵を立て、細い道にする（門へは狭い口から寄るほかない。柵の上の曲輪から撃ち下ろされる）
     for (const sx of [-1, 1]) P.walls.push({ pts: [[sx * 3.3, gz + 0.6], [sx * 3.6, gz + 7.5]], kind: 'saku', c: { x: 0, z: gz + 4 }, h: 2.2 });
     // 物見櫓（外の曲輪は大手の左右、内は隅に）
@@ -1059,17 +1130,19 @@ function planYama(t, S, o) {
     if (k === 0 || (k === 1 && big)) for (const s of [-1, 1]) {
       const a = s * 0.78;   // 門の守りから離れた所
       const nx = Math.sin(a) / rx, nz = Math.cos(a) / rz, nl = Math.hypot(nx, nz);
-      P.ladders.push({ x: R.cx + Math.sin(a) * rx, z: R.cz + Math.cos(a) * rz, n: { x: nx / nl, z: nz / nl }, reg: k + 1, from: k });
+      P.ladders.push({ x: R.cx + Math.sin(a) * rx, z: R.cz + Math.cos(a) * rz, n: { x: nx / nl, z: nz / nl }, reg: k + 2, from: k ? k + 1 : 0 });
     }
   });
   // 逆茂木（横堀の外の縁）と乱杭（堀の底）
-  for (let a = -2.4; a <= 2.4; a += 0.1) {
-    if (Math.abs(a) < 0.14) continue;
-    const r = (out0.rx + out0.rz) / 2;
-    const k = 1 + 12 / r, k2 = 1 + 7.5 / r;
-    P.sakamogi.push([out0.cx + Math.sin(a) * out0.rx * k, out0.cz + Math.cos(a) * out0.rz * k, a]);
-    if (Math.abs(a) < 1.6) P.rankui.push([out0.cx + Math.sin(a + 0.04) * out0.rx * k2, out0.cz + Math.cos(a + 0.04) * out0.rz * k2]);
+  for (let a = -2.4; a <= 2.4; a += 0.08) {
+    if (Math.abs(a) < 0.1) continue;
+    P.sakamogi.push([TYO.cx + Math.sin(a) * (TYO.rx + 9), TYO.cz + Math.cos(a) * (TYO.rz + 9), a]);
+    if (Math.abs(a) < 1.6) P.rankui.push([TYO.cx + Math.sin(a + 0.04) * (TYO.rx + 3.6), TYO.cz + Math.cos(a + 0.04) * (TYO.rz + 3.6)]);
   }
+  // 腰曲輪の縁の柵（見た目だけ。打って出る道の前は空ける）と、段の上の見張り小屋
+  P.deco = [];
+  TY.forEach((E, k) => { const a0 = 1.45 + k * 0.12; if (k < 3) P.deco.push({ pts: ellPts(E, a0, Math.PI * 2 - a0), h: 2.1 }); });
+  for (const sd of [-1, 1]) P.bld.push({ k: 'hut', x: TY[1].cx + sd * (TY[1].rx - 3.5), z: TY[1].cz - 4, w: 4.4, d: 3.2, rot: sd * Math.PI / 2, ita: true });
   // 建物
   const tile = !!o.stone;
   const mid = rings[rings.length - 2];
@@ -1084,11 +1157,11 @@ function planYama(t, S, o) {
     P.bld.push({ k: 'nagaya', x: -20 * S, z: out0.cz + out0.rz - 12, w: 12, d: 4.5, rot: 0.3, tile });
   }
   if (t >= 3 || o.tenshu) P.bld.push({ k: 'tenshu', x: inner.cx + 6.5 * S, z: inner.cz - 4 * S, b: 6.5 * S, floors: o.tenshu ? 4 : 3, old: true });
-  P.flags = [[-6, out0.cz + out0.rz - 4], [6, out0.cz + out0.rz - 4], [-5, inner.cz + inner.rz - 3], [5, inner.cz + inner.rz - 3], [G.x - 4, G.z + G.d / 2 + 2.5]];
+  P.flags = [[-9, out0.cz + out0.rz - 4], [9, out0.cz + out0.rz - 4], [-5, inner.cz + inner.rz - 3], [5, inner.cz + inner.rz - 3], [G.x - 4, G.z + G.d / 2 + 2.5]];
   P.front = out0.cz + out0.rz;
   P.halfW = out0.rx;
   P.back = out0.cz - out0.rz;
-  P.sallyOut = [{ x: -(out0.rx + 26), z: out0.cz + 6 }, { x: out0.rx + 26, z: out0.cz + 6 }];
+  P.sallyOut = [{ x: -(TYO.rx + 12), z: out0.cz + 6 }, { x: TYO.rx + 12, z: out0.cz + 6 }];
   const R0 = rings[0], r0 = (R0.rx + R0.rz) / 2, f0 = 1 - 1 / r0, pa = 1.35;
   const pc = { x: R0.cx + Math.sin(pa) * R0.rx * f0, z: R0.cz + Math.cos(pa) * R0.rz * f0 };
   P.port = gateOf(-1, pc, { x: Math.sin(pa), z: Math.cos(pa) }, 3.6, 'kido', '搦手の木戸', 6);
@@ -1096,30 +1169,85 @@ function planYama(t, S, o) {
   return P;
 }
 
-// 砦：小高い所を削った一つの曲輪。土塁と空堀、外に逆茂木、木戸の内に蔀の柵
+// 段々の腰曲輪：本の曲輪の外に、中心を少しずつずらした楕円を幾重にも重ね、段違いの平場と切岸を作る（見た目の段。戦の曲輪の数には入れない）
+// o：{ shift（左右へずらす幅）, back（奥へずらす幅）, wx, wz（一段ごとの張り出し）, minStep（段の落差の最小）, lift（外の縁の地より上げる高さ） }
+function terraceSet(core, nat, n, o) {
+  const T = [];
+  let prev = core.level;
+  for (let k = 1; k <= n; k++) {
+    const E = { cx: core.cx + (k % 2 ? 1 : -1) * o.shift, cz: core.cz - o.back * k, rx: core.rx + o.wx * k, rz: core.rz + o.wz * k };
+    let s = 0;
+    for (let j = 0; j < 16; j++) { const a = (j / 16) * Math.PI * 2; s += nat(E.cx + Math.sin(a) * E.rx, E.cz + Math.cos(a) * E.rz); }
+    E.level = Math.min(prev - o.minStep, s / 16 + o.lift);
+    prev = E.level;
+    T.push(E);
+  }
+  return T;
+}
+// 段を地の高さに刻む（外の段から内へ）。縁には草の土塁の小さな盛り上がり
+function terraceH(T, h, x, z) {
+  for (let k = T.length - 1; k >= 0; k--) {
+    const E = T[k], e = ellD(E, x, z);
+    if (e > 2.4) continue;
+    const lip = 0.6 * trap(Math.abs(e + 0.8), 0.6, 0.5);
+    h = mix(h, E.level + lip, sm(1.8, 0, e));
+  }
+  return h;
+}
+// 折れ線 pts への近さと、そこまでの道のりの長さ（s）。坂道の高さを道のりで決めるのに使う
+function polyAt(pts, x, z) {
+  let best = Infinity, bs = 0, acc = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, az] = pts[i], [bx, bz] = pts[i + 1], dx = bx - ax, dz = bz - az, L = Math.hypot(dx, dz) || 1;
+    const q = clamp01(((x - ax) * dx + (z - az) * dz) / (L * L));
+    const d = Math.hypot(x - ax - dx * q, z - az - dz * q);
+    if (d < best) { best = d; bs = acc + q * L; }
+    acc += L;
+  }
+  return { d: best, s: bs, len: acc };
+}
+// 段の縁に沿った点（角 a0〜a1。inset：縁から内へ入る幅）
+function ellPts(E, a0, a1, inset = 1.3, step = 4) {
+  const r = (E.rx + E.rz) / 2, f = 1 - inset / r;
+  const n = Math.max(3, Math.round(((a1 - a0) * r) / step));
+  const pts = [];
+  for (let j = 0; j <= n; j++) { const a = a0 + ((a1 - a0) * j) / n; pts.push([E.cx + Math.sin(a) * E.rx * f, E.cz + Math.cos(a) * E.rz * f]); }
+  return pts;
+}
+
+// 砦：小高い丘の上を段々に削った曲輪（主の曲輪＋腰曲輪三段）。縁は草の土塁、外に空堀、斜面に逆茂木、冠木門の木戸
 function planToride(t, S, o) {
   const R = { cx: 0, cz: -28, rx: 17 * S, rz: 14 * S, gx: 0 };
   const nat = (x, z) => {
     let h = 0.7 * Math.sin(x * 0.05) * Math.cos(z * 0.045) + 0.4 * Math.sin(z * 0.08 + x * 0.03);
-    h += 5 * Math.exp(-(x * x + (z + 28) ** 2) / (2 * 36 * 36));
+    h += 13 * Math.exp(-(x * x + (z + 30) ** 2) / (2 * 44 * 44));   // 砦の立つ丘
     h += 9 * gauss(x, z, -80, -90, 3400) + 8 * gauss(x, z, 85, -70, 3200) + 4 * gauss(x, z, -110, 50, 2600);
     return h;
   };
   R.level = nat(0, R.cz + R.rz) + 3.2;
-  const P = { type: 'toride', t, S, big: false, regs: [null], gates: [], walls: [], towers: [], ladders: [], bld: [], water: [], rankui: [], sakamogi: [], rings: [R] };
+  const P = { type: 'toride', t, S, big: false, regs: [null], gates: [], walls: [], towers: [], ladders: [], bld: [], water: [], rankui: [], sakamogi: [], rings: [R], deco: [] };
+  // 腰曲輪：前は細く、横と奥は広く張り出す（段違いに左右へずらす）
+  const T = terraceSet(R, nat, 3, { shift: 1.6, back: 0.8, wx: 6, wz: 6.4, minStep: 2.2, lift: 1.0 });
+  const TO = T[T.length - 1];
+  P.terr = T;
   const G = { x: -3, z: R.cz - 4 * S, w: 9 * S, d: 5.2, fy: R.level + 0.55, tile: false };
   P.goten = G;
   P.court = { x: G.x, z: G.z + G.d / 2 + 4 };
   P.height = (x, z) => {
-    let h = nat(x, z);
+    const h0 = nat(x, z);
+    let h = h0;
     const e = ellD(R, x, z);
     const bridge = Math.abs(x) < 3.2 && z > R.cz;
-    if (!bridge) h -= 2.8 * trap(Math.abs(e - 5.5), 2.6, 1.3);
-    if (e < 12) {
+    if (e < 40) {
+      h = terraceH(T, h, x, z);
+      if (!bridge) h -= 2.4 * trap(Math.abs(ellD(TO, x, z) - 3.4), 2.2, 1.2);   // 空堀（一番外の段の下）
+    }
+    if (e < 20) {
       const lip = 1.2 * trap(Math.abs(e + 1.5), 1.2, 0.9);
       const normal = mix(h, R.level + lip, sm(3.2, 0, e));
+      // 大手の坂：木戸から段を切り通して、堀の先の地まで一筋に下る
       const cor = sm(4.2, 2.6, Math.abs(x)) * (z > R.cz ? 1 : 0);
-      h = cor > 0 && e > -2 ? mix(normal, mix(h, R.level, sm(8, -2, e)), cor) : cor > 0 ? mix(normal, R.level, cor) : normal;
+      h = cor > 0 ? mix(normal, e > -2 ? mix(h0, R.level, sm(17, -2, e)) : R.level, cor) : normal;
     }
     if (x > G.x - G.w / 2 - 0.4 && x < G.x + G.w / 2 + 0.4 && z > G.z - G.d / 2 - 0.4 && z < G.z + G.d / 2 + 1.5) h = G.fy;
     return h;
@@ -1127,10 +1255,15 @@ function planToride(t, S, o) {
   P.tint = (x, z, h, c) => {
     const e = ellD(R, x, z);
     if (e < 0) c.setRGB(c.r * 0.55 + 0.2, c.g * 0.45 + 0.13, c.b * 0.45 + 0.08);
-    else if (e < 9) c.setRGB(c.r * 0.7 + 0.12, c.g * 0.66 + 0.1, c.b * 0.58 + 0.06);
+    else if (e < 3.2) c.setRGB(c.r * 0.7 + 0.12, c.g * 0.66 + 0.1, c.b * 0.58 + 0.06);
+    else if (e < 40) {
+      // 段の切岸は草の間に土がのぞき、平場は草。堀の底は湿った土
+      for (const E of T) { const ek = ellD(E, x, z); if (ek > -0.3 && ek < 1.9) { c.setRGB(c.r * 0.62 + 0.15, c.g * 0.56 + 0.12, c.b * 0.5 + 0.08); break; } }
+      if (Math.abs(ellD(TO, x, z) - 3.4) < 1.6) c.setRGB(c.r * 0.6 + 0.1, c.g * 0.56 + 0.08, c.b * 0.5 + 0.05);
+    }
     if (Math.abs(x) < 3 && z > R.cz + R.rz && z < 60) c.setRGB(0.44, 0.38, 0.28);
   };
-  P.clear = (x, z) => ellD(R, x, z) < 20 || (Math.abs(x) < 40 && z > -12 && z < 100);
+  P.clear = (x, z) => ellD(TO, x, z) < 16 || (Math.abs(x) < 40 && z > -12 && z < 100);
   const r = (R.rx + R.rz) / 2, f = 1 - 1.0 / r, rx = R.rx * f, rz = R.rz * f;
   const gw = 4.4, hA = Math.asin(gw / 2 / rx);
   const n = Math.max(12, Math.round((2 * Math.PI * r) / 4));
@@ -1150,23 +1283,30 @@ function planToride(t, S, o) {
   P.gates.push(gateOf(0, { x: 0, z: gz }, { x: 0, z: 1 }, gw, 'kido', '砦の木戸', 9));
   for (const sx of [-1, 1]) P.walls.push({ pts: [[sx * 3.2, gz + 0.6], [sx * 3.5, gz + 6.5]], kind: 'saku', c: { x: 0, z: gz + 3.5 }, h: 2.2 });
   P.gates.push(gateOf(1, { x: g2x, z: zw }, { x: 0, z: 1 }, g2w, 'kido', '二の木戸', 3));
+  for (const g of P.gates) g.kabuki = true;   // 砦の門は冠木門（屋根の無い、太い柱に冠木を渡した門）
   P.towers.push({ x: -8 * S, z: R.cz + 5 * S, kind: 'monomi', deck: 6.2, arch: 3 }, { x: 9 * S, z: R.cz - 1, kind: 'monomi', deck: 6.2, arch: 3 });
   for (const s of [-1, 1]) { const a = s * 0.55, nx = Math.sin(a) / rx, nz = Math.cos(a) / rz, nl = Math.hypot(nx, nz); P.ladders.push({ x: R.cx + Math.sin(a) * rx, z: R.cz + Math.cos(a) * rz, n: { x: nx / nl, z: nz / nl }, reg: 1, from: 0 }); }
-  for (let a = 0; a < Math.PI * 2; a += 0.14) {
+  // 逆茂木は空堀の外の斜面に、乱杭は堀の底に
+  for (let a = 0; a < Math.PI * 2; a += 0.1) {
     const aa = Math.abs(((a + Math.PI) % (Math.PI * 2)) - Math.PI);
-    if (aa < 0.22) continue;
-    P.sakamogi.push([R.cx + Math.sin(a) * (R.rx + 10), R.cz + Math.cos(a) * (R.rz + 10), a]);
-    if (aa < 1.9) P.rankui.push([R.cx + Math.sin(a + 0.05) * (R.rx + 5.5), R.cz + Math.cos(a + 0.05) * (R.rz + 5.5)]);
+    if (aa < 0.16) continue;
+    P.sakamogi.push([TO.cx + Math.sin(a) * (TO.rx + 8.5), TO.cz + Math.cos(a) * (TO.rz + 8.5), a]);
+    if (aa < 1.9) P.rankui.push([TO.cx + Math.sin(a + 0.05) * (TO.rx + 3.4), TO.cz + Math.cos(a + 0.05) * (TO.rz + 3.4)]);
   }
-  P.bld.push({ k: 'hut', x: 7 * S, z: R.cz - 8 * S, w: 6, d: 4, rot: 0.1 }, { k: 'hut', x: -11 * S, z: R.cz + 4, w: 5.5, d: 3.6, rot: -0.3 });
+  // 腰曲輪の縁の柵（見た目だけ。横と奥の段に。打って出る道の前は空ける）
+  P.deco.push({ pts: ellPts(T[0], 1.5, Math.PI * 2 - 1.5), h: 2.2 }, { pts: ellPts(T[1], 1.9, Math.PI * 2 - 1.9), h: 2.0 });
+  P.bld.push({ k: 'hut', x: 7 * S, z: R.cz - 8 * S, w: 6, d: 4, rot: 0.1, ita: true }, { k: 'hut', x: -11 * S, z: R.cz + 4, w: 5.5, d: 3.6, rot: -0.3, ita: true });
+  // 奥の腰曲輪にも見張りの小屋
+  P.bld.push({ k: 'hut', x: T[0].cx - 4, z: T[0].cz - T[0].rz + 3.2, w: 4.6, d: 3.2, rot: 0.05, ita: true });
   P.bld.push({ k: 'ido', x: 5, z: R.cz + 3 }, { k: 'tawara', x: 10 * S, z: R.cz + 4 });
   P.flags = [[-5, gz - 2], [5, gz - 2], [G.x - 3, G.z + G.d / 2 + 2], [9, R.cz - 6]];
   P.front = R.cz + R.rz;
   P.halfW = R.rx;
   P.back = R.cz - R.rz;
-  P.sallyOut = [{ x: -(R.rx + 24), z: R.cz + 4 }, { x: R.rx + 24, z: R.cz + 4 }];
+  P.sallyOut = [{ x: -(TO.rx + 12), z: R.cz + 4 }, { x: TO.rx + 12, z: R.cz + 4 }];
   const pa = 0.85, pc = { x: R.cx + Math.sin(pa) * rx, z: R.cz + Math.cos(pa) * rz };
   P.port = gateOf(-1, pc, { x: Math.sin(pa), z: Math.cos(pa) }, 3.4, 'kido', '搦手の木戸', 5);
+  P.port.kabuki = true;
   P.portRing = { a: pa };
   return P;
 }
@@ -1324,7 +1464,7 @@ export function castleBattle(info) {
       height: P.height, tint: P.tint, clear: P.clear,
       time: 'day', muddy: season === '春' ? 0.45 : 0.25, autumn: season === '秋' || season === '冬', mist: season === '春',
       trees: 300, tufts: 3200,
-      paths: [[[0, 176], [0, spawnZ + 20], [0, P.front + 30], [0, P.front + 12]]],
+      paths: P.ote ? [[[0, 176], [0, spawnZ + 20], P.ote[P.ote.length - 1]], P.ote] : [[[0, 176], [0, spawnZ + 20], [0, P.front + 30], [0, P.front + 12]]],
       groves: [{ x: -95, z: 40, r: 16, n: 22 }, { x: 100, z: 20, r: 16, n: 22 }, { x: -80, z: P.back - 40, r: 18, n: 26 }],
       treeDensity: (x, z) => (Math.abs(x) > 100 || z < P.back - 30 ? 1 : 0.5),
     },
@@ -1367,7 +1507,7 @@ export function castleBattle(info) {
             if (wl.stone) for (const run of cutAt(piece, pg.c, 3.5)) if (run.length > 1) {
               const [ax, az] = run[0], [bx, bz] = run[1], N = outN(ax, az, bx, bz, wl.c), L = Math.hypot(bx - ax, bz - az) || 1;
               const side = (-(bz - az) / L) * N.x + ((bx - ax) / L) * N.z > 0 ? 1 : -1;
-              rt.scene.add(ishigaki(W, run, { out: side, top: 0.25, minH: 1.5, maxH: 9, sink: 0.6, big: 1.5 }));
+              rt.scene.add(ishigaki(W, run, { out: side, top: 0.25, minH: wl.minH || 1.5, maxH: 9, sink: 0.6, big: 1.5 }));
             }
             flush(rt, B);
           }
@@ -1401,7 +1541,7 @@ export function castleBattle(info) {
         else if (b.k === 'umaya') umaya(B, W, b.x, b.z, b.w, b.d, b.rot);
         else if (b.k === 'yashiki') yashiki(B, W, b.x, b.z, b.w, b.d, b.rot, b.tile);
         else if (b.k === 'tenshu') tenshu(B, W, b.x, b.z, b.b, b.floors, b.old);
-        else if (b.k === 'hut') rt.scene.add(hut(W, b.x, b.z, b.w, b.d, b.rot, { roof: 0x5a4c3a }));
+        else if (b.k === 'hut') rt.scene.add(hut(W, b.x, b.z, b.w, b.d, b.rot, b.ita ? { ita: true, wall: 0x756c5e } : { roof: 0x5a4c3a }));
         else if (b.k === 'tawara') rt.scene.add(tawara(W, b.x, b.z, 0.3, 6));
         // 建物は通り抜けられない（小屋・俵は props.js の側で当たりを付ける）
         if (b.k === 'nagaya' || b.k === 'kura' || b.k === 'umaya' || b.k === 'yashiki') solidRect(b.x, b.z, b.w + 0.4, b.d + 0.4, b.rot || 0);
@@ -1425,6 +1565,38 @@ export function castleBattle(info) {
       // 小さな物（逆茂木・乱杭・水面）はカメラの当たりにしない
       for (const [x, z, a] of P.sakamogi) sakamogi(B, W, x, z, a);
       P.rankui.forEach(([x, z], k) => rankui(B, W, x, z, k));
+      // 大手口：坂の下り口に冠木門と、左右に短い柵
+      if (P.ote) {
+        const E = P.ote[P.ote.length - 1], Q = P.ote[P.ote.length - 2], L = Math.hypot(E[0] - Q[0], E[1] - Q[1]);
+        const n = { x: (E[0] - Q[0]) / L, z: (E[1] - Q[1]) / L }, gc = { x: E[0] - n.x * 3, z: E[1] - n.z * 3 };
+        kido(B, W, { c: gc, n, w: 4.2, kabuki: true });
+        for (const sd of [-1, 1]) sakuLine(B, W, [[gc.x + n.z * sd * 2.6, gc.z - n.x * sd * 2.6], [gc.x + n.z * sd * 6.5 - n.x * 1.5, gc.z - n.x * sd * 6.5 - n.z * 1.5]], 2.1, 0.36);
+        flush(rt, B);
+      }
+      // 麓の館と城下（館は土塁の上に柵を回し、冠木門。町屋は板葺き）
+      if (P.foot) {
+        const Y = P.foot.yakata;
+        yashiki(B, W, Y.x, Y.z, Y.w, Y.d, 0, false);
+        solidRect(Y.x, Y.z, Y.w + 0.4, Y.d + 0.4, 0);
+        const hx = Y.w / 2 + 5, hz = Y.d / 2 + 5;
+        sakuLine(B, W, [[Y.x - 2.4, Y.z + hz], [Y.x - hx, Y.z + hz], [Y.x - hx, Y.z - hz], [Y.x + hx, Y.z - hz], [Y.x + hx, Y.z + hz], [Y.x + 2.4, Y.z + hz]], 2.0, 0.42);
+        kido(B, W, { c: { x: Y.x, z: Y.z + hz }, n: { x: 0, z: 1 }, w: 4.4, kabuki: true });
+        flush(rt, B);
+        rt.scene.add(hut(W, Y.x + hx - 3.4, Y.z - hz + 3, 4.6, 3.2, 0, { ita: true, wall: 0x756c5e }));
+        KIT.farVillage(rt, P.foot.town.x, P.foot.town.z, { rot: P.foot.town.rot, n: 7, r: 22, seed: 31 });
+      }
+      // 段の縁の柵（杭の間を少し広く）。当たりも付ける。搦手の木戸から打って出る道の前（木戸の外へ 45m の筋）は空ける
+      const px0 = pg.c.x, pz0 = pg.c.z, px1 = pg.c.x + pg.n.x * 45, pz1 = pg.c.z + pg.n.z * 45;
+      for (const d of P.deco || []) {
+        const runs = [];
+        let cur = [];
+        for (const q of d.pts) { if (segDist(q[0], q[1], px0, pz0, px1, pz1) < 7) { if (cur.length > 1) runs.push(cur); cur = []; } else cur.push(q); }
+        if (cur.length > 1) runs.push(cur);
+        for (const run of runs) {
+          for (const st of wallLine(rt, run, { team: Dt, hp: 1e9, name: '柵', mesh: none, segLen: 6 })) { st.noTarget = true; st.wall = true; st.h = d.h || 2.2; }
+          for (const piece of chop(run, 20)) { sakuLine(B, W, piece, d.h || 2.2, 0.42); flush(rt, B, false); }
+        }
+      }
       // 竹束の置き場（城の内、塀の脇）
       flush(rt, B, false);
       for (const w of P.water) {
@@ -1651,6 +1823,9 @@ export function castleBattle(info) {
         const L = [];
         for (const e of list) { const n = Math.min(e.n, room); if (n > 0) { L.push({ ...e, n }); room -= n; } }
         if (!L.length) return null;
+        // 山城の曲輪は楕円：門の脇の持ち場が柵の外に出たら、曲輪の内へ引き寄せる
+        const RR = inner.ring || (P.regs[g.i + 2] && P.regs[g.i + 2].ring);
+        if (!defend && o.anchor && RR) for (let j = 0; j < 12 && P.regionOf(o.anchor.x, o.anchor.z) === 0; j++) o.anchor = { x: o.anchor.x + (RR.cx - o.anchor.x) * 0.15, z: o.anchor.z + (RR.cz - o.anchor.z) * 0.15 };
         const gg = defGroup(rt, o, L);
         F.garrison[to].push(gg);
         return gg;

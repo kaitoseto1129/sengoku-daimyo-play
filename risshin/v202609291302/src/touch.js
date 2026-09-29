@@ -122,6 +122,9 @@ html.touch #prompt { display: none !important; }
   font: 700 13px/1.1 var(--ui); letter-spacing: .04em; text-shadow: 0 1px 2px #000; padding: 0; margin: 0;
   box-shadow: 0 0 0 1px rgba(0,0,0,.55), 0 2px 8px rgba(0,0,0,.35); transition: background .08s, transform .08s, border-color .08s; }
 #tc .tb small { display: block; font-size: 12px; font-weight: 500; color: #f3d98a; margin-top: 2px; }
+/* 丸の下の小さな字は一行に収める（丸の外へはみ出さない）。「…ほか」の字も 12px より小さくしない */
+#tc .tb small { max-width: calc(100% - 6px); white-space: nowrap; overflow: hidden; text-overflow: clip; }
+html.touch #tc [data-b="more"] small { font-size: 12px; }
 #tc .tb.on, #tc .tb:active { background: rgba(192,69,46,.82); border-color: #f0c070; transform: scale(.93); }
 #tc .tb.sel { border-color: #f0c070; box-shadow: 0 0 0 2px rgba(240,192,112,.5), 0 2px 8px rgba(0,0,0,.35); }
 #tc .tb.dim { opacity: .5; }
@@ -571,7 +574,9 @@ export function touchFrame(dt) {
   hide(btn.use, !canUse);
   if (canUse) {
     const tx = [...pr.childNodes].filter((n) => !(n.tagName === 'KBD')).map((n) => n.textContent).join('').replace(/^\s*(押して：)?/, '').trim();
-    const short = tx.length > 7 ? tx.slice(0, 6) + '…' : tx;
+    // 丸に収まる短い字：「柵を引き倒す」→「引き倒す」のように、を の後の動きだけ。長ければ四字まで
+    const vb = tx.includes('を') ? tx.slice(tx.lastIndexOf('を') + 1) : tx;
+    const short = vb.length > 4 ? vb.slice(0, 4) : vb;
     let sm = btn.use.querySelector('small');
     if (!sm) { sm = document.createElement('small'); btn.use.appendChild(sm); }
     setText(sm, short);
@@ -593,17 +598,23 @@ export function touchFrame(dt) {
   tog(btn.rally, 'dim', rd > 0);
   let cd = btn.rally.querySelector('.cd');
   if (rd > 0) { if (!cd) { cd = document.createElement('span'); cd.className = 'cd'; btn.rally.appendChild(cd); } cd.style.setProperty('--p', Math.min(100, rd / 25 * 100).toFixed(0) + '%'); } else if (cd) cd.remove();
-  setText(btn.atk.querySelector('small'), p.weapon === 'spear' ? '長押しで溜め' : '');
+  // 刀は小さな字なし（鉄砲・弓の字「込め中」「狙って放つ」「押して引く」は上で書いたまま残す）
+  if (p.weapon === 'sword') setText(btn.atk.querySelector('small'), '');
   // 溜め突き：溜まるにつれて縁が金に満ちる（0.7 秒で満ちる）
   let ch = btn.atk.querySelector('.chg');
   const cT = p.weapon === 'spear' && p.charging ? Math.min(1, (p.chargeT || 0) / 0.7) : 0;
   if (cT > 0) { if (!ch) { ch = document.createElement('span'); ch.className = 'chg'; btn.atk.appendChild(ch); } ch.style.setProperty('--p', (cT * 100).toFixed(0) + '%'); tog(ch, 'full', cT >= 1); } else if (ch) ch.remove();
-  // 低い画面（スマホ横）では、右下の丸は五つまで（突く・構え・回避・号令・狙い、取れる物がある時は「取る」を先に）。
+  // 低い画面（スマホ横）では、右下の丸は六つまで（突く・構え・回避・号令・取る・狙いの順。馬上は乗り降り、鉄砲持ちは持替を先に）。
   // 残り（鼓舞・持ち替え・乗り降り）は「…」の丸に畳み、押すと開く。号令の間は組の札を出す印も付ける
   const low = innerHeight < 500;
-  const order = ['atk', 'grd', 'dodge', 'cmd', 'use', 'lock', 'mount', 'rally', 'wpn'];
+  // 馬上・空馬の手綱を取れる時は「降りる／手綱」を狙いより先に（畳むと馬を降りられなくなる）。
+  // 鉄砲・弓を持てる時は「持替」を鼓舞より先に（鉄砲へ持ち替えるのに「…」を開かなくて済む）
+  const order = rid || p.takeO ? ['atk', 'grd', 'dodge', 'cmd', 'use', 'mount', 'lock', 'rally', 'wpn']
+    : wl.includes('gun') || wl.includes('bow') ? ['atk', 'grd', 'dodge', 'cmd', 'use', 'lock', 'wpn', 'mount', 'rally']
+      : ['atk', 'grd', 'dodge', 'cmd', 'use', 'lock', 'mount', 'rally', 'wpn'];
   const want = order.filter((id) => !btn[id].hidden);
-  const keep = low ? want.slice(0, 5) : want;
+  // 六つまでは右下に並べても重ならない（七つ目から「…」に畳む）
+  const keep = low ? want.slice(0, 6) : want;
   const fold = want.filter((id) => !keep.includes(id));
   T.folded = new Set(fold);
   for (const id of fold) hide(btn[id], !T.more);
