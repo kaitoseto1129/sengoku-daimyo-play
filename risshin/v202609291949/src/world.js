@@ -532,8 +532,10 @@ function clashShader(mat, U) {
 }
 
 // 形の部品に色と部品の番号を付ける
+// 形は頂点を分け合う形（index 付き）のまま束ねる：三角ごとに頂点を分けると、描くたびの頂点の計算（高さの絵の読み取り・揺れ）が三倍ほどになる
 function armyPart(list, geo, hex, part) {
-  const g = geo.index ? geo.toNonIndexed() : geo;
+  const g = geo;
+  if (!g.index) g.setIndex([...Array(g.attributes.position.count).keys()]);
   const n = g.attributes.position.count, c = new THREE.Color(hex);
   const col = new Float32Array(n * 3), pa = new Float32Array(n).fill(part);
   for (let i = 0; i < n; i++) { col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b; }
@@ -546,6 +548,7 @@ function armyPart(list, geo, hex, part) {
 const SOLDIER_GEO = new Map();
 // near：true＝近く（十角）・false＝中ほど（七角）・'lo'＝遠く（五角。38m より遠い塊だけに使う＝lodTwin）
 function soldierGeo(armor, near) {
+  if (near === 'xlo') return soldierGeoX(armor);
   const lo = near === 'lo';
   if (lo) near = false;
   const key = armor + (near ? 'n' : lo ? 'l' : 'f');
@@ -599,6 +602,34 @@ function soldierGeo(armor, near) {
   const ebira = new THREE.BoxGeometry(0.1, 0.5, 0.1); ebira.rotateZ(-0.3); ebira.translate(0.14, 1.35, -0.2); armyPart(P, ebira, 0x3a2a1a, 5);
   // 幟の竿と横木（旗持ち）
   armyPart(P, cyl(0.028, 0.034, 5.4, 4, 0.3, 2.6, 0.14), 0x2f2419, 6);
+  const bar = cyl(0.018, 0.018, 0.8, 3, 0, 0, 0); bar.rotateZ(Math.PI / 2); bar.translate(0.7, 5.22, 0.14); armyPart(P, bar, 0x2f2419, 6);
+  const g = mergeGeometries(P);
+  g.computeBoundingSphere();
+  SOLDIER_GEO.set(key, g);
+  return g;
+}
+// とても遠い兵（塊のいちばん近い端が 70m より先。背丈が画面の 2% ほど）の形：部品の分け方（aPart）と置き場は同じで、角を三つ〜六つに。
+//   脚は腿と脛を一本の筒に、胴は草摺から肩まで一本の筒に。一人 130 面ほど（遠い形の三分の一）
+function soldierGeoX(armor) {
+  const key = armor + 'x';
+  if (SOLDIER_GEO.has(key)) return SOLDIER_GEO.get(key);
+  const P = [], arm = new THREE.Color(armor), dark = arm.clone().multiplyScalar(0.72).getHex(), lite = arm.clone().lerp(new THREE.Color(0x8a8070), 0.18).getHex();
+  const cyl = (rt, rb, h, seg, x, y, z, open = true) => { const g = new THREE.CylinderGeometry(rt, rb, h, seg, 1, open); g.translate(x, y, z); return g; };
+  for (const [sx, pt] of [[-0.11, 8], [0.11, 9]]) armyPart(P, cyl(0.08, 0.055, 0.82, 4, sx, 0.41, 0), 0x2a261f, pt);
+  const skirt = cyl(0.19, 0.27, 0.34, 5, 0, 0.9, 0); skirt.scale(1, 1, 0.8); armyPart(P, skirt, dark, 0);
+  const dou = cyl(0.21, 0.175, 0.5, 5, 0, 1.33, 0, false); dou.scale(1, 1, 0.74); armyPart(P, dou, armor, 0);
+  for (const sx of [-1, 1]) { const b = cyl(0.14, 0.15, 0.26, 3, sx * 0.22, 1.43, 0); b.scale(0.75, 1, 1); armyPart(P, b, lite, 0); }
+  armyPart(P, cyl(0.05, 0.042, 0.5, 3, -0.29, 1.2, 0.02), 0x2a2620, 0);
+  const ra = cyl(0.05, 0.042, 0.5, 3, 0, 0, 0); ra.rotateX(-0.45); ra.translate(0.29, 1.2, 0.08); armyPart(P, ra, 0x2a2620, 0);
+  const head = new THREE.SphereGeometry(0.105, 5, 3); head.scale(0.95, 1.12, 1); head.translate(0, 1.72, 0.01); armyPart(P, head, 0x9a7454, 0);
+  const kasa = new THREE.ConeGeometry(0.33, 0.13, 6, 1, true); kasa.translate(0, 1.825, 0); armyPart(P, kasa, 0x2c261e, 1);
+  const hachi = new THREE.SphereGeometry(0.15, 5, 2, 0, Math.PI * 2, 0, Math.PI / 2); hachi.scale(1, 1, 1); hachi.translate(0, 1.73, 0); armyPart(P, hachi, 0x1c1a18, 2);
+  armyPart(P, cyl(0.012, 0.012, 1.4, 3, 0, 1.95, -0.17), 0x2f2419, 10);
+  armyPart(P, cyl(0.016, 0.02, 4.3, 3, 0.3, 2.1, 0.14), 0x3b2a1a, 3);
+  const ho = new THREE.ConeGeometry(0.028, 0.3, 3, 1, true); ho.translate(0.3, 4.4, 0.14); armyPart(P, ho, 0x9a9a98, 3);
+  const gun = cyl(0.025, 0.03, 1.3, 3, 0, 0, 0); gun.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0.85, -0.5).normalize())); gun.translate(0.22, 1.1 + 0.55, 0.15 - 0.33); armyPart(P, gun, 0x3a2a1a, 4);
+  const bow = cyl(0.012, 0.012, 2.1, 3, 0, 0, 0); bow.rotateZ(0.12); bow.translate(-0.32, 1.25, 0.08); armyPart(P, bow, 0x4a3020, 5);
+  armyPart(P, cyl(0.028, 0.034, 5.4, 3, 0.3, 2.6, 0.14), 0x2f2419, 6);
   const bar = cyl(0.018, 0.018, 0.8, 3, 0, 0, 0); bar.rotateZ(Math.PI / 2); bar.translate(0.7, 5.22, 0.14); armyPart(P, bar, 0x2f2419, 6);
   const g = mergeGeometries(P);
   g.computeBoundingSphere();
@@ -4223,9 +4254,9 @@ export class World {
 
   // 遠い軽い兵の塊（いちばん近い端が 38m より先。人の背丈が画面の一割に満たない）は角の少ない形で描く。並び・色・動きの入れ物（兵ごとの属性）は同じ物を使い回し、形だけ替える
   lodTwin(mesh, armor) {
-    const g = soldierGeo(armor, 'lo').clone();
-    for (const k in mesh.geometry.attributes) { const at = mesh.geometry.attributes[k]; if (at.isInstancedBufferAttribute) g.setAttribute(k, at); }
-    mesh.userData.lod = { hi: mesh.geometry, lo: g, n: -1, far: false };
+    const g = soldierGeo(armor, 'lo').clone(), gx = soldierGeo(armor, 'xlo').clone();
+    for (const k in mesh.geometry.attributes) { const at = mesh.geometry.attributes[k]; if (at.isInstancedBufferAttribute) { g.setAttribute(k, at); gx.setAttribute(k, at); } }
+    mesh.userData.lod = { hi: mesh.geometry, lo: g, xlo: gx, n: -1, far: false, lv: 0 };
     (this.lodList || (this.lodList = [])).push(mesh);
   }
   lodTick(dt) {
@@ -4239,8 +4270,10 @@ export class World {
       if (L.n !== m.count || !m.boundingSphere) { m.computeBoundingSphere(); L.n = m.count; }
       m.updateWorldMatrix(true, false);
       _lodV.copy(m.boundingSphere.center).applyMatrix4(m.matrixWorld);
-      const far = Math.hypot(_lodV.x - cx, _lodV.z - cz) - m.boundingSphere.radius > (L.far ? 32 : 38);
-      if (far !== L.far) { L.far = far; m.geometry = far ? L.lo : L.hi; }
+      // 0：近い形・1：遠い形（38m より先）・2：とても遠い形（70m より先）。戻りは少し手前で（行き来でちらつかない）
+      const d = Math.hypot(_lodV.x - cx, _lodV.z - cz) - m.boundingSphere.radius;
+      const lv = d > (L.lv === 2 ? 64 : 70) ? 2 : d > (L.lv >= 1 ? 32 : 38) ? 1 : 0;
+      if (lv !== L.lv) { L.lv = lv; L.far = lv > 0; m.geometry = lv === 2 ? L.xlo : lv ? L.lo : L.hi; }
     }
   }
   update(dt, focus) {

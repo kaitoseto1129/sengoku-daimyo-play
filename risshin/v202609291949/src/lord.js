@@ -111,7 +111,7 @@ export function lordGame(k) {
   // 見た目の段は「城主」（金の馬具・金扇の馬印）。号令は全部使える
   G.rank = 4; G.trialStep = 6; G.merit = 400;
   G.stats = { spear: 3, vit: 3, lead: 3 };
-  G.owned = [...new Set([...G.owned, 'spear2', 'hat3', 'body2', 'kote', 'haidate', 'suneate', 'haori', 'katana', 'teppo'])];
+  G.owned = [...new Set([...G.owned, 'spear2', 'hat3', 'body2', 'kote', 'haidate', 'suneate', 'haori', 'katana', 'teppo', 'spear4', 'yumi'])];
   Object.assign(G.equip, { weapon: 'spear2', hat: 'hat3', body: 'body2', arm: 'kote', thigh: 'haidate', shin: 'suneate', coat: 'haori' });
   G.aijirushi = 'eiraku';   // 旗本の旗は永楽通宝
   fillRoster(G, 20, 10);

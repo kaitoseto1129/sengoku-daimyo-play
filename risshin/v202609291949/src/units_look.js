@@ -51,8 +51,17 @@ export function lookParts(look0, hi = true) {
   };
 }
 
+// 兵の根元の行列の更新：隠れた兵（遠くの軽い兵の形で描く者など）は、子の部品の行列を辿らない。
+//   見えた時は、隠れていた印（matrixWorldNeedsUpdate）から子まで直る。行列を強いて直す呼び出し（true）は今までどおり全部辿る
+const _umw = THREE.Object3D.prototype.updateMatrixWorld;
+function unitMW(force) {
+  if (force === true) { _umw.call(this, true); return; }
+  if (!this.visible) { this.matrixWorldNeedsUpdate = true; return; }
+  _umw.call(this, force);
+}
 export function buildModel(u, look) {
   const root = new THREE.Group();
+  root.updateMatrixWorld = unitMW;
   look = soheiLook(look);
   const T = tierOf(look);
   look = { ...look, tier: T };

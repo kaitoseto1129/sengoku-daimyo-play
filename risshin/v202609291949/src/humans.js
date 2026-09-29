@@ -1921,32 +1921,56 @@ function scanMenpo(hm, key, col) {
       const mouth = x0 < 0.62 - (y - 0.42) * (y - 0.42) * 0.9 && y > 0.1 && y < 0.72;
       if (z > 0.7 - (1.45 - y) * 0.25 && y < top && y > -1.5 && x0 < 2.15 && !mouth) keep.push(i);
     }
+    // 打ち出しの凹凸：顔をなぞるだけだと平らな板に見える。鉄を打ち出した面頬らしく、鼻筋を高く、頬骨を張り、頬に皺（しわ）を刻み、口の縁を外へ反らせ、顎を張る
+    const G1 = (a, s) => Math.exp(-(a * a) / (2 * s * s));
+    const relief = (x0, y) => {
+      const nose = 0.13 * G1(x0, 0.16) * G1(y - 1.12, 0.3);                 // 鼻筋（高く細く）
+      const cheek = 0.16 * G1(x0 - 1.3, 0.3) * G1(y - 1.1, 0.26);          // 頬骨
+      let wr = 0;                                                            // 頬の皺：口の脇から頬へ斜めに三筋
+      if (x0 > 0.75 && x0 < 1.95) for (let k = 0; k < 3; k++) { const yc = 0.95 - (x0 - 0.75) * 0.35 - k * 0.2; wr -= 0.075 * G1(y - yc, 0.06) * (1 - Math.abs(x0 - 1.35) / 0.6); }
+      const r = Math.hypot(x0 / 0.62, (y - 0.42) / 0.32);                    // 口の縁：外へ反る唇
+      const lip = r > 0.95 && r < 1.45 ? 0.17 * (1 - (r - 0.95) / 0.5) ** 1.5 : 0;
+      const chin = 0.07 * G1(x0, 0.45) * G1(y + 0.55, 0.25);                 // 顎
+      return nose + cheek + wr + lip + chin;
+    };
+    const DISP = (x0, y, off, inner) => {
+      // 口の上の打ち出しの髭：少し高く盛る
+      const mus = x0 < 0.85 && y > 0.7 && y < 0.92 ? 0.1 * Math.cos((y - 0.81) * 14) * (1 - x0 / 0.85) : 0;
+      // 鼻の所は顔の鼻のまわりを浮かせすぎない（打ち出しの鼻筋は relief で立てる）
+      const base = off * (1 - 0.55 * G1(x0, 0.3) * G1(y - 1.1, 0.35));
+      return base + (inner ? relief(x0, y) * 0.8 : mus + relief(x0, y));
+    };
     const build = (off, inner) => {
-      const P = [], Nn = [];
+      // 頂点を分け合う形にして、法線をなめらかに（打ち出しの面が角張った多面体に見えないよう）
+      const P = [], C = [], I = [], at = new Map();
       for (const i of keep) {
         const tri = [0, 1, 2].map((k) => idx.getX(i + k));
         const order = inner ? [tri[0], tri[2], tri[1]] : tri;
         for (const v of order) {
-          // 上の縁ははみ出た頂点を縁の線にそろえる（三角のぎざぎざを消す）
-          const x = pos.getX(v), x0 = Math.abs(x + 0.09), y = Math.min(pos.getY(v), mTop(x0));
-          // 口の上の打ち出しの髭：少し高く盛る
-          const mus = x0 < 0.85 && y > 0.7 && y < 0.92 ? 0.1 * Math.cos((y - 0.81) * 14) * (1 - x0 / 0.85) : 0;
-          // 鼻の所は浮かせすぎない（打ち出しの鼻が団子にならないよう）
-          const d = off * (1 - 0.55 * Math.exp(-(x0 * x0) / (2 * 0.3 * 0.3) - ((y - 1.1) ** 2) / (2 * 0.35 * 0.35))) + (inner ? 0 : mus);
-          P.push(x + nrm.getX(v) * d, y + nrm.getY(v) * d, pos.getZ(v) + nrm.getZ(v) * d);
-          Nn.push(nrm.getX(v) * (inner ? -1 : 1), nrm.getY(v) * (inner ? -1 : 1), nrm.getZ(v) * (inner ? -1 : 1));
+          if (!at.has(v)) {
+            // 上の縁ははみ出た頂点を縁の線にそろえる（三角のぎざぎざを消す）
+            const x = pos.getX(v), x0 = Math.abs(x + 0.09), y = Math.min(pos.getY(v), mTop(x0));
+            const d = DISP(x0, y, off, inner);
+            at.set(v, P.length / 3);
+            P.push(x + nrm.getX(v) * d, y + nrm.getY(v) * d, pos.getZ(v) + nrm.getZ(v) * d);
+            // 窪み（皺・口の縁の内・鼻の脇）は暗く、高い所（鼻筋・頬骨・唇）は明るく：凹凸を色でも見せる
+            const k = Math.max(0.35, Math.min(1.05, 0.72 + relief(x0, y) * 3.2));
+            C.push(k, k, k);
+          }
+          I.push(at.get(v));
         }
       }
       const o = new THREE.BufferGeometry();
       o.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
-      o.setAttribute('normal', new THREE.Float32BufferAttribute(Nn, 3));
+      o.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
+      o.setIndex(I);
+      o.computeVertexNormals();
       return o;
     };
     // 縁の厚み：表の面と裏の面を、形の縁（一つの三角にしか使われない辺）でつなぐ（貼った板でなく、打ち出した鉄の厚みに）
     const P3 = (v, off, inner) => {
       const x = pos.getX(v), x0 = Math.abs(x + 0.09), y = Math.min(pos.getY(v), mTop(x0));
-      const mus = x0 < 0.85 && y > 0.7 && y < 0.92 ? 0.1 * Math.cos((y - 0.81) * 14) * (1 - x0 / 0.85) : 0;
-      const d = off * (1 - 0.55 * Math.exp(-(x0 * x0) / (2 * 0.3 * 0.3) - ((y - 1.1) ** 2) / (2 * 0.35 * 0.35))) + (inner ? 0 : mus);
+      const d = DISP(x0, y, off, inner);
       return [x + nrm.getX(v) * d, y + nrm.getY(v) * d, pos.getZ(v) + nrm.getZ(v) * d];
     };
     const ecount = new Map();
@@ -1980,12 +2004,13 @@ function scanMenpo(hm, key, col) {
   }
   if (!G.out.attributes.uv) for (const gg of [G.out, G.inn]) { const p = gg.attributes.position, uv = new Float32Array(p.count * 2); for (let i = 0; i < p.count; i++) { uv[i * 2] = p.getX(i) * 0.3; uv[i * 2 + 1] = p.getY(i) * 0.3; } gg.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); }
   // 漆を掛けた鉄：真っ黒の艶消しだと、黒い板を貼ったように形が見えない。少し明るく、照りを強くして、打ち出しの頬・鼻・髭の形を光で見せる
-  if (!menpoMats.has(col)) menpoMats.set(col, [new THREE.MeshStandardMaterial({ color: new THREE.Color(col).lerp(new THREE.Color(0x6a5e52), 0.5), map: MENPO_TEX, roughness: 0.38, metalness: 0.55, envMapIntensity: 1.3 }), new THREE.MeshStandardMaterial({ color: 0x7a1a12, roughness: 0.3, metalness: 0 })]);
+  // 漆の艶：上塗りの透明な層（clearcoat）で、鼻筋・頬骨・唇の縁に細い照りが走るように
+  if (!menpoMats.has(col)) menpoMats.set(col, [new THREE.MeshPhysicalMaterial({ color: new THREE.Color(col).lerp(new THREE.Color(0x6a5e52), 0.5), map: MENPO_TEX, vertexColors: true, roughness: 0.5, metalness: 0.4, clearcoat: 0.8, clearcoatRoughness: 0.18, envMapIntensity: 0.9 }), new THREE.MeshStandardMaterial({ color: 0x7a1a12, roughness: 0.3, metalness: 0, vertexColors: true })]);
   const [iron, red] = menpoMats.get(col);
   const a = new THREE.Mesh(G.out, iron), b = new THREE.Mesh(G.inn, red);
   if (!G.rim.attributes.uv) { const p = G.rim.attributes.position, uv = new Float32Array(p.count * 2); for (let i = 0; i < p.count; i++) { uv[i * 2] = p.getX(i) * 0.3; uv[i * 2 + 1] = p.getY(i) * 0.3; } G.rim.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); }
   const rimM = menpoMats.get(col + '|rim') || (menpoMats.set(col + '|rim', iron.clone()), menpoMats.get(col + '|rim'));
-  rimM.side = THREE.DoubleSide;
+  rimM.side = THREE.DoubleSide; rimM.vertexColors = false;
   const c = new THREE.Mesh(G.rim, rimM);
   for (const m of [a, b, c]) { m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; hm.add(m); }
 }
@@ -3258,9 +3283,11 @@ function gripPose(h, dt) {
     if (w === 'gun') dx -= 0.1 * u.fpk;
     // 槍は手を低めに（前の左の前腕が画面の真ん中をふさがない）
     if (w === 'spear') { dy -= 0.14 * u.fpk; dx -= 0.08 * u.fpk; }
+    // 弓は弓手を少し下げ、左へ開く（伸ばした左の籠手が画面の左半分をふさがない）
+    if (w === 'bow') { dy -= 0.1 * u.fpk; dx -= 0.14 * u.fpk; }
     // 握りが右の肩から腕の長さより遠い時は、肩の方へ引き寄せる（腕が届かず、拳が柄から離れて武器だけ浮いて見えない。馬上で多い）
     const RB = h.bones;
-    if (u.mounted && RB && RB.RightArm && RB.RightForeArm && RB.RightHand && hd.parent) {
+    if (u.mounted && w !== 'bow' && RB && RB.RightArm && RB.RightForeArm && RB.RightHand && hd.parent) {
       hd.parent.updateWorldMatrix(true, false);
       const sp = hd.parent.worldToLocal(RB.RightArm.getWorldPosition(_fpA)), ep = hd.parent.worldToLocal(RB.RightForeArm.getWorldPosition(_fpB)), wp = hd.parent.worldToLocal(RB.RightHand.getWorldPosition(_fpC));
       const reach = (sp.distanceTo(ep) + ep.distanceTo(wp)) * 0.9;
@@ -3285,10 +3312,16 @@ function gripPose(h, dt) {
     h.fpRl = (h.fpRl || 0) + ((rl ? 1 : 0) - (h.fpRl || 0)) * Math.min(1, dt * 6);
     // 一人称で担いだ鉄砲は、筒先を立てずに前へ寝かせる（筒が画面を縦に割って前をふさがない）
     if (w === 'gun' && (u.gunPh === 'carry' || u.gunPh === 'ready') && hd.rotation.x < -0.3) hd.rotation.x += (-0.3 - hd.rotation.x) * u.fpk;
-    if (h.fpRl > 0.01) {
-      const k = h.fpRl * u.fpk, ang = 0.85, my = eyeY - 0.3, mz = 0.5, mx = 0.15;
-      const gy = my - Math.sin(ang) * 1.02, gz = mz - Math.cos(ang) * 1.02;
-      dx += (mx - (hd.position.x + dx)) * k; dy += (gy - (hd.position.y + dy)) * k; dz += (gz - (hd.position.z + dz)) * k;
+    if (h.fpRl > 0.01 && RB && RB.Head && hd.parent) {
+      // 目（頭の骨）から測る：筒口は目の前 0.7m・右へ 0.16m・下へ 0.24m（馬上は目を 0.16m 上げてあるので 0.08m）、筒は 35° ほど立てる
+      // 一人称の体は描く間だけ左右に映す（player.js fpHide）ので、画面の右は体の左（-右）の側で置く
+      const k = h.fpRl * u.fpk, ang = 0.6, fx = Math.sin(u.heading), fz = Math.cos(u.heading);
+      hd.parent.updateWorldMatrix(true, false);
+      RB.Head.getWorldPosition(_fpA);
+      const dn = u.mounted ? 0.08 : 0.24, ca = Math.cos(ang), sa = Math.sin(ang);
+      _fpA.x += fx * 0.7 + fz * 0.16 - fx * ca * 1.02; _fpA.z += fz * 0.7 - fx * 0.16 - fz * ca * 1.02; _fpA.y += 0.075 - dn - sa * 1.02;
+      hd.parent.worldToLocal(_fpA);
+      dx += (_fpA.x - (hd.position.x + dx)) * k; dy += (_fpA.y - (hd.position.y + dy)) * k; dz += (_fpA.z - (hd.position.z + dz)) * k;
       hd.rotation.x += (-ang - hd.rotation.x) * k;
     }
     hd.position.x += dx; hd.position.y += dy; hd.position.z += dz;

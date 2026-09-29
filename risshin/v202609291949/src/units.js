@@ -8,7 +8,7 @@ import { WIND_STATE } from './world.js';
 import { Group, Unit } from './units_group.js';
 import { FACTION, TYPES, GENERALS, SKIN_TONES } from './units_data.js';
 import { buildModel } from './units_look.js';
-import { horseStyleFor, buildHorse, paint, at, MAT, P, merge, RIDE, seatLegs, rng } from './units_model.js';
+import { horseStyleFor, buildHorse, paint, at, MAT, MAT_I, P, merge, RIDE, seatLegs, rng } from './units_model.js';
 import { numberedFlag, FLAG_T, FLAG_W, fadedFlag, IMP, BATCH, LOD } from './units_flags.js';
 import { ArmyCombat } from './army_combat.js';
 import { ArmyFx } from './army_fx.js';
@@ -370,7 +370,7 @@ export class Army {
   update(dt, focus, cam, frustum) {
     // 画質「低」では、装備の土埃・錆・布のしわの凹凸（描く手間の掛かる所）を省く
     const hq = S.quality !== 'low';
-    if (!!MAT.defines.UNIT_HQ !== hq) { if (hq) MAT.defines.UNIT_HQ = 1; else delete MAT.defines.UNIT_HQ; MAT.needsUpdate = true; }
+    if (!!MAT.defines.UNIT_HQ !== hq) { if (hq) MAT.defines.UNIT_HQ = 1; else delete MAT.defines.UNIT_HQ; MAT.needsUpdate = true; MAT_I.needsUpdate = true; }
     FLAG_T.value += dt;
     FLAG_W.value.set(WIND_STATE.dirX, WIND_STATE.dirZ);
     this.time += dt;
@@ -590,7 +590,7 @@ export class Army {
   }
   batchGrow(geo, e, bm, cast) {
     const cap = e ? e.cap * 2 : 16;
-    const im = new THREE.InstancedMesh(geo, MAT, cap);
+    const im = new THREE.InstancedMesh(geo, MAT_I, cap);
     im.matrixAutoUpdate = false; im.frustumCulled = false; im.name = 'unitBatch'; im.castShadow = !!cast;
     im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     const ne = { im, cap, n: e ? e.n : 0, arr: im.instanceMatrix.array };

@@ -428,6 +428,10 @@ float mkMetal(int k) { return k == 3 ? 0.62 : k == 4 ? 0.92 : k == 1 ? 0.06 : 0.
         // 上を向いた漆（陣笠の上面・兜の鉢）は空を丸ごと映して薄紫に浮くので、映り込みをさらに削る
         if (mkS == 1) { float upS = dot(normal, normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz)); reflectedLight.indirectSpecular *= mix(1.0, 0.35, smoothstep(0.2, 0.8, upS) * (1.0 - uWet)); } }`);
 };
+// 軽い兵をまとめて描く InstancedMesh 用の兵の材質（MAT と同じ中身・同じ defines）。
+//   同じ材質を一人ずつの形と InstancedMesh の両方に使うと、描くたびにシェーダーを選び直す手間が掛かる（毎コマ百回以上）ので分ける
+export const MAT_I = MAT.clone();
+MAT_I.defines = MAT.defines; MAT_I.onBeforeCompile = MAT.onBeforeCompile;
 const geoCache = new Map();
 const flagMatCache = new Map();
 const flagGeo = new THREE.PlaneGeometry(0.36, 0.72, 8, 8);   // はためくよう細かく割る

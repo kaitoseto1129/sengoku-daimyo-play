@@ -921,7 +921,7 @@ export class Player {
     // パソコンの鉄砲：左を押し続けると構える（右が無いマウスパッドでも撃てるように）。押し続けて狙いが定まると放つ
     const padGun = this.weapon === 'gun' && !isTouch;
     this.lHoldT = padGun && input.left ? (this.lHoldT || 0) + dt : 0;
-    this.aiming = ranged && (rightHeld || (padGun && this.lHoldT > 0.2)) ; // 馬上でも鉄砲・弓（騎射）を構えられる
+    this.aiming = ranged && (rightHeld || (padGun && this.lHoldT > 0.2));   // 馬上でも鉄砲・弓（騎射）を構えられる
     const wantGuard = !ranged && rightHeld && this.sta > 0 && this.guardBroken <= 0;
     if (wantGuard && !this.guard) { this.guardT = 0; sfx('kozane', 0.45); }   // 構える時の具足の擦れる音
     if (this.guard && !wantGuard) this.guardOffT = this.time;   // 構えを解いた時（直後の一押しも「構えから」の技に数える）

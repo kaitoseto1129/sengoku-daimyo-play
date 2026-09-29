@@ -1113,8 +1113,9 @@ const game = {
     G.practice = true; G.injured = false;
     G.rank = 4; G.trialStep = 3; G.merit = 400;
     G.stats = { spear: 3, vit: 3, lead: 3 };
-    G.owned = [...new Set([...G.owned, 'spear2', 'hat3', 'body2', 'kote', 'haidate', 'suneate', 'haori', 'katana'])];
-    Object.assign(G.equip, { weapon: 'spear2', hat: 'hat3', body: 'body2', arm: 'kote', thigh: 'haidate', shin: 'suneate', coat: 'haori' });
+    // 侍大将で出陣は城下を通らないので、武具はひと通り持たせる（十文字槍・鉄砲・弓も）
+    G.owned = [...new Set([...G.owned, 'spear2', 'spear4', 'teppo', 'yumi', 'hat3', 'body2', 'kote', 'haidate', 'suneate', 'haori', 'katana'])];
+    Object.assign(G.equip, { weapon: 'spear4', hat: 'hat3', body: 'body2', arm: 'kote', thigh: 'haidate', shin: 'suneate', coat: 'haori' });
     G.aijirushi = G.aijirushi || 'maru';
     this.G = G;
     fillRoster(G, 20, 10);
