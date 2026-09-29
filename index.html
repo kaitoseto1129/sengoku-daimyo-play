@@ -475,7 +475,8 @@ details.fold>summary.sec-title::before{content:"▸ "} details.fold[open]>summar
 #start .s-head{position:relative;z-index:1}
 #start #btnFundTitle{font-size:14px;padding:8px 16px;opacity:.8}
 #start .s-what{max-width:560px;margin:10px auto 0;font-size:14px;line-height:1.8;color:#DDD4C0} #start .s-what b{color:#FFD166;font-weight:800}
-@media (max-width:640px){ #start .s-what{font-size:14px;line-height:1.7;padding:0 12px} #start .s-actions{flex-wrap:wrap} }
+@media (max-width:640px){ #start .s-what{font-size:14px;line-height:1.7;padding:0 12px} #start .s-btn.s-sub{ font-size:14px; padding:8px 14px; opacity:.72; font-weight:700 }   /* 第257巡：主でない釦は控えめに（始める釦を目立たせる） */
+.s-actions{flex-wrap:wrap} }
 #start .langBtn{position:fixed;top:12px;right:14px;font-size:14px;padding:6px 12px;opacity:.75;z-index:2}
 #start .sndBtn{position:fixed;top:12px;right:96px;font-size:14px;padding:6px 12px;opacity:.85;z-index:2}
 @supports (top: env(safe-area-inset-top)){ #start .langBtn, #start .sndBtn{ top:max(12px, env(safe-area-inset-top)); } #start .langBtn{ right:max(14px, env(safe-area-inset-right)); } #start .sndBtn{ right:calc(max(14px, env(safe-area-inset-right)) + 82px); } }
@@ -930,13 +931,13 @@ html:not(.booting) #bootState{display:none}
     <div class="s-actions">
       <button class="s-btn gold" id="btnGameStart">ゲームをはじめる</button>   <!-- 第253巡（作り手）：「まず一戦、すぐ遊ぶ」はやめて一つに -->
       <button class="s-btn" id="btnContTitle" hidden>つづきから</button>
-      <button class="s-btn" id="btnFundTitle" onclick="openFund()">軍資金募集</button>
-      <button class="s-btn" id="btnMeyasuTitle" onclick="openMeyasubako()" title="こうして欲しい、ここが困る、を作り手へ">目安箱</button>
-      <button class="s-btn langBtn" onclick="setLang(LANG.cur==='en'?'ja':'en')" title="言語 / Language" style="font-family:'Zen Kaku Gothic New',sans-serif;letter-spacing:.04em">English</button>
+      <button class="s-btn s-sub" id="btnFundTitle" onclick="openFund()">軍資金募集</button>
+      <button class="s-btn s-sub" id="btnMeyasuTitle" onclick="openMeyasubako()" title="こうして欲しい、ここが困る、を作り手へ">目安箱</button>
+      <button class="s-btn s-sub langBtn" onclick="setLang(LANG.cur==='en'?'ja':'en')" title="言語 / Language" style="font-family:'Zen Kaku Gothic New',sans-serif;letter-spacing:.04em">English</button>
     </div>
     <div class="tiny" id="bootNote" hidden style="margin-top:10px;color:var(--kin);letter-spacing:.06em">支度中…（あと少し）</div>
     <div class="tiny muted" id="buildTag" style="margin-top:14px;letter-spacing:.08em;opacity:.55"></div>
-    <div class="tiny" id="pcHint" hidden style="margin-top:10px;opacity:.85"><span>スマホでも遊べますが、PC・iPadだと見やすくなります。</span> <button class="tool" onclick="pcLinkAsk()" style="font-size:14px;padding:4px 9px">PCへリンクを送る ▸</button></div>
+    <div class="tiny" id="pcHint" hidden style="margin-top:10px;opacity:.85"><span>横向きにすると、戦場が広く見えます。</span></div>   <!-- 第257巡（管理画面：題名で1分以内に181人が離れていた）：携帯の人に「PCの方が見やすい」と告げるのをやめる -->
   </div>
 
   <!-- ② シナリオを選ぶ -->
