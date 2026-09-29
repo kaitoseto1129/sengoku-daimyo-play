@@ -205,6 +205,15 @@ function grassAlpha(sh, fade = true) {
 }
 function grassLit(sh) {
   grassAlpha(sh);
+  // 葉先：置く所の緑を掛けると先まで青みの薄荷色になるので、先ほど黄みの枯れ色へ寄せ、根元は濃く沈める
+  sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+    #ifdef USE_MAP
+    {
+      float gy = vMapUv.y, gl = dot(diffuseColor.rgb, vec3(0.3, 0.55, 0.15));
+      diffuseColor.rgb = mix(diffuseColor.rgb, gl * vec3(1.22, 1.02, 0.5), smoothstep(0.45, 0.95, gy) * 0.6);
+      diffuseColor.rgb *= mix(0.72, 1.0, smoothstep(0.0, 0.4, gy));
+    }
+    #endif`);
   sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>
     #ifdef DOUBLE_SIDED
       normal *= faceDirection;
@@ -1802,7 +1811,7 @@ export class World {
     if (!D) return;
     if (D.list.length >= D.CAP) D.list.shift();
     // 騎馬の土煙は大きく高く舞い上がり、後ろの景色をかすませる
-    D.list.push({ x: x + (Math.random() - 0.5) * 1.5, z: z + (Math.random() - 0.5) * 1.5, t: 0, life: (big ? 11 : 6) + Math.random() * 6, s0: big ? 3 : 1.6, s1: (big ? 12 : 5) + Math.random() * (big ? 6 : 4), a: (big ? 0.09 : 0.045) + Math.random() * 0.03, rise: (big ? 0.3 : 0.15) + Math.random() * 0.2 });
+    D.list.push({ x: x + (Math.random() - 0.5) * 1.5, z: z + (Math.random() - 0.5) * 1.5, t: 0, life: (big ? 11 : 6) + Math.random() * 6, s0: big ? 3 : 1.6, s1: (big ? 12 : 5) + Math.random() * (big ? 6 : 4), a: (big ? 0.06 : 0.03) + Math.random() * 0.02, rise: (big ? 0.3 : 0.15) + Math.random() * 0.2 });
     D.fresh = (D.fresh || 0) + (big ? 0.4 : 0.15);
   }
   // 雲の群れを流して、描く数と位置を詰め直す
@@ -3480,7 +3489,7 @@ export class World {
       // 根元は濃い緑、中ほどは草の緑、先は黄みの枯れ色（白っぽい薄荷色にしない）
       const rgb = (r, g, bl) => `rgb(${Math.min(255, r) | 0},${Math.min(255, g) | 0},${Math.min(255, bl) | 0})`;
       const lg = gg.createLinearGradient(0, GS, 0, GS - h);
-      lg.addColorStop(0, rgb(v * 0.36 * cr, v * 0.5, v * 0.26 * cb)); lg.addColorStop(0.45, rgb(v * 0.6 * cr, v * 0.76, v * 0.4 * cb)); lg.addColorStop(1, rgb(v * 0.9 * cr, v * 0.84, v * 0.5 * cb));
+      lg.addColorStop(0, rgb(v * 0.36 * cr, v * 0.5, v * 0.26 * cb)); lg.addColorStop(0.45, rgb(v * 0.6 * cr, v * 0.76, v * 0.4 * cb)); lg.addColorStop(1, rgb(v * 0.82 * cr, v * 0.74, v * 0.4 * cb));
       void col;
       gg.fillStyle = lg;
       // 折れて垂れた葉：途中で曲がって先が下がる
@@ -4313,7 +4322,7 @@ export class World {
     vis = vis + (95 - vis) * mist * mist * (3 - 2 * mist) * 0.9;
     // 雨は遠くを白く隠す
     vis = vis + (80 - vis) * r;
-    if (this.haze) vis /= 1 + this.haze.k * 0.9 + (this.dustVeil ? this.dustVeil.k * 0.35 : 0);
+    if (this.haze) vis /= 1 + this.haze.k * 0.7 + (this.dustVeil ? this.dustVeil.k * 0.15 : 0);
     this.vis = vis;
     // 遠くの軍勢の陽炎：晴れて乾いた昼・午後ほど強く、雨・朝靄・夕暮れでは弱い
     const hot = L === TIME.day || L === TIME.after ? 1 : L === TIME.morning ? 0.4 : 0.2;
