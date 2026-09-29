@@ -15,6 +15,7 @@ import { moraleWord } from './hud.js';
 import { gauss, enemyGroup, allyGroup, nm, centerOf, unitPos, wallLine, ringWall } from './bhelp.js';
 import { KIT } from './b_nagashinojo.js';
 import { camp } from './b_mid.js';
+import { depthStart, depthTick, depthBot, rest, pick, fight, hold } from './b_depth.js';
 
 // 足軽大将ほどの身分（信長で遊ぶ時は除く）：藤吉郎の手の一隊を預かる
 const hi = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
@@ -516,8 +517,11 @@ const inabayama = {
       if (F.ending) return;
       F.sig = { x: HON.x + 7, z: HON.z + 6 };
       F.otePart = true;
+      rt.world.addSmokeColumn(F.sig.x, rt.world.heightAt(F.sig.x, F.sig.z) + 6, F.sig.z, { size: 3 });
       rt.say('柴田勝家', '見よ、本丸から煙じゃ！　藤吉郎め、ようやりおったわ', 3.5);
-      this.win(rt, false, true);
+      rt.unzone('ote'); rt.unmark('ote3'); rt.unmark('ote4');
+      for (const q of [F.ote3, F.ote4]) if (q && !gone(q)) { q.noRout = false; q.morale = 0; }
+      this.deep(rt, 'C', () => this.win(rt, false, true));
     });
   },
 
@@ -553,19 +557,38 @@ const inabayama = {
       return g;
     };
     F.hata = [mk(HON.x + 6, HON.z - 2, '本丸の旗本', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }])];
+    // 本丸には城兵が詰めている（軽い作り。踏み込めば本物の兵に替わる）
+    KIT.backOf(rt, F.hata[0], { flag: 'saito', armor: 0x33302a, kind: 'spear', w: 12, depth: 6, count: 90, seed: 15690 });
+    // 二の丸の道を塞がなかった時：後ろから斎藤勢が上がってきて挟まれる
+    if (F.dpMem && F.dpMem.block === false) rt.after(12, () => {
+      if (F.ending) return;
+      F.hata.push(mk(-34, -104, '二の丸から上がった斎藤勢', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 10 }]));
+      rt.army.play('eshout', { x: -34, z: -104 }, 1.4);
+      rt.say('足軽', '後ろじゃ！　二の丸の兵が上がってきた、挟まれるぞ！', 3);
+    });
     rt.after(24, () => { if (!F.ending) { F.hata.push(mk(HON.x + 8, HON.z - 10, '御殿から出た旗本', [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 8 }])); rt.say('斎藤方の侍', 'お屋形様の御座所に近づけるな！', 3); } });
   },
   // 旗本を退けたら、合図の火
   lightSig(rt) {
     const F = rt.flags;
     if (F.sig) return;
-    for (const n2 of ['本丸の旗本', '御殿から出た旗本']) rt.unmark(n2);
+    for (const n2 of ['本丸の旗本', '御殿から出た旗本', '二の丸から上がった斎藤勢']) rt.unmark(n2);
     const S = { x: HON.x + 7, z: HON.z + 6 };
     F.sig = S; F.sigT = rt.t;
     this.nextObj(rt, '本丸の脇の小屋に火を放ち、瑞龍寺山の殿へ合図を送れ');
     rt.say('木下藤吉郎', '今じゃ、火を放て！', 2.5);
     rt.marker('sig', S, '火を放つ', { h: 3 });
     rt.addInteract('sig', { x: S.x - 4, z: S.z }, '小屋に火を放つ（合図）', () => this.win(rt), { r: 4, hold: 1.6 });
+  },
+
+  // 段を重ねる（b_depth.js）：A 大手の打って出を退けた後 ／ B 搦手の木戸を破った後 ／ C 大手に残って、本丸の煙が上がった後
+  deep(rt, which, then) {
+    const F = rt.flags;
+    if (F['dp' + which]) return;
+    F['dp' + which] = true;
+    if (rt.G.lord) { then(); return; }
+    F.dpOn = true;
+    depthStart(rt, inaCtx(rt, which), which === 'T' ? inaT() : which === 'A' ? inaA() : which === 'B' ? inaB() : inaC(), () => { F.dpOn = false; rt.after(3, () => { const q = rt.objectives.find((x) => x.id === 'dp'); if (q && q.state) rt.objRemove('dp'); }); then(); });
   },
 
   win(rt, late = false, stayed = false) {
@@ -601,7 +624,9 @@ const inabayama = {
     const F = rt.flags;
     // 崩れた隊の印は消す（古い印が「あちらじゃ」の行き先にならないように）
     for (const m of rt.markers.slice()) if (m.group && gone(m.group)) rt.unmark(m.id);
+    KIT.backTick(rt);
     if (F.ending) return;
+    if (F.dpOn) { depthTick(rt, dt); return; }
     if (F.step === 1) {
       if (F.lit < NEED) rt.objProgress('main', `${F.lit}／${NEED}軒`);
       if (rt.t > (F.mhT || 0)) { F.mhT = rt.t + 1; if (F.lit < NEED) this.markHouses(rt); }
@@ -624,8 +649,13 @@ const inabayama = {
       // 前の勢が崩れたら、5 秒後に新手
       volleyWatch(rt, 'ote', { guns: () => F.nGun, foes: () => qs, r: 26, who: '丹羽長秀', line: '鹿垣まで引きつけた……鉄砲、放て！', sub: '鹿垣の内から、丹羽の鉄砲衆' });
       if (gone(F.ote) && !F.ote2 && !F.ote2Q) { F.ote2Q = true; rt.after(5, () => this.ote2(rt)); }
-      if (F.ote2 && qs.every(gone)) this.karamete(rt);
-      else if (rt.t - F.stepT > 160) this.karamete(rt, true);
+      if ((F.ote2 && qs.every(gone)) || rt.t - F.stepT > 160) {
+        const late = !(F.ote2 && qs.every(gone));
+        rt.unmark('ote'); rt.unmark('ote2');
+        for (const q of qs) if (!gone(q)) { q.noRout = false; q.morale = 0; }
+        if (!late) rt.objDone('main');
+        this.deep(rt, 'A', () => this.karamete(rt, late));
+      }
     }
     if (F.step === 3 && F.stayOte) {
       const oq = [F.ote3, F.ote4].filter(Boolean);
@@ -639,7 +669,7 @@ const inabayama = {
       const kc = F.kino.center();
       if (!F.guardOn && !F.stayOte) this.climbEvents(rt);
       if (!F.guardOn && (kd < 30 || Math.hypot(kc.x + 30, kc.z + 118) < 26)) this.guardFight(rt);
-      if (F.guardOn && (gone(F.kguard) || F.kguard.count < 3)) { if (!gone(F.kguard)) F.kguard.morale = 0; this.signal(rt); }
+      if (F.guardOn && (gone(F.kguard) || F.kguard.count < 3)) { if (!gone(F.kguard)) F.kguard.morale = 0; rt.unmark('kguard'); this.deep(rt, 'B', () => this.signal(rt)); }
       // 長くかかりすぎたとき
       if (rt.t - F.stepT > 200 && !F.guardOn) this.guardFight(rt);
     }
@@ -647,11 +677,17 @@ const inabayama = {
       const qs = [F.town, F.town2].filter(Boolean);
       rt.objProgress('main', `斎藤の兵 ${qs.reduce((a, q) => a + (gone(q) ? 0 : q.count), 0)}人`);
       for (const q of qs) if (q.count < 4 && !gone(q)) q.morale = Math.min(q.morale, 20);
-      if ((F.town2 && qs.every(gone)) || rt.t - F.clearT > 70) { F.clearT = undefined; F.step = 1.5; rt.after(4, () => this.sally(rt)); }
+      if ((F.town2 && qs.every(gone)) || rt.t - F.clearT > 70) {
+        F.clearT = undefined; F.step = 1.5;
+        rt.unmark('town'); rt.unmark('town2');
+        for (const q of qs) if (!gone(q)) { q.noRout = false; q.morale = 0; }
+        rt.objDone('main');
+        this.deep(rt, 'T', () => this.sally(rt));
+      }
     }
     if (F.step === 4 && F.hata) {
       for (const q of F.hata) if (q.count < 4 && !gone(q)) q.morale = Math.min(q.morale, 20);
-      if (!F.sig && ((F.hata.length >= 2 && F.hata.every(gone)) || rt.t - F.stepT > 110)) this.lightSig(rt);
+      if (!F.sig && ((F.hata.length >= 2 && F.hata.every(gone)) || rt.t - F.stepT > 130)) this.lightSig(rt);
       // 合図の火を放ちに来ない時：藤吉郎が呼び、それでも来なければほかの者が火を付ける
       if (F.sig && rt.t - F.sigT > 20 && !F.sigCall) { F.sigCall = true; rt.say('木下藤吉郎', `${nm(rt)}、印の小屋じゃ！　前に立って「小屋に火を放つ」を長く押せ`, 4); }
       if (rt.t - F.stepT > 170 || (F.sig && rt.t - F.sigT > 50)) this.win(rt, true);
@@ -671,10 +707,101 @@ const inabayama = {
     if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
   },
   onRout(rt, g) {
-    if (g.team !== 1 || g.civ) return;
+    if (g.team !== 1 || g.civ || rt.t < (rt.flags.routSayT || 0)) return;
+    rt.flags.routSayT = rt.t + 9;
     rt.say('足軽', `${g.name}が山へ逃げていく！`, 2.5);
   },
 };
+
+// ---------------- 一つの戦を濃くする段（b_depth.js） ----------------
+// 山城の攻め：斎藤の城兵は七曲りの大手から、後ろに数百の城兵を連ねてどっと打って出る。山の曲輪からも次々に新手
+const uS = (n) => ({ type: 'samurai', n }), uA = (n) => ({ type: 'ashigaru', n }), uB = (n) => ({ type: 'bow', n });
+const bowLine = (name, from, n, o = {}) => ({ name, from, list: [uS(1), uB(n)], formation: 'line', seek: 70, mass: 70, dmg: 0.45, ...o });
+function inaCtx(rt, which) {
+  const F = rt.flags;
+  const fr = which === 'A' ? () => [F.kino, F.shiba, F.niwa] : which === 'B' ? () => [F.kino] : () => [F.shiba, F.niwa];
+  return { faction: 'saito', flag: 'saito', armor: 0x33302a, dmg: 0.6, mass: 220,
+    friends: () => fr().filter((g) => g && g.count && !g.routed),
+    ring: which === 'B' ? { x: HON.x, z: HON.z, r: 17.5, gap: GAP_A } : null, botSteer: oteSteer,
+    aid: { name: which === 'B' ? '藤吉郎の手の後続' : '柴田の手の一組', faction: 'oda', flag: 'oda', list: [uS(1), uA(9)] }, aidSaid: which === 'B' ? '藤吉郎の手の後続が登ってきた' : '柴田の手から一組が加わった' };
+}
+// bot が大手の木戸の左右の柵に突っかからないように：柵の線を越える時は、木戸の口へ回る
+function oteSteer(b, inp) {
+  if (!inp.k.has('KeyW')) return;
+  const p = b.player, u = p.u, fx = Math.sin(p.yaw), fz = Math.cos(p.yaw);
+  const ax = u.pos.x + fx * 3, az = u.pos.z + fz * 3;
+  if (Math.abs(u.pos.x - OTE.x) < 3 || Math.abs(u.pos.x - OTE.x) > 27 || Math.abs(ax - OTE.x) < 3) return;
+  const wz = OTE.z + (Math.min(26, Math.abs(u.pos.x - OTE.x)) - 4) / 22 * 6;
+  if (u.pos.z > wz + 0.3 && az < wz + 1.5) p.yaw = Math.atan2(OTE.x - u.pos.x, OTE.z + 4 - u.pos.z);
+  else if (u.pos.z < wz - 0.3 && az > wz - 1.5) p.yaw = Math.atan2(OTE.x - u.pos.x, OTE.z - 4 - u.pos.z);
+}
+// T 町を焼いた後：町の北の出口に、城から駆け下りた斎藤勢が大勢で固まる
+function inaT() {
+  return [
+    fight({ at: { x: 6, z: 28 }, title: '町の北の出口', sub: '城から駆け下りた斎藤勢が、焼けた町の出口を固める', obj: (rt) => (hi(rt) ? '預かった一隊を率いて、町の北の出口の斎藤勢を崩せ' : '町の北の出口の斎藤勢を崩せ'),
+      say: [['木下藤吉郎', '出口を塞がれては、大手へ寄れぬ。……西から美濃三人衆の兵が来る。それまで押し負けるな！', 4.5]],
+      foes: () => [{ name: '出口を固める斎藤勢', from: { x: 2, z: 2 }, list: [uS(2), uA(12)], mass: 300, noRout: 15 }],
+      later: [
+        { t: 32, say: ['足軽', '長良川の方から回ってくる！'], foes: () => [{ name: '川の方から回る斎藤勢', from: { x: -46, z: 16 }, list: [uS(1), uA(10), uB(3)], mass: 220 }] },
+        { t: 58, title: '美濃三人衆', sub: '稲葉一鉄の兵が、西から斎藤勢の横を突く', say: ['稲葉一鉄', '斎藤の者ども、美濃はもう龍興殿のものではないわ！'], foes: () => [] },
+      ],
+      max: 120, reward: '町の北の出口を押し通った',
+      onEnd: (rt) => { const F = rt.flags; if (!F.inaba) { F.inaba = allyGroup(rt, { name: '稲葉一鉄の手', anchor: { x: -30, z: 20 }, facing: Math.PI / 2, width: 12, aggro: 10, noRout: true }, dress([{ type: 'samurai', n: 1, o: { name: '稲葉一鉄', invuln: true, hat: 'kabuto_m' } }, { type: 'ashigaru', n: 10 }], { flag: 'inaba' })); F.inaba.order = 'move'; F.inaba.dest = { x: -24, z: -20 }; F.inaba.onArrive = (g) => { g.order = 'hold'; }; } } }),
+  ];
+}
+// A 大手の打って出を退けた後：鹿垣で受けるか、木戸の口まで押し上げるか（判断①）
+function inaA() {
+  return [
+    rest({ dur: 7, heal: 0.3, bark: '鹿垣の内で、組を寄せ直す（手傷を縛った）', say: [['木下藤吉郎', '退いたか。……じゃが木戸は開いたままじゃ。中に城兵がぎっしり詰めておる'], ['丹羽長秀', '鹿垣の内で受ければ、鉄砲で崩せる。押し上げれば口は取れるが、城兵がどっと出る']] }),
+    pick({ title: '大手の木戸が開いたまま。どうする？',
+      options: [{ label: '鹿垣の内で受け、鉄砲で崩す', note: '鹿垣が守ってくれる。手柄は小さい' }, { label: '木戸の前まで押し上げ、口を奪う', note: '大手柄。木戸の内から城兵が大勢で出てくる' }],
+      on: (rt, m, i) => { m.push = i === 1; rt.say(i === 1 ? '柴田勝家' : '丹羽長秀', i === 1 ? 'よう言うた！　わしも行く。木戸の口に槍を突っ込め！' : 'よし。鹿垣まで引きつけよ。撃つのはわしが言う', 3); } }),
+    hold({ skip: (rt, m) => m.push, at: { x: 0, z: -30 }, dur: 70, r: 14, title: '鹿垣の守り', sub: '木戸の内から、城兵が波のように押し寄せる', label: '鹿垣', obj: (rt) => (hi(rt) ? '預かった一隊を鹿垣に並べ、押し寄せる城兵を受け止めよ' : '鹿垣で、押し寄せる城兵を受け止めよ'),
+      say: [['丹羽長秀', '鹿垣に寄せた所を撃つ。崩れてから槍で突け。鹿垣の外へ出るな', 4]],
+      waves: [
+        { t: 4, say: ['足軽', '来た！　七曲りを駆け下りてくる！'], foes: () => [{ name: '大手の三の手', from: { x: 0, z: -68 }, list: [uS(2), uA(12)], mass: 300, noRout: 18 }] },
+        { t: 26, say: ['丹羽長秀', '木戸の脇の櫓から矢じゃ！　鹿垣の陰へ！'], foes: () => [bowLine('大手の弓衆', { x: 12, z: -60 }, 7)] },
+        { t: 42, say: ['足軽', '西の山裾を回ってくる！　横を突かれる！'], foes: () => [{ name: '山裾を回る斎藤勢', from: { x: -44, z: -44 }, list: [uS(2), uA(10)], mass: 220 }] },
+      ],
+      reward: '鹿垣で城兵を受け止めた', lost: ['木下藤吉郎', '押し込まれたか……鹿垣を結い直せ！'] }),
+    fight({ skip: (rt, m) => !m.push, at: { x: 0, z: -50 }, title: '大手の木戸の口', sub: '七曲りの坂の上、木戸の口に斎藤勢が槍を並べる', obj: (rt) => (hi(rt) ? '預かった一隊を率いて、大手の木戸の口の斎藤勢を崩せ' : '大手の木戸の口の斎藤勢を崩せ'),
+      say: [['柴田勝家', '口は狭い。先頭の槍を崩せば、後ろの者は下がれずに詰まる！', 4]],
+      foes: () => [{ name: '木戸の口の斎藤勢', from: { x: 0, z: -70 }, list: [uS(3), uA(13)], mass: 320 }],
+      later: [
+        { t: 30, say: ['足軽', '櫓から矢じゃ！'], foes: () => [bowLine('木戸の櫓の弓衆', { x: 12, z: -66 }, 7)] },
+        { t: 60, title: '新手', sub: '木戸の内から、城兵の新手', say: ['柴田勝家', 'まだ来るか！　押し返せ、ここが勝負じゃ！'], foes: () => [{ name: '木戸の内の新手', from: { x: -6, z: -76 }, list: [uS(2), uA(12)], mass: 280 }] },
+      ],
+      max: 140, reward: (t) => { t.special = { label: '大手の木戸の口を奪った', pts: 15 }; }, rewardLabel: '大手の木戸の口を奪った' }),
+  ];
+}
+// B 搦手の木戸を破った後：二の丸から上がる斎藤勢の道を塞ぐか、構わず本丸へ（判断③）
+function inaB() {
+  return [
+    rest({ dur: 6, heal: 0.3, bark: '木戸の陰で、息を整える', say: [['木下藤吉郎', '（小声で）破ったぞ。……じゃが、下の二の丸で声がする。気づかれたな'], ['足軽', '二の丸の兵が、この道を上がってきまする！']] }),
+    pick({ title: '二の丸から斎藤勢が上がってくる。どうする？',
+      options: [{ label: '二の丸の道を塞ぎ、背を守る', note: '本丸へは遅れる。後ろを突かれずに済む。手柄' }, { label: '構わず、本丸へ斬り込む', note: '早い。本丸で旗本と、後ろの兵に挟まれる' }],
+      on: (rt, m, i) => { m.block = i === 0; rt.say('木下藤吉郎', i === 0 ? 'よし、道を塞げ。細い道じゃ、槍をそろえれば一人ずつしか来られぬ' : '行くぞ！　後ろは振り向くな！', 3.5); } }),
+    hold({ skip: (rt, m) => !m.block, at: { x: -38, z: -104 }, dur: 65, r: 12, title: '二の丸の道', sub: '搦手の木戸の下、二の丸から上がる細い道', label: '二の丸の道', obj: (rt) => (hi(rt) ? '預かった一隊で二の丸の道を塞ぎ、上がってくる斎藤勢を防げ' : '二の丸の道を塞ぎ、上がってくる斎藤勢を防げ'),
+      waves: [
+        { t: 3, say: ['足軽', '来た！　道いっぱいに上がってくる！'], foes: () => [{ name: '二の丸から上がる斎藤勢', from: { x: -22, z: -86 }, list: [uS(2), uA(11)], mass: 260, noRout: 15 }] },
+        { t: 30, say: ['木下藤吉郎', '三の丸の弓じゃ、伏せよ！　矢が尽きたら、また槍が来るぞ'], foes: () => [bowLine('三の丸の弓衆', { x: -8, z: -88 }, 6), { name: '二の丸の二の手', from: { x: -20, z: -82 }, list: [uS(1), uA(9)], mass: 180 }] },
+      ],
+      reward: '二の丸の道を塞いだ', lost: ['木下藤吉郎', '抜かれたか……じゃが、もう本丸じゃ！'] }),
+  ];
+}
+// C 大手に残り、本丸の煙が上がった後：逃げる城兵を追うか、木戸の前を固めるか（判断③）
+function inaC() {
+  return [
+    rest({ dur: 6, heal: 0.3, say: [['柴田勝家', '城兵が崩れるぞ。……木戸の内へ攻め入るか、ここで降る者を待つか']] }),
+    pick({ title: '本丸から煙。城兵が七曲りを逃げ下りる。どうする？',
+      options: [{ label: '木戸の内へ攻め入り、逃げる城兵を討つ', note: '手柄。木戸の内で死にものぐるいの者とぶつかる' }, { label: '木戸の前を固め、降る者を受け入れる', note: '手柄は小さい。無駄な血を流さない' }],
+      on: (rt, m, i) => { m.chase = i === 0; rt.say('柴田勝家', i === 0 ? 'よし、かかれ！　木戸の内じゃ！' : 'よかろう。刀を捨てた者は討つな', 3); if (i === 1) rt.award((t) => t.side.push('降る城兵を受け入れた'), '降る城兵を受け入れた'); } }),
+    fight({ skip: (rt, m) => !m.chase, at: { x: 0, z: -72 }, title: '木戸の内', sub: '逃げ場を失った城兵が、死にものぐるいで向き直る', obj: (rt) => (hi(rt) ? '預かった一隊を率いて木戸の内へ攻め入り、城兵を崩せ' : '木戸の内の城兵を崩せ'),
+      foes: () => [{ name: '死にものぐるいの城兵', from: { x: 0, z: -86 }, list: [uS(3), uA(10)], mass: 240 }],
+      later: [{ t: 30, say: ['足軽', '山の曲輪から下りてくる！'], foes: () => [{ name: '曲輪から下りる城兵', from: { x: 20, z: -90 }, list: [uS(2), uA(9)], mass: 200 }] }],
+      max: 110, reward: (t) => { t.special = { label: '大手の木戸の内へ攻め入った', pts: 15 }; }, rewardLabel: '大手の木戸の内へ攻め入った' }),
+  ];
+}
 
 // 両軍の総勢（織田 一万ほど、斎藤 三千ほど。数には諸説ある）
 inabayama.force = (rt) => {
@@ -712,6 +839,7 @@ inabayama.botBrain = (b, inp, { goTo }) => {
   inp.quickCmd = null;
   inp.k.delete('KeyW'); inp.k.delete('KeyE');
   if (!u.alive || F.ending) return;
+  if (F.dpOn) { depthBot(b, inp, goTo); return; }
   if (u.hp < u.maxHp * 0.5) b.botRest = true;
   if (b.botRest && u.hp > u.maxHp * 0.85) b.botRest = false;
   const c = F.kino.center();

@@ -19,7 +19,7 @@ import { gauss, enemyGroup, allyGroup, nm, centerOf, unitPos, wallLine } from '.
 import { dress, gone, more, customFlag } from './b_inabayama.js';
 import { KIT } from './b_nagashinojo.js';
 import { volleyAt } from './b_tano.js';
-import { depthStart, depthTick, rest, pick, fight, hold } from './b_depth.js';
+import { depthStart, depthTick, depthBot, rest, pick, fight, hold } from './b_depth.js';
 import { uS, uA, uG, round, gunLine, lines, leanAll, volleyAll, camp } from './b_mid.js';
 // 足軽大将候補より上（信長で遊ぶ時は除く）：任務の文を「一手を預かる」者の役目に
 const HI = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
@@ -216,7 +216,9 @@ const saika = {
     for (let i = 1; i <= 3; i++) rt.unmark('l' + i);
     for (const q of F.last || []) if (!gone(q)) { q.noRout = false; q.morale = Math.min(q.morale, 15); }
     rt.award((t) => t.side.push('孫一の打って出を受け止めた'), '孫一の打って出を受け止めた');
-    this.win(rt);   // 山の口・焼ける柵の段は省く（一つの戦を長くしすぎない）
+    rt.obj('main', HI(rt) ? '預かった一手で雑賀衆を追い、日暮れまで柵の前を守れ' : '退く雑賀衆を見定め、日暮れまで柵の前を守れ', 'main');
+    // 山の口へ追うか、柵を焼いて固めるか → 日暮れの最後の撃ち合い → 勝ち
+    depthStart(rt, saikaCtx(rt), saikaB(), () => this.win(rt));
   },
 
   // ③ 雑賀の鉄砲衆の打って出
@@ -377,8 +379,8 @@ function saikaB() {
     rest({ dur: 12, say: [['堀秀政', '雑賀衆が柵を捨てて、奥の山の口へ退いていく'], ['足軽', '烏の旗が、山の方へ……孫一もあの中か']] }),
     pick({ title: '雑賀衆が奥の山の口へ退く。どうする？',
       pre: (rt) => rt.say('堀秀政', '追えば孫一の首が取れるかもしれぬ。……じゃが、山の口は狭い', 3.5),
-      options: [{ label: '山の口まで追う', note: '孫一の後備えを崩せば大手柄。山の上から撃たれるかもしれぬ' }, { label: '柵に火をかけ、ここを固める', note: '雑賀の足場を焼く。取り返しに来る' }],
-      on: (rt, m, i) => { m.skChase = i === 0; rt.say('堀秀政', i === 0 ? 'よし、追え！　ただし山へは深入りするな' : 'よし、柵に火をかけよ！　小屋も焼け', 3); } }),
+      options: [{ label: '柵に火をかけ、ここを固める', note: '雑賀の足場を焼く。取り返しに来る' }, { label: '山の口まで追う', note: '孫一の後備えを崩せば大手柄。山の上から撃たれるかもしれぬ' }],
+      on: (rt, m, i) => { m.skChase = i === 1; if (i === 0) for (const x of [-22, -4, 16]) rt.world.addFire(x, FENCE_Z - 3); rt.say('堀秀政', i === 1 ? 'よし、追え！　ただし山へは深入りするな' : 'よし、柵に火をかけよ！　小屋も焼け', 3); } }),
     fight({ skip: (rt, m) => !m.skChase, at: MT, max: 170, title: '山の口', sub: '退く雑賀衆の後ろに、孫一の後備えが向き直る', obj: '山の口で、孫一の後備えを崩せ',
       foes: () => [{ name: '孫一の後備え', from: RM.front, list: [uS(3), uA(12), uG(3)], mass: 240, noRout: 25 }],
       later: [
@@ -422,6 +424,7 @@ saika.botBrain = (b, inp, { goTo }) => {
   inp.quickCmd = null;
   inp.k.delete('KeyW'); inp.k.delete('KeyE');
   if (!u.alive || F.ending) return;
+  if (F.dp && F.dp.on) { depthBot(b, inp, goTo); return; }
   if (u.hp < u.maxHp * 0.5) b.botRest = true;
   if (b.botRest && u.hp > u.maxHp * 0.85) b.botRest = false;
   if (b.botRest) { inp.guardHold = false; goTo(p, inp, 4, 24, 2); return; }

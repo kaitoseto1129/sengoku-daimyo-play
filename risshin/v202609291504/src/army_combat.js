@@ -88,6 +88,8 @@ export const ArmyCombat = {
       if (from === 'front' && Math.random() < chance) {
         amount *= 0.2;
         t.guardFlash = 0.35;
+        // 構えを崩す技（叩き下ろし・上段の斬り下ろし）は、受けられても相手の構えを崩してよろめかせる
+        if (opts.guardBreak) { t.guarding = 0; t.stagger = Math.max(t.stagger || 0, 0.8); t.atk = null; t.cd = Math.max(t.cd || 0, 0.9); }
         this.clashAt(src, t);
         if (out) out.res = 'block';
         if (this.hooks.onBlocked) this.hooks.onBlocked(t);

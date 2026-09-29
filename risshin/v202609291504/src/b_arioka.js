@@ -18,6 +18,7 @@ import { applyLook, NIGHT, dress, gone, burnHouse, more } from './b_inabayama.js
 import { KIT } from './b_nagashinojo.js';
 import { volleyAt } from './b_tano.js';
 import { camp } from './b_mid.js';
+import { depthStart, depthTick, depthBot, rest, pick, fight, hold } from './b_depth.js';
 // 足軽大将候補より上（信長で遊ぶ時は除く）：任務の文を「一手を預かる」者の役目に
 const HI = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
 
@@ -152,7 +153,7 @@ const arioka = {
     for (const g of F.wallG) for (const u of g.units) u.dmg *= 0.5;
     rt.marker('g1', centerOf(F.g1), () => `砦の荒木勢・${moraleWord(F.g1.morale)}`, { red: true, group: F.g1 });
     // 城下に火の手（味方が火を放つ）
-    F.houses.forEach((h, i) => rt.after(20 + i * 12, () => { if (!F.ending) burnHouse(rt, h); }));
+    F.houses.slice(0, 2).forEach((h, i) => rt.after(24 + i * 14, () => { if (!F.ending) burnHouse(rt, h); }));
   },
 
   // ② 城下を抜けて牢へ
@@ -163,7 +164,6 @@ const arioka = {
     rt.setPhase('town');
     rt.unmark('g1');
     if (!gone(F.g1)) F.g1.morale = Math.min(F.g1.morale, 15);
-    rt.award((t) => t.side.push('砦の兵を退けた'), '砦の兵を退けた');
     rt.obj('main', '栗山善助とともに、本丸の脇の牢へ急げ', 'main');
     rt.say('栗山善助', '牢は本丸の西の脇じゃ。……殿（官兵衛）、今参りまする！', 3.5);
     rt.marker('rou', ROU, '牢', { h: 3 });
@@ -190,7 +190,17 @@ const arioka = {
     rt.award((t) => t.side.push('牢を開けた'), '牢を開けた');
     rt.say('栗山善助', '殿……！　よくぞご無事で', 3);
     rt.say('黒田官兵衛', '……善助か。足が、言うことをきかぬ。すまぬが、肩を貸してくれ', 4);
-    this.escape(rt);
+    // 判断②：どの道で陣へ運ぶか（時間切れは、追手の少ない細道）
+    rt.after(4.5, () => {
+      if (F.ending || F.step >= 3) return;
+      rt.say('栗山善助', '大通りは早いが、本丸の兵が追うてくる。西の土塁沿いは遠回りじゃが、人目が少ない', 4.5);
+      rt.choose('官兵衛の足が動かぬ。どの道で陣へ運ぶ？', [
+        { label: '西の土塁沿いの細道を回る', note: '遠回りで遅い。追手は少ないが、土塁の陰に鉄砲がひそむ' },
+        { label: '戸板に乗せ、大通りを一気に下る', note: '早く着ける。本丸の兵が東と西から大勢で追ってくる' },
+      ], go, 16);
+    });
+    const go = (i) => { if (F.route != null || F.ending) return; F.route = i; this.deep(rt, 'B', () => this.escape(rt)); };
+    rt.after(24, () => { if (F.route == null) { if (rt.choice) rt.pickChoice(0); go(0); } });
   },
 
   // ④ 官兵衛を陣まで
@@ -205,15 +215,29 @@ const arioka = {
     const g = allyGroup(rt, { name: '官兵衛の一行', anchor: { x: ROU.x + 2, z: ROU.z + 6 }, facing: 0, width: 3, aggro: 0, noRout: true, formation: 'column', speed: 2.3 },
       [{ type: 'samurai', n: 1, o: { name: '黒田官兵衛', flag: null, hat: 'none', armor: 0x4a4238, weapon: 'none' } }, { type: 'porter', n: 2, o: { flag: null, hat: 'jingasa' } }]);
     for (const u of g.units) { u.noTarget = true; u.invuln = true; u.dmg = 0; }
-    g.order = 'path'; g.path = [[-20, -60], [-10, -20], [0, WALL_Z - 4], [0, WALL_Z + 10], [CAMP.x, CAMP.z - 14]]; g.pathIdx = 0;
-    g.onArrive = () => this.win(rt);
+    const west = F.route !== 1;
+    g.order = 'path'; g.path = west ? [[-46, -70], [-62, -34], [-54, WALL_Z - 10], [-6, WALL_Z - 5], [0, WALL_Z + 10], [CAMP.x, CAMP.z - 14]] : [[-20, -60], [-10, -20], [0, WALL_Z - 4], [0, WALL_Z + 10], [CAMP.x, CAMP.z - 14]]; g.pathIdx = 0;
+    g.speed = west ? 2.2 : 3.0;
+    g.onArrive = () => { rt.unmark('esc'); rt.unzone('camp'); rt.objDone('main'); this.deep(rt, 'C', () => this.win(rt)); };
     F.esc = g;
     F.kuri.order = 'path'; F.kuri.path = g.path.slice(); F.kuri.pathIdx = 0; F.kuri.speed = 2.3; F.kuri.onArrive = (q) => { q.order = 'hold'; };
     rt.marker('esc', centerOf(g), '官兵衛の一行', {});
     rt.zone('camp', CAMP.x, CAMP.z - 14, 6);
     // 追手
+    rt.say('滝川一益', west ? '土塁沿いは道が細い。陰から撃たれるぞ、一行の前を歩け' : '大通りを一気に下れ！　追手は鉄砲組が大通りで撃つ。足を止めるな', 4);
     rt.after(18, () => {
       if (F.ending) return;
+      if (west) {
+        // 細道：追手は西の一手だけ。その後ろに城兵の控え
+        F.g3 = enemyGroup(rt, { faction: 'saito', name: '追ってくる荒木勢', anchor: { x: -20, z: -84 }, facing: Math.PI * 0.8, order: 'attack', seekRange: 90, aggro: 16, width: 10, morale: 90, fleeDir: { x: 0.5, z: -1 }, dmgMult: 0.6 },
+          dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 12 + more(rt) }], ARAKI));
+        KIT.backOf(rt, F.g3, { flag: 'maru', armor: 0x33302a, kind: 'spear', w: 16, depth: 10, count: 140, seed: 15801, stop: () => F.g3.center().z > -30 });
+        rt.army.play('eshout', { x: -20, z: -84 }, 1.6);
+        rt.say('足軽', '追手じゃ！　本丸の脇から、どっと出てきた！', 2.5);
+        rt.marker('g3', centerOf(F.g3), () => `追ってくる荒木勢・${moraleWord(F.g3.morale)}`, { red: true, group: F.g3 });
+        rt.after(16, () => this.rear(rt));
+        return;
+      }
       F.g3 = enemyGroup(rt, { faction: 'saito', name: '追ってくる荒木勢', anchor: { x: 30, z: -70 }, facing: -Math.PI * 0.8, order: 'attack', seekRange: 90, aggro: 16, width: 10, morale: 90, fleeDir: { x: 0.5, z: -1 }, dmgMult: 0.62 },
         dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 12 + more(rt) }], ARAKI));
       // 追手は一度にどっと来る：東の追手と本丸の脇から出た者、その後ろに城兵の控え（軽い作り）
@@ -224,17 +248,50 @@ const arioka = {
       rt.say('足軽', '追手じゃ！　東からも西からも来る。一行を守れ！', 2.5);
       rt.marker('g3', centerOf(F.g3), () => `追ってくる荒木勢・${moraleWord(F.g3.morale)}`, { red: true, group: F.g3 });
       rt.marker('g3b', centerOf(F.g3b), () => `本丸の脇の荒木勢・${moraleWord(F.g3b.morale)}`, { red: true, group: F.g3b });
+      rt.after(14, () => this.rear(rt));
     });
     // 砦の土塁の近くで、最後の足止め（長い道を、ただ歩くだけにしない）
     rt.after(58, () => {
       if (F.ending || F.g4) return;
-      F.g4 = enemyGroup(rt, { faction: 'saito', name: '土塁の陰の荒木の鉄砲組', anchor: { x: 26, z: WALL_Z - 12 }, facing: -Math.PI / 2, order: 'attack', seekRange: 50, aggro: 16, width: 8, morale: 70, fleeDir: { x: 1, z: -0.5 }, dmgMult: 0.55 },
+      const gx = west ? -76 : 26;
+      F.g4 = enemyGroup(rt, { faction: 'saito', name: '土塁の陰の荒木の鉄砲組', anchor: { x: gx, z: WALL_Z - 12 }, facing: -Math.PI / 2, order: 'attack', seekRange: 50, aggro: 16, width: 8, morale: 70, fleeDir: { x: 1, z: -0.5 }, dmgMult: 0.55 },
         dress([{ type: 'samurai', n: 1 }, { type: 'gun', n: 3 }, { type: 'ashigaru', n: 5 }], ARAKI));
       for (const u of F.g4.units) if (u.type === 'gun') u.dmg *= 0.5;
-      rt.army.play('eshout', { x: 26, z: WALL_Z - 12 }, 1.2);
+      rt.army.play('eshout', { x: gx, z: WALL_Z - 12 }, 1.2);
       rt.say('栗山善助', '土塁の陰に鉄砲じゃ！　官兵衛様に当てさせるな！', 3);
       rt.marker('g4', centerOf(F.g4), () => `荒木の鉄砲組・${moraleWord(F.g4.morale)}`, { red: true, group: F.g4 });
     });
+  },
+
+  // 判断③：追手が一行に迫る。殿に残るか、一行のそばで退くか（時間切れは一行のそば）
+  rear(rt) {
+    const F = rt.flags;
+    if (F.rearAsked || F.ending || F.step !== 3) return;
+    F.rearAsked = true;
+    rt.say('滝川一益', '追手が多い。誰かが殿（しんがり）に残って、足を止めねばならぬ', 4);
+    rt.choose('追手が一行に迫る。どうする？', [
+      { label: '一行のそばで、守りながら退く', note: '一行から離れない。追手は背に付いてくる' },
+      { label: '殿に残り、追手を食い止める', note: '一行は先に行く。大手柄。囲まれやすい' },
+    ], (i) => {
+      if (i !== 1 || F.ending) { rt.say('栗山善助', 'かたじけない。離れずにおってくだされ', 3); return; }
+      F.shingari = true; F.escGo = true;
+      if (F.esc) F.esc.order = 'path';
+      const p = rt.player.u.pos;
+      F.sgAt = { x: p.x, z: p.z };
+      rt.obj('rear', '殿：追手を食い止めよ（一行は先に行く）', 'order');
+      rt.say('滝川一益', '頼むぞ。狭い辻で槍をそろえよ。辻なら、多勢でも一度には来られぬ', 4);
+      rt.bark('殿に残った');
+    }, 15);
+  },
+
+  // 段を重ねる（b_depth.js）：A 砦を取った後、城下の辻を押し通る ／ C 官兵衛を陣へ入れた後、木戸を奪い返しに来る荒木勢を防ぐ
+  deep(rt, which, then) {
+    const F = rt.flags;
+    if (F['dp' + which]) return;
+    F['dp' + which] = true;
+    if (rt.G.lord) { then(); return; }
+    F.dpOn = true;
+    depthStart(rt, ariCtx(rt), which === 'A' ? ariA() : which === 'B' ? ariB() : ariC(), () => { F.dpOn = false; rt.after(3, () => { const q = rt.objectives.find((x) => x.id === 'dp'); if (q && q.state) rt.objRemove('dp'); }); then(); });
   },
 
   win(rt) {
@@ -242,7 +299,7 @@ const arioka = {
     if (F.ending) return;
     F.ending = true;
     rt.setPhase('end');
-    for (const id of ['esc', 'g2', 'g3', 'g3b']) rt.unmark(id);
+    for (const id of ['esc', 'g2', 'g3', 'g3b', 'g4', 'dp']) rt.unmark(id);
     rt.unzone('camp');
     for (const q of [F.g2, F.g3, F.g3b]) if (q && !gone(q)) { q.noRout = false; q.morale = 0; }
     rt.objDone('main');
@@ -262,11 +319,20 @@ const arioka = {
     for (const m of rt.markers.slice()) if (m.group && gone(m.group)) rt.unmark(m.id);
     KIT.backTick(rt);
     if (F.ending) return;
+    if (F.dpOn) { depthTick(rt, dt); return; }
     const p = rt.player.u.pos;
     if (F.step === 1) {
       rt.objProgress('main', `荒木勢 ${F.g1.count}人`);
       if (F.g1.count < 5 && !gone(F.g1)) F.g1.morale = Math.min(F.g1.morale, 20);
-      if (gone(F.g1) || rt.t - F.stepT > 120) this.toRou(rt);
+      if (gone(F.g1) || rt.t - F.stepT > 120) {
+        rt.unmark('g1');
+        if (!gone(F.g1)) F.g1.morale = 0;
+        for (const g of F.wallG) if (!gone(g)) g.morale = 0;
+        rt.award((t) => t.side.push('砦の兵を退けた'), '砦の兵を退けた');
+        F.g1Done = true;
+        rt.objDone('main');
+        this.deep(rt, 'A', () => this.toRou(rt));
+      }
     }
     if (F.step === 2) {
       const d = Math.hypot(p.x - ROU.x, p.z - ROU.z);
@@ -291,8 +357,14 @@ const arioka = {
         if (w > 45) { F.escGo = true; F.esc.order = 'path'; rt.say('栗山善助', '待てぬ……先に参る。追手を防いでくだされ！', 3); }
       }
       for (const q of [F.g3, F.g3b, F.g4]) if (q && q.count < 5 && !gone(q)) q.morale = Math.min(q.morale, 20);
+      // 殿：追手を崩したら大手柄（一行から離れて戦った分）
+      if (F.shingari && !F.sgDone && F.g3 && gone(F.g3) && (!F.g3b || gone(F.g3b))) {
+        F.sgDone = true; rt.objDone('rear');
+        rt.award((t) => { t.special = { label: '殿に残って追手を食い止めた', pts: 20 }; }, '殿に残って追手を食い止めた');
+        rt.say('滝川一益', 'ようやった！　一行を追え、陣で待っておる', 3);
+      }
       rt.objProgress('main', `陣まで ${Math.round(Math.hypot(c.x - CAMP.x, c.z - CAMP.z + 14))}m`);
-      if (rt.t - F.stepT > 220) this.win(rt);
+      if (rt.t - F.stepT > 240) this.deep(rt, 'C', () => this.win(rt));
     }
   },
 
@@ -301,10 +373,90 @@ const arioka = {
     if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
   },
   onRout(rt, g) {
-    if (g.team !== 1) return;
+    if (g.team !== 1 || rt.t < (rt.flags.routSayT || 0)) return;
+    rt.flags.routSayT = rt.t + 9;
     rt.say('足軽', `${g.name}が退いた！`, 2.5);
   },
 };
+
+// ---------------- 一つの戦を濃くする段（b_depth.js） ----------------
+// 城攻めの夜：荒木勢は惣構えの内の辻ごとに固まり、本丸から次々に新手を出す。一つの波は数百の城兵が後ろに付く
+const uS = (n) => ({ type: 'samurai', n }), uA = (n) => ({ type: 'ashigaru', n }), uG = (n) => ({ type: 'gun', n });
+const gunLine = (name, from, n, o = {}) => ({ name, from, list: [uS(1), uG(n)], formation: 'line', seek: 70, mass: 80, kind: 'gun', dmg: 0.45, ...o });
+function ariCtx(rt) {
+  const F = rt.flags;
+  return { faction: 'saito', flag: 'maru', armor: 0x2e2a26, dmg: 0.58, mass: 220, look: (l) => dress(l, ARAKI),
+    friends: () => [F.taki, F.kuri].filter((g) => g && g.count && !g.routed), botSteer: wallSteer,
+    aid: { name: '滝川の後詰の一組', faction: 'oda', flag: 'oda', list: [uS(1), uA(9)] }, aidSaid: '滝川の手から一組が加わった' };
+}
+// bot が惣構えの塀に突っかからないように：塀の線を越える時は、木戸の口へ回る
+function wallSteer(b, inp) {
+  if (!inp.k.has('KeyW')) return;
+  const p = b.player, u = p.u, fz = Math.cos(p.yaw), fx = Math.sin(p.yaw);
+  const az = u.pos.z + fz * 3, ax = u.pos.x + fx * 3;
+  if (Math.abs(u.pos.x) < 2.5 && Math.abs(ax) < 2.5) return;
+  if (u.pos.z > WALL_Z + 0.3 && az < WALL_Z + 1.5) p.yaw = Math.atan2(-u.pos.x, WALL_Z + 4 - u.pos.z);
+  else if (u.pos.z < WALL_Z - 0.3 && az > WALL_Z - 1.5) p.yaw = Math.atan2(-u.pos.x, WALL_Z - 4 - u.pos.z);
+}
+// A 砦を取った後：どう町を抜けるか（判断①）→ 城下の辻の押し合い
+function ariA() {
+  const at = { x: -2, z: -14 };
+  return [
+    rest({ dur: 7, heal: 0.3, say: [['滝川一益', '砦は取った。じゃが惣構えの内には、荒木の兵がまだ千はおる'], ['栗山善助', '牢は本丸の西の脇。この町を抜けねばなりませぬ']] }),
+    pick({ title: '惣構えの内の町。どう抜ける？',
+      options: [{ label: '町屋に火を放ち、煙に紛れて押し通る', note: '敵は乱れて崩れやすい。町の者が焼け出される' }, { label: '火は放たず、辻ごとに斬り合って進む', note: '敵は乱れない。町の者を巻き込まない（手柄）' }],
+      on: (rt, m, i) => {
+        const F = rt.flags;
+        m.fire = i === 0;
+        if (m.fire) { F.houses.slice(2).forEach((h, k) => rt.after(1 + k * 2.5, () => burnHouse(rt, h))); rt.say('滝川一益', '火をかけよ！　城じゅうに内応が出たと思わせるのじゃ', 3); }
+        else { rt.award((t) => t.side.push('町に火を放たなかった'), '町に火を放たなかった'); rt.say('滝川一益', 'よかろう。辻ごとに槍をそろえて押せ', 3); }
+      } }),
+    fight({ at, title: '城下の辻', sub: '町屋の間の辻ごとに、荒木勢が固まる', obj: (rt) => (HI(rt) ? '手の者を率いて、城下の辻の荒木勢を崩せ' : '城下の辻の荒木勢を崩せ'),
+      say: [['滝川一益', '町屋の陰の鉄砲を先に潰せ。撃たせたまま辻へ出れば、狙い撃ちじゃ', 4.5]],
+      foes: (rt, m) => [{ name: '辻を固める荒木勢', from: { x: -10, z: -40 }, list: [uS(2), uA(12)], mass: 280, morale: m.fire ? 60 : 90 }, gunLine('町屋の陰の鉄砲', { x: 22, z: -30 }, 6, { morale: m.fire ? 50 : 85 })],
+      later: [
+        { t: 34, title: '横槍', sub: '西の惣構えの内から、荒木勢が回り込む', say: ['足軽', '西から来る！　横を突かれるぞ！'], foes: (rt, m) => [{ name: '西から回る荒木勢', from: { x: -60, z: -4 }, list: [uS(2), uA(11)], mass: 240, morale: m.fire ? 65 : 90 }] },
+        { t: 70, say: ['栗山善助', '本丸から新手じゃ……！　ここを抜ければ牢は近い！'], foes: (rt, m) => [{ name: '本丸から下りた新手', from: { x: 10, z: -66 }, list: [uS(3), uA(12)], mass: 300, morale: m.fire ? 70 : 95 }] },
+      ],
+      max: 150, reward: '城下の辻を押し通った' }),
+  ];
+}
+// B 牢を開けた後：官兵衛を戸板に乗せる支度の間、牢の前を守る
+function ariB() {
+  const at = { x: ROU.x + 6, z: ROU.z + 14 };
+  return [
+    hold({ at, dur: 55, r: 12, title: '牢の前', sub: '官兵衛を運び出す支度の間、牢の前を守る', label: '牢の前', obj: (rt) => (HI(rt) ? '手の者で牢の前を固め、支度が済むまで荒木勢を寄せつけるな' : '支度が済むまで、牢の前を守れ'),
+      say: [['栗山善助', '戸板を探して参る！　しばし、ここを頼みまする', 3.5]],
+      waves: [
+        { t: 3, say: ['足軽', '牢番が知らせたか……本丸の口から来る！'], foes: () => [{ name: '本丸の口の荒木勢', from: { x: -6, z: -104 }, list: [uS(2), uA(11)], mass: 240 }] },
+        { t: 28, say: ['足軽', '石垣の下を回って、西からも来る！'], foes: () => [{ name: '石垣の下の荒木勢', from: { x: -64, z: -100 }, list: [uS(2), uA(10)], mass: 200 }] },
+      ],
+      reward: '牢の前を守り抜いた', lost: ['栗山善助', '支度は済んだ……急ぎまするぞ！'] }),
+  ];
+}
+// C 官兵衛を陣へ入れた後：木戸を奪い返しに来る荒木勢を、木戸の口で防ぐ
+function ariC() {
+  const at = { x: 0, z: WALL_Z + 8 };
+  return [
+    rest({ dur: 7, heal: 0.4, bark: '官兵衛の一行は陣に入った（手傷を縛った）', say: [['織田信忠', '官兵衛を救うたか。ようやった'], ['滝川一益', '……荒木の者が、木戸を奪い返しに来るぞ。ここで口を塞がれては、明日の攻めが立たぬ'], ['滝川一益', '木戸の口は狭い。口の外で槍をそろえれば、多勢でも一度には来られぬ', 4.5]] }),
+    hold({ at, dur: 88, r: 13, title: '木戸の口', sub: '荒木勢が木戸を奪い返しに押し寄せる', label: '砦の木戸', obj: (rt) => (HI(rt) ? '手の者を木戸の口に並べ、押し寄せる荒木勢を防げ' : '木戸の口で、押し寄せる荒木勢を防げ'),
+      waves: [
+        { t: 4, say: ['足軽', '来た！　町の中から、どっと押し寄せる！'], foes: () => [{ name: '木戸へ寄せる荒木勢', from: { x: 0, z: -10 }, list: [uS(3), uA(13)], mass: 360, noRout: 20 }] },
+        { t: 30, say: ['滝川一益', '塀の狭間に鉄砲が並んだ！　口の脇の土塁に寄れ！'], foes: () => [gunLine('塀の内の鉄砲衆', { x: -18, z: WALL_Z - 4 }, 6, { mass: 0 })] },
+        { t: 46, say: ['足軽', '東の土塁の端を越えて来る！'], foes: () => [{ name: '土塁を越える荒木勢', from: { x: 40, z: WALL_Z - 6 }, list: [uS(2), uA(10)], mass: 200 }] },
+        { t: 64, title: '最後の寄せ', sub: '荒木久左衛門の手が、自ら木戸へ', say: ['足軽', '大将の旗が来る！　これが最後じゃ、押し返せ！'], foes: () => [{ name: '荒木久左衛門の手', from: { x: 12, z: -30 }, list: [uS(4), uA(12)], mass: 300 }] },
+      ],
+      reward: '木戸の口を守り抜いた', lost: ['滝川一益', '押し込まれたか……陣から後詰を出せ！'] }),
+    rest({ dur: 6, heal: 0.3, bark: '荒木勢が町の中へ退いていく', say: [['滝川一益', '退くぞ。……追えば、辻を取り戻せる。じゃが、本丸の鉄砲の届く所じゃ']] }),
+    pick({ title: '木戸は守った。退く荒木勢をどうする？',
+      options: [{ label: '追って、城下の辻まで押し返す', note: '辻を取れば明日の攻めが楽になる。手柄。本丸の鉄砲が届く' }, { label: '木戸を固め、夜明けを待つ', note: '組を休ませる。手柄は小さい' }],
+      on: (rt, m, i) => { m.chase = i === 0; rt.say('滝川一益', i === 0 ? 'よし、押せ！　深追いはするな、辻までじゃ' : 'よかろう。木戸に篝火を増やせ', 3); if (i === 1) rt.award((t) => t.side.push('木戸を固めて夜明けを待った'), '木戸を固めた'); } }),
+    fight({ skip: (rt, m) => !m.chase, at: { x: 0, z: -18 }, title: '辻の取り返し', sub: '退く荒木勢の殿が、辻で向き直る', obj: (rt) => (HI(rt) ? '手の者を率いて、城下の辻まで荒木勢を押し返せ' : '城下の辻まで、荒木勢を押し返せ'),
+      foes: () => [{ name: '荒木の殿', from: { x: -4, z: -34 }, list: [uS(3), uA(10)], mass: 220 }],
+      later: [{ t: 30, say: ['足軽', '本丸の石垣から撃ってくる！　町屋の陰へ！'], foes: () => [gunLine('本丸の口の鉄砲衆', { x: -20, z: -78 }, 6, { mass: 0, dmg: 0.4 })] }],
+      max: 100, reward: (t) => { t.special = { label: '城下の辻を取り返した', pts: 15 }; }, rewardLabel: '城下の辻を取り返した' }),
+  ];
+}
 
 // 両軍の総勢（有岡城を囲む織田勢 五万ほど、城に残った荒木勢 数千。数には諸説ある）
 arioka.force = (rt) => {
@@ -318,11 +470,13 @@ arioka.skip = (rt) => { for (const tm of rt.timers) tm.t = Math.min(tm.t, 0.2); 
 arioka.history = '天正六年（1578）十月、摂津の荒木村重は信長に背いて有岡城（伊丹城）に籠もった。村重を説きに城へ入った黒田官兵衛（孝高。小寺家の家老で、羽柴秀吉のもとで働いていた）は捕らえられ、牢に入れられた。織田勢は城を囲み、一年近く戦いが続いたが、翌年九月、村重はわずかな供と城を抜けて尼崎城へ移った。十月十五日、城の中から織田方に内応する者が出て、滝川一益らが惣構えの内へ攻め入った。本丸はなお持ちこたえたが、十一月に城は開け渡された。官兵衛は救い出されたが（救い出された日には諸説ある）、長い牢暮らしで足が不自由になったと伝わる。村重の妻子や家臣の家族の多くは、のちに信長の命で処刑された。荒木家の紋の絵はまだ無いので、ここでは丸の旗で代えている。日付や人数には諸説ある。';
 
 // 素直な遊び手：木戸から入り、砦の兵と戦い、牢へ行って錠を壊し、一行のそばを歩く
-arioka.botBrain = (b, inp, { goTo }) => {
+arioka.botBrain = (b, inp, o) => { ariBot(b, inp, o); wallSteer(b, inp); };
+function ariBot(b, inp, { goTo }) {
   const p = b.player, u = p.u, F = b.flags;
   inp.quickCmd = null;
   inp.k.delete('KeyW'); inp.k.delete('KeyE');
   if (!u.alive || F.ending) return;
+  if (F.dpOn) { depthBot(b, inp, goTo); return; }
   if (u.hp < u.maxHp * 0.5) b.botRest = true;
   if (b.botRest && u.hp > u.maxHp * 0.85) b.botRest = false;
   if (b.botRest && F.step < 3) { inp.guardHold = false; const c = F.taki.center(); goTo(p, inp, c.x, c.z + 4, 2); return; }
@@ -347,6 +501,6 @@ arioka.botBrain = (b, inp, { goTo }) => {
     return;
   }
   if (F.step === 3 && F.esc) { const c = F.esc.center(); goTo(p, inp, c.x + 2, c.z - 2, 3); }
-};
+}
 
 export { arioka };

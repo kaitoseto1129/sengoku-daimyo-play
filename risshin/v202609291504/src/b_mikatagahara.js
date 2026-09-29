@@ -206,7 +206,9 @@ const mikatagahara = {
     rt.army.play('gallop', { x: 60, z: -50 }, 1.8);
     rt.marker('aka', centerOf(F.aka), () => `山県の赤備え・${moraleWord(F.aka.morale)}`, { red: true, group: F.aka });
     rt.say('足軽', '赤い騎馬じゃ！　右から来る！', 3);
-    KIT.backOf(rt, F.aka, { flag: 'akazonae', armor: KIT.ARMOR.akazonae, kind: 'cavalry', w: 26, depth: 14, count: 180, seed: 15732 });
+    // 後ろの赤備えの大軍は見せるだけ（本物の騎馬に替えない：騎馬の群れに呑まれて倒れ続けないように）
+    const akB = KIT.backOf(rt, F.aka, { flag: 'akazonae', armor: KIT.ARMOR.akazonae, kind: 'cavalry', w: 26, depth: 14, count: 180, seed: 15732 });
+    if (akB && akB.army) akB.army.noWake = true;
     volleyScene(rt, { guns: () => [F.teppo, F.hirate], at: () => (F.teppo.count ? F.teppo.center() : { x: 4, z: LINE_Z }), r: 34, who: '平手汎秀', shots: 2, hit: 16,
       wait: '騎馬は速い。十分に引きつけよ……', fire: '馬を狙え、放てぇっ！', banner: ['一斉射', '寄せる赤備えの馬を、鉄砲で撃ちすくめる'], clash: () => [F.cl] });
     if (F.cl) { F.cl.cavalry('B', { from: 1, count: 160, flag: 'akazonae', armor: KIT.ARMOR.akazonae, delay: 2 }); rt.after(8, () => F.cl.cavalry('B', { from: -1, count: 100, flag: 'takeda', armor: KIT.ARMOR.takeda })); rt.after(12, () => F.cl.rout('A', { hideAfter: 20, from: 1 })); rt.after(40, () => F.cl.rout('B', { hideAfter: 8 })); }
@@ -292,7 +294,7 @@ const mikatagahara = {
     for (const m of rt.markers.slice()) if (m.group && gone(m.group)) rt.unmark(m.id);
     KIT.backTick(rt);
     // 目を覚ました武田の兵（控えの軽い兵から替わった者）は当たりを弱める：大軍に呑まれて倒れ続けないように
-    if ((F.wkT = (F.wkT || 0) - dt) <= 0) { F.wkT = 0.5; for (const g of rt.army.groups) if (g.woke && g.team === 1 && !g.wkDm) { g.wkDm = true; g.dmgMult = (g.dmgMult || 1) * 0.5; } }
+    if ((F.wkT = (F.wkT || 0) - dt) <= 0) { F.wkT = 0.5; for (const g of rt.army.groups) if (g.woke && g.team === 1 && !g.wkDm) { g.wkDm = true; g.dmgMult = (g.dmgMult || 1) * (g.units.some((u) => u.type === 'cavalry') ? 0.35 : 0.5); } }
     if (F.ending) return;
     const p = rt.player.u.pos;
     depthTick(rt, dt);
@@ -414,13 +416,14 @@ function mkA() {
   const at = { x: 0, z: LINE_Z };
   return [
     rest({ dur: 9, heal: 0.3, say: [['平手汎秀', '先手は退いた。……じゃが、あれは先手に過ぎぬ'], ['足軽', '原の向こう一面が、武田の旗じゃ……'], ['平手汎秀', '魚鱗に固めて来るぞ。槍を揃え直せ']] }),
-    hold({ at, dur: 90, r: 15, title: '魚鱗の寄せ', sub: '武田の大軍が、一つの塊になって押し寄せる', label: '平手の陣', obj: '平手の陣で、押し寄せる武田の大軍を受けよ',
+    hold({ at, dur: 105, r: 15, title: '魚鱗の寄せ', sub: '武田の大軍が、一つの塊になって押し寄せる', label: '平手の陣', obj: '平手の陣で、押し寄せる武田の大軍を受けよ',
       say: [['平手汎秀', '一歩も退くな！　ここで崩れれば徳川殿の鶴翼が割れる！']],
       waves: [
         { t: 4, say: ['足軽', '石じゃ！　石を投げてくる！　その後ろから槍が……'], foes: () => [{ name: '武田の魚鱗の先', from: { x: 0, z: LINE_Z - 60 }, list: [uS(3), uA(14)], mass: 400, noRout: 30 }] },
         { t: 28, say: ['平手汎秀', '鉄砲衆が並んだ！　構えを見たら伏せよ！'], foes: () => [gunLine('武田の鉄砲衆', { x: 22, z: LINE_Z - 46 }, 8)] },
         { t: 52, say: ['足軽', '左へ回ってくる！　徳川の手との間を割る気じゃ！'], foes: () => [{ name: '左へ回る武田勢', from: { x: -54, z: LINE_Z - 24 }, off: { x: -8, z: 0 }, list: [uS(2), uA(11)], mass: 280 }] },
         { t: 76, say: ['佐久間信盛', '右からもじゃ！　押し包まれるぞ！'], foes: () => [{ name: '右へ回る武田勢', from: { x: 56, z: LINE_Z - 10 }, off: { x: 8, z: 4 }, list: [uS(2), uA(10), uB(3)], mass: 260 }] },
+        { t: 96, say: ['平手汎秀', '二の手じゃ！　息を継ぐ間を与えぬ気か……！'], foes: () => [{ name: '武田の二の手', from: { x: 8, z: LINE_Z - 58 }, list: [uS(2), uA(11)], mass: 320 }] },
       ],
       reward: '魚鱗の寄せを受け止めた', lost: ['平手汎秀', '押し込まれた……！　立て直せ！'] }),
     rest({ dur: 7, heal: 0.35, bark: '立て直し：右へ槍を向け直す（手傷を縛った）', say: [['足軽', '……右の森の向こう、赤いものが動いておる'], ['平手汎秀', '赤備えか……！　右じゃ、右に槍を向けよ！']] }),
@@ -445,6 +448,15 @@ function mkB() {
     move({ skip: (rt, m) => m.mkStay, to: { x: 14, z: 56 }, r: 10, label: '台地の南', obj: '佐久間の手と共に、台地を南へ退け',
       say: [['佐久間信盛', '走れ！　平手殿の死を無駄にするな！']],
       ambush: { d: 30, t: 24, title: '回り込まれた', sub: '武田の一手が、退く道を塞ぐ', say: ['足軽', '前にも武田じゃ！　回り込まれておる！'], foes: () => [{ name: '道を塞ぐ武田勢', from: { x: 40, z: 76 }, list: [uS(2), uA(10)], mass: 260 }, gunLine('道の脇の武田の鉄砲', { x: -20, z: 70 }, 6)] } }),
+    // 台地の端で殿：坂を下りる味方の背を守る（織田の援軍の退き口）
+    rest({ dur: 6, heal: 0.3, bark: '坂の上で、手傷を縛った', say: [['佐久間信盛', 'ここで一度踏みとどまれ！　後ろの者を先に坂へ下ろすのじゃ']] }),
+    hold({ at: { x: 14, z: 62 }, dur: 70, r: 14, title: '台地の端の殿', sub: '坂を下りる味方の背を、武田勢が追う', label: '台地の端',
+      obj: (rt) => (HI(rt) ? '預かった一手で殿を務め、坂を下りる味方を守れ' : '坂の上で踏みとどまり、下りる味方の背を守れ'),
+      waves: [
+        { t: 4, say: ['足軽', '追ってくる！　原いっぱいに武田の旗じゃ！'], foes: () => [{ name: '追いすがる武田勢', from: { x: 4, z: 8 }, list: [uS(2), uA(11)], mass: 300 }] },
+        { t: 34, say: ['佐久間信盛', '鉄砲を並べおった！　身を低うせよ、じきに下りられる！'], foes: () => [gunLine('台地の上の武田の鉄砲', { x: 34, z: 22 }, 6)] },
+      ],
+      reward: '台地の端で殿を務めた', lost: ['佐久間信盛', 'もうよい、下りよ！　城へ走れ！'] }),
   ];
 }
 // C 浜松城へ逃げ込んだ後：空城の篝火 → 犀ヶ崖の夜討ちに加わるか、門を守るか
@@ -461,11 +473,12 @@ function mkC() {
       later: [{ t: 30, title: '武田、立て直す', sub: '陣の奥から鉄砲衆が並ぶ', say: ['足軽', '向こうも鉄砲を並べた！　身を低うせよ！'], foes: () => [gunLine('武田の鉄砲衆', { x: 24, z: 66 }, 8)] },
         { t: 60, title: '追い討ち', sub: '武田の騎馬が回り込む', say: ['大久保忠世', '騎馬が来る！　崖の縁に追い詰められるな！'], foes: () => [{ name: '武田の騎馬', from: { x: -46, z: 80 }, list: [uS(1), uC(5), uA(4)], mass: 120, kind: 'cavalry' }] }],
       max: 150, reward: (t) => { t.special = { label: '犀ヶ崖の夜討ち', pts: 25 }; }, rewardLabel: '犀ヶ崖の夜討ちに加わった' }),
-    hold({ skip: (rt, m) => m.mkRaid, at: gate, dur: 75, r: 12, title: '開けた門', sub: '篝火の向こうから、武田の物見が寄せる', label: '浜松城の門', obj: '開け放った門の前で、寄せる武田勢を防げ',
+    hold({ skip: (rt, m) => m.mkRaid, at: gate, dur: 100, r: 12, title: '開けた門', sub: '篝火の向こうから、武田の物見が寄せる', label: '浜松城の門', obj: '開け放った門の前で、寄せる武田勢を防げ',
       waves: [
         { t: 6, say: ['足軽', '篝火の向こうに……来たぞ！'], foes: () => [{ name: '武田の物見', from: { x: gate.x, z: gate.z - 60 }, list: [uS(2), uA(10)], mass: 220 }] },
         { t: 40, say: ['佐久間信盛', '鉄砲を並べておる！　門の陰へ！'], foes: () => [gunLine('武田の鉄砲衆', { x: gate.x + 26, z: gate.z - 44 }, 7)] },
         { t: 66, say: ['足軽', '横の堀際からも来る！'], foes: () => [{ name: '堀際を回る武田勢', from: { x: gate.x - 50, z: gate.z - 10 }, list: [uS(1), uA(9)], mass: 200 }] },
+        { t: 86, say: ['徳川の侍', 'また来た！　篝火を絶やすな、槍を揃えよ！'], foes: () => [{ name: '門を窺う武田勢', from: { x: gate.x + 40, z: gate.z - 50 }, list: [uS(1), uA(8)], mass: 160, morale: 70 }] },
       ],
       reward: '開けた門を守り抜いた' }),
   ];

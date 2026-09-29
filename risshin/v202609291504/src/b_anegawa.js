@@ -190,7 +190,7 @@ const anegawa = {
     rt.say('森可成', `${nm(rt)}、夜が明けたぞ。川向こうの旗が浅井、西の瀬の向こうが朝倉じゃ`, 4.5);
     rt.say('森可成', '徳川殿は西の瀬で朝倉に当たる。我ら織田は、この川で浅井を受ける', 4.5);
     rt.say('森可成', '前には坂井殿の段がある。抜けてきた者を、ここで槍を揃えて止めよ。わしの備は後ろに控えておる。その方の組は、その一番前じゃ', 5);
-    rt.after(20, () => rt.bark('川は膝ほどの深さで歩いて渡れる。下知があるまで渡るな'));
+    rt.after(15, () => rt.bark('川は膝ほどの深さで歩いて渡れる。下知があるまで渡るな'));
     rt.after(12, () => rt.say('森可成', '磯野の勢いは長くは続かぬ。こらえておれば、西の徳川殿と東の稲葉殿が浅井の横腹を突く', 4.5));
     F.farT = 0;
     rt.after(18, () => this.charge(rt));
@@ -599,19 +599,19 @@ function aneCtx(rt, keepZ) {
 // 浅井の寄せが尽きた後、追い落とす前：立て直し → 判断（稲葉の後ろか、川べりか）→ 川べりの鉄砲組
 function aneA() {
   return [
-    rest({ dur: 12, say: [['森可成', '槍を揃え直せ。手負いは後ろへ下げよ'], ['足軽', '坂井殿の段は……ほとんど残っておらぬ'], ['森可成', '嘆くのは後じゃ。浅井はまだ川向こうで立て直しておる']] }),
+    rest({ dur: 12, say: [['森可成', '槍を揃え直せ。手負いは後ろへ下げよ'], ['足軽', '坂井殿の段は……ほとんど残っておらぬ'], ['森可成', '嘆くのは後じゃ。浅井の旗は、まだ川向こうに立っておる']] }),
     pick({ title: '浅井の一隊が東の瀬を渡り、稲葉殿の後ろへ回った。どうする？',
       pre: (rt) => rt.say('伝令', '東の瀬を浅井の別手が渡りました！　稲葉殿の後ろを突く気でございます！', 3.5),
       options: [{ label: '東へ回り、稲葉殿の後ろを守る', note: '稲葉の横槍が続き、後で浅井の殿（しんがり）が崩れやすい' }, { label: '森の備の前に残り、川べりを固める', note: '森の備の前が固くなる。稲葉の手は押される' }],
       on: (rt, m, i) => { m.aneInaba = i === 0; rt.say('森可成', i === 0 ? 'よし、東へ走れ！　川は渡るなよ' : 'よし、ここで槍を揃えよ', 3); } }),
     fight({ skip: (rt, m) => !m.aneInaba, at: { x: 84, z: 22 }, title: '東の瀬の別手', sub: '稲葉一鉄の手の後ろを、浅井の別手が突く', obj: '稲葉殿の後ろを突く浅井の別手を崩せ（川は渡らない）',
-      foes: () => [{ name: '浅井の別手', from: { x: 108, z: -12 }, list: [uS(2), uA(10), uG(2)] }],
-      later: [{ t: 30, title: '新手', sub: '浅井の騎馬が瀬を渡る', say: ['足軽', '騎馬が瀬を渡ってくる！'], foes: () => [{ name: '浅井の騎馬', from: { x: 124, z: -16 }, list: [uC(3), uA(4)] }] }],
+      foes: () => [{ name: '浅井の別手', from: { x: 108, z: -12 }, list: [uS(2), uA(16), uG(3)] }],
+      later: [{ t: 24, title: '新手', sub: '浅井の騎馬が瀬を渡る', say: ['足軽', '騎馬が瀬を渡ってくる！'], foes: () => [{ name: '浅井の騎馬', from: { x: 124, z: -16 }, list: [uC(4), uA(8)] }] }],
       reward: '稲葉殿の後ろを守った' }),
     hold({ skip: (rt, m) => m.aneInaba, at: { x: 22, z: 22 }, dur: 70, r: 12, title: '川べりを固める', sub: '浅井の足軽が、また川へ入る', label: '森の備の前', obj: '森の備の前で、川を渡ってくる浅井勢を受けよ（川は渡らない）',
       waves: [
-        { t: 5, say: ['足軽', '浅井の足軽がまた川へ入ったぞ！'], foes: () => [{ name: '川を渡る浅井勢', from: { x: 22, z: -30 }, list: [uS(1), uA(9)] }] },
-        { t: 34, say: ['森可成', '鉄砲を連れておる！　撃たれる前に寄れ！'], foes: () => [{ name: '浅井の鉄砲と足軽', from: { x: -6, z: -30 }, list: [uG(3), uA(6)] }] },
+        { t: 5, say: ['足軽', '浅井の足軽がまた川へ入ったぞ！'], foes: () => [{ name: '川を渡る浅井勢', from: { x: 22, z: -30 }, list: [uS(2), uA(14)] }] },
+        { t: 28, say: ['森可成', '鉄砲を連れておる！　撃たれる前に寄れ！'], foes: () => [{ name: '浅井の鉄砲と足軽', from: { x: -6, z: -30 }, list: [uG(4), uA(10)] }] },
       ],
       reward: '川べりを固めた' }),
     hold({ at: { x: 24, z: 20 }, dur: 80, r: 14, title: '浅井の総掛かり', sub: '長政の旗本が、最後の力で川へ押し出す', label: '森の備の前', obj: '森の備の前で、浅井の総掛かりを受け止めよ（川は渡らない）',
@@ -619,7 +619,7 @@ function aneA() {
       waves: [
         { t: 5, say: ['足軽', '川面が浅井の旗で埋まったぞ！'], foes: () => [{ name: '浅井の総掛かり', from: { x: 20, z: -34 }, list: [uS(3), uA(12), uG(2)], mass: 240 }] },
         { t: 13, foes: (rt) => { volley(rt, rt.flags.guns, { who: '森可成', waitLine: '', line: '鉄砲、放て！　川から上がる所を撃て！', C: rt.flags.clash && rt.flags.clash[1], hit: 20 }); return []; } },
-        { t: 40, say: ['森可成', '騎馬が混じっておる！　槍を立てよ！'], foes: () => [{ name: '浅井の騎馬と旗本', from: { x: 52, z: -30 }, list: [uS(2), uC(3), uA(8)], mass: 200 }] },
+        { t: 40, say: ['森可成', '騎馬が混じっておる！　槍を立てよ！'], foes: () => [{ name: '浅井の騎馬と旗本', from: { x: 52, z: -30 }, list: [uS(2), uC(4), uA(12)], mass: 200 }] },
       ],
       reward: '浅井の総掛かりを受け止めた' }),
     rest({ dur: 8, bark: '組を寄せ、渡る支度をせよ', say: [['森可成', '浅井の旗が揺れておる……もう一押しじゃ']] }),
@@ -634,12 +634,12 @@ function aneB() {
       on: (rt, m, i) => { m.aneChase = i === 0; rt.say('森可成', i === 0 ? 'よし、北じゃ！　深入りして山へ入るな' : 'よし、城兵を城へ押し戻せ！', 3); } }),
     fight({ skip: (rt, m) => !m.aneChase, at: { x: 30, z: -78 }, title: '長政の後備え', sub: '小谷へ退く長政を逃がすため、後備えが向き直る', obj: '長政の本陣の後備えを崩せ',
       foes: () => [{ name: '長政の後備え', from: { x: 30, z: -116 }, list: [uS(3), uA(11), uG(2)], noRout: 25 }],
-      later: [{ t: 34, title: '横槍', sub: '浅井の騎馬が山際から', say: ['足軽', '山際から騎馬じゃ！'], foes: () => [{ name: '浅井の騎馬', from: { x: 66, z: -110 }, list: [uC(4), uA(4)] }] },
+      later: [{ t: 34, title: '横槍', sub: '浅井の騎馬が山際から', say: ['足軽', '山際から騎馬じゃ！'], foes: () => [{ name: '浅井の騎馬', from: { x: 66, z: -110 }, list: [uC(4), uA(8)] }] },
         { t: 70, title: '新手', sub: '小谷の方から浅井の新手が駆け戻る', say: ['森可成', '新手じゃ！　山へは入るな、ここで受けよ！'], foes: () => [{ name: '駆け戻る浅井の新手', from: { x: 10, z: -124 }, list: [uS(2), uA(10)], mass: 200 }] }],
       reward: (t) => { t.special = { label: '長政の後備えを崩した', pts: 25 }; }, rewardLabel: '長政の後備えを崩した' }),
     fight({ skip: (rt, m) => m.aneChase, at: { x: -52, z: -58 }, title: '横山城の城兵', sub: '横山城から打って出た城兵が、川を渡る味方を狙う', obj: '横山城から出た城兵を押し戻せ',
-      foes: () => [{ name: '横山城の城兵', from: { x: -84, z: -104 }, list: [uS(2), uA(11), uB(3)] }],
-      later: [{ t: 32, say: ['足軽', '城からまだ出てくるぞ！'], foes: () => [{ name: '横山城の後の城兵', from: { x: -96, z: -90 }, list: [uS(1), uA(6)] }] }],
+      foes: () => [{ name: '横山城の城兵', from: { x: -84, z: -104 }, list: [uS(2), uA(15), uB(4)] }],
+      later: [{ t: 28, say: ['足軽', '城からまだ出てくるぞ！'], foes: () => [{ name: '横山城の後の城兵', from: { x: -96, z: -90 }, list: [uS(2), uA(10)] }] }],
       reward: '横山城の城兵を押し戻した' }),
     rest({ dur: 10, bark: '川岸へ戻り、組を集め直せ', say: [['森可成', '日が傾いてきた。味方は川を渡って戻り始めておる'], ['伝令', (rt) => (rt.flags.tkHelped ? '西の瀬で崩れた朝倉勢が、また寄り集まって戻ってきまする！　渡る味方の背を狙うておると！' : '西の瀬から、朝倉の残りが戻ってきまする！　渡る味方の背を狙うておると！')]],
       fn: (rt) => rt.world.setTime('dusk') }),
@@ -648,14 +648,14 @@ function aneB() {
       on: (rt, m, i) => { m.aneGuard = i === 0; } }),
     hold({ skip: (rt, m) => !m.aneGuard, at: { x: 6, z: -16 }, dur: 90, r: 13, title: '退き口', sub: '川を渡って戻る味方の背を守る', label: '川岸の退き口', obj: '川岸で踏みとどまり、渡って戻る味方を守れ',
       waves: [
-        { t: 5, say: ['足軽', '西から朝倉勢じゃ！'], foes: () => [{ name: '朝倉の残り', from: { x: -60, z: -30 }, flag: 'asakura', armor: ASAKURA.armor, list: dress([uS(2), uA(9)], ASAKURA) }] },
-        { t: 42, say: ['足軽', '鉄砲を撃ちかけてくる！'], foes: () => [{ name: '朝倉の鉄砲', from: { x: -50, z: -60 }, flag: 'asakura', armor: ASAKURA.armor, list: dress([uG(4), uA(5)], ASAKURA) }] },
-        { t: 60, say: ['森可成', 'これで最後じゃ！　踏みとどまれ！'], foes: () => [{ name: '朝倉の騎馬', from: { x: -70, z: -44 }, flag: 'asakura', armor: ASAKURA.armor, list: dress([uC(3), uA(5)], ASAKURA) }] },
+        { t: 5, say: ['足軽', '西から朝倉勢じゃ！'], foes: () => [{ name: '朝倉の残り', from: { x: -60, z: -30 }, flag: 'asakura', armor: ASAKURA.armor, list: dress([uS(2), uA(14)], ASAKURA) }] },
+        { t: 36, say: ['足軽', '鉄砲を撃ちかけてくる！'], foes: () => [{ name: '朝倉の鉄砲', from: { x: -50, z: -60 }, flag: 'asakura', armor: ASAKURA.armor, list: dress([uG(4), uA(8)], ASAKURA) }] },
+        { t: 60, say: ['森可成', 'これで最後じゃ！　踏みとどまれ！'], foes: () => [{ name: '朝倉の騎馬', from: { x: -70, z: -44 }, flag: 'asakura', armor: ASAKURA.armor, list: dress([uC(3), uA(8)], ASAKURA) }] },
       ],
       reward: '退き口を守った' }),
     fight({ skip: (rt, m) => m.aneGuard, at: { x: -46, z: -22 }, title: '朝倉の残りを突く', sub: '西の瀬から戻る朝倉勢の横を突く', obj: '戻ってくる朝倉の残りを崩せ',
-      foes: () => [{ name: '朝倉の残り', from: { x: -80, z: -36 }, flag: 'asakura', armor: ASAKURA.armor, list: dress([uS(2), uA(12), uG(2)], ASAKURA) }],
-      later: [{ t: 36, say: ['足軽', '朝倉の騎馬が戻ってくる！'], foes: () => [{ name: '朝倉の騎馬', from: { x: -96, z: -20 }, flag: 'asakura', armor: ASAKURA.armor, list: dress([uC(3), uA(4)], ASAKURA) }] }],
+      foes: () => [{ name: '朝倉の残り', from: { x: -80, z: -36 }, flag: 'asakura', armor: ASAKURA.armor, list: dress([uS(2), uA(16), uG(3)], ASAKURA) }],
+      later: [{ t: 30, say: ['足軽', '朝倉の騎馬が戻ってくる！'], foes: () => [{ name: '朝倉の騎馬', from: { x: -96, z: -20 }, flag: 'asakura', armor: ASAKURA.armor, list: dress([uC(4), uA(8)], ASAKURA) }] }],
       reward: (t) => { t.special = { label: '朝倉の残りを崩した', pts: 20 }; }, rewardLabel: '朝倉の残りを崩した' }),
   ];
 }

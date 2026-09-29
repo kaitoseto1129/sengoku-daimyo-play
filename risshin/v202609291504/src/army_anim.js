@@ -254,7 +254,8 @@ export const ArmyAnim = {
     else if (u.strikeT > 0 && u.isPlayer && !sw) ext = Math.sin((1 - u.strikeT / 0.2) * Math.PI) * 0.6;
     // 右手の握りは体の右にあるので、穂先を相手の真ん中へ少し内へ向ける
     if (engaged && dT < 99 && !u.mounted) ry -= Math.atan2(0.28, Math.max(1, dT));
-    if (u.guard || u.guardFlash > 0 || u.guarding > 0) { rx = -0.9; ry = -0.25; }
+    // 構えたまま出した自分の技（叩き下ろし・払い）は、振り終えるまで構えの形で上書きしない（刀の受けと同じ）
+    if ((u.guard || u.guardFlash > 0 || u.guarding > 0) && !(u.isPlayer && (u.pAtk || (sw && sw.t < sw.dur + 0.2)))) { rx = -0.9; ry = -0.25; }
     // 騎馬を受け止めた槍衾の者（checkYari）：石突を地に着け、穂先を馬の胸へ斜めに上げ、柄を手元へ引き寄せて踏ん張る
     if (u.planted > this.time && !u.isPlayer) { const k = Math.min(1, (u.planted - this.time) / 0.3); rx = rx * (1 - k) - 0.42 * k; ry = 0; ext = -0.25 * k; slide = Math.min(slide, -0.35 * k); }
     if (u.cheer > 0) { rx = -1.35; ext = 0.1 + Math.abs(Math.sin(this.time * 6)) * 0.15; }

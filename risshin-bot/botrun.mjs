@@ -183,7 +183,7 @@ async function playOnce() {
     const W = PC ? SIZE : [PHONE.width, PHONE.height];
     c = await openChrome({ width: W[0], height: W[1] });
     if (!PC) await toPhone(c);
-    await c.goto(`http://localhost:8765/?bot&persona=${PERSONA}&shots=${loadavg()[0] > 110 ? 0 : 1}&maxshots=${MAXSHOTS}&budget=${budget}${NBAT ? '&n=' + NBAT : ''}${ONLY ? '&only=' + ONLY : ''}${VQ ? '&' + VQ : ''}&r=${Date.now()}`, OUT ? 6000 : 3000);
+    await c.goto(`http://localhost:8765/?bot&persona=${PERSONA}&shots=${loadavg()[0] > 110 ? 0 : 1}&maxshots=${MAXSHOTS}&budget=${budget}${NBAT ? '&n=' + NBAT : ''}${ONLY ? '&only=' + ONLY : ''}${args.includes('--norender') ? '&norender' + (SPEED > 1 ? '&speed=' + SPEED : '') : ''}${VQ ? '&' + VQ : ''}&r=${Date.now()}`, OUT ? 6000 : 3000);
     await c.ev('Storage.prototype.setItem = function () {}; return 1;');
     let last = '', lastT = 0, keep = null, keepT = 0, slow = 0, frozeAt = '';
     while (!data) {

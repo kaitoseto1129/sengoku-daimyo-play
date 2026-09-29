@@ -283,12 +283,13 @@ const sunomata = {
     const F = rt.flags;
     F.wave = 1;
     rt.setPhase('w1');
-    F.W1 = enemyGroup(rt, { faction: 'saito', anchor: { x: 2, z: -100 }, facing: 0, order: 'assault', fleeDir: { x: 0, z: -1 }, width: 7 }, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: F.few ? 16 : 20 }]);
-    nagashinojo.kit.backOf(rt, F.W1, { flag: 'saito', armor: 0x3a3a30, kind: 'spear', w: 14, depth: 8, count: 80, seed: 44, stop: () => { const c = F.W1.center(); return Math.hypot(c.x, c.z) < FORT + 55; } });
+    F.W1 = enemyGroup(rt, { faction: 'saito', anchor: { x: 2, z: -84 }, facing: 0, order: 'assault', fleeDir: { x: 0, z: -1 }, width: 8 }, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: F.few ? 18 : 24 }]);
+    nagashinojo.kit.backOf(rt, F.W1, { flag: 'saito', armor: 0x3a3a30, kind: 'spear', w: 18, depth: 10, count: 160, seed: 44, stop: () => { const c = F.W1.center(); return Math.hypot(c.x, c.z) < FORT + 55; } });
     F.W1.assault = assaultFn(rt, 'n');
     rt.banner('斎藤勢、来襲', '北より');
     rt.army.play('eshout', { x: 0, z: -60 }, 2);
     rt.say('木下藤吉郎', '来おったぞ！　北じゃ、柵に取り付かせるな！', 3.5);
+    rt.after(10, () => { if (!rt.flags.W1 || !rt.flags.W1.count) return; rt.say('蜂須賀小六', '逆茂木で足が止まる。柵に取り付いた所を、内から槍で突け', 4); });
     rt.marker('w', centerOf(F.W1), () => `敵勢・${moraleWord(F.W1.morale)}`, { red: true, group: F.W1 });
     rt.objProgress('defend', '');
     rt.obj('defend', '砦を守りきれ（襲来 1/3）', 'main');
@@ -302,7 +303,7 @@ const sunomata = {
     // 波ごとに日が傾く：二の手は昼下がり、三の手で夕焼け
     rt.world.setTime('after');
     F.W2 = enemyGroup(rt, { faction: 'saito', anchor: { x: -122, z: 2 }, facing: Math.PI / 2, order: 'assault', fleeDir: { x: -1, z: 0 }, width: 8 }, [{ type: 'samurai', n: F.few ? 2 : 3 }, { type: 'ashigaru', n: F.few ? 16 : 20 }, { type: 'gun', n: 3 }]);
-    nagashinojo.kit.backOf(rt, F.W2, { flag: 'saito', armor: 0x35382c, kind: 'spear', w: 14, depth: 8, count: 80, seed: 45, stop: () => { const c = F.W2.center(); return Math.hypot(c.x, c.z) < FORT + 55; } });
+    nagashinojo.kit.backOf(rt, F.W2, { flag: 'saito', armor: 0x35382c, kind: 'spear', w: 18, depth: 10, count: 150, seed: 45, stop: () => { const c = F.W2.center(); return Math.hypot(c.x, c.z) < FORT + 55; } });
     F.W2.assault = assaultFn(rt, 'w');
     rt.banner('二の手', '西より');
     rt.say('木下藤吉郎', '西からも来たぞ！　……いかん、南西から荷駄が着く頃じゃ！', 4);
@@ -344,11 +345,11 @@ const sunomata = {
     rt.world.setTime('dusk');
     F.W3a = enemyGroup(rt, { faction: 'saito', anchor: { x: -54, z: -122 }, facing: 0.45, order: 'assault', fleeDir: { x: -0.4, z: -1 }, width: 7 },
       [{ type: 'samurai', n: 1, o: { name: '斎藤方の旗持ち', flag: 'saito', flagScale: 1.8, tag: 'flag' } }, { type: 'samurai', n: F.few ? 1 : 2 }, { type: 'ashigaru', n: F.few ? 9 : 13 }]);
-    nagashinojo.kit.backOf(rt, F.W3a, { flag: 'saito', armor: 0x3a3a30, kind: 'spear', w: 14, depth: 8, count: 80, seed: 46, stop: () => { const c = F.W3a.center(); return Math.hypot(c.x, c.z) < FORT + 55; } });
+    nagashinojo.kit.backOf(rt, F.W3a, { flag: 'saito', armor: 0x3a3a30, kind: 'spear', w: 16, depth: 10, count: 130, seed: 46, stop: () => { const c = F.W3a.center(); return Math.hypot(c.x, c.z) < FORT + 55; } });
     F.W3a.assault = assaultFn(rt, 'n');
     F.W3b = enemyGroup(rt, { faction: 'saito', anchor: F.few ? { x: -162, z: -66 } : { x: -150, z: -60 }, facing: 1.2, order: 'assault', fleeDir: { x: -1, z: -0.3 }, width: 7 },
       [{ type: 'busho', n: 1, o: { name: '斎藤方 侍大将 稲田弾正' } }, { type: 'samurai', n: F.few ? 1 : 2 }, { type: 'cavalry', n: F.few ? 2 : 3 }, { type: 'ashigaru', n: F.few ? 5 : 8 }, { type: 'bow', n: F.few ? 2 : 3 }]);
-    nagashinojo.kit.backOf(rt, F.W3b, { flag: 'saito', armor: 0x35382c, kind: 'spear', w: 14, depth: 8, count: 80, seed: 47, stop: () => { const c = F.W3b.center(); return Math.hypot(c.x, c.z) < FORT + 55; } });
+    nagashinojo.kit.backOf(rt, F.W3b, { flag: 'saito', armor: 0x35382c, kind: 'spear', w: 16, depth: 10, count: 130, seed: 47, stop: () => { const c = F.W3b.center(); return Math.hypot(c.x, c.z) < FORT + 55; } });
     F.W3b.assault = assaultFn(rt, 'w');
     // 川沿いの東から回り込む一隊（守りの手薄な側）。北と西の寄せと重ならないよう、少し遅れて来る
     // 長良川を舟で渡り、東の岸から上がって来る一隊（守りの手薄な側）
@@ -549,7 +550,7 @@ const sunomata = {
         rt.say('木下藤吉郎', '日が傾いてきた。次が正念場じゃ', 3.5);
         rt.after(8, () => repairFort(rt));
         // 判断：夕暮れの三の手に、組をどこに置くか
-        rt.after(6, () => rt.choose('藤吉郎「三の手は大勢じゃ。お主の組をどこに置く？」', [
+        rt.after(4, () => rt.choose('藤吉郎「三の手は大勢じゃ。お主の組をどこに置く？」', [
           { label: '北の柵に組を集める', note: '北の寄せ（旗持ちの隊）を柵で強く受ける。東の川の側は川並衆だけ' },
           { label: '東の川の側に組を置く', note: '舟で渡る一隊を岸で叩ける。北の柵は別組だけで受ける' },
         ], (i) => {
@@ -560,9 +561,9 @@ const sunomata = {
           rt.marker('post3', pt, i === 0 ? '北の柵' : '東の川の側', { h: 2.5 });
           rt.after(20, () => rt.unmark('post3'));
           rt.say('木下藤吉郎', i === 0 ? 'よし、北を固めよ。東は小六に任せる' : 'よし、川の側じゃ。北は別組に踏ん張らせる', 3);
-        }, 16));
-        rt.after(24, () => this.wave3(rt));
-        F.nextWaveAt = rt.t + 24;
+        }, 13));
+        rt.after(19, () => this.wave3(rt));
+        F.nextWaveAt = rt.t + 19;
       }
     }
     if (F.wave === 3 && F.W3c && F.W3d && gone(F.W3a) && gone(F.W3b) && gone(F.W3c) && gone(F.W3d) && !F.won) {
@@ -775,13 +776,13 @@ function sunoA() {
       } }),
     DP.fight({ skip: (rt, m) => !m.sunoBoats, at: { x: 50, z: -70 }, title: '舟溜まり', sub: '川上の岸に、斎藤の舟が並ぶ', obj: '川上の舟溜まりの番兵を追い払い、舟を焼け',
       foes: () => [{ name: '舟溜まりの番兵', from: { x: 54, z: -100 }, list: [uS(1), uA(8), uB(2)] }],
-      later: [{ t: 26, say: ['蜂須賀小六', '舟から上がってくるぞ！　岸で叩け！'], foes: () => [{ name: '舟から上がる斎藤勢', from: { x: 60, z: -40 }, list: [uA(6)] }] }],
+      later: [{ t: 26, say: ['蜂須賀小六', '舟から上がってくるぞ！　岸で叩け！'], foes: () => [{ name: '舟から上がる斎藤勢', from: { x: 60, z: -40 }, list: [uS(1), uA(9)] }] }],
       reward: '斎藤の舟溜まりを焼いた',
       onEnd: (rt, m, won) => { if (won) { m.sunoBurnt = true; rt.world.addSmokeColumn(56, rt.world.heightAt(56, -76) + 1, -76, { size: 2 }); rt.say('蜂須賀小六', '舟に火をかけた！　これで三の手は川を渡りにくかろう', 3.5); } } }),
-    DP.hold({ skip: (rt, m) => m.sunoBoats, at: { x: 0, z: -30 }, dur: 75, r: 12, title: '柵の前の物見', sub: '夕暮れ前、斎藤の物見が柵の北へ寄る', label: '北の柵の前', obj: '北の柵の前で、斎藤の物見を追い払え',
+    DP.hold({ skip: (rt, m) => m.sunoBoats, at: { x: 0, z: -30 }, dur: 60, r: 12, title: '柵の前の物見', sub: '夕暮れ前、斎藤の物見が柵の北へ寄る', label: '北の柵の前', obj: '北の柵の前で、斎藤の物見を追い払え',
       waves: [
-        { t: 5, say: ['足軽', '北の畑に斎藤の物見じゃ！'], foes: () => [{ name: '斎藤の物見', from: { x: 0, z: -96 }, list: [uS(1), uA(6)] }] },
-        { t: 38, say: ['木下藤吉郎', '鉄砲を連れてきおった！　撃たせるな！'], foes: () => [{ name: '物見の鉄砲', from: { x: -40, z: -92 }, list: [uG(3), uA(5)] }] },
+        { t: 5, say: ['足軽', '北の畑に斎藤の物見じゃ！'], foes: () => [{ name: '斎藤の物見', from: { x: 0, z: -96 }, list: [uS(1), uA(10)] }] },
+        { t: 28, say: ['木下藤吉郎', '鉄砲を連れてきおった！　撃たせるな！'], foes: () => [{ name: '物見の鉄砲', from: { x: -40, z: -92 }, list: [uS(1), uG(3), uA(8)] }] },
       ],
       reward: '柵の前の物見を追い払った' }),
     DP.fight({ at: { x: -68, z: -22 }, title: '西の林の鉄砲', sub: '日が傾く前に、砦を撃つ鉄砲を黙らせる', obj: '砦を撃つ西の林の鉄砲組を黙らせよ',
@@ -805,12 +806,12 @@ function sunoB() {
     DP.move({ skip: (rt, m) => !m.sunoRaid, to: { x: -26, z: 34 }, obj: '砦の外の材木置き場へ戻れ（夜討ちが来る）', label: '材木置き場', r: 9, max: 80,
       say: [['伝令', '材木置き場に夜討ちじゃ！　急ぎ戻られよ！']],
       ambush: { t: 12, say: ['足軽', '夜討ちの先手に追い付かれた！'], foes: () => [{ name: '夜討ちの先手', from: { x: -70, z: 10 }, list: [uA(6)] }] } }),
-    DP.hold({ at: { x: -26, z: 34 }, dur: 80, r: 12, title: '夜討ち', sub: '斎藤の夜討ちが、砦の外の材木置き場を狙う', label: '材木置き場', obj: '夜討ちから、砦の外の材木置き場を守れ',
+    DP.hold({ at: { x: -26, z: 34 }, dur: 70, r: 12, title: '夜討ち', sub: '斎藤の夜討ちが、砦の外の材木置き場を狙う', label: '材木置き場', obj: '夜討ちから、砦の外の材木置き場を守れ',
       say: [['木下藤吉郎', '材木に火をかけさせるな！　松明を持った者から討て！']],
       waves: (rt, m) => [
-        { t: 4, say: ['足軽', '北西から松明が来る！'], foes: () => [{ name: '夜討ちの斎藤勢', from: { x: -90, z: -10 }, list: [uS(1), uA(m.sunoRaid ? 6 : 10)] }] },
-        { t: 32, say: ['蜂須賀小六', '南の街道からも来たぞ！'], foes: () => [{ name: '街道の夜討ち', from: { x: -90, z: 86 }, list: [uA(8), uB(2)] }] },
-        { t: 62, say: ['木下藤吉郎', '夜討ちの本手じゃ！　材木に寄せつけるな！'], foes: () => [{ name: '夜討ちの本手', from: { x: -60, z: 80 }, list: [uS(2), uA(m.sunoRaid ? 5 : 8)] }] },
+        { t: 4, say: ['足軽', '北西から松明が来る！'], foes: () => [{ name: '夜討ちの斎藤勢', from: { x: -90, z: -10 }, list: [uS(1), uA(m.sunoRaid ? 8 : 12)] }] },
+        { t: 28, say: ['蜂須賀小六', '南の街道からも来たぞ！'], foes: () => [{ name: '街道の夜討ち', from: { x: -90, z: 86 }, list: [uS(1), uA(9), uB(2)] }] },
+        { t: 50, say: ['木下藤吉郎', '夜討ちの本手じゃ！　材木に寄せつけるな！'], foes: () => [{ name: '夜討ちの本手', from: { x: -60, z: 80 }, list: [uS(2), uA(m.sunoRaid ? 8 : 11)], mass: 220 }] },
       ],
       reward: '材木置き場を守り抜いた' }),
     DP.rest({ dur: 12, fn: (rt) => rt.world.setTime('morning'), banner: ['夜明け', '墨俣の砦の上に、朝日が昇る'], say: [['木下藤吉郎', '夜が明けた……砦は建つぞ！'], ['蜂須賀小六', '稲葉山の後詰は、砦を見て引き返していったわ']] }),

@@ -316,7 +316,9 @@ const miki = {
     if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
   },
   onRout(rt, g) {
-    if (g.team !== 1 || g === rt.flags.carts) return;
+    const F = rt.flags;
+    if (g.team !== 1 || g === F.carts || rt.t < (F.routSayT || 0)) return;   // 同じ知らせを続けて出さない
+    F.routSayT = rt.t + 10;
     rt.say('足軽', `${g.name}が退いていく！`, 2.5);
   },
 };

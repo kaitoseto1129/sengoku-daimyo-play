@@ -815,11 +815,15 @@ function watchStep(b, dt, c) {
   // 号令の輪で選んだのに、号令が出ない
   if (c.radialWant && t - c.radialWant.t > 1) { if (!c.cmdSeen || c.cmdSeen.t < c.radialWant.t) c.add(`radial-fail:${c.radialWant.id}`, '号令の輪で選んだのに、号令が出なかった', `「${c.radialWant.id}」を選んで放した（${c.where}）`, 3, { shot: true, fix: 'touch.js の号令の丸の滑らせ方と player.js の radialSel を見直す' }); c.radialWant = null; }
   // 号令の効き目（出してから3秒で、組の何割が動き出したか）
-  if (c.cmdSeen && !c.cmdSeen.checked && t - c.cmdSeen.t > 3) {
+  //   遠い組へは使番が走る（battle.js orderDelay）ので、号令が着いてから3秒で見る。
+  //   動かなくてよい号令（待て・向き直れ・陣形・放て）と、もう持ち場にいる者は「動かない」に数えない
+  if (c.cmdSeen && c.cmdSeen.due == null) c.cmdSeen.due = c.cmdSeen.t + 3 + Math.max(0, ...b.squadGroups.map((g) => (g.pending ? g.pending.t : 0)));
+  if (c.cmdSeen && !c.cmdSeen.checked && t > c.cmdSeen.due) {
     c.cmdSeen.checked = true;
     const live = b.squad.filter((s) => s.alive);
-    const moving = live.filter((s) => Math.hypot(s.vel.x, s.vel.z) > 0.3 || s.target || s.atk).length;
-    if (live.length >= 3 && c.cmdSeen.id !== 'hold' && moving < live.length * 0.3) c.add(`cmd-slow:${c.cmdSeen.id}`, `号令「${c.cmdSeen.label}」から3秒たっても、組の7割が動かない`, `${live.length}人のうち動いたのは${moving}人（${c.where}）`, per.key === 'sen' ? 2 : 1, { cat: '辻褄', shot: per.key === 'sen', fix: '号令を受けた兵がすぐ向きを変えて動き出すようにする（行き先・狙いの付け直し）' });
+    const atSlot = (s) => { const g = s.group; if (!g || !g.slotPos) return false; const sp = g.slotPos(s.slot, g.initial); return Math.hypot(sp.x - s.pos.x, sp.z - s.pos.z) < 2.5; };
+    const moving = live.filter((s) => Math.hypot(s.vel.x, s.vel.z) > 0.3 || s.target || s.atk || atSlot(s)).length;
+    if (live.length >= 3 && !['hold', 'face', 'form', 'fire'].includes(c.cmdSeen.id) && moving < live.length * 0.3) c.add(`cmd-slow:${c.cmdSeen.id}`, `号令「${c.cmdSeen.label}」から3秒たっても、組の7割が動かない`, `${live.length}人のうち動いたのは${moving}人（${c.where}）`, per.key === 'sen' ? 2 : 1, { cat: '辻褄', shot: per.key === 'sen', fix: '号令を受けた兵がすぐ向きを変えて動き出すようにする（行き先・狙いの付け直し）' });
     if (!c.cmdSeen.fb && per.key === 'sen') c.add('cmd-nofb', '号令が届いたのか、画面で分からない', `号令のあと1秒、字幕も知らせも出なかった（${c.where}）`, 1, { fix: '号令を出したら、短い字幕か組の頭上の印で「届いた」を見せる' });
   }
   if (!sec) return;

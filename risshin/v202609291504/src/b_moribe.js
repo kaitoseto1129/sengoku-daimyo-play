@@ -124,7 +124,7 @@ const moribe = {
     const KS = ['spear', 'gun', 'mixed', 'spear', 'cavalry', 'spear', 'gun', 'honjin', 'spear'];
     // 斎藤の本陣（z -150）は下の camp で、大将と旗本を本物の兵で置く（遠景の本陣の形は重ねない）
     F.farS = [[-112, -116], [-70, -128], [-24, -134], [22, -130], [68, -120], [-90, -98], [50, -104], null, [-50, -148]]
-      .map((q, i) => q && DA(q[0], q[1], x, z, 26, KS[i] === 'gun' ? 6 : (KS[i] === 'honjin' ? 22 : 12), KS[i] === 'cavalry' ? 100 : 150, 0, i % 2 ? 0x3a3a30 : 0x35382c, 'saito', 5 + i, KS[i])).filter(Boolean);
+      .map((q, i) => q && DA(q[0], q[1], 26, KS[i] === 'gun' ? 6 : (KS[i] === 'honjin' ? 22 : 12), KS[i] === 'cavalry' ? 100 : 150, 0, i % 2 ? 0x3a3a30 : 0x35382c, 'saito', 5 + i, KS[i])).filter(Boolean);
     const KO = ['spear', 'gun', 'cavalry', 'spear', 'mixed'];
     F.farO = [[-96, 120], [-50, 130], [0, 130], [-20, 104], [-110, 88]]
       .map(([x, z], i) => DA(x, z, 22, KO[i] === 'gun' ? 6 : 12, KO[i] === 'cavalry' ? 90 : 120, Math.PI, KT.ARMOR.oda, i === 2 ? 'eiraku' : 'oda', 20 + i, KO[i]));
@@ -266,8 +266,8 @@ const moribe = {
         } else if (!F.M.routed && F.M.count) { rt.say('大沢勘兵衛', '持ち場を離れぬか。……よかろう、東を頼む', 3); F.M.morale = Math.min(100, F.M.morale + 10); }
       }, 20);
     }
-    // 保険：先手が崩れて 200 秒たっても日比野の備が踏みとどまる時は、討死の噂で崩れかける（段が止まらないように）
-    if (F.vBroken && F.vBrokenT && !F.mPush && rt.t - F.vBrokenT > 200 && F.M.count && !F.M.routed) { F.mPush = true; F.M.noRout = false; F.M.morale = Math.min(F.M.morale, 15); rt.say('伝令', '日比野の備、崩れかかっておりまする！', 3); }
+    // 保険：先手が崩れて 130 秒たっても日比野の備が踏みとどまる時は、討死の噂で崩れかける（段が止まらないように）
+    if (F.vBroken && F.vBrokenT && !F.mPush && rt.t - F.vBrokenT > 130 && F.M.count && !F.M.routed) { F.mPush = true; F.M.noRout = false; F.M.morale = Math.min(F.M.morale, 15); rt.say('伝令', '日比野の備、崩れかかっておりまする！', 3); }
     // 日比野が先に崩れたら、横腹を突く下知は畳む
     if (F.helpM && !F.hmDone && (F.M.routed || !F.M.count)) { F.hmDone = true; rt.unmark('hm'); rt.unzone('hm'); rt.objRemove('hm'); }
     if (F.helpM && !F.hmDone && F.hmPt) {
@@ -280,7 +280,7 @@ const moribe = {
       }
     }
     // 最後の段：退く斎藤勢の殿（しんがり）が畦の手前で踏みとどまる。畦を越えずに崩せ
-    const mDone0 = F.vBroken && (F.M.routed || F.M.count === 0) && F.Rz && (F.rzDone || rt.t - F.rzT > 150);
+    const mDone0 = F.vBroken && (F.M.routed || F.M.count === 0) && F.Rz && (F.rzDone || rt.t - F.rzT > 110);
     // 殿の前に段を重ねる（立て直し→在所の鉄砲の判断→長井の残りとの押し合い）
     if (!rt.G.lord && F.signal && !F.ending && mDone0 && !F.dpA) { F.dpA = true; depthStart(rt, moriCtx(rt), moriA(), () => { F.dpAdone = true; }); }
     if (!rt.G.lord && F.signal && !F.ending && mDone0 && F.dpAdone && !F.rearG) {
@@ -476,18 +476,18 @@ function moriA() {
     DP.fight({ at: { x: -20, z: -36 }, title: '押し合い', sub: '長井の備の残りが、斎藤の後詰と押し返してくる', obj: '押し返してくる斎藤勢を受け止め、崩せ',
       say: [['大沢勘兵衛', '来るぞ！　本備と並べ、押し負けるな！']],
       foes: (rt, m) => [{ name: '長井の備の残り', from: { x: -46, z: -84 }, list: [uS(2), uA(m.moriVillage ? 10 : 12)], noRout: 20 }],
-      later: [{ t: 34, title: '横槍', sub: '東の林から斎藤の後詰', say: ['足軽', '東から横槍じゃ！　騎馬が混じっておる！'], foes: () => [{ name: '斎藤の後詰', from: { x: 56, z: -60 }, list: [uS(1), uC(2), uA(7)] }] },
-        { t: 70, title: '新手', sub: '長井の備の後ろから、斎藤の新手が押し出す', say: ['大沢勘兵衛', 'まだ来るか！　本備と並べ、押し返せ！'], foes: () => [{ name: '斎藤の新手', from: { x: -30, z: -96 }, list: [uS(2), uA(10)], mass: 200 }] }],
+      later: [{ t: 34, title: '横槍', sub: '東の林から斎藤の後詰', say: ['足軽', '東から横槍じゃ！　騎馬が混じっておる！'], foes: () => [{ name: '斎藤の後詰', from: { x: 56, z: -60 }, list: [uS(1), uC(2), uA(8)], mass: 150 }] },
+        { t: 62, title: '新手', sub: '長井の備の後ろから、斎藤の新手が押し出す', say: ['大沢勘兵衛', 'まだ来るか！　本備と並べ、押し返せ！'], foes: () => [{ name: '斎藤の新手', from: { x: -30, z: -96 }, list: [uS(2), uA(10)], mass: 200 }] }],
       reward: '長井の残りを押し返した' }),
     DP.rest({ dur: 10, bark: '立て直し：組を寄せ直す', say: [['大沢勘兵衛', '手負いを下げよ。……見よ、斎藤の本隊が押し出してくる'], ['足軽', 'あれは……畦の向こう一面、斎藤の旗じゃ']] }),
-    DP.hold({ at: { x: -4, z: -44 }, dur: 80, r: 14, title: '斎藤の本隊、押し出す', sub: '畦の向こうから、斎藤の大軍がどっと押し寄せる', label: '本備の前', obj: '本備の前で斎藤の本隊を受け止めよ',
+    DP.hold({ at: { x: -4, z: -44 }, dur: 70, r: 14, title: '斎藤の本隊、押し出す', sub: '畦の向こうから、斎藤の大軍がどっと押し寄せる', label: '本備の前', obj: '本備の前で斎藤の本隊を受け止めよ',
       say: [['大沢勘兵衛', '槍衾じゃ！　本備と肩を並べよ。一歩も退くな！']],
       waves: (rt, m) => [
         { t: 5, say: ['足軽', '来るぞ、一面じゃ！'], foes: () => [{ name: '斎藤の本隊の先手', from: { x: -10, z: -96 }, list: [uS(2), uA(12), uG(m.moriVillage ? 0 : 3)], mass: 220 }] },
-        { t: 50, say: ['大沢勘兵衛', '二の手じゃ！　横からも来る！'], foes: () => [{ name: '斎藤の本隊の二の手', from: { x: 30, z: -92 }, list: [uS(2), uC(2), uA(10)], mass: 200 }] },
+        { t: 40, say: ['大沢勘兵衛', '二の手じゃ！　横からも来る！'], foes: () => [{ name: '斎藤の本隊の二の手', from: { x: 30, z: -92 }, list: [uS(2), uC(2), uA(10)], mass: 200 }] },
       ],
       reward: '斎藤の本隊の押し出しを受け止めた' }),
-    DP.rest({ dur: 8, bark: '立て直し：息を整え、槍を並べ直す', say: [['大沢勘兵衛', '斎藤は退きにかかった。殿（しんがり）が畦の手前で踏みとどまるぞ']] }),
+    DP.rest({ dur: 8, bark: '立て直し：息を整え、槍を並べ直す', say: [['大沢勘兵衛', '押し返したぞ！　斎藤は退きにかかった。……まだ畦は越えるな'], ['足軽', '畦の手前で、斎藤の槍が向き直っておる']] }),
   ];
 }
 // 斎藤の殿を崩した後：立て直し（追い討ちの下知）→ 判断（一番に追うか、足並みを揃えるか）→ 後備え → 稲葉山の後詰を受ける
@@ -504,11 +504,11 @@ function moriB() {
         { t: 60, title: '押し返し', sub: '退く斎藤の本隊が、向き直って押し返してくる', say: ['大沢勘兵衛', '向き直ったぞ！　槍を揃えよ！'], foes: () => [{ name: '向き直った斎藤の本隊', from: { x: 20, z: -134 }, list: [uS(2), uA(12)], mass: 240 }] }],
       reward: (t, m) => { if (m.moriFast) t.special = { label: '一番に追い付いた', pts: 25 }; else t.side.push('斎藤の後備えを崩した'); }, rewardLabel: '斎藤の後備えを崩した' }),
     DP.rest({ dur: 10, say: [['伝令', '稲葉山から斎藤の後詰！　北の街道を下ってきまする！'], ['大沢勘兵衛', '畦まで戻れ。追い討ちはここまでじゃ。畦で槍を揃えて受けよ']] }),
-    DP.hold({ at: { x: 0, z: -64 }, dur: 80, r: 14, title: '稲葉山の後詰', sub: '畦で槍を揃え、斎藤の後詰を受け止めよ', label: '北の畦', obj: '北の畦で、稲葉山からの後詰を受け止めよ',
+    DP.hold({ at: { x: 0, z: -64 }, dur: 70, r: 14, title: '稲葉山の後詰', sub: '畦で槍を揃え、斎藤の後詰を受け止めよ', label: '北の畦', obj: '北の畦で、稲葉山からの後詰を受け止めよ',
       waves: (rt, m) => [
-        { t: 6, say: ['足軽', '来たぞ、北の街道じゃ！'], foes: () => [{ name: '斎藤の後詰の先手', from: { x: 0, z: -140 }, list: [uS(1), uA(10)] }] },
-        { t: 35, say: ['大沢勘兵衛', '騎馬じゃ！　槍衾！'], foes: () => [{ name: '斎藤の騎馬', from: { x: 40, z: -132 }, list: [uC(3), uA(5)] }] },
-        { t: 56, say: ['大沢勘兵衛', '後詰の総掛かりじゃ！　ここを凌げば勝ちぞ！'], foes: () => [{ name: '斎藤の後詰の総掛かり', from: { x: 10, z: -150 }, list: [uS(2), uC(2), uA(10)], mass: 260 }] },
+        { t: 6, say: ['足軽', '来たぞ、北の街道じゃ！'], foes: () => [{ name: '斎藤の後詰の先手', from: { x: 0, z: -140 }, list: [uS(2), uA(14)], mass: 200 }] },
+        { t: 30, say: ['大沢勘兵衛', '騎馬じゃ！　槍衾！'], foes: () => [{ name: '斎藤の騎馬', from: { x: 40, z: -132 }, list: [uC(3), uA(6)], mass: 120 }] },
+        { t: 48, say: ['大沢勘兵衛', '後詰の総掛かりじゃ！　ここを凌げば勝ちぞ！'], foes: () => [{ name: '斎藤の後詰の総掛かり', from: { x: 10, z: -150 }, list: [uS(2), uC(2), uA(10)], mass: 260 }] },
       ],
       reward: '稲葉山の後詰を受け止めた' }),
   ];

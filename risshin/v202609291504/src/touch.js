@@ -557,7 +557,7 @@ export function touchFrame(dt) {
   if (!btn.wpn.hidden) { const nx = wl[(wl.indexOf(p.weapon) + 1) % wl.length]; setText(btn.wpn.firstChild, { spear: '槍へ', sword: '刀へ', gun: '鉄砲へ', bow: '弓へ' }[nx]); }
   // 鉄砲・弓を持っている時：突く→放つ／射る、構え→狙う。鉄砲は込め直しの進みを丸の縁に、込め終えて狙っていれば光る
   const gunW = p.weapon === 'gun', bowW = p.weapon === 'bow';
-  setText(btn.atk.firstChild, gunW ? '放つ' : bowW ? '射る' : '突く');
+  setText(btn.atk.firstChild, gunW ? '放つ' : bowW ? '射る' : p.weapon === 'sword' ? '斬る' : '突く');
   setText(btn.grd.firstChild, gunW || bowW ? '狙う' : '構え');
   const sub = btn.atk.querySelector('small');
   if (sub) setText(sub, gunW ? (p.gunLoaded ? '狙って放つ' : '込め中') : bowW ? '押して引く' : '長押しで溜め');

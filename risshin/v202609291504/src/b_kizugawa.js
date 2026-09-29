@@ -366,7 +366,9 @@ const kizugawa = {
     if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
   },
   onRout(rt, g) {
-    if (g.team !== 1) return;
+    const F = rt.flags;
+    if (g.team !== 1 || rt.t < (F.routSayT || 0)) return;   // 同じ知らせを続けて出さない
+    F.routSayT = rt.t + 10;
     rt.say('足軽', `${g.name}が海へ飛び込んで逃げた！`, 2.5);
   },
 };

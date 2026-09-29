@@ -333,7 +333,9 @@ const shigisan = {
     if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
   },
   onRout(rt, g) {
-    if (g.team !== 1) return;
+    const F = rt.flags;
+    if (g.team !== 1 || rt.t < (F.routSayT || 0)) return;   // 同じ知らせを続けて出さない
+    F.routSayT = rt.t + 10;
     rt.say('足軽', `${g.name}が退いていく！`, 2.5);
   },
   onStructHit(rt, s) {
@@ -422,7 +424,8 @@ const gunLine = (name, from, n, o = {}) => ({ name, from, list: [uS(1), uG(n)], 
 function sgCtx(rt) {
   const F = rt.flags;
   return { faction: 'saito', flag: 'todo', armor: 0x2a2622, dmg: 0.58, mass: 240, look: (l) => dress(l, MATSU),
-    friends: () => [F.tsutsui, F.ake].filter((g) => g && g.count && !g.routed), ring: HONMARU, botSteer: gateSteer };
+    friends: () => [F.tsutsui, F.ake].filter((g) => g && g.count && !g.routed), ring: HONMARU, botSteer: gateSteer,
+    aid: { name: '筒井の手の一組', flag: 'oda', list: [uS(1), uA(9)] }, aidSaid: '筒井の手から一組が加わった' };
 }
 // bot が門の左右の柵や本丸の柵に突っかからないように：柵の線を越える時は、門の口へ回る
 const HONMARU = { x: TOP.x, z: TOP.z, r: TOP.r, gap: 0 };
@@ -468,25 +471,26 @@ function sgA() {
 function sgB() {
   const at = { x: 0, z: GATE.z - 12 };
   return [
+    rest({ dur: 5, heal: 0.35, bark: '門が破れた。組をまとめ直す（手傷を縛った）' }),
     hold({ at, dur: 62, r: 12, title: '門の内', sub: '曲輪の中から、松永勢が左右から押し寄せる', label: '門の内の曲輪', obj: (rt) => (HI(rt) ? '一手を率いて門の内の曲輪を取り、左右から来る松永勢を防げ' : '門の内の曲輪を取れ（左右から来る松永勢を防げ）'),
       say: [['筒井順慶', '門の内を取れ！　ここで押し戻されたら、また一からじゃ！']],
       waves: [
-        { t: 3, say: ['足軽', '蔵の陰から湧いて出る！'], foes: () => [{ name: '曲輪の松永勢', from: { x: -20, z: GATE.z - 20 }, list: [uS(2), uA(11)], mass: 160 }, { name: '東の曲輪の松永勢', from: { x: 20, z: GATE.z - 22 }, list: [uS(2), uA(9)], mass: 140 }] },
-        { t: 34, say: ['明智光秀', '本丸の柵に鉄砲が並んだ！　曲輪の陰へ！'], foes: () => [gunLine('本丸の柵の鉄砲衆', { x: 8, z: TOP.z + TOP.r + 2 }, 8, { mass: 0 })] },
-        { t: 52, say: ['足軽', 'まだ来る！'], foes: () => [{ name: '本丸から下りる松永勢', from: { x: 0, z: TOP.z + TOP.r + 2 }, list: [uS(3), uA(12)], mass: 160 }] },
+        { t: 3, say: ['足軽', '蔵の陰から湧いて出る！'], foes: () => [{ name: '曲輪の松永勢', from: { x: -20, z: GATE.z - 20 }, list: [uS(2), uA(9)], mass: 70, dmg: 0.5 }, { name: '東の曲輪の松永勢', from: { x: 20, z: GATE.z - 22 }, list: [uS(1), uA(7)], mass: 60, dmg: 0.5 }] },
+        { t: 34, say: ['明智光秀', '本丸の柵に鉄砲が並んだ！　曲輪の陰へ！'], foes: () => [gunLine('本丸の柵の鉄砲衆', { x: 8, z: TOP.z + TOP.r + 2 }, 6, { mass: 0, dmg: 0.4 })] },
+        { t: 52, say: ['足軽', 'まだ来る！'], foes: () => [{ name: '本丸から下りる松永勢', from: { x: 0, z: TOP.z + TOP.r + 2 }, list: [uS(2), uA(10)], mass: 60, dmg: 0.52 }] },
       ],
       reward: '門の内の曲輪を取った' }),
-    rest({ dur: 7, bark: '曲輪の陰で、息を整える', say: [['筒井順慶', '本丸へは二つ。正面の坂か、北の搦手（からめて）か'], ['足軽', '正面は鉄砲が並んでおる……']] }),
+    rest({ dur: 7, heal: 0.4, bark: '曲輪の陰で、息を整える', say: [['筒井順慶', '本丸へは二つ。正面の坂か、北の搦手（からめて）か'], ['足軽', '正面は鉄砲が並んでおる……']] }),
     pick({ title: '本丸へどう攻め上る？',
       options: [{ label: '正面の坂を一気に駆け上がる', note: '味方と一緒に押す。鉄砲の正面を走る' }, { label: '筒井の者と、搦手の崖道を回る', note: '鉄砲は避けられる。崖道の上で、松永の者と斬り合う。着けば旗本が崩れやすい' }],
       on: (rt, m, i) => { m.sgKarame = i === 1; rt.say('筒井順慶', i === 1 ? 'よし、搦手じゃ。声を立てるな' : 'よし、一気に駆け上がれ！', 3); } }),
     fight({ skip: (rt, m) => m.sgKarame, at: { x: 0, z: TOP.z + TOP.r + 6 }, title: '正面の坂', sub: '本丸の口の前に、鉄砲と槍が並ぶ', obj: '本丸の口の前の松永勢を崩せ',
-      foes: () => [gunLine('本丸の口の鉄砲衆', { x: -6, z: TOP.z + TOP.r + 1 }, 10, { mass: 0 }), { name: '本丸の口の槍', from: { x: 8, z: TOP.z + TOP.r + 2 }, list: [uS(2), uA(12)], mass: 120 }],
-      later: [{ t: 36, say: ['足軽', '横の曲輪からも来る！'], foes: () => [{ name: '横の曲輪の松永勢', from: { x: -26, z: TOP.z + 28 }, list: [uS(1), uA(10)], mass: 140 }] }],
+      foes: () => [gunLine('本丸の口の鉄砲衆', { x: -6, z: TOP.z + TOP.r + 1 }, 8, { mass: 0, dmg: 0.4 }), { name: '本丸の口の槍', from: { x: 8, z: TOP.z + TOP.r + 2 }, list: [uS(2), uA(10)], mass: 0, dmg: 0.52 }],
+      later: [{ t: 36, say: ['足軽', '横の曲輪からも来る！'], foes: () => [{ name: '横の曲輪の松永勢', from: { x: -26, z: TOP.z + 28 }, list: [uS(1), uA(8)], mass: 60, dmg: 0.52 }] }],
       max: 105, reward: '正面の坂を駆け上がった' }),
     fight({ skip: (rt, m) => !m.sgKarame, at: { x: 26, z: TOP.z + 8 }, title: '搦手の崖道', sub: '本丸の東の崖を回る細い道', obj: '搦手の崖道の松永勢を崩せ',
-      foes: () => [{ name: '搦手の守り', from: { x: 30, z: TOP.z - 10 }, list: [uS(3), uA(9)], mass: 100 }],
-      later: [{ t: 34, say: ['足軽', '上から石を落としてくる！　その後ろから槍じゃ！'], foes: () => [{ name: '搦手の後詰', from: { x: 34, z: TOP.z - 20 }, list: [uS(2), uA(8)], mass: 100 }] }],
+      foes: () => [{ name: '搦手の守り', from: { x: 30, z: TOP.z - 10 }, list: [uS(3), uA(8)], mass: 0, dmg: 0.52 }],
+      later: [{ t: 34, say: ['足軽', '上から石を落としてくる！　その後ろから槍じゃ！'], foes: () => [{ name: '搦手の後詰', from: { x: 34, z: TOP.z - 20 }, list: [uS(2), uA(7)], mass: 0, dmg: 0.52 }] }],
       max: 105, reward: (t) => { t.special = { label: '搦手から本丸へ回り込んだ', pts: 20 }; }, rewardLabel: '搦手から本丸へ回り込んだ' }),
   ];
 }

@@ -16,7 +16,7 @@ import { gauss, enemyGroup, allyGroup, nm, centerOf, unitPos, wallLine } from '.
 import { applyLook, NIGHT, DAWN, dress, gone, more } from './b_inabayama.js';
 import { KIT } from './b_nagashinojo.js';
 import { volleyAt, horseHost } from './b_tano.js';
-import { depthStart, depthTick, rest, pick, fight, hold, move } from './b_depth.js';
+import { depthStart, depthTick, depthBot, rest, pick, fight, hold, move } from './b_depth.js';
 import { camp } from './b_mid.js';
 // 足軽大将候補より上（信長で遊ぶ時は除く）：任務の文を「一手を預かる」者の役目に
 const HI = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
@@ -58,7 +58,7 @@ const iwamura = {
     F.step = 0; F.ek = 0; F.ak = 0; F.lit = 0;
     // ---- 水晶山の陣：柵（口が二つ）、陣幕、小屋 ----
     const noT = (segs) => { for (const s of segs) { s.noTarget = true; s.wall = true; } return segs; };
-    F.fence = [
+    F.fenceSegs = [   // F.fence とは名付けない（playbot は F.fence がある戦を設楽原の柵とみなす）
       ...wallLine(rt, [[-60, FENCE_Z + 4], [-8, FENCE_Z]], { team: 0, hp: 900, name: '陣の柵', segLen: 6 }),
       ...wallLine(rt, [[8, FENCE_Z], [60, FENCE_Z + 4]], { team: 0, hp: 900, name: '陣の柵', segLen: 6 }),
     ];
@@ -141,6 +141,11 @@ const iwamura = {
     // 城の坂の下に、武田の騎馬が固まっている（軽い作り）
     F.horseDA = horseHost(rt, 46, -84, 34, 14, 180, 0, 15779);
     for (const [g, x] of [[F.kawa, -14], [F.mouri, 18]]) { g.order = 'hold'; g.anchor = { x, z: FENCE_Z + 4 }; g.aggro = 14; }
+    // 柵の真ん中の口は、信忠の本陣から下りてきた馬廻の一手が槍で塞ぐ（口を空けておかない）
+    F.gate = allyGroup(rt, { name: '信忠の馬廻の一手', anchor: { x: 0, z: FENCE_Z + 3 }, facing: Math.PI, width: 12, aggro: 12, noRout: true, formation: 'yari' },
+      dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 14 }], ODA));
+    F.gate.order = 'hold'; F.gate.defMult = 1.2; F.gate.dmgMult = 0.8;
+    F.oda.push(F.gate);
     F.waves = [];
     const mk = (x, name, list) => {
       const g = enemyGroup(rt, { faction: 'takeda', name, anchor: { x, z: -70 }, facing: 0, order: 'attack', seekRange: 120, aggro: 16, width: 14, morale: 95, fleeDir: { x: 0, z: -1 }, dmgMult: 0.6 }, dress(list, TAKEDA));
@@ -158,7 +163,7 @@ const iwamura = {
       KIT.backOf(rt, g1, { flag: 'takeda', armor: KIT.ARMOR.takeda, kind: 'spear', w: 18, depth: 10, count: 120, seed: 15771, stop: () => g1.center().z > FENCE_Z - 14 });
       KIT.backOf(rt, g2, { flag: 'takeda', armor: KIT.ARMOR.takeda, kind: 'spear', w: 14, depth: 8, count: 80, seed: 15772, stop: () => g2.center().z > FENCE_Z - 14 });
     });
-    rt.after(56, () => { if (F.step === 2) { mk(-30, '武田の騎馬', [{ type: 'samurai', n: 1, o: { horse: true } }, { type: 'cavalry', n: 9 }, { type: 'ashigaru', n: 6 }]); rt.say('足軽', '騎馬も来るぞ！　柵の端を回らせるな！', 2.5); } });
+    rt.after(56, () => { if (F.step === 2) { const hg = mk(-30, '武田の騎馬', [{ type: 'samurai', n: 1, o: { horse: true } }, { type: 'cavalry', n: 8 }, { type: 'ashigaru', n: 6 }]); for (const u of hg.units) if (u.type === 'cavalry') u.dmg *= 0.5; rt.say('足軽', '騎馬も来るぞ！　柵の端を回らせるな！', 2.5); rt.after(3, () => rt.say('河尻秀隆', '馬は柵を越えられぬ。柵の内から、馬の脚を槍で払え', 3.5)); } });
   },
 
   // ③ 城の麓まで追う
@@ -251,7 +256,7 @@ const iwamura = {
     rt.say('足軽', `${g.name}が城へ逃げていく！`, 2.5);
   },
   onStructDestroyed(rt, s) {
-    if ((rt.flags.fence || []).includes(s)) rt.bark('陣の柵が破られた！', true);
+    if ((rt.flags.fenceSegs || []).includes(s)) rt.bark('陣の柵が破られた！', true);
   },
 };
 
@@ -272,10 +277,12 @@ iwamura.botBrain = (b, inp, { goTo }) => {
   inp.quickCmd = null;
   inp.k.delete('KeyW'); inp.k.delete('KeyE');
   if (!u.alive || F.ending) return;
+  if (F.dpOn) { depthBot(b, inp, goTo); return; }
   if (u.hp < u.maxHp * 0.5) b.botRest = true;
   if (b.botRest && u.hp > u.maxHp * 0.85) b.botRest = false;
   if (b.botRest) { inp.guardHold = false; goTo(p, inp, 4, 26, 2); return; }
-  const e = b.army.nearestEnemy(u, 12, (o) => !o.fleeing);
+  // 夜討ちの間は、河尻の言う勝ち筋どおり柵の外へ出て追わない（柵に取り付いた者だけ突く）
+  const e = b.army.nearestEnemy(u, 12, (o) => !o.fleeing && (F.step !== 2 || o.pos.z > FENCE_Z - 7));
   if (e) {
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
     p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
@@ -292,7 +299,7 @@ iwamura.botBrain = (b, inp, { goTo }) => {
   }
   // 柵の外へ出るときは、真ん中の口を通る
   const via = (x, z) => { if (u.pos.z > FENCE_Z - 1 && z < FENCE_Z - 1 && Math.abs(u.pos.x) > 5) { goTo(p, inp, 0, FENCE_Z + 3, 1); return; } goTo(p, inp, x, z, 2); };
-  if (F.step === 2) { const q = (F.waves || []).find((x) => !gone(x)); if (q) { const c = q.center(); if (c.z > -40) { via(c.x, c.z); return; } } goTo(p, inp, 0, FENCE_Z + 4, 2); return; }
+  if (F.step === 2) { goTo(p, inp, -4, FENCE_Z + 10, 2); return; }
   if (F.step === 3) { if (!gone(F.rear)) { const c = F.rear.center(); via(c.x, c.z); return; } via(FOOT.x, FOOT.z); }
 };
 
@@ -302,35 +309,48 @@ const uS = (n) => ({ type: 'samurai', n }), uA = (n) => ({ type: 'ashigaru', n }
 const gunLine = (name, from, n, o = {}) => ({ name, from, list: [uS(1), uG(n)], formation: 'line', seek: 70, mass: 80, kind: 'gun', ...o });
 function iwCtx(rt) {
   const F = rt.flags;
-  return { faction: 'takeda', flag: 'takeda', armor: KIT.ARMOR.takeda, dmg: 0.64, mass: 260, look: (l) => dress(l, TAKEDA),
-    friends: () => [F.kawa, F.mouri, F.hosp].filter((g) => g && g.count && !g.routed) };
+  return { faction: 'takeda', flag: 'takeda', armor: KIT.ARMOR.takeda, dmg: 0.6, mass: 260, look: (l) => dress(l, TAKEDA),
+    aid: { name: '信忠の本陣から来た加勢', faction: 'oda', flag: 'oda', list: [uS(2), uA(10)] }, aidSaid: '信忠の本陣から加勢が来た',
+    friends: () => [F.kawa, F.mouri, F.gate, F.hosp].filter((g) => g && g.count && !g.routed) };
 }
 // A 初めの寄せの後：夜討ちの本波（柵の両端と陣の裏から）→ 打って出るか、柵で待つか
 function iwA() {
   const at = { x: 0, z: FENCE_Z + 6 };
   return [
-    rest({ dur: 7, heal: 0.3, say: [['河尻秀隆', '初めの寄せは退けた。……じゃが、城の者はまだ半ばも出ておらぬ'], ['足軽', '城の坂に、松明が次々と……']] }),
-    hold({ at, dur: 96, r: 16, title: '夜討ちの本波', sub: '松明が、柵の前にも両端にも、陣の裏にも', label: '陣の柵', obj: '陣の柵を背に、四方から来る武田の夜討ちを防げ',
-      say: [['河尻秀隆', '本波じゃ！　柵を背に、前だけを見るな！']],
+    rest({ dur: 7, heal: 0.3, say: [['河尻秀隆', '初めの寄せは退けた。……じゃが、城の者はまだ半ばも出ておらぬ'], ['足軽', '城の坂に、松明が次々と……'], ['毛利長秀', '柵の西の端は、まだ柵が短い。回られるなら、あそこじゃ']] }),
+    pick({ title: '夜討ちの本波が来る。組をどこに置く？',
+      options: [{ label: '真ん中の口を固める', note: '口は一番の寄せ所。西の端は手薄になり、回り込まれる' }, { label: '柵の西の端を固める', note: '西の端を回らせない。口の寄せは味方だけで受ける' }],
+      on: (rt, m, i) => { m.iwWest = i === 1; rt.say('河尻秀隆', i === 1 ? 'よし、西の端じゃ。回ってくる者を柵の外で叩け' : '口じゃ。柵の口で槍を揃えよ。口さえ持てば負けぬ', 3.5); } }),
+    hold({ at: (rt, m) => (m.iwWest ? { x: -46, z: FENCE_Z + 6 } : at), dur: 120, r: 16, title: '夜討ちの本波', sub: '松明が、柵の前にも両端にも、陣の裏にも', label: '陣の柵', obj: (rt) => (HI(rt) ? '預かった一手で持ち場の柵を守り、武田の夜討ちを防げ' : '陣の柵を背に、四方から来る武田の夜討ちを防げ'),
+      say: [['河尻秀隆', '本波じゃ！　柵を背に、前だけを見るな！'], ['河尻秀隆', '柵に取り付いた所を槍で突け。鉄砲が撃つ間は、柵の内へ下がれ']],
       waves: [
-        { t: 4, say: ['足軽', '真ん中の口へ押し寄せてくる！'], foes: () => [{ name: '口へ押し寄せる武田勢', from: { x: 0, z: -60 }, list: [uS(3), uA(14)], mass: 360, noRout: 25 }] },
+        { t: 4, say: ['足軽', '真ん中の口へ押し寄せてくる！'], foes: (rt, m) => [{ name: '口へ押し寄せる武田勢', from: { x: 0, z: -60 }, list: [uS(3), uA(m.iwWest ? 11 : 14)], mass: 360, noRout: 25 }] },
         { t: 26, say: ['河尻秀隆', '城の坂に鉄砲衆が並んだ！　篝火から離れよ、狙われるぞ！'], foes: () => [gunLine('城の鉄砲衆', { x: 20, z: -50 }, 8)] },
-        { t: 50, say: ['足軽', '柵の西の端を回り込んだ！'], foes: () => [{ name: '西の端を回る武田勢', from: { x: -80, z: -10 }, off: { x: -14, z: 10 }, list: [uS(2), uA(11)], mass: 260 }] },
+        { t: 50, say: ['足軽', '柵の西の端を回り込んだ！'], foes: (rt, m) => [{ name: '西の端を回る武田勢', from: { x: -80, z: -10 }, off: m.iwWest ? { x: -20, z: -12 } : { x: -14, z: 10 }, list: [uS(2), uA(m.iwWest ? 8 : 13)], mass: m.iwWest ? 160 : 300 }] },
         { t: 74, say: ['毛利長秀', '東の端もじゃ！　囲まれるぞ！'], foes: () => [{ name: '東の端を回る武田の騎馬', from: { x: 80, z: -6 }, off: { x: 14, z: 10 }, list: [uS(1), uC(7), uA(3)], mass: 220, kind: 'cavalry' }] },
+        { t: 100, say: ['河尻秀隆', '城の者が総出じゃ……！　これを退ければ、城にはもう兵が残らぬ'], foes: () => [{ name: '総出の武田勢', from: { x: -8, z: -64 }, list: [uS(4), uA(13)], mass: 380 }] },
       ],
       reward: '夜討ちの本波を防ぎきった', lost: ['河尻秀隆', '柵の内へ入られた……！　押し出せ！'] }),
+    fight({ at: { x: -14, z: 22 }, title: '陣の裏の火', sub: '闇にまぎれて山を回った武田勢が、陣の裏の小屋に火をかける',
+      obj: (rt) => (HI(rt) ? '預かった一手を率いて陣の裏へ回り、火をかけた武田勢を討て' : '陣の裏へ回り、火をかけた武田勢を討て'),
+      say: [['足軽', '陣の裏が燃えておる！　山を回られたぞ！'], ['河尻秀隆', '裏の者は少ない。柵の者は動くな。組の者だけで叩け']],
+      foes: () => [{ name: '陣の裏に回った武田勢', from: { x: -46, z: 40 }, list: [uS(2), uA(10)], mass: 160 }],
+      later: [{ t: 30, say: ['足軽', '東の山からも下りてくる！　信忠様の本陣の方じゃ！'], foes: () => [{ name: '本陣を狙う武田勢', from: { x: 40, z: 46 }, list: [uS(2), uA(9)], mass: 140 }] }],
+      max: 110, reward: '陣の裏に回った武田勢を討った',
+      onEnd: (rt) => { rt.world.addFire(-24, 30, { h: 1.4 }); } }),
     rest({ dur: 7, bark: '立て直し：組を寄せ直す', say: [['毛利長秀', '河尻殿、武田の足が止まった。今、打って出れば崩せる'], ['河尻秀隆', '……闇の中へ出るのは危うい。どうする']] }),
     pick({ title: '夜討ちの武田勢の足が止まった。どうする？',
       options: [{ label: '柵の口を開けて打って出る', note: '崩れかけた武田勢を突けば大手柄。闇の中で左右から挟まれるかもしれぬ' }, { label: '柵の内で、夜明けまで受け続ける', note: '柵は固い。武田はもう一度だけ寄せてくる' }],
       on: (rt, m, i) => { m.iwOut = i === 0; rt.say('河尻秀隆', i === 0 ? 'よし、口を開けよ！　松明を持つ者は前へ出すな' : 'よし、柵を固めよ。夜明けまでじゃ', 3); } }),
-    fight({ skip: (rt, m) => !m.iwOut, at: { x: 0, z: -34 }, title: '打って出る', sub: '柵の口から、闇の中の武田勢へ', obj: '柵の前の闇の中で、足の止まった武田勢を崩せ',
+    fight({ skip: (rt, m) => !m.iwOut, at: { x: 0, z: -34 }, title: '打って出る', sub: '柵の口から、闇の中の武田勢へ', obj: (rt) => (HI(rt) ? '預かった一手を率いて柵の口から打って出、足の止まった武田勢を崩せ' : '柵の前の闇の中で、足の止まった武田勢を崩せ'),
       foes: () => [{ name: '足の止まった武田勢', from: { x: -6, z: -60 }, list: [uS(3), uA(12)], mass: 300, morale: 70 }],
       later: [{ t: 36, title: '挟まれる', sub: '闇の左右から武田勢', say: ['足軽', '左右の闇から出てきた！'], foes: () => [{ name: '左の闇の武田勢', from: { x: -46, z: -40 }, list: [uS(1), uA(9)], mass: 180 }, { name: '右の闇の武田勢', from: { x: 46, z: -36 }, list: [uS(1), uA(9)], mass: 180 }] }],
       max: 140, reward: (t) => { t.special = { label: '夜の柵から打って出て武田勢を崩した', pts: 20 }; }, rewardLabel: '夜の柵から打って出た' }),
-    hold({ skip: (rt, m) => m.iwOut, at, dur: 60, r: 16, title: '最後の寄せ', sub: '武田が、もう一度だけ柵に取り付く', label: '陣の柵', obj: '柵の内で、武田の最後の寄せを受けよ',
+    hold({ skip: (rt, m) => m.iwOut, at, dur: 80, r: 16, title: '最後の寄せ', sub: '武田が、もう一度だけ柵に取り付く', label: '陣の柵', obj: '柵の内で、武田の最後の寄せを受けよ',
       waves: [
         { t: 4, foes: () => [{ name: '最後の武田勢', from: { x: 10, z: -62 }, list: [uS(3), uA(13)], mass: 340 }] },
         { t: 36, say: ['足軽', 'また鉄砲が並んだ！'], foes: () => [gunLine('城の鉄砲衆', { x: -24, z: -52 }, 8)] },
+        { t: 60, say: ['毛利長秀', '東の端に、また松明じゃ！'], foes: () => [{ name: '東の端の武田勢', from: { x: 70, z: -20 }, off: { x: 14, z: 8 }, list: [uS(2), uA(11)], mass: 240 }] },
       ],
       reward: '柵で夜討ちを受けきった' }),
   ];
@@ -343,15 +363,17 @@ function iwB() {
     pick({ title: '城の口に、逃げ込めなかった武田勢が集まっている。どうする？',
       options: [{ label: '城の口まで攻め寄せ、逃げ遅れた者を討つ', note: '首を挙げられる。城の上から鉄砲組が並んで撃ち下ろす' }, { label: '麓に陣を張り、城から出る者を受ける', note: '鉄砲の届かぬ所で待つ。城兵は打って出るほかなくなる' }],
       on: (rt, m, i) => { m.iwGate = i === 0; rt.say('河尻秀隆', i === 0 ? '行け。鉄砲の構えを見たら伏せよ' : '陣を張れ。夜明けまで待つぞ', 3); } }),
-    fight({ skip: (rt, m) => !m.iwGate, at: { x: 0, z: FOOT.z - 22 }, title: '城の口', sub: '城の上から鉄砲衆が撃ち下ろす', obj: '城の口の前の武田勢を崩せ（城の鉄砲に気をつけよ）',
+    fight({ skip: (rt, m) => !m.iwGate, at: { x: 0, z: FOOT.z - 22 }, title: '城の口', sub: '城の上から鉄砲衆が撃ち下ろす', obj: (rt) => (HI(rt) ? '一手を率いて城の口の前の武田勢を崩せ（城の鉄砲に気をつけよ）' : '城の口の前の武田勢を崩せ（城の鉄砲に気をつけよ）'),
       foes: () => [{ name: '城の口の武田勢', from: { x: 0, z: FOOT.z - 50 }, list: [uS(3), uA(12)], mass: 260, noRout: 20 }, gunLine('城の上の鉄砲衆', { x: 16, z: FOOT.z - 56 }, 10, { mass: 0 })],
-      later: [{ t: 40, title: '城兵の突き出し', sub: '城の門から新手', say: ['足軽', '城の門が開いた！　新手じゃ！'], foes: () => [{ name: '城の門から出た新手', from: { x: -14, z: FOOT.z - 60 }, list: [uS(2), uA(11)], mass: 200 }] }],
-      max: 120, reward: (t) => { t.special = { label: '岩村城の口まで攻め寄せた', pts: 20 }; }, rewardLabel: '岩村城の口まで攻め寄せた' }),
-    hold({ skip: (rt, m) => m.iwGate, at, dur: 75, r: 14, title: '麓の陣', sub: '追いつめられた城兵が、麓の陣へ打って出る', label: '城の麓', obj: '城の麓の陣で、打って出る城兵を受けよ',
+      later: [{ t: 40, title: '城兵の突き出し', sub: '城の門から新手', say: ['足軽', '城の門が開いた！　新手じゃ！'], foes: () => [{ name: '城の門から出た新手', from: { x: -14, z: FOOT.z - 60 }, list: [uS(2), uA(11)], mass: 200 }] },
+        { t: 70, say: ['足軽', '城の坂から、また一手下りてくる！'], foes: () => [{ name: '城の坂の武田勢', from: { x: 20, z: FOOT.z - 58 }, list: [uS(2), uA(10)], mass: 220 }] }],
+      max: 150, reward: (t) => { t.special = { label: '岩村城の口まで攻め寄せた', pts: 20 }; }, rewardLabel: '岩村城の口まで攻め寄せた' }),
+    hold({ skip: (rt, m) => m.iwGate, at, dur: 100, r: 14, title: '麓の陣', sub: '追いつめられた城兵が、麓の陣へ打って出る', label: '城の麓', obj: (rt) => (HI(rt) ? '預かった一手で麓の陣を固め、打って出る城兵を受けよ' : '城の麓の陣で、打って出る城兵を受けよ'),
       waves: [
         { t: 6, say: ['足軽', '城から打って出てきた！'], foes: () => [{ name: '打って出る城兵', from: { x: -4, z: FOOT.z - 56 }, list: [uS(3), uA(12)], mass: 300 }] },
         { t: 40, say: ['足軽', '坂の上に鉄砲衆が構えた！　身を低くせよ！'], foes: () => [gunLine('城の坂の鉄砲衆', { x: 18, z: FOOT.z - 40 }, 8)] },
         { t: 62, say: ['河尻秀隆', '騎馬が横から！'], foes: () => [{ name: '城の騎馬', from: { x: 50, z: FOOT.z - 20 }, list: [uS(1), uC(5), uA(3)], mass: 100, kind: 'cavalry' }] },
+        { t: 84, say: ['河尻秀隆', '最後の突き出しじゃ。これを退ければ、城は開く'], foes: () => [{ name: '城兵の最後の突き出し', from: { x: -10, z: FOOT.z - 56 }, list: [uS(3), uA(12)], mass: 300 }] },
       ],
       reward: '麓の陣で城兵を受けきった' }),
   ];

@@ -102,8 +102,8 @@ export function resetHints() { seen.clear(); try { localStorage.removeItem(HINT_
 
 export const QUALITY = {
   low: { pixelRatio: 1, shadows: false, shadowMap: 1024, tufts: 0.35, trees: 0.6, shadowDist: 0 },
-  mid: { pixelRatio: 1.25, shadows: true, shadowMap: 1024, tufts: 0.7, trees: 0.85, shadowDist: 22 },
-  high: { pixelRatio: 1.5, shadows: true, shadowMap: 2048, tufts: 1, trees: 1, shadowDist: 34, bloom: true },
+  mid: { pixelRatio: 1.25, shadows: true, shadowMap: 1024, tufts: 0.7, trees: 0.85, shadowDist: 14 },
+  high: { pixelRatio: 1.5, shadows: true, shadowMap: 2048, tufts: 1, trees: 1, shadowDist: 16, bloom: true },
 };
 
 export const DIFFICULTY = {

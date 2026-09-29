@@ -1014,7 +1014,7 @@ export class Player {
     this.buffer -= dt;
     if (u.alive) this.updateTells(dt);
     // 押した時に、構えから（構えている・解いた直後 0.4 秒）かを覚える
-    if (input.leftPressed) { this.buffer = 0.22; this.chargeT = 0; this.pressGrd = this.guard || this.time - (this.guardOffT ?? -9) < 0.4; }
+    if (input.leftPressed) { this.buffer = isTouch ? 0.32 : 0.22; this.chargeT = 0; this.pressGrd = this.guard || this.time - (this.guardOffT ?? -9) < 0.4; }
     // 竹束などを担いでいる間（戦の定義の flags.carry）は、両手がふさがって突けない
     if (this.rt.flags && this.rt.flags.carry) {
       if (input.leftPressed && !(this.carryWarnT > this.rt.t)) { this.carryWarnT = this.rt.t + 3; this.rt.hud.flash('担いでいる間は突けない（据えてから）', 'dim'); }
@@ -1102,6 +1102,7 @@ export class Player {
         } else {
           this.kCombo = this.comboT > 0 ? (this.kCombo || 0) + 1 : 1;
           const third = this.kCombo >= 3;
+          this.slashK = third ? 'kesa' : this.kCombo === 2 ? 'gyaku' : 'kesa';
           if (third) { this.kCombo = 0; this.sta -= 4; this.techNote('kesa'); } else if (this.kCombo === 2) this.techNote('kaeshi');
           this.pending = { t: third ? 0.16 : 0.1, kind: 'slash', third };
           this.cd = third ? 0.62 : this.kCombo === 2 ? 0.26 : 0.4;
@@ -1453,8 +1454,8 @@ export class Player {
     if (st._t !== txt) { st.innerHTML = txt; st._t = txt; }
   }
 
-  // 刀の斬りは、袈裟・逆袈裟・横薙ぎを順に
-  nextSlash() { return ['kesa', 'gyaku', 'yoko'][this.slashN % 3]; }
+  // 刀の斬り：一太刀目は袈裟、続けて押せば逆袈裟で切り返し、三つ目は踏み込んだ重い袈裟（押した時に決める。技の名と振りを合わせる）
+  nextSlash() { return this.slashK || 'kesa'; }
 
   strike(kind, third) {
     const u = this.u;
@@ -1542,9 +1543,17 @@ export class Player {
       if (kind === 'thrust') this.rt.tutMark('thrust');
       if (kind === 'charged') this.rt.tutMark('charged');
       if (kind === 'sweep') this.rt.tutMark('sweep');
-      // 薙ぎ・溜め突き・反撃・背後からの一撃は、敵の構えでは防げない
+      // 技と敵の構えのかみ合い：
+      //   槍衾（穂先を揃えた隊）の正面へ突いても穂先に弾かれて通りにくい。払い・叩き下ろし・振り回しは槍の列を崩して深く入り、相手をよろめかせる
+      const yariFront = t.group && t.group.formation === 'yari' && facing > 0.3;
+      if (yariFront) {
+        if (kind === 'thrust' || kind === 'charged' || kind === 'kthrust') { m *= 0.6; if (!this.yariHint) { this.yariHint = true; this.rt.hud.flash('槍衾の正面は突きが通りにくい。払い・叩き下ろしで崩せ', 'dim'); } }
+        else if (kind === 'sweep' || kind === 'slam' || kind === 'spin') { m *= 1.3; t.stagger = Math.max(t.stagger || 0, 0.7); }
+      }
+      // 薙ぎ・溜め突き・反撃・背後からの一撃は、敵の構えでは防げない。石突きは構えごと押し退ける。
+      // 叩き下ろし・上段の斬り下ろしは受けられても構えを崩す（次の一撃が通る）
       const wk = { thrust: 'thrust', charged: 'thrust', sweep: 'sweep', spin: 'sweep', slam: 'slam', butt: 'butt', kthrust: 'tsuki', kara: 'slam', nagi: 'yoko' }[kind] || swKind;
-      army.damage(t, dmg * m, u, { kind: wk, out: h === hits[0] ? u.swing : null, pierce: kind === 'sweep' || kind === 'charged' || kind === 'kara' || counter || facing < -0.2 });
+      army.damage(t, dmg * m, u, { kind: wk, out: h === hits[0] ? u.swing : null, pierce: kind === 'sweep' || kind === 'charged' || kind === 'kara' || kind === 'butt' || kind === 'spin' || counter || facing < -0.2, guardBreak: kind === 'slam' || kind === 'kara' });
       if (h === hits[0] && u.swing.res && u.swing.res !== 'miss' && this.weapon === 'spear') { const F = u.wpn && u.wpn.userData.flex; if (F) F.vel += (u.swing.res === 'hit' ? 1.6 : 3) * F.G.sp.bend; }
       if (t.alive && t.atk && kind !== 'sweep' && t.lastStagT === army.time && Math.random() < 0.35) { t.atk = null; t.cd = 0.8; }
     }
@@ -1810,7 +1819,9 @@ export class Player {
       // 号令 → 返事 → 組頭格が動き、兵がそれに続く（一斉にくるりと回らない）
       g.units.forEach((s, k) => { s.aiT = s === g.leader ? 0.15 : 0.35 + Math.min(0.5, k * 0.04) + Math.random() * 0.3; });
     }
-    if (lines[id]) rt.say(this.G.name, lines[id], 2);
+    // 同じ号令の台詞は 8 秒に一度まで（続けて押しても字幕を埋めない。合図の音と返事は毎回）
+    const said = this.cmdSaidT || (this.cmdSaidT = {});
+    if (lines[id] && !(said[id] > rt.t)) { said[id] = rt.t + 8; rt.say(this.G.name, lines[id], 2); }
     if (id === 'attack') sfx('shout', 0.5);
     rt.ack(id);
     rt.tutMark('cmd_' + id);

@@ -698,7 +698,7 @@ const okehazama = {
       }
     }
     // 味方救援
-    if (!F.rescue && rt.pt > 18 && (rt.G.lord || F.stage >= 2)) {   // 足軽の筋では、先手と畦の段が済んでから（初めの乱戦で印と敵を重ねない）
+    if (!F.rescue && rt.pt > 18 && (rt.G.lord || (F.stage >= 2.5 && rt.t - F.stageT > 20))) {   // 足軽の筋では、与兵衛の判断の後、段の敵と当たって少ししてから（判断の札・段の台詞と重ねない）
       F.rescue = 'active';
       const R = allyGroup(rt, { name: '救援', anchor: { x: -8, z: -84 }, facing: Math.PI, noRout: true, aggro: 3 }, [{ type: 'samurai', n: 1, o: { name: '前野長兵衛' } }]);
       const m = R.units[0];
@@ -790,7 +790,7 @@ const okehazama = {
       rt.banner('今川義元、討ち取ったり', F.yoshiByPlayer ? 'そなたが一番槍、毛利新介が首を挙げた' : '服部小平太が一番槍、毛利新介が首を挙げた');
       rt.player.cine = { x: y.pos.x, z: y.pos.z, t: 2.2 };
       rt.say('遠くの声', '義元公、討ち取ったりぃーっ！', 3);
-      rt.say('源八', '勝ったぞ！　勝鬨を上げよ！', 3);
+      rt.say('源八', (F.entered || F.yoshiDown) && !rt.G.lord ? '義元を討ったぞ！　……じゃが、まだ槍を下ろすな' : '勝ったぞ！　勝鬨を上げよ！', 3);
       sfx('horagai', 0.8);
       for (const g of F.enemies) { g.noRout = false; g.morale = 0; }
       if (F.rescueEnemies) { F.rescueEnemies.noRout = false; F.rescueEnemies.morale = 0; }
@@ -967,7 +967,7 @@ function okeA() {
     DP.pick({ title: '林の奥で鉄砲の音。今川の鉄砲組が、本陣へ向かう味方を撃っている。どうする？',
       pre: (rt) => rt.say('弥七', '林から鉄砲じゃ！　味方が撃たれておる！', 3),
       options: [{ label: '林へ回り、鉄砲組を潰す', note: '本陣の前で撃たれずに済む。本陣へは少し遅れる' }, { label: '構わず本陣の前へ急ぐ', note: '早く本陣の前へ着く。本陣の前備えに鉄砲が加わる' }],
-      on: (rt, m, i) => { m.okeGuns = i === 0 ? 'raid' : 'left'; rt.say('源八', i === 0 ? 'よし、林へ回る。低く駆けよ！' : '……振り向くな。本陣の前へ急げ！', 3); } }),
+      on: (rt, m, i) => { m.okeGuns = i === 0 ? 'raid' : 'left'; rt.say('源八', i === 0 ? 'よし、林へ回る。低く駆けよ！' : '……捨て置け。本陣の前へ急げ！', 3); } }),
     DP.fight({ skip: (rt, m) => m.okeGuns !== 'raid', at: { x: -54, z: -92 }, title: '林の鉄砲組', sub: '木の陰から撃つ今川の鉄砲', obj: '林の今川の鉄砲組を潰せ（込め直しの間に寄れ）',
       foes: () => [{ name: '林の鉄砲組', from: { x: -62, z: -100 }, list: [uS(1), uG(4), uA(5)], seek: 40 }],
       reward: '林の鉄砲組を潰した' }),
@@ -991,10 +991,15 @@ function okeB() {
       say: [['弥七', 'しっかりせい、坂の下までじゃ！']],
       ambush: { t: 10, title: '落ち武者', sub: '逃げ遅れた今川の者が、手負いを狙う', foes: () => [{ name: '今川の落ち武者', from: { x: -40, z: -80 }, list: [uS(1), uA(6)] }] },
       onEnd: (rt, m, ok) => { if (ok) rt.award((t) => t.side.push('手負いを運んだ'), '手負いを運んだ'); } }),
-    DP.rest({ dur: 12, say: [['源八', '殿は清洲へ引き上げられる。我らの組は、殿（しんがり）の手に回る'], ['弥七', 'しんがり……一番最後に退く役か'], ['源八', 'そうじゃ。退く時に討たれる者が一番多い。気を抜くな']] }),
+    DP.rest({ dur: 10, heal: 0.25, say: [['源八', '殿は清洲へ引き上げられる。我らの組は、殿（しんがり）の手に回る'], ['弥七', 'しんがり……一番最後に退く役か']] }),
     DP.pick({ title: '殿（信長）の本隊が引き上げる。しんがりをどこで受ける？',
       options: [{ label: '狭い谷の口で槍衾を組む', note: '少ない手で受けられる。敵は一度に来ない' }, { label: '開けた坂の下で、味方と並んで受ける', note: '味方の組と並べる。敵も広がって多く来る' }],
       on: (rt, m, i) => { m.okeRear = i; } }),
+    // 持ち場まで駆ける（北の谷からは遠い）。道すがら、退く殿の本隊と、追いすがる今川の物見
+    DP.move({ to: (rt, m) => (m.okeRear === 0 ? { x: -10, z: -40 } : { x: -24, z: 2 }), obj: 'しんがりの持ち場へ急げ', label: 'しんがりの持ち場', r: 14, max: 60,
+      say: [['源八', '退く時に討たれる者が一番多い。持ち場へ急げ、気を抜くな'], ['弥七', '殿の本隊が坂を下っていく……わしらが最後か']],
+      ambush: { t: 12, title: '追いすがる物見', sub: '今川の足軽が、退く織田勢の背をうかがう', say: ['足軽', '後ろから今川の者が付いてくる！'], if: (rt) => rt.player.u.pos.z < -70,
+        foes: (rt) => { const p = rt.player.u.pos; return [{ name: '今川の物見の組', from: { x: p.x + 14, z: p.z - 26 }, list: [uA(5)], mass: 0 }]; } } }),
     DP.hold({ at: (rt, m) => (m.okeRear === 0 ? { x: -10, z: -40 } : { x: -24, z: 2 }), dur: 75, r: 12, title: 'しんがり', sub: '殿の本隊が退くまで、追いすがる今川勢を受けよ', label: 'しんがりの持ち場',
       obj: '殿の本隊が退くまで持ち場を守れ',
       say: [['源八', '槍を揃えよ！　ここを抜かれたら、殿の背を突かれるぞ！']],

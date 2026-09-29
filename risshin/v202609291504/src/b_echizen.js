@@ -17,7 +17,7 @@ import { dress, gone, volleyWatch } from './b_inabayama.js';
 import { namuTex } from './b_nodafukushima.js';
 import { distToPolyline } from './world.js';
 import { KIT } from './b_nagashinojo.js';
-import { depthStart, depthTick, rest, pick, fight, hold } from './b_depth.js';
+import { depthStart, depthTick, depthBot, rest, pick, fight, hold } from './b_depth.js';
 import { camp } from './b_mid.js';
 
 // 足軽大将ほどの身分（信長で遊ぶ時は除く）：明智の先手の一隊を預かり、峠道を開く
@@ -206,11 +206,11 @@ const echizen = {
     F.back = allyGroup(rt, { name: '浦から回った羽柴の手', anchor: { x: TOP.x + 30, z: TOP.z - 20 }, facing: -Math.PI / 2, order: 'attack', seekRange: 60, width: 12, aggro: 12, noRout: true },
       dress([{ type: 'samurai', n: 1, o: { name: '羽柴秀吉', invuln: true, hat: 'kabuto_bari', haori: 0x6a4a1c, armor: 0x2a2420, lace: 0x7a5a2a } }, { type: 'ashigaru', n: 12 }], ODA));
     F.last = [
-      enemyGroup(rt, { faction: 'saito', name: '峠の砦の一揆勢', anchor: { x: TOP.x, z: TOP.z + 14 }, facing: 0, order: 'attack', seekRange: 95, aggro: 16, width: 16, morale: 95, fleeDir: { x: -1, z: -1 }, dmgMult: 0.62 },
+      enemyGroup(rt, { faction: 'saito', name: '峠の砦の一揆勢', anchor: { x: TOP.x, z: TOP.z + 14 }, facing: 0, order: 'attack', seekRange: 95, aggro: 16, width: 16, morale: 95, fleeDir: { x: -1, z: -1 }, dmgMult: 0.55 },
         dress([{ type: 'samurai', n: 2, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 16 + more(rt) }, { type: 'bow', n: 3 }], IKKO)),
     ];
-    rt.after(22, () => { if (!F.ending) { const g = enemyGroup(rt, { faction: 'saito', name: '峠の門徒の新手', anchor: { x: TOP.x - 20, z: TOP.z }, facing: 0.5, order: 'attack', seekRange: 60, aggro: 16, width: 12, morale: 90, fleeDir: { x: -1, z: -1 }, dmgMult: 0.62 }, dress([{ type: 'samurai', n: 1, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 12 + more(rt) }], IKKO)); F.last.push(g); rt.marker('t1', centerOf(g), () => `峠の門徒の新手・${moraleWord(g.morale)}`, { red: true, group: g }); } });
-    rt.after(48, () => { if (!F.ending) { const g = enemyGroup(rt, { faction: 'saito', name: '砦の奥の門徒', anchor: { x: TOP.x + 4, z: TOP.z - 16 }, facing: 0, order: 'attack', seekRange: 60, aggro: 16, width: 12, morale: 100, fleeDir: { x: 1, z: -1 }, dmgMult: 0.6 }, dress([{ type: 'samurai', n: 2, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 12 + more(rt) }], IKKO)); F.last.push(g); rt.marker('t2', centerOf(g), () => `砦の奥の門徒・${moraleWord(g.morale)}`, { red: true, group: g }); rt.say('一揆の門徒', '退くな！　退けば地獄ぞ！', 3); } });
+    rt.after(22, () => { if (!F.ending) { const g = enemyGroup(rt, { faction: 'saito', name: '峠の門徒の新手', anchor: { x: TOP.x - 20, z: TOP.z }, facing: 0.5, order: 'attack', seekRange: 60, aggro: 16, width: 12, morale: 90, fleeDir: { x: -1, z: -1 }, dmgMult: 0.55 }, dress([{ type: 'samurai', n: 1, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 12 + more(rt) }], IKKO)); F.last.push(g); rt.marker('t1', centerOf(g), () => `峠の門徒の新手・${moraleWord(g.morale)}`, { red: true, group: g }); } });
+    rt.after(48, () => { if (!F.ending) { const g = enemyGroup(rt, { faction: 'saito', name: '砦の奥の門徒', anchor: { x: TOP.x + 4, z: TOP.z - 16 }, facing: 0, order: 'attack', seekRange: 60, aggro: 16, width: 12, morale: 100, fleeDir: { x: 1, z: -1 }, dmgMult: 0.55 }, dress([{ type: 'samurai', n: 2, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 12 + more(rt) }], IKKO)); F.last.push(g); rt.marker('t2', centerOf(g), () => `砦の奥の門徒・${moraleWord(g.morale)}`, { red: true, group: g }); rt.say('一揆の門徒', '退くな！　退けば地獄ぞ！', 3); } });
     KIT.backOf(rt, F.last[0], { flag: 'namu', armor: IKKO.armor, kind: 'spear', w: 22, depth: 12, count: 220, seed: 15760 });
     rt.marker('t0', centerOf(F.last[0]), () => `峠の砦の一揆勢・${moraleWord(F.last[0].morale)}`, { red: true, group: F.last[0] });
   },
@@ -307,6 +307,7 @@ echizen.botBrain = (b, inp, { goTo }) => {
   inp.quickCmd = null;
   inp.k.delete('KeyW'); inp.k.delete('KeyE');
   if (!u.alive || F.ending) return;
+  if (F.dpOn) { depthBot(b, inp, goTo); return; }
   if (u.hp < u.maxHp * 0.5) b.botRest = true;
   if (b.botRest && u.hp > u.maxHp * 0.85) b.botRest = false;
   const c = F.ake.center();
@@ -338,7 +339,8 @@ const uS = (n) => ({ type: 'samurai', n }), uA = (n) => ({ type: 'ashigaru', n }
 const gunLine = (name, from, n, o = {}) => ({ name, from, list: [uS(1), uG(n)], formation: 'line', seek: 70, mass: 80, kind: 'gun', ...o });
 function ezCtx(rt) {
   const F = rt.flags;
-  return { faction: 'saito', flag: 'namu', armor: IKKO.armor, dmg: 0.64, mass: 300, look: (l) => dress(l, IKKO),
+  return { faction: 'saito', flag: 'namu', armor: IKKO.armor, dmg: 0.57, mass: 300, look: (l) => dress(l, IKKO),
+    aid: { name: '明智の手の新手', faction: 'oda', flag: 'akechi', list: [uS(2), uA(10)] }, aidSaid: '明智の手から新手が加わった',
     friends: () => [F.ake, F.saku, F.back].filter((g) => g && g.count && !g.routed) };
 }
 // A 一の砦の後：念仏の大波 → 合図を待つか、先に攻め上るか
@@ -349,12 +351,12 @@ function ezA() {
     pick({ title: '加賀の一揆の後詰が、東の沢を上ってくる。どうする？',
       options: [{ label: '組を連れて沢の口で待ち伏せ、後詰を叩く', note: '沢で崩せば、峠道で横を突かれない。峠道の手は薄くなる' }, { label: '峠道に残り、正面の大波に備える', note: '峠道は厚い。後で東の沢から後詰が横を突く' }],
       on: (rt, m, i) => { m.ezSawa = i === 0; rt.say('明智光秀', i === 0 ? '沢の口じゃ。上りきる前に叩け' : '槍を揃えよ。死ぬ気の者ほど恐ろしいものはない', 3); } }),
-    fight({ skip: (rt, m) => !m.ezSawa, at: { x: 40, z: -12 }, title: '東の沢', sub: '加賀の一揆の後詰が、沢を上ってくる', obj: '東の沢の口で、加賀の一揆の後詰を叩け',
+    fight({ skip: (rt, m) => !m.ezSawa, at: { x: 40, z: -12 }, title: '東の沢', sub: '加賀の一揆の後詰が、沢を上ってくる', obj: (rt) => (hi(rt) ? '先手の一隊を率いて東の沢の口に伏せ、加賀の後詰を叩け' : '東の沢の口で、加賀の一揆の後詰を叩け'),
       foes: () => [{ name: '加賀の一揆の後詰', from: { x: 70, z: 10 }, list: [uS(2), uA(13)], mass: 320 }],
       later: [{ t: 34, say: ['足軽', '沢の上に鉄砲が並んだ！'], foes: () => [gunLine('沢の上の鉄砲', { x: 64, z: -16 }, 7)] }],
       max: 130, reward: (t) => { t.special = { label: '加賀の後詰を沢で叩いた', pts: 20 }; }, rewardLabel: '加賀の後詰を沢で叩いた' }),
-    hold({ at, dur: 105, r: 14, title: '念仏の大波', sub: '峠道いっぱいの門徒が、念仏を唱えながら押し寄せる', label: '峠道', obj: '峠道で、念仏とともに押し寄せる門徒の大波を受けよ',
-      say: [['明智光秀', '鉄砲、引きつけて放て！　槍は崩れるな！']],
+    hold({ at, dur: 118, r: 14, title: '念仏の大波', sub: '峠道いっぱいの門徒が、念仏を唱えながら押し寄せる', label: '峠道', obj: (rt) => (hi(rt) ? '預かった一隊を鉄砲衆の前に並べ、門徒の大波を受けよ' : '峠道で、念仏とともに押し寄せる門徒の大波を受けよ'),
+      say: [['明智光秀', '鉄砲、引きつけて放て！　槍は崩れるな！'], ['明智光秀', '門徒は先頭の坊主が倒れれば足が止まる。旗を持つ者を狙え']],
       waves: [
         { t: 4, say: ['一揆の門徒', '進まば往生極楽、退かば無間地獄！'], foes: () => [{ name: '念仏の門徒', from: { x: 0, z: -80 }, list: [uS(3), uA(16)], mass: 460, noRout: 30 }] },
         { t: 28, say: ['足軽', '砦の櫓に鉄砲が並んだ！　加賀の鉄砲衆じゃ！'], foes: () => [gunLine('加賀の鉄砲衆', { x: 18, z: -70 }, 8)] },
@@ -365,19 +367,42 @@ function ezA() {
       reward: '念仏の大波を受け止めた', lost: ['明智光秀', '押し下げられた……！　踏みとどまれ、槍を上げよ！'] }),
   ];
 }
-// B 峠の砦を落とした後：峠の上を囲む門徒 → 下間頼照を追うか、峠を固めるか
+// B 峠の砦を落とした後：どこで受けるか → 峠の上の囲み → 下間頼照の本陣へ斬り込むか、峠を固めるか
 function ezB() {
-  const at = { x: TOP.x, z: TOP.z + 6 };
+  const top = { x: TOP.x, z: TOP.z + 6 }, mouth = { x: TOP.x + 4, z: TOP.z - 12 };
   return [
     rest({ dur: 8, heal: 0.3, say: [['羽柴秀吉', '明智殿、砦は焼けた！'], ['足軽', '……四方の谷から、まだ門徒が上がってくる'], ['明智光秀', '逃げ場を失った者が、峠へ集まってくるのじゃ。囲まれるぞ']] }),
-    hold({ at, dur: 110, r: 15, title: '峠の上の囲み', sub: '四方の谷から、逃げ場を失った門徒が峠へ押し寄せる', label: '峠の上', obj: '峠の上で、四方の谷から押し寄せる門徒を防げ',
-      waves: [
-        { t: 4, say: ['足軽', '北の谷から来る！'], foes: () => [{ name: '北の谷の門徒', from: { x: TOP.x - 26, z: TOP.z - 44 }, list: [uS(3), uA(14)], mass: 380 }] },
-        { t: 28, say: ['足軽', '西の尾根からも！'], foes: () => [{ name: '西の尾根の門徒', from: { x: TOP.x - 56, z: TOP.z }, list: [uS(2), uA(12)], mass: 300 }] },
-        { t: 50, say: ['明智光秀', '尾根の上に鉄砲衆！　岩陰へ寄れ！'], foes: () => [gunLine('尾根の鉄砲衆', { x: TOP.x + 40, z: TOP.z - 30 }, 9)] },
+    pick({ title: '四方の谷から門徒が峠へ上がってくる。どこで受ける？',
+      options: [{ label: '焼け跡の砦の土塁に籠って受ける', note: '土塁が盾になる。四方から囲まれ、長く受けることになる' }, { label: '北の谷の口に槍を並べ、羽柴の手と挟む', note: '北の門徒を羽柴殿と挟んで早く崩せる。西の尾根が空く' }],
+      on: (rt, m, i) => { m.ezMouth = i === 1; rt.say('明智光秀', i === 1 ? '谷の口じゃ。羽柴殿と挟め。西は空くぞ、目を離すな' : '土塁の内へ。門徒の波は、土塁の上で槍で落とせ', 3.5); } }),
+    hold({ at: (rt, m) => (m.ezMouth ? mouth : top), dur: 122, r: 15, title: '峠の上の囲み', sub: '四方の谷から、逃げ場を失った門徒が峠へ押し寄せる', label: '峠の上',
+      obj: (rt) => (hi(rt) ? '預かった一隊で峠の上を守り、四方の谷から来る門徒を防げ' : '峠の上で、四方の谷から押し寄せる門徒を防げ'),
+      waves: (rt, m) => [
+        { t: 4, say: ['足軽', '北の谷から来る！'], foes: () => [{ name: '北の谷の門徒', from: { x: TOP.x - 20, z: TOP.z - 40 }, list: [uS(3), uA(m.ezMouth ? 10 : 14)], mass: m.ezMouth ? 240 : 380 }] },
+        { t: 28, say: m.ezMouth ? ['羽柴秀吉', '西の尾根じゃ！　空いた所を突かれたぞ！'] : ['足軽', '西の尾根からも！'], foes: () => [{ name: '西の尾根の門徒', from: { x: TOP.x - 56, z: TOP.z }, list: [uS(2), uA(m.ezMouth ? 15 : 12)], mass: m.ezMouth ? 380 : 300 }] },
+        { t: 50, say: ['明智光秀', '尾根の上に鉄砲衆！　岩陰へ寄れ。撃ち終えた所へ詰めれば崩せる'], foes: () => [gunLine('尾根の鉄砲衆', { x: TOP.x + 40, z: TOP.z - 30 }, 9)] },
         { t: 74, say: ['羽柴秀吉', '後ろの峠道にも回られたぞ！'], foes: () => [{ name: '峠道を塞ぐ門徒', from: { x: TOP.x + 10, z: TOP.z + 60 }, list: [uS(2), uA(12)], mass: 300 }] },
+        { t: 98, say: ['一揆の門徒', '南無阿弥陀仏……！　極楽は目の前ぞ！'], foes: () => [{ name: '念仏の最後の波', from: { x: TOP.x - 8, z: TOP.z - 44 }, list: [uS(3), uA(12)], mass: 360 }] },
       ],
       reward: '峠の上の囲みを退けた', lost: ['明智光秀', '押し込まれたか……！　じゃが、まだ峠は我らのものじゃ'] }),
+    rest({ dur: 8, heal: 0.3, bark: '立て直し：組を集め、峠の奥を見る', say: [['伝令', '奥の谷の下間頼照の本陣が、旗を巻いております！　府中へ落ちる気と見えます'], ['明智光秀', '……頼照か。越前の一揆を率いる坊官じゃ']] }),
+    pick({ title: '下間頼照が本陣を捨てて退こうとしている。どうする？',
+      options: [{ label: '一隊で本陣へ斬り込み、頼照の旗本を崩す', note: '大将の旗本を崩せば大手柄。本陣の控えの門徒が向かってくる' }, { label: '峠を固め、落ちてくる門徒を受ける', note: '手堅い。頼照は逃げ延びる' }],
+      on: (rt, m, i) => { m.ezHon = i === 0; rt.say('明智光秀', i === 0 ? '行け。旗本を崩せば、一揆は頭を失う' : 'よし、峠を固めよ。頼照は府中で討たれよう', 3); } }),
+    fight({ skip: (rt, m) => !m.ezHon, at: { x: 2, z: -152 }, title: '一揆の本陣', sub: '下間頼照の旗本が、本陣の前で向き直る',
+      obj: (rt) => (hi(rt) ? '先手の一隊を率いて一揆の本陣へ斬り込み、頼照の旗本を崩せ' : '一揆の本陣へ斬り込み、下間頼照の旗本を崩せ'),
+      say: [['明智光秀', '旗本の前の侍を討て。頭が崩れれば、後ろの門徒は散る']],
+      foes: () => [{ name: '下間頼照の旗本', from: { x: 4, z: -166 }, list: [uS(4), uA(10)], mass: 220, noRout: 20 }],
+      later: [{ t: 32, title: '本陣の控え', sub: '頼照を逃がそうと、控えの門徒が押し出す', say: ['足軽', '本陣の後ろから、控えの門徒が！'], foes: () => [{ name: '本陣の控えの門徒', from: { x: -22, z: -166 }, list: [uS(2), uA(12)], mass: 300 }] }],
+      max: 140, reward: (t) => { t.special = { label: '下間頼照の旗本を崩した', pts: 25 }; }, rewardLabel: '下間頼照の旗本を崩した',
+      onEnd: (rt, m, won) => { const C = rt.flags.ikkoCamp; if (!won || !C) return; for (const g of [C.general && C.general.group, C.guard]) if (g && !gone(g)) { g.noRout = false; g.morale = 0; } } }),
+    hold({ skip: (rt, m) => m.ezHon, at: top, dur: 70, r: 15, title: '峠を固める', sub: '奥の谷から、落ちてくる門徒が峠へ押し寄せる', label: '峠の上',
+      obj: (rt) => (hi(rt) ? '預かった一隊で峠を固め、落ちてくる門徒を受けよ' : '峠を固め、落ちてくる門徒を受けよ'),
+      waves: [
+        { t: 4, say: ['足軽', '奥の谷から、まだ上がってくる！'], foes: () => [{ name: '落ちてくる門徒', from: { x: TOP.x, z: TOP.z - 42 }, list: [uS(2), uA(13)], mass: 320 }] },
+        { t: 40, say: ['足軽', '鉄砲じゃ！　伏せよ！'], foes: () => [gunLine('奥の谷の鉄砲', { x: TOP.x + 24, z: TOP.z - 40 }, 7)] },
+      ],
+      reward: '峠を固め、落ちる門徒を受けきった' }),
   ];
 }
 
