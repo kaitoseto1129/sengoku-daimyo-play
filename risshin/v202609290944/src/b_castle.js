@@ -1835,6 +1835,17 @@ export function castleBattle(info) {
       }
       rt.after(4, () => rt.bark('御殿の柱の陰に入れば、射手の矢を避けられる'));
       F.hata.order = 'attack'; F.hata.seekRange = 28; F.hata.noRout = false;
+      // 最後の抵抗：生き残った城兵は皆、本丸の御殿の前へ集まり、もう崩れずに討死するまで戦う
+      if (!defend) {
+        let n = 0;
+        for (const gs of F.garrison) for (const gg of gs) {
+          if (!gg.count || gg.routed || gg === F.hata || gg === F.lordG || (F.shooters || []).includes(gg)) continue;
+          const a = n++ * 1.3, q = { x: P.court.x + Math.sin(a) * 6, z: P.court.z + Math.cos(a) * 4 };
+          gg.order = 'move'; gg.dest = q; gg.speed = 3.8; gg.noRout = true;
+          gg.onArrive = (x) => { x.order = 'attack'; x.seekRange = 16; x.aggro = 12; };
+        }
+        rt.after(2.5, () => { rt.banner('本丸、最後の抵抗', '城兵は御殿の前で討死の覚悟'); rt.say(lordB, '者ども、本丸を枕に討死せよ！　一人も通すな！', 3.5); });
+      }
       rt.marker('lordB', unitPos(F.lordB), info.def.lord ? `城将・${lordB}` : '城将', { red: true });
     },
     // 一騎打ち：foe（名のある武者）と自分だけ。まわりは手を出さず見届ける
@@ -2425,6 +2436,26 @@ export function castleBattle(info) {
         gg.noRout = defend; gg.breach = gin; gg.breachT = rt.t;
         if (F.shooters.includes(gg)) { gg.aggro = Math.max(gg.aggro || 0, 45); gg.order = 'hold'; continue; }
         gg.order = 'attack'; gg.seekRange = 45; gg.aggro = 16; gg.anchor = { ...gin };
+      }
+      // 攻める戦：破れた門の城兵は、しばらく打ち合ってから、生き残りが次の曲輪の門の内へ退いて、そこでまた守る（曲輪ごとに戦う）
+      if (!defend) {
+        const gi0 = P.gates.indexOf(g);
+        rt.after(22, () => {
+          const nx = P.gates.find((x) => x.st.alive);
+          if (!nx) return;
+          const ni = P.gates.indexOf(nx), fa = Math.atan2(nx.n.x, nx.n.z);
+          let moved = 0;
+          for (const gg of F.garrison[gi0] || []) {
+            if (!gg.count || gg.routed || gg === F.hata || gg === F.lordG || (F.shooters || []).includes(gg)) continue;
+            const q = { x: nx.c.x - nx.n.x * 6, z: nx.c.z - nx.n.z * 6 };
+            gg.order = 'move'; gg.dest = q; gg.speed = 3.6; gg.facing = fa; gg.noRout = true;
+            gg.onArrive = (x) => { x.order = 'hold'; x.anchor = { x: q.x, z: q.z }; x.aggro = 10; x.noRout = false; };
+            for (const u of gg.units) { u.target = null; u.atk = null; }
+            (F.garrison[ni] = F.garrison[ni] || []).push(gg);
+            moved++;
+          }
+          if (moved) rt.say('城兵', `退け、退けっ！　${nx.name}の内で食い止めよ！`, 3);
+        });
       }
       if (defend) {
         F.siege += 20;

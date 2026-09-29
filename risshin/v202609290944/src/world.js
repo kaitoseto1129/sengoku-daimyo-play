@@ -37,6 +37,8 @@ const TIME = {
   morning: { sky: 0xb9b8b0, fog: 0xa9aeac, sun: 0xffdcaa, sunI: 2.2, hemiSky: 0xbcc6ce, hemiGround: 0x4a4232, hemiI: 1.1, sunPos: [70, 40, 85], vis: 460, cloud: 0.4, top: 0x7489a0, cover: 0.34, glowK: 0.22, glow: 0xffc890 },
   storm: { sky: 0x646c6e, fog: 0x7a8284, sun: 0xb8c0c4, sunI: 0.8, hemiSky: 0x8c979a, hemiGround: 0x34322a, hemiI: 1.3, sunPos: [30, 120, 20], vis: 150, cloud: 0, top: 0x4a5153, cover: 0.85, glowK: 0 },
   after: { sky: 0x93a1a3, fog: 0x929e9f, sun: 0xffe8c8, sunI: 1.7, hemiSky: 0xb3bfc2, hemiGround: 0x3e3a2c, hemiI: 0.95, sunPos: [-70, 58, 30], vis: 400, cloud: 0.45, top: 0x6b7f92, cover: 0.55, glowK: 0.1, glow: 0xffc890 },
+  // 夜：月明かり（青白く弱い光・影は淡く）。見通しは短く、闇の向こうは黒い霞に沈む（その中に敵がいるかもしれない）
+  night: { sky: 0x1a2230, fog: 0x161d28, sun: 0x5f7090, sunI: 0.7, hemiSky: 0x3a4a68, hemiGround: 0x0e0e0c, hemiI: 0.55, sunPos: [-60, 70, 40], vis: 170, cloud: 0.3, top: 0x0a1120, cover: 0.3, glowK: 0 },
   dusk: { sky: 0xa58468, fog: 0x8c7462, sun: 0xffa060, sunI: 1.5, hemiSky: 0x76849e, hemiGround: 0x33302c, hemiI: 0.8, sunPos: [-120, 17, -24], vis: 470, cloud: 0.25, top: 0x5a6582, cover: 0.45, glowK: 0.75, glow: 0xff8a40 },
 };
 // 夕暮れ：日の当たる面だけ朱に、陰は空の青を受けて冷たく（半球光を青に寄せる）
@@ -835,15 +837,16 @@ export class World {
   buildWear() {
     const S = 256;
     this.wearS = S;
-    this.wearData = new Uint8Array(S * S);
-    this.wearTex = new THREE.DataTexture(this.wearData, S, S, THREE.RedFormat, THREE.UnsignedByteType);
+    // r：踏み荒らし（草が倒れて土・泥が出る）、g：血の跡（打たれた所の地面に黒ずんだ赤が染みる）
+    this.wearData = new Uint8Array(S * S * 2);
+    this.wearTex = new THREE.DataTexture(this.wearData, S, S, THREE.RGFormat, THREE.UnsignedByteType);
     this.wearTex.magFilter = THREE.LinearFilter; this.wearTex.minFilter = THREE.LinearFilter;
     this.wearTex.needsUpdate = true;
     WEAR.value = this.wearTex;
     this.wearDirty = 0;
   }
   // (x, z) の周り半径 r m を踏む（amt は一度に増える量 0〜255）
-  stampWear(x, z, r = 1.2, amt = 10) {
+  stampWear(x, z, r = 1.2, amt = 10, ch = 0) {
     const S = this.wearS, k = S / (HALF * 2);
     const cx = (x + HALF) * k, cz = (z + HALF) * k, rr = Math.max(0.6, r * k);
     const x0 = Math.max(0, Math.floor(cx - rr)), x1 = Math.min(S - 1, Math.ceil(cx + rr));
@@ -851,15 +854,17 @@ export class World {
     for (let j = z0; j <= z1; j++) for (let i = x0; i <= x1; i++) {
       const d = Math.hypot(i - cx, j - cz) / rr;
       if (d >= 1) continue;
-      const o = j * S + i;
+      const o = (j * S + i) * 2 + ch;
       this.wearData[o] = Math.min(255, this.wearData[o] + amt * (1 - d * d));
     }
     this.wearDirty++;
   }
+  // 血の跡：打たれた所の足もとに染みる（重なるほど濃く、大きく）
+  stampBlood(x, z, r = 0.7, amt = 40) { this.stampWear(x, z, r, amt, 1); }
   // その地点の踏み荒らし（0〜1）
   wearAt(x, z) {
     const S = this.wearS, i = Math.max(0, Math.min(S - 1, Math.round((x + HALF) / (HALF * 2) * S))), j = Math.max(0, Math.min(S - 1, Math.round((z + HALF) / (HALF * 2) * S)));
-    return this.wearData[j * S + i] / 255;
+    return this.wearData[(j * S + i) * 2] / 255;
   }
 
   // ---------------- 地図の外の遠景 ----------------
@@ -1004,6 +1009,43 @@ export class World {
       });
       this.scene.add(wm, rm);
     }
+    // 遠くの城（def.farCastle：{ x, z } か { a: 向き, d: 遠さ }、tiers 天守の重ね）：丘の上の石垣・白い天守・隅櫓・塀を、
+    // 霞の中の影絵として一つの形にまとめて置く（近寄れない遠景なので粗い形で軽く）
+    if (def.farCastle) this.buildFarCastle(def.farCastle);
+  }
+  buildFarCastle(o) {
+    const cx = o.x ?? Math.sin(o.a || 0) * (o.d || HALF + 120), cz = o.z ?? Math.cos(o.a || 0) * (o.d || HALF + 120);
+    const y0 = this.farH(cx, cz), sc = o.s || 1, rot = o.rot || 0;
+    const parts = [];
+    const add = (g, hex, x, y, z) => {
+      g.rotateY(rot); g.translate(cx + (x * Math.cos(rot) + z * Math.sin(rot)) * sc, y0 + y * sc, cz + (-x * Math.sin(rot) + z * Math.cos(rot)) * sc);
+      const n = g.attributes.position.count, col = new Float32Array(n * 3), c = new THREE.Color(hex);
+      // 下ほど暗く（石垣の裾・軒下の陰）
+      for (let i = 0; i < n; i++) { const k = 0.78 + 0.22 * Math.min(1, Math.max(0, (g.attributes.position.getY(i) - y0) / (40 * sc))); col[i * 3] = c.r * k; col[i * 3 + 1] = c.g * k; col[i * 3 + 2] = c.b * k; }
+      g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      parts.push(g.index ? g.toNonIndexed() : g);
+    };
+    const box = (w, h, d) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(0, h / 2, 0); return g; };
+    const roof = (w, d, h) => { const g = new THREE.ConeGeometry(Math.hypot(w, d) * 0.62, h, 4); g.rotateY(Math.PI / 4); g.scale(w / Math.max(w, d), 1, d / Math.max(w, d)); g.translate(0, h / 2, 0); return g; };
+    // 石垣：裾の広い台形（上に行くほど細い）
+    const base = new THREE.CylinderGeometry(22 / Math.SQRT2, 30 / Math.SQRT2, 9, 4); base.rotateY(Math.PI / 4); base.translate(0, 4.5, 0);
+    add(base, 0x8a867a, 0, 0, 0);
+    // 塀と隅櫓
+    for (const [x, z, w, d] of [[0, -13, 26, 0.8], [0, 13, 26, 0.8], [-13, 0, 0.8, 26], [13, 0, 0.8, 26]]) add(box(w, 2.2, d), 0xd6d0c2, x, 9, z);
+    for (const [x, z] of [[-12, -12], [12, -12], [-12, 12], [12, 12]]) { add(box(4.5, 4, 4.5), 0xdcd6c8, x, 9, z); add(roof(6, 6, 2.2), 0x2e3134, x, 13, z); }
+    // 天守：重ねるごとに細く、各重に黒い屋根
+    let y = 9, w = 14, d = 12;
+    const tiers = o.tiers || 4;
+    for (let k = 0; k < tiers; k++) {
+      const h = k === tiers - 1 ? 4.2 : 4.6;
+      add(box(w, h, d), k % 2 ? 0xe2ddd0 : 0xd8d2c4, 0, y, 0);
+      add(roof(w + 3, d + 3, k === tiers - 1 ? 4 : 1.8), 0x2a2d31, 0, y + h - 0.2, 0);
+      y += h + 0.6; w *= 0.78; d *= 0.78;
+    }
+    const m = new THREE.Mesh(mergeGeometries(parts), new THREE.MeshLambertMaterial({ vertexColors: true }));
+    m.castShadow = false; m.receiveShadow = false;
+    this.scene.add(m);
+    return m;
   }
 
   // ---------------- 立ち昇る煙（村の炊事・陣の鍋） ----------------
@@ -1075,7 +1117,7 @@ export class World {
       sunDir: new THREE.Vector3(...t.sunPos).normalize(), top: new THREE.Color(t.top), glow: new THREE.Color(t.glow || 0xff9a50),
       glowK: t.glowK, cover: t.cover, cloudDark: key === 'storm' ? 0.55 : 0.1, vis: t.vis, cloud: t.cloud,
       // 山の地の色（霞は別に掛ける）：近い山は濃い杉の緑、遠いほど青い
-      mount: key === 'dusk' ? [0x2c2a2c, 0x3a3a44, 0x4a4c5a] : key === 'storm' ? [0x2a302e, 0x384040, 0x464e50] : [0x24332c, 0x33443e, 0x4a5a5e],
+      mount: key === 'night' ? [0x0c1016, 0x121820, 0x18202a] : key === 'dusk' ? [0x2c2a2c, 0x3a3a44, 0x4a4c5a] : key === 'storm' ? [0x2a302e, 0x384040, 0x464e50] : [0x24332c, 0x33443e, 0x4a5a5e],
     };
   }
   // 今の見え方を読み取る（ほかの戦が直に書き換えた値も拾う）
@@ -1106,6 +1148,8 @@ export class World {
     U.cover.value = L.cover; U.cloudDark.value = L.cloudDark;
     U.glow.value.copy(L.glow); U.glowK.value = L.glowK;
     this.mountMats.forEach((m, k) => m.color.set(L.mount[k]));
+    // 星と月は夜だけ（空の色が暗い時）
+    if (this.stars) { const dark = L.sky.r + L.sky.g + L.sky.b < 0.45; this.stars.visible = dark; this.moon.visible = dark; if (dark) this.moon.position.copy(L.sunDir).multiplyScalar(420); }
   }
 
   setTime(key) {
@@ -1307,6 +1351,25 @@ export class World {
     this.sky = new THREE.Mesh(new THREE.SphereGeometry(470, 32, 16), this.skyMat);
     this.sky.renderOrder = -2;
     this.scene.add(this.sky);
+    // 星：空の球の内側に小さな光の点を散らす（霧に沈まない。空と一緒に動く）。月：淡い光の丸
+    {
+      const N = 900, pos = new Float32Array(N * 3), R = rng(909);
+      for (let i = 0; i < N; i++) {
+        const u = 0.08 + R() * 0.92, a = R() * Math.PI * 2, r = 440, h = Math.sqrt(1 - u * u);
+        pos[i * 3] = Math.cos(a) * h * r; pos[i * 3 + 1] = u * r; pos[i * 3 + 2] = Math.sin(a) * h * r;
+      }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      this.stars = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xdfe6f4, size: 1.6, sizeAttenuation: false, fog: false, transparent: true, opacity: 0.8, depthWrite: false }));
+      this.stars.renderOrder = -1; this.stars.visible = false; this.stars.frustumCulled = false;
+      this.sky.add(this.stars);
+      const mc = document.createElement('canvas'); mc.width = mc.height = 64;
+      const mg = mc.getContext('2d'), gr = mg.createRadialGradient(32, 32, 0, 32, 32, 32);
+      gr.addColorStop(0, 'rgba(240,244,255,1)'); gr.addColorStop(0.28, 'rgba(230,236,250,0.95)'); gr.addColorStop(0.36, 'rgba(180,196,230,0.25)'); gr.addColorStop(1, 'rgba(120,140,190,0)');
+      mg.fillStyle = gr; mg.fillRect(0, 0, 64, 64);
+      this.moon = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(mc), fog: false, transparent: true, depthWrite: false }));
+      this.moon.scale.setScalar(46); this.moon.visible = false; this.moon.renderOrder = -1;
+      this.sky.add(this.moon);
+    }
     // 遠くの山並み：三重に重ね、遠いほど霞ませる。山肌には杉林の筋と雑木の斑、近い山の裾には棚田
     const M = rng(this.def.seed || 5);
     this.mountMats = [];
@@ -1441,6 +1504,8 @@ export class World {
     // 粒は小さな点に見えないよう大きく広げて薄く（色も日なたで黄ばみすぎない土色）
     this.dustP = this.makePuffs(420, 0x857a66, 4.2, 0.2);
     this.mudP = this.makePuffs(160, 0x3a2e22, 0.5, 0.75);
+    // 水しぶき：川・浅瀬・水田を渡る足もとから、白く跳ねてすぐ落ちる
+    this.sprayP = this.makePuffs(140, 0xdfe6e8, 0.9, 0.55);
     this.dustMat = this.dustP.points.material;
     this.buildHaze();
   }
@@ -1464,6 +1529,7 @@ export class World {
     if (!B || amt <= 0) return;
     if (B.list.length >= B.CAP) B.list.shift();
     const gy = this.heightAt(x, z);
+    this.stampBlood(x + (Math.random() - 0.5) * 0.8, z + (Math.random() - 0.5) * 0.8, 0.5 + amt * 0.4, 30 + amt * 30);
     B.list.push({ x, z, t: 0, life: 0.9 + Math.random() * 0.5, s0: 0.35, s1: 1.1 + amt * 0.6, a: 0.6 * amt, fin: 14, rise: (y - gy - 0.55) / 0.02, yOff: true });
   }
   // 霧の中の光の筋：日の方から地面へ斜めに差す、淡い光の帯。板を数枚だけ、筋の向きを軸にカメラへ向けて立てる
@@ -1690,9 +1756,32 @@ export class World {
     return j * (SEG + 1) + i;
   }
 
+  // (x, z) が水の中か（小川・川・水田）
+  inWaterAt(x, z) {
+    const d = this.def;
+    for (const st of d.streams || []) if (st.pts && distToPolyline(x, z, st.pts) < (st.w || 2) * 0.95) return true;
+    const W = d.water;
+    if (W && x > W.x && x < (W.x2 ?? 1e9) && this.heightAt(x, z) < (W.level ?? -99) + 0.3) return true;
+    return !!(d.paddy && d.paddy(x, z) > 0.55);
+  }
+  // 足もとの水しぶき（n：粒の数。馬は多い）
+  spray(x, z, n = 4) {
+    const P = this.sprayP;
+    if (!P) return;
+    const y = this.heightAt(x, z) + 0.15;
+    for (let k = 0; k < n; k++) {
+      const i = P.i = (P.i + 1) % P.life.length;
+      P.pos[i * 3] = x + (Math.random() - 0.5) * 0.6; P.pos[i * 3 + 1] = y; P.pos[i * 3 + 2] = z + (Math.random() - 0.5) * 0.6;
+      P.vel[i * 3] = (Math.random() - 0.5) * 2.2; P.vel[i * 3 + 1] = 1.8 + Math.random() * 1.8; P.vel[i * 3 + 2] = (Math.random() - 0.5) * 2.2;
+      P.life[i] = P.max[i] = 0.3 + Math.random() * 0.25;
+    }
+  }
   puff(x, z, n = 2) {
+    // 水の中を行く兵は、土煙の代わりに水しぶき（踏み荒らしも付けない）
+    if (this.inWaterAt(x, z)) { if (Math.random() < 0.6) this.spray(x, z, n >= 2 ? 5 : 2); return; }
     const wet = this.rainLevel > 0.4 || (this.wetness || 0) > 0.5;
-    this.stampWear(x, z, 1.1, wet ? 16 : 10);
+    // 馬は蹄で深く掘り返す（通るたびに轍のような筋が濃くなる）
+    this.stampWear(x, z, n >= 2 ? 1.5 : 1.1, (wet ? 16 : 10) * (n >= 2 ? 1.6 : 1));
     if (Math.random() < 0.5) this.footprint(x, z, n >= 2);
     const P = wet ? this.mudP : this.dustP;
     const y = this.heightAt(x, z);
@@ -3012,6 +3101,10 @@ export class World {
           // 踏み荒らされた窪みに、雨の強さ（濡れ具合）で水が溜まる。雨が上がっても乾くまで残る
           float pool = smoothstep(0.55, 0.95, wear) * smoothstep(0.55, 0.3, edge) * smoothstep(0.35, 0.8, uWet) * (1.0 - wat);
           col = mix(col, vec3(0.06, 0.065, 0.06) + mud * 0.18, pool * 0.85);
+          // 血の跡：黒ずんだ赤茶の染み（縁は絵の濃淡でまだらに。雨の水溜りでは薄まる）
+          float bld = texture2D(tWear, (vWP.xz + ${HALF.toFixed(1)}) / ${(HALF * 2).toFixed(1)}).g;
+          bld = smoothstep(0.08, 0.7, bld * (0.6 + edge * 0.8)) * (1.0 - wat) * (1.0 - pool * 0.6);
+          col = mix(col, col * vec3(0.55, 0.3, 0.26) + vec3(0.05, 0.008, 0.004), bld * 0.75);
           diffuseColor.rgb *= col;`)
         .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
           // 細かな凹凸：絵の明るさを高さとみなし、その傾きで法線を傾ける（小石・轍・草の株）
@@ -3086,6 +3179,17 @@ export class World {
       place(x, z, false); placed++;
       // 森らしく、近くにもう一、二本
       if (R() < 0.45) { const a = R() * 6.28, d = 3 + R() * 4; const x2 = x + Math.cos(a) * d, z2 = z + Math.sin(a) * d; if (ok(x2, z2, 6)) { place(x2, z2, false); placed++; } }
+    }
+    // 竹林：林の縁のところどころに、竹の藪を固めて置く（竹は一本ずつ散らばらず、藪になって生える）
+    if (!this.def.noBamboo) {
+      const seeds = Math.round(Math.min(8, treeCount / 70));
+      for (let b = 0, tries2 = 0; b < seeds && tries2 < 200; tries2++) {
+        const x = (R() * 2 - 1) * (HALF - 10), z = (R() * 2 - 1) * (HALF - 10);
+        if (!ok(x, z, 9)) continue;
+        b++;
+        const n = 5 + Math.floor(R() * 6), sx = 0.7 + R() * 0.8;
+        for (let k = 0; k < n; k++) { const a = R() * 6.28, d = Math.sqrt(R()) * 6; const x2 = x + Math.cos(a) * d * sx, z2 = z + Math.sin(a) * d / sx; if (ok(x2, z2, 3)) trees.take.push([x2, this.heightAt(x2, z2), z2, 0.8 + R() * 0.4, R()]); }
+      }
     }
     for (const g of extra) {
       for (let k = 0; k < g.n; k++) {
@@ -3186,7 +3290,7 @@ export class World {
     for (const kind of Object.keys(trees)) {
       const list = trees[kind];
       if (!list.length) continue;
-      const VAR = lowV ? (kind === 'sugi' ? 2 : 1) : kind === 'take' ? 2 : 3;
+      const VAR = lowV ? (kind === 'sugi' ? 2 : 1) : kind === 'take' ? 2 : kind === 'matsu' ? 4 : 3;
       for (let v = 0; v < VAR; v++) {
         const mine = list.filter((t, i) => i % VAR === v);
         if (!mine.length) continue;
@@ -3196,7 +3300,9 @@ export class World {
         mine.forEach(([x, y, z, sc, r], i) => {
           dummy.position.set(x, y - 0.25, z);
           dummy.rotation.set((r - 0.5) * 0.06, r * 6.28, (r - 0.5) * 0.06);
-          dummy.scale.set(sc, sc * (0.9 + r * 0.25), sc);
+          // 松は一本ずつ枝ぶりの広がりを変える（横に張る老松・細く伸びた若松）
+          const wide = kind === 'matsu' ? 0.8 + ((r * 7.31) % 1) * 0.55 : 1;
+          dummy.scale.set(sc * wide, sc * (0.9 + r * 0.25) / Math.sqrt(wide), sc * wide * (0.85 + ((r * 3.7) % 1) * 0.3));
           dummy.updateMatrix();
           bm.setMatrixAt(i, dummy.matrix); lm.setMatrixAt(i, dummy.matrix);
           lm.setColorAt(i, tintOf[kind]());
@@ -3762,6 +3868,15 @@ export class World {
     const m = new THREE.Mesh(g, rippleWater(new THREE.MeshStandardMaterial({ color: 0x38402f, roughness: 0.3, metalness: 0, transparent: true, opacity: 0.9, side: THREE.DoubleSide, envMapIntensity: 0.6 }), (f1[0] - f0[0]) / fl, (f1[1] - f0[1]) / fl, 2.2));
     m.receiveShadow = true;
     this.scene.add(m);
+    // 岸の泥：流れの両の縁は、草が薄く土と泥が出ている（踏み荒らしの印を岸に沿って付ける）
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [ax, az] = pts[i], [bx, bz] = pts[i + 1];
+      const L = Math.hypot(bx - ax, bz - az), nx = -(bz - az) / L, nz = (bx - ax) / L;
+      for (let t = 0; t < L; t += 2.2) {
+        const x = ax + (bx - ax) * (t / L), z = az + (bz - az) * (t / L), j = Math.sin(t * 0.7 + i) * 0.4;
+        for (const sd of [1, -1]) this.stampWear(x + nx * sd * (st.w * 1.05 + j), z + nz * sd * (st.w * 1.05 + j), 1.3 + Math.abs(j), 70);
+      }
+    }
     // 流れの中の石と、そのまわりの白い泡（流れの下手へ伸びる）
     const R = rng((this.def.seed || 1) * 17 + pts.length), stones = [], foam = [];
     for (let i = 0; i < pts.length - 1; i++) {
@@ -3960,12 +4075,13 @@ export class World {
     // 歩いた所を踏む（自分の足もと）。踏み荒らしの絵は時々送り直す
     if (focus && this.lastFoot) {
       const mv = Math.hypot(focus.x - this.lastFoot.x, focus.z - this.lastFoot.z);
-      if (mv > 0.6) { this.stampWear(focus.x, focus.z, 0.8, 5); this.footprint(focus.x, focus.z, false, Math.atan2(focus.x - this.lastFoot.x, focus.z - this.lastFoot.z)); this.lastFoot.copy(focus); }
+      if (mv > 0.6 && this.inWaterAt(focus.x, focus.z)) { this.spray(focus.x, focus.z, mv > 1.2 ? 7 : 4); this.lastFoot.copy(focus); }
+      else if (mv > 0.6) { this.stampWear(focus.x, focus.z, 0.8, 5); this.footprint(focus.x, focus.z, false, Math.atan2(focus.x - this.lastFoot.x, focus.z - this.lastFoot.z)); this.lastFoot.copy(focus); }
     } else if (focus) (this.lastFoot || (this.lastFoot = new THREE.Vector3())).copy(focus);
     this.wearT = (this.wearT || 0) + dt;
     if (this.wearDirty && this.wearT > 0.5) { this.wearT = 0; this.wearDirty = 0; this.wearTex.needsUpdate = true; }
     this.updateHaze(dt, focus);
-    if (this.haze) this.haze.mesh.material.uniforms.color.value.set(this.timeKey === 'dusk' ? 0xcbb4a0 : this.timeKey === 'storm' ? 0x9a9e9e : 0xd4d2cc);
+    if (this.haze) this.haze.mesh.material.uniforms.color.value.set(this.timeKey === 'night' ? 0x3a4250 : this.timeKey === 'dusk' ? 0xcbb4a0 : this.timeKey === 'storm' ? 0x9a9e9e : 0xd4d2cc);
     if (this.dustVeil) this.dustVeil.mesh.material.uniforms.color.value.set(this.timeKey === 'dusk' ? 0xb08a68 : 0xa89878);
     // 稲光（豪雨のとき）
     if (this.def.lightning && this.rainLevel > 0.7) {
@@ -4014,9 +4130,9 @@ export class World {
       f.inner.scale.set(f.size * 0.27, f.size * 0.55 * (0.8 + k * 0.25), 1);
       f.flame.position.x = f.x + Math.sin(this.time * 5 + f.seed) * 0.03;
       f.flame.position.y = f.base + (k - 0.85) * f.size * 0.3;
-      if (f.light) f.light.intensity = (f.big || this.timeKey === 'dusk' || this.timeKey === 'storm') ? 1 : 0;
-      if (f.light && f.light.intensity > 0) f.light.intensity = (f.big && !(this.timeKey === 'dusk' || this.timeKey === 'storm') ? 0.9 : f.big ? 3.2 : 1.9) + k * 0.5 * (f.big ? 1.6 : 1);
-      if (f.glow) f.glow.material.opacity = (this.timeKey === 'dusk' || this.timeKey === 'storm' ? 0.34 : 0.1) * (0.8 + k * 0.25);
+      if (f.light) f.light.intensity = (f.big || this.timeKey === 'dusk' || this.timeKey === 'storm' || this.timeKey === 'night') ? 1 : 0;
+      if (f.light && f.light.intensity > 0) f.light.intensity = (f.big && !(this.timeKey === 'dusk' || this.timeKey === 'storm' || this.timeKey === 'night') ? 0.9 : f.big ? 3.2 : 1.9) + k * 0.5 * (f.big ? 1.6 : 1);
+      if (f.glow) f.glow.material.opacity = (this.timeKey === 'night' ? 0.5 : this.timeKey === 'dusk' || this.timeKey === 'storm' ? 0.34 : 0.1) * (0.8 + k * 0.25);
     }
     this.updateEmbers(dt, focus);
     // 火の音：近くの火のはぜる音と、遠くの大きな火の低い唸り（audio の ambience が鳴らす）
@@ -4033,6 +4149,7 @@ export class World {
     // 土ぼこりと泥はね
     this.updatePuffs(this.dustP, dt, 0);
     this.updatePuffs(this.mudP, dt, 9);
+    this.updatePuffs(this.sprayP, dt, 9);
     // 影の範囲をプレイヤー周辺に追従
     this.sun.position.copy(focus).add(this.sunOffset);
     this.sun.target.position.copy(focus);

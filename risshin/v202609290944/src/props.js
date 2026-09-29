@@ -25,6 +25,7 @@ export function solidSeg(ax, az, bx, bz, r = 0.12) { const o = aabb({ k: 's', ax
 // 木肌の絵に色を掛ける（丸太ごとに少しずつ色を変える）
 // 木目・干割れ・藁の束・樹皮の割れ目は、同じ絵を凹凸（bumpMap）にも使って、光の当たり方で浮き出させる
 const MAT = new THREE.MeshStandardMaterial({ vertexColors: true, map: woodTex(), bumpMap: woodTex(), bumpScale: 1.2, roughness: 0.88, metalness: 0 });
+const ITA_MAT = new THREE.MeshStandardMaterial({ map: woodTex(), bumpMap: woodTex(), bumpScale: 1.2, color: 0x8a8274, roughness: 0.92, metalness: 0, side: THREE.DoubleSide });   // 灰茶に褪せた板葺き
 const THATCH = new THREE.MeshStandardMaterial({ map: thatchTex(), bumpMap: thatchTex(), bumpScale: 1.5, roughness: 0.97, metalness: 0, side: THREE.DoubleSide });
 const BARK = new THREE.MeshStandardMaterial({ vertexColors: true, map: barkTex('pine'), bumpMap: barkTex('pine'), bumpScale: 1.5, roughness: 0.95, metalness: 0 });
 const vary = (hex, k) => { const c = new THREE.Color(hex); const f = 0.82 + (((k * 7919) % 37) / 37) * 0.36; return c.multiplyScalar(f).getHex(); };
@@ -91,17 +92,17 @@ export function palisade(world, seg, o = {}) {
     const post = new THREE.CylinderGeometry(rad * 0.9, rad * 1.1, h, 7);
     post.rotateZ((r - 0.5) * 0.08); post.rotateX((r2 - 0.5) * 0.06);
     post.translate(x, y + h / 2 - 0.25, z);
-    parts.push(paintWorn(post, vary(0x7a5c40, i), y, h));
+    parts.push(paintWorn(post, vary(0x6f675a, i), y, h));   // 風雨で灰茶に褪せた丸太
     const tip = new THREE.ConeGeometry(rad * 0.9, 0.3 + r * 0.2, 7);
     tip.translate(x, y + h - 0.1 + 0.08, z);
-    parts.push(paint(tip, vary(0x9a7a56, i + 3)));
+    parts.push(paint(tip, vary(0x857b6c, i + 3)));
   }
   for (const hy of [0.75, 1.65]) {
     const mx = (ax + bx) / 2, mz = (az + bz) / 2;
     const rail = new THREE.CylinderGeometry(0.06, 0.07, len, 6);
     rail.rotateX(Math.PI / 2); rail.rotateY(ang);
     rail.translate(mx - px * 0.14, world.heightAt(mx, mz) + hy, mz - pz * 0.14);
-    parts.push(paint(rail, 0x5a4430));
+    parts.push(paint(rail, 0x5a5246));
     // 縄の結び目
     for (let i = 0; i <= n; i += 3) {
       const t = i / n, x = ax + (bx - ax) * t - px * 0.12, z = az + (bz - az) * t - pz * 0.12;
@@ -134,10 +135,10 @@ function jinmakuMat(t) {
   const m = new THREE.MeshLambertMaterial({ map: t, side: THREE.DoubleSide });
   m.onBeforeCompile = (sh) => {
     sh.uniforms.uFlagT = FLAG_T; sh.uniforms.uGust = GUST; sh.uniforms.uWet = WET;
-    sh.vertexShader = 'uniform float uFlagT, uGust, uWet;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
-      float jk = 1.0 - uv.y;
+    sh.vertexShader = 'uniform float uFlagT, uGust, uWet;\nattribute float jpin;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      float jk = (1.0 - uv.y) * (0.25 + 0.75 * jpin);
       float jp = position.x * 0.9 + position.z * 0.7;
-      float jA = (0.05 + uGust * 0.05) * (1.0 - uWet * 0.6);
+      float jA = (0.07 + uGust * 0.09) * (1.0 - uWet * 0.6);
       transformed += objectNormal * (sin(uFlagT * 1.1 + jp) * 0.6 + sin(uFlagT * 2.3 + jp * 2.1) * 0.4) * jA * jk;`);
   };
   return m;
@@ -163,15 +164,18 @@ export function jinmaku(world, cx, cz, w, d, gapSouth = 6, o = {}) {
     // 布：柱の間でたるみ（上の縁が下がる）、外へふくらむ
     const geo = new THREE.PlaneGeometry(len, 1.6, Math.max(4, n * 6), 3);
     const P = geo.attributes.position;
+    const pin = new Float32Array(P.count);
     for (let k = 0; k < P.count; k++) {
       const x = P.getX(k), y = P.getY(k);
       const u = ((x + len / 2) / (len / n)) % 1;
       const sag = Math.sin(u * Math.PI);
+      pin[k] = sag;
       P.setY(k, y - sag * 0.07 * (0.5 + (y + 0.8) / 1.6));
       P.setZ(k, sag * 0.12 * (0.3 + (0.8 - y) / 1.6 * 0.7) + Math.sin(x * 2.3 + ax) * 0.02);
     }
     // 絵は 4m ごとに繰り返す（幕を一つにまとめて描くので、絵の座標で伸ばす）
     const UV = geo.attributes.uv; for (let k = 0; k < UV.count; k++) UV.setX(k, UV.getX(k) * len / 4);
+    geo.setAttribute('jpin', new THREE.BufferAttribute(pin, 1));   // 柱の所は留まり、柱の間ほど風にふくらむ
     geo.computeVertexNormals();
     const mx = (ax + bx) / 2, mz = (az + bz) / 2;
     geo.rotateY(Math.atan2(bx - ax, bz - az) + Math.PI / 2);
@@ -295,8 +299,18 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
     const tg = new THREE.ShapeGeometry(tri); if (zz < 0) tg.rotateY(Math.PI); tg.translate(0, H, zz);
     parts.push(paint(tg, vary(o.wall || 0x7b6448, 5)));
   }
+  // o.ita：板葺きの屋根に石を並べて置く（石置き屋根）。茅の代わりに灰茶の板と、押さえの丸太・石
+  if (o.ita) {
+    const th = Math.atan2(rh, w / 2 + eave), slope = Math.hypot(w / 2 + eave, rh);
+    for (const sd of [1, -1]) for (let q = 0; q < 3; q++) {
+      const t = (q + 0.5) / 3, lx = sd * (w / 2 + eave) * t, ly = H + rh * (1 - t) + 0.2;
+      const bar = new THREE.CylinderGeometry(0.06, 0.06, d + eave * 2, 5); bar.rotateX(Math.PI / 2); bar.translate(lx, ly, 0); parts.push(paint(bar, 0x4e473c));
+      for (let k2 = 0; k2 < 5; k2++) { const st = new THREE.DodecahedronGeometry(0.16 + ((q * 5 + k2) % 3) * 0.04, 0); st.scale(1.2, 0.7, 1); st.translate(lx, ly + 0.1, -d / 2 - eave + (k2 + 0.5) * (d + eave * 2) / 5); parts.push(paint(st, vary(0x7d7a72, q * 7 + k2))); }
+    }
+    void th; void slope;
+  }
   const m = merged(parts);
-  const roof = new THREE.Mesh(mergeGeometries(roofParts.map((g) => g.index ? g.toNonIndexed() : g)), THATCH);
+  const roof = new THREE.Mesh(mergeGeometries(roofParts.map((g) => g.index ? g.toNonIndexed() : g)), o.ita ? ITA_MAT : THATCH);
   roof.userData.camBlock = true;
   roof.geometry.computeVertexNormals();
   roof.castShadow = true; roof.receiveShadow = true;
@@ -329,42 +343,85 @@ export function lumber(world, x, z, rot = 0) {
   return m;
 }
 
+// 井楼櫓（物見の櫓）：細い丸太の柱を四本、筋交いで組んで高く立て、上に板の囲いと、浅い切妻の板屋根。木は灰茶に褪せた色
 export function yagura(world, x, z) {
-  // 櫓の四本の脚（下は通れる）
   for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) solidCircle(x + dx * 1.1, z + dz * 1.1, 0.25);
   const parts = [];
-  const H = 5.5;
+  const H = 6.6, W0 = 1.25, W1 = 1.05;   // 柱は上へ少しすぼまる
+  const colP = 0x635b4e, colB = 0x6e675a;
   for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-    const leg = new THREE.CylinderGeometry(0.1, 0.12, H, 5);
-    leg.translate(dx * 1.1, H / 2, dz * 1.1);
-    parts.push(paint(leg, 0x5a4430));
+    const a = new THREE.Vector3(dx * W0, 0, dz * W0), b = new THREE.Vector3(dx * W1, H, dz * W1);
+    const L = a.distanceTo(b), leg = new THREE.CylinderGeometry(0.09, 0.12, L + 0.3, 6);
+    leg.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize()));
+    leg.translate((a.x + b.x) / 2, H / 2, (a.z + b.z) / 2); parts.push(paint(leg, vary(colP, dx * 3 + dz)));
   }
-  const floor = new THREE.BoxGeometry(2.8, 0.15, 2.8);
-  floor.translate(0, H, 0);
-  parts.push(paint(floor, 0x6b5238));
-  // 手すりの板と、脚の筋交い・梯子
-  for (const [dx, dz, rw, rd] of [[0, -1.4, 2.8, 0.06], [0, 1.4, 2.8, 0.06], [-1.4, 0, 0.06, 2.8], [1.4, 0, 0.06, 2.8]]) {
-    const rl = new THREE.BoxGeometry(rw, 0.9, rd); rl.translate(dx, H + 0.5, dz); parts.push(paint(rl, vary(0x6b5238, dx * 3 + dz * 7 + 11)));
+  // 筋交い（四面をたすきに）と横木（三段）
+  const side = [[-1, -1, 1, -1], [-1, 1, 1, 1], [-1, -1, -1, 1], [1, -1, 1, 1]];
+  const at = (sx, sz, y) => { const k = W0 + (W1 - W0) * (y / H); return new THREE.Vector3(sx * k, y, sz * k); };
+  const rod = (p, q, r, col) => { const L = p.distanceTo(q), g = new THREE.CylinderGeometry(r, r, L, 5); g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), q.clone().sub(p).normalize())); g.translate((p.x + q.x) / 2, (p.y + q.y) / 2, (p.z + q.z) / 2); parts.push(paint(g, col)); };
+  for (const [ax, az, bx, bz] of side) {
+    for (const [y0, y1] of [[0.4, 3.1], [3.1, 5.8]]) { rod(at(ax, az, y0), at(bx, bz, y1), 0.045, 0x5a5346); rod(at(bx, bz, y0), at(ax, az, y1), 0.045, 0x5a5346); }
+    for (const y of [0.4, 3.1, 5.8]) rod(at(ax, az, y), at(bx, bz, y), 0.05, 0x5e574a);
   }
-  for (const [ax, az, bx, bz] of [[-1.1, -1.1, 1.1, -1.1], [-1.1, 1.1, 1.1, 1.1], [-1.1, -1.1, -1.1, 1.1], [1.1, -1.1, 1.1, 1.1]]) {
-    for (const yy of [1.2, 3.2]) {
-      const len = Math.hypot(bx - ax, bz - az, 2);
-      const b = new THREE.CylinderGeometry(0.05, 0.05, len, 5);
-      b.rotateZ(Math.atan2(len, 2) * 0 + Math.atan2(2, Math.hypot(bx - ax, bz - az)) - Math.PI / 2);
-      b.rotateY(Math.atan2(bx - ax, bz - az) - Math.PI / 2);
-      b.translate((ax + bx) / 2, yy + 1, (az + bz) / 2);
-      parts.push(paint(b, 0x5a4430));
+  // 床と板の囲い（縦の板をすき間なく。手前に物見の開き）
+  const floor = new THREE.BoxGeometry(2.7, 0.14, 2.7); floor.translate(0, H, 0); parts.push(paint(floor, 0x5e574a));
+  let k = 0;
+  for (const [ax, az, bx, bz] of [[-1.3, -1.3, 1.3, -1.3], [1.3, -1.3, 1.3, 1.3], [1.3, 1.3, -1.3, 1.3], [-1.3, 1.3, -1.3, -1.3]]) {
+    const L = Math.hypot(bx - ax, bz - az), n = 9;
+    for (let i = 0; i < n; i++) {
+      const t = (i + 0.5) / n, px = ax + (bx - ax) * t, pz = az + (bz - az) * t, hb = 1.05 + ((k * 37) % 7) * 0.012;
+      const b = new THREE.BoxGeometry(L / n - 0.01, hb, 0.04); b.rotateY(Math.atan2(bx - ax, bz - az) + Math.PI / 2); b.translate(px, H + 0.07 + hb / 2, pz); parts.push(paint(b, vary(colB, k++)));
     }
   }
-  for (let r = 0; r < 9; r++) { const rung = new THREE.BoxGeometry(0.6, 0.05, 0.06); rung.translate(0, 0.4 + r * 0.6, 1.5); parts.push(paint(rung, 0x6b5238)); }
-  for (const lx of [-0.3, 0.3]) { const sr = new THREE.BoxGeometry(0.06, H, 0.06); sr.translate(lx, H / 2, 1.5); parts.push(paint(sr, 0x5a4430)); }
-  const roof = new THREE.ConeGeometry(2.4, 1.2, 4);
-  roof.rotateY(Math.PI / 4);
-  roof.translate(0, H + 2.2, 0);
-  parts.push(paint(roof, 0x4e4234));
+  // 屋根の柱と、浅い切妻の板屋根（板を重ねた筋）
+  for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const p = new THREE.CylinderGeometry(0.06, 0.06, 2.0, 5); p.translate(dx * 1.22, H + 1.0, dz * 1.22); parts.push(paint(p, colP)); }
+  for (const sd of [1, -1]) {
+    for (let q = 0; q < 6; q++) {
+      const g = new THREE.BoxGeometry(1.8, 0.05, 0.56); g.translate(0.9 * sd, 0, -1.4 + q * 0.56); g.rotateZ(sd * -0.36); g.translate(0, H + 2.35 + q * 0 , 0);
+      parts.push(paint(g, vary(0x5a5448, q + (sd > 0 ? 0 : 9))));
+    }
+  }
+  const rid = new THREE.CylinderGeometry(0.07, 0.07, 3.5, 5); rid.rotateX(Math.PI / 2); rid.translate(0, H + 2.4, 0); parts.push(paint(rid, 0x4a443a));
+  // 梯子
+  for (let r = 0; r < 11; r++) { const rung = new THREE.BoxGeometry(0.6, 0.05, 0.06); rung.translate(0, 0.4 + r * 0.6, 1.55); parts.push(paint(rung, 0x6e675a)); }
+  for (const lx of [-0.3, 0.3]) { const sr = new THREE.BoxGeometry(0.06, H, 0.06); sr.translate(lx, H / 2, 1.55); parts.push(paint(sr, 0x5a5346)); }
   const m = merged(parts);
   m.position.set(x, world.heightAt(x, z), z);
   return m;
+}
+// 土塁：柵の外に盛った土の斜面（草が生え、裾は土が出る）。seg に沿って、外の向き (nx, nz) へ w m 下る。h は柵の足もとの高さ
+export function dorui(world, seg, nx, nz, o = {}) {
+  const [ax, az, bx, bz] = seg, len = Math.hypot(bx - ax, bz - az), w = o.w || 3.2, h = o.h || 0.7;
+  const n = Math.max(2, Math.round(len / 1.5)), pos = [], col = [];
+  const cT = new THREE.Color(0x5f7a3c), cM = new THREE.Color(0x6c7a44), cB = new THREE.Color(0x7a6448);
+  const V = (t, u) => {
+    const x = ax + (bx - ax) * t + nx * (u * w - 0.3), z = az + (bz - az) * t + nz * (u * w - 0.3);
+    const j = Math.sin(t * 17 + u * 5 + ax) * 0.06;
+    return [x, world.heightAt(x, z) + Math.max(0, h * (1 - u * u)) + j - (u > 0.98 ? 0.1 : 0), z];
+  };
+  const C = (t, u) => { const c = u < 0.3 ? cT.clone().lerp(cM, u / 0.3) : cM.clone().lerp(cB, (u - 0.3) / 0.7); const f = 0.9 + ((Math.sin(t * 31 + u * 13) + 1) * 0.08); return [c.r * f, c.g * f, c.b * f]; };
+  const US = [0, 0.3, 0.65, 1];
+  for (let i = 0; i < n; i++) for (let q = 0; q < US.length - 1; q++) {
+    const t0 = i / n, t1 = (i + 1) / n, u0 = US[q], u1 = US[q + 1];
+    const quad = [[t0, u0], [t1, u0], [t1, u1], [t0, u0], [t1, u1], [t0, u1]];
+    for (const [t, u] of quad) { pos.push(...V(t, u)); col.push(...C(t, u)); }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.computeVertexNormals();
+  // 巻きの向きで裏返っていても見えるよう両面で
+  const m = new THREE.Mesh(g, DORUI_MAT);
+  m.receiveShadow = true;
+  return m;
+}
+const DORUI_MAT = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+// 細い丸太を格子に組んだ低い柵（曲輪の中の仕切り・畑の囲い）
+export function koshisaku(world, seg, o = {}) {
+  const [ax, az, bx, bz] = seg, len = Math.hypot(bx - ax, bz - az), H = o.h || 1.2, ang = Math.atan2(bx - ax, bz - az), parts = [];
+  const n = Math.max(2, Math.round(len / 0.5));
+  for (let i = 0; i <= n; i++) { const t = i / n, x = ax + (bx - ax) * t, z = az + (bz - az) * t, y = world.heightAt(x, z); const p = new THREE.CylinderGeometry(0.035, 0.045, H + 0.2, 5); p.translate(x, y + H / 2 - 0.1, z); parts.push(paint(p, vary(0x6a6254, i))); }
+  for (const hy of [0.35, H - 0.1]) { const mx = (ax + bx) / 2, mz = (az + bz) / 2; const r = new THREE.CylinderGeometry(0.03, 0.03, len, 5); r.rotateX(Math.PI / 2); r.rotateY(ang); r.translate(mx, world.heightAt(mx, mz) + hy, mz); parts.push(paint(r, 0x5e574a)); }
+  return merged(parts);
 }
 
 export function campfire(world, x, z) {
@@ -416,11 +473,16 @@ export function kabukimon(world, x, z, w = 6.4, rot = 0) {
   const parts = [];
   const H = 3.6;
   for (const sx of [-w / 2, w / 2]) {
-    const post = new THREE.CylinderGeometry(0.2, 0.24, H, 8); post.translate(sx, H / 2, 0); parts.push(paint(post, 0x6b5238));
-    const brace = new THREE.CylinderGeometry(0.08, 0.08, 1.6, 6); brace.rotateX(0.5); brace.translate(sx, 0.7, -0.45); parts.push(paint(brace, 0x5a4430));
+    const post = new THREE.CylinderGeometry(0.2, 0.24, H, 8); post.translate(sx, H / 2, 0); parts.push(paint(post, 0x6a6254));
+    const brace = new THREE.CylinderGeometry(0.08, 0.08, 1.6, 6); brace.rotateX(0.5); brace.translate(sx, 0.7, -0.45); parts.push(paint(brace, 0x5a5448));
+    // 板の扉（内へ開いたまま）：縦の板と、上下の横桟
+    const dw = w / 2 - 0.25, dx = sx * 0.5 - Math.sign(sx) * 0.15;
+    const door = new THREE.BoxGeometry(0.08, 2.6, dw); door.rotateY(sx > 0 ? -0.35 : 0.35); door.translate(sx - Math.sign(sx) * (dw / 2) * Math.cos(0.35) * 0 - Math.sign(sx) * 0.12, 1.35, -dw / 2 + 0.1);
+    void dx; parts.push(paint(door, vary(0x6d6558, sx > 0 ? 3 : 7)));
+    for (const hy of [0.4, 2.3]) { const cr = new THREE.BoxGeometry(0.1, 0.12, dw); cr.rotateY(sx > 0 ? -0.35 : 0.35); cr.translate(sx - Math.sign(sx) * 0.08, hy, -dw / 2 + 0.1); parts.push(paint(cr, 0x4e473c)); }
   }
-  const beam = new THREE.BoxGeometry(w + 1.4, 0.3, 0.32); beam.translate(0, H - 0.1, 0); parts.push(paint(beam, 0x5a4430));
-  const tie = new THREE.BoxGeometry(w, 0.18, 0.22); tie.translate(0, H - 0.75, 0); parts.push(paint(tie, 0x6b5238));
+  const beam = new THREE.BoxGeometry(w + 1.4, 0.3, 0.32); beam.translate(0, H - 0.1, 0); parts.push(paint(beam, 0x5c5548));
+  const tie = new THREE.BoxGeometry(w, 0.18, 0.22); tie.translate(0, H - 0.75, 0); parts.push(paint(tie, 0x6a6254));
   const m = merged(parts);
   m.position.set(x, world.heightAt(x, z), z);
   m.rotation.y = rot;
@@ -894,6 +956,42 @@ export function village(world, x, z, o = {}) {
     grp.add(ne);
   }
   if (aze.length) grp.add(new THREE.Mesh(mergeGeometries(aze), new THREE.MeshLambertMaterial({ vertexColors: true })));
+  // 稲の株の列：水面から立つ細い緑の筋（一つの形にまとめて軽く）。畑：家の脇に畝を立て、青物の列。道祖神：里の入口の小さな石の神
+  const crops = [];
+  for (let k = 0; k < nf; k++) {
+    const ci = k % cols, ri = Math.floor(k / cols);
+    const lx0 = (ci - cols / 2) * (fw + 0.8), lz0 = rad * 0.5 + 6 + ri * (fd + 0.8);
+    const [mx, mz] = W(lx0 + fw / 2, lz0 + fd / 2);
+    const my = world.heightAt(mx, mz) + 0.05;
+    for (let q = 0.8; q < fw - 0.5; q += 0.9) {
+      const [x0, z0] = W(lx0 + q, lz0 + 0.6), [x1, z1] = W(lx0 + q, lz0 + fd - 0.6);
+      const L = Math.hypot(x1 - x0, z1 - z0), b = new THREE.BoxGeometry(0.1, 0.28, L);
+      b.rotateY(Math.atan2(x1 - x0, z1 - z0)); b.translate((x0 + x1) / 2, my + 0.14, (z0 + z1) / 2);
+      crops.push(paint(b, vary(0x5f7d3a, k + Math.round(q))));
+    }
+  }
+  const nh = Math.min(3, spots.length);
+  for (let i = 0; i < nh; i++) {
+    const [lx, lz] = spots[i], ox = lx + (R() < 0.5 ? -1 : 1) * 7, oz = lz - 5;
+    const cy = world.heightAt(...W(ox, oz));
+    for (let q = 0; q < 5; q++) {
+      const [x0, z0] = W(ox - 3, oz + q * 1.1), [x1, z1] = W(ox + 3, oz + q * 1.1);
+      const L = Math.hypot(x1 - x0, z1 - z0), a2 = Math.atan2(x1 - x0, z1 - z0);
+      const une = new THREE.BoxGeometry(0.6, 0.25, L); une.rotateY(a2); une.translate((x0 + x1) / 2, cy + 0.1, (z0 + z1) / 2);
+      crops.push(paint(une, vary(0x5a4632, q + i)));
+      const ao = new THREE.BoxGeometry(0.35, 0.3, L - 0.4); ao.rotateY(a2); ao.translate((x0 + x1) / 2, cy + 0.36, (z0 + z1) / 2);
+      crops.push(paint(ao, vary(i % 2 ? 0x4f6e2c : 0x6a7f34, q)));
+    }
+  }
+  {
+    const [dx, dz] = W(-rad - 3, 2), dy = world.heightAt(dx, dz);
+    const st = new THREE.CylinderGeometry(0.22, 0.3, 0.7, 7); st.translate(dx, dy + 0.35, dz); crops.push(paint(st, vary(0x7a776c, 1)));
+    const base = new THREE.BoxGeometry(0.8, 0.18, 0.8); base.translate(dx, dy + 0.09, dz); crops.push(paint(base, vary(0x6a675e, 2)));
+    const rf = new THREE.ConeGeometry(0.62, 0.35, 4); rf.rotateY(Math.PI / 4 + rot); rf.translate(dx, dy + 1.05, dz); crops.push(paint(rf, vary(0x4a3a2a, 3)));
+    for (const sx of [-0.4, 0.4]) { const po = new THREE.BoxGeometry(0.06, 0.95, 0.06); po.translate(dx + sx * c, dy + 0.48, dz - sx * sn); crops.push(paint(po, vary(0x4a3a2a, 4))); }
+    solidCircle(dx, dz, 0.5);
+  }
+  if (crops.length) grp.add(new THREE.Mesh(mergeGeometries(crops), new THREE.MeshLambertMaterial({ vertexColors: true })));
   // 炊事の煙：いくつかの家の棟の端から昇る
   if (world.addSmokeColumn) roofMats.slice(0, o.smoke ?? 2).forEach((h) => world.addSmokeColumn(h.hx + Math.sin(h.ry + Math.PI / 2) * h.rl, h.top, h.hz + Math.cos(h.ry + Math.PI / 2) * h.rl, { size: 0.8 }));
   return grp;
@@ -1646,8 +1744,17 @@ export function dobei(world, seg, o = {}) {
     kbox(B.plaster, vary(0xc9c2b0, i), mx, y + 0.85 + (H - 0.85) / 2, mz, L, H - 0.85, 0.36, rot, 0);   // 漆喰
     kbox(B.shitami, 0x9a948a, mx, y + 1.05, mz, L, 0.5, 0.38, rot, 1.2);                   // 腰の下見板
     kbox(B.wood, 0x2c2622, mx, y + H - 0.12, mz, L, 0.1, 0.38, rot);                       // 長押
-    kbox(B.tile, 0xffffff, mx, y + H + 0.08, mz, L + 0.02, 0.14, 1.05, rot, 0.9);          // 瓦の笠
-    kbox(B.wood, 0x24221f, mx, y + H + 0.22, mz, L + 0.02, 0.16, 0.26, rot);               // 棟
+    // 瓦の笠：切妻に葺いた二枚の瓦の面（外と内へ傾け、軒は壁より張り出す）と、軒先の丸瓦の列の影、白い棟
+    for (const sd of [1, -1]) {
+      const g = new THREE.BoxGeometry(L + 0.02, 0.07, 0.62);
+      const uv = g.attributes.uv; for (let k = 0; k < uv.count; k++) uv.setXY(k, uv.getX(k) * (L + 0.02) / 0.9, uv.getY(k) * 0.62 / 0.9);
+      g.translate(0, 0, sd * 0.29); g.rotateX(sd * 0.42); g.rotateY(rot); g.translate(mx, y + H + 0.16, mz);
+      B.tile.push(paint(g, 0xffffff));
+      const nx0 = Math.sin(rot) * sd * 0.56, nz0 = Math.cos(rot) * sd * 0.56;
+      kbox(B.iron, 0x1a1a1c, mx + nx0, y + H + 0.02, mz + nz0, L, 0.06, 0.05, rot);        // 軒先の瓦の口の影
+    }
+    kbox(B.plaster, 0xe2dccc, mx, y + H + 0.3, mz, L + 0.02, 0.1, 0.16, rot);              // 棟の漆喰
+    kbox(B.tile, 0xffffff, mx, y + H + 0.37, mz, L + 0.02, 0.07, 0.2, rot);                // 棟瓦
   }
   // 狭間：三角・丸・四角を交互に（外と内の同じ所）
   const nx = -(bz - az) / len, nz = (bx - ax) / len;
@@ -1682,7 +1789,12 @@ export function sumiyagura(world, x, z, o = {}) {
   const w2 = w * 0.72, d2 = d * 0.72;
   kbox(B.plaster, 0xd0c9b8, x, yy + 1.1, z, w2, 2.2, d2, rot);
   kbox(B.shitami, 0xa8a298, x, yy + 0.35, z, w2 + 0.02, 0.7, d2 + 0.02, rot, 2);
-  for (const s of [-1, 1]) { const [wx, wz] = P(0, s * (d2 / 2 + 0.02)); kbox(B.iron, 0x121110, wx, yy + 1.35, wz, 1.1, 0.55, 0.04, rot); }
+  for (const s of [-1, 1]) {
+    const [wx, wz] = P(0, s * (d2 / 2 + 0.02)); kbox(B.iron, 0x121110, wx, yy + 1.35, wz, 1.1, 0.55, 0.04, rot);
+    // 格子（太い木の縦格子）と、窓の上下の白い額縁
+    for (let bq = -2; bq <= 2; bq++) { const [lx, lz] = P(bq * 0.2, s * (d2 / 2 + 0.05)); kbox(B.wood, 0x3a2e24, lx, yy + 1.35, lz, 0.07, 0.6, 0.06, rot); }
+    for (const hy of [1.06, 1.64]) { const [fx, fz] = P(0, s * (d2 / 2 + 0.05)); kbox(B.plaster, 0xe6e0d0, fx, yy + hy, fz, 1.3, 0.08, 0.08, rot); }
+  }
   ktile(B.tile, B.plaster, x, yy + 2.2, z, w2 + 1.9, d2 + 1.9, 1.5, rot, 0.4);
   // 棟の鯱
   for (const s of [-1, 1]) { const [cx, cz] = P(s * (w2 / 2 + 0.2), 0); kbox(B.iron, 0x2a2622, cx, yy + 3.85, cz, 0.18, 0.5, 0.26, rot); }
@@ -1714,6 +1826,16 @@ export function yaguramon(world, x, z, w = 5, rot = 0, o = {}) {
     for (const yy of [0.5, 1.6, 2.7]) kbox(B.iron, 0x161412, dx, y + yy, dz, 0.22, 0.14, 2.42, rot);
     for (const zz of [-0.8, 0, 0.8]) for (const yy of [0.5, 1.6, 2.7]) { const [nx2, nz2] = P(sx * (w / 2 - 0.2) + sx * 0.12, -1.4 + zz); kbox(B.iron, 0x201d1a, nx2, y + yy, nz2, 0.06, 0.12, 0.12, rot); }
   }
+  // 木組み：門柱の後ろの控柱と、門柱と結ぶ貫（上下二段）。控柱の根にも金具
+  for (const sx of [-1, 1]) {
+    const [bx2, bz2] = P(sx * (w / 2 + 0.1), -1.6);
+    kbox(B.wood, 0x3a2b20, bx2, y + 1.3, bz2, 0.3, 2.6, 0.3, rot);
+    kbox(B.iron, 0x1a1816, bx2, y + 0.25, bz2, 0.36, 0.4, 0.36, rot);
+    for (const hy of [0.9, 2.4]) { const [mx2, mz2] = P(sx * (w / 2 + 0.1), -0.8); kbox(B.wood, 0x33261b, mx2, y + hy, mz2, 0.16, 0.22, 1.7, rot); }
+  }
+  // 渡櫓の床を支える腕木（梁の先が表に並ぶ）と、軒下の出桁
+  for (let q = -4; q <= 4; q++) for (const s2 of [-1, 1]) { const [ax2, az2] = P(q * Lw / 9, s2 * 2.15); kbox(B.wood, 0x2e2219, ax2, y + 3.95, az2, 0.18, 0.2, 0.5, rot); }
+  for (const s2 of [-1, 1]) { const [ex, ez] = P(0, s2 * 2.3); kbox(B.wood, 0x2a1f17, ex, y + 5.92, ez, Lw + 0.6, 0.16, 0.16, rot); }
   ktile(B.tile, B.plaster, x, y + 6.0, z, Lw + 1.6, 5.6, 1.6, rot, 0.3);
   return kitMesh(B);
 }

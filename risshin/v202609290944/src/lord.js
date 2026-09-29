@@ -90,6 +90,7 @@ export function lordList() {
     const X = LORD_FIX[b.id] || {};
     if (X.skip) continue;
     const late = parseInt((b.year.match(/（(\d+)）/) || [])[1] || '0', 10) > 1582;
+    if (late) continue;   // 関ヶ原・大坂など信長の死後の戦は、今は出さない（kaito 2026-09-29）
     const ifs = late || !!X.if;
     out.push({ scn: k, id: b.id, name: b.name.replace(/の戦い$/, '') + (ifs ? '（もしも）' : ''), year: `${b.year}　${b.place}`, goal: '', spawn: null, ifs,
       text: [`${b.place}。`, late ? '（もしも信長が生きていたら――の一戦）' : X.if ? `史実では、信長はこの場にいない（${X.if}）。――もしも信長自ら出ていたら、の一戦。` : '織田信長として旗本を率いて出る。', '崩れそうな所へ旗本を回し、使番で諸将に下知を送れ。'],

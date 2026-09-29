@@ -199,6 +199,10 @@ function tensionCss() {
 #brinkfx.on { animation: brinkA 1.6s ease-out; }
 @keyframes brinkA { 0% { opacity: 1; background-color: rgba(255,240,230,.35); } 8% { background-color: rgba(0,0,0,0); } 100% { opacity: 0; } }
 body.rm #vignette.dying { animation: none; box-shadow: inset 0 0 220px rgba(130,12,4,.7); }
+#mobfx { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity .5s; background: linear-gradient(90deg, rgba(20,6,4,.55), transparent 16%, transparent 84%, rgba(20,6,4,.55)); }
+#mobfx.on { opacity: 1; animation: mobIn 1.2s ease-in-out infinite alternate; }
+@keyframes mobIn { to { background-size: 115% 100%; } }
+body.rm #mobfx.on { animation: none; }
 body.rm #aimwarn.on { animation: none; }
 #encircle { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .9s; -webkit-mask-image: radial-gradient(ellipse 72% 72% at 50% 50%, transparent 56%, rgba(0,0,0,.55) 80%, #000 100%); mask-image: radial-gradient(ellipse 72% 72% at 50% 50%, transparent 56%, rgba(0,0,0,.55) 80%, #000 100%); }
 #encircle.on { opacity: 1; }
@@ -546,6 +550,7 @@ export class Hud {
 
   // 画面中央の短い知らせ（受け流し・気力不足など）
   flash(text, tone = 'gold') {
+    text = this.terse(text);
     // 撃った弾が外れた時は、照準に小さく「外」の印も（字を読まなくても分かるように）
     if (/^外れた/.test(text)) { const ch = $('crosshair'); if (ch) { ch.classList.remove('gmiss'); void ch.offsetWidth; ch.classList.add('gmiss'); } }
     // 断りの字（'dim'：気力が足りない など）は、同じ字を戦の中の 8 秒に一度まで（押し続けても何度も出さない）
@@ -581,6 +586,14 @@ export class Hud {
     if (!warn && this.barkTimes.length >= 3) return false;
     return { now, key };
   }
+  // 戦の中の字を短く：指の端末では、キーやマウスの言い添え（「右で構えて〜」「Z で〜」）を落とす。
+  // 小さな画面（iPhone 横）では、括弧の中の言い添えも落とす（中身は印と音で伝わる）
+  terse(text) {
+    let t = String(text);
+    if (isTouch) t = t.replace(/　[^　]*(右で|左で|クリック|キー|[A-Z] で|Tab|Shift|Space)[^　]*$/, '').replace(/（[^）]*(クリック|キー|[A-Z] で|Tab|Shift)[^）]*）/g, '');
+    if (isTouch && innerHeight < 500) t = t.replace(/（[^）]{6,}）/g, '');
+    return t.trim() || String(text);
+  }
   bark(text, warn = false) {
     const ok = this.barkOk(text, warn);
     if (!ok) return;
@@ -589,7 +602,7 @@ export class Hud {
     this.barkTimes.push(now);
     const el = document.createElement('div');
     el.className = 'bk' + (warn ? ' warn' : '');
-    el.textContent = text;
+    el.textContent = this.terse(text);
     $('bark').appendChild(el);
     while ($('bark').children.length > 3) $('bark').firstChild.remove();
     setTimeout(() => el.remove(), 2200);
@@ -893,6 +906,10 @@ export class Hud {
     // 深手（三割を切る）：視界の端がにじみ、色が抜け、鼓動に合わせて赤く脈打つ。敵の鉄砲に狙われている間は縁が赤く脈打つ
     tensionCss();
     $('vignette').classList.toggle('dying', u.alive && u.hp < u.maxHp * 0.3);
+    // 囲まれた時：画面の左右の縁が墨でじわりと狭まる（字を出さずに、下がれ・抜けろと伝える）
+    let mob = $('mobfx');
+    if (!mob) { mob = document.createElement('div'); mob.id = 'mobfx'; mob.setAttribute('aria-hidden', 'true'); $('vignette').after(mob); }
+    mob.classList.toggle('on', !!(u.alive && u.mobbed));
     let aw = $('aimwarn');
     if (!aw) { aw = document.createElement('div'); aw.id = 'aimwarn'; $('vignette').after(aw); }
     aw.classList.toggle('on', u.alive && (rt.aimedT || 0) > 0 && !rt.over);
@@ -1064,6 +1081,7 @@ export class Hud {
     this.unitsT = (this.unitsT || 0) - dt;
     if (this.unitsT <= 0) { this.unitsT = 0.2; this.updateUnits(rt); }
     this.updateMarkers(rt);
+    this.lullCue(rt);
     this.updateThreats(rt);
     // ミニマップ
     this.mmT -= dt;
@@ -1522,6 +1540,49 @@ export class Hud {
     return [x, y];
   }
 
+  // 戦の合間（近くに敵がいない時）：次に来る敵の気配を、画面の縁に小さな太鼓の印で示す（その方角・寄せてくれば速く打つ）
+  // 新しく見えた敵の備は、物見の一言で知らせる（一つの備に一度だけ）
+  lullCue(rt) {
+    let el = $('lullcue');
+    if (!el) { el = document.createElement('div'); el.id = 'lullcue'; el.setAttribute('aria-hidden', 'true'); el.innerHTML = '<i></i><small></small>'; $('markers').appendChild(el); }
+    const now = performance.now();
+    if (now - (this.lullT || 0) < 250) return;
+    this.lullT = now;
+    const pl = rt.player, u = pl.u;
+    if (!u || !u.alive || rt.over || this.bigmap) { el.hidden = true; return; }
+    let near = false, best = null, bd = 230;
+    for (const o of rt.army.units) { if (o.alive && o.team !== u.team && !o.fleeing && !o.noTarget && o.type !== 'dummy' && Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 32) { near = true; break; } }
+    if (!near) for (const g of rt.army.groups) {
+      if (g.team === u.team || !g.count || g.count < 4 || g.routed) continue;
+      const c = g.center(), d = Math.hypot(c.x - u.pos.x, c.z - u.pos.z);
+      if (d < 45) { near = true; break; }
+      if (d < bd) { bd = d; best = { g, c, d }; }
+    }
+    if (near || !best) { el.hidden = true; return; }
+    const W = window.innerWidth, H = window.innerHeight;
+    const dx = best.c.x - u.pos.x, dz = best.c.z - u.pos.z, yaw = pl.yaw;
+    const th = Math.atan2(dx * -Math.cos(yaw) + dz * Math.sin(yaw), dx * Math.sin(yaw) + dz * Math.cos(yaw));
+    const sx = W / 2 + Math.sin(th) * (W / 2 - 46), sy = H / 2 - Math.cos(th) * (H / 2 - 70);
+    const [x, y] = this.avoidRects(Math.max(46, Math.min(W - 46, sx)), Math.max(70, Math.min(H - 60, sy)), W, H, Math.abs(Math.sin(th)) > 0.7 ? 'v' : 'h');
+    el.hidden = false;
+    el.style.left = x + 'px'; el.style.top = y + 'px';
+    // 寄せてくるか（隊の向きがこちらへ向いて動いている）
+    const v = best.g.units.find((q) => q.alive && q.vel);
+    const sp = v ? Math.hypot(v.vel.x, v.vel.z) : 0;
+    const coming = sp > 0.6 && -(v.vel.x * dx + v.vel.z * dz) / (best.d * sp) > 0.4;
+    el.classList.toggle('come', coming);
+    el.style.opacity = String(Math.max(0.35, 1 - best.d / 260));
+    const w = coming ? '寄せてくる' : '';
+    const sm = el.lastElementChild; if (sm.textContent !== w) sm.textContent = w;
+    // 物見の一言（新しく見えた備に一度。字は短く）
+    const seen = this.lullSeen || (this.lullSeen = new WeakSet());
+    if (!seen.has(best.g) && best.d < 200) {
+      seen.add(best.g);
+      const side = Math.abs(th) < 0.5 ? '正面' : Math.abs(th) > 2.5 ? '後ろ' : th > 0 ? '右手' : '左手';
+      const n = best.g.count > 60 ? '大勢' : `${Math.round(best.g.count / 5) * 5 || best.g.count}ほど`;
+      rt.bark(`物見「${side}に敵の備、${n}」`);
+    }
+  }
   updateMarkers(rt) {
     const W = window.innerWidth, H = window.innerHeight;
     const seen = new Set();

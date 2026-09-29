@@ -1,6 +1,6 @@
 // 日本地図：武将になってから開く天下の地図。和紙の地図に城と家の色を置き、隣の敵の城を選んで出陣する
 // 地図の上の天下の動き（季節ごとに他の家も隣の城を攻める）もここで持つ。進み具合は G.japan に
-import { tenkaEvents } from './tenka_events.js';
+import { tenkaEvents, tenkaAhead } from './tenka_events.js';
 import { GRID, PROVINCES, MAP_SCENARIOS } from './japan_data.js';
 import { drawMon } from './textures.js';
 import { sfx } from './audio.js';
@@ -591,6 +591,11 @@ function injectStyle() {
 .jp-legend .lgs { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-right: 5px; font-size: 11px; border: 1.5px solid #9b3524; color: #9b3524; background: #f3ead6; vertical-align: -3px; }
 .jp-legend .lgs.red { background: #2a2017; border-color: #2a2017; color: #f3ead6; }
 .jp-legend .lgd { color: #9a7a2e; margin-right: 4px; }
+.jp-legend .lgr { display: inline-block; width: 22px; height: 0; margin-right: 5px; vertical-align: 3px; border-top: 2px solid #b39a6a; }
+.jp-legend .lgr.front { border-top: 2.5px dashed #c8452c; }
+/* 左上の「戻る」の釦と重ならないよう、季節の札を右へ。操作の案内は勢力の帯の下へ */
+.jp:not(.j3) .jp-season { left: 150px; top: 10px; }
+.jp:not(.j3) .jp-hint { top: 112px; }
 .jp-pips { letter-spacing: 2px; color: var(--kin); }
 .jp-pw { grid-template-columns: 118px 1fr 26px 30px; }
 .jp-pw em { font-style: normal; font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
@@ -747,6 +752,34 @@ body.rm .jp-threat, body.rm .jp-result { animation: none; }
 .jp-rsb td.v { text-align: right; font-family: var(--display); font-size: 15px; font-variant-numeric: tabular-nums; }
 .jp-rsb td.v.hi { color: #f0d58a; font-weight: 700; } .jp-rsb td.v.lo { color: #e79a86; }
 .jp-promo .jp-rc h3 { color: var(--kin); }
+/* 勢力の帯（地図の上。家ごとの城の数を帯の長さで） */
+.jp-power { position: absolute; z-index: 1; left: 16px; right: 16px; top: 72px; display: flex; align-items: stretch; gap: 2px; padding: 4px 10px 3px 8px; background: rgba(20,17,13,.86); box-shadow: 0 0 0 1px rgba(194,162,90,.45); pointer-events: none; }
+.jp-power > span { flex: 0 0 auto; align-self: center; font-family: var(--display); font-size: 12px; color: var(--kin); letter-spacing: .14em; margin-right: 6px; }
+.jp-power i { display: flex; flex-direction: column; gap: 2px; min-width: 3px; font-style: normal; overflow: hidden; }
+.jp-power i::before { content: ''; display: block; height: 7px; background: var(--c); box-shadow: inset 0 0 0 1px rgba(0,0,0,.35); }
+.jp-power i.me::before { height: 9px; margin-top: -1px; box-shadow: 0 0 0 1.5px #e8c05c; }
+.jp-power i.etc::before { background: repeating-linear-gradient(135deg, #6b6254 0 3px, #4a4338 3px 6px); }
+.jp-power i b { min-height: 15px; font-size: 12px; font-weight: 500; color: #e9dfc8; white-space: nowrap; overflow: hidden; line-height: 15px; font-variant-numeric: tabular-nums; }
+.jp-power i.me { flex-shrink: 0; min-width: max-content; }
+.jp-power i.me b { color: #f0d58a; font-weight: 700; padding-right: 2px; }
+.jp-power em { font-style: normal; margin-left: 2px; } .jp-power em.up { color: #b9d39a; } .jp-power em.down { color: #f2a48e; }
+@media (max-height: 500px) {
+  .jp { grid-template-columns: minmax(0, 1fr) 290px; }
+  .jp-side { padding: 12px 12px 16px; }
+  .jp-when { font-size: 22px; margin: 2px 0 6px; }
+  .jp-tabs button { font-size: 14px; letter-spacing: .04em; }
+  .jp-power { top: 64px; left: 8px; right: 8px; }
+  .jp-hint { display: none; }
+  .jp:not(.j3) .jp-season { left: 132px; top: 8px; padding: 4px; }
+  .jp:not(.j3) .jp-season b { width: 36px; height: 36px; font-size: 18px; }
+  .jp:not(.j3) .jp-season span { display: none; }
+  .jp:not(.j3) .jp-tools { top: 8px; right: 8px; }
+  .jp:not(.j3) .jp-tools .btn { min-height: 44px; padding: 0 8px; }
+  .jp:not(.j3) .jp-legend { display: none; left: 8px; bottom: 8px; padding: 6px 10px; gap: 4px 12px; max-width: calc(100% - 70px); }
+  .jp:not(.j3) .jp-map.leg .jp-legend { display: flex; }
+  .jp:not(.j3) .jp-leg2 { display: inline-flex; align-items: center; }
+}
+.jp-leg2 { display: none; }
 /* 低い画面でも「承る」まで届くように、札の中を巻けるように */
 .jp-promo .jp-rc { max-height: calc(100% - 16px); overflow-y: auto; }
 @media (max-height: 520px) { .jp-promo .jp-rc { padding: 14px 18px; } .jp-promo .jp-rc h3 { margin: 4px 0; } .jp-promo .jp-open { margin: 6px 0; padding: 6px 10px; } }
@@ -756,6 +789,8 @@ body.rm .jp-threat, body.rm .jp-result { animation: none; }
 let active = null;
 // 画面を開き直しても覚えておく物（開いていた札）
 const UI = { tab: 'shiro' };
+// 城下などから、開いた時の札を決めて入る（'shiro' 城と外交・'naisei' 内政・'busho' 家臣・'hyo' 評定・'tenka' 天下）
+export function japanTab(k) { if (['shiro', 'naisei', 'hyo', 'busho', 'tenka'].includes(k)) UI.tab = k; }
 export function closeJapan() { if (active) { active.dispose(); active = null; } }
 
 // o：{ from: 'town'|'title', practice, onBack, onAttack(info), onSave(), result }
@@ -777,13 +812,15 @@ export function japanScreen(G, o) {
     <div class="jp-map" id="jp-map"><canvas id="jp-cv" role="img" aria-label="日本地図。攻められる城は右の一覧からも選べます"></canvas>
       <div class="jp-season" id="jp-season"></div>
       <div class="jp-moves" id="jp-moves" role="status" aria-live="polite"></div>
-      <div class="jp-tools" role="group" aria-label="地図の見え方"><button class="btn small" id="jp-in" title="寄る（+）" aria-label="地図に寄る">＋</button><button class="btn small" id="jp-out" title="引く（−）" aria-label="地図を引く">－</button><button class="btn small" id="jp-home" aria-label="自分の国を見る">自国</button><button class="btn small" id="jp-all" aria-label="日本全体を見る">全国</button></div>
-      <div class="jp-legend"><span><i class="lg yama"></i>山城</span><span><i class="lg hira"></i>平城</span><span><i class="lg toride"></i>砦</span><span><i class="lg hq"></i>本城</span><span><i class="lg tgt"></i>攻められる城</span><span><b class="lgs">危</b>狙われそうな自分の城</span><span><b class="lgs red">落</b>この季節に落ちた城</span><span><b class="lgd">●</b>守りの固さ</span></div>
+      <div class="jp-tools" role="group" aria-label="地図の見え方"><button class="btn small" id="jp-in" title="寄る（+）" aria-label="地図に寄る">＋</button><button class="btn small" id="jp-out" title="引く（−）" aria-label="地図を引く">－</button><button class="btn small" id="jp-home" aria-label="自分の国を見る">自国</button><button class="btn small" id="jp-all" aria-label="日本全体を見る">全国</button><button class="btn small jp-leg2" id="jp-leg2" type="button" aria-expanded="false" aria-label="地図の見方（凡例）を開く">凡例</button></div>
+      <div class="jp-legend"><span><i class="lg yama"></i>山城</span><span><i class="lg hira"></i>平城</span><span><i class="lg toride"></i>砦</span><span><i class="lg hq"></i>本城</span><span><i class="lg tgt"></i>攻められる城</span><span><b class="lgs">危</b>狙われそうな自分の城</span><span><b class="lgs red">落</b>この季節に落ちた城</span><span><b class="lgd">●</b>守りの固さ</span><span><i class="lgr"></i>街道</span><span><i class="lgr front"></i>攻め口</span></div>
+      <div class="jp-power" id="jp-power" role="img" aria-label="勢力"></div>
       <p class="jp-hint">ドラッグ・矢印キーで動かす ・ ホイール・＋－で寄る ・ 城を押して選ぶ</p>
     </div>
     <aside class="jp-side" id="jp-side"></aside>
   </div>`;
   const cv = $('jp-cv'), mapEl = $('jp-map');
+  { const lb = $('jp-leg2'); if (lb) lb.onclick = () => { const on = mapEl.classList.toggle('leg'); lb.setAttribute('aria-expanded', String(on)); lb.setAttribute('aria-label', on ? '地図の見方（凡例）を閉じる' : '地図の見方（凡例）を開く'); }; }
   const ctx = cv.getContext('2d');
   const inkRGB = {};
   for (const [id, css] of Object.entries(D.ink)) inkRGB[id] = rgbOf(css);
@@ -819,11 +856,13 @@ export function japanScreen(G, o) {
       if (cl === P && edge) img.data.set([200, 160, 70, 230], i * 4);
       else {
         // 色を和紙の地に寄せて、青い家の国が海に見えないように
-        const k = edge ? 0.15 : cl === P ? 0.42 - 0.3 * share : 0.25;
-        img.data.set([rgb[0] + (232 - rgb[0]) * k, rgb[1] + (214 - rgb[1]) * k, rgb[2] + (178 - rgb[2]) * k, edge ? 150 : cl === P ? Math.round(110 + 80 * share) : 80], i * 4);
+        // 地図の色は濃く（japan-map）、天下に占める城が増えるほど自分の国はさらに濃く（japan-play）
+        const k = edge ? 0.08 : cl === P ? 0.3 - 0.2 * share : 0.16;
+        img.data.set([rgb[0] + (232 - rgb[0]) * k, rgb[1] + (214 - rgb[1]) * k, rgb[2] + (178 - rgb[2]) * k, edge ? 190 : cl === P ? Math.round(130 + 60 * share) : 118], i * 4);
       }
     }
     g.putImageData(img, 0, 0);
+    clanAt = clanAnchors();
     // 升目の角が出ないよう、四倍に引き伸ばしてにじませる（水彩の色の境）
     const bg = terrBig.getContext('2d');
     bg.clearRect(0, 0, terrBig.width, terrBig.height);
@@ -832,6 +871,35 @@ export function japanScreen(G, o) {
     bg.filter = 'none';
     if (m3) m3.paint();
   };
+  // 家の名を置く所：いちばん大きな一続きの領地の真ん中（その領地の升に寄せる）
+  let clanAt = [];
+  function clanAnchors() {
+    const { gc, gr } = GRID, n = gc * gr;
+    const own = new Int32Array(n).fill(-1);
+    for (let i = 0; i < n; i++) { const k = D.near[i]; if (k >= 0) own[i] = J.own[D.castles[k].id]; }
+    const comp = new Uint8Array(n), stack = [], best = {};
+    for (let i0 = 0; i0 < n; i0++) {
+      if (own[i0] < 0 || comp[i0]) continue;
+      const id = own[i0], cells = [];
+      comp[i0] = 1; stack.push(i0);
+      while (stack.length) {
+        const i = stack.pop(); cells.push(i);
+        const q = i % gc, r = (i - q) / gc;
+        for (const j of [q > 0 ? i - 1 : -1, q < gc - 1 ? i + 1 : -1, r > 0 ? i - gc : -1, r < gr - 1 ? i + gc : -1]) if (j >= 0 && !comp[j] && own[j] === id) { comp[j] = 1; stack.push(j); }
+      }
+      if (!best[id] || cells.length > best[id].length) best[id] = cells;
+    }
+    const out = [];
+    for (const [id, cells] of Object.entries(best)) {
+      let sx = 0, sz = 0;
+      for (const i of cells) { sx += i % gc; sz += Math.floor(i / gc); }
+      sx /= cells.length; sz /= cells.length;
+      let bi = cells[0], bd = 1e9;
+      for (const i of cells) { const d = (i % gc - sx) ** 2 + (Math.floor(i / gc) - sz) ** 2; if (d < bd) { bd = d; bi = i; } }
+      out.push({ id: +id, x: (bi % gc) * S + 1.5, y: Math.floor(bi / gc) * S + 1.5, n: cells.length });
+    }
+    return out.sort((a, b) => (b.id === P) - (a.id === P) || b.n - a.n);
+  }
   paintTerritory();
 
   const resize = () => {
@@ -941,6 +1009,47 @@ export function japanScreen(G, o) {
         if (x < -40 || y < -20 || x > w + 40 || y > h + 20) continue;
         ctx.fillText(p.name, x, y - (s > 2.5 ? 18 : 0));
       }
+    }
+    // 大名家の名（領地の上に大きく。狭すぎる所は出さない）
+    {
+      const lb = [];
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+      for (const a of clanAt) {
+        const size = Math.sqrt(a.n) * S * s;
+        const cl = D.clans[a.id];
+        if (!cl || (size < 90 && a.id !== P) || size < 50) continue;
+        const x = view.ox + a.x * s, y = view.oy + a.y * s;
+        if (x < 20 || y < 20 || x > w - 20 || y > h - 20) continue;
+        const fs = Math.max(15, Math.min(32, size * 0.15));
+        const bw = cl.name.length * fs * 1.2, bh = fs * 1.3;
+        if (lb.some((b) => Math.abs(b[0] - x) < (b[2] + bw) / 2 && Math.abs(b[1] - y) < (b[3] + bh) / 2)) continue;
+        lb.push([x, y, bw, bh]);
+        ctx.font = `800 ${fs}px "Shippori Mincho B1", "Hiragino Mincho ProN", serif`;
+        ctx.letterSpacing = `${(fs * 0.18).toFixed(1)}px`;
+        ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(245,236,214,0.9)'; ctx.strokeText(cl.name, x, y);
+        ctx.fillStyle = a.id === P ? '#6e4f10' : D.ink[a.id] || '#333'; ctx.globalAlpha = 0.95; ctx.fillText(cl.name, x, y); ctx.globalAlpha = 1;
+        ctx.letterSpacing = '0px';
+        ctx.fillStyle = D.ink[a.id] || '#333'; ctx.fillRect(x - bw / 2 + fs * 0.2, y + fs * 0.62, bw - fs * 0.4, 3);
+      }
+    }
+    // 街道（隣り合う城どうし、淡い土の道）と攻め口（朱の点線と矢じり）
+    if (s >= 0.8) {
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      for (const c of D.castles) for (const nid of D.adj[c.id]) { if (nid < c.id) continue; const b = D.byId[nid]; const [x0, y0] = scr2(c), [x1, y1] = scr2(b); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); }
+      ctx.strokeStyle = 'rgba(70,50,28,0.35)'; ctx.lineWidth = 3; ctx.stroke();
+      ctx.strokeStyle = 'rgba(246,232,196,0.85)'; ctx.lineWidth = 1.2; ctx.stroke();
+    }
+    for (const c of D.castles) {
+      const from = attackable(D, J, c); if (!from || c === sel) continue;
+      const [x0, y0] = scr2(from), [x1, y1] = scr2(c);
+      const len = Math.hypot(x1 - x0, y1 - y0); if (len < 20) continue;
+      const ux = (x1 - x0) / len, uy = (y1 - y0) / len, ra = iconR(from) + 2, rb = iconR(c) * 1.95 + 4;
+      const sx = x0 + ux * ra, sy = y0 + uy * ra, ex = x1 - ux * rb, ey = y1 - uy * rb;
+      ctx.save(); ctx.setLineDash([6, 4]); ctx.lineWidth = 2.4; ctx.strokeStyle = '#c8452c';
+      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = '#c8452c'; ctx.beginPath(); ctx.moveTo(ex + ux * 2, ey + uy * 2); ctx.lineTo(ex - ux * 8 - uy * 5, ey - uy * 8 + ux * 5); ctx.lineTo(ex - ux * 8 + uy * 5, ey - uy * 8 - ux * 5); ctx.closePath(); ctx.fill();
+      ctx.restore();
     }
     // 軍勢の駒：この季節の攻め（矢印と駒）
     const moves = J.moves || [];
@@ -1209,7 +1318,28 @@ export function japanScreen(G, o) {
     bindSide();
     $('jp-season').innerHTML = `<b>${now.season}</b><span>${esc(now.era)}<br>${esc(D.name)}</span>`;
     drawTrend();
+    powerStrip();
     if (m3) m3.hud();
+  };
+  // 勢力の帯：家ごとの城の数を、家の色の帯の長さで（前の季節からの増減も）
+  const powerStrip = () => {
+    const el = $('jp-power'); if (!el) return;
+    const cnt = countOf(J);
+    const prev = (J.hist || []).filter((h) => h.t < J.turn).pop();
+    const tot = Object.values(cnt).reduce((a, b) => a + b, 0) || 1;
+    const list = Object.entries(cnt).map(([id, n]) => ({ id: +id, n })).filter((x) => D.clans[x.id]).sort((a, b) => b.n - a.n);
+    const big = list.filter((x) => x.n / tot >= 0.015 || x.id === P), rest = list.filter((x) => !big.includes(x)).reduce((a, x) => a + x.n, 0);
+    // 帯の幅から、名まで書けるか・数だけか・何も書かないかを決める
+    const bw = Math.max(200, (el.clientWidth || 600) - 60 - big.length * 2);
+    const seg = (x) => {
+      const px = (x.n / tot) * bw, nm = D.clans[x.id].name.replace(/家$/, '');
+      const d = prev ? x.n - (prev.c[x.id] || 0) : 0;
+      const dd = d ? `<em class="${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'}${Math.abs(d)}</em>` : '';
+      const lb = x.id === P ? `${esc(nm)} ${x.n}${dd}` : px >= nm.length * 12 + 22 + (d ? 18 : 0) ? `${esc(nm)} ${x.n}${dd}` : px >= nm.length * 12 + 20 ? `${esc(nm)} ${x.n}` : px >= 18 ? `${x.n}` : '';
+      return `<i class="${x.id === P ? 'me' : ''}" style="flex:${x.n};--c:${D.ink[x.id] || '#777'}"><b>${lb}</b></i>`;
+    };
+    el.innerHTML = `<span>勢力</span>${big.map(seg).join('')}${rest ? `<i class="etc" style="flex:${rest};--c:#6b6254"><b>${(rest / tot) * bw >= 52 ? `ほか ${rest}` : ''}</b></i>` : ''}`;
+    el.setAttribute('aria-label', `勢力（城の数）：${list.slice(0, 8).map((x) => `${D.clans[x.id].name} ${x.n}`).join('、')}${list.length > 8 ? '、ほか' : ''}`);
   };
   const bindSide = () => {
     const S2 = $('jp-side');
@@ -1613,6 +1743,7 @@ export function japanScreen(G, o) {
       <div class="jp-power">${top.map(([id, n]) => `<div class="jp-pw ${+id === P ? 'me' : ''}"><span class="nm"><i class="dot" style="background:${D.ink[id]}"></i>${esc(D.clans[id].name)}</span><span class="bar"><i style="width:${(n / max) * 100}%;background:${D.ink[id]}"></i></span><b>${n}</b>${delta(id, n)}</div>`).join('')}</div>
       ${J.hist.length > 1 ? `<canvas class="jp-trend" id="jp-trend" role="img" aria-label="季節ごとの、大きな家の城の数の移り変わり"></canvas>` : ''}
       <h4 class="jp-h">近ごろの出来事</h4>
+      ${(() => { const y = when(D, J.turn).y; const ah = tenkaAhead(y, 2).filter((e) => !(J.ev || {})[e.id]); const NM = { okehazama: '桶狭間', jyoraku: '上洛', hoi: '信長包囲網', shingen: '信玄の病', nagashino: '長篠', kenshin: '謙信の死', honnoji: '本能寺' }; return ah.length ? `<p class="note">先の世：${ah.map((e) => `${e.y}年${e.season}　${NM[e.id] || ''}`).join('・')}（条件しだいで起こらない）</p>` : ''; })()}
       <div class="jp-log">${J.log.slice(-14).reverse().map((l) => `<p class="${l.k || ''}"><small>${l.t ? esc(when(D, l.t - 1).season) : '始'}</small>${esc(l.s)}</p>`).join('') || '<p>まだ何も起きていない。</p>'}</div>`;
   }
   // 595：形勢の移り変わり（いま大きい五つの家と自分の家の、城の数の折れ線）

@@ -123,7 +123,7 @@ const KEYS = () => [
   ['右クリック', '構え・防御（直前なら受け流し）'], ['構え＋左', '薙ぎ払い'], [K('run'), '走る'], [K('dodge'), '回避'], [K('lock'), '敵を狙い定める'],
   [K('use'), '話す・取る'], [K('command'), '部隊指揮（長押しで号令の輪）'], [`${K('follow')} ${K('hold')} ${K('attack')} ${K('retreat')}`, 'ついて来い・待て・突撃・退け'], [K('rally'), '鼓舞・鬨の声'],
   [K('map'), '戦術マップ（クリックで組を向かわせる）'], [K('mapzoom'), 'ミニマップの縮尺'], [K('log'), '会話の記録'], [K('shoulder'), '肩越しの左右切替'], [K('view'), '視点の切替（三人称・一人称）'], [K('skip'), '行軍・待ちを飛ばす'],
-  [K('photo'), '写真モード'], [K('hud'), '画面の表示を消す・出す'], ['1 / 2', '槍 / 打刀'], ['[ ]', '視点の感度'], ['F1', '操作の早見表'], ['H', '操作説明'], ['Esc', '一時停止・設定'],
+  [K('photo'), '写真モード'], [K('hud'), '画面の札を消す・出す'], ['1 / 2', '槍 / 打刀'], ['[ ]', '視点の感度'], ['F1', '操作の早見表'], ['H', '操作説明'], ['Esc', '一時停止・設定'],
 ];
 const PB = (k) => `<span class="pb pb-${k.toLowerCase()}">${k}</span>`;
 const PAD = [['左スティック', '移動'], ['右スティック', '視点'], ['RT / RB', '攻撃'], ['LT', '構え'], [PB('A'), '回避・決定'], [PB('X'), '話す・取る'], [PB('Y'), '部隊指揮（長押しで号令の輪）'], [PB('B'), '戻る'], ['LB', '鼓舞'], ['十字キー', '号令（↑ついて来い ←待て →突撃 ↓退け）／画面の選択'], ['R3', '狙い定め'], ['L3', '走る'], ['Back', '戦術マップ'], ['Start', '一時停止']];
@@ -438,7 +438,7 @@ const SET_CAT = {
   操作: ['st-sens', 'st-psens', 'st-tsens', 'st-tswap', 'st-tsize', 'st-talpha', 'st-rtime', 'st-inv', 'st-smooth', 'st-autocam', 'st-run', 'st-guard', 'st-aim', 'st-vib'],
   // 914：「画面」を「見やすさ」と「HUD」に分ける
   見やすさ: ['st-fov', 'st-shake', 'st-blood', 'st-rm', 'st-ca', 'st-ui', 'st-sub', 'st-subbg', 'st-hints', 'st-font'],
-  HUD: ['st-hudmode', 'st-hc', 'st-fade', 'st-float', 'st-mark', 'st-toast', 'st-cross', 'st-north', 'st-fps', 'st-hudMinimap', 'st-hudCompass', 'st-hudArmy', 'st-hudSquad', 'st-hudBottom', 'st-hudObjectives'],
+  戦の札: ['st-hudmode', 'st-hc', 'st-fade', 'st-float', 'st-mark', 'st-toast', 'st-cross', 'st-north', 'st-fps', 'st-hudMinimap', 'st-hudCompass', 'st-hudArmy', 'st-hudSquad', 'st-hudBottom', 'st-hudObjectives'],
   音: ['st-vol', 'st-vsfx', 'st-vamb', 'st-vmus', 'st-town', 'st-voice', 'st-vrate'],
   画質: ['st-q', 'st-cap', 'st-dist'],
 };
@@ -447,16 +447,21 @@ const SET_DESC = {
   'st-rm': '揺れ・ゆっくり・大きな動きを抑える', 'st-ca': '敵味方を色の明るさと形でも見分ける', 'st-fade': '戦いが無い間は、まわりの札を薄くする',
   'st-mark': '遠くの敵にも頭上に小さな印を出す', 'st-toast': '「大事なものだけ」では5点未満の通知を出さない', 'st-north': 'ミニマップを回さず、北を上にしておく',
   'st-q': '低：影なし・草少なめ。重いときは自動で下がる', 'st-cap': '30 にすると電池の減りが少ない', 'st-dist': '霧の遠さ。短いほど軽い',
-  'st-town': '城下で琴の旋律を流す', 'st-fps': '左下に毎秒の絵の枚数と兵の数を出す',
+  'st-town': '城下で琴の旋律を流す', 'st-fps': '左下に一秒の絵の数と兵の数を出す',
   'st-voice': 'ブラウザの音声合成で台詞を読む（日本語の声がある環境のみ）', 'st-font': '本文の字の形',
 };
+// あまり使わない項目は「細かな設定」に畳む（押すと出る）。指の端末ではゲームパッドの項目を出さない
+const SET_ADV = new Set(['st-psens', 'st-smooth', 'st-rtime', 'st-vib', 'st-inv', 'st-float', 'st-mark', 'st-toast', 'st-cross', 'st-north', 'st-fps', 'st-cap', 'st-dist', 'st-hc', 'st-fade', 'st-subbg', 'st-font', 'st-vrate', 'st-talpha',
+  'st-hudMinimap', 'st-hudCompass', 'st-hudArmy', 'st-hudSquad', 'st-hudBottom', 'st-hudObjectives']);
+let setAdv = false;
 export function settingsHtml() {
   const row = (id, label, input, out = '') => {
     const cat = Object.keys(SET_CAT).find((c) => SET_CAT[c].includes(id)) || '操作';
-    return `<div class="s-row" data-cat="${cat}"><label for="${id}">${label}${SET_DESC[id] ? `<small>${SET_DESC[id]}</small>` : ''}</label>${input}<output id="${id}-o">${out}</output></div>`;
+    if (isTouch && (id === 'st-psens' || id === 'st-vib')) return '';
+    return `<div class="s-row ${SET_ADV.has(id) ? 'adv' : ''}" data-cat="${cat}"><label for="${id}">${label}${SET_DESC[id] ? `<small>${SET_DESC[id]}</small>` : ''}</label>${input}<output id="${id}-o">${out}</output></div>`;
   };
   const chk = (id, key) => `<input type="checkbox" id="${id}" ${S[key] ? 'checked' : ''}>`;
-  return `<div class="settings"><style>.settings input[type=range] { min-height: 44px; } .settings .keybind button.wait b { color: #e38a74; }</style><div class="tabs st-tabs" role="tablist" aria-label="設定の分類">${Object.keys(SET_CAT).map((c, i) => `<button type="button" role="tab" id="st-tab-${i}" data-stcat="${c}" aria-controls="st-panel" class="${i === 0 ? 'on' : ''}" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}">${c}</button>`).join('')}</div>
+  return `<div class="settings ${setAdv ? 'show-adv' : ''}"><style>.settings:not(.show-adv) .s-row.adv { display: none !important; } .settings .st-advbtn { margin: 8px 0; } .settings input[type=range] { min-height: 44px; } .settings .keybind button.wait b { color: #e38a74; }</style><div class="tabs st-tabs" role="tablist" aria-label="設定の分類">${Object.keys(SET_CAT).map((c, i) => `<button type="button" role="tab" id="st-tab-${i}" data-stcat="${c}" aria-controls="st-panel" class="${i === 0 ? 'on' : ''}" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}">${c}</button>`).join('')}</div>
     <div id="st-panel" role="tabpanel" aria-labelledby="st-tab-0">
     ${row('st-sens', '視点の感度', `<input type="range" id="st-sens" min="0.3" max="2.5" step="0.05" value="${S.sens}">`, S.sens.toFixed(2))}
     ${row('st-psens', 'スティックの感度', `<input type="range" id="st-psens" min="0.3" max="2.5" step="0.05" value="${S.padSens}">`, S.padSens.toFixed(2))}
@@ -466,10 +471,10 @@ export function settingsHtml() {
     ${row('st-talpha', '丸の濃さ', `<input type="range" id="st-talpha" min="0.35" max="1" step="0.05" value="${S.touchAlpha || 1}">`, Math.round((S.touchAlpha || 1) * 100) + '%')}` : ''}
     ${row('st-rtime', '号令の輪を開いている間', `<select id="st-rtime"><option value="slow" ${S.radialTime !== 'run' ? 'selected' : ''}>時がゆっくり流れる</option><option value="run" ${S.radialTime === 'run' ? 'selected' : ''}>そのまま流れる</option></select>`)}
     ${row('st-inv', '上下の反転', chk('st-inv', 'invertY'))}
-    ${row('st-smooth', 'マウスのぶれをならす（平滑化）', chk('st-smooth', 'smooth'))}
+    ${row('st-smooth', 'マウスのぶれをならす', chk('st-smooth', 'smooth'))}
     ${row('st-autocam', 'カメラが背後へ回る', chk('st-autocam', 'autoCam'))}
     ${row('st-view', '戦の視点（V で切替）', `<select id="st-view"><option value="third" ${S.view !== 'first' ? 'selected' : ''}>三人称（背中から見る）</option><option value="first" ${S.view === 'first' ? 'selected' : ''}>一人称（自分の目で見る）</option></select>`)}
-    ${row('st-fov', '見える広さ（視野角）', `<input type="range" id="st-fov" min="50" max="85" step="1" value="${S.fov}">`, S.fov + '°')}
+    ${row('st-fov', '見える広さ', `<input type="range" id="st-fov" min="50" max="85" step="1" value="${S.fov}">`, S.fov + '°')}
     ${row('st-vol', '音量（全体）', `<input type="range" id="st-vol" min="0" max="1" step="0.05" value="${S.volume}">`, Math.round(S.volume * 100) + '%')}
     ${row('st-vsfx', '効果音', `<input type="range" id="st-vsfx" min="0" max="1" step="0.05" value="${S.volSfx}">`, Math.round(S.volSfx * 100) + '%')}
     ${row('st-vamb', '環境音', `<input type="range" id="st-vamb" min="0" max="1" step="0.05" value="${S.volAmb}">`, Math.round(S.volAmb * 100) + '%')}
@@ -478,23 +483,23 @@ export function settingsHtml() {
     ${row('st-q', '画質', `<select id="st-q"><option value="low" ${S.quality === 'low' ? 'selected' : ''}>低（影なし・草少なめ）</option><option value="mid" ${S.quality === 'mid' ? 'selected' : ''}>中</option><option value="high" ${S.quality === 'high' ? 'selected' : ''}>高</option></select>`)}
     ${row('st-run', '走りを切替式に', chk('st-run', 'runToggle'), '')}
     ${row('st-guard', '構えを切替式に', chk('st-guard', 'guardToggle'), '')}
-    ${row('st-aim', '狙いを助ける（照準補助）', chk('st-aim', 'aimAssist'))}
+    ${row('st-aim', '突きの狙いを助ける', chk('st-aim', 'aimAssist'))}
     ${row('st-shake', '画面の揺れ', chk('st-shake', 'shake'))}
     ${row('st-hudmode', '画面の札の量', `<select id="st-hudmode"><option value="min" ${S.hudMode === 'min' ? 'selected' : ''}>最小（戦場を広く）</option><option value="normal" ${(S.hudMode || 'normal') === 'normal' ? 'selected' : ''}>ふつう</option><option value="full" ${S.hudMode === 'full' ? 'selected' : ''}>全部</option></select>`)}
     ${row('st-blood', '血の見せ方', `<select id="st-blood"><option value="on" ${(S.blood || 'on') === 'on' ? 'selected' : ''}>あり</option><option value="low" ${S.blood === 'low' ? 'selected' : ''}>控えめ</option><option value="off" ${S.blood === 'off' ? 'selected' : ''}>なし</option></select>`)}
     ${row('st-rm', '動きを減らす', chk('st-rm', 'reduceMotion'))}
     ${row('st-ca', '色覚に配慮した配色', chk('st-ca', 'colorAssist'))}
-    ${row('st-ui', '字と札の大きさ', `<select id="st-ui"><option value="s" ${S.uiScale === 's' ? 'selected' : ''}>小</option><option value="m" ${S.uiScale === 'm' ? 'selected' : ''}>中</option><option value="l" ${S.uiScale === 'l' ? 'selected' : ''}>大</option></select>`)}
+    ${row('st-ui', '画面の字と札の大きさ', `<select id="st-ui"><option value="s" ${S.uiScale === 's' ? 'selected' : ''}>小</option><option value="m" ${S.uiScale === 'm' ? 'selected' : ''}>中</option><option value="l" ${S.uiScale === 'l' ? 'selected' : ''}>大</option></select>`)}
     ${row('st-vib', 'ゲームパッドの振動', chk('st-vib', 'vibrate'))}
     ${row('st-sub', '字幕の大きさ', `<select id="st-sub"><option value="s" ${S.subSize === 's' ? 'selected' : ''}>小</option><option value="m" ${S.subSize === 'm' ? 'selected' : ''}>中</option><option value="l" ${S.subSize === 'l' ? 'selected' : ''}>大</option></select>`)}
     ${row('st-hints', 'ヒントを表示', chk('st-hints', 'hints'))}
     ${row('st-subbg', '字幕に下地を敷く', chk('st-subbg', 'subBg'))}
-    ${row('st-hc', '画面の表示を濃く見やすくする', chk('st-hc', 'hudContrast'))}
-    ${row('st-fade', '戦っていない時は画面の表示を薄く', chk('st-fade', 'hudAutoFade'))}
+    ${row('st-hc', '札の字をくっきりさせる', chk('st-hc', 'hudContrast'))}
+    ${row('st-fade', '戦いが無い間は札を薄く', chk('st-fade', 'hudAutoFade'))}
     ${row('st-float', '討った場所に戦功を浮かべる', chk('st-float', 'floatMerit'))}
     ${row('st-cap', '一秒に描く回数の上限', `<select id="st-cap"><option value="0" ${!S.fpsCap ? 'selected' : ''}>上限なし</option><option value="60" ${S.fpsCap === 60 ? 'selected' : ''}>60</option><option value="30" ${S.fpsCap === 30 ? 'selected' : ''}>30（省電力）</option></select>`)}
     ${row('st-dist', '見える遠さ', `<input type="range" id="st-dist" min="0.6" max="1.4" step="0.05" value="${S.drawDist}">`, Math.round(S.drawDist * 100) + '%')}
-    ${row('st-fps', '動きの滑らかさ（毎秒の絵の枚数）を出す', chk('st-fps', 'showFps'))}
+    ${row('st-fps', '一秒の絵の数を出す', chk('st-fps', 'showFps'))}
     ${row('st-mark', '敵の頭上に常に印', chk('st-mark', 'enemyMark'))}
     ${row('st-toast', '戦功の通知', `<select id="st-toast"><option value="all" ${S.toastLevel === 'all' ? 'selected' : ''}>すべて</option><option value="important" ${S.toastLevel === 'important' ? 'selected' : ''}>大事なものだけ</option></select>`)}
     ${row('st-cross', '照準の形', `<select id="st-cross"><option value="dot" ${S.crosshair === 'dot' ? 'selected' : ''}>点</option><option value="cross" ${S.crosshair === 'cross' ? 'selected' : ''}>十字</option><option value="none" ${S.crosshair === 'none' ? 'selected' : ''}>なし</option></select>`)}
@@ -504,6 +509,7 @@ export function settingsHtml() {
     ${row('st-voice', '台詞の読み上げ', `<select id="st-voice"><option value="off" ${S.voice === 'off' ? 'selected' : ''}>読み上げない</option><option value="major" ${S.voice === 'major' ? 'selected' : ''}>主な人物だけ</option><option value="all" ${S.voice === 'all' ? 'selected' : ''}>すべて</option></select>`)}
     ${row('st-vrate', '読み上げの速さ', `<input type="range" id="st-vrate" min="0.7" max="1.5" step="0.05" value="${S.voiceRate}">`, S.voiceRate.toFixed(2))}
     </div>
+    <button type="button" class="btn small st-advbtn" id="st-adv" aria-pressed="${setAdv}">${setAdv ? '細かな設定を畳む' : '細かな設定を見せる'}</button>
     <div class="row"><button class="btn small" id="st-rehint">ヒントをもう一度すべて表示する</button><button class="btn small" id="st-reset">設定を初期値に戻す</button></div><div id="st-reset-cf"></div>
     <div id="kb-cf"></div>
     <div class="eyebrow kb-lbl" style="margin-top:10px">キー割り当て（操作を選んでから、割り当てたいキーを押してください）</div>
@@ -513,6 +519,8 @@ export function settingsHtml() {
 }
 
 export function bindSettings(onChange) {
+  const adv = $('st-adv');
+  if (adv) adv.onclick = () => { setAdv = !setAdv; const box = document.querySelector('.settings'); if (box) box.classList.toggle('show-adv', setAdv); adv.setAttribute('aria-pressed', String(setAdv)); adv.textContent = setAdv ? '細かな設定を畳む' : '細かな設定を見せる'; sfx('ui'); };
   const bind = (id, key, conv, fmt) => {
     const el = $(id);
     if (!el) return;
@@ -1862,6 +1870,8 @@ const TOWN_CSS = `<style>
   .base .tw-ledger { font-size: 12.5px; color: var(--washi-dim); margin: 4px 0 0; font-variant-numeric: tabular-nums; }
   .base .tw-autosave { color: var(--washi-faint); }
   .base .btn.tw-sorton { box-shadow: inset 0 -3px 0 var(--kin); border-color: var(--kin); color: var(--washi); }
+  .base .tw-realm { margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--line); }
+  .base .tw-realm small { display: block; font-size: 12px; letter-spacing: .2em; color: var(--kin); margin-bottom: 6px; }
   .base .tw-legend { font-size: 12px; color: var(--washi-dim); margin: 4px 0 8px; }
   .base .tw-goany { display: flex; justify-content: flex-end; margin: 6px 0 0; }
   .base .tw-goany .btn { min-height: 44px; }
@@ -1920,7 +1930,7 @@ export function baseScreen(G, town0, lastResult, game) {
       <div class="rank">${esc(RANKS[G.rank].name)}</div>
       <button class="btn small" id="b-ladder-town" style="margin-top:10px">出世の道を見る</button>
       <div class="row" style="margin-top:8px;gap:6px"><button class="btn small" id="b-zukan-town">武将図鑑</button><button class="btn small" id="b-set-town">設定</button><button class="btn small" id="b-title-town">タイトルへ</button></div>
-      ${G.rank >= 4 || G.battle >= BATTLES.length ? '<button class="btn small" id="b-japan-town" style="margin-top:10px">日本地図</button>' : ''}
+      ${G.rank >= 4 || G.battle >= BATTLES.length ? `<div class="tw-realm" role="group" aria-label="天下の地図"><small>天下の地図</small><div class="row"><button class="btn small" data-jp="naisei">領地と内政</button><button class="btn small" data-jp="busho">家臣</button><button class="btn small" data-jp="shiro">城攻めと外交</button><button class="btn small" data-jp="tenka">天下の動き</button></div></div>` : ''}
       <div style="height:12px"></div>
       ${next ? `<div class="tw-prog" role="progressbar" aria-label="次の身分「${esc(next.name)}」まで" aria-valuemin="${RANKS[G.rank].min}" aria-valuemax="${next.min}" aria-valuenow="${Math.min(next.min, G.merit)}" aria-valuetext="累計戦功 ${G.merit}／${next.min}"><div class="lbl"><span>次は「${esc(next.name)}」</span><b>あと ${Math.max(0, next.min - G.merit)}</b></div><i><b style="width:${Math.min(100, Math.max(0, (G.merit - RANKS[G.rank].min) / (next.min - RANKS[G.rank].min)) * 100)}%"></b></i><small>累計戦功 ${G.merit} ／ ${next.min}</small></div>` : `<div class="stat"><span>累計戦功</span><b>${G.merit}</b></div>`}
       <div class="stat"><span>所持金</span><b>${zeni(G.kan)}</b></div>
@@ -2159,7 +2169,8 @@ export function baseScreen(G, town0, lastResult, game) {
     // 買ったあとも、見ていた所（送った位置）のままにする（上へ戻されると続けて買いにくい）
     // 押した品の釦（無ければ施設の札）へ焦点を戻す（961）
     toiyaBind(G, (msg, snd, sel) => { const sy = $('screen').scrollTop; sfx(snd || 'ui'); save(G); notice(msg); render(); $('screen').scrollTop = sy; (sel && document.querySelector(sel) || document.querySelector('[data-tab="toiya"]'))?.focus({ preventScroll: true }); }, confirmBox);
-    const bj = $('b-japan-town'); if (bj) bj.onclick = () => { sfx('ui'); if (preview) { preview.dispose(); preview = null; } game.japanMap('town'); };
+    // 天下の地図：内政・家臣・城攻めと外交・天下の動きの札を選んで入る
+    document.querySelectorAll('[data-jp]').forEach((b) => b.onclick = () => { sfx('ui'); if (preview) { preview.dispose(); preview = null; } const k = b.dataset.jp; import('./japan.js').then((m) => { m.japanTab(k); game.japanMap('town'); }); });
     const flashPv = () => { const c = $('pv'); if (c) { c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash'); } };
     document.querySelectorAll('[data-eq]').forEach((b) => b.onclick = () => { const it = ITEMS[b.dataset.eq]; G.equip[it.slot] = b.dataset.eq; sfx('ui'); saved(); render(); flashPv(); });
     document.querySelectorAll('[data-buy]').forEach((b) => b.onclick = () => {
@@ -2777,13 +2788,13 @@ export function pauseMenu(el, o) {
     <div class="btns">
       <button class="btn primary" id="pm-resume">再開する${isTouch ? '' : '（Esc）'}</button>
       <button class="btn" id="pm-settings" aria-expanded="false" aria-controls="pm-set">設定</button>
-      <button class="btn" id="pm-help">操作説明</button>
-      <button class="btn" id="pm-retry">この戦をやり直す（R）</button>
-      <button class="btn" id="pm-title">タイトルへ戻る</button>
+      <button class="btn" id="pm-help">操作を見る</button>
+      <button class="btn" id="pm-retry">やり直す${isTouch ? '' : '（R）'}</button>
+      <button class="btn" id="pm-title">タイトルへ</button>
     </div>
     <div class="objs"><div class="eyebrow" style="margin-bottom:6px">現在の任務</div>${o.objectives.map((x) => `<div>${x.state === 'done' ? '✓' : x.state === 'fail' ? '✕' : '・'} <b>${esc(x.text)}</b>${x.progress ? `　<small>${esc(x.progress)}</small>` : ''}</div>`).join('') || '—'}
       <div style="height:12px"></div><div>この戦の戦功 <b>${o.merit}</b>　／　経過 ${Math.floor(o.time / 60)}分${String(Math.floor(o.time % 60)).padStart(2, '0')}秒</div>
-      ${o.lines && o.lines.length ? `<div style="margin-top:8px">${o.lines.map((l) => `<div>${esc(l.label)}${l.detail ? `（${esc(l.detail)}）` : ''}　<b>${l.pts > 0 ? '+' : ''}${l.pts}</b></div>`).join('')}<small>組が何人生き残ったかは、戦の終わりに数えます</small></div>` : ''}</div>
+      ${o.lines && o.lines.length ? `<details style="margin-top:8px"><summary class="note" style="cursor:pointer;min-height:44px;display:flex;align-items:center">戦功の内訳（${o.lines.length}）</summary>${o.lines.map((l) => `<div>${esc(l.label)}${l.detail ? `（${esc(l.detail)}）` : ''}　<b>${l.pts > 0 ? '+' : ''}${l.pts}</b></div>`).join('')}</details>` : ''}</div>
     <div style="grid-column:1/-1;display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start"><canvas id="pm-map" role="img" aria-label="戦場の地図（味方は青、敵は朱）" width="400" height="400" style="width:220px;height:220px;border:1px solid var(--line)"></canvas>
       ${o.error ? '<div class="objs" style="max-width:320px"><div class="eyebrow">不具合の記録</div><p class="note">不具合が起きていました。作り手に伝えるときは、この内容を写してください。</p><button class="btn small" id="pm-err">不具合の内容を写す</button></div>' : ''}</div>
     <div id="pm-confirm" style="grid-column:1/-1"></div>

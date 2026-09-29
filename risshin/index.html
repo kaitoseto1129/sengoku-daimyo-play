@@ -1,7 +1,7 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202609290914 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202609290944 として写した） -->
 <title>戦国立身 3D</title>
-<link rel="icon" type="image/png" sizes="32x32" href="./v202609290914/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202609290914/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202609290914/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202609290914/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202609290944/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202609290944/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202609290944/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202609290944/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -277,6 +277,14 @@ body.rm #crosshair.gping::after, body.rm #crosshair.gmiss::after { animation-dur
 #objectives li small { display: block; color: var(--washi-dim); font-size: 12px; }
 .threat { position: absolute; font-family: var(--display); font-weight: 800; font-size: 22px; color: #ff6a4a; text-shadow: 0 0 6px rgba(0,0,0,.9); pointer-events: none; }
 .mk.near { opacity: .35; }
+/* 戦の合間の気配：画面の縁に小さな太鼓。寄せてくる時は速く打つ */
+#lullcue { position: absolute; transform: translate(-50%, -50%); pointer-events: none; display: grid; justify-items: center; gap: 2px; transition: opacity .8s; }
+#lullcue[hidden] { display: none; }
+#lullcue i { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #e36a52; background: radial-gradient(circle, rgba(227,106,82,.35), rgba(12,10,8,.6) 70%); box-shadow: 0 0 0 1px rgba(0,0,0,.5); animation: lullbeat 2.2s ease-out infinite; }
+#lullcue.come i { animation-duration: .9s; }
+#lullcue small { font-size: 12px; color: #f0c0b0; text-shadow: 0 1px 2px #000, 0 0 4px #000; white-space: nowrap; }
+@keyframes lullbeat { 0% { box-shadow: 0 0 0 0 rgba(227,106,82,.6); } 70% { box-shadow: 0 0 0 12px rgba(227,106,82,0); } 100% { box-shadow: 0 0 0 0 rgba(227,106,82,0); } }
+body.rm #lullcue i { animation: none; }
 /* 敵の印は下向きの三角（行き先の菱形と形でも分ける）。いちばんの行き先は少し大きく、ゆっくり光る */
 .mk.red::before { width: 0; height: 0; border: 7px solid transparent; border-top: 11px solid #e36a52; border-bottom-width: 0; transform: none; margin-bottom: 3px; }
 body.ca .mk.red::before { border-color: transparent; border-top-color: #ff9a1a; border-style: solid; }
@@ -1467,4 +1475,4 @@ html.touch .keyhint, html.touch .hintk { display: none; }
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
 } }
 </script>
-<script type="module" src="./v202609290914/src/main.js"></script>
+<script type="module" src="./v202609290944/src/main.js"></script>

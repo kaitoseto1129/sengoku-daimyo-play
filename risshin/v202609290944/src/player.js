@@ -107,7 +107,7 @@ export const ORDER_NAME = {
   follow: 'ついて来い', hold: '待て', attack: '突撃', retreat: '退け', focus: '敵を狙え', move: '前進', yari: '槍衾', flee: '潰走',
   face: '向き直れ', gather: '集まれ',
 };
-export const FORM_NAME = { line: '横陣', column: '縦陣', loose: '散開', yari: '槍衾' };
+export const FORM_NAME = { line: '横陣', column: '縦陣', loose: '散開', yari: '槍衾', ring: '円陣' };
 // 組の隊の種類（号令先の切り替えの順）と名前
 export const GROUP_KINDS = ['spear', 'gun', 'bow', 'cavalry'];
 export const GROUP_NAME = { all: '全隊', spear: '槍隊', gun: '鉄砲隊', bow: '弓隊', cavalry: '騎馬隊' };
@@ -645,7 +645,7 @@ export class Player {
       if (this.guard && this.sta > 0 && dot > 0.25) {
         // 構えた直後なら受け流し（相手の体勢を崩し、反撃の好機）。打刀は猶予が長い
         // 囲まれている時（u.mobbed）は、受け流しの間が半分・構えの減りが倍（四方からの槍に受けが追いつかない）
-        const win = this.parryWin() * (u.mobbed ? 0.5 : 1);
+        const win = this.parryWin() * (u.mobbed ? 0.7 : 1);
         if (this.guardT < win) {
           this.rt.stats.parries++;
           this.rt.tutMark('parry');
@@ -665,7 +665,7 @@ export class Player {
           this.rt.hint('counter');
           return 0;
         }
-        this.sta -= amount * 1.3 * (u.mobbed ? 2 : 1);
+        this.sta -= amount * 1.3 * (u.mobbed ? 1.5 : 1);
         this.staDelay = 0.8;
         this.rt.stats.blocks++;
         sfx('block', 1);
@@ -1323,6 +1323,9 @@ export class Player {
     u.dmg = d0;
     u.relT = 0.55;
     this.addShake(0.04);
+    // 弓の手応え：弦が返る音と、弓手が押し返されてわずかに左へ振れる（鉄砲の重い反動とは違う軽い離れ）
+    sfx('string', 0.7);
+    if (!S.reduceMotion) { this.yaw += 0.01; this.pitch = Math.min(0.55, this.pitch + 0.008); }
   }
   // 照門（一人称で構えた時）と、弾込め・引きの様子の小さな札。戦の後は battle.js の dispose が消す
   updateRangedUi() {
@@ -1470,10 +1473,14 @@ export class Player {
     if (hits.length) {
       // 手応え：重い一撃ほど長く止まる。甲冑に当たれば金の音
       const heavy = kind === 'charged' || (kind === 'thrust' && third) || counter;
+      // 得物ごとの手応え：槍の突きは短く鋭く止まり、刀の斬りは刃が肉を通る分だけ少し長く止まって、斬った向きへ目線が流れる
       // 軽い一撃は短く軽く、重い一撃は長く止まり、鈍い音と時のゆるみ（見切りの反撃がいちばん重い）
-      this.rt.game.hitstop = Math.max(this.rt.game.hitstop || 0, counter && this.counterPerfect ? 0.16 : heavy ? 0.11 : kind === 'sweep' ? 0.08 : 0.035);
+      const blade = kind === 'slash' || kind === 'kthrust';
+      this.rt.game.hitstop = Math.max(this.rt.game.hitstop || 0, counter && this.counterPerfect ? 0.16 : heavy ? 0.11 : kind === 'sweep' ? 0.08 : blade ? 0.065 : 0.035);
       if (heavy) { sfx('thud', 0.7); if (counter || kind === 'charged') this.rt.game.slowmo = Math.max(this.rt.game.slowmo || 0, counter && this.counterPerfect ? 0.4 : 0.18); }
       if (counter) this.counterPerfect = false;
+      if (kind === 'slash') { sfx('slash', 0.6); if (!S.reduceMotion) this.yaw += (this.slashN % 2 ? 1 : -1) * 0.012; }
+      else if ((kind === 'thrust' || kind === 'charged') && !S.reduceMotion) this.pitch -= 0.006;   // 穂先が入る時、前へわずかに引かれる
       // 薙ぎが当たると、重い柄が体に食い込む手応え：少し長い止めと、下へ沈む揺れ
       if (kind === 'sweep') { this.addShake(0.08); if (!S.reduceMotion) this.pitch -= 0.015; }
       if (hits.some((h) => h.u.type === 'samurai' || h.u.type === 'busho' || h.u.type === 'cavalry')) sfx('clank', heavy ? 1.3 : 0.9);
@@ -1612,7 +1619,8 @@ export class Player {
       return;
     }
     if (id === 'form') {
-      const seq = ['line', 'column', 'loose'];
+      // 横陣 → 縦陣 → 散開 → 円陣（囲まれた時に四方を守る）の順に組み替える
+      const seq = ['line', 'column', 'loose', 'ring'];
       for (const g of gs) {
         const cur = g.formation === 'yari' ? 'line' : g.formation;
         g.formation = seq[(seq.indexOf(cur) + 1) % seq.length];
@@ -1665,6 +1673,15 @@ export class Player {
         g.anchor = { x: u.pos.x + Math.sin(this.yaw) * (2 - back), z: u.pos.z + Math.cos(this.yaw) * (2 - back) };
         g.facing = this.yaw;
         g.aggro = g.kind === 'bow' || g.kind === 'gun' ? 8 : 4;
+      }
+      // 号令を確かに効かせる：ついて来い・待て・進めでは、目の前で打ち合っている者（2.5m 内）のほかは今の相手を離して号令に従う
+      //   （遠くの敵を追いかけたまま、号令が効かないように見えないように）
+      if (id === 'follow' || id === 'hold' || id === 'move' || id === 'yari') {
+        for (const s of g.units) {
+          if (!s.alive || !s.target) continue;
+          const tp = s.target.pos;
+          if (!tp || Math.hypot(tp.x - s.pos.x, tp.z - s.pos.z) > 2.5) { s.target = null; s.atk = null; s.charging = false; }
+        }
       }
       // 号令 → 返事 → 組頭格が動き、兵がそれに続く（一斉にくるりと回らない）
       g.units.forEach((s, k) => { s.aiT = s === g.leader ? 0.15 : 0.35 + Math.min(0.5, k * 0.04) + Math.random() * 0.3; });

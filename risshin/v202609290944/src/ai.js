@@ -579,7 +579,7 @@ export class Commander {
 
   // 槍・侍：横隊で押し合い、崩れた所へ詰める。手が空けば、味方と斬り合う敵の横へ回る
   melee(g, A, s, sk, foes) {
-    if (s.eng >= s.n * 0.3) return this.engage(g, A, s);
+    if (s.eng >= s.n * 0.3) { if (A.yAdv) { A.yAdv = false; if (g.formation === 'yari') g.formation = 'line'; } return this.engage(g, A, s); }
     if (g.reserve && !foes.some((q) => q.d < (A.seekBase || 20) * 0.6)) return this.idle(g, A, s, sk);
     // 鉄砲・弓の前に出て盾になる：敵の徒が味方の射手へ寄ってくる間は、射手の 10m 前に並んで待ち、撃ち終えた敵が 18m まで来たら槍で出る
     if (sk.smart && !g.reserve && s.n >= 5) {
@@ -613,6 +613,12 @@ export class Commander {
       if (dist(home, s.c) > 3) this.setMode(g, A, 'wait', home, g.speed, { until: this.rt.t + 20 });
       else { this.release(g, A); g.facing = ang(s.c, tgt.c); }
       return;
+    }
+    // 槍の隊は、敵の徒へ寄る間（8〜35m）は穂先を揃えた槍衾のまま押し出し、ぶつかる間際（6m）に横陣へ開いて打ちかかる
+    const dT = dist(s.c, tgt.c);
+    if (s.spear && s.n >= 6 && !tgt.cav && !g.isPlayerSquad) {
+      if (dT > 8 && dT < 35 && g.formation === 'line' && !A.yAdv) { A.yAdv = true; g.formation = 'yari'; this.log(g, 'yari 槍衾で押し出す'); }
+      else if (A.yAdv && (dT < 6 || dT > 45)) { A.yAdv = false; if (g.formation === 'yari') g.formation = 'line'; }
     }
     this.approach(g, A, s, sk, tgt, 'approach');
   }

@@ -1284,12 +1284,12 @@ function loop() {
         else if (recent > hi && resScale < 1) { resScale = Math.min(1, resScale + 0.05); applyRenderSettings(); }
       }
       frames = 0; fpsT = 0;
-      // 重いときは一度だけ画質を自動で下げる
-      if (!autoLowered && fpsLog.length >= 6 && S.quality !== 'low') {
+      // 重いときは一度だけ画質を自動で下げる。自動では「中」まで（「低」は近くの兵まで作り物の姿になるので、選ぶのは遊ぶ人）
+      if (!autoLowered && fpsLog.length >= 6 && S.quality === 'high') {
         const avg = fpsLog.slice(-6).reduce((a, v) => a + v, 0) / 6;
         if (avg < (S.fpsCap ? Math.min(32, S.fpsCap * 0.65) : 32)) {
           autoLowered = true;
-          S.quality = S.quality === 'high' ? 'mid' : 'low';
+          S.quality = 'mid';
           saveSettings();
           onSettings('quality');
           notice(`動きが重いため画質を「${S.quality === 'mid' ? '中' : '低'}」に下げました（設定で戻せます）`);

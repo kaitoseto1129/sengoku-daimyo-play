@@ -357,6 +357,10 @@ export class Battle {
         }
       },
       onGunMisfire: () => { if (!this.misfireNoted) { this.misfireNoted = true; this.bark('敵の鉄砲、火縄が湿って撃てぬらしい'); } },
+      // 敵の鉄砲組が一斉に放った後の、弾込めの間（近い時だけ。詰めて槍を入れる好機）
+      onFoeReload: (g) => { const c = g.center(), P = this.player.u; if (P.alive && Math.hypot(c.x - P.pos.x, c.z - P.pos.z) < 70) this.after(1.2, () => this.bark('敵の鉄砲は弾込めの間じゃ！　今のうちに詰めよ！')); },
+      // 味方の武将が危なくなって隊の後ろへ下がる時の一声（同じ武将は 20 秒に一度）
+      onGeneralBack: (u) => { if (Math.hypot(u.pos.x - this.player.u.pos.x, u.pos.z - this.player.u.pos.z) < 40) this.say(u.name.replace(/^.* /, ''), 'ちと下がる。ここは任せたぞ！', 2.5); },
       onFocusDone: (g) => { this.unmark('focus'); this.bark(`足軽たち「${voice(this, 'focusDone')}」`); g.order = 'follow'; },
       onStructHit: (s) => this.def.onStructHit && this.def.onStructHit(this, s),
       onStructDestroyed: (s) => this.def.onStructDestroyed && this.def.onStructDestroyed(this, s),
@@ -383,7 +387,7 @@ export class Battle {
     this.army.maxAttackers = this.D.attackers;
     // 足軽の最初の二戦（普通）は、本人へ同時に打ちかかる敵を二人までに（受ける傷の 0.6 倍は player.js）
     this.firstFights = this.D === DIFFICULTY.normal && index <= 1 && !this.G.lord && !def.dojo && !def.mapCastle && (this.G.rank || 0) === 0;
-    if (this.firstFights) { this.army.maxAttackers = Math.min(this.army.maxAttackers, 2); this.army.mobCapMax = 4; }   // 初めの戦は、囲まれても同時に打つのは四人まで
+    if (this.firstFights) { this.army.maxAttackers = Math.min(this.army.maxAttackers, 2); this.army.mobCapMax = index === 0 ? 3 : 4; }   // 初めの戦は、囲まれても同時に打つのは四人まで
     this.tracker = new MeritTracker(def.trackerIndex ?? index);
     this.objectives = [];
     this.markers = [];
@@ -769,7 +773,10 @@ export class Battle {
       sfx('ack', 0.35);
     }
     if (mor < 18) { this.after(dl + 0.8, () => this.bark(`……組から返事が無い（兵が怯えている。${isTouch ? '「鼓舞」を押す' : K('rally') + ' で鼓舞'}）`, true)); return; }
-    this.after(dl + 0.35, () => { this.bark(`足軽たち「${w}」`); sfx('ack', mor < 35 ? 0.35 : 0.6); sfx('fukusho', (mor < 35 ? 0.35 : mor > 70 ? 0.85 : 0.7) * (dl > 0 ? 0.6 : 1)); });
+    // 返事をするのは組頭（名のある者）がいればその者、いなければ足軽たち
+    const ld = gs.map((g) => g.leader).find((l) => l && l.alive && l.name && !l.isPlayer);
+    const who = ld ? ld.name.replace(/^.* /, '') : '足軽たち';
+    this.after(dl + 0.35, () => { this.bark(`${who}「${w}」`); sfx('ack', mor < 35 ? 0.35 : 0.6); sfx('fukusho', (mor < 35 ? 0.35 : mor > 70 ? 0.85 : 0.7) * (dl > 0 ? 0.6 : 1)); });
   }
 
   obj(id, text, kind = 'main') {
@@ -1550,6 +1557,35 @@ export class Battle {
         this.say(who, `${this.G.name}、無理をするな。ここで息を整えてから、また前へ出よ`, 4);
         return;
       }
+    }
+    // 組の者・供が近く（14m）にいれば、一つの戦で一度だけ、駆け寄って主を囲み、担ぎ起こしてくれる（組頭を見捨てない）
+    const helpers = [...(this.squad || []), ...(this.tomoUnits || [])].filter((o) => o && o.alive && !o.fleeing && Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 14);
+    if (helpers.length && !this.flags.rescued && !this.over) {
+      this.flags.rescued = true;
+      u.hp = 1;
+      this.player.iframe = 4.5;
+      this.army.forNear(u.pos.x, u.pos.z, 4, (o) => { if (o.alive && o.team !== u.team && !o.isStruct) { o.stagger = 1.2; o.atk = null; o.cd = 1.4; } });
+      // 組は主のまわりに円陣を組んで守る
+      const saved = (this.squadGroups || []).map((g) => ({ g, order: g.order, form: g.formation }));
+      for (const g of this.squadGroups || []) { g.order = 'hold'; g.anchor = { x: u.pos.x, z: u.pos.z }; g.formation = 'ring'; g.aggro = 6; for (const o of g.units) o.aiT = 0; }
+      helpers.sort((a, b) => Math.hypot(a.pos.x - u.pos.x, a.pos.z - u.pos.z) - Math.hypot(b.pos.x - u.pos.x, b.pos.z - u.pos.z));
+      const h = helpers[0], who = h.name ? h.name.replace(/^.* /, '') : '足軽';
+      fadeAway(1.2);
+      this.banner('深手', '組の者が駆け寄ってくる');
+      this.say(who, `お頭！　お頭を守れ、囲めっ！`, 2.5);
+      this.after(2.8, () => {
+        if (this.over || !u.alive) return;
+        // 味方の側（組の者のいる側）へ担いで数歩下げ、傷を縛って立たせる
+        const dx = u.pos.x - h.pos.x, dz = u.pos.z - h.pos.z, L = Math.hypot(dx, dz) || 1;
+        const bx = u.pos.x - dx / L * 5, bz = u.pos.z - dz / L * 5;
+        u.pos.x = bx; u.pos.z = bz; u.pos.y = this.world.heightAt(bx, bz);
+        u.hp = u.maxHp * 0.35;
+        this.player.iframe = 2;
+        this.banner('救われた', '組の者に担がれ、傷を縛ってまた立った');
+        this.say(who, 'まだ死なせませぬぞ。無理はなされるな！', 3);
+        for (const q of saved) { if (!q.g.count) continue; q.g.formation = q.form === 'ring' ? 'line' : q.form; q.g.order = q.order === 'hold' ? 'hold' : 'follow'; }
+      });
+      return;
     }
     u.hp = 0;
     u.alive = false;

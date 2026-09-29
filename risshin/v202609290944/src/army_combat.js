@@ -384,7 +384,8 @@ export const ArmyCombat = {
       if (o.alive && o.team === t.team && !o.isPlayer && !o.atk && !o.swing && !o.mounted && !(o.stagger > 0) && Math.random() < 0.3 && Math.hypot(o.pos.x - t.pos.x, o.pos.z - t.pos.z) < 8) o.stagger = 0.3;
     });
     // 前の段が倒れたら、同じ列の後ろの者が前へ出て穴を埋める（槍・侍の横陣と槍衾。鉄砲の段は gunRotate、騎馬の混じる隊は塊のまま）
-    if (g && !g.isGun && !g.isPlayerSquad && !(g.cavShare > 0.1) && (g.formation === 'line' || g.formation === 'yari') && !g.marching) {
+    //   自分の組も、横に並んで持ち場を守る時（待て・槍衾・かかれ）は同じように穴を埋める
+    if (g && !g.isGun && !(g.cavShare > 0.1) && (g.formation === 'line' || g.formation === 'yari') && !g.marching && (!g.isPlayerSquad || g.order === 'hold' || g.order === 'yari' || g.order === 'attack')) {
       const { cols } = g.layout(g.initial);
       for (let s = t.slot + cols; s < g.initial; s += cols) {
         const o = g.units.find((x) => x.slot === s);

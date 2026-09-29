@@ -1,5 +1,5 @@
 // 墨俣の戦の定義（砦づくりと守り。battles.js から分けた。中身は元のまま）
-import { palisade, bobosaku, kabukimon, tawara, hut, yagura, lumber, scaffold, umatsunagi, campfire, hasa, nobori, kagaribi, sakamogi, takataba, kobune, stumps } from './props.js';
+import { palisade, bobosaku, kabukimon, tawara, hut, yagura, lumber, scaffold, umatsunagi, campfire, hasa, nobori, kagaribi, sakamogi, takataba, kobune, stumps, dorui } from './props.js';
 import { gauss, allyGroup, nm, enemyGroup, centerOf, unitPos } from './bhelp.js';
 import { nagashinojo } from './b_nagashinojo.js';
 import { RANKS } from './state.js';
@@ -27,6 +27,8 @@ function buildFort(rt) {
     const s = rt.army.addStruct({ seg: [ax, az, bx, bz], side, nx, nz, hp: 240, maxHp: 240, team: 0, name: '柵' });
     s.mesh = palisade(W, s.seg);
     rt.scene.add(s.mesh);
+    // 柵の外の土塁（草の生えた土の斜面）
+    rt.scene.add(dorui(W, s.seg, nx, nz));
     segs.push(s);
   };
   const st = (FORT * 2) / 8;
@@ -162,9 +164,11 @@ const sunomata = {
     rt.scene.add(kabukimon(W, 0, FORT, 6.4));
     rt.scene.add(tawara(W, 9, -11, 0.4, 6), tawara(W, -10, 7, -0.3, 5), tawara(W, 6, 8, 1.2, 3));
     F.hut = rt.army.addStruct({ x: 0, z: -4, r: 3.8, solidR: 4.0, hp: 1500, maxHp: 1500, armor: 0.4, team: 0, name: '普請小屋' });
-    F.hut.mesh = hut(W, 0, -4, 7, 4.5, 0);
+    F.hut.mesh = hut(W, 0, -4, 7, 4.5, 0, { ita: true });
     rt.scene.add(F.hut.mesh);
     rt.scene.add(yagura(W, -13, -13));
+    // 斜面の逆茂木：柵の外に尖った枝の束を並べる（北と東西。南の門の前は空ける）
+    for (let k = -2; k <= 2; k++) rt.scene.add(sakamogi(W, k * 7, -FORT - 5.5, 0, 5), sakamogi(W, -FORT - 5.5, k * 7, Math.PI / 2, 5), sakamogi(W, FORT + 5.5, k * 7, Math.PI / 2, 5));
     rt.scene.add(lumber(W, 9, -10, 0.2));
     rt.scene.add(lumber(W, 10, 4, -0.1));
     rt.scene.add(lumber(W, -9, 7, 1.4));

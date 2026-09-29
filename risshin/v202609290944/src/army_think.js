@@ -4,6 +4,8 @@ import { TOFF, distToSeg, angleDiff, WOUND_FLOOR } from './units.js';
 import { kickSpear } from './units_model.js';
 
 // Army の手法（units.js の class Army に足す）
+// 名のある敵を囲む時の、組頭（本人）の側から見た回り込みの角（本人の正面は空け、左右・斜め後ろ・真後ろへ）
+const RING_OFF = [-1.9, -0.95, 0.95, 1.9, Math.PI];
 export const ArmyThink = {
 
   think(u) {
@@ -102,7 +104,8 @@ export const ArmyThink = {
       return;
     }
     // 深手の者は一度だけ隊の後ろへ下がり、しばらく息をつく（後ろの元気な者と持ち場を替わる）
-    if (!u.isPlayer && !u.isSub && u.type !== 'busho' && u.type !== 'cavalry' && u.hp < u.maxHp * 0.25 && !u.backDone && g.count >= 5 && !g.isPlayerSquad && (g.order === 'hold' || g.order === 'attack' || g.order === 'yari' || g.order === 'follow')) {
+    // （自分の組も同じ：深手の者は後ろの元気な者と替わる）
+    if (!u.isPlayer && u.type !== 'busho' && u.type !== 'cavalry' && u.hp < u.maxHp * 0.25 && !u.backDone && g.count >= 5 && (g.order === 'hold' || g.order === 'attack' || g.order === 'yari' || g.order === 'follow')) {
       u.backDone = true; u.backT = this.time + 8 + Math.random() * 4;
       const { cols } = g.layout(g.initial);
       if (u.slot < cols && !g.isGun && !(g.cavShare > 0.1)) {
@@ -130,6 +133,17 @@ export const ArmyThink = {
     }
     // 味方の名のある武将（本陣を守る隊＝guardOn は除く）：隊が斬り合っている間は突っ立たず、斬り合う兵の少し後ろへ馬を進めて下知する。間近の敵には刀を抜く
     if (!TOFF && g.team === 0 && u === g.leader && u.type === 'busho' && u.name && !g.guardOn && !g.isPlayerSquad && g.count > 3 && !u.fleeing && g.order !== 'retreat') {
+      // 危ない時（深手・三人より多くの敵に寄られた）は、隊の後ろ（8m）へ下がって下知を続ける。すぐそば（1.8m）の敵だけは払う
+      let crowd = 0;
+      this.forNear(u.pos.x, u.pos.z, 5, (o) => { if (o.alive && o.team !== u.team && !o.fleeing && o.type !== 'dummy') crowd++; });
+      if (u.hp < u.maxHp * 0.45 || crowd >= 3) {
+        const close = this.nearestEnemy(u, 1.8);
+        if (close) { u.target = close; return; }
+        const f = g.forward(), c = g.center();
+        u.target = null; u.watch = null; u.moveTo = { x: c.x - f.x * 8, z: c.z - f.z * 8 };
+        if (!(u.backSayT > this.time) && this.hooks.onGeneralBack) { u.backSayT = this.time + 20; this.hooks.onGeneralBack(u); }
+        return;
+      }
       const near = this.nearestEnemy(u, u.mounted ? 3.4 : 2.6);
       if (near) { u.target = near; return; }
       // 自分を狙って寄ってくる敵（7m 内）と、隊が減って前に立つ兵が少ない時の近い敵（6m 内）には、自ら刀を抜いて迎える
@@ -206,11 +220,29 @@ export const ArmyThink = {
         if (!foe) foe = this.nearestEnemy(pu, 6, (o) => o.target === pu || (o.atk && o.atk.target === pu));
         if (foe) { u.target = foe; return; }
       }
+      // 本人を狙う鉄砲・弓（30m 内）がいれば、ついて来い・かかれの間は、槍・刀の者のうち二人が駆けて行って黙らせる
+      if (g.order !== 'hold' && u.type !== 'bow' && u.type !== 'gun' && !u.mounted && dp < 25) {
+        const sh = this.nearestEnemy(pu, 30, (o) => (o.type === 'gun' || o.type === 'bow') && (o.target === pu || (o.atk && o.atk.target === pu)) && !this.wallBetween(u.pos, u.team, o.pos));
+        if (sh) {
+          let n = 0;
+          for (const o of g.units) if (o !== u && o.alive && o.target === sh) n++;
+          if (n < 2 || u.target === sh) { u.target = sh; return; }
+        }
+      }
     }
 
     let t = null;
     // 槍・刀の者は、塀・柵の向こうで届かない敵を狙わない（弓・鉄砲は越えて撃てる）
     const melee = u.type !== 'bow' && u.type !== 'gun';
+    // 自分の組の槍・刀の者は、近く（持ち場から届く所）に名のある敵（武将・侍大将）がいれば、四人まで寄ってたかって囲む
+    if (g.isPlayerSquad && melee && engage > 0 && g.order !== 'retreat' && !u.mounted) {
+      const boss = this.nearestEnemy(u, engage + 4, (o) => !!o.name && !o.fleeing && (o.type === 'busho' || o.type === 'samurai') && !this.wallBetween(u.pos, u.team, o.pos));
+      if (boss) {
+        let n = 0;
+        for (const o of g.units) if (o !== u && o.alive && o.target === boss) n++;
+        if (n < 4) { u.target = boss; u.watch = null; return; }
+      }
+    }
     // 鉄砲は、塀の向こうで見えない者（狭間にも塀の上にもいない者）を狙わない
     // 深追いしない：逃げる敵を追うのは騎馬だけ。徒歩の者は目の前（4m）の逃げる者だけを打つ
     const ok = (o) => (!melee || !this.wallBetween(u.pos, u.team, o.pos)) && (u.type !== 'gun' || !this.hiddenBehind(u, o))
@@ -257,9 +289,10 @@ export const ArmyThink = {
     if (g._deployT > this.time - 3 && this.time - g._deployT < (u.slot / Math.max(1, g.initial)) * 2.4) { u.moveTo = null; return; }
     // 自分の組が「かかれ」のまま討つ敵がいない時は、その場で立ち尽くさず組頭（遊び手）の後ろへ寄って次を待つ
     const P = this.playerUnit;
-    if (g.isPlayerSquad && g.order === 'attack' && P && P.alive && !P.mounted) {
-      const sp = g.slotPos(u.slot, g.initial), a = g.anchor;
-      const q = { x: P.pos.x + (sp.x - a.x) - Math.sin(P.heading) * 3, z: P.pos.z + (sp.z - a.z) - Math.cos(P.heading) * 3 };
+    // 馬上の組頭の時も同じ（馬の後ろ足に掛からないよう、少し後ろへ）
+    if (g.isPlayerSquad && g.order === 'attack' && P && P.alive) {
+      const sp = g.slotPos(u.slot, g.initial), a = g.anchor, bk = P.mounted ? 6 : 3;
+      const q = { x: P.pos.x + (sp.x - a.x) - Math.sin(P.heading) * bk, z: P.pos.z + (sp.z - a.z) - Math.cos(P.heading) * bk };
       if (Math.hypot(q.x - u.pos.x, q.z - u.pos.z) > 5 || (u.moveTo && Math.hypot(u.moveTo.x - q.x, u.moveTo.z - q.z) < 6)) { u.moveTo = q; return; }
     }
     // 押し合いの後ろの段：前の段が斬り合っている間は、同じ列の前の者の背（1m 後ろ）につき、槍を立てて押す（u.pressBack）
@@ -429,6 +462,8 @@ export const ArmyThink = {
           // 不発（雨で火縄が湿った）：火縄を吹き、付け直すのに込め直しの半分ほどかかる（膝をついて袖で庇いながら）
           this.startReload(u, ok ? 1 : 0.55);
           this.gunRotate(u);
+          // 敵の鉄砲組が揃えて放った直後は、弾込めの間（遊び手に知らせる。組ごとに 20 秒に一度）
+          if (g.isGun && g.vCall > this.time - 1 && g.team !== (this.playerUnit ? this.playerUnit.team : 0) && !(g.reloadCallT > this.time - 20) && this.hooks.onFoeReload) { g.reloadCallT = this.time; this.hooks.onFoeReload(g); }
         } else face = this.faceTo(u, a.target);
       } else if (a.bow) {
         // 弓：番えて、打ち起こし、引き分け、会で狙いを定めて離れ
@@ -546,6 +581,14 @@ export const ArmyThink = {
       } else if (d > (t.isPlayer && !u.mounted ? Math.min(u.reach * 0.92, 2.6) : u.reach * 0.92) || (u.charging && t.isStruct)) {
         // （本人へは 2.6m まで詰めてから打つ。長柄の間合いの外から一方的に打たれて、本人の突きが届かないことが無いように）
         want = tp; speed = d > 6 || g.order === 'attack' ? u.run : u.speed;
+        // 自分の組が名のある敵を囲む：真正面へ団子にならず、組頭（本人）の側から左右と背へ回り込んで間合いに入る
+        if (g && g.isPlayerSquad && t.name && !t.isStruct && (t.type === 'busho' || t.type === 'samurai') && d < 9 && !u.mounted && this.playerUnit) {
+          const P = this.playerUnit, base = Math.atan2(P.pos.x - t.pos.x, P.pos.z - t.pos.z);
+          const a = base + RING_OFF[u.slot % 5], r = u.reach * 0.85;
+          const q = { x: t.pos.x + Math.sin(a) * r, z: t.pos.z + Math.cos(a) * r };
+          // 回り込む先がもうすぐ目の前なら、そのまま打ちかかる
+          if (Math.hypot(q.x - u.pos.x, q.z - u.pos.z) > 0.8) want = q;
+        }
         // 騎馬は柵へも駆けて当たる（正面から当たると止められる）
         if (u.type === 'cavalry' && d > 7) this.startCharge(u, near);
         if (u.charging) speed = u.run;

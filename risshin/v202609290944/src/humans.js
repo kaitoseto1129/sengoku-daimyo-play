@@ -1471,6 +1471,11 @@ export function makeHuman(u, look0) {
   body.castShadow = true; body.receiveShadow = true;
   body.frustumCulled = true;
   const h = { u, root, model, bones, body, look: L, parts: {}, seed: (u.id || 1) * 0.6180339 % 1, mode: 'crowd' };
+  // 体格の違い（兵だけ）：がっしりした者・細い者、少し背の高い者・低い者（武将と本人は変えない）
+  if (!u.isPlayer && !L.hero && !isNamed(L)) {
+    const bs = h.seed, bx = 0.95 + ((bs * 13.13) % 1) * 0.12, by = 0.97 + ((bs * 29.7) % 1) * 0.06;
+    model.scale.x *= bx; model.scale.z *= bx; model.scale.y *= by;
+  }
   h.lookSrc = look0;   // 作った時の元の姿（本人の姿が差し替えられたら作り直すため）
   // 型（立ち姿の骨の行列を測るため）を一度だけ作る
   if (!SRC.template) {
@@ -1750,6 +1755,47 @@ function lodGeo(m, hi, lo) {
     if (m.geometry !== want) m.geometry = want;
   };
 }
+// 近くの兵の具足と着物：兵の材質（UNIT_MAT）に、一人ずつの使い込みを足す（四通り。材質は四つまで）
+//   着物：日焼けの褪せ（肩ほど白っぽく）・汗じみ・裾の泥はね。漆：角の擦れと掻き傷、剥げ。陣笠：縁の欠けと雨じみ。どれも近くの兵だけ（遠くは元の材質のまま）
+const CROWD_V = [[0.2, 0.4, 0.3, 1.7], [0.55, 0.8, 0.6, 4.3], [0.35, 1.0, 0.9, 7.1], [0.8, 0.6, 0.45, 2.9]];
+const crowdMats = [];
+function nearCrowdMat(v) {
+  if (crowdMats[v]) return crowdMats[v];
+  const m = UNIT_MAT.clone();
+  const ob = UNIT_MAT.onBeforeCompile, CV = { value: new THREE.Vector4(...CROWD_V[v]) };
+  m.onBeforeCompile = (sh, r) => {
+    ob.call(UNIT_MAT, sh, r);
+    sh.uniforms.uCV = CV; sh.uniforms.uGrimeC = GRIME;
+    sh.fragmentShader = 'uniform vec4 uCV;\nuniform float uGrimeC;\n' + sh.fragmentShader.replace('diffuseColor.rgb *= baseC;', `diffuseColor.rgb *= baseC;
+      {
+        vec3 q = vObjP + vec3(uCV.w, uCV.w * 0.6, 0.0);
+        float n1 = uVn(q * 7.0), n2 = uVn(q * 31.0 + 3.0), n3 = uVn(q * 120.0 + 9.0);
+        if (mkA == 0 || mkA == 6) {
+          // 着物：肩と背の日焼けの褪せ・脇と背の汗じみ・裾から上への泥はね
+          float sun = smoothstep(1.1, 1.55, vObjP.y) * uCV.x;
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.33))) * 1.2 + 0.025, sun * 0.45);
+          float sweat = smoothstep(0.55, 0.85, n1) * smoothstep(0.95, 1.2, vObjP.y) * smoothstep(1.5, 1.3, vObjP.y);
+          diffuseColor.rgb *= 1.0 - sweat * (0.15 + 0.2 * uGrimeC);
+          float spl = smoothstep(0.8, 0.9, n3) * smoothstep(0.7, 0.1, vObjP.y) + smoothstep(0.5, 0.05, vObjP.y) * (0.3 + 0.5 * n1);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.08, 0.062, 0.043), clamp(spl * uCV.y * (0.6 + 0.6 * uGrimeC), 0.0, 1.0) * 0.7);
+        } else if (mkA == 1 || mkB == 1) {
+          // 漆：擦れて下地の茶が覗く斑と、細い掻き傷
+          float chip = smoothstep(0.78, 0.92, n2 * 0.6 + n3 * 0.4) * uCV.z;
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.16, 0.1, 0.06), chip * 0.7);
+          float scr = (1.0 - smoothstep(0.0, 0.05, abs(fract(dot(q.xy, vec2(0.6, 0.8)) * 14.0 + n1) - 0.5))) * smoothstep(0.65, 0.8, n1) * uCV.z;
+          scr *= 1.0 - smoothstep(0.4, 1.2, fwidth(q.y) * 70.0);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.38, 0.3, 0.22), scr * 0.6);
+          // 陣笠・兜の上の雨じみ（白く乾いた水の跡）
+          diffuseColor.rgb += vec3(0.03, 0.028, 0.025) * smoothstep(0.03, 0.0, abs(n1 - 0.55)) * smoothstep(1.6, 1.8, vObjP.y);
+        }
+        // 人ごとの色の寄り（同じ家の同じ具足でも、染めと漆の色が少しずつ違う）
+        diffuseColor.rgb *= vec3(1.0 + (fract(uCV.w * 3.7) - 0.5) * 0.08, 1.0, 1.0 - (fract(uCV.w * 3.7) - 0.5) * 0.06);
+      }`);
+  };
+  m.customProgramCacheKey = () => 'nearcrowd';
+  crowdMats[v] = m;
+  return m;
+}
 function dressCrowd(h, P, L, only = null, look = L) {
   const geo = crowdGeometry(P, L, only);
   // 遠く（と影）は units.js の軽い形をまとめた物
@@ -1763,7 +1809,7 @@ function dressCrowd(h, P, L, only = null, look = L) {
   }
   if (!crowdInv) crowdInv = ALLB.map((nm) => restMatrix(XB[nm] || nm).clone().invert());
   const sk = new THREE.Skeleton(ALLB.map((nm) => h.bones[nm]), crowdInv);
-  const m = new THREE.SkinnedMesh(geo, UNIT_MAT);
+  const m = new THREE.SkinnedMesh(geo, nearCrowdMat(Math.floor(((h.seed || 0) * 11.3) % 1 * 4)));
   m.bind(sk, new THREE.Matrix4());
   // 影を受ける：笠が顔に、腕が胴に、胴が脚に落とす影で、体の厚みが出る（受けないと、日なたで平らに光る人形になる）
   m.castShadow = true; m.receiveShadow = true;

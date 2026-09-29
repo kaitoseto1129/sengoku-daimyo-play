@@ -324,6 +324,9 @@ function baseCanvas(season) {
         R = mix(98, SEA_DEEP[0], t); G = mix(142, SEA_DEEP[1], t); B = mix(146, SEA_DEEP[2], t);
         const foam = Math.max(0, 1 - Math.abs(lb - 0.46) / 0.05) * 0.85 + Math.max(0, 1 - Math.abs(lb - 0.36) / 0.035) * 0.25;
         R = mix(R, 236, foam); G = mix(G, 240, foam); B = mix(B, 236, foam);
+        // 絵の縁では沖の海の色へなじませる（地形の板の四角が海に見えないように）
+        const eg = sstep(0, 1, Math.min(px, py, TW - 1 - px, TH - 1 - py) / (70 * K));
+        R = mix(SEA_DEEP[0], R, eg); G = mix(SEA_DEEP[1], G, eg); B = mix(SEA_DEEP[2], B, eg);
       }
       const o = (py * TW + px) * 4;
       dat[o] = R + grain; dat[o + 1] = G + grain; dat[o + 2] = B + grain * 0.8; dat[o + 3] = 255;
@@ -521,35 +524,72 @@ function injectStyle() {
 .j3-res div { flex-direction: row; }
 .j3-top .j3-act { border-right: 0; gap: 8px; }
 .j3-top .j3-act .btn { min-height: 44px; white-space: nowrap; }
-/* 城の幟 */
-.j3-ban { position: absolute; left: 0; top: 0; pointer-events: auto; appearance: none; border: 0; background: transparent; padding: 0; margin: 0; cursor: pointer; color: inherit; font: inherit; transform-origin: 50% 100%; display: flex; flex-direction: column; align-items: center; min-width: 44px; min-height: 44px; justify-content: flex-end; will-change: transform; }
+/* 城の印：上に家紋の旗、竿の根が城の場所、下に横書きの名札（格で大きさと縁を変える） */
+.j3-ban { position: absolute; left: 0; top: 0; pointer-events: auto; appearance: none; border: 0; background: transparent; padding: 0; margin: 0; cursor: pointer; color: inherit; font: inherit; display: flex; flex-direction: column; align-items: center; min-width: 44px; will-change: transform; }
 .j3-ban:focus-visible { outline: none; }
 .j3-ban:focus-visible .j3-flag { outline: 3px solid #f3d27a; outline-offset: 2px; }
-.j3-flag { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; width: 26px; padding: 4px 0 6px; background: var(--c); color: #f6eedc; box-shadow: 0 0 0 1px rgba(0,0,0,.55), 2px 3px 6px rgba(0,0,0,.35); border-top: 3px solid rgba(20,16,12,.85); }
-.j3-flag::after { content: ''; position: absolute; left: 0; right: 0; bottom: -6px; height: 6px; background: linear-gradient(135deg, var(--c) 50%, transparent 50%) left / 50% 100% no-repeat, linear-gradient(225deg, var(--c) 50%, transparent 50%) right / 50% 100% no-repeat; }
+.j3-flag { position: relative; display: grid; place-items: center; width: 28px; height: 28px; box-sizing: border-box; background: var(--c); border-top: 3px solid #1d1711; box-shadow: 0 0 0 1px rgba(0,0,0,.6), 2px 3px 6px rgba(0,0,0,.35); }
 .j3-flag i { width: 20px; height: 20px; border-radius: 50%; background: #efe6cf center / cover; box-shadow: 0 0 0 1.5px rgba(20,16,12,.7); }
-.j3-flag b { writing-mode: vertical-rl; font-family: var(--display); font-size: 13px; font-weight: 800; letter-spacing: .06em; line-height: 1; text-shadow: 0 1px 1px rgba(0,0,0,.6); }
-.j3-pole { width: 2px; height: 14px; background: #2a2017; box-shadow: 0 0 0 1px rgba(243,234,214,.25); }
-.j3-troop { position: absolute; left: calc(50% + 6px); bottom: 0; transform: translateY(40%); font-size: 12px; font-weight: 700; padding: 1px 5px; background: rgba(20,17,13,.86); color: #f3ead6; border-left: 2px solid var(--c); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.j3-ban.hq .j3-flag { width: 32px; padding: 5px 0 7px; box-shadow: 0 0 0 2px #c9a24a, 0 0 0 3px rgba(0,0,0,.6), 2px 4px 8px rgba(0,0,0,.4); }
-.j3-ban.hq .j3-flag i { width: 25px; height: 25px; }
-.j3-ban.hq .j3-flag b { font-size: 15px; }
-.j3-ban.hq .j3-pole { height: 18px; }
-.j3-ban.me .j3-troop { border-left-color: #d9b45a; }
-.j3-ban.tgt .j3-flag { box-shadow: 0 0 0 2px #e8563a, 0 0 0 4px rgba(20,16,12,.7), 2px 3px 6px rgba(0,0,0,.35); }
+.j3-pole { width: 2px; height: 10px; background: #2a2017; box-shadow: 0 0 0 1px rgba(243,234,214,.3); }
+.j3-plate { display: flex; align-items: baseline; gap: 5px; margin-top: 1px; padding: 2px 6px 2px 5px; background: rgba(20,17,13,.88); border-left: 3px solid var(--c); color: #f3ead6; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,.35); }
+.j3-plate b { font-family: var(--display); font-size: 13px; font-weight: 700; letter-spacing: .04em; line-height: 1.25; }
+.j3-plate small { font-size: 12px; color: #d9ccb0; font-variant-numeric: tabular-nums; }
+.j3-ty { font-style: normal; font-size: 11px; color: #d9ccb0; margin-right: 2px; }
+/* 本城：大きな旗・金の縁・「本」の印 */
+.j3-ban.hq .j3-flag { width: 36px; height: 36px; box-shadow: 0 0 0 2px #d4ab52, 0 0 0 3.5px rgba(0,0,0,.65), 2px 4px 8px rgba(0,0,0,.4); }
+.j3-ban.hq .j3-flag i { width: 27px; height: 27px; }
+.j3-ban.hq .j3-pole { height: 12px; }
+.j3-ban.hq .j3-plate { padding: 3px 8px 3px 6px; border-top: 1px solid rgba(212,171,82,.75); }
+.j3-ban.hq .j3-plate b { font-size: 15px; }
+.j3-hq { position: absolute; left: -9px; top: -9px; width: 18px; height: 18px; display: grid; place-items: center; font-family: var(--display); font-style: normal; font-size: 12px; font-weight: 800; color: #1d1711; background: #e0bb62; box-shadow: 0 0 0 1.5px #1d1711; }
+/* 砦：小さな三角の旗・点線の縁 */
+.j3-ban.tr .j3-flag { width: 22px; height: 22px; border-top-width: 2px; }
+.j3-ban.tr .j3-flag i { width: 15px; height: 15px; }
+.j3-ban.tr .j3-pole { height: 8px; }
+.j3-ban.tr .j3-plate { border-left-style: dotted; padding: 1px 5px 1px 4px; }
+.j3-ban.tr .j3-plate b { font-size: 12px; font-weight: 600; }
+.j3-ban.me .j3-plate { box-shadow: inset 0 -2px 0 #d9b45a, 0 2px 5px rgba(0,0,0,.35); }
+.j3-ban.tgt .j3-flag { box-shadow: 0 0 0 2px #ff6a4a, 0 0 0 4px rgba(20,16,12,.75), 2px 3px 6px rgba(0,0,0,.35); }
+.j3-ban.tgt .j3-plate { background: rgba(78,24,14,.92); }
 .j3-ban.sel .j3-flag { box-shadow: 0 0 0 3px #f3d27a, 0 0 0 5px rgba(20,16,12,.8), 0 0 18px rgba(243,210,122,.55); }
+.j3-ban.sel .j3-plate { background: #3a2c12; box-shadow: 0 0 0 2px #f3d27a; }
 .j3-ban:hover .j3-flag { filter: brightness(1.15); }
-.j3-tag { position: absolute; top: -8px; right: -14px; min-width: 20px; height: 20px; display: grid; place-items: center; font-family: var(--display); font-size: 12px; font-weight: 800; color: #fff5ea; background: #b8402a; box-shadow: 0 0 0 1.5px rgba(20,16,12,.8); }
+.j3-ban:hover .j3-plate { background: rgba(48,38,26,.95); }
+.j3-tag { position: absolute; top: -9px; right: -13px; min-width: 20px; height: 20px; display: grid; place-items: center; font-family: var(--display); font-style: normal; font-size: 12px; font-weight: 800; color: #fff5ea; background: #b8402a; box-shadow: 0 0 0 1.5px rgba(20,16,12,.8); }
 .j3-tag.kiki { background: #f3ead6; color: #9b3524; box-shadow: 0 0 0 1.5px #9b3524; }
 .j3-tag.fell { background: #2a2017; }
 .j3-tag.fell.mine { background: #b8402a; }
 .j3-tag.atk { background: #d0472e; }
-/* 遠くから：家紋の丸だけ */
-.j3-ban.min .j3-flag { width: 18px; height: 18px; padding: 0; border-radius: 50%; border: 0; gap: 0; }
-.j3-ban.min .j3-flag::after, .j3-ban.min .j3-flag b, .j3-ban.min .j3-troop, .j3-ban.min .j3-tag { display: none; }
-.j3-ban.min .j3-flag i { width: 14px; height: 14px; margin: 2px; }
-.j3-ban.min .j3-pole { height: 8px; }
-.j3-ban.min.tgt .j3-flag { box-shadow: 0 0 0 2px #e8563a, 0 0 0 3px rgba(20,16,12,.7); }
+/* 遠くから：家紋の丸だけ（格は大きさで） */
+.j3-ban.min { min-width: 24px; }
+.j3-ban.min .j3-flag { width: 16px; height: 16px; padding: 0; border-radius: 50%; border: 0; }
+.j3-ban.min.hq .j3-flag { width: 22px; height: 22px; box-shadow: 0 0 0 2px #d4ab52, 0 0 0 3px rgba(0,0,0,.6); }
+.j3-ban.min.tr .j3-flag { width: 11px; height: 11px; }
+.j3-ban.min .j3-plate, .j3-ban.min .j3-tag, .j3-ban.min .j3-hq { display: none; }
+.j3-ban.min .j3-flag i { width: calc(100% - 3px); height: calc(100% - 3px); }
+.j3-ban.min .j3-pole { height: 5px; }
+.j3-ban.min.tgt .j3-flag { box-shadow: 0 0 0 2px #ff6a4a, 0 0 0 3px rgba(20,16,12,.7); }
+/* 大名家の名（領地の上に大きく） */
+.j3-clan-l { position: absolute; left: 0; top: 0; pointer-events: none; display: flex; flex-direction: column; align-items: center; font-family: var(--display); color: var(--c); white-space: nowrap; will-change: transform, opacity; transition: opacity .25s; }
+.j3-clan-l b { font-size: var(--fs, 22px); font-weight: 800; letter-spacing: .18em; line-height: 1.15; color: #fff8e6; padding: 0 .1em 1px .28em; border-bottom: 3px solid var(--c); text-shadow: 0 0 1px #000, 0 0 3px rgba(0,0,0,.95), 0 2px 5px rgba(0,0,0,.75); }
+.j3-clan-l small { margin-top: 2px; font-size: 12px; font-weight: 700; letter-spacing: .1em; color: #fff8e6; text-shadow: 0 0 1px #000, 0 1px 3px rgba(0,0,0,.95); }
+.j3-clan-l.me b { color: #ffe29a; border-bottom-color: #e8c05c; }
+/* 勢力の帯（上の帯のすぐ下） */
+.jp.j3 .jp-power { top: var(--j3top, 60px); left: 0; right: 0; border-radius: 0; }
+/* 凡例 */
+.j3-legend { position: absolute; right: 12px; bottom: 68px; z-index: 3; width: 268px; max-height: calc(100% - 180px); overflow-y: auto; padding: 10px 12px; background: rgba(20,17,13,.94); box-shadow: 0 0 0 1px rgba(194,162,90,.7), 0 6px 18px rgba(0,0,0,.4); color: var(--washi); font-size: 12px; line-height: 1.5; }
+.j3-legend h4 { margin: 0 0 6px; font-family: var(--display); font-size: 14px; letter-spacing: .14em; color: var(--kin); }
+.j3-legend ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.j3-legend li { display: grid; grid-template-columns: 40px 1fr; align-items: center; gap: 8px; }
+.j3-legend .sw { display: grid; place-items: center; height: 22px; }
+.j3-legend .fl { width: 18px; height: 18px; background: #7a6a4a; border-top: 3px solid #1d1711; box-sizing: border-box; }
+.j3-legend .fl.hq { width: 22px; height: 22px; box-shadow: 0 0 0 2px #d4ab52; }
+.j3-legend .fl.tr { width: 13px; height: 13px; border-top-width: 2px; }
+.j3-legend .rd { width: 34px; height: 0; border-top: 2px solid rgba(236,214,160,.9); box-shadow: 0 1px 0 rgba(70,50,28,.8); }
+.j3-legend .rd.front { border-top: 3px dashed #ff6a4a; box-shadow: none; }
+.j3-legend .rg { width: 18px; height: 18px; border-radius: 50%; border: 2px dashed #ff6a4a; }
+.j3-legend .bd { width: 30px; height: 12px; border: 2.5px solid #e2ba5a; box-sizing: border-box; }
+.j3-legend .j3-tag { position: static; }
 /* 軍勢の駒 */
 .j3-piece { position: absolute; left: 0; top: 0; width: 40px; height: 40px; margin: -46px 0 0 -20px; border-radius: 50%; background: #333 center / cover; box-shadow: 0 0 0 2.5px var(--c), 0 0 0 4px rgba(20,16,12,.85), 0 4px 8px rgba(0,0,0,.45); will-change: transform; }
 .j3-piece::after { content: ''; position: absolute; left: 50%; bottom: -9px; margin-left: -5px; border: 5px solid transparent; border-top-color: rgba(20,16,12,.85); border-bottom: 0; }
@@ -585,6 +625,8 @@ function injectStyle() {
 .j3-note { position: absolute; left: 50%; top: 80px; transform: translateX(-50%); z-index: 3; display: flex; align-items: center; gap: 10px; padding: 8px 10px 8px 14px; background: rgba(20,17,13,.94); box-shadow: 0 0 0 1px rgba(194,162,90,.7); font-size: 13px; color: var(--washi); }
 .j3-note .btn { min-height: 44px; }
 .j3-wait { position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; font-family: var(--display); font-size: 16px; letter-spacing: .12em; color: #2a2017; }
+/* 左上の「戻る」の釦（画面に固定）と重ならないよう、帯の頭を空ける */
+.j3-top { padding-left: 150px; }
 @media (max-width: 1280px) {
   .j3-top > * { padding: 4px 10px; }
   .j3-res { gap: 2px 12px; }
@@ -595,6 +637,31 @@ function injectStyle() {
 @media (max-width: 900px) {
   .j3-top { flex-wrap: wrap; }
   .j3-news p { max-width: 260px; }
+}
+/* iPhone の横：帯は一段に詰め、地図を広く。見え方の釦は右の縁に縦に */
+@media (max-height: 500px) {
+  .j3-top { flex-wrap: nowrap; min-height: 0; height: 52px; padding-left: 132px; font-size: 12px; }
+  .j3-top > * { padding: 2px 8px; }
+  .j3-date { gap: 6px; }
+  .j3-date b { width: 34px; height: 34px; font-size: 17px; }
+  .j3-date span { font-size: 13px; }
+  .j3-date small, .j3-clan, .j3-res dd em, .j3-res .j3-koku, .j3-res .j3-shiro { display: none; }
+  .j3-res { flex-wrap: nowrap; gap: 10px; overflow: hidden; }
+  .j3-res dd { font-size: 14px; }
+  .j3-top .j3-act { margin-left: auto; }
+  .j3-top .j3-act .btn { padding: 0 10px; font-size: 13px; }
+  .jp.j3 .jp-tools { display: grid; grid-template-columns: repeat(2, 50px); right: 8px; gap: 6px; }
+  .jp.j3 .jp-tools .btn { min-height: 44px; min-width: 0; padding: 0 4px; font-size: 13px; }
+  .j3-res div, .j3-res dt, .j3-res dd { white-space: nowrap; }
+  .j3-date span { display: none; }
+  .j3-news { right: 124px; bottom: 8px; left: 8px; }
+  .j3-news p:not(:first-child) { display: none; }
+  .j3-news p { max-width: 100%; min-height: 40px; font-size: 12px; }
+  .j3-news p > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .j3-news p img { width: 30px; height: 30px; }
+  .j3-legend { right: 124px; bottom: 60px; top: auto; max-height: calc(100% - 130px); width: 240px; }
+  .j3-clan-l small { display: none; }
+  .j3-note { top: 64px; max-width: calc(100% - 100px); flex-wrap: wrap; }
 }
 body.rm .j3-ban, body.rm .j3-piece { transition: none; }
 `;
@@ -624,7 +691,8 @@ export function mount3D(api) {
   // 切り替えの押しボタン（2D の時も出す）
   const tg = document.createElement('button');
   tg.className = 'btn small'; tg.id = 'jp-mode';
-  tg.textContent = mode === '3d' ? '平面の地図' : '立体の地図';
+  const small = typeof matchMedia === 'function' && matchMedia('(max-height: 500px)').matches;
+  tg.textContent = mode === '3d' ? (small ? '平面' : '平面の地図') : (small ? '立体' : '立体の地図');
   tg.setAttribute('aria-label', mode === '3d' ? '平面（2D）の地図に切り替える' : '立体（3D）の地図に切り替える');
   tg.onclick = () => { setMode(mode === '3d' ? '2d' : '3d'); api.reopen(); };
   if (tools) tools.appendChild(tg);
@@ -645,6 +713,29 @@ export function mount3D(api) {
   mapEl.appendChild(news);
   const tip = document.createElement('div'); tip.className = 'j3-tip'; tip.hidden = true;
   mapEl.appendChild(tip);
+  // 凡例（見え方の押しボタンの「凡例」で開け閉め。開いたかは端末ごとに覚えない）
+  const leg = document.createElement('div'); leg.className = 'j3-legend'; leg.id = 'j3-legend'; leg.hidden = true;
+  leg.innerHTML = `<h4>地図の見方</h4><ul>
+    <li><span class="sw"><i class="fl hq"></i></span><span>本城（家の要。大きな旗・金の縁・「本」）</span></li>
+    <li><span class="sw"><i class="fl"></i></span><span>城（▲山城・■平城）</span></li>
+    <li><span class="sw"><i class="fl tr"></i></span><span>砦（◆。小さな旗）</span></li>
+    <li><span class="sw"><i class="bd"></i></span><span>自分の家の領地の境（金の線）</span></li>
+    <li><span class="sw"><i class="rd"></i></span><span>街道（隣り合う城をつなぐ道）</span></li>
+    <li><span class="sw"><i class="rd front"></i></span><span>攻め口（自分の城から攻められる城へ）</span></li>
+    <li><span class="sw"><i class="rg"></i></span><span>いま攻められる城</span></li>
+    <li><span class="sw"><em class="j3-tag atk">攻</em></span><span>攻められる城の印</span></li>
+    <li><span class="sw"><em class="j3-tag kiki">危</em></span><span>隣の敵が強い自分の城</span></li>
+    <li><span class="sw"><em class="j3-tag">急</em></span><span>敵が攻め寄せている自分の城</span></li>
+    <li><span class="sw"><em class="j3-tag fell">落</em></span><span>この季節に持ち主が替わった城</span></li>
+  </ul>`;
+  mapEl.appendChild(leg);
+  const lg = document.createElement('button');
+  lg.className = 'btn small'; lg.id = 'jp-leg'; lg.type = 'button';
+  lg.setAttribute('aria-controls', 'j3-legend'); lg.setAttribute('aria-expanded', 'false');
+  lg.textContent = '凡例';
+  lg.setAttribute('aria-label', '地図の見方（凡例）を開く');
+  lg.onclick = () => { leg.hidden = !leg.hidden; lg.setAttribute('aria-expanded', String(!leg.hidden)); lg.setAttribute('aria-label', leg.hidden ? '地図の見方（凡例）を開く' : '地図の見方（凡例）を閉じる'); };
+  if (tools) tools.insertBefore(lg, tg);
   const wait = document.createElement('div'); wait.className = 'j3-wait'; wait.textContent = '地図を広げています…';
   mapEl.appendChild(wait);
   const still = () => api.still();
@@ -653,7 +744,7 @@ export function mount3D(api) {
   let scene, camera, mesh, tex, texCv, texG, clouds = [], keeps = [];
   const cam = { x: 500, z: 700, d: 900 }, goal = { x: 500, z: 700, d: 900 };
   const FOV = 34;
-  let need = true, texSig = '', lastT = performance.now();
+  let need = true, texSig = '', lastT = performance.now(), topH0 = 0;
   const inkRGB = {};
   for (const [id, css] of Object.entries(D.ink)) inkRGB[id] = rgbOf(css);
   const rgba = (id, a, k = 0) => { const c = inkRGB[id] || [120, 120, 120]; return `rgba(${Math.round(c[0] * (1 - k))},${Math.round(c[1] * (1 - k))},${Math.round(c[2] * (1 - k))},${a})`; };
@@ -674,8 +765,10 @@ export function mount3D(api) {
   const build = () => {
     const T = terrain();
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(HAZE);
-    scene.fog = new THREE.Fog(HAZE, 800, 3000);
+    // 地図は霞ませず、くっきり（空は沖の海の色にそろえて、地平の継ぎ目を消す）
+    const seaC = new THREE.Color(`rgb(${SEA_DEEP.join(',')})`);
+    scene.background = seaC;
+    scene.fog = new THREE.Fog(seaC, 1e5, 2e5);
     camera = new THREE.PerspectiveCamera(FOV, 1, 5, 8000);
     // 地形：切り出した升目に一つずつ頂点
     const nx = Q1 - Q0, nz = R1 - R0;
@@ -787,9 +880,69 @@ export function mount3D(api) {
       }
       out.push([+id, path]);
     }
+    // 家の名を置く所：いちばん大きな一続きの領地の真ん中（海に落ちないよう、その領地の升に寄せる）
+    const comp = new Int32Array(gc * gr).fill(-1), stack = [];
+    clanAt = [];
+    let cn = 0;
+    const best = {};
+    for (let i0 = 0; i0 < own.length; i0++) {
+      if (own[i0] < 0 || comp[i0] >= 0) continue;
+      const id = own[i0], cells = [];
+      comp[i0] = cn; stack.push(i0);
+      while (stack.length) {
+        const i = stack.pop(); cells.push(i);
+        const q = i % gc, r = (i - q) / gc;
+        for (const j of [q > 0 ? i - 1 : -1, q < gc - 1 ? i + 1 : -1, r > 0 ? i - gc : -1, r < gr - 1 ? i + gc : -1]) if (j >= 0 && comp[j] < 0 && own[j] === id) { comp[j] = cn; stack.push(j); }
+      }
+      cn++;
+      if (!best[id] || cells.length > best[id].length) best[id] = cells;
+    }
+    let total = 0;
+    for (const cells of Object.values(best)) total += cells.length;
+    for (const [id, cells] of Object.entries(best)) {
+      let sx = 0, sz = 0;
+      for (const i of cells) { sx += i % gc; sz += Math.floor(i / gc); }
+      sx /= cells.length; sz /= cells.length;
+      let bi = cells[0], bd = 1e9;
+      for (const i of cells) { const d = (i % gc - sx) ** 2 + (Math.floor(i / gc) - sz) ** 2; if (d < bd) { bd = d; bi = i; } }
+      clanAt.push({ id: +id, x: (bi % gc) * S + 1.5, z: Math.floor(bi / gc) * S + 1.5, n: cells.length });
+    }
+    clanAt.sort((a, b) => (b.id === P) - (a.id === P) || b.n - a.n);
     return out;
   };
-  let clanCache = null, ownSig = '';
+  let clanAt = [];
+  // 大名家の名（領地の上に大きく。寄りすぎ・引きすぎ・狭すぎる時は出さない）
+  const clanEls = new Map();
+  const layoutClans = (W, H, topH) => {
+    const seen = new Set(), boxes = [];
+    const scale = H / (2 * Math.tan(THREE.MathUtils.degToRad(FOV / 2)) * cam.d);
+    for (const a of clanAt) {
+      const size = Math.sqrt(a.n) * S * scale;
+      const cl = D.clans[a.id];
+      if (!cl || cam.d < 170 || (size < 90 && a.id !== P) || size < 50) continue;
+      const [x, y, z] = project(a.x, hAt(a.x, a.z) + 0.5, a.z, W, H);
+      if (z >= 1 || x < 20 || x > W - 20 || y < topH + 24 || y > H - 20) continue;
+      const fs = clamp(size * 0.16, 15, 34);
+      const nm = cl.name;
+      const bw = nm.length * fs * 1.2 + 10, bh = fs * 1.2 + 16;
+      const bx = x - bw / 2, by = y - bh / 2;
+      if (boxes.some((b) => bx < b[0] + b[2] && bx + bw > b[0] && by < b[1] + b[3] && by + bh > b[1])) continue;
+      boxes.push([bx, by, bw, bh]);
+      seen.add(a.id);
+      let e = clanEls.get(a.id);
+      const head = api.head ? api.head(a.id) : cl.daimyo;
+      const sig = nm + '|' + (head || '');
+      if (!e) { e = { el: document.createElement('div'), sig: '' }; e.el.setAttribute('aria-hidden', 'true'); layer.insertBefore(e.el, layer.firstChild); clanEls.set(a.id, e); }
+      if (e.sig !== sig) { e.sig = sig; e.el.className = 'j3-clan-l' + (a.id === P ? ' me' : ''); e.el.style.setProperty('--c', D.ink[a.id] || '#555'); e.el.innerHTML = `<b>${esc(nm)}</b>${head ? `<small>${esc(head)}</small>` : ''}`; }
+      e.el.style.display = '';
+      e.el.style.zIndex = '1500';
+      e.el.style.setProperty('--fs', fs.toFixed(0) + 'px');
+      e.el.style.opacity = String(clamp((cam.d - 170) / 140, 0, 1));
+      e.el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(-50%, -50%)`;
+    }
+    for (const [id, e] of clanEls) if (!seen.has(id)) e.el.style.display = 'none';
+  };
+  let clanCache = null, ownSig = '', staticCv = null, staticSig = '';
   const paint = (force) => {
     const sel = api.sel();
     const oSig = JSON.stringify(J.own);
@@ -799,26 +952,57 @@ export function mount3D(api) {
     const T = terrain();
     const g = texG;
     g.setTransform(1, 0, 0, 1, 0, 0);
-    g.drawImage(baseCanvas(season()), 0, 0);
-    if (oSig !== ownSig || !clanCache) { clanCache = clanPaths(); ownSig = oSig; }
-    // 家の色（半透明）
-    g.save(); g.clip(T.coast, 'evenodd');
-    for (const [id, path] of clanCache) { g.fillStyle = rgba(id, id === P ? 0.4 : 0.32); g.fill(path, 'evenodd'); }
-    // 国境（墨の細い破線）
-    g.setLineDash([4 * K / 2, 3 * K / 2]); g.lineWidth = 0.9 * K / 2 + 0.3; g.strokeStyle = 'rgba(38,30,22,0.42)'; g.stroke(T.borders); g.setLineDash([]);
-    // 家の境（家の色の濃い線、自分の家は金）
-    g.lineJoin = 'round';
-    for (const [id, path] of clanCache) {
-      if (id === P) continue;
-      g.lineWidth = 2.2 * K / 2 + 0.6; g.strokeStyle = rgba(id, 0.9, 0.35); g.stroke(path);
+    // 動かない絵（季節の地・家の色・国境・国の名・街道）は、持ち主か季節が変わった時だけ描き直す
+    const stSig = season() + '|' + oSig;
+    if (stSig !== staticSig || !staticCv) {
+      staticSig = stSig;
+      if (oSig !== ownSig || !clanCache) { clanCache = clanPaths(); ownSig = oSig; }
+      if (!staticCv) { staticCv = document.createElement('canvas'); staticCv.width = TW; staticCv.height = TH; }
+      const g = staticCv.getContext('2d');
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.drawImage(baseCanvas(season()), 0, 0);
+      // 家の色（半透明）。境の内側に濃い色の帯を引き、国ごとの色分けを一目で（信長の野望の地図のように）
+      g.save(); g.clip(T.coast, 'evenodd');
+      for (const [id, path] of clanCache) { g.fillStyle = rgba(id, id === P ? 0.44 : 0.4); g.fill(path, 'evenodd'); }
+      g.lineJoin = 'round';
+      for (const [id, path] of clanCache) { g.save(); g.clip(path, 'evenodd'); g.lineWidth = 9 * K; g.strokeStyle = rgba(id, 0.5, 0.1); g.stroke(path); g.restore(); }
+      // 国境（墨の細い破線）
+      g.setLineDash([4 * K / 2, 3 * K / 2]); g.lineWidth = 0.9 * K / 2 + 0.3; g.strokeStyle = 'rgba(38,30,22,0.42)'; g.stroke(T.borders); g.setLineDash([]);
+      // 家の境（家の色の濃い線、自分の家は金）
+      for (const [id, path] of clanCache) {
+        if (id === P) continue;
+        g.lineWidth = 2.2 * K / 2 + 0.6; g.strokeStyle = rgba(id, 0.95, 0.4); g.stroke(path);
+      }
+      for (const [id, path] of clanCache) if (id === P) { g.lineWidth = 4.4 * K / 2; g.strokeStyle = 'rgba(30,22,12,0.75)'; g.stroke(path); g.lineWidth = 2.6 * K / 2 + 0.4; g.strokeStyle = 'rgba(232,192,92,1)'; g.stroke(path); }
+      // 国の名（薄い墨で。寄ると読める）
+      g.font = `600 ${Math.round(8 * K)}px "Shippori Mincho B1", "Hiragino Mincho ProN", serif`;
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.lineWidth = 2.2 * K / 2; g.strokeStyle = 'rgba(240,232,210,0.45)'; g.fillStyle = 'rgba(34,26,18,0.62)';
+      for (const pv of PROVINCES) { const x = tx(pv.c), z = tz(pv.r) + 9 * K; g.strokeText(pv.name, x, z); g.fillText(pv.name, x, z); }
+      g.restore();
+      // 街道（淡い土の道。隣り合う城どうし）
+      g.lineCap = 'round'; g.lineJoin = 'round';
+      const road = (a, b, w, col, t0 = 0, t1 = 1) => { const f = curve(a, b); g.lineWidth = w; g.strokeStyle = col; g.beginPath(); for (let i = 0; i <= 16; i++) { const [x, z] = f(t0 + (i / 16) * (t1 - t0)); if (i) g.lineTo(tx(x), tz(z)); else g.moveTo(tx(x), tz(z)); } g.stroke(); };
+      for (const [a, b] of roads) road(a, b, 2 * K / 2 + 0.6, 'rgba(58,40,20,0.5)');
+      for (const [a, b] of roads) road(a, b, 0.9 * K / 2 + 0.3, 'rgba(238,218,168,0.9)');
     }
-    for (const [id, path] of clanCache) if (id === P) { g.lineWidth = 4 * K / 2; g.strokeStyle = 'rgba(30,22,12,0.7)'; g.stroke(path); g.lineWidth = 2.4 * K / 2 + 0.4; g.strokeStyle = 'rgba(226,186,90,0.98)'; g.stroke(path); }
-    g.restore();
-    // 街道（橙）
+    g.drawImage(staticCv, 0, 0);
     g.lineCap = 'round'; g.lineJoin = 'round';
-    const road = (a, b, w, col) => { const f = curve(a, b); g.lineWidth = w; g.strokeStyle = col; g.beginPath(); for (let i = 0; i <= 16; i++) { const [x, z] = f(i / 16); if (i) g.lineTo(tx(x), tz(z)); else g.moveTo(tx(x), tz(z)); } g.stroke(); };
-    for (const [a, b] of roads) road(a, b, 2.2 * K / 2 + 0.5, 'rgba(62,40,18,0.45)');
-    for (const [a, b] of roads) road(a, b, 1.1 * K / 2 + 0.2, 'rgba(222,140,50,0.92)');
+    const road = (a, b, w, col, t0 = 0, t1 = 1) => { const f = curve(a, b); g.lineWidth = w; g.strokeStyle = col; g.beginPath(); for (let i = 0; i <= 16; i++) { const [x, z] = f(t0 + (i / 16) * (t1 - t0)); if (i) g.lineTo(tx(x), tz(z)); else g.moveTo(tx(x), tz(z)); } g.stroke(); };
+    // 攻め口（自分の城から、いま攻められる城への道。朱の点線と小さな矢じり）
+    for (const c of D.castles) {
+      const from = api.attackable(c); if (!from || (sel && sel === c)) continue;
+      g.setLineDash([3 * K, 2.2 * K]);
+      road(from, c, 3 * K / 2 + 1.4, 'rgba(20,16,12,0.55)', 0.08, 0.84);
+      road(from, c, 1.8 * K / 2 + 0.3, 'rgba(255,112,80,0.98)', 0.08, 0.84);
+      g.setLineDash([]);
+      const f = curve(from, c), [x1, z1] = f(0.84), [x0, z0] = f(0.78);
+      const ang = Math.atan2(tz(z1) - tz(z0), tx(x1) - tx(x0)), hs = 4 * K / 2 + 2.5;
+      g.save(); g.translate(tx(x1), tz(z1)); g.rotate(ang);
+      g.fillStyle = 'rgba(255,112,80,1)'; g.strokeStyle = 'rgba(20,16,12,0.7)'; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(hs, 0); g.lineTo(-hs * 0.7, hs * 0.7); g.lineTo(-hs * 0.7, -hs * 0.7); g.closePath(); g.fill(); g.stroke();
+      g.restore();
+    }
     // この季節の攻め（家の色の太い道と矢じり。落ちなかった攻めは破線）
     const arrow = (m, col, w, dash) => {
       const a = D.byId[m.from], b = D.byId[m.to]; if (!a || !b) return;
@@ -920,11 +1104,16 @@ export function mount3D(api) {
   const v3 = new THREE.Vector3();
   const project = (x, y, z, W, H) => { v3.set(x, y, z).project(camera); return [(v3.x * 0.5 + 0.5) * W, (-v3.y * 0.5 + 0.5) * H, v3.z]; };
   const rankOf = (c, sel, tgt) => (c === sel ? 9 : J.threats.some((t) => t.to === c.id) ? 8 : J.own[c.id] === P ? (c.hq ? 7 : 6) : tgt ? 5 : c.hq ? 4 : J.fallen[c.id] === J.turn && J.turn > 0 ? 3.5 : 1);
+  // 城の格：本城（大きな旗・金の縁）／城／砦（小さな旗）。型は名札の頭の印（▲山城・■平城・◆砦）
+  const gradeOf = (c) => (c.hq ? 'hq' : c.type === 'toride' ? 'tr' : '');
+  const TY = { yama: '▲', hira: '■', toride: '◆' };
+  // 竿の根（城の場所）から旗の上までの高さ
+  const ANCH = { hq: 48, '': 38, tr: 30, min: 21, minhq: 27, mintr: 16 };
   const layout = () => {
     const W = mapEl.clientWidth, H = mapEl.clientHeight;
     const sel = api.sel();
     const far = cam.d > 1000, veryFar = cam.d > 1500;
-    const topH = top.offsetHeight || 60;
+    const topH = topH0 || top.offsetHeight || 60;
     const items = [];
     for (const c of D.castles) {
       const [x, y, z] = project(c.c, hAt(c.c, c.r) + 0.6, c.r, W, H);
@@ -942,16 +1131,17 @@ export function mount3D(api) {
       const { c, s, x, y, tgt, rank } = it;
       const cl = D.clans[J.own[c.id]];
       const col = D.ink[J.own[c.id]] || '#777';
-      const hq = !!c.hq;
-      const fw = hq ? 34 : 28, fh = (hq ? 18 : 14) * c.name.length + (hq ? 58 : 50);
-      const bx = x - fw / 2 - 10, by = y - fh, bw = fw + 30, bh = fh;
-      let min = (veryFar && rank < 5) || (far && rank < 3);
-      if (!min && boxes.some((b) => bx < b[0] + b[2] && bx + bw > b[0] && by < b[1] + b[3] && by + bh > b[1])) min = rank < 6;
+      const gr = gradeOf(c);
+      const nm = c.name.replace(/城$/, '');
+      const fh = ANCH[gr], pw = nm.length * (gr === 'hq' ? 15 : 13) + 52;
+      const bw = Math.max(44, pw), bx = x - bw / 2, by = y - fh, bh = fh + 22;
+      let min = (veryFar && rank < 7) || (far && rank < 3) || (far && gr === 'tr' && rank < 5);
+      if (!min && boxes.some((b) => bx < b[0] + b[2] && bx + bw > b[0] && by < b[1] + b[3] && by + bh > b[1])) min = rank < 7;
       if (!min) boxes.push([bx, by, bw, bh]);
       const mine = J.own[c.id] === P;
       const th = mine && J.threats.some((t) => t.to === c.id);
       const fell = J.fallen[c.id] === J.turn && J.turn > 0;
-      const cls = `j3-ban${hq ? ' hq' : ''}${mine ? ' me' : ''}${tgt ? ' tgt' : ''}${c === sel ? ' sel' : ''}${min ? ' min' : ''}`;
+      const cls = `j3-ban${gr ? ' ' + gr : ''}${mine ? ' me' : ''}${tgt ? ' tgt' : ''}${c === sel ? ' sel' : ''}${min ? ' min' : ''}`;
       if (cls !== s.cls) { s.el.className = cls; s.cls = cls; }
       const tag = th ? '<em class="j3-tag">急</em>' : fell ? `<em class="j3-tag fell${mine ? ' mine' : ''}">落</em>` : tgt ? '<em class="j3-tag atk">攻</em>' : mine && api.danger(c) >= 2 ? '<em class="j3-tag kiki">危</em>' : '';
       const troops = api.troops(c);
@@ -959,14 +1149,16 @@ export function mount3D(api) {
       if (sig !== s.sig) {
         s.sig = sig;
         s.el.style.setProperty('--c', col);
-        s.el.innerHTML = `<span class="j3-flag"><i style="background-image:url(${monURL(cl, col)})"></i><b>${esc(c.name.replace(/城$/, ''))}</b>${tag}</span><span class="j3-pole"></span><span class="j3-troop">${troops.toLocaleString('ja-JP')}</span>`;
-        s.el.setAttribute('aria-label', `${c.name}${hq ? '（本城）' : ''}、${cl.name}、${TYPE_NAME[c.type]}、兵およそ${troops}人${tgt ? '、攻められる城' : ''}${th ? '、敵が攻め寄せている' : ''}`);
+        s.el.innerHTML = `<span class="j3-flag"><i style="background-image:url(${monURL(cl, col)})"></i>${c.hq ? '<em class="j3-hq" aria-hidden="true">本</em>' : ''}${tag}</span><span class="j3-pole"></span><span class="j3-plate"><b><em class="j3-ty" aria-hidden="true">${TY[c.type] || '■'}</em>${esc(nm)}</b><small>${troops.toLocaleString('ja-JP')}</small></span>`;
+        s.el.setAttribute('aria-label', `${c.name}${c.hq ? '（本城）' : ''}、${cl.name}、${TYPE_NAME[c.type]}、兵およそ${troops}人${tgt ? '、攻められる城' : ''}${th ? '、敵が攻め寄せている' : ''}`);
       }
       s.el.tabIndex = rank >= 5 ? 0 : -1;
       s.el.setAttribute('aria-pressed', c === sel ? 'true' : 'false');
-      s.el.style.transform = `translate3d(${(x - 22).toFixed(1)}px, ${y.toFixed(1)}px, 0) translateY(-100%)`;
+      const off = ANCH[min ? 'min' + gr : gr];
+      s.el.style.transform = `translate3d(${x.toFixed(1)}px, ${(y - off).toFixed(1)}px, 0) translateX(-50%)`;
       s.el.style.zIndex = String(Math.round(y) + (min ? 0 : 2000) + (c === sel ? 5000 : 0));
     }
+    layoutClans(W, H, topH);
     // 駒
     const k = anim ? clamp((performance.now() - anim.t0) / anim.dur, 0, 1) : 1;
     for (const p of pieces) {
@@ -999,16 +1191,19 @@ export function mount3D(api) {
     top.innerHTML = `<div class="j3-date"><b>${now.season}</b><span>${esc(now.era)}<small>${KANM[month]}月・${esc(D.name)}</small></span></div>
       <div class="j3-clan" style="--c:${col}"><img alt="" src="${faceURL(headN || pc.name, pc, col, look(hb))}"><div><b>${esc(pc.name)}</b><small>${esc(headN || '')}${R ? `・あなたは${esc(R.mibun)}` : ''}</small></div></div>
       <dl class="j3-res" aria-label="${esc(pc.name)}の力">
-        <div><dt>石高</dt><dd>${man(koku)}<small>石</small></dd></div>
+        <div class="j3-koku"><dt>石高</dt><dd>${man(koku)}<small>石</small></dd></div>
         ${R ? `<div><dt>金</dt><dd>${man(R.gold)}<small>貫</small>${per(R.flow.g / 3, '金')}</dd></div>
         <div title="${R.season === '秋' ? 'この秋は年貢が入る' : `秋の年貢の見込み +${Math.round(R.tax).toLocaleString('ja-JP')}石`}"><dt>兵糧</dt><dd>${man(R.food)}<small>石</small>${per(R.flow.f / 3, '兵糧')}</dd></div>
         <div><dt>兵</dt><dd>${man(R.pool)}<small>人</small>${per(R.flow.h / 3, '兵')}</dd></div>` : `<div><dt>兵</dt><dd>${api.army().toLocaleString('ja-JP')}<small>人</small></dd></div>`}
-        <div><dt>城</dt><dd>${mine.length}</dd></div>
+        <div class="j3-shiro"><dt>城</dt><dd>${mine.length}</dd></div>
       </dl>
-      <div class="j3-act"><button class="btn small primary" id="j3-next" ${J.threats.length ? 'disabled' : ''}>季節を送る（N）</button></div>`;
+      <div class="j3-act"><button class="btn small primary" id="j3-next" ${J.threats.length ? 'disabled' : ''}>季節を送る${MOBILE ? '' : '（N）'}</button></div>`;
     top.querySelector('#j3-next').onclick = () => api.next();
-    // 見え方の押しボタンは帯のすぐ下に（帯の高さは幅で変わる）
-    if (tools) tools.style.top = (top.offsetHeight + 12) + 'px';
+    // 勢力の帯と見え方の押しボタンは、帯のすぐ下に（帯の高さは幅で変わる）
+    mapEl.style.setProperty('--j3top', top.offsetHeight + 'px');
+    const pw = mapEl.querySelector('.jp-power');
+    topH0 = top.offsetHeight + (pw ? pw.offsetHeight : 0);
+    if (tools) tools.style.top = (topH0 + 8) + 'px';
     // 右の札：選んだ城の城主（選んでいなければ自分の家の当主）の顔と能力
     const sel = api.sel();
     const cid = sel ? J.own[sel.id] : P;
@@ -1054,7 +1249,7 @@ export function mount3D(api) {
     const gy = Math.max(0, hAt(cam.x, cam.z)) * 0.5;
     camera.position.set(cam.x, gy + cam.d * Math.sin(p), cam.z + cam.d * Math.cos(p));
     camera.lookAt(cam.x, gy, cam.z);
-    scene.fog.near = cam.d * 1.35; scene.fog.far = cam.d * 4.5 + 600;
+    scene.fog.near = 1e5; scene.fog.far = 2e5;
   };
   const DMIN = 110, DMAX = 1900;
   const bounded = () => {
@@ -1181,7 +1376,7 @@ export function mount3D(api) {
     const moving = Math.abs(goal.x - cam.x) + Math.abs(goal.z - cam.z) + Math.abs(goal.d - cam.d) * 0.3 > 0.05;
     if (moving) { cam.x += (goal.x - cam.x) * k; cam.z += (goal.z - cam.z) * k; cam.d += (goal.d - cam.d) * k; need = true; }
     // 雲（遠くから見た時だけ。動きを減らす設定では流さない）
-    const cop = clamp((cam.d - 900) / 800, 0, 1) * 0.5;
+    const cop = clamp((cam.d - 900) / 800, 0, 1) * 0.2;
     let cloudMove = false;
     for (const c of clouds) {
       if (c.material.opacity !== cop) { c.material.opacity = cop; need = true; }
@@ -1241,6 +1436,7 @@ export function mount3D(api) {
         scene.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } });
       }
       canvas.remove();
+      lg.remove();
     },
   };
 }

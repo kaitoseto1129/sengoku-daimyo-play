@@ -98,7 +98,10 @@ function wake(rt) {
     }
     if (!who) continue;
     // 替える所：本人から WAKE_R m の内に残っている軽い兵を、近い者から（毎 0.3 秒、一つの隊で十数人ずつ。内に残る者が尽きるまで続ける）
-    const want = A.people ? A.n - A.took : 16;
+    // 自分のまわり 25m に本物の敵がもう二十人（初めの戦は十二人）いれば、それ以上は替えない（内の軽い兵は見せない輪で隠す。囲まれて押し潰されないように）
+    let crowded = false;
+    if (!A.people && who === P) { let near = 0; rt.army.forNear(P.pos.x, P.pos.z, 25, (o) => { if (o.alive && o.team !== P.team && !o.fleeing) near++; }); crowded = near >= (rt.firstFights ? 12 : 20); }
+    const want = A.people ? A.n - A.took : crowded ? 0 : 16;
     // 枠が足りなければ、プレイヤーから遠い「戻せる」本物の兵（wake で替えた兵）を大軍の中へ帰して空ける（WAKE_ROOM は守る）
     if (WAKE_ROOM - alive < want) alive -= recycle(rt, want - (WAKE_ROOM - alive), P);
     const n = Math.min(want, WAKE_ROOM - alive);

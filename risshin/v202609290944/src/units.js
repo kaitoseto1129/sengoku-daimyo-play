@@ -384,8 +384,10 @@ export class Army {
         if (o.team !== P.team) { if (d < 6 && o.type !== 'gun' && o.type !== 'bow') foe++; } else ally++;
       });
       this.playerCrowd = foe;
-      this.playerMobbed = foe >= 4 && ally * 1.5 < foe;   // 味方の支えが薄いまま囲まれている
-      this.attackCap = this.playerMobbed ? Math.max(this.maxAttackers || 3, Math.min(this.mobCapMax || 8, foe)) : (this.maxAttackers || 3);
+      // 味方の支えが薄いまま囲まれている（組がそばにいれば囲まれにくい。一人で五人に寄られて初めて）
+      this.playerMobbed = foe >= 5 && ally * 1.5 < foe;
+      // 囲まれても同時に打ちかかるのは五人まで（前は八人。四方から一度に斬られて、組と一緒でも立て直せなかった）
+      this.attackCap = this.playerMobbed ? Math.max(this.maxAttackers || 3, Math.min(this.mobCapMax || 5, foe - 1)) : (this.maxAttackers || 3);
       if (P) P.mobbed = this.playerMobbed;
     }
     this.updateGroups(dt);
