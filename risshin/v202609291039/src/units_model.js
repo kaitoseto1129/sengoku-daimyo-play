@@ -399,7 +399,7 @@ float mkMetal(int k) { return k == 3 ? 0.62 : k == 4 ? 0.92 : k == 1 ? 0.06 : 0.
         if (mk == 7) dust = 0.0;
         if (mk == 1) {
           float worn = smoothstep(0.45, 0.8, nz2) * 0.6 + dd;
-          roughnessFactor = mix(0.22, 0.55, clamp(worn, 0.0, 1.0));
+          roughnessFactor = mix(0.3, 0.62, clamp(worn, 0.0, 1.0));
         } else if (mk == 3) {
           float rust = smoothstep(0.6, 0.85, uVn(vObjP * 17.0 + 11.0)) * (0.4 + dirtA * 0.6);
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.2, 0.085, 0.035), rust * 0.7);
@@ -423,7 +423,7 @@ float mkMetal(int k) { return k == 3 ? 0.62 : k == 4 ? 0.92 : k == 1 ? 0.06 : 0.
       #endif`)
     // 漆と鉄は、空の映り込みが面いっぱいに広がると灰色の板に見えるので、映り込みを抑えて黒を深くする（日の照りは鋭いまま）
     .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
-      { int mkS = txA.r > 0.5 ? mkB : mkA; if (mkS == 1 || mkS == 3) reflectedLight.indirectSpecular *= 0.5 + uWet * 0.5; }`);
+      { int mkS = txA.r > 0.5 ? mkB : mkA; if (mkS == 1 || mkS == 3) reflectedLight.indirectSpecular *= 0.4 + uWet * 0.6; }`);
 };
 const geoCache = new Map();
 const flagMatCache = new Map();

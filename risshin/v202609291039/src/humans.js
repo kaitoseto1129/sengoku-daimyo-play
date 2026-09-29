@@ -847,7 +847,7 @@ function headMaterial(key, look, F) {
   // 日焼け：肌の色を掛ける
   const sk = new THREE.Color(look.skin || 0xb58c68).getHSL({});
   // 写真の肌（明るめの白人の肌）を、日焼けした色へ寄せる：少し暗く、黄みと赤みを足す
-  const tn = new THREE.Color().setHSL(0.075, 0.45, 0.5 + (sk.l - 0.4) * 0.6);
+  const tn = new THREE.Color().setHSL(0.07, 0.34, 0.5 + (sk.l - 0.4) * 0.6);
   const tint = [Math.min(255, 140 + tn.r * 110) | 0, Math.min(255, 150 + tn.g * 115) | 0, Math.min(255, 145 + tn.b * 110) | 0];
   const texKey = named ? null : 'c' + ((look.face | 0) % 12) + (look.monk ? '|m' : '');
   if (texKey && headTexs.has(texKey)) { const m = mkHeadMat(headTexs.get(texKey), null, tint); headMats.set(key, m); return m; }
@@ -932,7 +932,7 @@ function headMaterial(key, look, F) {
       // 兵の顔：唇を肌の色へ寄せ、鼻と頬に日焼けの赤み、額に日焼け（名のある武将より簡単に）
       const x0 = Math.abs(x + 0.09), fr = Math.min(1, (z - 0.8) / 0.9);
       const lip = Gs(x0 / 0.65, (y - 0.22) / 0.36, 1, 1) * (z > 1.6 ? 1 : 0);
-      const red = 0.1 * Gs(x0, y - 1.15, 0.28, 0.35) + 0.08 * Gs(x0 - 1.1, y - 1.05, 0.35, 0.35);
+      const red = 0.06 * Gs(x0, y - 1.15, 0.28, 0.35) + 0.045 * Gs(x0 - 1.1, y - 1.05, 0.35, 0.35);
       const sun = 0.14 * Gs(x0, y - 2.35, 0.9, 0.45) + 0.08 * Gs(x0 - 1.2, y - 1.35, 0.3, 0.25);
       const tri = (r, g_, b_, al_) => { if (al_ < 0.005) return; tg.fillStyle = `rgba(${r},${g_},${b_},${Math.min(0.85, al_ * fr)})`; tg.beginPath(); tg.moveTo(uv.getX(a) * N, uv.getY(a) * N); tg.lineTo(uv.getX(b) * N, uv.getY(b) * N); tg.lineTo(uv.getX(cc) * N, uv.getY(cc) * N); tg.closePath(); tg.fill(); };
       tri(150, 60, 45, red * 0.6); tri(95, 55, 30, sun * 0.6); tri(122, 86, 66, Math.min(1, 1.1 * lip));
@@ -964,7 +964,7 @@ function headMaterial(key, look, F) {
       // 肌の色むら：鼻・頬の赤み、額・鼻筋・頬骨の日焼け、目の下の影。年ごとのしわ（額の横じわ・目尻・ほうれい線）
       const x0 = Math.abs(x + 0.09), fr = z > 0.8 ? Math.min(1, (z - 0.8) / 0.9) : 0;
       if (fr > 0) {
-        const red = 0.1 * Gs(x0, y - 1.15, 0.28, 0.35) + 0.08 * Gs(x0 - 1.1, y - 1.05, 0.35, 0.35) + 0.03 * rnd();
+        const red = 0.06 * Gs(x0, y - 1.15, 0.28, 0.35) + 0.045 * Gs(x0 - 1.1, y - 1.05, 0.35, 0.35) + 0.03 * rnd();
         const sun = 0.12 * Gs(x0, y - 2.35, 0.9, 0.45) + 0.1 * Gs(x0, y - 1.5, 0.22, 0.5) + 0.07 * Gs(x0 - 1.2, y - 1.35, 0.3, 0.25);
         const bag = (0.05 + 0.1 * old) * Gs(x0 - 0.62, y - 1.46, 0.28, 0.08);
         let wr = 0;
@@ -975,7 +975,7 @@ function headMaterial(key, look, F) {
         const a_ = a, b_ = b, c_ = cc;
         // 唇：写真の赤い唇を、日焼けした肌に近い色へ寄せる
         const lip = Gs(x0 / 0.65, (y - 0.22) / 0.36, 1, 1) * (z > 1.6 ? 1 : 0);
-        pc(150, 60, 45, red); pc(95, 55, 30, sun); pc(70, 40, 35, bag); pc(55, 32, 24, wr);
+        pc(140, 78, 62, red); pc(100, 70, 48, sun); pc(70, 40, 35, bag); pc(55, 32, 24, wr);
         // 唇はほぼ肌の色に（紅を差した線に見せない。口の形は顔の形の陰で見える）
         if (lip > 0.01) { tg.fillStyle = `rgba(124,86,66,${Math.min(0.92, lip * fr)})`; tg.beginPath(); tg.moveTo(uv.getX(a_) * N, uv.getY(a_) * N); tg.lineTo(uv.getX(b_) * N, uv.getY(b_) * N); tg.lineTo(uv.getX(c_) * N, uv.getY(c_) * N); tg.closePath(); tg.fill(); }
         // 汗の照り：額・鼻筋・頬骨は滑らか、髭の所は荒い
@@ -1078,7 +1078,7 @@ function grainOf(src, N) {
 }
 function mkHeadMat(tex, rTex, tint) {
   const m = new THREE.MeshPhysicalMaterial({
-    map: tex, normalMap: HEAD.nrm, normalScale: new THREE.Vector2(0.8, 0.8), roughness: rTex ? 0.95 : 0.52, roughnessMap: rTex, metalness: 0,
+    map: tex, normalMap: HEAD.nrm, normalScale: new THREE.Vector2(0.8, 0.8), roughness: rTex ? 0.95 : 0.58, roughnessMap: rTex, metalness: 0,
     specularIntensityMap: HEAD.spec, specularIntensity: 0.6, sheen: 0.35, sheenRoughness: 0.75, sheenColor: new THREE.Color(0x6a4a3c),
   });
   if (tint) m.color.setRGB(tint[0] / 255, tint[1] / 255, tint[2] / 255, THREE.SRGBColorSpace);
@@ -1978,7 +1978,7 @@ const EYE_FAST_MATS = new Map();
 const EYE_REF_INV = (() => { const c = soldierTint(0xb58c68); return new THREE.Color(1 / c.r, 1 / c.g, 1 / c.b); })();
 function soldierTint(skin) {
   const sk = new THREE.Color(skin).getHSL({});
-  const tn = new THREE.Color().setHSL(0.075, 0.45, 0.5 + (sk.l - 0.4) * 0.6);
+  const tn = new THREE.Color().setHSL(0.07, 0.34, 0.5 + (sk.l - 0.4) * 0.6);
   return new THREE.Color().setRGB(Math.min(255, 140 + tn.r * 110) / 255, Math.min(255, 150 + tn.g * 115) / 255, Math.min(255, 145 + tn.b * 110) / 255, THREE.SRGBColorSpace);
 }
 function addEyesFast(hm, F, tint = null) {
@@ -2417,8 +2417,9 @@ function driveHuman(h, dt, fine = true, arms = true) {
     const gR = !alive ? 0.25 : h.saihai && h.saihai.visible ? 1 : has ? (w === 'bow' ? 0.6 : 1 + 0.1 * tight) : u.mounted && alive ? 1.2 : 0.15;
     const gL = !alive ? 0.2 : u.mounted ? 1.2 + 0.1 * tight : has && !shouldered ? 1 + (w === 'bow' ? 0 : 0.1 * tight) : 0.2;
     // 握りが変わった時だけ曲げ直す（録った動きは指を動かさないので、曲げた形がそのまま残る）
-    if (h.gR === undefined || Math.abs(gR - h.gR) > 0.02) { h.gR = h.gR === undefined ? gR : h.gR + (gR - h.gR) * Math.min(1, dt * 10); curlFingers(h, 'Right', h.gR); }
-    if (h.gL === undefined || Math.abs(gL - h.gL) > 0.02) { h.gL = h.gL === undefined ? gL : h.gL + (gL - h.gL) * Math.min(1, dt * 10); curlFingers(h, 'Left', h.gL); }
+    // 一人称の本人は毎コマ握り直す（振る・突く動きが指を開いても、柄を握った拳のまま）
+    if (h.gR === undefined || Math.abs(gR - h.gR) > 0.02 || tight) { h.gR = h.gR === undefined ? gR : h.gR + (gR - h.gR) * Math.min(1, dt * 10); curlFingers(h, 'Right', h.gR); }
+    if (h.gL === undefined || Math.abs(gL - h.gL) > 0.02 || tight) { h.gL = h.gL === undefined ? gL : h.gL + (gL - h.gL) * Math.min(1, dt * 10); curlFingers(h, 'Left', h.gL); }
   }
   // 甲冑の遅れた揺れ（草摺・袖）：体の上下と前後の速さの変わりから、ばねで
   // 倒れた人の手足が地面にめり込まないよう持ち上げる
@@ -2972,7 +2973,7 @@ function armsPose(h, B, dt, time, w) {
     return;
   }
   // 左手：柄の先。待つ間は時々持ち替える（手を柄に沿ってずらし、握り直す）
-  let k = w === 'sword' ? -0.13 : w === 'gun' ? (fpg ? 0.3 : 0.36) : 0.36 + (h.seed - 0.5) * 0.08, lift = 0;
+  let k = w === 'sword' ? -0.13 : w === 'gun' ? (fpg ? 0.2 : 0.36) : 0.36 + (h.seed - 0.5) * 0.08, lift = 0;
   // 両手の間（人ごと）：槍は手を広く取る人・詰める人。鉄砲は台木を支える所が少しずつ違う。刀は柄頭へ寄せる人・鍔元へ寄せる人
   if (h.hold && !fpg) k += w === 'spear' ? h.hold.sp : w === 'gun' ? h.hold.sp * 0.3 : w === 'sword' ? h.hold.sp * 0.15 : 0;
   // 怯えた者・疲れ切った者は、柄を持つ手が小さく震える
@@ -3042,7 +3043,7 @@ function armsPose(h, B, dt, time, w) {
   if (fpg) {
     // 槍は前の手の中を柄が滑る：左手は胸の前の同じ所に置いたまま、突けば柄だけが前へ出る
     if (w === 'spear') {
-      B.LeftArm.getWorldPosition(_tgt3).addScaledVector(_fwd, 0.4).addScaledVector(_up, -0.22);
+      B.LeftArm.getWorldPosition(_tgt3).addScaledVector(_fwd, 0.48).addScaledVector(_up, -0.3).addScaledVector(_right, 0.06);
       k = Math.max(0.15, Math.min(0.9, _tgt3.sub(_tgt).dot(dir)));
       ik2(B.LeftArm, B.LeftForeArm, B.LeftHand, _tgt3.copy(_tgt).addScaledVector(dir, k), LEFT_POLE);
     }
@@ -3072,7 +3073,7 @@ function reinPose(h, B, u, fpk, two) {
   // 左の拳は体の左寄り（馬の首が振れても、体の真ん中を越えて右へ出さない。-x が乗り手の左）
   _tgt3.x = Math.max(-0.22, Math.min(-0.03, _tgt3.x));
   // 一人称：拳は画面の下の左寄り（前を塞がない）。持ち上げは少しだけ、左へ寄せる
-  if (fpk > 0.01) { const L = fpLift(_tgt3.y, _tgt3.z, 1.62 + RIDE.y - 0.18, fpk, 0.05, 0.12); _tgt3.y += L[0]; _tgt3.z += L[1]; _tgt3.x -= 0.2 * fpk; }
+  if (fpk > 0.01) { const L = fpLift(_tgt3.y, _tgt3.z, 1.62 + RIDE.y - 0.18, fpk, 0.13, 0.12); _tgt3.y += L[0]; _tgt3.z += L[1]; _tgt3.x -= 0.1 * fpk; }
   // 両手：左右の拳を拳ひとつ半ほど離す
   if (two) _tgt3.x -= 0.05;
   _rP.copy(_tgt3);
@@ -3173,7 +3174,8 @@ function straightWrist(fore, hand, mid, toward = null) {
 // ・長柄（槍・薙刀）：構えは右手を右の腰の後ろ、左手を前に（肘を曲げて腰〜胸の高さ）。待つ・歩く時は槍を立てて石突を地面の近くへ
 // ・鉄砲の込め直し：台尻を地面に着けて筒を立てる（筒先が胸の高さ。手が笠より上へ行かない）
 // 武器は見た目だけ（当たりの計算は units.js の数で行う）なので、人の時だけ置き直してよい
-const GUN_BUTT = 0.37;   // 鉄砲の握りから台尻の端まで（units.js の形）
+const GUN_BUTT = 0.37;
+const _fpA = new THREE.Vector3(), _fpB = new THREE.Vector3(), _fpC = new THREE.Vector3(), _fpD = new THREE.Vector3(), _fpE = new THREE.Vector3();   // 鉄砲の握りから台尻の端まで（units.js の形）
 function gripPose(h, dt) {
   const u = h.u, hd = u.hand, w = u.wpnKind || u.lookWeapon;
   // 一人称の本人（u.fpk：player.js が 0〜1 で渡す）は、馬上でも手を見える所へ寄せる
@@ -3210,7 +3212,31 @@ function gripPose(h, dt) {
       dx += 0.24 * u.fpk;
     }
     // 鉄砲は筒を右へ少し寄せる（支える左の前腕が画面の真ん中をふさがない）
-    if (w === 'gun') dx += 0.07 * u.fpk;
+    if (w === 'gun') dx -= 0.1 * u.fpk;
+    // 槍は手を低めに（前の左の前腕が画面の真ん中をふさがない）
+    if (w === 'spear') dy -= 0.08 * u.fpk;
+    // 握りが右の肩から腕の長さより遠い時は、肩の方へ引き寄せる（腕が届かず、拳が柄から離れて武器だけ浮いて見えない。馬上で多い）
+    const RB = h.bones;
+    if (u.mounted && RB && RB.RightArm && RB.RightForeArm && RB.RightHand && hd.parent) {
+      hd.parent.updateWorldMatrix(true, false);
+      const sp = hd.parent.worldToLocal(RB.RightArm.getWorldPosition(_fpA)), ep = hd.parent.worldToLocal(RB.RightForeArm.getWorldPosition(_fpB)), wp = hd.parent.worldToLocal(RB.RightHand.getWorldPosition(_fpC));
+      const reach = (sp.distanceTo(ep) + ep.distanceTo(wp)) * 0.9;
+      _fpC.set(hd.position.x + dx - sp.x, hd.position.y + dy - sp.y, hd.position.z + dz - sp.z);
+      // 馬上：拳は右の肩から前へ（少し内・少し下）腕を伸ばした所へ（目の真横に来て画面の外へ出ない）
+      if (u.mounted && w !== 'bow' && !u.swing && !u.pAtk) {
+        // 世界の向きで決める（握りの親の軸は体の前と揃わないことがある）
+        const sw = RB.RightArm.getWorldPosition(_fpE), ew = RB.RightForeArm.getWorldPosition(_fpD), rw = sw.distanceTo(ew) + ew.distanceTo(RB.RightHand.getWorldPosition(_fpC));
+        const fx = Math.sin(u.heading), fz = Math.cos(u.heading);
+        let cx = u.pos.x - sw.x, cz = u.pos.z - sw.z; const cl = Math.hypot(cx, cz) || 1; cx /= cl; cz /= cl;
+        _fpD.set(sw.x + fx * rw * 0.85 + cx * 0.12, sw.y - 0.06, sw.z + fz * rw * 0.85 + cz * 0.12);
+        hd.parent.worldToLocal(_fpD);
+        const tx = _fpD.x, ty = _fpD.y, tz = _fpD.z;
+        dx += (tx - (hd.position.x + dx)) * u.fpk; dy += (ty - (hd.position.y + dy)) * u.fpk; dz += (tz - (hd.position.z + dz)) * u.fpk;
+        _fpC.set(hd.position.x + dx - sp.x, hd.position.y + dy - sp.y, hd.position.z + dz - sp.z);
+      }
+      const L = _fpC.length();
+      if (L > reach && reach > 0.1) { const k = (1 - reach / L) * u.fpk; dx -= _fpC.x * k; dy -= _fpC.y * k; dz -= _fpC.z * k; }
+    }
     hd.position.x += dx; hd.position.y += dy; hd.position.z += dz;
     h.fpOff = { dx, dy, dz, lx: hd.position.x, ly: hd.position.y, lz: hd.position.z };
   }

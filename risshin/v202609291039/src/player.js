@@ -2429,7 +2429,9 @@ export class Player {
       this.eyeOff.y += (off.y - this.eyeOff.y) * kv;
     }
     const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
-    const eye = _cE.set(u.pos.x + this.eyeOff.x + fx * 0.1, u.pos.y + this.eyeOff.y, u.pos.z + this.eyeOff.z + fz * 0.1);
+    // 馬上は目を少し後ろへ（前へ伸ばした右の拳と柄が、目の真下に潜らず画面の右下に見える）
+    const fe = this.mounted ? -0.03 : 0.1;
+    const eye = _cE.set(u.pos.x + this.eyeOff.x + fx * fe, u.pos.y + this.eyeOff.y, u.pos.z + this.eyeOff.z + fz * fe);
     // 歩みの小さな上下（画面の揺れの設定を守る）。馬上は鞍の弾みがそのまま出るので足さない
     const sp = Math.hypot(u.vel.x, u.vel.z);
     if (!calm && !this.mounted && sp > 0.5) {

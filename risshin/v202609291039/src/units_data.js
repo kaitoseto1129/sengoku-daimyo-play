@@ -157,7 +157,7 @@ export const SKIN_TONES = [0xb58c68, 0xa87f5c, 0xc09a74, 0x9c7453, 0x8e6446, 0xb
 
 // cloth：足軽の鎧下と袴の色の幅（六通り。遠目で家の塊が分かるように）・busho：侍大将の甲冑・haori：陣羽織
 export const FACTION = {
-  oda: { armor: 0x2b3140, lace: 0x3c5a8a, lace2: 0x2f4a70, lace3: 0x5a4a3a, flag: 'oda',
+  oda: { armor: 0x2a2e36, lace: 0x3e5070, lace2: 0x33445e, lace3: 0x5a4a3a, flag: 'oda',
     cloth: [0x1f1e1f, 0x232a3a, 0x2a2c33, 0x1f2533, 0x2b2622, 0x262c3a], busho: 0x1c1a1a, haori: 0x6b1f18 },
   imagawa: { armor: 0x3f2a24, lace: 0x7a3a2a, lace2: 0x8a4a30, lace3: 0x5a3a2a, flag: 'imagawa',
     cloth: [0x3e2620, 0x3a3a26, 0x4a2c22, 0x34382a, 0x3a2e24, 0x2b2622], busho: 0x2e1c18, haori: 0x7a2a1c },

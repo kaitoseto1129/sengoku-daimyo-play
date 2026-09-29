@@ -448,11 +448,11 @@ const _caM4 = new THREE.Matrix4(), _caQ = new THREE.Quaternion(), _caP = new THR
 const CLASH_GLSL = ARMY_GLSL.replace(/uMarch, uCharge, /, '').replace('attribute float aPart;', `attribute float aPart;
 uniform vec4 uBlk[${CLASH_NB}], uBlk2[${CLASH_NB}]; uniform float uSide, uApp, uAppM, uAppC, uNearHide;
 attribute vec4 aClash;
-float uMarch, uCharge, cRt, cFight, cHide; vec3 cOff;
+float uMarch, uCharge, cRt, cFight, cHide, cPress; vec3 cOff;
 void cInit(float sd) {
   int j = int(aClash.x + 0.5);
   vec4 B = uBlk[j], B2 = uBlk2[j];
-  cOff = vec3(0.0); cFight = 0.0; cHide = 0.0; cRt = 0.0; uMarch = 0.0; uCharge = 0.0;
+  cOff = vec3(0.0); cFight = 0.0; cPress = 0.0; cHide = 0.0; cRt = 0.0; uMarch = 0.0; uCharge = 0.0;
   if (aClash.w > 0.5) return;
   float kc = B.z / max(1.0, B2.z), fr = floor(kc), row = aClash.z;
   cHide = max(B2.w, step(aClash.y + 0.5, B.z));
@@ -465,6 +465,7 @@ void cInit(float sd) {
   cOff.x += mixF * 1.1 * (fract(sd * 3.77) - 0.5) * 2.0;
   cRt = B.w > 0.0 ? max(0.0, B.w - sd * 1.6) : 0.0;
   cFight = B2.x * (1.0 - smoothstep(fr + 1.5, fr + 3.0, row));
+  cPress = B2.x - cFight;
   uMarch = max(B2.y, uAppM);
   uCharge = max(cFight * 0.85, uAppC);
 }`).replace('float rt = uRout * max(0.0, uRoutT - sd * 1.6);', 'cInit(sd); float rt = cRt;') + `
@@ -488,6 +489,15 @@ void cPose(inout APose P) {
     P.tilt += f * 0.08 * sin(T * 1.3 + sd * 5.0);
     P.yaw = mix(P.yaw, (sd - 0.5) * 0.35, f);
     P.leg += f * 0.2 * sin(T * 2.6 + sd * 7.0);
+  }
+  if (cPress > 0.01 && P.run < 0.5) {
+    // 後ろの列の押し合い：前へ詰めては押し返され、槍の穂先が揺れ、足を踏み替える（棒立ちにしない）
+    float q = cPress;
+    P.off.z += q * (0.16 * sin(T * 0.8 + sd * 9.0) + 0.06);
+    P.off.x += q * 0.07 * sin(T * 0.55 + sd * 21.0);
+    P.spear += q * 0.14 * sin(T * 1.2 + sd * 13.0);
+    P.tilt += q * 0.05 * sin(T * 0.9 + sd * 3.0);
+    P.leg += q * 0.12 * sin(T * 1.7 + sd * 5.0);
   }
 }
 `;
@@ -1726,7 +1736,7 @@ export class World {
     let add = Math.min(3, want - M.list.length);
     while (add-- > 0) {
       const a = Math.random() * Math.PI * 2, r = 12 + Math.random() * 85;
-      M.list.push({ x: focus.x + Math.cos(a) * r, z: focus.z + Math.sin(a) * r, t: 0, life: 40 + Math.random() * 30, s0: 12 + Math.random() * 6, s1: 20 + Math.random() * 12, a: 0.05 + amt * 0.07, rise: -0.004 });
+      M.list.push({ x: focus.x + Math.cos(a) * r, z: focus.z + Math.sin(a) * r, t: 0, life: 40 + Math.random() * 30, s0: 12 + Math.random() * 6, s1: 20 + Math.random() * 12, a: 0.038 + amt * 0.055, rise: -0.004 });
     }
     this.flowVeil(M, dt);
   }
@@ -1792,7 +1802,7 @@ export class World {
     if (!D) return;
     if (D.list.length >= D.CAP) D.list.shift();
     // 騎馬の土煙は大きく高く舞い上がり、後ろの景色をかすませる
-    D.list.push({ x: x + (Math.random() - 0.5) * 1.5, z: z + (Math.random() - 0.5) * 1.5, t: 0, life: (big ? 11 : 6) + Math.random() * 6, s0: big ? 3 : 1.6, s1: (big ? 12 : 5) + Math.random() * (big ? 6 : 4), a: (big ? 0.12 : 0.06) + Math.random() * 0.04, rise: (big ? 0.3 : 0.15) + Math.random() * 0.2 });
+    D.list.push({ x: x + (Math.random() - 0.5) * 1.5, z: z + (Math.random() - 0.5) * 1.5, t: 0, life: (big ? 11 : 6) + Math.random() * 6, s0: big ? 3 : 1.6, s1: (big ? 12 : 5) + Math.random() * (big ? 6 : 4), a: (big ? 0.09 : 0.045) + Math.random() * 0.03, rise: (big ? 0.3 : 0.15) + Math.random() * 0.2 });
     D.fresh = (D.fresh || 0) + (big ? 0.4 : 0.15);
   }
   // 雲の群れを流して、描く数と位置を詰め直す
@@ -2772,9 +2782,15 @@ export class World {
       // 乱戦の土煙：押し合う前線から、踏み荒らされた土が絶えず舞い上がる（乾いた日。近い前線ほど多く、崩れて追う時は騎馬の土煙も）
       if (fight && !wetGround() && C.fx.dust <= 0) {
         const fd = Math.hypot(o.x - focus.x, o.z - focus.z);
-        C.fx.dust = fd < 120 ? 0.35 : fd < 250 ? 0.8 : 2;
+        C.fx.dust = fd < 120 ? 0.22 : fd < 250 ? 0.55 : 1.4;
         const p = C.frontAt(Math.floor(R() * nb), (R() - 0.5) * gap);
-        this.dustCloud(p.x + (R() - 0.5) * 3, p.z + (R() - 0.5) * 3, !!C.winner && R() < 0.5);
+        // 川や田の中で組み合う所は、土煙でなく水しぶき（姉川の瀬など）
+        if (this.inWaterAt(p.x, p.z)) { if (fd < 160) this.spray(p.x + (R() - 0.5) * 3, p.z + (R() - 0.5) * 3, 4); } else {
+        // 四つに一つは大きな土煙：前線の上に褐色の帳がかかり、奥の列を霞ませる（薄く広く、長く残る）
+        const wide = !C.winner && R() < 0.25;
+        this.dustCloud(p.x + (R() - 0.5) * 3, p.z + (R() - 0.5) * 3, wide || (!!C.winner && R() < 0.5));
+        if (wide) { const q = this.dustVeil.list[this.dustVeil.list.length - 1]; if (q) { q.a *= 0.45; q.s1 *= 1.3; q.rise *= 0.5; } }
+        }
       }
       // 士気：生きている割合と、戦の側から与えた揺さぶり
       for (const S of [C.A, C.B]) {
@@ -3456,8 +3472,11 @@ export class World {
       // 葉ごとに少し色をずらす（黄みの葉・青みの葉・枯れ葉）。全体の色は置く所で掛ける
       const cr = dry ? 1.18 : 0.92 + GR() * 0.14, cb = dry ? 0.7 : 0.85 + GR() * 0.2;
       const col = (k) => `rgb(${Math.min(255, v * k * cr) | 0},${Math.min(255, v * k) | 0},${Math.min(255, v * k * cb) | 0})`;
+      // 根元は濃い緑、中ほどは草の緑、先は黄みの枯れ色（白っぽい薄荷色にしない）
+      const rgb = (r, g, bl) => `rgb(${Math.min(255, r) | 0},${Math.min(255, g) | 0},${Math.min(255, bl) | 0})`;
       const lg = gg.createLinearGradient(0, GS, 0, GS - h);
-      lg.addColorStop(0, col(0.8)); lg.addColorStop(0.3, col(0.9)); lg.addColorStop(1, col(1.0));
+      lg.addColorStop(0, rgb(v * 0.36 * cr, v * 0.5, v * 0.26 * cb)); lg.addColorStop(0.45, rgb(v * 0.6 * cr, v * 0.76, v * 0.4 * cb)); lg.addColorStop(1, rgb(v * 0.9 * cr, v * 0.84, v * 0.5 * cb));
+      void col;
       gg.fillStyle = lg;
       // 折れて垂れた葉：途中で曲がって先が下がる
       const bend = GR() < 0.18;
@@ -3477,7 +3496,7 @@ export class World {
       }
       gg.closePath(); gg.fill();
       // 葉の中筋の照り
-      if (GR() < 0.5) { gg.strokeStyle = `rgba(255,255,240,${0.08 + GR() * 0.1})`; gg.lineWidth = 0.8; gg.beginPath(); gg.moveTo(x, GS); gg.quadraticCurveTo(mx, my, tx, ty); gg.stroke(); }
+      if (GR() < 0.5) { gg.strokeStyle = `rgba(240,230,170,${0.04 + GR() * 0.05})`; gg.lineWidth = 0.8; gg.beginPath(); gg.moveTo(x, GS); gg.quadraticCurveTo(mx, my, tx, ty); gg.stroke(); }
     }
     // 穂：細い茎の先に、明るい小さな粒の房
     for (let i = 0; i < 5; i++) {
