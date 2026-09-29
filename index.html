@@ -577,7 +577,7 @@ body.picking [data-z="home"], body.picking [data-z="save"] { display:none !impor
 .scen .sc-desc{ font-size:14px; line-height:1.6; opacity:.8; }
 
 /* 上の帯の「その他」 */
-#moreMenu{ position:absolute; top:38px; right:8px; z-index:40;
+#moreMenu{ position:fixed; top:38px; right:8px; z-index:60;   /* 第257巡（目安箱：その他の窓が見えないくらいしかひらかない）：上の帯（はみ出しを切る）の内だと十九pxしか見えなかった。画面に対して置く */
   display:grid; grid-template-columns:repeat(3,minmax(104px,1fr)); gap:3px; padding:6px;   /* 第253巡（作り手：その他が出すぎる）：三列に詰める */
   max-height:calc(100vh - 50px); overflow:auto;
   background:rgba(14,12,10,.97); border:1px solid rgba(237,230,214,.22);
@@ -16482,6 +16482,9 @@ document.getElementById("btnSystem").onclick=openSystem;
 {
 const mm=document.getElementById("moreMenu"), mb=document.getElementById("btnMore");
 mb.onclick=(e)=>{ e.stopPropagation(); mm.hidden=!mm.hidden; mb.classList.toggle("on",!mm.hidden);
+
+if(!mm.hidden){ try{ const tb=document.getElementById("topbar"); const b=tb?tb.getBoundingClientRect().bottom:38;
+mm.style.top=Math.round(Math.max(4,b+2))+"px"; mm.style.maxHeight="calc(100vh - "+Math.round(b+12)+"px)"; }catch(_){ } }
 
 const bs=document.getElementById("btnShogun"); if(bs) bs.hidden=!(W.started && W.shogun===W.player);
 
