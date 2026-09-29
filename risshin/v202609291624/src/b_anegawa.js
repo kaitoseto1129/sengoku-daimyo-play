@@ -494,7 +494,7 @@ const anegawa = {
         else { rt.objFail('pursue'); R.noRout = false; R.morale = 0; }
         if (F.akRest && !gone(F.akRest)) { F.akRest.noRout = false; F.akRest.morale = 0; }
         // 向こう岸を取った後も段を重ねる（長政の後備えか横山城か→退き口）
-        if (!rt.G.lord) { depthStart(rt, aneCtx(rt), aneB(), () => this.ending(rt)); return; }
+        if (!rt.G.lord) { depthStart(rt, aneCtx(rt, undefined, 0.52), aneB(), () => this.ending(rt)); return; }
         this.ending(rt);
       }
     }
@@ -592,9 +592,9 @@ anegawa.botBrain = (b, inp, { goTo }) => {
 
 // ---------------- 一つの戦を濃くする段（b_depth.js） ----------------
 const uS = (n) => ({ type: 'samurai', n }), uA = (n) => ({ type: 'ashigaru', n }), uG = (n) => ({ type: 'gun', n }), uC = (n) => ({ type: 'cavalry', n }), uB = (n) => ({ type: 'bow', n });
-function aneCtx(rt, keepZ) {
+function aneCtx(rt, keepZ, dmg) {
   const F = rt.flags;
-  return { faction: 'saito', flag: 'azai', armor: AZAI.armor, dmg: 0.62, keepZ, look: (l) => dress(l, AZAI), friends: () => [F.shibata].filter((g) => g && g.count && !g.routed), aid: { name: '森の備の一手', list: [uS(1), uA(8)] }, aidSaid: '森の備から一手が加わった' };
+  return { faction: 'saito', flag: 'azai', armor: AZAI.armor, dmg: dmg || 0.62, keepZ, look: (l) => dress(l, AZAI), friends: () => [F.shibata].filter((g) => g && g.count && !g.routed), aid: { name: '森の備の一手', list: [uS(1), uA(8)] }, aidSaid: '森の備から一手が加わった' };
 }
 // 浅井の寄せが尽きた後、追い落とす前：立て直し → 判断（稲葉の後ろか、川べりか）→ 川べりの鉄砲組
 function aneA() {
@@ -628,34 +628,34 @@ function aneA() {
 // 向こう岸の殿を崩した後：立て直し → 判断（長政の後備えか、横山城の城兵か）→ 判断（退き口を守るか、朝倉の残りを突くか）
 function aneB() {
   return [
-    rest({ dur: 12, say: [['森可成', (rt) => (rt.flags.helpTk ? '西の瀬は片づいた。森の備も向こう岸を取ったぞ。……息を整えよ' : '向こう岸を取ったぞ。……息を整えよ')], ['伝令', '長政の本陣、小谷へ退いていきまする！　横山城からは城兵が打って出たと！']] }),
+    rest({ dur: 12, heal: 0.6, say: [['森可成', (rt) => (rt.flags.helpTk ? '西の瀬は片づいた。森の備も向こう岸を取ったぞ。……息を整えよ' : '向こう岸を取ったぞ。……息を整えよ')], ['伝令', '長政の本陣、小谷へ退いていきまする！　横山城からは城兵が打って出たと！']] }),
     pick({ title: '長政の本陣が北へ退き、横山城から城兵が出た。どうする？',
       options: [{ label: '北へ、長政の本陣の後備えを追う', note: '長政の後備えを崩せば大手柄。北の山際は狭い' }, { label: '西の横山城の城兵に当たる', note: '城兵を押し戻せば、横山城が早く降る' }],
       on: (rt, m, i) => { m.aneChase = i === 0; rt.say('森可成', i === 0 ? 'よし、北じゃ！　深入りして山へ入るな' : 'よし、城兵を城へ押し戻せ！', 3); } }),
     fight({ skip: (rt, m) => !m.aneChase, at: { x: 30, z: -78 }, title: '長政の後備え', sub: '小谷へ退く長政を逃がすため、後備えが向き直る', obj: '長政の本陣の後備えを崩せ',
-      foes: () => [{ name: '長政の後備え', from: { x: 30, z: -116 }, list: [uS(3), uA(11), uG(2)], noRout: 25 }],
-      later: [{ t: 34, title: '横槍', sub: '浅井の騎馬が山際から', say: ['足軽', '山際から騎馬じゃ！'], foes: () => [{ name: '浅井の騎馬', from: { x: 66, z: -110 }, list: [uC(4), uA(8)] }] },
-        { t: 70, title: '新手', sub: '小谷の方から浅井の新手が駆け戻る', say: ['森可成', '新手じゃ！　山へは入るな、ここで受けよ！'], foes: () => [{ name: '駆け戻る浅井の新手', from: { x: 10, z: -124 }, list: [uS(2), uA(10)], mass: 200 }] }],
+      foes: () => [{ name: '長政の後備え', from: { x: 30, z: -116 }, list: [uS(2), uA(10), uG(2)], noRout: 20 }],
+      later: [{ t: 34, title: '横槍', sub: '浅井の騎馬が山際から', say: ['足軽', '山際から騎馬じゃ！'], foes: () => [{ name: '浅井の騎馬', from: { x: 66, z: -110 }, list: [uC(3), uA(6)] }] },
+        { t: 70, title: '新手', sub: '小谷の方から浅井の新手が駆け戻る', say: ['森可成', '新手じゃ！　山へは入るな、ここで受けよ！'], foes: () => [{ name: '駆け戻る浅井の新手', from: { x: 10, z: -124 }, list: [uS(1), uA(8)], mass: 200 }] }],
       reward: (t) => { t.special = { label: '長政の後備えを崩した', pts: 25 }; }, rewardLabel: '長政の後備えを崩した' }),
     fight({ skip: (rt, m) => m.aneChase, at: { x: -52, z: -58 }, title: '横山城の城兵', sub: '横山城から打って出た城兵が、川を渡る味方を狙う', obj: '横山城から出た城兵を押し戻せ',
       foes: () => [{ name: '横山城の城兵', from: { x: -84, z: -104 }, list: [uS(2), uA(15), uB(4)] }],
       later: [{ t: 28, say: ['足軽', '城からまだ出てくるぞ！'], foes: () => [{ name: '横山城の後の城兵', from: { x: -96, z: -90 }, list: [uS(2), uA(10)] }] }],
       reward: '横山城の城兵を押し戻した' }),
-    rest({ dur: 10, bark: '川岸へ戻り、組を集め直せ', say: [['森可成', '日が傾いてきた。味方は川を渡って戻り始めておる'], ['伝令', (rt) => (rt.flags.tkHelped ? '西の瀬で崩れた朝倉勢が、また寄り集まって戻ってきまする！　渡る味方の背を狙うておると！' : '西の瀬から、朝倉の残りが戻ってきまする！　渡る味方の背を狙うておると！')]],
+    rest({ dur: 12, heal: 0.6, bark: '川岸へ戻り、組を集め直せ', say: [['森可成', '日が傾いてきた。味方は川を渡って戻り始めておる'], ['伝令', (rt) => (rt.flags.tkHelped ? '西の瀬で崩れた朝倉勢が、また寄り集まって戻ってきまする！　渡る味方の背を狙うておると！' : '西の瀬から、朝倉の残りが戻ってきまする！　渡る味方の背を狙うておると！')]],
       fn: (rt) => rt.world.setTime('dusk') }),
     pick({ title: '朝倉の残りが、川を渡って戻る味方の背を狙う。どうする？',
       options: [{ label: '川岸で踏みとどまり、渡る味方を守る', note: '味方が無事に戻れる。朝倉の寄せを受け続ける' }, { label: '西へ打って出て、朝倉の残りを突く', note: '朝倉の残りを崩せば手柄。追い返せば戦は早く終わる' }],
       on: (rt, m, i) => { m.aneGuard = i === 0; } }),
     hold({ skip: (rt, m) => !m.aneGuard, at: { x: 6, z: -16 }, dur: 90, r: 13, title: '退き口', sub: '川を渡って戻る味方の背を守る', label: '川岸の退き口', obj: '川岸で踏みとどまり、渡って戻る味方を守れ',
       waves: [
-        { t: 5, say: ['足軽', '西から朝倉勢じゃ！'], foes: () => [{ name: '朝倉の残り', from: { x: -60, z: -30 }, flag: 'asakura', armor: ASAKURA.armor, list: dress([uS(2), uA(14)], ASAKURA) }] },
-        { t: 36, say: ['足軽', '鉄砲を撃ちかけてくる！'], foes: () => [{ name: '朝倉の鉄砲', from: { x: -50, z: -60 }, flag: 'asakura', armor: ASAKURA.armor, list: dress([uG(4), uA(8)], ASAKURA) }] },
-        { t: 60, say: ['森可成', 'これで最後じゃ！　踏みとどまれ！'], foes: () => [{ name: '朝倉の騎馬', from: { x: -70, z: -44 }, flag: 'asakura', armor: ASAKURA.armor, list: dress([uC(3), uA(8)], ASAKURA) }] },
+        { t: 5, say: ['足軽', '西から朝倉勢じゃ！'], foes: () => [{ name: '朝倉の残り', from: { x: -60, z: -30 }, flag: 'asakura', armor: ASAKURA.armor, list: dress([uS(1), uA(10)], ASAKURA) }] },
+        { t: 38, say: ['足軽', '鉄砲を撃ちかけてくる！'], foes: () => [{ name: '朝倉の鉄砲', from: { x: -50, z: -60 }, flag: 'asakura', armor: ASAKURA.armor, list: dress([uG(3), uA(6)], ASAKURA) }] },
+        { t: 64, say: ['森可成', 'これで最後じゃ！　踏みとどまれ！'], foes: () => [{ name: '朝倉の騎馬', from: { x: -70, z: -44 }, flag: 'asakura', armor: ASAKURA.armor, list: dress([uC(2), uA(6)], ASAKURA), morale: 70 }] },
       ],
       reward: '退き口を守った' }),
     fight({ skip: (rt, m) => m.aneGuard, at: { x: -46, z: -22 }, title: '朝倉の残りを突く', sub: '西の瀬から戻る朝倉勢の横を突く', obj: '戻ってくる朝倉の残りを崩せ',
-      foes: () => [{ name: '朝倉の残り', from: { x: -80, z: -36 }, flag: 'asakura', armor: ASAKURA.armor, list: dress([uS(2), uA(16), uG(3)], ASAKURA) }],
-      later: [{ t: 30, say: ['足軽', '朝倉の騎馬が戻ってくる！'], foes: () => [{ name: '朝倉の騎馬', from: { x: -96, z: -20 }, flag: 'asakura', armor: ASAKURA.armor, list: dress([uC(4), uA(8)], ASAKURA) }] }],
+      foes: () => [{ name: '朝倉の残り', from: { x: -80, z: -36 }, flag: 'asakura', armor: ASAKURA.armor, list: dress([uS(2), uA(12), uG(2)], ASAKURA) }],
+      later: [{ t: 30, say: ['足軽', '朝倉の騎馬が戻ってくる！'], foes: () => [{ name: '朝倉の騎馬', from: { x: -96, z: -20 }, flag: 'asakura', armor: ASAKURA.armor, list: dress([uC(3), uA(6)], ASAKURA), morale: 70 }] }],
       reward: (t) => { t.special = { label: '朝倉の残りを崩した', pts: 20 }; }, rewardLabel: '朝倉の残りを崩した' }),
   ];
 }

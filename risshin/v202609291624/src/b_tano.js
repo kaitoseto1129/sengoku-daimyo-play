@@ -178,15 +178,15 @@ const tano = {
     if (!m.ridge) F.tsuchi.morale = 80;   // 崖道の口で打って出た者を討った分、土屋の衆は薄い
     if (m.ridge && m.ridgeWon) { F.tsuchi.morale = 60; F.tsuchi.defMult = 1; rt.after(3, () => rt.banner('崖の上から', '尾根に回った足軽が、石と矢を落とす。土屋の衆が乱れた')); }
     // 新手：谷の奥から、勝頼の旗本の一部が崖道へ降りて来る
-    rt.after(16, () => {
+    rt.after(30, () => {
       if (F.step !== 2 || F.ending) return;
-      F.tsuchi2 = enemyGroup(rt, { faction: 'takeda', name: '崖道へ降りる武田の新手', anchor: { x: NARROW.x1 + 8, z: 0 }, facing: -Math.PI / 2, order: 'attack', seekRange: 60, aggro: 16, width: 6, morale: 90, fleeDir: { x: 1, z: 0 }, dmgMult: 0.6, formation: 'column' },
+      F.tsuchi2 = enemyGroup(rt, { faction: 'takeda', name: '崖道へ降りる武田の新手', anchor: { x: NARROW.x1 + 8, z: 0 }, facing: -Math.PI / 2, order: 'attack', seekRange: 60, aggro: 16, width: 6, morale: 90, fleeDir: { x: 1, z: 0 }, dmgMult: 0.5, formation: 'column' },
         dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }], TAKEDA));
       rt.marker('tsuchi2', centerOf(F.tsuchi2), () => `武田の新手・${moraleWord(F.tsuchi2.morale)}`, { red: true, group: F.tsuchi2 });
       rt.say('足軽', '崖道の奥から、まだ降りて来る！', 3);
     });
     // 三つ目の波：土屋の衆の後ろから、弓と侍が崖道を埋めて下りて来る（大きな寄せ）
-    rt.after(36, () => {
+    rt.after(58, () => {
       if (F.step !== 2 || F.ending) return;
       F.tsuchi3 = enemyGroup(rt, { faction: 'takeda', name: '崖道を埋める武田の侍衆', anchor: { x: NARROW.x1 + 12, z: 0 }, facing: -Math.PI / 2, order: 'attack', seekRange: 70, aggro: 16, width: 6, morale: 85, fleeDir: { x: 1, z: 0 }, dmgMult: 0.48, formation: 'column' },
         dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6 + more(rt, 0.3) }, { type: 'bow', n: 3 }], TAKEDA));
@@ -333,7 +333,7 @@ const tano = {
       rt.objProgress('main', `土屋の衆 ${g.count}人`);
       if (g.count < 5 && g.noRout) { g.noRout = false; g.morale = Math.min(g.morale, 25); g.units[0].invuln = false; }
       for (const q of [F.tsuchi2, F.tsuchi3]) if (q && q.count < 4 && !gone(q)) q.morale = Math.min(q.morale, 20);
-      if ((gone(g) && F.tsuchi3 && gone(F.tsuchi2) && gone(F.tsuchi3)) || (gone(g) && rt.t - F.stepT > 120) || rt.t - F.stepT > 170) this.deep(rt, 'B');
+      if ((gone(g) && F.tsuchi3 && gone(F.tsuchi2) && gone(F.tsuchi3)) || (gone(g) && rt.t - F.stepT > 130) || rt.t - F.stepT > 170) this.deep(rt, 'B');
     }
     if (F.step === 3) {
       const d = Math.hypot(p.x - TANO.x, p.z - TANO.z);
@@ -372,7 +372,7 @@ const tano = {
 const uS = (n) => ({ type: 'samurai', n }), uA = (n) => ({ type: 'ashigaru', n }), uC = (n) => ({ type: 'cavalry', n }), uB = (n) => ({ type: 'bow', n }), uG = (n) => ({ type: 'gun', n });
 function tanoCtx(rt) {
   const F = rt.flags;
-  return { faction: 'takeda', flag: 'takeda', armor: KIT.ARMOR.takeda, dmg: 0.52, mass: 150, scale: 1.4, look: (l) => dress(l, TAKEDA),
+  return { faction: 'takeda', flag: 'takeda', armor: KIT.ARMOR.takeda, dmg: 0.52, mass: 110, scale: 1.4, look: (l) => dress(l, TAKEDA),
     friends: () => [F.taki, F.kawa].filter((g) => g && g.count && !g.routed) };
 }
 // A：殿を退けた後。崖道の土屋をどう破るか（鉄砲で崩す＝崖道の口で寄せを受ける／尾根へ回る＝伏兵と斬り合う）
@@ -388,10 +388,10 @@ function stepsA(rt) {
     hold({ skip: (rt2, m) => m.ridge, at: mouth, dur: 90, r: 12, title: '崖道の口', sub: '崖道の奥から、武田勢が打って出る', label: '崖道の口', obj: '崖道の口で、打って出る武田勢を受けよ',
       say: [['滝川一益', '口は狭い。一度に出て来る数は少ない。槍を揃えて、出て来る所を突け']],
       waves: [
-        { t: 4, say: ['足軽', '崖道から武田の侍が駆け出てくる！'], foes: () => [{ name: '打って出る武田勢', from: { x: NARROW.x0 + 6, z: 0 }, list: [uS(2), uA(8)], mass: 140, noRout: 15 }] },
+        { t: 4, say: ['足軽', '崖道から武田の侍が駆け出てくる！'], foes: () => [{ name: '打って出る武田勢', from: { x: NARROW.x0 + 6, z: 0 }, list: [uS(2), uA(8)], mass: 70, noRout: 15 }] },
         { t: 30, say: ['滝川一益', '騎馬じゃ！　槍を揃えよ。止まった馬は脆い'], foes: () => [{ name: '崖道を駆け下りる騎馬', from: { x: NARROW.x0 + 8, z: 0 }, list: [uC(2), uS(1), uA(5)], mass: 0, dmg: 0.42, morale: 75 }] },
-        { t: 50, foes: () => [{ name: '武田の弓衆', from: { x: NARROW.x0 + 4, z: 3 }, list: [uS(1), uB(5), uA(5)], mass: 60 }] },
-        { t: 68, say: ['滝川一益', 'これが崖道の口の最後の寄せじゃ。凌げば、土屋の衆は裸になる'], foes: () => [{ name: '土屋の手の侍', from: { x: NARROW.x0 + 6, z: -2 }, list: [uS(3), uA(6)], mass: 60 }] },
+        { t: 50, foes: () => [{ name: '武田の弓衆', from: { x: NARROW.x0 + 4, z: 3 }, list: [uS(1), uB(5), uA(4)], mass: 30 }] },
+        { t: 68, say: ['滝川一益', 'これが崖道の口の最後の寄せじゃ。凌げば、土屋の衆は裸になる'], foes: () => [{ name: '土屋の手の侍', from: { x: NARROW.x0 + 6, z: -2 }, list: [uS(2), uA(6)], mass: 30 }] },
       ], reward: '崖道の口を守った' }),
     fight({ skip: (rt2, m) => !m.ridge, at: { x: 2, z: -18 }, title: '尾根の杣道', sub: '藪の中から、武田の伏兵が立ち上がった', obj: '尾根の伏兵を破れ',
       foes: () => [{ name: '尾根の武田の伏兵', from: { x: 12, z: -26 }, list: [uS(2), uA(9), uB(3)], mass: 120 }],

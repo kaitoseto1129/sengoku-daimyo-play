@@ -1389,7 +1389,8 @@ export class Player {
     const t = this.aimRanged(aimed ? 0.055 : 0.13, 70);
     const tgt = t && (aimed || Math.random() < 0.55) ? t : this.groundTarget();
     const d0 = u.dmg;
-    u.dmg = 40;
+    // 本物の火縄の弾：並の兵は一発で倒れる。名のある武将だけは二発（厚い具足と運）
+    u.dmg = tgt && tgt.type === 'busho' ? 110 : 400;
     if (!panDone) army.panFlash(u, true);
     const ok = army.fireGun(u, tgt);
     u.dmg = d0;
@@ -1415,7 +1416,8 @@ export class Player {
     u.heading = this.yaw;
     const t = this.aimRanged(this.aiming ? 0.05 : 0.1, 45) || this.groundTarget();
     const d0 = u.dmg;
-    u.dmg = 15;
+    // 本物の矢：具足の薄い足軽は一矢で倒れる。侍・騎馬は二矢、名のある武将は三矢ほど
+    u.dmg = !t || !t.type ? 60 : t.type === 'busho' ? 70 : (t.type === 'samurai' || t.type === 'cavalry') ? 45 : 60;
     army.shoot(u, t);
     u.dmg = d0;
     u.relT = 0.55;

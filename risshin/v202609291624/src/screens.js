@@ -1886,6 +1886,63 @@ const TOWN_CSS = `<style>
   .base .tw-legend { font-size: 12px; color: var(--washi-dim); margin: 4px 0 8px; }
   .base .tw-goany { display: flex; justify-content: flex-end; margin: 6px 0 0; }
   .base .tw-goany .btn { min-height: 44px; }
+  .base .tw-mis { display: flex; align-items: center; gap: 12px; border: 1px solid var(--line); border-left: 3px solid var(--shu); padding: 8px 8px 8px 14px; margin: 0; }
+  .base .tw-mis .m { flex: 1; font-size: 16px; letter-spacing: .06em; }
+  .base .tw-mis .m small { display: block; font-size: 12px; letter-spacing: .2em; color: var(--washi-dim); }
+  .base .tw-mis .btn { min-height: 48px; }
+  .base details.tw-misd summary { border-bottom: 0; padding: 8px 0; }
+  .base .tw-h { display: flex; align-items: baseline; gap: 12px; font-size: 15px; letter-spacing: .16em; font-weight: 500; margin: 14px 0 8px; font-family: var(--display); }
+  .base .tw-h small { font-family: var(--sans, inherit); font-size: 12px; letter-spacing: .08em; color: var(--washi-dim); font-weight: 400; }
+  .base .tw-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .base .tw-card { border: 1px solid var(--line); background: rgba(236,228,210,.035); padding: 12px; display: flex; flex-direction: column; gap: 6px; min-height: 150px; box-sizing: border-box; }
+  .base .tw-card .ic svg { width: 24px; height: 24px; stroke: var(--kin); fill: none; stroke-width: 1.6; }
+  .base .tw-card b.t { font-family: var(--display); font-size: 18px; letter-spacing: .06em; line-height: 1.35; }
+  .base .tw-card .ef { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--kin); }
+  .base .tw-card .ef::before { content: '次の戦　'; color: var(--washi-dim); font-size: 12px; }
+  .base .tw-card .btn { margin-top: auto; min-height: 44px; width: 100%; }
+  .base .tw-card.off { opacity: .55; }
+  .base .tw-card.done { border-color: var(--kin); background: rgba(194,162,90,.12); }
+  .base .tw-card .res { margin-top: auto; display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 8px; }
+  .base .tw-card .res b { font-family: var(--display); font-size: 30px; line-height: 1.1; color: var(--kin); font-variant-numeric: tabular-nums; }
+  .base .tw-card .res span { font-size: 14px; }
+  .base .tw-card .res small { flex-basis: 100%; font-size: 12px; color: var(--washi-dim); }
+  .base .tw-card.pop { animation: twpop .7s ease-out; }
+  @keyframes twpop { 0% { transform: scale(.97); box-shadow: 0 0 0 0 rgba(194,162,90,.7); } 60% { transform: scale(1.02); box-shadow: 0 0 0 10px rgba(194,162,90,0); } 100% { transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .base .tw-card.pop { animation: none; } }
+  .base .tw-ready { color: var(--kin); margin: 8px 0 0; }
+  .base .tw-ev { position: relative; }
+  .base .tw-ev .where { display: block; font-size: 12px; letter-spacing: .16em; color: var(--washi-dim); }
+  .base .tw-gain { display: flex; flex-wrap: wrap; gap: 6px 10px; margin: 4px 0 6px; }
+  .base .tw-gain span { display: inline-flex; align-items: baseline; gap: 6px; border: 1px solid var(--kin); background: rgba(194,162,90,.12); padding: 2px 10px; font-size: 13px; }
+  .base .tw-gain b { font-family: var(--display); font-size: 20px; color: var(--kin); }
+  .base .tw-gain small { font-size: 12px; color: var(--washi-dim); }
+  .base .tw-sup { margin: 10px 0; }
+  .base .tw-sup .lbl { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; color: var(--washi-dim); }
+  .base .tw-sup .lbl b { font-size: 18px; color: var(--washi); font-weight: 500; }
+  .base .tw-sup .lbl b small { font-size: 12px; color: var(--washi-dim); margin-left: 4px; }
+  .base .tw-sup i { display: block; position: relative; height: 8px; background: var(--sumi-3); margin: 6px 0 4px; box-shadow: 0 0 0 1px rgba(236,228,210,.35); }
+  .base .tw-sup i b { position: absolute; inset: 0; right: auto; background: var(--kin); }
+  .base .tw-sup i b.lo { background: #c98a5a; }
+  .base .tw-sup i s { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 2px; background: var(--washi); }
+  .base .tw-sup > small { display: block; font-size: 12px; line-height: 1.6; color: var(--washi-dim); }
+  .base .tw-sup > small em { font-style: normal; color: #e9a58f; display: block; }
+  .base .tw-free { display: block; font-size: 12px; color: var(--washi-dim); font-weight: 400; text-align: right; }
+  .base .tabs .tw-moretab { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--washi-dim); padding: 10px 14px; min-height: 44px; font-size: 14px; letter-spacing: .12em; cursor: pointer; margin-left: auto; }
+  .base .tabs .tw-moretab::after { content: ' ▾'; font-size: 11px; }
+  .base .tabs .tw-moretab[aria-expanded="true"]::after { content: ' ▴'; }
+  @media (max-height: 520px) {
+    .base .tw-cards { gap: 8px; }
+    .base .tw-card { min-height: 0; padding: 8px 10px; gap: 4px; }
+    .base .tw-card .ic { display: none; }
+    .base .tw-card b.t { font-size: 15px; }
+    .base .tw-card .ef { font-size: 12.5px; }
+    .base .tw-card .res b { font-size: 24px; }
+    .base .tw-h { margin: 10px 0 6px; }
+    .base .tw-mis { padding: 4px 4px 4px 10px; }
+    .base .tw-mis .m { font-size: 15px; }
+    #screen .base .th { height: 66px; }
+  }
+  @media (max-width: 560px) { .base .tw-cards { grid-template-columns: 1fr; } }
   @media (max-width: 900px) { .base .roster .rr { grid-template-columns: minmax(7em, 1fr) 28px 50px 40px 48px 44px 90px; gap: 6px; } }
 </style>`;
 
@@ -1902,9 +1959,102 @@ export function baseScreen(G, town0, lastResult, game) {
   let tab = 'boss';
   let confirmGo = false;
   const T = TW.talks(G, town, lastResult);
-  const tabs = [['boss', '上官屋敷'], ['squad', '組'], ['shop', '武具屋'], ['toiya', '問屋'], ['train', '訓練場'], ['inn', '宿'], ['people', '人物録'], ['journal', '日誌'], ['stable', '馬屋']];
+  // よく使う五つだけを並べ、残りは「ほか」に畳む（kaito 2026-09-29「どうしたら城下町を楽しめるのか分からない」）
+  const TABS_MAIN = [['boss', '城下'], ['squad', '組'], ['train', '稽古場'], ['shop', '武具屋'], ['toiya', '問屋']];
+  const TABS_MORE = [['inn', '宿'], ['stable', '馬屋'], ['people', '人物録'], ['journal', '日誌']];
+  const tabs = [...TABS_MAIN, ...TABS_MORE];
+  let moreOpen = false;
   let rosterSort = 'battles';
   const trainedNow = {};   // この城下で稽古して伸ばした物（札に残す）
+  const free = S.freeMoney !== false && G.kan >= 99999;   // 試しの間は銭が使い放題
+  // ---- 入口の「今日やると良いこと」：やった事と、その場で見せる効き目 ----
+  const res = {};          // 札の鍵 → { big, lbl, sub }（やった後に札へ出す）
+  let pickKeys = null;     // 城下に入った時に決めた三つ（やっても入れ替えない）
+  let popKey = null;       // いま光らせる札
+  const talkGain = {};     // 話の id → 上官の評価の前後
+  const trainK = (k) => {
+    const before = G.stats[k];
+    G.stats[k]++; G.actions--; trainedNow[k] = (trainedNow[k] || 0) + 1; sfx('taiko', 0.5);
+    // 次の戦の評価で「稽古が効いた」を出すために覚えておく（792）
+    G.trainedFor = G.trainedFor && G.trainedFor.battle === G.battle ? G.trainedFor : { battle: G.battle }; G.trainedFor[k] = (G.trainedFor[k] || 0) + 1;
+    (G.journal = G.journal || []).push({ t: `${TW.TOWNS[town].when}　稽古`, s: `${{ spear: '槍の稽古', vit: '走り込み', lead: '采配の稽古' }[k]}に励んだ。` });
+    return before;
+  };
+  const drillAll = () => { let n = 0; for (const r of G.roster || []) if (r.alive && !r.wound) { r.drill = Math.min(2, (r.drill || 0) + 1); n++; } G.drilled = town; G.trainedFor = G.trainedFor && G.trainedFor.battle === G.battle ? G.trainedFor : { battle: G.battle }; G.trainedFor.drill = 1; G.actions--; sfx('taiko', 0.5); return n; };
+  const feastDo = () => { if (!free) G.kan -= 5; spendLog(G, '振る舞い', 5); G.feast = true; for (const r of G.roster || []) if (r.alive) { soldierOf(r); r.loyal = Math.min(100, r.loyal + 6); } sfx('merit'); };
+  const treatCostOf = () => Math.max(2, (G.roster || []).filter((r) => r.alive && r.wound).reduce((a, r) => a + r.wound, 0));
+  const treatDo = () => { const L = (G.roster || []).filter((r) => r.alive && r.wound); const cost = treatCostOf(); if (G.kan < cost) return 0; G.kan -= cost; spendLog(G, '傷の手当て', cost); for (const r of L) { r.wound = 0; r.loyal = Math.min(100, r.loyal + 4); } sfx('ui'); return L.length; };
+  const restDo = () => { G.injured = false; for (const r of G.roster || []) if (r.alive && r.wound === 1) r.wound = 0; G.actions--; sfx('ui'); };
+  const buyable = (id, it) => it.cost && !G.owned.includes(id) && it.cost <= G.kan && !(it.minRank && G.rank < it.minRank);
+  // 買える物のうち、防御（槍なら威力）がいちばん上がる物
+  const recItem = () => {
+    let rec = null, recGain = 0;
+    for (const [id, it] of Object.entries(ITEMS)) {
+      if (!it.slot || it.slot === 'side' || it.slot === 'gun' || it.slot === 'bow' || !buyable(id, it)) continue;
+      const cur = G.equip[it.slot] ? ITEMS[G.equip[it.slot]] : null;
+      const gain = (it.def || 0) - (cur?.def || 0) + ((it.mult || 0) - (cur?.mult || 0)) * 0.5;
+      if (gain > recGain) { recGain = gain; rec = id; }
+    }
+    return rec;
+  };
+  // 買うと何が変わるか（防御の % か、槍の威力の %）
+  const gainOf = (id) => {
+    const it = ITEMS[id];
+    if (it.mult !== undefined) { const cur = G.equip[it.slot] ? ITEMS[G.equip[it.slot]] : null; const a = Math.round((cur?.mult || 1) * 100), b = Math.round(it.mult * 100); return { lbl: '槍の威力', a, b }; }
+    const keep = G.equip[it.slot]; const a = Math.round(equipDef(G) * 100); G.equip[it.slot] = id; const b = Math.round(equipDef(G) * 100); G.equip[it.slot] = keep;
+    return { lbl: '防御', a, b };
+  };
+  const PICK_IC = {
+    rest: TAB_ICON.inn, treat: TAB_ICON.inn, feast: TAB_ICON.inn, drill: TAB_ICON.squad, spear: TAB_ICON.train, vit: TAB_ICON.train, lead: TAB_ICON.train, care: TAB_ICON.stable, talk: TAB_ICON.people,
+  };
+  // いま出せる「やると良いこと」を、効きの大きい順に
+  const candidates = () => {
+    const C = [];
+    const R = (G.roster || []).filter((r) => r.alive);
+    const can = G.actions > 0 && !G.injured;
+    if (G.injured) C.push({ k: 'rest', t: '宿で傷を癒やす', ef: '癒えねば出陣できない', btn: '一刻休む' });
+    const hurt = R.filter((r) => r.wound).length;
+    if (hurt) C.push({ k: 'treat', t: '組の傷を手当てする', ef: `手負い${hurt}人が本来の力で戦う`, btn: free ? '手当てする' : `${zeni(treatCostOf())}で手当て` });
+    const bt = T.find((t) => t.at === 'boss' && !G.talked[t.id]);
+    if (bt) C.push({ k: 'talk', id: bt.id, t: `${bt.who}に会う`, ef: bt.choices.some((c) => c.sup) ? '上官の評価が上がる（昇進に要る）' : '信頼が上がる', btn: '話を聞く' });
+    if (G.rank >= 1 && can && G.drilled !== town && R.some((r) => !r.wound)) C.push({ k: 'drill', t: '組の者を鍛える', ef: '組の強さ +8%（練度 +1）', btn: '一刻かけて鍛える' });
+    const rec = recItem();
+    if (rec) { const g = gainOf(rec); C.push({ k: 'buy', id: rec, t: `${ITEMS[rec].name}を買う`, ef: `${g.lbl} ${g.a}% → ${g.b}%`, btn: free ? '買って着ける' : `${zeni(ITEMS[rec].cost)}で買う` }); }
+    if (can) C.push({ k: 'spear', t: '槍の稽古', ef: `突きの重さ +10%（槍術 ${G.stats.spear} → ${G.stats.spear + 1}）`, btn: '一刻かけて稽古' });
+    if (G.rank >= 1 && !G.feast && (free || G.kan >= 5)) C.push({ k: 'feast', t: '組に酒を振る舞う', ef: '始めの組の士気 +10', btn: free ? '振る舞う' : '5貫で振る舞う' });
+    if (ladderStep(G) >= 2 && can && ((G.horse || {}).bond || 0) < 5) C.push({ k: 'care', t: '馬の手入れ', ef: '馬の体力と息 +4%', btn: '一刻かけて手入れ' });
+    const it = T.find((t) => t.at !== 'boss' && !G.talked[t.id]);
+    if (it) C.push({ k: 'talk', id: it.id, t: `${it.who}の話を聞く`, ef: '好感が上がる', btn: '話を聞く' });
+    if (can) C.push({ k: 'vit', t: '走り込み', ef: `息が長くなる（体力 ${G.stats.vit} → ${G.stats.vit + 1}）`, btn: '一刻かけて走る' });
+    return C;
+  };
+  const pickNow = () => {
+    const C = candidates();
+    if (!pickKeys) pickKeys = C.slice(0, 3).map((c) => c.k + ':' + (c.id || ''));
+    return pickKeys.map((key) => {
+      const [k, id] = key.split(':');
+      return { key, k, id, c: C.find((c) => c.k === k && (c.id || '') === id), r: res[key] };
+    });
+  };
+  const doPick = (key) => {
+    const [k, id] = key.split(':');
+    let r = null;
+    if (k === 'spear' || k === 'vit') { const b = trainK(k); r = k === 'spear' ? { big: '+10%', lbl: '突きの重さ', sub: `槍術 ${b} → ${G.stats.spear}` } : { big: '+10', lbl: '体力', sub: `気力も +12（体力 ${b} → ${G.stats.vit}）` }; }
+    else if (k === 'drill') { const n = drillAll(); r = { big: '+8%', lbl: '組の強さ', sub: `${n}人の練度が一段上がった` }; }
+    else if (k === 'treat') { const n = treatDo(); if (!n) return; r = { big: `${n}人`, lbl: '傷が癒えた', sub: '本来の力で出陣できる・忠誠 +4' }; }
+    else if (k === 'feast') { feastDo(); r = { big: '+10', lbl: '始めの士気', sub: '組の者の忠誠 +6' }; }
+    else if (k === 'rest') { restDo(); r = { big: '癒えた', lbl: '', sub: '出陣できる' }; }
+    else if (k === 'care') { G.horse = G.horse || { id: 'tsukikage', bond: 0 }; const b = G.horse.bond || 0; G.horse.bond = Math.min(5, b + 1); G.actions--; sfx('neigh', 0.4); r = { big: '+4%', lbl: '馬の体力と息', sub: `絆 ${b} → ${G.horse.bond}` }; }
+    else if (k === 'buy') {
+      const it = ITEMS[id]; if (!it || G.kan < it.cost) return;
+      const g = gainOf(id);
+      if (!free) G.kan -= it.cost; G.owned.push(id); spendLog(G, it.name, it.cost); G.equip[it.slot] = id; sfx('merit');
+      r = { big: `+${g.b - g.a}%`, lbl: g.lbl, sub: `${g.a}% → ${g.b}%・着けると戦場の姿も変わる` };
+    }
+    else if (k === 'talk') { const el = document.getElementById('tw-ev-' + id); if (el) { scrollIn(el, 'start'); el.querySelector('button')?.focus({ preventScroll: true }); } return; }
+    if (!r) return;
+    res[key] = r; popKey = key; saved(); render();
+  };
   // 城下での事はその場で保存する。知らせは出さず、出陣の前に一度だけ（780）
   // 買う・着ける・話すの後は、描き直しても見ていた所と押した釦（無ければ施設の札）に戻す（961）
   let keepNext = false;
@@ -1939,14 +2089,13 @@ export function baseScreen(G, town0, lastResult, game) {
       <div class="eyebrow">${TW.art ? '' : `${esc(info.place)}　・　${esc(info.when)}　・　`}${['夕刻', '昼', '朝'][Math.max(0, Math.min(2, G.actions))]}</div>
       <h2>${esc(G.name)}</h2>
       <div class="rank">${esc(RANKS[G.rank].name)}</div>
-      <button class="btn small" id="b-ladder-town" style="margin-top:10px">出世の道を見る</button>
-      <div class="row" style="margin-top:8px;gap:6px"><button class="btn small" id="b-zukan-town">武将図鑑</button><button class="btn small" id="b-set-town">設定</button><button class="btn small" id="b-title-town">タイトルへ</button></div>
+      <div class="row" style="margin-top:10px;gap:6px"><button class="btn small" id="b-ladder-town">出世の道</button><button class="btn small" id="b-zukan-town">武将図鑑</button><button class="btn small" id="b-set-town">設定</button><button class="btn small" id="b-title-town">タイトルへ</button></div>
       ${G.rank >= 4 || G.battle >= BATTLES.length ? `<div class="tw-realm" role="group" aria-label="天下の地図"><small>天下の地図</small><div class="row"><button class="btn small" data-jp="naisei">領地と内政</button><button class="btn small" data-jp="busho">家臣</button><button class="btn small" data-jp="shiro">城攻めと外交</button><button class="btn small" data-jp="tenka">天下の動き</button></div></div>` : ''}
       <div style="height:12px"></div>
       ${next ? `<div class="tw-prog" role="progressbar" aria-label="次の身分「${esc(next.name)}」まで" aria-valuemin="${RANKS[G.rank].min}" aria-valuemax="${next.min}" aria-valuenow="${Math.min(next.min, G.merit)}" aria-valuetext="累計戦功 ${G.merit}／${next.min}"><div class="lbl"><span>次は「${esc(next.name)}」</span><b>あと ${Math.max(0, next.min - G.merit)}</b></div><i><b style="width:${Math.min(100, Math.max(0, (G.merit - RANKS[G.rank].min) / (next.min - RANKS[G.rank].min)) * 100)}%"></b></i><small>累計戦功 ${G.merit} ／ ${next.min}</small></div>` : `<div class="stat"><span>累計戦功</span><b>${G.merit}</b></div>`}
-      <div class="stat"><span>所持金</span><b>${zeni(G.kan)}</b></div>
-      <div class="stat"><span>上官の評価</span><b>${G.superior}${G.superior < 50 ? '<small class="tw-warn">（50未満：昇進できない）</small>' : ''}</b></div>
-      <div class="stat"><span>負傷</span><b style="color:${G.injured ? '#e38a74' : 'inherit'}">${G.injured ? '重傷（要休息）' : 'なし'}</b></div>
+      <div class="tw-sup" role="group" aria-label="上官の評価 ${G.superior}。昇進には50が要る"><div class="lbl"><span>上官の評価</span><b>${G.superior}<small>／昇進に 50</small></b></div><i><b style="width:${G.superior}%" class="${G.superior < 50 ? 'lo' : ''}"></b><s></s></i><small>${G.superior < 50 ? `<em>あと ${50 - G.superior} で昇進できる。</em>` : ''}上げ方：任務を果たす +10・手柄一つ +5・上役と話す +2</small></div>
+      <div class="stat"><span>所持金</span><b>${free ? '使い放題<small class="tw-free">試しの間</small>' : zeni(G.kan)}</b></div>
+      ${G.injured ? '<div class="stat"><span>負傷</span><b style="color:#e38a74">重傷（要休息）</b></div>' : ''}
       <details class="tw-more"><summary>細かな力　<small>槍${G.stats.spear}・体${G.stats.vit}・統${G.stats.lead}・防${Math.round(equipDef(G) * 100)}%</small></summary>
         <div class="stat"><span>槍術</span><b>${G.stats.spear}</b></div>
         <div class="stat"><span>体力</span><b>${G.stats.vit}</b></div>
@@ -1954,9 +2103,6 @@ export function baseScreen(G, town0, lastResult, game) {
         <div class="stat"><span>具足の防御</span><b>${Math.round(equipDef(G) * 100)}%</b></div>
         <div class="stat"><span>組の人数</span><b>${RANKS[G.rank].squad}人</b></div>
       </details>
-      <p class="note" style="margin-top:12px">身につけている物：${esc(eqNames)}${G.owned.includes('katana') ? '・打刀' : ''}</p>
-      ${isTouch ? '' : '<p class="note">施設は数字キー 1〜9、または ←→ でも切り替えられます</p>'}
-      <p class="note tw-autosave">城下でした事は、その場で保存されます</p>
     </aside>`;
     let body = '';
     if (tab === 'boss') {
@@ -1975,19 +2121,30 @@ export function baseScreen(G, town0, lastResult, game) {
         ...(G.injured ? [['自分の傷', '重傷', 'warn', nextHint(town, 'rest')]] : []),
       ];
       // 出陣の釦を上に置く（上官との話は下へ。狭い画面でも、開いてすぐ「出陣」に指が届くように）
+      // 入口：次の任務と出陣を一行 → 今日やると良いこと三つ → 人との出来事。細かな表は畳む
+      const P = pickNow();
+      const cardHtml = ({ key, k, id, c, r }) => {
+        if (r) return `<div class="tw-card done ${popKey === key ? 'pop' : ''}" role="group" aria-label="済んだ：${esc(r.lbl)} ${esc(r.big)}"><span class="ic" aria-hidden="true">${PICK_IC[k] || TAB_ICON.shop}</span><b class="t">${esc((c && c.t) || r.t || '')}</b><div class="res"><b>${esc(r.big)}</b><span>${esc(r.lbl)}</span><small>${esc(r.sub)}</small></div></div>`;
+        if (!c) return `<div class="tw-card off"><span class="ic" aria-hidden="true">${PICK_IC[k] || TAB_ICON.shop}</span><b class="t">${k === 'talk' ? '話は済んだ' : '今日はもうできない'}</b><p class="ef">${G.actions <= 0 ? '今日の時間はもう無い' : '済んだ'}</p></div>`;
+        const ic = k === 'buy' ? TAB_ICON.shop : PICK_IC[k];
+        return `<div class="tw-card"><span class="ic" aria-hidden="true">${ic}</span><b class="t">${esc(c.t)}</b><p class="ef">${esc(c.ef)}</p><button class="btn small ${k === 'rest' ? 'primary' : ''}" data-pick="${esc(key)}">${esc(c.btn)}</button></div>`;
+      };
+      const allDone = P.length && P.every((p) => p.r || !p.c);
       body = `
-        <div class="item"><div class="n">次の任務：${esc(m.title)}</div><div class="x">${esc(m.text)}${TW.diagram(town)}</div>
-        <div class="a"><button class="btn primary small" id="go">${G.injured ? '宿で休んでから出陣' : '任務を受けて出陣'}</button></div></div>
-        ${G.injured ? '<p class="note">重傷が癒えていません。「宿で休んでから出陣」を押すと、一刻休んで傷を癒やしてから出陣します。</p>' : ''}
+        <div class="tw-mis"><div class="m"><small>次の任務</small>${esc(m.title)}</div><button class="btn primary" id="go">${G.injured ? '休んでから出陣' : '任務を受けて出陣'}</button></div>
+        <details class="tw-more tw-misd"><summary>任務の中身と図を見る</summary><p class="note">${esc(m.text)}</p>${TW.diagram(town)}</details>
+        <h2 class="tw-h">今日やると良いこと<small>${G.actions ? `残り ${G.actions} 刻` : '今日の時間は使い切った'}</small></h2>
+        ${P.length ? `<div class="tw-cards">${P.map(cardHtml).join('')}</div>${allDone ? '<p class="note tw-ready">備えは整った。いつでも出陣できる。</p>' : ''}` : '<p class="note tw-ready">備えは整っている。いつでも出陣できる。</p>'}
         ${confirmGo ? `<div class="confirm-row"><b>出陣の前に</b>
           <div class="note">身につけた物：${esc(eqNames)}${G.owned.includes('katana') ? '・打刀' : ''}</div>
           <div class="note">組：${R0.length}人（${[['spear', '槍'], ['bow', '弓']].map(([k, n]) => [n, R0.filter((r) => r.kind === k).length]).filter(([, c]) => c).map(([n, c]) => `${n} ${c}`).join('・') || 'なし'}／古参 ${R0.filter((r) => r.battles > 0).length}人${hurt ? `・手負い ${hurt}人` : ''}）　・　組の人数の上限 ${RANKS[G.rank].squad}人</div>
           ${(G.tomo || []).filter((t) => t.alive).length ? `<div class="note">供：${esc(G.tomo.filter((t) => t.alive).map((t) => `${t.name}（${(TOMO[t.kind] || {}).name || ''}）`).join('、'))}</div>` : ''}
           ${leftovers.length ? `<div class="tw-left"><span>やり残し（押すとその施設へ）</span>${leftovers.map(([k, t]) => `<button class="btn small" data-goto="${k}">${esc(t)}　→ ${esc(tabs.find(([x]) => x === k)[1])}</button>`).join('')}</div>` : '<div class="note">やり残しはない。</div>'}
           <div class="row"><button class="btn small" id="go-no">城下に残る</button><button class="btn primary small" id="go2">出陣する</button></div></div>` : ''}
-        ${talkHtml(T.filter((t) => t.at === 'boss'))}
-        <div class="prep"><h3>次の戦への備え</h3>${prep.map(([a, b, c, d]) => `<div class="${c}"><span>${a}</span><em>${esc(b)}</em><small>${esc(d)}</small></div>`).join('')}</div>
-        <div style="height:18px"></div><div class="eyebrow">戦の道のり</div>${TW.map(G)}` + relHtml(G);
+        ${T.length ? `<h2 class="tw-h">人との出来事<small>答えで仲と評価が変わる</small></h2>${talkHtml(T)}` : ''}
+        <details class="tw-more"><summary>次の戦への備え（一覧）</summary><div class="prep">${prep.map(([a, b, c, d]) => `<div class="${c}"><span>${a}</span><em>${esc(b)}</em><small>${esc(d)}</small></div>`).join('')}</div></details>
+        <details class="tw-more"><summary>戦の道のりと人間関係</summary>${TW.map(G)}${relHtml(G)}</details>`;
+      popKey = null;
     } else if (tab === 'shop') {
       const slots = [['weapon', '槍'], ['hat', '兜・笠'], ['body', '胴'], ['arm', '籠手'], ['thigh', '佩楯'], ['shin', '脛当'], ['coat', '陣羽織']];
       const SLOT_ICON = { weapon: 'shop', hat: 'hat', body: 'body', arm: 'arm', thigh: 'body', shin: 'arm', coat: 'coat' };
@@ -2095,7 +2252,7 @@ export function baseScreen(G, town0, lastResult, game) {
       body = (rum.length ? `<div class="histnote"><b>宿で聞いた噂</b><br>${rumHtml}</div>` : '') + yLine + `<div class="items">
         <div class="item"><div class="n">組に振る舞う<small>5貫</small></div><div class="x">酒と飯を振る舞い、次の戦の始めの組の士気 +10・組の者の忠誠 +6<span class="nx">${esc(nextHint(town, 'feast'))}</span></div><div class="a">${G.feast ? '<span class="note">振る舞い済み</span>' : G.rank < 1 ? '<span class="note">組頭候補から</span>' : G.kan < 5 ? '<span class="note">あと' + zeni(5 - G.kan) + '</span>' : '<button class="btn small" id="feast">振る舞う</button>'}</div></div>
         ${hurtN ? `<div class="item"><div class="n">組の傷の手当て<small>${treatCost}貫</small></div><div class="x">医者を呼び、手負い${hurtN}人（${esc(hurtNames)}）の傷をすべて治す・その者の忠誠 +4<span class="nx">手負いのまま出れば、その戦では練度が下がる（浅手 −1・深手 −2）</span></div><div class="a">${G.kan < treatCost ? `<span class="note">あと${zeni(treatCost - G.kan)}</span>` : '<button class="btn small" id="treat">手当てする</button>'}</div></div>` : ''}
-        <div class="item"><div class="n">休息する<small>一刻</small></div><div class="x">${G.injured ? '自分の重傷を癒やす' : '自分は無事'}${lightN ? `・組の浅手${lightN}人も癒える` : ''}${G.injured ? `<span class="nx">${esc(nextHint(town, 'rest'))}</span>` : ''}</div><div class="a">${G.actions <= 0 ? '<span class="note">今日の時間はもう無い</span>' : !G.injured && !lightN ? '<span class="note">休む必要はない</span>' : '<button class="btn small" id="rest">休む</button>'}</div></div></div>` + talkHtml(T.filter((t) => t.at === 'inn'));
+        <div class="item"><div class="n">休息する<small>一刻</small></div><div class="x">${G.injured ? '自分の重傷を癒やす' : '自分は無事'}${lightN ? `・組の浅手${lightN}人も癒える` : ''}${G.injured ? `<span class="nx">${esc(nextHint(town, 'rest'))}</span>` : ''}</div><div class="a">${G.actions <= 0 ? '<span class="note">今日の時間はもう無い</span>' : !G.injured && !lightN ? '<span class="note">休む必要はない</span>' : '<button class="btn small" id="rest">休む</button>'}</div></div></div>`;
     } else {
       // 馬屋：足軽大将から。馬を選ぶ・買う・手入れする・名を付ける
       const st = ladderStep(G);
@@ -2128,7 +2285,7 @@ export function baseScreen(G, town0, lastResult, game) {
     const talkLeft = T.filter((t) => !G.talked[t.id]);
     const todo = {};
     const mark = (k, m, why) => { (todo[k] = todo[k] || []).push([m, why]); };
-    for (const t of talkLeft) if (!(todo[t.at] || []).some(([m]) => m === '話')) mark(t.at, '話', 'まだ話していない人がいる');
+    if (talkLeft.length) mark('boss', '話', 'まだ話していない人がいる');
     if (G.actions > 0 && !G.injured) mark('train', '稽', `稽古の時間があと${G.actions}刻`);
     if ((G.roster || []).some((r) => r.alive && r.wound) || G.injured) mark('inn', '傷', '手当て・休息が要る者がいる');
     if (Object.entries(ITEMS).some(([id, it]) => it.cost && it.slot !== 'side' && it.slot !== 'gun' && it.slot !== 'bow' && !G.owned.includes(id) && it.cost <= G.kan && !(it.minRank && G.rank < it.minRank))) mark('shop', '買', `${zeni(G.kan)}で買える具足がある`);
@@ -2140,12 +2297,16 @@ export function baseScreen(G, town0, lastResult, game) {
     const seen = G.tabSeen = G.tabSeen || {};
     const firstNote = G.toured && FIRST[tab] && !seen[tab] ? `<p class="tw-first" role="note"><b>はじめての${esc((tabs.find(([k]) => k === tab) || [])[1] || '')}</b>${esc(FIRST[tab])}</p>` : '';
     if (G.toured) seen[tab] = 1;
+    const showMore = moreOpen || TABS_MORE.some(([k]) => k === tab);
+    const visTabs = showMore ? tabs : TABS_MAIN;
+    const legendNow = !seen.legend && G.toured;
+    if (G.toured) seen.legend = 1;
     show(`${TOWN_CSS}<div class="base tod-${Math.max(0, Math.min(2, G.actions))}">${aside}<main>
       ${hero}
-      <div class="tw-day" role="group" aria-label="今日の残り ${G.actions}刻"><span>今日の残り</span><span class="koku">${Array.from({ length: 2 }, (_, i) => `<i class="${i < G.actions ? 'on' : ''}"></i>`).join('')}</span><b>${G.actions ? `${G.actions}刻` : 'もう無い'}</b><small>${G.actions ? '稽古・休息・馬の手入れに一刻ずつ使う' : '今日できる事は終わった。あとは出陣のみ'}</small></div>
-      <div class="tabs" role="tablist" aria-label="城下の施設">${tabs.map(([k, nme], i) => `<button role="tab" id="tw-tab-${k}" aria-controls="tw-panel" data-tab="${k}" class="${tab === k ? 'on' : ''}" aria-selected="${tab === k}" tabindex="${tab === k ? 0 : -1}">${TAB_ICON[k] || ''}${i + 1}．${nme}${(todo[k] || []).map(([m, why]) => `<span class="tdot ${m === '話' ? '' : 'td2'}" title="${why}" aria-label="${why}">${m}</span>`).join('')}</button>`).join('')}</div>
+      ${['train', 'inn', 'stable'].includes(tab) ? `<div class="tw-day" role="group" aria-label="今日の残り ${G.actions}刻"><span>今日の残り</span><span class="koku">${Array.from({ length: 2 }, (_, i) => `<i class="${i < G.actions ? 'on' : ''}"></i>`).join('')}</span><b>${G.actions ? `${G.actions}刻` : 'もう無い'}</b></div>` : ''}
+      <div class="tabs" role="tablist" aria-label="城下の施設">${visTabs.map(([k, nme]) => `<button role="tab" id="tw-tab-${k}" aria-controls="tw-panel" data-tab="${k}" class="${tab === k ? 'on' : ''}" aria-selected="${tab === k}" tabindex="${tab === k ? 0 : -1}">${TAB_ICON[k] || ''}${nme}${(todo[k] || []).map(([m, why]) => `<span class="tdot ${m === '話' ? '' : 'td2'}" title="${why}" aria-label="${why}">${m}</span>`).join('')}</button>`).join('')}<button class="tw-moretab" id="tw-moretab" aria-expanded="${showMore}" title="宿・馬屋・人物録・日誌">${showMore ? '畳む' : 'ほか'}${!showMore ? TABS_MORE.flatMap(([k]) => todo[k] || []).slice(0, 1).map(([m, why]) => `<span class="tdot td2" title="${why}" aria-label="${why}">${m}</span>`).join('') : ''}</button></div>
       ${tab !== 'boss' ? `<div class="tw-goany"><button class="btn primary small" id="go-any">${G.injured ? '休んでから出陣' : '出陣する'}</button></div>` : ''}
-      <p class="tw-legend" aria-hidden="true">札の印：話＝話す人あり・稽＝稽古できる・買＝銭で買える物あり・傷＝手当てが要る</p>
+      ${!legendNow ? '' : '<p class="tw-legend" aria-hidden="true">札の印：話＝話す人あり・稽＝稽古できる・買＝銭で買える物あり・傷＝手当てが要る</p>'}
       <div id="tw-panel" role="tabpanel" aria-labelledby="tw-tab-${tab}">${fac ? `<p class="fac">${esc(fac)}</p>` : ''}${firstNote}${body}</div>
     </main></div>`, false, (e) => {
       // 城下の案内の間は、数字キーで施設を替えない（782）
@@ -2163,8 +2324,8 @@ export function baseScreen(G, town0, lastResult, game) {
       b.onkeydown = (e) => {
         if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
         e.preventDefault();
-        const i = tabs.findIndex(([k]) => k === b.dataset.tab);
-        tab = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length][0]; confirmGo = false; sfx('ui'); render();
+        const i = visTabs.findIndex(([k]) => k === b.dataset.tab);
+        tab = visTabs[(i + (e.key === 'ArrowRight' ? 1 : visTabs.length - 1)) % visTabs.length][0]; confirmGo = false; sfx('ui'); render();
         document.querySelector(`[data-tab="${tab}"]`)?.focus({ preventScroll: true });
       };
     });
@@ -2321,12 +2482,26 @@ export function baseScreen(G, town0, lastResult, game) {
     document.querySelectorAll('[data-goto]').forEach((b) => b.onclick = () => { tab = b.dataset.goto; confirmGo = false; sfx('ui'); render(); document.querySelector(`[data-tab="${tab}"]`)?.focus({ preventScroll: true }); });
     const goNo = $('go-no');
     if (goNo) goNo.onclick = () => { confirmGo = false; render(); };
+    document.querySelectorAll('[data-pick]').forEach((b) => b.onclick = () => doPick(b.dataset.pick));
+    const mo = $('tw-moretab');
+    if (mo) mo.onclick = () => { moreOpen = !moreOpen; sfx('ui'); render(); $('tw-moretab')?.focus({ preventScroll: true }); };
     document.querySelectorAll('[data-talk]').forEach((b) => b.onclick = () => {
       const t = T.find((x) => x.id === b.dataset.talk);
       const c = t.choices[+b.dataset.c];
       const R = relOf(G, t.rel);
+      const sup0 = G.superior;
       for (const [k, v] of Object.entries(c.fx)) R[k] = Math.max(0, Math.min(100, (R[k] || 0) + v));
       if (c.sup) G.superior = Math.min(100, G.superior + c.sup);
+      // 答えで何が上がったかを、話の札とその場の札に大きく出す
+      const RN = Object.fromEntries(REL_KEYS);
+      const list = [];
+      if (c.sup) list.push(['上官の評価', `+${G.superior - sup0}`, `${sup0} → ${G.superior}${G.superior >= 50 && sup0 < 50 ? '　昇進できる' : ''}`]);
+      for (const [k, v] of Object.entries(c.fx)) if (v) list.push([`${t.who.replace(/^.*\s/, '')}の${RN[k] || k}`, sgn(v), '']);
+      if (c.kan) list.push(['銭', `+${zeni(c.kan)}`, '']);
+      if (c.join) list.push(['組に加わる', '弥七', '']);
+      talkGain[t.id] = { list };
+      const pk = 'talk:' + t.id;
+      if (pickKeys && pickKeys.includes(pk) && list[0]) { res[pk] = { t: t.who, big: list[0][1], lbl: list[0][0], sub: list[0][2] || list.slice(1).map((x) => x[0] + ' ' + x[1]).join('・') }; popKey = pk; }
       if (c.kan) G.kan = (G.kan || 0) + c.kan;
       if (c.join === 'yashichi' && !(G.roster || []).some((r) => r.special === 'yashichi')) {
         G.roster = G.roster || [];
@@ -2357,7 +2532,9 @@ export function baseScreen(G, town0, lastResult, game) {
   };
   const talkHtml = (list) => list.map((t) => {
     const done = G.talked[t.id];
-    return `<div class="talk">${t.lines.map((l) => `<div><span class="sp">${esc(t.who)}</span>　${esc(l)}</div>`).join('')}
+    const gn = talkGain[t.id];
+    const gain = gn && gn.list.length ? `<div class="tw-gain" role="status">${gn.list.map(([n, v, s]) => `<span><b>${esc(v)}</b>${esc(n)}${s ? `<small>${esc(s)}</small>` : ''}</span>`).join('')}</div>` : '';
+    return `<div class="talk tw-ev ${done ? 'said' : ''}" id="tw-ev-${t.id}"><small class="where">${t.at === 'boss' ? '上役の屋敷で' : '宿で'}</small>${gain}${t.lines.map((l) => `<div><span class="sp">${esc(t.who)}</span>　${esc(l)}</div>`).join('')}
       ${done ? `${(() => { const c = t.choices.find((x) => x.reply === done); return c ? `<div class="tw-said"><span class="sp">${esc(G.name)}</span>　「${esc(c.t)}」${fxHtml(c)}</div>` : ''; })()}<div style="margin-top:6px"><span class="sp">${esc(t.who)}</span>　${esc(done)}</div>` : `<div class="choices">${t.choices.map((c, i) => `<button data-talk="${t.id}" data-c="${i}">「${esc(c.t)}」${fxHtml(c)}</button>`).join('')}</div>`}
     </div>`;
   }).join('');
@@ -2366,11 +2543,11 @@ export function baseScreen(G, town0, lastResult, game) {
   // 初めての城下では、施設を順に案内する
   if (!G.toured) {
     const steps = [
-      ['boss', '上官屋敷', '上官の話を聞き、次の任務を受けて出陣する所。戦の道のりもここで見られる。'],
+      ['boss', '城下', '今日やると良いことが三つ出る。押すと、次の戦で何が効くかがその場で分かる。人との出来事もここで。'],
       ['squad', '組', '預かった足軽の名簿。生き残った者は古参となって強くなる。'],
-      ['shop', '武具屋', '褒美の金で具足を整える。着けると戦場の姿も変わる。'],
-      ['train', '訓練場', '一日二刻まで、稽古で力を伸ばせる。'],
-      ['inn', '宿', '傷を癒やし、同輩と話し、噂を聞く。'],
+      ['train', '稽古場', '一日二刻まで、稽古で力を伸ばせる。'],
+      ['shop', '武具屋', '褒美の銭で具足を整える。着けると戦場の姿も変わる。'],
+      ['toiya', '問屋', '供を雇い、鉄砲・弓・馬を買う。宿・馬屋・日誌は「ほか」に畳んである。'],
     ];
     let i = 0;
     document.querySelectorAll('.tour').forEach((e) => e.remove());   // 前の案内が残っていれば外す（二重にしない）
