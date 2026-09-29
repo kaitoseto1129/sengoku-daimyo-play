@@ -267,7 +267,8 @@ function prep(J) {
 }
 function countOf(J) { const c = {}; for (const id of Object.keys(J.own)) c[J.own[id]] = (c[J.own[id]] || 0) + 1; return c; }
 // 同盟：筋書きの同盟に、使者で結んだ同盟（J.pact）を足す
-const allied = (D, a, b, J) => a === b || (D.clans[a] && D.clans[a].allies.includes(+b)) || (D.clans[b] && D.clans[b].allies.includes(+a))
+const allied = (D, a, b, J) => a === b || (!(J && J.broken && ((+a === D.player && J.broken[b]) || (+b === D.player && J.broken[a])))
+  && ((D.clans[a] && D.clans[a].allies.includes(+b)) || (D.clans[b] && D.clans[b].allies.includes(+a))))
   || !!(J && ((+a === D.player && J.pact[b] > J.turn) || (+b === D.player && J.pact[a] > J.turn)));
 const castlesOf = (J, cid) => Object.keys(J.own).filter((k) => J.own[k] === cid);
 function attackable(D, J, c) {
@@ -288,6 +289,54 @@ function oddsOf(D, J, c) {
   const r = armyOf(D, J) / Math.max(1, N.defPow(J, c));
   return r >= 2 ? ['有利', 'good'] : r >= 1.2 ? ['五分', 'even'] : ['不利', 'bad'];
 }
+// ---- 城ごとの違い：落とせば手に入る物と、敵の出方（3D の城攻めの兵の数と門の固さにそのまま効く） ----
+const r10 = (v) => Math.round(v / 10) * 10;
+// 平城は町の銭、山城は蔵の兵糧、砦は少し。本城は五割増し
+function spoilsOf(J, c) {
+  const k = kokuOf(J, c) || c.koku || 20000;
+  const m = { hira: [1.6, 0.8], yama: [0.7, 1.3], toride: [0.4, 0.4] }[c.type] || [1, 1], hq = c.hq ? 1.5 : 1;
+  return { g: r10(k * 0.003 * m[0] * hq), f: r10(k * 0.05 * m[1] * hq) };
+}
+// 敵の出方：兵糧の乏しい家は門が弱く、隣に兵の多い城があれば後詰めが来て、山城は固く籠もり、平城は打って出る
+function stanceOf(D, J, c) {
+  const cl = J.own[c.id], bank = J.bank && J.bank[cl];
+  if (bank && bank.f < 800) return { k: 'hungry', s: '兵糧が尽きかけ・門が弱い', kata: -20, b: 0.85 };
+  const help = [...D.adj[c.id]].filter((n) => J.own[n] === cl && J.dom[n] && J.dom[n].h >= 1200).map((n) => J.dom[n].h).sort((a, b) => b - a)[0];
+  if (help) return { k: 'aid', s: '隣の城から後詰めが来る', kata: 0, b: 1 + Math.min(0.5, (help * 0.3) / Math.max(1, troopsOf(c, J))) };
+  if (c.type === 'yama' || hardOf(J, c) >= 3) return { k: 'hold', s: '固く籠城する', kata: 15, b: 1 };
+  return { k: 'sally', s: '城兵が打って出る', kata: -10, b: 1.1 };
+}
+// 季節ごとの外交の動き（一季に一つまで）：同盟の申し出・同盟破り・味方の城主の寝返り・敵の城主の降り
+function seasonEvent(D, J, logs, t) {
+  if (Math.random() > 0.45) return;
+  const P = D.player, me = N.clanPow(J, P) || 1;
+  const J2 = J;
+  const neigh = new Set();
+  for (const id of castlesOf(J, P)) for (const n of D.adj[id]) if (J.own[n] !== P) neigh.add(J.own[n]);
+  const pow = (cid) => N.clanPow(J, cid);
+  const cand = [];
+  for (const cid of neigh) {
+    const nm = D.clans[cid].name;
+    if (allied(D, P, cid, J2)) {
+      if (pow(cid) > me * 1.1) cand.push(() => { J.pact[cid] = t; J.broken = J.broken || {}; J.broken[cid] = true; J.grudge[cid] = t + 3; logs.push({ t, s: `${nm}が同盟を破った`, k: 'bad' }); });
+    } else if (!(J.grudge[cid] > t) && pow(cid) < me) {
+      cand.push(() => { J.pact[cid] = t + 4; if (J.broken) delete J.broken[cid]; logs.push({ t, s: `${nm}から同盟の申し出。四季の間、手を結ぶ`, k: 'good' }); });
+    }
+  }
+  for (const id of castlesOf(J, P)) {
+    const c = D.byId[id], ln = J.lord[id], e = ln && J.gen[ln];
+    if (!e || e.me || id === J.post || (e.loy ?? 100) >= 40) continue;
+    const foe = [...D.adj[id]].map((n) => J.own[n]).find((o) => o !== P && !allied(D, P, o, J2));
+    if (foe != null) cand.push(() => { N.turnCastle(D, J, c, foe, logs, t); J.lost++; J.fallen[id] = t; logs.push({ t, s: `${ln}が${c.name}ごと${D.clans[foe].name}へ寝返った`, k: 'bad' }); });
+  }
+  for (const cid of neigh) for (const id of castlesOf(J, cid)) {
+    const c = D.byId[id], ln = J.lord[id], e = ln && J.gen[ln];
+    if (!e || c.hq || (e.loy ?? 100) >= 35 || ![...D.adj[id]].some((n) => J.own[n] === P) || allied(D, P, cid, J2)) continue;
+    cand.push(() => { N.turnCastle(D, J, c, P, logs, t); J.taken++; J.fallen[id] = t; logs.push({ t, s: `${c.name}の${ln}が降ってきた`, k: 'good' }); });
+  }
+  if (cand.length) cand[Math.floor(Math.random() * cand.length)]();
+}
+
 // 600：自分の城の危うさ（隣に敵の家があり、その家が強いほど・怒っているほど危ない）0〜2
 function dangerOf(D, J, c) {
   let d = 0;
@@ -359,8 +408,9 @@ function advance(D, J, first = []) {
       if (!castlesOf(J, dcl).length) logs.push({ t, s: `${bn}、城をすべて失い滅ぶ`, k: 'big' });
     }
   }
+  seasonEvent(D, J, logs, t);
   // 同盟の切れ目
-  for (const [cid, until] of Object.entries(J.pact)) if (until === t) logs.push({ t, s: `${D.clans[cid].name}との同盟の約束が切れた`, k: '' });
+  for (const [cid, until] of Object.entries(J.pact)) if (until === t && !(J.broken && J.broken[cid])) logs.push({ t, s: `${D.clans[cid].name}との同盟の約束が切れた`, k: '' });
   J.turn = t;
   J.moves = moves;
   N.fixPost(D, J);
@@ -475,7 +525,14 @@ export function japanResult(G, info, won) {
   const t = J.turn + 1;
   const first = [{ from: info.fromId, to: c.id, clan: D.player, def: dcl, won, mine: true }];
   const logs = [];
+  const sp = spoilsOf(J, c), food0 = N.campaign(D, J).food;
   N.afterCampaign(D, J, c, info.fromId, won, logs, t);
+  const bank = J.bank && J.bank[D.player];
+  if (bank) {
+    // 冬の陣は兵糧が五割増しでかかる
+    if (info.season === '冬') { const ex = r10(food0 * 0.5); bank.f = Math.max(0, bank.f - ex); logs.push({ t, s: `冬の陣で兵糧が余計にかかった（−${ex.toLocaleString('ja-JP')}石）`, k: 'bad' }); }
+    if (won) { bank.g += sp.g; bank.f += sp.f; logs.push({ t, s: `${c.name}の蔵を押さえた（金 +${sp.g.toLocaleString('ja-JP')}・兵糧 +${sp.f.toLocaleString('ja-JP')}石）`, k: 'good' }); }
+  }
   if (won) { J.taken++; J.fallen[c.id] = t; J.lastTaken = c.id; }
   J.log.push({ t, s: won ? `${D.clans[D.player].name}、${c.name}を攻め落とす` : `${c.name}攻め、城は落ちず兵を退く`, k: won ? 'good' : 'bad' });
   J.log.push(...logs);
@@ -741,6 +798,8 @@ export function japanScreen(G, o) {
   const terr = document.createElement('canvas'); terr.width = GRID.gc; terr.height = GRID.gr;
   const terrBig = document.createElement('canvas'); terrBig.width = GRID.gc * 4; terrBig.height = GRID.gr * 4;
   const paintTerritory = () => {
+    // 天下に占める城の割合（半分で最も濃い）。攻め落とすほど自分の国の色が濃く、はっきりしてくる
+    const share = Math.min(1, (castlesOf(J, P).length / Math.max(1, D.castles.length)) * 2);
     const g = terr.getContext('2d');
     const img = g.createImageData(GRID.gc, GRID.gr);
     const own = (i) => { const k = D.near[i]; return k < 0 ? null : J.own[D.castles[k].id]; };
@@ -756,8 +815,8 @@ export function japanScreen(G, o) {
       if (cl === P && edge) img.data.set([200, 160, 70, 230], i * 4);
       else {
         // 色を和紙の地に寄せて、青い家の国が海に見えないように
-        const k = edge ? 0.15 : cl === P ? 0.4 : 0.25;
-        img.data.set([rgb[0] + (232 - rgb[0]) * k, rgb[1] + (214 - rgb[1]) * k, rgb[2] + (178 - rgb[2]) * k, edge ? 150 : cl === P ? 120 : 80], i * 4);
+        const k = edge ? 0.15 : cl === P ? 0.42 - 0.3 * share : 0.25;
+        img.data.set([rgb[0] + (232 - rgb[0]) * k, rgb[1] + (214 - rgb[1]) * k, rgb[2] + (178 - rgb[2]) * k, edge ? 150 : cl === P ? Math.round(110 + 80 * share) : 80], i * 4);
       }
     }
     g.putImageData(img, 0, 0);
@@ -1215,6 +1274,7 @@ export function japanScreen(G, o) {
         ${mine ? `<div class="jp-kv"><span>危うさ</span><b class="${dangerOf(D, J, sel) >= 2 ? 'jp-bad' : ''}">${['隣に敵はいない', '隣に敵の家がある', '隣の敵が強い。守りを固めたい'][dangerOf(D, J, sel)]}</b></div>` : ''}
         ${odd ? `<div class="jp-kv"><span>勝ちの見込み</span><b class="jp-odd ${odd[1]}">${odd[0]}（こちら${nf(cp.army)}人・${cp.days}日分の兵糧）</b></div>` : ''}
         ${odd && cp.why.length ? `<p class="note jp-bad">${esc(cp.why.join('。'))}。</p>` : ''}
+        ${from ? (() => { const st = stanceOf(D, J, sel), sp = spoilsOf(J, sel); return `<div class="jp-kv"><span>敵の出方</span><b>${st.s}</b></div><div class="jp-kv"><span>落とせば</span><b>金 +${nf(sp.g)}・兵糧 +${nf(sp.f)}石</b></div>${when(D, J.turn).season === '冬' ? '<p class="note jp-bad">冬の陣：兵糧が五割増し</p>' : ''}`; })() : ''}
         <div class="jp-kv"><span>隣の城</span><b class="jp-nb">${nb.map((n) => `<button class="jp-link" data-c="${n.id}" style="--c:${D.ink[J.own[n.id]]}">${esc(n.name)}</button>`).join('')}</b></div>
         ${from ? `<p class="note">${esc(from.name)}から兵を出し、${TYPE_NAME[sel.type]}の${esc(sel.name)}を攻める。勝てば城は${esc(pc.name)}のものに。金${nf(cp.gold)}貫と兵糧${nf(cp.food)}石を使う。</p>
           <div class="row"><button class="btn small" id="jp-unsel">選ぶのをやめる</button><button class="btn primary" id="jp-go">出陣する（Enter）</button></div>` : `<div class="row"><button class="btn small" id="jp-unsel">選ぶのをやめる</button></div><p class="note">${esc(why)}。${mine ? '' : '攻められるのは、自分の家の城と隣り合う敵の城（朱の輪）。'}</p>`}
@@ -1670,6 +1730,9 @@ export function japanScreen(G, o) {
       // 675：城の兵と、金・兵糧で決まる出陣の兵と日数を 3D の城攻めへ
       a0: cp.army, b0: troopsOf(sel, J), fort: J.fort[sel.id] || 0, kata: N.kataOf(J, sel), days: cp.days, food: (J.bank[P] || {}).f || 0, gold: (J.bank[P] || {}).g || 0,
     };
+    // 敵の出方を 3D の城攻めの数へ（後詰めは城兵が増え、籠城は門が固く、兵糧の尽きた城は門が弱い）
+    const st = stanceOf(D, J, sel);
+    info.b0 = r10(info.b0 * st.b); info.kata = Math.max(0, Math.min(100, info.kata + st.kata)); info.stance = st.k;
     sfx('taiko', 0.8);
     closeJapan();
     o.onAttack(info);

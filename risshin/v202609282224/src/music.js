@@ -4,8 +4,9 @@
 // OfflineAudioContext でも同じ物が鳴る（renderMusic で WAV に書き出せる）
 //
 // 曲の名前：
-//   title（主題曲・約1分で繰り返す）・town（城下。季節で変わる）・prebattle（合戦の前）・battle（合戦の最中）
-//   climax（戦の山場）・victory（凱歌）・defeat（負け・討死の尺八）・promote（昇進の金管）・map（日本地図）
+//   title（主題曲・約1分で繰り返す）・town（城下。季節で変わる）・prebattle（行軍→睨み合い）・battle（激突↔押される）
+//   climax（戦の山場）・victory（勝鬨）・defeat（敗走・討死）・promote（昇進の金管）・map（日本地図）
+// 戦の曲は和楽器だけ：大太鼓・締太鼓・縁打ち・篠笛・尺八・法螺貝・琵琶・鉦。場面の替わり目は重ねてなめらかに
 // 音階：都節（D Eb G A Bb）・民謡（D F G A C）・陽（D E G A B）に、西洋の和音（Dm Bb Gm A Eb F C）を重ねる
 
 // ---------------- 音の高さと譜面 ----------------
@@ -94,7 +95,28 @@ export function createMusic(ctx, dest, hooks = {}) {
   const BUS = {
     str: [0.9, 0, 0.5], low: [0.5, 0, 0.25], brass: [0.9, -0.2, 0.45], taiko: [1, 0, 0.35], shime: [0.8, 0.3, 0.2],
     kane: [0.8, 0.45, 0.45], koto: [1, 0.35, 0.35], sham: [0.9, -0.35, 0.25], fue: [0.9, -0.3, 0.5], shaku: [1, -0.1, 0.6],
+    hora: [1, 0.15, 0.7], biwa: [1, -0.25, 0.3],
   };
+  // 味方が押されているか（数で負け・士気が落ち・自分が深手）。曲の側から戦の様子を覗くだけで、何も変えない
+  function pressedNow() {
+    if (hooks.pressed) return hooks.pressed();
+    try {
+      const b = typeof window !== 'undefined' && window.__game && window.__game.battle;
+      if (!b || !b.army || b.ended) return 0;
+      const pu = b.player && b.player.u, p = pu && pu.pos;
+      let a = 0, e = 0, am = 0;
+      for (const g of b.army.groups) {
+        if (!(g.count > 0) || g.routed) continue;
+        const q = g.anchor;
+        if (p && q && Math.hypot(q.x - p.x, q.z - p.z) > 70) continue;
+        if (g.team === 0) { a += g.count; am += (g.morale ?? 60) * g.count; } else e += g.count;
+      }
+      const cl = (v) => Math.max(0, Math.min(1, v));
+      const ratio = e / Math.max(1, a), mor = a ? am / a : 30;
+      const hp = pu && pu.maxHp ? pu.hp / pu.maxHp : 1;
+      return cl(cl((ratio - 1.3) / 1.4) * 0.55 + cl((55 - mor) / 30) * 0.55 + (pu && pu.alive && hp < 0.3 ? 0.35 : 0));
+    } catch (e) { return 0; }
+  }
   function bus(c, name) {
     if (c.bus[name]) return c.bus[name];
     const [v, pan, wet] = BUS[name];
@@ -190,11 +212,16 @@ export function createMusic(ctx, dest, hooks = {}) {
     s.frequency.setValueAtTime(f0 * 1.7, t); s.frequency.exponentialRampToValueAtTime(f0, t + 0.035); s.frequency.exponentialRampToValueAtTime(f0 * 0.66, t + len);
     const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5 * vel, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
     s.connect(g); s.start(t); s.stop(t + len + 0.02);
+    // 胴の二つ目の響き（整数倍でない）：大太鼓の「ドォン」の太さ
+    const s2 = ctx.createOscillator(); s2.type = 'sine';
+    s2.frequency.setValueAtTime(f0 * 2.7, t); s2.frequency.exponentialRampToValueAtTime(f0 * 1.58, t + 0.05);
+    const g2 = ctx.createGain(); g2.gain.setValueAtTime(0.0001, t); g2.gain.exponentialRampToValueAtTime(0.16 * vel, t + 0.004); g2.gain.exponentialRampToValueAtTime(0.0001, t + len * 0.45);
+    s2.connect(g2); s2.start(t); s2.stop(t + len * 0.45 + 0.02);
     const n = noiseSrc(t, 0.15);
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = big ? 420 : 700;
     const ng = ctx.createGain(); ng.gain.setValueAtTime(0.4 * vel, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
     n.connect(lp); lp.connect(ng);
-    const b = bus(c, 'taiko'); g.connect(b); ng.connect(b);
+    const b = bus(c, 'taiko'); g.connect(b); g2.connect(b); ng.connect(b);
   }
   // 締太鼓：高く締まった「カン」
   function shime(c, t, vel, o = {}) {
@@ -211,9 +238,12 @@ export function createMusic(ctx, dest, hooks = {}) {
   }
   // 鉦：倍音が整数倍でない金物の響き
   function kane(c, t, vel, o = {}) {
-    if (!take(t, 1.3, 2, o.prio ?? 2)) return;
+    // short：早鐘のように続けて打つ時は、響きを短く軽く
+    const sc = o.short ? 0.3 : 1;
+    if (!take(t, 1.3 * sc, o.short ? 1 : 2, o.prio ?? 2)) return;
     const b = bus(c, 'kane');
-    for (const [k, a, d] of [[1, 1, 1.3], [2.76, 0.45, 0.6]]) {
+    for (const [k, a, d0] of [[1, 1, 1.3], [2.76, 0.45, 0.6]]) {
+      const d = d0 * sc;
       const s = ctx.createOscillator(); s.frequency.value = 1040 * k;
       const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.035 * a * vel, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
       s.connect(g); g.connect(b); s.start(t); s.stop(t + d + 0.02);
@@ -274,6 +304,67 @@ export function createMusic(ctx, dest, hooks = {}) {
     s.start(t); s.stop(end);
   }
 
+  // 法螺貝：低く太い息。吹き始めは下からずり上がり、終わりは落ちる。口の中の響き（二つの山）で「ぶおー」
+  function horagai(c, t, f, dur, vel, o = {}) {
+    const end = t + dur + 0.6;
+    if (!take(t, dur + 0.5, 2, o.prio ?? 0)) return;
+    const s = ctx.createOscillator(); s.type = 'sawtooth';
+    s.frequency.setValueAtTime(f * 0.86, t); s.frequency.exponentialRampToValueAtTime(f, t + 0.22);
+    s.frequency.setValueAtTime(f, t + Math.max(0.25, dur - 0.2)); s.frequency.exponentialRampToValueAtTime(f * (o.fall ? 0.8 : 0.93), t + dur + 0.4);
+    const lfo = ctx.createOscillator(); lfo.frequency.value = 3.8;
+    const lg = ctx.createGain(); lg.gain.value = f * 0.008; lfo.connect(lg); lg.connect(s.frequency); lfo.start(t); lfo.stop(end);
+    const g = ctx.createGain();
+    for (const [fr, q, v] of [[f * 2.1, 3, 1], [720, 4, 0.7], [1500, 5, 0.25]]) {
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = fr; bp.Q.value = q;
+      const bg = ctx.createGain(); bg.gain.value = v; s.connect(bp); bp.connect(bg); bg.connect(g);
+    }
+    const n = noiseSrc(t, dur + 0.5);
+    const nb2 = ctx.createBiquadFilter(); nb2.type = 'bandpass'; nb2.frequency.value = 900; nb2.Q.value = 1.4;
+    const ng = ctx.createGain(); ng.gain.value = 0.35; n.connect(nb2); nb2.connect(ng); ng.connect(g);
+    const out = ctx.createGain();
+    adsr(out.gain, t, 0.16, (o.v ?? 0.16) * vel, Math.max(0.1, dur - 0.16), 0.45, 0.8);
+    g.connect(out); out.connect(bus(c, 'hora'));
+    s.start(t); s.stop(end);
+  }
+  // 琵琶：撥で打つ「バチッ」と、さわりのびりつき。押し手（bend）で音が上がって戻る
+  function biwa(c, t, f, vel, o = {}) {
+    const len = o.long ? 2.4 : o.short ? 0.45 : 1.4;
+    if (!take(t, len, 1, o.prio ?? 1)) return;
+    const b = bus(c, 'biwa');
+    const s = ctx.createOscillator(); s.type = 'sawtooth';
+    s.frequency.setValueAtTime(f * 1.025, t); s.frequency.exponentialRampToValueAtTime(f, t + 0.04);
+    if (o.bend) { s.frequency.setValueAtTime(f, t + 0.35); s.frequency.linearRampToValueAtTime(f * 1.12, t + 0.6); s.frequency.linearRampToValueAtTime(f * 1.06, t + 1.1); }
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 3;
+    lp.frequency.setValueAtTime(Math.min(8000, f * 12), t); lp.frequency.exponentialRampToValueAtTime(Math.max(260, f * 2.2), t + 0.6);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime((o.v ?? 0.11) * vel, t + 0.003);
+    g.gain.exponentialRampToValueAtTime(0.025 * vel, t + 0.3); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    s.connect(lp); lp.connect(g); g.connect(b);
+    // さわり：二倍の少し上の音が、細く長くびりつく
+    const z = ctx.createOscillator(); z.type = 'square'; z.frequency.value = f * 2.006;
+    const hp = ctx.createBiquadFilter(); hp.type = 'bandpass'; hp.frequency.value = f * 6; hp.Q.value = 2;
+    const zg = ctx.createGain(); zg.gain.setValueAtTime(0.0001, t); zg.gain.exponentialRampToValueAtTime(0.018 * vel, t + 0.02); zg.gain.exponentialRampToValueAtTime(0.0001, t + len * 0.8);
+    z.connect(hp); hp.connect(zg); zg.connect(b);
+    // 撥の当たり
+    const n = noiseSrc(t, 0.05);
+    const nbp = ctx.createBiquadFilter(); nbp.type = 'bandpass'; nbp.frequency.value = 1900; nbp.Q.value = 1.2;
+    const ng = ctx.createGain(); ng.gain.setValueAtTime(0.09 * vel, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.04);
+    n.connect(nbp); nbp.connect(ng); ng.connect(b);
+    s.start(t); s.stop(t + len + 0.02); z.start(t); z.stop(t + len);
+  }
+  // 太鼓の縁打ち「カッ」
+  function fuchi(c, t, vel, o = {}) {
+    if (!take(t, 0.08, 1, o.prio ?? 2)) return;
+    const s = ctx.createOscillator(); s.type = 'triangle';
+    s.frequency.setValueAtTime(980, t); s.frequency.exponentialRampToValueAtTime(720, t + 0.04);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.1 * vel, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+    const n = noiseSrc(t, 0.04);
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 2800;
+    const ng = ctx.createGain(); ng.gain.setValueAtTime(0.07 * vel, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.03);
+    s.connect(g); n.connect(hp); hp.connect(ng);
+    const b = bus(c, 'shime'); g.connect(b); ng.connect(b);
+    s.start(t); s.stop(t + 0.08);
+  }
+
   // 曲の中から使う道具
   function api(c) {
     return {
@@ -290,6 +381,11 @@ export function createMusic(ctx, dest, hooks = {}) {
       sham: (t, f, vel, o) => sham(c, t, f, vel, o),
       fue: (t, f, dur, vel, o) => wind(c, 'fue', t, f, dur, vel, o),
       shaku: (t, f, dur, vel, o) => wind(c, 'shaku', t, f, dur, vel, o),
+      hora: (t, f, dur, vel, o) => horagai(c, t, f, dur, vel, o),
+      biwa: (t, f, vel, o) => biwa(c, t, f, vel, o),
+      fuchi: (t, vel, o) => fuchi(c, t, vel, o),
+      // 押されている度合い 0〜1（hooks.pressed か、戦の様子から一小節に一度だけ量る。書き出しは o.pressed）
+      pressed: () => (c.o.pressed != null ? c.o.pressed : pressedNow()),
       // 譜面の一小節を、楽器 fn で鳴らす（mul：高さの倍率、stretch：拍の長さの倍率）
       line: (t, notes, fn, mul = 1, stretch = 1) => { for (const [b, f, len] of notes) fn(t + b * c.B * stretch, f * mul, len * c.B * stretch); },
     };
@@ -300,6 +396,7 @@ export function createMusic(ctx, dest, hooks = {}) {
     const def = CUES[name];
     if (cur && cur.name === name && !o.restart) { Object.assign(cur.o, o); return; }
     const now = ctx.currentTime;
+    const prev = cur;
     if (cur) fadeOut(cur, o.fadeOut ?? (def && def.once ? 0.8 : 2.5));
     cur = null;
     if (!def) return;
@@ -313,7 +410,12 @@ export function createMusic(ctx, dest, hooks = {}) {
     const g = (def.gain ?? 1) * E.level;
     // 続く曲は 2 秒かけてなめらかに入る（前の曲の消えていくのと重ねて、ぶつ切りに聞こえないように）
     const fin = o.fadeIn ?? (def.once ? 0.02 : 2);
-    const t0 = now + (o.delay || 0) + 0.12;
+    let t0 = now + (o.delay || 0) + 0.12;
+    // 拍の長さが同じか倍・半分の曲へ替わる時は、前の曲のまだ予約していない小節の頭から入る（太鼓の拍がずれずに重なる）
+    if (prev && !o.delay && !def.once && !prev.def.once) {
+      const r = prev.B / c.B;
+      if ([0.5, 1, 2].some((v) => Math.abs(r - v) < 0.01) && prev.next > now && prev.next - now < 3) t0 = prev.next;
+    }
     for (const [node, v] of [[c.dry, g], [c.wet, g * 0.5]]) {
       node.gain.setValueAtTime(0.0001, now); node.gain.setValueAtTime(0.0001, t0);
       if (fin > 0.5) node.gain.setTargetAtTime(v, t0, fin / 3);
@@ -503,70 +605,94 @@ const CUES = {
     },
   },
 
-  // 3. 合戦の前：張りつめた太鼓と低い弦
+  // 3. 合戦の前（行軍 → 睨み合い）：拍は合戦の曲のちょうど半分。曲が替わる時に太鼓の拍がそろう
+  //   行軍：大太鼓が一歩ごとに「ドン」、締太鼓の八分、篠笛の行進の節、十六小節に一度の法螺貝
+  //   睨み合い（戦の激しさが少し上がると）：笛は止み、心臓のような「ドン……ドドン」、尺八の低い持続、琵琶の押し手、遠い法螺貝
   prebattle: {
-    bpm: 60, gain: 0.7, cap: 14,
+    bpm: 66, gain: 0.58, cap: 16,
     bar(a, k, t, n) {
-      const B = a.B, m = n % 8;
-      // 低い弦のトレモロ（D の持続。後半は Eb にずれて緊張）
-      a.str(t, hz('D2'), 4 * B, 0.55, { trem: 9, solo: false, vib: false, prio: 1, v: 0.06, cut: 520, a: 0.8, r: 0.6 });
-      const up = m === 5 || m === 6 ? 'Eb3' : 'D3';
-      a.str(t, hz(up), 4 * B, 0.45, { trem: 7, solo: false, vib: false, prio: 1, v: 0.04, cut: 650, a: 1.0, r: 0.8 });
-      // 高い弦がかすかに（4小節ごとに膨らむ）
-      if (m % 4 === 0) a.str(t, hz('A5'), 8 * B, 0.35, { solo: false, vib: true, prio: 2, v: 0.02, cut: 2400, a: 3, r: 2 });
-      // 大太鼓：心臓の音のように「ドン……ドドン」
-      const gr = 0.45 + 0.1 * (m / 7) + 0.2 * a.E.intensity;
-      a.taiko(t, gr, { big: true }); a.taiko(t + 2.75 * B, gr * 0.45); a.taiko(t + 3 * B, gr * 0.7);
-      if (m === 7) { a.taiko(t + 3.25 * B, gr * 0.5); a.taiko(t + 3.5 * B, gr * 0.6); a.taiko(t + 3.75 * B, gr * 0.75); }
-      if (a.E.intensity > 0.3) for (let j = 1; j < 4; j++) a.shime(t + j * B, 0.25);
-      // 低い金管の呼び交わし
-      if (m === 3) a.line(t, seq('D3/1 A3/3'), (tt, f, d) => a.brass(tt, f, d * 0.9, 0.45));
-      if (m === 7) a.line(t, seq('D3/1 Eb3/3'), (tt, f, d) => a.brass(tt, f, d * 0.9, 0.5));
-      if (m === 2 || m === 6) a.kane(t + 3 * B, 0.2);
-      // 十六小節に一度、尺八が遠く
-      if (n % 16 === 9) a.line(t, seq('A4/3 Bb4/.5 A4/.5 | G4/1 Eb4/1 D4/2'), (tt, f, d) => a.shaku(tt, f, d * 0.95, 0.4, { v: 0.05, muraiki: tt === t }));
-    },
-  },
-
-  // 4. 合戦の最中：太鼓と弦の刻み（E.intensity＝戦の激しさで厚みが変わる）
-  battle: {
-    bpm: 126, gain: 0.4, cap: 18,
-    bar(a, k, t, n) { battleBar(a, t, n, a.E.intensity, false); },
-  },
-  // 戦の山場：刻みの上で主題の B を弦と金管が歌う
-  climax: {
-    bpm: 126, gain: 0.45, cap: 24,
-    bar(a, k, t, n) { battleBar(a, t, n, Math.max(0.85, a.E.intensity), true); },
-  },
-
-  // 5. 勝ち：主題の頭を明るく（bVI・bVII・I の凱歌）
-  victory: {
-    bpm: 84, once: true, len: 5, gain: 0.8, cap: 28, tail: 4,
-    bar(a, k, t) {
-      const B = a.B;
-      const plan = ['A', 'D', 'Bb', 'C', 'D'];
-      const mel = bars('r/4 | D5/2 A4/1 D5/1 | F5/2 D5/1 F5/1 | G5/2 E5/1 G5/1 | A5/4');
-      a.pad(t, plan[k], k === 4 ? 6 * B : 4 * B, k === 0 ? 0.5 : 0.85, { a: k === 0 ? 2 : 0.3 });
-      a.bass(t, plan[k], k === 4 ? 6 * B : 4 * B, 0.85);
-      a.line(t, mel[k], (tt, f, d) => { a.brass(tt, f / 2, d * (k === 4 ? 1.5 : 0.92), 0.85); a.str(tt, f, d * (k === 4 ? 1.5 : 0.95), 0.9); });
-      if (k === 0) { for (let j = 0; j < 10; j++) a.taiko(t + (1.2 + j * 0.28) * B, 0.25 + j * 0.07); a.kane(t, 0.5); }
-      if (k >= 1 && k <= 3) { a.taiko(t, 0.9, { big: true }); a.taiko(t + 2 * B, 0.6); a.taiko(t + 3 * B, 0.5); a.taiko(t + 3.5 * B, 0.6); }
-      if (k === 4) {
-        a.taiko(t, 1, { big: true }); a.kane(t, 0.8); a.kane(t + 1.5 * B, 0.5);
-        [hz('D4'), hz('A4'), hz('D5'), hz('F#5'), hz('A5')].forEach((f, j) => a.koto(t + j * 0.09, f, 0.6, { long: true, prio: 2 }));
+      const B = a.B, m = n % 16, c = a.c;
+      c.xs = c.xs == null ? a.E.intensity : c.xs + (a.E.intensity - c.xs) * 0.45;
+      // 行軍の重み（1＝行軍、0＝睨み合い）。境をまたぐ間は二つが重なって入れ替わる
+      const w = Math.max(0, Math.min(1, (0.38 - c.xs) / 0.22)), st = 1 - w;
+      if (w > 0.05) {
+        for (let j = 0; j < 4; j++) a.taiko(t + j * B, (j % 2 ? 0.42 : 0.6) * w, { big: j === 0 });
+        for (let j = 0; j < 8; j++) if (j % 2) a.shime(t + j * B * 0.5, 0.22 * w);
+        if (m % 4 === 3) a.fuchi(t + 3.5 * B, 0.5 * w);
+        if (m >= 4 && m < 12) a.line(t, MARCH_FUE[m % 4], (tt, f, d) => a.fue(tt, f, d * 0.92, 0.55 * w, { v: 0.045 }));
+        if (m === 0) a.hora(t, hz('D3'), 3 * B, 0.8 * w);
+        if (m === 12) a.hora(t + B, hz('A2'), 2.5 * B, 0.55 * w, { prio: 1 });
+      }
+      if (st > 0.05) {
+        const gr = (0.45 + 0.25 * c.xs) * st;
+        a.taiko(t, gr, { big: true }); a.taiko(t + 2.75 * B, gr * 0.45); a.taiko(t + 3 * B, gr * 0.7);
+        if (m % 8 === 7) for (let j = 0; j < 3; j++) a.taiko(t + (3.25 + j * 0.25) * B, gr * (0.45 + j * 0.15), { prio: 1 });
+        if (c.xs > 0.3) for (let j = 1; j < 4; j++) a.shime(t + j * B, 0.18 * st);
+        // 尺八の低い持続（半音上の Eb にずれて張りつめる）
+        if (m % 4 === 0) a.shaku(t, hz(m % 8 === 4 ? 'Eb4' : 'D4') / 2, 7 * B, 0.5 * st, { v: 0.05, muraiki: m % 8 === 0 });
+        // 琵琶の一撥
+        if (m % 2 === 1) a.biwa(t + 1.5 * B, hz(m % 4 === 1 ? 'D3' : 'A2'), 0.7 * st, { bend: m % 8 === 5, long: true });
+        if (m === 6 || m === 14) a.kane(t + 3 * B, 0.18 * st);
+        if (m === 10) a.hora(t, hz('D3'), 3 * B, 0.4 * st, { prio: 1, v: 0.1 });
       }
     },
   },
-  // 負け・討死：尺八の哀しい一節
-  defeat: {
-    bpm: 50, once: true, len: 4, gain: 1, cap: 12, tail: 4,
+
+  // 4. 合戦の最中（激突 ↔ 押される）：E.intensity＝戦の激しさ、pressed()＝押されている度合い
+  //   激突：大太鼓の突き上げ・縁打ち・締太鼓の刻み・高い篠笛・法螺貝の合図・琵琶のかき鳴らし
+  //   押される：音階が都節へ沈み、太鼓は重く間延びし、早鐘が鳴り、尺八が急き、琵琶が低く震える
+  battle: {
+    bpm: 132, gain: 0.4, cap: 18,
+    bar(a, k, t, n) { battleBar(a, t, n, a.E.intensity, false); },
+  },
+  // 戦の山場（名のある敵将と）：激突をいちばん強く。法螺貝と篠笛の主題
+  climax: {
+    bpm: 132, gain: 0.45, cap: 22,
+    bar(a, k, t, n) { battleBar(a, t, n, Math.max(0.85, a.E.intensity), true); },
+  },
+
+  // 5. 勝鬨：法螺貝で始まり、太鼓が「えい・えい・おう」を三度。篠笛が明るく歌い、大太鼓と鉦で結ぶ
+  victory: {
+    bpm: 88, once: true, len: 6, gain: 0.85, cap: 26, tail: 4,
     bar(a, k, t) {
       const B = a.B;
-      const mel = bars('A4/2.5 Bb4/.5 A4/1 | G4/1.5 Eb4/.5 D4/2 | r/1 F4/1.5 Eb4/.5 D4/1 | D4/4');
-      if (k === 0) { a.bass(t, 'Dm', 16 * B, 0.4, { a: 2, r: 3 }); a.taiko(t, 0.35, { big: true }); }
-      if (k === 0 || k === 2) a.str(t, hz('A3'), 8 * B, 0.3, { solo: false, prio: 1, v: 0.02, cut: 800, a: 2, r: 2 });
+      if (k === 0) {
+        a.hora(t, hz('D3'), 3.2 * B, 1); a.hora(t + 0.6 * B, hz('A2'), 2.6 * B, 0.6, { prio: 1 });
+        for (let j = 0; j < 8; j++) a.taiko(t + (2 + j * 0.25) * B, 0.25 + j * 0.08, { prio: 1 });
+      }
+      if (k >= 1 && k <= 3) {
+        // えい（0）・えい（1）・おう（2、長く）
+        a.taiko(t, 0.75 + 0.08 * k); a.taiko(t + B, 0.75 + 0.08 * k); a.taiko(t + 2 * B, 1, { big: true });
+        a.fuchi(t + 3 * B, 0.6); a.fuchi(t + 3.5 * B, 0.5);
+        a.kane(t + 2 * B, 0.35 + 0.1 * k);
+        for (let j = 0; j < 8; j++) a.shime(t + j * 0.5 * B, j % 2 ? 0.2 : 0.3);
+        a.line(t, KACHI_FUE[k - 1], (tt, f, d) => a.fue(tt, f, d * 0.92, 0.75));
+        a.biwa(t + 2 * B, hz('D3'), 0.6);
+      }
+      if (k === 4) {
+        a.line(t, KACHI_FUE[3], (tt, f, d) => a.fue(tt, f, d * 0.95, 0.85));
+        a.taiko(t, 0.8, { big: true }); a.taiko(t + 2 * B, 0.7); a.taiko(t + 3 * B, 0.6); a.taiko(t + 3.5 * B, 0.7);
+        a.hora(t + 2 * B, hz('D3'), 2 * B, 0.6, { prio: 1 });
+      }
+      if (k === 5) {
+        a.taiko(t, 1, { big: true }); a.kane(t, 0.8); a.kane(t + 1.5 * B, 0.5);
+        a.fue(t, hz('D6'), 3 * B, 0.8);
+        [hz('D4'), hz('E4'), hz('A4'), hz('B4'), hz('D5')].forEach((f, j) => a.koto(t + j * 0.09, f, 0.6, { long: true, prio: 2 }));
+      }
+    },
+  },
+  // 敗走・討死：遠のいていく太鼓、尺八の哀しい一節、琵琶の低い撥、最後に鉦ひとつ
+  defeat: {
+    bpm: 50, once: true, len: 5, gain: 1, cap: 12, tail: 4,
+    bar(a, k, t) {
+      const B = a.B;
+      const mel = bars('A4/2.5 Bb4/.5 A4/1 | G4/1.5 Eb4/.5 D4/2 | r/1 F4/1.5 Eb4/.5 D4/1 | D4/4 | r/4');
+      // 退いていく太鼓：だんだん遠く、間遠に
+      if (k <= 2) { const v = 0.5 - k * 0.14; a.taiko(t, v, { big: true }); a.taiko(t + 1.5 * B, v * 0.5); if (k < 2) a.taiko(t + 3 * B, v * 0.6); }
+      if (k === 0 || k === 2) a.biwa(t + 2 * B, hz('D2'), 0.6, { long: true, bend: k === 2 });
       a.line(t, mel[k], (tt, f, d) => a.shaku(tt, f, d * 0.95, 0.8, { muraiki: k === 0 && tt === t, fall: k === 3 }));
-      if (k === 3) { a.koto(t + 2 * B, hz('D3'), 0.5, { long: true }); a.kane(t + 3 * B, 0.15); }
+      if (k === 3) { a.biwa(t + 2 * B, hz('A2'), 0.5, { long: true }); a.kane(t + 3 * B, 0.15); }
+      if (k === 4) a.hora(t, hz('A2'), 3 * B, 0.3, { fall: true, v: 0.08 });
     },
   },
   // 昇進：金管の華やかな一節
@@ -621,41 +747,62 @@ const CUES = {
   },
 };
 
-// 合戦の刻み（climax は主題の B を重ねる）
-const BAT_HEAD = bars('D4/2 A3/1 D4/1 | Eb4/3 D4/1 | G4/1.5 F4/.5 D4/2 | E4/2 C#4/2');
-const BAT_CH = ['Dm', 'Dm', 'Bb', 'A', 'Dm', 'Eb', 'Gm', 'A'];
-const CLX_CH = ['Bb', 'Bb', 'F', 'F', 'Gm', 'Gm', 'Eb', 'Eb', 'Bb', 'A', 'Asus', 'A', 'Dm', 'Dm', 'Dm', 'A'];
-const CLX_MEL = bars(
-  'D6/3 C6/1 | A5/2 C6/1 A5/1 | Bb5/2 A5/1 G5/1 | G5/2 Bb5/1 Eb6/1 | D6/2 C#6/2 | E6/1.5 D6/.5 C#6/2 | D6/4 | r/2 A5/1 C#6/1');
+// ---- 行軍・合戦・勝鬨の節（篠笛は民謡音階、押された時の尺八は都節） ----
+const MARCH_FUE = bars('A5/1 C6/.5 A5/.5 G5/1 A5/1 | D6/1.5 C6/.5 A5/2 | G5/1 A5/.5 G5/.5 F5/1 D5/1 | G5/1.5 F5/.5 D5/2');
+const CLASH_FUE = bars(
+  'D5/.5 F5/.5 G5/.5 A5/.5 C6/1 A5/1 | D6/.5 C6/.5 A5/.5 G5/.5 A5/2 | G5/.5 A5/.5 C6/.5 D6/.5 F6/1 D6/.5 C6/.5 | A5/1 G5/1 D5/2');
+const CLX_FUE = bars(
+  'D6/2 C6/1 A5/1 | C6/1.5 D6/.5 F6/2 | G6/1 F6/.5 D6/.5 C6/1 A5/1 | D6/4 | A5/1 C6/1 D6/1 F6/1 | G6/2 F6/1 D6/1 | C6/1 A5/.5 G5/.5 A5/1 C6/1 | D6/4');
+const PRESS_SHAKU = bars('D4/.5 Eb4/.5 D4/1 r/.5 Bb3/.5 A3/1 | G3/1 A3/.5 Bb3/.5 A3/2 | D4/.5 Eb4/.5 G4/1 Eb4/.5 D4/.5 Bb3/1 | A3/4');
+const KACHI_FUE = bars('D5/1 E5/1 G5/2 | A5/1 G5/.5 E5/.5 D5/2 | E5/1 G5/1 A5/1 B5/1 | D6/1.5 B5/.5 A5/1 D6/1');
+// 一小節（4拍）を鳴らす。x＝激しさ、clx＝山場。押された度合いは小節ごとにゆっくり追う（急に曲調が替わらない）
 function battleBar(a, t, n, x, clx) {
-  const B = a.B;
-  let ch;
-  if (clx) ch = CLX_CH[n % 16]; else ch = BAT_CH[n % 8];
-  const root = CH[ch].bass * (CH[ch].bass < 70 ? 2 : 1);
-  // 山場：主題の B（一小節を二小節に伸ばす。旋律を先に置いて、数の上限で削られないように）
-  if (clx) {
-    const m = n % 16;
-    if (m % 2 === 0) a.line(t, CLX_MEL[m >> 1], (tt, f, d) => { a.str(tt, f, d * 0.97, 0.9, { r: 0.4 }); a.brass(tt, f / 2, d * 0.9, 0.75); }, 1, 2);
-    if (m === 0 || m === 8) a.kane(t, 0.5);
+  const B = a.B, c = a.c;
+  c.xs = c.xs == null ? x : c.xs + (x - c.xs) * 0.5;
+  const p0 = clx ? 0 : a.pressed();
+  c.ps = c.ps == null ? p0 : c.ps + (p0 - c.ps) * 0.3;
+  const xs = c.xs, ps = c.ps, hit = 1 - ps * 0.75;   // hit：激突の層の重み（押されるほど退く）
+  // 旋律は四小節の句の頭で選ぶ（句の途中で笛と尺八が入れ替わらない）
+  if (n % 4 === 0) c.pressMel = ps > 0.45;
+  const m4 = n % 4, root = c.pressMel ? hz('D2') : hz('D2') * (n % 8 >= 4 ? 1.125 : 1);
+  // ---- 激突 ----
+  if (hit > 0.1) {
+    // 大太鼓：頭・裏の突き上げ・三拍目・激しければ四拍目の裏
+    a.taiko(t, (0.75 + 0.25 * xs) * hit, { big: n % 2 === 0 });
+    a.taiko(t + 1.5 * B, (0.45 + 0.25 * xs) * hit, { prio: 1 });
+    a.taiko(t + 2 * B, (0.6 + 0.2 * xs) * hit);
+    if (xs > 0.45) a.taiko(t + 3 * B, (0.4 + 0.3 * xs) * hit, { prio: 1 });
+    if (xs > 0.7) a.taiko(t + 3.5 * B, 0.5 * xs * hit, { prio: 2 });
+    // 句の終わりは連打で次の句へ
+    if (m4 === 3 && xs > 0.35) for (let j = 0; j < 4; j++) a.taiko(t + (3 + j * 0.25) * B, (0.3 + j * 0.12) * hit, { prio: 2 });
+    // 押されて退いた時は、細かい刻みを省く（音の数を増やさない）
+    const busy = hit > 0.45;
+    if (busy) { a.fuchi(t + 0.75 * B, 0.45 * hit); a.fuchi(t + 2.75 * B, 0.45 * hit); }
+    // 締太鼓の刻み（激しいと十六分）
+    const sub = xs > 0.85 && !clx ? 16 : 8;
+    if (busy && xs > 0.25) for (let j = 0; j < sub; j++) a.shime(t + j * B * 4 / sub, (j % (sub / 4) === 0 ? 0.36 : 0.2) * hit);
+    // 琵琶のかき鳴らし（三本の撥を素早く）
+    if (busy && xs > 0.4 && n % 2 === 1) [0, 0.035, 0.07].forEach((d, j) => a.biwa(t + 2 * B + d, root * [2, 3, 4][j], 0.5 * hit, { prio: 2, short: j < 2 }));
+    // 篠笛：激しい時に高く。山場は長い主題
+    if (!c.pressMel) {
+      if (clx) a.line(t, CLX_FUE[n % 8], (tt, f, d) => a.fue(tt, f, d * 0.93, 0.8));
+      else if (xs > 0.5 && n % 8 >= 4) a.line(t, CLASH_FUE[m4], (tt, f, d) => a.fue(tt, f, d * 0.9, 0.55 + 0.25 * xs));
+    }
+    // 法螺貝の合図と、鉦（チャッパ）の打ち込み
+    if ((clx ? n % 4 === 0 : n % 8 === 0 && xs > 0.55)) a.hora(t, hz('D3'), 1.8 * B, (0.6 + 0.3 * xs) * hit, { prio: 1 });
+    if (xs > 0.8) { a.kane(t + 1.5 * B, 0.3 * hit); a.kane(t + 3.5 * B, 0.3 * hit); }
   }
-  // 低い弦の八分の刻み（いつも）
-  const oct = [1, 1, 2, 1, 1, 1, 2, 1], acc = [1, 0.55, 0.8, 0.55, 0.95, 0.55, 0.85, 0.65];
-  for (let j = 0; j < 8; j++) a.low(t + j * B * 0.5, root * oct[j], B * 0.34, (0.55 + 0.35 * x) * acc[j]);
-  // 和太鼓
-  a.taiko(t, 0.7 + 0.25 * x, { big: n % 2 === 0 }); a.taiko(t + 2 * B, 0.55 + 0.2 * x);
-  if (x > 0.3) { a.taiko(t + 2.5 * B, 0.4 * x + 0.1, { prio: 1 }); a.taiko(t + 3 * B, 0.5 * x + 0.2, { prio: 1 }); }
-  if (x > 0.6) { a.taiko(t + 3.5 * B, 0.6 * x, { prio: clx ? 2 : 1 }); a.taiko(t + 3.75 * B, 0.5 * x, { prio: 2 }); }
-  // 締太鼓の刻み
-  if (x > 0.35 && !clx) for (let j = 0; j < 8; j++) a.shime(t + j * B * 0.5, j % 2 ? 0.25 : 0.4);
-  if (x > 0.7) for (let j = 0; j < 4; j++) a.shime(t + (3 + j * 0.25) * B, 0.3 + j * 0.08);
-  // 弦の和音（厚み）
-  if (x > 0.3 && (clx || n % 2 === 0)) a.pad(t, ch, (clx ? 4 : 8) * B, 0.35 + 0.4 * x, { prio: clx ? 1 : 2, a: 0.4, r: 0.6 });
-  // 金管の打ち込み、激しい時は主題の頭
-  if (!clx && x > 0.55 && n % 4 === 0) a.brass(t, root * 2, B * 1.2, 0.5 + 0.3 * x, { prio: 1 });
-  if (!clx && x > 0.75 && n % 8 >= 4) {
-    a.line(t, BAT_HEAD[n % 4], (tt, f, d) => a.brass(tt, f, d * 0.9, 0.7));
+  // ---- 押される ----
+  if (ps > 0.1) {
+    // 重く間延びした大太鼓（二拍に一つ）と、半音上の低い琵琶の震え
+    a.taiko(t, 0.9 * ps, { big: true }); a.taiko(t + 2.5 * B, 0.55 * ps, { big: true, prio: 1 });
+    for (let j = 0; j < 4; j++) a.biwa(t + j * 0.5 * B, hz(j < 2 ? 'D2' : 'Eb2'), (0.35 - j * 0.04) * ps, { prio: 2, short: true });
+    // 早鐘
+    if (ps > 0.35) for (let j = 0; j < 4; j++) a.kane(t + j * B, (j % 2 ? 0.14 : 0.22) * ps, { prio: 2, short: true });
+    if (c.pressMel) a.line(t, PRESS_SHAKU[m4], (tt, f, d) => a.shaku(tt, f, d * 0.92, 0.75, { muraiki: tt === t && m4 === 0 }));
+    // 退けの合図のような、落ちる法螺貝
+    if (n % 8 === 4 && ps > 0.5) a.hora(t, hz('A2'), 2.5 * B, 0.6 * ps, { prio: 1, fall: true });
   }
-  if (x > 0.8 && !clx) { a.kane(t + 1.5 * B, 0.3); a.kane(t + 3.5 * B, 0.3); }
 }
 
 export const MUSIC_NAMES = Object.keys(CUES);

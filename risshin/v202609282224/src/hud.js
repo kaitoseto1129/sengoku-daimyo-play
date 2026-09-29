@@ -20,6 +20,8 @@ export function groupGeneral(g) {
   for (const u of g.units) if (u.alive && u.name && !u.isSub && (u.type === 'busho' || GENERALS[u.name.replace(/^.* /, '')])) return u;
   return null;
 }
+// 敵方の家紋（遠景の大軍の敵味方を、軍配 gunbai.js と同じく家紋で見分ける）
+const ENEMY_MON = new Set(['takeda', 'akazonae', 'furin', 'imagawa', 'saito', 'azai', 'asakura', 'otani', 'ishida', 'shimazu', 'toyotomi', 'ukita', 'sanada', 'konishi', 'chosokabe', 'hikyaku']);
 // 隊の種類（遠目の見分け）：本陣・鉄砲・騎馬・弓・槍
 export function groupKind(g) {
   if (g.isPlayerSquad) return g.kind || 'spear';
@@ -1616,6 +1618,31 @@ export class Hud {
     g.restore();
   }
 
+  // 和紙の地（生成りの地に漉きむらと繊維）。一度だけ描いて、絵の模様として使い回す
+  washi(g) {
+    if (!this._washiC) {
+      const c = document.createElement('canvas'); c.width = c.height = 256;
+      const w = c.getContext('2d');
+      w.fillStyle = '#e8ddc2'; w.fillRect(0, 0, 256, 256);
+      let s = 7; const R = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+      for (let i = 0; i < 70; i++) { w.fillStyle = `rgba(${170 + R() * 40},${150 + R() * 36},${110 + R() * 30},${0.08 + R() * 0.1})`; w.beginPath(); w.ellipse(R() * 256, R() * 256, 10 + R() * 34, 6 + R() * 20, R() * 3, 0, Math.PI * 2); w.fill(); }
+      for (let i = 0; i < 260; i++) {
+        const x = R() * 256, y = R() * 256, a = R() * 6.28, l = 4 + R() * 14;
+        w.strokeStyle = `rgba(${120 + R() * 40},${100 + R() * 30},${70 + R() * 20},${0.12 + R() * 0.16})`; w.lineWidth = 0.5 + R() * 0.8;
+        w.beginPath(); w.moveTo(x, y); w.quadraticCurveTo(x + Math.cos(a + 0.6) * l * 0.5, y + Math.sin(a + 0.6) * l * 0.5, x + Math.cos(a) * l, y + Math.sin(a) * l); w.stroke();
+      }
+      this._washiC = c; this._washiP = new Map();
+    }
+    if (!this._washiP.has(g)) this._washiP.set(g, g.createPattern(this._washiC, 'repeat'));
+    return this._washiP.get(g);
+  }
+  // 大軍の塊を墨のにじみで描く下地（敵・味方で一枚ずつ。大きさが同じなら使い回す）
+  massLayer(i, Sz) {
+    this._mass = this._mass || [];
+    let c = this._mass[i];
+    if (!c || c.width !== Sz) { c = document.createElement('canvas'); c.width = c.height = Sz; this._mass[i] = c; }
+    return c;
+  }
   drawMap(cv, rt, range, rotate) {
     const g = cv.getContext('2d');
     const Sz = cv.width;
@@ -1632,16 +1659,25 @@ export class Hud {
       const rx = -(dx * cos - dz * sin), rz = dx * sin + dz * cos;
       return [Sz / 2 + rx * sc, Sz / 2 - rz * sc];
     };
+    // 画面での大きさ：iPhone 横では小地図が 60px ほどの小さな丸になる。その時は細かい物（兵の点・味方の鉄砲の扇・字）を描かず、線を太く
+    const shown = cv.clientWidth || Sz, px = Sz / Math.max(40, shown), tiny = rotate && shown < 100;
+    const k = Sz / 340;
+    // 墨と顔料の色（和紙の上で読める濃さ。色だけに頼らず、敵は三角・味方は四角・自分の組は輪）
+    const ca = S.colorAssist;
+    const C = { ink: '#1b1712', ally: ca ? '#0a6fa8' : '#2c4f86', enemy: ca ? '#c25a00' : '#b2331f', own: '#6e4508', gold: '#7a5a10', paper: 'rgba(240,232,212,.92)' };
+    const TC = (team) => (team !== 0 ? C.enemy : C.ally);
     g.save();
     if (rotate) { g.beginPath(); g.arc(Sz / 2, Sz / 2, Sz / 2 - 1, 0, Math.PI * 2); g.clip(); }
-    g.fillStyle = 'rgba(20,18,14,.55)';
-    g.fillRect(0, 0, Sz, Sz);
-    g.strokeStyle = 'rgba(190,170,120,.35)'; g.lineWidth = 2 * (Sz / 340);
+    // 和紙の地（小さい時は少し透かして、戦場を隠しすぎない）
+    g.globalAlpha = tiny ? 0.74 : 0.88;
+    g.fillStyle = this.washi(g); g.fillRect(0, 0, Sz, Sz);
+    g.globalAlpha = 1;
+    g.strokeStyle = 'rgba(110,86,52,.5)'; g.lineWidth = Math.max(2 * k, 1.6 * px);
     for (const path of rt.world.def.paths || []) {
       g.beginPath(); path.forEach(([x, z], i) => { const [a, b] = tr(x, z); i ? g.lineTo(a, b) : g.moveTo(a, b); }); g.stroke();
     }
     if (rt.world.def.water) {
-      g.fillStyle = 'rgba(70,95,105,.55)';
+      g.fillStyle = 'rgba(78,108,122,.4)';
       const Wx = rt.world.def.water.x;
       const pts = [tr(Wx, -200), tr(200, -200), tr(200, 200), tr(Wx, 200)];
       g.beginPath(); pts.forEach(([a, b], i) => (i ? g.lineTo(a, b) : g.moveTo(a, b))); g.fill();
@@ -1650,8 +1686,8 @@ export class Hud {
     for (const s of rt.army.structs) {
       if (!s.seg) continue;
       const hot = s.alive && s.hitT && now - s.hitT < 1.2;
-      g.strokeStyle = !s.alive ? 'rgba(192,69,46,.9)' : hot ? '#e8a13a' : 'rgba(210,190,140,.9)';
-      g.lineWidth = (hot ? 5 : 3) * (Sz / 340);
+      g.strokeStyle = !s.alive ? C.enemy : hot ? '#b86a0e' : 'rgba(40,33,24,.85)';
+      g.lineWidth = Math.max((hot ? 5 : 3) * k, (hot ? 2.4 : 1.5) * px);
       const [a1, b1] = tr(s.seg[0], s.seg[1]), [a2, b2] = tr(s.seg[2], s.seg[3]);
       g.beginPath(); g.moveTo(a1, b1); g.lineTo(a2, b2); g.stroke();
     }
@@ -1659,22 +1695,110 @@ export class Hud {
     // 見えている敵だけを描く：足軽の目は 70m、組頭・足軽大将候補は物見の知らせで 150m、足軽大将より上は戦場全体
     const PU = rt.player.u.pos, sight = rt.G.lordTitle || rt.G.rank >= 4 ? Infinity : rt.G.rank >= 2 ? 150 : 70;
     const seen = (x, z) => Math.hypot(x - PU.x, z - PU.z) < sight;
-    for (const u of rt.army.units) {
+    const far = (x, z, m = 1.5) => Math.abs(x - cx) > range * m || Math.abs(z - cz) > range * m;
+
+    // ---- 大軍の塊：本物の兵に、軽い兵（遠景の大軍・軽い大軍の合戦）の広がりも足して、敵・味方の墨のにじみにする ----
+    // 大軍は遠くからでも見えるので、見通しに関わらず描く（本物の敵兵だけは見えている者のみ）
+    {
+      const shapes = [[], []];   // [味方, 敵] ごとに、{ pts } か { x, z, r }
+      for (const u of rt.army.units) {
+        if (!u.alive || u.isPlayer || u.type === 'dummy' || u.type === 'porter' || u.fleeing) continue;
+        if (u.team !== 0 && !seen(u.pos.x, u.pos.z)) continue;
+        if (far(u.pos.x, u.pos.z)) continue;
+        shapes[u.team !== 0 ? 1 : 0].push({ x: u.pos.x, z: u.pos.z, r: 3.2 });
+      }
+      const W = rt.world, sides = rt.def.sides || {};
+      for (const A of W.armies || []) {
+        if (!A.mesh || !A.mesh.visible || A.rout) continue;
+        const n = (A.n || 0) - (A.took || 0);
+        if (n < 6) continue;
+        A.mesh.updateMatrixWorld();
+        const e = A.mesh.matrixWorld.elements, ox = A.cx + A.off.x, oz = A.cz + A.off.z;
+        const x = e[0] * ox + e[8] * oz + e[12], z = e[2] * ox + e[10] * oz + e[14];
+        if (far(x, z, 2.2)) continue;
+        // 軍配（gunbai.js）と同じ見分け：戦の定義の両軍の家紋、敵方の家紋
+        const team = A.team !== undefined ? A.team : sides.b && A.mon === sides.b.mon ? 1 : sides.a && A.mon === sides.a.mon ? 0 : ENEMY_MON.has(A.mon) ? 1 : 0;
+        // 広がりは数から見積もる（横に長い備：幅は奥行きのおよそ三倍）
+        const wd = Math.sqrt(n * 1.5 * 3), dp = n * 1.5 / wd, F = A.facing || 0, fc = Math.cos(F), fs = Math.sin(F), pts = [];
+        for (let i = 0; i < 12; i++) { const t = i / 12 * Math.PI * 2, lx = Math.cos(t) * wd / 2, lz = Math.sin(t) * dp / 2; pts.push(tr(x + lx * fc + lz * fs, z - lx * fs + lz * fc)); }
+        shapes[team ? 1 : 0].push({ pts });
+      }
+      for (const Cl of W.clashes || []) {
+        if (!Cl.blocks || !Cl.frontAt) continue;
+        if (far(Cl.x, Cl.z, 2.5)) continue;
+        for (const Sd of [Cl.A, Cl.B]) {
+          if (!Sd || !Sd.P || Sd.P.hidden || Sd.routed || !Sd.alive) continue;
+          const team = Sd.P.team !== undefined ? Sd.P.team : Sd === Cl.A ? 0 : 1;
+          // 前線の列から後ろへ、残った数の厚み（後詰めがあれば厚く）
+          const D = ((Sd.rows || 4) * 1.15 + (Sd.host ? 12 : 3)) * Math.max(0.3, Sd.alive / (Sd.n0 || Sd.alive)), g0 = (Cl.o && Cl.o.gap || 3.4) / 2;
+          const front = [], back = [];
+          for (let j = 0; j < Cl.nb; j++) { const a = Cl.frontAt(j, -Sd.sgn * g0), b = Cl.frontAt(j, -Sd.sgn * (g0 + D)); front.push(tr(a.x, a.z)); back.push(tr(b.x, b.z)); }
+          shapes[team ? 1 : 0].push({ pts: front.concat(back.reverse()) });
+        }
+      }
+      // 二度塗り：外は淡く広く、芯は濃く。塊が重なっても濃くなりすぎないよう、下地に塗ってから一度に重ねる
+      for (let t = 0; t < 2; t++) {
+        if (!shapes[t].length) continue;
+        const L = this.massLayer(t, Sz), m = L.getContext('2d');
+        for (const [grow, alpha] of [[1.5, 0.16], [1, 0.2]]) {
+          m.clearRect(0, 0, Sz, Sz);
+          m.fillStyle = t ? C.enemy : C.ally; m.strokeStyle = m.fillStyle; m.lineJoin = 'round';
+          m.lineWidth = Math.max(2, 5 * sc * grow);
+          for (const s of shapes[t]) {
+            m.beginPath();
+            if (s.pts) { s.pts.forEach(([a, b], i) => (i ? m.lineTo(a, b) : m.moveTo(a, b))); m.closePath(); m.fill(); m.stroke(); }
+            else { const [a, b] = tr(s.x, s.z); m.arc(a, b, Math.max(1.5 * px, s.r * sc * grow), 0, Math.PI * 2); m.fill(); }
+          }
+          g.globalAlpha = alpha; g.drawImage(L, 0, 0); g.globalAlpha = 1;
+        }
+      }
+    }
+
+    // ---- 鉄砲隊の向き：筒先の向きへ、玉の届く扇（敵の扇は小さい時も描く。味方は大きい時だけ） ----
+    for (const grp of rt.army.groups) {
+      if (!grp.count || grp.routed || grp.name === 'player') continue;
+      if (!(grp.isGun || (grp._kind || groupKind(grp)) === 'gun')) continue;
+      const c = grp.center();
+      if (far(c.x, c.z)) continue;
+      if (grp.team !== 0 && !seen(c.x, c.z)) continue;
+      if (grp.team === 0 && tiny) continue;
+      const f = grp.forward(), fa = Math.atan2(f.x, f.z), R = 45;
+      const [a0, b0] = tr(c.x, c.z);
+      g.beginPath(); g.moveTo(a0, b0);
+      for (let i = 0; i <= 6; i++) { const t = fa - 0.3 + i * 0.1; const [a, b] = tr(c.x + Math.sin(t) * R, c.z + Math.cos(t) * R); g.lineTo(a, b); }
+      g.closePath();
+      g.fillStyle = grp.team !== 0 ? 'rgba(178,51,31,.14)' : 'rgba(44,79,134,.12)'; g.fill();
+      g.strokeStyle = grp.team !== 0 ? 'rgba(178,51,31,.55)' : 'rgba(44,79,134,.45)'; g.lineWidth = Math.max(1.4 * k, 1.1 * px);
+      g.setLineDash([5 * k, 4 * k]); g.stroke(); g.setLineDash([]);
+    }
+
+    // ---- 兵の点（小さい時は塊だけにして、点は描かない） ----
+    if (!tiny) for (const u of rt.army.units) {
       if (!u.alive || u.isPlayer || u.type === 'dummy') continue;
       if (u.team !== 0 && !seen(u.pos.x, u.pos.z)) continue;
-      if (Math.abs(u.pos.x - cx) > range * 1.5 || Math.abs(u.pos.z - cz) > range * 1.5) continue;
+      if (far(u.pos.x, u.pos.z)) continue;
       const [a, b] = tr(u.pos.x, u.pos.z);
       if (u.team !== 0) {
         // 敵は三角（色だけに頼らない）
-        g.fillStyle = u.fleeing ? 'rgba(200,110,90,.45)' : S.colorAssist ? '#ff9a1a' : '#d4553b';
+        g.fillStyle = u.fleeing ? 'rgba(178,51,31,.4)' : C.enemy;
         g.beginPath(); g.moveTo(a, b - r0 * 0.9); g.lineTo(a + r0 * 0.8, b + r0 * 0.6); g.lineTo(a - r0 * 0.8, b + r0 * 0.6); g.closePath(); g.fill();
       } else if (u.isSub) {
-        g.fillStyle = '#f1e9d6';
+        g.fillStyle = C.own;
         g.beginPath(); g.arc(a, b, r0 * 0.7, 0, Math.PI * 2); g.fill();
       } else {
-        g.fillStyle = u.invuln && u.name ? '#c2a25a' : S.colorAssist ? '#4fc3f7' : '#6f8fbf';
+        g.fillStyle = u.invuln && u.name ? C.gold : C.ally;
         g.fillRect(a - r0 / 2, b - r0 / 2, r0, r0);
       }
+    }
+    // ---- 自分の組：組の者を囲む輪（墨の縁に金茶） ----
+    for (const grp of rt.squadGroups || []) {
+      if (!grp.count) continue;
+      const c = grp.center();
+      let rr = 2;
+      for (const u of grp.units) if (u.alive) rr = Math.max(rr, Math.hypot(u.pos.x - c.x, u.pos.z - c.z));
+      const [a, b] = tr(c.x, c.z), R = Math.max(r0 * 1.8, (rr + 1.5) * sc);
+      g.strokeStyle = C.paper; g.lineWidth = Math.max(4 * k, 3.2 * px); g.beginPath(); g.arc(a, b, R, 0, Math.PI * 2); g.stroke();
+      g.strokeStyle = C.own; g.lineWidth = Math.max(2 * k, 1.8 * px); g.beginPath(); g.arc(a, b, R, 0, Math.PI * 2); g.stroke();
     }
     // 組を向かわせた行き先（前進の号令・地図での指図）：戦場の地面と同じ白い小旗と点線。使番が走っている間は薄く
     for (const grp of rt.squadGroups || []) {
@@ -1683,10 +1807,9 @@ export class Hud {
       if (!dest || !grp.count) continue;
       const c = grp.center();
       const [a1, b1] = tr(c.x, c.z), [a2, b2] = tr(dest.x, dest.z);
-      const k = Sz / 340;
       g.save();
       g.globalAlpha = pend ? 0.6 : 1;
-      g.strokeStyle = 'rgba(241,233,214,.85)'; g.lineWidth = 1.6 * k; g.setLineDash([4 * k, 5 * k]);
+      g.strokeStyle = 'rgba(27,23,18,.75)'; g.lineWidth = 1.6 * k; g.setLineDash([4 * k, 5 * k]);
       g.beginPath(); g.moveTo(a1, b1); g.lineTo(a2, b2); g.stroke();
       g.setLineDash([]);
       this.flagIcon(g, a2, b2, r0 * 4.2);
@@ -1697,26 +1820,27 @@ export class Hud {
       const q = typeof m.pos === 'function' ? m.pos() : m.pos;
       if (!q) continue;
       let [a, b] = tr(q.x, q.z);
-      const col = m.red ? '#e36a52' : '#c2a25a';
-      const rr = Math.hypot(a - Sz / 2, b - Sz / 2), rim = Sz / 2 - r0 * 3.2;
+      const col = m.red ? C.enemy : '#c2961e';
+      const rr = Math.hypot(a - Sz / 2, b - Sz / 2), rim = Sz / 2 - r0 * 3.2 - (tiny ? 3 * px : 0);
+      const big = tiny ? 1.5 : 1;
       if (rotate && rr > rim) {
         const ang = Math.atan2(b - Sz / 2, a - Sz / 2);
         a = Sz / 2 + Math.cos(ang) * rim; b = Sz / 2 + Math.sin(ang) * rim;
-        g.save(); g.translate(a, b); g.rotate(ang);
+        g.save(); g.translate(a, b); g.rotate(ang); g.scale(big, big);
         g.beginPath(); g.moveTo(r0 * 2.4, 0); g.lineTo(-r0 * 1.2, -r0 * 1.7); g.lineTo(-r0 * 1.2, r0 * 1.7); g.closePath();
-        g.fillStyle = col; g.strokeStyle = '#120f0b'; g.lineWidth = 2.5; g.stroke(); g.fill();
+        g.fillStyle = col; g.strokeStyle = C.ink; g.lineWidth = 3; g.stroke(); g.fill();
         g.restore();
         continue;
       }
-      g.save(); g.translate(a, b); g.rotate(Math.PI / 4);
-      g.strokeStyle = '#120f0b'; g.lineWidth = 5; g.strokeRect(-r0 * 1.4, -r0 * 1.4, r0 * 2.8, r0 * 2.8);
-      g.strokeStyle = col; g.lineWidth = 2.5; g.strokeRect(-r0 * 1.4, -r0 * 1.4, r0 * 2.8, r0 * 2.8);
+      g.save(); g.translate(a, b); g.rotate(Math.PI / 4); g.scale(big, big);
+      g.strokeStyle = C.ink; g.lineWidth = 6; g.strokeRect(-r0 * 1.4, -r0 * 1.4, r0 * 2.8, r0 * 2.8);
+      g.strokeStyle = col; g.lineWidth = 3; g.strokeRect(-r0 * 1.4, -r0 * 1.4, r0 * 2.8, r0 * 2.8);
       g.restore();
       if (!rotate) {
         g.font = `${Math.round(Sz / 50)}px sans-serif`;
         const t = typeof m.label === 'function' ? m.label() : m.label;
-        g.lineWidth = 3; g.strokeStyle = 'rgba(10,8,6,.9)'; g.strokeText(t, a + r0 * 2, b + 4);
-        g.fillStyle = col; g.fillText(t, a + r0 * 2, b + 4);
+        g.lineWidth = 3; g.strokeStyle = C.paper; g.strokeText(t, a + r0 * 2, b + 4);
+        g.fillStyle = m.red ? C.enemy : C.ink; g.fillText(t, a + r0 * 2, b + 4);
       }
     }
     // 戦術マップでは部隊ごとの向きと、戦場と同じ形の隊旗（幟＝槍・弓、四角＝鉄砲、吹流し＝騎馬、大旗＝本陣）
@@ -1733,7 +1857,7 @@ export class Hud {
         const [a, b] = tr(c.x, c.z);
         const f = grp.forward();
         const [a2, b2] = tr(c.x + f.x * 10, c.z + f.z * 10);
-        const col = grp.team !== 0 ? '#e36a52' : grp.isPlayerSquad ? '#f1e9d6' : '#8fb0e0';
+        const col = grp.team !== 0 ? C.enemy : grp.isPlayerSquad ? C.own : C.ally;
         g.strokeStyle = col;
         g.lineWidth = 2;
         g.beginPath(); g.moveTo(a, b); g.lineTo(a2, b2); g.stroke();
@@ -1755,26 +1879,74 @@ export class Hud {
         g.fillStyle = col;
         // 字は要る時だけ：自分の組は隊の名、敵は乱れた時だけ（意気盛ん・平常は書かない）
         const lbl = grp.isPlayerSquad ? ((rt.squadGroups.length > 1 ? GROUP_NAME[grp.kind] : '') || '自分の組') + (grp.morale < 50 ? ` ${moraleWord(grp.morale)}` : '') : grp.team !== 0 ? (grp.routed ? '潰走' : grp.morale < 50 ? moraleWord(grp.morale) : '') : '';
-        if (lbl) { g.lineWidth = 3; g.strokeStyle = 'rgba(10,8,6,.9)'; g.strokeText(lbl, a + r0 * 4.6, b - 4); g.fillText(lbl, a + r0 * 4.6, b - 4); }
+        if (lbl) { g.lineWidth = 3; g.strokeStyle = C.paper; g.strokeText(lbl, a + r0 * 4.6, b - 4); g.fillText(lbl, a + r0 * 4.6, b - 4); }
       }
     }
+    // ---- 囲まれつつある向き：自分のまわり 30m の敵を向きごとに数え、縁に朱の弧。半ば以上を囲まれたら弧を太くし、空いている向き（退き口）に墨の矢印 ----
+    if (rotate && p.alive) {
+      const NB = 16, bins = new Array(NB).fill(0), [pa0, pb0] = tr(p.pos.x, p.pos.z);
+      for (const u of rt.army.units) {
+        if (!u.alive || u.team === 0 || u.fleeing || u.type === 'dummy') continue;
+        const d = Math.hypot(u.pos.x - p.pos.x, u.pos.z - p.pos.z);
+        if (d > 30 || d < 0.5) continue;
+        const [a, b] = tr(u.pos.x, u.pos.z);
+        const ang = Math.atan2(b - pb0, a - pa0);
+        bins[((Math.round(ang / (Math.PI * 2) * NB) % NB) + NB) % NB] += 1.2 - d / 30;
+      }
+      const hot = bins.map((v) => v >= 0.7), cover = hot.filter(Boolean).length, ring = cover >= NB / 2;
+      if (cover) {
+        const R = Sz / 2 - Math.max(5 * k, 4 * px), pulse = ring && !S.reduceMotion ? 0.75 + 0.25 * Math.sin(now * 6) : 1;
+        g.lineCap = 'round';
+        for (let i = 0; i < NB; i++) {
+          if (!hot[i]) continue;
+          const a = i / NB * Math.PI * 2, hw = Math.PI / NB * 0.92;
+          g.strokeStyle = `rgba(178,51,31,${Math.min(0.95, 0.45 + bins[i] * 0.25) * pulse})`;
+          g.lineWidth = Math.max((ring ? 9 : 6) * k, (ring ? 5 : 3.5) * px);
+          g.beginPath(); g.arc(Sz / 2, Sz / 2, R, a - hw, a + hw); g.stroke();
+        }
+        g.lineCap = 'butt';
+        if (ring && cover < NB) {
+          // 退き口：いちばん長く空いている向きの真ん中
+          let best = -1, bl = 0;
+          for (let i = 0; i < NB; i++) { if (hot[i]) continue; let l = 0; while (l < NB && !hot[(i + l) % NB]) l++; if (l > bl) { bl = l; best = i; } }
+          const ang = (best + (bl - 1) / 2) / NB * Math.PI * 2, rr = R - Math.max(10 * k, 6 * px);
+          g.save(); g.translate(Sz / 2 + Math.cos(ang) * rr, Sz / 2 + Math.sin(ang) * rr); g.rotate(ang);
+          const s = Math.max(r0, 2.4 * px);
+          g.beginPath(); g.moveTo(s * 2.2, 0); g.lineTo(-s, -s * 1.5); g.lineTo(-s * 0.3, 0); g.lineTo(-s, s * 1.5); g.closePath();
+          g.fillStyle = C.ink; g.strokeStyle = C.paper; g.lineWidth = Math.max(2, 1.2 * px); g.stroke(); g.fill();
+          g.restore();
+        }
+      }
+    }
+    // 自分：墨の矢印に和紙の縁
     const [pa, pb] = tr(p.pos.x, p.pos.z);
     g.save(); g.translate(pa, pb);
     g.rotate(rotate && !northUp ? 0 : -(p.heading - Math.PI));
-    g.fillStyle = '#f1e9d6';
-    g.beginPath(); g.moveTo(0, -r0 * 2.4); g.lineTo(r0 * 1.4, r0 * 1.5); g.lineTo(-r0 * 1.4, r0 * 1.5); g.closePath(); g.fill();
+    if (tiny) g.scale(1.35, 1.35);
+    g.beginPath(); g.moveTo(0, -r0 * 2.4); g.lineTo(r0 * 1.4, r0 * 1.5); g.lineTo(0, r0 * 0.8); g.lineTo(-r0 * 1.4, r0 * 1.5); g.closePath();
+    g.strokeStyle = C.paper; g.lineWidth = 3; g.stroke();
+    g.fillStyle = C.ink; g.fill();
     g.restore();
     g.restore();
     if (rotate) {
-      // 北の方角
-      const R = Sz / 2 - 16;
-      const nx = Sz / 2 - Math.sin(yaw) * R, ny = Sz / 2 + Math.cos(yaw) * R;
-      g.fillStyle = '#c2a25a'; g.font = `bold ${Math.round(Sz / 14)}px serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText('北', nx, ny);
-      g.textAlign = 'start'; g.textBaseline = 'alphabetic';
+      // 墨の縁（筆で引いた輪。太さに少しむら）
+      g.strokeStyle = 'rgba(27,23,18,.8)'; g.lineWidth = Math.max(3 * k, 1.6 * px);
+      g.beginPath(); g.arc(Sz / 2, Sz / 2, Sz / 2 - g.lineWidth / 2, 0, Math.PI * 2); g.stroke();
+      g.strokeStyle = 'rgba(27,23,18,.45)'; g.lineWidth = Math.max(2 * k, px);
+      g.beginPath(); g.arc(Sz / 2 + 0.6 * px, Sz / 2 - 0.4 * px, Sz / 2 - 2.5 * px, 2.4, 5.6); g.stroke();
+      // 北の方角（小さい時は描かない：丸が小さく、字が潰れる）
+      if (!tiny) {
+        const R = Sz / 2 - 16;
+        const nx = Sz / 2 - Math.sin(yaw) * R, ny = Sz / 2 + Math.cos(yaw) * R;
+        g.font = `bold ${Math.round(Sz / 14)}px serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.lineWidth = 4; g.strokeStyle = C.paper; g.strokeText('北', nx, ny);
+        g.fillStyle = '#8a2a18'; g.fillText('北', nx, ny);
+        g.textAlign = 'start'; g.textBaseline = 'alphabetic';
+      }
     } else {
-      g.fillStyle = 'rgba(236,228,210,.75)'; g.font = `${Math.round(Sz / 40)}px sans-serif`;
-      g.fillText('北 ↑', Sz / 2 - 16, 26);
+      g.font = `${Math.round(Sz / 40)}px sans-serif`;
+      g.lineWidth = 3; g.strokeStyle = C.paper; g.strokeText('北 ↑', Sz / 2 - 16, 26);
+      g.fillStyle = C.ink; g.fillText('北 ↑', Sz / 2 - 16, 26);
     }
   }
 }

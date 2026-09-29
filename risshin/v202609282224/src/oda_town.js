@@ -100,6 +100,13 @@ export function odaToiyaHint(G, k) {
   return (t && t.toiya && t.toiya[k]) ? { name: b.name.replace(/の戦い$/, ''), text: t.toiya[k] } : null;
 }
 
+// 戦の支度（兵糧など）が、次の戦のどこで効くか（toiya.js が引く。k は next の鍵：feast など。無ければ ''）
+export function odaPrepHint(G, k) {
+  const b = BATTLES[G.battle];
+  const t = b && TOWN[b.id];
+  return (t && t.next && t.next[k]) || '';
+}
+
 // 宿で聞く噂（次の戦の手がかり。一つの城下に四つ）
 const RUMORS = {
   moribe: ['美濃の斎藤勢は、先手を前に出して様子を見るのが常らしい', '林の陰から横を突かれると、どんな備えも崩れるものよ', '斎藤義龍が死んで、跡を継いだ龍興はまだ若いと聞く', '森部の辺りは雨が続くと田がぬかるむ。足を取られるなよ'],

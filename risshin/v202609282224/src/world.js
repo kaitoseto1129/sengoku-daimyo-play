@@ -250,9 +250,11 @@ function rippleWater(mat, fx, fz, amt = 3.5) {
 // 足もとの高さは地面の高さの絵から読む（隊ごと動かしても、坂で浮いたり埋まったりしない）
 // 兵の種類（aInfo.y）：0 槍　1 鉄砲　2 弓　3 侍（兜）　4 旗持ち　5 騎馬（馬に乗る）　6 床几に座る大将
 const ARMY_GLSL = `
-uniform float uAT, uGust, uIdle, uMarch, uCharge, uTurn, uRout, uRoutT;
+uniform float uAT, uGust, uIdle, uMarch, uCharge, uTurn, uRout, uRoutT, uShim;
 uniform sampler2D uHgt; uniform vec3 uHP;
 attribute vec4 aInfo; attribute vec2 aInfo2; attribute float aPart;
+// aHost：後詰め（隊の後ろに続く軽い兵）の奥行き（0 は隊の本体。後ろほど 1 に近く、霞む）
+attribute float aHost; varying float vAHz;
 mat3 aRotX(float a) { float c = cos(a), s = sin(a); return mat3(1.0, 0.0, 0.0, 0.0, c, s, 0.0, -s, c); }
 mat3 aRotY(float a) { float c = cos(a), s = sin(a); return mat3(c, 0.0, -s, 0.0, 1.0, 0.0, s, 0.0, c); }
 mat3 aRotZ(float a) { float c = cos(a), s = sin(a); return mat3(c, s, 0.0, -s, c, 0.0, 0.0, 0.0, 1.0); }
@@ -323,6 +325,16 @@ APose aPose() {
   P.off = wand + aRotY(P.yaw) * vec3(0.0, 0.0, rtm * spd * (kd == 5.0 ? 2.0 : 1.0));
   P.lift += down * 0.12;
   if (kd == 5.0 && pt < 20.0) P.lift += 0.98;
+  // 進む時の波打ち：隊の横へ流れる波で、列が前後にうねり、背が上下し、槍の林が揺れる（大軍が一つの生き物のように動く）
+  #ifdef USE_INSTANCING
+  {
+    vec2 ip = instanceMatrix[3].xz;
+    float wv = sin(dot(ip, vec2(0.11, 0.083)) - uAT * 1.6), mk = uMarch * (1.0 - run);
+    P.off.z += mk * 0.35 * wv;
+    P.lift += mk * 0.05 * max(0.0, wv);
+    P.spear += mk * 0.1 * wv;
+  }
+  #endif
   if (kd == 6.0) { P.lift -= 0.34; P.yaw = look * 0.5; P.off = vec3(0.0); }
   return P;
 }
@@ -367,24 +379,42 @@ const ARMY_PUSH = `
    // 押し出さない（押し出すと、近づくほど大軍が遠ざかって輪になる）。カメラのすぐ近くの軽い兵だけを見えなくする。
    //   近くは wake（b_nagashinojo.js）が同じ場所の軽い兵を本物の兵に替えて埋める
    if (dd < uArmyNear) AP.show = 0.0;
+   // 後詰めは本体より広く空ける（近くは本体と本物の兵が受け持つ）
+   if (aHost > 0.0 && dd < uArmyNear + 25.0) AP.show = 0.0;
  }
  #endif`;
+// 画面へ：足もとを地面に合わせ、遠くは陽炎で揺らぎ（地面に近いほど強く）、後詰めは奥ほど霧の色へ沈む
+const ARMY_PROJ = `vec4 aIP = vec4(transformed, 1.0), aFP = vec4(AP.off.x, 0.0, AP.off.z, 1.0);
+        #ifdef USE_INSTANCING
+          aIP = instanceMatrix * aIP; aFP = instanceMatrix * aFP;
+        #endif
+        vec4 aW = modelMatrix * aIP, aWF = modelMatrix * aFP;
+        float aG = aTerrain(aWF.xz);
+        aW.y += aG - aWF.y;
+        vec4 mvPosition = viewMatrix * aW;
+        {
+          float aDist = length(mvPosition.xyz);
+          float aSh = uShim * smoothstep(60.0, 220.0, aDist) * aDist * 0.0011 * (0.5 + 0.5 * smoothstep(2.5, 0.0, aW.y - aG));
+          mvPosition.x += aSh * sin(uAT * 7.3 + aW.y * 5.0 + aW.x * 0.37);
+          mvPosition.y += aSh * 0.5 * sin(uAT * 5.1 + aW.y * 4.0 + aW.z * 0.41);
+          vAHz = aHost * 0.42 * smoothstep(25.0, 110.0, aDist);
+        }
+        gl_Position = projectionMatrix * mvPosition;`;
+// 陽炎の強さ（晴れて乾いた昼ほど強い。World.update が決める）
+const SHIMMER = { value: 0.6 };
 function armyShader(mat, U) {
   mat.onBeforeCompile = (sh) => {
-    Object.assign(sh.uniforms, U, { uArmyNear: ARMY_NEAR, uArmyP: ARMY_P });
+    Object.assign(sh.uniforms, U, { uArmyNear: ARMY_NEAR, uArmyP: ARMY_P, uShim: SHIMMER });
+    sh.fragmentShader = 'varying float vAHz;\n' + sh.fragmentShader.replace('#include <fog_fragment>', `#include <fog_fragment>
+      #ifdef USE_FOG
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, vAHz);
+      #endif`);
     sh.vertexShader = 'uniform float uArmyNear; uniform vec2 uArmyP;\n' + ARMY_GLSL + sh.vertexShader
       .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
  APose AP = aPose();${ARMY_PUSH}
  objectNormal = normalize(aApply(AP, objectNormal, 1.0) + vec3(0.0, 1e-4, 0.0));`)
       .replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed = aApply(AP, transformed, 0.0);')
-      .replace('#include <project_vertex>', `vec4 aIP = vec4(transformed, 1.0), aFP = vec4(AP.off.x, 0.0, AP.off.z, 1.0);
-        #ifdef USE_INSTANCING
-          aIP = instanceMatrix * aIP; aFP = instanceMatrix * aFP;
-        #endif
-        vec4 aW = modelMatrix * aIP, aWF = modelMatrix * aFP;
-        aW.y += aTerrain(aWF.xz) - aWF.y;
-        vec4 mvPosition = viewMatrix * aW;
-        gl_Position = projectionMatrix * mvPosition;`);
+      .replace('#include <project_vertex>', ARMY_PROJ);
   };
   return mat;
 }
@@ -445,20 +475,13 @@ void cPose(inout APose P) {
 `;
 function clashShader(mat, U) {
   mat.onBeforeCompile = (sh) => {
-    Object.assign(sh.uniforms, U, { uArmyP: ARMY_P });
+    Object.assign(sh.uniforms, U, { uArmyP: ARMY_P, uShim: SHIMMER });
     sh.vertexShader = 'uniform vec2 uArmyP;\n' + CLASH_GLSL + sh.vertexShader
       .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
  APose AP = aPose(); cPose(AP);${ARMY_PUSH.replace(/uArmyNear/g, 'uNearHide')}
  objectNormal = normalize(aApply(AP, objectNormal, 1.0) + vec3(0.0, 1e-4, 0.0));`)
       .replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed = aApply(AP, transformed, 0.0);')
-      .replace('#include <project_vertex>', `vec4 aIP = vec4(transformed, 1.0), aFP = vec4(AP.off.x, 0.0, AP.off.z, 1.0);
-        #ifdef USE_INSTANCING
-          aIP = instanceMatrix * aIP; aFP = instanceMatrix * aFP;
-        #endif
-        vec4 aW = modelMatrix * aIP, aWF = modelMatrix * aFP;
-        aW.y += aTerrain(aWF.xz) - aWF.y;
-        vec4 mvPosition = viewMatrix * aW;
-        gl_Position = projectionMatrix * mvPosition;`);
+      .replace('#include <project_vertex>', ARMY_PROJ);
   };
   return mat;
 }
@@ -532,6 +555,34 @@ function soldierGeo(armor, near) {
   g.computeBoundingSphere();
   SOLDIER_GEO.set(key, g);
   return g;
+}
+// 後詰めの兵一人の形：遠くからしか見ないので、角をさらに減らし、得物は槍と幟の竿だけ（影絵で人と槍と笠が分かれば足りる）
+const HOST_GEO = new Map();
+function hostGeo(armor) {
+  if (HOST_GEO.has(armor)) return HOST_GEO.get(armor);
+  const P = [], arm = new THREE.Color(armor), dark = arm.clone().multiplyScalar(0.72).getHex();
+  const cyl = (rt, rb, h, seg, x, y, z) => { const g = new THREE.CylinderGeometry(rt, rb, h, seg, 1, true); g.translate(x, y, z); return g; };
+  for (const [sx, pt] of [[-0.1, 8], [0.1, 9]]) armyPart(P, cyl(0.075, 0.055, 0.82, 4, sx, 0.42, 0), 0x2a261f, pt);
+  const skirt = cyl(0.19, 0.26, 0.34, 5, 0, 0.9, 0); skirt.scale(1, 1, 0.8); armyPart(P, skirt, dark, 0);
+  const dou = cyl(0.22, 0.18, 0.55, 5, 0, 1.33, 0); dou.scale(1, 1, 0.75); armyPart(P, dou, armor, 0);
+  for (const sx of [-1, 1]) { const a = cyl(0.05, 0.045, 0.5, 3, sx * 0.28, 1.2, 0.03); armyPart(P, a, 0x2a2620, 0); }
+  const head = new THREE.SphereGeometry(0.1, 5, 3); head.scale(0.95, 1.1, 1); head.translate(0, 1.7, 0.01); armyPart(P, head, 0x8a6a4e, 0);
+  const kasa = new THREE.ConeGeometry(0.32, 0.13, 6, 1, true); kasa.translate(0, 1.82, 0); armyPart(P, kasa, 0x2c261e, 1);
+  const hachi = new THREE.ConeGeometry(0.2, 0.2, 5, 1, true); hachi.translate(0, 1.8, 0); armyPart(P, hachi, 0x1c1a18, 2);
+  armyPart(P, cyl(0.012, 0.012, 1.4, 3, 0, 1.95, -0.17), 0x2f2419, 10);
+  armyPart(P, cyl(0.016, 0.02, 4.3, 3, 0.3, 2.1, 0.14), 0x3b2a1a, 3);
+  const ho = new THREE.ConeGeometry(0.03, 0.3, 3); ho.translate(0.3, 4.4, 0.14); armyPart(P, ho, 0x9a9a98, 3);
+  armyPart(P, cyl(0.028, 0.034, 5.4, 3, 0.3, 2.6, 0.14), 0x2f2419, 6);
+  const bar = cyl(0.018, 0.018, 0.8, 3, 0, 0, 0); bar.rotateZ(Math.PI / 2); bar.translate(0.7, 5.22, 0.14); armyPart(P, bar, 0x2f2419, 6);
+  const g = mergeGeometries(P);
+  g.computeBoundingSphere();
+  HOST_GEO.set(armor, g);
+  return g;
+}
+// 兵ごとの色：使い込んだ具足の明るさのむらに、日焼け・褪せ（暖かい）と、濡れ・煤（冷たい）の寄りを少し
+function soldierTint(col, R) {
+  const v = 0.76 + R() * 0.36, w = (R() - 0.5) * 0.12;
+  return col.setRGB(v * (1 + w), v * (1 + w * 0.3), v * (1 - w * 0.8));
 }
 // 馬（騎馬の兵の下に置く）。胴・首・頭・脚・尾。馬具の色を o.tack で
 let HORSE_GEO = null;
@@ -1011,7 +1062,7 @@ export class World {
   currentLook() {
     const U = this.skyMat.uniforms;
     return {
-      sky: this.scene.background.clone(), fog: this.scene.fog.color.clone(), sun: this.sun.color.clone(), sunI: this.sun.intensity / LIGHT_K.sun,
+      sky: this.scene.background.clone(), fog: this.scene.fog.color.clone(), sun: this.sun.color.clone(), sunI: this.sun.intensity / LIGHT_K.sun / (this.rainDim || 1),
       hemiSky: this.hemi.color.clone(), hemiGround: this.hemi.groundColor.clone(), hemiI: (this.baseHemi ?? this.hemi.intensity) / LIGHT_K.hemi,
       sunDir: this.sunOffset.clone().normalize(), top: U.top.value.clone(), glow: U.glow.value.clone(), glowK: U.glowK.value, cover: U.cover.value, cloudDark: U.cloudDark.value,
       vis: this.look ? this.look.vis : 500, cloud: this.look ? this.look.cloud : 0.4,
@@ -1023,7 +1074,7 @@ export class World {
     this.scene.background.copy(L.sky);
     this.scene.fog.color.copy(L.fog);
     this.sun.color.copy(L.sun);
-    this.sun.intensity = L.sunI * LIGHT_K.sun;
+    this.sun.intensity = L.sunI * LIGHT_K.sun * (this.rainDim || 1);
     this.hemi.color.copy(L.hemiSky);
     this.hemi.groundColor.copy(L.hemiGround);
     this.hemi.intensity = L.hemiI * LIGHT_K.hemi;
@@ -1163,45 +1214,68 @@ export class World {
       uniforms: {
         top: { value: new THREE.Color(0x6a88a8) }, bottom: { value: new THREE.Color(0xa9b7bd) }, glow: { value: new THREE.Color(0xff9a50) }, glowK: { value: 0 }, flash: { value: 0 },
         sunDir: { value: new THREE.Vector3(0.4, 0.7, 0.3) }, sunCol: { value: new THREE.Color(0xfff0d8) }, time: { value: 0 }, cover: { value: 0.4 }, cloudDark: { value: 0.1 }, pall: { value: 0 },
+        rain: { value: 0 }, age: { value: 0 },
       },
       vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
       fragmentShader: `
-        uniform vec3 top, bottom, glow, sunCol, sunDir; uniform float glowK, flash, time, cover, cloudDark, pall; varying vec3 vP;
+        uniform vec3 top, bottom, glow, sunCol, sunDir; uniform float glowK, flash, time, cover, cloudDark, pall, rain, age; varying vec3 vP;
         float h(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
         float n(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h(i), h(i+vec2(1,0)), f.x), mix(h(i+vec2(0,1)), h(i+vec2(1,1)), f.x), f.y); }
         float fbm(vec2 p){ float v = 0.0, a = 0.5; for (int k = 0; k < 5; k++) { v += a * n(p); p *= 2.03; a *= 0.5; } return v; }
+        float fbm3(vec2 p){ float v = 0.0, a = 0.5; for (int k = 0; k < 3; k++) { v += a * n(p); p *= 2.03; a *= 0.5; } return v / 0.875; }
         void main(){
           vec3 d = normalize(vP);
+          // 雨の日は雲が空を覆い、暗く重い
+          float cov = clamp(max(cover, rain * 0.9), 0.0, 0.97), cdk = max(cloudDark, rain * 0.5);
           float hgt = clamp(d.y * 1.5 + 0.04, 0.0, 1.0);
           vec3 c = mix(bottom, top, pow(hgt, 0.8));
           float sd = max(0.0, dot(d, normalize(sunDir)));
-          c += sunCol * (pow(sd, 8.0) * 0.18 + pow(sd, 64.0) * 0.35) * (1.0 - cover * 0.6);
-          c += sunCol * smoothstep(0.9993, 0.9997, sd) * 1.2 * (1.0 - cover);
-          // 朝焼け・夕焼け：日の沈む（昇る）方の地平ほど濃い
+          c += sunCol * (pow(sd, 8.0) * 0.18 + pow(sd, 64.0) * 0.35) * (1.0 - cov * 0.6);
+          c += sunCol * smoothstep(0.9993, 0.9997, sd) * 1.2 * (1.0 - cov);
+          // 朝焼け・夕焼け：日の沈む（昇る）方の地平は橙、その少し上は薔薇色、天頂は紫がかった藍。
+          // 日と反対の地平すれすれは地球の影の青で、その上に薄紅の帯。夕暮れは時が経つほど（age）橙から紅へ
           float toSun = max(0.0, dot(normalize(d.xz + 0.0001), normalize(sunDir.xz + 0.0001)));
-          c += glow * glowK * exp(-abs(d.y) * 7.0) * (0.25 + 0.75 * toSun * toSun);
-          c = mix(c, c * vec3(1.02, 0.97, 1.05), glowK * (1.0 - toSun) * smoothstep(0.0, 0.3, d.y));
+          float low = 1.0 - smoothstep(0.0, 0.35, normalize(sunDir).y), anti = 1.0 - toSun;
+          vec3 gl2 = mix(glow, glow * vec3(1.05, 0.6, 0.55), age);
+          c += gl2 * glowK * exp(-abs(d.y) * 7.0) * (0.25 + 0.75 * toSun * toSun);
+          c += vec3(0.95, 0.55, 0.62) * glowK * low * exp(-pow((d.y - 0.15) * 6.0, 2.0)) * (0.08 + 0.22 * toSun) * (1.0 - cov * 0.5);
+          c = mix(c, c * vec3(0.78, 0.84, 1.0), glowK * low * anti * exp(-abs(d.y) * 12.0) * 0.55);
+          c += vec3(0.5, 0.3, 0.38) * glowK * low * anti * exp(-pow((d.y - 0.1) * 9.0, 2.0)) * 0.2 * (1.0 - cov * 0.5);
+          c = mix(c, c * vec3(1.02, 0.93, 1.1), glowK * smoothstep(0.15, 0.9, d.y) * 0.5);
           // 雲：空の丸天井に投影した雑音
           if (d.y > 0.0) {
             vec2 uv = d.xz / (d.y + 0.12) * 1.3 + vec2(time * 0.006, time * 0.003);
-            float cl = fbm(uv * 1.4);
-            float dens = smoothstep(1.0 - cover - 0.1, 1.0 - cover + 0.25, cl);
-            float lit = 0.75 + 0.35 * fbm(uv * 1.4 + normalize(sunDir).xz * 0.08) - cloudDark;
-            vec3 ccol = mix(vec3(0.62, 0.64, 0.66), vec3(1.0, 0.98, 0.95), clamp(lit, 0.0, 1.0)) * mix(vec3(1.0), sunCol, 0.25);
+            // 形を少し歪めて、もくもくした塊に。歪みはゆっくり別に動くので、雲は流れながら形を変える
+            vec2 uvw = uv + (vec2(fbm3(uv * 0.7 + 3.1 + time * 0.002), fbm3(uv * 0.7 - 1.7)) - 0.5) * 0.9;
+            float cl = fbm(uvw * 1.4);
+            float dens = smoothstep(1.0 - cov - 0.1, 1.0 - cov + 0.25, cl);
+            // 厚み：日の方へ少しずらした所の濃さとの差で、日の当たる縁と陰になった腹を分ける
+            float cl2 = fbm(uvw * 1.4 + normalize(sunDir.xz + 0.0001) * 0.12);
+            float lit = clamp(0.8 + (cl - cl2) * 2.4, 0.0, 1.2) - cdk;
+            vec3 ccol = mix(vec3(0.6, 0.62, 0.65), vec3(1.0, 0.98, 0.95), clamp(lit, 0.0, 1.0)) * mix(vec3(1.0), sunCol, 0.25);
+            // 日が低い時は、雲の底が焼けて橙・紅に染まる（日の方ほど濃い）
+            ccol = mix(ccol, ccol * 0.5 + gl2 * 0.95, glowK * low * (0.3 + 0.7 * toSun) * smoothstep(0.2, 0.9, dens) * (1.0 - cdk));
             float fade = smoothstep(0.0, 0.18, d.y);
             // 日の近くの雲は、薄い縁ほど光を通して白く輝く（雲の銀の縁）
-            ccol += sunCol * pow(sd, 5.0) * (1.0 - smoothstep(0.2, 0.9, dens)) * 0.55 * (1.0 - cloudDark);
+            ccol += sunCol * pow(sd, 5.0) * (1.0 - smoothstep(0.2, 0.9, dens)) * 0.55 * (1.0 - cdk);
             // 雲の厚み：濃い所ほど底が暗く（雲の腹の影）、縁は明るい
-            float belly = smoothstep(0.35, 0.95, dens) * (0.22 + cloudDark * 0.3);
+            float belly = smoothstep(0.35, 0.95, dens) * (0.22 + cdk * 0.3);
             ccol *= 1.0 - belly * (1.0 - pow(sd, 3.0) * 0.6);
             c = mix(c, ccol * (0.55 + hgt * 0.55), dens * fade * 0.92);
             // 高い所の薄い筋雲（ゆっくり、別の向きに流れる）。低い雲の隙間に見える
             vec2 uv2 = d.xz / (d.y + 0.05) * 0.55 + vec2(time * 0.0022, -time * 0.0012);
-            float ci = smoothstep(0.55, 0.85, fbm(uv2 * vec2(2.4, 0.7))) * (1.0 - dens) * fade * (1.0 - cover * 0.8);
+            float ci = smoothstep(0.55, 0.85, fbm(uv2 * vec2(2.4, 0.7))) * (1.0 - dens) * fade * (1.0 - cov * 0.8);
             c = mix(c, mix(vec3(1.0), sunCol, 0.3) * (0.9 + pow(sd, 4.0) * 0.3), ci * 0.35);
           }
           // 大きな火の煙の帳：空が茶色く濁り、日が陰る（上の方ほど濃い）
           c = mix(c, dot(c, vec3(0.3, 0.55, 0.15)) * vec3(0.92, 0.74, 0.56), pall * (0.45 + 0.4 * hgt));
+          // 雨の日：空は暗く沈み、遠くの地平には斜めに垂れる灰色の雨脚
+          if (rain > 0.01) {
+            float sx = atan(d.x, d.z) * 38.0 + d.y * 22.0;
+            float cur = n(vec2(sx, time * 0.04)) * n(vec2(sx * 0.27 + 5.0, time * 0.01));
+            c = mix(c, bottom * 0.78, rain * smoothstep(0.3, 0.75, cur) * exp(-max(d.y, 0.0) * 8.0) * 0.55);
+            c *= 1.0 - rain * 0.2;
+          }
           c += vec3(0.8, 0.85, 1.0) * flash;
           gl_FragColor = vec4(c, 1.0);
           #include <tonemapping_fragment>
@@ -1215,7 +1289,7 @@ export class World {
     const M = rng(this.def.seed || 5);
     this.mountMats = [];
     this.mountains = new THREE.Group();
-    this.mountU = { hazeCol: { value: new THREE.Color() }, sunDir: this.skyMat.uniforms.sunDir, sunCol: this.skyMat.uniforms.sunCol, mist: { value: 0 }, vis: { value: 500 }, rain: { value: 0 } };
+    this.mountU = { hazeCol: { value: new THREE.Color() }, sunDir: this.skyMat.uniforms.sunDir, sunCol: this.skyMat.uniforms.sunCol, glow: this.skyMat.uniforms.glow, glowK: this.skyMat.uniforms.glowK, mist: { value: 0 }, vis: { value: 500 }, rain: { value: 0 } };
     // 一番奥の峰は高く（峰で 150m ほど）、稜線を細かく刻んで、平たい丘の輪に見えないように
     [[330, 28, 1.0], [385, 62, 0.75], [440, 118, 0.6]].forEach(([rad, H, sharp], layer) => {
       const N = layer === 2 ? 480 : 240, ROWS = 5, pos = [], uv = [], idx = [];
@@ -1242,7 +1316,7 @@ export class World {
         uniforms: { ...this.mountU, color: { value: new THREE.Color(0x33443e) }, haze: { value: 0.5 }, layer: { value: layer } },
         vertexShader: 'varying vec2 vUv; varying vec3 vP; varying vec3 vW; void main(){ vUv = uv; vP = position; vW = (modelMatrix * vec4(position, 1.0)).xyz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
         fragmentShader: `
-          uniform vec3 color, hazeCol, sunDir, sunCol; uniform float haze, layer, mist, vis, rain; varying vec2 vUv; varying vec3 vP; varying vec3 vW;
+          uniform vec3 color, hazeCol, sunDir, sunCol, glow; uniform float haze, layer, mist, vis, rain, glowK; varying vec2 vUv; varying vec3 vP; varying vec3 vW;
           float h(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
           float n(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h(i), h(i+vec2(1,0)), f.x), mix(h(i+vec2(0,1)), h(i+vec2(1,1)), f.x), f.y); }
           void main(){
@@ -1268,9 +1342,14 @@ export class World {
             vec3 dv = vW - cameraPosition;
             float hf = exp(-clamp(dv.y, -30.0, 120.0) * 0.024);
             float fogK = 1.0 - exp(-length(dv) / max(20.0, vis) * 1.9 * hf);
-            float hz = clamp(max(fogK * 0.97, haze) + (1.0 - smoothstep(-12.0, 30.0, vP.y)) * (0.08 + mist * 0.3) + rain * 0.2, 0.0, 0.97);
+            // 層ごとの霞：奥の峰ほど裾まで淡く、層と層の間の谷に靄の帯が溜まる（重なった山が影絵のように抜ける）
+            float valley = (1.0 - smoothstep(-12.0, 18.0 + layer * 14.0, vP.y)) * (0.1 + mist * 0.3 + layer * 0.07);
+            float hz = clamp(max(fogK * 0.97, haze) + valley + rain * 0.2, 0.0, 0.97);
             float sI = pow(max(dot(d, normalize(sunDir)), 0.0), 6.0);
             vec3 hc = (hazeCol + sunCol * sI * 0.12) * vec3(0.9, 0.97, 1.08);   // 霧の式と同じく、遠くは青を帯びる
+            // 朝夕は、日の方の霞が焼けの色に染まる
+            float toS = clamp(dot(d.xz, normalize(sunDir.xz + 0.0001)) * 0.5 + 0.5, 0.0, 1.0);
+            hc = mix(hc, hc * 0.75 + glow * 0.35, glowK * toS * toS * (0.2 + layer * 0.1) * (1.0 - rain));
             gl_FragColor = vec4(mix(c, hc, hz), 1.0);
             #include <tonemapping_fragment>
             #include <colorspace_fragment>
@@ -1364,6 +1443,62 @@ export class World {
     if (B.list.length >= B.CAP) B.list.shift();
     const gy = this.heightAt(x, z);
     B.list.push({ x, z, t: 0, life: 0.9 + Math.random() * 0.5, s0: 0.35, s1: 1.1 + amt * 0.6, a: 0.6 * amt, fin: 14, rise: (y - gy - 0.55) / 0.02, yOff: true });
+  }
+  // 霧の中の光の筋：日の方から地面へ斜めに差す、淡い光の帯。板を数枚だけ、筋の向きを軸にカメラへ向けて立てる
+  // 置き場は世界に留め（カメラが動くと筋が流れないように）、遠く離れた筋は反対の側へ回して使い回す
+  buildShafts() {
+    const N = 9, RANGE = 75, R = rng((this.def.seed || 3) * 7 + 11);
+    const quad = new THREE.PlaneGeometry(1, 1);
+    const geo = new THREE.InstancedBufferGeometry();
+    geo.index = quad.index; geo.setAttribute('position', quad.attributes.position);
+    const ofs = new Float32Array(N * 3), dat = new Float32Array(N * 3);
+    for (let i = 0; i < N; i++) { ofs[i * 3] = (R() * 2 - 1) * RANGE; ofs[i * 3 + 2] = (R() * 2 - 1) * RANGE; dat[i * 3] = 3 + R() * 8; dat[i * 3 + 1] = 45 + R() * 40; dat[i * 3 + 2] = R() * 6.28; }
+    geo.setAttribute('ofs', new THREE.InstancedBufferAttribute(ofs, 3));
+    geo.setAttribute('dat', new THREE.InstancedBufferAttribute(dat, 3));
+    geo.instanceCount = N;
+    const mat = new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
+      uniforms: { sunDir: this.skyMat.uniforms.sunDir, sunCol: this.skyMat.uniforms.sunCol, fogC: { value: new THREE.Color() }, focus: { value: new THREE.Vector3() }, amt: { value: 0 }, time: this.skyMat.uniforms.time, range: { value: RANGE } },
+      vertexShader: `attribute vec3 ofs; attribute vec3 dat; uniform vec3 sunDir, focus; uniform float range; varying vec2 vUv; varying vec3 vW; varying float vPh; varying float vEdge;
+        void main(){
+          vec2 rel = mod(ofs.xz - focus.xz + range, range * 2.0) - range;
+          vec3 base = vec3(focus.x + rel.x, focus.y - 2.0, focus.z + rel.y);
+          vec3 ax = normalize(sunDir);
+          vec3 side = normalize(cross(ax, normalize(base - cameraPosition)));
+          vW = base + ax * dat.y * (position.y + 0.5) + side * dat.x * position.x;
+          vUv = position.xy + 0.5; vPh = dat.z;
+          vEdge = 1.0 - smoothstep(range * 0.65, range, length(rel));
+          gl_Position = projectionMatrix * viewMatrix * vec4(vW, 1.0);
+        }`,
+      fragmentShader: `uniform vec3 sunDir, sunCol, fogC; uniform float amt, time; varying vec2 vUv; varying vec3 vW; varying float vPh; varying float vEdge;
+        void main(){
+          float ac = 1.0 - abs(vUv.x * 2.0 - 1.0); ac = ac * ac * (3.0 - 2.0 * ac);
+          float al = smoothstep(0.0, 0.2, vUv.y) * (1.0 - smoothstep(0.4, 1.0, vUv.y));
+          // 筋の中のむら（雲の切れ間が動いて、光がゆっくり強まり弱まる）
+          float st = (0.65 + 0.35 * sin(vUv.x * 9.0 + vPh + time * 0.25)) * (0.55 + 0.45 * sin(time * 0.11 + vPh * 3.0));
+          vec3 v = vW - cameraPosition; float dist = length(v);
+          float fwd = pow(max(dot(v / dist, normalize(sunDir)), 0.0), 3.0);
+          float a = amt * ac * al * st * vEdge * (0.12 + 1.3 * fwd) * smoothstep(5.0, 22.0, dist) * 0.09;
+          gl_FragColor = vec4(mix(sunCol, fogC, 0.35) * a, a);
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
+        }`,
+    });
+    this.shafts = new THREE.Mesh(geo, mat);
+    this.shafts.frustumCulled = false;
+    this.shafts.renderOrder = 3;
+    this.shafts.visible = false;
+    this.scene.add(this.shafts);
+  }
+  updateShafts(want, focus) {
+    if (SETTINGS.quality === 'low') want = 0;
+    if (!this.shafts) { if (want <= 0.01) return; this.buildShafts(); }
+    const U = this.shafts.material.uniforms;
+    U.amt.value += (want - U.amt.value) * 0.02;
+    this.shafts.visible = U.amt.value > 0.01;
+    if (!this.shafts.visible) return;
+    U.focus.value.set(focus.x, this.heightAt(focus.x, focus.z), focus.z);
+    U.fogC.value.copy(this.scene.fog.color);
   }
   updateGroundMist(dt, focus) {
     const M = this.mistVeil;
@@ -1653,12 +1788,13 @@ export class World {
       // 高さは形の側で地面から読み直す（ここの高さは画面の外かどうかの判断用）
       d.position.set(x, this.heightAt(x, z), z);
       d.rotation.set(0, yaw, 0);
-      d.scale.set(0.93 + R() * 0.14, 0.9 + R() * 0.18, 0.93 + R() * 0.14);
+      // 背丈と肩幅のばらつき（ときどき大柄な者・小柄な者）
+      const tall = 0.86 + R() * 0.24 + (R() < 0.06 ? 0.06 : 0);
+      d.scale.set(0.9 + R() * 0.2, tall, 0.9 + R() * 0.2);
       d.updateMatrix();
       body.setMatrixAt(i, d.matrix); flags.setMatrixAt(i, d.matrix);
       // 一人ずつ少し色が違う（使い込んだ具足）
-      const v = 0.82 + R() * 0.3;
-      col.setRGB(v * (0.97 + R() * 0.06), v, v * (0.95 + R() * 0.06)); body.setColorAt(i, col);
+      body.setColorAt(i, soldierTint(col, R));
       info.set([R(), s.k, s.helm, s.ex], i * 4); info2.set([s.flag, R()], i * 2);
       if (s.k === 5) riders.push(i);
       if (s.k === 4) bearers.push(i);
@@ -1669,6 +1805,7 @@ export class World {
       mesh.geometry = mesh.geometry.clone();
       mesh.geometry.setAttribute('aInfo', new THREE.InstancedBufferAttribute(a, 4));
       mesh.geometry.setAttribute('aInfo2', new THREE.InstancedBufferAttribute(b, 2));
+      mesh.geometry.setAttribute('aHost', new THREE.InstancedBufferAttribute(new Float32Array(idx.length), 1));
     };
     const all = S.map((_, i) => i);
     setInfo(body, all); setInfo(flags, all);
@@ -1716,6 +1853,13 @@ export class World {
     const lodAll = (mesh) => { const n0 = mesh.count; mesh.onBeforeRender = (r, sc, cam) => { mesh.count = lod(cam).gone ? 0 : n0; }; };
     if (banners) lodAll(banners);
     if (horses) lodAll(horses);
+    // 後詰め：隊の後ろに、同じ旗の軽い兵を厚く続ける（地平を埋める奥行き。本体と同じ動き・崩れ方。戦の数や置き換えには入れない）
+    const kd0 = o.kind || 'mixed';
+    if (!o.people && o.host !== false && kd0 !== 'honjin' && kd0 !== 'cavalry' && N >= 60) {
+      const h = this.armyHost({ x: o.x, z: o.z, facing, w: o.w || 20, d: o.d || 10, count: typeof o.host === 'number' ? o.host : Math.round(Math.max(40, Math.min(420, N * 0.8))), armor, flagTex, seed: (o.seed || 9) + 71, U });
+      grp.add(...h.meshes);
+      A.hostD = h.depth;
+    }
     // 逃げる兵は隊の外へ出るので、画面の外かどうかの判断をやめる
     for (const c of grp.children) if (c.isInstancedMesh) c.computeBoundingSphere();
     const ctl = (v) => { for (const c of grp.children) c.position.copy(A.off); return v; };
@@ -1818,10 +1962,12 @@ export class World {
       A.dustT = (A.dustT ?? Math.random() * 3) - dt;
       if (A.dustT <= 0 && N >= 40) {
         const run = charge || A.rout, go = moving || run;
-        A.dustT = run ? 0.35 : go ? 0.8 : 4 + Math.random() * 3;
+        // 大きな軍勢ほど、止まっていても足踏みの土煙が絶えない
+        const big = Math.max(0.4, Math.min(1, 250 / (N + (A.hostD ? N * 0.8 : 0))));
+        A.dustT = (run ? 0.35 : go ? 0.8 : 4 + Math.random() * 3) * big;
         const W = this;
         if (!(W.rainLevel > 0.4 || (W.wetness || 0) > 0.5)) {
-          const hw = (o.w || 20) * 0.5, hd = (o.d || 10) * 0.5, lx = (Math.random() - 0.5) * 2 * hw, lz = (Math.random() - 0.5) * 2 * hd;
+          const hw = (o.w || 20) * 0.5, hd = (o.d || 10) * 0.5, lx = (Math.random() - 0.5) * 2 * hw, lz = hd - Math.random() * (2 * hd + (A.hostD || 0));
           const c = Math.cos(A.facing), sn = Math.sin(A.facing);
           const x = grp.position.x + A.cx + lx * c + lz * sn, z = grp.position.z + A.cz - lx * sn + lz * c;
           W.dustCloud(x, z, !!run || (go && o.kind === 'cavalry'));
@@ -1933,6 +2079,90 @@ export class World {
     grp.add(maku, wm);
   }
 
+  // 後詰め（隊の後ろに続く軽い兵の厚い層）を作る。返す物：{ meshes, depth }（入れ物に足すのは呼ぶ側）
+  // o：{ x, z, facing, w, d, count, armor, flagTex, seed, U }
+  //   (x, z, facing) は隊の真ん中と向き、w・d は隊の幅と奥行き。U は動き（進む・崩れる）を共にする隊の uniform
+  //   奥ほど列の間が開き、横へ少し広がり、霧の色へ沈む。ところどころ備えの切れ目、後ろの列には幟の林
+  //   形は後詰め用の軽い形を使い回し、遠いほど数を間引く。カメラの近く（ARMY_NEAR の外 25m まで）は描かない
+  armyHost(o) {
+    const R = rng(o.seed || 31);
+    const F = o.facing || 0, cf = Math.cos(F), sf = Math.sin(F);
+    const w = o.w || 20, hd = (o.d || 10) / 2, n = Math.max(1, o.count | 0);
+    const depth = Math.max(10, Math.min(42, n / Math.max(6, w * 0.8) * 1.4 + 4));
+    const S = [];
+    // 前の列から後ろへ：列の間は奥ほど開き（1.1m → 1.8m）、横は奥ほど少し広がる
+    let z = -hd - 1.2, row = 0;
+    const cuts = [];
+    for (let x = -w / 2 + 8 + R() * 8; x < w / 2 - 4; x += 10 + R() * 8) cuts.push(x);   // 備えの切れ目
+    while (S.length < n && row < 60) {
+      const t = Math.min(1, (-z - hd) / depth);
+      const ww = w * (1 + t * 0.25), sx = 1.0 + t * 0.45;
+      const cols = Math.max(2, Math.round(ww / sx));
+      for (let c = 0; c < cols && S.length < n; c++) {
+        const lx = -ww / 2 + (c + 0.5) * ww / cols + (R() - 0.5) * sx * 0.5;
+        if (cuts.some((q) => Math.abs(lx / (1 + t * 0.25) - q) < 0.8 + t * 1.2)) continue;
+        if (R() < 0.06 + t * 0.12) continue;   // 奥ほどまばらに
+        const r = R();
+        // 幟は奥ほど多く（後ろの備えの旗の林）。列にそろえず散らす
+        const k = r < 0.035 + t * 0.07 ? 4 : r < 0.16 ? 3 : 0;
+        S.push({ lx, lz: z + (R() - 0.5) * 0.6, t, k, ex: k === 0 ? 1.2 + R() * 0.45 : 0, helm: k === 3 || R() < 0.1 ? 1 : 0, flag: k === 4 ? 0 : R() < 0.82 ? 1 : 0 });
+      }
+      z -= 1.1 + t * 0.7; row++;
+    }
+    const realDepth = -z - hd;
+    // 遠くで間引く時にまだらに残るよう混ぜる
+    for (let i = S.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [S[i], S[j]] = [S[j], S[i]]; }
+    const N = S.length, U = o.U;
+    if (!SASHI_GEO) { SASHI_GEO = clothGeo(0.34, 0.62, 3, 1, 0, 2.62, -0.17, 11); BANNER_GEO = clothGeo(0.72, 2.6, 3, 6, 0.3, 5.2, 0.14, 12); }
+    const body = new THREE.InstancedMesh(hostGeo(o.armor || 0x2b3140).clone(), armyShader(new THREE.MeshLambertMaterial({ vertexColors: true }), U), N);
+    const flags = new THREE.InstancedMesh(SASHI_GEO.clone(), armyShader(new THREE.MeshLambertMaterial({ map: o.flagTex, side: THREE.DoubleSide }), U), N);
+    const bear = [];
+    const info = new Float32Array(N * 4), info2 = new Float32Array(N * 2), host = new Float32Array(N);
+    const d = new THREE.Object3D(), col = new THREE.Color();
+    S.forEach((q, i) => {
+      const x = o.x + q.lx * cf + q.lz * sf, zz = o.z - q.lx * sf + q.lz * cf;
+      d.position.set(x, this.heightAt(x, zz), zz);
+      d.rotation.set(0, F + (R() - 0.5) * 0.3, 0);
+      d.scale.set(0.9 + R() * 0.2, 0.85 + R() * 0.27, 0.9 + R() * 0.2);
+      d.updateMatrix();
+      body.setMatrixAt(i, d.matrix); flags.setMatrixAt(i, d.matrix);
+      // 奥ほど少し色が浅く（遠い者は細部が潰れて灰色がかる）
+      soldierTint(col, R).lerp(new THREE.Color(0.92, 0.92, 0.9), q.t * 0.25); body.setColorAt(i, col);
+      info.set([R(), q.k, q.helm, q.ex], i * 4); info2.set([q.flag, R()], i * 2); host[i] = 0.12 + 0.88 * q.t;
+      if (q.k === 4) bear.push(i);
+    });
+    const attr = (mesh, idx) => {
+      const a = new Float32Array(idx.length * 4), b = new Float32Array(idx.length * 2), h = new Float32Array(idx.length);
+      idx.forEach((j, m) => { a.set(info.subarray(j * 4, j * 4 + 4), m * 4); b.set(info2.subarray(j * 2, j * 2 + 2), m * 2); h[m] = host[j]; });
+      mesh.geometry.setAttribute('aInfo', new THREE.InstancedBufferAttribute(a, 4));
+      mesh.geometry.setAttribute('aInfo2', new THREE.InstancedBufferAttribute(b, 2));
+      mesh.geometry.setAttribute('aHost', new THREE.InstancedBufferAttribute(h, 1));
+    };
+    const all = S.map((_, i) => i);
+    attr(body, all); attr(flags, all);
+    const meshes = [body, flags];
+    let banners = null;
+    if (bear.length) {
+      banners = new THREE.InstancedMesh(BANNER_GEO.clone(), armyShader(new THREE.MeshLambertMaterial({ map: o.flagTex, side: THREE.DoubleSide }), U), bear.length);
+      const m4 = new THREE.Matrix4();
+      bear.forEach((j, m) => { body.getMatrixAt(j, m4); banners.setMatrixAt(m, m4); });
+      attr(banners, bear); meshes.push(banners);
+    }
+    // 遠いほど軽く：兵を間引き、背の指物は見通しの内だけ。霧の奥は描かない
+    const cx = o.x - sf * (hd + realDepth / 2), cz = o.z - cf * (hd + realDepth / 2), cw = new THREE.Vector3();
+    const lod = (mesh, cam) => {
+      cw.set(cx, 0, cz).add(mesh.position).applyMatrix4(mesh.parent ? mesh.parent.matrixWorld : new THREE.Matrix4());
+      const dd = Math.hypot(cam.position.x - cw.x, cam.position.z - cw.z), vis = this.vis || 230;
+      const gone = dd > vis * 1.5 + 30 + realDepth / 2;
+      return { gone, keep: dd < 90 ? 1 : Math.max(0.35, 1 - (dd - 90) / 280), flags: !gone && dd < Math.min(200, vis) };
+    };
+    body.onBeforeRender = (r, sc, cam) => { const l = lod(body, cam); body.count = l.gone ? 0 : Math.ceil(N * l.keep); };
+    flags.onBeforeRender = (r, sc, cam) => { const l = lod(flags, cam); flags.count = l.flags ? Math.ceil(N * l.keep) : 0; };
+    if (banners) { const nb = bear.length; banners.onBeforeRender = (r, sc, cam) => { banners.count = lod(banners, cam).gone ? 0 : nb; }; }
+    for (const m of meshes) m.computeBoundingSphere();
+    return { meshes, depth: realDepth, n: N };
+  }
+
   // 戦う隊の後ろに、同じ旗・同じ並びの軽い兵を続けて置く（戦う兵と遠景の境目を消す）
   // o：{ x, z, facing, flag（家紋の鍵）か flagTex, armor, kind, w, depth, count, gap, seed }
   //   (x, z) は戦う隊の真ん中、facing はその向き。軽い兵はその後ろ gap m（既定 5）から depth m の奥行きで並ぶ
@@ -1989,6 +2219,7 @@ export class World {
       g.setAttribute('aInfo', new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4));
       g.setAttribute('aInfo2', new THREE.InstancedBufferAttribute(new Float32Array(n * 2), 2));
       g.setAttribute('aClash', new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4));
+      g.setAttribute('aHost', new THREE.InstancedBufferAttribute(new Float32Array(n), 1));
       return g;
     };
     const setOne = (mesh, i, s, dead) => {
@@ -2029,7 +2260,7 @@ export class World {
           const lx = b.lx + (c + 0.5 - cols / 2) * (bwr / cols) + (R() - 0.5) * 0.3;
           const lz = -sgn * (gap / 2 + r * CLASH_ROW + (R() - 0.5) * 0.35);
           const s = { j, row: r, slot: r * cols + perm[c], lx, lz, yaw: F + (sgn > 0 ? 0 : Math.PI) + (R() - 0.5) * 0.3, k, sd: R(), r2: R(),
-            helm: k === 3 ? 1 : R() < 0.08 ? 1 : 0, ex: k === 0 ? 1.25 + R() * 0.3 : k === 1 && r === 1 ? 1 : 0, flag: k === 4 ? 0 : R() < (P.flagRate ?? 0.8) ? 1 : 0, sc: [0.93 + R() * 0.14, 0.9 + R() * 0.18, 0.93 + R() * 0.14] };
+            helm: k === 3 ? 1 : R() < 0.08 ? 1 : 0, ex: k === 0 ? 1.25 + R() * 0.3 : k === 1 && r === 1 ? 1 : 0, flag: k === 4 ? 0 : R() < (P.flagRate ?? 0.8) ? 1 : 0, sc: [0.9 + R() * 0.2, 0.86 + R() * 0.24 + (R() < 0.06 ? 0.06 : 0), 0.9 + R() * 0.2] };
           sl.push(s);
           (r < 3 ? S.near : S.far).push(s);
         }
@@ -2059,7 +2290,7 @@ export class World {
         if (tag) { s[tag] = i; s.mesh = mesh; }
       });
       put(bodyN, S.near, 'mi'); put(bodyF, S.far, 'mi');
-      for (const [mesh, list] of [[bodyN, S.near], [bodyF, S.far]]) list.forEach((s, i) => { const v = 0.82 + R() * 0.3; col.setRGB(v * (0.97 + R() * 0.06), v, v * (0.95 + R() * 0.06)); mesh.setColorAt(i, col); });
+      for (const [mesh, list] of [[bodyN, S.near], [bodyF, S.far]]) list.forEach((s, i) => { mesh.setColorAt(i, soldierTint(col, R)); });
       S.all.forEach((s, i) => { s.fi = i; });
       put(flags, S.all, null);
       bear.forEach((s) => { s.bi = bear.indexOf(s); });
@@ -2068,6 +2299,18 @@ export class World {
       S.meshes = { bodyN, bodyF, flags, banners, dead, CAP, nd: 0 };
       grp.add(bodyN, bodyF, flags, banners, dead);
       for (const m of [bodyN, bodyF, flags, banners, dead]) { m.frustumCulled = false; if (P.hidden) m.visible = false; }
+      // 後詰め：組み合う列の後ろに、同じ旗の軽い兵を厚く続ける（前線が押し引きすると一緒に動く。崩れる時は一緒に逃げる）
+      if (!P.hidden && o.host !== false) {
+        const HU = { uAT: WIND, uGust: GUST, uIdle: U.uIdle, uMarch: { value: 0 }, uCharge: { value: 0 }, uTurn: { value: 0 }, uRout: { value: 0 }, uRoutT: { value: 0 }, uHgt: U.uHgt, uHP: U.uHP };
+        const back = gap / 2 + rows * CLASH_ROW, fs = F + (sgn > 0 ? 0 : Math.PI);
+        const [hx, hz] = toW(0, -sgn * back);
+        const h = this.armyHost({ x: hx, z: hz, facing: fs, w: W * 1.05, d: 0, count: typeof P.host === 'number' ? P.host : Math.round(Math.max(60, Math.min(480, (P.count || nb * cols * 8) * 0.7))), armor, flagTex, seed: (o.seed || 5) * 13 + (sgn > 0 ? 1 : 2), U: HU });
+        const hg = new THREE.Group();
+        hg.add(...h.meshes);
+        for (const m of h.meshes) m.frustumCulled = false;
+        grp.add(hg);
+        S.host = { g: hg, U: HU, fx: Math.sin(fs), fz: Math.cos(fs) };
+      }
       return S;
     };
     C.A = side('A', 1); C.B = side('B', -1);
@@ -2351,6 +2594,18 @@ export class World {
           S.routT += dt;
           if (S.routT > S.hideAfter) for (const k of ['bodyN', 'bodyF', 'flags', 'banners']) S.meshes[k].visible = false;
         }
+        // 後詰め：前線の押し引き（塊のずれの平均）と寄せ合いに付いて動く。崩れたら一緒に逃げる
+        const H = S.host;
+        if (H) {
+          let af = 0; for (const b of C.blocks) af += b.f;
+          const k = C.app + S.sgn * af / nb;
+          H.g.position.set(H.fx * k, 0, H.fz * k);
+          H.U.uMarch.value = Math.max(S.U.uAppM.value, C.winner === S && C.pursueT < 12 ? 1 : 0);
+          if (S.routed) {
+            H.U.uRout.value = 1; H.U.uRoutT.value += dt;
+            if (S.routT > S.hideAfter) H.g.visible = false;
+          }
+        }
       }
       // 騎馬の横槍：駆けて、着いたら相手の端の塊を崩す
       for (const cv of C.cav) {
@@ -2469,6 +2724,7 @@ export class World {
       const g = geo.clone();
       g.setAttribute('aInfo', new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4).setUsage(THREE.DynamicDrawUsage));
       g.setAttribute('aInfo2', new THREE.InstancedBufferAttribute(new Float32Array(cap * 2), 2).setUsage(THREE.DynamicDrawUsage));
+      g.setAttribute('aHost', new THREE.InstancedBufferAttribute(new Float32Array(cap), 1));
       return g;
     };
     const body = new THREE.InstancedMesh(mk(soldierGeo(armor, true)), armyShader(new THREE.MeshLambertMaterial({ vertexColors: true }), U), cap);
@@ -2742,7 +2998,7 @@ export class World {
         .replace('#include <roughnessmap_fragment>', `
           float roughnessFactor = roughness;
           roughnessFactor = mix(roughnessFactor, 0.55, vSplat.z * 0.7);
-          roughnessFactor = mix(roughnessFactor, 0.42, uWet * (0.5 + vSplat.z * 0.5));
+          roughnessFactor = mix(roughnessFactor, 0.34 + vSplat.x * 0.14, uWet * (0.55 + vSplat.z * 0.45));   // 濡れた土と泥は照り、草はそれほどでもない
           roughnessFactor = mix(roughnessFactor, 0.42, smoothstep(0.3, 0.8, vWater));
           roughnessFactor = mix(roughnessFactor, 0.12, pool);`)
         // 田の照り返しは空の半分ほどに（白く光りすぎないように）
@@ -3761,6 +4017,9 @@ export class World {
     vis = vis + (80 - vis) * r;
     if (this.haze) vis /= 1 + this.haze.k * 0.9 + (this.dustVeil ? this.dustVeil.k * 0.35 : 0);
     this.vis = vis;
+    // 遠くの軍勢の陽炎：晴れて乾いた昼・午後ほど強く、雨・朝靄・夕暮れでは弱い
+    const hot = L === TIME.day || L === TIME.after ? 1 : L === TIME.morning ? 0.4 : 0.2;
+    SHIMMER.value = hot * (1 - r) * (1 - mist) * (1 - Math.min(1, (this.wetness || 0) * 1.5));
     // 雲の影は、雨・画質「低」では無し
     const cloud = Math.min(0.95, (L.cloud || 0) * (1 - r) * (SETTINGS.quality === 'low' ? 0 : 1));
     this.scene.fog.near = this.cloudPhase;
@@ -3770,7 +4029,20 @@ export class World {
     this.mountU.mist.value = Math.max(mist, r, this.mood === 'morning' ? 0.35 : 0);
     this.mountU.vis.value = vis; this.mountU.rain.value = r;
     // 遠い層ほど少なくともこれだけは霞む（晴れた日でも遠い峰は青く抜ける）
-    for (const m of this.mountains.children) m.material.uniforms.haze.value = Math.min(0.9, 0.18 + m.material.uniforms.layer.value * 0.14);
+    // 雨の日は日の光が弱い（雨の強さで絞る。戦の側が直に入れた値にも掛け算で重ねる）
+    { const dim = 1 - r * 0.4; if (Math.abs(dim - (this.rainDim || 1)) > 1e-4) { this.sun.intensity *= dim / (this.rainDim || 1); this.rainDim = dim; } }
+    this.skyMat.uniforms.rain.value = r;
+    // 朝焼け・夕焼けの移ろい：夕暮れは時が経つほど橙から紅へ深まる。朝は紅から金へ褪せる
+    if (this.timeKey === 'dusk') this.duskT = (this.duskT || 0) + dt; else this.duskT = 0;
+    const age = this.timeKey === 'dusk' ? Math.min(1, this.duskT / 300) : this.mood === 'morning' && this.timeKey === 'day' ? Math.max(0, 0.7 - (this.time || 0) / 300) : 0;
+    this.skyMat.uniforms.age.value += (age - this.skyMat.uniforms.age.value) * Math.min(1, dt * 0.5);
+    // 霧の中の光の筋：朝靄・朝・雨上がりに、日の差す向きへ斜めの光の帯（雨と嵐では無し）
+    {
+      const after = this.timeKey === 'after' ? Math.max(0, 1 - (this.afterT || 0) / 150) * 0.8 : 0;
+      const sm = Math.max(mist, this.def.mist ? 0.35 : 0, this.mood === 'morning' && this.timeKey === 'day' ? 0.45 : 0, after, this.timeKey === 'dusk' ? 0.25 : 0);
+      this.updateShafts(sm * (1 - r) * (this.timeKey === 'storm' ? 0 : 1), focus);
+    }
+    for (const m of this.mountains.children) m.material.uniforms.haze.value = Math.min(0.9, 0.2 + m.material.uniforms.layer.value * 0.17);
     this.updateHail(dt, focus, r);
     this.rain.visible = r > 0.03;
     if (!this.rain.visible) { this.splashPts.visible = false; this.rainNear.visible = false; return; }

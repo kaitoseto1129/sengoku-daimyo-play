@@ -9,7 +9,7 @@
 //   ・戦の定義が seekRange・fire・anchor・order を変えたら、そちらを正として大将の頭は手を引く
 // 戦の定義から使える印：
 //   g.ai = true（order を問わず大将の頭に任せる。order は 'attack' にする）・g.reserve = true（控え：自分からは出ず、味方が崩れかけたら出る）
-//   g.noAI = true（この隊は動かさない）・def.noAI = true（この戦では使わない）・def.aiSkill = 'easy'|'normal'|'hard'（敵の上手さを戦ごとに決める）
+//   g.noPursue = true（崩れた敵を追わない）・g.noAI = true（この隊は動かさない）・def.noAI = true（この戦では使わない）・def.aiSkill = 'easy'|'normal'|'hard'（敵の上手さを戦ごとに決める）
 //   g.guard = true（守る隊。本陣の旗本など。order が 'hold'・'yari' の間だけ：寄る敵に気づくと向き直って構え、
 //     槍は槍衾、射手は撃ち、侍と槍は打って出て迎え撃つ。敵が離れれば持ち場へ戻る。大将は旗本の後ろへ下がる。
 //     g.guardSight（気づく距離。既定 55m）・g.guardLeash（打って出る遠さ。既定 26m）で変えられる）
@@ -47,7 +47,7 @@ export class Commander {
     this.world = rt.world;
     this.S = new Map();
     this.scanT = 0;
-    this.stats = { flank: 0, withdraw: 0, relieve: 0, support: 0, brace: 0, lane: 0, breach: 0, sally: 0, cycle: 0, unstick: 0 };
+    this.stats = { flank: 0, withdraw: 0, relieve: 0, support: 0, brace: 0, lane: 0, breach: 0, sally: 0, cycle: 0, unstick: 0, pursue: 0, fallback: 0, envelop: 0 };
     this.off = !!(rt.def.noAI || rt.def.dojo || (typeof window !== 'undefined' && window.__noAI));
   }
 
@@ -430,6 +430,18 @@ export class Commander {
         this.callRelief(g, foeS, relief);
         return;
       }
+      // 控えがいない：押し負けがはっきりしていて、後ろに味方の隊がいれば、味方の方へ下がって並び直す（ひとりで溶けずに立て直す）
+      if (foeS && press > s.str * 1.3 && g.morale < 32 && !g.reserve) {
+        const fc = this.friendCentroid(g, s.c, 70);
+        if (fc && dist(fc, foeS.c) > dist(s.c, foeS.c) - 4) {
+          const away = this.away(s.c, foeS.c);
+          const q = this.spot({ x: (s.c.x + away.x * 18) * 0.6 + fc.x * 0.4, z: (s.c.z + away.z * 18) * 0.6 + fc.z * 0.4 }, s, sk, 6);
+          A.wdCd = t + 45; A.arrivedW = false; A.wdN = (A.wdN || 0) + 1;
+          this.setMode(g, A, 'withdraw', q, Math.max(3.2, g.speed * 1.35), { seek: 2, noFire: s.missile, until: t + 18 });
+          this.stats.fallback++; this.log(g, `fallback 士気${Math.round(g.morale)}、味方の方へ下がって立て直す`);
+          return;
+        }
+      }
     }
 
     // --- 城兵：破れ目と取り付かれた門へ ---
@@ -457,6 +469,13 @@ export class Commander {
     // --- 控えを呼ばれて出ている ---
     if (A.mode === 'relieve' && A.tg && this.S.has(A.tg) && t < A.until) { this.approach(g, A, s, sk, this.S.get(A.tg), 'relieve'); return; }
 
+    // --- 崩れた隊を追う：騎馬と、元気な槍・侍の隊は、逃げる敵の隊を少しの間だけ追い討つ（持ち場から離れすぎれば上の「戻る」が効く） ---
+    if (A.mode === 'pursue') {
+      const o = A.tg && this.S.get(A.tg);
+      if (o && o.routed && t < A.until && s.eng < s.n * 0.5 && !foes.some((q) => q.d < 14 && !q.o.routed)) return;
+      this.release(g, A); A.pursueCd = t + 20;
+    }
+    if (this.pursue(g, A, s, sk, foes, leash)) return;
     if (s.missile) return this.missile(g, A, s, sk, foes);
     if (s.kind === 'cav') return this.cavalry(g, A, s, sk, foes);
     return this.melee(g, A, s, sk, foes);
@@ -576,6 +595,12 @@ export class Commander {
     const tgt = this.pick(g, s, sk, foes, false);
     if (!tgt) return this.idle(g, A, s, sk);
     // 味方と斬り合っている敵なら、横へ回る（こちらが正面にいない時だけ回り道になる）
+    // この辺りで数が大きく勝っていれば、手の空いた隊はみな横へ回って包み込む
+    const envelop = sk.smart && tgt.by.length && !tgt.player && !(tgt.g && tgt.g.isPlayerSquad) && this.strNear(g.team, tgt.c, 40) > this.strNear(1 - g.team, tgt.c, 40) * 1.7;
+    if (envelop && s.n >= 4 && (this.rt.t > (A.envCd || 0) || (A.mode === 'flank' && A.tg === tgt.key))) {
+      if (A.mode !== 'flank') { A.envCd = this.rt.t + 15; this.stats.envelop++; }
+      return this.flank(g, A, s, sk, tgt, 'foot');
+    }
     if (tgt.by.length && s.n >= 5 && !tgt.player && Math.random() < sk.flank) return this.flank(g, A, s, sk, tgt, 'foot');
     // 大きな隊（8 人より多い）は、本人の組へも時々横から回り込む（囲まれていく怖さ。挟み撃ちまではしない）
     if (tgt.by.length && s.n >= 8 && (tgt.player || (tgt.g && tgt.g.isPlayerSquad)) && !TOFF && !this.rt.firstFights && Math.random() < sk.flank * 0.1) return this.flank(g, A, s, sk, tgt, 'foot');
@@ -607,6 +632,10 @@ export class Commander {
         if (cav && o.missile) sc += 1.2;
         if (cav && o.yari) sc -= 0.6;
         if (o.player) sc += 0.3;
+        // 味方から離れて孤立した隊は弱い所：助けが来ないうちに叩く
+        if (!o.player && o.g && this.strNear(o.team, o.c, 35, o.g) < o.str * 0.5) sc += 0.6 * sk.smart;
+        // 横か後ろを見せている敵（こちらが正面にいない）は突きやすい
+        if (!o.player && ((s.c.x - o.c.x) * o.f.x + (s.c.z - o.c.z) * o.f.z) < 0) sc += 0.5;
         // 大将のいる隊（本陣）が手薄なら、首を狙って突く
         if (o.lord && o.n < s.n * 0.9 && !o.by.length) sc += 0.7 * sk.smart;
       }
@@ -629,7 +658,8 @@ export class Commander {
       const r = Math.min(base, 26) * 0.5 + o.hw * 0.5;
       return { x: o.c.x + Math.sin(a) * r, z: o.c.z + Math.cos(a) * r };
     };
-    const sp = mode === 'relieve' ? Math.max(3.2, g.speed * 1.3) : g.speed;
+    // 鉄砲・弓へは、撃たれる間を短くするため駆け足で詰める
+    const sp = mode === 'relieve' ? Math.max(3.2, g.speed * 1.3) : tgt.missile && d < 70 ? Math.max(3, g.speed * 1.35) : g.speed;
     if (A.mode !== mode || A.tg !== key) this.setMode(g, A, mode, goal, sp, { tg: key, until: t + (mode === 'relieve' ? 40 : 30) });
   }
 
@@ -650,6 +680,16 @@ export class Commander {
     // もう横か後ろにいる：そのまま突く
     if (front < -2 || Math.abs(rel.x * right.x + rel.z * right.z) > tgt.hw + 6 && front < 6) { this.approach(g, A, s, sk, tgt, 'approach'); return; }
     A.side = side; A.stage = front > 0 ? 0 : 1;
+    // 大軍で包む時は、味方の少ない側へ回る（両の翼が同じ側に固まらないように）
+    if (!tgt.player) {
+      let l = 0, r = 0;
+      for (const h of this.S.values()) {
+        if (h.team !== g.team || h.g === g || h.routed || dist(h.c, tgt.c) > tgt.hw + 30) continue;
+        const k = (h.c.x - tgt.c.x) * right.x + (h.c.z - tgt.c.z) * right.z;
+        if (k > 0) r += h.n; else l += h.n;
+      }
+      if (Math.abs(r - l) > 6) A.side = r > l ? -1 : 1;
+    }
     // 同じ敵へもう一つの味方の隊が回っていれば、逆の側から回って挟む
     // （自分の組・本人を挟むのはやめる：小さな組が左右から一度に崩されて、遊びにならない）
     if (!tgt.player && !(tgt.g && tgt.g.isPlayerSquad)) for (const h of this.army.groups) {
@@ -672,6 +712,28 @@ export class Commander {
     };
     this.setMode(g, A, 'flank', goal, kind === 'cav' ? 6.5 : Math.max(2.6, g.speed * 1.2), { tg: key, seek: kind === 'cav' ? 5 : 6, until: t + (kind === 'cav' ? 20 : 30) });
     this.stats.flank++; this.log(g, `flank ${tgt.g ? tgt.g.name || '敵' : '本人'}の${A.side > 0 ? '右' : '左'}へ回る（${kind === 'cav' ? '騎馬' : '徒'}）`);
+  }
+
+  // 追い討ち：近くで崩れて逃げる敵の隊へ、騎馬（と元気な徒）が短く追う。true＝追い始めた
+  pursue(g, A, s, sk, foes, leash) {
+    const t = this.rt.t;
+    if (!sk.smart || g.noPursue || g.reserve || A.garrison || A.fort || s.missile || t < (A.pursueCd || 0)) return false;
+    const cav = s.kind === 'cav';
+    if (!cav && (g.morale < 65 || s.n < 4)) return false;
+    // まだ戦っている敵が近ければ追わない（逃げる者より、向かって来る者が先）
+    if (foes.some((q) => q.d < (cav ? 20 : 30))) return false;
+    let best = null, bd = cav ? 60 : 35;
+    for (const o of this.S.values()) {
+      if (o.team === g.team || !o.routed || o.player || !o.g || o.n < 2) continue;
+      const d = dist(o.c, s.c);
+      if (d < bd && dist(o.c, A.home) < leash + 20) { bd = d; best = o; }
+    }
+    if (!best) return false;
+    const key = best.key;
+    const goal = () => { const o = this.S.get(key); return o ? { x: o.c.x, z: o.c.z } : null; };
+    this.setMode(g, A, 'pursue', goal, cav ? 7 : Math.max(3, g.speed * 1.3), { tg: key, seek: cav ? 10 : 7, until: t + (cav ? 14 : 9) });
+    this.stats.pursue++; this.log(g, `pursue 崩れた${best.g.name || '敵'}を追い討つ`);
+    return true;
   }
 
   // 斬り合い：隊の要を斬り合う兵の所へ寄せ、残りの兵も加わらせる。崩れかけの敵へは押し込む
@@ -891,7 +953,7 @@ export class Commander {
     // 下がって立て直している間は、少しずつ落ち着く（敵が寄っていなければ）
     if (A.mode === 'rally' && g.morale < 55 && !this.army.foeNear(g, 12)) g.morale += 0.9 * dt;
     // 行き先へ進めない（柵・塀・人に詰まった）：しばらく動かなければ、別の手を考える
-    if (A.mode === 'approach' || A.mode === 'flank' || A.mode === 'relieve' || A.mode === 'breach') {
+    if (A.mode === 'approach' || A.mode === 'flank' || A.mode === 'relieve' || A.mode === 'breach' || A.mode === 'pursue') {
       A.stuckT = (A.stuckT || 0) + dt;
       if (A.stuckT > 4) {
         if (A.last && dist(A.last, s.c) < 1.2 && s.eng < 2 && lagOf(s, g) > 5) {

@@ -33,16 +33,28 @@ const FAR_NAMES = {
   _: { oda: ['柴田勝家', '丹羽長秀', '佐久間信盛', '滝川一益', '羽柴秀吉', '池田恒興'], tokugawa: ['酒井忠次', '石川数正', '本多忠勝', '榊原康政'] },
 };
 
+// 下知の釦（字は二字まで。絵でも分かるように）
 const ORDERS = [
-  { id: 'move', label: '進め', key: '1', note: '地図で行き先を押す' },
-  { id: 'attack', label: '攻めよ', key: '2', note: '地図で敵の隊を押す' },
-  { id: 'hold', label: '待て', key: '3', note: 'その場で踏みとどまる' },
-  { id: 'retreat', label: '退け', key: '4', note: '敵から離れて立て直す' },
-  { id: 'yari', label: '槍衾', key: '5', note: '槍を揃えて正面を固める' },
-  { id: 'fire', label: '撃ち方', key: '6', note: '鉄砲・弓の射撃／やめ' },
+  { id: 'move', label: '進め', key: '1', note: '地図で行き先を押す', ic: '<path d="M4 12h13M12 6l6 6-6 6"/>' },
+  { id: 'attack', label: '攻めよ', key: '2', note: '地図で敵の隊を押す', ic: '<path d="M5 19 18 6M15 5l4-1-1 4M19 19 6 6M9 5 5 4l1 4"/>' },
+  { id: 'hold', label: '待て', key: '3', note: 'その場で踏みとどまる', ic: '<path d="M7 21V4M7 5h10l-3 4 3 4H7"/>' },
+  { id: 'retreat', label: '退け', key: '4', note: '敵から離れて立て直す', ic: '<path d="M20 12H7M12 6l-6 6 6 6"/>' },
+  { id: 'form', label: '構え', key: '5', note: '陣形を選ぶ', ic: '<rect x="4" y="5" width="4" height="4"/><rect x="10" y="5" width="4" height="4"/><rect x="16" y="5" width="4" height="4"/><rect x="4" y="13" width="4" height="4"/><rect x="10" y="13" width="4" height="4"/><rect x="16" y="13" width="4" height="4"/>' },
+  { id: 'fire', label: '撃て', key: '6', note: '鉄砲・弓の射撃／やめ', ic: '<circle cx="12" cy="12" r="3"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18"/>' },
 ];
+// 構え（陣形）。本物の兵の隊だけが組み替えられる
+const FORMS = [
+  { f: 'line', label: '横隊', note: '横に広く並ぶ。ふだんの形', ic: '<path d="M3 10h18M3 14h18"/>' },
+  { f: 'yari', label: '槍衾', note: '槍を揃えて正面を固める。騎馬に強い', ic: '<path d="M3 16h18M5 16l3-10M10 16l3-10M15 16l3-10"/>' },
+  { f: 'column', label: '縦隊', note: '細長く並ぶ。速く動ける', ic: '<path d="M10 3v18M14 3v18"/>' },
+  { f: 'loose', label: '散開', note: 'ばらけて立つ。矢玉が当たりにくい', ic: '<circle cx="6" cy="7" r="1.6"/><circle cx="14" cy="5" r="1.6"/><circle cx="19" cy="12" r="1.6"/><circle cx="9" cy="14" r="1.6"/><circle cx="16" cy="19" r="1.6"/><circle cx="5" cy="19" r="1.6"/>' },
+  { f: 'ring', label: '円陣', note: '輪になって四方を守る。囲まれた時に', ic: '<circle cx="12" cy="12" r="7"/>' },
+];
+const icon = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+// いまの下知を一字で（隊の札の角に出す）
+const ORD_CHAR = { move: '進', attack: '攻', hold: '待', retreat: '退', follow: '従', path: '行', yari: '衾', charge: '攻' };
 
-const M = { own: false, ptrs: new Map(), open: false, b: null, el: null, cv: null, sel: new Set(), list: [], pick: null, view: null, drag: null, bg: null, bgKey: '', t: 0, hooks: {}, multi: false, focusBack: null, hover: null };
+const M = { own: false, ptrs: new Map(), open: false, b: null, el: null, cv: null, sel: new Set(), list: [], pick: null, view: null, drag: null, bg: null, bgKey: '', t: 0, hooks: {}, multi: false, focusBack: null, hover: null, formOpen: false, sideKey: '', cardKey: '' };
 
 export function isGunbaiOpen() { return M.open; }
 export function setGunbaiHooks(h) { M.hooks = h || {}; }
@@ -173,19 +185,19 @@ function build() {
     el.id = 'gunbai';
     el.setAttribute('role', 'dialog');
     el.setAttribute('aria-modal', 'true');
-    el.setAttribute('aria-label', '軍配の図：味方の全部の隊を動かす');
-    el.innerHTML = `<div class="gb-map"><button type="button" class="topback" id="gb-close" aria-label="戻る（M）"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4 6.5 10l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>戻る</button><canvas id="gb-cv" aria-label="戦場の地図。味方の隊を押して選び、下知を選ぶ"></canvas>
-        <div class="gb-top" id="gb-top"></div>
-        <div class="gb-pick" id="gb-pick" hidden></div>
-        <div class="gb-zoom" role="group" aria-label="地図の縮尺"><button type="button" data-z="-1" aria-label="寄る">＋</button><button type="button" data-z="1" aria-label="引く">－</button><button type="button" data-z="0">全体</button></div></div>
-      <aside class="gb-side">
-        <header><h3>軍配</h3></header>
-        <p class="gb-slow">開いている間は、時がゆっくり流れます</p>
+    el.setAttribute('aria-label', '軍配の図：味方の隊を動かす');
+    // 上：戦場の絵地図（全部）。下：隊の札の帯と、下知の釦（Total War のように）
+    el.innerHTML = `<div class="gb-map"><canvas id="gb-cv" aria-label="戦場の地図。味方の隊を押して選び、地図を押して進ませる"></canvas>
+        <button type="button" class="topback" id="gb-close" aria-label="戻る（M）"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4 6.5 10l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>戻る</button>
+        <div class="gb-top" id="gb-top" role="status"></div>
+        <div class="gb-pick" id="gb-pick" role="status" aria-live="polite"></div>
+        <div class="gb-zoom" role="group" aria-label="地図の縮尺"><button type="button" data-z="-1" aria-label="寄る">＋</button><button type="button" data-z="1" aria-label="引く">－</button><button type="button" data-z="0" aria-label="全体を見る">全</button></div></div>
+      <div class="gb-dock">
+        <div class="gb-forms" id="gb-forms" role="group" aria-label="構え（陣形）" hidden></div>
         <div class="gb-ord" id="gb-ord" role="group" aria-label="下知"></div>
-        <div class="gb-selbar"><span id="gb-seln"></span><button type="button" id="gb-all">全部選ぶ<kbd>A</kbd></button><button type="button" id="gb-multi" aria-pressed="false">複数選ぶ</button></div>
-        <ol class="gb-list" id="gb-list" aria-label="味方の隊"></ol>
-        <p class="gb-help" id="gb-help"></p>
-      </aside>`;
+        <div class="gb-row"><div class="gb-sel"><button type="button" id="gb-all" aria-label="味方を全部選ぶ（A）">全軍</button><button type="button" id="gb-multi" aria-pressed="false" aria-label="押した隊を足していく">複数</button></div>
+        <div class="gb-cards" id="gb-list" role="listbox" aria-label="味方の隊" aria-multiselectable="true"></div></div>
+      </div>`;
     document.body.appendChild(el);
     M.el = el; M.cv = $('gb-cv');
     // 戦の画面へ操作が抜けないように（突き・見回し）
@@ -196,7 +208,10 @@ function build() {
     $('gb-multi').onclick = () => { M.multi = !M.multi; renderSide(); };
     el.querySelector('.gb-zoom').addEventListener('click', (e) => { const t = e.target.closest('[data-z]'); if (!t) return; const z = +t.dataset.z; if (!z) fitView(); else M.view.half = Math.max(30, Math.min(320, M.view.half * (z > 0 ? 1.3 : 1 / 1.3))); M.bgKey = ''; render(); });
     $('gb-ord').addEventListener('click', (e) => { const t = e.target.closest('[data-ord]'); if (t && !t.disabled) orderBtn(t.dataset.ord); });
+    $('gb-forms').addEventListener('click', (e) => { const t = e.target.closest('[data-form]'); if (t && !t.disabled) { M.formOpen = false; issue('form', { f: t.dataset.form }); } });
     $('gb-list').addEventListener('click', (e) => { const r = e.target.closest('[data-i]'); if (!r) return; const it = M.list[+r.dataset.i]; if (it) pickRow(it, e.shiftKey || e.ctrlKey || e.metaKey || M.multi); });
+    // 札を二度押すと、その隊へ地図を寄せる
+    $('gb-list').addEventListener('dblclick', (e) => { const r = e.target.closest('[data-i]'); const it = r && M.list[+r.dataset.i]; if (it) { M.view.x = it.x; M.view.z = it.z; M.bgKey = ''; } });
     const cv = M.cv;
     cv.addEventListener('pointerdown', onDown);
     cv.addEventListener('pointermove', onMove);
@@ -206,10 +221,9 @@ function build() {
     cv.addEventListener('wheel', (e) => { e.preventDefault(); M.view.half = Math.max(30, Math.min(320, M.view.half * (e.deltaY > 0 ? 1.12 : 1 / 1.12))); M.bgKey = ''; render(); }, { passive: false });
   }
   M.el.hidden = false;
-  M.bgKey = '';
+  M.bgKey = ''; M.sideKey = ''; M.cardKey = ''; M.formOpen = false; M.sz = null;
   $('gb-close').focus({ preventScroll: true });
 }
-
 // ---------------- 地図の座標 ----------------
 // 地図の大きさ（描く度に一度だけ測る）
 function measure() { const r = M.cv.getBoundingClientRect(); M.sz = { w: r.width, h: r.height, r }; return M.sz; }
@@ -290,7 +304,7 @@ function onUp(e) {
   if (M.pick) {
     if (M.pick === 'move') { issue('move', { pt: toWorld(x, y) }); return; }
     const t = hit(x, y, 1);
-    if (t) issue('attack', { tgt: t }); else flashPick('敵の隊を押してください（やめるには Esc）');
+    if (t) issue('attack', { tgt: t }); else flashPick('敵の隊を押す（やめる：Esc）');
     return;
   }
   // 引いて並べる：引いた線の真ん中へ進み、線の幅に広がり、線に直角の向き（敵のいる側）を正面にする
@@ -330,6 +344,9 @@ function pickRow(it, add) {
   else { M.sel.clear(); M.sel.add(it.o); }
   sfx('ui', 0.5);
   renderSide();
+  // 地図で選んだ隊の札が、下の帯の外にあれば見える所まで寄せる
+  const c = document.querySelector(`#gb-list [data-i="${M.list.indexOf(it)}"]`);
+  if (c && c.scrollIntoView) c.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 function selectAll() { M.sel = new Set(M.list.filter((e) => e.team === 0 && canOrder(e)).map((e) => e.o)); renderSide(); }
 function quickOrder(x, y) {
@@ -338,17 +355,29 @@ function quickOrder(x, y) {
   if (t) issue('attack', { tgt: t }); else issue('move', { pt: toWorld(x, y) });
 }
 // 携帯の横向き（低い画面）では、案内を短い一言にする
-function flashPick(msg) { const p = $('gb-pick'); p.hidden = false; p.textContent = innerHeight < 500 ? (/敵/.test(msg) ? '敵の隊を押す' : '行き先を押す') : msg; }
-
+function flashPick(msg) { M.pickMsg = msg; guide(); }
+// 画面の下の一言：いま何をすればよいか（一度に一つ）
+function guide() {
+  const p = $('gb-pick'); if (!p) return;
+  const touch = matchMedia('(pointer: coarse)').matches;
+  const n = selected().length;
+  const t = M.pickMsg || (M.pick === 'move' ? '行き先を押す' : M.pick === 'attack' ? '敵の隊を押す' : M.formOpen ? '構えを選ぶ'
+    : n ? '地図を押して進む・敵を押して攻める' : (touch ? '隊を押して選ぶ' : '隊を押すか、囲んで選ぶ'));
+  M.pickMsg = null;
+  if (p.textContent !== t) p.textContent = t;
+  p.classList.toggle('act', !!M.pick);
+}
 // ---------------- 下知 ----------------
 const canOrder = (e) => e.team === 0 && !(e.real && e.o.order === 'path');
 function selected() { return M.list.filter((e) => M.sel.has(e.o) && canOrder(e)); }
 function orderBtn(id) {
   const s = selected();
   if (!s.length) return;
+  if (id === 'form') { M.formOpen = !M.formOpen; M.pick = null; sfx('ui', 0.4); renderSide(); return; }
+  M.formOpen = false;
   if (id === 'move' || id === 'attack') {
-    M.pick = id;
-    flashPick(id === 'move' ? '行き先を地図で押してください（右クリックでもすぐ進めます。やめるには Esc）' : '攻める敵の隊を地図で押してください（やめるには Esc）');
+    M.pick = M.pick === id ? null : id;
+    sfx('ui', 0.4);
     renderSide();
     return;
   }
@@ -358,10 +387,10 @@ function orderBtn(id) {
 function issue(id, arg) {
   const b = M.b;
   const s = selected();
-  M.pick = null; $('gb-pick').hidden = true;
+  M.pick = null; M.formOpen = false;
   if (!s.length || !b) return;
   const P = b.player.u.pos;
-  const O = ORDERS.find((o) => o.id === id);
+  const O = id === 'form' ? FORMS.find((f) => f.f === arg.f) || FORMS[0] : ORDERS.find((o) => o.id === id);
   // まとめて進める時は、隊ごとに少しずらした行き先に（一つ所に重ならないように）
   const cx = s.reduce((a, e) => a + e.x, 0) / s.length, cz = s.reduce((a, e) => a + e.z, 0) / s.length;
   // 引いて並べた時は、線の上に隊を左から順に割り振る（今の並びの順を崩さない）
@@ -439,6 +468,12 @@ function orderReal(b, g, id, arg) {
     const f = nearestFoe(b, c);
     g.order = 'hold'; g.dest = null; g.anchor = { x: c.x, z: c.z }; g.formation = 'yari';
     if (f) g.facing = face(f.x, f.z);
+  } else if (id === 'form') {
+    // 構えを組み替える。槍衾と円陣は、その場で踏みとどまって組む
+    const f = arg.f || 'line';
+    g.formation = f;
+    if (f === 'yari' || f === 'ring') { g.order = 'hold'; g.dest = null; g.anchor = { x: c.x, z: c.z }; }
+    if (f === 'yari') { const fo = nearestFoe(b, c); if (fo) g.facing = face(fo.x, fo.z); }
   } else if (id === 'fire') {
     g.holdFire = !g.holdFire;
     b.bark(`${g.name || '隊'}：${g.holdFire ? '撃ち方やめ' : '放て'}`);
@@ -462,7 +497,7 @@ function orderArmy(b, A, id, arg) {
       const f = Math.atan2(tp.x - me.x, tp.z - me.z);
       return { x: tp.x - Math.sin(f) * 7, z: tp.z - Math.cos(f) * 7, facing: f };
     }, { gap: 0 });
-  } else if (id === 'hold' || id === 'yari') { A.lordOrder = 'hold'; g.halt(); g.follow(null); }
+  } else if (id === 'hold' || id === 'yari' || (id === 'form' && (arg.f === 'yari' || arg.f === 'ring'))) { A.lordOrder = 'hold'; g.halt(); g.follow(null); }
   else if (id === 'retreat') {
     const f = nearestFoe(b, c);
     let dx = f ? c.x - f.x : -Math.sin(A.facing), dz = f ? c.z - f.z : -Math.cos(A.facing);
@@ -609,7 +644,8 @@ function render(force) {
     g.save(); g.translate(a, c); g.rotate(-(e.face || 0));
     g.beginPath(); g.rect(-R, -R * 0.55, R * 2, R * 1.1); g.fill(); g.stroke(); g.restore();
   }
-  // 使番：走っている間は、信長から隊へ点線と走る点
+  // 使番：下知は馬の使番が運ぶ。走っている間は、信長から隊へ点線と、母衣を背負った使番の印と残りの秒
+  g.font = '700 12px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
   for (const e of M.list) {
     const pd = e.o.lordPend;
     if (!pd || pd.until <= b.t) continue;
@@ -617,7 +653,22 @@ function render(force) {
     const k = Math.min(1, (b.t - pd.t0) / Math.max(0.1, pd.until - pd.t0));
     g.setLineDash([4, 4]); g.strokeStyle = 'rgba(243,217,138,.7)'; g.lineWidth = 1.5;
     g.beginPath(); g.moveTo(a1, c1); g.lineTo(a2, c2); g.stroke(); g.setLineDash([]);
-    g.fillStyle = '#f3d98a'; g.beginPath(); g.arc(a1 + (a2 - a1) * k, c1 + (c2 - c1) * k, 3.5, 0, Math.PI * 2); g.fill();
+    const rx = a1 + (a2 - a1) * k, ry = c1 + (c2 - c1) * k;
+    // 母衣（丸くふくらんだ布）と使番
+    g.fillStyle = '#c0452e'; g.beginPath(); g.arc(rx - 3, ry - 4, 5, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#f3d98a'; g.strokeStyle = '#14120f'; g.lineWidth = 1.5; g.beginPath(); g.arc(rx, ry, 4, 0, Math.PI * 2); g.fill(); g.stroke();
+    // 隊の上に、下知が届くまでの輪（減っていく）
+    const R0 = 13;
+    g.strokeStyle = 'rgba(10,9,7,.7)'; g.lineWidth = 4; g.beginPath(); g.arc(a2, c2, R0, 0, Math.PI * 2); g.stroke();
+    g.strokeStyle = '#f3d98a'; g.lineWidth = 2.5; g.beginPath(); g.arc(a2, c2, R0, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (1 - k)); g.stroke();
+    const tx = `${Math.ceil(pd.until - b.t)}秒`, tw = g.measureText(tx).width + 8;
+    g.fillStyle = 'rgba(10,9,7,.85)'; g.fillRect(rx - tw / 2, ry + 7, tw, 15); g.fillStyle = '#f3d98a'; g.fillText(tx, rx, ry + 14.5);
+  }
+  // 攻める相手を指す時は、敵の隊を朱の輪で示す
+  if (M.pick === 'attack') {
+    const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 180);
+    g.strokeStyle = `rgba(240,120,90,${0.45 + pulse * 0.45})`; g.lineWidth = 2;
+    for (const e of M.list) { if (e.team !== 1) continue; const [a, c] = toScr(e.x, e.z); g.beginPath(); g.arc(a, c, Math.max(14, e.r * s) + 3, 0, Math.PI * 2); g.stroke(); }
   }
   // 行き先：使番が走っている間も、着くまで点線と着くまでの見込み（秒）を残す
   g.font = '600 12px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -711,7 +762,9 @@ function render(force) {
   let an = 0, am = 0, en = 0, em = 0;
   for (const e of M.list) { if (e.team === 0) { an += e.n; am += e.m * e.n; } else { en += e.n; em += e.m * e.n; } }
   const top = $('gb-top');
-  const html = `<span>味方 <b>${an}</b>人・士気 <b>${an ? Math.round(am / an) : 0}</b></span><span class="en">敵（見えている分） <b>${en}</b>人・士気 <b>${en ? Math.round(em / en) : 0}</b></span>`;
+  // 味方と敵（見えている分）の兵の多さを一本の帯で。士気は帯の下の細い線
+  const k = an + en ? an / (an + en) : 0.5, amr = an ? Math.round(am / an) : 0, emr = en ? Math.round(em / en) : 0;
+  const html = `<b class="a">${an}</b><span class="bal" role="img" aria-label="味方 ${an}人・士気 ${amr}、見えている敵 ${en}人・士気 ${emr}"><i style="width:${Math.round(k * 100)}%"></i><s class="ma" style="width:${amr / 2}%"></s><s class="me" style="width:${emr / 2}%"></s></span><b class="e">${en}</b>`;
   if (top.innerHTML !== html) top.innerHTML = html;
   void force;
 }
@@ -720,38 +773,55 @@ function renderSide() {
   if (!M.open) return;
   const b = M.b;
   const s = selected();
-  const ord = $('gb-ord');
-  ord.innerHTML = ORDERS.map((o) => {
-    const ok = s.length && (o.id !== 'yari' || s.some((e) => e.real)) && (o.id !== 'fire' || s.some((e) => e.real && e.o.units.some((u) => u.alive && (u.type === 'gun' || u.type === 'bow'))));
-    return `<button type="button" data-ord="${o.id}" ${ok ? '' : 'disabled'} class="${M.pick === o.id ? 'on' : ''}" aria-pressed="${M.pick === o.id}" title="${o.note}"><kbd>${o.key}</kbd>${o.label}</button>`;
+  const anyReal = s.some((e) => e.real);
+  // 下知の釦（選んでいない時は押せない）。変わった時だけ描き直す（押している間に消えないように）
+  const ordHtml = ORDERS.map((o) => {
+    const ok = s.length && (o.id !== 'form' || anyReal) && (o.id !== 'fire' || s.some((e) => e.real && e.o.units.some((u) => u.alive && (u.type === 'gun' || u.type === 'bow'))));
+    const on = M.pick === o.id || (o.id === 'form' && M.formOpen);
+    return `<button type="button" data-ord="${o.id}" ${ok ? '' : 'disabled'} class="${on ? 'on' : ''}" aria-pressed="${on}" title="${o.note}（${o.key}）">${icon(o.ic)}<span>${o.label}</span></button>`;
   }).join('');
-  $('gb-seln').textContent = s.length ? `${s.length}の隊を選んでいる` : '隊を選んでいない';
-  const mb = $('gb-multi'); mb.setAttribute('aria-pressed', String(M.multi)); mb.classList.toggle('on', M.multi);
+  const cur = s.length === 1 && s[0].real ? s[0].o.formation : null;
+  const formHtml = FORMS.map((f) => `<button type="button" data-form="${f.f}" class="${cur === f.f ? 'on' : ''}" aria-pressed="${cur === f.f}" title="${f.note}">${icon(f.ic)}<span>${f.label}</span></button>`).join('');
+  const key = ordHtml + formHtml + M.formOpen + M.multi;
+  if (key !== M.sideKey) {
+    M.sideKey = key;
+    $('gb-ord').innerHTML = ordHtml;
+    $('gb-forms').innerHTML = formHtml;
+    $('gb-forms').hidden = !M.formOpen;
+    const mb = $('gb-multi'); mb.setAttribute('aria-pressed', String(M.multi)); mb.classList.toggle('on', M.multi);
+  }
+  // 隊の札：家紋・兵の数・士気の帯・いまの下知の一字。使番が走っている間は、届くまでの輪と秒
   const allies = M.list.map((e, i) => ({ e, i })).filter(({ e }) => e.team === 0);
-  $('gb-list').innerHTML = allies.map(({ e, i }) => {
+  const cards = allies.map(({ e, i }) => {
     const on = M.sel.has(e.o);
-    const pd = e.o.lordPend && e.o.lordPend.until > b.t ? `使番 あと${Math.ceil(e.o.lordPend.until - b.t)}秒` : '';
-    const st = e.real && e.o.order === 'path' ? '行軍中（着くまで下知できない）' : e.real ? (e.o.order === 'follow' ? 'ついて来る' : ORDER_NAME[e.o.order] || '待つ') : { move: '前進', attack: '攻める', retreat: '退く', hold: '待て' }[e.order] || '控え';
-    return `<li data-i="${i}" class="${on ? 'on' : ''} ${canOrder(e) ? '' : 'off'}" aria-selected="${on}" role="option">
-      <canvas width="36" height="36" data-mon="${esc(e.mon)}" aria-hidden="true"></canvas>
-      <div><b>${esc(e.name)}</b>${e.lead && !e.name.includes(e.lead) ? `<small class="ld">${esc(e.lead)}</small>` : ''}
-      <small>${e.n}人・士気 ${Math.round(e.m)}・${esc(st)}${e.real ? '' : '（遠くの備）'}</small>${pd ? `<small class="pd">${pd}</small>` : ''}
-      <i class="mb"><i style="width:${Math.round(e.m)}%"></i></i></div></li>`;
+    const left = e.o.lordPend && e.o.lordPend.until > b.t ? Math.ceil(e.o.lordPend.until - b.t) : 0;
+    const k = left ? Math.max(0, Math.min(1, (e.o.lordPend.until - b.t) / Math.max(0.1, e.o.lordPend.until - e.o.lordPend.t0))) : 0;
+    const march = e.real && e.o.order === 'path';
+    const ordK = e.real ? (e.o.formation === 'yari' && e.o.order === 'hold' ? 'yari' : e.o.order) : e.order;
+    const st = march ? '行軍中（着くまで下知できない）' : e.real ? (e.o.order === 'follow' ? 'ついて来る' : ORDER_NAME[e.o.order] || '待つ') : { move: '前進', attack: '攻める', retreat: '退く', hold: '待て' }[e.order] || '控え';
+    const mc = e.m > 60 ? 'hi' : e.m > 30 ? 'md' : 'lo';
+    return `<button type="button" role="option" data-i="${i}" class="gb-card ${on ? 'on' : ''} ${march ? 'off' : ''} ${e.real ? '' : 'far'}" aria-selected="${on}" aria-label="${esc(e.name)}。${e.n}人・士気${Math.round(e.m)}・${esc(st)}${left ? `・使番あと${left}秒` : ''}" title="${esc(e.name)}">
+      <canvas width="30" height="30" data-mon="${esc(e.mon)}" aria-hidden="true"></canvas><b>${e.n > 999 ? `${(e.n / 1000).toFixed(1)}k` : e.n}</b>
+      <i class="mb ${mc}"><i style="width:${Math.round(e.m)}%"></i></i><em aria-hidden="true">${ORD_CHAR[ordK] || '待'}</em>
+      ${left ? `<span class="pd" aria-hidden="true" style="--k:${Math.round(k * 100)}%"><span>${left}</span></span>` : ''}</button>`;
   }).join('');
-  for (const c of $('gb-list').querySelectorAll('canvas[data-mon]')) c.getContext('2d').drawImage(monImg(c.dataset.mon), 0, 0, 36, 36);
-  $('gb-help').innerHTML = matchMedia('(pointer: coarse)').matches
-    ? '隊を押して選ぶ →（進め）地図を押す／（攻めよ）敵を押す。選んだまま地図を指で引くと、その線に並べる。一本指で地図を動かし、二本指で縮尺。'
-    : '隊を押して選ぶ・ドラッグで囲む・Shift で足す。選んだら地図を押せば進め、敵を押せば攻めよ。選んだまま引くと、その線に並べる（幅と向き）。1〜6 で下知。ホイールで縮尺、矢印で動かす。';
+  if (cards !== M.cardKey) {
+    M.cardKey = cards;
+    const box = $('gb-list');
+    const sl = box.scrollLeft;
+    box.innerHTML = cards || '<p class="gb-none">動かせる隊がいない</p>';
+    box.scrollLeft = sl;
+    for (const c of box.querySelectorAll('canvas[data-mon]')) c.getContext('2d').drawImage(monImg(c.dataset.mon), 0, 0, 30, 30);
+  }
+  guide();
 }
-
-// キー：開いている間はこの図が使う（M・F1・H 以外は戦へ流さない）
 window.addEventListener('keydown', (e) => {
   if (!M.open) return;
   if (e.code === 'KeyM' || e.code === 'F1' || e.code === 'KeyH') return;
   if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
   e.stopPropagation();
   const k = e.code;
-  if (k === 'Escape') { e.preventDefault(); if (M.pick) { M.pick = null; $('gb-pick').hidden = true; renderSide(); } else close(); return; }
+  if (k === 'Escape') { e.preventDefault(); if (M.pick || M.formOpen) { M.pick = null; M.formOpen = false; renderSide(); } else close(); return; }
   if (e.repeat) return;
   const o = ORDERS.find((x) => `Digit${x.key}` === k);
   if (o) { e.preventDefault(); const bt = document.querySelector(`#gb-ord [data-ord="${o.id}"]`); if (bt && !bt.disabled) orderBtn(o.id); return; }
@@ -767,43 +837,69 @@ function injectStyle() {
   const st = document.createElement('style');
   st.id = 'gunbai-style';
   st.textContent = `
-#gunbai { position: fixed; inset: 0; z-index: 30; display: grid; grid-template-columns: 1fr min(360px, 42vw); background: #0e0c09; color: var(--washi); font-family: var(--ui);
+#gunbai { position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column; background: #0e0c09; color: var(--washi); font-family: var(--ui);
   padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
 #gunbai[hidden] { display: none; }
-#gunbai .gb-map { position: relative; min-width: 0; min-height: 0; }
+#gunbai .gb-map { position: relative; flex: 1 1 auto; min-height: 0; }
 #gunbai canvas#gb-cv { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
-#gunbai .gb-top { position: absolute; left: 12px; top: 62px; display: flex; gap: 14px; flex-wrap: wrap; padding: 6px 12px; background: rgba(10,9,7,.8); border-top: 2px solid var(--shu); font-size: 13px; }
-html.touch.inframe #gunbai .gb-top { top: 122px; }
-#gunbai .gb-top b { font-family: var(--display); font-size: 16px; color: var(--washi); font-variant-numeric: tabular-nums; }
-#gunbai .gb-top .en b { color: #f0a08c; }
-#gunbai .gb-pick { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); padding: 8px 14px; background: rgba(10,9,7,.9); border: 1px solid var(--kin); font-size: 14px; max-width: 90%; }
-#gunbai .gb-zoom { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 6px; }
+#gunbai .topback { position: absolute; left: 10px; top: 10px; z-index: 2; }
+#gunbai .gb-top { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 6px 12px; background: rgba(10,9,7,.82); border: 1px solid rgba(194,162,90,.35); }
+#gunbai .gb-top b { font-family: var(--display); font-size: 17px; font-variant-numeric: tabular-nums; min-width: 3ch; }
+#gunbai .gb-top b.a { color: #b8cbe6; text-align: right; } #gunbai .gb-top b.e { color: #f0a08c; }
+#gunbai .gb-top b.a::before { content: '味方 '; font: 500 12px var(--ui); color: var(--washi-dim); }
+#gunbai .gb-top b.e::after { content: ' 敵'; font: 500 12px var(--ui); color: var(--washi-dim); }
+#gunbai .gb-top .bal { position: relative; display: block; width: min(240px, 26vw); height: 10px; background: #8a3424; }
+#gunbai .gb-top .bal i { position: absolute; left: 0; top: 0; bottom: 0; background: #6f86a8; border-right: 2px solid #f3d98a; }
+#gunbai .gb-top .bal s { position: absolute; bottom: -5px; height: 2px; }
+#gunbai .gb-top .bal .ma { left: 0; background: #b8cbe6; } #gunbai .gb-top .bal .me { right: 0; background: #f0a08c; }
+#gunbai .gb-pick { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); padding: 6px 14px; background: rgba(10,9,7,.85); border: 1px solid rgba(194,162,90,.4); font-size: 14px; white-space: nowrap; max-width: calc(100% - 140px); overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+#gunbai .gb-pick.act { border-color: #f3d98a; color: #f3d98a; }
+#gunbai .gb-zoom { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 6px; }
 #gunbai button { min-height: 44px; min-width: 44px; font: 600 14px/1.1 var(--ui); color: var(--washi); background: rgba(44,40,33,.92); border: 1px solid rgba(194,162,90,.45); cursor: pointer; padding: 4px 10px; }
 #gunbai button:hover:not([disabled]) { border-color: var(--kin); }
-#gunbai button.on, #gunbai button[aria-pressed="true"] { background: rgba(192,69,46,.55); border-color: #f0c070; }
-#gunbai button[disabled] { opacity: .4; cursor: not-allowed; }
+#gunbai button.on, #gunbai button[aria-pressed="true"] { background: rgba(192,69,46,.6); border-color: #f0c070; }
+#gunbai button[disabled] { opacity: .38; cursor: not-allowed; }
 #gunbai button:focus-visible { outline: 2px solid var(--kin); outline-offset: 2px; }
-#gunbai kbd { font: 600 11px/1 var(--ui); color: var(--kin); border: 1px solid rgba(194,162,90,.5); padding: 2px 4px; margin-right: 5px; }
-#gunbai .gb-side { border-left: 1px solid rgba(194,162,90,.35); padding: 10px 12px; overflow: auto; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
-#gunbai .gb-side header { display: flex; justify-content: space-between; align-items: center; }
-#gunbai h3 { margin: 0; font-family: var(--display); font-size: 19px; letter-spacing: .14em; color: var(--kin); }
-#gunbai #gb-close kbd { margin: 0 0 0 6px; }
-#gunbai .gb-slow { margin: 0; font-size: 12.5px; color: var(--washi-dim); }
-#gunbai .gb-ord { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-#gunbai .gb-selbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; color: var(--washi-dim); }
-#gunbai .gb-selbar span { flex: 1 1 100%; }
-#gunbai .gb-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
-#gunbai .gb-list li { display: grid; grid-template-columns: 36px 1fr; gap: 8px; align-items: center; padding: 6px 8px; border: 1px solid rgba(236,228,210,.14); border-left: 3px solid transparent; cursor: pointer; min-height: 44px; }
-#gunbai .gb-list li.on { border-left-color: var(--shu); border-color: rgba(243,217,138,.7); background: rgba(192,69,46,.16); }
-#gunbai .gb-list li.off { opacity: .6; }
-#gunbai .gb-list b { font-size: 14px; }
-#gunbai .gb-list small { display: block; font-size: 12.5px; color: var(--washi-dim); margin-top: 1px; }
-#gunbai .gb-list small.ld { display: inline; margin-left: 6px; color: var(--kin); }
-#gunbai .gb-list small.pd { color: #f3d98a; }
-#gunbai .gb-list .mb { display: block; height: 4px; background: rgba(0,0,0,.6); margin-top: 3px; }
-#gunbai .gb-list .mb i { display: block; height: 100%; background: #9fc28a; }
-#gunbai .gb-help { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--washi-dim); }
-@media (max-width: 700px), (max-height: 460px) { #gunbai .gb-side { padding: 6px 8px; gap: 6px; } #gunbai h3 { font-size: 16px; } #gunbai .gb-slow { display: none; } #gunbai .gb-help { display: none; } }
+#gunbai svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+/* 下の帯：下知の釦・構え・隊の札 */
+#gunbai .gb-dock { flex: 0 0 auto; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; background: linear-gradient(180deg, #1a1611, #0e0c09); border-top: 2px solid rgba(194,162,90,.45); }
+#gunbai .gb-ord, #gunbai .gb-forms { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+#gunbai .gb-ord button, #gunbai .gb-forms button { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; min-width: 76px; }
+#gunbai .gb-forms { padding-bottom: 6px; border-bottom: 1px dashed rgba(194,162,90,.35); }
+#gunbai .gb-row { display: flex; gap: 8px; align-items: stretch; min-width: 0; }
+#gunbai .gb-sel { display: flex; flex-direction: column; gap: 6px; flex: 0 0 auto; }
+#gunbai .gb-sel button { min-height: 34px; font-size: 13px; padding: 2px 8px; }
+#gunbai .gb-cards { display: flex; gap: 6px; overflow-x: auto; overflow-y: hidden; flex: 1 1 auto; min-width: 0; padding: 2px 2px 4px; scrollbar-width: thin; }
+#gunbai .gb-card { position: relative; flex: 0 0 auto; width: 64px; height: 76px; padding: 4px 3px; display: flex; flex-direction: column; align-items: center; gap: 2px; background: linear-gradient(180deg, #2c3446, #1a1f2b); border: 1px solid rgba(143,166,200,.55); }
+#gunbai .gb-card.far { background: linear-gradient(180deg, #262b36, #171a21); border-style: dashed; }
+#gunbai .gb-card.on { border: 2px solid #f3d98a; transform: translateY(-3px); box-shadow: 0 4px 10px rgba(0,0,0,.6); background: linear-gradient(180deg, #4a3a22, #2a2014); }
+#gunbai .gb-card.off { opacity: .5; }
+#gunbai .gb-card canvas { width: 30px; height: 30px; }
+#gunbai .gb-card b { font: 700 14px/1 var(--ui); font-variant-numeric: tabular-nums; }
+#gunbai .gb-card .mb { display: block; width: 52px; height: 5px; background: rgba(0,0,0,.6); }
+#gunbai .gb-card .mb i { display: block; height: 100%; background: #9fc28a; }
+#gunbai .gb-card .mb.md i { background: #e0b44a; } #gunbai .gb-card .mb.lo i { background: #d4553b; }
+#gunbai .gb-card em { position: absolute; top: 2px; right: 2px; font: 700 12px/1 var(--display); font-style: normal; color: #14120f; background: #d8cfb8; padding: 2px 3px; }
+#gunbai .gb-card .pd { position: absolute; top: 2px; left: 2px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(#f3d98a var(--k), rgba(10,9,7,.7) 0); }
+#gunbai .gb-card .pd span { width: 16px; height: 16px; border-radius: 50%; background: #14120f; color: #f3d98a; font: 700 11px/16px var(--ui); text-align: center; }
+#gunbai .gb-none { margin: 0; align-self: center; font-size: 13px; color: var(--washi-dim); }
+html:not(.touch) #gunbai #gb-multi { display: none; }
+/* iPhone 横：帯を低く、字を削る（釦は絵と二字） */
+@media (max-height: 460px) {
+  #gunbai .gb-dock { padding: 4px 8px; gap: 4px; flex-direction: row; align-items: stretch; }
+  #gunbai .gb-ord { flex-wrap: nowrap; display: grid; grid-template-columns: repeat(3, 44px); grid-auto-rows: 38px; gap: 4px; }
+  #gunbai .gb-ord button { min-width: 44px; min-height: 38px; padding: 0; justify-content: center; flex-direction: column; gap: 0; font-size: 12px; }
+  #gunbai .gb-ord button svg { width: 18px; height: 18px; }
+  #gunbai .gb-forms { position: absolute; left: 8px; right: 8px; bottom: 100%; background: rgba(14,12,9,.95); padding: 6px; border: 1px solid rgba(194,162,90,.45); flex-wrap: nowrap; }
+  #gunbai .gb-forms button { min-width: 0; flex: 1; padding: 2px 4px; font-size: 13px; }
+  #gunbai .gb-dock { position: relative; }
+  #gunbai .gb-sel button { min-height: 38px; }
+  #gunbai .gb-card { height: 80px; }
+  #gunbai .gb-top { top: 8px; padding: 4px 10px; } #gunbai .gb-top b { font-size: 15px; }
+  #gunbai .gb-pick { font-size: 13px; bottom: 6px; }
+  #gunbai .gb-zoom { top: 8px; right: 8px; } #gunbai .gb-zoom button { min-height: 40px; min-width: 40px; }
+}
+@media (prefers-reduced-motion: reduce) { #gunbai .gb-card.on { transform: none; } }
 `;
   document.head.appendChild(st);
 }

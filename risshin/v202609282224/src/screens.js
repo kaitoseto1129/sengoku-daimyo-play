@@ -1,8 +1,8 @@
 import { isTouch } from './touch.js';
 import { TOMO, RANK_CEIL, GRADE_CUT, RANKS, BATTLES, SCENARIOS, SCENARIO_ORDER, SCENARIO_PICK, zeni, scenarioKey, scenarioReady, ITEMS, TITLES, LADDER, HORSES, myHorse, ladderStep, rankLabel, save, equipDef, migrate, loadAll, relOf } from './state.js';
 import { drawMon } from './textures.js';
-import { sfx } from './audio.js';
-import { S, saveSettings, resetHints, resetSettings, BIND_DEFAULTS, BIND_LABELS, keyLabel, DIFFICULTY, K } from './settings.js';
+import { sfx, initAudio } from './audio.js';
+import { S, saveSettings, resetHints, resetSettings, BIND_DEFAULTS, BIND_LABELS, keyLabel, DIFFICULTY, K, hintSeen } from './settings.js';
 import { Preview } from './preview.js';
 import { illustHtml, illustKey, mountIllust } from './illust.js';
 import { odaTown, setOdaDiagram, ODA_REL_NAME } from './oda_town.js';
@@ -140,8 +140,74 @@ function newPick(v) {
   if (v) { try { localStorage.setItem(PICK_KEY, JSON.stringify(v)); } catch (e) { /* 覚えられなくても始められる */ } return v; }
   try { return JSON.parse(localStorage.getItem(PICK_KEY)) || {}; } catch (e) { return {}; }
 }
+// ---------------- 題字（墨）とオープニング ----------------
+// 墨の題字：刷毛の一払いの上に「戦国立身」、朱の落款。題の画面とオープニングで使う
+const INK_DEFS = '<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="inkBleed" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.55" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="1.8"/></filter></svg>';
+const INK_STROKE = '<svg class="ink-brush" viewBox="0 0 600 120" preserveAspectRatio="none" aria-hidden="true"><path d="M8 70 C 90 40, 200 30, 320 44 C 420 55, 520 48, 592 30 L 596 52 C 520 80, 420 92, 300 84 C 190 78, 90 92, 12 98 Z" fill="rgba(10,8,6,.82)"/><path d="M40 92 C 160 86, 300 96, 470 82" stroke="rgba(10,8,6,.5)" stroke-width="3" fill="none"/></svg>';
+const INK_CSS = `<style>
+  .ink-title { position: relative; display: inline-block; margin: 8px 0 4px; padding: 6px 28px 10px 18px; }
+  .ink-title .ink-brush { position: absolute; left: -4%; top: 18%; width: 108%; height: 78%; z-index: 0; }
+  .ink-title h1.title { position: relative; z-index: 1; margin: 0; filter: url(#inkBleed); color: #f1e9d6; text-shadow: 0 2px 6px rgba(0,0,0,.6); }
+  .ink-title h1.title span { color: #f1e9d6; }
+  .ink-title .seal { position: absolute; z-index: 2; right: -6px; bottom: 2px; width: 34px; height: 34px; display: grid; place-items: center; background: #b23a26; color: #fff4e6; font: 800 13px/1.05 var(--display); font-style: normal; text-align: center; letter-spacing: 0; transform: rotate(4deg); box-shadow: inset 0 0 0 2px #b23a26, inset 0 0 0 3px rgba(255,244,230,.75); }
+  @media (max-height: 500px) { .ink-title { padding: 2px 22px 6px 12px; } .ink-title h1.title { font-size: 44px; } .ink-title .seal { width: 28px; height: 28px; font-size: 11px; } }
+  /* オープニング：黒い間に、墨の題字 → 一言の語り → 年と場所と自分 */
+  .op { position: fixed; inset: 0; z-index: 50; background: radial-gradient(ellipse at 50% 45%, #1d1812, #070605 75%); color: #ece4d2; display: grid; place-items: center; overflow: hidden; cursor: pointer; }
+  .op .beat { position: absolute; inset: 0; display: grid; place-items: center; align-content: center; gap: 14px; padding: 60px 24px; text-align: center; opacity: 0; transition: opacity .9s ease; pointer-events: none; }
+  .op .beat.on { opacity: 1; }
+  .op .b1 .ink-title { transform: scale(1.1); }
+  .op .b1 .ink-brush path:first-child { stroke-dasharray: 2000; animation: opBrush 1.1s ease-out both; }
+  .op .b2 p { margin: 0; font-family: var(--display); font-size: clamp(22px, 3.6vw, 36px); letter-spacing: .18em; line-height: 1.7; }
+  .op .b3 small { font-size: 15px; letter-spacing: .4em; color: #c2a25a; }
+  .op .b3 b { font-family: var(--display); font-weight: 800; font-size: clamp(30px, 5vw, 54px); letter-spacing: .16em; }
+  .op .b3 b span { display: block; font-size: .42em; letter-spacing: .3em; color: #d8cfb8; font-weight: 600; margin-bottom: 6px; }
+  .op .b3 p { margin: 0; font-size: 16px; letter-spacing: .12em; color: #d8cfb8; }
+  .op .op-skip { position: fixed; right: max(12px, env(safe-area-inset-right, 0px)); top: max(10px, env(safe-area-inset-top, 0px)); z-index: 3; min-height: 44px; min-width: 44px; padding: 0 16px; background: rgba(20,18,15,.88); color: #ece4d2; border: 1px solid rgba(236,228,210,.28); font: 500 14px var(--ui); letter-spacing: .1em; cursor: pointer; }
+  .op .op-skip:hover { border-color: var(--kin); }
+  .op .op-tap { position: absolute; bottom: max(14px, env(safe-area-inset-bottom, 0px)); left: 0; right: 0; text-align: center; font-size: 13px; color: #a89d86; letter-spacing: .2em; }
+  @keyframes opBrush { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+  body.rm .op .beat { transition: none; } body.rm .op .ink-brush path { animation: none !important; }
+  @media (prefers-reduced-motion: reduce) { .op .beat { transition: none; } .op .ink-brush path { animation: none !important; } }
+  @media (max-height: 500px) { .op .beat { padding: 50px 20px; gap: 8px; } .op .b3 p { font-size: 14px; } }
+</style>`;
+function inkTitle() { return `${INK_DEFS}<div class="ink-title">${INK_STROKE}<h1 class="title">戦国<span>立身</span></h1><i class="seal" aria-hidden="true">立<br>身</i></div>`; }
+// 新しく始めた時の入り（大河の始まりのように）。押すと次へ、「飛ばす」で終わる。back は題の画面へ
+function openingScreen(name, next, back) {
+  let done = false, beat = 0;
+  const timers = [];
+  const finish = () => { if (done) return; done = true; timers.forEach(clearTimeout); next(); };
+  const st = show(`${INK_CSS}<div class="op" role="dialog" aria-label="はじまり">
+    <div class="beat b1" aria-hidden="true">${inkTitle()}</div>
+    <div class="beat b2"><p>応仁の乱から、百年。<br>国は割れ、戦は絶えない。</p></div>
+    <div class="beat b3"><small>永禄三年（一五六〇）　尾張</small><b><span>織田の足軽</span>${esc(name)}</b><p>今川の大軍、二万五千が迫る。</p></div>
+    <button type="button" class="op-skip" id="op-skip">飛ばす</button>
+    <p class="op-tap" aria-hidden="true">${isTouch ? '押すと次へ' : '押すか Enter で次へ・Esc で飛ばす'}</p>
+  </div>`, false, (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); finish(); }
+    else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(beat + 1); }
+  });
+  const beats = [...st.querySelectorAll('.op .beat')];
+  const LEN = [3.2, 3.4, 3.8];
+  const go = (k) => {
+    if (done) return;
+    timers.forEach(clearTimeout); timers.length = 0;
+    if (k >= beats.length) { finish(); return; }
+    beat = k;
+    beats.forEach((el, i) => { el.classList.toggle('on', i === k); el.setAttribute('aria-hidden', String(i !== k)); });
+    if (k === 0) sfx('taiko', 0.8); else if (k === 2) sfx('horagai', 0.5);
+    timers.push(setTimeout(() => go(k + 1), LEN[k] * 1000));
+  };
+  st.querySelector('.op').addEventListener('click', (e) => { if (!e.target.closest('button')) go(beat + 1); });
+  $('op-skip').onclick = (e) => { e.stopPropagation(); sfx('ui'); finish(); };
+  // 左上の戻る（題の画面へ）
+  topBack(() => { if (done) return; done = true; timers.forEach(clearTimeout); back(); }, 'タイトルへ', null, false);
+  $('op-skip').focus({ preventScroll: true });
+  requestAnimationFrame(() => go(0));
+}
+
 export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSlot, onChapter, onDojo, onRecords, onLadder, onJapan, onSamurai, onLord) {
   const slots = loadAll();
+  const ARGS = arguments;
   // 保存ごとに筋書きが違うので、その保存の筋書きの戦の並びで「次は」を出す
   const scOf = (g) => SCENARIOS[g.scenario || 'okehazama'];
   const nextOf = (g) => { const bs = scOf(g).battles; return g.battle >= bs.length ? `${scOf(g).name}を終えた` : `${scOf(g).name}・次は${bs[g.battle].name}`; };
@@ -181,11 +247,10 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
     <div id="tt-home">
     <div class="eyebrow">早期体験版 ${VERSION}　・　織田家編　・　桶狭間から天下へ</div>
     ${window.innerHeight > window.innerWidth ? '<p class="note" style="color:var(--kin)">画面を横向きにするか、PCで遊ぶことをおすすめします。</p>' : ''}
-    ${matchMedia('(pointer: coarse)').matches ? '<p class="note" style="color:var(--kin)">指で遊べます。左の親指で歩き、右側をなぞって見回し、右下の丸で突く・構える・回避。</p>' : ''}
     ${illustHtml('title', 'title', '合戦図屏風の一枚絵：土煙の中を駆ける赤備えの騎馬と、馬防柵の内の鉄砲')}
-    <h1 class="title">戦国<span>立身</span></h1>
+    ${INK_CSS}${inkTitle()}
     <style>.tt-lead .ls{display:none}@media (max-height:500px){.tt-lead{margin:2px 0 0;line-height:1.6}.tt-lead .ll{display:none}.tt-lead .ls{display:inline}.tt-gap{height:4px!important}}</style>
-    <p class="lead tt-lead"><span class="ll">永禄三年、桶狭間。雨の中を駆ける織田の兵の中に、<br>名もなき足軽がひとりいる。<br>織田家の戦を一つずつ越え、手柄と銭を積み、やがて組を率いる。</span><span class="ls">桶狭間の雨から、織田の足軽が身を立てる。</span></p>
+    <p class="lead tt-lead">名もなき足軽が、戦国の世に身を立てる。</p>
     <div class="tt-gap" style="height:20px"></div>
     ${saved ? `<p class="savebox">保存データ：${saveInfo}${saved.journal && saved.journal.length ? `<br>前回：${esc(saved.journal[saved.journal.length - 1].t)}　${esc(saved.journal[saved.journal.length - 1].s.slice(0, 40))}` : ''}</p><div id="new-confirm"></div>` : ''}
     <div class="title-act">${saved ? (oldScn
@@ -218,7 +283,14 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
     if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement)) { e.preventDefault(); (saved && !oldScn ? $('b-cont') : $('b-new')).click(); }
   });
   // 難易度の選びは無くした（kaito 2026-09-27）。いつも「普通」で始める
-  const start = () => onNew(($('nm').value || '弥五郎').trim().slice(0, 8), 'normal', (document.querySelector('input[name=scn]:checked') || {}).value || scns[0] || 'oda');
+  // 始める：名と筋書きを先に読んでから、織田家編ならオープニングを挟む（題の画面の字は消えるため）
+  const start = () => {
+    const nm = ($('nm').value || '弥五郎').trim().slice(0, 8), scn = (document.querySelector('input[name=scn]:checked') || {}).value || scns[0] || 'oda';
+    const go = () => onNew(nm, 'normal', scn);
+    if (scn !== 'oda') { go(); return; }
+    try { initAudio(); } catch (e) { /* 音が出せなくても進める */ }
+    openingScreen(nm, go, () => titleScreen.apply(null, ARGS));
+  };
   // 保存コード（別のブラウザや端末へ進行を持ち運ぶ）
   $('b-export').onclick = () => {
     if (!saved) return;
@@ -577,6 +649,8 @@ export function storyCard({ year, title, text, button = '進む', tips, aim, onB
   const who = G && G.lord ? `${esc(G.name)}　<b>${esc(G.lordTitle || '当主')}</b>・旗本 百人と、味方の全部の隊を率いる` : G && G.name ? `${esc(G.name)}　<b>${esc(RANKS[G.rank].name)}</b>${RANKS[G.rank].squad ? `・組 ${RANKS[G.rank].squad}人を預かる` : '・組はまだ無い'}` : '';
   // 背の低い画面（スマホ横）：本文は初めの一段だけ、続きは「もっと読む」に畳む。心得は一行、身分の行は小さく（一画面に収める）
   const short = innerHeight < 520;
+  // 初めての戦の前は、操作の言い添えを出さない（操作は戦の中で一つずつ、やって覚える）
+  const first = S.hints && !hintSeen('c_move');
   const st = show(`<div class="story ${RM() ? 'fast' : ''} ${ik ? 'has-ill' : ''} ${short ? 'short' : ''}"><div>
     ${illustHtml(ik)}
     <div class="year">${esc(year)}${bt && bt.place && !year.includes(bt.place.slice(0, 2)) ? `　・　${esc(bt.place)}` : ''}</div>
@@ -584,7 +658,7 @@ export function storyCard({ year, title, text, button = '進む', tips, aim, onB
     ${who ? `<div class="st-who">${who}</div>` : ''}
     ${aim ? `<div class="st-who" style="margin-top:-18px"><b>${esc(aim)}</b></div>` : ''}
     ${short ? `<p style="animation-delay:.3s">${esc(text[0] || '')}</p>${text.length > 1 ? `<details class="st-more"><summary>もっと読む</summary>${text.slice(1).map((t) => `<p>${esc(t)}</p>`).join('')}</details>` : ''}` : text.map((t, i) => `<p style="animation-delay:${0.3 + i * 0.9}s">${esc(t)}</p>`).join('')}
-    ${tips ? `<div class="st-tip" style="animation-delay:${short ? 0.6 : 0.3 + text.length * 0.9}s"><small>この戦の心得</small><span>${esc(tips)}</span>${short ? '' : `<span style="display:block;margin-top:4px;opacity:.85">${isTouch ? '左上の「視点」で一人称・三人称' : 'V で一人称・三人称'}${G && G.lord ? (isTouch ? '／左上の「地図」で軍配の図（全軍を動かす）' : '／M で軍配の図（全軍を動かす）・J で使番') : ''}</span>`}</div>` : ''}
+    ${tips ? `<div class="st-tip" style="animation-delay:${short ? 0.6 : 0.3 + text.length * 0.9}s"><small>この戦の心得</small><span>${esc(tips)}</span>${short || first ? '' : `<span style="display:block;margin-top:4px;opacity:.85">${isTouch ? '左上の「視点」で一人称・三人称' : 'V で一人称・三人称'}${G && G.lord ? (isTouch ? '／左上の「地図」で軍配の図（全軍を動かす）' : '／M で軍配の図（全軍を動かす）・J で使番') : ''}</span>`}</div>` : ''}
     <div class="row" style="justify-content:center">${onBack ? '<button class="btn" id="b-back">城下へ戻る</button>' : ''}<button class="btn primary" id="b-next">${esc(button)}</button></div>
     ${isTouch ? '' : `<div class="keyhint">Enter / Space で進む${onBack ? '・Esc で城下へ戻る' : ''}</div>`}
     ${RM() ? '' : '<div class="st-skip">画面を押すと、残りの文をすぐ出します</div>'}
@@ -805,7 +879,68 @@ const EVAL_CSS = `<style>
   .ev2 .ev-actbar .skiphint { margin: 0 0 0 auto; font-size: 12px; }
   .eval.fast .evc, .eval.fast .ev-big, .eval.fast .ev-sum, .eval.fast .ev-more-wrap, .eval.fast .ev-actbar { animation-delay: 0s !important; animation-duration: .01s !important; }
   @keyframes evPop { 0% { opacity: 0; transform: scale(1.06); } 100% { opacity: 1; transform: none; } }
+  /* 絵巻：和紙に墨で書いた一枚。両端に軸、上に墨絵の山と旗。字は少なく */
+  .ev2 .ek { position: relative; margin: 0 14px 14px; padding: 0; color: #1d1a16; background:
+      radial-gradient(ellipse at 20% 30%, rgba(160,130,80,.10), transparent 60%), radial-gradient(ellipse at 80% 70%, rgba(150,120,70,.12), transparent 55%),
+      repeating-linear-gradient(97deg, rgba(120,95,60,.05) 0 2px, transparent 2px 9px), #ece2cc;
+    box-shadow: 0 10px 30px rgba(0,0,0,.55), inset 0 0 40px rgba(120,90,50,.25); animation: ekOpen .9s cubic-bezier(.3,.8,.3,1) both; }
+  .ev2 .ek::before, .ev2 .ek::after { content: ''; position: absolute; top: -8px; bottom: -8px; width: 14px; background: linear-gradient(90deg, #2a1c12, #5a3e26 45%, #2a1c12); border-radius: 3px; box-shadow: 0 0 0 1px #0e0906; }
+  .ev2 .ek::before { left: -14px; } .ev2 .ek::after { right: -14px; }
+  .ev2 .ek-sky { display: block; width: 100%; height: 64px; }
+  .ev2 .ek-in { padding: 0 22px 16px; }
+  .ev2 .ek-h { display: flex; align-items: center; gap: 14px; margin-top: -30px; position: relative; }
+  .ev2 .ek-h h2 { margin: 0; font-family: var(--display); font-weight: 800; font-size: 30px; letter-spacing: .16em; color: #14110d; }
+  .ev2 .ek-h small { display: block; font-size: 12px; letter-spacing: .3em; color: #5a4a36; }
+  .ev2 .ek-seal { flex: 0 0 auto; display: grid; place-items: center; width: 56px; height: 56px; background: #b23a26; color: #fff4e6; font-family: var(--display); font-weight: 800; font-size: 22px; line-height: 1.05; text-align: center; transform: rotate(-4deg); box-shadow: inset 0 0 0 3px #b23a26, inset 0 0 0 4px rgba(255,244,230,.8); }
+  .ev2 .ek-seal small { display: block; font-size: 12px; letter-spacing: 0; color: #fff4e6; }
+  .ev2 .ek-cols { display: grid; grid-template-columns: 1fr 1fr 1.4fr; gap: 0; margin-top: 12px; border-top: 2px solid #1d1a16; }
+  .ev2 .ek-c { padding: 8px 14px 4px; border-left: 1px solid rgba(29,26,22,.35); min-width: 0; }
+  .ev2 .ek-c:first-child { border-left: 0; padding-left: 2px; }
+  .ev2 .ek-c > b { display: block; font-size: 12px; letter-spacing: .3em; color: #5a4a36; font-weight: 600; margin-bottom: 4px; }
+  .ev2 .ek-c p { margin: 0; font-family: var(--display); font-size: 17px; line-height: 1.45; color: #14110d; overflow-wrap: anywhere; }
+  .ev2 .ek-c p.none { font-family: inherit; font-size: 14px; color: #5a4a36; }
+  .ev2 .ek-c ul { list-style: none; margin: 0; padding: 0; font-size: 14.5px; line-height: 1.55; color: #14110d; }
+  .ev2 .ek-c ul li::before { content: '一、'; color: #5a4a36; }
+  .ev2 .ek-men { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+  .ev2 .ek-men i { width: 9px; height: 13px; border-radius: 4px 4px 1px 1px; background: #1d1a16; }
+  .ev2 .ek-men i.d { background: none; box-shadow: inset 0 0 0 1.5px #8a3a26; position: relative; }
+  .ev2 .ek-men i.d::after { content: ''; position: absolute; left: 50%; top: -1px; bottom: -1px; width: 1.5px; background: #8a3a26; transform: rotate(35deg); }
+  .ev2 .ek-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 8px 18px; flex-wrap: wrap; margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(29,26,22,.35); }
+  .ev2 .ek-foot q { font-size: 14px; color: #3a2f22; quotes: '「' '」'; }
+  .ev2 .ek-foot q b { font-weight: 600; margin-right: 4px; }
+  .ev2 .ek-foot .ek-t { white-space: nowrap; font-size: 13px; color: #5a4a36; letter-spacing: .1em; }
+  .ev2 .ek-foot .ek-t strong { font-family: var(--display); font-size: 34px; color: #14110d; margin: 0 4px; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+  .ev2 details.ek-more { margin: 4px 0 0; }
+  .ev2 details.ek-more > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-size: 14px; color: var(--washi-dim); letter-spacing: .1em; border-top: 1px solid var(--line); }
+  .ev2 details.ek-more > summary:focus-visible { outline: 2px solid var(--kin); outline-offset: 2px; }
+  @keyframes ekOpen { from { clip-path: inset(0 50% 0 50%); } to { clip-path: inset(-12px -20px -12px -20px); } }
+  .eval.fast .ek { animation-duration: .01s !important; }
+  body.rm .ev2 .ek { animation: none; }
+  @media (prefers-reduced-motion: reduce) { .ev2 .ek { animation: none; } }
+  /* iPhone 横：絵巻を低く。三つの欄は並べたまま、字を少し小さく */
+  @media (max-height: 500px) {
+    .eval.ev2 { padding-top: 58px; }
+    .ev2 .ek-sky { height: 40px; }
+    .ev2 .ek-in { padding: 0 16px 10px; }
+    .ev2 .ek-h { margin-top: -22px; gap: 10px; }
+    .ev2 .ek-h h2 { font-size: 22px; }
+    .ev2 .ek-seal { width: 44px; height: 44px; font-size: 17px; }
+    .ev2 .ek-cols { margin-top: 8px; }
+    .ev2 .ek-c { padding: 6px 10px 2px; }
+    .ev2 .ek-c p { font-size: 15px; } .ev2 .ek-c ul { font-size: 13px; line-height: 1.45; }
+    .ev2 .ek-foot { margin-top: 6px; padding-top: 4px; } .ev2 .ek-foot .ek-t strong { font-size: 26px; }
+    .ev2 .ek-foot q { font-size: 13px; }
+    .ev2 .ev-actbar { padding: 8px 16px 10px; margin-top: 8px; } .ev2 .ev-actbar .skiphint { display: none; }
+  }
+  @media (max-width: 560px) { .ev2 .ek-cols { grid-template-columns: 1fr 1fr; } .ev2 .ek-c:last-child { grid-column: 1 / -1; border-left: 0; border-top: 1px solid rgba(29,26,22,.35); padding-left: 2px; } }
 </style>`;
+// 絵巻の上の墨絵（遠い山と、並ぶ旗）。一度描いた物を使い回す
+const EK_SKY = `<svg class="ek-sky" viewBox="0 0 600 64" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+  <path d="M0 50 C 60 30, 110 34, 160 22 C 210 12, 250 30, 300 26 C 360 20, 400 8, 450 16 C 500 24, 540 18, 600 28 V64 H0 Z" fill="rgba(40,34,26,.16)"/>
+  <path d="M0 58 C 80 44, 140 50, 220 40 C 300 30, 360 46, 440 38 C 510 32, 560 42, 600 40 V64 H0 Z" fill="rgba(40,34,26,.26)"/>
+  ${Array.from({ length: 14 }, (_, i) => { const x = 330 + i * 19 + (i % 3) * 3, y = 46 - (i % 2) * 3; return `<path d="M${x} ${y} V${y - 22}" stroke="rgba(29,26,22,.55)" stroke-width="1.2"/><rect x="${x}" y="${y - 22}" width="6" height="12" fill="rgba(29,26,22,.45)"/>`; }).join('')}
+  <circle cx="90" cy="18" r="11" fill="rgba(178,58,38,.55)"/>
+</svg>`;
 // 数を漢数字で（一〜九十九）
 const kanNum = (n) => { n = Math.round(n); if (n <= 0 || n >= 100) return String(n); const K = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九']; const t = Math.floor(n / 10), o = n % 10; return (t ? (t > 1 ? K[t] : '') + '十' : '') + K[o]; };
 // 銭を「三貫二百文」のように
@@ -844,7 +979,8 @@ export function evalScreen(G, r, actions) {
       <div class="evc-h"><span class="k">${c}</span><small>${CAT_INFO[c].long}</small><span class="evmk">${mk}</span><span class="p">${nt.locked ? '' : sgn(sum.pts)}</span></div>
       <i class="evc-bar"><b style="width:${w}%"></b>${wm ? `<s style="width:${wm}%"></s>` : ''}</i>${body}</div>`;
   }).join('');
-  const delay = t1 + 4 * 0.22 + 0.2;
+  // 絵巻が開いたら、すぐ戦功を数え上げる（細かな札は「くわしく見る」の中）
+  const delay = Math.max(0.9, t1 * 0.5);
   // 内訳（区分ごと。普段は畳んでおく）
   const ledger = ['武', '任', '将', '忠'].map((c) => {
     const ls = r.lines.filter((l) => (l.cat || '任') === c);
@@ -913,14 +1049,31 @@ export function evalScreen(G, r, actions) {
       gNote = up ? `任務を果たし、戦功の多さで評定が決まる。「${up[0]}（${GRADE_WORD[up[0]]}）」まで あと ${Math.max(1, Math.ceil(r.cap * up[1]) - r.total)}点。` : '任務を果たし、最上の評定を得た。';
     }
   }
+  // 絵巻に書く三つ：討ち取った将・組の生き残り・手柄（多くても三つ）
+  const ekFoes = bigs.filter((l) => l.label === '敵武将撃破').map((l) => l.detail);
+  const ekDeeds = [...new Set([...bigs.filter((l) => l.label !== '敵武将撃破').map((l) => l.label), ...r.lines.filter((l) => !l.big && l.pts > 0 && !/部下生存率|部下の撃破/.test(l.label)).sort((a, b) => b.pts - a.pts).map(narrate)])].slice(0, 3);
+  const ekMen = svAll ? Array.from({ length: Math.min(svAll, 30) }, (_, i) => `<i class="${i < Math.round(svAlive * Math.min(svAll, 30) / svAll) ? '' : 'd'}"></i>`).join('') : '';
+  const emaki = `<section class="ek" aria-label="${esc(r.battle)}の戦功">${EK_SKY}<div class="ek-in">
+    <div class="ek-h">${r.grade ? `<span class="ek-seal" role="img" aria-label="評定 ${r.grade}（${GRADE_WORD[r.grade]}）">${r.grade}<small>${GRADE_WORD[r.grade]}</small></span>` : ''}<div><small>戦功評価</small><h2>${esc(r.battle)}</h2></div></div>
+    <div class="ek-cols">
+      <div class="ek-c"><b>討ち取った将</b>${ekFoes.length ? `<p>${ekFoes.map(esc).join('<br>')}</p>` : '<p class="none">なし</p>'}</div>
+      <div class="ek-c"><b>組の生き残り</b>${svAll ? `<p>${kanNum(svAlive)}／${kanNum(svAll)}人</p><span class="ek-men" aria-hidden="true">${ekMen}</span>` : '<p class="none">組はまだ無い</p>'}</div>
+      <div class="ek-c"><b>手柄</b>${ekDeeds.length ? `<ul>${ekDeeds.map((d) => `<li>${esc(d)}</li>`).join('')}</ul>` : '<p class="none">記すべき働きなし</p>'}</div>
+    </div>
+    <div class="ek-foot">${r.bossLine ? `<q><b>${esc(r.bossLine[0])}</b>${esc(r.bossLine[1])}</q>` : '<span></span>'}<span class="ek-t">戦功<strong id="ev-total">0</strong>褒美 ${esc(kanZeni(r.reward))}</span></div>
+  </div></section>`;
   const rel = (r.relChange || []).map((x) => `<p class="ev-rel"><b>${esc(REL_NAME[x.k] || x.k)}の覚え</b>${REL_KEYS.filter(([k]) => x.d[k]).map(([k, n]) => `<span class="${(k === 'wary' ? -x.d[k] : x.d[k]) > 0 ? 'up' : 'dn'}">${n} ${sgn(x.d[k])}（${x.after[k]}）</span>`).join('') || '<span>変わらず</span>'}</p>`).join('');
   const screen = show(`${EVAL_CSS}<div class="eval ev2">
-    <div class="head"><div class="eyebrow">戦功評価</div><h2>${r.grade ? `<span class="grade g-${r.grade}" role="img" aria-label="評定 ${r.grade}（${GRADE_WORD[r.grade]}）">${r.grade}<small class="gw">${GRADE_WORD[r.grade]}</small></span>` : ''}${esc(r.battle)}</h2>${gNote ? `<p class="ev-gnote">${esc(gNote)}${gTable}</p>` : ''}</div>
+    ${emaki}
     ${!r.mainDone && r.bossLine ? `<div class="ev-fail"><b>しくじり</b><p><span>${esc(r.bossLine[0])}</span>「${esc(r.bossLine[1])}」</p>${r.advice ? `<p class="adv">次への一言：${esc(r.advice)}</p>` : ''}<div class="row" id="ev-fail-acts" style="margin:8px 0 0"></div></div>` : ''}
+    ${promo}
+    ${r.spoilHorse ? `<div class="histnote" style="border-color:var(--kin)"><b>分捕った馬</b><br>${esc(r.spoilHorse.who)}の馬を持ち帰った。城下の馬屋に並ぶ${ladderStep(G) < 2 ? '（乗れるのは足軽大将から）' : ''}。<div class="row" style="margin:6px 0 0"><button class="btn small" id="ev-spoil" aria-pressed="false">置いていく</button></div></div>` : ''}
+    <details class="ek-more" id="ek-more"><summary>くわしく見る（評定の内訳・褒美・組の働き）</summary>
+    ${gNote ? `<p class="ev-gnote">${esc(gNote)}${gTable}</p>` : ''}
     ${bigs.length ? `<div class="ev-bigs">${bigHtml}</div>` : ''}
     <div class="evcs">${cards}</div>
     <div class="ev-sum" style="animation-delay:${delay}s"><div><div class="verdict">${esc(r.verdict)}</div>${r.bossLine ? `<p class="bossline"><b>${esc(r.bossLine[0])}</b>「${esc(r.bossLine[1])}」</p>` : ''}</div>
-      <div class="t"><small>合計戦功</small><strong id="ev-total">0</strong><em>${r.capped ? `上限${r.cap}に到達（計算上 ${r.raw}）` : `この戦の上限 ${r.cap}`}${r.prevTotal !== undefined ? `　前の戦より ${r.total - r.prevTotal >= 0 ? '+' : ''}${r.total - r.prevTotal}` : ''}</em></div></div>
+      <div class="t"><small>合計戦功</small><strong>${r.total}</strong><em>${r.capped ? `上限${r.cap}に到達（計算上 ${r.raw}）` : `この戦の上限 ${r.cap}`}${r.prevTotal !== undefined ? `　前の戦より ${r.total - r.prevTotal >= 0 ? '+' : ''}${r.total - r.prevTotal}` : ''}</em></div></div>
     <div style="opacity:0;animation:ln .4s ease-out ${delay + 0.3}s forwards" class="ev-more-wrap">
       ${rel}
       <dl class="facts">
@@ -931,12 +1084,10 @@ export function evalScreen(G, r, actions) {
       </dl>
       ${next ? `<div class="ev-prog"><div class="lbl"><span>次の身分「${esc(next.name)}」まで</span><span><b class="ev-gain">今回 +${r.total}</b>　あと ${Math.max(0, next.min - r.meritAfter)}</span></div><i><s style="width:${Math.min(100, prevMerit / progTarget * 100)}%"></s><b id="ev-bar"></b></i></div>` : ''}
     </div>
-    ${promo}
     ${r.drillNote ? `<div class="histnote" style="border-color:var(--kin)"><b>稽古の成果</b><br>${esc(r.drillNote)}</div>` : ''}
     ${r.advice ? `<div class="histnote" style="border-color:var(--ai)"><b>次の戦への心得</b><br>${esc(r.advice)}</div>` : ''}
     ${r.squadReport ? `<div class="histnote" style="border-color:var(--moegi)"><b>組の働き</b><br>${esc(r.squadReport)}${(r.squadLines || []).length ? `<ul class="ev-sq">${r.squadLines.map((x) => `<li class="${x.alive ? '' : 'dead'}">${esc(x.name)}、${x.kills ? `${kanNum(x.kills)}人を討ち` : x.alive ? '槍を並べ' : '槍を合わせ'}、${x.alive ? '生き残る' : '討死'}</li>`).join('')}</ul>` : ''}</div>` : ''}
     ${r.tomoReport ? `<div class="histnote" style="border-color:var(--moegi)"><b>供の働き</b><br>${esc(r.tomoReport)}</div>` : ''}
-    ${r.spoilHorse ? `<div class="histnote" style="border-color:var(--kin)"><b>分捕った馬</b><br>${esc(r.spoilHorse.who)}の馬を持ち帰った。城下の馬屋に並ぶ${ladderStep(G) < 2 ? '（乗れるのは足軽大将から）' : ''}。<div class="row" style="margin:6px 0 0"><button class="btn small" id="ev-spoil" aria-pressed="false">置いていく</button></div></div>` : ''}
     ${(r.newMet || []).length ? `<div class="histnote"><b>新たに会った武将</b><div class="row" style="margin:6px 0 0">${r.newMet.slice(0, 8).map((n) => `<button class="btn small" data-zk="${esc(n)}" aria-label="${esc(n)}の図鑑の札を開く">${esc(n)}</button>`).join('')}</div></div>` : ''}
     ${r.newTitles && r.newTitles.length ? `<div class="titles">${r.newTitles.map((id) => `<div class="got"><b>称号「${esc(TITLES[id].name)}」</b><small>${esc(TITLES[id].note)}</small></div>`).join('')}</div>` : ''}
     <details class="ev-detail" id="ev-detail"><summary>戦功の内訳と戦いの記録を見る（${r.lines.length}項目）　D</summary>
@@ -944,10 +1095,11 @@ export function evalScreen(G, r, actions) {
       <div class="ledger">${ledger || '<div class="ln"><span>記すべき働きなし</span><span></span><span class="p">0</span></div>'}</div>
     </details>
     ${r.history ? `<div class="histnote"><b>史実では</b><br>${esc(r.history)}</div>` : ''}
+    </details>
     <div class="ev-actbar" style="animation-delay:0s"><div class="row" id="ev-actions" style="margin:0"></div><p class="skiphint">${isTouch ? '画面を押すと演出を飛ばします ・ 下の釦で次へ進みます' : `画面を押すと演出を飛ばします ・ Enter で「${esc(primary ? primary.label : '')}」 ・ D で内訳`}</p></div>
   </div>`, false, (e) => {
     if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement) && !(e.target.tagName === 'SUMMARY')) { e.preventDefault(); if (primary) { sfx('ui'); primary.fn(); } }
-    else if (e.key === 'd' || e.key === 'D') { const d = $('ev-detail'); if (d) d.open = !d.open; }
+    else if (e.key === 'd' || e.key === 'D') { const d = $('ev-detail'); if (d) { d.open = !d.open; if (d.open && $('ek-more')) $('ek-more').open = true; } }
   });
   const evs = $('ev-spoil');
   if (evs) { spoilKeep(G, r.spoilHorse.who, true); save(G); evs.onclick = (ev) => { ev.stopPropagation(); const leave = evs.getAttribute('aria-pressed') !== 'true'; spoilKeep(G, r.spoilHorse.who, !leave); save(G); evs.setAttribute('aria-pressed', leave); evs.textContent = leave ? '置いていった（押すと持ち帰る）' : '置いていく'; sfx(leave ? 'ui' : 'neigh', 0.5); }; }

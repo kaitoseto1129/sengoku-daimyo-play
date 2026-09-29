@@ -2173,6 +2173,7 @@ function driveHuman(h, dt, fine = true, arms = true) {
   h.model.position.z = 0;
   if (!u.mounted && u.alive) {
     lowerBody(h, B, dt, time, st, wIdle, sp, w); if (HUM.fx) vitals(h, B, dt, time, sp, wIdle, wWalk, wRun, st);
+    if (HUM.fx && !h.far && !engaged && wIdle > 0.2 && !u.isPlayer && !(u.idl && u.idl.sit > 0.3)) idleLife(h, B, dt, wIdle, st);
     // 向きを変える時は、体が一瞬では回らない：顔と胸が先に向き、腰と脚は遅れて付いて行く（兵の向きは units.js が一度に変える）
     h.turnLag = Math.max(-1.2, Math.min(1.2, ((h.turnLag || 0) - dh) * Math.exp(-dt * (5 + sp))));
     if (HUM.fx && Math.abs(h.turnLag) > 0.01) { rotWorld(B.Hips, _up, h.turnLag); rotWorld(B.Spine1, _up, -h.turnLag * 0.35); rotWorld(B.Neck, _up, -h.turnLag * 0.4); }
@@ -2228,6 +2229,8 @@ function driveHuman(h, dt, fine = true, arms = true) {
     rotWorld(B.Neck, _right, 0.4 * k2 * f);
     if (!u.death) h.model.position.y = -0.22 * k;
   }
+  // 倒れる途中の体（units.js の u.death.kind。根元の倒れは units.js が回す。ここは骨の形）
+  if (!u.alive && u.death && !u.mounted && HUM.fx && !h.far) deathBody(h, B, u.death);
   // 当たった時の体の反応（units.js の u.hit）：のけぞる・首が跳ねる・横へ折れる・よろめく
   if (u.hit && u.alive) hitReact(h, B, u.hit);
   // 振りの体の入り（u.swing）：振りかぶりで胸をひねり、振り抜きで戻す
@@ -2397,16 +2400,109 @@ function groundLimbs(h) {
 // 当たった時の反応：envelope は当たってすぐ強く、ゆっくり戻る
 function hitReact(h, B, H) {
   const q = clamp01(H.t / Math.max(0.05, H.dur || 0.4));
-  const e = Math.sin(Math.min(1, q * 2.2) * Math.PI / 2) * (1 - ease(0.3, 1, q));
+  // 当たりごとに崩れの大きさを変える（同じ打たれ方を皆が同じ形でしない）。深手ほど大きい
+  if (H.amp === undefined) H.amp = (0.75 + Math.random() * 0.5) * (H.heavy ? 1.3 : 1);
+  const e = Math.sin(Math.min(1, q * 2.2) * Math.PI / 2) * (1 - ease(0.3, 1, q)) * H.amp;
   const sd = H.side || (h.seed > 0.5 ? 1 : -1);
   const k = H.kind;
+  // 体の崩れ：重い当たりは膝が抜けて腰が落ち、遅れて立て直す（上体だけが揺れる人形にしない）
+  if (HUM.fx && !h.far && k !== 'flinch' && k !== 'kneel' && !h.u.mounted) {
+    const kn = e * (H.heavy ? 0.55 : 0.25);
+    const [a, b] = sd > 0 ? [B.RightLeg, B.LeftLeg] : [B.LeftLeg, B.RightLeg];
+    rotWorld(a, _right, 0.5 * kn); rotWorld(b, _right, 0.3 * kn);
+    rotWorld(B.LeftUpLeg, _right, -0.2 * kn); rotWorld(B.RightUpLeg, _right, -0.2 * kn);
+    h.model.position.y -= 0.05 * kn;
+  }
   if (k === 'flinch') { rotWorld(B.Spine1, _right, -0.12 * e); rotWorld(B.Neck, _right, -0.25 * e); rotWorld(B.Head, _fwd, 0.15 * sd * e); }
-  else if (k === 'recoil') { rotWorld(B.Spine, _right, -0.22 * e); rotWorld(B.Spine2, _right, -0.12 * e); rotWorld(B.Neck, _right, -0.3 * e); }
+  else if (k === 'recoil') { rotWorld(B.Spine, _right, -0.22 * e); rotWorld(B.Spine2, _right, -0.12 * e); rotWorld(B.Neck, _right, -0.3 * e); rotWorld(B.Spine1, _up, 0.12 * sd * e); }
   else if (k === 'side') { rotWorld(B.Spine, _fwd, 0.3 * sd * e); rotWorld(B.Spine2, _up, 0.25 * sd * e); rotWorld(B.Head, _fwd, 0.2 * sd * e); }
   else if (k === 'stumble') {
     rotWorld(B.Spine, _right, 0.2 * e); rotWorld(B.RightUpLeg, _right, 0.35 * e); rotWorld(B.LeftUpLeg, _right, -0.3 * e); rotWorld(B.LeftLeg, _right, 0.5 * e);
     rotWorld(B.LeftArm, _fwd, -0.4 * e);
     h.model.position.y -= 0.06 * e;
+  }
+}
+
+// 倒れる途中の骨の形（倒れ切った後は少し残して、寝姿がねじれないよう弱める）
+//   crumple：膝から崩れる。背が丸まり、首が落ち、両膝が折れる
+//   forward：前へつんのめる。片足が泳いで前へ出て、上体が前へ折れ、手を前へ突こうとする
+//   back：後ろへ吹っ飛ぶ。背が反り、首が後ろへ跳ね、腕が宙へ投げ出され、脚が前へ浮く
+//   side：横へ崩れる。倒れる側の腰が落ち、体が横へ折れ、反対の腕が泳ぐ
+function deathBody(h, B, D) {
+  const t = D.t || 0;
+  const pv = h.dvar || (h.dvar = 0.8 + Math.random() * 0.45);
+  const on = ease(0, 0.18, t) * (1 - 0.65 * ease(0.8, 1.6, t)) * pv;
+  if (on < 0.01) return;
+  const sd = D.side || 1;
+  if (D.kind === 'crumple') {
+    const c = on * ease(0.05, 0.6, t);
+    rotWorld(B.Spine, _right, 0.25 * c); rotWorld(B.Spine1, _right, 0.3 * c); rotWorld(B.Neck, _right, 0.45 * c);
+    rotWorld(B.LeftLeg, _right, 0.5 * c); rotWorld(B.RightLeg, _right, 0.35 * c);
+    rotWorld(B.Spine2, _fwd, (h.seed - 0.5) * 0.4 * c);
+  } else if (D.kind === 'forward') {
+    // 泳ぐ足：はじめの 0.35 秒で片足が前へ出て、支えきれずに折れる
+    const st_ = Math.sin(clamp01(t / 0.45) * Math.PI) * on;
+    const [fU, fL] = h.seed > 0.5 ? [B.LeftUpLeg, B.LeftLeg] : [B.RightUpLeg, B.RightLeg];
+    rotWorld(fU, _right, -0.7 * st_); rotWorld(fL, _right, 0.6 * st_);
+    rotWorld(B.Spine, _right, 0.35 * on); rotWorld(B.Spine1, _right, 0.25 * on);
+    rotWorld(B.Neck, _right, -0.3 * on);   // 顔は地面を見まいと上がる
+    // 腕は前へ（地に手を突こうとする）
+    rotWorld(B.LeftArm, _right, -0.9 * on); rotWorld(B.RightArm, _right, -0.8 * on);
+  } else if (D.kind === 'back') {
+    const w = on * (1 - ease(0.1, 0.7, t) * 0.4);
+    rotWorld(B.Spine, _right, -0.35 * w); rotWorld(B.Spine1, _right, -0.2 * w); rotWorld(B.Neck, _right, -0.55 * w);
+    // 腕は宙へ投げ出される（左右で高さを変える）
+    rotWorld(B.LeftArm, _fwd, -1.1 * w); rotWorld(B.RightArm, _fwd, (0.8 + h.seed * 0.5) * w);
+    rotWorld(B.LeftArm, _right, -0.4 * w * h.seed);
+    // 脚は前へ浮く
+    rotWorld(B.LeftUpLeg, _right, -0.45 * w); rotWorld(B.RightUpLeg, _right, -0.25 * w);
+  } else if (D.kind === 'side') {
+    rotWorld(B.Spine, _fwd, 0.35 * sd * on); rotWorld(B.Spine1, _fwd, 0.2 * sd * on);
+    const [dn, up] = sd > 0 ? [B.RightLeg, B.LeftUpLeg] : [B.LeftLeg, B.RightUpLeg];
+    rotWorld(dn, _right, 0.9 * on); rotWorld(up, _fwd, -0.3 * sd * on);
+    rotWorld(sd > 0 ? B.LeftArm : B.RightArm, _fwd, -0.9 * sd * on);
+    rotWorld(B.Neck, _fwd, -0.3 * sd * on);
+  }
+}
+
+// 待つ間の暮らし：ときどき重心を片足へ移して長く休め、武器を持ち直し（肩をゆすって握りを確かめる）、首を回す
+//   人ごとに間合いと癖が違う（せわしない人・じっとしている人）
+function idleLife(h, B, dt, wIdle, st) {
+  const I = h.idle || (h.idle = { t: 1 + h.seed * 6, lean: 0, leanT: 0, grip: -1, neck: -1, rate: 0.6 + ((h.seed * 19.3) % 1) * 0.9 });
+  const k = wIdle * (1 - st);
+  I.t -= dt * I.rate;
+  if (I.t <= 0) {
+    const r = Math.random();
+    if (r < 0.45) { I.leanT = I.leanT > 0 ? -1 : I.leanT < 0 ? (Math.random() < 0.5 ? 0 : 1) : (Math.random() < 0.5 ? 1 : -1); I.t = 4 + Math.random() * 6; }
+    else if (r < 0.8) { I.grip = 0; I.t = 3 + Math.random() * 5; }
+    else { I.neck = 0; I.t = 3 + Math.random() * 4; }
+  }
+  // 片足へ重心：休める足の膝がゆるみ、腰がそちらへ落ち、肩は逆へ傾く
+  I.lean += (I.leanT - I.lean) * Math.min(1, dt * 1.2);
+  const l = I.lean * k;
+  if (Math.abs(l) > 0.01) {
+    rotWorld(B.Hips, _fwd, 0.07 * l); rotWorld(B.Spine1, _fwd, -0.06 * l); rotWorld(B.Neck, _fwd, -0.03 * l);
+    rotWorld(l > 0 ? B.LeftLeg : B.RightLeg, _right, 0.22 * Math.abs(l)); rotWorld(l > 0 ? B.LeftUpLeg : B.RightUpLeg, _right, -0.06 * Math.abs(l));
+    h.model.position.y -= 0.01 * Math.abs(l);
+  }
+  // 持ち直し：一度沈んで、肩をすくめ、胸をひねって握りを確かめる（0.9 秒）
+  if (I.grip >= 0) {
+    I.grip += dt;
+    const g = Math.sin(clamp01(I.grip / 0.9) * Math.PI) * k;
+    rotWorld(B.Spine2, _up, -0.1 * g); rotWorld(B.Spine2, _right, -0.05 * g);
+    h.model.position.y += 0.012 * Math.sin(clamp01(I.grip / 0.9) * Math.PI * 2) * k;
+    for (const sd of ['Left', 'Right']) {
+      const sh = B[sd + 'Shoulder'], ar = B[sd + 'Arm'];
+      if (sh && ar) { ar.getWorldPosition(_T); _P.copy(_T); _P.y += 0.025 * g; aimBone(sh, _T, _P); }
+    }
+    if (I.grip > 0.9) I.grip = -1;
+  }
+  // 首を回す：凝った首を左右へ倒す
+  if (I.neck >= 0) {
+    I.neck += dt;
+    const n = Math.sin(clamp01(I.neck / 1.6) * Math.PI * 2) * Math.sin(clamp01(I.neck / 1.6) * Math.PI) * k;
+    rotWorld(B.Neck, _fwd, 0.22 * n); rotWorld(B.Head, _right, 0.1 * Math.abs(n));
+    if (I.neck > 1.6) I.neck = -1;
   }
 }
 
@@ -2507,9 +2603,9 @@ function vitals(h, B, dt, time, sp, wIdle, wWalk, wRun, st) {
   const br = Math.sin(h.brPh), still = 1 - wRun * 0.8;
   // 胸を張って吸う（背骨の上を少し起こす）
   rotWorld(B.Spine2, _right, -br * (0.012 + hv * 0.035) * still);
-  // 肩で息をする：吸う時に両肩が上がる
-  const lift = (0.003 + hv * 0.022) * Math.max(0, br) * still;
-  if (lift > 0.0005 && !h.far && (h.u.isPlayer || h.near !== false)) for (const sd of ['Left', 'Right']) {
+  // 肩で息をする：吸う時に両肩が上がる。疲れた者は肩が落ち、腕がだらりと下がる
+  const lift = (0.003 + hv * 0.022) * Math.max(0, br) * still - Math.max(0, hv - 0.3) * 0.035 * (1 - wRun);
+  if (Math.abs(lift) > 0.0005 && !h.far && (h.u.isPlayer || h.near !== false)) for (const sd of ['Left', 'Right']) {
     const sh = B[sd + 'Shoulder'], ar = B[sd + 'Arm'];
     if (!sh || !ar) continue;
     ar.getWorldPosition(_T); _P.copy(_T); _P.y += lift;
@@ -2533,7 +2629,19 @@ function vitals(h, B, dt, time, sp, wIdle, wWalk, wRun, st) {
     rotWorld(B.Neck, _right, ((h.seed * 13.7) % 1 - 0.4) * 0.12 * mv);
     const A = h.act, ph = (A.walk.time / Math.max(0.01, A.walk.getClip().duration)) * Math.PI * 2;
     rotWorld(B.Hips, _fwd, Math.sin(ph) * 0.05 * V.out * wWalk);
+    // 疲れて歩く者は、頭が前へ落ち、背が丸まる
+    if (hv > 0.35) { const tk = (hv - 0.35) * wWalk; rotWorld(B.Spine1, _right, 0.18 * tk); rotWorld(B.Neck, _right, 0.2 * tk); }
+    // 走る：人ごとに違う前傾、腕の振りと逆に胸がひねれ、一歩ごとに体が弾んで具足が跳ねる（sway が上下の速さで揺らす）
+    if (wRun > 0.05) {
+      const R_ = A.run, rph = (R_.time / Math.max(0.01, R_.getClip().duration)) * Math.PI * 2;
+      h.runPh = rph;
+      rotWorld(B.Spine, _right, wRun * (0.08 + (V.f || 1) * 0.06 + hv * 0.06));
+      rotWorld(B.Spine2, _up, Math.sin(rph) * 0.08 * wRun);
+      rotWorld(B.Neck, _right, -wRun * 0.1);
+      h.model.position.y += (Math.abs(Math.cos(rph)) - 0.64) * 0.035 * wRun;
+    }
   }
+  h.runW = mv > 0.05 && !h.far ? wRun : 0;
   // 深手（残りの力が三割ほどより下）：片足をかばう。歩む拍子のうち痛む足で踏む間、腰が沈み、体が痛む足の側へ傾く
   const hurtW = u.maxHp ? clamp01((0.35 - u.hp / u.maxHp) / 0.2) : 0;
   h.hurt = (h.hurt || 0) + (hurtW - (h.hurt || 0)) * Math.min(1, dt * 2);
@@ -2560,7 +2668,7 @@ function lookAround(h, B, dt, engaged, wIdle) {
     L.ty = Math.max(-0.9, Math.min(0.9, a)); L.tp = 0;
   } else if (L.t <= 0) {
     // 時々、横や後ろの様子を見る。隊の崩れかけは落ち着きなく
-    const nerv = u.group && u.group.morale < 40 ? 2 : 1;
+    const nerv = (u.group && u.group.morale < 40 ? 2 : 1) * (0.7 + ((h.seed * 29.1) % 1) * 0.7);
     L.t = (1.5 + Math.random() * 4) / nerv;
     L.ty = Math.random() < 0.45 ? 0 : (Math.random() - 0.5) * 1.5 * Math.min(1, wIdle + 0.3);
     L.tp = (Math.random() - 0.6) * 0.25;
@@ -2569,6 +2677,8 @@ function lookAround(h, B, dt, engaged, wIdle) {
   L.yaw += (L.ty - L.yaw) * k; L.pitch += (L.tp - L.pitch) * k;
   if (Math.abs(L.yaw) + Math.abs(L.pitch) < 0.01) return;
   rotWorld(B.Spine2, _up, L.yaw * 0.15);
+  // 大きく振り返る時は、胸と腰もついて回る（首だけが回る人形にしない）
+  if (Math.abs(L.yaw) > 0.45) { const ex = (Math.abs(L.yaw) - 0.45) * Math.sign(L.yaw); rotWorld(B.Spine1, _up, ex * 0.3); rotWorld(B.Spine, _up, ex * 0.15); }
   rotWorld(B.Neck, _up, L.yaw * 0.35);
   rotWorld(B.Head, _up, L.yaw * 0.45);
   rotWorld(B.Head, _right, L.pitch);
@@ -3115,7 +3225,7 @@ function sway(h, dt) {
   const want = Math.max(-0.4, Math.min(0.4, -vy * 0.07 - acc * 0.02 + Math.min(0.25, h.spd * 0.025) + wf * 0.035 * wg + wfl * 0.012 * wg));
   const k = Math.min(dt, 1 / 30);
   s.va += ((want - s.a) * 90 - s.va * 8) * k; s.a += s.va * k;
-  const wantB = Math.max(-0.3, Math.min(0.3, (h.turn || 0) * 0.12 + wr * 0.07 * wg * (1 + 0.35 * wfl)));
+  const wantB = Math.max(-0.3, Math.min(0.3, (h.turn || 0) * 0.12 + wr * 0.07 * wg * (1 + 0.35 * wfl) + Math.sin(h.runPh || 0) * 0.09 * (u.mounted || !u.alive ? 0 : h.runW || 0)));
   s.vb += ((wantB - s.b) * 60 - s.vb * 7) * k; s.b += s.vb * k;
   // 母衣のふくらみ：止まるとしぼんで垂れ、駆けると風をはらんで後ろへなびく（0..1。ふくらむのは速く、しぼむのはゆっくり）
   const infW = Math.max(0, Math.min(1, (h.spd - 1.2) / 5.5));
@@ -3392,6 +3502,39 @@ export function loadHorse() {
   })().catch((e) => { HORSE.failed = true; HORSE.err = String(e && e.stack || e).slice(0, 400); console.warn('本物の馬を読めませんでした（今の形の馬で描きます）', e); });
   return hrLoading;
 }
+// 録った動きから別の足運びを作る（読み込みの時に一度だけ）。脚ごとに拍子をずらし（shift：一回りの割合。正で早まる）、
+// 回りの振りを amp 倍に（fore＝前脚・hind＝後脚・body＝背と首。low は膝から下にさらに掛ける）
+const LEG_RE = { LF: /BN_L_(Clavicle|UpperArm|Hand|Toe_042)|BN_l_Forearm/, RF: /BN_R_(Clavicle|UpperArm|Forearm|Hand|Toe_047)/, LH: /BN_L_(Thing|Calf|HorseLink|Foot|Toe_2)/, RH: /BN_R_(Thing|Calf|HorseLink|Foot|Toe_2)/ };
+function gaitClip(src, name, shift, amp) {
+  const T = src.duration, N = 48, times = new Float32Array(N + 1);
+  for (let i = 0; i <= N; i++) times[i] = T * i / N;
+  const q = new THREE.Quaternion(), m = new THREE.Quaternion(), d = new THREE.Quaternion(), q0 = new THREE.Quaternion(), ax = new THREE.Vector3();
+  const tracks = src.tracks.map((tr) => {
+    const bn = tr.name.split('.')[0], leg = Object.keys(LEG_RE).find((k) => LEG_RE[k].test(bn));
+    const k = leg ? (amp[leg[1] === 'F' ? 'fore' : 'hind'] || 1) * (/Forearm|Calf/.test(bn) ? amp.low || 1 : /Hand|HorseLink|Foot|Toe/.test(bn) ? amp.tip ?? 1 : 1) : (amp.body && /Spine|Neck|Pelvis/.test(bn) ? amp.body : 1);
+    const s = leg ? shift[leg] || 0 : 0;
+    if ((!s && k === 1) || tr.times.length < 2) return tr;
+    const it = tr.createInterpolant(), n = tr.getValueSize(), vals = new Float32Array((N + 1) * n);
+    for (let i = 0; i <= N; i++) vals.set(it.evaluate((((times[i] + s * T) % T) + T) % T), i * n);
+    if (k !== 1 && n === 4) {
+      // 中心の形から回りの角を k 倍に。脚は地面を踏む真ん中の形（amp.cen：元の動きの一回りの割合）を中心にする（踏む脚が浮かない）
+      if (leg && amp.cen) m.fromArray(it.evaluate(amp.cen[leg] * T));
+      else {
+        m.set(0, 0, 0, 0); q0.fromArray(vals, 0);
+        for (let i = 0; i < N; i++) { q.fromArray(vals, i * 4); const sg = q.dot(q0) < 0 ? -1 : 1; m.set(m.x + q.x * sg, m.y + q.y * sg, m.z + q.z * sg, m.w + q.w * sg); }
+        m.normalize();
+      }
+      for (let i = 0; i <= N; i++) {
+        q.fromArray(vals, i * 4); d.copy(m).invert().multiply(q);
+        if (d.w < 0) d.set(-d.x, -d.y, -d.z, -d.w);
+        const sn = Math.sqrt(Math.max(0, 1 - d.w * d.w));
+        if (sn > 1e-5) { d.setFromAxisAngle(ax.set(d.x / sn, d.y / sn, d.z / sn), 2 * Math.acos(Math.min(1, d.w)) * k); q.copy(m).multiply(d).toArray(vals, i * 4); }
+      }
+    }
+    return new tr.constructor(tr.name, times, vals);
+  });
+  return new THREE.AnimationClip(name, T, tracks);
+}
 function prepHorse(gl, tex) {
   const sc = gl.scene;
   const lo = {}, rm = [];
@@ -3415,6 +3558,10 @@ function prepHorse(gl, tex) {
   holder.remove(sc);
   const clips = {};
   for (const c of gl.animations) clips[c.name] = c;
+  // 録った動きは並足（四拍）と駆け足（三拍の駆歩・右手前）だけ。速歩（対角の二拍）と襲歩（四拍の全速）はそこから作る
+  // shift と cen は、録った動きの蹄が地面に着く拍子を測って決めた値（速歩は対角の脚がそろい、襲歩は 左後→右後→左前→右前 の順）
+  clips.trot = gaitClip(clips.walk, 'trot', { LH: 0.34, RH: 0.25 }, { fore: 1.3, hind: 1.3, low: 1.4, cen: { LF: 0.44, RF: 0.94, LH: 0.28, RH: 0.71 } });
+  clips.run = gaitClip(clips.gallop, 'run', { RH: 0.06, LF: -0.04, RF: 0.04 }, { fore: 1.15, hind: 1.15, body: 1.25, cen: { LH: 0.57, RH: 0.72, LF: 0.77, RF: 0 } });
   HR = { scene: sc, lo, tex, rest, restInv, clips, bitL: bit.clone().setX(bit.x + 0.05), bitR: bit.clone().setX(bit.x - 0.05), head0: P(HEAD_B), pool: [], mats: new Map(), tack: new Map(), toRoot };
 }
 
@@ -3818,7 +3965,7 @@ function ropeBetween(m, a, b, r) {
 }
 
 // ---- 一頭を作る・拵える ----
-const RAIL = ['idle1', 'idle2', 'idle3', 'walk', 'walkL', 'walkR', 'gallop', 'gallopL', 'gallopR', 'stop', 'buck1', 'death'];
+const RAIL = ['idle1', 'idle2', 'idle3', 'walk', 'walkL', 'walkR', 'trot', 'gallop', 'gallopL', 'gallopR', 'run', 'stop', 'buck1', 'death'];
 function makeRealHorse() {
   const holder = new THREE.Group();
   holder.scale.setScalar(HS); holder.position.x = HX;
@@ -3840,6 +3987,8 @@ function makeRealHorse() {
     };
   }
   R.mixer = new THREE.AnimationMixer(sc);
+  // 根の骨（足もとの真ん中）は録った動きが触らない。体の傾きと弾みはここを回して付け、毎コマ立ち姿へ戻す
+  const rb = R.bones.BN_Root_01_01; R.root0 = { q: rb.quaternion.clone(), p: rb.position.clone() };
   for (const k of RAIL) { const a = R.mixer.clipAction(HR.clips[k]); a.play(); a.enabled = false; a.timeScale = 0; R.act[k] = a; R.w[k] = 0; R.t[k] = Math.random() * HR.clips[k].duration; }
   // 鐙・力革・手綱（馬の根元の座標で毎コマ置く）
   const sg = stirrupGeo();
@@ -3879,8 +4028,13 @@ function dressHorse(R, st) {
 // ---- 動かす ----
 const _hv = new THREE.Vector3(), _hv2 = new THREE.Vector3(), _hq = new THREE.Quaternion(), _hM = new THREE.Matrix4();
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-// 動きの長さ（秒）と、並足・駆け足の一回りで進む長さ（m。足が地面を滑らないよう、速さに合わせて回す）
-const WALK_V = 0.88, GALLOP_V = 3.55;
+// 動きを 1 倍で回した時に、地面を踏む蹄が後ろへ送られる速さ（m/s。録った動きの蹄を測った値）。速さ ÷ これで回すと蹄が滑らない
+// 並足 〜2m/s、速歩 〜4.6、駆歩 〜7.5、その先が襲歩
+const WALK_V = 0.88, TROT_V = 1.0, GALLOP_V = 3.55, RUN_V = 4.3;
+const FORE_KNEE = ['BN_l_Forearm_040_041', 'BN_R_Forearm_045_047'], FORE_CANNON = ['BN_L_Hand_041_042', 'BN_R_Hand_046_048'];
+const NOSE_B = ['BN_L_Nose_031_030', 'BN_R_Nose_032_031'];
+// 世界の上下に骨を動かす（根の骨の弾み）
+function liftWorld(bone, dy) { bone.getWorldPosition(_hv); _hv.y += dy; bone.position.copy(bone.parent.worldToLocal(_hv)); }
 // 竿立ち：倒れる動き（death）の頭の所（前脚を上げて立ち上がる）を使う
 const REAR_PEAK = 1.02;
 const _hr = new THREE.Vector3(), _hf = new THREE.Vector3();
@@ -3889,7 +4043,8 @@ const MANE_B = ['BN_Hair_00_08_08', 'BN_Hair_01_09_09', 'BN_Hair_02_010_010', 'B
 function driveHorse(h, dt, speed) {
   const H = h.userData.horse, R = H.real;
   H.speed = speed;
-  const clips = HR.clips;
+  const clips = HR.clips, B = R.bones, root = B.BN_Root_01_01;
+  root.quaternion.copy(R.root0.q); root.position.copy(R.root0.p);
   // 向きの変わり（曲がる速さ）と、止まりかけ
   const yaw = h.rotation.y + (h.parent ? h.parent.rotation.y : 0);
   let dy = yaw - (R.yaw ?? yaw); while (dy > Math.PI) dy -= Math.PI * 2; while (dy < -Math.PI) dy += Math.PI * 2;
@@ -3897,13 +4052,17 @@ function driveHorse(h, dt, speed) {
   R.turn = (R.turn || 0) + ((dt > 0 ? dy / dt : 0) - (R.turn || 0)) * Math.min(1, dt * 5);
   const decel = dt > 0 ? ((R.prev ?? speed) - speed) / dt : 0;
   R.prev = speed;
+  // 速さの変わり（+ で踏み出し、- で踏ん張り）をならす
+  if (dt > 0) R.acc = (R.acc || 0) + (Math.max(-12, Math.min(12, -decel)) - (R.acc || 0)) * Math.min(1, dt * 6);
+  R.buckle = 0; R.paw = 0;
   // 一度きりの動き：倒れる・竿立ち・驚いて跳ねる・急に止まる
   let one = null;
-  if (H.dead) { if (R.oneK !== 'death') { R.oneK = 'death'; R.oneT = 0; } H.deadT += dt; }
+  // 倒れ方：止まっている時に撃たれた馬は半ばが棹立ちになってから横へ倒れる。駆けていた馬は前の膝から崩れ、勢いでのめって倒れる
+  if (H.dead) { if (R.oneK !== 'death') { R.oneK = 'death'; R.oneT = 0; R.dieV = Math.max(speed, (R.hiSpd || 0) * 0.8); R.dieRear = R.dieV < 1.5 && Math.random() < 0.5; } H.deadT += dt; }
   if (!H.dead) {
-    if (H.rear > (R.lastRear || 0) + 0.05) { R.oneK = 'rear'; R.oneT = 0; }
+    if (H.rear > (R.lastRear || 0) + 0.05) { R.oneK = 'rear'; R.oneT = 0; R.rearHold = 0.2 + Math.random() * 0.35; }
     else if (H.spook) { H.spook = 0; if (!R.oneK) { R.oneK = 'buck1'; R.oneT = 0; } }
-    else if (!R.oneK && (R.hiSpd || 0) > 5 && speed < 2.5 && decel > 6) { R.oneK = 'stop'; R.oneT = 0; }
+    else if (!R.oneK && (R.hiSpd || 0) > 4.2 && speed < 3 && decel > 3.5) { R.oneK = 'stop'; R.oneT = 0; }   // 駆けていて急に止まる：尻を沈めて滑り止まる
   }
   R.lastRear = H.rear; H.rear = Math.max(0, H.rear - dt);
   R.hiSpd = Math.max(speed, (R.hiSpd || 0) - dt * 6);
@@ -3912,12 +4071,20 @@ function driveHorse(h, dt, speed) {
     R.oneT += dt;
     const t = R.oneT;
     if (R.oneK === 'death') {
-      one = 'death'; R.t.death = Math.min(clips.death.duration - 0.02, t); oneW = Math.min(1, t / 0.2);
-    } else if (R.oneK === 'rear') {
-      // 立ち上がって（0.75 秒）、少し留まり、下りる（0.6 秒）
       one = 'death';
-      const up = 0.75, hold = 0.2, down = 0.6;
-      R.t.death = t < up ? REAR_PEAK * (t / up) : t < up + hold ? REAR_PEAK : REAR_PEAK * Math.max(0, 1 - (t - up - hold) / down);
+      if (R.dieRear) { R.t.death = Math.min(clips.death.duration - 0.02, t); oneW = Math.min(1, t / 0.2); }
+      else {
+        // 棹立ちの所を飛ばし、崩れ落ちる所から（駆けていたほど速く）。はじめの一瞬は前の膝が折れて、鼻先から沈む
+        R.t.death = Math.min(clips.death.duration - 0.02, 1.3 + t * (1 + Math.min(0.35, R.dieV * 0.04)));
+        oneW = smooth(0, 0.45, t);
+        R.buckle = (t < 0.28 ? t / 0.28 : Math.max(0, 1 - (t - 0.28) / 1.0)) * Math.min(1, 0.45 + R.dieV * 0.08);
+      }
+    } else if (R.oneK === 'rear') {
+      // 立ち上がって（0.7 秒）、宙で前脚を掻きながら少し留まり、下りる（0.65 秒）。上がり下りは初めと終わりをゆるく
+      one = 'death';
+      const up = 0.7, hold = R.rearHold || 0.3, down = 0.65, e = (x) => x * x * (3 - 2 * x);
+      R.t.death = t < up ? REAR_PEAK * e(t / up) : t < up + hold ? REAR_PEAK : REAR_PEAK * (1 - e(Math.min(1, (t - up - hold) / down)));
+      R.paw = smooth(up * 0.5, up, t) * (1 - smooth(up + hold, up + hold + down * 0.5, t));
       oneW = Math.min(1, t / 0.15) * (1 - smooth(up + hold + down * 0.6, up + hold + down, t));
       if (t > up + hold + down) R.oneK = null;
     } else {
@@ -3928,9 +4095,9 @@ function driveHorse(h, dt, speed) {
       if (t > dur || (one === 'stop' && speed > 3.5)) R.oneK = null;
     }
   }
-  // 足運び：立つ → 並足 → 駆け足。曲がる時は左右へ傾いた動き
+  // 足運び：立つ → 並足（四拍）→ 速歩（対角の二拍）→ 駆歩（三拍）→ 襲歩（四拍の全速）。並足と駆歩は曲がる時に左右へ傾いた動き
   const mv = smooth(0.12, 0.45, speed);
-  const gal = smooth(2.3, 3.3, speed);
+  const tro = smooth(1.4, 2.1, speed), gal = smooth(4.2, 5.0, speed), full = smooth(7.0, 8.0, speed);
   const tr = Math.max(-1, Math.min(1, R.turn / 0.9));
   const trL = Math.max(0, tr), trR = Math.max(0, -tr), trC = 1 - Math.abs(tr);
   // 立っている時は、時々前掻き（idle3）や首振り（idle2）
@@ -3944,14 +4111,19 @@ function driveHorse(h, dt, speed) {
   for (const k of RAIL) W[k] = 0;
   W.idle1 = (1 - mv) * (1 - fid) * rest;
   if (R.fidget) W[R.fidget] = (1 - mv) * fid * rest;
-  const wk = mv * (1 - gal) * rest, gl = mv * gal * rest;
+  const wk = mv * (1 - tro) * rest, tw = mv * tro * (1 - gal) * rest, gl = mv * gal * (1 - full) * rest, rw = mv * full * rest;
   W.walk = wk * trC; W.walkL = wk * trL; W.walkR = wk * trR;
+  W.trot = tw;
   W.gallop = gl * trC; W.gallopL = gl * trL; W.gallopR = gl * trR;
+  W.run = rw;
   if (one) W[one] = (W[one] || 0) + oneW;
-  // 時間：並足と駆け足は、足の進みが地面の速さと同じになるように回す（左右の動きは同じ時間にそろえる）
-  const wTs = Math.max(0.55, Math.min(2.6, speed / WALK_V)), gTs = Math.max(0.75, Math.min(3.3, speed / GALLOP_V));
-  R.t.walk = (R.t.walk + dt * wTs) % clips.walk.duration;
-  R.t.gallop = (R.t.gallop + dt * gTs) % clips.gallop.duration;
+  // 時間：どの足運びも、蹄の送りが地面の速さと同じになるように回す（左右の動きは同じ時間にそろえる）。
+  // 足運びの幅の外では使われないので、止めどころはその幅に合わせて広めに
+  const ts = (v, lo, hi) => Math.max(lo, Math.min(hi, speed / v));
+  R.t.walk = (R.t.walk + dt * ts(WALK_V, 0.55, 2.4)) % clips.walk.duration;
+  R.t.trot = (R.t.trot + dt * ts(TROT_V, 1.2, 5.2)) % clips.trot.duration;
+  R.t.gallop = (R.t.gallop + dt * ts(GALLOP_V, 1.1, 2.4)) % clips.gallop.duration;
+  R.t.run = (R.t.run + dt * ts(RUN_V, 1.5, 3.4)) % clips.run.duration;
   R.t.walkL = R.t.walkR = R.t.walk; R.t.gallopL = R.t.gallopR = R.t.gallop;
   R.t.idle1 = (R.t.idle1 + dt) % clips.idle1.duration;
   let sum = 0; for (const k of RAIL) sum += W[k];
@@ -3963,6 +4135,33 @@ function driveHorse(h, dt, speed) {
     a.time = R.t[k];
   }
   R.mixer.update(0);
+  _hr.setFromMatrixColumn(h.matrixWorld, 0).normalize();
+  _hf.setFromMatrixColumn(h.matrixWorld, 2).normalize();
+  if (!H.dead && dt > 0) {
+    // 速歩の弾み：対角の脚が踏む真ん中で沈み、宙に浮く所で上がる（一回りに二度）。乗り手も鞍ごと弾む
+    if (tw > 0.01) liftWorld(root, -0.03 * Math.cos(4 * Math.PI * (R.t.trot / clips.trot.duration - 0.45)) * tw);
+    // 曲がる時は、速さと曲がりの強さに応じて内へ傾く（足もとを軸に）。傾いた動きの無い速歩・襲歩は全部ここで、並足・駆歩は録った傾きに足す
+    const lean = Math.max(-0.26, Math.min(0.26, Math.atan(speed * R.turn / 9.8)));
+    R.lean = (R.lean || 0) + (lean - (R.lean || 0)) * Math.min(1, dt * 4);
+    rotWorld(root, _hf, -R.lean * (tw + rw + 0.45 * (wk + gl)));
+    // 前後：止まる時は尻を沈めて前を起こし（踏ん張り）、首を上げる。駆け出す時は前へ体を預け、首を伸ばす
+    const brake = mv * clamp01(-(R.acc || 0) / 7) * rest, push = mv * clamp01((R.acc || 0) / 5) * rest;
+    rotWorld(root, _hr, -0.07 * brake + 0.035 * push);
+    rotWorld(B.BN_Neck_00_06_06, _hr, -0.28 * brake + 0.12 * push);
+    // 曲がる方へ首を向ける
+    rotWorld(B.BN_Neck_01_07_07, _up, Math.max(-0.14, Math.min(0.14, R.turn * 0.12)) * mv * rest);
+  }
+  // 撃たれて崩れる：前の膝が折れて、鼻先から沈む
+  if (R.buckle > 0.001) {
+    rotWorld(root, _hr, 0.3 * R.buckle);
+    for (let i = 0; i < 2; i++) { rotWorld(B[FORE_KNEE[i]], _hr, -0.3 * R.buckle); rotWorld(B[FORE_CANNON[i]], _hr, (1.3 - i * 0.2) * R.buckle); }
+  }
+  // 棹立ちの宙で、前脚を交互に掻き、首を振る
+  if (R.paw > 0.01) {
+    const pt = R.oneT * 10;
+    for (let i = 0; i < 2; i++) { rotWorld(B[FORE_KNEE[i]], _hr, Math.sin(pt + i * Math.PI) * 0.35 * R.paw); rotWorld(B[FORE_CANNON[i]], _hr, (0.5 + 0.4 * Math.sin(pt + i * Math.PI + 1)) * R.paw); }
+    rotWorld(B[HEAD_B], _hr, Math.sin(R.oneT * 6.5) * 0.14 * R.paw);
+  }
   // 息が上がった馬：長く駆けると息が上がり（H.blow 0..1）、止まると首を下げて、速い息で首が上下する。だんだん戻る
   H.blow = clamp01((H.blow || 0) + dt * (speed > 3.2 ? 1 / 22 : speed > 1.2 ? -1 / 60 : -1 / 35));
   if (!H.dead && H.blow > 0.05 && oneW < 0.5 && dt > 0) {
@@ -3976,6 +4175,15 @@ function driveHorse(h, dt, speed) {
     rotWorld(R.bones.BN_Neck_02_011_011, _hr, down * 0.2);
     // 頭は首ほど下げない（鼻先が胸に付かないよう、少し起こす）
     rotWorld(R.bones[HEAD_B], _hr, -0.1 * b * still);
+  }
+  // 息づかい：腹が膨らんで縮み、鼻の穴が開く。駆ける時は一歩に一息、立てば息の荒さ（H.blow）で速く深く
+  if (!H.dead) {
+    let br;
+    if (gl + rw > 0.5) br = Math.sin(Math.PI * 2 * (rw > gl ? R.t.run / clips.run.duration : R.t.gallop / clips.gallop.duration));
+    else { R.brPh2 = ((R.brPh2 || 0) + dt * Math.PI * 2 * (0.22 + (H.blow || 0) * 0.9)) % (Math.PI * 2); br = Math.sin(R.brPh2); }
+    if (B.BN_Stomach_050_053) B.BN_Stomach_050_053.scale.setScalar(1 + br * (0.012 + 0.03 * (H.blow || 0) + 0.015 * (gl + rw)));
+    const fl = 1 + Math.max(0, br) * (0.08 + 0.45 * (H.blow || 0));
+    for (const nm of NOSE_B) if (B[nm]) B[nm].scale.setScalar(fl);
   }
   // 尾と鬣：風下へなびき、突風で震える。駆けると尾は後ろへ持ち上がって流れ、鬣は細かくはためく
   if (!H.dead && dt > 0 && oneW < 0.9) {
@@ -4000,7 +4208,6 @@ function driveHorse(h, dt, speed) {
   R.holder.updateMatrix();
   R.holder.matrixWorld.copy(R.holder.matrix);
   R.sc.updateMatrixWorld(true);
-  const B = R.bones;
   H.seat.multiplyMatrices(B[SEAT_B].matrixWorld, HR.restInv[SEAT_B]);
   // 手綱を握る手の置き所：鞍の前輪の上、腰より拳ふたつほど上（胸や顔の高さまで上げない）。馬の頭が前後すると、手もそれに引かれる
   _hM.multiplyMatrices(B[HEAD_B].matrixWorld, HR.restInv[HEAD_B]);         // 頭の骨の、立ち姿からの動き

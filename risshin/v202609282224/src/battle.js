@@ -68,17 +68,19 @@ const HINTS_TOUCH = {
 // 手ほどきの間でも、すぐに出すヒント（戦いの最中の大事な事）
 const HINT_NOW = new Set(['attack', 'guard', 'counter', 'gun', 'tooClose', 'blocked', 'far', 'rally', 'head', 'ride', 'dismount']);
 
-// 初めての戦の手ほどき：一つずつ出し、やってみたら次へ。済んだ段は二度と出さない（設定の「ヒントをもう一度すべて表示する」で戻る）
-// [id, する事, PC での操作, 指での操作]
+// 初めての戦の手ほどき：字を読ませず、やって覚える。一度に一つだけ、短い札を出し、やれば「よし」で消える
+// 次の札は、行軍を少し進めてから（COACH_GAP 秒）。先にやってしまった段は、黙って済ませる
+// 済んだ段は二度と出さない（設定の「ヒントをもう一度すべて表示する」で戻る）
+// [id, する事, PC での操作, 指での操作]。操作は一言（キーか、押す丸の名）
 const COACH = () => [
-  ['c_move', '歩く', `${K('forward')} ${K('left')} ${K('back')} ${K('right')} で歩く（${K('run')} で走る）`, '左をなぞって歩く'],
-  ['c_look', '見回す', 'マウスを動かして見回す', '右をなぞって見回す'],
-  ['c_swing', '突く', '左クリックで槍を突く', '「突く」を押す'],
-  ['c_guard', '構える', '右クリックを押している間、正面の攻撃を防ぐ', '「構え」を押し続ける'],
-  ['c_dodge', '回避', `${K('dodge')} で跳んで、攻撃をかわす`, '「回避」を押す'],
-  ['c_view', '視点', `${K('view')} で一人称と三人称を切り替える`, '左上の「視点」を押す'],
-  ['c_cmd', '号令', `${K('follow')} で「ついて来い」、${K('hold')} で「待て」`, '「号令」を押す'],
+  ['c_move', '歩く', `${K('forward')}${K('left')}${K('back')}${K('right')}`, '左をなぞる'],
+  ['c_look', '見回す', 'マウス', '右をなぞる'],
+  ['c_guard', '構える', '右クリック長押し', '「構え」長押し'],
+  ['c_swing', '突く', '左クリック', '「突く」'],
+  ['c_cmd', '号令「ついて来い」', K('follow'), '「号令」'],
 ];
+// 段と段の間（秒）。はじめの二つは続けて、構え・突き・号令は行軍の間に間を置いて
+const COACH_GAP = { c_look: 1.5, c_guard: 7, c_swing: 5, c_cmd: 8 };
 // 戦ごとの手ほどき（tutStart）の操作を、指の言葉に
 const TUT_TOUCH = {
   move: '左の親指でなぞる', run: '棒を外まで押し込む', thrust: '「突く」を押す', combo: '「突く」を素早く3回', charged: '「突く」を長押しして放す',
@@ -512,7 +514,7 @@ export class Battle {
     const h = isTouch && id in HINTS_TOUCH ? HINTS_TOUCH[id] : HINTS[id];
     if (!h) { markHint(id); return; }
     // 札は一度に一つ。手ほどきの間や、別のヒントが出ている間は、急ぎでないものを後に回す
-    if (!HINT_NOW.has(id) && (this.tut || this.hud.hintBusy())) { if (!this.hintQ.some((q) => q.id === id)) this.hintQ.push({ id, t: this.t }); return; }
+    if (!HINT_NOW.has(id) && (this.tut || this.tutPause || this.hud.hintBusy())) { if (!this.hintQ.some((q) => q.id === id)) this.hintQ.push({ id, t: this.t }); return; }
     markHint(id);
     this.hud.hint(h[0], h[1]);
   }
@@ -520,6 +522,8 @@ export class Battle {
   // ---------------- 手ほどき（一つずつ出す札） ----------------
   // items：[id, 文]。文の「（…）」は操作の説明として分けて出す。指の端末では TUT_TOUCH の言葉に
   tutStart(title, items, onDone, o = {}) {
+    // 初めて遊ぶ人には、任意の稽古の長い札（九つの段）を出さない。代わりに初めての手ほどき（一つずつ・短く）を出す
+    if (!o.auto && /任意/.test(title) && this.firstCoach()) return false;
     const list = [];
     for (const [id, label, pc, touch] of items) {
       const m = label.match(/^(.*?)（(.*)）$/);
@@ -534,7 +538,7 @@ export class Battle {
     return true;
   }
   tutMark(id) {
-    const t = this.tut;
+    const t = this.tut || (this.tutPause && this.tutPause.t);
     if (!t) return;
     // 号令はどれをしても「号令」の段は済み
     if (t.auto && (/^cmd_/.test(id) || id === 'radial')) id = 'c_cmd';
@@ -544,12 +548,17 @@ export class Battle {
     if (t.auto) {
       markHint(id);
       // 手ほどきで覚えた事は、同じ中身のヒントを出さない
-      for (const h of { c_look: ['move'], c_guard: ['guard'], c_cmd: ['squad'] }[id] || []) markHint(h);
+      for (const h of { c_look: ['move'], c_guard: ['guard'], c_swing: ['practice'], c_cmd: ['squad'] }[id] || []) markHint(h);
     }
     sfx('merit', 0.6);
+    // 間を置いている間に先にやった段は、札を出さずに済ませる
+    if (!this.tut) {
+      if (t.items.every((x) => x.done)) { this.tutPause = null; this.hud.flash('手ほどき　済み', 'gold'); if (t.onDone) t.onDone(); }
+      return;
+    }
     // いま出している段が済んだら、少しの間「よし」を見せてから次へ
     const cur = t.items.find((x) => !x.done || x === it);
-    if (cur === it) { t.ok = it.label; t.okT = 1.1; }
+    if (cur === it) { t.ok = it.label; t.okT = t.auto ? 0.8 : 1.1; }
     this.hud.renderTut(t);
     if (t.items.every((x) => x.done)) {
       this.hud.flash(t.auto ? '手ほどき　済み' : '手ほどき　皆伝', 'gold');
@@ -565,9 +574,28 @@ export class Battle {
     if (t.okT > 0) return;
     t.ok = null;
     if (t.items.every((x) => x.done)) this.tut = null;
+    else if (t.auto) {
+      // 次の札までは何も出さず、行軍を進ませる（札が消えたら、やった事は覚えた）
+      const nx = t.items.find((x) => !x.done);
+      const gap = COACH_GAP[nx.id] || 0;
+      if (gap > 0) { this.tut = null; this.tutPause = { t, left: gap }; }
+    }
     this.hud.renderTut(this.tut);
   }
-  tutEnd() { this.tut = null; this.hud.renderTut(null); }
+  // 間が明けたら、次の札を出す
+  tutPauseTick(dt) {
+    const w = this.tutPause;
+    if (!w) return;
+    if (this.tut || this.choice) return;
+    w.left -= dt;
+    if (w.left > 0) return;
+    this.tutPause = null;
+    if (w.t.items.some((x) => !x.done)) { this.tut = w.t; this.hud.renderTut(this.tut); }
+  }
+  // 戦の定義が終わらせるのは、その戦の手ほどき（稽古）だけ。初めての手ほどきは、行軍の間も続ける
+  tutEnd() { if (this.tut && this.tut.auto) return; this.tut = null; this.hud.renderTut(null); }
+  // まだ一度も手ほどきを済ませていない人か
+  firstCoach() { return !!S.hints && !hintSeen('c_move') && !this.def.dojo && !(this.G && this.G.lord); }
 
   // 初めての戦の手ほどき（まだ済ませていない段だけ）。始めたら true
   coachStart() {
@@ -581,7 +609,7 @@ export class Battle {
   }
   // 手ほどきの段が済んだかを、プレイヤーの動きから見る
   coachTick(dt, input) {
-    const t = this.tut;
+    const t = this.tut || (this.tutPause && this.tutPause.t);
     if (!t || !t.auto) return;
     const p = this.player;
     if (p.movedAcc > 6) this.tutMark('c_move');
@@ -592,6 +620,10 @@ export class Battle {
     if (p.guard && p.guardT > 0.4) this.tutMark('c_guard');
     if (p.dodgeT > 0.05) this.tutMark('c_dodge');
     if (S.view !== this.coachView) this.tutMark('c_view');
+    // 号令は、どの号令でも済み（キーの号令・輪の号令・指の号令のどれでも。自分が出した号令だけを見る）
+    const lc = this.player.lastCmd;
+    if (lc && lc !== this.coachCmd && this.coachCmd !== undefined) this.tutMark('c_cmd');
+    this.coachCmd = lc || null;
   }
 
   // 戦の中の選択（1・2 のキーで選ぶ。選ばなければ既定の方）
@@ -1248,11 +1280,12 @@ export class Battle {
     // 号令の前の隊の様子を覚えておく（遠い隊へは使番が届けるまで前のまま）
     for (const g of this.squadGroups) g._snap = snapOf(g);
     this.tutTick(dt);
+    this.tutPauseTick(dt);
     this.coachTick(dt, input);
     if (this.player.u.alive) this.player.update(dt, input);
     // 後に回したヒントを、手ほどきが済んでから一つずつ
     // 古くなったヒント（60秒より前の事）は捨てる
-    if (this.hintQ.length && !this.tut && !this.hud.hintBusy() && (this.hintGapT = (this.hintGapT || 0) + dt) > 3) {
+    if (this.hintQ.length && !this.tut && !this.tutPause && !this.hud.hintBusy() && (this.hintGapT = (this.hintGapT || 0) + dt) > 3) {
       this.hintGapT = 0;
       while (this.hintQ.length && this.t - this.hintQ[0].t > 60) this.hintQ.shift();
       if (this.hintQ.length) this.hint(this.hintQ.shift().id);
