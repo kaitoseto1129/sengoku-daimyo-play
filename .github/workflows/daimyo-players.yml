@@ -1,0 +1,158 @@
+# 戦国大名：テストプレイヤー（名簿一万人）を GitHub の機械で回す（元は Mac の personas_all_loop.sh）
+# 置き場所：この写しを .github/workflows/daimyo-players.yml に貼る（元は daimyo-bot/daimyo-players.yml）
+# 人数・時間・止め方は daimyo-bot/players.json（この yml は触らずに済むように）
+#   既定：毎時、5本を同時に × 1本40人（一台で2人ずつ同時・一人15分まで・1本50分まで）。一人およそ1.5分
+#   止めるには players.json の "enabled" を false に（手動の Run workflow は動く）
+# 名簿を順に回し、どこまで回したかは daimyo-players/cursor.json
+# 結果は daimyo-players/REPORT.md・findings.json（一人ずつの中身は daimyo-players/people/）
+# 遊ぶのは公開中の index.html（pixel の塊は写しから外す）。遊び手の頭は daimyo-bot/（sync.sh で作る所から写す）
+# 今すぐ回す：Actions の画面の「Run workflow」、または daimyo-bot/run-now.json を変えて push
+name: daimyo-players
+on:
+  schedule:
+    - cron: "47 * * * *"
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "始める番（空なら cursor.json の続き）"
+        required: false
+        default: ""
+      per:
+        description: "1本あたりの人数（空なら players.json）"
+        required: false
+        default: ""
+      shards:
+        description: "同時に回す本数（空なら players.json）"
+        required: false
+        default: ""
+  push:
+    branches: [main]
+    paths: ["daimyo-bot/run-now.json"]
+permissions:
+  contents: write
+concurrency:
+  group: daimyo-players
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.p.outputs.run }}
+      start: ${{ steps.p.outputs.start }}
+      per: ${{ steps.p.outputs.per }}
+      shards: ${{ steps.p.outputs.shards }}
+      count: ${{ steps.p.outputs.count }}
+      cfg: ${{ steps.p.outputs.cfg }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            daimyo-players
+            daimyo-bot
+          filter: blob:none
+      - id: p
+        env:
+          EV: ${{ github.event_name }}
+          IN_START: ${{ github.event.inputs.start }}
+          IN_PER: ${{ github.event.inputs.per }}
+          IN_SHARDS: ${{ github.event.inputs.shards }}
+        run: |
+          python3 - <<'PY'
+          import json, os, datetime
+          def J(f, d):
+              try: return json.load(open(f, encoding='utf-8'))
+              except Exception: return d
+          cfg = J('daimyo-bot/players.json', {}); cur = J('daimyo-players/cursor.json', {})
+          ev = os.environ['EV']; now = J('daimyo-bot/run-now.json', {}) if ev == 'push' else {}
+          run = cfg.get('enabled', True) is not False or ev != 'schedule'
+          last = (cur.get('history') or [None])[-1]
+          if ev == 'schedule' and last:
+              gap = (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(last['at'])).total_seconds() / 60
+              if gap < cfg.get('minGapMinutes', 10): run = False; print(f'前の回の終わりから {round(gap)} 分なので飛ばす')
+          def num(*a):
+              for x in a:
+                  if x not in (None, ''): return int(x)
+          start = num(os.environ.get('IN_START'), now.get('start'), cur.get('next'), 0) % 10000
+          per = max(1, min(80, num(os.environ.get('IN_PER'), now.get('per'), cfg.get('per'), 40)))
+          nsh = max(1, min(20, num(os.environ.get('IN_SHARDS'), now.get('shards'), cfg.get('shards'), 5)))
+          c = {k: cfg.get(k, d) for k, d in [('jobs', 2), ('days', 90), ('plays', 1), ('personSeconds', 900), ('jobMinutes', 50), ('sc', 'nagashino'), ('clans', '織田家,武田家,上杉家,徳川家')]}
+          c['jobs'] = max(1, min(4, int(c['jobs']))); c['jobMinutes'] = max(10, min(55, int(c['jobMinutes'])))
+          o = {'run': 'true' if run else 'false', 'start': start, 'per': per, 'shards': json.dumps(list(range(nsh))), 'count': per * nsh, 'cfg': json.dumps(c, ensure_ascii=False)}
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              for k, v in o.items(): f.write(f'{k}={v}\n')
+          print(o)
+          PY
+
+  play:
+    needs: plan
+    if: needs.plan.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 58
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            daimyo-bot
+          filter: blob:none
+      - name: 日本語の字と道具
+        run: |
+          sudo apt-get update -qq >/dev/null
+          sudo apt-get install -y -qq --no-install-recommends fonts-noto-cjk >/dev/null
+          pip3 install -q websocket-client
+          google-chrome --version
+      - name: 遊ぶ
+        env:
+          START: ${{ needs.plan.outputs.start }}
+          PER: ${{ needs.plan.outputs.per }}
+          SHARD: ${{ matrix.shard }}
+          CFG: ${{ needs.plan.outputs.cfg }}
+        run: |
+          eval "$(python3 -c 'import json,os,shlex; c=json.loads(os.environ["CFG"]); print("\n".join(f"export {k}={shlex.quote(str(v))}" for k,v in dict(JOBS=c["jobs"],DAYS=c["days"],PLAYS=c["plays"],PSEC=c["personSeconds"],JOBMIN=c["jobMinutes"],SC=c["sc"],CLANS=c["clans"]).items()))')"
+          bash daimyo-bot/shard.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shard-${{ matrix.shard }}
+          path: out/
+          retention-days: 3
+          if-no-files-found: ignore
+
+  gather:
+    needs: [plan, play]
+    if: always() && needs.plan.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            daimyo-players
+            daimyo-bot
+          filter: blob:none
+          fetch-depth: 20
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: shard-*
+          path: in
+      - name: 合わせて REPORT.md・findings.json を書く
+        run: |
+          python3 daimyo-bot/gather.py in ${{ needs.plan.outputs.start }} ${{ needs.plan.outputs.count }}
+          head -20 daimyo-players/REPORT.md >> "$GITHUB_STEP_SUMMARY"
+      - name: 置き場に記録する（ぶつかったら pull --rebase してやり直す）
+        run: |
+          git config user.name "daimyo-players-bot"
+          git config user.email "daimyo-players-bot@users.noreply.github.com"
+          git add -A daimyo-players
+          git diff --cached --quiet && exit 0
+          git commit -q -m "daimyo-players: $(date -u +%Y-%m-%dT%H:%M) ${{ needs.plan.outputs.start }}番から${{ needs.plan.outputs.count }}人"
+          for i in 1 2 3 4 5; do
+            git pull --rebase -q origin main && git push -q origin HEAD:main && exit 0
+            git rebase --abort 2>/dev/null
+            sleep $(( i * 20 ))
+          done
+          exit 1
