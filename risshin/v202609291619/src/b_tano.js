@@ -173,17 +173,26 @@ const tano = {
       dress([{ type: 'busho', n: 1, o: { name: '土屋昌恒', invuln: true, hat: 'kabuto_m', haori: 0x7a2a1c } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 8 + more(rt, 0.3) }], TAKEDA));
     F.tsuchi.units[0].dmg *= 0.5;
     // 段の後の一息（崖道の前で手傷を縛る）
-    { const u = rt.player.u; if (u.alive) u.hp = Math.min(u.maxHp, u.hp + u.maxHp * 0.45); }
+    { const u = rt.player.u; if (u.alive) u.hp = Math.min(u.maxHp, u.hp + u.maxHp * 0.6); }
     // 尾根の伏兵を破っていれば、崖の上から石と矢を落として土屋の衆を乱す
     if (!m.ridge) F.tsuchi.morale = 80;   // 崖道の口で打って出た者を討った分、土屋の衆は薄い
     if (m.ridge && m.ridgeWon) { F.tsuchi.morale = 60; F.tsuchi.defMult = 1; rt.after(3, () => rt.banner('崖の上から', '尾根に回った足軽が、石と矢を落とす。土屋の衆が乱れた')); }
     // 新手：谷の奥から、勝頼の旗本の一部が崖道へ降りて来る
-    rt.after(40, () => {
+    rt.after(16, () => {
       if (F.step !== 2 || F.ending) return;
       F.tsuchi2 = enemyGroup(rt, { faction: 'takeda', name: '崖道へ降りる武田の新手', anchor: { x: NARROW.x1 + 8, z: 0 }, facing: -Math.PI / 2, order: 'attack', seekRange: 60, aggro: 16, width: 6, morale: 90, fleeDir: { x: 1, z: 0 }, dmgMult: 0.6, formation: 'column' },
         dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }], TAKEDA));
       rt.marker('tsuchi2', centerOf(F.tsuchi2), () => `武田の新手・${moraleWord(F.tsuchi2.morale)}`, { red: true, group: F.tsuchi2 });
       rt.say('足軽', '崖道の奥から、まだ降りて来る！', 3);
+    });
+    // 三つ目の波：土屋の衆の後ろから、弓と侍が崖道を埋めて下りて来る（大きな寄せ）
+    rt.after(36, () => {
+      if (F.step !== 2 || F.ending) return;
+      F.tsuchi3 = enemyGroup(rt, { faction: 'takeda', name: '崖道を埋める武田の侍衆', anchor: { x: NARROW.x1 + 12, z: 0 }, facing: -Math.PI / 2, order: 'attack', seekRange: 70, aggro: 16, width: 6, morale: 85, fleeDir: { x: 1, z: 0 }, dmgMult: 0.48, formation: 'column' },
+        dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6 + more(rt, 0.3) }, { type: 'bow', n: 3 }], TAKEDA));
+      KIT.backOf(rt, F.tsuchi3, { flag: 'takeda', armor: KIT.ARMOR.takeda, kind: 'spear', w: 8, depth: 14, count: 90, seed: 15836 }).army.noWake = true;
+      rt.marker('tsuchi3', centerOf(F.tsuchi3), () => `武田の侍衆・${moraleWord(F.tsuchi3.morale)}`, { red: true, group: F.tsuchi3 });
+      rt.say('滝川一益', '崖道の奥が旗で埋まった。……これが最後の厚みじゃ。道が狭いぶん、一度に来る数は少ない。前の者から突き崩せ', 4.5);
     });
     rt.marker('tsuchi', centerOf(F.tsuchi), () => `土屋昌恒の衆・${moraleWord(F.tsuchi.morale)}`, { red: true, group: F.tsuchi });
     const go = (g, x, z) => { g.order = 'move'; g.dest = { x, z }; g.speed = 2.2; g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 40; }; };
@@ -223,6 +232,17 @@ const tano = {
       rt.say('足軽', '陣の脇からも出て来た！　囲まれるな！', 3);
     }
     rt.marker('last', centerOf(F.last), () => `勝頼の旗本・${moraleWord(F.last.morale)}`, { red: true, group: F.last });
+    // 旗本と組み合うと、谷の奥の騎馬の残りが引き返して、背から来る（最後の大きな波）
+    rt.after(18, () => {
+      if (F.step !== 3 || F.ending) return;
+      F.late = enemyGroup(rt, { faction: 'takeda', name: '引き返した武田の騎馬', anchor: { x: TANO.x + 34, z: TANO.z + 16 }, facing: -Math.PI * 0.6, order: 'attack', seekRange: 80, aggro: 18, width: 10, morale: 90, fleeDir: { x: 1, z: 0 }, dmgMult: 0.55 },
+        dress([{ type: 'cavalry', n: 3 }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }], TAKEDA));
+      for (const u of F.late.units) if (u.type === 'cavalry') u.dmg *= 0.55;
+      KIT.backOf(rt, F.late, { flag: 'takeda', armor: KIT.ARMOR.takeda, kind: 'cavalry', w: 12, depth: 8, count: 50, seed: 15837 }).army.noWake = true;
+      rt.marker('late', centerOf(F.late), () => `引き返した騎馬・${moraleWord(F.late.morale)}`, { red: true, group: F.late });
+      rt.say('足軽', '谷の奥の騎馬が、引き返して来た！', 3);
+      rt.after(3, () => rt.say('滝川一益', '槍を外へ向けよ！　陣幕の前で止めれば、もう武田に駒は無い', 4));
+    });
     for (const g of F.oda) { g.order = 'path'; g.path = [[80, -2], [TANO.x - 12, TANO.z]]; g.pathIdx = 0; g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 40; }; }
   },
 
@@ -237,8 +257,8 @@ const tano = {
       for (const g of [F.r1, F.r1b, F.r1c, F.scout]) if (g && !gone(g)) { g.noRout = false; g.morale = 0; }
       rt.award((t) => t.side.push('武田の殿を退けた'), '武田の殿を退けた');
     } else {
-      for (const k of ['tsuchi', 'tsuchi2']) rt.unmark(k);
-      for (const g of [F.tsuchi, F.tsuchi2]) if (g && !gone(g)) { g.noRout = false; g.morale = 0; for (const u of g.units) u.invuln = false; }
+      for (const k of ['tsuchi', 'tsuchi2', 'tsuchi3']) rt.unmark(k);
+      for (const g of [F.tsuchi, F.tsuchi2, F.tsuchi3]) if (g && !gone(g)) { g.noRout = false; g.morale = 0; for (const u of g.units) u.invuln = false; }
       rt.award((t) => t.side.push('崖道を押し通った'), '崖道を押し通った');
     }
     depthStart(rt, tanoCtx(rt), which === 'A' ? stepsA(rt) : stepsB(rt), () => {
@@ -253,7 +273,8 @@ const tano = {
     if (F.ending) return;
     F.ending = true;
     rt.setPhase('end');
-    rt.unmark('last'); rt.unmark('tano'); rt.unmark('guard');
+    rt.unmark('last'); rt.unmark('tano'); rt.unmark('guard'); rt.unmark('late');
+    if (F.late && !gone(F.late)) F.late.morale = 0;
     if (F.last && !gone(F.last)) { F.last.morale = 0; }
     // 勝頼は陣幕の内で自害する（馬廻は崩れる）
     if (F.ehon) { const k = F.ehon.general; if (k && k.alive) { k.invuln = false; rt.army.kill(k, null); } if (F.ehon.guard && !gone(F.ehon.guard)) F.ehon.guard.morale = 0; }
@@ -311,14 +332,15 @@ const tano = {
       const g = F.tsuchi;
       rt.objProgress('main', `土屋の衆 ${g.count}人`);
       if (g.count < 5 && g.noRout) { g.noRout = false; g.morale = Math.min(g.morale, 25); g.units[0].invuln = false; }
-      if (F.tsuchi2 && F.tsuchi2.count < 4 && !gone(F.tsuchi2)) F.tsuchi2.morale = Math.min(F.tsuchi2.morale, 20);
-      if ((gone(g) && (!F.tsuchi2 || gone(F.tsuchi2) || rt.t - F.stepT > 110)) || rt.t - F.stepT > 160) this.deep(rt, 'B');
+      for (const q of [F.tsuchi2, F.tsuchi3]) if (q && q.count < 4 && !gone(q)) q.morale = Math.min(q.morale, 20);
+      if ((gone(g) && F.tsuchi3 && gone(F.tsuchi2) && gone(F.tsuchi3)) || (gone(g) && rt.t - F.stepT > 120) || rt.t - F.stepT > 170) this.deep(rt, 'B');
     }
     if (F.step === 3) {
       const d = Math.hypot(p.x - TANO.x, p.z - TANO.z);
       rt.objProgress('main', gone(F.last) ? (F.guardOut ? `馬廻 ${F.ehon.guard.count}人` : `田野まで ${Math.round(d)}m`) : `旗本 ${F.last.count}人`);
       if (F.last.count < 4 && !gone(F.last)) F.last.morale = Math.min(F.last.morale, 20);
-      if (F.side && F.side.count < 3 && !gone(F.side)) F.side.morale = Math.min(F.side.morale, 20);
+      for (const q of [F.side, F.late]) if (q && q.count < 3 && !gone(q)) q.morale = Math.min(q.morale, 20);
+      const lateOk = F.late ? gone(F.late) : rt.t - F.stepT > 30;
       const gd = F.ehon && F.ehon.guard;
       // 旗本が崩れると、勝頼の馬廻が最後の突撃に出る（勝頼が自害する間を稼ぐ）
       if (gone(F.last) && gd && !gone(gd) && !F.guardOut) {
@@ -329,8 +351,8 @@ const tano = {
         rt.say('滝川一益', '勝頼殿が腹を切る間を稼ぐ気じゃ。……受けて立て。これで終わる', 4);
       }
       if (gd && gd.count < 4 && !gone(gd)) gd.morale = Math.min(gd.morale, 20);
-      if (F.guardOut && ((gone(gd) && (!F.side || gone(F.side))) || rt.t - F.guardT > 70)) { this.win(rt); return; }
-      if ((gone(F.last) && (!F.side || gone(F.side)) && (!gd || gone(gd)) && (d < 16 || (F.dpMem || {}).grace)) || rt.t - F.stepT > 200) this.win(rt);
+      if (F.guardOut && ((gone(gd) && (!F.side || gone(F.side)) && lateOk) || rt.t - F.guardT > 90)) { this.win(rt); return; }
+      if ((gone(F.last) && (!F.side || gone(F.side)) && lateOk && (!gd || gone(gd)) && (d < 16 || (F.dpMem || {}).grace)) || rt.t - F.stepT > 220) this.win(rt);
     }
   },
 
@@ -350,7 +372,7 @@ const tano = {
 const uS = (n) => ({ type: 'samurai', n }), uA = (n) => ({ type: 'ashigaru', n }), uC = (n) => ({ type: 'cavalry', n }), uB = (n) => ({ type: 'bow', n }), uG = (n) => ({ type: 'gun', n });
 function tanoCtx(rt) {
   const F = rt.flags;
-  return { faction: 'takeda', flag: 'takeda', armor: KIT.ARMOR.takeda, dmg: 0.6, mass: 150, scale: 1.4, look: (l) => dress(l, TAKEDA),
+  return { faction: 'takeda', flag: 'takeda', armor: KIT.ARMOR.takeda, dmg: 0.52, mass: 150, scale: 1.4, look: (l) => dress(l, TAKEDA),
     friends: () => [F.taki, F.kawa].filter((g) => g && g.count && !g.routed) };
 }
 // A：殿を退けた後。崖道の土屋をどう破るか（鉄砲で崩す＝崖道の口で寄せを受ける／尾根へ回る＝伏兵と斬り合う）
@@ -358,7 +380,7 @@ function stepsA(rt) {
   const F = rt.flags;
   const mouth = { x: NARROW.x0 - 14, z: 0 };
   return [
-    rest({ dur: 9, heal: 0.3, say: [['滝川一益', '殿は退いた。……この先は崖道じゃ。人が二人やっと並べるほどしかない'], ['足軽', '崖道の奥に、武田の侍が道をふさいでおります']] }),
+    rest({ dur: 9, heal: 0.45, say: [['滝川一益', '殿は退いた。……この先は崖道じゃ。人が二人やっと並べるほどしかない'], ['足軽', '崖道の奥に、武田の侍が道をふさいでおります']] }),
     pick({ title: '崖道の土屋昌恒の衆を、どう破る？', time: 18,
       options: [{ label: '鉄砲組を前へ出し、撃ち崩してから押す', note: '確かな手。ただ、崖道の口で打って出る武田勢を何度も受ける' },
         { label: '尾根の杣道へ回り、崖の上から攻める', note: '伏兵を破れば、崖の上から土屋の衆を乱せる。尾根は足場が悪い' }],
@@ -366,7 +388,7 @@ function stepsA(rt) {
     hold({ skip: (rt2, m) => m.ridge, at: mouth, dur: 90, r: 12, title: '崖道の口', sub: '崖道の奥から、武田勢が打って出る', label: '崖道の口', obj: '崖道の口で、打って出る武田勢を受けよ',
       say: [['滝川一益', '口は狭い。一度に出て来る数は少ない。槍を揃えて、出て来る所を突け']],
       waves: [
-        { t: 4, say: ['足軽', '崖道から武田の侍が駆け出てくる！'], foes: () => [{ name: '打って出る武田勢', from: { x: NARROW.x0 + 6, z: 0 }, list: [uS(3), uA(9)], mass: 140, noRout: 20 }] },
+        { t: 4, say: ['足軽', '崖道から武田の侍が駆け出てくる！'], foes: () => [{ name: '打って出る武田勢', from: { x: NARROW.x0 + 6, z: 0 }, list: [uS(2), uA(8)], mass: 140, noRout: 15 }] },
         { t: 30, say: ['滝川一益', '騎馬じゃ！　槍を揃えよ。止まった馬は脆い'], foes: () => [{ name: '崖道を駆け下りる騎馬', from: { x: NARROW.x0 + 8, z: 0 }, list: [uC(2), uS(1), uA(5)], mass: 0, dmg: 0.42, morale: 75 }] },
         { t: 50, foes: () => [{ name: '武田の弓衆', from: { x: NARROW.x0 + 4, z: 3 }, list: [uS(1), uB(5), uA(5)], mass: 60 }] },
         { t: 68, say: ['滝川一益', 'これが崖道の口の最後の寄せじゃ。凌げば、土屋の衆は裸になる'], foes: () => [{ name: '土屋の手の侍', from: { x: NARROW.x0 + 6, z: -2 }, list: [uS(3), uA(6)], mass: 60 }] },
@@ -436,7 +458,7 @@ tano.botBrain = (b, inp, { goTo }) => {
     return;
   }
   inp.guardHold = false;
-  const tgt = F.step === 1 ? [F.r1, F.r1b, F.r1c].find((q) => q && !gone(q)) || F.r1 : F.step === 2 ? (gone(F.tsuchi) && F.tsuchi2 ? F.tsuchi2 : F.tsuchi) : F.step === 3 ? (gone(F.last) ? null : F.last) : null;
+  const tgt = F.step === 1 ? [F.r1, F.r1b, F.r1c].find((q) => q && !gone(q)) || F.r1 : F.step === 2 ? [F.tsuchi, F.tsuchi2, F.tsuchi3].find((q) => q && !gone(q)) || F.tsuchi : F.step === 3 ? [F.last, F.late].find((q) => q && !gone(q)) || null : null;
   if (tgt && !gone(tgt)) { const t = tgt.center(); if (Math.hypot(c.x - t.x, c.z - t.z) > 22 && F.step === 1) { goTo(p, inp, c.x + 3, c.z, 3); return; } goTo(p, inp, t.x, t.z, 2); return; }
   if (F.step === 3) { goTo(p, inp, TANO.x, TANO.z, 3); return; }
   goTo(p, inp, c.x + 3, c.z + 3, 3);

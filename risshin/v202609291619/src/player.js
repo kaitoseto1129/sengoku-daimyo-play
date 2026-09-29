@@ -1333,8 +1333,12 @@ export class Player {
       else if (u.atk && u.atk.ranged) u.atk = null;
       // パソコン：左を押し続けて 0.9 秒構えたら放つ（一押しに一発）。さっと押して放すと腰だめで放つ
       let pull = input.leftPressed;
+      // どの構え方でも（右・指の構え・左の長押し）、弾が込めてあって 1 秒構え続けたら自動で放つ（一度構えるごとに一発）
+      this.aimHoldT = this.aiming && this.gunLoaded && !this.shot ? (this.aimHoldT || 0) + dt : 0;
+      if (!this.aiming) this.autoShot = false;
+      if (this.aimHoldT > 1.0 && !this.autoShot) { pull = true; this.autoShot = true; }
       if (!isTouch) {
-        pull = false;
+        pull = pull && this.autoShot && this.aimHoldT > 1.0;
         if (input.left && this.lHoldT > 1.1 && !this.padFired) { pull = true; this.padFired = true; }
         if (!input.left) { if (this.padPrevT > 0 && this.padPrevT <= 0.2 && !this.padFired) pull = true; this.padFired = false; }
         this.padPrevT = this.lHoldT;

@@ -261,6 +261,61 @@ function hipRoof(P, hex, x, y, z, w, d, h, rot = 0, top = 0.3) {
 const shade = (hex, k) => new THREE.Color(hex).multiplyScalar(k).getHex();
 // 置いた向きの点：局所 (lx, lz) を世界へ
 const L = (x, z, rot) => (lx, lz) => [x + lx * Math.cos(rot) + lz * Math.sin(rot), z - lx * Math.sin(rot) + lz * Math.cos(rot)];
+// 格子の面（nu×nv）：fn(u 0..1, v 0..1) → [x, y, z]。up：面の向き（法線の y が正か）をそろえる
+function gridGeo(nu, nv, fn, up) {
+  const pos = [], uv = [], idx = [];
+  for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) { pos.push(...fn(i / nu, j / nv)); uv.push(i / nu, j / nv); }
+  for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) { const a = j * (nu + 1) + i, b = a + 1, c = a + nu + 1, d = c + 1; idx.push(a, b, d, a, d, c); }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx); g.computeVertexNormals();
+  let s = 0; const n = g.attributes.normal; for (let i = 0; i < n.count; i++) s += n.getY(i);
+  if ((s > 0) !== up) { for (let i = 0; i < idx.length; i += 3) { const t = idx[i + 1]; idx[i + 1] = idx[i + 2]; idx[i + 2] = t; } g.setIndex(idx); g.computeVertexNormals(); }
+  return g;
+}
+// 反りのある寄棟の屋根（本瓦）：軒の高さ y、軒の幅 W・奥 D、高さ h、上の広さの割合 top。
+//   面は軒で緩く棟で急（内へ撓む）、四隅の軒先は跳ね上がる。軒裏は木（垂木を並べる）、軒先は厚みのある瓦の端
+//   wall：下の壁の半分の幅（垂木を壁から軒先へ渡す）。形は入れ物に足すだけ（描く回数は増えない）
+function soriRoof(B, x, y, z, W, D, h, top, o = {}) {
+  const lift = o.lift ?? h * 0.22, th = o.th ?? 0.16, nu = 10, nv = 5;
+  const f = (v) => 0.45 * v + 0.55 * v * v;
+  for (let k = 0; k < 4; k++) {
+    const a = k * Math.PI / 2, ca = Math.cos(a), sa = Math.sin(a);
+    const al = (k % 2 ? D : W) / 2, ou = (k % 2 ? W : D) / 2;
+    const pt = (u, v, dy) => {
+      const s = 1 - v + v * top, lx = u * al * s, lz = ou * s;
+      const yy = y + h * f(v) + lift * u ** 4 * (1 - v) ** 2 + dy;
+      return [x + lx * ca + lz * sa, yy, z - lx * sa + lz * ca];
+    };
+    B.tile.push(paint(gridGeo(nu, nv, (i, j) => pt(i * 2 - 1, j, 0), true), o.hex ?? 0x3b3a3a));
+    // 軒裏（木）：軒から壁の内まで
+    const vw = o.wall ? Math.min(0.95, (1 - o.wall / ou) / (1 - top)) : 0.6;
+    B.wood.push(paint(gridGeo(nu, 2, (i, j) => pt(i * 2 - 1, j * vw, -th), false), 0x4a3a2a));
+    // 軒先の厚み（瓦の端の黒い帯と、その下の白い木口の線）
+    B.plain.push(paint(gridGeo(nu, 1, (i, j) => { const p = pt(i * 2 - 1, 0, 0), q = pt(i * 2 - 1, 0, -th); return j ? q : p; }, true), 0x262424));
+    // 垂木：軒裏に並べる（隅は短く）
+    if (o.wall) {
+      const n = Math.max(6, Math.round(al * 2 / 0.42));
+      for (let r = 1; r < n; r++) {
+        const u = r / n * 2 - 1, p0 = pt(u * 0.98, 0.02, -th - 0.03), p1 = pt(u, vw, -th - 0.03);
+        beam(B.wood, p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], 0.035, 0x5a4636, 4);
+      }
+    }
+  }
+  // 頂：小さな棟と露盤
+  if (top > 0) {
+    box(B.tile, 0x2e2c2c, x, y + h + 0.08, z, W * top + 0.2, 0.2, D * top + 0.2);
+    box(B.plain, 0x262424, x, y + h + 0.26, z, 0.36, 0.2, 0.36);
+  }
+}
+// 格子窓：壁の面に黒い奥・木の枠・縦の格子（中心 x,y,z、幅 w・高さ h、面の向き r、外へ s だけ出す）
+function koshiMado(B, x, y, z, w, h, r, n = 5) {
+  box(B.plain, 0x161412, x, y, z, w, h, 0.05, r);
+  const cx = Math.cos(r), sz = -Math.sin(r), nx = Math.sin(r), nz = Math.cos(r);
+  box(B.wood, 0x3a2c20, x + nx * 0.03, y + h / 2 + 0.04, z + nz * 0.03, w + 0.16, 0.08, 0.07, r);
+  box(B.wood, 0x3a2c20, x + nx * 0.03, y - h / 2 - 0.04, z + nz * 0.03, w + 0.22, 0.09, 0.1, r);
+  for (let b = 0; b < n; b++) { const t = ((b + 0.5) / n - 0.5) * w; box(B.wood, 0x4a3a2a, x + cx * t + nx * 0.04, y, z + sz * t + nz * 0.04, 0.05, h, 0.05, r); }
+}
 
 // ---------------- 塀・石垣・柵 ----------------
 // 線の外向き（中心 c から遠い側）
@@ -495,19 +550,38 @@ function sumiyagura(B, W, t, shitami = false) {
   // 古い城の櫓は、腰に墨の下見板を張る
   if (shitami) { box(B.shitami, 0x8a8580, x, y + 0.05 + deck * 0.3, z, 4.96, deck * 0.5, 4.96); box(B.plain, 0x1c1916, x, y + 0.05 + deck * 0.55, z, 5.0, 0.06, 5.0); }
   box(B.plain, 0x2f2c28, x, y + deck - 0.3, z, 5.0, 0.12, 5.0);
-  for (const r of [0, Math.PI / 2]) for (const s of [-1, 1]) {
-    box(B.plain, 0x161412, x + Math.sin(r) * s * 2.47, y + deck * 0.55, z + Math.cos(r) * s * 2.47, 0.8, 0.45, 0.05, r);
-    box(B.plain, 0x161412, x + Math.sin(r) * s * 2.47 + Math.cos(r) * 1.4, y + 1.4, z + Math.cos(r) * s * 2.47 - Math.sin(r) * 1.4, 0.18, 0.22, 0.05, r);
+  // 一階の窓：格子窓（上の段）と、腰の小さな狭間
+  for (let q = 0; q < 4; q++) {
+    const r = q * Math.PI / 2, nx = Math.sin(r), nz = Math.cos(r), tx = Math.cos(r), tz = -Math.sin(r);
+    koshiMado(B, x + nx * 2.47, y + deck * 0.58, z + nz * 2.47, 1.0, 0.5, r);
+    box(B.plain, 0x161412, x + nx * 2.47 + tx * 1.4, y + 1.4, z + nz * 2.47 + tz * 1.4, 0.18, 0.22, 0.05, r);
+    // 長押：窓の上の白い帯（壁の厚み）
+    box(B.plaster, 0xe0d9c8, x + nx * 2.49, y + deck * 0.58 + 0.5, z + nz * 2.49, 4.9, 0.1, 0.06, r);
   }
-  box(B.tile, 0x3b3a3a, x, y + deck - 0.1, z, 6.0, 0.14, 6.0);                 // 一階の庇
+  // 一階の庇：反りのある瓦の腰屋根（壁から軒へ下る）。軒裏に垂木
+  soriRoof(B, x, y + deck - 0.62, z, 6.3, 6.3, 0.6, 4.95 / 6.3, { lift: 0.14, th: 0.12, wall: 2.45 });
   box(B.wood, 0x5a4430, x, y + deck - 0.02, z, 4.9, 0.16, 4.9);               // 上の床
-  for (const [dx, dz, w, d] of [[0, -2.4, 4.9, 0.08], [0, 2.4, 4.9, 0.08], [-2.4, 0, 0.08, 4.9], [2.4, 0, 0.08, 4.9]]) box(B.wood, 0x6b5238, x + dx, y + deck + 0.5, z + dz, w, 0.85, d);
-  for (const dx of [-2.3, 2.3]) for (const dz of [-2.3, 2.3]) box(B.wood, 0x4e3a28, x + dx, y + deck + 1.25, z + dz, 0.18, 2.5, 0.18);
-  hipRoof(B.tile, 0x3b3a3a, x, y + deck + 2.45, z, 6.4, 6.4, 1.8, 0, 0.15);
+  // 二階：腰は墨の下見板、上は格子（射手が格子の間から射る）、格子の上は白い小壁
+  box(B.shitami, 0x3a3634, x, y + deck + 0.52, z, 4.8, 0.9, 4.8);
+  for (let q = 0; q < 4; q++) {
+    const r = q * Math.PI / 2, nx = Math.sin(r), nz = Math.cos(r), tx = Math.cos(r), tz = -Math.sin(r);
+    // 下見板の押縁（縦の細い桟）
+    for (let b = -3; b <= 3; b++) box(B.wood, 0x2a2624, x + nx * 2.42 + tx * b * 0.66, y + deck + 0.52, z + nz * 2.42 + tz * b * 0.66, 0.05, 0.9, 0.04, r);
+    // 腰の長押と、格子の上の鴨居
+    box(B.wood, 0x3a2c20, x + nx * 2.43, y + deck + 1.0, z + nz * 2.43, 4.9, 0.1, 0.1, r);
+    box(B.wood, 0x3a2c20, x + nx * 2.43, y + deck + 1.95, z + nz * 2.43, 4.9, 0.1, 0.1, r);
+    for (let b = -5; b <= 5; b++) { if (b === 0) continue; box(B.wood, 0x4a3a2a, x + nx * 2.43 + tx * b * 0.42, y + deck + 1.48, z + nz * 2.43 + tz * b * 0.42, 0.055, 0.9, 0.055, r); }
+    box(B.plaster, 0xd6cfbe, x + nx * 2.42, y + deck + 2.2, z + nz * 2.42, 4.9, 0.42, 0.08, r);
+    box(B.wood, 0x4e3a28, x + nx * 2.4, y + deck + 1.25, z + nz * 2.4, 0.16, 2.5, 0.16, r);   // 間の柱
+  }
+  for (const dx of [-2.35, 2.35]) for (const dz of [-2.35, 2.35]) box(B.wood, 0x4e3a28, x + dx, y + deck + 1.25, z + dz, 0.2, 2.5, 0.2);
+  // 桁（屋根を受ける横木）と、反りのある宝形の本瓦の屋根。軒は深く、四隅が跳ね上がる
+  box(B.wood, 0x3a2c20, x, y + deck + 2.45, z, 5.0, 0.16, 5.0);
+  soriRoof(B, x, y + deck + 2.35, z, 7.0, 7.0, 2.0, 0.1, { lift: 0.42, th: 0.18, wall: 2.5 });
   // 石落とし：外の二つの面に、床の張り出し
   for (const [dx, dz] of t.out || [[0, 1]]) {
-    box(B.plaster, 0xd6cfbe, x + dx * 2.8, y + deck - 0.9, z + dz * 2.8, dz ? 2.2 : 0.7, 1.1, dx ? 2.2 : 0.7);
-    box(B.plain, 0x161412, x + dx * 2.8, y + deck - 1.46, z + dz * 2.8, dz ? 2.0 : 0.55, 0.04, dx ? 2.0 : 0.55);
+    box(B.plaster, 0xd6cfbe, x + dx * 2.8, y + deck - 1.2, z + dz * 2.8, dz ? 2.2 : 0.7, 0.9, dx ? 2.2 : 0.7);   // 上は腰屋根の軒の下に収める
+    box(B.plain, 0x161412, x + dx * 2.8, y + deck - 1.66, z + dz * 2.8, dz ? 2.0 : 0.55, 0.04, dx ? 2.0 : 0.55);
   }
   // 梯子段（内側の面）
   const bx = t.in ? t.in[0] : 0, bz = t.in ? t.in[1] : -1;

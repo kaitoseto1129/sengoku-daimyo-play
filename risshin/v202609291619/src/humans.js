@@ -25,7 +25,7 @@ export const HUM = { fx: true, ready: false, failed: false, on: true, near: 42, 
 // 画質ごとの数（「低」は今の形のまま）
 // 画質「低」でも自分（と名のある武将のごく近く）だけは本物の体にする
 // must：この近さ（m）より内の兵は、上限を越えても必ず骨の入った人にする（カメラの前に軽い形の兵を出さない）。その分は遠い者から軽い形へ
-export const HUM_Q = { high: { near: 42, max: 80, must: 34, mustMax: 170 }, mid: { near: 32, max: 40, must: 29, mustMax: 110 }, low: { near: 0, max: 4, far: 12 } };
+export const HUM_Q = { high: { near: 42, max: 80, must: 34, mustMax: 170 }, mid: { near: 32, max: 40, must: 29, mustMax: 110 }, low: { near: 9, max: 8, far: 12 } };   // 低（iPhone）も目の前の数人は骨の入った人に（手と腕が軽い筒の形のまま写らないよう）
 const q0 = new THREE.Quaternion(), q1 = new THREE.Quaternion(), v0 = new THREE.Vector3(), v1 = new THREE.Vector3(), v2 = new THREE.Vector3(), v3 = new THREE.Vector3(), m0 = new THREE.Matrix4(), m1 = new THREE.Matrix4();
 
 let SRC = null;      // 元の体（骨・形・動き・骨ごとの位置）

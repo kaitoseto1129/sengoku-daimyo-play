@@ -285,7 +285,8 @@ const moribe = {
     if (!rt.G.lord && F.signal && !F.ending && mDone0 && !F.dpA) { F.dpA = true; depthStart(rt, moriCtx(rt), moriA(), () => { F.dpAdone = true; }); }
     if (!rt.G.lord && F.signal && !F.ending && mDone0 && F.dpAdone && !F.rearG) {
       F.rearG = enemyGroup(rt, { faction: 'saito', name: '斎藤の殿', anchor: { x: -20, z: LINE2 + 10 }, facing: 0, order: 'hold', aggro: 14, width: 14, morale: 95, fleeDir: { x: 0, z: -1 }, formation: 'yari' },
-        [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 16 }, { type: 'gun', n: (F.dpMem || {}).moriVillage ? 1 : 4 }]);
+        [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: (F.dpMem || {}).moriVillage ? 1 : 3 }]);
+      F.rearG.dmgMult = 0.6;   // 押し合いと本隊の押し出しを凌いだ後なので、殿の打ち込みは段の敵と同じくらいに
       F.rearT = rt.t;
       nagashinojo.kit.backOf(rt, F.rearG, { flag: 'saito', armor: 0x35382c, kind: 'spear', w: 22, depth: 12, count: 170, seed: 135 });
       rt.banner('斎藤の殿', '畦の手前で踏みとどまる');

@@ -1390,7 +1390,7 @@ async function runPersona(game, key) {
   // 何を遊ぶか：その人の好みから、ばらばらに n 戦
   const all = listPlayable();
   const n = clamp(+(Q.get('n') || 1 + Math.floor(Math.random() * 3)), 1, 3);
-  const only = ONLY ? all.filter((x) => ONLY.has(x.id) && (V.mode !== 'lord' || x.kind === 'lord')) : null;
+  const only = ONLY ? all.filter((x) => ONLY.has(x.id) && (V.mode === 'lord' ? x.kind === 'lord' : !(x.kind === 'lord' && x.scn === 'oda'))) : null;
   const pool = only && only.length ? only : (per.prefer(all).length ? per.prefer(all) : all);
   const plan = [];
   // 半分は好みから、半分は全体から（いろいろな戦に当たるように）

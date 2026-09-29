@@ -537,10 +537,10 @@ export class Army {
 
   // 軽い兵（本物の人になっていない兵）をまとめて描く：兵の材質の部品を、形ごとに一つの InstancedMesh へ入れる
   //   （一人 8〜10 回描いていたのを、全員で形の数だけに）。描く直前（行列が新しくなった後）に Battle が呼ぶ
-  //   形（近い形・遠い形）と影を落とすかどうかで束を分ける。画面の外の兵は束ねない（影だけ今までどおり一つずつ落とす）。
+  //   形（近い形・遠い形）と影を落とすかどうかで束を分ける。
   //   まとめた部品は layers を空にして、本来の描画と影から外す（行列の更新と動きは今までどおり）
   batchDraw(cam) {
-    const B = this.batch || (this.batch = { map: new Map(), mapC: new Map(), maps: null, d2: 0, prev: [], cur: [], tag: 0, fr: new THREE.Frustum(), pm: new THREE.Matrix4(), sph: new THREE.Sphere(new THREE.Vector3(), 3.4) });
+    const B = this.batch || (this.batch = { map: new Map(), mapC: new Map(), maps: null, d2: 0, on: true, prev: [], cur: [], tag: 0, fr: new THREE.Frustum(), pm: new THREE.Matrix4(), sph: new THREE.Sphere(new THREE.Vector3(), 3.4) });
     if (!B.maps) B.maps = [B.map, B.mapC];
     const tag = ++B.tag;
     for (const bm of B.maps) for (const e of bm.values()) e.n = 0;
@@ -553,7 +553,8 @@ export class Army {
         const e = m.matrixWorld.elements, dx = e[12] - cx, dy = e[13] - cy, dz = e[14] - cz;
         B.d2 = dx * dx + dy * dy + dz * dz;
         B.sph.center.set(e[12], e[13] + 1, e[14]);
-        if (!B.fr.intersectsSphere(B.sph)) continue;
+        // 画面の外の兵は、影を落とす部品だけ束ねる（影の描き込みで一つずつ描かない。見えない部品は元どおり外される）
+        B.on = B.fr.intersectsSphere(B.sph);
         this.batchWalk(m, u.human && u.human.root, tag, B);
       }
     }
@@ -570,7 +571,7 @@ export class Army {
     for (let i = 0; i < ch.length; i++) {
       const c = ch[i];
       if (!c.visible || c === skip) continue;
-      if (c.isMesh && c.material === MAT && !c.isSkinnedMesh && !c.isInstancedMesh) {
+      if (c.isMesh && c.material === MAT && (B.on || c.castShadow) && !c.isSkinnedMesh && !c.isInstancedMesh) {
         const L = c.userData.lod;
         if (L || c.onBeforeRender === NO_OBR) {
           let geo = c.geometry;
