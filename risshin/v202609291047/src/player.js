@@ -12,7 +12,7 @@ const _fpS = new THREE.Vector3();
 // カメラの計算に毎コマ使う入れ物（毎コマ new しない。どれもそのコマの中だけで使い、外へ持ち出さない）
 const _cT = new THREE.Vector3(), _cD = new THREE.Vector3(), _cR = new THREE.Vector3(), _cW = new THREE.Vector3(), _cQ = new THREE.Vector3(), _cLk = new THREE.Vector3(), _cTmp = new THREE.Vector3();
 const _cE = new THREE.Vector3(), _cFr = new THREE.Vector3(), _cAh = new THREE.Vector3(), _cFar = new THREE.Vector3();
-const _cUP = new THREE.Vector3(0, 1, 0), CORNERS = [[0.45, 0.3], [-0.45, 0.3], [0.45, -0.25], [-0.45, -0.25]];
+const _cUP = new THREE.Vector3(0, 1, 0), CORNERS = [[0.35, 0.2], [-0.35, 0.2], [0.35, -0.1], [-0.35, -0.1]];   // 下の隅は浅く（柵の横木を拾って寄りすぎない）
 
 // 味方を透かす材質：元の材質ごとに三段（ディザで抜く。並べ替え不要で、重なっても乱れない）
 const DITHER_A = [0.3, 0.5, 0.72];
@@ -2251,7 +2251,8 @@ export class Player {
       this.camCornHit = hc;
     }
     if (this.camCornHit != null && (hit === null || this.camCornHit < hit)) hit = this.camCornHit;
-    if (hit !== null) want.lerpVectors(target, want, Math.max(0.12, hit - 0.06));
+    // 柵の内でも前が見えるよう、寄せすぎず（自分の頭と重ならない）、寄せた分だけ高さも肩の辺りへ下げる
+    if (hit !== null) { const k = Math.max(0.3, hit - 0.06), y0 = want.y; want.lerpVectors(target, want, k); want.y = Math.min(want.y, y0 - (1 - k) * 0.5); }
     // 木の幹：カメラと自分の間に幹があれば、その手前まで寄せる（近くの幹は 0.5 秒おきに拾い直す）
     {
       const W = this.rt.world;

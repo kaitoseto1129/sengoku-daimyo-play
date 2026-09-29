@@ -1639,7 +1639,7 @@ export class World {
     this.dustP = this.makePuffs(420, 0x857a66, 4.2, 0.2);
     this.mudP = this.makePuffs(160, 0x3a2e22, 0.5, 0.75);
     // 水しぶき：川・浅瀬・水田を渡る足もとから、白く跳ねてすぐ落ちる
-    this.sprayP = this.makePuffs(140, 0xdfe6e8, 0.9, 0.55);
+    this.sprayP = this.makePuffs(160, 0xd6dee0, 0.9, 0.48);
     this.dustMat = this.dustP.points.material;
     this.buildHaze();
   }
@@ -2785,7 +2785,12 @@ export class World {
         C.fx.dust = fd < 120 ? 0.22 : fd < 250 ? 0.55 : 1.4;
         const p = C.frontAt(Math.floor(R() * nb), (R() - 0.5) * gap);
         // 川や田の中で組み合う所は、土煙でなく水しぶき（姉川の瀬など）
-        if (this.inWaterAt(p.x, p.z)) { if (fd < 160) this.spray(p.x + (R() - 0.5) * 3, p.z + (R() - 0.5) * 3, 4); } else {
+        if (this.inWaterAt(p.x, p.z)) {
+          if (fd < 160) this.spray(p.x + (R() - 0.5) * 3, p.z + (R() - 0.5) * 3, 5);
+          // 川の上の水煙の帳：蹴立てた細かな飛沫が低く白く漂い、奥の列を薄く霞ませる（地の靄と同じ板を使い回す）
+          const M = this.mistVeil;
+          if (M && fd < 100 && R() < 0.3 && M.list.length < M.CAP - 6) M.list.push({ x: p.x + (R() - 0.5) * 6, z: p.z + (R() - 0.5) * 6, t: 0, life: 9 + R() * 7, s0: 4 + R() * 2, s1: 9 + R() * 5, a: 0.05 + R() * 0.025, rise: 0.012, fin: 0.9 });
+        } else {
         // 四つに一つは大きな土煙：前線の上に褐色の帳がかかり、奥の列を霞ませる（薄く広く、長く残る）
         const wide = !C.winner && R() < 0.25;
         this.dustCloud(p.x + (R() - 0.5) * 3, p.z + (R() - 0.5) * 3, wide || (!!C.winner && R() < 0.5));
