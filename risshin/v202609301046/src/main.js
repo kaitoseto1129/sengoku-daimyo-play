@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { newGame, load, save, settle, BATTLES, RANKS, RANK_CEIL, TITLES, fillRoster, clearSave, setScenario, scenarioKey, SCENARIOS, ladderStep } from './state.js';
 import { Battle } from './battle.js';
 import { kumiHtml, kumiBind } from './kumi.js';
-import { BATTLE_DEFS, dojo } from './battles.js';
 import { Hud } from './hud.js';
 import { setRenderer } from './world.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -19,6 +18,9 @@ let JPm = null, CBm = null, ZKm = null;
 const jp = () => import('./japan.js').then((m) => (JPm = m));
 const closeJapan = () => { if (JPm) JPm.closeJapan(); };
 const zkLoad = () => import('./zukan.js').then((m) => (ZKm = m)).catch(() => null);
+// 戦の定義（b_*.js 全部・約2.6万行）も重いので、最初には読まない。題の画面が出てから裏で読み始め、戦を始める時は済んでいるのを待つだけにする
+let BTm = null, btPromise = null;
+const btLoad = () => { if (!btPromise) btPromise = import('./battles.js').then((m) => (BTm = m)); return btPromise; };
 import { odaTown } from './oda_town.js';
 import { townDef } from './town3d.js';   // 城下を歩く（3D の町）
 import { initTouch, touchFrame, isTouch } from './touch.js';
@@ -816,6 +818,8 @@ const game = {
     // 本物の人・馬・胴丸は、題の画面のうちに読み始める（戦の始めに軽い形のまま出ないように）
     // 馬（約 6MB）は最初の桶狭間では使わないので、城下へ入る時か、戦が始まった後に読む（882）
     if (!isNorender()) setTimeout(() => { try { loadHumans(); loadDomaru(); } catch (e) { /* 読めなければ軽い形のまま */ } }, 1500);
+    // 戦の定義（battles.js。約2.6万行）も、題が出てから裏で読み始める（押した時にはだいたい済んでいる）
+    if (!BTm) setTimeout(btLoad, 400);
     // 図鑑（実績の記録に使う）は、題の画面が出てから後で読む
     if (!ZKm) setTimeout(zkLoad, 4000);
     closeJapan();
@@ -899,6 +903,8 @@ const game = {
     stage('陣を組んでいる……');
     setTimeout(async () => {
       if (my !== this.startSeq) return;
+      // 戦の定義（battles.js）は題の画面から裏で読み始めてある。まだなら（bot・道具など）ここで待つ
+      if (!BTm) { stage('戦を支度している……'); const tb = performance.now(); await btLoad(); LT.defs = Math.round(performance.now() - tb); if (my !== this.startSeq) return; stage('陣を組んでいる……'); }
       // 886：本物の人と胴丸の読み終わりを、札を見せている間に待つ（長くても 5 秒。間に合わなければ軽い形から入れ替わる）
       if (!this.noLock && !isNorender()) {
         stage('人と具足を支度している……');
@@ -910,7 +916,7 @@ const game = {
         await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));   // 字を描いてから組み立てる
       }
       // 組み立てた戦は、絵の下ごしらえ（シェーダ）が済むまで描く輪に渡さない（描く輪が一度に全部を作って固まらないように）
-      const b = new Battle(this, i, this.G.lord ? lordDef(BATTLE_DEFS[i], BATTLES[i].id) : BATTLE_DEFS[i]);
+      const b = new Battle(this, i, this.G.lord ? lordDef(BTm.BATTLE_DEFS[i], BATTLES[i].id) : BTm.BATTLE_DEFS[i]);
       LT.build = Math.round(performance.now() - t0);
       applyLord(b);
       b.player.updateCamera(1, camera);
@@ -933,7 +939,7 @@ const game = {
       // 馬はここで読み始める（まだなら）
       if (!isNorender()) setTimeout(() => { try { loadHorse(); } catch (e) { /* 軽い馬のまま */ } }, 6000);
       $('loading').hidden = true;
-      const def = BATTLE_DEFS[i];
+      const def = BTm.BATTLE_DEFS[i];
       // 開戦の大見出しは、始めの一時停止を解いた瞬間に出す
       this.pendingIntro = () => { if (def.sides) this.hud.intro(def.sides, BATTLES[i].name, def.date(this.battle).split('　')[0]); else this.hud.banner(BATTLES[i].name, BATTLES[i].year); sfx('horagai', 0.6); };
       sfx('taiko', 0.8);
@@ -992,6 +998,7 @@ const game = {
     if (tomoFallen.length) G.tomoDead = [...new Set([...(G.tomoDead || []), ...tomoFallen])];
     if (G.tomo) G.tomo = G.tomo.filter((t) => t.alive);
     const r = settle(G, b.tracker, i);
+    if (b.result && b.result.taisho === 'a') r.taishoLost = true;
     realmAfter(G, r, b, i);
     r.tomoFallen = tomoFallen;
     // 給金が払えなければ、最後に雇った供から暇を出す
@@ -1130,6 +1137,8 @@ const game = {
   },
 
   // ---- 城下を歩く（town3d.js）。設定の「城下を歩く／札で選ぶ」。bot・norender・sim の道具は札のまま ----
+  // 題の「城下を歩く」：保存を読み、戦をせずに城下へ
+  townFromTitle(saved) { initAudio(); this.G = saved; this.bg = null; this.base(); },
   townWalkOn() { return S.townWalk !== 'cards' && !isNorender() && !/[?&]bot/.test(location.search) && !window.__cardTown; },
   startTown() {
     this.bg = null;
@@ -1244,8 +1253,9 @@ const game = {
     autoLock();
     $('loading').hidden = false;
     $('tip').textContent = '押し寄せる寄せ手を、倒れるまで何人討てるか。陣と陣の合間に少し回復します。';
-    setTimeout(() => {
-      this.battle = new Battle(this, 3, dojo);
+    setTimeout(async () => {
+      if (!BTm) await btLoad();
+      this.battle = new Battle(this, 3, BTm.dojo);
       this.hud.show(true);
       this.battle.player.updateCamera(1, camera);
       $('loading').hidden = true;

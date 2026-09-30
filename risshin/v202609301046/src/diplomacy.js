@@ -1,8 +1,9 @@
 // 段2・係C：外交。G.dip を持つ。詳しくは docs/phase2-design.md の 3-C。
 // このファイルは係C だけが直す。
-import { addKan, zeni, BATTLES } from './state.js';
+import { addKan, zeni, BATTLES, scenario } from './state.js';
 import { keraiBest } from './retainers.js';
 import { allyGroup } from './bhelp.js';
+import { flagMaterial } from './units_flags.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 
@@ -223,9 +224,15 @@ export function diploBattle(rt) {
         const list = eligibleFoeGroups(rt);
         if (!list.length) return;
         const g = list[Math.floor(Math.random() * list.length)];
+        // 旗を掲げ替え、その場に印を出してから兵を退かせる（見た目でも寝返りと分かるように）
+        const mat = flagMaterial(rt.G.lordFaction || scenario().faction);
+        for (const u of g.units) if (u.alive && u.flag) u.flag.material = mat;
+        rt.marker('turn', () => (g.units.some((u) => u.alive) ? g.center() : null), `${who}、寝返り`, { h: 2.4 });
+        rt.say(who, `もはやこれまで。旗を返す`, 3);
         g.morale = 0;
         rt.banner(`${who}、兵を退く`, '内通が実った');
         rt.award((t) => t.side.push('調略で敵を退かせた'), '調略で敵を退かせた');
+        rt.after(8, () => rt.unmark('turn'));
       });
     } else {
       addRel(G, nx.house, -5);
@@ -241,6 +248,7 @@ export function diploBattle(rt) {
         anchor: { x: P.pos.x - Math.sin(P.heading || 0) * 25, z: P.pos.z - Math.cos(P.heading || 0) * 25 } },
         [{ type: 'ashigaru', n: 8 }, { type: 'samurai', n: 2 }]);
       rt.realm.aidGroup = g;
+      rt.banner(`${houseName(nx.house)}の援軍、参着`, '約定どおり手勢を添える');
       rt.say(`${houseName(nx.house)}の使番`, 'お約束どおり、手勢を添えまする', 3);
     });
   }

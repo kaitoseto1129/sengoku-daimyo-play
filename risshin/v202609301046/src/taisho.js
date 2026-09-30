@@ -9,6 +9,7 @@ import { KIT } from './b_nagashinojo.js';
 import { enemyGroup, allyGroup, unitPos, centerOf } from './bhelp.js';
 import { BATTLES } from './state.js';
 import { HALF } from './world.js';
+import { sfx } from './audio.js';
 
 // 織田家編の三十の戦：両軍の総大将（史実に合わせる。戦の場にいなかった者は、その軍の旗頭を置く）
 const TABLE = {
@@ -48,6 +49,12 @@ const RAID = {
   easy: { every: 170, max: 2, list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 6 }] },
   normal: { every: 115, max: 3, list: [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }] },
   hard: { every: 80, max: 4, list: [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 6 }, { type: 'cavalry', n: 3 }] },
+};
+// 野戦（城攻め・籠城でない）で、一つおきに送る本気の突撃：騎馬を先に、前線を割って本陣へ
+const FIELD_BIG = {
+  easy: { list: [{ type: 'cavalry', n: 3 }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }] },
+  normal: { list: [{ type: 'cavalry', n: 5 }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 14 }] },
+  hard: { list: [{ type: 'cavalry', n: 7 }, { type: 'samurai', n: 5 }, { type: 'ashigaru', n: 18 }] },
 };
 const CAP = 215;   // これより本物の兵が多ければ、本陣の備や殿を狙う隊を減らす（全体で 250 以下）
 const LIM = HALF - 18;
@@ -144,25 +151,26 @@ function placeEnemy(rt, T, force) {
   KIT.honjin(rt, P.x, P.z, { mon, people: false, fire: false });
   const room = CAP - real(rt);
   const g = enemyGroup(rt, { faction, name: `${e.name}の旗本`, anchor: { x: P.x, z: P.z - 2 }, facing: face, order: 'hold', aggro: 14, seekRange: 22,
-    noRout: true, morale: 100, guard: true, width: 5, defMult: 1.1, noGuard: true },
-  [{ type: 'busho', n: 1, o: { name: e.name, hat: e.hat || 'kabuto_w', haori: e.haori } }, { type: 'samurai', n: room > 20 ? 4 : 2 }, { type: 'ashigaru', n: room > 20 ? 6 : 2 }]);
+    noRout: true, morale: 100, guard: true, width: 6, defMult: 1.4, noGuard: true },
+  [{ type: 'busho', n: 1, o: { name: e.name, hat: e.hat || 'kabuto_w', haori: e.haori } }, { type: 'samurai', n: room > 20 ? 6 : 3 }, { type: 'ashigaru', n: room > 20 ? 10 : 4 }]);
   const u = g.units.find((o) => o.type === 'busho' && o.name === e.name);
   if (!u) return true;
-  u.maxHp *= 2.2; u.hp = u.maxHp; u.isTaisho = 'b'; g.leader = u;
+  u.maxHp *= 4.5; u.hp = u.maxHp; u.isTaisho = 'b'; g.leader = u; g.guardBase = g.defMult;
   e.u = u; e.g = g; e.at = P; e.state = 'on';
   // 本陣を囲む厚み：前の左右に本物の備（遠くなれば軽い兵へ戻せる）、後ろと両脇に軽い控え（寄れば本物に替わる）
   if (room > 36) {
     const sx = -fz, sz = fx;
     for (const s of [-1, 1]) {
       const sg = enemyGroup(rt, { faction, name: `${e.name}の備`, anchor: { x: P.x + fx * 20 + sx * 11 * s, z: P.z + fz * 20 + sz * 11 * s }, facing: face, order: 'hold', aggro: 16, seekRange: 30, morale: 90, width: 6, noGuard: true },
-        [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 7 }]);
+        [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }]);
       KIT.markRecyclable(sg);
       KIT.backOf(rt, sg, { flag: mon, armor, kind: 'spear', w: 12, depth: 8, count: 70, seed: 311 + s * 7 });
     }
   }
   KIT.backOf(rt, g, { flag: mon, armor, kind: 'spear', w: 22, depth: 12, count: 140, seed: 303 });
   for (const s of [-1, 1]) KIT.farHost(rt, P.x - fz * 24 * s - fx * 4, P.z + fx * 24 * s - fz * 4, 10, 16, 70, face, armor, mon, 320 + s, 'spear');
-  rt.obj('taisho_b', `敵の総大将 ${e.name}を討て`, 'side');
+  // 大将の位置を示す印や任務の札は出さない。物見のあいまいな一言だけ（238）
+  rt.after(2, () => { if (T.b.state === 'on') rt.say('物見', '敵の本陣の方に、ひときわ大きな馬印が見えまする', 3.5); });
   return true;
 }
 function placeAlly(rt, T, force) {
@@ -207,14 +215,25 @@ export function taishoTick(rt, dt) {
     if (!adopt(rt, T, 'a') && !T.a.use) placeAlly(rt, T, late);
   }
   const P = rt.player.u.pos;
-  // 敵の総大将：寄れば印（遠のけば消す）
+  // 敵の総大将：位置を示す印や台詞は出さない。旗本の厚みで硬さが変わり、迫られれば奥へ退く（240）
   const B = T.b && T.b.state === 'on' && T.b.u;
-  if (B && B.alive) {
+  if (B && B.alive && T.b.g) {
+    const guardAlive = T.b.g.units.filter((o) => o.alive && o !== B).length;
+    // 旗本が厚い間は硬く、崩れれば討てるようになる（組や手勢と一緒に崩す前提）
+    const base = T.b.g.guardBase || 1.4;
+    T.b.g.defMult = guardAlive >= 6 ? base * 2.4 : guardAlive >= 3 ? base * 1.4 : base * 0.7;
     const d = d2(B.pos, P);
-    if (d < 110 && !T.bMark) {
-      T.bMark = true; rt.marker('taisho_b', unitPos(B), `敵の総大将 ${T.b.name}`, { red: true });
-      once(T, rt, 'bNear', 60, () => rt.bark(`${T.b.name}の本陣じゃ。旗本を破って討ち取れ`));
-    } else if (d > 135 && T.bMark) { T.bMark = false; rt.unmark('taisho_b'); }
+    // 迫られると、旗本が総がかりで押し返す（間合いと勢いを上げる）
+    T.b.g.seekRange = d < 32 ? 34 : 22;
+    T.b.g.aggro = d < 32 ? 22 : 14;
+    // 本陣のすぐそばまで迫られ、旗本がまだ残っていれば、輿や馬で奥へ退く
+    if (d < 18 && guardAlive >= 3 && (T.bFallT ?? -99) + 6 < rt.t) {
+      T.bFallT = rt.t;
+      let dx = T.b.at.x - P.x, dz = T.b.at.z - P.z; const L = Math.hypot(dx, dz) || 1;
+      const q = landAt(rt, { x: clamp(T.b.at.x + (dx / L) * 12), z: clamp(T.b.at.z + (dz / L) * 12) }, T.b.at);
+      T.b.at = q; T.b.g.anchor = { x: q.x, z: q.z - 2 };
+      once(T, rt, 'bFall', 15, () => rt.bark('敵の大将が、なお奥へと退いていく', true));
+    }
   }
   const A = T.a && T.a.state === 'on' && T.a.u;
   if (!A || !A.alive) return;
@@ -248,10 +267,15 @@ function raidTick(rt, T, A) {
     return;
   }
   if (rt.def.noTaishoRaid || T.raids >= cfg.max || rt.t < T.nextRaid || rt.holdLeft > 0 || rt.choice) return;
+  // 野戦（城攻め・籠城でない）では、一つおきに小さな一隊でなく、騎馬を先にした本気の突撃にする
+  // 城攻め・籠城は def.noWake か、頑丈な城門・柵（敵方の構え）が立っている事で見分ける
+  const isField = !rt.def.noWake && !rt.def.mapCastle && !(rt.army.structs && rt.army.structs.some((s) => s.team === 1 && s.maxHp >= 800));
+  const big = isField && T.raids > 0 && T.raids % 2 === 1;
+  const src = big ? (FIELD_BIG[rt.G.difficulty] || FIELD_BIG.normal) : cfg;
   // 本物の兵が多い時は、隊を小さくする（全体で 248 まで）。それでも四人に足りなければ、いま寄せている敵の隊を一つ殿へ向ける
   let room = 248 - real(rt);
   const list = [];
-  for (const x of cfg.list) { const n = Math.min(x.n, room); if (n > 0) { list.push({ ...x, n }); room -= n; } }
+  for (const x of src.list) { const n = Math.min(x.n, room); if (n > 0) { list.push({ ...x, n }); room -= n; } }
   if (list.reduce((a, x) => a + x.n, 0) < 4) {
     let best = null, bd = 150;
     for (const g of rt.army.groups) {
@@ -262,7 +286,7 @@ function raidTick(rt, T, A) {
     }
     if (!best) { T.nextRaid = rt.t + 20; return; }
     best.focus = A; best.seekRange = Math.max(best.seekRange || 0, 30);
-    return launch(rt, T, best);
+    return launch(rt, T, best, big);
   }
   // 敵の側から、殿の横へ回り込む所に出す（殿から 95m ほど。見える所なら guardSpawn がずらす）
   const E = (T.b && T.b.u && T.b.u.alive && T.b.u.pos) || centroid(rt, 1);
@@ -276,13 +300,22 @@ function raidTick(rt, T, A) {
   }
   if (!at) { T.nextRaid = rt.t + 30; return; }
   const faction = (T.b && T.b.g && T.b.g.faction) || commonFaction(rt, 1, 'saito');
-  const g = enemyGroup(rt, { faction, name: '殿を狙う敵', anchor: at, facing: Math.atan2(A.pos.x - at.x, A.pos.z - at.z), order: 'attack', aggro: 10, seekRange: 30, morale: 85, noAI: true }, list);
+  const g = enemyGroup(rt, { faction, name: big ? '殿を狙う突撃' : '殿を狙う敵', anchor: at, facing: Math.atan2(A.pos.x - at.x, A.pos.z - at.z), order: 'attack', aggro: big ? 16 : 10, seekRange: big ? 40 : 30, morale: 90, noAI: true }, list);
   g.focus = A;
-  launch(rt, T, g);
+  launch(rt, T, g, big);
 }
-function launch(rt, T, g) {
+function launch(rt, T, g, big) {
   T.raid = g; T.raids++; T.raidKills = 0;
-  rt.bark('敵の一隊が殿の本陣へ向かった！', true);
+  if (big) {
+    // 使番の急報・見出し・遠くの鬨の声・味方の本陣の印が赤く（位置の印を出すのは味方の本陣＝殿の所だけ）
+    rt.banner('殿の本陣へ、本気の突撃！', '前線を割って、騎馬が奥へ駆け抜ける');
+    rt.say('使番', '一大事！　敵が前線を破り、殿の本陣へ向かっており申す！', 3.5);
+    sfx('far', 0.9);
+    const A = T.a && T.a.u;
+    if (A) { T.aMark = true; rt.marker('taisho_a', unitPos(A), `殿（${T.a.name}）`, { red: true }); }
+  } else {
+    rt.bark('敵の一隊が殿の本陣へ向かった！', true);
+  }
   rt.obj('taisho_a', `殿（${T.a.name}）を守れ`, 'side');
   rt.marker('taisho_raid', centerOf(g), '殿を狙う敵', { red: true, group: g });
 }
@@ -294,7 +327,6 @@ export function taishoKill(rt, v, k) {
   if (T.raid && v.group === T.raid && k && (k.isPlayer || k.isSub || k.isTomo)) T.raidKills++;
   if (T.b && v === T.b.u) {
     if (!k || k.team !== 0) return;   // 筋書きが消した（最後の場面など）時は、定義に任せる
-    rt.unmark('taisho_b');
     const byMe = k.isPlayer || k.isSub || k.isTomo;
     const win = () => { if (!rt.over) enemyTaken(rt, T, byMe); };
     if (T.b.defOwned) rt.after(3, win); else win();
@@ -302,7 +334,6 @@ export function taishoKill(rt, v, k) {
 }
 function enemyTaken(rt, T, byMe) {
   const n = T.b.name;
-  rt.objDone('taisho_b');
   rt.after(0.6, () => rt.banner(`敵の総大将 ${n}、討ち取ったり`, '大将を失った敵は総崩れ。この戦は勝ちじゃ'));
   rt.tracker.main = true;
   rt.award((t) => { t.main = true; if (byMe) t.special = { label: `敵の総大将 ${n}を討ち取った`, pts: 60 }; }, byMe ? `大手柄：${n}を討ち取った` : `味方が${n}を討ち取った`);

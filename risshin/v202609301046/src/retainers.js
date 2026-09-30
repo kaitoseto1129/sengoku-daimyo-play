@@ -98,6 +98,22 @@ function candidates(G) {
 
 function newLoy(tr) { return tr === '義理堅い' ? 80 : tr === '野心家' ? 45 : 60; }
 
+// ---------------- 戦に出た家臣の成長（能力・二つ名） ----------------
+const GOU = ['采配上手', '豪勇', '知恵者', '算用達者'];
+function growKerai(G, r, k) {
+  // 三戦に一度、いちばん低い能力が少し伸びる（上限99）
+  if (k.battles % 3 === 0) {
+    let i = 0; for (let j = 1; j < 4; j++) if (k.s[j] < k.s[i]) i = j;
+    if (k.s[i] < 99) { k.s[i] = Math.min(99, k.s[i] + 2); r.realmLines.push(`${k.name}、${STAT_LABEL[i]}の技が上がった`); }
+  }
+  // 手柄を積んだ家臣には、得手にちなんだ二つ名が付く（一度だけ）
+  if (!k.gou && k.kills >= 5) {
+    let i = 0; for (let j = 1; j < 4; j++) if (k.s[j] > k.s[i]) i = j;
+    k.gou = GOU[i];
+    r.realmLines.push(`${k.name}に「${k.gou}」の二つ名が付いた`);
+  }
+}
+
 // ---------------- 家臣の札（召し抱える・褒美・暇を出す） ----------------
 function actionCards(G) {
   const cards = [];
@@ -195,7 +211,7 @@ function rosterRow(G, k) {
     const on = k.role === key;
     return `<button class="kr-role-btn" type="button" data-kr-role="${key}|${k.id}" aria-pressed="${on}">${esc(def.name)}${on ? '（今）' : ''}</button>`;
   }).join('');
-  return `<div class="kr-row"><div class="kr-row-h"><b class="kr-name">${esc(k.name)}${k.named ? '（名のある士）' : ''}</b><span class="kr-loy">忠義 ${k.loy}</span></div>
+  return `<div class="kr-row"><div class="kr-row-h"><b class="kr-name">${k.gou ? `${esc(k.gou)}・` : ''}${esc(k.name)}${k.named ? '（名のある士）' : ''}</b><span class="kr-loy">忠義 ${k.loy}</span></div>
 <p class="kr-stat">${esc(stat)}${k.tr ? `　${esc(k.tr)}` : ''}　${esc(k.from)}</p>
 <div class="kr-roles">${pills}<button class="kr-role-btn" type="button" data-kr-role="none|${k.id}" aria-pressed="${!k.role}">役目を外す</button></div>
 </div>`;
@@ -260,8 +276,9 @@ function buffGroup(g, mult) {
   }
 }
 function spawnKerai(rt, g, k, o) {
-  const [u] = rt.army.spawn(g, [{ type: 'samurai', n: 1, o: { name: k.name, flag: null, ...(o || {}) } }]);
-  u.name = k.name; u.kerai = k; u.isSub = true;
+  const dispName = k.gou ? `${k.gou}・${k.name}` : k.name;
+  const [u] = rt.army.spawn(g, [{ type: 'samurai', n: 1, o: { name: dispName, flag: null, ...(o || {}) } }]);
+  u.name = dispName; u.kerai = k; u.isSub = true;
   u.hp = u.maxHp = u.maxHp * (1 + k.s[1] / 300);
   u.dmg *= 1 + k.s[1] / 300;
   return u;
@@ -281,6 +298,7 @@ export function keraiBattle(rt) {
     buffGroup(g, 1 + kumi.s[1] / 400);
     g.morale = Math.min(100, (g.morale || 90) + kumi.s[0] / 10);
     rt.realm.keraiUnits.push({ k: kumi, u });
+    rt.after(6, () => rt.say(kumi.name, '手前が副頭を務めまする', 3));
     rt.after(8, () => rt.bark(`${kumi.name}が組の副頭に立つ`));
   }
 
@@ -291,6 +309,7 @@ export function keraiBattle(rt) {
     buffGroup(g, 1 + tegei.s[0] / 400);
     g.morale = Math.min(100, (g.morale || 80) + 15);
     rt.realm.keraiUnits.push({ k: tegei, u });
+    rt.after(8, () => rt.say(tegei.name, '手勢はそれがしが率いる', 3));
     rt.after(10, () => rt.bark(`${tegei.name}が手勢をまとめる`));
   }
 
@@ -314,6 +333,7 @@ export function keraiAfter(G, r, b, i) {
     if (u.alive) {
       k.battles++;
       k.kills += u.kills || 0;
+      growKerai(G, r, k);
     } else if (k.alive) {
       k.alive = false;
       G.keraiDead = [...(G.keraiDead || []), k.name];

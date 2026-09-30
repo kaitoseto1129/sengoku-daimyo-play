@@ -2431,7 +2431,8 @@ export class Player {
     }
     if (this.camCornHit != null && (hit === null || this.camCornHit < hit)) hit = this.camCornHit;
     // 柵の内でも前が見えるよう、寄せすぎず（自分の頭と重ならない）、寄せた分だけ高さも肩の辺りへ下げる
-    if (hit !== null) { const k = Math.max(0.3, hit - 0.06), y0 = want.y; want.lerpVectors(target, want, k); want.y = Math.min(want.y, y0 - (1 - k) * 0.5); }
+    // 壁がとても近い時（陣幕の内など）は 0.3 の床に負けて壁の向こうへ突き抜けないよう、hit 自体を超えない範囲に留める
+    if (hit !== null) { const k = Math.max(0.05, Math.min(hit - 0.02, Math.max(0.3, hit - 0.06))), y0 = want.y; want.lerpVectors(target, want, k); want.y = Math.min(want.y, y0 - (1 - k) * 0.5); }
     // 木の幹：カメラと自分の間に幹があれば、その手前まで寄せる（近くの幹は 0.5 秒おきに拾い直す）
     {
       const W = this.rt.world;

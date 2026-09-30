@@ -80,7 +80,9 @@ const okawachi = {
       dress([{ type: 'samurai', n: 1, o: { name: '稲葉良通', invuln: true, hat: 'kabuto_m', haori: 0x2a2a3a } }, { type: 'ashigaru', n: 14 }], { flag: 'inaba' }));
     F.ram = allyGroup(rt, { name: '木戸を破る組', anchor: { x: 12, z: 54 }, facing: Math.PI, width: 5, aggro: 3, noRout: true, formation: 'column' },
       dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 12, o: { hat: 'jingasa_n' } }], ODA));
-    F.oda = [F.niwa, F.ikeda, F.inaba, F.ram];
+    F.taki = allyGroup(rt, { name: '滝川一益の手', anchor: { x: -12, z: 48 }, facing: Math.PI, width: 12, aggro: 10, noRout: true },
+      dress([{ type: 'busho', n: 1, o: { name: '滝川一益', invuln: true, hat: 'kabuto_f', haori: 0x2a2a32 } }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 4 }], ODA));
+    F.oda = [F.niwa, F.ikeda, F.inaba, F.ram, F.taki];
     for (const g of F.oda) { g.defMult = 1.15; g.dmgMult = 0.75; }
     const n = RANKS[rt.G.rank].squad;
     if (n) rt.makeSquad({ x: 10, z: 50 }, Math.PI, [{ kind: 'spear', n }]);

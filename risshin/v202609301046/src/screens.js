@@ -259,7 +259,7 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
     ${saved ? `<p class="savebox">保存データ：${saveInfo}${saved.journal && saved.journal.length ? `<br>前回：${esc(saved.journal[saved.journal.length - 1].t)}　${esc(saved.journal[saved.journal.length - 1].s.slice(0, 40))}` : ''}</p><div id="new-confirm"></div>` : ''}
     <div class="title-act">${saved ? (oldScn
       ? `<button class="btn primary" id="b-new">織田家編を始める${freeSlot >= 0 ? `（空いている枠${freeSlot + 1}へ）` : ''}</button><button class="btn" id="b-cont">続きから（${esc(scOf(saved).name)}）</button>`
-      : `<button class="btn primary" id="b-cont">続きから（${esc(scOf(saved).name)}）</button><button class="btn" id="b-new">新しく始める</button>`) : '<button class="btn primary" id="b-new">出陣する</button>'}<button class="btn" id="b-set">設定</button>${matchMedia('(pointer: coarse)').matches ? '' : `<span class="hintk">Enter で「${saved && !oldScn ? '続きから' : saved ? '織田家編を始める' : '出陣する'}」</span>`}</div>
+      : `<button class="btn primary" id="b-cont">続きから（${esc(scOf(saved).name)}）</button><button class="btn" id="b-town">城下を歩く</button><button class="btn" id="b-new">新しく始める</button>`) : '<button class="btn primary" id="b-new">出陣する</button>'}<button class="btn" id="b-set">設定</button>${matchMedia('(pointer: coarse)').matches ? '' : `<span class="hintk">Enter で「${saved && !oldScn ? '続きから' : saved ? '織田家編を始める' : '出陣する'}」</span>`}</div>
     <details class="title-more" ${saved ? 'open' : ''}><summary class="lbl">ほかの遊び方</summary><div class="row"><button class="btn small" id="b-ladder">出世の道</button><button class="btn small" id="b-dojo">稽古場</button><button class="btn small" id="b-rec">記録帳</button><button class="btn small" id="b-zukan">武将図鑑</button><button class="btn small" id="b-ach">実績</button>${onJapan ? '<button class="btn small" id="b-japan">日本地図</button>' : ''}${onSamurai ? '<button class="btn small" id="b-samurai">侍大将で出陣</button>' : ''}${onLord ? '<button class="btn small" id="b-nobunaga">織田信長で出陣</button>' : ''}</div></details>
     <div id="samurai-pick"></div>
     <details class="title-data" ${(() => { try { return loadAll().filter(Boolean).length >= 2 ? 'open' : ''; } catch (e) { return ''; } })()}><summary class="note">保存の枠・保存コード</summary><div style="height:10px"></div>
@@ -371,6 +371,8 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
     confirmBox($('new-confirm'), `枠${S.slot + 1}の保存データ（${saved.name}・${RANKS[saved.rank].name}）を消して、新しく始めます。`, '消して新しく始める', () => ngShow(0));
   };
   if (saved) $('b-cont').onclick = onContinue;
+  // 題から、戦をせずにそのまま城下（3D の町）へ（kaito 9/30）
+  if ($('b-town')) $('b-town').onclick = () => window.__game && window.__game.townFromTitle(saved);
   document.querySelectorAll('[data-slot]').forEach((b) => b.onclick = () => { sfx('ui'); onSlot(+b.dataset.slot); });
   const del = $('b-del');
   if (del) del.onclick = () => {
@@ -1138,7 +1140,7 @@ export function evalScreen(G, r, actions) {
   const rel = (r.relChange || []).map((x) => `<p class="ev-rel"><b>${esc(REL_NAME[x.k] || x.k)}の覚え</b>${REL_KEYS.filter(([k]) => x.d[k]).map(([k, n]) => `<span class="${(k === 'wary' ? -x.d[k] : x.d[k]) > 0 ? 'up' : 'dn'}">${n} ${sgn(x.d[k])}（${x.after[k]}）</span>`).join('') || '<span>変わらず</span>'}</p>`).join('');
   const screen = show(`${EVAL_CSS}<div class="eval ev2">
     ${emaki}
-    ${!r.mainDone && r.bossLine ? `<div class="ev-fail"><b>しくじり</b><p><span>${esc(r.bossLine[0])}</span>「${esc(r.bossLine[1])}」</p>${r.advice ? `<p class="adv">次への一言：${esc(r.advice)}</p>` : ''}<div class="row" id="ev-fail-acts" style="margin:8px 0 0"></div></div>` : ''}
+    ${!r.mainDone && r.bossLine ? `<div class="ev-fail"><b>${r.taishoLost ? '殿を討たれた' : 'しくじり'}</b><p><span>${esc(r.bossLine[0])}</span>「${esc(r.bossLine[1])}」</p>${r.advice ? `<p class="adv">次への一言：${esc(r.advice)}</p>` : ''}<div class="row" id="ev-fail-acts" style="margin:8px 0 0"></div></div>` : ''}
     ${promo}
     ${r.spoilHorse ? `<div class="histnote" style="border-color:var(--kin)"><b>分捕った馬</b><br>${esc(r.spoilHorse.who)}の馬を持ち帰った。城下の馬屋に並ぶ${ladderStep(G) < 2 ? '（乗れるのは足軽大将から）' : ''}。<div class="row" style="margin:6px 0 0"><button class="btn small" id="ev-spoil" aria-pressed="false">置いていく</button></div></div>` : ''}
     <details class="ek-more" id="ek-more"><summary>くわしく見る（評定の内訳・褒美・組の働き）</summary>
@@ -1148,6 +1150,7 @@ export function evalScreen(G, r, actions) {
     <div class="ev-sum" style="animation-delay:${delay}s"><div><div class="verdict">${esc(r.verdict)}</div>${r.bossLine ? `<p class="bossline"><b>${esc(r.bossLine[0])}</b>「${esc(r.bossLine[1])}」</p>` : ''}</div>
       <div class="t"><small>合計戦功</small><strong>${r.total}</strong><em>${r.capped ? `上限${r.cap}に到達（計算上 ${r.raw}）` : `この戦の上限 ${r.cap}`}${r.prevTotal !== undefined ? `　前の戦より ${r.total - r.prevTotal >= 0 ? '+' : ''}${r.total - r.prevTotal}` : ''}</em></div></div>
     <div style="opacity:0;animation:ln .4s ease-out ${delay + 0.3}s forwards" class="ev-more-wrap">
+      ${(r.realmLines || []).length ? `<p class="ev-rel"><b>知行と家中</b>${r.realmLines.slice(0, 4).map((l) => `<span>${esc(l)}</span>`).join('')}</p>` : ''}
       ${rel}
       <dl class="facts">
         <dt>褒美</dt><dd><style>.ev-pay summary{cursor:pointer;font-size:13px;color:var(--washi-dim);min-height:44px;display:flex;align-items:center}.ev-pay ul{list-style:none;margin:0 0 6px;padding:0;font-size:13px}.ev-pay li{display:flex;justify-content:space-between;gap:16px;border-bottom:1px dashed var(--line);padding:3px 0}.ev-pay li small{color:var(--washi-dim);font-size:12px}.ev-pay li b{font-weight:500;font-variant-numeric:tabular-nums}</style><span class="ev-purse" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M8 5 Q12 8 16 5 L15 8 Q21 12 19 18 Q17 21 12 21 Q7 21 5 18 Q3 12 9 8 Z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9 8 H15" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="15" r="2.4" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="11.2" y="14.2" width="1.6" height="1.6" fill="currentColor"/></svg></span><b id="ev-kan">${zeni(0)}</b>（所持 ${zeni(G.kan)}）<small class="ev-eiraku">${esc(bossName)}より、永楽銭 ${kanZeni(r.reward)}を賜る</small>${(r.pay || []).length ? `<details class="ev-pay"><summary>褒美の内訳</summary><ul>${r.pay.map((l) => `<li><span>${esc(l.label)}${l.detail ? `<small>　${esc(l.detail)}</small>` : ''}</span><b>${l.kan < 0 ? '−' : '+'}${zeni(Math.abs(l.kan))}</b></li>`).join('')}</ul></details>` : ''}${r.tomoLeft ? `<br><small>給金が払えず、${esc(r.tomoLeft)}に暇を出した</small>` : ''}</dd>

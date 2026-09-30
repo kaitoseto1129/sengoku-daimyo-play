@@ -136,10 +136,13 @@ const shiga = {
     F.nobuharu = allyGroup(rt, { name: '織田信治の手', anchor: { x: TOWN.x + 22, z: TOWN.z - 4 }, facing: Math.PI, width: 12, aggro: 10, noRout: true, formation: 'yari' },
       dress([{ type: 'samurai', n: 1, o: { name: '織田信治', invuln: true, hat: 'kabuto_m', haori: 0x6a1a14 } }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 3 }], ODA));
     F.nobuU = F.nobuharu.units[0];
+    // 坂井政尚の手（同じく町口の守りに加わる。この年の暮れ、堅田で討死する）
+    F.sakai = allyGroup(rt, { name: '坂井政尚の手', anchor: { x: TOWN.x - 20, z: TOWN.z - 4 }, facing: Math.PI, width: 10, aggro: 10, noRout: true, formation: 'yari' },
+      dress([{ type: 'samurai', n: 1, o: { name: '坂井政尚', invuln: true, hat: 'kabuto_g', haori: 0x5a2a1c } }, { type: 'ashigaru', n: 10 }], ODA));
     // 城に残る者（各務元正ら）
     F.keep = allyGroup(rt, { name: '宇佐山城の守り', anchor: { x: USA.x, z: USA.z }, facing: GA, width: 10, aggro: 10, noRout: true },
       dress([{ type: 'samurai', n: 1, o: { name: '各務元正', invuln: true, hat: 'kabuto_w' } }, { type: 'ashigaru', n: 8 }, { type: 'bow', n: 4 }], ODA));
-    F.oda = [F.mori, F.nobuharu, F.keep];
+    F.oda = [F.mori, F.nobuharu, F.sakai, F.keep];
     for (const g of F.oda) { g.defMult = 1.2; g.dmgMult = 0.8; }
     const n = RANKS[rt.G.rank].squad;
     if (n) rt.makeSquad({ x: TOWN.x + 8, z: TOWN.z + 10 }, Math.PI, [{ kind: 'spear', n }]);
@@ -173,7 +176,7 @@ const shiga = {
     rt.obj('main', '町口で朝倉の先手を迎え撃て', 'main');
     for (const h of F.host) h.advance(40, 60);
     const g = enemyGroup(rt, { faction: 'saito', name: '朝倉の先手', anchor: { x: 22, z: -70 }, facing: 0, order: 'attack', seekRange: 90, aggro: 14, width: 16, morale: 95, fleeDir: { x: 0, z: -1 }, dmgMult: 0.55, formation: 'yari' },
-      dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 18 }, { type: 'bow', n: 3 }], ASA));
+      dress([{ type: 'busho', n: 1, o: { name: '朝倉景鏡' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 18 }, { type: 'bow', n: 3 }], ASA));
     F.w1 = g;
     KIT.backOf(rt, g, { flag: 'asakura', armor: 0x33291f, kind: 'spear', w: 24, depth: 12, count: 260, seed: 15794 });
     // 町口の左右では、森・信治の手の後ろの者と朝倉の大軍が押し合う（軽い作り）

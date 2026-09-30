@@ -404,7 +404,7 @@ function bodyMaterial(look, dm = false) {
   fc.setHSL(fhsl.h, fhsl.s * [0.8, 0.62, 0.48][fade], Math.min(0.5, fhsl.l * [1.0, 1.1, 1.22][fade] + 0.01 * fade)).lerp(new THREE.Color(0x5a5044), [0.04, 0.1, 0.16][fade]);
   const clothF = fc.getHex(), hakamaF = look.tier === 0 ? clothF : fc.clone().multiplyScalar(0.8).getHex();
   const U = {
-    cTorso: { value: new THREE.Color(clothF) }, cArm: { value: new THREE.Color(clothF) }, cHand: { value: new THREE.Color(skin).multiplyScalar(0.4).multiply(new THREE.Color(0.98, 0.86, 0.8)) },
+    cTorso: { value: new THREE.Color(clothF) }, cArm: { value: new THREE.Color(clothF) }, cHand: { value: new THREE.Color(skin).multiplyScalar(0.37).multiply(new THREE.Color(0.94, 0.84, 0.78)) },
     cLeg: { value: new THREE.Color(hakamaF) }, cFoot: { value: new THREE.Color(look.tier === 0 ? 0x5a5246 : 0x3a3630) }, cNeck: { value: new THREE.Color(skin) },
   };
   // 元の絵は現代の鎧（明るい板と黒い布、塗りの剥げ）なので、明るさをそのまま使うと着物に板の縁や剥げの斑が出て、人形の服に見える
@@ -564,6 +564,15 @@ export function loadDomaru() {
     DOMARU.ready = true;
   })().catch((e) => { DOMARU.failed = true; DOMARU.err = String(e && e.stack || e).slice(0, 400); console.warn('本物の胴丸を読めませんでした（今の形で描きます）', e); });
   return dmLoading;
+}
+// 題の画面がまだ組み終わらないうちから、裏で読み始める（main.js の title() の 1.5秒待ちより早く始まる。
+// loadHumans/loadDomaru は呼び直しても平気（読み込み中・読み終わりはそのまま使い回す＝ loading/dmLoading）ので、
+// ここで早く一度始めておけば、遅い回線でも戦に入る時（main.js の5秒の上限）に間に合いやすくなる
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    if (window.__norender === true || (typeof location !== 'undefined' && /[?&]norender/.test(location.search))) return;
+    loadHumans(); loadDomaru();
+  }, 150);
 }
 // 本物の胴丸を着る人：名のある武将と、look.real の人（侍大将より上の本人）
 export function wantsDomaru(look) { return DOMARU.on && !!look && (!!look.real || (typeof look.face === 'string' && look.face.startsWith('g:'))); }
@@ -1331,7 +1340,12 @@ function faceSculpt(x0, y, z, xc) {
   dz -= 0.4 * t * t * (3 - 2 * t) * fr * (y < 2.6 ? 1 : 0.5);                  // 顔の面を横へ回り込ませる
   // 下の顔を顎へ向けて細める（頬から顎先へ、逆さの卵の形に）。首に近い後ろは動かさない
   const lowF = Math.min(1, Math.max(0, (1.0 - y) / 1.8)) * Math.min(1, Math.max(0, (z - 0.2) / 1.2));
-  dx -= x0 * 0.16 * lowF * lowF;
+  dx -= x0 * 0.2 * lowF * lowF;
+  // 頬の縁：目の横から頬の外は、縦にまっすぐな縁にせず、頬骨の所で膨らみ、こめかみと顎の横で絞る
+  dx += 0.08 * Gs(x0 - 1.6, y - 1.15, 0.3, 0.45) - 0.07 * Gs(x0 - 1.6, y - 2.2, 0.3, 0.3);
+  // 首：顎の下から肩へ太く（細い首に大きな頭が載った人形にしない）。顎の前は動かさない
+  const nb = Math.exp(-Math.pow(y + 0.8, 2) / (2 * 0.3 * 0.3)) * (z < 1.1 ? 1 : Math.max(0, 1 - (z - 1.1) / 0.4));
+  dx += x0 * 0.2 * nb; dz += z * 0.12 * nb;
   dx -= 0.13 * Gs(x0 - 1.4, y + 0.35, 0.35, 0.45);                              // えらの角を落とす
   const cb = Gs(x0 - 1.2, y - 1.3, 0.28, 0.24) * fr; dx += 0.06 * cb; dz += 0.07 * cb;   // 頬骨
   dz -= 0.06 * Gs(x0 - 1.0, y - 0.6, 0.3, 0.3) * fr;                            // 頬骨の下のこけ
@@ -1504,8 +1518,8 @@ const isNamed = (L) => typeof L.face === 'string' && L.face.startsWith('g:');
 export function makeHuman(u, look0) {
   let look = look0;
   const sohei = isSohei(look0);
-  // 足軽は籠手なし（手甲だけ）
-  if (!look.hero && (look.tier ?? 0) === 0 && look.kote == null && !isNamed(look)) look = { ...look, kote: 0 };
+  // 足軽の籠手：御貸具足の籠手は多くの者が着ける（素肌の前腕の者は三人に一人ほど。片籠手の者も）
+  if (!look.hero && (look.tier ?? 0) === 0 && look.kote == null && !isNamed(look)) look = { ...look, kote: [3, 0, 3, 1, 3, 0][(look.vi || 0) % 6] };
   // 目の下頬は、実写の顔に沿わせて作る（兜の形の面は喉の垂だけにする。兵は近くで実写の顔に替えた時に付ける）
   // 面頬（半頬・目の下頬）は、実写の顔の形から打ち出す（units.js の遠目の面頬は平らな黒い板で、近くでは貼った板に見える）
   if (look.menpo && (look.menpoStyle === 'hanbo' || look.menpoStyle === 'full' || !look.menpoStyle) && !sohei) look = { ...look, menpoStyle: 'tare', menpoScan: look.menpo };
@@ -1590,7 +1604,8 @@ function layParts(P, L, put) {
   put('sodeN', 'Spine2', P.sodeN, fitT);
   // 裹頭は実写の顔に合わせて下で作る（units.js の遠目の裹頭は使わない）
   // 僧兵の鉢巻も実写の頭に沿わせて下で作る
-  put('hat', 'Head', L.sohei && (L.hat === 'kato' || L.hat === 'hachimaki') ? null : P.head, fitH);
+  // 鉢巻は誰のも実写の頭に沿わせて下で作る（遠目の形の鉢巻は頭から浮いた白い輪に見える）
+  put('hat', 'Head', (L.sohei && L.hat === 'kato') || L.hat === 'hachimaki' ? null : P.head, fitH);
   put('face', 'Head', P.face, fitH);
   // 腕：籠手（二の腕・前腕・手甲）。+x が本編の「右手」（槍を持つ手）
   const rA = (nm, ours) => Math.max(1, ((RD[nm] || { r: ours }).r * 1.12) / ours);
@@ -1611,7 +1626,7 @@ function layParts(P, L, put) {
   }
   // 僧兵：裹頭（袈裟と衣は胴まわりの部品に入っている）
   if (L.sohei && L.hat === 'kato') put('kato', 'Head', soheiKato(L), fitH);
-  if (L.sohei && L.hat === 'hachimaki') put('kato', 'Head', soheiHachi(L), fitH);
+  if (L.hat === 'hachimaki') put('kato', 'Head', soheiHachi(L.sohei ? L : { kato: L.hachi || 0x958b77 }), fitH);
 }
 
 // 本人：units.js と同じ甲冑の部品を骨ごとに付ける

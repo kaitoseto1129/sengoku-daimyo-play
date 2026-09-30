@@ -38,6 +38,9 @@ export const GENERALS = {
     face: { w: 1.03, jaw: 1.05, chin: 1.0, cheek: 1.3, gaunt: 0.8, brow: 1.3, nose: 1.05, nw: 1.05, eye: 1.2, t: 6, hair: 0x3a3632, age: 48, esp: 1.03, beard: { mus: 0.6, musW: 0.85, droop: 0.55, goat: 0.7, goatW: 0.75, side: 0.1, stub: 0.8 } } },
   '奥平信昌': { armor: 0x24221f, lace: 0x4a3a2a, hat: 'kabuto_m', haori: 0x2a2622, mon: 'okudaira', skin: 0xc09a74,
     face: { w: 0.95, jaw: 0.8, chin: 1.0, cheek: 1.0, gaunt: 0.5, brow: 0.95, nose: 1.0, nw: 1.0, eye: 1.0, t: 0, hair: 0x15110d, age: 20, esp: 1.02, beard: { mus: 0.05, musW: 0.5, musH: 0.5, goat: 0, side: 0, stub: 0.35 } } },
+  // 鳥居強右衛門（長篠城の足軽。囲みを抜けて岡崎へ後詰を頼みに走った）
+  '鳥居強右衛門': { armor: 0x2a2622, lace: 0x4a3a2a, hat: 'none', haori: 0x3a2e24, mon: 'none', skin: 0x9c7453,
+    face: { w: 1.0, jaw: 1.1, chin: 0.9, cheek: 1.1, gaunt: 0.5, brow: 1.1, nose: 1.0, nw: 1.05, eye: 1.05, t: 2, hair: 0x15110d, age: 30, esp: 1.0, beard: { mus: 0.35, musW: 0.7, musH: 0.6, droop: 0.25, goat: 0.2, goatW: 0.55, side: 0, stub: 0.7 } } },
   // ほかの戦で味方・敵に出る武将（年はその戦の頃）。mon: 'none' は家紋を描かない（絵のない家）
   // hatFix：戦の定義の hat より、ここの兜を先にする（井伊の天衝・真田の鹿角など、その人と分かる兜）
   '織田信長': { armor: 0x1c1a1a, lace: 0x3c5a8a, hat: 'kabuto_m', haori: 0x7a1d14, horo: 0, mon: 'oda', haoriMonCol: 0xc9a24a, skin: 0xb88e6a, tack: 0x2a2a30,
@@ -163,6 +166,7 @@ for (const [nm, armor, lace, hat, haori, mon, skin, age, shape, b, x] of [
   ['毛利新介', 0x2a2420, 0x7a2a1c, 'kabuto_b', 0x2a2622, 'none', 0x9c7453, 28, [1.04, 1.2, 1.2, 1.25, 0.95, 1.15], 0.5, { cmd: 'bold' }],
   ['井伊直盛', 0x2a2420, 0x9a2e20, 'kabuto_w', 0x5a1c14, 'ii', 0xb08664, 34, [0.97, 0.95, 1.05, 1.05, 1.1, 1.0], 0.4],
   ['由比正信', 0x221816, 0x9a2e20, 'kabuto_f', 0x6a2418, 'imagawa', 0xa87f5c, 46, [1.02, 1.1, 1.25, 1.2, 1.0, 1.2], 0.7],
+  ['前野長兵衛', 0x24221f, 0x5a4630, 'kabuto_m', 0x3a2e24, 'none', 0x9c7453, 24, [0.98, 1.0, 1.05, 1.05, 1.05, 1.0], 0.2],
   // 森部（永禄四年）
   ['足立六兵衛', 0x22241e, 0x6a5a8a, 'kabuto_g', 0x3a3048, 'saito', 0x8e6446, 40, [1.08, 1.35, 1.3, 1.4, 0.9, 1.25], 0.95, { cmd: 'bold' }],
   // 墨俣・稲葉山（永禄九〜十年）
@@ -177,8 +181,10 @@ for (const [nm, armor, lace, hat, haori, mon, skin, age, shape, b, x] of [
   ['池田勝正', 0x24221f, 0x2e3a52, 'kabuto_m', 0x2a2a3a, 'none', 0xb08664, 31, [0.98, 1.0, 1.05, 1.05, 1.05, 1.0], 0.3],
   ['朝倉景鏡', 0x24221f, 0x3a5a3a, 'kabuto_f', 0x3a4a2a, 'asakura', 0xb88e6a, 45, [1.0, 0.95, 1.2, 1.1, 1.1, 1.15], 0.45],
   ['坂井政尚', 0x2a2420, 0x5a2a1c, 'kabuto_g', 0x3a2a1a, 'none', 0x9c7453, 47, [1.05, 1.2, 1.25, 1.3, 0.95, 1.2], 0.75],
+  ['稲葉一鉄', 0x2a2420, 0x5a4a2a, 'kabuto_w', 0x3a3022, 'inaba', 0x9c7453, 55, [1.0, 1.05, 1.3, 1.25, 1.05, 1.2], 0.7],
   // 野田・福島・志賀（元亀元年）
   ['三好長逸', 0x24221f, 0x2a4a5a, 'kabuto_w', 0x2a3a4a, 'none', 0xb88e6a, 54, [1.0, 0.95, 1.3, 1.15, 1.1, 1.3], 0.6],
+  ['岩成友通', 0x24221f, 0x2a4a5a, 'kabuto_m', 0x2a3a4a, 'none', 0x9c7453, 52, [1.0, 1.05, 1.2, 1.2, 1.05, 1.15], 0.55],
   ['下間頼廉', 0x1c1a1a, 0x5a4a3a, 'kabuto_m', 0x3a3a3a, 'none', 0xb08664, 34, [1.02, 1.1, 1.1, 1.2, 1.0, 1.1], 0.2],
   ['織田信治', 0x1c1a1a, 0x3c5a8a, 'kabuto_s', 0x5a1a14, 'oda', 0xc09a74, 25, [0.95, 0.85, 1.0, 1.0, 1.15, 1.0], 0.15, { haoriMonCol: 0xc9a24a }],
   ['各務元正', 0x24221f, 0x2e3a52, 'kabuto_m', 0x2a2a3a, 'tsuru', 0xa87f5c, 32, [1.03, 1.15, 1.15, 1.2, 1.0, 1.1], 0.5, { haoriMonCol: 0xe6dfcf }],
@@ -193,6 +199,7 @@ for (const [nm, armor, lace, hat, haori, mon, skin, age, shape, b, x] of [
   ['浅井久政', 0x2e2a26, 0x3c5a48, 'kabuto_w', 0x3a3a30, 'azai', 0xb88e6a, 47, [1.04, 0.95, 1.1, 1.05, 1.1, 1.15], 0.55, { haoriMonCol: 0xe6dfcf }],
   ['赤尾清綱', 0x2a2420, 0x7a2a1c, 'kabuto_f', 0x3a2a22, 'azai', 0x9c7453, 59, [0.97, 1.1, 1.35, 1.3, 1.1, 1.3], 0.8],
   ['竹中重治', 0x1c1a1a, 0x3a3a3a, 'kabuto_m', 0x2a2a2a, 'none', 0xc4a07c, 29, [0.92, 0.8, 0.95, 0.95, 1.1, 1.0], 0.05, { cmd: 'calm' }],
+  ['藤掛永勝', 0x2a2420, 0x4a3a2a, 'kabuto_m', 0x3a2e24, 'azai', 0x9c7453, 38, [1.0, 1.05, 1.15, 1.15, 1.0, 1.1], 0.5],
   // 長島・越前・岩村（天正二〜三年）
   ['下間頼旦', 0x2a2420, 0x5a4a3a, 'kabuto_m', 0x3a3430, 'none', 0xa87f5c, 42, [1.05, 1.15, 1.2, 1.2, 1.0, 1.15], 0.3],
   ['織田信広', 0x1c1a1a, 0x3c5a8a, 'kabuto_s', 0x6a1a14, 'oda', 0xb08664, 46, [1.02, 1.0, 1.15, 1.1, 1.1, 1.15], 0.55, { haoriMonCol: 0xc9a24a }],
@@ -217,6 +224,7 @@ for (const [nm, armor, lace, hat, haori, mon, skin, age, shape, b, x] of [
   ['生石治家', 0x24221f, 0x3a4a3a, 'kabuto_f', 0x2e3a2a, 'none', 0xa87f5c, 40, [1.0, 1.05, 1.15, 1.15, 1.05, 1.1], 0.5],
   ['池田知正', 0x24221f, 0x2e3a52, 'kabuto_m', 0x2a2a3a, 'none', 0xc09a74, 24, [0.97, 0.9, 1.0, 1.0, 1.1, 1.0], 0.15],
   ['渡辺勘大夫', 0x2a2420, 0x5a4630, 'kabuto_w', 0x3a2e24, 'none', 0x9c7453, 40, [1.04, 1.15, 1.15, 1.2, 1.0, 1.15], 0.6],
+  ['栗山善助', 0x24221f, 0x2a2a2a, 'kabuto_m', 0x2a2a2a, 'kuroda', 0x9c7453, 29, [1.0, 1.1, 1.1, 1.15, 1.0, 1.1], 0.4],
   // 伊賀・鳥取・高遠・田野（天正九〜十年）
   ['蒲生氏郷', 0x1c1a1a, 0x2a2a2a, 'kabuto_b', 0x3a2a4a, 'none', 0xc09a74, 25, [0.96, 0.9, 1.0, 1.05, 1.1, 1.0], 0.15],
   ['百地丹波', 0x2a2622, 0x3a3a3a, 'kabuto_m', 0x2a2a2a, 'none', 0x8e6446, 50, [0.96, 1.05, 1.35, 1.3, 1.1, 1.35], 0.5],
@@ -231,6 +239,9 @@ for (const [nm, armor, lace, hat, haori, mon, skin, age, shape, b, x] of [
   ['小宮山友晴', 0x3a2622, 0x7a2a1c, 'kabuto_m', 0x2a2622, 'takeda', 0xa87f5c, 40, [1.02, 1.15, 1.2, 1.25, 1.0, 1.15], 0.6],
   // 本能寺（天正十年六月）
   ['斎藤利三', 0x1c1a1a, 0x2e3a52, 'kabuto_g', 0x2a2a3a, 'akechi', 0xa87f5c, 48, [1.04, 1.2, 1.3, 1.35, 0.95, 1.25], 0.7, { cmd: 'bold' }],
+  ['森蘭丸', 0x24221f, 0x3c5a8a, 'none', 0x2a2622, 'oda', 0xc4a07c, 17, [0.94, 0.82, 0.95, 0.95, 1.1, 1.0], 0, { haoriMonCol: 0xc9a24a }],
+  ['森坊丸', 0x24221f, 0x3c5a8a, 'none', 0x2a2622, 'oda', 0xc4a07c, 16, [0.93, 0.8, 0.93, 0.93, 1.1, 1.0], 0, { haoriMonCol: 0xc9a24a }],
+  ['森力丸', 0x24221f, 0x3c5a8a, 'none', 0x2a2622, 'oda', 0xc4a07c, 15, [0.92, 0.78, 0.92, 0.92, 1.1, 1.0], 0, { haoriMonCol: 0xc9a24a }],
   ['明智秀満', 0x1c1a1a, 0x3a3a52, 'kabuto_w', 0x2e3a4a, 'akechi', 0xb88e6a, 46, [0.98, 0.95, 1.15, 1.15, 1.1, 1.15], 0.45, { cmd: 'calm' }],
   ['安田国継', 0x24221f, 0x4a4a5a, 'kabuto_m', 0x2a2a32, 'akechi', 0x9c7453, 33, [1.04, 1.2, 1.15, 1.25, 1.0, 1.1], 0.55],
   // 本陣にいる敵の大将（陣の大将も、その人の顔と装束で）

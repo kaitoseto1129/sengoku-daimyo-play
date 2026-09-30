@@ -13,6 +13,8 @@ import { buildHorse, horseStyleFor, buildModel } from './units.js';
 import { RANKS, BATTLES, scenarioKey } from './state.js';
 import { odaTown, seasonOf } from './oda_town.js';
 import { isTouch } from './touch.js';
+import { domOf } from './domain.js';
+import { keraiOf } from './retainers.js';
 
 const ST_W = 4.5;          // 通りの半分の幅
 const GATE_Z = -80;        // 町の門（南）
@@ -393,10 +395,10 @@ function buildTown(rt, def) {
       z += w + 0.25; k++;
     }
   };
-  // 西の並び：宿・武具屋・問屋の所は空けて、そこに大きめの店を建てる
-  row(-1, GATE_Z + 8, CROSS_Z - ST_W - 1, [[-62, -52], [-38, -30], [-14, -2]]);
-  // 東の並び：市（広場）・馬屋・組の長屋の所は空ける
-  row(1, GATE_Z + 8, CROSS_Z - ST_W - 1, [[-50, -24], [-14, 1], [6, 22]]);
+  // 西の並び：宿・武具屋・問屋・使者の間・我が屋敷の所は空けて、そこに大きめの店を建てる
+  row(-1, GATE_Z + 8, CROSS_Z - ST_W - 1, [[-62, -52], [-38, -30], [-14, -2], [-49, -41], [-28, -16]]);
+  // 東の並び：市（広場）・馬屋・組の長屋・家臣の詰所の所は空ける
+  row(1, GATE_Z + 8, CROSS_Z - ST_W - 1, [[-50, -24], [-14, 1], [6, 22], [-23, -15]]);
   // 裏の並び：通りの裏の路地（x = ±22）を挟んで、背中合わせにもう二列。町の奥行きを出す
   const back = (x, rot, z0, z1, skip) => {
     let z = z0;
@@ -427,6 +429,7 @@ function buildTown(rt, def) {
   doors.inn = shop('inn', -(ST_W + D / 2 + 0.3), -57, 8, '宿');
   doors.shop = shop('shop', -(ST_W + D / 2 + 0.3), -34, 6.5, '具足');
   doors.toiya = shop('toiya', -(ST_W + D / 2 + 0.3), -8, 10, '問屋');
+  doors.shisha = shop('shisha', -(ST_W + D / 2 + 0.3), -45, 6, '使者');
   // 宿の提灯・問屋の俵と荷車
   for (const dz of [-2.2, 2.2]) chochin(rt, -(ST_W - 0.4), 2.6, -57 + dz, dusk);
   rt.scene.add(tawara(W, -4.2, -12.5, Math.PI / 2, 6), tawara(W, -4.3, -3.5, Math.PI / 2, 3));
@@ -435,6 +438,28 @@ function buildTown(rt, def) {
   {
     const g = mergeAll([box(0.1, 0.1, 2.4, 0, 1.4, 0, 0x3a2c20), ...[0, 1, 2, 3, 4].map((i) => cyl(0.02, 0.025, 3.2, 0, 1.55, -1 + i * 0.5, 0x4a3a28, 5, { rx: 0 }))]);
     const m = new THREE.Mesh(g, mats().straw); m.position.set(-3.6, 0, -37.8); m.rotation.z = -0.12; m.castShadow = true; rt.scene.add(m);
+  }
+  // 我が屋敷（知行・内政）：身分が上がるほど大きくなる
+  {
+    const dom = domOf(rt.G);
+    const bw = 6 + rt.G.rank * 1.3, bd = 5 + rt.G.rank * 0.6, bx = -(ST_W + bd / 2 + 0.3), bz = -22;
+    rt.scene.add(hut(W, bx, bz, bw, bd, Math.PI / 2, { ita: rt.G.rank >= 2, h: 2.5 + rt.G.rank * 0.1, wall: 0x6e5a42 }));
+    sign(rt, '屋敷', bx + bd / 2 + 0.5, 1.1, bz - bw / 2 + 0.6, Math.PI / 2, 0.34, true);
+    doors.yashiki = { x: bx + bd / 2 + 1.8, z: bz };
+    // 屋敷の畑（耕していれば見える）。田は開いた数だけ、町はずれに田を足す
+    if (dom.hatake) { const g = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 2.4), new THREE.MeshStandardMaterial({ color: 0x5a6e3a, roughness: 1 })); g.rotation.x = -Math.PI / 2; g.position.set(bx - 2.4, W.heightAt(bx - 2.4, bz + bw / 2 + 2) + 0.02, bz + bw / 2 + 2); g.receiveShadow = true; rt.scene.add(g); }
+    for (let i = 0; i < Math.min(dom.ta || 0, 4); i++) {
+      const px = -58 - i * 4.4, pz = -66;
+      const g = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 3.2), new THREE.MeshStandardMaterial({ color: 0x6a8a4a, roughness: 1 }));
+      g.rotation.x = -Math.PI / 2; g.position.set(px, W.heightAt(px, pz) + 0.02, pz); g.receiveShadow = true; rt.scene.add(g);
+    }
+  }
+  // 家臣の詰所（東の路地）：召し抱えた家臣の姿が、数だけ庭に立つ
+  {
+    const kw = 6.5, kd = 5, kx = ST_W + kd / 2 + 0.3, kz = -19;
+    rt.scene.add(hut(W, kx, kz, kw, kd, -Math.PI / 2, { ita: true, h: 2.5, wall: 0x5a5040 }));
+    sign(rt, '家臣', kx - kd / 2 - 0.5, 1.1, kz - kw / 2 + 0.6, -Math.PI / 2, 0.34, true);
+    doors.kerai = { x: kx - kd / 2 - 1.8, z: kz };
   }
   placeMachiya(rt, list);
   // 町はずれの百姓家（茅葺き）：遠くまで家が続いて見えるように
@@ -485,6 +510,15 @@ function buildTown(rt, def) {
     rt.scene.add(nobori(W, 14, 62, 'oda', 4.5), nobori(W, 46, 62, 'oda', 4.5));
     sign(rt, '訓練場', gx + 4.2, 1.2, z0 - 0.4, Math.PI, 0.34, true);
     doors.train = { x: gx, z: z0 - 1.5 };
+    // 兵を集めた分だけ、足軽が巻藁の前で稽古する
+    const hei = domOf(rt.G).hei || 0;
+    const spots = [[20, 46], [32, 46], [24, 54], [36, 54]];
+    for (let i = 0; i < Math.min(Math.floor(hei / 4), spots.length); i++) {
+      const [sx, sz] = spots[i];
+      const g = allyGroup(rt, { name: '稽古の足軽', anchor: { x: sx, z: sz + 1.6 }, facing: Math.PI, order: 'hold', noRout: true, width: 1, aggro: 0, seekRange: 0 },
+        [{ type: 'ashigaru', n: 1, o: { flag: null, invuln: true } }]);
+      if (g.units[0]) { const u = g.units[0]; rt.addInteract('trainee' + i, () => ({ x: u.pos.x, z: u.pos.z }), '見る　稽古する足軽', () => rt.say('足軽', '一手ご指南を……いや、まずは槍の型からでござる', 3.5), { r: 2.2 }); }
+    }
   }
   // 武家屋敷（城へ向かう通りの両側の土塀）
   for (const [a, b] of [[[-10, 36], [-10, 70]], [[10, 36], [10, 70]]]) { rt.scene.add(dobei(W, [...a, ...b], { h: 2.0, samaStep: 99 })); solidSeg(...a, ...b, 0.3); }
@@ -521,6 +555,10 @@ function guide(rt, def) {
     rt.addInteract('door-' + tab, { x: d.x, z: d.z }, `入る　${f.n}`, () => game.townOpen(tab), { r: 3 });
   }
   rt.addInteract('door-gate', { x: D0.gate.x, z: D0.gate.z }, '任務を受けて出陣する', () => game.townOpen('boss', { go: true }), { r: 3.5 });
+  // 知行・内政・家臣・外交（段2）：屋敷・家臣の詰所・使者の間から、同じ「知行」の札を開く
+  if (D0.yashiki) rt.addInteract('door-yashiki', { x: D0.yashiki.x, z: D0.yashiki.z }, '入る　屋敷（知行・内政）', () => game.townOpen('realm'), { r: 3 });
+  if (D0.kerai) rt.addInteract('door-kerai', { x: D0.kerai.x, z: D0.kerai.z }, '入る　家臣の詰所（召し抱え）', () => game.townOpen('realm'), { r: 3 });
+  if (D0.shisha) rt.addInteract('door-shisha', { x: D0.shisha.x, z: D0.shisha.z }, '入る　使者の間（外交）', () => game.townOpen('realm'), { r: 3 });
   rt.obj('town', '町を歩いて支度をする。済んだら上官屋敷か町の門から出陣', 'main');
   // 始めの一言（門番）。馬を持っていれば、馬はそばで待つ
   rt.after(1.2, () => rt.say('門番', `${rt.G.name}殿、お戻りか。上役の屋敷は、城の方へ上って辻を左へ折れた所でござる`, 4.5));
@@ -575,6 +613,22 @@ function people(rt, def, rumors) {
       rt.say(r.name, L[(rt.flags.kumiN = (rt.flags.kumiN || 0) + 1) % L.length], 4);
     }, { r: 2.2 });
   });
+  // 家臣：召し抱えた数だけ、詰所の庭に立つ
+  const D0 = rt.flags.doors || {};
+  if (D0.kerai) {
+    const KR = keraiOf(rt.G).filter((k) => k.alive).slice(0, 4);
+    KR.forEach((k, i) => {
+      const x = D0.kerai.x - 2.2 - (i % 2) * 1.5, z = D0.kerai.z - 1.6 + Math.floor(i / 2) * 2.2;
+      const g = allyGroup(rt, { name: '家臣', anchor: { x, z }, facing: Math.PI / 2, order: 'hold', noRout: true, width: 1, aggro: 0, seekRange: 0 },
+        [{ type: 'samurai', n: 1, o: { name: k.name, flag: null, invuln: true, weapon: 'none' } }]);
+      const u = g.units[0];
+      if (!u) return;
+      rt.addInteract('kerai' + i, () => ({ x: u.pos.x, z: u.pos.z }), `話す　${k.name}`, () => {
+        u.heading = Math.atan2(rt.player.u.pos.x - u.pos.x, rt.player.u.pos.z - u.pos.z);
+        rt.say(k.name, k.loy >= 70 ? '殿のため、いつでも槍を取りまする' : k.loy < 40 ? '……近頃、俸禄が心もとのう存じまする' : 'お呼びとあらば、すぐに参上いたす', 4);
+      }, { r: 2.2 });
+    });
+  }
   F.rumorI = 0;
 }
 

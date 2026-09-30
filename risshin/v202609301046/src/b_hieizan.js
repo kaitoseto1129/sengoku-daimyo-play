@@ -8,7 +8,7 @@
 // ======================================================================
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { nobori, jinmaku, hut, romon, dou, stumps, hashigo } from './props.js';
+import { nobori, jinmaku, hut, romon, dou, stumps, hashigo, tsuiji } from './props.js';
 import { flagTexture } from './textures.js';
 import { RANKS } from './state.js';
 import { applyLook } from './b_inabayama.js';
@@ -67,23 +67,6 @@ function doors(W, x, z, w) {
   return grp;
 }
 
-// 築地塀：土を突き固めた白壁に、瓦の笠
-const TSUJI = { wall: new THREE.MeshStandardMaterial({ color: 0xd2cabb, roughness: 0.95 }), base: new THREE.MeshStandardMaterial({ color: 0x6a5a48, roughness: 1 }), roof: new THREE.MeshStandardMaterial({ color: 0x34322f, roughness: 0.8 }) };
-function tsuji(W, seg) {
-  const [ax, az, bx, bz] = seg;
-  const len = Math.hypot(bx - ax, bz - az), mx = (ax + bx) / 2, mz = (az + bz) / 2;
-  const y = Math.min(W.heightAt(ax, az), W.heightAt(bx, bz), W.heightAt(mx, mz));
-  const g = new THREE.Group();
-  const add = (geo, mat, yy) => { const m = new THREE.Mesh(geo, mat); m.position.y = yy; m.castShadow = true; m.receiveShadow = true; m.userData.camBlock = true; g.add(m); };
-  add(new THREE.BoxGeometry(0.9, 2.6, len + 0.05), TSUJI.wall, 1.3 - 0.4);
-  add(new THREE.BoxGeometry(0.95, 0.5, len + 0.06), TSUJI.base, -0.1);
-  add(new THREE.BoxGeometry(1.5, 0.16, len + 0.4), TSUJI.roof, 2.3);
-  add(new THREE.BoxGeometry(0.4, 0.2, len + 0.4), TSUJI.roof, 2.45);
-  g.position.set(mx, y, mz);
-  g.rotation.y = Math.atan2(bx - ax, bz - az);
-  return g;
-}
-
 // 延暦寺の幟：生成りの布に、墨の輪宝（八本の輻と、縁の八つの爪）。textures.js の紋にはないので、ここで描く
 let rinboTex = null;
 function rinboTexture() {
@@ -130,7 +113,7 @@ function sando(W) {
   // 石段：山門から東へ 30m、一段ずつ地面に沿って
   for (let x = GATE.x + 2; x < GATE.x + 32; x += 0.9) {
     const z0 = zc(x), y = W.heightAt(x, z0);
-    const g = new THREE.BoxGeometry(0.85, 0.22, 5.2); g.translate(x, y + 0.02, z0);
+    const g = new THREE.BoxGeometry(0.98, 0.6, 5.2); g.translate(x, y - 0.14, z0);   // 段の下は土へ埋め、隙間の草を見せない
     stone.push(paint(g, (Math.round(x * 3) % 2) ? 0x807a70 : 0x767168));
   }
   // 石灯籠：竿・火袋・笠・宝珠
@@ -192,8 +175,8 @@ const hieizan = {
     rt.scene.add(F.gate.mesh);
     // 山門：瓦屋根の二階の楼門
     rt.scene.add(romon(W, GATE.x, GATE.z, 6.4, Math.PI / 2));
-    wallLine(rt, [[GATE.x, GATE.z - 3], [GATE.x + 1, -24], [GATE.x - 4, -40]], { team: 1, hp: 1e9, name: '築地塀', segLen: 6, mesh: tsuji });
-    wallLine(rt, [[GATE.x, GATE.z + 3], [GATE.x + 1, 24], [GATE.x - 4, 40]], { team: 1, hp: 1e9, name: '築地塀', segLen: 6, mesh: tsuji });
+    wallLine(rt, [[GATE.x, GATE.z - 3], [GATE.x + 1, -24], [GATE.x - 4, -40]], { team: 1, hp: 1e9, name: '築地塀', segLen: 6, mesh: tsuiji });
+    wallLine(rt, [[GATE.x, GATE.z + 3], [GATE.x + 1, 24], [GATE.x - 4, 40]], { team: 1, hp: 1e9, name: '築地塀', segLen: 6, mesh: tsuiji });
     // ---- 門の内の堂と、山の上の堂塔 ----
     // 堂は石の基壇・縁側・瓦の大屋根（正面を東の山門へ向ける）
     F.halls = HALLS.map(([x, z, w, d]) => { const m = dou(W, x, z, w, d, Math.PI / 2); rt.scene.add(m); return { x, z, w, d, m }; });

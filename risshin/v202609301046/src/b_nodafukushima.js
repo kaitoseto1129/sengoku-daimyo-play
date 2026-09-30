@@ -293,7 +293,7 @@ const nodafukushima = {
     rt.after(7, () => {
       if (F.step !== 2) return;
       F.sally = enemyGroup(rt, { faction: 'saito', name: '打って出た三好勢', anchor: { x: -6, z: -52 }, facing: 0, order: 'attack', seekRange: 70, aggro: 14, width: 12, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 0.7, formation: 'yari' },
-        dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 14 }], MIYOSHI));
+        dress([{ type: 'busho', n: 1, o: { name: '岩成友通' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 14 }], MIYOSHI));
       KIT.backOf(rt, F.sally, { flag: 'miyoshi', armor: 0x33302a, kind: 'spear', w: 22, depth: 12, count: 240, seed: 15707 });
       // 堤の左右でも、浅瀬を渡った三好の大軍と織田の手が堤で押し合う（軽い作り）
       F.lines = lines(rt, [

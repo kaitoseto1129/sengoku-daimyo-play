@@ -897,8 +897,9 @@ export function jinCamp(world, cx, cz, o = {}) {
   // 陣太鼓（台に据えた大太鼓）と、床几の脇の法螺貝
   grp.add(jindaiko(world, cx + w / 2 - 2, cz - d / 2 + 2.2, -0.4));
   grp.add(horagai(world, cx + 0.7, cz - d / 2 + 2.1));
-  grp.add(hatazao(world, cx - w / 2 - 2.2, cz - d / 4, Math.PI / 2, 7, mon));
-  grp.add(hyoro(world, cx + w / 2 + 2.6, cz - d / 4, 0.2));
+  // 幕の外に沿って通れるよう、竿・俵の当たりと幕の当たりの間を人ひとり分（0.9m）より広く空ける
+  grp.add(hatazao(world, cx - w / 2 - 3.2, cz - d / 4, Math.PI / 2, 7, mon));
+  grp.add(hyoro(world, cx + w / 2 + 3.6, cz - d / 4, 0.2));
   grp.add(umatsunagi(world, cx + w / 2 + 3, cz + d / 2 + 3, Math.PI / 2 + 0.2, 9));
   grp.add(nabe(world, cx - w / 2 - 3, cz + d / 2 + 3));
   if (o.fire !== false) grp.add(nabe(world, cx + w / 2 + 1.5, cz + d / 2 + 6));
@@ -1925,8 +1926,11 @@ export function dobei(world, seg, o = {}) {
     const y = world.heightAt(mx, mz), L = len / n + 0.02;
     if (i === 0) stoneCourse(B, 'nozura', ax, az, bx, bz, (t) => world.heightAt(ax + (bx - ax) * t, az + (bz - az) * t) + 0.75, (t) => world.heightAt(ax + (bx - ax) * t, az + (bz - az) * t) - 0.3, 0.1, 1, Math.round(ax * 5 + az * 3));   // 腰の石（外の面）
     kbox(B.nozura, 0x3a3630, mx, y + 0.3, mz, L, 1.1, 0.6, rot, 1.4);                     // 腰の芯（目地の奥）
-    kbox(B.plaster, vary(0xc9c2b0, i), mx, y + 0.85 + (H - 0.85) / 2, mz, L, H - 0.85, 0.36, rot, 0);   // 漆喰
-    kbox(B.shitami, 0x9a948a, mx, y + 1.05, mz, L, 0.5, 0.38, rot, 1.2);                   // 腰の下見板
+    if (o.tera) kbox(B.plaster, vary(0xcdbfa2, i), mx, y + 0.75 + (H - 0.75) / 2, mz, L, H - 0.75, 0.52, rot, 0);   // 築地：土を突いた厚い壁（狭間も下見板も無い）
+    else {
+      kbox(B.plaster, vary(0xc9c2b0, i), mx, y + 0.85 + (H - 0.85) / 2, mz, L, H - 0.85, 0.36, rot, 0);   // 漆喰
+      kbox(B.shitami, 0x9a948a, mx, y + 1.05, mz, L, 0.5, 0.38, rot, 1.2);                   // 腰の下見板
+    }
     kbox(B.wood, 0x2c2622, mx, y + H - 0.12, mz, L, 0.1, 0.38, rot);                       // 長押
     // 瓦の笠：切妻に葺いた二枚の瓦の面（外と内へ傾け、軒は壁より張り出す）と、軒先の丸瓦の列の影、白い棟
     for (const sd of [1, -1]) {
@@ -1942,7 +1946,7 @@ export function dobei(world, seg, o = {}) {
   }
   // 狭間：三角・丸・四角を交互に（外と内の同じ所）
   const nx = -(bz - az) / len, nz = (bx - ax) / len;
-  for (let k = 0; k < holes; k++) {
+  if (!o.tera) for (let k = 0; k < holes; k++) {
     const t = (k + 0.5) / holes, x = ax + (bx - ax) * t, z = az + (bz - az) * t, y = world.heightAt(x, z);
     const gun = k % 2 === 0, hy = y + (gun ? 1.35 : 1.8), hs = gun ? 0.2 : 0.34;
     // 形：鉄砲狭間は丸か三角、矢狭間は縦長の四角。外の面は漆喰の縁取りが少し厚い
@@ -1968,6 +1972,9 @@ export function dobei(world, seg, o = {}) {
   }
   return kitMesh(B);
 }
+
+// 築地塀（寺や御所の塀）：土塀と同じ瓦の笠と腰の石で、狭間と下見板の無い厚い土の壁
+export function tsuiji(world, seg, o = {}) { return dobei(world, seg, { ...o, tera: true, h: o.h || 2.6 }); }
 
 // 隅櫓（二重櫓）：石垣の台・下見板の一重・白壁の二重・瓦の屋根。石落としと格子窓。rot で正面の向き
 export function sumiyagura(world, x, z, o = {}) {

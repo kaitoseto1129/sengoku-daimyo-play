@@ -1056,6 +1056,8 @@ export function setCrowd(level) {
 let heatLv = 0;
 let crowdLv = 0, farTokiT = 6;
 // ざわめきの繰り返し音を、焼いた合戦の声（二通りを左右に分け、速さを少しずらして重ねる）に差し替える
+// 焼いた喚声の繰り返しと遠くの鬨は、戦の中で曲のように聞こえたので止める（kaito 9/30「変な BGM」）。元の合成のざわめきに戻す
+const BAKED_CROWD = false;
 function swapRoar(n) {
   const b = BANK.roar, srcs = [];
   try { n.src.stop(); } catch (e) { /* もう止まっている */ }
@@ -1094,17 +1096,17 @@ export function ambience(dt, o) {
   if (!windNode) windNode = loop(320, 'lowpass', 0.5);
   // 587：風は強くなったり弱くなったり（突風）
   gustT -= dt;
-  if (gustT <= 0) { gustT = 3 + Math.random() * 7; gustV = 0.5 + Math.random() * 1.1; windNode.f.frequency.setTargetAtTime(240 + Math.random() * 320, now, 2); }
-  windNode.g.gain.setTargetAtTime((0.04 + o.rain * 0.05 + scene.wind * 0.06) * gustV * (quiet ? 1.2 : 1), now, 1.2);
+  if (gustT <= 0) { gustT = 3 + Math.random() * 7; gustV = 0.5 + Math.random() * 0.5; windNode.f.frequency.setTargetAtTime(240 + Math.random() * 320, now, 2); }
+  windNode.g.gain.setTargetAtTime((0.018 + o.rain * 0.03 + scene.wind * 0.03) * gustV * (quiet ? 1.1 : 1), now, 1.2);   // kaito 9/30「風がうるさい」で半分より下に
   // 581：喧噪のうねり
   if (crowdNode) {
-    if (!crowdNode.baked && has('roar')) swapRoar(crowdNode);
+    if (BAKED_CROWD && !crowdNode.baked && has('roar')) swapRoar(crowdNode);
     crowdT -= dt;
     // 焼けたざわめき：激しいほど近く明るく（こもりが開き）、静かな時は遠く籠もる。強さは波のようにうねる
     if (crowdT <= 0 && crowdNode.baked) { crowdT = 0.8 + Math.random() * 1.4; crowdNode.f.frequency.setTargetAtTime((550 + crowdLv * crowdLv * 3200) * (0.8 + Math.random() * 0.4), now, 0.9); crowdNode.g.gain.setTargetAtTime(0.34 * crowdLv * (0.7 + Math.random() * 0.55), now, 0.6); }
     else if (crowdT <= 0) { crowdT = 0.6 + Math.random() * 0.9; crowdNode.f.frequency.setTargetAtTime(560 + Math.random() * 300, now, 0.4); crowdNode.g.gain.setTargetAtTime(0.18 * crowdLv * (0.7 + Math.random() * 0.6), now, 0.3); }
     // 戦場のどこかで上がる鬨の声のうねり：左右や遠くから、こもって響く（激しい時だけ）
-    if (crowdLv > 0.4 && !quiet && has('toki')) {
+    if (BAKED_CROWD && crowdLv > 0.4 && !quiet && has('toki')) {
       farTokiT -= dt;
       if (farTokiT <= 0) {
         farTokiT = 10 + Math.random() * 14 - crowdLv * 4;

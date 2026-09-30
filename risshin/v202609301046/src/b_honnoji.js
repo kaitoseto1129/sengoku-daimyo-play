@@ -9,7 +9,7 @@
 // 向き：京の町の碁盤の目。南西（-x, +z）に本能寺、北東（+x, -z）に二条御所
 // ======================================================================
 import * as THREE from 'three';
-import { nobori, hut, campfire, kabukimon, tawara } from './props.js';
+import { nobori, hut, campfire, kabukimon, tawara, tsuiji, dou } from './props.js';
 import { flagTexture } from './textures.js';
 import { RANKS } from './state.js';
 import { sfx } from './audio.js';
@@ -41,20 +41,6 @@ function height(x, z) {
   return h;
 }
 
-// 築地塀（白い土壁に瓦の笠）
-const TS = { wall: new THREE.MeshStandardMaterial({ color: 0xd6cebd, roughness: 0.95 }), base: new THREE.MeshStandardMaterial({ color: 0x5e5446, roughness: 1 }), roof: new THREE.MeshStandardMaterial({ color: 0x33312e, roughness: 0.8 }) };
-function tsuji(W, seg) {
-  const [ax, az, bx, bz] = seg;
-  const len = Math.hypot(bx - ax, bz - az), mx = (ax + bx) / 2, mz = (az + bz) / 2;
-  const g = new THREE.Group();
-  const add = (geo, mat, yy) => { const m = new THREE.Mesh(geo, mat); m.position.y = yy; m.castShadow = true; m.receiveShadow = true; m.userData.camBlock = true; g.add(m); };
-  add(new THREE.BoxGeometry(0.8, 2.6, len + 0.05), TS.wall, 1.1);
-  add(new THREE.BoxGeometry(0.85, 0.5, len + 0.06), TS.base, -0.1);
-  add(new THREE.BoxGeometry(1.4, 0.16, len + 0.4), TS.roof, 2.45);
-  g.position.set(mx, W.heightAt(mx, mz), mz);
-  g.rotation.y = Math.atan2(bx - ax, bz - az);
-  return g;
-}
 // 四角の囲い（門の口を一つ空ける）。side：'e'|'w'|'n'|'s'
 function compound(rt, c, gateSide, gw = 7) {
   const { x, z, h } = c;
@@ -65,9 +51,9 @@ function compound(rt, c, gateSide, gw = 7) {
     if (k === gateSide || k === c.back) {
       const mx = (ax + bx) / 2, mz = (az + bz) / 2, L = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / L, uz = (bz - az) / L;
       const g2 = (k === gateSide ? gw : 4) / 2;
-      out.push(...wallLine(rt, [[ax, az], [mx - ux * g2, mz - uz * g2]], { team: 0, hp: 1e9, name: '築地塀', segLen: 6, mesh: tsuji }));
-      out.push(...wallLine(rt, [[mx + ux * g2, mz + uz * g2], [bx, bz]], { team: 0, hp: 1e9, name: '築地塀', segLen: 6, mesh: tsuji }));
-    } else out.push(...wallLine(rt, [[ax, az], [bx, bz]], { team: 0, hp: 1e9, name: '築地塀', segLen: 6, mesh: tsuji }));
+      out.push(...wallLine(rt, [[ax, az], [mx - ux * g2, mz - uz * g2]], { team: 0, hp: 1e9, name: '築地塀', segLen: 6, mesh: tsuiji }));
+      out.push(...wallLine(rt, [[mx + ux * g2, mz + uz * g2], [bx, bz]], { team: 0, hp: 1e9, name: '築地塀', segLen: 6, mesh: tsuiji }));
+    } else out.push(...wallLine(rt, [[ax, az], [bx, bz]], { team: 0, hp: 1e9, name: '築地塀', segLen: 6, mesh: tsuiji }));
   }
   for (const s of out) { s.noTarget = true; s.wall = true; s.h = 2.6; }
   return out;
@@ -117,7 +103,8 @@ const honnoji = {
     NIJO.back = 'n';
     F.nwall = compound(rt, NIJO, 'w');
     rt.scene.add(kabukimon(W, HONNO_GATE.x, HONNO_GATE.z, 7.4, Math.PI / 2), kabukimon(W, NIJO_GATE.x, NIJO_GATE.z, 7.4, Math.PI / 2));
-    for (const [x, z, w, d] of [[HONNO.x - 2, HONNO.z - 2, 16, 11], [HONNO.x - 6, HONNO.z + 10, 9, 6], [HONNO.x + 6, HONNO.z - 10, 8, 6]]) rt.scene.add(hut(W, x, z, w, d, 0, { h: 3.6, wall: 0x7a5a3c, roof: 0x3a3430 }));
+    rt.scene.add(dou(W, HONNO.x - 3, HONNO.z - 2, 13, 9, Math.PI / 2, { h: 3.8 }));   // 本堂（門の東を向く瓦の大屋根）
+    for (const [x, z, w, d] of [[HONNO.x - 6, HONNO.z + 10, 9, 6], [HONNO.x + 6, HONNO.z - 10, 8, 6]]) rt.scene.add(hut(W, x, z, w, d, 0, { h: 3.6, wall: 0x7a5a3c, roof: 0x3a3430 }));
     rt.scene.add(hut(W, NIJO.x + 2, NIJO.z - 2, 16, 11, 0, { h: 3.6, wall: 0x7a6a50, roof: 0x3a3430 }), hut(W, NIJO.x - 6, NIJO.z + 10, 8, 5, 0));
     for (const [x, z] of [[NIJO.x - 10, NIJO.z - 6], [NIJO.x - 10, NIJO.z + 6], [NIJO.x + 10, NIJO.z + 10]]) rt.scene.add(nobori(W, x, z, 'oda', 6));
     rt.scene.add(tawara(W, START.x - 5, START.z + 3, 0.2, 3));
@@ -443,7 +430,8 @@ Object.assign(honnoji, {
     F.gN = rt.army.addStruct({ seg: [GATE_N.x - 2, GATE_N.z, GATE_N.x + 2, GATE_N.z], hp: 1800, maxHp: 1800, armor: 0.5, team: 0, name: '裏門' });
     F.gN.mesh = gateDoors(W, GATE_N.x, GATE_N.z, 4, Math.PI / 2); rt.scene.add(F.gN.mesh);
     F.sWall = F.walls.filter((s) => Math.abs((s.seg[1] + s.seg[3]) / 2 - S_BREAK.z) < 0.5 && Math.abs((s.seg[0] + s.seg[2]) / 2 - S_BREAK.x) < 7);
-    for (const [x, z, w, d] of [[HONNO.x - 2, HONNO.z - 2, 16, 11], [HONNO.x - 6, HONNO.z + 10, 9, 6], [HONNO.x + 6, HONNO.z - 10, 8, 6]]) rt.scene.add(hut(W, x, z, w, d, 0, { h: 3.6, wall: 0x7a5a3c, roof: 0x3a3430 }));
+    rt.scene.add(dou(W, HONNO.x - 3, HONNO.z - 2, 13, 9, Math.PI / 2, { h: 3.8 }));   // 本堂（門の東を向く瓦の大屋根）
+    for (const [x, z, w, d] of [[HONNO.x - 6, HONNO.z + 10, 9, 6], [HONNO.x + 6, HONNO.z - 10, 8, 6]]) rt.scene.add(hut(W, x, z, w, d, 0, { h: 3.6, wall: 0x7a5a3c, roof: 0x3a3430 }));
     rt.scene.add(hut(W, NIJO.x + 2, NIJO.z - 2, 16, 11, 0, { h: 3.6, wall: 0x7a6a50, roof: 0x3a3430 }));
     // 裏の松（西の築地を越える枝）
     rt.scene.add(nobori(W, HONNO.x - 4, HONNO.z - 4, 'oda', 5), nobori(W, HONNO.x + 8, HONNO.z + 4, 'eiraku', 5));
@@ -461,7 +449,7 @@ Object.assign(honnoji, {
     F.kosho = allyGroup(rt, { name: '森蘭丸と小姓衆', anchor: { x: L_START.x + 3, z: L_START.z + 2 }, facing: Math.PI / 2, width: 4, aggro: 8, noRout: true },
       dress([{ type: 'samurai', n: 1, o: { name: '森蘭丸', hat: 'none' } }, { type: 'samurai', n: 1, o: { name: '森坊丸', hat: 'none' } }, { type: 'samurai', n: 1, o: { name: '森力丸', hat: 'none' } }, { type: 'samurai', n: 3, o: { hat: 'none' } }], ODA));
     F.kosho.defMult = 1.4;
-    F.ran = F.kosho.units[0];
+    F.ran = F.kosho.units[0]; F.bo = F.kosho.units[1]; F.riki = F.kosho.units[2];
     // 供のわずかな者（槍と弓。自分の組として付いて来る）
     rt.makeSquad({ x: L_START.x - 2, z: L_START.z + 4 }, Math.PI / 2, [{ kind: 'spear', n: 12 }, { kind: 'bow', n: 8 }]);
     // ---- 築地の外の囲み（本物の兵でぎっしり）：北・西・南。表へ回される本隊と、動かない残りの者 ----
@@ -566,9 +554,11 @@ Object.assign(honnoji, {
       { label: '蘭丸らに任せ、すぐに奥へ下がる', note: '火を放つ支度が早くできる。ただ、小姓衆が削られる' },
     ], (i) => {
       if (i === 1) {
-        // 小姓衆が身代わりに削られる（蘭丸は残す）
+        // 小姓衆が身代わりに削られる（蘭丸は残す）。坊丸・力丸には名乗りの言葉を
+        if (F.bo && F.bo.alive) { rt.say('森坊丸', '兄上、それがしも参ります！　三兄弟、ここが死に場所にござる！', 3); F.bo.invuln = false; rt.army.kill(F.bo, null); }
+        if (F.riki && F.riki.alive) { rt.say('森力丸', '力丸、お供つかまつる……！', 2.5); F.riki.invuln = false; rt.army.kill(F.riki, null); }
         let n = 0;
-        for (const u of F.kosho.units) if (u.alive && u !== F.ran && n < 2) { u.invuln = false; rt.army.kill(u, null); n++; }
+        for (const u of F.kosho.units) if (u.alive && u !== F.ran && u !== F.bo && u !== F.riki && n < 2) { u.invuln = false; rt.army.kill(u, null); n++; }
         this.lordBack(rt);
         return;
       }

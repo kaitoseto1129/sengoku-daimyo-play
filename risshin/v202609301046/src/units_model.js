@@ -990,7 +990,8 @@ function cuirass(r0, seg, rows = 0, hi = false) {
   let prof = DO_PROF.map(([r, y]) => [r, y]);
   if (hi && rows > 1) {
     // 段の境（胸板の下 1.34 まで）
-    const H = (y1 - y0) / rows, t = 0.0055;
+    // 桶側（五段の板）は板の厚みと重なりを深く（平らな一枚の漆の板に見せない）
+    const H = (y1 - y0) / rows, t = rows === 5 ? 0.012 : 0.0055;
     const pts = [];
     for (let k = 0; k < rows; k++) {
       const ya = y0 + k * H, yb = Math.min(y0 + (k + 1) * H, y1);
@@ -1033,8 +1034,10 @@ function bodyGeometry(key, o, hi, grp) {
   // 腰（袴の上端）と上帯
   parts.push(P(at(new THREE.CylinderGeometry(0.19 * r0, 0.2 * r0, 0.2, hi ? 14 : 8), 0, 0.82, 0), under, { reg: 'cloth' }));
   // 鎧下の肩と、首元の襟（白い襦袢がのぞく）
-  const yoke = ball(0.25 * r0, 0.07, 0.15 * r0, hi ? 14 : 8, 5);
-  parts.push(P(at(yoke, 0, 1.43, -0.005), under, { reg: 'cloth' }));
+  // 肩は首から腕へなで下がる形に（平たい楕円の張り出しは、箱の肩に見える）
+  const yoke = ball(0.23 * r0, 0.08, 0.15 * r0, hi ? 14 : 8, 5);
+  { const q = yoke.attributes.position; for (let i = 0; i < q.count; i++) { const x = q.getX(i); q.setY(i, q.getY(i) - 0.9 * x * x); } yoke.computeVertexNormals(); }
+  parts.push(P(at(yoke, 0, 1.435, -0.005), under, { reg: 'cloth' }));
   parts = PT.torso;
   parts.push(P(at(new THREE.CylinderGeometry(0.068, 0.1, 0.06, hi ? 14 : 8, 1, true), 0, 1.47, 0.005), under, { reg: 'cloth' }));
   if (hi) {
@@ -1200,7 +1203,12 @@ function bodyGeometry(key, o, hi, grp) {
     const d = new THREE.Vector3(0.1, 0.15, 1).normalize();
     const pt = (k) => [h0[0] + d.x * k, h0[1] + d.y * k, h0[2] + d.z * k];
     parts.push(P(limb(pt(-0.42), pt(0), 0.014, 0.016, 5), 0x1a1612, { mk: MK.lac, reg: 'lacq' }));
-    parts.push(P(limb(pt(0.01), pt(0.16), 0.015, 0.014, 5), 0x2a2420, { reg: 'cord' }));
+    parts.push(P(limb(pt(0.01), pt(0.16), 0.015, 0.014, 5), 0x3a3026, { reg: 'cord' }));
+    // 鍔（鉄の丸鍔）・鞘の鯉口と鐺の角・柄頭：一本の黒い棒に見せない
+    parts.push(P(limb(pt(-0.002), pt(0.008), 0.03, 0.03, 10), 0x2a2622, { mk: MK.iron }));
+    parts.push(P(limb(pt(-0.03), pt(-0.012), 0.0175, 0.0165, 6), 0x2a211a, { mk: MK.wood }));
+    parts.push(P(limb(pt(-0.425), pt(-0.4), 0.0145, 0.015, 6), 0x3a3430, { mk: MK.iron }));
+    parts.push(P(limb(pt(0.155), pt(0.172), 0.0155, 0.014, 6), 0x3a3430, { mk: MK.iron }));
   }
   parts = PT.torso;
   // 母衣（母衣衆の背の袋）：竹の籠（母衣串）に十二枚はぎの布を張る。縦長の卵形で、上が細く、下は開いて腰の後ろへ垂れる。
@@ -1304,7 +1312,8 @@ function shinGeometry(o, hi, part) {
     P_.push(P(at(ball(0.038, 0.035, 0.04, 8, 6), 0, -0.316, -0.02), tabi, { reg: 'cloth', dirt: 1 }));
     P_.push(P(at(ball(0.017, 0.016, 0.025, 6, 4), 0.022, -0.33, 0.15), tabi, { reg: 'cloth', dirt: 1 }));
     P_.push(P(at(new THREE.BoxGeometry(0.003, 0.018, 0.035), 0.008, -0.33, 0.16), 0x2a2620, { reg: 'cloth', dirt: 1 }));
-    P_.push(P(at(new THREE.BoxGeometry(0.1, 0.016, 0.25), 0, -0.354, 0.05), 0x6e6244, { mk: MK.straw, reg: 'straw', dirt: 1 }));
+    // 藁の底：足の形の小判（角の立った板にしない）。前は指が少しはみ出す長さ、縁は編んだ藁の厚み
+    { const sole = new THREE.CylinderGeometry(1, 1, 0.014, 14); sole.scale(0.047, 1, 0.112); P_.push(P(at(sole, 0, -0.353, 0.045), 0x7a6a46, { mk: MK.straw, reg: 'straw', dirt: 1 })); }
     P_.push(P(at(new THREE.TorusGeometry(0.046, 0.005, 4, 10, Math.PI), 0, -0.342, 0.09, 0, Math.PI / 2, 0), 0x857752, { mk: MK.straw, reg: 'cord', dirt: 1 }));
     P_.push(P(at(new THREE.TorusGeometry(0.05, 0.005, 4, 12), 0, -0.29, -0.004, Math.PI / 2), 0x857752, { mk: MK.straw, reg: 'cord', dirt: 1 }));
     P_.push(P(limb([0.012, -0.345, 0.17], [0.03, -0.3, 0.02], 0.004, 0.004, 3), 0x857752, { mk: MK.straw, dirt: 1 }));
