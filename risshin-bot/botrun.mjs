@@ -16,7 +16,7 @@ import { execFileSync } from 'node:child_process';
 import { loadavg } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ensureServer, openChrome, sleep } from './cdp.mjs';
+import { ensureServer, openChrome, sleep, PORT } from './cdp.mjs';
 // 機械が混んでいると node の中の通信の部品（undici）が assert(!this.paused) で落ちることがある。その時だけは落とさずに続ける
 process.on('uncaughtException', (e) => { if (String(e && e.stack).includes('undici')) { console.error('（通信の部品の一時的な誤りを無視）'); return; } console.error(e); process.exit(1); });
 
@@ -66,7 +66,7 @@ for (let i = 0; i < N; i++) {
   const c = await openChrome({ width, height });
   try {
     if (MOBILE) await toPhone(c);
-    await c.goto(`http://localhost:8765/?bot&k=${i + Math.floor(Math.random() * 4)}${ONLY ? '&only=' + ONLY : ''}${RENDER ? '' : '&norender' + (SPEED > 1 ? '&speed=' + SPEED : '')}${VQ ? '&' + VQ : ''}&r=${Date.now()}`, 3000);
+    await c.goto(`http://localhost:${PORT}/?bot&k=${i + Math.floor(Math.random() * 4)}${ONLY ? '&only=' + ONLY : ''}${RENDER ? '' : '&norender' + (SPEED > 1 ? '&speed=' + SPEED : '')}${VQ ? '&' + VQ : ''}&r=${Date.now()}`, 3000);
     await c.ev('Storage.prototype.setItem = function () {}; return 1;');
     let data = null;
     // 一回に長くて40分（戦が増えたので）。途中で落ちたら（ページのエラー）そのことも拾う
@@ -183,7 +183,7 @@ async function playOnce() {
     const W = PC ? SIZE : [PHONE.width, PHONE.height];
     c = await openChrome({ width: W[0], height: W[1] });
     if (!PC) await toPhone(c);
-    await c.goto(`http://localhost:8765/?bot&persona=${PERSONA}&shots=${loadavg()[0] > 110 ? 0 : 1}&maxshots=${MAXSHOTS}&budget=${budget}${NBAT ? '&n=' + NBAT : ''}${ONLY ? '&only=' + ONLY : ''}${args.includes('--norender') ? '&norender' + (SPEED > 1 ? '&speed=' + SPEED : '') : ''}${VQ ? '&' + VQ : ''}&r=${Date.now()}`, OUT ? 6000 : 3000);
+    await c.goto(`http://localhost:${PORT}/?bot&persona=${PERSONA}&shots=${loadavg()[0] > 110 ? 0 : 1}&maxshots=${MAXSHOTS}&budget=${budget}${NBAT ? '&n=' + NBAT : ''}${ONLY ? '&only=' + ONLY : ''}${args.includes('--norender') ? '&norender' + (SPEED > 1 ? '&speed=' + SPEED : '') : ''}${VQ ? '&' + VQ : ''}&r=${Date.now()}`, OUT ? 6000 : 3000);
     await c.ev('Storage.prototype.setItem = function () {}; return 1;');
     let last = '', lastT = 0, keep = null, keepT = 0, slow = 0, frozeAt = '';
     while (!data) {

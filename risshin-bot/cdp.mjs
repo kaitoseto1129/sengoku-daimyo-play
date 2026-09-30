@@ -70,7 +70,9 @@ async function acquireSlot() {
 }
 
 // 開発用サーバーが動いていなければ起こす
-export async function ensureServer(port = 8765) {
+// 開発用サーバーのポート。RISSHIN_PORT で変えられる（git worktree で別の係が自分の置き場を見る時）
+export const PORT = +process.env.RISSHIN_PORT || 8765;
+export async function ensureServer(port = PORT) {
   try { await fetch(`http://localhost:${port}/`); return null; } catch (e) { /* 起こす */ }
   const p = spawn('python3', [join(HERE, '..', 'serve.py'), String(port)], { stdio: 'ignore', detached: true });
   p.unref();
