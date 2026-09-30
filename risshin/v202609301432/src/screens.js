@@ -2829,6 +2829,9 @@ export function epilogueScreen(G, onDone) {
       <b>道具</b>Three.js／Web Audio／Google Fonts（しっぽり明朝 B1・Zen角ゴシック New）
       <b>甲冑の3Dスキャン</b>"Armadura Samurai Do-maru, BMVB" by Giravolt（CC BY 4.0・形を減らし色を一部変更）
       <b>顔の3Dスキャン</b>Lee Perry-Smith／Infinite-Realities（CC BY 3.0）
+      <b>兜の3Dスキャン</b>"Samurai Helmet - 3D Scan" by chrr273u（コペンハーゲン国立博物館の兜・CC BY 4.0・形を減らし台を除く）
+      <b>面頬の3Dモデル</b>"Menpō - Samurai Mask" by denis_cliofas（CC BY 4.0・色を一部変更）
+      <b>飾りの具足の3Dスキャン</b>"yoroi" by 國學院大學栃木学園参考館（CC BY 4.0・形を減らし床を除く）
       <b>人の骨と動き</b>three.js の見本 Soldier（Mixamo）
       <b>馬の3Dモデル</b>"Horse" by henrysteve973（CC BY 4.0・形と色を一部変更）
       <b>史実の拠り所</b>『信長公記』ほか

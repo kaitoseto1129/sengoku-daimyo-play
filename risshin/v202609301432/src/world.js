@@ -548,7 +548,8 @@ function armyPart(list, geo, hex, part) {
 const SOLDIER_GEO = new Map();
 // near：true＝近く（十角）・false＝中ほど（七角）・'lo'＝遠く（五角。38m より遠い塊だけに使う＝lodTwin）
 // 画質「低」（携帯）では、軽い大軍（遠くの軍勢・後詰め・合戦の後ろの列）の描く人数を半分ほどに（大事な者と前の列は残る）
-const lowKeep = () => (SETTINGS.quality === 'low' ? 0.45 : 1);
+//   遠いほど多く間引く（60m 内は半分ほど・150m 内は四分の一・その先は六分の一ほど）。back：後詰め（奥の列）はさらに七割
+const lowKeep = (dd = 100, back = false) => (SETTINGS.quality === 'low' ? (dd < 60 ? 0.45 : dd < 150 ? 0.28 : 0.16) * (back ? 0.7 : 1) : 1);
 function soldierGeo(armor, near) {
   if (near === 'xlo' || near === 'xxlo') return soldierGeoX(armor, near === 'xxlo');
   const lo = near === 'lo';
@@ -1167,10 +1168,10 @@ export class World {
         else if (nb < NT) { bm.setMatrixAt(nb, d.matrix); bm.setColorAt(nb, tc); nb++; }
       }
       sm.count = ns; bm.count = nb;
-      // 画質「低」（携帯）：遠くの森は二本に一本だけ描く（霞の中の影絵なので数を減らしても森に見える。置き方の乱数は変えない）
+      // 画質「低」（携帯）：遠くの森は三本に一本だけ描く（霞の中の影絵なので数を減らしても森に見える。置き方の乱数は変えない）
       if (SETTINGS.quality === 'low') for (const m of [sm, bm]) {
-        const A = m.instanceMatrix.array, C = m.instanceColor.array, n = Math.ceil(m.count / 2);
-        for (let j = 1; j < n; j++) { A.copyWithin(j * 16, j * 32, j * 32 + 16); C.copyWithin(j * 3, j * 6, j * 6 + 3); }
+        const A = m.instanceMatrix.array, C = m.instanceColor.array, n = Math.ceil(m.count / 3);
+        for (let j = 1; j < n; j++) { A.copyWithin(j * 16, j * 48, j * 48 + 16); C.copyWithin(j * 3, j * 9, j * 9 + 3); }
         m.count = n;
       }
       if (SETTINGS.quality === 'low') { this.viewCull([sm], 0); this.viewCull([bm], 0); }
@@ -2016,6 +2017,8 @@ export class World {
       for (let k = 1; k < P.count; k++) { const x = P.getX(k), y = P.getY(k), a = Math.atan2(y, x); const m = 1 + Math.sin(a * f1 + p1) * 0.22 + Math.sin(a * f2 + p2) * 0.1; P.setXY(k, x * m, y * m); }
       g.rotateX(-Math.PI / 2); return g;
     });
+    // 水たまりは一つずつ描く（一つ一回）ので、画質「低」（携帯）は 8 つまで
+    if (SETTINGS.quality === 'low') n = Math.min(n, 8);
     for (let i = 0; i < n && paths.length; i++) {
       const p = paths[Math.floor(R() * paths.length)];
       const k = Math.floor(R() * (p.length - 1)), t = R();
@@ -2134,6 +2137,8 @@ export class World {
     if (!SHADE_GEO) { SHADE_GEO = new THREE.CircleGeometry(0.62, 10); SHADE_GEO.rotateX(-Math.PI / 2); SHADE_GEO.scale(1.25, 1, 1); SHADE_GEO.translate(0, 0.05, 0); }
     const shade = new THREE.InstancedMesh(SHADE_GEO, armyShader(new THREE.MeshLambertMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false }), U), N);
     copyTo(shade, all); shade.renderOrder = 1; grp.add(shade);
+    // 画質「低」（携帯）：足もとの影の板は描かない（一隊に一回・遠目には見えない）
+    if (SETTINGS.quality === 'low') shade.visible = false;
     // 馬
     let horses = null;
     if (riders.length) {
@@ -2156,13 +2161,13 @@ export class World {
       // 霧の奥（見通しの一倍半より先）はほとんど見えないので描かない
       const vis = this.vis || 230, gone = dd > vis * 1.5 + 30;
       const near0 = Math.min(110, vis * 0.6);
-      const keep = (dd < near0 ? 1 : Math.max(0.4, 1 - (dd - near0) / 260)) * lowKeep();
-      return { n: gone ? 0 : Math.max(A.nImp, Math.ceil(N * keep)), flags: !gone && dd < Math.min(190, vis), gone };
+      const keep = (dd < near0 ? 1 : Math.max(0.4, 1 - (dd - near0) / 260)) * lowKeep(dd);
+      return { n: gone ? 0 : Math.max(A.nImp, Math.ceil(N * keep)), flags: !gone && dd < Math.min(SETTINGS.quality === 'low' ? 110 : 190, vis), gone };
     };
     body.onBeforeRender = (r, sc, cam) => { body.count = lod(cam).n; };
     flags.onBeforeRender = (r, sc, cam) => { const l = lod(cam); flags.count = l.flags ? l.n : 0; };
     //   馬も、低（携帯）では数を減らす（lowKeep）
-    const lodAll = (mesh) => { const n0 = mesh.count; mesh.onBeforeRender = (r, sc, cam) => { mesh.count = lod(cam).gone ? 0 : Math.ceil(n0 * (mesh === horses ? lowKeep() : 1)); }; };
+    const lodAll = (mesh) => { const n0 = mesh.count; mesh.onBeforeRender = (r, sc, cam) => { mesh.count = lod(cam).gone ? 0 : Math.ceil(n0 * (mesh === horses ? lowKeep(150) : 1)); }; };
     if (banners) lodAll(banners);
     if (horses) lodAll(horses);
     // 後詰め：隊の後ろに、同じ旗の軽い兵を厚く続ける（地平を埋める奥行き。本体と同じ動き・崩れ方。戦の数や置き換えには入れない）
@@ -2477,13 +2482,14 @@ export class World {
       cw.set(cx, 0, cz).add(mesh.position); if (mesh.parent) cw.applyMatrix4(mesh.parent.matrixWorld);
       const dd = Math.hypot(cam.position.x - cw.x, cam.position.z - cw.z), vis = this.vis || 230;
       const gone = dd > vis * 1.5 + 30 + realDepth / 2;
-      return { gone, keep: (dd < 90 ? 1 : Math.max(0.35, 1 - (dd - 90) / 280)) * lowKeep(), flags: !gone && dd < Math.min(200, vis) };
+      return { gone, keep: (dd < 90 ? 1 : Math.max(0.35, 1 - (dd - 90) / 280)) * lowKeep(dd, true), flags: !gone && dd < Math.min(SETTINGS.quality === 'low' ? 90 : 200, vis) };
     };
     body.onBeforeRender = (r, sc, cam) => { const l = lod(body, cam); body.count = l.gone ? 0 : Math.ceil(N * l.keep); };
     // 遠い塊は、とても遠い兵の形（一人 160 面ほど）で描く（lodTick。中ほどの形は持たない）
     this.lodTwin(body, o.armor || 0x2b3140, false);
     flags.onBeforeRender = (r, sc, cam) => { const l = lod(flags, cam); flags.count = l.flags ? Math.ceil(N * l.keep) : 0; };
-    if (banners) { const nb = bear.length; banners.onBeforeRender = (r, sc, cam) => { banners.count = lod(banners, cam).gone ? 0 : nb; }; }
+    //   低（携帯）は、後詰めの幟も指物と同じ遠さまで
+    if (banners) { const nb = bear.length; banners.onBeforeRender = (r, sc, cam) => { const l = lod(banners, cam); banners.count = l.gone || (SETTINGS.quality === 'low' && !l.flags) ? 0 : nb; }; }
     for (const m of meshes) m.computeBoundingSphere();
     return { meshes, depth: realDepth, n: N };
   }
@@ -2595,6 +2601,8 @@ export class World {
       }
       // 遠くで間引く時に後ろの列がまだらに残るよう、後ろの者は混ぜる
       for (let i = S.far.length - 1; i > 0; i--) { const q = Math.floor(R() * (i + 1)); [S.far[i], S.far[q]] = [S.far[q], S.far[i]]; }
+      // 画質「低」（携帯）：前の列も混ぜておく（遠くで前の列を間引く時に、塊ごと欠けないように。乱数の並びは変えない）
+      if (SETTINGS.quality === 'low') for (let i = S.near.length - 1; i > 0; i--) { const q = (i * 7919 + 13) % (i + 1); [S.near[i], S.near[q]] = [S.near[q], S.near[i]]; }
       S.all = S.near.concat(S.far);
       const matB = clashShader(new THREE.MeshLambertMaterial({ vertexColors: true }), U);
       const lowG = SETTINGS.quality === 'low';   // 低（携帯）は前の列も五角の軽い形
@@ -2649,11 +2657,12 @@ export class World {
       const lx = Math.max(0, Math.abs(dx * cf - dz * sf) - W / 2), lz = Math.max(0, Math.abs(dx * sf + dz * cf) - 12);
       const dd = Math.hypot(lx, lz), vis = this.vis || 230;
       const gone = dd > vis * 1.5 + 30, near0 = Math.min(90, vis * 0.5);
-      return { gone, keep: (dd < near0 ? 1 : Math.max(0.3, 1 - (dd - near0) / 220)) * lowKeep(), flags: !gone && dd < Math.min(170, vis) };
+      return { gone, dd, keep: (dd < near0 ? 1 : Math.max(0.3, 1 - (dd - near0) / 220)) * lowKeep(dd), flags: !gone && dd < Math.min(SETTINGS.quality === 'low' ? 110 : 170, vis) };
     };
     for (const S of [C.A, C.B]) {
       const M = S.meshes, nF = S.far.length, nA = S.all.length, nN = S.near.length;
-      M.bodyN.onBeforeRender = (r, sc, cam) => { M.bodyN.count = lod(cam).gone ? 0 : nN; };
+      //   低（携帯）：背の指物を描かない遠さでは、前の列も間引く（指物は兵と同じ番号で並ぶので、指物のある内は間引かない）
+      M.bodyN.onBeforeRender = (r, sc, cam) => { const l = lod(cam); M.bodyN.count = l.gone ? 0 : l.flags || SETTINGS.quality !== 'low' ? nN : Math.ceil(nN * Math.min(1, lowKeep(l.dd) * 1.5)); };
       M.bodyF.onBeforeRender = (r, sc, cam) => { const l = lod(cam); M.bodyF.count = l.gone ? 0 : Math.ceil(nF * l.keep); };
       M.flags.onBeforeRender = (r, sc, cam) => { const l = lod(cam); M.flags.count = l.flags ? nN + Math.ceil(nF * l.keep) : 0; };
       const nb0 = M.banners.count;
@@ -3057,7 +3066,7 @@ export class World {
   // 本物の兵の遠い者を、軽い兵の形でまとめて描く（units.js の Army.updateImpostors が使う）
   // 甲冑の色と旗ごとに一つ。一人ずつの形の代わりに、胴・旗の二度の描画で何十人も描ける
   // 返す物：{ put(i, x, z, yaw, k, helm, ex, flag, sd), commit(n), dispose() }（k は軽い兵の種類：0 槍 1 鉄砲 2 弓 3 侍）
-  makeImpostor(armor, flag, cap = 160) {
+  makeImpostor(armor, flag, cap = 160, far = false) {
     if (!this.hgtTex) {
       const t = new THREE.DataTexture(this.grid, SEG + 1, SEG + 1, THREE.RedFormat, THREE.FloatType);
       t.needsUpdate = true;
@@ -3075,8 +3084,8 @@ export class World {
       g.setAttribute('aHost', new THREE.InstancedBufferAttribute(new Float32Array(cap), 1));
       return g;
     };
-    // 画質「低」（携帯）：まとめて描く遠い兵は、角の少ない遠い形（一人 1100 面 → 300 面ほど。低では 12m より先の兵だけ）
-    const body = new THREE.InstancedMesh(mk(soldierGeo(armor, SETTINGS.quality === 'low' ? 'lo' : true)), armyShader(new THREE.MeshLambertMaterial({ vertexColors: true }), U), cap);
+    // 画質「低」（携帯）：まとめて描く遠い兵は、角の少ない遠い形（一人 1100 面 → 300 面ほど。低では 12m より先の兵だけ。far：18m より先の兵の束は、さらに軽い形）
+    const body = new THREE.InstancedMesh(mk(soldierGeo(armor, far ? 'xlo' : SETTINGS.quality === 'low' ? 'lo' : true)), armyShader(new THREE.MeshLambertMaterial({ vertexColors: true }), U), cap);
     const flags = new THREE.InstancedMesh(mk(SASHI_GEO), armyShader(new THREE.MeshLambertMaterial({ map: flagTexture(flag || 'tokugawa'), side: THREE.DoubleSide }), U), cap);
     for (const m of [body, flags]) { m.count = 0; m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); this.scene.add(m); }
     const col = new THREE.Color(1, 1, 1);
@@ -4309,6 +4318,8 @@ export class World {
       for (let i = 0; i < C.N; i++) {
         const dx = P[i * 2] - px, dz = P[i * 2 + 1] - pz, d2 = dx * dx + dz * dz;
         if (d2 > nr2 && dx * fx + dz * fz < 0.2 * Math.sqrt(d2) - 8) continue;
+        // 近くの木（near のある物）は、90m より先を二本に一本・160m より先を四本に一本（霞の中で森の塊に見えれば足りる）
+        if (nr2 && ((d2 > 8100 && (i & 1)) || (d2 > 25600 && (i & 2)))) continue;
         for (const o of C.orig) { o.m.instanceMatrix.array.set(o.mat.subarray(i * 16, i * 16 + 16), n * 16); if (o.col) o.m.instanceColor.array.set(o.col.subarray(i * 3, i * 3 + 3), n * 3); }
         n++;
       }

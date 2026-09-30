@@ -605,7 +605,7 @@ hieizan.botBrain = (b, inp, { goTo }) => {
   }
   inp.guardHold = false;
   if (F.step === 3) { const t = [F.gosei, F.gosei2].find((q) => q && !gone(q)); if (t) { const c = t.center(); goTo(p, inp, c.x, c.z, 2); return; } }
-  if (F.step === 2) { goTo(p, inp, GATE.x + 8, 6, 2); return; }
+  if (F.step === 2) { goTo(p, inp, GATE.x + 8, 0, 2); return; }
   if (F.step === 1) { goTo(p, inp, GATE.x + 20, 2, 3); return; }
   const a = F.akeU.pos; goTo(p, inp, a.x + 4, a.z + 3, 3);
 };

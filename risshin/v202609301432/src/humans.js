@@ -25,7 +25,7 @@ export const HUM = { fx: true, ready: false, failed: false, on: true, near: 42, 
 // 画質ごとの数（「低」は今の形のまま）
 // 画質「低」でも自分（と名のある武将のごく近く）だけは本物の体にする
 // must：この近さ（m）より内の兵は、上限を越えても必ず骨の入った人にする（カメラの前に軽い形の兵を出さない）。その分は遠い者から軽い形へ
-export const HUM_Q = { high: { near: 42, max: 70, must: 34, mustMax: 120 }, mid: { near: 32, max: 40, must: 29, mustMax: 110 }, low: { near: 9, max: 8, far: 12, face: 0 } };   // 低（iPhone）も目の前の数人は骨の入った人に（手と腕が軽い筒の形のまま写らないよう）
+export const HUM_Q = { high: { near: 42, max: 70, must: 34, mustMax: 120 }, mid: { near: 32, max: 40, must: 29, mustMax: 110 }, low: { near: 9, max: 4, far: 12, face: 0 } };   // 低（iPhone）も目の前の数人は骨の入った人に（手と腕が軽い筒の形のまま写らないよう）
 const q0 = new THREE.Quaternion(), q1 = new THREE.Quaternion(), v0 = new THREE.Vector3(), v1 = new THREE.Vector3(), v2 = new THREE.Vector3(), v3 = new THREE.Vector3(), m0 = new THREE.Matrix4(), m1 = new THREE.Matrix4();
 
 let SRC = null;      // 元の体（骨・形・動き・骨ごとの位置）
@@ -572,13 +572,96 @@ export function loadDomaru() {
   })().catch((e) => { DOMARU.failed = true; DOMARU.err = String(e && e.stack || e).slice(0, 400); console.warn('本物の胴丸を読めませんでした（今の形で描きます）', e); });
   return dmLoading;
 }
+
+// 本物の兜の3Dスキャン（名のある武将の兜。胴丸の人形の兜と入れ替える）
+// ・形：assets/kabuto_lite/kabuto.glb（tools/kabuto.mjs で台と中の支えと面頬を取り、約1万6千面と約3千面に減らした物）。src/asset_kabuto.js に base64 で入れてある
+// ・作者表記（CC BY 4.0）：This work is based on "Samurai Helmet - 3D Scan" by chrr273u（コペンハーゲン国立博物館の兜。docs/CREDITS.md）
+// ・形の座標：錣の裾が y=0、鉢の軸が x=z=0、前が +z、1 = 1m。頭の骨（Head）の立ち姿の位置から KB_FIT だけずらしてかぶせる
+export const KABUTO = { on: true, ready: false, failed: false };
+const KB_FIT = { y: -0.03, z: 0.012, s: 1.04 };
+let KB = null, kbLoading = null;
+export function loadKabuto() {
+  if (kbLoading) return kbLoading;
+  kbLoading = (async () => {
+    const b64 = (await import('./asset_kabuto.js')).default;
+    const bin = atob(b64), buf = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    const [gl, col] = await Promise.all([
+      new GLTFLoader().parseAsync(buf.buffer, ''),
+      new THREE.TextureLoader().loadAsync(new URL('../assets/kabuto_lite/kabuto_col.jpg', import.meta.url).href),
+    ]);
+    col.flipY = false; col.colorSpace = THREE.SRGBColorSpace; col.anisotropy = 8;
+    const geo = {};
+    gl.scene.traverse((o) => { if (o.isMesh) { o.geometry.computeVertexNormals(); geo[o.name] = o.geometry; } });
+    // スキャンの絵は光が焼き込まれているので、照らしは控えめ（粗さ高め）。裏（鉢の内・錣の裏）は暗く
+    const mat = new THREE.MeshStandardMaterial({ map: col, roughness: 0.62, metalness: 0.18, envMapIntensity: 0.8, side: THREE.DoubleSide });
+    mat.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= gl_FrontFacing ? 0.82 : 0.25;'); };
+    mat.customProgramCacheKey = () => 'kabuto';
+    KB = { hi: geo.hi, lo: geo.lo, mat, menpo: null };
+    KABUTO.ready = true;
+    // 面頬（denis_cliofas「Menpō - Samurai Mask」CC BY 4.0）：名のある武将で面頬を付ける人に。読めなければ今の打ち出しの面頬のまま
+    try {
+      const mb = (await import('./asset_menpo.js')).default, mbin = atob(mb), mbuf = new Uint8Array(mbin.length);
+      for (let i = 0; i < mbin.length; i++) mbuf[i] = mbin.charCodeAt(i);
+      const tl = new THREE.TextureLoader();
+      const [mg, mc, mn] = await Promise.all([new GLTFLoader().parseAsync(mbuf.buffer, ''), ...['menpo_col.jpg', 'menpo_nrm.jpg'].map((f) => tl.loadAsync(new URL('../assets/menpo_lite/' + f, import.meta.url).href))]);
+      mc.flipY = false; mn.flipY = false; mc.colorSpace = THREE.SRGBColorSpace; mc.anisotropy = 4;
+      let g = null; mg.scene.traverse((o) => { if (o.isMesh) g = o.geometry; });
+      g.computeVertexNormals();
+      KB.menpo = { geo: g, mc, mn, mats: new Map() };
+    } catch (e) { console.warn('面頬の形を読めませんでした（今の面頬で描きます）', e); }
+  })().catch((e) => { KABUTO.failed = true; KABUTO.err = String(e && e.stack || e).slice(0, 400); console.warn('本物の兜を読めませんでした（胴丸の兜で描きます）', e); });
+  return kbLoading;
+}
+// 名のある武将の顔に、面頬の形を付ける（頭の骨の立ち姿の位置から MP_FIT だけずらす。形は上の縁が y=0・奥が z=0・前が +z）
+const MP_FIT = { y: 0.08, z: 0.04, s: 1.2 };
+// 色：絵は朱漆。武将の面頬の色（look.menpo）が赤でなければ、絵の明るさだけを残してその色の漆に塗り替える
+function menpoMat(col) {
+  const c = new THREE.Color(col || 0x6a1c14), hsl = c.getHSL({});
+  const red = hsl.s > 0.4 && (hsl.h < 0.05 || hsl.h > 0.95);
+  const key = red ? 'red' : c.getHex();
+  const M = KB.menpo.mats;
+  if (!M.has(key)) {
+    const m = new THREE.MeshStandardMaterial({ map: KB.menpo.mc, normalMap: KB.menpo.mn, roughness: 0.42, metalness: 0.15, side: THREE.DoubleSide });
+    const tint = c.clone().multiplyScalar(2.2);
+    m.onBeforeCompile = (sh) => {
+      sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+        { float lum = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11));
+          ${red ? 'diffuseColor.rgb = mix(vec3(lum), diffuseColor.rgb, 0.8) * 0.85;' : `diffuseColor.rgb = min(vec3(1.0), vec3(${tint.r.toFixed(3)}, ${tint.g.toFixed(3)}, ${tint.b.toFixed(3)}) * (0.35 + lum));`} }
+        diffuseColor.rgb *= gl_FrontFacing ? 1.0 : 0.3;`);
+    };
+    m.customProgramCacheKey = () => 'menpo|' + key;
+    M.set(key, m);
+  }
+  return M.get(key);
+}
+function dressMenpo(h) {
+  const hd = SRC.rest.Head, k = MP_FIT.s;
+  const fit = new THREE.Matrix4().makeTranslation(hd.x, hd.y + MP_FIT.y, hd.z + MP_FIT.z).multiply(new THREE.Matrix4().makeScale(k, k, k));
+  const m = attachBody(h, 'Head', KB.menpo.geo, fit, menpoMat(h.look && (h.look.menpoScan || h.look.menpo)));
+  h.parts.menpo = m;
+}
+// 名のある武将の頭に、本物の兜をかぶせる（遠くは軽い形）
+function dressKabuto(h) {
+  const hd = SRC.rest.Head, k = KB_FIT.s;
+  const fit = new THREE.Matrix4().makeTranslation(hd.x, hd.y + KB_FIT.y, hd.z + KB_FIT.z).multiply(new THREE.Matrix4().makeScale(k, k, k));
+  const m = attachBody(h, 'Head', KB.hi, fit, KB.mat);
+  m.frustumCulled = true;
+  m.onBeforeRender = (r, s, cam) => {
+    const e = m.matrixWorld.elements, c = cam.matrixWorld.elements;
+    const d2 = (e[12] - c[12]) ** 2 + (e[13] - c[13]) ** 2 + (e[14] - c[14]) ** 2;
+    const want = !cam.isOrthographicCamera && d2 < DOMARU.near * DOMARU.near ? KB.hi : KB.lo;
+    if (m.geometry !== want) m.geometry = want;
+  };
+  h.parts.kabuto = m;
+}
 // 題の画面がまだ組み終わらないうちから、裏で読み始める（main.js の title() の 1.5秒待ちより早く始まる。
 // loadHumans/loadDomaru は呼び直しても平気（読み込み中・読み終わりはそのまま使い回す＝ loading/dmLoading）ので、
 // ここで早く一度始めておけば、遅い回線でも戦に入る時（main.js の5秒の上限）に間に合いやすくなる
 if (typeof window !== 'undefined') {
   setTimeout(() => {
     if (window.__norender === true || (typeof location !== 'undefined' && /[?&]norender/.test(location.search))) return;
-    loadHumans(); loadDomaru();
+    loadHumans(); loadDomaru(); loadKabuto();
   }, 150);
 }
 // 本物の胴丸を着る人：名のある武将と、look.real の人（侍大将より上の本人）
@@ -836,6 +919,51 @@ export async function displayArmor({ scale = 1 } = {}) {
   m.castShadow = true; m.receiveShadow = true;
   g.add(m);
   g.scale.setScalar(scale);
+  return g;
+}
+
+// 本陣の飾りの具足一式（櫃に腰掛けた姿の3Dスキャン。約2万面・遠くは4千面）。読み込みを待ってから返す
+// ・yoroi：國學院大學栃木学園参考館「yoroi」（CC BY 4.0）。既定はこれ
+// ・tokyo：TokyoDigitalHeritage「Samurai Armor, Tokyo National Museum (Ueno)」（CC BY 4.0）。館の中での撮影の決まり（写真の商用利用）を kaito が確かめるまでは出さない（YOROI.tokyo を true にすると出る）
+// 形は台（櫃）の底が y=0、前が +z。使い方：const g = await displayYoroi(); g.position.set(x, 地面, z); g.rotation.y = 向き; scene.add(g)
+export const YOROI = { on: true, tokyo: false };
+let YR = null, yrLoading = null;
+function loadYoroi() {
+  if (yrLoading) return yrLoading;
+  yrLoading = (async () => {
+    const b64 = (await import('./asset_yoroi.js')).default;
+    const bin = atob(b64), buf = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    const gl = await new GLTFLoader().parseAsync(buf.buffer, '');
+    YR = { geo: {}, mat: {} };
+    gl.scene.traverse((o) => { if (o.isMesh) { o.geometry.computeVertexNormals(); YR.geo[o.name] = o.geometry; } });
+  })().catch((e) => { YR = null; console.warn('飾りの具足を読めませんでした', e); });
+  return yrLoading;
+}
+export async function displayYoroi({ kind = 'yoroi', scale = 1 } = {}) {
+  if (!YOROI.on || (kind === 'tokyo' && !YOROI.tokyo)) return null;
+  await loadYoroi();
+  if (!YR || !YR.geo[kind]) return null;
+  if (!YR.mat[kind]) {
+    const col = await new THREE.TextureLoader().loadAsync(new URL('../assets/yoroi_lite/' + kind + '_col.jpg', import.meta.url).href);
+    col.flipY = false; col.colorSpace = THREE.SRGBColorSpace; col.anisotropy = 8;
+    // スキャンの絵は館の明かりが焼き込まれているので、照らしは控えめに（粗く、少し暗く）
+    const m = new THREE.MeshStandardMaterial({ map: col, color: 0xd8d8d8, roughness: 0.78, metalness: 0.05, side: THREE.DoubleSide });
+    m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= gl_FrontFacing ? 1.0 : 0.3;'); };
+    m.customProgramCacheKey = () => 'yoroi';
+    YR.mat[kind] = m;
+  }
+  const hi = YR.geo[kind], lo = YR.geo[kind + '_lo'] || hi;
+  const m = new THREE.Mesh(hi, YR.mat[kind]);
+  m.castShadow = true; m.receiveShadow = true;
+  // 近く（25m の内）だけ細かい形
+  m.onBeforeRender = (r, s, cam) => {
+    const e = m.matrixWorld.elements, c = cam.matrixWorld.elements;
+    const want = !cam.isOrthographicCamera && (e[12] - c[12]) ** 2 + (e[13] - c[13]) ** 2 + (e[14] - c[14]) ** 2 < 625 ? hi : lo;
+    if (m.geometry !== want) m.geometry = want;
+  };
+  const g = new THREE.Group();
+  g.add(m); g.scale.setScalar(scale);
   return g;
 }
 
@@ -1661,7 +1789,14 @@ export function makeHuman(u, look0) {
   tm('fits', () => fits());
   h.domaru = DOMARU.ready && wantsDomaru(L);
   // 名のある武将：胴丸の人形の兜と顔は描かず、その人の兜・顔・陣羽織・母衣・腰の刀を付ける
-  if (h.domaru) { h.mode = 'full'; const nd = isNamed(L); h.helmScan = nd; tm('domaru', () => dressDomaru(h, nd ? 'helm' : false)); if (nd) tm('named', () => dressNamed(h, P, L)); }
+  if (h.domaru) {
+    h.mode = 'full'; const nd = isNamed(L); h.helmScan = nd;
+    // 本物の兜が読めていれば、胴丸の人形の兜は描かずに、兜のスキャンをかぶせる
+    const kb = nd && KABUTO.on && KABUTO.ready;
+    tm('domaru', () => dressDomaru(h, nd ? (kb ? true : 'helm') : false));
+    if (kb) tm('kabuto', () => dressKabuto(h));
+    if (nd) tm('named', () => dressNamed(h, P, L));
+  }
   else if (L.hero || u.isPlayer) { h.mode = 'full'; tm('parts', () => dressParts(h, P, L)); }
   else if (DOMARU.ready && crowdDomaru(L)) { h.domaru = true; tm('domaru', () => dressDomaru(h, true)); tm('crowd', () => dressCrowd(h, P, L, DM_KEEP, look)); }
   else tm('crowd', () => dressCrowd(h, P, L, null, look));
@@ -1775,10 +1910,10 @@ function splitKusazuri(h, L) {
 const NAMED_KEEP = new Set(['hat', 'haori', 'back', 'koshi', 'pole']);
 function dressNamed(h, P, L) {
   layParts(P, L, (k, nm, geo, fit) => {
-    if (k === 'face') { if (HEAD) { h.parts.face = scanFace(h, L.face, L, P.F, true); if (L.menpoScan) { const a = performance.now(); scanMenpo(h.parts.face, L.face, L.menpoScan); const TX = HSTAT.tx || (HSTAT.tx = {}); TX.menpo = +((TX.menpo || 0) + performance.now() - a).toFixed(1); } } return; }
+    if (k === 'face') { if (HEAD) { h.parts.face = scanFace(h, L.face, L, P.F, true); if (L.menpoScan) { const a = performance.now(); if (h.parts.kabuto && KB.menpo) dressMenpo(h); else scanMenpo(h.parts.face, L.face, L.menpoScan); const TX = HSTAT.tx || (HSTAT.tx = {}); TX.menpo = +((TX.menpo || 0) + performance.now() - a).toFixed(1); } } return; }
     // 兜は少し深くかぶる（眉庇が眉の上に来るように）
     // 兜はスキャンの胴丸の兜（本人と同じ作り）を使い、この人の形の兜からは前立・脇立・後立・毛だけを取って載せる
-    if (k === 'hat') { geo = crestOnly(geo); fit = fit.clone().multiply(new THREE.Matrix4().makeTranslation(0, CREST_OFF.y, CREST_OFF.z)); }
+    if (k === 'hat') { const o = h.parts.kabuto ? CREST_OFF_KB : CREST_OFF; geo = crestOnly(geo); fit = fit.clone().multiply(new THREE.Matrix4().makeTranslation(0, o.y, o.z)); }
     if (NAMED_KEEP.has(k)) h.parts[k] = attachBody(h, nm, geo, fit);
   });
   h.F = P.F;
@@ -1796,6 +1931,7 @@ function dressNamed(h, P, L) {
 // 兜の形から、鉢・錣・吹返し・眉庇を除き、前立などの飾りだけを残す（三角の中心で選ぶ）
 // 残す物：白い毛（諏訪法性の白熊）、眉庇より上で金の物、鉢から離れて立つ物（鹿角・鯰尾・天衝）
 const CREST_OFF = { y: -0.033, z: -0.03 };   // y は兜の下げ（HELM_FIT.dy）に合わせる
+const CREST_OFF_KB = { y: -0.01, z: 0.04 };   // 本物の兜の時（鉢の前の龍より前へ）
 const crestGeos = new Map();
 function crestOnly(g) {
   if (!g) return g;
@@ -4086,7 +4222,7 @@ function humansStep(rt, dt, army, cam) {
     // 名のある武将は本人と同じ扱い：60m（画質の far がそれより遠ければそこ）まで必ず骨の入った人にし、数の上限でも先に取る
     const lim = u.isPlayer ? 1e9 : named ? Math.max(60, Q.far ?? HUM.far) : Q.near;
     if (d >= lim) continue;
-    if (!dmLoading && (wantsDomaru(u.look) || crowdDomaru(u.look))) loadDomaru();
+    if (!dmLoading && (wantsDomaru(u.look) || crowdDomaru(u.look))) loadDomaru(); if (!kbLoading && wantsDomaru(u.look)) loadKabuto();
     // 倒れた者：カメラの近く（HUM.dead より手前）は人にする（寝た体が棒や丸太に見えないよう）。その先は、もう人になっている者だけ（倒れてしばらく）
     if (!u.alive && d >= HUM.dead && !(u.human && humans.has(u.human) && (u.human.deadAge || 0) < 40)) continue;
     _sph.center.set(u.pos.x, u.pos.y + 1.2, u.pos.z);

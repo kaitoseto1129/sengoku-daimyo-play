@@ -260,6 +260,15 @@ function nearHide(rt) {
 export function honjin(rt, x, z, o = {}) {
   const c = jinCamp(rt.world, x, z, o);
   rt.scene.add(c);
+  // 大将の床几の左奥に、櫃に据えた飾りの具足（本物の3Dスキャン。読み終わってから置く。描かない時は置かない）
+  if (o.yoroi !== false && typeof window !== 'undefined' && !(window.__norender === true || /[?&]norender/.test(location.search))) {
+    const d = o.d || 12, w = o.w || 16, yx = x - Math.min(3.4, w / 2 - 1.2), yz = z - d / 2 + 1.3;
+    import('./humans.js').then((H) => H.displayYoroi()).then((g) => {
+      if (!g || !c.parent) return;
+      g.position.set(yx, rt.world.heightAt(yx, yz), yz); g.rotation.y = 0.25;
+      c.add(g);
+    }).catch(() => {});
+  }
   return c;
 }
 // 遠景の村

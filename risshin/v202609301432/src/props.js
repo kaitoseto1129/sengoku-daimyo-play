@@ -203,8 +203,14 @@ export function jinmaku(world, cx, cz, w, d, gapSouth = 6, o = {}) {
     [cx + gapSouth / 2, cz + d / 2, cx + w / 2, cz + d / 2],
   ];
   const poles = [], cloths = [];
-  // 幕は通り抜けられない（開いた口だけ通れる）
-  if (o.solid !== false) for (const [ax, az, bx, bz] of sides) if (Math.hypot(bx - ax, bz - az) > 0.5) solidSeg(ax, az, bx, bz, 0.12);
+  // 幕は通り抜けられない（開いた口だけ通れる）。角は少し内側で切って、角に押し込まれて詰まらないようにする
+  if (o.solid !== false) for (const [ax, az, bx, bz] of sides) {
+    const len = Math.hypot(bx - ax, bz - az);
+    if (len <= 0.5) continue;
+    const inset = Math.min(0.6, len * 0.1);
+    const t = inset / len;
+    solidSeg(ax + (bx - ax) * t, az + (bz - az) * t, bx - (bx - ax) * t, bz - (bz - az) * t, 0.12);
+  }
   for (const [ax, az, bx, bz] of sides) {
     const len = Math.hypot(bx - ax, bz - az);
     if (len < 0.5) continue;

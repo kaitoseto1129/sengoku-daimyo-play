@@ -23,7 +23,7 @@ const KYO = { x: 0, z: -55, r: 13 };        // 京極丸
 const KOM = { x: 0, z: -100, r: 12 };       // 小丸（久政）
 const VALLEY = { x: 84, z: -50 };           // 東の谷（登り口）
 const CAMP = { x: 110, z: -20 };            // 谷の織田の陣
-const CLIMB = [[VALLEY.x, VALLEY.z], [56, -54], [30, -56], [KYO.x + KYO.r + 2, KYO.z]];
+const CLIMB = [[VALLEY.x, VALLEY.z], [56, -54], [43, -55], [30, -56], [KYO.x + KYO.r + 2, KYO.z]];
 // お市の方の一行が下る道：本丸の北の口 → 京極丸 → 東の口 → 谷
 const ESCORT = [[0, -18], [0, -40], [2, -52], [KYO.x + KYO.r + 2, KYO.z], [30, -56], [56, -54], [VALLEY.x, VALLEY.z]];
 const ODA = { flag: 'oda' };
@@ -40,7 +40,8 @@ function height(x, z) {
   let h = 0.5 * Math.sin(x * 0.04 + 0.3) * Math.cos(z * 0.03) + 0.3 * Math.sin(z * 0.08 + x * 0.02);
   // 小谷山の尾根（上は平らに削った曲輪が並ぶ）
   const ax = Math.max(0, Math.abs(x) - 9);
-  h += ridgeH(z) * Math.exp(-(ax * ax) / 1500);
+  // 谷から尾根への登り（x=56〜30）が崖のように急すぎて詰まったので、勾配を緩める
+  h += ridgeH(z) * Math.exp(-(ax * ax) / 4000);
   // 西の山並みと、東の谷の向こうの山（虎御前山）
   h += 22 * gauss(x, z, -110, -40, 3000) + 16 * gauss(x, z, 170, 40, 2600);
   return h;

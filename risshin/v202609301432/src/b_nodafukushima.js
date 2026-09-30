@@ -523,7 +523,10 @@ nodafukushima.botBrain = (b, inp, { goTo }) => {
   if (u.hp < u.maxHp * 0.5) b.botRest = true;
   if (b.botRest && u.hp > u.maxHp * 0.85) b.botRest = false;
   if (b.botRest) { inp.guardHold = false; goTo(p, inp, 4, 14, 2); return; }
-  const e = b.army.nearestEnemy(u, F.step >= 2 ? 12 : 5, (o) => !o.fleeing && o.pos.z > FORT_Z + 2);
+  // 竹束を運ぶ最中（step1）は、柵際まで釣られて詰まらないよう、すぐ側の敵だけを見る
+  const e = F.step === 1
+    ? b.army.nearestEnemy(u, 3.5, (o) => !o.fleeing && o.pos.z > FORT_Z + 2)
+    : b.army.nearestEnemy(u, F.step >= 2 ? 12 : 5, (o) => !o.fleeing && o.pos.z > FORT_Z + 2);
   if (e) {
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
     p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);

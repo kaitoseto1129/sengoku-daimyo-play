@@ -107,7 +107,8 @@ const nagashima = {
     namuTex();
     // ---- 中江の砦（島の上）：土塁の上の柵と小屋・櫓 ----
     const noT = (segs) => { for (const s of segs) { s.noTarget = true; s.wall = true; } return segs; };
-    F.fwall = noT(wallLine(rt, [[-30, -56], [-10, -52], [10, -52], [30, -56]], { team: 1, hp: 1e9, name: '柵', segLen: 5, gaps: [4] }));
+    // 虎口は中央 (0,-52) に来るよう、隙間を2区画に広げる（元は -10〜-5 に寄っていて、中央は柵にぶつかって詰まっていた）
+    F.fwall = noT(wallLine(rt, [[-30, -56], [-10, -52], [10, -52], [30, -56]], { team: 1, hp: 1e9, name: '柵', segLen: 5, gaps: [4, 5] }));
     for (const [x, z, r] of [[-16, -68, 0.1], [14, -72, -0.2], [26, -64, 0.3], [-8, -96, 0], [16, -94, 0.2], [-24, -84, -0.2]]) rt.scene.add(hut(W, x, z, 7, 5, r, { wall: 0x6a5a44 }));
     rt.scene.add(yagura(W, -20, -60), yagura(W, 20, -60));
     for (const [x, z] of [[-26, -60], [-4, -58], [14, -58], [30, -62]]) rt.scene.add(nobori(W, x, z, 'namu', 6.5));

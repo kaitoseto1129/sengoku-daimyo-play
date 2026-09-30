@@ -531,23 +531,25 @@ export class Army {
     if (cam) this.impCam = { x: cam.x, z: cam.z };
     for (const st of I.values()) st.n = 0;
     // まとめて描き始める遠さは画質で変える（低 28m・中 38m・高 48m）
-    //   低（携帯）は 12m（その内は骨の入った人か細かい形）：その先の兵は一人ずつ描かず（一人 10 回ほど描いていた）、束で描く
-    const impFar = IMP.far === 48 ? ({ low: 12, mid: 38 }[S.quality] ?? 48) : IMP.far;
+    //   低（携帯）は 6m（骨の入った人になっている兵は束に入れない）：その先の兵は一人ずつ描かず（一人 10 回ほど描いていた）、束で描く
+    const impFar = IMP.far === 48 ? ({ low: 6, mid: 38 }[S.quality] ?? 48) : IMP.far;
     for (const u of this.units) {
       const k = IMP_KIND[u.type];
-      const far = IMP.on && u.alive && !u.isPlayer && !u.isSub && !u.mounted && k !== undefined && !u.name && !(u.fall > 0) && u.look
-        && u.camD > (u.imp ? impFar - 6 : impFar);
+      const far = IMP.on && u.alive && !u.isPlayer && !u.isSub && !u.mounted && k !== undefined && !u.name && !(u.fall > 0) && u.look && !(u.human && u.human.root && u.human.root.visible)
+        && u.camD > (u.imp ? impFar - Math.min(6, impFar * 0.25) : impFar);
       if (!far) { if (u.imp) { u.imp = false; if (u.mesh && !u.gone) u.mesh.visible = true; } continue; }
       u.imp = true;
       u.mesh.visible = false;
       // 一つの束（160 人）があふれたら、同じ甲冑と旗の二つ目・三つ目の束へ（あふれた兵を一人ずつ描かない）
       // 束の名（甲冑と旗）は兵ごとに一度だけ作る（毎コマ字をつながない）
       if (u.impLook !== u.look) { u.impLook = u.look; u.impKey = u.look.armor + '|' + (u.look.flag || ''); }
-      const key0 = u.impKey;
+      //   低（携帯）は 18m より先の兵を、さらに軽い形の別の束へ
+      const xf = S.quality === 'low' && u.camD > 18;
+      const key0 = xf ? u.impKey + '|x' : u.impKey;
       let key = key0, st = I.get(key), kk = 1;
       while (st && st.n >= st.im.cap && kk < 4) { key = key0 + '#' + kk++; st = I.get(key); }
       if (!st) {
-        st = { im: this.world.makeImpostor(u.look.armor, u.look.flag || 'tokugawa', 160), n: 0 }; I.set(key, st);
+        st = { im: this.world.makeImpostor(u.look.armor, u.look.flag || 'tokugawa', 160, xf), n: 0 }; I.set(key, st);
         // 兵の更新なしにカメラだけ大きく動いた（写真モード）：そのカメラからの遠さでまとめ直す
         st.im.onCam = (p) => {
           const c = this.impCam;
@@ -579,15 +581,26 @@ export class Army {
     if (BATCH.on && cam) {
       B.pm.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse); B.fr.setFromProjectionMatrix(B.pm);
       const ce = cam.matrixWorld.elements, cx = ce[12], cy = ce[13], cz = ce[14];
+      const W1 = B.w1 || (B.w1 = { children: [null] });
       for (const u of this.units) {
         const m = u.mesh;
+        // 落ちた陣笠（地面に一つずつ置いた形）も同じ束へ（一つずつ描かない）
+        const hat = u.hatOff;
+        if (hat && hat.parent && hat.visible) {
+          const he = hat.matrixWorld.elements, hx = he[12] - cx, hy = he[13] - cy, hz = he[14] - cz;
+          B.d2 = hx * hx + hy * hy + hz * hz;
+          B.sph.center.set(he[12], he[13] + 1.6, he[14]);
+          B.on = B.fr.intersectsSphere(B.sph);
+          B.hide = low && B.d2 > 2025;
+          W1.children[0] = hat; this.batchWalk(W1, null, tag, B);
+        }
         if (!m || !m.visible || !m.parent || u.imp || u.isPlayer) continue;
         const e = m.matrixWorld.elements, dx = e[12] - cx, dy = e[13] - cy, dz = e[14] - cz;
         B.d2 = dx * dx + dy * dy + dz * dz;
         B.sph.center.set(e[12], e[13] + 1, e[14]);
         // 画面の外の兵は、影を落とす部品だけ束ねる（影の描き込みで一つずつ描かない。見えない部品は元どおり外される）
         B.on = B.fr.intersectsSphere(B.sph);
-        // 画質「低」（携帯）：150m より先の兵（背丈が二、三画素）と、45m より先の倒れた兵は、兵の材質の部品を描かない（旗と馬はそのまま）
+        // 画質「低」（携帯）：150m より先の兵（背丈が二、三画素）と、45m より先の倒れた兵は、部品を描かない（一人ずつ描く旗・得物も）
         B.hide = low && (B.d2 > 22500 || (!u.alive && B.d2 > 2025));
         this.batchWalk(m, u.human && u.human.root, tag, B);
       }
@@ -605,10 +618,10 @@ export class Army {
     for (let i = 0; i < ch.length; i++) {
       const c = ch[i];
       if (!c.visible || c === skip) continue;
-      if (c.isMesh && c.material === MAT && (B.on || (c.castShadow && B.sh)) && !c.isSkinnedMesh && !c.isInstancedMesh) {
+      if (B.hide) { if (c.isMesh && !c.isSkinnedMesh) { c.layers.mask = 0; c.userData.bT = tag; B.cur.push(c); } }
+      else if (c.isMesh && c.material === MAT && (B.on || (c.castShadow && B.sh)) && !c.isSkinnedMesh && !c.isInstancedMesh) {
         const L = c.userData.lod;
-        if (B.hide && (L || c.onBeforeRender === NO_OBR)) { c.layers.mask = 0; c.userData.bT = tag; B.cur.push(c); }
-        else if (L || c.onBeforeRender === NO_OBR) {
+        if (L || c.onBeforeRender === NO_OBR) {
           let geo = c.geometry;
           if (L) { const nr = L[2] ?? LOD.near; geo = !LOD.on || B.d2 < nr * nr ? L[0] : L[1]; }
           const bm = c.castShadow ? B.mapC : B.map;

@@ -144,7 +144,7 @@ const tano = {
     rt.obj('main', HI(rt) ? '先手の一手を率いて谷を上り、武田の殿を退けよ' : '谷を上り、武田の殿を退けよ', 'main');
     const go = (g, x, z) => { g.order = 'move'; g.dest = { x, z }; g.speed = 2.4; g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 40; q.anchor = { x, z }; }; };
     go(F.taki, -70, 2); go(F.kawa, -84, -4);
-    F.r1 = enemyGroup(rt, { faction: 'takeda', name: '武田の殿', anchor: { x: -40, z: 2 }, facing: -Math.PI / 2, order: 'hold', aggro: 18, width: 12, morale: 95, fleeDir: { x: 1, z: 0 }, dmgMult: 0.6, formation: 'yari' },
+    F.r1 = enemyGroup(rt, { faction: 'takeda', name: '武田の殿', anchor: { x: -40, z: 2 }, facing: -Math.PI / 2, order: 'hold', aggro: 18, width: 12, morale: 95, fleeDir: { x: 1, z: 0 }, dmgMult: 0.52, formation: 'yari' },
       dress([{ type: 'samurai', n: 4 }, { type: 'cavalry', n: 1 }, { type: 'ashigaru', n: 11 + more(rt, 0.4) }, { type: 'gun', n: 2 }], TAKEDA));
     // 谷の奥に、まだ武田の騎馬が固まっている（軽い作り）
     horseHost(rt, 168, 4, 22, 12, 110, -Math.PI / 2, 15829);
@@ -465,7 +465,7 @@ tano.botBrain = (b, inp, { goTo }) => {
   }
   inp.guardHold = false;
   const tgt = F.step === 1 ? [F.r1, F.r1b, F.r1c].find((q) => q && !gone(q)) || F.r1 : F.step === 2 ? [F.tsuchi, F.tsuchi2, F.tsuchi3].find((q) => q && !gone(q)) || F.tsuchi : F.step === 3 ? [F.last, F.late].find((q) => q && !gone(q)) || null : null;
-  if (tgt && !gone(tgt)) { const t = tgt.center(); if (Math.hypot(c.x - t.x, c.z - t.z) > 22 && F.step === 1) { goTo(p, inp, c.x + 3, c.z, 3); return; } goTo(p, inp, t.x, t.z, 2); return; }
+  if (tgt && !gone(tgt)) { const t = tgt.center(); if (Math.hypot(c.x - t.x, c.z - t.z) > 14 && F.step === 1) { goTo(p, inp, c.x + 3, c.z, 3); return; } goTo(p, inp, t.x, t.z, 2); return; }
   if (F.step === 3) { goTo(p, inp, TANO.x, TANO.z, 3); return; }
   goTo(p, inp, c.x + 3, c.z + 3, 3);
 };

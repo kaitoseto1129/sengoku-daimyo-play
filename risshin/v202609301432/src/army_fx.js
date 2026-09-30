@@ -3,6 +3,7 @@
 import { bloodLv, STAIN_PLANE, STAIN_TEX, angleDiff, roundDot, PCOL } from './units.js';
 import * as THREE from 'three';
 import { animateHorse } from './units_model.js';
+import { S } from './settings.js';
 
 // Army の手法（units.js の class Army に足す）
 export const ArmyFx = {
@@ -23,7 +24,8 @@ export const ArmyFx = {
     // 倒れた者の下の血だまり（grow）は乾いても戦が終わるまで残す（数の上限で古い物から消す）
     const o = { m, t: 0, life, sx, sz, grow, op: m.material.opacity, keep: !!grow };
     this.stains.push(o);
-    while (this.stains.length > 150) { const q = this.stains.shift(); this.scene.remove(q.m); q.m.material.dispose(); }
+    // 染みは一つずつ描く（一つ一回）ので、画質「低」（携帯）は 12 まで
+    while (this.stains.length > (S.quality === 'low' ? 12 : 150)) { const q = this.stains.shift(); this.scene.remove(q.m); q.m.material.dispose(); }
     return o;
   },
   // 柵・塀の区画の傾き（形は世界の座標で作ってあるので、区画の根元の線を軸に回す）

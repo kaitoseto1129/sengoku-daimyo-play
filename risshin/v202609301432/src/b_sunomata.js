@@ -39,6 +39,10 @@ function buildFort(rt) {
     add(FORT, a, FORT, b, 'e', 1, 0);
   }
   for (const [a, b] of [[-18, -13], [-13, -8], [-8, -3], [3, 8], [8, 13], [13, 18]]) add(a, FORT, b, FORT, 's', 0, 1);
+  // 四隅は柵が直角に出会う所。角の内側で二つの柵にはさまれて進めなくなるのを防ぐため、角を斜めに削る
+  for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+    add(sx * (FORT - 0.9), sz * FORT, sx * FORT, sz * (FORT - 0.9), 'c', sx * 0.7, sz * 0.7);
+  }
   return segs;
 }
 
@@ -115,7 +119,14 @@ function assaultFn(rt, side) {
       return { x: mx + gap.nx * 2.5, z: mz + gap.nz * 2.5 };
     }
     if (!u.segTarget || !u.segTarget.alive) {
-      const cands = F.segs.filter((s) => s.alive && s.side === side);
+      // 角（袋小路）に近い柵は外す。角へ押し込まれて詰まるのを防ぐ
+      const farFromCorner = (s) => {
+        const mx = (s.seg[0] + s.seg[2]) / 2, mz = (s.seg[1] + s.seg[3]) / 2;
+        const d = Math.min(Math.hypot(mx - FORT, mz - FORT), Math.hypot(mx - FORT, mz + FORT), Math.hypot(mx + FORT, mz - FORT), Math.hypot(mx + FORT, mz + FORT));
+        return d > 4;
+      };
+      let cands = F.segs.filter((s) => s.alive && s.side === side && farFromCorner(s));
+      if (!cands.length) cands = F.segs.filter((s) => s.alive && s.side === side);
       if (!cands.length) return F.hut;
       let best = null, bd = Infinity;
       for (const s of cands) {
