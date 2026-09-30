@@ -283,9 +283,11 @@ function buffGroup(g, mult) {
     u.dmg *= mult;
   }
 }
+// 得手（鉄砲・騎馬）があれば、その武具の姿で出す。無ければ侍
+function keraiType(k) { return k.tr === '鉄砲' ? 'gun' : k.tr === '騎馬' ? 'cavalry' : 'samurai'; }
 function spawnKerai(rt, g, k, o) {
   const dispName = k.gou ? `${k.gou}・${k.name}` : k.name;
-  const [u] = rt.army.spawn(g, [{ type: 'samurai', n: 1, o: { name: dispName, flag: null, ...(o || {}) } }]);
+  const [u] = rt.army.spawn(g, [{ type: keraiType(k), n: 1, o: { name: dispName, flag: null, ...(o || {}) } }]);
   u.name = dispName; u.kerai = k; u.isSub = true;
   u.hp = u.maxHp = u.maxHp * (1 + k.s[1] / 300);
   u.dmg *= 1 + k.s[1] / 300;

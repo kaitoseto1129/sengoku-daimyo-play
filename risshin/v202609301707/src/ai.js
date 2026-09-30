@@ -562,8 +562,8 @@ export class Commander {
     //   （「放て」を待つ一斉射の組＝holdFire は、その場で待つ）
     if (g.holdFire) { this.release(g, A); g.facing = ang(s.c, tgt.c); return; }
     // 柵・塀の内を守る鉄砲・弓は、持ち場を出て射程の外まで詰め寄らない（出ると柵に阻まれて 20 秒も動けなくなる）。
-    //   射程に入るまで、その場で敵を待つ
-    if (A.walled || A.fort) { this.release(g, A); g.facing = ang(s.c, tgt.c); return; }
+    //   射程に入るまで、その場で敵を待つ（ただし「かかれ」で攻めに回った組は、柵の内でも詰め寄ってよい＝停まりきりにならない）
+    if ((A.walled || A.fort) && g.order !== 'attack') { this.release(g, A); g.facing = ang(s.c, tgt.c); return; }
     const aimless = td <= range * 0.95 && !g.units.some((u) => u.alive && (u.target || u.atk));
     A.aimless = aimless ? (A.aimless || 0) + 1 : 0;
     // 間合いの外：撃てる所まで寄る（高い所を選ぶ）
@@ -796,7 +796,7 @@ export class Commander {
     for (const o of this.S.values()) if (o.team !== g.team && !o.routed) { const d = dist(o.c, s.c); if (d < nd) { nd = d; near = o; } }
     // 「かかれ」の隊が、討つ相手の見えないまま 15 秒たったら、近い相手の隊（敵の隊は 120m・味方の隊は 90m 以内）の方へ持ち場を 20m ずつ詰める
     //   （行き先に着いたまま立ち尽くさない。控え・城兵・持ち場の隊・遊び手ひとりの所へは詰めない）
-    if (g.order === 'attack' && g.ai !== true && !g.reserve && !g.isPlayerSquad && !A.garrison && !A.fort && near && !near.player && nd < (g.team !== (this.rt.player ? this.rt.player.u.team : 0) ? 120 : 150)) {
+    if (g.order === 'attack' && g.ai !== true && !g.reserve && !g.isPlayerSquad && !A.garrison && near && !near.player && nd < (g.team !== (this.rt.player ? this.rt.player.u.team : 0) ? 120 : 150)) {
       if (A.idleAt == null || t - (A.idleLast || 0) > 8) A.idleAt = t;
       A.idleLast = t;
       // 遊び手の側の隊は 4 秒で詰め、一度に 30m 詰める（かかれの号令の後に立ち尽くさない）
@@ -813,7 +813,7 @@ export class Commander {
     }
     // 遊び手の側の「かかれ」の隊で、150m 内に本物の敵がいない（軽い大軍の前で立ち尽くす）：遊び手の戦う所へ寄る（25m 手前まで）
     const P = this.rt.player && this.rt.player.u;
-    if (P && P.alive && g.order === 'attack' && g.team === P.team && g.ai !== true && !g.reserve && (!g.guard || g.clashSide) && !A.garrison && !A.fort && (!near || nd >= 150) && t - (A.pressT || -99) > 6) {
+    if (P && P.alive && g.order === 'attack' && g.team === P.team && g.ai !== true && !g.reserve && (!g.guard || g.clashSide) && !A.garrison && (!near || nd >= 150) && t - (A.pressT || -99) > 6) {
       const dp = dist(s.c, P.pos);
       if (dp > 30) {
         const a = ang(s.c, P.pos), k = Math.min(40, dp - 25);

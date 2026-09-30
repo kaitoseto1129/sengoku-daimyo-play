@@ -157,16 +157,20 @@ function placeEnemy(rt, T, force) {
   if (!u) return true;
   u.maxHp *= 4.5; u.hp = u.maxHp; u.isTaisho = 'b'; g.leader = u; g.guardBase = g.defMult;
   e.u = u; e.g = g; e.at = P; e.state = 'on';
+  e.guards = [g];   // 旗本（内）＋備（前）をまとめて「本陣の厚み」として数える。崩れ具合で硬さ・退く判断を決める
   // 本陣を囲む厚み：前の左右に本物の備（遠くなれば軽い兵へ戻せる）、後ろと両脇に軽い控え（寄れば本物に替わる）
   if (room > 36) {
     const sx = -fz, sz = fx;
     for (const s of [-1, 1]) {
-      const sg = enemyGroup(rt, { faction, name: `${e.name}の備`, anchor: { x: P.x + fx * 20 + sx * 11 * s, z: P.z + fz * 20 + sz * 11 * s }, facing: face, order: 'hold', aggro: 16, seekRange: 30, morale: 90, width: 6, noGuard: true },
+      const sg = enemyGroup(rt, { faction, name: `${e.name}の備`, anchor: { x: P.x + fx * 20 + sx * 11 * s, z: P.z + fz * 20 + sz * 11 * s }, facing: face, order: 'hold', aggro: 16, seekRange: 30, morale: 90, width: 6, noGuard: true, defMult: 1.3 },
         [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }]);
+      sg.guardBase = sg.defMult;
       KIT.markRecyclable(sg);
       KIT.backOf(rt, sg, { flag: mon, armor, kind: 'spear', w: 12, depth: 8, count: 70, seed: 311 + s * 7 });
+      e.guards.push(sg);
     }
   }
+  e.guardN0 = e.guards.reduce((a, gg) => a + gg.units.filter((o) => o !== u).length, 0) || 1;   // 厚みの元の数（崩れ具合は、これに対する割合で見る）
   KIT.backOf(rt, g, { flag: mon, armor, kind: 'spear', w: 22, depth: 12, count: 140, seed: 303 });
   for (const s of [-1, 1]) KIT.farHost(rt, P.x - fz * 24 * s - fx * 4, P.z + fx * 24 * s - fz * 4, 10, 16, 70, face, armor, mon, 320 + s, 'spear');
   // 大将の位置を示す印や任務の札は出さない。物見のあいまいな一言だけ（238）
@@ -218,22 +222,30 @@ export function taishoTick(rt, dt) {
   // 敵の総大将：位置を示す印や台詞は出さない。旗本の厚みで硬さが変わり、迫られれば奥へ退く（240）
   const B = T.b && T.b.state === 'on' && T.b.u;
   if (B && B.alive && T.b.g) {
-    const guardAlive = T.b.g.units.filter((o) => o.alive && o !== B).length;
-    // 旗本が厚い間は硬く、崩れれば討てるようになる（組や手勢と一緒に崩す前提）
+    // 旗本（内）と両脇の備（前）をまとめて「本陣の厚み」とする。どれかだけ討っても崩れない
+    const guards = T.b.guards || [T.b.g];
+    let guardAlive = 0;
+    for (const gg of guards) for (const o of gg.units) if (o.alive && o !== B) guardAlive++;
+    T.b.guardAlive = guardAlive;
+    // 厚みが残る間は硬く、崩れるほど討てるようになる（組や手勢と一緒に崩す前提。一人で切り込んでも通らない）
+    // 厚みの元の数に対する割合で見る（備を置けない狭い戦でも、旗本だけで同じ硬さの曲線になるように）
     const base = T.b.g.guardBase || 1.4;
-    T.b.g.defMult = guardAlive >= 6 ? base * 2.4 : guardAlive >= 3 ? base * 1.4 : base * 0.7;
+    const ratio = guardAlive / (T.b.guardN0 || guardAlive || 1);
+    const tier = ratio >= 0.7 ? 2.4 : ratio >= 0.4 ? 1.5 : ratio >= 0.15 ? 0.85 : 0.55;
+    for (const gg of guards) gg.defMult = (gg.guardBase || base) * tier;
     const d = d2(B.pos, P);
     // 迫られると、旗本が総がかりで押し返す（間合いと勢いを上げる）
     T.b.g.seekRange = d < 32 ? 34 : 22;
     T.b.g.aggro = d < 32 ? 22 : 14;
-    // 本陣のすぐそばまで迫られた時、または手傷（体力半分）を負った時、旗本がまだ残っていれば奥へ退いて陰に入る
-    if ((d < 18 && guardAlive >= 3 || B.hp < B.maxHp * 0.5 && guardAlive >= 1) && (T.bFallT ?? -99) + 6 < rt.t) {
+    // 本陣のすぐそばまで迫られた時、または手傷（体力半分）を負った時、厚みが残っていれば奥へ退いて陰に入る
+    if ((d < 22 && guardAlive >= 4 || B.hp < B.maxHp * 0.5 && guardAlive >= 1) && (T.bFallT ?? -99) + 6 < rt.t) {
       T.bFallT = rt.t;
       let dx = T.b.at.x - P.x, dz = T.b.at.z - P.z; const L = Math.hypot(dx, dz) || 1;
-      const q = landAt(rt, { x: clamp(T.b.at.x + (dx / L) * 12), z: clamp(T.b.at.z + (dz / L) * 12) }, T.b.at);
+      const q = landAt(rt, { x: clamp(T.b.at.x + (dx / L) * 16), z: clamp(T.b.at.z + (dz / L) * 16) }, T.b.at);
       T.b.at = q; T.b.g.anchor = { x: q.x, z: q.z - 2 };
       once(T, rt, 'bFall', 15, () => rt.bark('敵の大将が、なお奥へと退いていく', true));
     }
+    honjinRally(rt, T, B, P, ratio);
   }
   const A = T.a && T.a.state === 'on' && T.a.u;
   if (!A || !A.alive) return;
@@ -324,6 +336,23 @@ function launch(rt, T, g, big) {
   }
   rt.obj('taisho_a', `殿（${T.a.name}）を守れ`, 'side');
   rt.marker('taisho_raid', centerOf(g), '殿を狙う敵', { red: true, group: g });
+}
+
+// 本陣が攻められ、厚みが薄くなってきたら、近くの空いた隊が駆け戻って守る（後詰め）
+function honjinRally(rt, T, B, P, ratio) {
+  if (ratio >= 0.55 || d2(B.pos, P) > 55 || (T.rallyT ?? -99) + 14 > rt.t) return;
+  let n = 0;
+  for (const g of rt.army.groups) {
+    if (n >= 2) break;
+    if (g.team !== 1 || g.routed || !g.count || g.guard || g.focus || g.reserve || g.noAI || g.isPlayerSquad) continue;
+    if ((T.b.guards || []).includes(g) || g.order !== 'attack') continue;
+    const c = g.center();
+    if (d2(c, B.pos) > 140) continue;
+    g.focus = rt.player.u; g.seekRange = Math.max(g.seekRange || 0, 40);
+    n++;
+  }
+  if (n > 0) { T.rallyT = rt.t; once(T, rt, 'bRally', 20, () => rt.bark('近くの敵が、本陣を守ろうと駆け戻る', true)); }
+  else T.rallyT = rt.t - 8;   // 呼べる隊が無ければ、また少し後で探す
 }
 
 // ---------------- 討たれた時 ----------------

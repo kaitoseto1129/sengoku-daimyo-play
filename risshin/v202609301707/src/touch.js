@@ -14,8 +14,8 @@ if (isTouch) {
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem('sengoku-risshin-settings-v1') || 'null'); } catch (e) { /* 読めない */ }
   if (!saved || !saved.quality) S.quality = isPhone ? 'low' : 'mid';
-  // 画面の札の量：携帯は「最小」（戦場を広く）。自分で選んで保存してあれば、そのまま
-  if (isPhone && (!saved || !saved.hudMode)) S.hudMode = 'min';
+  // 画面の札の量：触る端末（携帯・iPad）は「最小」（戦場を主役に。札は要る時だけ）。自分で選んで保存してあれば、そのまま
+  if (!saved || !saved.hudMode) S.hudMode = 'min';
 }
 
 const CSS = `
@@ -81,6 +81,8 @@ html.touch #prompt { display: none !important; }
   html.touch #radial .rw:nth-child(8) { translate: 21px 46px; }
   /* 輪を開いている間は、字幕と声の字を隠す（輪の字だけにする） */
   html.touch.tc-cmd #subtitle, html.touch.tc-cmd #bark { visibility: hidden; }
+  /* 判断の札も、輪を開いている間は隠す（左上の札が輪の左半分を覆い、突撃・狙え・続けが見えなくなる。閉じれば戻る） */
+  html.touch.tc-cmd #choice { visibility: hidden; }
   html.touch #tc .hint.r { top: calc(8px + env(safe-area-inset-top, 0px)); font-size: 14px; padding: 6px 12px; }
   /* 携帯の横向きでは、号令の輪の字は項目の二字だけ（鍵・新・今・号令先の並び・真ん中の説明は出さない） */
   html.touch #radial .rw { width: 88px; left: -44px; font-size: 17px; }
@@ -92,6 +94,15 @@ html.touch #prompt { display: none !important; }
   html.touch #h-units { max-width: 30vw; }
   html.touch #hud:has(#h-units:not([hidden])) #subtitle { bottom: calc(126px + env(safe-area-inset-bottom, 0px)); }
   html.touch #h-units .uc { width: 52px; }
+}
+
+/* 触る端末の「最小」（.lean）：組の札の帯は号令の輪を開いている間だけ（平時の戦場を札で埋めない） */
+html.touch:not(.tc-cmd) #hud.lean #h-units { display: none; }
+/* 任務は今の一行だけ（「現在の任務」の見出しも出さない） */
+#hud.lean #objectives h4 { display: none; }
+/* iPad（高い画面）の「最小」：ヒントの札は細く小さく（戦場の左を塞がない。字は大きすぎない） */
+@media (min-height: 501px) {
+  html.touch #hud.lean #tutorial { width: auto; max-width: 250px; padding: 7px 11px 8px; font-size: 13px; line-height: 1.5; background: rgba(12,10,8,.62); }
 }
 
 /* ---- 画面の大きさの直し（どの端末にも効く） ---- */
@@ -141,6 +152,12 @@ html.touch #tc [data-b="more"] small { font-size: 12px; }
 /* 浮かぶ棒 */
 #tc .stick { position: absolute; width: 124px; height: 124px; margin: -62px 0 0 -62px; border-radius: 50%; border: 2px dashed rgba(236,228,210,.5); background: radial-gradient(circle, rgba(14,11,8,.12), rgba(14,11,8,.36)); pointer-events: none; }
 #tc .stick.idle { opacity: .35; }
+/* 歩く棒の効く所（左下）。慣れるまで（戦の初めの間）うっすら見せ、あとは消える */
+#tc .mzone { position: absolute; left: 0; bottom: 0; width: 34vw; height: 55vh; pointer-events: none; border-top-right-radius: 28px;
+  background: linear-gradient(0deg, rgba(236,228,210,.07), rgba(236,228,210,.02)); box-shadow: inset -1px 1px 0 rgba(236,228,210,.16); transition: opacity 1.2s; }
+#tc .mzone.sw { left: auto; right: 0; border-top-right-radius: 0; border-top-left-radius: 28px; box-shadow: inset 1px 1px 0 rgba(236,228,210,.16); }
+#tc .mzone.off { opacity: 0; }
+body.rm #tc .mzone { transition: none; }
 /* 外の点線の輪が走る境目。越えると実線の朱になり「走る」と出る */
 #tc .stick.run { border-color: rgba(240,150,90,.85); border-style: solid; }
 #tc .stick i { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%; background: rgba(236,228,210,.5); box-shadow: 0 1px 6px rgba(0,0,0,.5); }
@@ -184,9 +201,9 @@ const BTN = [
   { id: 'mount', label: '乗る', dx: -206, dy: -124, d: 50 },
   // 号令の輪を開いている間だけ出す（組頭から）：陣形の切り替えと、弓・鉄砲の射撃の切り替え
   // 低い画面（スマホ横）で、六つ目からの丸（鼓舞・持ち替え・乗り降り）を畳む「…」の丸
-  { id: 'more', label: '…', sub: 'ほか', dx: -172, dy: -188, d: 46 },
+  { id: 'more', label: '…', sub: 'ほか', dx: -296, dy: -46, d: 46 },
   { id: 'form', label: '陣形', dx: -236, dy: -46, d: 52 },
-  { id: 'fire', label: '射撃', dx: -240, dy: 44, d: 52 },
+  { id: 'fire', label: '射撃', dx: -250, dy: 20, d: 52 },
 ];
 const ICON = {
   pause: '<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="5" y="4" width="3.2" height="12" fill="currentColor"/><rect x="11.8" y="4" width="3.2" height="12" fill="currentColor"/></svg>',
@@ -232,6 +249,7 @@ function setupTouch({ input, game, setPause, toggleBigMap }) {
   root.id = 'tc';
   root.hidden = true;
   root.innerHTML =
+    `<div class="mzone" id="tc-mzone" aria-hidden="true"></div>` +
     `<div class="stick idle" id="tc-stick"><b>左の親指で歩く</b><i></i></div>` +
     `<button class="tb sq" id="tc-pause" aria-label="一時停止">${ICON.pause}止める</button>` +
     `<button class="tb sq" id="tc-map" aria-label="戦術地図">${ICON.map}地図</button>` +
@@ -414,8 +432,9 @@ function setupTouch({ input, game, setPause, toggleBigMap }) {
     if (e.clientX < 16 || e.clientX > innerWidth - 16) return;
     T.kbd = false;
     try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* noop */ }
-    // 歩く所は左の 42%（左利きの入れ替えでは右の 42%）
-    const moveSide = S.touchSwap ? e.clientX > innerWidth * 0.58 : e.clientX < innerWidth * 0.42;
+    // 歩く所は左下（左の親指の届く所：横は左の 3 分の 1、縦は下の 55%。左利きの入れ替えでは右下）。
+    // それ以外（左の上・真ん中・右）で触り始めたなぞりは、全部カメラの向き
+    const moveSide = inMoveZone(e.clientX, e.clientY);
     if (moveSide && !T.move) {
       T.move = { id: e.pointerId, ox: e.clientX, oy: e.clientY, x: e.clientX, y: e.clientY };
     } else T.looks.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -536,11 +555,17 @@ export function touchFrame(dt) {
   // 初めて狙いを定めた時だけ、相手の替え方を一度出す
   if (p.lock && !T.lockTip) { T.lockTip = true; T.showHint(S.touchSwap ? '画面の左を左右に払うと、狙う相手を替える' : '画面の右を左右に払うと、狙う相手を替える'); }
   // 右下の丸を並べる（安全な余白の中）
-  const lk = `${innerWidth}|${innerHeight}|${S.touchSwap ? 1 : 0}|${S.touchSize || 'm'}|${S.touchAlpha || 1}`;
+  // 城下（町を歩く）では戦の丸を出さない。「入る」の丸を右の親指の真下（突くの場所）へ
+  const town = !!(b.def && b.def.town);
+  T.town = town;
+  const lk = `${innerWidth}|${innerHeight}|${S.touchSwap ? 1 : 0}|${S.touchSize || 'm'}|${S.touchAlpha || 1}|${town ? 1 : 0}`;
   if (T.lk !== lk) { T.lk = lk; layout(); }
   // 歩く棒
   const st = T.stick;
+  if (!T.mzone) T.mzone = document.getElementById('tc-mzone');
+  tog(T.mzone, 'sw', !!S.touchSwap);
   if (T.move) {
+    tog(T.mzone, 'off', true);
     const R = 50;
     let dx = T.move.x - T.move.ox, dy = T.move.y - T.move.oy;
     const L = Math.hypot(dx, dy);
@@ -571,6 +596,7 @@ export function touchFrame(dt) {
     // 触れていない時は、初めの30秒（初めての戦は60秒）だけ薄い棒を見せる（あとは景色を隠さない）
     const idleT = b.index === 0 ? 60 : 30;
     st.hidden = b.t >= idleT && !T.glowMove;
+    tog(T.mzone, 'off', b.t >= idleT && !T.glowMove);
     // 薄い棒は、体力の札（左下）の上に置く。手ほどきの札が出ている時はその下へ（重ならないように）
     const tut = document.getElementById('tutorial'), tutOn = tut && !tut.hidden;
     if (!T.idleY || T.idleH !== innerHeight || T.idleTutOn !== tutOn) {
@@ -588,15 +614,17 @@ export function touchFrame(dt) {
   // 丸の出し入れ（その時に使える物だけ）。突く・構え・回避（馬上は手綱）は戦の間いつも出す
   const hasSq = b.squad && b.squad.length > 0;
   const rid = p.mounted;
-  hide(btn.atk, false); hide(btn.grd, false); hide(btn.dodge, false);
+  hide(btn.atk, town); hide(btn.grd, town); hide(btn.dodge, town);
   // 馬上は 突く・構え・手綱・降りる（と号令）だけにし、狙い・鼓舞・持ち替えは隠す（丸が七つ並ばないように）
-  hide(btn.lock, rid);
+  // 狙いの丸は、敵が近い時（35m）か狙いを定めている時だけ（平時の戦場に丸を並べない）
+  const hudR = game.hud, near = !!(hudR && hudR.nearFoe);
+  hide(btn.lock, rid || town || !(near || p.lock));
   hide(btn.cmd, !hasSq);
   tog(btn.cmd, 'sel', !!p.radial || T.sticky);
   const wl = p.weaponList ? p.weaponList() : ['spear'];
   // 馬上でも弓・鉄砲へは持ち替えられる（騎射）
   const rangedL = wl.includes('bow') || wl.includes('gun');
-  hide(btn.wpn, wl.length < 2 || (rid && !rangedL));
+  hide(btn.wpn, town || wl.length < 2 || (rid && !rangedL));
   if (!btn.wpn.hidden) { const nx = wl[(wl.indexOf(p.weapon) + 1) % wl.length]; setText(btn.wpn.firstChild, { spear: '槍へ', sword: '刀へ', gun: '鉄砲へ', bow: '弓へ' }[nx]); }
   // 鉄砲・弓を持っている時：突く→放つ／射る、構え→狙う。鉄砲は込め直しの進みを丸の縁に、込め終えて狙っていれば光る
   const gunW = p.weapon === 'gun', bowW = p.weapon === 'bow';
@@ -642,7 +670,9 @@ export function touchFrame(dt) {
     const short = vb.length > 4 ? vb.slice(0, 4) : vb;
     let sm = btn.use.querySelector('small');
     if (!sm) { sm = document.createElement('small'); btn.use.appendChild(sm); }
-    setText(sm, short);
+    // 城下では丸そのものに「入る」「話す」などを大きく書く（取るの字は出さない）
+    setText(btn.use.firstChild, town ? short || '入る' : '取る');
+    setText(sm, town ? '' : short);
     btn.use.setAttribute('aria-label', tx || '取る');
   }
   tog(btn.lock, 'sel', !!p.lock);
@@ -656,8 +686,10 @@ export function touchFrame(dt) {
   tog(btn.dodge, 'dim', (p.mounted ? p.breath < 15 : p.sta < 20));
   setText(btn.dodge.firstChild, p.mounted ? '手綱' : '回避');
   const rd = p.rallyCd || 0;
-  hide(btn.rally, rid);
-  setText(btn.rally.firstChild, hasSq ? '鼓舞' : '鬨');
+  // 鼓舞・鬨の声は、戦っている時（敵が近い・斬り合い・狙われている）だけ。一字の「鬨」では分からないので三字で
+  const fightNow = near || p.inCombatT > 0 || (b.army.threats || []).length > 0;
+  hide(btn.rally, rid || town || !fightNow);
+  setText(btn.rally.firstChild, hasSq ? '鼓舞' : '鬨の声');
   tog(btn.rally, 'dim', rd > 0);
   let cd = btn.rally.querySelector('.cd');
   if (rd > 0) { if (!cd) { cd = document.createElement('span'); cd.className = 'cd'; btn.rally.appendChild(cd); } cd.style.setProperty('--p', Math.min(100, rd / 25 * 100).toFixed(0) + '%'); } else if (cd) cd.remove();
@@ -669,7 +701,6 @@ export function touchFrame(dt) {
   if (cT > 0) { if (!ch) { ch = document.createElement('span'); ch.className = 'chg'; btn.atk.appendChild(ch); } ch.style.setProperty('--p', (cT * 100).toFixed(0) + '%'); tog(ch, 'full', cT >= 1); } else if (ch) ch.remove();
   // 低い画面（スマホ横）では、右下の丸は六つまで（突く・構え・回避・号令・取る・狙いの順。馬上は乗り降り、鉄砲持ちは持替を先に）。
   // 残り（鼓舞・持ち替え・乗り降り）は「…」の丸に畳み、押すと開く。号令の間は組の札を出す印も付ける
-  const low = innerHeight < 500;
   // 馬上・空馬の手綱を取れる時は「降りる／手綱」を狙いより先に（畳むと馬を降りられなくなる）。
   // 鉄砲・弓を持てる時は「持替」を鼓舞より先に（鉄砲へ持ち替えるのに「…」を開かなくて済む）
   // 降りた馬がすぐそば（乗れる所）にいる時も「乗る」を先に（畳むと、降りた後にすぐ乗り直せない）
@@ -680,12 +711,13 @@ export function touchFrame(dt) {
       : ['atk', 'grd', 'dodge', 'cmd', 'fire', 'use', 'lock', 'mount', 'rally', 'wpn'];
   const want = order.filter((id) => !btn[id].hidden);
   // 六つまでは右下に並べても重ならない（七つ目から「…」に畳む）
-  const keep = low ? want.slice(0, 6) : want;
+  // iPad も同じ（丸が多いと戦場の右下が釦で埋まる）
+  const keep = want.slice(0, 6);
   const fold = want.filter((id) => !keep.includes(id));
   T.folded = new Set(fold);
   for (const id of fold) hide(btn[id], !T.more);
   if (!fold.length) T.more = false;
-  hide(btn.more, !low || !fold.length);
+  hide(btn.more, !fold.length);
   tog(btn.more, 'sel', !!T.more);
   if (T.more && (T.moreT = (T.moreT || 0) + dt) > 6) T.more = false;
   tog(document.documentElement, 'tc-cmd', !!(p.radial || T.sticky || p.cmdOpen));
@@ -701,6 +733,12 @@ export function touchFrame(dt) {
 }
 
 // 毎コマ同じ値を書き直さない（書くたびに画面の組み直しが起きて、古い端末で重くなる）
+// 歩く棒の効く所（左下。左利きの入れ替えでは右下）
+const MZ = { w: 0.34, h: 0.55 };
+function inMoveZone(x, y) {
+  const inX = S.touchSwap ? x > innerWidth * (1 - MZ.w) : x < innerWidth * MZ.w;
+  return inX && y > innerHeight * (1 - MZ.h);
+}
 function setText(el, t) { if (el && el.textContent !== t) el.textContent = t; }
 function tog(el, c, on) { if (el && el.classList.contains(c) !== !!on) el.classList.toggle(c, !!on); }
 function hide(el, h) { if (el && el.hidden !== !!h) el.hidden = !!h; }
@@ -766,17 +804,23 @@ function layout() {
   const ps = getComputedStyle(probe);
   const sa = { t: parseFloat(ps.paddingTop) || 0, r: parseFloat(ps.paddingRight) || 0, b: parseFloat(ps.paddingBottom) || 0, l: parseFloat(ps.paddingLeft) || 0 };
   // 画面が大きい（iPad）なら丸も少し大きく。設定の丸の大きさ（小・中・大）も掛ける
-  const k = (Math.min(innerWidth, innerHeight) >= 700 ? 1.18 : 1) * ({ s: 0.88, m: 1, l: 1.14 }[S.touchSize] || 1);
+  const big = Math.min(innerWidth, innerHeight) >= 700;
+  const k = (big ? 1.18 : 1) * ({ s: 0.88, m: 1, l: 1.14 }[S.touchSize] || 1);
+  // iPad は広いので、丸どうしの間を少し広げる（丸の大きさはそのまま）
+  const gap = big ? 1.14 : 1;
   // 左利きの入れ替え：丸は左下、歩く棒は右へ（丸の並びも左右を裏返す）
   const sw = !!S.touchSwap, mir = sw ? -1 : 1;
   const R0 = 26 + 42 * k;
   const cx = sw ? sa.l + R0 : innerWidth - sa.r - R0, cy = innerHeight - Math.max(sa.b, 8) - 22 - 42 * k;
-  for (const d of BTN) {
+  for (const d0 of BTN) {
+    // 城下では「入る」の丸を、突くの場所に突くの大きさで置く（親指の真下）
+    const d = T.town && d0.id === 'use' ? { ...d0, dx: 0, dy: 0, d: 84 } : d0;
     const el = T.btn[d.id];
+    if (d.id === 'use') el.classList.toggle('big', !!T.town);
     const s = Math.max(44, d.d * k); // 押せる所は 44px 以上を必ず確保
     el.style.width = el.style.height = s + 'px';
-    el.style.left = (cx + d.dx * k * mir - s / 2).toFixed(0) + 'px';
-    el.style.top = (cy + d.dy * k - s / 2).toFixed(0) + 'px';
+    el.style.left = (cx + d.dx * k * gap * mir - s / 2).toFixed(0) + 'px';
+    el.style.top = (cy + d.dy * k * gap - s / 2).toFixed(0) + 'px';
   }
   // 丸の透け具合（設定）
   T.root.style.opacity = S.touchAlpha && S.touchAlpha < 1 ? String(Math.max(0.35, S.touchAlpha)) : '';

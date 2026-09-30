@@ -26,7 +26,7 @@ function pickVillage(G) {
 
 export function domOf(G) {
   if (!G.dom) {
-    G.dom = { koku: 0, mura: '', ta: 0, machi: 0, hei: 0, ren: 0, hatake: false, tsukuroi: false, at: -1, lastMsg: '' };
+    G.dom = { koku: 0, mura: '', ta: 0, machi: 0, hei: 0, ren: 0, hatake: false, tsukuroi: false, gunsmith: false, hyourou: false, at: -1, lastMsg: '' };
     // 段2の前からの保存（すでに組頭以上）は、初めの一回で知行を届ける
     if ((G.rank || 0) >= 2) { G.dom.koku = KOKU_FLOOR[G.rank] || 100; G.dom.mura = pickVillage(G); }
   }
@@ -61,11 +61,19 @@ const CARDS = [
     eff: () => 'これからは戦のたびに、畑の実りが入る',
     avail: (G, D) => !D.hatake,
     apply: (G, D) => { D.hatake = true; } },
+  { id: 'teppokaji', name: '鉄砲鍛冶を呼ぶ', minRank: 3, cost: 6,
+    eff: () => 'これからは、手勢の半ばが鉄砲になる',
+    avail: (G, D) => !D.gunsmith,
+    apply: (G, D) => { D.gunsmith = true; } },
+  { id: 'hyourou', name: '兵糧を蓄える', minRank: 2, cost: 3,
+    eff: () => '次の戦だけ、長く戦っても気力が落ちにくい',
+    avail: () => true,
+    apply: (G, D) => { D.hyourou = true; } },
 ];
 function heiRoom(D) { return Math.max(0, Math.min(12, Math.floor((D.koku || 0) / 10)) - D.hei); }
 
 function priorityOrder(D) {
-  const base = ['kaikon', 'machi', 'kunren', 'chohei', 'tsukuroi', 'hatake'];
+  const base = ['kaikon', 'machi', 'teppokaji', 'kunren', 'chohei', 'hyourou', 'tsukuroi', 'hatake'];
   return D.hei === 0 ? ['chohei', ...base.filter((x) => x !== 'chohei')] : base;
 }
 
@@ -139,6 +147,11 @@ export function domainBattle(rt) {
     rt.player.u.hp = rt.player.u.maxHp;
     D.tsukuroi = false;
   }
+  if (D.hyourou) {
+    rt.player.maxSta *= 1.3;
+    rt.player.sta = rt.player.maxSta;
+    D.hyourou = false;
+  }
   if (D.hei > 0) {
     const aliveNow = rt.army.units.filter((u) => u.alive).length;
     const n = Math.max(0, Math.min(D.hei, 235 - aliveNow));
@@ -149,7 +162,7 @@ export function domainBattle(rt) {
         anchor: { x: P.pos.x - Math.sin(h) * 5, z: P.pos.z - Math.cos(h) * 5 }, aggro: 8, spacing: 1.5, morale: 80, noRout: false,
       });
       g.kind = 'tegei'; g.fire = true;
-      const gunN = D.machi >= 2 ? Math.round(n / 4) : 0;
+      const gunN = D.gunsmith ? Math.round(n / 2) : D.machi >= 2 ? Math.round(n / 4) : 0;
       const ashiN = n - gunN;
       const units = [];
       if (ashiN) units.push(...rt.army.spawn(g, [{ type: 'ashigaru', n: ashiN, o: { flag: null } }]));

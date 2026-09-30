@@ -2,7 +2,7 @@
 // このファイルは係C だけが直す。
 import { addKan, zeni, BATTLES, scenario } from './state.js';
 import { keraiBest } from './retainers.js';
-import { allyGroup } from './bhelp.js';
+import { allyGroup, nm } from './bhelp.js';
 import { flagMaterial } from './units_flags.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
@@ -219,24 +219,40 @@ export function diploBattle(rt) {
     const bi = BATTLES[rt.index];
     const who = (bi && TURN_OF[bi.id]) || '敵の国衆';
     if (ok) {
-      rt.after(35 + Math.random() * 35, () => {
-        if (rt.over) return;
-        const list = eligibleFoeGroups(rt);
-        if (!list.length) return;
-        const g = list[Math.floor(Math.random() * list.length)];
-        // 旗を掲げ替え、その場に印を出してから兵を退かせる（見た目でも寝返りと分かるように）
-        const mat = flagMaterial(rt.G.lordFaction || scenario().faction);
-        for (const u of g.units) if (u.alive && u.flag) u.flag.material = mat;
-        rt.marker('turn', () => (g.units.some((u) => u.alive) ? g.center() : null), `${who}、寝返り`, { h: 2.4 });
-        rt.say(who, `もはやこれまで。旗を返す`, 3);
-        g.morale = 0;
-        rt.banner(`${who}、兵を退く`, '内通が実った');
-        rt.award((t) => t.side.push('調略で敵を退かせた'), '調略で敵を退かせた');
-        rt.after(8, () => rt.unmark('turn'));
-      });
+      // 実った内通は二通り：戦の中で旗を返す（寝返り）か、初めから陣を払って出て来ない（来ない）
+      const noshow = Math.random() < 0.5;
+      if (noshow) {
+        rt.after(3 + Math.random() * 2, () => {
+          if (rt.over) return;
+          const list = eligibleFoeGroups(rt);
+          if (!list.length) return;
+          const g = list[Math.floor(Math.random() * list.length)];
+          g.morale = 0;
+          g.noRout = false;
+          rt.banner(`${who}、動かず`, '内応が実り、陣を払うた');
+          rt.bark(`${who}は、この戦に加わらぬ`);
+          rt.award((t) => t.side.push('調略で敵を動かせなんだ'), '調略で敵を動かせなんだ');
+        });
+      } else {
+        rt.after(35 + Math.random() * 35, () => {
+          if (rt.over) return;
+          const list = eligibleFoeGroups(rt);
+          if (!list.length) return;
+          const g = list[Math.floor(Math.random() * list.length)];
+          // 旗を掲げ替え、その場に印を出してから兵を退かせる（見た目でも寝返りと分かるように）
+          const mat = flagMaterial(rt.G.lordFaction || scenario().faction);
+          for (const u of g.units) if (u.alive && u.flag) u.flag.material = mat;
+          rt.marker('turn', () => (g.units.some((u) => u.alive) ? g.center() : null), `${who}、寝返り`, { h: 2.4 });
+          rt.say(who, `${nm(rt)}殿、お味方いたす！`, 3);
+          g.morale = 0;
+          rt.banner(`${who}、寝返り`, '内通が実った');
+          rt.award((t) => t.side.push('調略で敵を寝返らせた'), '調略で敵を寝返らせた');
+          rt.after(8, () => rt.unmark('turn'));
+        });
+      }
     } else {
       addRel(G, nx.house, -5);
-      rt.after(2, () => rt.bark('使者は追い返された', true));
+      rt.after(2, () => { rt.banner('使者、討たれる', `${who}への内通、使者が斬られた`); rt.bark('使者が斬られた', true); });
     }
   } else if (nx.kind === 'aid') {
     rt.after(40, () => {

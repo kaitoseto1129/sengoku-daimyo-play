@@ -2,6 +2,7 @@
 //   G.kumi = { n: 決めた時の組の人数, gun, bow, cavalry }。槍は残りの全部。組の人数が変われば割合で直す
 //   選ぶ所：城下の「組」の札と、出陣の前の札（main.js）。使う所：battle.js の makeSquad
 import { RANKS } from './state.js';
+import { sfx } from './audio.js';
 
 export const KUMI_NAME = { spear: '槍', gun: '鉄砲', bow: '弓', cavalry: '騎馬' };
 // 身分で選べる種類：組頭候補は槍と鉄砲、組頭から弓、馬に乗る足軽大将から騎馬
@@ -161,5 +162,6 @@ export function kamaeTick(rt) {
   if (busy && rt.t - K.t < 30) return;
   K.st = 'ready';
   place(rt, K, false);
-  rt.bark('鉄砲、込め終わり。槍は下がれ');
+  sfx('click', 0.9);
+  rt.bark('鉄砲、込め終わり。撃てる。槍は下がれ');
 }

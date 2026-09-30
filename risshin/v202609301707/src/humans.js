@@ -531,7 +531,8 @@ vec3 clothBump(vec3 surf_pos, vec3 surf_norm, vec2 dHdxy, float fd) {
 // ・作者表記（CC BY 4.0）：This work is based on "Armadura Samurai Do-maru, BMVB" by Giravolt（docs/CREDITS.md）
 // ・人形は腕を下ろして立っているので、骨をその姿に合わせた「着せる時の立ち姿」を作り、そこからの動きで甲冑を動かす
 // crowd：侍・騎馬武者・武将（兵）にも着せる（人形の兜と顔は描かず、兵ごとの兜と顔を付ける）
-export const DOMARU = { on: true, ready: false, failed: false, near: 14, crowd: true };
+// hiCap：細かい形（胴丸hi 約4万面・兜hi 約1.6万面）を同時に出す人数の上限（カメラに近い順。名のある武将と本人は数えず必ず細かい形）
+export const DOMARU = { on: true, ready: false, failed: false, near: 14, crowd: true, hiCap: 10 };
 let DM = null, dmLoading = null;
 export function loadDomaru() {
   if (dmLoading) return dmLoading;
@@ -800,7 +801,7 @@ function dressKabuto(h) {
   m.onBeforeRender = (r, s, cam) => {
     const e = m.matrixWorld.elements, c = cam.matrixWorld.elements;
     const d2 = (e[12] - c[12]) ** 2 + (e[13] - c[13]) ** 2 + (e[14] - c[14]) ** 2;
-    const want = !cam.isOrthographicCamera && d2 < DOMARU.near * DOMARU.near ? G[0] : G[1];
+    const want = !cam.isOrthographicCamera && d2 < DOMARU.near * DOMARU.near && m.userData.hiOK !== false ? G[0] : G[1];
     if (m.geometry !== want) m.geometry = want;
   };
   const add = (geo, mat, mx) => { const c = new THREE.Mesh(geo, mat); c.matrixAutoUpdate = false; c.matrix.copy(mx); c.castShadow = true; m.add(c); return c; };
@@ -1063,7 +1064,7 @@ function dressDomaru(h, noHead = false) {
   m.onBeforeRender = (r, s, cam) => {
     const e = m.matrixWorld.elements, c = cam.matrixWorld.elements;
     const d2 = (e[12] - c[12]) ** 2 + (e[13] - c[13]) ** 2 + (e[14] - c[14]) ** 2;
-    const want = !cam.isOrthographicCamera && d2 < DOMARU.near * DOMARU.near ? DM.hi : DM.lo;
+    const want = !cam.isOrthographicCamera && d2 < DOMARU.near * DOMARU.near && m.userData.hiOK !== false ? DM.hi : DM.lo;
     if (m.geometry !== want) m.geometry = want;
   };
   h.root.add(m);
@@ -4407,6 +4408,17 @@ function humansStep(rt, dt, army, cam) {
   if (Q.must) for (let i = 0; i < cand.length && want.size < Q.mustMax; i++) { const c = cand[i]; if (!want.has(c.u) && c.u.alive && (c.vis || c.dist < 15) && c.dist < Q.must) want.set(c.u, c); }
   rush = 0; for (const [u, c] of want) if (!u.human && c.dist < (Q.must || 0)) rush++;
   for (const h of [...humans]) if (!want.has(h.u) || h.u.gone) dropHuman(h.u);
+  // 胴丸・兜の細かい形（hi）を同時に出す数に上限を付ける：カメラに近い順に DOMARU.hiCap 人まで。名のある武将と本人は数えず必ず hi
+  {
+    const near = [];
+    for (const [u, c] of want) { const h = u.human; if (h && (h.parts.domaru || h.parts.kabuto) && !u.isPlayer && !(u.look && (isNamed(u.look) || u.type === 'busho'))) near.push({ h, dist: c.dist }); }
+    near.sort((a, b) => a.dist - b.dist);
+    for (let i = 0; i < near.length; i++) {
+      const allow = i < DOMARU.hiCap;
+      if (near[i].h.parts.domaru) near[i].h.parts.domaru.userData.hiOK = allow;
+      if (near[i].h.parts.kabuto) near[i].h.parts.kabuto.userData.hiOK = allow;
+    }
+  }
   HSTAT.want = want.size; HSTAT.driven = 0;
   for (const [u, c] of want) {
     const named = u.look && (isNamed(u.look) || u.type === 'busho');

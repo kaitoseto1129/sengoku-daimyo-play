@@ -45,6 +45,8 @@ const BARK_FAMILY = [
   [/組頭を討ち取った/, 'leader'], [/持たぬ|押されておる|下がれ、下がれ/, 'waverA'], [/崩れるぞ|だめじゃ、逃げろ|持ちこたえられぬ/, 'waverB'],
   // 横腹の進み具合（1/6・2/6…）は、どの隊の物でも一つの束に。間を 10 秒あける
   [/横腹を突いている/, 'flank', 10], [/向き直って|気づいた/, 'turn'],
+  // 鉄砲組の撃った手応え（倒した数）は 8 秒に一度まで
+  [/鉄砲組が.*人を倒した/, 'volleyKill', 8],
 ];
 const ORDER_MARK = { follow: '従', hold: '待', attack: '突', retreat: '退', focus: '狙', move: '進', yari: '衾', flee: '崩', path: '進', assault: '攻' };
 // 部隊の帯の顔：墨で描いた兵の半身（陣笠・兜）と、うすく家紋
@@ -250,8 +252,8 @@ body.rm #hud #tutorial.coach.in { animation: none; }
   document.head.appendChild(st);
 }
 
-// スマホ横で「画面の札の量：最小」の時は、戦場を見せるのを一番に（字は要る瞬間だけ）
-const leanHud = () => isTouch && innerHeight < 500 && (S.hudMode || 'normal') === 'min';
+// 触る端末（スマホ横・iPad）で「画面の札の量：最小」の時は、戦場を見せるのを一番に（字は要る瞬間だけ）
+const leanHud = () => isTouch && (S.hudMode || 'normal') === 'min';
 
 export function moraleWord(m) {
   if (m >= 75) return '意気盛ん';
@@ -1674,7 +1676,9 @@ export class Hud {
       const lean = leanHud(), look = !off && Math.abs(sx - W / 2) < W * 0.18 && Math.abs(sy - H / 2) < H * 0.3;
       const showLabel = !lean || m.red || look || performance.now() - m.born < 2200;
       const html = showLabel ? `<b>${esc(label)}</b>${dist && !lean ? `<small>${dist}</small>` : ''}` : '';
-      if (el._h !== html) { el.innerHTML = html; el._h = html; }
+      if (el._h !== html) { el.innerHTML = html; el._h = html; el._hw = el.offsetWidth / 2; }
+      // 名の札が画面の端で切れないよう、札の幅の半分だけ内へ寄せる（左右の端に出た印）
+      if (el._hw > 34) { const cx = Math.max(el._hw + 6, Math.min(W - el._hw - 6, sx)); if (cx !== sx) el.style.left = cx + 'px'; }
     }
     for (const [id, el] of this.markerEls) if (!seen.has(id)) { el.remove(); this.markerEls.delete(id); }
     cue.hidden = !cueOn;

@@ -1216,6 +1216,12 @@ export class Battle {
       else this.award((t) => t.c.ashigaru++, '敵足軽撃破', at);
     } else if (k && k.isSub && v.team !== 0) {
       this.award((t) => t.c.subKills++, '部下の撃破');
+      // 自分の鉄砲組の一斉射撃で倒れた数をまとめて知らせる（間が空いたら、その時までの数で出す）
+      if (k.type === 'gun') {
+        this.volleyKillN = (this.volleyKillN || 0) + 1;
+        const tok = (this.volleyKillTok = (this.volleyKillTok || 0) + 1);
+        this.after(0.4, () => { if (this.volleyKillTok === tok && this.volleyKillN > 0 && !this.over) { this.bark(`鉄砲組が${this.volleyKillN}人を倒した`); this.volleyKillN = 0; } });
+      }
     }
     // 首級
     if (v.team !== 0 && (v.type === 'samurai' || v.type === 'busho') && !v.noHead && k && (k.isPlayer || k.isSub)) {

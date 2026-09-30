@@ -918,7 +918,11 @@ const EVAL_CSS = `<style>
   .ev2 .ev-eiraku { display: block; font-size: 12.5px; color: var(--washi-dim); margin-top: 2px; }
   .ev2 .ev-sq { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(15em, 1fr)); gap: 2px 14px; font-size: 13px; }
   .ev2 .ev-sq li.dead { background: #0b0a08; color: var(--washi); padding: 0 6px; outline: 1px solid var(--washi-faint); outline-offset: -2px; }
-  .eval.ev2 { max-width: 760px; padding-bottom: 0; }
+  /* 下の釦の帯（ev-actbar）はいつも見えるようにしつつ、巻物など中身の最後の段に重ならないよう、
+     .eval を画面の高さぴったりの入れ物にし、帯を除く中身（.ev-body）だけを縦に流す
+     （帯は入れ物の最後に並ぶだけの兵（flex）なので、中身が短くても画面下に貼りつかず重ならない） */
+  .eval.ev2 { max-width: 760px; padding-bottom: 0; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; }
+  .ev2 .ev-body { flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; min-height: 0; }
   .ev2 .ev-bigs { display: grid; gap: 8px; margin: 4px 0 14px; }
   .ev2 .ev-big { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 16px; padding: 12px 18px; border: 1px solid var(--kin); background: linear-gradient(100deg, rgba(194,162,90,.18), rgba(194,162,90,.02) 70%); opacity: 0; animation: evPop .55s cubic-bezier(.2,.9,.3,1.2) forwards; }
   .ev2 .ev-big small { display: block; font-size: 12px; letter-spacing: .3em; color: var(--kin); }
@@ -967,7 +971,7 @@ const EVAL_CSS = `<style>
   .ev2 .ledger .ln { font-size: 14px; padding: 6px 0; animation: none; opacity: 1; }
   .ev2 .ledger .ln .p { font-size: 16px; }
   .ev2 .ledger .ln.big { color: var(--kin); }
-  .ev2 .ev-actbar { position: sticky; bottom: 0; margin: 18px -16px 0; padding: 14px 16px 16px; background: linear-gradient(180deg, rgba(20,18,15,0), rgba(20,18,15,.94) 30%); display: flex; gap: 10px; flex-wrap: wrap; align-items: center; opacity: 0; animation: ln .4s ease-out forwards; }
+  .ev2 .ev-actbar { flex: 0 0 auto; margin: 0 -16px calc(-1 * env(safe-area-inset-bottom, 0px)); padding: 14px 16px calc(16px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(180deg, rgba(20,18,15,0), rgba(20,18,15,.94) 30%); display: flex; gap: 10px; flex-wrap: wrap; align-items: center; opacity: 0; animation: ln .4s ease-out forwards; }
   .ev2 .ev-gnote { clear: both; margin: 4px 0 0; font-size: 13px; color: var(--washi-dim); }
   .ev2 .ev-conds { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-top: 12px; }
   .ev2 .ev-conds span { border: 1px solid var(--line); padding: 6px 10px; font-size: 13px; color: var(--washi-dim); display: grid; grid-template-columns: auto 1fr; column-gap: 8px; }
@@ -1023,7 +1027,9 @@ const EVAL_CSS = `<style>
   @media (prefers-reduced-motion: reduce) { .ev2 .ek { animation: none; } }
   /* iPhone 横：絵巻を低く。三つの欄は並べたまま、字を少し小さく */
   @media (max-height: 500px) {
-    .eval.ev2 { padding-top: 58px; }
+    /* #screen.has-back が既に上へ 58px 空けている。ここでは .ev-body の中身だけ下げ、
+       下の釦の帯の分の高さ（.eval の外枠）を削らない（削ると巻物の下の段が切れて隠れる） */
+    .ev2 .ev-body { padding-top: 8px; }
     .ev2 .ek-sky { height: 40px; }
     .ev2 .ek-in { padding: 0 16px 10px; }
     .ev2 .ek-h { margin-top: -22px; gap: 10px; }
@@ -1034,7 +1040,7 @@ const EVAL_CSS = `<style>
     .ev2 .ek-c p { font-size: 15px; } .ev2 .ek-c ul { font-size: 13px; line-height: 1.45; }
     .ev2 .ek-foot { margin-top: 6px; padding-top: 4px; } .ev2 .ek-foot .ek-t strong { font-size: 26px; }
     .ev2 .ek-foot q { font-size: 13px; }
-    .ev2 .ev-actbar { padding: 8px 16px 10px; margin-top: 8px; } .ev2 .ev-actbar .skiphint { display: none; }
+    .ev2 .ev-actbar { padding: 8px 16px 10px; } .ev2 .ev-actbar .skiphint { display: none; }
   }
   @media (max-width: 560px) { .ev2 .ek-cols { grid-template-columns: 1fr 1fr; } .ev2 .ek-c:last-child { grid-column: 1 / -1; border-left: 0; border-top: 1px solid rgba(29,26,22,.35); padding-left: 2px; } }
 </style>`;
@@ -1168,7 +1174,7 @@ export function evalScreen(G, r, actions) {
     ${(() => { const nb = r.mainDone && r.battleIndex != null ? BATTLES[r.battleIndex + 1] : null; const L = nb && LORE[nb.id]; return L ? `<p class="ek-next"><small>次の戦</small><b>${esc(nb.name)}</b>${esc(L[1])}</p>` : ''; })()}
   </div></section>`;
   const rel = (r.relChange || []).map((x) => `<p class="ev-rel"><b>${esc(REL_NAME[x.k] || x.k)}の覚え</b>${REL_KEYS.filter(([k]) => x.d[k]).map(([k, n]) => `<span class="${(k === 'wary' ? -x.d[k] : x.d[k]) > 0 ? 'up' : 'dn'}">${n} ${sgn(x.d[k])}（${x.after[k]}）</span>`).join('') || '<span>変わらず</span>'}</p>`).join('');
-  const screen = show(`${EVAL_CSS}<div class="eval ev2">
+  const screen = show(`${EVAL_CSS}<div class="eval ev2"><div class="ev-body">
     ${emaki}
     ${!r.mainDone && r.bossLine ? `<div class="ev-fail"><b>${r.taishoLost ? '殿を討たれた' : 'しくじり'}</b><p><span>${esc(r.bossLine[0])}</span>「${esc(r.bossLine[1])}」</p>${r.advice ? `<p class="adv">次への一言：${esc(r.advice)}</p>` : ''}<div class="row" id="ev-fail-acts" style="margin:8px 0 0"></div></div>` : ''}
     ${promo}
@@ -1203,6 +1209,7 @@ export function evalScreen(G, r, actions) {
     ${r.history ? `<div class="histnote"><b>史実では</b><br>${esc(r.history)}</div>` : ''}
     </details>
     ${fbHtml('ev-fb')}
+    </div>
     <div class="ev-actbar" style="animation-delay:0s"><div class="row" id="ev-actions" style="margin:0"></div><p class="skiphint">${isTouch ? '画面を押すと演出を飛ばします ・ 下の釦で次へ進みます' : `画面を押すと演出を飛ばします ・ Enter で「${esc(primary ? primary.label : '')}」 ・ D で内訳`}</p></div>
   </div>`, false, (e) => {
     if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement) && !(e.target.tagName === 'SUMMARY')) { e.preventDefault(); if (primary) { sfx('ui'); primary.fn(); } }

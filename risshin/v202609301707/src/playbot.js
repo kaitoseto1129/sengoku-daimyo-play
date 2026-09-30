@@ -534,7 +534,7 @@ class TouchPad {
     if (Math.hypot(ax, ay) < 0.1) { if (this.move) { this.pe('pointerup', this.cv, this.move.x, this.move.y, this.move.id); this.move = null; } return true; }
     if (!this.move) {
       let got = null;
-      [[0.2, 0.66], [0.13, 0.5], [0.3, 0.42], [0.1, 0.8]].forEach(([fx, fy], k) => {
+      [[0.2, 0.66], [0.13, 0.55], [0.28, 0.6], [0.1, 0.8]].forEach(([fx, fy], k) => {
         if (got) return;
         const x = innerWidth * fx, y = innerHeight * fy, top = document.elementFromPoint(x, y);
         if (top === this.cv) got = { x, y }; else if (k === 0) this.ctx.blocked('左の親指の棒（歩く）', this.cv, top);
