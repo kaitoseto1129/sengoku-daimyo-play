@@ -1,0 +1,1 @@
+{"persona": "ux_b30", "name": "使い勝手にうるさい人・小さい画面でのんびり・ほとんど押さない", "view": [667, 375], "base": "ux", "days": 90, "runs": [{"sc": "nagashino", "clan": "織田家", "days": 90, "battles": 2, "stalls": 0, "refused": 1, "refusedDays": 1, "end": "1575年8月", "result": null, "castles": 22, "troops": 38085, "asked": [], "findings": []}], "at": "2026-09-30T00:55:24"}
