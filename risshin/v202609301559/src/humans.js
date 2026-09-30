@@ -25,7 +25,8 @@ export const HUM = { fx: true, ready: false, failed: false, on: true, near: 42, 
 // 画質ごとの数（「低」は今の形のまま）
 // 画質「低」でも自分（と名のある武将のごく近く）だけは本物の体にする
 // must：この近さ（m）より内の兵は、上限を越えても必ず骨の入った人にする（カメラの前に軽い形の兵を出さない）。その分は遠い者から軽い形へ
-export const HUM_Q = { high: { near: 42, max: 70, must: 34, mustMax: 120 }, mid: { near: 32, max: 40, must: 29, mustMax: 110 }, low: { near: 9, max: 4, far: 12, face: 0 } };   // 低（iPhone）も目の前の数人は骨の入った人に（手と腕が軽い筒の形のまま写らないよう）
+// mustMax は姉川のように合戦が複数同時に組み合う戦で、間近の本物の人が一気に増えないよう控えめに（普段の一本道の合戦では max 止まりで届かない数）
+export const HUM_Q = { high: { near: 42, max: 70, must: 34, mustMax: 90 }, mid: { near: 32, max: 40, must: 29, mustMax: 80 }, low: { near: 9, max: 4, far: 12, face: 0 } };   // 低（iPhone）も目の前の数人は骨の入った人に（手と腕が軽い筒の形のまま写らないよう）
 const q0 = new THREE.Quaternion(), q1 = new THREE.Quaternion(), v0 = new THREE.Vector3(), v1 = new THREE.Vector3(), v2 = new THREE.Vector3(), v3 = new THREE.Vector3(), m0 = new THREE.Matrix4(), m1 = new THREE.Matrix4();
 
 let SRC = null;      // 元の体（骨・形・動き・骨ごとの位置）
@@ -592,12 +593,12 @@ export function loadKabuto() {
     ]);
     col.flipY = false; col.colorSpace = THREE.SRGBColorSpace; col.anisotropy = 8;
     const geo = {};
-    gl.scene.traverse((o) => { if (o.isMesh) { o.geometry.computeVertexNormals(); geo[o.name] = o.geometry; } });
-    // スキャンの絵は光が焼き込まれているので、照らしは控えめ（粗さ高め）。裏（鉢の内・錣の裏）は暗く
-    const mat = new THREE.MeshStandardMaterial({ map: col, roughness: 0.62, metalness: 0.18, envMapIntensity: 0.8, side: THREE.DoubleSide });
-    mat.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= gl_FrontFacing ? 0.82 : 0.25;'); };
-    mat.customProgramCacheKey = () => 'kabuto';
-    KB = { hi: geo.hi, lo: geo.lo, mat, menpo: null };
+    // スキャンの兜は前が +x へ約27°回っていた（錣の開きと吹返しの真ん中で測った）。形ごと戻して、正面を +z にそろえる
+    gl.scene.traverse((o) => { if (o.isMesh) { o.geometry.rotateY(-0.47); o.geometry.computeVertexNormals(); geo[o.name] = o.geometry; } });
+    const hiN = kbFlatten(geo.hi), loN = kbFlatten(geo.lo);
+    for (const g of [geo.hi, geo.lo]) g.setAttribute('kbFlat', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count), 1));
+    KB = { hi: geo.hi, lo: geo.lo, hiN, loN, col, mats: new Map(), fuki: kbFuki(geo.hi), menpo: null };
+    KB.mat = kabutoMat('natural');
     KABUTO.ready = true;
     // 面頬（denis_cliofas「Menpō - Samurai Mask」CC BY 4.0）：名のある武将で面頬を付ける人に。読めなければ今の打ち出しの面頬のまま
     try {
@@ -642,17 +643,179 @@ function dressMenpo(h) {
   h.parts.menpo = m;
 }
 // 名のある武将の頭に、本物の兜をかぶせる（遠くは軽い形）
+// 武将ごとの兜の作り（GENERALS の兜・具足の色・家紋から決める）：
+// ・漆：kuro 黒漆・shu 朱漆・sabi 錆地・natural スキャンのまま。鉢・眉庇・吹返しを塗り替え、金の筋と覆輪は残す
+// ・前立：kuwa 鍬形・kuwaL 大鍬形・mika 三日月・nichi 日輪の板・nichiR 朱の日輪・tentsuki 天衝・tsuno 鹿角・none 無し
+// ・スキャンの鉢の前の龍は、下の数人だけに残す（ほかの人は龍を鉢へ寄せて潰し、地の漆で塗る）
+// ・吹返しの金の丸は、家紋がある人はその家の紋（金）に替える
+const KB_DRAGON = new Set(['織田信長', '今川義元', '武田勝頼']);
+const KB_SABI = new Set(['saito', 'asakura', 'azai', 'rokkaku', 'maru']);
+// 名のある大将は史実の具足に寄せて決める（信長・家康・忠勝は黒漆、義元は素のままの華やかな兜）
+const KB_LAC_BY = { 織田信長: 'kuro', 徳川家康: 'kuro', 本多忠勝: 'kuro', 武田勝頼: 'kuro', 今川義元: 'natural', 森可成: 'sabi' };
+const KB_CREST = { kabuto_m: 'kuwa', kabuto_b: 'kuwaL', kabuto_g: 'kuwaL', kabuto_r: 'kuwa', kabuto_f: 'mika', kabuto_w: 'nichi', kabuto_s: 'nichiR', kabuto_suwa: 'kuwaL', kabuto_shida: 'kuwaL', kabuto_t: 'kuwa', kabuto_tentsuki: 'tentsuki', kabuto_shika: 'tsuno', kabuto_sanada: 'tsuno' };
+export function kabutoStyle(L) {
+  const nm = typeof L.face === 'string' ? L.face.slice(2) : '', gd = GENERALS[nm] || {}, hat = gd.hat || L.hat || '';
+  let hs = 0; for (const ch of nm) hs = (hs * 31 + ch.charCodeAt(0)) >>> 0;
+  const hsl = new THREE.Color(gd.armor ?? L.armor ?? 0).getHSL({});
+  const red = /^kabuto_(r|tentsuki|sanada)$/.test(hat) || (hsl.s > 0.5 && hsl.l > 0.2 && (hsl.h < 0.05 || hsl.h > 0.95));
+  const mon = gd.mon || L.mon;
+  const lac = KB_LAC_BY[nm] || (red ? 'shu' : hat === 'kabuto_g' || hat === 'kabuto_namazu' ? 'natural' : KB_SABI.has(mon) ? (hs % 3 ? 'sabi' : 'kuro') : ['kuro', 'sabi', 'kuro', 'natural', 'kuro', 'sabi'][hs % 6]);
+  const dragon = KB_DRAGON.has(nm);
+  // 龍の人は龍が前立（勝頼だけ龍の上に大鍬形）
+  const crest = dragon ? (hat === 'kabuto_suwa' ? 'kuwaL' : 'none') : KB_CREST[hat] || 'none';
+  return { lac, crest, dragon, mon: mon && mon !== 'none' ? mon : null };
+}
+// 兜の形の座標での、鉢の前の面（楕円の鉢で近く見る）
+const kbFront = (x, y) => { const R = 0.135 * Math.sqrt(Math.max(0, 1 - ((y - 0.13) / 0.155) ** 2)); return Math.sqrt(Math.max(0, R * R - x * x)); };
+// 鉢の前の龍を鉢へ寄せて潰した形（kbFlat=1 の所は漆で塗る）。読み込みの時に一度だけ
+function kbFlatten(g) {
+  const n = g.clone(), p = n.attributes.position, f = new Float32Array(p.count);
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    if (Math.abs(x) > 0.08 || y < 0.158 || y > 0.265 || z < 0.05) continue;
+    const zb = kbFront(x, y);
+    if (z < zb + 0.004) continue;
+    p.setZ(i, zb + 0.002 + (z - zb) * 0.06); f[i] = 1;
+  }
+  n.setAttribute('kbFlat', new THREE.BufferAttribute(f, 1));
+  n.computeVertexNormals();
+  return n;
+}
+// 吹返しの金の丸の場所と向き（左右）。形から測る（外を向く面の点を集める）
+function kbFuki(g) {
+  const p = g.attributes.position, nr = g.attributes.normal, out = [];
+  for (const s of [-1, 1]) {
+    const c = new THREE.Vector3(s * 0.15, 0.172, 0.1), P = new THREE.Vector3(), N = new THREE.Vector3(); let k = 0;
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+      if ((x - c.x) ** 2 + (y - c.y) ** 2 + (z - c.z) ** 2 > 0.025 ** 2) continue;
+      if (nr.getX(i) * s * 0.6 + nr.getZ(i) * 0.8 < 0.2) continue;
+      P.x += x; P.y += y; P.z += z; N.x += nr.getX(i); N.y += nr.getY(i); N.z += nr.getZ(i); k++;
+    }
+    out.push(k > 8 ? { p: P.multiplyScalar(1 / k), n: N.normalize() } : null);
+  }
+  return out;
+}
+const KB_LAC = { natural: null, kuro: 0x16120f, shu: 0x8e2416, sabi: 0x4a2a1a };
+function kabutoMat(lk, kill = false) {
+  const key = lk + (kill ? '|mon' : '');
+  if (KB.mats.has(key)) return KB.mats.get(key);
+  const c = KB_LAC[lk];
+  const lac = new THREE.Color(c ?? 0x3a2418), disc = c == null ? new THREE.Color(0xa08a68) : lac;
+  const F = KB.fuki || [], far = new THREE.Vector3(9, 9, 9);
+  // スキャンの絵は光が焼き込まれているので、照らしは控えめ（粗さ高め）。塗った漆は少し艶。裏（鉢の内・錣の裏）は暗く
+  const mat = new THREE.MeshStandardMaterial({ map: KB.col, roughness: c == null ? 0.62 : 0.5, metalness: 0.18, envMapIntensity: 0.8, side: THREE.DoubleSide });
+  mat.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, { uLac: { value: lac }, uDisc: { value: disc }, uLacK: { value: c == null ? 0 : 1 }, uKill: { value: kill ? 1 : 0 },
+      uF0: { value: F[0] ? F[0].p : far }, uF1: { value: F[1] ? F[1].p : far } });
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float kbFlat; varying vec3 vKb; varying float vKbF;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvKb = position; vKbF = kbFlat;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uLac, uDisc, uF0, uF1; uniform float uLacK, uKill; varying vec3 vKb; varying float vKbF;')
+      .replace('#include <map_fragment>', `#include <map_fragment>
+      { vec3 c = diffuseColor.rgb; float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b));
+        float lum = dot(c, vec3(0.3, 0.59, 0.11));
+        float gold = smoothstep(0.6, 0.75, (mx - mn) / (mx + 1e-4)) * smoothstep(0.4, 0.5, c.g / (c.r + 1e-4)) * smoothstep(0.1, 0.16, mx);
+        float disc = uKill * (1.0 - smoothstep(0.024, 0.032, min(distance(vKb, uF0), distance(vKb, uF1))));
+        c = mix(c, uLac * (0.45 + 1.4 * lum), uLacK * smoothstep(0.118, 0.13, vKb.y) * (1.0 - gold) * (1.0 - disc));
+        c = mix(c, uDisc * (0.6 + 0.8 * lum), disc);
+        c = mix(c, uLac * (0.55 + 0.8 * lum), vKbF);
+        diffuseColor.rgb = c * (gl_FrontFacing ? 0.82 : 0.25); }`);
+  };
+  mat.customProgramCacheKey = () => 'kabuto2';
+  KB.mats.set(key, mat);
+  return mat;
+}
+// 前立の形（兜の形の座標。台は眉庇の上の真ん中）。形も材質も一つずつ作って使い回す
+const CREST_GEO = new Map();
+let CREST_MAT = null;
+function crestMats() {
+  if (!CREST_MAT) {
+    const S = THREE.DoubleSide;
+    CREST_MAT = {
+      gold: new THREE.MeshStandardMaterial({ color: 0xc29a48, metalness: 0.85, roughness: 0.3, side: S }),
+      black: new THREE.MeshStandardMaterial({ color: 0x14110f, metalness: 0.1, roughness: 0.3, side: S }),
+      red: new THREE.MeshStandardMaterial({ color: 0x8e2416, metalness: 0.05, roughness: 0.35, side: S }),
+    };
+  }
+  return CREST_MAT;
+}
+const CREST_M = new THREE.Matrix4().makeTranslation(0, 0.162, 0.142).multiply(new THREE.Matrix4().makeRotationX(-0.14));
+function crestGeo(kind) {
+  if (CREST_GEO.has(kind)) return CREST_GEO.get(kind);
+  const flat = (pts, d = 0.004) => { const g = new THREE.ExtrudeGeometry(new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x, y))), { depth: d, bevelEnabled: false, curveSegments: 4 }); g.translate(0, 0, -d / 2); return g; };
+  // 刃：二次の曲線を芯に、幅 w0→w1 で細る板（sd で左右）
+  const blade = (sd, p1, p2, w0, w1) => {
+    const L = [], R = [];
+    for (let i = 0; i <= 14; i++) {
+      const t = i / 14, a = (1 - t) ** 2, b = 2 * (1 - t) * t, e = t * t;
+      const x = b * p1[0] + e * p2[0] + a * 0.012, y = b * p1[1] + e * p2[1];
+      const dx = 2 * (1 - t) * (p1[0] - 0.012) + 2 * t * (p2[0] - p1[0]), dy = 2 * (1 - t) * p1[1] + 2 * t * (p2[1] - p1[1]);
+      const l = Math.hypot(dx, dy) || 1, w = (w0 + (w1 - w0) * t) / 2;
+      L.push([sd * (x - dy / l * w), y + dx / l * w]); R.push([sd * (x + dy / l * w), y - dx / l * w]);
+    }
+    return flat(sd > 0 ? [...R, ...L.reverse()] : [...L, ...R.reverse()]);
+  };
+  const dai = () => { const g = new THREE.BoxGeometry(0.05, 0.026, 0.007); g.translate(0, 0.008, 0); return g.toNonIndexed(); };
+  const parts = [];   // [形, 材質の鍵]
+  const kuwa = (sp, h, w0, w1) => { for (const sd of [1, -1]) parts.push([blade(sd, [0.07, 0.03], [sp, h], w0, w1), 'gold']); parts.push([dai(), 'gold']); };
+  if (kind === 'kuwa') kuwa(0.085, 0.16, 0.016, 0.007);
+  if (kind === 'kuwaL') kuwa(0.12, 0.22, 0.018, 0.008);
+  if (kind === 'tentsuki') { for (const sd of [1, -1]) parts.push([blade(sd, [0.03, 0.12], [0.1, 0.3], 0.022, 0.05), 'gold']); parts.push([dai(), 'gold']); }
+  if (kind === 'mika') {
+    const pts = [];
+    for (let i = 0; i <= 20; i++) { const a = Math.PI * 1.12 + (i / 20) * Math.PI * 0.76; pts.push([Math.cos(a) * 0.15, 0.155 + Math.sin(a) * 0.15]); }
+    for (let i = 20; i >= 0; i--) { const a = Math.PI * 1.12 + (i / 20) * Math.PI * 0.76; pts.push([Math.cos(a) * 0.143, 0.179 + Math.sin(a) * 0.143]); }
+    parts.push([flat(pts), 'gold'], [dai(), 'gold']);
+  }
+  if (kind === 'nichi' || kind === 'nichiR') {
+    const d = new THREE.CylinderGeometry(0.048, 0.048, 0.004, 28); d.rotateX(Math.PI / 2); d.translate(0, 0.07, 0);
+    const st = new THREE.BoxGeometry(0.01, 0.03, 0.005); st.translate(0, 0.012, 0);
+    parts.push([d.toNonIndexed(), kind === 'nichiR' ? 'red' : 'gold'], [st.toNonIndexed(), 'gold'], [dai(), 'gold']);
+    if (kind === 'nichiR') { const r = new THREE.TorusGeometry(0.049, 0.0035, 5, 28); r.translate(0, 0.07, 0); parts.push([r.toNonIndexed(), 'gold']); }
+  }
+  if (kind === 'tsuno') {
+    for (const sd of [1, -1]) {
+      const main = new THREE.CatmullRomCurve3([[0.015, 0, 0], [0.05, 0.05, -0.01], [0.075, 0.12, -0.03], [0.06, 0.2, -0.06]].map(([x, y, z]) => new THREE.Vector3(sd * x, y, z)));
+      const tine = new THREE.CatmullRomCurve3([[0.062, 0.085, -0.02], [0.095, 0.12, -0.02], [0.11, 0.16, -0.03]].map(([x, y, z]) => new THREE.Vector3(sd * x, y, z)));
+      parts.push([new THREE.TubeGeometry(main, 12, 0.007, 5).toNonIndexed(), 'black'], [new THREE.TubeGeometry(tine, 6, 0.005, 5).toNonIndexed(), 'black']);
+    }
+  }
+  // 材質ごとに一つの形にまとめる
+  const by = {};
+  for (const [g, k] of parts) { for (const a of Object.keys(g.attributes)) if (a !== 'position' && a !== 'normal') g.deleteAttribute(a); (by[k] = by[k] || []).push(g); }
+  const out = Object.entries(by).map(([k, gs]) => { const g = mergeGeometries(gs); g.computeVertexNormals(); g.computeBoundingSphere(); return [g, k]; });
+  CREST_GEO.set(kind, out);
+  return out;
+}
+const MON_PLANE = new THREE.PlaneGeometry(0.058, 0.058);
 function dressKabuto(h) {
-  const hd = SRC.rest.Head, k = KB_FIT.s;
+  const hd = SRC.rest.Head, k = KB_FIT.s, L = h.look || {};
+  const st = kabutoStyle(L);
   const fit = new THREE.Matrix4().makeTranslation(hd.x, hd.y + KB_FIT.y, hd.z + KB_FIT.z).multiply(new THREE.Matrix4().makeScale(k, k, k));
-  const m = attachBody(h, 'Head', KB.hi, fit, KB.mat);
+  // 吹返しの紋（家紋の絵は陣羽織と同じ作り。金で）
+  const monMat = st.mon && KB.fuki[0] && KB.fuki[1] ? (monDecal(st.mon, 0xc9a24a) || {}).material : null;
+  const G = st.dragon ? [KB.hi, KB.lo] : [KB.hiN, KB.loN];
+  const m = attachBody(h, 'Head', G[0], fit, kabutoMat(st.lac, !!monMat));
   m.frustumCulled = true;
   m.onBeforeRender = (r, s, cam) => {
     const e = m.matrixWorld.elements, c = cam.matrixWorld.elements;
     const d2 = (e[12] - c[12]) ** 2 + (e[13] - c[13]) ** 2 + (e[14] - c[14]) ** 2;
-    const want = !cam.isOrthographicCamera && d2 < DOMARU.near * DOMARU.near ? KB.hi : KB.lo;
+    const want = !cam.isOrthographicCamera && d2 < DOMARU.near * DOMARU.near ? G[0] : G[1];
     if (m.geometry !== want) m.geometry = want;
   };
+  const add = (geo, mat, mx) => { const c = new THREE.Mesh(geo, mat); c.matrixAutoUpdate = false; c.matrix.copy(mx); c.castShadow = true; m.add(c); return c; };
+  if (st.crest !== 'none') {
+    const CM = crestMats();
+    // 龍の人の鍬形は、龍の頭の後ろ（鉢の前）から立てる
+    const mx = st.dragon ? new THREE.Matrix4().makeTranslation(0, 0.2, 0.118).multiply(new THREE.Matrix4().makeRotationX(-0.2)) : CREST_M;
+    for (const [g, key] of crestGeo(st.crest)) add(g, CM[key], mx);
+  }
+  if (monMat) {
+    for (const f of KB.fuki) {
+      const z = f.n, x = new THREE.Vector3(0, 1, 0).cross(z).normalize(), y = z.clone().cross(x);
+      add(MON_PLANE, monMat, new THREE.Matrix4().makeBasis(x, y, z).setPosition(f.p.clone().addScaledVector(z, 0.003)));
+    }
+  }
   h.parts.kabuto = m;
 }
 // 題の画面がまだ組み終わらないうちから、裏で読み始める（main.js の title() の 1.5秒待ちより早く始まる。
@@ -988,6 +1151,38 @@ function prepHead(gl, col, nrm, spec) {
 const headMats = new Map();
 // 兵の顔の絵は、顔の形（12通り）ごとに一枚だけ作り、肌の色は材質の色で掛ける（肌の色ごとに重い絵を作り直さない＝戦の始めに止まらない）
 const headTexs = new Map();
+// MakeHuman の頭：作り分け（MH_VARS の順）の形を並べて持つ。座標は実写スキャンの頭と同じ（目 y 1.72・顎 -0.9・頭頂 4）
+// 肌の絵は年ごとに三枚（若い・壮年・老い）。凹凸の絵は無い（形そのものが細かい）
+const MH_VARS = ['若い・細面', '若い・丸顔', '壮年・角顔', '壮年・面長', '壮年・太り', '老い・痩せ'];
+function prepHeadMH(gl, sk) {
+  const vars = [];
+  gl.scene.traverse((o) => { if (o.isMesh) vars[MH_VARS.indexOf(o.name)] = o.geometry; });
+  const uv = vars[0].attributes.uv;
+  for (const g of vars) { if (!g.attributes.uv) g.setAttribute('uv', uv); g.computeVertexNormals(); }
+  for (const t of sk) { t.flipY = false; t.anisotropy = 4; t.colorSpace = THREE.SRGBColorSpace; }
+  const ex = gl.parser.json.extras || {};
+  HEAD = { geo: vars[2], vars, col: sk[1], skins: sk, nrm: null, spec: null, k: 0.058, mh: true, eyes: ex.eyes };
+}
+// 顔の値（年・幅・こけ・顎）から MakeHuman の作り分けを選ぶ。兵は顔の型（12通り）で散らす
+function mhPick(key, F) {
+  const age = F.age ?? (F.t >= 6 ? 58 : F.t >= 3 ? 42 : 28);
+  const m = /^c?(\d+)/.exec(String(key));
+  if (typeof key === 'number' || m) return [0, 2, 1, 3, 2, 5, 1, 3, 0, 4, 2, 3][(+(m ? m[1] : key)) % 12];
+  if (age >= 55) return (F.w || 1) > 1.04 ? 4 : 5;
+  if ((F.w || 1) > 1.06) return 4;
+  if (age < 32) return (F.gaunt ?? 0.5) > 0.55 || (F.w || 1) < 0.97 ? 0 : 1;
+  return (F.jaw || 1) >= 1.04 ? 2 : 3;
+}
+// MakeHuman の顔は鼻の下が短い：髭・唇の絵を描く高さを、実写スキャンの頭の高さへ読み替える（顎・唇・鼻の下・鼻先・目）
+const MH_Y = [[-3, -3], [-0.9, -0.9], [0.1, 0.22], [0.5, 0.82], [0.85, 1.1], [1.72, 1.72], [9, 9]];
+function mhPaintY(y) {
+  for (let i = 1; i < MH_Y.length; i++) if (y <= MH_Y[i][0]) { const [a0, b0] = MH_Y[i - 1], [a1, b1] = MH_Y[i]; return b0 + (b1 - b0) * (y - a0) / (a1 - a0); }
+  return y;
+}
+function mhSkin(key, F) {
+  const i = mhPick(key, F), age = F.age ?? (F.t >= 6 ? 58 : F.t >= 3 ? 42 : 28);
+  return HEAD.skins[i === 5 || age >= 55 ? 2 : i <= 1 && age < 34 ? 0 : 1];
+}
 function headMaterial(key, look, F) {
   if (headMats.has(key)) return headMats.get(key);
   // 名のある武将（g:）と本人は細かく描き、髭と眉は一本ずつの毛で描く
@@ -1028,38 +1223,6 @@ function headMaterial(key, look, F) {
   const age = F.age ?? (t >= 6 ? 58 : t >= 3 ? 42 : 28), old = Math.max(0, Math.min(1, (age - 28) / 32));
   const rnd = (() => { let a = 99 + (named ? String(key).length * 7 + (F.w || 1) * 1000 : 0); return () => ((a = (Math.floor(a) * 16807) % 2147483647) / 2147483647); })();
   // 名のある武将の肌：色むら・日焼け・しわ（tone）と、汗の照り（rough）の絵
-// MakeHuman の頭：作り分け（MH_VARS の順）の形を並べて持つ。座標は実写スキャンの頭と同じ（目 y 1.72・顎 -0.9・頭頂 4）
-// 肌の絵は年ごとに三枚（若い・壮年・老い）。凹凸の絵は無い（形そのものが細かい）
-const MH_VARS = ['若い・細面', '若い・丸顔', '壮年・角顔', '壮年・面長', '壮年・太り', '老い・痩せ'];
-function prepHeadMH(gl, sk) {
-  const vars = [];
-  gl.scene.traverse((o) => { if (o.isMesh) vars[MH_VARS.indexOf(o.name)] = o.geometry; });
-  const uv = vars[0].attributes.uv;
-  for (const g of vars) { if (!g.attributes.uv) g.setAttribute('uv', uv); g.computeVertexNormals(); }
-  for (const t of sk) { t.flipY = false; t.anisotropy = 4; t.colorSpace = THREE.SRGBColorSpace; }
-  const ex = gl.parser.json.extras || {};
-  HEAD = { geo: vars[2], vars, col: sk[1], skins: sk, nrm: null, spec: null, k: 0.058, mh: true, eyes: ex.eyes };
-}
-// 顔の値（年・幅・こけ・顎）から MakeHuman の作り分けを選ぶ。兵は顔の型（12通り）で散らす
-function mhPick(key, F) {
-  const age = F.age ?? (F.t >= 6 ? 58 : F.t >= 3 ? 42 : 28);
-  const m = /^c?(\d+)/.exec(String(key));
-  if (typeof key === 'number' || m) return [0, 2, 1, 3, 2, 5, 1, 3, 0, 4, 2, 3][(+(m ? m[1] : key)) % 12];
-  if (age >= 55) return (F.w || 1) > 1.04 ? 4 : 5;
-  if ((F.w || 1) > 1.06) return 4;
-  if (age < 32) return (F.gaunt ?? 0.5) > 0.55 || (F.w || 1) < 0.97 ? 0 : 1;
-  return (F.jaw || 1) >= 1.04 ? 2 : 3;
-}
-// MakeHuman の顔は鼻の下が短い：髭・唇の絵を描く高さを、実写スキャンの頭の高さへ読み替える（顎・唇・鼻の下・鼻先・目）
-const MH_Y = [[-3, -3], [-0.9, -0.9], [0.1, 0.22], [0.5, 0.82], [0.85, 1.1], [1.72, 1.72], [9, 9]];
-function mhPaintY(y) {
-  for (let i = 1; i < MH_Y.length; i++) if (y <= MH_Y[i][0]) { const [a0, b0] = MH_Y[i - 1], [a1, b1] = MH_Y[i]; return b0 + (b1 - b0) * (y - a0) / (a1 - a0); }
-  return y;
-}
-function mhSkin(key, F) {
-  const i = mhPick(key, F), age = F.age ?? (F.t >= 6 ? 58 : F.t >= 3 ? 42 : 28);
-  return HEAD.skins[i === 5 || age >= 55 ? 2 : i <= 1 && age < 34 ? 0 : 1];
-}
   // 兵の顔も tone を使う（写真の赤い唇を、日焼けした肌の色へ寄せる。紅を差したような唇は人形に見える）
   const tone = document.createElement('canvas'), rough = named ? document.createElement('canvas') : null;
   let tg = null, rg = null;
@@ -1258,6 +1421,24 @@ function grainOf(src, N) {
   g.globalCompositeOperation = 'destination-in'; g.drawImage(grainMasks.get(N), 0, 0);
   return c;
 }
+// MakeHuman の肌には凹凸の絵が無いので、細かな毛穴と肌理の凹凸をキャンバスで作って繰り返し貼る（一枚だけ）
+let MH_PORES = null;
+function mhPores() {
+  if (MH_PORES) return MH_PORES;
+  const N = 256, c = document.createElement('canvas'); c.width = c.height = N;
+  const g = c.getContext('2d'), im = g.createImageData(N, N), H = new Float32Array(N * N);
+  let a = 777; const r = () => ((a = (a * 16807) % 2147483647) / 2147483647);
+  for (let k = 0; k < 900; k++) { const x = r() * N | 0, y = r() * N | 0, d = 0.5 + r(); for (let j = -2; j <= 2; j++) for (let i = -2; i <= 2; i++) { const q = Math.exp(-(i * i + j * j) / (1.2 * d)); H[((y + j + N) % N) * N + ((x + i + N) % N)] -= q * (0.6 + r() * 0.4); } }
+  for (let i = 0; i < N * N; i++) H[i] += (r() - 0.5) * 0.25;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const dx = H[y * N + ((x + 1) % N)] - H[y * N + ((x - 1 + N) % N)], dy = H[((y + 1) % N) * N + x] - H[((y - 1 + N) % N) * N + x];
+    const l = Math.hypot(dx, dy, 1), o = (y * N + x) * 4;
+    im.data[o] = 128 - (dx / l) * 127; im.data[o + 1] = 128 - (dy / l) * 127; im.data[o + 2] = 128 + (1 / l) * 127; im.data[o + 3] = 255;
+  }
+  g.putImageData(im, 0, 0);
+  MH_PORES = new THREE.CanvasTexture(c); MH_PORES.wrapS = MH_PORES.wrapT = THREE.RepeatWrapping; MH_PORES.repeat.set(10, 10); MH_PORES.flipY = false;
+  return MH_PORES;
+}
 function mkHeadMat(tex, rTex, tint) {
   const m = new THREE.MeshPhysicalMaterial({
     map: tex, normalMap: HEAD.mh ? mhPores() : HEAD.nrm, normalScale: HEAD.mh ? new THREE.Vector2(0.35, 0.35) : new THREE.Vector2(0.8, 0.8), roughness: rTex ? 0.95 : 0.58, roughnessMap: rTex, metalness: 0,
@@ -1302,24 +1483,6 @@ float fn3(vec3 x) { vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f)
              mix(mix(fh3(i + vec3(0,0,1)), fh3(i + vec3(1,0,1)), f.x), mix(fh3(i + vec3(0,1,1)), fh3(i + vec3(1,1,1)), f.x), f.y), f.z); }
 float faceWet;
 ` + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
-// MakeHuman の肌には凹凸の絵が無いので、細かな毛穴と肌理の凹凸をキャンバスで作って繰り返し貼る（一枚だけ）
-let MH_PORES = null;
-function mhPores() {
-  if (MH_PORES) return MH_PORES;
-  const N = 256, c = document.createElement('canvas'); c.width = c.height = N;
-  const g = c.getContext('2d'), im = g.createImageData(N, N), H = new Float32Array(N * N);
-  let a = 777; const r = () => ((a = (a * 16807) % 2147483647) / 2147483647);
-  for (let k = 0; k < 900; k++) { const x = r() * N | 0, y = r() * N | 0, d = 0.5 + r(); for (let j = -2; j <= 2; j++) for (let i = -2; i <= 2; i++) { const q = Math.exp(-(i * i + j * j) / (1.2 * d)); H[((y + j + N) % N) * N + ((x + i + N) % N)] -= q * (0.6 + r() * 0.4); } }
-  for (let i = 0; i < N * N; i++) H[i] += (r() - 0.5) * 0.25;
-  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-    const dx = H[y * N + ((x + 1) % N)] - H[y * N + ((x - 1 + N) % N)], dy = H[((y + 1) % N) * N + x] - H[((y - 1 + N) % N) * N + x];
-    const l = Math.hypot(dx, dy, 1), o = (y * N + x) * 4;
-    im.data[o] = 128 - (dx / l) * 127; im.data[o + 1] = 128 - (dy / l) * 127; im.data[o + 2] = 128 + (1 / l) * 127; im.data[o + 3] = 255;
-  }
-  g.putImageData(im, 0, 0);
-  MH_PORES = new THREE.CanvasTexture(c); MH_PORES.wrapS = MH_PORES.wrapT = THREE.RepeatWrapping; MH_PORES.repeat.set(10, 10); MH_PORES.flipY = false;
-  return MH_PORES;
-}
     {
       // 兵ごとの顔の汚れ（uFaceV）：土と埃の斑・汗の流れた筋・日焼けの赤み。場所は w でずらす
       float x0 = abs(vHP.x + 0.09), fr = smoothstep(0.6, 1.5, vHP.z);
@@ -1644,11 +1807,6 @@ function addEyes(hm, F) {
 
 // ---------------- 人を作る ----------------
 // 部品を骨に付ける。体の座標（立ち姿）で作った部品を、その骨の立ち姿の位置に合わせて置く
-function boneOf(h, nm) { return h.bones[nm]; }
-function restMatrix(nm) {
-  // 骨の立ち姿の行列（人の根元の座標）。人を作るたびに同じなので覚えておく
-  if (!SRC.restM) SRC.restM = {};
-  if (SRC.restM[nm]) return SRC.restM[nm];
 // MakeHuman の頭の目玉：まぶたの穴の奥に、白目と黒目を描いた球を二つ（一つの形・一つの材質）。形は作り分けと顔の幅ごとに一つ
 const EYE_MH = { geos: new Map(), mat: null };
 function addEyesMH(hm, key, F) {
@@ -1687,6 +1845,11 @@ function addEyesMH(hm, key, F) {
   m.frustumCulled = false; m.receiveShadow = true;
   hm.add(m);
 }
+function boneOf(h, nm) { return h.bones[nm]; }
+function restMatrix(nm) {
+  // 骨の立ち姿の行列（人の根元の座標）。人を作るたびに同じなので覚えておく
+  if (!SRC.restM) SRC.restM = {};
+  if (SRC.restM[nm]) return SRC.restM[nm];
   const t = SRC.template;
   const b = t.bones[nm];
   const M = new THREE.Matrix4().copy(t.root.matrixWorld).invert().multiply(b.matrixWorld);
@@ -1913,7 +2076,9 @@ function dressNamed(h, P, L) {
     if (k === 'face') { if (HEAD) { h.parts.face = scanFace(h, L.face, L, P.F, true); if (L.menpoScan) { const a = performance.now(); if (h.parts.kabuto && KB.menpo) dressMenpo(h); else scanMenpo(h.parts.face, L.face, L.menpoScan); const TX = HSTAT.tx || (HSTAT.tx = {}); TX.menpo = +((TX.menpo || 0) + performance.now() - a).toFixed(1); } } return; }
     // 兜は少し深くかぶる（眉庇が眉の上に来るように）
     // 兜はスキャンの胴丸の兜（本人と同じ作り）を使い、この人の形の兜からは前立・脇立・後立・毛だけを取って載せる
-    if (k === 'hat') { const o = h.parts.kabuto ? CREST_OFF_KB : CREST_OFF; geo = crestOnly(geo); fit = fit.clone().multiply(new THREE.Matrix4().makeTranslation(0, o.y, o.z)); }
+    // 本物の兜の人は、前立も兜の側で付ける（dressKabuto）ので、この形からは何も取らない
+    if (k === 'hat' && h.parts.kabuto) return;
+    if (k === 'hat') { const o = CREST_OFF; geo = crestOnly(geo); fit = fit.clone().multiply(new THREE.Matrix4().makeTranslation(0, o.y, o.z)); }
     if (NAMED_KEEP.has(k)) h.parts[k] = attachBody(h, nm, geo, fit);
   });
   h.F = P.F;
@@ -1931,7 +2096,6 @@ function dressNamed(h, P, L) {
 // 兜の形から、鉢・錣・吹返し・眉庇を除き、前立などの飾りだけを残す（三角の中心で選ぶ）
 // 残す物：白い毛（諏訪法性の白熊）、眉庇より上で金の物、鉢から離れて立つ物（鹿角・鯰尾・天衝）
 const CREST_OFF = { y: -0.033, z: -0.03 };   // y は兜の下げ（HELM_FIT.dy）に合わせる
-const CREST_OFF_KB = { y: -0.01, z: 0.04 };   // 本物の兜の時（鉢の前の龍より前へ）
 const crestGeos = new Map();
 function crestOnly(g) {
   if (!g) return g;
@@ -4209,7 +4373,8 @@ export function updateHumans(rt, dt) {
 function humansStep(rt, dt, army, cam) {
   const on = HUM.on && HUM.ready;
   if (!on) { for (const h of [...humans]) dropHuman(h.u); if (HUM.on && !loading) loadHumans(); return; }
-  const Q = HUM_Q[S.quality] || HUM_Q.high;
+  // 自分・近くの味方と敵・名のある武将は、端末の画質に関わらず必ず写実の人にする（kaito 2026-09-30：画質の選択を消し、人の見た目だけは常に「高」と同じ形に）
+  const Q = HUM_Q.high;
   const cx = cam.position.x, cz = cam.position.z;
   cam.updateMatrixWorld();
   _pv.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
@@ -5150,7 +5315,7 @@ function updateHorses(rt) {
   const want = new Map();
   if (on && HORSE.ready) {
     const cam = rt.camera, cx = cam.position.x, cz = cam.position.z;
-    const HQ = HORSE_Q[S.quality] || HORSE;
+    const HQ = HORSE_Q.high;   // 馬も人と同じく、画質に関わらず常に「高」の近さ・数で骨の入った馬にする
     const cand = [];
     const add = (h, u, x, z, pri) => {
       if (!h || !h.userData.horse || h.visible === false) return;

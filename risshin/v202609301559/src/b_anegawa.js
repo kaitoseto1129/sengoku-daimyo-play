@@ -168,9 +168,10 @@ const anegawa = {
     const realFront = () => { const e = [F.iso, F.third, F.second].find((q) => q && !gone(q)); if (!e || F.step !== 1 || !F.mori.count) return null; const c = e.center(); return { x: c.x, z: (c.z + F.mori.center().z) / 2 }; };
     F.clash = [
       // 正面いっぱい（西の瀬の -158 から東の 120 まで。森の備の前の -12〜60 だけは本物の兵が受け持つ）
-      clash(rt, { x: -120, z: 2, facing: Math.PI, w: 76, gap0: 30, seed: 181, noRout: true, surge: { k: 'B', every: 50, count: 160, flank: 0.30 }, A: side('tokugawa', TK, 700, 0, 'tokugawa', { guns: true }), B: side('asakura', ASAKURA.armor, 920, 1, 'saito', { bows: true }) }),
-      clash(rt, { x: -44, z: 3, facing: Math.PI, w: 64, gap0: 26, seed: 182, noRout: true, surge: { k: 'B', every: 45, count: 150, flank: 0.35 }, A: side('oda', OD, 600, 0, 'oda'), B: side('azai', AZAI.armor, 800, 1, 'saito'), link: realFront }),
-      clash(rt, { x: 90, z: 3, facing: Math.PI, w: 60, gap0: 26, seed: 183, noRout: true, surge: { k: 'B', every: 55, count: 140, flank: 0.30 }, A: side('oda', OD, 560, 0, 'oda', { guns: true }), B: side('azai', AZAI.armor, 760, 1, 'saito'), link: realFront }),
+      // 三つの合戦がいつも同時に見えて重いので、描く数（count）は史実の総勢（force）とは別に2〜3割落とす（迫力の並びはそのまま）
+      clash(rt, { x: -120, z: 2, facing: Math.PI, w: 76, gap0: 30, seed: 181, noRout: true, surge: { k: 'B', every: 50, count: 160, flank: 0.30 }, A: side('tokugawa', TK, 520, 0, 'tokugawa', { guns: true }), B: side('asakura', ASAKURA.armor, 680, 1, 'saito', { bows: true }) }),
+      clash(rt, { x: -44, z: 3, facing: Math.PI, w: 64, gap0: 26, seed: 182, noRout: true, surge: { k: 'B', every: 45, count: 150, flank: 0.35 }, A: side('oda', OD, 450, 0, 'oda'), B: side('azai', AZAI.armor, 600, 1, 'saito'), link: realFront }),
+      clash(rt, { x: 90, z: 3, facing: Math.PI, w: 60, gap0: 26, seed: 183, noRout: true, surge: { k: 'B', every: 55, count: 140, flank: 0.30 }, A: side('oda', OD, 420, 0, 'oda', { guns: true }), B: side('azai', AZAI.armor, 560, 1, 'saito'), link: realFront }),
     ];
 
     rt.world.setTime('day');

@@ -1158,7 +1158,8 @@ export class Battle {
   onKill(v, k) {
     if (v.isPlayer) return;
     // 近くの味方が討たれる：断末魔と、少し遅れて体が地に崩れる音。一息に何人も倒れれば、周りが怯える
-    if (v.team === this.player.u.team && !v.isStruct && this.player.u.alive && this.distTo(v.pos) < 24) {
+    // （城下で斬った町の人 v.civ は「味方を失った」とは数えない）
+    if (v.team === this.player.u.team && !v.civ && !v.isStruct && this.player.u.alive && this.distTo(v.pos) < 24) {
       if ((this.allyCryT ?? -99) + 0.5 < this.t) { this.allyCryT = this.t; this.army.play('cry', v.pos, 0.8 + Math.random() * 0.3); }
       this.after(0.35 + Math.random() * 0.3, () => this.army.play('thud', v.pos, 0.8));
       const A = this.allyDeaths = (this.allyDeaths || []).filter((t) => this.t - t < 6); A.push(this.t);
@@ -1946,6 +1947,9 @@ export class Battle {
     this.scene.traverse((o) => {
       if (o.material && o.material.map && o.material.map.userData?.clone) o.material.map.dispose();
     });
+    // 遠景の大軍・軽い大軍の合戦（addDistantArmy・addClash）は戦ごとに形を作り直すので、ここで解放する
+    // （disposeしないと戦をまたいで溜まり、重い戦の始まりで固まりやすくなる）
+    if (this.world.dispose) this.world.dispose();
   }
 
   // ---------------- 軍勢の印：隊旗・号令の届き・行き先 ----------------

@@ -121,6 +121,30 @@ export function volley(rt) {
   rt.after(2.2, () => { if (rt.kamae === K && rt.squadGroups.some((g) => g.kind !== 'gun' && g.count > 0)) rt.bark('込める間、槍が前へ出る'); });
   return true;
 }
+// 三段で撃て：構え（まだなら組む）たまま holdFire を戻さず、込め終えた者から代わる代わる撃ち続ける（途切れない）
+export function volleyRoll(rt, P) {
+  const guns = gunsOf(rt);
+  const bows = rt.squadGroups.filter((g) => g.kind === 'bow' && g.count > 0);
+  if (!guns.length && !bows.length) return false;
+  for (const g of bows) { g.fire = true; g.holdFire = false; }
+  if (guns.length) {
+    if (!rt.kamae) kamae(rt, P);
+    const K = rt.kamae;
+    if (K) { K.mode = 'roll'; K.t = rt.t; for (const g of guns) { g.fire = true; g.holdFire = false; } }
+  }
+  rt.say(rt.G.name, '三段で、代わる代わる撃てい！', 2);
+  return true;
+}
+// 撃ち方やめ：構えを解き、弓・鉄砲の組を撃つのをやめて控えさせる
+export function ceaseFire(rt) {
+  const guns = gunsOf(rt);
+  const bows = rt.squadGroups.filter((g) => g.kind === 'bow' && g.count > 0);
+  if (!rt.kamae && !guns.some((g) => g.fire) && !bows.some((g) => g.fire)) return false;
+  kamaeOff(rt);
+  for (const g of [...guns, ...bows]) { g.fire = false; g.holdFire = true; }
+  rt.say(rt.G.name, '撃ち方、やめいっ！', 1.6);
+  return true;
+}
 export function kamaeOff(rt) {
   if (!rt.kamae) return;
   rt.kamae = null;

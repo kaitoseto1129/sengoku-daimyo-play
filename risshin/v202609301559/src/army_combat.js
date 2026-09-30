@@ -32,8 +32,19 @@ export const ArmyCombat = {
     // 味方の兵や筋書きの弾は今まで通り甲冑で弾く（勝手に史実が崩れないように）
     if (t.invuln && !this.mayWound(t, src)) { if (out) out.res = 'armor'; return; }
     const kind = opts.kind || 'thrust';
-    // 一騎打ち：敵将は受けて打ち合い、ときに鍔迫り合いになる。隙を突いた一撃は深く入る
-    if (this.duel && t === this.duel.foe && src && src.isPlayer && kind !== 'gun' && kind !== 'arrow') {
+    // どちらから打たれたか（打たれた者の向きから見て）。side：右から 1、左から -1
+    let from = 'front', side = Math.random() < 0.5 ? 1 : -1;
+    if (src && src.pos) {
+      const dx = src.pos.x - t.pos.x, dz = src.pos.z - t.pos.z, d = Math.hypot(dx, dz) || 1;
+      const fw = (dx * Math.sin(t.heading) + dz * Math.cos(t.heading)) / d;
+      const rt = (dx * Math.cos(t.heading) - dz * Math.sin(t.heading)) / d;
+      side = rt >= 0 ? 1 : -1;
+      from = fw > 0.5 ? 'front' : fw < -0.45 ? 'back' : side > 0 ? 'right' : 'left';
+    }
+    // 受けが続き過ぎない：正面から2回連ねて受けたら、3回目は受けない（横・後ろからは受けられない。連ねた数は当たれば0に戻る）
+    const blkOk = from === 'front' && !(t._blkStreak >= 2);
+    // 一騎打ち：敵将は受けて打ち合い、ときに鍔迫り合いになる。隙を突いた一撃は深く入る（正面からだけ。横・後ろは素通し）
+    if (this.duel && t === this.duel.foe && src && src.isPlayer && kind !== 'gun' && kind !== 'arrow' && blkOk) {
       const D = this.duel;
       if (D.openT > this.time) {
         amount *= 1.7; D.openT = 0;
@@ -45,6 +56,7 @@ export const ArmyCombat = {
           t.atk = null; t.swing = null; t.stagger = 0.9;
           this.clashAt(src, t); this.play('parry', t.pos, 1);
           if (out) out.res = 'block';
+          t._blkStreak = (t._blkStreak || 0) + 1;
           return;
         }
         if (this.time > D.blockCd && Math.random() < 0.3) {
@@ -54,24 +66,20 @@ export const ArmyCombat = {
           const dx = t.pos.x - src.pos.x, dz = t.pos.z - src.pos.z, dl = Math.hypot(dx, dz) || 1;
           t.push.x += dx / dl * 1.4; t.push.z += dz / dl * 1.4;
           if (out) out.res = 'block';
+          t._blkStreak = (t._blkStreak || 0) + 1;
           return;
         }
       }
     }
-    // 騎馬武者を狙った弾・矢が、大きな的の馬に当たることがある：馬が倒れ、乗り手は生きたまま投げ出される（本人は除く。名のある武将も撃たれて落馬する）
-    if ((kind === 'gun' || kind === 'arrow') && t.mounted && t.horse && !t.isPlayer && !t.invuln && (t.type === 'cavalry' && !t.name ? Math.random() < 0.08 : (t.type === 'busho' || t.name) && Math.random() < (kind === 'gun' ? 0.14 : 0.05))) {
-      this.horseShot(t, src);
-      if (out) out.res = 'hit';
-      return;
-    }
-    // どちらから打たれたか（打たれた者の向きから見て）。side：右から 1、左から -1
-    let from = 'front', side = Math.random() < 0.5 ? 1 : -1;
-    if (src && src.pos) {
-      const dx = src.pos.x - t.pos.x, dz = src.pos.z - t.pos.z, d = Math.hypot(dx, dz) || 1;
-      const fw = (dx * Math.sin(t.heading) + dz * Math.cos(t.heading)) / d;
-      const rt = (dx * Math.cos(t.heading) - dz * Math.sin(t.heading)) / d;
-      side = rt >= 0 ? 1 : -1;
-      from = fw > 0.5 ? 'front' : fw < -0.45 ? 'back' : side > 0 ? 'right' : 'left';
+    // 騎馬武者を狙った弾・矢・穂先が、大きな的の馬に当たることがある：馬の体力が減り、尽きれば倒れて
+    // 乗り手は生きたまま投げ出される（本人は除く。名のある武将も馬を失えば落馬する）
+    if (t.mounted && t.horse && !t.isPlayer && !t.invuln) {
+      const hc = this.horseHitChance(t, src, kind);
+      if (hc > 0 && Math.random() < hc) {
+        this.horseDamage(t, amount, src, kind);
+        if (out) out.res = 'hit';
+        return;
+      }
     }
     if (t.isPlayer && this.hooks.playerDamage) {
       t.hitKind = kind;   // 何で打たれたか（player.js の takeDamage が弾の重さを見る）
@@ -81,19 +89,28 @@ export const ArmyCombat = {
       if (amount <= 0) return;
     }
     // 敵も正面からの攻撃は構えて防ぐことがある（薙ぎ・溜め突き・反撃・背後からは防げない）
-    if (src && src.isPlayer && !t.isPlayer && !opts.pierce && t.type !== 'dummy' && !t.stagger && !t.atk && !t.fleeing) {
+    // 総大将・殿（isTaisho）は、配下（isSub・isTomo）の攻撃にも受けて応じる（旗本だけでなく本人も手強い）
+    const bossVsAlly = t.isTaisho && src && (src.isSub || src.isTomo);
+    if (src && (src.isPlayer || bossVsAlly) && !t.isPlayer && !opts.pierce && t.type !== 'dummy' && !t.stagger && !t.atk && !t.fleeing) {
       // 構えの姿勢をとっている敵は防ぎやすく、そうでない敵は防ぎにくい
       // （構えていても受けるのは半分まで。侍が構えると八割を越えて受けていて、突いても突いても通らなかった）
-      const chance = Math.min(0.5, ({ ashigaru: 0.18, samurai: 0.38, busho: 0.5, bow: 0.05 }[t.type] || 0) * (t.guarding > 0 ? 2.2 : 0.6) * (t.group && t.group._reformT > this.time ? 0.3 : 1));   // 並び直しの最中は受けにくい
-      if (from === 'front' && Math.random() < chance) {
+      // 総大将・殿は本人が手強く、構えていなくても打ち合いに応じる（易しさで弱めは taisho.js の hp 側で調整）
+      const cap = t.isTaisho ? 0.62 : 0.5;
+      const base = t.isTaisho ? 0.62 : ({ ashigaru: 0.18, samurai: 0.38, busho: 0.5, bow: 0.05 }[t.type] || 0);
+      let chance = Math.min(cap, base * (t.guarding > 0 ? 2.2 : t.isTaisho ? 1.1 : 0.6) * (t.group && t.group._reformT > this.time ? 0.3 : 1));
+      if (bossVsAlly) chance *= 0.65;   // 配下の数で押し切れるよう、旗本相手よりは受けにくくする
+      if (blkOk && Math.random() < chance) {
         amount *= 0.2;
         t.guardFlash = 0.35;
+        t._blkStreak = (t._blkStreak || 0) + 1;
         // 構えを崩す技（叩き下ろし・上段の斬り下ろし）は、受けられても相手の構えを崩してよろめかせる
         if (opts.guardBreak) { t.guarding = 0; t.stagger = Math.max(t.stagger || 0, 0.8); t.atk = null; t.cd = Math.max(t.cd || 0, 0.9); }
         this.clashAt(src, t);
         if (out) out.res = 'block';
         if (this.hooks.onBlocked) this.hooks.onBlocked(t);
         t.hp -= amount; t.lastHitT = 0;
+        // 返し技：受けた総大将・殿は、すぐに打ち返す構えに入る（間合いが保てていれば次の一振りが速い）
+        if (t.isTaisho) t.cd = Math.min(t.cd ?? 0.5, 0.15);
         if (t.invuln && t.hp <= t.maxHp * WOUND_FLOOR) { t.hp = t.maxHp * WOUND_FLOOR; this.generalWounded(t, src); return; }
         if (t.hp <= 0) this.kill(t, src);
         return;
@@ -119,6 +136,7 @@ export const ArmyCombat = {
     // 背を打たれた者は深手になりやすい（逃げる背はなお。追い討ちの怖さ）。飛び道具は向きで変えない
     if (from === 'back' && !t.isPlayer && !t.isSub && kind !== 'gun' && kind !== 'arrow') amount *= t.fleeing ? 1.5 : 1.3;   // 自分の組の兵は除く（組が横から突かれて一度に崩れないように）
     if (out) out.res = z.res === 'armor' ? 'armor' : 'hit';
+    t._blkStreak = 0;
     t.hp -= amount;
     // 遊び手の一撃が名のある将に当たった：甲冑の音か肉を打つ音、小さくよろめく（当たったと分かるように）
     if (src && src.isPlayer && t.name && kind !== 'gun' && kind !== 'arrow') {
@@ -521,6 +539,32 @@ export const ArmyCombat = {
       this.play('neigh', t.pos, 0.7);
     }
     t.death.vx = spd * 0.5;
+  },
+  // 馬を狙った一撃が、乗り手でなく馬に当たる見込み（弾・矢は的が大きく当たりやすい。槍衾に突っ込んだ馬は脚や胴を狙われやすい）
+  horseHitChance(t, src, kind) {
+    const named = t.type === 'busho' || !!t.name;
+    if (kind === 'gun') return named ? 0.14 : 0.08;
+    if (kind === 'arrow') return named ? 0.05 : 0.08;
+    if (kind === 'thrust' || kind === 'tsuki' || kind === 'charge' || kind === 'slam' || kind === 'sweep' || kind === 'yoko' || kind === 'kesa' || kind === 'gyaku') {
+      let c = named ? 0.05 : 0.08;
+      // 槍衾（槍の構え）で待ち受ける隊へ突っ込んだ馬は、狙われやすい
+      if (src && src.group && src.group.formation === 'yari' && (src.group.order === 'yari' || src.group.order === 'hold') && (t.charging || kind === 'charge')) c += 0.3;
+      return Math.min(0.55, c);
+    }
+    return 0;
+  },
+  // 馬に手傷を負わせる：体力が尽きれば倒れる（horseShot）。尽きなければ驚いて竿立ちになり、少し動けなくなる
+  horseDamage(t, amount, src, kind) {
+    if (t.horseHp === undefined) { t.horseMax = Math.round((t.maxHp || 110) * 1.3); t.horseHp = t.horseMax; }
+    // 鉄砲は具足ごと貫く重さで、馬も一発で倒れる。矢・穂先は幾度か当てねば倒れない
+    const hAmt = kind === 'gun' ? t.horseMax : kind === 'arrow' ? t.horseMax * 0.45 : t.horseMax * 0.3;
+    t.horseHp = Math.max(0, t.horseHp - hAmt);
+    const h = t.horse, H = h && h.userData.horse;
+    if (H) H.rear = Math.min(1, (H.rear || 0) + (kind === 'gun' ? 0.8 : 0.5));
+    if (t.horseHp <= 0) { this.horseShot(t, src); return; }
+    t.stagger = Math.max(t.stagger || 0, kind === 'gun' ? 1.1 : 0.5);
+    t.charging = false;
+    if (Math.random() < (kind === 'gun' ? 0.9 : 0.5)) this.play('neigh', t.pos, kind === 'gun' ? 0.8 : 0.6);
   },
   // 馬が討たれた（乗り手は生きている）：馬は前へ崩れて横倒しに。乗り手は前へ投げ出されるか、四割ほどは馬の下敷きになって
   //   しばらく動けず（3〜4 秒）、這い出してから徒歩の侍として戦い続ける

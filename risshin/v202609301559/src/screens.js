@@ -8,7 +8,7 @@ import { illustHtml, illustKey, mountIllust } from './illust.js';
 import { odaTown, setOdaDiagram, ODA_REL_NAME } from './oda_town.js';
 import { kumiHtml, kumiBind } from './kumi.js';
 import { toiyaHtml, toiyaBind, TOIYA_ICON, toiyaCheap, spendLog, tnote } from './toiya.js';
-import { realmHtml, realmBind, REALM_ICON } from './realm.js';
+import { realmHtml, realmBind, REALM_ICON, realmBossHtml, realmLeft } from './realm.js';
 import { trackFeedback } from './count.js';
 
 // ボタンに触れたときの小さな音
@@ -480,13 +480,13 @@ const SET_CAT = {
   見やすさ: ['st-fov', 'st-shake', 'st-blood', 'st-rm', 'st-ca', 'st-ui', 'st-sub', 'st-subbg', 'st-hints', 'st-font'],
   戦の札: ['st-hudmode', 'st-hc', 'st-fade', 'st-float', 'st-mark', 'st-toast', 'st-cross', 'st-north', 'st-fps', 'st-hudMinimap', 'st-hudCompass', 'st-hudArmy', 'st-hudSquad', 'st-hudBottom', 'st-hudObjectives'],
   音: ['st-vol', 'st-vsfx', 'st-vamb', 'st-vmus', 'st-town', 'st-voice', 'st-vrate'],
-  画質: ['st-q', 'st-cap', 'st-dist'],
+  描画: ['st-cap', 'st-dist'],
 };
 const SET_DESC = {
   'st-smooth': 'マウスの細かなぶれをならす', 'st-autocam': '歩いている間、視点を動かさなければ背後へ回る', 'st-aim': '突きが少し外れても、近くの敵に向き直って当てる',
   'st-rm': '揺れ・ゆっくり・大きな動きを抑える', 'st-ca': '敵味方を色の明るさと形でも見分ける', 'st-fade': '戦いが無い間は、まわりの札を薄くする',
   'st-mark': '遠くの敵にも頭上に小さな印を出す', 'st-toast': '「大事なものだけ」では5点未満の通知を出さない', 'st-north': 'ミニマップを回さず、北を上にしておく',
-  'st-q': '低：影なし・草少なめ。重いときは自動で下がる', 'st-cap': '30 にすると電池の減りが少ない', 'st-dist': '霧の遠さ。短いほど軽い',
+  'st-cap': '30 にすると電池の減りが少ない', 'st-dist': '霧の遠さ。短いほど軽い',
   'st-town': '城下で琴の旋律を流す', 'st-fps': '左下に一秒の絵の数と兵の数を出す',
   'st-voice': 'ブラウザの音声合成で台詞を読む（日本語の声がある環境のみ）', 'st-font': '本文の字の形',
 };
@@ -501,7 +501,7 @@ export function settingsHtml() {
     return `<div class="s-row ${SET_ADV.has(id) ? 'adv' : ''}" data-cat="${cat}"><label for="${id}">${label}${SET_DESC[id] ? `<small>${SET_DESC[id]}</small>` : ''}</label>${input}<output id="${id}-o">${out}</output></div>`;
   };
   const chk = (id, key) => `<input type="checkbox" id="${id}" ${S[key] ? 'checked' : ''}>`;
-  return `<div class="settings ${setAdv ? 'show-adv' : ''}"><style>.settings:not(.show-adv) .s-row.adv { display: none !important; } .settings .st-advbtn { margin: 8px 0; } .settings input[type=range] { min-height: 44px; } .settings .st-qnow { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; padding: 8px 12px; margin: 0 0 10px; border: 1px solid var(--kin); background: rgba(194,162,90,.1); } .settings .st-qnow b { font-family: var(--display); font-size: 22px; color: var(--kin); } .settings .st-qnow small { font-size: 12px; color: var(--washi-dim); flex-basis: 100%; } .settings .st-qnow .btn { min-height: 44px; } .settings .keybind button.wait b { color: #e38a74; }</style>${(() => { const QN = { low: '低', mid: '中', high: '高' }; const q = S.quality || 'mid'; return `<div class="st-qnow" role="status"><span>いまの画質</span><b>${QN[q] || q}</b>${q !== 'high' ? '<button type="button" class="btn small primary" id="st-qhigh">画質を「高」に戻す</button><small>重い時は自動で「中」に下がります</small>' : '<small>重い時は自動で「中」に下がり、知らせます</small>'}</div>`; })()}<div class="tabs st-tabs" role="tablist" aria-label="設定の分類">${Object.keys(SET_CAT).map((c, i) => `<button type="button" role="tab" id="st-tab-${i}" data-stcat="${c}" aria-controls="st-panel" class="${i === 0 ? 'on' : ''}" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}">${c}</button>`).join('')}</div>
+  return `<div class="settings ${setAdv ? 'show-adv' : ''}"><style>.settings:not(.show-adv) .s-row.adv { display: none !important; } .settings .st-advbtn { margin: 8px 0; } .settings input[type=range] { min-height: 44px; } .settings .keybind button.wait b { color: #e38a74; }</style><div class="tabs st-tabs" role="tablist" aria-label="設定の分類">${Object.keys(SET_CAT).map((c, i) => `<button type="button" role="tab" id="st-tab-${i}" data-stcat="${c}" aria-controls="st-panel" class="${i === 0 ? 'on' : ''}" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}">${c}</button>`).join('')}</div>
     <div id="st-panel" role="tabpanel" aria-labelledby="st-tab-0">
     ${row('st-sens', '視点の感度', `<input type="range" id="st-sens" min="0.3" max="2.5" step="0.05" value="${S.sens}">`, S.sens.toFixed(2))}
     ${row('st-psens', 'スティックの感度', `<input type="range" id="st-psens" min="0.3" max="2.5" step="0.05" value="${S.padSens}">`, S.padSens.toFixed(2))}
@@ -521,7 +521,6 @@ export function settingsHtml() {
     ${row('st-vmus', '楽の音', `<input type="range" id="st-vmus" min="0" max="1" step="0.05" value="${S.volMusic}">`, Math.round(S.volMusic * 100) + '%')}
     ${row('st-town', '城下の楽の音', chk('st-town', 'townMusic'))}
     ${row('st-twalk', '城下', `<select id="st-twalk"><option value="walk" ${S.townWalk !== 'cards' ? 'selected' : ''}>町を歩く</option><option value="cards" ${S.townWalk === 'cards' ? 'selected' : ''}>札で選ぶ（軽い）</option></select>`)}
-    ${row('st-q', '画質', `<select id="st-q"><option value="low" ${S.quality === 'low' ? 'selected' : ''}>低（影なし・草少なめ）</option><option value="mid" ${S.quality === 'mid' ? 'selected' : ''}>中</option><option value="high" ${S.quality === 'high' ? 'selected' : ''}>高</option></select>`)}
     ${row('st-run', '走りを切替式に', chk('st-run', 'runToggle'), '')}
     ${row('st-guard', '構えを切替式に', chk('st-guard', 'guardToggle'), '')}
     ${row('st-aim', '突きの狙いを助ける', chk('st-aim', 'aimAssist'))}
@@ -561,8 +560,6 @@ export function settingsHtml() {
 }
 
 export function bindSettings(onChange) {
-  const qh = $('st-qhigh');
-  if (qh) qh.onclick = () => { const sel = $('st-q'); if (sel) { sel.value = 'high'; sel.dispatchEvent(new Event('change', { bubbles: true })); sel.dispatchEvent(new Event('input', { bubbles: true })); } S.quality = 'high'; saveSettings(); if (onChange) onChange('quality'); sfx('ui'); const box = qh.closest('.st-qnow'); if (box) box.innerHTML = '<span>いまの画質</span><b>高</b><small>重い時は自動で「中」に下がり、知らせます</small>'; };
   const adv = $('st-adv');
   if (adv) adv.onclick = () => { setAdv = !setAdv; const box = document.querySelector('.settings'); if (box) box.classList.toggle('show-adv', setAdv); adv.setAttribute('aria-pressed', String(setAdv)); adv.textContent = setAdv ? '細かな設定を畳む' : '細かな設定を見せる'; sfx('ui'); };
   const bind = (id, key, conv, fmt) => {
@@ -633,7 +630,6 @@ export function bindSettings(onChange) {
   bind('st-inv', 'invertY', (e) => e.checked);
   bind('st-fov', 'fov', (e) => +e.value, (v) => v + '°');
   bind('st-vol', 'volume', (e) => +e.value, (v) => Math.round(v * 100) + '%');
-  bind('st-q', 'quality', (e) => e.value);
   bind('st-run', 'runToggle', (e) => e.checked);
   bind('st-aim', 'aimAssist', (e) => e.checked);
   bind('st-shake', 'shake', (e) => e.checked);
@@ -2185,6 +2181,7 @@ export function baseScreen(G, town0, lastResult, game, opts = {}) {
       body = `
         <h2 class="tw-h">今日やると良いこと<small>${G.actions ? `残り ${G.actions} 刻` : '今日の時間は使い切った'}</small></h2>
         ${P.length ? `<div class="tw-cards">${P.map(cardHtml).join('')}</div>${allDone ? '<p class="note tw-ready">備えは整った。いつでも出陣できる。</p>' : ''}` : '<p class="note tw-ready">備えは整っている。いつでも出陣できる。</p>'}
+        ${realmBossHtml(G)}
         <div class="tw-mis"><div class="m"><small>次の任務</small>${esc(m.title)}</div><button class="btn primary" id="go">${G.injured ? '休んでから出陣' : '任務を受けて出陣'}</button></div>
         <details class="tw-more tw-misd"><summary>任務の中身と図を見る</summary><p class="note">${esc(m.text)}</p>${TW.diagram(town)}</details>
         ${confirmGo ? `<div class="confirm-row"><b>出陣の前に</b>
@@ -2344,6 +2341,7 @@ export function baseScreen(G, town0, lastResult, game, opts = {}) {
     if (G.actions > 0 && !G.injured) mark('train', '稽', `稽古の時間があと${G.actions}刻`);
     if ((G.roster || []).some((r) => r.alive && r.wound) || G.injured) mark('inn', '傷', '手当て・休息が要る者がいる');
     if (Object.entries(ITEMS).some(([id, it]) => it.cost && it.slot !== 'side' && it.slot !== 'gun' && it.slot !== 'bow' && !G.owned.includes(id) && it.cost <= G.kan && !(it.minRank && G.rank < it.minRank))) mark('shop', '買', `${zeni(G.kan)}で買える具足がある`);
+    { const rl = realmLeft(G); if (rl.length) mark('realm', '知', `まだ選んでいない：${rl.map((t) => t.n).join('・')}`); }
     if (toiyaCheap(G)) mark('toiya', '買', `${zeni(G.kan)}で雇える供・買える物がある`);
     const hero = TW.art ? `<div class="th" style="background:${info.sky}">${TW.art(town === 0.5 ? 1 : town, tab)}<div class="tt"><small>${esc(info.when)}${info.gap ? `　・　${esc(info.gap)}` : ''}</small><b role="heading" aria-level="1">${esc(info.place)}</b><span>${esc(info.mood || '')}</span></div>${stepsHtml}</div>` : `<div class="townsky"></div>${stepsHtml}`;
     const fac = (info.fac || {})[tab];

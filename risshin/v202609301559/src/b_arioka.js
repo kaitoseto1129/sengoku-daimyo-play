@@ -484,7 +484,9 @@ function ariBot(b, inp, { goTo }) {
   if (u.hp < u.maxHp * 0.5) b.botRest = true;
   if (b.botRest && u.hp > u.maxHp * 0.85) b.botRest = false;
   if (b.botRest && F.step < 3) { inp.guardHold = false; const c = F.taki.center(); goTo(p, inp, c.x, c.z + 4, 2); return; }
-  const e = b.army.nearestEnemy(u, 12, (o) => !o.fleeing && (F.step >= 1 ? true : o.pos.z > WALL_Z));
+  // 塀越しに近い敵を狙って動かなくなる不具合の直し：塀が間にある敵は「見えていない」扱いにする
+  // （木戸を開けた直後、まだ塀の外にいるのに塀の内の敵へ向き直って突き続け、一撃も当たらないまま突進しない事があった。kaito 9/30）
+  const e = b.army.nearestEnemy(u, 12, (o) => !o.fleeing && (F.step >= 1 ? true : o.pos.z > WALL_Z) && !b.army.wallBetween(u.pos, u.team, o.pos, false));
   if (e && (F.step !== 3 || Math.hypot(e.pos.x - F.esc.center().x, e.pos.z - F.esc.center().z) < 16)) {
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
     p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
@@ -494,7 +496,8 @@ function ariBot(b, inp, { goTo }) {
     return;
   }
   inp.guardHold = false;
-  if (F.step === 1) { if (u.pos.z > WALL_Z + 1 && Math.abs(u.pos.x) > 2.5) { goTo(p, inp, 0, WALL_Z + 4, 1); return; } const c = gone(F.g1) ? { x: 0, z: 0 } : F.g1.center(); goTo(p, inp, c.x, c.z, 2); return; }
+  // 木戸（x -3.5〜3.5）を通らず、塀のある x で真っ直ぐ進んで立ち往生しないよう、F.step===2 と同じく WALL_Z-1 まで木戸口へ寄せてから進む（kaito 9/30）
+  if (F.step === 1) { if (u.pos.z > WALL_Z - 1 && Math.abs(u.pos.x) > 2.5) { goTo(p, inp, 0, WALL_Z + 4, 1); return; } const c = gone(F.g1) ? { x: 0, z: 0 } : F.g1.center(); goTo(p, inp, c.x, c.z, 2); return; }
   if (F.step === 2) {
     if (u.pos.z > WALL_Z - 1 && Math.abs(u.pos.x) > 2.5) { goTo(p, inp, 0, WALL_Z + 4, 1); return; }
     if (u.pos.z > WALL_Z - 1) { goTo(p, inp, 0, WALL_Z - 5, 1); return; }

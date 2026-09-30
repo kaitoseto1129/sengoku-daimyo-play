@@ -56,13 +56,13 @@ function addRel(G, house, delta) {
   const D = dipOf(G);
   D.rel[house] = Math.max(0, Math.min(100, relWith(G, house) + delta));
 }
-function houseName(house) { return (HOUSES[house] && HOUSES[house].name) || '隣国'; }
+export function houseName(house) { return (HOUSES[house] && HOUSES[house].name) || '隣国'; }
 // 仲の良さは数字でなく言葉で見せる（やさしい日本語の決まり）
 function relWord(v) { return v >= 70 ? '好い' : v >= 40 ? 'ふつう' : '冷たい'; }
 function nextBattle(G) { return BATTLES[G.battle]; }
 
 // ---------------- 外交の札 ----------------
-function diploCards(G) {
+export function diploCards(G) {
   const D = dipOf(G);
   const rank = G.rank || 0;
   const bi = nextBattle(G);
@@ -219,7 +219,7 @@ export function diploBattle(rt) {
     const bi = BATTLES[rt.index];
     const who = (bi && TURN_OF[bi.id]) || '敵の国衆';
     if (ok) {
-      rt.after(60 + Math.random() * 60, () => {
+      rt.after(35 + Math.random() * 35, () => {
         if (rt.over) return;
         const list = eligibleFoeGroups(rt);
         if (!list.length) return;

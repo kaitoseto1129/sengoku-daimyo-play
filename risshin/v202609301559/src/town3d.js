@@ -5,6 +5,7 @@
 // 出陣は町の門か上官屋敷で。町の人は二十人ほどまで。町家は形を使い回す（InstancedMesh）。
 // 向き：北（+z）へ通りを上ると城。町の門は南の端
 // ======================================================================
+import { realmLeft } from './realm.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { yaguramon, dobei, tenshu, sumiyagura, ishigaki, kabukimon, tawara, umatsunagi, hut, koshisaku, kagaribi, solidRect, solidSeg, castleMat, nobori } from './props.js';
@@ -369,6 +370,7 @@ export function townDef(game) {
     update(rt, dt) { tick(rt, dt); },
     // 札の画面から町へ戻った時：刻が進んでいれば、空の色を移ろわせる
     onResume(rt) {
+      realmObj(rt);
       const t2 = Math.max(0, Math.min(2, rt.G.actions ?? 2));
       if (t2 !== rt.flags.tod) { rt.flags.tod = t2; rt.world.setTime(t2 === 0 ? 'dusk' : 'day'); if (t2 === 0) rt.bark('日が傾いてきた'); const dl = document.getElementById('dateline'); if (dl) dl.textContent = `${info.when || ''}　${['夕刻', '昼', '朝'][t2]}`; }
     },
@@ -560,12 +562,23 @@ function guide(rt, def) {
   if (D0.kerai) rt.addInteract('door-kerai', { x: D0.kerai.x, z: D0.kerai.z }, '入る　家臣の詰所（召し抱え）', () => game.townOpen('realm'), { r: 3 });
   if (D0.shisha) rt.addInteract('door-shisha', { x: D0.shisha.x, z: D0.shisha.z }, '入る　使者の間（外交）', () => game.townOpen('realm'), { r: 3 });
   rt.obj('town', '町を歩いて支度をする。済んだら上官屋敷か町の門から出陣', 'main');
+  realmObj(rt, true);
   // 始めの一言（門番）。馬を持っていれば、馬はそばで待つ
   rt.after(1.2, () => rt.say('門番', `${rt.G.name}殿、お戻りか。上役の屋敷は、城の方へ上って辻を左へ折れた所でござる`, 4.5));
   rt.after(6.5, () => rt.say('', isTouch ? '戸口に寄ると「入る」が出る。押すと店や屋敷に入れる' : '戸口に寄ると「入る」が出る。E で店や屋敷に入れる', 4));
   if (rt.player.mounted) rt.player.toggleMount();
   // 町では背の旗指物を外す（戦の支度は出陣の時）
   { const pu = rt.player.u; if (pu.flag) { if (pu.flag.parent) pu.flag.parent.remove(pu.flag); pu.flag = null; } }
+}
+
+// 知行の支度（段2）：まだ選んでいない柱を任務の札に出す。屋敷から戻るたびに書き替える
+function realmObj(rt, first) {
+  const left = realmLeft(rt.G);
+  const had = rt.objectives.some((o) => o.id === 'realm');
+  if (left.length) {
+    rt.obj('realm', `屋敷で知行の支度：${left.map((t) => t.n).join('・')}を選ぶ`, 'side');
+    if (first && rt.flags.doors.yashiki) rt.after(11, () => rt.say('', `屋敷では、内政・家臣・外交を選べる。選んだ事は次の戦に出る`, 4));
+  } else if (had) { rt.obj('realm', '知行の支度は済んだ', 'side'); rt.objDone('realm'); }
 }
 
 // ---- 町の人と組の者 ----
@@ -583,6 +596,8 @@ function people(rt, def, rumors) {
     dress(rt, u, kind, i);
     if (kind === 'kid') u.kid = true;
     u.name = ROLE[kind];
+    // 子ども以外は、刀で斬りかかれる「町の人」にする（civScan・civStrike が見る）
+    if (kind !== 'kid') { u.civ = true; u.civKind = kind; }
     const P = { g, u, kind, i, wp: (i * 5) % WALK.length, waitT: 2 + (i % 5) * 1.5, talkT: 0, said: 0 };
     F.folk.push(P);
     rt.addInteract('folk' + i, () => (u.alive ? { x: u.pos.x, z: u.pos.z } : null), `話す　${ROLE[kind]}`, () => talk(rt, P, rumors), { r: 2.4 });
@@ -630,6 +645,109 @@ function people(rt, def, rumors) {
     });
   }
   F.rumorI = 0;
+  setupHeat(rt, def);
+}
+
+// ---- 騒ぎ（GTA のような手配）：町の人を斬ると上がり、役人に追われる。捕まると罰 ----
+const HEAT_DECAY = [0, 7, 13, 20];      // 何も無ければこの秒で一段下がる（隠れていればもっと早い）
+const HEAT_WORD = ['', '騒ぎ　一', '騒ぎ　二', '騒ぎ　三'];
+function setupHeat(rt, def) {
+  const F = rt.flags;
+  F.heat = 0; F.heatT = 0;
+  F.guards = [];
+  const gx = 0, gz = GATE_Z + 10;
+  for (let i = 0; i < 3; i++) {
+    const g = allyGroup(rt, { name: '捕り方', anchor: { x: gx + (i - 1) * 1.6, z: gz }, facing: Math.PI, order: 'hold', noRout: true, width: 1, aggro: 0, seekRange: 0 },
+      [{ type: i === 0 ? 'samurai' : 'ashigaru', n: 1, o: { name: i === 0 ? '役人' : '捕り方', flag: null, invuln: true } }]);
+    const u = g.units[0];
+    if (!u) continue;
+    u.name = i === 0 ? '役人' : '捕り方';
+    F.guards.push({ g, u, anchor: { x: gx + (i - 1) * 1.6, z: gz }, catchT: 0 });
+  }
+  // 斬られた町の人の悲鳴と、まわりの人が逃げ出す
+  rt.civScan = (pos, heading, reach, half) => {
+    const out = [];
+    const fx = Math.sin(heading), fz = Math.cos(heading);
+    for (const P of F.folk || []) {
+      const o = P.u;
+      if (!o || !o.alive || !o.civ || o.downed) continue;
+      const dx = o.pos.x - pos.x, dz = o.pos.z - pos.z, d = Math.hypot(dx, dz);
+      if (d > reach + 0.65) continue;
+      const cos = d < 0.01 ? 1 : (dx * fx + dz * fz) / d;
+      if (cos < Math.cos(Math.min(1.4, half + Math.atan2(0.3, Math.max(0.5, d))))) continue;
+      out.push({ u: o, d });
+    }
+    out.sort((a, b) => a.d - b.d);
+    return out;
+  };
+  rt.civStrike = (t) => {
+    if (t.downed || !t.alive) return;
+    t.downed = true;
+    const samuraiLike = t.civKind === 'samurai';
+    rt.army.kill(t, rt.player.u);
+    scream(rt, t);
+    addHeat(rt, def, samuraiLike ? 2 : 1, samuraiLike);
+  };
+}
+function scream(rt, t) {
+  const F = rt.flags;
+  for (const P of F.folk || []) {
+    const o = P.u;
+    if (!o || !o.alive || o === t) continue;
+    const d = Math.hypot(o.pos.x - t.pos.x, o.pos.z - t.pos.z);
+    if (d < 14) { P.g.order = 'move'; P.g.dest = { x: o.pos.x + (o.pos.x - t.pos.x) / (d || 1) * 18, z: o.pos.z + (o.pos.z - t.pos.z) / (d || 1) * 18 }; P.waitT = 6; }
+  }
+  rt.army.play('cry', t.pos, 1);
+}
+function addHeat(rt, def, n, samurai) {
+  const F = rt.flags;
+  const before = F.heat;
+  F.heat = Math.min(3, F.heat + n);
+  F.heatT = rt.t + HEAT_DECAY[F.heat];
+  if (F.heat !== before) {
+    rt.obj('heat', `手配（${HEAT_WORD[F.heat]}）：見つからぬよう逃げるか、時をやり過ごせ`, 'order');
+    rt.hud.flash(samurai ? '侍を斬った……大ごとになるぞ' : '見られた。人が騒ぎ出す', 'bad');
+  }
+  if (F.heat >= 1 && (rt.t - (F.heatCryT || -99) > 6)) { F.heatCryT = rt.t; rt.bark(F.heat >= 3 ? '御用だ、御用だ！' : '人殺しだぞ！', true); }
+}
+// 毎コマ：役人・足軽を近寄せる（heat が有る間）。追い付かれたら捕まる
+function heatTick(rt, dt) {
+  const F = rt.flags;
+  if (!F.guards) return;
+  if (F.heat > 0 && rt.t > F.heatT) { F.heat--; if (F.heat > 0) { F.heatT = rt.t + HEAT_DECAY[F.heat]; rt.obj('heat', `手配（${HEAT_WORD[F.heat]}）：見つからぬよう逃げるか、時をやり過ごせ`, 'order'); } else { rt.objRemove('heat'); rt.bark('騒ぎは収まったようだ'); } }
+  const P = rt.player.u;
+  const active = F.heat > 0;
+  F.guards.forEach((G, i) => {
+    const u = G.u;
+    if (!u || !u.alive) return;
+    if (active) {
+      const ang = (i - 1) * 0.6;
+      G.g.order = 'move'; G.g.dest = { x: P.pos.x + Math.sin(ang) * 1.0, z: P.pos.z + Math.cos(ang) * 1.0 };
+      const d = Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z);
+      if (d < 1.9 && rt.t > G.catchT) {
+        G.catchT = rt.t + 2;
+        caught(rt);
+      }
+    } else if (Math.hypot(u.pos.x - G.anchor.x, u.pos.z - G.anchor.z) > 1) {
+      G.g.order = 'move'; G.g.dest = G.anchor;
+    } else if (G.g.order !== 'hold') {
+      G.g.order = 'hold'; G.g.dest = null; G.g.anchor = G.anchor;
+    }
+  });
+}
+function caught(rt) {
+  const F = rt.flags;
+  if (rt.choice) return;
+  const fine = 120 + F.heat * 90;
+  rt.G.kan = Math.max(0, (rt.G.kan || 0) - fine);
+  rt.G.merit = Math.max(0, (rt.G.merit || 0) - 8);
+  const boss = (BATTLES[rt.G.battle] && BATTLES[rt.G.battle].boss) || '上役';
+  rt.banner('役人に捕らえられた', `過料 ${fine}文・戦功 −8`);
+  rt.say(boss.replace(/^.* /, ''), '町の者に手を上げるとは……次はこうはいかぬぞ', 4.5);
+  F.heat = 0; F.heatT = 0;
+  rt.objRemove('heat');
+  const p = rt.player.u;
+  p.stagger = Math.max(p.stagger || 0, 1.2);
 }
 
 function talk(rt, P, rumors) {
@@ -682,4 +800,5 @@ function tick(rt, dt) {
     g.order = 'move'; g.dest = dest;
     g.facing = Math.atan2(dest.x - u.pos.x, dest.z - u.pos.z);
   }
+  heatTick(rt, dt);
 }

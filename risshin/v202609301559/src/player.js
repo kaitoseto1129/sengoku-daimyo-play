@@ -7,7 +7,7 @@ import { sfx, deafen, setScene } from './audio.js';
 import { S, DIFFICULTY, K, saveSettings } from './settings.js';
 import { isTouch } from './touch.js';
 import { setFpCut, setFpArm } from './humans.js';
-import { kamae, volley, kamaeOff } from './kumi.js';
+import { kamae, volley, kamaeOff, volleyRoll, ceaseFire } from './kumi.js';
 // 刃の軌跡（Player.trailTick）の材質と使い回しのベクトル
 const TRAIL_N = 12;
 const TRAIL_MAT = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
@@ -146,6 +146,8 @@ export function commandList(rank) {
   ];
   // 鉄砲は一度目で前に並べて構え、二度目で一斉に放つ（弓は射撃の切り替え）
   if (rank >= 1) base.push({ k: '8', id: 'fire', label: '構え／放て', desc: '鉄砲は前に並んで構え、もう一度で一斉に放つ' });
+  if (rank >= 1) base.push({ id: 'roll', label: '三段で撃て', desc: '鉄砲・弓が込め終えた者から代わる代わる撃ち、途切れさせない' });
+  if (rank >= 1) base.push({ id: 'ceasefire', label: '撃ち方やめ', desc: '鉄砲・弓の組を構えから解き、撃つのをやめる' });
   if (rank >= 2) {
     base.push({ k: '6', id: 'move', label: '前進', desc: '照準の先の地点へ進む' });
     base.push({ k: '7', id: 'yari', label: '槍衾', desc: '横一列で槍を揃え正面を固める' });
@@ -271,8 +273,9 @@ export class Player {
   // ---------------- 馬の乗り降り ----------------
   toggleMount() {
     const rt = this.rt, u = this.u, army = rt.army;
-    if (!this.canRide || this.mountT > 0) return;
+    if (this.mountT > 0) return;
     if (this.mounted) {
+      if (!this.canRide) return;
       // 降りる：馬はその場で待つ
       army.setMounted(u, false);
       const side = { x: -Math.cos(u.heading) * 1.3, z: Math.sin(u.heading) * 1.3 };
@@ -287,12 +290,13 @@ export class Player {
       return;
     }
     const L = this.loose;
-    // すぐそばの空馬・置いた馬：R でも手綱を取って乗れる（今の馬より近ければ）
+    // すぐそばの空馬・置いた馬：R でも手綱を取って乗れる（今の馬より近ければ）。乗る身分（canRide）でなくても、捕らえた馬には乗れる
     const o = this.takeO;
-    if (o && (!L || L.mode === 'fled' || Math.hypot(o.h.position.x - u.pos.x, o.h.position.z - u.pos.z) < Math.hypot(L.x - u.pos.x, L.z - u.pos.z))) {
+    if (o && (!this.canRide || !L || L.mode === 'fled' || Math.hypot(o.h.position.x - u.pos.x, o.h.position.z - u.pos.z) < Math.hypot(L.x - u.pos.x, L.z - u.pos.z))) {
       if (o.kept) this.takeHorse(o); else if (!this.catching) { this.catching = { o, t: 0 }; rt.hud.flash('手綱を取っている…（離れると止める）', 'dim'); }
       return;
     }
+    if (!this.canRide) return;
     if (L && L.mode === 'fled' && this.spoil) { rt.hud.flash(`${this.horseName}は逃げ去った`, 'dim'); return; }
     if (!L || L.mode === 'fled') { rt.hud.flash(L && L.backAt ? `${this.horseName}は戻る途中（あと${Math.max(1, Math.ceil(L.backAt - rt.t))}秒）` : `${this.horseName}がいない`, 'dim'); return; }
     const d = Math.hypot(L.x - u.pos.x, L.z - u.pos.z);
@@ -327,7 +331,9 @@ export class Player {
     const u = this.u, rt = this.rt, army = rt.army;
     const locked = this.mountT > 0;
     const gallop = this.running && this.breath > 5 && iz > 0 && !this.guard;
-    let target = locked ? 0 : iz > 0 ? (gallop ? 11.5 * (this.horseSpeed || 1) : 5.4) : iz < 0 ? -1.8 : ml > 0 ? 2.2 : 0;
+    // 馬が傷つくほど足が鈍る（体力が半分を切ってから利いてくる）
+    const hurtMul = this.horseMax ? Math.max(0.5, Math.min(1, this.horseHp / (this.horseMax * 0.5))) : 1;
+    let target = locked ? 0 : iz > 0 ? (gallop ? 11.5 * (this.horseSpeed || 1) : 5.4) * hurtMul : iz < 0 ? -1.8 : ml > 0 ? 2.2 * hurtMul : 0;
     if (this.guard && target > 3) target = 3;
     if (!locked && ml > 0 && iz >= 0) {
       const maxTurn = (this.hspd > 8 ? 1.5 : 2.7) * dt;
@@ -704,12 +710,13 @@ export class Player {
     mult = Math.min(this.u.mobbed ? 1.5 : 1.35, mult);
     // def.foeHit：戦ごとの敵の打ち込みの重さ（楽すぎる戦を締める。無ければ 1）
     // 筋書きの最初の戦（手ほどきの戦・普通の難しさ）は、受ける傷を六割軽く（初めての人が手ほどきの中で倒れきらない）
-    let taken = amount * mult * (1 - this.def) * this.D.taken * (rt.def.foeHit || 1) * (rt.firstFights && rt.index === 0 ? 0.34 : rt.D === DIFFICULTY.hard ? 1 : 0.63);   // 恐さは見せ方と音で。易・普通の打ち込みは軽め（組と戦えば凌げる）。kaito 9/30：少し強く（0.55→0.63）
+    let taken = amount * mult * (1 - this.def) * this.D.taken * (rt.def.foeHit || 1) * (rt.firstFights && rt.index === 0 ? 0.4 : rt.D === DIFFICULTY.hard ? 1 : 0.72);   // 恐さは見せ方と音で。易・普通の打ち込みは軽め（組と戦えば凌げる）。kaito 9/30：少し強く（0.55→0.63→0.72、最初の戦 0.34→0.4）
     // 乱戦で一息に（1秒に）三本より多く浴びた時だけ、四本目から少し浅手に（難しさ「難」では緩めない）
     {
       const now = rt.t;
       this.recentHits = (this.recentHits || []).filter((x) => now - x < 1);
-      if (this.recentHits.length >= 3 && rt.D !== DIFFICULTY.hard && !this.u.mobbed) taken *= 0.8;
+      // 囲まれている時も、浅手にする度合いは弱いが無くさない（前は0：群がられると防ぎようのない一気の連続傷で倒れやすすぎた。kaito 9/30）
+      if (this.recentHits.length >= 3 && rt.D !== DIFFICULTY.hard) taken *= this.u.mobbed ? 0.9 : 0.8;
       this.recentHits.push(now);
     }
     // どんな一撃でも、体力の 65% より多くは一度に奪わない（満ちた体力から一撃で倒れない。二撃目で倒れるのはよい）
@@ -1339,6 +1346,9 @@ export class Player {
       if (!this.gunLoaded && !this.shot && this.gunAmmo === 0) {
         u.reload = null;
         if (!(this.noAmmoT > rt.t)) { this.noAmmoT = rt.t + 6; rt.hud.flash(`弾が尽きた。倒れた鉄砲足軽から拾うか、${isTouch ? '持ち替えの丸' : '1'}で槍に戻せ`, 'dim'); }
+      } else if (!this.gunLoaded && !this.shot && rt.def.dojo) {
+        // 稽古場は込めの間を取らず、すぐ次を撃てる（kaito 9/30）
+        this.gunLoaded = true; this.gunReload = 0; u.reload = null;
       } else if (!this.gunLoaded && !this.shot) {
         const sp = Math.hypot(u.vel.x, u.vel.z);
         const r0 = this.gunReload;
@@ -1588,7 +1598,9 @@ export class Player {
     const heading = this.mounted ? this.yaw : u.heading;
     const ride = this.mounted ? 0.7 : 0;
     const rush = this.mounted ? 1 + Math.min(0.9, Math.abs(this.hspd) / 11 * 0.9) : 1;
+    let lastArc = null;   // 城下で人へ斬りかかれるように：当たりが無かった時、同じ間合いで町の人を探す（arc.civScan）
     const arc = (reach, half, n) => {
+      lastArc = { reach, half };
       const over = this.weapon === 'spear';   // 槍は柵越しに突ける
       let h = army.enemiesInArc(u.pos, heading, reach, half, u.team, over);
       // 照準補助：正面に敵がいなければ少し広めに探して向きを合わせる
@@ -1683,9 +1695,16 @@ export class Player {
       if (kind === 'sweep' && this.jumonji && t.alive) t.stagger = Math.max(t.stagger || 0, 0.7);
       if (t.alive && t.atk && kind !== 'sweep' && t.lastStagT === army.time && Math.random() < 0.35) { t.atk = null; t.cd = 0.8; }
     }
+    // 城下で町の人へ斬りかかった時（rt.civScan が有る場所＝城下でだけ）：敵は居なくても人はいる
+    let civHit = null;
+    if (!hits.length && this.rt.civScan && lastArc) {
+      const cv = this.rt.civScan(u.pos, heading, lastArc.reach, lastArc.half);
+      if (cv && cv.length) civHit = cv[0];
+    }
+    if (civHit) { this.rt.civStrike(civHit.u, dmg); }
     // 兵に当たらなかった時は、目の前の敵の柵・逆茂木・竹束・陣幕・盾を打つ（味方の柵は打たない）。
     //   門や城の塀のような太い物は、槍・刀では少ししか減らない（掛矢の門破りの方が効く）
-    if (!hits.length) {
+    if (!hits.length && !civHit) {
       const reach = (kind === 'kthrust' || kind === 'slash' ? 2.1 : 2.9 + reachExtra) + ride;
       const fx = Math.sin(heading), fz = Math.cos(heading);
       let best = null, bd = 1e9;
@@ -1916,7 +1935,7 @@ export class Player {
     const gs = this.selectedGroups();
     if (!gs.length || !rt.squad.some((s) => s.alive)) { if (rt.squad.length) rt.hud.flash('声の届く組がいない（組は討たれたか、散った）', 'dim'); return; }
     // 同じ号令を 4 秒のうちにもう一度押すと、取り消して前の号令に戻す（押し間違いの手直し）
-    const undoable = !['fire', 'form', 'focus'].includes(id);
+    const undoable = !['fire', 'roll', 'ceasefire', 'form', 'focus'].includes(id);
     if (undoable && this.lastCmd && this.lastCmd.id === id && rt.t - this.lastCmd.t < 4 && rt.restoreSquad) {
       rt.restoreSquad(this.lastCmd.before);
       this.lastCmd = null;
@@ -1925,7 +1944,7 @@ export class Player {
       return;
     }
     const before = undoable && rt.squadSnaps ? rt.squadSnaps() : null;
-    if (id !== 'fire' && id !== 'form') kamaeOff(rt);
+    if (!['fire', 'roll', 'ceasefire', 'form'].includes(id)) kamaeOff(rt);
     // 号令は耳でも分かるように：かかれ・進め＝法螺と陣太鼓、退け＝鉦の連打、ついて来い＝法螺二声、ほか＝太鼓一打（同じ合図は 6 秒に一度）
     const sig = { attack: 'sig_susume', move: 'sig_susume', retreat: 'sig_hike', follow: 'sig_atsumare' }[id];
     if (sig && !(this.sigT && this.sigT[sig] > rt.t)) { (this.sigT = this.sigT || {})[sig] = rt.t + 6; sfx(sig, 0.55); }
@@ -1956,6 +1975,21 @@ export class Player {
       rt.say(this.G.name, on ? `${who}、放てっ！` : `${who}、撃ち方やめ！`, 2);
       rt.ack();
       rt.tutMark('cmd_fire');
+      return;
+    }
+    if (id === 'roll') {
+      let shooters = gs.filter((g) => g.kind === 'bow' || g.kind === 'gun');
+      if (!shooters.length) shooters = rt.squadGroups.filter((g) => g.kind === 'bow' || g.kind === 'gun');
+      if (!shooters.length) { rt.hud.flash('弓・鉄砲の組がいない（三段撃ちは弓・鉄砲の組に）', 'dim'); return; }
+      if (volleyRoll(rt, this)) { rt.ack(); rt.tutMark('cmd_fire'); this.syncRadial(); }
+      return;
+    }
+    if (id === 'ceasefire') {
+      let shooters = gs.filter((g) => g.kind === 'bow' || g.kind === 'gun');
+      if (!shooters.length) shooters = rt.squadGroups.filter((g) => g.kind === 'bow' || g.kind === 'gun');
+      if (!shooters.length) { rt.hud.flash('弓・鉄砲の組がいない', 'dim'); return; }
+      if (ceaseFire(rt)) { rt.ack(); this.syncRadial(); }
+      else rt.hud.flash('撃っている弓・鉄砲の組がいない', 'dim');
       return;
     }
     if (id === 'form') {

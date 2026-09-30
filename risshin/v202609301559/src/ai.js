@@ -561,6 +561,9 @@ export class Commander {
     // 撃てる所にいるつもりでも、兵のだれも的を持たない（隊の端の兵には遠い・塀や柵の陰）が 2 度続けば、もっと寄る
     //   （「放て」を待つ一斉射の組＝holdFire は、その場で待つ）
     if (g.holdFire) { this.release(g, A); g.facing = ang(s.c, tgt.c); return; }
+    // 柵・塀の内を守る鉄砲・弓は、持ち場を出て射程の外まで詰め寄らない（出ると柵に阻まれて 20 秒も動けなくなる）。
+    //   射程に入るまで、その場で敵を待つ
+    if (A.walled || A.fort) { this.release(g, A); g.facing = ang(s.c, tgt.c); return; }
     const aimless = td <= range * 0.95 && !g.units.some((u) => u.alive && (u.target || u.atk));
     A.aimless = aimless ? (A.aimless || 0) + 1 : 0;
     // 間合いの外：撃てる所まで寄る（高い所を選ぶ）

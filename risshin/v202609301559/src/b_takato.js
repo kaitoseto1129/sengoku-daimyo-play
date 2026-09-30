@@ -160,13 +160,20 @@ const takato = {
     rt.world.setTime('morning');
     sfx('horagai', 1); rt.after(0.8, () => sfx('taiko', 1));
     rt.banner('かかれ', '大手門へ寄せる');
-    rt.obj('main', HI(rt) ? '先手の一手を率い、大手門を破る組を守って門を破れ' : '大手門を破る組を守り、門を破れ', 'main');
+    rt.obj('main', HI(rt) ? '先手の一手を率い、大手門を破る組を守って門を破れ（門に寄って打ち込める）' : '大手門を破る組を守り、門を破れ（門に寄って打ち込める）', 'main');
     rt.say('森長可', '門を破る組を通せ！　塀の上の鉄砲に構うな、足を止めるな！', 3.5);
     const R = F.ram;
     R.order = 'assault'; R.formation = 'line'; R.aggro = 2; R.assault = () => (F.gate.alive ? F.gate : null);
     const go = (g, x, z) => { g.order = 'move'; g.dest = { x, z }; g.speed = 2.4; g.onArrive = (gg) => { gg.order = 'hold'; gg.anchor = { x, z }; gg.aggro = 14; }; };
     go(F.mori, 4, FRONT_Z + 12); go(F.dan, 30, FRONT_Z + 12); go(F.nobutada, -22, FRONT_Z + 12); go(F.teppo, -4, FRONT_Z + 20);
     rt.marker('gate', { x: 0, z: FRONT_Z }, () => `大手門 ${Math.round(Math.max(0, F.gate.hp) / F.gate.maxHp * 100)}%`, { h: 4 });
+    // 門を破る組だけに任せず、遊び手も門に取り付いて打てる（待たされる感じを無くす）
+    rt.addInteract('ramgate', { x: 0, z: FRONT_Z + 1.4 }, '門に取り付いて打つ', () => {
+      if (!F.gate.alive) return;
+      rt.army.damage(F.gate, 55, rt.player.u);
+      rt.army.play('wood', { x: 0, z: FRONT_Z }, 1.1);
+      rt.game.hitstop = 0.05;
+    }, { r: 3.4, hold: 0.6 });
     // 大手の塀の左右でも、織田の大軍が塀に取り付き、塀の内の城兵と槍を突き合う（軽い作り）
     F.lines = lines(rt, [
       { x: -40, z: FRONT_Z, facing: Math.PI, w: 40, gap: 3, seed: 15825, A: ['oda', 0x2b3140, 480, 'oda'], B: ['takeda', 0x3a2622, 300, 'takeda'], gunsB: true, surge: false },
@@ -348,7 +355,7 @@ const takato = {
         rt.say('森長可', '次の組、行けっ！', 2);
       }
       if (F.sally && F.sally.count < 5 && !gone(F.sally)) F.sally.morale = Math.min(F.sally.morale, 20);
-      if (rt.t - F.stepT > 150 && F.gate.alive) rt.army.damage(F.gate, 99999, null);
+      if (rt.t - F.stepT > 130 && F.gate.alive) rt.army.damage(F.gate, 99999, null);
     }
     if (F.step === 2) {
       const qs = [F.san, F.san2].filter(Boolean);
@@ -393,6 +400,7 @@ const takato = {
   onStructDestroyed(rt, s) {
     const F = rt.flags;
     if (s !== F.gate) return;
+    rt.uninteract('ramgate');
     for (const lv of s.mesh.userData.leaves) { lv.rotation.x = -1.4; lv.position.y = 0.1; }
     sfx('wood', 1.2);
     this.sannomaru(rt);
@@ -503,7 +511,12 @@ takato.botBrain = (b, inp, { goTo }) => {
   }
   inp.guardHold = false;
   const via = (x, z, lineZ) => { if (u.pos.z > lineZ + 1 && Math.abs(u.pos.x) > 2.5) { goTo(p, inp, 0, lineZ + 3, 1); return true; } if (u.pos.z > lineZ - 2 && u.pos.z <= lineZ + 1) { goTo(p, inp, 0, lineZ - 4, 1); return true; } goTo(p, inp, x, z, 2); return true; };
-  if (F.step === 1) { if (F.sally && !gone(F.sally)) { const c = F.sally.center(); goTo(p, inp, c.x, c.z, 2); return; } goTo(p, inp, 4, FRONT_Z + 7, 2); return; }
+  if (F.step === 1) {
+    if (F.sally && !gone(F.sally)) { const c = F.sally.center(); goTo(p, inp, c.x, c.z, 2); return; }
+    const it = b.interacts.find((q) => q.id === 'ramgate');
+    if (it) { const d = Math.hypot(it.pos.x - u.pos.x, it.pos.z - u.pos.z); if (d > 1.4) { goTo(p, inp, it.pos.x, it.pos.z, 1); return; } inp.k.add('KeyE'); return; }
+    goTo(p, inp, 4, FRONT_Z + 7, 2); return;
+  }
   if (F.step === 2) { const q = [F.san, F.san2].find((x) => x && !gone(x)); const c = q ? q.center() : { x: 0, z: -44 }; via(c.x, c.z, FRONT_Z); return; }
   if (F.step === 3) { const c = gone(F.ni) ? { x: 0, z: NI_Z - 6 } : F.ni.center(); if (u.pos.z > FRONT_Z - 2) { via(c.x, c.z, FRONT_Z); return; } via(c.x, c.z, c.z < NI_Z ? NI_Z : -999); return; }
   if (F.step === 4) { const q = [F.boss2, F.boss, F.boss3].find((x) => x && !gone(x)) || F.boss; const c = q.center(); if (u.pos.z > FRONT_Z - 2) { via(c.x, c.z, FRONT_Z); return; } if (u.pos.z > NI_Z - 2) { via(c.x, c.z, NI_Z); return; } goTo(p, inp, c.x, c.z, 2); return; }

@@ -552,7 +552,7 @@ const BAR = { x: 12, z: -24 };               // 川の中の中洲
 const LW = { x: -56, z: LEVEE_Z - 2 };       // 堤の西の端
 function ndCtx(rt) {
   const F = rt.flags;
-  return { faction: 'saito', flag: 'miyoshi', armor: 0x33302a, dmg: 0.64, look: (l) => dress(l, MIYOSHI), friends: () => [F.maeda].filter((g) => g && g.count), aid: { name: '前田の手の一組', list: [uS(1), uA(8)] }, aidSaid: '前田の手から一組が加わった' };
+  return { faction: 'saito', flag: 'miyoshi', armor: 0x33302a, dmg: 0.64, look: (l) => dress(l, MIYOSHI), friends: () => [F.maeda].filter((g) => g && g.count), aid: { name: '前田の手の一組', list: [uS(1), uA(8)] }, aidSaid: '前田の手から一組が加わった', keepZ: FORT_Z + 2 };
 }
 const mon = (list) => dress(list, IKKO);
 function ndA() {

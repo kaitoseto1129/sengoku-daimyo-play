@@ -188,8 +188,26 @@ export function applyLord(b) {
     skin: gen.skin, face: 'g:' + LORD.name, menpo: 0, horo: 0, trim: 0xc9a24a };
   // 旗本を百人ほどに（戦の定義や侍大将の組に足りない分を足す）
   const p = u.pos, h = u.heading || 0;
-  // 戦の定義が供の数を決めていれば（def.lordHata：本能寺のわずかな供など）それに従う
-  const HATA = b.def.lordHata || HATAMOTO;
+  // 信長として率いる組は全員鉄砲（kaito の下知）。戦の定義が先に組んだ槍・弓・騎馬の組（b.squadGroups）も、鉄砲へ作り直す
+  // （組そのものは消さず、中の兵だけを鉄砲に差し替える。号令「構え」「放て」「三段で撃て」等は g.kind === 'gun' を見るのでそのまま効く）
+  if (!b.def.lordHata) for (const g of b.squadGroups) {
+    if (g.kind === 'gun' || g.kind === 'tomo') continue;
+    const n = g.units.filter((x) => x.alive).length;
+    g.kind = 'gun';
+    g.fire = true;
+    g.formation = 'line';
+    g.fuku = null;
+    if (!n) continue;
+    for (const x of g.units) if (x.alive) b.army.despawn(x);
+    b.squad = b.squad.filter((x) => x.group !== g);
+    g.units = g.units.filter((x) => x.alive);
+    const units = b.army.spawn(g, [{ type: 'gun', n, o: { flag: G.aijirushi } }]);
+    if (n >= 6) g.ranks = 2;
+    units.forEach((x) => { x.isSub = true; x.kills = 0; });
+    b.squad.push(...units);
+  }
+  // 戦の定義が供の数を決めていれば（def.lordHata：本能寺のわずかな供など）それに従う。無ければ、それも鉄砲に揃える
+  const HATA = b.def.lordHata || { gun: HATAMOTO.spear + HATAMOTO.gun + HATAMOTO.bow + HATAMOTO.cavalry };
   for (const kind of Object.keys(HATA)) {
     const gs = b.squadGroups.filter((g) => g.kind === kind);
     const n = HATA[kind] - gs.reduce((a, g) => a + g.units.length, 0);
@@ -204,8 +222,10 @@ export function applyLord(b) {
   // 旗本を信長の後ろに並べ直す（戦の定義が別の所に組を置いていても）
   const fx = Math.sin(h), fz = Math.cos(h), rx = Math.cos(h), rz = -Math.sin(h);
   // 供の数を決めている戦は、並べる所も戦の定義に任せる
+  // 旗本は全員鉄砲の組なので、組が複数あれば横に並べて重ならないようにする
+  let gunIdx = 0;
   if (!b.def.lordHata) for (const g of b.squadGroups) {
-    const [bk, sd] = PLACE[g.kind] || [-20, 0];
+    const [bk, sd] = g.kind === 'gun' ? [-15, 9 - gunIdx++ * 12] : PLACE[g.kind] || [-20, 0];
     g.anchor = { x: p.x + fx * bk + rx * sd, z: p.z + fz * bk + rz * sd };
     g.facing = h; g.order = 'follow'; g.dest = null;
     const n = g.units.length;

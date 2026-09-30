@@ -37,7 +37,7 @@ const TABLE = {
   shigisan: { b: { name: '松永久秀' }, a: { name: '織田信忠' } },
   kizugawa: { b: { name: '村上元吉', off: true }, a: { name: '九鬼嘉隆', off: true } },   // 海の上の戦（本陣を置く陸が無い）
   miki: { b: { name: '別所長治' }, a: { name: '羽柴秀吉', use: true } },
-  arioka: { b: { name: '荒木久左衛門' }, a: { name: '織田信忠' } },   // 村重は尼崎へ移った後。城を預かった荒木久左衛門
+  arioka: { b: { name: '荒木久左衛門', off: true }, a: { name: '織田信忠' } },   // 村重は尼崎へ移った後。城を預かった荒木久左衛門。史実でも本丸は持ちこたえた戦なので、討ち取り即勝ちにはしない（官兵衛を救い出す筋書きが壊れる）
   iga: { b: { name: '百地丹波' }, a: { name: '織田信雄' } },
   tottori: { b: { name: '吉川経家' }, a: { name: '羽柴秀吉', use: true } },
   takato: { b: { name: '仁科盛信', use: true }, a: { name: '織田信忠', use: true } },
@@ -122,7 +122,7 @@ function adopt(rt, T, k) {
     u.invuln = false; u.woundOut = null; u.noTarget = false;   // 史実で生き延びた大将でも、ここでは討てる
   } else {
     u.maxHp *= 3; u.hp = u.maxHp;
-    if (u.invuln) { u.allyOk = true; e.woundLose = true; }   // 敵の槍も通る。深手（手傷で退く所）まで削られたら負け
+    if (u.invuln) { u.allyOk = true; e.woundLose = true; }   // 敵の槍も通る。深手（手傷で退く所）まで削られたら、旗本の陰に退く（負けではない）
   }
   // 定義の任務が本人の名を出していれば、討ち取りの流れも定義が持つ（こちらは後から見届ける）
   if (team === 1 && rt.objectives.some((o) => o.text && o.text.includes(e.name))) e.defOwned = true;
@@ -195,7 +195,7 @@ function placeAlly(rt, T, force) {
   [{ type: 'busho', n: 1, o: { name: e.name, hat: e.hat || 'kabuto_w', haori: e.haori } }, { type: 'samurai', n: small ? 2 : 4 }, { type: 'ashigaru', n: small ? 3 : 8 }]);
   const u = g.units.find((o) => o.type === 'busho' && o.name === e.name);
   if (!u) return true;
-  u.maxHp *= 4; u.hp = u.maxHp; u.isTaisho = 'a'; g.leader = u;
+  u.maxHp *= 4; u.hp = u.maxHp; u.isTaisho = 'a'; g.leader = u; g.guardBase = g.defMult;
   e.u = u; e.g = g; e.at = P; e.state = 'on';
   return true;
 }
@@ -226,8 +226,8 @@ export function taishoTick(rt, dt) {
     // 迫られると、旗本が総がかりで押し返す（間合いと勢いを上げる）
     T.b.g.seekRange = d < 32 ? 34 : 22;
     T.b.g.aggro = d < 32 ? 22 : 14;
-    // 本陣のすぐそばまで迫られ、旗本がまだ残っていれば、輿や馬で奥へ退く
-    if (d < 18 && guardAlive >= 3 && (T.bFallT ?? -99) + 6 < rt.t) {
+    // 本陣のすぐそばまで迫られた時、または手傷（体力半分）を負った時、旗本がまだ残っていれば奥へ退いて陰に入る
+    if ((d < 18 && guardAlive >= 3 || B.hp < B.maxHp * 0.5 && guardAlive >= 1) && (T.bFallT ?? -99) + 6 < rt.t) {
       T.bFallT = rt.t;
       let dx = T.b.at.x - P.x, dz = T.b.at.z - P.z; const L = Math.hypot(dx, dz) || 1;
       const q = landAt(rt, { x: clamp(T.b.at.x + (dx / L) * 12), z: clamp(T.b.at.z + (dz / L) * 12) }, T.b.at);
@@ -237,8 +237,14 @@ export function taishoTick(rt, dt) {
   }
   const A = T.a && T.a.state === 'on' && T.a.u;
   if (!A || !A.alive) return;
-  // 定義が守っている殿（討たれない武将）：深手を負って退いたら負け
-  if (T.a.woundLose && A.woundOut) { tonoLost(rt, T, true); return; }
+  // 旗本が厚い間は硬く、崩れれば手傷を負いやすくなる（敵の総大将と同じ仕組み）
+  if (T.a.g) {
+    const guardAlive = T.a.g.units.filter((o) => o.alive && o !== A).length;
+    const base = T.a.g.guardBase || 1.5;
+    T.a.g.defMult = guardAlive >= 6 ? base * 2.0 : guardAlive >= 3 ? base * 1.2 : base * 0.7;
+  }
+  // 深手（討たれない殿が退く所まで削られた）は負けではない：旗本の陰に退いて、それ以上は狙われない。負けは討たれた時だけ
+  if (T.a.woundLose && A.woundOut) once(T, rt, 'aWound', 30, () => rt.say('使番', '殿が手負いじゃ、守れ！', 3));
   raidTick(rt, T, A);
   // 殿が危ない：手傷・敵が迫る
   const hurt = A.hp < A.maxHp * 0.5;
@@ -328,6 +334,8 @@ export function taishoKill(rt, v, k) {
   if (T.b && v === T.b.u) {
     if (!k || k.team !== 0) return;   // 筋書きが消した（最後の場面など）時は、定義に任せる
     const byMe = k.isPlayer || k.isSub || k.isTomo;
+    // 大将が前線へ自ら出てくる戦（use：定義が出す本人を使う）では、討っても戦は終わらない。大手柄と敵の気落ちだけ（kaito 9/30）
+    if (T.b.use && !T.b.defOwned) { fieldTaken(rt, T, byMe); return; }
     const win = () => { if (!rt.over) enemyTaken(rt, T, byMe); };
     if (T.b.defOwned) rt.after(3, win); else win();
   } else if (T.a && v === T.a.u) tonoLost(rt, T, false);
@@ -340,6 +348,12 @@ function enemyTaken(rt, T, byMe) {
   for (const g of rt.army.groups) if (g.team !== 0 && !g.routed) { g.noRout = false; g.morale = 0; }
   rt.player.u.invuln = true;
   rt.finish({ taisho: 'b' }, 9);
+}
+function fieldTaken(rt, T, byMe) {
+  const n = T.b.name;
+  rt.after(0.6, () => rt.banner(`敵将 ${n}、討ち取ったり`, '敵は大将を失って揺らいでいる。戦はまだ続く'));
+  rt.award((t) => { if (byMe) t.special = { label: `敵将 ${n}を討ち取った`, pts: 60 }; }, byMe ? `大手柄：${n}を討ち取った` : `味方が${n}を討ち取った`);
+  for (const g of rt.army.groups) if (g.team !== 0 && !g.routed) g.morale = Math.max(0, (g.morale ?? 100) - 25);
 }
 function tonoLost(rt, T, wounded) {
   if (rt.over) return;

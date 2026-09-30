@@ -449,7 +449,8 @@ saika.botBrain = (b, inp, { goTo }) => {
     if (it) { if (bd > 1.2) goTo(p, inp, it.pos.x, it.pos.z, 0.9); else inp.k.add('KeyE'); }
     return;
   }
-  if (F.step === 2) { if (u.pos.z > -14 && STAKES.every((a) => Math.abs(u.pos.x - a.x) > 3)) { goTo(p, inp, STAKES[0].x, -14, 1); return; } const q = [F.front, F.front2].find((x) => x && !gone(x)); const c = q ? q.center() : { x: 0, z: FENCE_Z + 6 }; goTo(p, inp, c.x, c.z, 2); return; }
+  // 乱杭の跡（抜いた所以外は今も塞がる）を越えるまでは、いちばん近い抜き跡へ向かわせる（さもないと壁に突っかかる）
+  if (F.step === 2) { if (u.pos.z > -24 && STAKES.every((a) => Math.abs(u.pos.x - a.x) > 3)) { const near = STAKES.reduce((a, b) => (Math.abs(b.x - u.pos.x) < Math.abs(a.x - u.pos.x) ? b : a)); goTo(p, inp, near.x, -24, 1); return; } const q = [F.front, F.front2].find((x) => x && !gone(x)); const c = q ? q.center() : { x: 0, z: FENCE_Z + 6 }; goTo(p, inp, c.x, c.z, 2); return; }
   if (F.step === 3) { const q = (F.last || []).find((x) => !gone(x)); if (q) { const c = q.center(); goTo(p, inp, c.x, Math.max(c.z, FENCE_Z + 3), 2); return; } goTo(p, inp, 0, FENCE_Z + 8, 2); }
 };
 

@@ -349,6 +349,7 @@ export class Army {
     const riderParts = [u.body, u.legL, u.legR, u.hand, u.flag, u.uma];
     if (on) {
       u.horse = horse || u.horse;
+      if (u.horse !== u._horseHpFor) { u.horseHp = undefined; u.horseMax = undefined; u._horseHpFor = u.horse; }   // 乗り換えたら馬の体力を新しく
       if (u.horse.parent !== u.mesh) u.mesh.add(u.horse);
       u.horse.position.set(0, 0, 0); u.horse.rotation.set(0, 0, 0);
       if (!u.seat) { u.seat = new THREE.Group(); u.seat.matrixAutoUpdate = false; }
@@ -405,13 +406,14 @@ export class Army {
     for (const u of this.units) if (u.alive && ((u.atk && u.atk.target.isPlayer && !u.atk.bow) || (u.charging && u.cv === 'in' && u.target && u.target.isPlayer && Math.hypot(u.pos.x - u.target.pos.x, u.pos.z - u.target.pos.z) < 10))) this.threats.push(u);
     this.playerAttackers = this.threats.length;
     if (!this._rideChk) this.rideCheck();
-    // 囲まれ具合（0.25 秒ごと）：本人の 6m 内の敵と 8m 内の味方を数える。味方が少ないまま敵の塊に入ると、
+    // 囲まれ具合（0.25 秒ごと）：本人の 6m 内の敵と 10m 内の味方を数える。味方が少ないまま敵の塊に入ると、
     // 同時に打ちかかる数の上限（maxAttackers）が敵の数まで上がる（単騎で本隊へ入れば四方から打たれる。kaito 2026-09-27）
+    // kaito 9/30：味方の数える輪を8m→10mに（突撃の場面で組が少し離れて続いていても「支えがある」と数えるように）
     if ((this.crowdT = (this.crowdT || 0) - dt) <= 0) {
       this.crowdT = 0.25;
       const P = this.playerUnit;
       let foe = 0, ally = 0;
-      if (P && P.alive) this.forNear(P.pos.x, P.pos.z, 8, (o) => {
+      if (P && P.alive) this.forNear(P.pos.x, P.pos.z, 10, (o) => {
         if (!o.alive || o === P || o.type === 'dummy' || o.type === 'porter' || o.fleeing) return;
         const d = Math.hypot(o.pos.x - P.pos.x, o.pos.z - P.pos.z);
         if (o.team !== P.team) { if (d < 6 && o.type !== 'gun' && o.type !== 'bow') foe++; } else ally++;

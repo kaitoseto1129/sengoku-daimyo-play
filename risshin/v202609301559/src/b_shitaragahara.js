@@ -90,9 +90,9 @@ const shitaragahara = {
         [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 14 }]));
     }
     const n = RANKS[rt.G.rank].squad;
-    // 足軽大将より上は、柵の内の鉄砲の一手も預かる（設楽原の役目：鉄砲で止め、槍で突き落とす）
-    const big = (rt.G.rank || 0) >= 4;
-    F.bigGun = big && n ? Math.round(n / 3) : 0;
+    // 設楽原は鉄砲の見せ場：組の中身を城下・出陣前で決めていなければ（makeSquad の側で kumi が優先される）、
+    //   既定で三分の一ほどを鉄砲にして持たせる（柵の内で鉄砲隊を率いる役目）
+    F.bigGun = n ? Math.max(1, Math.round(n / 3)) : 0;
     if (n) rt.makeSquad({ x: SB.x0 - 4, z: 8 }, Math.PI / 2, F.bigGun ? [{ kind: 'spear', n: n - F.bigGun }, { kind: 'gun', n: F.bigGun, ranks: 2 }] : [{ kind: 'spear', n }]);
     // 柵の内の鉄砲組と南北の槍組は任務に数えない：遊び手が柵を出て武田の大軍へ乗り込んだ時は、
     //   遠くの者（遊び手から 55m・カメラから 50m より先）から外し、大軍の中の軽い兵を本物の兵に替える枠へ回す

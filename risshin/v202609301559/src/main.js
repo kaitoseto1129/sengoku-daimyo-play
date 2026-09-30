@@ -1401,7 +1401,7 @@ function loop() {
           S.quality = 'mid';
           saveSettings();
           onSettings('quality');
-          notice(`動きが重いため画質を「${S.quality === 'mid' ? '中' : '低'}」に下げました（設定で戻せます）`);
+          notice('動きが重いため、描き込みを少し軽くしました（人の姿はそのまま）');
         }
       }
     }

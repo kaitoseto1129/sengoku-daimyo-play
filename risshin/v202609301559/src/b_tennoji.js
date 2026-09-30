@@ -368,7 +368,8 @@ tennoji.botBrain = (b, inp, { goTo }) => {
   if (b.botRest && u.hp > u.maxHp * 0.85) b.botRest = false;
   const c = F.nobu.center();
   if (b.botRest) { inp.guardHold = false; goTo(p, inp, c.x, c.z + 6, 2); return; }
-  const e = b.army.nearestEnemy(u, F.step === 2 ? 5 : 12, (o) => !o.fleeing);
+  // 砦の柵越しに近い敵へ向いたまま突き続け、一度も当たらない不具合の直し（kaito 9/30）
+  const e = b.army.nearestEnemy(u, F.step === 2 ? 5 : 12, (o) => !o.fleeing && !b.army.wallBetween(u.pos, u.team, o.pos, false));
   if (e) {
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
     p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);

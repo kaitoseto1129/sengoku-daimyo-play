@@ -2407,6 +2407,25 @@ export class World {
     grp.add(maku, wm);
   }
 
+  // 戦の終わりに呼ぶ：遠景の大軍（addDistantArmy・addBacking・armyHost の後詰め）と軽い大軍の合戦（addClash）が
+  //   自前で作った形（InstancedMesh）は戦ごとに clone した物で、兵のジオメトリ（units.js・humans.js）のように使い回さない。
+  //   disposeしないと戦をまたいで GPU の持ち物が溜まり続け、重い戦の始まり（brief）で固まって見える一因になる
+  //   （材質の map（家紋・旗の絵）は flagTexture のキャッシュを使い回すので、ここでは形と材質だけ dispose する）
+  dispose() {
+    const disposeGrp = (grp) => {
+      if (!grp) return;
+      grp.traverse((o) => {
+        if (o.isInstancedMesh || o.isMesh) {
+          if (o.geometry) o.geometry.dispose();
+          if (o.material) o.material.dispose();
+        }
+      });
+    };
+    for (const A of this.armies || []) disposeGrp(A.mesh);
+    for (const C of this.clashes || []) disposeGrp(C.mesh);
+    this.armies = []; this.clashes = [];
+  }
+
   // 後詰め（隊の後ろに続く軽い兵の厚い層）を作る。返す物：{ meshes, depth }（入れ物に足すのは呼ぶ側）
   // o：{ x, z, facing, w, d, count, armor, flagTex, seed, U }
   //   (x, z, facing) は隊の真ん中と向き、w・d は隊の幅と奥行き。U は動き（進む・崩れる）を共にする隊の uniform
@@ -2593,7 +2612,8 @@ export class World {
           const s = { j, row: r, slot: r * cols + perm[c], lx, lz, yaw: F + (sgn > 0 ? 0 : Math.PI) + (R() - 0.5) * 0.3, k, sd: R(), r2: R(),
             helm: k === 3 ? 1 : R() < 0.08 ? 1 : 0, ex: k === 0 ? 1.25 + R() * 0.3 : k === 1 && r === 1 ? 1 : 0, flag: k === 4 ? 0 : R() < (P.flagRate ?? 0.8) ? 1 : 0, sc: [0.9 + R() * 0.2, 0.86 + R() * 0.24 + (R() < 0.06 ? 0.06 : 0), 0.9 + R() * 0.2] };
           sl.push(s);
-          (r < 3 ? S.near : S.far).push(s);
+          // 近い形（高精細）は前の2列まで。3列目からは遠い形へ（姉川のように合戦が複数同時に組む戦で三角面が重くなり過ぎないよう）
+          (r < 2 ? S.near : S.far).push(s);
         }
         sl.sort((a, c) => a.slot - c.slot);
         S.slots.push(sl);

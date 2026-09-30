@@ -16,7 +16,7 @@ const STAT_LABEL = ['統', '武', '知', '政'];
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 // ---------------- 役目 ----------------
-const ROLES = {
+export const ROLES = {
   kumi: { name: '組の頭', minRank: 2, note: '組の先手の隊に入り、副頭を務める' },
   tegei: { name: '手勢の頭', minRank: 2, note: '手勢の隊に入り、崩れにくくする' },
   tomo: { name: '供に付く', minRank: 1, note: '供に交じって主を守る' },
@@ -115,7 +115,15 @@ function growKerai(G, r, k) {
 }
 
 // ---------------- 家臣の札（召し抱える・褒美・暇を出す） ----------------
-function actionCards(G) {
+// 召し抱えた時、空いている役目に就ける（役目が無いと戦に出ないため。後で替えられる）
+function autoRole(G) {
+  const rank = G.rank || 0;
+  const taken = new Set(keraiOf(G).filter((k) => k.alive && k.role).map((k) => k.role));
+  for (const r of ['kumi', 'tomo', 'tegei']) if (!taken.has(r) && rank >= ROLES[r].minRank) return r;
+  return null;
+}
+
+export function actionCards(G) {
   const cards = [];
   for (const c of candidates(G)) {
     const cost = candidateCost(c);
@@ -123,7 +131,7 @@ function actionCards(G) {
       id: `hire:${c.key}`, name: `${c.name}を召し抱える`, cost: cost.hire,
       eff: `${c.named ? c.from + '。' : ''}俸禄 ${zeni(cost.pay)}／戦。役目は後で決められる`,
       apply: (G2) => {
-        keraiOf(G2).push({ id: Math.random().toString(36).slice(2, 8), name: c.name, named: c.named, s: c.s, tr: c.tr, pay: cost.pay, loy: newLoy(c.tr), role: null, battles: 0, kills: 0, alive: true, from: c.from });
+        keraiOf(G2).push({ id: Math.random().toString(36).slice(2, 8), name: c.name, named: c.named, s: c.s, tr: c.tr, pay: cost.pay, loy: newLoy(c.tr), role: autoRole(G2), battles: 0, kills: 0, alive: true, from: c.from });
       },
     });
   }
