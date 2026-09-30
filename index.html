@@ -207,7 +207,13 @@ body.inbattle #feed{display:none}
 .p-head{
   display:flex;align-items:center;gap:10px;padding:12px 14px;
   border-bottom:1px solid var(--line);flex:none;
+  overflow:hidden; width:100%; box-sizing:border-box;   /* 第257巡：閉じるの×が画面の外へはみ出していた */
 }
+.p-head h2,.p-head .sub{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }   /* 題が縮まず×を押し出していた */
+.p-close{ flex:0 0 auto }
+.p-head{ position:relative }
+.p-head .p-close#pClose{ position:absolute; right:12px; top:50%; transform:translateY(-50%); margin:0 }   /* 第257巡：閉じるは必ず右端の内側（画面の外へはみ出していた） */
+.p-head h2,.p-head>div:first-child{ padding-right:56px; box-sizing:border-box }
 .p-head h2{margin:0;font-family:var(--display);font-size:21px;font-weight:400;letter-spacing:.04em}
 .p-head .sub{font-size:14px;color:var(--gofun-dim)}
 .p-close{margin-left:auto;font-size:18px;width:30px;height:30px;border-radius:3px;background:rgba(237,230,214,.1)}
@@ -31081,7 +31087,7 @@ foot.innerHTML=`${B.opening>0?`<button class="tool on" id="bBegin" style="font-w
 ${ ""}
 <!-- 第253巡（作り手）：〈再集結〉〈予備隊 投入〉〈取消〉〈出撃〉〈目安箱〉は合戦の帯から外す（無駄な釦を増やさない）。一斉射撃は一つだけ -->
 ${PREF.wingBtns?`<button class="tool ${B.mode==="multi"?"on":""}" id="bMulti" title="隊を押して幾つも選び、まとめて動かす">複数選択</button>`:""}
-${PREF.wingBtns&&B.opening<=0&&B.over===null&&B.units.filter(u=>u.side===B.ctx.playerSide&&!u.cmd&&!u.ally&&u.troops>.5&&!u.left&&u.morale>0).length>=4?`<span class="tiny muted" style="display:flex;gap:2px;align-items:center" title="翼ごとにまとめて選ぶ（升を押せばそこへ、敵を押せば討つ）">${[["l","左翼"],["c","中央"],["r","右翼"]].map(([k,t])=>`<button class="tool sub ${B.wingSel===k?"on":""}" data-wing="${k}" style="min-width:40px;padding:0 6px">${t}</button>`).join("")}${B.wingSel?`<button class="tool sub gold" id="bWingCmd" title="選んだ翼への方針（攻勢・維持・防御・後退・予備をここへ）">翼の方針 ▸</button>`:""}<button class="tool sub" id="bAllCmd" title="全軍命令（前進・維持・防御・右翼圧力・中央集中・総攻撃）">全軍命令 ▸</button></span>`:""}
+${PREF.wingBtns&&B.opening<=0&&B.over===null&&B.units.filter(u=>u.side===B.ctx.playerSide&&!u.cmd&&!u.ally&&u.troops>.5&&!u.left&&u.morale>0).length>=4?`<span class="tiny muted" style="display:flex;gap:2px;align-items:center" title="翼ごとにまとめて選ぶ（升を押せばそこへ、敵を押せば討つ）">${[["l","左翼"],["c","中央"],["r","右翼"]].map(([k,t])=>`<button class="tool sub ${B.wingSel===k?"on":""}" data-wing="${k}" style="min-width:44px;min-height:44px;padding:0 8px">${t}</button>`).join("")}${B.wingSel?`<button class="tool sub gold" id="bWingCmd" title="選んだ翼への方針（攻勢・維持・防御・後退・予備をここへ）">翼の方針 ▸</button>`:""}<button class="tool sub" id="bAllCmd" title="全軍命令（前進・維持・防御・右翼圧力・中央集中・総攻撃）">全軍命令 ▸</button></span>`:""}
 ${B.wingFlank&&!B.ane&&B.opening<=0&&B.over===null?`<button class="tool gold" id="bWingFlank" title="崩れた敵の戦線の隣へ、勝った戦線の隊を回す（敵の士気−12）">側面を突け</button>`:""}
 ${(B.nagashino&&!B.tobiPhase&&B.opening<=0&&B.over===null&&B.ctx.playerSide===1&&B.units.some(u=>u.side===1&&u.type===3&&u.troops>.5))?`<button class="tool on" id="bNagVolley" title="鉄砲隊がいっせいに撃つ（十二秒に一度・Vキー）">一斉射撃</button>`:""}
 ${B.pursueReady?`<button class="tool on ${B.pursueHot&&!B.pursued?"hot":""}" id="bPursue" style="font-weight:800">追い討ち！</button>`:""}
