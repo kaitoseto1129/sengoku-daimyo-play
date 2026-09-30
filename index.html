@@ -880,7 +880,7 @@ html:not(.booting) #bootState{display:none}
   #bfoot::-webkit-scrollbar{ display:none }
   #bfoot .tool{ min-height:44px !important; padding:4px 9px !important; flex:0 0 auto }   /* 指は四十四px を守る。帯の余白だけ削る */
   #bfoot .tool.aux, #bfoot .tool.sub{ min-height:44px !important; padding:4px 8px !important; }
-  .rail button{ height:40px }
+  .rail button{ height:44px }   /* 第257巡（460人が「押せる所が44pxに足りない」）：四十px では指の下限を割る */
   #adviser{ bottom:6px; padding:6px 8px }
   #bfoot .tool, #bfoot button{ min-width:44px !important; min-height:44px !important; }
   #leftRail button, #rightRail button{ min-width:44px !important; }
@@ -4258,6 +4258,7 @@ if(c._lostTold===dayNumber()) continue; c._lostTold=dayNumber();
 const who=(c.clan===null||c.clan===undefined)?"":clanName(c.clan);
 bigNews(`${c.name} 失う`);
 log(who?`${c.name}が${who}の手に渡りました`:`${c.name}を失いました`,"bad",true);
+try{ toast(who?`${c.name}が${who}の手に渡りました`:`${c.name}を失いました`); }catch(_){ }
 } }
 
 const besieged={};
