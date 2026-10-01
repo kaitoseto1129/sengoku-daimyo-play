@@ -1200,6 +1200,8 @@ export class Player {
     // ---- 倒れた敵の鉄砲を拾う（近づくと「鉄砲を拾う」。E／指の端末は丸の釦） ----
     // 囲まれた知らせ（12 秒に一度）
     if (u.mobbed && !(this.mobWarnT > rt.t)) { this.mobWarnT = rt.t + 12; rt.bark('囲まれた！　味方のいる所まで下がれ', true); }
+    // 深手の知らせ（12 秒に一度）：危ない時こそ構えで凌ぐ事を教える（kaito「原因を測ってから」）
+    if (u.hp < u.maxHp * 0.3 && !(this.lowHpWarnT > rt.t)) { this.lowHpWarnT = rt.t + 12; rt.bark('深手だ！　構えで受け流し、組の者のいる所まで退け', true); }
     this.pickT = (this.pickT || 0) - dt;
     if (this.pickT <= 0 && !this.mounted) { this.pickT = 0.3; this.findGunPickup(); }
 

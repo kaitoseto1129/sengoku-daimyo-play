@@ -16,7 +16,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 const S = GRID.step;
 
 // 物語の筋書きから、地図の筋書きへ（桶狭間編は織田家の信長包囲網）
-export const MAP_KEYS = ['nagashino', 'hoi', 'sekigahara', 'osaka'];
+export const MAP_KEYS = ['hoi', 'nagashino'];   // 信長の筋だけ（関ヶ原・大坂は出さない。kaito 9/30）
 const mapKeyOf = (scn) => (MAP_SCENARIOS[scn] ? scn : (scn === 'okehazama' || scn === 'nobunaga_hoi' || scn === 'oda') ? 'hoi' : 'nagashino');
 
 // ---------------- 暦 ----------------

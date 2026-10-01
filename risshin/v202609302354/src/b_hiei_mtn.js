@@ -118,12 +118,15 @@ const hiei_mtn = {
     // ---- 守り（僧兵・浅井朝倉の残党）。区域ごとに小さく（butai.js） ----
     // 前の流しで足軽の身の bot が重傷で負けたため、攻め手を厚く・守りをやや薄くして釣り合いを取った（M8）
     F.mudojiSpear = mkB(rt, { name: '無動寺谷の僧兵（薙刀）', team: 1, faction: 'saito', kind: 'ashigaru', nominal: 48, armor: SOHEI.armor, flag: SOHEI.flag, at: { x: mudojiC.x, z: mudojiC.z - 6 }, facing: Math.PI });
-    F.mudojiBow = mkB(rt, { name: '無動寺谷の僧兵（弓）', team: 1, faction: 'saito', kind: 'bow', nominal: 16, armor: SOHEI.armor, flag: SOHEI.flag, at: { x: mudojiC.x + 6, z: mudojiC.z - 2 }, facing: Math.PI });
+    // 一番手前（無動寺谷）の弓は、足軽の身の bot が一人で先に出て的になり倒れやすかったため、薄くした（M9・原因を測って）
+    F.mudojiBow = mkB(rt, { name: '無動寺谷の僧兵（弓）', team: 1, faction: 'saito', kind: 'bow', nominal: 6, armor: SOHEI.armor, flag: SOHEI.flag, at: { x: mudojiC.x + 6, z: mudojiC.z - 2 }, facing: Math.PI });
     F.todoMain = mkB(rt, { name: '正覚院豪盛の衆', team: 1, faction: 'saito', kind: 'ashigaru', nominal: 64, armor: SOHEI.armor, flag: SOHEI.flag, at: { x: todoC.x, z: todoC.z - 10 }, facing: Math.PI });
     F.todoBow = mkB(rt, { name: '東塔の僧兵（弓）', team: 1, faction: 'saito', kind: 'bow', nominal: 16, armor: SOHEI.armor, flag: SOHEI.flag, at: { x: todoC.x - 10, z: todoC.z - 4 }, facing: Math.PI });
     F.saitoLast = mkB(rt, { name: '西塔の僧兵', team: 1, faction: 'saito', kind: 'ashigaru', nominal: 48, armor: SOHEI.armor, flag: SOHEI.flag, at: { x: saitoC.x, z: saitoC.z - 6 }, facing: Math.PI });
     F.counter = mkB(rt, { name: '浅井・朝倉の残党（逆襲の手）', team: 1, faction: 'asai', kind: 'ashigaru', nominal: 24, armor: ASAI.armor, flag: ASAI.flag, at: { x: saitoC.x - 4, z: saitoC.z + 10 }, facing: Math.PI });
-    F.ambush = mkB(rt, { name: '浅井・朝倉の残党（伏兵）', team: 1, faction: 'asai', kind: 'ashigaru', nominal: 30, armor: ASAI.armor, flag: ASAI.flag, at: { x: 26, z: -34 }, facing: -Math.PI / 2 });
+    // 伏兵は revealRange（20m）に近づくだけでも出る。一人で先に谷筋へ踏み込んだ bot が、30人の伏兵へ
+    // そのまま囲まれて倒れやすかったため、人数を絞った（原因を測って・M9）
+    F.ambush = mkB(rt, { name: '浅井・朝倉の残党（伏兵）', team: 1, faction: 'asai', kind: 'ashigaru', nominal: 18, armor: ASAI.armor, flag: ASAI.flag, at: { x: 26, z: -34 }, facing: -Math.PI / 2 });
     F.defenders = [F.mudojiSpear, F.mudojiBow, F.todoMain, F.todoBow, F.saitoLast, F.counter, F.ambush];
     F.defendTotal = F.defenders.reduce((s, b) => s + b.nominal, 0);
     F.commander = { alive: true };   // 豪盛は史実では討たれず甲斐へ逃れた（討たれない扱いにする）
@@ -164,7 +167,9 @@ const hiei_mtn = {
     // ---- 山の頭（siege_ai.js・M6） ----
     F.AMB = makeMountainAmbush(rt, {
       zones: F.SZ,
-      posts: [{ id: 'valley', butai: F.ambush, at: { x: 24, z: -32 }, cover: '谷筋', revealRange: 20, routeZoneId: 'mudoji', concentrateShare: 0.35, side: 'flank' }],
+      // concentrateShare は既定（0.55）へ戻した：先に一人で突っ込む bot が、攻め手のごく一部でも「集中」と見なされて
+      // 早く伏兵に出られ、始まってすぐ囲まれていた（原因を測って・M9）
+      posts: [{ id: 'valley', butai: F.ambush, at: { x: 24, z: -32 }, cover: '谷筋', revealRange: 20, routeZoneId: 'mudoji', side: 'flank' }],
     });
     F.MD = makeMountainDefense(rt, {
       zones: F.SZ,

@@ -390,13 +390,15 @@ const inabayama = {
       F.civ.push(c);
     };
     rt.after(6, () => { civ(-4, 60, 4); civ(20, 46, 3); });
-    // 城から町の番の加勢が駆け下りてくる
-    rt.after(18, () => {
+    // 城から町の番の加勢が駆け下りてくる：味方（藤吉郎たち）が家を焼きに散ってすぐ（18秒）だと、
+    // 一人で火付けに回っていた所を attack・広い探す範囲で直に狙われ、始まってすぐ囲まれて倒れやすかった。
+    // 少し遅らせ、人数も絞る（原因を測って・M9）
+    rt.after(30, () => {
       if (F.step !== 1) return;
       F.town2 = enemyGroup(rt, { faction: 'saito', name: '城から下りた斎藤勢', anchor: { x: 2, z: 6 }, facing: 0, order: 'attack', seekRange: 70, aggro: 14, width: 10, morale: 85, fleeDir: { x: 0, z: -1 }, dmgMult: 0.7 },
-        [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 14 }, { type: 'bow', n: 3 }]);
+        [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 10 }, { type: 'bow', n: 3 }]);
       rt.army.play('eshout', { x: 2, z: 10 }, 1.5);
-      rt.say('足軽', '城の方から斎藤の兵が駆け下りてくる！', 3);
+      rt.say('足軽', '城の方から斎藤の兵が駆け下りてくる！　独りで前へ出すぎるな、仲間の近くへ！', 3.5);
       rt.marker('town2', centerOf(F.town2), () => `城から下りた斎藤勢・${moraleWord(F.town2.morale)}`, { red: true, group: F.town2 });
     });
   },
@@ -906,8 +908,10 @@ function inaB() {
       options: [{ label: '二の丸の道を塞ぎ、背を守る', note: '本丸へは遅れる。後ろを突かれずに済む。手柄' }, { label: '構わず、本丸へ斬り込む', note: '早い。本丸で旗本と、後ろの兵に挟まれる' }],
       on: (rt, m, i) => { m.block = i === 0; rt.say('木下藤吉郎', i === 0 ? 'よし、道を塞げ。細い道じゃ、槍をそろえれば一人ずつしか来られぬ' : '行くぞ！　後ろは振り向くな！', 3.5); } }),
     hold({ skip: (rt, m) => !m.block, at: { x: -38, z: -104 }, dur: 65, r: 12, title: '二の丸の道', sub: '搦手の木戸の下、二の丸から上がる細い道', label: '二の丸の道', obj: (rt) => (hi(rt) ? '預かった一隊で二の丸の道を塞ぎ、上がってくる斎藤勢を防げ' : '二の丸の道を塞ぎ、上がってくる斎藤勢を防げ'),
+      // 持ち場に着いてすぐ（3秒）本隊が丸ごと来ていた：細い道で構える間もなく囲まれて倒れやすかったため、
+      // 少し間を空けた（原因を測って・M9）
       waves: [
-        { t: 3, say: ['足軽', '来た！　道いっぱいに上がってくる！'], foes: () => [{ name: '二の丸から上がる斎藤勢', from: { x: -22, z: -86 }, list: [uS(2), uA(11)], mass: 260, noRout: 15 }] },
+        { t: 9, say: ['足軽', '来た！　道いっぱいに上がってくる！'], foes: () => [{ name: '二の丸から上がる斎藤勢', from: { x: -22, z: -86 }, list: [uS(2), uA(11)], mass: 260, noRout: 15 }] },
         { t: 30, say: ['木下藤吉郎', '三の丸の弓じゃ、伏せよ！　矢が尽きたら、また槍が来るぞ'], foes: () => [bowLine('三の丸の弓衆', { x: -8, z: -88 }, 6), { name: '二の丸の二の手', from: { x: -20, z: -82 }, list: [uS(1), uA(9)], mass: 180 }] },
       ],
       reward: '二の丸の道を塞いだ', lost: ['木下藤吉郎', '抜かれたか……じゃが、もう本丸じゃ！'] }),

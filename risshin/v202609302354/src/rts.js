@@ -126,8 +126,17 @@ export function toggleRts(b, on) {
 
 // ---------------- 選んだ隊へ下知 ----------------
 function isRealGroup(o) { return !!o && !!o.units; }
+// 足軽の身では上空で動かせるのは自分の組と「預かった一手」（g.entrusted）だけ（軍配 M.own と同じ決まり、docs/siege-plan.md 7-1）。
+// 信長・信忠で遊ぶ時（b.lord）は全部の部隊を動かせる
+export function rtsCanCommand(b, o) {
+  if (!b) return false;
+  if (b.lord) return true;
+  if (isRealGroup(o)) return !!(o.isPlayerSquad || o.entrusted);
+  return false; // 遠くの軽い大軍は、身分が無いと動かせない
+}
 function orderSelected(b, R, id, arg) {
   for (const o of R.sel) {
+    if (!rtsCanCommand(b, o)) continue;
     if (isRealGroup(o)) { if (o.count) orderReal(b, o, id, arg); }
     else orderArmy(b, o, id, arg);
   }

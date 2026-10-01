@@ -7,7 +7,7 @@ import { S, K } from './settings.js';
 import { drawMon } from './textures.js';
 import { GENERALS } from './units.js';
 import { isVisible as visSeen } from './siege_vis.js';
-import { isRtsOn, rtsSelection, rtsCollect, rtsSetPick, rtsPick, rtsSetMulti, rtsMultiOn, rtsOrder, terrainHints } from './rts.js';
+import { isRtsOn, rtsSelection, rtsCollect, rtsSetPick, rtsPick, rtsSetMulti, rtsMultiOn, rtsOrder, terrainHints, rtsCanCommand } from './rts.js';
 import { ORDERS as RTS_ORDERS, FORMS as RTS_FORMS, icon as rtsIcon } from './gunbai.js';
 
 // 毎コマ書き替える札：前と同じ値なら DOM に触らない（重さの係。差分は最小に）
@@ -272,6 +272,9 @@ function rtsCss() {
 #rts-dock .rts-card .mb { display: block; width: 44px; height: 4px; background: rgba(0,0,0,.6); }
 #rts-dock .rts-card .mb i { display: block; height: 100%; background: #9fc28a; }
 #rts-dock .rts-card .mb.md i { background: #e0b44a; } #rts-dock .rts-card .mb.lo i { background: #d4553b; }
+#rts-dock .rts-card.off { background: linear-gradient(180deg, #3a3a3a, #232323); border-color: rgba(180,180,180,.5); filter: grayscale(1); }
+#rts-dock .rts-card.off canvas { opacity: .5; }
+#rts-dock .rts-card.off small { font: 700 9px/1.1 var(--ui); color: #e8d7b0; text-align: center; }
 #rts-dock .rts-none { pointer-events: none; margin: 0 0 2px; font: 600 13px var(--ui); color: var(--washi-dim); text-shadow: 0 1px 2px #000; }
 #rts-dock .rts-row { display: flex; gap: 6px; pointer-events: auto; flex-wrap: wrap; }
 #rts-dock button { min-height: 44px; min-width: 44px; font: 600 13px/1.1 var(--ui); color: var(--washi); background: rgba(44,40,33,.92);
@@ -503,6 +506,12 @@ export class Hud {
     // 隊の札：家紋・兵数・士気の帯
     const cardsHtml = own.length ? own.map((e) => {
       const mc = e.m > 60 ? 'hi' : e.m > 30 ? 'md' : 'lo';
+      const ok = rtsCanCommand(rt, e.o);
+      if (!ok) {
+        return `<div class="rts-card off" role="img" aria-label="${esc(e.name)}。下知できない（身分が足りない）" title="下知できない（身分が足りない）">` +
+          `<canvas width="24" height="24" data-mon="${esc(e.mon)}" aria-hidden="true"></canvas><b>${e.n > 999 ? `${(e.n / 1000).toFixed(1)}k` : e.n}</b>` +
+          `<small>下知<br>できない</small></div>`;
+      }
       return `<div class="rts-card" role="img" aria-label="${esc(e.name)}。${e.n}人・士気${Math.round(e.m)}">` +
         `<canvas width="24" height="24" data-mon="${esc(e.mon)}" aria-hidden="true"></canvas><b>${e.n > 999 ? `${(e.n / 1000).toFixed(1)}k` : e.n}</b>` +
         `<i class="mb ${mc}"><i style="width:${Math.round(e.m)}%"></i></i></div>`;
@@ -513,11 +522,12 @@ export class Hud {
       box.innerHTML = cardsHtml;
       for (const c of box.querySelectorAll('canvas[data-mon]')) c.getContext('2d').drawImage(monIcon(c.dataset.mon), 0, 0, 24, 24);
     }
-    // 下知の釦（choose した物だけ押せる）
+    // 下知の釦（choose した物、かつ身分で動かせる物がある時だけ押せる）
     const pick = rtsPick(rt), multi = rtsMultiOn(rt);
-    const hasGun = own.some((e) => e.real && e.o.units.some((u) => u.alive && (u.type === 'gun' || u.type === 'bow')));
+    const cmdable = own.filter((e) => rtsCanCommand(rt, e.o));
+    const hasGun = cmdable.some((e) => e.real && e.o.units.some((u) => u.alive && (u.type === 'gun' || u.type === 'bow')));
     const ordHtml = RTS_ORDERS.map((o) => {
-      const ok = own.length && (o.id !== 'fire' || hasGun);
+      const ok = cmdable.length && (o.id !== 'fire' || hasGun);
       const on = (o.id === 'form' && this.rtsFormOpen) || (o.id === pick);
       return `<button type="button" data-ord="${o.id}" ${ok ? '' : 'disabled'} class="${on ? 'on' : ''}" aria-pressed="${on}" title="${o.note}">${rtsIcon(o.ic)}<span class="lb">${o.label}</span></button>`;
     }).join('');
