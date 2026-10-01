@@ -24,7 +24,7 @@ import { WIND_STATE, WET, ARMY_P } from './world.js';
 // primed：読み込みの札を見せている間に「この戦で出る見た目」を先に作り終えた（絵の下ごしらえ済み）。
 //   ready だけでは足りない：混んだ機械で人と胴丸の読み込みが 5 秒の札を越えて戦の途中に終わると、
 //   そこで初めて近くの兵が一気に本物の人へ替わり、新しい材質のシェーダ作りが戦の中の1コマに乗って固まる（primeHumans で避ける）
-export const HUM = { fx: true, ready: false, primed: false, failed: false, on: true, near: 42, max: 64, far: 70, ik: 18, lite: 28, fine: 12, face: 15, lod: 15, shadow: 15, budget: 4, dead: 20 };
+export const HUM = { fx: true, ready: false, primed: false, failed: false, on: true, near: 42, max: 64, far: 70, ik: 18, lite: 28, fine: 12, face: 15, lod: 15, shadow: 15, budget: 4, dead: 20, hiN: 24, faceN: 14 };
 // 画質ごとの数（「低」は今の形のまま）
 // 画質「低」でも自分（と名のある武将のごく近く）だけは本物の体にする
 // must：この近さ（m）より内の兵は、上限を越えても必ず骨の入った人にする（カメラの前に軽い形の兵を出さない）。その分は遠い者から軽い形へ
@@ -1234,7 +1234,11 @@ function mhPick(key, F) {
   if (age >= 55) return (F.w || 1) > 1.04 ? 4 : 5;
   if ((F.w || 1) > 1.06) return 4;
   if (age < 32) return (F.gaunt ?? 0.5) > 0.55 || (F.w || 1) < 0.97 ? 0 : 1;
-  return (F.jaw || 1) >= 1.04 ? 2 : 3;
+  // 壮年：えらの張った人は角顔、こけた人は面長。どちらでもない人は名前で散らす（同じ顔が並ばないよう）
+  if ((F.jaw || 1) >= 1.15) return 2;
+  if ((F.gaunt ?? 0.5) > 0.55) return 3;
+  let hk = 0; for (const ch of String(key)) hk = (hk * 31 + ch.charCodeAt(0)) % 997;
+  return hk % 2 ? 2 : 3;
 }
 // MakeHuman の顔は鼻の下が短い：髭・唇の絵を描く高さを、実写スキャンの頭の高さへ読み替える（顎・唇・鼻の下・鼻先・目）
 const MH_Y = [[-3, -3], [-0.9, -0.9], [0.1, 0.22], [0.5, 0.82], [0.85, 1.1], [1.72, 1.72], [9, 9]];
@@ -1254,7 +1258,11 @@ function headMaterial(key, look, F) {
   const sk = new THREE.Color(look.skin || 0xb58c68).getHSL({});
   // 写真の肌（明るめの白人の肌）を、日焼けした色へ寄せる：少し暗く、黄みと赤みを足す
   const tn = new THREE.Color().setHSL(0.07, 0.34, 0.5 + (sk.l - 0.4) * 0.6);
-  const tint = [Math.min(255, 140 + tn.r * 110) | 0, Math.min(255, 150 + tn.g * 115) | 0, Math.min(255, 145 + tn.b * 110) | 0];
+  // MakeHuman の肌の写真は明るい：やや暗く、褐色へ（陣中で日と風に焼けた肌）
+  let hk = 0; for (const ch of String(key)) hk = (hk * 31 + ch.charCodeAt(0)) % 997;
+  const pk = named ? 0.93 + (hk % 13) / 12 * 0.12 : 1;   // 名のある武将は人ごとに肌の濃さを少し変える
+  const tint = HEAD.mh ? [Math.min(255, (122 + tn.r * 108) * pk) | 0, Math.min(255, (122 + tn.g * 112) * pk) | 0, Math.min(255, (112 + tn.b * 104) * pk * (0.97 + (hk % 7) / 6 * 0.06)) | 0]
+    : [Math.min(255, 140 + tn.r * 110) | 0, Math.min(255, 150 + tn.g * 115) | 0, Math.min(255, 145 + tn.b * 110) | 0];
   const texKey = named ? null : 'c' + ((look.face | 0) % 12) + (look.monk ? '|m' : '');
   if (texKey && headTexs.has(texKey)) { const m = mkHeadMat(headTexs.get(texKey), null, tint); headMats.set(key, m); return m; }
   const _tf0 = performance.now();
@@ -1326,7 +1334,9 @@ function headMaterial(key, look, F) {
       const yc = 0.8 - BD.droop * 0.26 * dx * dx, hh = 0.12 * BD.musH * (1 - 0.45 * dx * dx);
       inMus = mus && dx < 1 && Math.abs(y - yc) < hh && z > 1.6;
       inGoat = goat && y < 0.12 && x0 < 0.62 * BD.goatW * (0.6 + 0.4 * Math.min(1, (0.12 - y) / 0.6)) && z > 1.1;
-      inSide = full && face && (x0 > 0.8 || y < 0.3) && !(y > 0.25 && y < 0.72 && x0 < 0.6 && z > 1.8);
+      // 頬の髭の上の縁：耳の下から口の端へ下がる線（頬の高い所まで塗った箱の髭にしない）。縁は三角ごとに少し揺らす
+      const sideTop = 0.42 + 0.38 * Math.min(1, Math.max(0, (x0 - 0.8) / 0.9)) + (rnd() - 0.5) * 0.16;
+      inSide = full && face && ((x0 > 0.8 && y < sideTop) || y < 0.3) && !(y > 0.25 && y < 0.72 && x0 < 0.6 && z > 1.8);
       const dens = inMus ? BD.mus : inGoat ? BD.goat : inSide ? BD.side : 0;
       if (dens > 0) al = Math.max(al, 0.1 + 0.22 * dens);   // 毛の下の肌の薄い影
     } else {
@@ -1374,11 +1384,14 @@ function headMaterial(key, look, F) {
       if (fr > 0) {
         const red = 0.06 * Gs(x0, y - 1.15, 0.28, 0.35) + 0.045 * Gs(x0 - 1.1, y - 1.05, 0.35, 0.35) + 0.03 * rnd();
         const sun = 0.12 * Gs(x0, y - 2.35, 0.9, 0.45) + 0.1 * Gs(x0, y - 1.5, 0.22, 0.5) + 0.07 * Gs(x0 - 1.2, y - 1.35, 0.3, 0.25);
-        const bag = (0.05 + 0.1 * old) * Gs(x0 - 0.62, y - 1.46, 0.28, 0.08);
+        const bag = (0.08 + 0.14 * old) * Gs(x0 - 0.62, y - 1.46, 0.28, 0.09);
         let wr = 0;
-        if (y > 2.15 && y < 2.85 && x0 < 1.25) wr += (0.04 + 0.16 * old) * Math.pow(Math.abs(Math.cos((y - 2.15) * Math.PI * 2.4)), 14) * (1 - x0 / 1.3);
-        { const a = Math.atan2(y - 1.72, x0 - 0.98), d = Math.hypot(y - 1.72, x0 - 0.98); if (x0 > 1.0 && d < 0.42) wr += 0.22 * old * Math.pow(Math.abs(Math.cos(a * 5)), 10) * (1 - d / 0.42); }
-        { const ax = 0.42, ay = 1.12, bx = 0.82, by = 0.32; const vx = bx - ax, vy = by - ay, L2 = vx * vx + vy * vy; const q = Math.max(0, Math.min(1, ((x0 - ax) * vx + (y - ay) * vy) / L2)); const d = Math.hypot(x0 - ax - vx * q, y - ay - vy * q); wr += (0.1 + 0.2 * old) * Math.exp(-(d * d) / (2 * 0.045 * 0.045)); }
+        if (y > 2.15 && y < 2.85 && x0 < 1.25) wr += (0.05 + 0.26 * old) * Math.pow(Math.abs(Math.cos((y - 2.15) * Math.PI * 2.4)), 14) * (1 - x0 / 1.3);
+        { const a = Math.atan2(y - 1.72, x0 - 0.98), d = Math.hypot(y - 1.72, x0 - 0.98); if (x0 > 1.0 && d < 0.46) wr += (0.06 + 0.36 * old) * Math.pow(Math.abs(Math.cos(a * 5)), 10) * (1 - d / 0.42); }
+        { const ax = 0.42, ay = 1.12, bx = 0.82, by = 0.32; const vx = bx - ax, vy = by - ay, L2 = vx * vx + vy * vy; const q = Math.max(0, Math.min(1, ((x0 - ax) * vx + (y - ay) * vy) / L2)); const d = Math.hypot(x0 - ax - vx * q, y - ay - vy * q); wr += (0.12 + 0.3 * old) * Math.exp(-(d * d) / (2 * 0.045 * 0.045)); }
+        // 目の下の皺（年）と、眉間の縦皺（しかめ癖）
+        wr += 0.2 * old * Math.pow(Math.abs(Math.cos((y - 1.42) * 26)), 8) * Gs(x0 - 0.62, y - 1.42, 0.3, 0.08);
+        wr += (0.05 + 0.15 * old) * Gs(x0 - 0.14, y - 1.98, 0.035, 0.12);
         const pc = (r, g_, b, a) => { if (a < 0.005) return; tg.fillStyle = `rgba(${r},${g_},${b},${Math.min(0.6, a * fr)})`; tg.beginPath(); tg.moveTo(uv.getX(a_) * N, uv.getY(a_) * N); tg.lineTo(uv.getX(b_) * N, uv.getY(b_) * N); tg.lineTo(uv.getX(c_) * N, uv.getY(c_) * N); tg.closePath(); tg.fill(); };
         const a_ = a, b_ = b, c_ = cc;
         // 唇：写真の赤い唇を、日焼けした肌に近い色へ寄せる
@@ -1505,7 +1518,7 @@ function mhPores() {
 function mkHeadMat(tex, rTex, tint) {
   const m = new THREE.MeshPhysicalMaterial({
     map: tex, normalMap: HEAD.mh ? mhPores() : HEAD.nrm, normalScale: HEAD.mh ? new THREE.Vector2(0.35, 0.35) : new THREE.Vector2(0.8, 0.8), roughness: rTex ? 0.95 : 0.58, roughnessMap: rTex, metalness: 0,
-    specularIntensityMap: HEAD.spec, specularIntensity: 0.6, sheen: 0.35, sheenRoughness: 0.75, sheenColor: new THREE.Color(0x6a4a3c),
+    specularIntensityMap: HEAD.spec, specularIntensity: 0.6, sheen: HEAD.mh ? 0.14 : 0.35, sheenRoughness: 0.8, sheenColor: new THREE.Color(0x5a3e30),
   });
   if (tint) m.color.setRGB(tint[0] / 255, tint[1] / 255, tint[2] / 255, THREE.SRGBColorSpace);
   // 表面下散乱の近似：光の当たらない側にも、赤みのある光が少し回り込む
@@ -1514,30 +1527,42 @@ function mkHeadMat(tex, rTex, tint) {
   m.customProgramCacheKey = () => 'scanhead';
   return m;
 }
+// mhPaintY の GLSL（MakeHuman の頭の高さ → 実写スキャンの頭の高さ）。スキャンの頭の時はそのまま
+const MHY_GLSL = () => HEAD && HEAD.mh ? `float mhy(float y) {
+  if (y <= -0.9) return y;
+  if (y <= 0.1) return -0.9 + (y + 0.9) * 1.12;
+  if (y <= 0.5) return 0.22 + (y - 0.1) * 1.5;
+  if (y <= 0.85) return 0.82 + (y - 0.5) * 0.8;
+  if (y <= 1.72) return 1.1 + (y - 0.85) * 0.7126;
+  return y;
+}
+` : 'float mhy(float y) { return y; }\n';
 function headCompile(sh) {
   sh.uniforms.uHatAO = (this.userData && this.userData.ao) || { value: 0 };
   sh.uniforms.uFaceV = (this.userData && this.userData.fv) || { value: new THREE.Vector4(0, 0, 0, 0) };
   // 表情（x 口を開く・y 苦しむ（顔をしかめる）・z 怒る（眉を寄せて下げる））。頭の座標（1 が 4cm ほど）で形を動かす
   sh.uniforms.uExpr = (this.userData && this.userData.ex) || { value: new THREE.Vector4(0, 0, 0, 0) };
-  sh.vertexShader = 'uniform vec4 uExpr;\nvarying vec3 vHP;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
- vHP = position;
+  sh.vertexShader = 'uniform vec4 uExpr;\nvarying vec3 vHP;\n' + MHY_GLSL() + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+ // MakeHuman の頭は鼻の下が短い：陰や汚れ・表情の場所は、実写スキャンの頭の高さへ読み替えて決める（絵の mhPaintY と同じ）
+ vec3 hp0 = position; hp0.y = mhy(position.y);
+ vHP = hp0;
  if (uExpr.x + uExpr.y + uExpr.z > 0.001) {
-   float ex0 = abs(position.x + 0.09), front = smoothstep(0.4, 1.4, position.z);
+   float ex0 = abs(hp0.x + 0.09), front = smoothstep(0.4, 1.4, hp0.z);
    // 顎が下がる：口より下ほど大きく、顔の横へ行くほど小さく
-   float jaw = smoothstep(0.3, 0.05, position.y) * smoothstep(-1.6, -0.4, position.y + 0.0) * smoothstep(2.4, 0.9, ex0) * front;
-   jaw = max(jaw, smoothstep(0.3, -0.6, position.y) * smoothstep(2.4, 1.0, ex0) * front);
+   float jaw = smoothstep(0.3, 0.05, hp0.y) * smoothstep(-1.6, -0.4, hp0.y + 0.0) * smoothstep(2.4, 0.9, ex0) * front;
+   jaw = max(jaw, smoothstep(0.3, -0.6, hp0.y) * smoothstep(2.4, 1.0, ex0) * front);
    transformed.y -= (uExpr.x * 0.34 + uExpr.y * 0.12) * jaw;
    transformed.z -= (uExpr.x * 0.08) * jaw;
    // しかめる：口の端が横へ引かれ、頬が上がり、目が細まる
-   float corner = exp(-pow(ex0 - 0.6, 2.0) / 0.05 - pow(position.y - 0.25, 2.0) / 0.04) * front;
-   transformed.x += sign(position.x + 0.09) * (uExpr.y * 0.1 + uExpr.x * 0.05) * corner;
-   float cheek = exp(-pow(ex0 - 0.95, 2.0) / 0.12 - pow(position.y - 1.25, 2.0) / 0.08) * front;
+   float corner = exp(-pow(ex0 - 0.6, 2.0) / 0.05 - pow(hp0.y - 0.25, 2.0) / 0.04) * front;
+   transformed.x += sign(hp0.x + 0.09) * (uExpr.y * 0.1 + uExpr.x * 0.05) * corner;
+   float cheek = exp(-pow(ex0 - 0.95, 2.0) / 0.12 - pow(hp0.y - 1.25, 2.0) / 0.08) * front;
    transformed.y += (uExpr.y * 0.1 + uExpr.z * 0.04) * cheek;
    // 眉：怒りは眉頭が下がって寄り、苦しみは眉頭が上がって寄る
-   float brow = exp(-pow(ex0 - 0.55, 2.0) / 0.12 - pow(position.y - 2.02, 2.0) / 0.03) * front;
+   float brow = exp(-pow(ex0 - 0.55, 2.0) / 0.12 - pow(hp0.y - 2.02, 2.0) / 0.03) * front;
    float inner = smoothstep(1.0, 0.2, ex0);
    transformed.y += brow * (uExpr.y * 0.08 * inner - uExpr.z * 0.1 * (0.4 + inner));
-   transformed.x -= sign(position.x + 0.09) * brow * (uExpr.z + uExpr.y) * 0.05;
+   transformed.x -= sign(hp0.x + 0.09) * brow * (uExpr.z + uExpr.y) * 0.05;
  }`);
   sh.fragmentShader = `uniform float uHatAO;\nuniform vec4 uFaceV, uExpr;\nvarying vec3 vHP;
 float fh3(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
@@ -1564,7 +1589,9 @@ float faceWet;
       // 兜・笠の縁のすぐ下の額：縁の影に沈む（照らし方だけでは明るい帯が残るので、色そのものを落とす）
       diffuseColor.rgb *= 1.0 - smoothstep(0.35, 0.55, uHatAO) * 0.5 * smoothstep(2.06, 2.24, vHP.y);
       // 肌：塗った橙のように鮮やかにしない（日と風に焼けて、少しくすむ）
-      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.3, 0.55, 0.15))) * vec3(1.1, 0.96, 0.84), 0.16);
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.3, 0.55, 0.15))) * vec3(1.1, 0.96, 0.84), 0.26);
+      // 肌の細かなむら（そばかす・しみ・毛細血管の赤み）：一様な塗りの肌は人形に見える
+      diffuseColor.rgb *= 0.93 + 0.1 * fn3(vHP * 7.0) - 0.05 * smoothstep(0.62, 0.9, fn3(vHP * 23.0 + 3.1));
       // 剃り跡：顎・頬の下・口のまわりが青黒く沈む（唇は除く）。一様な灰にせず、毛穴の点々で
       {
         float lip = exp(-x0 * x0 / 0.22 - pow(vHP.y - 0.22, 2.0) / 0.03);
@@ -1597,13 +1624,15 @@ float faceWet;
     }`).replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
     reflectedLight.indirectDiffuse += diffuseColor.rgb * vec3(0.07, 0.035, 0.025) * (1.0 - max(dot(normal, vec3(0.0, 0.0, 1.0)), 0.0));
     // 肌の縁：光が薄い肌を透けて、輪郭がほのかに赤く明るむ（切り抜いた絵のような縁にしない）
-    reflectedLight.indirectDiffuse += diffuseColor.rgb * vec3(0.5, 0.3, 0.22) * pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 3.0) * 0.45;
+    reflectedLight.indirectDiffuse += diffuseColor.rgb * vec3(0.5, 0.3, 0.22) * pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 3.0) * 0.16;
     {
       // 眉庇・笠の縁のすぐ下（額）は、縁の影がくっきり落ちる（額だけ明るい帯にしない）
-      float occ = 1.0 - uHatAO * (0.3 + 0.5 * smoothstep(0.9, 2.3, vHP.y) + 0.3 * smoothstep(2.05, 2.25, vHP.y));
+      // 縁の陰は上ほど深い：額は沈み、目元は陰の中、鼻から下へ少しずつ明るむ（顔の上半分が縁の陰に入る）
+      float occ = max(0.1, 1.0 - uHatAO * (0.32 + 0.72 * smoothstep(0.5, 2.0, vHP.y) + 0.35 * smoothstep(2.0, 2.2, vHP.y)));
       // 眼窩の陰（目のまわりは彫りが深く、空の光が回り込みにくい）
       float eo = exp(-(pow(vHP.x + 0.69, 2.0) + pow(vHP.y - 1.74, 2.0) * 2.2) / 0.09) + exp(-(pow(vHP.x - 0.51, 2.0) + pow(vHP.y - 1.74, 2.0) * 2.2) / 0.09);
-      reflectedLight.indirectDiffuse *= 1.0 - 0.35 * clamp(eo, 0.0, 1.0);
+      reflectedLight.indirectDiffuse *= 1.0 - 0.5 * clamp(eo, 0.0, 1.0);
+      reflectedLight.indirectSpecular *= 1.0 - 0.6 * clamp(eo, 0.0, 1.0);
       // 顔の窪みの陰：眉の下の張り出し・鼻の脇から口の端への溝（法令線）・鼻の下・下唇の下・顎の下。顔が箱のように平らに見えないよう
       {
         float x1 = abs(vHP.x + 0.09), frt = smoothstep(0.7, 1.5, vHP.z);
@@ -1768,6 +1797,28 @@ function faceSculpt(x0, y, z, xc) {
   dz += 0.05 * Gs(xc, y + 0.55, 0.35, 0.28) * fr;                                // 顎先
   return [dx, dz];
 }
+// MakeHuman の頭の彫り（MakeHuman の頭の座標：目 y 1.72・x ±0.64、眉 y≈2.05、鼻先 y≈0.85、鼻の下 y≈0.5、口 y≈0.15、顎 y≈-0.9、顔の前 z≈2.2）
+// 元の形は丸く滑らかで、人形の顔に見える：眉弓と鼻筋を立て、頬骨を張り、その下をこけさせ、顎の線を締める（戦国の日本人の骨格：頬骨が張り、鼻筋は低め）
+const MH_NARROW = 0.9;
+function mhSculpt(x0, y, z, xc) {
+  const Gs = (a, b, sa, sb) => Math.exp(-(a * a) / (2 * sa * sa) - (b * b) / (2 * sb * sb));
+  const fr = Math.min(1, Math.max(0, (z - 0.8) / 1.0));
+  let dx = 0, dz = 0;
+  dz += 0.1 * Gs(x0 - 0.62, y - 2.06, 0.42, 0.11) * fr;                         // 眉弓
+  dz += 0.04 * Gs(xc, y - 1.98, 0.2, 0.12) * fr;                                // 眉間
+  dz -= 0.035 * Gs(x0 - 0.66, y - 1.93, 0.25, 0.06) * fr;                       // 眉と瞼の間のくぼみ
+  dz += 0.07 * Gs(xc, y - 1.6, 0.11, 0.22) * (z > 1.9 ? 1 : 0);                 // 鼻筋
+  dx += 0.05 * Gs(x0 - 1.3, y - 1.3, 0.25, 0.25) * fr;                          // 頬骨（横へ）
+  dz += 0.07 * Gs(x0 - 1.15, y - 1.3, 0.28, 0.2) * fr;                          // 頬骨（前へ）
+  dz -= 0.1 * Gs(x0 - 1.05, y - 0.55, 0.28, 0.3) * fr;                          // 頬骨の下のこけ
+  dx -= 0.04 * Gs(x0 - 1.35, y - 0.5, 0.3, 0.3);
+  dz += 0.03 * Gs(x0 - 0.75, y - 0.6, 0.15, 0.25) * fr;                         // ほうれい線の外の頬
+  const lowF = Math.min(1, Math.max(0, (0.9 - y) / 1.5)) * fr;
+  dx -= x0 * 0.07 * lowF;                                                       // 下の顔を細く
+  dx += 0.03 * Gs(x0 - 1.3, y + 0.45, 0.22, 0.2);                               // えらの角
+  dz += 0.05 * Gs(xc, y + 0.6, 0.3, 0.22) * fr;                                 // 顎先
+  return [dx, dz];
+}
 // 実写の頭の形（顔の形の値で少し変える：幅・えら・大きさ）
 const headGeos = new Map();
 function headGeo(key, F) {
@@ -1776,7 +1827,8 @@ function headGeo(key, F) {
   const p = g.attributes.position;
   const w = F.w || 1, jaw = F.jaw || 1;
   // 顔の彫り（名のある武将ほど強く）：頬骨・頬のこけ・鼻の高さと幅・眉の張り・目の間隔・年の頬の下がり
-  const kk = String(key).startsWith('g:') || key === 'player' ? 1 : 0.6;
+  // MakeHuman の頭は兜で額から上が隠れるので、名のある武将は顔の違いを強めに出す（皆が同じ顔に見えないよう）
+  const kk = String(key).startsWith('g:') || key === 'player' ? (HEAD.mh ? 1.7 : 1) : 0.6;
   const cheek = (F.cheek ?? 1) - 1, gaunt = (F.gaunt ?? 0.5) - 0.5, nose = (F.nose ?? 1) - 1, nw = (F.nw ?? 1) - 1, brow = (F.brow ?? 1) - 1, esp = (F.esp ?? 1) - 1;
   const old = Math.max(0, Math.min(1, ((F.age ?? (F.t >= 6 ? 58 : 35)) - 30) / 30));
   const Gs = (a, b, sa, sb) => Math.exp(-(a * a) / (2 * sa * sa) - (b * b) / (2 * sb * sb));
@@ -1800,9 +1852,21 @@ function headGeo(key, F) {
       x += sx * esp * 0.6 * ez;
       const jw = Gs(x0 - 0.95, y + 0.15, 0.45, 0.5) * fr;
       y -= old * 0.12 * jw; x += sx * old * 0.05 * jw;
+      if (HEAD.mh) {
+        // 年：ほうれい線の溝・目の下のたるみ・頬のこけ
+        const nlx = 0.38 + (0.62 - y) * 0.45;
+        z -= old * 0.05 * Gs(x0 - nlx, y - 0.45, 0.07, 0.4) * fr;
+        z += old * 0.03 * Gs(x0 - 0.62, y - 1.42, 0.25, 0.06) * fr;
+        z -= old * 0.04 * Gs(x0 - 1.05, y - 0.7, 0.3, 0.3) * fr;
+      }
     }
     // 骨格の彫り（誰にでも）：顔の面を丸め、えらの角を落とし、頬骨・眉弓・鼻筋・顎を出し、目と頬の下をくぼませる（四角い箱に絵を貼った顔にしない）
-    if (!HEAD.mh) { const d = faceSculpt(x0, y, z, xc); x += sx * d[0]; z += d[1]; }
+    if (!HEAD.mh) { const d = faceSculpt(x0, y, z, xc); x += sx * d[0]; z += d[1]; } else {
+      const d = mhSculpt(x0, y, z, xc); x += sx * d[0]; z += d[1];
+      // 頭の幅を細める（MakeHuman の頭は兜の鉢と同じほど幅があり、大きな丸顔に見える）。首の付け根はそのまま
+      const nk = MH_NARROW + (1 - MH_NARROW) * Math.min(1, Math.max(0, (-0.7 - y) / 0.5));
+      x = -0.09 + (x + 0.09) * nk;
+    }
     p.setXYZ(i, x, y, z);
   }
   g.computeVertexNormals();
@@ -1884,7 +1948,7 @@ function addEyesMH(hm, key, F) {
       // 球の前（+z）が黒目：uv の u=0.25 が +z。外へ少し向ける
       const sx = Math.sign(c[0] + 0.09) || 1;
       g.rotateY(sx * 0.08);
-      g.translate(c[0] * w + sx * esp * 0.55, c[1], c[2] - E.rad * 0.06);
+      g.translate((-0.09 + (c[0] + 0.09) * MH_NARROW) * w + sx * esp * 0.55, c[1], c[2] - E.rad * 0.06);
       gs.push(g);
     }
     EYE_MH.geos.set(gk, mergeGeometries(gs));
@@ -1893,16 +1957,23 @@ function addEyesMH(hm, key, F) {
     const c = document.createElement('canvas'); c.width = 256; c.height = 128;
     const g = c.getContext('2d');
     // 白目：真っ白にしない（少し黄みの灰）。目頭・目尻へ赤み
-    g.fillStyle = '#74695c'; g.fillRect(0, 0, 256, 128);
+    g.fillStyle = '#655b4f'; g.fillRect(0, 0, 256, 128);
     const cx = 64, cy = 64;
     const gr = g.createRadialGradient(cx, cy, 10, cx, cy, 60); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(120,60,50,0.35)');
     g.fillStyle = gr; g.fillRect(0, 0, 256, 128);
     // 黒目（焦げ茶）と瞳。縁は暗く
-    const ir = g.createRadialGradient(cx, cy, 2, cx, cy, 13); ir.addColorStop(0, '#1c1008'); ir.addColorStop(0.7, '#26170c'); ir.addColorStop(1, '#0a0604');
-    g.fillStyle = ir; g.beginPath(); g.ellipse(cx, cy, 13, 13, 0, 0, Math.PI * 2); g.fill();
-    g.fillStyle = '#050302'; g.beginPath(); g.ellipse(cx, cy, 6, 6, 0, 0, Math.PI * 2); g.fill();
+    // 黒目は眼球の幅の半分ほど（小さい黒目は白目が広く見え、驚いた人形の目になる）
+    const ir = g.createRadialGradient(cx, cy, 3, cx, cy, 20); ir.addColorStop(0, '#1a0f07'); ir.addColorStop(0.6, '#2a190d'); ir.addColorStop(0.88, '#1a0f08'); ir.addColorStop(1, '#0a0604');
+    g.fillStyle = ir; g.beginPath(); g.ellipse(cx, cy, 20, 20, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#050302'; g.beginPath(); g.ellipse(cx, cy, 7, 7, 0, 0, Math.PI * 2); g.fill();
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-    EYE_MH.mat = new THREE.MeshPhysicalMaterial({ map: t, roughness: 0.4, clearcoat: 0.6, clearcoatRoughness: 0.08, envMapIntensity: 0.5 });
+    EYE_MH.mat = new THREE.MeshPhysicalMaterial({ map: t, color: 0xc8c0b8, roughness: 0.4, clearcoat: 0.6, clearcoatRoughness: 0.08, envMapIntensity: 0.3 });
+    // 目はまぶたと眼窩の陰の中：上ほど暗く（白目が光って浮かないよう）。目の玉の上半分は上まぶたの影
+    EYE_MH.mat.onBeforeCompile = (sh) => {
+      sh.vertexShader = 'varying float vEyY;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vEyY = normal.y;');
+      sh.fragmentShader = 'varying float vEyY;\n' + sh.fragmentShader.replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n float eyS = mix(1.0, 0.6, smoothstep(-0.1, 0.6, vEyY));\n reflectedLight.directDiffuse *= eyS; reflectedLight.indirectDiffuse *= eyS * 0.85;');
+    };
+    EYE_MH.mat.customProgramCacheKey = () => 'mheye';
   }
   const m = new THREE.Mesh(EYE_MH.geos.get(gk), EYE_MH.mat);
   m.frustumCulled = false; m.receiveShadow = true;
@@ -2409,7 +2480,8 @@ function scanFace0(h, key, L, F, full) {
   // スキャンの兜をかぶる武将：兜に隠れる頭（眉より上と、耳の後ろ）は描かない（鉢の内から頭の肌が覗かないよう）
   const hg = h.helmScan ? clipScalp(headGeo(gk, F)) : headGeo(gk, F);
   // 兵は一人ずつ汚れ・汗・日焼けを変える（絵は型ごとに同じで、材質の値だけ四通り）
-  const fv = full ? -1 : Math.floor((((h.seed || 0) * 7.31) % 1) * 4);
+  // 武将と本人も、戦場の埃と汗を薄く（いちばん軽い型）
+  const fv = full ? 0 : Math.floor((((h.seed || 0) * 7.31) % 1) * 4);
   const hm = new THREE.Mesh(hg, ao || h.helmScan || fv >= 0 ? hatFaceMat(headMaterial(key, L, F), h.helmScan ? 0.55 : ao, fv) : headMaterial(key, L, F));
   // 表情は人ごと：材質を一人に一つ写す（形の作りと絵は同じ。値だけ別）
   {
@@ -4481,13 +4553,21 @@ function humansStep(rt, dt, army, cam) {
       if (near[i].h.parts.kabuto) near[i].h.parts.kabuto.userData.hiOK = allow;
     }
   }
+  // 密集の中（城攻めの門前など）では 15m の内に 70 人も入り、細かい体（一人 1万1千面）と実写の顔（8千6百面）だけで 140 万面になる。
+  // 近い順に HUM.hiN 人まで骨の入った体、HUM.faceN 人まで実写の顔にし、その先は 15m の内でも体ごとまとめた軽い形（描く回数も一人一回）（本人と名のある武将は数えない）
+  {
+    const near = [];
+    for (const [u, c] of want) { const h = u.human; if (h && !u.isPlayer && !(u.look && (isNamed(u.look) || u.type === 'busho'))) near.push({ h, dist: c.dist * (h.lodFar ? 1.15 : 1) }); }
+    near.sort((a, b) => a.dist - b.dist);   // 今もう軽い形の人は少し遠く見る（境目で形が行き来しないよう）
+    for (let i = 0; i < near.length; i++) { near[i].h.hiOK = i < HUM.hiN; near[i].h.faceOK = i < HUM.faceN; }
+  }
   HSTAT.want = want.size; HSTAT.driven = 0;
   for (const [u, c] of want) {
     const named = u.look && (isNamed(u.look) || u.type === 'busho');
     if (!useHuman(u, u.isPlayer)) continue;   // 名のある武将は先に作る（並びの先頭）が、一コマの枠は守る（何人も一度に作って止まらないよう）
     const h = u.human;
     // 遠い人は軽い形（本人・名のある武将は替えない）。境目で行き来しないよう 1m の幅を持たせる
-    if (h.geoFar && !u.isPlayer && !named) setFar(h, c.dist > HUM.lod + (h.lodFar ? -1 : 0));
+    if (h.geoFar && !u.isPlayer && !named) setFar(h, c.dist > HUM.lod + (h.lodFar ? -1 : 0) || h.hiOK === false);
     if (!u.alive) h.deadAge = (h.deadAge || 0) + dt; else h.still = false;
     // 武器の握りは毎コマ（動きを間引く人でも、武器が units.js の所へ跳ねないよう）
     gripPose(h, dt);
@@ -4498,14 +4578,15 @@ function humansStep(rt, dt, army, cam) {
     if (!u.alive && h.still) continue;
     const d = c.dist;
     // 遠いほど動かす回数を間引く（近い 18m までは毎コマ、その先は一秒に 20 回・10 回）。倒れる途中は毎コマ（根元の回りと骨がずれてガタつかないよう）
-    const every = u.isPlayer || named || !u.alive || d < HUM.ik ? 0 : d < 30 ? 1 / 20 : 1 / 10;
+    //   密集で軽い形にした人（近い順の枠の外）は、近くても一秒に 20 回（形が粗いので動きの細かさは見えない）
+    const every = u.isPlayer || named || !u.alive || (d < HUM.ik && !h.lodFar) ? 0 : d < 30 ? 1 / 20 : 1 / 10;
     if (h.acc < every) continue;
     const step = Math.min(0.1, h.acc); h.acc = 0;
     // 馬上の人：兵の根元と鞍の入れ物の行列を今のコマに合わせてから動かす
     if (u.mounted && u.seat) { u.mesh.updateMatrix(); u.mesh.updateWorldMatrix(false, false); u.seat.updateWorldMatrix(false, false); }
     // 倒れた者も近くは実写の顔のまま（亡骸の顔が人形の顔に戻らないよう）
     //   画質「低」（携帯）は兵の実写の顔（一人 1万6千面）を使わず、人形の顔に（小さい画面では見分けが付かない。本人と武将は実写のまま）
-    if (h.xb) crowdFace(h, d < (Q.face ?? HUM.face) && !h.lodFar);
+    if (h.xb) crowdFace(h, d < (Q.face ?? HUM.face) && !h.lodFar && h.faceOK !== false);
     h.far = !u.isPlayer && !named && d > HUM.lite;
     // 影は近くの人だけ（HUM.shadow より先は描かない。切り替わった時だけ辿る。元から影を落とさない物は戻さない）
     //   人一人の影は体と具足で一万五千の三角＝影の描き込みの大半。先の足もとは接地の影（仕上げ）で足りる

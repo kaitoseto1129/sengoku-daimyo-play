@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { lodSwap } from './units_flags.js';
 import { FACTION } from './units_data.js';
+import WEAPONS from './asset_weapons.js';
 
 // ---------------- モデル ----------------
 // 模様の絵は 2048×1024 の一枚にまとめる（兵も馬も同じ材質で描き、描く回数を増やさない）。
@@ -17,12 +18,16 @@ const REG = {
   cloth: [1024, 512, 256, 256], lacq: [1280, 512, 256, 256], hair: [1536, 512, 256, 256], skin: [1792, 512, 256, 256],
   straw: [0, 896, 256, 128], wood: [256, 896, 256, 128], iron: [512, 896, 256, 128], suji: [768, 896, 256, 128],
   plain: [1024, 768, 256, 256], fur: [1280, 768, 256, 256], horo: [1536, 768, 256, 256], cord: [1792, 768, 256, 256],
+  // 家紋の二段目（y=832〜896）は使っていないので借りる：桶側の板（一枚ずつ。長さが横、幅が縦の四本）と、陣笠（横が笠のまわり、下が縁・上が頂）
+  okeV: [0, 832, 512, 64], kasa: [512, 832, 512, 64],
 };
 // 顔の模様は八枚（年と髭）：0 若い・剃った 1 若い・無精髭 2 中年・無精髭 3 中年・口髭 4 中年・口髭と顎髭 5 中年・髭面 6 年寄り・口髭と顎髭 7 年寄り・髭面
 const faceReg = (t) => [1024 + (t % 4) * 256, Math.floor(t / 4) * 256, 256, 256];
 // 胴や陣笠・陣羽織に描く家紋
 // 置き場：y=768〜896 の 1024×128 を、64px の升に二段（一段に16、合わせて32まで）
 const MONS = ['tokugawa', 'takeda', 'oda', 'imagawa', 'saito', 'okudaira', 'katabami', 'okubo', 'akechi', 'honda', 'mizuno', 'ii', 'sanada', 'maeda'];
+// 陣笠の家紋を朱で描く家（ほかは金）
+const KASA_SHU = new Set(['imagawa', 'saito', 'okudaira', 'katabami', 'akechi', 'mizuno', 'maeda']);
 const monReg = (k) => { const i = MONS.indexOf(k === 'akazonae' ? 'takeda' : k); return i < 0 ? null : [(i % 16) * 64, 768 + Math.floor(i / 16) * 64, 64, 64]; };
 const PLAIN_UV = [(1024 + 128) / AW, 1 - (768 + 128) / AH];
 
@@ -95,21 +100,66 @@ function makeAtlas() {
   lamellar(REG.sugake, false);
   lamellar(REG.kebiki, true);
 
-  // 桶側胴：横の板を鋲で留める（足軽の御貸具足）
+  // 桶側胴（縦矧）：短冊の板を縦に並べて鋲で留める（足軽の御貸具足）。遠くの軽い形の胴に貼る（近くは板一枚ずつの形と okeV）
   clip(ALL, REG.okegawa, () => {
-    const [x0, y0, w, h] = REG.okegawa, ph = h / 5;
-    for (let k = 0; k < 5; k++) {
-      const y = y0 + k * ph;
-      const gr = G.createLinearGradient(0, y, 0, y + ph); gr.addColorStop(0, gray(240)); gr.addColorStop(0.3, gray(214)); gr.addColorStop(0.85, gray(182)); gr.addColorStop(1, gray(80));
-      G.fillStyle = gr; G.fillRect(x0, y, w, ph);
-      for (let x = x0 + 8; x < x0 + w; x += 16) { G.fillStyle = gray(70); G.beginPath(); G.arc(x, y + 8, 3, 0, 7); G.fill(); G.fillStyle = gray(255); G.beginPath(); G.arc(x - 0.6, y + 7.4, 1.6, 0, 7); G.fill(); }
+    const [x0, y0, w, h] = REG.okegawa, n = 24, pw = w / n;
+    for (let k = 0; k < n; k++) {
+      const x = x0 + k * pw;
+      const gr = G.createLinearGradient(x, 0, x + pw, 0); gr.addColorStop(0, gray(105)); gr.addColorStop(0.25, gray(200)); gr.addColorStop(0.85, gray(240)); gr.addColorStop(1, gray(150));
+      G.fillStyle = gr; G.fillRect(x, y0, pw, h);
+      for (const fy of [0.14, 0.54, 0.92]) { const cy = y0 + h * (1 - fy); G.fillStyle = gray(70); G.beginPath(); G.arc(x + pw / 2, cy, 2.2, 0, 7); G.fill(); G.fillStyle = gray(250); G.beginPath(); G.arc(x + pw / 2 - 0.5, cy - 0.5, 1.1, 0, 7); G.fill(); }
     }
-    scratches(REG.okegawa, 500, 0.26);
-    // 縁の擦れ（下地が出る）
-    for (let i = 0; i < 90; i++) { R.fillStyle = gray(255, 0.3 + rnd() * 0.5); R.fillRect(x0 + rnd() * w, y0 + Math.floor(rnd() * 5) * ph + ph - 3 - rnd() * 3, 2 + rnd() * 8, 1.5); }
+    scratches(REG.okegawa, 400, 0.24);
+    // 重なりの縁の擦れ（下地が出る）
+    for (let i = 0; i < 120; i++) { R.fillStyle = gray(255, 0.3 + rnd() * 0.5); R.fillRect(x0 + Math.floor(rnd() * n) * pw + pw - 2, y0 + rnd() * h, 1.5, 3 + rnd() * 10); }
     mottle(REG.okegawa, 1400, 0.1, 0.5, 0.8);
   });
 
+  // 桶側の板（近くの形の一枚ずつ）：横が板の長さ（左が裾・右が胸）、縦に四本の板（一本 16px）。
+  // 板の右の縁は隣の板に重なって明るく、左の縁は前の板の下に潜って暗い。鋲は腰・胸・裾の三つの帯に一つずつ
+  clip(ALL, REG.okeV, () => {
+    const [x0, y0, w, h] = REG.okeV, ph = h / 4;
+    for (let k = 0; k < 4; k++) {
+      const y = y0 + k * ph;
+      const gr = G.createLinearGradient(0, y, 0, y + ph); gr.addColorStop(0, gray(110)); gr.addColorStop(0.18, gray(196)); gr.addColorStop(0.6, gray(222)); gr.addColorStop(0.9, gray(246)); gr.addColorStop(1, gray(150));
+      G.fillStyle = gr; G.fillRect(x0, y, w, ph);
+      // 板の打ち出しのゆがみ（長さの向きのゆるい明暗）
+      for (let i = 0; i < 6; i++) { const cx = x0 + rnd() * w, rw = 30 + rnd() * 70; const g2 = G.createLinearGradient(cx - rw, 0, cx + rw, 0); const a = (rnd() - 0.5) * 0.16; g2.addColorStop(0, gray(a > 0 ? 255 : 0, 0)); g2.addColorStop(0.5, gray(a > 0 ? 255 : 0, Math.abs(a))); g2.addColorStop(1, gray(a > 0 ? 255 : 0, 0)); G.fillStyle = g2; G.fillRect(cx - rw, y, rw * 2, ph); }
+      // 裾の端（折り返しの縁）
+      G.fillStyle = gray(90); G.fillRect(x0, y, 3, ph); G.fillStyle = gray(240); G.fillRect(x0 + 3, y, 1.5, ph);
+      for (const fx of [0.08, 0.46, 0.86]) {
+        const cx = x0 + fx * w + (rnd() - 0.5) * 4, cy = y + ph * 0.55;
+        G.fillStyle = gray(60); G.beginPath(); G.arc(cx, cy, 2.8, 0, 7); G.fill();
+        G.fillStyle = gray(250); G.beginPath(); G.arc(cx - 0.5, cy - 0.6, 1.5, 0, 7); G.fill();
+        R.fillStyle = gray(255, 0.35); R.beginPath(); R.arc(cx, cy, 3.2, 0, 7); R.fill();
+      }
+      // 擦れて下地が出た所：重なりの縁と裾
+      for (let i = 0; i < 26; i++) { R.fillStyle = gray(255, 0.35 + rnd() * 0.5); R.fillRect(x0 + rnd() * w, y + ph - 2 - rnd() * 2, 3 + rnd() * 14, 1.2); }
+      for (let i = 0; i < 8; i++) { R.fillStyle = gray(255, 0.4 + rnd() * 0.4); R.fillRect(x0 + rnd() * 10, y + rnd() * ph, 2 + rnd() * 5, 1.5 + rnd() * 3); }
+    }
+    scratches(REG.okeV, 260, 0.24);
+    mottle(REG.okeV, 700, 0.08, 0.55, 0.9);
+    // 下ほど泥（左が裾）
+    const gd = B.createLinearGradient(x0, 0, x0 + w * 0.4, 0); gd.addColorStop(0, gray(255, 0.45)); gd.addColorStop(1, gray(255, 0)); B.fillStyle = gd; B.fillRect(x0, y0, w * 0.4, h);
+  });
+  // 陣笠：黒漆の刷毛目（頂から縁へ）、重ねた張りの段、縁の折り返し。擦れた所から下塗り（二つめの色）が出る：縁・頂・ところどころの欠け
+  clip(ALL, REG.kasa, () => {
+    const [x0, y0, w, h] = REG.kasa;
+    G.fillStyle = gray(210); G.fillRect(x0, y0, w, h);
+    for (let i = 0; i < 700; i++) { const x = x0 + rnd() * w; G.fillStyle = rnd() < 0.5 ? gray(255, 0.05 + rnd() * 0.06) : gray(0, 0.05 + rnd() * 0.07); G.fillRect(x, y0, 0.8 + rnd() * 1.2, h); }
+    // 張りの段（頂から 1/3・2/3 の所に細い段）
+    for (const f of [0.34, 0.66]) { const y = y0 + h * f; G.fillStyle = gray(120); G.fillRect(x0, y, w, 1); G.fillStyle = gray(245); G.fillRect(x0, y + 1, w, 1); }
+    // 縁の折り返し（下の 5px）と頂の座（上の 4px）
+    { const gr = G.createLinearGradient(0, y0 + h - 6, 0, y0 + h); gr.addColorStop(0, gray(250)); gr.addColorStop(0.4, gray(225)); gr.addColorStop(1, gray(130)); G.fillStyle = gr; G.fillRect(x0, y0 + h - 6, w, 6); }
+    G.fillStyle = gray(150); G.fillRect(x0, y0 + 4, w, 1);
+    // 擦れ・剥げ：縁は細かく連なって、頂はうすく、面にはぽつぽつと小さく
+    for (let i = 0; i < 160; i++) { R.fillStyle = gray(255, 0.35 + rnd() * 0.6); R.fillRect(x0 + rnd() * w, y0 + h - 1 - rnd() * 4, 2 + rnd() * 9, 1 + rnd() * 2); }
+    for (let i = 0; i < 30; i++) { const px = x0 + rnd() * w, py = y0 + h - 4 - rnd() * 10, rr = 1.5 + rnd() * 3.5; const gr = R.createRadialGradient(px, py, 0, px, py, rr); gr.addColorStop(0, gray(255, 0.8)); gr.addColorStop(1, gray(255, 0)); R.fillStyle = gr; R.fillRect(px - rr, py - rr, rr * 2, rr * 2); }
+    { const gr = R.createLinearGradient(0, y0, 0, y0 + 7); gr.addColorStop(0, gray(255, 0.5)); gr.addColorStop(1, gray(255, 0)); R.fillStyle = gr; R.fillRect(x0, y0, w, 7); }
+    for (let i = 0; i < 40; i++) { const px = x0 + rnd() * w, py = y0 + 6 + rnd() * (h - 14), rr = 0.8 + rnd() * 1.8; R.fillStyle = gray(255, 0.5 + rnd() * 0.4); R.beginPath(); R.arc(px, py, rr, 0, 7); R.fill(); }
+    scratches(REG.kasa, 260, 0.22);
+    mottle(REG.kasa, 600, 0.06, 0.35, 0.6);
+  });
   // 籠手：布の袋に鎖を編み、ところどころに筏（小さな板）
   clip(ALL, REG.kote, () => {
     const [x0, y0, w, h] = REG.kote;
@@ -687,43 +737,57 @@ function hatParts(look, parts, hi) {
   const gold = 0xc9a24a, brass = 0xa8893f;
   const lace = look.lace || 0x5a4630;
   if (hat === 'jingasa' || hat === 'jingasa_n') {
-    const col = hat === 'jingasa_n' ? 0x151312 : 0x221d19;
-    // 陣笠：なだらかな反りの円錐を漆で塗る。擦れて下地の赤茶が出る
-    const prof = [[0.0, 0.15], [0.07, 0.132], [0.16, 0.085], [0.25, 0.03], [0.31, 0.0], [0.315, -0.01]].map(([r, y]) => new THREE.Vector2(r, y));
+    const col = hat === 'jingasa_n' ? 0x121110 : 0x1c1916;
+    // 高さ：縁が眉の高さ。頭は笠の円錐の内に入り、頭に当てる輪（布）は円錐の内で頭の太い所に掛かる（縁の高さで頭の上に載せると、頭から浮いて見える）
+    const hy = 1.655;
+    if (!hi) {
+      // 遠くの軽い形：なだらかな円錐と縁
+      const prof = [[0.0, 0.15], [0.07, 0.132], [0.16, 0.085], [0.25, 0.03], [0.31, 0.0], [0.315, -0.01]].map(([r, y]) => new THREE.Vector2(r, y));
+      parts.push(P(at(new THREE.LatheGeometry(prof.slice().reverse(), 12, Math.PI, Math.PI * 2), 0, hy, 0), col, { mk: MK.lac, reg: 'lacq', c2: 0x3e2a1e, mk2: MK.wood }));
+      parts.push(P(at(new THREE.TorusGeometry(0.31, 0.011, 3, 12), 0, hy - 0.008, 0, Math.PI / 2), 0x1c1914, { mk: MK.lac }));
+      return;
+    }
+    // 近くの陣笠（御貸具足の鉄笠・塗り笠）：浅い円錐が頂から縁へ少し反り、縁の先でわずかに上へ返る。頂に小さな座。
+    // 黒漆の艶、擦れた所（縁・頂・欠け）から下塗りが出る（塗り陣笠は朱の下塗り、安い笠は紙と竹の茶）。前に小さく家紋（家ごとに金か朱）、顎紐
+    const R = 0.33;
+    const prof = [[0, 0.158], [0.02, 0.156], [0.05, 0.146], [0.1, 0.123], [0.16, 0.09], [0.22, 0.056], [0.27, 0.031], [0.3, 0.017], [0.318, 0.01], [0.33, 0.014]];
+    const yAt = (r) => { for (let i = 1; i < prof.length; i++) if (r <= prof[i][0]) { const [ra, ya] = prof[i - 1], [rb, yb] = prof[i]; return ya + (yb - ya) * (r - ra) / (rb - ra); } return prof[prof.length - 1][1]; };
     // 回す点は下から上の順に並べる（上から上の順だと面が下を向き、上から見えるのは裏の茶色だった）
-    const kasa = new THREE.LatheGeometry(prof.slice().reverse(), hi ? 28 : 12, Math.PI, Math.PI * 2);
-    // 使い込んだ笠：縁が少し波打ち、どこかに打たれたへこみ（型で抜いたような真円の円錐に見せない）。形は人の作り分け（vi）ごと
-    if (hi) {
-      const p = kasa.attributes.position, sd = (look.vi || 0) * 1.7 + 0.4, da = sd * 2.3;
+    const kasa = new THREE.LatheGeometry(prof.slice().reverse().map(([r, y]) => new THREE.Vector2(r, y)), 32, Math.PI, Math.PI * 2);
+    {
+      // 使い込んだ笠：縁が少し波打ち、どこかに打たれたへこみ（型で抜いたような真円の円錐に見せない）。形は人の作り分け（vi）ごと
+      const p = kasa.attributes.position, uv = kasa.attributes.uv, sd = (look.vi || 0) * 1.7 + 0.4, da = sd * 2.3;
       for (let i = 0; i < p.count; i++) {
         const x = p.getX(i), z = p.getZ(i), r = Math.hypot(x, z), a = Math.atan2(x, z);
-        let dy = (Math.sin(a * 3 + sd) * 0.006 + Math.sin(a * 7 + sd * 2) * 0.0025) * (r / 0.31) ** 2;
+        let dy = (Math.sin(a * 3 + sd) * 0.006 + Math.sin(a * 7 + sd * 2) * 0.0025) * (r / R) ** 2;
         let dd = a - da; dd = Math.atan2(Math.sin(dd), Math.cos(dd));
         dy -= 0.01 * Math.exp(-(dd * dd) / 0.05 - ((r - 0.17) ** 2) / 0.003);
         p.setY(i, p.getY(i) + dy);
+        uv.setY(i, 1 - r / R);   // 絵の上下は頂からの遠さで（下の縁が絵の下）
       }
       kasa.computeVertexNormals();
     }
-    // 高さ：縁が眉の高さ。頭は笠の円錐の内に入り、頭に当てる輪（布）は円錐の内で頭の太い所に掛かる（縁の高さで頭の上に載せると、頭から浮いて見える）
-    const hy = 1.655;
-    parts.push(P(at(kasa, 0, hy, 0), col, { mk: MK.lac, reg: 'lacq', c2: 0x3e2a1e, mk2: MK.wood }));
-    if (hi) {
-      const under = new THREE.LatheGeometry(prof.map((v) => new THREE.Vector2(v.x, v.y - 0.012)), 20);
-      parts.push(P(at(under, 0, hy, 0), 0x3a2418, { mk: MK.lac, reg: 'lacq' }));
-      parts.push(P(at(new THREE.TorusGeometry(0.31, 0.011, 4, 28), 0, hy - 0.008, 0, Math.PI / 2), 0x1c1914, { mk: MK.lac, reg: 'lacq' }));
-      // 頭に当てる輪（布）と、顎の下で結ぶ忍の緒
-      parts.push(P(at(new THREE.TorusGeometry(0.106, 0.016, 5, 16), 0, hy + 0.013, 0, Math.PI / 2), 0x4a4236, { reg: 'cloth' }));
-      for (const sd of [-1, 1]) parts.push(P(limb([sd * 0.1, hy, 0.0], [sd * 0.02, 1.49, 0.075], 0.0045, 0.0045, 4), 0xcfc4a8, { reg: 'cord' }));
-      parts.push(P(at(ball(0.012, 0.008, 0.008), 0, 1.49, 0.078), 0xcfc4a8, { reg: 'cord' }));
-      // 前に家紋（御貸具足の印）
-      const mr = monReg(look.mon);
-      if (mr) {
-        const mp = [[0.075, 0.131], [0.12, 0.108], [0.165, 0.084], [0.21, 0.057]].reverse().map(([r, y]) => new THREE.Vector2(r, y + 0.004));
-        const dec = new THREE.LatheGeometry(mp, 4, -0.34, 0.68);
-        parts.push(P(at(dec, 0, hy, 0), col, { mk: MK.lac, reg: mr, c2: hat === 'jingasa_n' ? gold : 0xb08a3a, mk2: MK.gold, swap: false }));
-      }
-    } else parts.push(P(at(new THREE.TorusGeometry(0.31, 0.011, 3, 12), 0, hy - 0.008, 0, Math.PI / 2), 0x1c1914, { mk: MK.lac }));
-    if (look.tenugui && hi) parts.push(P(at(new THREE.CylinderGeometry(0.117, 0.115, 0.03, 16, 1, true), 0, 1.655, 0.006), 0xd6ccb4, { reg: 'cloth' }));
+    parts.push(P(at(kasa, 0, hy, 0), col, { mk: MK.lac, reg: 'kasa', c2: hat === 'jingasa_n' ? 0x6a2216 : 0x4a3624, mk2: hat === 'jingasa_n' ? MK.lac : MK.wood }));
+    // 裏（朱がかった茶の漆）と、縁の巻き（細い輪）
+    const under = new THREE.LatheGeometry(prof.map(([r, y]) => new THREE.Vector2(Math.min(r, R - 0.004), y - 0.01)), 20);
+    parts.push(P(at(under, 0, hy, 0), 0x4a1c14, { mk: MK.lac, reg: 'lacq' }));
+    parts.push(P(at(new THREE.TorusGeometry(R - 0.002, 0.0065, 4, 32), 0, hy + 0.009, 0, Math.PI / 2), col, { mk: MK.lac, reg: 'kasa', c2: 0x6a2216, mk2: MK.lac, rv: [0, 0.1] }));
+    // 頂の座（笠の頂を押さえる小さな丸い金具）
+    parts.push(P(at(ball(0.026, 0.011, 0.026, 10, 4), 0, hy + 0.157, 0), col, { mk: MK.lac, reg: 'lacq', c2: 0x6a2216, mk2: MK.lac }));
+    parts.push(P(at(new THREE.TorusGeometry(0.026, 0.003, 3, 12), 0, hy + 0.153, 0, Math.PI / 2), 0x2a2420, { mk: MK.iron }));
+    // 頭に当てる輪（布）と、顎の下で結ぶ忍の緒
+    parts.push(P(at(new THREE.TorusGeometry(0.106, 0.016, 5, 16), 0, hy + 0.013, 0, Math.PI / 2), 0x4a4236, { reg: 'cloth' }));
+    for (const sd of [-1, 1]) parts.push(P(limb([sd * 0.1, hy, 0.0], [sd * 0.02, 1.49, 0.075], 0.0045, 0.0045, 4), 0xcfc4a8, { reg: 'cord' }));
+    parts.push(P(at(ball(0.012, 0.008, 0.008), 0, 1.49, 0.078), 0xcfc4a8, { reg: 'cord' }));
+    // 前に家紋（御貸具足の印）：小さく、家ごとに金か朱
+    const mr = monReg(look.mon);
+    if (mr) {
+      const shu = KASA_SHU.has(look.mon);
+      const mp = [0.21, 0.185, 0.16, 0.135].map((r) => new THREE.Vector2(r, yAt(r) + 0.0035));
+      const dec = new THREE.LatheGeometry(mp, 4, -0.23, 0.46);
+      parts.push(P(at(dec, 0, hy, 0), col, { mk: MK.lac, reg: mr, c2: shu ? 0xa8301c : (hat === 'jingasa_n' ? gold : 0xb08a3a), mk2: shu ? MK.lac : MK.gold, swap: false }));
+    }
+    if (look.tenugui) parts.push(P(at(new THREE.CylinderGeometry(0.117, 0.115, 0.03, 16, 1, true), 0, 1.655, 0.006), 0xd6ccb4, { reg: 'cloth' }));
     return;
   }
   if (hat === 'hachimaki') {
@@ -1009,6 +1073,38 @@ function cuirass(r0, seg, rows = 0, hi = false) {
   g.scale(1, 1, 0.8);
   return g;
 }
+// 桶側胴（縦矧）の近くの形：短冊の鉄の板を縦に並べ、隣の板へ少しずつ重ねる（板の右の縁が次の板の左の縁の上に出る）。
+// 板は四通りの絵（okeV）を順に使う。胸の上と脇（1.36 より上）は一枚の漆の板。足軽の御貸具足なので家の色（armor）で塗る
+const OKE_N = 26, OKE_Y0 = 0.88, OKE_Y1 = 1.36;
+function okeDo(r0, armor) {
+  const rAt = (y) => { for (let i = 1; i < DO_PROF.length; i++) { const [ra, ya] = DO_PROF[i - 1], [rb, yb] = DO_PROF[i]; if (y <= yb) return ra + (rb - ra) * ((y - ya) / (yb - ya)); } return DO_PROF[DO_PROF.length - 1][0]; };
+  const ys = [0.88, 0.95, 1.0, 1.05, 1.12, 1.18, 1.24, 1.3, 1.36];
+  const prof = ys.map((y) => new THREE.Vector2(rAt(y) * r0, y));
+  const out = [], st = (Math.PI * 2) / OKE_N;
+  for (let k = 0; k < OKE_N; k++) {
+    const g = new THREE.LatheGeometry(prof, 2, Math.PI + k * st, st * 1.07);
+    const p = g.attributes.position, uv = g.attributes.uv, np = prof.length;
+    for (let i = 0; i < p.count; i++) {
+      const f = Math.floor(i / np) / 2, x = p.getX(i), z = p.getZ(i), r = Math.hypot(x, z) || 1;
+      // 重なりの厚み：板の右の縁ほど外へ（裾ほど少し開く）
+      const dr = 0.0015 + 0.0055 * f + 0.003 * (1 - (p.getY(i) - OKE_Y0) / (OKE_Y1 - OKE_Y0)) * f;
+      p.setX(i, x * (1 + dr / r)); p.setZ(i, z * (1 + dr / r));
+      uv.setXY(i, (p.getY(i) - OKE_Y0) / (OKE_Y1 - OKE_Y0), 1 - f);
+    }
+    g.computeVertexNormals();
+    g.scale(1, 1, 0.8);
+    const v = (k * 3 + 1) % 4;
+    out.push(P(g, armor, { mk: MK.lac, reg: 'okeV', rv: [v / 4, (v + 1) / 4], c2: 0x4a2a1a, mk2: MK.lac }));
+  }
+  // 胸の上・脇・背の上の板（板の上の端にかぶせる）
+  const top = [[rAt(1.345) + 0.009, 1.345], [rAt(1.36) + 0.008, 1.362], [0.238, 1.38], [0.19, 1.43], [0.1, 1.46]].map(([r, y]) => new THREE.Vector2(r * r0, y));
+  const tg = new THREE.LatheGeometry(top, 28, Math.PI, Math.PI * 2); tg.scale(1, 1, 0.8);
+  out.push(P(tg, armor, { mk: MK.lac, reg: 'lacq', c2: 0x4a2a1a, mk2: MK.lac }));
+  // 腰の上の鋲の帯（板を内から留める横の帯の鋲頭が並ぶ）は絵に描いてある。裾の縁に細い覆輪
+  const hem = arcRing(rAt(OKE_Y0) * r0 + 0.004, 0.004, Math.PI * 2, 0, 28); hem.scale(1, 1, 0.8);
+  out.push(P(at(hem, 0, OKE_Y0 + 0.002, 0), armor, { mk: MK.lac, reg: 'lacq', c2: 0x4a2a1a, mk2: MK.lac }));
+  return out;
+}
 // 陣羽織のひだ（背の角度 th と高さ y での、外への出っ張り m）
 export const haoriFold = (th, y) => (0.013 * Math.sin(th * 9 + 0.6) + 0.006 * Math.sin(th * 23 + 1.7 + y * 3)) * Math.min(1, Math.max(0.15, (1.44 - y) / 0.64));
 // 体つき：足軽は細く締まり、侍は厚い
@@ -1044,7 +1140,8 @@ function bodyGeometry(key, o, hi, grp) {
     for (const sd of [-1, 1]) parts.push(P(at(new THREE.BoxGeometry(0.018, 0.075, 0.006), sd * 0.03, 1.46, 0.07, -0.25, 0, sd * 0.55), 0xd8d0bc, { reg: 'cloth' }));
   }
   // 胴
-  parts.push(P(cuirass(r0, hi ? 28 : 12, doStyle === 'okegawa' ? 5 : 6, hi), armor, { mk: MK.lac, reg: doStyle, c2: lace, mk2: MK.cloth, rv: rows }));
+  if (hi && doStyle === 'okegawa') parts.push(...okeDo(r0, armor));
+  else parts.push(P(cuirass(r0, hi ? 28 : 12, doStyle === 'okegawa' ? 5 : 6, hi), armor, { mk: MK.lac, reg: doStyle, c2: doStyle === 'okegawa' ? 0x4a2a1a : lace, mk2: doStyle === 'okegawa' ? MK.lac : MK.cloth, rv: rows }));
   if (doStyle === 'sugake' && T === 0) {
     // 腹巻は背で引き合わせる：背の割れ目
     parts.push(P(at(new THREE.BoxGeometry(0.012, 0.5, 0.01), 0, 1.15, -0.2 * r0 * 0.8 - 0.005), 0x0e0c0a, { mk: MK.lac }));
@@ -1068,7 +1165,7 @@ function bodyGeometry(key, o, hi, grp) {
   // 家紋（足軽の御貸具足は胴の前に大きく）
   const mr = monReg(o.mon);
   if (mr && T === 0) {
-    const mp = DO_PROF.slice(3, 6).map(([r, y]) => new THREE.Vector2(r * r0 * 1.03, y));
+    const mp = DO_PROF.slice(3, 6).map(([r, y]) => new THREE.Vector2(r * r0 * (hi && doStyle === 'okegawa' ? 1.05 : 1.03), y));
     const dec = new THREE.LatheGeometry(mp, hi ? 6 : 3, -0.42, 0.84); dec.scale(1, 1, 0.8);
     parts.push(P(dec, armor, { mk: MK.lac, reg: mr, c2: o.monCol || 0xb08a3a, mk2: MK.gold }));
   }
@@ -1076,13 +1173,29 @@ function bodyGeometry(key, o, hi, grp) {
   parts = PT.hips;
   {
     const np = T === 0 ? 5 : 7;
-    const krv = doStyle === 'okegawa' ? [0, 0.6] : doStyle === 'sugake' ? [0, 0.5] : [0, 0.625];
+    // 桶側の胴の草摺は、鉄か革の板を五段、素懸で威す（胴の縦の板の絵は使わない）
+    const kreg = doStyle === 'okegawa' ? 'sugake' : doStyle;
+    const krv = doStyle === 'okegawa' ? [0, 0.625] : doStyle === 'sugake' ? [0, 0.5] : [0, 0.625];
+    // 足軽の近くの形：五段の板の下の縁がそれぞれ外へ出る（一枚の板に縞を描いた形に見せない）。上の端は 0.884 まで（上は揺糸の帯。板を揺らす骨の見分けを崩さない）
+    const KY0 = 0.63, KY1 = 0.884, kr = (y) => (0.27 + (0.214 - 0.27) * (y - KY0) / 0.27) * r0;
+    let kprof = null;
+    if (hi && T === 0) {
+      kprof = [];
+      const H = (KY1 - KY0) / 5, t = 0.009;
+      for (let j = 0; j < 5; j++) { const ya = KY0 + j * H, yb = ya + H; kprof.push([kr(ya), ya], [kr(ya) + t, ya + 0.002], [kr(ya + H * 0.5) + t * 0.45, ya + H * 0.5], [kr(yb - 0.003), yb - 0.003]); }
+      kprof = kprof.map(([r, y]) => new THREE.Vector2(r, y));
+    }
     for (let k = 0; k < np; k++) {
       const a = (k / np) * Math.PI * 2 + (np === 5 ? Math.PI / 5 : 0);
       const L = (Math.PI * 2 / np) * 0.97;
-      const kz = arcCyl(0.214 * r0, 0.27 * r0, 0.27, hi ? 3 : 2, L, a + Math.PI);
-      kz.scale(1, 1, 0.86);
-      parts.push(P(at(kz, 0, 0.765, 0), armor, { mk: MK.lac, reg: doStyle, c2: lace, mk2: MK.cloth, rv: krv, ru: [0, doStyle === 'okegawa' ? 0.35 : 0.2] }));
+      let kz;
+      if (kprof) {
+        kz = new THREE.LatheGeometry(kprof, 3, a + Math.PI - L / 2, L);
+        const p = kz.attributes.position, uv = kz.attributes.uv;
+        for (let i = 0; i < p.count; i++) uv.setY(i, (p.getY(i) - KY0) / 0.27);
+        kz.scale(1, 1, 0.86);
+      } else { kz = arcCyl(0.214 * r0, 0.27 * r0, 0.27, hi ? 3 : 2, L, a + Math.PI); kz.scale(1, 1, 0.86); at(kz, 0, 0.765, 0); }
+      parts.push(P(kz, armor, { mk: MK.lac, reg: kreg, c2: lace, mk2: MK.cloth, rv: krv, ru: [0, 0.2] }));
     }
     // 揺糸（胴と草摺をつなぐ糸）
     const yb = new THREE.CylinderGeometry(0.203 * r0, 0.214 * r0, 0.035, hi ? 28 : 10, 1, true); yb.scale(1, 1, 0.84);
@@ -1210,6 +1323,23 @@ function bodyGeometry(key, o, hi, grp) {
     parts.push(P(limb(pt(-0.425), pt(-0.4), 0.0145, 0.015, 6), 0x3a3430, { mk: MK.iron }));
     parts.push(P(limb(pt(0.155), pt(0.172), 0.0155, 0.014, 6), 0x3a3430, { mk: MK.iron }));
   }
+  // 弓足軽の箙（右の腰）：下の箱（方立）に鏃を差し、二本の手と横木で矢を支える。羽は腰の後ろから肩の後ろへ斜めに立つ。近くの形だけ
+  if (T === 0 && hi && o.weapon === 'bow') {
+    const M = new THREE.Matrix4().makeTranslation(0.3 * r0, 0.72, -0.06).multiply(new THREE.Matrix4().makeRotationX(-0.38)).multiply(new THREE.Matrix4().makeRotationZ(-0.1));
+    const E = [];
+    E.push(P(at(new THREE.BoxGeometry(0.1, 0.09, 0.075), 0, 0.045, 0), 0x1a1612, { mk: MK.lac, reg: 'lacq', c2: 0x4a2a1a, mk2: MK.lac }));
+    for (const sx of [-1, 1]) E.push(P(at(new THREE.BoxGeometry(0.012, 0.36, 0.012), sx * 0.046, 0.27, -0.026), 0x2a1c10, { mk: MK.lac, reg: 'lacq' }));
+    E.push(P(at(new THREE.BoxGeometry(0.112, 0.024, 0.016), 0, 0.42, -0.026), 0x2a1c10, { mk: MK.lac, reg: 'lacq' }));
+    E.push(P(at(new THREE.TorusGeometry(0.05, 0.004, 3, 8), 0, 0.3, -0.012, Math.PI / 2), 0x3a3026, { reg: 'cord' }));
+    for (let i = 0; i < 8; i++) {
+      const c = i % 4, rw = i < 4 ? 1 : -1, bx = -0.033 + c * 0.022, bz = rw * 0.014;
+      const tx = bx * 1.7, tz = bz * 1.4 - 0.02, top = 0.9 + ((i * 7) % 5) * 0.008;
+      E.push(P(limb([bx, 0.02, bz], [tx, top, tz], 0.0042, 0.0042, 3), 0xa8925e, { mk: MK.wood, reg: 'wood' }));
+      const fc = i % 3 === 1 ? 0x3a3430 : 0xd8d0bc;
+      for (const ry of [0, Math.PI / 2]) E.push(P(at(new THREE.BoxGeometry(0.02, 0.12, 0.0015), tx * 0.98, top - 0.075, tz, 0, ry + i * 0.4, 0), fc, { reg: 'fur' }));
+    }
+    for (const g of E) parts.push(g.applyMatrix4(M));
+  }
   parts = PT.torso;
   // 母衣（母衣衆の背の袋）：竹の籠（母衣串）に十二枚はぎの布を張る。縦長の卵形で、上が細く、下は開いて腰の後ろへ垂れる。
   // 大きさは背の幅から肩の少し上まで。形は半ばふくらんだ所で作り、駆ける速さでふくらみ・しぼむのは humans.js の揺れで
@@ -1281,7 +1411,7 @@ function thighGeometry(o, hi, part) {
 function shinGeometry(o, hi, part) {
   if (o.sohei && part !== 'foot') return soheiShin(o, hi, part);
   const cloth = o.cloth || 0x2b2622, T = o.tier || 0, vi = o.vi || 0;
-  const k = 'shin' + cloth + '|' + T + '|' + (T === 0 ? vi % 2 : 0) + '|' + (hi ? 1 : 0) + (part || '');
+  const k = 'shin' + cloth + '|' + T + '|' + (T === 0 ? vi % 3 + '/' + (vi % 4 === 3 ? 0 : 1) + '/' + (o.armor || 0) : 0) + '|' + (hi ? 1 : 0) + (part || '');
   if (geoCache.has(k)) return geoCache.get(k);
   DIRT = o.dirt ?? [0.95, 0.8, 0.6, 0.45][T];
   const b = BUILD[T];
@@ -1294,9 +1424,19 @@ function shinGeometry(o, hi, part) {
     const kc = [0x4a4a44, 0x2e3440, 0x5a5244][vi % 3];
     P_.push(P(limb([0, -0.02, 0.0], [0, -0.28, -0.008], 0.074 * b, 0.058 * b, hi ? 10 : 6), kc, { reg: 'cloth', flipV: true }));
     if (hi) for (const y of [-0.04, -0.26]) P_.push(P(at(new THREE.TorusGeometry(y > -0.1 ? 0.074 * b : 0.058 * b, 0.004, 4, 12), 0, y, -0.004, Math.PI / 2), 0xcfc4a8, { reg: 'cord' }));
-    if (vi % 2) {
-      P_.push(P(at(arcCyl(0.08 * b, 0.064 * b, 0.22, hi ? 7 : 4, Math.PI * 0.95, 0), 0, -0.14, -0.004), 0x2e3236, { mk: MK.iron, reg: 'iron' }));
-      if (hi) P_.push(P(at(new THREE.BoxGeometry(0.004, 0.22, 0.008), 0, -0.14, 0.076 * b), 0x1a1816, { mk: MK.iron }));
+    // 筒臑当（御貸具足）：脛の前を三枚の縦の板で包み、蝶番でつなぐ。家の色の漆。上下を紐で結ぶ（四人に一人は脚絆だけ）
+    if (vi % 4 !== 3) {
+      const ac = o.armor || 0x2e3236;
+      if (hi) {
+        const w3 = Math.PI * 0.32;
+        for (let j = -1; j <= 1; j++) {
+          const g = arcCyl(0.081 * b + Math.abs(j) * 0.002, 0.065 * b + Math.abs(j) * 0.002, 0.22, 2, w3 * 1.06, j * w3);
+          P_.push(P(at(g, 0, -0.14, -0.004), ac, { mk: MK.lac, reg: 'okeV', rv: [((j + 2) % 4) / 4, ((j + 2) % 4 + 1) / 4], swap: true, flipV: true, c2: 0x4a2a1a, mk2: MK.lac }));
+        }
+        // 蝶番（板の境の細い鉄）と、上下の紐
+        for (const j of [-0.5, 0.5]) { const a = j * w3; P_.push(P(at(new THREE.BoxGeometry(0.006, 0.2, 0.005), Math.sin(a) * 0.075 * b, -0.14, Math.cos(a) * 0.075 * b - 0.004, 0.06, a, 0), 0x2a2420, { mk: MK.iron })); }
+        for (const y of [-0.055, -0.225]) P_.push(P(at(new THREE.TorusGeometry((y > -0.1 ? 0.079 : 0.068) * b, 0.004, 3, 12), 0, y, -0.004, Math.PI / 2), 0xcfc4a8, { reg: 'cord' }));
+      } else P_.push(P(at(arcCyl(0.08 * b, 0.064 * b, 0.22, 4, Math.PI * 0.95, 0), 0, -0.14, -0.004), ac, { mk: MK.lac, reg: 'lacq' }));
     }
   } else {
     // 侍：篠臑当（縦の鉄の篠を鎖でつなぐ）。侍大将から膝に立挙
@@ -1345,7 +1485,7 @@ export function seatLegs(u) {
 function armGeometry(o, sd, kote, hi, part) {
   if (o.sohei) return soheiArm(o, sd, hi, part);
   const skin = o.skin || 0xb58c68, cloth = o.cloth || 0x2b2622, T = o.tier || 0;
-  const k = 'arm' + skin + '|' + cloth + '|' + sd + '|' + (kote ? 1 : 0) + '|' + T + '|' + (hi ? 1 : 0) + (part || '');
+  const k = 'arm' + skin + '|' + cloth + '|' + sd + '|' + (kote ? 1 : 0) + '|' + T + '|' + (hi ? 1 : 0) + (part || '') + (T === 0 && kote ? '|' + (o.armor || 0) : '');
   if (geoCache.has(k)) return geoCache.get(k);
   DIRT = o.dirt ?? [0.8, 0.55, 0.4, 0.3][T];
   const b = BUILD[T];
@@ -1356,10 +1496,17 @@ function armGeometry(o, sd, kote, hi, part) {
   if (!part) P_.push(P(at(ball(0.068 * b, 0.075, 0.068 * b, hi ? 10 : 6, 6), 0, -0.02, 0), kote ? kc : cloth, { reg: kote ? 'kote' : 'cloth', c2: 0x2e3236, mk2: MK.iron }));
   if (kote && part !== 'hand') {
     if (part !== 'fore') P_.push(P(limb([0, -0.02, 0], [0, -0.27, 0], 0.058 * b, 0.05 * b, seg), kc, { reg: 'kote', c2: 0x2e3236, mk2: MK.iron }));
-    if (hi && part !== 'fore') P_.push(P(at(ball(0.034, 0.03, 0.022, 8, 5), 0, -0.27, -0.034), 0x2e3236, { mk: MK.iron, reg: 'iron' }));   // 肘金
+    if (hi && part !== 'fore') P_.push(P(at(ball(0.034, 0.03, 0.022, 8, 5), 0, -0.27, -0.034), T === 0 ? (o.armor || 0x2e3236) : 0x2e3236, T === 0 ? { mk: MK.lac, reg: 'lacq', c2: 0x4a2a1a, mk2: MK.lac } : { mk: MK.iron, reg: 'iron' }));   // 肘金
+    // 足軽の御貸具足の籠手：二の腕の外に小さな板（家の色の漆）を二枚
+    if (hi && T === 0 && part !== 'fore') for (const y of [-0.1, -0.18]) P_.push(P(at(arcCyl(0.062 * b, 0.058 * b, 0.06, 3, Math.PI * 0.45, sd * Math.PI / 2), 0, y, 0), o.armor || 0x2e3236, { mk: MK.lac, reg: 'okeV', rv: [0.25, 0.5], swap: true, c2: 0x4a2a1a, mk2: MK.lac }));
     if (part !== 'upper') P_.push(P(limb([0, -0.27, 0], [0, -0.5, 0], 0.05 * b, 0.041 * b, seg), kc, { reg: 'kote', c2: 0x2e3236, mk2: MK.iron }));
     // 篠（前腕の外側に細い鉄の板）
-    if (part !== 'upper') for (const a of hi ? [-0.45, 0, 0.45] : [0]) {
+    // 足軽：筒籠手（前腕の外を包む一枚の鉄の板を家の色の漆で塗り、手首と肘の下を紐で結ぶ）
+    if (part !== 'upper' && T === 0) {
+      const th = sd * Math.PI / 2 + Math.PI * 0.12 * sd;
+      P_.push(P(at(arcCyl(0.056 * b, 0.047 * b, 0.2, hi ? 6 : 2, Math.PI * 0.95, th), 0, -0.385, 0), o.armor || 0x2e3236, { mk: MK.lac, reg: 'okeV', rv: [0.5, 0.75], swap: true, c2: 0x4a2a1a, mk2: MK.lac }));
+      if (hi) for (const y of [-0.3, -0.47]) P_.push(P(at(new THREE.TorusGeometry((y > -0.4 ? 0.05 : 0.043) * b, 0.0035, 3, 10), 0, y, 0, Math.PI / 2), 0xcfc4a8, { reg: 'cord' }));
+    } else if (part !== 'upper') for (const a of hi ? [-0.45, 0, 0.45] : [0]) {
       const th = sd * Math.PI / 2 + a + Math.PI * 0.15 * sd;
       P_.push(P(at(new THREE.BoxGeometry(0.013, 0.2, 0.006), Math.sin(th) * 0.048 * b, -0.385, Math.cos(th) * 0.048 * b, 0, th, 0), 0x2e3236, { mk: MK.iron, reg: 'iron' }));
     }
@@ -1373,7 +1520,7 @@ function armGeometry(o, sd, kote, hi, part) {
     P_.push(P(at(new THREE.CylinderGeometry(0.038 * b, 0.038 * b, 0.03, seg), 0, -0.49, 0), 0x8a8270, { reg: 'cloth' }));
   }
   if (part === 'hand') {
-    if (kote) P_.push(P(at(new THREE.BoxGeometry(0.056 * b, 0.05, 0.007), 0, -0.54, -0.027, 0.1), T >= 2 ? (o.armor || 0x1c1a1a) : 0x2e3236, { mk: T >= 2 ? MK.lac : MK.iron, reg: 'lacq' }));
+    if (kote) P_.push(P(at(new THREE.BoxGeometry(0.056 * b, 0.05, 0.007), 0, -0.54, -0.027, 0.1), T >= 2 || T === 0 ? (o.armor || 0x1c1a1a) : 0x2e3236, { mk: T >= 2 || T === 0 ? MK.lac : MK.iron, reg: 'lacq' }));
   } else if (part) { /* 籠手だけ */ } else if (hi) {
     // 手：握った拳（掌・指の列と節・親指）。籠手なら甲に手甲
     const hx = 0;
@@ -1382,7 +1529,7 @@ function armGeometry(o, sd, kote, hi, part) {
     P_.push(P(at(fr, hx, -0.578, 0.014), skin, { mk: MK.skin, reg: 'skin' }));
     for (let i = 0; i < 4; i++) P_.push(P(at(ball(0.0105, 0.011, 0.011, 6, 4), hx + (i - 1.5) * 0.017 * b, -0.565, 0.028), skin, { mk: MK.skin, reg: 'skin' }));
     P_.push(P(limb([-sd * 0.028, -0.528, 0.012], [-sd * 0.02, -0.574, 0.032], 0.0115, 0.0095, 6), skin, { mk: MK.skin, reg: 'skin' }));
-    if (kote) P_.push(P(at(new THREE.BoxGeometry(0.056 * b, 0.05, 0.007), hx, -0.54, -0.027, 0.1), T >= 2 ? (o.armor || 0x1c1a1a) : 0x2e3236, { mk: T >= 2 ? MK.lac : MK.iron, reg: 'lacq' }));
+    if (kote) P_.push(P(at(new THREE.BoxGeometry(0.056 * b, 0.05, 0.007), hx, -0.54, -0.027, 0.1), T >= 2 || T === 0 ? (o.armor || 0x1c1a1a) : 0x2e3236, { mk: T >= 2 || T === 0 ? MK.lac : MK.iron, reg: 'lacq' }));
   } else {
     P_.push(P(at(ball(0.046, 0.056, 0.05, 6, 4), 0, -0.55, 0.01), skin, { mk: MK.skin }));
   }
@@ -1440,6 +1587,38 @@ export function poseArms(u, t = 0) {
 
 // ---------------- 武器 ----------------
 // どの武器も右手の握り（u.hand の原点）から前（+z）へ伸びる
+// 本物の武器の形（tools/weapons.mjs で軽くした物。src/asset_weapons.js。どれも CC BY 4.0、docs/CREDITS.md）：
+//   火縄銃 stalkerlis180「Tanegasima」・槍の穂と石突 SublimeHurdle_1542「Yari」・打刀 Bermu「Katana Japanese sword」
+//   絵は持たず、頂点の色と素材で兵の材質（MAT）に乗せる（まとめて描ける）。近い兵と自分だけこの形、遠い兵は下の自前の形
+const REALW = {};
+// 見比べる時：?oldwpn（または window.__oldwpn = true を戦の前に）で、今までの自前の形だけにする
+const realOn = () => typeof location === 'undefined' || !((typeof window !== 'undefined' && window.__oldwpn) || /[?&]oldwpn\b/.test(location.search));
+function realWeapon(key, dirt = 0.25) {
+  if (REALW[key]) return REALW[key];
+  const D = WEAPONS[key];
+  const u8 = (s) => { const b = atob(s), a = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; };
+  const pos = new Float32Array(u8(D.P).buffer), nor = new Float32Array(u8(D.N).buffer), C = u8(D.C), K = u8(D.K), I = new Uint16Array(u8(D.I).buffer);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  g.setIndex(new THREE.BufferAttribute(I, 1));
+  P(g, 0xffffff, {});
+  const col = g.attributes.color, c2 = g.attributes.col2, mtl = g.attributes.mtl, c = new THREE.Color();
+  for (let i = 0; i < K.length; i++) {
+    c.setRGB(C[i * 3] / 255, C[i * 3 + 1] / 255, C[i * 3 + 2] / 255, THREE.SRGBColorSpace);
+    col.setXYZ(i, c.r, c.g, c.b); c2.setXYZ(i, c.r, c.g, c.b);
+    mtl.setX(i, K[i] * 9 + dirt * 0.9);
+  }
+  g.computeBoundingSphere();
+  REALW[key] = g;
+  return g;
+}
+// 槍の穂・石突：本物の形（長さ 1・幅 ±1 にそろえてある）を、拵えの寸法へ伸ばして置く
+function realSpearPart(key, sx, sy, sz, z) {
+  const g = realWeapon(key, 0.3).clone();
+  g.scale(sx, sy, sz); g.translate(0, 0, z); g.computeVertexNormals();
+  return g;
+}
 // 断面（反時計回りの多角形）を z に沿って押し出す。path(v) → [z, y, 横の倍率, 縦の倍率]
 function loft(pts, nv, path) {
   const n = pts.length;
@@ -1467,18 +1646,23 @@ export function spearSpec(v, extra = 0) {
 }
 // 槍：柄は三つに分け、節で曲げてしなりを出す（近くの兵だけ。遠くは一つの形）
 function spearGeometry(sp) {
-  const k = 'spear|' + sp.L + '|' + sp.ho;
+  const k = 'spear|' + sp.L + '|' + sp.ho + (realOn() ? '' : '|old');
   if (geoCache.has(k)) return geoCache.get(k);
   DIRT = 0.3;
   const { L, grip, hoL, r } = sp;
   const z0 = -grip, zt = L - grip, zh = zt - hoL;
   const j1 = 0.42, j2 = j1 + (zh - 0.5 - j1) * 0.5;
   const sec = [[], [], []];
+  // far：遠くの一つの形（full）だけに入れる自前の穂・石突。near：近くの節の形（s0・s2。しなる距離の兵と自分）に入れる本物の穂・石突
+  const far = [], near = [[], [], []], RO = realOn();
+  const two = (i, proc, real) => { if (RO) { far.push(proc); near[i].push(real()); } else sec[i].push(proc); };
   const rad = (z) => r * (1.1 - 0.25 * (z - z0) / (zh - z0));   // 元が太く、先が細い
-  const shaft = (i, a, b) => sec[i].push(P(at(new THREE.CylinderGeometry(rad(b), rad(a), b - a, 7, 1, true), 0, 0, (a + b) / 2, Math.PI / 2), 0x2a1c12, { mk: MK.lac, reg: 'wood', swap: true }));
+  // 柄の色：本物の槍（Yari）の柄の漆（黒みの強い溜塗の赤）
+  const shaft = (i, a, b) => sec[i].push(P(at(new THREE.CylinderGeometry(rad(b), rad(a), b - a, 7, 1, true), 0, 0, (a + b) / 2, Math.PI / 2), RO ? 0x2c0a0a : 0x2a1c12, { mk: MK.lac, reg: 'wood', swap: true }));
   shaft(0, z0 + 0.06, j1); shaft(1, j1, j2); shaft(2, j2, zh - 0.38);
   // 石突（鉄の尻金）
-  sec[0].push(P(at(new THREE.CylinderGeometry(rad(z0) + 0.002, rad(z0) * 0.75, 0.08, 7), 0, 0, z0 + 0.04, Math.PI / 2), 0x3a3e42, { mk: MK.iron, reg: 'iron' }));
+  two(0, P(at(new THREE.CylinderGeometry(rad(z0) + 0.002, rad(z0) * 0.75, 0.08, 7), 0, 0, z0 + 0.04, Math.PI / 2), 0x3a3e42, { mk: MK.iron, reg: 'iron' }),
+    () => realSpearPart('yariButt', rad(z0) + 0.003, rad(z0) + 0.003, 0.07, z0 + 0.07));
   // 千段巻（穂の下を糸で巻いて漆で固める）と、口金
   sec[2].push(P(at(new THREE.CylinderGeometry(rad(zh) + 0.0025, rad(zh) + 0.003, 0.28, 7), 0, 0, zh - 0.25, Math.PI / 2), 0x1d1a16, { reg: 'cord', swap: true }));
   sec[2].push(P(at(new THREE.CylinderGeometry(rad(zh) + 0.001, rad(zh) + 0.0035, 0.1, 8), 0, 0, zh - 0.06, Math.PI / 2), 0x3a3e42, { mk: MK.iron, reg: 'iron' }));
@@ -1503,13 +1687,15 @@ function spearGeometry(sp) {
     }
   } else if (sp.ho === 'omi') {
     // 大身：長い両刃の穂。鎬で菱の断面、先で細る
-    sec[2].push(P(loft(DIA, 12, (v) => { const w = 0.019 * (v < 0.08 ? 0.7 + v * 3.7 : 1 - v * 0.2) * Math.min(1, (1 - v) / 0.22); return [zh + 0.015 + v * hoL, 0, w, 0.006 * (1 - v * 0.5) * Math.min(1, (1 - v) / 0.22 + 0.2)]; }), 0xb8bcbe, { mk: MK.iron, reg: 'iron' }));
+    two(2, P(loft(DIA, 12, (v) => { const w = 0.019 * (v < 0.08 ? 0.7 + v * 3.7 : 1 - v * 0.2) * Math.min(1, (1 - v) / 0.22); return [zh + 0.015 + v * hoL, 0, w, 0.006 * (1 - v * 0.5) * Math.min(1, (1 - v) / 0.22 + 0.2)]; }), 0xb8bcbe, { mk: MK.iron, reg: 'iron' }),
+      () => realSpearPart('yariHead', 0.019, 0.0065, hoL, zh + 0.012));
   } else {
     // 平三角：三角の断面の穂
-    sec[2].push(P(loft(TRI, 6, (v) => { const w = 0.015 * Math.min(0.65 + v * 4, (1 - v) * 1.2); return [zh + 0.015 + v * hoL, 0, w, 0.0065 * Math.min(1, (1 - v) * 1.3)]; }), 0xb0b4b6, { mk: MK.iron, reg: 'iron' }));
+    two(2, P(loft(TRI, 6, (v) => { const w = 0.015 * Math.min(0.65 + v * 4, (1 - v) * 1.2); return [zh + 0.015 + v * hoL, 0, w, 0.0065 * Math.min(1, (1 - v) * 1.3)]; }), 0xb0b4b6, { mk: MK.iron, reg: 'iron' }),
+      () => realSpearPart('yariHead', 0.014, 0.0065, hoL, zh + 0.012));
   }
-  const full = merge(sec.flat().map((g) => g.clone()));
-  const s0 = merge(sec[0]), s1 = merge(sec[1]), s2 = merge(sec[2]);
+  const full = merge([...sec.flat().map((g) => g.clone()), ...far]);
+  const s0 = merge([...sec[0], ...near[0]]), s1 = merge(sec[1]), s2 = merge([...sec[2], ...near[2]]);
   s1.translate(0, 0, -j1); s2.translate(0, 0, -j2);
   const out = { full, s0, s1, s2, j1, j2, tip: zt, butt: z0, sp };
   geoCache.set(k, out);
@@ -1555,6 +1741,8 @@ function swordGeometry() {
 // 火縄銃：八角の長い筒、筒先近くまでの台木、頬に当てる短い台尻、真鍮のからくり（火挟み・火皿・火蓋）、
 // 引き金、目当て、下に込め矢（別の形。込め直しで抜いて使う）、火挟みから下がる火縄
 const GUN_MUZ = 1.02, GUN_BORE = 0.034;
+// 込め矢を納める所（台木の中の溝。本物の鉄砲の込め矢と同じ高さ）[y, z]
+const GUN_RAM = [0.013, 0.12];
 function gunGeometry() {
   const k = 'w-gun';
   if (geoCache.has(k)) return geoCache.get(k);
@@ -1657,6 +1845,8 @@ function weaponGeometry(kind, extra = 0, sk) {
 export function makeWeapon(kind, extra = 0, sk) {
   const m = new THREE.Mesh(weaponGeometry(kind, extra, sk), MAT);
   m.userData.kind = kind;
+  // 鉄砲・刀：近い兵と自分は本物の形、遠い兵は自前の形（まとめて描く時も userData.lod で選ぶ）
+  if ((kind === 'gun' || kind === 'sword') && realOn()) lodSwap(m, realWeapon(kind), m.geometry);
   if (kind === 'spear') {
     const G = spearGeometry(spearSpec(sk, extra));
     const a = new THREE.Mesh(G.s1, MAT), b = new THREE.Mesh(G.s2, MAT);
@@ -1666,10 +1856,11 @@ export function makeWeapon(kind, extra = 0, sk) {
     m.userData.tip = G.tip; m.userData.butt = G.butt; m.userData.spec = G.sp;
   } else if (kind === 'gun') {
     const ram = new THREE.Mesh(ramGeometry(), MAT);
-    ram.position.set(0, -0.012, 0.1);
+    ram.position.set(0, GUN_RAM[0], GUN_RAM[1]);
     m.add(ram);
     const em = new THREE.Mesh(EMBER_GEO, EMBER_MAT);
-    em.position.set(0.028, 0.05, 0.036);
+    // 火挟みの頭（本物の形の火挟み。遠くの自前の形でも同じ所で見分けは付かない）
+    em.position.fromArray(WEAPONS.gun.ember);
     m.add(em);
     m.userData.ram = ram; m.userData.ember = em;
   } else if (kind === 'bow') {
@@ -2481,4 +2672,4 @@ function soheiArm(o, sd, hi, part) {
   return g;
 }
 
-export { flagMatCache, geoCache, paint, at, merge, PLAYER_FACE, FACES, HAIR, headGeometry, bodyGeometry, thighGeometry, shinGeometry, armGeometry, MAT, flagGeo, P, flexSpear, EMBER_GEO, EMBER_MAT, arrowStub, sm, GUN_MUZ, GUN_BORE, aimArm, rng };
+export { flagMatCache, geoCache, paint, at, merge, PLAYER_FACE, FACES, HAIR, headGeometry, bodyGeometry, thighGeometry, shinGeometry, armGeometry, MAT, flagGeo, P, flexSpear, EMBER_GEO, EMBER_MAT, arrowStub, sm, GUN_MUZ, GUN_BORE, GUN_RAM, aimArm, rng };

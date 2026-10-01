@@ -1,13 +1,12 @@
 import * as THREE from 'three';
 import { newGame, load, save, settle, BATTLES, RANKS, RANK_CEIL, TITLES, fillRoster, clearSave, setScenario, scenarioKey, SCENARIOS, ladderStep } from './state.js';
-import { Battle } from './battle.js';
 import { kumiHtml, kumiBind } from './kumi.js';
 import { Hud } from './hud.js';
 import { setRenderer } from './world.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { AdaptPass, FinishPass } from './post.js';
+import { AdaptPass, FinishPass, clearEdgeDark } from './post.js';
 import { initAudio, silence, sfx, setVolume, duck, townMusic, playMusic, stopMusic } from './audio.js';
 import { titleScreen, storyCard, inkBand, evalScreen, spoilHorseInfo, aijirushiScreen, baseScreen, finalScreen, hideScreen, helpOverlay, settingsScreen, pauseMenu, notice, deathScreen, promoScreen, recordsScreen, dojoResult, epilogueScreen, ladderScreen } from './screens.js';
 import { S, QUALITY, saveSettings, canonical, K } from './settings.js';
@@ -21,6 +20,9 @@ const zkLoad = () => import('./zukan.js').then((m) => (ZKm = m)).catch(() => nul
 // 戦の定義（b_*.js 全部・約2.6万行）も重いので、最初には読まない。題の画面が出てから裏で読み始め、戦を始める時は済んでいるのを待つだけにする
 let BTm = null, btPromise = null;
 const btLoad = () => { if (!btPromise) btPromise = import('./battles.js').then((m) => (BTm = m)); return btPromise; };
+// 戦の仕組み（battle.js。units・army・ai・siege など、題には要らない重い物を連れてくる）も、題の画面が出てから裏で読む
+let BM = null, bmPromise = null;
+const bmLoad = () => { if (!bmPromise) bmPromise = import('./battle.js').then((m) => (BM = m)); return bmPromise; };
 import { odaTown } from './oda_town.js';
 import { townDef } from './town3d.js';   // 城下を歩く（3D の町）
 import { initTouch, touchFrame, isTouch } from './touch.js';
@@ -112,7 +114,14 @@ function useFinish() { return S.quality !== 'low'; }
 // 光の筋の計算に毎コマ使う入れ物（毎コマ new しない）
 const _dSd = new THREE.Vector3(), _dFw = new THREE.Vector3(), _dP = new THREE.Vector3();
 function draw(scene) {
-  if (!useFinish()) { renderer.render(scene, camera); return; }
+  // 画質「低」は明暗順応が無いので、夜の戦はほぼ真っ黒に沈んでいた（携帯の小さな画面で何も見えない）。夜だけ露出を上げて、月明かりの青い夜に
+  if (!useFinish()) {
+    const w = game.battle && game.battle.world, e0 = renderer.toneMappingExposure;
+    if (w && w.timeKey === 'night') renderer.toneMappingExposure = e0 * 2.6;
+    renderer.render(scene, camera);
+    renderer.toneMappingExposure = e0;
+    return;
+  }
   const Q = QUALITY[S.quality] || QUALITY.high;
   // 画質「中」は画素を増やさないので、縁のぎざぎざを重ね描きで消す
   const ms = S.quality === 'mid' || S.quality === 'high' ? 4 : 0;   // 「高」も縁を滑らかに（895）
@@ -833,6 +842,7 @@ const game = {
     if (!isNorender()) setTimeout(() => { try { loadHumans(); loadDomaru(); } catch (e) { /* 読めなければ軽い形のまま */ } }, 1500);
     // 戦の定義（battles.js。約2.6万行）も、題が出てから裏で読み始める（押した時にはだいたい済んでいる）
     if (!BTm) setTimeout(btLoad, 400);
+    if (!BM) setTimeout(bmLoad, 400);
     // 図鑑（実績の記録に使う）は、題の画面が出てから後で読む
     if (!ZKm) setTimeout(zkLoad, 4000);
     closeJapan();
@@ -917,7 +927,7 @@ const game = {
     setTimeout(async () => {
       if (my !== this.startSeq) return;
       // 戦の定義（battles.js）は題の画面から裏で読み始めてある。まだなら（bot・道具など）ここで待つ
-      if (!BTm) { stage('戦を支度している……'); const tb = performance.now(); await btLoad(); LT.defs = Math.round(performance.now() - tb); if (my !== this.startSeq) return; stage('陣を組んでいる……'); }
+      if (!BTm || !BM) { stage('戦を支度している……'); const tb = performance.now(); await Promise.all([btLoad(), bmLoad()]); LT.defs = Math.round(performance.now() - tb); if (my !== this.startSeq) return; stage('陣を組んでいる……'); }
       // 886：本物の人と胴丸の読み終わりを、札を見せている間に待つ（長くても 5 秒。間に合わなければ軽い形から入れ替わる）
       if (!this.noLock && !isNorender()) {
         stage('人と具足を支度している……');
@@ -929,7 +939,7 @@ const game = {
         await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));   // 字を描いてから組み立てる
       }
       // 組み立てた戦は、絵の下ごしらえ（シェーダ）が済むまで描く輪に渡さない（描く輪が一度に全部を作って固まらないように）
-      const b = new Battle(this, i, this.G.lord ? lordDef(BTm.BATTLE_DEFS[i], BATTLES[i].id) : BTm.BATTLE_DEFS[i]);
+      const b = new BM.Battle(this, i, this.G.lord ? lordDef(BTm.BATTLE_DEFS[i], BATTLES[i].id) : BTm.BATTLE_DEFS[i]);
       LT.build = Math.round(performance.now() - t0);
       applyLord(b);
       b.player.updateCamera(1, camera);
@@ -966,9 +976,7 @@ const game = {
       this.pendingIntro = () => { if (def.sides) this.hud.intro(def.sides, BATTLES[i].name, def.date(this.battle).split('　')[0]); else this.hud.banner(BATTLES[i].name, BATTLES[i].year); sfx('horagai', 0.6); };
       sfx('taiko', 0.8);
       // 砦の戦（def.gungi のある戦）だけ、開戦の前に軍議の画面を一度だけ挟む（ほかの戦・画面の流れは変えない）
-      // 軍議は身分が低い時は出さない（足軽組頭候補までは下知を待つ側。足軽大将候補＝RANKS[3]から、軍議に加われる）
-      const canGungi = (this.G.rank || 0) >= 3;
-      if (gungiAvailable(def) && canGungi && !this.battle._gungiDone) { this.battle._gungiDone = true; openGungi(this, this.battle, beginPlay); } else beginPlay();
+      if (gungiAvailable(def) && !this.battle._gungiDone) { this.battle._gungiDone = true; openGungi(this, this.battle, beginPlay); } else beginPlay();
       fpsLog.length = 0; dynResReset(); window.__startFrames = [];
     }, 60);
   },
@@ -977,6 +985,7 @@ const game = {
     this.townShop = false;
     this.hud.root.classList.remove('town');
     if (this.battle) { this.battle.dispose(); this.battle = null; }
+    clearEdgeDark();   // 深手・疲れで暗くなった四隅を、評価・城下の画面に持ち越さない
     lockHint(false);
     if (window.speechSynthesis) speechSynthesis.cancel();
     canvas.style.filter = ''; document.querySelector('.photogrid')?.remove(); $('photoui').hidden = true;
@@ -1178,9 +1187,10 @@ const game = {
     setTimeout(async () => {
       if (my !== this.startSeq) return;
       if (!this.noLock) await Promise.race([loadHumans().catch(() => null), new Promise((r) => setTimeout(r, 4000))]);
+      if (!BM) await bmLoad();
       if (my !== this.startSeq) return;
       const def = townDef(this);
-      const b = new Battle(this, this.G.battle, def);
+      const b = new BM.Battle(this, this.G.battle, def);
       b.player.updateCamera(1, camera);
       this.battle = b;
       this.hud.root.classList.add('town');   // 町では戦の札（戦功・体力・技の列・照準）を出さない
@@ -1279,8 +1289,8 @@ const game = {
     $('loading').hidden = false;
     $('tip').textContent = '押し寄せる寄せ手を、倒れるまで何人討てるか。陣と陣の合間に少し回復します。';
     setTimeout(async () => {
-      if (!BTm) await btLoad();
-      this.battle = new Battle(this, 3, BTm.dojo);
+      if (!BTm || !BM) await Promise.all([btLoad(), bmLoad()]);
+      this.battle = new BM.Battle(this, 3, BTm.dojo);
       this.hud.show(true);
       this.battle.player.updateCamera(1, camera);
       $('loading').hidden = true;
@@ -1307,6 +1317,9 @@ const game = {
     playMusic('map');
     jp().then((m) => m.japanScreen(G, {
       from, practice: !!G.practice, result: this.mapResult || null,
+      // 本編が主：地図の上から次の戦（城下の「出陣する」）へ戻れるように
+      next: !G.practice && G.battle < BATTLES.length ? BATTLES[G.battle].name : null,
+      onNext: () => { this.mapResult = null; closeJapan(); this.base(); },
       onBack: () => { this.mapResult = null; if (from === 'town') this.base(); else if (from === 'final') finalScreen(G, () => this.title(), () => this.japanMap('final')); else this.title(); },
       onAttack: (info) => { this.mapResult = null; this.startMapBattle(info); },
       onSave: () => save(G),
@@ -1316,6 +1329,7 @@ const game = {
   // 地図から出陣する城攻め（BATTLES の並びには入れない。戦功・昇進・戦の進みは変えない）
   startMapBattle(info, again = false) {
     if (!CBm) { import('./b_castle.js').then((m) => { CBm = m; this.startMapBattle(info, again); }); return; }
+    if (!BM) { bmLoad().then(() => this.startMapBattle(info, again)); return; }
     this.bg = null;
     this.inTown = false;
     townMusic(false);
@@ -1336,7 +1350,7 @@ const game = {
     this.stopBattle();
     autoLock();
     setTimeout(() => {
-      this.battle = new Battle(this, 0, def);
+      this.battle = new BM.Battle(this, 0, def);
       applyLord(this.battle);
       this.hud.show(true);
       this.battle.player.updateCamera(1, camera);

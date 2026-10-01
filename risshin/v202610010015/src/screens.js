@@ -456,7 +456,7 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
       ${groups.map((g) => `<div class="eyebrow" style="margin-top:12px">${esc(g.k)}</div>
       <div class="lp-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-top:6px">${g.items.map((L) => `<button class="btn small lp-card" data-lord="${L.id}" data-scn="${L.scn}" style="min-height:64px;text-align:left;display:block;padding:8px 12px"><b style="display:block;font-size:15px">${esc(L.name)}</b><small style="display:block;opacity:.8;margin-top:2px">${esc(L.year.split('　')[0])}</small></button>`).join('')}</div>`).join('')}
       ${onLord ? `<div class="eyebrow" style="margin-top:14px">天下の地図で織田家を率いる（当主・国持）</div>
-      <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:6px"><button class="btn small" data-lordmap="nagashino" style="min-height:48px">天正三年（長篠の頃）から</button><button class="btn small" data-lordmap="hoi" style="min-height:48px">元亀元年（信長包囲網）から</button></div>` : ''}
+      <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:6px"><button class="btn small" data-lordmap="hoi" style="min-height:48px">日本地図で率いる（元亀元年から）</button></div>` : ''}
       <div class="row" style="margin-top:12px"><button class="btn small" id="lp-no">閉じる</button></div></div>`;
     const view = () => (box.querySelector('input[name=lp-view]:checked') || {}).value || 'third';
     const who = () => (box.querySelector('input[name=lp-who]:checked') || {}).value || 'lord';
@@ -1947,6 +1947,8 @@ const TOWN_CSS = `<style>
   .base .tw-next .m b { font-family: var(--display); font-size: 20px; letter-spacing: .1em; }
   .base .tw-next .m span { flex-basis: 100%; font-size: 13px; color: var(--washi-dim); }
   .base .tw-next .btn { min-height: 48px; flex: none; }
+  .base .tw-next .btn.tw-map { min-height: 44px; }
+  .base .tw-next .m span.lock { font-size: 12px; }
   .base .tw-tabg { gap: 4px 0; align-items: flex-end; }
   .base .tw-tabg .grp { display: inline-flex; flex-wrap: wrap; align-items: center; padding-right: 10px; margin-right: 10px; border-right: 1px solid var(--line); }
   .base .tw-tabg .grp:last-child { border-right: 0; margin-right: 0; }
@@ -2185,7 +2187,7 @@ export function baseScreen(G, town0, lastResult, game, opts = {}) {
     </aside>`;
     let body = '';
     if (tab === 'boss') {
-      const m = TW.MISSIONS[town];
+      const m = TW.MISSIONS[town] || { text: "" };   // 任務の無い町（野田・福島の前など）でも落ちない
       const cheap = Object.values(ITEMS).filter((it) => it.cost && it.slot !== 'gun' && it.slot !== 'bow' && !G.owned.includes(Object.keys(ITEMS).find((k) => ITEMS[k] === it)) && it.cost <= G.kan && !(it.minRank && G.rank < it.minRank));
       const leftovers = leftoversOf();
       // 次の戦への備え：城下での選択が、次の戦のどこに効くかをまとめて見せる
@@ -2213,7 +2215,7 @@ export function baseScreen(G, town0, lastResult, game, opts = {}) {
         <h2 class="tw-h">今日やると良いこと<small>${G.actions ? `残り ${G.actions} 刻` : '今日の時間は使い切った'}</small></h2>
         ${P.length ? `<div class="tw-cards">${P.map(cardHtml).join('')}</div>${allDone ? '<p class="note tw-ready">備えは整った。いつでも出陣できる。</p>' : ''}` : '<p class="note tw-ready">備えは整っている。いつでも出陣できる。</p>'}
         ${realmBossHtml(G)}
-        <details class="tw-more tw-misd"><summary>任務の中身と図を見る</summary><p class="note">${esc(m.text)}</p>${TW.diagram(town)}</details>
+        ${m.text ? `<details class="tw-more tw-misd"><summary>任務の中身と図を見る</summary><p class="note">${esc(m.text)}</p>${TW.diagram(town)}</details>` : ""}
         ${confirmGo ? `<div class="confirm-row"><b>出陣の前に</b>
           <div class="note">身につけた物：${esc(eqNames)}${G.owned.includes('katana') ? '・打刀' : ''}</div>
           <div class="note">組：${R0.length}人（${[['spear', '槍'], ['bow', '弓']].map(([k, n]) => [n, R0.filter((r) => r.kind === k).length]).filter(([, c]) => c).map(([n, c]) => `${n} ${c}`).join('・') || 'なし'}／古参 ${R0.filter((r) => r.battles > 0).length}人${hurt ? `・手負い ${hurt}人` : ''}）　・　組の人数の上限 ${RANKS[G.rank].squad}人</div>
@@ -2383,7 +2385,9 @@ export function baseScreen(G, town0, lastResult, game, opts = {}) {
     const visTabs = tabs;
     // 城下の上でいちばん目立つのは「次の戦・出陣する」（どの施設を開いていても同じ所に）
     const nb = BATTLES[G.battle], mis = TW.MISSIONS[town];
-    const nextBand = `<div class="tw-next" role="group" aria-label="次の戦"><div class="m"><small>次の戦</small><b>${esc(nb ? nb.name : '')}</b>${mis ? `<span>任務：${esc(mis.title)}</span>` : ''}</div><button class="btn primary" id="${tab === 'boss' ? 'go' : 'go-any'}">${G.injured ? '休んでから出陣する' : '出陣する'}</button></div>`;
+    // 国の地図は副（足軽大将から、または筋書きを終えた後。今の条件のまま）
+    const mapOpen = G.rank >= 4 || G.battle >= BATTLES.length;
+    const nextBand = `<div class="tw-next" role="group" aria-label="次の戦"><div class="m"><small>次の戦</small><b>${esc(nb ? nb.name : '')}</b>${mis ? `<span>任務：${esc(mis.title)}</span>` : ''}${mapOpen ? '' : '<span class="lock">足軽大将になると、国の地図が開く</span>'}</div>${mapOpen ? '<button class="btn small tw-map" id="tw-map">国の地図を見る</button>' : ''}<button class="btn primary" id="${tab === 'boss' ? 'go' : 'go-any'}">${G.injured ? '休んでから出陣する' : '出陣する'}</button></div>`;
     const legendNow = !seen.legend && G.toured;
     if (G.toured) seen.legend = 1;
     show(`${TOWN_CSS}<div class="base tod-${Math.max(0, Math.min(2, G.actions))}">${aside}<main>
@@ -2432,6 +2436,7 @@ export function baseScreen(G, town0, lastResult, game, opts = {}) {
     toiyaBind(G, (msg, snd, sel) => { const sy = $('screen').scrollTop; sfx(snd || 'ui'); save(G); notice(msg); render(); $('screen').scrollTop = sy; (sel && document.querySelector(sel) || document.querySelector('[data-tab="toiya"]'))?.focus({ preventScroll: true }); }, confirmBox);
     realmBind(G, (msg, snd) => { sfx(snd || 'ui'); save(G); notice(msg); render(); }, confirmBox);
     // 天下の地図：内政・家臣・城攻めと外交・天下の動きの札を選んで入る
+    const twm = $('tw-map'); if (twm) twm.onclick = () => { sfx('ui'); if (preview) { preview.dispose(); preview = null; } game.japanMap('town'); };
     document.querySelectorAll('[data-jp]').forEach((b) => b.onclick = () => { sfx('ui'); if (preview) { preview.dispose(); preview = null; } const k = b.dataset.jp; import('./japan.js').then((m) => { m.japanTab(k); game.japanMap('town'); }); });
     const flashPv = () => { const c = $('pv'); if (c) { c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash'); } };
     document.querySelectorAll('[data-eq]').forEach((b) => b.onclick = () => { const it = ITEMS[b.dataset.eq]; G.equip[it.slot] = b.dataset.eq; sfx('ui'); saved(); render(); flashPv(); });
@@ -2864,6 +2869,7 @@ export function epilogueScreen(G, onDone) {
       <b>飾りの具足の3Dスキャン</b>"yoroi" by 國學院大學栃木学園参考館（CC BY 4.0・形を減らし床を除く）
       <b>人の骨と動き</b>three.js の見本 Soldier（Mixamo）
       <b>馬の3Dモデル</b>"Horse" by henrysteve973（CC BY 4.0・形と色を一部変更）
+      <b>武器の3Dモデル</b>"Tanegasima" by stalkerlis180・"Yari" by SublimeHurdle_1542・"Katana Japanese sword" by Bermu（どれも CC BY 4.0・形を減らし寸法と色を変更）
       <b>史実の拠り所</b>『信長公記』ほか
       <b>遊んでくれた人</b>${esc(G.name)}
       <b>　</b>ここまで遊んでくださり、ありがとうございました。
@@ -2972,6 +2978,13 @@ function finalLead(G) {
   return `名もなき足軽は、自らの合印を掲げた${n}人を率いるまでになった。`;
 }
 
+// 大きい所持金は万で区切って出す（表示だけ。保存の値は変えない）
+function zeniBig(kan) {
+  const k = Math.floor(Math.abs(kan || 0));
+  if (k < 10000) return zeni(kan);
+  const man = Math.floor(k / 10000), r = k % 10000;
+  return (kan < 0 ? '−' : '') + man + '万' + (r ? r + '貫' : '');
+}
 export function finalScreen(G, onRestart, onJapan) {
   const rows = BATTLES.map((b, i) => {
     const h = G.history[i];
@@ -2980,27 +2993,36 @@ export function finalScreen(G, onRestart, onJapan) {
   }).join('');
   const eq = ['weapon', 'hat', 'body', 'arm', 'thigh', 'shin'].map((k) => G.equip[k]).filter(Boolean).map((id) => ITEMS[id].name);
   if (G.owned.includes('katana')) eq.push('打刀');
+  const hasHistory = (G.history || []).some((h) => h);
+  const japanLabel = onJapan ? (scenarioKey() === 'oda' ? 'この先を遊ぶ（天下の地図へ）' : '日本地図へ（天下取りの続き）') : null;
+  const nextBtns = `<div class="row">${japanLabel ? `<button class="btn primary" data-fin-japan>${japanLabel}</button>` : ''}<button class="btn" data-fin-restart>最初から遊ぶ</button></div>`;
+  const followers = (G.roster || []).filter((r) => r.alive && (r.battles > 0 || r.kills > 0));
   show(`<div class="wrap">
     <div class="eyebrow">${scenarioKey() === 'oda' ? '織田家編　これまでの道' : 'これまでの道'}</div>
     <h2 style="font-family:var(--display);font-size:clamp(32px,6vw,52px);letter-spacing:.1em;margin:8px 0 6px">${esc(G.name)}、${esc(RANKS[G.rank].name)}となる</h2>
     <p class="lead">${esc(finalLead(G))}</p>
-    ${scenarioKey() === 'oda' ? `<div class="eyebrow" style="margin-top:16px">歩んだ戦の道のり</div><div style="max-width:420px">${odaTown().map({ ...G, battle: BATTLES.length })}</div>` : ''}
-    ${finalChart(G)}
-    <div class="timeline">${rows}<div class="tl-row"><div class="b">累計</div><div class="r">上官の評価 ${G.superior}　・　所持金 ${zeni(G.kan)}</div><div class="m">${G.merit}</div></div></div>
+    ${nextBtns}
+    ${scenarioKey() === 'oda' ? (hasHistory ? `<div class="eyebrow" style="margin-top:16px">歩んだ戦の道のり</div><div style="max-width:420px">${odaTown().map({ ...G, battle: BATTLES.length })}</div>` : '') : ''}
+    ${hasHistory ? finalChart(G) : '<p class="note">まだ戦の記録がない。</p>'}
+    <div class="timeline">${rows}<div class="tl-row"><div class="b">累計</div><div class="r">上官の評価 ${G.superior}　・　所持金 ${zeniBig(G.kan)}</div><div class="m">${G.merit}</div></div></div>
     <p class="note">身につけた物：${esc(eq.join('・'))}</p>
     <div class="eyebrow" style="margin-top:22px">称号（${titlesFor(scenarioKey()).filter(([id]) => G.titles.includes(id)).length}/${titlesFor(scenarioKey()).length}）</div>
     <div class="titles">${titlesFor(scenarioKey()).map(([id, t]) => `<div class="${G.titles.includes(id) ? 'got' : ''}"><b>${esc(t.name)}</b><small>${esc(t.note)}</small></div>`).join('')}</div>
-    ${(G.roster || []).some((r) => r.alive) ? `<p class="note">最後まで付き従った者：${esc(G.roster.filter((r) => r.alive).map((r) => `${r.name}（${r.battles}戦・${r.kills}人）`).join('、'))}</p>` : ''}
+    ${followers.length ? `<p class="note">最後まで付き従った者：${esc(followers.map((r) => `${r.name}（${r.battles}戦・${r.kills}人）`).join('、'))}</p>` : ''}
     ${finalWords(G)}
     <div class="histnote"><b>この先の道</b><br>足軽大将の先には、侍大将として数百人を率い、城主として城を築き、やがて大名として国を動かす道が続く。</div>
     ${relHtml(G)}
     <div style="height:30px"></div>
-    <div class="eyebrow" style="margin-bottom:6px">遊んだ感想（1＝そう思わない 〜 5＝とてもそう思う）</div>
-    ${QUESTIONS.map((q, i) => `<fieldset class="q" style="border:0;padding:0;margin:0 0 12px"><legend>${i + 1}. ${esc(q)}</legend><div class="scale">${[1, 2, 3, 4, 5].map((v) => `<label><input type="radio" name="q${i}" id="q${i}-${v}" value="${v}" ${G.feedback?.a?.[i] === v ? 'checked' : ''}>${v}</label>`).join('')}</div></fieldset>`).join('')}
-    <div class="q"><label for="fb-note" style="display:block;margin-bottom:6px">気づいたこと・面白かった瞬間・分かりにくかった点</label><textarea id="fb-note">${esc(G.feedback?.note || '')}</textarea></div>
-    <div class="row"><button class="btn" id="fb-copy">結果をまとめてコピー</button>${onJapan ? '<button class="btn primary" id="fin-japan">日本地図へ（天下取りの続き）</button>' : ''}<button class="btn" id="restart">最初から遊ぶ</button></div>
+    <details class="q">
+      <summary style="cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:500">感想を書く</summary>
+      <div class="eyebrow" style="margin:10px 0 6px">遊んだ感想（1＝そう思わない 〜 5＝とてもそう思う）</div>
+      ${QUESTIONS.map((q, i) => `<fieldset class="q" style="border:0;padding:0;margin:0 0 12px"><legend>${i + 1}. ${esc(q)}</legend><div class="scale">${[1, 2, 3, 4, 5].map((v) => `<label><input type="radio" name="q${i}" id="q${i}-${v}" value="${v}" ${G.feedback?.a?.[i] === v ? 'checked' : ''}>${v}</label>`).join('')}</div></fieldset>`).join('')}
+      <div class="q"><label for="fb-note" style="display:block;margin-bottom:6px">気づいたこと・面白かった瞬間・分かりにくかった点</label><textarea id="fb-note">${esc(G.feedback?.note || '')}</textarea></div>
+      <div class="row"><button class="btn" id="fb-copy">結果をまとめてコピー</button></div>
+      <pre class="copy" id="fb-out" hidden></pre>
+    </details>
+    ${nextBtns}
     <div id="rs-confirm"></div>
-    <pre class="copy" id="fb-out" hidden></pre>
   </div>`);
   const collect = () => {
     const a = QUESTIONS.map((_, i) => { const r = document.querySelector(`input[name="q${i}"]:checked`); return r ? +r.value : null; });
@@ -3023,10 +3045,10 @@ export function finalScreen(G, onRestart, onJapan) {
     if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(done).catch(() => { $('fb-copy').textContent = '下の文章を選択してコピーしてください'; });
     else $('fb-copy').textContent = '下の文章を選択してコピーしてください';
   };
-  if (onJapan) $('fin-japan').onclick = () => { sfx('ui'); onJapan(); };
-  $('restart').onclick = () => {
-    confirmBox($('rs-confirm'), 'この記録を消して、足軽から始め直します。', '記録を消して始め直す', onRestart);
-  };
+  if (onJapan) document.querySelectorAll('[data-fin-japan]').forEach((el) => { el.onclick = () => { sfx('ui'); onJapan(); }; });
+  document.querySelectorAll('[data-fin-restart]').forEach((el) => {
+    el.onclick = () => confirmBox($('rs-confirm'), 'この記録を消して、足軽から始め直します。', '記録を消して始め直す', onRestart);
+  });
 }
 
 export function helpOverlay(on) {

@@ -18,7 +18,7 @@ import { distToPolyline } from './world.js';
 import { heightOf, buildCastlePlan, inPoly } from './castle_plan.js';
 import { kido } from './castle_parts.js';
 import { reset as flReset } from './floors.js';
-import { makeSiegeZones } from './siege_zones.js';
+import { makeSiegeZones, zoneWord } from './siege_zones.js';
 import { makeMountainAmbush, makeMountainDefense, makeMountainAttack } from './siege_ai.js';
 import { attachFireSpread } from './siege_fire.js';
 import { makeButai, butaiTick } from './butai.js';
@@ -315,8 +315,8 @@ const hiei_mtn = {
     }
     if (F.step >= 1) {
       const st = F.SZ ? F.SZ.stat() : {};
-      if (!F.mudojiFell) rt.objProgress('main', `無動寺谷の外堂・${st.mudoji ? st.mudoji.state : ''}`);
-      else if (!F.ending) rt.objProgress('main', `根本中堂・${st.todo ? st.todo.state : ''}`);
+      if (!F.mudojiFell) rt.objProgress('main', `無動寺谷の外堂・${zoneWord(st.mudoji)}`);
+      else if (!F.ending) rt.objProgress('main', `根本中堂・${zoneWord(st.todo)}`);
     }
     // 時をかけすぎたら、確かめを止めない保険で決着させる
     if (rt.t - (F.stepT || 0) > 480 && !F.ending) this.win(rt);

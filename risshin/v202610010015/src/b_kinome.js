@@ -19,7 +19,7 @@ import { camp } from './b_mid.js';
 import { heightOf, buildCastlePlan } from './castle_plan.js';
 import { fence, kido, doruiLine, doruiHeight, monomi } from './castle_parts.js';
 import { reset as flReset } from './floors.js';
-import { makeSiegeZones } from './siege_zones.js';
+import { makeSiegeZones, zoneWord } from './siege_zones.js';
 import { KINOME_PLAN, ROAD, FOREST_ROAD, GATE_OUT, GATE_IN, HONJIN, TOWER_L, TOWER_R, CLIFF_X, FOREST_X } from './castles/kinome.js';
 
 const hi = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
@@ -262,8 +262,8 @@ const kinome = {
     }
     if (F.step >= 1) {
       const st = F.SZ ? F.SZ.stat() : {};
-      if (!F.frontFell) rt.objProgress('main', `柵の内・${st.front ? st.front.state : ''}`);
-      else if (!F.ending) rt.objProgress('main', `本陣・${st.honjin ? st.honjin.state : ''}`);
+      if (!F.frontFell) rt.objProgress('main', `柵の内・${zoneWord(st.front)}`);
+      else if (!F.ending) rt.objProgress('main', `本陣・${zoneWord(st.honjin)}`);
     }
     // 時をかけすぎたら、確かめを止めない保険で決着させる
     if (rt.t - (F.stepT || 0) > 420 && !F.ending) this.win(rt);

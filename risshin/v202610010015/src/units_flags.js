@@ -32,11 +32,11 @@ function flagMaterial(kind) {
   m.onBeforeCompile = (sh) => {
     sh.uniforms.uFlagT = FLAG_T;
     sh.uniforms.uFlagW = FLAG_W;
-    sh.vertexShader = 'uniform float uFlagT;\nuniform vec2 uFlagW;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
-      vec4 fo = modelMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+    sh.vertexShader = 'uniform float uFlagT;\nuniform vec2 uFlagW;\n#ifdef USE_INSTANCING\n#define FLAG_M (modelMatrix * instanceMatrix)\n#else\n#define FLAG_M modelMatrix\n#endif\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      vec4 fo = FLAG_M * vec4(0.0, 0.0, 0.0, 1.0);
       float ph = fo.x * 0.73 + fo.z * 0.41;
       // 旗ごとに拍子を少し変える（同じ拍子で揃って揺れないように）。人ごとの背丈（縦の縮尺）を種にする（歩いても変わらない）
-      float hs = fract(length(modelMatrix[1].xyz) * 97.0);
+      float hs = fract(length(FLAG_M[1].xyz) * 97.0);
       float fr = 5.2 * (0.8 + hs * 0.4);
       ph += hs * 6.28;
       // 突風の帯：風下へ野を渡り、通った所の旗が大きく翻る
@@ -48,8 +48,8 @@ function flagMaterial(kind) {
       // 波打つ布の向き（法線）も同じ波から求める：光が波の山と谷で変わり、板でなく布に見える
       .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
       {
-        vec4 fo = modelMatrix * vec4(0.0, 0.0, 0.0, 1.0);
-        float hs = fract(length(modelMatrix[1].xyz) * 97.0);
+        vec4 fo = FLAG_M * vec4(0.0, 0.0, 0.0, 1.0);
+        float hs = fract(length(FLAG_M[1].xyz) * 97.0);
         float fr = 5.2 * (0.8 + hs * 0.4);
         float ph = fo.x * 0.73 + fo.z * 0.41 + hs * 6.28;
         float gw = dot(fo.xz, uFlagW) * 0.09 - uFlagT * 1.7;

@@ -9,7 +9,7 @@ import { confirmBox } from './screens.js';
 import { S as S_ } from './settings.js';
 import { mount3D, faceURL } from './japan3d.js';
 import * as N from './naisei.js';
-import { ODA_LINE } from './state.js';
+import { ODA_LINE, BATTLES } from './state.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -18,6 +18,16 @@ const S = GRID.step;
 // 物語の筋書きから、地図の筋書きへ（桶狭間編は織田家の信長包囲網）
 export const MAP_KEYS = ['hoi', 'nagashino'];   // 信長の筋だけ（関ヶ原・大坂は出さない。kaito 9/30）
 const mapKeyOf = (scn) => (MAP_SCENARIOS[scn] ? scn : (scn === 'okehazama' || scn === 'nobunaga_hoi' || scn === 'oda') ? 'hoi' : 'nagashino');
+// 地図は一つだけ（kaito 9/30）。本編は本編の今の戦の年から（天正三年より前は元亀元年の地図、後は天正三年の地図）。
+// 試し（本編でない時）は元亀元年から。当主として率いる時は、その筋書きの地図
+const storyBattle = (G) => (BATTLES.length ? BATTLES[Math.min(G.battle || 0, BATTLES.length - 1)] : null);
+const yearOfBattle = (b) => { const m = b && /（(\d{4})）/.exec(b.year || ''); return m ? +m[1] : null; };
+function storyMapKey(G) {
+  if (G.lordClan) return mapKeyOf(G.scenario);
+  if (G.practice) return 'hoi';
+  const y = yearOfBattle(storyBattle(G));
+  return y == null ? mapKeyOf(G.scenario) : y >= 1575 ? 'nagashino' : 'hoi';
+}
 
 // ---------------- 暦 ----------------
 const SEASONS = ['春', '夏', '秋', '冬'];
@@ -228,7 +238,8 @@ function dataOf(key, pl) {
   return (DATA_CACHE[ck] = { ...D, key, byId, adj, ink, near });
 }
 export function ensureJapan(G, key) {
-  key = key || (G.japan && G.japan.scn) || mapKeyOf(G.scenario);
+  // 前からの保存（ほかの地図だった物も）は、その地図のまま開く
+  key = key || (G.japan && MAP_SCENARIOS[G.japan.scn] && G.japan.scn) || storyMapKey(G);
   if (!G.japan || G.japan.scn !== key) {
     const D = MAP_SCENARIOS[key];
     const own = {};
@@ -644,6 +655,37 @@ body.rm .jp-threat, body.rm .jp-result { animation: none; }
 .jp-res2 { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 12px; color: var(--washi-dim); }
 .jp-res2 b { font-family: var(--display); font-size: 15px; color: var(--washi); font-variant-numeric: tabular-nums; }
 .jp-res2 em, .jp-econ em { font-style: normal; font-size: 12px; } .jp-res2 em.up, .jp-econ em.up { color: #b9d39a; } .jp-res2 em.down, .jp-econ em.down { color: #f2a48e; }
+/* 今の目標とおすすめの一手（右の欄のいちばん上） */
+.jp-goal { margin: 0 0 10px; padding: 10px 12px 12px; background: rgba(142,47,31,.22); border: 1px solid rgba(200,86,60,.55); border-left: 4px solid #c8563c; }
+.jp-goal .jp-story { margin: 0 0 4px; font-size: 12px; color: var(--washi-dim); letter-spacing: .06em; }
+.jp-goal .jp-when { margin: 0 0 4px; }
+.jp-goal .jp-gt { margin: 0 0 8px; }
+.jp-goal .jp-gt small { display: block; font-size: 12px; letter-spacing: .2em; color: #f3c9a8; }
+.jp-goal .jp-gt b { font-family: var(--display); font-size: 17px; line-height: 1.4; color: var(--washi); letter-spacing: .04em; }
+.jp-goal .jp-gbtn { display: flex; flex-wrap: wrap; gap: 8px; }
+.jp-goal .jp-gbtn .btn { min-height: 48px; }
+.jp-goal .jp-gbtn .btn.primary { flex: 1 1 auto; font-size: 16px; }
+.jp-goal .jp-nextb { margin-top: 8px; min-height: 44px; width: 100%; }
+.jp-more { position: relative; width: 100%; min-height: 44px; margin-top: 10px; padding-right: 30px; }
+.jp-tabs[hidden] { display: none; }
+.jp-hl { outline: 3px solid #f0d58a; outline-offset: 2px; }
+.jp-ringhint { position: absolute; z-index: 3; right: 12px; bottom: 12px; max-width: 46%; margin: 0; padding: 6px 10px; font-size: 12px; line-height: 1.5; color: #f3e6c8; background: rgba(20,17,13,.86); border: 1px solid rgba(255,106,74,.6); pointer-events: none; }
+.jp-ringhint i { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px; border: 2px dashed #ff6a4a; border-radius: 50%; }
+.jp-tut { position: absolute; z-index: 6; left: 12px; bottom: 12px; width: min(340px, calc(100% - 24px)); padding: 12px 14px; background: rgba(20,17,13,.96); border: 1px solid var(--gold-line, #c2a25a); box-shadow: 0 6px 24px rgba(0,0,0,.5); color: var(--washi); }
+.jp-tut b { font-family: var(--display); font-size: 16px; color: #f0d58a; }
+.jp-tut p { margin: 6px 0 10px; font-size: 14px; line-height: 1.6; }
+.jp-tut .row { display: flex; gap: 8px; justify-content: flex-end; }
+.jp-tut .btn { min-height: 44px; }
+.jp-map:not(.pw) .jp-power { display: none !important; }
+@media (max-height: 500px) {
+  .jp-goal { padding: 6px 8px 8px; margin-bottom: 8px; }
+  .jp-goal .jp-gt { margin-bottom: 6px; }
+  .jp-goal .jp-gt b { font-size: 15px; }
+  .jp-goal .jp-gbtn .btn.primary { font-size: 15px; }
+  .jp-tut { width: min(270px, calc(58% - 16px)); padding: 8px 10px; left: 8px; bottom: 8px; }
+  .jp-tut p { font-size: 13px; margin: 4px 0 6px; }
+  .jp-ringhint { right: 8px; bottom: 8px; max-width: 38%; }
+}
 .jp-order { margin: 10px 0 0; padding: 8px 10px; font-size: 13px; background: rgba(142,47,31,.28); border-left: 3px solid #c8563c; }
 .jp-order b { font-family: var(--display); color: #f3c9a8; margin-right: 8px; letter-spacing: .1em; }
 .jp-ord { font-style: normal; color: #f3c9a8; }
@@ -838,7 +880,8 @@ export function japanScreen(G, o) {
     <div class="jp-map" id="jp-map"><canvas id="jp-cv" role="img" aria-label="日本地図。攻められる城は右の一覧からも選べます"></canvas>
       <div class="jp-season" id="jp-season"></div>
       <div class="jp-moves" id="jp-moves" role="status" aria-live="polite"></div>
-      <div class="jp-tools" role="group" aria-label="地図の見え方"><button class="btn small" id="jp-in" title="寄る（+）" aria-label="地図に寄る">＋</button><button class="btn small" id="jp-out" title="引く（−）" aria-label="地図を引く">－</button><button class="btn small" id="jp-home" aria-label="自分の国を見る">自国</button><button class="btn small" id="jp-all" aria-label="日本全体を見る">全国</button><button class="btn small jp-leg2" id="jp-leg2" type="button" aria-expanded="false" aria-label="地図の見方（凡例）を開く">凡例</button></div>
+      <div class="jp-tools" role="group" aria-label="地図の見え方"><button class="btn small" id="jp-in" title="寄る（+）" aria-label="地図に寄る">＋</button><button class="btn small" id="jp-out" title="引く（−）" aria-label="地図を引く">－</button><button class="btn small" id="jp-home" aria-label="自分の国を見る">自国</button><button class="btn small" id="jp-all" aria-label="日本全体を見る">全国</button><button class="btn small jp-leg2" id="jp-leg2" type="button" aria-expanded="false" aria-label="地図の見方（凡例）を開く">凡例</button><button class="btn small" id="jp-pw" type="button" aria-expanded="false" aria-controls="jp-power" aria-label="家ごとの城の数（勢力の帯）を開く">勢力</button></div>
+      <p class="jp-ringhint" id="jp-ringhint"><i aria-hidden="true"></i>朱の破線の輪は、攻められる城。押すと［攻める］が出ます</p>
       <div class="jp-legend"><span><i class="lg yama"></i>山城</span><span><i class="lg hira"></i>平城</span><span><i class="lg toride"></i>砦</span><span><i class="lg hq"></i>本城</span><span><i class="lg tgt"></i>攻められる城</span><span><b class="lgs">危</b>狙われそうな自分の城</span><span><b class="lgs red">落</b>この季節に落ちた城</span><span><b class="lgd">●</b>守りの固さ</span><span><i class="lgr"></i>街道</span><span><i class="lgr front"></i>攻め口</span></div>
       <div class="jp-power" id="jp-power" role="img" aria-label="勢力"></div>
       <p class="jp-hint">ドラッグ・矢印キーで動かす ・ ホイール・＋－で寄る ・ 城を押して選ぶ</p>
@@ -846,6 +889,7 @@ export function japanScreen(G, o) {
     <aside class="jp-side" id="jp-side"></aside>
   </div>`;
   const cv = $('jp-cv'), mapEl = $('jp-map');
+  { const pb = $('jp-pw'); if (pb) pb.onclick = () => { const on = mapEl.classList.toggle('pw'); pb.setAttribute('aria-expanded', String(on)); pb.setAttribute('aria-label', on ? '勢力の帯を畳む' : '家ごとの城の数（勢力の帯）を開く'); sfx('ui'); powerStrip(); if (m3) m3.hud(); }; }
   { const lb = $('jp-leg2'); if (lb) lb.onclick = () => { const on = mapEl.classList.toggle('leg'); lb.setAttribute('aria-expanded', String(on)); lb.setAttribute('aria-label', on ? '地図の見方（凡例）を閉じる' : '地図の見方（凡例）を開く'); }; }
   const ctx = cv.getContext('2d');
   const inkRGB = {};
@@ -1312,6 +1356,43 @@ export function japanScreen(G, o) {
   let tab = UI.tab || 'shiro';
   let naiseiSel = null, bugyoSel = null, nMsg = '', hMsg = '', bFilter = 'mine', bSort = 'lea', bDetail = null, roster = null;
   const TABS = [['shiro', '城'], ['naisei', '内政'], ['hyo', '評定'], ['busho', '武将'], ['tenka', '天下']];
+  // 右の欄ははじめ「目標」と「自分の城」だけ。内政・評定・武将・天下は畳んでおく
+  let more = false;
+  // 今の目標とおすすめの一手（初めての人が、次に何を押すかすぐ分かるように）
+  // 攻め寄せる敵 → 守りを決める。主命の城・勝てそうな隣の城 → 攻める。どれも無ければ季節を送って力をためる
+  const goalOf = () => {
+    if (J.threats.length) {
+      const th = J.threats[0], c = D.byId[th.to], an = D.clans[th.clan];
+      return { t: `${an ? an.name : '敵'}が${c ? c.name : '城'}へ攻めて来る`, b: '守りを決める', act: () => showThreat(), cid: c && c.id, threat: true };
+    }
+    const ordC = J.order && J.order.until >= J.turn && J.own[J.order.cid] !== P ? D.byId[J.order.cid] : null;
+    const rk = { good: 0, even: 1, bad: 2 };
+    let t = ordC && attackable(D, J, ordC) ? ordC : null;
+    if (!t) {
+      // 史実でこの年に戦った城 → 勝てそうな城 → 境を多く接する家（いまの主な敵）の城
+      const cand = D.castles.filter((c) => attackable(D, J, c));
+      const front = {}; for (const c of cand) front[J.own[c.id]] = (front[J.own[c.id]] || 0) + 1;
+      // 本編の次の戦の国（「摂津国 野田・福島」なら摂津）にある城の家を、いまの敵として先に
+      const sbp = !o.practice && !G.lordClan ? String((storyBattle(G) || {}).place || '').split('国')[0] : '';
+      const pv = sbp && PROVINCES.find((p) => p.name === sbp);
+      const foe = new Set(pv ? D.castles.filter((c) => c.prov === pv.id && J.own[c.id] !== P).map((c) => J.own[c.id]) : []);
+      const hs = (c) => (isHistTarget(D, J, c) ? 0 : foe.has(J.own[c.id]) ? 1 : 2);
+      const bad = (c) => (oddsOf(D, J, c)[1] === 'bad' ? 1 : 0);
+      // 包囲網の家（ほかの家と結んでいる敵）を、結んでいない小さな家より先に
+      const ring = (c) => ((D.clans[J.own[c.id]] || {}).allies || []).length ? 0 : 1;
+      cand.sort((a, b) => hs(a) - hs(b) || bad(a) - bad(b) || ring(a) - ring(b) || front[J.own[b.id]] - front[J.own[a.id]] || rk[oddsOf(D, J, a)[1]] - rk[oddsOf(D, J, b)[1]] || troopsOf(a, J) - troopsOf(b, J));
+      t = cand[0] && oddsOf(D, J, cand[0])[1] !== 'bad' ? cand[0] : null;
+    }
+    if (t) {
+      const en = D.clans[J.own[t.id]];
+      const txt = t === ordC ? `主命：${t.name}を攻め落とす` : `${en ? en.name : '敵'}を討つ。${t.name}を落とす`;
+      if (sel === t) return { t: txt, b: `${t.name}へ出陣する`, act: attack, cid: t.id };
+      return { t: txt, b: `${t.name}を攻める`, act: () => { tab = 'shiro'; UI.tab = tab; select(t, true); ($('jp-go') || $('jp-unsel'))?.focus({ preventScroll: true }); }, cid: t.id };
+    }
+    return { t: '力をためる。季節を送り、兵と兵糧を集める', b: '季節を送る', act: nextSeason, season: true };
+  };
+  // 本編へ戻る（城下の「次の戦・出陣する」へ）
+  const goNext = () => { sfx('ui'); if (o.onNext) o.onNext(); else back(); };
   // 鍵の印（内政は部将から）
   const LOCK = '<svg class="jp-lock" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M4.6 7V5.2a3.4 3.4 0 0 1 6.8 0V7" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="2.8" y="7" width="10.4" height="7.6" rx="1.3" fill="currentColor"/></svg>';
 
@@ -1328,24 +1409,31 @@ export function japanScreen(G, o) {
     const fl = N.flowOf(D, J, P, now.season);
     const ord = J.order && J.order.until >= J.turn && J.own[J.order.cid] !== P ? D.byId[J.order.cid] : null;
     const panel = { shiro: shiroPanel, naisei: naiseiPanel, hyo: hyoPanel, busho: bushoPanel, tenka: tenkaPanel }[tab]();
-    // 一巡りの道しるべ：この季節に 内政 → 家臣 → 外交 → 季節を送る を押すと一巡り（済んだ物に印）。押すとその札へ
-    const did = J.did && J.did.t === J.turn ? J.did : {};
-    const steps = [['naisei', '内政', did.n || (J.cmdN > 0 && J.cmdT === J.turn)], ['busho', '家臣', did.b], ['shiro', '外交', did.e || J.envoy === J.turn], ['go', '季節を送る', false]];
-    const loopHtml = `<ol class="jp-loop" aria-label="この季節の一巡り">${steps.map(([k, nm, ok], i) => `<li><button type="button" data-loop="${k}" class="${ok ? 'ok' : ''} ${tab === k ? 'on' : ''}" aria-pressed="${!!ok}"><i aria-hidden="true">${ok ? '✓' : i + 1}</i>${nm}</button></li>`).join('')}</ol>`;
-    $('jp-side').innerHTML = `${loopHtml}
-      <div class="eyebrow">日本地図${o.practice ? '（記録は残りません）' : ''}</div>
-      <h2 class="jp-when">${esc(now.era)}　<span>${now.season}</span></h2>
-      <div class="jp-scn" role="group" aria-label="地図の筋書き">${MAP_KEYS.map((k) => `<button class="${k === J.scn ? 'on' : ''}" aria-pressed="${k === J.scn}" data-scn="${k}">${esc(MAP_SCENARIOS[k].name.replace(/の戦い$/, ''))}</button>`).join('')}</div>
+    // 今の目標とおすすめの一手（いちばん上に一つだけ大きく）。季節を送るは、ここの一か所だけ
+    const g = goalOf();
+    const showTabs = more || tab !== 'shiro';
+    const sb = !o.practice && !G.lordClan ? storyBattle(G) : null;
+    const story = o.practice ? '試しの地図（記録は残りません）' : sb ? `いまの物語：${String(sb.year || '').split('（')[0]}　${D.name.replace(/の戦い$/, '')}のころ` : '';
+    const recId = g.season ? 'jp-next' : 'jp-rec';
+    $('jp-side').innerHTML = `<div class="jp-goal" id="jp-goal" role="group" aria-label="今の目標">
+        ${story ? `<p class="jp-story">${esc(story)}</p>` : ''}
+        ${m3 ? '' : `<h2 class="jp-when">${esc(now.era)}　<span>${now.season}</span></h2>`}
+        <p class="jp-gt"><small>今の目標</small><b>${esc(g.t)}</b></p>
+        <div class="jp-gbtn"><button class="btn primary" id="${recId}" ${g.season && J.threats.length ? 'disabled' : ''}>${esc(g.b)}</button>${g.season || g.threat ? '' : `<button class="btn small" id="jp-next" ${J.threats.length ? 'disabled' : ''}>季節を送る</button>`}</div>
+        ${o.next && !m3 ? `<button class="btn small jp-nextb" data-nextb="1" aria-label="城下へ戻って、次の戦（${esc(o.next)}）の支度をする">次の戦へ：${esc(o.next)}</button>` : ''}
+      </div>
       <div id="jp-cf"></div>
       <div class="jp-me"><i class="dot" style="background:${D.ink[P]}"></i><b>${esc(pc.name)}</b><span>当主 ${esc(N.headOf(D, J, P))}・城 ${mineN}</span>
         <div class="jp-rank"><span>身分</span><b>${esc(mb.name)}</b><i style="--v:${next ? Math.min(100, ((J.kou - N.KOU_NEED[J.mibun]) / (next - N.KOU_NEED[J.mibun])) * 100).toFixed(0) : 100}%" role="img" aria-label="勲功 ${J.kou}${next ? `、次の身分まで ${next - J.kou}` : ''}"></i><small>勲功 ${J.kou}${next ? `／${next}` : ''}</small></div>
         ${m3 ? '' : `<div class="jp-res2"><span>金 <b>${nf(bank.g)}</b>貫 <em class="${fl.g >= 0 ? 'up' : 'down'}">${sgn(Math.round(fl.g / 3))}/月</em></span><span>兵糧 <b>${man(bank.f)}</b>石 <em class="${fl.f >= 0 ? 'up' : 'down'}">${sgn(Math.round(fl.f / 3))}/月</em></span><span>兵 <b>${nf(N.campaign(D, J).pool)}</b>人</span></div>`}
       </div>
-      ${ord ? `<p class="jp-order" role="note"><b>主命</b>${esc(ord.name)}を攻め落とせ（あと${J.order.until - J.turn + 1}季）${J.order.hist === false ? '<br><small>史実にはない、もしもの主命</small>' : ''}</p>` : ''}
-      <div class="jp-tabs" role="tablist" aria-label="地図の札">${TABS.map(([k, nm]) => `<button role="tab" id="jp-tab-${k}" data-tab="${k}" aria-selected="${k === tab}" aria-controls="jp-panel" tabindex="${k === tab ? 0 : -1}">${nm}${k === 'naisei' && !N.canNaisei(J) ? `${LOCK}<span class="sr-only">（部将から）</span>` : ''}${k === 'hyo' && open ? `<i class="jp-badge" aria-label="決まっていない進言 ${open}">${open}</i>` : ''}${k === 'naisei' && left > 0 ? `<i class="jp-badge soft" aria-label="残りの命 ${left}">${left}</i>` : ''}</button>`).join('')}</div>
+      ${ord && g.cid !== ord.id ? `<p class="jp-order" role="note"><b>主命</b>${esc(ord.name)}を攻め落とせ（あと${J.order.until - J.turn + 1}季）${J.order.hist === false ? '<br><small>史実にはない、もしもの主命</small>' : ''}</p>` : ''}
+      <button class="btn small jp-more" id="jp-more" aria-expanded="${showTabs}" aria-controls="jp-panel">${showTabs ? '内政・評定・武将・天下を畳む' : `内政・評定・武将・天下を開く${open ? `<i class="jp-badge" aria-label="決まっていない進言 ${open}">${open}</i>` : ''}`}</button>
+      <div class="jp-tabs" role="tablist" aria-label="地図の札" ${showTabs ? '' : 'hidden'}>${TABS.map(([k, nm]) => `<button role="tab" id="jp-tab-${k}" data-tab="${k}" aria-selected="${k === tab}" aria-controls="jp-panel" tabindex="${k === tab ? 0 : -1}">${nm}${k === 'naisei' && !N.canNaisei(J) ? `${LOCK}<span class="sr-only">（部将から）</span>` : ''}${k === 'hyo' && open ? `<i class="jp-badge" aria-label="決まっていない進言 ${open}">${open}</i>` : ''}${k === 'naisei' && left > 0 ? `<i class="jp-badge soft" aria-label="残りの命 ${left}">${left}</i>` : ''}</button>`).join('')}</div>
       <div id="jp-panel" role="tabpanel" aria-labelledby="jp-tab-${tab}">${panel}</div>
-      <div class="row jp-foot">${left > 0 && N.scopeCastles(D, J).length ? `<p class="note jp-left">内政をあと${left}つ命じられる${open ? `・評定の進言が${open}つ残っている` : ''}</p>` : open ? `<p class="note jp-left">評定の進言が${open}つ残っている</p>` : ''}<button class="btn small" id="jp-next" ${J.threats.length ? 'disabled' : ''}>季節を送る（N）</button><button class="btn small" id="jp-back">${o.from === 'town' ? '城下へ戻る' : 'タイトルへ'}（Esc）</button></div>`;
+      <div class="row jp-foot">${left > 0 && N.scopeCastles(D, J).length ? `<p class="note jp-left">内政をあと${left}つ命じられる${open ? `・評定の進言が${open}つ残っている` : ''}</p>` : open ? `<p class="note jp-left">評定の進言が${open}つ残っている</p>` : ''}<button class="btn small" id="jp-back">${o.from === 'town' ? '城下へ戻る' : 'タイトルへ'}（Esc）</button></div>`;
     bindSide();
+    { const rh = $('jp-ringhint'); if (rh) rh.hidden = !!sel || !D.castles.some((c) => attackable(D, J, c)); }
     $('jp-season').innerHTML = `<b>${now.season}</b><span>${esc(now.era)}<br>${esc(D.name)}</span>`;
     drawTrend();
     powerStrip();
@@ -1373,8 +1461,9 @@ export function japanScreen(G, o) {
   };
   const bindSide = () => {
     const S2 = $('jp-side');
-    S2.querySelectorAll('[data-loop]').forEach((b) => { b.onclick = () => { const k = b.dataset.loop; sfx('ui'); if (k === 'go') { nextSeason(); return; } setTab(k); }; });
-    S2.querySelectorAll('[data-scn]').forEach((b) => { b.onclick = () => switchScn(b.dataset.scn); });
+    const rec = $('jp-rec'); if (rec) rec.onclick = () => { sfx('ui'); goalOf().act(); };
+    const mo = $('jp-more'); if (mo) mo.onclick = () => { sfx('ui'); const on = !(more || tab !== 'shiro'); more = on; if (!on) { tab = 'shiro'; UI.tab = tab; } side(); $('jp-more')?.focus({ preventScroll: true }); };
+    S2.querySelectorAll('[data-nextb]').forEach((b) => { b.onclick = goNext; });
     S2.querySelectorAll('.jp-link[data-c]').forEach((b) => { b.onclick = () => { select(D.byId[b.dataset.c], true); ($('jp-go') || $('jp-unsel'))?.focus({ preventScroll: true }); }; });
     S2.querySelectorAll('[data-gen]').forEach((b) => { b.onclick = () => { bDetail = b.dataset.gen; tab = 'busho'; sfx('ui'); side(); $('jp-bd')?.focus({ preventScroll: true }); }; });
     const tabs = [...S2.querySelectorAll('[role=tab]')];
@@ -1419,7 +1508,7 @@ export function japanScreen(G, o) {
     const hr = $('jp-hire'); if (hr) hr.onclick = () => hire(bDetail);
     const es = $('jp-escort'); if (es) es.onclick = () => { J.escort = J.escort === bDetail ? null : bDetail; sfx('ui'); if (o.onSave) o.onSave(); side(); };
     S2.querySelectorAll('[data-appoint]').forEach((b) => { b.onclick = () => appoint(bDetail, +b.dataset.appoint); });
-    $('jp-next').onclick = nextSeason;
+    const nx = $('jp-next'); if (nx) nx.onclick = nextSeason;
     $('jp-back').onclick = back;
   };
   const setTab = (k) => { if (tab === k) return; tab = k; UI.tab = k; sfx('ui'); side(); };
@@ -1953,18 +2042,6 @@ export function japanScreen(G, o) {
     if (center && c) { const [x, y] = scr2(c); view.ox += W() * 0.45 - x; view.oy += H() / 2 - y; if (m3) m3.focus(c); }
     dirty = true; side();
   };
-  const switchScn = (k) => {
-    if (k === J.scn) return;
-    const go = () => {
-      G.japan = null;
-      ensureJapan(G, k);
-      if (o.onSave) o.onSave();
-      japanScreen(G, { ...o, result: null });
-    };
-    // 進み具合が消える時は、その場の札で確かめる（ブラウザの確認窓は使わない）
-    if (J.turn > 0) confirmBox($('jp-cf'), `${MAP_SCENARIOS[k].name}の地図に替えます。いまの地図の進み具合（${J.turn}季節分）は消えます。`, '替える', go);
-    else go();
-  };
   const attack = () => {
     const from = sel && attackable(D, J, sel);
     if (!from) return;
@@ -2005,7 +2082,7 @@ export function japanScreen(G, o) {
     startAnim();
     // 季節の初めは評定から（急使が来ていれば、その後に）
     nMsg = ''; hMsg = '';
-    if (!J.threats.length) { tab = 'hyo'; UI.tab = tab; }
+    // 季節の初めは「目標」と自分の城から（評定は畳んだ札の数で知らせる）
     if (o.onSave) o.onSave();
     dirty = true; side();
     if (J.threats.length) setTimeout(showThreat, still() ? 0 : 1300);
@@ -2098,6 +2175,8 @@ export function japanScreen(G, o) {
     lord: (c) => { const L = N.lordOf(J, c); return L && { ...L, age: N.ageOf(D, J, L.b) }; },
     dom: (c) => ({ ...J.dom[c.id], kata: N.kataOf(J, c) }),
     head: (cid) => N.headOf(D, J, cid),
+    // 上の帯の右：本編へ戻る［次の戦へ］。目標の城は遠目でも名を出す
+    nextName: o.next || null, goNext, goalId: () => goalOf().cid,
     openGen: (n) => { bDetail = n; tab = 'busho'; UI.tab = tab; side(); } });
   active = { dispose() { if (m3) m3.dispose(); cancelAnimationFrame(raf); window.removeEventListener('keydown', keys); window.removeEventListener('resize', onResize); } };
   resize();
@@ -2108,6 +2187,24 @@ export function japanScreen(G, o) {
   // 戦から戻った時は、その季節の駒の動きを見せる
   if (o.result) startAnim();
   if (!result) { showThreat(); if (!J.threats.length && J.promo) showPromo(); }
+  // はじめて開いた時だけ、三歩の手ほどき（目標を見る → 城を押す → 攻めるか季節を送る）。動きは付けない
+  if (!result && !J.threats.length && !J.promo) {
+    let seen = false; try { seen = !!localStorage.getItem('risshin.jpTut'); } catch (e) { seen = false; }
+    if (!seen) {
+      const TUT = [['jp-goal', '一　目標を見る', '右の上の「今の目標」が、いまやる事です。'], ['jp-ringhint', '二　城を押す', '朱の破線の輪の城は、攻められる城です。押すと［攻める］が出ます。'], ['jp-goal', '三　攻めるか、季節を送る', '赤い大きな釦が、おすすめの一手です。攻めない時は「季節を送る」で次の季節へ。']];
+      let i = 0;
+      const d = document.createElement('div'); d.className = 'jp-tut'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-label', '日本地図の手ほどき');
+      const unhl = () => document.querySelectorAll('.jp-hl').forEach((e) => e.classList.remove('jp-hl'));
+      const end = () => { try { localStorage.setItem('risshin.jpTut', '1'); } catch (e) { /* 残せなくてもよい */ } unhl(); d.remove(); };
+      const draw = () => {
+        unhl(); const [id, h, p] = TUT[i]; $(id)?.classList.add('jp-hl');
+        d.innerHTML = `<b>${h}</b><p>${p}</p><div class="row"><button class="btn small" type="button" data-t="x">手ほどきを閉じる</button><button class="btn primary small" type="button" data-t="n">${i < TUT.length - 1 ? '次へ' : '分かった'}</button></div>`;
+        d.querySelector('[data-t=x]').onclick = () => { sfx('ui'); end(); };
+        d.querySelector('[data-t=n]').onclick = () => { sfx('ui'); if (++i >= TUT.length) end(); else draw(); };
+      };
+      mapEl.appendChild(d); draw();
+    }
+  }
   loop();
   // 開発用（道具から城を選んで出陣できるように）
   return (window.__japan = { J, D, select: (id) => select(D.byId[id], true), attackable: (id) => !!attackable(D, J, D.byId[id]), attack: () => attack(), next: () => nextSeason(), duty: (k) => doNaisei({ levy: 'chohei', fort: 'fushin', farm: 'kaikon' }[k] || k), threat: () => showThreat(), stats: () => ({ fort: J.fort, threats: J.threats.length, hist: J.hist.length, bank: J.bank[P], mibun: J.mibun, kou: J.kou }), view,

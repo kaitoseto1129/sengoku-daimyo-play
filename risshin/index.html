@@ -1,7 +1,7 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202609302354 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202610010015 として写した） -->
 <title>戦国立身 3D</title>
-<link rel="icon" type="image/png" sizes="32x32" href="./v202609302354/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202609302354/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202609302354/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202609302354/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202610010015/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610010015/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610010015/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610010015/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -445,6 +445,11 @@ body.rm .toast, body.rm #banner.show, body.rm .ln, body.rm .promo, body.rm .stor
 #armybar .side .nm { display: flex; align-items: center; gap: 8px; font-family: var(--display); font-size: 16px; letter-spacing: .08em; text-shadow: 0 1px 3px #000, 0 0 6px #000; }
 #armybar .side.b .nm { justify-content: flex-end; }
 #armybar .side canvas { width: 22px; height: 22px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,.8), 0 0 0 2px var(--gold-line); }
+/* 時計を隠している間も、両軍の札は左右同じ幅に（敵の名が長いと、味方の名が「織田…」に詰まっていた） */
+#armybar .side.a { grid-column: 1; } #armybar .side.b { grid-column: 3; }
+#armybar .side .nm { min-width: 0; }
+#armybar .side .nm .n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#armybar .side .nm small, #armybar .side .nm canvas { flex: none; }
 #armybar .side .nm small { font-family: var(--ui); font-size: 12px; color: var(--washi-dim); font-variant-numeric: tabular-nums; }
 #armybar .gauge { height: 9px; background: rgba(0,0,0,.65); box-shadow: inset 0 0 0 1px rgba(236,228,210,.15), 0 0 0 1px rgba(0,0,0,.8); position: relative; overflow: hidden; }
 #armybar .gauge b { position: absolute; top: 0; bottom: 0; transition: width .4s; }
@@ -1524,4 +1529,4 @@ html.touch .keyhint, html.touch .hintk { display: none; }
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
 } }
 </script>
-<script type="module" src="./v202609302354/src/main.js"></script>
+<script type="module" src="./v202610010015/src/main.js"></script>

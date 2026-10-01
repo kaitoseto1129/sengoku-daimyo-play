@@ -15,7 +15,7 @@ import { distToPolyline } from './world.js';
 import { heightOf, buildCastlePlan } from './castle_plan.js';
 import { horiboriHeight, goten } from './castle_parts.js';
 import { reset as flReset } from './floors.js';
-import { makeSiegeZones } from './siege_zones.js';
+import { makeSiegeZones, zoneWord } from './siege_zones.js';
 import { makeGate, updateGates, resetGates } from './siege_gate.js';
 import { placeLadder, startClimb, knockDown, updateLadders, resetLadders } from './siege_ladder.js';
 import { makeDefenseAI, chooseRoute } from './siege_ai.js';
@@ -342,8 +342,8 @@ const takato_siege = {
     }
     if (F.step >= 1 && !F.ending) {
       const st = F.SZ ? F.SZ.stat() : {};
-      if (!F.niFell) rt.objProgress('main', `三の丸・${st.san ? st.san.state : ''}／二の丸・${st.ni ? st.ni.state : ''}`);
-      else rt.objProgress('main', `本丸・${st.hon ? st.hon.state : ''}`);
+      if (!F.niFell) rt.objProgress('main', `三の丸・${zoneWord(st.san)}／二の丸・${zoneWord(st.ni)}`);
+      else rt.objProgress('main', `本丸・${zoneWord(st.hon)}`);
     }
     // 本丸の仁科盛信の衆が大きく減ったら、城は落ちたとする（名目の兵力比で見る。確かめで見つけた：
     // siege_zones.js の「場の占有」だけだと、ごく僅かに残った城兵が区域の中で死にきらず、

@@ -4,6 +4,7 @@ import { RIDE, arrowGeometry, MAT, EMBER_GEO, EMBER_MAT, arrowStub } from './uni
 import { erf, distToSeg, segHit } from './units.js';
 import * as THREE from 'three';
 import { WIND_STATE } from './world.js';
+import { S as SET } from './settings.js';
 import { terrainFx } from './terrain_tags.js';
 
 // Army の手法（units.js の class Army に足す）
@@ -233,7 +234,10 @@ export const ArmyRanged = {
     // 一斉射撃（0.4 秒に六発より多い）では、一発ごとの粒を減らして大きくし、隊の前に一枚の煙の壁を作る（古い煙がいきなり消えないように）
     if (amt >= 0.5) { if (this.time - (this._smkT ?? -9) > 0.4) { this._smkT = this.time; this._smkN = 0; } this._smkN++; }
     const vol = amt >= 0.5 && this._smkN > 6;
-    const n = amt < 0.5 ? 2 : vol ? 3 : 7;
+    // 画質「低」（携帯）は粒を減らして一粒を大きく（煙の板一枚が描く回数一回。重なった煙の塗りも減る）
+    const lowQ = SET.quality === 'low';
+    const n = lowQ ? (amt < 0.5 ? 1 : vol ? 2 : 4) : amt < 0.5 ? 2 : vol ? 3 : 7;
+    const big = lowQ && amt >= 0.5 ? 1.25 : 1;
     for (let k = 0; k < n; k++) {
       // 煙の粒は使い終わった物を使い回す（一斉射撃のたびに何十も材質を作って捨てない）
       const sPool = this.smokePool || (this.smokePool = []);
@@ -246,10 +250,10 @@ export const ArmyRanged = {
       const burst = amt < 0.5 ? 0.3 : 2 + (k / n) * 9 * (0.7 + Math.random() * 0.5);
       // 凪（風が弱い）ほど煙は長く残って隊の前に溜まる。風が強ければ早く流れて薄れる
       const calm = 1 + 0.9 * Math.max(0, Math.min(1, 1.15 - (WIND_STATE.gust ?? 1)));
-      this.smokes.push({ sp, t: 0, life: (amt < 0.5 ? 2.5 : ((vol ? 12 : 9) + Math.random() * 5) * calm), vx: fx * burst + (Math.random() - 0.5) * 0.6, vz: fz * burst + (Math.random() - 0.5) * 0.6, vy: (amt < 0.5 ? 0.5 : 0.1 + Math.random() * 0.25), spin: (Math.random() - 0.5) * 0.3, s0: 0.3 * amt, s1: amt < 0.5 ? 0.9 : (4.6 + Math.random() * 1.6) * (vol ? 1.45 : 1) });
+      this.smokes.push({ sp, t: 0, life: (amt < 0.5 ? 2.5 : ((vol ? 12 : 9) + Math.random() * 5) * calm), vx: fx * burst + (Math.random() - 0.5) * 0.6, vz: fz * burst + (Math.random() - 0.5) * 0.6, vy: (amt < 0.5 ? 0.5 : 0.1 + Math.random() * 0.25), spin: (Math.random() - 0.5) * 0.3, s0: 0.3 * amt, s1: amt < 0.5 ? 0.9 : (4.6 + Math.random() * 1.6) * (vol ? 1.45 : 1) * big });
     }
     // 古い煙から消して、数を抑える
-    while (this.smokes.length > 260) { const o = this.smokes.shift(); this.scene.remove(o.sp); this.smokePool.push(o.sp); }
+    while (this.smokes.length > (lowQ ? 120 : 260)) { const o = this.smokes.shift(); this.scene.remove(o.sp); this.smokePool.push(o.sp); }
   },
 
   updateSmoke(dt) {

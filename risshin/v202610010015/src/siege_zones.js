@@ -43,6 +43,9 @@
 // ======================================================================
 
 export const ZONE_STATE = { NEUTRAL: 'neutral', CONTESTED: 'contested', FRIEND: 'friend', ENEMY: 'enemy' };
+// 任務の札に出す言葉（英字を画面に出さない）
+const ZONE_WORD = { neutral: '空き', contested: '奪い合い', friend: '味方が取った', enemy: '敵が守る' };
+export const zoneWord = (z) => (z && ZONE_WORD[z.state]) || '';
 
 // 知らせの決まった文【城70】。要る物だけ、ここから選んで出す（自由な文は作らない）
 const MSG = {

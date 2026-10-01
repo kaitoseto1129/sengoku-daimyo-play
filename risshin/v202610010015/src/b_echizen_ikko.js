@@ -19,7 +19,7 @@ import { distToPolyline } from './world.js';
 import { heightOf, buildCastlePlan, inPoly } from './castle_plan.js';
 import { kido } from './castle_parts.js';
 import { reset as flReset } from './floors.js';
-import { makeSiegeZones, ZONE_STATE } from './siege_zones.js';
+import { makeSiegeZones, ZONE_STATE, zoneWord } from './siege_zones.js';
 import { makeMountainAmbush, makeMountainDefense, makeDefenseAI } from './siege_ai.js';
 import { attachFireSpread } from './siege_fire.js';
 import { nightAccuracyMult } from './siege_vis.js';
@@ -345,13 +345,13 @@ const echizen_ikko = {
       }
       if (F.step >= 1) {
         const st = F.SZ ? F.SZ.stat() : {};
-        if (!F.gezanFell) rt.objProgress('main', `外堂・${st.gezan ? st.gezan.state : ''}`);
-        else if (!F.ending) rt.objProgress('main', `本堂・${st.hondo ? st.hondo.state : ''}`);
+        if (!F.gezanFell) rt.objProgress('main', `外堂・${zoneWord(st.gezan)}`);
+        else if (!F.ending) rt.objProgress('main', `本堂・${zoneWord(st.hondo)}`);
       }
       if (rt.t - (F.stepT || 0) > 480 && !F.ending) this.win(rt);
     } else {
       const st = F.SZ ? F.SZ.stat() : {};
-      if (!F.ending) rt.objProgress('main', `本堂・${st.hondo ? st.hondo.state : ''}`);
+      if (!F.ending) rt.objProgress('main', `本堂・${zoneWord(st.hondo)}`);
       if (rt.t > 420 && !F.ending) this.win(rt);   // 確かめを止めない保険（援軍が間に合わなかった扱い）
     }
   },

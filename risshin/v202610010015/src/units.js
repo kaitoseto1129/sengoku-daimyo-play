@@ -9,7 +9,7 @@ import { Group, Unit } from './units_group.js';
 import { FACTION, TYPES, GENERALS, SKIN_TONES } from './units_data.js';
 import { buildModel } from './units_look.js';
 import { groundAt } from './floors.js';
-import { horseStyleFor, buildHorse, paint, at, MAT, MAT_I, P, merge, RIDE, seatLegs, rng } from './units_model.js';
+import { horseStyleFor, buildHorse, paint, at, MAT, MAT_I, P, merge, RIDE, seatLegs, rng, flagGeo, EMBER_GEO } from './units_model.js';
 import { numberedFlag, FLAG_T, FLAG_W, fadedFlag, IMP, BATCH, LOD } from './units_flags.js';
 import { ArmyCombat } from './army_combat.js';
 import { ArmyFx } from './army_fx.js';
@@ -575,8 +575,9 @@ export class Army {
   //   形（近い形・遠い形）と影を落とすかどうかで束を分ける。
   //   まとめた部品は layers を空にして、本来の描画と影から外す（行列の更新と動きは今までどおり）
   batchDraw(cam) {
-    const B = this.batch || (this.batch = { map: new Map(), mapC: new Map(), maps: null, d2: 0, on: true, prev: [], cur: [], tag: 0, fr: new THREE.Frustum(), pm: new THREE.Matrix4(), sph: new THREE.Sphere(new THREE.Vector3(), 3.4) });
-    if (!B.maps) B.maps = [B.map, B.mapC];
+    const B = this.batch || (this.batch = { map: new Map(), mapC: new Map(), mapF: new Map(), maps: null, d2: 0, on: true, prev: [], cur: [], tag: 0, fr: new THREE.Frustum(), pm: new THREE.Matrix4(), sph: new THREE.Sphere(new THREE.Vector3(), 3.4) });
+    if (!B.mapF) B.mapF = new Map();
+    if (!B.maps) B.maps = [B.map, B.mapC, B.mapF];
     // 細かい形にする近さ：画質「低」（携帯）は 9m、ほかは 16m（units_flags.js の lodSwap も同じ値を見る）
     const low = S.quality === 'low';
     LOD.near = low ? 9 : 16;
@@ -608,7 +609,22 @@ export class Army {
         // 画質「低」（携帯）：150m より先の兵（背丈が二、三画素）と、45m より先の倒れた兵は、部品を描かない（一人ずつ描く旗・得物も）
         B.hide = low && (B.d2 > 22500 || (!u.alive && B.d2 > 2025));
         this.batchWalk(m, u.human && u.human.root, tag, B);
+        // 軽い形にした人の指物（竿の骨に付け替えてあるので上の辿りでは届かない）も束へ。近くの細かな布の旗は元のまま
+        const fl = u.flag, h = u.human;
+        if (fl && h && h.lodFar && fl.parent && fl.parent === h.flagHolder && fl.visible && !(fl.material.userData && fl.material.userData.nearFlag)) { W1.children[0] = fl; this.batchWalk(W1, null, tag, B); }
       }
+      // 地に落ちた得物と、地面に刺さった矢（どちらも場に一つずつ置いた形）も同じ束へ。画質「低」は 35m より先を描かない
+      //   城攻めのように討たれる者が多い戦では、落ちた槍と矢だけで描く回数が二百を越えていた
+      const loose = (o) => {
+        const oe = o.matrixWorld.elements, ox = oe[12] - cx, oy = oe[13] - cy, oz = oe[14] - cz;
+        B.d2 = ox * ox + oy * oy + oz * oz;
+        B.sph.center.set(oe[12], oe[13], oe[14]);
+        B.on = B.fr.intersectsSphere(B.sph);
+        B.hide = low && B.d2 > 1225;
+        W1.children[0] = o; this.batchWalk(W1, null, tag, B);
+      };
+      for (const u of this.units) { const w = u.dropped; if (w && w.parent === this.scene && w.visible) loose(w); }
+      if (this.arrows) for (const a of this.arrows) if (a.stuck && a.mesh.parent === this.scene && a.mesh.visible) loose(a.mesh);
     }
     // 前のコマでまとめていて今は外れた部品を、元の描き方へ戻す
     for (const c of B.prev) if (c.userData.bT !== tag) c.layers.mask = 1;
@@ -636,17 +652,27 @@ export class Army {
           c.layers.mask = 0; c.userData.bT = tag; B.cur.push(c);
         }
       }
+      // 指物（家の旗の絵の布）も、旗の材質ごとに一つの束へ（遠くの兵の旗を一枚ずつ描かない。薄れた旗・影を落とす旗は元のまま）
+      // 足もとの丸い影も、同じ材質なので一つの束へ
+      else if (c.isMesh && B.on && !c.isInstancedMesh && !(c.castShadow && B.sh) && ((c.geometry === flagGeo && !c.material.transparent) || (c.geometry === this.blobGeo && c.material === this.blobMat))) {
+        let e = B.mapF.get(c.material);
+        if (!e || e.n >= e.cap) e = this.batchGrow(c.geometry, e, B.mapF, false, c.material);
+        c.matrixWorld.toArray(e.arr, e.n * 16); e.n++;
+        c.layers.mask = 0; c.userData.bT = tag; B.cur.push(c);
+      }
+      // 鉄砲の火縄の火（一つずつ描く小さな玉）は 20m より先では一画素にも満たないので描かない
+      else if (c.geometry === EMBER_GEO && B.d2 > 400) { c.layers.mask = 0; c.userData.bT = tag; B.cur.push(c); }
       if (c.children.length) this.batchWalk(c, skip, tag, B);
     }
   }
-  batchGrow(geo, e, bm, cast) {
+  batchGrow(geo, e, bm, cast, mat = null) {
     const cap = e ? e.cap * 2 : 16;
-    const im = new THREE.InstancedMesh(geo, MAT_I, cap);
+    const im = new THREE.InstancedMesh(geo, mat || MAT_I, cap);
     im.matrixAutoUpdate = false; im.frustumCulled = false; im.name = 'unitBatch'; im.castShadow = !!cast;
     im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     const ne = { im, cap, n: e ? e.n : 0, arr: im.instanceMatrix.array };
     if (e) { ne.arr.set(e.arr.subarray(0, e.n * 16)); this.scene.remove(e.im); e.im.dispose(); }
-    this.scene.add(im); bm.set(geo, ne);
+    this.scene.add(im); bm.set(mat || geo, ne);
     return ne;
   }
 

@@ -1280,10 +1280,11 @@ export class Hud {
     ab.hidden = false;
     if (first) {
       // 狭い画面では軍の名を短く（「織田・徳川軍」→「織田軍」）して、二行に折れないように
-      const sn = (n) => window.innerWidth < 1000 ? n.replace(/・[^・]*軍$/, '軍') : n;
-      ab.innerHTML = `<div class="side a"><div class="nm"><canvas width="44" height="44" data-m="${sides.a.mon}"></canvas>${esc(sn(sides.a.name))}<small id="ab-a"></small></div><div class="gauge"><s id="ab-sa"></s><b id="ab-ga"></b></div></div>
+      //   長い名（「延暦寺の僧兵・浅井朝倉の残党」）は「・」の前だけに。それでも入らなければ末尾を「…」に（隣の数と重ならないように）
+      const sn = (n) => { if (window.innerWidth >= 1000) return n; n = n.replace(/・[^・]*軍$/, '軍'); return n.length > 8 && n.includes('・') ? n.split('・')[0] : n; };
+      ab.innerHTML = `<div class="side a"><div class="nm"><canvas width="44" height="44" data-m="${sides.a.mon}"></canvas><span class="n">${esc(sn(sides.a.name))}</span><small id="ab-a"></small></div><div class="gauge"><s id="ab-sa"></s><b id="ab-ga"></b></div></div>
         <div class="clock"><span id="ab-c"></span><small>経過</small></div>
-        <div class="side b"><div class="nm"><small id="ab-b"></small>${esc(sn(sides.b.name))}<canvas width="44" height="44" data-m="${sides.b.mon}"></canvas></div><div class="gauge"><s id="ab-sb"></s><b id="ab-gb"></b></div></div>`;
+        <div class="side b"><div class="nm"><small id="ab-b"></small><span class="n">${esc(sn(sides.b.name))}</span><canvas width="44" height="44" data-m="${sides.b.mon}"></canvas></div><div class="gauge"><s id="ab-sb"></s><b id="ab-gb"></b></div></div>`;
       ab.querySelectorAll('canvas[data-m]').forEach((c) => { const g = c.getContext('2d'); g.save(); g.translate(0, -8); drawMon(g, c.dataset.m, 44, 88); g.restore(); });
       $('dateline').textContent = rt.def.date ? rt.def.date(rt) : '';
       this.fitDate();

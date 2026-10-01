@@ -4368,7 +4368,8 @@ export class World {
       const dc = Math.hypot(_lodV.x - cx, _lodV.z - cz) * q, d = dc - m.boundingSphere.radius * q, h2 = L.lv >= 2 ? 5 : 0;
       //   3：塊のいちばん近い端が 100m より先は、さらに遠い形
       const lv = d > (L.lv === 3 ? 92 : 100) ? 3 : d > 50 - h2 || dc > 70 - h2 ? 2 : d > (L.lv >= 1 ? 32 : 38) ? 1 : 0;
-      if (lv !== L.lv) { L.lv = lv; L.far = lv > 0; m.geometry = lv === 3 ? L.xxlo : lv === 2 ? L.xlo : lv ? L.lo : L.hi; }
+      //   画質「低」は近い形がもう軽い形（lo）なので、1 の段も lo のままだと何も軽くならない。1 の段から七角の形（三角は三分の一）に
+      if (lv !== L.lv) { L.lv = lv; L.far = lv > 0; m.geometry = lv === 3 ? L.xxlo : lv === 2 ? L.xlo : lv ? (q > 1 ? L.xlo : L.lo) : L.hi; }
     }
   }
   update(dt, focus) {

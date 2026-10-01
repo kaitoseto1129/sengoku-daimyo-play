@@ -1,6 +1,6 @@
 // Army の手法：体の動き（歩き・構え・槍・刀・鉄砲・弓・倒れ方）
 // （units.js から分けた。中身は元のまま。外の係は今までどおり units.js から import してよい）
-import { animateHorse, flexSpear, seatLegs, RIDE, poseArms, GUN_MUZ, GUN_BORE, setBowDraw, aimArm } from './units_model.js';
+import { animateHorse, flexSpear, seatLegs, RIDE, poseArms, GUN_MUZ, GUN_BORE, GUN_RAM, setBowDraw, aimArm } from './units_model.js';
 import { DEATH_END, thrustOut, clamp01, SW_POSE, SW_HASSO, SW_JODAN, lerpPose, RELOAD, GUN_POSE, BOW_POSE, _nk, _dUp, _dN, _dQ, _dI } from './units.js';
 import { IDLE, muddyFlag } from './units_flags.js';
 import { TYPES } from './units_data.js';
@@ -415,10 +415,10 @@ export const ArmyAnim = {
     const R = w && w.userData.ram;
     if (R) {
       if (ph === 'ram') {
-        if (k < 0.15) { const q = k / 0.15; R.position.set(0, -0.012 + (GUN_BORE + 0.012) * q, 0.1 + 0.95 * q); }
+        if (k < 0.15) { const q = k / 0.15; R.position.set(0, GUN_RAM[0] + (GUN_BORE - GUN_RAM[0]) * q, GUN_RAM[1] + (1.05 - GUN_RAM[1]) * q); }
         else if (k < 0.85) { const q = (k - 0.15) / 0.7, depth = 0.5 + 0.32 * Math.abs(Math.sin(q * Math.PI * 3)); R.position.set(0, GUN_BORE, GUN_MUZ + 0.01 - depth); }
-        else { const q = (k - 0.85) / 0.15; R.position.set(0, GUN_BORE - (GUN_BORE + 0.012) * q, 1.05 - 0.95 * q); }
-      } else R.position.set(0, -0.012, 0.1);
+        else { const q = (k - 0.85) / 0.15; R.position.set(0, GUN_BORE - (GUN_BORE - GUN_RAM[0]) * q, 1.05 - (1.05 - GUN_RAM[1]) * q); }
+      } else R.position.set(0, GUN_RAM[0], GUN_RAM[1]);
       // 骨の入った人が自分の槊杖を出している間は、二本にならないよう隠す
       R.visible = !(u.human && u.human.rod && u.human.rod.visible);
     }

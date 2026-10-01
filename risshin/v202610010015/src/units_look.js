@@ -6,7 +6,7 @@ import * as THREE from 'three';
 
 // 見た目の値から形の鍵を作る（同じ見た目の兵は形を共有する）
 function lookKey(look) {
-  return [look.armor, look.lace, look.hat, look.sode ? 1 : 0, look.haori || 0, look.pole ? 1 : 0, look.saya ? 1 : 0, look.menpo || 0, look.menpoStyle || '', look.horo || 0, look.trim || 0, look.left || '', look.cloth || 0, look.tier, (look.vi || 0) % 6, look.mon || '', look.haoriMon || '', look.tenugui ? 1 : 0, look.dirt ?? '', look.sohei ? 's' + look.soheiV + '/' + (look.kato || 0) + '/' + (look.kesa || 0) + (look.haramaki ? 'h' : '') : ''].join('|');
+  return [look.armor, look.lace, look.hat, look.sode ? 1 : 0, look.haori || 0, look.pole ? 1 : 0, look.saya ? 1 : 0, look.menpo || 0, look.menpoStyle || '', look.horo || 0, look.trim || 0, look.left || '', look.cloth || 0, look.tier, (look.vi || 0) % 6, look.mon || '', look.haoriMon || '', look.tenugui ? 1 : 0, look.dirt ?? '', look.weapon === 'bow' ? 'b' : '', look.sohei ? 's' + look.soheiV + '/' + (look.kato || 0) + '/' + (look.kesa || 0) + (look.haramaki ? 'h' : '') : ''].join('|');
 }
 function tierOf(look) { return look.tier ?? (look.haori ? 2 : look.hat && look.hat.startsWith('kabuto') ? 1 : 0); }
 function headOf(look, hi) {

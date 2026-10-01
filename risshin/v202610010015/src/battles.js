@@ -67,12 +67,6 @@ const DEF_BY_ID = { okehazama, moribe, sunomata, shitaragahara };
 for (const [id, d] of Object.entries({ inabayama, mitsukuri, nodafukushima, odani, nagashima, takato, honnoji, shiga, tonezaka, tennoji, shigisan, arioka, miki, tedorigawa, iga, echizen, kizugawa, saika, tano, mikatagahara, tottori, iwamura, okawachi })) if (d) DEF_BY_ID[id] = d;
 for (const [id, d] of Object.entries({ nagashinojo, tobinosu, suwahara, anegawa, sekigahara, sanadamaru, sune, kanegasaki, domyoji, hieizan })) if (d) DEF_BY_ID[id] = d;
 for (const [id, d] of Object.entries({ kinome, hiei_mtn, takato_siege, echizen_ikko })) if (d) DEF_BY_ID[id] = d;
-// MVP の後 7-1（docs/siege-plan.md）：織田家編（ODA_LINE）の echizen・takato・hieizan は、
-// 砦・城・山の縄張り版（kinome・takato_siege・hiei_mtn）で遊ばせる。古い b_echizen.js・b_takato.js・
-// b_hieizan.js は消さず、_old の id で残す（lord.js の「信長で遊ぶ」一覧は kinome 等の id のまま触らない）。
-// 同じ def を二つの id に出すと .key の取り合いになるので、ODA_LINE 側だけ中身を写した別の object にする。
-DEF_BY_ID.echizen_old = echizen; DEF_BY_ID.takato_old = takato; DEF_BY_ID.hieizan_old = hieizan;
-DEF_BY_ID.echizen = { ...kinome }; DEF_BY_ID.takato = { ...takato_siege }; DEF_BY_ID.hieizan = { ...hiei_mtn };
 for (const [id, d] of Object.entries(DEF_BY_ID)) d.key = id;
 export const BATTLE_DEFS = [];
 onScenario(() => BATTLE_DEFS.splice(0, BATTLE_DEFS.length, ...BATTLES.map((b) => DEF_BY_ID[b.id])));

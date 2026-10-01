@@ -524,6 +524,8 @@ function injectStyle() {
 .j3-res div { flex-direction: row; }
 .j3-top .j3-act { border-right: 0; gap: 8px; }
 .j3-top .j3-act .btn { min-height: 44px; white-space: nowrap; }
+.j3-top .j3-act #j3-nextb { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; line-height: 1.2; border-color: rgba(200,86,60,.8); }
+.j3-top .j3-act #j3-nextb small { font-size: 12px; color: #f3c9a8; }
 /* 城の印：上に家紋の旗、竿の根が城の場所、下に横書きの名札（格で大きさと縁を変える） */
 .j3-ban { position: absolute; left: 0; top: 0; pointer-events: auto; appearance: none; border: 0; background: transparent; padding: 0; margin: 0; cursor: pointer; color: inherit; font: inherit; display: flex; flex-direction: column; align-items: center; min-width: 44px; will-change: transform; }
 .j3-ban:focus-visible { outline: none; }
@@ -744,7 +746,7 @@ export function mount3D(api) {
   let scene, camera, mesh, tex, texCv, texG, clouds = [], keeps = [];
   const cam = { x: 500, z: 700, d: 900 }, goal = { x: 500, z: 700, d: 900 };
   const FOV = 34;
-  let need = true, texSig = '', lastT = performance.now(), topH0 = 0;
+  let goalId = null, homeD = 520, need = true, texSig = '', lastT = performance.now(), topH0 = 0;
   const inkRGB = {};
   for (const [id, css] of Object.entries(D.ink)) inkRGB[id] = rgbOf(css);
   const rgba = (id, a, k = 0) => { const c = inkRGB[id] || [120, 120, 120]; return `rgba(${Math.round(c[0] * (1 - k))},${Math.round(c[1] * (1 - k))},${Math.round(c[2] * (1 - k))},${a})`; };
@@ -1112,7 +1114,7 @@ export function mount3D(api) {
   const layout = () => {
     const W = mapEl.clientWidth, H = mapEl.clientHeight;
     const sel = api.sel();
-    const far = cam.d > 1000, veryFar = cam.d > 1500;
+    const far = cam.d > 1000, veryFar = cam.d > 1500, mid = cam.d > Math.min(520, homeD * 0.8);
     const topH = topH0 || top.offsetHeight || 60;
     const items = [];
     for (const c of D.castles) {
@@ -1135,7 +1137,8 @@ export function mount3D(api) {
       const nm = c.name.replace(/城$/, '');
       const fh = ANCH[gr], pw = nm.length * (gr === 'hq' ? 15 : 13) + 52;
       const bw = Math.max(44, pw), bx = x - bw / 2, by = y - fh, bh = fh + 22;
-      let min = (veryFar && rank < 7) || (far && rank < 3) || (far && gr === 'tr' && rank < 5);
+      // 遠目（はじめの見え方も）では家の名と旗だけ。城の名と兵の数は、寄った時・選んだ城・攻め寄せられた城・目標の城だけ
+      let min = c.id !== goalId && ((veryFar && rank < 7) || (far && rank < 3) || (far && gr === 'tr' && rank < 5) || (mid && rank < 8));
       if (!min && boxes.some((b) => bx < b[0] + b[2] && bx + bw > b[0] && by < b[1] + b[3] && by + bh > b[1])) min = rank < 7;
       if (!min) boxes.push([bx, by, bw, bh]);
       const mine = J.own[c.id] === P;
@@ -1197,8 +1200,10 @@ export function mount3D(api) {
         <div><dt>兵</dt><dd>${man(R.pool)}<small>人</small>${per(R.flow.h / 3, '兵')}</dd></div>` : `<div><dt>兵</dt><dd>${api.army().toLocaleString('ja-JP')}<small>人</small></dd></div>`}
         <div class="j3-shiro"><dt>城</dt><dd>${mine.length}</dd></div>
       </dl>
-      <div class="j3-act"><button class="btn small primary" id="j3-next" ${J.threats.length ? 'disabled' : ''}>季節を送る${MOBILE ? '' : '（N）'}</button></div>`;
-    top.querySelector('#j3-next').onclick = () => api.next();
+      ${api.nextName ? `<div class="j3-act"><button class="btn small" id="j3-nextb" aria-label="城下へ戻って、次の戦（${esc(api.nextName)}）の支度をする">次の戦へ<small>${esc(api.nextName)}</small></button></div>` : ''}`;
+    // 季節を送るは右の欄の「今の目標」の所だけ（二か所に出さない）
+    { const nb = top.querySelector('#j3-nextb'); if (nb) nb.onclick = () => api.goNext(); }
+    goalId = api.goalId ? api.goalId() : null; need = true;
     // 勢力の帯と見え方の押しボタンは、帯のすぐ下に（帯の高さは幅で変わる）
     mapEl.style.setProperty('--j3top', top.offsetHeight + 'px');
     const pw = mapEl.querySelector('.jp-power');
@@ -1226,8 +1231,9 @@ export function mount3D(api) {
     const bi = bust.querySelector('.j3-bimg');
     bi.onclick = () => { if (api.openGen && (L || wb)) api.openGen(who); };
     side.querySelector('.j3-bust')?.remove();
+    // 顔と能力の札は、城を選んだ時だけ（はじめは目標と自分の城だけを見せる）
     const anchor = side.querySelector('.jp-me');
-    if (anchor) anchor.after(bust); else side.prepend(bust);
+    if (sel) { if (anchor) anchor.after(bust); else side.prepend(bust); }
     // 下の知らせの列（新しい順。武将の顔つき）
     const clanIn = (s) => { let best = null, bi = 1e9; for (const [id, c] of Object.entries(D.clans)) { const i = s.indexOf(c.name); if (i >= 0 && i < bi) { bi = i; best = id; } } return best; };
     const lines = J.log.slice(-6).reverse();
@@ -1272,6 +1278,7 @@ export function mount3D(api) {
     const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cz = (Math.min(...zs) + Math.max(...zs)) / 2;
     const half = Math.max(70, (Math.max(...xs) - Math.min(...xs)) / 2 + 30, (Math.max(...zs) - Math.min(...zs)) / 2 + 30);
     fit(cx - half, cz - half * 0.75, cx + half, cz + half * 0.75);
+    homeD = goal.d;
   };
   const focus = (c) => { if (!c) return; goal.x = c.c; goal.z = c.r + 6; goal.d = Math.min(goal.d, 460); bounded(); need = true; };
   const zoomBy = (k, sx, sy) => {
