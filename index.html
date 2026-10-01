@@ -16342,7 +16342,7 @@ setSpeed(0);
 let diploSort="near";
 function openDiplomacy(){
 if(!featureGate("diplomacy","外交")) return;
-try{ showGuide("dip"); }catch(_){ }
+setTimeout(()=>{ try{ showGuide("dip"); }catch(_){ } }, 0);
 setTimeout(()=>tutorial("diplo"), 400);
 const me=W.clans[W.player];
 
@@ -32844,6 +32844,11 @@ ctx.restore();
 const _monImg={};
 function monDataURL(K,px){ px=px||28; const key=(K?K.id+":"+monKind(K)+":"+(K.crest||""):"-")+"@"+px+"@"+(K?clanColor(K.id):""); if(_monImg[key]) return _monImg[key];
 const cv=document.createElement("canvas"); cv.width=cv.height=px*2; const ctx=cv.getContext("2d"); drawMon(ctx,K,px,px,px*0.96,"#fff",K?clanColor(K.id):"#555"); const u=cv.toDataURL(); _monImg[key]=u; return u; }
+
+function prewarmMons(){ try{ const q=[]; for(const K of Object.values(W.clans||{})) if(K&&!K.dead) for(const px of [20,26]) q.push([K,px]);
+const idle=window.requestIdleCallback||(f=>setTimeout(()=>f({timeRemaining:()=>8}),60));
+const step=dl=>{ let n=0; while(q.length && (n<2 || dl.timeRemaining()>4)){ const [K,px]=q.shift(); try{ monDataURL(K,px); }catch(_){ } n++; } if(q.length) idle(step); };
+idle(step); }catch(_){ } }
 function monHTML(K,px,extra){ px=px||26; return `<span class="mon" style="display:inline-block;width:${px}px;height:${px}px;border-radius:50%;background:url(${monDataURL(K,px)}) center/contain no-repeat;vertical-align:middle;${extra||""}"></span>`; }
 
 function updateMusic(){
@@ -33417,7 +33422,7 @@ const hq=myCastles(clanId).find(c=>c.hq)||myCastles(clanId)[0];
 focusOnRealm();
 { const F={osaka:"大坂城", odawara:"小田原城", sekigahara:"大垣城", koshu:"高遠城", honnoji:"二条御所"}; const nm=F[W.scenario]; const fc=nm&&Object.values(W.castles).find(c=>c.name===nm); if(fc){ const t=W.tile[fc.id]; cam.x=t.c; cam.y=t.r; cam.scale=Math.max(cam.scale,6); camTarget.x=camTarget.y=null; camTarget.scale=null; clampCam(); setTimeout(()=>{ if(W.started&&!B){ cam.x=t.c; cam.y=t.r; camTarget.x=camTarget.y=null; clampCam(); } },50); } }
 refreshHUD(); rebuildDevOverlay(); refreshAdvice();
-W.started=true; if(W.scenarioStartDay===undefined) W.scenarioStartDay=dayNumber(); try{ if(W.staged===undefined) W.staged=firstTimer(); }catch(_){ W.staged=false; }
+W.started=true; prewarmMons(); if(W.scenarioStartDay===undefined) W.scenarioStartDay=dayNumber(); try{ if(W.staged===undefined) W.staged=firstTimer(); }catch(_){ W.staged=false; }
 log(`${clanName(clanId)}の家督を継いだ。天下は乱れておる。`);
 track("start/"+W.scenario+"/"+clanName(clanId));
 setSpeed(1);
@@ -33514,7 +33519,7 @@ if(loadGame()){
 for(const c of Object.values(W.clans)) c.isPlayer=(c.id===W.player);
 bakeTerrain(); bakeMinimap(); rebuildDevOverlay();
 focusOnRealm(); refreshHUD(); refreshAdvice();
-W.started=true; setSpeed(1);
+W.started=true; prewarmMons(); setSpeed(1);
 } else {
 enterPickMode();
 }
@@ -33569,9 +33574,9 @@ function fundBig(t,sub){ let el=document.getElementById("fundBig"); if(!el){ el=
 window.sengokuFund=function(amt){ amt=Math.max(500,parseInt(amt,10)||500); const prev=fundMine()||{}; const rec={round:FUND.round, tier:Math.max(prev.tier||0,amt), name:prev.name||"", anon:!!prev.anon, at:Date.now(), rounds:Array.from(new Set([...(prev.rounds||[]),FUND.round]))}; try{ localStorage.setItem("sengoku_fund",JSON.stringify(rec)); }catch(e){} FUND.raised=(FUND.raised||0)+amt; FUND.backers=(FUND.backers||0)+1; fundBig(`あなたより軍資金 ${fundYen(amt)} が届きました`, "総軍資金 "+fundYen(fundState().raised)+"　ありがとうございます"); track("fund/"+amt); const el=document.querySelector(".overlay.fundov"); if(el) openFund(); };
 function fundTierOf(amt){ let best=FUND.tiers[0]; for(const t of FUND.tiers) if(amt>=t.amt) best=t; return best; }
 const FUND_PAY_TEMPLATE="https://www.paypal.com/paypalme/sengokudaimyo/{amt}JPY";
-function fundSupport(i){ const t=FUND.tiers[i]; if(!t) return; if(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap){ try{ window.webkit.messageHandlers.iap.postMessage({fund:true, tier:t.amt, sku:"jp.kaitoseto.sengoku.fund"+t.amt}); return; }catch(e){} } if(FUND_PAY_TEMPLATE){ track("fund-click/"+t.amt); const u=FUND_PAY_TEMPLATE.replace("{amt}",String(t.amt)); setTimeout(()=>{ window.open(u,"_blank"); },100); fundPaidAsk(t.amt); return; } if(t.pay){ track("fund-click/"+t.amt); setTimeout(()=>{ location.href=t.pay; },150); return; } toast("この階級の受付は準備中です"); }
+function fundSupport(i){ const t=FUND.tiers[i]; if(!t) return; if(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap){ try{ track("fund-click/"+t.amt); window.webkit.messageHandlers.iap.postMessage({fund:true, tier:t.amt, sku:"jp.kaitoseto.sengoku.fund"+t.amt}); return; }catch(e){} } if(FUND_PAY_TEMPLATE){ track("fund-click/"+t.amt); const u=FUND_PAY_TEMPLATE.replace("{amt}",String(t.amt)); setTimeout(()=>{ window.open(u,"_blank"); },100); fundPaidAsk(t.amt); return; } if(t.pay){ track("fund-click/"+t.amt); setTimeout(()=>{ location.href=t.pay; },150); return; } toast("この階級の受付は準備中です"); }
 
-function fundPaidAsk(amt){ const el=document.createElement("div"); el.className="overlay"; el.style.zIndex=96; el.innerHTML=`<div class="dialog" style="max-width:440px;text-align:center"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">軍資金</div><h3>¥${amt.toLocaleString()} の支援</h3><div class="advice">PayPal の窓を開きました（カード・銀行口座で払えます）。<br>払い終えたら下を押してください。支援者の名と階級がこの端末に記されます。<br><span class="tiny muted">窓が開かなければ：${esc(FUND_PAY_TEMPLATE.replace("{amt}",String(amt)))}</span></div><div class="dlg-actions" style="display:flex;gap:8px"><button class="big gold" style="flex:1" id="fpYes">払いました</button><button class="big ghost" style="flex:1" id="fpNo">あとで</button></div></div>`; document.body.appendChild(el); el.querySelector("#fpNo").onclick=()=>el.remove(); el.querySelector("#fpYes").onclick=()=>{ el.remove(); track("fund-paid/"+amt); window.sengokuFund(amt); }; }
+function fundPaidAsk(amt){ const el=document.createElement("div"); el.className="overlay"; el.style.zIndex=96; el.innerHTML=`<div class="dialog" style="max-width:440px;text-align:center"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">軍資金</div><h3>¥${amt.toLocaleString()} の支援</h3><div class="advice">PayPal の窓を開きました（カード・銀行口座で払えます）。<br>払い終えたら下を押してください。支援者の名と階級がこの端末に記されます。<br><span class="tiny muted">窓が開かなければ：${esc(FUND_PAY_TEMPLATE.replace("{amt}",String(amt)))}</span></div><div class="dlg-actions" style="display:flex;gap:8px"><button class="big gold" style="flex:1" id="fpYes">払いました</button><button class="big ghost" style="flex:1" id="fpNo">あとで</button></div></div>`; document.body.appendChild(el); el.querySelector("#fpNo").onclick=()=>{ el.remove(); track("fund-later/"+amt); }; el.querySelector("#fpYes").onclick=()=>{ el.remove(); track("fund-paid/"+amt); window.sengokuFund(amt); }; }
 function fundVote(k){ let v={}; try{ v=JSON.parse(localStorage.getItem("sengoku_fund_vote")||"{}"); }catch(e){} v[FUND.round]=k; try{ localStorage.setItem("sengoku_fund_vote",JSON.stringify(v)); }catch(e){} toast("一票を投じました（集計は次の募集の頃に）"); openFund(); }
 
 const MEYASU_TO="kaitoseto1129@gmail.com";
@@ -33647,11 +33652,11 @@ ${tab==="vote"?`
 <div class="f-vote">${(f.vote&&f.vote.items||[]).map(([k,n])=>{ const c=(f.vote.counts||{})[k]||0; const tot=Object.values(f.vote.counts||{}).reduce((a,b)=>a+b,0); let mine2=null; try{ mine2=(JSON.parse(localStorage.getItem("sengoku_fund_vote")||"{}"))[FUND.round]; }catch(e){} return `<button class="cmd ${mine2===k?"sel":""}" onclick="fundVote('${k}')">${esc(n)}<span class="cost">${tot?Math.round(c/tot*100)+"%":"—"}${mine2===k?"　（あなたの一票）":""}</span></button>`; }).join("")}</div>
 <div class="dlg-actions" style="display:flex;gap:8px"><button class="big ghost" style="flex:1" data-c="close">閉じる</button></div>`:""}
 </div>`;
-let el=document.querySelector(".overlay.fundov"); if(!el){ el=document.createElement("div"); el.className="overlay fundov scrollov"; el.style.zIndex="94"; document.body.appendChild(el); }
+let el=document.querySelector(".overlay.fundov"); const fresh=!el; if(!el){ el=document.createElement("div"); el.className="overlay fundov scrollov"; el.style.zIndex="94"; document.body.appendChild(el); }
 el.innerHTML=html.replace('<div class="dialog fund">','<div class="dialog fund"><button class="ovx" data-c="close" aria-label="窓を閉じる（右上）">×</button>');
 el.querySelectorAll('[data-c="close"]').forEach(b=>b.onclick=()=>{ el.remove(); });
 el.onclick=ev=>{ if(ev.target===el) el.remove(); };
-track("fund/open");
+if(fresh) track("fund/open");
 }
 setTimeout(()=>{ try{ fundLoadFeed(); }catch(e){} }, 1500);
 

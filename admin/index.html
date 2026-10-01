@@ -338,6 +338,9 @@ function render(){
       <div class="card"><h2>お便りと支払い</h2>
         <div class="row"><span>目安箱に届いたお便り</span><span class="n">${fmtN(ev("meyasu/send"))}</span></div>
         <div class="row"><span>軍資金を「払いました」と押した人</span><span class="n">${fmtN(byPrefix("fund-paid").reduce((a,[,n])=>a+n,0))}</span></div>
+        <div class="row"><span>軍資金の額を押した人（ゲーム・ウェブとiPhone）</span><span class="n">${fmtN(ev("fund-click"))}</span></div>
+        <div class="row"><span>　そのうち PayPal から戻って「あとで」を押した人</span><span class="n">${fmtN(ev("fund-later"))}</span></div>
+        <div class="row"><span>LP で軍資金の額を押した人</span><span class="n">${fmtN(byPrefix("lp").filter(([k])=>/^fund_\d+$/.test(k)).reduce((a,[,n])=>a+n,0))}</span></div>
         <div class="row"><span>関ヶ原（¥500）を「払いました」と押した人</span><span class="n">${fmtN(ev("paid/sekigahara"))}</span></div>
         <div class="note" style="margin-top:8px">お便りはメールで届きます（この数は送った人の数）。支払いは PayPal の頁へ送ったあと、ゲームに戻って自分で「払いました」を押した数――実際に入金があったかどうかは PayPal の明細で確かめてください。iPhone 版の課金はここには出ません（App Store Connect で見る）。</div></div>`}
       
