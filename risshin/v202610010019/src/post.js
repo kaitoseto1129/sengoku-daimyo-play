@@ -26,12 +26,6 @@ export function edgeDark(dt) {
   if (edgeEl.style.opacity !== o) edgeEl.style.opacity = o;
 }
 
-// 戦を抜ける時に呼ぶ：深手・疲れで暗くなった縁を必ず消す（edgeDark は戦の絵の更新中しか呼ばれないので、評価・城下の画面に暗みが残らないように）
-export function clearEdgeDark() {
-  POST.dark = 0;
-  if (edgeEl) edgeEl.style.opacity = '0';
-}
-
 // 画面の仕上げ（画質「中」「高」）：実写の合戦映画のような画にする
 // ・明暗順応：画面の明るさをならして、目が慣れるようにゆっくり露出を合わせる（逆光で暗く、曇りで明るく）
 // ・接地の影（画質「高」）：深さの絵から、物と物が触れ合う所・足もと・草の根元を暗くする
