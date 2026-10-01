@@ -96,20 +96,23 @@ function dynResReset() { resTarget = 1; resNow = 1; ftAvg = 16; ftHeavy = 0; ftL
 function dynRes(real) {
   if (!S.autoRes) { if (resScale !== 1) dynResReset(); return; }
   ftAvg += (real * 1000 - ftAvg) * 0.05;
+  if (resTarget > powerRes) resTarget = powerRes;   // 端末が熱い間の上限（__iosPower）
   // 描く上限を決めている時は、その一コマの長さに合わせて「重い」「軽い」を決める
-  const per = S.fpsCap ? 1000 / S.fpsCap : 0;
+  const cap = fpsCapNow(), per = cap ? 1000 / cap : 0;
   const hi = Math.max(33, per * 1.15), lo = Math.max(20, per * 1.05);
   ftHeavy = ftAvg > hi ? ftHeavy + real : 0;
   ftLight = ftAvg < lo ? ftLight + real : 0;
   // iPhone は重さの山（描くコマの穴）が急に来やすいので、下げ始めを早く・下限も深くする（PC は今までどおり）
   const heavyT = isTouch ? 0.8 : 1.5, floor = isTouch ? 0.45 : 0.6;
   if (ftHeavy > heavyT) { resTarget = Math.max(floor, resTarget - 0.1); ftHeavy = 0; }
-  if (ftLight > 3 && resTarget < 1) { resTarget = Math.min(1, resTarget + 0.1); ftLight = 0; }
+  if (ftLight > 3 && resTarget < powerRes) { resTarget = Math.min(powerRes, resTarget + 0.1); ftLight = 0; }
   const step = 0.05 * real;
   resNow = resNow < resTarget ? Math.min(resTarget, resNow + step) : Math.max(resTarget, resNow - step);
   const q = Math.round(resNow * 50) / 50;
   if (Math.abs(q - resScale) >= 0.019) { resScale = q; applyRenderSettings(); }
 }
+// 描く回数の上限：設定の値と、端末が熱い時の 30（__iosPower）の小さい方
+function fpsCapNow() { return powerCap && (!S.fpsCap || S.fpsCap > powerCap) ? powerCap : S.fpsCap; }
 function applyRenderSettings() {
   const Q = QUALITY[S.quality] || QUALITY.high;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, Q.pixelRatio) * resScale);
@@ -333,6 +336,25 @@ document.addEventListener('visibilitychange', () => {
   duck(document.hidden);
   if (document.hidden && game.battle && !game.battle.over) setPause(true);
 });
+// iPhone・iPad のアプリ（ios/ の GameView.swift）から：裏へ回る・電話・コントロールセンターを開いた（false）／戻った（true）
+// 戦は一時停止（戻ったら札の「再開する」で続ける）。城下を歩いている時は、その場で保存もする
+window.__iosActive = (on) => {
+  duck(!on);
+  if (on) return;
+  const b = game.battle;
+  if (b && !b.over && !game.paused) setPause(true);
+  if (b && b.def.town && game.G) { try { save(game.G); } catch (e) { /* 書けなくても続ける */ } }
+};
+// 端末が熱い（thermal 2＝かなり・3＝とても）・低電力モード：描く回数を 30 までにし、細かさの上限も下げる。冷えたら戻す（設定には書かない）
+let powerCap = 0, powerRes = 1, powerTold = false;
+window.__iosPower = (o) => {
+  const t = (o && o.thermal) || 0, low = !!(o && o.lowPower);
+  powerCap = t >= 2 || low ? 30 : 0;
+  powerRes = t >= 3 ? 0.6 : t >= 2 ? 0.75 : 1;
+  if (resTarget > powerRes) resTarget = powerRes;
+  if (t >= 2 && !powerTold && game.battle) { powerTold = true; notice('端末が熱くなってきたので、描き込みを軽くしました'); }
+  if (t < 2) powerTold = false;
+};
 
 // 戦術マップ：開いている間はマウスを放し、クリックで組を向かわせる
 function toggleBigMap() {
@@ -1421,8 +1443,9 @@ function loop() {
   // 確かめ用：開戦から10秒、1コマの重さを window.__startFrames に記す（重いコマを探す道具。遊びには使わない）
   const _pf0 = window.__startFrames ? performance.now() : 0;
   // 描画の上限（省電力）
-  if (S.fpsCap) { capAcc += clock.getDelta(); if (capAcc < 1 / S.fpsCap - 0.002) return; }
-  const real = Math.min(0.05, S.fpsCap ? capAcc : clock.getDelta());
+  const cap = fpsCapNow();
+  if (cap) { capAcc += clock.getDelta(); if (capAcc < 1 / cap - 0.002) return; }
+  const real = Math.min(0.05, cap ? capAcc : clock.getDelta());
   capAcc = 0;
   let dt = real;
   const b = game.battle;
@@ -1486,7 +1509,7 @@ function loop() {
       // 重いときは一度だけ画質を自動で下げる。自動では「中」まで（「低」は近くの兵まで作り物の姿になるので、選ぶのは遊ぶ人）
       if (!autoLowered && fpsLog.length >= 6 && S.quality === 'high') {
         const avg = fpsLog.slice(-6).reduce((a, v) => a + v, 0) / 6;
-        if (avg < (S.fpsCap ? Math.min(32, S.fpsCap * 0.65) : 32)) {
+        if (avg < (cap ? Math.min(32, cap * 0.65) : 32)) {
           autoLowered = true;
           S.quality = 'mid';
           saveSettings();

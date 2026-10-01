@@ -355,8 +355,8 @@ export function dobeiLine(rt, pts, o = {}) {
 // 隅櫓：曲輪の角の二重の櫓。上下二段の床（一階・二階）に射手を置ける。docs 5-2
 export function sumiyaguraTower(rt, x, z, o = {}) {
   const { rot = 0, w = 6, d = 5, base = 2.2, team = 0, hp = 700 } = o;
-  const mesh = sumiyagura(rt.world, x, z, { rot, w, d, base, stone: o.stone });
-  rt.scene.add(mesh);
+  const mesh = sumiyagura(rt.world, x, z, { rot, w, d, base, stone: o.stone, batch: o.batch });
+  if (!mesh.isBatchedPart) rt.scene.add(mesh);
   const y0 = rt.world.heightAt(x, z) - 0.3;
   const deck1Y = y0 + base + 0.02, deck2Y = deck1Y + 3.35;
   const w1 = w * 0.94, d1 = d * 0.94, w2 = w * 0.7, d2 = d * 0.7;

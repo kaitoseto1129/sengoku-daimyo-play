@@ -16,6 +16,8 @@ if (isTouch) {
   if (!saved || !saved.quality) S.quality = isPhone ? 'low' : 'mid';
   // 画面の札の量：触る端末（携帯・iPad）は「最小」（戦場を主役に。札は要る時だけ）。自分で選んで保存してあれば、そのまま
   if (!saved || !saved.hudMode) S.hudMode = 'min';
+  // 一秒に描く回数：携帯は 30 で安定させる（熱と電池。60 を追って揺れるより滑らか）・iPad は 60。自分で選んで保存してあれば、そのまま
+  if (!saved || saved.fpsCap == null) S.fpsCap = isPhone ? 30 : 60;
 }
 
 const CSS = `
@@ -284,12 +286,22 @@ function setupTouch({ input, game, setPause, toggleBigMap }) {
 
   // ---- 釦を押す・放す ----
   // 震え：設定の「振動」を切ると震えない
-  const buzz = (ms = 8) => { if (S.vibrate === false) return; try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* 非対応 */ } };
+  // iPhone・iPad のアプリ（ios/）では本体の触覚（window.__haptic → UIImpactFeedbackGenerator）。種類 k と強さ s で手応えを分ける
+  //   tap 釦 / select 狙いを替えた / hit 当てた / heavy 重く当てた / hurt 斬られた / block 受けた / order 号令 / gun 鉄砲
+  // ブラウザでは navigator.vibrate（iPhone の Safari は震えない）
+  const haptic = (k, s = 0.6) => {
+    if (S.vibrate === false) return;
+    if (window.__haptic) { window.__haptic(k, s); return; }
+    const ms = { tap: 6, select: 10, block: 18, order: 24, gun: 40, hurt: 30 }[k] || Math.round(8 + 30 * s);
+    try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* 非対応 */ }
+  };
+  const buzz = (ms = 8) => haptic(ms <= 8 ? 'tap' : ms <= 14 ? 'select' : 'hit', Math.min(1, ms / 40));
+  game.haptic = haptic;
   const pop = (el) => { if (S.reduceMotion) return; el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); };
   const down = (id, el) => {
     const b = game.battle, p = b && b.player;
     if (!p || game.paused) return;
-    buzz(id === 'atk' ? 10 : 7);
+    haptic('tap', id === 'atk' ? 0.8 : 0.5);
     pop(el);
     if (T.more) T.moreT = 0;
     switch (id) {
@@ -503,7 +515,8 @@ function setupTouch({ input, game, setPause, toggleBigMap }) {
 
   // 手応え：ゲームパッドの振動（打たれた・鉄砲を放った）を、パッドの無い指の端末では本体の震えに替える
   const vib0 = game.vibrate.bind(game);
-  game.vibrate = (s, ms) => { vib0(s, ms); if (!game.pad) buzz(Math.round(Math.min(60, (ms || 40) * 0.3 * (0.5 + (s || 0.5))))); };
+  // 打たれた（player.js の hurt）・鉄砲を放った（同 0.7・140ms）
+  game.vibrate = (s, ms) => { vib0(s, ms); if (!game.pad) haptic(s === 0.7 && ms === 140 ? 'gun' : 'hurt', s || 0.6); };
   T.buzz = buzz; T.showHint = showHint;
   // 戦の外の画面（城下・問屋・地図・一時停止・物語の札）でも、釦や札に触れた時にごく短く震える（押せたと指で分かる）
   document.addEventListener('pointerdown', (e) => {
@@ -552,7 +565,7 @@ export function touchFrame(dt) {
   if (!on) return;
   // 当てた手応え：止め（ヒットストップ）が掛かった瞬間に短く震える（重い一撃ほど長く）
   const hs = game.hitstop || 0;
-  if (hs > (T.hs || 0) + 0.02 && T.buzz) T.buzz(Math.round(6 + hs * 120));
+  if (hs > (T.hs || 0) + 0.02 && game.haptic) game.haptic(hs > 0.09 ? 'heavy' : 'hit', Math.min(1, 0.45 + hs * 5));
   T.hs = hs;
   // 初めて狙いを定めた時だけ、相手の替え方を一度出す
   if (p.lock && !T.lockTip) { T.lockTip = true; T.showHint(S.touchSwap ? '画面の左を左右に払うと、狙う相手を替える' : '画面の右を左右に払うと、狙う相手を替える'); }

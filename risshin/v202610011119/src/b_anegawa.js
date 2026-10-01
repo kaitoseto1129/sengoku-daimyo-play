@@ -9,7 +9,8 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { nobori, jinmaku, tawara, hut } from './props.js';
 import { flagTexture } from './textures.js';
-import { RANKS } from './state.js';
+import { RANKS, relOf } from './state.js';
+import { buildHorse } from './units.js';
 import { sfx } from './audio.js';
 import { moraleWord } from './hud.js';
 import { gauss, enemyGroup, allyGroup, nm, centerOf, unitPos } from './bhelp.js';
@@ -190,6 +191,10 @@ const anegawa = {
       rt.after(18, () => this.charge(rt));
       return;
     }
+    // 好感で、顔を合わせた時の森可成の物言いが変わる
+    { const R0 = relOf(rt.G, 'mori');
+      if (R0.like >= 70) rt.say('森可成', `おお、${nm(rt)}か。良う来た、頼りにしておるぞ`, 3);
+      else if (R0.like < 35) rt.say('森可成', `${nm(rt)}か……励め。見ておるぞ`, 3); }
     rt.say('森可成', `${nm(rt)}、夜が明けたぞ。川向こうの旗が浅井、西の瀬の向こうが朝倉じゃ`, 4.5);
     rt.say('森可成', '徳川殿は西の瀬で朝倉に当たる。我ら織田は、この川で浅井を受ける', 4.5);
     rt.say('森可成', '前には坂井殿の段がある。抜けてきた者を、ここで槍を揃えて止めよ。わしの備は後ろに控えておる。その方の組は、その一番前じゃ', 5);
@@ -373,6 +378,19 @@ const anegawa = {
     rt.banner('浅井勢、崩れる', '姉川を渡り、追い落とせ');
     rt.say('森可成', '浅井が退くぞ！　川を渡れ！　向こう岸のしんがりを崩せば、この戦は勝ちじゃ！', 4.5);
     rt.obj('pursue', '姉川を渡り、向こう岸で踏みとどまる浅井の殿（しんがり）を崩せ', 'main');
+    // 追い討ちは馬でなければ追いつけない：乗っていなければ、森の備から空馬を一頭引いてくる（身分が足りなくても、この馬だけは乗れる）
+    if (!rt.player.mounted) {
+      const u = rt.player.u, ang = u.heading + Math.PI * 0.35;
+      const hx = u.pos.x + Math.sin(ang) * 3.5, hz = u.pos.z + Math.cos(ang) * 3.5;
+      const h = buildHorse();
+      h.position.set(hx, rt.world.heightAt(hx, hz), hz);
+      h.rotation.set(0, u.heading + Math.PI, 0);
+      rt.scene.add(h);
+      const L = rt.army.looseHorses || (rt.army.looseHorses = []);
+      L.push({ h, heading: u.heading, spd: 0, t: 0, calm: true, from: { team: u.team, house: '森', name: '', speed: 1, hp: 200 } });
+      rt.after(1, () => rt.say('森可成', `${nm(rt)}、これに乗れ！　追い討ちは馬でなければ追いつけぬ！`, 3));
+      rt.after(3, () => rt.bark('空馬が引かれてきた。そばへ寄って手綱を取れば乗れる'));
+    }
     // 判断：浅井の殿を追うか、西の瀬で押し合う徳川を助けに回るか
     if (!rt.G.lord) rt.after(4, () => rt.choose('西の瀬で徳川が朝倉の残りと押し合っている。どうする？', [
       { label: '川を渡り、浅井のしんがりを追う', note: '森の備と一緒に向こう岸へ。追い討ちの手柄' },
@@ -389,7 +407,13 @@ const anegawa = {
         rt.say('森可成', 'よし、西へ行け！　徳川殿に借りを返せ。浅井のしんがりはわしが受け持つ', 3.5);
       } else rt.say('森可成', 'よし、続け！　向こう岸じゃ！', 2.5);
     }, 18));
-    for (const g of [F.mori, F.ikeda, F.kino, F.inaba, F.shibata]) if (g && g.count) { g.order = 'attack'; g.seekRange = 70; g.formation = 'line'; }
+    for (const g of [F.ikeda, F.kino, F.inaba, F.shibata]) if (g && g.count) { g.order = 'attack'; g.seekRange = 70; g.formation = 'line'; }
+    // 警戒が高いと、森の備は下知にすぐ従わない（少し遅れて動き出す）
+    if (F.mori && F.mori.count) {
+      const Rc = relOf(rt.G, 'mori');
+      const go = () => { if (F.mori && F.mori.count) { F.mori.order = 'attack'; F.mori.seekRange = 70; F.mori.formation = 'line'; } };
+      if (Rc.wary >= 55) { rt.say('足軽', '森様の組、下知への応えが鈍い……', 2.5); rt.after(3, go); } else go();
+    }
     const R = enemyGroup(rt, { faction: 'saito', name: '浅井のしんがり', anchor: { x: 24, z: -36 }, facing: 0, fleeDir: { x: 0.1, z: -1 }, aggro: 12, width: 16, morale: 85 },
       dress([{ type: 'busho', n: 1, o: { name: '浅井の殿の侍大将', horse: true, hat: 'kabuto_m', haori: 0x3a4a3a } }, { type: 'samurai', n: 5 }, { type: 'ashigaru', n: 26 }, { type: 'gun', n: 5 }], AZAI));
     F.rear = R;
@@ -416,6 +440,17 @@ const anegawa = {
   update(rt, dt) {
     const F = rt.flags;
     const p = rt.player.u.pos;
+    // 信頼が高いと、深手を負った時に森可成が助けに駆けつける（台詞つき・戦に一度）
+    if (!F.rescued && !F.ending && rt.player.u.alive && rt.player.u.hp < rt.player.u.maxHp * 0.3 && F.moriU && F.moriU.alive && F.mori && F.mori.count) {
+      const Rr = relOf(rt.G, 'mori');
+      if (Rr.trust >= 60) {
+        F.rescued = true;
+        rt.say('森可成', `${nm(rt)}、退くな！　わしが参る！`, 3);
+        F.mori.focus = rt.player.u;
+        F.mori.order = 'attack';
+        rt.after(10, () => { if (F.mori) F.mori.focus = null; });
+      }
+    }
     // 西の瀬の撃ち合い（遠くの音と煙）
     if (!F.ending && F.step >= 1) {
       F.farT -= dt;
@@ -507,7 +542,12 @@ const anegawa = {
     const F = rt.flags;
     F.ending = true;
     rt.banner('浅井・朝倉、退く', '姉川の戦、終わる');
-    rt.say('森可成', rt.G.lord ? '殿、勝ちましたぞ！　浅井は小谷へ逃げ込むほかありますまい' : `勝ったぞ！　${nm(rt)}、ようこらえた。浅井は小谷へ逃げ込むほかあるまい`, 4.5);
+    // 好感で、勝ち戦の後の一言が変わる
+    const R9 = relOf(rt.G, 'mori');
+    const vLine = R9.like >= 70 ? `よう働いた、${nm(rt)}！　お主がおって良かった。浅井は小谷へ逃げ込むほかあるまい`
+      : R9.like < 35 ? '勝ったぞ。……まずまずの働きであった。浅井は小谷へ逃げ込むほかあるまい'
+      : `勝ったぞ！　${nm(rt)}、ようこらえた。浅井は小谷へ逃げ込むほかあるまい`;
+    rt.say('森可成', rt.G.lord ? '殿、勝ちましたぞ！　浅井は小谷へ逃げ込むほかありますまい' : vLine, 4.5);
     rt.say('伝令', '横山城、降ると申し出ておりまする！', 3);
     sfx('horagai', 0.8);
     rt.player.u.invuln = true;   // 戦が終わったあとの流れ弾で重傷にならないように

@@ -298,7 +298,7 @@ export class Player {
       if (o.kept) this.takeHorse(o); else if (!this.catching) { this.catching = { o, t: 0 }; rt.hud.flash('手綱を取っている…（離れると止める）', 'dim'); }
       return;
     }
-    if (!this.canRide) return;
+    if (!this.canRide) { rt.hud.flash('まだ馬に乗れる身分ではない（足軽大将候補から）', 'dim'); return; }
     if (L && L.mode === 'fled' && this.spoil) { rt.hud.flash(`${this.horseName}は逃げ去った`, 'dim'); return; }
     if (!L || L.mode === 'fled') { rt.hud.flash(L && L.backAt ? `${this.horseName}は戻る途中（あと${Math.max(1, Math.ceil(L.backAt - rt.t))}秒）` : `${this.horseName}がいない`, 'dim'); return; }
     const d = Math.hypot(L.x - u.pos.x, L.z - u.pos.z);
@@ -746,6 +746,7 @@ export class Player {
         this.staDelay = 0.8;
         this.rt.stats.blocks++;
         sfx('block', 1);
+        if (this.rt.game.haptic) this.rt.game.haptic('block', Math.min(1, amount / 30));
         hud.hurt(0.1);
         this.addShake(0.05);
         if (this.sta <= 0) {
@@ -1011,7 +1012,9 @@ export class Player {
     } else this.running = shift;
     if (this.mounted) this.rideMove(dt, input, iz, mx, mz, ml);
     else {
-      const canRun = this.running && this.sta > 5 && ml > 0 && !this.guard && !this.aiming && !(this.draw > 0);
+      // 斬り合っている間（直近3秒に突いた）は、走って気力を削らない：でないと突き続けるうちに気力が切れ、
+      // 突いても出なくなる（「突いても当たらない」の大半は、実は出が止まっていただけだった。bot の数で確かめ済み）
+      const canRun = this.running && this.sta > 5 && ml > 0 && !this.guard && !this.aiming && !(this.draw > 0) && !(this.inCombatT > 0);
       // よろめいている間は足が思うように出ない（騎馬に倒された時はほとんど動けない）
       // 撃たれた後しばらくは足が重い（走れても遅い。gunHurtT が減るにつれ戻る）
       const shot = this.gunHurtT > 0 ? 0.55 + 0.45 * (1 - this.gunHurtT / 8) : 1;
@@ -2017,6 +2020,7 @@ export class Player {
       return;
     }
     const before = undoable && rt.squadSnaps ? rt.squadSnaps() : null;
+    if (rt.game.haptic) rt.game.haptic('order');   // 号令の手応え（携帯：太鼓の二打の震え）
     if (!['fire', 'roll', 'ceasefire', 'form'].includes(id)) kamaeOff(rt);
     // 号令は耳でも分かるように：かかれ・進め＝法螺と陣太鼓、退け＝鉦の連打、ついて来い＝法螺二声、ほか＝太鼓一打（同じ合図は 6 秒に一度）
     const sig = { attack: 'sig_susume', move: 'sig_susume', retreat: 'sig_hike', follow: 'sig_atsumare' }[id];

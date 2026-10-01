@@ -74,7 +74,7 @@ export function wallLine(rt, pts, o = {}) {
       if (o.sama) s.samaStep = o.sama;
       if (o.h) s.h = o.h;
       s.mesh = (o.mesh || palisade)(rt.world, seg, o.sama ? { ...(o.meshOpt || {}), samaStep: o.sama } : o.meshOpt || {});
-      rt.scene.add(s.mesh);
+      if (!s.mesh.isBatchedPart) rt.scene.add(s.mesh);
       out.push(s);
     }
   }

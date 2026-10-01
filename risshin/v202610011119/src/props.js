@@ -1759,15 +1759,83 @@ function weather(g, k) {
   }
   return g;
 }
-function kitMesh(B, cam = true) {
-  const M = ck(), grp = new THREE.Group();
+function kitMesh(B, cam = true, batch = null) {
+  const M = ck();
+  if (!batch) {
+    const grp = new THREE.Group();
+    for (const k of Object.keys(B)) {
+      if (!B[k].length) continue;
+      const m = new THREE.Mesh(mergeGeometries(B[k].map((g) => (g.index ? g.toNonIndexed() : g)).map((g) => weather(g.attributes.color ? g : paint(g, 0xffffff), k))), M[k]);
+      m.castShadow = true; m.receiveShadow = true; m.userData.camBlock = cam;
+      grp.add(m);
+    }
+    return grp;
+  }
+  // batch がある時：城ひとつぶんの「材質ごとの入れ物」へ、この部品（壁の一区画・櫓一つ等）の
+  // 材質ごとの形を積むだけ（実の描画は finalizeKitBatch でまとめて一つずつの BatchedMesh にする）
+  const part = new BatchedPart();
   for (const k of Object.keys(B)) {
     if (!B[k].length) continue;
-    const m = new THREE.Mesh(mergeGeometries(B[k].map((g) => (g.index ? g.toNonIndexed() : g)).map((g) => weather(g.attributes.color ? g : paint(g, 0xffffff), k))), M[k]);
-    m.castShadow = true; m.receiveShadow = true; m.userData.camBlock = cam;
-    grp.add(m);
+    const geo = mergeGeometries(B[k].map((g) => (g.index ? g.toNonIndexed() : g)).map((g) => weather(g.attributes.color ? g : paint(g, 0xffffff), k)));
+    (batch.pending[k] || (batch.pending[k] = [])).push({ geo, part, cam });
   }
-  return grp;
+  return part;
+}
+
+// ======================================================================
+// 城の塀・門の櫓・石垣は、同じ形を army の struct と一対一でメッシュに持つと、城ひとつで
+// 何十もの描く回数（draw call）になる（docs のお題：高遠を軽く）。壊れた時の個別の見た目
+// （structTilt の行列・structFall の非表示）は変えず、材質ごとに一つの THREE.BatchedMesh へ
+// まとめて描く（r160 の BatchedMesh は addGeometry が返す番号＝そのまま一つの「実体」の番号で、
+// setMatrixAt・setVisibleAt でその一つだけ動かせる＝army_fx.js の struct.mesh の使い方とそのまま合う）。
+// ======================================================================
+export function makeKitBatch() { return { pending: {}, meshes: [] }; }
+
+class BatchLiveMatrix extends THREE.Matrix4 {
+  constructor(owner) { super(); this.owner = owner; }
+  copy(m) { super.copy(m); this.owner._sync(); return this; }
+  multiply(m) { super.multiply(m); this.owner._sync(); return this; }
+  premultiply(m) { super.premultiply(m); this.owner._sync(); return this; }
+}
+// army_fx.js の structTilt・structFall が触る物（m.position・m.rotation・m.matrix・m.matrixAutoUpdate・
+// m.visible）だけを、本物の Object3D の代わりに持つ入れ物。実は BatchedMesh の一つの実体を指すだけ
+class BatchedPart {
+  constructor() {
+    this.isBatchedPart = true;
+    this.position = new THREE.Vector3();
+    this.rotation = new THREE.Euler();
+    this.matrixAutoUpdate = true;
+    this.matrixWorldNeedsUpdate = false;
+    this.matrix = new BatchLiveMatrix(this);
+    this._insts = [];
+    this._visible = true;
+  }
+  _addInst(mesh, id) { this._insts.push([mesh, id]); }
+  _sync() { for (const [mesh, id] of this._insts) mesh.setMatrixAt(id, this.matrix); }
+  get visible() { return this._visible; }
+  set visible(v) { this._visible = v; for (const [mesh, id] of this._insts) mesh.setVisibleAt(id, v); }
+}
+// 城の積み終わり：材質ごとにためた形を、一つずつの BatchedMesh にして舞台へ置く
+export function finalizeKitBatch(rt, batch) {
+  const M = ck();
+  for (const key of Object.keys(batch.pending)) {
+    const list = batch.pending[key];
+    if (!list.length) continue;
+    let totalV = 0;
+    for (const { geo } of list) totalV += geo.attributes.position.count;
+    const bm = new THREE.BatchedMesh(list.length, Math.max(totalV, 1), undefined, M[key]);
+    bm.castShadow = true; bm.receiveShadow = true;
+    let anyCam = false;
+    for (const { geo, part, cam } of list) {
+      const id = bm.addGeometry(geo);
+      part._addInst(bm, id);
+      if (cam) anyCam = true;
+    }
+    bm.userData.camBlock = anyCam;
+    rt.scene.add(bm);
+    batch.meshes.push(bm);
+  }
+  batch.pending = {};
 }
 // 箱（中心 x,y,z、幅 w・高さ h・奥行き d、y 軸の回り rot）。uvk：絵の繰り返しを大きさに合わせる（m ごと）
 function kbox(P, hex, x, y, z, w, h, d, rot = 0, uvk = 0) {
@@ -1924,7 +1992,7 @@ export function ishigaki(world, pts, o = {}) {
     // 天端の笠石：平たい石を一列（板に見えないよう、一つずつ）
     stoneCourse(B, kind, ax, az, bx, bz, (t) => topAt(t) + 0.22, (t) => topAt(t) - 0.02, 0, side, s * 23 + 7, o.big || 1);
   }
-  return kitMesh(B);
+  return kitMesh(B, true, o.batch);
 }
 // 四角い台（櫓・天守・門の脇）を石で積む：中心 x,z、幅 w・奥行き d、回り rot、高さ h（下は地面より 0.6 深く）
 function stoneBase(B, world, kind, x, z, w, d, rot, h) {
@@ -2022,7 +2090,7 @@ export function dobei(world, seg, o = {}) {
     for (const hy of [0.7, 1.45]) kbox(B.wood, 0x33291f, x - nx * hs * 0.42, y + hy, z - nz * hs * 0.42, 0.1, 0.14, 0.95, rot);
     kbox(B.wood, 0x2c2622, x, y + 1.74, z, 0.3, 0.06, 0.3, rot);
   }
-  return kitMesh(B);
+  return kitMesh(B, true, o.batch);
 }
 
 // 築地塀（寺や御所の塀）：土塀と同じ瓦の笠と腰の石で、狭間と下見板の無い厚い土の壁
@@ -2060,7 +2128,7 @@ export function sumiyagura(world, x, z, o = {}) {
   ktile(B.tile, B.plaster, x, yy + 2.2, z, w2 + 1.9, d2 + 1.9, 1.5, rot, 0.4);
   // 棟の鯱
   for (const s of [-1, 1]) { const [cx, cz] = P(s * (w2 / 2 + 0.2), 0); kbox(B.iron, 0x2a2622, cx, yy + 3.85, cz, 0.18, 0.5, 0.26, rot); }
-  return kitMesh(B);
+  return kitMesh(B, true, o.batch);
 }
 
 // 櫓門：門柱の上に渡櫓（白壁と下見板・格子窓）を渡し、瓦の屋根。w は通り道の幅。当たりは門柱と両脇の石垣だけ（通り道は空ける）

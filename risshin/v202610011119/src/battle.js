@@ -5,7 +5,7 @@ import { drawMon } from './textures.js';
 import { tagOf, TAG_COL, groupKind, groupGeneral } from './hud.js';
 import { updateHumans } from './humans.js';
 import { Player, RADIAL, GROUP_NAME } from './player.js';
-import { MeritTracker, RANKS, scenario, TOMO, tomoAlive, tomoCap, BATTLES } from './state.js';
+import { MeritTracker, RANKS, scenario, TOMO, tomoAlive, tomoCap, BATTLES, relOf } from './state.js';
 import { sfx, setCrowd, setRain, ambience, setScene, afterBattle, silence, farNext, deafen, hush, fadeAway } from './audio.js';
 import { S, QUALITY, DIFFICULTY, hintSeen, markHint, K } from './settings.js';
 import { TITLES } from './state.js';
@@ -1079,7 +1079,9 @@ export class Battle {
       const g = this.army.addGroup({ team: 0, faction: this.G.lordFaction || scenario().faction, order: 'follow', formation: 'line', facing, anchor: { ...center }, isPlayerSquad: true, dmgMult: lead, aggro: 8, spacing: 1.6 });
       g.kind = spec.kind;
       g.fire = true;
-      g.morale = Math.min(100, 90 + (this.G.stats.lead - 1) * 3 + (this.G.equip.coat ? 5 : 0) + (this.G.feast ? 10 : 0));
+      // 上役に尊敬されているほど、自分の組の士気が上がる（人間関係を戦に効かせる。既定の尊敬40を基準に）
+      const bi0 = BATTLES[this.index], relR = bi0 && bi0.rel ? relOf(this.G, bi0.rel) : null;
+      g.morale = Math.min(100, 90 + (this.G.stats.lead - 1) * 3 + (this.G.equip.coat ? 5 : 0) + (this.G.feast ? 10 : 0) + (relR ? Math.round((relR.respect - 40) * 0.25) : 0));
       // 組の種類：spear（槍）・bow（弓）・gun（鉄砲。二段で入れ替わる）・cavalry（騎馬）
       if (spec.ranks) g.ranks = spec.ranks;
       const type = { bow: 'bow', gun: 'gun', cavalry: 'cavalry' }[spec.kind] || 'ashigaru';

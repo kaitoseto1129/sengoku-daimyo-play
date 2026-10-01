@@ -177,6 +177,13 @@ export function openGungi(game, battle, onDone) {
   const cam = makeCam(game, battle, center, G.dist, G.landmarks);
   let showInfo = false;
 
+  // 霧：野戦用の近い霧（40〜230）のままだと、回して見るカメラ（最大220m）より城が先に霧へ沈む。
+  // 軍議の間だけ、城が見える距離（カメラが届く最大距離＋余裕）に合わせ、閉じたら必ず元へ戻す【粗2改・1】
+  const fog = battle.world && battle.world.scene && battle.world.scene.fog;
+  const fog0 = fog ? { near: fog.near, far: fog.far } : null;
+  if (fog) { fog.near = Math.max(fog.near, 60); fog.far = Math.max(fog.far, 220 + 120); }
+  const restoreFog = () => { if (fog && fog0) { fog.near = fog0.near; fog.far = fog0.far; } };
+
   const assign = {};
   const deployAssign = {};
   const def0 = G.default || {};
@@ -235,6 +242,7 @@ export function openGungi(game, battle, onDone) {
   }
 
   function finish() {
+    restoreFog();
     root.hidden = true;
     root.innerHTML = '';
     try { if (typeof G.onStart === 'function') G.onStart({ ...assign }, { ...deployAssign }); } catch (e) { /* 戦の定義の側の事。ここでは止めない */ }

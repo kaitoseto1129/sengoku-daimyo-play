@@ -91,8 +91,11 @@ export function ladderStep(G) {
 }
 // 画面に出す身分の名（試しのときは試している段の名）
 export function rankLabel(G) { if (G.lordTitle) return G.lordTitle; return G.trialStep != null ? LADDER[G.trialStep].name : RANKS[G.rank].name; }
-// 馬に乗れるか（足軽大将から）
-export function canRide(G) { return ladderStep(G) >= 2; }
+// 馬に乗れるか（史実の騎乗身分に合わせ、足軽大将候補から。徒士の足軽・組頭はまだ乗れない）
+export function canRide(G) {
+  if (G && G.trialStep != null) return G.trialStep >= 2;
+  return ladderStep(G) >= 2 || (G && G.rank >= 3);
+}
 
 
 // ---------------- 織田家編の戦の並び ----------------

@@ -160,7 +160,7 @@ const okehazama = {
       rt.say('簗田政綱', '殿、今川の本陣は桶狭間の山あいにて休んでおりまする。義元の塗輿も見えたと', 4.5);
       rt.say('柴田勝家', '手勢は二千。敵は二万五千……。されど、狙うは義元ただ一人にござる', 4);
       rt.say('織田信長', '首は取るな、討ち捨てにせよ。狙うは義元の本陣のみ。――出るぞ', 4);
-      rt.after(13, () => this.brief(rt));
+      rt.after(9, () => this.brief(rt));
     } else {
     rt.obj('talk', '組頭の源八と話せ', 'main');
     rt.marker('genpachi', unitPos(rt.flags.genpachi), '組頭 源八');
@@ -359,17 +359,18 @@ const okehazama = {
   wait(rt, dt) {
     const F = rt.flags;
     const p = rt.player.u.pos;
-    rt.objProgress('wait', rt.pt < 16 ? '雨はまだ強い' : 'まもなく合図');
+    // 待ちの段は長すぎた（桶狭間が約10分の主因の一つ）ので縮めた：22秒→15秒で「かかれ」（bot の数で確かめ済み）
+    rt.objProgress('wait', rt.pt < 11 ? '雨はまだ強い' : 'まもなく合図');
     // 待ちの間：源八と弥七の小声、一人称の案内（一度だけ）
-    if (!F.w1 && rt.pt > 3) { F.w1 = true; rt.say('弥七', '（小声で）……源八殿、今川の者ども、飯を炊いておるようじゃ。煙が見える', 3.5); rt.after(4, () => rt.say('源八', '（小声で）黙っておれ。この雨が、殿の味方じゃ', 3)); }
-    if (!F.w2 && rt.pt > 9) { F.w2 = true; rt.bark(isTouch ? '視点を替えて、雨の中を見てみよ（右上の「視点」）' : `視点を替えて、雨の中を見てみよ（${K('view')}）`); }
-    if (!F.w3 && rt.pt > 12) { F.w3 = true; rt.say('弥七', '（小声で）手が震えるわ……', 2.5); rt.after(3, () => rt.say('源八', '（小声で）震えてよい。震えぬ奴から死ぬ', 3)); }
-    if (rt.G.lord && p.z < -74 && rt.pt < 22) rt.pt = 22;
+    if (!F.w1 && rt.pt > 2) { F.w1 = true; rt.say('弥七', '（小声で）……源八殿、今川の者ども、飯を炊いておるようじゃ。煙が見える', 3.5); rt.after(3, () => rt.say('源八', '（小声で）黙っておれ。この雨が、殿の味方じゃ', 3)); }
+    if (!F.w2 && rt.pt > 6) { F.w2 = true; rt.bark(isTouch ? '視点を替えて、雨の中を見てみよ（右上の「視点」）' : `視点を替えて、雨の中を見てみよ（${K('view')}）`); }
+    if (!F.w3 && rt.pt > 8) { F.w3 = true; rt.say('弥七', '（小声で）手が震えるわ……', 2.5); rt.after(2, () => rt.say('源八', '（小声で）震えてよい。震えぬ奴から死ぬ', 3)); }
+    if (rt.G.lord && p.z < -74 && rt.pt < 15) rt.pt = 15;
     if (!F.early && p.z < -74 && !rt.G.lord) {
       F.early = true;
       rt.violation('合図を待たずに突出', ['源八', '戻れ！まだだと言うておる！']);
     }
-    if (rt.pt > 16 && !F.clear) {
+    if (rt.pt > 11 && !F.clear) {
       F.clear = true;
       rt.world.setRainTarget(0);
       rt.world.setTime('after');
@@ -377,8 +378,8 @@ const okehazama = {
       rt.banner('雨が上がった');
     }
     // 雨が上がる → 静けさ → 信長の「かかれ」→ 法螺と鬨 → 一斉に駆け下りる（6 秒ほど）
-    if (rt.pt > 19 && !F.hushed) { F.hushed = true; hush(3); }
-    if (rt.pt > 22 && !F.kakare) {
+    if (rt.pt > 13 && !F.hushed) { F.hushed = true; hush(3); }
+    if (rt.pt > 15 && !F.kakare) {
       F.kakare = true;
       const nobu = F.nob.units[0];
       if (nobu && nobu.alive && !rt.G.lord) rt.player.cine = { x: nobu.pos.x, z: nobu.pos.z, t: 2 };

@@ -8,7 +8,7 @@
 // 自分で手置きしているので、今まで通り何も増えない＝後方互換）。
 // ======================================================================
 import { wallLine } from './bhelp.js';
-import { palisade, dobei, ishigaki, sakamogi } from './props.js';
+import { palisade, dobei, ishigaki, sakamogi, makeKitBatch, finalizeKitBatch } from './props.js';
 import { addDeck } from './floors.js';
 import {
   kabukiGate, yaguraGate, ironGate, masugata, sumiyaguraTower, monomi,
@@ -69,7 +69,7 @@ export function heightOf(plan, baseFn, edgeW = 3.2) {
 }
 
 // 曲輪の縁に塀を作る（gapAt があれば、そこを避けて切る＝虎口の口）
-function buildKuruwaWall(rt, k) {
+function buildKuruwaWall(rt, k, batch) {
   if (!k.wall) return [];
   const mesh = k.wall === 'ishigaki' ? null : k.wall === 'dobei' ? dobei : palisade;
   const poly = k.poly;
@@ -88,12 +88,12 @@ function buildKuruwaWall(rt, k) {
   if (k.wall === 'ishigaki') {
     const start = gapIdx.length ? (gapIdx[0] + 1) % poly.length : 0;
     const pts = [...poly.slice(start), ...poly.slice(0, start), poly[start]];
-    const m = ishigaki(rt.world, pts, { top: 1.4, minH: 2.4, maxH: 3.2 });
-    rt.scene.add(m);
+    const m = ishigaki(rt.world, pts, { top: 1.4, minH: 2.4, maxH: 3.2, batch });
+    if (!m.isBatchedPart) rt.scene.add(m);
     return [m];
   }
   // segLen: 999 で「多角形の一辺＝一つの壁」に（ringWall と同じやり方）。gaps の番号が辺の番号とそのまま合う
-  return wallLine(rt, poly, { closed: true, gaps: gapIdx, team: 1, hp: 380, segLen: 999, mesh, name: k.name || '塀' });
+  return wallLine(rt, poly, { closed: true, gaps: gapIdx, team: 1, hp: 380, segLen: 999, mesh, meshOpt: { batch }, name: k.name || '塀' });
 }
 
 // 堀（plan.hori の一つ）から、高さへ混ぜる窪みの関数を作る（docs 1-4）。
@@ -140,11 +140,11 @@ function buildKoguchiGates(rt, plan, o) {
 }
 
 // 櫓（plan.yagura の一つずつ）を建てる（docs 5-2）。y.kind：'sumi'（隅櫓・二段）・既定は物見櫓（一段）
-function buildYaguraTowers(rt, plan, o) {
+function buildYaguraTowers(rt, plan, o, batch) {
   return (plan.yagura || []).filter((y) => y.at).map((y) => {
     const team = o.towerTeam ?? o.team ?? 1;
     const t = y.kind === 'sumi'
-      ? sumiyaguraTower(rt, y.at[0], y.at[1], { rot: y.rot ?? 0, w: y.w, d: y.d, team, stone: y.stone })
+      ? sumiyaguraTower(rt, y.at[0], y.at[1], { rot: y.rot ?? 0, w: y.w, d: y.d, team, stone: y.stone, batch })
       : monomi(rt, y.at[0], y.at[1], { team, name: y.name });
     return { id: y.id, kind: y.kind || 'monomi', ...t };
   });
@@ -161,6 +161,9 @@ export function buildCastlePlan(rt, plan, o = {}) {
   const baseWithHori = horiFns.length ? (x, z) => horiFns.reduce((hh, f) => hh + f(x, z), baseFn(x, z)) : baseFn;
   const height = heightOf(plan, baseWithHori, o.edgeW);
   const nav = buildNav(plan);
+  // 塀・石垣・隅櫓は形がそれぞれ違うので InstancedMesh は使えないが、材質ごとに一つの
+  // BatchedMesh へまとめて描く（壊れた時の個別の見た目は struct.mesh のふりをする入れ物で保つ）
+  const batch = makeKitBatch();
   const C = {
     plan, height, kuruwa: {}, walls: [], decks: [], towers: [],
     nav, route: (a, b) => navFind(nav, a, b),
@@ -178,12 +181,13 @@ export function buildCastlePlan(rt, plan, o = {}) {
       const half = r * 0.7;
       addDeck({ x0: centroid.x - half, x1: centroid.x + half, z0: centroid.z - half, z1: centroid.z + half, y: lvl, name: k.name });
     }
-    if (!(o.skipWalls || []).includes(k.id)) C.walls.push(...buildKuruwaWall(rt, k));
+    if (!(o.skipWalls || []).includes(k.id)) C.walls.push(...buildKuruwaWall(rt, k, batch));
     if (k.sakamogi) for (const [sx, sz, rot] of k.sakamogi) rt.scene.add(sakamogi(rt.world, sx, sz, rot, 6));
   }
   // 虎口の曲がり：枡形は冠木門→広場→直角に櫓門、それ以外は指定の門を一つ（docs C2）
   if (o.buildGates) C.gateObjs = buildKoguchiGates(rt, plan, o);
-  if (o.buildTowers) C.towers = buildYaguraTowers(rt, plan, o);
+  if (o.buildTowers) C.towers = buildYaguraTowers(rt, plan, o, batch);
+  finalizeKitBatch(rt, batch);
   return C;
 }
 
