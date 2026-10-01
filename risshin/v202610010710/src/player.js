@@ -851,7 +851,8 @@ export class Player {
     if (heavy) deafen(0.25 + 0.45 * w);
     // ⑤ 振動（ゲームパッド・スマホ）
     rt.game.vibrate(0.35 + 0.65 * w, Math.round(80 + 170 * w));
-    rt.hint('guard');
+    // 話す場面（brief）の最中は手ほどきを出さない。実戦で打たれた時へ寄せる
+    if (rt.phase !== 'brief') rt.hint('guard');
   }
 
   update(dt, input) {

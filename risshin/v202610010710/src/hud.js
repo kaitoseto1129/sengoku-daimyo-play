@@ -1020,12 +1020,16 @@ export class Hud {
     this.ghost = this.ghost === undefined ? hpPct : Math.max(hpPct, this.ghost - dt * 25);
     if (hpPct > this.ghost) this.ghost = hpPct;
     setWidth(hpEl.querySelector('s'), this.ghost);
-    // 数は減っている時だけ（満ちていれば棒の長さで足りる）
-    setText(hpEl.querySelector('em'), u.hp < u.maxHp ? `${Math.ceil(Math.max(0, u.hp))}/${u.maxHp}` : '');
+    // 低い画面（細い棒だけ）では、線だけで体力と分からないので「体」の字と数を常に添える
+    const tcLow = isTouch && document.documentElement.classList.contains('tc-low');
+    const emEl = hpEl.querySelector('em');
+    // 数は減っている時だけ（満ちていれば棒の長さで足りる）。低い画面では常に出す
+    setText(emEl, tcLow || u.hp < u.maxHp ? `${Math.ceil(Math.max(0, u.hp))}/${u.maxHp}` : '');
+    if (tcLow) emEl.style.fontWeight = u.hp < u.maxHp ? '700' : '400';
     // 深手（三割を切る）は数字を朱の字で太く、帯の名も「深手」に
     const deep = u.hp < u.maxHp * 0.3;
     hpEl.classList.toggle('deep', deep);
-    setText(hpEl.querySelector('span'), deep ? '深手' : '体力');
+    setText(hpEl.querySelector('span'), tcLow ? (deep ? '手' : '体') : (deep ? '深手' : '体力'));
     // 体力も気力も満ちていれば、平時は札ごと消してよい（.bl.full。馬に乗れる身分は馬の傷みも見る）
     const bl = hpEl.parentElement;
     if (bl) bl.classList.toggle('full', u.hp >= u.maxHp && p.sta >= p.maxSta * 0.98 && (!p.canRide || p.horseHp >= p.horseMax * 0.98));

@@ -277,7 +277,7 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
     @media (max-height:500px){.ng h2{font-size:22px;margin:2px 0 4px}.ng .note{margin:2px 0}.ng .sc-path{display:none}.ng-act{padding-top:8px;padding-bottom:calc(8px + env(safe-area-inset-bottom))}}
   </style>
   <div id="ng" class="ng" hidden>
-    <div class="ng-top"><span class="eyebrow" id="ng-count" aria-live="polite">1 / 3</span><ol class="ng-dots" aria-hidden="true"><li class="on"></li><li></li><li></li></ol></div>
+    <div class="ng-top" id="ng-top"><span class="eyebrow" id="ng-count" aria-live="polite">1 / 3</span><ol class="ng-dots" aria-hidden="true"><li class="on"></li><li></li><li></li></ol></div>
     <section class="ng-step" aria-labelledby="ng-h0"><h2 id="ng-h0" tabindex="-1">名を決める</h2><p class="note">あなたが演じる足軽の名（8字まで）</p><div class="field"><label for="nm">足軽の名</label><input id="nm" maxlength="8" value="${esc(pre.name || '弥五郎')}" autocomplete="off" enterkeyhint="next" aria-describedby="nm-help"><small class="note" id="nm-help">8字まで。空のままなら「弥五郎」になります</small></div></section>
     <section class="ng-step" aria-labelledby="ng-h1" hidden><h2 id="ng-h1" tabindex="-1">筋書きを選ぶ</h2><p class="note">遊ぶ時代を選ぶ</p><div class="diffs scn scn-all" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px" role="radiogroup" aria-labelledby="ng-h1">${scns.map((k) => scnCard(k, k === scn0)).join('')}</div></section>
     <section class="ng-step" aria-labelledby="ng-h2" hidden><h2 id="ng-h2" tabindex="-1">難易度を選ぶ</h2><p class="note">迷ったら「普通」</p><div class="diffs" role="radiogroup" aria-labelledby="ng-h2">${Object.entries(DIFFICULTY).map(([k, d]) => `<label><span><input type="radio" name="diff" value="${k}" ${k === diff0 ? 'checked' : ''}> ${d.name}</span><small>${d.note}</small></label>`).join('')}</div></section>
@@ -306,7 +306,7 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
     <div id="io-box"></div>
     </section>
     <div style="height:36px"></div>
-    ${matchMedia('(pointer: coarse)').matches ? '<div class="eyebrow" style="margin-bottom:12px">操作（指）</div><p class="note">左の親指：触れた所に出る棒で歩く（外まで押し込むと走る）<br>右側をなぞる：見回す<br>右下の丸：突く（押し続けて離すと溜め突き）・構え・回避・狙い・鼓舞・号令（押したまま滑らせて選ぶ）<br>左上：止める・地図　／　キーボードやゲームパッドをつなぐと、そのまま使えます</p><div style="height:14px"></div><details><summary class="note" style="cursor:pointer">キーボード・マウスの操作</summary><div style="height:10px"></div>' + keysHtml() + '</details>' : `<details><summary class="note" style="cursor:pointer">キーボード・マウスの操作</summary><div style="height:10px"></div>${keysHtml()}</details>`}
+    ${matchMedia('(pointer: coarse)').matches ? '<details><summary class="note" style="cursor:pointer">操作を見る</summary><div style="height:10px"></div><p class="note">左の親指：触れた所に出る棒で歩く（外まで押し込むと走る）<br>右側をなぞる：見回す<br>右下の丸：突く（押し続けて離すと溜め突き）・構え・回避・狙い・鼓舞・号令（押したまま滑らせて選ぶ）<br>左上：止める・地図　／　キーボードやゲームパッドをつなぐと、そのまま使えます</p><div style="height:14px"></div><p class="note" style="margin:0 0 6px">キーボード・マウスの操作</p>' + keysHtml() + '</details>' : `<details><summary class="note" style="cursor:pointer">キーボード・マウスの操作</summary><div style="height:10px"></div>${keysHtml()}</details>`}
     <div style="height:18px"></div>
     <details><summary class="note" style="cursor:pointer">ゲームパッドの操作</summary><div style="height:10px"></div>${keysHtml(true)}</details>
     <div style="height:22px"></div>
@@ -388,8 +388,11 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
     const n = ORDER[k], last = k === ORDER.length - 1;
     document.querySelectorAll('#ng .ng-step').forEach((el, i) => { el.hidden = i !== n; });
     document.querySelectorAll('#ng .ng-dots li').forEach((el, i) => { el.hidden = i >= ORDER.length; el.classList.toggle('on', i <= k); });
+    // 歩が一つだけなら、数え（1 / 1）と点は出さない（数える意味が無いので）
+    $('ng-top').hidden = ORDER.length <= 1;
     $('ng-count').textContent = `${k + 1} / ${ORDER.length}`;
-    $('ng-next').textContent = last ? '出陣する' : '次へ';
+    // 「出陣」は物語の札の釦だけに使う。ここは始める合図だけ
+    $('ng-next').textContent = last ? '始める' : '次へ';
     $('screen').scrollTop = 0;
     // 焦点：名の欄（触る端末では文字盤で画面が隠れるので当てない）か、選んである札
     const touch = matchMedia('(pointer: coarse)').matches;
@@ -2757,7 +2760,7 @@ export function recordsScreen(onBack) {
       <div><b>${dojoBest}</b><small>稽古場の最高${(() => { try { const d = JSON.parse(localStorage.getItem('sengoku-risshin-dojo-detail') || 'null'); return d ? `（第${d.wave}陣・${Math.floor(d.time / 60)}分${String(d.time % 60).padStart(2, '0')}秒・${new Date(d.date).toLocaleDateString('ja-JP')}）` : ''; } catch (e) { return ''; } })()}</small></div>
       ${(() => { try { const z = JSON.parse(localStorage.getItem('sengoku-risshin-zukan') || 'null') || {}; const n = z.n || {}; return `<div><b>${n.battles || 0}</b><small>延べの戦（やり直しも）</small></div><div><b>${n.kills || 0}</b><small>延べの討ち取り</small></div><button class="rc-zk" id="rec-zk"><b>${Object.keys(z.met || {}).length}</b><small>会った武将（図鑑）</small></button><button class="rc-zk" id="rec-ach"><b>${Object.keys(z.ach || {}).length}</b><small>得た実績</small></button>`; } catch (e) { return ''; } })()}
     </div>
-    ${all.map(slotRow).join('') || '<p class="note">まだ記録がありません。タイトルで「新しく始める」を選ぶと、ここに戦ごとの評定が並びます。</p>'}
+    ${all.map(slotRow).join('') || '<p class="note">まだ記録がありません。戦を終えると、ここに戦ごとの評定が並びます。</p>'}
     <div class="eyebrow" style="margin-top:20px">称号</div>
     <div class="titles">${Object.entries(TITLES).map(([id, t]) => `<div class="${titles.has(id) ? 'got' : ''}"><b>${esc(t.name)}</b><small>${esc(t.note)}</small>${TITLE_ONLY[id] ? `<small class="only">${esc(TITLE_WHERE[id] || TITLE_ONLY[id].map((k) => SCENARIOS[k].name).join('・'))}で得られる</small>` : ''}</div>`).join('')}</div>
     <div class="row" style="margin-top:18px"><button class="btn small" id="rec-clear">図鑑・実績・稽古場の記録を消す</button></div><div id="rec-cf"></div>
@@ -2815,7 +2818,7 @@ export function ladderScreen(G, onBack, onTry) {
     const L = LADDER[sel];
     const st = stepState(sel);
     const n = need(sel);
-    const cond = st === 'done' ? '到達済み' : st === 'now' ? 'いまの身分' : sel > PLAYABLE ? 'この先は本編で（姿は稽古場で見られる）' : (() => {
+    const cond = st === 'done' ? '到達済み' : st === 'now' ? 'いまの身分' : sel > PLAYABLE ? 'この先は天下の地図で（姿は稽古場で見られる）' : (() => {
       const r = LADDER[sel].ranks[0];
       const bi = RANK_CEIL.findIndex((c) => c >= r);
       const ceilNote = bi > 0 && BATTLES[bi] ? `「${BATTLES[bi].name.replace(/の戦い$/, '')}」の後から（戦ごとに上がれる身分に限りがある）` : '';
@@ -2849,7 +2852,7 @@ export function ladderScreen(G, onBack, onTry) {
   </style><div class="wrap ladder">
     <div class="eyebrow">出世の道</div>
     <h2 class="ld-title">足軽から、天下人へ</h2>
-    <p class="note">いまの身分：<b style="color:var(--kin)">${esc(rankLabel({ ...G, trialStep: null }))}</b>（累計戦功 ${G.merit}）。${scenarioKey() === 'oda' ? '織田家編' : 'この筋書き'}は足軽大将まで。その先の身分は、姿を見て稽古場で試せます。</p>
+    <p class="note">いまの身分：<b style="color:var(--kin)">${esc(rankLabel({ ...G, trialStep: null }))}</b>（累計戦功 ${G.merit}）。本編の身分は足軽大将まで。この先は天下の地図で（姿は稽古場で試せます）。</p>
     <div class="ld-stair" role="group" aria-label="十の段">${LADDER.map((L, i) => `<button type="button" aria-label="${KANSUJI[i]}の段 ${esc(L.name)}（${esc(L.cmd)}）${stepState(i) === 'now' ? '・いまの身分' : ''}" class="ld-step st-${stepState(i)} ${i > PLAYABLE ? 'beyond' : ''}" data-i="${i}" style="--i:${i}">
         <span class="k">${KANSUJI[i]}</span><b>${esc(L.name)}</b><small>${esc(L.cmd)}</small>${stepState(i) === 'now' ? '<em>いま</em>' : stepState(i) === 'next' ? '<em class="nx">次</em>' : ''}${stepState(i) === 'next' && i <= PLAYABLE && need(i) != null ? `<small class="ld-left">あと ${Math.max(0, need(i) - G.merit)}</small>` : ''}
       </button>`).join('')}<div class="ld-line" aria-hidden="true"><i style="width:${(cur / (LADDER.length - 1)) * 100}%"></i></div></div>

@@ -1,7 +1,7 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202610010158 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202610010710 として写した） -->
 <title>戦国立身 3D</title>
-<link rel="icon" type="image/png" sizes="32x32" href="./v202610010158/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610010158/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610010158/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610010158/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202610010710/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610010710/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610010710/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610010710/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1471,9 +1471,9 @@ html.touch.tc-low #tc .stick b { display: none; }
 /* 体力は細い棒だけ（親指の輪の下の縁。名・気力・馬の棒は出さない） */
 html.touch.tc-low #hud .bl { width: 150px; padding: 4px 6px; gap: 0; background: rgba(10,9,7,.35); box-shadow: none; border: 0; bottom: calc(4px + env(safe-area-inset-bottom, 0px)); }
 html.touch.tc-low #hud .bl > :not(#h-hp) { display: none !important; }
-html.touch.tc-low #hud .bl #h-hp { grid-template-columns: 1fr; }
-html.touch.tc-low #hud .bl #h-hp span, html.touch.tc-low #hud .bl #h-hp:not(.deep) em { display: none; }
-html.touch.tc-low #hud .bl #h-hp.deep { grid-template-columns: 1fr auto; }
+html.touch.tc-low #hud .bl #h-hp { grid-template-columns: auto 1fr auto; gap: 0 4px; align-items: center; }
+html.touch.tc-low #hud .bl #h-hp span { display: block; font-size: 12px; }
+html.touch.tc-low #hud .bl #h-hp em { display: block; font-size: 12px; }
 html.touch.tc-low #hud .bl #h-hp i { height: 5px; }
 /* 組の一行：組の数・士気・今の号令。押すと陣形と隊ごとの号令を開く */
 html.touch.tc-low #hud #h-squad:not([hidden]) { display: flex !important; left: var(--pm-l); right: auto; top: auto; bottom: var(--pm-b) !important; transform: none; width: max-content; max-width: calc(100vw - var(--pm-l) - var(--pm-r2)); min-height: 44px; box-sizing: border-box; flex-wrap: wrap; align-items: center; align-content: center; gap: 0 10px; padding: 2px 10px; font-size: 12px; line-height: 1.5; white-space: nowrap; background: rgba(10,9,7,.55); border: 0; box-shadow: none; pointer-events: auto; cursor: pointer; }
@@ -1589,4 +1589,4 @@ html.touch.tc-low #hud.lean #bark { top: calc(8px + env(safe-area-inset-top, 0px
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
 } }
 </script>
-<script type="module" src="./v202610010158/src/main.js"></script>
+<script type="module" src="./v202610010710/src/main.js"></script>

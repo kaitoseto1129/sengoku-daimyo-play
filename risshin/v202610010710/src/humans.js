@@ -25,7 +25,9 @@ import { WIND_STATE, WET, ARMY_P } from './world.js';
 //   ready だけでは足りない：混んだ機械で人と胴丸の読み込みが 5 秒の札を越えて戦の途中に終わると、
 //   そこで初めて近くの兵が一気に本物の人へ替わり、新しい材質のシェーダ作りが戦の中の1コマに乗って固まる（primeHumans で避ける）
 // budget：本物の甲冑・顔・武器が重くなった分（af93647・d67c04a・8b58f89）、4ms のままだと
-//   「出陣する」の直後に居る大勢（Q.must）がなかなか本物の人に追いつかず、戦の入口で長く固まって見えていた。14ms へ
+//   「出陣する」の直後に居る大勢（Q.must）がなかなか本物の人に追いつかず、戦の入口で長く固まって見えていた。
+//   戦の始まり（HUM_BUDGET_EARLY_SEC 秒）だけ 14ms、その後はずっと 4ms へ戻す（updateHumans で rt.t を見て切替）
+export const HUM_BUDGET_EARLY_SEC = 6;
 export const HUM = { fx: true, ready: false, primed: false, failed: false, on: true, near: 42, max: 64, far: 70, ik: 18, lite: 28, fine: 12, face: 15, lod: 15, shadow: 15, budget: 14, dead: 20, hiN: 24, faceN: 14 };
 // 画質ごとの数（「低」は今の形のまま）
 // 画質「低」でも自分（と名のある武将のごく近く）だけは本物の体にする
@@ -4491,6 +4493,8 @@ const _pv = new THREE.Matrix4(), _fr = new THREE.Frustum(), _sph = new THREE.Sph
 export const HSTAT = { made: 0, driven: 0, ms: 0, want: 0, makeMs: 0, makeN: 0, makeMax: 0 };
 export function updateHumans(rt, dt) {
   madeThisFrame = 0; madeFaces = 0; frameT0 = performance.now(); if (makeCool > 0) makeCool--;
+  // budget：出陣の直後（戦の始まりの数秒）だけ 14ms で詰まりを消し、その後はずっと 4ms へ戻す（携帯で一コマが重くならないよう）
+  HUM.budget = (rt.t || 0) < HUM_BUDGET_EARLY_SEC ? 14 : 4;
   WORLD = rt.world; ARMY = rt.army;
   // 軽い兵を押し出す輪の中心（カメラの場所）
   if (rt.camera) ARMY_P.value.set(rt.camera.position.x, rt.camera.position.z);
