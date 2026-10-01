@@ -1,7 +1,7 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202609302354 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202610010158 として写した） -->
 <title>戦国立身 3D</title>
-<link rel="icon" type="image/png" sizes="32x32" href="./v202609302354/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202609302354/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202609302354/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202609302354/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202610010158/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610010158/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610010158/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610010158/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -125,6 +125,8 @@ h1.title span { color: var(--shu); }
 .btn.primary { background: var(--shu); border-color: var(--shu); color: #fff5ea; }
 .btn.primary:hover { background: #d5563d; color: #fff; }
 .btn.small { padding: 7px 16px; font-size: 13px; letter-spacing: .08em; }
+#town-sortie { position: fixed; right: 16px; bottom: 150px; z-index: 40; min-height: 48px; padding: 12px 22px; font-size: 16px; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,.45); pointer-events: auto; }
+@media (max-height: 500px) { #town-sortie { bottom: 108px; padding: 9px 18px; font-size: 15px; min-height: 44px; } }
 .btn:disabled { opacity: .35; cursor: not-allowed; }
 .btn:disabled:hover { background: transparent; color: var(--washi); }
 .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
@@ -445,6 +447,11 @@ body.rm .toast, body.rm #banner.show, body.rm .ln, body.rm .promo, body.rm .stor
 #armybar .side .nm { display: flex; align-items: center; gap: 8px; font-family: var(--display); font-size: 16px; letter-spacing: .08em; text-shadow: 0 1px 3px #000, 0 0 6px #000; }
 #armybar .side.b .nm { justify-content: flex-end; }
 #armybar .side canvas { width: 22px; height: 22px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,.8), 0 0 0 2px var(--gold-line); }
+/* 時計を隠している間も、両軍の札は左右同じ幅に（敵の名が長いと、味方の名が「織田…」に詰まっていた） */
+#armybar .side.a { grid-column: 1; } #armybar .side.b { grid-column: 3; }
+#armybar .side .nm { min-width: 0; }
+#armybar .side .nm .n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#armybar .side .nm small, #armybar .side .nm canvas { flex: none; }
 #armybar .side .nm small { font-family: var(--ui); font-size: 12px; color: var(--washi-dim); font-variant-numeric: tabular-nums; }
 #armybar .gauge { height: 9px; background: rgba(0,0,0,.65); box-shadow: inset 0 0 0 1px rgba(236,228,210,.15), 0 0 0 1px rgba(0,0,0,.8); position: relative; overflow: hidden; }
 #armybar .gauge b { position: absolute; top: 0; bottom: 0; transition: width .4s; }
@@ -1245,7 +1252,7 @@ body.rm #h-units .face { transition: none; }
 html:not(.touch) #hud.calm :is(.bottom, .bl.full, .tl, #h-units, .tr canvas) { opacity: .82; }
 html:not(.touch) #hud.calm #objectives { opacity: 1; }
 /* スマホ横・「最小」（.lean）：戦場を見せるのを一番に。常に出すのは体力の細い棒・任務の一行・小地図だけ */
-#hud.lean :is(.tl, #compass, #armybar, #h-squad, #dateline) { display: none !important; }
+#hud.lean :is(.tl, #compass, #armybar, #dateline), html:not(.tc-low) #hud.lean #h-squad { display: none !important; }
 #hud.lean .bl { width: 150px; padding: 4px 6px; gap: 0; background: rgba(10,9,7,.35); box-shadow: none; border: 0; }
 #hud.lean .bl > :not(#h-hp) { display: none !important; }
 #hud.lean .bl #h-hp { grid-template-columns: 1fr; }
@@ -1265,8 +1272,6 @@ html:not(.touch) #hud.calm #objectives { opacity: 1; }
 #hud.lean #subtitle { background: rgba(10,9,7,.42) !important; padding: 3px 10px !important; font-size: 13.5px !important; line-height: 1.45 !important; pointer-events: none !important; }
 #hud.lean #subtitle .sp { font-size: 12px; margin-right: .4em; }
 #hud.lean #subtitle .more { display: none; }
-html.touch.tc-low #hud.lean #subtitle { left: calc(190px + env(safe-area-inset-left, 0px)) !important; right: calc(290px + env(safe-area-inset-right, 0px)) !important; margin-inline: 0 !important; bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; }
-html.touch.tc-low.tc-cmd #hud.lean #subtitle { bottom: calc(74px + env(safe-area-inset-bottom, 0px)) !important; }
 #hud.lean:has(#bark .bk) #situation { visibility: hidden; }
 html.touch #hud.lean #subtitle::after { content: none !important; }
 /* 知らせは一度に一つ、上の真ん中に短く */
@@ -1360,6 +1365,14 @@ html.touch.inframe #tc .hint { top: calc(70px + env(safe-area-inset-top, 0px)); 
   #screen .base .th .tt span { display: none; }
   #screen .base .tabs { margin-bottom: 10px; }
   #screen .base .tabs button { padding: 8px 9px; letter-spacing: .04em; }
+  /* 左の欄（名・身分・あと何）を一行に畳む。ボタン類（その他）は閉じたまま、押せば開く */
+  #screen .base aside { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding-bottom: 6px; }
+  #screen .base aside .eyebrow { display: none; }
+  #screen .base aside h2 { font-size: 16px; margin: 0; }
+  #screen .base aside .rank { font-size: 13px; }
+  #screen .base aside .aside-more { order: 9; width: 100%; font-size: 12px; }
+  #screen .base aside .tw-prog, #screen .base aside .stat:not(.aside-more .stat) { flex: 1 1 auto; min-width: 150px; margin: 0; }
+  #screen .base aside .tw-sup, #screen .base aside details:not(.aside-more) { display: none; }
 }
 /* ==== 墨の HUD（2026-09-29）：戦場を邪魔しない画面。漆の札・金の枠・派手な色をやめ、和紙の字・墨のにじみ・筆の細い線で ====
    置き場と出し入れ（hudMode・.lean・.calm・.hc・.subbg）は上のまま。ここは見た目だけを上書きする。
@@ -1449,6 +1462,57 @@ html.touch .keyhint, html.touch .hintk { display: none; }
   #hud #armybar .side .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #hud #armybar { max-height: 48px; overflow: hidden; }
 }
+/* ===== 携帯の横向き（html.tc-low）の戦の札：重ねない並べ方 =====
+   左の親指の輪（左の 3 分の 1・下の 55%）と右下の丸には何も置かない。その間の帯に、下から
+   「組の一行（号令の輪を開いた時は顔の札の一段）」「字幕」を一つずつ。tc-low は画面の高さが低い時と、端末の画面が小さい時（縮めて見ている時も） */
+html.touch.tc-low { --pm-l: calc(34vw + 8px); --pm-r: calc(292px + env(safe-area-inset-right, 0px)); --pm-r2: calc(352px + env(safe-area-inset-right, 0px)); --pm-b: calc(6px + env(safe-area-inset-bottom, 0px)); }
+html.touch.tc-low.tc-sw { --pm-l: calc(352px + env(safe-area-inset-left, 0px)); --pm-r: calc(34vw + 8px); --pm-r2: calc(34vw + 8px); }
+html.touch.tc-low #tc .stick b { display: none; }
+/* 体力は細い棒だけ（親指の輪の下の縁。名・気力・馬の棒は出さない） */
+html.touch.tc-low #hud .bl { width: 150px; padding: 4px 6px; gap: 0; background: rgba(10,9,7,.35); box-shadow: none; border: 0; bottom: calc(4px + env(safe-area-inset-bottom, 0px)); }
+html.touch.tc-low #hud .bl > :not(#h-hp) { display: none !important; }
+html.touch.tc-low #hud .bl #h-hp { grid-template-columns: 1fr; }
+html.touch.tc-low #hud .bl #h-hp span, html.touch.tc-low #hud .bl #h-hp:not(.deep) em { display: none; }
+html.touch.tc-low #hud .bl #h-hp.deep { grid-template-columns: 1fr auto; }
+html.touch.tc-low #hud .bl #h-hp i { height: 5px; }
+/* 組の一行：組の数・士気・今の号令。押すと陣形と隊ごとの号令を開く */
+html.touch.tc-low #hud #h-squad:not([hidden]) { display: flex !important; left: var(--pm-l); right: auto; top: auto; bottom: var(--pm-b) !important; transform: none; width: max-content; max-width: calc(100vw - var(--pm-l) - var(--pm-r2)); min-height: 44px; box-sizing: border-box; flex-wrap: wrap; align-items: center; align-content: center; gap: 0 10px; padding: 2px 10px; font-size: 12px; line-height: 1.5; white-space: nowrap; background: rgba(10,9,7,.55); border: 0; box-shadow: none; pointer-events: auto; cursor: pointer; }
+html.touch.tc-low #hud #h-squad b { font-size: 14px; margin-left: 3px; }
+html.touch.tc-low #hud #h-squad .now b { margin-left: 0; color: var(--kin); }
+html.touch.tc-low #hud #h-squad .ord small { margin-left: 4px; }
+html.touch.tc-low #hud.calm #h-squad { opacity: .7; }
+html.touch.tc-low.tc-cmd #hud #h-squad { visibility: hidden; }
+/* 顔の札：号令の輪を開いている間だけ、帯に一段で（自分の組だけ。控えの武将は［ほか］の中） */
+html.touch.tc-low:not(.tc-cmd) #hud #h-units { display: none; }
+html.touch.tc-low #hud #h-units { left: var(--pm-l); right: auto; transform: none; bottom: var(--pm-b); max-width: calc(100vw - var(--pm-l) - var(--pm-r2)); justify-content: flex-start; gap: 4px; }
+html.touch.tc-low #hud #h-units .uc { width: 46px; height: 60px; padding-top: 2px; gap: 0; }
+html.touch.tc-low #hud #h-units .uc.all, html.touch.tc-low #hud #h-units .uc.al { width: 40px; align-content: center; }
+html.touch.tc-low #hud #h-units .uc.all b, html.touch.tc-low #hud #h-units .uc.al b { font-family: var(--display); font-size: 18px; line-height: 1.1; color: var(--washi); }
+html.touch.tc-low #hud #h-units .face { width: 28px; height: 28px; margin-top: 3px; }
+html.touch.tc-low #hud #h-units .ring { width: 36px; height: 36px; margin-left: -18px; top: 2px; margin-top: 0; }
+html.touch.tc-low #hud #h-units .cnt { top: 22px; right: 1px; min-width: 18px; line-height: 16px; }
+html.touch.tc-low #hud #h-units .ord { left: 1px; top: 1px; min-width: 16px; height: 16px; font-size: 12px; }
+html.touch.tc-low #hud #h-units .nm { margin-top: 4px; max-width: 44px; font-size: 12px; letter-spacing: -.04em; }
+html.touch.tc-low #hud #h-units .st, html.touch.tc-low #hud #h-units .runner, html.touch.tc-low #hud #h-units .ready, html.touch.tc-low #hud #h-units kbd { display: none; }
+html.touch.tc-low #hud #h-units .uc.on { transform: none; }
+html.touch.tc-low #hud #h-units .uc.on .nm::before { content: none; }
+/* 字幕：組の一行のすぐ上の決まった帯に一つ（号令の輪を開いている間は隠す） */
+html.touch.tc-low #hud #subtitle { left: var(--pm-l) !important; right: var(--pm-r) !important; transform: none !important; width: fit-content; max-width: none !important; margin-inline: auto !important; bottom: calc(82px + env(safe-area-inset-bottom, 0px)) !important; font-size: 14px; line-height: 1.45; }
+html.touch.tc-low #hud #subtitle .more { display: none; }
+html.touch.tc-low #hud:has(#h-squad[hidden]) #subtitle { bottom: var(--pm-b) !important; }
+html.touch.tc-low #hud:has(#h-squad.open) #subtitle, html.touch.tc-low.tc-cmd #hud #subtitle, html.touch.tc-low.tc-cmd #hud #bark { visibility: hidden; }
+/* 知らせは上の真ん中より左寄りに一つ（右上の任務・丸に掛けない） */
+html.touch.tc-low #hud #bark { top: calc(112px + env(safe-area-inset-top, 0px)); bottom: auto; left: calc(50% - 60px); transform: translateX(-50%); max-width: min(40vw, 320px); }
+/* 右上の任務は今の一つだけ、小地図は小さく。上の札は止める・地図・視点の下へ */
+html.touch.tc-low #hud .tr { width: 190px; gap: 6px; top: calc(8px + env(safe-area-inset-top, 0px)); }
+html.touch.tc-low #hud #objectives { max-height: 58px; overflow: hidden; padding: 6px 10px; font-size: 12px; }
+html.touch.tc-low #hud #objectives li.more { min-height: 0; line-height: 18px; margin-top: 0; }
+html.touch.tc-low #hud #objectives:not(.expand) li:not(.cur):not(.more), html.touch.tc-low #hud #objectives h4 { display: none; }
+html.touch.tc-low #hud #minimap { width: 62px; height: 62px; }
+html.touch.tc-low #hud .tl { left: calc(16px + env(safe-area-inset-left, 0px)); top: calc(62px + env(safe-area-inset-top, 0px)); width: 176px; }
+html.touch.tc-low #hud #compass { top: calc(58px + env(safe-area-inset-top, 0px)); width: min(340px, 40vw); }
+html.touch.tc-low #hud #armybar { width: min(360px, 40vw); top: calc(6px + env(safe-area-inset-top, 0px)); }
+html.touch.tc-low #hud.lean #bark { top: calc(8px + env(safe-area-inset-top, 0px)) !important; left: 50% !important; }
 </style>
 
 <canvas id="view"></canvas>
@@ -1504,6 +1568,7 @@ html.touch .keyhint, html.touch .hintk { display: none; }
   <div id="subtitle" aria-live="polite"></div>
   <div id="sublog" hidden></div>
   <div id="prompt" hidden></div>
+  <button id="town-sortie" class="btn primary" hidden>出陣する</button>
   <div id="cmdpanel" hidden></div>
   <div class="bottom" id="h-bottom"></div>
   <div id="h-units" role="toolbar" aria-label="部隊" hidden></div>
@@ -1524,4 +1589,4 @@ html.touch .keyhint, html.touch .hintk { display: none; }
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
 } }
 </script>
-<script type="module" src="./v202609302354/src/main.js"></script>
+<script type="module" src="./v202610010158/src/main.js"></script>
