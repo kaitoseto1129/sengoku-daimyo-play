@@ -2348,7 +2348,7 @@ function log(text, kind, force){
 
 try{ if(typeof W!=="undefined" && W && W.date && !(typeof B!=="undefined" && B && B.over===null) && typeof text==="string" && text.length>12){
 W._logSeen=W._logSeen||{}; const d0=dayNumber(); const prev=W._logSeen[text];
-if(prev!==undefined && d0-prev<6) return;
+if(prev!==undefined && d0-prev<6 && !(force && kind==="bad")) return;
 W._logSeen[text]=d0;
 if(Math.random()<0.02){ for(const k in W._logSeen) if(d0-W._logSeen[k]>10) delete W._logSeen[k]; }
 } }catch(_){ }
@@ -4271,8 +4271,8 @@ const was=W._mine0;
 if(was){ for(const id in was){ if(now[id]) continue; const c=W.castles[id]; if(!c) continue;
 if(c._lostTold===dayNumber()) continue; c._lostTold=dayNumber();
 const who=(c.clan===null||c.clan===undefined)?"":clanName(c.clan);
-bigNews(`${c.name} 失う`);
 log(who?`${c.name}が${who}の手に渡りました`:`${c.name}を失いました`,"bad",true);
+try{ bigNews(`${c.name} 失う`); }catch(_){ }
 try{ toast(who?`${c.name}が${who}の手に渡りました`:`${c.name}を失いました`); }catch(_){ }
 } }
 
@@ -5677,7 +5677,7 @@ function captureCastle(cid,clan,a){
 
 try{ const c9=W.castles[cid]; if(c9 && c9.clan===W.player && clan!==W.player){
 c9._lostTold=dayNumber();
-bigNews(`${c9.name} 落城`); log(`${c9.name}が${clanName(clan)}の手に落ちました`,"bad",true);
+log(`${c9.name}が${clanName(clan)}の手に落ちました`,"bad",true); try{ bigNews(`${c9.name} 落城`); }catch(_){ }
 } }catch(_){ }
 try{ const c0=W.castles[cid]; if(c0 && c0.clan!==null && c0.clan!==undefined && c0.clan!==clan){
 const rest=Object.values(W.castles).filter(x=>x.clan===c0.clan && x.id!==cid).length;
