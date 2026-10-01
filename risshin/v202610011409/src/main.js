@@ -37,7 +37,7 @@ async function readyBattleCode(retry) {
 import { odaTown } from './oda_town.js';
 import { townDef } from './town3d.js';   // 城下を歩く（3D の町）
 import { initTouch, touchFrame, isTouch } from './touch.js';
-import { loadHumans, loadHorse, loadDomaru, primeHumans, HUM as HUMd } from './humans.js';
+import { loadHumans, loadHorse, loadDomaru, primeHumans, updateHumans, HUM as HUMd } from './humans.js';
 import { lordGame, lordDef, lordOf, applyLord, lordFrame, LORD_BATTLES, lordList } from './lord.js';
 import { toggleGunbai, gunbaiFrame, isGunbaiOpen, setGunbaiHooks } from './gunbai.js';
 import { toggleRts, isRtsOn, rtsAvailable, initRtsInput } from './rts.js';
@@ -988,6 +988,16 @@ const game = {
       LT.build = Math.round(performance.now() - t0);
       applyLord(b);
       b.player.updateCamera(1, camera);
+      // 戦が始まってすぐ近くに来るはずの人を、幕の内で先に本物の人へ（humans.js の updateHumans を少し進める）。
+      // ここをしないと、開戦直後に次々と人の形が変わるたびシェーダーを初めて作ることになり、一コマが0.5秒も固まって
+      // 「重くてスロー・画面が黒くチカチカ」に見えていた（dynRes が跳ねてキャンバスの大きさが上下する。kaito 10/1）
+      if (!this.noLock && !isNorender()) {
+        stage('近くの兵の姿を整えている……');
+        const tH = performance.now();
+        for (let n = 0; n < 200 && performance.now() - tH < 1500; n++) updateHumans(b, 0);
+        LT.humansWarm = Math.round(performance.now() - tH);
+        if (my !== this.startSeq) { b.dispose(); return; }
+      }
       // 887：絵の下ごしらえを、読み込みの札を見せている間に進める（compileAsync は並べて作れる端末では並べて作る）
       stage('絵を整えている……');
       const t1 = performance.now();

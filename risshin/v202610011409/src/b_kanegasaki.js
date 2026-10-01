@@ -33,7 +33,7 @@ const LINES = [
   { x: 6, z: 24, r: 12, name: '二の備（笙の川の南）' },
   { x: -22, z: 102, r: 11, name: '三の備（狭路）' },
 ];
-const RETREAT_T = 1150;   // 主力が退ききるまでの秒（段を重ねたので、一つの戦を二十分ほどに）
+const RETREAT_T = 460;    // 主力が退ききるまでの秒（4〜7分の基準に合わせて詰めた）
 const KUTSUKI = { x: -56, z: 150, r: 14 };    // 朽木越えの道の口（信長で遊ぶ時の退き先）                   // 主力が退ききるまでの秒（はじめから）
 
 const ASAKURA = { armor: 0x33291f, lace: 0x7a5a2a, flag: 'asakura' };
@@ -165,7 +165,7 @@ const kanegasaki = {
       rt.say('木下藤吉郎', '殿！　浅井長政殿、朝倉方につきましたぞ。前に朝倉、後ろに浅井――袋の鼠にござる', 5);
       rt.say('木下藤吉郎', '殿（しんがり）はこの藤吉郎が務めまする。殿は一刻も早う、朽木越えに京へ！', 4.5);
       rt.say('織田信長', '猿、しんがりは任せた。……生きて戻れ', 3.5);
-      rt.after(22, () => this.wave1(rt));
+      rt.after(10, () => this.wave1(rt));
       F.t0 = 0;
       return;
     }
@@ -176,7 +176,7 @@ const kanegasaki = {
     rt.say('木下藤吉郎', `${nm(rt)}、聞いたか。北近江の浅井長政殿が、朝倉方についた。前に朝倉、後ろに浅井――袋の鼠じゃ`, 5.5);
     rt.say('木下藤吉郎', '殿はもう、わずかな供を連れて朽木越えに京へ発たれた。わしらは殿（しんがり）じゃ', 4.5);
     rt.say('木下藤吉郎', '主力が退ききるまで、ここで朝倉を食い止める。退けと言うまで、一歩も退くな。追うな', 4.5);
-    rt.after(22, () => this.wave1(rt));
+    rt.after(10, () => this.wave1(rt));
     F.t0 = 0;
   },
 
@@ -214,7 +214,7 @@ const kanegasaki = {
         dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 20 }, { type: 'bow', n: 3 }], ASAKURA))),
     ];
     rt.marker('w0', centerOf(F.w1[0]), () => `朝倉の先手・${moraleWord(F.w1[0].morale)}`, { red: true, group: F.w1[0] });
-    rt.after(34, () => {
+    rt.after(14, () => {
       if (F.step !== 1) return;
       const g = soften(enemyGroup(rt, { faction: 'saito', name: '朝倉景健の隊', anchor: { x: -20, z: -126 }, facing: 0, order: 'attack', seekRange: 90, aggro: 10, width: 14, morale: 95, fleeDir: { x: 0, z: -1 }, dmgMult: 0.65, speed: 2.6 },
         dress([{ type: 'busho', n: 1, o: { name: '朝倉景健', horse: true, invuln: true, hat: 'kabuto_m', haori: 0x5a4020 } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 16 }, { type: 'gun', n: 2 }], ASAKURA)));
@@ -281,7 +281,7 @@ const kanegasaki = {
     rt.after(3, () => { put(F.ikeda, -18, 2); put(F.kino, 0, 0); });
     // 残っている寄せ手は崩れて峠へ戻る
     for (const g of [...(F.w1 || []), ...(F.w2 || [])]) if (!gone(g)) { g.noRout = false; g.morale = Math.min(g.morale, 15); }
-    rt.after(k === 1 ? 14 : 12, () => (k === 1 ? this.wave2(rt) : this.wave3(rt)));
+    rt.after(k === 1 ? 6 : 5, () => (k === 1 ? this.wave2(rt) : this.wave3(rt)));
   },
 
   // ② 二の備：騎馬の追手が笙の川を渡ってくる
@@ -321,14 +321,14 @@ const kanegasaki = {
     for (const u of g.units) if (u.type === 'busho') { u.dmg *= 0.5; u.announced = true; }
     F.w3 = [g];
     // 苦しい戦：本隊の後ろから、もう一つの備が続いて狭路へ押し込む（大軍の厚み）
-    rt.after(24, () => { if (F.ending || F.step !== 5) return;
+    rt.after(10, () => { if (F.ending || F.step !== 5) return;
     const g1b = soften(enemyGroup(rt, { faction: 'saito', name: '朝倉の二の備', anchor: { x: 14, z: -30 }, facing: 0, order: 'attack', seekRange: 140, aggro: 12, width: 14, morale: 95, noRout: true, fleeDir: { x: 0.1, z: -1 }, dmgMult: 0.6, speed: 2.6 },
       dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 16 }, { type: 'bow', n: 3 }], ASAKURA)));
     F.w3.push(g1b);
     rt.say('足軽', '後ろからもう一つ備が来る……！', 2.5);
-    rt.after(40, () => { if (!F.ending) g1b.noRout = false; });
+    rt.after(16, () => { if (!F.ending) g1b.noRout = false; });
     });
-    rt.after(26, () => {
+    rt.after(13, () => {
       if (F.step !== 5 || F.ending) return;
       const g2 = soften(enemyGroup(rt, { faction: 'saito', name: '朝倉の新手', anchor: { x: 30, z: 0 }, facing: -0.3, order: 'attack', seekRange: 140, aggro: 12, width: 12, morale: 75, fleeDir: { x: 0.2, z: -1 }, dmgMult: 0.42, speed: 2.8 },
         dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 9 }], ASAKURA)));
@@ -336,11 +336,11 @@ const kanegasaki = {
       rt.say('足軽', '東の畦からも回り込んでくる！', 2.5);
       rt.marker('w5', centerOf(g2), () => `朝倉の新手・${moraleWord(g2.morale)}`, { red: true, group: g2 });
     });
-    rt.after(50, () => { if (!F.ending) g.noRout = false; });
+    rt.after(20, () => { if (!F.ending) g.noRout = false; });
     rt.marker('w4', centerOf(g), () => `朝倉の本隊・${moraleWord(g.morale)}`, { red: true, group: g });
     // 日が落ちていく：薄暮から夜へ。道の脇に松明が灯り、闇にまぎれて退く
-    rt.after(30, () => { if (!F.ending) applyLook(rt, DUSK2); });
-    rt.after(58, () => {
+    rt.after(12, () => { if (!F.ending) applyLook(rt, DUSK2); });
+    rt.after(23, () => {
       if (F.ending) return;
       F.night = true;
       applyLook(rt, NIGHT);
@@ -374,7 +374,7 @@ const kanegasaki = {
     const d = Math.hypot(p.x - KUTSUKI.x, p.z - KUTSUKI.z);
     rt.objProgress('main', `朽木の道の口まで ${Math.max(0, Math.round(d - KUTSUKI.r))}m`);
     if (d < KUTSUKI.r) { rt.unmark('kutsuki'); rt.unzone('kutsuki'); this.win(rt, '散り散りになりながらも、朽木の道へ退いた'); return; }
-    if (rt.t - F.fleeing > 150) this.lose(rt);
+    if (rt.t - F.fleeing > 60) this.lose(rt);
   },
   // 退き口に着けぬまま、朝倉に呑まれた
   lose(rt) {
@@ -467,12 +467,12 @@ const kanegasaki = {
     }
     if (F.step === 1) {
       const all = F.w1.filter((g) => !gone(g));
-      if ((F.w1.length >= 2 && !all.length) || rt.t - F.stepT > 100) this.deep(rt, 'A');
+      if ((F.w1.length >= 2 && !all.length) || rt.t - F.stepT > 40) this.deep(rt, 'A');
       // 朝倉景健は討たれない（この後も生きる）。隊が弱れば崩れて退く
       if (F.w1[1] && F.w1[1].count < 7) { F.w1[1].noRout = false; F.w1[1].morale = Math.min(F.w1[1].morale, 20); }
     }
     if (F.step === 3) {
-      if (F.w2.every(gone) || rt.t - F.stepT > 80) this.deep(rt, 'B');
+      if (F.w2.every(gone) || rt.t - F.stepT > 32) this.deep(rt, 'B');
     }
     if (F.step === 5) {
       const live = F.w3.reduce((a, g) => a + (gone(g) ? 0 : g.count), 0);
@@ -489,7 +489,7 @@ const kanegasaki = {
       if (tono <= Math.min(Math.max(5, Math.round(tono0 * 0.2)), Math.floor(tono0 / 2)) && pct < 100) { this.collapse(rt); return; }
       if (tono <= Math.round(tono0 * 0.4) && !F.tonoWarn) { F.tonoWarn = true; rt.bark('しんがりが崩れかけている！　踏みとどまれ！', true); }
       // 本隊の寄せを凌いだら（あるいは長く持ちこたえたら）、夜の狭路の段へ。済めば退き口成る
-      if ((F.w3more && F.w3.every(gone)) || rt.t - F.stepT > 150) this.deep(rt, 'C');
+      if ((F.w3more && F.w3.every(gone)) || rt.t - F.stepT > 60) this.deep(rt, 'C');
       else if (F.w3.length >= 2 && F.w3.every(gone) && !F.w3more) {
         // 早く崩しすぎたら、もう一押しが来る
         F.w3more = true;
@@ -509,8 +509,8 @@ const kanegasaki = {
     const F = rt.flags;
     const p = rt.player.u.pos;
     // 殿の備は、もとの流れのまま繰り引く（寄せが尽きるか、時が経てば次の備へ）
-    if (F.step === 1 && ((F.w1.length >= 2 && F.w1.every(gone)) || rt.t - F.stepT > 100)) this.fallBack(rt, 1);
-    if (F.step === 3 && (F.w2.every(gone) || rt.t - F.stepT > 80)) this.fallBack(rt, 2);
+    if (F.step === 1 && ((F.w1.length >= 2 && F.w1.every(gone)) || rt.t - F.stepT > 40)) this.fallBack(rt, 1);
+    if (F.step === 3 && (F.w2.every(gone) || rt.t - F.stepT > 32)) this.fallBack(rt, 2);
     const d = Math.hypot(p.x - KUTSUKI.x, p.z - KUTSUKI.z);
     const sq = rt.squad.filter((u) => u.alive), near = sq.filter((u) => Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 40).length;
     const PASS = 70;   // 松永久秀が朽木元綱を説くあいだ、谷の口で持ちこたえる秒
@@ -647,17 +647,17 @@ function kgCtx(rt) {
 function kgA() {
   const L = LINES[0];
   return [
-    rest({ dur: 10, heal: 0.3, say: [['木下藤吉郎', '先手は凌いだ。……じゃが見よ、峠の道一面が三つ盛木瓜じゃ'], ['足軽', 'あれが全部、こっちへ来るのか……'], ['木下藤吉郎', '主力はまだ半ばも退いておらぬ。ここで踏ん張らねば、皆死ぬぞ']] }),
-    hold({ at: { x: L.x, z: L.z }, dur: 90, r: 14, title: '朝倉の総掛かり', sub: '峠の道から、前にも左右にも朝倉の旗', label: '一の備', obj: '一の備で、前と左右から押し寄せる朝倉の総掛かりを受けよ',
+    rest({ dur: 5, heal: 0.3, say: [['木下藤吉郎', '先手は凌いだ。……じゃが見よ、峠の道一面が三つ盛木瓜じゃ'], ['足軽', 'あれが全部、こっちへ来るのか……'], ['木下藤吉郎', '主力はまだ半ばも退いておらぬ。ここで踏ん張らねば、皆死ぬぞ']] }),
+    hold({ at: { x: L.x, z: L.z }, dur: 38, r: 14, title: '朝倉の総掛かり', sub: '峠の道から、前にも左右にも朝倉の旗', label: '一の備', obj: '一の備で、前と左右から押し寄せる朝倉の総掛かりを受けよ',
       say: [['木下藤吉郎', '槍を揃えよ！　横へ回られても備を崩すな！']],
       waves: [
-        { t: 4, say: ['足軽', '来たぞ、一面じゃ！'], foes: () => [{ name: '朝倉の総掛かり', from: { x: L.x, z: L.z - 60 }, list: [uS(3), uA(13)], mass: 340, noRout: 30 }] },
-        { t: 30, say: ['明智光秀', '天筒山の麓に鉄砲衆が並んだ。伏せよ、構えを見たら味方の陰へ！'], foes: () => [gunLine('朝倉の鉄砲衆', { x: L.x + 34, z: L.z - 40 }, 7)] },
-        { t: 55, say: ['足軽', '西の田を回ってくる！　横を突かれるぞ！'], foes: () => [{ name: '西へ回る朝倉勢', from: { x: L.x - 50, z: L.z - 20 }, off: { x: -8, z: 0 }, list: [uS(2), uA(10)], mass: 240 }] },
-        { t: 78, say: ['池田勝正', '東の浜からもじゃ！　囲まれるぞ、背を合わせよ！'], foes: () => [{ name: '浜を回る朝倉勢', from: { x: L.x + 54, z: L.z + 6 }, off: { x: 8, z: 4 }, list: [uS(2), uA(9), uB(3)], mass: 220 }] },
+        { t: 2, say: ['足軽', '来たぞ、一面じゃ！'], foes: () => [{ name: '朝倉の総掛かり', from: { x: L.x, z: L.z - 60 }, list: [uS(3), uA(13)], mass: 340, noRout: 30 }] },
+        { t: 12, say: ['明智光秀', '天筒山の麓に鉄砲衆が並んだ。伏せよ、構えを見たら味方の陰へ！'], foes: () => [gunLine('朝倉の鉄砲衆', { x: L.x + 34, z: L.z - 40 }, 7)] },
+        { t: 22, say: ['足軽', '西の田を回ってくる！　横を突かれるぞ！'], foes: () => [{ name: '西へ回る朝倉勢', from: { x: L.x - 50, z: L.z - 20 }, off: { x: -8, z: 0 }, list: [uS(2), uA(10)], mass: 240 }] },
+        { t: 31, say: ['池田勝正', '東の浜からもじゃ！　囲まれるぞ、背を合わせよ！'], foes: () => [{ name: '浜を回る朝倉勢', from: { x: L.x + 54, z: L.z + 6 }, off: { x: 8, z: 4 }, list: [uS(2), uA(9), uB(3)], mass: 220 }] },
       ],
       reward: '一の備で朝倉の総掛かりを受け止めた', lost: ['木下藤吉郎', '備が押し込まれた……！　立て直せ！'] }),
-    rest({ dur: 8, bark: '息を整え、組を寄せ直せ', say: [['伝令', '天筒山に残った味方が、朝倉に囲まれておりまする！　麓へ下りられぬと！']] }),
+    rest({ dur: 5, bark: '息を整え、組を寄せ直せ', say: [['伝令', '天筒山に残った味方が、朝倉に囲まれておりまする！　麓へ下りられぬと！']] }),
     pick({ title: '天筒山の味方が朝倉に囲まれた。どうする？',
       options: [{ label: '組を連れて、天筒山の味方を救い出す', note: '救えば城兵が殿に加わる。一の備は薄くなり、主力の退きが遅れる' }, { label: '見捨てて、一の備を固める', note: '主力は早く退ける。城兵は討たれ、朝倉の勢いが増す' }],
       on: (rt, m, i) => {
@@ -667,8 +667,8 @@ function kgA() {
       } }),
     fight({ skip: (rt, m) => !m.kgSave, at: { x: 34, z: -76 }, title: '天筒山の麓', sub: '取り残された城兵を、朝倉が取り巻いている', obj: '天筒山の麓で、城兵を取り巻く朝倉勢を崩せ',
       foes: () => [{ name: '天筒山を囲む朝倉勢', from: { x: 58, z: -96 }, list: [uS(2), uA(9)], mass: 260 }, gunLine('山腹の朝倉の鉄砲', { x: 20, z: -104 }, 6)],
-      later: [{ t: 40, title: '横槍', sub: '朝倉の騎馬が浜から', say: ['足軽', '浜から騎馬じゃ！　帰り道を断つ気じゃ！'], foes: () => [{ name: '朝倉の騎馬', from: { x: 80, z: -40 }, list: [uS(1), uC(4), uA(4)], mass: 120, kind: 'cavalry' }] }],
-      max: 140,
+      later: [{ t: 16, title: '横槍', sub: '朝倉の騎馬が浜から', say: ['足軽', '浜から騎馬じゃ！　帰り道を断つ気じゃ！'], foes: () => [{ name: '朝倉の騎馬', from: { x: 80, z: -40 }, list: [uS(1), uC(4), uA(4)], mass: 120, kind: 'cavalry' }] }],
+      max: 60,
       reward: '天筒山の城兵を救い出した',
       onEnd: (rt, m, won) => {
         const F = rt.flags;
@@ -681,7 +681,7 @@ function kgA() {
 function kgB() {
   const L = LINES[1];
   return [
-    rest({ dur: 10, heal: 0.3, say: [['木下藤吉郎', '騎馬は追い払うた。……川向こうに朝倉の本隊が揃うておる'], ['明智光秀', '藤吉郎殿、川を渡る所を撃てば、数を削れまする']] }),
+    rest({ dur: 5, heal: 0.3, say: [['木下藤吉郎', '騎馬は追い払うた。……川向こうに朝倉の本隊が揃うておる'], ['明智光秀', '藤吉郎殿、川を渡る所を撃てば、数を削れまする']] }),
     pick({ title: '朝倉の本隊が笙の川を渡ろうとしている。どう受ける？',
       options: [{ label: '明智の鉄砲を前に出し、渡る所を撃つ', note: '正面の寄せは薄くなる。槍が薄い分、西の浅瀬から回られやすい' }, { label: '槍を揃えて、川岸で受け止める', note: '横は固い。正面から大勢がぶつかってくる' }],
       on: (rt, m, i) => {
@@ -691,22 +691,22 @@ function kgB() {
           volleyScene(rt, { guns: () => [F.akechi], at: { x: L.x + 4, z: L.z - 14 }, r: 30, who: '明智光秀', shots: 2, wait: '川に入るまで待て……', fire: '川の中じゃ、放てぇっ！', hit: 18 }); }
         else rt.say('木下藤吉郎', '槍衾じゃ！　川から上がる所を突け！', 3);
       } }),
-    hold({ at: { x: L.x, z: L.z }, dur: 100, r: 14, title: '笙の川の攻防', sub: '朝倉の本隊が、川を押し渡ってくる', label: '二の備', obj: '笙の川の南で、川を押し渡る朝倉勢を受けよ',
+    hold({ at: { x: L.x, z: L.z }, dur: 40, r: 14, title: '笙の川の攻防', sub: '朝倉の本隊が、川を押し渡ってくる', label: '二の備', obj: '笙の川の南で、川を押し渡る朝倉勢を受けよ',
       waves: [
-        { t: 4, say: ['足軽', '川へ入ったぞ！　すごい数じゃ……'], foes: (rt, m) => [{ name: '川を渡る朝倉の本隊', from: { x: L.x, z: L.z - 50 }, list: [uS(3), uA(m.kgGun ? 9 : 14)], mass: m.kgGun ? 240 : 380, noRout: 25 }] },
-        { t: 30, say: ['明智光秀', '向こう岸に鉄砲衆が並んだ！　伏せよ！'], foes: () => [gunLine('向こう岸の朝倉の鉄砲衆', { x: L.x + 20, z: L.z - 36 }, 8)] },
-        { t: 56, say: ['足軽', '西の浅瀬を渡ってくる！　横じゃ！'], foes: (rt, m) => [{ name: '西の浅瀬を渡る朝倉勢', from: { x: L.x - 56, z: L.z - 16 }, off: { x: -8, z: 2 }, list: [uS(2), uA(m.kgGun ? 13 : 9)], mass: m.kgGun ? 320 : 220 }] },
-        { t: 80, say: ['池田勝正', '東もじゃ！　河口を渡って回り込んできた！'], foes: () => [{ name: '河口を渡る朝倉勢', from: { x: L.x + 56, z: L.z - 8 }, off: { x: 8, z: 4 }, list: [uS(2), uA(9)], mass: 240 }] },
+        { t: 2, say: ['足軽', '川へ入ったぞ！　すごい数じゃ……'], foes: (rt, m) => [{ name: '川を渡る朝倉の本隊', from: { x: L.x, z: L.z - 50 }, list: [uS(3), uA(m.kgGun ? 9 : 14)], mass: m.kgGun ? 240 : 380, noRout: 25 }] },
+        { t: 12, say: ['明智光秀', '向こう岸に鉄砲衆が並んだ！　伏せよ！'], foes: () => [gunLine('向こう岸の朝倉の鉄砲衆', { x: L.x + 20, z: L.z - 36 }, 8)] },
+        { t: 22, say: ['足軽', '西の浅瀬を渡ってくる！　横じゃ！'], foes: (rt, m) => [{ name: '西の浅瀬を渡る朝倉勢', from: { x: L.x - 56, z: L.z - 16 }, off: { x: -8, z: 2 }, list: [uS(2), uA(m.kgGun ? 13 : 9)], mass: m.kgGun ? 320 : 220 }] },
+        { t: 32, say: ['池田勝正', '東もじゃ！　河口を渡って回り込んできた！'], foes: () => [{ name: '河口を渡る朝倉勢', from: { x: L.x + 56, z: L.z - 8 }, off: { x: 8, z: 4 }, list: [uS(2), uA(9)], mass: 240 }] },
       ],
       reward: '笙の川で朝倉の本隊を受け止めた', lost: ['木下藤吉郎', '押し込まれた……！　じゃが、まだ崩れてはおらぬ！'] }),
-    rest({ dur: 8, bark: '川を離れ、組をまとめ直せ', say: [['足軽', '南東の山に……あれは浅井の旗じゃ！'], ['木下藤吉郎', '後ろにも回られたか。狭路の口を塞がれたら、逃げ場はないぞ']] }),
+    rest({ dur: 5, bark: '川を離れ、組をまとめ直せ', say: [['足軽', '南東の山に……あれは浅井の旗じゃ！'], ['木下藤吉郎', '後ろにも回られたか。狭路の口を塞がれたら、逃げ場はないぞ']] }),
     pick({ title: '南東の尾根に浅井の物見が出た。狭路の口に回り込まれる。どうする？',
       options: [{ label: '尾根へ上がり、浅井の物見を追い払う', note: '狭路で後ろから挟まれにくくなる。手柄。主力の退きは遅れる' }, { label: '構わず、狭路へ急ぐ', note: '主力が早く退ける。狭路で浅井に後ろを突かれる' }],
       on: (rt, m, i) => { m.kgRidge = i === 0; if (i === 1) rt.flags.prog = (rt.flags.prog || 0) + 60; rt.say('木下藤吉郎', i === 0 ? 'よし、尾根じゃ！　浅井に狭路の口を渡すな' : '……急げ。狭路で前後を受けるほかない', 3); } }),
     fight({ skip: (rt, m) => !m.kgRidge, at: { x: 26, z: 64 }, title: '南東の尾根', sub: '浅井の物見が、狭路の口へ下りてくる', obj: '南東の尾根で、浅井の物見を追い払え',
       foes: () => [{ name: '浅井の物見', from: { x: 70, z: 110 }, ...az([uS(2), uA(10), uG(2)]), mass: 200 }],
-      later: [{ t: 38, title: '新手', sub: '浅井の騎馬が山を下る', say: ['足軽', '浅井の騎馬じゃ！'], foes: () => [{ name: '浅井の騎馬', from: { x: 84, z: 90 }, ...az([uS(1), uC(4), uA(3)]), mass: 100, kind: 'cavalry' }] }],
-      max: 130,
+      later: [{ t: 15, title: '新手', sub: '浅井の騎馬が山を下る', say: ['足軽', '浅井の騎馬じゃ！'], foes: () => [{ name: '浅井の騎馬', from: { x: 84, z: 90 }, ...az([uS(1), uC(4), uA(3)]), mass: 100, kind: 'cavalry' }] }],
+      max: 55,
       reward: (t) => { t.special = { label: '浅井の物見を追い払った', pts: 20 }; }, rewardLabel: '浅井の物見を追い払った' }),
   ];
 }
@@ -714,30 +714,30 @@ function kgB() {
 function kgC() {
   const L = LINES[2];
   return [
-    rest({ dur: 9, heal: 0.25, say: [['木下藤吉郎', '……ようここまで生きておる。じゃが、まだじゃ'], ['足軽', '（松明の向こうに、またあの旗が……）'], ['木下藤吉郎', '主力が朽木へ抜けきるまで、あと少し。この狭路で、前も後ろも受ける']] }),
-    hold({ at: { x: L.x, z: L.z }, dur: 105, r: 12, title: '夜の狭路', sub: '前に朝倉、後ろに浅井。尾根からも', label: '三の備（狭路）', obj: '夜の狭路で、前と後ろと尾根から来る敵を受けよ',
+    rest({ dur: 5, heal: 0.25, say: [['木下藤吉郎', '……ようここまで生きておる。じゃが、まだじゃ'], ['足軽', '（松明の向こうに、またあの旗が……）'], ['木下藤吉郎', '主力が朽木へ抜けきるまで、あと少し。この狭路で、前も後ろも受ける']] }),
+    hold({ at: { x: L.x, z: L.z }, dur: 42, r: 12, title: '夜の狭路', sub: '前に朝倉、後ろに浅井。尾根からも', label: '三の備（狭路）', obj: '夜の狭路で、前と後ろと尾根から来る敵を受けよ',
       say: [['木下藤吉郎', '背を合わせよ！　前の者は前を、後ろの者は後ろを見よ！']],
       waves: [
-        { t: 4, say: ['足軽', '闇の中から、松明が……数えきれぬ！'], foes: () => [{ name: '夜の朝倉勢', from: { x: L.x + 16, z: L.z - 56 }, list: [uS(3), uA(13)], mass: 360, noRout: 30 }] },
-        { t: 26, say: ['明智光秀', '火縄の火が並んでおる……鉄砲衆じゃ、伏せよ！'], foes: () => [gunLine('闇の中の朝倉の鉄砲衆', { x: L.x + 6, z: L.z - 40 }, 8)] },
-        { t: 50, say: ['足軽', '後ろじゃ！　浅井が後ろから来た！'], foes: (rt, m) => [{ name: '後ろから来る浅井勢', from: { x: L.x - 26, z: L.z + 52 }, ...az([uS(2), uA(m.kgRidge ? 7 : 12), uG(m.kgRidge ? 0 : 2)]), mass: m.kgRidge ? 160 : 300 }] },
-        { t: 70, say: ['池田勝正', '尾根からも下りてくる！　四方じゃ！'], foes: () => [{ name: '西の尾根の朝倉勢', from: { x: L.x - 36, z: L.z - 10 }, list: [uS(1), uA(8)], mass: 180 }, { name: '東の尾根の朝倉勢', from: { x: L.x + 34, z: L.z + 4 }, list: [uS(1), uA(8)], mass: 180 }] },
-        { t: 90, say: ['木下藤吉郎', '最後の大波じゃ！　これを凌げ！'], foes: () => [{ name: '朝倉の最後の寄せ', from: { x: L.x + 10, z: L.z - 60 }, list: [uS(3), uA(14), uG(2)], mass: 400 }] },
+        { t: 2, say: ['足軽', '闇の中から、松明が……数えきれぬ！'], foes: () => [{ name: '夜の朝倉勢', from: { x: L.x + 16, z: L.z - 56 }, list: [uS(3), uA(13)], mass: 360, noRout: 30 }] },
+        { t: 10, say: ['明智光秀', '火縄の火が並んでおる……鉄砲衆じゃ、伏せよ！'], foes: () => [gunLine('闇の中の朝倉の鉄砲衆', { x: L.x + 6, z: L.z - 40 }, 8)] },
+        { t: 20, say: ['足軽', '後ろじゃ！　浅井が後ろから来た！'], foes: (rt, m) => [{ name: '後ろから来る浅井勢', from: { x: L.x - 26, z: L.z + 52 }, ...az([uS(2), uA(m.kgRidge ? 7 : 12), uG(m.kgRidge ? 0 : 2)]), mass: m.kgRidge ? 160 : 300 }] },
+        { t: 28, say: ['池田勝正', '尾根からも下りてくる！　四方じゃ！'], foes: () => [{ name: '西の尾根の朝倉勢', from: { x: L.x - 36, z: L.z - 10 }, list: [uS(1), uA(8)], mass: 180 }, { name: '東の尾根の朝倉勢', from: { x: L.x + 34, z: L.z + 4 }, list: [uS(1), uA(8)], mass: 180 }] },
+        { t: 36, say: ['木下藤吉郎', '最後の大波じゃ！　これを凌げ！'], foes: () => [{ name: '朝倉の最後の寄せ', from: { x: L.x + 10, z: L.z - 60 }, list: [uS(3), uA(14), uG(2)], mass: 400 }] },
       ],
       reward: '夜の狭路を前後から守り抜いた', lost: ['木下藤吉郎', '……まだ立っておるか。それで十分じゃ！'] }),
-    rest({ dur: 8, bark: '闇の中で、組の者を呼び集めよ', say: [['伝令', '主力はほぼ朽木谷へ入りました！'], ['明智光秀', '藤吉郎殿、鉄砲の者は最後まで残ります。貴殿らは先に']] }),
+    rest({ dur: 5, bark: '闇の中で、組の者を呼び集めよ', say: [['伝令', '主力はほぼ朽木谷へ入りました！'], ['明智光秀', '藤吉郎殿、鉄砲の者は最後まで残ります。貴殿らは先に']] }),
     pick({ title: '主力はほぼ抜けた。明智の鉄砲が最後まで残ると言う。どうする？',
       options: [{ label: '明智殿と共に残り、最後の寄せを受ける', note: '大手柄。ただし、もう一度朝倉の大波を受ける' }, { label: '松明を消し、闇にまぎれて先に退く', note: '朽木の方へ走る。途中で待ち伏せに遭うかもしれぬ' }],
       on: (rt, m, i) => { m.kgStay = i === 0; rt.say('木下藤吉郎', i === 0 ? 'よし、明智殿一人に手柄はやらぬぞ。……残る！' : '松明を消せ。声を立てるな。……走れ', 3); } }),
-    hold({ skip: (rt, m) => !m.kgStay, at: { x: L.x, z: L.z + 6 }, dur: 65, r: 12, title: '殿の殿', sub: '明智の鉄砲と、最後まで狭路に残る', label: '狭路', obj: '明智の鉄砲と共に、最後の寄せを退けよ',
+    hold({ skip: (rt, m) => !m.kgStay, at: { x: L.x, z: L.z + 6 }, dur: 28, r: 12, title: '殿の殿', sub: '明智の鉄砲と、最後まで狭路に残る', label: '狭路', obj: '明智の鉄砲と共に、最後の寄せを退けよ',
       waves: [
-        { t: 4, say: ['明智光秀', '引きつけよ……放て！'], foes: () => [{ name: '朝倉の追い討ち', from: { x: L.x + 14, z: L.z - 56 }, list: [uS(3), uA(12)], mass: 340 }] },
-        { t: 38, say: ['足軽', '騎馬じゃ！　狭路へ突っ込んでくる！'], foes: () => [{ name: '朝倉の騎馬', from: { x: L.x + 8, z: L.z - 60 }, list: [uS(1), uC(5), uA(4)], mass: 120, kind: 'cavalry' }] },
+        { t: 2, say: ['明智光秀', '引きつけよ……放て！'], foes: () => [{ name: '朝倉の追い討ち', from: { x: L.x + 14, z: L.z - 56 }, list: [uS(3), uA(12)], mass: 340 }] },
+        { t: 15, say: ['足軽', '騎馬じゃ！　狭路へ突っ込んでくる！'], foes: () => [{ name: '朝倉の騎馬', from: { x: L.x + 8, z: L.z - 60 }, list: [uS(1), uC(5), uA(4)], mass: 120, kind: 'cavalry' }] },
       ],
       reward: '明智の鉄砲と最後まで殿に残った' }),
     move({ skip: (rt, m) => m.kgStay, to: { x: KUTSUKI.x, z: KUTSUKI.z - 6 }, r: 10, label: '朽木の方へ', obj: '松明を消し、闇にまぎれて朽木の方へ退け',
       say: [['木下藤吉郎', '走れ！　振り向くな！']],
-      ambush: { d: 26, t: 30, title: '待ち伏せ', sub: '浅井の手が道を塞ぐ', say: ['足軽', '道の先に浅井の手じゃ！　斬り抜けろ！'], foes: () => [{ name: '道を塞ぐ浅井勢', from: { x: KUTSUKI.x + 20, z: KUTSUKI.z + 10 }, ...az([uS(1), uA(8)]), mass: 160 }] } }),
+      ambush: { d: 26, t: 13, title: '待ち伏せ', sub: '浅井の手が道を塞ぐ', say: ['足軽', '道の先に浅井の手じゃ！　斬り抜けろ！'], foes: () => [{ name: '道を塞ぐ浅井勢', from: { x: KUTSUKI.x + 20, z: KUTSUKI.z + 10 }, ...az([uS(1), uA(8)]), mass: 160 }] } }),
   ];
 }
 

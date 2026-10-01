@@ -124,7 +124,9 @@ function wake(rt) {
     if (!pts.length) continue;
     const g = wakeGroup(rt, A, team, pts, who);
     // 味方の替えた兵は、持ち場で待たずに本人のまわりの敵へ打って出る
-    if (team === P.team && !A.people) { g.order = 'attack'; g.seekRange = 40; g.aggro = 14; g.guard = false; }
+    //   ただし本陣・大殿の旗本（kind:'honjin'）は陣形を崩さず、大将を囲んで落ち着いて待つ（敵が間近に来た時だけ迎え撃つ。kaito 10/1）
+    if (team === P.team && !A.people && A.kind !== 'honjin') { g.order = 'attack'; g.seekRange = 40; g.aggro = 14; g.guard = false; }
+    else if (team === P.team && A.kind === 'honjin') { g.order = 'hold'; g.aggro = 6; g.seekRange = 14; g.guard = true; }
     alive += g.count;
     W.groups.push(g); W.at.push({ x: who.pos.x, z: who.pos.z });
   }

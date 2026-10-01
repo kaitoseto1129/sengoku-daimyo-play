@@ -1064,6 +1064,30 @@ export class World {
     return (a * (1 - tx) + b * tx) * (1 - tz) + (c * (1 - tx) + d * tx) * tz;
   }
 
+  // 勾配の急さ（tan）。山城の切岸・急な斜面は登れない（道・梯子・階段＝def.paths は例外）
+  slopeTan(x, z) {
+    const e = 0.8;
+    const h0 = this.heightAt(x, z);
+    const hx = this.heightAt(x + e, z) - h0;
+    const hz = this.heightAt(x, z + e) - h0;
+    return Math.hypot(hx, hz) / e;
+  }
+
+  onRoad(x, z) {
+    const paths = this.def.paths;
+    if (!paths || !paths.length) return false;
+    for (const p of paths) {
+      const pts = p && p.pts ? p.pts : p;
+      if (pts && pts.length && distToPolyline(x, z, pts) < 3) return true;
+    }
+    return false;
+  }
+
+  // 35度ほどより急な坂は、道・梯子・階段の上でなければ登れない
+  walkable(x, z) {
+    return this.slopeTan(x, z) <= 0.70 || this.onRoad(x, z);
+  }
+
   buildLights() {
     this.hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
     this.scene.add(this.hemi);

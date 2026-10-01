@@ -861,4 +861,5 @@ function sunoB() {
   ];
 }
 
+sunomata.rts = true;
 export { sunomata };

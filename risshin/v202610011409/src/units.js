@@ -296,12 +296,14 @@ export class Army {
     return false;
   }
 
-  enemiesInArc(pos, heading, reach, halfAngle, team, over = false) {
+  // allyMounted：true の時は、味方の騎馬（乗り手でなく馬だけ）も的に含める（自分の馬・味方の馬も討てるように。kaito 10/1）
+  enemiesInArc(pos, heading, reach, halfAngle, team, over = false, allyMounted = false) {
     const out = [];
     const fx = Math.sin(heading), fz = Math.cos(heading);
     this.forNear(pos.x, pos.z, reach + 1, (o) => {
       // 討たれない武将も、手傷を負って退くまでは突ける（damage で下限に止める）
-      if (o.team === team || !o.alive || (o.invuln && o.woundOut)) return;
+      const sameSide = o.team === team;
+      if ((sameSide && !(allyMounted && o.mounted && o.horse && !o.isPlayer)) || !o.alive || (o.invuln && o.woundOut)) return;
       const dx = o.pos.x - pos.x, dz = o.pos.z - pos.z;
       const d = Math.hypot(dx, dz);
       // 的には体の太さ（半径 0.3m ほど、馬上は 0.6m）がある：穂先が体の端にかかれば当たる
@@ -524,8 +526,15 @@ export class Army {
       this.act(u, dt, near);
       // 乾いた日に隊が動けば土ぼこりが立つ（近くの兵だけ）
       if (dist < 55 && (u.mounted ? 1 : 0.18) * Math.hypot(u.vel.x, u.vel.z) * dt > Math.random() * 1.2) this.world.puff(u.pos.x, u.pos.z, u.mounted ? 2 : 1);
-      u.pos.x += u.vel.x * dt;
-      u.pos.z += u.vel.z * dt;
+      {
+        const px0 = u.pos.x, pz0 = u.pos.z;
+        u.pos.x += u.vel.x * dt;
+        u.pos.z += u.vel.z * dt;
+        // 急な坂（切岸など）は登れない：道でなければ足が止まる（stk の詰まり判定で道へ回り直す）
+        if (!u.fleeing && !this.world.walkable(u.pos.x, u.pos.z) && this.world.walkable(px0, pz0)) {
+          u.pos.x = px0; u.pos.z = pz0; u.vel.x = 0; u.vel.z = 0; if (u.mv) { u.mv.x = 0; u.mv.z = 0; }
+        }
+      }
       this.bodies(u);
       this.collide(u);
       const lim = 176;

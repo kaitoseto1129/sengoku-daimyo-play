@@ -13,6 +13,7 @@ import * as DP from './b_depth.js';
 import { depthTick, depthOn, depthStart, depthBot } from './b_depth.js';
 import { gone, seasonOf, sky, uS, uG, uA, uC, uBu } from './b_shared.js';
 import { camp } from './b_mid.js';
+import { demBlend } from './dem.js';
 
 // ======================================================================
 // 第2戦　森部
@@ -20,6 +21,10 @@ import { camp } from './b_mid.js';
 const ROAD2 = [[-40, 176], [-28, 100], [-14, 40], [-6, -40], [4, -176]];
 const POINT2 = { x: 50, z: -6 };
 const LINE2 = -58;
+// 国土地理院の標高（森部古戦場。束0 の asset_dem_moribe.js）を手書きの base（低い湿地）に混ぜる
+let moribeDem = null;
+import('./asset_dem_moribe.js').then((m) => { moribeDem = m.default; }).catch(() => {});
+const moribeHeight = (x, z, b) => (moribeDem ? demBlend(moribeDem, x, z, b, { scale: 0.22, floor: b - 3, xyScale: 4 }) : b);
 
 const moribe = {
   spawn: { x: 46, z: 74, heading: Math.PI },
@@ -28,7 +33,8 @@ const moribe = {
     muddy: 0.3,
     paths: [ROAD2],
     height(x, z) {
-      return 1.4 * Math.sin(x * 0.03) * Math.cos(z * 0.025) + 0.9 * Math.sin(x * 0.07 + z * 0.05) + 10 * gauss(x, z, 130, 60, 3000) + 8 * gauss(x, z, -130, -90, 3200) + 2 * gauss(x, z, 58, -8, 300);
+      const b = 1.4 * Math.sin(x * 0.03) * Math.cos(z * 0.025) + 0.9 * Math.sin(x * 0.07 + z * 0.05) + 10 * gauss(x, z, 130, 60, 3000) + 8 * gauss(x, z, -130, -90, 3200) + 2 * gauss(x, z, 58, -8, 300);
+      return moribeHeight(x, z, b);
     },
     tint(x, z, h, c) {
       // 田の畦
@@ -205,6 +211,12 @@ const moribe = {
       F.N.onArrive = (g) => { g.order = 'attack'; g.seekRange = 30; };
       F.Y.order = 'attack'; F.Y.seekRange = 40; F.Y.anchor = { x: -44, z: -18 };
       rt.obj('nagai', '横備えと共に、長井の備を横から突け', 'side');
+      // 軍議（def.gungi）で「川上から渡る」を選んだ時：横備えが瀬を渡って長井の備の後ろへ先に回り込んだとし、
+      // 気取られた分だけ長井の士気を早く崩す（史実の既定「正面」はこれまで通り）
+      if (F.strategy === 'river') {
+        F.N.morale = Math.min(F.N.morale, 70);
+        rt.say('大沢勘兵衛', '横備えは瀬を渡って、もう長井の背へ回っておる。今じゃ！', 3.5);
+      }
     }
     if (F.signal && F.M && volleyAt(rt, 'moriM', F.G, [F.M, F.V], { r: 30, until: F.signal + 50, hit: 26, then: ['大沢勘兵衛', '日比野の備が揺れたぞ！　横から突け！'] })) rt.objProgress('break', '鉄砲で敵が揺れた');
     if (F.signal && !F.nagaiDone && F.N && (F.N.routed || F.N.count === 0)) { F.nagaiDone = true; rt.objDone('nagai'); }
@@ -450,6 +462,7 @@ moribe.skip = (rt) => {
   }
   F.vArrived = rt.t - 13;
 };
+moribe.rts = true;   // 侍大将以上は上空の指揮（rtsCanCommand の身分の縛りは rts.js 側）
 moribe.sides = { a: { name: '織田軍', mon: 'oda' }, b: { name: '斎藤軍', mon: 'saito' } };
 // 史実でこの戦にいた名のある武将（battle.js の placeFamous が、その家の隊に加える。敵は名乗り、討てば手柄）
 moribe.famous = [
@@ -463,6 +476,34 @@ moribe.force = (rt) => {
   return { a: 1500 - (F.ak || 0) * 6, a0: 1500, b: 6000 - (F.ek || 0) * 20 - (F.ending ? 800 : 0), b0: 6000 };
 };
 moribe.history = '永禄四年五月、斎藤義龍の急死の直後に信長は美濃へ攻め入り、森部で斎藤勢を破った。この戦いで斎藤方の日比野下野守・長井甲斐守が討ち死にしている。斎藤家の紋は「撫子」（二頭立波とする伝えもある）。道三の頃から撫子を使ったと伝わるが、義龍・龍興の頃の旗の形ははっきりしない。この戦では撫子の旗にしている。';
+
+// 軍議（gungi.js・F6）：合図の後の仕掛け方を二つから選ぶ。史実の既定は正面
+//   ①front（既定）：横備えは陸から正面で長井の備に当たる
+//   ②river：横備えが瀬を渡って長井の備の背へ先に回り込む（長井の士気が早く揺らぐ）
+// 軍議は侍大将候補（rank 3）から（main.js の canGungi）。組頭見習いは史実の既定（正面）で進む
+moribe.gungi = (rt) => {
+  const F = rt.flags;
+  const G = {
+    center: { x: -20, z: -40 }, dist: 100,
+    units: [{ id: 'plan', name: '横備え', group: () => F.Y, nominal: () => (F.Y ? F.Y.count : 0) }],
+    routes: [
+      { id: 'front', name: '陸から正面で、長井の備に当たる' },
+      { id: 'river', name: '瀬を渡って、長井の備の背へ回り込む' },
+    ],
+    default: { plan: 'front' },
+    enemy: [
+      { name: '日比野下野守の備', known: true, count: () => (F.M ? F.M.count : 0) },
+      { name: '長井甲斐守の備', known: true, count: () => (F.N ? F.N.count : 0) },
+    ],
+    onStart: (assign) => moribe.onGungiStart(rt, assign),
+  };
+  const auto = window.__moribeStrategy || (/[?&]bot/.test(location.search) ? 'front' : null);
+  if (auto) { moribe.onGungiStart(rt, { plan: auto }); return null; }
+  return G;
+};
+moribe.onGungiStart = (rt, assign) => {
+  rt.flags.strategy = (assign && assign.plan) || 'front';
+};
 
 // ---- 森部 ----
 function moriCtx(rt) {

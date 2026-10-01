@@ -455,7 +455,7 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
   // 日本地図（武将になってから開く天下の地図。足軽大将より前は試し）
   if (onJapan) $('b-japan').onclick = () => { sfx('ui'); onJapan(); };
   // 侍大将で出陣／織田信長で出陣：同じ戦の一覧から、侍大将でも信長でも選んで出る（記録は残らない）
-  // 侍大将なら自分の組（槍・弓・鉄砲・騎馬のおよそ六十人）、信長なら旗本百人と全軍の軍配
+  // 侍大将なら自分の組（槍・弓・鉄砲・騎馬のおよそ三十人）、信長なら旗本百人と全軍の軍配
   const openPick = (mode0) => {
     sfx('ui');
     const box = $('samurai-pick');
@@ -472,7 +472,7 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
     }
     box.innerHTML = `<div class="confirm-row lord-pick" style="display:block" role="region" aria-labelledby="lp-h"><b id="lp-h">どの戦に、誰として出るか</b>
       <div class="field" style="max-width:none;margin-top:10px"><label id="lp-who">出る身分</label><div class="diffs" role="radiogroup" aria-labelledby="lp-who" style="display:flex;gap:8px;flex-wrap:wrap">
-        ${onSamurai ? `<label><span><input type="radio" name="lp-who" value="sam" ${mode0 === 'sam' ? 'checked' : ''}> 侍大将で</span><small>前立の兜・陣羽織・馬。自分の組のおよそ六十人を率いる（Tab で号令）</small></label>` : ''}
+        ${onSamurai ? `<label><span><input type="radio" name="lp-who" value="sam" ${mode0 === 'sam' ? 'checked' : ''}> 侍大将で</span><small>前立の兜・陣羽織・馬。自分の組のおよそ三十人を率いる（Tab で号令）</small></label>` : ''}
         ${onLord ? `<label><span><input type="radio" name="lp-who" value="lord" ${mode0 === 'lord' || !onSamurai ? 'checked' : ''}> 織田信長で</span><small>旗本百人を率い、M の軍配の図で味方の全部の隊を動かす。信長が討たれるか旗本が崩れたら負け</small></label>` : ''}</div></div>
       <div class="field" style="max-width:none;margin-top:10px"><label id="lp-view">視点</label><div class="diffs" role="radiogroup" aria-labelledby="lp-view" style="display:flex;gap:8px;flex-wrap:wrap">
         <label><span><input type="radio" name="lp-view" value="third" ${fp ? '' : 'checked'}> 三人称</span><small>背中から見る</small></label>

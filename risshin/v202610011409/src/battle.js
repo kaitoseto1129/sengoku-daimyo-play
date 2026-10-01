@@ -467,8 +467,10 @@ export class Battle {
     if (this.G.trialStep >= 3 && !def.dojo && !(this.G.lord && def.lordHata)) {
       const p = this.player.u.pos, h = this.player.u.heading || 0;
       const back = { x: p.x - Math.sin(h) * 6, z: p.z - Math.cos(h) * 6 };
-      if (!this.squad.length) this.makeSquad(back, h, [{ kind: 'spear', n: 20 }, { kind: 'bow', n: 10 }]);
-      this.makeSquad(back, h, [{ kind: 'gun', n: 20, ranks: 2 }, { kind: 'cavalry', n: 10 }]);
+      // ついてくる組は合わせて30人（kaito 10/1：多すぎてごちゃごちゃ・重い）。戦の定義の組は makeSquad で15人までに縮めてある
+      this._samBudget = Infinity;   // ここからは自分の組の足し分（縮めない）
+      if (!this.squad.length) this.makeSquad(back, h, [{ kind: 'spear', n: 10 }, { kind: 'bow', n: 5 }]);
+      this.makeSquad(back, h, [{ kind: 'gun', n: 10, ranks: 2 }, { kind: 'cavalry', n: 5 }]);
     }
     // 供（ともの者）：問屋で雇った家来が、自分のすぐ後ろについて戦う（組とは別。稽古場・信長・地図の城攻めでは出さない）
     this.tomoUnits = [];
@@ -1074,6 +1076,11 @@ export class Battle {
     const km = this.G.trialStep >= 3 ? null : kumiList(this.G, list.reduce((a, s) => a + (s.n || 0), 0));
     if (km) list = km;
     let ri = 0;
+    // 侍大将で出た時は、戦の定義が組を作っても15人まで（あとで鉄砲・騎馬の15人を足して30人）
+    if (this.G.trialStep >= 3 && !this.ready) {
+      if (this._samBudget == null) this._samBudget = 15;
+      list = list.map((s) => { const n = Math.min(s.n || 0, this._samBudget); this._samBudget -= n; return { ...s, n }; });
+    }
     for (const spec of list) {
       if (!spec.n) continue;
       const g = this.army.addGroup({ team: 0, faction: this.G.lordFaction || scenario().faction, order: 'follow', formation: 'line', facing, anchor: { ...center }, isPlayerSquad: true, dmgMult: lead, aggro: 8, spacing: 1.6 });

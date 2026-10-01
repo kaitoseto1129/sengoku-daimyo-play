@@ -18,9 +18,9 @@ import { camp } from './b_mid.js';
 import { depthStart, depthTick, depthBot, rest, pick, fight, hold } from './b_depth.js';
 import { demBlend } from './dem.js';
 
-// 実測地形（国土地理院 標高タイル下ごしらえ）を試す口。既定は今まで通りの手書き地形（base）。
-// ?dem を付けた時だけ asset_dem_inabayama.js を読み、金華山の本当の尾根・谷の形に混ぜる（城の部品の位置はそのまま）。
-const DEM_ON = typeof location !== 'undefined' && /[?&]dem\b/.test(location.search);
+// 実測地形（国土地理院 標高タイル下ごしらえ）：金華山の本当の尾根・谷の形に混ぜる（城の部品の位置はそのまま）。
+// 既定で使う（quality-upgrade-plan 束2）。?nodem を付けた時だけ手書きの地形（base）のまま試せる
+const DEM_ON = !(typeof location !== 'undefined' && /[?&]nodem\b/.test(location.search));
 let DEM = null;
 if (DEM_ON) import('./asset_dem_inabayama.js').then((m) => { DEM = m.default; CASTLE_HEIGHT = null; });
 const DEM_SCALE = 0.2;   // 実測 relief(m) をゲームの高さの単位へ縮める比（手書きの HTOP に合わせた目安）
@@ -288,7 +288,7 @@ const inabayama = {
       W.addDistantArmy({ x: HON.x - 3, z: HON.z - 2, w: 12, d: 6, count: 45, facing: 0, armor: 0x33302a, flagTex: flagTexture('saito'), seed: 15677 });
       // 本丸の奥の御座所：斎藤龍興と馬廻（見上げに来れば大将がいる。寄り過ぎなければ打って出ない）
       F.tatsu = enemyGroup(rt, { faction: 'saito', name: '斎藤龍興の馬廻', anchor: { x: HON.x, z: HON.z - 11 }, facing: 0, order: 'hold', aggro: 3, width: 6, morale: 100, noRout: true, fleeDir: { x: 0, z: -1 }, dmgMult: 0.6 },
-        dress([{ type: 'busho', n: 1, o: { name: '斎藤龍興', invuln: true, hat: 'kabuto_w', haori: 0x2e3a2a } }, { type: 'samurai', n: 4 }, { type: 'gun', n: 2 }], { flag: 'saito' }));
+        dress([{ type: 'busho', n: 1, o: { name: '斎藤龍興', invuln: true, mustLive: true, hat: 'kabuto_w', haori: 0x2e3a2a } }, { type: 'samurai', n: 4 }, { type: 'gun', n: 2 }], { flag: 'saito' }));
       if (F.tatsu.units[0]) F.tatsu.leader = F.tatsu.units[0];
       // 本丸の柵の内に沿って、外を向いて構える鉄砲・弓・槍の者（軽い作り。柵の隙間から筒先と頭がのぞく）。口の前は空ける
       const crew = [];
@@ -1019,4 +1019,5 @@ inabayama.botBrain = (b, inp, { goTo }) => {
   goTo(p, inp, c.x + 3, c.z + 4, 3);
 };
 
+inabayama.rts = true;
 export { inabayama };

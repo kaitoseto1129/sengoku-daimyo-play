@@ -1775,7 +1775,7 @@ export function castleBattle(info) {
           [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: vanN, o: flagA }]);
         g.assault = (u) => route(P, u.pos, N, this.goalPt(rt));
         F.vans.push(g);
-        for (const s of [-1, 1]) this.addTaba(rt, x + s * 1.7, z - 2.4, A, { van: g, off: s * 1.7 });
+        for (const s of [-1, 0, 1]) this.addTaba(rt, x + s * 1.7, z - 2.4, A, { van: g, off: s * 1.7 });
       }
       // 鉄砲の少ない家は、鉄砲組の半ばを弓で埋める（人数は同じ）
       const nG = defend ? 8 : 10, nGun = guns ? (gunA >= 2 ? nG : Math.round(nG * 0.5)) : 0;
@@ -1960,9 +1960,9 @@ export function castleBattle(info) {
       // 城の内でも、寄せ手に気づいて声が上がり、太鼓が鳴る
       rt.after(4, () => { rt.army.play('eshout', P.gates[0].c, 1.3); sfx('taiko', 0.5); });
       rt.after(6.5, () => rt.say('城兵', '寄せ手じゃ！　狭間につけ！　引きつけて撃て！', 3));
-      const go = (g, x, z, sp = 1.9) => { g.order = 'move'; g.dest = { x, z }; g.speed = sp; g.facing = Math.PI; g.onArrive = (gg) => { gg.order = 'hold'; gg.anchor = { x, z }; }; };
+      const go = (g, x, z, sp = 1.2) => { g.order = 'move'; g.dest = { x, z }; g.speed = sp; g.facing = Math.PI; g.onArrive = (gg) => { gg.order = 'hold'; gg.anchor = { x, z }; }; };
       go(F.vans[0], -14, yoseZ + 3); go(F.vans[1], 14, yoseZ + 3); go(F.vans[2], 0, yoseZ + 7);
-      go(F.gun, 0, yoseZ + 2, 1.8); go(F.ram, -6, yoseZ + 9);
+      go(F.gun, 0, yoseZ + 2, 1.1); go(F.ram, -6, yoseZ + 9);
       rt.zone('yose', 3, yoseZ, 8);
       rt.marker('yose', { x: 3, z: yoseZ }, '寄せ場', { h: 2.5 });
     },
@@ -2170,8 +2170,8 @@ export function castleBattle(info) {
       sfx('horagai', 1);
       rt.banner('寄せ手、来る', `${info.atk.name}の軍勢が押し寄せる`);
       rt.say('物見', `${info.atk.name}の先手、竹束を押し立てて寄せてまいります！`, 3.5);
-      const go = (g, x, z, sp = 1.9) => { g.order = 'move'; g.dest = { x, z }; g.speed = sp; g.facing = Math.PI; g.onArrive = (gg) => { gg.order = 'hold'; gg.anchor = { x, z }; }; };
-      go(F.gun, 0, yoseZ + 2, 1.8); go(F.vans[0], -14, yoseZ + 3); go(F.vans[1], 14, yoseZ + 3);
+      const go = (g, x, z, sp = 1.2) => { g.order = 'move'; g.dest = { x, z }; g.speed = sp; g.facing = Math.PI; g.onArrive = (gg) => { gg.order = 'hold'; gg.anchor = { x, z }; }; };
+      go(F.gun, 0, yoseZ + 2, 1.1); go(F.vans[0], -14, yoseZ + 3); go(F.vans[1], 14, yoseZ + 3);
       // 門破りと、残る先手は竹束の後から門へ
       rt.after(22, () => { for (const g of [F.ram, F.vans[2]]) { g.order = 'assault'; g.seekRange = 10; } rt.say('物見', '門破りの者どもが門へ取り付くぞ！', 3); });
       rt.after(40, () => { for (const g of [F.vans[0], F.vans[1]]) { g.order = 'assault'; g.seekRange = 10; } for (const tb of F.tabas) tb.van = null; });
@@ -2315,6 +2315,11 @@ export function castleBattle(info) {
     updateAttack(rt, dt) {
       const F = rt.flags;
       const pu = rt.player.u;
+      // 一番乗り：自分がその曲輪・本丸へ踏み込むか、15秒待てば、門の外で待たせていた味方も続く
+      if (F.gateWaitReg && (P.regionOf(pu.pos.x, pu.pos.z) >= F.gateWaitReg || rt.t - F.gateWaitAt > 15)) {
+        F.gateWaitReg = 0;
+        for (const gg of [...F.vans, F.ram]) if (gg.gateWait) { gg.gateWait = false; gg.order = 'assault'; gg.aggro = 16; gg.seekRange = 30; }
+      }
       if (F.step === 0 && rt.t > 3 && pu.pos.z < spawnZ - 14) this.signal(rt);
       if (F.step === 1) {
         const d = Math.hypot(pu.pos.x - 3, pu.pos.z - yoseZ);
@@ -2684,6 +2689,9 @@ export function castleBattle(info) {
       } else rt.award((t) => { t.c.point++; }, `${g.name}を破った`);
       rt.banner(`${g.name}、破れたり`, last ? '本丸へ攻め入る' : P.regs[g.i + 1].name.includes('枡形') ? '枡形へ押し込め。四方から撃たれるぞ' : `${P.regs[g.i + 1].name}へ攻め入る`);
       const next = P.gates.find((x) => x.st.alive);
+      // 一番乗り：味方の先手は自分より先に次の曲輪・本丸へ雪崩れ込まず、門の外でいったん止まる（自分が踏み込めば続く。kaito 10/1「味方がいるのが嫌」）
+      const gatePt = { x: g.c.x - g.n.x * 4, z: g.c.z - g.n.z * 4 };
+      const holdAtGate = (gg) => { if (gg.count) { gg.order = 'hold'; gg.anchor = { ...gatePt }; gg.aggro = 6; gg.gateWait = true; } };
       if (next) {
         rt.say(lordA, P.regs[g.i + 1].name.includes('枡形') ? `枡形じゃ！　止まるな、${next.name}を破れ！` : `押し込め！　次は${next.name}じゃ！`, 3.5);
         rt.obj('main', `${STAGE(1)}${next.name}を破れ`, 'main');
@@ -2692,8 +2700,14 @@ export function castleBattle(info) {
           [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 11, o: flagA }]);
         ng.assault = (u) => route(P, u.pos, N, this.goalPt(rt));
         F.vans.push(ng);
+        for (const gg of [...F.vans, F.ram]) holdAtGate(gg);
+        F.gateWaitReg = g.i + 1; F.gateWaitAt = rt.t;
         this.markGate(rt);
-      } else this.honmaru(rt);
+      } else {
+        for (const gg of [...F.vans, F.ram]) holdAtGate(gg);
+        F.gateWaitReg = N; F.gateWaitAt = rt.t;
+        this.honmaru(rt);
+      }
     },
     onStructHit(rt, s) {
       const F = rt.flags;

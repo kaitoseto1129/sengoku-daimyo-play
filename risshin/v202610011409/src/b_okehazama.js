@@ -12,12 +12,18 @@ import { isTouch } from './touch.js';
 import { K } from './settings.js';
 import { clash } from './b_sekigahara.js';
 import { moraleWord } from './hud.js';
+import { demBlend } from './dem.js';
 
 // ======================================================================
 // 第1戦　桶狭間
 // ======================================================================
 const P1 = [[0, 172], [4, 140], [6, 118], [-8, 90], [-24, 60], [-30, 30], [-22, 0], [-12, -30], [-8, -46]];
 const HONJIN = { x: 18, z: -116 };
+// 国土地理院の標高（桶狭間古戦場。束0 の asset_dem_okehazama.js）を手書きの base に混ぜる。
+// 野戦は手書きの地形（ゲーム内の尺）の幅が広いので xyScale で実測の格子に合わせて縮めて引く
+let okeDem = null;
+import('./asset_dem_okehazama.js').then((m) => { okeDem = m.default; }).catch(() => {});
+const okeHeight = (x, z, b) => (okeDem ? demBlend(okeDem, x, z, b, { scale: 0.3, floor: b - 5, xyScale: 4 }) : b);
 
 const okehazama = {
   spawn: { x: 3, z: 162, heading: Math.PI },
@@ -36,7 +42,7 @@ const okehazama = {
       if (fr > 12 && fr < 24 && !(z < 150 && Math.abs(x) < 4)) h += 1.1 * Math.exp(-((fr - 15.8) ** 2) / 2) - 1.3 * Math.exp(-((fr - 19.5) ** 2) / 1.6);
       const d = distToPolyline(x, z, P1);
       h -= 4 * Math.exp(-(d * d) / 300);
-      return h;
+      return okeHeight(x, z, h);
     },
     clear: (x, z) =>
       Math.hypot(x - HONJIN.x, z - HONJIN.z) < 28 || Math.hypot(x, z + 96) < 16 || Math.hypot(x - 40, z + 92) < 14 ||
@@ -128,12 +134,12 @@ const okehazama = {
 
     // 今川勢（休息中）
     const E = rt.flags.enemies = [];
-    E.push(enemyGroup(rt, { faction: 'imagawa', anchor: { x: 0, z: -96 }, facing: 0, morale: 85, fleeDir: { x: 0.2, z: -1 }, aggro: 7 }, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 17 }]));
-    E.push(enemyGroup(rt, { faction: 'imagawa', anchor: { x: 40, z: -92 }, facing: -0.4, morale: 85, fleeDir: { x: 0.6, z: -1 }, aggro: 7 }, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 12 }, { type: 'bow', n: 4 }]));
-    E.push(enemyGroup(rt, { faction: 'imagawa', anchor: { x: -22, z: -118 }, facing: 0.3, morale: 85, fleeDir: { x: -0.5, z: -1 }, aggro: 7 }, [{ type: 'busho', n: 1, o: { name: '今川方の侍大将' } }, { type: 'samurai', n: 1 }, { type: 'ashigaru', n: 15 }]));
+    E.push(enemyGroup(rt, { faction: 'imagawa', anchor: { x: 0, z: -96 }, facing: 0, morale: 85, fleeDir: { x: 0.2, z: -1 }, aggro: 7 }, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 14 }]));
+    E.push(enemyGroup(rt, { faction: 'imagawa', anchor: { x: 40, z: -92 }, facing: -0.4, morale: 85, fleeDir: { x: 0.6, z: -1 }, aggro: 7 }, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 10 }, { type: 'bow', n: 4 }]));
+    E.push(enemyGroup(rt, { faction: 'imagawa', anchor: { x: -22, z: -118 }, facing: 0.3, morale: 85, fleeDir: { x: -0.5, z: -1 }, aggro: 7 }, [{ type: 'busho', n: 1, o: { name: '今川方の侍大将' } }, { type: 'samurai', n: 1 }, { type: 'ashigaru', n: 12 }]));
     // 本陣の東と北で休む組（かかれの後、本陣を守りに寄ってくる）
-    E.push(enemyGroup(rt, { faction: 'imagawa', anchor: { x: 40, z: -124 }, facing: -0.8, morale: 85, fleeDir: { x: 0.6, z: -1 }, aggro: 7 }, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 15 }]));
-    E.push(enemyGroup(rt, { faction: 'imagawa', anchor: { x: -4, z: -134 }, facing: 0.2, morale: 85, fleeDir: { x: -0.2, z: -1 }, aggro: 7 }, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 14 }, { type: 'bow', n: 2 }]));
+    E.push(enemyGroup(rt, { faction: 'imagawa', anchor: { x: 40, z: -124 }, facing: -0.8, morale: 85, fleeDir: { x: 0.6, z: -1 }, aggro: 7 }, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 12 }]));
+    E.push(enemyGroup(rt, { faction: 'imagawa', anchor: { x: -4, z: -134 }, facing: 0.2, morale: 85, fleeDir: { x: -0.2, z: -1 }, aggro: 7 }, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 11 }, { type: 'bow', n: 2 }]));
     const H = enemyGroup(rt, { faction: 'imagawa', anchor: { x: HONJIN.x, z: HONJIN.z + 2 }, facing: 0, morale: 100, fleeDir: { x: 0, z: -1 }, aggro: 6, noRout: true, spacing: 1.8 },
       [{ type: 'busho', n: 1, o: { name: '今川義元', invuln: true, noHead: true, flagScale: 1.4 } }, { type: 'samurai', n: 8 }]);
     rt.flags.yoshimoto = H.units[0];
@@ -478,12 +484,20 @@ const okehazama = {
       const first = F.enemies.slice(0, 3), down = first.filter((g) => !g.count || g.routed).length;
       rt.objProgress('st', `崩した先手 ${down}/3`);
       // 先手を崩したら、段を重ねる（立て直し→畦の押し合い→林の鉄砲の判断）。済んでから与兵衛の判断へ
-      if (down >= 2 || el > 110) { rt.unmark('st1'); rt.objDone('st'); F.stage = 1.5; depthStart(rt, okeCtx(rt), okeA(), () => { next(2); this.choiceYohei(rt); }); }
+      // 4〜7分へ詰めるため、保険の上限を縮めた（討ち崩せば down>=2 でもっと早く進む）
+      if (down >= 2 || el > 80) {
+        rt.unmark('st1'); rt.objDone('st'); F.stage = 1.5;
+        depthStart(rt, okeCtx(rt), okeA(), () => {
+          // 軍議（def.gungi）で「山の裏から回る」を選んだ時：東の丘の今川に気取られぬまま進めたとして、
+          // 与兵衛の組への横槍（判断①）が起きない。正面（史実の既定）はこれまで通り判断①へ
+          if (F.strategy === 'flank') { next(3); this.frontGuard(rt); } else { next(2); this.choiceYohei(rt); }
+        });
+      }
     }
     if (F.stage === 2.5) {
       const g = F.flankE;
       rt.objProgress('st', g ? `横槍の今川勢 ${gone(g) ? 0 : g.count}人` : '');
-      if (g && (gone(g) || el > 100)) {
+      if (g && (gone(g) || el > 70)) {   // 4〜7分へ詰める
         if (gone(g)) { F.yoheiSaved = true; rt.objDone('st'); rt.award((t) => t.side.push('与兵衛の組を救った'), '与兵衛の組を救った'); rt.say('与兵衛', 'かたじけない！　この組、本陣まで付いて行くぞ', 3.5); }
         else { rt.objFail('st'); g.noRout = false; g.morale = 0; }
         rt.unmark('flankE'); next(3); this.frontGuard(rt);
@@ -494,7 +508,7 @@ const okehazama = {
       rt.objProgress('st', `本陣の前備え ${gone(g) ? 0 : g.count}人`);
       volleyAt(rt, 'okeFront', F.okeGun, [g], { r: 30, until: F.stageT + 24, hit: 30, then: ['弥七', '前備えが揺れた！　今じゃ！'] });
       if (g.count < 6 && !gone(g)) g.morale = Math.min(g.morale, 20);
-      if (gone(g) || el > 120) { rt.unmark('front'); rt.objDone('st'); next(4); this.choiceKoshi(rt); }
+      if (gone(g) || el > 85) { rt.unmark('front'); rt.objDone('st'); next(4); this.choiceKoshi(rt); }   // 4〜7分へ詰める
     }
     if (F.stage === 4.5 && F.cutPt && !F.entered) {
       const p = rt.player.u.pos;
@@ -515,7 +529,7 @@ const okehazama = {
       }
     }
     // 保険：口から押し入る段で、長く本陣に入れない時は、味方がなだれ込んだ事にして旗本との攻防へ
-    if (F.stage === 5 && !F.entered && el > 90) {
+    if (F.stage === 5 && !F.entered && el > 65) {   // 4〜7分へ詰める
       F.entered = true; F.enterT = rt.t;
       rt.objDone('honjin'); rt.unmark('honjin'); rt.unzone('honjin');
       rt.banner('味方が幔幕の内へなだれ込んだ', '旗本を崩し、味方を義元へ通せ');
@@ -525,7 +539,7 @@ const okehazama = {
     }
     if (F.stage === 6) {
       const g = F.matsui;
-      const left = Math.max(0, 70 - el);
+      const left = Math.max(0, 48 - el);
       rt.objProgress('st', `引き返す今川勢 ${gone(g) ? 0 : g.count}人・持ちこたえる ${Math.ceil(left)}秒`);
       if (g.count < 6 && !gone(g)) g.morale = Math.min(g.morale, 20);
       if (gone(g) || left <= 0) {
@@ -558,10 +572,10 @@ const okehazama = {
       if (i === 0) {
         F.stage = 2.5; F.stageT = rt.t;
         F.flankE = enemyGroup(rt, { faction: 'imagawa', name: '横槍の今川勢', anchor: { x: yc.x + 26, z: yc.z - 8 }, facing: -Math.PI / 2, order: 'attack', seekRange: 60, aggro: 14, width: 10, morale: 90, fleeDir: { x: 1, z: -0.5 } },
-          [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 22 }]);
+          [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 18 }]);
         F.flankE.dmgMult = 0.6;
         // 横槍は小勢でなく、丘から下る数百の塊（近くは本物の兵）
-        nagashinojo.kit.backOf(rt, F.flankE, { flag: 'imagawa', armor: nagashinojo.kit.ARMOR.imagawa, kind: 'spear', w: 20, depth: 12, count: 160, seed: 131 });   // 初陣：組と一緒なら崩せる強さ
+        nagashinojo.kit.backOf(rt, F.flankE, { flag: 'imagawa', armor: nagashinojo.kit.ARMOR.imagawa, kind: 'spear', w: 20, depth: 12, count: 115, seed: 131 });   // 初陣：組と一緒なら崩せる強さ
         F.flankE.focus = Y.units.find((u) => u.alive) || null;
         rt.obj('st', '与兵衛の組を助け、横槍の今川勢を崩せ', 'main');
         rt.marker('flankE', centerOf(F.flankE), () => `横槍の今川勢・${moraleWord(F.flankE.morale)}`, { red: true, group: F.flankE });
@@ -579,10 +593,10 @@ const okehazama = {
   frontGuard(rt) {
     const F = rt.flags;
     F.front = enemyGroup(rt, { faction: 'imagawa', name: '本陣の前備え', anchor: { x: HONJIN.x, z: HONJIN.z + 26 }, facing: 0, order: 'hold', aggro: 16, width: 16, morale: 95, fleeDir: { x: 0, z: -1 }, formation: 'yari' },
-      [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: F.pushed ? 16 : 18 }, { type: 'bow', n: 2 }, ...((F.dpMem || {}).okeGuns === 'left' ? [{ type: 'gun', n: 3 }] : [])]);
+      [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: F.pushed ? 13 : 15 }, { type: 'bow', n: 2 }, ...((F.dpMem || {}).okeGuns === 'left' ? [{ type: 'gun', n: 3 }] : [])]);
     // 初陣の足軽が一人で当たっても一撃で崩れない強さに（味方の組と囲めば崩せる）
     F.front.dmgMult = 0.6;
-    nagashinojo.kit.backOf(rt, F.front, { flag: 'imagawa', armor: nagashinojo.kit.ARMOR.imagawa, kind: 'spear', w: 22, depth: 12, count: 170, seed: 132, stop: () => { const c = F.front.center(); return Math.hypot(c.x - HONJIN.x, c.z - HONJIN.z) < 30; } });
+    nagashinojo.kit.backOf(rt, F.front, { flag: 'imagawa', armor: nagashinojo.kit.ARMOR.imagawa, kind: 'spear', w: 22, depth: 12, count: 125, seed: 132, stop: () => { const c = F.front.center(); return Math.hypot(c.x - HONJIN.x, c.z - HONJIN.z) < 30; } });
     for (const g of F.cols) if (g.count) { g.order = 'attack'; g.seekRange = 40; g.anchor = { x: HONJIN.x + (Math.random() - 0.5) * 16, z: HONJIN.z + 34 }; }
     // 味方の鉄砲（桶狭間の頃はまだ少ない）。前備えが寄せた所で一斉に放つ
     F.okeGun = allyGroup(rt, { name: '織田の鉄砲', anchor: { x: HONJIN.x - 14, z: HONJIN.z + 52 }, facing: Math.PI, order: 'hold', aggro: 4, width: 6, noRout: true, fleeDir: { x: 0, z: 1 } }, [{ type: 'samurai', n: 1 }, { type: 'gun', n: 4 }]);
@@ -596,8 +610,8 @@ const okehazama = {
     // 与兵衛を捨てて押した時は、東から今川の新手が加わる
     if (F.pushed) rt.after(28, () => {
       if (F.ending) return;
-      const g = enemyGroup(rt, { faction: 'imagawa', name: '東の今川の新手', anchor: { x: 70, z: -110 }, facing: -Math.PI / 2, order: 'attack', seekRange: 80, aggro: 14, width: 10, morale: 90, fleeDir: { x: 1, z: -1 } }, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 24 }]);
-      nagashinojo.kit.backOf(rt, g, { flag: 'imagawa', armor: nagashinojo.kit.ARMOR.imagawa, kind: 'spear', w: 20, depth: 12, count: 160, seed: 133 });
+      const g = enemyGroup(rt, { faction: 'imagawa', name: '東の今川の新手', anchor: { x: 70, z: -110 }, facing: -Math.PI / 2, order: 'attack', seekRange: 80, aggro: 14, width: 10, morale: 90, fleeDir: { x: 1, z: -1 } }, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 18 }]);
+      nagashinojo.kit.backOf(rt, g, { flag: 'imagawa', armor: nagashinojo.kit.ARMOR.imagawa, kind: 'spear', w: 20, depth: 12, count: 115, seed: 133 });
       F.enemies.push(g);
       rt.say('足軽', '東から今川の新手！　与兵衛殿の組を崩した者どもじゃ！', 3);
     });
@@ -621,7 +635,7 @@ const okehazama = {
         F.hatamoto.anchor = { x: HONJIN.x - 2, z: HONJIN.z - 10 };
         rt.say('源八', 'よし、ついて来い！　幕の外を回るぞ', 3);
         // 遅すぎれば、輿は北の谷へ抜けて前の流れ（口から）に戻る
-        rt.after(70, () => { if (F.stage === 4.5 && !F.entered) { rt.unmark('cut'); rt.unzone('cut'); rt.objFail('st'); rt.say('源八', '遅かったか……輿は幕の内へ戻った。口から押し入れ！', 3); F.stage = 5; F.stageT = rt.t; this.honjinMark(rt); } });
+        rt.after(50, () => { if (F.stage === 4.5 && !F.entered) { rt.unmark('cut'); rt.unzone('cut'); rt.objFail('st'); rt.say('源八', '遅かったか……輿は幕の内へ戻った。口から押し入れ！', 3); F.stage = 5; F.stageT = rt.t; this.honjinMark(rt); } });
       } else { F.stage = 5; F.stageT = rt.t; rt.say('源八', 'よし、口から押し入る。組で固まれ！', 3); this.honjinMark(rt); }
     }, 20);
   },
@@ -636,9 +650,9 @@ const okehazama = {
     const F = rt.flags;
     F.stage = 6; F.stageT = rt.t;
     F.matsui = enemyGroup(rt, { faction: 'imagawa', name: '引き返す今川勢', anchor: { x: HONJIN.x, z: -168 }, facing: 0, order: 'attack', seekRange: 90, aggro: 16, width: 14, morale: 100, noRout: true, fleeDir: { x: 0, z: -1 } },
-      [{ type: 'busho', n: 1, o: { name: '松井宗信' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: F.pushed ? 20 : 16 }]);
+      [{ type: 'busho', n: 1, o: { name: '松井宗信' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: F.pushed ? 16 : 13 }]);
     F.matsui.dmgMult = 0.6;
-    nagashinojo.kit.backOf(rt, F.matsui, { flag: 'imagawa', armor: nagashinojo.kit.ARMOR.imagawa, kind: 'spear', w: 22, depth: 12, count: 200, seed: 134 });
+    nagashinojo.kit.backOf(rt, F.matsui, { flag: 'imagawa', armor: nagashinojo.kit.ARMOR.imagawa, kind: 'spear', w: 22, depth: 12, count: 145, seed: 134 });
     rt.after(20, () => { if (F.matsui) F.matsui.noRout = false; });
     rt.banner('今川勢、引き返す', '北の谷から、主の仇を討たんと');
     rt.say('足軽', '北から今川勢が引き返してくる！　義元の仇討ちじゃと！', 3.5);
@@ -760,10 +774,10 @@ const okehazama = {
     if (!F.reinf && rt.pt > 55) {
       F.reinf = true;
       const R = enemyGroup(rt, { faction: 'imagawa', anchor: { x: 30, z: -150 }, facing: 0, order: 'attack', seekRange: 60, fleeDir: { x: 0.3, z: -1 }, morale: 90 },
-        [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 18 }]);
+        [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 14 }]);
       R.anchor = { x: HONJIN.x, z: HONJIN.z };
       F.enemies.push(R);
-      nagashinojo.kit.backOf(rt, R, { flag: 'imagawa', armor: nagashinojo.kit.ARMOR.imagawa, kind: 'spear', w: 16, depth: 10, count: 110, seed: 93, stop: () => { const c = R.center(); return Math.hypot(c.x - HONJIN.x, c.z - HONJIN.z) < 30; } });
+      nagashinojo.kit.backOf(rt, R, { flag: 'imagawa', armor: nagashinojo.kit.ARMOR.imagawa, kind: 'spear', w: 16, depth: 10, count: 85, seed: 93, stop: () => { const c = R.center(); return Math.hypot(c.x - HONJIN.x, c.z - HONJIN.z) < 30; } });
       rt.say('足軽', '北から今川の後詰が来るぞ！', 3);
     }
     const H = F.hatamoto;
@@ -776,7 +790,7 @@ const okehazama = {
       H.anchor = { x: HONJIN.x - 4, z: HONJIN.z - 14 };
       if (F.koshi) { F.koshi.rotation.z = 0.12; F.koshi.position.y -= 0.4; }
     }
-    const done = F.yoshiDown || (F.entered && rt.pt > 110 && (hatamotoLeft <= 2 || rt.t - F.enterT > 120)) || rt.pt > (rt.G.lord ? 340 : 900);
+    const done = F.yoshiDown || (F.entered && rt.pt > 85 && (hatamotoLeft <= 2 || rt.t - F.enterT > 90)) || rt.pt > (rt.G.lord ? 300 : 700);   // 4〜7分へ詰める
     if (done && !F.victory) {
       F.victory = true;
       F.carried = 0;   // 義元を討った後の段でも、二度までは組頭が下げてくれる
@@ -944,6 +958,7 @@ okehazama.botBrain = (b, inp, { goTo }) => {
   const tgt = F.entered ? HONJIN : Math.hypot(u.pos.x - HONJIN.x, u.pos.z - HONJIN.z) > Math.hypot(c.x - HONJIN.x, c.z - HONJIN.z) + 6 ? c : HONJIN;
   goTo(p, inp, tgt.x, tgt.z, F.entered ? 6 : 3);
 };
+okehazama.rts = true;   // 侍大将以上は上空の指揮（rtsCanCommand の身分の縛りは rts.js 側）
 okehazama.sides = { a: { name: '織田軍', mon: 'oda' }, b: { name: '今川軍', mon: 'imagawa' } };
 // 史実でこの戦にいた名のある武将（battle.js の placeFamous が、その家の隊に加える。敵は名乗り、討てば手柄）
 okehazama.famous = [
@@ -959,6 +974,34 @@ okehazama.force = (rt) => {
   return { a: 2000 - (F.ak || 0) * 6, a0: 2000, b: 25000 - (F.ek || 0) * 30 - (F.victory ? 3000 : 0), b0: 25000 };
 };
 
+// 軍議（gungi.js・F6）：中島砦から二つの作戦。史実の既定は正面（信長公記の通り）
+//   ①front（既定）：中島砦から正面、桶狭間山あいへまっすぐ押す（東の丘の今川に気取られ、与兵衛の組が横槍を受ける＝判断①が起きる）
+//   ②flank：山の裏から回り込み、気取られずに迫る（判断①の横槍が起きない分、段を一つ詰められる）
+// 軍議は侍大将候補（rank 3）から（main.js の canGungi）。足軽・組頭見習いは下知のまま＝史実の既定（正面）で進む
+okehazama.gungi = (rt) => {
+  const F = rt.flags;
+  const G = {
+    center: { x: 3, z: 100 }, dist: 100,
+    units: [{ id: 'plan', name: '中島砦の手勢', group: () => rt.hostGroup, nominal: () => (rt.hostGroup ? rt.hostGroup.count : 0) }],
+    routes: [
+      { id: 'front', name: '中島砦から正面、桶狭間の山あいへまっすぐ押す' },
+      { id: 'flank', name: '山の裏から回り込み、気取られずに迫る' },
+    ],
+    default: { plan: 'front' },
+    enemy: [
+      { name: '今川の先手（谷あいで休息中）', known: true },
+      { name: '今川本陣・義元の旗本', known: false },
+    ],
+    onStart: (assign) => okehazama.onGungiStart(rt, assign),
+  };
+  const auto = window.__okehazamaStrategy || (/[?&]bot/.test(location.search) ? 'front' : null);
+  if (auto) { okehazama.onGungiStart(rt, { plan: auto }); return null; }
+  return G;
+};
+okehazama.onGungiStart = (rt, assign) => {
+  rt.flags.strategy = (assign && assign.plan) || 'front';
+};
+
 // 戦後に添える史実のメモ
 okehazama.history = '史実の桶狭間では、豪雨の後に織田勢が今川本陣を急襲し、今川義元は毛利新介に討ち取られた。『信長公記』は、信長が「分捕りはせず、討ち捨てにせよ」と命じたと伝える。織田勢の数は『信長公記』に「二千に足らざる」とあり、この戦では二千とした（今川勢の数にも諸説ある）。義元に一番に槍をつけたのは服部小平太である。小平太は義元に膝を斬られ、続いた毛利新介が首を挙げた。義元は塗輿を捨てて退こうとしたところを討たれたという。戦った場所は、古くから「田楽狭間」と伝える説と、『信長公記』の「おけはざま山」に本陣があったとする説があり、今も定まっていない。';
 
@@ -970,12 +1013,12 @@ function okeCtx(rt) {
 // 先手を崩した後：立て直し → 畦の押し合い（西の林から横槍）→ 判断（林の鉄砲組を潰すか、本陣の前へ急ぐか）
 function okeA() {
   return [
-    DP.rest({ dur: 12, say: [['源八', '息を整えよ。……弥七、傷は浅いか'], ['弥七', 'かすり傷じゃ。まだ槍は振れる'], ['源八', '組を寄せよ。田の畦に今川の足軽が固まっておる。あれを抜かねば本陣へは寄れぬ']] }),
+    DP.rest({ dur: 8, say: [['源八', '息を整えよ。……弥七、傷は浅いか'], ['弥七', 'かすり傷じゃ。まだ槍は振れる'], ['源八', '組を寄せよ。田の畦に今川の足軽が固まっておる。あれを抜かねば本陣へは寄れぬ']] }),
     DP.fight({ at: { x: -22, z: -78 }, title: '畦の押し合い', sub: '田の畦に、今川の足軽組が槍を揃える', obj: '畦の今川足軽組を押し崩せ（味方の組と並んで）',
       say: [['源八', '槍を揃えよ！　押せ、押せ！　畦から落とせ！']],
-      foes: () => [{ name: '畦の今川足軽組', from: { x: -30, z: -104 }, list: [uS(1), uA(11)], formation: 'yari', noRout: 20 }],
-      later: [{ t: 30, title: '横槍', sub: '西の林から今川の新手', say: ['弥七', '西の林から新手じゃ！　横を突かれるぞ！'], foes: () => [{ name: '西の林の新手', from: { x: -66, z: -64 }, list: [uS(1), uA(7)] }] },
-        { t: 65, title: '押し返し', sub: '本陣の方から今川の足軽が駆け下りてくる', say: ['源八', '上からも来るぞ！　畦を渡らせるな！'], foes: () => [{ name: '駆け下りる今川勢', from: { x: 0, z: -110 }, list: [uS(1), uA(8)] }] }],
+      foes: () => [{ name: '畦の今川足軽組', from: { x: -30, z: -104 }, list: [uS(1), uA(9)], formation: 'yari', noRout: 20 }],
+      later: [{ t: 22, title: '横槍', sub: '西の林から今川の新手', say: ['弥七', '西の林から新手じゃ！　横を突かれるぞ！'], foes: () => [{ name: '西の林の新手', from: { x: -66, z: -64 }, list: [uS(1), uA(6)] }] },
+        { t: 46, title: '押し返し', sub: '本陣の方から今川の足軽が駆け下りてくる', say: ['源八', '上からも来るぞ！　畦を渡らせるな！'], foes: () => [{ name: '駆け下りる今川勢', from: { x: 0, z: -110 }, list: [uS(1), uA(6)] }] }],
       reward: '畦の押し合いを制した' }),
     DP.pick({ title: '林の奥で鉄砲の音。今川の鉄砲組が、本陣へ向かう味方を撃っている。どうする？',
       pre: (rt) => rt.say('弥七', '林から鉄砲じゃ！　味方が撃たれておる！', 3),
@@ -986,41 +1029,42 @@ function okeA() {
       reward: '林の鉄砲組を潰した' }),
     DP.move({ skip: (rt, m) => m.okeGuns === 'raid', to: { x: 6, z: -90 }, obj: '本陣の前へ急げ', label: '本陣の前', r: 10,
       say: [['源八', '坂を駆け上がれ！　林の鉄砲は構うな！']],
-      ambush: { t: 6, say: ['足軽', '道を塞がれた！　今川の足軽じゃ！'], foes: () => [{ name: '道を塞ぐ今川足軽', from: { x: 20, z: -100 }, list: [uA(6)] }] } }),
+      ambush: { t: 6, say: ['足軽', '道を塞がれた！　今川の足軽じゃ！'], foes: () => [{ name: '道を塞ぐ今川足軽', from: { x: 20, z: -100 }, list: [uA(5)] }] } }),
   ];
 }
 // 引き返す今川勢を退けた後：立て直し → 判断（北の谷へ追い討ちか、手負いを運ぶか）→ 判断（しんがりの場所）→ しんがり
 function okeB() {
   return [
-    DP.rest({ dur: 14, say: [['源八', 'よう戦うた。……皆、生きておるか'], ['足軽', (rt) => (rt.flags.yoheiSaved ? '与兵衛殿の組が、手負いを坂の下へ運んでおりまする' : '与兵衛殿の組は、半分も残っておらぬ……')], ['源八', '北の谷へ、今川の旗本の生き残りが逃げていく。殿の馬廻が追うておる']] }),
+    DP.rest({ dur: 9, say: [['源八', 'よう戦うた。……皆、生きておるか'], ['足軽', (rt) => (rt.flags.yoheiSaved ? '与兵衛殿の組が、手負いを坂の下へ運んでおりまする' : '与兵衛殿の組は、半分も残っておらぬ……')], ['源八', '北の谷へ、今川の旗本の生き残りが逃げていく。殿の馬廻が追うておる']] }),
     DP.pick({ title: '北の谷へ逃げる今川の侍大将を、馬廻が追っている。どうする？',
       options: [{ label: '馬廻に続いて北の谷へ追い討ち', note: '侍大将を討てれば大手柄。谷は狭く、今川の後備えが待つ' }, { label: '本陣の跡に残り、手負いを運ぶ', note: '倒れた味方を坂の下へ運ぶ。手柄は小さいが、組が減らない' }],
       on: (rt, m, i) => { m.okeChase = i === 0; rt.say('源八', i === 0 ? 'よし、北の谷じゃ！　深入りはするな、侍大将だけを狙え' : 'よし、手負いを運ぶ。落ち武者に気をつけよ', 3); } }),
     DP.fight({ skip: (rt, m) => !m.okeChase, at: { x: 10, z: -148 }, title: '北の谷の追い討ち', sub: '谷の口で今川の後備えが槍を揃える', obj: '北の谷の今川の後備えを崩し、侍大将を討て',
-      foes: () => [{ name: '今川の後備え', from: { x: 8, z: -172 }, list: [uS(2), uA(10)], formation: 'yari', noRout: 25 }],
-      later: [{ t: 28, say: ['源八', '侍大将じゃ！　あれを討てば大手柄ぞ！'], foes: () => [{ name: '侍大将 蒲原氏徳の旗本', from: { x: -18, z: -168 }, list: [uBu('蒲原氏徳'), uS(2), uA(4)] }] }],
+      foes: () => [{ name: '今川の後備え', from: { x: 8, z: -172 }, list: [uS(2), uA(8)], formation: 'yari', noRout: 25 }],
+      later: [{ t: 20, say: ['源八', '侍大将じゃ！　あれを討てば大手柄ぞ！'], foes: () => [{ name: '侍大将 蒲原氏徳の旗本', from: { x: -18, z: -168 }, list: [uBu('蒲原氏徳'), uS(2), uA(4)] }] }],
       reward: (t) => { t.special = { label: '北の谷の追い討ち', pts: 25 }; }, rewardLabel: '北の谷の追い討ち' }),
     DP.move({ skip: (rt, m) => m.okeChase, to: { x: -8, z: -58 }, obj: '手負いを坂の下（味方の陣）へ運べ', label: '坂の下の味方', r: 9,
       say: [['弥七', 'しっかりせい、坂の下までじゃ！']],
-      ambush: { t: 10, title: '落ち武者', sub: '逃げ遅れた今川の者が、手負いを狙う', foes: () => [{ name: '今川の落ち武者', from: { x: -40, z: -80 }, list: [uS(1), uA(6)] }] },
+      ambush: { t: 10, title: '落ち武者', sub: '逃げ遅れた今川の者が、手負いを狙う', foes: () => [{ name: '今川の落ち武者', from: { x: -40, z: -80 }, list: [uS(1), uA(5)] }] },
       onEnd: (rt, m, ok) => { if (ok) rt.award((t) => t.side.push('手負いを運んだ'), '手負いを運んだ'); } }),
-    DP.rest({ dur: 10, heal: 0.25, say: [['源八', '殿は清洲へ引き上げられる。我らの組は、殿（しんがり）の手に回る'], ['弥七', 'しんがり……一番最後に退く役か']] }),
+    DP.rest({ dur: 7, heal: 0.25, say: [['源八', '殿は清洲へ引き上げられる。我らの組は、殿（しんがり）の手に回る'], ['弥七', 'しんがり……一番最後に退く役か']] }),
     DP.pick({ title: '殿（信長）の本隊が引き上げる。しんがりをどこで受ける？',
       options: [{ label: '狭い谷の口で槍衾を組む', note: '少ない手で受けられる。敵は一度に来ない' }, { label: '開けた坂の下で、味方と並んで受ける', note: '味方の組と並べる。敵も広がって多く来る' }],
       on: (rt, m, i) => { m.okeRear = i; } }),
     // 持ち場まで駆ける（北の谷からは遠い）。道すがら、退く殿の本隊と、追いすがる今川の物見
-    DP.move({ to: (rt, m) => (m.okeRear === 0 ? { x: -10, z: -40 } : { x: -24, z: 2 }), obj: 'しんがりの持ち場へ急げ', label: 'しんがりの持ち場', r: 14, max: 45,
+    DP.move({ to: (rt, m) => (m.okeRear === 0 ? { x: -10, z: -40 } : { x: -24, z: 2 }), obj: 'しんがりの持ち場へ急げ', label: 'しんがりの持ち場', r: 14, max: 32,
       say: [['源八', '退く時に討たれる者が一番多い。持ち場へ急げ、気を抜くな'], ['弥七', '殿の本隊が坂を下っていく……わしらが最後か']],
       ambush: { t: 12, title: '追いすがる物見', sub: '今川の足軽が、退く織田勢の背をうかがう', say: ['足軽', '後ろから今川の者が付いてくる！'], if: (rt) => rt.player.u.pos.z < -70,
         foes: (rt) => { const p = rt.player.u.pos; return [{ name: '今川の物見の組', from: { x: p.x + 14, z: p.z - 26 }, list: [uA(5)], mass: 0 }]; } } }),
     // 639秒（目安4〜7分）と長すぎたので、しんがりの持ち場を詰める（75→58秒。波の間合いはそのまま、最後の寄せだけ早める）
-    DP.hold({ at: (rt, m) => (m.okeRear === 0 ? { x: -10, z: -40 } : { x: -24, z: 2 }), dur: 58, r: 12, title: 'しんがり', sub: '殿の本隊が退くまで、追いすがる今川勢を受けよ', label: 'しんがりの持ち場',
+    // 639秒と長すぎた分をさらに詰める（58→42秒。波の間合いはそのまま、最後の寄せだけ早める）
+    DP.hold({ at: (rt, m) => (m.okeRear === 0 ? { x: -10, z: -40 } : { x: -24, z: 2 }), dur: 42, r: 12, title: 'しんがり', sub: '殿の本隊が退くまで、追いすがる今川勢を受けよ', label: 'しんがりの持ち場',
       obj: '殿の本隊が退くまで持ち場を守れ',
       say: [['源八', '槍を揃えよ！　ここを抜かれたら、殿の背を突かれるぞ！']],
       waves: (rt, m) => [
-        { t: 6, say: ['足軽', '今川勢が追いすがってくる！'], foes: () => [{ name: '追いすがる今川勢', from: { x: 10, z: -96 }, list: [uS(1), uA(m.okeRear === 0 ? 7 : 10)] }] },
-        { t: 34, say: ['弥七', '馬の音じゃ！　槍を低く構えよ！'], foes: () => [{ name: '今川の騎馬', from: { x: 44, z: -78 }, list: [uC(m.okeRear === 0 ? 2 : 4), uA(5)] }] },
-        { t: 42, say: ['源八', 'これが最後の寄せじゃ！　踏みとどまれ！'], foes: () => [{ name: '今川の最後の寄せ', from: { x: -30, z: -100 }, list: [uS(1), uA(m.okeRear === 0 ? 6 : 9)] }] },
+        { t: 5, say: ['足軽', '今川勢が追いすがってくる！'], foes: () => [{ name: '追いすがる今川勢', from: { x: 10, z: -96 }, list: [uS(1), uA(m.okeRear === 0 ? 6 : 8)] }] },
+        { t: 24, say: ['弥七', '馬の音じゃ！　槍を低く構えよ！'], foes: () => [{ name: '今川の騎馬', from: { x: 44, z: -78 }, list: [uC(m.okeRear === 0 ? 2 : 4), uA(4)] }] },
+        { t: 30, say: ['源八', 'これが最後の寄せじゃ！　踏みとどまれ！'], foes: () => [{ name: '今川の最後の寄せ', from: { x: -30, z: -100 }, list: [uS(1), uA(m.okeRear === 0 ? 5 : 7)] }] },
       ],
       reward: 'しんがりを務めた', lost: ['源八', '持ち場を離れおって……味方が撃たれたぞ'] }),
   ];

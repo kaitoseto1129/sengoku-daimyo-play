@@ -20,9 +20,20 @@ function escortLook(list) {
   return list.map((e) => (e === lead || !e || (e.type !== 'samurai' && e.type !== 'cavalry')) ? e
     : { ...e, o: { armor: gd.armor, lace: gd.lace, ...(e.o || {}) } });
 }
+// 本物の味方の兵は、どの戦でも6〜7割ほどに（kaito 10/1「味方が多すぎてごちゃごちゃ。もう少し軽くてもいい」）
+//   名のある武将（o.name）・o.keep を付けた兵・o.fullStrength を付けた隊（大殿の旗本など）は減らさない
+const ALLY_SCALE = 0.65;
+function scaleAllyList(list, full) {
+  if (full) return list;
+  return list.map((e) => {
+    if (!e || !(e.n > 1) || (e.o && (e.o.name || e.o.keep))) return e;
+    return { ...e, n: Math.max(1, Math.round(e.n * ALLY_SCALE)) };
+  });
+}
 export function allyGroup(rt, o, list) {
-  const g = rt.army.addGroup({ team: 0, faction: 'oda', order: 'hold', aggro: 9, ...o });
-  rt.army.spawn(g, escortLook(list));
+  const { fullStrength, ...go } = o || {};
+  const g = rt.army.addGroup({ team: 0, faction: 'oda', order: 'hold', aggro: 9, ...go });
+  rt.army.spawn(g, escortLook(scaleAllyList(list, fullStrength)));
   return g;
 }
 // 家来が遊び手を呼ぶ名。信長で遊ぶ時は「殿」（家来が主君を呼び捨てにしない。lord.js が「殿殿」などを整える）

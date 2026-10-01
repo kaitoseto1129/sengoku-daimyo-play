@@ -1749,7 +1749,7 @@ export class Hud {
   // 印（x を中心に、y から上へ伸びる箱）が札に重ならない所を探す。
   // axis：'v' なら上下にだけ、'h' なら左右にだけ動かす（画面の端に寄せた印は端に沿って滑らせる）
   avoidRects(x, y, W, H, axis) {
-    const mw = 74, mh = 36, rects = this.hudRects();
+    const mw = 74, mh = 50, rects = this.hudRects();
     const free = (a, b) => a > 30 && a < W - 30 && b > 40 && b < H - 8 && rects.every((r) => a + mw / 2 < r.left || a - mw / 2 > r.right || b < r.top || b - mh > r.bottom);
     if (free(x, y)) return [x, y];
     for (let k = 1; k <= 40; k++) {
@@ -1825,12 +1825,12 @@ export class Hud {
       const s = this.project(p, y, rt);
       let sx = s.x, sy = s.y;
       const off = s.behind || sx < 40 || sx > W - 40 || sy < 60 || sy > H - 40;
-      if (s.behind) { sx = W - sx; sy = H - 60; }
-      sx = Math.max(40, Math.min(W - 40, sx)); sy = Math.max(60, Math.min(H - 40, sy));
+      if (s.behind) { sx = W - sx; sy = H - 74; }
+      sx = Math.max(40, Math.min(W - 40, sx)); sy = Math.max(60, Math.min(H - 60, sy));
       const axis = !off ? '' : sx <= 40 || sx >= W - 40 ? 'v' : 'h';
       [sx, sy] = this.avoidRects(sx, sy, W, H, axis);
-      // 先に置いた印と重なるなら下へずらす
-      for (const q of placed) if (Math.abs(q[0] - sx) < 80 && Math.abs(q[1] - sy) < 34) { sy = q[1] + 38; [sx, sy] = this.avoidRects(sx, sy, W, H, 'v'); }
+      // 先に置いた印と重なるなら上へずらす（下へずらすと、画面下の操作の帯に重なってしまう）
+      for (const q of placed) if (Math.abs(q[0] - sx) < 80 && Math.abs(q[1] - sy) < 34) { sy = q[1] - 44; [sx, sy] = this.avoidRects(sx, sy, W, H, 'v'); }
       placed.push([sx, sy]);
       const d = Math.hypot(p.x - rt.player.u.pos.x, p.z - rt.player.u.pos.z);
       el.style.left = sx + 'px'; el.style.top = sy + 'px';

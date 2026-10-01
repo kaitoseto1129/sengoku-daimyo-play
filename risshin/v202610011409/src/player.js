@@ -375,7 +375,12 @@ export class Player {
     this.staDelay -= dt;
     if (this.staDelay <= 0) this.sta = Math.min(this.maxSta, this.sta + (this.guard ? 5 : 18) * dt);
     const vx = Math.sin(u.heading) * this.hspd, vz = Math.cos(u.heading) * this.hspd;
-    u.pos.x += vx * dt; u.pos.z += vz * dt;
+    {
+      const px0 = u.pos.x, pz0 = u.pos.z;
+      u.pos.x += vx * dt; u.pos.z += vz * dt;
+      // 急な坂は馬でも登れない：道でなければそこで止まる
+      if (!rt.world.walkable(u.pos.x, u.pos.z) && rt.world.walkable(px0, pz0)) { u.pos.x = px0; u.pos.z = pz0; this.hspd = 0; }
+    }
     if (army.bodies) army.bodies(u);   // 馬上でも兵の体に重ならない
     army.collide(u);
     const W = rt.world.def.water;
@@ -1047,7 +1052,12 @@ export class Player {
       this.vel.z += (tvz - this.vel.z) * acc;
       let vx = this.vel.x, vz = this.vel.z;
       if (this.dodgeT > 0) { vx = this.dodgeDir.x * 8.5; vz = this.dodgeDir.z * 8.5; }
-      u.pos.x += vx * dt; u.pos.z += vz * dt;
+      {
+        const px0 = u.pos.x, pz0 = u.pos.z;
+        u.pos.x += vx * dt; u.pos.z += vz * dt;
+        // 急な坂（切岸など）は自分も登れない：道でなければそこで足が止まる
+        if (!rt.world.walkable(u.pos.x, u.pos.z) && rt.world.walkable(px0, pz0)) { u.pos.x = px0; u.pos.z = pz0; vx = 0; vz = 0; this.vel.x = 0; this.vel.z = 0; }
+      }
       if (army.bodies) army.bodies(u);   // 兵の体に重ならない（すり抜けない）
       army.collide(u);
       const W = rt.world.def.water;
@@ -1376,7 +1386,8 @@ export class Player {
     const v = this._arV || (this._arV = new THREE.Vector3());
     let best = null, bs = Infinity;
     for (const o of this.rt.army.units) {
-      if (!o.alive || o.team === 0 || o.woundOut || o.type === 'dummy') continue;
+      // 味方（team 0）は狙えないが、乗っている馬だけは別（自分の馬・味方の馬も撃つ・射ると討てるように。kaito 10/1）
+      if (!o.alive || (o.team === 0 && !(o.mounted && o.horse && !o.isPlayer)) || o.woundOut || o.type === 'dummy') continue;
       v.set(o.pos.x - cam.position.x, o.pos.y + (o.mounted ? 2.0 : 1.2) - cam.position.y, o.pos.z - cam.position.z);
       const d = v.length();
       if (d > maxD) continue;
@@ -1410,6 +1421,9 @@ export class Player {
       if (!this.gunLoaded && !this.shot && this.gunAmmo === 0) {
         u.reload = null;
         if (!(this.noAmmoT > rt.t)) { this.noAmmoT = rt.t + 6; rt.hud.flash(`弾が尽きた。倒れた鉄砲足軽から拾うか、${isTouch ? '持ち替えの丸' : '1'}で槍に戻せ`, 'dim'); }
+      } else if (!this.gunLoaded && !this.shot && rt.def.dojo) {
+        // 稽古場は込めの間を取らず、すぐ次を撃てる（kaito 9/30・10/1 にもう一度）
+        this.gunLoaded = true; this.gunReload = 0; u.reload = null;
       } else if (!this.gunLoaded && !this.shot) {
         const sp = Math.hypot(u.vel.x, u.vel.z);
         const r0 = this.gunReload;
@@ -1523,7 +1537,7 @@ export class Player {
     const u = this.u, rt = this.rt, army = rt.army;
     u.heading = this.yaw;
     const t = this.aimRanged(aimed ? 0.055 : 0.13, 70);
-    const tgt = t && (aimed || Math.random() < 0.55) ? t : this.groundTarget();
+    const tgt = t && (aimed || Math.random() < 0.7) ? t : this.groundTarget();
     const d0 = u.dmg;
     // 本物の火縄の弾：並の兵は一発で倒れる。名のある武将だけは二発（厚い具足と運）
     u.dmg = tgt && tgt.type === 'busho' ? 110 : 400;
@@ -1664,13 +1678,14 @@ export class Player {
     const arc = (reach, half, n) => {
       lastArc = { reach, half };
       const over = this.weapon === 'spear';   // 槍は柵越しに突ける
-      let h = army.enemiesInArc(u.pos, heading, reach, half, u.team, over);
+      // 味方の騎馬も、的に近ければ混ぜる（自分の馬・味方の馬も討てるように。kaito 10/1）
+      let h = army.enemiesInArc(u.pos, heading, reach, half, u.team, over, true);
       // 照準補助：正面に敵がいなければ少し広めに探して向きを合わせる
       // 指の端末は細かく向きを合わせにくいので、前 60° の内まで広げ、半歩先の敵へは踏み込んで突く
       if (!h.length && (S.aimAssist || isTouch)) {
         const wide = isTouch ? Math.max(half + this.D.aim, 1.05) : half + this.D.aim;
         const lunge = isTouch ? 0.9 : S.aimAssist ? 0.35 : 0;
-        h = army.enemiesInArc(u.pos, heading, reach + lunge, wide, u.team, over);
+        h = army.enemiesInArc(u.pos, heading, reach + lunge, wide, u.team, over, true);
         if (h.length) {
           const t0 = h[0].u, dx = t0.pos.x - u.pos.x, dz = t0.pos.z - u.pos.z, d = Math.hypot(dx, dz) || 1;
           this.assist = { h: Math.atan2(dx, dz), t: 0.4 };
@@ -2495,7 +2510,8 @@ export class Player {
           if (along <= 0 || along > L + 0.2) return;
           const side = Math.abs(vx * nz - vz * nx);
           const near = along < 3;
-          if (side > (o.mounted ? 1.1 : 0.75) + (near ? 0.55 : 0.15)) return;
+          // 自分が騎乗している時は、馬の幅ぶん広めに透かす（鹿垣など味方が密集する場で馬の首・鞍越しに前を見せる）
+          if (side > (o.mounted ? 1.1 : 0.75) + (near ? 0.55 : 0.15) + (this.mounted ? 0.5 : 0)) return;
           // 遠めの者は、頭（指物なら竿の先）が視線より十分低ければ邪魔にならない
           const top = o.pos.y + (o.flag && o.flag.visible ? 3.2 : 1.95) + (o.mounted ? 1 : 0);
           const k = along / L;
@@ -2647,7 +2663,9 @@ export class Player {
     // 硝煙・土煙の中では少し寄る（先が見えない怖さ。煙が晴れれば戻る）
     const W0 = rt0.world, smoke = W0 ? Math.min(1, ((W0.haze && W0.haze.k) || 0) + ((W0.dustVeil && W0.dustVeil.k) || 0) * 0.5) : 0;
     this.smokeK = (this.smokeK || 0) + (smoke - (this.smokeK || 0)) * Math.min(1, dt * 0.8);
-    const dist = Math.max(2.2, (base + this.zoom + range + (this.mounted ? 1.6 : 0)) * (1 - this.smokeK * 0.18)) + pull * 7 + this.marchK * 2.5 + wk * 9 + ok * overH * 0.7 + ((rt0.holdPct || 0) > 0 ? 1.5 : 0) + dk * 2.5;   // 長押し（首取りなど）の間は少し引いて周りを見せる
+    // 騎乗して味方に囲まれている時（鹿垣の段など）は、馬の首・鞍で前が塞がらないよう、もう少し引く
+    const mountCrowd = this.mounted ? Math.min(1.1, (this.crowd || 0) / 6) : 0;
+    const dist = Math.max(2.2, (base + this.zoom + range + (this.mounted ? 1.6 + mountCrowd * 1.4 : 0)) * (1 - this.smokeK * 0.18)) + pull * 7 + this.marchK * 2.5 + wk * 9 + ok * overH * 0.7 + ((rt0.holdPct || 0) > 0 ? 1.5 : 0) + dk * 2.5;   // 長押し（首取りなど）の間は少し引いて周りを見せる
     this.camDist = this.camDist ? this.camDist + (dist - this.camDist) * Math.min(1, dt * 3) : dist;
     this.sideK = (this.sideK ?? 0.65) + ((fight || this.guard ? 0.85 : 0.65) - (this.sideK ?? 0.65)) * Math.min(1, dt * 3);
     // 狭い所（門・塀の内）：肩の側が壁に近ければ、空いている逆の肩へカメラだけ回す（決めた肩の設定は変えない）
@@ -2665,7 +2683,8 @@ export class Player {
     this.crowdT = (this.crowdT || 0) - dt;
     if (this.crowdT <= 0) { this.crowdT = 0.3; let n = 0; this.rt.army.forNear(u.pos.x, u.pos.z, 4, (o) => { if (o !== u && o.alive && o.team === u.team) n++; }); this.crowd = n; }
     // 持ち上げは小さく（見下ろしの絵にしない。前の味方は allyFade で透かす）。馬上は馬の首を越えて前が見える高さに
-    this.crowdLift = (this.crowdLift || 0) + ((this.crowd > 5 ? 0.3 : 0) - (this.crowdLift || 0)) * Math.min(1, dt * 2);
+    // 騎乗中は囲まれるほど、さらに高く引く（自分の馬のたてがみ・鞍で前が塞がらないように）
+    this.crowdLift = (this.crowdLift || 0) + ((this.crowd > 5 ? (this.mounted ? 0.55 : 0.3) : 0) - (this.crowdLift || 0)) * Math.min(1, dt * 2);
     want.y += (this.rt.squad.length ? 0.35 : 0.15) - pull * 0.7 + this.crowdLift + (this.mounted ? 0.5 : 0) + this.marchK * 1.0 + wk * 6 + ok * overH + dk * 4;
     const gy = this.rt.world.heightAt(want.x, want.z) + 0.5;
     if (want.y < gy) want.y = gy;

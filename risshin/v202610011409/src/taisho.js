@@ -218,7 +218,7 @@ function placeAlly(rt, T, force) {
   KIT.honjin(rt, P.x, P.z, { mon: e.mon || 'oda', people: false, fire: false });
   const small = real(rt) > CAP;
   const g = allyGroup(rt, { faction: e.faction || 'oda', name: `${e.name}の旗本`, anchor: { x: P.x, z: P.z - 2 }, facing: face, order: 'hold', aggro: 10, seekRange: 18,
-    noRout: true, morale: 100, guard: true, stay: true, width: 5, defMult: 1.5 },
+    noRout: true, morale: 100, guard: true, stay: true, width: 5, defMult: 1.5, fullStrength: true },
   [{ type: 'busho', n: 1, o: { name: e.name, hat: e.hat || 'kabuto_w', haori: e.haori } }, { type: 'samurai', n: small ? 2 : 4 }, { type: 'ashigaru', n: small ? 3 : 8 }]);
   const u = g.units.find((o) => o.type === 'busho' && o.name === e.name);
   if (!u) return true;

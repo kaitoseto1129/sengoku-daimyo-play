@@ -257,6 +257,25 @@ const kinome = {
     tickTabas(rt, dt);
     tabaInteractTick(rt, { allowPush: true, team: 0 });
     if (F.SZ) F.SZ.tick(dt);
+    // 乱戦すぎ対策（army_think.js crowdOk・一つの的に3人まで）は保ったまま、近く（20m）に斬り合う相手が
+    // 途切れないよう、守りの組を少しずつ寄せる（本陣の守りが遠くで待ちぼうけにならないように）
+    F.drawT = (F.drawT || 0) - dt;
+    if (F.drawT <= 0 && F.step >= 1 && !F.ending && rt.player.u.alive) {
+      F.drawT = 1.2;
+      const p = rt.player.u.pos;
+      const near = rt.army.nearestEnemy(rt.player.u, 20, (o) => !o.fleeing);
+      if (!near) {
+        const groups = [F.front, F.gunL, F.bowR, F.naka].filter((g) => g && g.count && !g.routed);
+        groups.sort((a, b) => { const ca = a.center(), cb = b.center(); return Math.hypot(ca.x - p.x, ca.z - p.z) - Math.hypot(cb.x - p.x, cb.z - p.z); });
+        const g = groups[0];
+        if (g) {
+          g.order = 'attack'; g.seekRange = Math.max(g.seekRange || 0, 40);
+          const c = g.anchor || g.center();
+          const d = Math.hypot(p.x - c.x, p.z - c.z);
+          if (d > 2) g.anchor = { x: c.x + ((p.x - c.x) / d) * Math.min(d, 7), z: c.z + ((p.z - c.z) / d) * Math.min(d, 7) };
+        }
+      }
+    }
     // 物見櫓（右の土塁・弓）を崩し終えたら、羽柴の手は残りの森の道から本陣の脇へ
     if (F.towerGo && !F.towersTaken && F.bowR && gone(F.bowR)) {
       F.towersTaken = true;

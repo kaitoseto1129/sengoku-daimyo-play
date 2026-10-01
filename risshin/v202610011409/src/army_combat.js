@@ -71,6 +71,11 @@ export const ArmyCombat = {
         }
       }
     }
+    // 同士討ち：味方へは当たらないが、馬は別（的を絞って選んだ時だけ届く。自分の馬・味方の馬も討てる。kaito 10/1）
+    if (src && src.team === t.team && src !== t && !t.isPlayer) {
+      if (t.mounted && t.horse) { this.horseDamage(t, amount, src, kind); if (out) out.res = 'hit'; }
+      return;
+    }
     // 騎馬武者を狙った弾・矢・穂先が、大きな的の馬に当たることがある：馬の体力が減り、尽きれば倒れて
     // 乗り手は生きたまま投げ出される（本人は除く。名のある武将も馬を失えば落馬する）
     if (t.mounted && t.horse && !t.isPlayer && !t.invuln) {
@@ -111,7 +116,7 @@ export const ArmyCombat = {
         t.hp -= amount; t.lastHitT = 0;
         // 返し技：受けた総大将・殿は、すぐに打ち返す構えに入る（間合いが保てていれば次の一振りが速い）
         if (t.isTaisho) t.cd = Math.min(t.cd ?? 0.5, 0.15);
-        if (t.invuln && t.hp <= t.maxHp * WOUND_FLOOR) { t.hp = t.maxHp * WOUND_FLOOR; this.generalWounded(t, src); return; }
+        if (t.invuln && !this.playerMayKill(t, src) && t.hp <= t.maxHp * WOUND_FLOOR) { t.hp = t.maxHp * WOUND_FLOOR; this.generalWounded(t, src); return; }
         if (t.hp <= 0) this.kill(t, src);
         return;
       }
@@ -144,7 +149,7 @@ export const ArmyCombat = {
       t.stagger = Math.max(t.stagger || 0, z.res === 'armor' ? 0.2 : 0.35);
     }
     // 討たれない武将は下限で止まる（最後に手傷の知らせ）
-    const woundNow = t.invuln && t.hp <= t.maxHp * WOUND_FLOOR;
+    const woundNow = t.invuln && !this.playerMayKill(t, src) && t.hp <= t.maxHp * WOUND_FLOOR;
     if (woundNow) t.hp = t.maxHp * WOUND_FLOOR;
     t.lastHitT = 0;
     t.hitFlash = 0.15;
@@ -237,6 +242,10 @@ export const ArmyCombat = {
       this.kill(t, src);
     }
   },
+
+  // 史実で生き延びた武将でも、遊び手が自分で削り切れば討てる（kaito 10/1：ぎりぎりで討てないのは嫌）。
+  // 筋書きで生きていないと話が進まない武将（mustLive：稲葉山の龍興など）だけは今まで通り手傷で退く
+  playerMayKill(t, src) { return !!(src && src.isPlayer && !t.mustLive && !t.onWound && t.type !== 'dummy'); },
 
   // 遊び手の一撃が、討たれない武将（invuln）に通るか。手傷を負って退いた後は通らない
   mayWound(t, src) {

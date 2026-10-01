@@ -51,6 +51,8 @@ export const ArmyRanged = {
       for (const o of this.smokes) { const p = o.sp.position; if (Math.abs(p.x - mx2) < 5 && Math.abs(p.z - mz2) < 5) dens += o.sp.material.opacity; }
       sig *= 1 + Math.min(0.5, dens * 0.04);
     }
+    // 自分の撃つ弾は少し散りを小さく（kaito 10/1：命中をもう少し高く）
+    if (u.isPlayer) sig *= 0.7;
     const hw = t.mounted ? 0.55 : 0.24, hh = t.mounted ? 1.05 : 0.8;
     let hit = erf(hw / (sig * 1.414)) * erf(hh / (sig * 1.414)) * this.coverBetween(u.pos, t.pos, u.team);
     // 地形の当たりの補正（M1。森・霧雨・夜は当てにくい。タグの無い戦は 1 のまま）

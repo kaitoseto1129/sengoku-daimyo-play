@@ -29,6 +29,8 @@ export const dojo = {
       rt.scene.add(palisade(W, [Math.sin(a0) * 40, Math.cos(a0) * 40, Math.sin(a1) * 40, Math.cos(a1) * 40], { h: 1.8 }));
     }
     for (const [x, z] of [[-10, 36], [10, 36], [0, -38]]) rt.scene.add(nobori(W, x, z, 'oda', 5));
+    // 乗馬は試せるようにする（canRide）が、常に騎乗の本物の馬を出し続けると重い。待たせておき、Rで乗れるように（kaito 10/1）
+    if (rt.player.canRide && rt.player.mounted) rt.player.toggleMount();
     rt.flags.wave = 0; rt.flags.kills = 0;
     rt.obj('dojo', '押し寄せる寄せ手を討ち続けよ', 'main');
     rt.say('師範', '腕試しじゃ。寄せ手は波のように来る。倒れるまで、何人討てるか見せてみよ', 4.5);

@@ -62,8 +62,9 @@ export const HIEI_PLAN = {
   ],
   paths: [{ pts: HONZAKA }, { pts: MUDOJIZAKA }, { pts: RIDGE }, { pts: VALLEY }, { pts: KIRARA_ROAD }],
   yagura: [{ id: 'obie', kind: 'monomi', at: [OBIE_PEAK.x, OBIE_PEAK.z] }],
-  // 竹束（castle_plan.js が自動で置く。木戸の手前に数個ずつ）
+  // 竹束（castle_plan.js が自動で置く。木戸の手前に数個ずつ。
+  // 西塔前の一つ（旧 [-46,48]）が尾根道にほぼ乗っていたので、道から離した）
   taba: [
-    [-3, -30], [3, -30], [40, -88], [48, -88], [-46, 48], [-54, 48],
+    [-3, -30], [3, -30], [40, -88], [48, -88], [-39, 48], [-50, 48],
   ],
 };
