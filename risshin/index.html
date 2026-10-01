@@ -1,7 +1,7 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202609301707 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202609302227 として写した） -->
 <title>戦国立身 3D</title>
-<link rel="icon" type="image/png" sizes="32x32" href="./v202609301707/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202609301707/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202609301707/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202609301707/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202609302227/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202609302227/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202609302227/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202609302227/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -700,7 +700,8 @@ kbd.cap { display: inline-block; min-width: 1.4em; padding: 0 5px; margin: 0 2px
 #tutorial div i { width: 14px; height: 14px; border: 1px solid var(--washi-faint); font-style: normal; font-size: 12px; display: grid; place-items: center; color: var(--kin); }
 #tutorial div.done { color: var(--washi-faint); }
 #tutorial div.done i { border-color: var(--kin); }
-#choice { position: absolute; left: 50%; top: 40%; transform: translateX(-50%); width: min(460px, 90vw); padding: 14px 16px; background: rgba(12,10,8,.9); box-shadow: inset 0 0 0 1px var(--gold-line), 0 0 0 1px #000; }
+/* 判断の札は右上の端に小さく（戦場の真ん中を隠さない）。携帯横は別の場所へ上の規則で動かす */
+#choice { position: absolute; right: calc(16px + env(safe-area-inset-right, 0px)); left: auto; top: calc(16px + env(safe-area-inset-top, 0px)); transform: none; width: min(320px, 46vw); padding: 10px 14px; background: rgba(12,10,8,.9); box-shadow: inset 0 0 0 1px var(--gold-line), 0 0 0 1px #000; }
 #choice h5 { margin: 0 0 10px; font-family: var(--display); font-size: 16px; font-weight: 600; color: #f3e6c4; }
 #choice .opt { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; padding: 8px 0; border-top: 1px solid var(--line); }
 #choice .opt b { font-weight: 500; }
@@ -985,6 +986,13 @@ details[open] > summary::before { transform: rotate(90deg); }
 .title-more summary.lbl { cursor: pointer; display: block; min-height: 44px; display: flex; align-items: center; }
 .title-more[open] summary.lbl { margin-bottom: 8px; }
 .title-more .row { margin-top: 0; }
+/* タイトル：主の二つ（続きから・新しく始める）の横に、小さな三つ（別の遊び方・保存データ・設定） */
+.title-act .tt-sub { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-left: 8px; padding-left: 16px; border-left: 1px solid var(--line); }
+.title-act .tt-sub .btn[aria-expanded="true"] { border-color: var(--kin); color: var(--kin); }
+.tt-panel { margin-top: 14px; padding: 12px 16px 16px; border: 1px solid var(--line); background: rgba(20,18,15,.72); }
+.tt-panel .tt-ph { font-family: var(--display); font-size: 18px; letter-spacing: .12em; margin: 0 0 4px; font-weight: 600; }
+.tt-panel .row { gap: 8px; flex-wrap: wrap; }
+@media (max-width: 700px) { .title-act .tt-sub { margin-left: 0; padding-left: 0; border-left: 0; } }
 /* HUD：字は 12px 以上、状態は色と印で */
 #objectives li.order .tag { color: var(--shu-text); }
 #radial .rw.locked::after { content: '（まだ）'; font-size: 12px; font-family: var(--ui); }
@@ -1516,4 +1524,4 @@ html.touch .keyhint, html.touch .hintk { display: none; }
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
 } }
 </script>
-<script type="module" src="./v202609301707/src/main.js"></script>
+<script type="module" src="./v202609302227/src/main.js"></script>
