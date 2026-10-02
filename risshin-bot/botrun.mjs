@@ -28,6 +28,7 @@ const N = +(args.find((a) => /^\d+$/.test(a)) || 3);
 const RENDER = args.includes('--render') && !args.includes('--norender');
 const SPEED = Math.min(8, Math.max(1, Math.round(+((args.find((a) => a.startsWith('--speed=')) || '').slice(8) || 1)) || 1));
 const ONLY = (args.find((a) => a.startsWith('--only=')) || '').slice(7);
+const BRIEF = args.includes('--brief');
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const now = new Date();
 const day = now.toLocaleDateString('sv-SE');
@@ -93,6 +94,22 @@ const done = runs.filter((r) => r.ok);
 // 戦の名は報告から拾う（長篠編の戦が増えても並ぶように）
 const names = [...new Set(done.flatMap((r) => r.data.battles.map((b) => b.battle)))];
 const avg = (a) => (a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : 0);
+
+// --brief：戦ごと一行「id 秒数 勝ち負け 倒れた回数 エラーの数」を出力
+if (BRIEF) {
+  for (const battle of names) {
+    const rs = done.map((r) => r.data.battles.find((b) => b.battle === battle)).filter(Boolean);
+    if (!rs.length) continue;
+    const wins = rs.filter((r) => r.main === true).length;
+    const falls = rs.filter((r) => r.down).length;
+    const errors = rs.reduce((acc, r) => acc + (r.errors ? r.errors.length : 0), 0);
+    const avgTime = Math.round(rs.reduce((x, r) => x + r.time, 0) / rs.length);
+    console.log(`${battle} ${avgTime} ${wins}/${rs.length} ${falls} ${errors}`);
+  }
+  await sleep(1200);
+  process.exit(0);
+}
+
 const lines = [`# 戦国立身3D　自動テストプレイの報告（${stamp}時）`, '', `bot を ${N} 回走らせ、${done.length} 回おわった。`, ''];
 const warn = [];
 lines.push('| 戦 | 任務達成 | 重傷 | 平均の時間 | 平均の戦功 | 組の生き残り（平均） | 1コマの計算 |', '|---|---|---|---|---|---|---|');
