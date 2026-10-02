@@ -25,4 +25,15 @@ export const SHIGISAN_PLAN = {
     { id: 'yashiki', name: '松永屋敷', poly: circle(YASHIKI.x, YASHIKI.z, YASHIKI.r), level: (bf) => bf(YASHIKI.x, YASHIKI.z) + 2 },
     { id: 'shu', name: '主郭（高櫓）', poly: circle(TOP.x, TOP.z, TOP.r), level: (bf) => bf(TOP.x, TOP.z) + 3 },
   ],
+  // nawabari.js（束19）の表に使うだけの口・櫓・道の束（b_shigisan.js の壁・門・櫓は今まで通り手組み。
+  // buildGates・buildTowers は渡さないので、ここに書いても建物は増えない＝読むだけで戦いは変わらない）
+  koguchi: [
+    { id: 'gate', name: '門', from: 'out', to: 'ridge1', kind: 'hira', gate: 'kabuki', at: [GATE.x, GATE.z], role: 'ote', maxFlow: 5, fireResistance: 0.3 },
+  ],
+  yagura: [
+    { id: 'monomi_gate', kind: 'monomi', at: [TOWER.x, TOWER.z] },
+  ],
+  paths: [
+    { id: 'tozan', kind: 'ote', pts: ROAD },
+  ],
 };

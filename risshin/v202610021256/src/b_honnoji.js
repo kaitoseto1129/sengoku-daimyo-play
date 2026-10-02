@@ -13,6 +13,7 @@ import { nobori, hut, campfire, kabukimon, tawara, tsuiji, solidSeg, makeKitBatc
 import { buildTera, teraTick, breakNear, hallAt, TERA, inTera, GATES, CLIMB, PT } from './honno_tera.js';
 import { flagTexture } from './textures.js';
 import { RANKS } from './state.js';
+import { S as SETTINGS } from './settings.js';
 import { sfx } from './audio.js';
 import { moraleWord } from './hud.js';
 import { gauss, enemyGroup, allyGroup, nm, centerOf, unitPos, wallLine } from './bhelp.js';
@@ -297,7 +298,7 @@ const honnoji = {
     for (const [x, z] of [[NIJO.x - 10, NIJO.z - 6], [NIJO.x - 10, NIJO.z + 6], [NIJO.x + 10, NIJO.z + 10]]) rt.scene.add(nobori(W, x, z, 'oda', 6));
     rt.scene.add(nobori(W, -44, 56, 'oda', 5), nobori(W, -47.5, 88, 'eiraku', 4.5));
     // ---- 外周を封じる明智の大軍（軽い作り）。築地の外の通りを埋める ----
-    const DA = (x, z, w, d, count, facing, seed) => W.addDistantArmy({ x, z, w, d, count, facing, armor: 0x2a2a30, team: 1, flagTex: flagTexture('akechi'), seed });
+    const DA = (x, z, w, d, count, facing, seed) => W.addDistantArmy({ x, z, w, d, count: SETTINGS.quality === 'low' ? Math.round(count * 0.6) : count, facing, armor: 0x2a2a30, team: 1, flagTex: flagTexture('akechi'), seed });
     F.aHost = [DA(-54, 23, 40, 4, 150, 0, 1586), DA(-86, 67, 4, 56, 200, Math.PI / 2, 1587), DA(-54, 117, 44, 10, 220, Math.PI, 1588), DA(-24.5, 72, 3.5, 30, 120, -Math.PI / 2, 1589), DA(-14, 44, 12, 14, 160, -Math.PI / 2, 1590)];
     F.ehon = camp(rt, { x: -104, z: 120, facing: Math.PI * 0.75, team: 1, faction: 'saito', mon: 'akechi', armor: 0x2a2a30, general: { name: '明智光秀', hat: 'kabuto_m', haori: 0x3a3a5a }, guard: 12, reserve: 120, runTo: { x: -86, z: 100 } });
     for (const [x, z] of [[-24, 40], [-24, 62], [-82, 50], [-82, 95], [-60, 112], [-40, 22]]) W.addFire(x, z, { torch: true, h: 1.4 });
@@ -855,7 +856,7 @@ Object.assign(honnoji, {
     // 裏の松（西の築地を越える枝）
     rt.scene.add(nobori(W, HONNO.x - 4, HONNO.z - 4, 'oda', 5), nobori(W, HONNO.x + 8, HONNO.z + 4, 'eiraku', 5));
     // ---- 遠景の明智の大軍（四方）と篝・旗。落ち口の斜めの隅は空けておく ----
-    const DA = (x, z, w, d, count, facing, seed) => W.addDistantArmy({ x, z, w, d, count, facing, armor: 0x2a2a30, team: 1, flagTex: flagTexture('akechi'), seed });
+    const DA = (x, z, w, d, count, facing, seed) => W.addDistantArmy({ x, z, w, d, count: SETTINGS.quality === 'low' ? Math.round(count * 0.6) : count, facing, armor: 0x2a2a30, team: 1, flagTex: flagTexture('akechi'), seed });
     F.aHost = [
       DA(HONNO.x, HONNO.z + 52, 34, 10, 240, Math.PI, 1586),
       DA(HONNO.x - 56, HONNO.z, 10, 34, 220, Math.PI / 2, 1587),

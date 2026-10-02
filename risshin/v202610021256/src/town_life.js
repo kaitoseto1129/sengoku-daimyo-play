@@ -9,6 +9,7 @@
 // ======================================================================
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { extFirst } from './props_ext.js';
 import { hut, solidRect, solidSeg, solidCircle } from './props.js';
 import { hondo, sanmon, shoro, ishidan } from './temple_parts.js';
 import { mizubori } from './castle_parts.js';
@@ -72,9 +73,15 @@ export function put(rt, parts, x, z, rot = 0, o = {}) {
 const taru = (x, y, z, r = 0.32, h = 0.62) => [C(r, r * 0.92, h, x, y + h / 2, z, 0x7a5a36, 9), C(r + 0.012, r + 0.012, 0.05, x, y + h * 0.8, z, 0x2a2018, 9), C(r + 0.012, r + 0.012, 0.05, x, y + h * 0.2, z, 0x2a2018, 9), C(r * 0.95, r * 0.95, 0.02, x, y + h + 0.01, z, 0x8a6a40, 9)];
 function taruStack(rt, x, z, rot) {
   const P = [];
+  const c = Math.cos(rot), sn = Math.sin(rot), at = (lx, lz, o = {}) => ({ n: o.n || 'barrel', x: x + lx * c + lz * sn, z: z - lx * sn + lz * c, rot: rot + (o.r || 0), dy: o.dy || 0 });
   for (const [lx, lz] of [[-0.35, 0], [0.35, 0], [0, 0.6]]) P.push(...taru(lx, 0, lz));
   P.push(...taru(0, 0.62, 0.2));
-  put(rt, P, x, z, rot); solidRect(x, z, 1.4, 1.4, rot);
+  solidRect(x, z, 1.4, 1.4, rot);
+  // 素材の樽（読めていれば手作りの樽の代わりに）
+  const L = [at(-0.35, 0), at(0.35, 0), at(0, 0.6), at(0, 0.2, { dy: 0.75, r: 0.6 }), at(0.9, -0.1, { n: 'tub', r: 0.3 })];
+  const bar = L.filter((e) => e.n === 'barrel'), tub = L.filter((e) => e.n === 'tub');
+  if (extFirst(rt.scene, 'barrel', bar, rt.world) && extFirst(rt.scene, 'tub', tub, rt.world)) return;
+  put(rt, P, x, z, rot);
 }
 // 薪の山：軒下に積んだ割り木
 function makiStack(rt, x, z, rot, len = 2.4) {

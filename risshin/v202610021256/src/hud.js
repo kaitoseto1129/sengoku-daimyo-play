@@ -337,6 +337,7 @@ export class Hud {
     this.subT = 0;
     this.log = [];
     this.objKey = '';
+    this.curObjKey = null;
     this.markerEls = new Map();
     this.threatEls = [];
     this.mmT = 0;
@@ -596,7 +597,7 @@ export class Hud {
   }
 
   reset() {
-    this.subQ = []; this.subT = 0; this.objKey = ''; this.log = []; this.doneAt = new Map(); this.subDrop = false;
+    this.subQ = []; this.subT = 0; this.objKey = ''; this.curObjKey = null; this.log = []; this.doneAt = new Map(); this.subDrop = false;
     this.armyGhost = null; this.moveMarks = []; this.unitsKey = ''; this.radialKey = ''; this.rt = null;
     if ($('h-units')) $('h-units').hidden = true;
     this.armyKey = '';
@@ -1201,6 +1202,10 @@ export class Hud {
       const open = vis.filter((o) => o.state !== 'done' && o.state !== 'fail');
       // 決まりごとの order（ずっと開いたまま）が主の任務を押しのけないよう、出たばかりか進み具合つきの order だけ先に出す
       const cur = open.find((o) => o.kind === 'order' && (o.progress || rt.t - (o.t ?? 0) < 10)) || open.find((o) => o.kind === 'main') || open.find((o) => o.kind === 'order') || open.find((o) => o.progress) || open[0] || null;
+      // 今やる任務が変わったら、はっきり知らせる（見出し札で一度だけ。kaito 10/2 指摘2）
+      const curKey = cur && cur !== filler ? (cur.id || '') + '|' + cur.text : null;
+      if (this.curObjKey !== null && curKey && curKey !== this.curObjKey) rt.banner('新しい任務', cur.text);
+      this.curObjKey = curKey;
       const restN = vis.length - (cur ? 1 : 0);
       $('obj-list').innerHTML = vis.map((o) => {
         const tag = { main: '主', side: '副', order: '命' }[o.kind] || '';

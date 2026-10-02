@@ -6,6 +6,7 @@ import { woodTex, thatchTex, barkTex, dirtTex } from './nature.js';
 import { FLAG_T } from './units.js';
 import { addDeck, addLadder, FL } from './floors.js';
 import { S as SETTINGS } from './settings.js';
+import { extScatter } from './props_ext.js';
 
 // 柵・屋根・土塁など数の多い物の材質：画質「低」「中」は陰影の計算が重い Standard/Physical をやめて
 // 軽い Lambert にする（見た目はほぼ同じ、GPU だけ軽くなる）。Lambert に無い項目は外す
@@ -363,7 +364,19 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
   const boards = Math.max(4, Math.round((w + d) * 2 / 0.3));
   const perim = [[-w / 2, -d / 2, w / 2, -d / 2], [w / 2, -d / 2, w / 2, d / 2], [w / 2, d / 2, -w / 2, d / 2], [-w / 2, d / 2, -w / 2, -d / 2]];
   let k = 0;
-  for (const [ax, az, bx, bz] of perim) {
+  // 画質「低」（携帯）：板を一枚ずつ並べず、面ごとに一枚の壁（町屋一軒 約1000面 → 100面ほど。戸口は空ける）
+  const loHut = SETTINGS.quality === 'low';
+  if (loHut) for (const [ax, az, bx, bz] of perim) {
+    const len = Math.hypot(bx - ax, bz - az), door = az === d / 2 && bz === d / 2;
+    for (const [s0, s1] of door ? [[0, (len - 1.2) / 2], [(len + 1.2) / 2, len]] : [[0, len]]) {
+      const t = (s0 + s1) / 2 / len;
+      const b = new THREE.BoxGeometry(s1 - s0, H, 0.05);
+      b.rotateY(Math.atan2(bx - ax, bz - az) + Math.PI / 2);
+      b.translate(ax + (bx - ax) * t, H / 2, az + (bz - az) * t);
+      parts.push(paint(b, vary(o.wall || (o.ita ? 0x756c5e : 0x7b6448), k++)));
+    }
+  }
+  if (!loHut) for (const [ax, az, bx, bz] of perim) {
     const len = Math.hypot(bx - ax, bz - az), n = Math.max(2, Math.round(len / 0.3));
     for (let i = 0; i < n; i++) {
       const t = (i + 0.5) / n;
@@ -966,6 +979,10 @@ export function hyoro(world, x, z, rot = 0) {
   const c = Math.cos(rot), s = Math.sin(rot);
   const put = (lx, lz, r, n) => { const m = tawara(world, x + lx * c + lz * s, z - lx * s + lz * c, rot + r, n); grp.add(m); };
   put(0, 0, 0, 6); put(0, 1.9, 0.08, 6); put(1.6, 0.9, 1.5, 3);
+  // 素材の荷（読めたら足す）：藁の叺の山と木箱
+  { const at = (lx, lz, o = {}) => ({ x: x + lx * c + lz * s, z: z - lx * s + lz * c, rot: rot + (o.r || 0), dy: o.dy || 0 }); solidRect(at(-1.5, 0.9).x, at(-1.5, 0.9).z, 0.9, 1.5, rot);
+    extScatter(grp, 'sack', [at(-1.5, 0.5, { r: 1.57 }), at(-1.5, 1.25, { r: 1.5 }), at(-1.5, 0.9, { r: 1.6, dy: 0.57 })], world);
+    extScatter(grp, 'box_b', [at(-1.4, 2.3, { r: 0.2 })], world); }
   // 筵：藁で編んだ敷物を俵の山に掛ける
   const mat = new THREE.PlaneGeometry(1.9, 1.5, 4, 4);
   const P = mat.attributes.position; for (let k = 0; k < P.count; k++) { const u = P.getX(k) / 0.95; P.setZ(k, Math.max(0, 1 - u * u) * 0.5); }
@@ -1008,6 +1025,11 @@ export function jinCamp(world, cx, cz, o = {}) {
   grp.add(jinmaku(world, cx, cz, w, d, o.gap || 6, { mon }));
   // 奥に大将の床几、左右に並ぶ諸将の床几
   grp.add(shogi(world, cx, cz - d / 2 + 2, 0, { gunbai: true, color: 0x5a1a14 }));
+  // 素材の小道具（読めたら足す）：床几の脇の行灯、幕の隅の木箱と樽
+  extScatter(grp, 'andon', [{ x: cx + 1.5, z: cz - d / 2 + 2.2 }], world);
+  extScatter(grp, 'crate', [{ x: cx - w / 2 + 1.1, z: cz - d / 2 + 1.0, rot: 0.3 }], world);
+  extScatter(grp, 'box_a', [{ x: cx - w / 2 + 1.9, z: cz - d / 2 + 1.1, rot: -0.2 }], world);
+  extScatter(grp, 'barrel', [{ x: cx + w / 2 - 1.1, z: cz - d / 2 + 1.0 }, { x: cx + w / 2 - 1.8, z: cz - d / 2 + 1.3, rot: 1 }], world);
   for (let i = 0; i < 3; i++) for (const sx of [-1, 1]) grp.add(shogi(world, cx + sx * 2.4, cz - d / 2 + 3.6 + i * 1.6, sx * Math.PI / 2));
   // 口の外に、手盾（板の楯）を並べて口の左右を固める。本陣へは口からしか入れない
   if (o.tate !== false) {
@@ -2303,6 +2325,11 @@ export function kuruwa(world, cx, cz, w, d, o = {}) {
     for (let q = 0; q < 9; q++) { const [sx, sz] = P(-w / 2 + 3, -1.6 + q * 0.4); kbox(B.wood, 0x5a4630, sx, y + 1.9, sz, 0.05, 3.8, 0.05, rot); kbox(B.iron, 0x9a9a98, sx, y + 3.95, sz, 0.04, 0.35, 0.04, rot); } }
   grp.add(kitMesh(B));
   { const [x, z] = P(w / 2 - 4, -d / 2 + 5); grp.add(tawara(world, x, z, rot, 8)); }
+  // 素材の小道具（読めたら足す）：番所の脇の樽と木箱、井戸の脇の荷車
+  { const L = (lx, lz, r = 0, n = 'barrel') => { const [x, z] = P(lx, lz); return { n, x, z, rot: rot + r }; };
+    const add = (n, l) => extScatter(grp, n, l.filter((e) => e.n === n), world);
+    const l = [L(w / 2 - 7.2, d / 2 - 3), L(w / 2 - 7.8, d / 2 - 2.3, 1), L(w / 2 - 7.4, d / 2 - 5.2, 0.4, 'crate'), L(-w / 2 + 9.5, d / 2 - 5.5, 1.2, 'cart')];
+    for (const n of ['barrel', 'crate', 'cart']) add(n, l); for (const e of l) solidCircle(e.x, e.z, e.n === 'cart' ? 1.0 : 0.4); }
   for (const q of [-1, 1]) {
     const [x, z] = P(q * 3.2, d / 2 - 2), y = world.heightAt(x, z), L = kit();
     kbox(L.nozura, 0x8a857a, x, y + 0.3, z, 0.7, 0.6, 0.7, rot, 1.4); kbox(L.nozura, 0x8a857a, x, y + 0.9, z, 0.3, 0.6, 0.3, rot, 1.4);

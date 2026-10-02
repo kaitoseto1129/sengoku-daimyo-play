@@ -21,6 +21,7 @@ import { depthStart, depthTick, rest, pick, fight, hold, steerRing, depthBot } f
 import { camp } from './b_mid.js';
 import { buildCastlePlan } from './castle_plan.js';
 import { makeSiegeZones, zoneWord } from './siege_zones.js';
+import { makeNawabari } from './nawabari.js';
 import { SHIGISAN_PLAN, TOP, GATE, TOWER, RIDGE1, RIDGE2, YASHIKI, TEMPLE, ROAD } from './castles/shigisan.js';
 // 足軽大将候補より上（信長で遊ぶ時は除く）：任務の文を「一手を預かる」者の役目に
 const HI = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
@@ -266,6 +267,9 @@ const shigisan = {
       noReinforce: () => true,
       onFall: (id) => this.onZoneFall(rt, id),
     });
+    // ---- 縄張りの今の様子（nawabari.js・束19）：曲輪・門・道の数の表。読むだけで、戦の動きは変えない ----
+    F.K = makeNawabari(rt, F.C, { SZ: F.SZ, team: 1, friendTeam: 0 });
+    rt.nawabari = F.K;
   },
   onZoneFall(rt, id) {
     const F = rt.flags;
@@ -338,6 +342,7 @@ const shigisan = {
     // 崩れた隊の印は消す（古い印が「あちらじゃ」の行き先にならないように）
     for (const m of rt.markers.slice()) if (m.group && gone(m.group)) rt.unmark(m.id);
     KIT.backTick(rt);
+    if (F.K) F.K.tick(dt);
     // 近寄って目を覚ました控えの兵は、当たりを弱める（山の上から大軍に呑まれて倒れ続けないように）
     if ((F.wkT = (F.wkT || 0) - dt) <= 0) { F.wkT = 0.5; for (const g of rt.army.groups) if (g.woke && g.team === 1 && !g.wkDm) { g.wkDm = true; g.dmgMult = (g.dmgMult || 1) * 0.55; } }
     if (F.ending) return;

@@ -24,6 +24,7 @@ import { reset as flReset } from './floors.js';
 import { tickTabas, tabaInteractTick, makeTabaAdvance, patchGunCover } from './taketaba.js';
 import { makeFirstIn, makeSiegeZones, zoneWord, ZONE_STATE } from './siege_zones.js';
 import { buildCastlePlan } from './castle_plan.js';
+import { makeNawabari } from './nawabari.js';
 import {
   WALL_Z, GATE, SOTO_MOAT, SOTO_MOAT_SEGS, SOTO_BRIDGE,
   ROU, CAMP, HON_ISHIGAKI_SEGS, HON_MOAT, HON_MOAT_SEGS, TENSHU_POS,
@@ -170,6 +171,9 @@ const arioka = {
       friendTeam: 0, enemyTeam: 1,
       noReinforce: () => true,
     });
+    // ---- 縄張りの今の様子（nawabari.js・束19）：曲輪・門・堀・道の数の表。読むだけで、戦の動きは変えない ----
+    F.K = makeNawabari(rt, F.C, { SZ: F.SZ, team: 1, friendTeam: 0 });
+    rt.nawabari = F.K;
     rt.marker('kishi', KISHI_TORIDE, () => `岸の砦・${zoneWord(F.SZ.byId.kishi)}`, { h: 5 });
     rt.marker('joro', JORO_TORIDE, () => `上ろう塚砦・${zoneWord(F.SZ.byId.joro)}`, { h: 5 });
     // 岸・上ろう塚砦は、別働の織田勢が惣構えの外から攻め落とす遠景の出来事（need:999 で実の戦闘では落ちない分、
@@ -390,6 +394,7 @@ const arioka = {
     // 崩れた隊の印は消す（古い印が「あちらじゃ」の行き先にならないように）
     for (const m of rt.markers.slice()) if (m.group && gone(m.group)) rt.unmark(m.id);
     KIT.backTick(rt);
+    if (F.K) F.K.tick(dt);
     if (F.ending) return;
     if (F.dpOn) { depthTick(rt, dt); return; }
     if (F.TA) F.TA.tick(dt);

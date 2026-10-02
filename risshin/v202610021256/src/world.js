@@ -448,6 +448,7 @@ vec3 aApply(APose P, vec3 v, float isN) {
 `;
 // 軽い兵をカメラの近く（ARMY_NEAR m より内）に立たせない：その内の者は、カメラから離れる向きへ押し出して、輪の外に寄せる
 // （消すと目の前の大軍が空になるので、大軍のまま外へ下がって見える。内は本物の兵が受け持つ）。ARMY_P はカメラの場所（humans.js が毎コマ写す。影を描く時も同じ場所で押す）
+const ALLY_NEAR_R = 50;   // 味方の軽い兵を描かない、自分（カメラ）からの半径（shyTick。近くの味方は本物の兵だけ）
 export const ARMY_NEAR = { value: 14 };   // 14m 内の軽い兵は見せない（その内は wake が骨の入った本物の兵に替える。外は人の形の軽い兵のまま、数を減らさない）
 export const ARMY_P = { value: new THREE.Vector2(1e5, 1e5) };
 const _lodV = new THREE.Vector3();
@@ -498,7 +499,7 @@ function armyCam(mat) {
 function armyShader(mat, U) {
   armyCam(mat);
   mat.onBeforeCompile = (sh) => {
-    Object.assign(sh.uniforms, U, { uArmyNear: ARMY_NEAR, uArmyP: ARMY_P, uShim: SHIMMER });
+    Object.assign(sh.uniforms, U, { uArmyNear: U.uNear || ARMY_NEAR, uArmyP: ARMY_P, uShim: SHIMMER });
     sh.fragmentShader = 'varying float vAHz;\n' + sh.fragmentShader.replace('#include <fog_fragment>', `#include <fog_fragment>
       #ifdef USE_FOG
         gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, vAHz);
@@ -1033,7 +1034,8 @@ export class World {
     this.buildLights();
     // 火の光は、はじめから数の決まった光（3 つ）を置いておき、近い火に付け替える。
     // 戦の途中で光の数が変わると、すべての材質の作り直し（数百 ms の引っかかり）が起きるため
-    this.firePool = [0, 1, 2].map(() => { const L = new THREE.PointLight(0xff9a4a, 0, 16, 1.6); L.position.set(0, -50, 0); scene.add(L); return { L, f: null }; });
+    //   画質「低」（携帯）は 2 つ（光が一つ減るだけ、すべての材質の一画素ごとの手間が減る）
+    this.firePool = (SETTINGS.quality === 'low' ? [0, 1] : [0, 1, 2]).map(() => { const L = new THREE.PointLight(0xff9a4a, 0, 16, 1.6); L.position.set(0, -50, 0); scene.add(L); return { L, f: null }; });
     this.buildWear();
     this.buildTerrain();
     this.buildVegetation();
@@ -1342,7 +1344,8 @@ export class World {
   // 位置だけを覚え、昇る・流れる・薄れるは描くときに計算する（毎コマの手間がない）
   buildSmokeColumns() {
     if (this.smokeCol) return;
-    const CAP = 48, PER = 16;
+    // 画質「低」（携帯）は一本の粒を減らす（近くの大きな粒の重なりが重い）
+    const CAP = 48, PER = SETTINGS.quality === 'low' ? 10 : 16;
     const pos = new Float32Array(CAP * PER * 3), seed = new Float32Array(CAP * PER * 2);
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -2183,6 +2186,8 @@ export class World {
     const U = {
       uAT: WIND, uGust: GUST, uIdle: ARMY_IDLE, uMarch: { value: 0 }, uCharge: { value: 0 }, uTurn: { value: 0 }, uRout: { value: 0 }, uRoutT: { value: 0 },
       uHgt: { value: this.hgtTex }, uHP: { value: new THREE.Vector3(HALF, this.step, SEG) },
+      // 近くで見せない輪：味方の軽い兵は A.nearR（shyTick が決める。本物で描けない近くの味方を絵で出さない）まで広げる
+      uNear: { get value() { return Math.max(ARMY_NEAR.value, (A && A.nearR) || 0); } },
     };
     //   画質「低」（携帯）は近くの形も五角の軽い形（一人 1100 面 → 300 面ほど）
     const body = new THREE.InstancedMesh(soldierGeo(armor, SETTINGS.quality === 'low' ? 'lo' : near), armyShader(new THREE.MeshLambertMaterial({ vertexColors: true }), U), N);
@@ -2254,7 +2259,7 @@ export class World {
     if (o.kind === 'honjin' && o._maku) this.honjinDressing(grp, o, facing);
     this.scene.add(grp);
     const cx = o.people ? sx / N : o.x, cz = o.people ? sz / N : o.z;
-    const A = { mesh: grp, x0: 0, U, body, flags, n: N, nImp: L.nImp || N, cx, cz, facing, face0: facing, off: new THREE.Vector3(), tw: null, rout: 0, followFn: null };
+    const A = { mesh: grp, x0: 0, U, body, flags, n: N, nImp: L.nImp || N, cx, cz, facing, face0: facing, off: new THREE.Vector3(), tw: null, rout: 0, followFn: null , hw0: (o.w || 20) / 2, hd0: (o.d || 10) / 2, people: !!o.people };
     // 遠くほど軽く：カメラから離れた隊は兵を間引き（旗と騎馬は残す）、背の指物をやめる
     const cw = new THREE.Vector3();
     const lod = (cam) => {
@@ -2388,6 +2393,15 @@ export class World {
           }
         }
       }
+      // 近づかれて退く（shyTick）：背を向けて行けない側へ下がる。進む・付いて歩くの最中でも、その道ごと横へずらす
+      if (A.shyV && !A.rout) {
+        const sx = A.shyV.x * dt, sz = A.shyV.z * dt;
+        A.off.x += sx; A.off.z += sz;
+        if (A.tw) { A.tw.from.x += sx; A.tw.from.z += sz; A.tw.to.x += sx; A.tw.to.z += sz; }
+        ctl(); A.shyD = (A.shyD || 0) + Math.hypot(sx, sz);
+        moving = 1; charge = 0; turn = A.shyV.turn;
+      }
+      if (A.fadeK !== undefined && A.fadeK > 0) { A.fadeK = Math.max(0, A.fadeK - dt / 3.5); if (!A.fadeK) { grp.visible = false; A.shyV = null; } }
       // 大軍の上の土埃：歩く・駆ける・崩れる時は足もとから土煙が立ち、止まっていても大勢の足踏みで薄いかすみが漂う（乾いた日だけ）
       A.dustT = (A.dustT ?? Math.random() * 3) - dt;
       if (A.dustT <= 0 && N >= 40) {
@@ -2412,6 +2426,75 @@ export class World {
     this.armies = this.armies || [];
     this.armies.push(A);
     return grp;
+  }
+
+  // 触れない絵の兵を、自分の行ける所に立たせない（kaito 10/2「突っ込んでいって誰もいないなら、そもそも出さない」）
+  //   本物の兵に替わらない軽い大軍（noWake・替える仕組みの無い戦・替える枠が尽きた時）は、自分が隊の四角の SHY_R m に入ると
+  //   背を向けて、自分から離れる向き（と戦場の外の向き）へ下がる。45m 下がるか、移動の範囲（moveLim）の外へ出れば、薄れて消える。
+  //   ・本物の組の後ろに付いて歩く控え（backOf・follow）は残す（本物の組と一緒に崩れる・退く）
+  //   ・部隊（butai.js）の軽い大軍は消さない（名目の兵数そのもの）。下がって間を取るだけ
+  //   ・army.keepNear = true の隊は退かせない
+  //   wake（b_nagashinojo）は動いている間 this.wakeLive を、枠が尽きた隊に A.starvedAt を書く
+  shyTick(dt, p) {
+    this._shyT = (this._shyT || 0) - dt;
+    if (this._shyT > 0 || !p) return;
+    this._shyT = 0.25;
+    const D = this.def || {};
+    if (D.town || D.dojo) return;
+    const T = this.time || 0, lim = D.moveLim || 176, SHY_R = 40;
+    if (this.shy0 === undefined) this.shy0 = T;
+    const wakeOn = !D.noWake && T - (this.wakeLive ?? -99) < 1.5;
+    const thin = (A, k) => { A.thinK = k; for (const c of A.mesh.children) if (c.isInstancedMesh) { const f = c.onBeforeRender; c.onBeforeRender = (...a) => { if (f) f.apply(c, a); c.count = Math.floor(c.count * (A.fadeK ?? 1) * A.thinK); }; } };
+    // 軽い大軍の合戦も、味方の側は 50m の内を描かない（内は wake が本物に替えた兵だけ）
+    if (this.allySide) for (const C of this.clashes || []) for (const S of [C.A, C.B]) {
+      if (!S || S.allyK !== undefined) continue;
+      S.allyK = S.P.team !== undefined ? S.P.team === (this.meTeam ?? 0) : !!this.allySide({ mon: S.P.flag, n: 0 });
+      if (S.allyK) S.nearR = ALLY_NEAR_R;
+    }
+    for (const A of this.armies || []) {
+      if (A.rout || A.people || A.fadeK !== undefined || !A.mesh.visible || !A.mesh.parent) continue;
+      const cx = A.mesh.position.x + A.cx + A.off.x, cz = A.mesh.position.z + A.cz + A.off.z;
+      const hw = A.hw0 + 1, hd = A.hd0 + (A.hostD || 0) + 1;
+      const inReach = Math.abs(cx) < lim + Math.max(hw, hd) && Math.abs(cz) < lim + Math.max(hw, hd);
+      // 味方の軽い大軍は大きく減らす（kaito 10/2「どこへ行っても味方がいて、負ける気がしない」）：
+      //   行ける所の内の味方は置かない（初めの数秒なら即座に、後から入ってきた隊は薄れて消える）。外の味方は 3 割ほどに間引く。
+      //   本陣（kind:'honjin'）・部隊・keepNear は残す。本物の組の後ろの控え（follow）は半分に
+      if (A.ally === undefined && this.allySide) A.ally = !!this.allySide(A);
+      // 自分の 50m の内に見える味方は本物の兵だけにする（kaito 10/2「近くの味方が絵で見劣りする」）：味方の軽い兵は 50m の内を描かない
+      if (A.ally && A.kind !== 'honjin') A.nearR = ALLY_NEAR_R;
+      //   部隊（butai.js）の味方の軽い大軍は、名目の数はそのままに、描く数だけ 35% に
+      if (A.ally && A.butai && A.thinK === undefined) thin(A, 0.35);
+      if (A.ally && !A.butai && !A.keepNear && A.kind !== 'honjin') {
+        if (A.thinK === undefined) thin(A, A.followFn ? 0.5 : 0.3);
+        if (inReach && !A.followFn) {
+          if (T - this.shy0 < 4) { A.fadeK = 0; A.mesh.visible = false; }
+          else { A.fadeK = 1; A.shyV = null; }
+          continue;
+        }
+      }
+      if (A.followFn || A.keepNear || A.ally) continue;   // 味方へは斬りかからないので、退かせるのは敵（と、どちらか分からない隊）だけ
+      const woke = wakeOn && !A.noWake && T - (A.starvedAt ?? -99) > 2;
+      const dx = p.x - cx, dz = p.z - cz, cf = Math.cos(A.facing), sf = Math.sin(A.facing);
+      const lx = Math.abs(dx * cf - dz * sf) - hw, lz = Math.abs(dx * sf + dz * cf) - hd;
+      const edge = Math.hypot(Math.max(0, lx), Math.max(0, lz));
+      if (!A.shyV) {
+        if (woke || !inReach || edge >= SHY_R) continue;
+        A.shyV = { x: 0, z: 0, turn: 0 };
+      } else if (edge > SHY_R + 15 || woke) { A.shyV = null; continue; }
+      // 下がる向き：自分から離れる向きに、戦場の外の向きを少し混ぜる
+      const dl = Math.hypot(dx, dz) || 1, cl = Math.hypot(cx, cz) || 1;
+      let vx = -dx / dl + 0.6 * cx / cl, vz = -dz / dl + 0.6 * cz / cl;
+      const vl = Math.hypot(vx, vz) || 1, sp = A.butai ? 2.2 : 3.4;
+      vx /= vl; vz /= vl;
+      A.shyV.x = vx * sp; A.shyV.z = vz * sp;
+      A.shyV.turn = vx * Math.sin(A.facing) + vz * Math.cos(A.facing) < -0.2 ? 1 : 0;
+      if (A.butai) { if ((A.shyD || 0) > 60) A.shyV = null; continue; }
+      // 十分に下がった・範囲の外へ出た：後ろから薄れて消える（兵・旗・馬の描く数を減らしていく）
+      if ((A.shyD || 0) > 45 || !inReach) {
+        A.fadeK = 1;
+        if (A.thinK === undefined) thin(A, 1);
+      }
+    }
   }
 
   // 遠景の大軍が本物の兵の戦う所に重ならないように：本物の兵（pts：{x,z} の並び）の 2.4m 内にいる軽い兵を隠す（大きさ 0）。
@@ -2695,7 +2778,7 @@ export class World {
         uAT: WIND, uGust: GUST, uIdle: typeof ARMY_IDLE !== 'undefined' ? ARMY_IDLE : { value: 0 }, uTurn: { value: 0 }, uRout: { value: 0 }, uRoutT: { value: 0 },
         uHgt: { value: this.hgtTex }, uHP: { value: new THREE.Vector3(HALF, this.step, SEG) },
         uBlk: { value: Array.from({ length: CLASH_NB }, () => new THREE.Vector4()) }, uBlk2: { value: Array.from({ length: CLASH_NB }, () => new THREE.Vector4(0, 0, cols, 0)) },
-        uSide: { value: sgn }, uApp: { value: C.app }, uAppM: { value: 0 }, uAppC: { value: 0 }, uNearHide: o.nearHide != null ? { value: o.nearHide } : ARMY_NEAR,
+        uSide: { value: sgn }, uApp: { value: C.app }, uAppM: { value: 0 }, uAppC: { value: 0 }, uNearHide: o.nearHide != null ? { value: o.nearHide } : { get value() { return Math.max(ARMY_NEAR.value, (S && S.nearR) || 0); } },
       };
       const S = { key, sgn, P, U, rows, per, n0: per * nb, alive: per * nb, lost: 0, mod: 0, m: 100, routed: false, blk: [], slots: [], near: [], far: [], all: [] };
       for (let j = 0; j < nb; j++) {
@@ -4548,6 +4631,7 @@ export class World {
     // 軽い大軍の合戦（前線の押し合い・討たれる者・崩れ）と、その矢
     for (const c of this.clashes || []) c.tick(dt, focus);
     this.updateClashArrows(dt);
+    this.shyTick(dt, focus);
     this.sky.position.set(focus.x, 0, focus.z);
     this.mountains.position.set(focus.x, 0, focus.z);
     this.skyMat.uniforms.time.value = this.time;

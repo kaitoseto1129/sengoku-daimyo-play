@@ -8,6 +8,7 @@
 import { realmLeft } from './realm.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { extFirst, extKiyosu } from './props_ext.js';
 import { yaguramon, dobei, tenshu, sumiyagura, ishigaki, kabukimon, tawara, umatsunagi, hut, koshisaku, kagaribi, solidRect, solidSeg, castleMat, nobori, palisade, dorui, yagura, makeSimpleBatch, finalizeSimpleBatch, makeKitBatch, finalizeKitBatch, ITA_MAT } from './props.js';
 import { allyGroup } from './bhelp.js';
 import { goten, nagaya, mizubori } from './castle_parts.js';
@@ -95,7 +96,7 @@ let MATS = null;
 function mats() {
   if (MATS) return MATS;
   MATS = {
-    wood: castleMat('wood'), plaster: castleMat('plaster'), shitami: castleMat('shitami'), tile: castleMat('tile'), ita: ITA_MAT,
+    wood: castleMat('wood'), plaster: castleMat('plaster'), shitami: castleMat('shitami'), tile: castleMat('tile'), ita: ITA_MAT(),
     cloth: new THREE.MeshStandardMaterial({ roughness: 0.95, metalness: 0, side: THREE.DoubleSide }),
     straw: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 }),
     // 格子・虫籠窓：夜は障子の内の灯りとして emissive を灯す（town_air.js が強さを動かす）
@@ -383,6 +384,7 @@ function well(rt, x, z) {
   solidCircle(x, z, 0.9);
 }
 function cart(rt, x, z, rot) {
+  if (extFirst(rt.scene, 'cart', [{ x: x + Math.sin(rot + Math.PI / 2) * 0.5 * 0 + Math.sin(rot) * 0.5, z: z + Math.cos(rot) * 0.5, rot: rot + Math.PI / 2 }], rt.world)) { solidRect(x, z, 1.5, 2.8, rot); return; }
   const y = rt.world.heightAt(x, z);
   const g = mergeAll([
     box(1.3, 0.1, 2.6, 0, 0.75, 0, 0x6a5236), box(0.08, 0.08, 3.6, -0.45, 0.72, 2.2, 0x4a3828), box(0.08, 0.08, 3.6, 0.45, 0.72, 2.2, 0x4a3828),
@@ -639,7 +641,8 @@ function buildTown(rt, def) {
     // 隅櫓は携帯「低」では片方だけ（遠景の飾りなので、重さを優先）
     addKB(sumiyagura(W, -40, CASTLE_Z + 9, { w: 7, d: 6, batch: kb }));
     if (SETTINGS.quality !== 'low') addKB(sumiyagura(W, 40, CASTLE_Z + 9, { w: 7, d: 6, batch: kb }));
-    addKB(tenshu(W, 0, CASTLE_Z + 30, { floors: 3, b: 12, old: true, batch: kb }));
+    // 天守：素材の清洲城（読めていて、画質が低でない時）。そうでなければ手作りの天守
+    if (!(SETTINGS.quality !== 'low' && extKiyosu(rt.scene, 0, CASTLE_Z + 30, Math.PI, 0.8, W))) addKB(tenshu(W, 0, CASTLE_Z + 30, { floors: 3, b: 12, old: true, batch: kb }));
     // 門の内には入れない（城の中は作らない）
     solidSeg(-3, CASTLE_Z + 4, 3, CASTLE_Z + 4, 0.5);
     rt.scene.add(nobori(W, -4, CASTLE_Z - 3, 'oda', 5), nobori(W, 4, CASTLE_Z - 3, 'oda', 5));
@@ -652,7 +655,7 @@ function buildTown(rt, def) {
   sign(rt, String(def.place || '清洲').split(/\s/)[0], 3.2, 3.6, GATE_Z - 0.1, 0, 0.4, true);
   doors.gate = { x: 0, z: GATE_Z + 1.5 };
   // 辻の水桶・天水桶（火の用心）
-  for (const [x, z] of [[-4, -22], [4, 4], [-4, 26], [4, -60]]) { const m = new THREE.Mesh(mergeAll([cyl(0.35, 0.32, 0.7, 0, 0.35, 0, 0x5a4028, 10), cyl(0.36, 0.36, 0.05, 0, 0.55, 0, 0x2a2018, 10), cyl(0.36, 0.36, 0.05, 0, 0.15, 0, 0x2a2018, 10)]), mats().straw); m.position.set(x, W.heightAt(x, z), z); m.castShadow = true; rt.scene.add(m); solidRect(x, z, 0.7, 0.7); }
+  for (const [x, z] of [[-4, -22], [4, 4], [-4, 26], [4, -60]]) { if (extFirst(rt.scene, 'barrel', [{ x, z }], W)) { solidRect(x, z, 0.7, 0.7); continue; } const m = new THREE.Mesh(mergeAll([cyl(0.35, 0.32, 0.7, 0, 0.35, 0, 0x5a4028, 10), cyl(0.36, 0.36, 0.05, 0, 0.55, 0, 0x2a2018, 10), cyl(0.36, 0.36, 0.05, 0, 0.15, 0, 0x2a2018, 10)]), mats().straw); m.position.set(x, W.heightAt(x, z), z); m.castShadow = true; rt.scene.add(m); solidRect(x, z, 0.7, 0.7); }
   rt.flags.doors = doors;
   // 寺・鍛冶場・高札場・水堀・干し物や樽・遠い町並み（town_life.js）
   buildLife(rt, { sign, chochin, dusk, doors });

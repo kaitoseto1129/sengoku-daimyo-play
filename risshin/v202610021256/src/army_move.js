@@ -301,7 +301,7 @@ export const ArmyMove = {
 
   collide(u, dt = 0.016) {
     for (const s of this.structs) {
-      if (!s.alive || !s.seg) continue;
+      if (!s.alive || !s.seg || s.opened) continue;   // 開いた門（siege_gate の opened）は素通し
       const [ax, az, bx, bz] = s.seg;
       const dx = bx - ax, dz = bz - az;
       const l2 = dx * dx + dz * dz;
