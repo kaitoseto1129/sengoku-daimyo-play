@@ -1,7 +1,7 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202610012130 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202610012236 として写した） -->
 <title>戦国立身 3D</title>
-<link rel="icon" type="image/png" sizes="32x32" href="./v202610012130/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610012130/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610012130/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610012130/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202610012236/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610012236/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610012236/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610012236/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -507,6 +507,10 @@ body.rm #intro .card { animation: none !important; opacity: 1; }
   #intro .card .ttl { font-size: clamp(20px, 4vw, 34px); letter-spacing: .2em; padding-left: .2em; }
   #intro .card .rule { width: min(220px, 40vw); margin: 10px auto 8px; }
   #intro .card .sides { font-size: clamp(11px, 1.6vw, 15px); letter-spacing: .2em; }
+  /* 同じ低い画面の決まり：戦の途中の見出し札（#banner。例「朝倉の先手」）も3分の1を超えないよう縮める */
+  #banner { top: 20%; font-size: clamp(18px, 4.4vw, 34px); }
+  #banner .brush { padding: 7px 28px 9px; }
+  #banner small { font-size: 11px; margin-top: 3px; }
 }
 @keyframes introCard { 0% { opacity: 0; filter: blur(3px); } 18% { opacity: 1; filter: blur(0); } 80% { opacity: 1; } 100% { opacity: 0; } }
 /* 戦況の知らせ（中央下の白抜き文字） */
@@ -1596,4 +1600,4 @@ html.touch.tc-low #hud.lean #bark { top: calc(8px + env(safe-area-inset-top, 0px
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
 } }
 </script>
-<script type="module" src="./v202610012130/src/main.js"></script>
+<script type="module" src="./v202610012236/src/main.js"></script>
