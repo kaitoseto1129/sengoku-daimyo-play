@@ -1303,7 +1303,10 @@ export class Hud {
     this.rt = rt;
     this.unitsT = (this.unitsT || 0) - dt;
     if (this.unitsT <= 0) { this.unitsT = 0.2; this.updateUnits(rt); }
-    this.updateMarkers(rt);
+    // 画質「低」（携帯）は印の置き直しを1コマ飛ばしにする（offsetWidth の読みで強制レイアウトが起きるので、毎コマは重い。
+    //   一コマが既に遅い時は dt の間引きだと効かないので、コマ数で数える）
+    this.markersF = ((this.markersF || 0) + 1) % 2;
+    if (S.quality !== 'low' || this.markersF === 0) this.updateMarkers(rt);
     this.lullCue(rt);
     this.updateThreats(rt);
     // ミニマップ

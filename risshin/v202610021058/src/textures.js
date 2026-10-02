@@ -115,9 +115,10 @@ function mokko(g, bg, n, a0, sx) {
   const c = n === 5 ? 0.45 : 0.42, rho = 1 - c;
   const P = mokkoPath(n, c, rho, a0);
   const layer = (s, col) => { g.save(); g.scale(s * sx, s); g.fillStyle = col; g.fill(P); g.restore(); };
-  layer(1, INK); layer(0.89, bg); layer(0.83, INK); layer(0.77, bg);
+  // 遠目でも窠（外の縁）と唐花（真ん中）が分かるよう、内の線を太め、唐花との白い間も広めにする（近くの大きさはそのまま）
+  layer(1, INK); layer(0.89, bg); layer(0.80, INK); layer(0.70, bg);
   g.fillStyle = INK;
-  const fs = n === 5 ? 1.3 : 1.2;
+  const fs = (n === 5 ? 1.3 : 1.2) * 0.86;
   for (let i = 0; i < n; i++) {
     const a = a0 + i * TAU / n;
     at(g, 0, 0, a - Math.PI / 2, fs, () => g.fill(PETAL));
@@ -580,7 +581,7 @@ export function flagTexture(kind) {
   // 縁のほつれ（竿と反対の端）
   for (let y = 0; y < H; y += 5) if (rnd() < 0.3) g.clearRect(W - 2 - rnd() * 5, y, 5, 2 + rnd() * 7);
   const t = new THREE.CanvasTexture(c);
-  t.anisotropy = 4;
+  t.anisotropy = 8;
   t.colorSpace = THREE.SRGBColorSpace;
   t.userData.mon = kind;   // 遠くの大軍（world.addDistantArmy）が、布から家紋＝敵か味方かを知る
   cache.set(kind, t);

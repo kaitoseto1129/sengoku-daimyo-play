@@ -767,14 +767,16 @@ function buildMy(rt, def, list, doors, dusk) {
       for (const s of segsOf(ring(-0.4))) { add(dobei(W, s, { h: 2.1, batch: kb })); solidSeg(...s, 0.35); }
       rt.scene.add(yaguramon(W, x1 + 0.2, gz, 5, Math.PI / 2));
       add(sumiyagura(W, x1 - 2.2, z1 - 2.2, { w: 6, d: 5, rot: Math.PI / 2, batch: kb }));
-      // 隅櫓は二つ目、天守は携帯「低」では省く（見映えより重さを優先。形はどちらも使い回しの部品）
       if (SETTINGS.quality !== 'low') add(sumiyagura(W, x0 + 2.2, z0 + 2.2, { w: 6, d: 5, rot: Math.PI / 2, batch: kb }));
-      // 三百石を超えれば、隅に小さな天守
-      if ((dom.koku || 0) >= 300 && SETTINGS.quality !== 'low') add(tenshu(W, x0 + 4.6, z1 - 4.4, { floors: 2, b: 6.5, base: 1.2, old: true }));
+      // 天守：城になれば必ず建つ（北西の隅、石垣に寄せて）。町の通りから屋根越しに見える目印。三百石を超えれば三重に
+      //   石垣と同じ束（kb）で描くので、携帯「低」でも描く回数は増えない
+      const big = (dom.koku || 0) >= 300;
+      add(tenshu(W, x0 + 3.2, z1 - 3.0, { floors: big ? 3 : 2, b: 6, base: 1.6, old: true, batch: kb }));
+      my.tenshu = { x: x0 + 3.2, z: z1 - 3.0 };
     }
     finalizeSimpleBatch(rt, batch); finalizeKitBatch(rt, kb);
     // 主殿：館・砦は板屋根の屋敷、城は御殿
-    if (lv >= 4) goten(rt, MC.x - 5, gz + 1, { w: 10, d: 7, rot: Math.PI / 2, tile: false });
+    if (lv >= 4) goten(rt, MC.x - 5, gz, { w: 10, d: 7, rot: Math.PI / 2, tile: false });   // 北の隅は天守に空ける
     else rt.scene.add(hut(W, MC.x - 5, gz + 1, lv >= 3 ? 11 : 10, 7, Math.PI / 2, { ita: true, h: 3.0, wall: 0x6e5a42 }));
     // 蔵：砦からは二つ。兵糧を蓄えれば、前に俵が積まれる
     const kuraN = 1 + (lv >= 3 ? 1 : 0);
@@ -784,6 +786,8 @@ function buildMy(rt, def, list, doors, dusk) {
       my.kura.push({ x: kx, z: kz + 2.8 });
     }
     if (dom.hyourou || (dom.koku || 0) >= 60) rt.scene.add(tawara(W, MC.x - 6.5, z0 + 5.8, 0, dom.hyourou ? 6 : 3));
+    // 台所の炊ぎの煙：人が住み、飯を炊いている館に見せる
+    W.addSmokeColumn(MC.x - 8, W.heightAt(MC.x - 8, gz - 1) + (lv >= 4 ? 5.6 : 4.4), gz - 1, { size: 0.45 });
     // 兵の長屋（砦から）
     if (lv >= 3) nagaya(rt, x1 - 5.5, z0 + 3.4, 7, 4, 0, { tile: lv >= 4 });
     // 幟：格が上がるほど多い
@@ -911,6 +915,31 @@ function myPeople(rt) {
         rt.say(k.name, k.loy >= 70 ? `この${my.name}、留守はお任せくだされ` : k.loy < 40 ? '……近頃、俸禄が心もとのう存じまする' : 'お呼びとあらば、すぐに参上いたす', 4);
       }, { r: 2.2 });
     });
+  }
+  // 用のある往来：館が育つと、町と館のあいだを人が行き来する（決まった道を順にたどる。tick の P.seq）
+  //   館から：問屋の荷を館へ運ぶ人足（兵糧を蓄えるか六十石から）。砦から：上官屋敷へ登城する家中の侍
+  const gx = my.gate.x + 1.6, gzz = MC.z - 2.4;
+  const walker = (name, type, kind, pts, o, lines, i) => {
+    const r = one(name, pts[0][0], pts[0][1], 0, type, o);
+    if (!r) return;
+    if (type === 'porter') dress(rt, r.u, 'townsman', 60 + i);
+    r.u.name = name;
+    const P = { g: r.g, u: r.u, kind, i: 60 + i, pts, wp: 0, dir: 1, seq: true, endWait: 5 + i * 3, waitT: 1 + i * 4, talkT: 0, said: 0 };
+    F.folk.push(P);
+    rt.addInteract('myway' + i, () => (r.u.alive ? { x: r.u.pos.x, z: r.u.pos.z } : null), `話す　${name}`, () => {
+      P.talkT = 4; r.u.heading = Math.atan2(rt.player.u.pos.x - r.u.pos.x, rt.player.u.pos.z - r.u.pos.z);
+      rt.say(name, lines[(P.said++) % lines.length], 4);
+    }, { r: 2.2 });
+  };
+  if (my.lv >= 2 && (dom.hyourou || (dom.koku || 0) >= 60)) {
+    const toiya = [[-3.2, -10], [-3.2, -21.5], [-18, -22], [MY_LANE_X, -21.5], [MY_LANE_X, -8], [gx, gzz]];
+    walker('人足', 'porter', 'townsman', toiya, {}, [`問屋の米を${my.name}の蔵へ運んでおりやす`, '殿の蔵は重い荷ばかりで、腰がもちませんわ'], 0);
+    if (my.lv >= 4) walker('人足', 'porter', 'townsman', toiya.slice().reverse(), {}, ['城の御用で、問屋へ銭を受け取りに参りやす'], 1);
+  }
+  if (my.lv >= 3) {
+    const tojo = [[gx, MC.z + 2.4], [MY_LANE_X, MC.z + 2.4], [MY_LANE_X, 14], [MY_LANE_X, CROSS_Z - 3], [-30.5, CROSS_Z + 1], [-30, CROSS_Z + ST_W + 0.6]];
+    walker('家中の侍', 'samurai', 'samurai', tojo, { weapon: 'none' }, [`上官屋敷へ、${my.name}の様子を申し上げに参る`, '殿の名が上がれば、我らも鼻が高うござる'], 2);
+    if (my.lv >= 4) walker('家中の侍', 'samurai', 'samurai', tojo.slice().reverse(), { weapon: 'none' }, ['登城の帰りでござる。上の方々も殿の城を噂しておられた'], 3);
   }
 }
 
@@ -1193,11 +1222,22 @@ function tick(rt, dt) {
     if (P.fixed) continue;
     const g = P.g;
     if (g.order === 'move' && g.dest) {
-      if (Math.hypot(u.pos.x - g.dest.x, u.pos.z - g.dest.z) < 1.6) { g.order = 'hold'; g.anchor = { x: u.pos.x, z: u.pos.z }; g.dest = null; P.waitT = 2 + Math.random() * 6; }
+      if (Math.hypot(u.pos.x - g.dest.x, u.pos.z - g.dest.z) < 1.6) { g.order = 'hold'; g.anchor = { x: u.pos.x, z: u.pos.z }; g.dest = null; P.waitT = P.seq ? P.nextWait || 0 : 2 + Math.random() * 6; }
       continue;
     }
     P.waitT -= dt;
     if (P.waitT > 0) continue;
+    // 用のある往来（荷運び・登城の侍）：決まった道を順にたどり、端で用を済ませて引き返す
+    if (P.seq) {
+      const L = P.pts.length;
+      if (P.wp + P.dir >= L || P.wp + P.dir < 0) P.dir = -P.dir;
+      P.wp += P.dir;
+      const w = P.pts[P.wp], end = P.wp === 0 || P.wp === L - 1;
+      g.order = 'move'; g.dest = { x: w[0] + (Math.random() - 0.5) * 0.8, z: w[1] + (Math.random() - 0.5) * 0.8 };
+      g.facing = Math.atan2(g.dest.x - u.pos.x, g.dest.z - u.pos.z);
+      P.nextWait = end ? P.endWait || 6 : 0;
+      continue;
+    }
     // 近い道の点のうちから、次の行き先を選ぶ（子どもは市のあたりを走り回る）
     const PT = P.pts || WALK;
     const here = PT[P.wp] || PT[0];

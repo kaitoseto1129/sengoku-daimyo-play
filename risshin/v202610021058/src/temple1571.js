@@ -22,16 +22,17 @@ function mats() {
   if (MATS) return MATS;
   const vc = (m, color) => { const c = m.clone(); c.vertexColors = true; if (color !== undefined) c.color = new THREE.Color(color); return c; };
   MATS = {
-    wood: WOOD_MAT,
-    tile: vc(TILE_MAT),
-    thatch: vc(THATCH_MAT),
-    ita: vc(ITA_MAT),
-    bark: vc(ITA_MAT, 0x6a4a36),           // 檜皮葺き（瑠璃堂・社殿）
+    wood: WOOD_MAT(),
+    tile: vc(TILE_MAT()),
+    thatch: vc(THATCH_MAT()),
+    ita: vc(ITA_MAT()),
+    bark: vc(ITA_MAT(), 0x6a4a36),           // 檜皮葺き（瑠璃堂・社殿）
     plain: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0 }),   // 遠くの軽い僧坊
   };
   return MATS;
 }
-const BAKE_MK = () => new Map([[WOOD_MAT, 'wood'], [TILE_MAT, 'tile'], [THATCH_MAT, 'thatch'], [ITA_MAT, 'ita']]);
+// props.js の材質は画質で軽い作りに変わるため lazy()（呼ぶ関数）になっている（a46a61b）。ここも呼んで実の材質を渡す
+const BAKE_MK = () => new Map([[WOOD_MAT(), 'wood'], [TILE_MAT(), 'tile'], [THATCH_MAT(), 'thatch'], [ITA_MAT(), 'ita']]);
 
 // ---- 形の小道具（建物の足もと中心・正面 +z の座標で作る） ----
 function box(w, h, d, x, y, z, hex, ry = 0) { const g = new THREE.BoxGeometry(w, h, d); if (ry) g.rotateY(ry); g.translate(x, y, z); return paint(g, hex); }

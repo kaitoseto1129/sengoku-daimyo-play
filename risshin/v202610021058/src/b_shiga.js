@@ -253,7 +253,7 @@ const shiga = {
     F.bAza.order({ id: 'move', to: { x: -12, z: -54 } });
     F.clashT = true;
     const g = enemyGroup(rt, { faction: 'saito', name: '朝倉の先手', anchor: { x: 22, z: -70 }, facing: 0, order: 'attack', seekRange: 90, aggro: 14, width: 16, morale: 95, fleeDir: { x: 0, z: -1 }, dmgMult: 0.55, formation: 'yari' },
-      dress([{ type: 'busho', n: 1, o: { name: '朝倉景鏡' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 18 }, { type: 'bow', n: 3 }], ASA));
+      dress([{ type: 'busho', n: 1, o: { name: '朝倉の侍大将' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 18 }, { type: 'bow', n: 3 }], ASA));
     F.w1 = g;
     KIT.backOf(rt, g, { flag: 'asakura', armor: 0x33291f, kind: 'spear', w: 24, depth: 12, count: 260, seed: 15794 });
     // 町口の左右では、森・信治の手の後ろの者と朝倉の大軍が押し合う（軽い作り）
@@ -662,9 +662,7 @@ shiga.force = (rt) => {
 };
 shiga.sides = { a: { name: '織田軍（宇佐山城）', mon: 'oda' }, b: { name: '浅井・朝倉軍', mon: 'asakura' } };
 // 史実でこの戦にいた名のある武将（battle.js の placeFamous が、その家の隊に加える。敵は名乗り、討てば手柄）
-shiga.famous = [
-  { name: '朝倉景鏡', g: /朝倉/, loose: 1, line: '朝倉景鏡なり！　坂本を抜けて京へ上る！' },
-];
+shiga.famous = [];
 shiga.date = () => '元亀元年九月二十日　秋・晴';
 shiga.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? '可成の話を飛ばす' : '');
 shiga.skip = (rt) => { for (const tm of rt.timers) tm.t = Math.min(tm.t, 0.2); };

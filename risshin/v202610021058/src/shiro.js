@@ -38,7 +38,10 @@ export function castleGarrison(rt, C, o = {}) {
       id: p.id,
       name: p.name || p.id,
       team, faction, armor, flag,
-      line: isReserve ? 'gotsume' : (isHon ? 'honjin' : 1),
+      // 本丸は line を 'honjin' にしない：gunsei.js は team ごとに line==='honjin' の備を
+      // 「本陣（攻め手の旗本）」として憑りtsume・本陣危機の下がりの的にする（確かめで見つけた：
+      // 城主の備がすぐ遠くへ「後退」し、本丸がいつまでも奪われない原因）。城方の本丸は last-line の 2 にする
+      line: isReserve ? 'gotsume' : (isHon ? 2 : 1),
       slot: p.slot || 'center',
       taisho: isHon ? (o.lord && o.lord.name) || '城主' : (p.taisho ?? null),
       nominal: p.nominal ?? 0,
