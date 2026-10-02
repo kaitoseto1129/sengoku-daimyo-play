@@ -255,6 +255,8 @@ const shiga = {
     if (F.step >= 1) return;
     F.step = 1; F.stepT = rt.t;
     rt.setPhase('first');
+    // 町口と木戸の口の乱戦：自分へ同時に打ちかかる敵は二人まで（残りは周りで構えて間を計る。数の圧は見せたまま、一人で呑まれて即座に倒れない）
+    F.cap0 = rt.army.maxAttackers || 3; rt.army.maxAttackers = Math.min(F.cap0, 2);
     rt.unmark('mori');
     sfx('horagai', 0.9);
     rt.banner('朝倉の先手', '湖の西の道を、朝倉の旗が下ってくる');
@@ -264,7 +266,7 @@ const shiga = {
     F.bAsa.order({ id: 'move', to: { x: 28, z: -50 } });
     F.bAza.order({ id: 'move', to: { x: -12, z: -54 } });
     F.clashT = true;
-    const g = enemyGroup(rt, { faction: 'saito', name: '朝倉の先手', anchor: { x: 22, z: -70 }, facing: 0, order: 'attack', seekRange: 90, aggro: 14, width: 16, morale: 95, fleeDir: { x: 0, z: -1 }, dmgMult: 0.55, formation: 'yari' },
+    const g = enemyGroup(rt, { faction: 'saito', name: '朝倉の先手', anchor: { x: 22, z: -70 }, facing: 0, order: 'attack', seekRange: 90, aggro: 14, width: 16, morale: 95, fleeDir: { x: 0, z: -1 }, dmgMult: 0.42, formation: 'yari' },
       dress([{ type: 'busho', n: 1, o: { name: '朝倉の侍大将' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 18 }, { type: 'bow', n: 3 }], ASA));
     F.w1 = g;
     KIT.backOf(rt, g, { flag: 'asakura', armor: 0x33291f, kind: 'spear', w: 24, depth: 12, count: 260, seed: 15794 });
@@ -285,6 +287,7 @@ const shiga = {
     rt.say('森可成', '槍を揃えよ！　町口を一歩も通すな！', 3);
     // 勝ち筋：町口は狭く、大軍でも横に広がれぬ。口を塞いで鉄砲で頭を叩く
     rt.after(5, () => rt.say('森可成', '町口は狭い。敵は横に広がれぬ。口を塞げば、数は怖くない', 3.5));
+    rt.obj('mouth', '町口を離れるな。深く追わず、口で押し返せ', 'order');
     // 一斉射：信治の鉄砲組を町口の前に並べ、先手が寄せた所で放つ（元亀元年、鉄砲はまだ少ない）
     F.guns = allyGroup(rt, { name: '信治の鉄砲組', anchor: { x: TOWN.x + 10, z: TOWN.z - 12 }, facing: Math.PI, width: 10, aggro: 4, noRout: true, formation: 'line' },
       dress([{ type: 'gun', n: 6 }], ODA));
@@ -292,7 +295,7 @@ const shiga = {
       banner: ['一斉射', '町口の鉄砲が、寄せる先手の頭を叩く'], clash: () => F.lines });
     rt.after(34, () => {
       if (F.step !== 1) return;
-      F.w1b = enemyGroup(rt, { faction: 'saito', name: '朝倉の二の手', anchor: { x: 44, z: -70 }, facing: 0, order: 'attack', seekRange: 90, aggro: 14, width: 12, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 0.55 },
+      F.w1b = enemyGroup(rt, { faction: 'saito', name: '朝倉の二の手', anchor: { x: 44, z: -70 }, facing: 0, order: 'attack', seekRange: 90, aggro: 14, width: 12, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 0.42 },
         dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 14 }, { type: 'gun', n: 2 }], ASA));
       for (const u of F.w1b.units) if (u.type === 'gun') u.dmg *= 0.45;
       KIT.backOf(rt, F.w1b, { flag: 'asakura', armor: 0x33291f, kind: 'spear', w: 20, depth: 10, count: 200, seed: 15797 });
@@ -306,8 +309,10 @@ const shiga = {
     const F = rt.flags;
     if (F.step >= 1.5) return;
     F.step = 1.5;
-    rt.unmark('w1'); rt.unmark('w1b');
+    rt.unmark('w1'); rt.unmark('w1b'); rt.objRemove('mouth');
     for (const q of [F.w1, F.w1b]) if (q && !gone(q)) { q.noRout = false; q.morale = Math.min(q.morale, 15); }
+    // 新手の列は町口の前で踏みとどまる（数の圧は見せたまま、段の敵と重ねて押し潰さない）
+    for (const q of F.streamG || []) if (!gone(q)) { const c = q.center(); q.order = 'hold'; q.anchor = { x: c.x + (c.x < TOWN.x ? 10 : 0), z: Math.min(c.z, TOWN.z - 34) }; q.aggro = 8; q.seekRange = 12; }
     rt.award((t) => t.side.push('朝倉の先手を退けた'), '朝倉の先手を退けた');
     for (const h of F.host) h.advance(30, 50);
     depthStart(rt, shigaCtx(rt), shigaA(), () => this.fall(rt));
@@ -317,11 +322,17 @@ const shiga = {
     const F = rt.flags;
     if (F.step >= 3.5) return;
     F.step = 3.5;
+    rt.objRemove('inner');
     for (let i = 0; i < 3; i++) rt.unmark('x' + i);
     for (const q of F.waves || []) if (!gone(q)) { q.noRout = false; q.morale = Math.min(q.morale, 15); }
     rt.award((t) => t.side.push('木戸に取り付く寄せ手を退けた'), '木戸を守った');
     rt.world.setTime('dusk');
     for (const b of F.bSiege || []) if (!bDead(b)) b.order({ id: 'retreat' });
+    // 寄せ手が引いた：内の木戸を開けて大手の口へ戻る（夜の段は大手木戸の前で受ける）
+    F.shut = null;
+    for (const G of [F.gateNiMk, F.gateHonMk]) F.gu.open(G);
+    F.backed = F.backedNi = false;
+    F.keep.anchor = { x: F.gateC.x - F.gateN.x * 4, z: F.gateC.z - F.gateN.z * 4 };
     depthStart(rt, shigaCtx(rt), shigaB(), () => this.win(rt));
   },
 
@@ -339,9 +350,11 @@ const shiga = {
     F.bMori.order({ id: 'move', to: { x: TOWN.x - 2, z: TOWN.z + 6 } });
     for (const c of F.lines || []) c.rout('A', { from: 0, hideAfter: 20, minFight: 0 });
     rt.banner('浅井・朝倉の大軍', '比叡山の方からも、浅井の兵が回り込んでくる');
-    const g = enemyGroup(rt, { faction: 'saito', name: '浅井の手', anchor: { x: -30, z: -30 }, facing: Math.PI * 0.7, order: 'attack', seekRange: 100, aggro: 14, width: 16, morale: 100, fleeDir: { x: -1, z: -1 }, dmgMult: 0.7 },
+    const g = enemyGroup(rt, { faction: 'saito', name: '浅井の手', anchor: { x: -30, z: -30 }, facing: Math.PI * 0.7, order: 'attack', seekRange: 45, aggro: 14, width: 16, morale: 100, fleeDir: { x: -1, z: -1 }, dmgMult: 0.7 },
       dress([{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 20 }], AZA));
     F.w2 = g;
+    // 町口を呑む浅井の手は、坂の下（町の内）までで止まる。追うのは追手の一組だけ
+    rt.after(12, () => { if (!gone(g)) { g.order = 'hold'; g.anchor = { x: TOWN.x - 8, z: TOWN.z - 8 }; g.seekRange = 10; } });
     rt.marker('w2', centerOf(g), () => `浅井の手・${moraleWord(g.morale)}`, { red: true, group: g });
     rt.say('森可成', `……多すぎる。${nm(rt)}、そなたらは宇佐山の城へ上がれ。わしと信治殿がここで食い止める`, 5);
     rt.say('織田信治', '城を頼む。殿が戻られるまで、城を渡すな！', 3.5);
@@ -350,17 +363,22 @@ const shiga = {
     // 退く先は大手木戸の内（城の者が木戸を開けて待つ。入ったら自分で閉める）
     rt.zone('usa', F.gateC.x - F.gateN.x * 5, F.gateC.z - F.gateN.z * 5, 5);
     F.gu.open(F.gateMk);
+    F.stream = null;
+    for (const q of F.streamG || []) if (!gone(q)) { const c = q.center(); q.order = 'hold'; q.anchor = { x: c.x, z: Math.min(c.z, TOWN.z) }; q.aggro = 7; q.seekRange = 12; }
     // 史実の討死（kaito 10/2）：大軍が森可成・織田信治の周りを埋め、遠くからも見える形で討たれる
-    rt.after(6, () => this.doom(rt, { u: F.nobuU, g: F.nobuharu, key: 'nobu', name: '織田信治', flag: ASA, last: '兄上……殿、あとを頼みまする！', dur: 16 }));
-    rt.after(13, () => this.doom(rt, { u: F.moriU, g: F.mori, key: 'mori', name: '森可成', flag: AZA, last: `ここまでじゃ……${nm(rt)}、城を頼むぞ！`, dur: 18 }));
+    rt.after(3, () => this.doom(rt, { u: F.nobuU, g: F.nobuharu, key: 'nobu', name: '織田信治', flag: ASA, last: '兄上……殿、あとを頼みまする！', dur: 13 }));
+    rt.after(8, () => this.doom(rt, { u: F.moriU, g: F.mori, key: 'mori', name: '森可成', flag: AZA, last: `ここまでじゃ……${nm(rt)}、城を頼むぞ！`, dur: 15 }));
     // 森・信治の手は町口に踏みとどまる
     for (const q of [F.mori, F.nobuharu]) { q.order = 'hold'; q.aggro = 16; }
     rt.obj('path', '追手に構わず、坂を上れ', 'order');
     // 坂道を上る間：町口を抜けた浅井の追手が少し追いすがる（歩くだけの間を作らない）
     rt.after(10, () => {
       if (F.step !== 2) return;
-      F.chase = enemyGroup(rt, { faction: 'saito', name: '追いすがる浅井勢', anchor: { x: TOWN.x - 6, z: TOWN.z + 16 }, facing: Math.PI, order: 'attack', seekRange: 60, aggro: 12, width: 8, morale: 70, fleeDir: { x: 0, z: -1 }, dmgMult: 0.45, speed: 2.8 },
-        dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 6 }], AZA));
+      // 追手は自分の背（町口の側）から出る。行く手の坂道の上には出さない
+      const pp = rt.player.u.pos, bx = pp.x - TOWN.x, bz = pp.z - (TOWN.z - 20), bl = Math.hypot(bx, bz) || 1;
+      const ca = { x: pp.x - bx / bl * 16, z: pp.z - bz / bl * 16 };
+      F.chase = enemyGroup(rt, { faction: 'saito', name: '追いすがる浅井勢', anchor: ca, facing: Math.PI, order: 'attack', seekRange: 60, aggro: 12, width: 8, morale: 55, fleeDir: { x: 0, z: -1 }, dmgMult: 0.4, speed: 2.8 },
+        dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }], AZA));
       rt.marker('chase', centerOf(F.chase), () => `追手・${moraleWord(F.chase.morale)}`, { red: true, group: F.chase });
       rt.say('足軽', '後ろから浅井の追手じゃ！　振り返って一突きして、また上れ！', 3);
     });
@@ -393,11 +411,12 @@ const shiga = {
     }
     rt.obj('main', HI(rt) ? `城兵の一手を率いて宇佐山城に籠り、三の丸→二の丸→本丸の順に木戸を守れ（${AID(rt)}）` : `宇佐山城に籠り、三の丸→二の丸→本丸の順に木戸を守れ（${AID(rt)}）`, 'main');
     rt.obj('honmaru', '危うい時は、城の奥の本丸へ退いて持て', 'side');
+    rt.obj('inner', '木戸の外へ出るな。内で受け、危うければ奥の曲輪へ退け', 'order');
     if (HI(rt)) rt.say('各務元正', `${nm(rt)}、木戸の口はそなたの手に預ける。わしは櫓から弓を指図する`, 4);
     F.keep.order = 'hold'; F.keep.anchor = { x: F.gateC.x + F.gateN.x * 4, z: F.gateC.z + F.gateN.z * 4 }; F.keep.facing = Math.atan2(F.gateN.x, F.gateN.z); F.keep.aggro = 12;
     rt.marker('gate', F.gateC, () => { const g = F.gates.find((s) => s && s.alive) || F.gates[F.gates.length - 1]; return `${g.name} ${Math.round(Math.max(0, g.hp) / g.maxHp * 100)}%`; }, { h: 4 });
     F.waves = [];
-    // ---- 守る持ち場の区域（siege_zones.js）：三の丸・二の丸・本丸は初めから味方。本丸を 140 秒持ちこたえれば勝ち（WIN.timeHeld） ----
+    // ---- 守る持ち場の区域（siege_zones.js）：三の丸・二の丸・本丸は初めから味方。本丸を 70 秒持ちこたえれば勝ち（WIN.timeHeld） ----
     F.SZ = makeSiegeZones(rt, {
       zones: [
         { id: 'san', name: '三の丸', start: ZONE_STATE.FRIEND, test: F.C.kuruwa.san.test, pos: F.C.kuruwa.san.centroid, need: 6, hold: 10 },
@@ -406,7 +425,7 @@ const shiga = {
       ],
       friendTeam: 0, enemyTeam: 1,
       noReinforce: () => true,
-      winWhen: [[WIN.timeHeld('hon', 140)]],
+      winWhen: [[WIN.timeHeld('hon', 70)]],
       onWin: () => { if (F.step === 3) this.midB(rt); },
       onFall: (id) => this.onZone(rt, id),
     });
@@ -437,7 +456,7 @@ const shiga = {
     const mk = (i) => {
       const flag = i % 2 ? AZA : ASA;
       const from = [[-2, 34], [-16, 36], [6, 40]][i];
-      const g = enemyGroup(rt, { faction: 'saito', name: ['城へ寄せる朝倉勢', '城へ寄せる浅井勢', '朝倉の新手'][i], anchor: { x: from[0], z: from[1] }, facing: 0, order: 'hold', aggro: 6, width: 10, morale: 95, fleeDir: { x: 0.3, z: -1 }, dmgMult: 0.62 },
+      const g = enemyGroup(rt, { faction: 'saito', name: ['城へ寄せる朝倉勢', '城へ寄せる浅井勢', '朝倉の新手'][i], anchor: { x: from[0], z: from[1] }, facing: 0, order: 'hold', aggro: 6, width: 10, morale: 95, fleeDir: { x: 0.3, z: -1 }, dmgMult: 0.5 },
         dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 14 }, ...(i === 2 ? [{ type: 'gun', n: 3 }] : [])], flag));
       const st = STAGE[i];
       const go = (q) => { if (q.order === 'assault' || gone(q)) return; q.order = 'assault'; q.aggro = 6; };
@@ -454,8 +473,8 @@ const shiga = {
     };
     // kaito 10/1：波の間を詰めた（50→38・95→70。遊んで10分ほどかかる戦を4〜7分に）
     rt.after(8, () => { mk(0); rt.say('足軽', '寄せてくるぞ！　木戸に取り付かせるな！', 3); });
-    rt.after(38, () => { if (!F.ending) { mk(1); rt.say('足軽', '浅井の旗じゃ、また来る！', 2.5); } });
-    rt.after(70, () => { if (!F.ending) mk(2); });
+    rt.after(26, () => { if (!F.ending) { mk(1); rt.say('足軽', '浅井の旗じゃ、また来る！', 2.5); } });
+    rt.after(46, () => { if (!F.ending) mk(2); });
   },
 
   win(rt) {
@@ -482,7 +501,7 @@ const shiga = {
     KIT.backTick(rt);
     depthTick(rt, dt);
     // 大軍から目を覚ました敵の兵は、名のある組より当たりを弱める（三万に一人で呑まれて、町口で倒れ続けないように）
-    if ((F.wkT = (F.wkT || 0) - dt) <= 0) { F.wkT = 0.5; for (const g of rt.army.groups) if (g.woke && g.team === 1 && !g.shDm) { g.shDm = true; g.dmgMult = (g.dmgMult || 1) * 0.55; } }
+    if ((F.wkT = (F.wkT || 0) - dt) <= 0) { F.wkT = 0.5; for (const g of rt.army.groups) if ((g.woke || g.name === '備の兵') && g.team === 1 && !g.shDm) { g.shDm = true; g.dmgMult = (g.dmgMult || 1) * 0.55; for (const u of g.units || []) if (u.type === 'gun') u.dmg *= 0.5; } }
     butaiTick(rt, dt);
     // 崩れた隊の印は消す（古い印が「あちらじゃ」の行き先にならないように）
     for (const m of rt.markers.slice()) if (m.group && gone(m.group)) rt.unmark(m.id);
@@ -491,6 +510,8 @@ const shiga = {
     if (F.gu) F.gu.tick();
     this.tickStream(rt);
     this.tickCamps(rt);
+    this.tickBreath(rt, dt);
+    this.tickShut(rt, dt);
     if (F.gateHint && F.gateMk.opened === false && !F.gateHintDone) { F.gateHintDone = true; rt.objDone('gate'); }
     tickTabas(rt, dt);
     if (F.SZ && F.step === 3) F.SZ.tick(dt);
@@ -500,28 +521,30 @@ const shiga = {
       const qs = [F.w1, F.w1b].filter(Boolean);
       rt.objProgress('main', `討った敵 ${F.ek || 0}人・寄せ手はまだ尽きぬ`);
       for (const q of qs) if (q.count < 5 && !gone(q)) q.morale = Math.min(q.morale, 20);
-      if ((F.w1b && qs.every(gone) && rt.t - F.stepT > 80) || rt.t - F.stepT > 115) this.midA(rt);
+      if ((F.w1b && qs.every(gone) && rt.t - F.stepT > 50) || rt.t - F.stepT > 65) this.midA(rt);
     }
     if (F.step === 2) {
       const zc = { x: F.gateC.x - F.gateN.x * 5, z: F.gateC.z - F.gateN.z * 5 };
       const d = Math.hypot(p.x - zc.x, p.z - zc.z);
       rt.objProgress('main', d < 6 && !F.moriDead ? '城の内で、町口を見よ' : `城まで ${Math.max(0, Math.round(d))}m`);
-      if ((d < 6 && F.moriDead && F.nobuDead) || rt.t - F.stepT > 100) this.siege(rt);
+      const dg = Math.hypot(p.x - F.gateC.x, p.z - F.gateC.z);
+      const inSan = F.C && F.C.kuruwa.san.test(p.x, p.z);
+      if (((d < 6 || dg < 9 || inSan) && F.moriDead && F.nobuDead) || rt.t - F.stepT > 70) this.siege(rt);
     }
     if (F.step === 3) {
       const L = F.waves || [];
       // 後詰までの時は「本丸を味方が持っている間」だけ進む（siege_zones の WIN.timeHeld。本丸を取られたら数え直し）
       const hon = F.SZ && F.SZ.byId.hon;
-      const left = Math.max(0, 140 - (hon ? hon.friendHeldT : rt.t - F.stepT));
+      const left = Math.max(0, 70 - (hon ? hon.friendHeldT : rt.t - F.stepT));
       const honLost = hon && hon.owner !== ZONE_STATE.FRIEND;
       const fg = F.gates.find((s) => s && s.alive) || F.gates[F.gates.length - 1];
       rt.objProgress('main', `${fg.name} ${Math.round(Math.max(0, fg.hp) / fg.maxHp * 100)}%・${honLost ? '本丸を取り返せ' : `後詰まで ${Math.ceil(left)}秒`}`);
       for (const q of L) if (q.count < 4 && !gone(q)) q.morale = Math.min(q.morale, 20);
-      if ((L.length >= 3 && L.every(gone)) || rt.t - F.stepT > 260) this.midB(rt);
+      if ((L.length >= 3 && L.every(gone) && rt.t - F.stepT > 60) || rt.t - F.stepT > 130) this.midB(rt);
     }
     // 危うい時の退き道：三の丸の大手木戸が傷めば二の丸へ、二の丸の木戸が傷むか自分が深手を負えば本丸へ退かせる
-    if (F.step >= 3 && !F.backedNi && (!F.gate.alive || F.gate.hp < F.gate.maxHp * 0.3)) this.toNinomaru(rt);
-    if (F.step >= 3 && !F.backed && (!F.kidoNi.struct.alive || F.kidoNi.struct.hp < F.kidoNi.struct.maxHp * 0.3 || rt.player.u.hp < rt.player.u.maxHp * 0.3)) this.toHonmaru(rt);
+    if (F.step === 3 && !F.backedNi && (!F.gate.alive || F.gate.hp < F.gate.maxHp * 0.3)) this.toNinomaru(rt);
+    if (F.step === 3 && !F.backed && (!F.kidoNi.struct.alive || F.kidoNi.struct.hp < F.kidoNi.struct.maxHp * 0.3 || rt.player.u.hp < rt.player.u.maxHp * 0.3)) this.toHonmaru(rt);
     if (F.backed && !F.inHon && F.C.kuruwa.hon.test(p.x, p.z)) {
       F.inHon = true;
       rt.objDone('honmaru');
@@ -530,10 +553,41 @@ const shiga = {
     }
   },
 
+  // 門を閉めた城の内（曲輪の中で、近くに敵がいない）では、息を整えて傷が少しずつ癒える（城へ退けば守れる）
+  tickBreath(rt, dt) {
+    const F = rt.flags, u = rt.player.u;
+    if (!F.C || !u.alive || F.step < 1 || !F.gateMk || F.ending) return;
+    const p = u.pos, K = F.C.kuruwa;
+    // 町口の段は、味方の列の後ろ（町の内）へ下がれば息がつける。城では、木戸を閉めた曲輪の内
+    // 自分のいる曲輪の口の木戸が閉まっていること（破られていれば息はつけない）
+    const shutG = K.hon.test(p.x, p.z) ? F.gateHonMk : K.ni.test(p.x, p.z) ? F.gateNiMk : K.san.test(p.x, p.z) ? F.gateMk : null;
+    const inside = F.step < 2 ? p.z > TOWN.z + 4 : !!shutG && !shutG.opened && !shutG.breached && shutG.struct.alive;
+    if (!inside) { F.breathT = 0; return; }
+    if ((F.breathChk = (F.breathChk || 0) - dt) <= 0) {
+      F.breathChk = 0.5;
+      F.breathSafe = !rt.army.nearestEnemy(u, 9, (o) => !o.fleeing);
+    }
+    if (!F.breathSafe) { F.breathT = 0; return; }
+    F.breathT = (F.breathT || 0) + dt;
+    if (F.breathT < 2 || u.hp >= u.maxHp) return;
+    u.hp = Math.min(u.maxHp, u.hp + u.maxHp * 0.035 * dt);
+    if (u.hp < u.maxHp * 0.7) {
+      const k = F.step < 2 ? 'breathSaidT' : 'breathSaid';
+      if (!F[k]) { F[k] = true; rt.bark(F.step < 2 ? '列の後ろで、息を整える' : '木戸の内で、息を整える', true); }
+    }
+  },
+  // 退く時に開けた内の木戸：自分が内へ入ったら城の者が閉める（入らなくても 30 秒で閉める）
+  tickShut(rt, dt) {
+    const F = rt.flags, S = F.shut, u = rt.player.u;
+    if (!S) return;
+    if (!S.G.opened || S.G.breached) { F.shut = null; return; }
+    S.inT = S.test(u.pos.x, u.pos.z) ? S.inT + dt : 0;
+    if ((S.inT > 1.5 || rt.t - S.t0 > 30) && F.gu.close(S.G)) { F.shut = null; rt.say('各務元正', `${S.G.name}を閉めた！　内で息を整えよ`, 2.5); }
+  },
   // 町口の正面に、崩しても崩しても新手が出る（持ち場ごとに本物の一組。崩れれば少し置いて後ろから次。本物の兵は 250 人ほどまで）
   tickStream(rt) {
     const F = rt.flags;
-    if (!F.stream || F.step >= 3 || F.step === 1.5) return;
+    if (!F.stream || F.step !== 1) return;
     F.streamG = F.streamG || [];
     let real = 0;
     for (const g of rt.army.groups) real += g.count || 0;
@@ -544,7 +598,7 @@ const shiga = {
       if (rt.t < S.next || real > 200) continue;
       const az = i === 0 || (S.n || 0) % 3 === 2, flag = az ? AZA : ASA;
       S.n = (S.n || 0) + 1; S.next = rt.t + 6;
-      const g = enemyGroup(rt, { faction: 'saito', name: az ? '浅井の新手' : '朝倉の新手', anchor: { x: S.x + (Math.random() - 0.5) * 8, z: -62 }, facing: 0, order: 'attack', seekRange: 110, aggro: 14, width: 12, morale: 85, fleeDir: { x: 0, z: -1 }, dmgMult: 0.42, formation: 'yari' },
+      const g = enemyGroup(rt, { faction: 'saito', name: az ? '浅井の新手' : '朝倉の新手', anchor: { x: S.x + (Math.random() - 0.5) * 8, z: -62 }, facing: 0, order: 'attack', seekRange: 110, aggro: 14, width: 12, morale: 85, fleeDir: { x: 0, z: -1 }, dmgMult: 0.34, formation: 'yari' },
         dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 9 }, ...(S.n % 2 ? [{ type: 'bow', n: 2 }] : [])], flag));
       KIT.backOf(rt, g, { flag: flag.flag, armor: az ? 0x2e2a26 : 0x33291f, kind: 'spear', w: 18, depth: 9, count: 150, seed: 15840 + i * 7 + S.n });
       S.g = g; F.streamG.push(g);
@@ -580,7 +634,7 @@ const shiga = {
     }
     for (const h of ring) h.advance(24, o.dur - 2, { charge: true });
     // 本物の兵の一組が武将へ斬り込む
-    const g = enemyGroup(rt, { faction: 'saito', name: `${o.name}を囲む${o.flag === AZA ? '浅井' : '朝倉'}勢`, anchor: { x: c.x + 4, z: c.z - 16 }, fixed: true, facing: 0, order: 'attack', seekRange: 60, aggro: 18, width: 10, morale: 100, noRout: true, dmgMult: 0.9 },
+    const g = enemyGroup(rt, { faction: 'saito', name: `${o.name}を囲む${o.flag === AZA ? '浅井' : '朝倉'}勢`, anchor: { x: c.x + 4, z: c.z - 16 }, fixed: true, facing: 0, order: 'attack', seekRange: 26, aggro: 14, width: 10, morale: 100, noRout: true, dmgMult: 0.9 },
       dress([{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }], o.flag));
     if (o.g) { o.g.order = 'hold'; o.g.aggro = 18; }
     rt.after(o.dur - 4, () => { if (u.alive) rt.say(o.name, o.last, 3); });
@@ -605,6 +659,8 @@ const shiga = {
     rt.say('各務元正', F.gate.alive ? '三の丸は持たぬ！　二の丸の木戸で受けよ！' : '大手が破られた！　二の丸へ退け！', 3.5);
     // 二の丸の木戸の内（三の丸の側）で槍を揃える
     F.keep.anchor = { x: GATE_NI.x, z: GATE_NI.z + 3.5 }; F.keep.facing = Math.PI;
+    // 二の丸の木戸を開けて迎え入れ、入ったら城の者が閉める（閉めれば、その内で息がつける）
+    if (F.gu.open(F.gateNiMk)) F.shut = { G: F.gateNiMk, test: (x, z) => F.C.kuruwa.ni.test(x, z) || F.C.kuruwa.hon.test(x, z), t0: rt.t, inT: 0 };
   },
   // 本丸への退き：印を出し、城の守りを本丸の口へ下げる。任務は続く（持てば勝ち）
   toHonmaru(rt) {
@@ -616,6 +672,7 @@ const shiga = {
     rt.say('各務元正', F.kidoNi.struct.alive ? '無理をするな！　本丸へ下がって、口で受けよ！' : '二の丸の木戸はもう持たぬ！　本丸へ退け、本丸の口で受けよ！', 3.5);
     // 本丸の木戸の内（切岸の上の口）で槍を揃える
     F.keep.anchor = { x: GATE_HON.x - 3.5, z: GATE_HON.z }; F.keep.facing = Math.PI / 2;
+    if (F.gu.open(F.gateHonMk)) F.shut = { G: F.gateHonMk, test: (x, z) => F.C.kuruwa.hon.test(x, z), t0: rt.t, inT: 0 };
     rt.player.u.hp = Math.max(rt.player.u.hp, rt.player.u.maxHp * 0.3);
   },
   // 守る区域の持ち主が変わった（siege_zones.js の onFall）：三の丸→二の丸→本丸の順に退く
@@ -680,7 +737,7 @@ const shiga = {
 // ---------------- 町口の押し合いと、宇佐山城の夜の段 ----------------
 function shigaCtx(rt) {
   const F = rt.flags;
-  return { faction: 'saito', flag: 'asakura', armor: 0x33291f, dmg: 0.64, look: (l) => dress(l, ASA), friends: () => (F.step < 2 ? [F.mori, F.nobuharu] : [F.keep]).filter((g) => g && g.count), aid: { name: '森の手の一組', list: [uS(1), uA(8)] }, aidSaid: '森の手から一組が加わった' };
+  return { faction: 'saito', flag: 'asakura', armor: 0x33291f, dmg: 0.5, look: (l) => dress(l, ASA), friends: () => (F.step < 2 ? [F.mori, F.nobuharu] : [F.keep]).filter((g) => g && g.count), aid: { name: '森の手の一組', list: [uS(1), uA(8)] }, aidSaid: '森の手から一組が加わった' };
 }
 // 木戸の外（寄せ手の来る側）
 const outGate = (rt, k = 8) => ({ x: rt.flags.gateC.x + rt.flags.gateN.x * k, z: rt.flags.gateC.z + rt.flags.gateN.z * k });
@@ -690,30 +747,30 @@ function shigaA() {
   const WEST = { x: -10, z: 4 };
   const LAKE = { x: 42, z: -4 };
   return [
-    rest({ dur: 8, say: [['森可成', '先手は退けた。……じゃが見よ、湖の西が旗で埋まっておる'], ['足軽', 'あれが三万……']] }),
+    rest({ dur: 4, say: [['森可成', '先手は退けた。……じゃが見よ、湖の西が旗で埋まっておる'], ['足軽', 'あれが三万……']] }),
     pick({ title: '浅井の手が比叡山の麓を回り、町口の西（背）へ出ようとしている。どうする？',
       pre: (rt) => rt.say('伝令', '浅井の旗が比叡山の麓を回っておりまする！　町口の背を断つ気でございます！', 3.5),
       options: [{ label: '西の山裾へ回り、浅井の先を止める', note: '背を断たれずに済む。町口の森殿の手が手薄になる' }, { label: '町口の森殿のそばを離れない', note: '町口は固い。浅井に背と横へ回られ、囲まれる' }],
       on: (rt, m, i) => { m.sgWest = i === 0; rt.say('森可成', i === 0 ? 'よし、西へ走れ！　山裾で浅井の頭を叩け' : 'よし、ここで槍を揃えよ。背にも目を配れ', 3); } }),
-    fight({ skip: (rt, m) => !m.sgWest, at: WEST, max: 150, title: '比叡山の麓', sub: '山裾を回る浅井の手の頭を叩く', obj: '山裾を回る浅井の手を止めよ',
-      foes: () => [{ name: '山裾を回る浅井の手', from: { x: -60, z: -40 }, flag: 'azai', list: dress([uS(2), uA(14)], AZA), mass: 240, noRout: 20 }],
-      later: [
-        { t: 35, title: '新手', sub: '浅井の新手が山から下りる', say: ['足軽', '山の上からも浅井じゃ！'], foes: () => [{ name: '山から下りる浅井勢', from: { x: -60, z: 20 }, flag: 'azai', list: dress([uS(1), uA(10), uB(3)], AZA), mass: 160 }] },
-        { t: 70, say: ['足軽', '町口の方で、朝倉が押しておる……！　後ろからも来るぞ'], foes: () => [{ name: '町口を抜けた朝倉勢', from: { x: 20, z: -30 }, list: [uS(1), uA(10)], mass: 140 }] },
+    // 山裾で浅井の頭を止める：持ちこたえれば勝ち（全てを討ち尽くさなくてよい。数は尽きない）
+    hold({ skip: (rt, m) => !m.sgWest, at: WEST, dur: 45, r: 14, title: '比叡山の麓', sub: '山裾を回る浅井の手の頭を叩く', label: '比叡山の麓', obj: '山裾で踏みとどまり、回り込む浅井の手を止めよ',
+      waves: [
+        { t: 3, foes: () => [{ name: '山裾を回る浅井の手', from: { x: -60, z: -40 }, flag: 'azai', list: dress([uS(2), uA(14)], AZA), mass: 240 }] },
+        { t: 18, say: ['足軽', '山の上からも浅井じゃ！'], foes: () => [{ name: '山から下りる浅井勢', from: { x: -60, z: 20 }, flag: 'azai', list: dress([uS(1), uA(10), uB(3)], AZA), mass: 160 }] },
       ],
-      reward: (t) => { t.special = { label: '比叡山の麓で浅井の手を止めた', pts: 20 }; }, rewardLabel: '浅井の手を止めた' }),
-    hold({ skip: (rt, m) => m.sgWest, at: T, dur: 85, r: 14, title: '町口', sub: '朝倉の正面、浅井の横と背', label: '坂本の町口', obj: '町口で踏みとどまり、囲みにかかる浅井・朝倉を退けよ',
+      reward: '比叡山の麓で浅井の手を止めた' }),
+    hold({ skip: (rt, m) => m.sgWest, at: T, dur: 42, r: 14, title: '町口', sub: '朝倉の正面、浅井の横と背', label: '坂本の町口', obj: '町口で踏みとどまり、囲みにかかる浅井・朝倉を退けよ',
       waves: [
         { t: 5, say: ['足軽', '朝倉が正面から押してくる！'], foes: () => [{ name: '朝倉の三の手', from: R.front, list: [uS(2), uA(14)], mass: 260 }] },
-        { t: 35, say: ['足軽', '左じゃ！　浅井の旗が山裾から！'], foes: () => [{ name: '横へ出た浅井の手', from: R.left, flag: 'azai', list: dress([uS(2), uA(12)], AZA), mass: 220 }] },
-        { t: 70, say: ['森可成', '背へ回られた……！　囲まれるな、背を合わせよ！'], foes: () => [{ name: '背へ回った浅井の手', from: R.back, flag: 'azai', list: dress([uS(1), uA(10)], AZA), mass: 160 }] },
+        { t: 18, say: ['足軽', '左じゃ！　浅井の旗が山裾から！'], foes: () => [{ name: '横へ出た浅井の手', from: R.left, flag: 'azai', list: dress([uS(2), uA(12)], AZA), mass: 220 }] },
+        { t: 36, say: ['森可成', '背へ回られた……！　囲まれるな、背を合わせよ！'], foes: () => [{ name: '背へ回った浅井の手', from: R.back, flag: 'azai', list: dress([uS(1), uA(10)], AZA), mass: 160 }] },
       ],
       reward: '町口で囲みに耐えた' }),
   ];
 }
 function shigaB() {
   return [
-    rest({ dur: 10, bark: '木戸の傷みを板で塞げ', say: [['各務元正', '日が暮れる。……寄せ手は夜も来る'], ['足軽', '坂本の町が燃えておる……']] }),
+    rest({ dur: 5, bark: '木戸の傷みを板で塞げ', say: [['各務元正', '日が暮れる。……寄せ手は夜も来る'], ['足軽', '坂本の町が燃えておる……']] }),
     pick({ title: '夜、寄せ手が城の左右の尾根から回り込み、木戸を囲みにかかる。どうする？',
       options: [{ label: '木戸を開けて打って出て、寄せ手の頭を叩く', note: '寄せ手を先に崩せば手柄。城の外で囲まれる' }, { label: '木戸を閉めて、口の内外で守る', note: '木戸を背に守る。木戸は叩かれ、鉄砲を浴びる' }],
       on: (rt, m, i) => {
@@ -724,42 +781,29 @@ function shigaB() {
         if (i === 0) rt.after(14, () => { if (!G.opened) F.gu.open(G); });
         else F.gu.close(G);
       } }),
-    fight({ skip: (rt, m) => !m.sgOut, at: (rt) => outGate(rt, 22), max: 150, title: '打って出る', sub: '夜の坂道を、寄せ手が上ってくる', obj: '城の外に打って出て、寄せ手の頭を崩せ',
-      foes: (rt) => { const o = outGate(rt, 22); return [{ name: '夜の寄せ手（朝倉勢）', from: { x: o.x + 30, z: o.z - 40 }, list: [uS(2), uA(14)], mass: 260, noRout: 20 }]; },
-      later: [
-        { t: 30, title: '囲まれる', sub: '左右の尾根から、浅井勢が下りる', say: ['足軽', '左右の尾根から……！　城へ戻る道を断たれる！'], foes: (rt) => { const o = outGate(rt, 22); return [{ name: '左の尾根の浅井勢', from: { x: o.x - 40, z: o.z - 10 }, flag: 'azai', list: dress([uS(1), uA(10)], AZA), mass: 160 }, { name: '右の尾根の浅井勢', from: { x: o.x + 40, z: o.z + 10 }, flag: 'azai', list: dress([uS(1), uA(10)], AZA), mass: 160 }]; } },
-        { t: 65, say: ['足軽', '坂の下に鉄砲が並んだ……！'], foes: (rt) => { const o = outGate(rt, 22); return [gunLine('坂の下の朝倉の鉄砲衆', { x: o.x + 20, z: o.z - 44 }, o, 9)]; } },
+    // 打って出る：坂の上で寄せ手の頭を叩いて持ちこたえる（数は尽きない。全てを討ち尽くさなくてよい）
+    hold({ skip: (rt, m) => !m.sgOut, at: (rt) => outGate(rt, 22), dur: 34, r: 14, label: '坂の上', title: '打って出る', sub: '夜の坂道を、寄せ手が上ってくる', obj: '城の外に打って出て、寄せ手の頭を崩せ',
+      waves: [
+        { t: 2, foes: (rt) => { const o = outGate(rt, 22); return [{ name: '夜の寄せ手（朝倉勢）', from: { x: o.x + 30, z: o.z - 40 }, list: [uS(2), uA(14)], mass: 260, noRout: 20 }]; } },
+        { t: 14, title: '囲まれる', sub: '左右の尾根から、浅井勢が下りる', say: ['足軽', '左右の尾根から……！　城へ戻る道を断たれる！'], foes: (rt) => { const o = outGate(rt, 22); return [{ name: '左の尾根の浅井勢', from: { x: o.x - 40, z: o.z - 10 }, flag: 'azai', list: dress([uS(1), uA(10)], AZA), mass: 160 }, { name: '右の尾根の浅井勢', from: { x: o.x + 40, z: o.z + 10 }, flag: 'azai', list: dress([uS(1), uA(10)], AZA), mass: 160 }]; } },
+        { t: 28, say: ['足軽', '坂の下に鉄砲が並んだ……！'], foes: (rt) => { const o = outGate(rt, 22); return [gunLine('坂の下の朝倉の鉄砲衆', { x: o.x + 20, z: o.z - 44 }, o, 9, { dmg: 0.3 })]; } },
       ],
-      reward: (t) => { t.special = { label: '夜に打って出て、寄せ手の頭を崩した', pts: 25 }; }, rewardLabel: '夜に打って出た' }),
-    hold({ skip: (rt, m) => m.sgOut, at: (rt) => outGate(rt, 6), dur: 85, r: 11, title: '夜の木戸', sub: '闇の坂から、たいまつが次々に上ってくる', label: '木戸の前', obj: '木戸の前で、夜の寄せ手を退けよ',
+      reward: '夜に打って出て、寄せ手の頭を崩した' }),
+    hold({ skip: (rt, m) => m.sgOut, at: (rt) => outGate(rt, 6), dur: 45, r: 11, title: '夜の木戸', sub: '闇の坂から、たいまつが次々に上ってくる', label: '木戸の前', obj: '木戸の前で、夜の寄せ手を退けよ',
       waves: [
         { t: 5, say: ['足軽', 'たいまつが……坂いっぱいじゃ'], foes: (rt) => { const o = outGate(rt, 6); return [{ name: '夜の寄せ手（朝倉勢）', from: { x: o.x + 20, z: o.z - 44 }, list: [uS(2), uA(14)], mass: 260 }]; } },
-        { t: 35, say: ['足軽', '左の尾根からも……！'], foes: (rt) => { const o = outGate(rt, 6); return [{ name: '左の尾根の浅井勢', from: { x: o.x - 40, z: o.z - 14 }, flag: 'azai', list: dress([uS(1), uA(12)], AZA), mass: 180 }]; } },
-        { t: 65, say: ['各務元正', '鉄砲じゃ、伏せよ！　撃ち終わりに突け！'], foes: (rt) => { const o = outGate(rt, 6); return [gunLine('坂の下の朝倉の鉄砲衆', { x: o.x + 16, z: o.z - 40 }, o, 11)]; } },
-        { t: 85, say: ['足軽', '右の尾根も……囲まれた！'], foes: (rt) => { const o = outGate(rt, 6); return [{ name: '右の尾根の浅井勢', from: { x: o.x + 40, z: o.z + 10 }, flag: 'azai', list: dress([uS(1), uA(10)], AZA), mass: 160 }]; } },
+        { t: 16, say: ['足軽', '左の尾根からも……！'], foes: (rt) => { const o = outGate(rt, 6); return [{ name: '左の尾根の浅井勢', from: { x: o.x - 40, z: o.z - 14 }, flag: 'azai', list: dress([uS(1), uA(12)], AZA), mass: 180 }]; } },
+        { t: 28, say: ['各務元正', '鉄砲じゃ、伏せよ！　撃ち終わりに突け！'], foes: (rt) => { const o = outGate(rt, 6); return [gunLine('坂の下の朝倉の鉄砲衆', { x: o.x + 16, z: o.z - 40 }, o, 11, { dmg: 0.3 })]; } },
+        { t: 38, say: ['足軽', '右の尾根も……囲まれた！'], foes: (rt) => { const o = outGate(rt, 6); return [{ name: '右の尾根の浅井勢', from: { x: o.x + 40, z: o.z + 10 }, flag: 'azai', list: dress([uS(1), uA(10)], AZA), mass: 160 }]; } },
       ],
       reward: '夜の木戸を守りぬいた' }),
-    // 夜更け：水の手（谷の井戸）を断ちにかかる浅井の手
-    rest({ dur: 6, heal: 0.25, say: [['足軽', '……城の裏の谷で、松明が動いておる'], ['各務元正', '水の手じゃ。井戸を断たれれば、城は三日と持たぬ']] }),
-    pick({ title: '夜更け、浅井の手が城の水の手（谷の井戸）を断ちにかかる。どうする？',
-      options: [{ label: '谷へ下りて、水の手を守る', note: '水があれば明日も戦える。そのあいだ木戸が手薄になる' }, { label: '水を分けて耐え、木戸を固める', note: '木戸は固い。喉の渇いた兵で、夜明けの総攻めを受ける' }],
-      on: (rt, m, i) => { m.sgDry = i === 1; rt.say('各務元正', i === 0 ? '谷へ下りよ！　井戸の口を背にして槍を揃えれば、狭い谷は一人で三人を止められる' : 'よし、水は一人一口ずつじゃ。木戸の前を固めよ', 3.5); } }),
-    fight({ skip: (rt, m) => m.sgDry, at: WELL, max: 150, title: '水の手', sub: '城の裏の谷で、井戸を断ちに来た浅井の手とぶつかる',
-      obj: (rt) => (HI(rt) ? '預かった手を連れて谷へ下り、水の手を守りぬけ' : '谷の水の手で、井戸を断ちに来た浅井の手を退けよ'),
-      foes: () => [{ name: '水の手を断つ浅井勢', from: { x: WELL.x - 30, z: WELL.z - 8 }, flag: 'azai', list: dress([uS(2), uA(14)], AZA), mass: 220, noRout: 20 }],
-      later: [{ t: 40, title: '谷の上から', sub: '尾根の浅井の弓が、谷へ射下ろす', say: ['足軽', '尾根の上から矢じゃ！　井戸の陰へ！'], foes: () => [{ name: '尾根の浅井の弓', from: { x: WELL.x - 20, z: WELL.z + 26 }, flag: 'azai', list: dress([uS(1), uA(6), uB(6)], AZA), mass: 140 }] }],
-      reward: (t) => { t.special = { label: '宇佐山城の水の手を守りぬいた', pts: 20 }; }, rewardLabel: '水の手を守った',
-      onEnd: (rt, m, won) => { if (won) rt.say('各務元正', 'ようやった。これで明日も戦える。木戸へ戻れ！', 3); } }),
-    hold({ skip: (rt, m) => !m.sgDry, at: (rt) => outGate(rt, 6), dur: 55, r: 11, title: '渇きの夜', sub: '水の手を断たれ、喉が焼ける', label: '木戸の前',
-      obj: (rt) => (HI(rt) ? '預かった手を木戸の前に並べ、夜討ちを受けよ' : '木戸の前で、夜討ちを受けよ'),
-      waves: [{ t: 6, say: ['足軽', '夜討ちじゃ……！　喉がからからで、声も出ぬ'], foes: (rt) => { const o = outGate(rt, 6); return [{ name: '夜討ちの浅井勢', from: { x: o.x - 30, z: o.z - 30 }, flag: 'azai', list: dress([uS(2), uA(12)], AZA), mass: 200 }]; } }],
-      reward: '渇きの夜を耐えた' }),
-    rest({ dur: 10, bark: '夜が白む。息を整えよ', say: [['足軽', '……夜が明ける。まだ生きておる'], ['各務元正', '寄せ手が、坂の下で揃うておる。……最後の総攻めじゃ']], fn: (rt) => rt.world.setTime('morning') }),
-    hold({ at: (rt) => outGate(rt, 6), dur: 70, r: 11, title: '夜明けの総攻め', sub: '浅井・朝倉の旗が、坂の下を埋める', label: '木戸の前', obj: '夜明けの総攻めを、木戸の前で受け止めよ（後詰まで）',
+    // 水の手（谷の井戸）の段は、4〜7分に収めるため外した（kaito 10/2）
+    rest({ dur: 5, heal: 0.3, bark: '夜が白む。息を整えよ', say: [['足軽', '……夜が明ける。まだ生きておる'], ['各務元正', '寄せ手が、坂の下で揃うておる。……最後の総攻めじゃ']], fn: (rt) => rt.world.setTime('morning') }),
+    hold({ at: (rt) => outGate(rt, 6), dur: 40, r: 11, title: '夜明けの総攻め', sub: '浅井・朝倉の旗が、坂の下を埋める', label: '木戸の前', obj: '夜明けの総攻めを、木戸の前で受け止めよ（後詰まで）',
       say: [['各務元正', '持ちこたえよ！　上様は、もうそこまで来ておられる！']],
       waves: [
-        { t: 4, say: ['足軽', '坂の下が旗で埋まった……！'], foes: (rt, m) => { const o = outGate(rt, 6); return [{ name: '朝倉の総攻め', from: { x: o.x + 10, z: o.z - 46 }, list: [uS(3), uA((m.sgOut ? 12 : 16) + (m.sgDry ? 4 : 0))], mass: 320, noRout: 25 }, gunLine('朝倉の鉄砲衆', { x: o.x + 36, z: o.z - 36 }, o, 10)]; } },
-        { t: 45, say: ['足軽', '浅井の新手が尾根から……！'], foes: (rt) => { const o = outGate(rt, 6); return [{ name: '浅井の新手', from: { x: o.x - 44, z: o.z - 20 }, flag: 'azai', list: dress([uS(2), uA(12)], AZA), mass: 220 }]; } },
+        { t: 4, say: ['足軽', '坂の下が旗で埋まった……！'], foes: (rt, m) => { const o = outGate(rt, 6); return [{ name: '朝倉の総攻め', from: { x: o.x + 10, z: o.z - 46 }, list: [uS(3), uA((m.sgOut ? 12 : 16) + (m.sgDry ? 4 : 0))], mass: 320, noRout: 25 }, gunLine('朝倉の鉄砲衆', { x: o.x + 36, z: o.z - 36 }, o, 10, { dmg: 0.3 })]; } },
+        { t: 20, say: ['足軽', '浅井の新手が尾根から……！'], foes: (rt) => { const o = outGate(rt, 6); return [{ name: '浅井の新手', from: { x: o.x - 44, z: o.z - 20 }, flag: 'azai', list: dress([uS(2), uA(12)], AZA), mass: 220 }]; } },
       ],
       reward: '夜明けの総攻めを受け止めた' }),
   ];
@@ -784,10 +828,10 @@ shiga.botBrain = (b, inp, { goTo }) => {
   inp.quickCmd = null;
   inp.k.delete('KeyW'); inp.k.delete('KeyE');
   if (!u.alive || F.ending) return;
-  // 段（b_depth.js）が動いている間は、そちらの的へ向かう
-  if (F.dp && F.dp.on) { depthBot(b, inp, goTo); return; }
   if (u.hp < u.maxHp * 0.5) b.botRest = true;
   if (b.botRest && u.hp > u.maxHp * 0.85) b.botRest = false;
+  // 段（b_depth.js）が動いている間は、そちらの的へ向かう（深手の時は町の内へ下がって息を整えてから）
+  if (F.dp && F.dp.on && !(b.botRest && F.step < 2)) { depthBot(b, inp, goTo); return; }
   // 本丸へは道（木戸→二の丸→本丸の木戸）を通る。切岸は登れないので、間の口を順に踏む
   const inHon = F.C && F.C.kuruwa.hon.test(u.pos.x, u.pos.z);
   const inNi = !inHon && F.C && F.C.kuruwa.ni.test(u.pos.x, u.pos.z);
@@ -805,10 +849,22 @@ shiga.botBrain = (b, inp, { goTo }) => {
   }
   inp.guardHold = false;
   const out = { x: F.gateC.x + F.gateN.x * 5, z: F.gateC.z + F.gateN.z * 5 }, inG = { x: F.gateC.x - F.gateN.x * 5, z: F.gateC.z - F.gateN.z * 5 };
-  if (F.step === 1) { const q = [F.w1, F.w1b].find((x) => x && !gone(x)); if (q) { const c = q.center(); goTo(p, inp, c.x, c.z, 2); return; } }
-  if (F.step === 2) { goTo(p, inp, inG.x, inG.z, 1.5); return; }
+  // 町口では口を塞ぐ：列の前に立ち、寄せてくる者だけを討つ（大軍の中へ一人で深く追わない）
+  if (F.step === 1) { const q = [F.w1, F.w1b].find((x) => x && !gone(x)); if (q) { const c = q.center(); goTo(p, inp, c.x, Math.max(c.z, TOWN.z - 16), 2); return; } }
+  if (F.step === 2) {
+    // 切岸は登れないので、町口→坂の下→坂（RAMPS）→木戸の内の順に道を踏む
+    const wp = u.pos.z < 30 && Math.hypot(u.pos.x - 12, u.pos.z - 34) > 4 ? { x: 12, z: 34 } : u.pos.z < 47 ? { x: -6, z: 48 } : inG;
+    goTo(p, inp, wp.x, wp.z, 1.5); return;
+  }
   if (F.step === 3) {
     // 木戸の内で、破って入る寄せ手を討つ（木戸は閉めてある）
+    // 退けの声が出たら、内の曲輪へ入って、その口の内で受ける
+    if (F.backed || F.backedNi) {
+      const inner = F.backed ? inHon : inNi || inHon;
+      const hold = F.backed ? { x: GATE_HON.x - 4, z: GATE_HON.z } : { x: GATE_NI.x, z: GATE_NI.z + 4 };
+      const t = inner ? hold : inside;
+      goTo(p, inp, t.x, t.z, 2); return;
+    }
     const q = (F.waves || []).find((x) => !gone(x));
     const gk = F.gateMk.opened || F.gateMk.breached ? out : inG;
     if (q && gk === out) { const c = q.center(); if (Math.hypot(c.x - F.gateC.x, c.z - F.gateC.z) < 26) { goTo(p, inp, c.x, c.z, 2); return; } }

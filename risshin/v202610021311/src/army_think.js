@@ -486,6 +486,11 @@ export const ArmyThink = {
       if (!s.done && s.t >= s.dur * s.at) { s.done = true; this.landSwing(u, s, near); }
       if (s.t >= s.dur + 0.3) u.swing = null;
     }
+    // 鉄砲が狙っていた的が（味方の手で）倒れた：死んだ者を撃たず、筒を下ろして次の的を探す
+    if (u.atk && u.atk.ranged && !u.atk.target.isStruct && !u.atk.target.alive) {
+      if (u.target === u.atk.target) u.target = null;
+      u.atk = null; u.cd = Math.min(u.cd, 0.2);
+    }
     if (u.atk) {
       const a = u.atk;
       a.t -= dt;

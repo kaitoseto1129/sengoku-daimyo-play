@@ -8,7 +8,7 @@
 // 向き：北（-z）が城の奥（本丸）。南（+z）に織田の陣。東西に惣構えの土塁
 // ======================================================================
 import * as THREE from 'three';
-import { nobori, hut, yagura, campfire, kabukimon, tawara, dobei, ishigaki, tenshu, yaguramon, sumiyagura, kagaribi, tamon, tobira, makeKitBatch, finalizeKitBatch } from './props.js';
+import { nobori, hut, yagura, campfire, kabukimon, tawara, dobei, ishigaki, tenshu, yaguramon, sumiyagura, kagaribi, tamon, tobira, makeKitBatch, finalizeKitBatch, dorui, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
 import { flagTexture } from './textures.js';
 import { RANKS } from './state.js';
 import { sfx } from './audio.js';
@@ -24,11 +24,12 @@ import { reset as flReset } from './floors.js';
 import { tickTabas, tabaInteractTick, makeTabaAdvance, patchGunCover } from './taketaba.js';
 import { makeFirstIn, makeSiegeZones, zoneWord, ZONE_STATE } from './siege_zones.js';
 import { buildCastlePlan } from './castle_plan.js';
+import { makeNawabari } from './nawabari.js';
 import {
   WALL_Z, GATE, SOTO_MOAT, SOTO_MOAT_SEGS, SOTO_BRIDGE,
   ROU, CAMP, HON_ISHIGAKI_SEGS, HON_MOAT, HON_MOAT_SEGS, TENSHU_POS,
   SOKAKU_X, SOKAKU_N, KISHI_TORIDE, JORO_TORIDE, HON_W_MOAT, HON_W_MOAT_SEGS,
-  ARIOKA_PLAN,
+  ARIOKA_PLAN, MACHIYA_Z,
 } from './castles/arioka.js';
 // 足軽大将候補より上（信長で遊ぶ時は除く）：任務の文を「一手を預かる」者の役目に
 const HI = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
@@ -98,6 +99,17 @@ const arioka = {
     noT(wallLine(rt, [[-SOKAKU_X, WALL_Z], [-SOKAKU_X, SOKAKU_N]], { team: 1, hp: 1e9, name: '惣構えの土塁（西）', segLen: 8, mesh: dobei, meshOpt: { hikae: 1, batch: KB } }));
     noT(wallLine(rt, [[SOKAKU_X, WALL_Z], [SOKAKU_X, SOKAKU_N]], { team: 1, hp: 1e9, name: '惣構えの土塁（東）', segLen: 8, mesh: dobei, meshOpt: { hikae: 1, batch: KB } }));
     noT(wallLine(rt, [[-SOKAKU_X, SOKAKU_N], [SOKAKU_X, SOKAKU_N]], { team: 1, hp: 1e9, name: '惣構えの土塁（岸の砦）', segLen: 8, mesh: dobei, meshOpt: { hikae: 1, batch: KB } }));
+    // 惣構えの土塁：塀の外へ盛った土の斜面（見た目だけ。一つの形にまとめる。木戸の前は空ける）と、四隅の隅櫓、町の木戸（大通りの町境）
+    {
+      const db = makeSimpleBatch();
+      for (const [seg, nx, nz] of [[[-SOKAKU_X, WALL_Z, -6, WALL_Z], 0, 1], [[6, WALL_Z, SOKAKU_X, WALL_Z], 0, 1], [[-SOKAKU_X, WALL_Z, -SOKAKU_X, SOKAKU_N], -1, 0], [[SOKAKU_X, WALL_Z, SOKAKU_X, SOKAKU_N], 1, 0], [[-SOKAKU_X, SOKAKU_N, SOKAKU_X, SOKAKU_N], 0, -1]]) {
+        const d = dorui(W, seg, nx, nz, { batch: db, w: 3, h: 0.9 });
+        if (!d.isBatchedPart) rt.scene.add(d);
+      }
+      finalizeSimpleBatch(rt, db);
+      for (const [x, z] of [[-SOKAKU_X + 4, WALL_Z - 4], [SOKAKU_X - 4, WALL_Z - 4], [-SOKAKU_X + 4, SOKAKU_N + 4], [SOKAKU_X - 4, SOKAKU_N + 4]]) sumiyagura(W, x, z, { rot: 0, w: 6, d: 5, base: 1.2, batch: KB });
+      rt.scene.add(kabukimon(W, 0, MACHIYA_Z[1], 7, 0, { doors: false }));   // 町屋と侍町の境の木戸（開いたまま。通れる）
+    }
     // 三砦（北＝岸の砦・西＝上ろう塚砦・南＝鵯塚砦＝惣構えの木戸と同じ）。物見の櫓と旗で目印を置く（HIST_B）
     rt.scene.add(yagura(W, KISHI_TORIDE.x, KISHI_TORIDE.z + 5), nobori(W, KISHI_TORIDE.x + 4, KISHI_TORIDE.z + 3, 'maru', 6));
     rt.scene.add(yagura(W, JORO_TORIDE.x + 5, JORO_TORIDE.z), nobori(W, JORO_TORIDE.x + 9, JORO_TORIDE.z - 2, 'maru', 6));
@@ -170,6 +182,9 @@ const arioka = {
       friendTeam: 0, enemyTeam: 1,
       noReinforce: () => true,
     });
+    // ---- 縄張りの今の様子（nawabari.js・束19）：曲輪・門・堀・道の数の表。読むだけで、戦の動きは変えない ----
+    F.K = makeNawabari(rt, F.C, { SZ: F.SZ, team: 1, friendTeam: 0 });
+    rt.nawabari = F.K;
     rt.marker('kishi', KISHI_TORIDE, () => `岸の砦・${zoneWord(F.SZ.byId.kishi)}`, { h: 5 });
     rt.marker('joro', JORO_TORIDE, () => `上ろう塚砦・${zoneWord(F.SZ.byId.joro)}`, { h: 5 });
     // 岸・上ろう塚砦は、別働の織田勢が惣構えの外から攻め落とす遠景の出来事（need:999 で実の戦闘では落ちない分、
@@ -390,6 +405,7 @@ const arioka = {
     // 崩れた隊の印は消す（古い印が「あちらじゃ」の行き先にならないように）
     for (const m of rt.markers.slice()) if (m.group && gone(m.group)) rt.unmark(m.id);
     KIT.backTick(rt);
+    if (F.K) F.K.tick(dt);
     if (F.ending) return;
     if (F.dpOn) { depthTick(rt, dt); return; }
     if (F.TA) F.TA.tick(dt);

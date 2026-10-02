@@ -54,6 +54,15 @@ function height(x, z) {
   return HEIGHT_FN(x, z);
 }
 
+function inPoly(P, x, z) {
+  let c = false;
+  for (let i = 0, j = P.length - 1; i < P.length; j = i++) {
+    const [xi, zi] = P[i], [xj, zj] = P[j];
+    if ((zi > z) !== (zj > z) && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) c = !c;
+  }
+  return c;
+}
+
 // 苦しい戦：生き延びた事そのものを手柄にする（残った体力と、生き残った組の者の割合で）
 function survival(rt, label) {
   const u = rt.player.u, sq = rt.squad || [];
@@ -182,14 +191,14 @@ const tennoji = {
     rt.banner('前線崩壊', '原田直政隊、三津寺にて本願寺勢と戦う');
     sfx('taiko', 0.7);
     rt.after(0.8, () => { F.harada.advance(16, 10); rt.army.play('eshout', MITSU, 1.3); });
-    rt.after(3, () => rt.say('織田の使番', '原田様、三津寺より進みましたが、雑賀の鉄砲に押し返されておりまする！', 4));
+    rt.after(3, () => rt.say('織田の使番', '原田様、三津寺で雑賀の鉄砲に押し返されておりまする！', 3.2));
     rt.after(5.5, () => { sfx('volley', 0.9); rt.army.play('volley', MITSU, 1.3); });
     rt.after(7.5, () => rt.say('織田の使番', '原田直政様、討死にござる……！', 3.5));
     rt.after(8.5, () => F.harada.rout({ hideAfter: 16 }));
     rt.after(10, () => rt.say('足軽', '前線が崩れた！　明智様たちは天王寺砦へ退かれたとの由……', 4));
-    rt.after(14.5, () => {
-      rt.say('佐久間信盛', '殿、揃うたのは三千ほど。敵は一万五千と聞きまする。……せめて後の者を待たれては', 4.5);
-      rt.say('織田信長', '待てば光秀が死ぬ。わしが先に立つ。続け', 3.5);
+    rt.after(12.5, () => {
+      rt.say('佐久間信盛', '殿、味方は三千、敵は一万五千。後の者を待たれては', 3.2);
+      rt.say('織田信長', '待てば光秀が死ぬ。わしが先に立つ。続け', 3);
     });
     rt.after(22, () => this.breakIn(rt));
   },
@@ -202,13 +211,14 @@ const tennoji = {
     rt.setPhase('break');
     rt.unmark('nobu');
     sfx('horagai', 1); rt.after(0.6, () => sfx('taiko', 1));
-    rt.banner('かかれ', '砦を囲む本願寺勢を突き破る');
-    rt.obj('main', HI(rt) ? '先手の一手を率い、砦を囲む本願寺勢を突き破れ（雑賀の鉄砲に気をつけよ）' : '砦を囲む本願寺勢を突き破れ（雑賀の鉄砲に気をつけよ）', 'main');
+    rt.banner('かかれ');   // 下の字は付けない：札が小さく、遠くの砦を隠さない（任務の札に書いてある）
+    rt.obj('main', HI(rt) ? '先手を率い、砦の囲みを破れ' : '砦を囲む本願寺勢を破れ', 'main');
     for (const [g, x] of [[F.nobu, 0], [F.saku, -22], [F.taki, 22]]) { g.order = 'attack'; g.seekRange = 60; g.anchor = { x, z: 30 }; }
     F.ringA.order = 'attack'; F.ringA.seekRange = 130;   // 囲みの門徒も押し出してくる（長く歩かせない）
     // 挟み撃ち：外から信長勢が来たのを見て、砦の内の明智勢も柵の内から打って出る（台詞だけでなく実際に両側から当たる）
     F.ake.order = 'attack'; F.ake.seekRange = 50; F.ake.aggro = 16;
-    rt.say('明智光秀', '殿の旗が見えたぞ！　門を開けよ、中からも突いて出る！', 3.5);
+    // 挟み撃ち：札（かかれ）が消えてから、砦の内の明智が打って出る声
+    rt.after(4.5, () => { if (F.step === 1) rt.say('明智光秀', '殿の旗じゃ！　門を開けよ、中からも突いて出る！', 3); });
     rt.marker('ra', centerOf(F.ringA), () => `囲みの門徒・${moraleWord(F.ringA.morale)}`, { red: true, group: F.ringA });
     rt.marker('ga', centerOf(F.gunA), () => `雑賀の鉄砲・${moraleWord(F.gunA.morale)}`, { red: true, group: F.gunA });
     rt.after(20, () => {
@@ -260,7 +270,7 @@ const tennoji = {
     F.fgun = allyGroup(rt, { name: '砦の鉄砲組', anchor: { x: FORT.x, z: FORT.z - 2 }, facing: 0, width: 14, aggro: 4, noRout: true, formation: 'line' },
       dress([{ type: 'samurai', n: 1 }, { type: 'gun', n: 10 }], ODA));
     volleyAt(rt, { guns: () => [F.fgun, F.ake], foes: () => F.siegeW, who: '明智光秀', near: 28, drop: 30, max: 40, say: '柵まで来たぞ……放てぇっ！', line: '砦の鉄砲がそろって火を吹いた。門徒の前の列が崩れる' });
-    rt.obj('main', HI(rt) ? '砦の柵の一手を預かり、守り抜け（柵の内の味方を切らすな）' : '砦を守り抜け（柵の内の味方を切らすな）', 'main');
+    rt.obj('main', '柵の内で砦を守り抜け（傷は主郭で癒える）', 'main');
     for (const q of [F.nobu, F.ake]) { q.order = 'hold'; q.anchor = { x: FORT.x + (q === F.nobu ? 0 : -4), z: FORT.z + (q === F.nobu ? 4 : -4) }; q.aggro = 12; }
     for (const h of F.hostE) h.advance(24, 30);
     const W3 = [[-FORT.r - 18, 0, '西の門徒', Math.PI / 2], [FORT.r + 18, 0, '東の雑賀衆', -Math.PI / 2], [0, -FORT.r - 22, '北の門徒', 0]];
@@ -301,6 +311,15 @@ const tennoji = {
     rt.after(4, () => rt.say('織田信長', '本隊は右の雑賀の鉄砲を頼みにしておる。西の畑から回れば、本隊の横腹じゃ', 4));
     rt.obj('main', '砦から打って出て、本願寺勢を崩せ', 'main');
     for (const q of F.oda) { q.order = 'attack'; q.seekRange = 90; q.formation = 'line'; }
+    if (rt.player.u.group) rt.player.u.group.defMult = 1;
+    for (const x of rt.squad || []) if (x.group) x.group.defMult = 1;
+    // 挟み撃ち（史実の肝）：信長と明智は砦の門から正面へ、門の外にいた佐久間・滝川の後詰は東西から本隊の横腹へ回る
+    for (const [q, x] of [[F.saku, -52], [F.taki, 48]]) { q.order = 'move'; q.dest = { x, z: -96 }; q.onArrive = (g) => { g.order = 'attack'; g.seekRange = 90; }; }
+    rt.after(7, () => {
+      if (F.step !== 3) return;
+      rt.banner('挟み撃ち', '佐久間・滝川の後詰が、本願寺勢の横腹へ回った');
+      rt.say('佐久間信盛', '殿！　横から突きまする。正面は頼みましたぞ', 3);
+    });
     F.last = [];
     const mk = (x, z, name, list) => {
       const g = enemyGroup(rt, { faction: 'saito', name, anchor: { x, z }, facing: 0, order: 'attack', seekRange: 90, aggro: 16, width: 16, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 0.6 }, list);
@@ -391,6 +410,7 @@ const tennoji = {
       if (d >= 5 && rt.t - F.stepT > 22 && !F.gateCall) { F.gateCall = true; rt.say('砦の足軽', `${nm(rt)}殿、こちらじゃ！　南の門を開けてござる、早う中へ！`, 3.5); }
       if (d < 5 || rt.t - F.stepT > 50) this.siege(rt);
     }
+    if (F.step >= 1 && F.step < 3) this.cover(rt, dt);
     if (F.step === 2.5) {
       // 柵の内の味方（自分・組・信長の手・明智の手）が尽きかけたら落城。三つの寄せを崩すか、95 秒持てば打って出る
       const inFort = rt.army.units.filter((u) => u.alive && u.team === 0 && Math.hypot(u.pos.x - FORT.x, u.pos.z - FORT.z) < FORT.r + 2).length;
@@ -418,6 +438,24 @@ const tennoji = {
       const d = Math.hypot(p.x - F.kz.x, p.z - F.kz.z);
       rt.objProgress('main', `城戸口まで ${Math.max(0, Math.round(d))}m・残りの手 ${K.reduce((a, q) => a + (gone(q) ? 0 : q.count), 0)}人`);
       if ((d < 10 && rt.t - F.stepT > 12) || (K.length && K.every(gone)) || rt.t - F.stepT > 70) this.win(rt);
+    }
+  },
+
+  // 柵の内（籠城の間）：外曲輪の内は柵の陰で傷が浅くなる。主郭の内で敵が 9m 内にいなければ、少しずつ息を継ぐ
+  cover(rt, dt) {
+    const F = rt.flags, u = rt.player.u;
+    if (!u.alive) return;
+    const inSoto = inPoly(SOTO_POLY, u.pos.x, u.pos.z), inHon = inPoly(HON_POLY, u.pos.x, u.pos.z);
+    const g = u.group, sq = (rt.squad || []).find((x) => x.alive);
+    const k = inHon ? 2.6 : inSoto ? 1.9 : 1;
+    if (g) g.defMult = k;
+    if (sq && sq.group && sq.group !== g) sq.group.defMult = Math.max(1, k * 0.8);
+    if (inHon && u.hp < u.maxHp && !rt.army.nearestEnemy(u, 6)) u.hp = Math.min(u.maxHp, u.hp + u.maxHp * 0.05 * dt);
+    if (F.step === 2.5 && u.hp < u.maxHp * 0.5 && !inHon && !F.honHint) {
+      F.honHint = true;
+      rt.say('明智光秀', `${nm(rt)}殿、傷が深い！　主郭の柵の内へ退いて、息を継がれよ`, 3.2);
+      rt.marker('hon', { x: -2, z: -76 }, '主郭（息を継ぐ）', { h: 2 });
+      rt.after(25, () => rt.unmark('hon'));
     }
   },
 
@@ -464,9 +502,18 @@ tennoji.botBrain = (b, inp, { goTo }) => {
   if (u.hp < u.maxHp * 0.5) b.botRest = true;
   if (b.botRest && u.hp > u.maxHp * 0.85) b.botRest = false;
   const c = F.nobu.center();
-  if (b.botRest) { inp.guardHold = false; goTo(p, inp, c.x, c.z + 6, 2); return; }
+  if (b.botRest) {
+    inp.guardHold = false;
+    // 籠城の間は主郭へ退いて息を継ぐ（主郭の門は南の辺の x=-4。外曲輪から門の前を通って入る）
+    if (F.step === 2.5) { if (inPoly(HON_POLY, u.pos.x, u.pos.z)) goTo(p, inp, -2, -78, 1.5); else if (u.pos.z > -65) goTo(p, inp, T_HONGATE.x, -64, 1.2); else goTo(p, inp, T_HONGATE.x, -74, 1); return; }
+    // 打って出た後は、敵の来ない南の門の内（外曲輪の南）へ戻って息を継ぐ
+    if (F.step >= 3) { goTo(p, inp, 2, -50, 2); return; }
+    goTo(p, inp, c.x, c.z + 6, 2); return;
+  }
   // 砦の柵越しに近い敵へ向いたまま突き続け、一度も当たらない不具合の直し（kaito 9/30）
-  const e = b.army.nearestEnemy(u, F.step === 2 ? 5 : 12, (o) => !o.fleeing && !b.army.wallBetween(u.pos, u.team, o.pos, false));
+  // 籠城の間は柵の外へ追って出ない（柵の内へ入った敵と、すぐそばの敵だけ）
+  const siege = F.step === 2.5;
+  const e = b.army.nearestEnemy(u, F.step === 2 ? 5 : siege ? 9 : 12, (o) => !o.fleeing && !b.army.wallBetween(u.pos, u.team, o.pos, false) && (!siege || inPoly(SOTO_POLY, o.pos.x, o.pos.z) || Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 3.5));
   if (e) {
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
     p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
@@ -478,6 +525,7 @@ tennoji.botBrain = (b, inp, { goTo }) => {
   inp.guardHold = false;
   if (F.step === 1) { const q = [F.ringA, F.ringB, F.gunA].find((x) => x && !gone(x)); if (q) { const t = q.center(); goTo(p, inp, t.x, t.z, 2); return; } }
   if (F.step === 2) { goTo(p, inp, F.gz.x, F.gz.z, 1.5); return; }
+  if (siege) { goTo(p, inp, FORT.x + 2, FORT.z + 2, 3); return; }
   if (F.step === 3) {
     const q = (F.last || []).find((x) => !gone(x));
     if (q) { const t = q.center(); if (u.pos.z < FORT.z + FORT.r && Math.hypot(u.pos.x - FORT.x, u.pos.z - FORT.z) < FORT.r) { goTo(p, inp, FORT.x, FORT.z + FORT.r + 4, 1); return; } goTo(p, inp, t.x, t.z, 2); return; }
