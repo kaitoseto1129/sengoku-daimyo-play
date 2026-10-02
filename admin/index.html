@@ -64,10 +64,9 @@ body.risshin header{ border-bottom-color:var(--ai); }
 <div id="gate"><form id="loginForm">
   <div style="font-size:18px;font-weight:800;letter-spacing:.1em">戦国大名　管理</div>
   <input id="em" type="email" placeholder="メールアドレス" autocomplete="username">
-  <input id="pw" type="password" placeholder="合言葉" autocomplete="current-password">
+  <input id="pw" type="password" placeholder="パスワード" autocomplete="current-password">
   <button type="submit">入る</button>
   <div class="err" id="gateErr"></div>
-  <button type="button" id="mkHash" style="background:none;border:none;color:#C9A227;font-size:14px;text-decoration:underline;padding:6px;min-height:44px;cursor:pointer">入れない時：合言葉のしるしを出す</button>
 </form></div>
 
 <header>
@@ -89,6 +88,10 @@ body.risshin header{ border-bottom-color:var(--ai); }
 const USERS=[
   {email:"kaitoseto1129@gmail.com", hash:"57f3833bb5286c81572f087fc31cae5f081e8e7001462e05312832163de6dfc3", name:"作り手"},
 ];
+/* 第258巡（kaito：メアドとパスワードを入れたら、その人も入れるように。シンプルに）：足した人は users.json に置く。
+   管理画面の「入れる人」で足すと、その場で倉の users.json に書き込む（GitHub の鍵はこのブラウザにだけ置く） */
+let USERS_EXTRA=[];
+async function loadUsers(){ try{ const r=await fetch("users.json?t="+Date.now(),{cache:"no-store"}); if(r.ok){ const j=await r.json(); if(Array.isArray(j)) USERS_EXTRA=j; } }catch(_){ } return USERS.concat(USERS_EXTRA); }
 async function sha256(s){ const b=await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join(""); }
 function opened(){ try{ const t=+localStorage.getItem("sd_admin_ok")||0; return Date.now()-t<30*864e5; }catch(e){ return false; } }
 /* 第257巡（kaito：管理画面に入れない）：入れていないと、ブラウザの吹き出しが題の上に出るだけで
@@ -98,19 +101,9 @@ document.getElementById("loginForm").onsubmit=async e=>{ e.preventDefault();
     if(!e1||!p1){ document.getElementById("gateErr").textContent=!e1&&!p1?"メールアドレスと合言葉を入れてください":(!e1?"メールアドレスを入れてください":"合言葉を入れてください（自動入力が入っていないことがあります。一度押して入れ直してください）");
       document.getElementById(!e1?"em":"pw").focus(); return; } }
   const em=document.getElementById("em").value.trim().toLowerCase(); const h=await sha256(document.getElementById("pw").value);
-  const u=USERS.find(x=>x.email.toLowerCase()===em && x.hash===h);
+  const u=(await loadUsers()).find(x=>x.email.toLowerCase()===em && x.hash===h);
   if(u){ try{ localStorage.setItem("sd_admin_ok", String(Date.now())); localStorage.setItem("sd_admin_who", u.name||em); }catch(_){ } document.getElementById("gate").style.display="none"; load(); }
   else document.getElementById("gateErr").textContent="メールアドレスか合言葉が違います"; };
-/* 第257巡（kaito：入れない）：合言葉そのものは誰にも渡さず、「しるし」（SHA-256）だけを出す。
-   これを作り手に送れば、この画面の名簿を書き換えて入れるようになる */
-document.getElementById("mkHash").onclick=async()=>{
-  const pw=document.getElementById("pw").value;
-  const er=document.getElementById("gateErr");
-  if(!pw){ er.textContent="先に合言葉の欄に、使いたい合言葉を入れてください"; document.getElementById("pw").focus(); return; }
-  const h=await sha256(pw);
-  er.innerHTML="この長い字を作り手に送ってください（合言葉そのものは送らないで）<br><span style=\"user-select:all;word-break:break-all;color:#EDE6D6\">"+h+"</span>";
-  try{ await navigator.clipboard.writeText(h); er.innerHTML+="<br>（写し取りました）"; }catch(_){ }
-};
 if(opened()){ document.getElementById("gate").style.display="none"; }
 function showSales(){ try{ fetch("sales.json?"+Date.now()).then(r=>r.ok?r.json():null).then(x=>{ if(!x) return;
   const el=document.getElementById("salesBox"); if(!el) return;
@@ -173,12 +166,42 @@ function applyGame(){
   applyGame();
 })();
 document.querySelectorAll("#rangeTabs button").forEach(b=>b.onclick=()=>{ RANGE=b.dataset.r; document.querySelectorAll("#rangeTabs button").forEach(x=>x.classList.toggle("on",x===b)); render(); });
-/* 人を足す：ここで合言葉の指紋（SHA-256）を作り、その行を作り手に渡す（か admin/index.html の USERS に足す）。合言葉そのものはどこにも送らない */
-function usersCard(){ const el=document.createElement("div"); el.className="card"; el.innerHTML=`<h2>入れる人</h2><div class="note">いま入れる人：${USERS.map(u=>`<b>${u.name||""}</b>（${u.email}）`).join("、")}</div>
-  <div class="note" style="margin-top:8px">人を足す：メールアドレスと合言葉を入れて「行を作る」。出てきた一行を作り手へ渡すと、次の版から入れます。合言葉そのものは送られません（指紋だけ）。</div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><input id="nuEm" type="email" placeholder="メールアドレス" style="flex:1;min-width:200px;padding:8px 10px;border-radius:6px;border:1px solid #3a3020;background:#0F0D09;color:#EDE6D6"><input id="nuNm" placeholder="呼び名（例：広告担当）" style="flex:1;min-width:140px;padding:8px 10px;border-radius:6px;border:1px solid #3a3020;background:#0F0D09;color:#EDE6D6"><input id="nuPw" type="password" placeholder="合言葉" style="flex:1;min-width:140px;padding:8px 10px;border-radius:6px;border:1px solid #3a3020;background:#0F0D09;color:#EDE6D6"><button id="nuGo" style="padding:8px 14px;border-radius:6px;border:1px solid #C9A227;background:#C9A227;color:#1A1208;font-weight:800;cursor:pointer">行を作る</button></div>
-  <pre id="nuOut" style="margin-top:10px;white-space:pre-wrap;word-break:break-all;background:#0F0D09;padding:10px;border-radius:6px;font-size:12px;color:#FFD166;display:none"></pre>`;
-  el.querySelector("#nuGo").onclick=async()=>{ const em=el.querySelector("#nuEm").value.trim().toLowerCase(), nm=el.querySelector("#nuNm").value.trim(), pw=el.querySelector("#nuPw").value; if(!em||!pw){ alert("メールアドレスと合言葉を"); return; } const h=await sha256(pw); const line=`  {email:"${em}", hash:"${h}", name:"${nm||em}"},`; const o=el.querySelector("#nuOut"); o.style.display="block"; o.textContent=line+"\n\n↑ この一行をコピーして作り手へ（目安箱でも可）。admin/index.html の USERS に足せば入れるようになります"; try{ await navigator.clipboard.writeText(line); o.textContent+="\n（コピーしました）"; }catch(_){ } el.querySelector("#nuPw").value=""; };
+/* 第258巡：人を足す・外す。users.json を GitHub に直接書く。パスワードそのものは置かない（SHA-256 の印だけ） */
+const GH_REPO="kaitoseto1129/sengoku-daimyo-play", GH_PATH="admin/users.json";
+function ghKey(){ try{ return localStorage.getItem("sd_gh_key")||""; }catch(_){ return ""; } }
+async function ghSaveUsers(list){
+  const key=ghKey(); if(!key) throw new Error("nokey");
+  const api=`https://api.github.com/repos/${GH_REPO}/contents/${GH_PATH}`, hd={Authorization:"Bearer "+key, Accept:"application/vnd.github+json"};
+  const cur=await fetch(api+"?t="+Date.now(),{headers:hd,cache:"no-store"}); const sha=cur.ok?(await cur.json()).sha:undefined;
+  const body=JSON.stringify(list,null,2)+"\n"; const b64=btoa(unescape(encodeURIComponent(body)));
+  const r=await fetch(api,{method:"PUT",headers:hd,body:JSON.stringify({message:"管理画面：入れる人を更新",content:b64,sha})});
+  if(!r.ok) throw new Error(r.status===401||r.status===403?"badkey":"save "+r.status);
+}
+function usersCard(){ const el=document.createElement("div"); el.className="card";
+  const inp='style="flex:1;min-width:160px;padding:10px 12px;min-height:44px;border-radius:6px;border:1px solid #3a3020;background:#0F0D09;color:#EDE6D6;font-size:16px"';
+  const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const draw=()=>{ const all=USERS.concat(USERS_EXTRA);
+    el.innerHTML=`<h2>入れる人</h2>
+    <div>${all.map(u=>`<div class="row" style="align-items:center;min-height:44px"><span><b>${esc(u.name||"")}</b>（${esc(u.email)}）</span>${USERS_EXTRA.includes(u)?`<button type="button" data-rm="${esc(u.email)}" style="min-height:44px;min-width:44px;background:none;border:1px solid #5a4a2a;color:#EDE6D6;border-radius:6px;padding:0 12px;cursor:pointer">外す</button>`:'<span class="muted">作り手</span>'}</div>`).join("")}</div>
+    <div class="note" style="margin-top:10px">メールアドレスとパスワードを入れて「入れるようにする」。一、二分でその人も入れます。</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><input id="nuEm" type="email" placeholder="メールアドレス" autocomplete="off" ${inp}><input id="nuNm" placeholder="呼び名（例：広告担当）" ${inp}><input id="nuPw" type="text" placeholder="パスワード" autocomplete="off" ${inp}><button type="button" id="nuGo" style="min-height:44px;padding:0 18px;border:none;border-radius:6px;background:#C9A227;color:#1a1408;font-weight:800;font-size:16px;cursor:pointer">入れるようにする</button></div>
+    <div id="nuKeyBox" style="display:${ghKey()?"none":"block"};margin-top:10px" class="note">最初の一度だけ：GitHub の鍵を入れてください（<a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener" style="color:#FFD166">ここで作る</a>：Repository access で <b>sengoku-daimyo-play</b> だけを選び、Permissions の <b>Contents</b> を Read and write に）。鍵はこのブラウザにだけ残ります。
+      <div style="display:flex;gap:8px;margin-top:6px"><input id="nuKey" type="password" placeholder="github_pat_…" autocomplete="off" ${inp}></div></div>
+    <div id="nuMsg" class="note" style="margin-top:8px;color:#FFD166;display:none"></div>`;
+    const msg=t=>{ const m=el.querySelector("#nuMsg"); m.textContent=t; m.style.display=t?"block":"none"; };
+    const save=async(list,okText)=>{ const k=el.querySelector("#nuKey"); if(k&&k.value.trim()){ try{ localStorage.setItem("sd_gh_key",k.value.trim()); }catch(_){ } }
+      if(!ghKey()){ msg("先に GitHub の鍵を入れてください（下の欄）"); return false; }
+      msg("書き込んでいます…");
+      try{ await ghSaveUsers(list); USERS_EXTRA=list; draw(); msg2(okText); return true; }
+      catch(e){ if(e.message==="badkey"){ try{ localStorage.removeItem("sd_gh_key"); }catch(_){ } draw(); msg2("GitHub の鍵が通りませんでした。作り直して入れてください"); } else msg("書き込めませんでした（"+e.message+"）。もう一度押してください"); return false; } };
+    el.querySelector("#nuGo").onclick=async()=>{ const em=el.querySelector("#nuEm").value.trim().toLowerCase(), nm=el.querySelector("#nuNm").value.trim(), pw=el.querySelector("#nuPw").value;
+      if(!em||!pw){ msg("メールアドレスとパスワードを入れてください"); return; }
+      const h=await sha256(pw); const list=USERS_EXTRA.filter(u=>u.email.toLowerCase()!==em).concat([{email:em,hash:h,name:nm||em}]);
+      await save(list, `${nm||em} が入れるようになりました（反映まで一、二分）。メールアドレスとパスワードをその人に伝えてください`); };
+    el.querySelectorAll("[data-rm]").forEach(b=>b.onclick=async()=>{ const em=b.dataset.rm; if(!confirm(em+" を外しますか")) return; await save(USERS_EXTRA.filter(u=>u.email!==em), em+" を外しました（反映まで一、二分）"); });
+  };
+  const msg2=t=>{ const m=el.querySelector("#nuMsg"); if(m){ m.textContent=t; m.style.display="block"; } };
+  loadUsers().then(draw); draw();
   return el; }
 async function load(){
   try{ const r=await fetch("stats.json?t="+Date.now(), {cache:"no-store"}); if(!r.ok) throw new Error(r.status); DATA=await r.json(); }
