@@ -41,6 +41,9 @@ export function backOf(rt, g, o = {}) {
 export function backTick(rt) {
   if (rt._backTickT === rt.t) return;   // 一コマに一度（戦の定義と taisho.js の両方から呼ばれても二度回さない）
   rt._backTickT = rt.t;
+  // world.shyTick：味方の軽い大軍を減らす（kaito 10/2「味方が多すぎて負ける気がしない」）ために、隊が味方かを渡す
+  if (!rt.world.allySide && rt.player && rt.player.u) rt.world.allySide = (A) => sideOf(rt, A) === rt.player.u.team;
+  if (rt.player && rt.player.u) rt.world.meTeam = rt.player.u.team;
   for (const q of rt.flags.backs || []) if (!q.gone && (q.g.routed || !q.g.count)) { q.gone = true; q.b.rout({ hideAfter: 16 }); rt.after(16.5, () => { q.b.visible = false; }); }
   nearHide(rt);
   wake(rt);
@@ -68,6 +71,7 @@ function wake(rt) {
   const F = rt.flags, P = rt.player && rt.player.u;
   // 籠城の戦（def.noWake）では替えない：塀の内から見える寄せ手の大軍が、次々に本物の兵になって塀へ来ないように
   if (rt.def && rt.def.noWake) return;
+  rt.world.wakeLive = rt.world.time || 0;   // world.shyTick：替える仕組みが動いている戦の軽い兵は、退かせずに本物へ替える
   if (!P || !P.alive || rt.over || !(rt.t >= (F.wakeAt || 0))) return;
   F.wakeAt = rt.t + 0.3;
   let alive = 0, starved = false;
@@ -124,7 +128,7 @@ function wake(rt) {
       pts.push(...A.mesh.take(who.pos.x, who.pos.z, n - pts.length, A.people ? 90 : WAKE_R));
     } else if (!A.people) {
       // 枠が尽きた：内に軽い兵が残っていれば、見せない輪を広げる（近くで軽い兵が動いて見えないように）
-      if (!A.mesh.left || A.mesh.left(who.pos.x, who.pos.z, WAKE_R) > 0) starved = true;
+      if (!A.mesh.left || A.mesh.left(who.pos.x, who.pos.z, WAKE_R) > 0) { starved = true; A.starvedAt = rt.world.time || 0; }
     }
     if (!pts.length) continue;
     const g = wakeGroup(rt, A, team, pts, who);

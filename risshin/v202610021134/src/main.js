@@ -24,13 +24,67 @@ const btLoad = () => { if (!btPromise) btPromise = import('./battles.js').then((
 let BM = null, bmPromise = null;
 const bmLoad = () => { if (!bmPromise) bmPromise = import('./battle.js').then((m) => (BM = m)); return bmPromise; };
 // 戦を始める前の「支度中……」の一行（#tip の下）。失敗したら字とやり直しボタンに変える
-const stage = (t) => { let el = $('ld-stage'); if (!el) { el = document.createElement('div'); el.id = 'ld-stage'; el.setAttribute('role', 'status'); el.style.cssText = 'margin-top:10px;font-size:13px;opacity:.8'; $('tip').after(el); } el.textContent = t; };
+// 読み込みの進み（10/2）：段ごとの見込みの時間（前に測った時間を覚える）から、進みの棒と「あと約○秒」を出す。
+//   棒は transform の移り変わりで動かす（組み立ての重い間も、画面の合成の側で動き続ける）。動きを減らす設定では段ごとに跳ぶだけ
+const LD_KEY = 'risshin-ld-ms';
+const LD_DEF = { defs: 600, assets: 800, build: 1500, warm: 500, compile: 900, first: 400 };
+let ldPlan = null, ldIv = 0;
+function ldLearned() { try { return JSON.parse(localStorage.getItem(LD_KEY + (isTouchLd() ? '-t' : '')) || '{}') || {}; } catch (e) { return {}; } }
+function isTouchLd() { return document.documentElement.classList.contains('touch'); }
+// 段の並びを決めて、棒を 0 から始める。keys：この読み込みで通る段
+function ldBegin(keys) {
+  const L = ldLearned(), mul = isTouchLd() ? 1.6 : 1;
+  ldPlan = { keys, est: keys.map((k) => L[k] ?? LD_DEF[k] * mul), cur: -1, t: performance.now(), t0: performance.now() };
+  const bar = document.querySelector('#loading .ldbar i');
+  if (bar) { bar.style.transition = 'none'; bar.style.transform = 'scaleX(0)'; }
+  clearInterval(ldIv); ldIv = setInterval(ldTick, 250);
+  ldTick();
+}
+function ldTick() {
+  const el = $('ld-left');
+  if ($('loading').hidden || !ldPlan) { clearInterval(ldIv); ldPlan = null; return; }
+  if (!el) return;
+  const P = ldPlan, i = Math.max(0, P.cur);
+  const into = performance.now() - P.t;
+  let left = Math.max(0, P.est[i] - into);
+  for (let k = i + 1; k < P.keys.length; k++) left += P.est[k];
+  el.textContent = left > 900 ? `あと約 ${Math.ceil(left / 1000)} 秒` : into > P.est[i] * 2 + 2000 ? 'もう少しです' : 'まもなく';
+}
+// 段に入る：棒をこの段の終わりの手前まで、見込みの時間で伸ばす
+function ldStep(key) {
+  const P = ldPlan; if (!P) return;
+  const i = P.keys.indexOf(key); if (i < 0 || i === P.cur) return;
+  P.cur = i; P.t = performance.now();
+  const sum = P.est.reduce((a, v) => a + v, 0) || 1;
+  let a = 0; for (let k = 0; k < i; k++) a += P.est[k];
+  const end = (a + P.est[i] * 0.92) / sum;
+  const bar = document.querySelector('#loading .ldbar i');
+  if (bar) {
+    if (RMm()) { bar.style.transition = 'none'; bar.style.transform = `scaleX(${(a / sum).toFixed(3)})`; }
+    else { bar.style.transition = `transform ${Math.round(P.est[i])}ms linear`; bar.style.transform = `scaleX(${end.toFixed(3)})`; }
+  }
+  ldTick();
+}
+// 読み終わり：段ごとにかかった時間を覚える（次の見込みに使う。前の値と半々にならす）
+function ldLearn(LT) {
+  try {
+    const L = ldLearned();
+    for (const k of Object.keys(LD_DEF)) if (typeof LT[k] === 'number') L[k] = Math.round(L[k] != null ? (L[k] + LT[k]) / 2 : LT[k]);
+    localStorage.setItem(LD_KEY + (isTouchLd() ? '-t' : ''), JSON.stringify(L));
+  } catch (e) { /* 覚えられなくてもよい */ }
+}
+const stage = (t, key) => {
+  let el = $('ld-stage');
+  if (!el) { el = document.createElement('div'); el.id = 'ld-stage'; el.setAttribute('role', 'status'); el.style.cssText = 'margin-top:10px;font-size:15px;color:var(--washi);text-align:center'; el.innerHTML = '<span></span><span id="ld-left" style="display:block;margin-top:4px;font-size:13px;opacity:.85"></span>'; document.querySelector('#loading .ldbar').after(el); }
+  el.firstChild.textContent = t;
+  if (key) ldStep(key);
+};
 const stageError = (retry) => { stage(''); const el = $('ld-stage'); el.innerHTML = '読み込みに失敗しました。電波のよい所でお試しください。<br><button class="btn small" id="ld-retry">もう一度読み込む</button>'; $('ld-retry').onclick = () => { sfx('ui'); retry(); }; };
 // 戦の定義・仕組みの読み込みを待つ（題の画面から裏で読み始めてあるので、たいていはもう済んでいる）。
 // 失敗したら（通信が不安定な端末など）次に押した時にまた読めるよう promise を捨て、字とやり直しボタンを出す
 async function readyBattleCode(retry) {
   if (BTm && BM) return true;
-  stage('戦を支度している……');
+  stage('戦の支度を読み込んでいます', 'defs');
   try { await Promise.all([btLoad(), bmLoad()]); return true; }
   catch (e) { btPromise = null; bmPromise = null; stageError(retry); return false; }
 }
@@ -70,6 +124,7 @@ try {
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
 } catch (e) {
   $('glfail').hidden = false;
+  try { window.__bootDone && window.__bootDone(); } catch (e2) { /* noop */ }
   throw e;
 }
 renderer.shadowMap.enabled = true;
@@ -202,8 +257,10 @@ function draw(scene) {
   renderPass.scene = scene;
   composer.render();
 }
+let sizeDirty = false;   // キャンバスの大きさを変えて、まだ描き直していない（setSize は絵を消す）
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
+  sizeDirty = true;
   renderer.setSize(w, h, false);
   if (composer) { composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(w, h); }
   camera.aspect = w / h;
@@ -968,7 +1025,12 @@ const game = {
     const LT = window.__loadTimes = { battle: BATTLES[i] && BATTLES[i].id, quality: S.quality };
     const t0 = performance.now();
     const my = this.startSeq = (this.startSeq || 0) + 1;
-    stage('陣を組んでいる……');
+    // 道具（自動の遊び・撮影）は noLock を立てて、すぐ戦が要るので待たない。指の端末（touch.js も noLock を立てる）は道具ではないので、
+    //   下ごしらえ（人の読み込み待ち・近くの兵・シェーダ）をする。しないと開戦の後に重いコマが続き、動的解像度が跳ねて黒くチカチカした（10/2）
+    const tool = this.noLock && !isTouch;
+    const keys = ['defs', 'assets', 'build', 'warm', 'compile', 'first'].filter((k) => (k !== 'defs' || !BTm || !BM) && (tool || isNorender() ? k === 'build' || k === 'first' || k === 'defs' : true));
+    ldBegin(keys);
+    stage('戦の支度を読み込んでいます', keys[0]);
     setTimeout(async () => {
       if (my !== this.startSeq) return;
       // 戦の定義（battles.js）と仕組み（battle.js）は題の画面から裏で読み始めてある。まだなら（bot・道具・通信の遅さ）ここで待つ
@@ -977,43 +1039,53 @@ const game = {
         if (!(await readyBattleCode(() => this.startBattle(i)))) return;
         LT.defs = Math.round(performance.now() - tb);
         if (my !== this.startSeq) return;
-        stage('陣を組んでいる……');
       }
       // 886：本物の人と胴丸の読み終わりを、札を見せている間に待つ（長くても 5 秒。間に合わなければ軽い形から入れ替わる）
-      if (!this.noLock && !isNorender()) {
-        stage('人と具足を支度している……');
+      //   指の端末は「陣を敷く」を5秒ほどに収めたいので、待つのは 2.5 秒まで（遅れて読み終われば、輪の中の primeHumans が裏で整えてから替える）
+      if (!tool && !isNorender()) {
+        stage('人と具足を読み込んでいます', 'assets');
         const tw = performance.now();
-        await Promise.race([Promise.all([loadHumans(), loadDomaru()]).catch(() => null), new Promise((r) => setTimeout(r, 5000))]);
+        await Promise.race([Promise.all([loadHumans(), loadDomaru()]).catch(() => null), new Promise((r) => setTimeout(r, isTouch ? 2500 : 5000))]);
         LT.assets = Math.round(performance.now() - tw);
         if (my !== this.startSeq) return;
-        stage('陣を組んでいる……');
-        await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));   // 字を描いてから組み立てる
       }
+      stage('地形と兵をそろえています', 'build');
+      if (!isNorender()) await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));   // 字を描いてから組み立てる
+      if (my !== this.startSeq) return;
+      const tB = performance.now();
       // 組み立てた戦は、絵の下ごしらえ（シェーダ）が済むまで描く輪に渡さない（描く輪が一度に全部を作って固まらないように）
       const b = new BM.Battle(this, i, this.G.lord ? lordDef(BTm.BATTLE_DEFS[i], BATTLES[i].id) : BTm.BATTLE_DEFS[i]);
       LT.build = Math.round(performance.now() - t0);
+      LT.buildOnly = Math.round(performance.now() - tB);
       applyLord(b);
       b.player.updateCamera(1, camera);
       // 戦が始まってすぐ近くに来るはずの人を、幕の内で先に本物の人へ（humans.js の updateHumans を少し進める）。
       // ここをしないと、開戦直後に次々と人の形が変わるたびシェーダーを初めて作ることになり、一コマが0.5秒も固まって
       // 「重くてスロー・画面が黒くチカチカ」に見えていた（dynRes が跳ねてキャンバスの大きさが上下する。kaito 10/1）
-      if (!this.noLock && !isNorender()) {
-        stage('近くの兵の姿を整えている……');
-        const tH = performance.now();
-        for (let n = 0; n < 200 && performance.now() - tH < 1500; n++) updateHumans(b, 0);
+      // 指の端末は見た目の作り置き（primeHumans）をしない（幕の内でも、開戦の後の輪の中でも数秒固まる）。近くの兵だけ本物の人にして、下の compileAsync に含める
+      if (isTouch && !isNorender()) HUMd.primed = true;
+      if (!tool && !isNorender()) {
+        stage('近くの兵の姿を整えています', 'warm');
+        await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+        const tH = performance.now(), cap = isTouch ? 400 : 1500;
+        for (let n = 0; n < 200 && performance.now() - tH < cap; n++) updateHumans(b, 0);
         LT.humansWarm = Math.round(performance.now() - tH);
         if (my !== this.startSeq) { b.dispose(); return; }
       }
       // 887：絵の下ごしらえを、読み込みの札を見せている間に進める（compileAsync は並べて作れる端末では並べて作る）
-      stage('絵を整えている……');
+      if (!tool && !isNorender()) stage('絵を整えています', 'compile');
       const t1 = performance.now();
-      // 道具（noLock の自動の遊び・撮影）は、すぐ戦が要るので待たない・下ごしらえの遅れも気にしない
-      if (this.noLock || isNorender()) HUMd.primed = true;
+      // 道具（自動の遊び・撮影）は、すぐ戦が要るので待たない・下ごしらえの遅れも気にしない
+      if (tool || isNorender()) HUMd.primed = true;
       try {
-        if (!this.noLock) {
+        if (!tool && !isNorender()) {
           // 人と胴丸がもう読み終わっていれば、この戦で出る見た目（兵・武将・馬の胴丸や兜）も先に作ってから絵の下ごしらえへ（隊が実体化する時のシェーダ作りの重いコマを避ける）
-          if (HUMd.ready && !isNorender()) await Promise.race([primeHumans(b, renderer, camera), new Promise((r) => setTimeout(r, 20000))]);
-          else if (renderer.compileAsync) await Promise.race([renderer.compileAsync(b.scene, camera), new Promise((r) => setTimeout(r, 20000))]);
+          //   指の端末は「陣を敷く」を5秒ほどに収めるため、見た目の作り置き（primeHumans。四十の姿を作るので数秒かかる）は幕の内でせず、
+          //   戦の場面だけを下ごしらえする（作り置きは開戦の後、輪の中で少しずつ）。二つ目からの戦（primed の後）も戦の場面だけを下ごしらえする
+          //   （前は primed の後は何も下ごしらえせず、最初の一枚を描く時にシェーダを全部その場で作っていた）
+          const lim = new Promise((r) => setTimeout(r, isTouch ? 3000 : 20000));
+          if (HUMd.ready && !HUMd.primed && !isTouch) await Promise.race([primeHumans(b, renderer, camera), lim]);
+          else if (renderer.compileAsync) await Promise.race([renderer.compileAsync(b.scene, camera), lim]);
         }
       } catch (e) { /* 描く時に作る */ }
       LT.compile = Math.round(performance.now() - t1);
@@ -1023,11 +1095,15 @@ const game = {
       // 最初の一枚を描いてから表示（カメラが原点を向いた画面を見せない）。norender では描かない
       // 仕上げ（composer・影・にじみ等）を通して描く：その場のシェーダ作りを、札を見せている間に済ませてしまう
       // （前は renderer.render だけだったので、初めの実物のコマで仕上げの下ごしらえが起き、数百msのコマ落ちになっていた）
+      stage('最初の画面を描いています', 'first');
+      // 解像度を戻すのは描く前（描いた後にキャンバスの大きさを変えると、その一枚が消えて黒いコマになる）
+      dynResReset();
       const t2 = performance.now();
       if (!isNorender()) draw(this.battle.scene);
       LT.first = Math.round(performance.now() - t2);
       LT.total = Math.round(performance.now() - t0);
       console.info('読み込みの時間（ミリ秒）', JSON.stringify(LT));
+      if (!tool && !isNorender()) ldLearn({ defs: LT.defs, assets: LT.assets, build: LT.buildOnly, warm: LT.humansWarm, compile: LT.compile, first: LT.first });
       $('ld-stage')?.remove();
       // 馬はここで読み始める（まだなら）
       if (!isNorender()) setTimeout(() => { try { loadHorse(); } catch (e) { /* 軽い馬のまま */ } }, 6000);
@@ -1250,6 +1326,7 @@ const game = {
     autoLock();
     $('loading').hidden = false;
     $('tip').textContent = '城下を歩く。戸口に寄ると「入る」が出る。出陣は町の門か上官屋敷から。';
+    ldBegin(['build']); stage('町をそろえています', 'build');
     const my = this.startSeq = (this.startSeq || 0) + 1;
     setTimeout(async () => {
       if (my !== this.startSeq) return;
@@ -1364,6 +1441,7 @@ const game = {
     autoLock();
     $('loading').hidden = false;
     $('tip').textContent = '押し寄せる寄せ手を、倒れるまで何人討てるか。陣と陣の合間に少し回復します。';
+    ldBegin(['build']); stage('稽古場をそろえています', 'build');
     setTimeout(async () => {
       if (!BTm || !BM) { if (!(await readyBattleCode(() => this.startDojo(step)))) return; }
       this.battle = new BM.Battle(this, 3, BTm.dojo);
@@ -1430,6 +1508,7 @@ const game = {
     const tomoN = (G.tomo || []).filter((t) => t.alive).length;
     $('tip').innerHTML = `${tomoN ? 'この城攻めには供を連れて行けない（城下で待たせる）。<br>' : ''}${VIEW_TIP()}<br>${info.defend ? `この戦の心得：塀に掛かった梯子は ${EK()}で突き落とす。門の内で${EK()}すれば石を落とせる。本丸の門を破られたら落城` : `この戦の心得：竹束を押して寄り、門に寄って ${EK()}で掛矢を振るえ。塀の内の射手と、搦手からの出撃に気をつけよ`}<br><span style="opacity:.7">${TIPS[Math.floor(Math.random() * TIPS.length)]}</span>`;
     $('loading').hidden = false;
+    ldBegin(['build']); stage('地形と兵をそろえています', 'build');
     hideScreen();
     this.stopBattle();
     autoLock();
@@ -1439,6 +1518,7 @@ const game = {
       applyLord(this.battle);
       this.hud.show(true);
       this.battle.player.updateCamera(1, camera);
+      dynResReset();   // 描く前に（描いた後に大きさを変えると黒いコマになる）
       if (!isNorender()) draw(this.battle.scene);
       $('loading').hidden = true;
       this.pendingIntro = () => { this.hud.intro(def.sides, def.title, info.date); sfx('horagai', 0.6); };
@@ -1488,7 +1568,8 @@ function loop() {
   const _pf0 = window.__startFrames ? performance.now() : 0;
   // 描画の上限（省電力）
   const cap = fpsCapNow();
-  if (cap) { capAcc += clock.getDelta(); if (capAcc < 1 / cap - 0.002) return; }
+  // キャンバスの大きさが変わった（絵が消えた）コマは、上限に関わらず描く（描かないと消えたままの黒いコマが出る）
+  if (cap) { capAcc += clock.getDelta(); if (capAcc < 1 / cap - 0.002 && !sizeDirty) return; }
   const real = Math.min(0.05, cap ? capAcc : clock.getDelta());
   capAcc = 0;
   let dt = real;
@@ -1534,7 +1615,10 @@ function loop() {
       if (measuring && t_u1 - t_u0 > 24) window.__startFrames.push({ t: +b.t.toFixed(2), upd: +(t_u1 - t_u0).toFixed(1), draw: 0, total: +(t_u1 - t_u0).toFixed(1) });
       input.endFrame(); return;
     }
-    draw(b.scene);
+    // 動的解像度は描く前に変える。描いた後に setSize すると、その一枚の絵が消えたまま画面に出て、黒いコマになっていた（10/2 に測って分かった。
+    //   開戦の重いコマで細かさが下がるたびに一枚ずつ黒くなる＝携帯・iPad で「最初に黒くチカチカ」）
+    if (!game.paused && !b.def.town) dynRes(real);
+    draw(b.scene); sizeDirty = false;
     if (measuring) {
       const t_d1 = performance.now(), total = t_d1 - t_u0;
       if (total > 24) window.__startFrames.push({ t: +b.t.toFixed(2), upd: +(t_u1 - t_u0).toFixed(1), draw: +(t_d1 - t_u1).toFixed(1), total: +total.toFixed(1) });
@@ -1543,7 +1627,6 @@ function loop() {
       console.info(`開戦10秒の長いコマ（33ms超）：${F.length}個`, JSON.stringify(F));
       window.__startFrames = null;
     }
-    if (!game.paused && !b.def.town) dynRes(real);
     frames++; fpsT += real;
     if (fpsT > 1) {
       // 出している時だけ書き換え、兵を数える（908）
@@ -1567,7 +1650,7 @@ function loop() {
     // タイトルの背景。図鑑・記録帳・設定などで覆われている間は一秒に 10 コマに落とす（891）
     bgAcc += real;
     const covered = !!document.getElementById('zk') || !$('tt-home');
-    if (!covered || bgAcc >= 0.1) { game.bg.update(bgAcc, camera); draw(game.bg.scene); bgAcc = 0; }
+    if (!covered || bgAcc >= 0.1 || sizeDirty) { game.bg.update(bgAcc, camera); draw(game.bg.scene); bgAcc = 0; sizeDirty = false; }
   }
   input.endFrame();
   if (_pf0 && b && b.t <= 10) { window.__startFrames.push({ t: Math.round(b.t * 100) / 100, ms: Math.round((performance.now() - _pf0) * 10) / 10, programs: renderer.info.programs ? renderer.info.programs.length : 0 }); }
@@ -1576,6 +1659,7 @@ function loop() {
 initTouch({ input, game, setPause, toggleBigMap });
 loop();
 game.title();
+try { window.__bootDone && window.__bootDone(); } catch (e) { /* 題までの札（index.html）が無ければよい */ }
 // 開発者向け：?debug で常にFPSを出し、戦へ直接飛べる。?bot で自動テストプレイ
 if (/[?&]debug/.test(location.search)) {
   S.showFps = true; game.hud.applySettings();

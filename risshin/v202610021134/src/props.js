@@ -363,7 +363,19 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
   const boards = Math.max(4, Math.round((w + d) * 2 / 0.3));
   const perim = [[-w / 2, -d / 2, w / 2, -d / 2], [w / 2, -d / 2, w / 2, d / 2], [w / 2, d / 2, -w / 2, d / 2], [-w / 2, d / 2, -w / 2, -d / 2]];
   let k = 0;
-  for (const [ax, az, bx, bz] of perim) {
+  // 画質「低」（携帯）：板を一枚ずつ並べず、面ごとに一枚の壁（町屋一軒 約1000面 → 100面ほど。戸口は空ける）
+  const loHut = SETTINGS.quality === 'low';
+  if (loHut) for (const [ax, az, bx, bz] of perim) {
+    const len = Math.hypot(bx - ax, bz - az), door = az === d / 2 && bz === d / 2;
+    for (const [s0, s1] of door ? [[0, (len - 1.2) / 2], [(len + 1.2) / 2, len]] : [[0, len]]) {
+      const t = (s0 + s1) / 2 / len;
+      const b = new THREE.BoxGeometry(s1 - s0, H, 0.05);
+      b.rotateY(Math.atan2(bx - ax, bz - az) + Math.PI / 2);
+      b.translate(ax + (bx - ax) * t, H / 2, az + (bz - az) * t);
+      parts.push(paint(b, vary(o.wall || (o.ita ? 0x756c5e : 0x7b6448), k++)));
+    }
+  }
+  if (!loHut) for (const [ax, az, bx, bz] of perim) {
     const len = Math.hypot(bx - ax, bz - az), n = Math.max(2, Math.round(len / 0.3));
     for (let i = 0; i < n; i++) {
       const t = (i + 0.5) / n;

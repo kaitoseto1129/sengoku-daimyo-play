@@ -7,18 +7,22 @@
 // ③砦から再び打って出て、本願寺勢を崩す
 // 向き：北（-z）に天王寺砦、その先の遠くに石山本願寺。南（+z）から信長が来る
 // ======================================================================
-import { nobori, hut, yagura, tawara, kabukimon, jinmaku, dou, dorui, village, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
+import { nobori, hut, tawara, kabukimon, jinmaku, dou, dorui, village, sakamogi, palisade, campfire, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
 import { flagTexture } from './textures.js';
 import { RANKS } from './state.js';
 import { sfx } from './audio.js';
 import { moraleWord } from './hud.js';
-import { gauss, enemyGroup, allyGroup, nm, centerOf, unitPos, ringWall } from './bhelp.js';
+import { gauss, enemyGroup, allyGroup, nm, centerOf, unitPos } from './bhelp.js';
 import { more, dress, gone } from './b_inabayama.js';
 import { namuTex, sagarifujiTex } from './b_nodafukushima.js';
 import { KIT } from './b_nagashinojo.js';
 import { volleyAt } from './b_tano.js';
-import { depthStart, depthTick, rest, pick, fight, hold, move, depthBot } from './b_depth.js';
 import { camp } from './b_mid.js';
+import { heightOf, buildCastlePlan } from './castle_plan.js';
+import { horiboriHeight } from './castle_parts.js';
+import { reset as flReset } from './floors.js';
+import { makeNawabari } from './nawabari.js';
+import { TENNOJI_PLAN, T_GATE, T_HONGATE, SOTO_POLY, HON_POLY } from './castles/tennoji.js';
 // 足軽大将候補より上（信長で遊ぶ時は除く）：任務の文を「一手を預かる」者の役目に
 const HI = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
 
@@ -29,33 +33,26 @@ const MITSU = { x: -56, z: -170 };          // 三津寺（原田直政隊が攻
 const ODA = { flag: 'oda' };
 const IKKO = { armor: 0x3a342c, lace: 0x5a5040, cloth: 0x4a4236, hat: 'hachimaki', flag: 'namu' };
 const SAIKA = { armor: 0x2a2622, lace: 0x4a3a2a, hat: 'jingasa', flag: 'sagarifuji' };
-const MOAT_R = FORT.r + 3;   // 砦の堀（南の木戸の所だけ開けておく）
+const KIDO = { x: 12, z: -168 };            // 大坂の城戸口（石山の外の木戸。この戦で本願寺の中へは入らない）
+const SHIMO = { x: 34, z: -186 };           // 下間頼廉の本陣（総大将は城戸口の後ろ。前の斬り合いには出ない）
 
-function moatDip(x, z) {
-  const dx = x - FORT.x, dz = z - FORT.z, d = Math.hypot(dx, dz);
-  const gateD = Math.abs(((Math.atan2(dx, dz) + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
-  if (gateD < 0.3) return 0;
-  const ring = Math.abs(d - MOAT_R), width = 3.2, depth = 1.1;
-  if (ring >= width / 2) return 0;
-  const u = ring / (width / 2);
-  return -depth * (1 - u * u);
-}
-
-function height(x, z) {
+// 下地：上町台地（天王寺側は高台、西・北西は低地）。砦の段・空堀は castles/tennoji.js の縄張りが重ねる
+function baseTerrain(x, z) {
   let h = 0.3 * Math.sin(x * 0.04 + 0.2) * Math.cos(z * 0.03) + 0.2 * Math.sin(z * 0.07 + x * 0.02);
-  // 上町台地：崖線は x=-26 の辺り（西・北西は低地、天王寺側は高台）
-  const cliff = 1 / (1 + Math.exp(-(x + 26) * 0.35));
+  const cliff = 1 / (1 + Math.exp(-(x + 26) * 0.35));   // 崖線は x=-26 の辺り
   h += 7 * cliff;
   const nw = Math.max(0, Math.min(1, (-88 - z) / 60)) * Math.max(0, Math.min(1, (6 - x) / 60));
   h -= 3 * nw;   // 北西はさらに低く・湿地がち
   h += 18 * gauss(x, z, HONGAN.x, HONGAN.z, 5000);
-  // 砦は少し高く、平らに
-  const d = Math.hypot(x - FORT.x, z - FORT.z);
-  h += 1.5 * Math.max(0, Math.min(1, (FORT.r + 4 - d) / 5));
-  h += moatDip(x, z);
   return h;
 }
-
+const HORI_FNS = TENNOJI_PLAN.hori.map((h) => horiboriHeight(h.pts, { depth: h.deep ?? 2, width: h.w ?? 6 }));
+function baseWithHori(x, z) { let h = baseTerrain(x, z); for (const f of HORI_FNS) h += f(x, z); return h; }
+let HEIGHT_FN = null;
+function height(x, z) {
+  if (!HEIGHT_FN) HEIGHT_FN = heightOf(TENNOJI_PLAN, baseWithHori, 3);
+  return HEIGHT_FN(x, z);
+}
 
 // 苦しい戦：生き延びた事そのものを手柄にする（残った体力と、生き残った組の者の割合で）
 function survival(rt, label) {
@@ -95,21 +92,39 @@ const tennoji = {
     namuTex(); sagarifujiTex();
     const nt = flagTexture('namu'), st = flagTexture('sagarifuji');
     const DA = (x, z, w, d, count, facing, armor, tex, seed) => W.addDistantArmy({ x, z, w, d, count, facing, armor, flagTex: tex, seed });
-    // ---- 天王寺砦：原田直政が築いた付城。土塁付きの柵の囲い（南に口）・堀・門・櫓・兵舎・本陣 ----
-    const fortSegs = ringWall(rt, FORT.x, FORT.z, FORT.r, { gapAt: 0, gapW: 0.4, team: 0, hp: 1e9, name: '柵', segLen: 5 });
+    // ---- 天王寺砦：原田直政が築いた付城（castles/tennoji.js の縄張り）。外曲輪と主郭の二段、土塁の上の木柵、空堀、物見櫓 ----
+    flReset();
+    const C = F.C = buildCastlePlan(rt, TENNOJI_PLAN, { baseHeight: baseTerrain, edgeW: 3, buildTowers: true, towerTeam: 0, team: 0 });
+    // 柵は味方の物（castle_plan は城方＝敵の塀として建てる）。壊れない・的にしない
+    for (const s of C.walls) if (s && s.seg) { s.team = 0; s.hp = s.maxHp = 1e9; s.noTarget = true; s.wall = true; }
+    // 柵の下の土塁（外へ盛る。一つの形にまとめて描く）
     const db = makeSimpleBatch();
-    for (const s of fortSegs) {
-      s.noTarget = true; s.wall = true;
-      const mx = (s.seg[0] + s.seg[2]) / 2, mz = (s.seg[1] + s.seg[3]) / 2;
-      const nl = Math.hypot(mx - FORT.x, mz - FORT.z) || 1;
-      const d = dorui(W, s.seg, (mx - FORT.x) / nl, (mz - FORT.z) / nl, { batch: db, w: 2.6, h: 0.8 });
-      if (!d.isBatchedPart) rt.scene.add(d);
+    for (const poly of [SOTO_POLY, HON_POLY]) {
+      const cx = poly.reduce((a, p) => a + p[0], 0) / poly.length, cz = poly.reduce((a, p) => a + p[1], 0) / poly.length;
+      for (let i = 0; i < poly.length; i++) {
+        const [ax, az] = poly[i], [bx, bz] = poly[(i + 1) % poly.length];
+        const mx = (ax + bx) / 2, mz = (az + bz) / 2, nl = Math.hypot(mx - cx, mz - cz) || 1;
+        const d = dorui(W, [ax, az, bx, bz], (mx - cx) / nl, (mz - cz) / nl, { batch: db, w: 2.6, h: 0.9 });
+        if (!d.isBatchedPart) rt.scene.add(d);
+      }
     }
     finalizeSimpleBatch(rt, db);
-    rt.scene.add(kabukimon(W, FORT.x, FORT.z + FORT.r, 7, 0));
-    rt.scene.add(hut(W, FORT.x - 4, FORT.z - 4, 10, 6, 0.1, { wall: 0x6a5238 }), yagura(W, FORT.x + 8, FORT.z - 8), yagura(W, FORT.x - 10, FORT.z + 6));
-    rt.scene.add(jinmaku(W, FORT.x + 3, FORT.z - 1, 6, 4, 0));   // 砦の中の明智の本陣（陣幕）
-    for (const [x, z, k] of [[FORT.x - 6, FORT.z + 10, 'oda'], [FORT.x + 6, FORT.z + 10, 'akechi'], [FORT.x, FORT.z - 12, 'oda']]) rt.scene.add(nobori(W, x, z, k, 6));
+    // 門（冠木門）：外曲輪の南の口と、主郭の口
+    rt.scene.add(kabukimon(W, T_GATE.x, T_GATE.z, 6.4, 0), kabukimon(W, T_HONGATE.x, T_HONGATE.z, 4.8, 0));
+    // 外曲輪：兵舎（長屋）・兵糧の俵・焚き火。主郭：明智の本陣（陣幕）と陣屋
+    rt.scene.add(hut(W, -15, -60, 9, 5, Math.PI / 2, { wall: 0x6a5238 }), hut(W, 15, -66, 9, 5, -Math.PI / 2, { wall: 0x6a5238 }), hut(W, -15, -71, 6, 4.5, Math.PI / 2, { wall: 0x5e4a34 }));
+    rt.scene.add(tawara(W, -9, -50, 0.4, 6), tawara(W, 10, -73, -0.3, 5), campfire(W, -7, -58), campfire(W, 8, -56));
+    rt.scene.add(hut(W, -4, -81, 10, 6, 0, { wall: 0x6a5238 }), jinmaku(W, 5, -74, 6, 4, 0));
+    // 旗：門の左右・主郭・櫓の脇（織田と明智の幟）
+    for (const [x, z, k, h] of [[-5, -40, 'oda', 6], [5, -40, 'akechi', 6], [-10, -71, 'akechi', 6], [8, -71, 'oda', 6], [-19, -51, 'oda', 5], [19, -80, 'akechi', 5], [0, -88, 'oda', 6]]) rt.scene.add(nobori(W, x, z, k, h));
+    // 空堀の外の逆茂木（門の前は空ける）
+    for (const [x, z, r, l] of [[-33, -58, Math.PI / 2, 8], [-33, -74, Math.PI / 2, 8], [33, -60, Math.PI / 2, 8], [33, -76, Math.PI / 2, 8], [-14, -101, 0, 9], [14, -101, 0, 9], [-22, -33, 0.5, 7], [22, -33, -0.5, 7]]) rt.scene.add(sakamogi(W, x, z, r, l));
+    // 縄張りの今の様子（nawabari.js）：曲輪の表を小地図・軍議に渡す。守りは織田（team 0）
+    F.K = makeNawabari(rt, C, { team: 0, friendTeam: 0, enemyTeam: 1 });
+    rt.nawabari = F.K;
+    // 大坂の城戸口（石山の外の木戸）：柵の線と冠木門だけ（この戦で本願寺の中へは入らない）
+    for (const sg of [[KIDO.x - 40, KIDO.z - 4, KIDO.x - 4, KIDO.z], [KIDO.x + 4, KIDO.z, KIDO.x + 36, KIDO.z - 6]]) rt.scene.add(palisade(W, sg));
+    rt.scene.add(kabukimon(W, KIDO.x, KIDO.z, 6.4, 0));
     // ---- 四天王寺（戦国期の伽藍。周りを含む広い区域の目印。東大門は石山合戦で焼けた設定で門は置かない） ----
     rt.scene.add(dou(W, SHITEN.x, SHITEN.z, 9, 6.5, Math.PI, { h: 3.6 }), hut(W, SHITEN.x + 16, SHITEN.z - 4, 7, 5, Math.PI, { wall: 0x7a5a3c }));
     rt.scene.add(nobori(W, SHITEN.x - 10, SHITEN.z + 8, 'oda', 5));
@@ -133,7 +148,7 @@ const tennoji = {
     if (n) rt.makeSquad({ x: 8, z: 124 }, Math.PI, [{ kind: 'spear', n }]);
     // ---- 砦を囲む本願寺勢 ----
     F.ringA = enemyGroup(rt, { faction: 'saito', name: '囲みの門徒', anchor: { x: -8, z: 10 }, facing: 0, order: 'hold', aggro: 16, width: 18, morale: 90, fleeDir: { x: -0.3, z: -1 }, dmgMult: 0.62, formation: 'yari' },
-      dress([{ type: 'samurai', n: 3, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 26 + more(rt) }], IKKO));
+      dress([{ type: 'samurai', n: 1, o: { name: '門徒の侍大将', hat: 'kabuto_m' } }, { type: 'samurai', n: 2, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 26 + more(rt) }], IKKO));
     F.gunA = enemyGroup(rt, { faction: 'saito', name: '雑賀の鉄砲', anchor: { x: 20, z: -6 }, facing: 0, order: 'hold', aggro: 40, width: 14, morale: 90, fleeDir: { x: 0.3, z: -1 }, dmgMult: 0.6 },
       dress([{ type: 'samurai', n: 1, o: { name: '土橋守重' } }, { type: 'gun', n: 10 }], SAIKA));
     for (const u of F.gunA.units) if (u.type === 'gun') u.dmg *= 0.4;
@@ -148,7 +163,9 @@ const tennoji = {
     // 信長の本陣（信長は自ら先に立つので、陣には旗本が残る）と、石山本願寺の顕如の陣所
     F.honjin = camp(rt, { x: 0, z: 150, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', guard: 15, reserve: 200, runTo: { x: 0, z: 112 } });
     F.honjin.guard.name = '信長の旗本';
-    F.ehon = camp(rt, { x: HONGAN.x + 32, z: HONGAN.z + 2, facing: 0, team: 1, faction: 'saito', mon: 'sagarifuji', armor: 0x3a342c, general: { name: '本願寺顕如', hat: 'hachimaki', haori: 0x4a4236 }, guard: 15, reserve: 400, runTo: { x: 0, z: -120 } });
+    // 本願寺勢の総大将・下間頼廉の本陣：城戸口の後ろ（前の斬り合いには出ない。顕如は石山の内にいて戦場へは出ない）
+    F.ehon = camp(rt, { x: SHIMO.x, z: SHIMO.z, facing: 0, team: 1, faction: 'saito', mon: 'sagarifuji', armor: 0x3a342c, general: { name: '下間頼廉', hat: 'kabuto_m', haori: 0x4a4236 }, guard: 15, reserve: 400, runTo: { x: KIDO.x, z: KIDO.z + 30 } });
+    F.ehon.guard.name = '下間頼廉の旗本';
 
     rt.world.setTime('day');
     rt.setPhase('brief');
@@ -209,18 +226,6 @@ const tennoji = {
     });
   },
 
-  // 段を重ねる（b_depth.js）：A 囲みの二重（砦へ入る前）→ B 二度目の総攻め（砦の中）→ C 木戸への追い討ち
-  // 信長で遊ぶ時は、もとの流れのまま（段は足軽の目の戦）
-  deep(rt, which, then) {
-    const F = rt.flags;
-    if (F['dp' + which]) return;
-    F['dp' + which] = true;
-    if (rt.G.lord) { then(); return; }
-    F.dpOn = which;
-    for (const id of ['ra', 'ga', 'rb', 's0', 's1', 's2']) rt.unmark(id);
-    depthStart(rt, tnCtx(rt, which), which === 'A' ? tnA() : which === 'B' ? tnB() : tnC(), () => { F.dpOn = false; then(); });
-  },
-
   // ② 砦へ入る
   inFort(rt) {
     const F = rt.flags;
@@ -235,7 +240,7 @@ const tennoji = {
     const G = { x: FORT.x, z: FORT.z + FORT.r + 3 };
     rt.marker('gate', G, '天王寺砦', { h: 3 });
     rt.zone('gate', G.x, G.z, 5);
-    for (const [g, x] of [[F.nobu, 0], [F.saku, -14], [F.taki, 14]]) { g.order = 'move'; g.dest = { x, z: FORT.z + FORT.r + 8 }; g.onArrive = (q) => { q.order = 'hold'; }; }
+    for (const [g, x] of [[F.nobu, 0], [F.saku, -14], [F.taki, 14]]) { g.order = 'move'; g.dest = { x, z: FORT.z + FORT.r + 13 }; g.onArrive = (q) => { q.order = 'hold'; }; }
     F.gz = G;
   },
 
@@ -305,11 +310,44 @@ const tennoji = {
       return g;
     };
     // 本隊と雑賀の鉄砲衆は一度に構える。本隊の後ろには門徒の大軍（軽い作り）
-    const hb = mk(-20, -100, '本願寺勢の本隊', dress([{ type: 'samurai', n: 3, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 20 + more(rt) }, { type: 'gun', n: 3, o: { flag: 'sagarifuji' } }], IKKO));
+    const hb = mk(-20, -100, '本願寺勢の本隊', dress([{ type: 'samurai', n: 1, o: { name: '本隊の侍大将', hat: 'kabuto_m' } }, { type: 'samurai', n: 2, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 20 + more(rt) }, { type: 'gun', n: 3, o: { flag: 'sagarifuji' } }], IKKO));
     KIT.backOf(rt, hb, { flag: 'namu', armor: 0x3a342c, kind: 'spear', w: 22, depth: 12, count: 180, seed: 15785 });
     mk(24, -104, '雑賀の鉄砲衆', dress([{ type: 'samurai', n: 2 }, { type: 'gun', n: 8 }, { type: 'ashigaru', n: 8 + more(rt) }], SAIKA));
     for (const h of F.hostE) h.retreat(20, 20);
-    rt.after(55, () => { if (!F.ending) { mk(-44, -80, '本願寺の新手', dress([{ type: 'samurai', n: 2, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 16 + more(rt) }], IKKO)); rt.say('足軽', '西からまた門徒が！　きりがない！', 3); } });
+    rt.after(45, () => { if (!F.ending && F.step === 3) { mk(-44, -80, '本願寺の新手', dress([{ type: 'samurai', n: 2, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 16 + more(rt) }], IKKO)); rt.say('足軽', '西からまた門徒が！　きりがない！', 3); } });
+  },
+
+  // ④ 押し戻す：崩れた本願寺勢を大坂の城戸口まで追う。城戸口の後ろには下間頼廉の本陣、木戸の脇には雑賀の鉄砲が残る
+  chase(rt) {
+    const F = rt.flags;
+    if (F.step >= 4) return;
+    F.step = 4; F.stepT = rt.t;
+    rt.setPhase('chase');
+    for (let i = 1; i <= 3; i++) rt.unmark('l' + i);
+    for (const q of F.last || []) if (!gone(q)) { q.noRout = false; q.morale = Math.min(q.morale, 12); q.fleeDir = { x: 0, z: -1 }; }
+    for (const h of F.hostE) h.retreat(30, 24);
+    rt.award((t) => t.side.push('本願寺勢の本隊を崩した'), '本願寺勢の本隊を崩した');
+    sfx('horagai', 0.9);
+    rt.banner('本願寺勢、崩れる', '石山の城戸口へ退いていく');
+    rt.say('足軽', '崩れた！　門徒が石山の方へ逃げていく！', 3);
+    rt.after(3.5, () => rt.say('織田信長', '城戸口まで押し戻せ。それより先は深追いするな', 3.5));
+    rt.obj('main', HI(rt) ? '一手を率い、退く本願寺勢を城戸口まで押し戻せ' : '退く本願寺勢を、大坂の城戸口まで押し戻せ', 'main');
+    for (const [q, x] of [[F.nobu, 0], [F.saku, -18], [F.taki, 18], [F.ake, 8]]) { q.order = 'attack'; q.seekRange = 70; q.anchor = { x: KIDO.x + x, z: KIDO.z + 26 }; }
+    // 残りの手：城戸口を守る殿の門徒と、木戸の脇の雑賀の鉄砲。後ろに総大将の本陣（旗本が厚い）
+    F.kidoG = [];
+    const add = (x, z, name, list, gunK) => {
+      const g = enemyGroup(rt, { faction: 'saito', name, anchor: { x, z }, facing: 0, order: 'hold', aggro: 20, seekRange: 30, width: 14, morale: 80, fleeDir: { x: 0, z: -1 }, dmgMult: 0.6 }, list);
+      for (const u of g.units) if (u.type === 'gun') u.dmg *= gunK;
+      F.kidoG.push(g);
+      rt.marker('k' + F.kidoG.length, centerOf(g), () => `${name}・${moraleWord(g.morale)}`, { red: true, group: g });
+      return g;
+    };
+    add(KIDO.x - 6, KIDO.z + 14, '城戸口の殿の門徒', dress([{ type: 'samurai', n: 1, o: { name: '殿の侍大将', hat: 'kabuto_m' } }, { type: 'ashigaru', n: 12 + more(rt) }], IKKO), 1);
+    add(KIDO.x + 22, KIDO.z + 6, '木戸の雑賀の鉄砲', dress([{ type: 'samurai', n: 1 }, { type: 'gun', n: 7 }], SAIKA), 0.4);
+    F.kz = { x: KIDO.x, z: KIDO.z + 16 };
+    rt.marker('kido', F.kz, '大坂の城戸口', { h: 3 });
+    rt.zone('kido', F.kz.x, F.kz.z, 10);
+    rt.after(8, () => { if (F.step === 4 && !F.shimoDead) rt.say('足軽', '城戸口の奥に、大きな陣幕……あれが本願寺の大将の陣か', 3.5); });
   },
 
   win(rt) {
@@ -317,16 +355,17 @@ const tennoji = {
     if (F.ending) return;
     F.ending = true;
     rt.setPhase('end');
-    for (let i = 1; i <= 3; i++) rt.unmark('l' + i);
-    for (const q of F.last || []) if (!gone(q)) { q.noRout = false; q.morale = 0; }
+    for (let i = 1; i <= 3; i++) { rt.unmark('l' + i); rt.unmark('k' + i); }
+    rt.unmark('kido'); rt.unzone('kido');
+    for (const q of [...(F.last || []), ...(F.kidoG || [])]) if (!gone(q)) { q.noRout = false; q.morale = 0; }
     for (const h of F.hostE) h.rout({ hideAfter: 40 });
     rt.objDone('main');
     rt.tracker.main = true;
-    rt.award((t) => { t.main = true; t.special = { label: '天王寺砦の囲みを破り、打って出た', pts: 20 }; }, '任務達成・本願寺勢を崩した');
+    rt.award((t) => { t.main = true; t.special = { label: '天王寺砦の囲みを破り、本願寺勢を城戸口まで押し戻した', pts: 20 }; }, '任務達成・本願寺勢を押し戻した');
     sfx('horagai', 0.8); rt.after(1, () => sfx('toki', 0.8));
-    rt.banner('本願寺勢、崩れる', '二千七百余りが討たれ、本願寺勢は石山へ退いた');
-    rt.say('織田信長', '……ようやった。皆、砦へ戻れ。石山は、急いては落ちぬ', 4);
-    rt.after(5, () => rt.say('', '――信長は石山のまわりに十の砦を築いて囲んだ。本願寺との戦いは、なお四年続く', 5.5));
+    rt.banner('本願寺勢、城戸の内へ', F.shimoDead ? '大将を失った本願寺勢は、石山の内へ逃げ込んだ' : '下間頼廉は旗本に守られ、城戸の内へ退いた');
+    rt.say('織田信長', '止まれ！　ここまでじゃ。……ようやった。石山は、急いては落ちぬ', 4);
+    rt.after(5, () => rt.say('', '――本願寺勢は二千七百余りを討たれた。信長は石山のまわりに十の砦を築いて囲んだ。戦いは、なお四年続く', 5.5));
     rt.player.u.invuln = true;
     rt.finish({}, 12);
   },
@@ -336,22 +375,14 @@ const tennoji = {
     // 崩れた隊の印は消す（古い印が「あちらじゃ」の行き先にならないように）
     for (const m of rt.markers.slice()) if (m.group && gone(m.group)) rt.unmark(m.id);
     KIT.backTick(rt);
+    if (F.K) F.K.tick(dt);
     if (F.ending) return;
     const p = rt.player.u.pos;
-    depthTick(rt, dt);
-    if (F.dpOn) {
-      // 砦の中の段：柵の内の味方が尽きれば落城
-      if (F.dpOn === 'B') {
-        const inF = rt.army.units.filter((u) => u.alive && u.team === 0 && Math.hypot(u.pos.x - FORT.x, u.pos.z - FORT.z) < FORT.r + 2).length;
-        if (inF < 5) this.loseFort(rt);
-      }
-      return;
-    }
     if (F.step === 1) {
       const qs = [F.ringA, F.gunA, F.ringB].filter(Boolean);
       rt.objProgress('main', `囲みの兵 ${qs.reduce((a, q) => a + (gone(q) ? 0 : q.count), 0)}人`);
       for (const q of qs) if (q.count < 5 && !gone(q)) q.morale = Math.min(q.morale, 20);
-      if ((F.ringB && gone(F.ringA) && gone(F.ringB)) || rt.t - F.stepT > 150) this.deep(rt, 'A', () => this.inFort(rt));
+      if ((F.ringB && gone(F.ringA) && gone(F.ringB)) || rt.t - F.stepT > 100) this.inFort(rt);
     }
     if (F.step === 2) {
       const d = Math.hypot(p.x - F.gz.x, p.z - F.gz.z);
@@ -371,24 +402,35 @@ const tennoji = {
         for (let i = 0; i < 3; i++) rt.unmark('s' + i);
         for (const q of F.siegeW) if (!gone(q)) { q.noRout = false; q.morale = Math.min(q.morale, 10); }
         survival(rt, '囲まれた砦を守り抜いた');
-        this.deep(rt, 'B', () => this.sortie(rt));
+        this.sortie(rt);
       }
     }
     if (F.step === 3) {
       const L = F.last || [];
       rt.objProgress('main', `本願寺勢 ${L.reduce((a, q) => a + (gone(q) ? 0 : q.count), 0)}人`);
       for (const q of L) if (q.count < 5 && !gone(q)) q.morale = Math.min(q.morale, 20);
-      if ((L.length >= 3 && L.every(gone)) || rt.t - F.stepT > 150) {
-        for (let i = 1; i <= 3; i++) rt.unmark('l' + i);
-        for (const q of L) if (!gone(q)) { q.noRout = false; q.morale = 0; }
-        this.win(rt);   // 木戸への追い討ちの段は省く（一つの戦を長くしすぎない）
-      }
+      if ((L.length >= 2 && L.every(gone)) || rt.t - F.stepT > 110) this.chase(rt);
+    }
+    if (F.step === 4) {
+      // 城戸口の手前まで押せば、信長が追い討ちを止める（大将を討っても、残りの手が崩れるまで戦は続く）
+      const K = F.kidoG || [];
+      for (const q of K) if (q.count < 4 && !gone(q)) q.morale = Math.min(q.morale, 20);
+      const d = Math.hypot(p.x - F.kz.x, p.z - F.kz.z);
+      rt.objProgress('main', `城戸口まで ${Math.max(0, Math.round(d))}m・残りの手 ${K.reduce((a, q) => a + (gone(q) ? 0 : q.count), 0)}人`);
+      if ((d < 10 && rt.t - F.stepT > 12) || (K.length && K.every(gone)) || rt.t - F.stepT > 70) this.win(rt);
     }
   },
 
   onKill(rt, v) {
     const F = rt.flags;
     if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
+    // 総大将を討っても一瞬では終わらない（taisho の use：手柄と気落ちだけ）。本願寺勢は崩れて退き、残りの手が城戸口を支える
+    if (v.name === '下間頼廉' && !F.shimoDead && !F.ending) {
+      F.shimoDead = true;
+      for (const q of rt.army.groups) if (q.team === 1 && !q.routed && q.count > 0 && !(F.kidoG || []).includes(q)) { q.noRout = false; q.morale = Math.min(q.morale ?? 100, 15); }
+      for (const h of F.hostE) h.retreat(30, 24);
+      rt.after(2, () => rt.say('織田信長', '大将は討った。じゃが木戸の鉄砲はまだ生きておる。城戸口まで押せ', 3.5));
+    }
   },
   onRout(rt, g) {
     if (g.team !== 1) return;
@@ -403,9 +445,9 @@ tennoji.force = (rt) => {
 };
 tennoji.sides = { a: { name: '織田軍', mon: 'oda' }, b: { name: '本願寺勢', mon: 'sagarifuji' } };
 // 史実でこの戦にいた名のある武将（battle.js の placeFamous が、その家の隊に加える。敵は名乗り、討てば手柄）
-tennoji.famous = [
-  { name: '下間頼廉', g: /囲み/, loose: 1, line: '本願寺の下間頼廉なり！　信長を砦ごと押しつぶせ！' },
-];
+// 下間頼廉は総大将：前の組（囲み）には出さない。城戸口の後ろの本陣（camp）に置き、taisho は use で本人を使う
+// （use：討っても戦は終わらず、手柄と敵の気落ちだけ。戦は城戸口まで押し戻して終わる）。任務の文に名を入れない（defOwned になる）
+tennoji.taisho = { b: { name: '下間頼廉', use: true } };
 tennoji.date = () => '天正四年五月七日　夏・晴';
 tennoji.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? '下知まで待つ' : '');
 tennoji.skip = (rt) => { for (const tm of rt.timers) tm.t = Math.min(tm.t, 0.2); };
@@ -419,8 +461,6 @@ tennoji.botBrain = (b, inp, { goTo }) => {
   inp.quickCmd = null;
   inp.k.delete('KeyW'); inp.k.delete('KeyE');
   if (!u.alive || F.ending) return;
-  // 段（b_depth.js）が動いている間は、そちらの的へ向かう
-  if (F.dp && F.dp.on) { depthBot(b, inp, goTo); return; }
   if (u.hp < u.maxHp * 0.5) b.botRest = true;
   if (b.botRest && u.hp > u.maxHp * 0.85) b.botRest = false;
   const c = F.nobu.center();
@@ -442,93 +482,11 @@ tennoji.botBrain = (b, inp, { goTo }) => {
     const q = (F.last || []).find((x) => !gone(x));
     if (q) { const t = q.center(); if (u.pos.z < FORT.z + FORT.r && Math.hypot(u.pos.x - FORT.x, u.pos.z - FORT.z) < FORT.r) { goTo(p, inp, FORT.x, FORT.z + FORT.r + 4, 1); return; } goTo(p, inp, t.x, t.z, 2); return; }
   }
+  if (F.step === 4 && F.kz) {
+    if (Math.hypot(u.pos.x - FORT.x, u.pos.z - FORT.z) < FORT.r) { goTo(p, inp, FORT.x, FORT.z + FORT.r + 4, 1); return; }
+    goTo(p, inp, F.kz.x, F.kz.z, 2); return;
+  }
   goTo(p, inp, c.x + 2, c.z + 4, 3);
 };
-
-// ---------------- 一つの戦を濃くする段（b_depth.js） ----------------
-// 苦しい戦：三千で一万五千の中へ。雑賀の鉄砲組が並んで撃ち、門徒の大波が前後左右から押し包む
-const uS = (n) => ({ type: 'samurai', n }), uA = (n) => ({ type: 'ashigaru', n }), uG = (n) => ({ type: 'gun', n });
-const saika = (list) => ({ flag: 'sagarifuji', armor: SAIKA.armor, list: dress(list, SAIKA) });
-// 雑賀の鉄砲組：鉄砲だけの組は、並んで構え、号令で一斉に撃つ（units.js）
-const gunLine = (name, from, n, o = {}) => ({ name, from, ...saika([uS(1), uG(n)]), formation: 'line', seek: 70, mass: 90, kind: 'gun', ...o });
-function tnCtx(rt) {
-  const F = rt.flags;
-  return { faction: 'saito', flag: 'namu', armor: IKKO.armor, dmg: 0.64, mass: 260, look: (l) => dress(l, IKKO),
-    friends: () => [F.nobu, F.saku, F.taki, F.ake].filter((g) => g && g.count && !g.routed),
-    ring: { x: FORT.x, z: FORT.z, r: FORT.r, gap: 0 } };   // bot が砦の柵（(7,-45) あたりの門脇）に突っかからないように（口は南）
-}
-// A 囲みを破った後：囲みの二重 → 信長公を守るか、雑賀の鉄砲を潰すか → 後ろも閉じられる
-function tnA() {
-  const at = { x: 0, z: -14 };
-  return [
-    rest({ dur: 8, heal: 0.3, say: [['足軽', '破った……！　いや、見よ、砦の前にもう一重の囲みじゃ'], ['佐久間信盛', '殿、お足の傷が……'], ['織田信長', '構うな。砦はすぐそこじゃ']] }),
-    hold({ at, dur: 84, r: 15, title: '囲みの二重', sub: '砦の前の門徒が、向き直って押し寄せる', label: '信長の手', obj: '信長の手のそばで、押し寄せる門徒の大波を受けよ',
-      say: [['織田信長', '止まるな、押し返せ！　ここで止まれば、砦も我らも終わりじゃ']],
-      waves: [
-        { t: 4, say: ['足軽', '南無阿弥陀仏の声が……一面から来る！'], foes: () => [{ name: '砦の前の門徒', from: { x: at.x, z: at.z - 44 }, list: [uS(3), uA(15)], mass: 420, noRout: 30 }] },
-        { t: 26, say: ['明智光秀', '（砦の中から）雑賀の鉄砲衆が並んだ！　伏せられよ！'], foes: () => [gunLine('雑賀の鉄砲衆', { x: 30, z: at.z - 26 }, 9)] },
-        { t: 52, say: ['足軽', '西から回り込んでくる！'], foes: () => [{ name: '西の門徒', from: { x: -56, z: at.z }, off: { x: -8, z: 0 }, list: [uS(2), uA(12)], mass: 300 }] },
-      ],
-      reward: '囲みの二重を受け止めた', lost: ['佐久間信盛', '押し込まれた……！　殿をお守りせよ！'] }),
-    rest({ dur: 7, bark: '息を継ぎ、組を寄せ直す', say: [['足軽', '東の畑の向こうに、また鉄砲衆が並んでおる……！'], ['佐久間信盛', '殿が狙われておる。……どうする']] }),
-    pick({ title: '雑賀の鉄砲衆が、東の畑で信長公を狙っている。どうする？',
-      options: [{ label: '組を連れて、雑賀の鉄砲衆へ斬り込む', note: '鉄砲の正面を走る。潰せば砦の中が楽になる。大手柄' }, { label: '信長公のそばを固め、砦の門へ押し通る', note: '鉄砲は残る。砦の中で、また撃たれる' }],
-      on: (rt, m, i) => { m.tnGuns = i === 0; rt.say('織田信長', i === 0 ? '行け。撃たれる前に寄れ。込め直しの間じゃ' : 'よし、門へ押せ。わしから離れるな', 3); } }),
-    fight({ skip: (rt, m) => !m.tnGuns, at: { x: 38, z: -20 }, title: '雑賀の鉄砲衆', sub: '畑の畦に並んだ鉄砲の列', obj: '東の畑に並んだ雑賀の鉄砲衆を崩せ（構えを見たら伏せ、込め直しの間に寄れ）',
-      foes: () => [gunLine('畦に並ぶ雑賀の鉄砲衆', { x: 56, z: -30 }, 11), { name: '鉄砲を守る門徒', from: { x: 60, z: -12 }, list: [uS(1), uA(9)], mass: 220 }],
-      later: [{ t: 40, title: '二の列', sub: '後ろの畦にも、鉄砲の列', say: ['足軽', 'もう一列おる！'], foes: () => [gunLine('二の列の雑賀衆', { x: 64, z: -44 }, 8)] }],
-      max: 140, reward: (t) => { t.special = { label: '雑賀の鉄砲衆を潰した', pts: 25 }; }, rewardLabel: '雑賀の鉄砲衆を潰した' }),
-    move({ skip: (rt, m) => m.tnGuns, to: { x: FORT.x, z: FORT.z + FORT.r + 8 }, r: 9, label: '砦の門の前', obj: '信長公のそばを固め、砦の門の前まで押し通れ',
-      say: [['織田信長', '押せ！']],
-      ambush: { d: 30, t: 20, title: '横槍', sub: '門の脇から門徒が', say: ['足軽', '門の脇から来た！'], foes: () => [{ name: '門の脇の門徒', from: { x: -40, z: FORT.z + 10 }, list: [uS(2), uA(11)], mass: 280 }] } }),
-  ];
-}
-// B 砦の中：二度目の総攻め（四方から）→ いつ打って出るか
-function tnB() {
-  const c = { x: FORT.x, z: FORT.z };
-  return [
-    rest({ dur: 9, heal: 0.35, bark: '柵の内で、手傷を縛った', say: [['明智光秀', '一つ目の総攻めは退けました。……じゃが、あれを'], ['足軽', '石山の方から、また旗が……前より多い'], ['織田信長', '次が本当の総攻めじゃ。柵を背に、槍を揃えよ']] }),
-    hold({ at: c, dur: 86, r: FORT.r, title: '二度目の総攻め', sub: '本願寺勢が四方から砦へ押し寄せる', label: '天王寺砦', obj: '柵の内で、四方から押し寄せる本願寺勢を防げ',
-      waves: [
-        { t: 4, say: ['足軽', '北からじゃ！　柵に取り付いてくる！'], foes: () => [{ name: '北の門徒の大波', from: { x: c.x, z: c.z - 60 }, off: { x: 0, z: -FORT.r - 4 }, list: [uS(3), uA(15)], mass: 420, noRout: 30 }] },
-        { t: 22, say: ['明智光秀', '雑賀の鉄砲が柵の外に並んだ！　柵の陰へ！'], foes: (rt, m) => [gunLine('柵の外の雑賀衆', { x: c.x + 50, z: c.z - 20 }, m.tnGuns ? 6 : 10, { off: { x: FORT.r + 10, z: -6 } })] },
-        { t: 46, say: ['足軽', '西の柵も！'], foes: () => [{ name: '西の門徒', from: { x: c.x - 60, z: c.z }, off: { x: -FORT.r - 4, z: 0 }, list: [uS(2), uA(12)], mass: 320 }] },
-        { t: 70, say: ['足軽', '門じゃ！　南の門に回られた！'], foes: () => [{ name: '門へ回る門徒', from: { x: c.x - 20, z: c.z + 64 }, off: { x: 0, z: FORT.r + 2 }, list: [uS(2), uA(13)], mass: 340 }] },
-      ],
-      reward: '二度目の総攻めから砦を守り抜いた', lost: ['明智光秀', '柵が……！　いや、まだ持ちまする！'] }),
-    rest({ dur: 8, bark: '柵の内で、組の者を数え直す', say: [['明智光秀', '殿、敵の息が切れてまいりました。このまま籠もって、後の者を待たれては'], ['織田信長', '……']] }),
-    pick({ title: '本願寺勢の寄せが緩んだ。いつ打って出る？',
-      options: [{ label: '今すぐ門を開け、息の切れた所を突く', note: '敵は崩れやすい。ただし寄せの残りの中へ出る' }, { label: '柵の内で、もう一度寄せを受けてから出る', note: 'もう一度守る。出た時、敵はさらに弱っている' }],
-      on: (rt, m, i) => { m.tnNow = i === 0; rt.say('織田信長', i === 0 ? '今じゃ。門を開けよ！' : 'まだじゃ。もう一度だけ受けよ', 3); } }),
-    fight({ skip: (rt, m) => !m.tnNow, at: { x: c.x, z: c.z + FORT.r + 12 }, title: '門を開けて突く', sub: '門の前の門徒の残りへ', obj: '門の前に残った門徒を崩せ',
-      foes: () => [{ name: '門の前の門徒', from: { x: c.x + 20, z: c.z + 50 }, list: [uS(2), uA(12)], mass: 300, morale: 70 }],
-      later: [{ t: 30, say: ['足軽', '横から雑賀の鉄砲！'], foes: () => [gunLine('横の雑賀衆', { x: c.x + 50, z: c.z + 30 }, 7)] }],
-      max: 120, reward: '門を開けて寄せの残りを突いた' }),
-    hold({ skip: (rt, m) => m.tnNow, at: c, dur: 70, r: FORT.r, title: '最後の寄せ', sub: '本願寺勢が、もう一度だけ柵へ寄せる', label: '天王寺砦', obj: '柵の内で、最後の寄せを受けよ',
-      waves: [{ t: 4, foes: () => [{ name: '最後の門徒の寄せ', from: { x: c.x + 20, z: c.z - 60 }, off: { x: 0, z: -FORT.r - 4 }, list: [uS(2), uA(12)], mass: 320, morale: 75 }] }],
-      reward: '最後の寄せを受けきった',
-      onEnd: (rt) => { for (const h of rt.flags.hostE) h.retreat(10, 10); } }),
-  ];
-}
-// C 本願寺勢を崩した後：木戸まで追うか、止まるか → 石山からの新手
-function tnC() {
-  return [
-    rest({ dur: 8, heal: 0.25, say: [['足軽', '崩れた！　門徒が石山へ逃げていく！'], ['佐久間信盛', '殿、追いまするか']] }),
-    pick({ title: '本願寺勢が石山へ崩れていく。どうする？',
-      options: [{ label: '木戸の手前まで追い討つ', note: '首を多く挙げられる。石山の鉄砲の届く所まで出る' }, { label: '砦の前で止まり、陣を立て直す', note: '追わない。石山から出る新手を、備を固めて受ける' }],
-      on: (rt, m, i) => { m.tnChase = i === 0; rt.say('織田信長', i === 0 ? '木戸まで追え。それより先は深追いするな' : 'よし、止まれ。備を直せ', 3); } }),
-    fight({ skip: (rt, m) => !m.tnChase, at: { x: 10, z: -124 }, title: '追い討ち', sub: '石山の木戸の手前まで', obj: '石山へ退く本願寺勢に追い討ちをかけよ',
-      foes: () => [{ name: '退く門徒の殿', from: { x: 16, z: -160 }, list: [uS(3), uA(12)], mass: 300, morale: 60 }],
-      later: [{ t: 30, title: '木戸の鉄砲', sub: '石山の木戸から、鉄砲が並んで撃ちかける', say: ['足軽', '木戸の上に鉄砲が並んだ！'], foes: () => [gunLine('木戸の雑賀衆', { x: 26, z: -170 }, 10)] },
-        { t: 64, title: '新手', sub: '石山から門徒の新手が押し出す', say: ['佐久間信盛', '新手じゃ！　深入りしすぎた、退きながら受けよ！'], foes: () => [{ name: '石山の新手', from: { x: -20, z: -176 }, list: [uS(3), uA(14)], mass: 400 }, { name: '東から回る門徒', from: { x: 60, z: -130 }, list: [uS(1), uA(9)], mass: 220 }] }],
-      max: 160, reward: (t) => { t.special = { label: '石山の木戸まで追い討った', pts: 20 }; }, rewardLabel: '石山の木戸まで追い討った' }),
-    hold({ skip: (rt, m) => m.tnChase, at: { x: 0, z: -96 }, dur: 90, r: 14, title: '石山の新手', sub: '石山から新手が押し出してくる', label: '砦の前', obj: '砦の前で備を固め、石山から来る新手を受けよ',
-      waves: [
-        { t: 6, say: ['足軽', '石山から新手じゃ！'], foes: () => [{ name: '石山の新手', from: { x: 10, z: -150 }, list: [uS(3), uA(13)], mass: 360 }] },
-        { t: 40, say: ['足軽', '鉄砲も並べてくる！'], foes: () => [gunLine('雑賀の鉄砲衆', { x: 36, z: -140 }, 8)] },
-      ],
-      reward: '石山の新手を受け止めた' }),
-  ];
-}
 
 export { tennoji };

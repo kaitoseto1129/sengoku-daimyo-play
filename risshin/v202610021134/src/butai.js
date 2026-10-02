@@ -93,6 +93,7 @@ export class Butai {
       count: n, facing: this.facing, armor: this.armor || 0x2b3140, flag: this.flag,
       seed: this.id * 97 + 3, kind: this.mix ? 'mixed' : (LIGHT_KIND[this.kind] || 'mixed'), host: false,
     });
+    this.light.army.butai = true;   // world.shyTick：近づかれても消さず、下がって間を取るだけ
   }
 
   // ---- 本物⇄軽いの切り替え（235 の枠を守る。同じ場所の兵を入れ替えるだけで数は変わらない） ----

@@ -26,6 +26,7 @@ import { kido } from './castle_parts.js';
 import { reset as flReset } from './floors.js';
 import { makeSiegeZones, zoneWord, ZONE_STATE, WIN } from './siege_zones.js';
 import { makeGate, updateGates, resetGates } from './siege_gate.js';
+import { gateUse } from './gate_use.js';
 import { makeAttackAI } from './siege_ai.js';
 import { makeButai, butaiTick, lightClash } from './butai.js';
 import { addTaba, patchGunCover, tickTabas } from './taketaba.js';
@@ -191,6 +192,8 @@ const shiga = {
     F.gateUraMk = makeGate(rt, F.kidoUra, { name: URA.name, guardTeam: 0 });
     // 寄せ手が木戸を破ってゆく順（大手→二の丸→本丸）。onStructHit/onStructDestroyed・HUD・assault の的に使う
     F.gates = [F.gate, F.kidoNi.struct, F.kidoHon.struct];
+    // 自分の城の門は、門の前で押して開け閉めできる（城へ退く・打って出る時に。kaito 10/2）
+    F.gu = gateUse(rt, [F.gateMk, F.gateNiMk, F.gateHonMk, F.gateUraMk], { team: 0 });
     rt.scene.add(hut(W, HON_C.x - 3, HON_C.z + 6, 9, 6, 0.2, { wall: 0x6a5238 }), hut(W, -8, 86, 6, 4.5, 0, { wall: 0x6a5238 }));
     for (const [x, z] of [[-15, 76], [-36, 92], [-24, 104], [-5, 88]]) rt.scene.add(nobori(W, x, z, 'oda', 6));
     // ---- 森可成の手（自分の持ち場）と、織田信治の手 ----
@@ -220,6 +223,14 @@ const shiga = {
     for (const [x, z] of [[20, 40], [-10, 60]]) { rt.scene.add(campfire(W, x, z)); W.addFire(x, z); }
     // 本陣の旗本は、陣幕の前で整った陣形のまま待つ（寄って来た者だけを相手にする）
     for (const c of [F.campA, F.campB]) if (c && c.guard) { c.guard.stay = true; c.guard.formation = 'line'; }
+    // 本陣へ近づくほど敵が濃くなる（kaito 10/2）：本陣の前に備えを三重に置く。奥ほど人が多い（軽い作り。寄れば本物の兵に替わる）
+    F.campHost = [];
+    for (const c of [{ x: 40, z: -152, mon: 'asakura', armor: 0x33291f }, { x: -34, z: -150, mon: 'azai', armor: 0x2e2a26 }]) {
+      [[52, 90, 24, 7], [30, 160, 30, 9], [16, 240, 34, 11]].forEach(([dz, cnt, w, d], i) => {
+        F.campHost.push(W.addDistantArmy({ x: c.x + (i - 1) * 4, z: c.z + dz, w, d, count: cnt, facing: 0, armor: c.armor, flagTex: flagTexture(c.mon), mon: c.mon, seed: 15830 + F.campHost.length, team: 1 }));
+      });
+      for (const dz of [30, 46]) rt.scene.add(nobori(W, c.x - 14, c.z + dz, c.mon, 7), nobori(W, c.x + 14, c.z + dz, c.mon, 7));
+    }
     // ---- 町口の戦いの部隊（butai.js）：前に立つ名のある組（本物）の後ろの本隊。本物はほとんど出さず、遠くで押し合う軽い作り ----
     const mkB = (o, real) => capReal(makeButai(rt, { real, ...o }), real);
     F.bMori = mkB({ name: '森可成の手の本隊', team: 0, faction: 'oda', kind: 'ashigaru', nominal: 400, armor: 0x2b3140, flag: 'oda', at: { x: TOWN.x - 2, z: TOWN.z + 16 }, facing: Math.PI }, 0);
@@ -234,6 +245,7 @@ const shiga = {
     rt.say('森可成', `${nm(rt)}、湖の西を浅井・朝倉が下ってくる。三万じゃ。殿（信長公）は摂津で三好と対陣しておられる`, 5);
     rt.say('織田信治', '京へ抜かれれば、殿は挟まれる。ここで一日でも止めるぞ', 4);
     rt.marker('mori', unitPos(F.moriU), '森可成', {});
+    rt.after(7, () => rt.say('森可成', '敵の本陣は北の奥、湖の西の道の先じゃ。旗の濃い方ほど、本陣が近い', 4));
     rt.after(12, () => this.first(rt));
   },
 
@@ -253,7 +265,7 @@ const shiga = {
     F.bAza.order({ id: 'move', to: { x: -12, z: -54 } });
     F.clashT = true;
     const g = enemyGroup(rt, { faction: 'saito', name: '朝倉の先手', anchor: { x: 22, z: -70 }, facing: 0, order: 'attack', seekRange: 90, aggro: 14, width: 16, morale: 95, fleeDir: { x: 0, z: -1 }, dmgMult: 0.55, formation: 'yari' },
-      dress([{ type: 'busho', n: 1, o: { name: '朝倉景鏡' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 18 }, { type: 'bow', n: 3 }], ASA));
+      dress([{ type: 'busho', n: 1, o: { name: '朝倉の侍大将' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 18 }, { type: 'bow', n: 3 }], ASA));
     F.w1 = g;
     KIT.backOf(rt, g, { flag: 'asakura', armor: 0x33291f, kind: 'spear', w: 24, depth: 12, count: 260, seed: 15794 });
     // 町口の左右では、森・信治の手の後ろの者と朝倉の大軍が押し合う（軽い作り）
@@ -262,6 +274,13 @@ const shiga = {
       { x: 60, z: -18, facing: Math.PI, w: 24, seed: 15796, A: ['oda', 0x2b3140, 240, 'oda'], B: ['asakura', 0x33291f, 420, 'saito'], gunsB: true, surge: { every: 50, flank: 0.4 } },
     ]);
     F.lines.forEach((c, i) => rt.after(6 + i * 2, () => c.go()));
+    // 町口の正面の幅いっぱいに押す大軍（行けない所の軽い作り。数を見せる）と、崩しても崩しても出てくる新手（本物）
+    F.front = [
+      rt.world.addDistantArmy({ x: 22, z: -112, w: 80, d: 16, count: 620, facing: 0, armor: 0x33291f, flagTex: flagTexture('asakura'), mon: 'asakura', seed: 15820, team: 1 }),
+      rt.world.addDistantArmy({ x: -16, z: -106, w: 34, d: 12, count: 260, facing: 0.15, armor: 0x2e2a26, flagTex: flagTexture('azai'), mon: 'azai', seed: 15821, team: 1 }),
+    ];
+    for (const h of F.front) { h.army.noWake = true; h.advance(22, 60); }
+    rt.after(24, () => { if (F.step === 1) { F.stream = [{ x: -4, next: rt.t }, { x: 20, next: rt.t + 18 }, { x: 44, next: rt.t + 9 }]; rt.say('足軽', '崩しても崩しても、後ろから次が出てくる……！', 3); } });
     rt.marker('w1', centerOf(g), () => `朝倉の先手・${moraleWord(g.morale)}`, { red: true, group: g });
     rt.say('森可成', '槍を揃えよ！　町口を一歩も通すな！', 3);
     // 勝ち筋：町口は狭く、大軍でも横に広がれぬ。口を塞いで鉄砲で頭を叩く
@@ -328,7 +347,12 @@ const shiga = {
     rt.say('織田信治', '城を頼む。殿が戻られるまで、城を渡すな！', 3.5);
     rt.obj('main', '宇佐山城へ退け', 'main');
     rt.marker('usa', F.gateC, '宇佐山城', { h: 3 });
-    rt.zone('usa', F.gateC.x + F.gateN.x * 6, F.gateC.z + F.gateN.z * 6, 5);
+    // 退く先は大手木戸の内（城の者が木戸を開けて待つ。入ったら自分で閉める）
+    rt.zone('usa', F.gateC.x - F.gateN.x * 5, F.gateC.z - F.gateN.z * 5, 5);
+    F.gu.open(F.gateMk);
+    // 史実の討死（kaito 10/2）：大軍が森可成・織田信治の周りを埋め、遠くからも見える形で討たれる
+    rt.after(6, () => this.doom(rt, { u: F.nobuU, g: F.nobuharu, key: 'nobu', name: '織田信治', flag: ASA, last: '兄上……殿、あとを頼みまする！', dur: 16 }));
+    rt.after(13, () => this.doom(rt, { u: F.moriU, g: F.mori, key: 'mori', name: '森可成', flag: AZA, last: `ここまでじゃ……${nm(rt)}、城を頼むぞ！`, dur: 18 }));
     // 森・信治の手は町口に踏みとどまる
     for (const q of [F.mori, F.nobuharu]) { q.order = 'hold'; q.aggro = 16; }
     rt.obj('path', '追手に構わず、坂を上れ', 'order');
@@ -340,7 +364,7 @@ const shiga = {
       rt.marker('chase', centerOf(F.chase), () => `追手・${moraleWord(F.chase.morale)}`, { red: true, group: F.chase });
       rt.say('足軽', '後ろから浅井の追手じゃ！　振り返って一突きして、また上れ！', 3);
     });
-    rt.after(22, () => { if (F.step === 2) rt.say('各務元正', '城の者、木戸を開けよ！　味方が上ってくるぞ！　弓で追手を射よ！', 3.5); });
+    rt.after(4, () => { if (F.step === 2) rt.say('各務元正', '木戸は開けてある！　味方が入ったら、門の前で閉めよ！', 3.5); });
   },
 
   // ③ 宇佐山城を守る
@@ -352,12 +376,21 @@ const shiga = {
     rt.unmark('usa'); rt.unzone('usa'); rt.unmark('w2'); rt.unmark('chase'); rt.objRemove('path');
     if (F.chase && !gone(F.chase)) { F.chase.noRout = false; F.chase.morale = 0; }
     // 坂本の町口の戦いの終わり（史実：森可成・織田信治は討ち死に）
+    const late = !F.moriDead || !F.nobuDead;
     for (const u of [F.moriU, F.nobuU]) { u.invuln = false; if (u.alive) rt.army.kill(u, null); }
+    F.moriDead = F.nobuDead = true;
     for (const q of [F.mori, F.nobuharu]) { q.noRout = false; q.morale = 0; q.fleeDir = { x: -0.4, z: 1 }; }
     if (F.w2 && !gone(F.w2)) { F.w2.noRout = false; F.w2.morale = 0; }
-    sfx('kane', 0.4);
-    rt.banner('森可成・織田信治、討ち死に', '坂本の町口で、二人とも最後まで戦った');
-    rt.say('各務元正', '……殿（可成）が。……木戸を閉めよ！　ここは渡さぬ。上様が戻られるまで守り抜く', 5);
+    for (const q of F.streamG || []) if (!gone(q)) { q.noRout = false; q.morale = 0; }
+    F.stream = null;
+    if (late) { sfx('kane', 0.4); rt.banner('森可成・織田信治、討ち死に', '坂本の町口で、二人とも最後まで戦った'); }
+    rt.say('各務元正', '……殿（可成）の仇は、城を守って返す。木戸を閉めよ！　上様が戻られるまで守り抜く', 5);
+    // 開いたままの大手木戸は、自分で閉める（閉めなければ、しばらくして城の者が閉める）
+    if (F.gateMk.opened && !F.gateMk.breached) {
+      F.gateHint = true;
+      rt.obj('gate', '大手木戸の前で「門を閉める」を押せ', 'order');
+      rt.after(16, () => { if (F.gateMk.opened && !F.gateMk.breached && F.gu.close(F.gateMk)) rt.say('各務元正', '木戸はわしらが閉めた！　槍を揃えよ！', 2.5); });
+    }
     rt.obj('main', HI(rt) ? `城兵の一手を率いて宇佐山城に籠り、三の丸→二の丸→本丸の順に木戸を守れ（${AID(rt)}）` : `宇佐山城に籠り、三の丸→二の丸→本丸の順に木戸を守れ（${AID(rt)}）`, 'main');
     rt.obj('honmaru', '危うい時は、城の奥の本丸へ退いて持て', 'side');
     if (HI(rt)) rt.say('各務元正', `${nm(rt)}、木戸の口はそなたの手に預ける。わしは櫓から弓を指図する`, 4);
@@ -412,7 +445,7 @@ const shiga = {
       rt.after(40, () => go(g));
       for (const off of [-3, 3]) addTaba(rt, from[0] + off, from[1] + 3, 1, { van: g, off, faceSign: 1, vanDist: 3, rot: 0 });
       if (i === 0) rt.say('各務元正', '竹束を押し立てて来おる。矢は竹に止まる。竹束を捨てて坂を上る所を射よ！', 4);
-      g.assault = () => F.gates.find((s) => s && s.alive) || null;
+      g.assault = () => F.gates.find((s) => s && s.alive && !s.opened) || null;
       for (const u of g.units) if (u.type === 'gun') u.dmg *= 0.45;
       KIT.backOf(rt, g, { flag: flag.flag, armor: 0x33291f, kind: 'spear', w: 20, depth: 10, count: 200, seed: 15798 + i });
       F.waves.push(g);
@@ -455,21 +488,25 @@ const shiga = {
     for (const m of rt.markers.slice()) if (m.group && gone(m.group)) rt.unmark(m.id);
     if (F.ending) return;
     updateGates();
+    if (F.gu) F.gu.tick();
+    this.tickStream(rt);
+    this.tickCamps(rt);
+    if (F.gateHint && F.gateMk.opened === false && !F.gateHintDone) { F.gateHintDone = true; rt.objDone('gate'); }
     tickTabas(rt, dt);
     if (F.SZ && F.step === 3) F.SZ.tick(dt);
     this.tickLight(rt, dt);
     const p = rt.player.u.pos;
     if (F.step === 1) {
       const qs = [F.w1, F.w1b].filter(Boolean);
-      rt.objProgress('main', `朝倉勢 ${qs.reduce((a, q) => a + (gone(q) ? 0 : q.count), 0)}人`);
+      rt.objProgress('main', `討った敵 ${F.ek || 0}人・寄せ手はまだ尽きぬ`);
       for (const q of qs) if (q.count < 5 && !gone(q)) q.morale = Math.min(q.morale, 20);
-      if ((F.w1b && qs.every(gone)) || rt.t - F.stepT > 140) this.midA(rt);
+      if ((F.w1b && qs.every(gone) && rt.t - F.stepT > 80) || rt.t - F.stepT > 115) this.midA(rt);
     }
     if (F.step === 2) {
-      const zc = { x: F.gateC.x + F.gateN.x * 6, z: F.gateC.z + F.gateN.z * 6 };
+      const zc = { x: F.gateC.x - F.gateN.x * 5, z: F.gateC.z - F.gateN.z * 5 };
       const d = Math.hypot(p.x - zc.x, p.z - zc.z);
-      rt.objProgress('main', `城まで ${Math.max(0, Math.round(d))}m`);
-      if (d < 6 || rt.t - F.stepT > 100) this.siege(rt);
+      rt.objProgress('main', d < 6 && !F.moriDead ? '城の内で、町口を見よ' : `城まで ${Math.max(0, Math.round(d))}m`);
+      if ((d < 6 && F.moriDead && F.nobuDead) || rt.t - F.stepT > 100) this.siege(rt);
     }
     if (F.step === 3) {
       const L = F.waves || [];
@@ -493,6 +530,72 @@ const shiga = {
     }
   },
 
+  // 町口の正面に、崩しても崩しても新手が出る（持ち場ごとに本物の一組。崩れれば少し置いて後ろから次。本物の兵は 250 人ほどまで）
+  tickStream(rt) {
+    const F = rt.flags;
+    if (!F.stream || F.step >= 3 || F.step === 1.5) return;
+    F.streamG = F.streamG || [];
+    let real = 0;
+    for (const g of rt.army.groups) real += g.count || 0;
+    for (let i = 0; i < F.stream.length; i++) {
+      const S = F.stream[i];
+      if (S.g && !gone(S.g) && S.g.count >= 5) { S.next = rt.t + 5; continue; }
+      if (S.g && !gone(S.g)) { S.g.noRout = false; S.g.morale = Math.min(S.g.morale, 15); }
+      if (rt.t < S.next || real > 200) continue;
+      const az = i === 0 || (S.n || 0) % 3 === 2, flag = az ? AZA : ASA;
+      S.n = (S.n || 0) + 1; S.next = rt.t + 6;
+      const g = enemyGroup(rt, { faction: 'saito', name: az ? '浅井の新手' : '朝倉の新手', anchor: { x: S.x + (Math.random() - 0.5) * 8, z: -62 }, facing: 0, order: 'attack', seekRange: 110, aggro: 14, width: 12, morale: 85, fleeDir: { x: 0, z: -1 }, dmgMult: 0.42, formation: 'yari' },
+        dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 9 }, ...(S.n % 2 ? [{ type: 'bow', n: 2 }] : [])], flag));
+      KIT.backOf(rt, g, { flag: flag.flag, armor: az ? 0x2e2a26 : 0x33291f, kind: 'spear', w: 18, depth: 9, count: 150, seed: 15840 + i * 7 + S.n });
+      S.g = g; F.streamG.push(g);
+      real += g.count;
+      if (S.n === 2 && i === 1) rt.say('森可成', '退くな！　三万じゃ、尽きるまで斬ろうと思うな。口を塞いで押し返せ！', 3.5);
+    }
+  },
+  // 本陣へ寄った時：奥ほど敵が濃いのを知らせ、本陣の印を出す
+  tickCamps(rt) {
+    const F = rt.flags, p = rt.player.u.pos;
+    if (!F.campNear && p.z < -70) { F.campNear = true; rt.say('足軽', '奥へ行くほど、旗が濃くなる……この奥に浅井・朝倉の本陣があるぞ', 3.5); }
+    for (const [id, c, label] of [['campA', F.campA, '朝倉義景の本陣'], ['campB', F.campB, '浅井長政の本陣']]) {
+      if (!c || F['mk_' + id] || Math.hypot(p.x - c.pos.x, p.z - c.pos.z) > 75) continue;
+      F['mk_' + id] = true;
+      rt.marker(id, { x: c.pos.x, z: c.pos.z }, label, { red: true, h: 4 });
+      rt.bark(`${label}が見えた`, true);
+    }
+  },
+  // 史実の討死：大軍が武将の周りを埋めて寄せ、遠くからも見える形で討つ（助けに行っても止められない）
+  doom(rt, o) {
+    const F = rt.flags, u = o.u;
+    if (!u || !u.alive || F.step >= 3) return;
+    const c = { x: u.pos.x, z: u.pos.z };
+    sfx('horagai', 0.7);
+    rt.banner(`${o.name}、大軍に囲まれる`, '浅井・朝倉の大軍が、町口を呑みこんでゆく');
+    rt.say('足軽', `${o.name}様の周りが、敵の旗で埋まった……！`, 3);
+    rt.marker('doom_' + o.key, unitPos(u), `${o.name}（囲まれる）`, { red: true, h: 4 });
+    // 周りの四方から、軽い大軍が輪を縮める（城の坂からも見える）
+    const ring = [];
+    for (let k = 0; k < 4; k++) {
+      const a = k * Math.PI / 2 + 0.4, r = 34, x = c.x + Math.sin(a) * r, z = c.z + Math.cos(a) * r, fl = k % 2 ? 'azai' : 'asakura';
+      ring.push(rt.world.addDistantArmy({ x, z, w: 26, d: 9, count: 200, facing: Math.atan2(c.x - x, c.z - z), armor: fl === 'azai' ? 0x2e2a26 : 0x33291f, flagTex: flagTexture(fl), mon: fl, seed: 15860 + k + (o.key === 'mori' ? 10 : 0), team: 1 }));
+    }
+    for (const h of ring) h.advance(24, o.dur - 2, { charge: true });
+    // 本物の兵の一組が武将へ斬り込む
+    const g = enemyGroup(rt, { faction: 'saito', name: `${o.name}を囲む${o.flag === AZA ? '浅井' : '朝倉'}勢`, anchor: { x: c.x + 4, z: c.z - 16 }, fixed: true, facing: 0, order: 'attack', seekRange: 60, aggro: 18, width: 10, morale: 100, noRout: true, dmgMult: 0.9 },
+      dress([{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }], o.flag));
+    if (o.g) { o.g.order = 'hold'; o.g.aggro = 18; }
+    rt.after(o.dur - 4, () => { if (u.alive) rt.say(o.name, o.last, 3); });
+    rt.after(o.dur, () => {
+      if (u.alive) { u.invuln = false; rt.army.kill(u, g.units.find((q) => q.alive) || null); }
+      F[o.key + 'Dead'] = true;
+      rt.unmark('doom_' + o.key);
+      sfx('kane', 0.5);
+      rt.banner(`${o.name}、討ち死に`, o.key === 'mori' ? '宇佐山城の主・森可成、坂本の町口に散る' : '信長の弟・織田信治、坂本の町口に散る');
+      rt.bark(`${o.name}が討ち死にした`, true);
+      if (o.g) { o.g.noRout = false; o.g.morale = 0; o.g.fleeDir = { x: -0.4, z: 1 }; }
+      rt.after(3, () => rt.say('足軽', o.key === 'mori' ? '森様が……！　城へ、城へ上がれ！' : '信治様まで……！', 2.5));
+      rt.after(14, () => { for (const h of ring) h.rout({ hideAfter: 20 }); g.noRout = false; if (!gone(g)) g.morale = 0; });
+    });
+  },
   // 二の丸への退き：三の丸が危うい時、城の守りを二の丸の木戸へ下げる
   toNinomaru(rt) {
     const F = rt.flags;
@@ -613,7 +716,14 @@ function shigaB() {
     rest({ dur: 10, bark: '木戸の傷みを板で塞げ', say: [['各務元正', '日が暮れる。……寄せ手は夜も来る'], ['足軽', '坂本の町が燃えておる……']] }),
     pick({ title: '夜、寄せ手が城の左右の尾根から回り込み、木戸を囲みにかかる。どうする？',
       options: [{ label: '木戸を開けて打って出て、寄せ手の頭を叩く', note: '寄せ手を先に崩せば手柄。城の外で囲まれる' }, { label: '木戸を閉めて、口の内外で守る', note: '木戸を背に守る。木戸は叩かれ、鉄砲を浴びる' }],
-      on: (rt, m, i) => { m.sgOut = i === 0; rt.say('各務元正', i === 0 ? 'よし、打って出よ！　すぐ戻れよ、木戸は開けて待つ' : 'よし、閉めよ！　木戸の前に槍を揃えよ', 3); } }),
+      on: (rt, m, i) => {
+        const F = rt.flags, G = F.gateMk;
+        m.sgOut = i === 0;
+        rt.say('各務元正', i === 0 ? 'よし、大手木戸の前で「門を開ける」を押し、打って出よ！　戻ったら閉めよ' : 'よし、閉めよ！　木戸の内に槍を揃えよ', 3.5);
+        if (G.breached) return;
+        if (i === 0) rt.after(14, () => { if (!G.opened) F.gu.open(G); });
+        else F.gu.close(G);
+      } }),
     fight({ skip: (rt, m) => !m.sgOut, at: (rt) => outGate(rt, 22), max: 150, title: '打って出る', sub: '夜の坂道を、寄せ手が上ってくる', obj: '城の外に打って出て、寄せ手の頭を崩せ',
       foes: (rt) => { const o = outGate(rt, 22); return [{ name: '夜の寄せ手（朝倉勢）', from: { x: o.x + 30, z: o.z - 40 }, list: [uS(2), uA(14)], mass: 260, noRout: 20 }]; },
       later: [
@@ -662,9 +772,7 @@ shiga.force = (rt) => {
 };
 shiga.sides = { a: { name: '織田軍（宇佐山城）', mon: 'oda' }, b: { name: '浅井・朝倉軍', mon: 'asakura' } };
 // 史実でこの戦にいた名のある武将（battle.js の placeFamous が、その家の隊に加える。敵は名乗り、討てば手柄）
-shiga.famous = [
-  { name: '朝倉景鏡', g: /朝倉/, loose: 1, line: '朝倉景鏡なり！　坂本を抜けて京へ上る！' },
-];
+shiga.famous = [];
 shiga.date = () => '元亀元年九月二十日　秋・晴';
 shiga.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? '可成の話を飛ばす' : '');
 shiga.skip = (rt) => { for (const tm of rt.timers) tm.t = Math.min(tm.t, 0.2); };
@@ -696,14 +804,15 @@ shiga.botBrain = (b, inp, { goTo }) => {
     return;
   }
   inp.guardHold = false;
-  const out = { x: F.gateC.x + F.gateN.x * 5, z: F.gateC.z + F.gateN.z * 5 };
+  const out = { x: F.gateC.x + F.gateN.x * 5, z: F.gateC.z + F.gateN.z * 5 }, inG = { x: F.gateC.x - F.gateN.x * 5, z: F.gateC.z - F.gateN.z * 5 };
   if (F.step === 1) { const q = [F.w1, F.w1b].find((x) => x && !gone(x)); if (q) { const c = q.center(); goTo(p, inp, c.x, c.z, 2); return; } }
-  if (F.step === 2) { goTo(p, inp, out.x, out.z, 1.5); return; }
+  if (F.step === 2) { goTo(p, inp, inG.x, inG.z, 1.5); return; }
   if (F.step === 3) {
-    // 木戸の外に出て、取り付く寄せ手を討つ
+    // 木戸の内で、破って入る寄せ手を討つ（木戸は閉めてある）
     const q = (F.waves || []).find((x) => !gone(x));
-    if (q) { const c = q.center(); if (Math.hypot(c.x - F.gateC.x, c.z - F.gateC.z) < 26) { goTo(p, inp, c.x, c.z, 2); return; } }
-    goTo(p, inp, out.x, out.z, 2);
+    const gk = F.gateMk.opened || F.gateMk.breached ? out : inG;
+    if (q && gk === out) { const c = q.center(); if (Math.hypot(c.x - F.gateC.x, c.z - F.gateC.z) < 26) { goTo(p, inp, c.x, c.z, 2); return; } }
+    goTo(p, inp, gk.x, gk.z, 2);
     return;
   }
   const a = F.moriU.pos; goTo(p, inp, a.x + 3, a.z + 4, 3);

@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { paintGeo, hipGeo, solidSeg, solidRect, solidCircle, tsuiji, kabukimon, makeKitBatch, finalizeKitBatch } from './props.js';
 import { wallLine } from './bhelp.js';
+import { S as SETTINGS } from './settings.js';
 import { Garan, makeTempleFire } from './temple1571.js';
 
 export const TERA = { x0: -77, x1: -31, z0: 30, z1: 104 };
@@ -138,7 +139,6 @@ export function buildTera(rt) {
   // ---- 中のある建物 ----
   for (const H of HALLS) T.halls.push(buildHall(rt, G, H, T));
   G.finish();
-  for (const k of ['hall|wood', 'hall|plain']) { const b = G.buckets.get(k); if (b && b.mesh) b.mesh.userData.camBlock = true; }
   for (const h of T.halls) { const b = G.buckets.get('roof_' + h.id + '|tile'); h.roof = b && b.mesh; }
   // ---- 襖と障子（一枚ずつ破れる）：二つの InstancedMesh ----
   const pm = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 });
@@ -156,7 +156,8 @@ export function buildTera(rt) {
   }
   // ---- 火（建物ごとに燃え、近い棟へ少しずつ燃え移る。燃え移りは遅めにして、段で火をかける） ----
   T.fire = makeTempleFire(rt, G, {
-    rate: 0.3, flames: 4, smokes: 8,
+    // 画質「低」（携帯）は炎の板と煙の柱を減らす（寺の中は近くに大きな煙の粒が重なって重い）
+    rate: 0.3, flames: SETTINGS.quality === 'low' ? 3 : 4, smokes: SETTINGS.quality === 'low' ? 4 : 8,
     onBurnt: (r) => { if (!F.ending) rt.bark(`${r.label || '伽藍の一棟'}が焼け落ちた`); },
   });
   const LBL = { soboN: '表の宿坊', soboB: '奥の宿坊', kuri: '庫裏', kairo1: '回廊', kairo2: '回廊', watari: '渡り廊下', kura: '物置', naya: '納屋', shoro: '鐘楼' };
@@ -171,6 +172,9 @@ function buildHall(rt, G, H, T) {
   const rec = G.build({ id: H.id, kind: 'hall', x: cx, z: cz, w: H.x1 - H.x0, d: H.z1 - H.z0, lite: true, dist: 'hall' });
   rec.flam = H.flam; rec.dur = H.dur; rec.label = H.name; rec.top = H.H + 1.8;
   const y = rec.y0, put = (mk, g) => G._push(rec, mk, g);
+  // カメラの寄せ用の当たり：壁だけの描かない箱（細かい柱・道具まで入った大きな形を毎コマ線で調べると重い）
+  const blk = [];
+  const bb = (w, h, d, x, yy, z) => { const g = new THREE.BoxGeometry(w, h, d); g.deleteAttribute('uv'); g.deleteAttribute('normal'); g.translate(x, yy, z); blk.push(g); };
   const hall = { id: H.id, name: H.name, H, rec, doors: [], panels: [], x0: H.x0, x1: H.x1, z0: H.z0, z1: H.z1 };
   // 基壇（石）と床（畳・板）
   put('wood', pb(H.x1 - H.x0 + 0.5, 0.3, H.z1 - H.z0 + 0.5, cx, y - 0.1, cz, 0x7e7a70));
@@ -193,6 +197,7 @@ function buildHall(rt, G, H, T) {
     // 小壁（鴨居の上）と鴨居は口の上にも通す
     const top = kind === 'wall' ? 1.95 : 1.8;
     bx3(L, H.H - top, top + (H.H - top) / 2, mid, 0xd2cab4, 'plain', kind === 'wall' ? 0.14 : 0.1);
+    { const [px, pz] = at(mid); bb(alongX ? L : 0.14, H.H - top, alongX ? 0.14 : L, px, y + top + (H.H - top) / 2, pz); }
     bx3(L, 0.1, top + 0.05, mid, 0x3a2a1c, 'wood', 0.16);
     put('wood', pb(0.18, H.H, 0.18, at(a)[0], y + H.H / 2, at(a)[1], 0x4a3826));
     put('wood', pb(0.18, H.H, 0.18, at(b)[0], y + H.H / 2, at(b)[1], 0x4a3826));
@@ -203,6 +208,7 @@ function buildHall(rt, G, H, T) {
       if (kind === 'wall') {
         bx3(len, 0.9, 0.45, m, 0x4a3a2a, 'wood');
         bx3(len, 1.05, 0.9 + 0.525, m, 0xd8d0bc, 'plain');
+        { const [px, pz] = at(m); bb(alongX ? len : 0.14, top, alongX ? 0.14 : len, px, y + top / 2, pz); }
         solidSeg(p0x, p0z, p1x, p1z, 0.1);
         for (let k = Math.ceil((r0 + 2.7) / 2.7) * 2.7; k < r1 - 0.8; k += 2.7) { const [qx, qz] = at(k); put('wood', pb(0.15, H.H, 0.15, qx, y + H.H / 2, qz, 0x4a3826)); }
       } else {
@@ -229,6 +235,11 @@ function buildHall(rt, G, H, T) {
   // 軒の裏の板（下から見て屋根の中が抜けないように）
   put('wood', pb(H.x1 - H.x0 + 2.8, 0.06, H.z1 - H.z0 + 2.8, cx, y + H.H + 0.06, cz, 0x3a2c20));
   rec.dist = 'hall';
+  if (blk.length) {
+    const bm = new THREE.Mesh(mergeGeometries(blk), G.proxyMat);
+    bm.userData.camBlock = true; bm.matrixAutoUpdate = false; bm.updateMatrix();
+    rt.scene.add(bm); hall.blk = bm;
+  }
   return hall;
 }
 

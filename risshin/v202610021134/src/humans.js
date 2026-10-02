@@ -3200,9 +3200,9 @@ function driveHuman(h, dt, fine = true, arms = true) {
   if (u.mounted) rideHuman(h, dt);
   // 槍の突き・刀の振りに体を入れる（腰を落とし、後ろ足で押して踏み込む。馬上は鐙に立つ）
   if (u.alive && (w === 'spear' || w === 'sword')) attackBody(h, B, u, w, dt);
-  // 技：時を進め、体（胸のひねり・反り・腰の沈み・足の開き）を型に合わせる。兵も打ちかかる時に時々技を出す
+  // 技：時を進め、体（胸のひねり・反り・腰の沈み・足の開き）を型に合わせる。技を出すのは武将だけ（足軽・侍は出さない。軽く）
   if (u.alive && !u.mounted && (w === 'spear' || w === 'sword')) {
-    if (!u.isPlayer && u.swing && u.swing !== h.lastSwing && !u.tech && HUM.fx && !h.far && Math.random() < 0.35) {
+    if (!u.isPlayer && u.swing && u.swing !== h.lastSwing && !u.tech && HUM.fx && !h.far && (u.type === 'busho' || (u.look && isNamed(u.look))) && Math.random() < 0.35) {
       const L = TECH_OF[w]; startTech(u, L[Math.floor(Math.random() * L.length)]);
     }
     h.lastSwing = u.swing;

@@ -1,7 +1,7 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202610021058 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202610021134 として写した） -->
 <title>戦国立身 3D</title>
-<link rel="icon" type="image/png" sizes="32x32" href="./v202610021058/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610021058/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610021058/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610021058/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202610021134/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610021134/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610021134/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610021134/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -584,7 +584,9 @@ body.ca #compass .c.foe span { color: #ff9a1a; }
 /* HUD の三つの層（RDR2・Ghost of Tsushima の考え）：平時（敵が近くにいない・戦っていない時）は、
    両軍の兵力の帯・戦況・操作の札・満ちた体力の札を消して、世界そのものを見せる。敵が近づけばすぐ戻る */
 #hud #armybar, #hud #situation, #hud .bl, #hud .tl { transition: opacity .6s; }
-#hud.calm #armybar, #hud.calm #situation, #hud.calm .bottom, #hud.calm .bl.full { opacity: 0; transition: opacity 1.6s; }
+#hud.calm #situation, #hud.calm .bottom, #hud.calm .bl.full { opacity: 0; transition: opacity 1.6s; }
+/* 兵力の差（両軍の残り）は平時でも消さず、戦の間ずっと出す（薄くするだけ。kaito 10/2 指摘1） */
+#hud.calm #armybar { opacity: .82; transition: opacity 1.2s; }
 #hud.calm .tl { opacity: .5; transition: opacity 1.6s; }
 #hud.calm #objectives { opacity: .85; }
 #hud #dateline { transition: opacity 1.2s; }
@@ -601,6 +603,9 @@ body.ca #compass .c.foe span { color: #ff9a1a; }
   #hud #objectives { pointer-events: auto; cursor: pointer; }
   #objectives li.more { display: block; font-size: 12px; color: var(--washi-dim); text-align: right; margin-top: 2px; min-height: 24px; line-height: 24px; }
   #objectives h4 { display: none; }
+  /* iPhone横：今やる任務は一つだけなので、大きく・下地を付けて目立たせる（kaito 10/2 指摘2） */
+  #objectives li.cur:not(.done) { font-size: 16.5px; line-height: 1.4; padding: 6px 8px; background: rgba(194,162,90,.16); box-shadow: inset 0 0 0 1px var(--gold-line); border-radius: 2px; }
+  #objectives li.cur:not(.done) .tag { font-size: 12.5px; }
   /* 組の札（#h-squad）は顔の札と同じ事を言うので、低い画面では出さない */
   #hud #h-squad { display: none; }
   /* 顔の札は低く（顔・士気の輪・数・名だけ） */
@@ -699,8 +704,14 @@ body:has(#hud.photo) #overlay { display: none; }
 #ld-lore p { margin: 0; font-family: var(--display); font-size: 16px; line-height: 1.6; color: var(--washi); display: grid; grid-template-columns: 5em 1fr; gap: 10px; align-items: baseline; }
 #ld-lore small { font-family: var(--ui); font-size: 12px; letter-spacing: .3em; color: var(--kin); border-right: 2px solid var(--kin); padding-right: 8px; text-align: right; }
 @media (max-height: 500px) { #ld-lore { margin-top: 10px; gap: 4px; } #ld-lore p { font-size: 14px; } }
-#loading .ldbar { width: 240px; height: 3px; background: var(--sumi-3); margin: 14px auto 0; overflow: hidden; position: relative; }
-#loading .ldbar i { position: absolute; top: 0; bottom: 0; width: 40%; background: var(--kin); animation: ldbar 1.2s ease-in-out infinite; }
+/* 進みの棒（10/2）：左から伸びる。動かすのは main.js の ldStep・題までは下の #boot の小さな script */
+#loading .ldbar, #boot .ldbar { width: min(320px, 70vw); height: 6px; border-radius: 3px; background: var(--sumi-3); margin: 16px auto 0; overflow: hidden; position: relative; }
+#loading .ldbar i, #boot .ldbar i { position: absolute; inset: 0; background: var(--kin); transform-origin: left center; transform: scaleX(0); will-change: transform; }
+#boot { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: var(--sumi); color: var(--washi); text-align: center; transition: opacity .35s; }
+#boot.out { opacity: 0; pointer-events: none; }
+#boot .bt { font-family: var(--display); font-size: 28px; letter-spacing: .3em; color: var(--washi); }
+#boot #boot-st { margin-top: 12px; font-family: var(--ui); font-size: 15px; }
+#boot #boot-left { margin-top: 4px; font-family: var(--ui); font-size: 13px; opacity: .85; min-height: 1.4em; }
 @keyframes ldbar { from { left: -40%; } to { left: 100%; } }
 
 /* ================= 第5弾 ================= */
@@ -1609,13 +1620,45 @@ html.touch.tc-low #hud.lean #bark { top: calc(8px + env(safe-area-inset-top, 0px
 <div id="pause" hidden></div>
 <div id="wipe"></div>
 <div id="photoui" hidden></div>
-<div id="loading" hidden><div><div class="ldmon"></div><div class="ld">陣を敷いております…</div><div class="ldbar"><i></i></div><p id="tip"></p></div></div>
+<div id="loading" hidden><div><div class="ldmon"></div><div class="ld">陣を敷いています</div><div class="ldbar"><i></i></div><p id="tip"></p></div></div>
 <div id="glfail" hidden><div class="wrap"><h2>3D表示を始められませんでした</h2><p class="lead">このブラウザでは 3D の描画が使えないようです。クローム・エッジ・サファリの最新版で、設定の「ハードウェア アクセラレーション」を入れてお試しください。</p></div></div>
 
+<div id="boot" role="status" aria-live="polite"><div><div class="bt">戦国立身</div><div class="ldbar"><i></i></div><div id="boot-st">絵の道具を読み込んでいます</div><div id="boot-left"></div></div></div>
+<script>
+// 題の画面までの読み込み（10/2）：いま読んでいる物の名前と、進みの棒・あと何秒。見込みは前に掛かった時間を覚えて使う。
+// 棒は一本の長い移り変わり（重い読み込みの間も画面の合成の側で動く）。動きを減らす設定では、四分の一秒ごとに跳ぶだけ
+(function () {
+  var t0 = performance.now(), KEY = 'risshin-boot-ms', est = 0, rm = false;
+  var touch = matchMedia('(pointer: coarse)').matches;
+  try { est = +localStorage.getItem(KEY + (touch ? '-t' : '')) || 0; } catch (e) { /* 覚えていない */ }
+  if (!est) est = touch ? 9000 : 5000;
+  try { rm = matchMedia('(prefers-reduced-motion: reduce)').matches || !!(JSON.parse(localStorage.getItem('sengoku-risshin-settings-v1') || '{}') || {}).reduceMotion; } catch (e) { /* 既定 */ }
+  var bar = document.querySelector('#boot .ldbar i'), st = document.getElementById('boot-st'), lf = document.getElementById('boot-left');
+  if (!rm) requestAnimationFrame(function () { requestAnimationFrame(function () { bar.style.transition = 'transform ' + Math.round(est) + 'ms cubic-bezier(.25,.6,.45,1)'; bar.style.transform = 'scaleX(.94)'; }); });
+  var NAMES = [[/asset_(hum|dom|kab|men|yoroi|body|head)/, '人と具足の形を読み込んでいます'], [/asset_horse/, '馬を読み込んでいます'], [/(japan|dem|terrain|elev|gsi)/, '地形を読み込んでいます'], [/asset_/, '絵と形を読み込んでいます'], [/three/, '絵の道具を読み込んでいます'], [/\/src\//, '戦の仕組みを読み込んでいます']];
+  try { new PerformanceObserver(function (l) { var es = l.getEntries(), n = es[es.length - 1] && es[es.length - 1].name; for (var k = 0; k < NAMES.length; k++) if (NAMES[k][0].test(n)) { st.textContent = NAMES[k][1]; break; } }).observe({ type: 'resource', buffered: true }); } catch (e) { /* 名前は出さない */ }
+  function tick() {
+    var el = performance.now() - t0, left = est - el;
+    lf.textContent = left > 900 ? 'あと約 ' + Math.ceil(left / 1000) + ' 秒' : el > est * 2 + 3000 ? 'もう少しです' : 'まもなく';
+    if (rm) bar.style.transform = 'scaleX(' + Math.min(0.94, el / est).toFixed(3) + ')';
+  }
+  var iv = setInterval(tick, 250); tick();
+  // main.js が題の画面を出した時に呼ぶ
+  window.__bootDone = function () {
+    clearInterval(iv);
+    var el = performance.now() - t0, b = document.getElementById('boot');
+    try { var o = +localStorage.getItem(KEY + (touch ? '-t' : '')) || 0; localStorage.setItem(KEY + (touch ? '-t' : ''), String(Math.round(o ? (o + el) / 2 : el))); } catch (e) { /* 覚えなくてよい */ }
+    if (!b) return;
+    bar.style.transition = rm ? 'none' : 'transform .2s'; bar.style.transform = 'scaleX(1)';
+    if (rm) { b.remove(); return; }
+    b.classList.add('out'); setTimeout(function () { b.remove(); }, 400);
+  };
+})();
+</script>
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
 } }
 </script>
-<script type="module" src="./v202610021058/src/main.js"></script>
+<script type="module" src="./v202610021134/src/main.js"></script>
