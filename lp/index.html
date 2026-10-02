@@ -396,6 +396,20 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
 .ar.in{opacity:1;transform:none}
 @media(prefers-reduced-motion:reduce){.ar{opacity:1;transform:none;transition:none}#hero .l-haze,#hero .l-smoke{animation:none}html{scroll-behavior:auto}}
 @media(hover:hover){.fuda,.inban,.sanTaku button{cursor:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><path d='M6 26 L16 14' stroke='%23E6C15A' stroke-width='3' stroke-linecap='round'/><ellipse cx='20' cy='10' rx='9' ry='7' fill='%23A52A1E' stroke='%23E6C15A' stroke-width='2'/></svg>") 4 28,pointer}}
+
+/* 第258巡（LP の見直し：デジタル庁 DS・HIG・Material の考え方）：本文は14px以上、押す所は44px以上、文節で折る */
+.ph{display:inline-block}
+#hero .mei2{font-family:var(--go);font-size:clamp(14px,1.6vw,17px);letter-spacing:.14em;font-weight:700;color:var(--kinpaku)}
+.haifu{font-size:14px!important;letter-spacing:.06em!important;flex-wrap:wrap;gap:4px 10px!important;color:#F3E2B0!important}
+:is(.soe,.sho,.co,.annot-list span,.shinrai,.vs,.vs span,.kotoba1,.credits,#susumi,#susumiT,.ugoku .rec,.ugoku .play,small,.nenpyo b,.nenpyo span,.erabu>span,.sanpo p b,.scroll){font-size:max(14px,1em)!important}
+header nav a{min-width:44px;justify-content:center}
+h1,h2,h3,h4,.h2,.kotoba,.lead-l{text-wrap:balance}   /* 見出しの終わりに一、二文字だけ残らないように */
+header .logo{min-height:44px;display:inline-flex;align-items:center}
+header nav a,#oto{font-size:14px!important;min-height:44px!important}
+footer a,#player .x{min-height:44px!important;font-size:14px}
+@media(max-width:720px){.scroll{display:none}}
+#stick{transition:transform .25s ease;transform:translateY(110%)}
+#stick.on{transform:none}
 </style>
 </head>
 <body>
@@ -413,25 +427,25 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
 
 <header>
   <a class="logo" href="#hero">戦国大名</a>
-  <nav><a href="#mitsu">特徴</a><a href="#ch3">合戦</a><a href="#gunki">軍記</a><a href="#ch4">軍議</a><a href="#nagashino">長篠</a><a href="#guide">攻略</a><a href="#faq">問答</a><a href="#gunshikin">軍資金</a><a href="#meyasu">目安箱</a><button id="oto" type="button" title="風と太鼓の音（押した時だけ）">♪ 音</button></nav>
+  <nav><a href="#mitsu">特徴</a><a href="#loop">遊び方</a><a href="#nagashino">長篠</a><a href="#ch3">合戦</a><a href="#gunki">軍記</a><a href="#ch4">軍議</a><a href="#guide">攻略</a><a href="#faq">問答</a><a href="#gunshikin">軍資金</a><button id="oto" type="button" title="風と太鼓の音（押した時だけ）">♪ 音</button></nav>
 </header>
 
 <!-- 序 -->
 <section id="hero">
-  <div class="layer l-bg" data-speed="0.18" data-seq="nagashino" data-hero="1" data-dir="seqh"><img src="img/hero.jpg" alt="" fetchpriority="high"></div>
+  <div class="layer l-bg" data-speed="0.18" data-seq="nagashino_pv" data-hero="1" data-dir="seqh"><img src="img/hero.jpg" alt="" fetchpriority="high"></div>
   <div class="layer l-haze" data-speed="0.1"></div>
   <div class="layer l-smoke" data-speed="0.3"></div>
   <div class="layer l-veil"></div>
   <canvas id="hibana"></canvas>
   <div class="wrap">
-    <div class="mei">戦 国 大 名</div>
-    <h1><span>歴史を眺めるな。</span><span>戦局を動かせ。</span></h1>
-    <p class="kotoba"><span class="ln">城を奪い、兵を率い、盟を結び、天下を争え。</span><span class="ln">山崎、姉川、長篠、関ヶ原――歴史の転換点を、<b>あなた自身の采配</b>で。</span></p>
+    <div class="mei mei2"><span class="ph">リアルタイム合戦 ×</span> <span class="ph">天下統一の戦国シミュレーション</span></div>
+    <h1><span><span class="ph">歴史を</span><span class="ph">眺めるな。</span></span><span>戦局を動かせ。</span></h1>
+    <p class="kotoba"><span class="ln"><span class="ph">数千、数万の軍勢を、</span><span class="ph">指ひとつで動かす。</span></span><span class="ln"><span class="ph">長篠・関ヶ原・山崎――</span><span class="ph">歴史の転換点を、</span><span class="ph"><b>あなたの采配で。</b></span></span></p>
     <div class="ctas">
       <a class="fuda" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="hero_appstore_click"><svg><use href="#apple"/></svg>App Storeで無料ダウンロード</a>
-      <a data-play data-ev="play_click" class="inban" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザで遊ぶ</a>
+      <a data-play data-ev="play_click" class="inban" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザで今すぐ遊ぶ</a>
     </div>
-    <div class="haifu">iPhone / iPad / ブラウザ　／　長篠の戦いは無料　／　関ヶ原は ¥500</div>
+    <div class="haifu"><span class="ph">長篠の戦いは無料・登録不要</span><span class="ph">／ iPhone・iPad・ブラウザ</span><span class="ph">／ 関ヶ原は ¥500</span></div>
   </div>
   <div class="scroll">SCROLL<i></i></div>
 </section>
@@ -441,7 +455,7 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
 <!-- 動く絵 -->
 <section id="ugoku1">
   <div class="wrap">
-    <div class="ugoku ar" data-seq="nagashino" data-open="nagashino"><img src="img/seq/nagashino/000.jpg" alt="長篠の合戦。武田の騎馬が馬防柵へ" loading="eager"><span class="rec">合戦の画面</span><div class="ov"><b>数千、数万の軍勢を、一つの采配で動かせ。</b></div><span class="play">▶ 大きく見る</span></div>
+    <div class="ugoku ar" data-seq="nagashino_pv" data-open="nagashino"><img src="img/seq/nagashino_pv/000.jpg" alt="長篠の合戦。武田の騎馬が馬防柵へ" loading="eager"><span class="rec">合戦の画面</span><div class="ov"><b>数千、数万の軍勢を、一つの采配で動かせ。</b></div><span class="play">▶ 大きく見る</span></div>
     <p class="soe c">実際の合戦画面をそのまま。一兵ずつではなく、隊で、翼で、軍で動く。</p>
   </div>
 </section>
@@ -460,6 +474,29 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
 
 <div class="nokori">天下統一まで　あと<b>六十</b>城</div>
 
+<!-- ゲームの環 -->
+<section id="loop">
+  <div class="wrap c ar">
+    <div class="sho" style="display:inline-flex">ゲームの環</div>
+    <h2 class="h2">戦い、広げ、<span class="g">また戦う。</span></h2>
+    <div class="cycle"><div>城を治める</div><div>兵を集める</div><div>外交する</div><div>進軍</div><div class="hot">合戦</div><div>領地を獲得</div><div>さらに天下へ</div></div>
+    <div class="sanpo"><div><b>一</b><h4>部隊を選ぶ</h4><p>押すだけ。複数はなぞる。</p></div><div><b>二</b><h4>進軍先を決める</h4><p>行き先を押す。柵へ、川へ、本陣へ。</p></div><div><b>三</b><h4>あとは軍勢が動く</h4><p>一兵ずつは操らない。<b>簡単操作。判断は奥深い。</b></p></div></div>
+    <div class="who"><div>戦国時代が好き</div><div>歴史シミュレーションが好き</div><div>リアルタイムの戦略ゲームが好き</div><div>信長の野望系が好き</div><div>歴史のIFを楽しみたい</div><div>自分で軍を動かしたい</div></div>
+  </div>
+</section>
+<!-- 長篠 軍記 -->
+<section id="nagashino" style="background:var(--cha)">
+  <div class="mon" style="left:50%;top:50%;width:640px;height:640px;transform:translate(-50%,-50%);opacity:.05"><svg><use href="#mon-takeda"/></svg></div>
+  <div class="wrap c ar">
+    <div class="sho" style="display:inline-flex">軍記　天正三年</div>
+    <h2 class="h2">長篠の戦いを、<span class="g">自ら指揮せよ。</span></h2>
+    <p class="kotoba c" style="font-family:var(--fude);font-size:clamp(18px,2.4vw,26px);letter-spacing:.16em"><span class="ln"><span style="color:#9CC4EA">織田・徳川連合軍</span>　VS　<span style="color:#F19A85">武田軍</span></span></p>
+    <p class="kotoba c"><span class="ln">馬防柵。鉄砲。騎馬。</span><span class="ln">史実と同じ戦い方を選ぶか。それとも、あなた自身の策で戦うか。</span></p>
+    <div class="gaku" style="margin-top:30px"><span class="kin-corner tr"></span><span class="kin-corner bl"></span><img src="img/tobi.jpg" alt="夜明け前の鳶ヶ巣山砦" loading="lazy"></div>
+    <p class="soe">夜明け前の鳶ヶ巣山砦――別働隊で武田の後ろを突く。</p>
+    <div class="ctas" style="justify-content:center;margin-top:30px"><a class="fuda" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="nagashino_appstore_click"><svg><use href="#apple"/></svg>長篠の戦いを無料で遊ぶ</a><a data-play data-ev="play_click" class="inban" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザで遊ぶ</a></div>
+  </div>
+</section>
 <!-- 第一章 -->
 <section id="ch1">
   <div class="kochizu"></div>
@@ -536,7 +573,7 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
       <div class="sho">軍記</div>
       <h2 class="h2">同じ戦いは、<span class="g">ひとつもない。</span></h2>
     </div>
-    <div class="gunki-big ar" data-open="nagashino"><div class="bg" data-seq="nagashino" data-dir="seq"><img src="img/seq/nagashino/000.jpg" alt="長篠の戦い" loading="lazy"></div><div class="fog"></div><div class="mon" style="right:-40px;top:-40px;width:260px;height:260px;opacity:.14"><svg><use href="#mon-takeda"/></svg></div><div class="p"><div class="nen">天正三年</div><h3 style="font-family:var(--fude);font-size:clamp(36px,5.6vw,60px);letter-spacing:.1em;color:#fff;text-shadow:0 3px 12px #000">長篠の戦い</h3><div class="vs" style="font-family:var(--go);font-size:13px;letter-spacing:.2em;color:var(--kami);margin-top:6px"><span class="ao" style="color:#9CC4EA">織田・徳川</span>　対　<span class="aka" style="color:#F19A85">武田</span></div><p class="toi" style="font-size:16px;margin-top:10px">馬防柵と鉄砲、武田騎馬軍団。<b>守るか。打って出るか。</b></p></div></div>
+    <div class="gunki-big ar" data-open="nagashino"><div class="bg" data-seq="nagashino_pv" data-dir="seq"><img src="img/seq/nagashino_pv/000.jpg" alt="長篠の戦い" loading="lazy"></div><div class="fog"></div><div class="mon" style="right:-40px;top:-40px;width:260px;height:260px;opacity:.14"><svg><use href="#mon-takeda"/></svg></div><div class="p"><div class="nen">天正三年</div><h3 style="font-family:var(--fude);font-size:clamp(36px,5.6vw,60px);letter-spacing:.1em;color:#fff;text-shadow:0 3px 12px #000">長篠の戦い</h3><div class="vs" style="font-family:var(--go);font-size:13px;letter-spacing:.2em;color:var(--kami);margin-top:6px"><span class="ao" style="color:#9CC4EA">織田・徳川</span>　対　<span class="aka" style="color:#F19A85">武田</span></div><p class="toi" style="font-size:16px;margin-top:10px">馬防柵と鉄砲、武田騎馬軍団。<b>守るか。打って出るか。</b></p></div></div>
     <div class="gunki-two">
       <article class="maki ar" data-open="anegawa"><div class="bg" data-seq="anegawa" data-dir="seq"><img src="img/seq/anegawa/000.jpg" alt="姉川の戦い" loading="lazy"></div><div class="fog"></div><div class="p"><div class="nen">元亀元年</div><h3>姉川の戦い</h3><div class="vs"><span class="ao">織田・徳川</span>　対　<span class="aka">浅井・朝倉</span></div><p class="toi">川を挟んだ大軍同士の野戦。<b>浅瀬を渡るか。別戦線を支えるか。</b></p></div></article>
       <article class="maki ar" data-open="kizu"><div class="bg" data-seq="kizu" data-dir="seq"><img src="img/seq/kizu/000.jpg" alt="木津砦の戦い" loading="lazy"></div><div class="fog"></div><div class="p"><div class="nen">天正四年</div><h3>木津砦の戦い</h3><div class="vs"><span class="ao">織田</span>　対　<span class="aka">本願寺</span></div><p class="toi">川、橋、柵、砦。<b>正面突破か。迂回か。</b></p></div></article>
@@ -631,30 +668,7 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
   </div>
 </section>
 
-<!-- ゲームの環 -->
-<section id="loop">
-  <div class="wrap c ar">
-    <div class="sho" style="display:inline-flex">ゲームの環</div>
-    <h2 class="h2">戦い、広げ、<span class="g">また戦う。</span></h2>
-    <div class="cycle"><div>城を治める</div><div>兵を集める</div><div>外交する</div><div>進軍</div><div class="hot">合戦</div><div>領地を獲得</div><div>さらに天下へ</div></div>
-    <div class="sanpo"><div><b>一</b><h4>部隊を選ぶ</h4><p>押すだけ。複数はなぞる。</p></div><div><b>二</b><h4>進軍先を決める</h4><p>行き先を押す。柵へ、川へ、本陣へ。</p></div><div><b>三</b><h4>あとは軍勢が動く</h4><p>一兵ずつは操らない。<b>簡単操作。判断は奥深い。</b></p></div></div>
-    <div class="who"><div>戦国時代が好き</div><div>歴史シミュレーションが好き</div><div>リアルタイムの戦略ゲームが好き</div><div>信長の野望系が好き</div><div>歴史のIFを楽しみたい</div><div>自分で軍を動かしたい</div></div>
-  </div>
-</section>
 
-<!-- 長篠 軍記 -->
-<section id="nagashino" style="background:var(--cha)">
-  <div class="mon" style="left:50%;top:50%;width:640px;height:640px;transform:translate(-50%,-50%);opacity:.05"><svg><use href="#mon-takeda"/></svg></div>
-  <div class="wrap c ar">
-    <div class="sho" style="display:inline-flex">軍記　天正三年</div>
-    <h2 class="h2">長篠の戦いを、<span class="g">自ら指揮せよ。</span></h2>
-    <p class="kotoba c" style="font-family:var(--fude);font-size:clamp(18px,2.4vw,26px);letter-spacing:.16em"><span class="ln"><span style="color:#9CC4EA">織田・徳川連合軍</span>　VS　<span style="color:#F19A85">武田軍</span></span></p>
-    <p class="kotoba c"><span class="ln">馬防柵。鉄砲。騎馬。</span><span class="ln">史実と同じ戦い方を選ぶか。それとも、あなた自身の策で戦うか。</span></p>
-    <div class="gaku" style="margin-top:30px"><span class="kin-corner tr"></span><span class="kin-corner bl"></span><img src="img/tobi.jpg" alt="夜明け前の鳶ヶ巣山砦" loading="lazy"></div>
-    <p class="soe">夜明け前の鳶ヶ巣山砦――別働隊で武田の後ろを突く。</p>
-    <div class="ctas" style="justify-content:center;margin-top:30px"><a class="fuda" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="nagashino_appstore_click"><svg><use href="#apple"/></svg>長篠の戦いを無料で遊ぶ</a><a data-play data-ev="play_click" class="inban" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザで遊ぶ</a></div>
-  </div>
-</section>
 
 <!-- あなたならどう攻める -->
 <section id="choose">
@@ -692,6 +706,21 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
   </div>
 </section>
 
+<!-- 問答 -->
+<section id="faq" style="background:var(--sumi)">
+  <div class="wrap">
+    <div class="ar c"><div class="sho" style="display:inline-flex">問答</div><h2 class="h2">よくある<span class="g">問い。</span></h2></div>
+    <div class="mondo ar">
+      <details><summary>どんなゲーム？</summary><div class="kotae2">戦国大名となって天下統一を目指す戦略シミュレーション。地図で内政・外交・軍事を進め、合戦はリアルタイムで数万の兵を動かします。</div></details>
+      <details><summary>操作は難しい？</summary><div class="kotae2">兵一人ずつではなく、武将隊・軍団単位で指揮します。部隊を選び、進軍先を決めれば、あとは軍勢が動きます。合戦の初めには軍師が手を示します。</div></details>
+      <details><summary>無料で遊べますか？</summary><div class="kotae2">長篠の戦いは無料。関ヶ原の戦いは ¥500 で解除（iPhone は App 内課金、ブラウザは PayPal）。ほかの筋書きは順次公開します。</div></details>
+      <details><summary>通信のない所でも遊べますか？</summary><div class="kotae2">iPhone 版はゲーム本体が端末の中にあるため、通信がなくても遊べます。ブラウザ版は読み込みに通信が要ります。記録はどちらもその端末の中に残ります。</div></details>
+      <details><summary>戦国時代に詳しくなくても遊べますか？</summary><div class="kotae2">戦況や目的を画面上に示し、合戦の初めには軍師が手を示します。歴史に詳しくなくても楽しめます。</div></details>
+      <details><summary>どんな合戦がありますか？</summary><div class="kotae2">長篠、姉川、山崎、木津砦、関ヶ原、神流川、杭瀬川、白石など、歴史上の戦いを舞台にした六十九の決戦と、筋書きのない野戦・城攻め・海戦。</div></details>
+      <details><summary>どの端末で遊べますか？</summary><div class="kotae2">iPhone（App Store）と、パソコンのブラウザ。iPhone は横向きで遊びます。英語表示にも切り替えられます。</div></details>
+    </div>
+  </div>
+</section>
 <!-- 軍資金募集 -->
 <section id="gunshikin" style="background:var(--cha)">
   <div class="wrap">
@@ -724,21 +753,6 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
   </div>
 </section>
 
-<!-- 問答 -->
-<section id="faq" style="background:var(--sumi)">
-  <div class="wrap">
-    <div class="ar c"><div class="sho" style="display:inline-flex">問答</div><h2 class="h2">よくある<span class="g">問い。</span></h2></div>
-    <div class="mondo ar">
-      <details><summary>どんなゲーム？</summary><div class="kotae2">戦国大名となって天下統一を目指す戦略シミュレーション。地図で内政・外交・軍事を進め、合戦はリアルタイムで数万の兵を動かします。</div></details>
-      <details><summary>操作は難しい？</summary><div class="kotae2">兵一人ずつではなく、武将隊・軍団単位で指揮します。部隊を選び、進軍先を決めれば、あとは軍勢が動きます。合戦の初めには軍師が手を示します。</div></details>
-      <details><summary>無料で遊べますか？</summary><div class="kotae2">長篠の戦いは無料。関ヶ原の戦いは ¥500 で解除（iPhone は App 内課金、ブラウザは PayPal）。ほかの筋書きは順次公開します。</div></details>
-      <details><summary>通信のない所でも遊べますか？</summary><div class="kotae2">iPhone 版はゲーム本体が端末の中にあるため、通信がなくても遊べます。ブラウザ版は読み込みに通信が要ります。記録はどちらもその端末の中に残ります。</div></details>
-      <details><summary>戦国時代に詳しくなくても遊べますか？</summary><div class="kotae2">戦況や目的を画面上に示し、合戦の初めには軍師が手を示します。歴史に詳しくなくても楽しめます。</div></details>
-      <details><summary>どんな合戦がありますか？</summary><div class="kotae2">長篠、姉川、山崎、木津砦、関ヶ原、神流川、杭瀬川、白石など、歴史上の戦いを舞台にした六十九の決戦と、筋書きのない野戦・城攻め・海戦。</div></details>
-      <details><summary>どの端末で遊べますか？</summary><div class="kotae2">iPhone（App Store）と、パソコンのブラウザ。iPhone は横向きで遊びます。英語表示にも切り替えられます。</div></details>
-    </div>
-  </div>
-</section>
 
 <!-- 結 -->
 <section id="musubi">
@@ -759,7 +773,7 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
   <div class="wrap">
     <span class="logo">戦国大名</span>
     <div class="links"><a href="https://apps.apple.com/jp/app/id6811255282" data-app>App Store</a><a data-play data-ev="play_click" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザ版</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/guide/">攻略</a><a href="#gunshikin">軍資金募集</a><a href="#meyasu">目安箱</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/privacy.html">プライバシーポリシー</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/support.html">お問い合わせ</a><a href="#meyasu">目安箱</a></div>
-    <div class="credits">武将の肖像はパブリックドメインの史料（狩野宗秀筆 織田信長像、狩野光信筆 豊臣秀吉像、狩野探幽筆 徳川家康像 ほか）を用いています。画面はすべて開発中のゲーム画面で、製品版とは異なる場合があります。Apple、App Store は Apple Inc. の商標です。</div>
+    <div class="credits">武将の肖像はパブリックドメインの史料（狩野宗秀筆 織田信長像、狩野光信筆 豊臣秀吉像、狩野探幽筆 徳川家康像 ほか）を用いています。画面はすべて開発中のゲーム画面で、製品版とは異なる場合があります。Apple、App Store は Apple Inc. の商標です。<br>開発・運営：JPjoy Inc.</div>
   </div>
 </footer>
 
@@ -802,7 +816,7 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
   document.querySelectorAll('.sanTaku button').forEach(function(b){ b.addEventListener('click',function(){ document.querySelectorAll('.sanTaku button').forEach(function(x){ x.classList.remove('on'); }); b.classList.add('on'); var a=ans[b.dataset.a]; box.innerHTML='<b>'+a.t+'</b>'+a.b+'<span class="shu">ゲームでは、この判断を自分で下す</span>'; }); });
 
   /* 動く絵：連続写真を八枚／秒で入れ替える（見えている間だけ）。決戦ごとに枚数が違う */
-  var SEQ={"anegawa": 24, "anotsu": 24, "arioka": 24, "asainawate": 24, "azuchi": 24, "chausuyama": 24, "daishoji": 24, "fushimi": 24, "gaikaku": 24, "gifu1600": 24, "gifu_nobutaka": 24, "hasedo": 24, "hataya": 24, "hetsugigawa": 24, "hitotoribashi": 24, "honmachibashi": 24, "ichijodani": 24, "ichinomiya": 24, "iga1": 24, "iga2": 24, "imafuku": 24, "ishigakibaru": 24, "iwamura": 24, "kaminoyama": 24, "kanegasaki": 24, "kannagawa": 24, "kashii": 24, "kawanakajima": 24, "kitanosho": 24, "kizu": 24, "komaki_hs": 24, "komaki_tk": 24, "komeno": 24, "konda": 24, "kuisegawa": 24, "kurokoma": 24, "kyushu_nightraid": 24, "mikatagahara": 24, "miki": 24, "mimikawa": 24, "minakuchi": 24, "nagakute": 24, "nagashima": 24, "nagashino": 24, "nagashino_open": 24, "nanao": 24, "nejirozaka": 24, "nodafukushima": 24, "nodafukushima_o": 24, "odani": 24, "okitanawate": 24, "osaka": 24, "otate": 24, "otsu": 24, "saika": 24, "sakamoto": 24, "sanadamaru": 24, "sawayama": 24, "sekigahara": 24, "shigisan": 24, "shikoku_counter": 24, "shiroishi": 24, "shizugatake": 24, "shizugatake_open": 24, "suriagehara": 24, "takamatsu_field": 24, "takatenjin_assault": 24, "takatenjin_break": 24, "takato": 24, "tanabe": 24, "tedorigawa": 24, "temmoku": 24, "tennoji": 24, "tennoji_relief": 24, "tottori_relief": 24, "tottori_siege": 24, "uchidehama": 24, "ueda": 24, "ueda1": 24, "uozu": 24, "uto": 24, "wakamiko": 24, "yakami": 24, "yamazaki": 24, "yamazato": 24, "yanagawa": 24, "yao": 24, "yasui": 24, "dekigoto": 16, "gaiko": 16, "gungi": 14, "gunzei": 16, "jindate": 14, "kaisen1": 14, "kaisen2": 14, "kekka": 14, "map": 16, "map_hoi": 14, "map_honnoji": 14, "map_koshu": 14, "map_nagashino": 14, "map_oke": 14, "map_osaka": 14, "map_sekigahara": 14, "naisei": 16, "scen": 14, "shutsujin": 16, "title": 14, "zaisei": 16}; var CAPS={nagashino:['長篠の戦い','馬防柵と鉄砲、武田騎馬軍団'],anegawa:['姉川の戦い','川を挟んだ大軍同士の野戦'],kizu:['木津砦の戦い','川、橋、柵、砦'],sekigahara:['関ヶ原の戦い','複数軍団が動く大戦'],yamazaki:['山崎の戦い','天王山を巡る高地争奪'],arioka:['有岡城の戦い','城を四方から囲む']};
+  var SEQ={"anegawa": 24, "anotsu": 24, "arioka": 24, "asainawate": 24, "azuchi": 24, "chausuyama": 24, "daishoji": 24, "fushimi": 24, "gaikaku": 24, "gifu1600": 24, "gifu_nobutaka": 24, "hasedo": 24, "hataya": 24, "hetsugigawa": 24, "hitotoribashi": 24, "honmachibashi": 24, "ichijodani": 24, "ichinomiya": 24, "iga1": 24, "iga2": 24, "imafuku": 24, "ishigakibaru": 24, "iwamura": 24, "kaminoyama": 24, "kanegasaki": 24, "kannagawa": 24, "kashii": 24, "kawanakajima": 24, "kitanosho": 24, "kizu": 24, "komaki_hs": 24, "komaki_tk": 24, "komeno": 24, "konda": 24, "kuisegawa": 24, "kurokoma": 24, "kyushu_nightraid": 24, "mikatagahara": 24, "miki": 24, "mimikawa": 24, "minakuchi": 24, "nagakute": 24, "nagashima": 24, "nagashino": 24, "nagashino_open": 24, "nagashino_pv": 26, "nanao": 24, "nejirozaka": 24, "nodafukushima": 24, "nodafukushima_o": 24, "odani": 24, "okitanawate": 24, "osaka": 24, "otate": 24, "otsu": 24, "saika": 24, "sakamoto": 24, "sanadamaru": 24, "sawayama": 24, "sekigahara": 24, "shigisan": 24, "shikoku_counter": 24, "shiroishi": 24, "shizugatake": 24, "shizugatake_open": 24, "suriagehara": 24, "takamatsu_field": 24, "takatenjin_assault": 24, "takatenjin_break": 24, "takato": 24, "tanabe": 24, "tedorigawa": 24, "temmoku": 24, "tennoji": 24, "tennoji_relief": 24, "tottori_relief": 24, "tottori_siege": 24, "uchidehama": 24, "ueda": 24, "ueda1": 24, "uozu": 24, "uto": 24, "wakamiko": 24, "yakami": 24, "yamazaki": 24, "yamazato": 24, "yanagawa": 24, "yao": 24, "yasui": 24, "dekigoto": 16, "gaiko": 16, "gungi": 14, "gunzei": 16, "jindate": 14, "kaisen1": 14, "kaisen2": 14, "kekka": 14, "map": 16, "map_hoi": 14, "map_honnoji": 14, "map_koshu": 14, "map_nagashino": 14, "map_oke": 14, "map_osaka": 14, "map_sekigahara": 14, "naisei": 16, "scen": 14, "shutsujin": 16, "title": 14, "zaisei": 16}; var CAPS={nagashino:['長篠の戦い','馬防柵と鉄砲、武田騎馬軍団'],anegawa:['姉川の戦い','川を挟んだ大軍同士の野戦'],kizu:['木津砦の戦い','川、橋、柵、砦'],sekigahara:['関ヶ原の戦い','複数軍団が動く大戦'],yamazaki:['山崎の戦い','天王山を巡る高地争奪'],arioka:['有岡城の戦い','城を四方から囲む']};
   var players=[];
   function mkPlayer(box, key, dir, im, auto){ var n=SEQ[key]||0; if(!n) return null; var frames=[], loaded=0, i=0, timer=null, started=false;
     function load(){ if(started) return; started=true; for(var k=0;k<n;k++){ (function(k){ var f=new Image(); f.onload=function(){ loaded++; }; f.src='img/'+dir+'/'+key+'/'+String(k).padStart(3,'0')+'.jpg'; frames[k]=f; })(k); } }
@@ -859,6 +873,10 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
   if(oto) oto.addEventListener('click',function(){ on=!on; oto.classList.toggle('on',on); oto.textContent=on?'♪ 音 入':'♪ 音'; if(on) start(); else stop(); });
   document.addEventListener('visibilitychange',function(){ if(document.hidden&&on){ on=false; oto.classList.remove('on'); oto.textContent='♪ 音'; stop(); } });
 })();
+</script>
+<script>
+(()=>{ const st=document.getElementById('stick'); const h=document.querySelector('#hero .ctas'); if(!st||!h||!('IntersectionObserver' in window)){ if(st) st.classList.add('on'); return; }
+  new IntersectionObserver(es=>{ for(const e of es) st.classList.toggle('on', !e.isIntersecting); }).observe(h); })();
 </script>
 </body>
 </html>
