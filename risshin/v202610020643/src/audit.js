@@ -225,8 +225,8 @@ export class Auditor {
         if (z > 2) { this.add('辻褄', 'structZombie:' + nm, '壊れたはずの柵・門が立ったまま（hp 0 以下なのに残っている）', `${nm}：hp ${Math.round(s.hp)}/${s.maxHp}`, 'hp を減らしたら 0 以下で alive=false・見た目を消す（army.damage を通すか、同じ後始末をする）'); this.structZero.set(s, -60); }
       }
     }
-    // 門・柵を破れと言うのに、90秒だれも傷つけていない
-    const wantBreak = live.some((o) => !o.state && /(門|柵|塀).*(破|壊|崩|打)/.test(o.text));
+    // 門・柵を破れと言うのに、90秒だれも傷つけていない（「破らせるな」等の守る任務は誤検知なので外す）
+    const wantBreak = live.some((o) => !o.state && /(門|柵|塀).*(破|壊|崩|打)/.test(o.text) && !/(せるな|すな|れるな)/.test(o.text));
     const foeStructs = structs.filter((s) => s.alive && s.team !== P.team);
     if (wantBreak && foeStructs.length) {
       const lastHit = Math.max(...foeStructs.map((s) => (this.structHp.get(s) || { t: 0 }).t));

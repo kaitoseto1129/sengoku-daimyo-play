@@ -91,8 +91,8 @@ initRtsInput(canvas, () => game.battle, () => camera);
 let resScale = 1;  // 動的解像度（戦の中だけ。main の dynRes が動かす）
 // 滑らかさ優先：直近のコマの時間（ならし）が 33ms を超え続けたら細かさの的を 0.1 ずつ下げ（下限 0.6）、
 // 20ms を切り続けたら 0.1 ずつ戻す。実の細かさは的へ一秒に 0.05 ずつ寄せ、0.02 刻みでだけ描き直しの大きさを変える（ちらつかない）
-let resTarget = 1, resNow = 1, ftAvg = 16, ftHeavy = 0, ftLight = 0;
-function dynResReset() { resTarget = 1; resNow = 1; ftAvg = 16; ftHeavy = 0; ftLight = 0; if (resScale !== 1) { resScale = 1; applyRenderSettings(); } }
+let resTarget = 1, resNow = 1, ftAvg = 16, ftHeavy = 0, ftLight = 0, resCooldown = 0;
+function dynResReset() { resTarget = 1; resNow = 1; ftAvg = 16; ftHeavy = 0; ftLight = 0; resCooldown = 0; if (resScale !== 1) { resScale = 1; applyRenderSettings(); } }
 function dynRes(real) {
   if (!S.autoRes) { if (resScale !== 1) dynResReset(); return; }
   ftAvg += (real * 1000 - ftAvg) * 0.05;
@@ -108,8 +108,12 @@ function dynRes(real) {
   if (ftLight > 3 && resTarget < powerRes) { resTarget = Math.min(powerRes, resTarget + 0.1); ftLight = 0; }
   const step = 0.05 * real;
   resNow = resNow < resTarget ? Math.min(resTarget, resNow + step) : Math.max(resTarget, resNow - step);
+  // renderer.setSize は framebuffer を作り直す重い呼び出し。的へ寄せる途中で 0.02 刻みを跨ぐたびに呼んでいたので
+  // 間（最短0.5秒）を空けてからだけ実の細かさへ反映する（見た目の的は変えない。呼ぶ回数だけ絞る）
+  resCooldown -= real;
+  if (resCooldown > 0) return;
   const q = Math.round(resNow * 50) / 50;
-  if (Math.abs(q - resScale) >= 0.019) { resScale = q; applyRenderSettings(); }
+  if (Math.abs(q - resScale) >= 0.019) { resScale = q; resCooldown = 0.5; applyRenderSettings(); }
 }
 // 描く回数の上限：設定の値と、端末が熱い時の 30（__iosPower）の小さい方
 function fpsCapNow() { return powerCap && (!S.fpsCap || S.fpsCap > powerCap) ? powerCap : S.fpsCap; }

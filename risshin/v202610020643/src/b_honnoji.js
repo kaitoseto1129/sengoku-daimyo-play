@@ -9,7 +9,7 @@
 // 向き：京の町の碁盤の目。南西（-x, +z）に本能寺、北東（+x, -z）に二条御所
 // ======================================================================
 import * as THREE from 'three';
-import { nobori, hut, campfire, kabukimon, tawara, tsuiji, solidSeg } from './props.js';
+import { nobori, hut, campfire, kabukimon, tawara, tsuiji, solidSeg, makeKitBatch, finalizeKitBatch, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
 import { buildTera, teraTick, breakNear, hallAt, TERA, inTera, GATES, CLIMB, PT } from './honno_tera.js';
 import { flagTexture } from './textures.js';
 import { RANKS } from './state.js';
@@ -66,18 +66,21 @@ function height(x, z) {
 }
 
 // 四角の囲い（門の口を一つ空ける）。side：'e'|'w'|'n'|'s'
-function compound(rt, c, gateSide, gw = 7) {
+// batch を渡すと、築地塀の区画ごとの形を材質別に積むだけにして（描画は呼び手の finalizeKitBatch で一括）、
+// 寺・御所二つ分の塀（区画数が多い）の描く回数を減らす
+function compound(rt, c, gateSide, gw = 7, batch = null) {
   const { x, z, h } = c;
   const E = [[x + h, z + h], [x + h, z - h]], Wl = [[x - h, z - h], [x - h, z + h]], N = [[x + h, z - h], [x - h, z - h]], S = [[x - h, z + h], [x + h, z + h]];
   const sides = { e: E, w: Wl, n: N, s: S };
   const out = [];
+  const wo = { team: 0, hp: 1e9, name: '築地塀', segLen: 6, mesh: tsuiji, meshOpt: batch ? { batch } : undefined };
   for (const [k, [[ax, az], [bx, bz]]] of Object.entries(sides)) {
     if (k === gateSide || k === c.back) {
       const mx = (ax + bx) / 2, mz = (az + bz) / 2, L = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / L, uz = (bz - az) / L;
       const g2 = (k === gateSide ? gw : 4) / 2;
-      out.push(...wallLine(rt, [[ax, az], [mx - ux * g2, mz - uz * g2]], { team: 0, hp: 1e9, name: '築地塀', segLen: 6, mesh: tsuiji }));
-      out.push(...wallLine(rt, [[mx + ux * g2, mz + uz * g2], [bx, bz]], { team: 0, hp: 1e9, name: '築地塀', segLen: 6, mesh: tsuiji }));
-    } else out.push(...wallLine(rt, [[ax, az], [bx, bz]], { team: 0, hp: 1e9, name: '築地塀', segLen: 6, mesh: tsuiji }));
+      out.push(...wallLine(rt, [[ax, az], [mx - ux * g2, mz - uz * g2]], wo));
+      out.push(...wallLine(rt, [[mx + ux * g2, mz + uz * g2], [bx, bz]], wo));
+    } else out.push(...wallLine(rt, [[ax, az], [bx, bz]], wo));
   }
   for (const s of out) { s.noTarget = true; s.wall = true; s.h = 2.6; }
   return out;
@@ -265,12 +268,14 @@ const honnoji = {
     F.bossName = '森蘭丸';   // 寺の中の上役（褒め・叱りの声）。二条御所では信忠
     // ---- 京の町並み：通りに面して町屋を並べる（境内と二条御所の中は空ける） ----
     const inCompound = (x, z) => inTera(x, z, 6) || (Math.abs(x - NIJO.x) < NIJO.h + 8 && Math.abs(z - NIJO.z) < NIJO.h + 8);
+    // 町屋が何十も並ぶ所なので、材質ごとの BatchedMesh にまとめて描く回数を減らす
+    const hutBatch = makeSimpleBatch();
     let k = 0;
     for (const sx of [-54, 0, 54]) for (const sz of [-54, 0, 54]) {
       for (const [dx, dz, r] of [[-14, -20, 0], [0, -20, 0], [14, -20, 0], [-14, 20, Math.PI], [0, 20, Math.PI], [14, 20, Math.PI], [-20, -6, Math.PI / 2], [-20, 8, Math.PI / 2], [20, -6, -Math.PI / 2], [20, 8, -Math.PI / 2]]) {
         const x = sx + dx, z = sz + dz;
         if (inCompound(x, z)) continue;
-        rt.scene.add(hut(W, x, z, 7 + (k % 3), 5, r + Math.PI, { wall: k % 2 ? 0x6e5a40 : 0x7b6448, h: 2.4 }));
+        hut(W, x, z, 7 + (k % 3), 5, r + Math.PI, { wall: k % 2 ? 0x6e5a40 : 0x7b6448, h: 2.4, batch: hutBatch });
         k++;
       }
     }
@@ -281,9 +286,14 @@ const honnoji = {
     F.gSide = smallGate(rt, GATES.side, 900);
     F.gKatte = smallGate(rt, GATES.katte, 700);
     NIJO.back = 'n';
-    F.nwall = compound(rt, NIJO, 'w');
+    // 二条御所の塀も材質ごとの BatchedMesh にまとめ、描く回数を減らす
+    const wallBatch = makeKitBatch();
+    F.nwall = compound(rt, NIJO, 'w', 7, wallBatch);
+    finalizeKitBatch(rt, wallBatch);
     rt.scene.add(kabukimon(W, NIJO_GATE.x, NIJO_GATE.z, 7.4, Math.PI / 2));
-    rt.scene.add(hut(W, NIJO.x + 2, NIJO.z - 2, 16, 11, 0, { h: 3.6, wall: 0x7a6a50, roof: 0x3a3430 }), hut(W, NIJO.x - 6, NIJO.z + 10, 8, 5, 0));
+    hut(W, NIJO.x + 2, NIJO.z - 2, 16, 11, 0, { h: 3.6, wall: 0x7a6a50, roof: 0x3a3430, batch: hutBatch });
+    hut(W, NIJO.x - 6, NIJO.z + 10, 8, 5, 0, { batch: hutBatch });
+    finalizeSimpleBatch(rt, hutBatch);
     for (const [x, z] of [[NIJO.x - 10, NIJO.z - 6], [NIJO.x - 10, NIJO.z + 6], [NIJO.x + 10, NIJO.z + 10]]) rt.scene.add(nobori(W, x, z, 'oda', 6));
     rt.scene.add(nobori(W, -44, 56, 'oda', 5), nobori(W, -47.5, 88, 'eiraku', 4.5));
     // ---- 外周を封じる明智の大軍（軽い作り）。築地の外の通りを埋める ----
@@ -815,20 +825,24 @@ Object.assign(honnoji, {
     F.lstep = 0; F.ek = 0; F.ak = 0;
     // ---- 京の町並み（足軽の流れと同じ） ----
     const inCompound = (x, z) => [HONNO, NIJO].some((c) => Math.abs(x - c.x) < c.h + 5 && Math.abs(z - c.z) < c.h + 5);
+    // 町屋が何十も並ぶ所なので、材質ごとの BatchedMesh にまとめて描く回数を減らす
+    const hutBatch = makeSimpleBatch();
     let k = 0;
     for (const sx of [-54, 0, 54]) for (const sz of [-54, 0, 54]) {
       for (const [dx, dz, r] of [[-14, -20, 0], [0, -20, 0], [14, -20, 0], [-14, 20, Math.PI], [0, 20, Math.PI], [14, 20, Math.PI], [-20, -6, Math.PI / 2], [-20, 8, Math.PI / 2], [20, -6, -Math.PI / 2], [20, 8, -Math.PI / 2]]) {
         const x = sx + dx, z = sz + dz;
         if (inCompound(x, z)) continue;
-        rt.scene.add(hut(W, x, z, 7 + (k % 3), 5, r + Math.PI, { wall: k % 2 ? 0x6e5a40 : 0x7b6448, h: 2.4 }));
+        hut(W, x, z, 7 + (k % 3), 5, r + Math.PI, { wall: k % 2 ? 0x6e5a40 : 0x7b6448, h: 2.4, batch: hutBatch });
         k++;
       }
     }
     // 蛸薬師通りの路地：井戸と木戸を少し（門前の密な町割り）
     rt.scene.add(well(W, -22, 44), well(W, -8, 62), kido(W, -27, 54, Math.PI / 2));
     // ---- 本能寺：東に表門、北に裏門（どちらも破られる門）。二条御所は描くだけ ----
-    F.walls = compound(rt, { ...HONNO, back: 'n' }, 'e');
-    compound(rt, NIJO, 'w');
+    const wallBatch = makeKitBatch();
+    F.walls = compound(rt, { ...HONNO, back: 'n' }, 'e', 7, wallBatch);
+    compound(rt, NIJO, 'w', 7, wallBatch);
+    finalizeKitBatch(rt, wallBatch);
     rt.scene.add(kabukimon(W, HONNO_GATE.x, HONNO_GATE.z, 7.4, Math.PI / 2), kabukimon(W, NIJO_GATE.x, NIJO_GATE.z, 7.4, Math.PI / 2));
     F.gE = rt.army.addStruct({ seg: [HONNO_GATE.x, HONNO_GATE.z - 3.5, HONNO_GATE.x, HONNO_GATE.z + 3.5], hp: 2600, maxHp: 2600, armor: 0.5, team: 0, name: '表門' });
     F.gE.mesh = gateDoors(W, HONNO_GATE.x, HONNO_GATE.z, 7, 0); rt.scene.add(F.gE.mesh);
@@ -836,7 +850,8 @@ Object.assign(honnoji, {
     F.gN.mesh = gateDoors(W, GATE_N.x, GATE_N.z, 4, Math.PI / 2); rt.scene.add(F.gN.mesh);
     F.sWall = F.walls.filter((s) => Math.abs((s.seg[1] + s.seg[3]) / 2 - S_BREAK.z) < 0.5 && Math.abs((s.seg[0] + s.seg[2]) / 2 - S_BREAK.x) < 7);
     buildHonno(rt);   // 本堂・祖師堂系・客殿・庫裏・宿坊・倉（Garan。御殿に火を放つと、建物ごとに少しずつ燃え移る）
-    rt.scene.add(hut(W, NIJO.x + 2, NIJO.z - 2, 16, 11, 0, { h: 3.6, wall: 0x7a6a50, roof: 0x3a3430 }));
+    hut(W, NIJO.x + 2, NIJO.z - 2, 16, 11, 0, { h: 3.6, wall: 0x7a6a50, roof: 0x3a3430, batch: hutBatch });
+    finalizeSimpleBatch(rt, hutBatch);
     // 裏の松（西の築地を越える枝）
     rt.scene.add(nobori(W, HONNO.x - 4, HONNO.z - 4, 'oda', 5), nobori(W, HONNO.x + 8, HONNO.z + 4, 'eiraku', 5));
     // ---- 遠景の明智の大軍（四方）と篝・旗。落ち口の斜めの隅は空けておく ----
@@ -860,18 +875,24 @@ Object.assign(honnoji, {
     // 囲みの鉄砲は、寄せる波の鉄砲と同じく半分の重さ（長くなった戦で、落ちのびる所まで行けるよう）
     const ring = (name, x, z, facing, n, w = 14) => { const g = enemyGroup(rt, { faction: 'saito', name, anchor: { x, z }, facing, width: w, aggro: 18, morale: 100, noRout: true, fleeDir: { x: 0, z: 0 }, dmgMult: 0.8 },
       dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: n - 4 }, { type: 'gun', n: 2 }], AKECHI)); for (const u of g.units) if (u.type === 'gun') u.dmg *= 0.5; return g; };
-    F.ringN = ring('北の囲み', HONNO.x, HONNO.z - HONNO.h - 9, 0, 20);
-    F.ringW = ring('西の囲み', HONNO.x - HONNO.h - 11, HONNO.z + 4, Math.PI / 2, 20);
-    F.ringS = ring('南の囲み', HONNO.x, HONNO.z + HONNO.h + 11, Math.PI, 20);
-    ring('北の囲みの残り', HONNO.x + 8, HONNO.z - HONNO.h - 16, 0, 7, 6);
-    ring('西の囲みの残り', HONNO.x - HONNO.h - 18, HONNO.z + 14, Math.PI / 2, 7, 6);
-    F.ringS2 = ring('南の囲みの残り', HONNO.x - 12, HONNO.z + HONNO.h + 20, Math.PI, 7, 6);
+    // 844×390・画質「低」で1コマ100ms超（kaito 10/2 botrun 実測）だったので、周りを囲む本物の兵の数を少し減らした
+    // （遠景は addDistantArmy のままで、大軍に見える量感は保つ）
+    F.ringN = ring('北の囲み', HONNO.x, HONNO.z - HONNO.h - 9, 0, 14);
+    F.ringW = ring('西の囲み', HONNO.x - HONNO.h - 11, HONNO.z + 4, Math.PI / 2, 14);
+    F.ringS = ring('南の囲み', HONNO.x, HONNO.z + HONNO.h + 11, Math.PI, 14);
+    ring('北の囲みの残り', HONNO.x + 8, HONNO.z - HONNO.h - 16, 0, 5, 6);
+    ring('西の囲みの残り', HONNO.x - HONNO.h - 18, HONNO.z + 14, Math.PI / 2, 5, 6);
+    F.ringS2 = ring('南の囲みの残り', HONNO.x - 12, HONNO.z + HONNO.h + 20, Math.PI, 5, 6);
     // 町の辻（四つの隅）を固める明智勢：囲みを抜けても、ここを破らねば町へ出られない
     F.corner = {};
-    for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) F.corner[(sz > 0 ? 's' : 'n') + (sx > 0 ? 'e' : 'w')] = ring('辻を固める明智勢', HONNO.x + sx * 42, HONNO.z + sz * 42, Math.atan2(-sx, -sz), 10, 8);
+    for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) F.corner[(sz > 0 ? 's' : 'n') + (sx > 0 ? 'e' : 'w')] = ring('辻を固める明智勢', HONNO.x + sx * 42, HONNO.z + sz * 42, Math.atan2(-sx, -sz), 6, 8);
     rt.army.maxAttackers = rt.army.maxAttackers + 1;   // 大勢に囲まれる戦：同時に打ちかかる敵を一人多く
     F.foes = [];
     applyLook(rt, DAWN);
+    // 寝入っていたところを急襲された信長：具足を着ける間が無い。小袖（肌着）のまま、兜も羽織も無しで戦い出す
+    // （applyLord が戦の始めに具足一式を着せるので、その後の最初のコマで剥ぐ。rishi の段で簡単な羽織だけ足す）
+    // 写真で見返すと、肌着のはずの信長がいつもの旗指物を背負ったままだった（直す：寝入りを襲われた体では指物を立てる間が無い）
+    rt.after(0, () => { const u = rt.player.u; u.look = { ...u.look, armor: 0xcfc4a8, lace: 0x8a7a5a, hat: 'none', haori: 0, menpo: 0, horo: 0, sode: false, trim: 0, real: 0, flag: null, pole: false }; });
     rt.setPhase('brief');
     rt.obj('main', '何事か、確かめよ', 'main');
     rt.say('', '天正十年六月二日　夜明け前　京 本能寺', 3.5);
@@ -895,14 +916,15 @@ Object.assign(honnoji, {
     rt.marker('gE', { x: HONNO_GATE.x, z: HONNO_GATE.z }, () => `表門・${Math.max(0, Math.round(F.gE.hp / F.gE.maxHp * 100))}%`, { h: 3 });
     rt.say('森蘭丸', '供の者は、表門の内に弓を並べよ！　槍は門の脇じゃ！', 3.5);
     // 判断①：表門の防ぎ方
-    F.gateHold = 100; F.gateMax = 170;
+    // 一戦が長くなりすぎる（kaito 10/2・botrun で確かめ 601秒・目標6〜9分=360〜540秒）のを直すため、各段の上限を少し詰めた
+    F.gateHold = 90; F.gateMax = 150;
     rt.after(4, () => rt.choose('表門をどう防ぐ？', [
       { label: '門の内に弓を並べ、寄せる者を射る', note: '門は長く持つ。ただ、寄せは幾度も来る' },
       { label: '門を開いて打って出て、先手を突き崩す', note: '先手は崩れ、門の前が空く。ただ、外は明智の大軍の前' },
     ], (i) => {
       F.sally = i === 1;
-      if (!F.sally) { F.gateHold = 140; rt.say('織田信長', '弓を持て。門に寄る者から射よ。……門は、そう容易くは破れぬ', 3.5); return; }
-      F.gateHold = 90; F.gateMax = 150;
+      if (!F.sally) { F.gateHold = 120; rt.say('織田信長', '弓を持て。門に寄る者から射よ。……門は、そう容易くは破れぬ', 3.5); return; }
+      F.gateHold = 80; F.gateMax = 130;
       rt.say('織田信長', '門を開け。……先手を突き崩して、すぐ戻る。続け！', 3);
       rt.obj('sally', '門の外の明智の先手を崩し、門の内へ戻れ', 'side');
       F.sallyT = rt.t;
@@ -1021,6 +1043,9 @@ Object.assign(honnoji, {
       dress([{ type: 'samurai', n: 5 }], ODA));
     mw.defMult = 1.3;
     rt.say('馬廻', '上様！　町の宿所より、馬廻の者、駆けつけましてござる！', 3);
+    // 馬廻も駆けつけ、共に御殿の縁で防ぐ構え。小袖のままだった信長も、蘭丸が投げ渡した羽織だけ纏う（具足を着ける間は無い）
+    rt.say('森蘭丸', '殿、これなりとお召しくだされ！', 2.5);
+    { const u = rt.player.u; if (u.alive) u.look = { ...u.look, haori: 0x7a1d14, haoriMonCol: 0xc9a24a, mon: 'oda' }; }
     const g = this.lordWave(rt, '斎藤利三の手', { x: HONNO.x + 12, z: HONNO.z - 13 }, null,
       [{ type: 'busho', n: 1, o: { name: '斎藤利三' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 7 }], { dmgMult: 0.5 });
     if (g) {
@@ -1274,7 +1299,7 @@ Object.assign(honnoji, {
       if (!F.gE.alive || t > F.gateMax) this.lordGateDown(rt, F.gE);
     }
     if (F.lstep === 1.5 && F.court) {
-      const left = Math.max(0, 55 - (rt.t - F.court));
+      const left = Math.max(0, 45 - (rt.t - F.court));
       rt.objProgress('main', `押し返す あと${Math.ceil(left)}秒`);
       if (left <= 0) this.lordBack(rt);
     }
@@ -1286,18 +1311,18 @@ Object.assign(honnoji, {
       if (d < 6 || rt.t - F.stepT > 35) this.lordRishi(rt);
     }
     if (F.lstep === 2.5) {
-      const left = Math.max(0, 125 - (rt.t - F.stepT));
+      const left = Math.max(0, 90 - (rt.t - F.stepT));
       rt.objProgress('main', `火を放つ支度まで ${Math.ceil(left)}秒`);
       if (F.rishiU && !F.rishiU.alive && !F.rishiDead) {
         F.rishiDead = true;
         rt.say('森蘭丸', '内蔵助、討ち取ったり！　明智の先手の足が止まりましたぞ！', 3);
         for (const g of F.foes) if (!gone(g)) g.morale = Math.min(g.morale, 50);
       }
-      if (left <= 0 || (F.rishiDead && rt.t - F.stepT > 95)) this.lordFireStep(rt);
+      if (left <= 0 || (F.rishiDead && rt.t - F.stepT > 65)) this.lordFireStep(rt);
     }
     if (F.lstep === 3 && rt.t - F.stepT > 28) { rt.say('小姓', '火は我らが！　……殿、お早く！', 3); this.lordBurn(rt); }
     if (F.lstep === 3.5) {
-      const left = Math.max(0, 150 - (rt.t - F.stepT));
+      const left = Math.max(0, 110 - (rt.t - F.stepT));
       if (F.hideT) {
         const h = Math.max(0, 70 - (rt.t - F.hideT));
         rt.objProgress('main', `身を潜める あと${Math.ceil(h)}秒`);
@@ -1317,7 +1342,7 @@ Object.assign(honnoji, {
       if (g && F.lstep >= 4) g.focus = u;   // 火を放った後の新手は、信長の首を探す
     }
     if (F.lstep === 4) {
-      const left = Math.max(0, 170 - (rt.t - F.escT));
+      const left = Math.max(0, 130 - (rt.t - F.escT));
       const inside = inHonno(p.x, p.z, 0.5);
       const far = Math.hypot(p.x - HONNO.x, p.z - HONNO.z);
       if (!F.dest) rt.objProgress('main', inside ? `炎が御殿を包むまで ${Math.round(left)}秒` : `本能寺から ${Math.round(far)}m`);

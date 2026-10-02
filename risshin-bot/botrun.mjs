@@ -1,6 +1,6 @@
 // 自動テストプレイ：裏の Chrome で bot（index.html?bot）を何回か走らせ、日本語の報告書にまとめる
 // 使い方: node prototype/tools/botrun.mjs [回数=3] [--only=nagashinojo,castle]
-//   --only：遊ぶ戦を鍵で絞る（okehazama moribe sunomata nagashinojo tobinosu shitaragahara suwahara anegawa sekigahara sanadamaru castle dojo town kinome）。絞ったときの報告は bot-日時-only.md
+//   --only：遊ぶ戦を鍵で絞る（okehazama moribe sunomata nagashinojo tobinosu shitaragahara suwahara anegawa sekigahara sanadamaru castle dojo town kinome mikatagahara）。絞ったときの報告は bot-日時-only.md
 //   kinome（攻城 MVP・木ノ芽峠の砦）は「信長で遊ぶ」側の戦なので --only=kinome と一緒に --q=mode=lord も渡す
 //   --render：3D も描く（ふだんは描かない＝速い。描画の不具合も見たい時だけ付ける）。--norender：明に描かないと指定する（既定と同じ。--render と両方あれば描かない方を勝たせる）
 //   --speed=N：描かない時、1コマに戦の計算を N 回回して早送りする（既定 1・最大 8。当たり判定の刻みは細かいままで、回す回数だけ増える）

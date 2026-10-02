@@ -35,6 +35,8 @@ const SOUND_BUNCH = { gun: [2, 'volley'], string: [3, 'volleyBow'], arrow: [3, n
 export const WOUND_FLOOR = 0.35;
 // 倒れる動き（animDeath）の長さ。これより後の倒れた体は、最後の姿勢のまま止める
 export const DEATH_END = 2.2;
+// 本物の兵（CPU で動かす者）の上限。姉川のように大軍がぶつかる戦でも、重さが兵の数に引きずられないように
+const REALCAP = { low: 120, mid: 180 };
 const _dUp = new THREE.Vector3(), _dN = new THREE.Vector3(), _dQ = new THREE.Quaternion(), _dI = new THREE.Quaternion();
 
 // 着物の色のずれ：k=0 そのまま、1 少し暗く柿渋（赤茶）寄り、2 少し明るく褪せる（灰に寄る）
@@ -301,16 +303,16 @@ export class Army {
     return false;
   }
 
-  // allyMounted：true の時は、味方の騎馬（乗り手でなく馬だけ）も的に含める（自分の馬・味方の馬も討てるように。kaito 10/1）
+  // allyMounted：的を絞った（lockRef と同じ）味方の騎馬（乗り手でなく馬だけ）だけ的に含める（自分の馬・味方の馬も討てるように。kaito 10/1。狙ってもいない味方へ毎振りで当たっていたのを直す）
   // fenceClear：柵越しに届く間合い（馬上の突きは馬の図体の分だけ呼ぶ側が広げる。既定 2.2m）
-  enemiesInArc(pos, heading, reach, halfAngle, team, over = false, allyMounted = false, fenceClear = 2.2) {
+  enemiesInArc(pos, heading, reach, halfAngle, team, over = false, allyMounted = false, fenceClear = 2.2, lockRef = null) {
     const out = [];
     const fx = Math.sin(heading), fz = Math.cos(heading);
     this.forNear(pos.x, pos.z, reach + 1, (o) => {
       // 討たれない武将も、手傷を負って退くまでは突ける（damage で下限に止める）
       const sameSide = o.team === team;
-      // 討たれない武将（殿など invuln）は、味方の馬の的からは外す（うっかり主君を落馬させない）
-      if ((sameSide && !(allyMounted && o.mounted && o.horse && !o.isPlayer && !o.invuln)) || !o.alive || (o.invuln && o.woundOut)) return;
+      // 討たれない武将（殿など invuln）は、味方の馬の的からは外す（うっかり主君を落馬させない）。狙ってもいない味方へは当たらない（lockRef と同じ時だけ）
+      if ((sameSide && !(allyMounted && o === lockRef && o.mounted && o.horse && !o.isPlayer && !o.invuln)) || !o.alive || (o.invuln && o.woundOut)) return;
       const dx = o.pos.x - pos.x, dz = o.pos.z - pos.z;
       const d = Math.hypot(dx, dz);
       // 的には体の太さ（半径 0.3m ほど、馬上は 0.6m）がある：穂先が体の端にかかれば当たる
@@ -449,6 +451,24 @@ export class Army {
     this.lodT -= dt;
     const doLod = this.lodT <= 0;
     if (doLod) this.lodT = 0.4;
+    // 本物の兵（AI・当たり・動きを毎コマ計算する者）の上限：画質「低」は約120・「中」は約180（戦の数に関わらず）。
+    // 近い者（camD が小さい）から本物にし、あふれた分は u.farSim を立てて、遠い軽い軍勢と同じ GPU 任せの扱いへ回す
+    // （名のある者・プレイヤーを狙っている者・打ち合っている最中の者は、絞りの対象から外して戦いを止めない）
+    if (doLod) {
+      const cap = REALCAP[S.quality];
+      if (cap) {
+        const cand = [];
+        for (const u of this.units) {
+          if (!u.alive || u.isPlayer || u.isSub || u.type === 'dummy' || u.name) { u.farSim = false; continue; }
+          if (u.atk || (u.target && u.target.isPlayer)) { u.farSim = false; continue; }
+          cand.push(u);
+        }
+        cand.sort((a, b) => (a.camD || 0) - (b.camD || 0));
+        for (let i = 0; i < cand.length; i++) cand[i].farSim = i >= cap;
+      } else {
+        for (const u of this.units) u.farSim = false;
+      }
+    }
     for (const u of this.units) {
       // 倒れ切って固まった体・逃げ去った者は、もう何も計算しない（数が増えても重くならない）
       if (!u.alive && (u.gone || (u.death && !u.mounted && u.death.t >= DEATH_END) || (u.mounted && u.deadT >= 4))) continue;
@@ -516,7 +536,7 @@ export class Army {
           if (wfade !== !!u.wpnFaded) { u.wpnFaded = wfade; u.wpn.material = wfade ? fadedWeapon(u.wpnMat) : u.wpnMat; }
         }
       }
-      if (!u.alive || u.isPlayer || u.type === 'dummy') { this.animate(u, dt, near); continue; }
+      if (!u.alive || u.isPlayer || u.type === 'dummy' || u.farSim) { this.animate(u, dt, near); continue; }
       if (u.confused > 0) u.confused -= dt;
       u.cd -= dt;
       // 込め直しは足を止めてでないとできない（歩いている間は進まない）
@@ -576,7 +596,7 @@ export class Army {
     for (const u of this.units) {
       const k = IMP_KIND[u.type];
       const far = IMP.on && u.alive && !u.isPlayer && !u.isSub && !u.mounted && k !== undefined && !u.name && !(u.fall > 0) && u.look && !(u.human && u.human.root && u.human.root.visible)
-        && u.camD > (u.imp ? impFar - Math.min(6, impFar * 0.25) : impFar);
+        && (u.farSim || u.camD > (u.imp ? impFar - Math.min(6, impFar * 0.25) : impFar));
       if (!far) { if (u.imp) { u.imp = false; if (u.mesh && !u.gone) u.mesh.visible = true; } continue; }
       u.imp = true;
       u.mesh.visible = false;

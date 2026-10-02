@@ -1679,6 +1679,9 @@ export class Hud {
 
   // 方角の帯（北東南西・任務・敵勢・自分の組）
   updateCompass(rt) {
+    // 方位磁針は見た目が変わらない細かさで十分（毎コマでなく 20 回/秒ほどに絞る。重い戦ほど助かる）
+    if (rt.t - (this._compassT || -1) < 0.05) return;
+    this._compassT = rt.t;
     const el = $('compass');
     const p = rt.player;
     const W = el.clientWidth || 480;

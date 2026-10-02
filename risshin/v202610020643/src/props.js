@@ -7,10 +7,11 @@ import { FLAG_T } from './units.js';
 import { addDeck, addLadder, FL } from './floors.js';
 import { S as SETTINGS } from './settings.js';
 
-// 柵・屋根・土塁など数の多い物の材質：画質「低」「中」は陰影の計算が軽い Lambert にする
+// 柵・屋根・土塁など数の多い物の材質：画質「低」「中」は陰影の計算が重い Standard/Physical をやめて
+// 軽い Lambert にする（見た目はほぼ同じ、GPU だけ軽くなる）。Lambert に無い項目は外す
 function liteMat(opts) {
   if (SETTINGS.quality === 'high') return new THREE.MeshStandardMaterial(opts);
-  const { roughness, metalness, envMapIntensity, clearcoat, clearcoatRoughness, ...rest } = opts;
+  const { roughness, metalness, envMapIntensity, clearcoat, clearcoatRoughness, normalMap, normalScale, ...rest } = opts;
   return new THREE.MeshLambertMaterial(rest);
 }
 
@@ -35,10 +36,13 @@ export function solidSeg(ax, az, bx, bz, r = 0.12) { const o = aabb({ k: 's', ax
 // 柵・陣幕・幟・小屋などの小道具
 // 木肌の絵に色を掛ける（丸太ごとに少しずつ色を変える）
 // 木目・干割れ・藁の束・樹皮の割れ目は、同じ絵を凹凸（bumpMap）にも使って、光の当たり方で浮き出させる
-const MAT = liteMat({ vertexColors: true, map: woodTex(), bumpMap: woodTex(), bumpScale: 1.2, roughness: 0.88, metalness: 0 });
-const ITA_MAT = liteMat({ map: woodTex(), bumpMap: woodTex(), bumpScale: 1.2, color: 0x8a8274, roughness: 0.92, metalness: 0, side: THREE.DoubleSide });   // 灰茶に褪せた板葺き
-const THATCH = liteMat({ map: thatchTex(), bumpMap: thatchTex(), bumpScale: 1.5, roughness: 0.97, metalness: 0, side: THREE.DoubleSide });
-const BARK = liteMat({ vertexColors: true, map: barkTex('pine'), bumpMap: barkTex('pine'), bumpScale: 1.5, roughness: 0.95, metalness: 0 });
+// 画質「低」を携帯が決めるのは main.js の読み込みの途中（touch.js）なので、ここで即 new すると
+// 早すぎて質が決まる前に Standard で固まってしまう。実に使う時（戦が始まる時）まで待つ（lazy）
+const lazy = (f) => { let v; return () => v || (v = f()); };
+const MAT = lazy(() => liteMat({ vertexColors: true, map: woodTex(), bumpMap: woodTex(), bumpScale: 1.2, roughness: 0.88, metalness: 0 }));
+const ITA_MAT = lazy(() => liteMat({ map: woodTex(), bumpMap: woodTex(), bumpScale: 1.2, color: 0x8a8274, roughness: 0.92, metalness: 0, side: THREE.DoubleSide }));   // 灰茶に褪せた板葺き
+const THATCH = lazy(() => liteMat({ map: thatchTex(), bumpMap: thatchTex(), bumpScale: 1.5, roughness: 0.97, metalness: 0, side: THREE.DoubleSide }));
+const BARK = lazy(() => liteMat({ vertexColors: true, map: barkTex('pine'), bumpMap: barkTex('pine'), bumpScale: 1.5, roughness: 0.95, metalness: 0 }));
 const vary = (hex, k) => { const c = new THREE.Color(hex); const f = 0.82 + (((k * 7919) % 37) / 37) * 0.36; return c.multiplyScalar(f).getHex(); };
 
 function paint(geo, hex) {
@@ -70,7 +74,7 @@ function paintWorn(geo, hex, y0, h) {
   return g;
 }
 
-function merged(parts, mat = MAT, batch = null) {
+function merged(parts, mat = MAT(), batch = null) {
   const g = mergeGeometries(parts);
   // 城の塀のまとめ（castle_plan の別の形の batch）が渡ってきた時は、ここではまとめず一つの形で返す
   if (batch && batch.byMat) return pushSimpleBatch(batch, g, mat);
@@ -191,7 +195,7 @@ export function palisade(world, seg, o = {}) {
     parts.push(paintWorn(logGeo([fx, world.heightAt(fx, fz) - 0.1, fz], [x + px * 0.18, y + H * 0.62, z + pz * 0.18], 0.07, 0.055, 5), vary(0x625848, Math.round(t * 7)), y, H));
   }
   if (o.mound !== false) moundGeo(parts, world, ax, az, bx, bz, 0.6, 0.3);
-  return merged(parts, MAT, o.batch);
+  return merged(parts, MAT(), o.batch);
 }
 
 // 破られた柵の残骸：根元で折れて裂けた丸太（焦げの黒）、倒れた丸太と横木、散った土
@@ -305,7 +309,7 @@ export function jinmaku(world, cx, cz, w, d, gapSouth = 6, o = {}) {
 const noboriMats = new Map();
 function noboriMaterial(kind) {
   if (noboriMats.has(kind)) return noboriMats.get(kind);
-  const m = new THREE.MeshStandardMaterial({ map: flagTexture(kind), side: THREE.DoubleSide, roughness: 0.95, alphaTest: 0.5 });
+  const m = liteMat({ map: flagTexture(kind), side: THREE.DoubleSide, roughness: 0.95, alphaTest: 0.5 });
   m.onBeforeCompile = (sh) => {
     sh.uniforms.uFlagT = FLAG_T;
     sh.uniforms.uGust = GUST;
@@ -407,13 +411,23 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
     }
     void th; void slope;
   }
-  const m = merged(parts);
-  const roof = new THREE.Mesh(mergeGeometries(roofParts.map((g) => g.index ? g.toNonIndexed() : g)), o.ita ? ITA_MAT : THATCH);
-  roof.userData.camBlock = true;
-  roof.geometry.computeVertexNormals();
-  roof.castShadow = true; roof.receiveShadow = true;
   // 棟木
   const ridge = new THREE.CylinderGeometry(0.1, 0.1, d + eave * 2 + 0.2, 6); ridge.rotateX(Math.PI / 2); ridge.translate(0, H + rh + 0.12, 0);
+  const roofGeo = mergeGeometries(roofParts.map((g) => g.index ? g.toNonIndexed() : g));
+  roofGeo.computeVertexNormals();
+  const roofMat = o.ita ? ITA_MAT() : THATCH();
+  if (o.batch) {
+    // 町屋・小屋が何十も並ぶ所（本能寺の京の町並み等）は、材質ごとの BatchedMesh にまとめて
+    // 描く回数を減らす（makeSimpleBatch／finalizeSimpleBatch。壁柱材質＋棟木は MAT、屋根は別材質）
+    const bake = (g) => { if (rot) g.rotateY(rot); g.translate(x, y, z); return g; };
+    merged([bake(paint(ridge, 0x3a2c1c)), ...parts.map(bake)], MAT(), o.batch);
+    pushSimpleBatch(o.batch, bake(roofGeo), roofMat);
+    return null;
+  }
+  const m = merged(parts);
+  const roof = new THREE.Mesh(roofGeo, roofMat);
+  roof.userData.camBlock = true;
+  roof.castShadow = true; roof.receiveShadow = true;
   const grp = new THREE.Group();
   grp.add(m, roof, merged([paint(ridge, 0x3a2c1c)]));
   grp.position.set(x, y, z);
@@ -680,7 +694,7 @@ const _leafCache = new Map();
 export function tobiraLeaf(lw, h = 3.1, hinge = 1) {
   const key = `${lw.toFixed(2)}:${h}:${hinge}`;
   if (!_leafCache.has(key)) { const parts = []; leafParts(parts, lw, h, hinge); _leafCache.set(key, mergeGeometries(parts)); }
-  const m = new THREE.Mesh(_leafCache.get(key), MAT);
+  const m = new THREE.Mesh(_leafCache.get(key), MAT());
   m.castShadow = true; m.receiveShadow = true;
   return m;
 }
@@ -696,7 +710,7 @@ export function tobira(world, x, z, w, rot = 0, o = {}) {
     pv.add(m); grp.add(pv); grp.userData.leaves.push(pv);
   }
   // 閂（内の面に横一本。開くと外す）
-  const k = new THREE.Mesh(new THREE.BoxGeometry(w * 0.9, 0.22, 0.2), MAT); k.position.set(0, h * 0.5, -0.2); grp.add(k);
+  const k = new THREE.Mesh(new THREE.BoxGeometry(w * 0.9, 0.22, 0.2), MAT()); k.position.set(0, h * 0.5, -0.2); grp.add(k);
   grp.userData.open = () => { k.visible = false; grp.userData.leaves.forEach((pv, i) => { pv.rotation.y = (i ? -1 : 1) * 1.25; }); };
   grp.userData.fall = () => { grp.visible = true; k.visible = false; grp.userData.leaves.forEach((pv, i) => { pv.rotation.set(-1.45, (i ? 1 : -1) * 0.12, 0); pv.position.y = 0.08; pv.position.z = -0.1; }); };
   grp.position.set(x, world.heightAt(x, z) - 0.05, z);
@@ -784,8 +798,8 @@ export function bobosaku(world, seg, o = {}) {
   // batch がある時：馬防柵と根元の土を、二つの材質それぞれ一つの BatchedMesh へ積む
   // （同じ BatchedPart に両方の実体を結ぶので、壊れた時の傾き・非表示は一緒に動く）
   if (o.batch) {
-    const part = pushSimpleBatch(o.batch, mergeGeometries(parts), MAT);
-    if (!o.noMound) pushSimpleBatch(o.batch, fenceMoundGeo(world, seg), MOUND, part);
+    const part = pushSimpleBatch(o.batch, mergeGeometries(parts), MAT());
+    if (!o.noMound) pushSimpleBatch(o.batch, fenceMoundGeo(world, seg), MOUND(), part);
     return part;
   }
   const m = merged(parts);
@@ -794,7 +808,7 @@ export function bobosaku(world, seg, o = {}) {
 }
 
 // 柵の根元の土：柱を打ち込んで踏み固めた、低い土の盛り（柵の線に沿って）
-const MOUND = liteMat({ map: dirtTex(), color: 0x9a8c78, roughness: 0.97, metalness: 0 });
+const MOUND = lazy(() => liteMat({ map: dirtTex(), color: 0x9a8c78, roughness: 0.97, metalness: 0 }));
 function fenceMoundGeo(world, seg) {
   const [ax, az, bx, bz] = seg;
   const len = Math.hypot(bx - ax, bz - az);
@@ -813,7 +827,7 @@ function fenceMoundGeo(world, seg) {
   return mergeGeometries(parts);
 }
 function fenceMound(world, seg) {
-  const mesh = new THREE.Mesh(fenceMoundGeo(world, seg), MOUND);
+  const mesh = new THREE.Mesh(fenceMoundGeo(world, seg), MOUND());
   mesh.receiveShadow = true;
   return mesh;
 }
@@ -822,7 +836,7 @@ function fenceMound(world, seg) {
 // どれも (world, x, z, 向き) で置き、返す物を rt.scene.add する。当たり判定は無い（見た目だけ）
 
 // 鉄の鍋（鈍い照り返し）
-const IRON = new THREE.MeshStandardMaterial({ color: 0x2a2724, roughness: 0.55, metalness: 0.6 });
+const IRON = lazy(() => liteMat({ color: 0x2a2724, roughness: 0.55, metalness: 0.6 }));
 
 // 床几（しょうぎ）：脚を X に組んだ折りたたみの腰掛け。o.gunbai で軍配を載せる
 export function shogi(world, x, z, rot = 0, o = {}) {
@@ -845,7 +859,7 @@ export function shogi(world, x, z, rot = 0, o = {}) {
     // 軍配：瓢箪形の団扇に柄。漆の黒に金の縁
     const fan = new THREE.CylinderGeometry(0.13, 0.13, 0.012, 14); fan.scale(1, 1, 1.15); fan.translate(0, 0.52, 0.02);
     const hdl = new THREE.CylinderGeometry(0.012, 0.014, 0.22, 5); hdl.rotateZ(Math.PI / 2); hdl.translate(0.2, 0.52, 0.02);
-    const fm = new THREE.Mesh(mergeGeometries([paint(fan, 0x141210), paint(hdl, 0x5a3a20)]), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.1 }));
+    const fm = new THREE.Mesh(mergeGeometries([paint(fan, 0x141210), paint(hdl, 0x5a3a20)]), liteMat({ vertexColors: true, roughness: 0.35, metalness: 0.1 }));
     fm.rotation.y = 0.4; grp.add(fm);
   }
   grp.position.set(x, world.heightAt(x, z), z);
@@ -937,7 +951,7 @@ export function nabe(world, x, z, o = {}) {
   const pot = new THREE.SphereGeometry(0.26, 12, 8, 0, Math.PI * 2, Math.PI * 0.35, Math.PI * 0.65); pot.translate(0, 0.62, 0);
   const rim = new THREE.TorusGeometry(0.22, 0.02, 4, 14); rim.rotateX(Math.PI / 2); rim.translate(0, 0.82, 0);
   const handle = new THREE.TorusGeometry(0.2, 0.01, 3, 12, Math.PI); handle.translate(0, 0.83, 0);
-  const pm = new THREE.Mesh(mergeGeometries([pot, rim, handle].map((g) => (g.index ? g.toNonIndexed() : g))), IRON);
+  const pm = new THREE.Mesh(mergeGeometries([pot, rim, handle].map((g) => (g.index ? g.toNonIndexed() : g))), IRON());
   pm.castShadow = true;
   grp.add(pm);
   grp.position.set(x, y, z);
@@ -956,14 +970,14 @@ export function hyoro(world, x, z, rot = 0) {
   const mat = new THREE.PlaneGeometry(1.9, 1.5, 4, 4);
   const P = mat.attributes.position; for (let k = 0; k < P.count; k++) { const u = P.getX(k) / 0.95; P.setZ(k, Math.max(0, 1 - u * u) * 0.5); }
   mat.rotateX(-Math.PI / 2); mat.rotateY(Math.PI / 2);
-  const mm = new THREE.Mesh(mat, new THREE.MeshStandardMaterial({ map: thatchTex(), color: 0xb8a57a, roughness: 1, side: THREE.DoubleSide }));
+  const mm = new THREE.Mesh(mat, liteMat({ map: thatchTex(), color: 0xb8a57a, roughness: 1, side: THREE.DoubleSide }));
   mm.position.set(x, world.heightAt(x, z) + 1.0, z); mm.rotation.y = rot; mm.castShadow = true;
   grp.add(mm);
   return grp;
 }
 
 // 馬印：大将の居場所を示す大きな印。竿の上に金の扇（kind が 'fukube' なら金の瓢箪）
-const GOLD = new THREE.MeshStandardMaterial({ color: 0xc9a040, roughness: 0.35, metalness: 0.75, side: THREE.DoubleSide });
+const GOLD = lazy(() => liteMat({ color: 0xc9a040, roughness: 0.35, metalness: 0.75, side: THREE.DoubleSide }));
 export function umajirushi(world, x, z, rot = 0, kind = 'ogi') {
   const grp = new THREE.Group();
   const pole = new THREE.CylinderGeometry(0.05, 0.07, 7.2, 6); pole.translate(0, 3.6, 0);
@@ -978,7 +992,7 @@ export function umajirushi(world, x, z, rot = 0, kind = 'ogi') {
     for (let k = 0; k < P.count; k++) { const a = Math.atan2(P.getY(k), P.getX(k)); P.setZ(k, Math.sin(a * 16) * 0.03 * Math.hypot(P.getX(k), P.getY(k))); }
     g.computeVertexNormals(); g.translate(0, 6.7, 0.06);
   }
-  const m = new THREE.Mesh(g, GOLD); m.castShadow = true; grp.add(m);
+  const m = new THREE.Mesh(g, GOLD()); m.castShadow = true; grp.add(m);
   grp.position.set(x, world.heightAt(x, z), z);
   grp.rotation.y = rot;
   return grp;
@@ -1175,7 +1189,7 @@ export function village(world, x, z, o = {}) {
     }
   }
   if (water.length) {
-    const wm = new THREE.Mesh(mergeGeometries(water), new THREE.MeshStandardMaterial({ color: 0x5f6e62, roughness: 0.28, metalness: 0.15 }));
+    const wm = new THREE.Mesh(mergeGeometries(water), liteMat({ color: 0x5f6e62, roughness: 0.28, metalness: 0.15 }));
     wm.receiveShadow = true; grp.add(wm);
     // 植えたばかりの苗の筋（水面の上に薄い緑）
     const ne = new THREE.Mesh(mergeGeometries(water.map((g) => g.clone().translate(0, 0.04, 0))), new THREE.MeshLambertMaterial({ color: 0x6f8a4a, transparent: true, opacity: 0.35, depthWrite: false }));
@@ -1295,7 +1309,7 @@ function tileTex() {
   }, 8);
   return tileTexC;
 }
-const TILE = new THREE.MeshStandardMaterial({ map: tileTex().map, normalMap: tileTex().nrm, normalScale: new THREE.Vector2(1.1, 1.1), roughness: 0.62, metalness: 0.08, side: THREE.DoubleSide });
+const TILE = lazy(() => liteMat({ map: tileTex().map, normalMap: tileTex().nrm, normalScale: new THREE.Vector2(1.1, 1.1), roughness: 0.62, metalness: 0.08, side: THREE.DoubleSide }));
 
 // 寄棟の屋根の形（軒 ex×ez、高さ rh、棟の半分 rl）。y は軒の高さ。
 // 反り：面は軒から棟へ次第に急になる（縦の断面が凹む）、軒の隅は跳ね上がる（隅から棟へ向けて薄れる）。
@@ -1365,7 +1379,7 @@ export function romon(world, x, z, w = 6.4, rot = 0) {
   const mune = new THREE.BoxGeometry(w + 1.6, 0.34, 0.4); mune.translate(0, H + 4.95, 0); parts.push(paint(mune, 0x222120));
   const grp = new THREE.Group();
   grp.add(merged(parts));
-  const tm = new THREE.Mesh(mergeGeometries(tiles), TILE); tm.castShadow = true; tm.receiveShadow = true; tm.userData.camBlock = true;
+  const tm = new THREE.Mesh(mergeGeometries(tiles), TILE()); tm.castShadow = true; tm.receiveShadow = true; tm.userData.camBlock = true;
   grp.add(tm);
   grp.position.set(x, world.heightAt(x, z), z);
   grp.rotation.y = rot;
@@ -1397,7 +1411,7 @@ export function dou(world, x, z, w = 10, d = 7, rot = 0, o = {}) {
   const mune = new THREE.BoxGeometry(w * 0.55 + 0.6, 0.4, 0.5); mune.translate(0, ey + (d / 2 + 2.4) * 0.8 + 0.1, 0); parts.push(paint(mune, 0x222120));
   const grp = new THREE.Group();
   grp.add(merged(parts));
-  const tm = new THREE.Mesh(mergeGeometries(tiles), TILE); tm.castShadow = true; tm.receiveShadow = true; tm.userData.camBlock = true;
+  const tm = new THREE.Mesh(mergeGeometries(tiles), TILE()); tm.castShadow = true; tm.receiveShadow = true; tm.userData.camBlock = true;
   grp.add(tm);
   grp.position.set(x, world.heightAt(x, z), z);
   grp.rotation.y = rot;
@@ -1778,14 +1792,14 @@ const shitamiTex = () => pairTex(256, 256, (g, hg) => {
 let CK = null;
 function ck() {
   if (CK) return CK;
-  const st = (T, ns, rough = 0.95) => new THREE.MeshStandardMaterial({ vertexColors: true, map: T.map, normalMap: T.nrm, normalScale: new THREE.Vector2(ns, ns), roughness: rough, metalness: 0 });
+  const st = (T, ns, rough = 0.95) => liteMat({ vertexColors: true, map: T.map, normalMap: T.nrm, normalScale: new THREE.Vector2(ns, ns), roughness: rough, metalness: 0 });
   CK = {
     nozura: st(stoneGrain('nozura'), 1), uchikomi: st(stoneGrain('uchikomi'), 0.9),
     // 大きな面に石の並びを描いた物（城攻めの石垣の箱が使う）。face は野面積み、faceU は打込接
     face: st(stoneFace('nozura'), 1.3), faceU: st(stoneFace('uchikomi'), 1.1),
     plaster: st(plasterTex(), 0.6, 0.92),
     shitami: st(shitamiTex(), 1, 0.85),
-    wood: MAT, tile: TILE, iron: IRON,
+    wood: MAT(), tile: TILE(), iron: IRON(),
   };
   return CK;
 }

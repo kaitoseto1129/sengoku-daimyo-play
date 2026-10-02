@@ -1685,16 +1685,16 @@ export class Player {
       // 柵越しに届く間合い：馬上は馬の図体（馬の胴の長さ分、柵の手前で止まる）だけ柵に近寄れないので、その分だけ広げる
       // （bot の計測で、馬上は柵から2.9〜4.2m離れた所で止まり、2.2mの広げでは足りず一生届かなかった。kaito 10/1）
       const fenceClear = this.mounted ? 2.2 + 2.1 : 2.2;
-      // 味方の騎馬も、的に近ければ混ぜる（自分の馬・味方の馬も討てるように。kaito 10/1）
-      let h = army.enemiesInArc(u.pos, heading, reach, half, u.team, over, true, fenceClear);
+      // 味方の騎馬も、的を絞って（this.lock）選んだ時だけ混ぜる（自分の馬・味方の馬も討てるように。kaito 10/1）
+      let h = army.enemiesInArc(u.pos, heading, reach, half, u.team, over, true, fenceClear, this.lock);
       // 照準補助：正面に敵がいなければ少し広めに探して向きを合わせる
       // 指の端末は細かく向きを合わせにくいので、前 60° の内まで広げ、半歩先の敵へは踏み込んで突く
       if (!h.length && (S.aimAssist || isTouch)) {
         const wide = isTouch ? Math.max(half + this.D.aim, 1.05) : half + this.D.aim;
         const lunge = isTouch ? 0.9 : S.aimAssist ? 0.35 : 0;
-        h = army.enemiesInArc(u.pos, heading, reach + lunge, wide, u.team, over, true, fenceClear);
+        h = army.enemiesInArc(u.pos, heading, reach + lunge, wide, u.team, over, true, fenceClear, this.lock);
         // 指の端末と初めの戦：それでも居なければ、横・後ろの間合いの内の敵へ振り向いて突く（背中から突かれて空を突き続けない）
-        if (!h.length && (isTouch || this.rt.firstFights)) h = army.enemiesInArc(u.pos, heading, reach + lunge * 0.5, Math.PI, u.team, over, true, fenceClear);
+        if (!h.length && (isTouch || this.rt.firstFights)) h = army.enemiesInArc(u.pos, heading, reach + lunge * 0.5, Math.PI, u.team, over, true, fenceClear, this.lock);
         if (h.length) {
           const t0 = h[0].u, dx = t0.pos.x - u.pos.x, dz = t0.pos.z - u.pos.z, d = Math.hypot(dx, dz) || 1;
           this.assist = { h: Math.atan2(dx, dz), t: 0.4 };

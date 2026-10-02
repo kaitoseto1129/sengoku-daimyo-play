@@ -1,6 +1,6 @@
 // 自動テストプレイの bot（戦国大名の playbot にならう）
 // 使い方：index.html?bot を開くと、桶狭間編・長篠編の戦・日本地図の城攻め・稽古場を順に自動で遊び、数と気づきを画面にまとめる。保存には触れない。
-//   ?bot&only=nagashinojo,castle のように戦の鍵を並べると、その戦だけを遊ぶ（鍵：okehazama moribe sunomata nagashinojo tobinosu shitaragahara suwahara anegawa sekigahara sanadamaru castle dojo town）
+//   ?bot&only=nagashinojo,castle のように戦の鍵を並べると、その戦だけを遊ぶ（鍵：okehazama moribe sunomata nagashinojo tobinosu shitaragahara suwahara anegawa sekigahara sanadamaru castle dojo town mikatagahara）
 //   ?bot&k=2 は何回目か（日本地図の筋書きを回ごとに替える）
 //   ?bot&persona=chu&n=2 は五人のテストプレイヤーの一人として遊ぶ（性格は下の PERSONAS。tools/players.sh が順に回す）
 import { newGame, fillRoster, RANKS, BATTLES, SCENARIOS, SCENARIO_ORDER, setScenario } from './state.js';

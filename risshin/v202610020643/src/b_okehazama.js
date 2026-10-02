@@ -529,7 +529,9 @@ const okehazama = {
         rt.obj('crush', '旗本を崩し、味方を義元へ通せ', 'main');
         rt.marker('yoshimoto', unitPos(F.yoshimoto), '旗本の奥の義元', { red: true }); F.yoshimoto.allyOk = true;   // ここからは味方の兵も義元へ槍を付ける
         this.bannermen(rt);
-        for (const g of [...F.cols, F.nob]) if (g.count) { g.order = 'attack'; g.seekRange = 34; g.anchor = { x: F.cutPt.x, z: F.cutPt.z + 6 }; }
+        // 組ごとに寄せ先を少しずらす：同じ一点に全部の組が重なると人だかりになり、遊び手も詰まって動けない
+        const cutOffs = [[-5, 0], [5, 2], [-2, -4], [3, 5], [0, -2]];
+        [...F.cols, F.nob].forEach((g, i) => { if (!g.count) return; g.order = 'attack'; g.seekRange = 34; const o = cutOffs[i % cutOffs.length]; g.anchor = { x: F.cutPt.x + o[0], z: F.cutPt.z + 6 + o[1] }; });
         next(5);
       }
     }
@@ -637,7 +639,7 @@ const okehazama = {
         F.cutPt = { x: HONJIN.x - 4, z: HONJIN.z - 24 };
         rt.obj('st', '北へ回り込み、輿の行く手を断て', 'main');
         rt.marker('cut', F.cutPt, '輿の行く手', { h: 3 }); rt.zone('cut', F.cutPt.x, F.cutPt.z, 6);
-        F.hatamoto.anchor = { x: HONJIN.x - 2, z: HONJIN.z - 10 };
+        F.hatamoto.anchor = { x: HONJIN.x - 2, z: HONJIN.z - 6 };   // 幔幕の北の壁（HONJIN.z-9・通り抜け不可）の手前に収める（kaito 10/2・本陣前の足止めの直し）
         rt.say('源八', 'よし、ついて来い！　幕の外を回るぞ', 3);
         // 遅すぎれば、輿は北の谷へ抜けて前の流れ（口から）に戻る
         rt.after(50, () => { if (F.stage === 4.5 && !F.entered) { rt.unmark('cut'); rt.unzone('cut'); rt.objFail('st'); rt.say('源八', '遅かったか……輿は幕の内へ戻った。口から押し入れ！', 3); F.stage = 5; F.stageT = rt.t; this.honjinMark(rt); } });
@@ -664,7 +666,10 @@ const okehazama = {
     rt.say('源八', '首は捨てよ。本陣の跡で槍を揃えて受けよ！', 3.5);
     rt.obj('st', '引き返す今川勢から本陣の跡を守れ', 'main');
     rt.marker('matsui', centerOf(F.matsui), () => `引き返す今川勢・${moraleWord(F.matsui.morale)}`, { red: true, group: F.matsui });
-    for (const g of [...F.cols, F.nob]) if (g.count) { g.order = 'hold'; g.anchor = { x: HONJIN.x + (g === F.nob ? 8 : -4), z: HONJIN.z - 6 }; g.facing = 0; g.aggro = 14; }
+    // ここも組ごとに受け場所をずらす（本陣の跡で一点に固まらないように）
+    const holdOffs = [-9, -3, 3, 9];
+    F.cols.forEach((g, i) => { if (!g.count) return; g.order = 'hold'; g.anchor = { x: HONJIN.x + holdOffs[i % holdOffs.length], z: HONJIN.z - 6 }; g.facing = 0; g.aggro = 14; });
+    if (F.nob.count) { F.nob.order = 'hold'; F.nob.anchor = { x: HONJIN.x + 8, z: HONJIN.z - 6 }; F.nob.facing = 0; F.nob.aggro = 14; }
   },
 
   assault(rt, dt) {
@@ -792,7 +797,7 @@ const okehazama = {
     if (F.entered && !F.koshiLeft && hatamotoLeft <= 4) {
       F.koshiLeft = true;
       rt.say('今川の旗本', '御輿を捨てよ！　御屋形様、こちらへ！', 3);
-      H.anchor = { x: HONJIN.x - 4, z: HONJIN.z - 14 };
+      H.anchor = { x: HONJIN.x - 4, z: HONJIN.z - 6 };   // 幔幕の北の壁（通り抜け不可）の内に収める。壁の外へ逃がすと、壁ぎわで追う味方・自分が足止めされる（kaito 10/2）
       if (F.koshi) { F.koshi.rotation.z = 0.12; F.koshi.position.y -= 0.4; }
     }
     const done = F.yoshiDown || (F.entered && rt.pt > 85 && (hatamotoLeft <= 2 || rt.t - F.enterT > 90)) || rt.pt > (rt.G.lord ? 300 : 700);   // 4〜7分へ詰める

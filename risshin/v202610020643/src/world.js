@@ -2138,7 +2138,7 @@ export class World {
     const w = this.def.water;
     const geo = new THREE.ConeGeometry(0.05, 1.6, 3); geo.translate(0, 0.8, 0);
     const N = 700;
-    const mesh = new THREE.InstancedMesh(geo, sway(new THREE.MeshStandardMaterial({ color: 0x8a8a52, roughness: 0.9 }), 0.08, 0.3), N);
+    const mesh = new THREE.InstancedMesh(geo, sway(liteMat({ color: 0x8a8a52, roughness: 0.9 }), 0.08, 0.3), N);
     const d = new THREE.Object3D();
     const R = rng(55);
     for (let i = 0; i < N; i++) {
@@ -3410,7 +3410,7 @@ export class World {
     this.splat = splat; this.waterW = water;
     geo.setAttribute('water', new THREE.BufferAttribute(water, 1));
     geo.computeVertexNormals();
-    const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0, envMapIntensity: 0.55 });
+    const mat = liteMat({ color: 0xffffff, roughness: 0.95, metalness: 0, envMapIntensity: 0.55 });
     this.groundU = { tGrass: { value: grassTex() }, tDirt: { value: dirtTex() }, tMud: { value: mudTex() }, tStone: { value: stoneTex() }, tMacro: { value: macroTex() }, uWet: { value: 0 }, tWear: WEAR, uTime: WIND };
     mat.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, this.groundU);
@@ -3939,7 +3939,7 @@ export class World {
     tex.colorSpace = THREE.SRGBColorSpace;
     this.waterTex = tex;
     // 川面：空を映す（粗さを低く）。流れの筋が動く
-    const mat = new THREE.MeshStandardMaterial({ map: tex, color: 0x7e8c88, roughness: 0.22, metalness: 0, transparent: true, opacity: 0.93, envMapIntensity: 0.8 });
+    const mat = liteMat({ map: tex, color: 0x7e8c88, roughness: 0.22, metalness: 0, transparent: true, opacity: 0.93, envMapIntensity: 0.8 });
     // 川面のさざ波（流れは z の向き）
     rippleWater(mat, 0.0, 1.0);
     const m = new THREE.Mesh(geo, mat);
@@ -4235,7 +4235,7 @@ export class World {
     // 小川：濁った流れ。空は映すが、白い帯に見えないよう照り返しを抑える
     // 流れの向き（最初と最後を結ぶ向き）に波が動く
     const f0 = pts[0], f1 = pts[pts.length - 1], fl = Math.hypot(f1[0] - f0[0], f1[1] - f0[1]) || 1;
-    const m = new THREE.Mesh(g, rippleWater(new THREE.MeshStandardMaterial({ color: 0x38402f, roughness: 0.3, metalness: 0, transparent: true, opacity: 0.9, side: THREE.DoubleSide, envMapIntensity: 0.6 }), (f1[0] - f0[0]) / fl, (f1[1] - f0[1]) / fl, 2.2));
+    const m = new THREE.Mesh(g, rippleWater(liteMat({ color: 0x38402f, roughness: 0.3, metalness: 0, transparent: true, opacity: 0.9, side: THREE.DoubleSide, envMapIntensity: 0.6 }), (f1[0] - f0[0]) / fl, (f1[1] - f0[1]) / fl, 2.2));
     m.receiveShadow = true;
     this.scene.add(m);
     // 岸の泥：流れの両の縁は、草が薄く土と泥が出ている（踏み荒らしの印を岸に沿って付ける）
@@ -4265,7 +4265,7 @@ export class World {
       }
     }
     if (stones.length) {
-      const sm = new THREE.Mesh(mergeGeometries(stones), new THREE.MeshStandardMaterial({ color: 0x6e6a62, roughness: 0.6 }));
+      const sm = new THREE.Mesh(mergeGeometries(stones), liteMat({ color: 0x6e6a62, roughness: 0.6 }));
       sm.castShadow = true; this.scene.add(sm);
       const fm = new THREE.Mesh(mergeGeometries(foam), new THREE.MeshBasicMaterial({ color: 0xe8ecea, transparent: true, opacity: 0.35, depthWrite: false, fog: true }));
       fm.renderOrder = 1; this.scene.add(fm);

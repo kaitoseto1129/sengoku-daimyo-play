@@ -13,6 +13,7 @@ import {
   jinmaku, hut, tawara, makeSimpleBatch, finalizeSimpleBatch,
 } from './props.js';
 import { addDeck, addLadder, addWall, FL } from './floors.js';
+import { S as SETTINGS } from './settings.js';
 
 export {
   ishigaki, dobei, tsuiji, sumiyagura, yaguramon, tamon, kuruwa, tenshu, sakamogi, takataba,
@@ -424,7 +425,7 @@ export function ishigakiWall(rt, pts, o = {}) {
 
 let _mizuboriMat = null;
 function waterMat() {
-  if (!_mizuboriMat) _mizuboriMat = new THREE.MeshStandardMaterial({ color: 0x2c3a36, roughness: 0.2, metalness: 0, transparent: true, opacity: 0.92 });
+  if (!_mizuboriMat) _mizuboriMat = SETTINGS.quality === 'low' ? new THREE.MeshLambertMaterial({ color: 0x2c3a36, transparent: true, opacity: 0.92 }) : new THREE.MeshStandardMaterial({ color: 0x2c3a36, roughness: 0.2, metalness: 0, transparent: true, opacity: 0.92 });
   return _mizuboriMat;
 }
 // 水堀：horiboriHeight を深く広く取り、水面を一枚重ねる。渡れる所（土橋・橋）は pts を切って呼ぶ（docs 1-4）
