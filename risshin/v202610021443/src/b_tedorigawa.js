@@ -86,7 +86,7 @@ const tedorigawa = {
     // 北の上杉謙信の本陣（遠く。見に行けば謙信と旗本がいる）
     // 南の岸の織田の本陣（滝川一益が退く列を受け取る）
     F.honjin = camp(rt, { x: 34, z: 104, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', general: { name: '滝川一益', hat: 'kabuto_m', haori: 0x2a3440 }, guard: 15, reserve: 200, runTo: { x: SOUTH.x, z: SOUTH.z + 10 } });
-    F.ehon = camp(rt, { x: 64, z: -206, facing: 0, team: 1, faction: 'saito', mon: 'uesugi', armor: 0x2a2a2a, general: { name: '上杉謙信', hat: 'hachimaki', haori: 0xd8d2c0 }, guard: 15, reserve: 300, runTo: { x: 0, z: -150 } });
+    F.ehon = camp(rt, { x: 64, z: -206, facing: 0, team: 1, faction: 'saito', mon: 'uesugi', armor: 0x2a2a2a, general: { name: '上杉謙信', hat: 'hachimaki', haori: 0xd8d2c0 }, depth: true, guard: 15, reserve: 300, runTo: { x: 0, z: -150 } });
 
     rt.setPhase('brief');
     rt.obj('main', HI(rt) ? '柴田勝家の手で足軽の一手を預かり、下知を待て' : '柴田勝家のもとで、下知を待て', 'main');

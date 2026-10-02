@@ -1343,6 +1343,8 @@ export class Hud {
     const top = items.slice(0, 6);
     const now = rt.t || 0, rm = S.reduceMotion;
     this._scEl.hidden = !top.length;
+    // 任務の札（#objectives）の下から並べる（札が長くなっても重ならないように）
+    { const ob = document.getElementById('objectives'), r = ob && !ob.hidden ? ob.getBoundingClientRect() : null; const want = r && r.height > 0 ? Math.max(84, Math.round(r.bottom) + 6) : 84; if (this._scTop !== want) { this._scTop = want; this._scEl.style.top = want + 'px'; } }
     this._scEl.innerHTML = top.map((it) => {
       const prev = this._scState.get(it.id);
       if (!prev || prev.word !== it.word) this._scState.set(it.id, { word: it.word, t: now });

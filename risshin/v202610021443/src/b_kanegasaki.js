@@ -174,7 +174,7 @@ const kanegasaki = {
     F.azai = [DA(92, 168, 40, 12, 220, Math.PI * 1.15, 0x2e2a26, 'azai', 1600), DA(130, 150, 30, 12, 180, Math.PI * 1.2, 0x2e2a26, 'azai', 1601)];
     for (const [x, z] of [[84, 160], [104, 158]]) rt.scene.add(nobori(W, x, z, 'azai', 7));
     // 朝倉の本陣（北の峠道の奥）：朝倉義景と旗本。見に行けば大将がいる（控えは軽い兵）
-    F.camp = camp(rt, { x: 24, z: -150, facing: 0, team: 1, faction: 'saito', mon: 'asakura', armor: ASAKURA.armor, general: { name: '朝倉義景', hat: 'kabuto_m', haori: 0x6a4a1c }, guard: 15, reserve: 300, runTo: { x: 8, z: -110 } });
+    F.camp = camp(rt, { x: 24, z: -150, facing: 0, team: 1, faction: 'saito', mon: 'asakura', armor: ASAKURA.armor, general: { name: '朝倉義景', hat: 'kabuto_m', haori: 0x6a4a1c }, depth: true, guard: 15, reserve: 300, runTo: { x: 8, z: -110 } });
 
     rt.world.setTime('after');
     rt.setPhase('brief');

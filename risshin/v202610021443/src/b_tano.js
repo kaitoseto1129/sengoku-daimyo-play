@@ -105,7 +105,7 @@ const tano = {
     for (const sd of [-1, 1]) noT(wallLine(rt, [[NARROW.x0 - 4, sd * 7], [NARROW.x1 + 4, sd * 6.5]], { team: 1, hp: 1e9, name: '崖', segLen: 8, mesh: () => new THREE.Group() }));
     // ---- 田野の陣（陣幕と小屋） ----
     // 勝頼の最後の陣：陣幕の内に武田勝頼、口の前に馬廻（控えは谷の奥にわずか）
-    F.ehon = camp(rt, { x: TANO.x + 14, z: TANO.z - 4, facing: -Math.PI / 2, team: 1, faction: 'takeda', mon: 'takeda', general: { name: '武田勝頼', hat: 'kabuto_m', haori: 0x7a2a1c }, guard: 15, reserve: 60, runTo: { x: NARROW.x1 + 10, z: 0 } });
+    F.ehon = camp(rt, { x: TANO.x + 14, z: TANO.z - 4, facing: -Math.PI / 2, team: 1, faction: 'takeda', mon: 'takeda', general: { name: '武田勝頼', hat: 'kabuto_m', haori: 0x7a2a1c }, depth: true, guard: 15, reserve: 60, runTo: { x: NARROW.x1 + 10, z: 0 } });
     F.ehon.guard.name = '勝頼の馬廻'; F.ehon.guard.dmgMult = 0.58;
     for (const u of F.ehon.guard.units) if (u.type === 'gun') u.dmg *= 0.45;
     rt.scene.add(hut(W, TANO.x + 6, TANO.z + 12, 7, 5, 0.2, { wall: 0x5a4a38 }), tawara(W, TANO.x - 6, TANO.z + 8, 0.2, 3));

@@ -71,6 +71,8 @@ function wake(rt) {
   const F = rt.flags, P = rt.player && rt.player.u;
   // 籠城の戦（def.noWake）では替えない：塀の内から見える寄せ手の大軍が、次々に本物の兵になって塀へ来ないように
   if (rt.def && rt.def.noWake) return;
+  // 筋の前の静かな段（def.wakeOK が偽）では替えない：自分の近くへ敵を出さない
+  if (rt.def && rt.def.wakeOK && !rt.def.wakeOK(rt)) return;
   rt.world.wakeLive = rt.world.time || 0;   // world.shyTick：替える仕組みが動いている戦の軽い兵は、退かせずに本物へ替える
   if (!P || !P.alive || rt.over || !(rt.t >= (F.wakeAt || 0))) return;
   F.wakeAt = rt.t + 0.3;
@@ -616,7 +618,7 @@ export const nagashinojo = {
     F.siege = [DA(-40, -118, 70, 12, 380, 0, TD, 'takeda', 71, 'mixed'), DA(35, -116, 70, 12, 360, 0, TD, 'furin', 72, 'spear')];
     // 医王寺山の勝頼の本陣と、その前と脇の備（赤備えの騎馬は赤）
     // 見に行けば勝頼と旗本がいる（籠城で wake は止めてあるので、本物の兵で置く。後ろの控えは軽い兵）
-    F.kCamp = camp(rt, { x: -30, z: -162, facing: 0, team: 1, faction: 'takeda', mon: 'takeda', armor: TD, general: { name: '武田勝頼' }, guard: 15, reserve: 260, runTo: { x: -30, z: -125 } });
+    F.kCamp = camp(rt, { x: -30, z: -162, facing: 0, team: 1, faction: 'takeda', mon: 'takeda', armor: TD, general: { name: '武田勝頼' }, depth: true, guard: 15, reserve: 260, runTo: { x: -30, z: -125 } });
     [[-30, -136, 'takeda', 'spear'], [-62, -140, 'furin', 'cavalry'], [6, -146, 'akazonae', 'cavalry']].forEach(([x, z, f, kind], i) => DA(x, z, 22, 14, kind === 'cavalry' ? 150 : 240, face(x, z), f === 'akazonae' ? AK : TD, f, 73 + i, kind));
     // 北東・東の台地、宇連川の向こう（鳶ヶ巣山）、寒狭川の向こう
     [[92, -100, 'takeda', 'spear'], [128, -20, 'furin', 'mixed'], [120, 40, 'takeda', 'spear'], [20, 112, 'takeda', 'gun'], [70, 118, 'furin', 'spear'], [-112, -30, 'takeda', 'mixed'], [-118, 30, 'akazonae', 'cavalry']].forEach(([x, z, f, kind], i) =>

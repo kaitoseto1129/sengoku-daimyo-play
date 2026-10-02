@@ -19,6 +19,7 @@ import { taishoInit, taishoTick, taishoKill } from './taisho.js';
 import { realmBattle } from './realm.js';
 import { pickLine, monOf } from './lines_data.js';
 import { gateGuideTick } from './gate_guide.js';
+import { StaticFreezer } from './static_freeze.js';
 const TOFF = typeof location !== 'undefined' && /[?&]toff\b/.test(location.search);   // 試し：緊迫の仕組みを切る
 
 // 遠くまで届く音：音の名 → 半分ほどの大きさに落ちる遠さ（m）。ここに無い音は 55m で聞こえなくなる
@@ -1617,6 +1618,8 @@ export class Battle {
   }
 
   update(dt, input) {
+    if (!this.freezer) this.freezer = new StaticFreezer(this.scene);
+    this.freezer.tick(dt);
     this.updateFences(dt);
     this.updateReserves();
     this.regroupSquad();

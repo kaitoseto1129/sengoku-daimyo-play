@@ -3295,7 +3295,7 @@ export class World {
       return g;
     };
     // 画質「低」（携帯）：まとめて描く遠い兵は、角の少ない遠い形（一人 1100 面 → 300 面ほど。低では 12m より先の兵だけ。far：18m より先の兵の束は、さらに軽い形）
-    const body = new THREE.InstancedMesh(mk(soldierGeo(armor, far ? 'xlo' : SETTINGS.quality === 'low' ? 'lo' : true)), armyShader(new THREE.MeshLambertMaterial({ vertexColors: true }), U), cap);
+    const body = new THREE.InstancedMesh(mk(soldierGeo(armor, far ? (SETTINGS.quality === 'low' ? 'xxlo' : 'xlo') : SETTINGS.quality === 'low' ? 'lo' : true)), armyShader(new THREE.MeshLambertMaterial({ vertexColors: true }), U), cap);
     const flags = new THREE.InstancedMesh(mk(SASHI_GEO), armyShader(new THREE.MeshLambertMaterial({ map: flagTexture(flag || 'tokugawa'), side: THREE.DoubleSide }), U), cap);
     for (const m of [body, flags]) { m.count = 0; m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); this.scene.add(m); }
     const col = new THREE.Color(1, 1, 1);
@@ -4530,7 +4530,7 @@ export class World {
         const dx = P[i * 2] - px, dz = P[i * 2 + 1] - pz, d2 = dx * dx + dz * dz;
         if (d2 > nr2 && dx * fx + dz * fz < 0.2 * Math.sqrt(d2) - 8) continue;
         // 近くの木（near のある物）は、90m より先を二本に一本・160m より先を四本に一本（霞の中で森の塊に見えれば足りる）
-        if (nr2 && ((d2 > 8100 && (i & 1)) || (d2 > 25600 && (i & 2)))) continue;
+        if (nr2 && ((d2 > 8100 && (i & 1)) || (d2 > 25600 && (i & 2)) || (d2 > 57600 && (i & 4)))) continue;
         for (const o of C.orig) { o.m.instanceMatrix.array.set(o.mat.subarray(i * 16, i * 16 + 16), n * 16); if (o.col) o.m.instanceColor.array.set(o.col.subarray(i * 3, i * 3 + 3), n * 3); }
         n++;
       }
@@ -4551,12 +4551,13 @@ export class World {
       // 0：近い形・1：遠い形（38m より先）・2：とても遠い形（50m より先）。戻りは少し手前で（行き来でちらつかない）
       //   大きな塊は、真ん中が 70m より先ならとても遠い形に（手前の端の兵は 40m ほど。そこでも人の形は崩れない）
       //   画質「低」（携帯）は遠さを 1.6 倍に見て、早めに軽い形へ（小さい画面では見分けが付かない）
-      const q = SETTINGS.quality === 'low' ? 1.6 : 1;
+      const q = SETTINGS.quality === 'low' ? 2 : 1;
       const dc = Math.hypot(_lodV.x - cx, _lodV.z - cz) * q, d = dc - m.boundingSphere.radius * q, h2 = L.lv >= 2 ? 5 : 0;
       //   3：塊のいちばん近い端が 100m より先は、さらに遠い形
-      const lv = d > (L.lv === 3 ? 92 : 100) ? 3 : d > 50 - h2 || dc > 70 - h2 ? 2 : d > (L.lv >= 1 ? 32 : 38) ? 1 : 0;
+      const lv = d > (SETTINGS.quality === 'low' ? (L.lv === 3 ? 66 : 72) : L.lv === 3 ? 92 : 100) ? 3 : d > 50 - h2 || dc > 70 - h2 ? 2 : d > (L.lv >= 1 ? 32 : 38) ? 1 : 0;
       //   画質「低」は近い形がもう軽い形（lo）なので、1 の段も lo のままだと何も軽くならない。1 の段から七角の形（三角は三分の一）に
-      if (lv !== L.lv) { L.lv = lv; L.far = lv > 0; m.geometry = lv === 3 ? L.xxlo : lv === 2 ? L.xlo : lv ? (q > 1 ? L.xlo : L.lo) : L.hi; }
+      //   画質「低」：大きな塊（60 人より多い）は、近い端の数人のために全員を細かい形にしない（塊の全員が同じ形で描かれる）ので、近い形（lv 0）も七角の形に
+      if (lv !== L.lv) { L.lv = lv; L.far = lv > 0; m.geometry = lv === 3 || (lv === 2 && q > 1) ? L.xxlo : lv === 2 ? L.xlo : lv ? (q > 1 ? L.xlo : L.lo) : q > 1 && m.count > 60 ? L.xlo : L.hi; }
     }
   }
   update(dt, focus) {

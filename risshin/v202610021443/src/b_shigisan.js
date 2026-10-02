@@ -8,7 +8,8 @@
 // ======================================================================
 import { tenshu as tenshuP } from './props.js';
 import * as THREE from 'three';
-import { nobori, hut, yagura, campfire, jinmaku, kabukimon, tawara, tobira, tsuiji } from './props.js';
+import { nobori, hut, yagura, campfire, jinmaku, kabukimon, tawara, tobira, tsuiji, dorui, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
+import { monomi } from './castle_parts.js';
 import { flagTexture } from './textures.js';
 import { RANKS } from './state.js';
 import { sfx } from './audio.js';
@@ -81,7 +82,9 @@ const shigisan = {
     const F = rt.flags;
     F.step = 0; F.ek = 0; F.ak = 0;
     // 縄張り（castle_plan.js）：壁は今まで通り手組み（下で skipWalls）。曲輪の多角形だけ、区域（siege_zones.js）に使う
-    F.C = buildCastlePlan(rt, SHIGISAN_PLAN, { baseHeight: base, edgeW: 3, skipWalls: ['ridge1', 'ridge2', 'yashiki', 'shu'] });
+    F.C = buildCastlePlan(rt, SHIGISAN_PLAN, { baseHeight: base, edgeW: 3, skipWalls: ['ridge2', 'shu'] });
+    // 下の曲輪・屋敷の柵（castle_plan の塀）は味方でも敵でもない飾りの壁：壊れず、的にしない
+    for (const s of F.C.walls) if (s && s.seg) { s.hp = s.maxHp = 1e9; s.noTarget = true; s.wall = true; }
     const noT = (segs) => { for (const s of segs) { s.noTarget = true; s.wall = true; } return segs; };
     // ---- 門の曲輪：柵と門、脇の物見櫓 ----
     noT(wallLine(rt, [[-28, GATE.z + 4], [-3.5, GATE.z]], { team: 1, hp: 1e9, name: '柵', segLen: 5 }));
@@ -98,10 +101,26 @@ const shigisan = {
     rt.scene.add(hut(W, TOP.x + 10, TOP.z + 2, 7, 5, -0.3, { wall: 0x6a5238 }), hut(W, -14, GATE.z - 16, 8, 5, 0.2, { wall: 0x6a5238 }), hut(W, 16, GATE.z - 20, 7, 5, -0.1));
     for (const [x, z] of [[-6, GATE.z - 4], [6, GATE.z - 4], [TOP.x - 16, TOP.z + 6], [TOP.x + 14, TOP.z + 10]]) rt.scene.add(nobori(W, x, z, 'todo', 6));
     // ---- 北尾根の曲輪群（土塁・切岸・平場。それぞれ独立して守る。石垣は使わない。道は南北に抜けるので両脇だけ柵を置く） ----
-    noT(wallLine(rt, [[RIDGE1.x - RIDGE1.r, RIDGE1.z - 5], [RIDGE1.x - RIDGE1.r, RIDGE1.z + 5]], { team: 1, hp: 1e9, name: '尾根の曲輪の柵', segLen: 5 }));
-    noT(wallLine(rt, [[RIDGE1.x + RIDGE1.r, RIDGE1.z - 5], [RIDGE1.x + RIDGE1.r, RIDGE1.z + 5]], { team: 1, hp: 1e9, name: '尾根の曲輪の柵', segLen: 5 }));
     noT(wallLine(rt, [[RIDGE2.x - RIDGE2.r, RIDGE2.z - 5], [RIDGE2.x - RIDGE2.r, RIDGE2.z + 5]], { team: 1, hp: 1e9, name: '尾根の曲輪の柵', segLen: 5 }));
     noT(wallLine(rt, [[RIDGE2.x + RIDGE2.r, RIDGE2.z - 5], [RIDGE2.x + RIDGE2.r, RIDGE2.z + 5]], { team: 1, hp: 1e9, name: '尾根の曲輪の柵', segLen: 5 }));
+    // 土塁（曲輪の柵の外へ盛る。一つの形にまとめる）・櫓（登れる物見）・曲輪の口の冠木門
+    {
+      const db = makeSimpleBatch();
+      for (const poly of [F.C.kuruwa.ridge1.poly, F.C.kuruwa.yashiki.poly]) {
+        const cx = poly.reduce((q, p) => q + p[0], 0) / poly.length, cz = poly.reduce((q, p) => q + p[1], 0) / poly.length;
+        for (let i = 0; i < poly.length; i++) {
+          const [ax, az] = poly[i], [bx, bz] = poly[(i + 1) % poly.length];
+          const mx = (ax + bx) / 2, mz = (az + bz) / 2, nl = Math.hypot(mx - cx, mz - cz) || 1;
+          if (Math.abs(mx - cx) < 3.2 && Math.abs(mz - cz) > nl * 0.8) continue;   // 道の口の前は盛らない
+          if (Math.abs(mz - cz) < 3.2 && Math.abs(mx - cx) > nl * 0.8) continue;
+          const d = dorui(W, [ax, az, bx, bz], (mx - cx) / nl, (mz - cz) / nl, { batch: db, w: 2.4, h: 0.7 });
+          if (!d.isBatchedPart) rt.scene.add(d);
+        }
+      }
+      finalizeSimpleBatch(rt, db);
+      F.monomi = SHIGISAN_PLAN.yagura.filter((y) => y.id !== 'monomi_gate').map((y) => monomi(rt, y.at[0], y.at[1], { team: 1, name: '物見櫓' }));
+      rt.scene.add(kabukimon(W, RIDGE1.x, RIDGE1.z - RIDGE1.r, 5.2, 0, { doors: false }));
+    }
     rt.scene.add(hut(W, RIDGE1.x - 8, RIDGE1.z + 2, 6, 4, 0.2), hut(W, RIDGE2.x + 7, RIDGE2.z - 2, 6, 4, -0.2));
     for (const [x, z] of [[RIDGE1.x + 7, RIDGE1.z - 1], [RIDGE2.x - 6, RIDGE2.z + 1]]) rt.scene.add(nobori(W, x, z, 'todo', 6));
     // ---- 松永屋敷（北尾根のさらに奥の郭。主殿・家臣の詰所・倉。暮らしと政治の区域。通り抜けを塞がぬよう、壁は装飾の低い塀だけ） ----

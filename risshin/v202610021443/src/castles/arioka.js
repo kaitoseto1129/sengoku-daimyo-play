@@ -96,6 +96,7 @@ export const ARIOKA_PLAN = {
   koguchi: [
     { id: 'gate', name: GATE.name, from: 'out', to: 'hiyodori', kind: 'masu', gate: 'yaguramon', at: [GATE.x, GATE.z], role: 'ote', maxFlow: 6, fireResistance: 0.2 },
     { id: 'hongap', name: '牢へ上る道の口', from: 'samuraimachi', to: 'honmaru', kind: 'hira', at: [(HON_GAP[0] + HON_GAP[1]) / 2, HON_Z], role: 'honmaru', maxFlow: 6, fireResistance: 0.1 },
+    { id: 'machikido', name: '町の木戸', from: 'machiya', to: 'samuraimachi', kind: 'hira', gate: 'kabuki', at: [0, MACHIYA_Z[1]], role: 'ote', maxFlow: 8, fireResistance: 0.2 },
   ],
   // 堀（切岸と堀）：地形の焼き・実の堀の見た目（b_arioka.js の MOAT_FNS・mizubori）とは別に、nawabari.js の
   // 表と terrain_tags.js の hori タグのためだけに同じ堀の線を持つ。'karabori' は horiboriHeight だけ（何も
@@ -110,6 +111,10 @@ export const ARIOKA_PLAN = {
   yagura: [
     { id: 'sumi_w', kind: 'sumi', at: [-30, WALL_Z - 5] },
     { id: 'sumi_e', kind: 'sumi', at: [34, WALL_Z - 5] },
+    { id: 'sumi_sw', kind: 'sumi', at: [-SOKAKU_X + 4, WALL_Z - 4] },
+    { id: 'sumi_se', kind: 'sumi', at: [SOKAKU_X - 4, WALL_Z - 4] },
+    { id: 'sumi_nw', kind: 'sumi', at: [-SOKAKU_X + 4, SOKAKU_N + 4] },
+    { id: 'sumi_ne', kind: 'sumi', at: [SOKAKU_X - 4, SOKAKU_N + 4] },
     { id: 'monomi_kishi', kind: 'monomi', at: [KISHI_TORIDE.x, KISHI_TORIDE.z] },
     { id: 'monomi_joro', kind: 'monomi', at: [JORO_TORIDE.x, JORO_TORIDE.z] },
   ],

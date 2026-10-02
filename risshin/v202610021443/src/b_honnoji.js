@@ -233,6 +233,7 @@ function teleport(rt, x, z) {
 }
 
 const honnoji = {
+  wakeOK: (rt) => (rt.flags.hp || 0) >= 2,   // P1 静かな寺の間は、外の明智の軽い兵を本物に替えない
   spawn: { x: PT.start.x, z: PT.start.z, heading: Math.PI / 2 },
   noHorse: true,   // 本能寺の変だけは馬に乗れない（kaito 10/2。寺の中で戦う）
   world: {

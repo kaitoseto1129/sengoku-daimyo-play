@@ -4694,7 +4694,9 @@ function humansStep(rt, dt, army, cam) {
   // 鳥取のように人が密集する攻城戦で特に表れる。確かめで見つけた）
   // 三方で同時に大軍がぶつかる戦（姉川など）は、戦の定義の humQ で上限だけをさらに控えめにできる（見た目の近さ・質は変えない。重さ対策 kaito 10/1）
   const QBase = HUM_Q[S.quality] || HUM_Q.high;
-  const Q = rt.def && rt.def.humQ ? { ...QBase, ...rt.def.humQ } : QBase;
+  //   humQ は下げるだけ（画質「低」の max 4 を姉川の 56 で上書きして、携帯で 60 人近くが骨の入った人になっていた。10/2 測って直す）
+  let Q = QBase;
+  if (rt.def && rt.def.humQ) { Q = { ...QBase }; for (const k in rt.def.humQ) if (k in QBase) Q[k] = Math.min(QBase[k], rt.def.humQ[k]); }
   const cx = cam.position.x, cz = cam.position.z;
   cam.updateMatrixWorld();
   _pv.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
@@ -4852,7 +4854,7 @@ export function restOf(nm) { return SRC && SRC.rest[nm]; }
 export const HORSE = { on: true, ready: false, failed: false, near: 30, far: 34, max: 14, lod: 14 };
 // 画質ごとの数（騎馬の突撃が一面の本物の馬に見えるよう「高」は多め）
 // must：この近さより内の馬は、上限を越えても骨の入った馬にする
-const HORSE_Q = { high: { near: 40, far: 44, max: 30, must: 32, mustMax: 60 }, mid: { near: 30, far: 34, max: 14, must: 27, mustMax: 36 }, low: { near: 0, far: 0, max: 1 } };
+const HORSE_Q = { high: { near: 40, far: 44, max: 30, must: 32, mustMax: 60 }, mid: { near: 30, far: 34, max: 14, must: 27, mustMax: 36 }, low: { near: 0, far: 0, max: 1 }, lowN: { near: 16, far: 19, max: 3 } };
 let HR = null, hrLoading = null;
 const HS = 1.3 / 15.9;      // 元の形の単位 → m（肩の高さを 1.3m に）
 const HX = 0.039;           // 元の形は左右が少しずれているので、真ん中へ
@@ -5401,7 +5403,8 @@ function makeRealHorse() {
     m.onBeforeRender = (r, s, cam) => {
       const e = m.matrixWorld.elements, c = cam.matrixWorld.elements;
       const d2 = (e[12] - c[12]) ** 2 + (e[13] - c[13]) ** 2 + (e[14] - c[14]) ** 2;
-      const want = !cam.isOrthographicCamera && d2 < HORSE.lod * HORSE.lod ? hi : lo;
+      const L = S.quality === 'low' ? 8 : HORSE.lod;   // 低（携帯）は細かい形を 8m の内だけに（小さい画面では見分けが付かない）
+      const want = !cam.isOrthographicCamera && d2 < L * L ? hi : lo;
       if (m.geometry !== want) m.geometry = want;
     };
   }
@@ -5749,7 +5752,9 @@ function updateHorses(rt) {
   const want = new Map();
   if (on && HORSE.ready) {
     const cam = rt.camera, cx = cam.position.x, cz = cam.position.z;
-    const HQ = HORSE_Q.high;   // 馬も人と同じく、画質に関わらず常に「高」の近さ・数で骨の入った馬にする
+    // 馬の見た目は画質に関わらず写実。だが何頭を骨の入った馬にするかは、人と同じく画質なり（10/2 測って直す：
+    //   姉川の騎馬で、携帯でも 40m の内の十頭あまりが一頭 2〜9万面・20〜37 回の描きのまま並び、一コマの三分の一を食っていた）
+    const HQ = S.quality === 'low' ? HORSE_Q.lowN : HORSE_Q.high;
     const cand = [];
     const add = (h, u, x, z, pri) => {
       if (!h || !h.userData.horse || h.visible === false) return;
@@ -5761,7 +5766,7 @@ function updateHorses(rt) {
       if (u.gone || !u.mounted || !u.horse || (!u.alive && u.deadT > 30)) continue;
       const named = u.look && (typeof u.look.face === 'string' && u.look.face.startsWith('g:') || u.type === 'busho');
       // 名のある武将の馬は本人の馬と同じ：60m までは必ず骨の入った馬に
-      const near60 = named && Math.hypot(u.pos.x - cx, u.pos.z - cz) < 60;
+      const near60 = named && Math.hypot(u.pos.x - cx, u.pos.z - cz) < (S.quality === 'low' ? 28 : 60);   // 低（携帯）は 28m まで
       add(u.horse, u, u.pos.x, u.pos.z, u.isPlayer || near60 ? -1 : named ? 0.6 : 1);
     }
     const P = rt.player;

@@ -8,7 +8,7 @@
 // 向き：北（-z）が城の奥（本丸）。南（+z）に織田の陣。東西に惣構えの土塁
 // ======================================================================
 import * as THREE from 'three';
-import { nobori, hut, yagura, campfire, kabukimon, tawara, dobei, ishigaki, tenshu, yaguramon, sumiyagura, kagaribi, tamon, tobira, makeKitBatch, finalizeKitBatch } from './props.js';
+import { nobori, hut, yagura, campfire, kabukimon, tawara, dobei, ishigaki, tenshu, yaguramon, sumiyagura, kagaribi, tamon, tobira, makeKitBatch, finalizeKitBatch, dorui, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
 import { flagTexture } from './textures.js';
 import { RANKS } from './state.js';
 import { sfx } from './audio.js';
@@ -29,7 +29,7 @@ import {
   WALL_Z, GATE, SOTO_MOAT, SOTO_MOAT_SEGS, SOTO_BRIDGE,
   ROU, CAMP, HON_ISHIGAKI_SEGS, HON_MOAT, HON_MOAT_SEGS, TENSHU_POS,
   SOKAKU_X, SOKAKU_N, KISHI_TORIDE, JORO_TORIDE, HON_W_MOAT, HON_W_MOAT_SEGS,
-  ARIOKA_PLAN,
+  ARIOKA_PLAN, MACHIYA_Z,
 } from './castles/arioka.js';
 // 足軽大将候補より上（信長で遊ぶ時は除く）：任務の文を「一手を預かる」者の役目に
 const HI = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
@@ -99,6 +99,17 @@ const arioka = {
     noT(wallLine(rt, [[-SOKAKU_X, WALL_Z], [-SOKAKU_X, SOKAKU_N]], { team: 1, hp: 1e9, name: '惣構えの土塁（西）', segLen: 8, mesh: dobei, meshOpt: { hikae: 1, batch: KB } }));
     noT(wallLine(rt, [[SOKAKU_X, WALL_Z], [SOKAKU_X, SOKAKU_N]], { team: 1, hp: 1e9, name: '惣構えの土塁（東）', segLen: 8, mesh: dobei, meshOpt: { hikae: 1, batch: KB } }));
     noT(wallLine(rt, [[-SOKAKU_X, SOKAKU_N], [SOKAKU_X, SOKAKU_N]], { team: 1, hp: 1e9, name: '惣構えの土塁（岸の砦）', segLen: 8, mesh: dobei, meshOpt: { hikae: 1, batch: KB } }));
+    // 惣構えの土塁：塀の外へ盛った土の斜面（見た目だけ。一つの形にまとめる。木戸の前は空ける）と、四隅の隅櫓、町の木戸（大通りの町境）
+    {
+      const db = makeSimpleBatch();
+      for (const [seg, nx, nz] of [[[-SOKAKU_X, WALL_Z, -6, WALL_Z], 0, 1], [[6, WALL_Z, SOKAKU_X, WALL_Z], 0, 1], [[-SOKAKU_X, WALL_Z, -SOKAKU_X, SOKAKU_N], -1, 0], [[SOKAKU_X, WALL_Z, SOKAKU_X, SOKAKU_N], 1, 0], [[-SOKAKU_X, SOKAKU_N, SOKAKU_X, SOKAKU_N], 0, -1]]) {
+        const d = dorui(W, seg, nx, nz, { batch: db, w: 3, h: 0.9 });
+        if (!d.isBatchedPart) rt.scene.add(d);
+      }
+      finalizeSimpleBatch(rt, db);
+      for (const [x, z] of [[-SOKAKU_X + 4, WALL_Z - 4], [SOKAKU_X - 4, WALL_Z - 4], [-SOKAKU_X + 4, SOKAKU_N + 4], [SOKAKU_X - 4, SOKAKU_N + 4]]) sumiyagura(W, x, z, { rot: 0, w: 6, d: 5, base: 1.2, batch: KB });
+      rt.scene.add(kabukimon(W, 0, MACHIYA_Z[1], 7, 0, { doors: false }));   // 町屋と侍町の境の木戸（開いたまま。通れる）
+    }
     // 三砦（北＝岸の砦・西＝上ろう塚砦・南＝鵯塚砦＝惣構えの木戸と同じ）。物見の櫓と旗で目印を置く（HIST_B）
     rt.scene.add(yagura(W, KISHI_TORIDE.x, KISHI_TORIDE.z + 5), nobori(W, KISHI_TORIDE.x + 4, KISHI_TORIDE.z + 3, 'maru', 6));
     rt.scene.add(yagura(W, JORO_TORIDE.x + 5, JORO_TORIDE.z), nobori(W, JORO_TORIDE.x + 9, JORO_TORIDE.z - 2, 'maru', 6));
@@ -286,6 +297,7 @@ const arioka = {
     F.step = 3; F.stepT = rt.t;
     rt.setPhase('escape');
     rt.banner('黒田官兵衛を救い出した', '肩を貸して、織田の陣まで');
+    { const pu = rt.player.u; if (pu && pu.alive && pu.hp < pu.maxHp * 0.8) pu.hp = pu.maxHp * 0.8; }   // 牢を破った後の息つぎ（脱出の追手で倒れて筋が終わらないように）
     rt.obj('main', HI(rt) ? '手の者で官兵衛の一行を囲み、織田の陣まで供せよ' : '官兵衛の一行を守り、織田の陣まで供せよ', 'main');
     // 官兵衛（肩を借りて歩く。戦わない）と、支える者
     const g = allyGroup(rt, { name: '官兵衛の一行', anchor: { x: ROU.x + 2, z: ROU.z + 6 }, facing: 0, width: 3, aggro: 0, noRout: true, formation: 'column', speed: 2.3 },
@@ -314,10 +326,10 @@ const arioka = {
         rt.after(16, () => this.rear(rt));
         return;
       }
-      F.g3 = enemyGroup(rt, { faction: 'saito', name: '追ってくる荒木勢', anchor: { x: 30, z: -70 }, facing: -Math.PI * 0.8, order: 'attack', seekRange: 90, aggro: 16, width: 10, morale: 90, fleeDir: { x: 0.5, z: -1 }, dmgMult: 0.62 },
+      F.g3 = enemyGroup(rt, { faction: 'saito', name: '追ってくる荒木勢', anchor: { x: 30, z: -70 }, facing: -Math.PI * 0.8, order: 'attack', seekRange: 90, aggro: 16, width: 10, morale: 90, fleeDir: { x: 0.5, z: -1 }, dmgMult: 0.47 },
         dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 12 + more(rt) }], ARAKI));
       // 追手は一度にどっと来る：東の追手と本丸の脇から出た者、その後ろに城兵の控え（軽い作り）
-      F.g3b = enemyGroup(rt, { faction: 'saito', name: '本丸の脇から出た荒木勢', anchor: { x: -44, z: -76 }, facing: -Math.PI * 0.2, order: 'attack', seekRange: 90, aggro: 16, width: 10, morale: 90, fleeDir: { x: -0.5, z: -1 }, dmgMult: 0.62 },
+      F.g3b = enemyGroup(rt, { faction: 'saito', name: '本丸の脇から出た荒木勢', anchor: { x: -44, z: -76 }, facing: -Math.PI * 0.2, order: 'attack', seekRange: 90, aggro: 16, width: 10, morale: 90, fleeDir: { x: -0.5, z: -1 }, dmgMult: 0.47 },
         dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 10 + more(rt) }], ARAKI));
       KIT.backOf(rt, F.g3, { flag: 'maru', armor: 0x33302a, kind: 'spear', w: 16, depth: 10, count: 120, seed: 15801, stop: () => F.g3.center().z > -30 });
       rt.army.play('eshout', { x: 30, z: -70 }, 1.6);
@@ -330,7 +342,7 @@ const arioka = {
     rt.after(58, () => {
       if (F.ending || F.g4) return;
       const gx = west ? -76 : 26;
-      F.g4 = enemyGroup(rt, { faction: 'saito', name: '土塁の陰の荒木の鉄砲組', fixed: true, ambush: true, anchor: { x: gx, z: WALL_Z - 12 }, facing: -Math.PI / 2, order: 'attack', seekRange: 50, aggro: 16, width: 8, morale: 70, fleeDir: { x: 1, z: -0.5 }, dmgMult: 0.55 },
+      F.g4 = enemyGroup(rt, { faction: 'saito', name: '土塁の陰の荒木の鉄砲組', fixed: true, ambush: true, anchor: { x: gx, z: WALL_Z - 12 }, facing: -Math.PI / 2, order: 'attack', seekRange: 50, aggro: 16, width: 8, morale: 70, fleeDir: { x: 1, z: -0.5 }, dmgMult: 0.42 },
         dress([{ type: 'samurai', n: 1 }, { type: 'gun', n: 3 }, { type: 'ashigaru', n: 5 }], ARAKI));
       for (const u of F.g4.units) if (u.type === 'gun') u.dmg *= 0.5;
       rt.army.play('eshout', { x: gx, z: WALL_Z - 12 }, 1.2);

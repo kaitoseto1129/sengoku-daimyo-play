@@ -127,6 +127,14 @@ try {
   try { window.__bootDone && window.__bootDone(); } catch (e2) { /* noop */ }
   throw e;
 }
+// 一つも描く物が無い InstancedMesh（count 0）は、描く呼びかけごと省く（材質の準備だけで一回分の重さ。影の描きでも同じ）
+{
+  const rbd = renderer.renderBufferDirect;
+  renderer.renderBufferDirect = function (camera, scene, geometry, material, object, group) {
+    if (object.isInstancedMesh && object.count === 0) return;
+    return rbd.call(this, camera, scene, geometry, material, object, group);
+  };
+}
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 // 不透明な物は、同じ描き方（シェーダー）ごとに並べて描く（切り替えるたびに光・カメラの値を送り直す手間を減らす）。

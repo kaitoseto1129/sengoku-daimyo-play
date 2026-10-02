@@ -17,7 +17,7 @@ import { gauss, enemyGroup, allyGroup, nm, centerOf, unitPos, guardRecover, hpBa
 import { KIT, volley } from './b_nagashinojo.js';
 import { clash } from './b_sekigahara.js';
 import { depthStart, depthTick, rest, pick, fight, hold, depthBot } from './b_depth.js';
-import { camp } from './b_mid.js';
+import { camp, campDepth } from './b_mid.js';
 
 const ANE = [[-180, 8], [-120, -2], [-60, 5], [0, -1], [60, 4], [120, -3], [180, 5]];   // 姉川
 const MORI = { x: 22, z: 34 };     // 森可成の備（自分の持ち場）
@@ -198,6 +198,7 @@ const anegawa = {
     F.akDA[1].m.army.lord = '朝倉景健';   // 本陣へ寄れば旗本が迎え撃つ（b_nagashinojo.js の wake）
     F.azDA = [DA(30, -58, 50, 16, 160, 0, AZAI.armor, 'azai', 51, 'spear'), DA(-4, -86, 30, 24, 125, 0, AZAI.armor, 'azai', 52, 'honjin'), DA(60, -92, 30, 14, 100, 0, AZAI.armor, 'azai', 53, 'cavalry')]
     F.azDA[1].m.army.lord = '浅井長政';
+    campDepth(rt, { x: -4, z: -86, facing: 0, mon: 'azai', armor: AZAI.armor, label: '浅井長政の本陣' });
     // ---- 大軍どうしの合戦（軽い作り・world.addClash）：川の中で組み合う。西の瀬は徳川と朝倉、森の備の左右は織田と浅井 ----
     // 織田と浅井の前線の、森の備に近い端は、本物の兵の押し引きにつながる（link）
     const side = (flag, armor, count, team, faction, x = {}) => ({ flag, armor, count, team, faction, ...x });

@@ -218,7 +218,7 @@ const mitsukuri = {
     DA(0, 140, 50, 14, 300, Math.PI, 0x2b3140, OT, 15683);
     DA(-110, -20, 30, 12, 200, -Math.PI * 0.8, 0x2b3140, OT, 15684);     // 和田山城を抑える手
     // 繖山の山腹の六角の本陣：六角義賢と旗本、後ろに控え（軽い兵）
-    F.rkCamp = camp(rt, { x: KC.x, z: KC.z, facing: Math.atan2(HON_C.x - KC.x, HON_C.z - KC.z), team: 1, faction: 'imagawa', mon: 'rokkaku', armor: 0x33291f, general: { name: '六角義賢', hat: 'kabuto_m', haori: 0x33291f }, guard: 15, reserve: 180, runTo: { x: 60, z: -120 } });
+    F.rkCamp = camp(rt, { x: KC.x, z: KC.z, facing: Math.atan2(HON_C.x - KC.x, HON_C.z - KC.z), team: 1, faction: 'imagawa', mon: 'rokkaku', armor: 0x33291f, general: { name: '六角義賢', hat: 'kabuto_m', haori: 0x33291f }, depth: true, guard: 15, reserve: 180, runTo: { x: 60, z: -120 } });
 
     // ---- 区域の網（siege_zones.js）：三の郭→二の丸（木戸）→本丸 ----
     F.SZ = makeSiegeZones(rt, {

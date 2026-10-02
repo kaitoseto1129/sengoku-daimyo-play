@@ -8,6 +8,8 @@
 import { clash } from './b_sekigahara.js';
 import { honjin, farHost, ARMOR } from './b_nagashinojo.js';
 import { buildModel, poseArms } from './units.js';
+import { flagTexture } from './textures.js';
+import { nobori } from './props.js';
 
 export const uS = (n, o) => ({ type: 'samurai', n, ...(o ? { o } : {}) });
 export const uA = (n) => ({ type: 'ashigaru', n });
@@ -45,6 +47,35 @@ export function lines(rt, list) {
 export const leanAll = (L, side, k) => { for (const c of L || []) c.push(side, k); };
 // 鉄砲の一斉射撃（煙と音）を押し合いの上で
 export const volleyAll = (L, side) => { for (const c of L || []) c.volley(side); };
+
+// ======================================================================
+// 本陣へ近づくほど敵が濃くなる（kaito 10/2）：campDepth(rt, { x, z, facing, mon, armor, label })
+//   本陣の前（facing の向き）に軽い大軍を三重に置く（奥ほど多い。寄れば本物の兵に替わる）と、左右に幟。
+//   近づくと「この奥に本陣がある」と知らせ、見えたら本陣の印を出す。camp(rt, { depth: true }) からも呼ばれる
+// ======================================================================
+export function campDepth(rt, o) {
+  const W = rt.world, f = o.facing ?? 0, sx = Math.sin(f), sz = Math.cos(f), px = sz, pz = -sx;
+  const at = (a, l) => ({ x: o.x + sx * a + px * l, z: o.z + sz * a + pz * l });
+  const host = [];
+  [[52, 90, 24, 7], [30, 160, 30, 9], [16, 240, 34, 11]].forEach(([a, cnt, w, d], i) => {
+    const q = at(a, (i - 1) * 4);
+    host.push(W.addDistantArmy({ x: q.x, z: q.z, w, d, count: cnt, facing: f, armor: o.armor ?? 0x2c2a2a, flagTex: flagTexture(o.mon), mon: o.mon, seed: 15900 + Math.round(o.x + o.z) + i, team: 1 }));
+  });
+  for (const a of [30, 46]) for (const l of [-14, 14]) { const q = at(a, l); rt.scene.add(nobori(W, q.x, q.z, o.mon, 7)); }
+  const name = o.label || '敵の本陣', st = { near: false, mark: false };
+  const poll = () => {
+    if (rt.ended) return;
+    const p = rt.player && rt.player.u && rt.player.u.pos;
+    if (p) {
+      const d = Math.hypot(p.x - o.x, p.z - o.z);
+      if (!st.near && d < 130) { st.near = true; rt.say('足軽', '奥へ行くほど、敵の旗が濃くなる……この奥に本陣があるぞ', 3.5); }
+      if (!st.mark && d < 75) { st.mark = true; rt.marker('hq_' + Math.round(o.x) + '_' + Math.round(o.z), { x: o.x, z: o.z }, name, { red: true, h: 4 }); rt.bark(name + 'が見えた', true); }
+    }
+    if (!st.mark) rt.after(1, poll);
+  };
+  rt.after(2, poll);
+  return host;
+}
 
 // ======================================================================
 // 本陣：camp(rt, o)
@@ -117,5 +148,6 @@ export function camp(rt, o = {}) {
     rt.after(0, tick);
   };
   rt.after(R.wait, tick);
+  if (o.depth && team === 1) campDepth(rt, { x, z, facing, mon, armor, label: o.general ? o.general.name + 'の本陣' : '敵の本陣' });
   return { general, guard, pos };
 }

@@ -20,9 +20,9 @@ export const SHIGISAN_PLAN = {
   name: '信貴山城', type: 'yama', year: 1577,
   kuruwa: [
     // 北尾根の曲輪群（それぞれ独立して守る）。門を抜けた先が下の段、尾根道の先に上の段、裏道の先に屋敷
-    { id: 'ridge1', name: '北尾根の曲輪（下）', poly: circle(RIDGE1.x, RIDGE1.z, RIDGE1.r), level: (bf) => bf(RIDGE1.x, RIDGE1.z) + 1 },
+    { id: 'ridge1', name: '北尾根の曲輪（下）', wall: 'saku', gapW: 6, gapAt: [[RIDGE1.x, RIDGE1.z + RIDGE1.r], [RIDGE1.x, RIDGE1.z - RIDGE1.r], [RIDGE1.x - RIDGE1.r, RIDGE1.z], [RIDGE1.x + RIDGE1.r, RIDGE1.z]], poly: circle(RIDGE1.x, RIDGE1.z, RIDGE1.r), level: (bf) => bf(RIDGE1.x, RIDGE1.z) + 1 },
     { id: 'ridge2', name: '北尾根の曲輪（上）', poly: circle(RIDGE2.x, RIDGE2.z, RIDGE2.r), level: (bf) => bf(RIDGE2.x, RIDGE2.z) + 2 },
-    { id: 'yashiki', name: '松永屋敷', poly: circle(YASHIKI.x, YASHIKI.z, YASHIKI.r), level: (bf) => bf(YASHIKI.x, YASHIKI.z) + 2 },
+    { id: 'yashiki', name: '松永屋敷', wall: 'saku', gapW: 6, gapAt: [[YASHIKI.x - YASHIKI.r, YASHIKI.z], [YASHIKI.x, YASHIKI.z + YASHIKI.r], [YASHIKI.x + YASHIKI.r, YASHIKI.z]], poly: circle(YASHIKI.x, YASHIKI.z, YASHIKI.r), level: (bf) => bf(YASHIKI.x, YASHIKI.z) + 2 },
     { id: 'shu', name: '主郭（高櫓）', poly: circle(TOP.x, TOP.z, TOP.r), level: (bf) => bf(TOP.x, TOP.z) + 3 },
   ],
   // nawabari.js（束19）の表に使うだけの口・櫓・道の束（b_shigisan.js の壁・門・櫓は今まで通り手組み。
@@ -30,8 +30,15 @@ export const SHIGISAN_PLAN = {
   koguchi: [
     { id: 'gate', name: '門', from: 'out', to: 'ridge1', kind: 'hira', gate: 'kabuki', at: [GATE.x, GATE.z], role: 'ote', maxFlow: 5, fireResistance: 0.3 },
   ],
+  // 空堀・堀切：門の前（ふもと側）の尾根を横に断つ。道の幅だけ掘り残して土橋にする（深さ 1m ほど・歩ける）
+  hori: [
+    { kind: 'horikiri', pts: [[-26, -57], [-7, -57]], w: 3, deep: 1.0 },
+    { kind: 'horikiri', pts: [[7, -57], [26, -57]], w: 3, deep: 1.0 },
+  ],
   yagura: [
     { id: 'monomi_gate', kind: 'monomi', at: [TOWER.x, TOWER.z] },
+    { id: 'monomi_ridge1', kind: 'monomi', at: [RIDGE1.x - 7, RIDGE1.z - 4] },
+    { id: 'monomi_yashiki', kind: 'monomi', at: [YASHIKI.x - 6, YASHIKI.z + 7] },
   ],
   paths: [
     { id: 'tozan', kind: 'ote', pts: ROAD },

@@ -71,7 +71,7 @@ const moribe = {
     // 倒れる寸前に仲間が割って入る手当ては、最初の桶狭間だけ（森部からは構えと回避で凌ぐ）。
     //   組頭見習いの戦なので、同時に本人へ打ちかかる敵は二人まで
     rt.firstFights = false;
-    if (!rt.G.lord && (rt.G.rank || 0) <= 1) rt.army.maxAttackers = Math.min(rt.army.maxAttackers || 3, 2);
+    if (!rt.G.lord && (rt.G.rank || 0) <= 1) { rt.army.maxAttackers = Math.min(rt.army.maxAttackers || 3, 2); rt.army.mobCapMax = 2; }   // 囲まれても同時に打ちかかるのは二人まで（背の側の一人は別）
     const n = RANKS[rt.G.rank].squad || 5;
     rt.makeSquad({ x: 46, z: 77 }, Math.PI, [{ kind: 'spear', n }]);
     const oz = allyGroup(rt, { name: '大沢組', anchor: { x: 38, z: 70 }, facing: Math.PI, noRout: true }, [{ type: 'samurai', n: 1, o: { name: '足軽大将 大沢勘兵衛', invuln: true, horse: true } }, { type: 'ashigaru', n: 3, o: { invuln: true } }]);
@@ -139,7 +139,7 @@ const moribe = {
     // 信長の本陣：陣幕の内に床几の大将と諸将、後ろに馬印と旗本
     F.odaCamp = camp(rt, { x: 0, z: 150, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', general: { name: '織田信長', haori: 0x7a1d14 }, guard: 15, reserve: 260, runTo: { x: -20, z: 60 } });
     // 斎藤の本陣：大将と旗本（北の奥。崩れた後も見に行けば陣に大将がいる）
-    F.saitoCamp = camp(rt, { x: -2, z: -148, facing: 0, team: 1, faction: 'saito', mon: 'saito', general: { name: '斎藤龍興' }, guard: 15, reserve: 300, runTo: { x: -14, z: -96 } });
+    F.saitoCamp = camp(rt, { x: -2, z: -148, facing: 0, team: 1, faction: 'saito', mon: 'saito', general: { name: '斎藤龍興' }, depth: true, guard: 15, reserve: 300, runTo: { x: -14, z: -96 } });
     rt.scene.add(nobori(W, -12, 156, 'eiraku', 6));
     // 遠景の村（西の在所）
     KT.farVillage(rt, -126, -30, { rot: -Math.PI / 2, n: 6, fields: 8, seed: 4 });

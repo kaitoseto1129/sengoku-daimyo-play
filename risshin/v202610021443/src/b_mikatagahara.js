@@ -179,7 +179,7 @@ const mikatagahara = {
     // 武田の頭（F7）：毎回少し違う手を打つ。正面で押す／左（徳川の鶴翼の端）を回る／右（森の側）から赤備えを先に出す
     F.tPlan = ['naka', 'hidari', 'migi'][Math.floor(Math.random() * 3)];
     // 武田の本陣（北の奥）：武田信玄と旗本。控えは軽い兵
-    F.campB = camp(rt, { x: -30, z: -152, facing: 0, team: 1, faction: 'takeda', mon: 'takeda', armor: AR.takeda, general: { name: '武田信玄', hat: 'kabuto_m', haori: 0x8a1a14 }, guard: 15, reserve: 300, runTo: { x: 0, z: -70 } });
+    F.campB = camp(rt, { x: -30, z: -152, facing: 0, team: 1, faction: 'takeda', mon: 'takeda', armor: AR.takeda, general: { name: '武田信玄', hat: 'kabuto_m', haori: 0x8a1a14 }, depth: true, guard: 15, reserve: 300, runTo: { x: 0, z: -70 } });
     // 徳川の本陣（鶴翼の後ろ）：徳川家康と旗本。鶴翼が破れると浜松城へ退く
     F.campA = camp(rt, { x: -64, z: 12, facing: Math.PI, team: 0, faction: 'tokugawa', mon: 'tokugawa', armor: AR.tokugawa, general: { name: '徳川家康', hat: 'kabuto_m', haori: 0x6a5a2a }, guard: 15, reserve: 0, runTo: { x: -40, z: LINE_Z - 4 } });
     // 本陣の旗本は、整った陣形のまま静かに待つ（寄ってきた敵にだけ向き直る。前へ出て乱れない）
