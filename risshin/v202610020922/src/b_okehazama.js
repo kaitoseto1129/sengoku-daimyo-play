@@ -529,7 +529,9 @@ const okehazama = {
         rt.obj('crush', '旗本を崩し、味方を義元へ通せ', 'main');
         rt.marker('yoshimoto', unitPos(F.yoshimoto), '旗本の奥の義元', { red: true }); F.yoshimoto.allyOk = true;   // ここからは味方の兵も義元へ槍を付ける
         this.bannermen(rt);
-        for (const g of [...F.cols, F.nob]) if (g.count) { g.order = 'attack'; g.seekRange = 34; g.anchor = { x: F.cutPt.x, z: F.cutPt.z + 6 }; }
+        // 組ごとに寄せ先を少しずらす：同じ一点に全部の組が重なると人だかりになり、遊び手も詰まって動けない
+        const cutOffs = [[-5, 0], [5, 2], [-2, -4], [3, 5], [0, -2]];
+        [...F.cols, F.nob].forEach((g, i) => { if (!g.count) return; g.order = 'attack'; g.seekRange = 34; const o = cutOffs[i % cutOffs.length]; g.anchor = { x: F.cutPt.x + o[0], z: F.cutPt.z + 6 + o[1] }; });
         next(5);
       }
     }
@@ -664,7 +666,10 @@ const okehazama = {
     rt.say('源八', '首は捨てよ。本陣の跡で槍を揃えて受けよ！', 3.5);
     rt.obj('st', '引き返す今川勢から本陣の跡を守れ', 'main');
     rt.marker('matsui', centerOf(F.matsui), () => `引き返す今川勢・${moraleWord(F.matsui.morale)}`, { red: true, group: F.matsui });
-    for (const g of [...F.cols, F.nob]) if (g.count) { g.order = 'hold'; g.anchor = { x: HONJIN.x + (g === F.nob ? 8 : -4), z: HONJIN.z - 6 }; g.facing = 0; g.aggro = 14; }
+    // ここも組ごとに受け場所をずらす（本陣の跡で一点に固まらないように）
+    const holdOffs = [-9, -3, 3, 9];
+    F.cols.forEach((g, i) => { if (!g.count) return; g.order = 'hold'; g.anchor = { x: HONJIN.x + holdOffs[i % holdOffs.length], z: HONJIN.z - 6 }; g.facing = 0; g.aggro = 14; });
+    if (F.nob.count) { F.nob.order = 'hold'; F.nob.anchor = { x: HONJIN.x + 8, z: HONJIN.z - 6 }; F.nob.facing = 0; F.nob.aggro = 14; }
   },
 
   assault(rt, dt) {

@@ -754,6 +754,9 @@ const HABIT = {
   },
   act(b, inp, c) {
     const p = b.player, u = p.u, t = b.t;
+    // 「待て」「持ち場を守れ」「柵の外へ出るな」等の下知（kind:'order' の任務）が生きている間は、
+    // 遠い武将を求めて大軍へ突っ込まない（近くの敵だけを相手にし、組から離れすぎない）
+    const ordered = b.objectives.some((o) => o.kind === 'order' && o.state !== 'done' && o.state !== 'fail');
     // 馬に乗る（乗れるなら、空馬がそばにあれば）
     if (!p.mounted && (p.canRide || p.takeO) && t - (c.mountT || -9) > 4) { inp.e.add('KeyR'); c.mountT = t; c.mountTry = (c.mountTry || 0) + 1; }
     // 主を失った空馬が30m内にいて、目の前に敵がいなければ、寄って手綱を取りに行く（人もそうする）
@@ -773,9 +776,9 @@ const HABIT = {
         return;
       }
     }
-    // 名のある武将を探して斬りかかる。いなければ近い敵へ突撃
-    const busho = b.army.nearestEnemy(u, 60, (o) => (o.type === 'busho' || !!o.name) && !o.fleeing);
-    const e = busho || b.army.nearestEnemy(u, 45, (o) => o.type !== 'dummy' && !o.noTarget && !o.fleeing);
+    // 名のある武将を探して斬りかかる。いなければ近い敵へ突撃（下知が生きている間は、名のある者を求めて遠出せず、近くだけ見る）
+    const busho = ordered ? null : b.army.nearestEnemy(u, 60, (o) => (o.type === 'busho' || !!o.name) && !o.fleeing);
+    const e = busho || b.army.nearestEnemy(u, ordered ? 12 : 45, (o) => o.type !== 'dummy' && !o.noTarget && !o.fleeing);
     if (e) {
       const d = dist(e.pos, u.pos);
       // 味方の組が近くにいる時は、組から離れすぎて一人だけ敵の只中へ飛び込まない（組の歩みを待つ）

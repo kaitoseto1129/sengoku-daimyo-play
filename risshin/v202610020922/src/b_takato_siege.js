@@ -22,6 +22,7 @@ import { placeLadder, startClimb, knockDown, updateLadders, resetLadders } from 
 import { makeDefenseAI, chooseRoute } from './siege_ai.js';
 import { makeButai, butaiTick } from './butai.js';
 import { tickTabas, tabaInteractTick, announceAdvance, makeTabaAdvance } from './taketaba.js';
+import { logEvent } from './senkyo.js';
 import {
   TAKATO_PLAN, OTE, GATE_NI, GATE_HON, KARAMETE, GATE_HODOIN, CLIFF_Z, NISHI_X,
   ROAD_OTE, ROAD_KARAMETE, ROAD_NISHI, ROAD_YODOU,
@@ -164,6 +165,9 @@ const takato_siege = {
       onReach: () => { rt.banner('主殿へ踏み込んだ', '仁科盛信が刀を抜いた。討ち取れ'); rt.say('仁科盛信', '来たか。高遠は降らぬ', 3); },
     });
     F.commander = { alive: true, get real() { return rt.army.units.find((u) => u.alive && u.name === '仁科盛信'); } };
+    // castleGarrison（shiro.js・束8）の城主の判断に寄せる：'defend'→'fallback'→'surrender' の記録だけ
+    // （盛信は「最後まで刀を取って戦い、城と共に果てた」筋のまま。台詞や降伏は変えず、状態の記録のみ）
+    F.lordState = 'defend';
 
     // ---- 攻め（織田信忠の手・5,000）。小さな部隊（butai.js） ----
     F.oteSpear = mkB(rt, { name: '大手の先手（森長可の組・槍）', team: 0, faction: 'oda', kind: 'ashigaru', nominal: 900, armor: ODA.armor, flag: ODA.flag, at: { x: 0, z: -108 }, facing: 0 });
@@ -218,7 +222,10 @@ const takato_siege = {
     // 束12・束31・束32：K を rt にも持たせ、軍議の俯瞰の説明・小地図の曲輪塗り分け・制圧の札に使えるようにする
     rt.nawabari = F.K;
 
-    // ---- 城の頭（siege_ai.js・F4・C8）：守りは持ち場・門・退き・出撃、攻めは道を選ぶ ----
+    // ---- 城の頭（siege_ai.js・F4・C8）：守りは持ち場・門・退き・出撃、攻めは道を選ぶ。
+    // shiro.js（castleGarrison・束8）の考えに寄せ、城方の予備（F.reserveDef）を持ち場ではなく
+    // reserves として渡す（圧されている持ち場へ siege_ai.js が自分で回す。先に posts の一つに
+    // 固定で置くより、本丸へ溜め込みすぎず要る所へ回る） ----
     F.DA = makeDefenseAI(rt, {
       posts: [
         { id: 'san', butai: F.sanSpear, at: sanC, gate: '大手門（一の門）', next: 'ni', watch: [{ at: { x: 0, z: -90 }, range: 36 }] },
@@ -226,7 +233,7 @@ const takato_siege = {
         { id: 'ni', butai: F.niSpear, at: niC, next: 'hon' },
         { id: 'hon', butai: F.honGuard, at: honC },
       ],
-      reserves: [],
+      reserves: [F.reserveDef],
       fallback: { x: honC.x, z: honC.z },
     });
     // 攻めの頭（軍議で作戦を選ばなければ、道の厚さ・長さ・口の狭さに揺らぎを掛けて自分で選ぶ
@@ -386,6 +393,20 @@ const takato_siege = {
     const F = rt.flags;
     const chk = (id, b) => { if (b && !b._ratioFell && b.nominal > 0 && b.aliveNominal() / b.nominal <= 0.45) { b._ratioFell = true; this.onZoneFall(rt, id); } };
     chk('san', F.sanSpear); chk('hodoin', F.hodoinSpear); chk('ni', F.niSpear);
+  },
+
+  // 本丸の城主の判断（shiro.js・castleGarrison の lordTick と同じ考え。記録だけで、下知や台詞は変えない）
+  lordTick(rt) {
+    const F = rt.flags;
+    const b = F.honGuard; if (!b || F.lordState === 'surrender') return;
+    const alive = b.aliveNominal ? b.aliveNominal() : 0, nominal = b.nominal || 1;
+    if (alive <= nominal * 0.15 && b.morale < 25) {
+      F.lordState = 'surrender';
+      logEvent(rt, 'lordState', { team: 1, who: '仁科盛信', v: 'surrender' });
+    } else if (F.lordState === 'defend' && alive <= nominal * 0.5) {
+      F.lordState = 'fallback';
+      logEvent(rt, 'lordState', { team: 1, who: '仁科盛信', v: 'fallback' });
+    }
   },
 
   win(rt) {

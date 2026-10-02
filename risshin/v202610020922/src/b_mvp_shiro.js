@@ -29,6 +29,12 @@ const ODA = { armor: 0x2b3140, flag: 'oda' };
 const TAKEDA = { armor: 0x3a2622, flag: 'takeda' };
 const MIX = { ashigaru: 0.6, samurai: 0.15, gun: 0.15, bow: 0.1 };
 
+// 破れていない門をまとめて渡すと、生きている最初の一つを的にする（b_takato_siege.js の gateAssault と同じ考え。
+// 後詰・本陣が本丸門の手前で「道があるのに動かない・押し返される」事が無いよう、門を打ちに掛からせる）
+function gateAssault(...gates) {
+  return () => { for (const g of gates) if (g && g.struct && g.struct.alive && !g.opened) return g.struct; return null; };
+}
+
 function baseTerrain(x, z) {
   let h = 1 + 5 / (1 + Math.exp(-(z + 90) / 6));
   h += 0.3 * Math.sin(x * 0.05 + 0.4) * Math.cos(z * 0.045);
@@ -79,17 +85,24 @@ const mvp_shiro = {
     };
 
     // ---- 攻め 1,500（800。__mvpScale=68 で 1,500）：5つの備 ----
-    const atkN = SCALE ? { ote: 500, karamete: 300, gun: 300, gotsume: 300, honjin: 100 } : { ote: 300, karamete: 150, gun: 150, gotsume: 150, honjin: 50 };
+    // 三の丸・二の丸は大手・搦手・鉄砲だけで 600 秒の内に十分落ちる（測って確かめた）ので、
+    // 後詰・本陣（本丸攻め）へもっと厚く回す（釣り合い。合わせの数は変えない）
+    const atkN = SCALE ? { ote: 400, karamete: 200, gun: 150, gotsume: 400, honjin: 350 } : { ote: 220, karamete: 100, gun: 80, gotsume: 200, honjin: 200 };
     makeSonae(rt, { id: 'ote', name: '大手の備', team: 0, faction: 'oda', armor: ODA.armor, flag: ODA.flag, line: 1, slot: 'center', taisho: '大手衆の将', nominal: atkN.ote, mix: MIX, at: { x: 0, z: -100 }, facing: 0 });
     makeSonae(rt, { id: 'karamete', name: '搦手の備', team: 0, faction: 'oda', armor: ODA.armor, flag: ODA.flag, line: 1, slot: 'right', taisho: '搦手衆の将', nominal: atkN.karamete, mix: MIX, at: { x: 78, z: 10 }, facing: -Math.PI / 2 });
     makeSonae(rt, { id: 'gun', name: '鉄砲の備', team: 0, faction: 'oda', armor: ODA.armor, flag: ODA.flag, line: 1, slot: 'left', taisho: '鉄砲頭', nominal: atkN.gun, mix: { gun: 0.8, ashigaru: 0.2 }, at: { x: -14, z: -102 }, facing: 0 });
-    makeSonae(rt, { id: 'gotsume', name: '後詰', team: 0, faction: 'oda', armor: ODA.armor, flag: ODA.flag, line: 'gotsume', slot: 'center', taisho: '後詰の将', nominal: atkN.gotsume, mix: MIX, at: { x: 0, z: -124 }, facing: 0 });
-    makeSonae(rt, { id: 'honjin', name: '本陣', team: 0, faction: 'oda', armor: ODA.armor, flag: ODA.flag, line: 'honjin', slot: 'center', taisho: '攻めの大将', nominal: atkN.honjin, mix: { ashigaru: 0.4, samurai: 0.4, cavalry: 0.2 }, at: { x: 10, z: -134 }, facing: 0, major: true });
+    const SG = makeSonae(rt, { id: 'gotsume', name: '後詰', team: 0, faction: 'oda', armor: ODA.armor, flag: ODA.flag, line: 'gotsume', slot: 'center', taisho: '後詰の将', nominal: atkN.gotsume, mix: MIX, at: { x: 0, z: -124 }, facing: 0 });
+    const SH = makeSonae(rt, { id: 'honjin', name: '本陣', team: 0, faction: 'oda', armor: ODA.armor, flag: ODA.flag, line: 'honjin', slot: 'center', taisho: '攻めの大将', nominal: atkN.honjin, mix: { ashigaru: 0.4, samurai: 0.4, cavalry: 0.2 }, at: { x: 10, z: -134 }, facing: 0, major: true });
+    // 本丸門の手前で「道があるのに動かない」事が無いよう、後詰・本陣は門を打ちに掛からせる（gateAssault）
+    SG.b.assault = gateAssault(F.gates.honOuter, F.gates.honInner);
+    SH.b.assault = gateAssault(F.gates.honOuter, F.gates.honInner);
 
     // ---- 守り 700（400。__mvpScale=68 で 700）：castleGarrison（shiro.js・束8）で5つの備 ----
     const midOf = (s) => ({ x: (s.seg[0] + s.seg[2]) / 2, z: (s.seg[1] + s.seg[3]) / 2 });
     const oteGP = midOf(F.gates.oteInner.struct), niGP = midOf(F.gates.gateNi.struct);
-    const defN = SCALE ? { gate: 150, wall: 100, san: 150, ni: 150, hon: 150 } : { gate: 80, wall: 50, san: 80, ni: 80, hon: 80 };
+    // hon は三の丸・二の丸が落ちて退いた城方が siege_ai.js の鎖で合流し溜まっていくため、
+    // 初めの数は少し薄くしておく（釣り合い。でないと後詰が着く頃には城方が強すぎる）
+    const defN = SCALE ? { gate: 150, wall: 100, san: 150, ni: 150, hon: 110 } : { gate: 80, wall: 50, san: 80, ni: 80, hon: 60 };
     F.garrison = castleGarrison(rt, C, {
       team: 1, faction: 'takeda', armor: TAKEDA.armor, flag: TAKEDA.flag,
       lord: { name: '城主', kuruwa: 'hon' },
@@ -101,6 +114,10 @@ const mvp_shiro = {
         // 本丸は honC（曲輪の奥）に置く（門の真口に立たせると早々に城主が討たれてしまうため）
         { id: 'd_hon', name: '本丸の城主と旗本', role: '本丸', nominal: defN.hon, mix: { ashigaru: 0.3, samurai: 0.5, cavalry: 0.2 }, at: honC, gate: GATE_HON.name },
       ],
+      // 本丸（退き先の無い最後の備え）は、城主（名のある本物）がまだ出ていない間 generalDown が
+      // 誤って立ち、下知が無いまま遠くへ「後退」し続けてしまう（確かめで見つけた）。退き先を honC 自身に
+      // 決めておけば、誤って退いても持ち場のすぐ内に留まる（b_takato_siege.js の fallback と同じ考え）
+      fallback: { x: honC.x, z: honC.z },
     });
     F.commander = { alive: true, get real() { return rt.army.units.find((u) => u.alive && u.name === '城主'); } };
 
@@ -156,7 +173,8 @@ const mvp_shiro = {
       if (m.done) continue;
       const S = sonaeById(rt, id);
       if (!S || S.b.aliveNominal() <= 0) { m.done = true; continue; }
-      if (Math.hypot(S.b.pos.x - m.to.x, S.b.pos.z - m.to.z) < 10) { m.done = true; S.order({ id: 'attack' }); }
+      // 門ごしで敵に届かない間、立ち尽くさず門を打ちに掛からせる（b.assault を持つ後詰・本陣は assault）
+      if (Math.hypot(S.b.pos.x - m.to.x, S.b.pos.z - m.to.z) < 10) { m.done = true; S.order({ id: S.b.assault ? 'assault' : 'attack' }); }
     }
   },
 
@@ -173,15 +191,19 @@ const mvp_shiro = {
   },
 
   // 二の丸が落ちたら、本陣（攻め）を本丸へ送る。搦手・法幢院の軽い道から先に二の丸が落ちる事もあるため、
-  // 後詰（まだなら）も一緒に出す（本陣だけの少人数で本丸へ突っ込んで押し返される事を防ぐ）
+  // 後詰（まだなら）も一緒に出す（本陣だけの少人数で本丸へ突っ込んで押し返される事を防ぐ）。
+  // 二の丸・三の丸で退いた城方は siege_ai.js の鎖で本丸へ合流して溜まる（城方が強くなる）ため、
+  // 後詰（三の丸で前へ出した備）も本陣と一緒に本丸へ向かわせ、数で合わせる
   onNiFall(rt) {
     const F = rt.flags;
     this.onSanFall(rt);
     if (F.honSent) return;
     F.honSent = true;
     F.atkMove.honjin = { to: { x: 10, z: 20 }, done: false };
-    const h = sonaeById(rt, 'honjin');
+    F.atkMove.gotsume = { to: { x: 6, z: 18 }, done: false };
+    const h = sonaeById(rt, 'honjin'), g = sonaeById(rt, 'gotsume');
     if (h) h.order({ id: 'move', to: F.atkMove.honjin.to });
+    if (g && g.b.aliveNominal() > 0) g.order({ id: 'move', to: F.atkMove.gotsume.to });
     rt.bark('本陣、本丸へ');
   },
 
