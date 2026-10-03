@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202610031314 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202610031417 として写した） -->
 <title>戦国立身3D　足軽から天下へ、戦国の合戦アクション</title>
 <meta name="description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。">
 <link rel="canonical" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/">
@@ -9,7 +9,7 @@
 <meta property="og:image" content="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/og.png"><meta property="og:image:width" content="1280"><meta property="og:image:height" content="672"><meta property="og:image:alt" content="姉川の戦いの戦場を行く足軽">
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="戦国立身3D　足軽から天下へ"><meta name="twitter:description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。"><meta name="twitter:image" content="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/og.png">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGame","name":"戦国立身3D","inLanguage":"ja","url":"https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/","description":"足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。","genre":["アクション","歴史","戦国"],"gamePlatform":["Web","iOS"],"applicationCategory":"Game","operatingSystem":"Web, iOS","image":"https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/og.png","offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"}}</script>
-<link rel="icon" type="image/png" sizes="32x32" href="./v202610031314/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610031314/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610031314/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610031314/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202610031417/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610031417/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610031417/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610031417/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1089,14 +1089,31 @@ details[open] > summary::before { transform: rotate(90deg); }
 .jp-hint { left: auto; right: 16px; top: 68px; transform: none; white-space: normal; max-width: 300px; text-align: right; }
 .jp-tlist { display: flex; flex-wrap: wrap; gap: 6px 8px; margin-top: 8px; }
 /* 動きを減らす：OS の設定でも、ゲームの設定でも。止めた後は中身をすぐ見せる（無限に続く動きは点滅にならないよう止める） */
-body.rm *, body.rm *::before, body.rm *::after { animation-delay: 0s !important; animation-iteration-count: 1 !important; }
+body.rm *, body.rm *::before, body.rm *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 body.rm #wipe { display: none; }
-body.rm .bk, body.rm .objnew, body.rm .toastbox, body.rm .evc, body.rm .ev-big, body.rm .ev-sum, body.rm .ev-actbar, body.rm .ev-more-wrap, body.rm .card, body.rm .pc-say { opacity: 1 !important; }
+body.rm .bk, body.rm .objnew, body.rm .toastbox, body.rm .evc, body.rm .ev-big, body.rm .ev-sum, body.rm .ev-actbar, body.rm .ev-more-wrap, body.rm .card, body.rm .pc-say, body.rm .st-tip, body.rm #intro .vs, body.rm #intro .sub, body.rm #intro .date { opacity: 1 !important; }
+body.rm .credits { height: auto; overflow: visible; mask-image: none; -webkit-mask-image: none; }
+body.rm .credits .roll { position: static; transform: none; }
+body.rm #crosshair.gping::after { opacity: 0; }
+/* 外れた印は動かさずに消す。付いたままのクラスでも字が残らない。 */
+@keyframes stillMiss { 0%, 75% { opacity: 1; } 100% { opacity: 0; } }
+body.rm #crosshair.gmiss::after { animation: stillMiss .7s linear forwards !important; }
+html.touch body.rm #hud #tutorial.coach.hintc.in { animation: none !important; }
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-delay: 0s !important; animation-iteration-count: 1 !important; }
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
   #wipe { display: none; }
-  .toast, .bk, .objnew, .toastbox, .story p, .evc, .ev-big, .ev-sum, .ev-actbar, .ev-more-wrap, .card, .pc-say, .promo { opacity: 1 !important; }
+  .toast, #banner.show, .ln, .bk, .objnew, .toastbox, .story p, .evc, .ev-big, .ev-sum, .ev-actbar, .ev-more-wrap, .card, .pc-say, .promo, .st-tip, #intro .vs, #intro .sub, #intro .date { opacity: 1 !important; }
+  .credits { height: auto; overflow: visible; mask-image: none; -webkit-mask-image: none; }
+  .credits .roll { position: static; transform: none; }
+  #crosshair.gping::after { opacity: 0; }
+  #crosshair.gmiss::after { animation: stillMiss .7s linear forwards !important; }
+  html.touch #hud #tutorial.coach.hintc.in { animation: none !important; }
 }
+/* 筒の準備と狙い定めは、色に加えて四角と印でも示す。 */
+#crosshair.gun.gready i { border-radius: 0; }
+#crosshair.gun.gready.gaim i { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+#target.locked span::before { content: '◎ '; }
+#hud .bar.low i { background-image: repeating-linear-gradient(135deg, transparent 0 5px, rgba(0,0,0,.65) 5px 8px); }
 /* 幅の狭い画面：上の兵力の帯を左右の札の間に収め、下の札は右へ寄せ、字幕と知らせは左の札を避けて置く */
 @media (max-width: 1000px) {
   #armybar { width: calc(100vw - 460px); grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 6px; }
@@ -1685,17 +1702,30 @@ html.touch.tc-low #hud #armybar { width: min(360px, 40vw); top: calc(6px + env(s
   try { rm = matchMedia('(prefers-reduced-motion: reduce)').matches || !!(JSON.parse(localStorage.getItem('sengoku-risshin-settings-v1') || '{}') || {}).reduceMotion; } catch (e) { /* 既定 */ }
   var bar = document.querySelector('#boot .ldbar i'), st = document.getElementById('boot-st'), lf = document.getElementById('boot-left');
   if (!rm) requestAnimationFrame(function () { requestAnimationFrame(function () { bar.style.transition = 'transform ' + Math.round(est) + 'ms cubic-bezier(.25,.6,.45,1)'; bar.style.transform = 'scaleX(.94)'; }); });
-  var NAMES = [[/asset_(hum|dom|kab|men|yoroi|body|head)/, '人と具足の形を読み込んでいます'], [/asset_horse/, '馬を読み込んでいます'], [/(japan|dem|terrain|elev|gsi)/, '地形を読み込んでいます'], [/asset_/, '絵と形を読み込んでいます'], [/three/, '絵の道具を読み込んでいます'], [/\/src\//, '戦の仕組みを読み込んでいます']];
-  try { new PerformanceObserver(function (l) { var es = l.getEntries(), n = es[es.length - 1] && es[es.length - 1].name; for (var k = 0; k < NAMES.length; k++) if (NAMES[k][0].test(n)) { st.textContent = NAMES[k][1]; break; } }).observe({ type: 'resource', buffered: true }); } catch (e) { /* 名前は出さない */ }
+  var observer = null;
+  var NAMES = [[/asset_(hum|dom|kab|men|yoroi|body|head)/, '人と具足の形を読み込んでいます'], [/asset_horse/, '馬を読み込んでいます'], [/(japan|dem|terrain|elev|gsi)/, '地形を読み込んでいます'], [/asset_/, '絵と形を読み込んでいます'], [/three/, '絵の道具を読み込んでいます'], [/\/src\//, '画面の支度をしています']];
+  try { observer = new PerformanceObserver(function (l) { var es = l.getEntries(), n = es[es.length - 1] && es[es.length - 1].name; for (var k = 0; k < NAMES.length; k++) if (NAMES[k][0].test(n)) { st.textContent = NAMES[k][1]; break; } }); observer.observe({ type: 'resource', buffered: true }); } catch (e) { /* 名前は出さない */ }
   function tick() {
     var el = performance.now() - t0, left = est - el;
     lf.textContent = left > 900 ? 'あと約 ' + Math.ceil(left / 1000) + ' 秒' : el > est * 2 + 3000 ? 'もう少しです' : 'まもなく';
     if (rm) bar.style.transform = 'scaleX(' + Math.min(0.94, el / est).toFixed(3) + ')';
   }
   var iv = setInterval(tick, 250); tick();
+  window.__bootFail = function () {
+    clearInterval(iv);
+    if (observer) observer.disconnect();
+    st.textContent = '！ 読み込みに失敗しました。';
+    lf.textContent = '電波のよい所で、もう一度読み込んでください。';
+    var retry = document.createElement('button');
+    retry.className = 'btn'; retry.style.cssText = 'min-height:44px;margin-top:16px';
+    retry.textContent = 'もう一度読み込む';
+    retry.onclick = function () { location.reload(); };
+    lf.after(retry);
+  };
   // main.js が題の画面を出した時に呼ぶ
   window.__bootDone = function () {
     clearInterval(iv);
+    if (observer) observer.disconnect();
     var el = performance.now() - t0, b = document.getElementById('boot');
     try { var o = +localStorage.getItem(KEY + (touch ? '-t' : '')) || 0; localStorage.setItem(KEY + (touch ? '-t' : ''), String(Math.round(o ? (o + el) / 2 : el))); } catch (e) { /* 覚えなくてよい */ }
     if (!b) return;
@@ -1711,4 +1741,6 @@ html.touch.tc-low #hud #armybar { width: min(360px, 40vw); top: calc(6px + env(s
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
 } }
 </script>
-<script type="module" src="./v202610031314/src/main.js"></script>
+<script type="module">
+import('./v202610031417/src/main.js').catch(() => window.__bootFail());
+</script>
