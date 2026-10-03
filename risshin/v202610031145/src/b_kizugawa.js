@@ -1,0 +1,823 @@
+// ======================================================================
+// 織田家編　第二次木津川口の戦い（天正六年十一月六日）
+// 石山本願寺へ海から兵糧を運ぶ毛利の水軍に、二年前、織田の水軍は焙烙火矢で焼かれて大敗した。
+// 信長は九鬼嘉隆に、鉄の板で覆った大きな安宅船（鉄甲船）を造らせた。天正六年十一月、六艘の大船は木津川口で毛利の船団を迎え、
+// 大鉄砲（大筒）で打ち払って退けた。
+// 足軽は九鬼嘉隆の大船に乗る。①大筒を撃って、寄せる小早（小舟）を沈める ②焙烙火矢で甲板に上がった火を消す
+// ③乗り移ってきた毛利勢を追い落とす ④毛利の船団が退くまで持ちこたえる
+// 向き：自分の船団は真ん中。西（-x）と北（-z）の海から毛利の船が来る。東の遠くに大坂の浜
+// ======================================================================
+import * as THREE from 'three';
+import { nobori, tawara } from './props.js';
+import { flagTexture } from './textures.js';
+import { RANKS } from './state.js';
+import { sfx } from './audio.js';
+import { moraleWord } from './hud.js';
+import { gauss, enemyGroup, allyGroup, nm, centerOf, unitPos } from './bhelp.js';
+import { dress, gone, more } from './b_inabayama.js';
+import { depthStart, depthTick, rest, pick, hold, depthBot } from './b_depth.js';
+import { volleyAt } from './b_tano.js';
+import { addDeck, addLadder } from './floors.js';
+// 足軽大将候補より上（信長で遊ぶ時は除く）：任務の文を「一手を預かる」者の役目に
+const HI = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
+
+// 甲板（三艘の大船を横に並べて板で繋いだ所）。水面は 0
+const DECK = { x0: -20, x1: 20, z0: -32, z1: 32, y: 2.2 };
+const CANNONS = [{ x: -18, z: -16 }, { x: -18, z: 4 }, { x: -18, z: 22 }];   // 西の舷の大筒
+const ODA = { flag: 'oda' };
+const MORI = { flag: 'mori' };
+
+// 接舷の鉤（鉤縄）：乗り込みの前に、縄が舷に掛かる見た目（軽い・使い回し・数秒で消す）
+let HOOK = null;
+function grapple(rt, x, z) {
+  if (!HOOK) HOOK = { rope: new THREE.CylinderGeometry(0.05, 0.05, 1, 4), hook: new THREE.TorusGeometry(0.22, 0.05, 4, 8), m: new THREE.MeshStandardMaterial({ color: 0x3a2f20, roughness: 0.9 }), i: new THREE.MeshStandardMaterial({ color: 0x4a4440, metalness: 0.5, roughness: 0.5 }) };
+  const g = new THREE.Group();
+  const h2 = DECK.y + 0.6;
+  const rope = new THREE.Mesh(HOOK.rope, HOOK.m); rope.scale.y = h2; rope.position.set(x, h2 / 2, z); g.add(rope);
+  const hook = new THREE.Mesh(HOOK.hook, HOOK.i); hook.position.set(x, h2, z); hook.rotation.x = Math.PI / 2; g.add(hook);
+  rt.scene.add(g);
+  rt.after(9, () => { if (g.parent) rt.scene.remove(g); });
+}
+
+function height(x, z) {
+  // 海の底
+  let h = -3 + 0.4 * Math.sin(x * 0.05) * Math.cos(z * 0.04);
+  // 甲板（縁は少しだけ丸める）
+  const dx = Math.max(DECK.x0 - x, x - DECK.x1, 0), dz = Math.max(DECK.z0 - z, z - DECK.z1, 0);
+  const d = Math.hypot(dx, dz);
+  if (d < 1.2) h = DECK.y - d * 0.4;
+  // 東の遠くに大坂の浜と、上町台地（石山本願寺の方）。南東に堺の方の低い陸
+  h += Math.max(0, (x - 180)) * 0.12 + 20 * gauss(x, z, 300, -60, 16000) + 6 * gauss(x, z, 320, 90, 9000);
+  return h;
+}
+
+// ---- 船の形（見回り 10/2：前は箱を並べただけで、甲板は芝の四角・矢倉は灰色の箱・小早は茶色の箱だった） ----
+// 船体は輪切りの断面を舳先から艫へつないだ「ふくらみのある胴」。鉄甲船は鉄の板（継ぎ目と鋲）を張り、
+// 舷の上に狭間（鉄砲を出す穴）の並ぶ楯板（垣立）、外の舷に櫓（漕ぐ櫂）、中央の船に二重の矢倉と望楼。
+let SHIPTEX = null;
+function shipTex() {
+  if (SHIPTEX) return SHIPTEX;
+  const mk = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
+  // 鉄の板：一枚 1m×0.5m ほど。継ぎ目は黒く、鋲は少し明るく、板ごとに錆と色むら
+  const plate = mk(256, 128, (g, w, h) => {
+    g.fillStyle = '#2a2826'; g.fillRect(0, 0, w, h);
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) {
+      const x = c * 64 + (r % 2) * 32, y = r * 32, v = 34 + ((r * 7 + c * 13) % 9) * 3;
+      g.fillStyle = `rgb(${v + 4},${v + 1},${v - 2})`; g.fillRect(x + 1, y + 1, 62, 30); g.fillRect(x - 255, y + 1, 62, 30);
+      g.fillStyle = 'rgba(110,60,30,0.18)'; g.fillRect(x + 8 + (c * 11) % 30, y + 18, 20, 10);
+      g.fillStyle = '#5a5650'; for (let k = 0; k < 6; k++) { g.fillRect(x + 4 + k * 11, y + 3, 2, 2); g.fillRect(x + 4 + k * 11, y + 27, 2, 2); }
+    }
+  });
+  // 楯板（垣立）：鉄の板に、狭間（四角い黒い穴）を一間ごとに。上は白木の笠木
+  const tate = mk(256, 64, (g, w, h) => {
+    g.fillStyle = '#2c2a27'; g.fillRect(0, 0, w, h);
+    for (let c = 0; c < 4; c++) { g.fillStyle = c % 2 ? '#34312d' : '#302d2a'; g.fillRect(c * 64 + 1, 8, 62, 56); }
+    g.fillStyle = '#6a5a44'; g.fillRect(0, 0, w, 8);
+    g.fillStyle = '#0a0908'; for (let c = 0; c < 4; c++) { g.fillRect(c * 64 + 26, 26, 12, 16); }
+    g.fillStyle = '#5a5650'; for (let c = 0; c < 4; c++) for (const y of [12, 58]) for (const x of [6, 56]) g.fillRect(c * 64 + x, y, 2, 2);
+  });
+  // 板（小早・矢倉の下見板）：横に張った板と継ぎ目
+  const board = mk(128, 128, (g, w, h) => {
+    g.fillStyle = '#4a3a2a'; g.fillRect(0, 0, w, h);
+    for (let r = 0; r < 8; r++) { const v = 62 + (r * 5) % 14; g.fillStyle = `rgb(${v + 12},${v},${v - 14})`; g.fillRect(0, r * 16 + 1, w, 14); g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(0, r * 16 + 15, w, 1); }
+  });
+  SHIPTEX = { plate, tate, board };
+  return SHIPTEX;
+}
+let SHIPMAT = null;
+function shipMats() {
+  if (SHIPMAT) return SHIPMAT;
+  const T = shipTex();
+  SHIPMAT = {
+    iron: new THREE.MeshStandardMaterial({ map: T.plate, color: 0xb0aaa2, roughness: 0.55, metalness: 0.4, side: THREE.DoubleSide }),
+    tate: new THREE.MeshStandardMaterial({ map: T.tate, color: 0xc0b8ae, roughness: 0.6, metalness: 0.3, side: THREE.DoubleSide }),
+    board: new THREE.MeshStandardMaterial({ map: T.board, roughness: 0.92, side: THREE.DoubleSide }),
+    wood: new THREE.MeshStandardMaterial({ color: 0x5a4632, roughness: 0.9 }),
+    dark: new THREE.MeshStandardMaterial({ color: 0x3a2e22, roughness: 0.9 }),
+    tile: new THREE.MeshStandardMaterial({ color: 0x3a3a3c, roughness: 0.75, metalness: 0.1 }),
+    plaster: new THREE.MeshStandardMaterial({ color: 0xd8d0be, roughness: 0.95 }),
+    black: new THREE.MeshStandardMaterial({ color: 0x141210, roughness: 0.8 }),
+    copper: new THREE.MeshStandardMaterial({ color: 0x8a6a3a, roughness: 0.45, metalness: 0.6 }),
+  };
+  return SHIPMAT;
+}
+// 胴の形：長さ方向に輪切りを並べてつなぐ。zA＝舳先の尖り、zB＝艫、hw(z)＝その所の半幅、top(z)＝舷の上の高さ
+function loftHull(zA, zB, hwAt, topAt, bottomY, n = 18) {
+  const pos = [], uv = [], idx = [];
+  const ring = [[1, 0], [0.97, 0.45], [0.82, 0.78], [0.55, 1]];   // [半幅の割, 上から下への割]
+  const rows = [];
+  for (let i = 0; i <= n; i++) {
+    const z = zA + (zB - zA) * i / n, hw = hwAt(z), ty = topAt(z);
+    const r = [];
+    for (const sd of [-1, 1]) for (let k = 0; k < ring.length; k++) {
+      const [fw, fy] = ring[k];
+      r.push(pos.length / 3); pos.push(sd * hw * fw, ty + (bottomY - ty) * fy, z); uv.push(z / 2, (ty - (ty + (bottomY - ty) * fy)) / 1.0);
+    }
+    rows.push(r);
+  }
+  const K = ring.length;
+  for (let i = 0; i < n; i++) {
+    const a = rows[i], b = rows[i + 1];
+    for (let k = 0; k < K - 1; k++) {
+      // 左の舷（外向きに巻く）と右の舷
+      idx.push(a[k], b[k], a[k + 1], b[k], b[k + 1], a[k + 1]);
+      idx.push(a[K + k], a[K + k + 1], b[K + k], b[K + k], a[K + k + 1], b[K + k + 1]);
+    }
+    // 船底
+    idx.push(a[K - 1], b[K - 1], a[2 * K - 1], b[K - 1], b[2 * K - 1], a[2 * K - 1]);
+  }
+  // 艫の板（平らな戸立て）
+  const e = rows[n];
+  for (let k = 0; k < K - 1; k++) idx.push(e[k], e[k + 1], e[K + k], e[K + k], e[k + 1], e[K + k + 1]);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+// 楯板の一枚（a→b の線に沿って、高さ h）。狭間の絵が 1m ごとに並ぶよう uv を長さに合わせる
+function tateWall(ax, az, bx, bz, y0, h, M) {
+  const L = Math.hypot(bx - ax, bz - az);
+  const g = new THREE.PlaneGeometry(L, h);
+  const uvs = g.attributes.uv; for (let i = 0; i < uvs.count; i++) uvs.setX(i, uvs.getX(i) * L / 4);
+  const m = new THREE.Mesh(g, M.tate);
+  m.position.set((ax + bx) / 2, y0 + h / 2, (az + bz) / 2);
+  m.rotation.y = Math.atan2(bx - ax, bz - az) - Math.PI / 2;
+  return m;
+}
+// 反りのある瓦屋根（四方に葺き下ろす寄棟。軒の反り上がりは四隅を少し持ち上げて見せる）
+function hipRoof(w, d, h, M) {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.72, h, 4, 1), M.tile);
+  body.rotation.y = Math.PI / 4; body.scale.set(w, 1, d); body.position.y = h / 2; g.add(body);
+  const eave = new THREE.Mesh(new THREE.BoxGeometry(w * 1.02, 0.12, d * 1.02), M.dark); eave.position.y = 0.02; g.add(eave);
+  const ridge = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.2, (w - d) * 0.5 + 0.3), 0.18, 0.22), M.plaster); ridge.position.y = h + 0.02; g.add(ridge);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const c = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.12), M.dark); c.position.set(sx * w * 0.5, 0.12, sz * d * 0.5); c.rotation.y = sx * sz * Math.PI / 4; c.rotation.z = sx * 0.35; g.add(c); }
+  return g;
+}
+
+// 鉄甲船の船体。castle：true の船（プレイヤーの乗る中央の船）だけ、矢倉を一段上げて床（floors.js）を張り、
+// 梯子で上がれる「小さな城」にする（甲板・上甲板・矢倉・階段）。outL・outR：三艘を繋いだ船団の外側の舷だけに楯板と櫂を付ける
+const YAG_Y = DECK.y + 1.6;   // 矢倉（上甲板）の床の高さ
+function hull(W, cx, z0, z1, w, castle, outL = true, outR = true) {
+  const M = shipMats();
+  const g = new THREE.Group();
+  const hw0 = w / 2;
+  // 舳先（-z）は 9m かけて細り、舷の上は舳先へ向けて 1.4m 反り上がる。艫は少しだけ細る
+  const hwAt = (z) => hw0 * (z < z0 + 9 ? 0.18 + 0.82 * Math.sqrt(Math.max(0, (z - (z0 - 6)) / 15)) : z > z1 - 3 ? 1 - (z - (z1 - 3)) * 0.04 : 1);
+  const topAt = (z) => DECK.y + 0.25 + (z < z0 + 8 ? 1.4 * ((z0 + 8 - z) / 14) ** 2 : 0);
+  const body = new THREE.Mesh(loftHull(z0 - 6, z1, hwAt, topAt, -2.6, 22), M.iron);
+  body.position.x = cx; g.add(body);
+  // 舷の上の楯板（狭間の並ぶ鉄張りの垣立）：外の舷と、舳先・艫の端。大筒の所は筒口のぶん空ける
+  const TH = 1.25;
+  const gaps = (zA, zB) => {
+    if (!(outL && cx < 0)) return [[zA, zB]];
+    const out = []; let s = zA;
+    for (const c of CANNONS) { if (c.z - 1.1 > s && c.z - 1.1 < zB) { out.push([s, c.z - 1.1]); s = c.z + 1.1; } }
+    out.push([s, zB]); return out;
+  };
+  if (outL) for (const [a, b] of gaps(z0 + 1, z1)) g.add(tateWall(cx - hw0 + 0.05, a, cx - hw0 + 0.05, b, DECK.y, TH, M));
+  if (outR) g.add(tateWall(cx + hw0 - 0.05, z1, cx + hw0 - 0.05, z0 + 1, DECK.y, TH, M));
+  g.add(tateWall(cx - hw0 + 0.1, z1 - 0.05, cx + hw0 - 0.1, z1 - 0.05, DECK.y, TH, M));
+  // 舳先の楯板（尖りに沿って二枚）と、舳先の水押（みよし）の太い木
+  g.add(tateWall(cx - hwAt(z0 + 1), z0 + 1, cx, z0 - 5.4, topAt(z0 + 1) - 0.25, TH, M), tateWall(cx, z0 - 5.4, cx + hwAt(z0 + 1), z0 + 1, topAt(z0 + 1) - 0.25, TH, M));
+  { const st = new THREE.Mesh(new THREE.BoxGeometry(0.45, 4.4, 0.6), M.dark); st.position.set(cx, topAt(z0 - 6) - 1.6, z0 - 6.1); st.rotation.x = 0.35; g.add(st); }
+  // 甲板の板（船の床）と継ぎ目
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(w - 0.4, 0.3, z1 - z0 - 0.4), new THREE.MeshStandardMaterial({ color: 0x6a5642, roughness: 0.9 }));
+  deck.position.set(cx, DECK.y - 0.05, (z0 + z1) / 2); g.add(deck);
+  for (let i = 1; i < 10; i++) { const seam = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, z1 - z0 - 0.6), M.dark); seam.position.set(cx - w / 2 + (w / 10) * i, DECK.y + 0.11, (z0 + z1) / 2); g.add(seam); }
+  // 甲板の水桶と縄の輪（火矢の消し水・綱。舷の内側に寄せて、兵の立つ所をふさがない。B065）
+  { const barG = new THREE.CylinderGeometry(0.34, 0.3, 0.7, 10), ropeG = new THREE.TorusGeometry(0.34, 0.09, 6, 12);
+    for (let i = 0; i < 4; i++) {
+      const sd = i % 2 ? 1 : -1, zz = z0 + 12 + i * ((z1 - z0 - 24) / 3);
+      const bar = new THREE.Mesh(barG, M.wood); bar.position.set(cx + sd * (hw0 - 0.9), DECK.y + 0.4, zz); g.add(bar);
+      const rope = new THREE.Mesh(ropeG, M.dark); rope.rotation.x = Math.PI / 2; rope.position.set(cx + sd * (hw0 - 0.9), DECK.y + 0.14, zz + 1.1); g.add(rope);
+    } }
+  // 外の舷の櫂（片舷に十四挺。水へ斜めに下ろす）
+  const oarG = new THREE.CylinderGeometry(0.06, 0.08, 7, 5);
+  for (const [on, sd] of [[outL, -1], [outR, 1]]) if (on) for (let i = 0; i < 14; i++) {
+    const z = z0 + 6 + i * (z1 - z0 - 10) / 13;
+    const o = new THREE.Mesh(oarG, M.wood); o.position.set(cx + sd * (hw0 + 2.2), 0.4, z); o.rotation.z = sd * 1.05; o.rotation.x = 0.12 * Math.sin(i); g.add(o);
+  }
+  if (castle) {
+    // 矢倉（一段上がった上甲板。床柱を四隅に立てて持ち上げる＝階下から見上げる形）
+    const yagW = w * 0.45, yagL = 7, yz = z1 - 5;
+    const postH = YAG_Y - DECK.y;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.3, postH + 2.6, 0.3), M.dark);
+      post.position.set(cx + sx * (yagW / 2 - 0.2), DECK.y + (postH + 2.6) / 2, yz + sz * (yagL / 2 - 0.2)); g.add(post);
+    }
+    // 床下の囲い（板張り）と床
+    for (const sd of [-1, 1]) { const sk = new THREE.Mesh(new THREE.BoxGeometry(0.12, postH, yagL), M.board); sk.position.set(cx + sd * (yagW / 2 - 0.1), DECK.y + postH / 2, yz); g.add(sk); }
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(yagW + 0.4, 0.25, yagL + 0.4), M.wood);
+    floor.position.set(cx, YAG_Y, yz); g.add(floor);
+    // 上甲板の楯板（狭間）：胸の高さで四方を囲い、梯子の口だけ空ける
+    g.add(tateWall(cx - yagW / 2, yz + yagL / 2, cx - yagW / 2, yz - yagL / 2, YAG_Y, 1.1, M), tateWall(cx + yagW / 2, yz - yagL / 2, cx + yagW / 2, yz + yagL / 2, YAG_Y, 1.1, M));
+    g.add(tateWall(cx - yagW / 2, yz + yagL / 2, cx + yagW / 2, yz + yagL / 2, YAG_Y, 1.1, M));
+    g.add(tateWall(cx - yagW / 2, yz - yagL / 2, cx - 0.9, yz - yagL / 2, YAG_Y, 1.1, M), tateWall(cx + 0.9, yz - yagL / 2, cx + yagW / 2, yz - yagL / 2, YAG_Y, 1.1, M));
+    // 一重目の屋根（柱の上。四方へ葺き下ろす瓦）
+    const r1 = hipRoof(yagW + 1.6, yagL + 1.6, 1.3, M); r1.position.set(cx, YAG_Y + 2.6, yz); g.add(r1);
+    // 二重目：望楼（白壁に黒い格子窓、黒い腰板）と、その屋根。九鬼の大船は船の上の城と呼ばれた
+    const bw = yagW * 0.62, bd = yagL * 0.5, by = YAG_Y + 3.3;
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(bw, 1.7, bd), M.plaster); wall.position.set(cx, by + 0.85, yz); g.add(wall);
+    const koshi = new THREE.Mesh(new THREE.BoxGeometry(bw + 0.04, 0.6, bd + 0.04), M.black); koshi.position.set(cx, by + 0.3, yz); g.add(koshi);
+    for (const sd of [-1, 1]) {
+      for (const q of [-1, 1]) { const win = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.05), M.black); win.position.set(cx + q * bw * 0.24, by + 1.15, yz + sd * (bd / 2 + 0.02)); g.add(win); }
+      const sw = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.5, 0.9), M.black); sw.position.set(cx + sd * (bw / 2 + 0.02), by + 1.15, yz); g.add(sw);
+    }
+    const r2 = hipRoof(bw + 1.3, bd + 1.3, 1.1, M); r2.position.set(cx, by + 1.75, yz); g.add(r2);
+    // 階段（矢倉の梯子口）：船尾側、矢倉の手前に取り付く
+    const stair = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.2, postH / Math.cos(0.9)), M.wood);
+    stair.position.set(cx, DECK.y + postH / 2, yz - yagL / 2 - postH * 0.4); stair.rotation.x = -0.9; g.add(stair);
+    addDeck({ x0: cx - yagW / 2, x1: cx + yagW / 2, z0: yz - yagL / 2, z1: yz + yagL / 2, y: YAG_Y, name: '矢倉の床' });
+    addLadder({ x: cx, z: yz - yagL / 2 - 0.6, y0: DECK.y, y1: YAG_Y, name: '矢倉の階段' });
+  } else {
+    // 両脇の船：甲板の艫寄りに、板張りの低い屋形（見た目だけ。床は張らない）
+    const yw = w * 0.4, yl = 6, yz = z1 - 6;
+    const hut = new THREE.Mesh(new THREE.BoxGeometry(yw, 2.2, yl), M.board); hut.position.set(cx, DECK.y + 1.1, yz); g.add(hut);
+    const r = hipRoof(yw + 1.2, yl + 1.2, 1.0, M); r.position.set(cx, DECK.y + 2.2, yz); g.add(r);
+  }
+  for (const m of g.children) { m.castShadow = true; m.receiveShadow = true; }
+  return g;
+}
+// 遠くの供の大安宅船（形と動きだけ。兵は乗せず、数で見せる＝六〜七艘のうち、残りを軽く埋める）。舳先は +z
+let ATK = null;
+function atakeLite(W) {
+  const M = shipMats();
+  if (!ATK) {
+    const L = 24, hw = 4.6;
+    ATK = {
+      body: loftHull(-L / 2, L / 2 + 6, (z) => hw * (z > L / 2 - 4 ? 0.18 + 0.82 * Math.sqrt(Math.max(0, (L / 2 + 6 - z) / 10)) : 1), (z) => 2.6 + (z > L / 2 - 4 ? 1.1 * ((z - (L / 2 - 4)) / 10) ** 2 : 0), -2, 14),
+      tateL: L, hw,
+      oar: new THREE.CylinderGeometry(0.05, 0.07, 5.5, 4),
+      yag: new THREE.BoxGeometry(5.6, 2.4, 8), bow: null,
+    };
+  }
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(ATK.body, M.iron));
+  for (const sd of [-1, 1]) g.add(tateWall(sd * (ATK.hw - 0.05), -ATK.tateL / 2, sd * (ATK.hw - 0.05), ATK.tateL / 2 - 3, 2.5, 1.2, M));
+  const y1 = new THREE.Mesh(ATK.yag, M.board); y1.position.set(0, 3.8, -4); g.add(y1);
+  const r1 = hipRoof(7, 9.6, 1.4, M); r1.position.set(0, 5.0, -4); g.add(r1);
+  const tw = new THREE.Mesh(new THREE.BoxGeometry(2.8, 1.6, 3.2), M.plaster); tw.position.set(0, 6.6, -4); g.add(tw);
+  const r2 = hipRoof(3.8, 4.2, 1.0, M); r2.position.set(0, 7.4, -4); g.add(r2);
+  for (const sd of [-1, 1]) for (let i = 0; i < 10; i++) { const o = new THREE.Mesh(ATK.oar, M.wood); o.position.set(sd * (ATK.hw + 1.8), 0.6, -9 + i * 2.1); o.rotation.z = sd * 1.05; g.add(o); }
+  for (const m of g.children) m.castShadow = true;
+  return g;
+}
+// 小早（毛利の小舟）：細い胴、舷に竹の楯（たてかけた板）、櫂。舳先は +z
+// 小早の形と材質は一つを使い回す（出すたびに作ると、戦の途中で作り直しが起きて重い）
+let KOB = null;
+function kobaya() {
+  const M = shipMats();
+  if (!KOB) {
+    KOB = {
+      body: loftHull(-5, 5.6, (z) => 1.35 * (z > 2 ? 0.15 + 0.85 * Math.sqrt(Math.max(0, (5.6 - z) / 3.6)) : z < -4 ? 0.8 : 1), (z) => 0.75 + (z > 2.5 ? 0.6 * ((z - 2.5) / 3.1) ** 2 : 0), -0.5, 10),
+      shield: new THREE.BoxGeometry(0.08, 0.9, 1.1),
+      oar: new THREE.CylinderGeometry(0.035, 0.05, 3.2, 4),
+      mast: new THREE.CylinderGeometry(0.04, 0.05, 3.2, 4),
+      flag: new THREE.PlaneGeometry(0.6, 1.6),
+    };
+  }
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(KOB.body, M.board));
+  for (const sd of [-1, 1]) for (let i = 0; i < 6; i++) { const s = new THREE.Mesh(KOB.shield, M.wood); s.position.set(sd * 1.25, 1.15, -3.6 + i * 1.15); s.rotation.z = sd * -0.12; g.add(s); }
+  for (const sd of [-1, 1]) for (let i = 0; i < 4; i++) { const o = new THREE.Mesh(KOB.oar, M.dark); o.position.set(sd * 2.2, 0.35, -2.8 + i * 1.6); o.rotation.z = sd * 1.1; g.add(o); }
+  const mast = new THREE.Mesh(KOB.mast, M.dark); mast.position.set(0, 2.3, -3.8); g.add(mast);
+  if (!KOB.flagMat) KOB.flagMat = new THREE.MeshStandardMaterial({ map: flagTexture('mori'), side: THREE.DoubleSide, roughness: 0.9 });
+  const fl = new THREE.Mesh(KOB.flag, KOB.flagMat); fl.position.set(0.32, 2.9, -3.8); fl.rotation.y = Math.PI / 2; g.add(fl);
+  for (const m of g.children) m.castShadow = true;
+  return g;
+}
+// 大筒：青銅色の筒（尾栓の玉・帯・筒口の張り出し）を、木の台に載せる。筒は -x（西の舷の外）を向く
+let GUNG = null;
+function taihou(M) {
+  if (!GUNG) {
+    const prof = [[0, -1.7], [0.22, -1.72], [0.3, -1.6], [0.38, -1.45], [0.4, -1.3], [0.36, -1.2], [0.36, 0.9], [0.33, 1.0], [0.3, 1.1], [0.3, 1.45], [0.36, 1.55], [0.37, 1.68], [0.2, 1.7], [0.16, 1.4], [0.15, -1.0]];
+    GUNG = { barrel: new THREE.LatheGeometry(prof.map(([r, y]) => new THREE.Vector2(r, y)), 14), band: new THREE.TorusGeometry(0.385, 0.045, 5, 14), bed: new THREE.BoxGeometry(2.6, 0.5, 1.1), cheek: new THREE.BoxGeometry(1.4, 0.7, 0.18) };
+  }
+  const g = new THREE.Group();
+  const b = new THREE.Mesh(GUNG.barrel, M.copper); b.rotation.z = Math.PI / 2; g.add(b);
+  for (const y of [-0.9, 0, 0.8]) { const r = new THREE.Mesh(GUNG.band, M.copper); r.rotation.y = Math.PI / 2; r.position.x = -y; g.add(r); }
+  const bed = new THREE.Mesh(GUNG.bed, M.dark); bed.position.set(0.3, -0.7, 0); g.add(bed);
+  for (const sd of [-1, 1]) { const c = new THREE.Mesh(GUNG.cheek, M.wood); c.position.set(0.5, -0.3, sd * 0.45); g.add(c); }
+  for (const m of g.children) m.castShadow = true;
+  return g;
+}
+
+const kizugawa = {
+  spawn: { x: -8, z: 0, heading: -Math.PI / 2 },
+  world: {
+    seed: 15786,
+    time: 'day',
+    muddy: 0,
+    height,
+    clear: () => true,
+    trees: 0,
+    tufts: 0,
+    // 甲板の地面は木の色、甲板の縁から海の底へ落ちる所は鉄の舷の色（前は芝の色のまま、船の縁から緑の崖がはみ出して見えた）
+    tint(x, z, h, c) { if (h > DECK.y - 0.05) c.setRGB(0.37, 0.3, 0.23); else c.setRGB(0.15, 0.145, 0.13); },
+    fleeOut: (x, z, team) => team === 1 && (x < DECK.x0 - 3 || z < DECK.z0 - 3 || z > DECK.z1 + 3),
+  },
+
+  setup(rt) {
+    const W = rt.world;
+    const F = rt.flags;
+    // 内部の史実札（HIST_A=根拠強い／HIST_B=推定復元／GAME_C=ゲーム補完）。表には出さない
+    F.hist = { ships: 'HIST_A', atakebune: 'HIST_B', supply: 'HIST_A', deckFight: 'GAME_C', bay: 'HIST_B', windTide: 'GAME_C', flooding: 'GAME_C' };
+    F.step = 0; F.ek = 0; F.ak = 0; F.sunk = 0; F.doused = 0; F.supplyPassed = 0; F.supplyStopped = 0;
+    // 船の上では馬に乗らない
+    const P = rt.player;
+    if (P.mounted) { rt.army.setMounted(P.u, false); P.mounted = false; }
+    P.canRide = false;
+    // ---- 海（world の川面は岸の線で歩ける所を切るので使わず、ここで海の面だけを張る） ----
+    const sea = new THREE.Mesh(new THREE.PlaneGeometry(900, 900, 1, 1), new THREE.MeshStandardMaterial({ color: 0x3a4e55, roughness: 0.2, metalness: 0.05, transparent: true, opacity: 0.94 }));
+    sea.rotation.x = -Math.PI / 2; sea.position.y = 0; sea.receiveShadow = true;
+    rt.scene.add(sea);
+    F.sea = sea;
+    // 船の上に草は生えない（足もとの草の群れを隠す）
+    if (W.nearGrass) W.nearGrass.visible = false;
+    // ---- 三艘を板で繋いだ鉄甲船団（中央がプレイヤーの乗る船＝矢倉に床と階段を張る） ----
+    for (const cx of [-13.4, 0, 13.4]) rt.scene.add(hull(W, cx, DECK.z0, DECK.z1, 13.2, cx === 0, cx < 0, cx > 0));
+    // ---- 遠い大坂の岸（東）と、西から来る毛利の船団の影（水平線に見せる。B070・B071） ----
+    { const shore = new THREE.Mesh(new THREE.BoxGeometry(60, 5, 640), new THREE.MeshStandardMaterial({ color: 0x3a4838, roughness: 1 }));
+      shore.position.set(430, 1.5, 0); rt.scene.add(shore);
+      for (let i = 0; i < 6; i++) { const h = new THREE.Mesh(new THREE.ConeGeometry(34 + (i % 3) * 10, 22 + (i % 2) * 10, 7), new THREE.MeshStandardMaterial({ color: 0x31402f, roughness: 1 })); h.position.set(480, 8, -240 + i * 100); rt.scene.add(h); }
+      for (const [x, z] of [[-210, -40], [-230, 20], [-250, 80], [-200, 110], [-240, -90], [-270, 40]]) { const m = atakeLite(W); m.position.set(x, 0, z); m.rotation.y = -Math.PI / 2 + 0.1; rt.scene.add(m); } }
+    // ---- 供の大安宅船（九鬼の船団を六〜七艘に。形と動きだけの軽い船） ----
+    F.escorts = [[-34, -50], [34, -50], [-30, 54], [30, 54]].map(([x, z]) => {
+      const m = atakeLite(W); m.position.set(x, 0, z); m.rotation.y = x < 0 ? 0.18 : -0.18; rt.scene.add(m);
+      return { m, x, z };
+    });
+    for (const [x, z] of [[-13, 8], [0, 10], [13, 8], [-6, -24], [6, -24]]) { const n = nobori(W, x, z, 'oda', 7); rt.scene.add(n); }
+    rt.scene.add(tawara(W, 8, 14, 0.2, 5), tawara(W, -4, -12, -0.3, 4));
+    // 大筒（西の舷）
+    const iron = new THREE.MeshStandardMaterial({ color: 0x2a2826, roughness: 0.5, metalness: 0.5 });
+    F.guns = CANNONS.map((c) => {
+      const m = taihou(shipMats()); void iron;
+      m.position.set(c.x - 0.8, DECK.y + 1.1, c.z);
+      rt.scene.add(m);
+      return { ...c, m, cd: 0 };
+    });
+    // ---- 九鬼嘉隆の手（自分の持ち場）と、鉄砲衆 ----
+    F.kuki = allyGroup(rt, { name: '九鬼嘉隆の手', anchor: { x: -6, z: 0 }, facing: -Math.PI / 2, width: 12, aggro: 10, noRout: true },
+      dress([{ type: 'samurai', n: 1, o: { name: '九鬼嘉隆', invuln: true, hat: 'kabuto_m', haori: 0x2a2a3a } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 12 }], ODA));
+    F.kukiU = F.kuki.units[0];
+    F.teppo = allyGroup(rt, { name: '船の鉄砲衆', anchor: { x: -12, z: -18 }, facing: -Math.PI / 2, width: 10, aggro: 40, noRout: true },
+      dress([{ type: 'samurai', n: 1 }, { type: 'gun', n: 14 }], ODA));
+    F.oda = [F.kuki, F.teppo];
+    for (const g of F.oda) { g.defMult = 1.2; g.dmgMult = 0.8; }
+    const n = RANKS[rt.G.rank].squad;
+    if (n) rt.makeSquad({ x: 6, z: 4 }, -Math.PI / 2, [{ kind: 'spear', n: Math.min(n, 20) }]);
+    // ---- 遠くの毛利の船団（小早を並べた影） ----
+    F.boats = [];
+    F.far = [];
+    for (let i = 0; i < 10; i++) {
+      const b = kobaya();
+      b.position.set(-120 - (i % 5) * 18, 0, -60 + Math.floor(i / 5) * 60 + (i % 3) * 8);
+      b.rotation.y = Math.PI / 2;
+      rt.scene.add(b);
+      F.far.push(b);
+    }
+    // ---- 遠景：北東に石山本願寺の方（上町台地）、南東に堺の方の低い町並み ----
+    const land = new THREE.MeshStandardMaterial({ color: 0x55504a, roughness: 1 });
+    const town = new THREE.MeshStandardMaterial({ color: 0x6b6456, roughness: 1 });
+    const honganji = new THREE.Mesh(new THREE.BoxGeometry(44, 20, 16), land); honganji.position.set(280, 10, -70); rt.scene.add(honganji);
+    const sakai = new THREE.Mesh(new THREE.BoxGeometry(60, 9, 20), town); sakai.position.set(300, 4.5, 90); rt.scene.add(sakai);
+
+    // 十六世紀の大坂湾：浅い水域と砂州、淀川・大和川の河口の濁り（今の埋立地や港の岸壁は無い）
+    const shoal = new THREE.MeshStandardMaterial({ color: 0x6a7a72, roughness: 0.4, transparent: true, opacity: 0.55 });
+    const sand = new THREE.MeshStandardMaterial({ color: 0x9a9070, roughness: 1 });
+    const silt = new THREE.MeshStandardMaterial({ color: 0x6e6a52, roughness: 0.6, transparent: true, opacity: 0.6 });
+    for (const [x, z, r] of [[170, -20, 70], [200, 80, 60], [-80, 170, 50]]) { const sh = new THREE.Mesh(new THREE.CircleGeometry(r, 20), shoal); sh.rotation.x = -Math.PI / 2; sh.position.set(x, 0.05, z); rt.scene.add(sh); }
+    for (const [x, z, r] of [[150, -60, 14], [185, 40, 10], [-60, 150, 9]]) { const sb = new THREE.Mesh(new THREE.CircleGeometry(r, 14), sand); sb.rotation.x = -Math.PI / 2; sb.position.set(x, 0.12, z); rt.scene.add(sb); }
+    { const sl = new THREE.Mesh(new THREE.CircleGeometry(90, 20), silt); sl.rotation.x = -Math.PI / 2; sl.position.set(240, 0.08, -70); rt.scene.add(sl); }
+    // 石山本願寺の遠景：寺内町の低い屋根の連なりと、大屋根の御堂・櫓
+    const roofM = new THREE.MeshStandardMaterial({ color: 0x3a3430, roughness: 1 });
+    for (let i = 0; i < 9; i++) { const rf = new THREE.Mesh(new THREE.BoxGeometry(10 + (i % 3) * 3, 5, 8), roofM); rf.position.set(262 + (i % 3) * 16, 22 + (i % 2) * 2, -86 + Math.floor(i / 3) * 14); rt.scene.add(rf); }
+    const yg = new THREE.Mesh(new THREE.BoxGeometry(6, 10, 6), land); yg.position.set(262, 30, -96); rt.scene.add(yg);
+    F.windSeed = Math.random() * 6;
+    rt.world.setTime('day');
+    rt.setPhase('brief');
+    rt.obj('main', HI(rt) ? '九鬼嘉隆の船で鉄砲衆の一手を預かり、下知を待て' : '九鬼嘉隆のもとで、下知を待て', 'main');
+    rt.say('九鬼嘉隆', `${nm(rt)}、二年前、わしらはここで毛利の焙烙に焼かれた。……じゃが、この船は鉄で覆ってある。焼けはせぬ`, 5);
+    rt.say('九鬼嘉隆', '西の舷の大筒につけ。寄せてくる小早を、近寄る前に沈めるのじゃ', 4);
+    rt.marker('kuki', unitPos(F.kukiU), '九鬼嘉隆', {});
+    rt.after(14, () => this.cannons(rt));
+  },
+
+  // 小早を一艘出す（西か北から、甲板の縁へ向かう）
+  launch(rt, from) {
+    const F = rt.flags;
+    const m = kobaya();
+    const s = from === 'n' ? { x: -6 + Math.random() * 12, z: -170 } : { x: -190, z: -20 + Math.random() * 40 };
+    const t = from === 'n' ? { x: s.x, z: DECK.z0 - 4 } : { x: DECK.x0 - 4, z: Math.max(DECK.z0 + 4, Math.min(DECK.z1 - 4, s.z)) };
+    m.position.set(s.x, 0, s.z);
+    m.rotation.y = Math.atan2(t.x - s.x, t.z - s.z);
+    rt.scene.add(m);
+    const b = { m, x: s.x, z: s.z, t, alive: true, landed: false, from };
+    F.boats.push(b);
+    return b;
+  },
+
+  // 毛利の荷駄船（石山本願寺へ兵糧を運ぶ）：西から来て、織田船団の脇を通り東（石山の方）へ抜けようとする
+  launchSupply(rt) {
+    const F = rt.flags;
+    const m = kobaya();
+    const wood = new THREE.MeshStandardMaterial({ color: 0xc9a66b, roughness: 0.9 });
+    for (let i = 0; i < 3; i++) { const tw = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1.1, 8), wood); tw.rotation.z = Math.PI / 2; tw.position.set(-0.7 + i * 0.7, 0.9, -1.5 + i * 1.4); m.add(tw); }
+    const z = -16 + Math.random() * 38;
+    const s = { x: -200, z };
+    const t = { x: 230, z: z + (Math.random() - 0.5) * 20 };
+    m.position.set(s.x, 0, s.z);
+    m.rotation.y = Math.atan2(t.x - s.x, t.z - s.z);
+    rt.scene.add(m);
+    const b = { m, x: s.x, z: s.z, t, alive: true, landed: false, supply: true, sp: 3.2 };
+    F.boats.push(b);
+    return b;
+  },
+
+  // ① 大筒を撃つ
+  cannons(rt) {
+    const F = rt.flags;
+    if (F.step >= 1) return;
+    F.step = 1; F.stepT = rt.t;
+    rt.setPhase('cannon');
+    rt.unmark('kuki');
+    sfx('horagai', 0.9);
+    rt.banner('毛利の船団', '小早が波を切って寄せてくる');
+    rt.obj('main', HI(rt) ? '鉄砲衆を指図し、大筒で小早を沈めよ（6艘）' : '大筒で小早を沈めよ（6艘）', 'main');
+    for (let i = 0; i < 3; i++) {
+      const c = F.guns[i];
+      rt.marker('g' + i, { x: c.x, z: c.z }, '大筒', { h: 2 });
+      rt.addInteract('g' + i, { x: c.x + 1.6, z: c.z }, '大筒を撃つ', () => this.fire(rt, i), { r: 2.6, hold: 1.2 });
+    }
+    this.launch(rt, 'w'); rt.after(6, () => this.launch(rt, 'w')); rt.after(14, () => this.launch(rt, 'w'));
+    F.nextBoat = rt.t + 22;
+  },
+  fire(rt, i) {
+    const F = rt.flags;
+    const c = F.guns[i];
+    if (rt.t < c.cd) { rt.bark('まだ弾込めが済んでおらぬ'); return; }
+    c.cd = rt.t + 8.5;   // 込めるのが遅い大鉄砲（弾も火薬も大きい）
+    rt.army.play('volley', { x: c.x, z: c.z }, 1.6);
+    rt.army.smoke(c.x - 2, DECK.y + 1.2, c.z, -1, 0, 2.5);
+    // 一番近い小早に当たる（射程は限られる）
+    let best = null, bd = 95;
+    for (const b of F.boats) if (b.alive && !b.landed) { const d = Math.hypot(b.x - c.x, b.z - c.z); if (d < bd) { bd = d; best = b; } }
+    if (!best) { rt.bark('大筒は届かぬ。小早を引き付けよ'); return; }
+    // 命中も限られる：遠いほど外れやすい（大きな弾は狙いを付け直しにくい）
+    const missChance = Math.max(0, Math.min(0.55, (bd - 25) / 110));
+    if (Math.random() < missChance) { rt.army.smoke(best.x + 5, 0.4, best.z + 4, 0, 0, 2.2); rt.army.play('wood', { x: best.x + 5, z: best.z + 4 }, 0.8); rt.bark('大筒、外れた！　波に消える'); return; }
+    rt.after(0.6, () => {
+      // 毛利の大将船は一発では沈まない
+      if (best.hp > 1) {
+        best.hp--;
+        // 傷む順：浸水（速さが落ちる）→舵が利かない（流される・傾く）→乗員が倒れる→沈む
+        if (!best.leak) { best.leak = true; rt.bark('大将船の船腹が破れた。浸水して足が鈍る', true); }
+        else if (!best.rudderLost) { best.rudderLost = true; best.m.rotation.z = 0.08; rt.bark('大将船の舵が壊れた。流されている！', true); }
+        else rt.bark('大将船の甲板で乗員が次々に倒れている', true);
+        rt.army.smoke(best.x, 2, best.z, 0, 0, 3);
+        rt.army.play('wood', { x: best.x, z: best.z }, 1.4);
+        rt.bark(`大将船に当たった！　あと${best.hp}発`, true);
+        return;
+      }
+      best.alive = false;
+      if (best.supply) {
+        F.supplyStopped++;
+        rt.army.smoke(best.x, 1, best.z, 0, 0, 3);
+        rt.army.play('wood', { x: best.x, z: best.z }, 1.2);
+        best.sinkT = 0;
+        rt.bark('荷駄船を沈めた！　兵糧を断ったぞ', true);
+        rt.award((t) => t.side.push('毛利の荷駄船を沈めた'), '荷駄船を沈めた');
+        return;
+      }
+      if (best.big) {
+        F.bigSunk = true;
+        rt.banner('大将船、打ち払った', '毛利の大将の船が傾いていく');
+        rt.award((t) => t.side.push('大筒で毛利の大将船を打ち払った'), '毛利の大将船を打ち払った');
+        rt.say('九鬼嘉隆', 'でかした！　大将の船が傾いたぞ！', 3);
+      }
+      rt.army.smoke(best.x, 1, best.z, 0, 0, 3);
+      rt.army.play('wood', { x: best.x, z: best.z }, 1.2);
+      best.sinkT = 0;
+      F.sunk++;
+      rt.award((t) => { t.special = { label: '大筒で小早を沈めた', pts: 3 * Math.min(6, F.sunk) }; }, '小早を沈めた');
+      if (F.step === 1) { rt.objProgress('main', `${Math.min(6, F.sunk)}／6艘`); if (F.sunk >= 6) this.fires(rt); }
+    });
+  },
+
+  // ② 焙烙火矢の火を消す
+  fires(rt) {
+    const F = rt.flags;
+    if (F.step >= 2) return;
+    F.step = 2; F.stepT = rt.t;
+    rt.setPhase('fire');
+    rt.objDone('main');
+    sfx('volley', 0.8);
+    rt.banner('焙烙火矢', '甲板に火の壺が投げ込まれた');
+    rt.obj('main', '甲板に上がった火を消せ（3か所）', 'main');
+    rt.say('九鬼嘉隆', '鉄の舷は焼けぬが、甲板の板は燃える！　水を掛けよ！', 3.5);
+    F.fl = [{ x: -4, z: -20 }, { x: 8, z: -4 }, { x: -2, z: 20 }].map((q, i) => {
+      const f = rt.world.addFire(q.x, q.z, { h: 0.4 });
+      rt.marker('f' + i, q, '火を消す', { h: 2 });
+      rt.addInteract('f' + i, q, '水を掛けて火を消す', () => this.douse(rt, i), { r: 2.8, hold: 1.6 });
+      return { ...q, f };
+    });
+  },
+  douse(rt, i) {
+    const F = rt.flags;
+    rt.uninteract('f' + i); rt.unmark('f' + i);
+    rt.world.removeFire(F.fl[i].f);
+    F.doused++;
+    rt.award((t) => t.side.push('焙烙の火を消した'), '火を消した');
+    if (F.doused >= 3) this.deep(rt, 'A', () => this.board(rt));
+    else rt.objProgress('main', `${F.doused}／3`);
+  },
+
+  // 段を重ねる（b_depth.js）：A 火を消した後の船団の総掛かり → C 乗り移りを退けた後、毛利の大将船
+  deep(rt, which, then) {
+    const F = rt.flags;
+    if (F['dp' + which]) return;
+    F['dp' + which] = true;
+    if (rt.G.lord) { then(); return; }
+    F.dpOn = true;
+    depthStart(rt, kzCtx(rt), which === 'A' ? kzA() : kzC(), () => { F.dpOn = false; then(); });
+  },
+  // 毛利の大将船（大きな安宅船）：大筒を三発当てれば沈む
+  launchBig(rt) {
+    const F = rt.flags;
+    const m = kobaya();
+    m.scale.set(2.4, 2.6, 2.4);
+    const s = { x: -210, z: 4 }, t = { x: DECK.x0 - 22, z: 4 };
+    m.position.set(s.x, 0, s.z);
+    m.rotation.y = Math.atan2(t.x - s.x, t.z - s.z);
+    rt.scene.add(m);
+    const b = { m, x: s.x, z: s.z, t, alive: true, landed: false, from: 'w', hp: 3, big: true };
+    F.boats.push(b);
+    F.big = b;
+    return b;
+  },
+
+  // ③ 乗り移ってきた毛利勢
+  board(rt) {
+    const F = rt.flags;
+    if (F.step >= 3) return;
+    F.step = 3; F.stepT = rt.t;
+    rt.setPhase('board');
+    for (let i = 0; i < 3; i++) { rt.uninteract('f' + i); rt.unmark('f' + i); }
+    rt.banner('乗り移ってくる', '小早から、毛利の兵が甲板へ乗り込んできた');
+    rt.obj('main', HI(rt) ? '舳先の口に槍を揃え、乗り移った毛利勢を追い落とせ（荷駄船を石山へ通すな）' : '甲板に乗り移った毛利勢を追い落とせ（荷駄船を石山へ通すな）', 'main');
+    rt.say('九鬼嘉隆', '槍を取れ！　一人も甲板に居させるな！', 3);
+    // 戦いの裏で、毛利の荷駄船が西から石山方面へ抜けようとする（大筒・鉄砲で沈めねば通ってしまう）
+    rt.after(12, () => { if (!F.ending) { this.launchSupply(rt); rt.say('九鬼嘉隆', '荷駄船じゃ！　あれを通せば、本願寺に兵糧が入る！', 3); } });
+    rt.after(27, () => { if (!F.ending) this.launchSupply(rt); });
+    rt.after(45, () => { if (!F.ending) this.launchSupply(rt); });
+    rt.after(5, () => rt.say('九鬼嘉隆', '舳先の口は狭い。そこで槍を揃えれば、一人ずつしか上がれぬ。鉄砲衆は次の大波まで撃つな', 4.5));
+    // 村上の水軍が寄せる時、船の鉄砲衆をそろえて放つ
+    rt.after(50, () => { if (!F.ending) volleyAt(rt, { guns: () => [F.teppo], foes: () => F.boarders, who: '九鬼嘉隆', near: 1, drop: 30, max: 8, say: '村上の小早が舷に寄せる……鉄砲衆、放てぇっ！', line: '船の鉄砲衆が舷からそろって撃った。乗り込む毛利勢がひるむ' }); });
+    F.boarders = [];
+    const mk = (x, z, name, face, lead) => {
+      const list = lead ? [{ type: 'busho', n: 1, o: { name: lead } }, { type: 'samurai', n: 1 }] : [{ type: 'samurai', n: 2 }];
+      grapple(rt, x, z);
+      const g = enemyGroup(rt, { faction: 'mori', name, anchor: { x, z }, facing: face, order: 'attack', seekRange: 50, aggro: 16, width: 8, morale: 90, fleeDir: { x: -1, z: 0 }, dmgMult: 0.62 },
+        dress([...list, { type: 'ashigaru', n: 8 + more(rt, 0.3) }], MORI));
+      F.boarders.push(g);
+      rt.marker('b' + F.boarders.length, centerOf(g), () => `${name}・${moraleWord(g.morale)}`, { red: true, group: g });
+      rt.army.play('eshout', { x, z }, 1.5);
+      if (lead) rt.say(lead, '船を寄せよ！　鉄の板があろうと、乗り移ってしまえばこちらの物じゃ！', 3.5);
+    };
+    // 寄せは二度の大波：舷と舳先から一度に乗り込み、しばらくして村上の水軍がまとめて来る
+    mk(DECK.x0 + 2, -10, '乗り込んだ毛利勢', Math.PI / 2, '乃美宗勝');
+    mk(-6, DECK.z0 + 2, '舳先から乗り込んだ毛利勢', 0);
+    rt.after(38, () => {
+      if (F.ending) return;
+      mk(DECK.x0 + 2, 18, '村上の者', Math.PI / 2); mk(8, DECK.z0 + 2, '舳先の新手', 0);
+      flotilla(rt, 3, 'w');
+      rt.say('足軽', '村上の水軍じゃ！　舷からも舳先からも、まだ乗り込んでくる……！', 3);
+    });
+  },
+
+  win(rt) {
+    const F = rt.flags;
+    if (F.ending) return;
+    F.ending = true;
+    rt.setPhase('end');
+    for (let i = 1; i <= 4; i++) rt.unmark('b' + i);
+    for (const q of F.boarders || []) if (!gone(q)) { q.noRout = false; q.morale = 0; }
+    for (let i = 0; i < 3; i++) { rt.uninteract('g' + i); rt.unmark('g' + i); }
+    rt.objDone('main');
+    rt.tracker.main = true;
+    const passed = F.supplyPassed || 0;
+    rt.award((t) => { t.main = true; t.special = { label: passed === 0 ? '鉄甲船で毛利の船団を退け、荷駄船を一艘も通さなかった' : `鉄甲船で毛利の船団を退けた（荷駄船${passed}艘が通った）`, pts: Math.max(6, 20 - passed * 4) }; }, '任務達成・木津川口を守った');
+    sfx('horagai', 0.8); rt.after(1, () => sfx('toki', 0.8));
+    if (passed === 0) rt.banner('毛利の船団、退く', '石山本願寺への海の道は、断たれた');
+    else rt.banner('毛利の船団、退く', `荷駄船${passed}艘が石山の方へ抜けた。兵糧は、わずかに届いてしまった`);
+    rt.say('九鬼嘉隆', passed === 0 ? `見たか、${nm(rt)}！　二年前の恨み、晴らしたぞ` : `よくやった、${nm(rt)}。……とはいえ、幾らかは抜けられたか`, 4);
+    rt.after(5, () => rt.say('', '――海からの兵糧を断たれた本願寺は、二年後、信長と和を結んで石山を退いた', 5.5));
+    rt.player.u.invuln = true;
+    rt.finish({}, 12);
+  },
+
+  update(rt, dt) {
+    const F = rt.flags;
+    // 崩れた隊の印は消す
+    for (const m of rt.markers.slice()) if (m.group && gone(m.group)) rt.unmark(m.id);
+    // 船上の足場：押し合いで味方（九鬼方）が舷から海へ落ちないよう、甲板の縁に留める
+    //   （毛利方は崩れて海へ飛び込んで良い＝fleeOut。味方だけ縁の内に押し戻す。kaito botrun 10/1）
+    const M = 0.15;   // 縁ぎりぎりまでは歩ける薄い留め（広く取ると隅で「進めない」になる。kaito botrun 10/1）
+    for (const u of rt.army.units) {
+      if (!u.alive || u.team !== 0) continue;
+      if (u.pos.x < DECK.x0 + M) u.pos.x = DECK.x0 + M;
+      else if (u.pos.x > DECK.x1 - M) u.pos.x = DECK.x1 - M;
+      if (u.pos.z < DECK.z0 + M) u.pos.z = DECK.z0 + M;
+      else if (u.pos.z > DECK.z1 - M) u.pos.z = DECK.z1 - M;
+    }
+    if (F.ending) return;
+    depthTick(rt, dt);
+    // 小早を動かす・沈める
+    for (const b of F.boats) {
+      if (!b.alive) { if (b.sinkT !== undefined && b.sinkT < 6) { b.sinkT += dt; b.m.position.y = -b.sinkT * 0.5; b.m.rotation.z = b.sinkT * 0.12; } else if (b.m.parent) rt.scene.remove(b.m); continue; }
+      if (b.landed) continue;
+      const dx = b.t.x - b.x, dz = b.t.z - b.z, d = Math.hypot(dx, dz);
+      // 風と潮：追い風・満ち潮で速く、向かい風・引き潮で遅い（ゆっくり変わる）。浸水した船は遅く、舵の壊れた船は流される
+      const wt = 1 + 0.2 * Math.sin(rt.t * 0.06 + (F.windSeed || 0)) + 0.08 * Math.sin(rt.t * 0.17 + 1);
+      const sp = (b.sp || 5) * wt * (b.leak ? 0.72 : 1);
+      if (b.rudderLost) b.z += Math.sin(rt.t * 0.7 + b.x) * 2.2 * dt;
+      if (d > 0.5) { b.x += dx / d * sp * dt; b.z += dz / d * sp * dt; b.m.position.set(b.x, 0.1 * Math.sin(rt.t * 1.3 + b.x), b.z); }
+      else if (b.supply) {
+        b.landed = true;
+        F.supplyPassed++;
+        rt.bark('毛利の荷駄船が、石山の方へ抜けていった……', true);
+        rt.after(2, () => { if (b.m.parent) rt.scene.remove(b.m); });
+      }
+      else {
+        b.landed = true;
+        // 甲板の縁に着いた小早から、鉤縄を掛けて数人が乗り込む
+        if (F.step < 3) {
+          const ax = b.from === 'n' ? b.x : DECK.x0 + 2, az = b.from === 'n' ? DECK.z0 + 2 : b.z;
+          grapple(rt, ax, az);
+          const g = enemyGroup(rt, { faction: 'mori', name: '小早から上がった毛利勢', anchor: { x: ax, z: az }, facing: b.from === 'n' ? 0 : Math.PI / 2, order: 'attack', seekRange: 40, aggro: 14, width: 5, morale: 80, fleeDir: { x: -1, z: 0 }, dmgMult: 0.6 },
+            dress([{ type: 'ashigaru', n: 4 }], MORI));
+          F.small = [...(F.small || []), g];
+          rt.bark('鉤縄が舷に掛かった！　乗り込んでくる！', true);
+        }
+      }
+    }
+    // 毛利の船は途切れず寄せてくる（大筒のうち）
+    if (F.step >= 1 && F.step <= 3 && rt.t > (F.nextBoat || 1e9)) { F.nextBoat = rt.t + (F.step === 1 ? 9 : 16); this.launch(rt, Math.random() < 0.7 ? 'w' : 'n'); }
+    // 遠くの船団がゆれる
+    for (const b of F.far) b.position.y = 0.15 * Math.sin(rt.t * 1.1 + b.position.z);
+    for (const e of F.escorts || []) e.m.position.y = 0.1 * Math.sin(rt.t * 0.8 + e.z);
+    F.sea.position.y = 0.06 * Math.sin(rt.t * 0.7);
+    if (F.step === 1 && rt.t - F.stepT > 60) { rt.say('九鬼嘉隆', 'ほかの大筒も撃ちだした！　小早は崩れたぞ。……火じゃ、甲板を見よ！', 3.5); F.sunk = 6; this.fires(rt); }
+    if (F.step === 2 && rt.t - F.stepT > 55) { for (let i = 0; i < 3; i++) if (rt.interacts.some((q) => q.id === 'f' + i)) this.douse(rt, i); }
+    if (F.step === 3 && !F.dpOn) {
+      const L = F.boarders || [];
+      const left = Math.max(0, 65 - (rt.t - F.stepT));
+      rt.objProgress('main', `毛利勢 ${L.reduce((a, q) => a + (gone(q) ? 0 : q.count), 0)}人・荷駄船 阻止${F.supplyStopped}／通過${F.supplyPassed}・船団が退くまで ${Math.ceil(left)}秒`);
+      for (const q of L) if (q.count < 3 && !gone(q)) q.morale = Math.min(q.morale, 20);
+      if (left <= 0 || (left < 20 && L.length >= 4 && L.every(gone))) {
+        for (let i = 1; i <= 4; i++) rt.unmark('b' + i);
+        for (const q of L) if (!gone(q)) { q.noRout = false; q.morale = 0; }
+        this.deep(rt, 'C', () => this.win(rt));
+      }
+    }
+  },
+
+  onKill(rt, v) {
+    const F = rt.flags;
+    if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
+  },
+  onRout(rt, g) {
+    const F = rt.flags;
+    if (g.team !== 1 || rt.t < (F.routSayT || 0)) return;   // 同じ知らせを続けて出さない
+    F.routSayT = rt.t + 10;
+    rt.say('足軽', `${String(g.name).replace(/（[^）]*）/g, '')}が海へ飛び込んで逃げた！`, 2.5);
+  },
+};
+
+// 両軍の総勢（九鬼の大船六艘と供の船の兵 数千、毛利の船団 六百艘とも。数には諸説ある）
+kizugawa.force = (rt) => {
+  const F = rt.flags;
+  return { a: Math.round(3000 - (F.ak || 0) * 10), a0: 3000, b: Math.max(0, 8000 - (F.ek || 0) * 20 - F.sunk * 60), b0: 8000 };
+};
+kizugawa.sides = { a: { name: '織田水軍（九鬼）', mon: 'oda' }, b: { name: '毛利水軍', mon: 'mori' } };
+// 史実でこの戦にいた名のある武将（battle.js の placeFamous が、その家の隊に加える。敵は名乗り、討てば手柄）
+kizugawa.famous = [
+  { name: '村上元吉', g: /毛利/, loose: 1, near: 1, line: '能島の村上元吉なり！　大船に取り付け、火をかけよ！' },
+  { name: '乃美宗勝', g: /毛利/, loose: 1, near: 1, line: '小早川の乃美宗勝なり！　この船、乗っ取ってくれる！' },
+  { name: '児玉就英', g: /毛利/, loose: 1, near: 1, line: '毛利の児玉就英なり！　九鬼の首を取れ！' },
+];
+kizugawa.date = () => '天正六年十一月六日　冬・晴';
+kizugawa.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? '下知まで待つ' : '');
+kizugawa.skip = (rt) => { for (const tm of rt.timers) tm.t = Math.min(tm.t, 0.2); };
+kizugawa.history = '石山本願寺は、海から毛利の兵糧を受けて籠城を続けていた。天正四年（1576）七月の第一次木津川口の戦いでは、織田方の水軍が毛利・村上の水軍の焙烙火矢に焼かれて大敗した。信長は伊勢の九鬼嘉隆に、焼けにくい大きな安宅船を六艘造らせた。これが鉄の板で覆われていたという話は『多聞院日記』などに見えるが、どこまで鉄で覆われていたかには諸説がある。天正六年十一月六日、九鬼の大船は木津川口で毛利の船団を迎え、大鉄砲（大筒）で大将の船などを打ち払って退けた。海からの兵糧を断たれた本願寺は、天正八年に信長と和を結んで石山を退いた。船の数や兵の数には諸説ある。';
+
+// 素直な遊び手：大筒を撃ち、火を消し、乗り込んだ毛利勢と戦う
+kizugawa.botBrain = (b, inp, { goTo }) => {
+  const p = b.player, u = p.u, F = b.flags;
+  inp.quickCmd = null;
+  inp.k.delete('KeyW'); inp.k.delete('KeyE');
+  if (!u.alive || F.ending) return;
+  // 段（b_depth.js）が動いている間は、そちらの的へ向かう
+  if (F.dp && F.dp.on) { depthBot(b, inp, goTo); return; }
+  if (u.hp < u.maxHp * 0.5) b.botRest = true;
+  if (b.botRest && u.hp > u.maxHp * 0.85) b.botRest = false;
+  if (b.botRest) { inp.guardHold = false; goTo(p, inp, 12, 20, 2); return; }
+  const e = b.army.nearestEnemy(u, 10, (o) => !o.fleeing);
+  if (e) {
+    const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
+    p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
+    if (d > 2.6) inp.k.add('KeyW');
+    if (d < 3.2 && Math.random() < 0.5) inp.leftPressed = true;
+    inp.guardHold = (b.army.threats || []).length > 0 && Math.random() < 0.85;
+    return;
+  }
+  inp.guardHold = false;
+  const pre = F.step === 1 ? 'g' : F.step === 2 ? 'f' : null;
+  if (pre) {
+    let it = null, bd = Infinity;
+    for (const x of b.interacts) if (x.id.startsWith(pre)) {
+      if (pre === 'g') { const gi = +x.id.slice(1); if (b.t < F.guns[gi].cd) continue; }
+      const d = Math.hypot(x.pos.x - u.pos.x, x.pos.z - u.pos.z); if (d < bd) { bd = d; it = x; }
+    }
+    if (it) { if (bd > 1.2) goTo(p, inp, it.pos.x, it.pos.z, 0.8); else inp.k.add('KeyE'); }
+    return;
+  }
+  if (F.step === 3) { const q = (F.boarders || []).find((x) => !gone(x)); if (q) { const c = q.center(); goTo(p, inp, c.x, c.z, 2); return; } goTo(p, inp, -8, 0, 2); }
+};
+
+// ---------------- 一つの戦を濃くする段（b_depth.js） ----------------
+// 船の上なので、後ろの控え（軽い大軍）は付けない。代わりに小早の群れが海を埋め、舷の三方から一度にどっと乗り込む
+const uS = (n) => ({ type: 'samurai', n }), uA = (n) => ({ type: 'ashigaru', n }), uG = (n) => ({ type: 'gun', n });
+const W_EDGE = DECK.x0 + 1.5, BOW = DECK.z0 + 1.5, STERN = DECK.z1 - 1.5;
+// 小早を何艘か一度に出す（見た目の群れ）
+const flotilla = (rt, n, from) => { for (let i = 0; i < n; i++) rt.after(i * 1.2, () => kizugawa.launch(rt, from || (Math.random() < 0.7 ? 'w' : 'n'))); };
+// 乗り移ってきた鉄砲組：鉄砲だけの組は、並んで構え、号令で一斉に撃つ（units.js）
+const gunLine = (name, from, n, o = {}) => ({ name, from, list: [uS(1), uG(n)], formation: 'line', seek: 40, ...o });
+function kzCtx(rt) {
+  const F = rt.flags;
+  return { faction: 'mori', flag: 'mori', dmg: 0.66, mass: 0, scale: 1.6, look: (l) => dress(l, MORI),
+    friends: () => [F.kuki, F.teppo].filter((g) => g && g.count && !g.routed) };
+}
+// A 火を消した後：船団の総掛かり（大筒に残るか、舳先を固めるか）
+function kzA() {
+  return [
+    rest({ dur: 4, heal: 0.3, say: [['九鬼嘉隆', '火は消えた。……見よ、西の海一面が小早じゃ'], ['足軽', 'あれ全部が、この船に取り付くのか……'], ['九鬼嘉隆', '二年前は、あれに焼かれた。今度は違う']] }),
+    pick({ title: '毛利の船団が総掛かりで寄せてくる。どこを受け持つ？',
+      pre: (rt) => flotilla(rt, 5, 'w'),
+      options: [{ label: '西の舷の大筒につき、寄せる小早を沈める', note: '大筒で小早を減らせば、乗り込む者が少なくなる。舷で乗り込みを受ける' }, { label: '舳先で槍を揃え、乗り込みを防ぐ', note: '舳先は固くなる。大筒は船の鉄砲衆に任せ、西の舷から多く乗り込まれる' }],
+      on: (rt, m, i) => { m.kzGun = i === 0; rt.say('九鬼嘉隆', i === 0 ? 'よし、大筒じゃ！　込め直しの間は槍で舷を守れ' : 'よし、舳先を頼む！', 3); } }),
+    hold({ at: (rt, m) => (m.kzGun ? { x: -14, z: 4 } : { x: -2, z: BOW + 6 }), dur: 42, r: 10, title: '船団の総掛かり', sub: '小早が西からも北からも取り付いてくる', label: '持ち場', obj: (rt, m) => (m.kzGun ? '西の舷で、大筒を撃ちながら乗り込みを防げ' : '舳先で、乗り込んでくる毛利勢を防げ'),
+      waves: [
+        { t: 3, say: ['足軽', '西の舷に取り付いた！　乗り込んでくる！'], foes: (rt, m) => { flotilla(rt, 4, 'w'); return [{ name: '西の舷から乗り込む毛利勢', from: { x: W_EDGE, z: -8 }, list: [uS(2), uA(m.kzGun ? 7 : 10)] }]; } },
+        { t: 16, say: ['足軽', '舳先からもじゃ！'], foes: (rt, m) => { flotilla(rt, 3, 'n'); return [{ name: '舳先から乗り込む毛利勢', from: { x: -4, z: BOW }, list: [uS(2), uA(m.kzGun ? 9 : 6)] }]; } },
+        { t: 30, say: ['九鬼嘉隆', '鉄砲を持って乗り込んできた！　並ぶ前に突け！'], foes: () => [gunLine('乗り込んだ毛利の鉄砲衆', { x: W_EDGE, z: 16 }, 7)] },
+        { t: 45, say: ['足軽', '艫（とも）の方からも！　囲まれた！'], foes: () => [{ name: '艫から回った村上の者', from: { x: 6, z: STERN }, list: [uS(2), uA(8)] }] },
+      ],
+      reward: '船団の総掛かりから船を守った', lost: ['九鬼嘉隆', '押し込まれたか……！　まだ船は沈まぬ！'] }),
+    rest({ dur: 4, bark: '甲板で、組を寄せ直す', say: [['足軽', '南の味方の小舟が、焙烙を投げ込まれて燃えておる！'], ['九鬼嘉隆', '……二年前と同じじゃ']] }),
+    pick({ title: '供の小舟が焙烙で焼かれている。船の鉄砲衆をどう使う？',
+      options: [{ label: '鉄砲衆を南の舷へ回し、小舟を焼く毛利の船を撃たせる', note: '供の小舟が助かる（手柄）。西の舷が薄くなり、次の乗り込みが厚くなる' }, { label: '鉄砲衆は西の舷に残し、乗り込みに備える', note: '次の乗り込みは薄くなる。供の小舟は見捨てる' }],
+      on: (rt, m, i) => {
+        m.kzHelp = i === 0;
+        const F = rt.flags;
+        if (i === 0) {
+          if (F.teppo && F.teppo.count) { F.teppo.anchor = { x: 6, z: DECK.z1 - 6 }; F.teppo.facing = 0; }
+          rt.after(8, () => { sfx('volley', 0.7); rt.army.smoke(10, 1.5, DECK.z1 + 14, 0, 1, 2); rt.award((t) => t.side.push('焼かれる供の小舟を救った'), '供の小舟を救った'); rt.say('九鬼嘉隆', 'よし、毛利の船が離れた！　小舟の者を引き上げよ', 3); });
+        }
+        rt.say('九鬼嘉隆', i === 0 ? '鉄砲衆、南の舷へ！　焙烙を投げる者を撃て！' : '……西の舷を離れるな', 3);
+      } }),
+  ];
+}
+// C 乗り移りを退けた後：毛利の大将船 → どう迎えるか → 船団が退くまで
+function kzC() {
+  return [
+    rest({ dur: 5, heal: 0.3, say: [['足軽', '西から……でかい船が来る！'], ['九鬼嘉隆', '毛利の大将船じゃ。あれを沈めれば、船団は崩れる']],
+      fn: (rt) => kizugawa.launchBig(rt) }),
+    pick({ title: '毛利の大将船が寄せてくる。どう迎える？',
+      options: [{ label: '大筒で大将船を狙う（三発当てる）', note: '沈めれば大手柄。その間、舷の守りは薄い' }, { label: '甲板で槍を揃え、大将船からの乗り込みを受ける', note: '大将船は船の鉄砲衆が撃つ。乗り込む者は多い' }],
+      on: (rt, m, i) => {
+        m.kzBig = i === 0;
+        const F = rt.flags;
+        if (i === 0) for (let k = 0; k < 3; k++) rt.marker('g' + k, { x: F.guns[k].x, z: F.guns[k].z }, '大筒', { h: 2 });
+        rt.say('九鬼嘉隆', i === 0 ? '大筒につけ！　三発当てれば、あの船は沈む！' : 'よし、槍衾じゃ。鉄砲衆、大将船を撃て！', 3);
+      } }),
+    hold({ at: (rt, m) => (m.kzBig ? { x: -14, z: 4 } : { x: -8, z: 0 }), dur: 50, r: 11, title: '大将船', sub: '大将船の周りの小早から、毛利勢が一斉に乗り込む', label: '持ち場', obj: (rt, m) => (m.kzBig ? '大筒で毛利の大将船を打ち払え（乗り込みも防げ）' : '甲板で、大将船から乗り込む毛利勢を防げ'),
+      waves: [
+        { t: 4, say: ['足軽', '大将船の周りの小早が、一度に取り付いた！'], foes: (rt, m) => { flotilla(rt, 5, 'w'); return [{ name: '毛利の乗り込み衆', from: { x: W_EDGE, z: -14 }, list: [uS(2), uA((m.kzBig ? 7 : 11) + (m.kzHelp ? 3 : 0))] }, { name: '舳先の毛利勢', from: { x: 4, z: BOW }, list: [uS(1), uA(m.kzBig ? 5 : 8)] }]; } },
+        { t: 22, say: ['九鬼嘉隆', '大将船の鉄砲衆が、舷に並んだ！　板垣の陰へ！'], foes: () => [gunLine('大将船の鉄砲衆', { x: W_EDGE, z: 10 }, 8)] },
+        { t: 42, say: ['足軽', '艫にも回った！　前も後ろも毛利じゃ！'], foes: () => [{ name: '艫の村上の者', from: { x: -2, z: STERN }, list: [uS(2), uA(9)] }, { name: '西の舷の新手', from: { x: W_EDGE, z: -24 }, list: [uS(1), uA(8)] }] },
+        { t: 60, if: (rt) => !rt.flags.bigSunk, say: ['九鬼嘉隆', '大将船が、まだ沈まぬ……！　乗り込みが続くぞ！'], foes: () => [{ name: '大将船の旗本', from: { x: W_EDGE, z: 0 }, list: [uS(3), uA(9)] }] },
+      ],
+      reward: '毛利の大将船の寄せを退けた',
+      onEnd: (rt) => {
+        const F = rt.flags;
+        for (let k = 0; k < 3; k++) rt.unmark('g' + k);
+        if (!F.bigSunk && F.big && F.big.alive) { F.big.alive = false; F.big.sinkT = 0; F.bigSunk = true; rt.banner('大将船、傾く', '船の鉄砲衆と大筒が、大将船を打ち払った'); }
+      } }),
+  ];
+}
+
+export { kizugawa };
