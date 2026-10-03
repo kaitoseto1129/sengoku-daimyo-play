@@ -19744,7 +19744,35 @@ if(!(K.phaseAt>B.elapsed-1)){ K.phaseAt=B.elapsed; const def=B.units.filter(u=>u
 if(avg(def)<30||avg(atk)<30) ph="総崩れ"; else if((B.gate&&B.gate.open)||atk.some(inFort)) ph="砦突入"; else if(atk.some(u=>Math.abs(u.x-K.fx)<2.5)) ph="柵攻防"; else if(atk.some(u=>{ const t=bTileAt(u.x,u.y); return t===BT.WATER||t===BT.FORD||Math.abs(u.x-K.rx)<2.5; })) ph="渡河戦";
 if(ph!==K.phase){ K.phase=ph; B.banner={t:`――${ph}――`, at:B.elapsed}; B.phaseChip=ph; try{ renderBattleFoot(); }catch(_){ } } } }
 
-function gifuGeom(){ const Wd=BF.w, H=BF.h; const defLeft=B.ctx.playerSide===1; const mx=x=>defLeft?(Wd-1-x):x;
+const GF_NAWA={
+"小谷城":{ src:"『信長公記』巻六（天正元年八月）、『太閤記』、小谷城縄張り図（長浜市）",
+base:{x0:0,x1:0.17,y0:0.42,y1:1},
+pockets:[ {n:"山麓",lv:0,x0:0,x1:0.17,y0:0.42,y1:1}, {n:"清水谷",lv:0,x0:0.17,x1:0.80,y0:0.82,y1:1},
+{n:"金吾丸",lv:2,x0:0.21,x1:0.29,y0:0.33,y1:0.52}, {n:"番所・御茶屋",lv:2,x0:0.29,x1:0.39,y0:0.35,y1:0.53}, {n:"御馬屋",lv:2,x0:0.39,x1:0.44,y0:0.37,y1:0.51},
+{n:"桜馬場",lv:2,x0:0.44,x1:0.48,y0:0.40,y1:0.55}, {n:"大広間",lv:2,x0:0.48,x1:0.58,y0:0.28,y1:0.56},
+{n:"本丸",lv:5,x0:0.595,x1:0.65,y0:0.24,y1:0.47},
+{n:"中丸",lv:4,x0:0.675,x1:0.72,y0:0.30,y1:0.50}, {n:"京極丸",lv:4,x0:0.72,x1:0.80,y0:0.26,y1:0.60}, {n:"小丸",lv:4,x0:0.80,x1:0.86,y0:0.32,y1:0.52}, {n:"山王丸",lv:4,x0:0.86,x1:0.94,y0:0.30,y1:0.50} ],
+roads:[ {n:"大手道",lv:1,ax:0.12,ay:0.62,bx:0.205,by:0.43,w:1.5}, {n:"水の手道（清水谷から）",lv:3,ax:0.76,ay:0.84,bx:0.76,by:0.62,w:1.3},
+{n:"大堀切の土橋",lv:5,ax:0.645,ay:0.40,bx:0.68,by:0.40,w:0.9} ],
+gates:[ {k:"g1",n:"大手口（番所の虎口）",x:0.205,y:0.43,half:2.0,hp:900,lv:2,dx:2.2}, {k:"g2",n:"京極丸の虎口",x:0.76,y:0.61,half:1.6,hp:700,lv:4,dx:1.6} ],
+fence:{x:0.16,y0:0.42,y1:1,gap:[0.56,0.66]},
+tenshu:null, honmaruRally:{x:0.62,y:0.36}, chubanRally:{x:0.76,y:0.42}, sanjoRally:{x:0.83,y:0.42},
+spots:[[0.33,0.44,1],[0.25,0.42,1],[0.52,0.42,1],[0.70,0.40,3],[0.78,0.50,3],[0.90,0.40,3]], lanes:[],
+labels:[{x:0.06,y:0.40,t:"山麓（南）"},{x:0.30,y:0.30,t:"金吾丸・番所"},{x:0.53,y:0.25,t:"大広間（千畳敷）"},{x:0.62,y:0.21,t:"本丸（長政）"},{x:0.66,y:0.52,t:"大堀切"},
+{x:0.76,y:0.23,t:"京極丸"},{x:0.83,y:0.29,t:"小丸（久政）"},{x:0.90,y:0.27,t:"山王丸"},{x:0.48,y:0.93,t:"清水谷（侍屋敷）"},{x:0.30,y:0.66,t:"畝状竪堀"}],
+une:{y0:0.62,y1:0.78,x0:0.22,x1:0.58}, zone:["山麓","大手口","京極丸の虎口","京極丸","本丸"] }
+};
+function gifuGeomNawa(cname){ const N=GF_NAWA[cname]; if(!N) return null; const Wd=BF.w, H=BF.h; const defLeft=B.ctx.playerSide===1; const mx=x=>defLeft?(Wd-1-x):x;
+const X=v=>v*(Wd-1), Y=v=>Math.max(0.5,Math.min(H-0.5,v*H)); const P=p=>Object.assign({},p,{x0:X(p.x0),x1:X(p.x1),y0:Y(p.y0),y1:Y(p.y1),k:p.lv});
+const G={defLeft, mx, nawa:N, src:N.src,
+pockets:N.pockets.map(P), roads:N.roads.map(r=>Object.assign({},r,{k:r.lv,ax:X(r.ax),ay:Y(r.ay),bx:X(r.bx),by:Y(r.by)})),
+gates:N.gates.map(g=>Object.assign({},g,{x:X(g.x),y:Y(g.y)})), fence:{x:X(N.fence.x),y0:Y(N.fence.y0),y1:Y(N.fence.y1),gap:[Y(N.fence.gap[0]),Y(N.fence.gap[1])]},
+tenshu:N.tenshu?{x:X(N.tenshu.x),y:Y(N.tenshu.y)}:null, honmaruRally:{x:X(N.honmaruRally.x),y:Y(N.honmaruRally.y)}, chubanRally:{x:X(N.chubanRally.x),y:Y(N.chubanRally.y)}, sanjoRally:{x:X(N.sanjoRally.x),y:Y(N.sanjoRally.y)},
+spots:N.spots.map(s2=>[X(s2[0]),Y(s2[1]),s2[2]]), lanes:N.lanes||[], base:{x0:X(N.base.x0),x1:X(N.base.x1),y0:Y(N.base.y0),y1:Y(N.base.y1)},
+labels:N.labels.map(l=>({x:X(l.x),y:Y(l.y),t:l.t})), une:N.une?{x0:X(N.une.x0),x1:X(N.une.x1),y0:Y(N.une.y0),y1:Y(N.une.y1)}:null };
+const hi=G.pockets.findIndex(p=>p.lv===5); if(hi>=0&&hi!==3){ const hp=G.pockets.splice(hi,1)[0]; G.pockets.splice(3,0,hp); }
+return G; }
+function gifuGeom(cname){ const NG=cname&&gifuGeomNawa(cname); if(NG) return NG; const Wd=BF.w, H=BF.h; const defLeft=B.ctx.playerSide===1; const mx=x=>defLeft?(Wd-1-x):x;
 const G={defLeft, mx,
 pockets:[ {k:0,n:"山麓",x0:1,x1:20,y0:13,y1:H-1,lv:0}, {k:2,n:"中腹",x0:34,x1:46,y0:7,y1:17,lv:2}, {k:4,n:"山上郭",x0:58,x1:68,y0:2,y1:10,lv:4}, {k:5,n:"本丸",x0:69,x1:Wd-1,y0:1,y1:9,lv:5} ],
 roads:[ {k:1,n:"山道",ax:20,ay:19.5,bx:31,by:12.5,w:1.7,lv:1}, {k:3,n:"山道",ax:46,ay:11,bx:56,by:6.5,w:1.4,lv:3} ],
@@ -19757,14 +19785,14 @@ for(const p of G.pockets){ if(x>=p.x0&&x<=p.x1&&y>=p.y0&&y<=p.y1) return p; }
 for(const g of G.gates){ if(Math.abs(x-g.x)<=g.dx&&Math.abs(y-g.y)<=g.half+0.4) return {lv:g.lv,k:g.k,gate:true}; }
 for(const r of G.roads){ const dx=r.bx-r.ax, dy=r.by-r.ay; const L2=dx*dx+dy*dy||1; let t=((x-r.ax)*dx+(y-r.ay)*dy)/L2; t=Math.max(0,Math.min(1,t)); const px=r.ax+dx*t, py=r.ay+dy*t; if(Math.hypot(x-px,y-py)<=r.w) return r; }
 return null; }
-function gifuSetup(cname){ if(!B||!B.tiles) return; try{ bWiden(); }catch(e){ console.error(e); } const Wd=BF.w, H=BF.h; const G=gifuGeom(); const mx=G.mx; const defLeft=G.defLeft; cname=cname||"岐阜城";
+function gifuSetup(cname){ if(!B||!B.tiles) return; try{ bWiden(); }catch(e){ console.error(e); } const Wd=BF.w, H=BF.h; cname=cname||"岐阜城"; const G=gifuGeom(cname); const mx=G.mx; const defLeft=G.defLeft;
 const R=artRng((B.seed||3)+184);
 
 B.blockCells=new Set(); B.gfLevel=[];
 for(let r=0;r<H;r++){ B.gfLevel.push([]); for(let c=0;c<Wd;c++){ const o=gifuOpenAt(G, mx(c+0.5), r+0.5); B.gfLevel[r][c]=o?o.lv:-1;
 if(!o){ B.tiles[r][c]=R()<0.42?BT.FOREST:BT.CLIFF; } else if(o.gate){ B.tiles[r][c]=BT.DIRT; } else if(o.lv===0){ B.tiles[r][c]=R()<0.12?BT.FOREST:BT.GRASS; } else if(o.lv===1||o.lv===3){ B.tiles[r][c]=BT.ROAD; } else { B.tiles[r][c]=R()<0.25?BT.GRASS:BT.DIRT; } } }
 for(let gc=0;gc<gCols();gc++) for(let gr=0;gr<gRows();gr++){ const [cx,cy]=cellCenter(gc,gr); const o=gifuOpenAt(G, mx(cx), cy); if(!o) B.blockCells.add(gc*1000+gr); }
-{ const T=G.tenshu; for(let gc=0;gc<gCols();gc++) for(let gr=0;gr<gRows();gr++){ const [cx,cy]=cellCenter(gc,gr); if(Math.abs(mx(cx)-T.x)<=3.2&&Math.abs(cy-T.y)<=2.6) B.blockCells.add(gc*1000+gr); } }
+if(G.tenshu){ const T=G.tenshu; for(let gc=0;gc<gCols();gc++) for(let gr=0;gr<gRows();gr++){ const [cx,cy]=cellCenter(gc,gr); if(Math.abs(mx(cx)-T.x)<=3.2&&Math.abs(cy-T.y)<=2.6) B.blockCells.add(gc*1000+gr); } }
 
 B.obstacles=B.obstacles.filter(o=>!(o.kind===1)); const F=G.fence; for(let y=F.y0+0.6;y<F.y1;y+=1.3){ if(y>=F.gap[0]&&y<=F.gap[1]) continue; B.obstacles.push({kind:1, variant:Math.floor(y)%3, x:mx(F.x), y, r:0.85, wall:true, fort:true, fence:true, side:1, hp:140, hpMax:140}); }
 
@@ -19773,7 +19801,7 @@ B.siegeLine0=B.gate.x; B.siegeLayers=1; B.siegeStage=0; B.siegeKoguchi=true; B.m
 const K={G, stage:0, breach:[], honIn:false, atkStart:0, mxv:mx}; B.gf=K; B.siegeName=cname;
 
 try{ if(B.tiles){ const H2=BF.h, W2=BF.w; B.blockCells=B.blockCells||new Set();
-const lanes=[{y:Math.round(H2*0.16), nm:"北の細道"},{y:Math.round(H2*0.86), nm:"裏道"}];
+const lanes=G.lanes?G.lanes:[{y:Math.round(H2*0.16), nm:"北の細道"},{y:Math.round(H2*0.86), nm:"裏道"}];
 for(const L of lanes){ for(let c=2;c<W2-2;c++){
 for(const r of [L.y, L.y+1]){ if(r<1||r>=H2-1) continue;
 const t=B.tiles[r][c]; if(t===BT.WATER||t===BT.MOAT) continue; B.tiles[r][c]=BT.ROAD;
@@ -19785,23 +19813,26 @@ B.bg=null; } }catch(e){ console.error("gf lanes",e); }
 
 const put=(u,x,y)=>{ u.x=Math.max(1,Math.min(Wd-1.5,mx(x))); u.y=Math.max(1.5,Math.min(H-1.5,y)); u.gx=u.x; u.gy=u.y; u.cell=null; u.nextCell=null; u.stageX=undefined; u.stageY=undefined; u.order={k:"guard"}; };
 const def=B.units.filter(u=>u.side===1&&u.troops>.5&&!u.sigHidden); const cmd=def.find(u=>u.cmd); const rest=def.filter(u=>!u.cmd); const guns=rest.filter(u=>u.type===3), oth=rest.filter(u=>u.type!==3);
-const spots=[[35.5,12.5,1],[36,9.5,1],[59.5,6.5,3],[63,4.5,3],[41,14.5,1],[65,8.5,3]]; let si=0;
-if(guns[0]){ put(guns[0],36,9.5); guns[0].gfZone=1; guns[0].holdUntil=99999; guns[0].hiGround=true; }
+const spots=G.spots||[[35.5,12.5,1],[36,9.5,1],[59.5,6.5,3],[63,4.5,3],[41,14.5,1],[65,8.5,3]]; let si=0;
+if(guns[0]){ put(guns[0],spots[1][0],spots[1][1]); guns[0].gfZone=1; guns[0].holdUntil=99999; guns[0].hiGround=true; }
 for(const u of oth.concat(guns.slice(1))){ const sp=spots[si%spots.length]; si++; put(u,sp[0],sp[1]); u.gfZone=sp[2]; u.holdUntil=99999; }
 if(cmd){ put(cmd, G.honmaruRally.x, G.honmaruRally.y); cmd.gfZone=5; cmd.holdUntil=99999; }
 for(const u of def){ u.tough=(u.tough||1)*1.15; }
 
 const atk=B.units.filter(u=>u.side===0&&u.troops>.5&&!u.sigHidden); const rows=[atk.filter(u=>!u.cmd&&(u.type===0||u.type===1)), atk.filter(u=>!u.cmd&&u.type===3), atk.filter(u=>!u.cmd&&u.type===2)];
-rows.forEach((us,ri)=>{ const n=us.length; us.forEach((u,i)=>{ const col=ri===0?(i%2):0; put(u, 15-ri*3.2-col*1.6, 14.5+ (H-1-14.5)*((i+0.5)/Math.max(1,n))); u.order={k:"guard"}; }); });
-const ac=atk.find(u=>u.cmd); if(ac){ put(ac, 4, 20); }
+const BS=G.base||{x0:0,x1:16,y0:14,y1:H-1};
+rows.forEach((us,ri)=>{ const n=us.length; us.forEach((u,i)=>{ const col=ri===0?(i%2):0; put(u, Math.max(BS.x0+1.5, BS.x1-1-ri*3.2-col*1.6), BS.y0+0.5+ (BS.y1-1-BS.y0-0.5)*((i+0.5)/Math.max(1,n))); u.order={k:"guard"}; }); });
+const ac=atk.find(u=>u.cmd); if(ac){ put(ac, BS.x0+1.5, (BS.y0+BS.y1)/2+2); }
 K.atkStart=atk.reduce((a,u)=>a+u.troops,0);
 try{ gridSettleAll(); }catch(_){ }
-B.fieldLabels=[{x:mx(10),y:12.2,t:"山麓"},{x:mx(40),y:6.2,t:"中腹"},{x:mx(63),y:1.2,t:"山上郭"},{x:mx(Wd-12),y:0.9,t:"本丸"},{x:mx(Wd-5),y:9.6,t:`${cname} 天守`}];
+B.fieldLabels=G.labels?G.labels.map(l=>({x:mx(l.x),y:l.y,t:l.t})):[{x:mx(10),y:12.2,t:"山麓"},{x:mx(40),y:6.2,t:"中腹"},{x:mx(63),y:1.2,t:"山上郭"},{x:mx(Wd-12),y:0.9,t:"本丸"},{x:mx(Wd-5),y:9.6,t:`${cname} 天守`}];
+if(G.une){ const U=G.une; for(let c=Math.round(U.x0);c<=Math.round(U.x1);c+=3) for(let r=Math.round(U.y0);r<=Math.round(U.y1);r++){ const cc=Math.round(mx(c)); if(r<1||r>=H-1||cc<1||cc>=Wd-1) continue; if(B.gfLevel[r]&&B.gfLevel[r][cc]>=0) continue; B.tiles[r][cc]=BT.MOAT; } B.bg=null; }
 B.keyPoints=[{name:"本丸", x:mx(G.honmaruRally.x), y:G.honmaruRally.y, r:2.6, owner:1, hqSide:1}];
 B.objective = B.ctx.playerSide===0 ? "一ノ門を突破せよ（山道は狭い。門の前に固まるな）" : "一ノ門で止めよ。破られたら二ノ門、本丸へ退いて守る";
 B.phaseChip=null; B.bg=null; B._fenceVer=(B._fenceVer||0)+1; B.cx=mx(18); B.cy=H/2; }
 function gifuZones(){ const K=B.gf; if(!K) return []; const st=K.stage; const hq=B.units.find(u=>u.side===1&&u.cmd); const hqDown=!hq||hq.troops<=.5||hq.morale<=0; const atk=B.units.filter(u=>u.side===0&&u.troops>.5&&u.morale>0&&!u.left); const lvOf=u=>{ const c=Math.floor(u.x), r=Math.floor(u.y); return (B.gfLevel[r]&&B.gfLevel[r][c]!==undefined)?B.gfLevel[r][c]:-1; }; const deep=atk.length?Math.max(...atk.map(lvOf)):0;
-return [{n:"山麓",taken:deep>=1},{n:"一ノ門",taken:st>=1},{n:"二ノ門",taken:st>=2},{n:"山上郭",taken:st>=2&&deep>=4},{n:"本丸",taken:B.over===0||hqDown||K.honIn}]; }
+const Gn=K.G&&K.G.nawa; const nm=(i,d)=>Gn&&Gn.zone&&Gn.zone[i]||d;
+return [{n:nm(0,"山麓"),taken:deep>=1},{n:nm(1,"一ノ門"),taken:st>=1},{n:nm(2,"二ノ門"),taken:st>=2},{n:nm(3,"山上郭"),taken:st>=2&&deep>=4},{n:nm(4,"本丸"),taken:B.over===0||hqDown||K.honIn}]; }
 function gifuTick(dt){ const K=B.gf; if(!K||B.over!==null||B.opening>0) return; const G=K.G; const mx=K.mxv;
 
 if(B.gate&&!B.gate.open){ const k=B.gate.hp/B.gate.hpMax; if(k<0.5&&!(B.gate.smokeAt>B.elapsed-1.2)){ B.gate.smokeAt=B.elapsed; B.decals=B.decals||[]; if(B.decals.length<80) B.decals.push({k:"smoke",x:B.gate.x,y:B.gate.y+(rnd()-.5)*2,t:B.elapsed}); }
@@ -19844,7 +19875,7 @@ const g1=G.gates[0], g2=G.gates[1]; const b1=K.stage>=1, b2=K.stage>=2;
 drawGate({x:g1.x,y:g1.y,half:g1.half,n:g1.n,hp:b1?0:(B.gate&&B.gate.name===g1.n?B.gate.hp:g1.hp),hpMax:g1.hp,hitAt:(B.gate&&B.gate.name===g1.n)?B.gate.hitAt:undefined}, b1, !b1);
 drawGate({x:g2.x,y:g2.y,half:g2.half,n:g2.n,hp:b2?0:(B.gate&&B.gate.name===g2.n?B.gate.hp:B.gfGate2.hp),hpMax:g2.hp,hitAt:(B.gate&&B.gate.name===g2.n)?B.gate.hitAt:undefined}, b2, b1&&!b2);
 
-{ const T=G.tenshu; const tx=mx(T.x)*sx, ty=T.y*sy; const W1=sx*6.4, H1=sy*2.2; bctx.fillStyle="rgba(0,0,0,.3)"; bctx.beginPath(); bctx.ellipse(tx+sx*0.4, ty+H1*0.9, W1*0.7, sy*1.2, 0, 0, 7); bctx.fill();
+if(G.tenshu){ const T=G.tenshu; const tx=mx(T.x)*sx, ty=T.y*sy; const W1=sx*6.4, H1=sy*2.2; bctx.fillStyle="rgba(0,0,0,.3)"; bctx.beginPath(); bctx.ellipse(tx+sx*0.4, ty+H1*0.9, W1*0.7, sy*1.2, 0, 0, 7); bctx.fill();
 stone(tx-W1/2, ty, W1, H1);
 const tier=(w,h,y0)=>{ bctx.fillStyle="#EDE6D6"; bctx.fillRect(tx-w/2, y0-h, w, h); bctx.fillStyle="#3A2A18"; for(let xx=tx-w/2+sx*0.35;xx<tx+w/2-sx*0.3;xx+=sx*0.75) bctx.fillRect(xx, y0-h*0.65, sx*0.28, h*0.35); bctx.fillStyle="#2E2A28"; bctx.beginPath(); bctx.moveTo(tx-w/2-sx*0.5, y0-h); bctx.lineTo(tx-w/2+sx*0.3, y0-h-sy*0.9); bctx.lineTo(tx+w/2-sx*0.3, y0-h-sy*0.9); bctx.lineTo(tx+w/2+sx*0.5, y0-h); bctx.closePath(); bctx.fill(); bctx.fillStyle="#4A4644"; bctx.fillRect(tx-w/2+sx*0.3, y0-h-sy*0.9, w-sx*0.6, 2); return y0-h-sy*0.9; };
 let y0=ty; y0=tier(W1*0.9, sy*1.6, y0); y0=tier(W1*0.68, sy*1.4, y0); y0=tier(W1*0.46, sy*1.3, y0);
@@ -20897,6 +20928,145 @@ const CK_PLAN={
 "鳥取城":{ nm:"久松山の完全包囲", hill:true, noWall:true, kuruwa:[{n:"山麓・城下",d:0.30,t:0.50,w:0.12,h:0.48},{n:"二の丸",d:0.60,t:0.44,w:0.08,h:0.24},{n:"本丸",d:0.86,t:0.52,w:0.06,h:0.16}] },
 "魚津城":{ nm:"援軍が来る前に", moat:"water", kuruwa:[{n:"外堀・土塁",d:0.36,t:0.50,w:0.12,h:0.52},{n:"二の丸",d:0.62,t:0.44,w:0.10,h:0.34},{n:"本丸",d:0.84,t:0.54,w:0.08,h:0.24}] }
 };
+
+const CK_NAWA={
+"小谷城":{ nm:"尾根が丸ごと城（南の金吾丸から北の山王丸まで）", yama:true, ridge:{t:0.46,h:0.30}, atk:"南の大手口から",
+src:"『信長公記』巻六、小谷城縄張り図（長浜市）",
+kuruwa:[{n:"番所・御茶屋",d:0.30,t:0.46,w:0.07,h:0.20},{n:"大広間",d:0.50,t:0.46,w:0.09,h:0.24},{n:"本丸",d:0.64,t:0.44,w:0.05,h:0.16}],
+ext:[{n:"出丸",d:0.05,t:0.47,w:0.04,h:0.12},{n:"金吾丸",d:0.16,t:0.46,w:0.05,h:0.14},{n:"御馬屋",d:0.38,t:0.42,w:0.04,h:0.12},{n:"桜馬場",d:0.42,t:0.54,w:0.03,h:0.10},
+{n:"中丸",d:0.74,t:0.46,w:0.05,h:0.14},{n:"京極丸",d:0.82,t:0.44,w:0.05,h:0.18},{n:"小丸",d:0.89,t:0.46,w:0.04,h:0.12},{n:"山王丸",d:0.96,t:0.46,w:0.03,h:0.14},
+{n:"清水谷（侍屋敷）",d:0.62,t:0.88,w:0.12,h:0.14,low:true},{n:"大嶽・福寿丸",d:0.88,t:0.08,w:0.08,h:0.12}],
+horikiri:[0.69], une:true, koguchi:true },
+"高天神城":{ nm:"一城別郭（東峰と西峰、間に井戸曲輪）", yama:true, ridge:{t:0.50,h:0.44}, atk:"西の堂の尾から",
+src:"『信長公記』巻十四、『甲陽軍鑑』、高天神城縄張り図（掛川市）",
+kuruwa:[{n:"堂の尾曲輪",d:0.26,t:0.58,w:0.07,h:0.16},{n:"西の丸",d:0.46,t:0.40,w:0.06,h:0.16},{n:"本丸",d:0.80,t:0.48,w:0.06,h:0.16}],
+ext:[{n:"井楼曲輪",d:0.14,t:0.66,w:0.04,h:0.12},{n:"二の丸",d:0.40,t:0.62,w:0.05,h:0.14},{n:"井戸曲輪",d:0.62,t:0.50,w:0.04,h:0.10},
+{n:"御前曲輪",d:0.88,t:0.30,w:0.04,h:0.10},{n:"的場曲輪",d:0.90,t:0.66,w:0.04,h:0.12},{n:"三の丸",d:0.96,t:0.82,w:0.03,h:0.10}],
+horikiri:[0.33,0.70], une:true, note:"甚五郎抜け道（本丸の裏）" },
+"有岡城":{ nm:"日本最古の惣構（台地の東端に主郭、東は猪名川の崖）", town:true, atk:"西の上臈塚砦から",
+src:"『信長公記』巻十一・十二、有岡城跡（伊丹市）",
+kuruwa:[{n:"上臈塚砦・惣構",d:0.20,t:0.50,w:0.10,h:0.40},{n:"侍町",d:0.52,t:0.50,w:0.13,h:0.62},{n:"主郭",d:0.82,t:0.50,w:0.08,h:0.26}],
+ext:[{n:"岸の砦",d:0.42,t:0.08,w:0.07,h:0.12},{n:"鵯塚砦",d:0.42,t:0.92,w:0.07,h:0.12},{n:"町屋",d:0.36,t:0.50,w:0.08,h:0.72,low:true}],
+water:[{edge:"back",w:2,n:"猪名川"}], cliffBack:true },
+"高遠城":{ nm:"三峰川と藤沢川に挟まれた台地の先", yama:true, ridge:{t:0.50,h:0.56}, atk:"東の台地続きから",
+src:"『信長公記』巻十五、高遠城縄張り図（伊那市）",
+kuruwa:[{n:"三の丸",d:0.30,t:0.50,w:0.11,h:0.40},{n:"二の丸",d:0.56,t:0.48,w:0.07,h:0.28},{n:"本丸",d:0.78,t:0.48,w:0.06,h:0.20}],
+ext:[{n:"法幢院曲輪",d:0.46,t:0.80,w:0.06,h:0.10},{n:"笹曲輪",d:0.62,t:0.80,w:0.04,h:0.08},{n:"南曲輪",d:0.80,t:0.74,w:0.05,h:0.10},{n:"勘助曲輪",d:0.92,t:0.24,w:0.04,h:0.12}],
+water:[{edge:"top",w:2,n:"三峰川"},{edge:"bottom",w:2,n:"藤沢川"}], horikiri:[0.44,0.68] },
+"岩村城":{ nm:"標高七百米の山城（藤坂から六段壁を登る）", yama:true, ridge:{t:0.50,h:0.40}, atk:"北西の城下から藤坂を",
+src:"『信長公記』巻八、岩村城縄張り図（恵那市）",
+kuruwa:[{n:"藤坂・八幡曲輪",d:0.28,t:0.50,w:0.08,h:0.24},{n:"二の丸",d:0.54,t:0.50,w:0.08,h:0.28},{n:"本丸（六段壁）",d:0.78,t:0.48,w:0.05,h:0.18}],
+ext:[{n:"藩主邸（城下）",d:0.06,t:0.60,w:0.06,h:0.18,low:true},{n:"三の丸",d:0.42,t:0.70,w:0.05,h:0.12},{n:"出丸",d:0.76,t:0.20,w:0.04,h:0.10},
+{n:"帯曲輪",d:0.80,t:0.74,w:0.06,h:0.08},{n:"東曲輪",d:0.94,t:0.50,w:0.04,h:0.14}],
+horikiri:[0.66], steps:true },
+"七尾城":{ nm:"七つの尾根に曲輪（北の三の丸から南の本丸へ）", yama:true, ridge:{t:0.46,h:0.34}, atk:"北の城下（惣構）から",
+src:"『信長公記』巻十、七尾城縄張り図（七尾市）",
+kuruwa:[{n:"三の丸",d:0.30,t:0.48,w:0.08,h:0.22},{n:"二の丸",d:0.56,t:0.44,w:0.06,h:0.18},{n:"本丸",d:0.82,t:0.44,w:0.05,h:0.16}],
+ext:[{n:"城下・惣構",d:0.06,t:0.52,w:0.07,h:0.40,low:true},{n:"番所",d:0.18,t:0.40,w:0.03,h:0.10},{n:"温井屋敷",d:0.74,t:0.20,w:0.05,h:0.10},
+{n:"遊佐屋敷",d:0.72,t:0.68,w:0.05,h:0.10},{n:"桜馬場",d:0.88,t:0.66,w:0.04,h:0.10},{n:"調度丸",d:0.92,t:0.30,w:0.04,h:0.10},{n:"寺屋敷",d:0.96,t:0.80,w:0.03,h:0.08}],
+horikiri:[0.44], une:true },
+"信貴山城":{ nm:"雄嶽を主郭に、北の尾根へ百二十の曲輪", yama:true, ridge:{t:0.48,h:0.40}, atk:"北の尾根から",
+src:"『信長公記』巻十、信貴山城縄張り図（平群町）",
+kuruwa:[{n:"北尾根の曲輪群",d:0.28,t:0.52,w:0.08,h:0.24},{n:"松永屋敷",d:0.54,t:0.40,w:0.08,h:0.22},{n:"本丸（雄嶽）",d:0.80,t:0.48,w:0.06,h:0.18}],
+ext:[{n:"立入殿屋敷",d:0.62,t:0.20,w:0.06,h:0.10},{n:"西の支尾根",d:0.44,t:0.12,w:0.06,h:0.08},{n:"雌嶽",d:0.95,t:0.70,w:0.04,h:0.14},{n:"朝護孫子寺",d:0.70,t:0.90,w:0.08,h:0.10,low:true}],
+horikiri:[0.40,0.68], une:true },
+"三木城":{ nm:"美嚢川の南の丘、本丸・二の丸（新城）と鷹尾山城", town:true, atk:"南西の付城から",
+src:"『信長公記』巻十一〜十三、三木城跡（三木市）",
+kuruwa:[{n:"鷹尾山城",d:0.26,t:0.60,w:0.08,h:0.24},{n:"新城（二の丸）",d:0.56,t:0.54,w:0.09,h:0.30},{n:"本丸",d:0.80,t:0.36,w:0.07,h:0.22}],
+ext:[{n:"宮ノ上要害",d:0.36,t:0.90,w:0.06,h:0.10},{n:"城下",d:0.50,t:0.82,w:0.10,h:0.12,low:true},{n:"付城の列",d:0.06,t:0.50,w:0.03,h:0.80,low:true}],
+water:[{edge:"top",w:2,n:"美嚢川"}] },
+"八上城":{ nm:"高城山（篠山盆地の富士）に段々の曲輪", yama:true, ridge:{t:0.50,h:0.40}, atk:"西の尾根（西蔵丸）から",
+src:"『信長公記』巻十二、八上城縄張り図（丹波篠山市）",
+kuruwa:[{n:"西蔵丸",d:0.28,t:0.52,w:0.07,h:0.20},{n:"三の丸・二の丸",d:0.54,t:0.48,w:0.08,h:0.24},{n:"本丸",d:0.80,t:0.48,w:0.05,h:0.16}],
+ext:[{n:"主膳屋敷（麓）",d:0.10,t:0.86,w:0.06,h:0.10,low:true},{n:"岡田丸",d:0.66,t:0.22,w:0.04,h:0.10},{n:"右衛門丸",d:0.70,t:0.76,w:0.04,h:0.10},{n:"下の茶屋丸",d:0.40,t:0.78,w:0.04,h:0.10}],
+horikiri:[0.40,0.70] },
+"鳥取城":{ nm:"久松山の山上ノ丸と麓の山下ノ丸", yama:true, ridge:{t:0.46,h:0.40}, atk:"西の城下から",
+src:"『信長公記』巻十四、鳥取城縄張り図（鳥取市）",
+kuruwa:[{n:"山下ノ丸（三の丸）",d:0.26,t:0.56,w:0.10,h:0.30},{n:"二の丸",d:0.48,t:0.50,w:0.07,h:0.22},{n:"山上ノ丸（本丸）",d:0.84,t:0.40,w:0.05,h:0.16}],
+ext:[{n:"城下",d:0.06,t:0.60,w:0.06,h:0.40,low:true},{n:"天球丸",d:0.60,t:0.30,w:0.04,h:0.10},{n:"中ノ御門",d:0.36,t:0.80,w:0.03,h:0.08}],
+water:[{edge:"top",w:2,n:"日本海の入江"}] },
+"魚津城":{ nm:"海に面した平城（本丸・二の丸・三の丸）", atk:"南の陸から",
+src:"『信長公記』巻十五、魚津城跡（魚津市）",
+kuruwa:[{n:"三の丸",d:0.30,t:0.56,w:0.12,h:0.46},{n:"二の丸",d:0.56,t:0.52,w:0.09,h:0.32},{n:"本丸",d:0.80,t:0.48,w:0.07,h:0.22}],
+ext:[{n:"大町（城下）",d:0.08,t:0.70,w:0.06,h:0.24,low:true}], water:[{edge:"top",w:3,n:"富山湾"}] },
+"高松城":{ nm:"沼に囲まれた低い城（足守川を堰いて水攻め）", marsh:true, atk:"南の蛙ヶ鼻（堤の起点）から",
+src:"『信長公記』巻十五、備中高松城跡（岡山市）",
+kuruwa:[{n:"三の丸",d:0.40,t:0.52,w:0.10,h:0.38},{n:"二の丸",d:0.62,t:0.48,w:0.07,h:0.26},{n:"本丸",d:0.82,t:0.48,w:0.06,h:0.20}],
+ext:[{n:"家中屋敷",d:0.58,t:0.86,w:0.08,h:0.10,low:true},{n:"蛙ヶ鼻の堤",d:0.10,t:0.84,w:0.03,h:0.24,low:true}], water:[{edge:"bottom",w:2,n:"足守川"}] },
+"八王子城":{ nm:"深沢山の要害と麓の御主殿", yama:true, ridge:{t:0.42,h:0.34}, atk:"東の大手（城山川沿い）から",
+src:"『太閤記』、八王子城跡縄張り図（八王子市）",
+kuruwa:[{n:"御主殿",d:0.26,t:0.70,w:0.09,h:0.20},{n:"松木曲輪・中の丸",d:0.56,t:0.42,w:0.07,h:0.20},{n:"本丸",d:0.82,t:0.40,w:0.05,h:0.14}],
+ext:[{n:"根小屋",d:0.06,t:0.80,w:0.06,h:0.14,low:true},{n:"太鼓曲輪",d:0.40,t:0.24,w:0.05,h:0.10},{n:"小宮曲輪",d:0.70,t:0.18,w:0.05,h:0.10},{n:"詰城",d:0.95,t:0.42,w:0.03,h:0.10}],
+water:[{edge:"bottom",w:2,n:"城山川"}], horikiri:[0.44,0.68], une:true },
+"山中城":{ nm:"箱根の尾根に障子堀（西の丸・岱崎出丸）", yama:true, ridge:{t:0.46,h:0.50}, atk:"西の三島から",
+src:"『太閤記』、山中城跡縄張り図（三島市）",
+kuruwa:[{n:"西の丸",d:0.30,t:0.40,w:0.08,h:0.24},{n:"二の丸（北条丸）",d:0.56,t:0.46,w:0.08,h:0.24},{n:"本丸",d:0.80,t:0.44,w:0.06,h:0.18}],
+ext:[{n:"西櫓",d:0.16,t:0.32,w:0.04,h:0.10},{n:"岱崎出丸",d:0.30,t:0.84,w:0.10,h:0.12},{n:"三の丸",d:0.66,t:0.76,w:0.06,h:0.12},{n:"北の丸",d:0.88,t:0.18,w:0.04,h:0.10},{n:"東海道",d:0.50,t:0.66,w:0.40,h:0.03,low:true}],
+horikiri:[0.42], une:true, note:"障子堀（西の丸・二の丸の前）" },
+"長谷堂城":{ nm:"平地に浮かぶ小山（直江兼続は南西の菅沢山）", yama:true, ridge:{t:0.50,h:0.56}, atk:"南西の菅沢山から",
+src:"『最上義光記』、長谷堂城跡縄張り図（山形市）",
+kuruwa:[{n:"八幡崎口の曲輪",d:0.30,t:0.56,w:0.09,h:0.26},{n:"腰曲輪",d:0.56,t:0.44,w:0.07,h:0.22},{n:"本丸",d:0.80,t:0.46,w:0.06,h:0.18}],
+ext:[{n:"菅沢山（上杉の陣）",d:0.04,t:0.82,w:0.05,h:0.14,low:true},{n:"大手口",d:0.66,t:0.86,w:0.05,h:0.08},{n:"横町口",d:0.86,t:0.80,w:0.04,h:0.08},{n:"深田",d:0.16,t:0.30,w:0.10,h:0.24,low:true}] },
+"忍城":{ nm:"沼に浮かぶ城（石田堤が南を囲む）", marsh:true, atk:"南の丸墓山から",
+src:"『太閤記』、忍城跡（行田市）",
+kuruwa:[{n:"佐間口・外郭",d:0.32,t:0.56,w:0.10,h:0.42},{n:"二の丸",d:0.58,t:0.48,w:0.08,h:0.30},{n:"本丸",d:0.80,t:0.46,w:0.06,h:0.20}],
+ext:[{n:"丸墓山（三成の陣）",d:0.04,t:0.80,w:0.04,h:0.12,low:true},{n:"石田堤",d:0.14,t:0.50,w:0.02,h:0.90,low:true},{n:"諏訪曲輪",d:0.70,t:0.82,w:0.05,h:0.10},{n:"天神曲輪",d:0.90,t:0.20,w:0.04,h:0.10}],
+water:[{edge:"top",w:2,n:"沼"},{edge:"bottom",w:2,n:"沼"}] },
+"北庄城":{ nm:"足羽川と吉野川の合流に立つ九層の天守", atk:"南の足羽山から",
+src:"『太閤記』、北ノ庄城跡（福井市）",
+kuruwa:[{n:"三の丸",d:0.30,t:0.48,w:0.14,h:0.62},{n:"二の丸",d:0.57,t:0.48,w:0.10,h:0.44},{n:"本丸（天守）",d:0.80,t:0.46,w:0.08,h:0.26}],
+ext:[{n:"足羽山（秀吉の陣）",d:0.04,t:0.70,w:0.05,h:0.20,low:true},{n:"城下",d:0.14,t:0.20,w:0.06,h:0.20,low:true}],
+water:[{edge:"bottom",w:2,n:"足羽川"},{edge:"back",w:2,n:"吉野川"}] },
+"佐和山城":{ nm:"山全体が城（大手は東、搦手は琵琶湖の内湖）", yama:true, ridge:{t:0.46,h:0.44}, atk:"東の大手（鳥居本）から",
+src:"『太閤記』、佐和山城跡縄張り図（彦根市）",
+kuruwa:[{n:"三の丸（大手）",d:0.28,t:0.56,w:0.10,h:0.30},{n:"二の丸",d:0.56,t:0.44,w:0.07,h:0.22},{n:"本丸",d:0.80,t:0.44,w:0.06,h:0.18}],
+ext:[{n:"城下（大手町）",d:0.06,t:0.70,w:0.06,h:0.24,low:true},{n:"太鼓丸",d:0.68,t:0.20,w:0.04,h:0.10},{n:"法華丸",d:0.70,t:0.72,w:0.04,h:0.10},{n:"西の丸",d:0.92,t:0.56,w:0.04,h:0.12}],
+water:[{edge:"back",w:2,n:"松原内湖"}], horikiri:[0.68] },
+"小田原城":{ nm:"総構と城下町（八幡山古郭、西に石垣山）", town:true, sogamae:true, atk:"西の早川口（石垣山）から",
+src:"『太閤記』、小田原城総構図（小田原市）",
+kuruwa:[{n:"総構（早川口）",d:0.22,t:0.50,w:0.12,h:0.80},{n:"三の丸",d:0.55,t:0.52,w:0.12,h:0.56},{n:"本丸",d:0.82,t:0.50,w:0.07,h:0.24}],
+ext:[{n:"八幡山古郭",d:0.60,t:0.12,w:0.08,h:0.12},{n:"二の丸",d:0.72,t:0.52,w:0.04,h:0.36},{n:"城下町",d:0.40,t:0.86,w:0.14,h:0.10,low:true}],
+water:[{edge:"bottom",w:2,n:"相模湾"}] },
+"一宮城":{ nm:"鮎喰川を見下ろす山城（本丸・明神丸・才蔵丸）", yama:true, ridge:{t:0.46,h:0.40}, atk:"東の鮎喰川から",
+src:"『太閤記』、一宮城跡縄張り図（徳島市）",
+kuruwa:[{n:"小倉丸",d:0.30,t:0.60,w:0.07,h:0.20},{n:"明神丸",d:0.56,t:0.40,w:0.07,h:0.18},{n:"本丸",d:0.82,t:0.44,w:0.05,h:0.16}],
+ext:[{n:"才蔵丸",d:0.66,t:0.72,w:0.04,h:0.10},{n:"椎丸",d:0.90,t:0.24,w:0.04,h:0.10}], water:[{edge:"top",w:2,n:"鮎喰川"}], horikiri:[0.45] }
+};
+for(const k of Object.keys(CK_NAWA)){ const N=CK_NAWA[k]; CK_PLAN[k]=Object.assign({}, CK_PLAN[k]||{}, N, { hill: N.yama?true:(CK_PLAN[k]||{}).hill, noWall: N.yama?true:(CK_PLAN[k]||{}).noWall }); }
+
+function ckNawaPaint(P, rings, defLeft){ if(!B.tiles||!P) return; const H=BF.h, Wd=BF.w; const span=Wd-7, ax=defLeft?(Wd-3):3, sgn=defLeft?-1:1;
+const X=d=>Math.max(1,Math.min(Wd-1, ax+sgn*(d*span))), Y=t=>Math.max(1,Math.min(H-1, 1.5+t*(H-3)));
+B.blockCells=B.blockCells||new Set(); const blk=(c,r,on)=>{ try{ const [gc,gr]=cellOf(c+0.5,r+0.5); if(on) B.blockCells.add(gc*1000+gr); else B.blockCells.delete(gc*1000+gr); }catch(_){ } };
+const inRing=(px,py)=>rings.some(R=>px>R.x0-1.2&&px<R.x1+1.2&&py>R.y0-1.2&&py<R.y1+1.2);
+const nearGate=(px,py)=>rings.some(R=>(R.gates||[]).some(g=>Math.abs(g.x-px)<2.6&&Math.abs(g.y-py)<2.6));
+const set=(c,r,t)=>{ if(r<0||r>=H||c<0||c>=Wd) return; const t0=B.tiles[r][c]; if(t0===BT.WATER||t0===BT.MOAT) return; B.tiles[r][c]=t; blk(c,r,t===BT.CLIFF); };
+
+if(P.yama&&P.ridge){ const yc=Y(P.ridge.t), hh=Math.max(3,P.ridge.h*(H-3)/2);
+for(let r=0;r<H;r++) for(let c=0;c<Wd;c++){ const px=c+0.5, py=r+0.5; if(inRing(px,py)) continue; const dy=Math.abs(py-yc);
+if(dy>hh+0.6) set(c,r, dy>hh+4?BT.FOREST:BT.HILL);
+else if(dy>hh-0.6 && !nearGate(px,py) && (c%9)!==4) set(c,r,BT.CLIFF);
+else if(B.tiles[r][c]===BT.GRASS) set(c,r,BT.DIRT); }
+
+for(const hd of (P.horikiri||[])){ const c0=Math.round(X(hd)); for(let r=Math.floor(yc-hh);r<=Math.ceil(yc+hh);r++){ if(Math.abs(r+0.5-yc)<0.8) { set(c0,r,BT.DIRT); continue; } if(inRing(c0+0.5,r+0.5)) continue; set(c0,r,BT.CLIFF); } B.fieldLabels=(B.fieldLabels||[]).concat([{x:c0+0.5,y:Math.max(1.1,yc-hh-0.6),t:"堀切"}]); }
+if(P.une){   for(let c=3;c<Wd-3;c+=3){ for(const side of [-1,1]){ for(let k=1;k<=3;k++){ const r=Math.round(yc+side*(hh+0.6+k)); if(r<1||r>=H-1) continue; if(inRing(c+0.5,r+0.5)) continue; set(c,r,BT.MOAT); } } }
+B.fieldLabels=(B.fieldLabels||[]).concat([{x:Wd*0.5,y:Math.min(H-1.2,yc+hh+2.4),t:"畝状竪堀"}]); }
+B.yamaRidge={y:yc,h:hh}; }
+
+for(const w of (P.water||[])){ const ww=w.w||2;
+for(let r=0;r<H;r++) for(let c=0;c<Wd;c++){ let on=false;
+if(w.edge==="top") on=r<ww; else if(w.edge==="bottom") on=r>=H-ww; else if(w.edge==="back") on = defLeft ? c<ww : c>=Wd-ww;
+if(on&&!inRing(c+0.5,r+0.5)){ B.tiles[r][c]=BT.WATER; blk(c,r,true); } }
+const lx = w.edge==="back" ? (defLeft?1.5:Wd-1.5) : Wd*0.5, ly = w.edge==="top"?0.9:w.edge==="bottom"?H-0.9:H*0.5;
+B.fieldLabels=(B.fieldLabels||[]).concat([{x:lx,y:ly,t:w.n||"川"}]); }
+
+for(const e of (P.ext||[])){ const cx=X(e.d), cy=Y(e.t); const hw=Math.max(1.5,(e.w*1.26*Wd)/2), hh=Math.max(1.2,(e.h*1.16*H)/2);
+const x0=Math.round(cx-hw), x1=Math.round(cx+hw), y0=Math.round(cy-hh), y1=Math.round(cy+hh);
+for(let r=y0;r<=y1;r++) for(let c=x0;c<=x1;c++){ if(r<1||r>=H-1||c<1||c>=Wd-1) continue; const px=c+0.5, py=r+0.5; if(inRing(px,py)) continue;
+const edge=(r===y0||r===y1||c===x0||c===x1); const mouth = Math.abs(py-cy)<1.2 && (defLeft? c===x1 : c===x0);
+if(edge && !e.low && P.yama && !mouth) set(c,r,BT.CLIFF); else if(edge && !e.low && !mouth) set(c,r,BT.EARTH); else set(c,r, e.low?BT.ROAD:BT.DIRT); }
+B.fieldLabels=(B.fieldLabels||[]).concat([{x:cx,y:Math.max(1.1,y0-0.3),t:e.n}]); }
+if(P.note) B.fieldLabels=(B.fieldLabels||[]).concat([{x:X(0.97),y:H-1.2,t:P.note}]);
+B.bg=null; }
 function ckPlanFor(c){
 const names=[];
 if(B.siegeName&&B.siegeName!=="城") names.push(B.siegeName);
@@ -20931,7 +21101,7 @@ const WX=L>=3?[14,10,6]:L===2?[12,6]:[8]; const tall=H>=34; const HY=tall?(L>=3?
 const cx=ev(Wd/2); const avail=Math.min(cx-3,Wd-3-cx); const k=Math.min(1,avail/WX[0]); const wx=WX.map((w,i)=>Math.max(2,ev(w*k))); for(let i=1;i<wx.length;i++) if(wx[i]>=wx[i-1]-2) wx[i]=wx[i-1]-2;
 const line0=cx-inn*wx[0]; B.gate.x=line0; B.siegeLine0=line0; const rings=[]; for(let i=0;i<L;i++){ const x0=Math.min(cx-wx[i],cx+wx[i]), x1=Math.max(cx-wx[i],cx+wx[i]); const hy=Math.min(HY[i],H/2-2); const y0=ev(cy-hy), y1=ev(cy+hy); rings.push({i,x0,x1,y0,y1,cx,cy,wx:wx[i],hy:(y1-y0)/2,gates:[],front:null}); }
 
-{ const P=ckPlanFor(c); if(P){ try{ ckApplyPlan(P, rings, defLeft, inn, L); K.plan=P;
+{ const P=ckPlanFor(c); if(P){ try{ ckApplyPlan(P, rings, defLeft, inn, L); K.plan=P; K.nawa=P;
 const R0p=rings[0]; const l0=defLeft?R0p.x1:R0p.x0; B.gate.x=l0; B.siegeLine0=l0; }catch(e){ console.error("nawabari",e); } } }
 const L0=rings[0], LINE0=defLeft?L0.x1:L0.x0;
 K.ring=true; K.rings=rings; K.cx=cx; K.cy=cy; K.inn=inn; K.lines=[]; K.sideGate=null; B.gate2=null; B.obstacles=B.obstacles.filter(o=>!o.stone); B.fortTowers=(B.fortTowers||[]).filter(t=>t.ring!==undefined||t.fortName);
@@ -20950,6 +21120,7 @@ B.bg=null; }
 const Rl=rings[L-1]; K.honmaruBox={x:Rl.cx, tenshu:{x:Rl.cx,y:Rl.cy-(tall?2.6:1.4)}, goten:{x:Rl.cx,y:Rl.cy+(tall?3.4:3.0)}}; B.blockCells=B.blockCells||new Set(); for(let gc=0;gc<gCols();gc++) for(let gr=0;gr<gRows();gr++){ const [px,py]=cellCenter(gc,gr); if(Math.abs(px-Rl.cx)<=2.4&&Math.abs(py-K.honmaruBox.tenshu.y)<=1.6) B.blockCells.add(gc*1000+gr); if(Math.abs(px-Rl.cx)<=2.8&&Math.abs(py-K.honmaruBox.goten.y)<=1.2) B.blockCells.add(gc*1000+gr); }
 B.fortTowers=B.fortTowers||[]; const tw=[]; for(const R of rings){ const fx=defLeft?R.x1-1.2:R.x0+1.2, bx=defLeft?R.x0+1.2:R.x1-1.2; const pts=[[fx,R.y0+1.2],[fx,R.y1-1.2],[fx,R.cy-Math.min(3.6,R.hy*0.6)],[fx,R.cy+Math.min(3.6,R.hy*0.6)]]; if(R.i===0||R.i===L-1) pts.push([bx,R.y0+1.2],[bx,R.y1-1.2]);     for(const [x,y] of pts) tw.push({x,y,alive:true,yagura:true,sumi:true,ring:R.i,side:1,per:60,fortName:B.siegeName||"城"}); } for(const t of B.fortTowers) if(Math.abs(t.x-LINE0)<2&&!t.yagura){ t.yagura=true; t.ring=0; t.side=1; t.per=60; } B.fortTowers.push(...tw); K.towers=tw;
 try{ ckCastleShape(K, rings, cx, cy, inn, L); }catch(e){ console.error("castle shape",e); }
+if(K.nawa&&K.nawa.src){ try{ ckNawaPaint(K.nawa, rings, defLeft); }catch(e){ console.error("nawa",e); } }
 const def=B.units.filter(u=>u.side===1&&u.troops>.5&&!u.sigHidden&&!u.cmd&&!u.reserveHold); const n=def.length; const plan=L>=3?[0.3,0.3,0.4]:L===2?[0.45,0.55]:[1];
 const R=artRng((B.seed||3)+77); const spaceCells=[]; for(let i=0;i<L;i++){ const Ri=rings[i], Rn=rings[i+1]; const cells=[]; for(let gc=0;gc<gCols();gc++) for(let gr=0;gr<gRows();gr++){ const [px,py]=cellCenter(gc,gr); if(!ckRingInside(Ri,px,py)) continue; if(Rn&&ckRingInside(Rn,px,py)) continue; if(!cellPassable(gc,gr)) continue; if(Math.abs(py-Ri.front.y)<2&&Math.abs(px-Ri.front.x)<3) continue;   cells.push([px,py]); } spaceCells.push(cells); }
 def.sort((a,b)=>(a.type===3?0:1)-(b.type===3?0:1)); let cursor=0; const counts=plan.map(p=>Math.round(n*p)); while(counts.reduce((a,b)=>a+b,0)<n) counts[counts.length-1]++;
