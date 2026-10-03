@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202610030353 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202610030926 として写した） -->
 <title>戦国立身3D　足軽から天下へ、戦国の合戦アクション</title>
 <meta name="description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。">
 <link rel="canonical" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/">
@@ -9,7 +9,7 @@
 <meta property="og:image" content="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/og.png"><meta property="og:image:width" content="1280"><meta property="og:image:height" content="672"><meta property="og:image:alt" content="姉川の戦いの戦場を行く足軽">
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="戦国立身3D　足軽から天下へ"><meta name="twitter:description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。"><meta name="twitter:image" content="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/og.png">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGame","name":"戦国立身3D","inLanguage":"ja","url":"https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/","description":"足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。","genre":["アクション","歴史","戦国"],"gamePlatform":["Web","iOS"],"applicationCategory":"Game","operatingSystem":"Web, iOS","image":"https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/og.png","offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"}}</script>
-<link rel="icon" type="image/png" sizes="32x32" href="./v202610030353/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610030353/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610030353/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610030353/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202610030926/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610030926/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610030926/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610030926/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -74,7 +74,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--kin); outli
 
 #crosshair { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; background: var(--washi); border-radius: 50%; opacity: .7; box-shadow: 0 0 0 1px rgba(0,0,0,.6); }
 
-.bottom { position: absolute; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); display: flex; gap: 6px; align-items: flex-end; }
+.bottom { position: absolute; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); display: flex; gap: 8px; align-items: flex-end; }
 .slot { width: 58px; height: 46px; border: 1px solid var(--line); background: rgba(10,9,7,.66); display: grid; place-items: center; font-size: 12px; position: relative; color: var(--washi-dim); }
 .slot em { position: absolute; left: 4px; top: 2px; font-style: normal; font-size: 12px; color: var(--washi-faint); }
 .slot.on { border-color: var(--kin); color: var(--washi); }
@@ -117,7 +117,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--kin); outli
 #vignette { position: absolute; inset: 0; box-shadow: inset 0 0 160px rgba(120,10,0,.0); transition: box-shadow .3s; }
 #vignette.hurt { box-shadow: inset 0 0 160px rgba(140,16,4,.55); }
 
-#fps { position: absolute; left: 20px; bottom: 12px; font-size: 12px; color: var(--washi-faint); }
+#fps { position: absolute; left: calc(20px + env(safe-area-inset-left, 0px)); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); font-size: 12px; color: var(--washi-faint); }
 
 /* ---------- Screens ---------- */
 #screen { position: fixed; inset: 0; overflow-y: auto; background: radial-gradient(ellipse at 30% 20%, #26211a 0%, var(--sumi) 60%); padding-inline: 16px; }
@@ -133,7 +133,7 @@ h1.title span { color: var(--shu); }
 .btn.primary { background: var(--shu); border-color: var(--shu); color: #fff5ea; }
 .btn.primary:hover { background: #d5563d; color: #fff; }
 .btn.small { padding: 7px 16px; font-size: 13px; letter-spacing: .08em; }
-#town-sortie { position: fixed; right: 16px; bottom: 150px; z-index: 40; min-height: 48px; padding: 12px 22px; font-size: 16px; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,.45); pointer-events: auto; }
+#town-sortie { position: fixed; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(150px + env(safe-area-inset-bottom, 0px)); z-index: 40; min-height: 48px; padding: 12px 22px; font-size: 16px; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,.45); pointer-events: auto; }
 @media (max-height: 500px) { #town-sortie { bottom: 108px; padding: 9px 18px; font-size: 15px; min-height: 44px; } }
 /* 指の端末：右下の大きな「話す・入る」の丸（高さ 84px）と 12px 以上あける。ノッチ・角の安全域も */
 html.touch #town-sortie { right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(128px + env(safe-area-inset-bottom, 0px)); }
@@ -186,13 +186,14 @@ html.touch #town-sortie { right: calc(16px + env(safe-area-inset-right, 0px)); b
 
 /* base */
 .base { max-width: 980px; margin: 0 auto; padding-block: 36px; display: grid; grid-template-columns: 260px 1fr; gap: 36px; }
+@media (max-width: 980px) { .base { grid-template-columns: 200px minmax(0, 1fr); gap: 20px; } }   /* 横 844 で中身が 590px に縮まない（W028） */
 @media (max-width: 760px) { .base { grid-template-columns: 1fr; } }
 .base aside h2 { font-family: var(--display); font-size: 30px; margin: 6px 0 2px; letter-spacing: .1em; }
 .base aside .rank { color: var(--kin); letter-spacing: .1em; }
 .stat { display: grid; grid-template-columns: 1fr auto; font-size: 13.5px; padding: 6px 0; border-bottom: 1px solid var(--line); }
 .stat span { color: var(--washi-dim); }
 .stat b { font-weight: 500; font-variant-numeric: tabular-nums; }
-.tabs { display: flex; gap: 4px 0; border-bottom: 1px solid var(--line); margin-bottom: 18px; flex-wrap: wrap; }
+.tabs { display: flex; gap: 8px 0; border-bottom: 1px solid var(--line); margin-bottom: 18px; flex-wrap: wrap; }
 .tabs button { background: none; border: 0; color: var(--washi-dim); padding: 10px 16px; font-size: 14px; letter-spacing: .12em; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
 .tabs button.on { color: var(--washi); border-bottom-color: var(--shu); }
 .items { display: grid; gap: 8px; }
@@ -207,7 +208,7 @@ html.touch #town-sortie { right: calc(16px + env(safe-area-inset-right, 0px)); b
 .rel i b { position: absolute; inset: 0; right: auto; background: var(--kin); }
 .talk { border-left: 2px solid var(--kin); padding: 4px 0 4px 16px; margin: 12px 0; line-height: 1.9; }
 .talk .sp { color: var(--kin); font-size: 13px; letter-spacing: .08em; }
-.choices { display: grid; gap: 6px; margin-top: 10px; }
+.choices { display: grid; gap: 8px; margin-top: 10px; }
 .choices button { text-align: left; background: none; border: 1px solid var(--line); color: var(--washi); padding: 10px 14px; cursor: pointer; font-size: 14px; }
 .choices button:hover { border-color: var(--washi-dim); background: rgba(236,228,210,.04); }
 .aiji { display: grid; grid-template-columns: repeat(3, minmax(0,140px)); gap: 12px; margin: 18px 0; }
@@ -223,7 +224,7 @@ html.touch #town-sortie { right: calc(16px + env(safe-area-inset-right, 0px)); b
 .q { margin: 16px 0; }
 .q p { margin: 0 0 8px; font-size: 14.5px; }
 .q .scale { display: flex; gap: 6px; flex-wrap: wrap; }
-.q .scale label { border: 1px solid var(--line); padding: 6px 12px; cursor: pointer; font-size: 13px; }
+.q .scale label { border: 1px solid var(--line); padding: 6px 12px; cursor: pointer; font-size: 13px; min-height: 44px; min-width: 44px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; }
 .q .scale input { accent-color: var(--shu); margin-right: 6px; }
 textarea { width: 100%; box-sizing: border-box; min-height: 90px; background: var(--sumi-2); color: var(--washi); border: 1px solid var(--line); padding: 10px; font-family: var(--ui); font-size: 14px; }
 pre.copy { white-space: pre-wrap; background: var(--sumi-2); border: 1px solid var(--line); padding: 12px; font-size: 12px; color: var(--washi-dim); max-height: 200px; overflow: auto; }
@@ -289,7 +290,7 @@ body.rm #crosshair.gping::after, body.rm #crosshair.gmiss::after { animation-dur
 #bark { position: absolute; left: 50%; bottom: calc(150px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); display: grid; gap: 2px; justify-items: center; }
 #bark .bk { font-size: 13px; color: var(--washi-dim); text-shadow: 0 1px 3px #000; animation: toast 2.2s ease-out forwards; }
 #bark .bk.warn { color: #e8a13a; }
-#sublog { position: absolute; left: 20px; bottom: 90px; width: min(420px, 60vw); max-height: 40vh; overflow: hidden; background: rgba(10,9,7,.85); border: 1px solid var(--line); padding: 10px 12px; font-size: 12.5px; line-height: 1.6; }
+#sublog { position: absolute; left: calc(20px + env(safe-area-inset-left, 0px)); bottom: calc(90px + env(safe-area-inset-bottom, 0px)); width: min(420px, 60vw); max-height: 40vh; overflow: hidden; background: rgba(10,9,7,.85); border: 1px solid var(--line); padding: 10px 12px; font-size: 12.5px; line-height: 1.6; }
 #sublog h5 { margin: 0 0 6px; color: var(--kin); font-weight: 500; letter-spacing: .1em; }
 #sublog .sp { color: var(--kin); margin-right: .5em; }
 .objnew { margin-top: 6px; font-size: 12px; overflow-wrap: anywhere; text-align: right; color: var(--kin); animation: toast 3.2s ease-out forwards; }
@@ -343,7 +344,7 @@ body.rm .mk.main::before { animation: none; }
 #loading p { max-width: 30em; margin: 18px auto 0; font-family: var(--ui); font-size: 13px; letter-spacing: .04em; color: var(--washi-faint); line-height: 1.8; text-align: center; padding: 0 16px; }
 #glfail { position: fixed; inset: 0; background: var(--sumi); display: grid; place-items: center; padding-inline: 16px; }
 .settings { display: grid; gap: 14px; max-width: 560px; }
-.settings .s-row { display: grid; grid-template-columns: 150px 1fr 60px; gap: 12px; align-items: center; font-size: 14px; }
+.settings .s-row { display: grid; grid-template-columns: minmax(150px, 230px) 1fr 60px; gap: 14px; align-items: center; font-size: 14px; }
 .settings .s-row label { color: var(--washi-dim); }
 .settings .s-row output { font-variant-numeric: tabular-nums; color: var(--washi-dim); font-size: 12px; text-align: right; }
 .settings input[type=range] { width: 100%; accent-color: var(--shu); }
@@ -411,7 +412,8 @@ body.rm .toast, body.rm #banner.show, body.rm .ln, body.rm .promo, body.rm .stor
 .titles div { border: 1px solid var(--line); padding: 8px 10px; font-size: 13px; }
 .titles div.got { border-color: var(--kin); }
 .titles div b { display: block; font-family: var(--display); font-size: 15px; }
-.titles div:not(.got) { opacity: .45; }
+.titles div:not(.got) { opacity: .8; border-style: dashed; }   /* 字の対比 4.5:1 以上（W033）。未取得は破線で示す */
+.titles div:not(.got) small { color: #cdbf9f; }
 .titles small { color: var(--washi-dim); }
 .ev-cat { font-size: 12px; letter-spacing: .2em; color: var(--washi-faint); padding-top: 12px; }
 .histnote { border-left: 2px solid var(--kin); padding: 4px 0 4px 14px; margin: 18px 0; font-size: 13.5px; color: var(--washi-dim); line-height: 1.9; }
@@ -434,6 +436,7 @@ body.rm .toast, body.rm #banner.show, body.rm .ln, body.rm .promo, body.rm .stor
 @media (max-height: 500px) { #cine.on i { height: 5vh; } }
 #hud:has(#cine.on) .tl, #hud:has(#cine.on) .tr, #hud:has(#cine.on) #armybar, #hud:has(#cine.on) #compass { opacity: 0; transition: opacity .4s; }
 /* 開戦の題の札の間は、ほかの札も全部引っ込めて一枚の絵にする */
+#hud:has(#banner.show) #combo { visibility: hidden; }
 #hud:has(#intro:not([hidden])) :is(.bl, .bottom, #tutorial, #h-units, #h-squad, #subtitle, #bark, #markers, #situation, #skiphint) { opacity: 0; transition: opacity .4s; }
 /* 一時停止など戦の上に画面を開いている間は、組の札を透かして見せない（下の釦と重なって読みにくい） */
 body:has(#screen:not([hidden])) #hud #h-squad, body:has(#pause:not([hidden])) #hud :is(#h-squad, #armybar, .bl) { visibility: hidden !important; }
@@ -586,6 +589,8 @@ body.ca #compass .c.foe span { color: #ff9a1a; }
 #staring.low { background: conic-gradient(#e2472c calc(var(--p) * 1%), rgba(0,0,0,.4) 0); }
 #skiphint { position: absolute; right: 20px; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); padding: 6px 12px; background: var(--lacquer); box-shadow: inset 0 0 0 1px var(--gold-line); font-size: 12.5px; }
 #skiphint kbd { color: var(--kin); margin-right: 8px; font-family: var(--ui); }
+/* 携帯の横（高さが低い画面）：右下の操作の釦の列に重ならないよう、釦の上に置く（B040） */
+@media (max-height: 520px) { #skiphint { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); right: calc(14px + env(safe-area-inset-right, 0px)); } }
 #maphint { position: absolute; left: 50%; bottom: calc(40px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); font-size: 13px; color: #f3e6c4; text-shadow: 0 1px 3px #000; }
 #bigmap { pointer-events: auto; cursor: crosshair; }
 #cheat { position: absolute; right: 20px; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); width: 300px; padding: 12px 14px; background: rgba(12,10,8,.82); box-shadow: inset 0 0 0 1px var(--gold-line); font-size: 12px; line-height: 1.8; }
@@ -625,7 +630,7 @@ body.ca #compass .c.foe span { color: #ff9a1a; }
   #objectives:not(.expand) li:not(.cur):not(.more) { display: none; }
   #objectives.expand li.more { display: none; }
   #hud #objectives { pointer-events: auto; cursor: pointer; }
-  #objectives li.more { display: block; font-size: 12px; color: var(--washi-dim); text-align: right; margin-top: 2px; min-height: 24px; line-height: 24px; }
+  #objectives li.more { display: block; font-size: 12px; color: var(--washi-dim); text-align: right; margin-top: 2px; min-height: 44px; line-height: 44px; }
   #objectives h4 { display: none; }
   /* iPhone横：今やる任務は一つだけなので、大きく・下地を付けて目立たせる（kaito 10/2 指摘2） */
   #objectives li.cur:not(.done) { font-size: 16.5px; line-height: 1.4; padding: 6px 8px; background: rgba(194,162,90,.16); box-shadow: inset 0 0 0 1px var(--gold-line); border-radius: 2px; }
@@ -675,6 +680,7 @@ body.ca #compass .c.foe span { color: #ff9a1a; }
 /* 指の端末：字幕を押すと会話の記録が開く事を、字幕の右端の小さな印で */
 html.touch #hud #subtitle:not(:empty)::after { content: '記録'; display: inline-block; margin-left: 8px; padding: 0 5px; font-size: 12px; line-height: 1.5; color: var(--kin); border: 1px solid var(--gold-line); vertical-align: middle; }
 html.touch #h-units kbd { display: none; }
+.mk.dimmed { opacity: .5; }
 .mk.quiet { opacity: .6; transform: translate(-50%, -100%) scale(.88); transition: opacity .6s; }
 /* HUD「最小」：平時は任務（今やる一つだけ残す）・小地図・方角・戦功も引っ込める */
 #hud.hudmin.calm :is(#compass, .tr canvas, .tl) { opacity: 0; transition: opacity 1.6s; }
@@ -749,7 +755,7 @@ kbd.cap { display: inline-block; min-width: 1.4em; padding: 0 5px; margin: 0 2px
 #crosshair[data-style="cross"] i { width: 14px; height: 2px; margin: -1px 0 0 -7px; border-radius: 0; box-shadow: 0 0 0 1px rgba(0,0,0,.6); }
 #crosshair[data-style="cross"] i::after { content: ""; position: absolute; left: 6px; top: -6px; width: 2px; height: 14px; background: inherit; }
 #crosshair[data-style="none"] i { opacity: 0; }
-#tutorial { position: absolute; left: 20px; top: 36%; width: 220px; padding: 10px 12px; background: var(--lacquer); box-shadow: inset 0 0 0 1px var(--gold-line); font-size: 12.5px; line-height: 1.9; }
+#tutorial { position: absolute; left: calc(20px + env(safe-area-inset-left, 0px)); top: 36%; width: 220px; padding: 10px 12px; background: var(--lacquer); box-shadow: inset 0 0 0 1px var(--gold-line); font-size: 12.5px; line-height: 1.9; }
 #tutorial h5 { margin: 0 0 4px; font-family: var(--display); font-size: 14px; color: var(--kin); letter-spacing: .1em; display: flex; justify-content: space-between; }
 #tutorial h5 span { font-family: var(--ui); font-size: 12px; color: var(--washi-dim); }
 #tutorial div { display: flex; gap: 8px; align-items: center; }
@@ -840,7 +846,8 @@ body.mincho, body.mincho button, body.mincho .note { font-family: var(--display)
 .ld-step.st-done b { color: var(--kin); }
 .ld-step.st-now { border-color: var(--shu); border-top-color: var(--shu); box-shadow: 0 0 0 1px var(--shu), 0 0 22px rgba(192,69,46,.35); }
 .ld-step.st-next { border-style: dashed; border-top-style: solid; border-top-color: var(--kin); }
-.ld-step.st-far { opacity: .78; }
+.ld-step.st-far { opacity: .95; }   /* 字の対比 4.5:1 以上（W047） */
+.ld-step small, .ld-step .k { color: var(--washi-dim); }
 .ld-step.beyond { background: repeating-linear-gradient(135deg, #1d1a15 0 6px, #211d17 6px 12px); }
 .ld-step.sel { transform: translateY(-6px); border-color: var(--kin); opacity: 1; }
 .ld-step.sel::after { content: ''; position: absolute; left: 20%; right: 20%; bottom: -9px; height: 3px; background: var(--kin); }
@@ -884,7 +891,7 @@ body.mincho, body.mincho button, body.mincho .note { font-family: var(--display)
 .credits .roll b { display: block; font-family: var(--display); font-size: 18px; color: var(--washi); margin-top: 18px; }
 @keyframes roll { from { transform: translateY(min(34vh, 260px)); } to { transform: translateY(-100%); } }
 /* 写真モード */
-#photoui { position: fixed; left: 16px; bottom: 16px; z-index: 20; background: rgba(12,10,8,.7); padding: 8px 12px; font-size: 12px; color: var(--washi-dim); line-height: 1.8; }
+#photoui { position: fixed; left: calc(16px + env(safe-area-inset-left, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 20; background: rgba(12,10,8,.7); padding: 8px 12px; font-size: 12px; color: var(--washi-dim); line-height: 1.8; }
 #photoui b { color: var(--kin); font-weight: 500; }
 .photogrid { position: fixed; inset: 0; pointer-events: none; z-index: 19; background-image: linear-gradient(to right, transparent calc(33.33% - 1px), rgba(255,255,255,.25) 33.33%, transparent calc(33.33% + 1px), transparent calc(66.66% - 1px), rgba(255,255,255,.25) 66.66%, transparent calc(66.66% + 1px)), linear-gradient(to bottom, transparent calc(33.33% - 1px), rgba(255,255,255,.25) 33.33%, transparent calc(33.33% + 1px), transparent calc(66.66% - 1px), rgba(255,255,255,.25) 66.66%, transparent calc(66.66% + 1px)); }
 .shot { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.85); display: grid; place-items: center; gap: 10px; align-content: center; }
@@ -899,7 +906,7 @@ body.mincho, body.mincho button, body.mincho .note { font-family: var(--display)
 .jp-map { position: relative; overflow: hidden; background: #b9c0b4; }
 .jp-map::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.45), inset 0 0 70px rgba(50,36,18,.38); }
 .jp-map canvas { display: block; cursor: grab; touch-action: none; }
-.jp-season { position: absolute; left: 16px; top: 14px; z-index: 1; display: flex; align-items: center; gap: 10px; padding: 7px 14px 7px 7px; background: rgba(236,226,202,.92); color: #241c14; box-shadow: 0 0 0 1px rgba(60,45,30,.4), 0 3px 10px rgba(0,0,0,.25); }
+.jp-season { position: absolute; left: calc(16px + env(safe-area-inset-left, 0px)); top: 14px; z-index: 1; display: flex; align-items: center; gap: 10px; padding: 7px 14px 7px 7px; background: rgba(236,226,202,.92); color: #241c14; box-shadow: 0 0 0 1px rgba(60,45,30,.4), 0 3px 10px rgba(0,0,0,.25); }
 .jp-season b { font-family: var(--display); font-size: 26px; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; background: #8e2f1f; color: #f3ead6; }
 .jp-loop { list-style: none; margin: 0 0 10px; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
 .jp-loop button { width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 2px 4px; background: rgba(44,40,33,.9); color: var(--washi); border: 1px solid rgba(194,162,90,.4); font: 600 13px var(--ui); cursor: pointer; }
@@ -907,7 +914,7 @@ body.mincho, body.mincho button, body.mincho .note { font-family: var(--display)
 .jp-loop button.ok i { background: var(--kin); color: #14120f; }
 .jp-loop button.on { border-color: var(--kin); background: rgba(194,162,90,.18); }
 .jp-season span { font-family: var(--display); font-size: 13px; line-height: 1.5; letter-spacing: .06em; }
-.jp-moves { position: absolute; left: 16px; top: 80px; z-index: 1; padding: 6px 12px 8px; background: rgba(236,226,202,.92); color: #241c14; box-shadow: 0 0 0 1px rgba(60,45,30,.4); max-width: min(300px, 44%); }
+.jp-moves { position: absolute; left: calc(16px + env(safe-area-inset-left, 0px)); top: 80px; z-index: 1; padding: 6px 12px 8px; background: rgba(236,226,202,.92); color: #241c14; box-shadow: 0 0 0 1px rgba(60,45,30,.4); max-width: min(300px, 44%); }
 .jp-moves[hidden] { display: none; }
 .jp-moves > small { display: block; font-size: 12px; letter-spacing: .2em; color: #5a4a36; }
 .jp-moves ul { list-style: none; margin: 2px 0 0; padding: 0; display: grid; gap: 2px; font-size: 13px; }
@@ -917,19 +924,19 @@ body.mincho, body.mincho button, body.mincho .note { font-family: var(--display)
 .jp-moves li.wn em { background: #7a2a1c; color: #f4ecd8; border-color: #7a2a1c; }
 .jp-moves li.th em { color: #7a2a1c; border-color: #7a2a1c; font-weight: 700; }
 @media (max-height: 500px) { .jp-moves { top: 66px; left: 8px; padding: 4px 8px; } .jp-moves ul { font-size: 12px; } }
-.jp-tools { position: absolute; right: 16px; top: 14px; z-index: 1; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; max-width: calc(100% - 32px); }
-.jp-tools .btn { background: rgba(236,226,202,.92); color: #241c14; border-color: rgba(60,45,30,.55); min-width: 40px; padding: 6px 12px; }
+.jp-tools { position: absolute; right: calc(16px + env(safe-area-inset-right, 0px)); top: 14px; z-index: 1; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; max-width: calc(100% - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)); }
+.jp-tools .btn { white-space: nowrap; background: rgba(236,226,202,.92); color: #241c14; border-color: rgba(60,45,30,.55); min-width: 40px; padding: 6px 12px; }
 .jp-tools .btn:hover { background: #241c14; color: var(--washi); }
 #jp-toolstgl { display: none; }
 .jp-sidebtn { display: none; }
-.jp-legend { position: absolute; left: 16px; bottom: 14px; z-index: 1; display: flex; flex-wrap: wrap; gap: 6px 14px; max-width: calc(100% - 120px); padding: 6px 12px; background: rgba(236,226,202,.9); color: #2a2017; font-size: 12px; box-shadow: 0 0 0 1px rgba(60,45,30,.35); }
+.jp-legend { position: absolute; left: calc(16px + env(safe-area-inset-left, 0px)); bottom: calc(14px + env(safe-area-inset-bottom, 0px)); z-index: 1; display: flex; flex-wrap: wrap; gap: 6px 14px; max-width: calc(100% - 120px); padding: 6px 12px; background: rgba(236,226,202,.9); color: #2a2017; font-size: 12px; box-shadow: 0 0 0 1px rgba(60,45,30,.35); }
 .jp-legend .lg { display: inline-block; width: 12px; height: 12px; margin-right: 5px; vertical-align: -2px; border: 1.5px solid #2a2017; box-sizing: border-box; }
 .jp-legend .lg.yama { border-radius: 50% 50% 2px 2px; background: rgba(120,98,66,.55); }
 .jp-legend .lg.hira { background: rgba(80,110,130,.35); }
 .jp-legend .lg.toride { border-style: dashed; border-radius: 50%; }
 .jp-legend .lg.hq { border-radius: 50%; border-color: #b8963e; border-width: 2.5px; }
 .jp-legend .lg.tgt { border-radius: 50%; border-color: #b8402a; border-style: dashed; border-width: 2px; }
-.jp-hint { position: absolute; left: 50%; top: 18px; transform: translateX(-50%); z-index: 1; margin: 0; font-size: 12px; color: #2a2017; background: rgba(236,226,202,.78); padding: 4px 10px; white-space: nowrap; }
+.jp-hint { position: absolute; left: 50%; top: calc(18px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); z-index: 1; margin: 0; font-size: 12px; color: #2a2017; background: rgba(236,226,202,.78); padding: 4px 10px; white-space: nowrap; }
 .jp-side { overflow-y: auto; padding: 20px 20px 22px; background: linear-gradient(180deg, var(--sumi-2), var(--sumi)); border-left: 1px solid var(--line); transition: transform .22s ease; }
 .jp-when { font-family: var(--display); font-size: 28px; font-weight: 800; letter-spacing: .1em; margin: 6px 0 10px; }
 .jp-when span { color: var(--kin); }
@@ -979,7 +986,7 @@ body.mincho, body.mincho button, body.mincho .note { font-family: var(--display)
   .jp-side.jp-show { transform: translateX(0); pointer-events: auto; }
   .jp-hint { display: none; }
   .jp-legend { max-width: calc(100% - 40px); }
-  .jp-sidebtn { display: inline-flex; min-width: 0; }
+  .jp-sidebtn { display: inline-flex; min-width: max-content; flex: 0 0 auto; }   /* 字が縮んで切れ、隣の釦と重ならない（W044） */
   #jp-toolstgl { display: inline-flex; }
   .jp-tools:not(.open) > .btn:not(#jp-toolstgl):not(.jp-sidebtn) { display: none; }
 }
@@ -1026,7 +1033,7 @@ details[open] > summary::before { transform: rotate(90deg); }
 .settings .s-row { min-height: 44px; }
 .settings select { min-height: 44px; font-size: 14px; }
 .settings input[type=checkbox] { width: 22px; height: 22px; }
-.settings input[type=range] { min-height: 32px; }
+.settings input[type=range] { min-height: 44px; }
 .renm { min-height: 44px; }
 .aiji button:focus-visible, .aiji button:hover { border-color: var(--kin); }
 .roster .rr[data-who]:hover { background: none; }
@@ -1074,6 +1081,7 @@ details[open] > summary::before { transform: rotate(90deg); }
 .slot em, .slot.cmd em { font-size: 12px; color: var(--washi-dim); }
 /* 日本地図：＋－などは 44px、筋書きの札も 44px */
 .jp-tools .btn { min-width: 44px; min-height: 44px; }
+.jp-tools .jp-sidebtn { min-width: max-content !important; width: max-content !important; flex: 0 0 auto; justify-self: end; }   /* 字が縮んで切れ、隣の釦と重ならない（W044） */
 .jp-scn button { min-height: 44px; padding: 8px 12px; font-size: 13px; }
 .jp-scn button[aria-pressed="true"] { color: var(--sumi); background: var(--washi); border-color: var(--washi); }
 .jp-link { min-height: 44px; }
@@ -1271,13 +1279,13 @@ body.rm #h-units .face { transition: none; }
 @media (max-height: 500px) {
   html.touch #hud #h-units { left: calc(244px + env(safe-area-inset-left, 0px)); right: auto; transform: none; bottom: calc(6px + env(safe-area-inset-bottom, 0px)); max-width: calc(100vw - 244px - 300px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)); justify-content: flex-start; gap: 3px; }
   html.touch #hud #h-units .uc { width: 46px; height: 60px; padding-top: 2px; gap: 0; }
-  html.touch #hud #h-units .uc.all { width: 36px; }
+  html.touch #hud #h-units .uc.all { width: 44px; }
   html.touch #hud #h-units .uc.all b { font-size: 18px; }
   html.touch #hud #h-units .face { width: 28px; height: 28px; margin-top: 3px; }
   html.touch #hud #h-units .ring { width: 36px; height: 36px; margin-left: -18px; top: 2px; margin-top: 0; }
   html.touch #hud #h-units .cnt { top: 22px; right: 1px; min-width: 18px; line-height: 16px; }
   html.touch #hud #h-units .ord { left: 1px; top: 1px; min-width: 16px; height: 16px; font-size: 12px; }
-  html.touch #hud #h-units .nm { margin-top: 4px; max-width: 44px; font-size: 11px; letter-spacing: 0; }
+  html.touch #hud #h-units .nm { margin-top: 4px; max-width: 44px; font-size: 12px; letter-spacing: 0; }
   html.touch #hud #h-units .st, html.touch #hud #h-units .runner { display: none; }
   /* 選んだ札は金の枠で分かるので、名の前の ● は出さない（三字の名が切れないように） */
   html.touch #hud #h-units .uc.on .nm::before { content: none; }
@@ -1287,7 +1295,7 @@ body.rm #h-units .face { transition: none; }
 @media (max-height: 500px) {
   /* 選ぶ札：上に寄せ、下の字幕に届かない高さで止める。出ている間は方角の帯・知らせ・手ほどきを引っ込める（札は一度に一つ） */
   /* 選ぶ札は左上（止める・地図の下）に。右側は見回すなぞりのために空けておく */
-  #hud #choice { left: calc(16px + env(safe-area-inset-left, 0px)); transform: none; top: calc(62px + env(safe-area-inset-top, 0px)); max-height: calc(100vh - 62px - 156px); overflow-y: auto; width: min(340px, 40vw); box-sizing: border-box; padding: 6px 10px; background: rgba(12,10,8,.8); }
+  #hud #choice { left: calc(16px + env(safe-area-inset-left, 0px)); transform: none; top: calc(62px + env(safe-area-inset-top, 0px)); max-height: calc(100vh - 62px - 156px); overflow-y: auto; width: min(320px, 34vw); box-sizing: border-box; padding: 6px 10px; background: rgba(12,10,8,.8); }
   /* 携帯横では札を細く・薄く（戦場の左半分を覆わない）。字は本文 14px・添えは 12px */
   #hud #choice h5 { font-size: 14px; margin-bottom: 4px; }
   #hud #choice .opt b { font-size: 14px; line-height: 1.3; }
@@ -1430,7 +1438,7 @@ html.touch.inframe #tc .hint { top: calc(70px + env(safe-area-inset-top, 0px)); 
   #hud:has(#tutorial.hintc:not([hidden])) #bark { visibility: hidden; }
   /* 「…」の丸（畳んだ丸を開く） */
   html.touch #tc [data-b="more"] { font-size: 18px; }
-  html.touch #tc [data-b="more"] small { font-size: 11px; margin-top: 0; }
+  html.touch #tc [data-b="more"] small { font-size: 12px; margin-top: 0; }
 }
 /* 城下（背の低い画面＝スマホ横）：町の絵を低く、施設の札を詰めて、「出陣」や「買う」が早く目に入るように */
 @media (max-height: 520px) {
@@ -1561,7 +1569,7 @@ html.touch.tc-low.tc-cmd #hud #h-squad { visibility: hidden; }
 html.touch.tc-low:not(.tc-cmd) #hud #h-units { display: none; }
 html.touch.tc-low #hud #h-units { left: var(--pm-l); right: auto; transform: none; bottom: var(--pm-b); max-width: calc(100vw - var(--pm-l) - var(--pm-r2)); justify-content: flex-start; gap: 4px; }
 html.touch.tc-low #hud #h-units .uc { width: 46px; height: 60px; padding-top: 2px; gap: 0; }
-html.touch.tc-low #hud #h-units .uc.all, html.touch.tc-low #hud #h-units .uc.al { width: 40px; align-content: center; }
+html.touch.tc-low #hud #h-units .uc.all, html.touch.tc-low #hud #h-units .uc.al { width: 44px; align-content: center; }
 html.touch.tc-low #hud #h-units .uc.all b, html.touch.tc-low #hud #h-units .uc.al b { font-family: var(--display); font-size: 18px; line-height: 1.1; color: var(--washi); }
 html.touch.tc-low #hud #h-units .face { width: 28px; height: 28px; margin-top: 3px; }
 html.touch.tc-low #hud #h-units .ring { width: 36px; height: 36px; margin-left: -18px; top: 2px; margin-top: 0; }
@@ -1701,4 +1709,4 @@ html.touch.tc-low #hud.lean #bark { top: calc(8px + env(safe-area-inset-top, 0px
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
 } }
 </script>
-<script type="module" src="./v202610030353/src/main.js"></script>
+<script type="module" src="./v202610030926/src/main.js"></script>
