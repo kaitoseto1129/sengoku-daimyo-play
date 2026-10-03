@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202610022359 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202610030353 として写した） -->
 <title>戦国立身3D　足軽から天下へ、戦国の合戦アクション</title>
 <meta name="description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。">
 <link rel="canonical" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/">
@@ -9,7 +9,7 @@
 <meta property="og:image" content="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/og.png"><meta property="og:image:width" content="1280"><meta property="og:image:height" content="672"><meta property="og:image:alt" content="姉川の戦いの戦場を行く足軽">
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="戦国立身3D　足軽から天下へ"><meta name="twitter:description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。"><meta name="twitter:image" content="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/og.png">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGame","name":"戦国立身3D","inLanguage":"ja","url":"https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/","description":"足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。","genre":["アクション","歴史","戦国"],"gamePlatform":["Web","iOS"],"applicationCategory":"Game","operatingSystem":"Web, iOS","image":"https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/og.png","offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"}}</script>
-<link rel="icon" type="image/png" sizes="32x32" href="./v202610022359/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610022359/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610022359/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610022359/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202610030353/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610030353/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610030353/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610030353/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -135,6 +135,8 @@ h1.title span { color: var(--shu); }
 .btn.small { padding: 7px 16px; font-size: 13px; letter-spacing: .08em; }
 #town-sortie { position: fixed; right: 16px; bottom: 150px; z-index: 40; min-height: 48px; padding: 12px 22px; font-size: 16px; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,.45); pointer-events: auto; }
 @media (max-height: 500px) { #town-sortie { bottom: 108px; padding: 9px 18px; font-size: 15px; min-height: 44px; } }
+/* 指の端末：右下の大きな「話す・入る」の丸（高さ 84px）と 12px 以上あける。ノッチ・角の安全域も */
+html.touch #town-sortie { right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(128px + env(safe-area-inset-bottom, 0px)); }
 .btn:disabled { opacity: .35; cursor: not-allowed; }
 .btn:disabled:hover { background: transparent; color: var(--washi); }
 .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
@@ -143,6 +145,9 @@ h1.title span { color: var(--shu); }
 .field input { background: transparent; border: 0; border-bottom: 1px solid var(--washi-dim); color: var(--washi); font-family: var(--display); font-size: 26px; padding: 4px 0; }
 .keys { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px 20px; font-size: 13px; color: var(--washi-dim); max-width: 720px; }
 .keys kbd { font-family: var(--ui); color: var(--washi); display: inline-block; min-width: 54px; }
+.keys.tk { grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 8px 24px; font-size: 15px; line-height: 1.5; max-width: 760px; color: var(--washi); }
+.keys.tk > div { display: grid; grid-template-columns: 7.5em 1fr; gap: 8px; }
+.keys.tk kbd { min-width: 0; color: var(--kin); }
 .note { font-size: 12px; color: var(--washi-faint); line-height: 1.7; }
 
 /* story card */
@@ -429,7 +434,11 @@ body.rm .toast, body.rm #banner.show, body.rm .ln, body.rm .promo, body.rm .stor
 @media (max-height: 500px) { #cine.on i { height: 5vh; } }
 #hud:has(#cine.on) .tl, #hud:has(#cine.on) .tr, #hud:has(#cine.on) #armybar, #hud:has(#cine.on) #compass { opacity: 0; transition: opacity .4s; }
 /* 開戦の題の札の間は、ほかの札も全部引っ込めて一枚の絵にする */
-#hud:has(#intro:not([hidden])) :is(.bl, .bottom, #tutorial, #h-units, #subtitle, #bark, #markers, #situation, #skiphint) { opacity: 0; transition: opacity .4s; }
+#hud:has(#intro:not([hidden])) :is(.bl, .bottom, #tutorial, #h-units, #h-squad, #subtitle, #bark, #markers, #situation, #skiphint) { opacity: 0; transition: opacity .4s; }
+/* 一時停止など戦の上に画面を開いている間は、組の札を透かして見せない（下の釦と重なって読みにくい） */
+body:has(#screen:not([hidden])) #hud #h-squad, body:has(#pause:not([hidden])) #hud :is(#h-squad, #armybar, .bl) { visibility: hidden !important; }
+/* 開戦の題字の間は、指の丸も控えめに（題の一場面を釦で埋めない。触れればすぐ効く） */
+body:has(#intro:not([hidden])) #tc :is(.tb, .stick, .mzone) { opacity: .28; transition: opacity .6s; }
 /* 左上：戦功の札 */
 .tl { width: 230px; gap: 8px; }
 .plaque { display: inline-flex; align-items: baseline; gap: 8px; padding: 6px 14px 6px 12px; background: var(--lacquer); box-shadow: inset 0 0 0 1px var(--gold-line); border-left: 3px solid var(--kin); width: max-content; }
@@ -452,6 +461,8 @@ body.rm .toast, body.rm #banner.show, body.rm .ln, body.rm .promo, body.rm .stor
 /* 上：両軍の兵力と陣太鼓時計 */
 #armybar { position: absolute; left: 50%; top: calc(12px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); display: grid; grid-template-columns: minmax(0, 290px) auto minmax(0, 290px); align-items: center; gap: 10px; width: min(760px, 94vw); }
 #armybar .side { display: grid; gap: 4px; }
+/* 明るい空・霧の上でも帯の字が読めるよう、後ろに薄い墨のぼかし（枠は作らない） */
+#armybar::before { content: ''; position: absolute; inset: -8px -28px -6px; z-index: -1; pointer-events: none; background: radial-gradient(closest-side, rgba(10,9,7,.55), rgba(10,9,7,.3) 60%, rgba(10,9,7,0)); }
 #armybar .side .nm { display: flex; align-items: center; gap: 8px; font-family: var(--display); font-size: 16px; letter-spacing: .08em; text-shadow: 0 1px 3px #000, 0 0 6px #000; }
 #armybar .side.b .nm { justify-content: flex-end; }
 #armybar .side canvas { width: 22px; height: 22px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,.8), 0 0 0 2px var(--gold-line); }
@@ -512,10 +523,11 @@ body.rm #intro .card { animation: none !important; opacity: 1; }
 /* 背の低い画面（スマホ横）：開戦の題の札が戦場の3分の1を超えて食わないよう、余白と字を小さく */
 @media (max-height: 500px) {
   #intro .card { padding: 12px 28px; }
-  #intro .card .date { font-size: clamp(10px, 1.4vw, 12px); margin: 0 0 8px; }
+  #intro .card .date { font-size: 12px; margin: 0 0 8px; }
   #intro .card .ttl { font-size: clamp(20px, 4vw, 34px); letter-spacing: .2em; padding-left: .2em; }
   #intro .card .rule { width: min(220px, 40vw); margin: 10px auto 8px; }
-  #intro .card .sides { font-size: clamp(11px, 1.6vw, 15px); letter-spacing: .2em; }
+  #intro .card .sides { font-size: clamp(13px, 1.6vw, 15px); letter-spacing: .2em; }
+  #intro .card .sides em { font-size: 12px; }
   /* 同じ低い画面の決まり：戦の途中の見出し札（#banner。例「朝倉の先手」）も3分の1を超えないよう縮める */
   #banner { top: 20%; font-size: clamp(18px, 4.4vw, 34px); }
   #banner .brush { padding: 7px 28px 9px; }
@@ -1302,7 +1314,13 @@ body.rm #h-units .face { transition: none; }
 html:not(.touch) #hud.calm :is(.bottom, .bl.full, .tl, #h-units, .tr canvas) { opacity: .82; }
 html:not(.touch) #hud.calm #objectives { opacity: 1; }
 /* スマホ横・「最小」（.lean）：戦場を見せるのを一番に。常に出すのは体力の細い棒・任務の一行・小地図だけ */
-#hud.lean :is(.tl, #compass, #armybar, #dateline), html:not(.tc-low) #hud.lean #h-squad { display: none !important; }
+#hud.lean :is(.tl, #compass, #dateline), html:not(.tc-low) #hud.lean #h-squad { display: none !important; }
+/* 両軍の兵力の帯は「最小」でも消さない（常に出す層）。細く、名と棒だけ */
+#hud.lean #armybar { width: min(300px, 36vw); top: calc(8px + env(safe-area-inset-top, 0px)); gap: 6px; }
+#hud.lean #armybar .side .nm { font-size: 13px; gap: 4px; }
+#hud.lean #armybar .side canvas { display: none; }
+#hud.lean #armybar .gauge { height: 6px; }
+#hud.lean.calm:not(.army-peek) #armybar { opacity: .72; }
 #hud.lean .bl { width: 150px; padding: 4px 6px; gap: 0; background: rgba(10,9,7,.35); box-shadow: none; border: 0; }
 #hud.lean .bl > :not(#h-hp) { display: none !important; }
 #hud.lean .bl #h-hp { grid-template-columns: 1fr; }
@@ -1683,4 +1701,4 @@ html.touch.tc-low #hud.lean #bark { top: calc(8px + env(safe-area-inset-top, 0px
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
 } }
 </script>
-<script type="module" src="./v202610022359/src/main.js"></script>
+<script type="module" src="./v202610030353/src/main.js"></script>
