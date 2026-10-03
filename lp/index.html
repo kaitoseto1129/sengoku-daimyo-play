@@ -449,6 +449,16 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
 .koe-q p{font-family:var(--min);font-size:16px;line-height:1.9;color:var(--shiro);margin:8px 0}
 .koe-q cite{font-family:var(--go);font-size:14px;font-style:normal;color:var(--kami)}
 .koe-box .inban{justify-self:start}
+
+#nanen{background:var(--sumi)}
+#nanen .lead-s{font-family:var(--min);font-size:16px;color:var(--kami);margin-top:14px;line-height:1.8}
+.ev-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-top:24px}
+.ev-grid figure{margin:0;border:1px solid rgba(197,154,53,.4);background:#0d0b09}
+.ev-grid img{width:100%;aspect-ratio:16/9;object-fit:cover;object-position:center 45%;display:block}
+.ev-grid figcaption{padding:10px 12px 12px;font-family:var(--go);font-size:14px;line-height:1.6;color:var(--kami)}
+.ev-grid figcaption b{display:block;font-family:var(--min);font-size:17px;color:var(--kinpaku);margin-bottom:2px}
+.ev-strip{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:18px}
+@media(min-width:900px){.ev-strip{grid-template-columns:repeat(4,1fr)}}
 </style>
 </head>
 <body>
@@ -466,7 +476,7 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
 
 <header>
   <a class="logo" href="#hero">戦国大名</a>
-  <nav><a href="#mitsu">特徴</a><a href="#loop">遊び方</a><a href="#koe">評価</a><a href="#nagashino">長篠</a><a href="#ch3">合戦</a><a href="#gunki">軍記</a><a href="#ch4">軍議</a><a href="#guide">攻略</a><a href="#faq">問答</a><a href="#gunshikin">軍資金</a><button id="oto" type="button" title="風と太鼓の音（押した時だけ）">♪ 音</button></nav>
+  <nav><a href="#mitsu">特徴</a><a href="#loop">遊び方</a><a href="#koe">評価</a><a href="#nagashino">長篠</a><a href="#nanen">七年</a><a href="#ch3">合戦</a><a href="#gunki">軍記</a><a href="#ch4">軍議</a><a href="#guide">攻略</a><a href="#faq">問答</a><a href="#gunshikin">軍資金</a><button id="oto" type="button" title="風と太鼓の音（押した時だけ）">♪ 音</button></nav>
 </header>
 
 <!-- 序 -->
@@ -495,7 +505,7 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
 <!-- 動く絵 -->
 <section id="ugoku1">
   <div class="wrap">
-    <div class="ugoku ar" data-mov="kiba" data-open="nagashino"><img src="img/seq/nagashino_pv/000.jpg" alt="長篠の合戦。武田の騎馬が馬防柵へ" loading="eager"><span class="rec">合戦の画面</span><div class="ov"><b>数千、数万の軍勢を、一つの采配で動かせ。</b></div><span class="play">▶ 大きく見る</span></div>
+    <div class="ugoku ar" data-mov="tennoji" data-open="tennoji_relief"><img src="img/seq/tennoji_relief/000.jpg" alt="天王寺砦の戦い。本願寺勢に囲まれた砦へ救援" loading="eager"><span class="rec">合戦の画面</span><div class="ov"><b>数千、数万の軍勢を、一つの采配で動かせ。</b></div><span class="play">▶ 大きく見る</span></div>
     <p class="soe c">実際の合戦画面をそのまま。一兵ずつではなく、隊で、翼で、軍で動く。</p>
   </div>
 </section>
@@ -544,9 +554,32 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
     <h2 class="h2">長篠の戦いを、<span class="g">自ら指揮せよ。</span></h2>
     <p class="kotoba c" style="font-family:var(--fude);font-size:clamp(18px,2.4vw,26px);letter-spacing:.16em"><span class="ln"><span style="color:#9CC4EA">織田・徳川連合軍</span>　VS　<span style="color:#F19A85">武田軍</span></span></p>
     <p class="kotoba c"><span class="ln">馬防柵。鉄砲。騎馬。</span><span class="ln">史実と同じ戦い方を選ぶか。それとも、あなた自身の策で戦うか。</span></p>
-    <div class="gaku ugoku" style="margin-top:30px;aspect-ratio:16/9" data-mov="kiba"><span class="kin-corner tr"></span><span class="kin-corner bl"></span><img src="img/seq/nagashino_pv/000.jpg" alt="設楽原。武田の騎馬が馬防柵へ迫る" loading="lazy"></div>
-    <p class="soe">設楽原――柵の内から鉄砲で、武田の騎馬を迎え撃つ。</p>
+    <div class="gaku ugoku" style="margin-top:30px;aspect-ratio:16/9" data-mov="tobi"><span class="kin-corner tr"></span><span class="kin-corner bl"></span><img src="img/seq/nagashino_open/000.jpg" alt="鳶ヶ巣山砦の戦い" loading="lazy"></div>
+    <p class="soe">夜明け前の鳶ヶ巣山砦――別働隊で武田の後ろを突く。</p>
     <div class="ctas" style="justify-content:center;margin-top:30px"><a class="fuda" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="nagashino_appstore_click"><svg><use href="#apple"/></svg>長篠の戦いを無料で遊ぶ</a><a data-play data-ev="play_click" class="inban" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザで遊ぶ</a></div>
+  </div>
+</section>
+<!-- 第258巡（作り手：長篠の筋書きの出来事をもっと拾う・画像をもっと）：長篠から七年の出来事 -->
+<section id="nanen">
+  <div class="wrap ar">
+    <div class="sho">長篠の筋書き　天正三年〜十年</div>
+    <h2 class="h2">長篠のあとも、<br><span class="g">七年の戦国が続く。</span></h2>
+    <p class="lead-s">勝った後が本番。出来事ごとに、あなたが手を決める。</p>
+    <div class="ev-grid">
+      <figure><img src="ev/ev3.jpg" alt="荒木村重の謀反の札" loading="lazy"><figcaption><b>荒木村重、有岡に叛く</b>即攻城か、官兵衛の説得か、兵糧攻めか。</figcaption></figure>
+      <figure><img src="ev/ev4.jpg" alt="原田直政の選択の札" loading="lazy"><figcaption><b>天王寺砦、原田直政の選択</b>退くか、救うか、本陣へ突くか。</figcaption></figure>
+      <figure><img src="ev/ev5.jpg" alt="七尾の報の札" loading="lazy"><figcaption><b>手取川の前夜</b>七尾落城の報を、織田に知らせるな。</figcaption></figure>
+      <figure><img src="ev/ev1.jpg" alt="九鬼嘉隆の大型船の札" loading="lazy"><figcaption><b>九鬼嘉隆の大型船</b>毛利水軍に勝つ船を、どう造るか。</figcaption></figure>
+      <figure><img src="ev/ev2.jpg" alt="備中高松城の札" loading="lazy"><figcaption><b>備中高松城</b>堤を築いて水攻めか、力攻めか。</figcaption></figure>
+      <figure><img src="ev/ev0.jpg" alt="京都御馬揃えの札" loading="lazy"><figcaption><b>京都御馬揃え</b>天下人の威を、誰を呼んで見せるか。</figcaption></figure>
+    </div>
+    <div class="ev-strip">
+      <div class="ugoku" data-seq="mimikawa" data-dir="seqh"><img src="img/seqh/mimikawa/000.jpg" alt="耳川の戦い" loading="lazy"><span class="rec">耳川の戦い</span></div>
+      <div class="ugoku" data-seq="okitanawate" data-dir="seqh"><img src="img/seqh/okitanawate/000.jpg" alt="沖田畷の戦い" loading="lazy"><span class="rec">沖田畷の戦い</span></div>
+      <div class="ugoku" data-seq="tottori_relief" data-dir="seqh"><img src="img/seqh/tottori_relief/000.jpg" alt="鳥取後詰の戦い" loading="lazy"><span class="rec">鳥取後詰の戦い</span></div>
+      <div class="ugoku" data-seq="takato" data-dir="seqh"><img src="img/seqh/takato/000.jpg" alt="高遠城の戦い" loading="lazy"><span class="rec">高遠城の戦い</span></div>
+    </div>
+    <p class="soe c">長篠の筋書きだけで、決戦は二十五。絵はすべて実際のゲーム画面です。</p>
   </div>
 </section>
 <!-- 第一章 -->
@@ -589,7 +622,7 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
 <!-- 第三章 -->
 <section id="ch3">
   <div class="senjo">
-    <div class="bg" data-speed="0.12" data-mov="miki_h"></div><div class="veil"></div>
+    <div class="bg" data-speed="0.12" data-mov="takamatsu_h"></div><div class="veil"></div>
     <div class="wrap ar">
       <div class="sho">第三章</div>
       <h2 class="h2">勝敗を決めるのは、<br>兵数<span class="g">だけではない。</span></h2>
@@ -601,9 +634,9 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
 <!-- 合戦の絵（注釈つき） -->
 <!-- 第258巡：全幅の合戦動画（躍動感） -->
 <section class="mov-band" aria-label="合戦の動画">
-  <div class="mb" data-mov="seki_h"><img src="img/seqh/sekigahara/000.jpg" alt="" loading="lazy"><b>関ヶ原――十万の軍勢が、ぶつかる。</b></div>
-  <div class="mb" data-mov="kizu_h"><img src="img/seqh/kizu/000.jpg" alt="" loading="lazy"><b>木津砦――川を渡り、柵を破れ。</b></div>
-  <div class="mb" data-mov="anegawa_h"><img src="img/seqh/anegawa/000.jpg" alt="" loading="lazy"><b>姉川――浅瀬で、大軍が激突する。</b></div>
+  <div class="mb" data-mov="temmoku_h"><img src="img/seqh/temmoku/000.jpg" alt="" loading="lazy"><b>天目山――武田勝頼、最期の戦い。</b></div>
+  <div class="mb" data-mov="saika_h"><img src="img/seqh/saika/000.jpg" alt="" loading="lazy"><b>雑賀の里――姿を見せぬ鉄砲衆。</b></div>
+  <div class="mb" data-mov="iwamura_h"><img src="img/seqh/iwamura/000.jpg" alt="" loading="lazy"><b>岩村城――信忠、武田の城を囲む。</b></div>
 </section>
 <section id="senjo2" style="padding-top:0;background:var(--sumi)">
   <div class="wrap">
@@ -631,15 +664,15 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
       <div class="sho">軍記</div>
       <h2 class="h2">同じ戦いは、<span class="g">ひとつもない。</span></h2>
     </div>
-    <div class="gunki-big ar" data-open="nagashino"><div class="bg" data-mov="kiba_h"><img src="img/seq/nagashino_pv/000.jpg" alt="長篠の戦い" loading="lazy"></div><div class="fog"></div><div class="mon" style="right:-40px;top:-40px;width:260px;height:260px;opacity:.14"><svg><use href="#mon-takeda"/></svg></div><div class="p"><div class="nen">天正三年</div><h3 style="font-family:var(--fude);font-size:clamp(36px,5.6vw,60px);letter-spacing:.1em;color:#fff;text-shadow:0 3px 12px #000">長篠の戦い</h3><div class="vs" style="font-family:var(--go);font-size:13px;letter-spacing:.2em;color:var(--kami);margin-top:6px"><span class="ao" style="color:#9CC4EA">織田・徳川</span>　対　<span class="aka" style="color:#F19A85">武田</span></div><p class="toi" style="font-size:16px;margin-top:10px">馬防柵と鉄砲、武田騎馬軍団。<b>守るか。打って出るか。</b></p></div></div>
+    <div class="gunki-big ar" data-open="tedorigawa"><div class="bg" data-mov="tedori_h"><img src="img/seq/tedorigawa/000.jpg" alt="手取川の戦い" loading="lazy"></div><div class="fog"></div><div class="mon" style="right:-40px;top:-40px;width:260px;height:260px;opacity:.14"><svg><use href="#mon-takeda"/></svg></div><div class="p"><div class="nen">天正五年</div><h3 style="font-family:var(--fude);font-size:clamp(36px,5.6vw,60px);letter-spacing:.1em;color:#fff;text-shadow:0 3px 12px #000">手取川の戦い</h3><div class="vs" style="font-family:var(--go);font-size:13px;letter-spacing:.2em;color:var(--kami);margin-top:6px"><span class="ao" style="color:#9CC4EA">織田</span>　対　<span class="aka" style="color:#F19A85">上杉</span></div><p class="toi" style="font-size:16px;margin-top:10px">夜の川を背に、上杉謙信が迫る。<b>退くか。踏みとどまるか。</b></p></div></div>
     <div class="gunki-two">
       <article class="maki ar" data-open="anegawa"><div class="bg" data-mov="anegawa_h"><img src="img/seq/anegawa/000.jpg" alt="姉川の戦い" loading="lazy"></div><div class="fog"></div><div class="p"><div class="nen">元亀元年</div><h3>姉川の戦い</h3><div class="vs"><span class="ao">織田・徳川</span>　対　<span class="aka">浅井・朝倉</span></div><p class="toi">川を挟んだ大軍同士の野戦。<b>浅瀬を渡るか。別戦線を支えるか。</b></p></div></article>
       <article class="maki ar" data-open="kizu"><div class="bg" data-mov="kizu_h"><img src="img/seq/kizu/000.jpg" alt="木津砦の戦い" loading="lazy"></div><div class="fog"></div><div class="p"><div class="nen">天正四年</div><h3>木津砦の戦い</h3><div class="vs"><span class="ao">織田</span>　対　<span class="aka">本願寺</span></div><p class="toi">川、橋、柵、砦。<b>正面突破か。迂回か。</b></p></div></article>
     </div>
-    <div class="gunki-big ar" style="margin-top:18px" data-open="sekigahara"><div class="bg" data-mov="seki_h"><img src="img/seq/sekigahara/000.jpg" alt="関ヶ原の戦い" loading="lazy"></div><div class="fog"></div><div class="mon" style="right:-40px;top:-40px;width:260px;height:260px;opacity:.14"><svg><use href="#mon-aoi"/></svg></div><div class="p"><div class="nen">慶長五年</div><h3 style="font-family:var(--fude);font-size:clamp(36px,5.6vw,60px);letter-spacing:.1em;color:#fff;text-shadow:0 3px 12px #000">関ヶ原の戦い</h3><div class="vs" style="font-family:var(--go);font-size:13px;letter-spacing:.2em;color:var(--kami);margin-top:6px"><span class="ao" style="color:#9CC4EA">東軍</span>　対　<span class="aka" style="color:#F19A85">西軍</span></div><p class="toi" style="font-size:16px;margin-top:10px">複数軍団が動く大戦。<b>どこを支え、どこを捨てるか。</b></p></div></div>
+    <div class="gunki-big ar" style="margin-top:18px" data-open="shigisan"><div class="bg" data-mov="shigisan_h"><img src="img/seq/shigisan/000.jpg" alt="信貴山城の戦い" loading="lazy"></div><div class="fog"></div><div class="mon" style="right:-40px;top:-40px;width:260px;height:260px;opacity:.14"><svg><use href="#mon-aoi"/></svg></div><div class="p"><div class="nen">天正五年</div><h3 style="font-family:var(--fude);font-size:clamp(36px,5.6vw,60px);letter-spacing:.1em;color:#fff;text-shadow:0 3px 12px #000">信貴山城の戦い</h3><div class="vs" style="font-family:var(--go);font-size:13px;letter-spacing:.2em;color:var(--kami);margin-top:6px"><span class="ao" style="color:#9CC4EA">織田</span>　対　<span class="aka" style="color:#F19A85">松永</span></div><p class="toi" style="font-size:16px;margin-top:10px">平蜘蛛と共に籠る松永久秀。<b>門を破るか。囲んで待つか。</b></p></div></div>
     <div class="gunki-two">
       <article class="maki ar" data-open="yamazaki"><div class="bg" data-seq="yamazaki" data-dir="seq"><img src="img/seq/yamazaki/000.jpg" alt="山崎の戦い" loading="lazy"></div><div class="fog"></div><div class="mon"><svg><use href="#mon-kikyo"/></svg></div><div class="p"><div class="nen">天正十年</div><h3>山崎の戦い</h3><div class="vs"><span class="ao">羽柴</span>　対　<span class="aka">明智</span></div><p class="toi">天王山を巡る高地争奪。<b>高所を取るか。中央を押し切るか。</b></p></div></article>
-      <article class="maki ar" data-open="arioka"><div class="bg" data-mov="miki_h"><img src="img/seq/arioka/000.jpg" alt="有岡城の戦い" loading="lazy"></div><div class="fog"></div><div class="p"><div class="nen">天正六年</div><h3>有岡城の戦い</h3><div class="vs"><span class="ao">織田</span>　対　<span class="aka">荒木</span></div><p class="toi">城を四方から囲む。<b>門を破るか。兵糧を断つか。</b></p></div></article>
+      <article class="maki ar" data-open="miki"><div class="bg" data-mov="miki_h"><img src="img/seq/miki/000.jpg" alt="三木合戦" loading="lazy"></div><div class="fog"></div><div class="p"><div class="nen">天正六年</div><h3>三木合戦</h3><div class="vs"><span class="ao">羽柴</span>　対　<span class="aka">別所</span></div><p class="toi">城を囲み、兵糧を断つ。<b>干殺しか。総攻めか。</b></p></div></article>
     </div>
     <div class="nenpyo ar">
       <div><b>1560</b><span>桶狭間</span><small>永禄三年</small></div>
@@ -676,7 +709,7 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
       </div>
       <div class="ar makimono">
         <div class="inban-mark"><svg><use href="#inban"/></svg></div>
-        <div class="gaku ugoku" data-mov="kizu"><span class="kin-corner tr"></span><span class="kin-corner bl"></span><img src="img/seqh/kizu/000.jpg" alt="木津砦の戦い" loading="lazy"></div>
+        <div class="gaku ugoku" data-seq="gungi" data-dir="seq"><span class="kin-corner tr"></span><span class="kin-corner bl"></span><img src="img/seq/gungi/000.jpg" alt="木津砦の戦い" loading="lazy"></div>
         <p class="soe">軍議――砦の備え、援軍の数、敵の補給。地図を前に、手を決める。</p>
       </div>
     </div>
@@ -711,7 +744,7 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
 
 <!-- 感情の頂 -->
 <section id="peak">
-  <div class="ugoku" data-mov="kizu" data-open="kizu"><img src="img/seqh/kizu/000.jpg" alt="木津砦の戦い" loading="lazy"><div class="ov"><b>ここで、天下が決まる。</b></div><span class="play">▶ 大きく見る</span></div>
+  <div class="ugoku" data-seq="takatenjin_assault" data-dir="seqh" data-open="takatenjin_assault"><img src="img/seqh/takatenjin_assault/000.jpg" alt="高天神城 総攻め" loading="lazy"><div class="ov"><b>ここで、天下が決まる。</b></div><span class="play">▶ 大きく見る</span></div>
 </section>
 
 <!-- 第五章 -->
@@ -875,7 +908,7 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
   document.querySelectorAll('.sanTaku button').forEach(function(b){ b.addEventListener('click',function(){ document.querySelectorAll('.sanTaku button').forEach(function(x){ x.classList.remove('on'); }); b.classList.add('on'); var a=ans[b.dataset.a]; box.innerHTML='<b>'+a.t+'</b>'+a.b+'<span class="shu">ゲームでは、この判断を自分で下す</span>'; }); });
 
   /* 動く絵：連続写真を八枚／秒で入れ替える（見えている間だけ）。決戦ごとに枚数が違う */
-  var SEQ={"anegawa": 24, "anotsu": 24, "arioka": 24, "asainawate": 24, "azuchi": 24, "chausuyama": 24, "daishoji": 24, "fushimi": 24, "gaikaku": 24, "gifu1600": 24, "gifu_nobutaka": 24, "hasedo": 24, "hataya": 24, "hetsugigawa": 24, "hitotoribashi": 24, "honmachibashi": 24, "ichijodani": 24, "ichinomiya": 24, "iga1": 24, "iga2": 24, "imafuku": 24, "ishigakibaru": 24, "iwamura": 24, "kaminoyama": 24, "kanegasaki": 24, "kannagawa": 24, "kashii": 24, "kawanakajima": 24, "kitanosho": 24, "kizu": 24, "komaki_hs": 24, "komaki_tk": 24, "komeno": 24, "konda": 24, "kuisegawa": 24, "kurokoma": 24, "kyushu_nightraid": 24, "mikatagahara": 24, "miki": 24, "mimikawa": 24, "minakuchi": 24, "nagakute": 24, "nagashima": 24, "nagashino": 24, "nagashino_open": 24, "nagashino_pv": 26, "nanao": 24, "nejirozaka": 24, "nodafukushima": 24, "nodafukushima_o": 24, "odani": 24, "okitanawate": 24, "osaka": 24, "otate": 24, "otsu": 24, "saika": 24, "sakamoto": 24, "sanadamaru": 24, "sawayama": 24, "sekigahara": 24, "shigisan": 24, "shikoku_counter": 24, "shiroishi": 24, "shizugatake": 24, "shizugatake_open": 24, "suriagehara": 24, "takamatsu_field": 24, "takatenjin_assault": 24, "takatenjin_break": 24, "takato": 24, "tanabe": 24, "tedorigawa": 24, "temmoku": 24, "tennoji": 24, "tennoji_relief": 24, "tottori_relief": 24, "tottori_siege": 24, "uchidehama": 24, "ueda": 24, "ueda1": 24, "uozu": 24, "uto": 24, "wakamiko": 24, "yakami": 24, "yamazaki": 24, "yamazato": 24, "yanagawa": 24, "yao": 24, "yasui": 24, "dekigoto": 16, "gaiko": 16, "gungi": 14, "gunzei": 16, "jindate": 14, "kaisen1": 14, "kaisen2": 14, "kekka": 14, "map": 16, "map_hoi": 14, "map_honnoji": 14, "map_koshu": 14, "map_nagashino": 14, "map_oke": 14, "map_osaka": 14, "map_sekigahara": 14, "naisei": 16, "scen": 14, "shutsujin": 16, "title": 14, "zaisei": 16}; var CAPS={nagashino:['長篠の戦い','馬防柵と鉄砲、武田騎馬軍団'],anegawa:['姉川の戦い','川を挟んだ大軍同士の野戦'],kizu:['木津砦の戦い','川、橋、柵、砦'],sekigahara:['関ヶ原の戦い','複数軍団が動く大戦'],yamazaki:['山崎の戦い','天王山を巡る高地争奪'],arioka:['有岡城の戦い','城を四方から囲む']};
+  var SEQ={"anegawa": 24, "anotsu": 24, "arioka": 24, "asainawate": 24, "azuchi": 24, "chausuyama": 24, "daishoji": 24, "fushimi": 24, "gaikaku": 24, "gifu1600": 24, "gifu_nobutaka": 24, "hasedo": 24, "hataya": 24, "hetsugigawa": 24, "hitotoribashi": 24, "honmachibashi": 24, "ichijodani": 24, "ichinomiya": 24, "iga1": 24, "iga2": 24, "imafuku": 24, "ishigakibaru": 24, "iwamura": 24, "kaminoyama": 24, "kanegasaki": 24, "kannagawa": 24, "kashii": 24, "kawanakajima": 24, "kitanosho": 24, "kizu": 24, "komaki_hs": 24, "komaki_tk": 24, "komeno": 24, "konda": 24, "kuisegawa": 24, "kurokoma": 24, "kyushu_nightraid": 24, "mikatagahara": 24, "miki": 24, "mimikawa": 24, "minakuchi": 24, "nagakute": 24, "nagashima": 24, "nagashino": 24, "nagashino_open": 24, "nagashino_pv": 26, "nanao": 24, "nejirozaka": 24, "nodafukushima": 24, "nodafukushima_o": 24, "odani": 24, "okitanawate": 23, "osaka": 24, "otate": 24, "otsu": 24, "saika": 24, "sakamoto": 24, "sanadamaru": 24, "sawayama": 24, "sekigahara": 24, "shigisan": 24, "shikoku_counter": 24, "shiroishi": 24, "shizugatake": 24, "shizugatake_open": 24, "suriagehara": 24, "takamatsu_field": 24, "takatenjin_assault": 24, "takatenjin_break": 24, "takato": 24, "tanabe": 24, "tedorigawa": 17, "temmoku": 24, "tennoji": 24, "tennoji_relief": 24, "tottori_relief": 24, "tottori_siege": 24, "uchidehama": 24, "ueda": 24, "ueda1": 24, "uozu": 24, "uto": 24, "wakamiko": 24, "yakami": 24, "yamazaki": 24, "yamazato": 24, "yanagawa": 24, "yao": 24, "yasui": 19, "dekigoto": 16, "gaiko": 16, "gungi": 14, "gunzei": 16, "jindate": 14, "kaisen1": 14, "kaisen2": 14, "kekka": 14, "map": 16, "map_hoi": 14, "map_honnoji": 14, "map_koshu": 14, "map_nagashino": 14, "map_oke": 14, "map_osaka": 14, "map_sekigahara": 14, "naisei": 16, "scen": 14, "shutsujin": 16, "title": 14, "zaisei": 16}; var CAPS={nagashino:['長篠の戦い','馬防柵と鉄砲、武田騎馬軍団'],anegawa:['姉川の戦い','川を挟んだ大軍同士の野戦'],kizu:['木津砦の戦い','川、橋、柵、砦'],sekigahara:['関ヶ原の戦い','複数軍団が動く大戦'],yamazaki:['山崎の戦い','天王山を巡る高地争奪'],arioka:['有岡城の戦い','城を四方から囲む']};
   var players=[];
   function mkPlayer(box, key, dir, im, auto){ var n=SEQ[key]||0; if(!n) return null; var frames=[], loaded=0, i=0, timer=null, started=false;
     function load(){ if(started) return; started=true; for(var k=0;k<n;k++){ (function(k){ var f=new Image(); f.onload=function(){ loaded++; }; f.src='img/'+dir+'/'+key+'/'+String(k).padStart(3,'0')+'.jpg'; frames[k]=f; })(k); } }
