@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202610031748 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202610031841 として写した） -->
 <title>戦国立身3D　足軽から天下へ、戦国の合戦アクション</title>
 <meta name="description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。">
 <link rel="canonical" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/">
@@ -9,7 +9,7 @@
 <meta property="og:image" content="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/og.png"><meta property="og:image:width" content="1280"><meta property="og:image:height" content="672"><meta property="og:image:alt" content="姉川の戦いの戦場を行く足軽">
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="戦国立身3D　足軽から天下へ"><meta name="twitter:description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。"><meta name="twitter:image" content="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/og.png">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGame","name":"戦国立身3D","inLanguage":"ja","url":"https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/","description":"足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。","genre":["アクション","歴史","戦国"],"gamePlatform":["Web","iOS"],"applicationCategory":"Game","operatingSystem":"Web, iOS","image":"https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/og.png","offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"}}</script>
-<link rel="icon" type="image/png" sizes="32x32" href="./v202610031748/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610031748/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610031748/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610031748/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202610031841/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610031841/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610031841/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610031841/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -766,7 +766,10 @@ kbd.cap { display: inline-block; min-width: 1.4em; padding: 0 5px; margin: 0 2px
 /* 判断の札は右上の端に小さく（戦場の真ん中を隠さない）。携帯横は別の場所へ上の規則で動かす */
 #choice { position: absolute; right: calc(16px + env(safe-area-inset-right, 0px)); left: auto; top: calc(16px + env(safe-area-inset-top, 0px)); transform: none; width: min(320px, 46vw); padding: 10px 14px; background: rgba(12,10,8,.9); box-shadow: inset 0 0 0 1px var(--gold-line), 0 0 0 1px #000; }
 #choice h5 { margin: 0 0 10px; font-family: var(--display); font-size: max(12px, calc(16px * var(--text-scale, 1))); font-weight: 600; color: #f3e6c4; }
-#choice .opt { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; padding: 8px 0; border-top: 1px solid var(--line); }
+#choice .opt { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; width: 100%; min-height: 44px; box-sizing: border-box; padding: 8px 0; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--washi); font: inherit; text-align: left; pointer-events: auto; cursor: pointer; }
+#choice .opt + .opt { margin-top: 8px; }
+#choice .opt:active { background: rgba(236,228,210,.12); }
+#choice .opt:focus-visible { outline: 3px solid var(--kin); outline-offset: 0; box-shadow: 0 0 0 5px #14120f; }
 #choice .opt b { font-weight: 500; }
 #choice .opt small { grid-column: 2; color: var(--washi-dim); font-size: max(12px, calc(12px * var(--text-scale, 1))); }
 #choice .tm { height: 2px; background: var(--sumi-3); margin-top: 8px; position: relative; }
@@ -1311,15 +1314,15 @@ body.rm #h-units .face { transition: none; }
 }
 /* 低い画面（スマホ横）の HUD の札どうしの重なりをほどく */
 @media (max-height: 500px) {
-  /* 選ぶ札：上に寄せ、下の字幕に届かない高さで止める。出ている間は方角の帯・知らせ・手ほどきを引っ込める（札は一度に一つ） */
-  /* 選ぶ札は左上（止める・地図の下）に。右側は見回すなぞりのために空けておく */
-  #hud #choice { left: calc(16px + env(safe-area-inset-left, 0px)); transform: none; top: calc(62px + env(safe-area-inset-top, 0px)); max-height: calc(100vh - 62px - 156px); overflow-y: auto; width: min(320px, 34vw); box-sizing: border-box; padding: 6px 10px; background: rgba(12,10,8,.8); }
+  /* 選ぶ札は下中央へ。幅は三分の一以内、高さは半分以内にして戦場を空ける。長い文は札の中を送る */
+  #hud #choice { left: 50%; right: auto; transform: translateX(-50%); top: auto; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); margin-top: 0; max-height: 48vh; overflow-y: auto; pointer-events: auto; width: min(280px, 32vw); box-sizing: border-box; padding: 6px 8px; background: rgba(12,10,8,.9); }
   /* 携帯横では札を細く・薄く（戦場の左半分を覆わない）。字は本文 14px・添えは 12px */
-  #hud #choice h5 { font-size: max(12px, calc(14px * var(--text-scale, 1))); margin-bottom: 4px; }
+  #hud #choice h5 { font-size: max(12px, calc(14px * var(--text-scale, 1))); line-height: 1.4; letter-spacing: 0; margin-bottom: 4px; }
   #hud #choice .opt b { font-size: max(12px, calc(14px * var(--text-scale, 1))); line-height: 1.3; }
-  #hud:has(#choice:not([hidden])) :is(#compass, #bark, #boss, #tutorial, #skiphint) { visibility: hidden; }
-  /* 選ぶ札が左にある間は、見出し（#banner）を札の右へ寄せる（「今川本陣に突入」が札に重なっていた。10/2） */
-  #hud:has(#choice:not([hidden])) #banner { left: calc(40vw + 24px + env(safe-area-inset-left, 0px)); font-size: max(12px, calc(clamp(16px, 3.4vw, 28px) * var(--text-scale, 1))); }
+  #hud #choice .opt small { line-height: 1.3; }
+  #hud #choice .opt small:empty { display: none; }
+  #hud #choice .tm { margin-top: 4px; }
+  #hud:has(#choice:not([hidden])) :is(#compass, #bark, #boss, #tutorial, #skiphint, #subtitle, #h-squad, #h-units, #banner) { visibility: hidden; }
   /* 指揮の札：指で押せるように。手ほどきの札とは同時に出さない */
   /* 左上（止める・地図の下）に三列で小さく。右側は見回すなぞりのために空けておく。説明の小さい字は畳む */
   html.touch #hud #cmdpanel { pointer-events: auto; left: calc(16px + env(safe-area-inset-left, 0px)); top: calc(62px + env(safe-area-inset-top, 0px)); bottom: auto; transform: none; min-width: 0; width: min(330px, 40vw); box-sizing: border-box; padding: 6px 8px; max-height: calc(100vh - 62px - 150px); overflow-y: auto; }
@@ -1621,6 +1624,10 @@ html.touch.tc-low #hud #armybar { width: min(360px, 40vw); top: calc(6px + env(s
 /* 兵の声は上三分の一の中央寄り。場所の札は hudRects でこの領域を避ける。 */
 #hud #bark, #hud.lean #bark, html.touch.tc-low #hud #bark, html.touch.tc-low #hud.lean #bark { top: calc(clamp(96px, 28vh, 180px) + env(safe-area-inset-top, 0px)) !important; bottom: auto !important; left: 50% !important; transform: translateX(-50%) !important; max-width: min(46vw, 460px) !important; }
 #hud #bark .bk { line-height: 1.4; overflow-wrap: anywhere; }
+/* 携帯横の選ぶ札は左右の操作の間に収める。左右を入れ替えても任務・小地図・組の札に掛けない */
+@media (max-height: 500px) {
+  html.touch.tc-low #hud #choice { left: var(--pm-l); right: var(--pm-r2); width: auto; max-width: 280px; margin-inline: auto; transform: none; }
+}
 </style>
 <link rel="stylesheet" href="screens.css">
 
@@ -1744,5 +1751,5 @@ html.touch.tc-low #hud #armybar { width: min(360px, 40vw); top: calc(6px + env(s
 } }
 </script>
 <script type="module">
-import('./v202610031748/src/main.js').catch(() => window.__bootFail());
+import('./v202610031841/src/main.js').catch(() => window.__bootFail());
 </script>
