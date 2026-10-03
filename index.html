@@ -20259,6 +20259,40 @@ siegeStarve(K, dt, K.built>=3?0.4:K.built===2?0.22:K.built===1?0.1:-0.03);
 K.food=Math.min(100,K.food);
 chip(`【八上 三年の囲み】付城 ${K.built}/3（${K.spots.map(s=>Math.round(s.work)+"%").join("・")}）｜兵糧 ${siegeGaugeBar(K.food)} ${Math.round(K.food)}%`); }
 
+const FIELD_PLAN={
+anegawa:{ src:"『信長公記』巻三、『三河物語』（姉川の戦い 布陣図）", top:"西（上流）", bottom:"東（下流）",
+army:{ "浅井家":[{n:"磯野員昌",d:0.30,t:0.70},{n:"浅井政澄",d:0.24,t:0.60},{n:"阿閉貞征",d:0.22,t:0.82},{n:"浅井長政",d:0.08,t:0.72}],
+"朝倉家":[{n:"朝倉景健",d:0.16,t:0.24},{n:"前波",d:0.28,t:0.18},{n:"朝倉景紀",d:0.24,t:0.32}],
+"織田家":[{n:"坂井政尚",d:0.34,t:0.72},{n:"池田恒興",d:0.30,t:0.62},{n:"羽柴秀吉",d:0.26,t:0.80},{n:"柴田勝家",d:0.22,t:0.68},{n:"森可成",d:0.20,t:0.58},{n:"佐久間信盛",d:0.16,t:0.76},{n:"稲葉",d:0.24,t:0.46},{n:"織田信長",d:0.06,t:0.74}],
+"徳川家":[{n:"酒井忠次",d:0.34,t:0.22},{n:"小笠原",d:0.30,t:0.30},{n:"本多忠勝",d:0.28,t:0.16},{n:"榊原康政",d:0.24,t:0.06},{n:"徳川家康",d:0.08,t:0.24}] } },
+yamazaki:{ src:"『太閤記』、『兼見卿記』（山崎の戦い 布陣図）", top:"北（天王山）", bottom:"南（淀川）",
+army:{ "明智家":[{n:"松田政近",d:0.30,t:0.16},{n:"並河",d:0.28,t:0.26},{n:"斎藤利三",d:0.32,t:0.48},{n:"伊勢貞興",d:0.30,t:0.62},{n:"津田",d:0.28,t:0.84},{n:"明智光秀",d:0.08,t:0.56}],
+"羽柴家":[{n:"羽柴秀長",d:0.30,t:0.10},{n:"黒田",d:0.26,t:0.16},{n:"中川清秀",d:0.34,t:0.36},{n:"高山",d:0.36,t:0.50},{n:"堀秀政",d:0.30,t:0.62},{n:"池田恒興",d:0.32,t:0.88},{n:"羽柴秀吉",d:0.05,t:0.56}] } },
+shizugatake:{ src:"『太閤記』（賤ヶ岳の戦い 布陣図）", top:"北（柴田の陣）", bottom:"南（余呉湖）",
+army:{ "柴田家":[{n:"佐久間盛政",d:0.38,t:0.42},{n:"佐久間",d:0.32,t:0.50},{n:"前田利家",d:0.20,t:0.66},{n:"柴田勝家",d:0.06,t:0.30}],
+"羽柴家":[{n:"中川清秀",d:0.34,t:0.42},{n:"高山",d:0.30,t:0.52},{n:"桑山",d:0.28,t:0.64},{n:"丹羽長秀",d:0.20,t:0.84},{n:"羽柴秀長",d:0.12,t:0.30},{n:"羽柴秀吉",d:0.05,t:0.52}] } },
+kawanakajima:{ src:"『甲陽軍鑑』（第四次川中島 八幡原の布陣）", top:"北（犀川）", bottom:"南（千曲川・妻女山）",
+army:{ "武田家":[{n:"武田信繁",d:0.24,t:0.30},{n:"山本",d:0.20,t:0.42},{n:"諸角",d:0.22,t:0.20},{n:"内藤",d:0.24,t:0.64},{n:"両角",d:0.22,t:0.74},{n:"穴山",d:0.16,t:0.56},{n:"武田信玄",d:0.08,t:0.48},{n:"高坂",d:0.36,t:0.94},{n:"馬場",d:0.42,t:0.94}],
+"長尾家":[{n:"柿崎",d:0.34,t:0.46},{n:"直江",d:0.22,t:0.36},{n:"宇佐美",d:0.24,t:0.60},{n:"甘粕",d:0.10,t:0.90},{n:"上杉謙信",d:0.16,t:0.48},{n:"長尾景虎",d:0.16,t:0.48}],
+"上杉家":[{n:"柿崎",d:0.34,t:0.46},{n:"直江",d:0.22,t:0.36},{n:"宇佐美",d:0.24,t:0.60},{n:"甘粕",d:0.10,t:0.90},{n:"上杉謙信",d:0.16,t:0.48}] } },
+mimikawa:{ src:"『大友興廃記』、島津家文書（耳川の戦い 布陣図）", top:"北（高城）", bottom:"南（小丸川の下流）",
+army:{ "島津家":[{n:"島津家久",d:0.26,t:0.24},{n:"島津義弘",d:0.20,t:0.58},{n:"島津以久",d:0.30,t:0.90},{n:"島津義久",d:0.06,t:0.50}],
+"大友家":[{n:"田北",d:0.36,t:0.44},{n:"佐伯",d:0.32,t:0.56},{n:"吉弘",d:0.26,t:0.66},{n:"田原",d:0.08,t:0.50}] } },
+okitanawate:{ src:"『北肥戦誌』（沖田畷の戦い 布陣図）", top:"北（山の手）", bottom:"南（有明の海）",
+army:{ "島津家":[{n:"島津家久",d:0.22,t:0.50},{n:"赤星",d:0.30,t:0.42},{n:"新納",d:0.18,t:0.28},{n:"川上",d:0.18,t:0.70}],
+"有馬家":[{n:"有馬晴信",d:0.20,t:0.88}],
+"龍造寺家":[{n:"鍋島",d:0.30,t:0.20},{n:"江上",d:0.30,t:0.80},{n:"龍造寺隆信",d:0.10,t:0.50}] } }
+};
+function fieldPlanApply(P){ if(!B||!P||!P.army) return; const Wd=BF.w, H=BF.h; const placed=[];
+const sideOf={}; for(const u of B.units){ const g=W.generals[u.gid]; if(!g) continue; const cn=clanName(g.clan); if(sideOf[cn]===undefined) sideOf[cn]=u.side; }
+const home={}; for(const sd of [0,1]){ const us=B.units.filter(u=>u.side===sd&&u.troops>.5); home[sd]=(us.reduce((a,u)=>a+u.x,0)/Math.max(1,us.length))<Wd/2?"L":"R"; }
+const used=new Set();
+for(const cn of Object.keys(P.army)){ for(const e of P.army[cn]){ const u=B.units.find(v=>!used.has(v.id)&&v.troops>.5&&!v.sigHidden&&(v.name||"").indexOf(e.n)>=0&&(sideOf[cn]===undefined||v.side===sideOf[cn])); if(!u) continue; used.add(u.id);
+const pad=(B.padX||0); const span=Wd-2*pad; const x = home[u.side]==="L" ? pad+e.d*span : Wd-pad-e.d*span;
+u.x=Math.max(1.5,Math.min(Wd-1.5,x)); u.y=Math.max(1.5,Math.min(H-1.5,1.2+e.t*(H-2.4))); u.gx=u.x; u.gy=u.y; u.cell=null; u.nextCell=null; u.stageX=undefined; u.stageY=undefined; placed.push(u.name); } }
+try{ gridSettleAll(); }catch(_){ }
+B.fieldLabels=(B.fieldLabels||[]).concat([{x:Wd/2,y:0.9,t:P.top||""},{x:Wd/2,y:H-0.9,t:P.bottom||""}]).filter(l=>l.t);
+B.fieldPlanPlaced=placed; }
 function stageKitSetup(dec){ if(!B||!dec) return; const k=dec.key; try{
 if(k==="miki") mikiSetup(); else if(k==="tottori_siege") tottoriKitSetup(); else if(k==="yakami") yakamiSetup(); else if(k==="kanegasaki") kanSetup(); else if(k==="kyushu_nightraid") nrSetup(); else if(k==="shikoku_counter") ambSetup(); else if(k==="tanabe") negoSetup(); else if(k==="hasedo") hillSetup(); else if(k==="yamanaka") moatSetup(); else if(k==="hachioji") hachiSetup(); else if(k==="oshi") oshiSetup(); else if(k==="gaikaku") gaikSetup(); else if(k==="yamazato") yamazatoSetup(); else if(k==="imafuku") imafukuSetup(); else if(k==="iga1") igaSetup(); else if(k==="yao") yaoSetup();
 else if(k==="ueda1"||k==="ueda") lureSetup(k); else if(k==="nagakute") nagakuteSetup(); else if(k==="komaki_hs") komakiSetup(); else if(k==="komaki_tk") inuyamaSetup(); else if(k==="odani") odaniSetup(); else if(k==="temmoku") temmokuSetup(); else if(k==="takato") takatoSetup(); else if(k==="ichijodani") B.icj=true; else if(k==="kitanosho") kitanoshoSetup(); else if(k==="gifu_nobutaka") gifuNSetup(); else if(k==="hetsugigawa") hetsugiSetup(); else if(k==="nejirozaka") nejiroSetup(); else if(k==="hitotoribashi") hitoSetup(); else if(k==="ichinomiya") ichinomiyaSetup(); else if(k==="takatenjin_assault") tkjASetup(); else if(k==="takatenjin_break") tkjBSetup(); else if(k==="tottori_relief") tottoriSetup(); else if(k==="takamatsu_field") takamatsuSetup(); else if(k==="nodafukushima") nodaSetup(); else if(k==="sakamoto") sakamotoSetup(); else if(k==="nagashima") nagashimaSetup(); else if(k==="mimikawa") mimikawaSetup(); else if(k==="okitanawate") okitaSetup(); else if(k==="suriagehara") suriSetup(); else if(k==="kawanakajima") kawaSetup(); else if(k==="shizugatake"||k==="shizugatake_open") shizuSetup(); else if(k==="wakamiko") wakaSetup(); else if(k==="honnoji") honnojiKitSetup(); else if(k==="nijo") nijoKitSetup(); else if(k==="kizu") B.kzk=true; else if(k==="tennoji_relief") B.tnrk=true; else if(k==="yamazaki") B.ymk=true; else if(k==="odawara") odawaraKitSetup(); else if(k==="tennoji") tennojiKitSetup(); else if(k==="arioka") B.ark=true; else if(k==="osaka") domyojiSetup(); else if(k==="sekigahara") sekDecorSetup();
@@ -25930,6 +25964,7 @@ if(B.nagashino){ try{ nagSpread(); }catch(e9){ console.error("spread",e9); } try
 try{ fieldKitSetup(); }catch(e){ console.error("field",e); }
 if(B.ckWant){ const cw=B.ckWant; B.ckWant=null; try{ ckSetup(cw===true?null:cw); }catch(e){ console.error("ck",e); } if(B.ueda){ try{ uedaTownBuild(); }catch(e){ console.error(e); } } }
 if(dec){ try{ stageKitSetup(dec); }catch(e13){ console.error(e13); } }
+if(dec&&FIELD_PLAN[dec.key]){ try{ fieldPlanApply(FIELD_PLAN[dec.key]); }catch(e14){ console.error(e14); } }
 if((B.zoom||1)===1&&!B.sim){ B.zoom=BZ_NORMAL; try{ bView(); }catch(_){ } }
 
 B.opening=PREF.skipSetup?0:999; B.openShownAt=undefined;
