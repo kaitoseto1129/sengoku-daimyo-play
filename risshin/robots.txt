@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/sitemap.xml

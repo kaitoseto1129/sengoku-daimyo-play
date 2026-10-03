@@ -1,7 +1,15 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202610021443 として写した） -->
-<title>戦国立身 3D</title>
-<link rel="icon" type="image/png" sizes="32x32" href="./v202610021443/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610021443/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610021443/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610021443/assets/icon/apple-touch-icon.png">
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202610022359 として写した） -->
+<title>戦国立身3D　足軽から天下へ、戦国の合戦アクション</title>
+<meta name="description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。">
+<link rel="canonical" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/">
+<meta name="theme-color" content="#14120f">
+<meta property="og:type" content="website"><meta property="og:site_name" content="戦国立身3D"><meta property="og:locale" content="ja_JP">
+<meta property="og:title" content="戦国立身3D　足軽から天下へ、戦国の合戦アクション"><meta property="og:description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。"><meta property="og:url" content="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/">
+<meta property="og:image" content="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/og.png"><meta property="og:image:width" content="1280"><meta property="og:image:height" content="672"><meta property="og:image:alt" content="姉川の戦いの戦場を行く足軽">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="戦国立身3D　足軽から天下へ"><meta name="twitter:description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。"><meta name="twitter:image" content="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/og.png">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGame","name":"戦国立身3D","inLanguage":"ja","url":"https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/","description":"足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。","genre":["アクション","歴史","戦国"],"gamePlatform":["Web","iOS"],"applicationCategory":"Game","operatingSystem":"Web, iOS","image":"https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/og.png","offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"}}</script>
+<link rel="icon" type="image/png" sizes="32x32" href="./v202610022359/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610022359/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610022359/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610022359/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -279,7 +287,7 @@ body.rm #crosshair.gping::after, body.rm #crosshair.gmiss::after { animation-dur
 #sublog { position: absolute; left: 20px; bottom: 90px; width: min(420px, 60vw); max-height: 40vh; overflow: hidden; background: rgba(10,9,7,.85); border: 1px solid var(--line); padding: 10px 12px; font-size: 12.5px; line-height: 1.6; }
 #sublog h5 { margin: 0 0 6px; color: var(--kin); font-weight: 500; letter-spacing: .1em; }
 #sublog .sp { color: var(--kin); margin-right: .5em; }
-.objnew { margin-top: 6px; font-size: 12px; color: var(--kin); animation: toast 3.2s ease-out forwards; }
+.objnew { margin-top: 6px; font-size: 12px; overflow-wrap: anywhere; text-align: right; color: var(--kin); animation: toast 3.2s ease-out forwards; }
 #objectives li small { display: block; color: var(--washi-dim); font-size: 12px; }
 .threat { position: absolute; font-family: var(--display); font-weight: 800; font-size: 22px; color: #ff6a4a; text-shadow: 0 0 6px rgba(0,0,0,.9); pointer-events: none; }
 .mk.near { opacity: .35; }
@@ -483,6 +491,7 @@ body.rm .toast, body.rm #banner.show, body.rm .ln, body.rm .promo, body.rm .stor
 #banner { top: 26%; }
 #banner .brush { display: inline-block; padding: 14px 70px 18px; background-size: 100% 100%; background-repeat: no-repeat; color: #fff; -webkit-text-stroke: 1.5px rgba(40,8,4,.9); paint-order: stroke fill; text-shadow: 0 3px 10px rgba(0,0,0,.6); }
 #banner small { color: #f0e2c0; text-shadow: 0 1px 3px #000; }
+#banner small { max-width: min(640px, 56vw); margin-left: auto; margin-right: auto; overflow-wrap: anywhere; text-wrap: balance; line-height: 1.55; }
 /* 開戦の大見出し（藍の濃淡に白の縁取り） */
 #intro { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; pointer-events: none; }
 #intro .vs { font-family: var(--display); font-weight: 800; font-size: clamp(40px, 7vw, 88px); letter-spacing: .08em; line-height: 1.1; background: linear-gradient(180deg, #ffffff 0%, #bcd4f5 40%, #2e5aa0 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-stroke: 2px #fff; filter: drop-shadow(0 4px 10px rgba(0,0,0,.7)); animation: introIn 3.4s ease-out forwards; }
@@ -625,6 +634,8 @@ body.ca #compass .c.foe span { color: #ff9a1a; }
   html.touch #hud #armybar .side .nm small { display: none; }
   html.touch #hud #compass { top: calc(58px + env(safe-area-inset-top, 0px)); width: min(340px, 40vw); }
   html.touch #hud #h-units { max-width: 22vw; }
+  /* 触れない低い画面：顔の札（一段・幅の 45% まで）の左に字幕を寄せる */
+  html:not(.touch) #hud:has(#h-units:not([hidden])) #subtitle { left: 16px; bottom: 104px; transform: none; max-width: calc(55vw - 56px); text-align: left; }
   html.touch #hud .tl { width: 176px; }
   /* 知らせ（#bark）は低い画面では方角の帯の下の一か所に（照準・一時の字とぶつけない） */
   #hud #bark { top: calc(112px + env(safe-area-inset-top, 0px)); bottom: auto; left: 58%; transform: translateX(-50%); max-width: min(40vw, 350px); }
@@ -743,6 +754,8 @@ kbd.cap { display: inline-block; min-width: 1.4em; padding: 0 5px; margin: 0 2px
 #choice .tm i { position: absolute; inset: 0; right: auto; background: var(--kin); }
 /* 判断の札が出ている間は、戦場が札に食われないよう、ほかの一時の札を引っ込める（パソコンの広い画面でも） */
 #hud:has(#choice:not([hidden])) :is(#compass, #bark, #boss, #tutorial, #skiphint, #flash, #cmdpanel) { visibility: hidden; }
+/* パソコンでは判断の札と任務の札がどちらも右上にあり、字が重なって読めなかった（10/2 志賀 1600×900）。札が出ている間は任務を引っ込める */
+@media (min-height: 501px) { #hud:has(#choice:not([hidden])) #objectives { visibility: hidden; } }
 
 /* ================= 第5弾（画面） ================= */
 .pb { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font-size: 12px; font-weight: 700; color: #111; font-family: var(--ui); }
@@ -1267,6 +1280,8 @@ body.rm #h-units .face { transition: none; }
   #hud #choice h5 { font-size: 14px; margin-bottom: 4px; }
   #hud #choice .opt b { font-size: 14px; line-height: 1.3; }
   #hud:has(#choice:not([hidden])) :is(#compass, #bark, #boss, #tutorial, #skiphint) { visibility: hidden; }
+  /* 選ぶ札が左にある間は、見出し（#banner）を札の右へ寄せる（「今川本陣に突入」が札に重なっていた。10/2） */
+  #hud:has(#choice:not([hidden])) #banner { left: calc(40vw + 24px + env(safe-area-inset-left, 0px)); font-size: clamp(16px, 3.4vw, 28px); }
   /* 指揮の札：指で押せるように。手ほどきの札とは同時に出さない */
   /* 左上（止める・地図の下）に三列で小さく。右側は見回すなぞりのために空けておく。説明の小さい字は畳む */
   html.touch #hud #cmdpanel { pointer-events: auto; left: calc(16px + env(safe-area-inset-left, 0px)); top: calc(62px + env(safe-area-inset-top, 0px)); bottom: auto; transform: none; min-width: 0; width: min(330px, 40vw); box-sizing: border-box; padding: 6px 8px; max-height: calc(100vh - 62px - 150px); overflow-y: auto; }
@@ -1379,6 +1394,9 @@ html.touch.inframe #tc .hint { top: calc(70px + env(safe-area-inset-top, 0px)); 
   html.touch:not(.tc-cmd) #hud #h-units { display: none; }
   /* 任務は二行まで、小地図は小さく（右の「狙い」の丸に届かない高さ） */
   html.touch #hud #objectives { max-height: 58px; }
+  /* 長い任務（21字から）は字を小さくして二行に収める（三行目が札の外へはみ出していた。見回り 10/2） */
+  html.touch #hud #objectives li.cur.long:not(.done) { font-size: 13.5px; line-height: 1.32; padding: 4px 6px; }
+  html.touch #hud #objectives:has(li.cur.long) { max-height: 74px; }
   html.touch #hud #minimap { width: 62px; height: 62px; }
   /* ヒントは上の真ん中に短く（左の札・顔の札の下に潜らない） */
   /* 手ほどき・ヒントの札：戦功の札の右、方角の帯の下に（左下の体力の札・字幕・右下の丸に掛けない） */
@@ -1547,9 +1565,10 @@ html.touch.tc-low #hud #bark { top: calc(112px + env(safe-area-inset-top, 0px));
 /* 右上の任務は今の一つだけ、小地図は小さく。上の札は止める・地図・視点の下へ */
 html.touch.tc-low #hud .tr { width: 190px; gap: 6px; top: calc(8px + env(safe-area-inset-top, 0px)); }
 html.touch.tc-low #hud #objectives { max-height: 58px; overflow: hidden; padding: 6px 10px; font-size: 12px; }
+html.touch.tc-low #hud #objectives:has(li.cur.long) { max-height: 74px; }
 html.touch.tc-low #hud #objectives li.more { min-height: 0; line-height: 18px; margin-top: 0; }
 /* 任務更新の知らせは一行に（折り返すと小地図の下へ潜って読めない） */
-html.touch.tc-low #hud #objectives .objnew { margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html.touch.tc-low #hud #objectives .objnew { margin-top: 2px; white-space: normal; overflow-wrap: anywhere; line-height: 1.4; }
 html.touch.tc-low #hud #objectives:not(.expand) li:not(.cur):not(.more), html.touch.tc-low #hud #objectives h4 { display: none; }
 html.touch.tc-low #hud #minimap { width: 62px; height: 62px; }
 html.touch.tc-low #hud .tl { left: calc(16px + env(safe-area-inset-left, 0px)); top: calc(62px + env(safe-area-inset-top, 0px)); width: 176px; }
@@ -1664,4 +1683,4 @@ html.touch.tc-low #hud.lean #bark { top: calc(8px + env(safe-area-inset-top, 0px
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
 } }
 </script>
-<script type="module" src="./v202610021443/src/main.js"></script>
+<script type="module" src="./v202610022359/src/main.js"></script>
