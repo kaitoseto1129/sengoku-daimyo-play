@@ -29360,7 +29360,7 @@ bctx.imageSmoothingQuality="high";
 if(!B.tiles) B.tiles=genBattleTiles(B.t, B.seed||1, !!B.fort);
 if(!B.bg || B.bgW!==WW || B.bgH!==H_){ B.bg=bakeBattleGround(WW,H_); B.bgW=WW; B.bgH=H_; }
 
-const DPR=Math.min(window.devicePixelRatio||1,2); let shx=0, shy=0;
+const DPR=(bcanvas.width/Math.max(1,bcanvas.clientWidth))||Math.min(window.devicePixelRatio||1,2); let shx=0, shy=0;
 if(B.shakeT>0){ B.shakeT-=0.016; const k=Math.min(1,B.shakeT/0.25); shx=(Math.random()-.5)*3.5*k; shy=(Math.random()-.5)*2.5*k; }
 
 const V=bView(); const zoomed=WW>W_+1;
@@ -29823,6 +29823,10 @@ items.push({o:(kk-(n-1)/2)*lat*spread+(r%2?lat*0.5:0), d:r*dep+4, row:r}); } }
 
 const leadD = (u.type===2||u.type===1) ? -6 : (u.type===3 ? 16 : 16);
 const toScr=(o,d)=>({ x: x + (lxv*o - fcos*d)*Z, y: y + (lyv*o - fsin*d)*Z*0.72 });
+
+{ let ty0=1e9, ty1=-1e9; for(const it of items){ const p=toScr(it.o,it.d); if(p.y<ty0) ty0=p.y; if(p.y>ty1) ty1=p.y; }
+const bot=BF.h*sy - sh*0.15, top=sh*0.95;
+if(ty1>bot) y-=Math.min(ty1-bot, sy*3); else if(ty0<top) y+=Math.min(top-ty0, sy*3); }
 
 { let bx0=1e9,by0=1e9,bx1=-1e9,by1=-1e9; for(const it of items){ const p=toScr(it.o,it.d); if(p.x<bx0)bx0=p.x; if(p.x>bx1)bx1=p.x; if(p.y<by0)by0=p.y; if(p.y>by1)by1=p.y; }
 if(bx0<1e8&&sx>0&&sy>0){ const padX=sw*0.55, padY=sh*0.62; u.box={x0:(bx0-padX)/sx, y0:(by0-padY)/sy, x1:(bx1+padX)/sx, y1:(by1+padY)/sy, at:B.elapsed}; } else u.box=null; }
@@ -30643,7 +30647,7 @@ if(!B||B.over!==null) return;
 
 if(B.bc && B.bcHit){ const r0=bcanvas.getBoundingClientRect(); const px=(ev.clientX-r0.left)*(bcanvas.width/r0.width)/(window.devicePixelRatio&&bcanvas.width>r0.width?1:1);
 const sx=(ev.clientX-r0.left)*(bcanvas.width/r0.width), sy=(ev.clientY-r0.top)*(bcanvas.height/r0.height);
-const dpr=Math.min(window.devicePixelRatio||1,2);
+const dpr=(bcanvas.width/Math.max(1,bcanvas.clientWidth))||Math.min(window.devicePixelRatio||1,2);
 const hx=B.bcHit.x*dpr, hy=B.bcHit.y*dpr, hw=B.bcHit.w*dpr, hh=B.bcHit.h*dpr;
 if(sx>=hx&&sx<=hx+hw&&sy>=hy&&sy<=hy+hh){ bCoachDone(); return; } }
 

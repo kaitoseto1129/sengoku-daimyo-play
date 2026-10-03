@@ -431,6 +431,24 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
   #hero .l-bg video.mv,#hero .l-bg img{object-position:28% 50%!important}
   #hero .l-veil{background:linear-gradient(180deg,rgba(11,9,7,.55) 0%,rgba(11,9,7,.05) 14%,rgba(11,9,7,.1) 34%,var(--sumi) 52%,var(--sumi) 100%)!important}
 }
+
+.pvbtn{display:inline-flex;align-items:center;gap:10px;margin-top:16px;min-height:44px;padding:8px 18px 8px 8px;border:1px solid rgba(243,226,176,.55);border-radius:999px;background:rgba(11,9,7,.55);color:#F3E2B0;font-family:var(--go);font-size:15px;letter-spacing:.08em;cursor:pointer}
+.pvbtn i{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:#C59A35;color:#1a1408;font-style:normal;font-size:13px;padding-left:2px}
+#pvModal{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;padding:16px}
+#pvModal[hidden]{display:none}
+#pvModal .pvbox{width:min(100%,1100px);text-align:center}
+#pvModal video{width:100%;display:block;background:#000;border:1px solid rgba(197,154,53,.5)}
+#pvModal p{font-family:var(--go);font-size:14px;color:var(--kami);margin-top:10px}
+#pvModal .pvx{min-height:44px;padding:0 16px;margin-bottom:10px;background:none;border:1px solid rgba(243,226,176,.5);color:#F3E2B0;font-size:15px;cursor:pointer}
+#koe{background:var(--sumi)}
+.koe-box{margin-top:26px;display:grid;gap:18px;max-width:720px}
+.koe-star b{font-family:var(--min);font-size:clamp(34px,6vw,48px);color:var(--kinpaku);margin-right:12px}
+.koe-star span{font-family:var(--go);font-size:14px;color:var(--kami)}
+.koe-q{margin:0;padding:18px 20px;border:1px solid rgba(197,154,53,.45);background:rgba(215,200,165,.05)}
+.koe-q .st{font-family:var(--go);font-size:14px;color:var(--kinpaku);letter-spacing:.06em}
+.koe-q p{font-family:var(--min);font-size:16px;line-height:1.9;color:var(--shiro);margin:8px 0}
+.koe-q cite{font-family:var(--go);font-size:14px;font-style:normal;color:var(--kami)}
+.koe-box .inban{justify-self:start}
 </style>
 </head>
 <body>
@@ -448,7 +466,7 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
 
 <header>
   <a class="logo" href="#hero">戦国大名</a>
-  <nav><a href="#mitsu">特徴</a><a href="#loop">遊び方</a><a href="#nagashino">長篠</a><a href="#ch3">合戦</a><a href="#gunki">軍記</a><a href="#ch4">軍議</a><a href="#guide">攻略</a><a href="#faq">問答</a><a href="#gunshikin">軍資金</a><button id="oto" type="button" title="風と太鼓の音（押した時だけ）">♪ 音</button></nav>
+  <nav><a href="#mitsu">特徴</a><a href="#loop">遊び方</a><a href="#koe">評価</a><a href="#nagashino">長篠</a><a href="#ch3">合戦</a><a href="#gunki">軍記</a><a href="#ch4">軍議</a><a href="#guide">攻略</a><a href="#faq">問答</a><a href="#gunshikin">軍資金</a><button id="oto" type="button" title="風と太鼓の音（押した時だけ）">♪ 音</button></nav>
 </header>
 
 <!-- 序 -->
@@ -466,6 +484,7 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
       <a class="fuda" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="hero_appstore_click"><svg><use href="#apple"/></svg>App Storeで無料ダウンロード</a>
       <a data-play data-ev="play_click" class="inban" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザで今すぐ遊ぶ</a>
     </div>
+    <button type="button" class="pvbtn" id="pvOpen" data-ev="pv_open"><i>▶</i>30秒の映像を見る</button>
     <div class="haifu"><span class="ph">長篠の戦いは無料・登録不要</span><span class="ph">／ iPhone・iPad・ブラウザ</span><span class="ph">／ 関ヶ原は ¥500</span></div>
   </div>
   <div class="scroll">SCROLL<i></i></div>
@@ -503,6 +522,18 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
     <div class="cycle"><div>城を治める</div><div>兵を集める</div><div>外交する</div><div>進軍</div><div class="hot">合戦</div><div>領地を獲得</div><div>さらに天下へ</div></div>
     <div class="sanpo"><div><b>一</b><h4>部隊を選ぶ</h4><p>押すだけ。複数はなぞる。</p></div><div><b>二</b><h4>進軍先を決める</h4><p>行き先を押す。柵へ、川へ、本陣へ。</p></div><div><b>三</b><h4>あとは軍勢が動く</h4><p>一兵ずつは操らない。<b>簡単操作。判断は奥深い。</b></p></div></div>
     <div class="who"><div>戦国時代が好き</div><div>歴史シミュレーションが好き</div><div>リアルタイムの戦略ゲームが好き</div><div>信長の野望系が好き</div><div>歴史のIFを楽しみたい</div><div>自分で軍を動かしたい</div></div>
+  </div>
+</section>
+<!-- 第258巡：遊んだ人の声（App Store の実際の評価と書き込みだけを載せる） -->
+<section id="koe">
+  <div class="wrap ar">
+    <div class="sho">遊んだ人の声</div>
+    <h2 class="h2">App Store の<br><span class="g">評価</span></h2>
+    <div class="koe-box">
+      <div class="koe-star"><b>★ 4.0</b><span>5点満点・4件の評価（2026年10月）</span></div>
+      <blockquote class="koe-q"><div class="st">★★★★★　なかなかいい</div><p>「マイナーな武将を拾っていたり、政治のシステムがちゃんとしてるなどなかなか面白いゲーム。」</p><cite>App Store のレビューより</cite></blockquote>
+      <a class="inban" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="koe_appstore_click">App Store で評価を見る</a>
+    </div>
   </div>
 </section>
 <!-- 長篠 軍記 -->
@@ -804,6 +835,7 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
   </div>
 </footer>
 
+<div id="pvModal" role="dialog" aria-modal="true" aria-label="30秒の映像" hidden><div class="pvbox"><button type="button" class="pvx" id="pvClose">閉じる ×</button><video id="pvVideo" controls playsinline preload="none" src="mov/pv.mp4" poster="img/hero.jpg"></video><p>すべて実際のゲーム画面です</p></div></div>
 <div id="player"><div class="box"><button class="x" type="button">閉じる ×</button><img alt=""><div class="cap"></div><div class="sub"></div></div></div>
 <div id="stick"><div class="row"><a class="fuda" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="sticky_appstore_click"><svg><use href="#apple"/></svg>App Storeで入手</a><a class="inban" data-play data-ev="sticky_play_click" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザで遊ぶ</a></div></div>
 <div id="susumi">天下統一まで<i></i><span id="susumiT">一国</span></div>
@@ -909,12 +941,18 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
 (()=>{ const still=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
   const boxes=[...document.querySelectorAll('[data-mov]')]; const vids=[];
   for(const b of boxes){ const im=b.querySelector('img'); const v=document.createElement('video'); v.className='mv'; v.muted=true; v.loop=true; v.playsInline=true; v.setAttribute('playsinline',''); v.setAttribute('muted',''); v.setAttribute('aria-hidden','true');
-    v.preload=b.dataset.hero?'auto':'none'; if(im) v.poster=im.currentSrc||im.src; v.src='mov/'+b.dataset.mov+'.mp4'; (im&&im.parentNode===b)?im.after(v):b.appendChild(v); vids.push(v); }
+    v.preload=b.dataset.hero?'auto':'none'; if(im) v.poster=im.currentSrc||im.src; v.src='mov/'+((b.dataset.hero&&window.innerWidth>720)?'kiba_hd':b.dataset.mov)+'.mp4'; (im&&im.parentNode===b)?im.after(v):b.appendChild(v); vids.push(v); }
   if(still) return;
   const go=v=>{ const p=v.play(); if(p&&p.catch) p.catch(()=>{}); };
   if(!('IntersectionObserver' in window)){ vids.forEach(go); return; }
   const io=new IntersectionObserver(es=>{ for(const e of es){ if(e.isIntersecting) go(e.target); else e.target.pause(); } },{rootMargin:'120px 0px'});
   vids.forEach(v=>io.observe(v)); })();
+</script>
+<script>
+(()=>{ const m=document.getElementById('pvModal'), v=document.getElementById('pvVideo'), o=document.getElementById('pvOpen'), x=document.getElementById('pvClose'); if(!m||!o) return;
+  const close=()=>{ try{ v.pause(); }catch(_){ } m.hidden=true; o.focus(); };
+  o.onclick=()=>{ m.hidden=false; try{ v.currentTime=0; const p=v.play(); if(p&&p.catch) p.catch(()=>{}); }catch(_){ } x.focus(); };
+  x.onclick=close; m.addEventListener('click',e=>{ if(e.target===m) close(); }); document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!m.hidden) close(); }); })();
 </script>
 </body>
 </html>
