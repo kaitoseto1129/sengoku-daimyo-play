@@ -1,0 +1,1 @@
+{"persona": "ux_c93", "name": "使い勝手にうるさい人・よくある画面で普通・すぐ次へ行く／少し疲れ気味", "view": [844, 390], "base": "ux", "days": 90, "runs": [{"sc": "nagashino", "clan": "織田家", "days": 90, "battles": 2, "stalls": 0, "refused": 1, "refusedDays": 1, "end": "1575年8月", "result": null, "castles": 21, "troops": 46415, "asked": [], "findings": []}], "at": "2026-10-03T19:30:46"}
