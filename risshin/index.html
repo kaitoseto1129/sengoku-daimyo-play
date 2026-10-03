@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202610031510 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202610031748 として写した） -->
 <title>戦国立身3D　足軽から天下へ、戦国の合戦アクション</title>
 <meta name="description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。">
 <link rel="canonical" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/">
@@ -9,7 +9,7 @@
 <meta property="og:image" content="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/og.png"><meta property="og:image:width" content="1280"><meta property="og:image:height" content="672"><meta property="og:image:alt" content="姉川の戦いの戦場を行く足軽">
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="戦国立身3D　足軽から天下へ"><meta name="twitter:description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。"><meta name="twitter:image" content="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/og.png">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGame","name":"戦国立身3D","inLanguage":"ja","url":"https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/","description":"足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。","genre":["アクション","歴史","戦国"],"gamePlatform":["Web","iOS"],"applicationCategory":"Game","operatingSystem":"Web, iOS","image":"https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/og.png","offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"}}</script>
-<link rel="icon" type="image/png" sizes="32x32" href="./v202610031510/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610031510/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610031510/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610031510/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202610031748/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610031748/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610031748/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610031748/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,6 +17,7 @@
 <style>
 :root {
   color-scheme: dark;
+  --text-scale: 1;
   --sumi: #14120f;
   --sumi-2: #1f1c17;
   --sumi-3: #2c2821;
@@ -33,7 +34,7 @@
   --ui: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
 }
 [hidden] { display: none !important; }
-html, body { height: 100%; margin: 0; background: var(--sumi); color: var(--washi); font-family: var(--ui); overflow: hidden; }
+html, body { height: 100%; margin: 0; background: var(--sumi); color: var(--washi); font-family: var(--ui); font-size: max(12px, calc(16px * var(--text-scale))); overflow: hidden; }
 canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 /* 画面の四隅をわずかに落とす（レンズの周辺減光。HUD には掛けない） */
 #lens { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 48%, transparent 58%, rgba(8,6,4,.32) 100%); }
@@ -41,75 +42,75 @@ button { font-family: var(--ui); }
 button:focus-visible, input:focus-visible { outline: 2px solid var(--kin); outline-offset: 2px; }
 
 /* ---------- HUD ---------- */
-#hud { position: fixed; inset: 0; pointer-events: none; font-size: 13px; }
+#hud { position: fixed; inset: 0; pointer-events: none; font-size: max(12px, calc(13px * var(--text-scale, 1))); }
 #hud[hidden] { display: none !important; }
 .tl { position: absolute; left: 20px; top: calc(16px + env(safe-area-inset-top, 0px)); width: 240px; display: grid; gap: 6px; }
-.who { font-family: var(--display); font-size: 17px; letter-spacing: .04em; text-shadow: 0 1px 3px #000; }
-.who small { font-family: var(--ui); font-size: 12px; color: var(--washi-dim); margin-left: 6px; letter-spacing: .08em; }
-.bar { display: grid; grid-template-columns: 34px 1fr; align-items: center; gap: 8px; font-size: 12px; color: var(--washi-dim); letter-spacing: .1em; }
+.who { font-family: var(--display); font-size: max(12px, calc(17px * var(--text-scale, 1))); letter-spacing: .04em; text-shadow: 0 1px 3px #000; }
+.who small { font-family: var(--ui); font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); margin-left: 6px; letter-spacing: .08em; }
+.bar { display: grid; grid-template-columns: 34px 1fr; align-items: center; gap: 8px; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); letter-spacing: .1em; }
 .bar i { display: block; height: 7px; background: rgba(0,0,0,.55); border: 1px solid var(--line); position: relative; }
 .bar i b { position: absolute; inset: 0; right: auto; width: 100%; background: var(--shu); transition: width .15s; }
 .bar.sta i b { background: var(--washi-dim); }
 .bar.mor i b { background: var(--moegi); }
-.merit-now { margin-top: 4px; font-size: 12px; color: var(--washi-dim); letter-spacing: .08em; text-shadow: 0 1px 2px #000; }
-.merit-now strong { font-family: var(--display); font-size: 22px; color: var(--kin); margin-left: 6px; font-variant-numeric: tabular-nums; }
+.merit-now { margin-top: 4px; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); letter-spacing: .08em; text-shadow: 0 1px 2px #000; }
+.merit-now strong { font-family: var(--display); font-size: max(12px, calc(22px * var(--text-scale, 1))); color: var(--kin); margin-left: 6px; font-variant-numeric: tabular-nums; }
 
 /* grid の暗黙の列は既定で auto（＝中身の最小幅を確保しようとする）。長い任務の字が 250px を超えると、
    列ごと右へはみ出す（Grid blowout）。minmax(0, 1fr) で列の最小幅を 0 にし、中の要素側で折り返す */
 .tr { position: absolute; right: 20px; top: calc(16px + env(safe-area-inset-top, 0px)); width: 250px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; justify-items: end; }
 #objectives { background: linear-gradient(90deg, transparent, rgba(10,9,7,.64) 18%); padding: 10px 12px 10px 28px; width: 100%; box-sizing: border-box; text-align: right; min-width: 0; overflow-wrap: break-word; }
-#objectives h4 { margin: 0 0 6px; font-family: var(--display); font-size: 14px; font-weight: 600; letter-spacing: .12em; color: var(--kin); }
-#objectives li { list-style: none; margin: 3px 0; font-size: 12.5px; line-height: 1.45; color: var(--washi); }
+#objectives h4 { margin: 0 0 6px; font-family: var(--display); font-size: max(12px, calc(14px * var(--text-scale, 1))); font-weight: 600; letter-spacing: .12em; color: var(--kin); }
+#objectives li { list-style: none; margin: 3px 0; font-size: max(12px, calc(12.5px * var(--text-scale, 1))); line-height: 1.45; color: var(--washi); }
 #objectives ul { margin: 0; padding: 0; }
 #objectives li.done { color: var(--washi-faint); text-decoration: line-through; }
 #objectives li.fail { color: var(--shu); text-decoration: line-through; }
-#objectives li .tag { font-size: 12px; letter-spacing: .1em; color: var(--washi-dim); border: 1px solid var(--line); padding: 0 4px; margin-right: 6px; }
+#objectives li .tag { font-size: max(12px, calc(12px * var(--text-scale, 1))); letter-spacing: .1em; color: var(--washi-dim); border: 1px solid var(--line); padding: 0 4px; margin-right: 6px; }
 #objectives li.order .tag { color: var(--shu); border-color: rgba(192,69,46,.5); }
 #minimap { width: 170px; height: 170px; border: 1px solid var(--line); background: rgba(10,9,7,.6); border-radius: 50%; }
 #bigmap { position: absolute; inset: 0; margin: auto; width: min(80vh, 80vw); height: min(80vh, 80vw); background: rgba(10,9,7,.85); border: 1px solid var(--line); }
 
-.topc { position: absolute; left: 50%; top: calc(16px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); display: flex; gap: 18px; align-items: baseline; padding: 6px 18px; background: rgba(10,9,7,.66); border-top: 2px solid var(--shu); font-size: 12px; letter-spacing: .06em; white-space: nowrap; }
-.topc b { font-family: var(--display); font-size: 16px; color: var(--washi); margin-left: 4px; font-variant-numeric: tabular-nums; }
+.topc { position: absolute; left: 50%; top: calc(16px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); display: flex; gap: 18px; align-items: baseline; padding: 6px 18px; background: rgba(10,9,7,.66); border-top: 2px solid var(--shu); font-size: max(12px, calc(12px * var(--text-scale, 1))); letter-spacing: .06em; white-space: nowrap; }
+.topc b { font-family: var(--display); font-size: max(12px, calc(16px * var(--text-scale, 1))); color: var(--washi); margin-left: 4px; font-variant-numeric: tabular-nums; }
 .topc .ord { color: var(--kin); }
 
 #crosshair { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; background: var(--washi); border-radius: 50%; opacity: .7; box-shadow: 0 0 0 1px rgba(0,0,0,.6); }
 
 .bottom { position: absolute; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); display: flex; gap: 8px; align-items: flex-end; }
-.slot { width: 58px; height: 46px; border: 1px solid var(--line); background: rgba(10,9,7,.66); display: grid; place-items: center; font-size: 12px; position: relative; color: var(--washi-dim); }
-.slot em { position: absolute; left: 4px; top: 2px; font-style: normal; font-size: 12px; color: var(--washi-faint); }
+.slot { width: 58px; height: 46px; border: 1px solid var(--line); background: rgba(10,9,7,.66); display: grid; place-items: center; font-size: max(12px, calc(12px * var(--text-scale, 1))); position: relative; color: var(--washi-dim); }
+.slot em { position: absolute; left: 4px; top: 2px; font-style: normal; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-faint); }
 .slot.on { border-color: var(--kin); color: var(--washi); }
 .slot.locked { opacity: .35; }
 .slot.cmd { width: auto; padding: 0 12px; color: var(--washi); }
 .slot.cmd.off { display: none; }
 
 #cmdpanel { position: absolute; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: rgba(10,9,7,.78); border: 1px solid var(--line); border-top: 2px solid var(--kin); padding: 12px 16px; min-width: 360px; }
-#cmdpanel h5 { margin: 0 0 8px; font-family: var(--display); font-size: 14px; font-weight: 600; color: var(--kin); letter-spacing: .12em; display: flex; justify-content: space-between; }
-#cmdpanel h5 span { font-family: var(--ui); font-size: 12px; color: var(--washi-dim); letter-spacing: .04em; }
+#cmdpanel h5 { margin: 0 0 8px; font-family: var(--display); font-size: max(12px, calc(14px * var(--text-scale, 1))); font-weight: 600; color: var(--kin); letter-spacing: .12em; display: flex; justify-content: space-between; }
+#cmdpanel h5 span { font-family: var(--ui); font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); letter-spacing: .04em; }
 #cmdpanel ol { margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-#cmdpanel li { list-style: none; border: 1px solid var(--line); padding: 6px 8px; font-size: 13px; }
+#cmdpanel li { list-style: none; border: 1px solid var(--line); padding: 6px 8px; font-size: max(12px, calc(13px * var(--text-scale, 1))); }
 #cmdpanel li kbd { font-family: var(--ui); color: var(--kin); margin-right: 6px; }
 #cmdpanel li.cur { border-color: var(--kin); background: rgba(194,162,90,.12); }
-#cmdpanel .grp { margin-top: 8px; font-size: 12px; color: var(--washi-dim); }
+#cmdpanel .grp { margin-top: 8px; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); }
 #cmdpanel .grp b { color: var(--washi); font-weight: 500; }
 
-#subtitle { position: absolute; left: 50%; bottom: calc(92px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); max-width: min(680px, 90vw); text-align: center; font-size: 17px; line-height: 1.55; text-shadow: 0 1px 3px #000, 0 0 10px rgba(0,0,0,.8); }
-#subtitle .sp { color: var(--kin); margin-right: .6em; font-size: 14px; letter-spacing: .06em; }
-#prompt { position: absolute; left: 50%; top: 58%; transform: translateX(-50%); padding: 4px 12px; background: rgba(10,9,7,.75); border: 1px solid var(--line); font-size: 13px; }
+#subtitle { position: absolute; left: 50%; bottom: calc(92px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); max-width: min(680px, 90vw); text-align: center; font-size: max(12px, calc(17px * var(--text-scale, 1))); line-height: 1.55; text-shadow: 0 1px 3px #000, 0 0 10px rgba(0,0,0,.8); }
+#subtitle .sp { color: var(--kin); margin-right: .6em; font-size: max(12px, calc(14px * var(--text-scale, 1))); letter-spacing: .06em; }
+#prompt { position: absolute; left: 50%; top: 58%; transform: translateX(-50%); padding: 4px 12px; background: rgba(10,9,7,.75); border: 1px solid var(--line); font-size: max(12px, calc(13px * var(--text-scale, 1))); }
 #prompt kbd { color: var(--kin); font-family: var(--ui); margin-right: 6px; }
 
 #toasts { position: absolute; right: 290px; top: 38%; display: grid; gap: 4px; justify-items: end; }
-.toast { font-size: 14px; text-shadow: 0 1px 3px #000; animation: toast 2.6s ease-out forwards; white-space: nowrap; }
-.toast b { font-family: var(--display); color: var(--kin); margin-right: 8px; font-size: 18px; }
+.toast { font-size: max(12px, calc(14px * var(--text-scale, 1))); text-shadow: 0 1px 3px #000; animation: toast 2.6s ease-out forwards; white-space: nowrap; }
+.toast b { font-family: var(--display); color: var(--kin); margin-right: 8px; font-size: max(12px, calc(18px * var(--text-scale, 1))); }
 .toast.neg b { color: var(--shu); }
 @keyframes toast { 0% { opacity: 0; transform: translateX(12px); } 8% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
 
-#banner { position: absolute; left: 0; right: 0; top: 30%; text-align: center; font-family: var(--display); font-weight: 800; font-size: clamp(34px, 6vw, 64px); letter-spacing: .2em; text-shadow: 0 2px 16px rgba(0,0,0,.9); opacity: 0; }
-#banner small { display: block; font-family: var(--ui); font-weight: 500; font-size: 14px; letter-spacing: .3em; color: var(--washi-dim); margin-top: 6px; }
+#banner { position: absolute; left: 0; right: 0; top: 30%; text-align: center; font-family: var(--display); font-weight: 800; font-size: max(12px, calc(clamp(34px, 6vw, 64px) * var(--text-scale, 1))); letter-spacing: .2em; text-shadow: 0 2px 16px rgba(0,0,0,.9); opacity: 0; }
+#banner small { display: block; font-family: var(--ui); font-weight: 500; font-size: max(12px, calc(14px * var(--text-scale, 1))); letter-spacing: .3em; color: var(--washi-dim); margin-top: 6px; }
 #banner.show { animation: banner 3.2s ease-out forwards; }
 @keyframes banner { 0% { opacity: 0; letter-spacing: .5em; } 15% { opacity: 1; letter-spacing: .2em; } 75% { opacity: 1; } 100% { opacity: 0; } }
 
 #markers { position: absolute; inset: 0; }
-.mk { position: absolute; transform: translate(-50%, -100%); text-align: center; font-size: 12px; color: var(--kin); text-shadow: 0 1px 2px #000; white-space: nowrap; }
+.mk { position: absolute; transform: translate(-50%, -100%); text-align: center; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--kin); text-shadow: 0 1px 2px #000; white-space: nowrap; }
 .mk::before { content: ""; display: block; width: 10px; height: 10px; margin: 0 auto 2px; border: 2px solid var(--kin); transform: rotate(45deg); }
 .mk.red { color: #e36a52; }
 .mk.red::before { border-color: #e36a52; }
@@ -117,69 +118,69 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--kin); outli
 #vignette { position: absolute; inset: 0; box-shadow: inset 0 0 160px rgba(120,10,0,.0); transition: box-shadow .3s; }
 #vignette.hurt { box-shadow: inset 0 0 160px rgba(140,16,4,.55); }
 
-#fps { position: absolute; left: calc(20px + env(safe-area-inset-left, 0px)); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); font-size: 12px; color: var(--washi-faint); }
+#fps { position: absolute; left: calc(20px + env(safe-area-inset-left, 0px)); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-faint); }
 
 /* ---------- Screens ---------- */
 #screen { position: fixed; inset: 0; overflow-y: auto; background: radial-gradient(ellipse at 30% 20%, #26211a 0%, var(--sumi) 60%); padding-inline: 16px; }
 #screen[hidden] { display: none !important; }
 #screen.clear { background: rgba(10,9,7,.78); backdrop-filter: blur(3px); }
 .wrap { max-width: 880px; margin: 0 auto; padding-block: 48px; }
-.eyebrow { font-size: 12px; letter-spacing: .3em; color: var(--washi-dim); }
-h1.title { font-family: var(--display); font-weight: 800; font-size: clamp(52px, 10vw, 104px); letter-spacing: .12em; margin: 12px 0 4px; line-height: 1.05; text-wrap: balance; }
+.eyebrow { font-size: max(12px, calc(12px * var(--text-scale, 1))); letter-spacing: .3em; color: var(--washi-dim); }
+h1.title { font-family: var(--display); font-weight: 800; font-size: max(12px, calc(clamp(52px, 10vw, 104px) * var(--text-scale, 1))); letter-spacing: .12em; margin: 12px 0 4px; line-height: 1.05; text-wrap: balance; }
 h1.title span { color: var(--shu); }
-.lead { max-width: 34em; color: var(--washi-dim); line-height: 1.9; font-size: 15px; }
-.btn { appearance: none; border: 1px solid var(--washi); background: transparent; color: var(--washi); padding: 12px 28px; font-size: 15px; letter-spacing: .14em; cursor: pointer; transition: background .15s, color .15s; }
+.lead { max-width: 34em; color: var(--washi-dim); line-height: 1.9; font-size: max(12px, calc(15px * var(--text-scale, 1))); }
+.btn { appearance: none; border: 1px solid var(--washi); background: transparent; color: var(--washi); padding: 12px 28px; font-size: max(12px, calc(15px * var(--text-scale, 1))); letter-spacing: .14em; cursor: pointer; transition: background .15s, color .15s; }
 .btn:hover { background: var(--washi); color: var(--sumi); }
 .btn.primary { background: var(--shu); border-color: var(--shu); color: #fff5ea; }
 .btn.primary:hover { background: #d5563d; color: #fff; }
-.btn.small { padding: 7px 16px; font-size: 13px; letter-spacing: .08em; }
-#town-sortie { position: fixed; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(150px + env(safe-area-inset-bottom, 0px)); z-index: 40; min-height: 48px; padding: 12px 22px; font-size: 16px; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,.45); pointer-events: auto; }
-@media (max-height: 500px) { #town-sortie { bottom: 108px; padding: 9px 18px; font-size: 15px; min-height: 44px; } }
+.btn.small { padding: 7px 16px; font-size: max(12px, calc(13px * var(--text-scale, 1))); letter-spacing: .08em; }
+#town-sortie { position: fixed; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(150px + env(safe-area-inset-bottom, 0px)); z-index: 40; min-height: 48px; padding: 12px 22px; font-size: max(12px, calc(16px * var(--text-scale, 1))); border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,.45); pointer-events: auto; }
+@media (max-height: 500px) { #town-sortie { bottom: 108px; padding: 9px 18px; font-size: max(12px, calc(15px * var(--text-scale, 1))); min-height: 44px; } }
 /* 指の端末：右下の大きな「話す・入る」の丸（高さ 84px）と 12px 以上あける。ノッチ・角の安全域も */
 html.touch #town-sortie { right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(128px + env(safe-area-inset-bottom, 0px)); }
 .btn:disabled { opacity: .35; cursor: not-allowed; }
 .btn:disabled:hover { background: transparent; color: var(--washi); }
 .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
 .field { display: grid; gap: 6px; max-width: 320px; }
-.field label { font-size: 12px; letter-spacing: .14em; color: var(--washi-dim); }
-.field input { background: transparent; border: 0; border-bottom: 1px solid var(--washi-dim); color: var(--washi); font-family: var(--display); font-size: 26px; padding: 4px 0; }
-.keys { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px 20px; font-size: 13px; color: var(--washi-dim); max-width: 720px; }
+.field label { font-size: max(12px, calc(12px * var(--text-scale, 1))); letter-spacing: .14em; color: var(--washi-dim); }
+.field input { background: transparent; border: 0; border-bottom: 1px solid var(--washi-dim); color: var(--washi); font-family: var(--display); font-size: max(12px, calc(26px * var(--text-scale, 1))); padding: 4px 0; }
+.keys { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px 20px; font-size: max(12px, calc(13px * var(--text-scale, 1))); color: var(--washi-dim); max-width: 720px; }
 .keys kbd { font-family: var(--ui); color: var(--washi); display: inline-block; min-width: 54px; }
-.keys.tk { grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 8px 24px; font-size: 15px; line-height: 1.5; max-width: 760px; color: var(--washi); }
+.keys.tk { grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 8px 24px; font-size: max(12px, calc(15px * var(--text-scale, 1))); line-height: 1.5; max-width: 760px; color: var(--washi); }
 .keys.tk > div { display: grid; grid-template-columns: 7.5em 1fr; gap: 8px; }
 .keys.tk kbd { min-width: 0; color: var(--kin); }
-.note { font-size: 12px; color: var(--washi-faint); line-height: 1.7; }
+.note { font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-faint); line-height: 1.7; }
 
 /* story card */
 .story { min-height: 100%; display: grid; place-items: center; text-align: center; }
-.story .year { font-size: 13px; letter-spacing: .4em; color: var(--washi-dim); }
-.story h2 { font-family: var(--display); font-weight: 800; font-size: clamp(36px, 7vw, 72px); letter-spacing: .18em; margin: 14px 0 22px; }
-.story p { max-width: 30em; margin: 0 auto 28px; line-height: 2.1; color: var(--washi-dim); font-size: 15px; }
+.story .year { font-size: max(12px, calc(13px * var(--text-scale, 1))); letter-spacing: .4em; color: var(--washi-dim); }
+.story h2 { font-family: var(--display); font-weight: 800; font-size: max(12px, calc(clamp(36px, 7vw, 72px) * var(--text-scale, 1))); letter-spacing: .18em; margin: 14px 0 22px; }
+.story p { max-width: 30em; margin: 0 auto 28px; line-height: 2.1; color: var(--washi-dim); font-size: max(12px, calc(15px * var(--text-scale, 1))); }
 
 /* evaluation */
 .eval { max-width: 640px; margin: 0 auto; padding-block: 44px; }
 .eval .head { border-bottom: 1px solid var(--line); padding-bottom: 14px; margin-bottom: 14px; }
-.eval h2 { font-family: var(--display); font-size: 34px; letter-spacing: .14em; margin: 6px 0 0; font-weight: 800; }
+.eval h2 { font-family: var(--display); font-size: max(12px, calc(34px * var(--text-scale, 1))); letter-spacing: .14em; margin: 6px 0 0; font-weight: 800; }
 .ledger { display: grid; gap: 0; }
-.ledger .ln { display: grid; grid-template-columns: 1fr auto 70px; gap: 12px; padding: 8px 0; border-bottom: 1px dashed var(--line); font-size: 15px; opacity: 0; animation: ln .35s ease-out forwards; }
-.ledger .ln .d { color: var(--washi-faint); font-size: 12.5px; align-self: center; }
-.ledger .ln .p { text-align: right; font-family: var(--display); font-size: 18px; font-variant-numeric: tabular-nums; }
+.ledger .ln { display: grid; grid-template-columns: 1fr auto 70px; gap: 12px; padding: 8px 0; border-bottom: 1px dashed var(--line); font-size: max(12px, calc(15px * var(--text-scale, 1))); opacity: 0; animation: ln .35s ease-out forwards; }
+.ledger .ln .d { color: var(--washi-faint); font-size: max(12px, calc(12.5px * var(--text-scale, 1))); align-self: center; }
+.ledger .ln .p { text-align: right; font-family: var(--display); font-size: max(12px, calc(18px * var(--text-scale, 1))); font-variant-numeric: tabular-nums; }
 .ledger .ln.neg .p { color: var(--shu); }
 .ledger .ln.sp { color: var(--kin); }
 @keyframes ln { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .total { display: flex; justify-content: space-between; align-items: baseline; padding: 16px 0 6px; }
 .total span { letter-spacing: .2em; color: var(--washi-dim); }
-.total strong { font-family: var(--display); font-size: 52px; color: var(--kin); font-variant-numeric: tabular-nums; }
-.total em { font-style: normal; font-size: 12px; color: var(--washi-faint); margin-left: 8px; }
-.verdict { font-family: var(--display); font-size: 24px; margin: 14px 0; letter-spacing: .08em; }
-.facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 22px; font-size: 14px; margin: 10px 0 20px; }
-.facts dt { color: var(--washi-dim); letter-spacing: .12em; font-size: 12.5px; }
+.total strong { font-family: var(--display); font-size: max(12px, calc(52px * var(--text-scale, 1))); color: var(--kin); font-variant-numeric: tabular-nums; }
+.total em { font-style: normal; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-faint); margin-left: 8px; }
+.verdict { font-family: var(--display); font-size: max(12px, calc(24px * var(--text-scale, 1))); margin: 14px 0; letter-spacing: .08em; }
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 22px; font-size: max(12px, calc(14px * var(--text-scale, 1))); margin: 10px 0 20px; }
+.facts dt { color: var(--washi-dim); letter-spacing: .12em; font-size: max(12px, calc(12.5px * var(--text-scale, 1))); }
 .facts dd { margin: 0; }
 .promo { border: 1px solid var(--kin); padding: 20px 22px; margin: 18px 0 24px; background: linear-gradient(120deg, rgba(194,162,90,.12), transparent 70%); opacity: 0; animation: ln .6s ease-out forwards; }
-.promo .lbl { font-size: 12px; letter-spacing: .3em; color: var(--kin); }
-.promo .rk { font-family: var(--display); font-weight: 800; font-size: clamp(26px, 5vw, 38px); margin: 8px 0; letter-spacing: .08em; }
+.promo .lbl { font-size: max(12px, calc(12px * var(--text-scale, 1))); letter-spacing: .3em; color: var(--kin); }
+.promo .rk { font-family: var(--display); font-weight: 800; font-size: max(12px, calc(clamp(26px, 5vw, 38px) * var(--text-scale, 1))); margin: 8px 0; letter-spacing: .08em; }
 .promo .rk .arrow { color: var(--washi-faint); margin: 0 .4em; font-weight: 600; }
-.promo .unl { font-size: 14px; color: var(--washi); }
+.promo .unl { font-size: max(12px, calc(14px * var(--text-scale, 1))); color: var(--washi); }
 .promo .unl b { color: var(--kin); font-weight: 500; }
 .promo.no { border-color: var(--line); background: none; }
 .promo.no .lbl { color: var(--washi-dim); }
@@ -188,72 +189,72 @@ html.touch #town-sortie { right: calc(16px + env(safe-area-inset-right, 0px)); b
 .base { max-width: 980px; margin: 0 auto; padding-block: 36px; display: grid; grid-template-columns: 260px 1fr; gap: 36px; }
 @media (max-width: 980px) { .base { grid-template-columns: 200px minmax(0, 1fr); gap: 20px; } }   /* 横 844 で中身が 590px に縮まない（W028） */
 @media (max-width: 760px) { .base { grid-template-columns: 1fr; } }
-.base aside h2 { font-family: var(--display); font-size: 30px; margin: 6px 0 2px; letter-spacing: .1em; }
+.base aside h2 { font-family: var(--display); font-size: max(12px, calc(30px * var(--text-scale, 1))); margin: 6px 0 2px; letter-spacing: .1em; }
 .base aside .rank { color: var(--kin); letter-spacing: .1em; }
-.stat { display: grid; grid-template-columns: 1fr auto; font-size: 13.5px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.stat { display: grid; grid-template-columns: 1fr auto; font-size: max(12px, calc(13.5px * var(--text-scale, 1))); padding: 6px 0; border-bottom: 1px solid var(--line); }
 .stat span { color: var(--washi-dim); }
 .stat b { font-weight: 500; font-variant-numeric: tabular-nums; }
 .tabs { display: flex; gap: 8px 0; border-bottom: 1px solid var(--line); margin-bottom: 18px; flex-wrap: wrap; }
-.tabs button { background: none; border: 0; color: var(--washi-dim); padding: 10px 16px; font-size: 14px; letter-spacing: .12em; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tabs button { background: none; border: 0; color: var(--washi-dim); padding: 10px 16px; font-size: max(12px, calc(14px * var(--text-scale, 1))); letter-spacing: .12em; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
 .tabs button.on { color: var(--washi); border-bottom-color: var(--shu); }
 .items { display: grid; gap: 8px; }
 .item { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; align-items: center; padding: 12px 14px; border: 1px solid var(--line); }
-.item .n { font-size: 15px; }
-.item .n small { color: var(--washi-faint); margin-left: 8px; font-size: 12px; }
-.item .x { grid-column: 1; font-size: 12.5px; color: var(--washi-dim); }
+.item .n { font-size: max(12px, calc(15px * var(--text-scale, 1))); }
+.item .n small { color: var(--washi-faint); margin-left: 8px; font-size: max(12px, calc(12px * var(--text-scale, 1))); }
+.item .x { grid-column: 1; font-size: max(12px, calc(12.5px * var(--text-scale, 1))); color: var(--washi-dim); }
 .item .a { grid-row: 1 / span 2; grid-column: 2; }
 .item.eq { border-color: var(--kin); }
-.rel { display: grid; grid-template-columns: 70px 1fr 40px; gap: 8px; align-items: center; font-size: 12px; color: var(--washi-dim); margin: 3px 0; }
+.rel { display: grid; grid-template-columns: 70px 1fr 40px; gap: 8px; align-items: center; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); margin: 3px 0; }
 .rel i { height: 5px; background: var(--sumi-3); position: relative; display: block; }
 .rel i b { position: absolute; inset: 0; right: auto; background: var(--kin); }
 .talk { border-left: 2px solid var(--kin); padding: 4px 0 4px 16px; margin: 12px 0; line-height: 1.9; }
-.talk .sp { color: var(--kin); font-size: 13px; letter-spacing: .08em; }
+.talk .sp { color: var(--kin); font-size: max(12px, calc(13px * var(--text-scale, 1))); letter-spacing: .08em; }
 .choices { display: grid; gap: 8px; margin-top: 10px; }
-.choices button { text-align: left; background: none; border: 1px solid var(--line); color: var(--washi); padding: 10px 14px; cursor: pointer; font-size: 14px; }
+.choices button { text-align: left; background: none; border: 1px solid var(--line); color: var(--washi); padding: 10px 14px; cursor: pointer; font-size: max(12px, calc(14px * var(--text-scale, 1))); }
 .choices button:hover { border-color: var(--washi-dim); background: rgba(236,228,210,.04); }
 .aiji { display: grid; grid-template-columns: repeat(3, minmax(0,140px)); gap: 12px; margin: 18px 0; }
-.aiji button { background: var(--sumi-2); border: 1px solid var(--line); padding: 12px; cursor: pointer; color: var(--washi); display: grid; gap: 8px; justify-items: center; font-size: 14px; }
+.aiji button { background: var(--sumi-2); border: 1px solid var(--line); padding: 12px; cursor: pointer; color: var(--washi); display: grid; gap: 8px; justify-items: center; font-size: max(12px, calc(14px * var(--text-scale, 1))); }
 .aiji button:hover { border-color: var(--kin); }
 .aiji canvas { width: 60px; height: 120px; }
 
 .timeline { display: grid; gap: 0; margin: 20px 0; }
 .timeline .tl-row { display: grid; grid-template-columns: 160px 1fr 80px; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); align-items: baseline; }
-.timeline .tl-row .b { font-family: var(--display); font-size: 18px; }
-.timeline .tl-row .r { color: var(--washi-dim); font-size: 13.5px; }
-.timeline .tl-row .m { text-align: right; font-family: var(--display); color: var(--kin); font-size: 20px; font-variant-numeric: tabular-nums; }
+.timeline .tl-row .b { font-family: var(--display); font-size: max(12px, calc(18px * var(--text-scale, 1))); }
+.timeline .tl-row .r { color: var(--washi-dim); font-size: max(12px, calc(13.5px * var(--text-scale, 1))); }
+.timeline .tl-row .m { text-align: right; font-family: var(--display); color: var(--kin); font-size: max(12px, calc(20px * var(--text-scale, 1))); font-variant-numeric: tabular-nums; }
 .q { margin: 16px 0; }
-.q p { margin: 0 0 8px; font-size: 14.5px; }
+.q p { margin: 0 0 8px; font-size: max(12px, calc(14.5px * var(--text-scale, 1))); }
 .q .scale { display: flex; gap: 6px; flex-wrap: wrap; }
-.q .scale label { border: 1px solid var(--line); padding: 6px 12px; cursor: pointer; font-size: 13px; min-height: 44px; min-width: 44px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; }
+.q .scale label { border: 1px solid var(--line); padding: 6px 12px; cursor: pointer; font-size: max(12px, calc(13px * var(--text-scale, 1))); min-height: 44px; min-width: 44px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; }
 .q .scale input { accent-color: var(--shu); margin-right: 6px; }
-textarea { width: 100%; box-sizing: border-box; min-height: 90px; background: var(--sumi-2); color: var(--washi); border: 1px solid var(--line); padding: 10px; font-family: var(--ui); font-size: 14px; }
-pre.copy { white-space: pre-wrap; background: var(--sumi-2); border: 1px solid var(--line); padding: 12px; font-size: 12px; color: var(--washi-dim); max-height: 200px; overflow: auto; }
+textarea { width: 100%; box-sizing: border-box; min-height: 90px; background: var(--sumi-2); color: var(--washi); border: 1px solid var(--line); padding: 10px; font-family: var(--ui); font-size: max(12px, calc(14px * var(--text-scale, 1))); }
+pre.copy { white-space: pre-wrap; background: var(--sumi-2); border: 1px solid var(--line); padding: 12px; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); max-height: 200px; overflow: auto; }
 
 #pause { position: fixed; inset: 0; z-index: 35; display: grid; place-items: center; background: rgba(10,9,7,.72); overflow-y: auto; }
 #pause[hidden] { display: none !important; }
 /* 一時停止の間は、下の台詞・知らせ・任務の札を隠す（止めた画面の釦に字が透けて重ならないように） */
 body:has(#pause:not([hidden])) #hud :is(#subtitle, #bark, #banner, #objectives, #markers, #hint, #tutorial) { visibility: hidden; }
 #pause div { text-align: center; }
-#pause h3 { font-family: var(--display); font-size: 32px; letter-spacing: .3em; margin: 0 0 10px; }
-#pause p { color: var(--washi-dim); font-size: 13px; }
+#pause h3 { font-family: var(--display); font-size: max(12px, calc(32px * var(--text-scale, 1))); letter-spacing: .3em; margin: 0 0 10px; }
+#pause p { color: var(--washi-dim); font-size: max(12px, calc(13px * var(--text-scale, 1))); }
 #loading { position: fixed; inset: 0; display: grid; place-items: center; background: var(--sumi); }
 #loading[hidden] { display: none !important; }
 
 /* ---------- 改善で加えた表示 ---------- */
 .bar { grid-template-columns: 34px 1fr 64px; }
-.bar em { font-style: normal; font-size: 12px; color: var(--washi-dim); text-align: right; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.bar em { font-style: normal; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); text-align: right; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
 .bar.low i { animation: lowpulse .6s ease-in-out infinite alternate; }
 .bar.low em { color: var(--shu); }
 @keyframes lowpulse { from { box-shadow: 0 0 0 0 rgba(192,69,46,0); } to { box-shadow: 0 0 0 2px rgba(192,69,46,.55); } }
-.merit-now small { margin-left: 8px; font-size: 12px; color: var(--washi-faint); }
-.next { display: grid; gap: 3px; font-size: 12px; color: var(--washi-dim); text-shadow: 0 1px 2px #000; }
+.merit-now small { margin-left: 8px; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-faint); }
+.next { display: grid; gap: 3px; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); text-shadow: 0 1px 2px #000; }
 .next i { display: block; height: 3px; background: rgba(0,0,0,.5); position: relative; }
 .next i b { position: absolute; inset: 0; right: auto; background: var(--kin); transition: width .4s; }
-#hint { margin-top: 10px; background: rgba(10,9,7,.7); border-left: 2px solid var(--kin); padding: 8px 10px; font-size: 12.5px; line-height: 1.6; pointer-events: none; }
-#hint .lbl { display: block; font-size: 12px; letter-spacing: .25em; color: var(--kin); margin-bottom: 2px; }
-#hint .k { margin-top: 4px; color: var(--washi-dim); font-size: 12px; }
-#hud[data-sub="s"] #subtitle { font-size: 14px; }
-#hud[data-sub="l"] #subtitle { font-size: 21px; }
+#hint { margin-top: 10px; background: rgba(10,9,7,.7); border-left: 2px solid var(--kin); padding: 8px 10px; font-size: max(12px, calc(12.5px * var(--text-scale, 1))); line-height: 1.6; pointer-events: none; }
+#hint .lbl { display: block; font-size: max(12px, calc(12px * var(--text-scale, 1))); letter-spacing: .25em; color: var(--kin); margin-bottom: 2px; }
+#hint .k { margin-top: 4px; color: var(--washi-dim); font-size: max(12px, calc(12px * var(--text-scale, 1))); }
+#hud[data-sub="s"] #subtitle { font-size: max(12px, calc(14px * var(--text-scale, 1))); }
+#hud[data-sub="l"] #subtitle { font-size: max(12px, calc(21px * var(--text-scale, 1))); }
 #subtitle .sys { color: var(--washi-dim); font-style: italic; }
 #crosshair { width: 26px; height: 26px; margin: -13px 0 0 -13px; background: none; box-shadow: none; opacity: 1; }
 #crosshair i { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; border-radius: 50%; background: var(--washi); box-shadow: 0 0 0 1px rgba(0,0,0,.6); opacity: .75; transition: background .1s, transform .1s; }
@@ -269,7 +270,7 @@ body:has(#pause:not([hidden])) #hud :is(#subtitle, #bark, #banner, #objectives, 
 #crosshair.gun:not(.gready) i { opacity: .35; }
 #crosshair.gping::after { inset: -10px; border: 2px solid #f3d98a; border-radius: 50%; animation: gping .5s ease-out forwards; }
 @keyframes gping { from { opacity: 1; transform: scale(.7); } to { opacity: 0; transform: scale(1.5); } }
-#crosshair.gmiss::after { content: '外'; inset: auto; left: 18px; top: -14px; border: 0; font: 700 13px var(--display); color: var(--washi); text-shadow: 0 1px 3px #000; animation: gmiss .7s ease-out forwards; }
+#crosshair.gmiss::after { content: '外'; inset: auto; left: 18px; top: -14px; border: 0; font: 700 max(12px, calc(13px * var(--text-scale, 1))) var(--display); color: var(--washi); text-shadow: 0 1px 3px #000; animation: gmiss .7s ease-out forwards; }
 @keyframes gmiss { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-8px); } }
 body.rm #crosshair.gping::after, body.rm #crosshair.gmiss::after { animation-duration: .01s; }
 #crosshair.hit i { animation: hitm .18s ease-out; }
@@ -277,32 +278,32 @@ body.rm #crosshair.gping::after, body.rm #crosshair.gmiss::after { animation-dur
 #dmgdir { position: absolute; left: 50%; top: 50%; width: 260px; height: 260px; border-radius: 50%; border-top: 6px solid rgba(200,30,10,.85); opacity: 0; pointer-events: none; }
 #dmgdir.show { animation: dmg .9s ease-out; }
 @keyframes dmg { 0% { opacity: 1; } 100% { opacity: 0; } }
-#target { position: absolute; left: 50%; top: calc(62px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); display: grid; gap: 3px; justify-items: center; font-size: 12px; text-shadow: 0 1px 2px #000; }
+#target { position: absolute; left: 50%; top: calc(62px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); display: grid; gap: 3px; justify-items: center; font-size: max(12px, calc(12px * var(--text-scale, 1))); text-shadow: 0 1px 2px #000; }
 #target i { display: block; width: 140px; height: 4px; background: rgba(0,0,0,.6); position: relative; }
 #target i b { position: absolute; inset: 0; right: auto; background: #d4553b; }
 #target.locked span { color: #e36a52; }
-#flash { position: absolute; left: 50%; top: 42%; transform: translateX(-50%); font-family: var(--display); font-size: 22px; letter-spacing: .2em; text-shadow: 0 2px 8px #000; }
+#flash { position: absolute; left: 50%; top: 42%; transform: translateX(-50%); font-family: var(--display); font-size: max(12px, calc(22px * var(--text-scale, 1))); letter-spacing: .2em; text-shadow: 0 2px 8px #000; }
 #flash.show { animation: fl 1.1s ease-out forwards; }
 #flash.gold { color: var(--kin); }
 #flash.red { color: #e36a52; }
-#flash.dim { color: var(--washi-dim); font-family: var(--ui); font-size: 14px; letter-spacing: .08em; }
+#flash.dim { color: var(--washi-dim); font-family: var(--ui); font-size: max(12px, calc(14px * var(--text-scale, 1))); letter-spacing: .08em; }
 @keyframes fl { 0% { opacity: 0; transform: translate(-50%, 6px); } 15% { opacity: 1; transform: translate(-50%, 0); } 75% { opacity: 1; } 100% { opacity: 0; } }
 #bark { position: absolute; left: 50%; bottom: calc(150px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); display: grid; gap: 2px; justify-items: center; }
-#bark .bk { font-size: 13px; color: var(--washi-dim); text-shadow: 0 1px 3px #000; animation: toast 2.2s ease-out forwards; }
+#bark .bk { font-size: max(12px, calc(13px * var(--text-scale, 1))); color: var(--washi-dim); text-shadow: 0 1px 3px #000; animation: toast 2.2s ease-out forwards; }
 #bark .bk.warn { color: #e8a13a; }
-#sublog { position: absolute; left: calc(20px + env(safe-area-inset-left, 0px)); bottom: calc(90px + env(safe-area-inset-bottom, 0px)); width: min(420px, 60vw); max-height: 40vh; overflow: hidden; background: rgba(10,9,7,.85); border: 1px solid var(--line); padding: 10px 12px; font-size: 12.5px; line-height: 1.6; }
+#sublog { position: absolute; left: calc(20px + env(safe-area-inset-left, 0px)); bottom: calc(90px + env(safe-area-inset-bottom, 0px)); width: min(420px, 60vw); max-height: 40vh; overflow: hidden; background: rgba(10,9,7,.85); border: 1px solid var(--line); padding: 10px 12px; font-size: max(12px, calc(12.5px * var(--text-scale, 1))); line-height: 1.6; }
 #sublog h5 { margin: 0 0 6px; color: var(--kin); font-weight: 500; letter-spacing: .1em; }
 #sublog .sp { color: var(--kin); margin-right: .5em; }
-.objnew { margin-top: 6px; font-size: 12px; overflow-wrap: anywhere; text-align: right; color: var(--kin); animation: toast 3.2s ease-out forwards; }
-#objectives li small { display: block; color: var(--washi-dim); font-size: 12px; }
-.threat { position: absolute; font-family: var(--display); font-weight: 800; font-size: 22px; color: #ff6a4a; text-shadow: 0 0 6px rgba(0,0,0,.9); pointer-events: none; }
+.objnew { margin-top: 6px; font-size: max(12px, calc(12px * var(--text-scale, 1))); overflow-wrap: anywhere; text-align: right; color: var(--kin); animation: toast 3.2s ease-out forwards; }
+#objectives li small { display: block; color: var(--washi-dim); font-size: max(12px, calc(12px * var(--text-scale, 1))); }
+.threat { position: absolute; font-family: var(--display); font-weight: 800; font-size: max(12px, calc(22px * var(--text-scale, 1))); color: #ff6a4a; text-shadow: 0 0 6px rgba(0,0,0,.9); pointer-events: none; }
 .mk.near { opacity: .35; }
 /* 戦の合間の気配：画面の縁に小さな太鼓。寄せてくる時は速く打つ */
 #lullcue { position: absolute; transform: translate(-50%, -50%); pointer-events: none; display: grid; justify-items: center; gap: 2px; transition: opacity .8s; }
 #lullcue[hidden] { display: none; }
 #lullcue i { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #e36a52; background: radial-gradient(circle, rgba(227,106,82,.35), rgba(12,10,8,.6) 70%); box-shadow: 0 0 0 1px rgba(0,0,0,.5); animation: lullbeat 2.2s ease-out infinite; }
 #lullcue.come i { animation-duration: .9s; }
-#lullcue small { font-size: 12px; color: #f0c0b0; text-shadow: 0 1px 2px #000, 0 0 4px #000; white-space: nowrap; }
+#lullcue small { font-size: max(12px, calc(12px * var(--text-scale, 1))); color: #f0c0b0; text-shadow: 0 1px 2px #000, 0 0 4px #000; white-space: nowrap; }
 @keyframes lullbeat { 0% { box-shadow: 0 0 0 0 rgba(227,106,82,.6); } 70% { box-shadow: 0 0 0 12px rgba(227,106,82,0); } 100% { box-shadow: 0 0 0 0 rgba(227,106,82,0); } }
 body.rm #lullcue i { animation: none; }
 /* 敵の印は下向きの三角（行き先の菱形と形でも分ける）。いちばんの行き先は少し大きく、ゆっくり光る */
@@ -315,71 +316,71 @@ body.ca .mk.red::before { border-color: transparent; border-top-color: #ff9a1a; 
 #goalcue.red::before { border-left-color: #e36a52; }
 #goalcue[hidden] { display: none; }
 body.rm .mk.main::before { animation: none; }
-.mk.edge::after { content: "▲"; position: absolute; left: 50%; top: -18px; transform: translateX(-50%) rotate(calc(var(--ang) + 90deg)); font-size: 12px; }
+.mk.edge::after { content: "▲"; position: absolute; left: 50%; top: -18px; transform: translateX(-50%) rotate(calc(var(--ang) + 90deg)); font-size: max(12px, calc(12px * var(--text-scale, 1))); }
 .topc .pips { display: inline-flex; gap: 2px; flex-wrap: wrap; max-width: 150px; align-self: center; }
 .topc .pips i { width: 6px; height: 10px; background: var(--moegi); display: inline-block; }
 .topc .pips i.mid { background: var(--kin); }
 .topc .pips i.low { background: var(--shu); }
 .topc .pips i.bow { border-top: 2px solid var(--washi); }
 .topc .pips i.dead { background: rgba(236,228,210,.15); }
-.topc small { font-size: 12px; color: var(--washi-dim); margin-left: 4px; }
+.topc small { font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); margin-left: 4px; }
 .slot.cmd.ready { border-color: rgba(194,162,90,.6); }
 .slot.cmd.on { border-color: #e36a52; color: #e36a52; }
 .slot.cmd em { position: static; margin-right: 6px; }
 #cmdpanel { min-width: 440px; }
 #cmdpanel li { display: grid; grid-template-columns: auto 1fr auto; gap: 0 4px; align-items: baseline; }
-#cmdpanel li em { font-style: normal; font-size: 12px; color: var(--washi-faint); border: 1px solid var(--line); padding: 0 4px; }
-#cmdpanel li small { grid-column: 1 / -1; font-size: 12px; color: var(--washi-dim); }
+#cmdpanel li em { font-style: normal; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-faint); border: 1px solid var(--line); padding: 0 4px; }
+#cmdpanel li small { grid-column: 1 / -1; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); }
 #toasts { right: 290px; top: 34%; }
 #pause { cursor: default; }
 .pmenu { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 380px); gap: 40px; align-items: start; max-width: 720px; padding: 16px; }
 .pmenu h3 { grid-column: 1 / -1; margin: 0; }
 .pmenu .btns { display: grid; gap: 8px; }
 .pmenu .btns .btn { text-align: left; }
-.pmenu .objs { font-size: 13px; line-height: 1.8; color: var(--washi-dim); }
+.pmenu .objs { font-size: max(12px, calc(13px * var(--text-scale, 1))); line-height: 1.8; color: var(--washi-dim); }
 .pmenu .objs b { color: var(--washi); font-weight: 500; }
-.pmenu .confirm { grid-column: 1 / -1; border: 1px solid var(--shu); padding: 12px 14px; font-size: 14px; }
+.pmenu .confirm { grid-column: 1 / -1; border: 1px solid var(--shu); padding: 12px 14px; font-size: max(12px, calc(14px * var(--text-scale, 1))); }
 @media (max-width: 700px) { .pmenu { grid-template-columns: 1fr; gap: 20px; } }
-#loading .ld { font-family: var(--display); font-size: 20px; letter-spacing: .3em; color: var(--washi-dim); text-align: center; }
-#loading p { max-width: 30em; margin: 18px auto 0; font-family: var(--ui); font-size: 13px; letter-spacing: .04em; color: var(--washi-faint); line-height: 1.8; text-align: center; padding: 0 16px; }
+#loading .ld { font-family: var(--display); font-size: max(12px, calc(20px * var(--text-scale, 1))); letter-spacing: .3em; color: var(--washi-dim); text-align: center; }
+#loading p { max-width: 30em; margin: 18px auto 0; font-family: var(--ui); font-size: max(12px, calc(13px * var(--text-scale, 1))); letter-spacing: .04em; color: var(--washi-faint); line-height: 1.8; text-align: center; padding: 0 16px; }
 #glfail { position: fixed; inset: 0; background: var(--sumi); display: grid; place-items: center; padding-inline: 16px; }
 .settings { display: grid; gap: 14px; max-width: 560px; }
-.settings .s-row { display: grid; grid-template-columns: minmax(150px, 230px) 1fr 60px; gap: 14px; align-items: center; font-size: 14px; }
+.settings .s-row { display: grid; grid-template-columns: minmax(150px, 230px) 1fr 60px; gap: 14px; align-items: center; font-size: max(12px, calc(14px * var(--text-scale, 1))); }
 .settings .s-row label { color: var(--washi-dim); }
-.settings .s-row output { font-variant-numeric: tabular-nums; color: var(--washi-dim); font-size: 12px; text-align: right; }
+.settings .s-row output { font-variant-numeric: tabular-nums; color: var(--washi-dim); font-size: max(12px, calc(12px * var(--text-scale, 1))); text-align: right; }
 .settings input[type=range] { width: 100%; accent-color: var(--shu); }
 .settings select { background: var(--sumi-2); color: var(--washi); border: 1px solid var(--line); padding: 6px 8px; font-family: var(--ui); }
 .settings input[type=checkbox] { accent-color: var(--shu); width: 18px; height: 18px; }
 @media (max-width: 520px) { .settings .s-row { grid-template-columns: 1fr 60px; } .settings .s-row label { grid-column: 1 / -1; } }
 .story p { opacity: 0; animation: ln .8s ease-out forwards; }
-.story .keyhint { margin-top: 14px; font-size: 12px; color: var(--washi-faint); }
+.story .keyhint { margin-top: 14px; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-faint); }
 .eval.fast .ln, .eval.fast .total, .eval.fast .promo, .eval.fast #ev-actions, .eval.fast .ev-more { animation-delay: 0s !important; animation-duration: .01s !important; }
-.ev-more { display: flex; gap: 22px; flex-wrap: wrap; font-size: 12.5px; color: var(--washi-dim); margin: 6px 0 4px; }
+.ev-more { display: flex; gap: 22px; flex-wrap: wrap; font-size: max(12px, calc(12.5px * var(--text-scale, 1))); color: var(--washi-dim); margin: 6px 0 4px; }
 .ev-more b { color: var(--washi); font-weight: 500; font-variant-numeric: tabular-nums; margin-left: 4px; }
 .ev-prog { margin: 8px 0 18px; }
-.ev-prog .lbl { font-size: 12px; color: var(--washi-dim); display: flex; justify-content: space-between; }
+.ev-prog .lbl { font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); display: flex; justify-content: space-between; }
 .ev-prog i { display: block; height: 6px; background: var(--sumi-3); margin-top: 6px; position: relative; overflow: hidden; }
 .ev-prog i b { position: absolute; inset: 0; right: auto; background: var(--kin); width: 0; transition: width 1.4s cubic-bezier(.2,.8,.2,1); }
 .ev-prog i s { position: absolute; inset: 0; right: auto; background: rgba(194,162,90,.35); }
-.skiphint { font-size: 12px; color: var(--washi-faint); margin-top: 10px; }
-.toastbox { position: fixed; right: 20px; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); background: var(--sumi-2); border: 1px solid var(--line); padding: 8px 14px; font-size: 13px; animation: toast 2.4s ease-out forwards; z-index: 10; }
-.confirm-row { border: 1px solid var(--shu); padding: 12px 14px; margin-top: 12px; display: grid; gap: 10px; font-size: 14px; }
-.item .cmp { font-size: 12px; color: var(--moegi); margin-left: 8px; }
+.skiphint { font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-faint); margin-top: 10px; }
+.toastbox { position: fixed; right: 20px; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); background: var(--sumi-2); border: 1px solid var(--line); padding: 8px 14px; font-size: max(12px, calc(13px * var(--text-scale, 1))); animation: toast 2.4s ease-out forwards; z-index: 10; }
+.confirm-row { border: 1px solid var(--shu); padding: 12px 14px; margin-top: 12px; display: grid; gap: 10px; font-size: max(12px, calc(14px * var(--text-scale, 1))); }
+.item .cmp { font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--moegi); margin-left: 8px; }
 .item .cmp.neg { color: var(--shu); }
-.legend { display: flex; gap: 14px; font-size: 12px; color: var(--washi-dim); margin-bottom: 4px; }
+.legend { display: flex; gap: 14px; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); margin-bottom: 4px; }
 .legend i { display: inline-block; width: 10px; height: 4px; margin-right: 4px; vertical-align: middle; }
-.savebox { font-size: 12px; color: var(--washi-dim); margin-top: 10px; }
+.savebox { font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); margin-top: 10px; }
 .title-foot { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
 @media (max-width: 900px) { #minimap { width: 120px; height: 120px; } .tr { width: 200px; } #toasts { right: 220px; } }
 @media (max-height: 620px) { .tl { gap: 3px; } #hint { display: none; } #subtitle { bottom: 76px; } }
 
 /* ---------- 改善（第2弾） ---------- */
-#boss { position: absolute; left: 50%; bottom: calc(196px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); display: grid; gap: 4px; justify-items: center; font-family: var(--display); font-size: 16px; letter-spacing: .12em; text-shadow: 0 1px 3px #000; }
+#boss { position: absolute; left: 50%; bottom: calc(196px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); display: grid; gap: 4px; justify-items: center; font-family: var(--display); font-size: max(12px, calc(16px * var(--text-scale, 1))); letter-spacing: .12em; text-shadow: 0 1px 3px #000; }
 #boss i { display: block; width: min(420px, 60vw); height: 6px; background: rgba(0,0,0,.6); border: 1px solid rgba(236,228,210,.3); position: relative; }
 #boss i b { position: absolute; inset: 0; right: auto; background: linear-gradient(90deg, #8e2f1f, #c0452e); }
 #crosshair.charge::before { border-color: rgba(236,228,210,.6); inset: -1px; }
 #crosshair.charged::before { border-color: var(--kin); inset: -6px; border-width: 2px; }
-.toast.title b { color: var(--kin); font-size: 14px; }
+.toast.title b { color: var(--kin); font-size: max(12px, calc(14px * var(--text-scale, 1))); }
 .topc .pips i.vet { outline: 1px solid var(--kin); outline-offset: 0; }
 body.ca .mk.red, body.ca .threat { color: #ff9a1a; }
 body.ca .mk.red::before { border-color: #ff9a1a; border-style: dashed; }
@@ -387,36 +388,36 @@ body.ca #target i b, body.ca #boss i b { background: #ff9a1a; }
 body.rm *, body.rm *::before, body.rm *::after { animation-duration: .01ms !important; transition: none !important; }
 body.rm .toast, body.rm #banner.show, body.rm .ln, body.rm .promo, body.rm .story p { opacity: 1 !important; }
 .keybind { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px 18px; }
-.keybind button { background: var(--sumi-2); border: 1px solid var(--line); color: var(--washi); padding: 6px 10px; text-align: left; cursor: pointer; font-size: 13px; display: flex; justify-content: space-between; gap: 10px; }
+.keybind button { background: var(--sumi-2); border: 1px solid var(--line); color: var(--washi); padding: 6px 10px; text-align: left; cursor: pointer; font-size: max(12px, calc(13px * var(--text-scale, 1))); display: flex; justify-content: space-between; gap: 10px; }
 .keybind button b { color: var(--kin); font-weight: 500; }
 .keybind button.wait b { color: var(--shu); }
 .roster { display: grid; gap: 0; }
-.roster .rr { display: grid; grid-template-columns: 1fr 70px 70px 90px; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; align-items: baseline; }
-.roster .rr span { color: var(--washi-dim); font-size: 12.5px; font-variant-numeric: tabular-nums; }
-.roster .rr.head span { color: var(--washi-faint); font-size: 12px; letter-spacing: .1em; }
+.roster .rr { display: grid; grid-template-columns: 1fr 70px 70px 90px; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: max(12px, calc(14px * var(--text-scale, 1))); align-items: baseline; }
+.roster .rr span { color: var(--washi-dim); font-size: max(12px, calc(12.5px * var(--text-scale, 1))); font-variant-numeric: tabular-nums; }
+.roster .rr.head span { color: var(--washi-faint); font-size: max(12px, calc(12px * var(--text-scale, 1))); letter-spacing: .1em; }
 .roster .rr .vet { color: var(--kin); }
 .people { display: grid; gap: 14px; }
 .people .p { border-left: 2px solid var(--line); padding: 2px 0 2px 14px; }
-.people .p b { font-family: var(--display); font-size: 17px; }
+.people .p b { font-family: var(--display); font-size: max(12px, calc(17px * var(--text-scale, 1))); }
 .people .p small { color: var(--washi-faint); margin-left: 8px; }
-.people .p p { margin: 4px 0 0; font-size: 13.5px; color: var(--washi-dim); line-height: 1.8; }
-.gloss { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; font-size: 13.5px; line-height: 1.7; }
+.people .p p { margin: 4px 0 0; font-size: max(12px, calc(13.5px * var(--text-scale, 1))); color: var(--washi-dim); line-height: 1.8; }
+.gloss { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; font-size: max(12px, calc(13.5px * var(--text-scale, 1))); line-height: 1.7; }
 .gloss dt { font-family: var(--display); color: var(--kin); }
 .gloss dd { margin: 0; color: var(--washi-dim); }
 .diffs { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-.diffs label { border: 1px solid var(--line); padding: 8px 12px; cursor: pointer; font-size: 13px; display: grid; gap: 2px; max-width: 220px; }
-.diffs label small { color: var(--washi-faint); font-size: 12px; }
+.diffs label { border: 1px solid var(--line); padding: 8px 12px; cursor: pointer; font-size: max(12px, calc(13px * var(--text-scale, 1))); display: grid; gap: 2px; max-width: 220px; }
+.diffs label small { color: var(--washi-faint); font-size: max(12px, calc(12px * var(--text-scale, 1))); }
 .diffs.scn label { max-width: 440px; }
 .diffs input { accent-color: var(--shu); }
 .titles { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin: 12px 0; }
-.titles div { border: 1px solid var(--line); padding: 8px 10px; font-size: 13px; }
+.titles div { border: 1px solid var(--line); padding: 8px 10px; font-size: max(12px, calc(13px * var(--text-scale, 1))); }
 .titles div.got { border-color: var(--kin); }
-.titles div b { display: block; font-family: var(--display); font-size: 15px; }
+.titles div b { display: block; font-family: var(--display); font-size: max(12px, calc(15px * var(--text-scale, 1))); }
 .titles div:not(.got) { opacity: .8; border-style: dashed; }   /* 字の対比 4.5:1 以上（W033）。未取得は破線で示す */
 .titles div:not(.got) small { color: #cdbf9f; }
 .titles small { color: var(--washi-dim); }
-.ev-cat { font-size: 12px; letter-spacing: .2em; color: var(--washi-faint); padding-top: 12px; }
-.histnote { border-left: 2px solid var(--kin); padding: 4px 0 4px 14px; margin: 18px 0; font-size: 13.5px; color: var(--washi-dim); line-height: 1.9; }
+.ev-cat { font-size: max(12px, calc(12px * var(--text-scale, 1))); letter-spacing: .2em; color: var(--washi-faint); padding-top: 12px; }
+.histnote { border-left: 2px solid var(--kin); padding: 4px 0 4px 14px; margin: 18px 0; font-size: max(12px, calc(13.5px * var(--text-scale, 1))); color: var(--washi-dim); line-height: 1.9; }
 .preview3d { width: 220px; height: 260px; display: block; margin: 0 auto 10px; background: radial-gradient(ellipse at 50% 70%, #2c2821, transparent 70%); }
 #titlebg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -1; opacity: .55; }
 #screen.withbg { background: linear-gradient(90deg, rgba(20,18,15,.95) 0%, rgba(20,18,15,.78) 55%, rgba(20,18,15,.35) 100%); }
@@ -445,13 +446,13 @@ body:has(#intro:not([hidden])) #tc :is(.tb, .stick, .mzone) { opacity: .28; tran
 /* 左上：戦功の札 */
 .tl { width: 230px; gap: 8px; }
 .plaque { display: inline-flex; align-items: baseline; gap: 8px; padding: 6px 14px 6px 12px; background: var(--lacquer); box-shadow: inset 0 0 0 1px var(--gold-line); border-left: 3px solid var(--kin); width: max-content; }
-.plaque .pl-lbl { font-family: var(--display); font-size: 13px; letter-spacing: .3em; color: var(--kin); }
-.plaque strong { font-family: var(--display); font-size: 26px; color: #f3e6c4; font-variant-numeric: tabular-nums; text-shadow: 0 0 10px rgba(194,162,90,.35); }
-.plaque small { font-size: 12px; color: var(--washi-faint); }
+.plaque .pl-lbl { font-family: var(--display); font-size: max(12px, calc(13px * var(--text-scale, 1))); letter-spacing: .3em; color: var(--kin); }
+.plaque strong { font-family: var(--display); font-size: max(12px, calc(26px * var(--text-scale, 1))); color: #f3e6c4; font-variant-numeric: tabular-nums; text-shadow: 0 0 10px rgba(194,162,90,.35); }
+.plaque small { font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-faint); }
 .next { width: 210px; }
 /* 左下：名と体力・気力・士気（太めのゲージ） */
 .bl { position: absolute; left: 20px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); width: 300px; display: grid; gap: 5px; padding: 10px 14px 12px; background: linear-gradient(90deg, var(--lacquer), rgba(14,11,8,.35)); box-shadow: inset 0 0 0 1px rgba(194,162,90,.22); }
-.bl .who { font-size: 18px; margin-bottom: 2px; }
+.bl .who { font-size: max(12px, calc(18px * var(--text-scale, 1))); margin-bottom: 2px; }
 .bl .bar { grid-template-columns: 34px 1fr 60px; }
 .bl .bar i { height: 10px; border: 1px solid rgba(0,0,0,.8); box-shadow: inset 0 0 0 1px rgba(236,228,210,.12); background: rgba(0,0,0,.55); }
 .bl .bar.hp i b { background: linear-gradient(180deg, #e0553a, #9a2716); }
@@ -466,7 +467,7 @@ body:has(#intro:not([hidden])) #tc :is(.tb, .stick, .mzone) { opacity: .28; tran
 #armybar .side { display: grid; gap: 4px; }
 /* 明るい空・霧の上でも帯の字が読めるよう、後ろに薄い墨のぼかし（枠は作らない） */
 #armybar::before { content: ''; position: absolute; inset: -8px -28px -6px; z-index: -1; pointer-events: none; background: radial-gradient(closest-side, rgba(10,9,7,.55), rgba(10,9,7,.3) 60%, rgba(10,9,7,0)); }
-#armybar .side .nm { display: flex; align-items: center; gap: 8px; font-family: var(--display); font-size: 16px; letter-spacing: .08em; text-shadow: 0 1px 3px #000, 0 0 6px #000; }
+#armybar .side .nm { display: flex; align-items: center; gap: 8px; font-family: var(--display); font-size: max(12px, calc(16px * var(--text-scale, 1))); letter-spacing: .08em; text-shadow: 0 1px 3px #000, 0 0 6px #000; }
 #armybar .side.b .nm { justify-content: flex-end; }
 #armybar .side canvas { width: 22px; height: 22px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,.8), 0 0 0 2px var(--gold-line); }
 /* 時計を隠している間も、両軍の札は左右同じ幅に（敵の名が長いと、味方の名が「織田…」に詰まっていた） */
@@ -474,18 +475,18 @@ body:has(#intro:not([hidden])) #tc :is(.tb, .stick, .mzone) { opacity: .28; tran
 #armybar .side .nm { min-width: 0; }
 #armybar .side .nm .n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #armybar .side .nm small, #armybar .side .nm canvas { flex: none; }
-#armybar .side .nm small { font-family: var(--ui); font-size: 12px; color: var(--washi-dim); font-variant-numeric: tabular-nums; }
+#armybar .side .nm small { font-family: var(--ui); font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); font-variant-numeric: tabular-nums; }
 #armybar .gauge { height: 9px; background: rgba(0,0,0,.65); box-shadow: inset 0 0 0 1px rgba(236,228,210,.15), 0 0 0 1px rgba(0,0,0,.8); position: relative; overflow: hidden; }
 #armybar .gauge b { position: absolute; top: 0; bottom: 0; transition: width .4s; }
 #armybar .a .gauge b { right: 0; background: linear-gradient(180deg, var(--ai-bright), var(--ai-deep)); }
 #armybar .b .gauge b { left: 0; background: linear-gradient(180deg, #e0553a, #8e2f1f); }
-#armybar .clock { min-width: 86px; text-align: center; padding: 4px 12px; background: #0c0a08; box-shadow: inset 0 0 0 1px var(--gold-line), 0 0 0 1px #000; font-family: var(--display); font-size: 22px; font-weight: 800; letter-spacing: .06em; color: #f3e6c4; font-variant-numeric: tabular-nums; }
+#armybar .clock { min-width: 86px; text-align: center; padding: 4px 12px; background: #0c0a08; box-shadow: inset 0 0 0 1px var(--gold-line), 0 0 0 1px #000; font-family: var(--display); font-size: max(12px, calc(22px * var(--text-scale, 1))); font-weight: 800; letter-spacing: .06em; color: #f3e6c4; font-variant-numeric: tabular-nums; }
 /* 戦の時計は、試合っぽさを消すため普段は隠す。軍配（M）を開いた時だけ見せる */
 #armybar .clock { display: none; }
 #hud.gb-open #armybar .clock { display: block; }
-#armybar .clock small { display: block; font-family: var(--ui); font-weight: 500; font-size: 12px; letter-spacing: .2em; color: var(--washi-faint); margin-top: -2px; }
+#armybar .clock small { display: block; font-family: var(--ui); font-weight: 500; font-size: max(12px, calc(12px * var(--text-scale, 1))); letter-spacing: .2em; color: var(--washi-faint); margin-top: -2px; }
 /* 右上：年月日・季節・天気・刻 */
-#dateline { white-space: nowrap; font-family: var(--display); font-size: 12.5px; letter-spacing: .08em; color: #efe3c2; text-shadow: 0 1px 3px #000; text-align: right; }
+#dateline { white-space: nowrap; font-family: var(--display); font-size: max(12px, calc(12.5px * var(--text-scale, 1))); letter-spacing: .08em; color: #efe3c2; text-shadow: 0 1px 3px #000; text-align: right; }
 #objectives { background: var(--lacquer); box-shadow: inset 0 0 0 1px rgba(194,162,90,.28); padding: 10px 14px 10px 16px; }
 #objectives h4 { border-bottom: 1px solid var(--gold-line); padding-bottom: 5px; }
 #minimap { border: 2px solid rgba(194,162,90,.55); box-shadow: 0 0 0 1px #000, 0 0 0 5px rgba(14,11,8,.7), 0 0 0 6px rgba(194,162,90,.3); }
@@ -494,12 +495,12 @@ body:has(#intro:not([hidden])) #tc :is(.tb, .stick, .mzone) { opacity: .28; tran
 .topc .pips { max-width: 100%; order: 10; flex-basis: 100%; }
 /* 下：武器・号令の札（四角い枠と小さな絵） */
 .bottom { gap: 5px; }
-.slot { width: 56px; height: 56px; background: rgba(12,10,8,.78); border: 1px solid rgba(0,0,0,.9); box-shadow: inset 0 0 0 1px rgba(194,162,90,.28); color: var(--washi); font-size: 12px; align-content: end; padding-bottom: 4px; }
+.slot { width: 56px; height: 56px; background: rgba(12,10,8,.78); border: 1px solid rgba(0,0,0,.9); box-shadow: inset 0 0 0 1px rgba(194,162,90,.28); color: var(--washi); font-size: max(12px, calc(12px * var(--text-scale, 1))); align-content: end; padding-bottom: 4px; }
 .slot svg { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); width: 26px; height: 26px; stroke: #e9dcb8; fill: none; stroke-width: 1.6; }
 .slot.on { box-shadow: inset 0 0 0 2px var(--kin), 0 0 12px rgba(194,162,90,.35); }
 .slot.cmd { width: 64px; padding: 0 0 4px; }
 .slot.cmd.ready { box-shadow: inset 0 0 0 1px rgba(194,162,90,.6); }
-.slot.cmd em, .slot em { position: absolute; left: 4px; top: 2px; font-size: 12px; color: var(--washi-faint); margin: 0; }
+.slot.cmd em, .slot em { position: absolute; left: 4px; top: 2px; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-faint); margin: 0; right: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .slot .cd { position: absolute; inset: auto 0 0 0; background: rgba(0,0,0,.6); }
 /* 見出し：筆で掃いた朱の帯に白抜きの字 */
 #banner { top: 26%; }
@@ -508,17 +509,17 @@ body:has(#intro:not([hidden])) #tc :is(.tb, .stick, .mzone) { opacity: .28; tran
 #banner small { max-width: min(640px, 56vw); margin-left: auto; margin-right: auto; overflow-wrap: anywhere; text-wrap: balance; line-height: 1.55; }
 /* 開戦の大見出し（藍の濃淡に白の縁取り） */
 #intro { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; pointer-events: none; }
-#intro .vs { font-family: var(--display); font-weight: 800; font-size: clamp(40px, 7vw, 88px); letter-spacing: .08em; line-height: 1.1; background: linear-gradient(180deg, #ffffff 0%, #bcd4f5 40%, #2e5aa0 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-stroke: 2px #fff; filter: drop-shadow(0 4px 10px rgba(0,0,0,.7)); animation: introIn 3.4s ease-out forwards; }
+#intro .vs { font-family: var(--display); font-weight: 800; font-size: max(12px, calc(clamp(40px, 7vw, 88px) * var(--text-scale, 1))); letter-spacing: .08em; line-height: 1.1; background: linear-gradient(180deg, #ffffff 0%, #bcd4f5 40%, #2e5aa0 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-stroke: 2px #fff; filter: drop-shadow(0 4px 10px rgba(0,0,0,.7)); animation: introIn 3.4s ease-out forwards; }
 #intro .vs em { font-style: normal; font-size: .6em; margin: 0 .4em; -webkit-text-stroke: 1.5px #fff; }
-#intro .sub { font-family: var(--display); font-size: clamp(18px, 2.4vw, 28px); color: #f3e6c4; letter-spacing: .3em; margin-top: 10px; text-shadow: 0 2px 6px #000; animation: introIn 3.4s ease-out forwards; }
-#intro .date { font-size: 13px; color: var(--washi-dim); letter-spacing: .3em; margin-top: 8px; animation: introIn 3.4s ease-out forwards; text-shadow: 0 1px 3px #000; }
+#intro .sub { font-family: var(--display); font-size: max(12px, calc(clamp(18px, 2.4vw, 28px) * var(--text-scale, 1))); color: #f3e6c4; letter-spacing: .3em; margin-top: 10px; text-shadow: 0 2px 6px #000; animation: introIn 3.4s ease-out forwards; }
+#intro .date { font-size: max(12px, calc(13px * var(--text-scale, 1))); color: var(--washi-dim); letter-spacing: .3em; margin-top: 8px; animation: introIn 3.4s ease-out forwards; text-shadow: 0 1px 3px #000; }
 @keyframes introIn { 0% { opacity: 0; transform: scale(1.12); } 12% { opacity: 1; transform: scale(1); } 78% { opacity: 1; } 100% { opacity: 0; } }
 /* 開戦の題の札（映画の題のように、静かに浮かんで消える） */
 #intro .card { animation: introCard 4.5s ease-out forwards; padding: 26px 72px; background: radial-gradient(ellipse closest-side, rgba(10,8,6,.5), rgba(10,8,6,.28) 60%, transparent); }
-#intro .card .date { font-family: var(--display); font-size: clamp(12px, 1.4vw, 15px); letter-spacing: .45em; color: #d8cfb8; margin: 0 0 14px; animation: none; text-shadow: 0 1px 4px #000, 0 0 10px rgba(0,0,0,.8); }
-#intro .card .ttl { font-family: var(--display); font-weight: 600; font-size: clamp(30px, 5vw, 60px); letter-spacing: .32em; padding-left: .32em; color: #efe7d4; text-shadow: 0 2px 14px rgba(0,0,0,.9), 0 0 2px rgba(0,0,0,.9); line-height: 1.2; }
+#intro .card .date { font-family: var(--display); font-size: max(12px, calc(clamp(12px, 1.4vw, 15px) * var(--text-scale, 1))); letter-spacing: .45em; color: #d8cfb8; margin: 0 0 14px; animation: none; text-shadow: 0 1px 4px #000, 0 0 10px rgba(0,0,0,.8); }
+#intro .card .ttl { font-family: var(--display); font-weight: 600; font-size: max(12px, calc(clamp(30px, 5vw, 60px) * var(--text-scale, 1))); letter-spacing: .32em; padding-left: .32em; color: #efe7d4; text-shadow: 0 2px 14px rgba(0,0,0,.9), 0 0 2px rgba(0,0,0,.9); line-height: 1.2; }
 #intro .card .rule { display: block; width: min(420px, 64vw); height: 1px; margin: 16px auto 12px; background: linear-gradient(90deg, transparent, rgba(236,228,210,.7), transparent); }
-#intro .card .sides { font-family: var(--display); font-size: clamp(14px, 1.7vw, 19px); letter-spacing: .35em; color: #e4dac2; text-shadow: 0 1px 6px #000; }
+#intro .card .sides { font-family: var(--display); font-size: max(12px, calc(clamp(14px, 1.7vw, 19px) * var(--text-scale, 1))); letter-spacing: .35em; color: #e4dac2; text-shadow: 0 1px 6px #000; }
 #intro .card .sides em { font-style: normal; margin: 0 .9em; color: #c98a6e; font-size: .85em; }
 /* 動きを減らす時は、題の札を動かさずにそのまま見せる（消すのは時間で） */
 body.rm #intro .card { animation: none !important; opacity: 1; }
@@ -526,15 +527,15 @@ body.rm #intro .card { animation: none !important; opacity: 1; }
 /* 背の低い画面（スマホ横）：開戦の題の札が戦場の3分の1を超えて食わないよう、余白と字を小さく */
 @media (max-height: 500px) {
   #intro .card { padding: 12px 28px; }
-  #intro .card .date { font-size: 12px; margin: 0 0 8px; }
-  #intro .card .ttl { font-size: clamp(20px, 4vw, 34px); letter-spacing: .2em; padding-left: .2em; }
+  #intro .card .date { font-size: max(12px, calc(12px * var(--text-scale, 1))); margin: 0 0 8px; }
+  #intro .card .ttl { font-size: max(12px, calc(clamp(20px, 4vw, 34px) * var(--text-scale, 1))); letter-spacing: .2em; padding-left: .2em; }
   #intro .card .rule { width: min(220px, 40vw); margin: 10px auto 8px; }
-  #intro .card .sides { font-size: clamp(13px, 1.6vw, 15px); letter-spacing: .2em; }
-  #intro .card .sides em { font-size: 12px; }
+  #intro .card .sides { font-size: max(12px, calc(clamp(13px, 1.6vw, 15px) * var(--text-scale, 1))); letter-spacing: .2em; }
+  #intro .card .sides em { font-size: max(12px, calc(12px * var(--text-scale, 1))); }
   /* 同じ低い画面の決まり：戦の途中の見出し札（#banner。例「朝倉の先手」）も3分の1を超えないよう縮める */
-  #banner { top: 20%; font-size: clamp(18px, 4.4vw, 34px); }
+  #banner { top: 20%; font-size: max(12px, calc(clamp(18px, 4.4vw, 34px) * var(--text-scale, 1))); }
   #banner .brush { padding: 7px 28px 9px; }
-  #banner small { font-size: 12px; margin-top: 3px; letter-spacing: .08em; line-height: 1.5; }
+  #banner small { font-size: max(12px, calc(12px * var(--text-scale, 1))); margin-top: 3px; letter-spacing: .08em; line-height: 1.5; }
   /* 任務が変わった時の長い字が枠で切れない：左右に余白を取り、字は折り返す（携帯 844×390） */
   #banner { padding: 0 max(16px, env(safe-area-inset-left)) 0 max(16px, env(safe-area-inset-right)); box-sizing: border-box; }
   #banner .brush { max-width: 100%; box-sizing: border-box; padding: 7px 18px 9px; letter-spacing: .1em; overflow-wrap: anywhere; }
@@ -545,7 +546,7 @@ body.rm #intro .card { animation: none !important; opacity: 1; }
 /* 狭い画面では字幕が二、三行になるので、知らせをその上へ逃がす（重ならないように） */
 @media (max-width: 1000px) { #bark { bottom: calc(246px + env(safe-area-inset-bottom, 0px)); } }
 @media (max-width: 1000px) and (max-height: 620px) { #bark { bottom: calc(226px + env(safe-area-inset-bottom, 0px)); } }
-#bark .bk { font-family: var(--display); font-size: 16px; color: #fff; -webkit-text-stroke: .6px rgba(0,0,0,.8); paint-order: stroke fill; text-shadow: 0 1px 4px #000, 0 0 10px rgba(0,0,0,.7); letter-spacing: .04em; }
+#bark .bk { font-family: var(--display); font-size: max(12px, calc(16px * var(--text-scale, 1))); color: #fff; -webkit-text-stroke: .6px rgba(0,0,0,.8); paint-order: stroke fill; text-shadow: 0 1px 4px #000, 0 0 10px rgba(0,0,0,.7); letter-spacing: .04em; }
 #bark .bk.warn { color: #ffcf7a; }
 #subtitle { bottom: calc(100px + env(safe-area-inset-bottom, 0px)); }
 #subtitle .sp { font-family: var(--display); }
@@ -561,44 +562,44 @@ body.rm #intro .card { animation: none !important; opacity: 1; }
 #compass { position: absolute; left: 50%; top: calc(66px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); width: min(520px, 70vw); height: 26px; overflow: hidden; background: linear-gradient(90deg, transparent, rgba(12,10,8,.55) 15%, rgba(12,10,8,.55) 85%, transparent); border-bottom: 1px solid rgba(194,162,90,.35); }
 #compass::after { content: ""; position: absolute; left: 50%; bottom: 0; width: 0; height: 0; border: 5px solid transparent; border-bottom-color: var(--kin); transform: translateX(-50%); }
 #compass .c { position: absolute; top: 2px; transform: translateX(-50%); text-align: center; line-height: 1; white-space: nowrap; }
-#compass .c.dir b { font-family: var(--display); font-size: 14px; color: #f3e6c4; text-shadow: 0 1px 2px #000; }
+#compass .c.dir b { font-family: var(--display); font-size: max(12px, calc(14px * var(--text-scale, 1))); color: #f3e6c4; text-shadow: 0 1px 2px #000; }
 #compass .c.tick i { display: block; width: 1px; height: 8px; background: rgba(236,228,210,.45); margin-top: 6px; }
-#compass .c.mk span { color: var(--kin); font-size: 12px; }
+#compass .c.mk span { color: var(--kin); font-size: max(12px, calc(12px * var(--text-scale, 1))); }
 #compass .c.mk.red span { color: #e36a52; }
-#compass .c small { display: block; font-size: 12px; color: var(--washi-dim); }
-#compass .c.foe span { color: #d4553b; font-size: 12px; display: block; margin-top: 12px; }
-#compass .c.mine span { color: #f1e9d6; font-size: 12px; display: block; margin-top: 12px; }
+#compass .c small { display: block; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); }
+#compass .c.foe span { color: #d4553b; font-size: max(12px, calc(12px * var(--text-scale, 1))); display: block; margin-top: 12px; }
+#compass .c.mine span { color: #f1e9d6; font-size: max(12px, calc(12px * var(--text-scale, 1))); display: block; margin-top: 12px; }
 body.ca #compass .c.foe span { color: #ff9a1a; }
-#situation { position: absolute; left: 50%; top: calc(96px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); font-family: var(--display); font-size: 13px; letter-spacing: .3em; color: #f3e6c4; text-shadow: 0 1px 3px #000; }
+#situation { position: absolute; left: 50%; top: calc(96px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); font-family: var(--display); font-size: max(12px, calc(13px * var(--text-scale, 1))); letter-spacing: .3em; color: #f3e6c4; text-shadow: 0 1px 3px #000; }
 #situation.good { color: #9fc4ff; }
 #situation.bad { color: #ff9a86; }
 #target { top: calc(120px + env(safe-area-inset-top, 0px)); }
-#floats .floatm { position: absolute; transform: translate(-50%, -50%); font-family: var(--display); font-size: 15px; color: #f3d98a; -webkit-text-stroke: .5px rgba(0,0,0,.8); paint-order: stroke fill; text-shadow: 0 1px 3px #000; pointer-events: none; white-space: nowrap; }
+#floats .floatm { position: absolute; transform: translate(-50%, -50%); font-family: var(--display); font-size: max(12px, calc(15px * var(--text-scale, 1))); color: #f3d98a; -webkit-text-stroke: .5px rgba(0,0,0,.8); paint-order: stroke fill; text-shadow: 0 1px 3px #000; pointer-events: none; white-space: nowrap; }
 #floats .floatm.neg { color: #ff8a70; }
 #radial { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
 #radial::before { content: ""; position: absolute; left: -160px; top: -160px; width: 320px; height: 320px; border-radius: 50%; background: radial-gradient(circle, rgba(12,10,8,.2) 30%, rgba(12,10,8,.72) 31%, rgba(12,10,8,.72) 70%, transparent 71%); box-shadow: inset 0 0 0 1px rgba(194,162,90,.3); }
-#radial .rw { position: absolute; left: -44px; top: -16px; width: 88px; height: 32px; display: grid; place-items: center; font-family: var(--display); font-size: 15px; color: var(--washi); border: 1px solid transparent; }
+#radial .rw { position: absolute; left: -44px; top: -16px; width: 88px; height: 32px; display: grid; place-items: center; font-family: var(--display); font-size: max(12px, calc(15px * var(--text-scale, 1))); color: var(--washi); border: 1px solid transparent; }
 #radial .rw.on { color: #fff; border-color: var(--kin); background: rgba(194,162,90,.25); }
 #radial .rw.locked { color: var(--washi-faint); }
-#radial .rc { position: absolute; left: -60px; top: -20px; width: 120px; text-align: center; font-size: 12px; color: var(--washi-dim); line-height: 1.4; }
-#combo { position: absolute; left: calc(50% + 40px); top: calc(50% + 18px); font-family: var(--display); font-size: 18px; color: #f3e6c4; text-shadow: 0 1px 3px #000; }
+#radial .rc { position: absolute; left: -60px; top: -20px; width: 120px; text-align: center; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); line-height: 1.4; }
+#combo { position: absolute; left: calc(50% + 40px); top: calc(50% + 18px); font-family: var(--display); font-size: max(12px, calc(18px * var(--text-scale, 1))); color: #f3e6c4; text-shadow: 0 1px 3px #000; }
 #combo.pop, #killmark.pop { animation: pop .35s ease-out; }
 @keyframes pop { 0% { transform: scale(1.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-#killmark { position: absolute; left: 50%; top: 50%; margin: -20px 0 0 -14px; font-family: var(--display); font-weight: 800; font-size: 28px; color: #e2472c; -webkit-text-stroke: 1px rgba(0,0,0,.8); paint-order: stroke fill; text-shadow: 0 1px 4px rgba(0,0,0,.8); }
+#killmark { position: absolute; left: 50%; top: 50%; margin: -20px 0 0 -14px; font-family: var(--display); font-weight: 800; font-size: max(12px, calc(28px * var(--text-scale, 1))); color: #e2472c; -webkit-text-stroke: 1px rgba(0,0,0,.8); paint-order: stroke fill; text-shadow: 0 1px 4px rgba(0,0,0,.8); }
 #staring { position: absolute; left: calc(50% - 44px); top: calc(50% - 10px); width: 20px; height: 20px; border-radius: 50%; background: conic-gradient(#8fb4ec calc(var(--p) * 1%), rgba(0,0,0,.4) 0); -webkit-mask: radial-gradient(circle, transparent 5px, #000 6px); mask: radial-gradient(circle, transparent 5px, #000 6px); opacity: .85; }
 #staring.low { background: conic-gradient(#e2472c calc(var(--p) * 1%), rgba(0,0,0,.4) 0); }
-#skiphint { position: absolute; right: 20px; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); padding: 6px 12px; background: var(--lacquer); box-shadow: inset 0 0 0 1px var(--gold-line); font-size: 12.5px; }
+#skiphint { position: absolute; right: 20px; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); padding: 6px 12px; background: var(--lacquer); box-shadow: inset 0 0 0 1px var(--gold-line); font-size: max(12px, calc(12.5px * var(--text-scale, 1))); }
 #skiphint kbd { color: var(--kin); margin-right: 8px; font-family: var(--ui); }
 /* 携帯の横（高さが低い画面）：右下の操作の釦の列に重ならないよう、釦の上に置く（B040） */
 @media (max-height: 520px) { #skiphint { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); right: calc(14px + env(safe-area-inset-right, 0px)); } }
-#maphint { position: absolute; left: 50%; bottom: calc(40px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); font-size: 13px; color: #f3e6c4; text-shadow: 0 1px 3px #000; }
+#maphint { position: absolute; left: 50%; bottom: calc(40px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); font-size: max(12px, calc(13px * var(--text-scale, 1))); color: #f3e6c4; text-shadow: 0 1px 3px #000; }
 #bigmap { pointer-events: auto; cursor: crosshair; }
-#cheat { position: absolute; right: 20px; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); width: 300px; padding: 12px 14px; background: rgba(12,10,8,.82); box-shadow: inset 0 0 0 1px var(--gold-line); font-size: 12px; line-height: 1.8; }
+#cheat { position: absolute; right: 20px; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); width: 300px; padding: 12px 14px; background: rgba(12,10,8,.82); box-shadow: inset 0 0 0 1px var(--gold-line); font-size: max(12px, calc(12px * var(--text-scale, 1))); line-height: 1.8; }
 #cheat b { color: var(--kin); font-weight: 500; display: inline-block; min-width: 64px; }
-.threat.edge { font-size: 26px; color: #ff7a5a; }
+.threat.edge { font-size: max(12px, calc(26px * var(--text-scale, 1))); color: #ff7a5a; }
 .threat.edge::after { content: ""; }
-.threat.edge.back::after { content: "後"; font-size: 12px; display: block; text-align: center; margin-top: -4px; }
-.threat .ar { position: absolute; left: 50%; top: 50%; width: 1em; margin: -1.6em 0 0 -.5em; font-style: normal; font-size: 14px; line-height: 1; text-align: center; transform-origin: 50% 1.6em; }
+.threat.edge.back::after { content: "後"; font-size: max(12px, calc(12px * var(--text-scale, 1))); display: block; text-align: center; margin-top: -4px; }
+.threat .ar { position: absolute; left: 50%; top: 50%; width: 1em; margin: -1.6em 0 0 -.5em; font-style: normal; font-size: max(12px, calc(14px * var(--text-scale, 1))); line-height: 1; text-align: center; transform-origin: 50% 1.6em; }
 .mk.weak { color: #ffb04a; animation: lowpulse .6s ease-in-out infinite alternate; }
 .mk.fresh::before { animation: fresh .5s ease-in-out 4 alternate; }
 @keyframes fresh { from { transform: rotate(45deg) scale(1); } to { transform: rotate(45deg) scale(1.8); } }
@@ -630,11 +631,11 @@ body.ca #compass .c.foe span { color: #ff9a1a; }
   #objectives:not(.expand) li:not(.cur):not(.more) { display: none; }
   #objectives.expand li.more { display: none; }
   #hud #objectives { pointer-events: auto; cursor: pointer; }
-  #objectives li.more { display: block; font-size: 12px; color: var(--washi-dim); text-align: right; margin-top: 2px; min-height: 44px; line-height: 44px; }
+  #objectives li.more { display: block; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); text-align: right; margin-top: 2px; min-height: 44px; line-height: 44px; }
   #objectives h4 { display: none; }
   /* iPhone横：今やる任務は一つだけなので、大きく・下地を付けて目立たせる（kaito 10/2 指摘2） */
-  #objectives li.cur:not(.done) { font-size: 16.5px; line-height: 1.4; padding: 6px 8px; background: rgba(194,162,90,.16); box-shadow: inset 0 0 0 1px var(--gold-line); border-radius: 2px; }
-  #objectives li.cur:not(.done) .tag { font-size: 12.5px; }
+  #objectives li.cur:not(.done) { font-size: max(12px, calc(16.5px * var(--text-scale, 1))); line-height: 1.4; padding: 6px 8px; background: rgba(194,162,90,.16); box-shadow: inset 0 0 0 1px var(--gold-line); border-radius: 2px; }
+  #objectives li.cur:not(.done) .tag { font-size: max(12px, calc(12.5px * var(--text-scale, 1))); }
   /* 組の札（#h-squad）は顔の札と同じ事を言うので、低い画面では出さない */
   #hud #h-squad { display: none; }
   /* 顔の札は低く（顔・士気の輪・数・名だけ） */
@@ -647,7 +648,7 @@ body.ca #compass .c.foe span { color: #ff9a1a; }
   #hud #h-units .ready { display: none; }
   /* 指の端末の低い画面：兵力の帯は細く、方角の帯はその下へ。顔の札は号令の丸に掛からない幅に */
   html.touch #hud #armybar { width: min(360px, 40vw); }
-  html.touch #hud #armybar .clock { min-width: 52px; padding: 1px 6px; font-size: 16px; }
+  html.touch #hud #armybar .clock { min-width: 52px; padding: 1px 6px; font-size: max(12px, calc(16px * var(--text-scale, 1))); }
   html.touch #hud #armybar .side .nm small { display: none; }
   html.touch #hud #compass { top: calc(58px + env(safe-area-inset-top, 0px)); width: min(340px, 40vw); }
   html.touch #hud #h-units { max-width: 22vw; }
@@ -656,10 +657,10 @@ body.ca #compass .c.foe span { color: #ff9a1a; }
   html.touch #hud .tl { width: 176px; }
   /* 知らせ（#bark）は低い画面では方角の帯の下の一か所に（照準・一時の字とぶつけない） */
   #hud #bark { top: calc(112px + env(safe-area-inset-top, 0px)); bottom: auto; left: 58%; transform: translateX(-50%); max-width: min(40vw, 350px); }
-  #hud #bark .bk { font-size: 14px; }
+  #hud #bark .bk { font-size: max(12px, calc(14px * var(--text-scale, 1))); }
   #hud:has(#boss:not([hidden])) #bark { top: calc(150px + env(safe-area-inset-top, 0px)); }
   /* 字幕は小さめにして二行に収める（戦場の真ん中を塞がない） */
-  #hud:not([data-sub="l"]) #subtitle { font-size: 14.5px; line-height: 1.45; }
+  #hud:not([data-sub="l"]) #subtitle { font-size: max(12px, calc(14.5px * var(--text-scale, 1))); line-height: 1.45; }
   /* 左下の札は名と体力だけに（士気は顔の札の輪で見る） */
   #hud .bl .who small { display: none; }
 }
@@ -675,10 +676,10 @@ body.ca #compass .c.foe span { color: #ff9a1a; }
 /* 手ほどきの札が出ている間は、組の札（顔の札と同じ事を言う）を畳む */
 #hud:has(#tutorial:not([hidden])) #h-squad { display: none; }
 /* 今やる任務の一行は少し大きく、方角の帯の◆と同じ金で */
-#objectives li.cur:not(.done) { font-size: 14.5px; color: #f3e6c4; }
+#objectives li.cur:not(.done) { font-size: max(12px, calc(14.5px * var(--text-scale, 1))); color: #f3e6c4; }
 #objectives li.cur:not(.done) .tag { color: var(--kin); border-color: var(--gold-line); }
 /* 指の端末：字幕を押すと会話の記録が開く事を、字幕の右端の小さな印で */
-html.touch #hud #subtitle:not(:empty)::after { content: '記録'; display: inline-block; margin-left: 8px; padding: 0 5px; font-size: 12px; line-height: 1.5; color: var(--kin); border: 1px solid var(--gold-line); vertical-align: middle; }
+html.touch #hud #subtitle:not(:empty)::after { content: '記録'; display: inline-block; margin-left: 8px; padding: 0 5px; font-size: max(12px, calc(12px * var(--text-scale, 1))); line-height: 1.5; color: var(--kin); border: 1px solid var(--gold-line); vertical-align: middle; }
 html.touch #h-units kbd { display: none; }
 .mk.dimmed { opacity: .5; }
 .mk.quiet { opacity: .6; transform: translate(-50%, -100%) scale(.88); transition: opacity .6s; }
@@ -696,7 +697,7 @@ html.touch #h-units kbd { display: none; }
 /* 字幕の下地 */
 #hud.subbg #subtitle:not(:empty) { background: rgba(8,7,5,.62); padding: 6px 16px; }
 /* 任務札：主は大きく、命令は朱の帯 */
-#objectives li.main { font-size: 13.5px; }
+#objectives li.main { font-size: max(12px, calc(13.5px * var(--text-scale, 1))); }
 #objectives li.order { border-right: 3px solid var(--shu); padding-right: 6px; }
 #hud.photo > *:not(#vignette) { display: none !important; }
 body:has(#hud.photo) #overlay { display: none; }
@@ -704,24 +705,24 @@ body:has(#hud.photo) #overlay { display: none; }
 /* ================= 第4弾（画面） ================= */
 .slots { display: flex; gap: 8px; flex-wrap: wrap; }
 .slotcard { background: var(--sumi-2); border: 1px solid var(--line); color: var(--washi); padding: 8px 12px; text-align: left; cursor: pointer; display: grid; gap: 2px; min-width: 150px; font-family: var(--ui); }
-.slotcard b { font-family: var(--display); font-size: 14px; }
-.slotcard small { font-size: 12px; color: var(--washi-dim); line-height: 1.5; }
+.slotcard b { font-family: var(--display); font-size: max(12px, calc(14px * var(--text-scale, 1))); }
+.slotcard small { font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); line-height: 1.5; }
 .slotcard.on { border-color: var(--kin); box-shadow: inset 0 0 0 1px var(--kin); }
 .promo-cine { min-height: 100%; display: grid; place-items: center; align-content: center; gap: 14px; text-align: center; padding-block: 30px; }
-.promo-cine .pc-lbl { font-size: 13px; letter-spacing: .6em; color: var(--kin); }
-.promo-cine .pc-rank { font-family: var(--display); font-weight: 800; font-size: clamp(30px, 6vw, 60px); letter-spacing: .08em; animation: pop .6s ease-out; }
+.promo-cine .pc-lbl { font-size: max(12px, calc(13px * var(--text-scale, 1))); letter-spacing: .6em; color: var(--kin); }
+.promo-cine .pc-rank { font-family: var(--display); font-weight: 800; font-size: max(12px, calc(clamp(30px, 6vw, 60px) * var(--text-scale, 1))); letter-spacing: .08em; animation: pop .6s ease-out; }
 .promo-cine .pc-rank .old { color: var(--washi-faint); font-size: .55em; }
 .promo-cine .pc-rank .arrow { color: var(--kin); margin: 0 .3em; font-size: .6em; }
 .promo-cine .pc-rank .new { background: linear-gradient(180deg, #fff, #f3d98a 55%, #b88a32); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 3px 8px rgba(0,0,0,.6)); }
 .promo-cine .pc-look { display: flex; align-items: center; gap: 12px; justify-content: center; flex-wrap: wrap; }
-.promo-cine .pc-look small { display: block; font-size: 12px; color: var(--washi-dim); letter-spacing: .2em; }
-.promo-cine .pc-arrow { font-size: 26px; color: var(--kin); }
+.promo-cine .pc-look small { display: block; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); letter-spacing: .2em; }
+.promo-cine .pc-arrow { font-size: max(12px, calc(26px * var(--text-scale, 1))); color: var(--kin); }
 .promo-cine .pc-unl { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; max-width: 720px; }
-.promo-cine .card { border: 1px solid var(--kin); padding: 8px 14px; background: rgba(194,162,90,.08); font-size: 14px; opacity: 0; animation: ln .5s ease-out forwards; }
-.promo-cine .card small { display: block; font-size: 12px; letter-spacing: .3em; color: var(--kin); }
-.seal { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-right: 8px; border: 1px solid var(--shu); color: var(--shu); font-style: normal; font-family: var(--display); font-size: 12px; letter-spacing: 0; vertical-align: -3px; }
+.promo-cine .card { border: 1px solid var(--kin); padding: 8px 14px; background: rgba(194,162,90,.08); font-size: max(12px, calc(14px * var(--text-scale, 1))); opacity: 0; animation: ln .5s ease-out forwards; }
+.promo-cine .card small { display: block; font-size: max(12px, calc(12px * var(--text-scale, 1))); letter-spacing: .3em; color: var(--kin); }
+.seal { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-right: 8px; border: 1px solid var(--shu); color: var(--shu); font-style: normal; font-family: var(--display); font-size: max(12px, calc(12px * var(--text-scale, 1))); letter-spacing: 0; vertical-align: -3px; }
 .seal.neg { border-color: var(--washi-faint); color: var(--washi-faint); }
-.rec { margin-left: 8px; font-size: 12px; color: var(--sumi); background: var(--kin); padding: 1px 6px; }
+.rec { margin-left: 8px; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--sumi); background: var(--kin); padding: 1px 6px; }
 .cmap { max-width: 420px; display: block; margin: 6px 0 14px; background: radial-gradient(ellipse at 50% 60%, rgba(111,138,78,.12), transparent 70%); border: 1px solid var(--line); }
 .townsky { height: 34px; margin-bottom: 4px; background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 34' preserveAspectRatio='none'><path d='M0 34 V22 L20 14 L40 22 V20 L60 12 L80 20 V24 L95 18 L110 24 V16 L135 6 L160 16 V22 L180 14 L200 22 V18 L225 10 L250 18 V24 L265 17 L280 24 V14 L300 4 L320 14 V22 L340 15 L360 22 V19 L385 9 L410 19 V23 L425 16 L440 23 V15 L465 7 L490 15 V22 L510 14 L530 22 V20 L555 11 L580 20 L600 20 V34 Z' fill='%232c2821'/></svg>") no-repeat bottom / 100% 100%; opacity: .9; }
 .tabs button svg { width: 15px; height: 15px; vertical-align: -3px; margin-right: 5px; stroke: currentColor; fill: none; stroke-width: 1.6; }
@@ -733,17 +734,17 @@ body:has(#hud.photo) #overlay { display: none; }
 #loading .ldmon { width: 56px; height: 56px; margin: 0 auto 16px; border-radius: 50%; border: 2px solid var(--kin); border-top-color: transparent; animation: spin 1.1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 #ld-lore { max-width: 30em; margin: 20px auto 0; display: grid; gap: 8px; text-align: left; }
-#ld-lore p { margin: 0; font-family: var(--display); font-size: 16px; line-height: 1.6; color: var(--washi); display: grid; grid-template-columns: 5em 1fr; gap: 10px; align-items: baseline; }
-#ld-lore small { font-family: var(--ui); font-size: 12px; letter-spacing: .3em; color: var(--kin); border-right: 2px solid var(--kin); padding-right: 8px; text-align: right; }
-@media (max-height: 500px) { #ld-lore { margin-top: 10px; gap: 4px; } #ld-lore p { font-size: 14px; } }
+#ld-lore p { margin: 0; font-family: var(--display); font-size: max(12px, calc(16px * var(--text-scale, 1))); line-height: 1.6; color: var(--washi); display: grid; grid-template-columns: 5em 1fr; gap: 10px; align-items: baseline; }
+#ld-lore small { font-family: var(--ui); font-size: max(12px, calc(12px * var(--text-scale, 1))); letter-spacing: .3em; color: var(--kin); border-right: 2px solid var(--kin); padding-right: 8px; text-align: right; }
+@media (max-height: 500px) { #ld-lore { margin-top: 10px; gap: 4px; } #ld-lore p { font-size: max(12px, calc(14px * var(--text-scale, 1))); } }
 /* 進みの棒（10/2）：左から伸びる。動かすのは main.js の ldStep・題までは下の #boot の小さな script */
 #loading .ldbar, #boot .ldbar { width: min(320px, 70vw); height: 6px; border-radius: 3px; background: var(--sumi-3); margin: 16px auto 0; overflow: hidden; position: relative; }
 #loading .ldbar i, #boot .ldbar i { position: absolute; inset: 0; background: var(--kin); transform-origin: left center; transform: scaleX(0); will-change: transform; }
 #boot { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: var(--sumi); color: var(--washi); text-align: center; transition: opacity .35s; }
 #boot.out { opacity: 0; pointer-events: none; }
-#boot .bt { font-family: var(--display); font-size: 28px; letter-spacing: .3em; color: var(--washi); }
-#boot #boot-st { margin-top: 12px; font-family: var(--ui); font-size: 15px; }
-#boot #boot-left { margin-top: 4px; font-family: var(--ui); font-size: 13px; opacity: .85; min-height: 1.4em; }
+#boot .bt { font-family: var(--display); font-size: max(12px, calc(28px * var(--text-scale, 1))); letter-spacing: .3em; color: var(--washi); }
+#boot #boot-st { margin-top: 12px; font-family: var(--ui); font-size: max(12px, calc(15px * var(--text-scale, 1))); }
+#boot #boot-left { margin-top: 4px; font-family: var(--ui); font-size: max(12px, calc(13px * var(--text-scale, 1))); opacity: .85; min-height: 1.4em; }
 @keyframes ldbar { from { left: -40%; } to { left: 100%; } }
 
 /* ================= 第5弾 ================= */
@@ -755,19 +756,19 @@ kbd.cap { display: inline-block; min-width: 1.4em; padding: 0 5px; margin: 0 2px
 #crosshair[data-style="cross"] i { width: 14px; height: 2px; margin: -1px 0 0 -7px; border-radius: 0; box-shadow: 0 0 0 1px rgba(0,0,0,.6); }
 #crosshair[data-style="cross"] i::after { content: ""; position: absolute; left: 6px; top: -6px; width: 2px; height: 14px; background: inherit; }
 #crosshair[data-style="none"] i { opacity: 0; }
-#tutorial { position: absolute; left: calc(20px + env(safe-area-inset-left, 0px)); top: 36%; width: 220px; padding: 10px 12px; background: var(--lacquer); box-shadow: inset 0 0 0 1px var(--gold-line); font-size: 12.5px; line-height: 1.9; }
-#tutorial h5 { margin: 0 0 4px; font-family: var(--display); font-size: 14px; color: var(--kin); letter-spacing: .1em; display: flex; justify-content: space-between; }
-#tutorial h5 span { font-family: var(--ui); font-size: 12px; color: var(--washi-dim); }
+#tutorial { position: absolute; left: calc(20px + env(safe-area-inset-left, 0px)); top: 36%; width: 220px; padding: 10px 12px; background: var(--lacquer); box-shadow: inset 0 0 0 1px var(--gold-line); font-size: max(12px, calc(12.5px * var(--text-scale, 1))); line-height: 1.9; }
+#tutorial h5 { margin: 0 0 4px; font-family: var(--display); font-size: max(12px, calc(14px * var(--text-scale, 1))); color: var(--kin); letter-spacing: .1em; display: flex; justify-content: space-between; }
+#tutorial h5 span { font-family: var(--ui); font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); }
 #tutorial div { display: flex; gap: 8px; align-items: center; }
-#tutorial div i { width: 14px; height: 14px; border: 1px solid var(--washi-faint); font-style: normal; font-size: 12px; display: grid; place-items: center; color: var(--kin); }
+#tutorial div i { width: 14px; height: 14px; border: 1px solid var(--washi-faint); font-style: normal; font-size: max(12px, calc(12px * var(--text-scale, 1))); display: grid; place-items: center; color: var(--kin); }
 #tutorial div.done { color: var(--washi-faint); }
 #tutorial div.done i { border-color: var(--kin); }
 /* 判断の札は右上の端に小さく（戦場の真ん中を隠さない）。携帯横は別の場所へ上の規則で動かす */
 #choice { position: absolute; right: calc(16px + env(safe-area-inset-right, 0px)); left: auto; top: calc(16px + env(safe-area-inset-top, 0px)); transform: none; width: min(320px, 46vw); padding: 10px 14px; background: rgba(12,10,8,.9); box-shadow: inset 0 0 0 1px var(--gold-line), 0 0 0 1px #000; }
-#choice h5 { margin: 0 0 10px; font-family: var(--display); font-size: 16px; font-weight: 600; color: #f3e6c4; }
+#choice h5 { margin: 0 0 10px; font-family: var(--display); font-size: max(12px, calc(16px * var(--text-scale, 1))); font-weight: 600; color: #f3e6c4; }
 #choice .opt { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; padding: 8px 0; border-top: 1px solid var(--line); }
 #choice .opt b { font-weight: 500; }
-#choice .opt small { grid-column: 2; color: var(--washi-dim); font-size: 12px; }
+#choice .opt small { grid-column: 2; color: var(--washi-dim); font-size: max(12px, calc(12px * var(--text-scale, 1))); }
 #choice .tm { height: 2px; background: var(--sumi-3); margin-top: 8px; position: relative; }
 #choice .tm i { position: absolute; inset: 0; right: auto; background: var(--kin); }
 /* 判断の札が出ている間は、戦場が札に食われないよう、ほかの一時の札を引っ込める（パソコンの広い画面でも） */
@@ -776,23 +777,23 @@ kbd.cap { display: inline-block; min-width: 1.4em; padding: 0 5px; margin: 0 2px
 @media (min-height: 501px) { #hud:has(#choice:not([hidden])) #objectives { visibility: hidden; } }
 
 /* ================= 第5弾（画面） ================= */
-.pb { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font-size: 12px; font-weight: 700; color: #111; font-family: var(--ui); }
+.pb { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font-size: max(12px, calc(12px * var(--text-scale, 1))); font-weight: 700; color: #111; font-family: var(--ui); }
 .pb-a { background: #6fbf5a; } .pb-b { background: #d9534a; } .pb-x { background: #4f8fd9; } .pb-y { background: #e0b23a; }
 .mdiag { display: block; max-width: 360px; margin-top: 10px; border: 1px solid var(--line); }
 .sic svg { width: 16px; height: 16px; vertical-align: -3px; margin-right: 6px; stroke: var(--washi-dim); fill: none; stroke-width: 1.5; }
-.bossline { font-size: 14px; margin: 6px 0 10px; }
+.bossline { font-size: max(12px, calc(14px * var(--text-scale, 1))); margin: 6px 0 10px; }
 .bossline b { color: var(--kin); font-weight: 500; margin-right: 6px; font-family: var(--display); }
 .base.tod-2 { background: linear-gradient(180deg, rgba(160,180,200,.05), transparent 30%); }
 .base.tod-1 { background: linear-gradient(180deg, rgba(220,200,150,.05), transparent 30%); }
 .base.tod-0 { background: linear-gradient(180deg, rgba(200,120,70,.08), transparent 35%); }
 .preview3d.flash { animation: pvflash .6s ease-out; }
 @keyframes pvflash { 0% { box-shadow: 0 0 0 0 rgba(194,162,90,.0); } 30% { box-shadow: 0 0 30px 6px rgba(194,162,90,.5); } 100% { box-shadow: 0 0 0 0 rgba(194,162,90,0); } }
-.settings .s-row label small { display: block; font-size: 12px; color: var(--washi-faint); margin-top: 2px; line-height: 1.5; }
+.settings .s-row label small { display: block; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-faint); margin-top: 2px; line-height: 1.5; }
 .st-tabs { margin-bottom: 4px; }
-.botpanel { position: fixed; right: 16px; top: 16px; z-index: 50; width: min(520px, 90vw); max-height: 80vh; overflow: auto; background: rgba(12,10,8,.94); border: 1px solid var(--gold-line); padding: 12px 14px; font-size: 12.5px; line-height: 1.7; }
-.botpanel pre { white-space: pre-wrap; font-size: 12px; color: var(--washi-dim); }
-.debugbar { position: fixed; left: 50%; bottom: 4px; transform: translateX(-50%); z-index: 50; display: flex; gap: 6px; align-items: center; background: rgba(12,10,8,.85); padding: 4px 8px; font-size: 12px; border: 1px solid var(--line); }
-.debugbar button { font-size: 12px; background: var(--sumi-2); color: var(--washi); border: 1px solid var(--line); padding: 2px 8px; cursor: pointer; }
+.botpanel { position: fixed; right: 16px; top: 16px; z-index: 50; width: min(520px, 90vw); max-height: 80vh; overflow: auto; background: rgba(12,10,8,.94); border: 1px solid var(--gold-line); padding: 12px 14px; font-size: max(12px, calc(12.5px * var(--text-scale, 1))); line-height: 1.7; }
+.botpanel pre { white-space: pre-wrap; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); }
+.debugbar { position: fixed; left: 50%; bottom: 4px; transform: translateX(-50%); z-index: 50; display: flex; gap: 6px; align-items: center; background: rgba(12,10,8,.85); padding: 4px 8px; font-size: max(12px, calc(12px * var(--text-scale, 1))); border: 1px solid var(--line); }
+.debugbar button { font-size: max(12px, calc(12px * var(--text-scale, 1))); background: var(--sumi-2); color: var(--washi); border: 1px solid var(--line); padding: 2px 8px; cursor: pointer; }
 button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--kin); outline-offset: 2px; box-shadow: 0 0 12px rgba(194,162,90,.35); }
 
 /* ================= 第6弾 ================= */
@@ -815,32 +816,32 @@ body.mincho, body.mincho button, body.mincho .note { font-family: var(--display)
 .tour { position: fixed; inset: 0; z-index: 30; background: rgba(0,0,0,.55); }
 .tour .box { position: absolute; box-shadow: 0 8px 28px rgba(0,0,0,.5); }
 .tour .box::before { content: ''; position: absolute; top: -7px; left: var(--arrow, 24px); width: 12px; height: 12px; background: var(--sumi-2); border-left: 1px solid var(--kin); border-top: 1px solid var(--kin); transform: rotate(45deg); }
-.tour .box { max-width: 420px; background: var(--sumi-2); border: 1px solid var(--kin); padding: 14px 16px; font-size: 14px; line-height: 1.8; }
+.tour .box { max-width: 420px; background: var(--sumi-2); border: 1px solid var(--kin); padding: 14px 16px; font-size: max(12px, calc(14px * var(--text-scale, 1))); line-height: 1.8; }
 .tour .box b { font-family: var(--display); color: var(--kin); display: block; margin-bottom: 4px; }
 .tourhl { position: relative; z-index: 31; box-shadow: 0 0 0 2px var(--kin), 0 0 24px rgba(194,162,90,.6) !important; background: var(--sumi-2) !important; }
 /* 評定 */
-.grade { display: inline-grid; place-items: center; min-width: 64px; height: 64px; padding: 0 8px; border: 2px solid var(--shu); color: var(--shu); font-family: var(--display); font-weight: 800; font-size: 26px; transform: rotate(-6deg); float: right; margin-top: -6px; background: rgba(192,69,46,.06); animation: pop .5s ease-out; }
+.grade { display: inline-grid; place-items: center; min-width: 64px; height: 64px; padding: 0 8px; border: 2px solid var(--shu); color: var(--shu); font-family: var(--display); font-weight: 800; font-size: max(12px, calc(26px * var(--text-scale, 1))); transform: rotate(-6deg); float: right; margin-top: -6px; background: rgba(192,69,46,.06); animation: pop .5s ease-out; }
 .grade.g-甲上 { border-color: var(--kin); color: var(--kin); }
 /* 記録帳・稽古場の結果 */
 .records { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin: 14px 0; }
 .records div { border: 1px solid var(--line); padding: 10px 12px; }
-.records b { display: block; font-family: var(--display); font-size: 24px; color: var(--kin); }
-.records small { color: var(--washi-dim); font-size: 12px; }
+.records b { display: block; font-family: var(--display); font-size: max(12px, calc(24px * var(--text-scale, 1))); color: var(--kin); }
+.records small { color: var(--washi-dim); font-size: max(12px, calc(12px * var(--text-scale, 1))); }
 @media (max-width: 900px) { .records { grid-template-columns: repeat(3, 1fr); } }
 
 /* 下地を薄くした分、HUD の字に影を落として読みやすく */
 .bl, #objectives, #tutorial, #hint, .topc, .plaque, #squadbox { text-shadow: 0 1px 2px rgba(0,0,0,.75); }
 /* 小さな添え字も 11px を下回らない */
-.titles small, #prompt small, .objs small, kbd.cap { font-size: max(11px, .92em); }
+.titles small, #prompt small, .objs small, kbd.cap { font-size: max(12px, .92em); }
 /* 出世の道：十段の階段 */
 .ladder { max-width: 1180px; }
-.ld-title { font-family: var(--display); font-size: clamp(28px, 4vw, 40px); letter-spacing: .12em; margin: 8px 0 6px; }
+.ld-title { font-family: var(--display); font-size: max(12px, calc(clamp(28px, 4vw, 40px) * var(--text-scale, 1))); letter-spacing: .12em; margin: 8px 0 6px; }
 .ld-stair { position: relative; display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; align-items: end; height: 190px; margin: 22px 0 10px; padding-bottom: 14px; }
 .ld-step { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 2px; margin-bottom: calc(var(--i) * 12px); min-height: 72px; padding: 8px 4px 6px; background: linear-gradient(180deg, #2a241c, #1b1813); border: 1px solid var(--line); border-top: 3px solid #3a3226; color: var(--washi-dim); cursor: pointer; transition: transform .15s, border-color .15s, background .15s; font-family: inherit; }
-.ld-step .k { font-family: var(--display); font-size: 12px; color: var(--washi-faint); letter-spacing: .1em; }
-.ld-step b { font-family: var(--display); font-size: 15px; font-weight: 800; color: var(--washi); letter-spacing: .06em; line-height: 1.25; text-align: center; }
-.ld-step small { font-size: 12px; color: var(--washi-faint); text-align: center; }
-.ld-step em { position: absolute; top: -12px; right: -4px; font-style: normal; font-size: 12px; font-weight: 700; letter-spacing: .1em; padding: 1px 6px; background: var(--shu); color: #fff6e6; }
+.ld-step .k { font-family: var(--display); font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-faint); letter-spacing: .1em; }
+.ld-step b { font-family: var(--display); font-size: max(12px, calc(15px * var(--text-scale, 1))); font-weight: 800; color: var(--washi); letter-spacing: .06em; line-height: 1.25; text-align: center; }
+.ld-step small { font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-faint); text-align: center; }
+.ld-step em { position: absolute; top: -12px; right: -4px; font-style: normal; font-size: max(12px, calc(12px * var(--text-scale, 1))); font-weight: 700; letter-spacing: .1em; padding: 1px 6px; background: var(--shu); color: #fff6e6; }
 .ld-step em.nx { background: none; border: 1px dashed var(--kin); color: var(--kin); }
 .ld-step.st-done { border-top-color: var(--kin); background: linear-gradient(180deg, #33291a, #1f1a12); }
 .ld-step.st-done b { color: var(--kin); }
@@ -856,25 +857,25 @@ body.mincho, body.mincho button, body.mincho .note { font-family: var(--display)
 .ld-line i { display: block; height: 100%; background: linear-gradient(90deg, var(--kin), var(--shu)); }
 .ld-body { display: grid; grid-template-columns: minmax(280px, 380px) 1fr; gap: 28px; align-items: start; margin-top: 18px; }
 .ld-look .preview3d { width: 100%; height: 400px; margin: 0; }
-.ld-name { font-family: var(--display); font-size: 34px; font-weight: 800; letter-spacing: .12em; color: var(--washi); }
-.ld-name small { display: block; font-size: 13px; color: var(--kin); letter-spacing: .3em; margin-bottom: 2px; }
-.ld-cmd { margin: 6px 0 4px; color: var(--washi-dim); font-size: 14px; }
-.ld-cmd b { color: var(--washi); font-size: 17px; font-variant-numeric: tabular-nums; }
-.ld-cond { display: inline-block; margin: 6px 0 14px; padding: 3px 10px; font-size: 13px; border: 1px solid var(--line); color: var(--washi-dim); }
+.ld-name { font-family: var(--display); font-size: max(12px, calc(34px * var(--text-scale, 1))); font-weight: 800; letter-spacing: .12em; color: var(--washi); }
+.ld-name small { display: block; font-size: max(12px, calc(13px * var(--text-scale, 1))); color: var(--kin); letter-spacing: .3em; margin-bottom: 2px; }
+.ld-cmd { margin: 6px 0 4px; color: var(--washi-dim); font-size: max(12px, calc(14px * var(--text-scale, 1))); }
+.ld-cmd b { color: var(--washi); font-size: max(12px, calc(17px * var(--text-scale, 1))); font-variant-numeric: tabular-nums; }
+.ld-cond { display: inline-block; margin: 6px 0 14px; padding: 3px 10px; font-size: max(12px, calc(13px * var(--text-scale, 1))); border: 1px solid var(--line); color: var(--washi-dim); }
 .ld-cond.st-now { border-color: var(--shu); color: #f0c9b8; }
 .ld-cond.st-done { border-color: var(--kin); color: var(--kin); }
 .ld-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 16px; }
-.ld-cols h5 { margin: 0 0 6px; font-size: 12px; letter-spacing: .25em; color: var(--kin); font-weight: 500; }
-.ld-cols p { margin: 0; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 14px; line-height: 1.6; }
+.ld-cols h5 { margin: 0 0 6px; font-size: max(12px, calc(12px * var(--text-scale, 1))); letter-spacing: .25em; color: var(--kin); font-weight: 500; }
+.ld-cols p { margin: 0; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: max(12px, calc(14px * var(--text-scale, 1))); line-height: 1.6; }
 @media (max-width: 900px) { .ld-stair { grid-template-columns: repeat(5, 1fr); height: auto; } .ld-step { margin-bottom: 0; } .ld-body { grid-template-columns: 1fr; } .ld-line { display: none; } }
 /* 馬屋 */
 .stable { display: grid; grid-template-columns: 300px 1fr; gap: 22px; align-items: start; }
 .stable .preview3d, .stable-lock .preview3d { width: 300px; height: 300px; }
 .stable-lock { display: grid; grid-template-columns: 300px 1fr; gap: 22px; align-items: center; }
 .stable-lock .preview3d { filter: grayscale(.8) brightness(.7); }
-.st-name { text-align: center; font-family: var(--display); font-size: 24px; letter-spacing: .15em; color: var(--washi); margin: 4px 0 8px; }
-.st-name small { display: block; font-family: var(--ui); font-size: 12px; letter-spacing: .1em; color: var(--kin); }
-.hstats { display: grid; grid-template-columns: 34px 1fr 34px 1fr 34px 1fr; gap: 4px 6px; align-items: center; margin-top: 6px; font-size: 12px; color: var(--washi-dim); }
+.st-name { text-align: center; font-family: var(--display); font-size: max(12px, calc(24px * var(--text-scale, 1))); letter-spacing: .15em; color: var(--washi); margin: 4px 0 8px; }
+.st-name small { display: block; font-family: var(--ui); font-size: max(12px, calc(12px * var(--text-scale, 1))); letter-spacing: .1em; color: var(--kin); }
+.hstats { display: grid; grid-template-columns: 34px 1fr 34px 1fr 34px 1fr; gap: 4px 6px; align-items: center; margin-top: 6px; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); }
 .hstats .hb { display: block; height: 5px; background: rgba(0,0,0,.4); border: 1px solid var(--line); }
 .hstats .hb b { display: block; height: 100%; background: var(--kin); }
 @media (max-width: 900px) { .stable, .stable-lock { grid-template-columns: 1fr; } }
@@ -884,19 +885,19 @@ body.mincho, body.mincho button, body.mincho .note { font-family: var(--display)
 .pc-ladder i { display: block; width: 26px; height: calc(8px + var(--i) * 3px); background: #2c271f; border-top: 2px solid #3a3226; }
 .pc-ladder i.done { background: #3a2f1c; border-top-color: var(--kin); }
 .pc-ladder i.now { background: var(--shu); border-top-color: #f0c9b8; box-shadow: 0 0 12px rgba(192,69,46,.6); animation: pop .6s ease-out 1s both; }
-.pc-ladder-lbl { font-size: 12px; color: var(--washi-dim); letter-spacing: .2em; margin-top: -8px; margin-bottom: 12px; }
+.pc-ladder-lbl { font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); letter-spacing: .2em; margin-top: -8px; margin-bottom: 12px; }
 /* エンディングの流れる字幕 */
 .credits { height: min(34vh, 260px); margin: 10px 0 14px; overflow: hidden; position: relative; mask-image: linear-gradient(transparent, #000 15%, #000 85%, transparent); -webkit-mask-image: linear-gradient(transparent, #000 15%, #000 85%, transparent); }
-.credits .roll { position: absolute; left: 0; right: 0; text-align: center; animation: roll 36s linear 5.5s both; line-height: 2.4; font-size: 14px; color: var(--washi-dim); }
-.credits .roll b { display: block; font-family: var(--display); font-size: 18px; color: var(--washi); margin-top: 18px; }
+.credits .roll { position: absolute; left: 0; right: 0; text-align: center; animation: roll 36s linear 5.5s both; line-height: 2.4; font-size: max(12px, calc(14px * var(--text-scale, 1))); color: var(--washi-dim); }
+.credits .roll b { display: block; font-family: var(--display); font-size: max(12px, calc(18px * var(--text-scale, 1))); color: var(--washi); margin-top: 18px; }
 @keyframes roll { from { transform: translateY(min(34vh, 260px)); } to { transform: translateY(-100%); } }
 /* 写真モード */
-#photoui { position: fixed; left: calc(16px + env(safe-area-inset-left, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 20; background: rgba(12,10,8,.7); padding: 8px 12px; font-size: 12px; color: var(--washi-dim); line-height: 1.8; }
+#photoui { position: fixed; left: calc(16px + env(safe-area-inset-left, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 20; background: rgba(12,10,8,.7); padding: 8px 12px; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); line-height: 1.8; }
 #photoui b { color: var(--kin); font-weight: 500; }
 .photogrid { position: fixed; inset: 0; pointer-events: none; z-index: 19; background-image: linear-gradient(to right, transparent calc(33.33% - 1px), rgba(255,255,255,.25) 33.33%, transparent calc(33.33% + 1px), transparent calc(66.66% - 1px), rgba(255,255,255,.25) 66.66%, transparent calc(66.66% + 1px)), linear-gradient(to bottom, transparent calc(33.33% - 1px), rgba(255,255,255,.25) 33.33%, transparent calc(33.33% + 1px), transparent calc(66.66% - 1px), rgba(255,255,255,.25) 66.66%, transparent calc(66.66% + 1px)); }
 .shot { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.85); display: grid; place-items: center; gap: 10px; align-content: center; }
 .shot img { max-width: 86vw; max-height: 74vh; border: 1px solid var(--kin); }
-.renm { background: none; border: 1px solid var(--line); color: var(--washi-dim); font-size: 12px; min-height: 28px; min-width: 44px; padding: 2px 8px; margin-left: 6px; cursor: pointer; }
+.renm { background: none; border: 1px solid var(--line); color: var(--washi-dim); font-size: max(12px, calc(12px * var(--text-scale, 1))); min-height: 28px; min-width: 44px; padding: 2px 8px; margin-left: 6px; cursor: pointer; }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition: none !important; } .ledger .ln, .promo { opacity: 1; } }
 
@@ -907,77 +908,77 @@ body.mincho, body.mincho button, body.mincho .note { font-family: var(--display)
 .jp-map::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.45), inset 0 0 70px rgba(50,36,18,.38); }
 .jp-map canvas { display: block; cursor: grab; touch-action: none; }
 .jp-season { position: absolute; left: calc(16px + env(safe-area-inset-left, 0px)); top: 14px; z-index: 1; display: flex; align-items: center; gap: 10px; padding: 7px 14px 7px 7px; background: rgba(236,226,202,.92); color: #241c14; box-shadow: 0 0 0 1px rgba(60,45,30,.4), 0 3px 10px rgba(0,0,0,.25); }
-.jp-season b { font-family: var(--display); font-size: 26px; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; background: #8e2f1f; color: #f3ead6; }
+.jp-season b { font-family: var(--display); font-size: max(12px, calc(26px * var(--text-scale, 1))); width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; background: #8e2f1f; color: #f3ead6; }
 .jp-loop { list-style: none; margin: 0 0 10px; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
-.jp-loop button { width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 2px 4px; background: rgba(44,40,33,.9); color: var(--washi); border: 1px solid rgba(194,162,90,.4); font: 600 13px var(--ui); cursor: pointer; }
-.jp-loop button i { font-style: normal; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; border: 1px solid var(--kin); color: var(--kin); }
+.jp-loop button { width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 2px 4px; background: rgba(44,40,33,.9); color: var(--washi); border: 1px solid rgba(194,162,90,.4); font: 600 max(12px, calc(13px * var(--text-scale, 1))) var(--ui); cursor: pointer; }
+.jp-loop button i { font-style: normal; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: max(12px, calc(12px * var(--text-scale, 1))); border: 1px solid var(--kin); color: var(--kin); }
 .jp-loop button.ok i { background: var(--kin); color: #14120f; }
 .jp-loop button.on { border-color: var(--kin); background: rgba(194,162,90,.18); }
-.jp-season span { font-family: var(--display); font-size: 13px; line-height: 1.5; letter-spacing: .06em; }
+.jp-season span { font-family: var(--display); font-size: max(12px, calc(13px * var(--text-scale, 1))); line-height: 1.5; letter-spacing: .06em; }
 .jp-moves { position: absolute; left: calc(16px + env(safe-area-inset-left, 0px)); top: 80px; z-index: 1; padding: 6px 12px 8px; background: rgba(236,226,202,.92); color: #241c14; box-shadow: 0 0 0 1px rgba(60,45,30,.4); max-width: min(300px, 44%); }
 .jp-moves[hidden] { display: none; }
-.jp-moves > small { display: block; font-size: 12px; letter-spacing: .2em; color: #5a4a36; }
-.jp-moves ul { list-style: none; margin: 2px 0 0; padding: 0; display: grid; gap: 2px; font-size: 13px; }
+.jp-moves > small { display: block; font-size: max(12px, calc(12px * var(--text-scale, 1))); letter-spacing: .2em; color: #5a4a36; }
+.jp-moves ul { list-style: none; margin: 2px 0 0; padding: 0; display: grid; gap: 2px; font-size: max(12px, calc(13px * var(--text-scale, 1))); }
 .jp-moves li { display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; }
 .jp-moves li i { flex: 0 0 auto; width: 10px; height: 10px; box-shadow: 0 0 0 1px rgba(0,0,0,.4); }
-.jp-moves li em { font-style: normal; font-size: 12px; margin-left: auto; padding: 0 5px; border: 1px solid #7a6a52; }
+.jp-moves li em { font-style: normal; font-size: max(12px, calc(12px * var(--text-scale, 1))); margin-left: auto; padding: 0 5px; border: 1px solid #7a6a52; }
 .jp-moves li.wn em { background: #7a2a1c; color: #f4ecd8; border-color: #7a2a1c; }
 .jp-moves li.th em { color: #7a2a1c; border-color: #7a2a1c; font-weight: 700; }
-@media (max-height: 500px) { .jp-moves { top: 66px; left: 8px; padding: 4px 8px; } .jp-moves ul { font-size: 12px; } }
+@media (max-height: 500px) { .jp-moves { top: 66px; left: 8px; padding: 4px 8px; } .jp-moves ul { font-size: max(12px, calc(12px * var(--text-scale, 1))); } }
 .jp-tools { position: absolute; right: calc(16px + env(safe-area-inset-right, 0px)); top: 14px; z-index: 1; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; max-width: calc(100% - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)); }
 .jp-tools .btn { white-space: nowrap; background: rgba(236,226,202,.92); color: #241c14; border-color: rgba(60,45,30,.55); min-width: 40px; padding: 6px 12px; }
 .jp-tools .btn:hover { background: #241c14; color: var(--washi); }
 #jp-toolstgl { display: none; }
 .jp-sidebtn { display: none; }
-.jp-legend { position: absolute; left: calc(16px + env(safe-area-inset-left, 0px)); bottom: calc(14px + env(safe-area-inset-bottom, 0px)); z-index: 1; display: flex; flex-wrap: wrap; gap: 6px 14px; max-width: calc(100% - 120px); padding: 6px 12px; background: rgba(236,226,202,.9); color: #2a2017; font-size: 12px; box-shadow: 0 0 0 1px rgba(60,45,30,.35); }
+.jp-legend { position: absolute; left: calc(16px + env(safe-area-inset-left, 0px)); bottom: calc(14px + env(safe-area-inset-bottom, 0px)); z-index: 1; display: flex; flex-wrap: wrap; gap: 6px 14px; max-width: calc(100% - 120px); padding: 6px 12px; background: rgba(236,226,202,.9); color: #2a2017; font-size: max(12px, calc(12px * var(--text-scale, 1))); box-shadow: 0 0 0 1px rgba(60,45,30,.35); }
 .jp-legend .lg { display: inline-block; width: 12px; height: 12px; margin-right: 5px; vertical-align: -2px; border: 1.5px solid #2a2017; box-sizing: border-box; }
 .jp-legend .lg.yama { border-radius: 50% 50% 2px 2px; background: rgba(120,98,66,.55); }
 .jp-legend .lg.hira { background: rgba(80,110,130,.35); }
 .jp-legend .lg.toride { border-style: dashed; border-radius: 50%; }
 .jp-legend .lg.hq { border-radius: 50%; border-color: #b8963e; border-width: 2.5px; }
 .jp-legend .lg.tgt { border-radius: 50%; border-color: #b8402a; border-style: dashed; border-width: 2px; }
-.jp-hint { position: absolute; left: 50%; top: calc(18px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); z-index: 1; margin: 0; font-size: 12px; color: #2a2017; background: rgba(236,226,202,.78); padding: 4px 10px; white-space: nowrap; }
+.jp-hint { position: absolute; left: 50%; top: calc(18px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); z-index: 1; margin: 0; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: #2a2017; background: rgba(236,226,202,.78); padding: 4px 10px; white-space: nowrap; }
 .jp-side { overflow-y: auto; padding: 20px 20px 22px; background: linear-gradient(180deg, var(--sumi-2), var(--sumi)); border-left: 1px solid var(--line); transition: transform .22s ease; }
-.jp-when { font-family: var(--display); font-size: 28px; font-weight: 800; letter-spacing: .1em; margin: 6px 0 10px; }
+.jp-when { font-family: var(--display); font-size: max(12px, calc(28px * var(--text-scale, 1))); font-weight: 800; letter-spacing: .1em; margin: 6px 0 10px; }
 .jp-when span { color: var(--kin); }
 .jp-scn { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
-.jp-scn button { background: transparent; color: var(--washi-dim); border: 1px solid var(--line); padding: 5px 10px; font-size: 12px; letter-spacing: .06em; cursor: pointer; }
+.jp-scn button { background: transparent; color: var(--washi-dim); border: 1px solid var(--line); padding: 5px 10px; font-size: max(12px, calc(12px * var(--text-scale, 1))); letter-spacing: .06em; cursor: pointer; }
 .jp-scn button:hover { border-color: var(--washi-dim); color: var(--washi); }
 .jp-scn button.on { color: var(--sumi); background: var(--washi); border-color: var(--washi); }
 .jp-me { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 8px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.jp-me b { font-family: var(--display); font-size: 18px; letter-spacing: .08em; }
-.jp-me span { font-size: 12px; color: var(--washi-dim); }
+.jp-me b { font-family: var(--display); font-size: max(12px, calc(18px * var(--text-scale, 1))); letter-spacing: .08em; }
+.jp-me span { font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); }
 .jp .dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; box-shadow: 0 0 0 1px rgba(0,0,0,.55), 0 0 0 2px rgba(236,228,210,.25); }
 .jp-card { border: 1px solid var(--gold-line); background: rgba(14,11,8,.55); padding: 12px 14px; margin: 12px 0 6px; }
 .jp-card .row { margin-top: 10px; }
 .jp-cn { margin-bottom: 6px; }
-.jp-cn b { font-family: var(--display); font-size: 22px; letter-spacing: .08em; }
-.jp-cn small { display: block; font-size: 12px; color: var(--washi-dim); letter-spacing: .06em; }
-.jp-kv { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.jp-cn b { font-family: var(--display); font-size: max(12px, calc(22px * var(--text-scale, 1))); letter-spacing: .08em; }
+.jp-cn small { display: block; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); letter-spacing: .06em; }
+.jp-kv { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: max(12px, calc(13px * var(--text-scale, 1))); }
 .jp-kv span { color: var(--washi-dim); white-space: nowrap; }
 .jp-kv b { font-weight: 500; text-align: right; }
 .jp-nb { display: flex; flex-wrap: wrap; gap: 4px 8px; justify-content: flex-end; }
-.jp-link { background: transparent; border: 0; border-bottom: 2px solid var(--c); color: var(--washi); font-size: 13px; padding: 8px 6px 4px; min-height: 32px; min-width: 44px; cursor: pointer; font-family: var(--ui); }
+.jp-link { background: transparent; border: 0; border-bottom: 2px solid var(--c); color: var(--washi); font-size: max(12px, calc(13px * var(--text-scale, 1))); padding: 8px 6px 4px; min-height: 32px; min-width: 44px; cursor: pointer; font-family: var(--ui); }
 .jp-link:hover { color: var(--kin); }
-.jp-h { font-family: var(--display); font-size: 14px; letter-spacing: .14em; color: var(--kin); margin: 16px 0 6px; font-weight: 600; }
-.jp-pw { display: grid; grid-template-columns: 118px 1fr 26px; align-items: center; gap: 8px; font-size: 13px; padding: 3px 0; }
+.jp-h { font-family: var(--display); font-size: max(12px, calc(14px * var(--text-scale, 1))); letter-spacing: .14em; color: var(--kin); margin: 16px 0 6px; font-weight: 600; }
+.jp-pw { display: grid; grid-template-columns: 118px 1fr 26px; align-items: center; gap: 8px; font-size: max(12px, calc(13px * var(--text-scale, 1))); padding: 3px 0; }
 .jp-pw .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .jp-pw .bar { height: 8px; background: rgba(236,228,210,.08); }
 .jp-pw .bar i { display: block; height: 100%; box-shadow: inset 0 0 0 1px rgba(0,0,0,.3); }
 .jp-pw.me .nm { color: var(--kin); font-weight: 700; }
 .jp-pw b { text-align: right; font-family: var(--display); font-variant-numeric: tabular-nums; }
-.jp-log p { margin: 0; padding: 5px 0; font-size: 13px; line-height: 1.6; border-bottom: 1px solid var(--line); color: var(--washi-dim); }
-.jp-log p small { display: inline-block; min-width: 20px; color: var(--washi-faint); font-size: 12px; margin-right: 6px; }
+.jp-log p { margin: 0; padding: 5px 0; font-size: max(12px, calc(13px * var(--text-scale, 1))); line-height: 1.6; border-bottom: 1px solid var(--line); color: var(--washi-dim); }
+.jp-log p small { display: inline-block; min-width: 20px; color: var(--washi-faint); font-size: max(12px, calc(12px * var(--text-scale, 1))); margin-right: 6px; }
 .jp-log p.good { color: #b3c894; }
 .jp-log p.bad { color: #e38c76; }
 .jp-log p.big { color: var(--washi); font-weight: 700; }
 .jp-foot { margin-top: 16px; }
 .jp-result { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; background: rgba(10,9,7,.5); }
 .jp-rc { width: min(440px, 90%); box-sizing: border-box; background: var(--sumi-2); border: 1px solid var(--gold-line); padding: 22px 24px; box-shadow: 0 20px 60px rgba(0,0,0,.6); max-height: calc(100% - 16px); overflow-y: auto; }
-.jp-rc h3 { font-family: var(--display); font-size: 34px; font-weight: 800; letter-spacing: .14em; margin: 8px 0 10px; }
+.jp-rc h3 { font-family: var(--display); font-size: max(12px, calc(34px * var(--text-scale, 1))); font-weight: 800; letter-spacing: .14em; margin: 8px 0 10px; }
 .jp-rc.won h3 { color: var(--kin); }
 .jp-rc.lost h3 { color: var(--washi-dim); }
-.jp-rc p { font-size: 14px; line-height: 1.8; }
+.jp-rc p { font-size: max(12px, calc(14px * var(--text-scale, 1))); line-height: 1.8; }
 /* 携帯（横・縦とも）：地図を画面いっぱいに。横の欄は城を押した時だけ出る札に（jp-side.jp-show） */
 @media (max-width: 820px), (max-height: 560px) {
   #screen.jp-open { overflow: hidden; }
@@ -1012,16 +1013,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .tabs button { min-height: 44px; }
 .tabs button:hover { color: var(--washi); background: rgba(236,228,210,.06); }
 .tabs button[aria-selected="true"] { color: var(--washi); }
-.tabs .tdot { display: inline-block; margin-left: 6px; padding: 0 5px; font-size: 12px; line-height: 1.5; color: var(--sumi); background: var(--kin); letter-spacing: 0; }
+.tabs .tdot { display: inline-block; margin-left: 6px; padding: 0 5px; font-size: max(12px, calc(12px * var(--text-scale, 1))); line-height: 1.5; color: var(--sumi); background: var(--kin); letter-spacing: 0; }
 .choices button { min-height: 44px; line-height: 1.5; }
 .choices button:active { background: rgba(236,228,210,.1); }
 .slotcard { min-height: 52px; }
 .slotcard:hover { border-color: var(--washi-dim); }
-.slotcard[aria-pressed="true"] b::after { content: '　選択中'; font-family: var(--ui); font-size: 12px; color: var(--kin); letter-spacing: .1em; }
+.slotcard[aria-pressed="true"] b::after { content: '　選択中'; font-family: var(--ui); font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--kin); letter-spacing: .1em; }
 .diffs label { min-height: 44px; box-sizing: border-box; align-content: center; }
 .diffs label:hover { border-color: var(--washi-dim); }
 .diffs label:has(input:checked) { border-color: var(--kin); box-shadow: inset 0 0 0 1px var(--kin); background: rgba(194,162,90,.07); }
-.diffs label small { font-size: 12.5px; line-height: 1.6; }
+.diffs label small { font-size: max(12px, calc(12.5px * var(--text-scale, 1))); line-height: 1.6; }
 details > summary { min-height: 44px; display: flex; align-items: center; gap: 6px; list-style: none; }
 details > summary::-webkit-details-marker { display: none; }
 details > summary::before { content: '▸'; color: var(--kin); transition: transform .15s; }
@@ -1031,29 +1032,29 @@ details[open] > summary::before { transform: rotate(90deg); }
 .keybind button { min-height: 44px; align-items: center; }
 .keybind button:hover { border-color: var(--washi-dim); }
 .settings .s-row { min-height: 44px; }
-.settings select { min-height: 44px; font-size: 14px; }
+.settings select { min-height: 44px; font-size: max(12px, calc(14px * var(--text-scale, 1))); }
 .settings input[type=checkbox] { width: 22px; height: 22px; }
 .settings input[type=range] { min-height: 44px; }
 .renm { min-height: 44px; }
 .aiji button:focus-visible, .aiji button:hover { border-color: var(--kin); }
 .roster .rr[data-who]:hover { background: none; }
 /* 注と補足の字（13px・薄すぎない色） */
-.note { font-size: 13px; }
+.note { font-size: max(12px, calc(13px * var(--text-scale, 1))); }
 #objectives li.fail, .ledger .ln.neg .p, .ev2 .evc.ng .evc-h .p, .ev2 .evc.ng .evc-h .k, .ev2 .evc.ng .evmk { color: var(--shu-text); }
 /* 確認の札：何が起きるかを書き、やめる（安全な方）を先に */
 .confirm-row { border-color: var(--shu); background: rgba(192,69,46,.07); line-height: 1.7; }
 .confirm-row .cf-msg b { color: var(--washi); }
-.confirm-row .cf-msg small { display: block; color: var(--washi-dim); font-size: 13px; }
-.errbox { border: 1px solid var(--shu); background: rgba(192,69,46,.08); padding: 10px 14px; font-size: 14px; color: var(--washi); }
-.errbox::before { content: '！'; display: inline-grid; place-items: center; width: 20px; height: 20px; margin-right: 8px; background: var(--shu); color: #fff5ea; font-weight: 700; font-size: 13px; vertical-align: 1px; }
+.confirm-row .cf-msg small { display: block; color: var(--washi-dim); font-size: max(12px, calc(13px * var(--text-scale, 1))); }
+.errbox { border: 1px solid var(--shu); background: rgba(192,69,46,.08); padding: 10px 14px; font-size: max(12px, calc(14px * var(--text-scale, 1))); color: var(--washi); }
+.errbox::before { content: '！'; display: inline-grid; place-items: center; width: 20px; height: 20px; margin-right: 8px; background: var(--shu); color: #fff5ea; font-weight: 700; font-size: max(12px, calc(13px * var(--text-scale, 1))); vertical-align: 1px; }
 /* タイトル：主の操作を下の帯に常に見せる */
 .title-act { position: sticky; bottom: 0; z-index: 2; margin: 22px calc(50% - 50vw + 8px) 0; padding: 14px calc(50vw - 50% - 8px) 16px; background: linear-gradient(180deg, rgba(20,18,15,0), rgba(20,18,15,.92) 26%); display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
 #screen { overflow-x: hidden; }
 /* 設定（スマホ横）：左上に「戻る」があるので、下の帯は張り付けない（設定の行を隠さないように） */
 @media (max-height: 520px) { .title-act.st-act { position: static; background: none; } }
-.title-act .hintk { font-size: 13px; color: var(--washi-dim); margin-left: auto; }
+.title-act .hintk { font-size: max(12px, calc(13px * var(--text-scale, 1))); color: var(--washi-dim); margin-left: auto; }
 .title-more { margin-top: 12px; }
-.title-more .lbl, .title-more summary.lbl { font-size: 12px; letter-spacing: .2em; color: var(--washi-dim); margin-bottom: 8px; }
+.title-more .lbl, .title-more summary.lbl { font-size: max(12px, calc(12px * var(--text-scale, 1))); letter-spacing: .2em; color: var(--washi-dim); margin-bottom: 8px; }
 .title-more summary.lbl { cursor: pointer; display: block; min-height: 44px; display: flex; align-items: center; }
 .title-more[open] summary.lbl { margin-bottom: 8px; }
 .title-more .row { margin-top: 0; }
@@ -1061,12 +1062,12 @@ details[open] > summary::before { transform: rotate(90deg); }
 .title-act .tt-sub { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-left: 8px; padding-left: 16px; border-left: 1px solid var(--line); }
 .title-act .tt-sub .btn[aria-expanded="true"] { border-color: var(--kin); color: var(--kin); }
 .tt-panel { margin-top: 14px; padding: 12px 16px 16px; border: 1px solid var(--line); background: rgba(20,18,15,.72); }
-.tt-panel .tt-ph { font-family: var(--display); font-size: 18px; letter-spacing: .12em; margin: 0 0 4px; font-weight: 600; }
+.tt-panel .tt-ph { font-family: var(--display); font-size: max(12px, calc(18px * var(--text-scale, 1))); letter-spacing: .12em; margin: 0 0 4px; font-weight: 600; }
 .tt-panel .row { gap: 8px; flex-wrap: wrap; }
 @media (max-width: 700px) { .title-act .tt-sub { margin-left: 0; padding-left: 0; border-left: 0; } }
 /* HUD：字は 12px 以上、状態は色と印で */
 #objectives li.order .tag { color: var(--shu-text); }
-#radial .rw.locked::after { content: '（まだ）'; font-size: 12px; font-family: var(--ui); }
+#radial .rw.locked::after { content: '（まだ）'; font-size: max(12px, calc(12px * var(--text-scale, 1))); font-family: var(--ui); }
 #objectives li.main { color: #f3e6c4; }
 #objectives li.main .tag { color: var(--kin); border-color: var(--gold-line); }
 #objectives li.side { color: var(--washi); }
@@ -1077,15 +1078,15 @@ details[open] > summary::before { transform: rotate(90deg); }
 #boss { top: calc(118px + env(safe-area-inset-top, 0px)); bottom: auto; }
 #hud:has(#boss:not([hidden])) #target { top: calc(166px + env(safe-area-inset-top, 0px)); }
 #bark { bottom: calc(196px + env(safe-area-inset-bottom, 0px)); }
-#bark .bk { font-size: 16px; }
-.slot em, .slot.cmd em { font-size: 12px; color: var(--washi-dim); }
+#bark .bk { font-size: max(12px, calc(16px * var(--text-scale, 1))); }
+.slot em, .slot.cmd em { font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); }
 /* 日本地図：＋－などは 44px、筋書きの札も 44px */
 .jp-tools .btn { min-width: 44px; min-height: 44px; }
 .jp-tools .jp-sidebtn { min-width: max-content !important; width: max-content !important; flex: 0 0 auto; justify-self: end; }   /* 字が縮んで切れ、隣の釦と重ならない（W044） */
-.jp-scn button { min-height: 44px; padding: 8px 12px; font-size: 13px; }
+.jp-scn button { min-height: 44px; padding: 8px 12px; font-size: max(12px, calc(13px * var(--text-scale, 1))); }
 .jp-scn button[aria-pressed="true"] { color: var(--sumi); background: var(--washi); border-color: var(--washi); }
 .jp-link { min-height: 44px; }
-.jp-hint, .jp-legend { font-size: 13px; }
+.jp-hint, .jp-legend { font-size: max(12px, calc(13px * var(--text-scale, 1))); }
 .jp-hint { left: auto; right: 16px; top: 68px; transform: none; white-space: normal; max-width: 300px; text-align: right; }
 .jp-tlist { display: flex; flex-wrap: wrap; gap: 6px 8px; margin-top: 8px; }
 /* 動きを減らす：OS の設定でも、ゲームの設定でも。止めた後は中身をすぐ見せる（無限に続く動きは点滅にならないよう止める） */
@@ -1117,11 +1118,11 @@ html.touch body.rm #hud #tutorial.coach.hintc.in { animation: none !important; }
 /* 幅の狭い画面：上の兵力の帯を左右の札の間に収め、下の札は右へ寄せ、字幕と知らせは左の札を避けて置く */
 @media (max-width: 1000px) {
   #armybar { width: calc(100vw - 460px); grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 6px; }
-  #armybar .clock { min-width: 64px; padding: 3px 8px; font-size: 19px; }
-  #armybar .side .nm { font-size: 14px; }
+  #armybar .clock { min-width: 64px; padding: 3px 8px; font-size: max(12px, calc(19px * var(--text-scale, 1))); }
+  #armybar .side .nm { font-size: max(12px, calc(14px * var(--text-scale, 1))); }
   #armybar .side canvas { display: none; }
   #compass { width: calc(100vw - 480px); }
-  #dateline { white-space: normal; font-size: 12px; }
+  #dateline { white-space: normal; font-size: max(12px, calc(12px * var(--text-scale, 1))); }
   .jp-hint { display: none; }
   .bottom { left: auto; right: 16px; transform: none; }
   .slot { width: 50px; height: 50px; }
@@ -1147,58 +1148,58 @@ html.touch body.rm #hud #tutorial.coach.hintc.in { animation: none !important; }
 #objectives li small, #objectives li .opb { grid-column: 2; }
 #objectives li .opb { display: block; height: 4px; margin: 3px 0 2px; background: rgba(0,0,0,.6); box-shadow: inset 0 0 0 1px rgba(236,228,210,.14); position: relative; }
 #objectives li .opb b { position: absolute; inset: 0; right: auto; background: var(--kin); transition: width .4s; }
-#objectives li.folded { display: block; margin-top: 6px; padding-top: 4px; border-top: 1px dashed rgba(194,162,90,.3); font-size: 12px; color: var(--washi-dim); text-align: right; letter-spacing: .1em; }
+#objectives li.folded { display: block; margin-top: 6px; padding-top: 4px; border-top: 1px dashed rgba(194,162,90,.3); font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); text-align: right; letter-spacing: .1em; }
 /* 504・505 任務の印：名は墨の下地、距離は薄い字 */
 .mk { display: grid; justify-items: center; gap: 1px; }
-.mk b { font-weight: 500; font-size: 13px; padding: 1px 7px; background: rgba(12,10,8,.72); box-shadow: inset 0 0 0 1px rgba(194,162,90,.35); line-height: 1.4; }
+.mk b { font-weight: 500; font-size: max(12px, calc(13px * var(--text-scale, 1))); padding: 1px 7px; background: rgba(12,10,8,.72); box-shadow: inset 0 0 0 1px rgba(194,162,90,.35); line-height: 1.4; }
 .mk.red b { box-shadow: inset 0 0 0 1px rgba(227,106,82,.45); }
-.mk small { font-size: 12px; color: #efe3c2; text-shadow: 0 1px 2px #000, 0 0 4px #000; font-variant-numeric: tabular-nums; }
+.mk small { font-size: max(12px, calc(12px * var(--text-scale, 1))); color: #efe3c2; text-shadow: 0 1px 2px #000, 0 0 4px #000; font-variant-numeric: tabular-nums; }
 /* 507 号令の輪：一つ 100×44、選んだ所は金の塗りと ▶、早打ちの鍵を添える */
 #radial::before { left: -220px; top: -220px; width: 440px; height: 440px; background: radial-gradient(circle, rgba(12,10,8,.25) 26%, rgba(12,10,8,.74) 27%, rgba(12,10,8,.74) 70%, transparent 71%); }
-#radial .rw { left: -60px; top: -22px; width: 120px; white-space: nowrap; height: 44px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 16px; text-shadow: 0 1px 2px #000; border-radius: 2px; }
+#radial .rw { left: -60px; top: -22px; width: 120px; white-space: nowrap; height: 44px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 4px; font-size: max(12px, calc(16px * var(--text-scale, 1))); text-shadow: 0 1px 2px #000; border-radius: 2px; }
 /* 号令の名が二行に折れて隣にかからないように（「ついて来い」など） */
 #radial .rw, #radial .rw * { white-space: nowrap; }
 #radial .rw { left: -66px; width: 132px; }
-#radial .rw kbd { font-family: var(--ui); font-size: 12px; color: var(--kin); border: 1px solid var(--gold-line); padding: 0 4px; line-height: 1.4; }
+#radial .rw kbd { font-family: var(--ui); font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--kin); border: 1px solid var(--gold-line); padding: 0 4px; line-height: 1.4; }
 #radial .rw.on { background: rgba(194,162,90,.88); color: #1a140c; border-color: #f3e6c4; text-shadow: none; font-weight: 800; }
 #radial .rw.on kbd { color: #1a140c; border-color: rgba(26,20,12,.5); }
-#radial .rw .sel { font-size: 12px; }
+#radial .rw .sel { font-size: max(12px, calc(12px * var(--text-scale, 1))); }
 #radial .rw.locked { flex-direction: column; gap: 0; line-height: 1.2; }
-#radial .rc { left: -70px; width: 140px; font-size: 13px; color: #efe3c2; text-shadow: 0 1px 2px #000, 0 0 6px rgba(0,0,0,.85); }
+#radial .rc { left: -70px; width: 140px; font-size: max(12px, calc(13px * var(--text-scale, 1))); color: #efe3c2; text-shadow: 0 1px 2px #000, 0 0 6px rgba(0,0,0,.85); }
 /* 508 兵力の帯：減った分を白く残す */
 #armybar .gauge s { position: absolute; top: 0; bottom: 0; background: rgba(243,230,196,.75); }
 #armybar .a .gauge s { right: 0; }
 #armybar .b .gauge s { left: 0; }
 /* 510 深手：数字を朱の字で太く */
 .bl .bar.hp.deep span, .bl .bar.hp.deep em { color: var(--shu-text, #e38a74); font-weight: 700; }
-.bl .bar.hp.deep em { font-size: 13px; }
+.bl .bar.hp.deep em { font-size: max(12px, calc(13px * var(--text-scale, 1))); }
 /* 511 台詞をとばした時の添え書き */
-#subtitle .more { display: block; margin-top: 2px; font-size: 12px; color: var(--washi-dim); font-style: normal; }
+#subtitle .more { display: block; margin-top: 2px; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); font-style: normal; }
 /* 512 大見出しの間は知らせを控えめに */
 #bark .bk { transition: opacity .3s; }
 #hud:has(#banner.show) #bark { opacity: .55; }
-#hud:has(#banner.show) #bark .bk { font-size: 14px; }
+#hud:has(#banner.show) #bark .bk { font-size: max(12px, calc(14px * var(--text-scale, 1))); }
 /* 513 戦功の加算は左上の戦功の札のすぐ下。札の数字は一度だけ弾む */
 .tl #toasts { position: static; right: auto; top: auto; justify-items: start; gap: 2px; }
 .tl .toast { animation-name: toastL; }
 @keyframes toastL { 0% { opacity: 0; transform: translateX(-10px); } 8% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
-.tl .toast b { font-size: 17px; }
-.tl .toast.big { font-size: 16px; color: #f3e6c4; }
-.tl .toast.big b { font-size: 24px; }
+.tl .toast b { font-size: max(12px, calc(17px * var(--text-scale, 1))); }
+.tl .toast.big { font-size: max(12px, calc(16px * var(--text-scale, 1))); color: #f3e6c4; }
+.tl .toast.big b { font-size: max(12px, calc(24px * var(--text-scale, 1))); }
 #h-merit { display: inline-block; }
 #h-merit.bump { animation: mbump .45s ease-out; }
 @keyframes mbump { 0% { transform: scale(1); } 30% { transform: scale(1.22); color: #fff3cf; } 100% { transform: scale(1); } }
 body.rm #h-merit.bump { animation: none; }
 body.rm .tl .toast { opacity: 1 !important; }
 /* 515 狙いの札：種類と残り */
-#target span { display: inline-flex; align-items: baseline; gap: 6px; font-size: 13px; }
-#target span .lk { font-style: normal; font-size: 12px; color: #1a140c; background: #e36a52; padding: 0 5px; }
-#target span .kd { font-size: 12px; color: var(--washi-dim); border: 1px solid var(--line); padding: 0 4px; }
+#target span { display: inline-flex; align-items: baseline; gap: 6px; font-size: max(12px, calc(13px * var(--text-scale, 1))); }
+#target span .lk { font-style: normal; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: #1a140c; background: #e36a52; padding: 0 5px; }
+#target span .kd { font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); border: 1px solid var(--line); padding: 0 4px; }
 #target i.deep b { animation: lowpulse .5s ease-in-out infinite alternate; }
 body.ca #target span .lk { background: #ff9a1a; }
 #target.locked span { color: #f3e6c4; }
 /* 517 戦術マップの凡例と操作（地図の下の札） */
-#maphint { bottom: calc(10px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 4px; justify-items: center; padding: 6px 16px; background: rgba(12,10,8,.82); box-shadow: inset 0 0 0 1px var(--gold-line); font-size: 13px; white-space: nowrap; }
+#maphint { bottom: calc(10px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 4px; justify-items: center; padding: 6px 16px; background: rgba(12,10,8,.82); box-shadow: inset 0 0 0 1px var(--gold-line); font-size: max(12px, calc(13px * var(--text-scale, 1))); white-space: nowrap; }
 #maphint .lg, #maphint .op { display: flex; gap: 16px; }
 #maphint .op { color: var(--washi-dim); }
 #maphint i { font-style: normal; margin-right: 4px; }
@@ -1214,38 +1215,38 @@ body.ca #maphint i.en { color: #ff9a1a; }
 /* 519 方角の帯：まとめた▲の数 */
 #compass .c.foe.many span { margin-top: 8px; line-height: 1; }
 /* 519 早見表・会話の記録：見出しに閉じる鍵 */
-#cheat h5, #sublog h5 { margin: 0 0 6px; display: flex; justify-content: space-between; align-items: baseline; font-family: var(--display); font-size: 14px; font-weight: 600; color: var(--kin); letter-spacing: .1em; }
-#cheat h5 span, #sublog h5 span { font-family: var(--ui); font-size: 12px; color: var(--washi-dim); letter-spacing: .02em; }
-#cheat, #sublog { font-size: 13px; }
+#cheat h5, #sublog h5 { margin: 0 0 6px; display: flex; justify-content: space-between; align-items: baseline; font-family: var(--display); font-size: max(12px, calc(14px * var(--text-scale, 1))); font-weight: 600; color: var(--kin); letter-spacing: .1em; }
+#cheat h5 span, #sublog h5 span { font-family: var(--ui); font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); letter-spacing: .02em; }
+#cheat, #sublog { font-size: max(12px, calc(13px * var(--text-scale, 1))); }
 /* 520 下の札：使えない理由を字で */
-.slot .why { font-size: 12px; color: #ffcf7a; white-space: nowrap; position: relative; z-index: 1; }
+.slot .why { font-size: max(12px, calc(12px * var(--text-scale, 1))); color: #ffcf7a; white-space: nowrap; position: relative; z-index: 1; }
 .slot.cmd.dim { opacity: .75; }
 .slot.cmd.dim svg { opacity: .45; }
 /* 軍勢の UI：部隊の帯（右下）。札を押すか Alt＋数字で号令先を選ぶ。字は 12px 以上、押せる所は 44px 以上 */
 #h-units { position: absolute; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); display: flex; flex-wrap: wrap-reverse; justify-content: flex-end; align-items: flex-end; gap: 8px; pointer-events: auto; }
-#h-units .uc { position: relative; width: 72px; height: 104px; box-sizing: border-box; padding: 4px 0 0; display: grid; justify-items: center; align-content: start; gap: 2px; background: rgba(12,10,8,.8); border: 1px solid rgba(0,0,0,.9); box-shadow: inset 0 0 0 1px rgba(194,162,90,.28); color: var(--washi); font: inherit; font-size: 12px; line-height: 1.3; cursor: default; }
+#h-units .uc { position: relative; width: 72px; height: 104px; box-sizing: border-box; padding: 4px 0 0; display: grid; justify-items: center; align-content: start; gap: 2px; background: rgba(12,10,8,.8); border: 1px solid rgba(0,0,0,.9); box-shadow: inset 0 0 0 1px rgba(194,162,90,.28); color: var(--washi); font: inherit; font-size: max(12px, calc(12px * var(--text-scale, 1))); line-height: 1.3; cursor: default; }
 #h-units button.uc { cursor: pointer; }
 #h-units button.uc:hover { background: rgba(40,34,26,.86); }
 #h-units button.uc:active { background: rgba(58,50,38,.9); }
 #h-units .uc.on { box-shadow: inset 0 0 0 2px var(--kin), 0 0 0 1px #000; transform: translateY(-4px); }
-#h-units .uc.on .nm::before { content: '●'; color: var(--kin); margin-right: 2px; font-size: 12px; }
+#h-units .uc.on .nm::before { content: '●'; color: var(--kin); margin-right: 2px; font-size: max(12px, calc(12px * var(--text-scale, 1))); }
 #h-units .uc.all { width: 52px; align-content: center; }
-#h-units .uc.all b { font-family: var(--display); font-size: 24px; color: var(--washi); line-height: 1.1; }
+#h-units .uc.all b { font-family: var(--display); font-size: max(12px, calc(24px * var(--text-scale, 1))); color: var(--washi); line-height: 1.1; }
 #h-units .face { width: 52px; height: 52px; margin-top: 4px; border-radius: 50%; background-size: cover; background-position: center; box-shadow: 0 0 0 1px #000; transition: transform .6s; }
 #h-units .face.waver { transform: rotate(-9deg) translateY(2px); filter: saturate(.6) brightness(.85); }
 #h-units .ring { position: absolute; left: 50%; top: 4px; width: 64px; height: 64px; margin-left: -32px; margin-top: -2px; pointer-events: none; }
 #h-units .ring circle { fill: none; stroke-width: 4; }
 #h-units .ring .bg { stroke: rgba(0,0,0,.75); stroke-width: 6; }
 #h-units .ring .mo { stroke-linecap: butt; }
-#h-units .ord { position: absolute; left: 3px; top: 3px; min-width: 20px; height: 20px; display: grid; place-items: center; font-style: normal; font-family: var(--display); font-size: 13px; font-weight: 700; color: #1a140c; background: #ece4d2; box-shadow: 0 0 0 1px #000; }
+#h-units .ord { position: absolute; left: 3px; top: 3px; min-width: 20px; height: 20px; display: grid; place-items: center; font-style: normal; font-family: var(--display); font-size: max(12px, calc(13px * var(--text-scale, 1))); font-weight: 700; color: #1a140c; background: #ece4d2; box-shadow: 0 0 0 1px #000; }
 #h-units .ord.pend { background: transparent; color: var(--washi); box-shadow: inset 0 0 0 1px var(--washi-dim), 0 0 0 1px #000; }
-#h-units .cnt { position: absolute; right: 3px; top: 44px; min-width: 22px; padding: 0 3px; box-sizing: border-box; font-style: normal; font-size: 12px; font-weight: 700; line-height: 18px; text-align: center; color: #1a140c; box-shadow: 0 0 0 1px #000; font-variant-numeric: tabular-nums; }
+#h-units .cnt { position: absolute; right: 3px; top: 44px; min-width: 22px; padding: 0 3px; box-sizing: border-box; font-style: normal; font-size: max(12px, calc(12px * var(--text-scale, 1))); font-weight: 700; line-height: 18px; text-align: center; color: #1a140c; box-shadow: 0 0 0 1px #000; font-variant-numeric: tabular-nums; }
 #h-units .cnt.ally { background: #8fb0e0; }
 /* 数の札は白一色（士気の輪の色と意味を混ぜない）。減り具合は左の細い色の帯で */
 #h-units .cnt:not(.ally) { background: #ece4d2; padding-left: 7px; }
 #h-units .nm { margin-top: 10px; max-width: 70px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px #000; }
-#h-units .st { color: var(--washi-dim); font-size: 12px; }
-#h-units kbd { position: absolute; right: 3px; top: 3px; font-family: var(--ui); font-size: 12px; line-height: 1.3; color: var(--kin); border: 1px solid var(--gold-line); padding: 0 4px; background: rgba(0,0,0,.5); }
+#h-units .st { color: var(--washi-dim); font-size: max(12px, calc(12px * var(--text-scale, 1))); }
+#h-units kbd { position: absolute; right: 3px; top: 3px; font-family: var(--ui); font-size: max(12px, calc(12px * var(--text-scale, 1))); line-height: 1.3; color: var(--kin); border: 1px solid var(--gold-line); padding: 0 4px; background: rgba(0,0,0,.5); }
 #h-units .uc.all kbd { right: 50%; transform: translateX(50%); top: auto; bottom: 4px; }
 #h-units .uc.ally { box-shadow: inset 0 0 0 1px rgba(143,176,224,.4); }
 #h-units .uc.ally.fight .st { color: #f3d98a; }
@@ -1255,15 +1256,15 @@ body.ca #maphint i.en { color: #ff9a1a; }
 @media (max-width: 1000px) { #h-units { bottom: calc(90px + env(safe-area-inset-bottom, 0px)); } #h-units .uc { width: 60px; } #h-units .nm { max-width: 58px; } }
 body.rm #h-units .uc.on { transform: none; }
 /* 鉄砲の組の札：込め終えて撃てる数 */
-#h-units .ready { position: absolute; left: 50%; bottom: 2px; transform: translateX(-50%); font-style: normal; font-size: 12px; line-height: 15px; padding: 0 4px; color: #f3e6c4; background: rgba(12,10,8,.85); font-variant-numeric: tabular-nums; }
+#h-units .ready { position: absolute; left: 50%; bottom: 2px; transform: translateX(-50%); font-style: normal; font-size: max(12px, calc(12px * var(--text-scale, 1))); line-height: 15px; padding: 0 4px; color: #f3e6c4; background: rgba(12,10,8,.85); font-variant-numeric: tabular-nums; }
 /* 大きな組の帯（一人ずつの点の代わり） */
 .topc .sqbar { position: relative; display: inline-block; width: 120px; height: 8px; background: rgba(0,0,0,.6); box-shadow: inset 0 0 0 1px rgba(236,228,210,.2); vertical-align: middle; }
 .topc .sqbar i { position: absolute; inset: 0; right: auto; background: #8fb06a; }
-.topc .sqbar em { position: absolute; left: 100%; top: -5px; margin-left: 6px; font-style: normal; font-size: 12px; color: #e38a74; white-space: nowrap; }
+.topc .sqbar em { position: absolute; left: 100%; top: -5px; margin-left: 6px; font-style: normal; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: #e38a74; white-space: nowrap; }
 /* 号令の輪：この身分で増えた号令の「新」 */
-#radial .rw .newm { font-style: normal; font-size: 12px; line-height: 1.3; padding: 0 3px; color: #1a140c; background: #e8c46a; }
+#radial .rw .newm { font-style: normal; font-size: max(12px, calc(12px * var(--text-scale, 1))); line-height: 1.3; padding: 0 3px; color: #1a140c; background: #e8c46a; }
 /* 使番が走っている間：顔の札の左下に「使 n」（着くまでの秒） */
-#h-units .runner { position: absolute; left: 3px; top: 26px; font-style: normal; font-size: 12px; line-height: 16px; padding: 0 3px; color: #f3e6c4; background: rgba(12,10,8,.85); box-shadow: 0 0 0 1px rgba(194,162,90,.5); }
+#h-units .runner { position: absolute; left: 3px; top: 26px; font-style: normal; font-size: max(12px, calc(12px * var(--text-scale, 1))); line-height: 16px; padding: 0 3px; color: #f3e6c4; background: rgba(12,10,8,.85); box-shadow: 0 0 0 1px rgba(194,162,90,.5); }
 /* 五字の名（木下藤吉郎など）は字の間を詰めて札に収める */
 #h-units .nm.long { letter-spacing: -.07em; max-width: 100%; }
 /* 済んだ任務の印：主の金の字が金の地に消えないよう、跳ねる間は墨の字、済んだ後は薄い字と線で */
@@ -1272,17 +1273,17 @@ body.rm #h-units .uc.on { transform: none; }
 body.rm #h-units .face { transition: none; }
 /* 号令の輪：いまの号令「今」、使えない理由、号令先の隊の札 */
 #radial .rw.locked::after { content: none; }
-#radial .rw .why { font-size: 12px; font-family: var(--ui); color: var(--washi-dim); }
+#radial .rw .why { font-size: max(12px, calc(12px * var(--text-scale, 1))); font-family: var(--ui); color: var(--washi-dim); }
 #radial .rw.now { box-shadow: inset 0 0 0 1px rgba(236,228,210,.5); }
-#radial .rw .nowm { font-style: normal; font-size: 12px; font-family: var(--ui); color: #1a140c; background: #ece4d2; padding: 0 3px; line-height: 1.3; }
+#radial .rw .nowm { font-style: normal; font-size: max(12px, calc(12px * var(--text-scale, 1))); font-family: var(--ui); color: #1a140c; background: #ece4d2; padding: 0 3px; line-height: 1.3; }
 #radial .rw.on .nowm { background: #1a140c; color: #ece4d2; }
 #radial .rc .rg { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 6px; }
-#radial .rc .rg span { display: inline-flex; align-items: center; gap: 3px; padding: 1px 5px; font-size: 12px; color: var(--washi); border: 1px solid var(--line); background: rgba(0,0,0,.4); }
+#radial .rc .rg span { display: inline-flex; align-items: center; gap: 3px; padding: 1px 5px; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi); border: 1px solid var(--line); background: rgba(0,0,0,.4); }
 #radial .rc .rg span.on { border-color: var(--kin); background: rgba(194,162,90,.88); color: #1a140c; font-weight: 700; }
 #radial .rc .rg i { display: inline-block; width: 8px; height: 8px; box-shadow: 0 0 0 1px #000; }
-#radial .rc .rg kbd { font-family: var(--ui); font-size: 12px; color: var(--kin); }
+#radial .rc .rg kbd { font-family: var(--ui); font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--kin); }
 #radial .rc .rg span.on kbd { color: #1a140c; }
-#radial .rc .rgk { display: block; margin-top: 4px; font-size: 12px; color: var(--washi-dim); }
+#radial .rc .rgk { display: block; margin-top: 4px; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); }
 /* 戦術マップの凡例：隊旗の形と札の色 */
 #maphint { white-space: normal; max-width: min(760px, calc(100vw - 720px)); min-width: 420px; box-sizing: border-box; }
 #maphint .lg, #maphint .op { flex-wrap: wrap; justify-content: center; gap: 2px 14px; }
@@ -1291,18 +1292,18 @@ body.rm #h-units .face { transition: none; }
 #maphint .lg.std svg { width: 12px; height: 16px; color: #f1e9d6; }
 #maphint .lg.std .tgs i { display: inline-block; width: 10px; height: 8px; margin: 0; box-shadow: 0 0 0 1px #000; }
 /* 飾りの小さい字（small）が 11px を割らないように（明示の大きさがある所はそのまま） */
-:where(#screen, #hud) small { font-size: max(11px, .83em); }
+:where(#screen, #hud) small { font-size: max(12px, .83em); }
 /* 指の端末の低い画面（スマホ横）：部隊の顔の札は、左下の体力の札と右下の丸の間に一列で小さく（号令の丸に掛けない） */
 @media (max-height: 500px) {
   html.touch #hud #h-units { left: calc(244px + env(safe-area-inset-left, 0px)); right: auto; transform: none; bottom: calc(6px + env(safe-area-inset-bottom, 0px)); max-width: calc(100vw - 244px - 300px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)); justify-content: flex-start; gap: 3px; }
   html.touch #hud #h-units .uc { width: 46px; height: 60px; padding-top: 2px; gap: 0; }
   html.touch #hud #h-units .uc.all { width: 44px; }
-  html.touch #hud #h-units .uc.all b { font-size: 18px; }
+  html.touch #hud #h-units .uc.all b { font-size: max(12px, calc(18px * var(--text-scale, 1))); }
   html.touch #hud #h-units .face { width: 28px; height: 28px; margin-top: 3px; }
   html.touch #hud #h-units .ring { width: 36px; height: 36px; margin-left: -18px; top: 2px; margin-top: 0; }
   html.touch #hud #h-units .cnt { top: 22px; right: 1px; min-width: 18px; line-height: 16px; }
-  html.touch #hud #h-units .ord { left: 1px; top: 1px; min-width: 16px; height: 16px; font-size: 12px; }
-  html.touch #hud #h-units .nm { margin-top: 4px; max-width: 44px; font-size: 12px; letter-spacing: 0; }
+  html.touch #hud #h-units .ord { left: 1px; top: 1px; min-width: 16px; height: 16px; font-size: max(12px, calc(12px * var(--text-scale, 1))); }
+  html.touch #hud #h-units .nm { margin-top: 4px; max-width: 44px; font-size: max(12px, calc(12px * var(--text-scale, 1))); letter-spacing: 0; }
   html.touch #hud #h-units .st, html.touch #hud #h-units .runner { display: none; }
   /* 選んだ札は金の枠で分かるので、名の前の ● は出さない（三字の名が切れないように） */
   html.touch #hud #h-units .uc.on .nm::before { content: none; }
@@ -1314,17 +1315,17 @@ body.rm #h-units .face { transition: none; }
   /* 選ぶ札は左上（止める・地図の下）に。右側は見回すなぞりのために空けておく */
   #hud #choice { left: calc(16px + env(safe-area-inset-left, 0px)); transform: none; top: calc(62px + env(safe-area-inset-top, 0px)); max-height: calc(100vh - 62px - 156px); overflow-y: auto; width: min(320px, 34vw); box-sizing: border-box; padding: 6px 10px; background: rgba(12,10,8,.8); }
   /* 携帯横では札を細く・薄く（戦場の左半分を覆わない）。字は本文 14px・添えは 12px */
-  #hud #choice h5 { font-size: 14px; margin-bottom: 4px; }
-  #hud #choice .opt b { font-size: 14px; line-height: 1.3; }
+  #hud #choice h5 { font-size: max(12px, calc(14px * var(--text-scale, 1))); margin-bottom: 4px; }
+  #hud #choice .opt b { font-size: max(12px, calc(14px * var(--text-scale, 1))); line-height: 1.3; }
   #hud:has(#choice:not([hidden])) :is(#compass, #bark, #boss, #tutorial, #skiphint) { visibility: hidden; }
   /* 選ぶ札が左にある間は、見出し（#banner）を札の右へ寄せる（「今川本陣に突入」が札に重なっていた。10/2） */
-  #hud:has(#choice:not([hidden])) #banner { left: calc(40vw + 24px + env(safe-area-inset-left, 0px)); font-size: clamp(16px, 3.4vw, 28px); }
+  #hud:has(#choice:not([hidden])) #banner { left: calc(40vw + 24px + env(safe-area-inset-left, 0px)); font-size: max(12px, calc(clamp(16px, 3.4vw, 28px) * var(--text-scale, 1))); }
   /* 指揮の札：指で押せるように。手ほどきの札とは同時に出さない */
   /* 左上（止める・地図の下）に三列で小さく。右側は見回すなぞりのために空けておく。説明の小さい字は畳む */
   html.touch #hud #cmdpanel { pointer-events: auto; left: calc(16px + env(safe-area-inset-left, 0px)); top: calc(62px + env(safe-area-inset-top, 0px)); bottom: auto; transform: none; min-width: 0; width: min(330px, 40vw); box-sizing: border-box; padding: 6px 8px; max-height: calc(100vh - 62px - 150px); overflow-y: auto; }
-  html.touch #hud #cmdpanel h5 { margin: 0 0 4px; font-size: 13px; }
+  html.touch #hud #cmdpanel h5 { margin: 0 0 4px; font-size: max(12px, calc(13px * var(--text-scale, 1))); }
   html.touch #hud #cmdpanel ol { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin: 0; padding: 0; }
-  html.touch #hud #cmdpanel li[data-cmd] { min-height: 44px; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; justify-content: center; text-align: center; padding: 2px 4px; font-size: 13px; line-height: 1.25; border: 1px solid var(--line); list-style: none; }
+  html.touch #hud #cmdpanel li[data-cmd] { min-height: 44px; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; justify-content: center; text-align: center; padding: 2px 4px; font-size: max(12px, calc(13px * var(--text-scale, 1))); line-height: 1.25; border: 1px solid var(--line); list-style: none; }
   html.touch #hud #cmdpanel li[data-cmd] small, html.touch #hud #cmdpanel .grp { display: none; }
   #hud:has(#cmdpanel:not([hidden])) :is(#armybar, #situation, #bark, #tutorial) { visibility: hidden; }
   html.touch #hud #cmdpanel li[data-cmd]:active { background: rgba(194,162,90,.2); }
@@ -1342,7 +1343,7 @@ html:not(.touch) #hud.calm #objectives { opacity: 1; }
 #hud.lean :is(.tl, #compass, #dateline), html:not(.tc-low) #hud.lean #h-squad { display: none !important; }
 /* 両軍の兵力の帯は「最小」でも消さない（常に出す層）。細く、名と棒だけ */
 #hud.lean #armybar { width: min(300px, 36vw); top: calc(8px + env(safe-area-inset-top, 0px)); gap: 6px; }
-#hud.lean #armybar .side .nm { font-size: 13px; gap: 4px; }
+#hud.lean #armybar .side .nm { font-size: max(12px, calc(13px * var(--text-scale, 1))); gap: 4px; }
 #hud.lean #armybar .side canvas { display: none; }
 #hud.lean #armybar .gauge { height: 6px; }
 #hud.lean.calm:not(.army-peek) #armybar { opacity: .72; }
@@ -1358,12 +1359,12 @@ html:not(.touch) #hud.calm #objectives { opacity: 1; }
 #hud.lean #objectives { padding: 3px 8px; max-height: none; background: rgba(10,9,7,.45); box-shadow: none; border: 0; }
 #hud.lean #objectives li:not(.cur) { display: none !important; }
 #hud.lean #objectives li .tag, #hud.lean #objectives li .opb, #hud.lean #objectives li small { display: none; }
-#hud.lean #objectives li.cur:not(.done) { font-size: 12.5px; grid-template-columns: 1fr; }
+#hud.lean #objectives li.cur:not(.done) { font-size: max(12px, calc(12.5px * var(--text-scale, 1))); grid-template-columns: 1fr; }
 #hud.lean .tr { width: auto; max-width: 240px; }
 #hud.lean #minimap { width: 58px !important; height: 58px !important; opacity: .8; }
 /* 字幕：下の真ん中、薄い下地、話し手の名は出さない（押しても指が止まらないよう、指は通す） */
-#hud.lean #subtitle { background: rgba(10,9,7,.42) !important; padding: 3px 10px !important; font-size: 13.5px !important; line-height: 1.45 !important; pointer-events: none !important; }
-#hud.lean #subtitle .sp { font-size: 12px; margin-right: .4em; }
+#hud.lean #subtitle { background: rgba(10,9,7,.42) !important; padding: 3px 10px !important; font-size: max(12px, calc(13.5px * var(--text-scale, 1))) !important; line-height: 1.45 !important; pointer-events: none !important; }
+#hud.lean #subtitle .sp { font-size: max(12px, calc(12px * var(--text-scale, 1))); margin-right: .4em; }
 #hud.lean #subtitle .more { display: none; }
 #hud.lean:has(#bark .bk) #situation { visibility: hidden; }
 html.touch #hud.lean #subtitle::after { content: none !important; }
@@ -1376,9 +1377,9 @@ html.touch #hud.lean #subtitle::after { content: none !important; }
 @media (max-height: 500px) {
   /* 手ほどきの段は、やるまで消さない（「する事」と「指の操作」を一行に）。消えるのはヒントの札だけ */
   html.touch #hud #tutorial.coach .lbl, html.touch #hud #tutorial.coach.hintc .how { display: none; }
-  html.touch #hud #tutorial.coach .what, html.touch #hud #tutorial.coach .what.sm { font-size: 15px; line-height: 1.4; }
+  html.touch #hud #tutorial.coach .what, html.touch #hud #tutorial.coach .what.sm { font-size: max(12px, calc(15px * var(--text-scale, 1))); line-height: 1.4; }
   html.touch #hud #tutorial.coach:not(.hintc) .what { display: inline; }
-  html.touch #hud #tutorial.coach:not(.hintc) .how { display: inline; margin-left: .7em; font-size: 13px; color: #f0d488; }
+  html.touch #hud #tutorial.coach:not(.hintc) .how { display: inline; margin-left: .7em; font-size: max(12px, calc(13px * var(--text-scale, 1))); color: #f0d488; }
   html.touch #hud #tutorial.coach { padding: 5px 11px; }
   html.touch #hud #tutorial.coach.in { animation: none !important; }
   html.touch #hud #tutorial.coach.hintc.in { animation: tcfade 3.4s linear forwards !important; }
@@ -1395,7 +1396,7 @@ html.touch #hud.lean #subtitle::after { content: none !important; }
   #screen .promo-cine .pc-road span:not(.now):not(.sum) { display: none; }
 }
 /* 左上の「戻る」：どの画面も同じ形・同じ置き場所（押せる大きさ 44px。画面を送っても動かない） */
-.topback { position: fixed; z-index: 60; left: max(12px, env(safe-area-inset-left, 0px)); top: max(10px, env(safe-area-inset-top, 0px)); min-height: 44px; min-width: 44px; box-sizing: border-box; display: inline-flex; align-items: center; gap: 4px; padding: 0 14px 0 8px; background: rgba(20,18,15,.88); color: var(--washi); border: 1px solid rgba(236,228,210,.28); font: 500 14px var(--ui); letter-spacing: .06em; cursor: pointer; }
+.topback { position: fixed; z-index: 60; left: max(12px, env(safe-area-inset-left, 0px)); top: max(10px, env(safe-area-inset-top, 0px)); min-height: 44px; min-width: 44px; box-sizing: border-box; display: inline-flex; align-items: center; gap: 4px; padding: 0 14px 0 8px; background: rgba(20,18,15,.88); color: var(--washi); border: 1px solid rgba(236,228,210,.28); font: 500 max(12px, calc(14px * var(--text-scale, 1))) var(--ui); letter-spacing: .06em; cursor: pointer; }
 .topback svg { width: 18px; height: 18px; }
 .topback:hover { border-color: var(--kin); color: #f3e6c4; }
 .topback:active { background: rgba(58,50,38,.95); }
@@ -1414,18 +1415,18 @@ html.touch:has(#hud.lean.calm) #tc .stick.idle { opacity: .18; }
 #hud.lean.calm #objectives { opacity: .75; }
 /* 最小：任務の印は ◆ を小さく */
 #hud.lean .mk::before { width: 7px; height: 7px; border-width: 1.5px; }
-#hud.lean .mk b { font-size: 12px; padding: 0 5px; }
+#hud.lean .mk b { font-size: max(12px, calc(12px * var(--text-scale, 1))); padding: 0 5px; }
 /* 戦の前の札（背の低い画面）：一画面に収める */
-#screen .story.short .st-who { font-size: 12px; margin-bottom: 8px; }
+#screen .story.short .st-who { font-size: max(12px, calc(12px * var(--text-scale, 1))); margin-bottom: 8px; }
 /* パソコンの 900 の高さでも、進む釦が下へはみ出さないように詰める */
 @media (min-height: 520px) and (max-height: 980px) { #screen .story:not(.short) p { margin-bottom: 12px; } #screen .story:not(.short) h2 { margin: 8px 0 14px; } #screen .story:not(.short) .st-tip { margin-bottom: 16px; } }
 #screen .story.short .st-who + .st-who { margin-top: 0 !important; }
-#screen .story.short h2 { font-size: 34px; margin: 2px 0 6px; }
+#screen .story.short h2 { font-size: max(12px, calc(34px * var(--text-scale, 1))); margin: 2px 0 6px; }
 #screen .story.short .ill-band { max-height: 48px; overflow: hidden; margin: 0 auto 4px; }
 #screen .story.short .st-more { margin: 0 auto 6px; }
 #screen .story.short p { margin-bottom: 4px; line-height: 1.8; }
 #screen .story.short .st-tip { margin: 2px auto 10px; padding: 6px 12px; }
-#screen .story.short .st-more summary { color: var(--kin); font-size: 13px; }
+#screen .story.short .st-more summary { color: var(--kin); font-size: max(12px, calc(13px * var(--text-scale, 1))); }
 #screen .story.short .st-more[open] p { animation: none; opacity: 1; }
 /* 枠の中（claude.ai のアプリの Artifact）：上の角にアプリの「×」「共有」が重なるので、HUD を上 64px 空けて並べる */
 /* HUD 全体を下げると、画面を覆う物（周辺減光など）の縁が線になって見えるので、上に付く札だけを下げる */
@@ -1438,7 +1439,7 @@ html.touch.inframe #tc .hint { top: calc(70px + env(safe-area-inset-top, 0px)); 
   /* 任務は二行まで、小地図は小さく（右の「狙い」の丸に届かない高さ） */
   html.touch #hud #objectives { max-height: 58px; }
   /* 長い任務（21字から）は字を小さくして二行に収める（三行目が札の外へはみ出していた。見回り 10/2） */
-  html.touch #hud #objectives li.cur.long:not(.done) { font-size: 13.5px; line-height: 1.32; padding: 4px 6px; }
+  html.touch #hud #objectives li.cur.long:not(.done) { font-size: max(12px, calc(13.5px * var(--text-scale, 1))); line-height: 1.32; padding: 4px 6px; }
   html.touch #hud #objectives:has(li.cur.long) { max-height: 74px; }
   html.touch #hud #minimap { width: 62px; height: 62px; }
   /* ヒントは上の真ん中に短く（左の札・顔の札の下に潜らない） */
@@ -1451,26 +1452,26 @@ html.touch.inframe #tc .hint { top: calc(70px + env(safe-area-inset-top, 0px)); 
   html.touch.tc-low #hud #subtitle, html.touch.tc-low #hud:has(#h-units:not([hidden])) #subtitle { left: calc(264px + env(safe-area-inset-left, 0px)); right: calc(284px + env(safe-area-inset-right, 0px)); transform: none; width: fit-content; max-width: none; margin-inline: auto; bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
   html.touch.tc-low.tc-cmd #hud #subtitle { bottom: calc(74px + env(safe-area-inset-bottom, 0px)); }
   #hud #tutorial.coach.hintc .lbl { display: none; }
-  #hud #tutorial.coach.hintc .what.sm, #hud #tutorial.coach.hintc .how { font-size: 13px; line-height: 1.5; }
+  #hud #tutorial.coach.hintc .what.sm, #hud #tutorial.coach.hintc .how { font-size: max(12px, calc(13px * var(--text-scale, 1))); line-height: 1.5; }
   #hud:has(#tutorial.hintc:not([hidden])) #bark { visibility: hidden; }
   /* 「…」の丸（畳んだ丸を開く） */
-  html.touch #tc [data-b="more"] { font-size: 18px; }
-  html.touch #tc [data-b="more"] small { font-size: 12px; margin-top: 0; }
+  html.touch #tc [data-b="more"] { font-size: max(12px, calc(18px * var(--text-scale, 1))); }
+  html.touch #tc [data-b="more"] small { font-size: max(12px, calc(12px * var(--text-scale, 1))); margin-top: 0; }
 }
 /* 城下（背の低い画面＝スマホ横）：町の絵を低く、施設の札を詰めて、「出陣」や「買う」が早く目に入るように */
 @media (max-height: 520px) {
   #screen .base { grid-template-columns: 210px 1fr; gap: 22px; padding-block: 16px; }
   #screen .base .th { height: 84px; margin-bottom: 6px; }
-  #screen .base .th .tt b { font-size: 22px; }
+  #screen .base .th .tt b { font-size: max(12px, calc(22px * var(--text-scale, 1))); }
   #screen .base .th .tt span { display: none; }
   #screen .base .tabs { margin-bottom: 10px; }
   #screen .base .tabs button { padding: 8px 9px; letter-spacing: .04em; }
   /* 左の欄（名・身分・あと何）を一行に畳む。ボタン類（その他）は閉じたまま、押せば開く */
   #screen .base aside { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding-bottom: 6px; }
   #screen .base aside .eyebrow { display: none; }
-  #screen .base aside h2 { font-size: 16px; margin: 0; }
-  #screen .base aside .rank { font-size: 13px; }
-  #screen .base aside .aside-more { order: 9; width: 100%; font-size: 12px; }
+  #screen .base aside h2 { font-size: max(12px, calc(16px * var(--text-scale, 1))); margin: 0; }
+  #screen .base aside .rank { font-size: max(12px, calc(13px * var(--text-scale, 1))); }
+  #screen .base aside .aside-more { order: 9; width: 100%; font-size: max(12px, calc(12px * var(--text-scale, 1))); }
   #screen .base aside .tw-prog, #screen .base aside .stat:not(.aside-more .stat) { flex: 1 1 auto; min-width: 150px; margin: 0; }
   #screen .base aside .tw-sup, #screen .base aside details:not(.aside-more) { display: none; }
 }
@@ -1480,7 +1481,7 @@ html.touch.inframe #tc .hint { top: calc(70px + env(safe-area-inset-top, 0px)); 
 #hud { --ink-sh: 0 1px 2px rgba(0,0,0,.6), 0 0 10px rgba(0,0,0,.35); --fude-shu: #b8452e; --fude-bg: rgba(236,228,210,.14); }
 /* 左下：体力・気力・士気。札の地をやめ、足元の薄い墨だまりに筆で引いた細い線 */
 #hud:not(.hc) .bl { background: radial-gradient(closest-side at 50% 55%, rgba(12,10,8,.46), rgba(12,10,8,.24) 60%, rgba(12,10,8,0)); box-shadow: none; border: 0; }
-#hud .bl .who { font-family: var(--display); font-size: 16px; text-shadow: var(--ink-sh); }
+#hud .bl .who { font-family: var(--display); font-size: max(12px, calc(16px * var(--text-scale, 1))); text-shadow: var(--ink-sh); }
 #hud .bl .bar { color: var(--washi-dim); text-shadow: var(--ink-sh); }
 #hud .bl .bar i { height: 5px; background: var(--fude-bg); border: 0; box-shadow: none; -webkit-mask: var(--fude) center / 100% 100% no-repeat; mask: var(--fude) center / 100% 100% no-repeat; }
 #hud .bl .bar.sta i, #hud .bl .bar.horse i { height: 4px; }
@@ -1526,7 +1527,7 @@ body.rm #hud .bar.low i { animation: none; }
 #hud #crosshair.charge::before { border-color: rgba(236,228,210,.35); }
 #hud #crosshair.charged::before { border-color: rgba(194,162,90,.75); border-width: 1px; }
 /* 敵将・狙う敵の体力：細い朱の一筆 */
-#hud #boss { font-size: 15px; letter-spacing: .2em; gap: 6px; text-shadow: var(--ink-sh); }
+#hud #boss { font-size: max(12px, calc(15px * var(--text-scale, 1))); letter-spacing: .2em; gap: 6px; text-shadow: var(--ink-sh); }
 #hud #boss i { width: min(360px, 52vw); height: 3px; background: var(--fude-bg); border: 0; -webkit-mask: var(--fude) center / 100% 100% no-repeat; mask: var(--fude) center / 100% 100% no-repeat; }
 #hud #boss i b { background: var(--fude-shu); }
 #hud #target { text-shadow: var(--ink-sh); }
@@ -1535,14 +1536,14 @@ body.rm #hud .bar.low i { animation: none; }
 #hud #target span .kd { border: 0; padding: 0; }
 body.ca #hud #boss i b, body.ca #hud #target i b { background: #ff9a1a; }
 /* 狙う敵の頭の「！」：燃える橙をやめ、朱の字 */
-#hud .threat { color: var(--shu-text, #e38a74); font-size: 20px; text-shadow: 0 0 6px rgba(0,0,0,.85); }
-#hud .threat.edge { font-size: 22px; color: var(--shu-text, #e38a74); }
+#hud .threat { color: var(--shu-text, #e38a74); font-size: max(12px, calc(20px * var(--text-scale, 1))); text-shadow: 0 0 6px rgba(0,0,0,.85); }
+#hud .threat.edge { font-size: max(12px, calc(22px * var(--text-scale, 1))); color: var(--shu-text, #e38a74); }
 body.ca #hud .threat { color: #ff9a1a; }
 /* スマホ横「最小」の字幕：四角い地をやめ、左右の端が消える墨の帯に */
 #hud.lean:not(.subbg) #subtitle { background: linear-gradient(90deg, rgba(10,9,7,0), rgba(10,9,7,.44) 16%, rgba(10,9,7,.44) 84%, rgba(10,9,7,0)) !important; padding-inline: 22px !important; }
 /* iPhone 横の指：押せる所は 44px、字は 12px より小さくしない、隣と 8px 空ける */
 html.touch .renm, html.touch .settings input[type=range], html.touch .jp-link { min-height: 44px; }
-html.touch .renm { padding: 6px 12px; font-size: 13px; }
+html.touch .renm { padding: 6px 12px; font-size: max(12px, calc(13px * var(--text-scale, 1))); }
 html.touch #objectives li.more { min-height: 44px; line-height: 44px; }
 html.touch .row { gap: 8px; }
 html.touch .slots { gap: 8px; }
@@ -1572,12 +1573,12 @@ html.touch.tc-low #tc .stick b { display: none; }
 html.touch.tc-low #hud .bl { width: 150px; padding: 4px 6px; gap: 0; background: rgba(10,9,7,.35); box-shadow: none; border: 0; bottom: calc(4px + env(safe-area-inset-bottom, 0px)); }
 html.touch.tc-low #hud .bl > :not(#h-hp) { display: none !important; }
 html.touch.tc-low #hud .bl #h-hp { grid-template-columns: auto 1fr auto; gap: 0 4px; align-items: center; }
-html.touch.tc-low #hud .bl #h-hp span { display: block; font-size: 12px; }
-html.touch.tc-low #hud .bl #h-hp em { display: block; font-size: 12px; }
+html.touch.tc-low #hud .bl #h-hp span { display: block; font-size: max(12px, calc(12px * var(--text-scale, 1))); }
+html.touch.tc-low #hud .bl #h-hp em { display: block; font-size: max(12px, calc(12px * var(--text-scale, 1))); }
 html.touch.tc-low #hud .bl #h-hp i { height: 5px; }
 /* 組の一行：組の数・士気・今の号令。押すと陣形と隊ごとの号令を開く */
-html.touch.tc-low #hud #h-squad:not([hidden]) { display: flex !important; left: var(--pm-l); right: auto; top: auto; bottom: var(--pm-b) !important; transform: none; width: max-content; max-width: calc(100vw - var(--pm-l) - var(--pm-r2)); min-height: 44px; box-sizing: border-box; flex-wrap: wrap; align-items: center; align-content: center; gap: 0 10px; padding: 2px 10px; font-size: 12px; line-height: 1.5; white-space: nowrap; background: rgba(10,9,7,.55); border: 0; box-shadow: none; pointer-events: auto; cursor: pointer; }
-html.touch.tc-low #hud #h-squad b { font-size: 14px; margin-left: 3px; }
+html.touch.tc-low #hud #h-squad:not([hidden]) { display: flex !important; left: var(--pm-l); right: auto; top: auto; bottom: var(--pm-b) !important; transform: none; width: max-content; max-width: calc(100vw - var(--pm-l) - var(--pm-r2)); min-height: 44px; box-sizing: border-box; flex-wrap: wrap; align-items: center; align-content: center; gap: 0 10px; padding: 2px 10px; font-size: max(12px, calc(12px * var(--text-scale, 1))); line-height: 1.5; white-space: nowrap; background: rgba(10,9,7,.55); border: 0; box-shadow: none; pointer-events: auto; cursor: pointer; }
+html.touch.tc-low #hud #h-squad b { font-size: max(12px, calc(14px * var(--text-scale, 1))); margin-left: 3px; }
 html.touch.tc-low #hud #h-squad .now b { margin-left: 0; color: var(--kin); }
 html.touch.tc-low #hud #h-squad .ord small { margin-left: 4px; }
 html.touch.tc-low #hud.calm #h-squad { opacity: .7; }
@@ -1587,27 +1588,27 @@ html.touch.tc-low:not(.tc-cmd) #hud #h-units { display: none; }
 html.touch.tc-low #hud #h-units { left: var(--pm-l); right: auto; transform: none; bottom: var(--pm-b); max-width: calc(100vw - var(--pm-l) - var(--pm-r2)); justify-content: flex-start; gap: 4px; }
 html.touch.tc-low #hud #h-units .uc { width: 46px; height: 60px; padding-top: 2px; gap: 0; }
 html.touch.tc-low #hud #h-units .uc.all, html.touch.tc-low #hud #h-units .uc.al { width: 44px; align-content: center; }
-html.touch.tc-low #hud #h-units .uc.all b, html.touch.tc-low #hud #h-units .uc.al b { font-family: var(--display); font-size: 18px; line-height: 1.1; color: var(--washi); }
+html.touch.tc-low #hud #h-units .uc.all b, html.touch.tc-low #hud #h-units .uc.al b { font-family: var(--display); font-size: max(12px, calc(18px * var(--text-scale, 1))); line-height: 1.1; color: var(--washi); }
 html.touch.tc-low #hud #h-units .face { width: 28px; height: 28px; margin-top: 3px; }
 html.touch.tc-low #hud #h-units .ring { width: 36px; height: 36px; margin-left: -18px; top: 2px; margin-top: 0; }
 html.touch.tc-low #hud #h-units .cnt { top: 22px; right: 1px; min-width: 18px; line-height: 16px; }
-html.touch.tc-low #hud #h-units .ord { left: 1px; top: 1px; min-width: 16px; height: 16px; font-size: 12px; }
-html.touch.tc-low #hud #h-units .nm { margin-top: 4px; max-width: 44px; font-size: 12px; letter-spacing: -.04em; }
+html.touch.tc-low #hud #h-units .ord { left: 1px; top: 1px; min-width: 16px; height: 16px; font-size: max(12px, calc(12px * var(--text-scale, 1))); }
+html.touch.tc-low #hud #h-units .nm { margin-top: 4px; max-width: 44px; font-size: max(12px, calc(12px * var(--text-scale, 1))); letter-spacing: -.04em; }
 html.touch.tc-low #hud #h-units .st, html.touch.tc-low #hud #h-units .runner, html.touch.tc-low #hud #h-units .ready, html.touch.tc-low #hud #h-units kbd { display: none; }
 html.touch.tc-low #hud #h-units .uc.on { transform: none; }
 html.touch.tc-low #hud #h-units .uc.on .nm::before { content: none; }
 /* 字幕：組の一行のすぐ上の決まった帯に一つ（号令の輪を開いている間は隠す） */
-html.touch.tc-low #hud #subtitle { left: var(--pm-l) !important; right: var(--pm-r) !important; transform: none !important; width: fit-content; max-width: none !important; margin-inline: auto !important; bottom: calc(82px + env(safe-area-inset-bottom, 0px)) !important; font-size: 14px; line-height: 1.45; }
+html.touch.tc-low #hud #subtitle { left: var(--pm-l) !important; right: var(--pm-r) !important; transform: none !important; width: fit-content; max-width: none !important; margin-inline: auto !important; bottom: calc(82px + env(safe-area-inset-bottom, 0px)) !important; font-size: max(12px, calc(14px * var(--text-scale, 1))); line-height: 1.45; }
 html.touch.tc-low #hud #subtitle .more { display: none; }
 html.touch.tc-low #hud:has(#h-squad[hidden]) #subtitle { bottom: var(--pm-b) !important; }
 /* 一番下の帯では右の丸は「構え」「突く」だけ：字幕を右へ広げて、三行に折れないように */
-html.touch.tc-low:not(.tc-sw) #hud:has(#h-squad[hidden]) #subtitle { right: calc(214px + env(safe-area-inset-right, 0px)) !important; font-size: 15px; }
+html.touch.tc-low:not(.tc-sw) #hud:has(#h-squad[hidden]) #subtitle { right: calc(214px + env(safe-area-inset-right, 0px)) !important; font-size: max(12px, calc(15px * var(--text-scale, 1))); }
 html.touch.tc-low #hud:has(#h-squad.open) #subtitle, html.touch.tc-low.tc-cmd #hud #subtitle, html.touch.tc-low.tc-cmd #hud #bark { visibility: hidden; }
 /* 知らせは上の真ん中より左寄りに一つ（右上の任務・丸に掛けない） */
 html.touch.tc-low #hud #bark { top: calc(112px + env(safe-area-inset-top, 0px)); bottom: auto; left: calc(50% - 60px); transform: translateX(-50%); max-width: min(40vw, 320px); }
 /* 右上の任務は今の一つだけ、小地図は小さく。上の札は止める・地図・視点の下へ */
 html.touch.tc-low #hud .tr { width: 190px; gap: 6px; top: calc(8px + env(safe-area-inset-top, 0px)); }
-html.touch.tc-low #hud #objectives { max-height: 58px; overflow: hidden; padding: 6px 10px; font-size: 12px; }
+html.touch.tc-low #hud #objectives { max-height: 58px; overflow: hidden; padding: 6px 10px; font-size: max(12px, calc(12px * var(--text-scale, 1))); }
 html.touch.tc-low #hud #objectives:has(li.cur.long) { max-height: 74px; }
 html.touch.tc-low #hud #objectives li.more { min-height: 0; line-height: 18px; margin-top: 0; }
 /* 任務更新の知らせは一行に（折り返すと小地図の下へ潜って読めない） */
@@ -1743,5 +1744,5 @@ html.touch.tc-low #hud #armybar { width: min(360px, 40vw); top: calc(6px + env(s
 } }
 </script>
 <script type="module">
-import('./v202610031510/src/main.js').catch(() => window.__bootFail());
+import('./v202610031748/src/main.js').catch(() => window.__bootFail());
 </script>
