@@ -1,0 +1,44 @@
+/* 携帯の横持ち、拡大文字、キーボードに対応する共通寸法。 */
+[hidden]{display:none!important}
+:root{--dim:#B8AA91;--shu2:#F19A85}
+body{overflow-wrap:anywhere}
+button,input,select,textarea{font-family:inherit;line-height:1.5}
+button,a[role=button],summary{touch-action:manipulation}
+button,summary{min-height:44px;min-width:44px}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,[role=button]:focus-visible{outline:3px solid #E6C15A;outline-offset:3px}
+a:hover{text-decoration:underline}
+p a:not(.btn):not(.fuda):not(.inban){text-decoration:underline;text-underline-offset:3px}
+.skip{position:fixed;left:12px;top:8px;z-index:100;background:#17120D;padding:10px 14px;transform:translateY(-160%);min-height:44px}
+.skip:focus{transform:none}
+.wrap{padding-left:max(20px,env(safe-area-inset-left));padding-right:max(20px,env(safe-area-inset-right))}
+header.top .logo{min-height:44px;display:inline-flex;align-items:center;flex-shrink:0;letter-spacing:.08em}
+header.top .wrap{flex-wrap:wrap;padding-top:4px;padding-bottom:4px}
+header.top nav{flex-wrap:nowrap;overflow-x:auto;width:100%;gap:8px;max-height:56px}
+header.top nav a{flex-shrink:0}
+section[id]{scroll-margin-top:120px}
+.chip{line-height:1.5;min-width:44px;letter-spacing:.03em}
+.chip.on{color:#FFF0B5;background:#3A2410}
+.chips{gap:10px}
+.dgrid{grid-template-columns:repeat(auto-fill,minmax(min(230px,100%),1fr))}
+.dcard .play{background:#0B0907}
+.dcard .vs{line-height:1.5}
+.fig img,.dcard img{aspect-ratio:16/9;object-fit:contain;background:#17120D}
+.faq summary{line-height:1.5;padding:12px 8px}
+.faq summary::before{color:#F19A85}
+.meyasu textarea{font-size:16px;min-height:120px}
+.meyasu textarea::placeholder{color:#B8AA91;opacity:1}
+.meyasu label{display:block;margin-bottom:8px}
+#meyasuStatus{min-height:24px;margin-top:8px;color:#D7C8A5}
+.nagashino-detail table{display:block;overflow-x:auto;max-width:100%}
+.toc{font-size:14px;gap:8px}
+footer a{min-width:44px}
+#lightbox{padding:12px max(12px,env(safe-area-inset-right)) 12px max(12px,env(safe-area-inset-left));cursor:auto;overflow-y:auto}
+#lightbox .lb-box{max-height:calc(100dvh - 24px);display:flex;flex-direction:column;align-items:center}
+#lightbox img{min-height:0;max-height:calc(100dvh - 150px);width:auto;object-fit:contain;flex-shrink:1}
+#lightbox .lb-cap{font-size:18px;line-height:1.5;letter-spacing:.04em;margin-top:8px}
+#lightbox .lb-sub{font-size:14px;line-height:1.5;margin-top:4px}
+#lightbox button{align-self:flex-end;background:#17120D;color:#EEE6D5;border:1px solid #E6C15A;padding:8px 12px;flex-shrink:0}
+@media(max-width:900px),(max-height:500px){header.top nav{display:flex!important}header.top .logo{font-size:18px}section{padding:30px 0}.hero{padding:28px 0}.hero h1{font-size:30px}.two{grid-template-columns:1fr}header.top{backdrop-filter:none}}
+@media(max-height:500px){header.top{position:relative}section[id]{scroll-margin-top:12px}.hero h1{font-size:26px}.dgrid{grid-template-columns:repeat(2,minmax(0,1fr))}.fig{max-width:600px;margin-left:auto;margin-right:auto}}
+@media(max-width:360px){.dgrid{grid-template-columns:1fr}.wrap{padding-left:12px;padding-right:12px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}

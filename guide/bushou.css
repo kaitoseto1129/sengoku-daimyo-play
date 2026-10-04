@@ -1,0 +1,13 @@
+body{font-size:16px;line-height:1.5;overflow-wrap:anywhere;--sub:#B8AA91}
+.sub,.cap b,.cap span{font-size:14px}
+.sub a{display:inline-flex;min-width:44px;min-height:44px;align-items:center;justify-content:center}
+.tools{padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}
+.tools label{display:flex;align-items:center;gap:8px;flex:1 1 240px;max-width:440px;min-width:0;font-size:14px}
+.tools input,.tools select{font-size:16px;min-height:44px;width:100%;min-width:0}
+.tools button,#more{min-height:44px;min-width:44px;font-size:16px;color:#E8DCC0;background:#17120D;border:1px solid #C9A227;padding:8px 12px;line-height:1.5}
+.grid{grid-template-columns:repeat(auto-fill,minmax(min(180px,100%),1fr));padding-bottom:12px}
+#more{display:block;margin:16px auto 48px}
+.card svg{aspect-ratio:3/4}
+.cap{min-height:68px}
+.none{font-size:16px}
+@media(max-height:500px){.tools{position:relative}header{padding:8px 12px}.grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));margin-top:12px}}

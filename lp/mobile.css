@@ -1,0 +1,64 @@
+[hidden]{display:none!important}
+:root{--dim:#B8AA91}
+body{overflow-wrap:anywhere;padding-bottom:calc(86px + env(safe-area-inset-bottom,0px))}
+button,textarea{font-family:inherit;line-height:1.5}
+button,summary{min-height:44px;min-width:44px;touch-action:manipulation}
+:is(a,button,textarea,summary,[role=button]):focus-visible{outline:3px solid #E6C15A;outline-offset:3px}
+p a{text-decoration:underline;text-underline-offset:3px}
+.skip{position:fixed;top:8px;left:12px;z-index:100;padding:10px 14px;background:#17120D;transform:translateY(-160%);min-height:44px}
+.skip:focus{transform:none}
+.wrap{padding-left:max(22px,env(safe-area-inset-left));padding-right:max(22px,env(safe-area-inset-right))}
+header{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+section[id]{scroll-margin-top:80px}
+.h2 .g{background:none;color:#E6C15A;text-shadow:0 2px 8px #000}
+.h2,#hero h1,.maki h3,.kyuho,#ch2 .kazu{line-height:1.5}
+.yubi,.sanpo b,.annot-list,footer,.mitsu b,.pvbtn i{font-size:14px;line-height:1.5}
+footer .credits{opacity:1}
+.sanTaku button{gap:10px;flex-wrap:wrap;line-height:1.5;letter-spacing:.06em}
+.sanTaku button small{color:#D7C8A5}
+.sanTaku button.on{color:#FFF0B5;background:#3A2410}
+.fuda,.inban{min-height:44px;min-width:44px;white-space:normal!important;line-height:1.5;max-width:100%}
+footer a{min-width:44px}
+.mondo summary::before{color:#F19A85}
+.mondo summary{line-height:1.5}
+.meyasu-box label{display:block;margin-bottom:8px}
+.meyasu-box textarea{font-size:16px;min-height:120px}
+.meyasu-box textarea::placeholder{color:#B8AA91;opacity:1}
+#meyasuStatus{min-height:24px;margin-top:8px;color:#D7C8A5}
+.ev-grid{grid-template-columns:repeat(auto-fill,minmax(min(280px,100%),1fr))}
+.ar{opacity:1;transform:none}
+.annot .co{white-space:normal;max-width:45%;line-height:1.5;background:#0B0907}
+.ugoku .rec,.play{background:#0B0907}
+#player,#pvModal{padding:12px max(12px,env(safe-area-inset-right)) 12px max(12px,env(safe-area-inset-left));overflow-y:auto}
+#player .box,#pvModal .pvbox{max-height:calc(100dvh - 24px);display:flex;flex-direction:column;align-items:center}
+#player .x{position:static;align-self:flex-end;background:#17120D;min-height:44px;margin-bottom:8px;flex-shrink:0;font-size:14px;line-height:1.5}
+#player img,#pvModal video{width:auto;max-width:100%;max-height:calc(100dvh - 150px);min-height:0;object-fit:contain;flex-shrink:1}
+#player .cap{font-size:18px;line-height:1.5;margin-top:8px;letter-spacing:.04em}
+#player .sub{font-size:14px;line-height:1.5;margin-top:4px}
+#pvModal .pvx{align-self:flex-end;flex-shrink:0}
+#stick{padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}
+#stick:not(.on){visibility:hidden;pointer-events:none}
+#stick .fuda,#stick .inban{font-size:14px;padding:8px;letter-spacing:.02em;min-width:0}
+#stick .row{max-width:720px;margin:auto}
+@media(max-width:900px),(max-height:500px){
+  header nav a{display:none}#susumi{display:none}
+  #hero{min-height:auto!important;padding:84px 0 28px!important}
+  #hero h1{font-size:30px!important;line-height:1.5}
+  #hero .mei{margin-bottom:8px}#hero .kotoba{margin-top:12px}
+  #hero .ctas{margin-top:16px;gap:12px;flex-direction:row;flex-wrap:wrap}
+  #hero .ctas a{font-size:16px;padding:12px 16px;letter-spacing:.04em;width:auto;flex:1 1 240px}
+  #hero .scroll{display:none}.h2{font-size:30px}section{padding:32px 0}
+  #stick{display:block}footer{padding-bottom:40px}
+  .gunki-two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible;margin:0;padding:0;gap:14px}
+  .gunki-two .maki{min-width:0}.maki h3{font-size:26px}.sanpo{grid-template-columns:1fr}
+  .annot .co{display:none}.annot-list{display:block!important}
+}
+@media(max-width:480px){.gunki-two{grid-template-columns:1fr}.kakejiku-row{grid-template-columns:1fr}.ctas{gap:12px}}
+@media(max-height:500px){header{position:relative;padding-top:6px;padding-bottom:6px}section[id]{scroll-margin-top:12px}#hero{padding-top:20px!important}#hero .layer.l-bg{inset:0!important;height:100%!important}#hero .l-veil{background:rgba(11,9,7,.85)!important}#musubi .wrap{padding-top:32px;padding-bottom:32px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}html{scroll-behavior:auto}.ar{opacity:1;transform:none}.layer{transform:none!important}}
+
+#mobileMenu{display:none;color:#EEE6D5;background:#17120D}
+#mobileMenu summary{padding:8px 12px;font-size:14px;line-height:1.5}
+#mobileMenu nav{position:absolute;right:12px;top:100%;background:#17120D;border:1px solid #E6C15A;padding:8px;display:flex;flex-direction:column;gap:4px;max-height:calc(100dvh - 96px);overflow-y:auto;min-width:180px}
+#mobileMenu nav a{display:flex;min-height:44px;min-width:44px;opacity:1;font-size:14px}
+@media(max-width:1200px),(max-height:500px){header{gap:8px}header>nav a{display:none}#mobileMenu{display:block}header .logo{font-size:18px;letter-spacing:.12em}}
