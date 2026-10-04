@@ -1,0 +1,1234 @@
+import { battleJin, buildBattleJin } from './b_jinkei_g1.js';
+// 墨俣の戦の定義（砦づくりと守り。battles.js から分けた。中身は元のまま）
+import { palisade, bobosaku, kabukimon, tawara, hut, yagura, lumber, scaffold, umatsunagi, campfire, hasa, nobori, kagaribi, sakamogi, takataba, kobune, stumps, dorui, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
+import { demBlend } from './dem.js';
+import { gauss, allyGroup, nm, enemyGroup, centerOf, unitPos } from './bhelp.js';
+import { nagashinojo } from './b_nagashinojo.js';
+import { RANKS } from './state.js';
+import { buildHorse } from './units_model.js';
+import { sfx } from './audio.js';
+import { volleyAt } from './b_okehazama.js';
+import { battleEvent, EVENT_MESSENGER, EVENT_REINFORCEMENT, EVENT_RETREAT } from './battle_events.js';
+import { seasonOf } from './b_shared.js';
+import { makeSiegeZones, ZONE_STATE, WIN } from './siege_zones.js';
+import { buildCastlePlan } from './castle_plan.js';
+import { horiboriHeight } from './castle_parts.js';
+import { reset as flReset } from './floors.js';
+import { makeButai, butaiTick, adoptGroup } from './butai.js';
+import { chooseRoute } from './siege_ai.js';
+import { addTaba, tickTabas, patchGunCover } from './taketaba.js';
+import { addFieldFence } from './yasen_obstacles.js';
+import { FORT, ROAD3, ROAD3N, YOSE, SIDE_WORD, HORI, SUNOMATA_PLAN } from './castles/sunomata.js';
+
+// ======================================================================
+// 第3戦　墨俣
+// 縄張りは castles/sunomata.js（riverFortPlan に倣った河川砦：砦の内・岸の舟着き・物見・外の空堀・寄せの道）。
+// 斎藤の寄せは「備（butai）」：本物は波の組、後ろの数百は軽い大軍。寄せる道は寄せの頭（chooseRoute）が
+// 柵の内の守りの厚さを見て毎回選び、竹束を押してゆっくり寄せ場まで来てから柵へ取り付く。
+// 守り切りは寄せの退却、人足の生存、柵の完成、砦内の安全をそろえて決める。
+// ======================================================================
+const MOAT = HORI.map((h) => horiboriHeight(h.pts, { depth: h.deep, width: h.w }));
+
+// 寄せの頭：柵の内の守り（織田の兵）が厚い側を避ける。道の長さ・口の狭さに揺らぎを掛けて選ぶ（siege_ai.js の chooseRoute）
+function pickYose(rt, prefer) {
+  const thick = (r) => {
+    let n = 0;
+    for (const u of rt.army.units) if (u.alive && u.team === 0 && Math.hypot(u.pos.x - (r.yose.x + r.dir.x * 20), u.pos.z - (r.yose.z + r.dir.z * 20)) < 14) n++;
+    return 1 + n * 0.35 + (prefer && prefer !== r.id ? 0.6 : 0);
+  };
+  const routes = Object.values(YOSE).map((r) => ({ ...r, defThickness: thick(r) }));
+  return YOSE[(chooseRoute(routes, Math.random) || YOSE.kita).id];
+}
+// 斎藤の寄せの備：本物は波の組をそのまま預け（adoptGroup）、後ろに続く数百は軽い大軍（名目の数）で見せる
+function yoseButai(rt, g, o) {
+  const at = { x: o.at.x - o.dir.x * 14, z: o.at.z - o.dir.z * 14 };
+  const b = makeButai(rt, { name: o.name, general: o.general, team: 1, faction: 'saito', kind: 'ashigaru', nominal: g.count + o.back, real: 0, at, facing: Math.atan2(o.dir.x, o.dir.z), armor: o.armor || 0x3a3a30, flag: 'saito' });
+  adoptGroup(b, g);
+  // 軽い大軍は柵から 50m ほどまで押し出して止まる
+  const d = Math.max(0, Math.hypot(at.x, at.z) - FORT - 50);
+  b.push = () => { if (b.light && d > 0 && g.count && !g.routed) b.light.advance(d, d / 1.6); };
+  return b;
+}
+// 竹束を押して寄せ場までゆっくり進み、着いたら柵へ取り付く（kaito 10/1「攻め手は竹束を押してゆっくり寄せる」）
+function yoseApproach(rt, g, r, side, n = 3) {
+  if (!g.count || g.routed) return;
+  const sp0 = g.speed;
+  g.order = 'move'; g.dest = { ...r.yose }; g.speed = 1.5;
+  g.onArrive = (gg) => { gg.order = 'assault'; gg.speed = sp0; };
+  g.assault = assaultFn(rt, side);
+  const c = g.center();
+  for (let k = 0; k < n; k++) addTaba(rt, c.x + r.dir.x * 3, c.z + r.dir.z * 3, 1, { van: g, dir: r.dir, off: (k - (n - 1) / 2) * 3.4, vanDist: 3, rot: Math.atan2(r.dir.x, r.dir.z) });
+  // 寄せ場へ実際に着くまで隊列を保つ。時間だけで柵への突撃に切り替えない。
+}
+
+function buildFort(rt) {
+  const W = rt.world;
+  const segs = [];
+  const nSegs = [];
+  // 柵（palisade）と土塁（dorui）は区画ごとに別メッシュだったので、砦一つぶんをそれぞれ
+  // 一つの BatchedMesh へまとめて描く回数を減らす（見た目・壊れた時の傾きはそのまま）
+  const fb = makeSimpleBatch(), db = makeSimpleBatch();
+  const add = (ax, az, bx, bz, side, nx, nz) => {
+    const s = rt.army.addStruct({ seg: [ax, az, bx, bz], side, nx, nz, hp: 240, maxHp: 240, team: 0, name: '柵' });
+    s.mesh = palisade(W, s.seg, { batch: fb });
+    if (!s.mesh.isBatchedPart) rt.scene.add(s.mesh);
+    // 柵の外の土塁（草の生えた土の斜面）
+    const d = dorui(W, s.seg, nx, nz, { batch: db });
+    if (!d.isBatchedPart) rt.scene.add(d);
+    segs.push(s);
+    if (side === 'n') nSegs.push(s);
+  };
+  const st = (FORT * 2) / 8;
+  for (let i = 0; i < 8; i++) {
+    const a = -FORT + i * st, b = a + st;
+    add(a, -FORT, b, -FORT, 'n', 0, -1);
+    add(-FORT, a, -FORT, b, 'w', -1, 0);
+    add(FORT, a, FORT, b, 'e', 1, 0);
+  }
+  for (const [a, b] of [[-18, -13], [-13, -8], [-8, -3], [3, 8], [8, 13], [13, 18]]) add(a, FORT, b, FORT, 's', 0, 1);
+  // 四隅は柵が直角に出会う所。角の内側で二つの柵にはさまれて進めなくなるのを防ぐため、角を斜めに削る
+  for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+    add(sx * (FORT - 0.9), sz * FORT, sx * FORT, sz * (FORT - 0.9), 'c', sx * 0.7, sz * 0.7);
+  }
+  finalizeSimpleBatch(rt, fb);
+  finalizeSimpleBatch(rt, db);
+  // 完成した砦から始めない（spec 17〜24）：北の柵は普請の途中。北門（中央2区画）と、もう1区画は
+  // まだ結っていない（alive=false・見た目は隠す＝assaultFn の「破れ目」と同じ扱いで、弱点として遊びに使える）
+  segs.gate = [nSegs[3], nSegs[4]];
+  segs.unfinished = [nSegs[2], nSegs[3], nSegs[4]];
+  for (const s of segs.unfinished) { s.alive = false; s.mesh.visible = false; s.building = true; }
+  return segs;
+}
+
+// 普請は実在の人足が持ち場へ着いてから進む。敵が迫れば作業を止める。
+function finishBuild(rt, order, onDone, reinforce = false) {
+  const F = rt.flags;
+  if (!order.length || rt.over || F.ending || F.won) return;
+  if (F.buildBusy) { if (!reinforce) F.buildPending = { order, onDone }; return; }
+  F.buildBusy = true;
+  let i = 0, worked = 0;
+  const step = () => {
+    if (rt.over || F.ending || F.won) { F.buildBusy = false; return; }
+    const s = order[i], wk = F.wk;
+    if (!wk || !wk.count || wk.routed) { F.buildBusy = false; return; }
+    const x = (s.seg[0] + s.seg[2]) / 2 - s.nx * 4;
+    const z = (s.seg[1] + s.seg[3]) / 2 - s.nz * 4;
+    wk.order = 'move'; wk.dest = { x, z }; wk.speed = 1.4; wk.onArrive = null;
+    let hands = 0, foe = false;
+    for (const u of rt.army.units) {
+      if (!u.alive || u.gone || u.fleeing || u.woundOut || u.noTarget) continue;
+      if (u.team === 1 && Math.hypot(u.pos.x - x, u.pos.z - z) < 12) foe = true;
+      if (u.group === wk && Math.hypot(u.pos.x - x, u.pos.z - z) < 8) hands++;
+    }
+    rt.objProgress('gate', foe ? '敵が近く、普請が止まっている。人足を守れ' : hands < 2 ? '人足が柵へ向かう。道を空けよ' : '人足が柵を結んでいる。持ち場を守れ');
+    if (!foe && hands >= 2) worked++;
+    if (worked >= 5) {
+      if (reinforce) s.maxHp *= 1.25;
+      s.alive = true; s.hp = s.maxHp; s.building = false; s.mesh.visible = true;
+      if (s.stumps) { rt.scene.remove(s.stumps); s.stumps = null; }
+      rt.army.play('knock', { x, z }, 0.8);
+      worked = 0; i++;
+    }
+    if (i < order.length) rt.after(1, step);
+    else {
+      F.buildBusy = false;
+      wk.order = 'move'; wk.dest = { x: -6, z: -10 };
+      wk.onArrive = (g) => { g.order = 'hold'; g.anchor = { x: -6, z: -10 }; };
+      if (onDone) onDone();
+    }
+  };
+  step();
+}
+
+// 馬防柵：南北に長い柵を三重に。列の間は数メートル、ところどころに虎口（出入りの口）を空ける
+// x0 が一列目（敵に近い側）、facing が敵の方向（+1 = x の正の向き）
+export function buildBobosaku(rt, o) {
+  const { x0, z0, z1, rows = 3, gap = 7, segLen = 6, gates = [], facing = 1, hp = 520 } = o;
+  const out = [];
+  const bb = o.noBatch ? null : makeSimpleBatch();
+  for (let r = 0; r < rows; r++) {
+    const x = x0 - facing * r * gap;
+    const off = (r % 2) * segLen * 0.5;   // 列ごとに口の位置をずらす
+    for (let z = z0 + off; z < z1 - 0.5; z += segLen) {
+      const a = z, b = Math.min(z1, z + segLen);
+      const mid = (a + b) / 2;
+      // 虎口：口の位置（列ごとに半区画ずらす）を含む区画は結わない
+      if (gates.some((g) => { const gz = g + (r % 2) * segLen * 0.5; return gz >= a && gz < b; })) continue;
+      const bend = Math.sin(mid * 0.05 + r) * 1.2 + (Math.floor((mid + r * 7) / 24) % 2) * 1.1;   // まっすぐすぎない：折れと一段のずれ（A119）
+      const s = addFieldFence(rt, [x + bend, a, x + bend, b - 0.9], { side: 'baboo', nx: facing, nz: 0, hp, team: 0, name: '馬防柵', row: r, horse: true, batch: bb });
+      out.push(s);
+    }
+  }
+  if (bb) finalizeSimpleBatch(rt, bb);
+  return out;
+}
+
+// 壊れた柵だけを一区画ずつ直す。小屋の傷は声だけでは戻さない。
+function repairFort(rt) {
+  if (rt.flags.buildBusy) { rt.flags.repairPending = true; return; }
+  rt.flags.repairPending = false;
+  finishBuild(rt, rt.flags.segs.filter((s) => !s.alive), () => rt.say('人足', '破れた柵を結び直したぞ', 3));
+}
+
+// 砦内でまだ戦える敵だけを調べる。退く者を討ち尽くす条件にはしない。
+function fortSafe(rt) {
+  for (const u of rt.army.units) if (u.alive && u.team === 1 && !u.fleeing && !u.woundOut && !u.noTarget && !u.group?.routed && Math.abs(u.pos.x) < FORT + 3 && Math.abs(u.pos.z) < FORT + 3) return false;
+  return true;
+}
+
+function assaultFn(rt, side) {
+  const outside = { x: 0, z: 0 };
+  return (u) => {
+    const F = rt.flags;
+    const inside = Math.abs(u.pos.x) < FORT - 0.4 && Math.abs(u.pos.z) < FORT - 0.4;
+    if (inside) {
+      if (!F.hut.alive) return null;
+      // 小屋を一度に打てるのは6人まで。あぶれた者は小屋のまわりで守り手と斬り合う（一息に焼け落ちないように）
+      const hit = F.hutHit || (F.hutHit = []);
+      for (let i = hit.length - 1; i >= 0; i--) if (!hit[i].alive || !hit[i].group || hit[i].group.routed) hit.splice(i, 1);
+      if (hit.includes(u)) return F.hut;
+      if (hit.length < 6) { hit.push(u); return F.hut; }
+      const foe = rt.army.nearestEnemy(u, 16);
+      if (foe) return { x: foe.pos.x, z: foe.pos.z };
+      const a = u.id * 2.4;
+      return { x: F.hut.x + Math.sin(a) * 7.5, z: F.hut.z + Math.cos(a) * 7.5 };
+    }
+    // 破れ目があればそこから入る
+    let gap = null, gd = 50;
+    for (const s of F.segs) {
+      if (s.alive) continue;
+      const mx = (s.seg[0] + s.seg[2]) / 2, mz = (s.seg[1] + s.seg[3]) / 2;
+      const d = Math.hypot(u.pos.x - mx, u.pos.z - mz);
+      outside.x = mx + s.nx * 2.5; outside.z = mz + s.nz * 2.5;
+      if (d < gd && !rt.army.wallBetween(u.pos, -1, outside) && rt.world.walkable(outside.x, outside.z)) { gd = d; gap = s; }
+    }
+    if (gap) {
+      const mx = (gap.seg[0] + gap.seg[2]) / 2, mz = (gap.seg[1] + gap.seg[3]) / 2;
+      const out = (u.pos.x - mx) * gap.nx + (u.pos.z - mz) * gap.nz;
+      const lat = Math.abs((u.pos.x - mx) * gap.nz - (u.pos.z - mz) * gap.nx);
+      if (out < 3 && lat < 2) return { x: mx - gap.nx * 5, z: mz - gap.nz * 5 };
+      return { x: mx + gap.nx * 2.5, z: mz + gap.nz * 2.5 };
+    }
+    if (u.segTarget?.alive) {
+      rt.army.targetPoint(u.segTarget, u, outside);
+      outside.x += u.segTarget.nx * 2; outside.z += u.segTarget.nz * 2;
+      if (rt.army.wallBetween(u.pos, -1, outside)) u.segTarget = null;
+    }
+    if (!u.segTarget || !u.segTarget.alive) {
+      // 角（袋小路）に近い柵は外す。角へ押し込まれて詰まるのを防ぐ（kaito 10/1：4m→6mに広げた。原因を測って・束の詰まり）
+      const farFromCorner = (s) => {
+        const mx = (s.seg[0] + s.seg[2]) / 2, mz = (s.seg[1] + s.seg[3]) / 2;
+        const d = Math.min(Math.hypot(mx - FORT, mz - FORT), Math.hypot(mx - FORT, mz + FORT), Math.hypot(mx + FORT, mz - FORT), Math.hypot(mx + FORT, mz + FORT));
+        return d > 6;
+      };
+      let cands = F.segs.filter((s) => s.alive && s.side === side && farFromCorner(s));
+      if (!cands.length) cands = F.segs.filter((s) => s.alive && s.side === side);
+      if (!cands.length) return F.hut;
+      // 柵は the 一区画に何人も詰めかけない（crowdOk は的が柵の時は数を絞らないので、ここで絞る。
+      // 絞らないと、人気の一区画――たいてい角のすぐ隣――に皆が寄って、角の袋へ押し込まれて詰まる）
+      let best = null, bd = Infinity;
+      for (const s of cands) {
+        const mx = (s.seg[0] + s.seg[2]) / 2, mz = (s.seg[1] + s.seg[3]) / 2;
+        outside.x = mx + s.nx * 2; outside.z = mz + s.nz * 2;
+        if (rt.army.wallBetween(u.pos, -1, outside) || !rt.world.walkable(outside.x, outside.z)) continue;
+        let n = 0;
+        rt.army.forNear(mx, mz, 3.2, (o) => { if (o.alive && o.team === u.team && o.segTarget === s) n++; });
+        if (n >= 7) continue;
+        const d = Math.hypot(u.pos.x - mx, u.pos.z - mz) + Math.random() * 14;
+        if (d < bd) { bd = d; best = s; }
+      }
+      // 届く区画が混んでいても、届かない反対側の柵へ振り替えない。
+      if (!best) for (const s of cands) {
+        rt.army.targetPoint(s, u, outside); outside.x += s.nx * 2; outside.z += s.nz * 2;
+        if (!rt.army.wallBetween(u.pos, -1, outside) && rt.world.walkable(outside.x, outside.z)) { best = s; break; }
+      }
+      u.segTarget = best;
+    }
+    return u.segTarget;
+  };
+}
+
+let sunoDem = null;
+import('./asset_dem_sunomata.js').then((m) => { sunoDem = m.default; }).catch(() => {});
+
+// 首巻の洲股修築と一夜城伝承を分ける。守将の参加・三方の寄せは伝承に沿う遊びの復元。
+const SUNOMATA_JIN = [
+  battleJin('砦の守り', 0, { x: 4, z: 2 }, Math.PI, [
+    ['suKino', '本陣', '木下藤吉郎', 80, 4, 2, 'tokichiro.group', 'oda'],
+    ['suMaeno', '西の柵', '前野長康', 50, -14, 2, 'ally', 'oda'],
+    ['suHachi', '東の柵と舟着き', '蜂須賀正勝', 50, 13, 2, 'ally2', 'oda', 'hachisuka'],
+    ['suSupply', '南門と普請の控え', '名は伝わらない', 1320, -64, 112, 'jinSupply', 'oda'],
+  ], '織田千五百は人足と砦外の控えを含む仮の数。柵内の守りは百八十の目安。'),
+  battleJin('三方の寄せ', 1, { x: 160, z: -30 }, -Math.PI / 2, [
+    ['suNorth', '北の仕寄り', '名は伝わらない', 1200, -30, -150, 'jinNorth', 'saito', 'saito', 0],
+    ['suWest', '西の仕寄り', '名は伝わらない', 1000, -150, -12, 'jinWest', 'saito', 'saito', Math.PI / 2],
+    ['suEast', '東岸の控え', '名は伝わらない', 1000, 150, -60, 'jinEast', 'saito'],
+    ['suHead', '本陣', '名は伝わらない', 800, 160, -30, 'jinEnemyCamp', 'saito'],
+  ], '斎藤四千は仮の数。指揮した将の名は不明。龍興の出陣を断定しない。'),
+];
+
+const sunomata = {
+  jinkei: SUNOMATA_JIN,
+  botOrders: true, // 柵の内での守り・南門への回り道・深手の退避を遊び手の突進で上書きしない。
+  noWake: true, // 控えまで開戦時に実兵を置く。共通の遠景回収で控えを消さない。
+  spawn: { x: 0, z: 6, heading: Math.PI },
+  world: {
+    seed: 33,
+    muddy: 0.45,     // 川辺の砦は湿っている
+    paths: [ROAD3, ROAD3N],
+    water: { x: 62, x2: 112, level: -0.7 },
+    riverCross: true, // 舟以外は深みを歩いて渡れない。   // 長良川：向こう岸は 112 から
+    waterSlow: true,   // 水が主役（spec first6 17〜24）：川の中は terrain_tags の 'water' で歩み・向き変えが鈍る
+    time: 'day',
+    autumn: true,
+    // 長良川の中洲と枝の水路：川の手前に低い砂の洲（渡りの足場）と、細い水路が砦の前を横切る
+    streams: [{ pts: [[-176, -52], [-80, -48], [-30, -44], [30, -46], [60, -60]], w: 2.4, depth: 0.7 }],
+    height(x, z) {
+      let h = 0.5 * Math.sin(x * 0.04) * Math.cos(z * 0.03) + 0.4 * Math.sin(z * 0.08 + x * 0.02);
+      // 川沿いの低地。高い丘でなく、寄せ手の旗が見える低い微高地。
+      h += 1.4 * gauss(x, z, -140, -140, 3000) + 0.9 * gauss(x, z, -150, 60, 2600);
+      // 国土地理院の標高（asset_dem_sunomata.js）を薄く混ぜる（砦と堀の整地はこのあと）
+      if (sunoDem) h = demBlend(sunoDem, x, z, h, { scale: 0.25, floor: h - 1.5, xyScale: 4 });
+      // 川面の範囲と河床をそろえ、舟着きの西岸を水面下にしない。
+      if (x > 58 && x < 112) {
+        const bank = Math.min(1, (x - 58) / 8, (112 - x) / 4);
+        h = h * (1 - bank) - 2.6 * bank;
+      }
+      if (Math.abs(x) < FORT + 2 && Math.abs(z) < FORT + 2) h = h * 0.2 + 0.3;
+      // 外の空堀（castles/sunomata.js の HORI）
+      for (const f of MOAT) h += f(x, z);
+      return h;
+    },
+    tint(x, z, h, c) {
+      if (x > 50 && x < 118) c.setRGB(0.42, 0.38, 0.28);
+      if (Math.abs(x) < FORT && Math.abs(z) < FORT) c.setRGB(0.4, 0.34, 0.24);
+    },
+    clear: (x, z) => (Math.abs(x) < 70 && Math.abs(z) < 70) || x > 45 || Math.hypot(x + 100, z - 150) < 34,
+    trees: 260,
+    tufts: 3500,
+    groves: [{ x: -95, z: -30, r: 14, n: 20 }, { x: -60, z: 100, r: 12, n: 14 }, { x: 30, z: -110, r: 14, n: 18 }],
+  },
+  setup(rt) {
+    const W = rt.world;
+    const F = rt.flags;
+    flReset();
+    // 縄張り（castles/sunomata.js）：物見・空堀・場の当たり。柵は下の buildFort が結う
+    F.C = buildCastlePlan(rt, SUNOMATA_PLAN, { buildTowers: true, team: 0 });
+    patchGunCover(rt);
+    // 史実と仮想を分ける札（spec first6 0章）：築城の場所と「砦を築いた」事は史実寄り、
+    // 縄張りの細部・寄せの道筋はゲーム補完。もしもの防衛戦である事自体が GAME_C
+    F.hist = { site: 'HIST_A', fort: 'HIST_B', kuruwa: 'GAME_C', assaultRoutes: 'GAME_C', foeComposition: 'GAME_C', sheds: 'GAME_C', channels: 'GAME_C' };
+    F.segs = buildFort(rt);
+    // 南の冠木門と、兵糧の俵
+    rt.scene.add(kabukimon(W, 0, FORT, 6.4));
+    rt.scene.add(tawara(W, 9, -11, 0.4, 6), tawara(W, -10, 7, -0.3, 5), tawara(W, 6, 8, 1.2, 3));
+    F.hut = rt.army.addStruct({ x: 0, z: -4, r: 3.8, solidR: 4.0, hp: 1500, maxHp: 1500, armor: 0.4, team: 0, name: '普請小屋' });
+    F.hut.mesh = hut(W, 0, -4, 7, 4.5, 0, { ita: true });
+    rt.scene.add(F.hut.mesh);
+    // 砦の内の小屋の並び：兵舎・倉・武器置場・兵糧置場・作業場（急ごしらえの板屋。柵の内側に寄せる）
+    rt.scene.add(hut(W, -12, -6, 5, 3.4, 0.08, { ita: true }), hut(W, 13, -3, 5, 3.4, -0.06, { ita: true }));   // 兵舎二つ
+    rt.scene.add(hut(W, -13, 10, 4.4, 3.4, 0.1, { ita: true, h: 2.9 }));   // 倉
+    rt.scene.add(hut(W, -7, 14, 3.8, 2.6, 0, { ita: true }));   // 武器置場（槍と弓を立てかける）
+    rt.scene.add(hut(W, 8, 14, 3.8, 2.6, 0, { ita: true }), tawara(W, 12, 13, 0.2, 6));   // 兵糧置場
+    rt.scene.add(hut(W, 13, 9, 4, 2.6, 0.3, { ita: true, h: 2.2 }));   // 作業場（材木を削る）
+    // 北西の物見は縄張り側が一つ置く。重ねて置かない。
+    // 斜面の逆茂木：柵の外に尖った枝の束を並べる（北と東西。南の門の前は空ける）
+    for (let k = -2; k <= 2; k++) rt.scene.add(sakamogi(W, k * 7, -FORT - 5.5, Math.PI, 5), sakamogi(W, -FORT - 5.5, k * 7, -Math.PI / 2, 5), sakamogi(W, FORT + 5.5, k * 7, Math.PI / 2, 5));
+    rt.scene.add(lumber(W, 9, -10, 0.2));
+    rt.scene.add(lumber(W, 10, 4, -0.1));
+    rt.scene.add(lumber(W, -9, 7, 1.4));
+    rt.scene.add(scaffold(W, -6, -4, 0.3));
+    // 未完成の柵ぎわの資材：丸太の山・足場・俵（普請の途中の跡。A049）
+    rt.scene.add(lumber(W, -13, -18, 0.6), lumber(W, 14, -19, -0.4), lumber(W, -19, 12, 1.2), scaffold(W, 8, -18, -0.2), scaffold(W, -18, -6, 1.5), tawara(W, 17, 8, 0.3, 4));
+    // 普請の途中：北東の隅は櫓の足場だけ、縄を張った杭で次に結う柵の線を示す
+    F.scaf = scaffold(W, 13, -13, 0.1);
+    rt.scene.add(F.scaf);
+    rt.scene.add(umatsunagi(W, -4, -14.5, 0, 9), umatsunagi(W, 14.5, 4, Math.PI / 2, 8));
+    // 打って出る時の控え馬。飾りの馬繋ぎだけでなく、手綱を取れる馬を一頭置く。
+    const h = buildHorse();
+    h.position.set(12, W.heightAt(12, 5), 5);
+    h.rotation.y = Math.PI;
+    rt.scene.add(h);
+    const horses = rt.army.looseHorses || (rt.army.looseHorses = []);
+    horses.push({ h, heading: Math.PI, spd: 0, t: 20, calm: true, from: { team: 0, house: '織田', name: '', speed: 1, hp: 200 } });
+    rt.after(6, () => rt.bark('東の馬繋ぎに控え馬がいる。静かに寄り、「乗る」で手綱を取れる'));
+    // 大軍：川向こうの岸に斎藤の本隊が隊ごとに並ぶ。北と西の丘にも斎藤の備え（襲来はそこから来る）
+    const KT = nagashinojo.kit;
+    const DA = (x, z, w, d, count, facing, armor, flag, seed, kind) => KT.farHost(rt, x, z, w, d, count, facing, armor, flag, seed, kind);
+    // 岸の前に鉄砲と槍、後ろに騎馬の備と斎藤の本陣
+    const KS = ['gun', 'spear', 'gun', 'spear', 'mixed', 'cavalry', 'honjin', 'cavalry', 'spear'];
+    [[128, -118], [126, -62], [130, -8], [128, 50], [134, 110], [156, -88], [160, -30], [156, 34], [160, 92]]
+      .forEach(([x, z], i) => KS[i] !== 'honjin' && DA(x, z, KS[i] === 'gun' ? 28 : (KS[i] === 'honjin' ? 30 : 16), KS[i] === 'gun' ? 6 : (KS[i] === 'honjin' ? 24 : 28), KS[i] === 'cavalry' ? 100 : 150, -Math.PI / 2, i % 2 ? 0x3a3a30 : 0x35382c, 'saito', 7 + i, KS[i]));
+    // 川向こうの控えは軽い旗列。参戦の記録がない龍興の本陣は置かない。
+    F.jinEast = DA(150, -60, 12, 18, 100, -Math.PI / 2, 0x35382c, 'saito', 15, 'spear');
+    F.jinEnemyCamp = DA(160, -30, 30, 24, 150, -Math.PI / 2, 0x35382c, 'saito', 16, 'honjin');
+    for (const [x, z] of [[132, -90], [134, 20], [136, 80], [150, -40]]) { rt.scene.add(campfire(W, x, z)); W.addFire(x, z); }
+    F.jinNorth = DA(-30, -150, 60, 12, 200, 0.1, 0x35382c, 'saito', 17, 'mixed');
+    DA(-120, -106, 24, 30, 160, 0.8, 0x3a3a30, 'saito', 18, 'spear');
+    F.jinWest = DA(-150, -12, 12, 40, 140, Math.PI / 2, 0x35382c, 'saito', 19, 'spear');
+    // 味方：南に控える織田の備え
+    F.jinSupply = DA(-64, 112, 34, 14, 170, Math.PI, KT.ARMOR.oda, 'oda', 21, 'spear');
+    DA(34, 104, 28, 6, 130, Math.PI, KT.ARMOR.oda, 'oda', 22, 'gun');
+    DA(-128, 90, 20, 14, 110, 2.0, KT.ARMOR.oda, 'oda', 23, 'cavalry');
+    // 遠景の村（南西の在所。秋の柿）
+    KT.farVillage(rt, -100, 150, { rot: Math.PI, n: 6, fields: 8, seed: 5, autumn: true });
+    // 九月の刈田：畦に稲架を立て、刈った稲を干す
+    for (const [x, z, r] of [[-70, 128, 0.1], [-52, 140, 0.05], [-88, 122, -0.1], [-30, 132, 0.2]]) rt.scene.add(hasa(W, x, z, r, 9));
+    for (const [x, z] of [[-64, 100], [34, 94]]) rt.scene.add(nobori(W, x, z, 'oda', 5.5));
+    // 砦の南：これから運び込む材木
+    rt.scene.add(lumber(W, -14, 34, 0.5), lumber(W, 12, 44, -0.3), lumber(W, -36, 34, 1.2));
+    // 襲来のたびに、川向こうの隊が岸まで押し出してくる（見た目だけ）
+    F.far = [[150, -60], [150, 60], [150, -120], [150, 0], [150, 120], [150, -30]].map(([x, z], i) => ({ m: DA(x, z, 10, 8, 60, -Math.PI / 2, 0x35382c, 'saito', 40 + i, i % 2 ? 'gun' : 'spear'), v: 0 }));
+    for (const [x, z] of [[-15, 15], [15, 15], [0, -15]]) rt.scene.add(nobori(W, x, z, 'oda', 5));
+    // 篝火（夕暮れに灯る）
+    for (const [x, z] of [[-16, -16], [16, -16], [-16, 16], [16, 16], [-4, 20], [4, 20]]) W.addFire(x, z, { torch: true, h: 1.5 });
+    // 城の見栄え（A4）：篝火の火の下に鉄の籠の台、砦の外（北と西の寄せ口の間）に逆茂木、川の岸に竹束
+    for (const [x, z] of [[-16, -16], [16, -16], [-16, 16], [16, 16], [-4, 20], [4, 20]]) rt.scene.add(kagaribi(W, x, z - 0.02));
+    for (const [x, z, r] of [[-12, -25, Math.PI], [12, -25, Math.PI], [-25, -10, -Math.PI / 2], [-25, 10, -Math.PI / 2]]) rt.scene.add(sakamogi(W, x, z, r, 6));
+    for (const [x, z] of [[40, -30], [42, -26], [40, 26], [42, 30]]) rt.scene.add(takataba(W, x, z, Math.PI / 2));
+    F.perfect = true;
+
+    const n = RANKS[rt.G.rank].squad || 5;
+    // 守りや敵の強さを本人の身分で変えない。
+    const bows = Math.round(n * (rt.G.bowRatio ?? 0.33));
+    rt.makeSquad({ x: 0, z: 10 }, Math.PI, [{ kind: 'spear', n: n - bows }, { kind: 'bow', n: bows }]);
+    const tk = allyGroup(rt, { name: '藤吉郎', fixed: true, fullStrength: true, anchor: { x: 4, z: 2 }, facing: Math.PI, formation: 'ring', aggro: 5 }, [{ type: 'samurai', n: 1, o: { name: '木下藤吉郎', invuln: true, allyOk: true, hat: 'jingasa_n' } }, { type: 'ashigaru', n: 4 }]);
+    tk.leader = tk.units[0];
+    F.tokichiro = tk.units[0];
+    const wk = allyGroup(rt, { name: '人足', fixed: true, fullStrength: true, anchor: { x: -6, z: -10 }, facing: 0, width: 3, aggro: 0 }, [{ type: 'porter', n: 10 }]);
+    F.wk = wk;
+    F.ally = allyGroup(rt, { name: '前野長康の手', fixed: true, fullStrength: true, formation: 'yari', anchor: { x: -14, z: 2 }, facing: -Math.PI / 2, aggro: 5, width: 3 }, [{ type: 'samurai', n: 1, o: { name: '前野長康', invuln: true, allyOk: true } }, { type: 'ashigaru', n: 10 }]);
+    // 川並衆：東の柵（川の側）を受け持つ
+    F.ally2 = allyGroup(rt, { name: '川並衆', fixed: true, fullStrength: true, formation: 'yari', anchor: { x: 13, z: 2 }, facing: Math.PI / 2, aggro: 5, width: 3 }, [{ type: 'samurai', n: 1, o: { name: '蜂須賀正勝', invuln: true, allyOk: true, hat: 'jingasa_n' } }, { type: 'ashigaru', n: 9 }]);
+    F.koroku = F.ally2.units[0];
+    F.ally.leader = F.ally.units[0]; F.ally2.leader = F.koroku;
+    this.reserves(rt);
+
+    // 守る砦：後詰は三の手の段で一度だけ呼び、区域側からは重ねて出さない。
+    // 寄せが退き、人足と柵が残り、敵のいない砦を二十秒守ってから勝つ。
+    F.SZ = makeSiegeZones(rt, {
+      zones: [
+        { id: 'honjin', name: '砦の内', test: F.C.kuruwa.toride.test, pos: { x: 0, z: 0 }, need: 1, hold: 6, start: ZONE_STATE.FRIEND },
+        { id: 'kishi', name: '岸の舟着き', test: F.C.kuruwa.kishi.test, pos: F.C.kuruwa.kishi.centroid, need: 3, hold: 8, start: ZONE_STATE.FRIEND },
+      ],
+      friendTeam: 0, enemyTeam: 1,
+      noReinforce: () => true,
+      reinforceAt: { zoneId: 'honjin', sec: 150 },
+      onReinforce: () => this.callReinforce(rt),
+      winWhen: [
+        [() => !!F.w3Clear && F.safeSince != null && rt.t - F.safeSince >= 20 && fortSafe(rt) && F.wk.count >= 2 && !F.buildBusy && F.segs.every((s) => s.alive) && rt.t >= 260 && rt.t - F.w3T >= 85, WIN.timeHeld('honjin', 4)],
+      ],
+      onWin: () => this.holdWin(rt),
+    });
+
+    rt.setPhase('brief');
+    rt.obj('defend', '人足と小屋を守れ。最後の寄せを退け、柵を仕上げるまでが任務じゃ', 'main');
+    // 完全防衛は戦功で判定し、札は普請と持ち場を優先する。
+    rt.say('足軽大将', '藤吉郎殿の下知だ。お主は自分の組で、人足と柵を守れ', 5);
+    rt.say('木下藤吉郎', '北の柵はまだ開いておる。人足を守り、先に口を塞ぐのじゃ', 4.5);
+    rt.say('木下藤吉郎', '柵を破られれば小屋と資材を失う。東の川の側は蜂須賀正勝、西の柵は前野長康に任せる。……頼りにしておるぞ', 4);
+    // 砦は完成していない所から始まる（spec 17〜24）：北の柵は普請の途中で、北門もまだ塞がっていない。
+    // 上役が出した普請の順に、組で人足を守る。敵が迫れば作業を止める。
+    rt.obj('gate', '北の柵へ来る敵を止め、人足の普請を守れ（北門はまだ開いている）', 'side');
+    rt.after(3, () => rt.choose('足軽大将「北の普請を守る。組はどちらの口に付く？」', [
+      { label: '北門の普請を守る', note: '上役の下知で北門から塞ぐ。組はその人足を守る' },
+      { label: '脇の柵の普請を守る', note: '上役の下知で脇から直す。北門は開いたまま残る' },
+    ], (i) => {
+      const [g1, g2] = F.segs.gate;
+      const extra = F.segs.unfinished.find((s) => s !== g1 && s !== g2);
+      const order = i === 0 ? [g1, g2, extra] : [extra, g1, g2];
+      rt.say('木下藤吉郎', i === 0 ? 'よし、北門から塞ぐぞ！' : '脇の破れからじゃ、急げ！', 2.5);
+      finishBuild(rt, order, () => { rt.objDone('gate'); rt.objRemove('gate'); rt.say('木下藤吉郎', '北の柵、ひとまず塞いだぞ！', 2.5); });
+    }));
+    // 操作の案内は字幕に積まず、短い知らせで（弓の人数も書く）
+    rt.after(2, () => rt.bark(bows ? `弓 ${bows}人が組に加わった（号令の相手を「弓隊」に替えられる）` : '組は槍だけ。柵の内から突け'));
+    rt.after(20, () => rt.bark('柵の内から槍で突ける。南の門から打って出て、横腹を突くこともできる'));
+    // 最初の持ち場：台詞の後に、北の柵へ印を一つ（一の手が来れば敵の印に替わる）
+    // 柵のすぐ際（-FORT+3）だと、柵が破られた所がそのまま自分の足元になり、始まってすぐ囲まれて倒れやすかった。
+    // 柵から少し退いた所を持ち場にする（原因を測って・M9）
+    // 一の手の道は、寄せの頭が選ぶ（北の畑か、西の林の口か。毎回変わる）
+    rt.after(9, () => {
+      if (F.wave) return;
+      const w = SIDE_WORD[F.r1.side];
+      rt.say('木下藤吉郎', `物見の知らせじゃ。一の手は${w}から来る。組を連れて${w}の柵に付け`, 3.5);
+      rt.marker('post0', F.r1.side === 'n' ? { x: 0, z: -FORT + 6 } : { x: -FORT + 6, z: 0 }, `持ち場（${w}の柵）`, { h: 2.5 });
+    });
+    // 一の手まで（出会うまでが長すぎるとの声で、少し早めた分、太鼓・煙は濃く残す）
+    rt.after(35, () => { rt.unmark('post0'); this.wave1(rt); });
+    // 藤吉郎の策（名乗りの台詞が終わってから）
+    rt.after(24, () => rt.choose('足軽大将「藤吉郎殿が柵の補強と弓の控えを用意した。組はどちらを助ける？」', [
+      { label: '柵を直す人足を守る', note: '人足が北の柵へ材木を運ぶ。敵が近い間は作業を止める' },
+      { label: '控えの弓を柵へ導く', note: '初めから控える二人が歩いて北の柵へ付く' },
+    ], (i) => {
+      if (i === 0) { rt.say('木下藤吉郎', '心得た、北の柵へ控えの材木を回す', 3); this.doubleFence(rt); }
+      else {
+        const g = F.bowReserve;
+        g.order = 'move'; g.dest = { x: 5, z: -FORT + 6 };
+        g.onArrive = (q) => { q.order = 'hold'; q.anchor = q.dest; q.facing = Math.PI; };
+        rt.say('足軽大将', '控えの弓を北へ寄せる。射つ場所を空けてやれ', 3);
+      }
+      rt.G.rel.tokichiro.like += 3;
+    }));
+    // 普請小屋で手当てを受けられる（襲来の合間の立て直し）
+    F.healCd = 0;
+    rt.addInteract('heal', { x: -6, z: 5 }, '傷を縛ってもらう（一度まで）', () => {
+      if (F.healCd > rt.t) { rt.hud.flash(`手当てはあと${Math.ceil(F.healCd - rt.t)}秒`, 'dim'); return; }
+      const p = rt.player, u = p.u;
+      if (p.treatmentLeft <= 0) { rt.hud.flash('手当ての布が尽きた', 'dim'); return; }
+      if (!p.treatmentSafe()) { rt.hud.flash('敵から退き、足を止めて手当てを受ける', 'dim'); return; }
+      if (F.buildBusy) { rt.hud.flash('人足は柵を直している。手が空くまで待て', 'dim'); return; }
+      let helper = null, helperD = Infinity;
+      for (const o of F.wk.units) if (o.alive && !o.fleeing && !o.woundOut) {
+        const d = Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
+        if (d < helperD) { helper = o; helperD = d; }
+      }
+      if (!helper) { rt.hud.flash('手当てをする者がいない', 'dim'); return; }
+      if (Math.hypot(helper.pos.x - u.pos.x, helper.pos.z - u.pos.z) > 3) {
+        F.wk.order = 'move'; F.wk.dest = { x: -6, z: 5 };
+        F.wk.onArrive = (g) => { g.order = 'hold'; g.anchor = g.dest; };
+        rt.hud.flash('人足が来るまで、敵から離れて待て', 'dim'); return;
+      }
+      if (!p.treatWounds(0.05)) return;
+      F.healCd = rt.t + 45;
+      rt.uninteract('heal'); rt.unmark('heal'); F.healMarked = false;
+      rt.say('人足', '傷を縛りまする。ご無理なさいますな', 2.5);
+      sfx('ui');
+    }, { r: 4 });
+    rt.after(50, () => rt.bark('深手を負ったら普請小屋へ。敵から離れ、足を止めて手当てを受けよ'));
+    rt.tutStart('組頭の手ほどき', [['radial', '号令の輪を開く'], ['cmd_yari', '槍を並べ、柵の内から突く'], ['cmd_fire', '弓隊に射撃を命じる'], ['group', '号令する組を選ぶ']]);
+    F.nextWaveAt = 35;
+    buildBattleJin(rt);
+    tk.formation = 'ring';
+  },
+
+  reserves(rt) {
+    const F = rt.flags;
+    F.r1 = pickYose(rt); F.r2 = F.r1.id === 'kita' ? YOSE.nishi : YOSE.kita;
+    const camp = (name, at, facing, list) => enemyGroup(rt, { fixed: true, faction: 'saito', name, anchor: at, facing, order: 'hold', formation: 'yari', yariRanks: 3, width: 6, aggro: 8, fleeDir: { x: at.x < -60 ? -1 : 0, z: at.x < -60 ? 0 : -1 } }, list);
+    F.reserveW1 = camp('斎藤の一の手', F.r1.far, Math.atan2(F.r1.dir.x, F.r1.dir.z), [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 24 }]);
+    const r2At = F.r2.side === 'n' ? { x: 18, z: -142 } : { x: -142, z: 18 };
+    F.reserveW2 = camp('斎藤の二の手', r2At, Math.atan2(F.r2.dir.x, F.r2.dir.z), [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 20 }, { type: 'gun', n: 3 }]);
+    F.reserveW3a = camp('斎藤の三の手（北）', { x: -54, z: -142 }, 0.45, [{ type: 'samurai', n: 1, o: { name: '斎藤方の旗持ち', flag: 'saito', flagScale: 1.8, tag: 'flag' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 13 }]);
+    F.reserveW3b = camp('斎藤の三の手（西）', { x: -150, z: -60 }, 1.2, [{ type: 'busho', n: 1 }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 11 }, { type: 'bow', n: 3 }]);
+    F.reserveW3d = camp('西の林の寄せ手', { x: -106, z: -26 }, Math.PI / 2, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 8 }]);
+    F.supplyEnemy = camp('西の林の物見', { x: -142, z: 48 }, Math.PI / 2, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 6 }]);
+    F.boatCrew = camp('舟で渡る寄せ手', { x: 130, z: -6 }, -Math.PI / 2, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 8 }]);
+    F.boatCrew.aggro = 0; F.boatCrew.fire = false; F.boatCrew.noRout = true;
+    const guard = (name, at, list, formation = 'yari') => allyGroup(rt, { fixed: true, fullStrength: true, name, anchor: at, facing: Math.PI, formation, aggro: 5, width: 3 }, list);
+    F.gunReserve = guard('川並衆の鉄砲', { x: -6, z: 6 }, [{ type: 'samurai', n: 1 }, { type: 'gun', n: 4 }], 'line');
+    F.bowReserve = guard('控えの弓', { x: 6, z: 6 }, [{ type: 'bow', n: 2 }], 'line');
+    F.supplyReserve = guard('材木の荷駄', { x: -112, z: 104 }, [{ type: 'porter', n: 4 }, { type: 'ashigaru', n: 2 }], 'column');
+    F.supplyReserve.speed = 1.5;
+    F.reinforceReserve = guard('南の控え', { x: -64, z: 112 }, [{ type: 'ashigaru', n: 9 }], 'column');
+    F.reserveB1 = yoseButai(rt, F.reserveW1, { name: '北西の先手の備', at: F.reserveW1.anchor, dir: F.r1.dir, back: 160 });
+    F.reserveB2 = yoseButai(rt, F.reserveW2, { name: '北西の次の備', at: F.reserveW2.anchor, dir: F.r2.dir, back: 150 });
+    F.reserveB3a = yoseButai(rt, F.reserveW3a, { name: '北の控えの備', at: F.reserveW3a.anchor, dir: { x: 0.4, z: 0.92 }, back: 130 });
+    F.reserveB3b = yoseButai(rt, F.reserveW3b, { name: '西の控えの備', at: F.reserveW3b.anchor, dir: { x: 0.93, z: 0.36 }, back: 130 });
+    F.flagbearer = F.reserveW3a.units[0];
+    this.boats(rt, null);
+  },
+
+  wave1(rt) {
+    const F = rt.flags;
+    if (F.wave || F.ending || F.won || rt.over) return;
+    F.wave = 1; F.waveT = 0; F.nextWaveAt = 0;
+    rt.setPhase('w1');
+    const r = F.r1 || YOSE.kita, w = SIDE_WORD[r.side];
+    F.W1 = F.reserveW1;
+    F.B1 = F.reserveB1; F.B1.push();
+    yoseApproach(rt, F.W1, r, r.side);
+    rt.banner('斎藤勢、来襲', `${w}より`);
+    rt.army.play('eshout', { ...r.from }, 2);
+    rt.say('木下藤吉郎', `来おったぞ！　${w}じゃ。竹束を押して寄せてくる。柵に取り付かせるな！`, 3.5);
+    rt.after(10, () => { if (rt.over || F.ending || F.won || !F.W1 || !F.W1.count || F.W1.routed) return; rt.say('蜂須賀正勝', '逆茂木で足が止まる。柵に取り付いた所を、内から槍で突け', 4); });
+    rt.marker('w', centerOf(F.W1), '敵の寄せ', { red: true, group: F.W1 });
+    rt.objProgress('defend', '');
+    rt.obj('defend', `普請を守れ（一の手・${w}の柵）`, 'main');
+  },
+
+  wave2(rt) {
+    const F = rt.flags;
+    if (F.W2 || F.ending || F.won || rt.over) return;
+    F.wave = 2; F.waveT = 0; F.nextWaveAt = 0; rt.objRemove('scout');
+    rt.setPhase('w2');
+    // 波ごとに日が傾く：二の手は昼下がり、三の手で夕焼け
+    rt.world.setTime('afternoon');
+    // 二の手の道：寄せの頭が、一の手で守りが厚くなった側を避けて選ぶ（毎回変わる）
+    const r = F.r2, w = SIDE_WORD[r.side];
+    F.W2 = F.reserveW2;
+    F.B2 = F.reserveB2; F.B2.push();
+    yoseApproach(rt, F.W2, r, r.side);
+    rt.banner('二の手', `${w}より`);
+    rt.say('木下藤吉郎', `${w}から来たぞ！　……いかん、南西から荷駄が着く頃じゃ！`, 4);
+    rt.marker('w', centerOf(F.W2), '敵の寄せ', { red: true, group: F.W2 });
+    rt.obj('defend', `柵を守り、南の門から材木を迎えよ（二の手・${w}）`, 'main');
+    // 西の柵の内に味方の鉄砲（まだ数は少ない）。二の手が柵へ寄せた所で一斉に放つ
+    F.gunW = F.gunReserve;
+    F.gunW.order = 'move'; F.gunW.dest = r.side === 'n' ? { x: -3, z: -FORT + 5 } : { x: -FORT + 5, z: -3 };
+    F.gunW.onArrive = (g) => { g.order = 'hold'; g.anchor = g.dest; g.facing = r.side === 'n' ? Math.PI : -Math.PI / 2; };
+    rt.after(6, () => rt.say('蜂須賀正勝', `${w}の柵の内に鉄砲を並べた。竹束の陰を出て柵へ寄った所を撃つ。揺れたら南の門から出て、横を突け`, 4));
+    // 荷駄
+    const ND = F.supplyReserve;
+    ND.order = 'path'; ND.path = [[-112, 104], [-90, 86], [-36, 44], [0, 26], [0, 8]];
+    ND.onArrive = (g) => { g.order = 'hold'; };
+    F.K = ND;
+    F.saved = 0;
+    rt.obj('nida', '材木を担ぐ人足を南門へ導け', 'side');
+    rt.marker('gate', { x: 0, z: FORT + 1 }, '南の門（打って出られる）', { h: 2.5 });
+    // 荷駄を迎え終わるまで南門の印を残す。
+    rt.marker('nida', () => ND.count && !ND.routed ? ND.center() : null, '材木を運ぶ人足', { group: ND });
+    // 荷駄を狙う斎藤の組は、少し遅れて西の林から出る（砦から駆けつければ間に合う間をおく）
+    rt.after(4, () => rt.say('木下藤吉郎', '南の門から荷駄を迎えよ！　荷を守るのも戦のうちじゃ。西の林を警戒せよ', 4.5));
+    F.KE = null; F.KEwait = true;
+    rt.after(18, () => {
+      F.KEwait = false;
+      if (rt.over || F.ending || F.won || F.wave !== 2 || F.nidaDone || F.woodsClear) return;
+      const KE = F.supplyEnemy;
+      if (!KE.count || KE.routed) return;
+      KE.order = 'attack'; KE.seekRange = 90;
+      KE.focus = ND.units.find((u) => u.alive && u.type === 'porter') || null;
+      F.KE = KE;
+
+      rt.say('足軽', '西の林から斎藤の者が出たぞ！　荷駄を狙っておる！', 3);
+      rt.marker('ke', centerOf(KE), '荷駄を狙う敵', { red: true, group: KE });
+    });
+  },
+
+  wave3(rt) {
+    const F = rt.flags;
+    if (F.wave >= 3 || F.ending || F.won || rt.over) return;
+    F.wave = 3; F.waveT = 0; F.nextWaveAt = 0; rt.objRemove('nida');
+    rt.obj('post', '北と西の柵を守れ。舟が出たら東へ', 'order');
+    rt.setPhase('w3');
+    rt.world.setTime('dusk');
+    F.w3T = rt.t;
+    F.W3a = F.reserveW3a;
+    F.B3a = F.reserveB3a; F.B3a.push();
+    yoseApproach(rt, F.W3a, YOSE.kita, 'n', 2);
+    F.W3b = F.reserveW3b;
+    F.B3b = F.reserveB3b; F.B3b.push();
+    yoseApproach(rt, F.W3b, YOSE.nishi, 'w', 2);
+    // 川沿いの東から回り込む一隊（守りの手薄な側）。北と西の寄せと重ならないよう、少し遅れて来る
+    // 長良川を舟で渡り、東の岸から上がって来る一隊（守りの手薄な側）
+    rt.after(32, () => {
+      if (rt.over || F.ending || F.won || F.wave !== 3) return;
+      rt.say('足軽', '川に舟が出たぞ！　斎藤の者が川を渡ってくる！', 3.5);
+      rt.marker('boats', () => ({ x: F.boats[1].m.position.x, z: F.boats[1].m.position.z }), '川を渡る舟', { red: true, h: 2.5 });
+      this.boats(rt, () => {
+        F.W3c = F.boatCrew;
+        F.W3c.order = 'assault'; F.W3c.noRout = false; F.W3c.aggro = 8; F.W3c.fire = true;
+        F.W3c.anchor = { x: 58, z: -6 };
+        F.W3c.assault = assaultFn(rt, 'e');
+        if (!F.W3c.count) { rt.bark('舟から岸へ寄せる者はいない'); return; }
+        rt.army.play('eshout', { x: 54, z: -6 }, 1.4);
+        rt.say('足軽', '舟の者が岸に上がった！　東の柵じゃ！', 3);
+        rt.obj('post', '東の柵へ戻り、舟から上がった敵を止めよ', 'order');
+        battleEvent(rt, EVENT_REINFORCEMENT, { x: 54, z: -6 }, F.W3c, 1, true, '川から新手。東の柵を守れ');
+        rt.marker('w3', centerOf(F.W3c), '敵の寄せ（東）', { red: true, group: F.W3c });
+      });
+    });
+    F.flagbearer = F.W3a.units[0];
+    // 伏兵：西の林から不意に
+    rt.after(22, () => {
+      if (rt.over || F.ending || F.won || F.wave !== 3) return;
+      // 開戦時から林に控えた同じ組が出る。見つけて先に退ければ復活しない。
+      F.W3d = F.reserveW3d;
+      if (!F.W3d.count || F.W3d.routed) return;
+      F.W3d.order = 'assault';
+      F.W3d.assault = assaultFn(rt, 'w');
+
+      rt.banner('西の寄せ手', '林から出る');
+      rt.say('足軽', '西の林の組が出てきたぞ！', 3);
+      rt.marker('w4', centerOf(F.W3d), '西の林の寄せ手', { red: true, group: F.W3d });
+    });
+    rt.banner('三の手', '夕暮れ、北西より大軍');
+    rt.say('木下藤吉郎', '普請はあと一息じゃ！　柵を守り抜け！', 4);
+    rt.marker('w', centerOf(F.W3a), '敵の寄せ（北）', { red: true, group: F.W3a });
+    rt.marker('w2', centerOf(F.W3b), '敵の寄せ（西）', { red: true, group: F.W3b });
+    rt.marker('flag', unitPos(F.flagbearer), '敵の旗', { red: true, group: F.W3a });
+    rt.obj('defend', '最後の寄せを止め、砦の内を守れ', 'main');
+    rt.bark('旗が崩れれば寄せ手も揺れる。柵を離れて追うな');
+  },
+
+  // 材木を運んだ人足が、北の柵を一区画ずつ結び直して補強する。
+  doubleFence(rt) {
+    const F = rt.flags;
+    if (F.doubleFence) return;
+    if (F.buildBusy) { F.reinforcePending = true; return; }
+    F.reinforcePending = false;
+    F.doubleFence = true;
+    finishBuild(rt, F.segs.filter((s) => s.side === 'n'), null, true);
+  },
+  // 完了時に新しい大型櫓を出さない。既存の足場と小さな物見で守りを固める。
+  fortDone(rt) {
+    rt.army.play('wood', { x: 13, z: -13 }, 1);
+  },
+  // 開戦時から同じ舟・兵を置く。船上だけ固定し、舷から歩いて同じ兵が上陸する。
+  boats(rt, onLand) {
+    const F = rt.flags;
+    if (F.boats) { F.onLand = onLand; return; }
+    F.boats = [[108, -20], [110, -6], [108, 8]].map(([x, z], i) => {
+      const m = kobune(x, -0.65, z, -Math.PI / 2);
+      rt.scene.add(m);
+      return { m, x, z, x1: 64, passengers: F.boatCrew.units.slice(i * 3, i * 3 + 3).map((u, j) => {
+        const at = { x: x + (j - 1) * 1.3, y: -0.35, z: z + (j % 2 ? 0.3 : -0.3) };
+        u.perch = at; u.pinT = Infinity;
+        u.pos.set(at.x, -0.35, at.z); u.mesh.position.copy(u.pos);
+        return { u, at, dx: (j - 1) * 1.3, dz: at.z - z };
+      }) };
+    });
+    F.boatT = 0;
+  },
+  moveBoats(rt, dt) {
+    const F = rt.flags;
+    if (rt.over || F.ending || F.won || !F.boats || F.landed || !F.onLand) return;
+    F.boatT += dt;
+    const k = Math.min(1, F.boatT / 32);
+    let landed = true;
+    for (const b of F.boats) {
+      b.m.position.x = b.x + (b.x1 - b.x) * k;
+      b.m.rotation.z = Math.sin(F.boatT * 1.7 + b.z) * 0.03;
+      for (const q of b.passengers) {
+        if (!q.u.alive || !q.u.perch) continue;
+        if (q.u.woundOut || q.u.fleeing || q.u.noTarget) { q.u.perch = null; q.u.pinT = 0; continue; }
+        if (k >= 1) q.dx -= dt * 1.2;
+        q.at.x = b.m.position.x + q.dx; q.at.z = b.z + q.dz;
+        q.at.y = q.at.x <= 60 ? rt.world.heightAt(q.at.x, q.at.z) : -0.35;
+        q.u.pos.set(q.at.x, q.at.y, q.at.z);
+        q.u.mesh.position.copy(q.u.pos);
+        if (q.at.x <= 58) { q.u.perch = null; q.u.pinT = 0; }
+        else landed = false;
+      }
+    }
+    if (k >= 1 && landed) { F.landed = true; rt.unmark('boats'); F.onLand(); }
+  },
+
+  // 川向こうの押し出し：襲来ごとに二隊が岸まで出て、しばらく睨んでから戻る
+  moveFar(rt, dt) {
+    const F = rt.flags;
+    if (F.wave && F.farWave !== F.wave) {
+      F.farWave = F.wave;
+      for (const q of F.far.slice((F.wave - 1) * 2, F.wave * 2)) { q.v = 1; q.t = 0; }
+    }
+    for (const q of F.far) {
+      if (!q.v) continue;
+      q.t += dt;
+      if (q.v === 1 && !q.go) { q.go = true; q.m.advance(33, 8); }
+      if (q.v === 1 && q.t > 34) { q.v = -1; q.m.retreat(33, 13); }
+      if (q.v === -1 && q.t > 48) { q.v = 0; q.go = false; }
+    }
+    nagashinojo.kit.backTick(rt);
+  },
+
+  update(rt, dt) {
+    const F = rt.flags;
+    const gone = (g) => !g || g.count === 0 || g.routed;
+    butaiTick(rt, dt);
+    tickTabas(rt, dt);
+    this.moveFar(rt, dt);
+    this.moveBoats(rt, dt);
+    if (!fortSafe(rt)) { F.w3Clear = false; F.safeSince = null; }
+    if (F.SZ && !F.ending && !rt.over) F.SZ.tick(dt);
+    if (F.won || F.ending || rt.over || !rt.player.u.alive) return;
+    if (rt.t >= 480 || F.wk.count < 2 || F.wk.routed) {
+      F.ending = true; rt.tracker.main = false; rt.objFail('defend');
+      for (const id of ['gate', 'nida', 'porters', 'scout', 'post', 'flag', 'perfect']) {
+        const task = rt.orderObjectives?.get(id) || rt.objectives.find((o) => o.id === id);
+        if (task && !task.state) rt.objFail(id);
+      }
+      for (const id of ['post3', 'gate', 'nida', 'heal', 'hut', 'scout', 'ke', 'flagdrop', 'w', 'w2', 'w3', 'w4', 'boats', 'post0', 'flag']) rt.unmark(id);
+      rt.uninteract('heal'); rt.uninteract('flag');
+      rt.obj('retreat', '南の門から組を下げよ', 'main');
+      if (rt.t >= 480) rt.world.setTime('dusk');
+      rt.banner(F.wk.count < 2 || F.wk.routed ? '人足が散った。普請を止め、組を下げる' : '日が暮れる。普請を止め、砦から退く');
+      rt.say('木下藤吉郎', '砦の内を守り切れぬ。南の門へ退け、組を散らすな！', 4);
+      rt.finish({}, 8); return;
+    }
+    F.waveT = (F.waveT || 0) + dt;
+    if (rt.t < (F.noticeT || 0)) return;
+    F.noticeT = rt.t + 1;
+    if (!F.buildBusy) {
+      if (F.buildPending) { const q = F.buildPending; F.buildPending = null; finishBuild(rt, q.order, q.onDone); }
+      else if (F.repairPending) repairFort(rt);
+      else if (F.reinforcePending) this.doubleFence(rt);
+    }
+    F.portersUnsafe = false;
+    if (F.nidaDone && F.portersLeft > 0) {
+      let left = 0;
+      for (const u of F.K.units) if (u.type === 'porter' && u.alive && !u.saved) {
+        if (Math.abs(u.pos.x) < FORT && Math.abs(u.pos.z) < FORT) { u.saved = true; F.saved++; }
+        else {
+          left++;
+          if (rt.army.nearestEnemy(u, 12, (e) => !e.fleeing && !e.woundOut && !e.noTarget)) F.portersUnsafe = true;
+        }
+      }
+      F.portersLeft = left;
+      if (left) rt.obj('porters', `南門の外に人足${left}人。道を守って迎えよ`, 'side');
+      else {
+        rt.objRemove('porters');
+        const allSaved = F.K.units.every((u) => u.type !== 'porter' || u.saved);
+        rt.award((t) => { t.c.portersSaved = F.saved; t.c.portersLeft = 0; if (allSaved) t.side.push('遅れた人足も迎えた'); }, allSaved ? '遅れた人足も迎えた' : '外の人足の行方を確かめた');
+      }
+    }
+    // 波の後ろの旗列も退く。札と後ろの動きの判定は一秒おき。
+    for (const [b, g] of [[F.B1, F.W1], [F.B2, F.W2], [F.B3a, F.W3a], [F.B3b, F.W3b]]) {
+      if (b && !b._back && gone(g)) { b._back = true; if (b.light) b.light.retreat(40, 14); }
+    }
+    // 深手のときだけ、手当ての場所を示す
+    if (rt.player.u.alive && rt.player.u.hp < rt.player.u.maxHp * 0.65 && !(F.hurtHintT > rt.t)) {
+      F.hurtHintT = rt.t + 12;
+      rt.bark(Math.abs(rt.player.u.pos.x) > FORT || Math.abs(rt.player.u.pos.z) > FORT ? '囲まれる前に南の門から柵の内へ戻れ。敵を向いて構えよ' : rt.player.treatmentLeft > 0 && !rt.player.bandaged ? '柵の内で味方の後ろへ下がれ。小屋で手当てを受けよ' : '手当ての布は使い切った。敵を向いて構え、柵の内の味方へ下がれ', true);
+    }
+    const low = !rt.player.bandaged && rt.player.treatmentLeft > 0 && rt.player.u.hp < rt.player.u.maxHp * 0.4 && !(F.healCd > rt.t);
+    if (low && !F.healMarked) { F.healMarked = true; rt.marker('heal', { x: -6, z: 5 }, '手当て', { h: 2.5 }); }
+    if (!low && F.healMarked) { F.healMarked = false; rt.unmark('heal'); }
+    // 小屋の見える傷みと、物見の知らせ。正確な耐久や敵の到着秒は出さない。
+    const hutPct = Math.round(F.hut.hp / F.hut.maxHp * 100);
+    const wait = F.nextWaveAt ? Math.ceil(F.nextWaveAt - rt.t) : 0;
+    rt.objProgress('defend', wait > 0 ? F.wave ? '寄せ手が引いた。今のうちに備えよ' : '人足の普請を守り、最初の寄せに備えよ' : hutPct > 50 ? '柵の内から寄せ手を止め、人足を守れ' : '小屋が傷んでいる。組を小屋へ戻し、取り付いた敵を止めよ');
+    // 襲来の十秒前：物見が敵の旗の動きを知らせる。
+    if (wait > 0 && wait <= 10 && F.warnFor !== F.nextWaveAt) { F.warnFor = F.nextWaveAt; rt.bark('物見「北と西で旗が動いた。持ち場に付け！」', true); }
+    // 小屋が打たれ始めたら早めに知らせ、印を立てる（気づいた時には手遅れ、にならないように）
+    const hw = hutPct <= 25 ? 25 : hutPct <= 50 ? 50 : hutPct <= 85 ? 85 : 0;
+    if (hw && hw < (F.hutWarnLevel || 100) && rt.t >= (F.hutWarnAt || 0)) {
+      if (!F.hutWarnLevel) { rt.marker('hut', { x: 0, z: -4 }, '普請小屋', { h: 5 }); rt.after(30, () => rt.unmark('hut')); }
+      F.hutWarnLevel = hw; F.hutWarnAt = rt.t + 8;
+      if (hw === 85) rt.say('木下藤吉郎', '小屋に敵が取り付いた！　組を連れて戻れ、小屋を守れ！', 3.5);
+      else rt.bark('普請小屋が危ない！　中に入った敵を押し返せ', true);
+    }
+    if (F.wave === 1 && gone(F.W1) && fortSafe(rt) && !F.next2) {
+      F.next2 = true; F.next2T = rt.t;
+      rt.unmark('w');
+      rt.say('木下藤吉郎', 'ようやった！　じゃが、まだ来るぞ。今のうちに備えを直せ', 4);
+      rt.obj('defend', '破れた柵を直し、次の寄せに備えよ', 'main');
+      rt.after(12, () => rt.say('木下藤吉郎', '北と西の柵を直せ。次は材木を砦へ運び込む', 3.5));
+      rt.after(8, () => repairFort(rt));
+      // 判断：柵を直して待つか、打って出て西の林の物見を追い払うか（荷駄の道が安くなる）
+      rt.after(6, () => rt.choose('足軽大将「次の寄せまで組の持ち場を選べ。南門から林へ出る許しは出た」', [
+        { label: '砦に残り、柵を直して待つ', note: '破れた柵を多めに直す。西の林の斎藤の者はそのまま' },
+        { label: '打って出て、西の林の物見を追い払う', note: '林に出た敵を退け、荷駄の通る道を守る。遅れたら砦へ戻る' },
+      ], (i) => {
+        if (i === 0) { rt.after(4, () => repairFort(rt)); rt.say('木下藤吉郎', 'よし、人足を総出で柵に回す', 3); rt.after(20, () => this.wave2(rt)); F.nextWaveAt = rt.t + 20; }
+        else {
+          F.scoutOut = F.supplyEnemy;
+
+          rt.obj('scout', '西の林の物見を追い払え', 'side');
+          rt.marker('scout', centerOf(F.scoutOut), '西の林の物見', { red: true, group: F.scoutOut });
+          rt.say('木下藤吉郎', '南の門から出よ。林に潜む者を追い散らせ。遅れるなよ、二の手が来るまでに戻れ', 4);
+          F.scoutT = rt.t;
+        }
+      }, 12));
+    }
+    // 保険：判断の段で二の手が始まらないまま長引いたら、二の手を始める
+    if (F.next2T && !F.W2 && !F.wave2Q && rt.t - F.next2T > 110) { F.wave2Q = true; this.wave2(rt); }
+    if (F.scoutOut && !F.scoutDone) {
+      const q = F.scoutOut;
+      if (gone(q) || rt.t - F.scoutT > 50) {
+        F.scoutDone = true; rt.unmark('scout');
+        if (gone(q)) { F.woodsClear = true; rt.objDone('scout'); rt.award((t) => t.side.push('西の林の物見を追い払った'), '西の林の物見を追い払った'); rt.say('木下藤吉郎', 'でかした！　これで荷駄の道は安い。戻れ、二の手じゃ', 3.5); }
+        else { rt.objFail('scout'); rt.say('木下藤吉郎', 'もうよい、戻れ！　二の手が来るぞ', 3); }
+        rt.after(10, () => this.wave2(rt)); F.nextWaveAt = rt.t + 10;
+      }
+    }
+    if (F.wave === 2) {
+      // 荷駄
+      if (F.K && !F.nidaDone) {
+        for (const u of F.K.units) {
+          if (u.alive && u.type === 'porter' && !u.saved && Math.abs(u.pos.x) < FORT && Math.abs(u.pos.z) < FORT) { u.saved = true; F.saved++; }
+        }
+        let alivePorters = 0;
+        for (const u of F.K.units) if (u.alive && u.type === 'porter' && !u.saved) alivePorters++;
+        rt.objProgress('nida', F.saved >= 2 ? '材木が届いた。残る人足を迎えよ' : `砦へ着いた人足 ${F.saved}人・南門から迎えよ`);
+        if (F.saved >= 2 && (alivePorters === 0 || F.waveT > 150)) {
+          F.nidaDone = true; rt.objDone('nida'); rt.unmark('nida');
+          F.portersLeft = alivePorters;
+          const allSaved = F.K.units.every((u) => u.type !== 'porter' || u.saved);
+          const deed = allSaved ? '荷駄と人足を守った' : alivePorters ? '材木を届けた。門外の人足が残る' : '材木を届けた。人足を失った';
+          rt.award((t) => { t.side.push(deed); t.c.portersSaved = F.saved; t.c.portersLeft = alivePorters; }, deed);
+          if (alivePorters) rt.say('人足', `まだ外に${alivePorters}人おる。南門の道を守ってくれ`, 3.5);
+          rt.say('木下藤吉郎', '材木が届いた！　人足を北の柵に回せ', 3.5);
+          this.doubleFence(rt);
+          battleEvent(rt, EVENT_MESSENGER, { x: 0, z: 8 }, F.K, 0, true, '材木が砦に届いた。北の柵を固める');
+        } else if (F.saved + alivePorters < 2 || F.waveT > 150) {
+          F.nidaDone = true; rt.objFail('nida'); rt.unmark('nida');
+          rt.say('木下藤吉郎', '材木が足りぬ。今ある柵で受ける。砦へ戻れ', 3);
+        }
+      }
+      // 荷駄を狙う組：狙った人足が倒れたか砦へ入ったら次の人足へ。狙う荷駄がもう無ければ西の林へ退く（林の口で立ち尽くさない）
+      if (F.KE && !gone(F.KE) && !F.KEwithdraw) {
+        const fo = F.KE.focus;
+        if (!fo || !fo.alive || fo.saved) {
+          const next = F.nidaDone ? null : F.K && F.K.units.find((u) => u.alive && u.type === 'porter' && !u.saved);
+          if (next) F.KE.focus = next;
+          else {
+            F.KE.focus = null; F.KE.order = 'move'; F.KE.dest = { x: -150, z: 48 }; F.KEwithdraw = true;
+            F.KE.onArrive = (g) => { g.order = 'hold'; g.anchor = g.dest; };
+          }
+        }
+      }
+      if (F.nidaDone) rt.unmark('gate');
+      if (F.KE && (gone(F.KE) || F.KEwithdraw)) rt.unmark('ke');
+      if (F.W2) volleyAt(rt, 'sunoW2', F.gunW, [F.W2], { r: 34, until: rt.t + 1e9, hit: 26, who: '蜂須賀正勝', then: ['木下藤吉郎', '二の手が揺れた！　門から出て横を突け！'] });
+      // 荷駄の結果が出たら、柵を直し最後の持ち場を選ぶ。
+      if (F.nidaDone && !F.portersUnsafe && fortSafe(rt) && gone(F.W2) && (gone(F.KE) || (F.KEwithdraw && Math.hypot(F.KE.center().x, F.KE.center().z) > FORT + 12)) && !F.KEwait && !F.next3) {
+        F.next3 = true;
+        rt.unmark('w');
+        rt.say('木下藤吉郎', '日が傾いてきた。次が正念場じゃ', 3.5);
+        rt.after(8, () => repairFort(rt));
+        // 判断：夕暮れの三の手に、組をどこに置くか
+        rt.after(4, () => rt.choose('藤吉郎「物見が北西の旗と川の舟を見た。お主の組はどちらを守る？」', [
+          { label: '北の柵に組を集める', note: '北の寄せ（旗持ちの隊）を柵で強く受ける。東の川の側は川並衆だけ' },
+          { label: '東の川の側に組を置く', note: '川からの寄せを東の柵で受ける。北の柵は別組だけで受ける' },
+        ], (i) => {
+          F.post3 = i === 0 ? 'n' : 'e';
+          const groups = rt.squadGroups || [];
+          const pt = i === 0 ? { x: 0, z: -FORT + 3 } : { x: FORT - 3, z: 0 };
+          for (let k = 0; k < groups.length; k++) {
+            const sg = groups[k]; if (!sg.count || sg.routed) continue;
+            const post = i === 0 ? { x: k * 5 - 3, z: -FORT + 6 + k * 2 } : { x: FORT - 6 - k * 2, z: k * 5 - 3 };
+            sg.order = 'move'; sg.dest = post; sg.onArrive = (g) => { g.order = 'hold'; g.anchor = post; };
+          }
+          rt.marker('post3', pt, i === 0 ? '北の柵' : '東の川の側', { h: 2.5 });
+          // 持ち場の印は最後の寄せを受け終わるまで残す。
+          rt.say('木下藤吉郎', i === 0 ? 'よし、北を固めよ。東は小六に任せる' : 'よし、川の側じゃ。北は別組に踏ん張らせる', 3);
+        }, 13));
+        rt.obj('defend', '柵を直し、最後の持ち場を選べ', 'main');
+        rt.after(30, () => this.wave3(rt));
+        F.nextWaveAt = rt.t + 30;
+      }
+    }
+    // 三の手を退けたか（勝ちは siege_zones の winWhen が決めて holdWin を呼ぶ）
+    if (F.wave === 3) {
+      if (F.saved >= 2 && F.waveT >= 55 && !F.reinforced) { F.reinforced = true; this.callReinforce(rt); }
+      if (F.W3c && F.W3d && gone(F.W3a) && gone(F.W3b) && gone(F.W3c) && gone(F.W3d) && fortSafe(rt)) {
+        if (!F.w3Clear) {
+          rt.obj('defend', '砦の内で普請の仕上げを守れ', 'main');
+          rt.say('木下藤吉郎', '寄せ手は退いた。追うな。砦の内で柵を仕上げるぞ', 3.5);
+        }
+        F.w3Clear = true;
+        if (F.safeSince == null) F.safeSince = rt.t;
+        if (!F.buildBusy && F.segs.some((s) => !s.alive)) repairFort(rt);
+        rt.objProgress('defend', F.buildBusy ? '柵を直す人足を守れ' : F.segs.some((s) => !s.alive) ? '破れた柵へ人足が向かう。道を空けよ' : '柵は整った。砦の内を見張れ');
+      } else {
+        F.w3Clear = false; F.safeSince = null;
+      }
+    }
+  },
+
+  // 守りきった（siege_zones の winWhen：三の手を退け、砦の内を持ち続けた＝WIN.timeHeld）
+  holdWin(rt) {
+    const F = rt.flags;
+    if (F.won || F.ending || rt.over || !F.hut.alive || !fortSafe(rt) || F.wk.count < 2) return;
+    {
+      rt.unmark('w4');
+      F.won = true;
+      rt.unmark('w'); rt.unmark('w2'); rt.unmark('w3'); rt.unmark('flag');
+      for (const id of ['post3', 'gate', 'nida', 'heal', 'hut', 'scout', 'ke']) rt.unmark(id);
+      rt.uninteract('heal'); rt.objRemove('gate'); rt.objRemove('porters');
+      rt.objDone('defend');
+      rt.award((t) => { t.main = true; if (F.perfect) t.special = { label: '砦の完全防衛', pts: 30 }; }, F.perfect ? '任務達成・砦の完全防衛' : '任務達成・人足と小屋を守り、普請を仕上げた');
+      if (F.perfect) { rt.objDone('perfect'); rt.grantTitle('perfect'); }
+      if (F.flagOffered && !F.flagTaken) rt.objFail('flag');
+      rt.banner('守りきった', '墨俣に砦が建つ');
+      rt.say('木下藤吉郎', `守りきったぞ！　${nm(rt)}、お主のおかげじゃ！`, 4);
+      this.fortDone(rt);
+      sfx('horagai', 0.8);
+      rt.objRemove('post');
+      rt.unmark('flagdrop'); rt.uninteract('flag');
+      battleEvent(rt, EVENT_RETREAT, { x: 0, z: -FORT }, F.W3a, 1, true, '寄せ手が退く。墨俣の普請を守りきった');
+      rt.finish({}, 10);
+    }
+  },
+
+  // 守る砦の援軍（fort-spec 18）：南から後詰の一隊が駆けつけ、砦の内へ入って加勢する
+  callReinforce(rt) {
+    const F = rt.flags;
+    if (F.reinforceCalled || F.won || F.ending || rt.over) return;
+    F.reinforceCalled = true;
+    const r = F.reinforceReserve;
+    if (!r.count || r.routed) return;
+    r.order = 'path'; r.pathIdx = 0; r.path = [[-64, 112], [-36, 44], [0, 26], [0, FORT - 4]]; r.speed = 2.6;
+    r.onArrive = (g) => {
+      g.order = 'hold'; g.anchor = { x: 0, z: FORT - 4 }; g.aggro = 12;
+      if (rt.over || F.won || F.ending) return;
+      rt.bark('南門へ後詰が着いた。砦を固める');
+      battleEvent(rt, EVENT_REINFORCEMENT, { x: 0, z: FORT + 10 }, r, 0, true, '南の門へ後詰が着いた');
+    };
+    rt.bark('南の後詰が砦へ向かい始めた');
+  },
+
+  onKill(rt, v, k) {
+    const F = rt.flags;
+    if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
+    nagashinojo.kit.carrion(rt, v);
+    if (!F.ending && !F.won && !rt.over && v === F.flagbearer && k && (k.isPlayer || k.isSub)) {
+      rt.unmark('flag');
+      const pos = { x: v.pos.x, z: v.pos.z };
+      rt.marker('flagdrop', pos, '敵の旗', { red: true });
+      F.flagOffered = true; rt.obj('flag', '落ちた敵の旗を拾え', 'side');
+      rt.addInteract('flag', pos, '敵の旗を奪う', () => {
+        rt.uninteract('flag'); rt.unmark('flagdrop');
+        F.flagTaken = true;
+        // 士気の共通処理へ渡す。近い寄せだけがひるみ、旗一本で全軍は消えない。
+        for (const g of [F.W3a, F.W3b, F.W3c, F.W3d]) {
+          if (!g || !g.count || g.routed) continue;
+          const c = g.center();
+          if (Math.hypot(c.x - pos.x, c.z - pos.z) < 55) g.morale = Math.max(0, g.morale - 18);
+        }
+        rt.bark('敵の旗が失われ、近くの寄せ手がひるんだ');
+        rt.objDone('flag');
+        rt.award((t) => t.c.flag++, '斎藤の旗を奪った');
+        rt.say('木下藤吉郎', '斎藤の旗を奪ったか！　あっぱれじゃ！', 3);
+      }, { r: 3, ttl: 30, hold: 1.0 });
+      rt.after(30, () => {
+        if (F.flagTaken || F.won || F.ending || rt.over) return;
+        rt.objFail('flag'); rt.unmark('flagdrop'); rt.uninteract('flag');
+      });
+    } else if (v === F.flagbearer) {
+      rt.unmark('flag');
+      if (F.flagOffered) rt.objFail('flag');
+    }
+  },
+
+  onStructHit(rt, s) {
+    if (!SIDE_WORD[s.side]) return;
+    const F = rt.flags;
+    F.sideWarn = F.sideWarn || {};
+    if ((F.sideWarn[s.side] ?? -99) + 12 > rt.t) return;
+    F.sideWarn[s.side] = rt.t;
+    rt.bark(`${{ n: '北', w: '西', e: '東', s: '南' }[s.side]}の柵が攻められている！`, true);
+  },
+
+  onStructDestroyed(rt, s) {
+    const F = rt.flags;
+    if (F.ending || F.won || rt.over) return;
+    if (s === F.hut) {
+      F.ending = true;
+      for (const id of ['gate', 'nida', 'scout', 'post', 'flag']) rt.objFail(id);
+      for (const id of ['post0', 'post3', 'gate', 'nida', 'heal', 'hut', 'scout', 'ke', 'flagdrop', 'w', 'w2', 'w3', 'w4', 'boats', 'flag']) rt.unmark(id);
+      rt.uninteract('heal'); rt.uninteract('flag');
+      rt.banner('普請小屋が破られた');
+      rt.say('木下藤吉郎', 'いかん……小屋をやられた。これでは砦が建たぬ', 4);
+      rt.tracker.main = false;
+      rt.objFail('defend');
+      rt.finish({}, 7);
+      return;
+    }
+    if (F.perfect) { F.perfect = false; rt.objFail('perfect'); }
+    s.stumps = stumps(rt.world, s.seg);
+    rt.scene.add(s.stumps);
+    if (rt.t >= (F.breachSayT || 0)) { F.breachSayT = rt.t + 8; rt.say('木下藤吉郎', '柵が破られたぞ！　破れ目を塞げ！', 3); }
+    sfx('wood', 1);
+  },
+
+  onFinish(rt) {
+    const R = rt.G.rel.tokichiro;
+    if (rt.tracker.main) { R.trust += 10; R.like += 10; }
+    if (rt.flags.perfect && rt.tracker.main) R.like += 5;
+  },
+};
+
+// 墨俣の bot：砦の内に留まり、柵の内から槍で突く。柵を越えた敵を先に討つ。荷駄を狙う敵だけは南の門から打って出て討つ
+// （柵の外の敵へまっすぐ歩くと柵に当たって動けなくなるので、柵の手前で止まって待つ）
+// 守りと退却で同じ道を使う。柵を横切らず、南門と普請小屋の脇を歩く。
+function sunomataWalk(b, inp, goTo, x, z, r) {
+  const p = b.player, u = p.u, F = b.flags;
+  const me = Math.abs(u.pos.x) < FORT - 0.3 && Math.abs(u.pos.z) < FORT - 0.3;
+  const to = Math.abs(x) < FORT - 0.3 && Math.abs(z) < FORT - 0.3;
+  if (me !== to) {
+    if (!me && u.pos.z < FORT + 2) {
+      const sx = u.pos.x < 0 ? -1 : 1;
+      if (Math.abs(u.pos.x) < FORT + 2.5) return goTo(p, inp, sx * (FORT + 4), u.pos.z, 1);
+      return goTo(p, inp, sx * (FORT + 4), FORT + 4, 1.5);
+    }
+    const az = me ? FORT - 3 : FORT + 3;
+    if (Math.abs(u.pos.x) > 1.4 || Math.abs(u.pos.z - az) > 2) { x = 0; z = az; r = 0.8; }
+    else return goTo(p, inp, 0, me ? FORT + 3 : FORT - 3, 0.5);
+  }
+  const hx = F.hut.x, hz = F.hut.z;
+  if (F.hut.alive && me) {
+    const dx = x - u.pos.x, dz = z - u.pos.z, l2 = dx * dx + dz * dz || 1;
+    const t = Math.max(0, Math.min(1, ((hx - u.pos.x) * dx + (hz - u.pos.z) * dz) / l2));
+    if (Math.hypot(u.pos.x + dx * t - hx, u.pos.z + dz * t - hz) < 5.4 && Math.hypot(x - hx, z - hz) > 5.2) {
+      const a0 = Math.atan2(u.pos.x - hx, u.pos.z - hz), a1 = Math.atan2(x - hx, z - hz);
+      let da = a1 - a0; da -= Math.PI * 2 * Math.round(da / (Math.PI * 2));
+      const a = a0 + Math.sign(da || 1) * Math.min(Math.abs(da), 0.7);
+      return goTo(p, inp, hx + Math.sin(a) * 6.2, hz + Math.cos(a) * 6.2, 0.6);
+    }
+  }
+  return goTo(p, inp, x, z, r);
+}
+
+// 殿を狙う別働隊も、閉じた柵へ直進せず南門へ回る。出撃時だけ道を作る。
+sunomata.taishoRaidPath = (g, lord) => {
+  if (Math.abs(lord.pos.x) >= FORT || Math.abs(lord.pos.z) >= FORT) return null;
+  const c = g.center(), x = c.x < 0 ? -FORT - 6 : FORT + 6;
+  return [[x, c.z], [x, FORT + 6], [0, FORT + 6], [0, FORT - 4]];
+};
+sunomata.botWithdraw = (b, inp, { goTo }) => {
+  if (b.player.lock) inp.e.add('KeyQ');
+  sunomataWalk(b, inp, goTo, 0, FORT + 70, 3);
+};
+
+sunomata.botDefendsFort = true;
+sunomata.botBrain = (b, inp, { goTo }) => {
+  const p = b.player, u = p.u, F = b.flags;
+  inp.k.delete('KeyW'); inp.k.delete('KeyE');
+  inp.guardHold = false;
+  if (!u.alive) return;
+  // 狙いを固定したままだと、回り道や構えの向きが更新時に敵へ戻される。
+  if (p.lock) inp.e.add('KeyQ');
+  const inF = (q, m = 0) => Math.abs(q.x) < FORT - m && Math.abs(q.z) < FORT - m;
+  const walk = (x, z, r) => sunomataWalk(b, inp, goTo, x, z, r);
+  // 回り道で決めた歩みを保ったまま敵を向く。前進のまま向きだけ替えると柵や小屋へ突っ込む。
+  const faceWalking = (e) => {
+    const walking = inp.k.has('KeyW'), walkYaw = p.yaw;
+    p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
+    if (!walking) return;
+    inp.k.delete('KeyW');
+    const da = walkYaw - p.yaw;
+    if (Math.abs(Math.cos(da)) > 0.3) inp.k.add(Math.cos(da) > 0 ? 'KeyW' : 'KeyS');
+    if (Math.abs(Math.sin(da)) > 0.3) inp.k.add(Math.sin(da) > 0 ? 'KeyA' : 'KeyD');
+  };
+  const strike = (e) => {
+    const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
+    if (d < 4) faceWalking(e);
+    inp.leftPressed = false; inp.chargeHold = false; inp.runHeld = false;
+    let attacker = null, ad = 10;
+    for (const o of b.army.threats || []) {
+      if (!o.alive || o.team === u.team || o.fleeing || o.type === 'gun' || o.type === 'bow' ||
+          Math.abs(o.pos.y - u.pos.y) >= 3 || b.army.wallBetween(o.pos, o.team, u.pos,
+            (o.wpnKind || o.lookWeapon || o.weapon) === 'spear')) continue;
+      const od = Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
+      if (od < ad) { ad = od; attacker = o; }
+    }
+    if (attacker) {
+      // 振りが当たるまで構えを保ち、別の敵への突きで受けを解かない。
+      inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
+      p.yaw = Math.atan2(attacker.pos.x - u.pos.x, attacker.pos.z - u.pos.z);
+      inp.guardHold = true; inp.leftPressed = false; inp.chargeHold = false;
+      // 受け流した直後は、次の振りが来ていても払いで押し返す。
+      // 予兆だけで反撃を消し続けると、構えの気力を使い切って倒れる。
+      inp.leftPressed = p.counterT > 0 && ad < (p.weapon === 'sword' ? 1.9 : 2.8) &&
+        !attacker.invuln && p.cd <= 0 && !p.pending && p.sta >= 18;
+    } else if (d < (p.weapon === 'sword' ? 1.9 : 2.8) && !e.invuln &&
+        Math.abs(e.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, e.pos, p.weapon === 'spear')) {
+      // 本体の槍と同じく柵越しに届く。柵を壁扱いすると、破られるまで一度も突けない。
+      // 打ち込みを受けた後は構えを解き、払いになる猶予が過ぎてから突く。
+      // 構えのまま連打して気力を使い切らず、届く相手へ一振りずつ返す。
+      inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
+      inp.leftPressed = !p.guard && p.time - (p.guardOffT ?? -9) > 0.45 &&
+        p.cd <= 0 && !p.pending && p.sta > p.maxSta * 0.35;
+    }
+  };
+  // 柵の内へ寄せる点：四隅（柵が直角に出会う袋）へは寄せず、角から 4m 手前の辺の上で待つ（(±18,±18) の詰まり）
+  const clampIn = (x, z, m) => {
+    let cx = Math.max(-m, Math.min(m, x)), cz = Math.max(-m, Math.min(m, z));
+    const k = m - 4;
+    if (Math.abs(cx) > k && Math.abs(cz) > k) {
+      if (Math.abs(x) < Math.abs(z)) cx = Math.sign(cx) * k; else cz = Math.sign(cz) * k;
+    }
+    return [cx, cz];
+  };
+  const fight = (e) => {
+    const eIn = inF(e.pos), meIn = inF(u.pos, 0.3);
+    // 柵の外の敵：柵の手前（内側）の近い所で待って突く
+    if (meIn && !eIn) {
+      const [cx, cz] = clampIn(e.pos.x, e.pos.z, FORT - 1.1);
+      walk(cx, cz, 0.5);
+    } else if (Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z) > 2.4) walk(e.pos.x, e.pos.z, 2.2);
+    strike(e);
+    // 組にも突かせる（号令は2秒に一度まで）
+    if (b.squad.length && b.squadGroups[0].order !== 'attack' && !(b.botCmdT > b.t)) { inp.e.add('KeyC'); b.botCmdT = b.t + 2; }
+  };
+  // 深手・包囲・気力切れは、小屋を回って砦の後ろへ退く。
+  // 敵から離れる向きを柵の内へ丸めるだけでは、柵ぎわで足が止まる。
+  const hurt = u.hp < u.maxHp * 0.55;
+  const tired = p.sta < p.maxSta * 0.22;
+  if (hurt || tired || u.mobbed || F.botRest) {
+    const visible = (o) => !o.fleeing && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3 &&
+      !b.army.wallBetween(u.pos, -1, o.pos);
+    const near = b.army.nearestEnemy(u, 8, visible);
+    const heal = b.interacts.find((x) => x.id === 'heal');
+    const canHeal = heal && !p.bandaged && p.treatmentLeft > 0 && !(F.healCd > b.t);
+    F.botRest = !!near || p.sta < p.maxSta * 0.6 || (hurt && canHeal);
+    if (F.botRest) {
+      inp.leftPressed = false; inp.chargeHold = false; inp.runHeld = false;
+      // 攻め続ける組を前に置き去りにせず、退き先へ連れて戻る。
+      if (b.squad.length && b.squadGroups[0].order !== 'follow' && !(b.botCmdT > b.t)) {
+        inp.e.add('KeyZ'); b.botCmdT = b.t + 2;
+      }
+      walk(-6, 5, 1.5);
+      if (near) {
+        // 近い敵より、実際に振りかぶっている敵へ構える。
+        let face = null, d = 10;
+        for (const o of b.army.threats || []) {
+          if (!o.alive || o.fleeing || o.team === u.team || o.type === 'gun' || o.type === 'bow' ||
+              Math.abs(o.pos.y - u.pos.y) >= 3 || b.army.wallBetween(o.pos, o.team, u.pos,
+                (o.wpnKind || o.lookWeapon || o.weapon) === 'spear')) continue;
+          const od = Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
+          if (od < d) { face = o; d = od; }
+        }
+        if (face) faceWalking(face);
+        // 近いだけの敵には構えない。振りの合間に気力と受け流しの猶予を戻す。
+        inp.guardHold = !!face;
+      } else if (hurt && canHeal && Math.hypot(u.pos.x + 6, u.pos.z - 5) < 3.5) {
+        inp.e.add('KeyE');
+      }
+      return;
+    }
+  }
+  // 落ちた敵の旗を拾う（砦の近くだけ）
+  const fl = b.interacts.find((x) => x.id === 'flag');
+  if (fl && Math.hypot(fl.pos.x, fl.pos.z) < 45 && !b.army.nearestEnemy(u, 3)) {
+    if (Math.hypot(fl.pos.x - u.pos.x, fl.pos.z - u.pos.z) > 2) walk(fl.pos.x, fl.pos.z, 1.5);
+    else { inp.e.add('KeyE'); inp.k.add('KeyE'); }
+    return;
+  }
+  // 柵を越えた敵が最優先（小屋と資材を失う）
+  const fightable = (o) => !o.invuln && !o.fleeing && !o.woundOut && !o.group?.routed;
+  const inside = b.army.nearestEnemy(u, 60, (o) => fightable(o) && inF(o.pos, 0.4));
+  if (inside) { fight(inside); return; }
+  // 荷駄を狙う敵は打って出て討つ
+  if (F.KE && F.KE.count && !F.KE.routed && !F.nidaDone) {
+    const e = b.army.nearestEnemy(u, 200, (o) => fightable(o) && o.group === F.KE);
+    if (e) { fight(e); return; }
+  }
+  // 柵の外に出ていれば、近くの敵を討ちながら砦へ戻る
+  if (!inF(u.pos, 0.3)) {
+    const foe = b.army.nearestEnemy(u, 3.5, fightable);
+    if (foe) { fight(foe); return; }
+    walk(0, FORT - 5, 1.5);
+    return;
+  }
+  // 柵に寄ってくる敵：柵の内側から突く
+  const e = b.army.nearestEnemy(u, 30, (o) => fightable(o) && Math.abs(o.pos.x) < FORT + 8 && Math.abs(o.pos.z) < FORT + 8);
+  if (e) { fight(e); return; }
+  if (b.squad.length && b.squadGroups[0].order === 'attack' && !(b.botCmdT > b.t)) { inp.e.add('KeyZ'); b.botCmdT = b.t + 2; }
+  // 寄せ手の来る側の柵の内へ
+  // 控えの隊へ走らず、今寄せている隊の側へ付く。
+  const far = b.army.nearestEnemy(u, 220, (o) => fightable(o) &&
+    (o.group === F.W1 || o.group === F.W2 || o.group === F.W3a ||
+      o.group === F.W3b || o.group === F.W3c || o.group === F.W3d));
+  if (far) { const [cx, cz] = clampIn(far.pos.x, far.pos.z, FORT - 2.5); walk(cx, cz, 2); }
+  else walk(0, -10, 3);
+};
+// 普請・舟・行軍の時間をまとめて飛ばすと瞬間移動になるため、この戦は待ち飛ばしを使わない。
+sunomata.canSkip = () => '';
+sunomata.skip = () => {};
+sunomata.sides = { a: { name: '織田軍', mon: 'oda' }, b: { name: '斎藤軍', mon: 'saito' } };
+// すでに砦にいる三人を共通の武将の呼び口へ渡す。新しい兵は加えない。
+sunomata.famous = [
+  { name: '前野長康', team: 0, g: /前野長康/, line: '西の柵を離れるな！' },
+  { name: '木下藤吉郎', team: 0, g: /藤吉郎/, line: '普請の手を止めるな。柵を守れ！' },
+  { name: '蜂須賀正勝', team: 0, g: /川並衆/, line: '川の側はわしらが守る。組を離すな！' },
+];
+sunomata.date = (rt) => `永禄九年九月（伝承）　${seasonOf('九月')}・時刻と空模様は復元`;
+// 墨俣：数は伝わらない。砦の守りと人足で千五百、斎藤は川向こうも合わせて四千ほどに見せる
+sunomata.force = (rt) => {
+  return { a: 1500, a0: 1500, b: 4000, b0: 4000 };
+};
+sunomata.history = '信長公記の首巻「十四条合戦之事」には、永禄四年（1561）、信長が洲股の要害を固めて在陣し、十四条の戦の後に引き払ったとある。永禄九年（1566）に藤吉郎が一夜で築いたとも伝わるが、信長公記にその記録はない。伝承のよりどころの一つである『武功夜話』は後の時代の作で、成立や内容に疑いがある。戦国当時の確かな記録としては扱えない。この戦は築城伝承を借りた防衛戦。藤吉郎・小六・前野長康の役割、三度の寄せ、舟の上陸、兵数と砦の細部は遊びの補いで、史料にある合戦の再現ではない。千五百対四千は砦の外の控えと人足を含めた仮の総勢で、三十六メートル四方の柵内に全員が入るものではない。現代の標高は大まかな低地の参考に留め、当時の川筋・縄張り、昼から夕への時刻と天気は復元とする。主人公は上役の下知に従う一組の持ち場で、任務の失敗は史実の織田軍の敗北ではない。';
+
+sunomata.rts = true;
+export { sunomata };
