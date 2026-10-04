@@ -29,91 +29,16 @@ const fake = () => ({
   key(c) { return this.k.has(c); }, pressed(c) { return this.e.has(c); },
 });
 
-// 囲まれたら敵へ向いたまま下がる。傷の自然回復を待って退き続けない。
-function survive(b, inp) {
-  const p = b.player, u = p.u, army = b.army;
-  b.botSurviving = false;
-  // 落ちのびる下知の間は、居残る味方へ戻らず、戦ごとの退き口をたどる。
-  if (b.def.botEvacuating?.(b)) { b.botSurviveUntil = 0; return false; }
-  let foe = null, fd = 10, attacker = null, ad = 10, mate = null, md = 24, close = 0;
-  for (const o of army.units) {
-    if (o === u || !o.alive || o.fleeing || o.type === 'dummy' || o.noTarget) continue;
-    const d = Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
-    // 塀越しの兵を包囲や退き先に数えると、門を離れて塀へ歩き続けてしまう。
-    if (d > 24 || Math.abs(o.pos.y - u.pos.y) > 3 || army.wallBetween(u.pos, -1, o.pos)) continue;
-    if (o.team !== u.team) {
-      if (d < fd) { fd = d; foe = o; }
-      if (d < ad && o.type !== 'gun' && o.type !== 'bow' && army.threats?.includes(o)) { ad = d; attacker = o; }
-      if (d < 5 && o.type !== 'gun' && o.type !== 'bow') close++;
-    } else if (d < md && o.type !== 'porter' && !o.rearWound && !o.woundOut) { md = d; mate = o; }
-  }
-  const hurt = u.hp < u.maxHp * 0.55, tired = p.sta < p.maxSta * 0.22;
-  // 味方がそばにいても、深手や気力切れなら構えて退く。
-  if (u.mobbed || close >= 3 || (close && (hurt || tired))) {
-    b.botSurviveUntil = b.t + 2;
-  }
-  const retreating = b.botSurviveUntil > b.t;
-  // 傷を縛れるのは一度だけ。残り回数があっても処置済みなら任務へ戻る。
-  const canTreat = p.treatmentLeft > 0 && !p.bandaged && !p.mounted;
-  if (retreating || (hurt && canTreat && !foe && mate)) {
-    b.botSurviving = true;
-    inp.leftPressed = false; inp.chargeHold = false; inp.k.delete('KeyE');
-    inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
-    inp.runHeld = false; inp.guardHold = !!foe;
-    if (retreating && foe) {
-      // 退避中も実際の打ち手を受ける。近いだけの敵へ向くと、横からの一撃が構えを抜ける。
-      const face = attacker || foe;
-      // 狙いを残すと、指で向き直っても更新時に別の敵へ引き戻される。
-      if (p.lock && p.lock !== face) inp.e.add('KeyQ');
-      p.yaw = Math.atan2(face.pos.x - u.pos.x, face.pos.z - u.pos.z);
-      // 味方へ戻る方向を、敵に向いたまま前後左右の歩みに替える。
-      let dx = mate && md > 3 ? mate.pos.x - u.pos.x : u.pos.x - foe.pos.x;
-      let dz = mate && md > 3 ? mate.pos.z - u.pos.z : u.pos.z - foe.pos.z;
-      const fw = dx * Math.sin(p.yaw) + dz * Math.cos(p.yaw);
-      const side = -dx * Math.cos(p.yaw) + dz * Math.sin(p.yaw);
-      if (Math.abs(fw) > 0.3) inp.k.add(fw > 0 ? 'KeyW' : 'KeyS');
-      if (Math.abs(side) > 0.3) inp.k.add(side > 0 ? 'KeyD' : 'KeyA');
-      // 受け流した後の隙には反撃する。近くに三人いるだけで、退き続けて気力を失わない。
-      if (!attacker && p.counterT > 0 && fd < 3.2 && !p.pending && p.cd <= 0 && !tired) {
-        inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
-        inp.leftPressed = true;
-      }
-      return true;
-    }
-    if (!foe && mate && canTreat && hurt) {
-      if (md > 4) goTo(p, inp, mate.pos.x, mate.pos.z, 4);
-      else if (p.treatmentReady) inp.k.add('KeyE');
-      return true;
-    }
-    // 退き口が開いたら任務へ戻る。体力が全快するのを待たない。
-    b.botSurviveUntil = 0;
-  }
-  if (inp.k.has('KeyS') || inp.k.has('KeyA') || inp.k.has('KeyD')) {
-    inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
-  }
-  return false;
-}
-
 // 戦ごとの遊び方（素直な遊び手を真似る）
 export function brain(b, inp) {
   const p = b.player, u = p.u;
-  b.botCovering = false;
-  b.botFollowingTaba = false;
-  // 終戦の演出中は歩けない。直前の前進・手綱・構えを持ち越さない。
-  if (b.over || b.ended || b.flags.ending) {
-    inp.k.clear(); inp.e.clear(); inp.leftPressed = false; inp.guardHold = false;
-    inp.runHeld = false; inp.chargeHold = false; inp.quickCmd = null;
-    return;
-  }
+  if (b.over) { inp.k.clear(); inp.e.clear(); inp.guardHold = false; return; }
   if (!u.alive) return;
-  if (cover(b, inp)) return;
-  if (survive(b, inp)) return;
   // 戦を濃くする段（b_depth.js）の間は、その段の的へ
   if (b.flags.dp && b.flags.dp.on) { depthBot(b, inp, goTo); cover(b, inp); return; }
+  if (b.flags.fence) return shitaraBrain(b, inp);
   // 戦ごとの遊び方があればそれを使う（b_*.js の def.botBrain）
   if (b.def.botBrain) { b.def.botBrain(b, inp, { goTo }); cover(b, inp); return; }
-  // 柵を使う別の戦にも、設楽原の動きを押し付けない。
-  if (b.flags.fence) return shitaraBrain(b, inp);
   // 深手なら下がって手当て（墨俣の普請小屋）
   const heal = b.interacts.find((x) => x.id === 'heal');
   if (heal && u.hp < u.maxHp * 0.4 && !(b.flags.healCd > b.t)) {
@@ -160,50 +85,25 @@ export function brain(b, inp) {
   inp.k.delete('KeyE');
   if (it && !(b.index === 0 && it.id.startsWith('head'))) { inp.e.add('KeyE'); inp.k.add('KeyE'); inp.k.delete('KeyW'); }
 }
-const SHITARA_GATES = [-42, 18, 66];
-// 奥の持ち場へは、二列目・三列目の柵も虎口を通る。
-function shitaraPost(p, inp, post) {
-  if (post.x < 0 && p.u.pos.x > -0.8) {
-    let gz = SHITARA_GATES[0];
-    for (const z of SHITARA_GATES) if (Math.abs(z - post.z) < Math.abs(gz - post.z)) gz = z;
-    if (Math.abs(p.u.pos.z - (gz + 3)) > 0.8) goTo(p, inp, p.u.pos.x, gz + 3, 0.5);
-    else goTo(p, inp, post.x, gz + 3, 0.5);
-  } else goTo(p, inp, post.x, post.z, 1.5);
-}
-// 設楽原：普請と組の持ち場を守り、射撃の後に撃ち漏らしを受ける。追い討ちは虎口から出る
+// 設楽原：柵の内（一列目と二列目の間）に留まり、柵に取り付いた敵を突く。追い討ちの下知があれば虎口から出て殿を追う
 function shitaraBrain(b, inp) {
   const p = b.player, u = p.u, F = b.flags;
   inp.k.delete('KeyW');
-  inp.leftPressed = false; inp.chargeHold = false; inp.guardHold = false;
   const inside = !F.pursuit;
-  const post = F.wave === 0 ? F.prepPt : F.commandPt;
-  const waiting = inside && (!F.close || F.waveRest || F.cur?.doneWave);
-  // 前の頭の固定座標は敵を引き込む場所だった。下知で決まった奥の持ち場へ戻る。
-  // 目の前から打たれる時だけ受ける。待つ間は敵を追って射線へ入らない。
-  let attacker = null, ad = 4.5;
-  for (const o of b.army.threats || []) {
-    if (!o.alive || o.fleeing || o.team === u.team || o.type === 'gun' || o.type === 'bow' ||
-        Math.abs(o.pos.y - u.pos.y) >= 3 || b.army.wallBetween(u.pos, -1, o.pos)) continue;
-    const d = Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
-    if (d < ad) { ad = d; attacker = o; }
-  }
-  if (waiting && post && !attacker) { shitaraPost(p, inp, post); return; }
-  const e = attacker || b.army.nearestEnemy(u, inside ? 12 : 40, (o) =>
-    !o.fleeing && !o.noTarget && !o.invuln && Math.abs(o.pos.y - u.pos.y) < 3 &&
-    (!inside || o.pos.x < 14) && !b.army.wallBetween(u.pos, -1, o.pos));
+  const e = b.army.nearestEnemy(u, 40, (o) => !inside || o.pos.x < 17.5);
   if (e) {
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
-    if (p.lock && p.lock !== e) inp.e.add('KeyQ');
     p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
-    const reach = p.weapon === 'sword' ? 1.7 : 2.8;
-    if (!waiting && !attacker && d > reach && (!inside || u.pos.x < 12.4)) inp.k.add('KeyW');
-    inp.guardHold = !!attacker;
-    // 一撃を受ける構えのままでも払える。予兆がある間ずっと攻撃を消さない。
-    inp.leftPressed = d < reach && !e.invuln && p.cd <= 0 && !p.pending && p.sta >= 18;
+    if (d > 2.4 && (!inside || u.pos.x < 12.4)) inp.k.add('KeyW');
+    if (d < 3.4 && Math.random() < 0.5) inp.leftPressed = true;
+    inp.guardHold = (b.army.threats || []).length > 0 && Math.random() < 0.6;
     return;
   }
+  inp.guardHold = false;
   if (inside) {
-    if (post) shitaraPost(p, inp, post);
+    // 寄せ手のいる所の柵へ横に動く
+    const far = b.army.nearestEnemy(u, 200);
+    goTo(p, inp, 11, far ? Math.max(-90, Math.min(90, far.pos.z)) : u.pos.z, 1.5);
     return;
   }
   // 柵の外へ：一列目の虎口を通って殿へ
@@ -216,56 +116,16 @@ function shitaraBrain(b, inp) {
   if (m) { const q = typeof m.pos === 'function' ? m.pos() : m.pos; if (q) goTo(p, inp, q.x, q.z, 3); }
 }
 
-// 鉄砲の狙いと飛んでくる矢を見て横へ逃げる。矢玉は構えでは防げない。
+// 矢玉に削られて深手なら、射手に向いて構え、後ずさって間合いの外へ（人なら誰でもそうする）
+// 近くに斬り合う敵がいる時はしない。戦ごとの botBrain のあとに掛ける
 function cover(b, inp) {
-  const p = b.player, u = p.u;
-  if (!u.alive) return false;
-  let s = null, near = Infinity;
-  for (const o of b.army.threats || []) {
-    if (!o.alive || o.fleeing || o.type !== 'gun' || o.atk?.target !== u ||
-        b.army.wallBetween(u.pos, -1, o.pos)) continue;
-    const d = Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
-    if (d < near) { near = d; s = o; }
-  }
-  if (!s) {
-    // 弓の引きは threats に含まれない。実際の矢の進路を読み、被弾前に避ける。
-    // 入れ物は増やさず、もう地面や塀に刺さった矢は調べない。
-    let soon = 1.5;
-    for (const a of b.army.arrows || []) {
-      if (a.stuck || a.glanced || a.team === u.team || !a.owner) continue;
-      const dx = u.pos.x - a.pos.x, dz = u.pos.z - a.pos.z;
-      const speed2 = a.vel.x * a.vel.x + a.vel.z * a.vel.z;
-      if (speed2 < 1) continue;
-      const t = (dx * a.vel.x + dz * a.vel.z) / speed2;
-      if (t <= 0 || t >= soon) continue;
-      const y = a.pos.y + a.vel.y * t - 4.9 * t * t;
-      if (y < u.pos.y || y > u.pos.y + (p.mounted ? 3.5 : 1.9) ||
-          Math.hypot(dx - a.vel.x * t, dz - a.vel.z * t) > 1) continue;
-      soon = t; s = a.owner;
-    }
-  }
-  if (!s) {
-    s = b.botShooter;
-    if (!s?.alive || !(b.t - (b.botShotT ?? -99) < 2.5) || u.hp > u.maxHp * 0.5) return false;
-    if (b.army.nearestEnemy(u, 4, (o) => o.type !== 'bow' && o.type !== 'gun' &&
-        !o.fleeing && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3 &&
-        !b.army.wallBetween(u.pos, u.team, o.pos, false))) return false;
-    // 被弾後の避け足は三秒だけ。飛来中の矢や鉄砲の狙いには待ち時間を設けない。
-    if (!(b._botCoverUntil > b.t)) {
-      if (b._botCoverNext > b.t) return false;
-      b._botCoverUntil = b.t + 3;
-      b._botCoverNext = b.t + 15;
-    }
-  }
-  if (p.lock && p.lock !== s) inp.e.add('KeyQ');
+  const p = b.player, u = p.u, s = b.botShooter;
+  if (!u.alive || !s || !s.alive || !(b.t - (b.botShotT || -99) < 2.5) || u.hp > u.maxHp * 0.5) return;
+  if (b.army.nearestEnemy(u, 4, (o) => o.type !== 'bow' && o.type !== 'gun')) return;
   p.yaw = Math.atan2(s.pos.x - u.pos.x, s.pos.z - u.pos.z);
-  inp.guardHold = false; inp.leftPressed = false; inp.chargeHold = false;
-  inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.k.delete('KeyE');
-  inp.k.add(u.id % 2 ? 'KeyA' : 'KeyD');
-  inp.runHeld = true;
-  if (s.type === 'gun' && s.atk && s.atk.t < 0.5 && p.sta >= 20 && p.dodgeT <= -0.3) inp.e.add('Space');
+  inp.guardHold = true; inp.leftPressed = false;
+  inp.k.delete('KeyW'); inp.k.delete('KeyE'); inp.k.add('KeyS');
   b.botCovering = true;
-  return true;
 }
 
 // 建物・柵など当たりに引っかかって進めない時は、まっすぐ狙わず少し脇へそれて回り込む
@@ -273,36 +133,16 @@ function cover(b, inp) {
 // 障害物の手前で詰まる不具合が、ここを直せば戦をまたいで直る）
 function goTo(p, inp, x, z, r) {
   const u = p.u;
-  if (p.rt.world.def.moveWay) {
-    const goal = p._roadGoal || (p._roadGoal = { x: 0, z: 0 });
-    goal.x = x; goal.z = z;
-    const q = p.rt.world.def.moveWay(p.rt.army, u, goal);
-    if (q !== goal) { x = q.x; z = q.z; r = Math.min(r, 1); }
-  }
-  const d = Math.hypot(x - u.pos.x, z - u.pos.z), t = p.rt.t;
-  const q = p._gtPos || (p._gtPos = { x: u.pos.x, z: u.pos.z, t });
-  const changed = !p._gtGoal || Math.hypot(x - p._gtGoal.x, z - p._gtGoal.z) > 1;
-  const goal = p._gtGoal || (p._gtGoal = { x: 0, z: 0 });
-  goal.x = x; goal.z = z;
-  // 道の曲がり角や新しい行き先では、前の詰まりを引き継がない。
-  if (d <= r || changed) {
-    p._gtStuckT = 0; p._gtDetourT = 0;
-    q.x = u.pos.x; q.z = u.pos.z; q.t = t;
-    if (d <= r) { inp.k.delete('KeyW'); return; }
-  }
-  // 呼ばれた回数ではなく、一秒間に実際に進んだ距離で詰まりを見る。
-  if (t - q.t >= 1) {
-    const moved = Math.hypot(u.pos.x - q.x, u.pos.z - q.z);
-    p._gtStuckT = moved < 0.35 ? (p._gtStuckT || 0) + t - q.t : 0;
-    q.x = u.pos.x; q.z = u.pos.z; q.t = t;
-    if (p._gtStuckT >= 2 && !(p._gtDetourT > t)) {
-      p._gtSide = p._gtSide ? -p._gtSide : (u.id % 2 ? 1 : -1);
-      p._gtDetourT = t + 3;
-    }
-  }
+  const d = Math.hypot(x - u.pos.x, z - u.pos.z);
+  if (d <= r) { p._gtStuckT = 0; return; }
+  const moved = p._gtPos ? Math.hypot(u.pos.x - p._gtPos.x, u.pos.z - p._gtPos.z) : 99;
+  p._gtPos = { x: u.pos.x, z: u.pos.z };
+  p._gtStuckT = moved < 0.12 ? (p._gtStuckT || 0) + 1 : 0;
   let yaw = Math.atan2(x - u.pos.x, z - u.pos.z);
-  // 動き始めても三秒は同じ側へ回り、すぐ壁へ当たり直さない。
-  if (p._gtDetourT > t) yaw += p._gtSide * 1.35;
+  if (p._gtStuckT > 6) {
+    if (!p._gtSide || p._gtStuckT > 60) p._gtSide = Math.random() < 0.5 ? 1 : -1;
+    yaw += p._gtSide * 1.1;
+  }
   p.yaw = yaw; inp.k.add('KeyW');
 }
 
@@ -316,8 +156,7 @@ async function playOne(game, i, G, aud, o = {}) {
   const b = game.battle;
   const name = o.name || rep0(i);
   if (!b) return { battle: name, note: o.note || '', errors: ['戦が始まらなかった（game.battle が空）'], stuck: [], waits: [], flow: [], named: [], time: 0, msPerFrame: 0, merit: 0, main: false, squad: '—', down: false, lines: '' };
-  if (!b.flags.rojoUI) game.paused = false;
-  document.getElementById('pause').hidden = true;
+  game.paused = false; document.getElementById('pause').hidden = true;
   if (aud) { aud.attach(b, name); aud.scanDom(`${name}・開戦`); }
   let paused1 = false;
   const inp = fake();
@@ -338,10 +177,7 @@ async function playOne(game, i, G, aud, o = {}) {
   const dt = 0.05;
   try {
     while (game.battle === b && !b.ended && t < 900) {
-      // 日送りの札では本番と同じく戦を止め、実時間の時計だけを待つ。
-      if (game.paused) { await wait(100); continue; }
-      inp.e.clear(); inp.leftPressed = false; inp.quickCmd = null;
-      for (const k of ['KeyW', 'KeyS', 'KeyA', 'KeyD']) inp.k.delete(k);
+      inp.e.clear(); inp.leftPressed = false; inp.quickCmd = null; inp.k.delete('KeyS');
       brain(b, inp);
       Object.defineProperty(inp, 'right', { get: () => !!inp.guardHold, configurable: true });
       const t0 = performance.now();
@@ -767,10 +603,9 @@ class TouchPad {
       this.pe('pointermove', r.a.el, r.a.x + Math.sin(ang) * k, r.a.y - Math.cos(ang) * k, r.pid);
     } else {
       const ang = r.i * Math.PI / 4;
-      // 放した瞬間に号令が届くので、応答より先に今回の操作を記録する。
-      this.ctx.radialDone(r.id);
       this.pe('pointerup', r.a.el, r.a.x + Math.sin(ang) * 60, r.a.y - Math.cos(ang) * 60, r.pid);
       this.radial = null;
+      this.ctx.radialDone(r.id);
     }
     r.n++;
   }
@@ -780,11 +615,7 @@ class TouchPad {
     const btn = (id) => q(`#tc [data-b="${id}"]`);
     if (!this.radial) this.turn(adiff(p.yaw, wantYaw));
     const fw = inp.k.has('KeyW') ? 1 : 0, bk = inp.k.has('KeyS') ? 1 : 0;
-    const side = (inp.k.has('KeyD') ? 1 : 0) - (inp.k.has('KeyA') ? 1 : 0);
-    // 指が届かなかった時に鍵盤で代わりに歩かせない。
-    for (const k of ['KeyW', 'KeyS', 'KeyA', 'KeyD']) R.keys.delete(k);
-    // 山道の下知や構えて退く歩みを、性格の「走る」で上書きしない。
-    this.stick(side, bk - fw, inp.runHeld || (this.ctx.per.run && !b.def.botOrders && !inp.guardHold && !b.botSurviving));
+    if (!this.stick(0, bk - fw, inp.runHeld || this.ctx.per.run)) { R.keys.delete('KeyW'); R.keys.delete('KeyS'); if (fw) R.keys.add('KeyW'); if (bk) R.keys.add('KeyS'); }
     // 突く（溜めは押し続ける）
     if (inp.chargeHold) this.down('atk', btn('atk'), '突く（溜め）');
     // 「突いた回数」は指を置いた回数（毎コマ）でなく、実の一振りが出た数で数える（player.strike の呼び出しで数える。army_combat.js 下）
@@ -839,7 +670,7 @@ class TouchPad {
     }
   }
   cmd(id, b) {
-    if (!b.squad.some((s) => s.alive) || !b.player.selectedGroups().some((g) => g.count > 0)) return;
+    if (!b.squad.length) return;
     if (this.order(id)) return;
     // 指の丸がまだ・もう出ていない時（開戦の札・戦の終わり・一時停止）は、人も押せないので問題に数えない
     const tc = document.getElementById('tc');
@@ -889,7 +720,7 @@ function makeCtx(per, aud) {
     noButton(name) { ctx.add(`btn-none:${name}`, `「${name}」をしたいのに、押す丸が出ていない`, `欲しかった時：${ctx.where}`, 1, { fix: 'その時に使える釦は出す（touchFrame の出し入れ）' }); },
     noTouch(k) { const KN = { Digit3: '火縄銃に持ち替え（鍵盤の 3）', Digit4: '弓に持ち替え（鍵盤の 4）', KeyG: '号令先の切り替え（G）', KeyT: '肩の切り替え（T）' }; ctx.add(`touch-none:${k}`, `指の端末では「${KN[k] || k}」ができない（押す丸が無い）`, `bot の頭が ${k} を押したがった（${ctx.where}）`, 2, { fix: 'touch.js に釦を足すか、戦の方で要らなくする' }); },
     noTouchCmd(id) { ctx.add(`cmd-none:${id}`, `号令「${{ form: '陣形', fire: '射撃／停止', move: '前進', yari: '槍衾', charge: '突撃' }[id] || id}」が、指の号令の輪から出せない`, `号令の輪（RADIAL）に無い、または身分が足りず選べない（${ctx.where}）`, per.key === 'sen' ? 3 : 1, { fix: '号令の輪に足すか、短く押した時の指揮の札（数字の号令）を指で押せるようにする' }); },
-    radialDone(id) { ctx.radialHandled = null; ctx.radialWant = { id, t: ctx.b ? ctx.b.t : 0 }; },
+    radialDone(id) { ctx.radialWant = { id, t: ctx.b ? ctx.b.t : 0 }; },
   };
   return ctx;
 }
@@ -924,76 +755,24 @@ const HABIT = {
   },
   act(b, inp, c) {
     const p = b.player, u = p.u, t = b.t;
-    if (b.botSurviving || b.botSurviveUntil > t || b.botCovering || b.botFollowingTaba || b.def.botEvacuating?.(b) || (p.treatmentReady && inp.k.has('KeyE'))) { c.charge = 0; return; }
-    // 戦の頭が決めた退避・移動を、敵への構えで止めない。止まると手当てにも戻れない。
-    if (b.botRest || b.flags.dpBack || b.flags.botBack || b.flags.retreating ||
-        (b.flags.dp?.on && b.flags.dp.cur?.s.kind === 'move' && !b.flags.dp.cur.arr)) {
-      c.charge = 0; inp.chargeHold = false; return;
-    }
-    // 設楽原の持ち場・射撃待ち・虎口の道筋は戦の頭に任せる。
-    // 性格の突進で、奥の柵から敵の誘い込み場所へ引き戻さない。
-    if (b.flags.fence) { c.charge = 0; return; }
     // 「待て」「持ち場を守れ」「柵の外へ出るな」等の下知（kind:'order' の任務）が生きている間は、
     // 遠い武将を求めて大軍へ突っ込まない（近くの敵だけを相手にし、組から離れすぎない）
     const ordered = b.objectives.some((o) => (o.kind === 'order' || /^(wait|hold|stay|post|guard|saku|fence)$/.test(o.id)) && o.state !== 'done' && o.state !== 'fail');
+    // 山道・供・撤退の下知を遠い敵への突進で上書きしない。近くの敵には強く打ち返す。
+    if (b.def.botOrders) {
+      if (inp.leftPressed && !b.botRest && !b.flags.retreating && Math.random() < 0.05) c.charge = t + 0.8;
+      if (c.charge) { inp.chargeHold = t < c.charge; if (t >= c.charge) c.charge = 0; }
+      return;
+    }
     // 馬に乗る（乗れるなら、空馬がそばにあれば）
-    const ownHorse = p.canRide && p.loose && p.loose.mode !== 'fled';
-    // 手綱を取る間は足を止める。走り抜けると距離が開き、乗る前に取り消される。
-    if (p.catching) {
-      inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.k.delete('KeyE');
-      inp.runHeld = false; inp.leftPressed = false; inp.chargeHold = false; c.charge = 0;
-      return;
-    }
-    // 構えは正面だけに効く。近い別の敵ではなく、実際に打ち込む相手へ向く。
-    // 毎コマのくじで構えを解くと、振りが当たる瞬間だけ無防備になってしまう。
-    let attacker = null, attackDist = 10;
-    for (const o of b.army.threats || []) {
-      if (!o.alive || o.fleeing || o.type === 'gun' || o.type === 'bow' ||
-          Math.abs(o.pos.y - u.pos.y) >= 3 || b.army.wallBetween(u.pos, -1, o.pos)) continue;
-      const d = Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
-      if (d < attackDist) { attacker = o; attackDist = d; }
-    }
-    if (attacker) {
-      if (p.lock && p.lock !== attacker) inp.e.add('KeyQ');
-      p.yaw = Math.atan2(attacker.pos.x - u.pos.x, attacker.pos.z - u.pos.z);
-      inp.k.delete('KeyW'); inp.k.delete('KeyE');
-      inp.guardHold = true; inp.runHeld = false;
-      const reach = p.weapon === 'sword' ? 1.7 : 2.8;
-      // 槍の届く所へ構えて詰める。騎馬の突進は追わずに受ける。
-      if (attackDist >= reach && !attacker.charging) goTo(p, inp, attacker.pos.x, attacker.pos.z, reach * 0.9);
-      // 前の頭が攻撃を選ばなくても、届く相手には自分で反撃を選ぶ。
-      inp.leftPressed = !attacker.invuln && attackDist < reach && p.cd <= 0 && !p.pending && p.sta >= 18 &&
-        (p.weapon === 'sword' || p.weapon === 'spear');
-      inp.chargeHold = false; c.charge = 0;
-      return;
-    }
-    if (!p.mounted && !p.catching && (ownHorse || p.takeO) && t - (c.mountT || -9) > 4) {
-      inp.e.add('KeyR'); c.mountT = t;
-      // 口笛は馬を呼ぶ操作。近くで手綱を取る時だけ乗馬を試したと数える。
-      if (p.takeO || Math.hypot(p.loose.x - u.pos.x, p.loose.z - u.pos.z) < 3.2) c.mountTry = (c.mountTry || 0) + 1;
-    }
+    if (!p.mounted && (p.canRide || p.takeO) && t - (c.mountT || -9) > 4) { inp.e.add('KeyR'); c.mountT = t; c.mountTry = (c.mountTry || 0) + 1; }
     // 主を失った空馬が30m内にいて、目の前に敵がいなければ、寄って手綱を取りに行く（人もそうする）
     const L = b.army.looseHorses;
     if (!p.mounted && u.alive && L && L.length) {
       let lo = null, ld = 30;
       for (const o of L) { if (!o.from || !o.h.parent || o.mode === 'fled') continue; const d = Math.hypot(o.h.position.x - u.pos.x, o.h.position.z - u.pos.z); if (d < ld) { ld = d; lo = o; } }
       if (lo) c.looseSeen = true;
-      if (lo && !b.def.botOrders && !b.army.nearestEnemy(u, 6)) {
-        goTo(p, inp, lo.h.position.x, lo.h.position.z, 2.5);
-        inp.k.add('KeyE'); inp.leftPressed = false; inp.chargeHold = false; inp.runHeld = false;
-        return;
-      }
-    }
-    // 馬に乗れる機会は数える。柵・道・退避の下知は、遠い敵や馬への突進で上書きしない。
-    if (b.def.botOrders) {
-      if ((b.army.threats || []).length > 0 && inp.guardHold) {
-        c.charge = 0; inp.chargeHold = false; return;
-      }
-      // 段の頭が深手で退く間は、前の突進を止めて構えを保つ。
-      if (b.botRest || b.flags.dpBack || b.flags.botBack || b.flags.retreating) { c.charge = 0; inp.chargeHold = false; return; }
-      if (inp.leftPressed && Math.random() < 0.05) c.charge = t + 0.8;
-      if (c.charge) { inp.chargeHold = t < c.charge; if (t >= c.charge) c.charge = 0; }
-      return;
+      if (lo && !b.army.nearestEnemy(u, 6)) { p.yaw = Math.atan2(lo.h.position.x - u.pos.x, lo.h.position.z - u.pos.z); inp.k.add('KeyW'); inp.k.add('KeyE'); return; }
     }
     // その戦の頭が自分で退いている（深手の時に味方の組の後ろへ下がる等）間は、その退き方に任せる
     if (b.flags.dpBack || b.flags.botBack || b.botRest) return;
@@ -1003,46 +782,36 @@ const HABIT = {
     if (mates.length >= 2) { cx = mates.reduce((a, s) => a + s.pos.x, 0) / mates.length; cz = mates.reduce((a, s) => a + s.pos.z, 0) / mates.length; lag = Math.hypot(u.pos.x - cx, u.pos.z - cz); }
     // 周りの敵の数（8m 以内）
     let around = 0, sx = 0, sz = 0;
-    b.army.forNear(u.pos.x, u.pos.z, 8, (o) => { if (o.team !== u.team && o.alive && !o.fleeing && o.type !== 'dummy' && !o.noTarget && Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 8 && Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos)) { around++; sx += o.pos.x; sz += o.pos.z; } });
-    // 深手でも味方の列へ戻れたら打ち合う。失った体力の回復を条件にしない。
+    b.army.forNear(u.pos.x, u.pos.z, 8, (o) => { if (o.team !== u.team && o.alive && !o.fleeing && o.type !== 'dummy' && !o.noTarget && Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 8) { around++; sx += o.pos.x; sz += o.pos.z; } });
+    // 体力が半分を切った・囲まれた（3人以上）時は、組の方へ（組が無ければ敵と反対へ）退いて構える。体力が戻る（7割）まで退いたまま
     const hpr = u.hp / u.maxHp;
-    if (u.mobbed || around >= 4 || (hpr < 0.55 && lag > 6)) c.fall = true;
-    if (!u.mobbed && around < 3 && (lag < 6 || around === 0)) c.fall = false;
+    if (hpr < 0.65 || (around >= 3 && hpr < 0.9) || around >= 4) c.fall = true;
+    if (hpr > 0.85 && around < 3) c.fall = false;
     if (c.fall && around > 0) {
       const foe = b.army.nearestEnemy(u, 20);
       if (mates.length >= 2 && lag > 4 && around <= 3) p.yaw = Math.atan2(cx - u.pos.x, cz - u.pos.z);
       else if (around >= 1) p.yaw = Math.atan2(u.pos.x - sx / around, u.pos.z - sz / around);
       else if (foe) p.yaw = Math.atan2(u.pos.x - foe.pos.x, u.pos.z - foe.pos.z);
-      const backYaw = p.yaw;
-      if (foe) p.yaw = Math.atan2(foe.pos.x - u.pos.x, foe.pos.z - u.pos.z);
-      const diff = backYaw - p.yaw;
-      inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
-      inp.k.add(Math.cos(diff) >= 0 ? 'KeyW' : 'KeyS');
-      // 右の歩みは（-cos, sin）。敵を向いたまま、退き口の側へ歩く。
-      if (Math.abs(Math.sin(diff)) > 0.4) inp.k.add(Math.sin(diff) < 0 ? 'KeyD' : 'KeyA');
-      inp.k.delete('KeyE'); inp.leftPressed = false; inp.chargeHold = false; inp.guardHold = !!foe; inp.runHeld = false;
+      inp.k.add('KeyW'); inp.k.delete('KeyE'); inp.leftPressed = false; inp.guardHold = false; inp.runHeld = true;
       c.fallN = (c.fallN || 0) + 1;
       return;
     }
-    // 目の前の相手を先に払う。遠い武将や塀・別の階の相手へ突進して、近い兵を無視しない。
-    const e = b.army.nearestEnemy(u, ordered ? 12 : 30, (o) => o.type !== 'dummy' && !o.noTarget && !o.invuln && !o.fleeing &&
-      Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos, false));
-    const busho = e && (e.type === 'busho' || !!e.name) ? e : null;
+    // 名のある武将を探して斬りかかる（組の近くの者だけ。下知が生きている間は求めない）
+    const busho = ordered ? null : b.army.nearestEnemy(u, 30, (o) => (o.type === 'busho' || !!o.name) && !o.fleeing);
+    const e = busho || b.army.nearestEnemy(u, ordered ? 12 : 30, (o) => o.type !== 'dummy' && !o.noTarget && !o.fleeing);
     if (e) {
       const d = dist(e.pos, u.pos);
       // 組から離れすぎたら（12m）、敵へ行かず組の方へ戻る。組が前へ進めば、ついて行く
-      if (mates.length >= 2 && d > 3.5 && lag > 12) { goTo(p, inp, cx, cz, 4); inp.k.delete('KeyE'); inp.guardHold = true; return; }
+      if (mates.length >= 2 && d > 3.5 && lag > 12) { p.yaw = Math.atan2(cx - u.pos.x, cz - u.pos.z); inp.k.add('KeyW'); inp.k.delete('KeyE'); inp.guardHold = true; return; }
       p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
       inp.k.delete('KeyE');
-      if (d > 2.2) goTo(p, inp, e.pos.x, e.pos.z, 2.2); else inp.k.delete('KeyW');
-      if (e === busho) c.bushoMin = Math.min(c.bushoMin || 1e9, d);
+      if (d > 2.2) inp.k.add('KeyW'); else inp.k.delete('KeyW');
+      if (busho) c.bushoMin = Math.min(c.bushoMin || 1e9, d);
       if (d < 14 && !p.lock && t - (c.lockT || -9) > 3) { inp.e.add('KeyQ'); c.lockT = t; }
       // 溜め突き（時々、長押し）
       if (d < 3.6) { if (!c.charge && Math.random() < 0.05) c.charge = t + 0.8; if (c.charge) { inp.chargeHold = t < c.charge; if (t >= c.charge) c.charge = 0; } else if (Math.random() < 0.6) inp.leftPressed = true; }
       inp.guardHold = (b.army.threats || []).length > 0 && Math.random() < 0.85;
-      if (inp.guardHold) { inp.leftPressed = false; inp.chargeHold = false; c.charge = 0; }
-    } else if (!(b.flags.dp && b.flags.dp.on) && mates.length >= 2 && lag > 10 && !inp.k.has('KeyW')) {
-      // 段の任務や、先に決めた行き先を守る。
+    } else if (mates.length >= 2 && lag > 10) {
       // 敵が近くに居ない時は、組について歩く
       p.yaw = Math.atan2(cx - u.pos.x, cz - u.pos.z); inp.k.add('KeyW'); inp.k.delete('KeyE');
     }
@@ -1071,11 +840,6 @@ const HABIT = {
 // 鉄砲・弓を持っていれば、離れた敵に持ち替えて撃ってみる（中学生とせっかち以外。撃ち終えたら槍へ戻す）
 function rangedHabit(b, inp, c) {
   const p = b.player, u = p.u, t = b.t;
-  // 退却の下知中は、追手への射撃で歩みを止めない。槍に戻して退き口へ走る。
-  if (b.flags.retreating && b.def.botOrders) {
-    if (p.weapon === 'gun' || p.weapon === 'bow') inp.e.add('Digit1');
-    return;
-  }
   if (c.per.key === 'chu' || c.per.key === 'sek' || !(p.hasGun || p.hasBow) || p.mounted) return;
   const e = b.army.nearestEnemy(u, 60, (o) => !o.fleeing && o.type !== 'dummy');
   const d = e ? dist(e.pos, u.pos) : 99;
@@ -1124,29 +888,16 @@ function watchStep(b, dt, c) {
   c.acc = (c.acc || 0) + dt;
   const sec = c.acc >= 1; if (sec) c.acc = 0;
   // 号令の輪で選んだのに、号令が出ない
-  if (c.radialWant && t - c.radialWant.t > 1) { if (!c.radialHandled || c.radialHandled.id !== c.radialWant.id || c.radialHandled.t < c.radialWant.t) c.add(`radial-fail:${c.radialWant.id}`, '号令の輪で選んだのに、号令が出なかった', `「${c.radialWant.id}」を選んで放した（${c.where}）`, 3, { shot: true, fix: 'touch.js の号令の丸の滑らせ方と player.js の radialSel を見直す' }); c.radialWant = null; }
+  if (c.radialWant && t - c.radialWant.t > 1) { if (!c.cmdSeen || c.cmdSeen.t < c.radialWant.t) c.add(`radial-fail:${c.radialWant.id}`, '号令の輪で選んだのに、号令が出なかった', `「${c.radialWant.id}」を選んで放した（${c.where}）`, 3, { shot: true, fix: 'touch.js の号令の丸の滑らせ方と player.js の radialSel を見直す' }); c.radialWant = null; }
   // 号令の効き目（出してから3秒で、組の何割が動き出したか）
   //   遠い組へは使番が走る（battle.js orderDelay）ので、号令が着いてから3秒で見る。
   //   動かなくてよい号令（待て・向き直れ・陣形・放て）と、もう持ち場にいる者は「動かない」に数えない
-  if (c.cmdSeen && c.cmdSeen.due == null) c.cmdSeen.due = c.cmdSeen.t + 3 + Math.max(0, ...c.cmdSeen.groups.map((g) => (g.pending ? g.pending.t : 0)));
-  // 三秒後には歩き終えている事もある。号令が届いてからの移動・打ち合いを覚える。
-  if (c.cmdSeen && !c.cmdSeen.checked) for (const [s, response] of c.cmdSeen.response) {
-    if (!s.alive || s.group.pending) continue;
-    if (!response.started) { response.x = s.pos.x; response.z = s.pos.z; response.started = true; }
-    if (Math.hypot(s.pos.x - response.x, s.pos.z - response.z) > 0.5 || Math.hypot(s.vel.x, s.vel.z) > 0.3 || s.target || s.atk) response.acted = true;
-  }
+  if (c.cmdSeen && c.cmdSeen.due == null) c.cmdSeen.due = c.cmdSeen.t + 3 + Math.max(0, ...b.squadGroups.map((g) => (g.pending ? g.pending.t : 0)));
   if (c.cmdSeen && !c.cmdSeen.checked && t > c.cmdSeen.due) {
     c.cmdSeen.checked = true;
-    const live = b.squad.filter((s) => s.alive && c.cmdSeen.response.has(s));
-    const atGoal = (s) => {
-      const g = s.group;
-      if (!g || !g.slotPos) return false;
-      // 「かかれ」で敵がいない兵は組頭の後ろへ寄る。古い隊の持ち場では判定しない。
-      if (c.cmdSeen.id === 'attack') return !!s.moveTo && Math.hypot(s.moveTo.x - s.pos.x, s.moveTo.z - s.pos.z) < 2.5;
-      const sp = g.slotPos(s.slot, g.initial);
-      return Math.hypot(sp.x - s.pos.x, sp.z - s.pos.z) < 2.5;
-    };
-    const moving = live.filter((s) => c.cmdSeen.response.get(s).acted || atGoal(s)).length;
+    const live = b.squad.filter((s) => s.alive);
+    const atSlot = (s) => { const g = s.group; if (!g || !g.slotPos) return false; const sp = g.slotPos(s.slot, g.initial); return Math.hypot(sp.x - s.pos.x, sp.z - s.pos.z) < 2.5; };
+    const moving = live.filter((s) => Math.hypot(s.vel.x, s.vel.z) > 0.3 || s.target || s.atk || atSlot(s)).length;
     if (live.length >= 3 && !['hold', 'face', 'form', 'fire'].includes(c.cmdSeen.id) && moving < live.length * 0.3) c.add(`cmd-slow:${c.cmdSeen.id}`, `号令「${c.cmdSeen.label}」から3秒たっても、組の7割が動かない`, `${live.length}人のうち動いたのは${moving}人（${c.where}）`, per.key === 'sen' ? 2 : 1, { cat: '辻褄', shot: per.key === 'sen', fix: '号令を受けた兵がすぐ向きを変えて動き出すようにする（行き先・狙いの付け直し）' });
     if (!c.cmdSeen.fb && per.key === 'sen') c.add('cmd-nofb', '号令が届いたのか、画面で分からない', `号令のあと1秒、字幕も知らせも出なかった（${c.where}）`, 1, { fix: '号令を出したら、短い字幕か組の頭上の印で「届いた」を見せる' });
   }
@@ -1536,8 +1287,7 @@ async function playPersona(game, spec, aud, c) {
   if (!b || b === previousBattle || !document.getElementById('loading').hidden) { rep.errors.push('新しい戦の読み込みが終わらなかった'); return rep; }
   await wait(300);
   if (per.key === 'sek' && rep.loadMs > 8000) c.add('load-slow', '戦が始まるまでの読み込みが長い', `${name}：押してから ${(rep.loadMs / 1000).toFixed(1)}秒（機械が混んでいる時の値）`, rep.loadMs > 20000 ? 3 : 2, { cat: '使いづらい', fix: '読み込みの間に、戦の心得を読ませる／重い物を後から足す' });
-  if (!b.flags.rojoUI) game.paused = false;
-  document.getElementById('pause').hidden = true;
+  game.paused = false; document.getElementById('pause').hidden = true;
   aud.attach(b, name); aud.scanDom(`${name}・開戦`);
   // 人ごとの目：台詞と号令を拾う
   const om = aud.onMsg.bind(aud);
@@ -1549,33 +1299,15 @@ async function playPersona(game, spec, aud, c) {
   };
   const cmd0 = b.player.command.bind(b.player);
   const LBL = Object.fromEntries(RADIAL.map((r) => [r.id, r.label]));
-  b.player.command = (id, ...a) => {
-    // 取り消しや、組が尽きた知らせも操作への応答。兵が動いた記録とは分ける。
-    c.radialHandled = { id, t: b.t };
-    const groups = b.player.selectedGroups().slice(), previous = b.player.lastCmd;
-    c.cmdSeen = { id, label: LBL[id] || id, t: b.t, groups, response: new Map() };
-    const result = cmd0(id, ...a);
-    // 拒まれた号令・同じ号令を押して取り消した時は、兵への下知として測らない。
-    if (b.player.lastCmd === previous || !b.player.lastCmd) { c.cmdSeen = null; return result; }
-    for (const g of groups) for (const s of g.units) if (s.alive) c.cmdSeen.response.set(s, { x: s.pos.x, z: s.pos.z, started: !g.pending, acted: false });
-    c.cmdN = (c.cmdN || 0) + 1;
-    return result;
-  };
+  b.player.command = (id, ...a) => { c.cmdSeen = { id, label: LBL[id] || id, t: b.t }; c.cmdN = (c.cmdN || 0) + 1; return cmd0(id, ...a); };
   // 自分の突きの当たり・討ち取り
   const P = b.player.u;
   // 「突いた回数」は実の一振り（player.strike が呼ばれた時）で数える。指の丸を押した回数（毎コマ、間合いの外でも押しうる）で数えると、
   // 間を置いて出る本物の一振りより何倍も多く数えてしまい、当たり率が実際より低く見える（kaito 10/1）
   const strike0 = b.player.strike.bind(b.player);
-  b.player.strike = (kind, third) => {
-    rep.attacks = (rep.attacks || 0) + 1;
-    const hits = rep.hits, structures = rep.structHits || 0;
-    const r = strike0(kind, third);
-    if (rep.hits > hits) rep.hitSwings = (rep.hitSwings || 0) + 1;
-    else if ((rep.structHits || 0) > structures) rep.structSwings = (rep.structSwings || 0) + 1;
-    return r;
-  };
+  b.player.strike = (kind, third) => { rep.attacks = (rep.attacks || 0) + 1; return strike0(kind, third); };
   const dmg0 = b.army.damage.bind(b.army);
-  b.army.damage = (t, amount, src, opts) => { const hp = t && t.hp; const r = dmg0(t, amount, src, opts); if (src === P && t && t.isStruct && t.hp < hp) rep.structHits = (rep.structHits || 0) + 1; if (src === P && t && !t.isStruct && amount > 0) { rep.hits++; if (game.hitstop > 0 || game.slowmo > 0) c.feel = (c.feel || 0) + 1; if (t.invuln && (t.type === 'busho' || t.name)) c.invulnHit = t.name || '武将'; } return r; };
+  b.army.damage = (t, amount, src, opts) => { const r = dmg0(t, amount, src, opts); if (src === P && t && !t.isStruct && amount > 0) { rep.hits++; if (game.hitstop > 0 || game.slowmo > 0) c.feel = (c.feel || 0) + 1; if (t.invuln && (t.type === 'busho' || t.name)) c.invulnHit = t.name || '武将'; } return r; };
   const kill0 = b.army.kill.bind(b.army);
   b.army.kill = (t, src) => { if (src === P) rep.kills++; else if (src && src.team === P.team && t && t.team !== P.team) rep.allyKills = (rep.allyKills || 0) + 1; return kill0(t, src); };
   // 味方の隊の働き：5 秒ごとに、味方の隊（組を除く）の中心の動いた距離と、敵が 60m 内にいるのに 20 秒動かない隊を数える
@@ -1600,11 +1332,7 @@ async function playPersona(game, spec, aud, c) {
   const step = b.update.bind(b);
   const inp = fake();
   b.update = (dt, i) => { if (i !== inp && !pad.real && i && i.edge) pad.real = i; };
-  for (let k = 0; k < 40 && !pad.real && performance.now() < BUDGET_END.t; k++) {
-    // 日送り中は本番の更新も来ないので、入力を受け取るまでの待ちに数えない。
-    if (game.paused) k--;
-    await wait(100);
-  }
+  for (let k = 0; k < 40 && !pad.real; k++) await wait(100);
   const touch = isTouch && !!pad.real;
   if (!touch && !V.pc) c.add('no-touch', '指の操作に切り替わらなかった（input を捕まえられない）', `isTouch=${isTouch}`, 1, { cat: '落ちた' });
   c.b = b;
@@ -1622,27 +1350,15 @@ async function playPersona(game, spec, aud, c) {
   let lastYield = tLoop;
   try {
     while (game.battle === b && !b.ended && t < cap && performance.now() < BUDGET_END.t) {
-      if (game.paused) {
-        pad.releaseAll();
-        if (pad.real) pad.real.endFrame();
-        idle = 0;
-        await wait(100); lastYield = performance.now();
-        continue;
-      }
-      inp.e.clear(); inp.leftPressed = false; inp.quickCmd = null;
-      // 判断を休むコマだけ前の歩みを保つ。退避の横歩きを次の判断へ持ち越さない。
-      if (!(V.spd === 1 && frames % 3 !== 0)) {
-        for (const k of ['KeyW', 'KeyS', 'KeyA', 'KeyD']) inp.k.delete(k);
-      }
-      inp.runHeld = false; inp.chargeHold = false;
+      inp.e.clear(); inp.leftPressed = false; inp.quickCmd = null; inp.k.delete('KeyS'); inp.runHeld = false; inp.chargeHold = false;
       for (const k of c.releaseKeys) pad.real && pad.real.keys.delete(k);
       c.releaseKeys.length = 0;
       c.where = `${name}・${Math.round(b.t)}秒・${b.phase || ''}`;
       const ts = performance.now();
       const yaw0 = b.player.yaw;
       // 変わり目「ゆっくり」：考え直すのは3コマに一度（その間は前の手のまま）
-      if (b.over || b.ended || b.flags.ending) {
-        brain(b, inp);
+      if (b.over) {
+        inp.k.clear(); inp.e.clear(); inp.guardHold = false;
       } else if (!(V.spd === 1 && frames % 3 !== 0)) {
         brain(b, inp);
         if (HABIT[per.key]) HABIT[per.key](b, inp, c);
@@ -1719,16 +1435,13 @@ async function playPersona(game, spec, aud, c) {
   if (per.key === 'chu' && c.lostSum > 60) c.add(`lostsum:${spec.id}`, 'この戦のあいだ、迷っていた時間が長い', `${name}：合わせて${Math.round(c.lostSum)}秒${c.storyTooLong ? `（戦の前の説明は${c.storyTooLong}字で、読まなかった）` : ''}`, 2, { fix: '最初の任務の印を近くに・大きく。長い説明は戦の中で一つずつ' });
   c.lostSum = 0;
   if (per.key === 'act') {
-    // 門や柵に当たった振りを、兵への空振りに数えない。空を突いた振りは引き続き数える。
-    const combatSwings = rep.attacks - (rep.structSwings || 0);
-    if (combatSwings > 30 && (rep.hitSwings || 0) < combatSwings * 0.2) c.add(`act-miss:${spec.id}`, '突いても、なかなか当たらない', `${rep.attacks}回振り、門・柵に当たった振り${rep.structSwings || 0}回、兵に当たった振り${rep.hitSwings || 0}回`, 2, { cat: '使いづらい', fix: '狙いの補助と、敵まで通れる道・間合いを確かめる' });
+    if (rep.attacks > 30 && rep.hits < rep.attacks * 0.2) c.add(`act-miss:${spec.id}`, '突いても、なかなか当たらない', `${rep.attacks}回突いて、当たりは${rep.hits}回`, 2, { cat: '使いづらい', fix: '指の端末では、突きの向きを近くの敵へ少し寄せる（狙いの補助）' });
     if (rep.kills >= 3 && rep.hits / rep.kills > 6) c.add(`act-tanky:${spec.id}`, '一人倒すのに何度も突かされる', `平均 ${(rep.hits / rep.kills).toFixed(1)}回で一人`, 1, { cat: '使いづらい', fix: '足軽は2〜3突きで倒れるくらいに' });
     if (!rep.down && rep.kills >= 15 && !(rep.hurt)) c.add(`act-easy:${spec.id}`, '歯ごたえがない（無傷で大勢倒せる）', `${rep.kills}人を無傷で討った`, 1, { cat: '使いづらい', fix: '敵の打ち返し・囲み方を強める' });
     if (rep.down && rep.time < 120) c.add(`act-hard:${spec.id}`, '始まってすぐやられる（難しすぎ）', `${rep.time}秒で倒れた（${rep.hurt || '―'}）`, 2, { cat: '使いづらい' });
     if (rep.hits > 10 && !c.feel) c.add('act-nofeel', '当たった手応え（止め・揺れ）が感じられない', `${rep.hits}回当てて、ヒットストップが一度も無い`, 2, { cat: '使いづらい', fix: 'battle.js の onPlayerLanded の hitstop を確かめる' });
     if (c.mountTry && !c.rode) c.add(`act-mountfail:${spec.id}`, '馬に乗ろうとしても乗れなかった', `${c.mountTry}回試した`, 2, { cat: '使いづらい', fix: '乗れない時は理由を字幕で' });
-    // 船上や寺の中など、乗馬を使わない戦は、その戦の決まりに沿って振り返る。
-    if (!b.def.noHorse && !c.mountTry && !c.rode && !c.looseSeen) c.add('act-nohorse', '馬に乗れる場面がなかった', name, 1, { cat: '使いづらい', fix: '空馬（主を失った馬）をもう少し置く' });
+    if (!c.mountTry && !c.rode && !c.looseSeen) c.add('act-nohorse', '馬に乗れる場面がなかった', name, 1, { cat: '使いづらい', fix: '空馬（主を失った馬）をもう少し置く' });
     if (c.invulnHit) c.add(`act-invuln:${c.invulnHit}`, '武将に斬りかかっても、傷がつかない（不死身）', c.invulnHit, 2, { cat: '辻褄', fix: '討てない武将なら、斬りかかれない理由を見せる' });
     if (rep.time > 180 && rep.kills < rep.time / 60) c.add(`act-dull:${spec.id}`, '斬り合う相手が少なくて退屈', `${Math.round(rep.time / 60)}分で${rep.kills}人`, 1, { cat: '使いづらい' });
     c.feel = 0; c.invulnHit = null; c.mountTry = 0; c.rode = false; c.looseSeen = false; c.bushoMin = 0;

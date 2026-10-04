@@ -72,42 +72,21 @@ export class Auditor {
     // HUD は戦をまたいで同じ物なので、元の関数を一度だけ覚えて包み直す
     const wrap = (obj, name, kind, pick) => { const f = obj['__o_' + name] || (obj['__o_' + name] = obj[name].bind(obj)); obj[name] = (...a) => { log(kind, pick(a)); return f(...a); }; };
     { const f = b.hud.__o_say || (b.hud.__o_say = b.hud.say.bind(b.hud)); b.hud.say = (...a) => { log('台詞', a[1], a[0]); return f(...a); }; }
-    // 間引いて画面へ出さなかった声は、遊び手が聞いた知らせに数えない。
-    { const f = b.hud.__o_bark || (b.hud.__o_bark = b.hud.bark.bind(b.hud)); b.hud.bark = (...a) => { if (b.hud.barkOk(...a)) log('報せ', a[0]); return f(...a); }; }
+    wrap(b.hud, 'bark', '報せ', (a) => a[0]);
     wrap(b.hud, 'flash', '字幕', (a) => a[0]);
-    // 待ち直しや間引きを除き、実際に札を出した時だけ記録する。
-    { const f = b.hud.__o_showHint || (b.hud.__o_showHint = b.hud.showHint.bind(b.hud)); b.hud.showHint = (...a) => { const shown = f(...a); if (shown) log('ヒント', a[0]); return shown; }; }
+    wrap(b.hud, 'hint', 'ヒント', (a) => a[0]);
     wrap(b.hud, 'banner', '見出し', (a) => a[0] + (a[1] ? '　' + a[1] : ''));
     // 同士討ち・おかしな傷
     const army = b.army;
     const dmg = army.damage.bind(army);
     army.damage = (t, amount, src, opts) => {
       if (!Number.isFinite(amount)) self.add('数と文', 'dmgNaN', '傷の値が数でない', `${who(src)} → ${who(t)}：${amount}`, 'damage に渡す値の計算を見直す', who(src));
-      // 防いだ一撃や、意図して打った馬の傷を、人への同士討ちと取り違えない。
-      const hp = t && t.hp;
-      const result = dmg(t, amount, src, opts);
-      if (Number.isFinite(amount) && src && t && !t.isStruct && !src.isStruct && src.team === t.team && src !== t && t.hp < hp) self.add('辻褄', 'friendly:' + (src.type || '?'), '味方が味方を傷つけている', `${who(src)} → ${who(t)}（${Math.round(hp - t.hp)}）`, '狙いの相手を選ぶときに、同じ側を外す', who(src));
-      return result;
+      else if (src && t && !t.isStruct && !src.isStruct && src.team === t.team && src !== t) self.add('辻褄', 'friendly:' + (src.type || '?'), '味方が味方を傷つけている', `${who(src)} → ${who(t)}（${Math.round(amount)}）`, '狙いの相手を選ぶときに、同じ側を外す', who(src));
+      return dmg(t, amount, src, opts);
     };
     // 討ち死には「何かが起きた」に数える
     const kill = army.kill.bind(army);
-    // 崩れた後の残敵ではなく、損害が出た時の敵味方を残す。
-    this.losses = new Map();
-    army.kill = (t, src) => {
-      self.lastEventT = b.t;
-      if (t.alive && t.group && src && src.team !== t.team) {
-        const g = t.group;
-        let record = self.losses.get(g);
-        if (!record) { record = { own: g.count, foes: 0, lost: 0, player: false }; self.losses.set(g, record); }
-        let foes = 0;
-        for (const o of army.units) if (o.alive && !o.noTarget && !o.fleeing && o.team !== g.team
-          && (Math.hypot(o.pos.x - t.pos.x, o.pos.z - t.pos.z) < 25 || o.group === src.group)) foes++;
-        record.foes = Math.max(record.foes, foes); record.lost++;
-        const P = b.player.u;
-        if (src === P || P.alive && Math.hypot(P.pos.x - t.pos.x, P.pos.z - t.pos.z) < 25) record.player = true;
-      }
-      return kill(t, src);
-    };
+    army.kill = (t, src) => { self.lastEventT = b.t; return kill(t, src); };
     // 崩れた部隊：大勢が小勢に削られていないか
     this.routSeen = new Set();
   }
@@ -166,21 +145,16 @@ export class Auditor {
       const g = u.group;
       // ついて来いの兵は、組頭（遊び手）が止まっている間・すぐそばに着いている間は立って待ってよい
       const leaderStill = g && g.order === 'follow' && (Math.hypot(P.vel ? P.vel.x : 0, P.vel ? P.vel.z : 0) < 0.3 || Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 12);
-      // 旗持ち・押し合いの後ろの者も、指定の立ち位置に着けば待ってよい。
-      // 遠くの行き先へ向かう途中で詰まった者は、これまでどおり調べる。
-      const arrived = u.moveTo && Math.hypot(u.moveTo.x - u.pos.x, u.moveTo.z - u.pos.z) < 1.2;
-      const mayIdle = IDLE_OK_TYPES.has(u.type) || u.noTarget || u.fleeing || !g || IDLE_OK_ORDERS.has(g.order) || g.holdFire || u.target || u.atk || (g.leader === u && g.order === 'hold') || leaderStill || arrived;
+      const mayIdle = IDLE_OK_TYPES.has(u.type) || u.noTarget || u.fleeing || !g || IDLE_OK_ORDERS.has(g.order) || g.holdFire || u.target || u.atk || (g.leader === u && g.order === 'hold') || leaderStill;
       const moved = Math.hypot(u.vel.x, u.vel.z) > 0.15;
-      const hasDestination = u.moveTo && Math.hypot(u.moveTo.x - u.pos.x, u.moveTo.z - u.pos.z) > 1.6;
       // （120m 内に敵のいない兵が立って待つのは、困り事に数えない）
-      if (!mayIdle && hasDestination && !moved && b.t > 20 && !b.paused && b.army.nearestEnemy(u, 120, (o) => !o.fleeing)) {
+      if (!mayIdle && !moved && b.t > 20 && !b.paused && b.army.nearestEnemy(u, 120, (o) => !o.fleeing)) {
         const n = (this.idle.get(u) || 0) + step;
         this.idle.set(u, n);
         if (n > 20) { this.add('辻褄', 'stuck:' + (g.name || g.label || u.type), '行き先があるのに20秒動かない兵', `${who(u)}（号令：${g.order}・${g.name || '名なし'}・頭：${g._ai ? (g._ai.ctl || '無') + '/' + (g._ai.mode || '―') : '無'}${g.guard ? '・守り' : ''}${g.focus ? '・的あり' : ''}・近い敵${(() => { const e = b.army.nearestEnemy(u, 200); return e ? Math.round(Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z)) + 'm' + (e.fleeing ? '逃' : '') : 'なし'; })()}）at (${Math.round(u.pos.x)},${Math.round(u.pos.z)})`, '道が塞がれていないか、行き先に着いたと見なせているかを見る', who(u)); this.idle.set(u, -60); }
       } else this.idle.set(u, 0);
-      // 自分のすぐそばで何もしない敵（持ち場の者・敗走中は除く）。
-      // 勝敗後など、敵の狙いに入らない本人は nearestEnemy と同じ条件で除く。
-      if (P.alive && !P.noTarget && (!P.invuln || P.allyOk) && u.team !== P.team && !u.fleeing && !IDLE_OK_TYPES.has(u.type) && !u.noTarget && Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 3.5 && !u.target && !u.atk && !(g && g.order === 'hold')) {
+      // 自分のすぐそばで何もしない敵（持ち場の者・敗走中は除く）
+      if (P.alive && u.team !== P.team && !u.fleeing && !IDLE_OK_TYPES.has(u.type) && !u.noTarget && Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 3.5 && !u.target && !u.atk && !(g && g.order === 'hold')) {
         u.__besideT = (u.__besideT || 0) + step;
         if (u.__besideT > 6) { this.add('辻褄', 'passive:' + u.type, '自分のすぐそばの敵が6秒以上なにもしない', who(u), '近くの敵（遊び手）を狙いに入れる', who(u)); u.__besideT = -60; }
       } else u.__besideT = 0;
@@ -192,9 +166,11 @@ export class Auditor {
       if (g.routed && !this.routSeen.has(g)) {
         this.routSeen.add(g);
         // 大勢が小勢に削られて崩れた（そばに自分がいれば数えない：遊び手は一騎当千でよい）
-        const record = this.losses.get(g);
-        if (record && !record.player && record.own >= 10 && record.foes > 0 && record.own >= record.foes * 2.5
-          && record.lost >= record.own * 0.4) this.add('辻褄', 'outnumbered:' + (g.name || g.label || g.id), '数で勝る隊が、小勢に一方的に削られて崩れた', `${g.name || g.label || '部隊'} 損害が出始めた時${record.own} 対 戦った敵は最多${record.foes}（${record.lost}を失った）`, '兵の数の差が、削り合いと士気に効くようにする');
+        const c = g.center();
+        const foes = army.units.filter((u) => u.alive && u.team !== g.team && Math.hypot(u.pos.x - c.x, u.pos.z - c.z) < 25).length;
+        const nearPlayer = P.alive && Math.hypot(P.pos.x - c.x, P.pos.z - c.z) < 25;
+        const lost = (g.initial || 0) - n;
+        if (!nearPlayer && g.initial >= 10 && foes > 0 && g.initial >= foes * 2.5 && lost >= g.initial * 0.4) this.add('辻褄', 'outnumbered:' + (g.name || g.label || g.id), '数で勝る隊が、小勢に一方的に削られて崩れた', `${g.name || g.label || '部隊'} ${g.initial} 対 そばの敵 ${foes}（${lost}を失った）`, '兵の数の差が、削り合いと士気に効くようにする');
       }
       // 号令だけでなく、兵が本当に戦っている時だけ（units.js は崩れた隊を毎コマ flee に戻すので、号令は一瞬ずれることがある）
       if (g.routed && n > 0 && g.units.some((u) => u.alive && !u.fleeing && (u.target || u.atk))) this.add('辻褄', 'routFight:' + (g.name || g.id), '崩れた部隊が、また戦っている', `${g.name || g.label || '部隊'}（号令：${g.order}）`, '崩れた部隊の号令を上書きしない');
@@ -373,34 +349,7 @@ export class Auditor {
     if (label) this.where = label;
     const W = innerWidth, H = innerHeight;
     const roots = ['hud', 'screen', 'pause'].map((id) => document.getElementById(id)).filter((el) => el && !el.hidden && getComputedStyle(el).display !== 'none');
-    // 巻物の外へ送った釦や、閉じた「もっと読む」の中は押せない。
-    // 生の座標だけで比べると、下の操作帯と重なったと誤って数える。
-    const visibleRect = (el) => {
-      const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
-      if (cs.visibility === 'hidden' || cs.visibility === 'collapse') return null;
-      let left = Math.max(0, r.left), right = Math.min(W, r.right), top = Math.max(0, r.top), bottom = Math.min(H, r.bottom);
-      for (let p = el; p; p = p.parentElement) {
-        const s = getComputedStyle(p);
-        if (p.hidden || s.visibility === 'hidden' || s.visibility === 'collapse' || s.display === 'none' || +s.opacity <= 0.05) return null;
-        if (p.tagName === 'DETAILS' && !p.open && !p.querySelector(':scope > summary')?.contains(el)) return null;
-        if (p === el) continue;
-        const b = p.getBoundingClientRect();
-        if (/^(auto|scroll|hidden|clip)$/.test(s.overflowX)) { left = Math.max(left, b.left + p.clientLeft); right = Math.min(right, b.left + p.clientLeft + p.clientWidth); }
-        if (/^(auto|scroll|hidden|clip)$/.test(s.overflowY)) { top = Math.max(top, b.top + p.clientTop); bottom = Math.min(bottom, b.top + p.clientTop + p.clientHeight); }
-      }
-      return right > left && bottom > top ? { left, right, top, bottom, width: right - left, height: bottom - top } : null;
-    };
-    // 枠外の釦の検査は元の座標で続け、重なりだけを見える範囲で比べる。
-    const visible = (el) => {
-      // 閉じた「もっと読む」の中には、字の位置だけ残る端末がある。押せる見出しだけを調べる。
-      for (let p = el.parentElement; p; p = p.parentElement) {
-        if (p.tagName === 'DETAILS' && !p.open && !p.querySelector(':scope > summary')?.contains(el)) return false;
-        const cs = getComputedStyle(p);
-        if (p.hidden || cs.visibility === 'hidden' || cs.visibility === 'collapse' || cs.display === 'none' || +cs.opacity <= 0.05) return false;
-      }
-      const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
-      return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.visibility !== 'collapse' && +cs.opacity > 0.05 && cs.display !== 'none';
-    };
+    const visible = (el) => { const r = el.getBoundingClientRect(); const cs = getComputedStyle(el); return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && +cs.opacity > 0.05 && cs.display !== 'none'; };
     const name = (el) => (el.id ? '#' + el.id : '') + (el.className && typeof el.className === 'string' ? '.' + el.className.split(' ').filter(Boolean).slice(0, 2).join('.') : '') || el.tagName.toLowerCase();
     const path = (el) => { const a = []; let e = el; for (let i = 0; e && i < 3 && e !== document.body; i++, e = e.parentElement) a.unshift(name(e)); return a.join(' > '); };
     for (const root of roots) {
@@ -439,7 +388,7 @@ export class Auditor {
         }
       }
       // 押せる所どうしの重なり
-      const btns = [...root.querySelectorAll('button')].map((el) => ({ el, r: visibleRect(el) })).filter((b) => b.r);
+      const btns = [...root.querySelectorAll('button')].filter(visible).map((el) => ({ el, r: el.getBoundingClientRect() }));
       for (let i = 0; i < btns.length; i++) for (let j = i + 1; j < btns.length; j++) {
         const a = btns[i], c = btns[j];
         if (a.el.contains(c.el) || c.el.contains(a.el)) continue;
@@ -502,7 +451,7 @@ function farPoints(world) {
   const grid = new Map(), info = [];
   const C = 2;
   list.forEach((a, k) => {
-    const grp = a.mesh; if (!grp || !grp.parent || !grp.children || !grp.children[0] || !grp.visible || a._near) { info.push({ x: 0, z: 0, n: 0 }); return; }
+    const grp = a.mesh; if (!grp || !grp.parent || !grp.children || !grp.children[0] || !grp.visible) { info.push({ x: 0, z: 0, n: 0 }); return; }
     grp.updateMatrixWorld(true);
     const body = grp.children[0];
     const n = body.count || 0;
@@ -513,9 +462,6 @@ function farPoints(world) {
       const e = _m4.elements;
       if (!(e[0] * e[0] + e[1] * e[1] + e[2] * e[2] >= 1e-4)) continue;
       _v.setFromMatrixPosition(_m4).applyMatrix4(body.matrixWorld);
-      // 描画側も、替えられない大軍は戦場とその周囲40mに出さない（world.js の armyShader）。
-      // 行列に残っているだけの、見えない兵を重なりに数えない。
-      if (a.unavailable && Math.max(Math.abs(_v.x), Math.abs(_v.z)) < (world.def.moveLim || 176) + 40) continue;
       sx += _v.x; sz += _v.z; vn++;
       const key = Math.floor(_v.x / C) + ',' + Math.floor(_v.z / C);
       let c = grid.get(key); if (!c) grid.set(key, (c = []));
