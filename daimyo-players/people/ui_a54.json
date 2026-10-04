@@ -1,0 +1,1 @@
+{"persona": "ui_a54", "name": "画面にうるさい人・小さい画面でせっかち・自分で全部命じる／乗っている", "view": [667, 375], "base": "ui", "days": 90, "runs": [{"sc": "nagashino", "clan": "織田家", "days": 90, "battles": 2, "stalls": 0, "refused": 3, "refusedDays": 2, "end": "1575年8月", "result": null, "castles": 21, "troops": 50562, "asked": [], "findings": []}], "at": "2026-10-04T08:56:41"}
