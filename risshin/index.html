@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202610031843 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202610032113 として写した） -->
 <title>戦国立身3D　足軽から天下へ、戦国の合戦アクション</title>
 <meta name="description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。">
 <link rel="canonical" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/">
@@ -9,7 +9,7 @@
 <meta property="og:image" content="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/og.png"><meta property="og:image:width" content="1280"><meta property="og:image:height" content="672"><meta property="og:image:alt" content="姉川の戦いの戦場を行く足軽">
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="戦国立身3D　足軽から天下へ"><meta name="twitter:description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。"><meta name="twitter:image" content="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/og.png">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGame","name":"戦国立身3D","inLanguage":"ja","url":"https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/","description":"足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。","genre":["アクション","歴史","戦国"],"gamePlatform":["Web","iOS"],"applicationCategory":"Game","operatingSystem":"Web, iOS","image":"https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/og.png","offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"}}</script>
-<link rel="icon" type="image/png" sizes="32x32" href="./v202610031843/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610031843/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610031843/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610031843/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202610032113/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610032113/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610032113/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610032113/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -97,6 +97,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--kin); outli
 #subtitle .sp { color: var(--kin); margin-right: .6em; font-size: max(12px, calc(14px * var(--text-scale, 1))); letter-spacing: .06em; }
 #prompt { position: absolute; left: 50%; top: 58%; transform: translateX(-50%); padding: 4px 12px; background: rgba(10,9,7,.75); border: 1px solid var(--line); font-size: max(12px, calc(13px * var(--text-scale, 1))); }
 #prompt kbd { color: var(--kin); font-family: var(--ui); margin-right: 6px; }
+#prompt button[data-entry] { min-height: 48px; min-width: 132px; padding: 8px 16px; font: 600 16px/1.4 var(--ui); color: var(--washi); background: #2c2821; border: 1px solid var(--kin); pointer-events: auto; cursor: pointer; touch-action: manipulation; }
+#prompt button[data-entry]:hover { background: #3a352b; }
+#prompt button[data-entry]:active { background: #484033; }
 
 #toasts { position: absolute; right: 290px; top: 38%; display: grid; gap: 4px; justify-items: end; }
 .toast { font-size: max(12px, calc(14px * var(--text-scale, 1))); text-shadow: 0 1px 3px #000; animation: toast 2.6s ease-out forwards; white-space: nowrap; }
@@ -1751,5 +1754,5 @@ html.touch.tc-low #hud #armybar { width: min(360px, 40vw); top: calc(6px + env(s
 } }
 </script>
 <script type="module">
-import('./v202610031843/src/main.js').catch(() => window.__bootFail());
+import('./v202610032113/src/main.js').catch(() => window.__bootFail());
 </script>
