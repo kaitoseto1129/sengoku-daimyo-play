@@ -193,10 +193,18 @@ async function playOnce() {
   const deadline = t0 + LIMIT_MIN * 60e3 - (OUT ? 45e3 : 150e3);
   // 画面の中の遊びは、上限から4分引いた持ち時間で切り上げさせる（読み込み・後片付け・写真の分）
   const budget = Math.max(120, LIMIT_MIN * 60 - (OUT ? 80 : 240));
-  // 混んだ機械では一回の問い合わせが返らないことがあるので、待つのは60秒まで
-  const ev = (x) => Promise.race([c.ev(x), sleep(45e3).then(() => { throw new Error('ページが60秒答えない'); })]);
+  // 時間切れとページ内の例外を分ける。返事が来たら待ちの時計も片付ける。
+  const ev = async (x) => {
+    let timer;
+    try {
+      return await Promise.race([c.ev(x), new Promise((resolve, reject) => {
+        timer = setTimeout(() => { const e = new Error('ページが45秒答えない'); e.pageTimeout = true; reject(e); }, 45e3);
+      })]);
+    } finally { clearTimeout(timer); }
+  };
   let data = null, cut = '', c = null;
   const shots = {};
+  const queryErrors = new Map();
   try {
     const W = PC ? SIZE : [PHONE.width, PHONE.height];
     c = await openChrome({ width: W[0], height: W[1] });
@@ -209,13 +217,23 @@ async function playOnce() {
       await sleep(700);
       // 一回の問い合わせで、写真の頼み・終わり・進み具合をまとめて聞く（混んだ機械では問い合わせ一つが重い）
       const tq = Date.now();
-      const st0 = await ev(`const b = window.__game && window.__game.battle; return { want: window.__shotWant || null, data: window.__botData || null, log: (window.__botLog || '') + (b ? '（戦 ' + Math.round(b.t) + '秒・' + (b.phase || '') + '）' : ''), part: ${Date.now() - keepT > 60e3 ? '(window.__botFlush && window.__botFlush(), window.__botPartial || null)' : 'null'} };`).catch(() => null);
+      let queryError = null;
+      const st0 = await ev(`const b = window.__game && window.__game.battle; const loading = document.getElementById('loading'); return { want: window.__shotWant || null, data: window.__botData || null, log: (window.__botLog || '') + (loading && !loading.hidden ? '（支度：' + (document.getElementById('ld-stage')?.firstChild?.textContent || '読み込み中') + '）' : '') + (b ? '（戦 ' + Math.round(b.t) + '秒・' + (b.phase || '') + '）' : ''), part: ${Date.now() - keepT > 60e3 ? '(window.__botFlush && window.__botFlush(), window.__botPartial || null)' : 'null'} };`).catch((e) => { queryError = e; return null; });
+      if (queryError && !queryError.pageTimeout) {
+        slow = 0;
+        const reason = String(queryError.message || queryError).slice(0, 300);
+        const item = queryErrors.get(reason) || { reason, count: 0, where: last };
+        item.count++; queryErrors.set(reason, item);
+        if (item.count === 1) console.log(`  問い合わせ中に例外：${reason}`);
+        continue;
+      }
       if (!st0) { slow++; if (slow === 1) frozeAt = last; console.log(`  ${Math.round((Date.now() - t0) / 1000)}秒：ページが答えない（${slow}回目）`); continue; }
       if (Date.now() - tq > 20e3) console.log(`  ページの返事が遅い（${Math.round((Date.now() - tq) / 1000)}秒）`);
       slow = 0;
       if (st0.part) { keep = st0.part; keepT = Date.now(); }
       data = st0.data;
-      if (st0.log !== last && Date.now() - lastT > 30e3) { console.log(`  ${Math.round((Date.now() - t0) / 1000)}秒：${st0.log}`); last = st0.log; lastT = Date.now(); }
+      if (st0.log !== last && Date.now() - lastT > 30e3) { console.log(`  ${Math.round((Date.now() - t0) / 1000)}秒：${st0.log}`); lastT = Date.now(); }
+      last = st0.log;
       const want = st0.want;
       if (want && !shots[want.id]) {
         const n = Object.keys(shots).length + 1;
@@ -246,7 +264,8 @@ async function playOnce() {
     // ページが固まって答えない時は、最後に聞けた途中の記録を使い、「固まった」ことも問題として残す
     if (!data && keep) data = keep;
     if (!data) data = { persona: PERSONA, size: PC ? `${SIZE[0]}×${SIZE[1]}` : `${PHONE.width}×${PHONE.height}`, dpr: PC ? 1 : 3, touch: !PC, quality: 'low', battles: [], problems: [], feel: '' };
-    if (slow >= 3) { data.problems = [...(data.problems || []), { key: 'page-frozen', cat: '落ちた', title: '遊んでいる途中で画面が固まった（長く答えない）', what: `${slow}回続けて60秒以上返事が無い。最後の様子：${frozeAt || last || '—'}`, where: frozeAt || last || '', sev: 3, count: 1, battles: [], fix: '固まった戦の読み込み・描画（初めての描画での影や素材の組み立て）を見る' }]; }
+    if (slow >= 3) { data.problems = [...(data.problems || []), { key: 'page-frozen', cat: '落ちた', title: '遊んでいる途中で画面が固まった（長く答えない）', what: `${slow}回続けて45秒以上返事が無い。最後の様子：${frozeAt || last || '—'}`, where: frozeAt || last || '', sev: 3, count: 1, battles: [], fix: '最後に記録した支度の段階・戦の経過から、止まった処理を調べる' }]; }
+    for (const item of queryErrors.values()) data.problems = [...(data.problems || []), { key: 'query-error:' + item.reason, cat: '落ちた', title: 'テスト役の問い合わせ中に例外が出た', what: item.reason, where: item.where, sev: 3, count: item.count, battles: [], fix: '例外の発生箇所を調べる。応答の時間切れとは分けて直す' }];
     if (!data) data = await ev('if (window.__botFlush) window.__botFlush(); return window.__botPartial || null;').catch(() => null);
   } catch (e) { cut = `途中で止まった：${String(e.message || e).slice(0, 160)}`; }
   finally { if (c) c.close(); }

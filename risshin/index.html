@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202610032113 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202610041616 として写した） -->
 <title>戦国立身3D　足軽から天下へ、戦国の合戦アクション</title>
 <meta name="description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。">
 <link rel="canonical" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/">
@@ -9,11 +9,8 @@
 <meta property="og:image" content="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/og.png"><meta property="og:image:width" content="1280"><meta property="og:image:height" content="672"><meta property="og:image:alt" content="姉川の戦いの戦場を行く足軽">
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="戦国立身3D　足軽から天下へ"><meta name="twitter:description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。"><meta name="twitter:image" content="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/og.png">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGame","name":"戦国立身3D","inLanguage":"ja","url":"https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/","description":"足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。","genre":["アクション","歴史","戦国"],"gamePlatform":["Web","iOS"],"applicationCategory":"Game","operatingSystem":"Web, iOS","image":"https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/og.png","offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"}}</script>
-<link rel="icon" type="image/png" sizes="32x32" href="./v202610032113/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610032113/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610032113/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610032113/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202610041616/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610041616/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610041616/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610041616/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
 <style>
 :root {
   color-scheme: dark;
@@ -30,8 +27,8 @@
   --moegi: #6f8a4e;
   --ai: #5b7aa6;
   --line: rgba(236, 228, 210, 0.16);
-  --display: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif;
-  --ui: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+  --display: "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --ui: "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
 }
 [hidden] { display: none !important; }
 html, body { height: 100%; margin: 0; background: var(--sumi); color: var(--washi); font-family: var(--ui); font-size: max(12px, calc(16px * var(--text-scale))); overflow: hidden; }
@@ -239,9 +236,12 @@ pre.copy { white-space: pre-wrap; background: var(--sumi-2); border: 1px solid v
 body:has(#pause:not([hidden])) #hud :is(#subtitle, #bark, #banner, #objectives, #markers, #hint, #tutorial) { visibility: hidden; }
 #pause div { text-align: center; }
 #pause h3 { font-family: var(--display); font-size: max(12px, calc(32px * var(--text-scale, 1))); letter-spacing: .3em; margin: 0 0 10px; }
-#pause p { color: var(--washi-dim); font-size: max(12px, calc(13px * var(--text-scale, 1))); }
+#pause p { color: var(--washi-dim); font-size: max(15px, calc(15px * var(--text-scale, 1))); line-height:1.7; }
+#pause .skiphint { font-size:max(13px, calc(13px * var(--text-scale, 1))); }
 #loading { position: fixed; inset: 0; display: grid; place-items: center; background: var(--sumi); }
 #loading[hidden] { display: none !important; }
+#loading { z-index: 70; overflow-y: auto; box-sizing: border-box; padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+#ld-stage .ld-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 
 /* ---------- 改善で加えた表示 ---------- */
 .bar { grid-template-columns: 34px 1fr 64px; }
@@ -348,12 +348,12 @@ body.rm .mk.main::before { animation: none; }
 #loading p { max-width: 30em; margin: 18px auto 0; font-family: var(--ui); font-size: max(12px, calc(13px * var(--text-scale, 1))); letter-spacing: .04em; color: var(--washi-faint); line-height: 1.8; text-align: center; padding: 0 16px; }
 #glfail { position: fixed; inset: 0; background: var(--sumi); display: grid; place-items: center; padding-inline: 16px; }
 .settings { display: grid; gap: 14px; max-width: 560px; }
-.settings .s-row { display: grid; grid-template-columns: minmax(150px, 230px) 1fr 60px; gap: 14px; align-items: center; font-size: max(12px, calc(14px * var(--text-scale, 1))); }
+.settings .s-row { margin-bottom: 8px; display: grid; grid-template-columns: minmax(150px, 230px) 1fr 60px; gap: 14px; align-items: center; font-size: max(12px, calc(14px * var(--text-scale, 1))); }
 .settings .s-row label { color: var(--washi-dim); }
 .settings .s-row output { font-variant-numeric: tabular-nums; color: var(--washi-dim); font-size: max(12px, calc(12px * var(--text-scale, 1))); text-align: right; }
-.settings input[type=range] { width: 100%; accent-color: var(--shu); }
-.settings select { background: var(--sumi-2); color: var(--washi); border: 1px solid var(--line); padding: 6px 8px; font-family: var(--ui); }
-.settings input[type=checkbox] { accent-color: var(--shu); width: 18px; height: 18px; }
+.settings input[type=range] { min-height: 44px; margin: 0; width: 100%; accent-color: var(--shu); }
+.settings select { min-height: 44px; min-width: 0; width: 100%; font-size: max(15px, calc(15px * var(--text-scale, 1))); background: var(--sumi-2); color: var(--washi); border: 1px solid var(--line); padding: 6px 8px; font-family: var(--ui); }
+.settings input[type=checkbox] { accent-color: var(--shu); width: 44px; height: 44px; margin: 0; }
 @media (max-width: 520px) { .settings .s-row { grid-template-columns: 1fr 60px; } .settings .s-row label { grid-column: 1 / -1; } }
 .story p { opacity: 0; animation: ln .8s ease-out forwards; }
 .story .keyhint { margin-top: 14px; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-faint); }
@@ -445,7 +445,7 @@ body.rm .toast, body.rm #banner.show, body.rm .ln, body.rm .promo, body.rm .stor
 /* 一時停止など戦の上に画面を開いている間は、組の札を透かして見せない（下の釦と重なって読みにくい） */
 body:has(#screen:not([hidden])) #hud #h-squad, body:has(#pause:not([hidden])) #hud :is(#h-squad, #armybar, .bl) { visibility: hidden !important; }
 /* 開戦の題字の間は、指の丸も控えめに（題の一場面を釦で埋めない。触れればすぐ効く） */
-body:has(#intro:not([hidden])) #tc :is(.tb, .stick, .mzone) { opacity: .28; transition: opacity .6s; }
+body:has(#intro:not([hidden])) #tc { visibility: hidden; pointer-events: none; }
 /* 左上：戦功の札 */
 .tl { width: 230px; gap: 8px; }
 .plaque { display: inline-flex; align-items: baseline; gap: 8px; padding: 6px 14px 6px 12px; background: var(--lacquer); box-shadow: inset 0 0 0 1px var(--gold-line); border-left: 3px solid var(--kin); width: max-content; }
@@ -544,6 +544,8 @@ body.rm #intro .card { animation: none !important; opacity: 1; }
   #banner .brush { max-width: 100%; box-sizing: border-box; padding: 7px 18px 9px; letter-spacing: .1em; overflow-wrap: anywhere; }
 }
 @keyframes introCard { 0% { opacity: 0; filter: blur(3px); } 18% { opacity: 1; filter: blur(0); } 80% { opacity: 1; } 100% { opacity: 0; } }
+/* 読み終えて押す札は、映画の題と違い自動で消さない。 */
+#intro:has(#intro-go) .card { animation: none; opacity: 1; filter: none; box-sizing: border-box; max-height: 100dvh; overflow-y: auto; }
 /* 戦況の知らせ（中央下の白抜き文字） */
 #bark { bottom: calc(190px + env(safe-area-inset-bottom, 0px)); }
 /* 狭い画面では字幕が二、三行になるので、知らせをその上へ逃がす（重ならないように） */
@@ -743,7 +745,7 @@ body:has(#hud.photo) #overlay { display: none; }
 /* 進みの棒（10/2）：左から伸びる。動かすのは main.js の ldStep・題までは下の #boot の小さな script */
 #loading .ldbar, #boot .ldbar { width: min(320px, 70vw); height: 6px; border-radius: 3px; background: var(--sumi-3); margin: 16px auto 0; overflow: hidden; position: relative; }
 #loading .ldbar i, #boot .ldbar i { position: absolute; inset: 0; background: var(--kin); transform-origin: left center; transform: scaleX(0); will-change: transform; }
-#boot { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: var(--sumi); color: var(--washi); text-align: center; transition: opacity .35s; }
+#boot { position: fixed; inset: 0; z-index: 60; box-sizing: border-box; overflow-y: auto; padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); display: grid; place-items: center; background: var(--sumi); color: var(--washi); text-align: center; transition: opacity .35s; }
 #boot.out { opacity: 0; pointer-events: none; }
 #boot .bt { font-family: var(--display); font-size: max(12px, calc(28px * var(--text-scale, 1))); letter-spacing: .3em; color: var(--washi); }
 #boot #boot-st { margin-top: 12px; font-family: var(--ui); font-size: max(12px, calc(15px * var(--text-scale, 1))); }
@@ -864,14 +866,14 @@ body.mincho, body.mincho button, body.mincho .note { font-family: var(--display)
 .ld-body { display: grid; grid-template-columns: minmax(280px, 380px) 1fr; gap: 28px; align-items: start; margin-top: 18px; }
 .ld-look .preview3d { width: 100%; height: 400px; margin: 0; }
 .ld-name { font-family: var(--display); font-size: max(12px, calc(34px * var(--text-scale, 1))); font-weight: 800; letter-spacing: .12em; color: var(--washi); }
-.ld-name small { display: block; font-size: max(12px, calc(13px * var(--text-scale, 1))); color: var(--kin); letter-spacing: .3em; margin-bottom: 2px; }
-.ld-cmd { margin: 6px 0 4px; color: var(--washi-dim); font-size: max(12px, calc(14px * var(--text-scale, 1))); }
+.ld-name small { display: block; font-size: max(13px, calc(13px * var(--text-scale, 1))); color: var(--kin); letter-spacing: .3em; margin-bottom: 2px; }
+.ld-cmd { margin: 6px 0 4px; color: var(--washi-dim); font-size: max(15px, calc(15px * var(--text-scale, 1))); }
 .ld-cmd b { color: var(--washi); font-size: max(12px, calc(17px * var(--text-scale, 1))); font-variant-numeric: tabular-nums; }
 .ld-cond { display: inline-block; margin: 6px 0 14px; padding: 3px 10px; font-size: max(12px, calc(13px * var(--text-scale, 1))); border: 1px solid var(--line); color: var(--washi-dim); }
 .ld-cond.st-now { border-color: var(--shu); color: #f0c9b8; }
 .ld-cond.st-done { border-color: var(--kin); color: var(--kin); }
 .ld-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 16px; }
-.ld-cols h5 { margin: 0 0 6px; font-size: max(12px, calc(12px * var(--text-scale, 1))); letter-spacing: .25em; color: var(--kin); font-weight: 500; }
+.ld-cols h5 { margin: 0 0 6px; font-size: max(13px, calc(13px * var(--text-scale, 1))); letter-spacing: .25em; color: var(--kin); font-weight: 500; }
 .ld-cols p { margin: 0; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: max(12px, calc(14px * var(--text-scale, 1))); line-height: 1.6; }
 @media (max-width: 900px) { .ld-stair { grid-template-columns: repeat(5, 1fr); height: auto; } .ld-step { margin-bottom: 0; } .ld-body { grid-template-columns: 1fr; } .ld-line { display: none; } }
 /* 馬屋 */
@@ -881,7 +883,7 @@ body.mincho, body.mincho button, body.mincho .note { font-family: var(--display)
 .stable-lock .preview3d { filter: grayscale(.8) brightness(.7); }
 .st-name { text-align: center; font-family: var(--display); font-size: max(12px, calc(24px * var(--text-scale, 1))); letter-spacing: .15em; color: var(--washi); margin: 4px 0 8px; }
 .st-name small { display: block; font-family: var(--ui); font-size: max(12px, calc(12px * var(--text-scale, 1))); letter-spacing: .1em; color: var(--kin); }
-.hstats { display: grid; grid-template-columns: 34px 1fr 34px 1fr 34px 1fr; gap: 4px 6px; align-items: center; margin-top: 6px; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); }
+.hstats { display: grid; grid-template-columns: 34px 1fr 34px 1fr 34px 1fr; gap: 4px 6px; align-items: center; margin-top: 6px; font-size: max(13px, calc(13px * var(--text-scale, 1))); color: var(--washi-dim); }
 .hstats .hb { display: block; height: 5px; background: rgba(0,0,0,.4); border: 1px solid var(--line); }
 .hstats .hb b { display: block; height: 100%; background: var(--kin); }
 @media (max-width: 900px) { .stable, .stable-lock { grid-template-columns: 1fr; } }
@@ -894,7 +896,7 @@ body.mincho, body.mincho button, body.mincho .note { font-family: var(--display)
 .pc-ladder-lbl { font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); letter-spacing: .2em; margin-top: -8px; margin-bottom: 12px; }
 /* エンディングの流れる字幕 */
 .credits { height: min(34vh, 260px); margin: 10px 0 14px; overflow: hidden; position: relative; mask-image: linear-gradient(transparent, #000 15%, #000 85%, transparent); -webkit-mask-image: linear-gradient(transparent, #000 15%, #000 85%, transparent); }
-.credits .roll { position: absolute; left: 0; right: 0; text-align: center; animation: roll 36s linear 5.5s both; line-height: 2.4; font-size: max(12px, calc(14px * var(--text-scale, 1))); color: var(--washi-dim); }
+.credits .roll { position: absolute; left: 0; right: 0; text-align: center; animation: roll 36s linear 5.5s both; line-height: 2.4; font-size: max(15px, calc(15px * var(--text-scale, 1))); color: var(--washi-dim); }
 .credits .roll b { display: block; font-family: var(--display); font-size: max(12px, calc(18px * var(--text-scale, 1))); color: var(--washi); margin-top: 18px; }
 @keyframes roll { from { transform: translateY(min(34vh, 260px)); } to { transform: translateY(-100%); } }
 /* 写真モード */
@@ -1078,7 +1080,7 @@ details[open] > summary::before { transform: rotate(90deg); }
 #objectives li.main .tag { color: var(--kin); border-color: var(--gold-line); }
 #objectives li.side { color: var(--washi); }
 #objectives li.opt, #objectives li.opt .tag { color: var(--washi-dim); }
-#objectives li.done .tag::after { content: '済'; margin-left: 2px; }
+#objectives li.done .tag::after { content: ''; }
 #objectives li.fail .tag::after { content: '✕'; margin-left: 2px; }
 /* 敵将の札は画面の上（戦況の下）。狙いの札はその下へずらし、知らせと重ねない */
 #boss { top: calc(118px + env(safe-area-inset-top, 0px)); bottom: auto; }
@@ -1149,7 +1151,8 @@ html.touch body.rm #hud #tutorial.coach.hintc.in { animation: none !important; }
 /* 501・502・503 任務札：字は左寄せ、済んだ任務は畳んで「済 n」、進み具合に細い帯 */
 #objectives { text-align: left; }
 #objectives h4 { text-align: right; }
-#objectives li { line-height: 1.45; display: grid; grid-template-columns: auto 1fr; column-gap: 0; align-items: baseline; }
+#objectives li { line-height: 1.45; display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 0; align-items: baseline; }
+#objectives li .obj-text { min-width: 0; overflow-wrap: anywhere; }
 #objectives li .tag { grid-row: 1 / span 3; align-self: start; margin-top: 1px; }
 #objectives li small, #objectives li .opb { grid-column: 2; }
 #objectives li .opb { display: block; height: 4px; margin: 3px 0 2px; background: rgba(0,0,0,.6); box-shadow: inset 0 0 0 1px rgba(236,228,210,.14); position: relative; }
@@ -1442,11 +1445,12 @@ html.touch.inframe #tc .hint { top: calc(70px + env(safe-area-inset-top, 0px)); 
 @media (max-height: 500px) {
   /* 組・武将の顔の札は、号令を出している間だけ（平時は戦場を広く） */
   html.touch:not(.tc-cmd) #hud #h-units { display: none; }
-  /* 任務は二行まで、小地図は小さく（右の「狙い」の丸に届かない高さ） */
-  html.touch #hud #objectives { max-height: 58px; }
-  /* 長い任務（21字から）は字を小さくして二行に収める（三行目が札の外へはみ出していた。見回り 10/2） */
-  html.touch #hud #objectives li.cur.long:not(.done) { font-size: max(12px, calc(13.5px * var(--text-scale, 1))); line-height: 1.32; padding: 4px 6px; }
-  html.touch #hud #objectives:has(li.cur.long) { max-height: 74px; }
+  /* 今の任務は全文の高さを確保する。見出しを別の行にして本文の幅を空ける。 */
+  html.touch #hud #objectives { max-height: none; }
+  html.touch #hud #objectives li { grid-template-columns: minmax(0, 1fr); }
+  html.touch #hud #objectives li .tag { grid-row: auto; }
+  html.touch #hud #objectives li small, html.touch #hud #objectives li .opb { grid-column: 1; }
+  html.touch #hud #objectives li.cur.long:not(.done) { font-size: max(15px, calc(15px * var(--text-scale, 1))); line-height: 1.4; padding: 4px 6px; }
   html.touch #hud #minimap { width: 62px; height: 62px; }
   /* ヒントは上の真ん中に短く（左の札・顔の札の下に潜らない） */
   /* 手ほどき・ヒントの札：戦功の札の右、方角の帯の下に（左下の体力の札・字幕・右下の丸に掛けない） */
@@ -1606,17 +1610,18 @@ html.touch.tc-low #hud #h-units .uc.on .nm::before { content: none; }
 /* 字幕：組の一行のすぐ上の決まった帯に一つ（号令の輪を開いている間は隠す） */
 html.touch.tc-low #hud #subtitle { left: var(--pm-l) !important; right: var(--pm-r) !important; transform: none !important; width: fit-content; max-width: none !important; margin-inline: auto !important; bottom: calc(82px + env(safe-area-inset-bottom, 0px)) !important; font-size: max(12px, calc(14px * var(--text-scale, 1))); line-height: 1.45; }
 html.touch.tc-low #hud #subtitle .more { display: none; }
-html.touch.tc-low #hud:has(#h-squad[hidden]) #subtitle { bottom: var(--pm-b) !important; }
-/* 一番下の帯では右の丸は「構え」「突く」だけ：字幕を右へ広げて、三行に折れないように */
-html.touch.tc-low:not(.tc-sw) #hud:has(#h-squad[hidden]) #subtitle { right: calc(214px + env(safe-area-inset-right, 0px)) !important; font-size: max(12px, calc(15px * var(--text-scale, 1))); }
+html.touch.tc-low #hud:has(#h-squad[hidden]) > #subtitle { bottom: var(--pm-b) !important; }
+/* 一番下の帯に直接置く字幕だけ広げる。知らせ欄の中の字幕は欄の幅に従う。 */
+html.touch.tc-low:not(.tc-sw) #hud:has(#h-squad[hidden]) > #subtitle { right: calc(214px + env(safe-area-inset-right, 0px)) !important; font-size: max(12px, calc(15px * var(--text-scale, 1))); }
 html.touch.tc-low #hud:has(#h-squad.open) #subtitle, html.touch.tc-low.tc-cmd #hud #subtitle, html.touch.tc-low.tc-cmd #hud #bark { visibility: hidden; }
 /* 知らせは上の真ん中より左寄りに一つ（右上の任務・丸に掛けない） */
 html.touch.tc-low #hud #bark { top: calc(112px + env(safe-area-inset-top, 0px)); bottom: auto; left: calc(50% - 60px); transform: translateX(-50%); max-width: min(40vw, 320px); }
 /* 右上の任務は今の一つだけ、小地図は小さく。上の札は止める・地図・視点の下へ */
 html.touch.tc-low #hud .tr { width: 190px; gap: 6px; top: calc(8px + env(safe-area-inset-top, 0px)); }
-html.touch.tc-low #hud #objectives { max-height: 58px; overflow: hidden; padding: 6px 10px; font-size: max(12px, calc(12px * var(--text-scale, 1))); }
-html.touch.tc-low #hud #objectives:has(li.cur.long) { max-height: 74px; }
-html.touch.tc-low #hud #objectives li.more { min-height: 0; line-height: 18px; margin-top: 0; }
+html.touch.tc-low #hud #objectives { max-height: none; overflow: visible; padding: 6px 10px; font-size: max(12px, calc(12px * var(--text-scale, 1))); }
+/* 一覧を開いた時だけ高さを限り、指で最後の任務まで読めるようにする。 */
+html.touch.tc-low #hud #objectives.expand { max-height: 50dvh; overflow-y: auto; touch-action: pan-y; overscroll-behavior: contain; }
+html.touch.tc-low #hud #objectives:not(.expand) li.more { min-height: 44px; line-height: 1.4; margin-top: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
 /* 任務更新の知らせは一行に（折り返すと小地図の下へ潜って読めない） */
 html.touch.tc-low #hud #objectives .objnew { margin-top: 2px; white-space: normal; overflow-wrap: anywhere; line-height: 1.4; }
 html.touch.tc-low #hud #objectives:not(.expand) li:not(.cur):not(.more), html.touch.tc-low #hud #objectives h4 { display: none; }
@@ -1631,6 +1636,43 @@ html.touch.tc-low #hud #armybar { width: min(360px, 40vw); top: calc(6px + env(s
 @media (max-height: 500px) {
   html.touch.tc-low #hud #choice { left: var(--pm-l); right: var(--pm-r2); width: auto; max-width: 280px; margin-inline: auto; transform: none; }
 }
+/* 城下の知らせは三枠を縦に並べ、札より手前で読めるようにする。 */
+#screen-notices { position: fixed; z-index: 100; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); width: min(400px, calc(100vw - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))); display: grid; gap: 8px; max-height: 40vh; overflow-y: auto; pointer-events: none; }
+@media (max-height:500px) { #screen-notices { top:calc(8px + env(safe-area-inset-top, 0px)); bottom:auto; max-height:96px; width:min(320px, 40vw); pointer-events:auto; touch-action:pan-y; } }
+#screen-notices .toastbox { position: static; margin: 0; box-sizing: border-box; overflow-wrap: anywhere; white-space: normal; line-height: 1.6; font-size: max(15px, calc(15px * var(--text-scale))); animation: none; background: #1f1c17; color: var(--washi); border-color: var(--washi-dim); }
+#hud #objectives li.order .tag, #hud .toast.neg b { color: var(--shu-text); }
+
+/* 一時停止も携帯の安全な範囲に収め、文は左から読む。 */
+#pause { box-sizing: border-box; padding: calc(8px + env(safe-area-inset-top, 0px)) calc(8px + env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) calc(8px + env(safe-area-inset-left, 0px)); overscroll-behavior: contain; --washi-faint: #b9b09c; --line: #827968; }
+#pause .pmenu { box-sizing: border-box; width: min(720px, 100%); margin-block: auto; }
+#pause .pmenu :is(.objs, .cf-msg, .settings, .fb-box) { text-align: left; overflow-wrap: anywhere; min-width: 0; }
+#pause .pmenu .objs { font-size: max(15px, calc(15px * var(--text-scale, 1))); }
+#pause .pmenu .row { flex-wrap: wrap; gap: 8px; }
+#pause :is(textarea, select) { font-size: max(16px, calc(16px * var(--text-scale, 1))); max-width: 100%; box-sizing: border-box; }
+#pause .settings .s-row > * { min-width: 0; }
+#pause .pmenu .btn { box-sizing: border-box; max-width: 100%; overflow-wrap: anywhere; }
+#pause .pmenu #pm-map { max-width: 100%; height: auto !important; aspect-ratio: 1; }
+@media (max-height: 500px) { #pause { align-items: start; } #pause .pmenu { gap: 16px; } }
+
+/* 開戦を待つ札は携帯の安全な範囲へ収め、出陣の釦を見失わせない。 */
+#hud #intro { box-sizing: border-box; padding: calc(8px + env(safe-area-inset-top, 0px)) calc(8px + env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) calc(8px + env(safe-area-inset-left, 0px)); }
+#hud #intro > .card { display: flex; flex-direction: column; gap: 8px; width: min(720px, 100%); max-width: 100%; max-height: 100%; padding: 16px 24px; overflow: hidden; overflow-wrap: anywhere; background: rgba(12,10,8,.94); }
+#hud #intro .intro-reading { min-height: 0; overflow-y: auto; pointer-events: auto; touch-action: pan-y; overscroll-behavior: contain; }
+#hud #intro .card .ttl { letter-spacing: .08em; padding-left: 0; }
+#hud #intro .card .sides { letter-spacing: .08em; line-height: 1.6; }
+@media (max-height: 500px) and (pointer: coarse) {
+  #hud #intro { align-items: start; padding-top: calc(8px + env(safe-area-inset-top, 0px)); }
+  #hud #intro > .card { width: min(560px, calc(100vw - 288px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))); max-height: calc(100dvh - 120px - env(safe-area-inset-top, 0px)); padding: 12px 16px; touch-action: pan-y; }
+}
+#hud #intro-go { position: static; align-self: center; flex-shrink: 0; min-height: 48px; max-width: 100%; }
+/* 出陣待ちは操作の丸を隠し、下知を読む高さと出陣の釦を確保する。 */
+@media (orientation: landscape) and (max-height: 500px) {
+  html.touch #hud #intro > .card { align-self: start; width: min(480px, calc(100vw - 352px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))); max-height: calc(68dvh - 16px - env(safe-area-inset-top, 0px)) !important; padding: 8px 16px; }
+  html.touch #hud #intro .card .ttl { font-size: max(20px, calc(24px * var(--text-scale, 1))); }
+}
+/* 操作の早見表は低い画面でも全体を送って閉じられる。 */
+#hud #cheat { box-sizing:border-box; pointer-events:auto; max-width:calc(100vw - 32px); max-height:calc(100dvh - 96px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y; }
+#hud #cheat-close { position:sticky; top:0; background:var(--sumi-2); }
 </style>
 <link rel="stylesheet" href="screens.css">
 
@@ -1675,7 +1717,7 @@ html.touch.tc-low #hud #armybar { width: min(360px, 40vw); top: calc(6px + env(s
   <div class="tr">
     <div id="dateline"></div>
     <div id="objectives"><h4>現在の任務</h4><ul id="obj-list"></ul></div>
-    <canvas id="minimap" width="340" height="340"></canvas>
+    <canvas id="minimap" role="img" aria-label="近くの戦場の地図" width="340" height="340"></canvas>
   </div>
   <div class="topc" id="h-squad" hidden></div>
   <div id="target" hidden></div>
@@ -1685,13 +1727,13 @@ html.touch.tc-low #hud #armybar { width: min(360px, 40vw); top: calc(6px + env(s
   <div id="banner"></div>
   <div id="bark" role="status" aria-live="polite"></div>
   <div id="subtitle" aria-live="polite"></div>
-  <div id="sublog" hidden></div>
+  <div id="sublog" role="log" aria-label="直前の台詞" hidden></div>
   <div id="prompt" hidden></div>
   <button id="town-sortie" class="btn primary" hidden>出陣する</button>
   <div id="cmdpanel" hidden></div>
   <div class="bottom" id="h-bottom"></div>
   <div id="h-units" role="toolbar" aria-label="部隊" hidden></div>
-  <canvas id="bigmap" width="800" height="800" hidden></canvas>
+  <canvas id="bigmap" role="img" aria-label="戦場の大きな地図" width="800" height="800" hidden></canvas>
   <div id="fps" hidden></div>
 </div>
 
@@ -1699,47 +1741,68 @@ html.touch.tc-low #hud #armybar { width: min(360px, 40vw); top: calc(6px + env(s
 <div id="pause" hidden></div>
 <div id="wipe"></div>
 <div id="photoui" hidden></div>
-<div id="loading" hidden><div><div class="ldmon"></div><div class="ld">陣を敷いています</div><div class="ldbar"><i></i></div><p id="tip"></p></div></div>
-<div id="glfail" hidden><div class="wrap"><h2>3D表示を始められませんでした</h2><p class="lead">このブラウザでは 3D の描画が使えないようです。クローム・エッジ・サファリの最新版で、設定の「ハードウェア アクセラレーション」を入れてお試しください。</p></div></div>
+<div id="loading" hidden aria-atomic="true"><div><div class="ldmon" aria-hidden="true"></div><div class="ld">陣を敷いています</div><div class="ldbar" aria-hidden="true"><i></i></div><p id="tip"></p></div></div>
+<div id="glfail" hidden role="alert"><div class="wrap"><h2>立体の表示を始められませんでした</h2><p class="lead">このブラウザでは立体の表示が使えないようです。クローム・エッジ・サファリの最新版で、設定の「ハードウェア アクセラレーション」を入れてお試しください。保存の記録は消えません。</p><button type="button" class="btn" onclick="this.disabled=true;this.textContent='読み直しています';location.reload()">もう一度読み込む</button></div></div>
 
-<div id="boot" role="status" aria-live="polite"><div><div class="bt">戦国立身</div><div class="ldbar"><i></i></div><div id="boot-st">絵の道具を読み込んでいます</div><div id="boot-left"></div></div></div>
+<div id="boot" role="region" aria-label="始める支度"><div><div class="bt">戦国立身</div><div class="ldbar"><i></i></div><div id="boot-st" role="status" aria-live="polite">絵の道具を読み込んでいます</div><div id="boot-left" aria-live="off"></div><p style="font-size:max(15px, calc(15px * var(--text-scale, 1)));line-height:1.6">棒と残りの秒数は目安です。保存の記録は消えません。</p></div></div>
 <script>
 // 題の画面までの読み込み（10/2）：いま読んでいる物の名前と、進みの棒・あと何秒。見込みは前に掛かった時間を覚えて使う。
 // 棒は一本の長い移り変わり（重い読み込みの間も画面の合成の側で動く）。動きを減らす設定では、四分の一秒ごとに跳ぶだけ
 (function () {
   var t0 = performance.now(), KEY = 'risshin-boot-ms', est = 0, rm = false;
   var touch = matchMedia('(pointer: coarse)').matches;
-  try { est = +localStorage.getItem(KEY + (touch ? '-t' : '')) || 0; } catch (e) { /* 覚えていない */ }
-  if (!est) est = touch ? 9000 : 5000;
-  try { rm = matchMedia('(prefers-reduced-motion: reduce)').matches || !!(JSON.parse(localStorage.getItem('sengoku-risshin-settings-v1') || '{}') || {}).reduceMotion; } catch (e) { /* 既定 */ }
+  try { est = Number(localStorage.getItem(KEY + (touch ? '-t' : ''))) || 0; } catch (e) { /* 覚えていない */ }
+  if (!Number.isFinite(est) || est < 250 || est > 120000) est = touch ? 9000 : 5000;
+  rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  try { rm = rm || (JSON.parse(localStorage.getItem('sengoku-risshin-settings-v1') || '{}') || {}).reduceMotion === true; } catch (e) { /* 既定 */ }
+  document.body.classList.toggle('rm', rm);
   var bar = document.querySelector('#boot .ldbar i'), st = document.getElementById('boot-st'), lf = document.getElementById('boot-left');
-  if (!rm) requestAnimationFrame(function () { requestAnimationFrame(function () { bar.style.transition = 'transform ' + Math.round(est) + 'ms cubic-bezier(.25,.6,.45,1)'; bar.style.transform = 'scaleX(.94)'; }); });
-  var observer = null;
-  var NAMES = [[/asset_(hum|dom|kab|men|yoroi|body|head)/, '人と具足の形を読み込んでいます'], [/asset_horse/, '馬を読み込んでいます'], [/(japan|dem|terrain|elev|gsi)/, '地形を読み込んでいます'], [/asset_/, '絵と形を読み込んでいます'], [/three/, '絵の道具を読み込んでいます'], [/\/src\//, '画面の支度をしています']];
-  try { observer = new PerformanceObserver(function (l) { var es = l.getEntries(), n = es[es.length - 1] && es[es.length - 1].name; for (var k = 0; k < NAMES.length; k++) if (NAMES[k][0].test(n)) { st.textContent = NAMES[k][1]; break; } }); observer.observe({ type: 'resource', buffered: true }); } catch (e) { /* 名前は出さない */ }
-  function tick() {
-    var el = performance.now() - t0, left = est - el;
-    lf.textContent = left > 900 ? 'あと約 ' + Math.ceil(left / 1000) + ' 秒' : el > est * 2 + 3000 ? 'もう少しです' : 'まもなく';
-    if (rm) bar.style.transform = 'scaleX(' + Math.min(0.94, el / est).toFixed(3) + ')';
-  }
-  var iv = setInterval(tick, 250); tick();
-  window.__bootFail = function () {
-    clearInterval(iv);
-    if (observer) observer.disconnect();
-    st.textContent = '！ 読み込みに失敗しました。';
-    lf.textContent = '電波のよい所で、もう一度読み込んでください。';
-    var retry = document.createElement('button');
+  if (!rm) requestAnimationFrame(function () { requestAnimationFrame(function () { if (finished) return; bar.style.transition = 'transform ' + Math.round(est) + 'ms cubic-bezier(.25,.6,.45,1)'; bar.style.transform = 'scaleX(.94)'; }); });
+  var observer = null, finished = false, retry = null;
+  function offerRetry() {
+    if (retry) return;
+    retry = document.createElement('button'); retry.type = 'button';
     retry.className = 'btn'; retry.style.cssText = 'min-height:44px;margin-top:16px';
     retry.textContent = 'もう一度読み込む';
-    retry.onclick = function () { location.reload(); };
+    retry.onclick = function () { retry.disabled = true; retry.textContent = '読み直しています'; location.reload(); };
     lf.after(retry);
+  }
+  var NAMES = [[/asset_(hum|dom|kab|men|yoroi|body|head)/, '人と具足の形を読み込んでいます'], [/asset_horse/, '馬を読み込んでいます'], [/(japan|dem|terrain|elev|gsi)/, '地形を読み込んでいます'], [/asset_/, '絵と形を読み込んでいます'], [/three/, '絵の道具を読み込んでいます'], [/\/src\//, '画面の支度をしています']];
+  try { observer = new PerformanceObserver(function (l) { if (document.hidden || finished) return; var es = l.getEntries(), n = es[es.length - 1] && es[es.length - 1].name; for (var k = 0; k < NAMES.length; k++) if (NAMES[k][0].test(n)) { st.textContent = NAMES[k][1]; break; } }); observer.observe({ type: 'resource', buffered: true }); } catch (e) { /* 名前は出さない */ }
+  function tick() {
+    if (document.hidden || finished) return;
+    var el = performance.now() - t0, left = est - el;
+    if (el > Math.max(30000, est * 3)) offerRetry();
+    var text = navigator.onLine === false ? '通信が切れています。つなぎ直すと読み込みを続けられます' : el > est * 2 + 2000 ? (retry ? '支度に時間がかかっています。待つか、もう一度読み込めます' : '支度に時間がかかっています。そのままお待ちください') : left > 900 ? '目安：あと約 ' + Math.ceil(left / 1000) + ' 秒' : '支度を仕上げています';
+    if (lf.textContent !== text) lf.textContent = text;
+    if (rm) bar.style.transform = 'scaleX(' + Math.min(0.94, el / est).toFixed(3) + ')';
+  }
+  var hiddenDuringBoot = document.hidden;
+  function visibility() { if (document.hidden) hiddenDuringBoot = true; else tick(); }
+  document.addEventListener('visibilitychange', visibility);
+  var iv = setInterval(tick, 250); tick();
+  window.__bootFail = function () {
+    if (finished) return;
+    finished = true;
+    clearInterval(iv);
+    document.removeEventListener('visibilitychange', visibility);
+    bar.style.transition = 'none';
+    if (observer) observer.disconnect();
+    st.textContent = '！ 読み込みに失敗しました。';
+    lf.textContent = navigator.onLine === false ? '通信が切れています。つなぎ直して、もう一度読み込んでください。' : '通信や絵の道具の支度に失敗しました。もう一度読み込んでください。';
+    offerRetry();
+    document.getElementById('boot').setAttribute('role', 'alert');
+    retry.focus({ preventScroll: true });
   };
   // main.js が題の画面を出した時に呼ぶ
   window.__bootDone = function () {
+    if (finished) return;
+    finished = true;
     clearInterval(iv);
+    document.removeEventListener('visibilitychange', visibility);
     if (observer) observer.disconnect();
     var el = performance.now() - t0, b = document.getElementById('boot');
-    try { var o = +localStorage.getItem(KEY + (touch ? '-t' : '')) || 0; localStorage.setItem(KEY + (touch ? '-t' : ''), String(Math.round(o ? (o + el) / 2 : el))); } catch (e) { /* 覚えなくてよい */ }
+    try { var o = +localStorage.getItem(KEY + (touch ? '-t' : '')) || 0; if (!Number.isFinite(o) || o < 250 || o > 120000) o = 0; if (!hiddenDuringBoot && Number.isFinite(el) && el >= 250 && el <= 120000) localStorage.setItem(KEY + (touch ? '-t' : ''), String(Math.round(o ? (o + el) / 2 : el))); } catch (e) { /* 覚えなくてよい */ }
     if (!b) return;
     bar.style.transition = rm ? 'none' : 'transform .2s'; bar.style.transform = 'scaleX(1)';
     if (rm) { b.remove(); return; }
@@ -1754,5 +1817,5 @@ html.touch.tc-low #hud #armybar { width: min(360px, 40vw); top: calc(6px + env(s
 } }
 </script>
 <script type="module">
-import('./v202610032113/src/main.js').catch(() => window.__bootFail());
+import('./v202610041616/src/main.js').catch(() => window.__bootFail());
 </script>
