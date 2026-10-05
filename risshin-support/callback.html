@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>戦国立身 連携</title>
+<style>
+  :root { --ink: #231f1a; --paper: #f4efe4; --sub: #6b6155; --line: #d8cfbf; --accent: #9b2c1f; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.8 "Hiragino Mincho ProN", "Yu Mincho", serif; }
+  main { max-width: 640px; margin: 0 auto; padding: 40px 20px 64px; }
+  h1 { font-size: 24px; margin: 0 0 24px; }
+  h2 { font-size: 18px; border-bottom: 1px solid var(--line); padding-bottom: 6px; margin: 32px 0 10px; }
+  a { color: var(--accent); }
+  small { color: var(--sub); }
+</style>
+</head>
+<body>
+<main>
+  <h1>連携の確認</h1>
+  <p id="m">この画面のコードを写してください。</p>
+  <p><button id="b" style="font-size:18px;min-height:44px;padding:0 20px">コードを写す</button></p>
+  <p><small>写したら、この画面は閉じてかまいません。</small></p>
+</main>
+<script>
+const q = new URLSearchParams(location.search), c = q.get('code');
+const m = document.getElementById('m'), b = document.getElementById('b');
+if (!c) { m.textContent = q.get('error') ? '連携できませんでした：' + q.get('error') : 'コードがありません。'; b.hidden = true; }
+b.onclick = () => navigator.clipboard.writeText(c).then(() => { b.textContent = '写しました'; });
+</script>
+</body>
+</html>
