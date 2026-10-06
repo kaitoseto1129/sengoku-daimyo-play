@@ -36389,6 +36389,10 @@ const any=hasSave()||SLOT_KEYS.some(k=>{ try{ return !!localStorage.getItem(k); 
 
 { const tb=document.getElementById("btnContTitle"); if(tb && false){ tb.hidden=false; try{ const s0=JSON.parse(localStorage.getItem(SAVE_KEY)||"{}"); if(s0.summary) tb.textContent="つづきから　"+s0.summary; }catch(e){} tb.onclick=()=>{ continueFrom(SAVE_KEY); }; } }
 try{ refreshStartButtons(); }catch(e){}
+
+try{ const q=new URLSearchParams(location.search); const ad=q.get("quick")==="1"||q.get("from")==="lp"||!!q.get("src")||!!q.get("utm_source")||!!q.get("fbclid");
+const app=!!(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap);
+if(ad&&!app&&!any&&!q.get("fund")&&firstTimer()){ let n=0; const go=()=>{ if(document.documentElement.classList.contains("booting")&&n++<100) return setTimeout(go,100); if(W.started) return; track("quick/ad"); quickPlay(); }; setTimeout(go,300); } }catch(_){ }
 }
 
 let camHistory=[];
