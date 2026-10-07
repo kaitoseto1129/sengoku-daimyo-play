@@ -27,10 +27,7 @@
 
 <!-- /pixel -->
 
-<link rel="preload" as="image" href="img/hero.jpg" fetchpriority="high">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&family=Shippori+Mincho:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap">
+
 <style>
 :root{
   --sumi:#0B0907; --cha:#17120D; --cha2:#1E1710; --kin:#C59A35; --kinpaku:#E6C15A; --shu:#A52A1E; --shu2:#C8321E; --kami:#D7C8A5; --shiro:#EEE6D5; --dim:#9C8F76;
@@ -57,7 +54,7 @@ section{position:relative;padding:96px 0;overflow:hidden}
 .mon{position:absolute;pointer-events:none;color:var(--kinpaku);opacity:.06;z-index:1}
 .mon svg{width:100%;height:100%;fill:currentColor}
 /* ---- 章の見出し ---- */
-.sho{font-family:var(--go);font-size:12px;letter-spacing:.5em;color:var(--kin);margin-bottom:10px;font-weight:700}
+.sho{font-family:var(--go);font-size:14px;letter-spacing:.5em;color:var(--kin);margin-bottom:10px;font-weight:700}
 .sho::before{content:"";display:inline-block;width:26px;height:1px;background:var(--kin);vertical-align:middle;margin-right:12px;opacity:.8}
 .h2{font-family:var(--fude);font-size:clamp(36px,5.8vw,68px);line-height:1.25;letter-spacing:.06em;color:var(--shiro);text-shadow:0 3px 14px rgba(0,0,0,.8)}
 .h2 .g{background:linear-gradient(180deg,#F3D97A 0%,#C59A35 55%,#8E6B1E 100%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
@@ -78,7 +75,7 @@ section{position:relative;padding:96px 0;overflow:hidden}
 .gaku .kin-corner{position:absolute;width:16px;height:16px;border:2px solid var(--kinpaku);z-index:3;opacity:.9}
 .gaku .kin-corner.tr{right:-6px;top:-6px;border-left:none;border-bottom:none}
 .gaku .kin-corner.bl{left:-6px;bottom:-6px;border-right:none;border-top:none}
-.soe{font-family:var(--go);font-size:13px;color:var(--dim);margin-top:14px;letter-spacing:.08em}
+.soe{font-family:var(--go);font-size:14px;color:var(--dim);margin-top:14px;letter-spacing:.08em}
 /* ---- 木札の釦 ---- */
 .fuda{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:18px 40px;text-decoration:none;font-family:var(--fude);font-size:22px;letter-spacing:.3em;color:#F3E2B0;background:linear-gradient(180deg,#3A2A16 0%,#241A0F 60%,#1A120A 100%);border:1px solid rgba(230,193,90,.75);box-shadow:inset 0 0 0 1px rgba(0,0,0,.6),inset 0 0 26px rgba(0,0,0,.6),0 12px 30px rgba(0,0,0,.6);transition:transform .15s,box-shadow .2s}
 .fuda::before{content:"";position:absolute;inset:4px;border:1px solid rgba(230,193,90,.28);pointer-events:none}
@@ -88,43 +85,21 @@ section{position:relative;padding:96px 0;overflow:hidden}
 .fuda svg{width:20px;height:20px;fill:currentColor}
 .inban{display:inline-flex;align-items:center;justify-content:center;padding:14px 26px;text-decoration:none;font-family:var(--fude);font-size:18px;letter-spacing:.24em;color:#F6D9CF;border:2px solid var(--shu2);background:rgba(165,42,30,.18);box-shadow:inset 0 0 0 1px rgba(200,50,30,.35);transition:background .15s}
 .inban:hover{background:rgba(165,42,30,.4)}
-.haifu{font-family:var(--go);font-size:12px;letter-spacing:.16em;color:var(--kin);margin-top:14px;display:flex;align-items:center;gap:8px}
+.haifu{font-family:var(--go);font-size:14px;letter-spacing:.16em;color:var(--kin);margin-top:14px;display:flex;align-items:center;gap:8px}
 .haifu svg{width:14px;height:14px;fill:currentColor}
 .ctas{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
 /* ---- 頭 ---- */
 header{position:absolute;top:0;left:0;right:0;z-index:6;display:flex;align-items:center;justify-content:space-between;padding:20px 22px;max-width:1200px;margin:0 auto}
 header .logo{font-family:var(--fude);font-size:22px;letter-spacing:.42em;color:var(--shiro);text-decoration:none;text-shadow:0 2px 10px #000}
 header nav{display:flex;align-items:center;gap:16px}
-header nav a{font-family:var(--go);font-size:13px;letter-spacing:.18em;color:var(--kami);text-decoration:none;opacity:.85;display:inline-flex;align-items:center;min-height:30px;padding:0 4px}   /* 第253巡（bot の見回り）：指で押せる大きさに */
+header nav a{font-family:var(--go);font-size:14px;letter-spacing:.18em;color:var(--kami);text-decoration:none;opacity:.85;display:inline-flex;align-items:center;min-height:30px;padding:0 4px}   /* 第253巡（bot の見回り）：指で押せる大きさに */
 header nav a:hover{color:var(--kinpaku);opacity:1}
-#oto{font-family:var(--go);font-size:12px;letter-spacing:.08em;color:var(--kami);background:rgba(11,9,7,.6);border:1px solid var(--line);padding:6px 12px;cursor:pointer}
+#oto{font-family:var(--go);font-size:14px;letter-spacing:.08em;color:var(--kami);background:rgba(11,9,7,.6);border:1px solid var(--line);padding:6px 12px;cursor:pointer}
 #oto.on{color:var(--kinpaku);border-color:var(--kinpaku)}
 @media(max-width:720px){header nav a{display:none}}
-/* ---- 序：ファーストビュー ---- */
-#hero{min-height:100vh;display:flex;align-items:center;padding:130px 0 110px}
-#hero .layer{position:absolute;inset:-6% -4%;will-change:transform}
-#hero .l-bg{overflow:hidden;filter:saturate(.95) brightness(.78)}
-#hero .l-bg img{width:100%;height:100%;object-fit:cover;object-position:center 56%;display:block}
-#hero .l-haze{background:radial-gradient(ellipse at 70% 40%,rgba(215,200,165,.16),transparent 55%),radial-gradient(ellipse at 20% 80%,rgba(165,42,30,.18),transparent 50%);animation:haze 14s ease-in-out infinite alternate}
-#hero .l-smoke{opacity:.35 !important;background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='800'><filter id='s'><feTurbulence type='fractalNoise' baseFrequency='.006' numOctaves='3' seed='3'/><feColorMatrix values='0 0 0 0 .8 0 0 0 0 .74 0 0 0 0 .62 0 0 0 .55 -.25'/></filter><rect width='800' height='800' filter='url(%23s)'/></svg>") 0 0/800px 800px;opacity:.55;animation:smoke 40s linear infinite;mix-blend-mode:screen}
-#hero .l-veil{background:linear-gradient(90deg,rgba(11,9,7,.86) 0%,rgba(11,9,7,.5) 40%,rgba(11,9,7,.08) 100%),linear-gradient(0deg,var(--sumi) 0%,transparent 22%,transparent 84%,rgba(11,9,7,.75) 100%)}
-#hero canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
-@keyframes haze{from{transform:translate3d(-2%,0,0) scale(1)}to{transform:translate3d(2%,-1%,0) scale(1.06)}}
-@keyframes smoke{from{background-position:0 0}to{background-position:800px 300px}}
-#hero .wrap{z-index:3}
-#hero .mei{font-family:var(--fude);font-size:clamp(18px,2.2vw,24px);letter-spacing:.6em;color:var(--kinpaku);margin-bottom:16px;text-shadow:0 2px 10px #000}
-#hero h1{font-family:var(--fude);font-size:clamp(42px,7.4vw,92px);line-height:1.18;letter-spacing:.04em;color:#fff;text-shadow:0 4px 18px rgba(0,0,0,.85),0 0 40px rgba(0,0,0,.5)}
-#hero h1 span{display:block}
-#hero h1 span.ph{display:inline-block}
-#hero .kotoba{margin-top:26px;font-size:clamp(15px,1.8vw,19px);text-shadow:0 2px 8px #000}
-#hero .ctas{margin-top:34px}
-#hero .scroll{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);font-family:var(--go);font-size:11px;letter-spacing:.4em;color:var(--kami);opacity:.7;text-align:center;z-index:3}
-#hero .scroll i{display:block;width:1px;height:34px;margin:8px auto 0;background:linear-gradient(180deg,var(--kinpaku),transparent);animation:sc 1.8s ease-in-out infinite}
-@keyframes sc{0%{transform:scaleY(0);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}51%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
-@media(max-width:720px){#hero{min-height:auto;padding:110px 0 90px}#hero .l-bg img{object-position:36% 55%}#hero .l-veil{background:linear-gradient(0deg,var(--sumi) 0%,rgba(11,9,7,.78) 50%,rgba(11,9,7,.5) 100%)}}
 /* ---- 第一章 大名となれ（古地図） ---- */
 #ch1{background:radial-gradient(ellipse at 20% 30%,#1c1610 0%,var(--sumi) 70%)}
-#ch1 .kochizu{position:absolute;inset:0;background:url(img/map.jpg) center/cover no-repeat;filter:sepia(1) saturate(.5) contrast(.9) brightness(.35);opacity:.32;mask-image:radial-gradient(ellipse at 50% 50%,#000 30%,transparent 78%);-webkit-mask-image:radial-gradient(ellipse at 50% 50%,#000 30%,transparent 78%)}
+#ch1 .kochizu{position:absolute;inset:0;background:var(--bg-map,none) center/cover no-repeat;filter:sepia(1) saturate(.5) contrast(.9) brightness(.35);opacity:.32;mask-image:radial-gradient(ellipse at 50% 50%,#000 30%,transparent 78%);-webkit-mask-image:radial-gradient(ellipse at 50% 50%,#000 30%,transparent 78%)}
 #ch1 .grid{display:grid;grid-template-columns:1.15fr 1fr;gap:44px;align-items:center}
 @media(max-width:900px){#ch1 .grid{grid-template-columns:1fr}}
 #ch1 .ryochi{position:relative}
@@ -139,15 +114,15 @@ header nav a:hover{color:var(--kinpaku);opacity:1}
 #ch2 .kazu .g{color:var(--kinpaku)}
 #ch2 .stage-off{position:relative;margin-top:34px;height:min(58vw,560px);overflow:hidden;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 #ch2 .stage .ban{position:absolute;top:0;bottom:0;width:58%;background-size:cover;background-position:center;will-change:transform;filter:saturate(.9)}
-#ch2 .stage .ban.l{left:0;background-image:url(img/battle_wide.jpg);background-position:0% 50%;transform:translateX(-30%);mask-image:linear-gradient(90deg,#000 70%,transparent);-webkit-mask-image:linear-gradient(90deg,#000 70%,transparent)}
-#ch2 .stage .ban.r{right:0;background-image:url(img/bg_melee.jpg);background-position:100% 50%;transform:translateX(30%);mask-image:linear-gradient(270deg,#000 70%,transparent);-webkit-mask-image:linear-gradient(270deg,#000 70%,transparent)}
-#ch2 .stage .full{position:absolute;inset:0;background:url(img/bg_melee.jpg) center/cover no-repeat;opacity:0;transition:opacity .6s}
+#ch2 .stage .ban.l{left:0;background-image:var(--bg-battle_wide,none);background-position:0% 50%;transform:translateX(-30%);mask-image:linear-gradient(90deg,#000 70%,transparent);-webkit-mask-image:linear-gradient(90deg,#000 70%,transparent)}
+#ch2 .stage .ban.r{right:0;background-image:var(--bg-bg_melee,none);background-position:100% 50%;transform:translateX(30%);mask-image:linear-gradient(270deg,#000 70%,transparent);-webkit-mask-image:linear-gradient(270deg,#000 70%,transparent)}
+#ch2 .stage .full{position:absolute;inset:0;background:var(--bg-bg_melee,none) center/cover no-repeat;opacity:0;transition:opacity .6s}
 #ch2 .stage.met .full{opacity:1}
 #ch2 .stage .txt{position:absolute;left:0;right:0;bottom:0;padding:30px 22px;background:linear-gradient(0deg,rgba(11,9,7,.95),transparent);z-index:2;font-family:var(--fude);font-size:clamp(18px,2.6vw,30px);letter-spacing:.2em;color:var(--shiro);text-align:center;text-shadow:0 2px 8px #000}
 /* ---- 第三章 戦場へ（全幅） ---- */
 #ch3{padding:0}
 #ch3 .senjo{position:relative;overflow:hidden;min-height:min(110vh,900px);display:flex;align-items:flex-end}
-#ch3 .senjo .bg{position:absolute;inset:-10% 0;background:url(img/battle_wide.jpg) center 50%/cover no-repeat;will-change:transform;filter:saturate(1)}
+#ch3 .senjo .bg{position:absolute;inset:-10% 0;background:var(--bg-battle_wide,none) center 50%/cover no-repeat;will-change:transform;filter:saturate(1)}
 #ch3 .senjo .veil{position:absolute;inset:0;background:linear-gradient(0deg,var(--sumi) 0%,rgba(11,9,7,.6) 30%,rgba(11,9,7,.05) 60%,rgba(11,9,7,.7) 100%)}
 #ch3 .senjo .wrap{padding-bottom:90px;padding-top:120px}
 #ch3 .yoso{display:flex;flex-wrap:wrap;gap:6px 30px;margin-top:22px;font-family:var(--fude);font-size:clamp(20px,3vw,34px);letter-spacing:.2em;color:var(--kami);text-shadow:0 2px 8px #000}
@@ -164,19 +139,19 @@ header nav a:hover{color:var(--kinpaku);opacity:1}
 .maki .p{position:absolute;left:26px;right:26px;bottom:24px;z-index:2}
 .maki .nen{font-family:var(--fude);font-size:15px;letter-spacing:.4em;color:var(--kinpaku)}
 .maki h3{font-family:var(--fude);font-size:clamp(34px,5vw,54px);letter-spacing:.1em;line-height:1.2;color:#fff;text-shadow:0 3px 12px #000;margin-top:4px}
-.maki .vs{font-family:var(--go);font-size:12px;letter-spacing:.2em;color:var(--kami);margin-top:6px}
+.maki .vs{font-family:var(--go);font-size:14px;letter-spacing:.2em;color:var(--kami);margin-top:6px}
 .maki .vs .ao{color:#9CC4EA}.maki .vs .aka{color:#F19A85}
 .maki .toi{font-family:var(--min);font-size:15px;color:var(--shiro);margin-top:10px;line-height:1.8}
 .maki .mon{right:-30px;top:-30px;width:220px;height:220px;opacity:.12}
-.yubi{font-family:var(--go);font-size:11px;letter-spacing:.3em;color:var(--dim);margin-top:10px}
+.yubi{font-family:var(--go);font-size:14px;letter-spacing:.3em;color:var(--dim);margin-top:10px}
 /* ---- 年表 ---- */
 .nenpyo{position:relative;display:flex;justify-content:space-between;margin-top:56px;padding-top:26px}
 .nenpyo::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,transparent,var(--kin) 10%,var(--kin) 90%,transparent)}
 .nenpyo div{text-align:center;position:relative;flex:1}
 .nenpyo div::before{content:"";position:absolute;left:50%;top:-31px;width:9px;height:9px;transform:translateX(-50%) rotate(45deg);background:var(--kinpaku);box-shadow:0 0 10px rgba(230,193,90,.6)}
-.nenpyo b{display:block;font-family:var(--go);font-size:13px;letter-spacing:.14em;color:var(--kinpaku);font-weight:700}
+.nenpyo b{display:block;font-family:var(--go);font-size:14px;letter-spacing:.14em;color:var(--kinpaku);font-weight:700}
 .nenpyo span{display:block;font-family:var(--fude);font-size:clamp(13px,1.8vw,19px);letter-spacing:.14em;color:var(--shiro);margin-top:2px}
-.nenpyo small{display:block;font-family:var(--go);font-size:11px;color:var(--dim);letter-spacing:.1em}
+.nenpyo small{display:block;font-family:var(--go);font-size:14px;color:var(--dim);letter-spacing:.1em}
 @media(max-width:720px){.nenpyo{flex-wrap:wrap;gap:22px 0}.nenpyo div{flex:0 0 33%}}
 /* ---- 第四章 決断せよ ---- */
 #ch4{background:radial-gradient(ellipse at 80% 20%,#1a140e 0%,var(--sumi) 60%)}
@@ -186,7 +161,7 @@ header nav a:hover{color:var(--kinpaku);opacity:1}
 .kyuho .aka{color:#F19A85}
 .sanTaku{display:grid;gap:10px;margin-top:22px}
 .sanTaku button{font-family:var(--fude);font-size:19px;letter-spacing:.2em;color:var(--shiro);background:linear-gradient(180deg,#2a1f12,#1a120a);border:1px solid rgba(197,154,53,.5);padding:14px 18px;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:background .15s}
-.sanTaku button small{font-family:var(--go);font-size:11px;letter-spacing:.1em;color:var(--dim)}
+.sanTaku button small{font-family:var(--go);font-size:14px;letter-spacing:.1em;color:var(--dim)}
 .sanTaku button:hover,.sanTaku button.on{background:linear-gradient(180deg,#5a3a1a,#3a2410);color:var(--kinpaku)}
 .kotae{margin-top:16px;min-height:90px;font-size:15px;line-height:1.9;color:var(--kami)}
 .kotae b{display:block;font-family:var(--fude);font-size:22px;color:var(--kinpaku);letter-spacing:.14em;font-weight:400}
@@ -204,7 +179,7 @@ header nav a:hover{color:var(--kinpaku);opacity:1}
 .koma:last-child{border-right:none}
 .koma .gaku{margin-top:14px}
 .koma h3{font-family:var(--fude);font-size:30px;letter-spacing:.3em;color:var(--kinpaku)}
-.koma h3 small{display:block;font-family:var(--go);font-size:11px;letter-spacing:.2em;color:var(--dim);margin-top:2px}
+.koma h3 small{display:block;font-family:var(--go);font-size:14px;letter-spacing:.2em;color:var(--dim);margin-top:2px}
 .koma p{margin-top:12px;font-size:14px;color:var(--kami)}
 @media(max-width:860px){.ichinichi{grid-template-columns:1fr}.koma{border-right:none;border-bottom:1px dashed rgba(197,154,53,.25)}}
 /* ---- 武将列伝（掛軸） ---- */
@@ -219,12 +194,12 @@ header nav a:hover{color:var(--kinpaku);opacity:1}
 .kakejiku .kami .mon{inset:auto;left:50%;top:50%;width:150%;height:150%;transform:translate(-50%,-50%);color:#5a4020;opacity:.12}
 .kakejiku img{position:relative;z-index:1;width:100%;aspect-ratio:1/1.15;object-fit:cover;object-position:50% 18%;filter:sepia(.35) contrast(1.05)}
 .kakejiku .na{font-family:var(--fude);font-size:clamp(18px,2vw,24px);letter-spacing:.2em;color:var(--shiro);text-align:center;margin-top:12px}
-.kakejiku .kotoba1{font-family:var(--min);font-size:13px;color:var(--kinpaku);text-align:center;letter-spacing:.1em;margin-top:2px}
+.kakejiku .kotoba1{font-family:var(--min);font-size:14px;color:var(--kinpaku);text-align:center;letter-spacing:.1em;margin-top:2px}
 .kakejiku .kotoba1::before{content:"「"}.kakejiku .kotoba1::after{content:"」"}
 /* ---- 第五章 天下を取れ ---- */
 #ch5{padding:0}
 #ch5 .tenka{position:relative;min-height:min(100vh,860px);display:flex;align-items:center}
-#ch5 .tenka .bg{position:absolute;inset:0;background:url(img/siege_map.jpg) center/cover no-repeat;filter:saturate(.9) brightness(.75)}
+#ch5 .tenka .bg{position:absolute;inset:0;background:var(--bg-siege_map,none) center/cover no-repeat;filter:saturate(.9) brightness(.75)}
 #ch5 .tenka .cover{position:absolute;inset:0;background:rgba(11,9,7,.85);--r:10%;mask-image:radial-gradient(circle at 48% 52%,transparent var(--r),#000 calc(var(--r) + 14%));-webkit-mask-image:radial-gradient(circle at 48% 52%,transparent var(--r),#000 calc(var(--r) + 14%))}
 #ch5 .tenka .veil{position:absolute;inset:0;background:linear-gradient(0deg,var(--sumi) 0%,transparent 30%,transparent 70%,var(--sumi) 100%)}
 #ch5 .wrap{text-align:center;padding:120px 22px}
@@ -236,7 +211,7 @@ header nav a:hover{color:var(--kinpaku);opacity:1}
 .shojo h3{font-family:var(--fude);font-size:26px;letter-spacing:.1em;color:var(--kinpaku)}
 .glist{margin:16px 0 0;padding:0;list-style:none;font-size:14px;color:var(--kami)}
 .glist li{padding:7px 0;border-top:1px dashed rgba(197,154,53,.3)}
-.glist li::before{content:"◆ ";color:var(--shu2);font-size:11px}
+.glist li::before{content:"◆ ";color:var(--shu2);font-size:14px}
 /* ---- 軍資金募集 ---- */
 .gunshikin-box{max-width:760px;margin:26px auto 0}
 .gtiers{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
@@ -263,21 +238,21 @@ header nav a:hover{color:var(--kinpaku);opacity:1}
 /* ---- 結 ---- */
 #musubi{padding:0}
 #musubi .last{position:relative;min-height:min(90vh,760px);display:flex;align-items:center}
-#musubi .last .bg{position:absolute;inset:-10% 0;background:url(img/bg_melee.jpg) center/cover no-repeat;filter:brightness(.6) saturate(.95)}
-#musubi .last .map{position:absolute;inset:0;background:url(img/siege_map.jpg) center/cover no-repeat;opacity:.35;mix-blend-mode:screen;mask-image:linear-gradient(180deg,#000,transparent 70%);-webkit-mask-image:linear-gradient(180deg,#000,transparent 70%)}
+#musubi .last .bg{position:absolute;inset:-10% 0;background:radial-gradient(ellipse at center,#302414,#0B0907);filter:brightness(.6) saturate(.95)}
+#musubi .last .map{position:absolute;inset:0;background:var(--bg-siege_map,none) center/cover no-repeat;opacity:.35;mix-blend-mode:screen;mask-image:linear-gradient(180deg,#000,transparent 70%);-webkit-mask-image:linear-gradient(180deg,#000,transparent 70%)}
 #musubi .last .veil{position:absolute;inset:0;background:linear-gradient(0deg,var(--sumi) 0%,rgba(11,9,7,.3) 45%,rgba(11,9,7,.3) 60%,var(--sumi) 100%)}
 #musubi .wrap{text-align:center;padding:110px 22px}
 #musubi .h2{font-size:clamp(34px,6.2vw,74px)}
 #musubi .ctas{justify-content:center;margin-top:36px}
 /* ---- 奥付 ---- */
-footer{position:relative;padding:40px 0 120px;border-top:1px solid var(--line);font-family:var(--go);font-size:12px;color:var(--dim);overflow:hidden}
+footer{position:relative;padding:40px 0 120px;border-top:1px solid var(--line);font-family:var(--go);font-size:14px;color:var(--dim);overflow:hidden}
 footer .monpat{position:absolute;left:0;right:0;top:0;height:120px;opacity:.07;background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'><g fill='none' stroke='%23E6C15A' stroke-width='1.2'><path d='M60 20 L100 60 L60 100 L20 60 Z'/><path d='M60 35 L85 60 L60 85 L35 60 Z'/><path d='M60 48 L72 60 L60 72 L48 60 Z'/></g></svg>") center/120px 120px repeat;mask-image:linear-gradient(180deg,#000,transparent);-webkit-mask-image:linear-gradient(180deg,#000,transparent)}
 footer .wrap{text-align:center}
 footer .logo{font-family:var(--fude);font-size:24px;letter-spacing:.42em;color:var(--shiro);display:block;margin-bottom:14px}
 footer .links{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 22px;margin-top:14px}
 footer a{text-decoration:none;color:var(--kami);letter-spacing:.14em;display:inline-flex;align-items:center;min-height:30px;padding:0 6px}   /* 第253巡（bot の見回り）：指で押せる大きさに */
 footer a:hover{color:var(--kinpaku)}
-footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-width:760px;margin-left:auto;margin-right:auto}
+footer .credits{margin-top:22px;font-size:14px;line-height:1.8;opacity:.7;max-width:760px;margin-left:auto;margin-right:auto}
 @media(min-width:721px){footer{padding-bottom:56px}}
 /* ---- 携帯の下の帯 ---- */
 #stick{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));background:rgba(11,9,7,.95);border-top:1px solid rgba(197,154,53,.5);display:none}
@@ -292,7 +267,7 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
 .ugoku img{width:100%;display:block}
 .ugoku .ov{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;padding:26px;background:linear-gradient(0deg,rgba(11,9,7,.85),transparent 45%);pointer-events:none}
 .ugoku .ov b{font-family:var(--fude);font-size:clamp(20px,3.4vw,40px);letter-spacing:.2em;color:#fff;font-weight:400;text-shadow:0 3px 12px #000}
-.ugoku .rec{position:absolute;left:14px;top:12px;font-family:var(--go);font-size:11px;letter-spacing:.2em;color:var(--kami);background:rgba(11,9,7,.6);padding:3px 8px;border:1px solid var(--line)}
+.ugoku .rec{position:absolute;left:14px;top:12px;font-family:var(--go);font-size:14px;letter-spacing:.2em;color:var(--kami);background:rgba(11,9,7,.6);padding:3px 8px;border:1px solid var(--line)}
 .ugoku .rec::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--shu2);margin-right:6px;animation:blink 1.2s infinite}
 @keyframes blink{50%{opacity:.2}}
 #ugoku1{padding:0 0 70px}
@@ -304,7 +279,7 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
 .nokori b{font-weight:400;color:var(--kinpaku);font-size:22px;margin:0 6px}
 /* ---- 最初に選ぶなら ---- */
 .erabu{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px;align-items:center}
-.erabu span{font-family:var(--go);font-size:12px;letter-spacing:.2em;color:var(--dim);margin-right:6px}
+.erabu span{font-family:var(--go);font-size:14px;letter-spacing:.2em;color:var(--dim);margin-right:6px}
 .erabu button{font-family:var(--fude);font-size:18px;letter-spacing:.2em;color:var(--shiro);background:linear-gradient(180deg,#2a1f12,#1a120a);border:1px solid rgba(197,154,53,.5);padding:10px 22px;cursor:pointer}
 .erabu button.on{background:linear-gradient(180deg,#5a3a1a,#3a2410);color:var(--kinpaku)}
 .kakejiku.hi{outline:2px solid var(--kinpaku);outline-offset:6px;box-shadow:0 0 30px rgba(230,193,90,.35)}
@@ -315,17 +290,17 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
 /* ---- 操作の三歩 ---- */
 .sanpo{display:flex;flex-wrap:wrap;justify-content:center;gap:14px;margin-top:26px}
 .sanpo div{flex:1 1 200px;max-width:280px;padding:18px 16px;border:1px solid var(--line);background:rgba(215,200,165,.04)}
-.sanpo b{display:block;font-family:var(--go);font-size:11px;letter-spacing:.3em;color:var(--kin)}
+.sanpo b{display:block;font-family:var(--go);font-size:14px;letter-spacing:.3em;color:var(--kin)}
 .sanpo h4{margin:6px 0 0;font-family:var(--fude);font-size:22px;letter-spacing:.1em;font-weight:400;color:var(--shiro)}
 .sanpo p{margin-top:6px;font-size:14px;color:var(--kami)}
 @media(max-width:720px){.gunki-two{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:12px;margin-left:-22px;margin-right:-22px;padding:0 22px 8px}.gunki-two .maki{flex:0 0 84vw;scroll-snap-align:center}}
 [data-open]{cursor:pointer}
-.play{position:absolute;right:14px;top:12px;z-index:3;font-family:var(--go);font-size:12px;letter-spacing:.14em;color:#fff;background:rgba(11,9,7,.7);border:1px solid var(--kinpaku);padding:5px 10px}
+.play{position:absolute;right:14px;top:12px;z-index:3;font-family:var(--go);font-size:14px;letter-spacing:.14em;color:#fff;background:rgba(11,9,7,.7);border:1px solid var(--kinpaku);padding:5px 10px}
 #player{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.94);display:none;align-items:center;justify-content:center;padding:20px}
 #player .box{position:relative;max-width:1400px;width:100%}
 #player img{width:100%;display:block;border:1px solid rgba(197,154,53,.6)}
 #player .cap{font-family:var(--fude);font-size:clamp(20px,3vw,34px);letter-spacing:.14em;color:#fff;text-align:center;margin-top:14px}
-#player .sub{font-family:var(--go);font-size:13px;color:var(--kami);text-align:center;margin-top:6px}
+#player .sub{font-family:var(--go);font-size:14px;color:var(--kami);text-align:center;margin-top:6px}
 #player .x{position:absolute;right:0;top:-40px;font-family:var(--go);color:var(--kami);background:none;border:1px solid var(--line);padding:6px 12px;cursor:pointer}
 /* ---- 三つの特徴 ---- */
 #mitsu{padding:70px 0;background:var(--sumi)}
@@ -333,19 +308,19 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
 .mitsu{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:34px}
 @media(max-width:720px){.mitsu{grid-template-columns:1fr}}
 .mitsu div{position:relative;padding:26px 22px 24px;border-top:2px solid var(--kin);background:linear-gradient(180deg,rgba(215,200,165,.05),transparent)}
-.mitsu b{display:block;font-family:var(--go);font-size:12px;letter-spacing:.4em;color:#E3C766}   /* 第253巡（bot の見回り）：金が沈んで読みにくかった */
+.mitsu b{display:block;font-family:var(--go);font-size:14px;letter-spacing:.4em;color:#E3C766}   /* 第253巡（bot の見回り）：金が沈んで読みにくかった */
 .mitsu h3{font-family:var(--fude);font-size:clamp(22px,2.4vw,28px);letter-spacing:.08em;color:var(--shiro);margin-top:6px}
 .mitsu p{margin-top:8px;font-size:15px;color:var(--kami)}
 /* ---- 帯の CTA（途中） ---- */
 .obi{padding:54px 0;background:linear-gradient(90deg,transparent,rgba(197,154,53,.08),transparent);border-top:1px solid var(--line);border-bottom:1px solid var(--line);text-align:center}
 .obi .t{font-family:var(--fude);font-size:clamp(22px,3vw,34px);letter-spacing:.14em;color:var(--shiro);margin-bottom:18px}
-.shinrai{font-family:var(--go);font-size:12px;letter-spacing:.14em;color:var(--dim);margin-top:12px}
+.shinrai{font-family:var(--go);font-size:14px;letter-spacing:.14em;color:var(--dim);margin-top:12px}
 /* ---- 合戦の注釈 ---- */
 .annot{position:relative}
-.annot .co{position:absolute;z-index:3;font-family:var(--go);font-size:12px;font-weight:700;letter-spacing:.06em;color:#fff;background:rgba(11,9,7,.82);border:1px solid var(--kinpaku);padding:6px 10px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.6)}
+.annot .co{position:absolute;z-index:3;font-family:var(--go);font-size:14px;font-weight:700;letter-spacing:.06em;color:#fff;background:rgba(11,9,7,.82);border:1px solid var(--kinpaku);padding:6px 10px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.6)}
 .annot .co::before{content:"";position:absolute;width:10px;height:10px;background:var(--kinpaku);border-radius:50%;box-shadow:0 0 0 4px rgba(230,193,90,.25)}
 .annot .co.l::before{left:-16px;top:50%;transform:translateY(-50%)} .annot .co.r::before{right:-16px;top:50%;transform:translateY(-50%)} .annot .co.b::before{left:50%;bottom:-16px;transform:translateX(-50%)}
-@media(max-width:720px){.annot .co{font-size:11px;padding:4px 7px}}
+@media(max-width:720px){.annot .co{font-size:14px;padding:4px 7px}}
 /* ---- 戦場（大小のリズム） ---- */
 .gunki-big{position:relative;margin-top:30px;overflow:hidden;border:1px solid rgba(197,154,53,.45);background:#000;min-height:min(60vw,520px)}
 .gunki-big .bg{position:absolute;inset:0;background-size:cover;background-position:center;filter:saturate(.95) brightness(.9)}
@@ -370,7 +345,7 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
 .cycle div.hot{background:rgba(165,42,30,.35);border-color:var(--shu2);color:#fff}
 @media(max-width:720px){.cycle{flex-direction:column;align-items:stretch}.cycle div{text-align:center}.cycle div::after{content:"↓";right:auto;left:50%;top:auto;bottom:-22px;transform:translateX(-50%)}}
 /* ---- 進み（天下統一まで） ---- */
-#susumi{position:fixed;right:14px;top:50%;transform:translateY(-50%);z-index:25;font-family:var(--go);font-size:11px;letter-spacing:.2em;color:var(--kami);opacity:.75;text-align:center;pointer-events:none}
+#susumi{position:fixed;right:14px;top:50%;transform:translateY(-50%);z-index:25;font-family:var(--go);font-size:14px;letter-spacing:.2em;color:var(--kami);opacity:.75;text-align:center;pointer-events:none}
 #susumi i{display:block;width:2px;height:120px;margin:8px auto;background:rgba(197,154,53,.25);position:relative}
 #susumi i::after{content:"";position:absolute;left:-2px;top:0;width:6px;height:var(--h,0%);background:var(--kinpaku)}
 @media(max-width:720px){#susumi{display:none}}
@@ -386,16 +361,15 @@ footer .credits{margin-top:22px;font-size:11px;line-height:1.8;opacity:.7;max-wi
   .ctas{flex-direction:column;align-items:stretch}
   .annot .co{display:none}
   .annot-list{display:block !important}
-  #hero h1{font-size:clamp(38px,11vw,54px)}
   .kotoba .ln{display:inline}
-  .shinrai{font-size:11px}
+  .shinrai{font-size:14px}
 }
-.annot-list{display:none;font-family:var(--go);font-size:13px;color:var(--kami);margin-top:12px;line-height:1.9}
+.annot-list{display:none;font-family:var(--go);font-size:14px;color:var(--kami);margin-top:12px;line-height:1.9}
 .annot-list span::before{content:"● ";color:var(--kinpaku)}
 /* ---- 現れ ---- */
 .ar{opacity:0;transform:translateY(22px);transition:opacity .9s ease,transform .9s ease}
 .ar.in{opacity:1;transform:none}
-@media(prefers-reduced-motion:reduce){.ar{opacity:1;transform:none;transition:none}#hero .l-haze,#hero .l-smoke{animation:none}html{scroll-behavior:auto}}
+@media(prefers-reduced-motion:reduce){.ar{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
 @media(hover:hover){.fuda,.inban,.sanTaku button{cursor:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><path d='M6 26 L16 14' stroke='%23E6C15A' stroke-width='3' stroke-linecap='round'/><ellipse cx='20' cy='10' rx='9' ry='7' fill='%23A52A1E' stroke='%23E6C15A' stroke-width='2'/></svg>") 4 28,pointer}}
 
 /* 第258巡（LP の見直し：デジタル庁 DS・HIG・Material の考え方）：本文は14px以上、押す所は44px以上、文節で折る */
@@ -415,25 +389,13 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
 /* 第258巡（作り手：LP に動画をたくさん、躍動感を）：合戦の動画。見えている間だけ流す */
 [data-mov]{position:relative}
 [data-mov] video.mv{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
-#hero .l-bg video.mv{object-position:center 50%}
-@media(max-width:720px){
-  #hero{min-height:100svh!important;align-items:flex-end!important;padding:96px 0 40px!important}   /* 携帯：動画を上に見せ、文と釦は指の届く下へ */
-  #hero .l-veil{background:linear-gradient(0deg,var(--sumi) 0%,rgba(11,9,7,.82) 42%,rgba(11,9,7,.25) 70%,rgba(11,9,7,.55) 100%)!important}
-  #hero h1{font-size:clamp(36px,10.5vw,52px)!important}
-}
-
 .mov-band{padding:0;background:#000;position:relative;z-index:2}
 .mov-band .mb{position:relative;aspect-ratio:960/388;overflow:hidden;border-top:1px solid rgba(197,154,53,.35)}
 .mov-band .mb img{width:100%;height:100%;object-fit:cover;display:block}
 .mov-band .mb b{position:absolute;left:0;right:0;bottom:0;padding:28px 20px 16px;font-family:var(--fude);font-weight:400;font-size:clamp(18px,3vw,32px);letter-spacing:.12em;color:#fff;text-shadow:0 2px 10px #000;background:linear-gradient(0deg,rgba(11,9,7,.85),transparent);z-index:2}
-@media(max-width:720px){
-  #hero .layer.l-bg{inset:0 0 auto 0!important;height:52svh!important;transform:none!important}
-  #hero .l-bg video.mv,#hero .l-bg img{object-position:28% 50%!important}
-  #hero .l-veil{background:linear-gradient(180deg,rgba(11,9,7,.55) 0%,rgba(11,9,7,.05) 14%,rgba(11,9,7,.1) 34%,var(--sumi) 52%,var(--sumi) 100%)!important}
-}
 
 .pvbtn{display:inline-flex;align-items:center;gap:10px;margin-top:16px;min-height:44px;padding:8px 18px 8px 8px;border:1px solid rgba(243,226,176,.55);border-radius:999px;background:rgba(11,9,7,.55);color:#F3E2B0;font-family:var(--go);font-size:15px;letter-spacing:.08em;cursor:pointer}
-.pvbtn i{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:#C59A35;color:#1a1408;font-style:normal;font-size:13px;padding-left:2px}
+.pvbtn i{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:#C59A35;color:#1a1408;font-style:normal;font-size:14px;padding-left:2px}
 #pvModal{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;padding:16px}
 #pvModal[hidden]{display:none}
 #pvModal .pvbox{width:min(100%,1100px);text-align:center}
@@ -475,30 +437,29 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
   </defs>
 </svg>
 
+
+<!-- 序 -->
+<section id="hero" aria-label="戦国大名を無料で遊ぶ">
+  <video id="heroVideo" src="mov/kiba_hd.mp4" autoplay muted playsinline loop preload="auto" aria-hidden="true" tabindex="-1"></video>
+  <div class="wrap">
+    <h1>戦国の大軍を、指ひとつで。</h1>
+    <div class="ctas">
+      <a data-play data-ev="play_click" class="fuda" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/?from=lp">今すぐ無料で遊ぶ</a>
+      <a class="inban" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="hero_appstore_click"><svg><use href="#apple"/></svg>App Store</a>
+    </div>
+  </div>
+</section>
+
 <header>
   <a class="logo" href="#hero">戦国大名</a>
   <nav><a href="#mitsu">特徴</a><a href="#loop">遊び方</a><a href="#koe">評価</a><a href="#nagashino">長篠</a><a href="#nanen">七年</a><a href="#ch3">合戦</a><a href="#gunki">軍記</a><a href="#ch4">軍議</a><a href="#guide">攻略</a><a href="#faq">問答</a><a href="#gunshikin">軍資金</a><button aria-pressed="false" type="button" id="oto" type="button" title="風と太鼓の音（押した時だけ）">♪ 音</button></nav><details id="mobileMenu"><summary>目次</summary><nav aria-label="紹介ページの目次"><a href="#mitsu">特徴</a><a href="#loop">遊び方</a><a href="#koe">評価</a><a href="#nagashino">長篠</a><a href="#nanen">七年</a><a href="#ch3">合戦</a><a href="#gunki">軍記</a><a href="#ch4">軍議</a><a href="#guide">攻略</a><a href="#faq">問答</a><a href="#gunshikin">軍資金</a></nav></details>
 </header>
-
-<!-- 序 -->
-<section id="hero">
-  <div class="layer l-bg" data-speed="0.18" data-mov="kiba_h" data-hero="1"><img src="img/hero.jpg" alt="" fetchpriority="high"></div>
-  <div class="layer l-haze" data-speed="0.1"></div>
-  <div class="layer l-smoke" data-speed="0.3"></div>
-  <div class="layer l-veil"></div>
-  <canvas id="hibana"></canvas>
-  <div class="wrap">
-    <div class="mei mei2"><span class="ph">リアルタイム合戦 ×</span> <span class="ph">天下統一の戦国シミュレーション</span></div>
-    <h1><span><span class="ph">歴史を</span><span class="ph">眺めるな。</span></span><span>戦局を動かせ。</span></h1>
-    <p class="kotoba"><span class="ln"><span class="ph">数千、数万の軍勢を、</span><span class="ph">指ひとつで動かす。</span></span><span class="ln"><span class="ph">長篠・関ヶ原・山崎――</span><span class="ph">歴史の転換点を、</span><span class="ph"><b>あなたの采配で。</b></span></span></p>
-    <div class="ctas">
-      <a class="fuda" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="hero_appstore_click"><svg><use href="#apple"/></svg>App Storeで無料ダウンロード</a>
-      <a data-play data-ev="play_click" class="inban" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザで今すぐ遊ぶ</a>
-    </div>
-    <button type="button" class="pvbtn" id="pvOpen" data-ev="pv_open"><i>▶</i>30秒の映像を見る</button>
-    <div class="haifu"><span class="ph">長篠の戦いは無料・登録不要</span><span class="ph">／ iPhone・iPad・ブラウザ</span><span class="ph">／ 関ヶ原は ¥500</span></div>
+<section id="intro">
+  <div class="wrap c">
+    <p class="kotoba c">数千、数万の軍勢を、あなたの采配で動かす。内政・外交・合戦を重ね、天下統一を目指せ。</p>
+    <p class="haifu" style="justify-content:center">長篠の戦いは無料・登録不要／関ヶ原は五百円</p>
+    <button type="button" class="pvbtn" id="pvOpen" data-ev="pv_open"><i>▶</i>三十秒の映像を見る</button>
   </div>
-  <div class="scroll">SCROLL<i></i></div>
 </section>
 
 <div class="sumi-line"><svg viewBox="0 0 1200 38" preserveAspectRatio="none"><path d="M0 22 C120 12 220 30 360 20 C500 10 640 28 780 18 C900 10 1040 26 1200 16 L1200 24 C1040 34 900 18 780 26 C640 36 500 18 360 28 C220 38 120 20 0 30 Z" fill="#000" opacity=".9"/><path d="M20 21 C160 13 300 27 460 19 C620 11 760 27 920 19 C1040 13 1120 23 1180 17" fill="none" stroke="#C59A35" stroke-width="1.2" opacity=".6"/></svg></div>
@@ -506,7 +467,7 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
 <!-- 動く絵 -->
 <section id="ugoku1">
   <div class="wrap">
-    <div class="ugoku ar" data-mov="tennoji" data-open="tennoji_relief"><img src="img/seq/tennoji_relief/000.jpg" alt="天王寺砦の戦い。本願寺勢に囲まれた砦へ救援" loading="lazy" decoding="async"><span class="rec">合戦の画面</span><div class="ov"><b>数千、数万の軍勢を、一つの采配で動かせ。</b></div><span class="play">▶ 大きく見る</span></div>
+    <div class="ugoku ar" data-mov="tennoji" data-open="tennoji_relief"><img width="960" height="540" data-src="img/seq/tennoji_relief/000.jpg" alt="天王寺砦の戦い。本願寺勢に囲まれた砦へ救援" loading="lazy" decoding="async"><span class="rec">合戦の画面</span><div class="ov"><b>数千、数万の軍勢を、一つの采配で動かせ。</b></div><span class="play">▶ 大きく見る</span></div>
     <p class="soe c">実際の合戦画面をそのまま。一兵ずつではなく、隊で、翼で、軍で動く。</p>
   </div>
 </section>
@@ -555,8 +516,6 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
     <h2 class="h2">長篠の戦いを、<span class="g">自ら指揮せよ。</span></h2>
     <p class="kotoba c" style="font-family:var(--fude);font-size:clamp(18px,2.4vw,26px);letter-spacing:.16em"><span class="ln"><span style="color:#9CC4EA">織田・徳川連合軍</span>　VS　<span style="color:#F19A85">武田軍</span></span></p>
     <p class="kotoba c"><span class="ln">馬防柵。鉄砲。騎馬。</span><span class="ln">史実と同じ戦い方を選ぶか。それとも、あなた自身の策で戦うか。</span></p>
-    <div class="gaku ugoku" style="margin-top:30px;aspect-ratio:16/9" data-mov="tobi"><span class="kin-corner tr"></span><span class="kin-corner bl"></span><img src="img/seq/nagashino_open/000.jpg" alt="鳶ヶ巣山砦の戦い" loading="lazy" decoding="async"></div>
-    <p class="soe">夜明け前の鳶ヶ巣山砦――別働隊で武田の後ろを突く。</p>
     <div class="ctas" style="justify-content:center;margin-top:30px"><a class="fuda" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="nagashino_appstore_click"><svg><use href="#apple"/></svg>長篠の戦いを無料で遊ぶ</a><a data-play data-ev="play_click" class="inban" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザで遊ぶ</a></div>
   </div>
 </section>
@@ -567,18 +526,18 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
     <h2 class="h2">長篠のあとも、<br><span class="g">七年の戦国が続く。</span></h2>
     <p class="lead-s">勝った後が本番。出来事ごとに、あなたが手を決める。</p>
     <div class="ev-grid">
-      <figure><img src="ev/ev3.jpg" alt="荒木村重の謀反の札" loading="lazy" decoding="async"><figcaption><b>荒木村重、有岡に叛く</b>即攻城か、官兵衛の説得か、兵糧攻めか。</figcaption></figure>
-      <figure><img src="ev/ev4.jpg" alt="原田直政の選択の札" loading="lazy" decoding="async"><figcaption><b>天王寺砦、原田直政の選択</b>退くか、救うか、本陣へ突くか。</figcaption></figure>
-      <figure><img src="ev/ev5.jpg" alt="七尾の報の札" loading="lazy" decoding="async"><figcaption><b>手取川の前夜</b>七尾落城の報を、織田に知らせるな。</figcaption></figure>
-      <figure><img src="ev/ev1.jpg" alt="九鬼嘉隆の大型船の札" loading="lazy" decoding="async"><figcaption><b>九鬼嘉隆の大型船</b>毛利水軍に勝つ船を、どう造るか。</figcaption></figure>
-      <figure><img src="ev/ev2.jpg" alt="備中高松城の札" loading="lazy" decoding="async"><figcaption><b>備中高松城</b>堤を築いて水攻めか、力攻めか。</figcaption></figure>
-      <figure><img src="ev/ev0.jpg" alt="京都御馬揃えの札" loading="lazy" decoding="async"><figcaption><b>京都御馬揃え</b>天下人の威を、誰を呼んで見せるか。</figcaption></figure>
+      <figure><img width="960" height="540" data-src="ev/ev3.jpg" alt="荒木村重の謀反の札" loading="lazy" decoding="async"><figcaption><b>荒木村重、有岡に叛く</b>即攻城か、官兵衛の説得か、兵糧攻めか。</figcaption></figure>
+      <figure><img width="960" height="540" data-src="ev/ev4.jpg" alt="原田直政の選択の札" loading="lazy" decoding="async"><figcaption><b>天王寺砦、原田直政の選択</b>退くか、救うか、本陣へ突くか。</figcaption></figure>
+      <figure><img width="960" height="540" data-src="ev/ev5.jpg" alt="七尾の報の札" loading="lazy" decoding="async"><figcaption><b>手取川の前夜</b>七尾落城の報を、織田に知らせるな。</figcaption></figure>
+      <figure><img width="960" height="540" data-src="ev/ev1.jpg" alt="九鬼嘉隆の大型船の札" loading="lazy" decoding="async"><figcaption><b>九鬼嘉隆の大型船</b>毛利水軍に勝つ船を、どう造るか。</figcaption></figure>
+      <figure><img width="960" height="540" data-src="ev/ev2.jpg" alt="備中高松城の札" loading="lazy" decoding="async"><figcaption><b>備中高松城</b>堤を築いて水攻めか、力攻めか。</figcaption></figure>
+      <figure><img width="960" height="540" data-src="ev/ev0.jpg" alt="京都御馬揃えの札" loading="lazy" decoding="async"><figcaption><b>京都御馬揃え</b>天下人の威を、誰を呼んで見せるか。</figcaption></figure>
     </div>
     <div class="ev-strip">
-      <div class="ugoku" data-seq="mimikawa" data-dir="seqh"><img src="img/seqh/mimikawa/000.jpg" alt="耳川の戦い" loading="lazy" decoding="async"><span class="rec">耳川の戦い</span></div>
-      <div class="ugoku" data-seq="okitanawate" data-dir="seqh"><img src="img/seqh/okitanawate/000.jpg" alt="沖田畷の戦い" loading="lazy" decoding="async"><span class="rec">沖田畷の戦い</span></div>
-      <div class="ugoku" data-seq="tottori_relief" data-dir="seqh"><img src="img/seqh/tottori_relief/000.jpg" alt="鳥取後詰の戦い" loading="lazy" decoding="async"><span class="rec">鳥取後詰の戦い</span></div>
-      <div class="ugoku" data-seq="takato" data-dir="seqh"><img src="img/seqh/takato/000.jpg" alt="高遠城の戦い" loading="lazy" decoding="async"><span class="rec">高遠城の戦い</span></div>
+      <div class="ugoku" data-seq="mimikawa" data-dir="seqh"><img width="960" height="388" data-src="img/seqh/mimikawa/000.jpg" alt="耳川の戦い" loading="lazy" decoding="async"><span class="rec">耳川の戦い</span></div>
+      <div class="ugoku" data-seq="okitanawate" data-dir="seqh"><img width="960" height="388" data-src="img/seqh/okitanawate/000.jpg" alt="沖田畷の戦い" loading="lazy" decoding="async"><span class="rec">沖田畷の戦い</span></div>
+      <div class="ugoku" data-seq="tottori_relief" data-dir="seqh"><img width="960" height="388" data-src="img/seqh/tottori_relief/000.jpg" alt="鳥取後詰の戦い" loading="lazy" decoding="async"><span class="rec">鳥取後詰の戦い</span></div>
+      <div class="ugoku" data-seq="takato" data-dir="seqh"><img width="960" height="388" data-src="img/seqh/takato/000.jpg" alt="高遠城の戦い" loading="lazy" decoding="async"><span class="rec">高遠城の戦い</span></div>
     </div>
     <p class="soe c">長篠の筋書きだけで、決戦は二十五。絵はすべて実際のゲーム画面です。</p>
   </div>
@@ -597,14 +556,14 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
         <p class="kotoba" style="margin-top:14px"><b>ただの将ではない。あなたは“大名”だ。</b><br>戦う。治める。交渉する。裏切る。待つ。攻める。すべてを決めるのは、あなた。</p>
       </div>
       <div class="ar ryochi" id="ryochi">
-        <div class="gaku ugoku" data-seq="map" data-dir="seq"><span class="kin-corner tr"></span><span class="kin-corner bl"></span><img src="img/seq/map/000.jpg" alt="日ノ本すべての城を、一枚の地図で" loading="lazy" decoding="async"><div class="cover"></div><div class="hata"><svg><use href="#hata"/></svg></div></div>
+        <div class="gaku ugoku" data-seq="map" data-dir="seq"><span class="kin-corner tr"></span><span class="kin-corner bl"></span><img width="960" height="540" data-src="img/seq/map/000.jpg" alt="日ノ本すべての城を、一枚の地図で" loading="lazy" decoding="async"><div class="cover"></div><div class="hata"><svg><use href="#hata"/></svg></div></div>
         <p class="soe">下へ進むほど、領地が広がる。</p>
       </div>
     </div>
     <div class="san-scene">
-      <div class="ar"><h3>国を富ませよ。</h3><p>城・農地・資金・兵。民の忠が、兵の数になる。</p><div class="gaku ugoku" data-seq="naisei" data-dir="seq"><img src="img/seq/naisei/000.jpg" alt="城の札" loading="lazy" decoding="async"></div></div>
-      <div class="ar"><h3>敵の敵を、味方にせよ。</h3><p>同盟・交渉・援軍。戦わずして有利を作る。</p><div class="gaku ugoku" data-seq="gaiko" data-dir="seq"><img src="img/seq/gaiko/000.jpg" alt="外交" loading="lazy" decoding="async"></div></div>
-      <div class="ar"><h3>勝てる戦を選べ。</h3><p>兵・武将・進軍・合戦。最適の戦場へ送り込む。</p><div class="gaku ugoku" data-seq="shutsujin" data-dir="seq"><img src="img/seq/shutsujin/000.jpg" alt="出陣" loading="lazy" decoding="async"></div></div>
+      <div class="ar"><h3>国を富ませよ。</h3><p>城・農地・資金・兵。民の忠が、兵の数になる。</p><div class="gaku ugoku" data-seq="naisei" data-dir="seq"><img width="960" height="540" data-src="img/seq/naisei/000.jpg" alt="城の札" loading="lazy" decoding="async"></div></div>
+      <div class="ar"><h3>敵の敵を、味方にせよ。</h3><p>同盟・交渉・援軍。戦わずして有利を作る。</p><div class="gaku ugoku" data-seq="gaiko" data-dir="seq"><img width="960" height="540" data-src="img/seq/gaiko/000.jpg" alt="外交" loading="lazy" decoding="async"></div></div>
+      <div class="ar"><h3>勝てる戦を選べ。</h3><p>兵・武将・進軍・合戦。最適の戦場へ送り込む。</p><div class="gaku ugoku" data-seq="shutsujin" data-dir="seq"><img width="960" height="540" data-src="img/seq/shutsujin/000.jpg" alt="出陣" loading="lazy" decoding="async"></div></div>
     </div>
   </div>
 </section>
@@ -617,7 +576,7 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
     <h2 class="h2">軍を<span class="g">興せ。</span></h2>
     <p class="kotoba"><span class="ln">一兵ずつは操らない。武将の隊で、翼で、軍で動かす。</span><span class="ln">左翼を進める。中央を支える。予備隊を投じる。</span></p>
   </div>
-  <div class="wrap"><div class="ugoku ar" data-mov="seki" data-open="sekigahara"><img src="img/seqh/sekigahara/000.jpg" alt="関ヶ原。数万の軍勢" loading="lazy" decoding="async"><span class="rec">関ヶ原の本戦</span><div class="ov"><b>戦場全体を、一目で。</b></div><span class="play">▶ 大きく見る</span></div></div>
+  <div class="wrap"><div class="ugoku ar" data-mov="seki" data-open="sekigahara"><img width="960" height="388" data-src="img/seqh/sekigahara/000.jpg" alt="関ヶ原。数万の軍勢" loading="lazy" decoding="async"><span class="rec">関ヶ原の本戦</span><div class="ov"><b>戦場全体を、一目で。</b></div><span class="play">▶ 大きく見る</span></div></div>
 </section>
 
 <!-- 第三章 -->
@@ -635,21 +594,14 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
 <!-- 合戦の絵（注釈つき） -->
 <!-- 第258巡：全幅の合戦動画（躍動感） -->
 <section class="mov-band" aria-label="合戦の動画">
-  <div class="mb" data-mov="temmoku_h"><img src="img/seqh/temmoku/000.jpg" alt="" loading="lazy" decoding="async"><b>天目山――武田勝頼、最期の戦い。</b></div>
-  <div class="mb" data-mov="saika_h"><img src="img/seqh/saika/000.jpg" alt="" loading="lazy" decoding="async"><b>雑賀の里――姿を見せぬ鉄砲衆。</b></div>
-  <div class="mb" data-mov="iwamura_h"><img src="img/seqh/iwamura/000.jpg" alt="" loading="lazy" decoding="async"><b>岩村城――信忠、武田の城を囲む。</b></div>
+  <div class="mb" data-mov="temmoku_h"><img width="960" height="388" data-src="img/seqh/temmoku/000.jpg" alt="" loading="lazy" decoding="async"><b>天目山――武田勝頼、最期の戦い。</b></div>
+  <div class="mb" data-mov="saika_h"><img width="960" height="388" data-src="img/seqh/saika/000.jpg" alt="" loading="lazy" decoding="async"><b>雑賀の里――姿を見せぬ鉄砲衆。</b></div>
+  <div class="mb" data-mov="iwamura_h"><img width="960" height="388" data-src="img/seqh/iwamura/000.jpg" alt="" loading="lazy" decoding="async"><b>岩村城――信忠、武田の城を囲む。</b></div>
 </section>
 <section id="senjo2" style="padding-top:0;background:var(--sumi)">
   <div class="wrap">
-    <div class="ar gaku annot ugoku" id="annot" data-seq="nagashino" data-dir="seq"><span class="kin-corner tr"></span><span class="kin-corner bl"></span>
-      <img src="img/seq/nagashino/000.jpg" alt="長篠の合戦。馬防柵に武田の騎馬" loading="lazy" decoding="async">
-      <span class="co l" style="left:34%;top:18%">三列の馬防柵 ── ここで騎馬を止める</span>
-      <span class="co r" style="right:60%;top:62%">鉄砲は柵の内から ── 寄れば一斉射撃</span>
-      <span class="co l" style="left:62%;top:38%">武田の騎馬、右翼へ ── 予備隊を投入</span>
-      <span class="co b" style="left:8%;top:76%">味方本陣 ── 崩れれば敗走</span>
-    </div>
-    <div class="annot-list"><span>三列の馬防柵 ── ここで騎馬を止める</span><br><span>鉄砲は柵の内から ── 寄れば一斉射撃</span><br><span>武田の騎馬、右翼へ ── 予備隊を投入</span><br><span>味方本陣 ── 崩れれば敗走</span></div>
-    <p class="soe">絵は実際の合戦画面。押す場所と、見る場所。</p>
+    <div class="annot-list" style="display:block"><span>三列の馬防柵 ── ここで騎馬を止める</span><br><span>鉄砲は柵の内から ── 寄れば一斉射撃</span><br><span>武田の騎馬、右翼へ ── 予備隊を投入</span><br><span>味方本陣 ── 崩れれば敗走</span></div>
+    <p class="soe">長篠の戦いでは、柵と鉄砲、予備隊を使い分ける。</p>
     <div class="ctas" style="justify-content:center;margin-top:26px"><a class="fuda" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="mid_appstore_click"><svg><use href="#apple"/></svg>App Storeで無料ダウンロード</a><a data-play data-ev="play_click" class="inban" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザで遊ぶ</a></div>
     <p class="shinrai c">iPhone / iPad / ブラウザ　／　長篠の戦いは無料　／　関ヶ原は ¥500</p>
   </div>
@@ -665,15 +617,15 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
       <div class="sho">軍記</div>
       <h2 class="h2">同じ戦いは、<span class="g">ひとつもない。</span></h2>
     </div>
-    <div class="gunki-big ar" data-open="tedorigawa"><div class="bg" data-mov="tedori_h"><img src="img/seq/tedorigawa/000.jpg" alt="手取川の戦い" loading="lazy" decoding="async"></div><div class="fog"></div><div class="mon" style="right:-40px;top:-40px;width:260px;height:260px;opacity:.14"><svg><use href="#mon-takeda"/></svg></div><div class="p"><div class="nen">天正五年</div><h3 style="font-family:var(--fude);font-size:clamp(36px,5.6vw,60px);letter-spacing:.1em;color:#fff;text-shadow:0 3px 12px #000">手取川の戦い</h3><div class="vs" style="font-family:var(--go);font-size:13px;letter-spacing:.2em;color:var(--kami);margin-top:6px"><span class="ao" style="color:#9CC4EA">織田</span>　対　<span class="aka" style="color:#F19A85">上杉</span></div><p class="toi" style="font-size:16px;margin-top:10px">夜の川を背に、上杉謙信が迫る。<b>退くか。踏みとどまるか。</b></p></div></div>
+    <div class="gunki-big ar" data-open="tedorigawa"><div class="bg" data-mov="tedori_h"><img width="960" height="540" data-src="img/seq/tedorigawa/000.jpg" alt="手取川の戦い" loading="lazy" decoding="async"></div><div class="fog"></div><div class="mon" style="right:-40px;top:-40px;width:260px;height:260px;opacity:.14"><svg><use href="#mon-takeda"/></svg></div><div class="p"><div class="nen">天正五年</div><h3 style="font-family:var(--fude);font-size:clamp(36px,5.6vw,60px);letter-spacing:.1em;color:#fff;text-shadow:0 3px 12px #000">手取川の戦い</h3><div class="vs" style="font-family:var(--go);font-size:14px;letter-spacing:.2em;color:var(--kami);margin-top:6px"><span class="ao" style="color:#9CC4EA">織田</span>　対　<span class="aka" style="color:#F19A85">上杉</span></div><p class="toi" style="font-size:16px;margin-top:10px">夜の川を背に、上杉謙信が迫る。<b>退くか。踏みとどまるか。</b></p></div></div>
     <div class="gunki-two">
-      <article class="maki ar" data-open="anegawa"><div class="bg" data-mov="anegawa_h"><img src="img/seq/anegawa/000.jpg" alt="姉川の戦い" loading="lazy" decoding="async"></div><div class="fog"></div><div class="p"><div class="nen">元亀元年</div><h3>姉川の戦い</h3><div class="vs"><span class="ao">織田・徳川</span>　対　<span class="aka">浅井・朝倉</span></div><p class="toi">川を挟んだ大軍同士の野戦。<b>浅瀬を渡るか。別戦線を支えるか。</b></p></div></article>
-      <article class="maki ar" data-open="kizu"><div class="bg" data-mov="kizu_h"><img src="img/seq/kizu/000.jpg" alt="木津砦の戦い" loading="lazy" decoding="async"></div><div class="fog"></div><div class="p"><div class="nen">天正四年</div><h3>木津砦の戦い</h3><div class="vs"><span class="ao">織田</span>　対　<span class="aka">本願寺</span></div><p class="toi">川、橋、柵、砦。<b>正面突破か。迂回か。</b></p></div></article>
+      <article class="maki ar" data-open="anegawa"><div class="bg" data-mov="anegawa_h"><img width="960" height="540" data-src="img/seq/anegawa/000.jpg" alt="姉川の戦い" loading="lazy" decoding="async"></div><div class="fog"></div><div class="p"><div class="nen">元亀元年</div><h3>姉川の戦い</h3><div class="vs"><span class="ao">織田・徳川</span>　対　<span class="aka">浅井・朝倉</span></div><p class="toi">川を挟んだ大軍同士の野戦。<b>浅瀬を渡るか。別戦線を支えるか。</b></p></div></article>
+      <article class="maki ar" data-open="kizu"><div class="bg" data-mov="kizu_h"><img width="960" height="540" data-src="img/seq/kizu/000.jpg" alt="木津砦の戦い" loading="lazy" decoding="async"></div><div class="fog"></div><div class="p"><div class="nen">天正四年</div><h3>木津砦の戦い</h3><div class="vs"><span class="ao">織田</span>　対　<span class="aka">本願寺</span></div><p class="toi">川、橋、柵、砦。<b>正面突破か。迂回か。</b></p></div></article>
     </div>
-    <div class="gunki-big ar" style="margin-top:18px" data-open="shigisan"><div class="bg" data-mov="shigisan_h"><img src="img/seq/shigisan/000.jpg" alt="信貴山城の戦い" loading="lazy" decoding="async"></div><div class="fog"></div><div class="mon" style="right:-40px;top:-40px;width:260px;height:260px;opacity:.14"><svg><use href="#mon-aoi"/></svg></div><div class="p"><div class="nen">天正五年</div><h3 style="font-family:var(--fude);font-size:clamp(36px,5.6vw,60px);letter-spacing:.1em;color:#fff;text-shadow:0 3px 12px #000">信貴山城の戦い</h3><div class="vs" style="font-family:var(--go);font-size:13px;letter-spacing:.2em;color:var(--kami);margin-top:6px"><span class="ao" style="color:#9CC4EA">織田</span>　対　<span class="aka" style="color:#F19A85">松永</span></div><p class="toi" style="font-size:16px;margin-top:10px">平蜘蛛と共に籠る松永久秀。<b>門を破るか。囲んで待つか。</b></p></div></div>
+    <div class="gunki-big ar" style="margin-top:18px" data-open="shigisan"><div class="bg" data-mov="shigisan_h"><img width="960" height="540" data-src="img/seq/shigisan/000.jpg" alt="信貴山城の戦い" loading="lazy" decoding="async"></div><div class="fog"></div><div class="mon" style="right:-40px;top:-40px;width:260px;height:260px;opacity:.14"><svg><use href="#mon-aoi"/></svg></div><div class="p"><div class="nen">天正五年</div><h3 style="font-family:var(--fude);font-size:clamp(36px,5.6vw,60px);letter-spacing:.1em;color:#fff;text-shadow:0 3px 12px #000">信貴山城の戦い</h3><div class="vs" style="font-family:var(--go);font-size:14px;letter-spacing:.2em;color:var(--kami);margin-top:6px"><span class="ao" style="color:#9CC4EA">織田</span>　対　<span class="aka" style="color:#F19A85">松永</span></div><p class="toi" style="font-size:16px;margin-top:10px">平蜘蛛と共に籠る松永久秀。<b>門を破るか。囲んで待つか。</b></p></div></div>
     <div class="gunki-two">
-      <article class="maki ar" data-open="yamazaki"><div class="bg" data-seq="yamazaki" data-dir="seq"><img src="img/seq/yamazaki/000.jpg" alt="山崎の戦い" loading="lazy" decoding="async"></div><div class="fog"></div><div class="mon"><svg><use href="#mon-kikyo"/></svg></div><div class="p"><div class="nen">天正十年</div><h3>山崎の戦い</h3><div class="vs"><span class="ao">羽柴</span>　対　<span class="aka">明智</span></div><p class="toi">天王山を巡る高地争奪。<b>高所を取るか。中央を押し切るか。</b></p></div></article>
-      <article class="maki ar" data-open="miki"><div class="bg" data-mov="miki_h"><img src="img/seq/miki/000.jpg" alt="三木合戦" loading="lazy" decoding="async"></div><div class="fog"></div><div class="p"><div class="nen">天正六年</div><h3>三木合戦</h3><div class="vs"><span class="ao">羽柴</span>　対　<span class="aka">別所</span></div><p class="toi">城を囲み、兵糧を断つ。<b>干殺しか。総攻めか。</b></p></div></article>
+      <article class="maki ar" data-open="yamazaki"><div class="bg" data-seq="yamazaki" data-dir="seq"><img width="960" height="540" data-src="img/seq/yamazaki/000.jpg" alt="山崎の戦い" loading="lazy" decoding="async"></div><div class="fog"></div><div class="mon"><svg><use href="#mon-kikyo"/></svg></div><div class="p"><div class="nen">天正十年</div><h3>山崎の戦い</h3><div class="vs"><span class="ao">羽柴</span>　対　<span class="aka">明智</span></div><p class="toi">天王山を巡る高地争奪。<b>高所を取るか。中央を押し切るか。</b></p></div></article>
+      <article class="maki ar" data-open="miki"><div class="bg" data-mov="miki_h"><img width="960" height="540" data-src="img/seq/miki/000.jpg" alt="三木合戦" loading="lazy" decoding="async"></div><div class="fog"></div><div class="p"><div class="nen">天正六年</div><h3>三木合戦</h3><div class="vs"><span class="ao">羽柴</span>　対　<span class="aka">別所</span></div><p class="toi">城を囲み、兵糧を断つ。<b>干殺しか。総攻めか。</b></p></div></article>
     </div>
     <div class="nenpyo ar">
       <div><b>1560</b><span>桶狭間</span><small>永禄三年</small></div>
@@ -710,7 +662,7 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
       </div>
       <div class="ar makimono">
         <div class="inban-mark"><svg><use href="#inban"/></svg></div>
-        <div class="gaku ugoku" data-seq="gungi" data-dir="seq"><span class="kin-corner tr"></span><span class="kin-corner bl"></span><img src="img/seq/gungi/000.jpg" alt="木津砦の戦い" loading="lazy" decoding="async"></div>
+        <div class="gaku ugoku" data-seq="gungi" data-dir="seq"><span class="kin-corner tr"></span><span class="kin-corner bl"></span><img width="960" height="540" data-src="img/seq/gungi/000.jpg" alt="木津砦の戦い" loading="lazy" decoding="async"></div>
         <p class="soe">軍議――砦の備え、援軍の数、敵の補給。地図を前に、手を決める。</p>
       </div>
     </div>
@@ -730,22 +682,22 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
       <div class="erabu"><span>最初に選ぶなら？</span><button type="button" aria-pressed="false" data-house="oda">織田</button><button type="button" aria-pressed="false" data-house="takeda">武田</button><button type="button" aria-pressed="false" data-house="tokugawa">徳川</button></div>
     </div>
     <div class="kakejiku-row">
-      <div class="kakejiku ar" data-house="oda"><div class="kami"><div class="mon"><svg><use href="#mon-oda"/></svg></div><img src="img/p_織田信長.svg" alt="織田信長" loading="lazy" decoding="async"></div><div class="na">織田信長</div><div class="kotoba1">天下布武</div></div>
-      <div class="kakejiku ar" data-house="tokugawa"><div class="kami"><div class="mon"><svg><use href="#mon-aoi"/></svg></div><img src="img/p_徳川家康.svg" alt="徳川家康" loading="lazy" decoding="async"></div><div class="na">徳川家康</div><div class="kotoba1">耐えて、最後に勝つ</div></div>
-      <div class="kakejiku ar" data-house="oda"><div class="kami"><div class="mon"><svg><use href="#mon-oda"/></svg></div><img src="img/p_羽柴秀吉.svg" alt="羽柴秀吉" loading="lazy" decoding="async"></div><div class="na">羽柴秀吉</div><div class="kotoba1">機を逃さない</div></div>
-      <div class="kakejiku ar" data-house="oda"><div class="kami"><div class="mon"><svg><use href="#mon-kikyo"/></svg></div><img src="img/p_明智光秀.svg" alt="明智光秀" loading="lazy" decoding="async"></div><div class="na">明智光秀</div><div class="kotoba1">鉄砲と城攻めの名手</div></div>
-      <div class="kakejiku ar" data-house="takeda"><div class="kami"><div class="mon"><svg><use href="#mon-takeda"/></svg></div><img src="img/p_武田勝頼.svg" alt="武田勝頼" loading="lazy" decoding="async"></div><div class="na">武田勝頼</div><div class="kotoba1">騎馬、風の如く</div></div>
-      <div class="kakejiku ar" data-house="oda"><div class="kami"><div class="mon"><svg><use href="#mon-oda"/></svg></div><img src="img/p_柴田勝家.svg" alt="柴田勝家" loading="lazy" decoding="async"></div><div class="na">柴田勝家</div><div class="kotoba1">掛かれ、掛かれ</div></div>
-      <div class="kakejiku ar" data-house="oda"><div class="kami"><div class="mon"><svg><use href="#mon-oda"/></svg></div><img src="img/p_丹羽長秀.svg" alt="丹羽長秀" loading="lazy" decoding="async"></div><div class="na">丹羽長秀</div><div class="kotoba1">本陣を支える米五郎左</div></div>
-      <div class="kakejiku ar" data-house="uesugi"><div class="kami"><div class="mon"><svg><use href="#mon-takeda"/></svg></div><img src="img/p_上杉謙信.svg" alt="上杉謙信" loading="lazy" decoding="async"></div><div class="na">上杉謙信</div><div class="kotoba1">毘</div></div>
+      <div class="kakejiku ar" data-house="oda"><div class="kami"><div class="mon"><svg><use href="#mon-oda"/></svg></div><img width="320" height="480" data-src="img/p_織田信長.svg" alt="織田信長" loading="lazy" decoding="async"></div><div class="na">織田信長</div><div class="kotoba1">天下布武</div></div>
+      <div class="kakejiku ar" data-house="tokugawa"><div class="kami"><div class="mon"><svg><use href="#mon-aoi"/></svg></div><img width="320" height="480" data-src="img/p_徳川家康.svg" alt="徳川家康" loading="lazy" decoding="async"></div><div class="na">徳川家康</div><div class="kotoba1">耐えて、最後に勝つ</div></div>
+      <div class="kakejiku ar" data-house="oda"><div class="kami"><div class="mon"><svg><use href="#mon-oda"/></svg></div><img width="320" height="480" data-src="img/p_羽柴秀吉.svg" alt="羽柴秀吉" loading="lazy" decoding="async"></div><div class="na">羽柴秀吉</div><div class="kotoba1">機を逃さない</div></div>
+      <div class="kakejiku ar" data-house="oda"><div class="kami"><div class="mon"><svg><use href="#mon-kikyo"/></svg></div><img width="320" height="480" data-src="img/p_明智光秀.svg" alt="明智光秀" loading="lazy" decoding="async"></div><div class="na">明智光秀</div><div class="kotoba1">鉄砲と城攻めの名手</div></div>
+      <div class="kakejiku ar" data-house="takeda"><div class="kami"><div class="mon"><svg><use href="#mon-takeda"/></svg></div><img width="320" height="480" data-src="img/p_武田勝頼.svg" alt="武田勝頼" loading="lazy" decoding="async"></div><div class="na">武田勝頼</div><div class="kotoba1">騎馬、風の如く</div></div>
+      <div class="kakejiku ar" data-house="oda"><div class="kami"><div class="mon"><svg><use href="#mon-oda"/></svg></div><img width="320" height="480" data-src="img/p_柴田勝家.svg" alt="柴田勝家" loading="lazy" decoding="async"></div><div class="na">柴田勝家</div><div class="kotoba1">掛かれ、掛かれ</div></div>
+      <div class="kakejiku ar" data-house="oda"><div class="kami"><div class="mon"><svg><use href="#mon-oda"/></svg></div><img width="320" height="480" data-src="img/p_丹羽長秀.svg" alt="丹羽長秀" loading="lazy" decoding="async"></div><div class="na">丹羽長秀</div><div class="kotoba1">本陣を支える米五郎左</div></div>
+      <div class="kakejiku ar" data-house="uesugi"><div class="kami"><div class="mon"><svg><use href="#mon-takeda"/></svg></div><img width="320" height="480" data-src="img/p_上杉謙信.svg" alt="上杉謙信" loading="lazy" decoding="async"></div><div class="na">上杉謙信</div><div class="kotoba1">毘</div></div>
     </div>
-    <div class="ar" style="margin-top:36px"><div class="gaku"><span class="kin-corner tr"></span><span class="kin-corner bl"></span><img src="img/council_oda.jpg" alt="設楽原の備え。武将の陣立てを決める" loading="lazy" decoding="async"></div><p class="soe">設楽原の備え――史実の布陣で行くか、自ら並べるか。</p></div>
+    <div class="ar" style="margin-top:36px"><div class="gaku"><span class="kin-corner tr"></span><span class="kin-corner bl"></span><img width="960" height="540" data-src="img/council_oda.jpg" alt="設楽原の備え。武将の陣立てを決める" loading="lazy" decoding="async"></div><p class="soe">設楽原の備え――史実の布陣で行くか、自ら並べるか。</p></div>
   </div>
 </section>
 
 <!-- 感情の頂 -->
 <section id="peak">
-  <div class="ugoku" data-seq="takatenjin_assault" data-dir="seqh" data-open="takatenjin_assault"><img src="img/seqh/takatenjin_assault/000.jpg" alt="高天神城 総攻め" loading="lazy" decoding="async"><div class="ov"><b>ここで、天下が決まる。</b></div><span class="play">▶ 大きく見る</span></div>
+  <div class="ugoku" data-seq="takatenjin_assault" data-dir="seqh" data-open="takatenjin_assault"><img width="960" height="388" data-src="img/seqh/takatenjin_assault/000.jpg" alt="高天神城 総攻め" loading="lazy" decoding="async"><div class="ov"><b>ここで、天下が決まる。</b></div><span class="play">▶ 大きく見る</span></div>
 </section>
 
 <!-- 第五章 -->
@@ -769,7 +721,7 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
     <div class="ar"><div class="sho">あなたなら</div><h2 class="h2">敵軍は、<span class="g">川向こう。</span></h2>
     <p class="kotoba">敵 一万八千、味方 一万二千。北には浅瀬、中央には橋。<b>あなたなら、どう攻める？</b></p></div>
     <div class="ar" style="display:grid;grid-template-columns:1fr 1fr;gap:30px;align-items:center;margin-top:24px" id="chooseGrid">
-      <div class="gaku"><span class="kin-corner tr"></span><span class="kin-corner bl"></span><img src="img/kizu.jpg" alt="木津砦。川、橋、浅瀬" loading="lazy" decoding="async"></div>
+      <div class="gaku"><span class="kin-corner tr"></span><span class="kin-corner bl"></span><img width="960" height="540" data-src="img/kizu.jpg" alt="木津砦。川、橋、浅瀬" loading="lazy" decoding="async"></div>
       <div>
         <div class="sanTaku"><button type="button" aria-pressed="false" data-b="bridge">正面突破<small>橋を渡る</small></button><button type="button" aria-pressed="false" data-b="ford">浅瀬から迂回<small>北へ回る</small></button><button type="button" aria-pressed="false" data-b="wait">援軍を待つ<small>鉄砲が揃うまで</small></button></div>
         <div class="kotae" role="status" aria-live="polite" id="kotae2"><b>その判断が、戦国大名では戦局を変える。</b></div>
@@ -787,7 +739,7 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
   <div class="wrap">
     <div class="ar"><div class="sho">攻略</div><h2 class="h2">戦いの<span class="g">手引き。</span></h2></div>
     <div class="shojo">
-      <div class="ar gaku"><span class="kin-corner tr"></span><span class="kin-corner bl"></span><img src="img/guide.jpg" alt="攻略サイトの軍議画面" loading="lazy" decoding="async"></div>
+      <div class="ar gaku"><span class="kin-corner tr"></span><span class="kin-corner bl"></span><img width="960" height="540" data-src="img/guide.jpg" alt="攻略サイトの軍議画面" loading="lazy" decoding="async"></div>
       <div class="ar">
         <h3>戦国大名 攻略サイト ── 筋書き別の手引き</h3>
         <p class="kotoba" style="margin-top:12px;font-size:15px">無料で遊べる「長篠の戦い」をはじめ、公開中の筋書きの遊び方、序盤の進め方、内政・外交・軍事、合戦で勝つコツを画像つきで。初めての一戦の前に、ざっと目を通しておくと勝ちやすい。</p>
@@ -869,10 +821,10 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
   </div>
 </footer>
 
-<div id="pvModal" role="dialog" aria-modal="true" aria-label="30秒の映像" hidden><div class="pvbox"><button type="button" class="pvx" id="pvClose">閉じる ×</button><video id="pvVideo" controls playsinline preload="none" src="mov/pv.mp4" poster="img/hero.jpg"></video><p>すべて実際のゲーム画面です</p></div></div>
+<div id="pvModal" role="dialog" aria-modal="true" aria-label="30秒の映像" hidden><div class="pvbox"><button type="button" class="pvx" id="pvClose">閉じる ×</button><video id="pvVideo" controls playsinline preload="none" data-src="mov/pv.mp4"></video><p>すべて実際のゲーム画面です</p></div></div>
 <div id="player" hidden role="dialog" aria-modal="true" aria-label="合戦画面の拡大"><div class="box"><button class="x" type="button">閉じる ×</button><img alt=""><div class="cap"></div><div class="sub"></div></div></div>
 <div id="stick"><div class="row"><a class="fuda" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="sticky_appstore_click"><svg><use href="#apple"/></svg>App Storeで入手</a><a class="inban" data-play data-ev="sticky_play_click" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザで遊ぶ</a></div></div>
-<div id="susumi">天下統一まで<i></i><span id="susumiT">一国</span></div>
+<div id="susumi" hidden>天下統一まで<i></i><span id="susumiT">一国</span></div>
 
 <script src="page-ui.js"></script>
 <script>
@@ -928,7 +880,7 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
   document.querySelectorAll('.erabu button').forEach(function(b){ b.addEventListener('click',function(){ document.querySelectorAll('.erabu button').forEach(function(x){ x.classList.remove('on'); x.setAttribute('aria-pressed','false'); }); b.classList.add('on'); b.setAttribute('aria-pressed','true'); var h=b.dataset.house; var first=null; document.querySelectorAll('.kakejiku').forEach(function(k){ var on=k.dataset.house===h; k.classList.toggle('hi',on); if(on&&!first) first=k; }); if(first) first.scrollIntoView({behavior:reduce?'auto':'smooth',block:'center'}); ev('choose_house_'+h); }); });
 
   /* 序の文言の試し（?hero=b / ?hero=c）。計測に添える */
-  (function(){ var u=new URLSearchParams(location.search); var v=u.get('hero'); var H={b:['もし、関ヶ原を','あなたが指揮したら。'],c:['数万の軍勢を、','その手で動かせ。']}; if(v&&H[v]){ var h1=document.querySelector('#hero h1'); if(h1) h1.innerHTML='<span>'+H[v][0]+'</span><span>'+H[v][1]+'</span>'; } window.__heroVar=v||'a'; })();
+  (function(){ var u=new URLSearchParams(location.search); var v=u.get('hero'); var H={b:'天下の行方は、あなたの采配で。',c:'数万の軍勢を、その手で動かせ。'}; if(v&&H[v]){ var h1=document.querySelector('#hero h1'); if(h1) h1.textContent=H[v]; } window.__heroVar=v||'a'; })();
 
   /* あなたならどう攻める（木津） */
   var ans2={ bridge:{t:"正面突破",b:"早い。だが門と櫓の鉄砲が橋の上を狙っている。損は大きく、渡った先で柵に取り付く。"}, ford:{t:"浅瀬から迂回",b:"湿地で足が鈍り、時はかかる。だが裏門と北の櫓は手薄。半数を回せば、守り手が割れる。"}, wait:{t:"援軍を待つ",b:"三十秒で鉄砲が揃う。だがその間に補給船が着き、門徒の士気が戻る。時は敵にも味方する。"} };
@@ -950,7 +902,7 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
     
     links.forEach(function(a){ a.addEventListener('pointerenter',prefetch); a.addEventListener('focus',prefetch); a.addEventListener('touchstart',prefetch,{passive:true}); }); })();
   document.querySelectorAll('.mondo details').forEach(function(d){ d.addEventListener('toggle',function(){ if(d.open) ev('faq_open'); }); });
-  var seen={}; function depth(){ var h=document.documentElement.scrollHeight-window.innerHeight; if(h<=0) return; var p=Math.round(window.scrollY/h*100); [25,50,75,100].forEach(function(m){ if(p>=m&&!seen[m]){ seen[m]=1; ev('scroll_'+m); } }); var b=document.getElementById('ch3'); if(b&&!seen.b&&b.getBoundingClientRect().top<window.innerHeight*0.6){ seen.b=1; ev('battle_section_view'); } var st=document.getElementById('susumi'); if(st){ var q=Math.min(1,window.scrollY/Math.max(1,h)); st.querySelector('i').style.setProperty('--h',(q*100)+'%'); document.getElementById('susumiT').textContent=q<.2?'一国':q<.45?'三国':q<.7?'十国':q<.92?'畿内':'天下'; } }
+  var seen={}; function depth(){ var h=document.documentElement.scrollHeight-window.innerHeight; if(h<=0) return; var p=Math.round(window.scrollY/h*100); [25,50,75,100].forEach(function(m){ if(p>=m&&!seen[m]){ seen[m]=1; ev('scroll_'+m); } }); var b=document.getElementById('ch3'); if(b&&!seen.b&&b.getBoundingClientRect().top<window.innerHeight*0.6){ seen.b=1; ev('battle_section_view'); } var st=document.getElementById('susumi'); if(st){ st.hidden=window.scrollY<document.getElementById('hero').offsetHeight; var q=Math.min(1,window.scrollY/Math.max(1,h)); st.querySelector('i').style.setProperty('--h',(q*100)+'%'); document.getElementById('susumiT').textContent=q<.2?'一国':q<.45?'三国':q<.7?'十国':q<.92?'畿内':'天下'; } }
   window.addEventListener('scroll',depth,{passive:true}); depth();
 
   /* 目安箱 */
@@ -976,7 +928,7 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
 <script src="media.js"></script>
 <script>
 (()=>{const m=document.getElementById('pvModal'),v=document.getElementById('pvVideo'),o=document.getElementById('pvOpen'),x=document.getElementById('pvClose');if(!m||!o)return;
-const modal=SDPage.modal(m,x,()=>v.pause());o.onclick=()=>{modal.open(o);v.currentTime=0;const p=v.play();if(p&&p.catch)p.catch(()=>{});};})();
+const modal=SDPage.modal(m,x,()=>v.pause());o.onclick=()=>{if(!v.getAttribute('src'))v.src=v.dataset.src;modal.open(o);v.currentTime=0;const p=v.play();if(p&&p.catch)p.catch(()=>{});};})();
 </script>
 </body>
 </html>
