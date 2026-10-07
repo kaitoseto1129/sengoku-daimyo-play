@@ -1510,9 +1510,19 @@ body.inbattle #toast:not(.on){opacity:0;visibility:hidden}
 .first-brief details p{margin:8px 0}
 body.picking #moreMenu{display:none!important}
 #btnGameStart.boot-pressed{background:#8A251C!important;color:#FFE08A!important;opacity:1!important}
+
+/* 第259巡（作り手：縦の前提は全て除く）：指で触る端末を縦に持ったら、横にするよう告げて遊ばせない */
+#rotateGate{display:none}
+@media (orientation:portrait) and (pointer:coarse){
+  #rotateGate{display:flex;position:fixed;inset:0;z-index:2147483000;background:#12100E;color:#F4EAD5;flex-direction:column;align-items:center;justify-content:center;gap:20px;text-align:center;padding:24px;font-size:18px;line-height:1.5}
+  #rotateGate .rg-icon{width:72px;height:72px;border:4px solid #C9A227;border-radius:12px;animation:rgTurn 2.4s ease-in-out infinite}
+  #rotateGate b{color:#F2D58A;font-size:22px;letter-spacing:.1em}
+  @keyframes rgTurn{0%,30%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
+}
 </style>
 
 
+<div id="rotateGate" role="alert" aria-live="polite"><div class="rg-icon" aria-hidden="true"></div><b>スマホを横にしてください</b><div>戦国大名は横向きで遊ぶゲームです</div></div>
 <div id="start">
 <div id="bootState" role="status" aria-live="polite">支度中…</div>
   <!-- ① 表紙 -->
@@ -37280,6 +37290,7 @@ setTimeout(ensureAudioRunning, 800);
 document.addEventListener("visibilitychange", ()=>{ if(!document.hidden){ setTimeout(()=>ensureAudioRunning(true), 150); setTimeout(()=>{ try{ if(terrain&&(W.started||pickMode)&&terrainBlank()){ bakeTerrain(); bakeMinimap(); tileLayer=null; } }catch(_){ } },300); } else if(W.started && !B && !W.result) autoSave(); });
 window.addEventListener("pageshow", ()=>{ setTimeout(()=>{ try{ if(terrain&&(W.started||pickMode)&&terrainBlank()){ bakeTerrain(); bakeMinimap(); tileLayer=null; } }catch(_){ } },300); });
 window.addEventListener("pagehide", ()=>{ if(W.started && !B && !W.result) autoSave(); });
+try{ const mq=matchMedia("(orientation:portrait) and (pointer:coarse)"); mq.addEventListener("change",()=>{ if(mq.matches&&W.started&&!B) setSpeed(0); }); }catch(_){ }
 window.addEventListener("pageshow", ()=>setTimeout(()=>ensureAudioRunning(true),150));
 retOpen();
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden) retOpen(); });
