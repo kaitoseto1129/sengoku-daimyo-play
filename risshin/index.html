@@ -9,6 +9,66 @@
 <meta property="og:image" content="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/og.png"><meta property="og:image:width" content="1280"><meta property="og:image:height" content="672"><meta property="og:image:alt" content="姉川の戦いの戦場を行く足軽">
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="戦国立身3D　足軽から天下へ"><meta name="twitter:description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。"><meta name="twitter:image" content="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/og.png">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGame","name":"戦国立身3D","inLanguage":"ja","url":"https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/","description":"足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。","genre":["アクション","歴史","戦国"],"gamePlatform":["Web","iOS"],"applicationCategory":"Game","operatingSystem":"Web, iOS","image":"https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/og.png","offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"}}</script>
+<!-- Meta Pixel: 公開ウェブ版のみ。戦国大名と同じ Pixel ID で広告効果を計測する。 -->
+<script>
+(function () {
+  if (location.hostname !== 'kaitoseto1129.github.io') return;
+  if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.iap) return;
+  !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+  n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}
+  (window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+  window.fbq('init', '1134385575587937');
+  window.fbq('track', 'PageView');
+
+  window.__risshinMetaTrack = function (name, params) {
+    if (typeof window.fbq !== 'function') return;
+    window.fbq('trackCustom', name, params || {});
+  };
+
+  document.addEventListener('click', function (event) {
+    var button = event.target && event.target.closest && event.target.closest('button');
+    if (!button) return;
+    if (button.id === 'b-cont') {
+      window.__risshinMetaTrack('GameStart', { mode: 'continue' });
+    } else if (button.id === 'ng-next' && button.textContent.indexOf('この名で始める') !== -1) {
+      window.__risshinMetaTrack('GameStart', { mode: 'new' });
+    } else if (button.id === 'intro-go') {
+      var title = document.getElementById('intro-title');
+      window.__risshinMetaTrack('BattleStart', { battle: title ? title.textContent.trim() : '' });
+    }
+  }, true);
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var seen = new WeakSet();
+    function recordResults(root) {
+      var results = [];
+      if (root && root.nodeType === 1 && root.matches('.eval.ev2')) results.push(root);
+      if (root && root.querySelectorAll) results = results.concat(Array.from(root.querySelectorAll('.eval.ev2')));
+      results.forEach(function (result) {
+        if (seen.has(result)) return;
+        seen.add(result);
+        var battle = result.querySelector('.ek-h h2');
+        var grade = result.querySelector('.ek-seal');
+        var total = result.querySelector('.ev-sum .t strong');
+        window.__risshinMetaTrack('GameResult', {
+          battle: battle ? battle.textContent.trim() : '',
+          grade: grade && grade.firstChild ? grade.firstChild.textContent.trim() : '',
+          merit: total ? Number(total.textContent) || 0 : 0
+        });
+      });
+    }
+    recordResults(document);
+    new MutationObserver(function (mutations) {
+      mutations.forEach(function (mutation) {
+        mutation.addedNodes.forEach(recordResults);
+      });
+    }).observe(document.body, { childList: true, subtree: true });
+  });
+})();
+</script>
+<!-- /Meta Pixel -->
 <link rel="icon" type="image/png" sizes="32x32" href="./v202610051557/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610051557/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610051557/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610051557/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>

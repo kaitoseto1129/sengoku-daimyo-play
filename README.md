@@ -11,6 +11,7 @@
 このリポジトリには完成品の一枚（index.html）だけを置いています。
 
 ## 広告の計測コード（Pixel）について
-- Meta Pixel ID `1134385575587937` は `pixel.html` で管理し、現在の `index.html` の `<head>` にも同じコードを埋め込んでいます。
+- Meta Pixel ID `1134385575587937` は `pixel.html` で管理し、現在の `index.html` と `risshin/index.html` の `<head>` にも同じコードを埋め込んでいます。
+- 戦国立身では `PageView` に加え、`GameStart`・`BattleStart`・`GameResult` をカスタムイベントとして送信します。
 - ゲーム本体を組み直すときは、`pixel.html` の内容を `index.html` の `<!-- pixel: ... -->` と `<!-- /pixel -->` の間へ反映してください。このリポジトリに自動差し込み処理はありません。
 - 公開ウェブ版でのみ `PageView` を送信します。iPhoneアプリ内・localhost・他のホストでは送信しません。
