@@ -854,6 +854,8 @@ body.inbattle #stage.paused::after{ display:none; }
   animation:bootPulse 1.1s ease-in-out infinite}
 @keyframes bootPulse{0%,100%{opacity:.55}50%{opacity:1}}
 html.booting #start button{opacity:.45;pointer-events:none}
+html.booting #start #btnGameStart{pointer-events:auto;opacity:1}
+#btnGameStart.boot-pressed{background:#8A251C;box-shadow:inset 0 0 0 3px #FFE08A;transform:translateY(2px)}
 html:not(.booting) #bootState{display:none}
 
 /* ===== 第255巡：携帯の作り（Apple HIG／Material 3／デジタル庁デザインシステム）=====
@@ -1264,7 +1266,7 @@ body.picking #mSim,body.picking #feed,body.picking #noteStack{display:none!impor
 .castle-essential{grid-template-columns:repeat(2,minmax(0,1fr))}
 .castle-primary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .castle-primary button,#pBody summary{min-height:44px;font-size:14px;line-height:1.5}
-body.picking #mSim:not([hidden]){display:block!important;bottom:64px!important;max-height:calc(100% - 100px)!important}
+body.picking #mSim{display:none!important}
 body.panelopen #mSim{z-index:26;box-sizing:border-box;overflow:auto}
 body:has(#mSim:not([hidden])) #stageBadge,body:has(#mSim:not([hidden])) #retTicker{display:none!important}
 @media (max-width:1120px) and (orientation:landscape){
@@ -1385,6 +1387,129 @@ body.inbattle #toast:not(.on){opacity:0;visibility:hidden}
  #bSim .sim-b,#bCoach>span,#bCoach .st.now{max-height:none;overflow:visible;line-height:1.5}
 }
 
+
+/* 第261巡：城選びと軍議を一枚ずつ、札の中は内容の高さを保つ。 */
+#stage:has(#foundBar:not([hidden])) #mSim{display:none!important}
+#battle:has(.battle-council) #bSim,#battle:has(.battle-council) #bCoach,
+#battle:has(.battle-council) #bBeginBig,#battle:has(.battle-council) #bfoot{display:none!important}
+#panel details>button.big{display:block;width:100%;box-sizing:border-box;margin:8px 0;flex:none}
+#panel details>.grid,#panel details>.row,#panel details>.actbar{margin-top:10px;margin-bottom:10px}
+#panel .castle-primary{display:grid;gap:12px;margin-bottom:12px}
+#panel .castle-primary>button{min-width:0;width:100%;box-sizing:border-box}
+#panel .scroll-x>button{flex:0 0 auto;max-width:100%;margin:0}
+#panel .grid>button,.battle-council .grid>button{min-width:0;min-height:44px;height:auto;box-sizing:border-box;white-space:normal;line-height:1.5}
+#panel .row>[onclick],#panel .face{min-width:44px;min-height:44px;box-sizing:border-box}
+#panel .face.sm{width:44px;height:44px}
+#panel .sim-hot{outline-offset:-3px;box-shadow:inset 0 0 0 3px #FFD166!important;animation:none;z-index:auto}
+#panel .cost,.battle-council .cost{line-height:1.5;overflow-wrap:anywhere}
+.battle-council .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.battle-council .grid.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.battle-council button{min-width:44px;min-height:44px;font-size:14px;line-height:1.5}
+@media(max-width:1120px){
+ #battle button,#battle [onclick],#battle [role="button"],#battle summary{min-width:44px!important;min-height:44px!important;font-size:14px;line-height:1.5!important;box-sizing:border-box}
+ #battle [onclick]:not(canvas){display:inline-flex;align-items:center}
+ #panel .grid{gap:12px;grid-auto-rows:auto}
+ #panel .g2,#panel .g3,#panel .g4,#panel .g5{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #panel .g1{grid-template-columns:minmax(0,1fr)}
+ #panel .row>span,#panel [data-idle]>div{min-width:0;overflow-wrap:anywhere}
+ #panel button{min-width:44px;min-height:44px!important;font-size:14px;line-height:1.5;white-space:normal}
+ #panel [data-idle] .grid{margin-top:12px!important;margin-bottom:12px}
+ #panel .idle-officer>button{flex:1 0 100%;margin:0}
+ .battle-council .grid.g3{grid-template-columns:minmax(0,1fr)}
+ #battle.on{display:block}
+ #battle #bcanvas{position:absolute;inset:0;width:100%;height:100%;z-index:0}
+ #bhead{position:absolute;left:0;right:0;top:0;z-index:30;background:transparent!important;border:0;box-shadow:none;box-sizing:border-box}
+ #bfoot{position:absolute;left:0;right:0;bottom:0;z-index:30;height:44px!important;min-height:44px!important;max-height:44px!important;padding:0 4px!important;gap:4px!important;flex-wrap:nowrap!important;overflow-x:auto;overflow-y:hidden;box-sizing:border-box;background:transparent!important;border:0;box-shadow:none;scrollbar-width:none}
+ #bfoot>*{flex-shrink:0} #bfoot .tool,#bfoot button{min-width:44px!important;min-height:44px!important;height:44px!important;box-sizing:border-box;margin:0;padding:0 6px!important;font-size:14px!important;line-height:1.5!important}
+ #bfoot .faceset{gap:4px} #bfoot .fgap,#bfoot .fsep{display:none}
+ #bhead [onclick],#bhead [role="button"],#bhead #bGoal,#bhead #bTerrain{min-width:44px!important;min-height:44px!important;max-height:44px!important;box-sizing:border-box;line-height:1.5!important;align-items:center;cursor:pointer}
+ #bSim,#bCoach{top:auto!important;bottom:52px!important;left:8px!important;right:auto!important;transform:none!important;width:min(220px,56vw)!important;max-width:56vw!important;padding:4px 6px!important;box-sizing:border-box;box-shadow:none;font-size:14px;line-height:1.5}
+ #bSim.help-right,#bCoach.help-right{left:auto!important;right:8px!important}
+ #bSim .sim-t,#bCoach .t,#bCoach .st:not(.now){display:none}
+ #bSim .sim-b,#bCoach>span,#bCoach .st.now{font-size:14px;line-height:1.5;max-height:42px;overflow:auto;margin:0;padding-right:44px}
+ #bSim .sim-x,#bCoach button{position:absolute;right:0;top:0;min-width:44px;min-height:44px;margin:0;padding:0 4px;line-height:1.5;font-size:14px;background:#241F16}
+ #bSim:has(#bSimOk) .sim-b{padding-right:88px}
+ #bSim #bSimOk{position:absolute;right:44px;top:0;width:44px;min-width:44px;min-height:44px;margin:0;padding:0;font-size:14px}
+ #bBeginBig{min-height:44px;bottom:52px;padding:4px 18px;animation:none;box-shadow:none}
+ #bBeginBig small{display:none}
+ body.inbattle #toast.on{bottom:52px!important;left:auto!important;right:8px!important;width:min(240px,60vw);max-width:60vw;padding:4px 6px;box-shadow:none;font-size:14px;line-height:1.5}
+ body.inbattle #toast[data-action="hq"]{display:flex;align-items:center;gap:4px;max-width:60vw;min-height:44px}
+ #toast[data-action="hq"] button{flex:none;width:112px;min-height:44px;margin:0;outline:none;box-shadow:none;animation:none;padding:0 4px}
+ body.inbattle:has(#bSim:not([hidden]),#bCoach:not([hidden])) #toast:not([data-action="hq"]){visibility:hidden}
+ .notice-priority{display:none!important}
+}
+@media(max-width:1120px) and (orientation:portrait){
+ #bhead{height:88px!important;min-height:88px;padding:0 4px;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:44px 44px;gap:0 4px;overflow:hidden}
+ #bhead .side,#bhead .bbar,#bName,#bSitBar,#bSit,#bForms{display:none!important}
+ #bhead #bMine,#bhead #bFoe{grid-row:1;min-width:0;margin:0;padding:0 4px;border:0;white-space:nowrap;font-size:14px}
+ #bhead #bMine{grid-column:1} #bhead #bFoe{grid-column:2}
+ #bhead .num .row{display:inline!important;padding:0;line-height:1.5} #bhead .num .row.cmd{display:none!important}
+ #bhead .bTitle{grid-column:1 / -1;grid-row:2;width:100%;max-width:100%!important;height:44px;overflow:hidden}
+ #bhead #bGoal:not([hidden]),#bhead #bTerrain:not([hidden]){display:flex!important;flex-direction:row;width:100%;max-width:100%!important;padding:0 6px!important;font-size:14px!important;white-space:nowrap;overflow:hidden;background:#15120E}
+ #bGoal>span{overflow:hidden;text-overflow:ellipsis;min-width:0} #bGoal b{flex:none;margin-right:4px}
+}
+
+
+/* 第262巡：仕事・城・軍議の釦は内容の高さを取り、隣の矩形へ出さない。 */
+#panel .council-sheet{display:flex;flex-direction:column;gap:12px;min-width:0}
+#panel .council-sheet>*{flex:none;min-width:0;margin:0!important}
+#panel .council-sheet .grid,#panel .castle-primary,.battle-council .grid{height:auto;min-height:min-content;grid-auto-rows:minmax(min-content,auto);gap:12px!important}
+#panel .council-sheet button,#panel .castle-primary>button,.battle-council .grid>button{display:flex!important;flex-direction:column;flex:none;min-width:0!important;max-width:100%;width:100%;height:auto;min-height:44px;box-sizing:border-box;white-space:normal;overflow-wrap:anywhere;line-height:1.5;margin:0;transform:none}
+#panel .castle-primary>button .cost,.battle-council .cost{display:block;max-width:100%;min-width:0;white-space:normal;line-height:1.5}
+#panel .council-footer{display:grid;gap:12px}
+.battle-council .dialog{box-sizing:border-box}
+.battle-council .dlg-actions{position:static;bottom:auto;margin:0!important;padding:8px 0}
+#bhead .bTitle:has(#firstHint:not([hidden]))>*:not(#firstHint){display:none!important}
+#firstHint{font-size:14px;line-height:1.5;color:#FFF4DE;min-width:0;max-width:100%;overflow-x:auto;white-space:nowrap;scrollbar-width:none}
+@media(max-width:1120px) and (orientation:portrait){
+ #panel .castle-primary{grid-template-columns:minmax(0,1fr)}
+ .battle-council .grid{grid-template-columns:minmax(0,1fr)!important}
+}
+@media(max-width:1120px) and (orientation:landscape){
+ /* 兵力・次の手・操作は既存の上下帯へ。空白の地は透明にする。 */
+ #bhead .bTitle:has(#firstHint:not([hidden]))>*:not(#firstHint){display:none!important}
+ #bhead{height:22px!important;min-height:22px!important;max-height:22px!important;overflow:visible!important;align-items:flex-start}
+ #bhead .bTitle{height:22px!important;min-height:22px!important}
+ #bhead .bTitle:has(#firstHint:not([hidden])){background:transparent!important}
+ #firstHint{background:#15120E;padding:0 4px;max-width:100%;box-sizing:border-box}
+ #bfoot .tool{background:linear-gradient(transparent 10px,#241F16 10px,#241F16 34px,transparent 34px)!important;border:0!important;border-radius:0}
+ #bfoot .tool.on,#bfoot .tool.hot,#bfoot .tool.gold{background:linear-gradient(transparent 10px,#E8C75B 10px,#E8C75B 34px,transparent 34px)!important}
+ #battle:has(#firstHint:not([hidden])) #bCoach,
+ #battle:has(#firstHint:not([hidden])) #bSim:is([data-step="5"],[data-step="7"],[data-step="8"],[data-step="9"],[data-step="10"]){display:none!important}
+ body.inbattle #toast.on:not([data-action="hq"]){width:auto!important;max-width:calc(100vw - 16px)!important;white-space:nowrap;overflow-x:auto;padding:0 4px!important;background:#15120E;line-height:1.5}
+}
+
+/* 第263巡：折り返した札の行と釦の高さをそろえ、帯の地を不透明に。 */
+#panel .grid,.dialog .grid{grid-auto-rows:minmax(min-content,auto);height:auto;min-height:min-content}
+.dialog .grid>button{height:auto;min-height:44px;min-width:44px;box-sizing:border-box;white-space:normal;line-height:1.5;transform:none}
+#panel .panel-dispatch-heading{height:auto;min-height:min-content;flex:none;align-items:flex-start!important}
+#panel .panel-dispatch-heading>span{flex-wrap:wrap;gap:8px!important}
+#panel .council-footer{grid-auto-rows:minmax(min-content,auto)}
+#panel .council-footer>button{height:auto;min-height:44px;margin:0;box-sizing:border-box}
+#panel [data-idle]{min-width:0;flex:none}
+#panel [data-idle]>div{min-width:0}
+#panel .idle-officer>button{flex:none;margin:0}
+#panel .idle-officer{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px}
+#panel .idle-officer>button{grid-column:1/-1;width:100%}
+#panel .conscript-officer{flex-wrap:wrap;gap:12px;min-height:min-content}
+#panel .conscript-officer>button{flex:none;min-height:44px}
+#bfoot .tool,#bfoot button,#bfoot .tool:hover{background:#241F16!important;background-image:none!important;color:#FFF4DE!important;opacity:1!important;line-height:1.5;min-width:44px;min-height:44px}
+#bfoot .tool.on,#bfoot .tool.hot,#bfoot .tool.gold,#bfoot button[aria-pressed="true"]{background:#E8C75B!important;color:#20180A!important}
+@media(max-width:1120px){
+ #panel .panel-dispatch-heading{display:grid!important;grid-template-columns:minmax(0,1fr);gap:12px}
+ #panel .panel-dispatch-heading>span{margin:0!important;display:flex!important}
+ #panel .grid,.dialog .grid{grid-auto-rows:minmax(min-content,auto)!important}
+ .battle-council .grid.g3{grid-template-columns:minmax(0,1fr)!important}
+}
+
+#panel.novice-mobile,#panel.novice-mobile *, .first-brief,.first-brief *{font-size:14px!important;line-height:1.5!important}
+#panel.novice-mobile button,#panel.novice-mobile [role="button"],#panel.novice-mobile summary,.first-brief button,.first-brief summary{min-width:44px!important;min-height:44px!important;box-sizing:border-box}
+.first-brief summary{display:flex;align-items:center;cursor:pointer}
+.first-brief .grid{grid-template-columns:minmax(0,1fr)!important}
+.first-brief .choice-line{text-align:left;white-space:normal}
+.first-brief details p{margin:8px 0}
+body.picking #moreMenu{display:none!important}
+#btnGameStart.boot-pressed{background:#8A251C!important;color:#FFE08A!important;opacity:1!important}
 </style>
 
 
@@ -1409,6 +1534,20 @@ body.inbattle #toast:not(.on){opacity:0;visibility:hidden}
     <div class="tiny" id="pcHint" hidden style="margin-top:10px;opacity:.85"><span>横向きにすると、戦場が広く見えます。</span></div>   <!-- 第257巡（管理画面：題名で1分以内に181人が離れていた）：携帯の人に「PCの方が見やすい」と告げるのをやめる -->
   </div>
 
+<!-- 第253巡（作り手：広告から来た人の六割が開くまで八秒以上かかっていた）：表紙の飾りと文だけを先に流し、重い辞書と肖像と本体はその後ろへ。
+     本体が読み終わるまでの数秒は「支度中…」と出し、その間に押された釦はおぼえておいて、支度が済んだら実行する -->
+<script>
+(function(){ var note=document.getElementById("bootNote"); var q=null;
+  window.__bootReady=function(){ window.__ready=true; if(b){ b.classList.remove("boot-pressed"); b.removeAttribute("aria-busy"); b.textContent="ゲームをはじめる"; } if(note) note.hidden=true; var a=q; q=null; if(a) try{ a(); }catch(e){ } };
+  var hold=function(fn){ return function(){ if(window.__ready) return; q=fn; if(note) note.hidden=false; if(b){ b.classList.add("boot-pressed"); b.setAttribute("aria-busy","true"); b.textContent="支度中…"; } }; };
+  var b=document.getElementById("btnGameStart"); if(b) b.addEventListener("click",hold(function(){ var x=document.getElementById("btnGameStart"); if(x) x.click(); }),true);
+  if(!window.openFund) window.openFund=hold(function(){ if(window.openFund!==undefined) openFund(); });
+  if(!window.openMeyasubako) window.openMeyasubako=hold(function(){ if(window.openMeyasubako!==undefined) openMeyasubako(); });
+  if(!window.setLang) window.setLang=hold(function(){ });
+  if(!window.pcLinkAsk) window.pcLinkAsk=hold(function(){ });
+  setTimeout(function(){ if(!window.__ready&&note) note.hidden=false; },600);
+})();
+</script>
   <!-- ② シナリオを選ぶ -->
   <button class="s-btn sndBtn" id="btnSoundTitle" onclick="toggleSound()" title="音（曲と効果音）の入り切り" style="font-family:'Zen Kaku Gothic New',sans-serif;letter-spacing:.04em">♪ 音 入</button>   <!-- 第253巡（作り手）：表紙・筋書き選びでも音の入り切りを -->
   <div class="s-head" id="stepScenario" hidden>
@@ -1685,20 +1824,8 @@ body.inbattle #toast:not(.on){opacity:0;visibility:hidden}
   </div>
 </div>
 
-<!-- 第253巡（作り手：広告から来た人の六割が開くまで八秒以上かかっていた）：表紙の飾りと文だけを先に流し、重い辞書と肖像と本体はその後ろへ。
-     本体が読み終わるまでの数秒は「支度中…」と出し、その間に押された釦はおぼえておいて、支度が済んだら実行する -->
-<script>
-(function(){ var note=document.getElementById("bootNote"); var q=null;
-  window.__bootReady=function(){ window.__ready=true; if(note) note.hidden=true; var a=q; q=null; if(a) try{ a(); }catch(e){ } };
-  var hold=function(fn){ return function(){ if(window.__ready) return; q=fn; if(note) note.hidden=false; }; };
-  var b=document.getElementById("btnGameStart"); if(b) b.addEventListener("click",hold(function(){ var x=document.getElementById("btnGameStart"); if(x) x.click(); }),true);
-  if(!window.openFund) window.openFund=hold(function(){ if(window.openFund!==undefined) openFund(); });
-  if(!window.openMeyasubako) window.openMeyasubako=hold(function(){ if(window.openMeyasubako!==undefined) openMeyasubako(); });
-  if(!window.setLang) window.setLang=hold(function(){ });
-  if(!window.pcLinkAsk) window.pcLinkAsk=hold(function(){ });
-  setTimeout(function(){ if(!window.__ready&&note) note.hidden=false; },600);
-})();
-</script>
+
+
 <!-- i18n --><script id="langJs" type="text/plain">
 const EN_STORY={
 "今川義元、西上す":"Imagawa Yoshimoto marches west",
@@ -8469,8 +8596,9 @@ return;
 }
 }
 let pendingEnvoy=null;
-function showEnvoy(e){
-if(overlayEl) return;
+function showEnvoy(e,queued=false){
+if(!queued){ if(!e||e._promptQueued) return; e._promptQueued=true; queuePrompt(()=>{ e._promptQueued=false; showEnvoy(e,true); }); return; }
+if(overlayEl&&overlayEl.isConnected) return;
 if(!e || !W.clans[e.clan] || W.clans[e.clan].dead){ pendingEnvoy=null; return; }
 setSpeed(0);
 const nm=clanName(e.clan);
@@ -8511,6 +8639,8 @@ ${(()=>{ const ws=[...(W.clans[e.clan].war||[])].filter(w=>W.clans[w]&&!W.clans[
 <button class="big ghost" data-c="no">断る</button>
 
 </div></div>`;
+promptBrief(el,help?`${esc(W.castles[e.castle]?.name||"盟友の城")}を救援。応じると出す城を選ぶ。<br>${esc(clanName(e.foe))}と戦になる。友好は上がる。`
+:fund?`${Math.min(W.clans[W.player].money,e.amount||0).toLocaleString()}貫を渡すか。<br>渡すと友好＋15、断ると−8。`:plainChoiceText(means,48));
 document.getElementById("stage").appendChild(el);
 
 overlayEl=el;
@@ -9863,12 +9993,12 @@ return out.sort((a,b)=>b.lv-a.lv);
 function openConcerns(){
 const list=concerns().sort((a,b)=>(b.lv||0)-(a.lv||0));
 openPanel("気がかり", list.length?`${list.length}件`:"ひとまず安泰",
-list.length ? `<div class="list">${list.map((x,i)=>`
+list.length ? `<div class="list">${list.map((x,i)=>`${noviceMobile()&&i===1?"<details><summary>詳しく</summary>":""}
 <div class="row">
 <span class="chip ${x.lv===2?"shu":x.lv===1?"kin":""}">${x.lv===2?"急":x.lv===1?"要":"心"}</span>
 <span style="flex:1">${esc(x.t)}</span>
 ${x.go!==null&&x.go!==undefined?(x.relief?`<button class="chip kin" style="cursor:pointer" onclick="closePanel();openRelief(${x.go})">助ける</button>`:`<button class="chip" style="cursor:pointer" onclick="closePanel();gotoCastle(${x.go});openCastle(${x.go})">見る</button>`):""}
-</div>`).join("")}</div>`
+</div>${noviceMobile()&&i===list.length-1&&i>0?"</details>":""}`).join("")}</div>`
 : '<div class="advice">差し迫った憂いはございませぬ。国を富ませる好機です。</div>');
 setSpeed(0);
 }
@@ -10094,7 +10224,7 @@ openPanel("手ほどき","押す所を一つずつ示します",`<div class="lis
 function mapSimTick(){
 let el=document.getElementById("mSim");
 const S=W.msim;
-if(!S||!W.started||B||pickMode||overlayEl||document.querySelector(".overlay.guide")||W.result||(typeof openingActive==="function"&&openingActive())){ if(el) el.hidden=true; if(!B) simHot(null); return; }
+if(!S||!W.started||B||pickMode||mapPick||reliefPick||foundPick||armyRedirect!==null||overlayEl||document.querySelector(".overlay.guide")||W.result||(typeof openingActive==="function"&&openingActive())){ if(el) el.hidden=true; if(!B) simHot(null); return; }
 if(!el){ el=document.createElement("div"); el.id="mSim"; el.hidden=true; document.getElementById("stage").appendChild(el); }
 if(S.ch===1 && S.step===0 && !S.stageChecked){ S.stageChecked=true; if(W.stage && W.decisiveAt){ S.ch=0; } }
 const ch=MSIM_CHAPTERS.find(c=>c.id===S.ch)||MSIM_CHAPTERS.find(c=>c.id===1);
@@ -10134,7 +10264,7 @@ const label=recover?(S.step===1?`${hq?hq.name:"本拠"}の内政を開く`:"敵�
 const key=ch.id+":"+S.step+"|"+txt+"|"+label+"|"+String(panelKey)+(st.pause?"|ok":"");
 if(el._key!==key){ el.scrollTop=0; el._key=key;
 const prog=steps.map((x,i)=>`<i class="${i<S.step?"done":i===S.step?"now":""}"></i>`).join("");
-el.innerHTML=`<div class="sim-head"><span class="sim-face">軍</span><div class="sim-t"><span>手ほどき</span>　<span>${ch.id===0?"序章":"第"+ch.id+"章"}</span>「<span>${esc(ch.name)}</span>」　${S.step+1}／${steps.length}</div></div><div class="sim-prog">${prog}</div><div class="sim-b"><span class="sim-n">${S.step+1}</span>${txt}</div>${ringId!==null&&ringId!==undefined?`<button class="big gold" id="mSimCastle">${choosing?"光る城から兵を出す":"光る城を開く"}</button>`:""}${label?`<button class="big gold" id="mSimAction">${esc(label)}</button>`:""}${st.pause?`<button class="big gold" id="mSimOk">次へ</button>`:""}<button class="sim-x" id="mSimOff">手ほどきをやめる</button>`;
+el.innerHTML=`<div class="sim-head"><span class="sim-face">軍</span><div class="sim-t"><span>手ほどき</span>　<span>${ch.id===0?"序章":"第"+ch.id+"章"}</span>「<span>${esc(ch.name)}</span>」　${S.step+1}／${steps.length}</div></div><div class="sim-prog">${prog}</div><div class="sim-b"><span class="sim-n">${S.step+1}</span>${txt}</div>${ringId!==null&&ringId!==undefined?`<button class="big gold" id="mSimCastle">${choosing?"光る城から兵を出す":"光る城を開く"}</button>`:""}${label?`<button class="big gold" id="mSimAction">${esc(label)}</button>`:""}${st.pause?`<button class="big gold" id="mSimOk">${S.step===steps.length-1?"分かった":"次へ"}</button>`:""}<button class="sim-x" id="mSimOff">手ほどきをやめる</button>`;
 const castle=el.querySelector("#mSimCastle"); if(castle) castle.onclick=()=>{ if(W.msim!==S||!st.ring) return; const id=st.ring(S); if(id!==null&&id!==undefined&&W.castles[id]){
 if(choosing&&mapPick&&mapPick.ok(W.castles[id])){ const m=mapPick; mapPickEnd(); m.onDone([id]); }
 else openCastle(id);
@@ -10143,10 +10273,10 @@ mapSimTick();
 const action=el.querySelector("#mSimAction"); if(action) action.onclick=()=>{
 if(W.msim!==S) return;
 if(recover){ if(S.step===1&&hq) openCouncil(hq.id); else { const id=S.foe(); if(id!==null&&id!==undefined) openCastle(id); } }
-else { const b=target(); if(b&&!b.disabled&&!b.closest("[inert],[hidden]")){ simHot(b); b.click(); } }
+else { const b=target(); if(b&&!b.disabled&&!b.closest("[inert],[hidden]")){ if(b.matches("[data-s]")&&panel.classList.contains("open")) try{ closePanel(); }catch(_){ }     simHot(b); b.click(); } }
 mapSimTick();
 };
-const ok=el.querySelector("#mSimOk"); if(ok) ok.onclick=()=>{ if(ok.disabled||W.msim!==S) return; ok.disabled=true; S.step++; S.at=dayNumber(); S.mode0=undefined; };
+const ok=el.querySelector("#mSimOk"); if(ok) ok.onclick=()=>{ if(ok.disabled||W.msim!==S) return; ok.disabled=true; S.step++; S.at=dayNumber(); S.mode0=undefined; mapSimTick(); };
 el.querySelector("#mSimOff").onclick=()=>{ W.msim=null; el.hidden=true; simHot(null); try{ localStorage.setItem("sengoku_msim_done","1"); }catch(_){ } }; }
 el.hidden=false;
 S.ring = st.ring ? st.ring(S) : null;
@@ -10162,7 +10292,7 @@ mctx.save(); mctx.strokeStyle=`rgba(255,214,102,${1-k})`; mctx.lineWidth=4; mctx
 mctx.strokeStyle="#FFD166"; mctx.lineWidth=3; mctx.beginPath(); mctx.arc(x,y-6,24,0,7); mctx.stroke();
 
 const ay=y-52-Math.sin(performance.now()/180)*6; mctx.fillStyle="#FFD166"; mctx.beginPath(); mctx.moveTo(x,ay+14); mctx.lineTo(x-10,ay); mctx.lineTo(x+10,ay); mctx.closePath(); mctx.fill();
-mctx.font='900 13px "Zen Kaku Gothic New",sans-serif'; mctx.textAlign="center"; mctx.lineWidth=4; mctx.strokeStyle="rgba(0,0,0,.8)"; mctx.strokeText("ここを押す",x,ay-6); mctx.fillText("ここを押す",x,ay-6);
+mctx.font='900 14px "Zen Kaku Gothic New",sans-serif'; mctx.textAlign="center"; mctx.lineWidth=4; mctx.strokeStyle="rgba(0,0,0,.8)"; mctx.strokeText("ここを押す",x,ay-6); mctx.fillText("ここを押す",x,ay-6);
 mctx.restore();
 }
 
@@ -10265,6 +10395,7 @@ if(!B||!B.sim||B.over!==null||B.ctx.playerSide!==1){ if(el) el.hidden=true; if(B
 B._simHotOn=true;
 const S=B.sim;
 if(!el){ el=document.createElement("div"); el.id="bSim"; document.getElementById("battle").appendChild(el); }
+el.dataset.step=String(S.step);
 const fx=B.nagFenceX!==undefined?B.nagFenceX:(B.padX||0)+NAG_LINE;
 const mine=u=>u.side===B.ctx.playerSide&&u.troops>.5&&!u.left;
 const focus=x=>{ B.cxT=x; B.cyT=BF.h/2; if(B.pan) B.pan=null; };
@@ -10291,7 +10422,7 @@ case 3: show("誰の隊か分かります。下の帯に名と兵と士気。<br
 case 4: show("光っている<b>〈開戦〉</b>を押しましょう。<br>鉄砲は柵の内で待てば、来た敵を自ずと撃ちます"); if(B.opening<=0) next(5); break;
 case 5: { const weak=B.obstacles.find(o=>o.fence&&o.hpMax&&o.hp>0&&o.hp<o.hpMax*0.5);
 if(B.elapsed-S.t<6) show("陣太鼓が鳴り、武田が寄せて来ます。<br>柵の内でしばらく撃ち続けましょう");
-else if(weak){ next(6); S.weak=weak; focus(weak.x); } else show("柵の内で迎え撃ちます。迷ったら〈自動で戦う〉"); break; }
+else if(weak){ next(6); S.weak=weak; focus(weak.x); } else show(bWaitingHint()||"柵の内で迎え撃ちます。迷ったら〈自動で戦う〉"); break; }
 case 6: { show("<b>柵が破られそうです。</b><br>光っている足軽を押し、柵のすぐ内側の升を押しましょう");
 const lane0=fx, lane1=fx+2.0;
 const done=B.units.some(u=>mine(u)&&!u.cmd&&(u.type===0||u.type===1)&&u.order&&u.order.k==="move"&&u.order.x>lane0-1.3&&u.order.x<lane1+1.3);
@@ -10309,6 +10440,33 @@ case 10: { if(B.elapsed-S.t<8) show("全軍が柵を越えて追います。手�
 default: el.hidden=true;
 }
 }
+function bWaitingHint(){
+if(!B||B.opening>0||B.over!==null) return "";
+if(B.paused) return "止めています――〈再開〉で続ける";
+if(B.tobiPhase) return "";
+const mine=B.units.filter(u=>u.side===B.ctx.playerSide&&!u.left&&!u.tobiHide&&u.troops>.5&&u.morale>0);
+const foe=B.units.filter(u=>u.side!==B.ctx.playerSide&&!u.left&&!u.sigHidden&&!u.tobiHide&&u.troops>.5&&u.morale>0);
+if(B.pursued) return "退く敵を追っています――決着まで待つ。隊を押せば采配できます";
+if(B.nagashino&&B.ctx.playerSide===1&&(B.escapePhase||B.pursueHot||!foe.length)) return B.pursueReady?"勝負あり――〈追い討ち！〉か、そのまま待つ":"敵が退いています――決着までそのまま待つ";
+if(!mine.length) return "味方が退いています――決着までそのまま待つ";
+if(!foe.length) return "敵が退いています――決着までそのまま待つ";
+const close=mine.some(u=>foe.some(v=>dist(u,v)<8));
+if(B.nagashino&&B.ctx.playerSide===1){
+if(!close&&!B.nagContact) return "武田が近づくのを待っています――柵まで来たら〈一斉射撃〉";
+const ready=mine.some(u=>u.type===3&&(u.ammo===undefined||u.ammo>0)&&!(u.volleyReady>B.elapsed));
+return ready?"柵で迎え撃っています――〈一斉射撃〉で敵を押し止める":"弾込めを待っています――済んだら〈一斉射撃〉";
+}
+return close?"交戦中です――隊を押して采配。危ない隊は〈退く〉":"敵の接近を待っています――隊を押し、行き先を押せば動かせます";
+}
+function updateBattleNext(){
+let el=document.getElementById("firstHint");
+const text=compactBattle()?bWaitingHint():"";
+if(!text){ if(el) el.hidden=true; return; }
+if(!el){ el=document.createElement("div"); el.id="firstHint"; el.setAttribute("role","status"); document.querySelector("#bhead .bTitle").appendChild(el); }
+el.style.pointerEvents="auto";
+if(el.textContent!==text) el.textContent=text;
+el.hidden=false;
+}
 function updateBattleCoach(){
 if(B&&B.firstBattle){ firstBattleHint(); return; }
 let el=document.getElementById("bCoach");
@@ -10322,6 +10480,7 @@ if(B.opening<=0){ B.coach.begin=true; if(B.coach.beganAt===undefined) B.coach.be
 const steps = B.opening>0
 ? [["味方の隊を押して選ぶ", B.coach.sel],["地面を押して、そこへ動かす（並べ替え）", B.coach.move],["下の〈開戦〉を押す", B.coach.begin]]
 : [["鉄砲は柵の内で〈守る〉のまま。敵が来れば撃ちます", true],["赤く点滅する隊は危ない → 選んで〈退く〉", false],["迷ったら〈采配 任せる〉。Zキー・二本指で寄れます", false]];
+const wait=bWaitingHint(); if(wait&&B.opening<=0) steps.splice(0,steps.length,[wait,false]);
 const firstOpen = steps.findIndex(x=>!x[1]);
 const coachSteps=compactBattle()?steps.filter((x,i)=>i===(firstOpen<0?0:firstOpen)):steps;
 const html=`<b class="t">${B.opening>0?"手ほどき：陣立て":"手ほどき：戦の最中"}</b>${coachSteps.map((x,i)=>`<div class="st ${compactBattle()?"now":x[1]?"done":(i===firstOpen?"now":"")}"><i>${x[1]?"✓":i+1}</i><span>${x[0]}</span></div>`).join("")}<button id="bCoachOff" aria-label="手ほどきをやめる">${compactBattle()?"終了":"もう分かった（閉じる）"}</button>`;
@@ -11276,6 +11435,7 @@ let reliefPick=null;
 
 let mapSelectionSpeed=null;
 function beginMapSelection(keepDispatch=false){
+const mm=document.getElementById("moreMenu"), mb=document.getElementById("btnMore"); mm.hidden=true; mb.classList.remove("on"); mb.setAttribute("aria-expanded","false");
 const speed=mapSelectionSpeed!==null?mapSelectionSpeed:(panel.classList.contains("open")&&panelResumeSpeed!==null?panelResumeSpeed:W.speed);
 mapPick=null; reliefPick=null; reliefSel.clear(); foundPick=null; foundMarks=null; armyRedirect=null;
 const gens=keepDispatch?[...dispatchSel]:null, target=dispatchTarget;
@@ -11288,7 +11448,7 @@ document.getElementById("foundBar").hidden=true; mapFocus=null;
 if(speed!==null&&!pendingEncounter) setSpeed(speed);
 }
 let mapPick=null;
-function mapPickStart(o){ beginMapSelection(true); mapPick=Object.assign({sel:new Set()},o); mapPickBarRefresh(); toast(o.hint||"光っている城を押して選んでください"); setSpeed(0); }
+function mapPickStart(o){ beginMapSelection(true); mapPick=Object.assign({sel:new Set()},o); mapSimTick(); mapPickBarRefresh(); if(!document.getElementById("foundBar")) toast(o.hint||"光っている城を押して選んでください"); setSpeed(0); }
 function mapPickEnd(){ mapPick=null; finishMapSelection(); }
 function mapPickBarRefresh(){
 const bar=document.getElementById("foundBar"); if(!bar) return; if(!mapPick){ bar.hidden=true; return; }
@@ -11498,10 +11658,10 @@ ${UNITS.map((u,i)=>{ const locked=g.troops>=100&&g.unit!==i; return `<button cla
 onclick="doHire(${id},${g.id},${i})">雇${u.n}</button>`; }).join("")}
 </span></div>`).join("")||'<div class="muted tiny">兵を率いられる将がおりませぬ</div>'}
 <button class="big ghost" onclick="openCastle(${id})">城へ戻る</button>`;
-if(noviceMobile()) h=`<div class="advice">取れる兵 ${take.toLocaleString()}人・費え 約${cost.toLocaleString()}貫<br>人口と民忠が減り、毎月の兵糧代が増えます。</div>
+if(concisePanel()) h=`<div class="advice">取れる兵 ${take.toLocaleString()}人・費え 約${cost.toLocaleString()}貫<br>人口と民忠が減り、毎月の兵糧代が増えます。</div>
 ${c.minchu<40?'<div class="advice">民忠が低く、一揆の恐れ。先に施しを。</div>':""}
 <button class="big gold" ${take>0?`onclick="fillTroops(${id});openConscript(${id})"`:"disabled"}>まとめて徴兵</button>
-<details><summary>もっと見る</summary>${h}</details>`;
+<details><summary>詳しく</summary>${h}</details>`;
 openPanel("徴兵",c.name,h,"徴兵:"+id,()=>openConscript(id));
 setSpeed(0);
 }
@@ -11663,8 +11823,10 @@ ${reliefSel.size===1?`<button class="big ghost" onclick="closePanel();openDispat
 
 closePanel();
 if(!froms.length){ toast("いま兵を出せる城がありませぬ"); return; }
-beginMapSelection(); reliefPick={target:castleId}; reliefBarRefresh(castleId);
-toast(`${c.name}の救援：光っているわが城を押して選び（幾つでも）、下の〈決定〉を押してください`);
+{ const keep=[...reliefSel]; beginMapSelection(); for(const id of keep) reliefSel.add(id); }
+if(!reliefSel.size&&froms[0]) reliefSel.add(froms[0].o.id);
+reliefPick={target:castleId}; reliefBarRefresh(castleId);
+toast(`${c.name}の救援：下の〈決定〉で近い城から出します（光る城を押せば足せます）`);
 mapFocus=castleId; { const t=W.tile[castleId]; if(t){ if(viewW()>1120){ pushCamHistory(); glideTo(t.c,t.r,10); } else { camTarget.x=t.c; camTarget.y=t.r+(viewH()*0.20)/cam.scale; } } }
 setSpeed(0);
 }
@@ -12569,6 +12731,7 @@ return true;
 }
 
 const ART = { tiles:{}, castles:new Map(), soldiers:new Map() };
+function cacheSoldier(key,canvas){ if(!ART.soldiers.has(key)&&ART.soldiers.size>=512) ART.soldiers.delete(ART.soldiers.keys().next().value); ART.soldiers.set(key,canvas); }
 function makeCanvas(w,h){ const c=document.createElement("canvas"); c.width=w; c.height=h; return c; }
 
 function outlineCanvas(cv, color, pad){
@@ -12767,7 +12930,7 @@ const sticks=[[2,27,14,20,3.2],[10,28,26,23,3.0],[18,26,34,18,2.6],[6,24,22,27,2
 for(const [x0,y0,x1,y1,w] of sticks){ g.strokeStyle="#5A3E26"; g.lineWidth=w; g.beginPath(); g.moveTo(x0,y0); g.lineTo(x1,y1); g.stroke(); g.strokeStyle="#8D6A46"; g.lineWidth=Math.max(1,w-1.8); g.beginPath(); g.moveTo(x0,y0-1); g.lineTo(x1,y1-1); g.stroke(); }
 g.fillStyle="#C9A86A"; g.beginPath(); g.moveTo(13,20); g.lineTo(16,17); g.lineTo(15,21); g.closePath(); g.fill(); g.beginPath(); g.moveTo(33,18); g.lineTo(36,16); g.lineTo(34,20); g.closePath(); g.fill();
 px(8,22,4,2,"#D9C27A"); px(27,25,4,2,"#C4A85C");
-const outlinedB=outlineCanvas(cv,"#141008",1); ART.soldiers.set(key,outlinedB); return outlinedB;
+const outlinedB=outlineCanvas(cv,"#141008",1); cacheSoldier(key,outlinedB); return outlinedB;
 }
 const vr=[
 {posts:[[2,4,5],[10,1,4],[19,6,5],[27,2,4]], rail:[8,20], stake:[[6,11],[23,9]], broken:-1},
@@ -12797,7 +12960,7 @@ px(x,2,3,22,"#73A84D"); px(x,8,3,1,"#4D7A33"); px(x,15,3,1,"#4D7A33");
 px(x-2,3,2,1,PAL.leafM); px(x+3,6,2,1,PAL.leafM); }
 }
 const outlined=outlineCanvas(cv,"#141008",1);
-ART.soldiers.set(key,outlined); return outlined;
+cacheSoldier(key,outlined); return outlined;
 }
 function fallenBannerSprite(color){
 const key="fb-"+color;
@@ -12806,7 +12969,7 @@ const cv=makeCanvas(26,14), g=cv.getContext("2d");
 g.fillStyle="#383430"; g.fillRect(0,6,24,2);
 g.fillStyle=color; g.globalAlpha=.85; g.fillRect(5,8,14,6); g.globalAlpha=1;
 g.fillStyle="rgba(255,255,255,.4)"; g.fillRect(5,8,14,1);
-ART.soldiers.set(key,cv); return cv;
+cacheSoldier(key,cv); return cv;
 }
 function devSprite(kind,variant){
 const key=`dev-${kind}-${variant}`;
@@ -12842,8 +13005,8 @@ const types=[...new Set(B.units.map(u=>u.type))];
 const sides=[...new Set(B.units.map(u=>u.ally?2:(u.side===B.ctx.playerSide?0:1)))];
 const jobs=[];
 for(const t of types) for(const sd of sides) for(const fr of [0,1]) for(const v of [0,1,2]) for(const fl of [false,true]) jobs.push([t,sd,fr,fl,v]);
-let i=0;
-const step=()=>{ const t0=performance.now();
+let i=0; const bat=B;
+const step=()=>{ if(B!==bat||bat.over!==null) return; const t0=performance.now();
 while(i<jobs.length && performance.now()-t0<8){ const j=jobs[i++]; try{ soldierSprite(j[0],j[1],j[2],j[3],j[4]); }catch(_){ } }
 if(i<jobs.length) setTimeout(step, 24); };
 setTimeout(step, 120);
@@ -13052,7 +13215,7 @@ if(bob){ px(37.5,15.5,1.5,1.5,"#E8E4DAAA"); px(39,14.5,1,1,"#E8E4DA88"); }
 sashimono(8,5);
 }
 const outlined=outlineCanvas(cv,"#141008",1);
-ART.soldiers.set(key,outlined); return outlined;
+cacheSoldier(key,outlined); return outlined;
 }
 
 const TILE_PX = 2;
@@ -15888,22 +16051,26 @@ const faceReady = new Set();
 const face = (g,cls) => {
 try{
 if(faceCache.has(g.id) || faceReady.has(g.id)) return `<img class="face ${cls||""}" src="${portraitURL(g)}" alt="${esc(g.name)}">`;
-faceLater.push(g.id);
+if(!faceLater.includes(g.id)&&faceLater.length<256) faceLater.push(g.id);
 return `<img class="face ${cls||""}" data-face="${g.id}" alt="${esc(g.name)}" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">`;
 }catch(_){ return `<img class="face ${cls||""}" src="${portraitURL(g)}" alt="${esc(g.name)}">`; }
 };
-var faceLater=[];
+var faceLater=[], faceFillScheduled=false;
 function faceFill(){
-if(!faceLater.length) return;
+faceFillScheduled=false; if(!faceLater.length||(B&&B.over===null)) return;
 const ids=faceLater.splice(0,8);
 for(const id of ids){ const g=W.generals[id]; if(!g) continue;
+const imgs=[...document.querySelectorAll(`img[data-face="${id}"]`)].filter(im=>{ if(im.closest("[hidden]")) return false; for(let a=im.parentElement;a;a=a.parentElement) if(a.tagName==="DETAILS"&&!a.open) return false; return true; });
+if(!imgs.length) continue;
 faceReady.add(id);
 const u=portraitURL(g);
 document.querySelectorAll(`img[data-face="${id}"]`).forEach(im=>{ im.src=u; im.removeAttribute("data-face"); });
 }
-if(faceLater.length) requestAnimationFrame(faceFill);
+scheduleFaceFill();
 }
-setInterval(()=>{ try{ if(faceLater.length) requestAnimationFrame(faceFill); }catch(_){ } }, 400);
+function scheduleFaceFill(){ if(!faceLater.length||faceFillScheduled||(B&&B.over===null)) return; faceFillScheduled=true; requestAnimationFrame(faceFill); }
+setInterval(()=>{ try{ scheduleFaceFill(); }catch(_){ } },400);
+document.addEventListener("toggle",e=>{ if(e.target.tagName==="DETAILS"&&e.target.open){ e.target.querySelectorAll("img[data-face]").forEach(im=>{ const id=+im.dataset.face; if(!faceLater.includes(id)&&faceLater.length<256) faceLater.push(id); }); scheduleFaceFill(); } },true);
 
 const panel=document.getElementById("panel"),
 pTitle=document.getElementById("pTitle"),
@@ -15942,6 +16109,7 @@ if(openingActive()){
 const ok = OPENING_ALLOW.has(title) || (W.opening!=="march" && title==="那古野城");
 if(!ok){ openingBlock(); return; }
 }
+if(document.querySelector(".overlay:not([hidden])")) return;
 const wasOpen=panel.classList.contains("open");
 if(!wasOpen){ panelReturnFocus=document.activeElement; panelResumeSpeed=W.speed; }
 const k = key!==undefined ? key : title;
@@ -15993,7 +16161,7 @@ if(st) st.classList.toggle("paused", s===0 && W.started && !busy); }
 [...document.getElementById("rightRail").children].forEach(b=>{ const on=+b.dataset.s===s; b.classList.toggle("on",on); b.setAttribute("aria-pressed",String(on)); });
 }
 
-function resumeSpeed(){ setSpeed(W.speedBefore||1); }
+function resumeSpeed(){ if(promptQueue.length || document.querySelector(".overlay:not([hidden])")){ setSpeed(0); return; } setSpeed(W.speedBefore||1); }
 let toastTimer=null;
 function toast(msg){
 log(msg);
@@ -16363,11 +16531,8 @@ el.innerHTML=`<div class="dialog" style="max-width:420px">
 <button class="big gold" data-c="y">承知した</button>
 <button class="big ghost" data-c="n">やめておく</button>
 </div></div>`;
-document.getElementById("stage").appendChild(el);
-
-const wasRunning = W.speed>0; if(wasRunning) setSpeed(0);
-if(overlayEl && overlayEl!==el){ try{ overlayEl.remove(); }catch(_){} }
-overlayEl=el;
+const wasRunning=W.speed>0;
+queuePrompt(()=>{ if(B!==battle) return; document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0); startDialogFocus(el); },gen,battle);
 el.querySelectorAll("button").forEach(b=>b.onclick=()=>{
 if(settled||gen!==WORLD_GEN||B!==battle) return; settled=true;
 el.remove(); if(overlayEl===el) overlayEl=null;
@@ -16387,7 +16552,7 @@ froms.sort((a,b)=>kmBetween(W.tile[a.id].c,W.tile[a.id].r,W.tile[cid].c,W.tile[c
 -kmBetween(W.tile[b.id].c,W.tile[b.id].r,W.tile[cid].c,W.tile[cid].r));
 if(!froms.length) return toast("兵を出せる城がありません");
 
-if(!openAttackFrom._list){ const set=new Set(froms.map(c=>c.id)); mapPickStart({kind:"attackFrom", multi:false, hint:`${t.name}へ兵を出す城を押してください（光っている城）`, ok:c=>set.has(c.id), onDone:ids=>{ openDispatch(ids[0],cid); }, onCancel:()=>{ openCastle(cid); } }); return; }
+if(!openAttackFrom._list){ const set=new Set(froms.map(c=>c.id));   const f0=froms[0]; try{ const tl=W.tile[f0.id]; cam.x=tl.c; cam.y=tl.r; camTarget.x=camTarget.y=null; clampCam(); }catch(_){ } mapPickStart({kind:"attackFrom", multi:false, sel:new Set([f0.id]), label:"兵を出す城（ほかの光る城も選べます）", hint:`${t.name}へ兵を出す城を押してください（光っている城）`, ok:c=>set.has(c.id), onDone:ids=>{ openDispatch(ids[0],cid); }, onCancel:()=>{ openCastle(cid); } }); return; }
 const def=garrisonFast(cid)*1.3;
 const h=`<div class="tiny muted" style="margin-bottom:6px">${esc(t.name)}（守兵 ${estimatedGarrison(cid)}・城耐久 ${Math.round(t.defense).toLocaleString()}）へ兵を出す城を選びます。
 勝ち目は、その城の兵をすべて出したときの自動戦の見込みです</div>
@@ -16445,11 +16610,11 @@ const officers=Object.values(W.generals)
 const recName=councilRecommend(c)||"";
 const recIndex=CMDS.findIndex(cmd=>!COUNCIL_HIDE.has(cmd.n)&&recName.startsWith(cmd.n.slice(0,2)));
 const primary=recIndex>=0?recIndex:CMDS.findIndex(cmd=>cmd.n==="新田開発"&&c.koku<kokuCap(c)||cmd.n==="商業投資"&&c.com<comCap(c));
-let h=`<div class="row"><span class="num" style="color:var(--kin)">資金 ${clan.money.toLocaleString()}</span>
+let h=`<div class="council-sheet"><div class="row"><span class="num" style="color:var(--kin)">資金 ${clan.money.toLocaleString()}</span>
 <span style="margin-left:auto" class="tiny muted">${c.name}</span></div>
 <div class="grid ${noviceMobile()&&!councilMore?"g1":"g3"}">
 ${CMDS.map((cmd,i)=>({cmd,i})).sort((a,b)=>noviceMobile()?(b.i===primary)-(a.i===primary):0).map(({cmd,i})=>{
-if(COUNCIL_HIDE.has(cmd.n)) return "";
+if(COUNCIL_HIDE.has(cmd.n)||councilPick!==null&&councilPick!==i) return "";
 if(!councilMore && councilPick!==i && (noviceMobile()?i!==primary:!COUNCIL_MAIN.has(cmd.n))) return "";
 
 const why = isBesieged(id)&&!["施し","軍事訓練","治水"].includes(cmd.n)?"包囲中はできません" : cmd.n==="新田開発"&&c.koku>=kokuCap(c) ? "拓く野なし"
@@ -16459,16 +16624,15 @@ const why = isBesieged(id)&&!["施し","軍事訓練","治水"].includes(cmd.n)?
 : cmd.n==="鉱山探し"&&c.mine ? "金山あり"
 : cmd.n==="検地"&&c.koku>=kokuCap(c) ? "隠田なし"
 : cmd.n==="建設"&&c.slots-c.buildings.length<=0 ? "空き地なし" : null;
-const est = cmd.n==="新田開発" ? `石高+${Math.floor(1800*(c.buildings.includes("用水路")?1.4:1)).toLocaleString()}前後` : cmd.n==="商業投資" ? `商業+${Math.floor(500*(c.buildings.includes("市場")?1.4:1))}前後` : cmd.n==="城の強化" ? "城Lv+28前後" : cmd.n==="施し" ? "民忠+14前後" : cmd.n==="軍事訓練" ? "兵質+9前後" : cmd.n==="鉱山探し" ? `金脈の見込み ${Math.round((0.18+0.22*Math.min(1,1.0-0.4))*100)}％前後` : cmd.n==="検地" ? `石高+${Math.floor(c.koku*0.1).toLocaleString()}・民忠-8` : cmd.n==="治水" ? "堤+1・民忠+6" : "";
+const effect={"新田開発":"石高が増える","商業投資":"収入が増える","城の強化":"守りを固める","施し":"民心を上げる","人材登用":"将を探す","親善":"他家と親しむ"}[cmd.n]||cmd.d;
 const rec=(councilRecommend(c)||"").startsWith(cmd.n.slice(0,2));
-return `<button class="cmd${councilPick===i?" sel":""}" ${why?"disabled":`onclick="pickCmd(${id},${i})"`} title="${esc(cmd.d)}" style="${rec&&!why?"border-color:var(--kin);box-shadow:inset 0 0 0 1px rgba(201,162,39,.5)":""}">
-${rec&&!why?`<span class="tiny" style="color:#FFE08A;font-weight:900">おすすめ　</span>`:""}${cmd.n}<span class="cost">${why?why:(cmd.cost?"約"+Math.floor(cmd.cost*0.8).toLocaleString()+"〜"+Math.floor(cmd.cost*1.25).toLocaleString():"")}${est?"・"+est:""}${cmd.work?"・"+Math.round(cmd.work/1)+"日":""}</span></button>`; }).join("")}
+return `<button class="cmd${councilPick===i?" sel":""}" aria-pressed="${councilPick===i}" ${why?"disabled":`onclick="pickCmd(${id},${i})"`} title="${rec?"おすすめ：":""}${esc(cmd.d)}" style="${rec&&!why?"border-color:var(--kin)":""}">${cmd.n}<span class="cost">${why||effect}</span></button>`; }).join("")}
 </div>
-<button class="cmd" style="display:block;width:100%;margin:12px 0;font-size:14px;opacity:1" onclick="councilMore=!councilMore;openCouncil(${id})">${councilMore?"▾ ほかの内政をしまう":"▸ ほかの内政（施し・城の強化・親善）"}</button>`;
+${noviceMobile()?"<details><summary>詳しく</summary>":""}<button class="cmd" style="display:block;width:100%;margin:12px 0;font-size:14px;opacity:1" onclick="councilMore=!councilMore;councilPick=null;openCouncil(${id})">${councilMore?"▾ ほかの内政をしまう":"▸ ほかの内政"}</button>${noviceMobile()?"</details>":""}`;
 if(councilPick!==null){
 const cmd=CMDS[councilPick];
 h+=`<div style="background:rgba(237,230,214,.05);padding:12px;border-radius:4px;display:flex;flex-direction:column;gap:8px">
-<div style="font-weight:700">${cmd.n}</div><div class="tiny muted">${cmd.d}</div>`;
+<div data-council-selected role="status" style="font-weight:700;color:var(--kin)">選んだ仕事：${cmd.n}</div><div class="tiny muted">費え 約${Math.floor(cmd.cost*0.8).toLocaleString()}〜${Math.floor(cmd.cost*1.25).toLocaleString()}貫・${cmd.work}日</div>`;
 if(cmd.n==="建設"){
 h+=`<div class="sec-title">建てるもの</div><div class="grid g2">
 ${BUILDINGS.map((b,i)=>{
@@ -16487,25 +16651,25 @@ ${otherClans().map(o=>`<button class="cmd" style="min-width:88px" onclick="doOrd
 ${o.name}<span class="cost">友好 ${getRel(W.player,o.id)}</span></button>`).join("")}</div>`;
 } else {
 h+=`<div class="sec-title">誰に命じますか</div>
-${officers.slice(0,12).map((g,i)=>`${noviceMobile()&&i===1?"<details><summary>ほかの将を選ぶ</summary>":""}<div class="row council-officer">
+${officers.slice(0,12).map((g,i)=>`${i===1?"<details><summary>ほかの将を選ぶ</summary>":""}<div class="row council-officer">
 <span class="nm">${esc(g.name)}</span>
-<span class="tiny muted num">政治${g.pol} 知略${g.int}</span>
 <span class="tiny num" style="color:var(--kin)">約${Math.ceil(cmd.work/workRate(g))}日</span>
 <span class="tiny num muted">費え ${Math.floor(cmd.cost*(1.25-0.45*Math.min(100,g.pol)/100)).toLocaleString()}貫</span>
 <button class="chip shu" ${clan.money<Math.floor(cmd.cost*(1.25-0.45*Math.min(100,g.pol)/100))?"disabled":""} style="margin-left:auto;cursor:pointer" onclick="doOrder(${id},'${cmd.n}',null,${g.id})">命じる</button>
-</div>${noviceMobile()&&i===Math.min(12,officers.length)-1&&i>=1?"</details>":""}`).join("")||'<div class="muted tiny">手の空いた武将がいません</div>'}`;
+</div>${i===Math.min(12,officers.length)-1&&i>=1?"</details>":""}`).join("")||'<div class="muted tiny">手の空いた武将がいません</div>'}`;
 }
 h+=`</div>`;
 } else {
-h+=`<div class="tiny muted" style="padding:10px 4px">① 上の仕事を押す → ② 命じる将を選ぶ。手の空いた将 ${officers.length}名（この城）</div>`;
+h+=`<div class="tiny muted" style="padding:10px 4px">仕事 → 将 →〈命じる〉</div>`;
 }
-if(noviceMobile()) h+=`<details><summary>もっと見る</summary>`;
-h+=`<button class="big ghost" onclick="openDelegate(${id})">${c.delegate===null?"自動内政（この城を任せる）":"自動内政 "+FOCUS[c.delegate]+"（方針を変える）"}</button>`;
-h+=`<button class="big ghost" onclick="openCastle(${id})">城へ戻る</button>`;
-if(noviceMobile()) h+=`</details>`;
+if(noviceMobile()||councilPick!==null) h+=`<details><summary>${noviceMobile()?"詳しく":"もっと見る"}</summary>`;
+h+=`<div class="council-footer"><button class="big ghost" onclick="openDelegate(${id})">${c.delegate===null?"自動内政（この城を任せる）":"自動内政 "+FOCUS[c.delegate]+"（方針を変える）"}</button>`;
+h+=`<button class="big ghost" onclick="openCastle(${id})">城へ戻る</button></div>`;
+if(noviceMobile()||councilPick!==null) h+=`</details>`;
+h+=`</div>`;
 openPanel("内政", c.name, h, "内政:"+id, ()=>openCouncil(id));
 }
-function pickCmd(id,i){ councilPick = councilPick===i?null:i; openCouncil(id); }
+function pickCmd(id,i){ councilPick=i; openCouncil(id); const chosen=pBody.querySelector("[data-council-selected]"); if(chosen) chosen.scrollIntoView({block:"nearest",behavior:"instant"}); }
 function doOrder(cid,kind,payload,gid){
 let g=gid!=null?W.generals[gid]:null;
 if(!g){
@@ -16621,7 +16785,7 @@ let h=`<div class="dsum">
 <div class="panel-dispatch-heading sec-title" style="display:flex;align-items:center">① 出す将を選ぶ（押して印を付ける）
 <span style="margin-left:auto;display:flex;gap:4px">
 ${[["troops","兵"],["lea","統"],["war","武"]].map(([k,n])=>
-`<button class="chip ${dispatchSort===k?"kin":""}" style="cursor:pointer" onclick="dispatchSort='${k}';openDispatch(${id})">${n}順</button>`).join("")}
+`<button class="chip ${dispatchSort===k?"kin":""}" style="cursor:pointer;min-width:44px;min-height:48px;line-height:1.5" onclick="dispatchSort='${k}';openDispatch(${id})">${n}順</button>`).join("")}
 </span>
 </div>
 <div class="grid g2" style="margin-bottom:6px">
@@ -17149,7 +17313,7 @@ if(diploSort==="power") return powerScore(b.id)-powerScore(a.id);
 const wa=me.war.has(a.id)?0:adj.has(a.id)?1:2, wb=me.war.has(b.id)?0:adj.has(b.id)?1:2;
 return wa-wb || myCastles(b.id).length-myCastles(a.id).length; });
 
-const h=`<div class="tiny muted" style="margin-bottom:4px">戦も盟も隣の家と。家を押せば、その家との手立てが開きます。</div>
+let h=`<div class="tiny muted" style="margin-bottom:4px">戦も盟も隣の家と。家を押せば、その家との手立てが開きます。</div>
 <div class="row" style="gap:6px">${[["near","近い順"],["rel","友好順"],["power","力の順"]].map(([k,n])=>`<button class="chip ${diploSort===k?"kin":""}" style="cursor:pointer" onclick="diploSort='${k}';openDiplomacy()">${n}</button>`).join("")}</div>
 <div class="list">`+list.map(o=>{
 const state=diploState(o); const cls = state==="同盟"?"ok":state==="戦争"?"bad":state==="中立"?"info":"kin"; const near=adj.has(o.id); const rel=getRel(W.player,o.id); const pv=(W.relPrevOld||{})[o.id]; const d=pv===undefined?0:rel-pv;
@@ -17157,6 +17321,10 @@ return `<div class="row" style="padding:8px 4px;border-bottom:1px solid var(--li
 <span class="nm" style="min-width:76px">${esc(o.name)}</span><span class="stag ${cls}">${state}</span>${near?'<span class="stag info">隣国</span>':""}${/^(sekigahara|ueda|sekbattle)$/.test(W.scenario)?(()=>{ const t=sekSideTag(o); return t?`<span class="chip tiny" style="background:${t[1]}">${t[0]}</span>`:""; })():""}
 ${o.suzerain!==null&&o.suzerain!==undefined&&W.clans[o.suzerain]?`<span class="chip tiny">${esc(clanName(o.suzerain))}の傘下</span>`:""}
 <span style="margin-left:auto" class="num" title="友好度"><span class="tiny muted">友好</span> <b style="color:${rel>=60?"#9FE0A8":rel<=20?"#FF9A88":"#EDE6D6"}">${rel}</b>${d?`<span class="tiny" style="color:${d>0?"#7FE07F":"#FF9A88"}"> ${d>0?"↑":"↓"}${Math.abs(d)}</span>`:""}</span><span class="tiny muted">▸</span></div>`; }).join("")+`</div>`;
+if(noviceMobile()){
+const rows=list.slice(0,3).map(o=>`<button class="row" style="width:100%;text-align:left;cursor:pointer" onclick="openDiploClan(${o.id})"><span class="nm">${esc(o.name)}</span><span>${diploState(o)}</span></button>`).join("");
+h=`<div class="advice">家を押して、和睦や同盟を選ぶ。</div>${rows}<details><summary>詳しく</summary>${h}</details>`;
+}
 openPanel("外交","",h,"外交",()=>openDiplomacy()); setSpeed(0);
 }
 function diploState(o){ const me=W.clans[W.player]; return me.allies.has(o.id)?"同盟": me.vassals.has(o.id)?"属国": me.suzerain===o.id?"主家": me.war.has(o.id)?"戦争":"中立"; }
@@ -17175,7 +17343,7 @@ const rows = state==="戦争" ? [["和睦","和睦 "+peaceOdds(o.id)+"％",true]
 : near ? [["同盟",rel2>=70?"同盟 1万":"同盟（友好70以上で）",rel2>=70],["贈物","贈物 3千",true],["威圧",canThreat?"従属を迫る（威圧）":"従属を迫る（国力1.8倍で）",canThreat],["臣従",canSubmit?"傘下に入る（降伏）":"傘下に入る（相手が大きいとき）",canSubmit],["資金要請",canAsk?"資金要請":"資金要請（友好20超で）",canAsk]]
 : [["贈物","贈物 3千",true],["資金要請",canAsk?"資金要請":"資金要請（友好20超で）",canAsk]];
 return rows.map(([k,l,ok])=>{ const od=odds(k); return `<button class="cmd" style="min-height:40px;text-align:left${ok?"":";opacity:.45"}" ${ok?`onclick="doDiplo('${k}',${o.id})"`:"disabled"}><b>${l}</b>${od.w?`<span class="cost">見込み <b style="color:${od.col}">${od.w}</b>　${esc(od.why)}</span>`:""}</button>`; }).join(""); })();
-const h=`<button class="chip" style="cursor:pointer;margin-bottom:6px" onclick="openDiplomacy()">◂ 外交の表へ</button>
+let h=`<button class="chip" style="cursor:pointer;margin-bottom:6px" onclick="openDiplomacy()">◂ 外交の表へ</button>
 <div class="owner" style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);border-radius:6px;margin-bottom:8px">${monHTML(o,36,"flex:none")}<div style="flex:1;min-width:0"><div style="font-size:18px;font-weight:900">${esc(o.name)}</div><div class="tiny muted">${tr("当主")} ${esc(W.generals[o.daimyo]?.name||"—")}　${tr("城数")} ${myCastles(o.id).length}　${tr("兵数")} ${totalTroops(o.id).toLocaleString()}</div></div><span class="stag ${cls}" style="font-size:14px">${state}</span></div>
 ${(()=>{ try{ const t=asakuraBondText(); return (t&&o.id===8)?`<div class="tiny" style="margin:-2px 0 8px;color:#FFD166">${esc(t)}　<span class="muted">（五十を切れば重臣が織田へ走り、二十五を切れば義景は一乗谷を捨てる）</span></div>`:""; }catch(_){ return ""; } })()}
 <div class="kstat">
@@ -17188,6 +17356,12 @@ ${o.suzerain!==null&&o.suzerain!==undefined&&W.clans[o.suzerain]?`<div class="ti
 ${o.vassals&&o.vassals.size?`<div class="tiny muted" style="margin-bottom:6px">従える家 ${[...o.vassals].map(v=>clanName(v)).join("・")}</div>`:""}
 ${me.allies.has(o.id)&&[...o.war].filter(w=>W.clans[w]&&!W.clans[w].dead).length?`<div class="tiny" style="color:#FF9A88;margin-bottom:6px">盟友の交戦相手：${[...o.war].filter(w=>W.clans[w]&&!W.clans[w].dead).map(w=>clanName(w)).join("・")}</div>`:""}
 <div class="sec-title">できること</div><div class="grid g2">${rowsHtml}</div>`;
+if(concisePanel()){
+const buttons=rowsHtml.match(/<button[\s\S]*?<\/button>/g)||[];
+const shortButtons=buttons.slice(0,2).map(html=>{ const box=document.createElement("div"); box.innerHTML=html; const b=box.querySelector("button"), cost=b.querySelector(".cost");
+if(cost) cost.remove(); b.textContent=b.textContent.replace(/（[^）]*）/g,"").replace(/[\d,％万千]+/g,"").trim(); return b.outerHTML; });
+h=`<div class="advice">${esc(o.name)}・${state}・友好 ${rel}<br>${near?"隣国":"遠国"}／戦力は${rword}</div><div class="grid g2">${shortButtons.join("")}</div><details><summary>詳しく</summary>${h}</details>`;
+}
 openPanel("外交　"+o.name,"",h,"外交　"+o.name,()=>openDiploClan(cid)); setSpeed(0); }
 const POLICY_EFFECT={
 "検地":"実入りが一割増える",
@@ -17313,7 +17487,7 @@ const h=window.visualViewport?.height||window.innerHeight;
 mm.style.top=Math.round(Math.max(4,b+2))+"px";
 mm.style.maxHeight="calc("+Math.max(44,h-b-12)+"px - env(safe-area-inset-bottom,0px))";
 }
-mb.onclick=(e)=>{ e.stopPropagation(); if(mm.hidden && panel.classList.contains("open")) closePanel(); mm.hidden=!mm.hidden; mb.classList.toggle("on",!mm.hidden); mb.setAttribute("aria-expanded",String(!mm.hidden));
+mb.onclick=(e)=>{ e.stopPropagation(); if(!document.getElementById("pickBar").hidden||!document.getElementById("foundBar").hidden){ closeMore(); toast("城選びを終えてから開けます"); return; } if(mm.hidden && panel.classList.contains("open")) closePanel(); mm.hidden=!mm.hidden; mb.classList.toggle("on",!mm.hidden); mb.setAttribute("aria-expanded",String(!mm.hidden));
 
 placeMore();
 
@@ -17398,7 +17572,89 @@ document.getElementById("alertOk").onclick=()=>{ bar.hidden=true; pendingAlert=n
 }
 
 let overlayEl=null;
-function showEncounter(e){
+
+const promptQueue=[];
+let promptObserver=null, promptDraining=false;
+function preparePrompt(){
+if(panel.classList.contains("open")){ panelResumeSpeed=null; closePanel(); }
+const mm=document.getElementById("moreMenu"), mb=document.getElementById("btnMore");
+if(mm) mm.hidden=true; if(mb){ mb.classList.remove("on"); mb.setAttribute("aria-expanded","false"); }
+}
+function queuePrompt(show,gen=WORLD_GEN,bat=null){
+promptQueue.push({show,gen,bat});
+if(!promptObserver && typeof MutationObserver!=="undefined"){
+promptObserver=new MutationObserver(()=>drainPrompts());
+promptObserver.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:["hidden"]});
+}
+drainPrompts();
+}
+function drainPrompts(){
+if(overlayEl&&!overlayEl.isConnected) overlayEl=null;
+if(promptDraining || document.querySelector('.overlay:not([hidden])')) return;
+promptDraining=true;
+try{
+while(promptQueue.length){
+const next=promptQueue.shift();
+if(next.gen!==WORLD_GEN || (next.bat && (B!==next.bat || B.over!==null))) continue;
+preparePrompt(); next.show();
+if(document.querySelector('.overlay:not([hidden])')) break;
+}
+}finally{ promptDraining=false; }
+}
+
+function promptBrief(el,text){
+if(!noviceMobile()) return;
+const dlg=el.querySelector(".dialog"), heading=dlg.querySelector("h3"), actions=dlg.querySelector(".dlg-actions");
+const detail=document.createElement("details"), summary=document.createElement("summary"); summary.textContent="詳しく"; detail.append(summary);
+for(const node of [...dlg.children]) if(node!==heading&&node!==actions) detail.append(node);
+const brief=document.createElement("div"); brief.className="advice"; brief.innerHTML=text;
+dlg.replaceChildren(heading,brief,...(actions?[actions]:[]),detail); dlg.classList.add("first-brief");
+}
+function conciseChoices(el,title,lead){
+if(!noviceMobile()) return;
+const presets={
+"本拠を移す":["新しい本拠を選ぶ。",[["安土に新城","天下の拠点"],["岐阜を強化","費えを抑える"],["京都近郊","威信を上げる"],["坂本方面","商いを伸ばす"]]],
+"安土の普請の順":["先に築くものを選ぶ。",[["天守","威信を上げる"],["石垣と櫓","守りを固める"],["御殿と屋敷","家臣をまとめる"],["市と港","商いを伸ばす"]]],
+"普請の速さ":["速さと負担を選ぶ。",[]],
+"越前一向一揆 討伐":["越前を鎮める手を選ぶ。",[["大軍で根切り","確実だが損大"],["降伏を勧める","民心を保つ"],["個別に調略","門徒の網を切る"],["柴田に任せる","本隊を温存"]]],
+"攻城の手":["門を破る手を選ぶ。",[]]
+};
+const preset=presets[title], brief=preset?preset[0]:plainChoiceText(lead,24);
+const dlg=el.querySelector(".dialog"), advice=dlg.querySelector(".advice");
+const detail=document.createElement("details"), summary=document.createElement("summary"); summary.textContent="詳しく"; detail.append(summary);
+const full=document.createElement("div"); full.className="advice"; full.innerHTML=lead; detail.append(full);
+const buttons=[...el.querySelectorAll("button[data-k]")];
+buttons.forEach((b,i)=>{
+const name=[...b.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join("").trim(), effect=b.querySelector(".cost")?.textContent||"";
+const row=document.createElement("p"); row.textContent=name+"："+effect; detail.append(row);
+let short=preset?.[1]?.[i];
+if(title==="攻城の手"){
+const effects={gate:"足軽と侍を門へ",cover:"鉄砲で守り手を撃つ",rear:/道がない/.test(effect)?"この城には道なし":"裏から挟み撃ち",in:/まだ/.test(effect)?"門が開いてから":"全軍を城内へ",wall:"門前の進軍を助ける",enc:"兵糧と士気を削る",guns:"門前の矢玉を減らす",res:"控えの隊も門へ"};
+if(effects[b.dataset.k]) short=[name.replace(/（[^）]*）/g,""),effects[b.dataset.k]];
+}
+if(title==="普請の速さ"){
+const key=b.dataset.k; short=[name.replace(/（.*?）/g,""),key==="fast"?"早いが負担増":key==="rush"?"最速だが質低下":key==="slow"?"負担を抑える":"速さと質の釣合い"];
+}
+const n=short?short[0]:plainChoiceText(name,16), e=short?short[1]:plainChoiceText(effect,12);
+b.textContent=n+(e?"："+e:""); b.classList.add("choice-line");
+});
+if(advice) advice.textContent=brief;
+const mark=dlg.querySelector(".tiny"); if(mark&&mark.textContent.trim()==="軍 議") mark.hidden=true;
+dlg.append(detail); dlg.classList.add("first-brief");
+}
+function plainChoiceText(text,max){
+const holder=document.createElement("div"); holder.innerHTML=text;
+const line=holder.textContent.replace(/（[^）]*）/g,"").split(/[。・\n]/)[0].trim();
+return line.length>max?line.slice(0,max-1)+"…":line;
+}
+
+function mountPrompt(el,onShow){
+const bat=el.dataset.bat==="1"?B:null;
+queuePrompt(()=>{ document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0); if(bat) bat.paused=true; startDialogFocus(el); if(onShow) onShow(); },WORLD_GEN,bat);
+}
+
+function showEncounter(e,queued=false){
+if(!queued){ if(!e||e._promptQueued) return; e._promptQueued=true; queuePrompt(()=>{ e._promptQueued=false; if(pendingEncounter===e) showEncounter(e,true); }); return; }
 if(overlayEl) return;
 const a0=W.armies[e.army];
 
@@ -17642,8 +17898,7 @@ ${W.date.y}年${W.date.m}月　${esc(DATA.provinces[c.prov]?.n||"")}　${esc(c.n
 ・膝下にあった<b>松平家が独立</b>し、盟を求めてきます（清洲同盟）</div>
 <button class="big gold" id="okeGo">承知した</button>
 </div>`;
-document.getElementById("stage").appendChild(el);
-overlayEl=el;
+mountPrompt(el);
 el.querySelector("#okeGo").onclick=()=>{
 el.remove(); if(overlayEl===el) overlayEl=null; resumeSpeed();
 
@@ -18514,7 +18769,7 @@ const targets=myCastles(hg.id).filter(c=>(DATA.provinces[c.prov]&&DATA.provinces
 const win=(k)=>{ for(const c of targets) captureCastle(c.id, od.id, null); W.echizenDone=true; log(`越前の一揆は${k}鎮まりました`,"war",true); bigNews("越前 平定"); };
 if(W.player===od.id){ const el=document.createElement("div"); el.className="overlay"; el.innerHTML=`<div class="dialog" style="max-width:520px"><h3>越前一向一揆 討伐</h3><div class="advice">越前は一向宗の国となっている。どう始末するか。</div>
 <div class="grid g2"><button class="cmd" data-k="big">大軍で根切り<span class="cost">銭 12,000。確実に鎮まるが本拠の兵一割五分減。越前の民心−15、本願寺の恨み、北陸は静まる</span></button><button class="cmd" data-k="sur">降伏を勧める<span class="cost">銭 3,000。四割で門徒が降る（民心は保つ）</span></button><button class="cmd" data-k="sub">寺と国人を個別に調略<span class="cost">銭 8,000。六割五分。門徒の網を一つずつ切る</span></button><button class="cmd" data-k="shibata">北陸方面軍（柴田）に任せる<span class="cost">銭 6,000。勝家の腕次第（七分）。信長本隊は温存</span></button></div></div>`;
-foldChoiceGrid(el); document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0);
+conciseChoices(el,"越前一向一揆 討伐","越前は一向宗の国となっている。どう始末するか。"); foldChoiceGrid(el); mountPrompt(el); setSpeed(0);
 el.querySelectorAll("button[data-k]").forEach(b=>b.onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; const k=b.dataset.k; const cost=k==="big"?12000:k==="sur"?3000:k==="sub"?8000:6000; od.money=Math.max(0,od.money-cost);
 if(k==="big"){ const hq=myCastles(od.id).find(c=>c.hq); for(const g of Object.values(W.generals)) if(hq&&g.castle===hq.id&&g.clan===od.id&&!g.army) g.troops=Math.floor(g.troops*0.85); win("大軍の前に"); for(const c of targets){ c.minchu=Math.max(0,(c.minchu||50)-15); c.chian=Math.min(100,(c.chian||50)+10); } addRel(hg.id,od.id,-15); log("根切りは苛烈だった。北陸は静まったが、本願寺の恨みと民の恐れが残る","dip",true); }
 else if(k==="sur"){ if(rnd()<0.4){ win("降伏勧告に応じて"); addRel(hg.id,od.id,-5); } else log("門徒は降伏を拒みました","war",true); }
@@ -19368,7 +19623,7 @@ el.querySelectorAll("[data-merit]").forEach(b=>b.onclick=()=>{ pick.merit=b.data
 { const kb=el.querySelector("#kiyoBreak"); if(kb) kb.onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; kiyoBreak(); resumeSpeed(); refreshHUD(); }; }
 el.querySelectorAll("[data-say]").forEach(b=>b.onclick=()=>{ pick.say=b.dataset.say; mark(); }); el.querySelectorAll("[data-heir]").forEach(b=>b.onclick=()=>{ pick.heir=b.dataset.heir; mark(); }); el.querySelectorAll("[data-lot]").forEach(b=>b.onclick=()=>{ pick.lots[b.dataset.lot]=b.dataset.to; mark(); }); el.querySelectorAll("[data-sec]").forEach(b=>b.onclick=()=>{ pick.sec=b.dataset.sec; mark(); }); el.querySelectorAll("[data-side]").forEach(b=>b.onclick=()=>{ pick.side=b.dataset.side; mark(); }); mark();
 el.querySelector("#kiyoGo").onclick=()=>{ if(pole===0&&!pick.side) return toast("どちらに付くか決めてください"); if(!pick.say) return toast("発言を選んでください"); el.remove(); if(overlayEl===el) overlayEl=null; kiyoResolve(pick); resumeSpeed(); refreshHUD(); };
-document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0);
+mountPrompt(el); setSpeed(0);
 }
 
 function kiyoResolve(pick){
@@ -19447,7 +19702,7 @@ const rivalLots=Object.values(res.lots).filter(n=>n===(pole>0?"柴田家":"羽�
 else { const got=Object.values(res.lots).filter(n=>n===role).length; if(got){ pts+=2; lines.push("✓ 新しい領地を得た"); } else lines.push("・領地は増えなかった"); if(res.winner===W.kiyo.side){ pts++; lines.push("✓ 勝ち馬に乗った"); } else lines.push("・負けた側に付いた"); if(!res.broken.includes(role)){ pts++; lines.push("✓ 約束は守られた"); } }
 const g=pts>=4?"大勝":pts===3?"勝利":pts===2?"辛勝":"敗北"; W.kiyoResult.grade=g; if(typeof chronicle==="function") chronicle(`清洲会議：${g}`);
 const el=document.createElement("div"); el.className="overlay"; el.innerHTML=`<div class="dialog" style="max-width:520px"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">清 洲 会 議</div><h3>${g}</h3><div class="advice">${lines.join("<br>")}</div><div class="tiny muted">この結果は賤ヶ岳へ引き継がれる（冷遇した宿老は敵に回り、厚遇した宿老は味方に付く）。戦になるまで ${Math.max(0,(W.shizugatakeAt||0)-dayNumber())}日ほど</div><div class="dlg-actions"><button class="big gold" id="kgOk">地図へ</button></div></div>`;
-document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0); el.querySelector("#kgOk").onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; resumeSpeed(); refreshHUD(); };
+mountPrompt(el); setSpeed(0); el.querySelector("#kgOk").onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; resumeSpeed(); refreshHUD(); };
 }
 
 function jingoSide(){ const me=W.clans[W.player]; if(!me) return null; return me.name==="真田家"?"sn":me.name==="徳川家"?"tk":me.name==="北条家"?"hj":me.name==="上杉家"?"ue":null; }
@@ -19749,7 +20004,7 @@ const el=document.createElement("div"); el.className="overlay"; el.innerHTML=`<d
 const pick=new Set(); el.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{ const k=b.dataset.k; if(pick.has(k)) pick.delete(k); else if(pick.size<n) pick.add(k); b.classList.toggle("sel",pick.has(k)); });
 el.querySelector("#jpOk").onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; const foePicks= n===0 ? (foe==="tk"?["kai","shinano"]:["kozuke","kai"]) : []; jingoPeace({side, picks:[...pick], foePicks, hjWon: side==="hj"?adv>15:adv<-15}); resumeSpeed(); refreshHUD(); };
 el.querySelector("#jpWar").onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; j.wakaBattleDone=true; W.jingoWakaBattle=true; bigNews("若神子、講和成らず"); log("講和を蹴った。徳川と北条は若神子の野で決戦に及ぶ（IF）","war",true); resumeSpeed(); refreshHUD(); };
-document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0); }
+mountPrompt(el); setSpeed(0); }
 
 function jingoWakaAfter(hjWon){ const j=W.jingo; const tk=clanByName("徳川家"), hj=clanByName("北条家"); W.jingoWakaBattle=false; if(!j) return; const win=hjWon?hj:tk, lose=hjWon?tk:hj; if(win&&lose){ for(const c of Object.values(W.castles)){ const p=DATA.provinces[c.prov]?DATA.provinces[c.prov].n:""; if(p==="甲斐"&&c.clan===lose.id){ c.clan=win.id; c.hq=false; c.lord=null; } } bumpGarrison(); } log(`若神子の決戦は${win?win.name:"?"}の勝ち。甲斐は${win?win.name:"?"}のものとなった`,"war",true); j.termsShown=true; jingoPeace({side:hjWon?"hj":"tk", picks:["kai"], hjWon}); }
 
@@ -19792,7 +20047,7 @@ text:["真田昌幸「尼ヶ淵の崖と千曲の流れ。ここに城を築く�
 cond:()=> !(overlayEl&&overlayEl.isConnected)&&eraOnly("jingo")&&dateFrom(1583,4)&&(()=>{ const sn=clanByName("真田家"); return sn&&!sn.dead&&!W.jingo?.ueda&&!Object.values(W.castles).some(c=>c.name==="上田城"); })(),
 act:()=>{ const sn=clanByName("真田家"), tk=clanByName("徳川家"); const hq=myCastles(sn.id).find(c=>c.hq)||myCastles(sn.id)[0]; if(!hq) return; const helped = tk&&sn.suzerain===tk.id;
 const build=(design)=>{ hq.name="上田城"; hq.lv=Math.max(hq.lv, CASTLE_RANKS[CASTLE_RANKS.length-1].lv); hq.defense=maxDefense(hq); W.jingo=W.jingo||{}; W.jingo.design=design; W.jingo.uedaBuiltAt=dayNumber(); if(design==="moat"){ hq.defExtra=1.2; hq.defense=maxDefense(hq); } else if(design==="town"){ hq.pop=Math.floor(hq.pop*1.3); hq.minchu=Math.min(100,(hq.minchu||50)+15); } else if(design==="store"){ hq.foodMax=Math.floor(foodCap(hq)*1.5); hq.food=hq.foodMax; } else if(design==="path"){ hq.hiddenPath=true; } else { hq.lv=999; } if(helped&&tk.id!==W.player){ sn.money+=5000; log("徳川は対上杉の前線の城として普請を助けた（銭五千）。表向きは徳川の城、実は真田の本拠","dip",true); } bigNews("上田城 成る"); log(`上田城が成った（${design==="moat"?"堀と土塁を厚く":design==="town"?"城下町を整え、民の支持を得る":design==="store"?"兵糧庫を大きく":design==="path"?"崖に隠し道を通す":"櫓と虎口を固める"}）`,"growth",true); if(typeof chronicle==="function") chronicle("上田城、成る"); };
-if(sn.id===W.player){ const el=document.createElement("div"); el.className="overlay"; el.innerHTML=`<div class="dialog" style="max-width:560px"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">上 田 城</div><h3>上田城の縄張り</h3><div class="advice">尼ヶ淵の崖の上、千曲の流れを背に築く。${helped?"徳川が普請を助ける。":""}地形に沿って案を選べ。</div><div class="grid g2"><button class="cmd" data-k="moat">堀と土塁を厚く<span class="cost">備えが二割増し（籠城に強い）</span></button><button class="cmd" data-k="town">城下町を先に<span class="cost">民心+15。上田合戦で住民が敵の動きを知らせる</span></button><button class="cmd" data-k="yagura">櫓と虎口<span class="cost">城の格が最大。狭い虎口で大軍を止める（伏兵+）</span></button><button class="cmd" data-k="store">兵糧庫<span class="cost">蔵が一・五倍。長く籠れる</span></button><button class="cmd" data-k="path">隠し道<span class="cost">落ちても昌幸は必ず逃れる</span></button><button class="cmd" data-k="earth">土塁と虎口<span class="cost">寄せ手は狭い虎口で詰まる（門の前で足が鈍る）</span></button></div><div class="dlg-actions" style="margin-top:8px"><button class="big gold" id="ubOk">この縄張りで築く</button><button class="big" id="ubAuto">おまかせ（堀と櫓）</button></div></div>`; foldChoiceGrid(el); const pick=new Set(); el.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{ const k=b.dataset.k; if(pick.has(k)) pick.delete(k); else if(pick.size<2) pick.add(k); b.classList.toggle("sel",pick.has(k)); }); const go=(ks)=>{ el.remove(); if(overlayEl===el) overlayEl=null; build(ks[0]||"moat"); for(const k of ks.slice(1)){   W.jingo.design2=k; if(k==="moat"){ hq.defExtra=Math.max(hq.defExtra||1,1.2); hq.defense=Math.min(maxDefense(hq),Math.floor(hq.defense*1.15)); } else if(k==="town"){ hq.pop=Math.floor(hq.pop*1.2); hq.minchu=Math.min(100,(hq.minchu||50)+10); } else if(k==="store"){ hq.foodMax=Math.floor(foodCap(hq)*1.4); hq.food=hq.foodMax; } else if(k==="path") hq.hiddenPath=true; else if(k==="earth") W.jingo.earth=true; else if(k==="yagura") W.jingo.yaguraToo=true; log(`縄張りに${({moat:"堀と土塁",town:"城下町",yagura:"櫓と虎口",store:"兵糧庫",path:"隠し道",earth:"土塁と虎口"})[k]}も加えた`,"growth",true); } if(ks[0]==="earth") W.jingo.earth=true; resumeSpeed(); refreshHUD(); }; el.querySelector("#ubOk").onclick=()=>go(pick.size?[...pick]:["moat"]); el.querySelector("#ubAuto").onclick=()=>go(["moat","yagura"]); document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0); } else build("moat"); }},
+if(sn.id===W.player){ const el=document.createElement("div"); el.className="overlay"; el.innerHTML=`<div class="dialog" style="max-width:560px"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">上 田 城</div><h3>上田城の縄張り</h3><div class="advice">尼ヶ淵の崖の上、千曲の流れを背に築く。${helped?"徳川が普請を助ける。":""}地形に沿って案を選べ。</div><div class="grid g2"><button class="cmd" data-k="moat">堀と土塁を厚く<span class="cost">備えが二割増し（籠城に強い）</span></button><button class="cmd" data-k="town">城下町を先に<span class="cost">民心+15。上田合戦で住民が敵の動きを知らせる</span></button><button class="cmd" data-k="yagura">櫓と虎口<span class="cost">城の格が最大。狭い虎口で大軍を止める（伏兵+）</span></button><button class="cmd" data-k="store">兵糧庫<span class="cost">蔵が一・五倍。長く籠れる</span></button><button class="cmd" data-k="path">隠し道<span class="cost">落ちても昌幸は必ず逃れる</span></button><button class="cmd" data-k="earth">土塁と虎口<span class="cost">寄せ手は狭い虎口で詰まる（門の前で足が鈍る）</span></button></div><div class="dlg-actions" style="margin-top:8px"><button class="big gold" id="ubOk">この縄張りで築く</button><button class="big" id="ubAuto">おまかせ（堀と櫓）</button></div></div>`; foldChoiceGrid(el); const pick=new Set(); el.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{ const k=b.dataset.k; if(pick.has(k)) pick.delete(k); else if(pick.size<2) pick.add(k); b.classList.toggle("sel",pick.has(k)); }); const go=(ks)=>{ el.remove(); if(overlayEl===el) overlayEl=null; build(ks[0]||"moat"); for(const k of ks.slice(1)){   W.jingo.design2=k; if(k==="moat"){ hq.defExtra=Math.max(hq.defExtra||1,1.2); hq.defense=Math.min(maxDefense(hq),Math.floor(hq.defense*1.15)); } else if(k==="town"){ hq.pop=Math.floor(hq.pop*1.2); hq.minchu=Math.min(100,(hq.minchu||50)+10); } else if(k==="store"){ hq.foodMax=Math.floor(foodCap(hq)*1.4); hq.food=hq.foodMax; } else if(k==="path") hq.hiddenPath=true; else if(k==="earth") W.jingo.earth=true; else if(k==="yagura") W.jingo.yaguraToo=true; log(`縄張りに${({moat:"堀と土塁",town:"城下町",yagura:"櫓と虎口",store:"兵糧庫",path:"隠し道",earth:"土塁と虎口"})[k]}も加えた`,"growth",true); } if(ks[0]==="earth") W.jingo.earth=true; resumeSpeed(); refreshHUD(); }; el.querySelector("#ubOk").onclick=()=>go(pick.size?[...pick]:["moat"]); el.querySelector("#ubAuto").onclick=()=>go(["moat","yagura"]); mountPrompt(el); setSpeed(0); } else build("moat"); }},
 {id:1261,name:"上田の城下町",
 text:["真田昌幸「城だけでは戦えぬ。町を作れ」"],
 cond:()=> eraOnly("jingo")&&(()=>{ const sn=clanByName("真田家"); const c=Object.values(W.castles).find(x=>x.name==="上田城"); return sn&&sn.id===W.player&&c&&c.clan===sn.id&&!!(W.jingo&&W.jingo.uedaBuiltAt)&&dayNumber()-W.jingo.uedaBuiltAt>=60; })(),
@@ -20097,7 +20352,7 @@ function honCouncil(){ const h=W.hon; const ak=clanByName("明智家"); const ge
 const el=document.createElement("div"); el.className="overlay"; el.innerHTML=`<div class="dialog" style="max-width:560px"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">評 定</div><h3>光秀「これより進路を変える」</h3><div class="list">${rows.map(([g,r])=>`<div class="row"><b style="flex:1">${esc(g.name)}</b><span class="tiny ${r==="反対"?"":"muted"}" style="${r==="反対"?"color:#FF9A88":""}">${r}</span></div>`).join("")}</div><div class="advice">反対の者は離脱するかもしれない。決めてから京に着くまで、時が長いほど漏れる。</div><div class="sec-title">夜間行軍</div><div class="grid g2"><button class="cmd" data-t="many">松明を多く<span class="cost">速い（夜明け前に着く）が見つかりやすい</span></button><button class="cmd" data-t="few">松明を少なく<span class="cost">遅い（漏れる目が二割）が見つかりにくい</span></button></div><div class="dlg-actions" style="margin-top:8px"><button class="big gold" id="hcGo">目標、本能寺</button></div></div>`;
 let torch="few"; el.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{ torch=b.dataset.t; el.querySelectorAll("[data-t]").forEach(x=>x.classList.toggle("sel",x===b)); }); el.querySelector('[data-t="few"]').classList.add("sel");
 el.querySelector("#hcGo").onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; h.torch=torch; for(const [g,r] of rows){ if(r==="反対"&&rnd()<0.5){ g.clan=null; g.status="在野"; g.castle=null; g.troops=0; log(`${g.name}は謀反に加わらず、陣を離れた`,"dip",true); } else if(r==="困惑"&&rnd()<0.2){ g.troops=Math.floor(g.troops*0.8); log(`${g.name}の隊から兵が逃げた`,"dip",true); } } honCoupGo(true); resumeSpeed(); };
-document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0); }
+mountPrompt(el); setSpeed(0); }
 
 function honCoupGo(byPlayer){ const h=W.hon; const ak=clanByName("明智家"), od=clanByName("織田家"); h.phase="coup"; h.coupDay=dayNumber()+1; if(ak.suzerain===od.id){ od.vassals.delete(ak.id); ak.suzerain=null; } declareWar(ak.id,od.id,"force"); const leak=h.torch==="many"?0.35:0.2; h.leaked=rnd()<leak; if(h.leaked&&byPlayer) log("見張りの百姓が京へ走った。漏れたかもしれない","war",true); bigNews(byPlayer?"進路、京へ":"明智光秀、京へ"); log(`明智一万三千、老ノ坂を越えて京へ（松明${h.torch==="many"?"多く":"少なく"}）。目標、本能寺`,"war",true); if(typeof chronicle==="function") chronicle("明智光秀、進路を京へ"); W.stage.badgeText=honBadge; }
 
@@ -21986,7 +22241,10 @@ kpAdd("水の手への坑道",K.waterWork.x,K.waterWork.y,3,0,{need:8});
 B.objective="山麓で坑道を掘り水の手を断て。城兵は出撃して作業隊を追い払える";
 }
 
-if(k==="nagashino_open"){ K.src=FIELD_PLAN.nagashino_open.src; for(const u of B.units) if(u.side===1){ u.histMorBase=u.morRes||1; } }
+if(k==="nagashino_open"){
+K.src=FIELD_PLAN.nagashino_open.src+"。『信長公記』『三河物語』：奥平信昌の籠城、鳥居強右衛門の報せ、後詰到着を経て柵内で迎撃";
+for(const u of B.units) if(u.side===1){ u.histMorBase=u.morRes||1; }
+}
 
 if(k==="oshi"){
 K.src="行田市「忍城跡」";
@@ -22106,6 +22364,10 @@ const K=B.hist258; if(!K||u.left||u.troops<=.5||u.morale<=0) return false;
 
 if(u.side===B.ctx.playerSide&&!B.autoMine&&!autoBattleMode&&!u.ally&&!u.autoAI) return false;
 if(B.elapsed-(u.userAt===undefined?-99:u.userAt)<20) return false;
+
+if(K.key==="nagashino_open"&&u.side===1&&u.histGuard&&!B.tobiPhase&&!u.wounded&&u.order.k!=="retreat"){
+u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; u.charge=false; return true;
+}
 const live=B.units.filter(v=>v.side!==u.side&&!v.left&&v.troops>.5&&v.morale>0), near=selectFirst(live.slice(), (a,b)=>dist(u,a)-dist(u,b));
 const move=p=>{ u.order=dist(u,p)<1.4?{k:"guard"}:{k:"move",x:p.x,y:p.y}; u.gx=p.x; u.gy=p.y; u.holdUntil=0; };
 
@@ -22172,8 +22434,10 @@ if(K.pressure>30&&!K.noRelief){ K.noRelief=true; B.bigBanner={t:"武田と景勝
 }
 
 if(K.key==="nagashino_open") for(const u of def){
-const cover=B.obstacles.some(o=>o.fence&&!o.tobiFence&&o.hp>0&&Math.abs(o.y-u.y)<3&&Math.abs(o.x-u.x)<8&&(B.ctx.playerSide===1?u.x<o.x:u.x>o.x));
-u.histCover=cover?1.4:1; u.morRes=cover?Math.min(u.histMorBase||1,.45):(u.histMorBase||1);
+const cover=B.obstacles.some(o=>o.fence&&!o.tobiFence&&o.hp>0&&Math.abs(o.y-u.y)<3&&Math.abs(o.x-u.x)<16&&(B.ctx.playerSide===1?u.x<o.x:u.x>o.x));
+u.histCover=cover?2:1; u.morRes=cover?Math.min(u.histMorBase||1,.35):(u.histMorBase||1);
+
+u.histGuard=cover&&!B.pursued&&!u.tobiGo&&!u.tobiBack&&!u.wounded;
 }
 
 if(K.key==="tennoji_relief") for(const u of atk) if(u.nobunaga) u.histCover=atk.filter(v=>v!==u&&dist(v,u)<8).length>=2?2.2:1;
@@ -24066,9 +24330,9 @@ ${svg}
 <button class="chip" id="wrMore" aria-controls="wrMoreBox" aria-expanded="false" style="cursor:pointer;margin-top:6px">ほかの手 1 ▸</button><div class="wr-cards" id="wrMoreBox" hidden style="margin-top:4px">${card(cards[3])}</div>
 <div class="wr-confirm" id="wrConfirm" hidden></div>
 </div></div>`;
-document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0); startDialogFocus(el);
+setSpeed(0);
 const countUp=()=>{};
-if(first){ try{ playSE("horse"); }catch(_){ } setTimeout(()=>{ if(!el.isConnected) return; el.querySelector(".wr-intro").hidden=true; el.querySelector(".wr-body").hidden=false; try{ playSE("drum"); }catch(_){ } countUp(); },1500); } else countUp();
+mountPrompt(el,()=>{if(first){ try{ playSE("horse"); }catch(_){ } setTimeout(()=>{ if(!el.isConnected) return; el.querySelector(".wr-intro").hidden=true; el.querySelector(".wr-body").hidden=false; try{ playSE("drum"); }catch(_){ } countUp(); },1500); } else countUp(); });
 { const km=el.querySelector("#wrMore"); km.onclick=()=>{ const bx=el.querySelector("#wrMoreBox"); bx.hidden=!bx.hidden; km.textContent=bx.hidden?"ほかの手 1 ▸":"畳む ▾"; km.setAttribute("aria-expanded",String(!bx.hidden)); }; }
 const gen=WORLD_GEN; let settled=false; const done=(k)=>{ if(settled||gen!==WORLD_GEN||W.ishi!==I||I.relief!==R||I.phase!=="relief") return; settled=true; el.remove(); if(overlayEl===el) overlayEl=null; if(gen!==WORLD_GEN) return; const line={now:"「出るぞ。皆の者、天王寺へ！」",wait:"「一日だけ待つ。兵を集めよ」",sakuma:"「佐久間、五千で行け。わしは動かぬ」",abandon:"「砦は捨てよ。明智を生かして戻せ」"}[k]; bigNews(`信長${line}`); if(k==="wait"){ ishiReliefGo("wait"); R.askedDay=R.day; } else ishiReliefGo(k); resumeSpeed(); refreshHUD(); };
 el.querySelectorAll("[data-more]").forEach(m=>m.onclick=()=>{ const d=m.parentElement.querySelector(".wr-det"); d.hidden=!d.hidden; m.textContent=d.hidden?"詳細を見る":"畳む"; m.setAttribute("aria-expanded",String(!d.hidden)); });
@@ -24109,7 +24373,7 @@ const st=g=>g?(g.status==="死亡"?"討死":"生存"):"—";
 const lines=[`原田直政：${I.harada==="dead"?"討死":"生存（IF）"}`,`明智光秀：${st(ak)}`,`織田信長：${nb&&nb.status==="死亡"?"討死":r.wounded?"負傷（指揮続行）":"無傷"}`,`本願寺の補給：${Math.round(I.supply)}%`];
 if(typeof chronicle==="function") chronicle(`天王寺砦の戦い：${r.grade||"—"}`); bigNews(`天王寺砦の戦い　${r.grade||""}`);
 const el=document.createElement("div"); el.className="overlay"; el.innerHTML=`<div class="dialog" style="max-width:520px"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">天王寺砦の戦い</div><h3>${esc(r.grade||"")}</h3><div class="advice">${esc(r.text||"")}</div><div class="tiny">${lines.join("<br>")}</div><div class="tiny muted" style="margin-top:6px">勝っても石山本願寺は残る。三十日の後、毛利の水軍が木津川口へ来る</div><div class="dlg-actions"><button class="big gold" id="irOk">地図へ</button></div></div>`;
-document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0); el.querySelector("#irOk").onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; resumeSpeed(); refreshHUD(); }; }
+mountPrompt(el); setSpeed(0); el.querySelector("#irOk").onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; resumeSpeed(); refreshHUD(); }; }
 
 function ishiNaval(){ const I=W.ishi; const od=clanByName("織田家"), hg=clanByName("本願寺"), mr=clanByName("毛利家"); const side=ishiSide(); const heavy=(I.results.loss||0)>0.4||/敗/.test(I.results.grade||""); const p=heavy?0.3:0.5;
 const go=(fight)=>{ if(!fight){ I.supply=Math.min(100,I.supply+40); log("毛利の水軍は木津川口を難なく抜け、石山に米と火薬が入った","war",true); if(mr&&od&&!od.war.has(mr.id)&&od.id!==W.player&&mr.id!==W.player) declareWar(od.id,mr.id,"force"); }
@@ -25347,12 +25611,12 @@ function chakaiStart(){ const od=W.clans[0]; const cands=Object.values(W.general
 W.chakai={picks:[],seat:[],ware:null,gift:null,topic:null,secret:null}; const el=document.createElement("div"); el.className="overlay"; el.innerHTML=`<div class="dialog" style="max-width:540px;background:#0f0d0a"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">茶 会</div><h3>安土の茶会に招く（四人まで）</h3><div class="advice">少人数なら親密、多ければ威信。招かれなかった功臣は少し面白くない。銭 2,000。</div><div class="grid g2">${cands.map(g=>`<button class="cmd" data-g="${g.id}">${esc(g.name)}<span class="cost">功 ${g.merit||0}　忠 ${g.loyalty}　序列 ${umaExpect(g)}</span></button>`).join("")}${ie?`<button class="cmd" data-g="${ie.id}">徳川家康<span class="cost">盟友。仲+</span></button>`:""}<button class="cmd" data-g="-1">堺の商人（今井宗久）<span class="cost">商人評価+、銭の話</span></button><button class="cmd" data-g="-2">公家（近衛前久）<span class="cost">朝廷評価+</span></button></div><div class="dlg-actions"><button class="big gold" id="chaGo">席次へ</button></div></div>`;
 const pick=new Set(); el.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{ const id=+b.dataset.g; if(pick.has(id)) pick.delete(id); else if(pick.size<4) pick.add(id); b.classList.toggle("sel",pick.has(id)); });
 el.querySelector("#chaGo").onclick=()=>{ if(!pick.size){ toast("一人は招いてください"); return; } el.remove(); if(overlayEl===el) overlayEl=null; od.money-=2000; W.chakai.picks=[...pick]; W.chakai.seat=[...pick].sort((a,b)=>(b>0?umaExpect(W.generals[b]):50)-(a>0?umaExpect(W.generals[a]):50)); chakaiSeatAsk(); };
-document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0); }
+mountPrompt(el); setSpeed(0); }
 function chakaiName(id){ return id===-1?"今井宗久":id===-2?"近衛前久":(W.generals[id]?W.generals[id].name:"?"); }
 function chakaiExpect(id){ return id===-1?40:id===-2?85:umaExpect(W.generals[id]); }
 function chakaiSeatAsk(){ const C=W.chakai; const el=document.createElement("div"); el.className="overlay"; const render=()=>{ el.innerHTML=`<div class="dialog" style="max-width:520px;background:#0f0d0a"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">席 次</div><h3>茶室の席</h3><div class="advice">上座ほど名誉。格上を下座に置けば不満、新参を上座に置けば古参が面白くない。</div><div style="text-align:left">${C.seat.map((id,i)=>{ const ex=chakaiExpect(id); const pos=100-Math.round(i/Math.max(1,C.seat.length-1)*100); const d=pos-ex; const face=d>=-15?"満足":d>=-35?"不満":"怒り"; return `<div class="s-stat" style="display:flex;justify-content:space-between;align-items:center"><span>${i===0?"上座":i===C.seat.length-1?"下座":"　"}　${esc(chakaiName(id))}<span class="tiny muted">　格 ${ex}　${face}</span></span><span><button class="chip" data-up="${i}" ${i===0?"disabled":""}>▲</button><button class="chip" data-dn="${i}" ${i===C.seat.length-1?"disabled":""}>▼</button></span></div>`; }).join("")}</div><div class="dlg-actions" style="margin-top:8px"><button class="big gold" id="chaSeatOk">この席で</button></div></div>`;
 el.querySelectorAll("[data-up]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.up; [C.seat[i-1],C.seat[i]]=[C.seat[i],C.seat[i-1]]; render(); }); el.querySelectorAll("[data-dn]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.dn; [C.seat[i+1],C.seat[i]]=[C.seat[i],C.seat[i+1]]; render(); }); el.querySelector("#chaSeatOk").onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; chakaiWareAsk(); }; };
-render(); document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0); }
+render(); mountPrompt(el); setSpeed(0); }
 function chakaiWareAsk(){ const C=W.chakai; koChoice("茶器を選ぶ","名物の由緒と持ち主の来歴が、席の重みを決める。",[["best","最高級（初花肩衝）","文化威信+8。客はみな畏まる",()=>{ C.ware="hatsuhana"; chakaiGiftAsk(); }],["formal","格式重視（楢柴肩衝）","文化威信+5。序列がはっきりする",()=>{ C.ware="narashiba"; chakaiGiftAsk(); }],["rare","珍品（井戸茶碗）","商人と茶人が喜ぶ（商人評価+）",()=>{ C.ware="kizaemon"; chakaiGiftAsk(); }],["plain","質素（楽の黒茶碗）","侘びの心。公家は首を傾げる",()=>{ C.ware="plain"; chakaiGiftAsk(); }]]); }
 function chakaiGiftAsk(){ const C=W.chakai; const gens=C.seat.filter(id=>id>0); if(!gens.length){ chakaiTopicAsk(); return; } koChoice("茶器の恩賞","領地の代わりに茶器を与えるか。",[["none","与えない","",()=>{ chakaiTopicAsk(); }]].concat(gens.slice(0,3).map(id=>[String(id),`${chakaiName(id)}に松島の壺`,"忠義+15・想い+10。格上の他の客は−3",()=>{ C.gift=id; chakaiTopicAsk(); }]))); }
 function chakaiTopicAsk(){ const C=W.chakai; koChoice("茶会の話題","茶そのものより、ここで話すことが政。",[["mil","軍事","中国・北陸の戦線。客の士気+5、家康がいれば警戒+",()=>{ C.topic="mil"; chakaiSecretAsk(); }],["dip","外交","四国・本願寺・徳川。仲の話（招いた家との仲+5）",()=>{ C.topic="dip"; chakaiSecretAsk(); }],["reward","恩賞","次の知行の話。客の忠義+4",()=>{ C.topic="reward"; chakaiSecretAsk(); }],["family","家族","婚姻と跡目。想い+6",()=>{ C.topic="family"; chakaiSecretAsk(); }],["tea","茶","名物の由緒。文化威信+3",()=>{ C.topic="tea"; chakaiSecretAsk(); }]]); }
@@ -25387,7 +25651,7 @@ function azuchiHubTrade(){ const a=W.azuchi=W.azuchi||{}; const az=Object.values
 const ISHI_TERMS=[["leave","石山退去","oda"],["disarm","武装解除","oda"],["disband","門徒解散","oda"],["hostage","人質","oda"],["life","顕如助命","both"],["monto","門徒助命","hg"],["temple","寺院存続","hg"],["grace","退去猶予（三十日）","hg"],["goods","財産搬出","hg"]];
 function ishiPeaceStart(){ const hg=clanByName("本願寺"); const od=W.clans[0]; const isy=Object.values(W.castles).find(c=>c.name==="石山本願寺"&&c.clan===hg.id); if(!hg||!isy) return; const food=(isy.food||0)/Math.max(1,foodCap(isy)); const sea=(W.naval1&&W.naval1.won)?0:20; const power=Math.round(60+(0.3-food)*100-sea+(W.saikaCowed?5:0)); W.ishiP={oda:Math.max(20,Math.min(95,power)), hg:Math.max(5,Math.min(80,100-power)), terms:{leave:true,disarm:false,disband:false,hostage:false,life:true,monto:true,temple:true,grace:true,goods:false}, round:0, log:[]};
 if(od.id===W.player) ishiPeaceRender(); else if(hg.id===W.player) ishiPeaceHgAsk(); else ishiPeaceResolve("leave"); }
-function ishiPeaceRender(){ const P=W.ishiP; let el=document.getElementById("ishiPOv"); if(!el){ el=document.createElement("div"); el.className="overlay"; el.id="ishiPOv"; document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0); }
+function ishiPeaceRender(){ const P=W.ishiP; let el=document.getElementById("ishiPOv"); if(!el){ el=document.createElement("div"); el.className="overlay"; el.id="ishiPOv"; mountPrompt(el); setSpeed(0); }
 const bar=(v,col)=>`<div style="height:8px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden"><div style="height:8px;width:${Math.max(0,Math.min(100,v))}%;background:${col}"></div></div>`;
 el.innerHTML=`<div class="dialog" style="max-width:620px;max-height:84vh;overflow:auto"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">和 議</div><h3>石山退去の講和（${P.round+1}度目）</h3><div class="grid g2" style="margin:6px 0"><div class="s-stat"><span>織田優位</span><b>${P.oda}</b>${bar(P.oda,"#C9A227")}</div><div class="s-stat"><span>本願寺の継戦力</span><b>${P.hg}</b>${bar(P.hg,"#E24A3A")}</div></div><div class="advice">朝廷の仲介。条件を一つずつ動かす。求めが重いほど蹴られやすい。顕如は講和寄り、教如と強硬派は籠城を望む</div>
 <div class="row" style="gap:8px;align-items:flex-start"><div style="flex:1;text-align:left"><div class="sec-title">織田の求め</div>${ISHI_TERMS.filter(t=>t[2]==="oda").map(t=>`<button class="cmd" data-t="${t[0]}" style="width:100%;margin:2px 0;border-color:${P.terms[t[0]]?"#C9A227":"#444"}">${t[1]}<span class="cost">${P.terms[t[0]]?"求める":"求めない"}</span></button>`).join("")}</div><div style="flex:1;text-align:left"><div class="sec-title">本願寺の求め</div>${ISHI_TERMS.filter(t=>t[2]!=="oda").map(t=>`<button class="cmd" data-t="${t[0]}" style="width:100%;margin:2px 0;border-color:${P.terms[t[0]]?"#6E98E6":"#444"}">${t[1]}<span class="cost">${P.terms[t[0]]?"認める":"認めない"}</span></button>`).join("")}</div></div>
@@ -25424,12 +25688,12 @@ if(W.player===0) koChoice("京都御馬揃え","京で天下人の力を見せ�
 function umaPickAsk(cands,max,ie){ const U=W.uma; const el=document.createElement("div"); el.className="overlay"; el.innerHTML=`<div class="dialog" style="max-width:600px;max-height:80vh;overflow:auto"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">御 馬 揃 え</div><h3>京へ呼ぶ将（${max}人まで）</h3><div class="advice">方面軍から将を抜けば、その戦線は一月弱くなる。序列の高い将を呼ばなければ不満が出る。</div><div class="grid g2">${cands.map(g=>{ const f=umaFront(g); return `<button class="cmd" data-g="${g.id}">${esc(g.name)}<span class="cost">序列 ${umaExpect(g)}${f?"　"+f+"の戦線":""}</span></button>`; }).join("")}${ie?`<button class="cmd" data-g="${ie.id}">徳川家康<span class="cost">盟友。呼べば徳川との仲+10</span></button>`:""}</div><div class="dlg-actions"><button class="big gold" id="umaGo">呼ぶ</button></div></div>`;
 const pick=new Set(); el.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{ const id=+b.dataset.g; if(pick.has(id)) pick.delete(id); else if(pick.size<max) pick.add(id); b.classList.toggle("sel",pick.has(id)); });
 el.querySelector("#umaGo").onclick=()=>{ if(pick.size<2){ toast("二人以上を"); return; } el.remove(); if(overlayEl===el) overlayEl=null; U.picks=[...pick]; umaOrderAsk(); };
-document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0); }
+mountPrompt(el); setSpeed(0); }
 function umaOrderAsk(){ const U=W.uma; if(!U.order.length) U.order=U.picks.slice().sort((a,b)=>umaExpect(W.generals[a])-umaExpect(W.generals[b])); const segs=["先導","織田一門","有力家臣","騎馬武者","鉄砲隊","旗指物","信長本隊"];
 const el=document.createElement("div"); el.className="overlay"; el.id="umaOrd"; const render=()=>{ el.innerHTML=`<div class="dialog" style="max-width:560px;max-height:80vh;overflow:auto"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">行 列 編 成</div><h3>並び順を決める</h3><div class="advice">前（先導に近い）ほど目立たぬ、後ろ（信長本隊に近い）ほど名誉。序列の高い将を前に置けば不満、若手を後ろに置けば古参が怒る。</div><div style="text-align:left">${U.order.map((id,i)=>{ const g=W.generals[id]; const ex=umaExpect(g); const pos=Math.round((i+1)/U.order.length*100); const d=pos-ex; const face=d>=-10?"満足":d>=-30?"不満":"怒り"; return `<div class="s-stat" style="display:flex;justify-content:space-between;align-items:center"><span>${i+1}. ${esc(g.name)}<span class="tiny muted">　序列 ${ex}　${face}</span></span><span><button class="chip" data-up="${i}" ${i===0?"disabled":""}>▲</button><button class="chip" data-dn="${i}" ${i===U.order.length-1?"disabled":""}>▼</button></span></div>`; }).join("")}<div class="tiny muted" style="margin-top:4px">…${segs.slice(3).join("・")}（信長本隊は最後尾）</div></div><div class="dlg-actions" style="margin-top:8px"><button class="big gold" id="umaOrdOk">この順で</button></div></div>`;
 el.querySelectorAll("[data-up]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.up; [U.order[i-1],U.order[i]]=[U.order[i],U.order[i-1]]; render(); }); el.querySelectorAll("[data-dn]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.dn; [U.order[i+1],U.order[i]]=[U.order[i],U.order[i+1]]; render(); });
 el.querySelector("#umaOrdOk").onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; umaStyleAsk(); }; };
-render(); document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0); }
+render(); mountPrompt(el); setSpeed(0); }
 function umaStyleAsk(){ const U=W.uma; koChoice("信長の衣装と演出","どう見せるか。",[["buke","武家式","締まった行列。家臣満足+、朝廷は並",()=>{ U.style="buke"; umaParade(); }],["gorgeous","豪華絢爛","南蛮の帽子と緋の衣。民衆熱狂+15、費え+2,000",()=>{ U.style="gorgeous"; W.clans[0].money-=2000; umaParade(); }],["military","軍事色重視","鉄砲と騎馬を多く。諸大名への威圧+、朝廷は眉をひそめる",()=>{ U.style="military"; umaParade(); }],["court","朝廷礼式重視","公家の作法で。朝廷評価+15、民衆は退屈",()=>{ U.style="court"; umaParade(); }]]); }
 function umaParade(){ const U=W.uma; const pts=["御所周辺","大通り","観覧地点（町衆席）"]; U.court+=U.style==="court"?15:U.style==="military"?-8:5; U.crowd+=U.style==="gorgeous"?15:U.style==="court"?-8:U.style==="military"?8:3; U.step=0;
 const inc=[["horse","馬が暴れる","佐々成政の馬が公家席の前で棹立ちになった"],["line","隊列が崩れる","鉄砲隊と騎馬の間が空き、行列が途切れた"],["rank","序列の諍い","勝家の家臣と秀吉の家臣が道を譲らず睨み合った"],["crowd","観衆が殺到","町衆が縄を越えて行列に押し寄せた"],["envoy","朝廷の使者","勅使が信長の馬前に立ち、労いの言葉を述べた"]];
@@ -25448,7 +25712,7 @@ const SHK_PROVS4=["土佐","阿波","讃岐","伊予"];
 function shkHolder(pv){ const cs=Object.values(W.castles).filter(c=>DATA.provinces[c.prov]&&DATA.provinces[c.prov].n===pv); if(!cs.length) return null; const cnt={}; for(const c of cs){ const k=c.clan===null?"none":c.clan; cnt[k]=(cnt[k]||0)+1; } const best=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0]; return best[0]==="none"?null:W.clans[+best[0]]; }
 function shkSettleStart(){ const ch=clanByName("長宗我部家"); const od=W.clans[0]; if(!ch||od.id!==W.player){ W.shikoku="tosa"; if(ch) addRel(ch.id,0,-15); const ak=findGeneralByName("明智光秀"); if(ak&&ak.clan===0){ genMind(ak); ak.bond=Math.max(10,ak.bond-15); } log("信長は土佐一国のみを安堵とした。長宗我部は憤り、取り次いだ光秀は面目を失った","dip",true); return; }
 W.shkSet={round:0, allow:{土佐:true,阿波:false,讃岐:false,伊予:false}, terms:{hostage:false,vassal:false,service:false,marriage:false,miyoshi:false}, rel:getRel(ch.id,0), tension:30, log:[]}; shkSettleRender(); }
-function shkSettleRender(){ const S=W.shkSet; const ch=clanByName("長宗我部家"); if(!S||!ch) return; let el=document.getElementById("shkSetOv"); if(!el){ el=document.createElement("div"); el.className="overlay"; el.id="shkSetOv"; document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0); }
+function shkSettleRender(){ const S=W.shkSet; const ch=clanByName("長宗我部家"); if(!S||!ch) return; let el=document.getElementById("shkSetOv"); if(!el){ el=document.createElement("div"); el.className="overlay"; el.id="shkSetOv"; mountPrompt(el); setSpeed(0); }
 const held=pv=>{ const h=shkHolder(pv); return h?h.name:"無主"; }; const risk=S.tension>=70?"高":S.tension>=45?"中":"低"; const col=pv=>S.allow[pv]?"#6E98E6":(shkHolder(pv)&&shkHolder(pv).id===ch.id?"#E24A3A":"rgba(255,255,255,.12)");
 el.innerHTML=`<div class="dialog" style="max-width:640px;max-height:82vh;overflow:auto"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">四 国 の 仕 置</div><h3>長宗我部への条件（書状 ${S.round+1}通目）</h3>
 <div class="grid g3" style="margin:6px 0"><div class="s-stat"><span>友好</span><b>${Math.round(S.rel)}</b></div><div class="s-stat"><span>緊張</span><b>${Math.round(S.tension)}</b></div><div class="s-stat"><span>戦争危険</span><b style="color:${risk==="高"?"#E24A3A":risk==="中"?"#E2762A":"#6E98E6"}">${risk}</b></div></div>
@@ -25476,7 +25740,7 @@ function tdSettleStart(){ const od=W.clans[0]; if(od.id!==W.player) return; W.td
 function tdRegionInfo(pv){ const cs=Object.values(W.castles).filter(c=>DATA.provinces[c.prov]&&DATA.provinces[c.prov].n===pv); const mine=cs.filter(c=>c.clan===0); const vets=Object.values(W.generals).filter(g=>g.clan===0&&g.tozama&&g.status==="家臣"&&g.castle!==null&&cs.some(c=>c.id===g.castle)).length; const pop=cs.reduce((a,c)=>a+(c.pop||0),0); const hj=clanByName("北条家"); const hjP=pv==="上野"?"高":pv==="甲斐"?"中":"低"; const tkI=pv==="駿河"?"高":pv==="甲斐"?"中":"低"; return {cs:cs.length, mine:mine.length, vets, pop, hjP, tkI, risk:pv==="信濃"?"高":pv==="甲斐"?"中":"低"}; }
 function tdPredict(pv,k){ const L=TD_LORDS.find(x=>x[0]===k); if(!L) return ""; const m=L[2]; let s2=`統治 ${m.rule}　軍事 ${m.mil}　旧武田家臣との相性 ${m.fit}`; if(k==="ieyasu"&&pv!=="駿河") s2+="　（家康は大きくなりすぎる）"; if(k==="takigawa"&&pv==="上野") s2+="　（北条と正面）"; if(k==="mori"&&pv==="信濃") s2+="　（国人は森を憎む）"; return s2; }
 function tdStab(pv,k){ const L=TD_LORDS.find(x=>x[0]===k); if(!L) return 30; const m=L[2]; const v=x=>x==="◎"?3:x==="○"?2:x==="△"?1:0; let st=25+v(m.rule)*10+v(m.fit)*8+v(m.mil)*4; if(pv==="信濃") st-=10; if(pv==="上野"&&k!=="takigawa"&&k!=="ieyasu") st-=8; if(pv==="駿河"&&(k==="ieyasu"||k==="anayama")) st+=10; if(k==="ieyasu"&&pv!=="駿河") st+=5; return Math.max(10,Math.min(90,st)); }
-function tdSettleRender(){ const S=W.tdSet; let el=document.getElementById("tdSetOv"); if(!el){ el=document.createElement("div"); el.className="overlay"; el.id="tdSetOv"; document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0); }
+function tdSettleRender(){ const S=W.tdSet; let el=document.getElementById("tdSetOv"); if(!el){ el=document.createElement("div"); el.className="overlay"; el.id="tdSetOv"; mountPrompt(el); setSpeed(0); }
 el.innerHTML=`<div class="dialog" style="max-width:660px;max-height:84vh;overflow:auto"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">仕 置</div><h3>武田旧領の仕置</h3><div class="advice">四つの国に支配者を置く。誰を置くかで、支配の安定度が変わる。安定度は「まだ危ないか」の目安</div>
 ${TD_REGIONS.map(([pv,txt])=>{ const I=tdRegionInfo(pv); const k=S.assign[pv]; const st=k?tdStab(pv,k):null; return `<div class="s-stat" style="text-align:left;margin:4px 0"><div class="row" style="justify-content:space-between"><span><b>${pv}</b>　<span class="tiny muted">${esc(txt)}</span></span><span class="tiny">城 ${I.mine}/${I.cs}　旧武田家臣 ${I.vets}　反乱危険 ${I.risk}　北条圧力 ${I.hjP}　徳川影響 ${I.tkI}${st!==null?`　<b style="color:${st>=60?"#6E98E6":st>=40?"#C9A227":"#E24A3A"}">安定 ${st}</b>`:""}</span></div><div class="row" style="gap:4px;flex-wrap:wrap;margin-top:4px">${TD_LORDS.map(L=>`<button class="chip ${k===L[0]?"kin":""}" data-pv="${pv}" data-k="${L[0]}" style="cursor:pointer">${L[1]}</button>`).join("")}</div>${k?`<div class="tiny muted">${esc(tdPredict(pv,k))}</div>`:""}</div>`; }).join("")}
 <div class="dlg-actions" style="margin-top:8px"><button class="big gold" id="tdSetOk">この仕置で</button></div></div>`;
@@ -25496,7 +25760,7 @@ bumpGarrison(); W.tdSettle={assign:S.assign, treat:S.treat, stab:S.stab}; const 
 const IEYASU_CARDS=[["tour","城見学","安土を見せる。満足+、警戒+（軍事色の安土なら+多）"],["feast","饗応","光秀の膳。満足+。魚が腐れば恥"],["tea","茶会","名物を見せる。満足++、家臣負担+"],["talk","会談","天下の話。警戒+、仲+"],["mil","軍事演出","鉄砲の調練を見せる。警戒++、満足−"],["noh","能と舞","満足+。負担+"],["rest","休息","何もなし。負担−"]];
 function ieyasuVisitStart(){ const od=W.clans[0]; const ak=findGeneralByName("明智光秀"); if(od.id!==W.player){ const go=rnd()<0.6; addRel(23,0,5); if(go&&ak&&ak.clan===0){ genMind(ak); ak.bond=Math.max(10,ak.bond-15); ak.loyalty=Math.max(20,ak.loyalty-8); W.akechiShamed=true; log("信長は饗応の魚が腐っていると光秀を叱り、接待役を解いた。光秀は座を立った","dip",true); } else log("饗応は滞りなく済み、家康は安土を発った","dip",true); W.ieyasuSakai=true; return; }
 koChoice("家康、安土へ","武田を滅ぼした礼に家康を招く。接待役は明智光秀。",[["best","最高待遇","銭6,000。宿所・膳・贈答・茶会・城見学・軍事演出をすべて。家臣の負担は重い",()=>{ od.money-=6000; W.iey={budget:"best", slots:[], sat:60, wary:40, burden:30}; ieyasuScheduleAsk(); }],["std","標準","銭3,000",()=>{ od.money-=3000; W.iey={budget:"std", slots:[], sat:50, wary:40, burden:15}; ieyasuScheduleAsk(); }],["plain","簡素","銭1,000。家康は軽んじられたと感じる（満足−15）",()=>{ od.money-=1000; W.iey={budget:"plain", slots:[], sat:35, wary:40, burden:5}; ieyasuScheduleAsk(); }],["none","招待しない","家康は三河に留まる（IF：本能寺のとき家康は畿内にいない）",()=>{ W.ieyasuSakai=false; W.ieyasuNotInvited=true; log("信長は家康を招かなかった。家康は浜松に留まる（IF）","dip",true); }]]); }
-function ieyasuScheduleAsk(){ const I=W.iey; const times=["午前","昼","午後","夕","夜"]; if(!I.slots.length) I.slots=["tour","feast","tea","talk","rest"]; let el=document.getElementById("ieyOv"); if(!el){ el=document.createElement("div"); el.className="overlay"; el.id="ieyOv"; document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0); }
+function ieyasuScheduleAsk(){ const I=W.iey; const times=["午前","昼","午後","夕","夜"]; if(!I.slots.length) I.slots=["tour","feast","tea","talk","rest"]; let el=document.getElementById("ieyOv"); if(!el){ el=document.createElement("div"); el.className="overlay"; el.id="ieyOv"; mountPrompt(el); setSpeed(0); }
 const card=k=>IEYASU_CARDS.find(c=>c[0]===k); const az=W.azuchi; const azTxt=az&&az.done?(az.prio==="trade"?"楽市の町並み":az.prio==="fort"?"石垣と櫓":az.prio==="town"?"御殿と屋敷":"七重の天守"):"普請なかばの安土";
 el.innerHTML=`<div class="dialog" style="max-width:600px;max-height:84vh;overflow:auto"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">饗 応</div><h3>家康の一日を組む</h3><div class="grid g3" style="margin:6px 0"><div class="s-stat"><span>家康の満足</span><b>${I.sat}</b></div><div class="s-stat"><span>徳川の警戒</span><b>${I.wary}</b></div><div class="s-stat"><span>家臣の負担</span><b>${I.burden}</b></div></div><div class="advice">安土城内。見せるものは「${azTxt}」。札を選んで一日を組む（同じ札を続ければ飽きる）</div>
 <div style="text-align:left">${times.map((t,i)=>`<div class="s-stat" style="display:flex;justify-content:space-between;align-items:center;margin:3px 0"><span>${t}</span><select aria-label="${esc(t)}の献立" data-slot="${i}" style="background:#1a1a22;color:#eee;border:1px solid #444;padding:4px">${IEYASU_CARDS.map(c=>`<option value="${c[0]}" ${I.slots[i]===c[0]?"selected":""}>${c[1]}</option>`).join("")}</select><span class="tiny muted" style="max-width:46%">${esc(card(I.slots[i])[2])}</span></div>`).join("")}</div>
@@ -25523,7 +25787,7 @@ const rows=F.map(f=>`<div class="s-stat" style="text-align:left${f.nm==="中国"
 const el=document.createElement("div"); el.className="overlay"; el.innerHTML=`<div class="dialog" style="max-width:600px;max-height:84vh;overflow:auto"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">軍 団 配 置</div><h3>秀吉、援軍を乞う</h3><div class="advice">「敵勢強く、援軍を願う」――中国方面が赤い。誰を送るか。送れば、その方面が弱くなる</div><div class="grid g2" style="margin:6px 0">${rows}</div>
 <div class="tiny" style="color:#C9A227;margin:4px 0">畿内防衛　現在：${kinai.troops.toLocaleString()}　→　明智派遣後：${Math.max(0,kinai.troops-akT).toLocaleString()}${kinai.troops-akT<8000?"　⚠ 京の守りが薄い":""}</div>
 <div class="grid g2">${[["self","自ら中国へ出陣","支度に十二日。信長は京を発って西へ（IF：本能寺の条件が変わる）"],["akechi","明智光秀を援軍へ","七日で着く。畿内の即応兵力が減る（史実）"],["other","他の軍団を送る","丹羽・滝川・柴田から。北陸か関東が薄くなる"],["none","援軍を送らない","秀吉は現有で苦しむ。三割で高松の囲みが破れる"],["hold","現有兵力で続行を命じる","秀吉に「堤で待て」。毛利は講和を探る"]].map(o=>`<button class="cmd" data-k="${o[0]}">${o[1]}<span class="cost">${o[2]}</span></button>`).join("")}</div></div>`;
-el.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; chugokuCallGo(b.dataset.k,F); resumeSpeed(); refreshHUD(); }); document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0); try{ foldChoiceGrid(el); }catch(_){ } }
+el.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; chugokuCallGo(b.dataset.k,F); resumeSpeed(); refreshHUD(); }); mountPrompt(el); setSpeed(0); try{ foldChoiceGrid(el); }catch(_){ } }
 function chugokuCallGo(k,F){ const od=W.clans[0]; const ak=findGeneralByName("明智光秀"); W.chugokuCall=dayNumber(); W.chugokuWho=k;
 if(k==="self"){ W.nobunagaWest=dayNumber(); log("信長は自ら中国へ出ると決め、十二日の支度を命じた。京には留まらない（IF：信長本人が早く中国へ）。秀吉へ「本隊、十二日後に着く」","dip",true); bigNews("信長、中国出陣を決す"); }
 if(k==="akechi"){ if(ak&&ak.clan===0){ log("光秀に「中国方面へ向かえ。羽柴と合流せよ」と命じた。光秀は坂本へ戻り兵を集める。道筋：丹波→京周辺→山崎→西へ。秀吉へ「明智軍、七日後に着く」","dip",true); const ars=Object.values(W.armies).filter(a=>a.clan===0&&a.gens.includes(ak.id)); if(!ars.length&&ak.castle!==null){ const target=Object.values(W.castles).find(c=>c.clan===0&&/姫路|三木|播磨/.test(c.name)); if(target){ try{ dispatch(ak.castle,[ak.id],target.id,0); }catch(_){ } } } } bigNews("明智光秀、中国へ"); }
@@ -25711,7 +25975,7 @@ if(pr==="fort") log("安土は軍事拠点の色が濃い（IF）","growth",W.pl
 function shuronStart(){ if(W.shuron) return; const az=Object.values(W.castles).find(c=>c.name==="安土城"); W.sects=W.sects||{jodo:{rel:50,wary:30},hokke:{rel:50,wary:30}}; W.shuron={round:0, heat:30, auth:50, chian:az?(az.chian||50):50, judge:false, limit:false, log:[], over:false}; shuronRender(); }
 function shuronRender(){ const S=W.shuron; if(!S) return; const topics=["法華の「念仏無間」の一句をめぐって","浄土の「一向専修」は他宗を軽んじるか","安土の町衆はどちらに付くか","寺領と町の境をどちらが持つか"]; const t=topics[Math.min(S.round,topics.length-1)];
 const bar=(v,col)=>`<div style="height:8px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden"><div style="height:8px;width:${Math.max(0,Math.min(100,v))}%;background:${col}"></div></div>`;
-let el=document.getElementById("shuronOv"); if(!el){ el=document.createElement("div"); el.className="overlay"; el.id="shuronOv"; document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0); }
+let el=document.getElementById("shuronOv"); if(!el){ el=document.createElement("div"); el.className="overlay"; el.id="shuronOv"; mountPrompt(el); setSpeed(0); }
 const heatCol=S.heat>=80?"#E24A3A":S.heat>=55?"#E2762A":"#6E98E6";
 el.innerHTML=`<div class="dialog" style="max-width:640px"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">宗 論</div><h3>安土宗論　${S.round+1}番目の論点</h3>
 <div class="grid g3" style="margin:6px 0"><div class="s-stat"><span>群衆の熱</span><b style="color:${heatCol}">${Math.round(S.heat)}</b>${bar(S.heat,heatCol)}</div><div class="s-stat"><span>信長の評価</span><b>${Math.round(S.auth)}</b>${bar(S.auth,"#C9A227")}</div><div class="s-stat"><span>治安</span><b>${Math.round(S.chian)}</b>${bar(S.chian,"#6E98E6")}</div></div>
@@ -25868,7 +26132,7 @@ const el=document.createElement("div"); el.className="overlay"; el.innerHTML=`<d
 const pick={higo:"higo_kato", chik:"chikugo_mori"}; const mark=()=>el.querySelectorAll("[data-k]").forEach(b=>b.classList.toggle("sel",b.dataset.k===pick.higo||b.dataset.k===pick.chik));
 el.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{ if(b.dataset.k.startsWith("higo")) pick.higo=b.dataset.k; else pick.chik=b.dataset.k; mark(); }); mark();
 el.querySelector("#kdOk").onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; kyuApplyDist(pick, byProv); resumeSpeed(); refreshHUD(); };
-document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0);
+mountPrompt(el); setSpeed(0);
 }
 function kyuApplyDist(pick, byProv){
 const ty=toyotomiClan(), mo=clanByName("毛利家"); const gname=n=>Object.values(W.generals).find(g=>g.name===n&&g.clan===ty.id&&g.status!=="死亡");
@@ -25997,7 +26261,7 @@ W.komResult={why, grade:g, terms:k.terms, won:k.won||0, day:dayNumber()};
 if(tk&&hs&&k.terms==="good"&&side==="hs"&&tk.id!==W.player){ const T=subordinate(tk.id,hs.id); if(T){ setRel(tk.id,T.id,55); setRel(T.id,tk.id,55); log("家康は秀吉の下に付いた","dip",true); } }
 if(tk&&hs&&k.terms==="good"&&side==="tk"&&hs.id!==W.player){   for(const c of Object.values(W.castles)){ if(c.clan===hs.id&&DATA.provinces[c.prov]&&DATA.provinces[c.prov].n==="尾張"&&od&&!od.dead){ c.clan=od.id; c.hq=false; } } }
 bigNews(`小牧・長久手　${g||"講和"}`); if(typeof chronicle==="function") chronicle(`小牧・長久手：${g||"講和"}`);
-if(side){ const el=document.createElement("div"); el.className="overlay"; el.innerHTML=`<div class="dialog" style="max-width:520px"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">小牧・長久手</div><h3>${esc(g)}</h3><div class="advice">${lines.join("<br>")}</div><div class="tiny muted">戦場の勝敗と戦争の勝敗は違う。講和の後も世は続く</div><div class="dlg-actions"><button class="big gold" id="kmOk">地図へ</button></div></div>`; document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0); el.querySelector("#kmOk").onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; resumeSpeed(); refreshHUD(); }; }
+if(side){ const el=document.createElement("div"); el.className="overlay"; el.innerHTML=`<div class="dialog" style="max-width:520px"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">小牧・長久手</div><h3>${esc(g)}</h3><div class="advice">${lines.join("<br>")}</div><div class="tiny muted">戦場の勝敗と戦争の勝敗は違う。講和の後も世は続く</div><div class="dlg-actions"><button class="big gold" id="kmOk">地図へ</button></div></div>`; mountPrompt(el); setSpeed(0); el.querySelector("#kmOk").onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; resumeSpeed(); refreshHUD(); }; }
 }
 
 function komSetup(key){
@@ -26226,7 +26490,7 @@ el.innerHTML=`<div class="dialog" style="max-width:600px"><div class="tiny" styl
 <button class="cmd" data-k="supply">補給の列を襲う<span class="cost">半蔵らが兵糧を焼く。武田の兵糧−20。四割で振り向く</span></button>
 </div></div>`;
 foldChoiceGrid(el); el.querySelectorAll("button[data-k]").forEach(b=>b.onclick=()=>{ if(b.disabled) return; el.remove(); if(overlayEl===el) overlayEl=null; mikDecide(b.dataset.k); resumeSpeed(); refreshHUD(); });
-document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0);
+mountPrompt(el); setSpeed(0);
 }
 function mikDecide(k){
 const m=W.mik; const tk=clanByName("徳川家"), td=clanByName("武田家"); const a=W.armies[m.armyId]; if(!a) return; m.choice=k;
@@ -26449,7 +26713,7 @@ el.innerHTML=`<div class="dialog" style="max-width:640px;max-height:88%;overflow
 <div class="sec-title">ここまでの年表</div><div class="tiny" style="max-height:180px;overflow:auto">${chron.map(c=>`<div><span class="num muted" style="margin-right:6px">${c.y}年${c.m}月</span>${esc(c.t||"")}</div>`).join("")||"—"}</div>
 <div class="tiny muted" style="margin-top:6px">戦は続けられます。ここから先は筋書きの外――己の差配で天下を目指されよ${mine?`（いま ${mine}城）`:""}</div>
 <div class="dlg-actions" style="display:flex;gap:8px;margin-top:10px"><button class="big gold" style="flex:1" id="epOk">続ける</button></div></div>`;
-document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0);
+mountPrompt(el); setSpeed(0);
 el.querySelector("#epOk").onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; resumeSpeed(); refreshHUD(); };
 }
 
@@ -26459,11 +26723,12 @@ if(!W.started) return;
 if(_retry===undefined){ if(_bat&&(typeof B==="undefined"||B!==_bat||B.over!==null)) return; _bat=(typeof B!=="undefined"&&B&&B.over===null)?B:null; } if(_bat&&!document.body.classList.contains("inbattle")) return;     if(_retry!==undefined&&_bat&&(typeof B==="undefined"||B!==_bat||B.over!==null)) return;
 if(_gen!==undefined&&_gen!==WORLD_GEN) return;
 
-if((overlayEl&&overlayEl.isConnected)||document.querySelector(".overlay.guide")){ const gen0=WORLD_GEN; setTimeout(()=>koChoice(title,lead,opts,(_retry||0)+1,gen0,_bat),(_retry||0)<120?500:3000); return; }
+if(_retry!==true){ const gen0=WORLD_GEN; queuePrompt(()=>koChoice(title,lead,opts,true,gen0,_bat),gen0,_bat); return; }
 
 const battleWasPaused=_bat?_bat.paused:null; if(_bat) _bat.paused=true;
 const main=opts.slice(0,3), more=opts.slice(3);
 const el=document.createElement("div"); el.className="overlay council-choice"; el.innerHTML=`<div class="dialog" role="dialog" aria-modal="true" aria-label="${esc(title)}" tabindex="-1" style="max-width:560px"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">軍 議</div><h3>${title}</h3><div class="advice">${lead}</div><div class="grid g2">${main.map(o=>`<button class="cmd" data-k="${o[0]}">${o[1]}<span class="cost">${o[2]}</span></button>`).join("")}</div>${more.length?`<button class="chip" id="koMore" aria-controls="koMoreBox" aria-expanded="false" style="cursor:pointer;margin-top:6px">ほかの手 ${more.length} ▸</button><div class="grid g2" id="koMoreBox" hidden style="margin-top:4px">${more.map(o=>`<button class="cmd" data-k="${o[0]}">${o[1]}<span class="cost">${o[2]}</span></button>`).join("")}</div>`:""}</div>`;
+conciseChoices(el,title,lead);
 if(_bat){ el.dataset.bat="1"; el.style.zIndex="60"; }     document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0); startDialogFocus(el);
 { const km=el.querySelector("#koMore"); if(km) km.onclick=()=>{ const bx=el.querySelector("#koMoreBox"); bx.hidden=!bx.hidden; km.textContent=bx.hidden?`ほかの手 ${more.length} ▸`:"畳む ▾"; km.setAttribute("aria-expanded",String(!bx.hidden)); }; }
 { const gen=WORLD_GEN; let settled=false; el.querySelectorAll("button[data-k]").forEach(b=>b.onclick=()=>{ if(settled||gen!==WORLD_GEN||(_bat&&(B!==_bat||B.over!==null))) return; settled=true; el.remove(); if(overlayEl===el) overlayEl=null; if(gen!==WORLD_GEN) return;     const o=opts.find(x=>x[0]===b.dataset.k); if(o){ const r=o[3](); if(r==="retry"){ if(_bat&&B===_bat) _bat.paused=battleWasPaused; koChoice(title,lead,opts,0,gen,_bat); return; } }     if(_bat&&B===_bat&&B.over===null) B.paused=battleWasPaused; if(!overlayEl&&!pendingEncounter&&!_bat) resumeSpeed(); refreshHUD(); }); }
@@ -26472,7 +26737,7 @@ if(_bat){ el.dataset.bat="1"; el.style.zIndex="60"; }     document.getElementByI
 function koCouncilAfterTakato(){ const k=W.ko; if(!k) return; const td=clanByName("武田家"); const sp=koHqCastle(td); if(!sp||k.shinpu) return; if(overlayEl&&overlayEl.isConnected){ setTimeout(koCouncilAfterTakato,600); return; }     const lines=[["武田信豊","新府に籠るべし"],["穴山信君","徳川との和睦を"],["小山田信茂","岩殿へお越しを"],["真田昌幸","上杉を頼るべし。岩櫃へ"],["土屋昌恒","甲斐で決戦を"]].filter(([n])=>Object.values(W.generals).some(g=>g.name===n&&g.clan===td.id&&g.status!=="死亡"));
 const el=document.createElement("div"); el.className="overlay"; el.innerHTML=`<div class="dialog" style="max-width:560px"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">評 定</div><h3>新府の評定</h3><div class="list">${lines.map(([n,t])=>`<div class="row"><b style="min-width:6em">${esc(n)}</b><span class="tiny">「${esc(t)}」</span></div>`).join("")}</div><div class="advice">誰も最適解を教えてはくれない。各々、自家の利も考えている。</div><div class="dlg-actions"><button class="big gold" id="kcGo">決める</button></div></div>`;
 el.querySelector("#kcGo").onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; k.shinpu=true; koShinpu(sp); };
-document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0); }
+mountPrompt(el); setSpeed(0); }
 function koShinpu(sp){
 const td=clanByName("武田家"); const k=W.ko; const tani=Object.values(W.castles).find(c=>c.name==="谷村城"&&c.clan===td.id); const sanada=Object.values(W.castles).find(c=>c.name==="海津城"&&c.clan===td.id);
 const ue=clanByName("上杉家"), hj=clanByName("北条家");
@@ -26712,7 +26977,7 @@ function osakaOffer(ai){
 const o=W.osaka; if(o.phase!=="winter") return; const tk=clanByName("徳川家"), ty=clanByName("豊臣家"); o.offers++;
 if(ty.id===W.player){ const el=document.createElement("div"); el.className="overlay"; el.innerHTML=`<div class="dialog" style="max-width:560px"><h3>徳川より和睦の申し入れ</h3><div class="advice">家康「これ以上の血は望まぬ。堀を埋め、牢人を退ければ、豊臣の家は保とう」<br>城内は継戦派 ${100-Math.round(o.peace)}／和睦派 ${Math.round(o.peace)}。兵糧は ${Math.round(o.food)}%。</div>
 <div class="grid g3"><button class="cmd" data-k="ok">和睦する<span class="cost">冬の陣は終わる。兵は残るが、堀は埋められる</span></button><button class="cmd" data-k="no">拒む<span class="cost">戦は続く。兵糧と砲が城を削る</span></button><button class="cmd" data-k="cond">条件を交渉<span class="cost">牢人の二割を退ける代わりに、外堀だけで済ませる（守り60）。和睦派が五割を超えていれば通る</span></button></div></div>`;
-document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0);
+mountPrompt(el); setSpeed(0);
 el.querySelectorAll("button").forEach(b=>b.onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; const k=b.dataset.k;
 if(k==="ok") osakaPeaceAccept(); else if(k==="cond"){ if(o.peace>=50){ o.condDefense=60; for(const g of Object.values(W.generals)) if(g.clan===ty.id&&g.status!=="死亡") g.troops=Math.floor(g.troops*0.8); log("牢人の二割を退ける代わりに、埋めるのは外堀だけとなりました","dip",true); osakaPeaceAccept(); } else { o.refused++; toast("徳川は条件を撥ねつけました（城内の和睦派が足りません）"); log("徳川は条件を撥ねつけ、戦は続きます","dip",true); } }
 else { o.refused++; o.peace-=5; log("豊臣は和睦を拒みました。戦は続きます","dip",true); }
@@ -26732,7 +26997,7 @@ const bonus=keepR>=0.8?10:keepR>=0.5?5:0; if(bonus) o.condBonus=bonus;
 const base=Math.min(80,(o.condDefense||30)+bonus);
 if(ty.id===W.player){ const el=document.createElement("div"); el.className="overlay"; el.innerHTML=`<div class="dialog" style="max-width:560px"><h3>外堀の埋め立て</h3><div class="advice">徳川の人夫が堀を埋め始めた。約定は外堀だけのはずが、二の丸まで手が伸びている。${bonus?`<br>冬のあいだ外郭を保った（${Math.round(keepR*100)}％）ので、こちらの言い分は少し通る（守り +${bonus}）`:""}</div>
 <div class="grid g2"><button class="cmd" data-k="ok">受け入れる<span class="cost">城の守り ${base}</span></button><button class="cmd" data-k="protest">抗議する<span class="cost">工事が遅れ、守り ${Math.min(100,base+20)}</span></button><button class="cmd" data-k="sab">工事を妨害<span class="cost">守り ${Math.min(100,base+30)}。だが徳川は怒り、夏の陣が早まる</span></button><button class="cmd" data-k="prep">再戦の備え<span class="cost">守り ${base}。牢人衆の士気+10</span></button></div></div>`;
-foldChoiceGrid(el); document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0);
+foldChoiceGrid(el); mountPrompt(el); setSpeed(0);
 el.querySelectorAll("button[data-k]").forEach(b=>b.onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; const k=b.dataset.k;
 if(k==="ok") finish(base,"外堀も二の丸も埋められ、大坂城は裸城となった"); else if(k==="protest") finish(Math.min(100,base+20),"抗議で工事は遅れたが、外堀は埋められた"); else if(k==="sab"){ o.sabotage=true; finish(Math.min(100,base+30),"工事を妨げ、堀の一部は残った。徳川は怒り、夏の陣は早まる"); } else { for(const g of Object.values(W.generals)) if(g.clan===ty.id&&g.status!=="死亡") g.morale=Math.min(100,g.morale+10); finish(base,"堀は埋められた。牢人衆は再戦を期して備える"); }
 resumeSpeed(); refreshHUD(); }); }
@@ -27025,7 +27290,10 @@ N.encircle=Math.min(100, Math.max(N.encircle, 60+N.day*4)); if(at<8000) N.encirc
 
 const g=Math.max(1,garrisonTroops(c.id)); N.food=Math.max(0,(N.food||0)-1); N.water=Math.max(0,N.water-(N.encircle>=90?4:2)); N.ammo=Math.max(0,N.ammo-1);
 
-let dm=-1; if(nagFoodDays(c)<=3) dm-=1; if(N.water<30) dm-=0.5; if(N.encircle>=90) dm-=0.5; if(N.hope>=70) dm+=1; N.morale=Math.max(0,Math.min(100,N.morale+dm));
+let dm=-1; if(nagFoodDays(c)<=3) dm-=1; if(N.water<30) dm-=0.5; if(N.encircle>=90) dm-=0.5; if(N.hope>=70) dm+=1;
+
+if(N.torii&&N.water>0&&N.ammo>0) dm+=0.5;
+N.morale=Math.max(0,Math.min(100,N.morale+dm));
 N.hope=Math.max(0,N.hope-1);
 
 if(N.morale<30){ nagLoseTroops(c, Math.ceil(g*0.02)); if(N.morale<15 && W.player!==tk.id && !N.desertNote){ N.desertNote=true; log("長篠城で脱走が始まりました","war"); } }
@@ -27747,15 +28015,15 @@ ${d.key==="sekigahara"?`<div style="flex-basis:100%"><div class="sec-title">開�
 ${/nagashino/.test(d.key)&&A.id===W.player?`<button class="big ghost" style="flex-basis:100%" id="dcRetreat">戦わずに退く（長篠の囲みを解き、兵を保つ。半年の停戦）</button>`:""}
 
 </div></div>`;
-if(noviceMobile() && /nagashino/.test(d.key)){
+if(noviceMobile()){
 const dlg=el.querySelector(".dialog"), heading=dlg.querySelector("h3"), go=dlg.querySelector("#dcGo");
-const more=document.createElement("details"), summary=document.createElement("summary"); summary.textContent="もっと見る"; more.append(summary);
+const more=document.createElement("details"), summary=document.createElement("summary"); summary.textContent="詳しく"; more.append(summary);
 for(const node of [...dlg.children]) if(node!==heading) more.append(node);
 const brief=document.createElement("div"); brief.className="nag-brief";
-brief.innerHTML=mineIsA?"柵の端から攻め、鉄砲に用心。<br>負けても家は残り、地図へ戻れます。":"柵の内で待ち、鉄砲で迎え撃つ。<br>予備の隊で柵の破れ目を守る。";
-go.textContent="采配を執る"; go.style.flex=""; dlg.replaceChildren(heading,brief,go,more); dlg.classList.add("nag-simple");
+brief.innerHTML=!/nagashino/.test(d.key)?(d.castle? (mineIsA?"味方の隊を選び、門を破って城を落とす。<br>負けても家は残り、地図へ戻れます。":"味方の隊で城を守り、敵を迎え撃つ。<br>負けても家は残り、地図へ戻れます。") : "味方の隊を選び、敵の本陣を崩す。<br>負けても家は残り、地図へ戻れます。") : mineIsA?"柵の端から攻め、鉄砲に用心。<br>負けても家は残り、地図へ戻れます。":"柵の内で待ち、鉄砲で迎え撃つ。<br>予備の隊で柵の破れ目を守る。";
+go.textContent="采配を執る"; go.style.flex=""; dlg.replaceChildren(heading,brief,go,more); dlg.classList.add("nag-simple","first-brief");
 }
-document.getElementById("stage").appendChild(el); overlayEl=el;
+mountPrompt(el);
 el.querySelector("#dcGo").onclick=()=>{ if(d.key==="sekigahara"){ const me=W.clans[W.player]; const prep={}; let cost=0; el.querySelectorAll("[data-prep]:checked").forEach(cb=>{ prep[cb.dataset.prep]=true; cost+=3000+(/eKobaLand|wReward/.test(cb.dataset.prep)?3000:0); }); if(me.money<cost){ toast(`銭が足りませぬ（${cost.toLocaleString()}）`); return; } me.money-=cost; W.sekPrep=prep; el.remove(); if(overlayEl===el) overlayEl=null; sekCouncilAsk(()=>startBattle(e)); return; } el.remove(); if(overlayEl===el) overlayEl=null; startBattle(e); };
 { const bf=el.querySelector("#dcFlank"); if(bf) bf.onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; startBattle({...e, flank:true}); }; }
 { const br=el.querySelector("#dcRetreat"); if(br) br.onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null;
@@ -28274,7 +28542,7 @@ if(B.ctx.playerSide===1){ const r=rnd(); B.nagPlan = r<0.4?"center":r<0.85?"wing
 } else {
 
 try{ fortMainBuild(line, dir, dec&&DEC_FORT_NAMES[dec.key]); }catch(err){ console.error("fortMain",err); }
-if(B.fortMain&&B.ctx.playerSide===0&&!B.autoMine&&!autoBattleMode&&!B.sim){ setTimeout(()=>{ try{ if(B&&B.fortMain&&B.opening<=0) fortPlanAsk(); else if(B&&B.fortMain){ const w=setInterval(()=>{ if(!B||!B.fortMain){ clearInterval(w); return; } if(B.opening<=0){ clearInterval(w); fortPlanAsk(); } },500); } }catch(e){ console.error(e); } },600); }
+if(B.fortMain&&B.ctx.playerSide===0&&!B.autoMine&&!autoBattleMode&&!B.sim){ const bat=B; const wait=()=>{ if(B!==bat||bat.over!==null||!bat.fortMain) return; if(bat.opening<=0) fortPlanAsk(); else bat.fortPlanTimer=setTimeout(wait,500); }; bat.fortPlanTimer=setTimeout(wait,600); }
 { const atkT=B.units.filter(u=>u.side===0).reduce((a,u)=>a+u.troops,0), defT=B.units.filter(u=>u.side===1).reduce((a,u)=>a+u.troops,0); if(defT<=atkT*0.5 && (!dec||dec.histWin!=="atk") && !dec?.holdWin){ B.holdWin={side:"def", sec:180, keep:0.3, h:"砦、持ちこたえる", t:"寄せ手は砦を落とせず、兵を退いた"}; } B.siegeName=B.siegeName||"砦"; try{ siegeKitSetup(null,e); }catch(err){ console.error(err); } }
 }
 for(const u of B.units) if(u.side===1){ u.defBonus=(u.defBonus||1)*0.9; u.baseDef=u.defBonus; u.morale=Math.min(100,u.morale+6); }
@@ -28420,7 +28688,6 @@ if(dec){ try{ const plan=FIELD_PLAN[dec.key]||(dec.key==="shizugatake_open"?FIEL
 if((B.zoom||1)===1&&!B.sim){ B.zoom=BZ_NORMAL; try{ bView(); }catch(_){ } }
 
 B.opening=PREF.skipSetup?0:999; B.openShownAt=undefined;
-if(B.nagashino&&noviceUI()) focusOwnBattle();
 if(!B.firstBattle) try{ bCoachStart(); }catch(_){ }
 try{ warmSprites(); }catch(_){ }
 
@@ -28453,6 +28720,8 @@ if(B.night) setTimeout(()=>{ if(B) toast("夜戦。日暮れまで百秒。暗�
 if(B.firstBattle) firstBattleSetup();
 resizeBattle();
 renderBattleFoot();
+
+if(!B.sm&&!B.tobiPhase) focusOwnBattle(B.ctx.playerSide===0&&!!B.gate);
 }
 function resizeBattle(){
 const dpr=(B&&B._lowRes)?Math.min(window.devicePixelRatio||1,1.25):Math.min(window.devicePixelRatio||1,2);
@@ -28597,7 +28866,7 @@ function otateChoice(){
 const el=document.createElement("div"); el.className="overlay"; el.innerHTML=`<div class="dialog" style="max-width:560px"><h3>御館の乱　どちらに付くか</h3>
 <div class="advice">上杉景勝と景虎が家督を争っている。北条氏政は弟・景虎への援軍を求めてきた。景勝の側からも、和平と盟の申し出が届いている。</div>
 <div class="grid g3"><button class="cmd" data-k="tora">景虎を支援<span class="cost">北条+20・景虎と盟。景勝とは戦のまま。甲相の盟は固くなる</span></button><button class="cmd" data-k="katsu">景勝を支援<span class="cost">上杉と和平し盟へ（甲越同盟）。北条-50、やがて甲相の盟は破れる</span></button><button class="cmd" data-k="none">中立を守る<span class="cost">兵を温存。北条-15・景勝-10。決着を見てから動ける</span></button></div></div>`;
-document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0);
+mountPrompt(el); setSpeed(0);
 el.querySelectorAll("button").forEach(b=>b.onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; otateApply(b.dataset.k); resumeSpeed(); refreshHUD(); });
 }
 function otateHojoChoice(){
@@ -28605,7 +28874,7 @@ const ue=clanByName("上杉家"), nk=W.clans[W.kagetora], td=clanByName("武田�
 const el=document.createElement("div"); el.className="overlay"; el.innerHTML=`<div class="dialog" style="max-width:560px"><h3>御館の乱　弟・景虎のために</h3>
 <div class="advice">景虎はわが弟。景勝に越後を奪われれば、上杉は再び関東を窺う。武田にも援軍を求めるか。</div>
 <div class="grid g3"><button class="cmd" data-k="aid">景虎へ援軍<span class="cost">景虎の家に兵三千を送る（本拠の兵から）</span></button><button class="cmd" data-k="self">自ら越後へ<span class="cost">景勝を狙う（矛先を上杉へ）</span></button><button class="cmd" data-k="wait">様子を見る<span class="cost">兵を温存する</span></button></div></div>`;
-document.getElementById("stage").appendChild(el); overlayEl=el; setSpeed(0);
+mountPrompt(el); setSpeed(0);
 el.querySelectorAll("button").forEach(b=>b.onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; const k=b.dataset.k;
 if(k==="aid"&&nk&&!nk.dead){ const hq=myCastles(W.player).find(c=>c.hq); let left=3000; for(const g of Object.values(W.generals)){ if(!hq||g.castle!==hq.id||g.clan!==W.player||g.army) continue; const t=Math.min(g.troops-300,left); if(t>0){ g.troops-=t; left-=t; } if(left<=0) break; } const kg=Object.values(W.generals).find(g=>g.clan===nk.id&&!g.army); if(kg) kg.troops=Math.min(troopCapOf(kg)*2, kg.troops+(3000-left)); addRel(nk.id,W.player,20); log("景虎へ兵三千を送りました",'dip',true); }
 else if(k==="self"&&ue){ hj.orderTarget={clan:ue.id, until:dayNumber()+540}; toast("矛先を上杉（景勝）へ向けました"); }
@@ -29326,6 +29595,10 @@ for(const u of B.units) if(u.side===1&&u.troops>.5) u.morale=Math.max(0,u.morale
 for(const u of (t.units||[])){ u.troops=Math.round(u.troops*0.7); u.x=3; u.y=BF.h*0.5+(rnd()-.5)*6; u.gx=u.x; u.gy=u.y; u.order={k:"guard"}; B.units.push(u); } } }
 }
 
+function mountBattleCouncil(el){
+const bat=B; el.dataset.bat="1";
+queuePrompt(()=>{ document.getElementById("battle").appendChild(el); overlayEl=el; startDialogFocus(el); },WORLD_GEN,bat);
+}
 function nagCouncil(){
 if(!B||!B.nagashino||B.nagCouncilDone) return; B.nagCouncilDone=true;
 const mine=B.ctx.playerSide;
@@ -29335,7 +29608,7 @@ if(mine===1) nagOdaCouncil(); else nagTakedaCouncil();
 const NAG_PRESETS={ hist:{t:2,r:3,f:"three",gap:0,hq:"mid",tk:"right",cv:0,pu:"limited",g:"free",d:100}, atk:{t:4,r:0,f:"wide",gap:1,hq:"front",tk:"center",cv:0,pu:"full",g:"free",d:130}, def:{t:1,r:3,f:"triple",gap:0,hq:"rear",tk:"left",cv:1,pu:"hold",g:"cav",d:60} };
 const NAG_LABEL={ t:{0:"却下",1:"一隊",2:"二隊・約三千",4:"四隊"}, r:{0:"残さない",3:"三隊"}, f:{three:"三列（いつもの馬防柵）",wide:"広く薄く",center:"中央重点",triple:"三重柵中心",terrain:"地形利用・最低限"}, gap:{0:"なし",1:"あり"}, hq:{front:"前",mid:"中央",rear:"後方"}, tk:{left:"左翼",center:"中央",right:"右翼"}, cv:{0:"前線",1:"後ろに控える"}, pu:{full:"全力追撃",limited:"限定追撃",hold:"戦場確保",none:"深追いしない"}, g:{free:"自由射撃",cav:"騎馬を狙う",cmd:"将の隊を狙う",hold:"一斉射撃まで待つ"}, d:{130:"130m",100:"100m",60:"60m"} };
 function nagOdaCouncil(){
-const el=document.createElement("div"); el.className="overlay"; el.style.zIndex="60";
+const el=document.createElement("div"); el.className="overlay battle-council"; el.style.zIndex="60";
 const tobiCands=B.units.filter(u=>u.side===1&&!u.cmd&&u.troops>.5&&(u.type!==3||u.name==="酒井忠次")).sort((a,b)=>(a.name==="酒井忠次"?-1:b.name==="酒井忠次"?1:0)||b.troops-a.troops).slice(0,8);
 el.innerHTML=`<div class="dialog" style="max-width:600px;max-height:88vh;overflow:auto"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">軍 議</div><h3>設楽原の備え</h3>
 <div class="advice">信長「柵を守り、敵を引きつけよ。撃つのは間合いに入ってからじゃ」</div>
@@ -29376,17 +29649,17 @@ el.querySelectorAll("[data-pre]").forEach(b=>b.onclick=()=>{ Object.assign(pick,
 
 el.querySelector("#tobiOpen").onclick=()=>{ const bx=el.querySelector("#tobiPickBox"); bx.hidden=!bx.hidden; };
 el.querySelector("#tobiAuto").onclick=()=>{ const cbs=[...el.querySelectorAll("[data-tobi]")]; cbs.forEach((cb,i)=>{ cb.checked=i<Math.max(1,pick.t); }); };
-el.querySelector("#nagCouncilGo").onclick=()=>{ const ids=[...el.querySelectorAll("[data-tobi]:checked")].map(cb=>+cb.dataset.tobi); pick.tobi=ids.length&&!el.querySelector("#nagDetailBox").hidden?ids:null; if(el.querySelector("#nagDetailBox").hidden){ el.remove(); if(!B) return; nagApplyOdaPlan(pick); } else nagCouncilSummary(el, pick); };
-document.getElementById("battle").appendChild(el);
+el.querySelector("#nagCouncilGo").onclick=()=>{ const ids=[...el.querySelectorAll("[data-tobi]:checked")].map(cb=>+cb.dataset.tobi); pick.tobi=ids.length&&!el.querySelector("#nagDetailBox").hidden?ids:null; if(el.querySelector("#nagDetailBox").hidden){ el.remove(); if(overlayEl===el) overlayEl=null; if(!B) return; nagApplyOdaPlan(pick); } else nagCouncilSummary(el, pick); };
+mountBattleCouncil(el);
 }
 
 function nagCouncilSummary(el, pick){
-const sm=document.createElement("div"); sm.className="overlay"; sm.style.zIndex="61";
+const sm=document.createElement("div"); sm.className="overlay battle-council"; sm.style.zIndex="61";
 const L=NAG_LABEL; const rows=[["酒井別働隊",L.t[pick.t]+(pick.tobi?`（${pick.tobi.length}隊を指名）`:"")],["予備隊",L.r[pick.r]],["馬防柵",L.f[pick.f]],["開口部",L.gap[pick.gap]],["鉄砲",L.g[pick.g]],["射撃距離",L.d[pick.d]],["本陣",L.hq[pick.hq]],["徳川軍",L.tk[pick.tk]],["騎馬",L.cv[pick.cv]],["追撃",L.pu[pick.pu]]];
 sm.innerHTML=`<div class="dialog" style="max-width:460px"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">軍 議 の 要 約</div><h3>この備えで臨むか</h3><div class="list">${rows.map(([k,v])=>`<div class="row"><span class="muted" style="min-width:6em">${k}</span><b>${esc(v)}</b></div>`).join("")}</div><div class="dlg-actions" style="margin-top:8px"><button class="big gold" id="smGo">臨む</button><button class="big ghost" id="smBack">戻る</button></div></div>`;
-sm.querySelector("#smBack").onclick=()=>sm.remove();
-sm.querySelector("#smGo").onclick=()=>{ sm.remove(); el.remove(); if(!B) return; nagApplyOdaPlan(pick); };
-document.getElementById("battle").appendChild(sm);
+sm.querySelector("#smBack").onclick=()=>{ sm.remove(); if(overlayEl===sm) overlayEl=null; mountBattleCouncil(el); };
+sm.querySelector("#smGo").onclick=()=>{ sm.remove(); if(overlayEl===sm) overlayEl=null; el.remove(); if(overlayEl===el) overlayEl=null; if(!B) return; nagApplyOdaPlan(pick); };
+el.remove(); if(overlayEl===el) overlayEl=null; mountBattleCouncil(sm);
 }
 
 function nagApplyOdaPlan(pick){
@@ -29401,6 +29674,7 @@ if(W.player===0&&pick.tk!=="right"){ const tk=B.units.filter(u=>u.side===1&&u.al
 B.nagPursuit=pick.pu;
 toast(pick.t>0?"酒井忠次が別働隊を率いて発ちました。まず鳶ヶ巣山砦の奇襲、その後に設楽原の本戦":"別働隊は送らず、主戦場に兵を集めます"); try{ renderBattleFoot(); }catch(_){ }
 if(pick.t>0&&B.tobi&&B.tobi.sent&&B.tobiFort){ try{ nagTobiPhaseBegin(); }catch(e){ console.error(e); } }
+focusOwnBattle();
 }
 
 function nagTobiPlanAsk(){ if(!B||!B.tobiPhase||!B.tobiFort||B.over!==null||B.tobiPlan) return; const F=B.tobiFort; const det=(B.tobi&&B.tobi.units||[]).filter(u=>u.troops>.5&&!u.left); const go=(k)=>{ B.tobiPlan=k; try{ nagTobiApplyPlan(k); }catch(e){ console.error(e); } };
@@ -29509,7 +29783,7 @@ B.fenceTotal0=B.obstacles.filter(o=>o.fence&&o.hpMax).length; B._fenceVer=(B._fe
 }
 
 function nagTakedaCouncil(){
-const el=document.createElement("div"); el.className="overlay"; el.style.zIndex="60";
+const el=document.createElement("div"); el.className="overlay battle-council"; el.style.zIndex="60";
 el.innerHTML=`<div class="dialog" style="max-width:600px;max-height:88vh;overflow:auto"><div class="tiny" style="letter-spacing:.3em;color:var(--kin)">軍 議</div><h3>設楽原、攻め方を決める</h3>
 <div class="advice">馬場信春「敵陣は堅固。無理攻めは避けるべきかと」　山県昌景「攻めるなら左翼より。柵の端は薄い」　内藤昌豊「まず足軽で柵を崩し、馬はその後に」　勝頼「柵など蹴散らしてくれる」</div>
 <div class="sec-title">攻撃方針</div>
@@ -29546,8 +29820,8 @@ const atk=(pick.p==="all"?4:pick.p==="feint"?3:pick.p==="left"||pick.p==="right"
 return `${P} → ${C} → ${Hh}。${Q}<br><span class="muted">${st(Math.min(5,atk),Math.min(5,loss),Math.min(5,spd),safe)}</span>`; };
 const mark=()=>{ for(const [sel,key] of keys) el.querySelectorAll(sel).forEach(x=>x.classList.toggle("sel",x.dataset[key]===pick[key])); const sm=el.querySelector("#tkSummary"); if(sm) sm.innerHTML=summary(); try{ drawMap(); }catch(_){ } };
 for(const [sel,key] of keys) el.querySelectorAll(sel).forEach(b=>b.onclick=()=>{ pick[key]=b.dataset[key]; mark(); }); mark();
-el.querySelector("#tkGo").onclick=()=>{ el.remove(); if(!B) return; nagApplyTakedaPlan(pick); };
-document.getElementById("battle").appendChild(el);
+el.querySelector("#tkGo").onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; if(!B) return; nagApplyTakedaPlan(pick); };
+mountBattleCouncil(el);
 }
 function nagApplyTakedaPlan(pick){
 B.nagTkPick=pick; const td=clanByName("武田家");
@@ -29563,7 +29837,7 @@ if(pick.h==="reserve"||pick.h==="after"){ for(const u of B.units) if(u.side===0&
 if(pick.h==="flank"){ for(const u of B.units) if(u.side===0&&u.type===2&&!u.cmd){ u.gy=Math.max(1.2,Math.min(BF.h-1.2, (rnd()<0.5?BF.h*0.12:BF.h*0.88))); u.y=u.gy; } }
 { const hq=B.units.find(u=>u.side===0&&u.cmd); if(hq){ const d=pick.q==="front"?4:pick.q==="rear"?10:7; const onLeft=B.ctx.playerSide===0; hq.x=onLeft?Math.max(1.5,(B.padX||0)+d):Math.min(BF.w-1.5, BF.w-d); hq.gx=hq.x; if(pick.q==="front"){ for(const u of B.units) if(u.side===0&&!u.cmd) u.morale=Math.min(100,u.morale+6); } } }
 B.nagPlan=plan; nagApplyPlan(plan);
-toast("攻め方を決めました。〈開戦〉で始まります");
+focusOwnBattle(); toast("攻め方を決めました。〈開戦〉で始まります");
 }
 
 function nagApplyPlan(plan){
@@ -29756,7 +30030,7 @@ if(Math.hypot(o.x-px,o.y-py)<=o.r*(o.stone?0.5:0.9)){ hit=o; break; } }
 
 if(!hit && B.ck && B.ck.ring){ if(u.side===0) hit=ckRingCross(ax,ay,bx,by); }
 else if(!hit && B.gate && u.side===0 && (ax-B.gate.x)*(bx-B.gate.x)<=0 && ax!==bx){ const t=(B.gate.x-ax)/(bx-ax); const yy=ay+(by-ay)*t; if(!(B.gate.open && Math.abs(yy-B.gate.y)<2.6) && !(B.gate2&&B.gate2.open&&Math.abs(yy-B.gate2.y)<B.gate2.half+0.3) && !breachOpenAt(yy)) hit={gate:true, x:B.gate.x, y:B.gate.y, r:1, wall:true, stone:true, side:1}; }
-B._edgeCache.set(key,hit); return hit;
+if(B._edgeCache.size>=4096) B._edgeCache.clear(); B._edgeCache.set(key,hit); return hit;
 }
 const GDIRS=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
 
@@ -30363,7 +30637,7 @@ if(B.ane){ try{ aneTick(dt); }catch(e){ console.error(e); } if(B.over!==null) re
 if(B.ck){ try{ ckTick(dt); }catch(e){ console.error(e); } }
 if(B.extraForts){ try{ extraFortsTick(); }catch(e){ console.error(e); } }
 for(const u of B.units){ if(!u.flankPath||!u.flankPath.length||u.troops<=.5) continue; if(u.order.k!=="move"){ u.flankPath=null; continue; } if(Math.hypot(u.order.x-u.x,u.order.y-u.y)<1.2){ const nx=u.flankPath.shift(); u.order={k:"move",x:nx.x,y:nx.y}; u.gx=nx.x; u.gy=nx.y; if(!u.flankPath.length){ u.flankPath=null; u.order={k:"hold"}; if(u.spReady<=B.elapsed){ u.spUntil=B.elapsed+SPECIALS[UNITS[u.type].sp].dur; u.spReady=B.elapsed+30; } } } }
-if(B.elapsed-(B.trampleAt||-9)>1.0){ B.trampleAt=B.elapsed; B.tramplePts=B.tramplePts||[]; for(const u of B.units){ if(u.troops<=.5||u.left) continue; B.tramplePts.push({x:u.x+(rnd()-.5)*1.2,y:u.y+(rnd()-.5)*0.8,j:(rnd()-.5)}); } if(B.tramplePts.length>900){ B.tramplePts=B.tramplePts.slice(-900); B.trampleDrawn=0; B.trampleCv=null; } }
+if(B.elapsed-(B.trampleAt||-9)>1.0){ B.trampleAt=B.elapsed; B.tramplePts=B.tramplePts||[]; for(const u of B.units){ if(u.troops<=.5||u.left) continue; B.tramplePts.push({x:u.x+(rnd()-.5)*1.2,y:u.y+(rnd()-.5)*0.8,j:(rnd()-.5)}); } if(B.tramplePts.length>900){ const drop=B.tramplePts.length-900; B.tramplePts.splice(0,drop); B.trampleDrawn=Math.max(0,(B.trampleDrawn||0)-drop); } }
 if(B.nagashino){
 
 if(!B.volleyDone){ const guns=B.units.filter(u=>u.side===1&&u.type===3&&u.troops>.5&&u.morale>0); const foes=B.units.filter(u=>u.side===0&&u.troops>.5&&u.morale>0&&!u.left);
@@ -31795,7 +32069,7 @@ px(14,3,12,5,dark); px(13,6,14,2,dark); g.strokeStyle=gold; g.lineWidth=2; g.beg
 
 px(28,6,2,10,wood); g.fillStyle="#EFE2C0"; g.beginPath(); g.ellipse(29,4,5,4,0,0,7); g.fill(); g.strokeStyle="#8A2A1A"; g.lineWidth=1; g.beginPath(); g.ellipse(29,4,5,4,0,0,7); g.stroke(); px(28,2,2,4,"#C22A1A");
 px(26,14,3,3,skin);
-const out=outlineCanvas(cv,"#141008",1); ART.soldiers.set(key,out); return out;
+const out=outlineCanvas(cv,"#141008",1); cacheSoldier(key,out); return out;
 }
 
 function drawCamps(sx,sy){
@@ -31888,7 +32162,7 @@ const col=(d)=>`rgb(${Math.max(0,Math.min(255,r0+d))},${Math.max(0,Math.min(255,
 g.fillStyle=base; g.fillRect(0,0,16,16);
 for(let i=0;i<26;i++){ g.fillStyle=col(R()<.5?-14:12); g.fillRect(Math.floor(R()*16),Math.floor(R()*16),1+Math.floor(R()*2),1); }
 for(let i=0;i<5;i++){ const x=Math.floor(R()*15), y=Math.floor(R()*14); g.fillStyle=col(22); g.fillRect(x,y,1,2); g.fillRect(x+1,y-1,1,1); }
-ART.soldiers.set(key,cv); return cv;
+cacheSoldier(key,cv); return cv;
 }
 function bakeTree(g, tx, ty, rr, kind, R, sx){
 const shade=(0.85+R()*0.3);
@@ -31913,7 +32187,7 @@ g.fillStyle="rgba(255,255,220,.25)"; g.beginPath(); g.arc(tx-rr*.3, ty-rr*1.6, r
 }
 function px_(g,x,y,w,h,c){ g.fillStyle=c; g.fillRect(x,y,w,h); }
 function bakeBattleGround(W_,H_){
-const cv=makeCanvas(Math.max(1,Math.round(W_)),Math.max(1,Math.round(H_))), g=cv.getContext("2d");
+const cv=B.groundCanvas||(B.groundCanvas=makeCanvas(1,1)); cv.width=Math.max(1,Math.round(W_)); cv.height=Math.max(1,Math.round(H_)); const g=cv.getContext("2d");
 const sx=W_/BF.w, sy=H_/BF.h;
 const base=B.decorBase||BTERRAIN[B.t].bg;
 g.imageSmoothingEnabled=false;
@@ -32140,8 +32414,16 @@ if(alive(foe).length&&mor(foe)<42&&mor(my)>60&&now>40) say("allout","今こそ�
 if(foe.some(u=>u.sigHidden)&&now<60) say("ambush","伏兵の気配――林と谷に用心",false,false,120);
 if(now>=3&&!B.sitOpenCry){ B.sitOpenCry=true; for(const c of [myCmd,foeCmd]){ if(!c||!c.gid||!W.generals[c.gid]) continue; const L=GEN_LINES[W.generals[c.gid].name]; if(L) bshout(c.id,L[0],3.2); } }
 if(B.frontInfo&&B.frontInfo.length&&now>20&&rnd()<0.5){ const f=B.frontInfo[0]; const c=f.k>0.2?myCmd:f.k<-0.2?foeCmd:null; if(c&&c.gid&&W.generals[c.gid]&&!(B.sitSaid.push>now-40)){ const L=GEN_LINES[W.generals[c.gid].name]; if(L){ B.sitSaid.push=now; bshout(c.id,L[1],2.8); } } } }
-function drawBattle(){
+function trimBattleEffects(){
 if(!B) return;
+for(const [key,cap] of [["dust",160],["smoke",160],["splash",90],["shots",160],["fires",80],["decals",100]]){
+const a=B[key]; if(!a) continue;
+if(key==="decals") B[key]=a.filter(d=>B.elapsed-d.t<120);
+if(B[key].length>cap) B[key].splice(0,B[key].length-cap);
+}
+}
+function drawBattle(){
+if(!B) return; trimBattleEffects();
 const W_=bcanvas.clientWidth, H_=bcanvas.clientHeight;
 const sy=H_/BF.h, sx=sy*B_SQ; const WW=BF.w*sx;
 
@@ -32159,10 +32441,10 @@ let hudMode=false;
 const flatRaw=()=>{ bctx.setTransform(DPR,0,0,DPR,DPR*shx,DPR*shy); bctx.imageSmoothingEnabled=true; };
 const flat=()=>{ hudMode=true; flatRaw(); };
 const hud=f=>{ const was=hudMode; flatRaw(); f(); if(!was) zoomIn(); };
-zoomIn();
+flatRaw(); bctx.fillStyle=BTERRAIN[B.t].bg; bctx.fillRect(0,0,W_,H_); zoomIn();
 bctx.drawImage(B.bg,0,0);
 
-{ if(!B.trampleCv || B.trampleW!==WW || B.trampleH!==H_){ B.trampleCv=makeCanvas(Math.max(1,Math.round(WW)),Math.max(1,Math.round(H_))); B.trampleW=WW; B.trampleH=H_; B.trampleDrawn=0; }
+{ if(!B.trampleCv || B.trampleW!==WW || B.trampleH!==H_){ B.trampleCv=B.trampleCv||makeCanvas(1,1); B.trampleCv.width=Math.max(1,Math.round(WW)); B.trampleCv.height=Math.max(1,Math.round(H_)); B.trampleW=WW; B.trampleH=H_; B.trampleDrawn=0; }
 const pts=B.tramplePts||[]; const tg=B.trampleCv.getContext("2d");
 for(let i=B.trampleDrawn||0;i<pts.length;i++){ const p=pts[i]; tg.fillStyle="rgba(95,70,40,.07)"; tg.beginPath(); tg.ellipse(p.x*sx,p.y*sy+6,sx*1.6,sy*0.7,0,0,7); tg.fill(); tg.fillStyle="rgba(60,45,25,.05)"; tg.beginPath(); tg.ellipse(p.x*sx+(p.j||0)*sx,p.y*sy+4,sx*0.6,sy*0.3,0,0,7); tg.fill(); }
 B.trampleDrawn=pts.length; bctx.drawImage(B.trampleCv,0,0); }
@@ -32804,6 +33086,7 @@ const quiet = B.opening>0 && !selNow;
 const shortName = (big||major||gname.length<=3) ? gname : gname.slice(0,2);
 const plate= (quiet || !(selNow||u.cmd)) ? shortName : `${shortName} ${Math.round(u.troops).toLocaleString()}${big&&unitRole(u)?"　"+unitRole(u):""}`;
 if(farView && !u.cmd && !big && u.morale>0) showPlate=false;
+if(compactBattle()&&viewW()>viewH()&&!selNow&&!u.cmd) showPlate=false;
 const plateHeight=compactBattle()?21:15;
 if(compactBattle()) bctx.font='800 14px "Zen Kaku Gothic New",sans-serif';
 let tw=bctx.measureText(plate).width, tw2=bctx.measureText(tag).width;
@@ -32816,7 +33099,7 @@ bctx.fillStyle=compactBattle()?(u.side===B.ctx.playerSide?"#122248":"#4E120E"):(
 bctx.fillRect(x-tw/2-5, py+11, tw+10, plateHeight);
 const stc = u.stance==="傍観" ? "#FFE24A" : u.stance==="離反可能" ? "#C48BFF" : u.stance==="待機" ? "#9A9A9A" : (u.will!==undefined&&u.will<=40&&!u.cmd) ? "#8A8A8A" : null;
 bctx.strokeStyle= selNow ? "#FFD166" : stc ? stc : u.cmd ? "#E9C65C" : quiet ? "rgba(201,162,39,.55)" : (u.side===B.ctx.playerSide?"rgba(120,170,255,.6)":"rgba(255,130,110,.6)"); bctx.lineWidth=selNow?1.5:(u.cmd||stc)?2:1; bctx.strokeRect(x-tw/2-5.5, py+10.5, tw+11, plateHeight+1);
-if(u.cmd){ bctx.fillStyle="#E9C65C"; bctx.beginPath(); bctx.roundRect(x-tw/2-19, py+11, 13, 15, 3); bctx.fill(); bctx.fillStyle="#1A1208"; bctx.font='900 9px "Zen Kaku Gothic New",sans-serif'; bctx.fillText("総", x-tw/2-12.5, py+22); bctx.font='800 11px "Zen Kaku Gothic New",sans-serif'; }
+if(u.cmd&&!compactBattle()){ bctx.fillStyle="#E9C65C"; bctx.beginPath(); bctx.roundRect(x-tw/2-19, py+11, 13, 15, 3); bctx.fill(); bctx.fillStyle="#1A1208"; bctx.font='900 9px "Zen Kaku Gothic New",sans-serif'; bctx.fillText("総", x-tw/2-12.5, py+22); bctx.font='800 11px "Zen Kaku Gothic New",sans-serif'; }
 
 if(u.side!==B.ctx.playerSide && u.morale>0){ const bySel = (B.drag && B.drag.foe===u.id) || (B.sel!==null && B.units.some(z=>z.id===B.sel && z.side===B.ctx.playerSide && ((z.order.k==="attack"&&z.order.id===u.id)||z.thenAttack===u.id))); const byAny = bySel || B.units.some(z=>z.side===B.ctx.playerSide && !z.ally && z.troops>.5 && ((z.order.k==="attack"&&z.order.id===u.id)||z.thenAttack===u.id));
 if(byAny){ bctx.strokeStyle= bySel ? "#FF3A2A" : "rgba(255,70,50,.85)"; bctx.lineWidth= bySel ? 3 : 1.5; bctx.strokeRect(x-tw/2-6.5, py+9.5, tw+13, 18); bctx.fillStyle= bySel ? "#FF3A2A" : "rgba(255,70,50,.85)"; bctx.beginPath(); bctx.roundRect(x+tw/2+7, py+11, 13, 15, 3); bctx.fill(); bctx.fillStyle="#fff"; bctx.font='900 9px "Zen Kaku Gothic New",sans-serif'; bctx.fillText("狙", x+tw/2+13.5, py+22); bctx.font='800 11px "Zen Kaku Gothic New",sans-serif'; } }
@@ -33046,7 +33329,14 @@ if(false && !(B.opening>0) && B.over===null && W_>=1000){ const rows=B.evlog.fil
 rows.forEach((e,i)=>{ const age=B.elapsed-e.at; const al=age>9?Math.max(0,(12-age)/3):0.85; bctx.globalAlpha=al*(i===rows.length-1?1:0.8); const t=`${Math.floor(e.at/60)}:${String(Math.floor(e.at%60)).padStart(2,"0")} ${e.t}`; const tw=bctx.measureText(t).width; const py=44+i*15; bctx.fillStyle="rgba(10,8,6,.62)"; bctx.beginPath(); bctx.roundRect(W_/2-tw/2-7,py-11,tw+14,14,4); bctx.fill(); bctx.fillStyle=e.big?"#FFD166":"#E8E2D4"; bctx.fillText(t,W_/2,py); });
 bctx.restore(); } } }
 if(bigOn){ const k=(B.elapsed-B.bigBanner.at)/(B.bigBanner.big?2.2:1.8); bctx.save(); bctx.globalAlpha=1-k*k; const good=!!B.bigBanner.good;
-if(B.bigBanner.big){   const pop=1+Math.max(0,0.35-(B.elapsed-B.bigBanner.at))*2.2;
+if(compactBattle()&&viewW()>viewH()){
+bctx.font='800 14px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center";
+let t=B.bigBanner.t; const limit=Math.min(360,W_-32);
+while(bctx.measureText(t).width>limit&&t.length>1) t=t.slice(0,-2)+"…";
+const width=bctx.measureText(t).width+16;
+bctx.fillStyle="#15120E"; bctx.fillRect(W_/2-width/2,48,width,21);
+bctx.fillStyle=good?"#FFD166":"#FFB4A8"; bctx.fillText(t,W_/2,63);
+} else if(B.bigBanner.big){   const pop=1+Math.max(0,0.35-(B.elapsed-B.bigBanner.at))*2.2;
 bctx.fillStyle="rgba(0,0,0,.45)"; bctx.fillRect(0,H_*0.36-26,W_,52); bctx.fillStyle=good?"rgba(201,162,39,.85)":"rgba(226,74,58,.85)"; bctx.fillRect(0,H_*0.36-26,W_,1.5); bctx.fillRect(0,H_*0.36+25,W_,1.5);
 bctx.translate(W_/2,H_*0.36+9); bctx.scale(pop,pop); bctx.font=`900 ${Math.min(28,Math.round(W_/26))}px "Yuji Syuku","Zen Kaku Gothic New",serif`; bctx.textAlign="center"; bctx.lineWidth=6; bctx.strokeStyle="rgba(0,0,0,.9)"; bctx.strokeText(B.bigBanner.t,0,0); bctx.fillStyle=good?"#FFD166":"#FF9A88"; bctx.fillText(B.bigBanner.t,0,0); }
 else {   bctx.font='800 15px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="left"; const t=B.bigBanner.t; const tw=bctx.measureText(t).width; const pw=tw+64, ph=30; const px=W_/2-pw/2, py=H_*0.13;
@@ -33055,14 +33345,15 @@ bctx.fillStyle=good?"rgba(201,162,39,.9)":"rgba(226,110,80,.9)"; bctx.fillRect(p
 bctx.restore(); }
 
 if(B.banner && !(B.opening>0) && B.over===null && B.elapsed-B.banner.at<3.2 && !(bigOn && B.elapsed-B.bigBanner.at<1.6)){ const age=B.elapsed-B.banner.at; const al = age<0.2 ? age/0.2 : age>2.6 ? Math.max(0,(3.2-age)/0.6) : 1;
-const t=B.banner.t; const bad = /包囲|崩|討たれ|撃破さる|退|苦/.test(t) && !t.startsWith("敵"); const good = t.startsWith("敵") || /突破|討ち取|撃破$/.test(t);
+let t=B.banner.t; const bad = /包囲|崩|討たれ|撃破さる|退|苦/.test(t) && !t.startsWith("敵"); const good = t.startsWith("敵") || /突破|討ち取|撃破$/.test(t);
 bctx.save(); bctx.globalAlpha=al; let bfs=15; bctx.font='800 '+bfs+'px "Zen Kaku Gothic New",sans-serif';
 
 while(bctx.measureText(t).width+32 > W_-12 && bfs>14){ bfs-=0.5; bctx.font='800 '+bfs+'px "Zen Kaku Gothic New",sans-serif'; }
-bctx.textAlign="center"; const tw=Math.min(bctx.measureText(t).width, W_-44); const px=W_/2-tw/2-16, py=8+(age<0.2?(0.2-age)*-30:0), pw=tw+32, ph=28;
+if(compactBattle()&&viewW()>viewH()) while(bctx.measureText(t).width>Math.min(360,W_-44)&&t.length>1) t=t.slice(0,-2)+"…";
+bctx.textAlign="center"; const tw=Math.min(bctx.measureText(t).width, compactBattle()&&viewW()>viewH()?Math.min(360,W_-44):W_-44); const px=W_/2-tw/2-16, py=(compactBattle()?48:8)+(age<0.2?(0.2-age)*-30:0), pw=tw+32, ph=compactBattle()?21:28;
 bctx.fillStyle="rgba(10,8,6,.88)"; bctx.beginPath(); bctx.roundRect(px,py,pw,ph,6); bctx.fill(); bctx.strokeStyle="rgba(255,255,255,.14)"; bctx.lineWidth=1; bctx.stroke(); B.bannerRect={x:px,y:py,w:pw,h:ph};
 bctx.fillStyle= bad ? "#E24A3A" : good ? "#C9A227" : "#8FB8FF"; bctx.fillRect(px,py+4,4,ph-8);
-bctx.fillStyle="#F3E6C4"; bctx.fillText(t,W_/2+2,py+19); bctx.restore(); }
+bctx.fillStyle="#F3E6C4"; bctx.fillText(t,W_/2+2,py+(compactBattle()?15:19)); bctx.restore(); }
 });
 
 if(B.sel!==null){ const su=B.units.find(z=>z.id===B.sel); if(su && su.order.k==="attack"){ const t=B.units.find(z=>z.id===su.order.id); if(t){ bctx.font='700 11px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center"; bctx.fillStyle="rgba(0,0,0,.7)"; const tw=bctx.measureText("→ "+t.name).width; bctx.fillRect(su.x*sx-tw/2-5, su.y*sy-70, tw+10, 15); bctx.fillStyle="#FFD166"; bctx.fillText("→ "+t.name, su.x*sx, su.y*sy-59); } } }
@@ -33233,7 +33524,7 @@ const foeMax=B.tobiPhase?(B.units.filter(u=>u.side!==B.ctx.playerSide&&vis(u)).r
 
 { const sideOf=(sd)=>{ const us=B.units.filter(u=>u.side===sd&&u.troops>.5&&vis(u)); const mor=us.length?Math.round(us.reduce((s2,u)=>s2+u.morale,0)/us.length):0; const cmd=us.find(u=>u.cmd); const active=us.filter(u=>!u.bystander&&!u.waiting).reduce((s2,u)=>s2+u.troops,0); const tot=us.reduce((s2,u)=>s2+u.troops,0); return {mor,cmd,active,tot,hasBy:us.some(u=>u.bystander||u.waiting)}; };
 
-const mk=(tot,max,st,mineSide)=>`<span class="row"><span class="k">兵力</span><b>${Math.round(tot).toLocaleString()}</b><span class="k" style="margin-left:4px">損害 ${Math.max(0,Math.round((1-tot/max)*100))}%</span><span class="k" style="margin-left:6px">士気</span><b style="color:${st.mor>=60?"#9FE09F":st.mor>=30?"#FFD166":"#FF9A88"}">${st.mor}%</b></span><span class="row cmd"><span class="k">総大将</span><b style="font-family:inherit;font-size:14px">${st.cmd?esc(st.cmd.name):"—"}${st.cmd&&st.cmd.morale<=0?"（崩れ）":""}</b>${st.hasBy?`<span class="k" style="margin-left:6px">参戦</span><b>${Math.round(st.active).toLocaleString()}</b>`:""}</span>`;
+const mk=(tot,max,st,mineSide)=>compactBattle()?`<span class="row"><span class="k">兵</span><b>${Math.round(tot).toLocaleString()}</b><span class="k">士気</span><b style="color:${st.mor>=60?"#9FE09F":"#FFD166"}">${st.mor}%</b></span>`:`<span class="row"><span class="k">兵力</span><b>${Math.round(tot).toLocaleString()}</b><span class="k" style="margin-left:4px">損害 ${Math.max(0,Math.round((1-tot/max)*100))}%</span><span class="k" style="margin-left:6px">士気</span><b style="color:${st.mor>=60?"#9FE09F":st.mor>=30?"#FFD166":"#FF9A88"}">${st.mor}%</b></span><span class="row cmd"><span class="k">総大将</span><b style="font-family:inherit;font-size:14px">${st.cmd?esc(st.cmd.name):"—"}${st.cmd&&st.cmd.morale<=0?"（崩れ）":""}</b>${st.hasBy?`<span class="k" style="margin-left:6px">参戦</span><b>${Math.round(st.active).toLocaleString()}</b>`:""}</span>`;
 const stM=sideOf(B.ctx.playerSide), stF=sideOf(1-B.ctx.playerSide);
 
 const padBy = stM.hasBy || stF.hasBy || B.units.some(u=>u.waiting||u.bystander||u.holdUntil||u.sekHold||u.okeHold||u.reserveHold);
@@ -33309,8 +33600,8 @@ bctx.setTransform(DPR,0,0,DPR,0,0);
 const BZOOMS=[1,BZ_NORMAL,2.6];
 function bView(){
 const W_=bcanvas.clientWidth||1, H_=bcanvas.clientHeight||1; const s0=H_/BF.h;
-const z=Math.max(1,Math.min(BZ_MAX,B.zoom||1)); B.zoom=z; const hw=Math.min(BF.w/2, W_/(2*s0*B_SQ*z)), hh=BF.h/(2*z);
-if(B.cx===undefined){ B.cx=BF.w/2; } if(B.cy===undefined||z===1) B.cy=BF.h/2;
+const z=Math.max(B.openingZoomMin||1,Math.min(BZ_MAX,B.zoom||1)); B.zoom=z; const hw=Math.min(BF.w/2, W_/(2*s0*B_SQ*z)), hh=Math.min(BF.h/2,BF.h/(2*z));
+if(B.cx===undefined){ B.cx=BF.w/2; } if(B.cy===undefined||z<=1) B.cy=BF.h/2;
 if(B.cxT!==undefined){ const dx=B.cxT-B.cx, dy=B.cyT-B.cy; if(Math.hypot(dx,dy)<0.05){ B.cx=B.cxT; B.cy=B.cyT; B.cxT=B.cyT=undefined; } else { B.cx+=dx*0.12; B.cy+=dy*0.12; } }
 B.cx=Math.max(hw,Math.min(BF.w-hw,B.cx)); B.cy=Math.max(hh,Math.min(BF.h-hh,B.cy));
 if(B.camBox){ const x0=Math.max(0,B.camBox.x0), x1=Math.min(BF.w,B.camBox.x1); B.cx=Math.max(x0+hw,Math.min(x1-hw,B.cx)); if(x1-x0<2*hw) B.cx=Math.max(hw,Math.min(BF.w-hw,(x0+x1)/2)); }
@@ -33759,13 +34050,15 @@ B.mode=null; renderBattleFoot();
 });
 bcanvas.addEventListener("pointerup",bEndDrag);
 bcanvas.addEventListener("pointercancel",()=>{ if(B){ B.drag=null; B.box=null; B.pan=null; } });
-for(const evn of ["pointerup","pointercancel"]) bcanvas.addEventListener(evn,ev=>{ if(ev.pointerType==="touch"){ bPtrs.delete(ev.pointerId); if(B&&bPtrs.size<2){ B.pinch=null; if(B.zoom&&B.zoom<1) B.zoom=1; renderBattleFoot(); } } });
+for(const evn of ["pointerup","pointercancel"]) bcanvas.addEventListener(evn,ev=>{ if(ev.pointerType==="touch"){ bPtrs.delete(ev.pointerId); if(B&&bPtrs.size<2){ B.pinch=null; if(B.zoom&&B.zoom<(B.openingZoomMin||1)) B.zoom=B.openingZoomMin||1; renderBattleFoot(); } } });
 
-function focusOwnBattle(){
+function focusOwnBattle(includeGate=false){
 if(!B) return; const us=B.units.filter(u=>u.side===B.ctx.playerSide&&u.troops>.5&&!u.left&&!u.sigHidden&&!u.tobiHide&&!u.tobiHold);
-if(!us.length) return; const x0=Math.min(...us.map(u=>u.x))-3, x1=Math.max(...us.map(u=>u.x))+3, y0=Math.min(...us.map(u=>u.y))-3,y1=Math.max(...us.map(u=>u.y))+3;
+if(!us.length) return; if(includeGate&&B.gate) us.push(B.gate); const x0=Math.min(...us.map(u=>u.x))-3, x1=Math.max(...us.map(u=>u.x))+3, y0=Math.min(...us.map(u=>u.y))-3,y1=Math.max(...us.map(u=>u.y))+3;
 const r=bcanvas.getBoundingClientRect(), sy=r.height/BF.h; if(!sy) return;
-B.zoom=Math.max(1,Math.min(BZ_NORMAL,r.width/(sy*B_SQ*Math.max(8,x1-x0)),BF.h/Math.max(6,y1-y0))); B.cx=(x0+x1)/2; B.cy=(y0+y1)/2; B.cxT=B.cyT=undefined; B.follow=null; bView();
+const fit=Math.min(BZ_NORMAL,r.width/(sy*B_SQ*Math.max(8,x1-x0)),BF.h/Math.max(6,y1-y0));
+B.openingZoomMin=noviceMobile()?Math.min(1,fit):1;
+B.zoom=Math.max(B.openingZoomMin,fit); B.cx=(x0+x1)/2; B.cy=(y0+y1)/2; B.cxT=B.cyT=undefined; B.follow=null; bView();
 }
 function drawTobiGuide(){
 if(!B||!B.tobiPhase||!noviceUI()||B.tobiGuideOff||B.over!==null) return;
@@ -33774,6 +34067,7 @@ const point=selected?B.obstacles.filter(o=>o.tobiFence&&o.hp>0).sort((a,b)=>Math
 if(!point) return; const [x,y]=bScreenOf(point.x,point.y); bctx.save(); bctx.strokeStyle="#FFE08A"; bctx.lineWidth=3; bctx.beginPath(); bctx.arc(x,y,24+Math.sin(performance.now()/180)*3,0,7); bctx.stroke(); bctx.font='700 14px "Zen Kaku Gothic New",sans-serif'; bctx.textAlign="center"; bctx.lineWidth=4; bctx.strokeStyle="#15120E"; const label=selected?"次に外柵を押す":"この味方の隊を押す"; bctx.strokeText(label,x,y-32); bctx.fillStyle="#FFE08A"; bctx.fillText(label,x,y-32); bctx.restore();
 }
 function compactBattleAssist(){
+updateBattleNext();
 if(!B||!compactBattle()){ document.body.classList.remove("battle-help"); return; }
 if(B.bc&&!B.bc.done&&B.bc.step>=0&&!B.sim){
 let e=document.getElementById("bCoach"); if(!e){ e=document.createElement("div"); e.id="bCoach"; document.getElementById("battle").appendChild(e); }
@@ -33795,7 +34089,7 @@ if(e.id==="bSim"){ const ok=e.querySelector("#bSimOk"); if(ok) ok.textContent="�
 function bFitOpening(){
 
 try{
-if(!B||B.camMoved||B.fitDone) return; if(B.nagashino&&noviceUI()){ focusOwnBattle(); B.fitDone=true; return; } B.fitDone=true;
+if(!B||B.camMoved||B.fitDone) return; if(B.ctx.playerSide===0&&B.gate){ focusOwnBattle(true); B.fitDone=true; return; } if(B.nagashino&&noviceUI()){ focusOwnBattle(); B.fitDone=true; return; } B.fitDone=true;
 const us=B.units.filter(u=>u.troops>.5&&!u.left&&!u.sigHidden&&u.x>=0);
 if(us.length<2) return;
 const x0=Math.min(...us.map(u=>u.x)), x1=Math.max(...us.map(u=>u.x));
@@ -35820,7 +36114,7 @@ return Object.values(W.generals).filter(g=>g.clan===W.player&&g.status==="家臣
 function openIdle(){
 const list=idleGenerals().sort((a,b)=>b.pol-a.pol);
 const jobs=["新田開発","商業投資","施し","軍事訓練","城の強化"];
-let h=list.length? list.map(g=>`<div data-idle="${g.id}" style="padding:6px 0;border-bottom:1px solid var(--line);display:flex;gap:10px">
+let h=list.length? list.slice(concisePanel()?5:0).map(g=>`<div data-idle="${g.id}" style="padding:6px 0;border-bottom:1px solid var(--line);display:flex;gap:10px">
 ${face(g)}
 <div style="flex:1">
 <div class="row"><span class="nm">${esc(g.name)}</span>
@@ -35831,21 +36125,21 @@ ${jobs.map(j=>`<button class="cmd tiny" style="min-height:26px" onclick="assignI
 </div>
 </div></div>`).join("")
 : '<div class="muted tiny">手の空いている武将はおりません</div>';
-if(noviceMobile() && list.length){
-const full=h;
-h=`<button class="big gold" onclick="assignAllIdle();openIdle()">おすすめを一括で命じる</button>`+list.slice(0,3).map(g=>{
+if(concisePanel() && list.length){
+const full=list.length>5?h:"";
+h=`<button class="big gold" onclick="assignAllIdle();openIdle()">おすすめを一括で命じる</button>`+list.slice(0,5).map(g=>{
 const c=W.castles[g.castle], job=c&&c.minchu<45?"施し":g.war>g.pol&&g.war>=65?"軍事訓練":c&&c.koku<c.com*4?"新田開発":"商業投資";
-return `<div class="idle-officer" data-idle="${g.id}"><span class="nm">${esc(g.name)}</span><span class="tiny">${c?esc(c.name):"—"}</span><button class="cmd" onclick="assignIdle(${g.id},'${job}')">${job}を命じる</button></div>`;
-}).join("")+`<details><summary>もっと見る</summary>${full}</details>`;
+return `<div class="idle-officer" data-idle="${g.id}"><span class="nm">${esc(g.name)}</span><button class="cmd" onclick="assignIdle(${g.id},'${job}')">${job}</button></div>`;
+}).join("")+(full?`<details><summary>もっと見る</summary>${full}</details>`:"");
 }
-openPanel(`手空きの武将 ${list.length}名`,"一手で仕事を与えられます",h,"手空き一覧",()=>openIdle());
+openPanel(`手空きの武将 ${list.length}名`,noviceMobile()?"":"一手で仕事を与えられます",h,"手空き一覧",()=>openIdle());
 setSpeed(0);
 }
 function assignIdle(gid,job){
 const g=W.generals[gid]; if(!g||g.castle===null||g.castle===undefined){ toast("その将はもう手空きではありませぬ"); openIdle(); return; }
 const r=order(job,gid,g.castle);
 toast(r|| `${g.name}に${job}を命じました`);
-const row=noviceMobile()&&pBody.querySelector(`[data-idle="${gid}"]`);
+const row=concisePanel()&&pBody.querySelector(`[data-idle="${gid}"]`);
 if(row&&!r){ pBody.querySelectorAll(`[data-idle="${gid}"] button`).forEach(b=>{ b.disabled=true; b.textContent="命じました"; }); pTitle.textContent=`手空きの武将 ${idleGenerals().length}名`; }
 else openIdle();
 refreshHUD();
@@ -36272,14 +36566,13 @@ koChoice("どの道を行く","狭間へ着くまで、見つからぬことが�
 function okeWaitAsk(go){ const pick=(k)=>{ W.okeWait=k; log(k==="wait"?"信長は空を見上げ、雨を待った。今川の陣は雨宿りに散るが、その間に備えも整う":"信長は雨を待たず、中島から狭間へ駆けた","war",true); go(); };
 koChoice("雨を待つか","空は今にも荒れそうだ。",[["wait","雨を待つ","豪雨の中を進む（見つかりにくい）。だが今川の本陣の守りは一割五分厚くなる",()=>pick("wait")],["now","すぐ攻める","雨は途中で来るかもしれない",()=>pick("now")]]); }
 function openingPrompt(title, body, btn, onYes){
-if(overlayEl) { overlayEl.remove(); overlayEl=null; }
 const el=document.createElement("div"); el.className="overlay";
 el.innerHTML=`<div class="dialog" style="max-width:480px;text-align:center">
 <div class="tiny" style="letter-spacing:.3em;color:var(--kin);margin-bottom:4px">決 戦</div>
 <h3 style="font-size:22px">${esc(title)}</h3>
 <div class="advice" style="font-style:italic">${esc(body)}</div>
 <button class="big gold" id="opGo">${esc(btn)}</button></div>`;
-document.getElementById("stage").appendChild(el); overlayEl=el;
+mountPrompt(el);
 el.querySelector("#opGo").onclick=()=>{ el.remove(); if(overlayEl===el) overlayEl=null; onYes(); };
 }
 
@@ -36313,7 +36606,7 @@ el.hidden=!B||!B.firstBattle||B.over!==null;
 if(el.hidden) return;
 
 const ready=B.units.some(u=>u.side===1&&u.type===3&&u.troops>.5&&u.morale>0&&!u.left&&(u.ammo===undefined||u.ammo>0)&&!(u.volleyReady>B.elapsed));
-el.textContent=B.paused?"〈再開〉で続ける":ready?"〈一斉射撃〉で迎え撃つ":"弾込め中・自動で迎撃";
+el.textContent=B.paused?"〈再開〉で続ける":bWaitingHint()|| (ready?"〈一斉射撃〉で迎え撃つ":"弾込め中・自動で迎撃");
 const volley=document.getElementById("bNagVolley"), pause=document.getElementById("bPause");
 if(volley){ volley.disabled=!ready||B.paused; volley.classList.toggle("hot",ready&&!B.paused); }
 if(pause) pause.classList.toggle("hot",!!B.paused);
@@ -36439,7 +36732,7 @@ ${esc(W.generals[Bc.daimyo]?.name||Bc.name)}「${sc==="sekigahara"?"内府こそ
 <button class="big gold" style="flex:1" data-s="b">${pair[3]}に付く（${esc(Bc.name)}）</button>
 ${must?"":`<button class="big ghost" style="flex-basis:100%" data-s="n">どちらにも付かず、様子を見る</button>`}
 </div></div>`;
-document.getElementById("stage").appendChild(el); overlayEl=el;
+mountPrompt(el);
 const gen=WORLD_GEN; let settled=false;
 el.querySelectorAll("button").forEach(b=>b.onclick=()=>{
 if(settled||gen!==WORLD_GEN) return; settled=true;
@@ -36480,8 +36773,9 @@ return true;
 }
 
 function noviceUI(){ return !!(W && (W.newbieUI||W.quick||W.msim)) || firstTimer(); }
-function noviceMobile(){ return noviceUI() && viewW()<=1120; }
-function compactBattle(){ return matchMedia("(max-width:1120px) and (max-height:500px) and (orientation:landscape)").matches; }
+function noviceMobile(){ return (firstTimer() || !!W.staged) && viewW()<=1120; }
+function concisePanel(){ return noviceMobile(); }
+function compactBattle(){ return viewW()<=1120; }
 function firstTimer(){ try{ return !localStorage.getItem("sengoku_msim_done") && localStorage.getItem("sengoku_guide_done")!=="1"; }catch(e){ return true; } }
 function startStep(which){
 document.getElementById("start").scrollTop=0;
@@ -36992,8 +37286,6 @@ document.addEventListener("visibilitychange",()=>{ if(!document.hidden) retOpen(
 window.addEventListener("pageshow",()=>retOpen());
 window.addEventListener("focus", ()=>setTimeout(ensureAudioRunning,150));
 { let last=0; for(const ev of ["pointerdown","touchstart","keydown"]) window.addEventListener(ev, ()=>{ const now=Date.now(); const ctx=Audio_.ctx; const dead = ctx && ctx.state!=="running"; if(now-last<800 && !dead) return; last=now; ensureAudioRunning(dead); }, {passive:true}); }
-
-try{ if(window.__bootReady) window.__bootReady(); }catch(_){ }
 </script>
 <script>
 /* 第254巡（作り手：開くまで8秒以上が半分）：表紙を先に出してから本体を読む。
@@ -37008,7 +37300,7 @@ try{ if(window.__bootReady) window.__bootReady(); }catch(_){ }
   var st=document.getElementById("bootState");
   var profile=window.__loadProfile={tasks:[],firstPaint:null,bootReady:null};
   try{ new PerformanceObserver(function(list){ for(var e of list.getEntries()) if(e.name==="first-contentful-paint") profile.firstPaint=e.startTime; }).observe({type:"paint",buffered:true}); }catch(_){ }
-  function ready(){ if(st) st.remove(); document.documentElement.classList.remove("booting"); profile.bootReady=performance.now(); }
+  function ready(){ if(st) st.remove(); document.documentElement.classList.remove("booting"); profile.bootReady=performance.now(); if(window.__bootReady) window.__bootReady(); }
 
   function go(){
     var el=document.getElementById("coreJs"); if(!el) return;
@@ -37020,7 +37312,7 @@ try{ if(window.__bootReady) window.__bootReady(); }catch(_){ }
       var sc=document.createElement("script");
       sc.src=URL.createObjectURL(b);
       sc.onload=function(){ try{ URL.revokeObjectURL(sc.src); }catch(_){ } profile.tasks.push({name:"本体の組み立てと評価",ms:performance.now()-begin}); ready(); };
-      sc.onerror=function(){ var s2=document.createElement("script"); s2.textContent=t; document.body.appendChild(s2); ready(); };
+      sc.onerror=function(){ try{ URL.revokeObjectURL(sc.src); }catch(_){} var s2=document.createElement("script"); s2.textContent=t; document.body.appendChild(s2); ready(); };
       document.body.appendChild(sc);
     }catch(e){
       var s2=document.createElement("script"); s2.textContent=t; document.body.appendChild(s2);
