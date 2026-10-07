@@ -75,3 +75,7 @@ header{position:relative;padding-top:12px;padding-bottom:12px}
 @media(max-height:500px){#hero{padding-top:16px!important;padding-bottom:max(24px,env(safe-area-inset-bottom))!important}#hero h1{font-size:28px!important}#hero .ctas{margin-top:12px;grid-template-columns:2fr 1fr}#hero .ctas a{min-height:56px;padding:10px 16px}}
 
 img[width][height]{height:auto}#heroVideo{display:block}
+/* 第259巡：App Store の印が大きく伸びていた。印の大きさを決め、題名を最初の画面に */
+.inban svg{width:22px;height:22px;flex:none;margin-right:10px;fill:currentColor}
+#hero .ctas a.inban{min-height:52px;font-size:18px}
+#hero .brand{margin:0 0 4px;font-family:var(--fude),serif;font-size:22px;letter-spacing:.3em;color:#F2D58A;text-shadow:0 2px 6px #000}
