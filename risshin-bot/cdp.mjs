@@ -84,7 +84,7 @@ export async function ensureServer(port = PORT) {
 export async function openChrome({ width = 1600, height = 900, port = 9400 + Math.floor(Math.random() * 500) } = {}) {
   // 同時に開く数を絞る（席が空くまでここで待つ）
   const slot = await acquireSlot();
-  const prof = mkdtempSync(join(tmpdir(), 'sengoku-risshin-'));
+  const prof = mkdtempSync(join(tmpdir(), process.env.CDP_PREFIX || 'sengoku-risshin-'));   // 録画など止めたくない物は CDP_PREFIX=rec- で見張りの外に
   let chrome;
   try {
     // Mac は手元の Chrome。Linux（GitHub Actions の ubuntu）は入っている google-chrome を、箱の中でも動くよう --no-sandbox で（GPU 無し＝swiftshader）
@@ -98,6 +98,10 @@ export async function openChrome({ width = 1600, height = 900, port = 9400 + Mat
       ...(linux ? ['--no-sandbox', '--disable-dev-shm-usage', '--no-first-run', '--no-default-browser-check'] : []),
       '--hide-scrollbars', '--mute-audio', 'about:blank',
     ], { stdio: 'ignore' });
+    // node が止められた時に Chrome だけが置き去りにならないように（置き去りが十数個たまって機械が重くなった。10/6）
+    const reap = () => { try { chrome.kill('SIGKILL'); } catch (e) { /* noop */ } };
+    process.once('exit', reap);
+    for (const s of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.once(s, () => { reap(); process.exit(1); });
     let ws;
     for (let i = 0; i < 150 && !ws; i++) {
       try {
