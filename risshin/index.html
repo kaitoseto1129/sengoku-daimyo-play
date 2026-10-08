@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202610072030 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202610072111 として写した） -->
 <title>戦国立身3D　足軽から天下へ、戦国の合戦アクション</title>
 <meta name="description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。">
 <link rel="canonical" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/">
@@ -69,7 +69,7 @@
 })();
 </script>
 <!-- /Meta Pixel -->
-<link rel="icon" type="image/png" sizes="32x32" href="./v202610072030/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610072030/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610072030/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610072030/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202610072111/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610072111/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610072111/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610072111/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
 :root {
@@ -1412,6 +1412,9 @@ html:not(.touch) #hud.calm :is(.bottom, .bl.full, .tl, #h-units, .tr canvas) { o
 html:not(.touch) #hud.calm #objectives { opacity: 1; }
 /* スマホ横・「最小」（.lean）：戦場を見せるのを一番に。常に出すのは体力の細い棒・任務の一行・小地図だけ */
 #hud.lean :is(.tl, #compass, #dateline), html:not(.tc-low) #hud.lean #h-squad { display: none !important; }
+/* 馬で駆ける間は左の札（体力・組）を薄くして、駆ける馬と前の戦場を見せる（player.js が .gallop を付ける。深手の時は付けない） */
+#hud :is(.bl, #h-squad) { transition: opacity .5s; }
+#hud.gallop:not(.ending) :is(.bl, #h-squad) { opacity: .3 !important; }
 /* 両軍の兵力の帯は「最小」でも消さない（常に出す層）。細く、名と棒だけ */
 #hud.lean #armybar { width: min(300px, 36vw); top: calc(8px + env(safe-area-inset-top, 0px)); gap: 6px; }
 #hud.lean #armybar .side .nm { font-size: max(12px, calc(13px * var(--text-scale, 1))); gap: 4px; }
@@ -1879,5 +1882,5 @@ html.touch.tc-low #hud #armybar { width: min(360px, 40vw); top: calc(6px + env(s
 } }
 </script>
 <script type="module">
-import('./v202610072030/src/main.js').catch(() => window.__bootFail());
+import('./v202610072111/src/main.js').catch(() => window.__bootFail());
 </script>

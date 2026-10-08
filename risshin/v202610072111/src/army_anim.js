@@ -399,6 +399,11 @@ export const ArmyAnim = {
     // 騎馬を受け止めた槍衾の者（checkYari）：石突を地に着け、穂先を馬の胸へ斜めに上げ、柄を手元へ引き寄せて踏ん張る
     if (u.planted > this.time && !u.isPlayer) { const k = Math.min(1, (u.planted - this.time) / 0.3); rx = rx * (1 - k) - 0.42 * k; ry = 0; ext = -0.25 * k; slide = Math.min(slide, -0.35 * k); }
     if (u.cheer > 0) { rx = -1.35; ext = 0.1 + Math.abs(Math.sin(this.time * 6)) * 0.15; }
+    // 馬上で駆ける時は、槍を脇に抱えて穂先を前へ倒す（駆け込みの構え）。並足へ落とすと立て直す
+    if (u.mounted && !engaged && !a && !sw) {
+      const v = u.isPlayer ? u.vel : u.mv, cs = v ? clamp01((Math.hypot(v.x, v.z) - 7) / 3) : 0;
+      if (cs > 0) { rx += (-0.22 - rx) * cs; ry += (-0.1 - ry) * cs; ext += 0.12 * cs; }
+    }
     // 崩れた時は穂先が下がる
     if (u.hit && u.hit.kind !== 'flinch') rx += 0.12 * Math.sin(Math.min(1, u.hit.t / u.hit.dur) * Math.PI);
     // 士気が落ちると、槍先が揃わず揺れる

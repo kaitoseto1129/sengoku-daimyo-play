@@ -164,7 +164,7 @@ export function moraleDeath(army, t) {
   if (t.type === 'dummy' || t.farSim) return;
   const chief = t.isTaisho || t.type === 'busho' || t.group && t === t.group.leader;
   if (chief) {
-    if (t.group) t.group.commanderLostAt = army.time;
+    if (t.group) { t.group.commanderLostAt = army.time; t.group.commanderLostMinor = !(t.isTaisho || t.type === 'busho'); }
     for (const g of army.groups) {
       if (g.commanderPush === t) { g.commanderPush = null; g.commanderPushUntil = 0; }
       if (!g.count || g.team !== t.team || g.civ || g === t.group) continue;

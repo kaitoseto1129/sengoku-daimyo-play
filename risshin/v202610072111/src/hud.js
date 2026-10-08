@@ -1582,7 +1582,9 @@ export class Hud {
     const hasSq = rt.squad.length > 0;
     const rallyReady = p.rallyCd <= 0;
     const pad = this.padMode;
-    const kk = { cmd: pad ? 'ワイ' : K('command'), quick: pad ? '十字' : `${K('follow')}ほか`, rally: pad ? '左肩' : K('rally'), lock: pad ? '右スティック押し込み' : K('lock') };
+    // 札の角は四字ほどしか入らない。「のキー」を省いた短い名にし、全部の名は設定の画面に任せる。
+    const ks = (s) => ({ 左上の横矢印キー: '横矢印', 空白キー: '空白', 右スティック押し込み: '右押込' })[s] || s.replace(/のキー$/, '');
+    const kk = { cmd: pad ? 'ワイ' : ks(K('command')), quick: pad ? '十字' : `${ks(K('follow'))}ほか`, rally: pad ? '左肩' : ks(K('rally')), lock: ks(pad ? '右スティック押し込み' : K('lock')) };
     $('h-bottom').innerHTML =
       `<div class="slot ${p.weapon === 'spear' ? 'on' : ''}"><em>1</em>${ICON.spear}${esc(ITEMS[G.equip.weapon].name.replace('数打の', '').replace('上質な', ''))}</div>` +
       `<div class="slot ${p.weapon === 'sword' ? 'on' : ''} ${p.hasKatana ? '' : 'locked'}"><em>2</em>${ICON.sword}${p.hasKatana ? '打刀' : '—'}</div>` +
@@ -1593,8 +1595,8 @@ export class Hud {
       `<div class="slot cmd ${hasSq ? '' : 'off'}"><em>${kk.quick}</em>${ICON.quick}号令</div>` +
       `<div class="slot cmd ${rallyReady ? 'ready' : 'wait'}"><em>${kk.rally}</em>${ICON.rally}${rallyReady ? (hasSq ? '鼓舞' : '鬨の声') : `<span class="why">あと${Math.ceil(p.rallyCd)}秒</span>`}${rallyReady ? '' : `<span class="cd" style="height:${Math.min(100, p.rallyCd / 25 * 100)}%"></span>`}</div>` +
       `<div class="slot cmd ${p.lock ? 'on' : ''}"><em>${kk.lock}</em>${ICON.lock}${p.lock ? '解除' : '狙い'}</div>` +
-      (p.mounted ? `<div class="slot cmd"><em>${pad ? 'エー' : K('dodge')}</em>${ICON.dodge}手綱</div>` : `<div class="slot cmd ${p.sta >= 20 ? '' : 'dim'}"><em>${pad ? 'エー' : K('dodge')}</em>${ICON.dodge}${p.sta >= 20 ? '回避' : '<span class="why">気力不足</span>'}</div>`) +
-      (p.canRide ? `<div class="slot cmd ${p.mounted ? 'on' : ''}"><em>${K('mount')}</em>${ICON.horse || ICON.quick}${p.mounted ? '降りる' : '乗る'}</div>` : '');
+      (p.mounted ? `<div class="slot cmd"><em>${pad ? 'エー' : ks(K('dodge'))}</em>${ICON.dodge}手綱</div>` : `<div class="slot cmd ${p.sta >= 20 ? '' : 'dim'}"><em>${pad ? 'エー' : ks(K('dodge'))}</em>${ICON.dodge}${p.sta >= 20 ? '回避' : '<span class="why">気力不足</span>'}</div>`) +
+      (p.canRide ? `<div class="slot cmd ${p.mounted ? 'on' : ''}"><em>${ks(K('mount'))}</em>${ICON.horse || ICON.quick}${p.mounted ? '降りる' : '乗る'}</div>` : '');
     // 操作プロンプト
     // 倒れている間は「取る」などの札を出さない
     const it = u.alive ? rt.nearestInteract() : null;

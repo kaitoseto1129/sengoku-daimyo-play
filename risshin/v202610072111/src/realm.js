@@ -4,6 +4,7 @@ import { scenarioKey, RANKS, BATTLES } from './state.js';
 import * as DM from './domain.js';
 import * as RT from './retainers.js';
 import * as DP from './diplomacy.js';
+import { hyojoBattle } from './hyojo.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -29,6 +30,7 @@ export function realmBattle(rt) {
   safe(() => DM.domainBattle(rt));
   safe(() => RT.keraiBattle(rt));
   safe(() => DP.diploBattle(rt));
+  safe(() => hyojoBattle(rt));
   safe(() => realmShow(rt));
 }
 

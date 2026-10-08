@@ -84,6 +84,8 @@ export function relaySpeech(rt, sp, text, dur) {
   if (!from) return false;
   const p = rt.player.u.pos;
   if (Math.hypot(from.pos.x - p.x, from.pos.z - p.z) <= 12) return false;
+  // 足軽へ遠い武将の独り言を使番で届けない戦（桶狭間など）。聞こえない声は捨てる。
+  if (rt.def.noAllyReports) return true;
   sendOrder(rt, from, rt.player.u, { id: 'word', apply: () => rt.say('使番', `${sp}殿より。「${text}」`, dur) }, { team: 0, faction: from.group?.faction, name: '自分の隊' });
   return true;
 }

@@ -26,10 +26,48 @@ export function edgeDark(dt) {
   if (edgeEl.style.opacity !== o) edgeEl.style.opacity = o;
 }
 
+// 馬で駆ける時の流れ：画面の外寄りに、中心から外へ走る細い筋（土埃と風）。一枚の絵を一度だけ描き、毎コマは不透明度と大きさだけ変える
+// POST.speed（0〜1）と POST.speedPh（蹄の拍子）は player.js が入れる。動きを減らす設定では 0 のまま
+let speedEl = null;
+export function speedStreaks() {
+  const k = Math.min(1, POST.speed || 0);
+  if (!speedEl) {
+    if (k < 0.01 || typeof document === 'undefined') return;
+    const c = document.createElement('canvas'); c.width = c.height = 512;
+    const x = c.getContext('2d');
+    let s = 7;
+    const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 150; i++) {
+      const a = rnd() * Math.PI * 2, r0 = 150 + rnd() * 70, r1 = r0 + 70 + rnd() * 160, w = 0.6 + rnd() * 1.6;
+      const g = x.createLinearGradient(256 + Math.cos(a) * r0, 256 + Math.sin(a) * r0, 256 + Math.cos(a) * r1, 256 + Math.sin(a) * r1);
+      const warm = rnd() < 0.6;
+      g.addColorStop(0, 'rgba(235,222,196,0)');
+      g.addColorStop(0.6, warm ? 'rgba(214,196,160,.55)' : 'rgba(250,246,236,.5)');
+      g.addColorStop(1, 'rgba(235,222,196,0)');
+      x.strokeStyle = g; x.lineWidth = w;
+      x.beginPath(); x.moveTo(256 + Math.cos(a) * r0, 256 + Math.sin(a) * r0); x.lineTo(256 + Math.cos(a) * r1, 256 + Math.sin(a) * r1); x.stroke();
+    }
+    speedEl = document.createElement('div');
+    speedEl.id = 'speedstreaks';
+    speedEl.setAttribute('aria-hidden', 'true');
+    speedEl.style.cssText = `position:fixed;inset:-6%;pointer-events:none;opacity:0;background:url(${c.toDataURL()}) center/100% 100% no-repeat;will-change:opacity,transform`;
+    const hud = document.getElementById('hud');
+    if (hud && hud.parentNode) hud.parentNode.insertBefore(speedEl, hud); else document.body.appendChild(speedEl);
+  }
+  const o = (k * 0.4).toFixed(2);
+  if (speedEl.style.opacity !== o) speedEl.style.opacity = o;
+  if (k > 0.01) {
+    // 一完歩ごとに筋が外へ流れて入れ替わる（大きさを少しずつ広げ、拍子で戻す）。左右・上下も拍子ごとに返し、同じ筋が止まって見えないように
+    const ph = (POST.speedPh || 0) % 1, n = Math.floor(POST.speedPh || 0), sc = 1 + ph * 0.08;
+    speedEl.style.transform = `scale(${((n & 1 ? -1 : 1) * sc).toFixed(3)},${((n & 2 ? -1 : 1) * sc).toFixed(3)})`;
+  }
+}
+
 // 戦を抜ける時に呼ぶ：深手・疲れで暗くなった縁を必ず消す（edgeDark は戦の絵の更新中しか呼ばれないので、評価・城下の画面に暗みが残らないように）
 export function clearEdgeDark() {
-  POST.dark = 0;
+  POST.dark = 0; POST.speed = 0;
   if (edgeEl) edgeEl.style.opacity = '0';
+  if (speedEl) speedEl.style.opacity = '0';
 }
 
 // 画面の仕上げ（画質「中」「高」）：実写の合戦映画のような画にする

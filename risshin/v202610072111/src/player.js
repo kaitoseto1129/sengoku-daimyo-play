@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { ITEMS, equipDef, ladderStep, canRide, myHorse, scenario } from './state.js';
 import { angleDiff, weaponMesh, buildHorse, animateHorse, RIDE, coatOf, bloodLv } from './units.js';
 import { distToPolyline, WIND_STATE } from './world.js';
-import { POST, edgeDark } from './post.js';
+import { POST, edgeDark, speedStreaks } from './post.js';
 import { sfx, deafen, setScene } from './audio.js';
 import { S, DIFFICULTY, K, saveSettings, reduceMotion } from './settings.js';
 import { isTouch } from './touch.js';
@@ -812,9 +812,11 @@ export class Player {
       const loss = army.trample(u, this.hspd);
       if (loss < 1) {
         this.hspd *= loss; this.rideDrive *= loss; u.vel.x *= loss; u.vel.z *= loss;
-        rt.game.hitstop = Math.max(rt.game.hitstop || 0, 0.05);
-        if (!reduceMotion()) this.pitch -= 0.02;
-        this.addShake(0.1);
+        // 当たりの重さ：一瞬止まり、首が前へ振られ、視野が詰まる
+        rt.game.hitstop = Math.max(rt.game.hitstop || 0, 0.085);
+        if (!reduceMotion()) { this.pitch -= 0.035; if (S.shake) this.fovKick = Math.min(this.fovKick || 0, -3.2); }
+        this.addShake(0.2);
+        sfx('hoofBeat', 1);
       }
       // 道が開く：馬の前（4m ほど）の兵は、ぶつかる前に左右へ身をかわして崩れる（味方も避ける。槍衾を組んだ敵は動かない）
       this.parT = (this.parT || 0) - dt;
@@ -3154,20 +3156,31 @@ export class Player {
     const vs = Math.hypot(u.vel.x, u.vel.z);
     if (vs > 1.2) { const vh = Math.atan2(u.vel.x, u.vel.z); this.travelH = this.travelH == null ? vh : this.travelH + angleDiff(this.travelH, vh) * Math.min(1, dt * 3); }
     for (const g of this.rt.squadGroups) {
+      // ついて来いの間に本人が駆ける時だけ、騎馬の組の足を本人の馬に合わせる（止まる・別の号令で元の足へ）
+      if (g.kind === 'cavalry') {
+        const boost = g.order === 'follow' && this.mounted && u.alive && Math.abs(this.hspd || 0) > 5;
+        for (const s of g.units) {
+          if (!s.mounted) { s._run0 = null; continue; }   // 落馬した者は徒歩の足のまま
+          if (s._run0 == null) s._run0 = s.run;
+          s.run = boost ? Math.max(s._run0, Math.min(12.5, Math.abs(this.hspd) + 1)) : s._run0;
+        }
+      }
       if (g.order === 'follow') {
-        const back = g.kind === 'bow' || g.kind === 'gun' ? 9.5 : g.kind === 'cavalry' ? 8 : 5.2;
+        // 馬で駆けている時の騎馬の組は、後ろと左右に詰めて一緒に駆ける（少し先を読んで置き去りにしない）
+        const escort = g.kind === 'cavalry' && this.mounted && Math.abs(this.hspd || 0) > 5;
+        const back = g.kind === 'bow' || g.kind === 'gun' ? 9.5 : g.kind === 'cavalry' ? (escort ? 4.2 : 8) : 5.2;
         // 組の行き先は「歩いてきた向き」の後ろ（敵へ振り向くたびに組が反対側へ走り回らないように）。止まっている間は動かさない
         const h = this.travelH ?? u.heading;
         const want = g._followPoint || (g._followPoint = { x: 0, z: 0 });
-        want.x = u.pos.x - Math.sin(h) * back; want.z = u.pos.z - Math.cos(h) * back;
+        want.x = u.pos.x - Math.sin(h) * back + (escort ? u.vel.x * 0.5 : 0); want.z = u.pos.z - Math.cos(h) * back + (escort ? u.vel.z * 0.5 : 0);
         // 戦っている間（突いた後も含む）は組を揺らさないが、7m より離れたら 3m まで寄せきる（その間で止まって置き去りにならないように）
         //   目の前に敵がいないのに突いているだけなら、戦っていないとみなす
         const fight = this.inCombatT > 0 && !!this.rt.army.nearestEnemy(u, 8);
         const far = Math.hypot(want.x - g.anchor.x, want.z - g.anchor.z);
         if (far > 7) g._catchUp = true; else if (far < 3) g._catchUp = false;
         if (!fight || g._catchUp) {
-          g.anchor.x += (want.x - g.anchor.x) * Math.min(1, dt * 2.5);
-          g.anchor.z += (want.z - g.anchor.z) * Math.min(1, dt * 2.5);
+          g.anchor.x += (want.x - g.anchor.x) * Math.min(1, dt * (escort ? 5 : 2.5));
+          g.anchor.z += (want.z - g.anchor.z) * Math.min(1, dt * (escort ? 5 : 2.5));
         }
         // 隊の正面は進む向きに。戦っている間は向きを保つ（横陣が振り向くたびに回らない）
         if (!fight) g.facing += angleDiff(g.facing, h) * Math.min(1, dt * 2);
@@ -3605,6 +3618,13 @@ export class Player {
       }
     }
     edgeDark(this.rt.game && this.rt.game.paused ? 0 : dt);
+    // 襲歩の流れ：駆けるほど画面の外寄りに風と土埃の筋（一人称・動きを減らす設定・画面の揺れを切った時は出さない）
+    { const hs = this.mounted && u.alive ? Math.abs(this.hspd || 0) : 0, q = Math.max(0, Math.min(1, (hs - 7.5) / 4));
+      POST.speed = reduceMotion() || !S.shake || (this.fpK || 0) > 0.5 || (this.rt.game && this.rt.game.paused) ? 0 : (POST.speed || 0) + (q * q - (POST.speed || 0)) * Math.min(1, dt * 3);
+      POST.speedPh = this.gaitPh || 0; speedStreaks(); }
+    // 駆ける間は左の札を薄く（深手・号令を開いている時は薄くしない）
+    { const gal = this.mounted && u.alive && Math.abs(this.hspd || 0) > 8 && u.hp > u.maxHp * 0.35 && !this.cmdOpen && !this.radial, hud = this.rt.hud && this.rt.hud.root;
+      if (hud && (this.galHud === undefined || gal !== this.galHud)) { this.galHud = gal; hud.classList.toggle('gallop', gal); } }
     this.senseWar(dt);
     // 世界の側（手前の雨筋など）が視点の場所を知れるように
     if (this.rt.world) {
@@ -3632,6 +3652,14 @@ export class Player {
     const running = Math.hypot(u.vel.x, u.vel.z) > 5;
     const fight = this.inCombatT > 0 || this.lock;
     const hsp = Math.abs(this.hspd || 0), gallop = this.mounted && hsp > 9;
+    // 馬上の寄り：乗ると低く寄り、乗り手の背と馬の首が手前に大きく入る（駆けるほど低く近く）。戦う・狙う・号令・味方に囲まれた時は引いて周りを見せる
+    {
+      const busy = fight || this.aiming || this.lock || this.cmdOpen || this.radial || this.overHold;
+      const g0 = Math.max(0, Math.min(1, (hsp - 4) / 6));
+      const goal = this.mounted && u.alive && !busy ? (0.45 + 0.55 * g0 * g0 * (3 - 2 * g0)) * (1 - Math.min(1, (this.crowd || 0) / 8)) : 0;
+      this.rideClose = (this.rideClose || 0) + (goal - (this.rideClose || 0)) * Math.min(1, dt * (goal > (this.rideClose || 0) ? 1.2 : 2.5));
+    }
+    const rc = this.rideClose || 0;
     // 乱戦：近くの敵を数え、見やすい角度へカメラだけ少し回す（体の向き・狙いの向きは変えない。自分で視点を動かした直後は回さない）
     this.frameT = (this.frameT || 0) - dt;
     if (this.frameT <= 0) {
@@ -3720,7 +3748,7 @@ export class Player {
     this.smokeK = (this.smokeK || 0) + (smoke - (this.smokeK || 0)) * Math.min(1, dt * 0.8);
     // 騎乗して味方に囲まれている時（鹿垣の段など）は、馬の首・鞍で前が塞がらないよう、もう少し引く
     const mountCrowd = this.mounted ? Math.min(1.1, (this.crowd || 0) / 6) : 0;
-    const dist = Math.max(2.2, (base + this.zoom + range + (this.mounted ? 2.8 + mountCrowd * 1.4 : 0)) * (1 - this.smokeK * 0.18)) + pull * 7 + this.marchK * 2.5 + wk * 9 + ok * overH * 0.7 + ((rt0.holdPct || 0) > 0 ? 1.5 : 0) + dk * 2.5 + ((rt0.def && rt0.def.camPull) || 0);   // 戦ごとの引き（塀・暗い林で前が塞がる戦。B099・B112）   // 長押し（首取りなど）の間は少し引いて周りを見せる
+    const dist = Math.max(2.2, (base + this.zoom + range + (this.mounted ? 2.8 - rc * 6.4 + mountCrowd * 1.4 : 0)) * (1 - this.smokeK * 0.18)) + pull * 7 + this.marchK * 2.5 * (1 - rc * 0.85) + wk * 9 + ok * overH * 0.7 + ((rt0.holdPct || 0) > 0 ? 1.5 : 0) + dk * 2.5 + ((rt0.def && rt0.def.camPull) || 0);   // 戦ごとの引き（塀・暗い林で前が塞がる戦。B099・B112）   // 長押し（首取りなど）の間は少し引いて周りを見せる
     // 天守・櫓・御殿の中（naka.js）：狭い部屋なので肩越しに寄る
     const inRoom = !!NAKA.cur;
     const distR = inRoom ? Math.min(dist, 2.3) : dist;
@@ -3734,7 +3762,7 @@ export class Player {
       this.wallFlip = probe(this.shoulder) && !probe(-this.shoulder) ? -1 : 1;
     }
     this.shK = (this.shK ?? 1) + ((this.wallFlip || 1) - (this.shK ?? 1)) * Math.min(1, dt * 4);
-    const side = (this.sideK * this.shoulder + pull * 4 * this.shoulder) * this.shK;
+    const side = (this.sideK * this.shoulder + rc * (innerHeight < 500 ? 0.2 : 0.6) * this.shoulder + pull * 4 * this.shoulder) * this.shK;
     const want = _cW.copy(target).addScaledVector(dir, -this.camDist).addScaledVector(right, side);
     // 組を率いているときは少し高い位置から見下ろす（部下で視界が塞がらないように）
     // 味方に囲まれて密集しているときは、少し高くから見る
@@ -3743,7 +3771,7 @@ export class Player {
     // 持ち上げは小さく（見下ろしの絵にしない。前の味方は allyFade で透かす）。馬上は馬の首を越えて前が見える高さに
     // 騎乗中は囲まれるほど、さらに高く引く（自分の馬のたてがみ・鞍で前が塞がらないように）
     this.crowdLift = (this.crowdLift || 0) + ((this.crowd > 5 ? (this.mounted ? 0.55 : 0.3) : 0) - (this.crowdLift || 0)) * Math.min(1, dt * 2);
-    want.y += (this.rt.squad.length ? 0.35 : 0.15) - pull * 0.7 + this.crowdLift + (this.mounted ? 1.3 : 0) + this.marchK * 1.0 + wk * 6 + ok * overH + dk * 4;
+    want.y += (this.rt.squad.length ? 0.35 : 0.15) - pull * 0.7 + this.crowdLift + (this.mounted ? 1.3 - rc * 2 : 0) + this.marchK * 1.0 * (1 - rc * 0.85) + wk * 6 + ok * overH + dk * 4;
     let terrainBlocked = !inRoom && terrainCameraClamp(this.rt.world, target, want, true);
     if (inRoom) want.y = Math.max(want.y, u.pos.y + 0.5);
     // 建物・柵・櫓がカメラと自分の間にあれば、その手前まで寄せる

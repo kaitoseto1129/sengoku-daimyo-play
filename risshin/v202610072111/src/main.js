@@ -21,8 +21,10 @@ import { S, QUALITY, saveSettings, canonical, K, reduceMotion } from './settings
 import { glossaryDialog, setGlossaryBeforeOpen } from './glossary.js';
 import { titleScene } from './preview.js';
 import { realmAfter } from './realm.js';
+import { hyojoScreen, shitakuScreen, hyojoOn } from './hyojo.js';
 import { keraiPrepareHtml } from './retainers.js';
 import { BATTLE_IDS } from './battle_ids.js';
+import { isLocked, showPaywall } from './paywall.js';
 import { ADDITIONAL_TIPS, pickTip } from './tips.js';
 import { loadWeapons, UNIT_NIGHT, UNIT_NIGHT_FOCUS } from './units_model.js';
 // 題では戦の名前だけ登録する。中身と素材は出陣する時に読む。
@@ -185,6 +187,7 @@ import { lordGame, lordDef, lordOf, applyLord, lordFrame, LORD_BATTLES, lordList
 import { toggleGunbai, gunbaiFrame, isGunbaiOpen, setGunbaiHooks } from './gunbai.js';
 import { toggleRts, isRtsOn, rtsAvailable, initRtsInput } from './rts.js';
 import { gungiAvailable, openGungi, closeGungi } from './gungi.js';   // 軍議の画面（砦の版）。def.gungi のある戦の始めにだけ挟む（F6）
+import { initMetrics } from './metrics.js';   // 遊びの数字（GA4。GA_ID が空なら送らない）
 import { initCount } from './count.js';   // 数え（github.io の時だけ GoatCounter へ送る）
 
 const $ = (id) => document.getElementById(id);
@@ -916,7 +919,7 @@ STORY_BY.oda = {
     "丸根・鷲津の砦が落ちた後、信長は今川の本陣へ向かった。主人公の持ち場と組の働きは、遊びのための補い。",
   ], button: "組の持ち場へ進む" }),
   moribe: () => ({ battleId: 'moribe', compact: true, boss: '織田方の上役', year: "永禄四年（1561）五月　美濃・森部", title: "森部", text: [
-    "織田信長が美濃へ進み、斎藤龍興の兵と森部でぶつかる。あなたは川を渡った織田の槍組を率いる。畦で組をそろえ、法螺貝が鳴ったら前備に続け。先手を押し、本隊と槍を合わせる。長井・日比野の両隊を崩し、退く敵を見届けて組を集めれば勝ち。東の川と低い畦で道が狭まる。",
+    "織田信長が美濃へ進み、斎藤龍興の兵と森部でぶつかる。あなたは五人の槍組を率いる。雨の楡俣川を腿までつかって渡り、向こう岸の畦で組をそろえよ。法螺貝が鳴ったら前備に続いて斎藤の先手を押し、長い槍の押し合いを支える。長井・日比野の旗本へ攻め入り、退く敵を見届けて組を集めれば勝ち。",
     "信長公記は雨中の楡俣川渡河と長い槍戦、長井・日比野らの討死を伝える。細かな布陣や浅瀬は遊びの補い。",
   ], button: "森部へ出陣する" }),
   sunomata: () => ({ battleId: 'sunomata', compact: true, year: "永禄九年（1566）九月の伝承　美濃・墨俣", title: "墨俣築城防衛", text: [
@@ -1037,7 +1040,7 @@ STORY_BY.oda = {
   ], button: "夜明けの京へ進む" }),
 };
 TIPS_BATTLE_BY.oda = {
-  okehazama: TIPS_BATTLE_BY.okehazama[0], moribe: '畦で組をそろえ、法螺貝で前備に続け。長井・日比野の備を崩し、集結の旗へ戻れ', sunomata: '柵を直し、材木を南門へ運べ。北・西・川岸の持ち場を守り、砦の完成まで耐えよ',
+  okehazama: TIPS_BATTLE_BY.okehazama[0], moribe: '楡俣川を渡って畦で組をそろえ、法螺貝で前備に続け。長井・日比野の旗本を崩し、集結の旗へ戻れ', sunomata: '柵を直し、材木を南門へ運べ。北・西・川岸の持ち場を守り、砦の完成まで耐えよ',
   kanegasaki: TIPS_BATTLE_BY.nobunaga_hoi[0], anegawa: TIPS_BATTLE_BY.nobunaga_hoi[1], hieizan: TIPS_BATTLE_BY.nobunaga_hoi[2],
   inabayama: '印の家にだけ火を放て。手向かわぬ町の者は討つな。打って出た斎藤勢を退けたら、藤吉郎について搦手を登れ',
   mitsukuri: 'まず三の郭を取れ。日が暮れたら松明を灯し、木戸を破る組を守れ。仲間と二の丸、本丸へ進め',
@@ -1133,6 +1136,8 @@ const game = {
   },
 
   story(i) {
+    // 完全版の鍵：4戦目から先は、買うまで札を出す（paywall.js）
+    if (isLocked(i)) { $('pause').hidden = true; this.paused = true; return showPaywall(() => this.story(i), () => this.base()); }
     // やり直しでも、前の戦の一時停止札を出陣札の上へ残さない。
     $('pause').hidden = true;
     this.paused = true;
@@ -1159,6 +1164,7 @@ const game = {
   },
 
   startBattle(i) {
+    if (isLocked(i)) return showPaywall(() => this.startBattle(i), () => this.base());
     this.bg = null;
     this.inTown = false;
     townMusic(false);
@@ -1529,9 +1535,11 @@ const game = {
     playMusic(r.promoted ? 'promote' : r.mainDone ? 'victory' : 'defeat', { delay: 1 });
     // 主君の前で手柄を読み上げてから、昇進と評定へ進む。
     const showResult = () => {
+      // 段2の一歩目：昇進の後に「手柄の評定」で褒美を一つ選ぶ（hyojo.js）
+      const reward = () => (r.mainDone && hyojoOn(G) && BATTLES[i].id !== 'honnoji' && i < BATTLES.length - 1 ? hyojoScreen(G, r, show, save) : show());
       const afterAward = () => {
-        if (r.promoted && !G.lord) promoScreen(gBefore, G, r, show);
-        else show();
+        if (r.promoted && !G.lord) promoScreen(gBefore, G, r, reward);
+        else reward();
       };
       if (r.mainDone && !G.practice && !G.lord && !r.taishoLost && BATTLES[i].id !== 'honnoji') ronkoScreen(G, r, afterAward);
       else afterAward();
@@ -1647,7 +1655,12 @@ const game = {
   },
 
   // 二度目からは城下の出陣一押し。前は物語・地図・開戦を足して四押し。
-  nextBattle() { this.startBattle(this.G.battle); },
+  // 出陣の前に「支度」を一つ整える（hyojo.js）。信長・試しは今のまま一押し
+  nextBattle() {
+    const G = this.G;
+    if (!hyojoOn(G) || G.battle >= BATTLES.length) return this.startBattle(G.battle);
+    shitakuScreen(G, () => { save(G); this.startBattle(G.battle); }, () => this.base());
+  },
 
   // 出世の道：いまの枠の身分で見る。段を選んで稽古場で試せる
   ladder(from = 'title') {
@@ -1832,6 +1845,7 @@ const game = {
 window.__game = game;
 // 開発用：今の視点で一コマ描く（撮影の道具が使う。fresh なら目の慣れをやり直す）
 game.drawNow = (fresh, scene) => { if (fresh && adaptPass) adaptPass.fresh = true; const sc = scene || (game.battle && game.battle.scene); if (sc) draw(sc); };
+try { initMetrics(game); } catch (e) { /* 記録が動かなくても遊べる */ }
 try { initCount(game); } catch (e) { /* 数えが動かなくても遊べる */ }
 game.renderer = renderer;   // 開発用（描画の重さを計る）
 // 城下から設定を開く（995）。閉じたら back へ

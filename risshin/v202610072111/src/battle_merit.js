@@ -72,7 +72,7 @@ export function meritKill(rt, foe, src) {
     rt.bark('袋に納めた。討ち取りの証になる');
     if (rt.def.onHead) rt.def.onHead(rt, foe);
   }, { r: 2.6, hold: 3 });
-  if (!record.witnesses.length) rt.bark('証がない。近くで首を袋に納めよ');
+  if (!record.witnesses.length && !rt.def.uchisute) rt.bark('証がない。近くで首を袋に納めよ');
 }
 
 export function finishMerit(rt, info) {

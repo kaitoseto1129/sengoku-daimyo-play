@@ -74,7 +74,8 @@ export function allyOrdersTick(rt, dt) {
     if (at >= 0) mapRows.splice(at, 1);
     mapRows.unshift(focus); if (mapRows.length > 3) mapRows.length = 3;
   }
-  if ((rt.allyOrdersSayT ?? -99) + 8 > rt.t || rt.choice || rt.pendingChoice || rt.prelude && rt.prelude !== 'done') return;
+  // 戦の定義が allyReports: false（または noAllyReports）の時は、使番の様子の知らせを出さない（小地図の並びは保つ）。
+  if (rt.def.allyReports === false || rt.def.noAllyReports || (rt.allyOrdersSayT ?? -99) + 8 > rt.t || rt.choice || rt.pendingChoice || rt.prelude && rt.prelude !== 'done') return;
   for (const row of rows) {
     if (!row.active || row.action === row.announced || row.runner) continue;
     row.announced = row.action; rt.allyOrdersSayT = rt.t;

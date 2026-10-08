@@ -143,7 +143,7 @@ html.touch:not(.tc-cmd) #hud.lean #h-units { display: none; }
 #tc .tb .name, #tc .tb small { background: #14120f; border-radius: 4px; padding: 2px; position: relative; z-index: 1; }
 #tc .tb small { display: block; font-size: 12px; font-weight: 500; color: #f3d98a; margin-top: 2px; }
 /* 丸の下の小さな字は一行に収める（丸の外へはみ出さない）。「…ほか」の字も 12px より小さくしない */
-#tc .tb small { max-width: calc(100% - 6px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#tc .tb small { max-width: calc(100% - 6px); white-space: normal; line-height: 1.15; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }   /* 丸の添え書きは二行まで折り返し、「…」で切らない */
 #tc .tb.tech small { color: #fff; font-weight: 700; white-space: pre-line; line-height: 1.2; }
 html.touch #tc [data-b="more"] small { font-size: 12px; }
 #tc .tb.sel { border-color: #f0c070; box-shadow: 0 0 0 2px rgba(240,192,112,.5), 0 2px 8px rgba(0,0,0,.35); }

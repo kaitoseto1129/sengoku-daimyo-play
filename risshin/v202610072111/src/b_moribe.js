@@ -22,10 +22,16 @@ const FIELD2 = 800;
 const CAMP2 = { x: 0, z: 700 };
 const NAGARA2 = 500;
 const ROAD2 = [[-40, FIELD2], [-40, 176], [-28, 100], [-14, 40], [-6, -40], [4, -176], [4, -FIELD2]];
-const POINT2 = { x: 40, z: 10 };
-const FRONT2 = { x: -8, z: -18 };
-const ASSEMBLY2 = { x: 24, z: 30 };
-const YAKUSHI2 = { x: ASSEMBLY2.x + 20, z: ASSEMBLY2.z + 8 };
+// 楡俣川（南の支流）の南岸から始め、腿までの流れを渡って北岸の畦で組をそろえる。
+const NIREMATA2 = 88;
+// 楡俣川の流れの中ほどの z（下の streams の折れ線と同じ形）。
+const nireZ = (x) => x < -70 ? NIREMATA2 + 2 * Math.min(1, (-70 - x) / 730) : x < 46 ? NIREMATA2 : NIREMATA2 + 6 * Math.min(1, (x - 46) / 454);
+const START2 = { x: 40, z: 114 };
+const POINT2 = { x: 40, z: 64 };
+const FRONT2 = { x: 4, z: 20 };
+const ASSEMBLY2 = { x: 14, z: 10 };
+const RETREAT2 = { x: 24, z: 48 };
+const YAKUSHI2 = { x: 66, z: 46 };
 const LINE2 = -58;
 // 深手で戦列を離れた兵だけの備えは、討ち残しや帰着待ちに数えない。
 const gone = (g) => groupGone(g) || !g.units.some((u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget);
@@ -39,19 +45,19 @@ function fightingCenter(g) {
   c.x = n ? x / n : g.anchor.x; c.z = n ? z / n : g.anchor.z;
   return c;
 }
-// 既存の本備の侍が上役。声の届かない所へは共通の本物の使番で運ぶ。
+// 上役は組頭の源八（柴田の前備）。雨の中でも三十歩ほどは怒鳴り声が届く。その外へは共通の本物の使番で運ぶ。
 function orderSpeech(rt, text, dur = 4) {
   const from = rt.flags.moribeOfficer;
   if (rt.over || !from?.alive || from.gone || from.fleeing || from.woundOut || from.noTarget || from.group?.routed) return;
   const stage = rt.flags.stage, ending = rt.flags.ending;
-  if (Math.hypot(from.pos.x - rt.player.u.pos.x, from.pos.z - rt.player.u.pos.z) <= 12 && sightPoint(rt, from.pos)) {
-    rt.say('足軽大将', text, dur);
+  if (Math.hypot(from.pos.x - rt.player.u.pos.x, from.pos.z - rt.player.u.pos.z) <= 30 && sightPoint(rt, from.pos)) {
+    rt.say('組頭 源八', text, dur);   // 声の届く所で怒鳴る。名札は城下と同じ「組頭 源八」
     return;
   }
   sendOrder(rt, from, rt.player.u, { id: 'word', apply: () => {
     // 遅れて届いた前の段の下知で、今の任務を覆さない。
     if (!rt.over && rt.flags.stage === stage && rt.flags.ending === ending)
-      rt.say('使番', `足軽大将より。「${text}」`, dur);
+      rt.say('使番', `源八殿より。「${text}」`, dur);
   } }, { team: 0, faction: 'oda', name: '自分の槍組' });
 }
 
@@ -90,7 +96,8 @@ const moribe = {
   noWake: true,   // 予告のない新手を増やさず、開戦時に置いた控えを前へ出す。
   lordHata: { spear: 36 },   // 信長で遊ぶ時も槍の供にし、兵の枠を守る。
   noTaisho: true,   // 両将を討っても一瞬で終わらず、戦場を固める。
-  spawn: { x: POINT2.x + 4, z: POINT2.z + 4, heading: Math.PI },
+  allyReports: false,   // 味方の様子は源八の怒鳴り声と旗で伝える。小地図の番号の読み上げは出さない。
+  spawn: { x: START2.x, z: START2.z, heading: Math.PI },
   // 信長で遊ぶ時は前へ出た所から始め、後方からの長い行軍で任務を止めない。
   lordSpawn: { x: POINT2.x + 4, z: POINT2.z + 4, heading: Math.PI },
   lordAt: { x: POINT2.x, z: POINT2.z, r: 24, why: '渡河後の槍組のそば（前へ出た位置は復元）' },
@@ -105,22 +112,26 @@ const moribe = {
     playerMeleeFloor: 1 / 3,   // 無名の足軽は、三歩以内で三度当てれば倒れる。
     muddy: 0.5,
     waterSlow: true,
-    riverCross: true,   // 深い長良川を徒歩で素通りしない。南の支流は膝ほどの深さで渡る。
+    riverCross: true,   // 深い長良川を徒歩で素通りしない。南の楡俣川は腿ほどの深さで渡る。
     paths: [ROAD2],
     height(x, z) {
       const b = 1.4 * Math.sin(x * 0.03) * Math.cos(z * 0.025) + 0.9 * Math.sin(x * 0.07 + z * 0.05) + 1.2 * gauss(x, z, 130, 60, 3000) + 1 * gauss(x, z, -130, -90, 3200) + 2 * gauss(x, z, 58, -8, 300) + 0.9 * Math.exp(-((x - NAGARA2) ** 2) / 1500) + 0.7 * Math.exp(-((x + 70) ** 2) / 50);   // 自然堤防（川筋の微高地）
-      return moribeHeight(x, z, b);
+      // 楡俣川の両岸に低い土手（自然堤防）。田の水と川面を分け、川筋として読めるようにする。
+      const dz = Math.abs(z - nireZ(x));
+      return moribeHeight(x, z, b) + (x < NAGARA2 - 40 ? 0.8 * Math.exp(-((dz - 8) ** 2) / 4) : 0);
     },
     tint(x, z, h, c) {
       // 田の畦
       if (Math.abs(x) < 120 && (Math.floor(x / 22) + Math.floor(z / 18)) % 3 === 0 && Math.abs(x - 50) > 18) c.setRGB(c.r * 0.9 + 0.03, c.g * 0.95 + 0.02, c.b * 0.8);
       if (z < LINE2 && z > LINE2 - 1.5 && Math.abs(x) < 110) c.setRGB(0.38, 0.33, 0.22);
+      // 川べりの泥と踏み跡：水ぎわから土手の上まで濃い土の色
+      { const dz = Math.abs(z - nireZ(x)); if (dz > 4.5 && dz < 11 && x < NAGARA2 - 40) { const k = 1 - Math.abs(dz - 7.5) / 3.5; c.setRGB(c.r + (0.33 - c.r) * k, c.g + (0.29 - c.g) * k, c.b + (0.2 - c.b) * k); } }
     },
-    clear: (x, z) => (Math.abs(x) < 42 && Math.abs(z) < 100) || Math.hypot(x - 45, z - 70) < 12 || Math.hypot(x + 126, z + 30) < 34,
+    clear: (x, z) => (Math.abs(x) < 42 && z > -100 && z < 130) || Math.hypot(x - 52, z - 112) < 22 || Math.hypot(x - 45, z - 70) < 12 || Math.hypot(x + 126, z + 30) < 34,
     // 五月の田：水を張り、苗を植えたばかり（畦を残す）
     fieldStage: 'seedling',   // 稲の育ちと水の有無を合わせる（細かな収穫時期は推定）
     paddy(x, z) {
-      if (Math.abs(x) > 120 || Math.abs(x - 50) < 18) return 0;
+      if (Math.abs(x) > 120 || Math.abs(x - 50) < 18 || Math.abs(z - nireZ(x)) < 18) return 0;   // 川べりは田にしない
       if ((Math.floor(x / 22) + Math.floor(z / 18)) % 3 !== 0) return 0;
       const ex = Math.min(((x % 22) + 22) % 22, 22 - ((x % 22) + 22) % 22), ez = Math.min(((z % 18) + 18) % 18, 18 - ((z % 18) + 18) % 18);
       if (distToPolyline(x, z, ROAD2) < 5) return 0;
@@ -128,7 +139,7 @@ const moribe = {
     },
     // 長良川は東の約五百メートル先。川幅・曲がり・楡俣川の浅瀬は復元。
     streams: [{ pts: [[NAGARA2 + 20, -FIELD2], [NAGARA2, -450], [NAGARA2 - 10, -100], [NAGARA2 + 20, 300], [NAGARA2 + 50, FIELD2]], w: 60, depth: 1.4 },
-      { pts: [[-FIELD2, 90], [-70, 88], [46, 88], [NAGARA2, 94]], w: 3.8, depth: 0.55 },
+      { pts: [[-FIELD2, NIREMATA2 + 2], [-70, NIREMATA2], [46, NIREMATA2], [NAGARA2, NIREMATA2 + 6]], w: 5.5, depth: 0.7 },   // 楡俣川：川幅十一メートル・腿までの流れ（川幅は復元。w は片側の幅）
       { pts: [[-70, -FIELD2], [-66, -40], [-74, 60], [-70, FIELD2]], w: 1.2, depth: 0.7 }],
     mist: false,   // 雨は公記にあるが、濃い霧は確定できない。
     trees: 140,
@@ -160,42 +171,63 @@ const moribe = {
       }
       return act.call(this, u, dt, near);
     };
+    // 公記の森部は織田の大勝。味方の兵（自分と組を除く）への打ち込みを少し浅くし、勝ち戦の芯が溶けないようにする。
+    const damage = rt.army.damage;
+    rt.army.damage = function (t, amount, src, ...rest) {
+      if (t && t.team === 0 && !t.isPlayer && !t.group?.isPlayerSquad && src?.team === 1) amount *= 0.7;
+      return damage.call(this, t, amount, src, ...rest);
+    };
     const n = Math.min(24, RANKS[rt.G.rank].squad || 5);
-    rt.makeSquad({ x: POINT2.x, z: POINT2.z + 7 }, Math.PI, [{ kind: 'spear', n }]);
-    rt.flags.A = allyGroup(rt, { name: '柴田の前備', fixed: true, anchor: { x: 8, z: 16 }, facing: Math.PI, aggro: 12, morale: 100, noRout: false, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 16 }, { type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true } }]);
-    rt.flags.B = allyGroup(rt, { name: '本備', fixed: true, anchor: { x: -22, z: 36 }, facing: Math.PI, aggro: 12, morale: 100, noRout: false, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 24 }, { type: 'bow', n: 2 }, { type: 'samurai', n: 2 }]);
-    // 本備の既存の侍一人を上役にする。人数・体力・生存保護は増やさない。
-    rt.flags.moribeOfficer = rt.flags.B.units.find((u) => u.type === 'samurai');
-    if (rt.flags.moribeOfficer) rt.flags.moribeOfficer.name = '足軽大将';
+    rt.makeSquad({ x: START2.x + 5, z: START2.z - 3 }, Math.PI, [{ kind: 'spear', n }]);   // 組は右前で一緒に流れへ入る
+    // 三手は楡俣川の南岸に並び、遊び手と同じ流れを渡る。柴田・本備・森の備は勝ち戦の芯なので、
+    // 兵は討たれても隊ごとの総崩れはしない（右手の小勢は崩れうる）。
+    rt.flags.A = allyGroup(rt, { name: '柴田の前備', fixed: true, anchor: { x: 32, z: 98 }, facing: Math.PI, aggro: 12, morale: 100, noRout: true, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 16 }, { type: 'samurai', n: 1, o: { name: '源八', invuln: true } }, { type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true } }]);
+    rt.flags.B = allyGroup(rt, { name: '本備', fixed: true, anchor: { x: -22, z: 116 }, facing: Math.PI, aggro: 12, morale: 100, noRout: true, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 24 }, { type: 'bow', n: 2 }, { type: 'samurai', n: 2 }]);
+    // 上役の源八は戦の後に城下で昇進を告げる。この戦では討たれない。
+    rt.flags.moribeOfficer = rt.flags.A.units.find((u) => u.name === '源八');
     // 小勢が横に広がりすぎず、槍の前線へ合流する（細かな隊の位置は復元）。
-    rt.flags.R3 = allyGroup(rt, { name: '右手の備', fixed: true, anchor: { x: 62, z: 40 }, facing: Math.PI, aggro: 10, morale: 100, noRout: false, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 12 }, { type: 'samurai', n: 1 }]);
-    rt.flags.Y = allyGroup(rt, { name: '森の横備え', fixed: true, anchor: { x: -52, z: 24 }, facing: Math.PI, aggro: 10, morale: 100, noRout: false, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 14 }, { type: 'samurai', n: 1, o: { name: '前田利家', invuln: true } }, { type: 'busho', n: 1, o: { name: '森可成', invuln: true } }]);
-    rt.flags.V = enemyGroup(rt, { faction: 'saito', name: '斎藤の先手', fixed: true, anchor: { x: 16, z: -62 }, facing: 0, fleeDir: { x: -0.2, z: -1 }, speed: 2.1, aggro: 5, noRout: false, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 16 }, { type: 'samurai', n: 2 }]);
+    rt.flags.R3 = allyGroup(rt, { name: '右手の備', fixed: true, anchor: { x: 56, z: 112 }, facing: Math.PI, aggro: 10, morale: 100, noRout: false, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 12 }, { type: 'samurai', n: 1 }]);
+    rt.flags.Y = allyGroup(rt, { name: '森の横備え', fixed: true, anchor: { x: -48, z: 108 }, facing: Math.PI, aggro: 10, morale: 100, noRout: true, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 14 }, { type: 'samurai', n: 1, o: { name: '前田利家', invuln: true } }, { type: 'busho', n: 1, o: { name: '森可成', invuln: true } }]);
+    // 斎藤の先手は北岸の畦へ寄せ、渡る織田勢へ矢を射かけてから槍で受ける（弓の数は復元）。
+    rt.flags.V = enemyGroup(rt, { faction: 'saito', name: '斎藤の先手', fixed: true, anchor: { x: 24, z: 14 }, facing: 0, fleeDir: { x: -0.2, z: -1 }, speed: 2.1, aggro: 5, noRout: false, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 26 }, { type: 'bow', n: 4 }, { type: 'samurai', n: 2 }]);
+    // 日比野下野守の備え（足立六兵衛を含む）
     rt.flags.M = enemyGroup(rt, { faction: 'saito', name: '日比野の備', fixed: true, anchor: { x: -14, z: -76 }, facing: 0, fleeDir: { x: 0, z: -1 }, aggro: 8, width: 8, noRout: false, formation: 'yari', yariRanks: 3 },
-      [{ type: 'ashigaru', n: 18 }, { type: 'samurai', n: 2 }, { type: 'samurai', n: 1, o: { name: '足立六兵衛' } }, { type: 'bow', n: 3 }, { type: 'busho', n: 1, o: { name: '日比野下野守' } }]);
+      [{ type: 'ashigaru', n: 18 }, { type: 'samurai', n: 2 }, { type: 'samurai', n: 1, o: { name: '足立六兵衛' } }, { type: 'bow', n: 3 }]);
     // 長井甲斐守の備え：日比野の西に並ぶ
     rt.flags.N = enemyGroup(rt, { faction: 'saito', name: '長井の備', fixed: true, anchor: { x: -54, z: -78 }, facing: 0, fleeDir: { x: -0.2, z: -1 }, aggro: 8, width: 7, morale: 90, noRout: false, formation: 'yari', yariRanks: 3 },
-      [{ type: 'ashigaru', n: 14 }, { type: 'samurai', n: 2 }, { type: 'bow', n: 2 }, { type: 'busho', n: 1, o: { name: '長井甲斐守' } }]);
-    for (const [x, z] of [[30, 64], [-30, 44], [0, 24]]) rt.scene.add(nobori(W, x, z, 'oda', 5));
+      [{ type: 'ashigaru', n: 14 }, { type: 'samurai', n: 2 }, { type: 'bow', n: 2 }]);
+    // 両将は備の後ろで旗本の侍に囲まれて控え、槍の押し合いの後に自ら前へ出る（位置と人数は復元）。
+    // 大将の生きている間は旗本が踏みとどまる。両将の首が勝ち戦の山場（公記：両将を含む百七十余人討死）。
+    rt.flags.HM = enemyGroup(rt, { faction: 'saito', name: '日比野下野守の旗本', fixed: true, anchor: { x: -8, z: -98 }, facing: 0, fleeDir: { x: 0, z: -1 }, aggro: 3, morale: 100, noRout: true, formation: 'yari', yariRanks: 2 },
+      [{ type: 'busho', n: 1, o: { name: '日比野下野守' } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }]);
+    rt.flags.HN = enemyGroup(rt, { faction: 'saito', name: '長井甲斐守の旗本', fixed: true, anchor: { x: -36, z: -100 }, facing: 0, fleeDir: { x: -0.2, z: -1 }, aggro: 3, morale: 100, noRout: true, formation: 'yari', yariRanks: 2 },
+      [{ type: 'busho', n: 1, o: { name: '長井甲斐守' } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }]);
+    rt.flags.HM.hatamoto = rt.flags.HN.hatamoto = true;
+    for (const [x, z] of [[30, 124], [-30, 126], [0, 120]]) rt.scene.add(nobori(W, x, z, 'oda', 5));
     for (const [x, z] of [[-20, -92], [0, -96], [-34, -90], [-60, -100], [-46, -100]]) rt.scene.add(nobori(W, x, z, 'saito', 5.5));
     rt.scene.add(hut(W, -60, 60, 6, 4, 0.3, { roof: 0x6a5c44 }));
     rt.scene.add(hut(W, -70, 70, 5, 4, -0.2, { roof: 0x6a5c44 }));
 
     W.setTime('storm'); W.setRainTarget(0.65);
     rt.setPhase('brief');
-    rt.obj('point', '渡った先の畦で、組と槍を揃えよ', 'main');
+    rt.banner('楡俣川を渡れ', '雨の中、向こう岸に斎藤の旗');
+    rt.obj('point', '楡俣川を渡り、向こう岸の畦で組をそろえよ', 'main');
     rt.obj('wait', '畦で備えをそろえ、法螺貝の合図を待て', 'main');
-    rt.marker('point', POINT2, '渡った先の畦');
+    rt.marker('point', POINT2, '向こう岸の畦');
     rt.zone('point', POINT2.x, POINT2.z, 10);
-    orderSpeech(rt, '川は渡った。畦の印で組をそろえよ。法螺貝が鳴ったら前備に続け', 6);
-    rt.after(8, () => { if (!rt.flags.signal && !rt.flags.ending) rt.bark('「ついて来い」で組を連れ、「待て」で畦に並べる'); });
+    sfx('horagai', 0.8);
+    rt.say('組頭 源八', '渡るぞ！　槍を高く掲げ、足を取られるな。向こう岸の畦で組をそろえよ', 6);   // 渡る前は隣で怒鳴る
+    rt.after(6, () => { if (!rt.flags.signal && !rt.flags.ending) rt.bark('組の者「腿まで来る……槍の穂を濡らすな」'); });
+    rt.after(10, () => { if (!rt.flags.signal && !rt.flags.ending) rt.bark('「ついて来い」で組を連れ、「待て」で畦に並べる'); });
+    // 公記：勘当の身の前田利家が、許しなく森部に加わり首を挙げた。
+    rt.after(17, () => { if (!rt.flags.ending && !rt.over) rt.bark('組の者「森様の備に前田又左衛門殿がおるぞ。勘当の身で、許しも無く駆けつけたそうな」'); });
     rt.flags.point = POINT2;
     rt.flags.friends = [rt.flags.A, rt.flags.B, rt.flags.Y, rt.flags.R3];
     // 控えは開戦時からここにいる。後の段では追加せず、持ち場から歩いて出す。
     rt.flags.reserves = [[-44, -114, '長井の控え'], [12, -138, '日比野の控え']].map(([x, z, name]) =>
       enemyGroup(rt, { faction: 'saito', name, fixed: true, anchor: { x, z }, facing: 0, formation: 'yari', yariRanks: 3,
         aggro: 6, morale: 85, fleeDir: { x: 0, z: -1 } }, [{ type: 'ashigaru', n: 12 }, { type: 'samurai', n: 2 }]));
-    rt.flags.opposition = [rt.flags.V, rt.flags.M, rt.flags.N, ...rt.flags.reserves];
+    rt.flags.opposition = [rt.flags.V, rt.flags.M, rt.flags.N, ...rt.flags.reserves, rt.flags.HM, rt.flags.HN];
     rt.flags.taskTick = 0;
     rt.flags.linePoint = { x: FRONT2.x, z: FRONT2.z };
     rt.tutStart('組への号令', [['cmd_follow', 'ついて来い'], ['cmd_hold', '待て'], ['cmd_retreat', '退け'], ['radial', '号令の輪']]);
@@ -212,6 +244,12 @@ const moribe = {
     const KO = ['spear', 'bow', 'cavalry', 'spear', 'mixed'];
     F.farO = [[-192, 580], [-100, 640], [0, 640], [-40, 500], [-260, 570]]
       .map(([x, z], i) => DA(x, z, 22, KO[i] === 'bow' ? 6 : 12, KO[i] === 'cavalry' ? 12 : 40, Math.PI, KT.ARMOR.oda, i === 2 ? 'eiraku' : 'oda', 20 + i, KO[i]));
+    // 楡俣川を同じ時に渡る織田の後続（軽い作り）。合図で前へ出る。
+    F.farX = [[-110, 96, 160], [-170, 100, 120], [120, 102, 120]]
+      .map(([x, z, n], i) => DA(x, z, 34, 10, n, Math.PI, KT.ARMOR.oda, 'oda', 40 + i, 'spear'));
+    F.farO.push(...F.farX);
+    // 濃尾の野は平らで、雨の日は遠い山並みが見えない（灰色の空に山の形の穴が開いて見えるのを防ぐ）。
+    if (W.mountains) W.mountains.visible = false;
     // 信長の本陣：陣幕の内に床几の大将と諸将、後ろに馬印と旗本
     F.odaCamp = camp(rt, { x: CAMP2.x, z: CAMP2.z, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', general: { name: '織田信長', haori: 0x7a1d14 }, guard: 15, reserve: 0, runTo: { x: -20, z: 60 } });
     // 陣幕の口と向きが逆でも、実兵の旗本は敵の来る北側を守る。
@@ -229,20 +267,21 @@ const moribe = {
       A: { flag: 'oda', armor: KT.ARMOR.oda, count: 100, kind: 'spear', team: 0, faction: 'oda' },
       B: { flag: 'saito', armor: KT.ARMOR.saito, count: 400, kind: 'spear', team: 1, faction: 'saito' } }));
     // 重複する後方軍勢は足さない。備え表の控えは上の遠景と開戦時の実兵へ結ぶ。
-    rt.after(8, () => {
+    rt.after(4, () => {
       const V = rt.flags.V;
       if (gone(V)) return;
-      V.speed = 2.1;   // 雨の畦を先手が寄せてくる。
-      V.order = 'move'; V.dest = { x: 14, z: -4 };
-      V.onArrive = (g) => { rt.flags.vArrived = rt.t; g.order = 'attack'; g.seekRange = 18; g.anchor = { x: 14, z: -4 }; };
-      if (sightPoint(rt, V.center())) rt.say('足軽', '敵の先手が出てきたぞ！', 3);
+      V.speed = 2.1;   // 雨の畦を先手が北岸へ寄せてくる。
+      V.order = 'move'; V.dest = { x: 26, z: 40 };
+      V.onArrive = (g) => { rt.flags.vArrived = rt.t; g.order = 'attack'; g.seekRange = 18; g.anchor = { x: 26, z: 40 }; };
+      if (!rt.flags.signal) rt.marker('V', centerOf(V), '斎藤の先手', { red: true, group: V });
+      rt.say('足軽', '向こう岸に斎藤の先手！　岸へ寄せてくるぞ！', 3);
     });
     buildBattleJin(rt);
     // 備え表の結び直しで弓混じりの横陣に戻っても、三列の槍組を保つ。
     for (const g of [...F.friends, ...F.opposition]) { g.formation = 'yari'; g.yariRanks = 3; }
     for (const g of rt.squadGroups) { g.formation = 'yari'; g.yariRanks = 2; }
-    // 渡河を終えた三手の近くから始める。川筋と敵の布陣は残す。
-    for (const [g, x, z] of [[F.A, 8, 12], [F.B, -22, 34], [F.Y, -52, 22], [F.R3, 62, 40]]) {
+    // 三手も遊び手と並んで楡俣川を渡り、北岸の畦に槍をそろえる。
+    for (const [g, x, z] of [[F.A, 20, 60], [F.B, -22, 70], [F.Y, -40, 60], [F.R3, 64, 66]]) {
       g.leader = g.units.find((u) => u.type === 'busho') || g.units.find((u) => u.type === 'samurai');
       g.order = 'move'; g.dest = { x, z }; g.speed = 2;
       g.onArrive = (u) => { u.order = 'hold'; };
@@ -260,7 +299,7 @@ const moribe = {
     F.lastTask = rt.t; F.taskTick = 1;
     if (!F.breathUsed && F.signal && rt.player.u.hp > 0 && rt.player.u.hp < 30 && rt.G.difficulty !== 'hard') {
       F.breathUsed = true; F.breathUntil = rt.t + 12;
-      rt.marker('retreatRoad', ASSEMBLY2, '退く道・南の畦へ');
+      rt.marker('retreatRoad', RETREAT2, '退く道・南の畦へ');
       rt.bark('仲間が槍で敵を止めた。今のうちに、南の畦へ下がれ', true);
     }
     // 使番の足を速めず、まだ前の下知を守っている理由を伝える。
@@ -339,7 +378,7 @@ const moribe = {
       }
       if (!F.fordNudge && rt.t > 20 && !F.pointDone) { F.fordNudge = true; orderSpeech(rt, 'すぐそこの畦の印へ寄れ。組と槍をそろえるのじゃ', 4); }
       rt.objProgress('wait', F.pointDone ? '槍はそろった。前備が動く合図を待て' : '畦で組をそろえ、法螺貝を待て');
-      if ((rt.t >= 12 && F.pointDone) || rt.t >= 35) this.signal(rt);
+      if ((rt.t >= 12 && F.pointDone) || rt.t >= 45) this.signal(rt);
       return;
     }
     this.feedReserves(rt);
@@ -361,7 +400,7 @@ const moribe = {
         }, () => F.lineAwarded ? '本備の旗・支えた列を保て' : '本備の旗・控えに備えよ', { group: F.B });
         rt.marker('line', () => F.linePoint, () => F.lineT >= 40 ? '本備の横・列を支えた。控えに備えよ' : '本備の横・列を支えよ'); rt.zone('line', F.linePoint.x, F.linePoint.z, 24);
         orderSpeech(rt, '本備の横で槍をそろえよ。槍列の前へ一人で出るな。侍が踏み込んだら構え、列の後ろへ下がれ！', 5);
-        for (const g of [F.M, F.N]) if (!gone(g)) { g.noRout = false; if (g.order !== 'move') g.order = 'attack'; g.seekRange = 30; }
+        for (const g of [F.M, F.N]) if (!gone(g)) { if (g.order !== 'move') g.order = 'attack'; g.seekRange = 30; }
       }
     } else if (F.stage === 'hold') {
       const el = rt.t - F.holdStart;
@@ -378,20 +417,58 @@ const moribe = {
         else rt.objFail('line');
         rt.objRemove('line'); rt.unmark('line'); rt.unmark('lineFlag'); rt.unzone('line');
         F.stage = 'press'; F.pressStart = rt.t; rt.setPhase('press');
-        rt.banner(enemyBroken ? '敵が退いた' : '敵の備を崩せ', enemyBroken ? '深追いせず、列を保て' : '長井と日比野の旗へ');
-        rt.obj('commanders', enemyBroken ? '深追いせず、敵の旗が退くのを見届けよ' : '味方と進み、長井と日比野の槍の列を崩せ。大将へ一人で走るな', 'main');
-        orderSpeech(rt, enemyBroken ? '敵は退いた。組を離すな。残る旗を見届けよ' : '味方と並んで進め！　敵が引けば押し、寄せれば槍で支えよ！', 5);
+        rt.banner(enemyBroken ? '敵が退いた' : '大将の旗本へ', enemyBroken ? '深追いせず、列を保て' : '長井甲斐守・日比野下野守の旗が、雨の向こうに残る');
+        rt.obj('commanders', enemyBroken ? '深追いせず、敵の旗が退くのを見届けよ' : '味方と進み、長井と日比野の旗本を崩せ。大将へ一人で走るな', 'main');
+        orderSpeech(rt, enemyBroken ? '敵は退いた。組を離すな。残る旗を見届けよ' : '見よ、長井と日比野が自ら出てきおった！　味方と並んで旗本を囲め。一人で大将へ走るな！', 5);
+        if (!enemyBroken) {
+          // 長い押し合いで両将も手負い。旗本に守られても、囲めば討てる。
+          for (const g of [F.HM, F.HN]) if (!gone(g)) {
+            g.speed = 2.2; g.seekRange = 35;
+            for (const u of g.units) if (u.type === 'busho' && u.alive) u.hp = Math.min(u.hp, u.maxHp * 0.5);
+            // 大将の後ろに控えていた後備が雨の中から続き、大将の周りが入り乱れる（見える兵は250まで）。
+            const live = rt.army.units.reduce((n, u) => n + (u.alive ? 1 : 0), 0);
+            if (live < 210) {
+              const c = g.center();
+              g.rear = enemyGroup(rt, { faction: 'saito', name: g === F.HM ? '日比野の後備' : '長井の後備', fixed: true,
+                anchor: { x: c.x + (g === F.HM ? 8 : -8), z: c.z - 26 }, facing: 0, fleeDir: { x: 0, z: -1 }, aggro: 8, morale: 90, noRout: true, formation: 'yari', yariRanks: 2 },
+              [{ type: 'ashigaru', n: 14 }, { type: 'samurai', n: 2 }]);
+              g.rear.speed = 2.3;
+              F.opposition.push(g.rear);
+            }
+          }
+          battleEvent(rt, EVENT_COMMANDER_ADVANCE, F.HM.anchor, F.HM, 1, true, '長井甲斐守・日比野下野守が、旗本を率いて自ら前へ出た');
+          // 柴田の二の備が後ろから追いつき、自分の左右で大将の旗本へ槍を入れる。
+          if (rt.army.units.reduce((n, u) => n + (u.alive ? 1 : 0), 0) < 215) {
+            const p = rt.player.u.pos;
+            const g2 = allyGroup(rt, { name: '柴田の二の備', fixed: true, anchor: { x: p.x + 6, z: p.z + 22 }, facing: Math.PI, aggro: 12, morale: 100, noRout: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 2 },
+              [{ type: 'ashigaru', n: 16 }, { type: 'samurai', n: 2 }]);
+            g2.order = 'attack'; g2.seekRange = 45; g2.speed = 2.4;
+            F.friends.push(g2);
+          }
+        }
         for (const g of F.friends) if (!gone(g)) { g.calm = false; g.order = 'attack'; g.seekRange = 35; }
       }
     } else if (F.stage === 'press') {
       this.advanceFriends(rt);
+      // 大将が長く討たれぬ時は、乱戦の別の所で織田の兵に討たれる（公記どおり両将とも討死。戦が終わらない事も防ぐ）。
+      // 一人ずつ（七十五秒と百秒）。同じ瞬間に二つの見出しを重ねない。
+      const fall = rt.t - F.pressStart >= 100 ? 2 : rt.t - F.pressStart >= 75 ? 1 : 0;
+      if ((F.bossDown || 0) < fall && !(F.bossFallAt > rt.t)) {
+        const u = F.HM.units.find((x) => x.type === 'busho' && x.alive) || F.HN.units.find((x) => x.type === 'busho' && x.alive);
+        if (u) { F.bossFallAt = rt.t + 5; rt.army.kill(u, null); }
+      }
+      if (!F.standDown && fall >= 2) { F.standDown = true; for (const g of F.opposition) g.noRout = false; }
       // 総大将の討死・側面攻撃・逃亡の連鎖は共通の士気の仕組みに任せる。
       let left = 0, target = null;
       for (const g of F.opposition) if (!gone(g)) { left++; if (!target) target = g; }
-      rt.objProgress('commanders', F.breathUntil > rt.t ? '敵の足が止まっている。退く道の札へ下がれ' : left ? '前の味方に続き、残る敵の備を押せ' : '敵の備は崩れた。追わず、集結の下知を待て');
+      rt.objProgress('commanders', F.breathUntil > rt.t ? '敵の足が止まっている。退く道の札へ下がれ' : left ? F.marked?.units.some((u) => u.type === 'busho' && u.alive) ? '大将の周りの侍は固い。味方と並んで囲め' : '前の味方に続き、残る敵の備を押せ' : '敵の備は崩れた。追わず、集結の下知を待て');
+      // 大将が生きている備を先に指す。印は大将の身に付け、旗本の侍に囲まれた所を見せる。
+      for (const g of F.opposition) if (!gone(g) && g.units.some((u) => u.type === 'busho' && u.alive && !u.fleeing)) { target = g; break; }
       if (target !== F.marked) {
         F.marked = target;
-        if (target) rt.marker('commanders', centerOf(target), '斎藤の旗', { red: true, group: target });
+        const boss = target?.units.find((u) => u.type === 'busho' && u.alive);
+        if (boss) rt.marker('commanders', () => boss.alive && !boss.fleeing ? boss.pos : centerOf(target)(), `${boss.name}の旗本`, { red: true, group: target });
+        else if (target) rt.marker('commanders', centerOf(target), '斎藤の旗', { red: true, group: target });
         else rt.unmark('commanders');
       }
       if (!left && !F.routWaitSaid) { F.routWaitSaid = true; orderSpeech(rt, '敵は引いた。ほかの手の敗走を確かめるまで、川への道を守れ', 4); }
@@ -399,30 +476,32 @@ const moribe = {
       else if (F.routConfirmT == null) F.routConfirmT = rt.t;
       if (!left && rt.t - F.routConfirmT >= 8) {
         F.sBack = true; F.stage = 'assemble'; F.assembleStart = rt.t; F.assembleT = 0;
+        // 集結は柴田の旗の下（遠い元の畦まで歩かせない）。柴田の備が無ければ自分の居る所。
+        { const c = !gone(F.A) ? F.A.center() : p; F.asm = { x: c.x, z: c.z }; }
         rt.objDone('commanders'); rt.objRemove('commanders'); rt.unmark('commanders');
         rt.banner('斎藤勢、崩れる', '旗が倒れ、北へ退いていく');
         battleEvent(rt, EVENT_RETREAT, FRONT2, null, 1, true, '斎藤勢が墨俣の方へ退き始めた');
         F.farS.forEach((m, i) => rt.after(i * 1.2, () => m.rout({ hideAfter: 0 })));
         F.fronts.forEach((c) => c.rout('B', { hideAfter: Infinity }));
         rt.obj('assemble', '深追いせず、組を集結の旗へ戻せ', 'main');
-        rt.marker('assemble', ASSEMBLY2, '集結の旗'); rt.zone('assemble', ASSEMBLY2.x, ASSEMBLY2.z, 12);
+        rt.marker('assemble', F.asm, '集結の旗'); rt.zone('assemble', F.asm.x, F.asm.z, 12);
         orderSpeech(rt, '敵の備は崩れた！　追い散らすな。組を集め、川への道を固めよ', 5);
-        for (const g of F.friends) if (!gone(g)) { g.order = 'move'; g.dest = { x: g === F.Y ? -48 : g === F.R3 ? 62 : g === F.A ? 0 : -22, z: ASSEMBLY2.z };
+        for (const g of F.friends) if (!gone(g)) { g.order = 'move'; g.dest = { x: F.asm.x + (g === F.Y ? -26 : g === F.R3 ? 26 : g === F.A ? -8 : -16), z: F.asm.z };
           g.onArrive = (u) => { u.order = 'hold'; }; }
       }
     } else if (F.stage === 'assemble') {
       let alive = 0, near = 0;
-      for (const u of rt.squad) if (u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget && !u.group?.routed) { alive++; if (Math.hypot(u.pos.x - ASSEMBLY2.x, u.pos.z - ASSEMBLY2.z) < 18) near++; }
+      for (const u of rt.squad) if (u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget && !u.group?.routed) { alive++; if (Math.hypot(u.pos.x - F.asm.x, u.pos.z - F.asm.z) < 18) near++; }
       const danger = rt.army.nearestEnemy(rt.player.u, 30, (u) => !u.fleeing && !u.woundOut && !u.noTarget);
       if (danger && sightPoint(rt, danger.pos) && !(F.pursuerAt > rt.t)) {
         F.pursuerAt = rt.t + 8;
         const dx = danger.pos.x - p.x, dz = danger.pos.z - p.z;
         rt.bark(`${Math.abs(dx) > Math.abs(dz) ? dx > 0 ? '東' : '西' : dz > 0 ? '南' : '北'}の追手が近い。味方と押し返せ`);
       }
-      const othersReady = F.friends.every((g) => gone(g) || (g.order === 'hold' && Math.abs(g.anchor.z - ASSEMBLY2.z) < 4));
-      if (!danger && Math.hypot(p.x - ASSEMBLY2.x, p.z - ASSEMBLY2.z) < 12 && near >= Math.ceil(alive * 0.6)) F.assembleT += elapsed;
+      const othersReady = F.friends.every((g) => gone(g) || (g.order === 'hold' && Math.abs(g.anchor.z - F.asm.z) < 4));
+      if (!danger && Math.hypot(p.x - F.asm.x, p.z - F.asm.z) < 12 && near >= Math.ceil(alive * 0.6)) F.assembleT += elapsed;
       else F.assembleT = 0;
-      rt.objProgress('assemble', danger ? '旗のそばの追手を、味方と押し返せ' : Math.hypot(p.x - ASSEMBLY2.x, p.z - ASSEMBLY2.z) >= 12 ? '集結の旗の下へ戻れ' : F.assembleT >= 8 ? othersReady ? '組はそろった。川への道を見張れ' : 'ほかの手が集結へ戻っている。旗を見張り、帰着を待て' : alive ? `旗のそばの組 ${near}／${alive}人・組の六割ほどを集め、列を保て` : '旗の下で敵が来ないか見張れ');
+      rt.objProgress('assemble', danger ? '旗のそばの追手を、味方と押し返せ' : Math.hypot(p.x - F.asm.x, p.z - F.asm.z) >= 12 ? '集結の旗の下へ戻れ' : F.assembleT >= 8 ? othersReady ? '組はそろった。川への道を見張れ' : 'ほかの手が集結へ戻っている。旗を見張り、帰着を待て' : alive ? `旗のそばの組 ${near}／${alive}人・組の六割ほどを集め、列を保て` : '旗の下で敵が来ないか見張れ');
       if (othersReady && F.assembleT >= 8) this.endBattle(rt, true);
     }
     if (!F.longWarn && rt.t >= 390) { F.longWarn = true; orderSpeech(rt, F.stage === 'assemble' ? '集結が遅れておる。旗の下へ組を呼べ。そろわねば任務を果たせぬ' : '攻めが長引いておる。備が崩れねば、組を川へ下げるぞ', 4); }
@@ -447,7 +526,7 @@ const moribe = {
       const due = F.stage === 'hold' && rt.t - F.holdStart >= (i ? 22 : 0);
       if (F[warned] === undefined && (due || thin || (!i && F.vBroken))) {
         F[warned] = rt.t;
-        rt.marker('retreatRoad', ASSEMBLY2, '退く道・南の畦へ');
+        rt.marker('retreatRoad', RETREAT2, '退く道・南の畦へ');
         rt.bark(i ? '斎藤の控えがまた来る。囲まれる前に、南の畦へ下がれ' : '斎藤の控えが来る。退く道は南の畦だ。味方の旗の後ろへ下がれ', true);
       }
       if (F[warned] !== undefined && rt.t - F[warned] >= 4) {
@@ -464,13 +543,13 @@ const moribe = {
     const p = rt.player.u.pos;
     const aim = Math.hypot(cFlag.x - p.x, cFlag.z - p.z) <= 24 ? p : cFlag;
     for (const g of F.opposition) {
-      if (gone(g) || (g === F.reserves[0] && !F.wave1) || (g === F.reserves[1] && !F.wave2)) continue;
+      if (gone(g) || (g === F.reserves[0] && !F.wave1) || (g === F.reserves[1] && !F.wave2) || (g.hatamoto && F.stage !== 'press')) continue;
       if (g.units.some((u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget &&
           u.type !== 'bow' && u.type !== 'gun' && u.target?.alive && !u.target.gone &&
           !u.target.fleeing && !u.target.woundOut && !u.target.noTarget &&
           Math.hypot(u.pos.x - u.target.pos.x, u.pos.z - u.target.pos.z) < 8)) continue;
       const c = fightingCenter(g);
-      if (Math.hypot(c.x - aim.x, c.z - aim.z) <= 18) {
+      if (Math.hypot(c.x - aim.x, c.z - aim.z) <= (F.stage === 'press' ? 34 : 18)) {   // 山場は寄せきる前から斬り合いに入る
         // 前列は着いている。後列の到着待ちで「移動」の探索六歩に閉じ込めない。
         g.order = 'attack'; g.seekRange = 35; g.onArrive = null;
         continue;
@@ -490,7 +569,10 @@ const moribe = {
           u.target?.alive && !u.target.fleeing && Math.hypot(u.target.pos.x - u.pos.x, u.target.pos.z - u.pos.z) < g.seekRange)) continue;
       const c = g.center();
       let nearest = null, distance = Infinity;
-      for (const foe of rt.flags.opposition) {
+      // 山場は全員が大将の旗本へ寄り、自分の周りに斬り合いを集める。
+      const mk = rt.flags.stage === 'press' && rt.flags.marked && !gone(rt.flags.marked) ? rt.flags.marked : null;
+      if (mk) { nearest = mk.center(); distance = Math.hypot(nearest.x - c.x, nearest.z - c.z); }
+      else for (const foe of rt.flags.opposition) {
         if (gone(foe)) continue;
         const q = foe.center(), d = Math.hypot(q.x - c.x, q.z - c.z);
         if (d < distance) { nearest = q; distance = d; }
@@ -510,19 +592,23 @@ const moribe = {
     F.signal = rt.t; F.stage = 'contact'; rt.setPhase('contact');
     if (!F.pointDone) rt.objFail('point');
     rt.objRemove('point'); rt.unmark('point'); rt.unzone('point'); rt.objDone('wait'); rt.objRemove('wait'); rt.tutEnd();
-    sfx('horagai', 1); rt.banner('川を越え、敵へ向かう', '槍の列に続け');
+    sfx('horagai', 1); rt.banner('かかれ', '法螺貝が鳴った。前備に続いて槍を入れよ');
     rt.obj('break', '味方の前備と共に、斎藤の先手を押せ', 'main');
     rt.marker('V', centerOf(F.V), '斎藤の先手', { red: true, group: F.V });
     orderSpeech(rt, '合図じゃ！　前備に続け。槍の列を切らすな！', 4);
     for (const g of F.friends) if (!gone(g)) { g.onArrive = null; g.order = 'attack'; g.seekRange = 40; }
     // 中央も隊ごとに前へ出す。左右は中央を突っ切らず、それぞれの畦から横へ回る。
-    for (const [g, x, z] of [[F.A, 8, -8], [F.B, -22, 4], [F.Y, -62, -28], [F.R3, 20, -28]]) if (!gone(g)) {
+    for (const [g, x, z] of [[F.A, 18, 40], [F.B, -12, 44], [F.Y, -46, 22], [F.R3, 50, 30]]) if (!gone(g)) {
       g.order = 'move'; g.dest = { x, z };
       g.onArrive = (u) => { u.order = 'attack'; u.seekRange = 35; };
     }
     F.V.noRout = false;
     for (const g of [F.M, F.N]) if (!gone(g)) {
       g.order = 'move'; g.dest = { x: g === F.M ? -12 : -44, z: -20 }; g.speed = 1.8;
+      // 大将の旗本も備のすぐ後ろへ詰め、押し合いの間は旗を立てて控える。
+      const h = g === F.M ? F.HM : F.HN;
+      h.order = 'move'; h.dest = { x: g === F.M ? -8 : -36, z: -64 }; h.speed = 1.6;
+      h.onArrive = (a) => { a.order = 'hold'; };
       g.onArrive = (u) => { u.order = 'attack'; u.seekRange = 40; };
     }
     // 先手が戦う間に既存の控えを本備の後ろまで歩かせる。初めの斬り合いには加えない。
@@ -566,24 +652,30 @@ const moribe = {
     rt.unmark('support'); rt.objRemove('support');
     rt.unmark('assemble'); rt.unzone('assemble'); rt.unmark('commanders'); rt.unmark('line'); rt.unmark('lineFlag'); rt.unzone('line'); rt.unmark('V');
     rt.banner(won ? '森部の勝ち戦' : '組を下げよ', won ? '敵が退き、組の持ち場を固めた' : F.friends.every(gone) || F.odaCamp.general?.woundOut ? '味方の備が崩れた。残る者と川へ退け' : F.stage === 'assemble' ? '組の集結を果たせなかった。川への道を守りながら退け' : '攻めが長引いた。敵の備が残るため川へ退け');
-    orderSpeech(rt, won ? 'よく押し切った。組を離さず、戦場を固めよ' : 'これ以上は押せぬ。組を川の手前へ下げ、備えを立て直せ', 4);
+    orderSpeech(rt, won ? 'よう押し切った。組を離すな。勝鬨を上げるぞ' : 'これ以上は押せぬ。組を川の手前へ下げ、備えを立て直せ', 4);
     if (won) {
+      // 雨が細り、勝鬨。首実検と次の戦（墨俣）への引きで余韻を残す。
+      rt.world.setRainTarget?.(0.25);
+      rt.after(2, () => { sfx('victory', 0.9); rt.bark('織田勢「えい、えい、おう！」'); });
       rt.marker('yakushi', YAKUSHI2, '森部の薬師堂・場所と姿は復元');
-      rt.after(4.5, () => {
+      rt.after(5, () => {
         // 首実検は共通の首袋・証人の記録に従う。利家へ手柄を付け替えない。
-        let confirmed = false;
+        let confirmed = false, who = '';
         for (const r of rt.meritKills || []) {
-          if (r.foe.name !== '足立六兵衛' || r.src.name !== '前田利家') continue;
+          if (r.foe.name !== '足立六兵衛') continue;
+          if (r.src.isPlayer) { who = 'player'; break; }
+          if (r.src.name !== '前田利家') continue;
           const witness = r.witnesses.some((u) => u.alive && !u.fled && !u.fleeing);
           const head = r.head && r.carrier?.alive && !r.carrier.fled && !r.carrier.fleeing;
           if (head || witness) { confirmed = true; break; }
         }
         F.toshiieAdachiConfirmed = confirmed;
-        rt.say('', confirmed ? 'この戦では、首袋か証人により、利家が足立六兵衛を討ったと確かめた' : 'この戦で確かめた首袋と証言を、討ち取った者の手柄として調べる。利家の手柄とは分ける', 4);
+        rt.say('組の者', who === 'player' ? '首取り足立と呼ばれた六兵衛を、お主が討ったとは……' : confirmed ? '前田又左衛門殿が、首取り足立の首を挙げなされた。勘当も解けような' : '前田又左衛門殿も首を挙げたと聞いた。勘当の身で、ようやるわ', 4.5);
       });
-      rt.after(8, () => rt.say('', '史料では、森部の薬師堂近くで首を確かめたと伝わる。堂の場所と姿は復元。美濃攻めは続く', 3));
+      rt.after(10, () => rt.say('組頭 源八', `${(F.bossDown || 0) >= 2 ? '長井も日比野も討たれた' : '長井と日比野の備は崩れた'}。殿はこのまま墨俣へ入られる。洲に砦を構えれば、稲葉山は目の前じゃ`, 5));
     }
-    sfx('horagai', 0.7); rt.finish({ scriptedEnd: true }, 11);
+    if (!won) sfx('horagai', 0.7);
+    rt.finish({ scriptedEnd: true }, won ? 16 : 11);
   },
 
   onRout(rt, g) {
@@ -605,9 +697,20 @@ const moribe = {
     }
     if (v.team === 1) rt.flags.ek = (rt.flags.ek || 0) + 1; else rt.flags.ak = (rt.flags.ak || 0) + 1;
     nagashinojo.kit.carrion(rt, v);
-    if (v.type === 'busho' && (v.group === rt.flags.M || v.group === rt.flags.N)) {
-      battleEvent(rt, EVENT_COMMANDER_KILLED, v.pos, v.group, 1, true, '敵の大将らしい者、倒れる');
-      if (sightPoint(rt, v.pos)) rt.say('足軽', '敵の大将らしい者が倒れたぞ！', 4);
+    if (v.type === 'busho' && v.group?.hatamoto) {
+      const F = rt.flags;
+      F.bossDown = (F.bossDown || 0) + 1;
+      // 公記：長井甲斐守・日比野下野守とも討死。名を呼ばわり、残る備の足をすくませる。
+      rt.banner(`${v.name}、討死`, F.bossDown >= 2 ? '両将が討たれた。斎藤勢が浮き足立つ' : 'もう一人の大将の旗が残る');
+      rt.say(k?.isPlayer ? rt.G.name || '自分' : '足軽', k?.isPlayer ? `${v.name}、討ち取ったり！` : `${v.name}を討ち取ったぞ！`, 4);
+      if (k?.isPlayer) rt.award((t) => { t.special = { label: `${v.name}を討ち取った`, pts: 40 }; }, `${v.name}を討ち取った`, v.pos);
+      sfx('toki', 0.9);
+      // 大将の生きている間は旗本が踏みとどまる。討たれた備から崩れ、両将が討たれれば全体が揺らぐ。
+      v.group.noRout = false;
+      if (v.group.rear) v.group.rear.noRout = false;
+      if (F.bossDown >= 2) for (const g of F.opposition) g.noRout = false;
+      for (const g of F.opposition) if (!gone(g)) g.morale = Math.max(0, (g.morale ?? 80) - (g === v.group ? 45 : F.bossDown >= 2 ? 40 : 15));
+      F.marked = null;
     }
   },
   onPlayerHit(rt, t) {
@@ -660,10 +763,10 @@ moribe.botBrain = (b, inp, { goTo, patientStrike }) => {
       return;
     }
   }
-  if (gathering && !attacker) { const q = F.stage === 'assemble' ? ASSEMBLY2 : POINT2; goTo(p, inp, q.x, q.z, 5); return; }
+  if (gathering && !attacker) { const q = F.stage === 'assemble' ? (F.asm || ASSEMBLY2) : POINT2; goTo(p, inp, q.x, q.z, 5); return; }
   if (F.breathUntil > b.t) {
     if (p.lock) inp.e.add('KeyQ');
-    goTo(p, inp, ASSEMBLY2.x, ASSEMBLY2.z, 5);
+    goTo(p, inp, RETREAT2.x, RETREAT2.z, 5);
     if (sq && sq.order !== 'follow' && !(b.botCmdT > b.t)) { inp.e.add('KeyZ'); b.botCmdT = b.t + 5; }
     return;
   }

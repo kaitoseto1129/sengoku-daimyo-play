@@ -57,6 +57,7 @@ const DEFAULTS = {
   hudMode: 'normal',  // 画面の札の量：min / normal / full
   freeMoney: true,    // 銭を無限に（試しの間）
   reduceMotion: false,// 動きを減らす
+  sendMetrics: true,  // 遊びの記録を送る（作り手の改善のため。個人は特定しない）
   reduceGuidance: false, // 任務の矢印・端の印・迷った時の台詞を消す
   colorAssist: false, // 色覚配慮
   uiScale: 'm',       // 全画面の字の大きさ s / m / l

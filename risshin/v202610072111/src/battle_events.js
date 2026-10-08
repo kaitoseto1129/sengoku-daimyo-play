@@ -96,7 +96,8 @@ function scan(rt, E, first) {
       state.advance = g.commanderAdvanceAt;
     }
     if (g.commanderLostAt !== undefined && state.lost !== g.commanderLostAt) {
-      if (!first) battleEvent(rt, EVENT_COMMANDER_KILLED, g.anchor, g, g.team, true);
+      // 組の頭（侍）を「大将」と呼ばない。大将は武将と総大将だけ。
+      if (!first) battleEvent(rt, EVENT_COMMANDER_KILLED, g.anchor, g, g.team, !g.commanderLostMinor, g.commanderLostMinor ? `${g.team === 0 ? '味方' : '敵'}の組頭が討たれた` : '');
       state.lost = g.commanderLostAt;
     }
   }

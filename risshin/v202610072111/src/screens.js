@@ -826,7 +826,7 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
 const SET_CAT = {
   操作: ['st-sens', 'st-psens', 'st-tsens', 'st-tswap', 'st-tsize', 'st-talpha', 'st-rtime', 'st-inv', 'st-smooth', 'st-autocam', 'st-view', 'st-twalk', 'st-run', 'st-guard', 'st-aim', 'st-vib'],
   // 914：「画面」を「見やすさ」と「HUD」に分ける
-  見やすさ: ['st-fov', 'st-shake', 'st-blood', 'st-rm', 'st-guide', 'st-ca', 'st-ui', 'st-sub', 'st-subbg', 'st-hints', 'st-font'],
+  見やすさ: ['st-fov', 'st-shake', 'st-blood', 'st-rm', 'st-guide', 'st-metrics', 'st-ca', 'st-ui', 'st-sub', 'st-subbg', 'st-hints', 'st-font'],
   戦の札: ['st-hudmode', 'st-hc', 'st-fade', 'st-float', 'st-mark', 'st-toast', 'st-cross', 'st-north', 'st-fps', 'st-hudMinimap', 'st-hudCompass', 'st-hudArmy', 'st-hudSquad', 'st-hudBottom', 'st-hudObjectives'],
   音: ['st-vol', 'st-vsfx', 'st-vamb', 'st-vmus', 'st-town', 'st-voice', 'st-vrate', 'st-vvoice'],
   描画: ['st-quality', 'st-cap', 'st-dist', 'st-ares'],
@@ -847,6 +847,7 @@ const SET_DESC = {
   'st-hudBottom': '下の操作の早見表を表示します。指の端末では丸で操作します',
   'st-vol': '効果音・環境音・楽の音・台詞の読み上げをまとめて変えます。零で音を消します',
   'st-shake': '打たれた時などの画面の揺れを変えます',
+  'st-metrics': '作り手が、どの戦で詰まるかを知るための記録を送ります。名前や保存の中身は送りません。切ると何も送りません',
   'st-blood': '血の見え方だけを変えます。受ける傷は変わりません',
   'st-sub': '台詞の字だけを変えます。全体の字の大きさとも重なります',
   'st-subbg': '台詞の下に暗い地を敷き、景色の上でも読みやすくします',
@@ -930,6 +931,7 @@ export function settingsHtml() {
     ${row('st-blood', '血の見せ方', `<select id="st-blood"><option value="on" ${(S.blood || 'on') === 'on' ? 'selected' : ''}>あり</option><option value="low" ${S.blood === 'low' ? 'selected' : ''}>控えめ</option><option value="off" ${S.blood === 'off' ? 'selected' : ''}>なし</option></select>`)}
     ${row('st-rm', '動きを減らす', chk('st-rm', 'reduceMotion'))}
     ${row('st-guide', '手引きを減らす', chk('st-guide', 'reduceGuidance'))}
+    ${row('st-metrics', '遊びの記録を送る', chk('st-metrics', 'sendMetrics'))}
     ${row('st-ca', '色覚に配慮した配色', chk('st-ca', 'colorAssist'))}
     ${row('st-ui', '字の大きさ', `<select id="st-ui"><option value="s" ${S.uiScale === 's' ? 'selected' : ''}>小</option><option value="m" ${S.uiScale === 'm' ? 'selected' : ''}>中</option><option value="l" ${S.uiScale === 'l' ? 'selected' : ''}>大</option></select>`)}
     ${row('st-vib', isTouch ? '振動' : 'ゲームパッドの振動', chk('st-vib', 'vibrate'))}
@@ -1061,6 +1063,7 @@ export function bindSettings(onChange) {
   bind('st-guard', 'guardToggle', (e) => e.checked);
   bind('st-rm', 'reduceMotion', (e) => e.checked);
   bind('st-guide', 'reduceGuidance', (e) => e.checked);
+  bind('st-metrics', 'sendMetrics', (e) => e.checked);
   bind('st-ca', 'colorAssist', (e) => e.checked);
   bind('st-ui', 'uiScale', (e) => e.value);
   bind('st-vib', 'vibrate', (e) => e.checked);

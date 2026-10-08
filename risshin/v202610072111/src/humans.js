@@ -4534,8 +4534,10 @@ function rideHuman(h, dt) {
     h.model.position.y += 0.1 * st - bob * 0.05 * st;
     rotWorld(B.RightLeg, _right, -0.4 * st); rotWorld(B.LeftLeg, _right, -0.4 * st);
     rotWorld(B.RightUpLeg, _right, 0.25 * st); rotWorld(B.LeftUpLeg, _right, 0.25 * st);
-    rotWorld(B.Spine, _right, 0.1 * st);
-    rotWorld(B.Neck, _right, -0.12 * st);
+    // 本人は襲歩で鞍の上に低く伏せ、首だけ起こして前を見る（後ろから背が大きく見える）
+    const dive = u.isPlayer ? clamp01((spd - 8) / 3) : 0;
+    rotWorld(B.Spine, _right, (0.1 + 0.14 * dive) * st);
+    rotWorld(B.Neck, _right, -(0.12 + 0.12 * dive) * st);
   }
   // 武将の背筋：並足・止まっている時は腰を据えて背を立て、胸を張る（兵より姿勢が良い）
   if (named && !u.isPlayer) { const k = 1 - h.stand; rotWorld(B.Spine1, _right, -0.05 * k); rotWorld(B.Spine2, _right, -0.04 * k); }

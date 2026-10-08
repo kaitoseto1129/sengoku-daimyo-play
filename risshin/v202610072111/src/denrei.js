@@ -48,7 +48,7 @@ function aliveOf(t) {
 function teamOf(t) { return t && t.team != null ? t.team : 0; }
 
 // 本陣の場所：本陣の備 → 総大将（taisho.js）→ 信長で遊ぶ時は自分
-function honjinPos(rt, team) {
+export function honjinPos(rt, team) {
   for (const S of rt.sonae || []) if (S.team === team && S.line === 'honjin' && S.b.aliveNominal() > 0) return S.b.pos;
   const T = rt.taisho, e = T && (team === 0 ? T.a : T.b);
   if (e && e.u && e.u.alive) return e.u.pos;

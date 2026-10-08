@@ -24,6 +24,7 @@ import { Commander } from './ai.js';
 import { allyOrdersTick } from './ally_orders.js';
 import { runScriptOrders, relaySpeech, relayObjective } from './script_orders.js';
 import { sendOrder } from './denrei.js';
+import { courierTick } from './courier.js';
 import { notice } from './senkyo.js';
 import { isTouch } from './touch.js';
 import { SOLIDS } from './props.js';
@@ -1019,18 +1020,17 @@ export class Battle {
   buildCouriers(wdef) {
     this.couriers = [];
     const path = (wdef.paths || [])[0];
-    if (!path || this.def.dojo) return;
+    if (this.def.dojo) return;
     // 点だけの道では騎馬は走れない。走れる区間を先に固定し、重なる点も除く。
     const segments = [];
     let total = 0;
-    for (let i = 1; i < path.length; i++) {
+    for (let i = 1; path && i < path.length; i++) {
       const [ax, az] = path[i - 1], [bx, bz] = path[i];
       const length = Math.hypot(bx - ax, bz - az);
       if (!length) continue;
       segments.push({ ax, az, bx, bz, length });
       total += length;
     }
-    if (!segments.length) return;
     const side = this.def.sides ? this.def.sides.a.mon : scenario().mon;
     for (let k = 0; k < 2; k++) {
       const u = {};
@@ -1046,25 +1046,8 @@ export class Battle {
     }
   }
 
-  updateCouriers(dt) {
-    const P = this.player.u.pos;
-    for (const c of this.couriers) {
-      const { segments, total } = c;
-      c.s += (c.dir * c.speed * dt) / total;
-      if (c.s > 1) { c.s = 1; c.dir = -1; } else if (c.s < 0) { c.s = 0; c.dir = 1; }
-      let d = c.s * total, i = 0;
-      while (i < segments.length - 1 && d > segments[i].length) { d -= segments[i].length; i++; }
-      const { ax, az, bx, bz, length: L } = segments[i], t = Math.min(1, d / L);
-      // 道の脇を走る
-      const nx = (bz - az) / L * 2.5, nz = -(bx - ax) / L * 2.5;
-      const x = ax + (bx - ax) * t + nx * c.dir, z = az + (bz - az) * t + nz * c.dir;
-      c.m.position.set(x, this.world.heightAt(x, z), z);
-      c.m.rotation.y = Math.atan2((bx - ax) * c.dir, (bz - az) * c.dir);
-      // 自分の近くでは邪魔にならないよう消す
-      c.m.visible = Math.hypot(x - P.x, z - P.z) > 28;
-      if (c.m.visible) { animateHorse(c.h, dt, c.speed); if (Math.random() < dt * 3) this.world.puff(x, z, 2); }
-    }
-  }
+  // 使番の騎馬：本陣で命を受け → 部隊の頭へ駆け → 伝えて → 本陣へ戻る（courier.js）
+  updateCouriers(dt) { courierTick(this, dt); }
 
   // 号令への返事：号令ごとに言葉を変え、同じ返事を続けない
   // 遠くの隊へは使番が走る。その時は使番の声がすぐ、隊の返事は届いてから
