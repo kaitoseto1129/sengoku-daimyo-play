@@ -440,7 +440,7 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
 
 <!-- 序 -->
 <section id="hero" aria-label="戦国大名を無料で遊ぶ">
-  <video id="heroVideo" src="mov/kiba_hd.mp4" autoplay muted playsinline loop preload="auto" aria-hidden="true" tabindex="-1"></video>
+  <video id="heroVideo" poster="img/hero.jpg" src="mov/kiba_hd.mp4" autoplay muted playsinline loop preload="auto" aria-hidden="true" tabindex="-1"></video>
   <div class="wrap">
     <p class="brand">戦国大名</p>
     <h1>長篠の戦いを、自ら指揮せよ。</h1>
@@ -450,374 +450,33 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
     </div>
   </div>
 </section>
-
-<header>
-  <a class="logo" href="#hero">戦国大名</a>
-  <nav><a href="#mitsu">特徴</a><a href="#loop">遊び方</a><a href="#koe">評価</a><a href="#nagashino">長篠</a><a href="#nanen">七年</a><a href="#ch3">合戦</a><a href="#gunki">軍記</a><a href="#ch4">軍議</a><a href="#guide">攻略</a><a href="#faq">問答</a><a href="#gunshikin">軍資金</a><button aria-pressed="false" type="button" id="oto" type="button" title="風と太鼓の音（押した時だけ）">♪ 音</button></nav><details id="mobileMenu"><summary>目次</summary><nav aria-label="紹介ページの目次"><a href="#mitsu">特徴</a><a href="#loop">遊び方</a><a href="#koe">評価</a><a href="#nagashino">長篠</a><a href="#nanen">七年</a><a href="#ch3">合戦</a><a href="#gunki">軍記</a><a href="#ch4">軍議</a><a href="#guide">攻略</a><a href="#faq">問答</a><a href="#gunshikin">軍資金</a></nav></details>
-</header>
-<section id="intro">
-  <div class="wrap c">
-    <p class="kotoba c">数千、数万の軍勢を、あなたの采配で動かす。内政・外交・合戦を重ね、天下統一を目指せ。</p>
-    <p class="haifu" style="justify-content:center">長篠の戦いは無料・登録不要／関ヶ原は五百円</p>
-    <button type="button" class="pvbtn" id="pvOpen" data-ev="pv_open"><i>▶</i>三十秒の映像を見る</button>
-  </div>
-</section>
-
-<div class="sumi-line"><svg viewBox="0 0 1200 38" preserveAspectRatio="none"><path d="M0 22 C120 12 220 30 360 20 C500 10 640 28 780 18 C900 10 1040 26 1200 16 L1200 24 C1040 34 900 18 780 26 C640 36 500 18 360 28 C220 38 120 20 0 30 Z" fill="#000" opacity=".9"/><path d="M20 21 C160 13 300 27 460 19 C620 11 760 27 920 19 C1040 13 1120 23 1180 17" fill="none" stroke="#C59A35" stroke-width="1.2" opacity=".6"/></svg></div>
-
-<!-- 動く絵 -->
-<section id="ugoku1">
-  <div class="wrap">
-    <div class="ugoku ar" data-mov="tennoji" data-open="tennoji_relief"><img width="960" height="540" data-src="img/seq/tennoji_relief/000.jpg" alt="天王寺砦の戦い。本願寺勢に囲まれた砦へ救援" loading="lazy" decoding="async"><span class="rec">合戦の画面</span><div class="ov"><b>数千、数万の軍勢を、一つの采配で動かせ。</b></div><span class="play">▶ 大きく見る</span></div>
-    <p class="soe c">実際の合戦画面をそのまま。一兵ずつではなく、隊で、翼で、軍で動く。</p>
-  </div>
-</section>
-
-<!-- 三つの特徴 -->
-<section id="mitsu">
-  <div class="wrap ar">
-    <p class="lead-l">この戦国ゲームは、<span class="g">“眺める”</span>だけではない。</p>
-    <div class="mitsu">
-      <div><b>壱</b><h3>大軍勢を、直接指揮</h3><p>一兵ずつは操らない。武将の隊・翼・軍で、数万を動かす。</p></div>
-      <div><b>弐</b><h3>戦場ごとに、戦い方が変わる</h3><p>川、高地、柵、砦、霧。各地の決戦、長篠と関ヶ原は別の戦。</p></div>
-      <div><b>参</b><h3>あなたの判断で、歴史が変わる</h3><p>軍議の一手が、その後の戦況を変える。正解は一つではない。</p></div>
-    </div>
-  </div>
-</section>
-
-<div class="nokori">天下統一まで　あと<b>六十</b>城</div>
-
-<!-- ゲームの環 -->
-<section id="loop">
-  <div class="wrap c ar">
-    <div class="sho" style="display:inline-flex">ゲームの環</div>
-    <h2 class="h2">戦い、広げ、<span class="g">また戦う。</span></h2>
-    <div class="cycle"><div>城を治める</div><div>兵を集める</div><div>外交する</div><div>進軍</div><div class="hot">合戦</div><div>領地を獲得</div><div>さらに天下へ</div></div>
-    <div class="sanpo"><div><b>一</b><h4>部隊を選ぶ</h4><p>押すだけ。複数はなぞる。</p></div><div><b>二</b><h4>進軍先を決める</h4><p>行き先を押す。柵へ、川へ、本陣へ。</p></div><div><b>三</b><h4>あとは軍勢が動く</h4><p>一兵ずつは操らない。<b>簡単操作。判断は奥深い。</b></p></div></div>
-    <div class="who"><div>戦国時代が好き</div><div>歴史シミュレーションが好き</div><div>リアルタイムの戦略ゲームが好き</div><div>信長の野望系が好き</div><div>歴史のIFを楽しみたい</div><div>自分で軍を動かしたい</div></div>
-  </div>
-</section>
-<!-- 第258巡：遊んだ人の声（App Store の実際の評価と書き込みだけを載せる） -->
-<section id="koe">
+<header><a class="logo" href="#hero">戦国大名</a><nav><a href="#mitsu">特徴</a><a href="#nagashino">筋書き</a><a href="#loop">遊び方</a><a href="#koe">評価</a></nav><details id="mobileMenu"><summary>目次</summary><nav><a href="#mitsu">特徴</a><a href="#nagashino">筋書き</a><a href="#loop">遊び方</a><a href="#koe">評価</a></nav></details></header><section id="mitsu"><div class="wrap"><div id="intro"><h2 class="h2">あなたの采配で、戦局を動かす。</h2><p>長篠は無料・登録不要。絵と動画は実際のゲーム画面です。</p></div><div class="selling"><article><h3>大軍勢を、隊ごとに指揮。</h3><div class="ugoku" data-mov="anegawa_h" data-open="anegawa"><img width="960" height="388" data-src="img/seqh/anegawa/000.jpg" alt="大軍勢を、隊ごとに指揮。 実際の合戦画面" loading="lazy" decoding="async"><span class="play">▶ 大きく見る</span></div></article><article><h3>川・柵・砦で、攻め方が変わる。</h3><div class="ugoku" data-mov="kizu_h" data-open="kizu"><img width="960" height="388" data-src="img/seqh/kizu/000.jpg" alt="川・柵・砦で、攻め方が変わる。 実際の合戦画面" loading="lazy" decoding="async"><span class="play">▶ 大きく見る</span></div></article><article><h3>退くか、戦うか。采配で勝つ。</h3><div class="ugoku" data-mov="tedori_h" data-open="tedorigawa"><img width="960" height="388" data-src="img/seqh/tedorigawa/000.jpg" alt="退くか、戦うか。采配で勝つ。 実際の合戦画面" loading="lazy" decoding="async"><span class="play">▶ 大きく見る</span></div></article></div></div></section><section id="nagashino"><div class="wrap"><div class="sho">長篠の筋書き</div><h2 class="h2">一戦のあとも、戦国は続く。</h2><p>織田・徳川、または武田で始める。出来事のたびに、次の手を決めよう。</p><div class="story-grid"><figure><div class="battle-still"><img width="960" height="388" data-src="img/seqh/nagashino/000.jpg" alt="長篠・設楽原の戦場" loading="lazy" decoding="async"></div><figcaption><b>長篠・設楽原</b>柵と鉄砲で迎え撃つか、騎馬で突破するか。</figcaption></figure><figure><div class="battle-still"><img width="960" height="388" data-src="img/seqh/kizu/000.jpg" alt="木津砦の戦場" loading="lazy" decoding="async"></div><figcaption><b>木津砦</b>川を渡り、柵を破り、補給路を断つ。</figcaption></figure><figure><div class="battle-still"><img width="960" height="388" data-src="img/seqh/tennoji_relief/000.jpg" alt="天王寺砦の救援の戦場" loading="lazy" decoding="async"></div><figcaption><b>天王寺砦の救援</b>囲まれた味方を救うため、敵陣へ。</figcaption></figure><figure><div class="battle-still"><img width="960" height="388" data-src="img/seqh/tedorigawa/000.jpg" alt="手取川の戦場" loading="lazy" decoding="async"></div><figcaption><b>手取川</b>迫る上杉を押し止め、味方の退路を守る。</figcaption></figure><figure><div class="battle-still"><img width="960" height="388" data-src="img/seqh/arioka/000.jpg" alt="有岡城の戦場" loading="lazy" decoding="async"></div><figcaption><b>有岡城</b>荒木村重の城を囲み、門を突破する。</figcaption></figure><figure><div class="battle-still"><img width="960" height="388" data-src="img/seqh/takato/000.jpg" alt="高遠城の戦場" loading="lazy" decoding="async"></div><figcaption><b>高遠城</b>武田の城を攻め、狭い道を突破する。</figcaption></figure></div></div></section><section id="loop"><div class="wrap"><h2 class="h2">まず城を治め、兵を集めよう。</h2><p class="flow" aria-label="城を治める、兵を集める、合戦、領地を広げる">城を治める → 兵を集める → 合戦 → 領地を得る</p><p>合戦では隊を押し、行き先を押す。迷ったら時間を止めて考えよう。</p><a class="reading-link" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/guide/">詳しい操作を攻略で読む →</a></div></section><section id="koe">
   <div class="wrap ar">
     <div class="sho">遊んだ人の声</div>
-    <h2 class="h2">App Store の<br><span class="g">評価</span></h2>
+    <h2 class="h2">App Store の<span class="g">評価</span></h2>
     <div class="koe-box">
       <div class="koe-star"><b>★ 4.0</b><span>5点満点・4件の評価（2026年10月）</span></div>
       <blockquote class="koe-q"><div class="st">★★★★★　なかなかいい</div><p>「マイナーな武将を拾っていたり、政治のシステムがちゃんとしてるなどなかなか面白いゲーム。」</p><cite>App Store のレビューより</cite></blockquote>
       <a class="inban" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="koe_appstore_click">App Store で評価を見る</a>
     </div>
   </div>
-</section>
-<!-- 長篠 軍記 -->
-<section id="nagashino" style="background:var(--cha)">
-  <div class="mon" style="left:50%;top:50%;width:640px;height:640px;transform:translate(-50%,-50%);opacity:.05"><svg><use href="#mon-takeda"/></svg></div>
-  <div class="wrap c ar">
-    <div class="sho" style="display:inline-flex">軍記　天正三年</div>
-    <h2 class="h2">長篠の戦いを、<span class="g">自ら指揮せよ。</span></h2>
-    <p class="kotoba c" style="font-family:var(--fude);font-size:clamp(18px,2.4vw,26px);letter-spacing:.16em"><span class="ln"><span style="color:#9CC4EA">織田・徳川連合軍</span>　VS　<span style="color:#F19A85">武田軍</span></span></p>
-    <p class="kotoba c"><span class="ln">馬防柵。鉄砲。騎馬。</span><span class="ln">史実と同じ戦い方を選ぶか。それとも、あなた自身の策で戦うか。</span></p>
-    <div class="ctas" style="justify-content:center;margin-top:30px"><a class="fuda" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="nagashino_appstore_click"><svg><use href="#apple"/></svg>長篠の戦いを無料で遊ぶ</a><a data-play data-ev="play_click" class="inban" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザで遊ぶ</a></div>
-  </div>
-</section>
-<!-- 第258巡（作り手：長篠の筋書きの出来事をもっと拾う・画像をもっと）：長篠から七年の出来事 -->
-<section id="nanen">
-  <div class="wrap ar">
-    <div class="sho">長篠の筋書き　天正三年〜十年</div>
-    <h2 class="h2">長篠のあとも、<br><span class="g">七年の戦国が続く。</span></h2>
-    <p class="lead-s">勝った後が本番。出来事ごとに、あなたが手を決める。</p>
-    <div class="ev-grid">
-      <figure><img width="960" height="540" data-src="ev/ev3.jpg" alt="荒木村重の謀反の札" loading="lazy" decoding="async"><figcaption><b>荒木村重、有岡に叛く</b>即攻城か、官兵衛の説得か、兵糧攻めか。</figcaption></figure>
-      <figure><img width="960" height="540" data-src="ev/ev4.jpg" alt="原田直政の選択の札" loading="lazy" decoding="async"><figcaption><b>天王寺砦、原田直政の選択</b>退くか、救うか、本陣へ突くか。</figcaption></figure>
-      <figure><img width="960" height="540" data-src="ev/ev5.jpg" alt="七尾の報の札" loading="lazy" decoding="async"><figcaption><b>手取川の前夜</b>七尾落城の報を、織田に知らせるな。</figcaption></figure>
-      <figure><img width="960" height="540" data-src="ev/ev1.jpg" alt="九鬼嘉隆の大型船の札" loading="lazy" decoding="async"><figcaption><b>九鬼嘉隆の大型船</b>毛利水軍に勝つ船を、どう造るか。</figcaption></figure>
-      <figure><img width="960" height="540" data-src="ev/ev2.jpg" alt="備中高松城の札" loading="lazy" decoding="async"><figcaption><b>備中高松城</b>堤を築いて水攻めか、力攻めか。</figcaption></figure>
-      <figure><img width="960" height="540" data-src="ev/ev0.jpg" alt="京都御馬揃えの札" loading="lazy" decoding="async"><figcaption><b>京都御馬揃え</b>天下人の威を、誰を呼んで見せるか。</figcaption></figure>
-    </div>
-    <div class="ev-strip">
-      <div class="ugoku" data-seq="mimikawa" data-dir="seqh"><img width="960" height="388" data-src="img/seqh/mimikawa/000.jpg" alt="耳川の戦い" loading="lazy" decoding="async"><span class="rec">耳川の戦い</span></div>
-      <div class="ugoku" data-seq="okitanawate" data-dir="seqh"><img width="960" height="388" data-src="img/seqh/okitanawate/000.jpg" alt="沖田畷の戦い" loading="lazy" decoding="async"><span class="rec">沖田畷の戦い</span></div>
-      <div class="ugoku" data-seq="tottori_relief" data-dir="seqh"><img width="960" height="388" data-src="img/seqh/tottori_relief/000.jpg" alt="鳥取後詰の戦い" loading="lazy" decoding="async"><span class="rec">鳥取後詰の戦い</span></div>
-      <div class="ugoku" data-seq="takato" data-dir="seqh"><img width="960" height="388" data-src="img/seqh/takato/000.jpg" alt="高遠城の戦い" loading="lazy" decoding="async"><span class="rec">高遠城の戦い</span></div>
-    </div>
-    <p class="soe c">長篠の筋書きだけで、決戦は二十五。絵はすべて実際のゲーム画面です。</p>
-  </div>
-</section>
-<!-- 第一章 -->
-<section id="ch1">
-  <div class="kochizu"></div>
-  <div class="mon" style="right:-120px;top:-80px;width:520px;height:520px"><svg><use href="#mon-oda"/></svg></div>
-  <div class="wrap">
-    <div class="grid">
-      <div class="ar">
-        <div class="sho">第一章</div>
-        <h2 class="h2">大名と<span class="g">なれ。</span></h2>
-        <p class="tanka">一城から、<span class="g">天下へ。</span></p>
-        <p class="kotoba"><span class="ln">最初は、小さな一国。</span><span class="ln">城を奪い。国を治め。兵を増やし。盟を結ぶ。</span><span class="ln">やがて日本全土を、その旗の下へ。</span></p>
-        <p class="kotoba" style="margin-top:14px"><b>ただの将ではない。あなたは“大名”だ。</b><br>戦う。治める。交渉する。裏切る。待つ。攻める。すべてを決めるのは、あなた。</p>
-      </div>
-      <div class="ar ryochi" id="ryochi">
-        <div class="gaku ugoku" data-seq="map" data-dir="seq"><span class="kin-corner tr"></span><span class="kin-corner bl"></span><img width="960" height="540" data-src="img/seq/map/000.jpg" alt="日ノ本すべての城を、一枚の地図で" loading="lazy" decoding="async"><div class="cover"></div><div class="hata"><svg><use href="#hata"/></svg></div></div>
-        <p class="soe">下へ進むほど、領地が広がる。</p>
-      </div>
-    </div>
-    <div class="san-scene">
-      <div class="ar"><h3>国を富ませよ。</h3><p>城・農地・資金・兵。民の忠が、兵の数になる。</p><div class="gaku ugoku" data-seq="naisei" data-dir="seq"><img width="960" height="540" data-src="img/seq/naisei/000.jpg" alt="城の札" loading="lazy" decoding="async"></div></div>
-      <div class="ar"><h3>敵の敵を、味方にせよ。</h3><p>同盟・交渉・援軍。戦わずして有利を作る。</p><div class="gaku ugoku" data-seq="gaiko" data-dir="seq"><img width="960" height="540" data-src="img/seq/gaiko/000.jpg" alt="外交" loading="lazy" decoding="async"></div></div>
-      <div class="ar"><h3>勝てる戦を選べ。</h3><p>兵・武将・進軍・合戦。最適の戦場へ送り込む。</p><div class="gaku ugoku" data-seq="shutsujin" data-dir="seq"><img width="960" height="540" data-src="img/seq/shutsujin/000.jpg" alt="出陣" loading="lazy" decoding="async"></div></div>
-    </div>
-  </div>
-</section>
-
-<!-- 第二章 -->
-<section id="ch2">
-  <div class="mon" style="left:-140px;bottom:120px;width:460px;height:460px"><svg><use href="#mon-takeda"/></svg></div>
-  <div class="wrap ar">
-    <div class="sho">第二章</div>
-    <h2 class="h2">軍を<span class="g">興せ。</span></h2>
-    <p class="kotoba"><span class="ln">一兵ずつは操らない。武将の隊で、翼で、軍で動かす。</span><span class="ln">左翼を進める。中央を支える。予備隊を投じる。</span></p>
-  </div>
-  <div class="wrap"><div class="ugoku ar" data-mov="seki" data-open="sekigahara"><img width="960" height="388" data-src="img/seqh/sekigahara/000.jpg" alt="関ヶ原。数万の軍勢" loading="lazy" decoding="async"><span class="rec">関ヶ原の本戦</span><div class="ov"><b>戦場全体を、一目で。</b></div><span class="play">▶ 大きく見る</span></div></div>
-</section>
-
-<!-- 第三章 -->
-<section id="ch3">
-  <div class="senjo">
-    <div class="bg" data-speed="0.12" data-mov="takamatsu_h"></div><div class="veil"></div>
-    <div class="wrap ar">
-      <div class="sho">第三章</div>
-      <h2 class="h2">勝敗を決めるのは、<br>兵数<span class="g">だけではない。</span></h2>
-      <div class="yoso"><span>地形。</span><span>兵科。</span><span>士気。</span><span>援軍。</span><span class="g">そして、采配。</span></div>
-    </div>
-  </div>
-</section>
-
-<!-- 合戦の絵（注釈つき） -->
-<!-- 第258巡：全幅の合戦動画（躍動感） -->
-<section class="mov-band" aria-label="合戦の動画">
-  <div class="mb" data-mov="temmoku_h"><img width="960" height="388" data-src="img/seqh/temmoku/000.jpg" alt="" loading="lazy" decoding="async"><b>天目山――武田勝頼、最期の戦い。</b></div>
-  <div class="mb" data-mov="saika_h"><img width="960" height="388" data-src="img/seqh/saika/000.jpg" alt="" loading="lazy" decoding="async"><b>雑賀の里――姿を見せぬ鉄砲衆。</b></div>
-  <div class="mb" data-mov="iwamura_h"><img width="960" height="388" data-src="img/seqh/iwamura/000.jpg" alt="" loading="lazy" decoding="async"><b>岩村城――信忠、武田の城を囲む。</b></div>
-</section>
-<section id="senjo2" style="padding-top:0;background:var(--sumi)">
-  <div class="wrap">
-    <div class="annot-list" style="display:block"><span>三列の馬防柵 ── ここで騎馬を止める</span><br><span>鉄砲は柵の内から ── 寄れば一斉射撃</span><br><span>武田の騎馬、右翼へ ── 予備隊を投入</span><br><span>味方本陣 ── 崩れれば敗走</span></div>
-    <p class="soe">長篠の戦いでは、柵と鉄砲、予備隊を使い分ける。</p>
-    <div class="ctas" style="justify-content:center;margin-top:26px"><a class="fuda" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="mid_appstore_click"><svg><use href="#apple"/></svg>App Storeで無料ダウンロード</a><a data-play data-ev="play_click" class="inban" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザで遊ぶ</a></div>
-    <p class="shinrai c">iPhone / iPad / ブラウザ　／　長篠の戦いは無料　／　関ヶ原は ¥500</p>
-  </div>
-</section>
-
-<div class="nokori">天下統一まで　あと<b>三十</b>城</div>
-
-<!-- 軍記 -->
-<section id="gunki">
-  <div class="mon" style="right:-100px;bottom:-60px;width:420px;height:420px"><svg><use href="#mon-aoi"/></svg></div>
-  <div class="wrap">
-    <div class="ar">
-      <div class="sho">軍記</div>
-      <h2 class="h2">同じ戦いは、<span class="g">ひとつもない。</span></h2>
-    </div>
-    <div class="gunki-big ar" data-open="tedorigawa"><div class="bg" data-mov="tedori_h"><img width="960" height="540" data-src="img/seq/tedorigawa/000.jpg" alt="手取川の戦い" loading="lazy" decoding="async"></div><div class="fog"></div><div class="mon" style="right:-40px;top:-40px;width:260px;height:260px;opacity:.14"><svg><use href="#mon-takeda"/></svg></div><div class="p"><div class="nen">天正五年</div><h3 style="font-family:var(--fude);font-size:clamp(36px,5.6vw,60px);letter-spacing:.1em;color:#fff;text-shadow:0 3px 12px #000">手取川の戦い</h3><div class="vs" style="font-family:var(--go);font-size:14px;letter-spacing:.2em;color:var(--kami);margin-top:6px"><span class="ao" style="color:#9CC4EA">織田</span>　対　<span class="aka" style="color:#F19A85">上杉</span></div><p class="toi" style="font-size:16px;margin-top:10px">夜の川を背に、上杉謙信が迫る。<b>退くか。踏みとどまるか。</b></p></div></div>
-    <div class="gunki-two">
-      <article class="maki ar" data-open="anegawa"><div class="bg" data-mov="anegawa_h"><img width="960" height="540" data-src="img/seq/anegawa/000.jpg" alt="姉川の戦い" loading="lazy" decoding="async"></div><div class="fog"></div><div class="p"><div class="nen">元亀元年</div><h3>姉川の戦い</h3><div class="vs"><span class="ao">織田・徳川</span>　対　<span class="aka">浅井・朝倉</span></div><p class="toi">川を挟んだ大軍同士の野戦。<b>浅瀬を渡るか。別戦線を支えるか。</b></p></div></article>
-      <article class="maki ar" data-open="kizu"><div class="bg" data-mov="kizu_h"><img width="960" height="540" data-src="img/seq/kizu/000.jpg" alt="木津砦の戦い" loading="lazy" decoding="async"></div><div class="fog"></div><div class="p"><div class="nen">天正四年</div><h3>木津砦の戦い</h3><div class="vs"><span class="ao">織田</span>　対　<span class="aka">本願寺</span></div><p class="toi">川、橋、柵、砦。<b>正面突破か。迂回か。</b></p></div></article>
-    </div>
-    <div class="gunki-big ar" style="margin-top:18px" data-open="shigisan"><div class="bg" data-mov="shigisan_h"><img width="960" height="540" data-src="img/seq/shigisan/000.jpg" alt="信貴山城の戦い" loading="lazy" decoding="async"></div><div class="fog"></div><div class="mon" style="right:-40px;top:-40px;width:260px;height:260px;opacity:.14"><svg><use href="#mon-aoi"/></svg></div><div class="p"><div class="nen">天正五年</div><h3 style="font-family:var(--fude);font-size:clamp(36px,5.6vw,60px);letter-spacing:.1em;color:#fff;text-shadow:0 3px 12px #000">信貴山城の戦い</h3><div class="vs" style="font-family:var(--go);font-size:14px;letter-spacing:.2em;color:var(--kami);margin-top:6px"><span class="ao" style="color:#9CC4EA">織田</span>　対　<span class="aka" style="color:#F19A85">松永</span></div><p class="toi" style="font-size:16px;margin-top:10px">平蜘蛛と共に籠る松永久秀。<b>門を破るか。囲んで待つか。</b></p></div></div>
-    <div class="gunki-two">
-      <article class="maki ar" data-open="yamazaki"><div class="bg" data-seq="yamazaki" data-dir="seq"><img width="960" height="540" data-src="img/seq/yamazaki/000.jpg" alt="山崎の戦い" loading="lazy" decoding="async"></div><div class="fog"></div><div class="mon"><svg><use href="#mon-kikyo"/></svg></div><div class="p"><div class="nen">天正十年</div><h3>山崎の戦い</h3><div class="vs"><span class="ao">羽柴</span>　対　<span class="aka">明智</span></div><p class="toi">天王山を巡る高地争奪。<b>高所を取るか。中央を押し切るか。</b></p></div></article>
-      <article class="maki ar" data-open="miki"><div class="bg" data-mov="miki_h"><img width="960" height="540" data-src="img/seq/miki/000.jpg" alt="三木合戦" loading="lazy" decoding="async"></div><div class="fog"></div><div class="p"><div class="nen">天正六年</div><h3>三木合戦</h3><div class="vs"><span class="ao">羽柴</span>　対　<span class="aka">別所</span></div><p class="toi">城を囲み、兵糧を断つ。<b>干殺しか。総攻めか。</b></p></div></article>
-    </div>
-    <div class="nenpyo ar">
-      <div><b>1560</b><span>桶狭間</span><small>永禄三年</small></div>
-      <div><b>1570</b><span>姉川</span><small>元亀元年</small></div>
-      <div><b>1575</b><span>長篠</span><small>天正三年</small></div>
-      <div><b>1582</b><span>山崎</span><small>天正十年</small></div>
-      <div><b>1583</b><span>賤ヶ岳</span><small>天正十一年</small></div>
-      <div><b>1600</b><span>関ヶ原</span><small>慶長五年</small></div>
-    </div>
-  </div>
-</section>
-
-<div class="sumi-line"><svg viewBox="0 0 1200 38" preserveAspectRatio="none"><path d="M0 16 C160 26 300 8 460 18 C620 28 760 10 920 20 C1040 28 1120 14 1200 22 L1200 30 C1120 22 1040 36 920 28 C760 18 620 36 460 26 C300 16 160 34 0 24 Z" fill="#000" opacity=".9"/><path d="M10 19 C170 27 310 11 470 21 C630 31 770 13 930 23 C1050 31 1130 17 1190 25" fill="none" stroke="#C59A35" stroke-width="1.2" opacity=".6"/></svg></div>
-
-<!-- 第四章 -->
-<section id="ch4">
-  <div class="mon" style="left:-160px;top:40px;width:520px;height:520px"><svg><use href="#mon-aoi"/></svg></div>
-  <div class="wrap">
-    <div class="ar">
-      <div class="sho">第四章</div>
-      <h2 class="h2">戦は、戦場に出る前から<span class="g">始まっている。</span></h2>
-      <p class="kotoba"><span class="ln">武力だけでは、天下は取れない。軍議の一手が、その後の戦況を変える。</span></p>
-    </div>
-    <div class="grid">
-      <div class="ar">
-        <p class="kyuho">急報。<br>天王寺砦、<span class="aka">あと三日。</span></p>
-        <p class="kotoba"><span class="ln">援軍を待つか。</span><span class="ln">少数で救援に向かうか。</span><span class="ln">砦を捨てるか。</span></p>
-        <div class="sanTaku">
-          <button type="button" aria-pressed="false" data-a="wait">援軍を待つ<small>三日、砦が持つか</small></button>
-          <button type="button" aria-pressed="false" data-a="go">今すぐ向かう<small>兵は少ないが、間に合う</small></button>
-          <button type="button" aria-pressed="false" data-a="leave">砦を捨てる<small>本隊を守る</small></button>
-        </div>
-        <div class="kotae" role="status" aria-live="polite" id="kotae"><b>決めるのは、あなた。</b>正解は、一つではない。決断の結果が、その後の戦況を変える。</div>
-      </div>
-      <div class="ar makimono">
-        <div class="inban-mark"><svg><use href="#inban"/></svg></div>
-        <div class="gaku ugoku" data-seq="gungi" data-dir="seq"><span class="kin-corner tr"></span><span class="kin-corner bl"></span><img width="960" height="540" data-src="img/seq/gungi/000.jpg" alt="木津砦の戦い" loading="lazy" decoding="async"></div>
-        <p class="soe">軍議――砦の備え、援軍の数、敵の補給。地図を前に、手を決める。</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<div class="nokori">天下統一まで　あと<b>十</b>城</div>
-
-<!-- 武将列伝 -->
-<section id="retsuden">
-  <div class="mon" style="right:-120px;top:-40px;width:480px;height:480px"><svg><use href="#mon-kikyo"/></svg></div>
-  <div class="wrap">
-    <div class="ar">
-      <div class="sho">武将列伝</div>
-      <h2 class="h2">強い武将を集めるだけでは、<span class="g">勝てない。</span></h2>
-      <p class="kotoba">誰を前線へ出すか。誰を本陣に残すか。誰に別働隊を任せるか。配置もまた、采配。</p>
-      <div class="erabu"><span>最初に選ぶなら？</span><button type="button" aria-pressed="false" data-house="oda">織田</button><button type="button" aria-pressed="false" data-house="takeda">武田</button><button type="button" aria-pressed="false" data-house="tokugawa">徳川</button></div>
-    </div>
-    <div class="kakejiku-row">
-      <div class="kakejiku ar" data-house="oda"><div class="kami"><div class="mon"><svg><use href="#mon-oda"/></svg></div><img width="320" height="480" data-src="img/p_織田信長.svg" alt="織田信長" loading="lazy" decoding="async"></div><div class="na">織田信長</div><div class="kotoba1">天下布武</div></div>
-      <div class="kakejiku ar" data-house="tokugawa"><div class="kami"><div class="mon"><svg><use href="#mon-aoi"/></svg></div><img width="320" height="480" data-src="img/p_徳川家康.svg" alt="徳川家康" loading="lazy" decoding="async"></div><div class="na">徳川家康</div><div class="kotoba1">耐えて、最後に勝つ</div></div>
-      <div class="kakejiku ar" data-house="oda"><div class="kami"><div class="mon"><svg><use href="#mon-oda"/></svg></div><img width="320" height="480" data-src="img/p_羽柴秀吉.svg" alt="羽柴秀吉" loading="lazy" decoding="async"></div><div class="na">羽柴秀吉</div><div class="kotoba1">機を逃さない</div></div>
-      <div class="kakejiku ar" data-house="oda"><div class="kami"><div class="mon"><svg><use href="#mon-kikyo"/></svg></div><img width="320" height="480" data-src="img/p_明智光秀.svg" alt="明智光秀" loading="lazy" decoding="async"></div><div class="na">明智光秀</div><div class="kotoba1">鉄砲と城攻めの名手</div></div>
-      <div class="kakejiku ar" data-house="takeda"><div class="kami"><div class="mon"><svg><use href="#mon-takeda"/></svg></div><img width="320" height="480" data-src="img/p_武田勝頼.svg" alt="武田勝頼" loading="lazy" decoding="async"></div><div class="na">武田勝頼</div><div class="kotoba1">騎馬、風の如く</div></div>
-      <div class="kakejiku ar" data-house="oda"><div class="kami"><div class="mon"><svg><use href="#mon-oda"/></svg></div><img width="320" height="480" data-src="img/p_柴田勝家.svg" alt="柴田勝家" loading="lazy" decoding="async"></div><div class="na">柴田勝家</div><div class="kotoba1">掛かれ、掛かれ</div></div>
-      <div class="kakejiku ar" data-house="oda"><div class="kami"><div class="mon"><svg><use href="#mon-oda"/></svg></div><img width="320" height="480" data-src="img/p_丹羽長秀.svg" alt="丹羽長秀" loading="lazy" decoding="async"></div><div class="na">丹羽長秀</div><div class="kotoba1">本陣を支える米五郎左</div></div>
-      <div class="kakejiku ar" data-house="uesugi"><div class="kami"><div class="mon"><svg><use href="#mon-takeda"/></svg></div><img width="320" height="480" data-src="img/p_上杉謙信.svg" alt="上杉謙信" loading="lazy" decoding="async"></div><div class="na">上杉謙信</div><div class="kotoba1">毘</div></div>
-    </div>
-    <div class="ar" style="margin-top:36px"><div class="gaku"><span class="kin-corner tr"></span><span class="kin-corner bl"></span><img width="960" height="540" data-src="img/council_oda.jpg" alt="設楽原の備え。武将の陣立てを決める" loading="lazy" decoding="async"></div><p class="soe">設楽原の備え――史実の布陣で行くか、自ら並べるか。</p></div>
-  </div>
-</section>
-
-<!-- 感情の頂 -->
-<section id="peak">
-  <div class="ugoku" data-seq="takatenjin_assault" data-dir="seqh" data-open="takatenjin_assault"><img width="960" height="388" data-src="img/seqh/takatenjin_assault/000.jpg" alt="高天神城 総攻め" loading="lazy" decoding="async"><div class="ov"><b>ここで、天下が決まる。</b></div><span class="play">▶ 大きく見る</span></div>
-</section>
-
-<!-- 第五章 -->
-<section id="ch5">
-  <div class="tenka" id="tenka">
-    <div class="bg"></div><div class="cover"></div><div class="veil"></div>
-    <div class="wrap ar">
-      <div class="sho" style="display:inline-flex">第五章</div>
-      <h2 class="h2">天下を<span class="g">取れ。</span></h2>
-      <p class="kotoba c"><span class="ln">一城から始まった旗が、全国へ。</span><span class="ln"><b>史実は、ただの一つの結果にすぎない。</b></span><span class="ln">長篠で武田が勝つ。山崎で明智が生き残る。関ヶ原で西軍が押し返す。</span><span class="ln">可能性を決めるのは、あなたの采配。</span></p>
-    </div>
-  </div>
-</section>
-
-
-
-<!-- あなたならどう攻める -->
-<section id="choose">
-  <div class="mon" style="left:-120px;bottom:-80px;width:460px;height:460px"><svg><use href="#mon-oda"/></svg></div>
-  <div class="wrap">
-    <div class="ar"><div class="sho">あなたなら</div><h2 class="h2">敵軍は、<span class="g">川向こう。</span></h2>
-    <p class="kotoba">敵 一万八千、味方 一万二千。北には浅瀬、中央には橋。<b>あなたなら、どう攻める？</b></p></div>
-    <div class="ar" style="display:grid;grid-template-columns:1fr 1fr;gap:30px;align-items:center;margin-top:24px" id="chooseGrid">
-      <div class="gaku"><span class="kin-corner tr"></span><span class="kin-corner bl"></span><img width="960" height="540" data-src="img/kizu.jpg" alt="木津砦。川、橋、浅瀬" loading="lazy" decoding="async"></div>
-      <div>
-        <div class="sanTaku"><button type="button" aria-pressed="false" data-b="bridge">正面突破<small>橋を渡る</small></button><button type="button" aria-pressed="false" data-b="ford">浅瀬から迂回<small>北へ回る</small></button><button type="button" aria-pressed="false" data-b="wait">援軍を待つ<small>鉄砲が揃うまで</small></button></div>
-        <div class="kotae" role="status" aria-live="polite" id="kotae2"><b>その判断が、戦国大名では戦局を変える。</b></div>
-      </div>
-    </div>
-  </div>
-</section>
-<style>@media(max-width:860px){#chooseGrid{grid-template-columns:1fr !important}}</style>
-
-<!-- 帯の CTA -->
-<div class="obi"><div class="wrap"><div class="t">読むより、動かせ。</div><a class="fuda" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="prefaq_appstore_click"><svg><use href="#apple"/></svg>今すぐ出陣 ── App Storeで無料</a>　<a data-play data-ev="play_click" class="inban" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザで遊ぶ</a><p class="shinrai">iPhone / iPad / ブラウザ　／　長篠の戦いは無料　／　関ヶ原は ¥500</p></div></div>
-
-<!-- 攻略 -->
-<section id="guide">
-  <div class="wrap">
-    <div class="ar"><div class="sho">攻略</div><h2 class="h2">戦いの<span class="g">手引き。</span></h2></div>
-    <div class="shojo">
-      <div class="ar gaku"><span class="kin-corner tr"></span><span class="kin-corner bl"></span><img width="960" height="540" data-src="img/guide.jpg" alt="攻略サイトの軍議画面" loading="lazy" decoding="async"></div>
-      <div class="ar">
-        <h3>戦国大名 攻略サイト ── 筋書き別の手引き</h3>
-        <p class="kotoba" style="margin-top:12px;font-size:15px">無料で遊べる「長篠の戦い」をはじめ、公開中の筋書きの遊び方、序盤の進め方、内政・外交・軍事、合戦で勝つコツを画像つきで。初めての一戦の前に、ざっと目を通しておくと勝ちやすい。</p>
-        <ul class="glist"><li>画面の見方 ── 城の札・内政の札・外交</li><li>序盤攻略 ── 織田家で始める最初の30日</li><li>長篠の戦いの攻略 ── 守る側と攻める側</li><li>勝つコツと、よくある問答</li></ul>
-        <div class="ctas" style="margin-top:22px"><a class="inban" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/guide/">手引きを読む</a></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- 問答 -->
-<section id="faq" style="background:var(--sumi)">
-  <div class="wrap">
-    <div class="ar c"><div class="sho" style="display:inline-flex">問答</div><h2 class="h2">よくある<span class="g">問い。</span></h2></div>
-    <div class="mondo ar">
-      <details><summary>どんなゲーム？</summary><div class="kotae2">戦国大名となって天下統一を目指す戦略シミュレーション。地図で内政・外交・軍事を進め、合戦はリアルタイムで数万の兵を動かします。</div></details>
-      <details><summary>操作は難しい？</summary><div class="kotae2">兵一人ずつではなく、武将隊・軍団単位で指揮します。部隊を選び、進軍先を決めれば、あとは軍勢が動きます。合戦の初めには軍師が手を示します。</div></details>
-      <details><summary>無料で遊べますか？</summary><div class="kotae2">長篠の戦いは無料。関ヶ原の戦いは ¥500 で解除（iPhone は App 内課金、ブラウザは PayPal）。公開中の筋書きと遊べる家は、ゲームの筋書き選択で確認できます。</div></details>
-      <details><summary>通信のない所でも遊べますか？</summary><div class="kotae2">iPhone 版はゲーム本体が端末の中にあるため、通信がなくても遊べます。ブラウザ版は読み込みに通信が要ります。記録はどちらもその端末の中に残ります。</div></details>
-      <details><summary>戦国時代に詳しくなくても遊べますか？</summary><div class="kotae2">戦況や目的を画面上に示し、合戦の初めには軍師が手を示します。歴史に詳しくなくても楽しめます。</div></details>
-      <details><summary>どんな合戦がありますか？</summary><div class="kotae2">長篠、姉川、山崎、木津砦、関ヶ原、神流川、杭瀬川、白石など、歴史上の戦いを舞台にした各地の決戦と、筋書きのない野戦・城攻め・海戦。</div></details>
-      <details><summary>どの端末で遊べますか？</summary><div class="kotae2">iPhone・iPad（App Store）と、携帯・パソコンのブラウザ。iPhone は横向きで遊びます。英語表示にも切り替えられます。</div></details>
-    </div>
-  </div>
-</section>
-<!-- 軍資金募集 -->
-<section id="gunshikin" style="background:var(--cha)">
-  <div class="wrap">
-    <div class="ar c"><div class="sho" style="display:inline-flex">軍資金募集</div><h2 class="h2">この戦国を、<span class="g">皆でさらに面白く。</span></h2>
-    <p class="kotoba c">合戦画面の大改修（武将の絵・兵士・馬防柵・本陣・硝煙・新曲）のための軍資金を募っています。支援は開発の応援で、特典はありません。額は気持ちで。</p></div>
-    <div class="ar gunshikin-box">
-      <div class="gtiers"><a class="gt" href="https://www.paypal.com/paypalme/sengokudaimyo/500JPY" target="_blank" rel="noopener" data-ev="fund_500"><b>足軽衆</b><span>¥500</span></a><a class="gt" href="https://www.paypal.com/paypalme/sengokudaimyo/1000JPY" target="_blank" rel="noopener" data-ev="fund_1000"><b>侍大将</b><span>¥1,000</span></a><a class="gt" href="https://www.paypal.com/paypalme/sengokudaimyo/3000JPY" target="_blank" rel="noopener" data-ev="fund_3000"><b>奉行</b><span>¥3,000</span></a><a class="gt" href="https://www.paypal.com/paypalme/sengokudaimyo/5000JPY" target="_blank" rel="noopener" data-ev="fund_5000"><b>家老</b><span>¥5,000</span></a><a class="gt" href="https://www.paypal.com/paypalme/sengokudaimyo/10000JPY" target="_blank" rel="noopener" data-ev="fund_10000"><b>宿老</b><span>¥10,000</span></a><a class="gt" href="https://www.paypal.com/paypalme/sengokudaimyo/30000JPY" target="_blank" rel="noopener" data-ev="fund_30000"><b>大名</b><span>¥30,000</span></a><a class="gt" href="https://www.paypal.com/paypalme/sengokudaimyo/50000JPY" target="_blank" rel="noopener" data-ev="fund_50000"><b>天下人</b><span>¥50,000</span></a></div>
-      <p class="soe c">ブラウザ版は PayPal（アカウントが要ります）、iPhone 版はアプリの表紙「軍資金募集」から App 内課金で。</p>
-      <div class="ctas" style="justify-content:center;margin-top:14px"><a data-play class="fuda ghost" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/" data-ev="fund_web_click">ゲームの中の軍資金の札を見る</a></div>
-    </div>
-  </div>
-</section>
-
-<!-- 目安箱 -->
-<section id="meyasu" style="background:var(--sumi)">
-  <div class="wrap">
-    <div class="ar c"><div class="sho" style="display:inline-flex">目安箱</div><h2 class="h2">ここを、<span class="g">こうして欲しい。</span></h2>
-    <p class="kotoba c">遊んで困ったこと、欲しい手、直して欲しい所。何でも作り手へ。手紙の窓が開きます。</p></div>
-    <div class="ar meyasu-box">
-      <label for="meyasuText">作り手へ伝える内容</label><textarea maxlength="1500" aria-describedby="meyasuStatus" id="meyasuText" rows="5" placeholder="例：関ヶ原にも軍議が欲しい／iPhone で音が出ない／この武将を出して欲しい"></textarea>
-      <div class="ctas" style="justify-content:center;margin-top:14px"><button class="fuda" id="meyasuGo" type="button">手紙で送る</button></div>
-      <p class="soe c"><span id="meyasuStatus" role="status"></span>宛先 <a href="mailto:kaitoseto1129@gmail.com">kaitoseto1129@gmail.com</a> ── 手紙の窓が開かなければ、そのまま直接どうぞ。</p>
-      <!-- 第255巡：試遊の検証（初めて遊んだ人に五段階で聞く） -->
-      <div class="c" style="margin-top:26px;padding-top:22px;border-top:1px solid var(--line)">
-        <p class="kotoba c" style="margin-bottom:12px">初めて遊んだ方へ。<b>三十秒の検証</b>（五段階・六問）にご協力いただけると、直すべき所が分かります。</p>
-        <div class="ctas" style="justify-content:center"><a class="fuda" data-ev="survey_click" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/?survey=1">試遊の検証に答える</a></div>
-        <p class="soe c">遊んでから開いてください。答えは作り手だけが見ます。</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-
-<!-- 結 -->
-<section id="musubi">
+</section><section id="musubi">
   <div class="last">
-    <div class="bg" data-speed="0.1"></div><div class="map"></div><div class="veil"></div>
+    
     <div class="wrap ar">
       <div class="sho" style="display:inline-flex">結</div>
       <h2 class="h2">天下を取るのは、<br>あなたの<span class="g">采配だ。</span></h2>
-      <p class="kotoba c" style="margin-top:16px;font-family:var(--fude);font-size:clamp(18px,2.4vw,26px);letter-spacing:.14em"><span class="ln">歴史を眺めるな。</span><span class="ln">次は、あなたが動かせ。</span></p>
+      <p class="kotoba c">次の一手を、あなたの采配で。</p>
       <div class="ctas"><a class="fuda" href="https://apps.apple.com/jp/app/id6811255282" data-app data-ev="final_appstore_click"><svg><use href="#apple"/></svg>App Storeで無料ダウンロード</a><a data-play data-ev="play_click" class="inban" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザで遊ぶ</a></div>
       <p class="shinrai">iPhone / iPad / ブラウザ　／　長篠の戦いは無料　／　関ヶ原は ¥500</p>
     </div>
   </div>
 </section>
-
 <footer>
   <div class="monpat"></div>
   <div class="wrap">
     <span class="logo">戦国大名</span>
-    <div class="links"><a href="https://apps.apple.com/jp/app/id6811255282" data-app>App Store</a><a data-play data-ev="play_click" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザ版</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/guide/">攻略</a><a href="#gunshikin">軍資金募集</a><a href="#meyasu">目安箱</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/privacy.html">プライバシーポリシー</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/support.html">お問い合わせ</a></div>
+    <div class="links"><a href="https://apps.apple.com/jp/app/id6811255282" data-app>App Store</a><a data-play data-ev="play_click" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/">ブラウザ版</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/guide/">攻略</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/privacy.html">プライバシーポリシー</a><a href="https://kaitoseto1129.github.io/sengoku-daimyo-play/support.html">お問い合わせ</a></div>
     <div class="credits">武将の絵札はゲーム用の描画です。史料の肖像そのものではありません。画面はすべて開発中のゲーム画面で、製品版とは異なる場合があります。Apple、App Store は Apple Inc. の商標です。<br>開発・運営：JPjoy Inc.</div>
   </div>
 </footer>
@@ -903,13 +562,13 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
     
     links.forEach(function(a){ a.addEventListener('pointerenter',prefetch); a.addEventListener('focus',prefetch); a.addEventListener('touchstart',prefetch,{passive:true}); }); })();
   document.querySelectorAll('.mondo details').forEach(function(d){ d.addEventListener('toggle',function(){ if(d.open) ev('faq_open'); }); });
-  var seen={}; function depth(){ var h=document.documentElement.scrollHeight-window.innerHeight; if(h<=0) return; var p=Math.round(window.scrollY/h*100); [25,50,75,100].forEach(function(m){ if(p>=m&&!seen[m]){ seen[m]=1; ev('scroll_'+m); } }); var b=document.getElementById('ch3'); if(b&&!seen.b&&b.getBoundingClientRect().top<window.innerHeight*0.6){ seen.b=1; ev('battle_section_view'); } var st=document.getElementById('susumi'); if(st){ st.hidden=window.scrollY<document.getElementById('hero').offsetHeight; var q=Math.min(1,window.scrollY/Math.max(1,h)); st.querySelector('i').style.setProperty('--h',(q*100)+'%'); document.getElementById('susumiT').textContent=q<.2?'一国':q<.45?'三国':q<.7?'十国':q<.92?'畿内':'天下'; } }
+  var seen={}; function depth(){ var h=document.documentElement.scrollHeight-window.innerHeight; if(h<=0) return; var p=Math.round(window.scrollY/h*100); [25,50,75,100].forEach(function(m){ if(p>=m&&!seen[m]){ seen[m]=1; ev('scroll_'+m); } }); var b=document.querySelector('#mitsu .selling'); if(b&&!seen.b&&b.getBoundingClientRect().top<window.innerHeight*0.6){ seen.b=1; ev('battle_section_view'); } var st=document.getElementById('susumi'); if(st){ st.hidden=window.scrollY<document.getElementById('hero').offsetHeight; var q=Math.min(1,window.scrollY/Math.max(1,h)); st.querySelector('i').style.setProperty('--h',(q*100)+'%'); document.getElementById('susumiT').textContent=q<.2?'一国':q<.45?'三国':q<.7?'十国':q<.92?'畿内':'天下'; } }
   window.addEventListener('scroll',depth,{passive:true}); depth();
 
   /* 目安箱 */
   var mg=document.getElementById('meyasuGo'),mt=document.getElementById('meyasuText'),ms=document.getElementById('meyasuStatus');
   try{mt.value=sessionStorage.getItem('sd_draft_紹介ページ')||'';}catch(_){}
-  mt.addEventListener('input',function(){try{sessionStorage.setItem('sd_draft_紹介ページ',mt.value);}catch(_){} });
+  if(mt)mt.addEventListener('input',function(){try{sessionStorage.setItem('sd_draft_紹介ページ',mt.value);}catch(_){} });
   if(mg)mg.addEventListener('click',function(){SDPage.email(mt,'紹介ページ',ms);});
 
   /* 音（押した時だけ）：風と太鼓 */
@@ -923,8 +582,12 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
 })();
 </script>
 <script>
-(()=>{ const st=document.getElementById('stick'); const h=document.querySelector('#hero .ctas'); if(!st||!h||!('IntersectionObserver' in window)){ if(st) st.classList.add('on'); return; }
-  new IntersectionObserver(es=>{ for(const e of es) st.classList.toggle('on', !e.isIntersecting); }).observe(h); })();
+(()=>{const st=document.getElementById('stick'),hero=document.getElementById('hero');
+if(!st||!hero)return;
+function update(){const past=hero.getBoundingClientRect().bottom<=0;
+const overlap=[...document.querySelectorAll('#koe a[data-app],#musubi .ctas,footer')].some(el=>{const r=el.getBoundingClientRect();return r.bottom>0&&r.top<innerHeight;});
+st.classList.toggle('on',past&&!overlap);}
+addEventListener('scroll',update,{passive:true});addEventListener('resize',update);update();})();
 </script>
 <script src="media.js"></script>
 <script>

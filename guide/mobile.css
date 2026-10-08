@@ -42,3 +42,18 @@ footer a{min-width:44px}
 @media(max-height:500px){header.top{position:relative}section[id]{scroll-margin-top:12px}.hero h1{font-size:26px}.dgrid{grid-template-columns:repeat(2,minmax(0,1fr))}.fig{max-width:600px;margin-left:auto;margin-right:auto}}
 @media(max-width:360px){.dgrid{grid-template-columns:1fr}.wrap{padding-left:12px;padding-right:12px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
+
+/* 携帯の縦持ちで読むための文字と、戦場の切り出し。 */
+:root{--dim:#D7C8A5;--kin:#E6C15A}
+body{font-size:16px;line-height:1.7;letter-spacing:0}
+p,li,.lead,.note,.era,.b .s,.vs,figcaption,footer,.k,.toc{font-size:16px!important;line-height:1.7;letter-spacing:0!important;color:#EEE6D5}
+header.top nav a{font-size:16px;letter-spacing:0;min-height:44px}
+.hero{padding:20px 0 12px}.hero h1{font-size:28px}.hero p{margin:8px 0 0}
+#scen{padding-top:20px}#scen h2{font-size:24px}.chips{margin-top:12px}
+.read-more{margin:12px 0 20px;border:1px solid #756442;padding:0 12px;background:#17120D}
+.read-more summary{cursor:pointer;min-height:48px;display:list-item;padding:10px 0;color:#E6C15A;font-size:16px;line-height:1.7}
+.read-more[open] summary{margin-bottom:12px}.read-more p{margin-bottom:14px}
+.battle-window{position:relative;aspect-ratio:16/6.39;overflow:hidden;background:#D7C8A5}
+.dcard .battle-window img{position:absolute;top:-28.17%;left:0;width:100%;height:140.845%;aspect-ratio:auto;object-fit:fill;background:#D7C8A5}
+.dcard .play{min-height:44px;display:flex;align-items:center;font-size:16px!important;letter-spacing:0}
+@media(max-width:720px){.hero h1{font-size:28px}header.top{position:relative}section[id]{scroll-margin-top:12px}}

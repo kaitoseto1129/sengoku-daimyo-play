@@ -79,3 +79,31 @@ img[width][height]{height:auto}#heroVideo{display:block}
 .inban svg{width:22px;height:22px;flex:none;margin-right:10px;fill:currentColor}
 #hero .ctas a.inban{min-height:52px;font-size:18px}
 #hero .brand{margin:0 0 4px;font-family:var(--fude),serif;font-size:22px;letter-spacing:.3em;color:#F2D58A;text-shadow:0 2px 6px #000}
+
+/* 読む頁：六つの段。本文の字間と行高を揃える。 */
+:root{--dim:#D7C8A5;--kin:#E6C15A}
+body{font-size:16px;line-height:1.7;letter-spacing:0}
+p,figcaption,.soe,.credits,.shinrai,.haifu,.koe-star span,.koe-q cite{font-size:16px!important;line-height:1.7;letter-spacing:0!important;color:#EEE6D5}
+a,button,summary{min-height:44px}
+header nav a{min-height:44px;opacity:1}
+.h2{font-size:30px;line-height:1.4}.sho{letter-spacing:.08em}
+#intro{padding:0}#intro p{margin:12px 0 24px}
+.selling{display:grid;gap:28px}.selling h3{font-size:18px;line-height:1.7;letter-spacing:0;margin-bottom:12px}
+.ugoku,.battle-still{aspect-ratio:960/388;background:#D7C8A5;box-shadow:none;overflow:hidden;position:relative}
+.ugoku img,.battle-still img{width:100%;height:100%;object-fit:cover;background:#D7C8A5}
+.ugoku .play{min-height:44px;display:flex;align-items:center;font-size:16px!important;letter-spacing:0}
+.story-grid{display:grid;gap:24px;margin-top:24px}.story-grid figure{margin:0}
+.story-grid figcaption{padding-top:10px}.story-grid b{display:block;color:#E6C15A}
+#nagashino{background:#17120D}#nagashino p,#loop p{margin-top:16px}
+.flow{white-space:nowrap;font-size:16px!important;letter-spacing:0!important}
+.reading-link{display:inline-flex;align-items:center;min-height:44px;margin-top:16px}
+#musubi .last{min-height:0}#musubi .wrap{padding:48px 22px}#musubi .h2{font-size:32px}
+#musubi .ctas{display:grid;margin-top:24px}#musubi .ctas a{font-size:18px;letter-spacing:0;min-height:52px;padding:12px}
+#hero{background:#D7C8A5 url('img/hero.jpg') center/cover no-repeat}
+footer{padding:24px 0}footer .links{gap:8px}footer a{min-height:44px;display:inline-flex;align-items:center;letter-spacing:0}
+footer .credits{margin-top:16px}#stick .row a{min-height:48px;font-size:16px}
+@media(min-width:721px){.selling{grid-template-columns:repeat(3,1fr)}.story-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:380px){.flow{white-space:normal;letter-spacing:0!important}}
+
+.ugoku img[width][height],.battle-still img[width][height]{height:100%}
+#hero .brand{font-size:22px!important;color:#F2D58A;letter-spacing:.12em!important}
