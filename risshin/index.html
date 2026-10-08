@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202610081415 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202610081533 として写した） -->
 <title>戦国立身3D　足軽から天下へ、戦国の合戦アクション</title>
 <meta name="description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。">
 <link rel="canonical" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/">
@@ -69,7 +69,7 @@
 })();
 </script>
 <!-- /Meta Pixel -->
-<link rel="icon" type="image/png" sizes="32x32" href="./v202610081415/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610081415/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610081415/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610081415/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202610081533/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610081533/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610081533/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610081533/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
 :root {
@@ -1740,6 +1740,14 @@ html.touch.tc-low #hud #armybar { width: min(360px, 40vw); top: calc(6px + env(s
   #hud #intro > .card { width: min(560px, calc(100vw - 288px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))); max-height: calc(100dvh - 120px - env(safe-area-inset-top, 0px)); padding: 12px 16px; touch-action: pan-y; }
 }
 #hud #intro-go { position: static; align-self: center; flex-shrink: 0; min-height: 48px; max-width: 100%; }
+/* 戦死の札は安全な画面内に収め、長い釦も折り返して読めるようにする。 */
+html body dialog.battle-retry { inset: auto calc(8px + env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) auto !important; max-height: calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important; }
+dialog.battle-retry .btn { box-sizing: border-box; width: 100%; min-width: 0; height: auto; flex-shrink: 0; padding: 10px 12px; white-space: normal; overflow-wrap: anywhere; letter-spacing: .04em; line-height: 1.4; }
+@media (max-height: 500px) {
+  html body dialog.battle-retry { width: min(420px, calc(100vw - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))) !important; padding: 12px !important; }
+  dialog.battle-retry h2 { font-size: 20px !important; }
+  dialog.battle-retry p { margin-bottom: 8px !important; line-height: 1.4; }
+}
 /* 出陣待ちは操作の丸を隠し、下知を読む高さと出陣の釦を確保する。 */
 @media (orientation: landscape) and (max-height: 500px) {
   html.touch #hud #intro > .card { align-self: start; width: min(480px, calc(100vw - 352px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))); max-height: calc(68dvh - 16px - env(safe-area-inset-top, 0px)) !important; padding: 8px 16px; }
@@ -1892,5 +1900,5 @@ html.touch.tc-low #hud #armybar { width: min(360px, 40vw); top: calc(6px + env(s
 } }
 </script>
 <script type="module">
-import('./v202610081415/src/main.js').catch(() => window.__bootFail());
+import('./v202610081533/src/main.js').catch(() => window.__bootFail());
 </script>
