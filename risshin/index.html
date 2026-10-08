@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202610072111 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202610080854 として写した） -->
 <title>戦国立身3D　足軽から天下へ、戦国の合戦アクション</title>
 <meta name="description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。">
 <link rel="canonical" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/">
@@ -69,7 +69,7 @@
 })();
 </script>
 <!-- /Meta Pixel -->
-<link rel="icon" type="image/png" sizes="32x32" href="./v202610072111/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610072111/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610072111/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610072111/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202610080854/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610080854/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610080854/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610080854/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
 :root {
@@ -1221,7 +1221,7 @@ html.touch body.rm #hud #tutorial.coach.hintc.in { animation: none !important; }
 #objectives li .opb b { position: absolute; inset: 0; right: auto; background: var(--kin); transition: width .4s; }
 #objectives li.folded { display: block; margin-top: 6px; padding-top: 4px; border-top: 1px dashed rgba(194,162,90,.3); font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); text-align: right; letter-spacing: .1em; }
 /* 504・505 任務の印：名は墨の下地、距離は薄い字 */
-.mk { display: grid; justify-items: center; gap: 1px; }
+.mk { display: grid; justify-items: center; gap: 1px; width: max-content; }   /* 画面の端で幅が縮んで字が縦に一文字ずつ並ばないように */
 .mk b { font-weight: 500; font-size: max(12px, calc(13px * var(--text-scale, 1))); padding: 1px 7px; background: rgba(12,10,8,.72); box-shadow: inset 0 0 0 1px rgba(194,162,90,.35); line-height: 1.4; }
 .mk.red b { box-shadow: inset 0 0 0 1px rgba(227,106,82,.45); }
 .mk small { font-size: max(12px, calc(12px * var(--text-scale, 1))); color: #efe3c2; text-shadow: 0 1px 2px #000, 0 0 4px #000; font-variant-numeric: tabular-nums; }
@@ -1882,5 +1882,5 @@ html.touch.tc-low #hud #armybar { width: min(360px, 40vw); top: calc(6px + env(s
 } }
 </script>
 <script type="module">
-import('./v202610072111/src/main.js').catch(() => window.__bootFail());
+import('./v202610080854/src/main.js').catch(() => window.__bootFail());
 </script>
