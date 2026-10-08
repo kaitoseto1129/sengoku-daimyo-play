@@ -14,6 +14,9 @@
   a { color: var(--accent); }
   .mail { font-size: 18px; user-select: all; }
   small { color: var(--sub); }
+  .community-button { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; box-sizing: border-box; padding: 8px 16px; margin: 8px 0; border: 2px solid var(--accent); border-radius: 6px; font: inherit; font-weight: bold; text-decoration: none; }
+  .community-button:focus-visible { outline: 3px solid var(--ink); outline-offset: 4px; }
+  [hidden] { display: none !important; }
 </style>
 </head>
 <body>
@@ -22,9 +25,13 @@
   <p class="sub">サポート・お問い合わせ</p>
 
   <h2>お問い合わせ</h2>
+  <div id="community-entry" hidden>
+    <p>遊ぶ人が集まる場で、感想や不具合を伝えられます。</p>
+    <a class="community-button" id="community-link" target="_blank" rel="noopener noreferrer">感想・不具合を送る</a>
+  </div>
   <p>不具合のご報告、ご意見、ご質問は、次のメールアドレスへお送りください。</p>
   <p class="mail">kaitoseto1129@gmail.com</p>
-  <p><small>お使いの端末（例：iPhone 15）、iOS の版、どの戦のどの場面で起きたかを添えていただけると、早く直せます。</small></p>
+  <p><small>お使いの端末（例：アイフォン１５）、基本ソフトの版、どの戦のどの場面で起きたかを添えていただけると、早く直せます。</small></p>
 
   <h2>よくある質問</h2>
   <p><b>動きが重い</b><br>設定の「画質」を「中」か「低」にしてください。ほかのアプリを閉じると軽くなることがあります。</p>
@@ -36,5 +43,12 @@
 
   <p><small>© 2026 戦国立身</small></p>
 </main>
+<script type="module">
+  import { COMMUNITY_URL } from './community.js';
+  if (COMMUNITY_URL) {
+    document.getElementById('community-link').href = COMMUNITY_URL;
+    document.getElementById('community-entry').hidden = false;
+  }
+</script>
 </body>
 </html>
