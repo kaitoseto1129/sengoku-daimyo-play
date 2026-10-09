@@ -4257,7 +4257,7 @@ if(A.suzerain!==null&&A.suzerain!==undefined&&W.clans[A.suzerain]) W.clans[A.suz
 for(const v of [...A.vassals]){ if(v===B.id) continue; const V=W.clans[v]; if(V){ V.suzerain=B.id; B.vassals.add(v); breakAlly(v,B.id); } } A.vassals.clear();
 if(B.vassals.has(me)===false) B.vassals.add(me);
 if(B.suzerain===me) B.suzerain=null;
-A.suzerain=B.id; makePeace(me,B.id); breakAlly(me,B.id);
+A.suzerain=B.id; A.vassalAt=dayNumber(); makePeace(me,B.id); breakAlly(me,B.id);
 for(const x of [...A.allies]) breakAlly(me,x);
 for(const v of [...B.vassals]) if(v!==me) breakAlly(me,v);
 for(const x of [...A.allies]) if(B.war.has(x)){ breakAlly(me,x); log(`${A.name}は主家 ${B.name}の敵である${clanName(x)}との盟を解いた`,"dip",x===W.player||me===W.player); }
@@ -4935,6 +4935,7 @@ vassalUnrest();
 processDefections();
 cullDrifters();
 tidyWorld();
+if(!B&&!W.stage) for(const K of Object.values(W.clans)) if(!K.dead) clampClanTroops(K);
 submissionDaily();
 sweepDeadClanRemnants();
 purgeDeadClans();
@@ -7020,6 +7021,8 @@ const cs=Object.values(W.castles).filter(c=>c.clan!=null);
 const covered=realmCoveredClans(lord);
 const rest=cs.filter(c=>!covered.has(c.clan));
 if(!rest.length||rest.length*10>cs.length) return null;
+
+if([...new Set(rest.map(c=>c.clan))].some(id=>!submissionDominance(lord,id))) return null;
 return {houses:new Set(rest.map(c=>c.clan)).size,castles:rest.length};
 }
 function refreshRealmGuide(){
@@ -7030,13 +7033,19 @@ el.hidden=!end&&!early;
 if(early&&!end){ el.textContent="徳川の拡大先　天下の残り";el.title="駿河・甲斐・信濃への道と盟友を数える条件"; }
 if(end){ el.textContent=`あと${end.houses}家・${end.castles}城　天下の残り`; el.title="残る家への従属・外交・出陣の手立てを見る"; }
 }
+
+function submissionDominance(lord,other){
+const Bc=W.clans[other]; if(!Bc) return false;
+const theirs=Object.values(W.castles).filter(c=>c.clan===other||Bc.vassals.has(c.clan)).length;
+return myCastles(lord).length>=Math.max(2,Math.ceil(theirs*1.5))&&totalTroops(lord)>=Math.max(6000,totalTroops(other)*3);
+}
 function submissionTerms(lord,other){
 const A=W.clans[lord], Bc=W.clans[other];
 if(!A||!Bc||A.dead||Bc.dead||lord===other||sameHouse(lord,other)||A.suzerain!=null||Bc.suzerain!=null||submissionProtected(Bc)||(stageClanIds()||new Set()).has(lord)) return null;
 const own=myCastles(lord), theirs=myCastles(other);
-if(!own.length||!theirs.length) return null;
+if(!own.length||!theirs.length||!submissionDominance(lord,other)) return null;
 const covered=Object.values(W.castles).filter(c=>c.clan===lord||A.vassals.has(c.clan)).length;
-if(theirs.length>Math.max(3,Math.floor(covered/3))) return null;
+if(theirs.length>Math.max(3,Math.floor(own.length/3))) return null;
 const all=Object.values(W.castles).filter(c=>c.clan!==null).length;
 const ratio=totalTroops(lord)/Math.max(2000,totalTroops(other));
 const end=realmEndgame(lord);
@@ -7114,7 +7123,7 @@ const A=W.clans[lord], K=W.clans[other];
 if(!A||!K||K.dead||lord===other||sameHouse(lord,other)||submissionProtected(K)||A.suzerain!=null) return false;
 const last=myCastles(other).length<=1&&Object.values(W.armies).some(a=>a.clan===lord&&a.mission==="包囲"&&W.castles[a.target]?.clan===other);
 const hq=K.hqLostTo===lord&&K.hqLostAt&&dayNumber()-K.hqLostAt<540;
-return !!submissionTerms(lord,other)||(bordersOn(lord,other)&&(last||powerScore(lord)*(W.shogun===lord?1.5:1)*(prestigeTier(lord)>=4?1.25:1)>powerScore(other)*(hq?1.1:1.8)));
+return !!submissionTerms(lord,other)||(bordersOn(lord,other)&&(last||(hq||submissionDominance(lord,other))&&powerScore(lord)*(W.shogun===lord?1.5:1)*(prestigeTier(lord)>=4?1.25:1)>powerScore(other)*(hq?1.1:1.8)));
 }
 
 function requestSubmission(lord,other){
@@ -7289,7 +7298,7 @@ log(`${g.name}の${nm}が上がりました（${g[k]}）`,"growth");
 }
 function processMonth(){
 W._tribIn={};
-for(const K of Object.values(W.clans)) if(!K.dead&&K.troopMax){ try{ clampClanTroops(K); }catch(_){ } if(W.date.m===1&&!K.capHard){ K.troopMax=Math.round(K.troopMax*1.1); if(K.troopMax>=60000){ delete K.troopMax; if(K.id===W.player) log("大敗の痛手は癒え、兵の上限は無くなりました","growth"); } } }
+for(const K of Object.values(W.clans)) if(!K.dead){ if(!B&&!W.stage) clampClanTroops(K); if(K.troopMax&&W.date.m===1&&!K.capHard){ K.troopMax=Math.round(K.troopMax*1.1); if(K.troopMax>=60000){ delete K.troopMax; if(K.id===W.player) log("大敗の痛手は癒え、領地に見合う動員力へ戻りました","growth"); } } }
 if(W.date.m===1 && W.started){ bigNews(`${W.date.y}年　正月`); log(`年が明けました。${W.date.y}年、${clanName(W.player)}は城${myCastles(W.player).length}・将${Object.values(W.generals).filter(g=>g.clan===W.player&&g.status!=="死亡").length}・兵${totalTroops(W.player).toLocaleString()}`,"growth",true); }
 
 { const me=W.clans[W.player]; if(me){ W.relPrev=W.relPrev||{}; W.relPrevOld=W.relPrev; W.relPrev={}; for(const o of Object.values(W.clans)) if(!o.dead) W.relPrev[o.id]=getRel(W.player,o.id); } }
@@ -7925,19 +7934,28 @@ return cap;
 }
 
 function clanTroopLimit(K){
-if(!K||!K.troopMax) return Infinity;
-if(W.scenario==="nagashino"&&K.id===0&&K.capHard&&K.troopMax===60000)
-return 60000+Math.max(0,myCastles(0).length-22)*3000;
-return K.troopMax;
+if(!K) return 0;
+if(W.scenario!=="nagashino") return K.troopMax||Infinity;
+const cs=Object.values(W.castles).filter(c=>c.clan!=null);
+const capacity=c=>Math.max(0,Math.min(c.koku*.24,c.pop*.40));
+const national=cs.reduce((n,c)=>n+capacity(c),0);
+const land=Math.floor(cs.filter(c=>c.clan===K.id).reduce((n,c)=>n+capacity(c),0)/Math.max(1,national/500000));
+let limit=Math.min(300000,land);
+if(K.troopMax){
+const wound=W.scenario==="nagashino"&&K.id===0&&K.capHard&&K.troopMax===60000
+?60000+Math.max(0,myCastles(0).length-22)*3000:K.troopMax+Math.max(0,myCastles(K.id).length-(K.troopCapCastles??myCastles(K.id).length))*2000;
+limit=Math.min(limit,wound);
+}
+return limit;
 }
 const isBesieged = cid => Object.values(W.armies).some(a=>a.mission==="包囲"&&a.target===cid);
 
 function clanTroopTotal(K){ return Object.values(W.generals).filter(g=>g.clan===K.id&&g.status!=="死亡"&&g.status!=="捕虜").reduce((s2,g)=>s2+g.troops,0); }
-function clampClanTroops(K){ if(!K||!K.troopMax) return; const tot=clanTroopTotal(K), limit=clanTroopLimit(K); if(tot<=limit) return; const f=limit/tot; for(const g of Object.values(W.generals)) if(g.clan===K.id&&g.status!=="死亡"&&g.status!=="捕虜") g.troops=Math.floor(g.troops*f); bumpGarrison(); }
+function clampClanTroops(K){ if(!K) return; const tot=clanTroopTotal(K), limit=clanTroopLimit(K); if(tot<=limit) return; const f=limit/tot; for(const g of Object.values(W.generals)) if(g.clan===K.id&&g.status!=="死亡"&&g.status!=="捕虜") g.troops=Math.floor(g.troops*f); bumpGarrison(); }
 function conscript(gid,unit,count){
 const g=W.generals[gid]; if(!g) return "武将がいません";
 if(g.clan===null||g.clan===undefined||!W.clans[g.clan]) return "在野の武将には兵を付けられませぬ";
-{ const K=W.clans[g.clan]; if(K&&K.troopMax&&clanTroopTotal(K)>=clanTroopLimit(K)) return `家の兵は上限（${clanTroopLimit(K).toLocaleString()}人）に達しております。${W.scenario==="nagashino"&&K.id===0&&K.capHard?"領地を増やせば動員できる兵も増えます":"大敗の痛手が癒えるまで増やせませぬ"}`; }
+{ const K=W.clans[g.clan]; if(K&&clanTroopTotal(K)>=clanTroopLimit(K)) return `家の兵は上限（${clanTroopLimit(K).toLocaleString()}人）に達しております。${W.scenario==="nagashino"&&K.id===0&&K.capHard?"領地を増やせば動員できる兵も増えます":"城の石高・人口に見合う兵までしか養えませぬ"}`; }
 if(g.castle!==null && isBesieged(g.castle)) return "囲まれた城では民から兵を取れませぬ";
 if(g.status==="捕虜"||g.status==="人質"||g.status==="死亡"||g.captor) return `${g.name}は手元におりませぬ`;
 if(g.army) return `${g.name}は出陣中です`;
@@ -7948,7 +7966,7 @@ if(g.apt[unit]===null) return `${g.name}は${UNITS[unit].n}を率いられませ
 if(unit===3 && !W.clans[g.clan].policies.has("鉄砲伝来")) return "鉄砲の技術がありません";
 
 if(g.troops>=100 && g.unit!==unit) return `${g.name}の手勢は${UNITS[g.unit].n}です。別の兵を足すには先に「兵種」で改めてください`;
-const want=Math.min(count,troopCapOf(g)-g.troops,regionConscriptable(c),W.clans[g.clan].troopMax?Math.max(0,clanTroopLimit(W.clans[g.clan])-clanTroopTotal(W.clans[g.clan])):Infinity);
+const want=Math.min(count,troopCapOf(g)-g.troops,regionConscriptable(c),Math.max(0,clanTroopLimit(W.clans[g.clan])-clanTroopTotal(W.clans[g.clan])));
 if(want<=0) return "これ以上徴兵できません";
 const cost=Math.floor(UNITS[unit].cost*want/1000*(unit===3&&W.clans[g.clan].gunCheap?0.75:1));
 const clan=W.clans[g.clan];
@@ -8108,6 +8126,16 @@ if(pressed) chance+=15; if(pressing) chance-=20; if(foes>=2) chance+=12; if(gift
 chance+=((W.warScore||{})[me+":"+other]||0)*6;
 return Math.round(Math.max(8,Math.min(92,chance)));
 }
+
+function independenceTerms(me,other){
+const A=W.clans[me], Bc=W.clans[other];
+if(W.scenario!=="nagashino"||!A||!Bc||Bc.dead||A.suzerain!==other||submissionProtected(A)||submissionProtected(Bc)) return null;
+const land=myCastles(me).length, troops=totalTroops(me);
+const established=land>=5&&troops>=10000;
+const served=land>=2&&troops>=3000&&A.vassalAt!=null&&dayNumber()-A.vassalAt>=3*360;
+if((!established&&!served)||getRel(me,other)<70||getRel(other,me)<70) return null;
+return {cost:20000};
+}
 function diplomacy(kind,me,other,opt){
 const A=W.clans[me]; let B=W.clans[other];
 
@@ -8205,6 +8233,8 @@ const mine=powerScore(me)*(W.shogun===me?1.5:1)*(prestigeTier(me)>=4?1.25:1);
 const besiegedLast = myCastles(other).length<=1 && Object.values(W.armies).some(a=>a.clan===me&&a.mission==="包囲"&&W.castles[a.target]&&W.castles[a.target].clan===other);
 const hqTaken = B.hqLostTo===me && B.hqLostAt && dayNumber()-B.hqLostAt<540;
 const needK = hqTaken ? 1.1 : 1.8;
+
+if(me===W.player&&!besiegedLast&&!hqTaken&&!submissionDominance(me,other)) return "城と兵の優勢が足りません（自城が相手の所領の一・五倍、実兵が三倍必要）";
 if(!besiegedLast && mine <= powerScore(other)*needK) return `力の差が足りません（こちらの力が相手の${Math.round(mine/Math.max(1,powerScore(other))*100)/100}倍。${hqTaken?"本拠を落としているので一・一倍":"一・八倍"}が要ります）`;
 if(!bordersOn(me,other)) return "隣り合っておらねば威は届きません";
 if(Math.floor(rnd()*100) >= ((besiegedLast||hqTaken)?85:60)*(W.shogun===me?1.5:1)*(prestigeTier(me)>=4?1.2:1)){
@@ -8239,6 +8269,14 @@ if(A.suzerain===other) return "すでに傘下です";
 { const T=subordinate(me,other); if(!T) return "従属できませぬ"; other=T.id; B=T; }
 settleHouse(other);
 log(`${A.name}が${B.name}に従属しました`,"dip"); break;
+case "独立交渉":{
+const terms=independenceTerms(me,other);
+if(!terms) return "独立の安堵には五城・兵一万、または二城・兵三千で三年臣従し、相互の友好70以上が必要です。決戦の前振りの間は交渉できません";
+if(A.money<terms.cost) return "独立の礼金二万が足りませぬ";
+A.money-=terms.cost; B.money+=terms.cost;
+A.suzerain=null; B.vassals.delete(me); makeAlly(me,other);
+log(`${B.name}は${A.name}の独立と所領を安堵しました。礼金二万を納め、同盟として助け合います`,"dip",me===W.player);
+break; }
 case "手切れ":
 if(!(A.allies.has(other)||A.suzerain===other||A.vassals.has(other))) return "縁のない家とは手切れになりませぬ";
 breakAlly(me,other);
@@ -8264,13 +8302,13 @@ const add=Math.max(0,Math.min(500,troopCapOf(g)-g.troops)); g.troops+=add; given
 log(`${B.name}から兵${given}の援助を得ました`,"dip"); break; }
 case "宣戦": {
 if(A.dead||B.dead||!myCastles(other).length) return "その家はもう無い";
-if(!bordersOn(me,other)) return "領地が接しておりませぬ";
+if(!bordersOn(me,other)&&!myCastles(other).some(c=>diplomaticCastleReach(me,c.id))) return "自領・同盟の街道から届きませぬ";
 if((A.truce||{})[other] && dayNumber() < A.truce[other]){
 for(const o of Object.values(W.clans)) if(o.id!==me) addRel(o.id,me,-12);
 log(`${A.name}が停戦の約定を破りました。諸国の信を失った`,"dip");
 }
 if(A.truce) delete A.truce[other];
-declareWar(me,other);
+declareWar(me,other,bordersOn(me,other)?undefined:"force");
 addRel(me,other,-50); addRel(other,me,-50);
 log(`${A.name}が${B.name}に宣戦しました`,"war"); break; }
 default: return "実行できません";
@@ -8410,7 +8448,7 @@ return i;
 return -1;
 }
 function aiConscript(clan,p){
-if(clan.troopMax && clanTroopTotal(clan)>=clanTroopLimit(clan)) return;
+if(clanTroopTotal(clan)>=clanTroopLimit(clan)) return;
 
 if(clan.money <= (myCastles(clan.id).length<=2 ? 1500 : 4000)) return;
 const hungry=Object.values(W.generals)
@@ -10498,7 +10536,7 @@ const MSIM_CHAPTERS=[
 ]},
 {id:2, name:"兵を蓄える", steps:[
 {t:"兵は民から取ります。<b>自分の城</b>を押しましょう", ring:S=>S.hq(), ok:S=>S.ownOpened},
-{t:S=>S.inConscript()?"押せる<b>〈+500〉</b>の釦で、その将の兵を五百人増やしましょう":"城の札の<b>〈徴兵〉</b>を押しましょう", hot:S=>S.inConscript()?simBtn("+500",null,true):simBtn("徴兵"), ok:S=>totalTroops(W.player)>S.troops0+50, skip:S=>{ const K=W.clans[W.player]; return !!(K&&K.troopMax&&clanTroopTotal(K)>=clanTroopLimit(K)) || (S.inConscript()&&!simBtn("+500",null,true)()); }},
+{t:S=>S.inConscript()?"押せる<b>〈+500〉</b>の釦で、その将の兵を五百人増やしましょう":"城の札の<b>〈徴兵〉</b>を押しましょう", hot:S=>S.inConscript()?simBtn("+500",null,true):simBtn("徴兵"), ok:S=>totalTroops(W.player)>S.troops0+50, skip:S=>{ const K=W.clans[W.player]; return !!(K&&clanTroopTotal(K)>=clanTroopLimit(K)) || (S.inConscript()&&!simBtn("+500",null,true)()); }},
 {t:"取りすぎると民心が落ち、一揆が起きます。上の<b>兵糧</b>にも目を。兵が増えるほど米を食います", hot:'#uiFood', ok:S=>true, pause:true},
 {t:"仕事のない将は宝の持ち腐れ。上の<b>〈手空き〉</b>を押し、仕事を割り振りましょう", hot:'#btnIdle', ok:S=>S.idleOpened()||idleGenerals().length<S.idle0},
 {t:"手空きの札で一人に仕事を命じましょう", hot:S=>simBtn("新田開発"), ok:S=>idleGenerals().length<S.idle0||mapSimTasks()>S.tasks0, skip:S=>idleGenerals().length===0},
@@ -11977,7 +12015,7 @@ if(isChild(g)) return `${g.name}はまだ元服しておりませぬ`;
 if(g.apt[unit]===null) return `${g.name}は${UNITS[unit].n}を率いられません`;
 if(unit===3 && !W.clans[g.clan].policies.has("鉄砲伝来")) return "鉄砲の技術がありません";
 if(g.troops>=100 && g.unit!==unit) return `${g.name}の手勢は${UNITS[g.unit].n}です。別の兵を足すには先に「兵種」で改めてください`;
-const want=Math.min(count, troopCapOf(g)-g.troops,W.clans[g.clan].troopMax?Math.max(0,clanTroopLimit(W.clans[g.clan])-clanTroopTotal(W.clans[g.clan])):Infinity);
+const want=Math.min(count, troopCapOf(g)-g.troops,Math.max(0,clanTroopLimit(W.clans[g.clan])-clanTroopTotal(W.clans[g.clan])));
 if(want<=0) return `${g.name}はこれ以上率いられませぬ`;
 const cost=Math.floor(UNITS[unit].cost*want/1000*3.2*(unit===3&&W.clans[g.clan].gunCheap?0.75:1));
 const clan=W.clans[g.clan];
@@ -12011,15 +12049,33 @@ if(!quiet) toast(hired?`${c.name}で${hired.toLocaleString()}人を雇いまし�
 return hired;
 }
 
+function diplomaticCastleReach(lord,cid){
+const A=W.clans[lord]; if(!A) return false;
+const queue=myCastles(lord).map(c=>c.id), seen=new Set(queue);
+for(let i=0;i<queue.length;i++) for(const id of W.castles[queue[i]].neighbors){
+if(id===cid) return true;
+if(seen.has(id)) continue; seen.add(id);
+const c=W.castles[id];
+if(c.clan===lord||sameHouse(lord,c.clan)||A.allies.has(c.clan)) queue.push(id);
+}
+return false;
+}
+
 function castleIntrigueTerms(lord,cid){
 const c=W.castles[cid], A=W.clans[lord]; if(!c||!A||c.clan==null||c.clan===lord||sameHouse(lord,c.clan)||A.allies.has(c.clan)||A.suzerain===c.clan||underTruce(lord,c.clan)||submissionProtected(W.clans[c.clan])) return null;
-if(!myCastles(lord).some(o=>o.neighbors.includes(cid))) return null;
+if(!diplomaticCastleReach(lord,cid)) return null;
+const start=A.campaignStartCastles??myCastles(lord).length;
+const major=/^(織田家|武田家|上杉家|北条家|毛利家|島津家|徳川家)$/.test(A.name);
+const interval=W.scenario==="nagashino"?(start<=2?180:major?24:60):0;
+if(A.castleTalkAt!=null&&dayNumber()-A.castleTalkAt<interval) return null;
 const agent=Object.values(W.generals).filter(g=>g.clan===lord&&!g.army&&!g.task&&!g.captor&&["家臣","大名"].includes(g.status)&&!isChild(g)&&!(g.woundedUntil>dayNumber())).sort((a,b)=>b.int-a.int)[0];
 if(!agent) return null;
 if(W.scenario==="koshu"&&W.clans[c.clan].name==="武田家"&&lord!==0) return null;
 const ruler=W.generals[c.lord], loyalty=ruler?(ruler.loyalty||100):80;
 const ratio=totalTroops(lord)/Math.max(2000,totalTroops(c.clan));
-return {cost:20000+Math.round(garrisonTroops(cid)*4), chance:Math.round(Math.max(10,Math.min(80,agent.int*.45+Math.min(25,ratio*5)+myCastles(lord).length*.3-loyalty*.25-(c.hq?20:0)))),agent:agent.id};
+
+const small=myCastles(lord).length<=3;
+return {cost:(small?8000:20000)+Math.round(garrisonTroops(cid)*(small?2:4)), chance:Math.round(Math.max(10,Math.min(80,agent.int*.45+Math.min(25,ratio*5)+myCastles(lord).length*.3-loyalty*.25-(c.hq?20:0)))),agent:agent.id};
 }
 function intrigueCastle(lord,cid){
 const terms=castleIntrigueTerms(lord,cid), c=W.castles[cid];
@@ -12027,7 +12083,7 @@ if(!terms) return "この城には開城の交渉を届けられませぬ";
 c.openingTalk=c.openingTalk||{};
 if(c.openingTalk[lord]!=null&&dayNumber()-c.openingTalk[lord]<90) return "九十日は間を置いてください";
 const K=W.clans[lord]; if(K.money<terms.cost) return `銭${terms.cost.toLocaleString()}が必要です`;
-K.money-=terms.cost; c.openingTalk[lord]=dayNumber();
+K.money-=terms.cost; c.openingTalk[lord]=dayNumber(); K.castleTalkAt=dayNumber();
 if(rnd()*100<terms.chance){ if(!peacefulCastleOpening(cid,lord)){ K.money+=terms.cost;delete c.openingTalk[lord];return "開城の約定を結べませんでした（銭は返りました）"; } log(`${c.name}は調略に応じ、所領安堵を条件に開城しました`,"dip",lord===W.player); }
 else log(`${c.name}の開城交渉は拒まれました（九十日は再交渉できません）`,"dip",lord===W.player);
 return null;
@@ -17708,11 +17764,11 @@ const rel=getRel(W.player,o.id); const pw=powerScore(W.player), ow=powerScore(o.
 const kizuna=(()=>{ const ws=(me.warSince||{})[o.id]; if(state==="戦争"&&ws&&dayNumber()-ws>365*2) return "宿敵"; if(state==="同盟"&&rel>=85) return "固い盟"; if(state==="戦争") return "交戦中"; if(rel>=70) return "親しい"; if(rel<=15) return "険悪"; const common=[...me.war].some(w=>o.war.has(w)&&W.clans[w]&&!W.clans[w].dead); if(common) return "共通の敵あり"; return "疎遠"; })();
 const trc=(me.truce||{})[o.id]; const truce=trc&&dayNumber()<trc?`停戦あと${Math.ceil((trc-dayNumber())/30)}か月`:"";
 const odds=(k)=>{ let p=0, why=[]; if(k==="和睦"){ p=peaceOdds(o.id); why.push("戦の勝ち星と友好から"); } else if(k==="同盟"){ p=rel>=85?80:rel>=70?55:rel>=50?25:5; why.push(rel>=70?"友好が高い":"友好が足りない（70以上で）"); if([...me.war].some(w=>o.war.has(w))){ p+=15; why.push("共通の敵"); } } else if(k==="贈物"){ p=95; why.push("贈物はまず受け取られる"); } else if(k==="威圧"){ p=ratio>=1.8?(near?70:0):0; why.push(ratio>=1.8?"国力が相手の1.8倍":"国力が足りない（1.8倍で）"); if(!near) why.push("隣国でない"); } else if(k==="臣従"){ p=ow>=pw*1.2?85:10; why.push(ow>=pw*1.2?"相手が大きい":"相手が小さい"); } else if(k==="資金要請"){ p=rel>20?50+Math.min(30,Math.round((rel-20)/2)):5; why.push(rel>20?"友好に応じて":"友好20以下"); } else if(k==="攻撃依頼"){ p=60; why.push("盟友は頼みを聞きやすい"); } else { p=null; } const w=p===null?"":p>=70?"高":p>=40?"中":p>=15?"低":"非常に低い"; return {w,why:why.join("・"),col:p===null?"":p>=70?"#9FE0A8":p>=40?"#FFD166":"#FF9A88"}; };
-const rowsHtml=(()=>{ const rel2=getRel(W.player,o.id), canAsk=rel2>20, canThreat=powerScore(W.player)*(W.shogun===W.player?1.5:1)*(prestigeTier(W.player)>=4?1.25:1)*(1+Math.max(0,((W.warScore||{})[W.player+":"+o.id]||0))*0.12)>powerScore(o.id)*1.8;
+const rowsHtml=(()=>{ const rel2=getRel(W.player,o.id), canAsk=rel2>20, canThreat=submissionDominance(W.player,o.id)&&powerScore(W.player)*(W.shogun===W.player?1.5:1)*(prestigeTier(W.player)>=4?1.25:1)*(1+Math.max(0,((W.warScore||{})[W.player+":"+o.id]||0))*0.12)>powerScore(o.id)*1.8;
 const canSubmit = near && powerScore(o.id)>=powerScore(W.player)*1.2 && W.clans[W.player].suzerain!==o.id;
 const rows = state==="戦争" ? [["和睦","和睦 "+peaceOdds(o.id)+"％",true],["和睦金","金を添えて和睦 1万",true],["贈物","贈物 3千",true],["臣従",canSubmit?"傘下に入る（降伏）":"傘下に入る（相手が大きいとき）",canSubmit]]
 : state==="同盟" ? [["贈物","贈物 3千",true],["資金要請",canAsk?"資金要請":"資金要請（友好20超で）",canAsk],["攻撃依頼","城攻めを頼む 8千",true],["威圧",canThreat?"従属を迫る（威圧・盟は解ける）":"従属を迫る（国力1.8倍で）",canThreat],["臣従",canSubmit?"傘下に入る（盟は解ける）":"傘下に入る（相手が大きいとき）",canSubmit],["同盟破棄","同盟を破棄",true]]
-: state==="主家" ? [["贈物","贈物 3千",true],["手切れ","主家と手切れ（戦になる）",true]]
+: state==="主家" ? [["贈物","贈物 3千",true],["独立交渉","独立の安堵（五城・兵一万、または二城・兵三千で三年臣従。相互友好70・礼金二万）",!!independenceTerms(W.player,o.id)&&me.money>=20000],["手切れ","主家と手切れ（戦になる）",true]]
 : state==="属国" ? [["贈物","贈物 3千",true],["従える家","従える家の札へ",true]]
 : near ? [["同盟",rel2>=70?"同盟 1万":"同盟（友好70以上で）",rel2>=70],["贈物","贈物 3千",true],["威圧",canThreat?"従属を迫る（威圧）":"従属を迫る（国力1.8倍で）",canThreat],["臣従",canSubmit?"傘下に入る（降伏）":"傘下に入る（相手が大きいとき）",canSubmit],["資金要請",canAsk?"資金要請":"資金要請（友好20超で）",canAsk]]
 : [["贈物","贈物 3千",true],["資金要請",canAsk?"資金要請":"資金要請（友好20超で）",canAsk]];
@@ -17826,7 +17882,7 @@ const rows=Object.values(W.clans).filter(k=>!k.dead&&myCastles(k.id).length&&(!s
 .sort((a,b)=>(b.rec?1:0)-(a.rec?1:0)||b.n-a.n||b.t-a.t);
 openPanel("大名家を選ぶ", `${rows.length}家`, `<div class="tiny muted" style="margin-bottom:6px">${sc.recommend?`<b style="color:var(--kin)">おすすめ：${sc.recommend.join("・")}</b>　`:""}押すとその家の札が開きます。</div><div class="list">${rows.map(r=>`<button class="row clan-choice" type="button" style="cursor:pointer${r.rec?";background:rgba(201,162,39,.16);outline:1px solid rgba(201,162,39,.6)":""}" onclick="showClanCard(${r.k.id})">
 ${monHTML(r.k,26,"flex:none")}
-<span class="nm" style="font-weight:700">${esc(r.k.name)}</span>${r.rec?'<span class="chip kin">おすすめ</span>':""}<span class="tiny muted">${esc(r.d?r.d.name:"")}</span>
+<span class="nm" style="font-weight:700">${esc(r.k.name)}</span><span class="tiny" aria-label="難易度${clanChallenge(r.k.id)}">${"★".repeat(clanChallenge(r.k.id))}</span>${r.rec?'<span class="chip kin">おすすめ</span>':""}<span class="tiny muted">${esc(r.d?r.d.name:"")}</span>
 <span class="tiny num" style="margin-left:auto">城${r.n}　兵${r.t.toLocaleString()}</span></button>`).join("")||"<p>継げる家がありません。閉じて筋書きを選び直してください。</p>"}</div>`);
 };
 document.getElementById("btnArmies2").onclick=openArmyList;
@@ -28523,7 +28579,9 @@ log(`${d.name}：両軍は陣を張ったまま睨み合う。三日のあいだ
 }
 
 function nagAfterCommon(takedaWon){ const tk=clanByName("徳川家"), td=clanByName("武田家"), ue=clanByName("上杉家"), hj=clanByName("北条家");
-if(tk&&td&&!tk.dead&&!td.dead&&tk.id!==W.player){ tk.calm=tk.calm||{}; tk.calm[td.id]=Math.max(tk.calm[td.id]||0,dayNumber()+720); if(tk.orderTarget&&tk.orderTarget.clan===td.id) tk.orderTarget=null; if(!takedaWon){ tk.troopMax=Math.min(tk.troopMax||18000,18000); clampClanTroops(tk); } }
+if(tk&&td&&!tk.dead&&!td.dead&&tk.id!==W.player){ tk.calm=tk.calm||{}; tk.calm[td.id]=Math.max(tk.calm[td.id]||0,dayNumber()+720); if(tk.orderTarget&&tk.orderTarget.clan===td.id) tk.orderTarget=null; if(!takedaWon){ tk.troopMax=Math.min(tk.troopMax||18000,18000); tk.troopCapCastles=myCastles(tk.id).length; clampClanTroops(tk); } }
+
+if(!takedaWon&&td&&tk&&!td.dead&&!tk.dead){ td.calm=td.calm||{}; td.calm[tk.id]=Math.max(td.calm[tk.id]||0,dayNumber()+900); if(td.orderTarget?.clan===tk.id) td.orderTarget=null; }
 if(ue&&hj&&!ue.dead&&!hj.dead&&!ue.war.has(hj.id)&&!ue.allies.has(hj.id)&&ue.suzerain!==hj.id&&hj.suzerain!==ue.id&&(typeof bordersOn!=="function"||bordersOn(ue.id,hj.id))){ declareWar(ue.id,hj.id,"force"); if(ue.id!==W.player) ue.orderTarget=ue.orderTarget||{clan:hj.id, until:dayNumber()+540}; if(hj.id!==W.player) hj.orderTarget=hj.orderTarget||{clan:ue.id, until:dayNumber()+540}; log("長篠の後、上野をめぐって上杉と北条が戦に入った","war",true); } }
 function decisiveAfter(did, winnerClan){
 const d=DECISIVE.find(x=>x.id===did); if(!d) return;
@@ -28549,11 +28607,11 @@ bigNews(d.histWin==="draw" ? `${d.name}　痛み分け` : escGot ? `${d.name}　
 if(playerLost){ if(escGot){ log(`${d.name}――${W._lastB.escName}を取り逃がした。首は取れなかったが、家は痛んでいない`,"war"); if(typeof chronicle==="function") chronicle(`${d.name}、${loser.name}は${W._lastB.escName}を取り逃がす`); } else { log(`${d.name}に敗れた。だが当主は落ち延び、家は残った。ここからは己の手で挽回せよ`,"war"); if(typeof chronicle==="function") chronicle(`${d.name}、${loser.name}敗れる`); } }
 
 if(loser && W.clans[winnerClan] && d.histWin!=="draw"){ loser.calm=loser.calm||{}; loser.calm[winnerClan]=Math.max(loser.calm[winnerClan]||0, dayNumber()+360); if(loser.orderTarget&&loser.orderTarget.clan===winnerClan) loser.orderTarget=null; if(loser.muster) loser.muster=null; if(loser.id!==W.player){ loser.ai={...(loser.ai||{}), agg:Math.max(0.1,((loser.ai||{}).agg||0.5)*0.6)}; } for(const g of Object.values(W.generals)) if(g.clan===loser.id&&g.status!=="死亡") g.morale=Math.max(10,g.morale-20); log(`${loser.name}は${d.name}の痛手で、当分は${W.clans[winnerClan].name}へ攻め込めない`,"war",true); }
-for(const [nm,mx] of (res.caps||[])){ const K=clanByName(nm); if(K&&!K.dead){ K.troopMax=mx; clampClanTroops(K); } }
+for(const [nm,mx] of (res.caps||[])){ const K=clanByName(nm); if(K&&!K.dead){ K.troopMax=mx; K.troopCapCastles=myCastles(K.id).length; clampClanTroops(K); } }
 if(res.troopMax && loser && (d.key==="nagashino_open"||d.key==="nagashino")){ const n=(W.nagSlain||[]).filter(x=>NAG_HEROES.has(x)).length; res={...res, troopMax:Math.max(20000, 34000-2600*n)}; if(n>0){ for(const g of Object.values(W.generals)) if(g.clan===loser.id&&g.status!=="死亡") g.loyalty=Math.max(0,(g.loyalty||70)-3*n); log(`武田は宿将${n}人を失い、家中の忠は揺らいでいます（抱えられる兵は${res.troopMax.toLocaleString()}まで）`,"war",true); }
 
 if(/武田/.test(loser.name)){ const inB=new Set((typeof B!=="undefined"&&B)?B.units.map(u=>u.gid):[]); let cut=0; for(const g of Object.values(W.generals)){ if(g.clan!==loser.id||g.status==="死亡"||inB.has(g.id)) continue; const c=Math.round((g.troops||0)*0.33); g.troops=Math.max(0,(g.troops||0)-c); cut+=c; } loser.money=Math.round((loser.money||0)*0.75); if(loser.food!==undefined) loser.food=Math.round(loser.food*0.75); loser.nagWeakUntil=dayNumber()+720;     bumpGarrison(); log(`長篠の敗報で武田の国許も揺れ、兵は${cut.toLocaleString()}減り、蔵も細った（一年は兵の集まりが鈍い）`,"war",true); } }
-if(res.troopMax && loser){ loser.troopMax=res.troopMax; clampClanTroops(loser); log(`${loser.name}は大敗の痛手で、抱えられる兵が${res.troopMax.toLocaleString()}までに減った`,"war",true); }
+if(res.troopMax && loser){ loser.troopMax=res.troopMax; loser.troopCapCastles=myCastles(loser.id).length; clampClanTroops(loser); log(`${loser.name}は大敗の痛手で、抱えられる兵が${res.troopMax.toLocaleString()}までに減った`,"war",true); }
 if(res.spoils && W.clans[winnerClan] && loser){
 const win=W.clans[winnerClan]; let taken=0;
 const give=(c)=>{ const old=c.clan; c.clan=winnerClan; c.hq=false; c.holdOut=false; c.delegate=null;
@@ -35454,7 +35512,7 @@ document.querySelectorAll("#battle .overlay").forEach(o=>o.remove());
 document.querySelectorAll('#stage .overlay[data-bat="1"]').forEach(o=>{ o.remove(); if(overlayEl===o) overlayEl=null; });
 { const big=document.getElementById("bBeginBig"); if(big) big.hidden=true; }
 document.getElementById("bfoot").innerHTML="";
-B=null; resumeSpeed(); retBoundary(); refreshHUD(); autoSave();
+B=null; if(!W.stage) for(const K of Object.values(W.clans)) if(!K.dead) clampClanTroops(K); resumeSpeed(); retBoundary(); refreshHUD(); autoSave();
 { const bc=document.getElementById("bCoach"); if(bc) bc.hidden=true; }
 setTimeout(()=>showGuide("after"),400);
 }
@@ -37089,6 +37147,11 @@ document.getElementById("pickBar").hidden=true;
 closePanel();
 }
 
+function clanChallenge(clanId){
+const K=W.clans[clanId], lore=scenarioLore(K.name)||DATA.lore[clanId];
+const n=myCastles(clanId).length;
+return Math.min(5,Math.max(lore?.diff||3,n<=3?5:1));
+}
 function showClanCard(clanId){
 const candidate=W.clans[clanId], sc=SCENARIO_DEFS[W.scenario]||SCENARIO_DEFS.oke;
 if(!candidate||candidate.dead||!myCastles(clanId).length) return;
@@ -37116,7 +37179,8 @@ ${lore?`<div class="tiny" style="color:var(--kin)">家訓「${esc(lore.motto)}�
 </div>
 ${bio?`<div style="background:var(--gofun);color:#2A1F10;padding:10px;border-radius:6px;font-size:14px;line-height:1.7">${esc(bio)}</div>`:""}
 ${lore&&W.scenario==="oke"?`<p style="margin:0;font-size:14px;line-height:1.7">${esc(lore.sum)}</p>`:""}
-${(()=>{   const t=[]; const cs=myCastles(clanId); const lvAvg=cs.length?cs.reduce((a,x)=>a+(x.lv||0),0)/cs.length:0; const guns=Object.values(W.generals).filter(g=>g.clan===clanId&&g.status!=="死亡"&&g.unit===3).length, cav=Object.values(W.generals).filter(g=>g.clan===clanId&&g.status!=="死亡"&&g.unit===2).length; if(c.policies&&c.policies.has("鉄砲伝来")||guns>=3||/織田|雑賀|鈴木/.test(c.name)) t.push("鉄砲"); if(c.policies&&c.policies.has("騎馬強化")||cav>=3||/武田|伊達|上杉/.test(c.name)) t.push("騎馬"); if(s.money>=40000) t.push("経済"); if(s.troops>=40000) t.push("攻勢"); else if(lvAvg>=420) t.push("防御"); if(cs.some(x=>x.coast)&&/毛利|九鬼|村上|長宗我部|島津/.test(c.name)) t.push("水軍"); if((c.pol||0)>=0&&s.generals>=25) t.push("人材"); const diff=lore?lore.diff:3; const rec=diff<=2?"初心者向け":diff===3?"中級者向け":"上級者向け"; return `<div class="row" style="gap:5px;flex-wrap:wrap;margin:6px 0">${t.slice(0,3).map(x=>`<span class="stag kin">${x}</span>`).join("")}<span class="stag ${diff<=2?"ok":diff===3?"info":"bad"}">${rec}</span></div>`; })()}
+${(()=>{   const t=[]; const cs=myCastles(clanId); const lvAvg=cs.length?cs.reduce((a,x)=>a+(x.lv||0),0)/cs.length:0; const guns=Object.values(W.generals).filter(g=>g.clan===clanId&&g.status!=="死亡"&&g.unit===3).length, cav=Object.values(W.generals).filter(g=>g.clan===clanId&&g.status!=="死亡"&&g.unit===2).length; if(c.policies&&c.policies.has("鉄砲伝来")||guns>=3||/織田|雑賀|鈴木/.test(c.name)) t.push("鉄砲"); if(c.policies&&c.policies.has("騎馬強化")||cav>=3||/武田|伊達|上杉/.test(c.name)) t.push("騎馬"); if(s.money>=40000) t.push("経済"); if(s.troops>=40000) t.push("攻勢"); else if(lvAvg>=420) t.push("防御"); if(cs.some(x=>x.coast)&&/毛利|九鬼|村上|長宗我部|島津/.test(c.name)) t.push("水軍"); if((c.pol||0)>=0&&s.generals>=25) t.push("人材"); const diff=clanChallenge(clanId); const rec=diff<=2?"初心者向け":diff===3?"中級者向け":"上級者向け"; return `<div class="row" style="gap:5px;flex-wrap:wrap;margin:6px 0">${t.slice(0,3).map(x=>`<span class="stag kin">${x}</span>`).join("")}<span class="stag ${diff<=2?"ok":diff===3?"info":"bad"}">${"★".repeat(diff)}　${rec}</span></div>`; })()}
+${W.scenario==="nagashino"&&s.castles<=3?'<div class="card tiny">小勢力の道：強い隣国とは贈物で友好70を目指し同盟、苦しければ臣従して領地を守る。城主への開城交渉で所領と史実の家臣を増やす。傘下では自城五・兵一万、または自城二・兵三千で三年臣従し、相互友好70と礼金二万で独立の安堵を交渉できる。主家の城は奪えない。</div>':""}
 <div class="sec-title">初期の状態</div>
 <div class="s-stats">
 <div class="s-stat"><span>支配城</span><b>${s.castles}</b></div>
@@ -37309,6 +37373,7 @@ if(!k||k.dead||!myCastles(clanId).length||(def.playable&&!def.playable.includes(
 audioInit(); playSE("notify");
 leavePickMode();
 W.player=clanId;
+k.campaignStartCastles=myCastles(clanId).length;
 for(const c of Object.values(W.clans)) c.isPlayer=(c.id===clanId);
 alertedArmies.clear();
 
