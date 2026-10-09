@@ -10,6 +10,7 @@ import { battleJin, buildBattleJin } from './b_jinkei_g1.js';
 import * as THREE from 'three';
 import { nobori, hut, kabukimon, yagura, tawara, campfire, palisade, village, ishigaki, sakamogi, kagaribi, dorui, dobei, kuruwaBldg, makeKitBatch, finalizeKitBatch, makeSimpleBatch, finalizeSimpleBatch, solidSeg, carryTorches } from './props.js';
 import { flagTexture } from './textures.js';
+import { stoneTex, barkTex } from './nature.js';
 import { RANKS } from './state.js';
 import { sfx } from './audio.js';
 import { reduceMotion } from './settings.js';
@@ -479,6 +480,112 @@ function officer(rt) {
   return u?.alive && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 12 ? '木下藤吉郎' : '藤吉郎の使番';
 }
 
+// 稲葉山だけの露岩帯。高低ではなく、尾根と沢に沿った斑で林床・岩場を分ける。
+function inabaRockBand(x, z) {
+  return Math.max(0, Math.min(1, (Math.sin(x * 0.095 + z * 0.027 + 0.8)
+    + Math.sin(x * 0.037 - z * 0.063) * 0.55 - 0.15) * 1.25));
+}
+function inabaPathDistance(x, z) {
+  let d = Infinity;
+  for (const pts of CASTLE_PATHS) d = Math.min(d, distToPolyline(x, z, pts));
+  return d;
+}
+function inabaClearing(x, z, pad = 0) {
+  return CLEAR_BOUNDS.some((q) => x >= q.x0 - pad && x <= q.x1 + pad && z >= q.z0 - pad && z <= q.z1 + pad);
+}
+
+// 設営時に一度だけ作る。共通地形を替えず、この山の材質に露岩と細い土の道筋を足す。
+function buildInabaMountain(rt) {
+  const W = rt.world, geo = W.terrain.geometry, pos = geo.attributes.position;
+  const bands = new Float32Array(pos.count);
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getZ(i);
+    bands[i] = z < 28 && z > -170 && Math.abs(x) < 100 && !inabaClearing(x, z) ? inabaRockBand(x, z) : 0;
+  }
+  geo.setAttribute('inabaRock', new THREE.BufferAttribute(bands, 1));
+  // 格子より細い道も残す。一枚の小さな絵に全ての九十九折を描き、毎コマ描き直さない。
+  const canvas = document.createElement('canvas'); canvas.width = canvas.height = 512;
+  const ctx = canvas.getContext('2d'), scale = 512 / (W.half * 2);
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 512, 512);
+  ctx.strokeStyle = '#fff'; ctx.lineCap = ctx.lineJoin = 'round';
+  for (const pts of CASTLE_PATHS) {
+    ctx.lineWidth = (pts === KARA || pts === HYAKU ? 1.7 : 2.1) * scale;
+    ctx.beginPath();
+    pts.forEach(([x, z], i) => { const u = (x + W.half) * scale, v = (W.half - z) * scale; if (i) ctx.lineTo(u, v); else ctx.moveTo(u, v); });
+    ctx.stroke();
+  }
+  const trail = new THREE.CanvasTexture(canvas);
+  const mat = W.terrain.material, compile = mat.onBeforeCompile, cacheKey = mat.customProgramCacheKey();
+  mat.customProgramCacheKey = () => cacheKey + '|inaba-mountain';
+  mat.onBeforeCompile = (sh) => {
+    compile(sh);
+    sh.uniforms.inabaTrail = { value: trail };
+    sh.vertexShader = 'attribute float inabaRock;\nvarying float vInabaRock;\n' + sh.vertexShader;
+    sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvInabaRock = inabaRock;');
+    sh.fragmentShader = 'uniform sampler2D inabaTrail;\nvarying float vInabaRock;\n' + sh.fragmentShader;
+    sh.fragmentShader = sh.fragmentShader.replace('diffuseColor.rgb *= col;', `
+      // チャートの薄い層と斜めの割れ目。緑の樹冠の絵の上にも灰褐色の露岩を残す。
+      float ibLayer = sin(vWP.y * 2.8 + vWP.x * 0.28 + vWP.z * 0.17);
+      float ibCrack = smoothstep(0.88, 0.99, sin(vWP.x * 0.7 - vWP.z * 0.43 + vWP.y * 0.22));
+      vec3 ibStone = stone * vec3(0.83, 0.76, 0.69) * (0.87 + ibLayer * 0.13) * (1.0 - ibCrack * 0.38);
+      col = mix(col, ibStone, vInabaRock * smoothstep(0.08, 0.38, 1.0 - vWN.y) * 0.85);
+      float ibTrail = texture2D(inabaTrail, (vWP.xz + ${W.half.toFixed(1)}) / ${(W.half * 2).toFixed(1)}).r;
+      col = mix(col, dirt * vec3(0.92, 0.83, 0.72), ibTrail * 0.94);
+      diffuseColor.rgb *= col;`);
+  };
+  mat.needsUpdate = true;
+  mat.addEventListener('dispose', () => trail.dispose());
+
+  // 丸石を増やす代わりに、道の外へ薄い岩の段を集める。割れ目は二枚の隙間で表す。
+  const rockGeo = new THREE.BoxGeometry(1, 1, 1), rp = rockGeo.attributes.position;
+  // 上下の層をずらし、四角い箱の輪郭を割れた板岩の輪郭にする。形は全て共用。
+  for (let i = 0; i < rp.count; i++) {
+    const x = rp.getX(i), y = rp.getY(i), z = rp.getZ(i);
+    rp.setXYZ(i, x + y * 0.24 + z * 0.12, y * (0.88 + x * 0.2), z + y * 0.16);
+  }
+  rockGeo.computeVertexNormals();
+  const rocks = new THREE.InstancedMesh(rockGeo,
+    new THREE.MeshLambertMaterial({ map: stoneTex(), color: 0x938477 }), 160);
+  const roots = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.07, 0.13, 1, 5),
+    new THREE.MeshLambertMaterial({ map: barkTex('broad'), color: 0x756044 }), 80);
+  const dummy = new THREE.Object3D(), up = new THREE.Vector3(0, 1, 0), normal = new THREE.Vector3(), end = new THREE.Vector3(), across = new THREE.Vector3(), color = new THREE.Color();
+  let nr = 0, nt = 0;
+  for (const pts of [ROAD, KARA, HYAKU]) for (let i = 0; i + 1 < pts.length; i++) {
+    const [ax, az] = pts[i], [bx, bz] = pts[i + 1], length = Math.hypot(bx - ax, bz - az);
+    const dx = (bx - ax) / length, dz = (bz - az) / length;
+    for (let d = 3; d < length; d += 7) {
+      const side = (i + Math.floor(d / 7)) % 2 ? 1 : -1;
+      const x = ax + dx * d - dz * side * 7, z = az + dz * d + dx * side * 7;
+      if (z > 24 || z < -145 || inabaClearing(x, z, 2) || inabaPathDistance(x, z) < 5.5) continue;
+      const gx = (W.heightAt(x + 1, z) - W.heightAt(x - 1, z)) / 2;
+      const gz = (W.heightAt(x, z + 1) - W.heightAt(x, z - 1)) / 2;
+      normal.set(-gx, 1, -gz).normalize();
+      if (inabaRockBand(x, z) > 0.22 && nr + 2 <= rocks.instanceMatrix.count) {
+        dummy.quaternion.setFromUnitVectors(up, normal); dummy.rotateY(0.25 + i * 0.13);
+        across.set(1, 0, 0).applyQuaternion(dummy.quaternion);
+        for (let split = 0; split < 2; split++) {
+          const offset = (split ? 1 : -1) * 1.2, rx = x + across.x * offset, rz = z + across.z * offset;
+          dummy.position.set(rx, W.heightAt(rx, rz) + 0.12, rz);
+          dummy.scale.set(1.8, 0.65 + (i % 3) * 0.18, 2.5 + (Math.floor(d) % 3));
+          dummy.updateMatrix(); rocks.setMatrixAt(nr, dummy.matrix);
+          color.setHex((nr % 3) === 0 ? 0x84906a : (nr % 3) === 1 ? 0xb4a496 : 0x887e76); rocks.setColorAt(nr++, color);
+        }
+      }
+      // 根は道を塞がず、林床から沢側へ這わせる。上下端を山肌の高さに合わせる。
+      if (nt < roots.instanceMatrix.count) {
+        const rx = x + dx * 1.7 - dz * side, rz = z + dz * 1.7 + dx * side;
+        const y = W.heightAt(x, z) + 0.12, ry = W.heightAt(rx, rz) + 0.12;
+        end.set(rx - x, ry - y, rz - z); const len = end.length();
+        dummy.position.set((x + rx) / 2, (y + ry) / 2, (z + rz) / 2);
+        dummy.quaternion.setFromUnitVectors(up, end.normalize()); dummy.scale.set(1, len, 1);
+        dummy.updateMatrix(); roots.setMatrixAt(nt++, dummy.matrix);
+      }
+    }
+  }
+  rocks.count = nr; roots.count = nt;
+  for (const mesh of [rocks, roots]) { mesh.receiveShadow = true; W.viewCull([mesh], 0); rt.scene.add(mesh); }
+}
+
 // 山道を歩く間は縦列。下り切ってから槍をそろえ、打って出る。
 function march(g, path, next = 'hold') {
   if (gone(g)) return;
@@ -524,20 +631,29 @@ const inabayama = {
     tint(x, z, h, c) {
       // 城下の土の道と町の庭
       if (z > 30 && z < 108 && x > -30 && x < 56) c.lerp({ r: 0.5, g: 0.45, b: 0.36 }, 0.35);
-      // 金華山の杉と岩は暗く（白っぽい岩の壁に見せない。杉の下の湿った山肌の色）
-      else if (h > 4) { const k = Math.min(1, (h - 4) / 14); c.setRGB(c.r * (1 - 0.42 * k), c.g * (1 - 0.32 * k), c.b * (1 - 0.45 * k)); }
+      else if (z < 28 && h > 4) {
+        const d = inabaPathDistance(x, z), rock = inabaRockBand(x, z);
+        const litter = 0.5 + 0.5 * Math.sin(x * 0.13 + z * 0.09);
+        // 色の差を草・土の割合にも渡す。高い所を一様に緑のまま暗くしない。
+        if (d < 1.4 || inabaClearing(x, z)) c.setRGB(0.36, 0.29, 0.20);
+        else if (rock > 0.45) c.setRGB(0.33, 0.30, 0.27);
+        else c.setRGB(0.20 + litter * 0.06, 0.23 + litter * 0.03, 0.13 + litter * 0.04);
+      }
     },
     clear: (x, z) => (z > 26 && z < 112 && x > -34 && x < 60) || Math.hypot(x - HON.x, z - HON.z) < 24 || Math.hypot(x - ZUI.x, z - ZUI.z) < 26 ||
-      CLEAR_BOUNDS.some((q) => x >= q.x0 && x <= q.x1 && z >= q.z0 && z <= q.z1) || CASTLE_PATHS.some((pts) => distToPolyline(x, z, pts) < 4),
+      inabaClearing(x, z) || inabaPathDistance(x, z) < 2.3,
     waterSlow: true,   // 川を渡る間は遅く、馬はもっと遅い（terrain_tags.js の water。10/2）
     streams: [{ pts: [[-150, -190], [-118, -110], [-112, -30], [-124, 60], [-150, 170]], w: 9, depth: 1.4 }],
-    slopeForest: 1,   // 山の斜面は杉の林と岩肌（world.js の uForest。一枚岩の壁にしない）
-    trees: 760,
-    rocks: 520,   // 金華山の岩場（斜面ほど多く出る）
+    slopeForest: 0.65,   // 林床と露岩を残し、斜面全体を樹冠の緑で覆い切らない。
+    trees: 700,
+    treePadMul: 0.5,
+    rocks: 360,   // 減らした丸石の分を、道沿いの割れた岩の段へ回す。
     tufts: 3800,
-    sugiAt: (x, z) => (z < 28 ? 0.7 : 0),   // 山肌は杉が多い
-    treeDensity: (x, z) => (z > 28 ? 0.15 : z > -70 && Math.abs(x) < 90 ? 1 : 0.4),   // 町から見上げる金華山の南の山肌を、杉と雑木で厚く覆う
-    groves: [{ x: -40, z: 10, r: 14, n: 20 }, { x: 60, z: 10, r: 12, n: 16 }, { x: 72, z: 120, r: 12, n: 14 }],
+    sugiAt: (x, z) => (z < 28 ? 0.12 + Math.max(0, Math.sin(x * 0.06 + z * 0.035)) * 0.42 : 0),
+    treeDensity: (x, z) => (z > 28 ? 0.10 : z > -145 && Math.abs(x) < 95 ? 1 - inabaRockBand(x, z) * 0.72 : 0.22),
+    // 木の総数を増やさず、露岩の間と登り口へ林を寄せる。竹の固まりは山肌に置かない。
+    noBamboo: true,
+    groves: [],
     // 崩れた斎藤の兵は、山の奥（北）で消す
     fleeOut: (x, z, team) => team === 1 && (z < -150 || (z < -90 && Math.abs(x) > 40)),
   },
@@ -546,6 +662,7 @@ const inabayama = {
   setup(rt) {
     const W = rt.world;
     const F = rt.flags;
+    buildInabaMountain(rt);
     // 名のある敵に寄っただけで、周りの兵を止める一騎打ちへ移さない。
     rt.army.hooks.canDuel = () => false;
     F.step = 0; F.ek = 0; F.ak = 0; F.lit = 0; F.entered = {}; F.layer = null; F.layerSeen = {};

@@ -327,21 +327,37 @@ const okehazama = {
       if (call) cryCaption(this, killer.pos,
         `${killer.isPlayer ? this.G.name : killer.name || '味方の兵'}「道を開け！　本陣へ寄せるぞ！」`);
     };
-    // 昼の雨雲は保ち、下向きの具足や足元にも散乱光を回す。他の戦の夜色は替えない。
+    // 未の刻ごろの豪雨。鉛色の雲の下でも、顔・具足・旗に昼の散乱光を回す。
     const rainWorld = rt.world, lookOf = rainWorld.lookOf;
     rainWorld.lookOf = function (key) {
       const look = lookOf.call(this, key);
       if (key === 'storm') {
-        look.hemiSky.setHex(0xb0b9be); look.hemiGround.setHex(0x62605b);
-        look.hemiI = Math.max(look.hemiI, 1.65);
+        look.sky.setHex(0x929a9d); look.fog.setHex(0xa4abad); look.top.setHex(0x737f84);
+        look.sun.setHex(0xe2e4de); look.sunI = Math.max(look.sunI, 1.65);
+        look.hemiSky.setHex(0xd0d3cf); look.hemiGround.setHex(0x8a8376);
+        look.hemiI = Math.max(look.hemiI, 2.4);
+        look.cloudDark = 0.35;
       }
       return look;
     };
     // 配列の窓を開戦時に縮める。雨量・雷・ぬかるみは保ち、毎コマ動かす雨筋を減らす。
-    rainWorld.rainData = rainWorld.rainData.subarray(0, 1200 * 3);
+    rainWorld.rainData = rainWorld.rainData.subarray(0, 720 * 3);
     // 手前の太い板状の雨は使わず、一画素の細い線だけにする。
     rainWorld.nearRain = rainWorld.nearRain.subarray(0, 0);
     rainWorld.rainNear.geometry.setDrawRange(0, 0);
+    // 共通の天候更新は昼の豪雨の見通しを220mにするので、その後にこの戦だけ整える。
+    // 近くの色を残し、遠景は霞ませる。硝煙・土ぼこりによる目隠しは保つ。
+    const weatherUpdate = rainWorld.update;
+    rainWorld.update = function (dt, focus) {
+      weatherUpdate.call(this, dt, focus);
+      const smoke = Math.min(1, (this.haze?.k || 0) + (this.dustVeil?.k || 0));
+      const lift = (320 - 220) * this.rainLevel * (1 - smoke);
+      this.vis += lift;
+      // 小数部は雲の影に使うため、見通しは整数部だけ替える。
+      this.scene.fog.far = Math.floor(this.vis) + (this.scene.fog.far % 1);
+      this.mountU.vis.value = this.vis;
+      this.rain.material.opacity = 0.18 * this.rainLevel;
+    };
     // 初陣の打撃・同時に打ち込む人数は共通設定を保つ。倒れた後の救済は使わない。
     rt.firstFights = false; rt.flags.rescued = true;
     // 忍んで寄せる間は太鼓で進めと促さない。かかれの合図で解く。
@@ -614,8 +630,6 @@ const okehazama = {
   },
   update(rt, dt) {
     const F = rt.flags;
-    // 天候の更新後に、この戦の雨筋だけを薄くする。
-    rt.world.rain.material.opacity = 0.27 * rt.world.rainLevel;
     if (F.uma) F.uma.update(dt);
     if (rt.over || F.ending || !rt.player.u.alive) return;
     if (rt.phase === 'brief' && rt.t > 12) this.brief(rt);

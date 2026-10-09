@@ -51,7 +51,7 @@ export class BattleNotices {
 #hud #battle-notices [hidden], #hud #battle-notices .notice-muted { display:none !important; }
 #hud #battle-notices :is(#subtitle,#situation,#skiphint,.battle-notice):empty { display:none !important; }
 #hud.ending #battle-notices #objectives { display:none !important; }
-#hud #battle-message { flex:0 0 auto; min-width:0; width:100%; }
+#hud #battle-message { display:flex; flex-direction:column; gap:8px; flex:0 0 auto; min-width:0; width:100%; }
 #hud #objectives #battle-log-entry { min-height:44px; margin-top:8px; padding:4px 0; border-width:0 0 1px; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:max(12px, calc(12px * var(--text-scale, 1))); }
 #hud #objectives #obj-list { min-height:0; margin:0; }
 /* 武将の札の幅は左右の端から決める。横向きの配置へ固定幅を持ち越さない。 */
@@ -234,9 +234,11 @@ html[data-text-size=l] #hud #battle-notices:not(.choosing) { width:min(380px, 40
   width:min(280px, calc(100vw - 552px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
   padding:4px;
   gap:4px;
-  max-height:min(112px, calc(45vh - var(--notice-top) - env(safe-area-inset-top, 0px)));
+  /* 二・三行の任務と知らせを積める高さにする。下の名前札との間は8px空ける。 */
+  max-height:calc(100% - var(--notice-top) - env(safe-area-inset-top, 0px) - max(96px, var(--notice-floor, calc(96px + env(safe-area-inset-bottom, 0px)))));
   pointer-events:none;
  }
+ html.touch #hud #battle-message { gap:4px; }
  html.touch.tc-sw #hud #battle-notices:not(.choosing) {
   left:calc(368px + env(safe-area-inset-left, 0px)); right:auto;
  }

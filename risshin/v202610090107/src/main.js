@@ -297,7 +297,9 @@ function draw(scene) {
   // 画質「低」は明暗順応が無いので、夜の戦はほぼ真っ黒に沈んでいた（携帯の小さな画面で何も見えない）。夜だけ露出を上げて、月明かりの青い夜に
   if (!useFinish()) {
     const e0 = renderer.toneMappingExposure;
-    renderer.toneMappingExposure = e0 * (1 + night * 1.25);
+    // 昼の雨も、中・高の明暗順応（暗い絵を最大1.3倍）が無い分だけ少し持ち上げる
+    const wr = nightWorld && nightWorld.scene === scene ? Math.min(1, nightWorld.rainLevel || 0) * (1 - night) : 0;
+    renderer.toneMappingExposure = e0 * (1 + night * 1.25) * (1 + wr * 0.15);
     renderer.render(scene, camera);
     renderer.toneMappingExposure = e0;
     return;

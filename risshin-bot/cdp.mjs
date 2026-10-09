@@ -73,7 +73,18 @@ async function acquireSlot() {
 // 開発用サーバーのポート。RISSHIN_PORT で変えられる（git worktree で別の係が自分の置き場を見る時）
 export const PORT = +process.env.RISSHIN_PORT || 8765;
 export async function ensureServer(port = PORT) {
-  try { await fetch(`http://localhost:${port}/`); return null; } catch (e) { /* 起こす */ }
+  let up = false;
+  try { await fetch(`http://localhost:${port}/`); up = true; } catch (e) { /* 起こす */ }
+  if (up) {
+    // そのポートに別の置き場（古い worktree）のサーバーが残っていると、直す前の絵を撮ってしまう（10/9 桶狭間の雨）。中身を比べて止める
+    for (const f of ['src/world.js', 'src/main.js']) {
+      const served = await fetch(`http://localhost:${port}/${f}`).then((r) => r.text()).catch(() => null);
+      if (served != null && served !== readFileSync(join(HERE, '..', f), 'utf8')) {
+        throw new Error(`ポート ${port} のサーバーは別の置き場を見ています（${f} が違う）。RISSHIN_PORT で別のポートを使ってください`);
+      }
+    }
+    return null;
+  }
   const p = spawn('python3', [join(HERE, '..', 'serve.py'), String(port)], { stdio: 'ignore', detached: true });
   p.unref();
   for (let i = 0; i < 30; i++) { await sleep(200); try { await fetch(`http://localhost:${port}/`); return p; } catch (e) { /* 待つ */ } }

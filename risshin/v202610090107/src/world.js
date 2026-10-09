@@ -51,7 +51,8 @@ function fordLift(st, x) {
 const TIME = {
   day: { sky: 0xb9c9ce, fog: 0xb6c4c6, sun: 0xfff0d8, sunI: 2.1, hemiSky: 0xbfccd6, hemiGround: 0x4a4432, hemiI: 1.0, sunPos: [70, 72, -50], vis: 680, cloud: 0.5, top: 0x527fa9, cover: 0.4, glowK: 0 },
   morning: { sky: 0xc9bdad, fog: 0xbdb9af, sun: 0xffdcaa, sunI: 2.2, hemiSky: 0xb5c5d5, hemiGround: 0x4a4232, hemiI: 1.1, sunPos: [70, 27, 85], vis: 540, cloud: 0.4, top: 0x718aa7, cover: 0.34, glowK: 0.3, glow: 0xffc39a },
-  storm: { sky: 0x646c6e, fog: 0x7a8284, sun: 0xb8c0c4, sunI: 0.8, hemiSky: 0x8c979a, hemiGround: 0x34322a, hemiI: 1.3, sunPos: [30, 120, 20], vis: 150, cloud: 0, top: 0x4a5153, cover: 0.85, glowK: 0 },
+  // 雨は昼の雨（鉛色の雲でも空は明るい灰）。暗い灰の霧と弱い散乱光で、近くの兵まで黒い影になっていた（10/9）
+  storm: { sky: 0x8c9496, fog: 0x9ca4a6, sun: 0xd8dcd8, sunI: 1.1, hemiSky: 0xc4cac8, hemiGround: 0x76705f, hemiI: 2.0, sunPos: [30, 120, 20], vis: 200, cloud: 0, top: 0x6a7477, cover: 0.85, glowK: 0 },
   after: { sky: 0x9aa7a8, fog: 0x98a2a0, sun: 0xffe8c8, sunI: 1.7, hemiSky: 0xb3bfc2, hemiGround: 0x423d2e, hemiI: 1.05, sunPos: [-70, 58, 30], vis: 440, cloud: 0.45, top: 0x6b7f92, cover: 0.55, glowK: 0.1, glow: 0xffc890 },
   // 夜：月明かり（青白く弱い光・影は淡く）。見通しは短く、闇の向こうは黒い霞に沈む（その中に敵がいるかもしれない）
   night: { sky: 0x253048, fog: 0x2a3446, sun: 0x9bacce, sunI: 0.32, hemiSky: 0x6a7ca0, hemiGround: 0x34363c, hemiI: 0.22, sunPos: [-60, 70, 40], vis: 145, cloud: 0.3, top: 0x0a1120, cover: 0.3, glowK: 0 },
@@ -1594,7 +1595,7 @@ export class World {
     let t = key === 'noon' || key === 'afternoon' ? TIME.day : (key === 'day' && this.mood === 'morning') ? TIME.morning : TIME[key];
     if (key === 'storm' && this.def.stormLift) {
       const lift = Math.max(1, Math.min(2, this.def.stormLift));
-      t = { ...t, sunI: t.sunI * lift, hemiI: t.hemiI * lift, hemiGround: 0x68665b };
+      t = { ...t, sunI: Math.min(1.65, t.sunI * lift), hemiI: Math.min(2.4, t.hemiI * lift) };
     }
     // 夏の昼（桶狭間・姉川など）：日差しが強く影が濃い、空の青が深い、遠くは陽炎で白っぽく霞む
     // 夜は陰を持ち上げて足もとを見せる。明るさを上げても見通しは伸ばさない。
@@ -1608,7 +1609,7 @@ export class World {
       sky: new THREE.Color(t.sky), fog: new THREE.Color(t.fog), sun: new THREE.Color(t.sun), sunI: t.sunI,
       hemiSky: new THREE.Color(t.hemiSky), hemiGround: new THREE.Color(t.hemiGround), hemiI: t.hemiI,
       sunDir: new THREE.Vector3(...t.sunPos).normalize(), top: new THREE.Color(t.top), glow: new THREE.Color(t.glow || 0xff9a50),
-      glowK: t.glowK, cover: t.cover, cloudDark: key === 'storm' ? 0.55 : 0.1, vis: t.vis, cloud: t.cloud,
+      glowK: t.glowK, cover: t.cover, cloudDark: key === 'storm' ? 0.4 : 0.1, vis: t.vis, cloud: t.cloud,
       // 山の地の色（霞は別に掛ける）：近い山は濃い杉の緑、遠いほど青い
       mount: key === 'night' ? [0x293442, 0x324152, 0x405168] : key === 'dusk' ? [0x2c2a2c, 0x3a3a44, 0x4a4c5a] : key === 'storm' ? [0x2a302e, 0x384040, 0x464e50] : [0x24332c, 0x33443e, 0x4a5a5e],
     };
@@ -5473,8 +5474,8 @@ export class World {
     const morningMist = this.dayClock ? this.dayClock.mist : 1;
     const mist = this.def.mist ? (this.dayClock ? morningMist : Math.max(0, 1 - this.time / 60)) : 0;
     vis = vis + (95 - vis) * mist * mist * (3 - 2 * mist) * 0.9;
-    // 雨は遠くを白く隠す
-    vis = vis + (112 - vis) * r;
+    // 雨は遠くを白く隠す。昼の雨は霞を遠くに置き、近い兵の顔・具足・旗の色を残す（夜の雨は闇と合わせて狭いまま）
+    vis = vis + ((this.timeKey === 'night' ? 112 : 220) - vis) * r;
     if (this.def.snow) vis *= 1 - this.def.snow * 0.25;
     const smoke = Math.min(1, (this.haze?.k || 0) + (this.dustVeil?.k || 0));
     vis += (Math.min(vis, 18) - vis) * smoke;
