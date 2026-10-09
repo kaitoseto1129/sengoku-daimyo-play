@@ -1,0 +1,1 @@
+{"persona": "ui_c38", "name": "画面にうるさい人・よくある画面で普通・ほとんど押さない／上機嫌", "view": [844, 390], "base": "ui", "days": 90, "runs": [{"sc": "nagashino", "clan": "織田家", "days": 90, "battles": 1, "stalls": 0, "refused": 1, "refusedDays": 1, "end": "1575年8月", "result": null, "castles": 22, "troops": 55512, "asked": [], "findings": []}], "at": "2026-10-09T02:46:52"}

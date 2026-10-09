@@ -1,0 +1,1 @@
+{"persona": "rekishi_e38", "name": "歴史に詳しい人・大きい画面でのんびり・ほとんど押さない／上機嫌", "view": [932, 430], "base": "rekishi", "days": 90, "runs": [{"sc": "nagashino", "clan": "織田家", "days": 90, "battles": 1, "stalls": 0, "refused": 1, "refusedDays": 1, "end": "1575年8月", "result": null, "castles": 22, "troops": 55512, "asked": [], "findings": []}], "at": "2026-10-09T02:49:33"}
