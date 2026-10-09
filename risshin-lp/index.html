@@ -20,7 +20,7 @@
 :root { --ink: #0b0907; --ink2: #15110d; --ink3: #201a13; --line: #3a3026; --paper: #f3ead8; --sub: #cdbfa6; --gold: #e0b95e; --gold2: #b48a36; --red: #c0412b;
   --disp: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif; --sans: -apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif; color-scheme: dark; }
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; scroll-padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
 body { margin: 0; background: var(--ink); color: var(--paper); font: 400 16px/1.75 var(--sans); letter-spacing: .03em; overflow-x: hidden; }
 img, video { display: block; max-width: 100%; }
 a { color: var(--gold); }
@@ -130,10 +130,10 @@ a { color: var(--gold); }
 footer { padding: 24px 20px 110px; text-align: center; font-size: 14px; color: var(--sub); border-top: 1px solid var(--line); }
 footer a { display: inline-block; min-height: 44px; line-height: 44px; margin: 0 8px; }
 
-/* 下に固定の遊ぶ釦 */
-.dock { position: fixed; z-index: 40; left: 0; right: 0; bottom: 0; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: linear-gradient(180deg, rgba(11,9,7,0), rgba(11,9,7,.94) 35%); transform: translateY(110%); transition: transform .35s ease; }
-.dock.on { transform: none; }
-.dock .btn { width: 100%; max-width: 460px; margin: 0 auto; display: flex; }
+/* どの画面幅でも下端の細い帯。本文の上に釦だけを浮かせない。 */
+.dock { position: fixed; z-index: 40; left: 0; right: 0; bottom: 0; padding: 8px 16px calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--ink); visibility: hidden; pointer-events: none; }
+.dock.on { visibility: visible; pointer-events: auto; }
+.dock .btn { width: 100%; max-width: 460px; min-height: 48px; margin: 0 auto; display: flex; font-size: 16px; box-shadow: inset 0 1px 0 rgba(255,255,255,.5); }
 
 /* 本文は最初から見せる。読み込みやスクロールで隠さない。 */
 .rv { opacity: 1; }
@@ -152,7 +152,6 @@ p a { display: inline-flex; align-items: center; min-height: 44px; }
   .how { grid-template-columns: 1fr 1fr; align-items: center; }
   .cta { grid-template-columns: 1fr 1fr; max-width: 640px; }
   .hero-in { padding-bottom: 56px; }
-  .dock { left: auto; right: 24px; bottom: 20px; padding: 0; background: none; width: 340px; }
   .tl, .more-btn { max-width: 760px; }
 }
 @media (orientation: landscape) and (max-height: 500px) {
@@ -172,7 +171,7 @@ p a { display: inline-flex; align-items: center; min-height: 44px; }
 @media (prefers-reduced-motion: reduce) {
   .scroll { animation: none; }
   .js .rv { opacity: 1; transform: none; transition: none; }
-  .dock, .hero video { transition: none; }
+  .hero video { transition: none; }
 }
 </style>
 </head>
@@ -342,14 +341,25 @@ p a { display: inline-flex; align-items: center; min-height: 44px; }
     setTimeout(() => { if (!fell && !pausedByUser && (v.paused || v.readyState < 2)) fallback(); }, 4500);
     stop.addEventListener('click', () => { if (v.paused) { pausedByUser = false; const p = v.play(); if (p && p.catch) p.catch(fallback); stop.textContent = '映像を止める'; } else { pausedByUser = true; v.pause(); stop.textContent = '映像を流す'; } });
   }
-  // 下に固定の釦（最初の画面を過ぎてから。終わりの章では隠す）
-  const dock = document.getElementById('dock'), hero = document.getElementById('top'), end = document.querySelector('.end');
-  let pastHero = false, atEnd = false;
-  const upd = () => dock.classList.toggle('on', pastHero && !atEnd);
+  // 最初の遊ぶ釦が上へ完全に消えた間だけ出す。少しでも戻ればすぐ隠す。
+  const dock = document.getElementById('dock'), firstPlay = document.querySelector('#top .btn.main'), end = document.querySelector('.end');
+  let pastPlay = false, atEnd = false;
+  const upd = () => dock.classList.toggle('on', pastPlay && !atEnd);
   if ('IntersectionObserver' in window) {
-  new IntersectionObserver(([e]) => { pastHero = !e.isIntersecting; upd(); }, { threshold: 0.15 }).observe(hero);
-  new IntersectionObserver(([e]) => { atEnd = e.isIntersecting; upd(); }).observe(end);
-  } else dock.classList.add('on');
+    new IntersectionObserver(([e]) => { pastPlay = !e.isIntersecting && e.boundingClientRect.bottom <= 0; upd(); }, { threshold: 0 }).observe(firstPlay);
+    new IntersectionObserver(([e]) => { atEnd = e.isIntersecting; upd(); }, { threshold: 0 }).observe(end);
+  } else {
+    // 古いブラウザでも初めから出さない。スクロールと画面サイズの変更時だけ調べる。
+    const measure = () => {
+      pastPlay = firstPlay.getBoundingClientRect().bottom <= 0;
+      const r = end.getBoundingClientRect();
+      atEnd = r.top < innerHeight && r.bottom > 0;
+      upd();
+    };
+    addEventListener('scroll', measure, { passive: true });
+    addEventListener('resize', measure);
+    measure();
+  }
   // 年表を全部出す
   const more = document.getElementById('more'), tl = document.getElementById('tl');
   more.addEventListener('click', () => { const on = tl.classList.toggle('all'); more.setAttribute('aria-expanded', on); more.textContent = on ? '主な戦だけにする' : '31の戦を全部見る'; });
