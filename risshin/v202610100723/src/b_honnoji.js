@@ -10,7 +10,7 @@
 // ======================================================================
 import * as THREE from 'three';
 import { nobori, hut, kabukimon, tobira, tsuiji, castleMat, solidSeg, makeKitBatch, finalizeKitBatch, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
-import { buildRoom } from './interior_parts.js';
+import { buildRoom, tomyo } from './interior_parts.js';
 import { buildTera, teraTick, breakNear, hallAt, TERA, inTera, GATES, CLIMB, PT } from './honno_tera.js';
 import { flagTexture } from './textures.js';
 import { RANKS } from './state.js';
@@ -87,7 +87,7 @@ const HONNO_DEFEND = sonaePlan('御殿と門の守り', 0, PT.nbRoom, Math.PI / 
 const ODA = { flag: 'oda' };
 const AKECHI = { flag: 'akechi' };
 const HONNO_DAWN = { ...DAWN, sky: 0x343d50, fog: 0x30394a, top: 0x1c2539,
-  sun: 0x9eb0d0, hs: 0x8494b4, sunI: 0.18, hI: 0.45, glow: 0.08 };
+  sun: 0x9eb0d0, hs: 0x8494b4, sunI: 0.18, hI: 0.65, glow: 0.08 };
 
 // 井戸・木戸（蛸薬師通り一帯の細い路地の雰囲気。町家の合間に少しだけ。軽い形で当たりは取らない）
 function well(W, x, z) {
@@ -223,8 +223,8 @@ const PATROL_START = { x: PT.start.x, z: PT.start.z };
 const PATROL_SKIRMISH = [[GATES.main.x - 2, GATES.main.z], [PT.gateIn.x, PT.gateIn.z], [-40, 50]];
 
 // 人の幅を含めて壁・柱・建物を確かめる。道案内だけ半秒ごとに使う。
-function patrolClear(rt, x, z) {
-  const p = rt.player.u.pos, q = rt.flags.patrolProbe;
+function patrolClear(rt, x, z, from = null) {
+  const p = from || rt.player.u.pos, q = rt.flags.patrolProbe || (rt.flags.patrolProbe = { x: 0, y: 0, z: 0 });
   q.x = x; q.z = z; q.y = p.y;
   if (rt.army.wallBetween(p, -1, q)) return false;
   const steps = Math.max(1, Math.ceil(Math.hypot(x - p.x, z - p.z) / 0.25));
@@ -301,7 +301,20 @@ function honnoPressure(rt) {
       if (end && Math.hypot(u.pos.x - end[0], u.pos.z - end[1]) < 2) atEnd = true;
     }
     // 最後の曲がり角を通った先手が着いた時だけ隊を開く。門と塀の道順は飛ばさない。
-    if (g.order === 'path' && end && g.pathIdx >= g.path.length - 1 && atEnd && g.onArrive) {
+    // 道の途中で詰まった隊（味方の体や襖の口で止まる・最後の点に届かない）、目の前に敵がいる隊も、そこで打ちかかる。
+    //   道の終わりを待つと、壁の内で敵が並んで突っ立ったままになっていた（10/10 kaito「敵勢攻めてこない」）
+    if (g.order === 'path' && end && g.onArrive && !atEnd) {
+      let best = 1e9, close = false;
+      for (const u of g.units) {
+        if (!u.alive) continue;
+        best = Math.min(best, Math.hypot(u.pos.x - end[0], u.pos.z - end[1]));
+        if (!close && rt.army.nearestEnemy(u, 3.5, (o) => !o.fleeing)) close = true;
+      }
+      const pr = g.honnoProg || (g.honnoProg = { d: best, t: rt.t });
+      if (best < pr.d - 0.3) { pr.d = best; pr.t = rt.t; }
+      if (close || (g.pathIdx >= g.path.length - 1 && rt.t - pr.t > 2.5)) atEnd = true;
+    }
+    if (g.order === 'path' && end && atEnd && g.onArrive) {
       const arrive = g.onArrive; g.onArrive = null; arrive(g);
     }
     if (g.order !== 'attack') continue;
@@ -425,6 +438,42 @@ function nbWeapon(rt, kind) {
   u.cdBase = kind === 'bow' ? 2.6 : 1.7; u.atk = null; u.target = null; poseArms(u);
 }
 
+// 寺の建物の中：まっすぐ行けない相手へは、壁・襖の口（戸の開き）の手前と向こうを順にたどる（army_think の doorVia）
+function honnoDoor(rt, u, to) {
+  const T = rt.flags.T;
+  if (!T || !T.halls) return null;
+  const inH = (h, p) => p.x > h.x0 - 1.5 && p.x < h.x1 + 1.5 && p.z > h.z0 - 1.5 && p.z < h.z1 + 1.5;
+  let any = false;
+  for (const h of T.halls) if (!h.blocked && (inH(h, u.pos) || inH(h, to))) { any = true; break; }
+  if (!any || patrolClear(rt, to.x, to.z, u.pos)) return null;
+  let best = null, bd = 1e9;
+  for (const h of T.halls) {
+    if (h.blocked || !(inH(h, u.pos) || inH(h, to))) continue;
+    for (const d of h.doors) for (const s of [-1, 1]) {
+      const x = d.x + (d.alongX ? 0 : s * 0.9), z = d.z + (d.alongX ? s * 0.9 : 0);
+      const du = Math.hypot(x - u.pos.x, z - u.pos.z);
+      if (du < 0.35) continue;
+      const c = du + Math.hypot(to.x - x, to.z - z);
+      if (c >= bd || !patrolClear(rt, x, z, u.pos)) continue;
+      best = { x, z }; bd = c;
+    }
+  }
+  return best;
+}
+
+// 踏み込む口のまわりで、口から壁・柱を越えずに行ける空いた所（近い順。人と人は 0.8m あける）
+const ENTER_OFF = (() => { const L = []; for (let i = -5; i <= 5; i++) for (let j = -5; j <= 5; j++) L.push([i * 0.8, j * 0.8]); return L.sort((a, b) => Math.hypot(...a) - Math.hypot(...b)); })();
+function enteredSpot(rt, at, used) {
+  const from = { x: at.x, y: rt.world.heightAt(at.x, at.z), z: at.z };
+  for (const [dx, dz] of ENTER_OFF) {
+    const x = at.x + dx, z = at.z + dz;
+    if (used.some((p) => Math.hypot(p.x - x, p.z - z) < 0.8)) continue;
+    if ((dx || dz) && !patrolClear(rt, x, z, from)) continue;
+    return { x, z };
+  }
+  return { x: at.x, z: at.z };
+}
+
 // 囲みから同じ位置で実兵へ替える。既存の兵を使い切れば架空の新手を作らない。
 function akechi(rt, name, path, list, o = {}) {
   const F = rt.flags;
@@ -444,22 +493,31 @@ function akechi(rt, name, path, list, o = {}) {
     path = [...entry, ...path];
   }
   const at = { x: path[0][0], z: path[0][1] };
-  const role = at.x < TERA.x0 ? 'west' : at.z < TERA.z0 ? 'north' : at.z > TERA.z1 ? 'south' : 'east';
-  const host = (F.aHost || []).find((h) => h.honnoRole === role && h.left(at.x, at.z, 100) >= n)
-    || (role === 'east' ? (F.aHost || []).find((h) => h.honnoRole === 'reserve' && h.left(at.x, at.z, 100) >= n) : null);
-  if (!host) return null;
-  const pts = host.take(at.x, at.z, n, 100, null, (x, z) => !inTera(x, z));
+  const role = o.role || (at.x < TERA.x0 ? 'west' : at.z < TERA.z0 ? 'north' : at.z > TERA.z1 ? 'south' : 'east');
+  // 囲みの寄せ手（o.far）は、その方角の塀の外の備えから人数を引く（寺の奥からは百歩より遠い）
+  const R = o.far || 100;
+  let host = (F.aHost || []).find((h) => h.honnoRole === role && h.left(at.x, at.z, R) >= n)
+    || (role === 'east' ? (F.aHost || []).find((h) => h.honnoRole === 'reserve' && h.left(at.x, at.z, R) >= n) : null);
+  let pts = host ? host.take(at.x, at.z, n, R, null, (x, z) => !inTera(x, z)) : [];
+  // 囲みの寄せ手は、その方角が尽きれば、ほかの方角の備えから回す（塀の内に掛かる兵は数えない）
+  if (!pts.length && o.far) for (const h of F.aHost || []) {
+    if (h === host) continue;
+    pts = h.take(at.x, at.z, n, R, null, (x, z) => !inTera(x, z));
+    if (pts.length) { host = h; break; }
+  }
   if (!pts.length) return null;
   const g = enemyGroup(rt, { fixed: true, fullStrength: true, noGuard: true, faction: 'akechi', name, anchor: o.entered ? at : pts[0], facing: o.entered ? 0 : host.rotation.y,
     width: o.width || 4, aggro: o.aggro || 9, morale: 100, noRout: true, fleeDir: { x: 0, z: 1 }, dmgMult: o.dmg ?? 1,
     order: 'path', seekRange: 22, formation: 'column', colW: 2, spacing: 1.4 }, dress(list, AKECHI));
+  const used = [];
   for (let i = 0; i < g.units.length; i++) {
     const u = g.units[i], q = pts[i];
     u.nanori = `敵の兵。明智が家来、${u.name || '参る'}！`;
     if (!q) { rt.army.despawn(u); continue; }
-    // 寺内の先鋒も外の備えから人数を引く。回廊の両側の柱を避けて二列に置く。
-    const x = o.entered ? at.x + (i % 2 ? 0.4 : -0.4) : q.x;
-    const z = o.entered ? at.z - Math.floor(i / 2) * 1.4 : q.z;
+    // 寺内の先鋒も外の備えから人数を引く。踏み込む口と同じ間（壁・柱の向こうでない所）に詰めて置く。
+    //   前は口から北へ二列に並べ、御殿の北の壁の外に出た者が中へ入れず突っ立っていた（10/10 kaito「敵勢攻めてこない」）
+    let x = q.x, z = q.z;
+    if (o.entered) { const s = enteredSpot(rt, at, used); x = s.x; z = s.z; used.push(s); }
     u.pos.set(x, rt.world.heightAt(x, z), z);
     u.heading = o.entered ? 0 : q.yaw;
   }
@@ -468,12 +526,12 @@ function akechi(rt, name, path, list, o = {}) {
   // 門を破った後も、口を通ってから敵を追う。塀越しに本堂へ直進させない。
   g.entryPath = path.map((p) => [p[0], p[1]]);
   g.path = o.gate?.alive ? [g.entryPath[0]] : g.entryPath; g.pathIdx = 0;
-  g.onArrive = (gg) => { if (o.gate?.alive) { gg.order = 'assault'; gg.assault = hitGate(o.gate); gg.gate = o.gate; return; } gg.order = 'attack'; gg.formation = 'line'; gg.spacing = 1.5; gg.seekRange = o.seek || 24; if (o.player) gg.focus = rt.player.u; else if (o.nb && F.nb && F.nb.alive) gg.focus = F.nb; };
+  g.onArrive = (gg) => { if (o.gate?.alive) { gg.order = 'assault'; gg.assault = hitGate(o.gate); gg.gate = o.gate; return; } gg.order = 'attack'; gg.formation = 'line'; gg.spacing = 1.5; gg.seekRange = o.seek || 24; if (o.player) gg.focus = rt.player.u; else if (o.nb && F.nb && F.nb.alive) gg.focus = F.nb; else if (o.foe?.alive) gg.focus = o.foe; };
   if (o.hold) { g.order = 'hold'; g.anchor = { x: at.x, z: at.z }; g.formation = 'line'; g.aggro = o.aggro || 30; }
   else g.order = 'path';
   if (o.player && g.order !== 'path') g.focus = rt.player.u;
   else if (o.nb && F.nb && F.nb.alive && g.order !== 'path') g.focus = F.nb;
-  F.foes.push(g);
+  g.honnoHp = F.hp; F.foes.push(g);
   // 寺内の先鋒は異変の鬨と重ねない。後続も同じ鬨を続けて鳴らさない。
   if (!o.entered && rt.t - (F.honnoShoutT ?? -99) >= 8) {
     F.honnoShoutT = rt.t; rt.army.play('eshout', at, 1.2);
@@ -493,8 +551,198 @@ function climbIn(rt, pts, list, call) {
   if (call) rt.bark(call, true);
   return g;
 }
+// ---- 囲まれる絵（kaito 10/10「敵勢にめっちゃ囲まれてやばいみたいな感じにして」） ----
+// 塀の外を埋める桔梗の旗と松明。六十メートルの内では軽い兵の形は隠れるので、旗と火だけを二重の並びで立てる。
+// 幟の竿・布・松明の竿・火をそれぞれ一つの InstancedMesh にまとめ、描く回数を四つに抑える。
+const RING_POLE = new THREE.CylinderGeometry(0.045, 0.06, 3.3, 5).translate(0, 1.65, 0);
+const RING_FLAME = new THREE.ConeGeometry(0.2, 0.7, 6).translate(0, 3.6, 0);
+const RING_POLE_MAT = new THREE.MeshLambertMaterial({ color: 0x2a2018 });
+const RING_FLAME_MAT = new THREE.MeshBasicMaterial({ color: 0xff8a2a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+// 松明の火の照り（丸くぼかした点。全部で一回の描画）
+let RING_GLOW_MAT = null;
+function ringGlowMat() {
+  if (RING_GLOW_MAT) return RING_GLOW_MAT;
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,190,110,1)'); gr.addColorStop(0.25, 'rgba(255,130,40,0.55)'); gr.addColorStop(1, 'rgba(255,90,20,0)');
+  x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
+  RING_GLOW_MAT = new THREE.PointsMaterial({ map: new THREE.CanvasTexture(c), size: 2.6, sizeAttenuation: true, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+  return RING_GLOW_MAT;
+}
+function honnoRing(rt) {
+  const W = rt.world, F = rt.flags;
+  const proto = nobori(W, 0, 0, 'akechi', 6.4);
+  const flagSrc = proto.userData.flag, staffSrc = proto.children[0], yaw0 = proto.rotation.y;
+  const rr = (x, z, k) => { const v = Math.sin(x * 12.9898 + z * 78.233 + k * 37.7) * 43758.5453; return v - Math.floor(v); };
+  const flags = [], torches = [];
+  // 四辺：[始まり, 終わり, 外向き]
+  const sides = [[[TERA.x1, TERA.z0], [TERA.x1, TERA.z1], [1, 0]], [[TERA.x0, TERA.z0], [TERA.x0, TERA.z1], [-1, 0]],
+    [[TERA.x0, TERA.z0], [TERA.x1, TERA.z0], [0, -1]], [[TERA.x0, TERA.z1], [TERA.x1, TERA.z1], [0, 1]]];
+  for (const [[ax, az], [bx, bz], [nx, nz]] of sides) {
+    const len = Math.hypot(bx - ax, bz - az), tx = (bx - ax) / len, tz = (bz - az) / len;
+    for (const [off, shift, step] of [[3.6, 0, 4.4], [8.2, 2.2, 4.4], [13, 1.1, 6.5]]) {
+      for (let s = 1.5 + shift; s < len - 1; s += step) {
+        const j = rr(ax + s, az + off, 1);
+        const x = ax + tx * s + nx * (off + (j - 0.5) * 1.4), z = az + tz * s + nz * (off + (j - 0.5) * 1.4);
+        flags.push([x, z, j]);
+        if (off < 4 && Math.round(s / step) % 2 === 0) torches.push([x + tx * 1.6 - nx * 0.6, z + tz * 1.6 - nz * 0.6]);
+        if (off > 4 && off < 9 && Math.round(s / step) % 3 === 1) torches.push([x - tx * 1.2, z - tz * 1.2]);
+      }
+    }
+  }
+  const grp = new THREE.Group();
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3();
+  const inst = (geo, mat, list, f) => {
+    const im = new THREE.InstancedMesh(geo, mat, list.length);
+    list.forEach((it, i) => { f(it, v, e, sc); q.setFromEuler(e); m.compose(v, q, sc); im.setMatrixAt(i, m); });
+    im.frustumCulled = false; im.castShadow = false; im.receiveShadow = false;
+    grp.add(im); return im;
+  };
+  const place = ([x, z, j], P, E, S) => { P.set(x, W.heightAt(x, z), z); E.set((j - 0.5) * 0.08, yaw0 + (j - 0.5) * 0.3, (rr(x, z, 3) - 0.5) * 0.08); S.setScalar(0.9 + j * 0.2); };
+  inst(staffSrc.geometry, staffSrc.material, flags, place);
+  inst(flagSrc.geometry, flagSrc.material, flags, place);
+  const tp = ([x, z], P, E, S) => { P.set(x, W.heightAt(x, z), z); E.set(0, 0, 0); S.setScalar(1); };
+  inst(RING_POLE, RING_POLE_MAT, torches, tp);
+  const flame = inst(RING_FLAME, RING_FLAME_MAT, torches, tp);
+  rt.scene.add(grp);
+  const gp = new Float32Array(torches.length * 3);
+  torches.forEach(([x, z], i) => { gp[i * 3] = x; gp[i * 3 + 1] = W.heightAt(x, z) + 3.75; gp[i * 3 + 2] = z; });
+  const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.BufferAttribute(gp, 3));
+  const glow = new THREE.Points(gg, ringGlowMat()); glow.frustumCulled = false; grp.add(glow);
+  F.ring = { grp, flame, glow };
+}
+
+// 前後左右から寄せる寄せ手。見通せる十六歩の内の敵を数え、足りない方角（空いた背・脇を先に）へ三、四人ずつ出す。
+// 外の同じ方角の備えから人数を引き（akechi の far・role）、遠く置き去りの寄せ手は消して入れ替える（総数は二百四十まで）。
+// [欲しい数, 出す近さ, 出す遠さ]。味方が減るほど近くへ出して、輪が狭まる。
+const SUR = { 3: [11, 10, 15], 4: [14, 9, 14], 5: [14, 8.5, 13], 6: [9, 9, 14], 7: [10, 5.5, 9.5] };
+const ALLY_FALL = ['供の者が討たれた！', '馬廻が一人、倒れた！', '中間が討たれた。輪が狭まる！', '味方がまた一人倒れた！', '宿直の侍が討たれた！', '供の者がまた討たれた。囲みが狭まる！'];
+function honnoSurround(rt, dt) {
+  const F = rt.flags, P = rt.player.u, p = P.pos;
+  if (rt.G.lord || F.ending || rt.over || !P.alive) return;
+  if (F.ring) {
+    F.ring.flame.material.opacity = 0.72 + Math.sin(rt.t * 11.3) * 0.12 + Math.sin(rt.t * 23.7) * 0.08;
+    F.ring.glow.material.opacity = 0.62 + Math.sin(rt.t * 7.1) * 0.1 + Math.sin(rt.t * 17.3) * 0.06;
+    if (F.hp >= 9 && F.ring.grp.visible) F.ring.grp.visible = false;
+  }
+  if (!(F.hp >= 3 && F.hp <= 7)) return;
+  // 塀の外から鉄砲・鬨の声・矢音。音の出所は塀の外の、四方のどこか
+  if ((F.ambT = (F.ambT ?? 1) - dt) <= 0) {
+    F.ambT = 1.4 + Math.random() * 2.6;
+    const a = Math.random() * Math.PI * 2, r = 22 + Math.random() * 20;
+    const at = { x: Math.max(TERA.x0 - 8, Math.min(TERA.x1 + 8, p.x + Math.sin(a) * r)), z: Math.max(TERA.z0 - 8, Math.min(TERA.z1 + 8, p.z + Math.cos(a) * r)) };
+    const k = Math.random();
+    if (k < 0.45) { rt.army.play('gun', at, 0.7 + Math.random() * 0.3); if (Math.random() < 0.5) rt.army.play('gun', { x: at.x + 3, z: at.z - 2 }, 0.6); }
+    else if (k < 0.75) rt.army.play('eshout', at, 0.9);
+    else { rt.army.play('arrow', { x: p.x + Math.sin(a) * 3, z: p.z + Math.cos(a) * 3 }, 0.8); rt.army.play('string', at, 0.5); }
+  }
+  if (rt.t < (F.surAt || 0)) return;
+  F.surAt = rt.t + 1;
+  // 討たれた味方の知らせ（名のある小姓は名で）
+  const dead = F.allyDead || (F.allyDead = new Set());
+  for (const g of [F.kosho, F.uma, ...(F.posts || [])]) if (g) for (const u of g.units) {
+    if (u.alive || dead.has(u)) continue;
+    dead.add(u);
+    if (u === F.ran || Math.hypot(u.pos.x - p.x, u.pos.z - p.z) > 30 || rt.t - (F.fallSaidT ?? -99) < 6) continue;
+    F.fallSaidT = rt.t;
+    if (u.name && g === F.kosho) honnoSay(rt, '小姓', `${u.name}、討死……！`, 2.6);
+    else { const i = (F.fallN = (F.fallN || 0) + 1) - 1; if (i < ALLY_FALL.length) rt.bark(ALLY_FALL[i], true); }
+  }
+  // 置き去りの寄せ手を消す（波の入れ替え）
+  for (const g of F.foes) {
+    if (gone(g) || g.order === 'hold' || g.order === 'assault' || (!g.surround && (g.honnoHp ?? F.hp) >= F.hp)) continue;
+    let far = true;
+    for (const u of g.units) if (u.alive && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 38) { far = false; break; }
+    if (far) for (const u of g.units) if (u.alive) rt.army.despawn(u);
+  }
+  const [want0, r0, r1] = SUR[F.hp];
+  // 味方が減るほど寄せ手は多く、近い
+  let ally = 0;
+  for (const g of [F.kosho, F.uma, ...(F.posts || [])]) if (g) for (const u of g.units) if (u.alive) ally++;
+  const press = Math.max(0, Math.min(1, 1 - ally / 22));
+  // 供は一人ずつ討たれる：十四秒に一人ほどの割合より早く減れば固く、遅ければ脆くする（一度に崩れない）
+  F.surT0 ??= rt.t;
+  const due = Math.max(3, 22 - (rt.t - F.surT0) / 14);
+  const def = ally < due - 1 ? 25 : ally < due ? 5 : ally > due + 1 ? 0.8 : 1.6;
+  for (const g of [F.kosho, F.uma, ...(F.posts || [])]) if (g) g.defMult = def;
+  // 囲みの寄せ手が増えた分、上様が一太刀で崩れないように（上様を狙う台本の寄せ手は、これまでどおり手傷を負わせる）
+  if (F.nbG && F.nb?.alive) F.nbG.defMult = F.nb.hp < F.nb.maxHp * 0.5 ? 10 : 4;
+  // 鉄砲・矢は defMult を通らない。囲みの最中は上様の傷の進みを七分ほどに均す（離れて任せきりにすれば、それでも深手になる）
+  if (F.nb?.alive) {
+    const floor = F.nb.maxHp * Math.max(0.24, 1 - 0.76 * (rt.t - F.surT0) / 420);
+    const dNb = Math.hypot(F.nb.pos.x - p.x, F.nb.pos.z - p.z);
+    if (F.nb.hp < floor && dNb < 14) F.nb.hp += (floor - F.nb.hp) * 0.5;
+  }
+  // 体力はギリギリで減る：七分で三割ほど残る線より削られていれば、寄せ手の太刀を浅くする（立ち止まれば、それでも討たれる）
+  const hpF = P.hp / P.maxHp, line = 1 - 0.7 * Math.min(1, (rt.t - F.surT0) / 420);
+  const gm = hpF < line - 0.12 ? 0.3 : hpF < line ? 0.6 : hpF > line + 0.15 ? 1.4 : 1;
+  for (const g of F.foes) if (!gone(g)) { g.dmg0 ??= g.dmgMult ?? 1; g.dmgMult = g.dmg0 * (g.surround ? gm : Math.min(1, gm)); }
+  const want = want0 + Math.round(press * 4);
+  const cam = rt.camera, fw = F.surV || (F.surV = new THREE.Vector3());
+  if (cam) cam.getWorldDirection(fw); else fw.set(Math.sin(P.heading || 0), 0, Math.cos(P.heading || 0));
+  const fa = Math.atan2(fw.x, fw.z);
+  const quad = [0, 0, 0, 0];
+  let n = 0, alive = 0, all = 0;
+  for (const u of rt.army.units) {
+    if (!u.alive) continue;
+    alive++;
+    if (u.team !== 1 || u.isStruct || u.fleeing || u.woundOut || u.noTarget) continue;
+    const dx = u.pos.x - p.x, dz = u.pos.z - p.z, d = Math.hypot(dx, dz);
+    if (d > 16 || Math.abs(u.pos.y - p.y) > 3) continue;
+    all++;
+    if (rt.army.wallBetween(p, -1, u.pos)) continue;
+    n++;
+    let a = Math.atan2(dx, dz) - fa; a = Math.atan2(Math.sin(a), Math.cos(a));
+    quad[Math.round(a / (Math.PI / 2)) & 3]++;
+  }
+  F.surN = n;
+  // 塀・壁の向こうに詰まった寄せ手も数え、近くを敵で溢れさせない
+  if (n >= want || all >= want + 5 || alive + 4 > 236 || rt.t < (F.surSpawnAt || 0)) return;
+  // 空いた方角を先に。同じ数なら背、左右、前の順
+  const order = [2, 1, 3, 0].sort((a, b) => quad[a] - quad[b]);
+  for (const qd of order) {
+    for (const da of [0, -0.35, 0.35, -0.7, 0.7]) {
+      const ang = fa + qd * Math.PI / 2 + da;
+      for (let r = r1; r >= r0; r -= 1.5) {
+        const x = p.x + Math.sin(ang) * r, z = p.z + Math.cos(ang) * r;
+        if (!inTera(x, z, -1.5)) continue;
+        if (F.nb?.alive && Math.hypot(x - F.nb.pos.x, z - F.nb.pos.z) < 7) continue;
+        const Z = F.heatZone;
+        if (Z && x > Z.x0 && x < Z.x1 && z > Z.z0 && z < Z.z1) continue;
+        // 燃えている棟・廊の中や際には出さない（寄せ手を追って火の中へ誘い込まない）
+        if (F.T?.G?.recs.some((r) => r.state === 1 && (() => { const c = Math.cos(r.rot || 0), sn = Math.sin(r.rot || 0), dx = x - r.x, dz = z - r.z; return Math.abs(dx * c - dz * sn) < r.w / 2 + 2 && Math.abs(dx * sn + dz * c) < r.d / 2 + 2; })())) continue;
+        if (!patrolClear(rt, x, z) || !patrolClear(rt, x - 0.5, z) || !patrolClear(rt, x + 0.5, z) || !patrolClear(rt, x, z - 0.8) || !patrolClear(rt, x, z + 0.8)) continue;
+        const cx = x - HONNO.x, cz = z - HONNO.z;
+        const role = Math.abs(cx) > Math.abs(cz) ? (cx < 0 ? 'west' : 'east') : (cz < 0 ? 'north' : 'south');
+        const k = F.surK = (F.surK || 0) + 1;
+        const list = F.hp === 7 ? [uS(1), uA(2)] : k % 3 === 0 ? [uS(1), uA(2), uB(1)] : [uS(1), uA(3)];
+        // 自分を狙わない組は、近くの供（上様でない者）へ斬りかかる。供が一人ずつ討たれ、上様は囲みの寄せ手に狙わせない
+        let foe = null, fd = 1e9;
+        for (const ag of [F.kosho, F.uma, ...(F.posts || [])]) if (ag) for (const u of ag.units) {
+          if (!u.alive) continue;
+          const d = Math.hypot(u.pos.x - x, u.pos.z - z);
+          if (d < fd) { fd = d; foe = u; }
+        }
+        const toMe = k % 2 === 0 || k % 3 === 0 || fd > 20;
+        const g = akechi(rt, qd === 2 ? '背から迫る明智勢' : qd === 0 ? '前から迫る明智勢' : '脇から迫る明智勢', [[x, z], [p.x, p.z]], list,
+          { entered: true, player: toMe, foe: toMe ? null : foe, role, far: 1e9, aggro: 12, seek: 26, dmg: 1.2 });
+        if (!g) return;
+        g.surround = true; g.honnoHp = F.hp;
+        rt.world.gunSmoke(x, z, 0x4a4642);
+        if (qd !== 0 && rt.t - (F.surCallT ?? -99) > 8) {
+          F.surCallT = rt.t;
+          const L = ['後ろからも来るぞ！', '横から回り込まれた！', '囲まれた！　四方から来る！', '背を取られるな！'];
+          const i = (F.surCallN = (F.surCallN || 0) + 1) - 1;
+          if (i < L.length) rt.bark(L[i], true);
+        }
+        F.surSpawnAt = rt.t + (n < want - 6 ? 0.8 : 1.6);
+        return;
+      }
+    }
+  }
+}
 // 寝間着の小袖（具足・笠・指物なし）
-const NEMAKI = (col) => ({ kosode: 1, kosodeCol: col, flag: null, hat: 'none', horo: 0 });
+const NEMAKI = (col) => ({ kosode: 1, kosodeCol: col, obi: 0x30251c, flag: null, hat: 'none', horo: 0 });
 const nS = (n) => ({ type: 'samurai', n, o: NEMAKI(0x2e3440) }), nA = (n) => ({ type: 'ashigaru', n, o: NEMAKI(0x4a463e) });
 const uS = (n) => ({ type: 'samurai', n }), uA = (n) => ({ type: 'ashigaru', n }), uG = (n) => ({ type: 'gun', n }), uB = (n) => ({ type: 'bow', n });
 // 門の扉（開いた二枚の扉。閉めると army の struct になる）
@@ -524,6 +772,108 @@ function smallGate(rt, gd, hp) {
   s.mesh = gateDoors(rt.world, gd.x, gd.z, gd.w, gd.side === 'n' || gd.side === 's' ? Math.PI / 2 : 0); rt.scene.add(s.mesh);
   return s;
 }
+// 門の狭い所だけ、討死の時に寝る場所を予約する。毎コマ探したり体を積み上げたりしない。
+function honnoFall(rt, v) {
+  const D = v.death, A = rt.army, g = GATES.main;
+  if (!D || D.aid || D.floor || v.isPlayer || v.mounted || v.gone || v.honnoRest ||
+    Math.abs(v.pos.x - g.x) > 12 || Math.abs(v.pos.z - g.z) > 12) return;
+  D.tw = (Math.random() - 0.5) * 2.7;
+  const lie = Math.PI / 2 * 0.96;
+  let rx = 0, rz = 0;
+  if (D.kind === 'back') rx = -lie;
+  else if (D.kind === 'forward' || (D.kind === 'crumple' && D.fwd)) rx = lie;
+  else if (D.cutTw) { rx = lie * 0.45; rz = -D.side * lie * 0.8; }
+  else rz = -D.side * lie;
+  const axis = new THREE.Vector3(0, 1, 0).applyEuler(new THREE.Euler(rx, v.heading + D.tw, rz, 'YXZ'));
+  let firstX = D.sx || 0, firstZ = D.sz || 0, found = false;
+  for (let i = 0; i < 65; i++) {
+    const r = i ? 0.5 * Math.sqrt(i) : 0, a = i * 2.399963 + v.heading;
+    const sx = Math.sin(a) * r, sz = Math.cos(a) * r;
+    const cx = v.pos.x + sx + axis.x * 0.85, cz = v.pos.z + sz + axis.z * 0.85;
+    let open = true;
+    // よろめく道と足から頭までを確認し、塀・門柱・堀へ寝かせない。
+    for (let j = 0; j <= 8 && open; j++) {
+      const k = Math.min(1, j / 4), body = Math.max(0, j - 4) * 0.425;
+      const x = v.pos.x + sx * k + axis.x * body, z = v.pos.z + sz * k + axis.z * body;
+      if (!A.aidWalkable(v, x, z)) { open = false; break; }
+      for (const s of A.solids || []) {
+        if (s.alive === false || (s.struct && (!s.struct.alive || s.struct.opened))) continue;
+        if (x > s.x0 - 0.25 && x < s.x1 + 0.25 && z > s.z0 - 0.25 && z < s.z1 + 0.25) { open = false; break; }
+      }
+    }
+    if (!open) continue;
+    if (!found) { firstX = sx; firstZ = sz; found = true; }
+    for (const u of A.dead) {
+      if (u === v || u.gone || !u.honnoRest) continue;
+      if ((cx - u.honnoRest.x) ** 2 + (cz - u.honnoRest.z) ** 2 < 2.4 ** 2) { open = false; break; }
+    }
+    if (open) { firstX = sx; firstZ = sz; break; }
+  }
+  D.sx = firstX; D.sz = firstZ; D.roll = null;
+  v.honnoRest = { x: v.pos.x + D.sx + axis.x * 0.85, z: v.pos.z + D.sz + axis.z * 0.85 };
+  // 空きが尽きた時も山にしない。重なる古い亡骸は共通の片付けで武具だけ残す。
+  for (let i = A.dead.length - 1; i >= 0; i--) {
+    const u = A.dead[i];
+    if (u === v || u.isPlayer || u.death?.aid || !u.honnoRest) continue;
+    if ((v.honnoRest.x - u.honnoRest.x) ** 2 + (v.honnoRest.z - u.honnoRest.z) ** 2 < 2.4 ** 2) A.clearCorpse(i);
+  }
+}
+
+// 小袖の袂を肘へたくし上げる。この戦の人に付いた形だけを複製し、手首を空ける。
+// 骨付きの人も遠目の人も同じ直し。形の複製は初回だけで、次から共有する。
+function honnoClothes(rt, dt) {
+  const F = rt.flags;
+  F.clothesScan -= dt;
+  if (F.clothesScan > 0) return;
+  F.clothesScan = 0.5;
+  const fit = (src, mesh, foreOnly = false) => {
+    if (F.sleeveGeos.has(src)) return F.sleeveGeos.get(src);
+    const g = src.clone(), p = g.attributes.position, skin = g.attributes.skinIndex;
+    if (skin && mesh.skeleton) {
+      // 部品をまとめた人は前腕の骨を目印にし、肘を支点に袖だけを縮める。
+      const anchors = new Map();
+      mesh.skeleton.bones.forEach((bone, i) => {
+        if (!/^(Left|Right)ForeArm$/.test(bone.name)) return;
+        const rest = mesh.skeleton.boneInverses[i].clone().invert();
+        anchors.set(i, new THREE.Vector3().setFromMatrixPosition(rest));
+      });
+      for (let i = 0; i < p.count; i++) {
+        const a = anchors.get(skin.getX(i));
+        if (a) p.setXYZ(i, a.x + (p.getX(i) - a.x) * 0.72,
+          a.y + (p.getY(i) - a.y) * 0.72, a.z + (p.getZ(i) - a.z) * 0.72);
+      }
+    } else {
+      for (let i = 0; i < p.count; i++) {
+        const y = p.getY(i);
+        // 軽い腕の形では手の頂点を残す。袂だけを短く、薄くする。
+        if (foreOnly || (y < -0.23 && y > -0.525 && Math.hypot(p.getX(i), p.getZ(i)) > 0.06))
+          p.setXYZ(i, p.getX(i) * 0.8, -0.23 + (y + 0.23) * 0.72, p.getZ(i) * 0.6);
+      }
+    }
+    p.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere();
+    F.sleeveGeos.set(src, g); F.sleeveGeos.set(g, g);
+    return g;
+  };
+  const wrap = (mesh, foreOnly = false) => {
+    if (!mesh || mesh.userData.honnoSleeve) return;
+    mesh.userData.honnoSleeve = true;
+    mesh.geometry = fit(mesh.geometry, mesh, foreOnly);
+    const before = mesh.onBeforeRender;
+    mesh.onBeforeRender = function (renderer, scene, camera, geometry, material, group) {
+      before.call(this, renderer, scene, camera, geometry, material, group);
+      this.geometry = fit(this.geometry, this, foreOnly);
+    };
+  };
+  for (const u of rt.army.units) {
+    if (!u.look?.kosode) continue;
+    wrap(u.armL); wrap(u.armR);
+    const h = u.human;
+    if (!h) continue;
+    wrap(h.parts.armor);
+    wrap(h.parts.foreP, true); wrap(h.parts.foreN, true);
+  }
+}
+
 // この戦の壁と襖だけを清める。材質と松の絵は準備時に一度だけ作る。
 function cleanTemple(rt) {
   const T = rt.flags.T;
@@ -591,12 +941,29 @@ function cleanTemple(rt) {
       map: old.map, vertexColors: old.vertexColors, side: old.side, roughness: 0.95 }));
     m.material = decorMats.get(old);
   });
-  // 近い行灯ひとつだけを照らす。灯の数だけ光を増やさない。
-  rt.flags.lampGlow = new THREE.PointLight(0xffd6a1, 0, 7, 1.5);
-  rt.flags.lamps = [[-66.2, 93.6, 'goten'], [-51, 84.5, 'goten'], [-58.6, 43, 'hondo'],
+  // 廊下の端と各間に灯を置く。照らす光は近い二つだけ、影なしで使い回す。
+  const F = rt.flags;
+  F.lampLights = [new THREE.PointLight(0xffd6a1, 0, 14, 1.5), new THREE.PointLight(0xffdfb5, 0, 14, 1.5)];
+  F.lamps = [[-66.2, 93.6, 'goten'], [-51, 84.5, 'goten'], [-58.6, 43, 'hondo'],
     [-58.6, 49, 'hondo'], [-34, 67.2, 'shukuboA']].map(([x, z, id]) => ({ x, z, id,
-      y: rt.world.heightAt(x, z) + (id === 'hondo' ? 1.8 : 0.9) }));
-  rt.scene.add(rt.flags.lampGlow);
+      y: T.G.byId[id].y0 + 0.9 }));
+  for (const [x, z, id] of [[-70, 81.6, 'goten'], [-61, 81.6, 'goten'], [-51, 81.6, 'goten'],
+    [-61, 92, 'goten'], [-70.5, 86, 'goten'], [-49, 49, 'hondo'],
+    [-68.7, 56, 'watari'], [-68.7, 68, 'watari'], [-45.8, 59, 'kairo1'], [-45.8, 71, 'kairo1']]) {
+    const rec = T.G.byId[id], floor = rec.y0;
+    const fixture = tomyo(); fixture.position.set(x, floor, z); rt.scene.add(fixture);
+    F.lamps.push({ x, z, id, y: floor + 0.9, fixture });
+  }
+  // 庭の篝は障子の外。紙越しの暖色は紙の材質にも残す。
+  for (const [x, z, id] of [[-61, 97, 'goten'], [-45, 44, 'hondo']]) {
+    rt.world.addFire(x, z, { torch: true, h: 1.4, size: 0.5 });
+    F.lamps.push({ x, z, id, y: rt.world.heightAt(x, z) + 1.4 });
+  }
+  for (const mat of mats.values()) {
+    mat.emissive.set(0x6b4927); mat.emissiveIntensity = 0.12;
+  }
+  rt.scene.add(...F.lampLights);
+  F.sleeveGeos = new WeakMap(); F.clothesScan = 0;
   // 台本の出火と自然な延焼を同じ絵へ結ぶ。焼け落ちた棟では屋根の火を消す。
   const ignite = T.fire.ignite.bind(T.fire), tick = T.fire.tick.bind(T.fire);
   T.fire.ignite = (id, why) => {
@@ -663,15 +1030,19 @@ function blaze(rt, id) {
 function templeGlow(rt) {
   const F = rt.flags, p = rt.player.u.pos, L = F.fireGlow;
   if (!L) return;
-  const lamp = F.lampGlow;
-  let nearestLamp = null, lampD = 8 * 8;
+  let first = null, second = null, d1 = 18 * 18, d2 = d1;
   for (const q of F.lamps) {
-    if (F.T.G.byId[q.id]?.state === 2) continue;
+    const burnt = F.T.G.byId[q.id]?.state === 2;
+    if (q.fixture) q.fixture.visible = !burnt;
+    if (burnt) continue;
     const d = (q.x - p.x) ** 2 + (q.z - p.z) ** 2;
-    if (d < lampD) { lampD = d; nearestLamp = q; }
+    if (d < d1) { second = first; d2 = d1; first = q; d1 = d; }
+    else if (d < d2) { second = q; d2 = d; }
   }
-  lamp.intensity = nearestLamp ? 3.5 : 0;
-  if (nearestLamp) lamp.position.set(nearestLamp.x, nearestLamp.y, nearestLamp.z);
+  const a = F.lampLights[0], b = F.lampLights[1];
+  a.intensity = first ? 18 : 0; b.intensity = second ? 12 : 0;
+  if (first) a.position.set(first.x, first.y, first.z);
+  if (second) b.position.set(second.x, second.y, second.z);
   let fire = null, near = 24 * 24;
   for (const f of rt.world.fires) {
     if (f.torch || !inTera(f.x, f.z, 1)) continue;
@@ -816,6 +1187,7 @@ const honnoji = {
     rt.scene.add(well(W, TERA.x0 - 14, 44), well(W, TERA.x0 - 16, 90), well(W, -24, 96), well(W, -30, 20));
     // ---- 本能寺の境内（築地・門・伽藍・中のある建物）と二条御所 ----
     F.T = buildTera(rt); cleanTemple(rt);
+    rt.army.doorVia = (u, to) => honnoDoor(rt, u, to);
     F.leaves = openLeaves(W, GATES.main.x, GATES.main.z, GATES.main.w); rt.scene.add(F.leaves);
     F.gSide = smallGate(rt, GATES.side, 900);
     F.gKatte = smallGate(rt, GATES.katte, 700);
@@ -832,9 +1204,10 @@ const honnoji = {
     buildNearbyChurch(rt, hutBatch);
     finalizeSimpleBatch(rt, hutBatch);
     for (const [x, z] of [[NIJO.x - 10, NIJO.z - 6], [NIJO.x - 10, NIJO.z + 6], [NIJO.x + 10, NIJO.z + 10]]) rt.scene.add(nobori(W, x, z, 'oda', 6));
-    rt.scene.add(nobori(W, -44, 56, 'oda', 5), nobori(W, -47.5, 88, 'eiraku', 4.5));
+    rt.scene.add(nobori(W, -44, 56, 'oda', 5), nobori(W, -45, 101, 'eiraku', 4.5));   // 永楽の幟は御殿の外（東の壁の際に立てると、屋根を外した御殿の中から広間に立つ幟に見えた。10/10 kaito）
     // ---- 外周を封じる明智の大軍（軽い作り）。築地の外の通りを埋める ----
     F.aHost = buildSonae(rt, [HONNO_ATTACK]);
+    honnoRing(rt);
     F.ehon = camp(rt, { x: -104, z: 120, facing: Math.PI * 0.75, team: 1, faction: 'akechi', mon: 'akechi', armor: 0x2a2a30, general: { name: '明智光秀', hat: 'kabuto_m', haori: 0x3a3a5a }, guard: 15, reserve: 0, runTo: { x: -86, z: 100 } });
     for (const [x, z] of [[-24, 40], [-24, 62], [TERA.x0 - 5, 50], [TERA.x0 - 5, 95], [-60, 112], [-40, TERA.z0 - 8]]) W.addFire(x, z, { torch: true, h: 1.4 });
     for (const [x, z] of [[-20, 56], [TERA.x0 - 7, 60], [-50, 114], [-62, TERA.z0 - 8]]) rt.scene.add(nobori(W, x, z, 'akechi', 6));
@@ -851,10 +1224,10 @@ const honnoji = {
     F.nb.range = 0;   // 寝所では弓を番えない（表へ出て、門の内で射る）
     F.kosho =allyGroup(rt, { fixed: true, name: '森蘭丸と小姓衆', anchor: jinkeiPoint(HONNO_DEFEND, HONNO_DEFEND.sonae[1]), facing: Math.PI / 2, width: 3, aggro: 7, noRout: true, fullStrength: true },
       [{ type: 'samurai', n: 1, o: { name: '森蘭丸', kosode: 1, kosodeCol: 0x5a3a2e, obi: 0x6a2a24, flag: null, horse: false } },
-        { type: 'samurai', n: 1, o: { name: '森坊丸', kosode: 1, kosodeCol: 0x3a4458, flag: null, horse: false } },
-        { type: 'samurai', n: 1, o: { name: '森力丸', kosode: 1, kosodeCol: 0x4a4038, flag: null, horse: false } },
-        { type: 'samurai', n: 1, o: { name: '高橋虎松', kosode: 1, kosodeCol: 0x2e3a4a, flag: null, horse: false } },
-        { type: 'samurai', n: 1, o: { name: '菅屋角蔵', kosode: 1, kosodeCol: 0x2e3a4a, flag: null, horse: false } }]);
+        { type: 'samurai', n: 1, o: { name: '森坊丸', kosode: 1, kosodeCol: 0x536783, obi: 0x30251c, flag: null, horse: false } },
+        { type: 'samurai', n: 1, o: { name: '森力丸', kosode: 1, kosodeCol: 0x78634d, obi: 0x30251c, flag: null, horse: false } },
+        { type: 'samurai', n: 1, o: { name: '高橋虎松', kosode: 1, kosodeCol: 0x49617a, obi: 0x30251c, flag: null, horse: false } },
+        { type: 'samurai', n: 1, o: { name: '菅屋角蔵', kosode: 1, kosodeCol: 0x49617a, obi: 0x30251c, flag: null, horse: false } }]);
     F.kosho.defMult = 1;
     F.ran = F.kosho.units[0];
     F.uma = allyGroup(rt, { fixed: true, name: '馬廻と中間', anchor: jinkeiPoint(HONNO_DEFEND, HONNO_DEFEND.sonae[2]), facing: Math.PI / 2, width: 6, aggro: 8, noRout: true, fullStrength: true },
@@ -1324,6 +1697,8 @@ const honnoji = {
 
   update(rt, dt) {
     honnoPressure(rt);
+    honnoSurround(rt, dt);
+    honnoClothes(rt, dt);
     if (rt.G.lord) { this.lordTick(rt, dt); return; }
     const F = rt.flags;
     if (!rt.player.u.alive) return;
@@ -1382,6 +1757,7 @@ const honnoji = {
   onKill(rt, v, killer) {
     const F = rt.flags;
     if (v.isStruct || v.group?.civ || v.type === 'porter') return;
+    honnoFall(rt, v);
     if (v.team === 1 && v.group?.honnoStand && v.type === 'samurai' && killer?.isPlayer) {
       const n = v.group.honnoStand;
       if (!F.standMerit?.[n]) {
@@ -1563,12 +1939,14 @@ function honnoTick(def, rt, dt) {
     }
     if (F.flank && !F.flankDone && (gone(F.flank) || F.flank.count <= 1)) { F.flankDone = true; rt.objDone('flank'); rt.award((t2) => t2.side.push('宿坊から回り込む明智勢を止めた'), '回り込みを止めた'); }
     const left = Math.max(0, Math.ceil(180 - t));
-    rt.objProgress('main', `あと${left}秒。本堂の印で上様と合流せよ`);
+    rt.objProgress('main', dNb < 10 && Math.hypot(p.x - HONDO_IN.x, p.z - HONDO_IN.z) < 6
+      ? `堂の口へ向いて構えよ。上様の到着を待て（あと${left}秒）`
+      : `本堂の印へ退き、上様と合流せよ（あと${left}秒）`);
     if (left <= 20 && !F.hondoLateSaid) { F.hondoLateSaid = true; rt.bark('本堂への合流が遅れておる！　印へ退け。間に合わねば護衛失敗じゃ', true); }
     if (dNb < 10 && Math.hypot(p.x - HONDO_IN.x, p.z - HONDO_IN.z) < 6 && Math.hypot(NB.pos.x - HONDO_IN.x, NB.pos.z - HONDO_IN.z) < 5) def.p5(rt);
     else if (t > 180) def.nbFail(rt, '本堂で合流できず、守りが崩れた');
   } else if (F.hp === 5) {
-    rt.objProgress('main', '堂の口を守り、火に気をつけよ');
+    rt.objProgress('main', '堂の口へ向いて構えよ。敵を払い、退く下知を待て');
     // 堂の口でも、目の前に十人ほどの敵がいる厚さを保つ（減れば表門から次の寄せ手が入る）
     if ((F.topScan = (F.topScan || 0) - dt) <= 0) {
       F.topScan = 1;
@@ -1600,7 +1978,7 @@ function honnoTick(def, rt, dt) {
     if (dNb < 12) F.lastHold = (F.lastHold || 0) + dt;
     rt.objProgress('main', t > 85 && dNb >= 12
       ? '上様のそばへ戻れ。退く下知が出ておる'
-      : '上様のそばで間の口を守れ。退く下知を待て');
+      : '上様の前で廊下へ向いて構えよ。奥へ退く支度を守れ');
     if (t > 85 && dNb < 12 && (gone(F.stand) || t > 110)) def.p8(rt);
     else if (t > 135) def.nbFail(rt, '最後の間へ戻れず、守りを失った');
   } else if (F.hp === 8) {
@@ -1651,7 +2029,7 @@ Object.assign(honnoji, {
     // 蛸薬師通りの路地：井戸と木戸を少し（門前の密な町割り）
     rt.scene.add(well(W, -22, 44), well(W, -8, 62), kido(W, -27, 54, Math.PI / 2));
     // 両方の遊び方で同じ塀・門・居室を使う。
-    F.T = buildTera(rt); cleanTemple(rt); F.fire = F.T.fire; F.dm0 = W.distMul || 1;
+    F.T = buildTera(rt); cleanTemple(rt); rt.army.doorVia = (u, to) => honnoDoor(rt, u, to); F.fire = F.T.fire; F.dm0 = W.distMul || 1;
     F.gE = smallGate(rt, GATES.main, 1500);
     F.gN = smallGate(rt, GATES.side, 900);
     const wallBatch = makeKitBatch();
@@ -1666,11 +2044,12 @@ Object.assign(honnoji, {
     rt.scene.add(nobori(W, HONNO.x - 4, HONNO.z - 4, 'oda', 5), nobori(W, HONNO.x + 8, HONNO.z + 4, 'eiraku', 5));
     // ---- 遠景の明智の大軍（四方）と篝・旗。落ち口の斜めの隅は空けておく ----
     F.aHost = buildSonae(rt, [HONNO_ATTACK]);
+    honnoRing(rt);
     for (const [x, z] of [[HONNO.x - 22, TERA.z1 + 10], [TERA.x0 - 10, HONNO.z - 24], [TERA.x1 + 10, HONNO.z + 22], [HONNO.x + 24, TERA.z0 - 10]]) W.addFire(x, z, { torch: true, h: 1.4 });
     for (const [x, z] of [[HONNO.x - 10, TERA.z1 + 12], [TERA.x0 - 12, HONNO.z + 8], [HONNO.x + 4, TERA.z0 - 12], [TERA.x1 + 12, HONNO.z - 6]]) rt.scene.add(nobori(W, x, z, 'akechi', 6));
     // ---- 小姓衆（森蘭丸ら）。自分のそばを離れない ----
     F.kosho = allyGroup(rt, { fixed: true, name: '森蘭丸と小姓衆', anchor: { ...PT.hikae }, facing: Math.PI / 2, width: 4, aggro: 8, noRout: true },
-      dress([{ type: 'samurai', n: 1, o: { name: '森蘭丸', kosode: 1, kosodeCol: 0x5a3a2e, flag: null, horse: false } }, { type: 'samurai', n: 1, o: { name: '森坊丸', kosode: 1, kosodeCol: 0x3a4458, flag: null, horse: false } }, { type: 'samurai', n: 1, o: { name: '森力丸', kosode: 1, kosodeCol: 0x4a4038, flag: null, horse: false } }, { type: 'samurai', n: 1, o: { name: '高橋虎松', kosode: 1, kosodeCol: 0x2e3a4a, flag: null, horse: false } }, { type: 'samurai', n: 1, o: { name: '菅屋角蔵', kosode: 1, kosodeCol: 0x4e5a48, flag: null, horse: false } }], ODA));
+      dress([{ type: 'samurai', n: 1, o: { name: '森蘭丸', kosode: 1, kosodeCol: 0x805244, obi: 0x30251c, flag: null, horse: false } }, { type: 'samurai', n: 1, o: { name: '森坊丸', kosode: 1, kosodeCol: 0x536783, obi: 0x30251c, flag: null, horse: false } }, { type: 'samurai', n: 1, o: { name: '森力丸', kosode: 1, kosodeCol: 0x78634d, obi: 0x30251c, flag: null, horse: false } }, { type: 'samurai', n: 1, o: { name: '高橋虎松', kosode: 1, kosodeCol: 0x49617a, obi: 0x30251c, flag: null, horse: false } }, { type: 'samurai', n: 1, o: { name: '菅屋角蔵', kosode: 1, kosodeCol: 0x6a795c, obi: 0x30251c, flag: null, horse: false } }], ODA));
     F.kosho.defMult = 1;
     F.ran = F.kosho.units[0]; F.bo = F.kosho.units[1]; F.riki = F.kosho.units[2];
     // 供のわずかな者（槍と弓。自分の組として付いて来る）
@@ -1899,7 +2278,7 @@ Object.assign(honnoji, {
       // 供が倒れても、本人が口を守れば火を放つ段へ進める。
       if (atMouth) F.rishiSupport = (F.rishiSupport || 0) + dt;
       const left = Math.max(0, 90 - (rt.t - F.stepT));
-      rt.objProgress('main', !atMouth ? '御殿の口の輪へ戻れ。離れた間は守備を数えない' : '御殿の口を支えよ。火をかける合図を待て');
+      rt.objProgress('main', !atMouth ? '御殿の口の輪へ戻れ。離れた間は守備を数えない' : '廊下へ向いて構えよ。供が火をかける支度を守れ');
       if (left <= 0 && (F.rishiSupport || 0) >= 45) this.lordFireStep(rt);
     }
     if (F.lstep === 3 && rt.t - F.stepT > 28 && Math.hypot(p.x - OKU.x, p.z - OKU.z) < 6) { honnoSay(rt, '小姓', '火は我らが！　……殿、お早く！', 3); this.lordBurn(rt); }

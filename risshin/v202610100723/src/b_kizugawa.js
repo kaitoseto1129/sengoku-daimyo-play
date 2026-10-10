@@ -307,6 +307,46 @@ function hipRoof(w, d, h, M) {
   return g;
 }
 
+// 近くで見る屋形の柱・板目・窓格子・軒。箱の形と材質を共有し、準備時にまとめて描く。
+function cabinDetails(g, cx, cz, w, d, y, h, front = true, boards = true) {
+  const R = rigParts(), M = shipMats(), timber = [], seams = [], panes = [];
+  const part = (list, x, yy, z, sx, sy, sz) => list.push([x, yy, z, sx, sy, sz]);
+  for (const sd of [-1, 1]) {
+    const x = cx + sd * (w / 2 + 0.04), z = cz + sd * (d / 2 + 0.04);
+    for (const q of [-1, 1]) part(timber, x, y + h / 2, cz + q * (d / 2 - 0.12), 0.18, h, 0.18);
+    for (const yy of [y + 0.12, y + h - 0.12]) {
+      part(timber, x, yy, cz, 0.16, 0.16, d + 0.3);
+      if (front) part(timber, cx, yy, z, w + 0.3, 0.16, 0.16);
+    }
+    // 屋根を支える軒桁と短い垂木。歩く通り道には張り出さない。
+    part(timber, x, y + h, cz, 0.22, 0.18, d + 0.6);
+    if (front) part(timber, cx, y + h, z, w + 0.6, 0.18, 0.22);
+    for (let zz = -d / 2 + 0.3; zz < d / 2; zz += 0.7) part(timber, x, y + h - 0.08, cz + zz, 0.6, 0.1, 0.09);
+    if (boards) for (let yy = 0.3; yy < h - 0.2; yy += 0.28) {
+      part(seams, x, y + yy, cz, 0.025, 0.025, d - 0.25);
+      if (front) part(seams, cx, y + yy, z, w - 0.25, 0.025, 0.025);
+    }
+    const wy = y + h * 0.66, wh = Math.min(0.6, h * 0.34), ww = Math.min(1.8, d * 0.4);
+    part(panes, x, wy, cz, 0.06, wh, ww);
+    for (const q of [-1, 0, 1]) part(timber, x + sd * 0.06, wy + q * wh / 2, cz, 0.09, 0.06, ww + 0.12);
+    for (let i = 0; i <= 6; i++) part(timber, x + sd * 0.06, wy, cz - ww / 2 + ww * i / 6, 0.09, wh + 0.1, 0.045);
+    if (front) {
+      const fw = Math.min(1.5, w * 0.45);
+      part(panes, cx, wy, z, fw, wh, 0.06);
+      for (const q of [-1, 0, 1]) part(timber, cx, wy + q * wh / 2, z + sd * 0.06, fw + 0.12, 0.06, 0.09);
+      for (let i = 0; i <= 6; i++) part(timber, cx - fw / 2 + fw * i / 6, wy, z + sd * 0.06, 0.045, wh + 0.1, 0.09);
+    }
+  }
+  for (const [parts, mat] of [[timber, M.wood], [seams, M.dark], [panes, M.black]]) {
+    if (!parts.length) continue;
+    const mesh = new THREE.InstancedMesh(R.box, mat, parts.length), D = R.dummy;
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i]; D.position.set(p[0], p[1], p[2]); D.rotation.set(0, 0, 0); D.scale.set(p[3], p[4], p[5]); D.updateMatrix(); mesh.setMatrixAt(i, D.matrix);
+    }
+    mesh.castShadow = mesh.receiveShadow = true; g.add(mesh);
+  }
+}
+
 // 鉄甲船の船体。castle：true の船（プレイヤーの乗る中央の船）だけ、矢倉を一段上げて床（floors.js）を張り、
 // 梯子で上がれる「小さな城」にする（甲板・上甲板・矢倉・階段）。outL・outR：左右の舷に楯板と櫂を付ける
 const YAG_Y = DECK.y + 1.6;   // 矢倉（上甲板）の床の高さ
@@ -357,27 +397,22 @@ function hull(W, cx, z0, z1, w, castle, outL = true, outR = true) {
     }
     // 床下の囲い（板張り）と床
     for (const sd of [-1, 1]) { const sk = new THREE.Mesh(new THREE.BoxGeometry(0.12, postH, yagL), M.board); sk.position.set(cx + sd * (yagW / 2 - 0.1), DECK.y + postH / 2, yz); g.add(sk); }
+    cabinDetails(g, cx, yz, yagW, yagL, DECK.y, postH, false);
     const floor = new THREE.Mesh(new THREE.BoxGeometry(yagW + 0.4, 0.25, yagL + 0.4), M.wood);
     floor.position.set(cx, YAG_Y, yz); g.add(floor);
     // 上甲板の楯板（狭間）：胸の高さで四方を囲い、梯子の口だけ空ける
     g.add(tateWall(cx - yagW / 2, yz + yagL / 2, cx - yagW / 2, yz - yagL / 2, YAG_Y, 1.1, M), tateWall(cx + yagW / 2, yz - yagL / 2, cx + yagW / 2, yz + yagL / 2, YAG_Y, 1.1, M));
     g.add(tateWall(cx - yagW / 2, yz + yagL / 2, cx + yagW / 2, yz + yagL / 2, YAG_Y, 1.1, M));
     g.add(tateWall(cx - yagW / 2, yz - yagL / 2, cx - 0.9, yz - yagL / 2, YAG_Y, 1.1, M), tateWall(cx + 0.9, yz - yagL / 2, cx + yagW / 2, yz - yagL / 2, YAG_Y, 1.1, M));
-    // 甲板から見える屋形の窓。黒い窓を白木の横桟で区切る。
-    for (const sd of [-1, 1]) {
-      const pane = new THREE.Mesh(rigParts().box, M.black); pane.scale.set(0.06, 0.55, 1.8); pane.position.set(cx + sd * yagW / 2, YAG_Y + 1.7, yz); g.add(pane);
-      const sill = new THREE.Mesh(rigParts().box, M.wood); sill.scale.set(0.1, 0.08, 1.9); sill.position.set(pane.position.x, pane.position.y, yz); g.add(sill);
-    }
+    // 梯子の口を空けたまま、側面の窓を縦横の格子で区切る。
+    cabinDetails(g, cx, yz, yagW, yagL, YAG_Y, 2.6, false, false);
     // 一重目の屋根（柱の上。四方へ葺き下ろす瓦）
     const r1 = hipRoof(yagW + 1.6, yagL + 1.6, 1.3, M); r1.position.set(cx, YAG_Y + 2.6, yz); g.add(r1);
     // 二重目：望楼（白壁に黒い格子窓、黒い腰板）と、その屋根。九鬼の大船は船の上の城と呼ばれた
     const bw = yagW * 0.62, bd = yagL * 0.5, by = YAG_Y + 3.3;
     const wall = new THREE.Mesh(new THREE.BoxGeometry(bw, 1.7, bd), M.plaster); wall.position.set(cx, by + 0.85, yz); g.add(wall);
     const koshi = new THREE.Mesh(new THREE.BoxGeometry(bw + 0.04, 0.6, bd + 0.04), M.black); koshi.position.set(cx, by + 0.3, yz); g.add(koshi);
-    for (const sd of [-1, 1]) {
-      for (const q of [-1, 1]) { const win = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.05), M.black); win.position.set(cx + q * bw * 0.24, by + 1.15, yz + sd * (bd / 2 + 0.02)); g.add(win); }
-      const sw = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.5, 0.9), M.black); sw.position.set(cx + sd * (bw / 2 + 0.02), by + 1.15, yz); g.add(sw);
-    }
+    cabinDetails(g, cx, yz, bw, bd, by, 1.7);
     const r2 = hipRoof(bw + 1.3, bd + 1.3, 1.1, M); r2.position.set(cx, by + 1.75, yz); g.add(r2);
     // 階段（矢倉の梯子口）：船尾側、矢倉の手前に取り付く
     const stair = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.2, postH / Math.cos(0.9)), M.wood);
@@ -388,6 +423,7 @@ function hull(W, cx, z0, z1, w, castle, outL = true, outR = true) {
     // 両脇の船：甲板の艫寄りに、板張りの低い屋形（見た目だけ。床は張らない）
     const yw = w * 0.4, yl = 6, yz = z1 - 6;
     const hut = new THREE.Mesh(new THREE.BoxGeometry(yw, 2.2, yl), M.board); hut.position.set(cx, DECK.y + 1.1, yz); g.add(hut);
+    cabinDetails(g, cx, yz, yw, yl, DECK.y, 2.2);
     const r = hipRoof(yw + 1.2, yl + 1.2, 1.0, M); r.position.set(cx, DECK.y + 2.2, yz); g.add(r);
   }
   for (const m of g.children) { m.castShadow = true; m.receiveShadow = true; }
@@ -487,6 +523,26 @@ function syncShipCrew(rt, b) {
   b.group.anchor.x = b.exit && b.landed ? b.exit.x + (b.from === 's' ? 0 : 2) : b.x;
   b.group.anchor.z = b.exit && b.landed ? b.exit.z - (b.from === 's' ? 2 : 0) : b.z;
   b.group.fire = rt.flags.step >= 1 && !b.damageStage && !b.withdrawing && !rt.flags.ending;
+  // 舟上の持ち場と甲板での攻めを分ける。乗り口へ戻るだけの隊にしない。
+  if (b.exit && b.boarded && !b.group.routed) {
+    if (b.withdrawing) {
+      b.group.order = 'retreat'; b.group.focus = null; b.group.dest = b.exit;
+      b.group.anchor.x = b.exit.x; b.group.anchor.z = b.exit.z;
+    } else if (rt.t >= (b.deckAimAt || 0)) {
+      b.deckAimAt = rt.t + 1;
+      let foe = null, nearest = Infinity;
+      for (const u of rt.army.units) {
+        if (!u.alive || u.team !== 0 || u.fleeing || u.woundOut || u.shipBoat || u.noTarget || Math.abs(u.pos.y - DECK.y) > 0.5 || u.pos.x < DECK.x0 || u.pos.x > DECK.x1 || u.pos.z < DECK.z0 || u.pos.z > DECK.z1) continue;
+        const d = Math.hypot(u.pos.x - b.exit.x, u.pos.z - b.exit.z);
+        if (d < nearest) { nearest = d; foe = u; }
+      }
+      b.group.order = 'attack'; b.group.focus = foe;
+    }
+    if (!b.withdrawing) {
+      b.group.anchor.x = b.group.focus?.pos.x ?? (b.from === 's' ? 3.8 : -3.8);
+      b.group.anchor.z = b.group.focus?.pos.z ?? 3.8;
+    }
+  }
   for (const u of b.group.units) {
     const tr = u.shipTransit;
     if (!u.alive || (!u.shipBoat && !tr?.active)) continue;
@@ -498,7 +554,11 @@ function syncShipCrew(rt, b) {
       const tx = tr.returning ? x : b.exit.x, tz = tr.returning ? z : b.exit.z, ty = tr.returning ? y : DECK.y;
       q.x = tr.x + (tx - tr.x) * f; q.z = tr.z + (tz - tr.z) * f; q.y = tr.y + (ty - tr.y) * f;
       u.pos.set(q.x, q.y, q.z); u.mesh.position.copy(u.pos);
-      if (f >= 1) { tr.active = false; if (tr.returning) u.shipBoat = b; else { u.shipBoat = null; u.shipPost = null; u.perch = null; } }
+      if (f >= 1) {
+        tr.active = false;
+        if (tr.returning) u.shipBoat = b;
+        else { u.shipBoat = null; u.shipPost = null; u.perch = null; u.target = null; u.moveTo = null; u.aiT = 0; }
+      }
     } else { q.x = x; q.z = z; q.y = y; }
     if (u.shipPost) { u.perch = q; u.pos.set(q.x, q.y, q.z); u.mesh.position.copy(u.pos); u.moveTo = null; u.moving = tr.active ? 0.6 : 0; }
   }
@@ -661,7 +721,7 @@ const kizugawa = {
     guideWay(u, want) { return u.pos.y > DECK.y + 0.5 ? want : deckWay(u, want); },
     moveWay(army, u, want) {
       if (u.shipPost) return u.shipPost;
-      if (u.fleeing && u.group?.boat?.exit) return u.group.boat.exit;
+      if ((u.fleeing || u.group?.boat?.withdrawing) && u.group?.boat?.exit) return deckWay(u, u.group.boat.exit);
       return deckWay(u, want);
     },
   },
@@ -691,7 +751,7 @@ const kizugawa = {
     F.small = []; F.boarders = []; F.seaShips = []; F.deckVelocity = { x: 0, z: 0 };
     // 海に共通の遠景処理が陸戦の兵を立てないよう、この戦の水面を伝える。
     W.inWaterAt = (x, z) => W.heightAt(x, z) < 0;
-    W.def.fleeWay = (army, u, goal) => u.group?.boat?.alive && u.group.boat.exit ? u.group.boat.exit : goal;
+    W.def.fleeWay = (army, u, goal) => u.group?.boat?.alive && u.group.boat.exit ? deckWay(u, u.group.boat.exit) : goal;
     F.step = 0; F.ek = 0; F.ak = 0; F.deckRepelled = 0; F.sunk = 0; F.doused = 0; F.supplyPassed = 0; F.supplyStopped = 0; F.cannonHits = 0;
     // 船の上では馬に乗らない
     const P = rt.player;
@@ -1152,7 +1212,8 @@ const kizugawa = {
     rt.say('九鬼嘉隆', passed === 0 ? `よう働いた、${nm(rt)}！　船を守り通したぞ。川口の警固を続けよ` : `${nm(rt)}、船は守った。抜けた兵糧船は川口の供船が退けた。石山へは通しておらぬ`, 4);
     
     rt.after(5, () => rt.say('船頭', '敵は離れたが、まだ川口の警固があるぞ。持ち場へ戻れ', 4));
-    rt.finish({}, 12);
+    // 海戦はここで閉じる。甲板の外へ歩く共通の追撃では、近い舟の兵を待ち続けてしまう。
+    rt.finish({ scriptedEnd: true }, 12);
   },
 
   update(rt, dt) {
@@ -1212,7 +1273,7 @@ const kizugawa = {
         continue;
       }
       const boat = u.group?.boat;
-      if (u.team === 1 && u.fleeing && boat?.alive && !boat.damageStage && Math.hypot(u.pos.x - boat.exit.x, u.pos.z - boat.exit.z) < 1.5) {
+      if (u.team === 1 && (u.fleeing || boat?.withdrawing) && boat?.exit && boat.alive && !boat.damageStage && Math.hypot(u.pos.x - boat.exit.x, u.pos.z - boat.exit.z) < 1.5) {
         const tr = u.shipTransit;
         if (tr) {
           tr.active = true; tr.returning = true; tr.start = rt.t; tr.x = u.pos.x; tr.y = u.pos.y; tr.z = u.pos.z;
@@ -1481,7 +1542,7 @@ const kizugawa = {
     for (let i = 0; i < 3; i++) { rt.uninteract('g' + i); rt.uninteract('f' + i); }
     for (let i = 0; i < 4; i++) { rt.uninteract('water' + i); rt.unmark('water' + i); }
     // やり直しの札にも、今回起きた失敗条件を渡す。
-    rt.finish({ failureReason: line }, 8);
+    rt.finish({ failureReason: line, scriptedEnd: true }, 8);
   },
 
   onKill(rt, v) {

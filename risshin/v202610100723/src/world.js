@@ -2580,8 +2580,8 @@ export class World {
       uYose: { value: yose ? 1 : 0 },
       uAT: WIND, uGust: GUST, uIdle: ARMY_IDLE, uMarch: { value: 0 }, uCharge: { value: 0 }, uTurn: { value: 0 }, uRout: { value: 0 }, uRoutT: { value: 0 },
       uHgt: { value: this.hgtTex }, uHP: { value: new THREE.Vector3(this.half, this.step, SEG) },
-      // 置換した一人だけ take で隠す。上限・籠城・開戦前でも残った列を消さない。
-      uNear: { value: 0 }, uUnavailable: { value: 0 }, uRealNear: { value: 0 },
+      // 本人から60m（ARMY_REAL_R）の内の軽い兵は描かない（棒人間を出さない。10/10 kaito「なんで棒人間まだいるの」）。そこは本物の兵で埋める
+      uNear: { value: 0 }, uUnavailable: { value: 0 }, uRealNear: ARMY_REAL_R,
       uMoveLim: { value: this.def?.moveLim || 176 },
     };
     // 低の近景は顔・袖・兜を残す軽い立体。遠さに応じて三段階で形を替える。
@@ -3091,7 +3091,7 @@ export class World {
     const realDepth = -z - hd;
     // 遠くで間引く時にまだらに残るよう混ぜる
     for (let i = S.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [S[i], S[j]] = [S[j], S[i]]; }
-    const N = S.length, U = { ...o.U, uRealNear: { value: 0 }, uNear: { value: 0 }, uUnavailable: { value: 0 } };
+    const N = S.length, U = { ...o.U, uRealNear: ARMY_REAL_R, uNear: { value: 0 }, uUnavailable: { value: 0 } };
     if (!SASHI_GEO) { SASHI_GEO = clothGeo(0.34, 0.62, 3, 1, 0, 2.62, -0.17, 11); BANNER_GEO = clothGeo(0.72, 2.6, 3, 6, 0.3, 5.2, 0.14, 12); }
     const body = new THREE.InstancedMesh(hostGeo(o.armor || 0x2b3140).clone(), armyShader(new THREE.MeshLambertMaterial({ vertexColors: true }), U), N);
     const flags = new THREE.InstancedMesh(SASHI_GEO.clone(), armyShader(new THREE.MeshLambertMaterial({ map: o.flagTex, side: THREE.DoubleSide }), U), N);
@@ -3228,7 +3228,7 @@ export class World {
         uAT: WIND, uGust: GUST, uIdle: typeof ARMY_IDLE !== 'undefined' ? ARMY_IDLE : { value: 0 }, uTurn: { value: 0 }, uRout: { value: 0 }, uRoutT: { value: 0 },
         uHgt: { value: this.hgtTex }, uHP: { value: new THREE.Vector3(this.half, this.step, SEG) },
         uBlk: { value: Array.from({ length: CLASH_NB }, () => new THREE.Vector4()) }, uBlk2: { value: Array.from({ length: CLASH_NB }, () => new THREE.Vector4(0, 0, cols, 0)) },
-        uRealNear: { value: 0 }, uSide: { value: sgn }, uApp: { value: C.app }, uAppM: { value: 0 }, uAppC: { value: 0 }, uNearHide: o.nearHide != null ? { value: o.nearHide } : { value: 0 },
+        uRealNear: ARMY_REAL_R, uSide: { value: sgn }, uApp: { value: C.app }, uAppM: { value: 0 }, uAppC: { value: 0 }, uNearHide: o.nearHide != null ? { value: o.nearHide } : { value: 0 },
       };
       const S = { key, sgn, P, U, rows, per, n0: per * nb, alive: per * nb, lost: 0, mod: 0, m: 100, routed: false, blk: [], slots: [], near: [], far: [], all: [] };
       for (let j = 0; j < nb; j++) {

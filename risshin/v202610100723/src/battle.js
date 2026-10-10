@@ -370,6 +370,16 @@ const VOICE = {
   // 退く（味方の隊が崩れた時・負け戦）
   withdraw: ['退き口を守れ、背を見せるな！', '固まって退け！　散れば討たれる！', '殿を残して下がれ！', '無駄死にするな、引け！', '負傷の者を担げ、置いて行くな！'],
 };
+// 兵の声の話し手：どちらの家の兵か分かるように（10/10 kaito「敵の兵『助けろ！』」では誰の声か分からない）
+const SPEAKER_HOUSE = { oda: '織田', imagawa: '今川', rokkaku: '六角', saito: '斎藤', mori: '毛利', azai: '浅井', asakura: '朝倉', uesugi: '上杉',
+  honganji: '本願寺', ikko: '一向衆', tokugawa: '徳川', takeda: '武田', akazonae: '武田', akechi: '明智', miyoshi: '三好', kitabatake: '北畠', matsunaga: '松永', saika: '雑賀' };
+function speakerName(rt, u) {
+  const g = u && u.group, mine = u && rt.player && u.team === rt.player.u.team;
+  if (g && /小姓/.test(g.name || '')) return mine ? '味方の小姓' : '敵の小姓';
+  const house = g && SPEAKER_HOUSE[g.faction];
+  if (mine) return house && house !== SPEAKER_HOUSE[rt.G?.lordFaction || 'oda'] ? `味方の${house}の兵` : '味方の兵';
+  return house && house !== '織田' ? `${house}の兵` : '敵の兵';
+}
 const SOLDIER_LINES = {
   advance: ['前へ進め！', '旗に続け！'], enemy: ['敵じゃ！', '敵が来たぞ！'],
   retreat: ['退け！', '下がれ、退け！'], lordFall: ['殿が討たれた！', '殿が倒れたぞ！'],
@@ -855,7 +865,7 @@ export class Battle {
     }
     if (speaker) {
       this.lastSoldierCall = key;
-      this.soldierCall(key, speaker.pos, speaker.team === this.player.u.team ? '味方の兵' : '敵の兵');
+      this.soldierCall(key, speaker.pos, speakerName(this, speaker));
     }
   }
   bark(text, warn) {
@@ -1553,7 +1563,7 @@ export class Battle {
     // 名のある武将が討たれると、周りの旗本が叫び、その隊の旗が一斉に傾く
     if (v.name && v.type === 'busho') {
       const witness = v.group && v.group.units.find((u) => u.alive && !u.isPlayer);
-      if (witness) this.soldierCall('lordFall', witness.pos, v.team === this.player.u.team ? '味方の兵' : '敵の兵');
+      if (witness) this.soldierCall('lordFall', witness.pos, speakerName(this, witness));
       this.army.play('cry', v.pos, 1.3); this.after(0.35, () => this.army.play('eshout', v.pos, 1.2));
       if (this.distTo(v.pos) < 70) { this.hud.cineFlash(2.2); if ((this.hushT ?? -99) + 20 < this.t) { this.hushT = this.t; hush(2.5); } }
       for (const st of (v.group && v.group.stds) || []) if (st.userData && st.userData.std) st.userData.std.dipT = 1.6;

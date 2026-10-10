@@ -3,7 +3,7 @@
 //   ・ゾーン：外周（築地・四つの門）／前面（表門・表庭・前の宿坊）／中心（本堂・中庭）／居住（信長の御殿）／
 //     周辺宿坊（宿坊・庫裏）／裏手（物置・井戸・細い道・裏門）／庭園（中庭・回廊）
 //   ・近くで通る建物（本堂・御殿・宿坊）は中まで作る：襖で区切った部屋・廊下・縁側・広間・信長の居室。
-//     屋根は自分が中にいる間だけ隠す（中が見える）。襖と障子は一枚ずつ破れる（InstancedMesh の一つを消す）
+//     屋根は中にいる間だけ隠し、天井は残す。襖と障子は一枚ずつ破れる（InstancedMesh の一つを消す）
 //   ・建物は temple1571.js の Garan に積む（材質ごとに一つの形。燃えると黒ずみ、燃え落ちると潰れる）。築地は makeKitBatch
 //   ・個々の配置は推定（HIST_B）。向き：東（+x）に表門、北（-z）に脇門、西に裏門、南に勝手口
 // ======================================================================
@@ -292,9 +292,55 @@ const GARAN = [
 const INNER_WALL = { x: -84, gate: 79 };
 const UMAYA = { x: -128, z: 97 };
 
+// 本能寺の火だけ、加算の白い芯をやめる。材質・時刻・風・板の形は使い回す。
+function honnoFireStyle(W) {
+  if (W.honnoFireStyled) return;
+  W.honnoFireStyled = true;
+  const add = W.addFire.bind(W);
+  let mat = null;
+  W.addFire = (x, z, o) => {
+    const f = add(x, z, o);
+    if (!mat) {
+      const old = f.flame.material;
+      mat = new THREE.ShaderMaterial({ uniforms: old.uniforms, vertexShader: old.vertexShader,
+        transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: true,
+        blending: THREE.NormalBlending, toneMapped: false,
+        fragmentShader: `uniform float uT; uniform float fogFar; uniform float uNight;
+          varying vec2 vUv; varying float vSeed; varying float vDist;
+          void main() {
+            float t = uT * 1.7 + vSeed * 27.0;
+            float h = vUv.y;
+            float fire = 0.0;
+            // 三つの異なる長さの舌。上ほど揺れ、丸い頭の輪郭を作らない。
+            for (int i = 0; i < 3; i++) {
+              float k = float(i);
+              float top = 0.58 + 0.12 * k + 0.08 * sin(t + k * 2.7);
+              float sway = sin(t * (1.1 + k * 0.2) - h * 9.0 + k * 3.0) * h * 0.09;
+              float center = 0.28 + k * 0.22 + sway;
+              float width = 0.19 * max(0.0, 1.0 - h / top);
+              float tongue = 1.0 - smoothstep(width * 0.35, width + 0.008, abs(vUv.x - center));
+              tongue *= 1.0 - smoothstep(top - 0.15, top, h);
+              fire = max(fire, tongue);
+            }
+            float a = fire * smoothstep(0.0, 0.08, h) * (1.0 - smoothstep(0.65, 0.96, h));
+            float reach = mix(max(20.0, fogFar), max(260.0, fogFar), uNight);
+            a *= exp(-vDist / reach * 1.1) * 0.9;
+            if (a < 0.004) discard;
+            // 根元は橙、先は黄。白を足さず、上は薄れて既存の煙へつながる。
+            vec3 col = mix(vec3(1.0, 0.24, 0.015), vec3(1.0, 0.72, 0.04), smoothstep(0.12, 0.72, h));
+            gl_FragColor = vec4(col, a);
+          }` });
+    }
+    f.flame.material = f.inner.material = mat;
+    for (const m of f.flame.children) if (m.isMesh) m.material = mat;
+    return f;
+  };
+}
+
 // 境内を作る。戻り値 T：G（Garan）・fire・halls・panels・gate structs・tick
 export function buildTera(rt) {
   const W = rt.world, F = rt.flags;
+  honnoFireStyle(W);
   const G = new Garan(rt);
   const T = { G, halls: [], panels: [], doorsBlocked: new Set() };
   buildTeraEarthworks(rt);
@@ -336,7 +382,7 @@ export function buildTera(rt) {
   G.finish();
   { const pb2 = G.buckets.get('hall|plaster'); if (pb2 && pb2.mesh) pb2.mesh.material = teraPlasterMat(); }   // 寺の古い漆喰の絵（城の白壁は新しすぎて白く飛ぶ）
   for (const h of T.halls) {
-    const b = G.buckets.get('roof_' + h.id + '|tile'), ceiling = G.buckets.get('roof_' + h.id + '|wood');
+    const b = G.buckets.get('roof_' + h.id + '|tile'), ceiling = G.buckets.get('ceiling_' + h.id + '|wood');
     h.roof = b && b.mesh; h.ceiling = ceiling && ceiling.mesh;
   }
   // ---- 共通の襖と障子。一枚を破ると、絵・枠・引き手と当たりを一緒に消す ----
@@ -455,9 +501,21 @@ function buildHall(rt, G, H, T) {
   const ex = (H.x1 - H.x0) / 2 + 1.5, ez = (H.z1 - H.z0) / 2 + 1.5;
   const rf = paintGeo(hipGeo(ex, ez, ez * 0.62, H.H + 0.05, Math.max(0.6, ex - ez * 0.9)), 0xffffff); rf.translate(cx, y, cz);
   rec.dist = 'roof_' + H.id; put('tile', rf);
-  // 軒の裏の板（下から見て屋根の中が抜けないように）
+  // 天井は屋根と別のまとまり。低画質も一棟一描画で、下面を閉じる。
+  rec.dist = 'ceiling_' + H.id;
   put('wood', pb(H.x1 - H.x0 + 2.8, 0.06, H.z1 - H.z0 + 2.8, cx, y + H.H + 0.06, cz, 0x3a2c20));
+  // 本堂は格天井、書院・宿坊は竿縁天井。梁は桟より太く、軒には垂木を渡す。
+  for (let x = H.x0; x <= H.x1; x += H.id === 'hondo' ? 1.5 : 0.9)
+    put('wood', pb(0.07, 0.09, H.z1 - H.z0, x, y + H.H - 0.015, cz, 0x59412c));
+  if (H.id === 'hondo') for (let z = H.z0; z <= H.z1; z += 1.5)
+    put('wood', pb(H.x1 - H.x0, 0.09, 0.07, cx, y + H.H - 0.015, z, 0x59412c));
+  for (let z = H.z0; z <= H.z1; z += 3)
+    put('wood', pb(H.x1 - H.x0, 0.2, 0.18, cx, y + H.H - 0.08, z, 0x493321));
+  for (let x = H.x0 - 1; x <= H.x1 + 1; x += 0.75) for (const z of [H.z0 - 0.7, H.z1 + 0.7])
+    put('wood', pb(0.07, 0.1, 1.4, x, y + H.H - 0.02, z, 0x493321));
   rec.dist = 'hall';
+  // 梁の下へ余裕を取ってカメラを寄せる。壁と同じ軽い当たりに一枚だけ追加。
+  bb(H.x1 - H.x0 + 2.8, 0.3, H.z1 - H.z0 + 2.8, cx, y + H.H - 0.05, cz);
   if (blk.length) {
     const bm = new THREE.Mesh(mergeGeometries(blk), G.proxyMat);
     bm.userData.camBlock = true; bm.matrixAutoUpdate = false; bm.updateMatrix();
@@ -500,7 +558,8 @@ export function teraTick(rt, T, dt) {
     const inside = px > h.x0 - 0.3 && px < h.x1 + 0.3 && pz > h.z0 - 0.3 && pz < h.z1 + 0.3;
     h.inside = inside;
     if (h.roof) h.roof.visible = !inside || h.rec.state === 2;
-    if (h.ceiling) h.ceiling.visible = !inside || h.rec.state === 2;
+    if (h.ceiling) h.ceiling.visible = h.rec.state !== 2;
+    if (h.blk) h.blk.visible = h.rec.state !== 2;
     if (h.decor) h.decor.visible = h.rec.state !== 2;
   }
   T.heatT = (T.heatT || 0) - dt;

@@ -3618,6 +3618,9 @@ export class Player {
     {
       const su = this.u, sdx = su.pos.x - cp.x, sdz = su.pos.z - cp.z;
       if (su.mesh && su.mesh.visible && this.fpK < 0.5 && sdx * sdx + sdz * sdz < 0.9 && cp.y < su.pos.y + (su.mounted ? 3.4 : 2.3)) this.hideNearFlag(su.mesh);
+      // 骨の入った自分の体も同じ（屋内の狭い所で壁に押されたカメラが肩に入り、黒い塊と刀だけが大写しになっていた。10/10 kaito）
+      const sh = su.human && su.human.root;
+      if (sh && sh.visible && this.fpK < 0.5 && sdx * sdx + sdz * sdz < 0.9 && cp.y < su.pos.y + (su.mounted ? 3.4 : 2.3)) { this.hideNearFlag(sh); if (su.wpn && su.wpn.visible) this.hideNearFlag(su.wpn); }
     }
   }
 

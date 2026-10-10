@@ -65,8 +65,11 @@ const TANO_DEFEND = sonaePlan('谷道と平屋敷の守り', 1, { x: 138, z: -6 
   ['last', '平屋敷の奥', '武田勝頼・武田信勝', 8, 136, 0, -Math.PI / 2, 'takeda', 'takeda'],
 ]);
 
-const ODA = { flag: 'oda' };
-const TAKEDA = { flag: 'takeda' };
+// 徒歩で狭い谷を守る姿。母衣は付けず、指物は肩幅ほどに収める。
+// 袖と威糸を墨色の胴から分け、肘・手首・握る手の輪郭を読めるようにする。
+const TANO_KIT = { horse: false, horo: 0, flagScale: 0.72, cloth: 0x514b40, lace: 0x73604b };
+const ODA = { ...TANO_KIT, flag: 'oda' };
+const TAKEDA = { ...TANO_KIT, flag: 'takeda' };
 
 // 実測の山は道から離れた遠景だけ。読込時刻で道や屋敷の床を変えない。
 let tanoDem = null, heightDem = null, heightFixed = false;
@@ -92,6 +95,9 @@ function heightBase(x, z) {
   }
   h += 40 * gauss(x, z, 160, -140, 9000) * Math.min(1, Math.max(0, d - 24) / 30);
   const riverD = distToPolyline(x, z, RIVER);
+  // 道と川床の外だけに尾根と浅い沢を重ね、一様な斜面を崩す。
+  const relief = Math.max(0, Math.min(1, (d - 18) / 24)) * Math.max(0, Math.min(1, (riverD - 10) / 12));
+  h += relief * (3.2 * Math.sin(x * 0.075 + z * 0.035) + 1.8 * Math.sin(z * 0.16 - x * 0.045));
   if (riverD < 6) {
     const t = 1 - riverD / 6;
     h += (valleyFloor(x, z) - 7 - h) * t * t * (3 - 2 * t);
@@ -223,6 +229,59 @@ function tanoRiver(rt, stream) {
   rt.scene.add(flow, stones, grass);
 }
 
+// 早春の木を板でなく立体の幹・枝で置く。この戦だけの軽い林（三描画）。
+// 形・材質・変換用の道具は作る時に共有し、毎コマの処理を増やさない。
+function tanoWoods(rt) {
+  const W = rt.world, total = 240;
+  const bark = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.45, 1, 1, 5), new THREE.MeshLambertMaterial({ color: 0x504537 }), total * 11);
+  const leaves = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshLambertMaterial({ color: 0x364339 }), total);
+  const rocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshLambertMaterial({ color: 0x706c61 }), 80);
+  const shape = new THREE.Object3D(), up = new THREE.Vector3(0, 1, 0), dir = new THREE.Vector3();
+  let seed = 15823, bi = 0, li = 0, ri = 0;
+  const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+  const branch = (x, y, z, dx, dy, dz, radius) => {
+    dir.set(dx, dy, dz);
+    const length = dir.length();
+    shape.position.set(x + dx / 2, y + dy / 2, z + dz / 2);
+    shape.quaternion.setFromUnitVectors(up, dir.multiplyScalar(1 / length));
+    shape.scale.set(radius, length, radius); shape.updateMatrix(); bark.setMatrixAt(bi++, shape.matrix);
+  };
+  const limit = Math.min(220, W.half - 8);
+  for (let i = 0, tries = 0; i < total && tries < total * 12; tries++) {
+    const x = (random() * 2 - 1) * limit, z = (random() * 2 - 1) * limit;
+    if (roadDistance(x, z) < 20 || distToPolyline(x, z, RIVER) < 9 || Math.hypot(x - TANO.x, z - TANO.z) < 30) continue;
+    const y = W.heightAt(x, z), h = 5 + random() * 5, a = random() * Math.PI * 2;
+    const dx = Math.cos(a) * 0.65, dz = Math.sin(a) * 0.65, evergreen = i % 3 === 0;
+    branch(x, y - 0.2, z, dx, h * 0.6 + 0.2, dz, 0.22 + random() * 0.12);
+    branch(x + dx, y + h * 0.6, z + dz, -dx * 0.4, h * 0.4, dz * 0.3, 0.13);
+    for (let k = 0; k < 3; k++) {
+      const angle = a + k * 2.1, reach = 1.3 + random() * 1.4;
+      const bx = Math.cos(angle) * reach, bz = Math.sin(angle) * reach, by = h * (0.48 + k * 0.12);
+      branch(x + dx * 0.8, y + by, z + dz * 0.8, bx, 1.2, bz, 0.09);
+      for (let j = 0; j < 2; j++) {
+        const turn = angle + (j ? 0.8 : -0.7);
+        branch(x + dx * 0.8 + bx * 0.7, y + by + 0.84, z + dz * 0.8 + bz * 0.7, Math.cos(turn) * 0.9, 0.8 + random() * 0.6, Math.sin(turn) * 0.9, 0.035);
+      }
+      if (evergreen) {
+        // 松の葉は枝先に厚みのある塊で付け、十字の板や段々の円錐にしない。
+        shape.position.set(x + dx * 0.8 + bx, y + by + 1.2, z + dz * 0.8 + bz);
+        shape.rotation.set(0.04, angle, 0.08); shape.scale.set(1.4 + random() * 0.6, 0.65 + random() * 0.3, 1.2 + random() * 0.5);
+        shape.updateMatrix(); leaves.setMatrixAt(li++, shape.matrix);
+      }
+    }
+    if (ri < 80) {
+      shape.position.set(x + 1.6, W.heightAt(x + 1.6, z) - 0.2, z);
+      shape.rotation.set(random(), a, random()); shape.scale.set(0.7 + random() * 1.4, 0.5 + random(), 0.8 + random());
+      shape.updateMatrix(); rocks.setMatrixAt(ri++, shape.matrix);
+    }
+    i++;
+  }
+  for (const [mesh, count] of [[bark, bi], [leaves, li], [rocks, ri]]) {
+    mesh.count = count; mesh.instanceMatrix.needsUpdate = true; mesh.computeBoundingSphere();
+  }
+  rt.scene.add(bark, leaves, rocks);
+}
+
 // ---- 共通の小道具（組E の戦で使い回す） ----
 // 味方の鉄砲の組に一斉射を任せる。込めたまま待たせ（holdFire）、敵の前線が near m まで寄せたら「放て」で撃たせ、敵の気勢を下げる。
 // o：{ guns: () => [隊], foes: () => [隊], who: 話し手, near: 38, drop: 25, max: 60（この秒を過ぎたら待たずに撃つ）, line: 見出しの小さな字, say: 合図の台詞, onFire(rt) }
@@ -301,15 +360,14 @@ const tano = {
     streams: [{ pts: RIVER, w: 3, depth: 2.8 }],
     tint(x, z, h, c) { if (roadDistance(x, z) > 12) c.setRGB(c.r * 0.9, c.g * 0.73, c.b * 0.72); },
     clear: (x, z) => roadDistance(x, z) < 12 || Math.hypot(x - TANO.x, z - TANO.z) < 24,
-    trees: 700, tufts: 1000,
-    treeDensity: (x, z) => roadDistance(x, z) < 16 ? 0.1 : 1,
-    groves: [{ x: -80, z: -30, r: 12, n: 16 }, { x: 90, z: -30, r: 12, n: 16 }],
+    trees: 0, noBamboo: true, tufts: 1000, slopeForest: 0.3,
     fleeOut: (x, z, team) => team === 1 && x > 175,
   },
   prelude: false, // この戦の使番と下知で開戦を伝え、共通の待ちを重ねない。
   setup(rt) {
     const F = rt.flags, W = rt.world;
     F.ek = 0; F.ak = 0;
+    tanoWoods(rt);
     // 突きのたびに下向きの傾きが積もるのを、この戦の肩越し視点だけで止める。
     // 自分で見回している間と、狙い・大将の目はそのまま使える。
     const player = rt.player, normalCamera = player.updateCamera;
@@ -345,15 +403,15 @@ const tano = {
     F.fence = wallLine(rt, [[104, -3], [104, -14], [144, -14], [144, 16], [104, 16], [104, 3]], { team: 1, hp: 180, name: '田野の柵', segLen: 6, meshOpt: { h: 1.8 } });
     rt.scene.add(hut(W, 128, 0, 7, 5, 0.2, { wall: 0x5a4a38 }), tawara(W, 138, 7, 0.2, 3));
     for (const [x, z] of [[-40, -7], [34, -4], [108, -9], [140, 8]]) rt.scene.add(nobori(W, x, z, 'takeda', 5));
-    F.front = allyGroup(rt, { fixed: true, fullStrength: true, name: '滝川の先手の槍', anchor: jinkeiPoint(TANO_ATTACK, TANO_ATTACK.sonae[0]), facing: Math.PI / 2, width: 4, yariRanks: 4, aggro: 9, noAI: true, formation: 'yari' }, dress([uS(6), uA(18)], { flag: 'takigawa' }));
+    F.front = allyGroup(rt, { fixed: true, fullStrength: true, name: '滝川の先手の槍', anchor: jinkeiPoint(TANO_ATTACK, TANO_ATTACK.sonae[0]), facing: Math.PI / 2, width: 4, yariRanks: 4, aggro: 9, noAI: true, formation: 'yari' }, dress([uS(6), uA(18)], { ...TANO_KIT, flag: 'takigawa' }));
     F.taki = allyGroup(rt, { fixed: true, fullStrength: true, name: '滝川一益と近習', anchor: jinkeiPoint(TANO_ATTACK, TANO_ATTACK.sonae[3]), facing: Math.PI / 2, aggro: 4, noAI: true, guardOn: true, formation: 'ring' },
-      dress([{ type: 'busho', n: 1, o: { name: '滝川一益', horse: false, invuln: true, hat: 'kabuto_w' } }, uS(4), uA(4)], { flag: 'takigawa' }));
+      dress([{ type: 'busho', n: 1, o: { name: '滝川一益', horse: false, invuln: true, hat: 'kabuto_w' } }, uS(4), uA(4)], { ...TANO_KIT, flag: 'takigawa' }));
     F.taki.leader = F.taki.units.find((u) => u.type === 'busho');
     F.kawa = allyGroup(rt, { fixed: true, fullStrength: true, name: '河尻秀隆の後ろの手', anchor: jinkeiPoint(TANO_ATTACK, TANO_ATTACK.sonae[1]), facing: Math.PI / 2, colW: 2, aggro: 12, noAI: true, ai: true, formation: 'column' },
       dress([{ type: 'busho', n: 1, o: { name: '河尻秀隆', horse: false, invuln: true } }, uS(6), uA(13)], ODA));
     F.kawa.leader = F.kawa.units.find((u) => u.type === 'busho');
     F.taki.leader.allyOk = true; F.kawa.leader.allyOk = true;
-    F.tgun = allyGroup(rt, { fixed: true, fullStrength: true, name: '滝川の鉄砲組', anchor: jinkeiPoint(TANO_ATTACK, TANO_ATTACK.sonae[2]), facing: Math.PI / 2, width: 3, ranks: 2, aggro: 6, noAI: true, order: 'hold' }, dress([{ type: 'gun', n: 6 }], { flag: 'takigawa' }));
+    F.tgun = allyGroup(rt, { fixed: true, fullStrength: true, name: '滝川の鉄砲組', anchor: jinkeiPoint(TANO_ATTACK, TANO_ATTACK.sonae[2]), facing: Math.PI / 2, width: 3, ranks: 2, aggro: 6, noAI: true, order: 'hold' }, dress([{ type: 'gun', n: 6 }], { ...TANO_KIT, flag: 'takigawa', flagScale: 0.55 }));
     F.oda = [F.front, F.tgun, F.taki, F.kawa];
     // 道順と将の下知は保ち、到着した先手と後詰の無名兵だけが隙へ寄せる。
     F.front.frontlineMobilize = true; F.kawa.frontlineMobilize = true;

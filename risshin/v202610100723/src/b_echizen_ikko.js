@@ -14,7 +14,7 @@ import { sendOrder } from './denrei.js';
 // b_sunomata.js の「守る砦」と同じ組み合わせ）。lord.js・battles.js には攻め手の一戦だけを登録する。
 // ======================================================================
 import { hut, tawara, sakamogi, village, scaffold, kagaribi, campfire, palisade, ishigaki, makeKitBatch, finalizeKitBatch } from './props.js';
-import { kura, monomidai, shoro, ishidan } from './temple_parts.js';
+import { kura, monomidai, shoro } from './temple_parts.js';
 import { ringBell } from './temple1571.js';
 import { RANKS } from './state.js';
 import { sfx } from './audio.js';
@@ -76,6 +76,61 @@ function templeLantern(rt, x, z) {
     rim.position.set(x, y + dy, z); rt.scene.add(rim);
   }
   rt.world.addFire(x, z, { torch: true, h: 1.85, size: .2 });
+}
+// この寺だけの石段。踏面と暗い蹴上げを分け、斜面の下まで石を埋めて隙間を塞ぐ。
+let templeStoneGeo, templeStoneMats, templePoleGeo;
+function templeSteps(W, ax, az, bx, bz, width = 3.2) {
+  if (!templeStoneGeo) {
+    templeStoneGeo = new THREE.BoxGeometry(1, 1, 1);
+    const side = new THREE.MeshLambertMaterial({ color: 0x59584f });
+    const top = new THREE.MeshLambertMaterial({ color: 0x918b7b });
+    templeStoneMats = [side, side, top, side, side, side];
+  }
+  const dx = bx - ax, dz = bz - az, len = Math.hypot(dx, dz);
+  const n = Math.max(2, Math.round(len / .9)), depth = len / n;
+  const ux = dx / len, uz = dz / len;
+  const steps = new THREE.InstancedMesh(templeStoneGeo, templeStoneMats, n * 4);
+  const stone = new THREE.Object3D(), color = new THREE.Color();
+  for (let i = 0; i < n; i++) {
+    const t = (i + .5) / n, cx = ax + dx * t, cz = az + dz * t;
+    const front = W.heightAt(cx - ux * depth / 2, cz - uz * depth / 2);
+    const back = W.heightAt(cx + ux * depth / 2, cz + uz * depth / 2);
+    const top = Math.max(front, back) + .12;
+    for (let j = 0; j < 4; j++) {
+      const offset = (j - 1.5) * width / 4;
+      const x = cx + uz * offset, z = cz - ux * offset;
+      const bottom = Math.min(front, back, W.heightAt(x, z)) - .3;
+      stone.position.set(x, (top + bottom) / 2, z);
+      stone.rotation.y = Math.atan2(dx, dz);
+      stone.scale.set(width / 4 - .014, top - bottom, depth + .025);
+      stone.updateMatrix(); steps.setMatrixAt(i * 4 + j, stone.matrix);
+      color.setScalar(.88 + ((i * 7 + j * 3) % 5) * .03);
+      steps.setColorAt(i * 4 + j, color);
+    }
+  }
+  steps.castShadow = steps.receiveShadow = true;
+  return steps;
+}
+// 僧兵の指物には共用の背竿が無い。この戦だけ旗の左端に竿と横手を付ける。
+function templeFlagPoles(b) {
+  if (!templePoleGeo) templePoleGeo = new THREE.CylinderGeometry(1, 1, 1, 6);
+  for (const u of b.real?.units || []) {
+    const flag = u.flag;
+    if (!flag || flag.userData.templePole) continue;
+    flag.userData.templePole = true;
+    const mat = lanternWood || (lanternWood = new THREE.MeshLambertMaterial({ color: 0x493823 }));
+    const top = flag.position.y + .36 * flag.scale.y;
+    const pole = new THREE.Mesh(templePoleGeo, mat);
+    // 旗の子にして、旗の拡大を打ち消す。裹頭や袖の動きに干渉しない。
+    pole.position.set(-.19, ((top + .85) / 2 - flag.position.y) / flag.scale.y, 0);
+    pole.scale.set(.018 / flag.scale.x, (top - .85) / flag.scale.y, .018 / flag.scale.z);
+    const bar = new THREE.Mesh(templePoleGeo, mat);
+    bar.rotation.z = Math.PI / 2;
+    bar.position.set(0, .37, 0);
+    bar.scale.set(.015 / flag.scale.y, .4, .015 / flag.scale.z);
+    flag.add(pole, bar);
+    pole.castShadow = bar.castShadow = true;
+  }
 }
 // 堂に入った兵も、自分も、外の印へ壁を突き抜けず戸口から戻る。
 function templeWay(army, u, goal) {
@@ -423,15 +478,21 @@ function tickGateWorkers(rt, dt) {
   }
 }
 // 各隊の本物は14人まで。攻めの13隊182人＋見張り18人＋自分の組最大30人＋景色10人。残りは既存の軽い軍勢
-// 寺の守り：鉢巻と茶の衣、衆徒・薙刀の僧兵は白い裹頭と袈裟（既存の sohei）
+// 寺の守り：衆徒は既存の目窓付き裹頭と袈裟。生成りと茶で袖・手・襟の輪郭を残す。
 function mkB(rt, o) {
   const monk = /衆徒|薙刀|衆|僧/.test(o.name || '') && o.kind !== 'bow' && o.kind !== 'gun';
-  const look = monk ? { sohei: 1, hat: 'hachimaki', lace: 0xcfc7b4, cloth: 0xd8d2c2 } : { hat: 'hachimaki', lace: 0x5a5040, cloth: 0x4a4236 };
+  const look = monk ? { sohei: 1, soheiV: 2, monk: 1, tier: 0, hat: 'kato', kato: 0xbab3a2, kesa: 0x93734d, cloth: 0x756d5c, skin: 0xc49a77, dirt: .25, kote: 0, sode: false, haori: 0, horo: 0, menpo: 0, tenugui: false, saya: false, trim: 0, left: null, haramaki: false } : { hat: 'hachimaki', lace: 0x5a5040, cloth: 0x4a4236 };
   const b = makeButai(rt, { real: Math.min(14, o.nominal), maxReal: 14, nearReal: 14, farReal: 14, lightWidth: 10, lightDepth: Math.max(8, Math.ceil(o.nominal / 5) * 1.6), look: { ...(o.faction === 'ikko' ? look : {}), horse: false }, ...o });
-  if (b.light) { b.light.army.team = o.team; b.light.army.noWake = true; b.light.army.keepNear = true; }
+  if (b.light) { b.light.army.team = o.team; b.light.army.noWake = true; b.light.army.keepNear = false; }
   mountainColumn(b);
   const grow = b.growReal;
-  b.growReal = function(k) { return this._templeBroken || this.real && (this.real.routed || this.real.order === 'flee') ? 0 : grow.call(this, k); };
+  if (monk && o.faction === 'ikko') templeFlagPoles(b);
+  b.growReal = function(k) {
+    if (this._templeBroken || this.real && (this.real.routed || this.real.order === 'flee')) return 0;
+    const n = grow.call(this, k);
+    if (monk && o.faction === 'ikko') templeFlagPoles(this);
+    return n;
+  };
   const update = b.update;
   b.update = function(dt) {
     if (this.real && !this.real.count && this._prevRealAlive > 0) {
@@ -620,8 +681,8 @@ const echizen_ikko = {
     const mainHall = hall(hondoC.x - 11, hondoC.z - 8, 14, 10, '本堂', 'temple', 260);
     F.hondoBldg = mainHall.mesh; F.hondoStruct = mainHall.struct;
     hall(hondoC.x + 11, hondoC.z + 6, 7.5, 6, '護摩堂');
-    rt.scene.add(ishidan(W, GATE_SANMON.x, GATE_SANMON.z, hondoC.x, hondoC.z - 4, 3.2));
-    rt.scene.add(ishidan(W, 0, 20, 0, 44, 3.2));
+    rt.scene.add(templeSteps(W, GATE_SANMON.x, GATE_SANMON.z, hondoC.x, hondoC.z - 4, 3.2));
+    rt.scene.add(templeSteps(W, 0, 20, 0, 44, 3.2));
     // 夜でも寺の形が見えるよう、本堂・外堂のまわりに篝火を置く（B021・B022）
     for (const [x, z] of [[hondoC.x - 18, hondoC.z - 2], [hondoC.x + 2, hondoC.z - 18], [hondoC.x + 16, hondoC.z - 6], [hondoC.x - 4, hondoC.z + 12], [gezanC.x - 14, gezanC.z + 2], [gezanC.x + 14, gezanC.z + 4]]) { rt.scene.add(campfire(W, x, z)); W.addFire(x, z); }
 

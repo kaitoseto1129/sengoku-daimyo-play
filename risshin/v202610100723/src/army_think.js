@@ -527,7 +527,10 @@ export const ArmyThink = {
       if (g.order === 'attack') {
         u.target = null; u.watch = null;
         const q = u.moralePoint;
-        q.x = fp.x; q.z = fp.z; u.moveTo = q;
+        q.x = fp.x; q.z = fp.z;
+        const via = this.doorVia && !u.mounted && !g.focus.isStruct ? this.viaDoor(u, q) : null;
+        if (via) { q.x = via.x; q.z = via.z; }
+        u.moveTo = q;
         return;
       }
     } else if (g.focus && (!g.focus.alive || g.focus.opened || g.focus.noTarget || g.focus.team === u.team)) {
@@ -658,6 +661,12 @@ export const ArmyThink = {
 
   // 乱戦すぎ対策：徒歩の槍・刀は、一つの的に一度に斬りかかれる人数を前線の幅ぶんに絞る（既に本人が狙っている的は数えない）。
   // 囲まれる迫力は残すため、的ごとに3人（正面＋両脇）までは許す。溢れた分は列を保って待つ（think の末尾の pressBack・slotPos）
+  // 戦の側の doorVia（建物の口をたどる道）を、一人ずつ 0.4 秒に一度だけ聞く
+  viaDoor(u, to) {
+    if (!(u.doorT > this.time)) { u.doorT = this.time + 0.4; u.doorPt = this.doorVia(u, to); }
+    return u.doorPt;
+  },
+
   crowdOk(u, o) {
     if (o.isStruct || o.isPlayer || u.target === o || u.type === 'cavalry' || u.mounted) return true;
     let n = 0;
@@ -1185,6 +1194,12 @@ export const ArmyThink = {
           const p = this.playerUnit, a = Math.atan2(p.pos.x - t.pos.x, p.pos.z - t.pos.z) + u.playerHelpSide * 1.1;
           const r = meleeReach * 0.85;
           want = localPoint(this, u, u.moralePoint, t.pos.x + Math.sin(a) * r, t.pos.z + Math.cos(a) * r);
+        }
+        // 建物の中：相手との間に壁・襖があれば、戦の側が教える口（戸・襖の開き）を通って回る（doorVia）。
+        //   まっすぐ寄るだけだと、壁の向こうの相手へ向いたまま突っ立っていた（本能寺の御殿。10/10 kaito「敵勢攻めてこない」）
+        if (this.doorVia && !u.mounted && !t.isStruct && want) {
+          const via = this.viaDoor(u, want);
+          if (via) { want = via; speed = u.run; }
         }
         // 騎馬は柵へも駆けて当たる（正面から当たると止められる）
         if (u.type === 'cavalry' && d > 7) this.startCharge(u, near);

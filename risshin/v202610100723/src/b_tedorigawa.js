@@ -47,7 +47,7 @@ function waterPose(rt, u) {
   const wet = swimming(rt, u);
   if (wet) {
     const depth = rt.world.waterDepthAt(u.pos.x, u.pos.z);
-    u.pos.y = rt.world.heightAt(u.pos.x, u.pos.z) + depth - (u.mounted ? 1.1 : 1.35);
+    u.pos.y = rt.world.heightAt(u.pos.x, u.pos.z) + depth - (u.mounted ? 0.9 : 0.75);
     u.mesh.position.copy(u.pos);
     u.mesh.rotation.order = 'YXZ';
     u.mesh.rotation.x = u.mounted ? -0.12 : -0.6;
@@ -58,7 +58,8 @@ function waterPose(rt, u) {
 }
 function waterActions(rt) {
   const A = rt.army, P = rt.player, W = rt.world;
-  const act = A.act, animate = A.animate, update = P.update;
+  const act = A.act, animate = A.animate, update = P.update, updateCamera = P.updateCamera;
+  const waterLook = new THREE.Vector3();
   // 共通の移動にだけ水深の壁を外す。描画・息・流れには本当の水深を渡す。
   const footDepth = W.waterFootDepthAt, canStep = P.canStep, collide = A.collide, steer = A.steer;
   W.waterFootDepthAt = function (x, z, y) {
@@ -111,6 +112,21 @@ function waterActions(rt) {
       if (d > cap) { this.u.pos.x = x + dx * cap / d; this.u.pos.z = z + dz * cap / d; }
       this.u.moving = 0;
     }
+    waterPose(rt, this.u);
+  };
+  // 川床でなく水面の上から肩越しに見る。視点用の入れ物は毎回作らない。
+  P.updateCamera = function (dt, camera) {
+    updateCamera.call(this, dt, camera);
+    const u = this.u, depth = W.waterDepthAt(u.pos.x, u.pos.z);
+    if (!u.alive || depth < 0.8 || this.fpK >= 0.5) return;
+    const surface = W.heightAt(u.pos.x, u.pos.z) + depth;
+    const camDepth = W.waterDepthAt(camera.position.x, camera.position.z);
+    const camSurface = W.heightAt(camera.position.x, camera.position.z) + camDepth;
+    camera.position.y = Math.max(camera.position.y, surface + 2, camDepth > 0 ? camSurface + 1.5 : -Infinity);
+    if (this.camPos) this.camPos.copy(camera.position);
+    waterLook.set(u.pos.x + Math.sin(this.yaw) * 4, Math.max(surface + 0.25, u.pos.y + 1.1),
+      u.pos.z + Math.cos(this.yaw) * 4);
+    camera.lookAt(waterLook);
   };
   // 当たりを付ける直前にも水深を読む。入水した一コマだけ斬撃が通ることを防ぐ。
   for (const key of ['strike', 'fireShot', 'looseArrow']) {
@@ -267,7 +283,8 @@ const tedorigawa = {
     // 渡り口は復元。深みを見えない壁にせず、この戦の流れと息で扱う。
     riverCross: false,
     // 共通の川床では浅瀬は約三十五センチ。増水で約一メートルになる。流れと息の危険は flood で扱う。
-    streams: [{ pts: RIVER, w: 24, depth: 1.9, fordDepth: 1.1, fords: [{ x: 2, w: 8 }] }],
+    streams: [{ pts: RIVER, w: 24, depth: 1.6, fords: [{ x: 2, w: 8 }] }],
+    closeCombatAssist: true,
     paths: [[[0, -200], [2, -60], [FORD.x, FORD.z], [SOUTH.x, SOUTH.z], [6, 160]]],
     height,
     // 川原の色も北西へ続く川筋に沿わせる。東西の帯を残さない。
@@ -355,16 +372,28 @@ const tedorigawa = {
     };
     // 岸の石と浅瀬の中央の道の杭は、それぞれ一つの描画で置く。
     const shape = new THREE.Object3D();
-    const stones = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0),
-      new THREE.MeshLambertMaterial({ color: 0xa5a79b, emissive: 0x181c20 }), 72);
+    const stones = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 10, 7),
+      new THREE.MeshLambertMaterial({ color: 0x777b72 }), 72);
+    // 接地の影は一枚の絵を使い回す。影用の光や描画の回数を兵ごとに増やさない。
+    const shadowCloth = document.createElement('canvas'); shadowCloth.width = shadowCloth.height = 64;
+    const shadowInk = shadowCloth.getContext('2d'), shade = shadowInk.createRadialGradient(32, 32, 4, 32, 32, 32);
+    shade.addColorStop(0, 'rgba(15,18,20,0.5)'); shade.addColorStop(1, 'rgba(15,18,20,0)');
+    shadowInk.fillStyle = shade; shadowInk.fillRect(0, 0, 64, 64);
+    const shadows = new THREE.InstancedMesh(new THREE.PlaneGeometry(2, 2),
+      new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(shadowCloth), transparent: true, depthWrite: false,
+        polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), 72);
     for (let i = 0; i < 72; i++) {
       const x = -210 + Math.floor(i / 2) * 12, z = 2 + x * 0.1 + (i % 2 ? 27 : -27);
       shape.position.set(x, W.heightAt(x, z) + 0.25, z);
       shape.rotation.set(i * 0.7, i * 1.3, 0.2);
-      shape.scale.set(0.6 + i % 3 * 0.25, 0.45 + i % 4 * 0.12, 0.7);
+      shape.scale.set(0.6 + i % 3 * 0.25, 0.6 + i % 4 * 0.12, 0.7);
       shape.updateMatrix(); stones.setMatrixAt(i, shape.matrix);
+      shape.position.set(x, W.heightAt(x, z) + 0.035, z);
+      shape.rotation.set(-Math.PI / 2, 0, i * 1.3);
+      shape.scale.set(0.85 + i % 3 * 0.25, 0.95, 1);
+      shape.updateMatrix(); shadows.setMatrixAt(i, shape.matrix);
     }
-    rt.scene.add(stones);
+    rt.scene.add(stones, shadows);
     const stakes = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.1, 0.14, 3.4, 5),
       new THREE.MeshLambertMaterial({ color: 0xdfc492, emissive: 0x292011 }), 18);
     for (let i = 0; i < 18; i++) {
@@ -1019,7 +1048,7 @@ function preparePursuit(rt, steps, bank) {
     for (let i = 0; i < front.length; i++) {
       const sp = front[i], other = back[i] || sp;
       const g = enemyGroup(rt, { fixed: true, faction: 'saito', name: sp.name,
-        anchor: { x: bank ? 2 : /回り込む/.test(sp.name) ? 22 : sp.from.x * 0.3, z: bank ? -170 : -110 - all.length * 3 }, facing: 0,
+        anchor: { x: bank ? 2 : /回り込む/.test(sp.name) ? 22 : sp.from.x * 0.3, z: bank ? -140 : -82 - all.length * 3 }, facing: 0,
         order: 'hold', noAI: true, aggro: 0, seekRange: 0, width: sp.width || 12, formation: sp.formation || 'yari', morale: 90 }, dress(sp.list, UESUGI));
       g.dmgMult = 1; g.tedoBank = bank; g.tedoFlank = /回り込む/.test(sp.name); all.push(g); g.tedoBow = sp.kind === 'bow';
       g.tedoRole = g.tedoBow ? 'ranged' : sp.list.some((q) => q.type === 'cavalry') ? 'horse' : /二の手|回り込む/.test(sp.name) ? 'second' : 'front';
@@ -1043,7 +1072,12 @@ function advancePursuit(g, at, push) {
     g.order = 'path'; g.formation = 'column'; g.colW = 2; g.aggro = 2; g.speed = 3;
     g.path = [[2, FORD.z], [4, SOUTH.z]]; g.pathIdx = 0;
     g.onArrive = (q) => { q.order = 'attack'; q.formation = 'yari'; q.anchor.x = SOUTH.x; q.anchor.z = SOUTH.z; };
-  } else { g.order = 'attack'; g.anchor.x = at.x; g.anchor.z = at.z; }
+  } else {
+    // 遠い寄せ口で攻撃の間合いを待たせず、まず殿の列へ歩かせる。
+    g.order = 'move'; g.speed = 3; g.formation = 'column'; g.colW = 2;
+    g.dest = { x: at.x, z: at.z };
+    g.onArrive = (q) => { q.order = 'attack'; q.formation = 'yari'; q.anchor.x = at.x; q.anchor.z = at.z; };
+  }
 }
 function tedoHold(o) {
   const s = hold({ ...o, waves: [] }), start = s.start;
@@ -1059,8 +1093,15 @@ function tedoHold(o) {
       for (let i = o.line + 1; i < RETREAT_LINES.length; i++) rt.marker('line' + i, RETREAT_LINES[i], RETREAT_NAMES[i], { h: 2 });
       rt.unmark('line' + o.line);
     }
-    for (const g of rt.flags.pursuit || []) if (g.order === 'attack' && !g.routed && !g.tedoBow) {
-      if (C.at.z <= 0) { g.anchor.x = C.at.x; g.anchor.z = C.at.z; }
+    for (const g of rt.flags.pursuit || []) if (g.tedoActive && !g.routed && !g.tedoBow &&
+      (g.order === 'attack' || g.order === 'move')) {
+      if (C.at.z <= 0) {
+        g.anchor.x = C.at.x; g.anchor.z = C.at.z;
+        if (g.order === 'move') {
+          g.dest.x = C.at.x; g.dest.z = C.at.z;
+          g.onArrive = (q) => { q.order = 'attack'; q.formation = 'yari'; q.anchor.x = C.at.x; q.anchor.z = C.at.z; };
+        }
+      }
       else if (g.tedoBank === 0) { const c = g.center(); g.order = 'hold'; g.anchor.x = c.x; g.anchor.z = Math.min(-30, c.z); }
     }
   };
@@ -1163,8 +1204,8 @@ function tedoCtx(rt) {
 }
 function tedoA() {
   return [
-    tedoHold({ at: RG, dur: 40, r: 12, title: '渡り口が詰まる', sub: '前は上杉、背は濁流', label: '殿の持ち場', obj: '殿へ集まり、追手を迎えよ',
-      say: [['組頭', '火のそばへ寄れ！　隣の者と槍を並べよ！']],
+    tedoHold({ at: RG, dur: 40, r: 12, title: '渡り口が詰まる', sub: '前は上杉、背は濁流', label: '殿の持ち場', obj: '火のそばで北を向き、追手へ槍を出せ',
+      say: [['組頭', '北を向け！　追手へ槍を出せ。敵の槍は受け止めよ！']],
       waves: [
         { t: 2, say: ['組頭', '上杉の先手じゃ！　川へ通すな！'], foes: () => [{ name: '上杉の先手', from: RR.front, list: [uS(1), uA(6)] }] },
         { t: 18, say: ['足軽', '馬がこっちへ来よる！　槍を出せ！'], foes: () => [{ name: '上杉の騎馬', from: RR.fl, list: [uS(1, { horse: true }), uC(6)] }] },

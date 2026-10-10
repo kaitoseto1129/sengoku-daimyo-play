@@ -59,7 +59,7 @@ function shCavalry(rt, g) {
       q.noRout = false; q.order = 'retreat'; q.dest = { x: 690, z: g.def.z }; q.fleeDir.x = 1;
     }
   } else if (!g.cavSent && !cav.routed && readyCount(cav)
-      && (g.opened || !footGone && g.center().x < SB.x0 + 24) && !(g.cavCheckAt > rt.t)) {
+      && !footGone && g.opened && rt.t - g.attackAt >= 12 && !(g.cavCheckAt > rt.t)) {
     g.cavCheckAt = rt.t + 0.5;
     if (!g.cavApproach) {
       g.cavApproach = true; cav.order = 'move'; cav.dest = { x: SB.x0 + 6, z: g.lane.z };
@@ -106,7 +106,7 @@ function shSmoke(rt) {
       rt.army.smoke(u.pos.x + fx * 2, u.pos.y + 1.5, u.pos.z + fz * 2, fx, fz, 2.4);
       if (g.shShotN === 1) {
         rt.world.gunSmoke(u.pos.x + fx * 2, u.pos.z + fz * 2, 0xeeeae2);
-        // 撃った組が下がり、込めていた組が前へ出る。交代は射撃時だけ指示する。
+        // 撃った組は弾込めへ少し下がる。その間の射撃を別の組が補う。
         const h = g.shRow;
         if (h && !rt.flags.pursuit && !(h.shReturnAt > rt.t)) {
           h.shReturnAt = rt.t + 6;
@@ -169,6 +169,9 @@ function postRoad(rt, g, pt) {
 // 本物の兵の枠は共通の二百五十人を守る。届かなくても戦の流れは止めない。
 function shReport(rt, text, dur = 3, source = null) {
   const F = rt.flags;
+  F.reportAt ??= Object.create(null);
+  if (F.reportAt[text] > rt.t) return;
+  F.reportAt[text] = rt.t + 8;
   if (!source) {
     const z = /南|山県|赤備え/.test(text) ? MOUTHS[2].z
       : /北|真田|丸山/.test(text) ? MOUTHS[0].z : MOUTHS[1].z;
@@ -455,8 +458,8 @@ const shitaragahara = {
       [{ type: 'busho', n: 1, o: { name: '仙石秀久', invuln: true, horse: true, weapon: 'spear' } }, { type: 'ashigaru', n: 8 }]);
     F.sengoku = ok.units[0];
     F.spears = [ok];
-    for (const [z, fac] of [[-298, 'oda'], [-22, 'oda'], [42, 'oda'], [368, 'tokugawa']]) {
-      F.spears.push(allyGroup(rt, { faction: fac, name: '槍組', fixed: true, fullStrength: true, noGuard: true, anchor: { x: SB.x0 - 2 * SB.gap - 1, z }, facing: Math.PI / 2, width: 16, aggro: 6, formation: 'yari', order: 'hold' },
+    for (const [z, fac] of [[MOUTHS[0].z + 4.5, 'oda'], [MOUTHS[1].z + 4.5, 'oda'], [42, 'oda'], [MOUTHS[2].z + 4.5, 'tokugawa']]) {
+      F.spears.push(allyGroup(rt, { faction: fac, name: '槍組', fixed: true, fullStrength: true, noGuard: true, anchor: { x: z === 42 ? SB.x0 - 2 * SB.gap - 1 : SB.x0 - 2, z }, facing: Math.PI / 2, width: 16, aggro: 6, formation: 'yari', order: 'hold' },
         [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: Math.abs(z) < 60 ? 7 : 3 }]));
     }
     // 予備隊（長篠・設楽原 統合版 37・45 章）：柵の後ろに控え、いちばん危ない区画へ自動で動く・向き直る（reserveTick が毎コマ判断）
@@ -627,14 +630,13 @@ const shitaragahara = {
 
     rt.marker('prepare', F.prepPt, '槍を揃える持ち場', { hideNear: 7 });
     rt.say(F.voice, '大宮前は我らの持ち場じゃ。仙石殿の槍と野々村殿の鉄砲を助けよ', 3.5);
-    rt.after(3, () => shReport(rt, '南に赤備え！　敵の寄せにござる！', 3));
-    rt.after(95, () => this.tobigasu(rt));
+    rt.after(3, () => shReport(rt, '早朝、鉄砲の撃ち合いじゃ。南は山県の先手ぞ！', 3));
   },
 
   // 全軍の確かな攻撃順とはしない。南北は並行し、北から中央への長い行軍は場面替えで省く。
   WAVES: [
-    { name: '真田信綱・昌輝', hq: 'shitara_sanada', fac: 'takeda', z: MOUTHS[0].z, home: { x: 110, z: -240 }, cav: 3, ash: 12, brother: true, line: '真田の備が寄せる！　北の柵を守られよ！' },
-    { name: '武田の中央の諸隊', hq: 'shitara_naito', fac: 'takeda', z: MOUTHS[1].z, cav: 3, ash: 12, general: '内藤昌豊', final: true, line: '中央の諸隊が寄せる！　柳田前を守られよ！' },
+    { name: '真田信綱・昌輝', hq: 'shitara_sanada', fac: 'takeda', z: MOUTHS[0].z, home: { x: 110, z: -240 }, cav: 3, ash: 12, brother: true, line: '南の山県に続き、北の真田も寄せる！　柵を守れ！' },
+    { name: '武田の中央の諸隊', hq: 'shitara_naito', fac: 'takeda', z: MOUTHS[1].z, cav: 3, ash: 12, general: '内藤昌豊', final: true, line: '北に代わり、中央の諸隊が寄せる！　柳田前を守れ！' },
   ],
 
   makeWave(rt, w) {
@@ -649,6 +651,7 @@ const shitaragahara = {
     g.missiles = enemyGroup(rt, { faction: w.fac, name: w.name + '隊の鉄砲・弓', fixed: true, noGuard: true, anchor: { x: frontX + 16, z: homeZ - 14 }, facing: -Math.PI / 2, fleeDir: { x: 1, z: 0 }, aggro: 6, width: 10, morale: 85, speed: 2.6 },
       [{ type: 'samurai', n: 1 }, { type: 'gun', n: w.ash > 20 ? 5 : 2 }, { type: 'bow', n: w.ash > 20 ? 5 : 2 }]);
     g.missiles.holdFire = true;
+    for (const u of g.missiles.units) if (u.type === 'gun') u.gunAmmo = w.final ? 2 : w.bamboo ? 5 : 3;
     nagashinojo.kit.backOf(rt, g, { flag: w.fac, armor: nagashinojo.kit.ARMOR[w.fac], kind: 'mixed', w: 26, depth: 18, count: 120, gap: 6, seed: 71 + this.WAVES.indexOf(w), stop: () => g.center().x < SB.x0 + 8 });   // 後ろの大軍も柵の近くまで押して、寄せの厚みを見せる
     return g;
   },
@@ -664,14 +667,20 @@ const shitaragahara = {
     g.breach = d < 18 ? best : null;
     g.lane = { x: SB.x0 - SB.gap + 1, z: g.def.z + 4.5 };
     g.formation = 'column'; g.colW = g.count > 14 ? 3 : 2; g.noRout = true;   // 大きな寄せは横に広げ、柵に前の列が並んで取り付く
+    g.attackAt = rt.t; g.speed = F.tobiDone ? 4 : 3;
     g.siegeStallAt = rt.t; g.lastFenceHp = g.breach?.hp;
+    // 既存の槍組が口から誘い出て、敵が迫れば同じ道で柵へ戻る。
+    g.lureSpear = F.spears[g.def.bamboo ? 4 : g.def.final ? 2 : 1];
+    g.lureOut = { x: SB.x0 + 10, z: g.lane.z };
+    g.lureBack = { x: SB.x0 - SB.gap - 2, z: g.lane.z };
+    g.luring = true; g.lureAt = rt.t;
+    postRoad(rt, g.lureSpear, g.lureOut);
     g.order = 'move';
     g.dest = g.breach ? { x: Math.max(g.breach.seg[0], g.breach.seg[2]) + 2, z: (g.breach.seg[1] + g.breach.seg[3]) / 2 } : g.lane;
     g.onArrive = (q) => { q.order = 'hold'; q.aggro = 2; };
     g.cavalry.noRout = true;
-    g.cavalry.order = 'move'; g.cavalry.dest = { x: SB.x0 + 6, z: g.def.z + 4.5 };
-    g.cavalry.onArrive = (q) => { q.order = 'hold'; };
-    if (sightPoint(rt, g.cavalry.center(), 60)) { sfx('hooves', 0.85); sfx('toki', 0.7); }
+    g.cavalry.order = 'hold'; g.cavalry.dest = null;
+    g.cavalry.onArrive = null;
     g.missiles.holdFire = false; g.missiles.order = 'move';
     g.missiles.dest = { x: SB.x0 + 40, z: g.def.z - 14 };
     g.missiles.onArrive = (q) => { q.order = 'hold'; };
@@ -691,14 +700,14 @@ const shitaragahara = {
       if (F.ending || F.pursuit) return;
       sfx('taiko', 0.8);
       F.jinkeiBound.shitara_naito?.advance(52, 24);
-      shReport(rt, '内藤の備も動いた！　中央への寄せにござる！', 3);
+      shReport(rt, '中央の諸隊も動く！　南と北に続く備じゃ！', 3);
     });
     rt.after(16, () => {
       if (F.ending || F.pursuit) return;
       sfx('taiko', 0.8);
       F.jinkeiBound.shitara_baba?.advance(278, 38);
       F.jinkeiBound.shitara_sakuma?.retreat(36, 16);
-      shReport(rt, '北は馬場の備！　佐久間勢が退く！', 3);
+      shReport(rt, '北の諸隊も入れ替わりに寄せる！　佐久間勢が退く！', 3);
       rt.after(38, () => {
         if (!F.ending && !F.pursuit) shReport(rt, '北の丸山に馬場の旗！　敵が取り付いた由！', 3);
       });
@@ -719,12 +728,10 @@ const shitaragahara = {
         F.mouthFlags[1].position.y += 3;
         sfx('horagai', 0.8);
         rt.banner('中央の旗、上がる', '北の寄せは退いた。旗の合図で中央の柵へ移る');
-        rt.obj('hold', '旗の合図を待て', 'main', true);
-        rt.after(3, () => this.wave(rt));
-        return;
+        // 旗を上げる間にも、次の備を止めずに寄せる。
       }
       F.pendingWave = true; F.postWaitAt = rt.t;
-      // 持ち場を替える間も敵は柵へ寄せ、騎馬と射手も動く。到着待ちで寄せを止めない。
+      // 持ち場を替える間も歩兵と射手は寄せる。騎馬は槍の勝負を待つ。
       const incoming = F.waveGroups[F.wave];
       // 前の寄せで出した軍配の下知を、次の寄せの働きへ持ち越さない。
       incoming.lordBefore = F.alliedHosts.map((h) => ({ cmd: h.army.lordCmd, order: h.army.lordOrder, target: h.army.lordTgt }));
@@ -741,6 +748,7 @@ const shitaragahara = {
         placeGroup(rt, incoming.missiles, 54, w.z - 14);
         rt.banner('中央の持ち場へ', '柳田前で槍を揃え、寄せを受けよ');
       }
+      if (w.final) this.tobigasu(rt);
       this.attackFence(rt, incoming);
       F.commandPt = { x: w.final ? -9 : 10, z: w.z + 4.5 };
       F.stageGuns = F.guns.filter((q) => Math.abs(q.anchor.z - w.z) < 25);
@@ -795,31 +803,43 @@ const shitaragahara = {
     rt.marker('next_mouth', F.commandPt, w.final ? '柳田前の持ち場' : '仙石・野々村の持ち場', { hideNear: 7 });
     rt.obj('hold', '目の前の柵の口で敵を止めよ', 'main', true);
     if (w.final) {
-      rt.world.setTime('afternoon');
+      rt.world.setTime('day');
       F.jinkeiBound.shitara_hara?.advance(50, 22);
       rt.after(4, () => {
         if (!F.ending && !F.pursuit) { sfx('taiko', 0.7); F.jinkeiBound.shitara_shoyoken?.advance(60, 24); }
       });
       rt.obj('hold', '槍を揃える旗のそばで敵を止めよ', 'main', true);
     }
-    if (g.opened || w.final) this.fallBack(rt, g);
+    if (g.opened) this.fallBack(rt, g);
   },
 
   // 打撃は近い足軽だけ。半秒ごとの同じ枠で柵への圧力を調べる。
   siegeTick(rt, g) {
-    if (!g || g.doneWave || g.routed || !g.count) return;
-    const s = g.breach;
+    if (!g || g.doneWave) return;
+    if (g.routed || !g.count) {
+      if (g.luring) { g.luring = false; postRoad(rt, g.lureSpear, g.lureBack); }
+      return;
+    }
+    const F = rt.flags, s = g.breach;
+    if (g.luring && (g.opened || F.overrunT > 0 || rt.t - g.lureAt >= 5 && g.center().x < SB.x0 + 24 || rt.t - g.lureAt >= 8)) {
+      g.luring = false; g.lureAt = rt.t;
+      postRoad(rt, g.lureSpear, g.lureBack);
+      shReport(rt, '敵が寄せる！　誘いの足軽は柵へ戻れ！', 3);
+    } else if (!g.luring && !g.opened && !F.overrunT && rt.t - g.lureAt >= (F.tobiDone ? 8 : 14) && g.center().x > SB.x0 + 1 && g.lureSpear.order === 'hold') {
+      g.luring = true; g.lureAt = rt.t;
+      postRoad(rt, g.lureSpear, g.lureOut);
+    }
     if (s?.alive) {
       const x = (s.seg[0] + s.seg[2]) / 2, z = (s.seg[1] + s.seg[3]) / 2;
       for (const u of g.units) if (s.alive && u.alive && !u.fleeing && !u.woundOut && !u.gone && Math.hypot(u.pos.x - x, u.pos.z - z) < 5.5) {
-        u.cheer = 0.5; rt.army.damage(s, 16, u);
+        u.cheer = 0.5; rt.army.damage(s, F.tobiDone ? 12 : 4, u);
       }
       if (s.hp !== g.lastFenceHp) { g.lastFenceHp = s.hp; g.siegeStallAt = rt.t; }
       const c = g.center();
       if (g.siegeX == null || Math.hypot(c.x - g.siegeX, c.z - g.siegeZ) > 1) {
         g.siegeX = c.x; g.siegeZ = c.z; g.siegeStallAt = rt.t;
       }
-      if (rt.t - g.siegeStallAt > 8) {
+      if (rt.t - g.siegeStallAt > (F.tobiDone ? 4 : 8)) {
         g.breach = null;
         shReport(rt, '敵が柵の口へ回る！　槍の備を崩されるな！', 3);
       }
@@ -981,7 +1001,7 @@ const shitaragahara = {
       }
       const here = Math.hypot(p.x - F.commandPt.x, p.z - F.commandPt.z) < 12;
       rt.objProgress('hold', !here ? '柵の奥を通り、次の持ち場へ進め' : !gunsReady ? '持ち場で鉄砲組を待て' : '槍を揃え、寄せを受けよ');
-      if ((here && gunsReady) || rt.t - F.postWaitAt >= 12) {
+      if ((here && gunsReady) || rt.t - F.postWaitAt >= (F.tobiDone ? 6 : 12)) {
         rt.objProgress('hold', ''); this.wave(rt, true);
         if (!here) rt.say(F.voice, '敵が柵へ来るぞ！　奥の道を通り、持ち場へ急げ！', 3);
       }
@@ -989,6 +1009,18 @@ const shitaragahara = {
     // 替えた兵にも同じ武器の威力を使う。柵の内では控えを勝手に侵入させない。
     if ((F.wkT = (F.wkT || 0) - dt) <= 0) {
       F.wkT = 0.5;
+      const ammoLimit = F.tobiDone ? (F.cur?.def.final && F.cur.opened || rt.t - F.tobiAt >= 18 ? 0 : 1) : F.wave ? 2 : F.frontsStarted ? 3 : 5;
+      for (const u of rt.army.units) {
+        if (u.type !== 'gun' || !u.alive) continue;
+        if (u.team === 0) {
+          u.gunAmmo = Infinity;
+          if (u.isPlayer) rt.player.gunAmmo = null;
+        } else u.gunAmmo = Math.min(u.gunAmmo ?? ammoLimit, ammoLimit);
+      }
+      if (F.tobiDone && ammoLimit === 0 && !F.ammoReported && !F.pursuit) {
+        F.ammoReported = true;
+        rt.say(F.voice, '武田の鉄砲が黙った。槍と弓の寄せを受けよ！', 3.5);
+      }
       for (const A of rt.world.armies || []) if (A.team === 1 && !A._autoDistant) {
         // 追撃中も近い控えは同じ兵へ替える。本陣は既存の勝頼と馬廻を使う。
         A.noWake = A === F.katsuyori.army;
@@ -1115,7 +1147,7 @@ const shitaragahara = {
         battleEvent(rt, EVENT_VOLLEY, F.lane, null, 0, true, '北の旗の合図で鉄砲が撃つ');
         rt.after(2.5, () => { if (!F.ending && !F.pursuit && !F.waveRest) F.roll = rollBands(rt, F.bands); });
       }
-      if (atMouth && readyCount(cur.cavalry) && !(cur.hoofAt > rt.t)) {
+      if (cur.cavApproach && atMouth && readyCount(cur.cavalry) && !(cur.hoofAt > rt.t)) {
         cur.hoofAt = rt.t + 8;
         if (Math.hypot(p.x - cur.lane.x, p.z - cur.lane.z) < 55) { sfx('hooves', 0.85); sfx('toki', 0.7); }
       }
@@ -1231,9 +1263,10 @@ const shitaragahara = {
       rt.objProgress('hold', '');
     }
     if (F.waveRest && g && !g.doneWave) rt.objProgress('hold', F.wave === this.WAVES.length ? '追い討ちの下知を待て' : gunsLoaded(F.focusGuns || []) ? '槍を揃え、次の寄せに備えよ' : F.reloadNote || '近い鉄砲組の後ろで槍を揃えよ');
-    // 弾込めは次の持ち場への移動中も続ける。射手が撃ち続けても六秒で下知を出す。
-    if (g && !F.pursuit && waveDefeated(g) && !g.doneWave && (F.wave === this.WAVES.length || gunsLoaded(F.focusGuns || []) || rt.t - F.waveRestAt >= 6)) {
+    // 弾込めは移動中に続ける。退いた備の後へ、次の備をすぐ寄せる。
+    if (g && !F.pursuit && waveDefeated(g) && !g.doneWave) {
       g.doneWave = true;
+      if (g.luring) { g.luring = false; postRoad(rt, g.lureSpear, g.lureBack); }
       F.overrunT = 0; F.overrunShown = false;
       F.mouthFlags[g.def.final ? 1 : 0].rotation.z = 0;
       rt.unmark('overrun'); rt.objProgress('stay', '');
@@ -1301,13 +1334,14 @@ const shitaragahara = {
     }
   },
 
-  // 鳶ヶ巣山（46 章）：主戦場とは別方向、酒井忠次の別働が夜明けに武田の拠点を落とす。主戦場には狼煙・遠い音・伝令の知らせだけ届く
+  // 午前十一時ごろの知らせを、北の寄せを受けた後の場面に置く。固定秒数では始めない。
   tobigasu(rt) {
     const F = rt.flags;
     if (F.tobiDone || F.pursuit || F.ending || !rt.player.u.alive) return;
-    F.tobiDone = true;
+    F.tobiDone = true; F.tobiAt = rt.t;
     battleEvent(rt, EVENT_MESSENGER, null, null, 0, true, '酒井忠次の別手から知らせが届いた');
-    shReport(rt, '酒井左衛門尉殿、鳶ヶ巣山を攻め落とされた！　長篠城の囲みも解けた由！', 4, IEYASU);
+    rt.say('使番', '午前十一時ごろ。酒井忠次殿が鳶ヶ巣山を落としたぞ！', 4);
+    shReport(rt, '武田は退き口を恐れておる！　備を替えて猛攻じゃ！', 4);
     const groups = [F.cur, ...(F.hill || []), F.katsuyori].filter((g) => g && g.count > 0);
     for (const g of groups) g.morale = Math.max(15, (g.morale ?? 80) - 10);
   },
@@ -1329,8 +1363,14 @@ const shitaragahara = {
     rt.obj('hold', F.canLead ? '組を集め、追い討ちの下知を待て' : '槍組に続き、追い討ちの下知を待て', 'main', true);
     rt.objProgress('hold', '');
 
+    if (!F.ammoReported) {
+      F.ammoReported = true;
+      for (const u of rt.army.units) if (u.team === 1 && u.type === 'gun') u.gunAmmo = 0;
+      rt.say(F.voice, '武田の鉄砲が黙った。槍と弓の寄せを受けよ！', 3.5);
+    }
     rt.world.setTime('afternoon');
     sfx('horagai', 1);
+    rt.say('使番', '午後二時ごろ、武田勢が崩れたぞ！', 4);
     rt.banner('未の刻、武田勢退く', '勝頼の本隊が退く。馬場の備が殿に残る。下知を待て');
     // 本陣は東から出沢・寒狭川方面へ退く。勝頼は史実どおり討てない。
     F.katsuyori.retreat(240, 60);
@@ -1481,7 +1521,7 @@ shitaragahara.sides = { a: { name: '織田・徳川軍', get mon() { return scen
 // 奉行は各持ち場へ初めから置く。別名の同一人物や土屋を他将の隊へ追加しない。
 shitaragahara.famous = [];
 // 出典確認：新城市 https://www.city.shinshiro.lg.jp/kanko/meisyo/nagashino-shitaragah.html
-shitaragahara.history = '天正三年五月二十一日、織田・徳川軍は設楽原で柵と多数の鉄砲を用い、武田軍を破った。『信長公記』は鉄砲千挺ほどを奉行に預け、柵の外へ出ず、寄せる武田勢を撃ち退けたと記す。山県昌景の赤備え、真田信綱・昌輝らの奮戦と討死は『甲陽軍鑑』にも伝わる。山県・内藤・真田兄弟ら多くの宿将が討死し、未の刻ごろに武田勢が崩れ、織田・徳川は柵を出て追撃した。馬場信春は出沢・寒狭川方面の退き口で殿を務め、勝頼を逃がして討死したと伝わる。勝頼本人はこの戦で討たれていない。『信長公記』の寄せの順は山県・武田信廉・小幡・武田信豊・馬場であり、本作の各備の順や場所は確定した再現ではない。山県の竹束と柵破り、徳川の二の柵への後退、馬場の丸山占領、仙石の落馬と槍での奮戦、野々村の援護は伝承や解釈を取り入れた復元である。中央突破を内側の柵へ誘い、羽柴の旗で囲んで撃つ策は漫画『センゴク』にも描かれる説をもとにした演出で、確かな史実とはしない。新城市の解説は、川や田、柵と多数の鉄砲を組み合わせた守りを紹介している。鉄砲は三千挺だったとも伝わるが、数や撃ち方には諸説があり、三段撃ちを確定した史実とはしない。三重の柵、細かな備の兵数・居場所・天気・距離・時間と、追撃の道筋・浅瀬・殿の位置は推定と遊びの補いである。追撃で渡る浅い川は連吾川で、勝頼が逃れたと伝わる寒狭川そのものではない。南の討死の知らせと備の崩れは戦全体の流れの演出で、目の前の武将を討った手柄とは分ける。総勢は織田・徳川三万八千、武田一万五千とも伝わるが、長篠側の別手を含む数であり、決戦場に全員を置いた意味ではない。';
+shitaragahara.history = '天正三年五月二十一日、織田・徳川軍は設楽原で柵と多数の鉄砲を用い、武田軍を破った。武田勢は連吾川を下り、柵のある側へ登って寄せたとされる。三重の馬防柵と身隠しに加え、川や斜面そのものが守りを助けた。早朝の鉄砲の撃ち合いから槍の勝負へ移り、足軽が柵の外へ誘い出て、敵が寄せれば柵へ引く駆け引きが続いたとされる。騎馬の一斉突撃から始まったとはしない。午前十一時ごろ、酒井忠次の別動隊が鳶ヶ巣山を落とし、その知らせを受けた武田勢は退き口を断たれる前に備を替えて猛攻したとされる。武田の弾は早く尽き、連合軍の厚い兵力と弾薬が勝敗を分けたという見方がある。一番槍を競い、命を惜しまぬ武田勢の気風も、長く戦えた理由とされる。『信長公記』は鉄砲千挺ほどを奉行に預け、柵の外へ出ず、寄せる武田勢を撃ち退けたと記す。山県昌景の赤備え、真田信綱・昌輝らの奮戦と討死は『甲陽軍鑑』にも伝わる。山県・内藤・真田兄弟ら多くの宿将が討死し、午後二時ごろ（未の刻）に武田勢が崩れ、織田・徳川は柵を出て追撃した。馬場信春は出沢・寒狭川方面の退き口で殿を務め、勝頼を逃がして討死したと伝わる。勝頼本人はこの戦で討たれていない。『信長公記』の寄せの順は山県・武田信廉・小幡・武田信豊・馬場であり、本作では南の山県を先手とし、続く中央・北の諸隊の寄せをまとめて描く。各備の順や場所は確定した再現ではない。山県の竹束と柵破り、徳川の二の柵への後退、馬場の丸山占領、仙石の落馬と槍での奮戦、野々村の援護は伝承や解釈を取り入れた復元である。中央突破を内側の柵へ誘い、羽柴の旗で囲んで撃つ策は漫画『センゴク』にも描かれる説をもとにした演出で、確かな史実とはしない。新城市の解説は、川や田、柵と多数の鉄砲を組み合わせた守りを紹介している。鉄砲三千挺や三段撃ちには説がある。三段撃ちを裏付ける確かな史料はなく、本作の射撃の交代は、弾込めの間を別の組が補う演出である。三重の柵、細かな備の兵数・居場所・天気・距離・時間と、追撃の道筋・浅瀬・殿の位置は推定と遊びの補いである。追撃で渡る浅い川は連吾川で、勝頼が逃れたと伝わる寒狭川そのものではない。南の討死の知らせと備の崩れは戦全体の流れの演出で、目の前の武将を討った手柄とは分ける。総勢は織田・徳川三万八千、武田一万五千とも伝わるが、長篠側の別手を含む数であり、決戦場に全員を置いた意味ではない。';
 shitaragahara.date = (rt) => `天正三年五月二十一日　${seasonOf('五月')}・${sky(rt)}`;
 shitaragahara.rts = true;   // 侍大将以上は上空の指揮（rtsCanCommand の身分の縛りは rts.js 側）
 

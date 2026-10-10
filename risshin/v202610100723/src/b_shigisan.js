@@ -125,8 +125,8 @@ const BUILDINGS = [
   { x: TOP.x + 10, z: TOP.z + 2, w: 7, d: 5, name: '本丸の番所', kind: 'bansho' },
   { x: -21, z: GATE.z - 5, w: 8, d: 4, name: '門の長屋', kind: 'nagaya' },
   { x: 16, z: GATE.z - 20, w: 6, d: 4, name: '門の兵糧蔵', kind: 'kura' },
-  { x: RIDGE1.x + 5, z: RIDGE1.z, w: 4, d: 3, name: '北尾根の番所', kind: 'bansho' },
-  { x: RIDGE2.x + 4.5, z: RIDGE2.z - 2, w: 4, d: 3, name: '上の曲輪の詰所', kind: 'bansho' },
+  { x: RIDGE1.x + 9, z: RIDGE1.z, w: 4, d: 3, name: '北尾根の番所', kind: 'bansho' },
+  { x: RIDGE2.x + 9, z: RIDGE2.z - 2, w: 4, d: 3, name: '上の曲輪の詰所', kind: 'bansho' },
   { x: YASHIKI.x, z: YASHIKI.z - 3, w: 11, d: 7, name: '松永屋敷の主殿', kind: 'goten' },
   { x: YASHIKI.x + 10, z: YASHIKI.z - 7, w: 5, d: 3.5, name: '屋敷の長屋', kind: 'nagaya' },
   { x: YASHIKI.x + 11, z: YASHIKI.z + 5, w: 4, d: 3, name: '屋敷の蔵', kind: 'kura' },
@@ -135,8 +135,8 @@ const BUILDINGS = [
 const ROOM_PATHS = [
   [[0, -98], [10, -98], [10, -104]], [[0, -66], [0, -68], [-21, -68], [-21, -67.5]],
   [[0, -66], [0, -72], [24, -72], [24, -80], [16, -80], [16, -82.5]],
-  [[RIDGE1.x, RIDGE1.z + 4], [RIDGE1.x + 5, RIDGE1.z + 4], [RIDGE1.x + 5, RIDGE1.z + 3]],
-  [[RIDGE2.x, RIDGE2.z + 2], [RIDGE2.x + 4.5, RIDGE2.z + 2], [RIDGE2.x + 4.5, RIDGE2.z + 1]],
+  [[RIDGE1.x, RIDGE1.z + 4], [RIDGE1.x + 9, RIDGE1.z + 4], [RIDGE1.x + 9, RIDGE1.z + 3]],
+  [[RIDGE2.x, RIDGE2.z + 2], [RIDGE2.x + 9, RIDGE2.z + 2], [RIDGE2.x + 9, RIDGE2.z + 1]],
   [[YASHIKI.x, YASHIKI.z + 7], [YASHIKI.x, YASHIKI.z + 2]],
   [[YASHIKI.x + 15, YASHIKI.z], [YASHIKI.x + 15, YASHIKI.z - 3], [YASHIKI.x + 10, YASHIKI.z - 3]],
   [[YASHIKI.x + 15, YASHIKI.z], [YASHIKI.x + 15, YASHIKI.z + 9], [YASHIKI.x + 11, YASHIKI.z + 9]],
@@ -275,6 +275,18 @@ const ROOM_BOX = new THREE.BoxGeometry(1, 1, 1);
 const ROOM_MAT = new THREE.MeshLambertMaterial({ color: 0x69523c });
 // 踏み石：苔と土で汚れた灰色の石（白く光る板にしない）
 const STEP_MAT = new THREE.MeshLambertMaterial({ color: 0x7a7266, map: stoneTex() });
+// 岩は崩れた石垣ではなく山肌の自然石。道の合流・戸口・曲輪の戦う平場には置かない。
+function stoneSpace(x, z) {
+  if (ROAD_LEVELS.some((q) => Math.hypot(x - q.x, z - q.z) < q.r + 3)) return false;
+  if (BUILDINGS.some((q) => Math.abs(x - q.x) < q.w / 2 + 3 && Math.abs(z - q.z) < q.d / 2 + 3)) return false;
+  if (Math.hypot(x - TOWER.x, z - TOWER.z) < 6) return false;
+  for (const line of WALK_LINES) for (let i = 1; i < line.length; i++) {
+    const a = line[i - 1], b = line[i], dx = b[0] - a[0], dz = b[1] - a[1];
+    const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz || 1)));
+    if (Math.hypot(x - a[0] - dx * t, z - a[1] - dz * t) < ROAD_HALF + 2) return false;
+  }
+  return true;
+}
 function boardRoom(rt, q) {
   const y = rt.world.heightAt(q.x, q.z), parts = [], H = 2.6;
   const box = (x, yy, z, w, h, d, rot = 0) => {
@@ -316,10 +328,11 @@ function ridgeSoil(rt) {
     }
     g.computeVertexNormals(); parts.push(g);
     // 木と岩は道の外へ。土に半ば埋めた岩と根は当たりを増やさない。
-    for (let i = 0; i < n; i += 4) {
-      const t = (i + 0.5) / n, side = i % 8 ? -1 : 1;
-      const x = q.ax + q.dx * t + nx * side * (ROAD_HALF + 1.4);
-      const z = q.az + q.dz * t + nz * side * (ROAD_HALF + 1.4);
+    for (let i = 0; i < n; i += 12) {
+      const t = (i + 0.5) / n, side = i % 24 ? -1 : 1;
+      const x = q.ax + q.dx * t + nx * side * (ROAD_HALF + 3);
+      const z = q.az + q.dz * t + nz * side * (ROAD_HALF + 3);
+      if (!stoneSpace(x, z)) continue;
       stones.push([x, z]); roots.push([x + nx * side * 0.5, z + nz * side * 0.5, Math.atan2(q.dx, q.dz)]);
     }
   }
@@ -329,17 +342,16 @@ function ridgeSoil(rt) {
     for (const g of parts) g.dispose();
   }
   const dummy = new THREE.Object3D();
-  const rock = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), STEP_MAT, stones.length);
+  const rock = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), STEP_MAT, stones.length);
   const rootGeo = new THREE.CylinderGeometry(0.07, 0.13, 1, 5); rootGeo.rotateZ(Math.PI / 2);
   const treeN = Math.ceil(stones.length / 3);
   const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.14, 0.24, 4.8, 5), new THREE.MeshLambertMaterial({ color: 0x796047, map: barkTex() }), treeN);
   const crown = new THREE.InstancedMesh(new THREE.ConeGeometry(1.8, 5.6, 6), new THREE.MeshLambertMaterial({ color: 0x384a30 }), treeN);
   const root = new THREE.InstancedMesh(rootGeo, new THREE.MeshLambertMaterial({ color: 0x806344, map: barkTex() }), roots.length);
-  const grass = new THREE.InstancedMesh(new THREE.ConeGeometry(0.24, 0.65, 3), new THREE.MeshLambertMaterial({ color: 0x8b9861, emissive: 0x141c08 }), stones.length * 3);
   let planted = 0;
   for (let i = 0; i < stones.length; i++) {
-    const [x, z] = stones[i]; dummy.position.set(x, W.heightAt(x, z) + 0.12, z);
-    dummy.rotation.set(0.2, i * 1.7, 0.15); dummy.scale.set(0.65, 0.48, 0.8); dummy.updateMatrix(); rock.setMatrixAt(i, dummy.matrix);
+    const [x, z] = stones[i]; dummy.position.set(x, W.heightAt(x, z) - 0.12, z);
+    dummy.rotation.set(0.08, i * 1.7, 0.06); dummy.scale.set(0.5 + i % 3 * 0.08, 0.4, 0.6); dummy.updateMatrix(); rock.setMatrixAt(i, dummy.matrix);
     if (i % 3 === 0) {
       const [rx, rz] = roots[i], tx = x + (rx - x) * 30, tz = z + (rz - z) * 30, y = W.heightAt(tx, tz);
       let near = !!W.def.clear?.(tx, tz);
@@ -353,18 +365,13 @@ function ridgeSoil(rt) {
         dummy.position.y = y + 5; dummy.updateMatrix(); crown.setMatrixAt(planted++, dummy.matrix);
       }
     }
-    for (let k = 0; k < 3; k++) {
-      const gx = x + Math.sin(i * 2.3 + k) * (1 + k), gz = z + Math.cos(i * 2.3 + k) * (1 + k);
-      dummy.position.set(gx, W.heightAt(gx, gz) + 0.24, gz);
-      dummy.rotation.set(0.15, i + k, 0.2); dummy.scale.set(1, 0.7 + k * 0.18, 1); dummy.updateMatrix(); grass.setMatrixAt(i * 3 + k, dummy.matrix);
-    }
     const [rx, rz, rot] = roots[i], dx = Math.cos(rot) * 0.7, dz = -Math.sin(rot) * 0.7;
     const ha = W.heightAt(rx - dx, rz - dz), hb = W.heightAt(rx + dx, rz + dz);
     dummy.position.set(rx, (ha + hb) / 2 + 0.04, rz);
     dummy.rotation.set(0, rot, Math.atan2(hb - ha, 1.4)); dummy.scale.set(1.4, 1, 1); dummy.updateMatrix(); root.setMatrixAt(i, dummy.matrix);
   }
   trunk.count = crown.count = planted;
-  rock.receiveShadow = root.receiveShadow = true; rt.scene.add(rock, root, grass, trunk, crown);
+  rock.receiveShadow = root.receiveShadow = true; rt.scene.add(rock, root, trunk, crown);
 }
 
 // 石段は一段を四つの踏み石に分ける。上端を低い地面に合わせ、箱の側面は土へ埋める。
@@ -493,6 +500,7 @@ const shigisan = {
     tint(x, z, h, c) { if (h > 14) c.setRGB(Math.min(1, c.r * 1.12 + 0.06), Math.min(1, c.g * 1.18 + 0.08), Math.min(1, c.b * 1.1 + 0.05)); },
     clear: (x, z) => Math.abs(x) < 40 && z > YASHIKI.z - 24 && z < 130,
     trees: 420,
+    rocks: 0, // 共通の散布岩は使わず、道と平場を避けた少量の自然石だけにする。
     tufts: 1800,
     treeDensity: (x, z) => (Math.abs(x) < 44 && z > YASHIKI.z - 24 ? 0.15 : 1),
     groves: [], // 密林の手置きは道の空きを無視するので、この攻め口には置かない。
@@ -609,7 +617,7 @@ const shigisan = {
     // 史料の最期は自害。室内の共通の一騎打ち案内は使わない。
     F.C.seat.naka.onEnter = null; F.C.seat.naka.onLevel = null;
     F.amb = enemyGroup(rt, { fixed: true, ambush: true, faction: 'saito', name: '尾根の松永勢', anchor: { x: AMBUSH_PT[0], z: AMBUSH_PT[1] }, facing: Math.atan2(OPEN_PT[0] - AMBUSH_PT[0], OPEN_PT[1] - AMBUSH_PT[1]), formation: 'column', order: 'hold', aggro: 16, width: 5, morale: 90, fleeDir: { x: -1, z: -0.5 } },
-      dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 14 }], MATSU));
+      dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 10 }], MATSU));
     // 後列も登城道に沿わせ、藪の急斜面へ並べない。下知までは動かさない。
     march(F.amb, [OPEN_PT]);
     F.amb.path = [OPEN_NEXT, AMBUSH_PT, OPEN_PT]; F.amb.pathIdx = 2; F.amb.speed = 0;
@@ -620,14 +628,15 @@ const shigisan = {
     F.sally = enemyGroup(rt, { fixed: true, faction: 'saito', name: '木戸脇の控え', anchor: { x: 22, z: GATE.z - 10 }, facing: 0, formation: 'yari', order: 'hold', aggro: 8, width: 6, morale: 90, fleeDir: { x: 0.5, z: -1 } },
       dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 12 }], MATSU));
     F.rg1 = enemyGroup(rt, { fixed: true, faction: 'saito', name: '下の曲輪の松永勢', anchor: { x: RIDGE1.x - 3, z: RIDGE1.z }, facing: Math.PI, formation: 'yari', order: 'hold', aggro: 14, width: 10, morale: 85, fleeDir: { x: 0, z: -1 }, dmgMult: 1 },
-      dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }], MATSU));
+      dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6 }], MATSU));
     F.rg2 = enemyGroup(rt, { fixed: true, faction: 'saito', name: '上の曲輪の松永勢', anchor: { x: RIDGE2.x, z: RIDGE2.z }, facing: Math.PI, formation: 'yari', order: 'hold', aggro: 14, width: 9, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 1 },
-      dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 3 }], MATSU));
+      dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6 }, { type: 'gun', n: 2 }], MATSU));
     F.ryk = enemyGroup(rt, { fixed: true, faction: 'saito', name: '松永屋敷の守り', anchor: { x: YASHIKI.x + 11, z: YASHIKI.z - 1 }, facing: Math.PI, formation: 'yari', order: 'hold', aggro: 14, width: 10, morale: 85, fleeDir: { x: 1, z: 0 }, dmgMult: 1 },
-      dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }], MATSU));
+      dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6 }], MATSU));
     const mk = (x, z, name, list) => enemyGroup(rt, { fixed: true, faction: 'saito', name, anchor: { x, z }, facing: 0, order: 'hold', seekRange: 20, aggro: 16, width: 7, formation: 'yari', morale: 100, noRout: false, fleeDir: { x: 0, z: -1 }, dmgMult: 1 }, dress(list, MATSU));
-    F.last = [mk(TOP.x, TOP.z + TOP.r - 4, '松永の旗本', [{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 2 }])];
-    F.last.push(mk(TOP.x + 11, TOP.z + 10, '本丸の控え', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }]));
+    // 実際に戦う守兵だけを絞る。包囲の総勢と、父子が城内で自害する筋は保つ。
+    F.last = [mk(TOP.x, TOP.z + TOP.r - 4, '松永の旗本', [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 2 }])];
+    F.last.push(mk(TOP.x + 11, TOP.z + 10, '本丸の控え', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6 }]));
     for (const [x, z, k] of [[-8, 130, 'oda'], [8, 130, 'eiraku'], [-30, 110, 'akechi'], [30, 110, 'oda']]) rt.scene.add(nobori(W, x, z, k, 6));
     for (const g of [F.arch, F.amb, F.sally, F.rg1, F.rg2, F.ryk, ...F.last, F.ehon.guard, ...F.ehon.kin]) { g.noAI = true; g.noRout = false; }
     F.amb.noAI = true; // 登りの下知で、同じ道の敵を必ず前へ出す。
@@ -722,7 +731,16 @@ const shigisan = {
     F.towerLit = true;
     rt.uninteract('tower'); rt.unmark('tower'); rt.unzone('tower');
     const W = rt.world;
-    W.addFire(TOWER.x, TOWER.z, { h: 3 }); W.addFire(TOWER.x + 0.6, TOWER.z + 0.6, { h: 5 });
+    for (const [dx, dz, h] of [[0, 0, 3], [0.6, 0.6, 5]]) {
+      const fire = W.addFire(TOWER.x + dx, TOWER.z + dz, { h });
+      // 共通の水平な七歩の光は坂へ刺さる。櫓の四本の根元に合う幅で地面へ沿わせる。
+      const g = new THREE.PlaneGeometry(3.8, 3.8, 4, 4); g.rotateX(-Math.PI / 2);
+      const pos = g.attributes.position, ground = W.heightAt(TOWER.x, TOWER.z);
+      for (let i = 0; i < pos.count; i++) pos.setY(i, W.heightAt(TOWER.x + pos.getX(i), TOWER.z + pos.getZ(i)) - ground + 0.08);
+      g.computeVertexNormals(); fire.glow.geometry = g;
+      fire.glow.scale.setScalar(1); fire.glow.position.set(TOWER.x, ground, TOWER.z);
+      if (dx) fire.glow.visible = false; // 同じ足元に光を二枚重ねない。
+    }
     W.addSmokeColumn(TOWER.x, W.heightAt(TOWER.x, TOWER.z) + 8, TOWER.z, { size: 2.6 });
     F.tower.rotation.z = 0.12;
     F.arch.noRout = false; F.arch.morale = 10;
@@ -1039,7 +1057,7 @@ const shigisan = {
       if (F.step === 4 && s.ridge1.owner === ZONE_STATE.FRIEND && (s.ridge2.owner === ZONE_STATE.FRIEND || s.yashiki.owner === ZONE_STATE.FRIEND) && s.shu.owner === ZONE_STATE.FRIEND && s.shu.test(rt.player.u.pos.x, rt.player.u.pos.z) && F.last.every((g) => gone(g) || !g.units.some((u) => u.alive && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - TOP.x, u.pos.z - TOP.z) < TOP.r + 12))) this.win(rt);
     }
     if (F.ending || rt.over) return;
-    // 十五秒ごとに距離と戦果を比べる。二分の停滞には先手の援護を出す。
+    // 十五秒ごとに距離と戦果を比べる。四十五秒の停滞には先手の援護を出す。
     if (!F.ending && F.step >= 1 && rt.t >= (F.stallCheckT || 0)) {
       F.stallCheckT = rt.t + 15;
       this.assistAdvance(rt);
@@ -1063,7 +1081,7 @@ const shigisan = {
 
   },
 
-  // 二分間、距離も戦果も変わらなければ、同じ兵を道に沿って押し出す。
+  // 四十五秒間、距離も戦果も変わらなければ、同じ兵を道に沿って押し出す。
   // 兵の追加・瞬間移動・時間だけの勝利は行わない。
   assistAdvance(rt) {
     const F = rt.flags, p = rt.player.u.pos;
@@ -1077,7 +1095,7 @@ const shigisan = {
     if (F.advanceId !== id || distance < F.advanceDistance - 3 || F.advanceKills !== F.ek || F.advanceGateHp !== hp) {
       F.advanceId = id; F.advanceDistance = distance; F.advanceKills = F.ek; F.advanceGateHp = hp; F.advanceT = rt.t;
     }
-    if (rt.t - F.advanceT < 120) return;
+    if (rt.t - F.advanceT < 45) return;
     F.advanceT = rt.t; rt.unmark('gather');
     if (F.step === 2) {
       // 近くの味方が火掛けを引き継ぐ。遠方から火を付けない。
@@ -1184,7 +1202,9 @@ function march(g, pts) {
     const i = ROAD.findIndex((p) => Math.hypot(p[0] - g.anchor.x, p[1] - g.anchor.z) < 1);
     if (i > 0) history = ROAD.slice(0, i);
   }
-  g.order = 'path'; g.path = [...history, [g.anchor.x, g.anchor.z], ...pts]; g.pathIdx = history.length + 1; g.roadColumn = true; g.formation = 'column'; g.colW = 2; g.width = 5; g.speed = 2.3; g.guard = false;
+  g.order = 'path'; g.path = [...history, [g.anchor.x, g.anchor.z], ...pts]; g.pathIdx = history.length + 1; g.roadColumn = true; g.formation = 'column'; g.colW = 2; g.width = 5; g.speed = 2.8; g.guard = false;
+  // 五人が自分の持ち場へ着けば展開する。後列待ちで曲輪の確保を何分も止めない。
+  if (g.team === 0) { g.arriveCount = 5; g.arriveRadius = 4; }
   g.onArrive = (q) => { q.order = 'hold'; q.formation = 'yari'; q.width = 7; q.aggro = 14; };
 }
 function gateWord(g) {
