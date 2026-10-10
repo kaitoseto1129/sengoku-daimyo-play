@@ -1,0 +1,1147 @@
+import { battleJin, installBattleJinkei } from './b_jinkei_layout.js';
+// ======================================================================
+// 比叡山（元亀二年・1571 九月十二日）… docs/hiei-1571-spec.md（kaito 10/1）の第一〜第二段階（61章）
+// 坂本（日吉社・里）→ 本坂（狭い山道・つづら折り・杉林・石段）→ 文殊楼 → 東塔（根本中堂・廻廊・中門・大講堂・僧坊の群れ）
+// → 西塔（浄土院・にない堂・釈迦堂の前身）→ 横川（横川中堂）。筋書きは 46〜53章の P1〜P7（kaito 10/1：横川も掃討する区域に）。
+//   ・横川（第三段階・26〜32章）は西塔から長い山道の先。西塔と同じく山道を掃討する。移動範囲はこの戦だけ moveLim で広げる
+//   ・山麓から始める。根本中堂の前には出さない（46章）
+//   ・全員を倒す戦にしない（mid6 49〜52章）：燃える山道を進む・手向かう者を退ける・次の区域への道を押さえる
+//   ・城にしない（36〜39章）：天守・櫓・石垣・枡形・堀を置かない。守りは地形（急坂・狭い道・石段）と門と建物。
+//     一時の逆茂木だけ少し（GAME_C）
+//   ・人は僧兵だけにしない（54章）：僧兵・武装した神人や里の者・具足を着けた山の衆・逃げる僧・里の者・避難する人
+//   ・火は建物ごと＋風向きで、一棟→一群→地区へ（temple1571.js）。鐘が鳴ると守りが警戒する（57章）
+// 地形：terrain_hiei.js（国土地理院の標高。宇佐山の志賀の陣と同じ広域の切り出し）。建物と道：castles/hiei1571.js。
+// ======================================================================
+import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { lookParts } from './units.js';
+import { sakamogi, paintGeo, jinmaku } from './props.js';
+import { flagTexture } from './textures.js';
+import { RANKS } from './state.js';
+import { sfx } from './audio.js';
+import { sightPoint } from './battle_sight.js';
+import { battleEvent, EVENT_FIRE_START } from './battle_events.js';
+import { runnerBlocked } from './denrei.js';
+import { enemyGroup, allyGroup, nm, unitPos } from './bhelp.js';
+import { gone } from './b_inabayama.js';
+import { Garan, makeTempleFire, ringBell } from './temple1571.js';
+import { P, PATHS, BUILDINGS, VALLEYS, pathById, pathPoint, height, onFlat } from './castles/hiei1571.js';
+import { hieiSpeech, hieiGaranLook } from './b_hieizan.js';
+
+const hi = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 4;
+// 姿：僧兵（裹頭・袈裟・薙刀）／武装した神人・里の者／武装した山の衆／織田
+const SOHEI = { sohei: 1, armor: 0x2a2622, lace: 0xcfc7b4, cloth: 0xd8d2c2, hat: 'hachimaki', flag: null };
+const LAY = { flag: null, hat: 'hachimaki', armor: 0x4a4034, lace: 0x5a4e3c, cloth: 0x5a4a38, haori: null, mon: null };
+const REM = { flag: null, armor: 0x3a3428, lace: 0x5a4a3a };
+const ODA = { flag: 'oda' };
+const dress = (list, lk) => list.map((s) => ({ ...s, o: { ...lk, ...(s.o || {}) } }));
+
+// 比叡山だけの裹頭。共通の目だけの窓を使わず、鼻・口・頬まで顔を出す。
+// 十二の顔を開戦時に作って使い回す。陰も頂点の色に残し、低画質でも布と肌を分ける。
+const MONK_HEADS = new Map();
+const MONK_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.96, side: THREE.DoubleSide });
+function monkHeadLod(r, scene, camera) {
+  const mesh = this;
+  const a = mesh.matrixWorld.elements, b = camera.matrixWorld.elements;
+  const near = !camera.isOrthographicCamera && (a[12] - b[12]) ** 2 + (a[13] - b[13]) ** 2 + (a[14] - b[14]) ** 2 < 225;
+  mesh.geometry = near ? mesh.userData.hieiHead.head : mesh.userData.hieiHead.far;
+}
+function monkFaceFixed() {}
+function monkGeometry(source, cloth = false, variant = 0) {
+  const g = source.index ? source.toNonIndexed() : source.clone();
+  for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'uv', 'color'].includes(k)) g.deleteAttribute(k);
+  const p = g.attributes.position, colors = g.attributes.color;
+  const out = new Float32Array(p.count * 3), base = new THREE.Color([0xd9d1be, 0xe3dac8, 0xcac3b3][variant % 3]);
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    let shade;
+    if (cloth) {
+      const wrinkle = Math.sin(y * 120 + Math.atan2(x, z) * 14 + variant);
+      shade = 0.91 + 0.08 * wrinkle;
+      // 開口の内側と折り目の谷は、白い布より暗い。
+      if (z > 0.045 && y > 1.475 && y < 1.68) shade *= 0.72;
+    } else {
+      const front = Math.max(0, Math.min(1, (z - 0.06) / 0.06));
+      const rim = Math.exp(-(((y - 1.661) / 0.022) ** 2)) + 0.6 * Math.exp(-(((Math.abs(x) - 0.081) / 0.022) ** 2));
+      const cheek = Math.exp(-(((Math.abs(x) - 0.057) / 0.025) ** 2) - ((y - 1.565) / 0.024) ** 2);
+      const underNose = Math.exp(-((x / 0.018) ** 2) - ((y - 1.576) / 0.012) ** 2);
+      shade = 1 - front * Math.min(0.42, rim * 0.27 + cheek * 0.12 + underNose * 0.18);
+    }
+    out[i * 3] = (cloth ? base.r : colors.getX(i)) * shade;
+    out[i * 3 + 1] = (cloth ? base.g : colors.getY(i)) * shade;
+    out[i * 3 + 2] = (cloth ? base.b : colors.getZ(i)) * shade;
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(out, 3));
+  return g;
+}
+function monkHead(look) {
+  const v = (look.face | 0) % 12;
+  if (MONK_HEADS.has(v)) return MONK_HEADS.get(v);
+  const wrap = new THREE.SphereGeometry(1, 24, 18), p = wrap.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    const fold = 0.0035 * Math.sin(y * 38 + Math.atan2(x, z) * 3 + v) + 0.0015 * Math.sin(y * 79 + x * 53);
+    p.setXYZ(i, x * (0.12 + fold), 1.603 + y * (0.15 + fold), 0.006 + z * (0.142 + fold));
+  }
+  const ix = wrap.index.array, kept = [];
+  for (let i = 0; i < ix.length; i += 3) {
+    let x = 0, y = 0, z = 0;
+    for (let j = 0; j < 3; j++) { x += p.getX(ix[i + j]) / 3; y += p.getY(ix[i + j]) / 3; z += p.getZ(ix[i + j]) / 3; }
+    if (!(z > 0.048 && Math.abs(x) < 0.102 && y > 1.478 && y < 1.674)) kept.push(ix[i], ix[i + 1], ix[i + 2]);
+  }
+  wrap.setIndex(kept); wrap.computeVertexNormals();
+  const pieces = [monkGeometry(wrap, true, v)]; wrap.dispose();
+  for (const side of [-1, 1]) {
+    const tail = new THREE.BoxGeometry(0.043, 0.22 + (v % 3) * 0.015, 0.009);
+    tail.rotateZ(side * 0.12); tail.translate(side * 0.037, 1.425, -0.14);
+    pieces.push(monkGeometry(tail, true, v)); tail.dispose();
+  }
+  const hood = mergeGeometries(pieces);
+  const face = monkGeometry(lookParts(look).face), lo = monkGeometry(lookParts(look, false).face);
+  const rec = { hood, face, head: mergeGeometries([face, hood]), far: mergeGeometries([lo, hood]) };
+  for (const g of pieces) g.dispose(); lo.dispose();
+  MONK_HEADS.set(v, rec);
+  return rec;
+}
+function monkSoldiers(rt) {
+  const add = rt.army.addUnit;
+  rt.army.addUnit = function (group, options) {
+    const u = add.call(this, group, options);
+    if (u.look?.sohei && !u.look.kosode) {
+      // 袈裟・腹巻は元の装いのまま。骨入りの人にも共通の顔を覆う布を作らせない。
+      u.look = { ...u.look, hat: 'hachimaki' };
+      const rec = monkHead(u.look);
+      u.head.geometry = rec.far; u.head.material = MONK_MAT;
+      u.head.userData.hieiHead = rec; u.head.onBeforeRender = monkHeadLod;
+    }
+    return u;
+  };
+}
+function monkNearHeads(rt) {
+  for (const u of rt.army.units) {
+    const h = u.human;
+    if (!h || !u.look?.sohei || u.look.kosode) continue;
+    if (h.hieiHood) { h.hieiHood.visible = !h.lodFar; continue; }
+    const anchor = h.parts.kato || h.parts.pface;
+    if (!anchor) continue;
+    const rec = monkHead(u.look), hood = new THREE.Mesh(rec.hood, MONK_MAT);
+    hood.matrixAutoUpdate = false; hood.matrix.copy(anchor.matrix);
+    hood.castShadow = true; hood.receiveShadow = true; hood.visible = !h.lodFar;
+    anchor.parent.add(hood); h.hieiHood = hood;
+    // 実写の顔がまだ無い兵にも、まぶた・鼻筋・唇・頬の凹凸と縁の陰を残す。
+    if (h.parts.pface) {
+      h.parts.pface.geometry = rec.face; h.parts.pface.material = MONK_MAT;
+      h.parts.pface.receiveShadow = true; h.parts.pface.onBeforeRender = monkFaceFixed;
+    }
+  }
+}
+const near = (u, p, r) => u && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < r;
+// 道の一部（i0〜i1 の折れ点）を、隊の歩く道筋にする
+const pts = (id, i0 = 0, i1) => pathById(id).pts.slice(i0, i1 === undefined ? undefined : i1 + 1).map(([x, z]) => [x, z]);
+function walk(g, path, speed, onArrive, turnBack = false) {
+  if (!g || !g.count || g.routed) return;
+  const oldHill = turnBack ? null : g._hillPath, oldIdx = g.pathIdx;
+  if (!turnBack && g.order === 'path' && g.path) path = [...g.path.slice(g.pathIdx), ...path];
+  // 後ろの列も曲がり角をたどる。直線の縦隊を回すと、後尾が里坊や急斜面へ振り出される。
+  g._hillPath = [[g.anchor.x, g.anchor.z], ...path];
+  g._hillFace = g._face ?? g.facing;
+  if (!g._hillSlot) {
+    g._hillSlot = g.slotPos;
+    g._hillSlots = Array.from({ length: g.initial }, () => ({ x: 0, z: 0 }));
+    g.slotPos = hillSlot;
+  }
+  for (const q of g._hillSlots) {
+    // 段が変わっても、遅れた兵がまだ通っていない折れを残す。
+    const join = !turnBack && q.join ? q.join.slice(q.joinI) : [];
+    if (oldHill) join.push(...oldHill.slice(q.next, Math.min(oldIdx + 1, oldHill.length)));
+    q.next = 1; q.join = join.length ? join : null; q.joinI = 0;
+  }
+  const leavesShrine = path.some(([x]) => x <= 138);
+  for (const u of g.units) {
+    const q = g._hillSlots[u.slot];
+    q.unit = u;
+    // 日吉社で戦って列を離れた兵は、参道を下って坂本の通りへ戻す。
+    // 本坂の最初の点へ直行すると、里坊と参道脇の法面を横切ってしまう。
+    // 本坂へ向かう道も最初は坂本の通り。最初の点だけで登山を判じない。
+    if (leavesShrine && u.alive && u.pos.x > 128 && u.pos.x < 156 && u.pos.z < -3) {
+      const road = pathById('hiyoshi').pts;
+      let bi = 0, bd = Infinity;
+      for (let i = 0; i < road.length; i++) {
+        const d = Math.hypot(u.pos.x - road[i][0], u.pos.z - road[i][1]);
+        if (d < bd) { bi = i; bd = d; }
+      }
+      // 古い折れが残る兵にも、参道へ戻る道を先に渡す。
+      // 古い点へ直行すると、参道脇の法面を横切って止まる。
+      q.join = [...road.slice(0, bi + 1).reverse(), [146, 4], ...(q.join || [])];
+    }
+  }
+  g.order = 'path'; g.path = path; g.pathIdx = 0; g.speed = speed || 2.4; g.formation = 'column'; g.colW = 1;
+  const [x, z] = path[path.length - 1];
+  g.onArrive = onArrive || ((q) => { q.order = 'hold'; q.anchor = { x, z }; q.formation = 'column'; });
+  if (g._command && !turnBack) walk(g._command, path, g.speed * 0.94);
+}
+function hillSlot(i, n) {
+  if (!this._hillPath || this.formation !== 'column' || (this.order !== 'path' && this.order !== 'hold' && this.order !== 'attack')) return this._hillSlot(i, n);
+  const q = this._hillSlots[i], cols = this.colW || 2;
+  let back = Math.floor(i / cols) * this.spacing * 1.3;
+  const side = (i % cols - (cols - 1) / 2) * this.spacing;
+  let x = this.anchor.x, z = this.anchor.z;
+  let fx = Math.sin(this._hillFace), fz = Math.cos(this._hillFace);
+  let k = Math.min(this.pathIdx, this._hillPath.length - 1);
+  for (; k >= 0; k--) {
+    const p = this._hillPath[k], dx = x - p[0], dz = z - p[1], d = Math.hypot(dx, dz);
+    if (d < 0.001) continue;
+    fx = dx / d; fz = dz / d;
+    if (back <= d) break;
+    back -= d; x = p[0]; z = p[1];
+    if (k === 0) { fx = Math.sin(this._hillFace); fz = Math.cos(this._hillFace); }
+  }
+  q.x = x - fx * back - fz * side;
+  q.z = z - fz * back + fx * side;
+  // 要が先へ進んでも、兵自身がまだ通っていない折れを飛ばさない。
+  // 行き先だけを道上に置くと、遅れた兵はつづら折りの内側の急斜面を横切って詰まる。
+  const u = q.unit;
+  // 持ち場は1.6歩以内で到着扱いになる。曲がり角もその外側で次へ進める。
+  while (u && q.join && q.joinI < q.join.length) {
+    const p = q.join[q.joinI];
+    if (Math.hypot(u.pos.x - p[0], u.pos.z - p[1]) < 1.8) q.joinI++;
+    else { q.x = p[0]; q.z = p[1]; return q; }
+  }
+  while (u && q.next <= k) {
+    const a = this._hillPath[q.next - 1], b = this._hillPath[q.next];
+    const dx = b[0] - a[0], dz = b[1] - a[1], d = Math.hypot(dx, dz) || 1;
+    const tx = b[0] - dz / d * side, tz = b[1] + dx / d * side;
+    if (Math.hypot(u.pos.x - tx, u.pos.z - tz) < 1.8) q.next++;
+    else { q.x = tx; q.z = tz; break; }
+  }
+  return q;
+}
+const attackFrom = (q, r = 16) => { q.order = 'attack'; q.seekRange = Math.min(r, 16); q.formation = 'column'; };
+const arrived = (g, p, r) => {
+  if (!g || gone(g) || Math.hypot(g.anchor.x - p.x, g.anchor.z - p.z) >= r) return false;
+  let alive = 0, near = 0, front = 0;
+  for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut && !u.gone && !u.noTarget) {
+    alive++;
+    const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z);
+    if (d < r) front++;
+    const q = g._hillSlots ? g.slotPos(u.slot, g.initial) : null;
+    // 一列の後尾は三十歩以上後ろになる。道上の持ち場へ着いた兵も数え、
+    // 列を縮めたり、まだ曲がり角を通っていない兵を飛ばしたりしない。
+    const inSlot = q && Math.hypot(u.pos.x - q.x, u.pos.z - q.z) < 3.5;
+    if ((d < r + 12 || inSlot) && (!q || !q.join || q.joinI >= q.join.length)) near++;
+  }
+  g._hillNear = near; g._hillAlive = alive;
+  return front >= Math.min(3, alive) && front > 0 && near >= Math.ceil(alive * 0.6);
+};
+const columnWait = (g, place) => `${place}で先手の列を待つ。列にそろった兵 ${g._hillNear || 0}／${g._hillAlive || 0}`;
+const guardedRoad = (rt, p) => {
+  for (const g of rt.flags.foes) if (!gone(g)) for (const u of g.units) {
+    if (u.alive && !u.fleeing && !u.woundOut && !u.gone && !u.noTarget && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 10) return false;
+  }
+  return true;
+};
+
+// 使番は隊の要へ直進せず、坂本の通りと本坂の折れを通って下知を届ける。
+// 道と投影用の入れ物は使い回し、歩けるかの調べも三分の一秒ごとにする。
+const RUNNER_ROAD = [...pts('sakamoto'), ...pts('honzaka', 1), ...pts('todo', 1, 3),
+  [-24, -5], [-19, -9], ...pts('todo_n', 1), ...pts('saito', 1), ...pts('yokawa', 1)];
+const RUNNER_SHRINE_E = [...pts('hiyoshi').reverse(), [158, 5], [170, 7], [184, 7]];
+const RUNNER_SHRINE_W = [...pts('hiyoshi').reverse(), [146, 4], ...RUNNER_ROAD.slice(4)];
+// 里坊の北へ押し出された兵は、家の裏を通って参道か東の通りへ戻る。
+// 通りへの直線は里坊を横切り、既存の参道も二十歩の探索範囲から外れる。
+const RUNNER_NORTH_E = [[143, -16], [148, -18], [168, -18], [184, -18], [184, 7], [170, 7], [158, 5]];
+const RUNNER_NORTH_W = [[184, -18], [168, -18], [148, -18], [143, -16], ...pts('hiyoshi').slice(0, 2).reverse(), [146, 4], ...RUNNER_ROAD.slice(4)];
+const RUNNER_FROM = { x: 0, z: 0, s: 0, d: 0 }, RUNNER_TO = { x: 0, z: 0, s: 0, d: 0 };
+const RUNNER_TEST = { x: 0, z: 0 };
+const RUNNER_RT = { world: null, army: null };
+function runnerClear(army, u, a, b) {
+  if (army.wallBetween(a, u.team, b, false)) return false;
+  const n = Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 1.2);
+  RUNNER_RT.world = army.world; RUNNER_RT.army = army;
+  for (let i = 1; i <= n; i++) if (runnerBlocked(RUNNER_RT, a.x + (b.x - a.x) * i / n, a.z + (b.z - a.z) * i / n)) return false;
+  return true;
+}
+function runnerPoint(path, p, out, army, u) {
+  out.d = Infinity;
+  for (let i = 1; i < path.length; i++) {
+    const a = path[i - 1], b = path[i], dx = b[0] - a[0], dz = b[1] - a[1];
+    const t = Math.max(0, Math.min(1, ((p.x - a[0]) * dx + (p.z - a[1]) * dz) / (dx * dx + dz * dz || 1)));
+    const x = a[0] + dx * t, z = a[1] + dz * t, d = Math.hypot(p.x - x, p.z - z);
+    if (d >= out.d || army && d > 20) continue;
+    if (army) { RUNNER_TEST.x = x; RUNNER_TEST.z = z; if (!runnerClear(army, u, p, RUNNER_TEST)) continue; }
+    out.x = x; out.z = z; out.s = i - 1 + t; out.d = d;
+  }
+}
+function hillRoad(from, to) {
+  const north = from.x > 156 && from.z < -3 ? from : to.x > 156 && to.z < -3 ? to : null;
+  if (north) {
+    const other = north === from ? to : from;
+    return other.x > 150 && other.z >= -3 ? RUNNER_NORTH_E : RUNNER_NORTH_W;
+  }
+  // 里坊の西へ追い出された兵も、参道を回って坂本の通りへ戻る。
+  const shrine = from.x > 120 && from.z < -3 ? from : to.x > 120 && to.z < -3 ? to : null;
+  const other = shrine === from ? to : from;
+  return shrine ? other.x > 150 && other.z >= -3 ? RUNNER_SHRINE_E : RUNNER_SHRINE_W : RUNNER_ROAD;
+}
+// 終幕で一度だけ作る帰路。山麓の参道も含め、各隊が来た道へ戻る。
+function retreatPath(pos) {
+  const path = hillRoad(pos, P.spawn);
+  runnerPoint(path, pos, RUNNER_FROM);
+  runnerPoint(path, P.spawn, RUNNER_TO);
+  const from = RUNNER_FROM.s, to = RUNNER_TO.s;
+  const bends = to > from ? path.slice(Math.floor(from) + 1, Math.ceil(to))
+    : path.slice(Math.floor(to) + 1, Math.ceil(from)).reverse();
+  return [[RUNNER_FROM.x, RUNNER_FROM.z], ...bends, [RUNNER_TO.x, RUNNER_TO.z]];
+}
+// 横隊の持ち場が里坊や法面の中へ出た時は、歩ける参道へ寄せる。
+function followSlot(i, n) {
+  const want = this._followSlot(i, n), army = this._hieiArmy;
+  if (this.order !== 'follow') return want;
+  const q = this._followPoints[i];
+  if (q.t > army.time) return q;
+  q.t = army.time + 0.33; q.x = want.x; q.z = want.z;
+  RUNNER_RT.world = army.world; RUNNER_RT.army = army;
+  if (!runnerBlocked(RUNNER_RT, want.x, want.z)) return q;
+  const u = this.units.find((o) => o.slot === i);
+  if (!u) return q;
+  runnerPoint(hillRoad(u.pos, want), want, RUNNER_TO);
+  if (RUNNER_TO.d <= 20 && !runnerBlocked(RUNNER_RT, RUNNER_TO.x, RUNNER_TO.z)) {
+    q.x = RUNNER_TO.x; q.z = RUNNER_TO.z;
+  }
+  return q;
+}
+function runnerWay(army, u, want) {
+  if (u._fireJob && !u.target && !u.atk && !u.fleeing) want = u._fireJob.point;
+  // 接敵中も参道を通す。敵を狙った途端に里坊や石段脇へ直進させない。
+  const fighting = u.target?.alive && !u.target.isStruct && !u.fleeing && !u.group?.routed;
+  if (!fighting && !u._fireJob && !u.group?.isRunner && !u.isPlayer && !(u.group?._hillPath && !u.target) && !(u.group?.isPlayerSquad && u.group.order === 'follow' && !u.target)) return want;
+  const q = u._hieiWay || (u._hieiWay = { x: 0, z: 0, t: -1, active: false });
+  if (q.t > army.time && (!q.active || Math.hypot(q.x - u.pos.x, q.z - u.pos.z) > 1)) return q.active ? q : want;
+  q.t = army.time + 0.33; q.active = false;
+  if (Math.hypot(want.x - u.pos.x, want.z - u.pos.z) < (u._fireJob ? 19 : 14) && runnerClear(army, u, u.pos, want)) return want;
+  const path = hillRoad(u.pos, want);
+  runnerPoint(path, u.pos, RUNNER_FROM, army, u); runnerPoint(path, want, RUNNER_TO);
+  if (!Number.isFinite(RUNNER_FROM.d) || RUNNER_TO.d > 20) return want;
+  q.active = true;
+  if (RUNNER_FROM.d > 1.2) { q.x = RUNNER_FROM.x; q.z = RUNNER_FROM.z; return q; }
+  const forward = RUNNER_TO.s > RUNNER_FROM.s;
+  let i = forward ? Math.floor(RUNNER_FROM.s) + 1 : Math.ceil(RUNNER_FROM.s) - 1;
+  if (i >= 0 && i < path.length && Math.hypot(path[i][0] - u.pos.x, path[i][1] - u.pos.z) < 1.2) i += forward ? 1 : -1;
+  if (i < 0 || i >= path.length || (forward ? i > RUNNER_TO.s : i < RUNNER_TO.s)) {
+    q.x = RUNNER_TO.x; q.z = RUNNER_TO.z;
+  } else { q.x = path[i][0]; q.z = path[i][1]; }
+  if (!runnerClear(army, u, u.pos, q) && RUNNER_FROM.d > 0.2) { q.x = RUNNER_FROM.x; q.z = RUNNER_FROM.z; }
+  return q;
+}
+
+// 八王子山への逃げ道は近い兵も遠い兵も同じ折れを歩く。
+// 終点は安全な退出場所とは扱わず、そこから先は通常の敗走を続ける。
+function refugeeWay(army, u, want) {
+  const path = u.group?.fleePath;
+  if (!path) return want;
+  let i = u._refugeeI ?? 0;
+  while (i < path.length && Math.hypot(u.pos.x - path[i][0], u.pos.z - path[i][1]) < 1.8) i++;
+  u._refugeeI = i;
+  if (i >= path.length) return want;
+  const q = u._refugeePoint;
+  q.x = path[i][0]; q.z = path[i][1];
+  return q;
+}
+
+// 建物を作った後、開戦前に列の端まで当たりを調べる。人も陣形の間隔も縮めない。
+function outdoorBlocked(rt, x, z) {
+  if (runnerBlocked(rt, x, z)) return true;
+  for (const b of BUILDINGS) {
+    if (b.lite || ['romon', 'chumon', 'kairo', 'roka', 'torii', 'haka'].includes(b.kind)) continue;
+    const c = Math.cos(b.rot || 0), sn = Math.sin(b.rot || 0), dx = x - b.x, dz = z - b.z;
+    if (Math.abs(dx * c - dz * sn) < b.w / 2 + .75 && Math.abs(dx * sn + dz * c) < b.d / 2 + .75) return true;
+  }
+  return false;
+}
+function placePeople(rt, g) {
+  const slots = [], original = g.slotPos;
+  for (const u of g.units) {
+    const p = original.call(g, u.slot, g.initial), q = { x: p.x, z: p.z };
+    if (outdoorBlocked(rt, q.x, q.z)) {
+      let found = false;
+      for (let r = 1.5; r <= 12 && !found; r += 1.5) for (let k = 0; k < 16; k++) {
+        const a = k * Math.PI / 8, x = p.x + Math.sin(a) * r, z = p.z + Math.cos(a) * r;
+        if (outdoorBlocked(rt, x, z) || slots.some((v) => v && Math.hypot(v.x - x, v.z - z) < 1.3)
+          || g.units.some((v) => v !== u && !slots[v.slot] && Math.hypot(v.pos.x - x, v.pos.z - z) < 1.3)) continue;
+        q.x = x; q.z = z; found = true; break;
+      }
+    }
+    slots[u.slot] = q;
+    u.pos.set(q.x, rt.world.heightAt(q.x, q.z), q.z);
+    u.mesh.position.copy(u.pos);
+    u._refugeePoint = { x: 0, z: 0 };
+  }
+  g.slotPos = function (i, n) {
+    return this.order === 'hold' && !this.routed ? slots[i] || original.call(this, i, n) : original.call(this, i, n);
+  };
+}
+
+// 火付けは近くの既存の足軽が行う。接敵・負傷・敗走を優先し、任務の成功条件には足さない。
+function fireWork(rt, dt) {
+  const F = rt.flags;
+  for (const job of F.fireJobs) {
+    if (!job.ready || job.done) continue;
+    const rec = F.G.byId[job.id];
+    let u = job.unit;
+    if (u && (!u.alive || u.fleeing || u.woundOut || u.target || u.atk || u.stagger > 0 || rt.t - job.started > 18)) {
+      u._fireJob = null; u._crouch = false; job.torch.visible = false; job.unit = u = null; job.work = 0;
+    }
+    if (rec.state !== 0 || F.ending) {
+      if (u) { u._fireJob = null; u._crouch = false; }
+      job.torch.visible = false; job.done = true; continue;
+    }
+    if (!u && rt.t >= job.tryT) {
+      job.tryT = rt.t + 1;
+      let best = 18;
+      for (const g of F.oda) if (g !== F.command && !g.routed) for (const v of g.units) {
+        if (!v.alive || v.type !== 'ashigaru' || v.fleeing || v.woundOut || v.target || v.atk || v._fireJob || v.isStandard) continue;
+        const d = Math.hypot(v.pos.x - job.point.x, v.pos.z - job.point.z);
+        if (d < best && runnerClear(rt.army, v, v.pos, job.point)) { best = d; u = v; }
+      }
+      if (u) {
+        job.unit = u; job.started = rt.t; u._fireJob = job;
+        if (u._hieiWay) u._hieiWay.t = -1;
+        u.mesh.add(job.torch); job.torch.visible = true;
+      }
+    }
+    if (!u) continue;
+    if (!near(u, job.point, 1.8)) { job.work = 0; u._crouch = false; continue; }
+    u.heading = Math.atan2(rec.x - u.pos.x, rec.z - u.pos.z);
+    u._crouch = true; job.work += dt;
+    if (job.work >= 2) {
+      F.fire.ignite(rec, '放火'); u._fireJob = null; u._crouch = false;
+      job.torch.visible = false; job.done = true;
+      if (job.id === 'minka_5') rt.bark('坂本の町に火がかかった。北の堅田にも煙が見える');
+    }
+  }
+}
+
+const hiei_mtn = {
+  botOrders: true, // 道・木戸・供・退き口は、この戦の下知に従う。
+  spawn: { x: P.spawn.x, z: P.spawn.z, heading: -Math.PI / 2 },
+  world: {
+    seed: 15710,
+    moveLim: 280,           // この戦だけ：横川六谷の奥（z≈-268）まで。本道の掃討条件は変えない。
+    time: 'day',
+    mist: false,           // 当日の霧は不明。煙は建物の火から生じる。山の上は森と霞に隠れて見えない（P1）
+    autumn: true,          // 旧暦九月
+    wind: [-0.86, -0.4],   // 当日の風向は不明。復元の湖から山へ吹き上げる風（火は西・北西へ広がる）
+    muddy: 0.15,
+    terrainTags: true,     // 急斜面・石段・細道・森で速さと疲れが変わる（terrain_tags.js）
+    climbTan: 1.4,         // 山の斜面は遅く疲れるが、道の外も登れる（崖ほどの所だけ登れない。法面や森に閉じ込めない）
+    // 世界の道は折れ線のまま、半幅も渡す。谷道を一律の広い道として判じない。
+    paths: PATHS.map((p) => Object.assign(p.pts.slice(), { w: p.w, lv: p.lv, hist: p.hist })),
+    moveWay: runnerWay,
+    runnerWay,
+    fleeWay: refugeeWay,
+    treePadMul: 0.42,      // 細い山道は、杉が道の際まで迫る
+    height,
+    clear: onFlat,
+    water: { x: 198, level: 0.4 },   // 琵琶湖（坂本の東）
+    tint(x, z, h, c) {
+      if (x > 128 && Math.abs(z) < 34) return;                        // 坂本の里と田畑
+      if (x < -24 && x > -66 && z > -24 && z < 13) { c.lerp({ r: 0.56, g: 0.53, b: 0.46 }, 0.5); return; }   // 中庭の白い砂
+      c.setRGB(c.r * 0.8, c.g * 0.88, c.b * 0.78);                    // 杉の山は暗く
+    },
+    trees: 1500,
+    tufts: 2600,
+    treeDensity: (x, z) => (x > 128 && Math.abs(z) < 40 ? 0.04 : x < -10 && x > -90 && z > -45 && z < 25 ? 0.3 : 1),
+    sugiAt: (x, z) => (x > -12 && x < 118 && Math.abs(z) < 40 ? 0.9 : x < -10 ? 0.55 : 0.2),
+    groves: [{ x: 60, z: -28, r: 16, n: 30 }, { x: 18, z: 18, r: 16, n: 30 }, { x: 100, z: 22, r: 14, n: 22 }, { x: -2, z: -40, r: 12, n: 18 }],
+    // 逃げる僧兵と人々は、山の奥（西）や谷、横川より先の山中へ消える
+    fleeOut: (x, z, team) => team === 1 && (x < -240 || Math.abs(z) > 245),
+  },
+
+  setup(rt) {
+    const W = rt.world;
+    const F = rt.flags;
+    hieiSpeech(rt);
+    monkSoldiers(rt);
+    F.step = 0; F.ek = 0; F.ak = 0; F.civ = []; F.civByPlace = {}; F.foes = [];
+    F.t0 = rt.t; F._gp = { x: P.spawn.x, z: P.spawn.z };
+
+    // ---- 伽藍・坂本・本坂の建物（まとめて描く。史実の確度の札つき） ----
+    const G = F.G = new Garan(rt);
+    for (const b of BUILDINGS) G.build(b);
+    F.valleyWays = VALLEYS.map((v) => pathById(v.path));
+    for (const p of F.valleyWays) {
+      const v = VALLEYS.find((q) => q.path === p.id);
+      if (v.dist !== 'yokawa') continue; // 新しい分岐に固い灯籠を増やして、本道の列を塞がない。
+      G.lantern(p.pts[0][0] + 1.5, p.pts[0][1], v.dist);
+    }
+    // 三塔の山道・各堂の入口にも石段。寺なので城の切岸・堀・石垣は足さない。
+    for (const p of PATHS) G.stairs(p, pathPoint, { minG: .32, dist: p.id.startsWith('entry_') ? BUILDINGS.find((b) => 'entry_' + b.id === p.id).dist : p.id === 'todo' ? 'todo' : 'path' });
+    // 坂本の東の田畑。区画・畦・色は当時の近江の里として推定し、湖の手前に留める。
+    const fields = G.build({ id: 'sakamoto_fields', name: '坂本の田畑', kind: 'landscape', x: 0, z: 0, w: 1, d: 1, dist: 'far', lite: true, noBurn: true, hist: 'GAME_C' });
+    for (const z of [-38, -28, 28, 38]) {
+      const g = new THREE.PlaneGeometry(12, 7, 3, 2); g.rotateX(-Math.PI / 2); g.translate(184, 0, z);
+      const pos = g.attributes.position;
+      for (let i = 0; i < pos.count; i++) pos.setY(i, W.heightAt(pos.getX(i), pos.getZ(i)) - fields.y0 + .03);
+      g.computeVertexNormals(); G.add(fields, 'plain', paintGeo(g, 0x8b8749));
+      for (const offset of [-3.5, 0, 3.5]) {
+        const ridge = new THREE.BoxGeometry(12, .12, .18); ridge.translate(184, W.heightAt(184, z + offset) - fields.y0 + .06, z + offset);
+        G.add(fields, 'plain', paintGeo(ridge, 0x665c3b));
+      }
+    }
+    for (const [x, z] of [[-6, -9.5], [-6, -2.5], [-23, -8.5], [-23, -1.5], [-34, -8.5], [-34, -1.5], [144, -2], [144, 8]]) G.lantern(x, z, x > 100 ? 'sakamoto' : 'todo');
+    // 『耶蘇会士日本通信』所収のフロイスの焼き討ち報告：戦乱で僧坊が減り、谷々に残ったという。
+    // 紹介：https://nihonsizatugaku.net/hieizan/
+    // 旧跡との照合：https://www.jstage.jst.go.jp/article/aija/91/841/91_646/_pdf
+    // 数と位置は確定できない。本道脇の礎石は、この戦より前の荒廃を表す推定の景色。
+    const stone = new THREE.BoxGeometry(0.55, 0.24, 0.55);
+    for (const [i, x, z] of [[0, 82, -9], [1, 68, -13], [2, 54, -10]]) {
+      const rec = G.build({ id: 'old_sobo_' + i, kind: 'sobo_ato', x, z, w: 4, d: 3, dist: 'path', lite: true, noBurn: true, hist: 'HIST_B' });
+      rec.top = 0.3;
+      for (const dx of [-1.8, 0, 1.8]) for (const dz of [-1.2, 1.2]) {
+        const g = stone.clone(); g.translate(dx, W.heightAt(x + dx, z + dz) - rec.y0 + 0.05, dz);
+        G.add(rec, 'plain', paintGeo(g, 0x77746b));
+      }
+    }
+    stone.dispose();
+    // 焼失の明確な痕跡がある山上の堂は根本中堂と大講堂。
+    // 他の堂まで確実に焼けた景色にせず、坂本の火と二堂の煙を主にする。
+    // 八王子山の焼き討ちは史料にあるが、避難先を守れた史実としては扱わない。
+    for (const r of G.recs) if (r.x < 128 && r.id !== 'konponchudo_1571' && r.id !== 'daikodo_old') r.noBurn = true;
+    G.finish();
+    hieiGaranLook(rt, G);
+    F.fire = makeTempleFire(rt, G, {
+      onIgnite: (r) => {
+        if (r.kind === 'chudo') F.chudoFire = true;
+        battleEvent(rt, EVENT_FIRE_START, r, null, 1, r.kind === 'chudo', `${r.name}に火がかかった`);
+      },
+      onBurnt: (r) => { if (r.kind === 'shoro') rt.bark(`${r.name}が焼け落ちた`); },
+    });
+    const shaftGeo = new THREE.CylinderGeometry(.045, .055, .7, 5);
+    const flameGeo = new THREE.ConeGeometry(.1, .28, 5);
+    const shaftMat = new THREE.MeshLambertMaterial({ color: 0x594329 });
+    const flameMat = new THREE.MeshBasicMaterial({ color: 0xffb04a });
+    F.fireJobs = ['minka_5', 'konponchudo_1571', 'daikodo_old'].map((id) => {
+      const b = G.byId[id], entry = pathById('entry_' + id);
+      const p = entry ? entry.pts[entry.pts.length - 1] : [b.x + Math.sin(b.rot || 0) * (b.d / 2 + 1.6), b.z + Math.cos(b.rot || 0) * (b.d / 2 + 1.6)];
+      const torch = new THREE.Group(), shaft = new THREE.Mesh(shaftGeo, shaftMat), flame = new THREE.Mesh(flameGeo, flameMat);
+      flame.position.y = .45; torch.add(shaft, flame); torch.position.set(.35, 1, .35); torch.visible = false;
+      return { id, point: { x: p[0], z: p[1] }, torch, ready: false, done: false, work: 0, tryT: 0, unit: null };
+    });
+    // 一時の逆茂木（戦の時だけの物。GAME_C）：文殊楼の石段の上に二つ。真ん中は道
+    for (const [x, z, r] of [[-10, -10.2, 0.25], [-10, -1.8, -0.25]]) rt.scene.add(sakamogi(W, x, z, r, 3.2));
+
+    // ---- 織田勢：明智光秀の手（自分の持ち場）と鉄砲。坂本のまわりに大軍（軽い作り） ----
+    // 坂本の通りに整列する。背後へ振り直すと民家の裏から道へ戻れなくなる。
+    F.akechi = allyGroup(rt, { faction: 'oda', fixed: true, noRout: true, name: '明智の先手', anchor: { x: 158, z: 1 }, facing: -Math.PI / 2, width: 3, aggro: 9, formation: 'column', colW: 2 },
+      dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 16 }], ODA));
+    F.command = allyGroup(rt, { faction: 'oda', fixed: true, fullStrength: true, noGuard: true, name: '明智光秀と供の衆', anchor: { x: 174, z: 6 }, facing: -Math.PI / 2, width: 2, formation: 'column', colW: 2, aggro: 4, seekRange: 8, guard: true, guardSight: 12, guardLeash: 3, noRing: true, noRout: true },
+      dress([{ type: 'samurai', n: 2 }, { type: 'busho', n: 1, o: { name: '明智光秀', invuln: true, horse: false, hat: 'kabuto_w', haori: 0x3a3a52 } }, { type: 'samurai', n: 2 }], ODA));
+    F.akeU = F.command.units.find((u) => u.name === '明智光秀');
+    F.command.leader = F.akeU;
+    F.akechi._command = F.command;
+    F.teppo = allyGroup(rt, { faction: 'oda', fixed: true, name: '明智の鉄砲組', anchor: { x: 160, z: 9 }, facing: -Math.PI / 2, width: 3, aggro: 5, formation: 'line' }, dress([{ type: 'gun', n: 6 }], ODA));
+    F.oda = [F.akechi, F.teppo, F.command];
+    for (const g of F.oda) { g.defMult = 1; g.dmgMult = 1; }
+    const n = RANKS[rt.G.rank].squad || 0;
+    if (n) rt.makeSquad({ x: P.spawn.x - 3, z: P.spawn.z + 3 }, -Math.PI / 2, [{ kind: 'spear', n }]);
+    // 組を持たぬ足軽は、自分が属する明智の先手を数える。距離や士気では負けにしない。
+    F.lossUnits = rt.squad.length ? rt.squad.slice() : F.akechi.units.slice();
+    F.lossInitial = F.lossUnits.length;
+    const DA = (x, z, w, d, count, flag, seed) => W.addDistantArmy({ x, z, w, d, count, facing: -Math.PI / 2, armor: 0x2b3140, flagTex: flagTexture(flag), seed });
+    [[176, -26, 'oda'], [178, 30, 'eiraku']].forEach(([x, z, f], i) => DA(x, z, 22, 10, 160, f, 1571 + i));
+    // 三井寺の山岡景猶の屋敷に置いた本陣。南の遠景に置き、坂本の先手と分ける。
+    // 座標と幕の形は推定。遠い本陣へ任務や開始位置を移さず、登山の筋は保つ。
+    const headquarters = jinmaku({ heightAt: (x, z) => W.farH(x, z) }, 90, 570, 24, 18, 6, { mon: 'oda', solid: false });
+    headquarters.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; o.userData.camBlock = false; } });
+    rt.scene.add(headquarters);
+    DA(90, 592, 22, 10, 160, 'oda', 1573);
+
+    // ---- P1 山麓：日吉社の鳥居の前の神人と僧兵、里坊の弓 ----
+    // 鳥居前の守りは持ち場で応戦する。平地用の回り込み・退却で里坊の裏へ移さない。
+    F.hiyoshiG = this.foe(rt, { name: '日吉社の神人と僧兵', noAI: true, anchor: { x: 146, z: -7 }, facing: Math.PI / 2, width: 7, aggro: 12, morale: 75, fleeDir: { x: -1, z: -0.6 } },
+      [...dress([{ type: 'ashigaru', n: 4 }, { type: 'samurai', n: 1, o: { weapon: 'spear' } }], SOHEI), ...dress([{ type: 'ashigaru', n: 3 }], LAY)]);
+    F.satoboBow = this.foe(rt, { name: '里坊の僧兵（弓）', anchor: { x: 134, z: -5 }, facing: Math.PI / 2, width: 4, aggro: 10, morale: 60, fleeDir: { x: -1, z: -0.3 } }, dress([{ type: 'bow', n: 3 }], SOHEI));
+
+    F.akechi2 = allyGroup(rt, { faction: 'oda', fixed: true, name: '煙に迷う明智の兵', anchor: { x: 180, z: 7 }, facing: -Math.PI / 2, width: 2, aggro: 10, formation: 'column', colW: 2, order: 'hold', seekRange: 12 },
+      dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 9 }], ODA));
+    F.akechi2.defMult = 1; F.akechi2.dmgMult = 1;
+    F.oda.push(F.akechi2);
+    for (const g of F.oda) g.historicalOrders = true;
+    this.preparePeople(rt);
+    for (const g of F.foes) placePeople(rt, g);
+    for (const g of F.civ) placePeople(rt, g);
+    rt.world.setTime('day');
+    rt.setPhase('brief');
+    rt.obj('main', hi(rt) ? '明智光秀の先手の一隊を預かり、坂本から山へ登れ' : '明智光秀のもとで、坂本から山へ登れ', 'main');
+    rt.obj('civ', '刃向かわぬ者（僧・里の者）は討つな', 'side');
+    rt.say('明智光秀', `${nm(rt)}、まず日吉社の前を抜け、本坂の登り口を押さえる`, 5);
+    rt.say('明智光秀', '刃向かう者とは戦え。逃げる者、手向かわぬ者は追うな', 4.5);
+    rt.after(6, () => rt.say('足軽', '殿の本陣は南の三井寺、山岡殿の屋敷じゃ。ここは坂本の先手の陣ぞ', 4));
+    rt.marker('ake', unitPos(F.akeU), '明智光秀', {});
+    rt.after(12, () => { if (rt.phase === 'brief') this.p1(rt); });
+  },
+
+  preparePeople(rt) {
+    const F = rt.flags;
+    // 山道の上から三組・三十人。本道の折れを通して下り、毎コマ兵を作らない。
+    F.upperFoes = [8, 13, 18].map((i) => {
+      const [x, z] = pathById('honzaka').pts[i];
+      const g = this.foe(rt, { name: '山道を下る僧兵', anchor: { x, z }, facing: Math.PI / 2, width: 2, aggro: 10, morale: 80, formation: 'column', colW: 2 },
+        dress([{ type: 'ashigaru', n: 9 }, { type: 'samurai', n: 1, o: { weapon: 'spear' } }], SOHEI));
+      g._downRoad = pts('honzaka', Math.max(0, i - 3), i - 1).reverse();
+      return g;
+    });
+    // つづら折りの下の道に僧兵、上の折れに弓（上から射る）
+    F.sw1 = this.foe(rt, { name: 'つづら折りの僧兵', anchor: { x: 83, z: 9 }, facing: Math.PI / 2, width: 4, aggro: 10, morale: 70, formation: 'yari', fleeDir: { x: -1, z: -0.4 } },
+      [...dress([{ type: 'ashigaru', n: 4 }], SOHEI), ...dress([{ type: 'ashigaru', n: 1 }], LAY)]);
+    F.sw1Bow = this.foe(rt, { name: '折れの上の僧兵（弓）', anchor: { x: 74, z: -13 }, facing: Math.PI / 2, width: 4, aggro: 12, morale: 60, fleeDir: { x: -1, z: 0 } }, dress([{ type: 'bow', n: 3 }], SOHEI));
+    // 中腹の小堂：僧兵・神人・具足を着けた山の衆の鉄砲が混じる
+    F.midG = this.foe(rt, { name: '中腹の小堂の衆', anchor: { x: 42, z: -8 }, facing: Math.PI / 2, width: 6, aggro: 12, morale: 75, fleeDir: { x: -1, z: -0.2 } },
+      [...dress([{ type: 'ashigaru', n: 3 }, { type: 'samurai', n: 1, o: { weapon: 'spear' } }], SOHEI), ...dress([{ type: 'ashigaru', n: 2 }], LAY), ...dress([{ type: 'gun', n: 1, o: { hat: 'jingasa' } }], REM)]);
+    // 文殊楼の守り（石段の上）と、門の内の武装した山の衆。鐘が鳴ると集まる
+    F.monjuG = this.foe(rt, { name: '文殊楼の僧兵', anchor: { x: -9, z: -6 }, facing: Math.PI / 2, width: 5, aggro: 8, morale: 85, formation: 'yari', fleeDir: { x: -1, z: 0.2 } },
+      dress([{ type: 'ashigaru', n: 5 }, { type: 'samurai', n: 1, o: { weapon: 'spear' } }], SOHEI));
+    F.monjuBow = this.foe(rt, { name: '文殊楼脇の弓', anchor: { x: -16, z: -11 }, facing: Math.PI / 2, width: 4, aggro: 12, morale: 70, fleeDir: { x: -1, z: -0.2 } }, dress([{ type: 'bow', n: 3 }], SOHEI));
+    F.remG = this.foe(rt, { name: '武装した山の衆', anchor: { x: -22, z: -3 }, facing: Math.PI / 2, width: 4, aggro: 8, morale: 90, fleeDir: { x: -1, z: 0.3 } },
+      dress([{ type: 'samurai', n: 3, o: { hat: 'kabuto' } }, { type: 'gun', n: 1, o: { hat: 'jingasa' } }], REM));
+    F.mudojiG = this.foe(rt, { name: '無動寺谷の伏兵', anchor: { x: 46, z: 20 }, facing: -Math.PI / 2, width: 4, aggro: 14, morale: 70, fleeDir: { x: 0.2, z: 1 } }, dress([{ type: 'ashigaru', n: 4 }, { type: 'bow', n: 2 }], SOHEI));
+    // 東塔の中の守り（先に置いておく。鐘で集まった衆）
+    F.chudoG = this.foe(rt, { name: '根本中堂の前の僧兵', formation: 'yari', anchor: { x: -40, z: -7 }, facing: Math.PI / 2, width: 6, aggro: 12, morale: 95, fleeDir: { x: -1, z: -0.4 } },
+      dress([{ type: 'samurai', n: 1, o: { weapon: 'spear' } }, { type: 'ashigaru', n: 6 }], SOHEI));
+    F.courtBow = this.foe(rt, { name: '廻廊の弓', anchor: { x: -36, z: -10 }, facing: Math.PI / 2, width: 4, aggro: 12, morale: 70, fleeDir: { x: -1, z: -0.4 } }, dress([{ type: 'bow', n: 3 }], SOHEI));
+    F.kodoG = this.foe(rt, { name: '大講堂の僧兵', anchor: { x: -46, z: -27 }, facing: Math.PI / 2, width: 6, aggro: 10, morale: 85, fleeDir: { x: -1, z: -0.6 } },
+      [...dress([{ type: 'ashigaru', n: 4 }, { type: 'samurai', n: 1, o: { weapon: 'spear' } }], SOHEI), ...dress([{ type: 'ashigaru', n: 2 }], LAY)]);
+    F.saitoG = this.foe(rt, { name: '西塔からの加勢', anchor: { x: -100, z: -31 }, facing: Math.PI / 2, width: 4, aggro: 12, morale: 85, fleeDir: { x: -1, z: -0.3 } },
+      [...dress([{ type: 'ashigaru', n: 4 }], SOHEI), ...dress([{ type: 'samurai', n: 2, o: { hat: 'kabuto' } }], REM)]);
+    // にない堂（常行堂・法華堂）周辺の森の伏せ。東塔より道が狭く、森が深い（25章）
+    F.ninaidoG = this.foe(rt, { name: 'にない堂の僧兵', formation: 'yari', anchor: { x: -110, z: -44 }, facing: Math.PI / 2, width: 4, aggro: 11, morale: 78, fleeDir: { x: -1, z: -0.3 } },
+      [...dress([{ type: 'ashigaru', n: 4 }], SOHEI), ...dress([{ type: 'samurai', n: 1, o: { weapon: 'spear' } }], SOHEI)]);
+    // 釈迦堂の守り（西塔の中心）
+    F.shakadoG = this.foe(rt, { name: '西塔・釈迦堂の僧兵', anchor: { x: -124, z: -44 }, facing: Math.PI / 2, width: 5, aggro: 12, morale: 92, formation: 'yari', fleeDir: { x: -1, z: -0.4 } },
+      [...dress([{ type: 'ashigaru', n: 5 }, { type: 'samurai', n: 1, o: { weapon: 'spear' } }], SOHEI), ...dress([{ type: 'gun', n: 1, o: { hat: 'jingasa' } }], REM)]);
+    F.saitoBow2 = this.foe(rt, { name: '西塔の弓', anchor: { x: -125, z: -52 }, facing: Math.PI / 2, width: 3, aggro: 11, morale: 65, fleeDir: { x: -1, z: -0.3 } }, dress([{ type: 'bow', n: 2 }], SOHEI));
+    // 横川までの長い尾根道にも、既存の八人のうち四人を分ける。
+    // 人数は増やさず、小集団の抵抗を途中にも置く。配置は遊びの復元。
+    F.yokawaRoadG = this.foe(rt, { name: '横川への尾根道の僧兵', anchor: { x: -106, z: -124 }, facing: 0, width: 2, aggro: 10, morale: 70, formation: 'column', fleeDir: { x: 0, z: -1 } },
+      dress([{ type: 'ashigaru', n: 3 }, { type: 'bow', n: 1 }], SOHEI));
+    F.yokawaG = this.foe(rt, { name: '横川中堂の僧兵', anchor: { x: -94, z: -215 }, facing: 0, width: 5, aggro: 12, morale: 90, formation: 'yari', fleeDir: { x: 0, z: -1 } },
+      [...dress([{ type: 'ashigaru', n: 2 }, { type: 'samurai', n: 1, o: { weapon: 'spear' } }], SOHEI), ...dress([{ type: 'bow', n: 1 }], SOHEI)]);
+    for (const [x, z] of [[12, -19], [16, 4]]) {
+      const g = this.foe(rt, { name: '杉林の僧兵', anchor: { x, z }, facing: Math.PI / 2, order: 'hold', ambush: true, seekRange: 16, width: 3, aggro: 12, morale: 70, fleeDir: { x: -1, z: 0 } }, dress([{ type: 'ashigaru', n: 3 }], SOHEI));
+      F.ambG = (F.ambG || []).concat(g);
+    }
+    F.preparing = true;
+    this.civ(rt, 150, 14, 5, '逃げる里の者', { x: 0.25, z: 1 });
+    this.civ(rt, 151, -13, 3, '八王子山へ逃げる僧と里の者', { x: -1, z: -0.5 });
+    this.civ(rt, 30, 8, 6, '逃げる僧', { x: 0.2, z: 1 });
+    this.civ(rt, 38, -14, 6, '山へ逃れていた里の者', { x: 0.3, z: 1 });
+    this.civ(rt, -44, -8, 7, '逃げる僧', { x: -1, z: 0.25 });
+    this.civ(rt, -52, -25, 7, '大講堂に逃れていた人々', { x: -0.4, z: -1 });
+    this.civ(rt, -30, 18, 6, '南谷の僧', { x: -0.3, z: 1 });
+    this.civ(rt, -118, -56, 7, '西塔の僧坊に逃れていた人々', { x: -1, z: -0.4 });
+    this.civ(rt, -130, -32, 6, '逃げる僧', { x: -1, z: -0.4 });
+    this.civ(rt, -116, -242, 7, '横川の僧坊に逃れていた人々', { x: 0, z: -1 });
+    this.civ(rt, -96, -207, 5, '逃げる僧', { x: 0, z: -1 });
+    F.preparing = false;
+  },
+
+  foe(rt, o, list) {
+    // 山道と堂の前に置く守りは、カメラの背後へ振り直さない。
+    // 振り直すと坂本では湖際、東塔では根本中堂の当たりの中に出てしまう。
+    const g = enemyGroup(rt, { faction: 'saito', order: 'hold', dmgMult: 1, seekRange: 16, formation: list.every((q) => q.type === 'bow' || q.type === 'gun') ? 'line' : 'column', colW: 2, ...o, fixed: true }, list);
+    rt.flags.foes.push(g);
+    return g;
+  },
+  // 逃げる僧・里の者・避難する人（戦わない。誰にも狙われない。自分で討てば下知違反）
+  civ(rt, x, z, n2, name, dir) {
+    const F = rt.flags;
+    const key = x + ':' + z;
+    if (!F.preparing) {
+      const c = F.civByPlace[key];
+      c.fleePath = this.escapePath(rt, c);
+      c.routed = true; c.order = 'flee';
+      for (const u of c.units) u.fleeing = true;
+      return c;
+    }
+    const monk = name.includes('僧');
+    const c = enemyGroup(rt, { faction: 'imagawa', name, anchor: { x, z }, fixed: true, facing: Math.atan2(dir.x, dir.z), width: 4, aggro: 0, morale: 100, noRout: true, fleeDir: dir, speed: 2.5 },
+      [{ type: 'porter', n: n2, o: monk ? { sohei: 0, flag: null, hat: 'none', armor: 0x1e1c1a, lace: 0x2a2826, cloth: 0x24221f, haori: null, mon: null } : { flag: null, hat: 'none', armor: 0x4a4034, lace: 0x5a4e3c, cloth: 0x6a5a44, haori: null, mon: null } }]);
+    for (const u of c.units) { u.noTarget = true; u.dmg = 0; }
+    F.civByPlace[key] = c;
+    c.civ = true;
+    F.civ.push(c);
+    return c;
+  },
+
+  escapePath(rt, c) {
+    // 退出方向へ近い既存の谷道を使う。建物の壁へ一直線に逃がさない。
+    let best = null, distance = 24;
+    for (const p of PATHS) if (p.lv >= 3 && !p.id.startsWith('entry_')) {
+      const start = p.pts[0], end = p.pts[p.pts.length - 1];
+      if ((end[0] - start[0]) * c.fleeDir.x + (end[1] - start[1]) * c.fleeDir.z <= 0) continue;
+      const d = Math.hypot(c.anchor.x - start[0], c.anchor.z - start[1]);
+      RUNNER_TEST.x = start[0]; RUNNER_TEST.z = start[1];
+      if (d < distance && c.units.every((u) => runnerClear(rt.army, u, u.pos, RUNNER_TEST))) { best = p.pts; distance = d; }
+    }
+    return best;
+  },
+
+  // ===== P1 山麓：坂本の里に火がかかる。日吉社の前を抜け、本坂の登り口へ =====
+  p1(rt) {
+    const F = rt.flags;
+    if (F.step >= 1) return;
+    F.step = 1; F.stepT = rt.t; F.smokeCall = false; F.t1 = rt.t;
+    rt.setPhase('climb');
+    sfx('horagai', 0.85);
+    rt.unmark('ake');
+    rt.obj('main', '日吉社の鳥居の前の僧兵を退け、本坂の登り口へ', 'main');
+    rt.marker('hiyoshi', { x: 148, z: -4 }, '日吉社の鳥居', { red: true });
+    walk(F.akechi, [[150, 4], [147, 2]], 2.6, (q) => attackFrom(q, 26));
+    walk(F.teppo, [[154, 8], [152, 7]], 2.4);
+    this.civ(rt, 150, 14, 5, '逃げる里の者', { x: 0.25, z: 1 });
+    const refugees = this.civ(rt, 151, -13, 3, '八王子山へ逃げる僧と里の者', { x: -1, z: -0.5 });
+    // 既存の非戦の三人を裏山へ。追跡・討伐の対象にも、進行の条件にもしない。
+    refugees.fleePath = [[148, -18], [143, -16], ...pts('hachioji', 1)];
+    rt.after(8, () => {
+      // 堅田は北の湖側の遠景。距離を縮めず、煙一本で放火の合図を表す（位置は推定）。
+      const W = rt.world;
+      W.addSmokeColumn(190, W.farH(190, -520) + 3, -520, { size: 3 });
+      F.fireJobs[0].ready = true;
+    });
+    rt.after(30, () => { if (F.fire.ignite('hiyoshi_honden')) rt.say('足軽', '……日吉の社にまで火を', 3); });
+    rt.after(3, () => rt.bark('手向かわずに逃げる僧や里の者は追うな。討てば下知に背くぞ'));
+  },
+
+  // ===== P2 登山：狭い山道・つづら折り・杉林。小さな抵抗。鐘・叫び・前の煙 =====
+  p2(rt) {
+    const F = rt.flags;
+    if (F.step >= 2) return;
+    F.step = 2; F.stepT = rt.t; F.smokeCall = false;
+    rt.unmark('hiyoshi');
+    rt.banner('本坂', '狭い山道を登る。上から射られるぞ');
+    rt.obj('main', '煙の上がる本坂を、手向かう者を退けながら登れ', 'main');
+    // 本坂の上に見える煙は山上の二堂の火から来る。登山中から見せ場を作る。
+    for (const id of ['konponchudo_1571', 'daikodo_old']) {
+      F.fire.ignite(F.G.byId[id], '山上の堂への火');
+      const job = F.fireJobs.find((j) => j.id === id); job.done = true;
+    }
+    for (const [x, z, size] of [[56, -8, 3.6], [8, -16, 4]]) rt.world.addSmokeColumn(x, rt.world.heightAt(x, z) + 8, z, { size });
+    F.fire.tick(0.5);
+    for (const g of F.upperFoes) walk(g, g._downRoad, 1.8, (q) => attackFrom(q, 12));
+    rt.marker('stairs', () => F._gp || P.stairsFoot, '本坂（道なりに文殊楼へ）', { h: 3 });
+    walk(F.akechi, [[146, 4], [134, 3], ...pts('honzaka', 0, 19)], 2.5, (q) => { q.order = 'hold'; q.aggro = 12; });
+    walk(F.akechi2, [[170, 7], [158, 5], [146, 4], [134, 3], ...pts('honzaka')], 2.4);
+    walk(F.teppo, [[138, 4], ...pts('honzaka', 0, 12)], 2.4);
+    // 無動寺谷への分かれ道（別ルート・退き道・伏兵の谷）：本道を外れて谷へ下りれば、僧兵の伏兵が待つ
+    rt.marker('mudoji', P.branch, '谷への分かれ道・任務は本道', { h: 2 });
+    rt.after(14, () => rt.say('明智光秀', '無動寺の谷道は退き口にもなる。伏兵に気をつけよ', 4));
+    this.civ(rt, 30, 8, 6, '逃げる僧', { x: 0.2, z: 1 });
+    this.civ(rt, 38, -14, 6, '山へ逃れていた里の者', { x: 0.3, z: 1 });
+    rt.say('明智光秀', '細道じゃ。一人ずつ、前を詰めて登れ', 4);
+  },
+
+  // 中腹の平場に着いた：東塔の鐘が鳴り、前に煙が上がる（東谷に火が上がる）
+  bellTodo(rt) {
+    const F = rt.flags;
+    if (F.bell1) return;
+    F.bell1 = true;
+    ringBell(rt, F.G.byId.todo_shoro);
+    rt.banner('東塔の鐘が鳴る', '山の上の僧兵が集まってくる');
+    rt.army.play('eshout', { x: -10, z: -6 }, 1.2);
+    for (const g of [F.monjuG, F.monjuBow, F.remG]) if (g) { g.aggro = 13; g.morale = Math.min(100, g.morale + 10); }
+  },
+
+  // 杉林の伏せ：狭い道の両側の木の間から
+  ambush(rt) {
+    const F = rt.flags;
+    if (F.amb) return;
+    F.amb = true;
+    for (const g of F.ambG) if (!gone(g)) attackFrom(g, 16);
+    rt.army.play('eshout', { x: 12, z: -8 }, 1.4);
+    rt.bark('杉林から僧兵が！', true);
+  },
+
+  // ===== P3 文殊楼：石段の上の楼門。ここで初めて東塔の大伽藍が見える =====
+  p3(rt) {
+    const F = rt.flags;
+    if (F.step >= 3) return;
+    rt.unmark('mudoji');
+    F.step = 3; F.stepT = rt.t; F.smokeCall = false;
+    rt.unmark('stairs');
+    this.bellTodo(rt);
+    rt.banner('文殊楼', '石段の上の楼門。東塔の入口');
+    rt.obj('main', '文殊楼を抜け、燃える堂の間の山道へ進め', 'main');
+    rt.marker('monju', P.monjuro, '文殊楼・門を抜ける', { h: 3 });
+    walk(F.akechi, pts('honzaka', 19, 22), 2.5, (q) => attackFrom(q, 30));
+    walk(F.teppo, [...pts('honzaka', 12, 18)], 2.4, (q) => { q.order = 'hold'; q.anchor = { x: 6, z: -10 }; });
+    rt.after(6, () => { if (!F.ending) F.fireJobs[1].ready = true; });
+    rt.army.play('eshout', P.monjuro, 1.5);
+    rt.say('僧兵', '仏敵じゃ！　この御山に一歩も入れるな！', 3);
+  },
+
+  // ===== P4 根本中堂の周り：燃える堂の間を掃討。逃げ惑う人々と煙に混乱する味方 =====
+  p4(rt) {
+    const F = rt.flags;
+    if (F.step >= 4) return;
+    F.step = 4; F.stepT = rt.t; F.smokeCall = false;
+    rt.unmark('monju');
+    rt.banner('東塔へ入る', '根本中堂の火。堂の間を逃げる人々');
+    rt.obj('main', '燃える根本中堂の前を抜け、山道を西塔へ掃討せよ', 'main');
+    rt.objProgress('main', '根本中堂の前へ');
+    rt.marker('court', () => F._gp, () => F.courtDone ? '西塔への山道' : '根本中堂', { h: 3 });
+    walk(F.akechi, pts('todo', 0, 3), 2.5, (q) => attackFrom(q, 30));
+    walk(F.teppo, pts('honzaka', 18, 22), 2.4, (q) => { q.order = 'hold'; q.anchor = { x: -18, z: -8 }; });
+    // 煙で道を見失った味方。救い出しの任務にはしない
+    walk(F.akechi2, [...pts('todo', 0, 1), [-19, -9], ...pts('todo_n', 1, 2)], 2.3);
+    F.lostT = rt.t + 8; F.lostN = 0;
+    rt.say('明智光秀', '堂が燃えておる。手向かう者だけを退け、山道を先へ進め。逃げる者は追うな', 4.5);
+    rt.after(8, () => { if (!F.ending) F.fireJobs[2].ready = true; });
+    this.civ(rt, -44, -8, 7, '逃げる僧', { x: -1, z: 0.25 });
+    this.civ(rt, -52, -25, 7, '大講堂に逃れていた人々', { x: -0.4, z: -1 });
+    this.civ(rt, -30, 18, 6, '南谷の僧', { x: -0.3, z: 1 });
+    if (hi(rt) && F.akechi2 && !gone(F.akechi2)) rt.choose('後ろの別手をどこへ回す？（細かな動きは推定）', [
+      { label: '本道の列を支える', note: '本人は先手と本道を掃討する' },
+      { label: '南谷の道を押さえる', note: '既存の別手だけを回す。逃げる人は追わない' },
+    ], (i) => {
+      if (F.ending || F.step !== 4 || i !== 1 || gone(F.akechi2)) return;
+      F.valleyOrder = true;
+      walk(F.akechi2, [[-19, -9], [-18, -1], ...pts('todo_s', 1)], 2.2);
+      rt.say('明智光秀', '別手は南谷の口を押さえよ。本人の組は本道へ続け。逃げる者は追うな', 4);
+    }, 12);
+  },
+
+  // 西塔の鐘：別の地区が警戒し、西塔から加勢が来る（P5 の入口）
+  bellSaito(rt) {
+    const F = rt.flags;
+    if (F.bell2) return;
+    F.bell2 = true; F.westT = rt.t;
+    walk(F.akechi, [[-30, -5], [-24, -5], [-19, -9], ...pts('todo_n', 1), ...pts('saito', 1, 4)], 2.3);
+    walk(F.teppo, [[-19, -9], ...pts('todo_n', 1), ...pts('saito', 1, 4)], 2.2);
+    ringBell(rt, F.G.byId.saito_shoro, { rapid: true });
+    rt.banner('西塔の鐘が鳴る', '西の山道から加勢が来る');
+    rt.unmark('court');
+    rt.obj('main', '燃える東塔を抜け、西塔へ続く山道を掃討せよ', 'main');
+    rt.marker('west', () => F._gp || P.westGate, '西塔への山道', { h: 3 });
+    walk(F.saitoG, [[-96, -30], [-86, -27], [-76, -21]], 2.6, (q) => attackFrom(q, 28));
+    rt.say('明智光秀', '西塔の鐘か。煙の中で味方が乱れておる。組を離すな、山道を先へ押し上げよ', 4.5);
+  },
+
+  // ===== P6 西塔：浄土院を抜け、にない堂の森を経て釈迦堂へ。密林・建物間の狭い戦い（19〜25章） =====
+  p6(rt) {
+    const F = rt.flags;
+    if (F.step >= 5) return;
+    F.step = 5; F.stepT = rt.t; F.smokeCall = false;
+    rt.unmark('west');
+    rt.banner('西塔へ', '浄土院を過ぎ、森の深い谷間へ入る');
+    rt.obj('main', '浄土院を荒らさず抜け、西塔の山道を掃討せよ', 'main');
+    rt.marker('west', () => F._gp, '西塔の山道', { h: 3 });
+    F.jodoinShown = false;
+    walk(F.akechi, pts('saito', 4), 2.3, (q) => attackFrom(q, 24));
+    walk(F.teppo, pts('saito', 4, 7), 2.1);
+    this.civ(rt, -118, -56, 7, '西塔の僧坊に逃れていた人々', { x: -1, z: -0.4 });
+    this.civ(rt, -130, -32, 6, '逃げる僧', { x: -1, z: -0.4 });
+    rt.say('明智光秀', '木立を抜けよ。前の者に続き、列を切らすな', 4);
+    rt.after(16, () => rt.bark('北の山の奥には横川がある。この山はどこまでも寺が続く'));
+  },
+
+  // ===== P7 横川：西塔からさらに北へ長い山道。横川中堂への山道を掃討する（26〜32章） =====
+  p7(rt) {
+    const F = rt.flags;
+    if (F.step >= 6) return;
+    F.step = 6; F.stepT = rt.t; F.smokeCall = false;
+    rt.unmark('shakado'); rt.unmark('jodoin'); rt.unmark('west');
+    rt.banner('横川へ', '長い山道の先、北の山中へ入る');
+    rt.obj('main', '逃げ惑う人々を追わず、横川への山道を掃討せよ', 'main');
+    rt.marker('yokawa', () => F._gp, '横川への山道', { h: 3 });
+    walk(F.akechi, pts('yokawa'), 2.2, (q) => attackFrom(q, 24));
+    this.civ(rt, -116, -242, 7, '横川の僧坊に逃れていた人々', { x: 0, z: -1 });
+    this.civ(rt, -96, -207, 5, '逃げる僧', { x: 0, z: -1 });
+    rt.say('明智光秀', '横川まではなお長い。六谷へ逃げる人を追うな。我らは本道を進め', 4);
+    rt.marker('valley', { x: -90, z: -216 }, '六谷への逃げ道・掃討は本道', { h: 2 });
+  },
+
+  win(rt, why) {
+    const F = rt.flags;
+    if (F.ending) return;
+    F.ending = true;
+    rt.setPhase('end');
+    rt.unmark('mudoji');
+    for (const id of ['hiyoshi', 'trail', 'stairs', 'monju', 'court', 'kodo', 'chudoG', 'west', 'jodoin', 'shakado', 'yokawa', 'valley']) rt.unmark(id);
+    rt.objDone('main');
+    if (!F.civHurt) rt.objDone('civ');
+    rt.tracker.main = true;
+    rt.award((t) => { t.main = true; t.special = { label: '燃える山道を掃討した', pts: 22 }; }, '任務達成・山道を掃討した');
+    sfx('kane', 0.5);
+    rt.banner('任務を果たした', why || '燃える山道の掃討を終え、味方が後を引き継いだ');
+    rt.say('明智光秀', `${nm(rt)}、ようやった。……この山の煙は、京からも見えよう`, 4.5);
+    rt.after(5, () => rt.say('足軽', '山を下り、城下へ戻ろう。東では武田の動きが気がかりじゃ', 4));
+    rt.player.u.invuln = true;
+    rt.finish({ scriptedEnd: true }, 10);
+  },
+
+  lose(rt) {
+    if (!rt.canFailMission()) return;
+    const F = rt.flags;
+    if (F.ending) return;
+    F.ending = true; rt.setPhase('end');
+    for (const id of ['mudoji', 'hiyoshi', 'trail', 'stairs', 'monju', 'court', 'kodo', 'chudoG', 'west', 'jodoin', 'shakado', 'yokawa', 'valley']) rt.unmark(id);
+    rt.objRemove('civ');
+    rt.objRemove('danger');
+    rt.objFail('main'); rt.tracker.main = false;
+    rt.banner('山道を押し通せず', `組の戦える者が半分を割った（${F.lossAlive}人／${F.lossInitial}人）。坂本へ退く`);
+    rt._sayGate = rt.t;
+    rt.hud.subQ.length = 0; rt.hud.subT = 0;
+    rt.say('明智光秀', '先手が持たぬ。組を離さず、来た山道を下がれ', 4);
+    // その段の短い道筋だけでなく、坂本までつながる道を戻す。
+    // 各隊の位置から折れを選び、登りの残りの下知は捨てる。
+    const back = retreatPath(rt.player.u.pos);
+    rt.marker('retreat', { x: back[1][0], z: back[1][1] }, '来た山道へ退く', { h: 3 });
+    for (const g of new Set([...F.oda, ...rt.squadGroups])) if (!gone(g)) {
+      g.retreatOnly = true;
+      walk(g, retreatPath(g.anchor), 2.2, null, true);
+      for (const u of g.units) if (u.alive && !u.fleeing && !u.gone) {
+        u.target = null; u.watch = null; u.aiT = 0;
+      }
+    }
+    rt.player.u.invuln = true; rt.finish({ scriptedEnd: true, failureReason: `組の戦える者が半分を割った（${F.lossAlive}人／${F.lossInitial}人）` }, 9);
+  },
+
+  update(rt, dt) {
+    const F = rt.flags;
+    monkNearHeads(rt);
+    for (let i = rt.markers.length - 1; i >= 0; i--) { const m = rt.markers[i]; if (m.group && gone(m.group)) rt.unmark(m.id); }
+    if (F.fire) F.fire.tick(dt);
+    if (F.fireJobs) fireWork(rt, dt);
+    if (F.ending || F.step < 1 || !rt.player.u.alive) return;
+    if (!F.lossReady) {
+      F.lossReady = true;
+      if (rt.squad.length) F.lossUnits = rt.squad.slice();
+      F.lossInitial = F.lossUnits.length;
+    }
+    for (const g of rt.squadGroups) if (!g._followSlot) {
+      g._followSlot = g.slotPos; g._hieiArmy = rt.army;
+      g._followPoints = Array.from({ length: g.initial }, () => ({ x: 0, z: 0, t: -1 }));
+      g.slotPos = followSlot;
+    }
+    const u = rt.player.u;
+    // 道しるべ：任務の印は、道筋（本坂・東塔の小道）の少し先の点に置く（斜面や森へまっすぐ向かわせない）
+    {
+      const R = routeFor(F), key = F._routeKey;
+      if (F._gKey !== key && rt.t >= (F._gTryT || 0)) {
+        F._gKey = key;
+        let bi = -1, bd = Infinity;
+        for (let i = 0; i < R.length; i++) {
+          RUNNER_TEST.x = R[i][0]; RUNNER_TEST.z = R[i][1];
+          const d = Math.hypot(RUNNER_TEST.x - u.pos.x, RUNNER_TEST.z - u.pos.z);
+          if (d < bd && runnerClear(rt.army, u, u.pos, RUNNER_TEST)) { bd = d; bi = i; }
+        }
+        F._gHold = bi < 0;
+        if (bi >= 0) F._gI = bi;
+        else { F._gKey = null; F._gTryT = rt.t + 0.5; }
+      }
+      while (!F._gHold && F._gI < R.length - 1 && Math.hypot(R[F._gI][0] - u.pos.x, R[F._gI][1] - u.pos.z) < 1.8) F._gI++;
+      if (!F._gHold) { F._gp.x = R[F._gI][0]; F._gp.z = R[F._gI][1]; }
+    }
+    if (F.step === 1) {
+      const cleared = gone(F.hiyoshiG);
+      rt.objProgress('main', !cleared ? '鳥居の前の僧兵を、味方と退けよ' : !near(u, P.trailhead, 16) ? '本坂の登り口の印へ' : '登り口で明智の先手を待て');
+      if (cleared && !F.hiyoDone) {
+        F.hiyoDone = true; rt.unmark('hiyoshi'); rt.bark('日吉社の前が開いた。登り口へ');
+        rt.marker('trail', P.trailhead, '本坂の登り口', { h: 3 });
+        // 鳥居の前で「かかれ」のまま待たせず、実際に登り口へ列を進める。
+        walk(F.akechi, [[150, 5], [146, 4], [134, 3], [124, 2]], 2.6);
+      }
+      if (cleared && near(u, P.trailhead, 16) && arrived(F.akechi, P.trailhead, 10)) { rt.unmark('trail'); this.p2(rt); }
+    } else if (F.step === 2) {
+      if (u.pos.x < 64) this.bellTodo(rt);
+      if (u.pos.x < 30) this.ambush(rt);
+      if (near(u, P.stairsFoot, 9) && arrived(F.akechi, P.stairsFoot, 12)) { this.p3(rt); return; }
+      rt.objProgress('main', near(u, P.stairsFoot, 9) && !arrived(F.akechi, P.stairsFoot, 12) ? columnWait(F.akechi, '石段の下') : '本道の印をたどり、石段の下へ');
+    } else if (F.step === 3) {
+      rt.objProgress('main', !near(u, P.monjuro, 6) ? '石段を上り、文殊楼の門へ' : !arrived(F.akechi, P.monjuro, 10) ? columnWait(F.akechi, '門の前') : !guardedRoad(rt, P.monjuro) ? '門の近くの手向かう者を退けよ' : '門を抜け、堂の見える道へ');
+      if (near(u, P.monjuro, 6) && arrived(F.akechi, P.monjuro, 10) && guardedRoad(rt, P.monjuro)) this.p4(rt);
+    } else if (F.step === 4) {
+      if (!F.courtDone) arrived(F.akechi, P.court, 10);
+      if (!F.courtDone) rt.objProgress('main', near(u, P.court, 9) ? columnWait(F.akechi, '根本中堂の前') : '堂の間の道をたどり、根本中堂の前へ');
+      if (!F.courtDone && (near(u, P.court, 9) && arrived(F.akechi, P.court, 10))) {
+        F.courtDone = true;
+        rt.objProgress('main', '根本中堂の前の手向かう者を退けよ');
+        rt.bark('根本中堂の前へ出た。道をふさぐ者を退けよ');
+      }
+      if (F.courtDone && !F.bell2) {
+        rt.objProgress('main', '根本中堂の前の手向かう者を退けよ');
+        if (guardedRoad(rt, P.court)) this.bellSaito(rt);
+      }
+      if (F.bell2) {
+        rt.objProgress('main', near(u, P.westGate, 12) && !arrived(F.akechi, P.westGate, 12) ? columnWait(F.akechi, '西の道の入口') : near(u, P.westGate, 12) && !guardedRoad(rt, P.westGate) ? '西の道の入口の手向かう者を退けよ' : '組と西の山道の印へ');
+        if (near(u, P.westGate, 12) && arrived(F.akechi, P.westGate, 12) && guardedRoad(rt, P.westGate)) this.p6(rt);
+      }
+    } else if (F.step === 5) {
+      const byJodoin = near(u, P.jodoin, 18);
+      if (byJodoin && !F.jodoinShown) { F.jodoinShown = true; rt.bark('浄土院の御廟を荒らすな。本道の列に続け'); }
+      rt.objProgress('main', near(u, P.saito, 12) && !arrived(F.akechi, P.saito, 12) ? columnWait(F.akechi, '釈迦堂の前') : near(u, P.saito, 12) && !guardedRoad(rt, P.saito) ? '釈迦堂の前の手向かう者を退けよ' : '印をたどり、釈迦堂の前へ');
+      if (near(u, P.saito, 12) && arrived(F.akechi, P.saito, 12) && guardedRoad(rt, P.saito)) this.p7(rt);
+    } else if (F.step === 6) {
+      rt.objProgress('main', near(u, P.yokawa, 12) && !arrived(F.akechi, P.yokawa, 12) ? columnWait(F.akechi, '横川への道') : near(u, P.yokawa, 12) && !guardedRoad(rt, P.yokawa) ? '横川への道の手向かう者を退けよ' : '北の本道の印をたどり、横川へ');
+      if (near(u, P.yokawa, 12) && arrived(F.akechi, P.yokawa, 12) && guardedRoad(rt, P.yokawa)) this.win(rt, '燃える堂の間を抜け、横川への山道の掃討を終えた');
+    }
+    // 煙で道を見失う味方。移動先は使い回し、下知を出す時だけ更新する。
+    if (F.step === 4 && !F.valleyOrder && F.akechi2 && !gone(F.akechi2) && F.akechi2.order !== 'path' && F.lostN < 3 && rt.t >= F.lostT) {
+      F.lostT = rt.t + 8;
+      const g = F.akechi2, at = LOST_POINTS[F.lostN % LOST_POINTS.length];
+      g.order = 'move'; g.speed = 2; g.dest = at; g.onArrive = holdLost;
+      if (F.lostN % 3 === 0) rt.say('足軽', LOST_LINES[(F.lostN / 3 | 0) % LOST_LINES.length], 3);
+      F.lostN++;
+      if (F.lostN === 3) {
+        rt.say('明智光秀', '本道へ戻れ！　前の列に続き、西の山道へ進め', 3);
+        walk(g, [[-21, -18], ...pts('todo_n', 2), ...pts('saito', 1, 4)], 2.3);
+      }
+    }
+    // 人数が半分未満の状態を十秒保った時だけ敗北。本人の体力や先手の士気は条件にしない。
+    let alive = 0;
+    for (const mate of F.lossUnits) if (mate.alive && !mate.woundOut && !mate.fleeing && !mate.gone) alive++;
+    F.lossAlive = alive;
+    if (F.lossInitial > 0 && alive * 2 < F.lossInitial) {
+      if (F.dangerAt === undefined) { F.dangerAt = rt.t; rt.obj('danger', '危ない。組の戦える者が半分より少ない。列を立て直せ', 'side'); }
+      const left = Math.max(0, Math.ceil(10 - (rt.t - F.dangerAt)));
+      if (F.dangerLeft !== left) { F.dangerLeft = left; rt.objProgress('danger', `戦える者 ${alive}人／${F.lossInitial}人。退くまであと${left}秒`); }
+      if (left === 0) this.lose(rt);
+    } else if (F.dangerAt !== undefined) {
+      F.dangerAt = undefined; F.dangerLeft = undefined; rt.objRemove('danger');
+    }
+  },
+
+  onKill(rt, v, k) {
+    const F = rt.flags;
+    if (v.group && v.group.civ) {
+      if (k && k.isPlayer && !F.civHurt) {
+        F.civHurt = true;
+        rt.objFail('civ');
+        rt.violation('逃げる非戦の者を討った', ['明智光秀', '追うなと申したはずじゃ。刃向かわぬ者を討って、何の手柄か']);
+      }
+      return;
+    }
+    if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
+  },
+  onRout(rt, g) {
+    const F = rt.flags;
+    if (g.team !== 1 || g.civ || g._routSaid || !g.name || rt.t - (F.routSaidT || -99) < 8) return;
+    let seen = false;
+    for (const u of g.units) if (u.alive && !u.gone && sightPoint(rt, u.pos, 40)) { seen = true; break; }
+    g._routSaid = true; F.routSaidT = rt.t;
+    const V = [`${g.name}が崩れた`, `${g.name}の寄せが止まった`, `${g.name}が持ち場を離れた`, `${g.name}が山の奥へ逃げていく`];
+    if (seen) rt.say('足軽', V[(F.routN = (F.routN || 0) + 1) % V.length], 2.5);
+  },
+};
+
+// 信長の三井寺本陣はこの切り出しの南の外。豪盛を架空の山の総大将にしない。
+hiei_mtn.taisho = { a: null, b: null };
+hiei_mtn.noHorse = true;
+hiei_mtn.noWake = true;       // 軽い遠景の大軍を本物の兵へ増やさず、携帯向けの人数を守る
+hiei_mtn.noTaishoRaid = true;   // 山では、殿を狙う別手を崖や谷の向こうに湧かせない（本坂を登る筋に絞る）
+hiei_mtn.sides = { a: { name: '織田軍（明智光秀の手）', mon: 'oda' }, b: { name: '延暦寺の衆徒・武装した里の者', mon: 'namu' } };
+hiei_mtn.famous = []; // 光秀本人と供は開戦時に置く。後から別の隊へ足さない。
+hiei_mtn.date = () => '元亀二年（1571）九月十二日　秋';
+hiei_mtn.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? '登りの下知まで待つ' : '');
+hiei_mtn.skip = (rt) => { if (rt.phase === 'brief') hiei_mtn.p1(rt); };
+hiei_mtn.history = '元亀二年九月十二日、織田信長は比叡山延暦寺を攻めた。延暦寺は前年の志賀の陣で浅井・朝倉を山にかくまい、信長の求めに応じなかった。信長公記は、坂本の町から山上の堂塔に火が放たれ、僧も俗も区別なく多くが討たれたと記す。兼見卿記・多聞院日記も焼き討ちと大きな犠牲を伝える。死者は数百とも数千とも言われ、焼けた広さにも諸説がある。正覚院豪盛は山を逃れ、のちに武田信玄を頼ったという。信長の本陣は三井寺の山岡景猶の屋敷に置かれ、坂本と堅田への放火が攻撃の合図となった。日吉社の裏の八王子山へ逃れた人々も、焼き討ちの犠牲となった。発掘で焼失が明確な根本中堂と大講堂を山上の火の中心にしたが、他の場所に火がなかったと断定するものではない。本陣・堅田の遠景と八王子山への細かな道筋は推定である。山には東塔・西塔・横川の三地区があり、堂と僧坊が谷々に散らばっていた。この戦の建物は、焼ける前の姿を推し量って作った。霧や局地の時刻、持ち場ごとの兵数と光秀の細かな登路・攻め順は確認できないため、景色の復元として扱う。この遊びでは、燃える堂と坂本の町の間の山道を上へ掃討し、刃向かう者とだけ戦い、逃げ惑う者を討たない形にしている。この下知は遊びのためのもので、史実の焼き討ちを非戦の者が守られた出来事として描くものではない。 『耶蘇会士日本通信』に収められたフロイスの焼き討ち報告は、谷々にあった僧坊が長い戦乱で減っていたと伝える。本道脇の礎石は、その荒廃を表す推定の景色であり、史料がこの場所の建物跡を示したわけではない。手紙は僧や女性、子どもも犠牲になったと伝えるが、人数や全ての経過が確定したわけではない。宣教師は布教の立場から仏教を厳しく評しており、その評価を山の人々すべての姿としては使わない。台詞は自分の言葉で短く言い直した。『武功夜話』は後の時代の作で、成立や内容に疑いがあるため、今回の根拠には使っていない。';
+
+// 素直な遊び手：その段の道筋（castles/hiei1571.js の道）をたどり、近い敵とは戦う。深手なら味方の中へ下がる
+const ROUTE = {
+  1: (F) => F.hiyoDone ? [[150, 5], [146, 4], [134, 3], [124, 2]]
+    : [[160, 5], [150, 5], [148, -6], [143, -16]],
+  2: () => [[143, -16], [148, -6], [150, 5], [146, 4], [134, 3], ...pathById('honzaka').pts.slice(0, 21)],
+  3: () => [...pathById('honzaka').pts.slice(17), [-20, -6]],
+  4: (F) => (!F.courtDone && !F.bell2 ? [[-8, -6], [-12, -6], [-17, -6], [-22, -5.5], [-26, -5], [-30, -5], [-38, -5]]
+    : [[-30, -5], [-24, -5], [-19, -9], [-21, -18], [-28, -25], [-38, -29], [-50, -24], [-60, -22], [-70, -20], [-76, -21]]),
+  5: () => [...pts('saito', 4)],
+  6: () => [...pts('yokawa')],
+};
+// 段や目的地が変わった時だけ道筋を作る。毎コマ配列を作らない。
+function routeFor(F) {
+  const key = F.step * 8 + (F.courtDone ? 1 : 0) + (F.bell2 ? 2 : 0) + (F.hiyoDone ? 4 : 0);
+  if (F._routeKey !== key) { F._routeKey = key; F._route = (ROUTE[F.step] || ROUTE[4])(F); }
+  return F._route;
+}
+const LOST_POINTS = [{ x: -22, z: -24 }, { x: -28, z: -25 }, { x: -21, z: -18 }];
+const LOST_LINES = ['煙で前が見えぬ！　道はどちらじゃ', '堂が崩れるぞ！　下がれ、下がれ', '味方はどこじゃ、声を出せ！'];
+const canFight = (o) => !o.fleeing && !o.noTarget;
+const holdLost = (g) => { g.order = 'hold'; g.anchor = g.dest; };
+hiei_mtn.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
+  const p = b.player, u = p.u, F = b.flags;
+  inp.quickCmd = null;
+  inp.k.delete('KeyW'); inp.k.delete('KeyE'); inp.k.delete('KeyS');
+  if (!u.alive || F.ending || !F.step) return;
+  // 深手の退避と手当ては、先に呼ばれる共通の survive に任せる。
+  // 山だけの後ずさりを重ねると、狙いを外せず、打ち手と違う方を向いて受けてしまう。
+  // 段の上（法面の上）の敵へ向かって詰まった時は、しばらく道筋へ戻る（石段から回り込む）
+  const moved = F._fLast ? Math.hypot(F._fLast.x - u.pos.x, F._fLast.z - u.pos.z) : 1;
+  if (!F._fLast) F._fLast = { x: 0, z: 0 };
+  F._fLast.x = u.pos.x; F._fLast.z = u.pos.z;
+  if (!F._canFight) F._canFight = (o) => canFight(o) && Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, u.team, o.pos, false);
+  // 正面の打ち手を先に受ける。近いだけの別の敵へ向くと、横からの槍を防げない。
+  let attacker = null, ad = 8;
+  for (const o of b.army.threats || []) {
+    if (o.type === 'gun' || o.type === 'bow' || !o.alive || !F._canFight(o)) continue;
+    const d = Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
+    if (d < ad) { attacker = o; ad = d; }
+  }
+  const e = attacker || (b.t < (F._ignoreT || 0) ? null : strikeTarget(b, 11));
+  if (e) {
+    F._fStuck = moved < 0.03 && Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z) > 3 ? (F._fStuck || 0) + 1 : 0;
+    if (F._fStuck > 50) { F._fStuck = 0; F._ignoreT = b.t + 7; }
+    const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
+    if (p.lock && p.lock !== e) inp.e.add('KeyQ');
+    p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
+    const reach = p.weapon === 'sword' ? 1.6 : 2.5;
+    if (d > reach && !e.charging) goTo(p, inp, e.pos.x, e.pos.z, reach);
+    // 毎コマのくじで構えを解かず、敵の振りを受け、隙に構えを解いてから突く。
+    patientStrike(p, inp, e, d);
+    // 槍の届かぬ間から構え続けると、登る列に遅れ、弓の射線に居残る。
+    if (!attacker && d > reach + 1.5) inp.guardHold = false;
+    return;
+  }
+  inp.guardHold = false;
+  // 道筋をたどる。回り込みは実際の時間で詰まりを見る共通の goTo に任せる。
+  const R = routeFor(F);
+  const key = F._routeKey;
+  if (F._botKey !== key) {
+    let bi = -1, bd = Infinity;
+    for (let i = 0; i < R.length; i++) {
+      RUNNER_TEST.x = R[i][0]; RUNNER_TEST.z = R[i][1];
+      const d = Math.hypot(RUNNER_TEST.x - u.pos.x, RUNNER_TEST.z - u.pos.z);
+      if (d < bd && runnerClear(b.army, u, u.pos, RUNNER_TEST)) { bd = d; bi = i; }
+    }
+    // 近さだけで壁の向こうの点を選ばず、帰路の案内で道へ戻ってから選び直す。
+    if (bi < 0) { goTo(p, inp, R[0][0], R[0][1], 1.2); return; }
+    F._botKey = key; F._botI = bi;
+  }
+  while (F._botI < R.length - 1 && Math.hypot(R[F._botI][0] - u.pos.x, R[F._botI][1] - u.pos.z) < 1.8) F._botI++;
+  const k = F._botI;
+  goTo(p, inp, R[k][0], R[k][1], 1.2);
+};
+
+
+// 信長公記・兼見卿記・多聞院日記。三井寺の本陣と坂本→本坂→三塔。
+// 山の守りの将・人数は不明。豪盛を討死する城将として置かない。
+installBattleJinkei(hiei_mtn, [
+  battleJin('三井寺の本陣と本坂の縦隊', 0, { x: 90, z: 570 }, -Math.PI / 2, [
+    ['hiei_hq', '三井寺の本陣の控え', '織田の衆（将の名は不明）', null, { x: 90, z: 592 }, 'oda', 'oda', null, { named: false }],
+    ['hiei_akechi', '本坂へ登る先手', '明智光秀の手', null, { x: 158, z: 1 }, 'oda', 'akechi', (r) => r.flags.akechi, { form: 'column' }],
+    ['hiei_command', '先手の後ろを進む供の衆', '明智光秀', null, { x: 174, z: 6 }, 'oda', 'akechi', (r) => r.flags.command, { form: 'column' }],
+    ['hiei_teppo', '先手の鉄砲', '明智光秀の手', null, { x: 160, z: 9 }, 'oda', 'akechi', (r) => r.flags.teppo, { form: 'line' }],
+    ['hiei_north', '北の山麓の囲み', '織田の衆（将の名は不明）', null, { x: 176, z: -26 }, 'oda', 'oda', null, { named: false }],
+    ['hiei_south', '南の山麓の囲み', '織田の衆（将の名は不明）', null, { x: 178, z: 30 }, 'oda', 'oda', null, { named: false }],
+  ], '信長の三井寺本陣はこの場の南の外。陣地と登山の順は復元、持ち場別の兵数は不明。'),
+  battleJin('里坊と三塔に分かれた守り', 1, P.chudo, Math.PI / 2, [
+    ['hiei_hiyoshi', '日吉社前・坂本の里坊', '神人と衆徒（将の名は不明）', null, { x: 146, z: -7 }, null, null, (r) => r.flags.hiyoshiG, { named: false }],
+    ['hiei_honzaka', '本坂のつづら折り', '衆徒（将の名は不明）', null, { x: 83, z: 9 }, null, null, (r) => r.flags.sw1, { named: false, form: 'column' }],
+    ['hiei_monju', '文殊楼・石段の上', '衆徒（将の名は不明）', null, { x: -9, z: -6 }, null, null, (r) => r.flags.monjuG, { named: false }],
+    ['hiei_chudo', '東塔・根本中堂の前', '衆徒（将の名は不明）', null, { x: -40, z: -7 }, null, null, (r) => r.flags.chudoG, { named: false }],
+    ['hiei_kodo', '東塔・大講堂の前', '衆徒（将の名は不明）', null, { x: -46, z: -27 }, null, null, (r) => r.flags.kodoG, { named: false }],
+    ['hiei_saito', '西塔・にない堂', '衆徒（将の名は不明）', null, { x: -110, z: -44 }, null, null, (r) => r.flags.ninaidoG, { named: false }],
+    ['hiei_yokawa', '横川中堂の前', '衆徒（将の名は不明）', null, { x: -94, z: -215 }, null, null, (r) => r.flags.yokawaG, { named: false }],
+  ], '城の曲輪ではなく堂と山道ごとの守り。非戦の僧・里の者は備に数えず、家の旗を作らない。'),
+]);
+
+export { hiei_mtn };
