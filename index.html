@@ -7512,7 +7512,21 @@ if(W._harvest>0 && W.started) bigNews(`${W.date.m===4?"春の麦":"秋の米"}�
 growCastles(); growGenerals(); aging(); retBoundary(); autoSave();
 }
 
-function weeklyAutoSave(){ if(W.started && !B && dayNumber()%7===0) autoSave();
+function sekiOfferCheck(){
+if(!W.started||B||overlayEl||W.quick||W.msim||W.scenario!=="nagashino"||!scenarioLocked("sekigahara")) return;
+let days=0; try{ if(localStorage.getItem("sengoku_seki_offer")) return; days=+(localStorage.getItem("sengoku_nag_days")||0)+1; localStorage.setItem("sengoku_nag_days",days); }catch(_){ return; }
+if(days<180||(W.stats?.wins||0)<3||document.querySelector(".overlay")) return;
+try{ localStorage.setItem("sengoku_seki_offer","1"); }catch(_){ return; }
+track("offer/seki-show");
+const el=document.createElement("div"); el.className="overlay"; el.style.zIndex=95;
+el.innerHTML=`<div class="dialog" style="max-width:440px;text-align:center"><h3>次の天下分け目――関ヶ原</h3>
+<div class="advice">長篠での采配、お見事です。<br>関ヶ原では徳川・石田をはじめ二十五家から選び、東西十数万の大合戦を采配できます。</div>
+<div class="dlg-actions" style="display:flex;gap:8px;flex-wrap:wrap"><button class="big gold" style="flex:1 1 100%" id="soGo">関ヶ原を見る（¥500）</button><button class="big ghost" style="flex:1 1 100%" id="soNo">長篠を続ける</button></div></div>`;
+document.body.appendChild(el);
+el.querySelector("#soNo").onclick=()=>{ track("offer/seki-later"); el.remove(); };
+el.querySelector("#soGo").onclick=()=>{ track("offer/seki-open"); el.remove(); requestUnlock("sekigahara"); };
+}
+function weeklyAutoSave(){ try{ sekiOfferCheck(); }catch(_){ } if(W.started && !B && dayNumber()%7===0) autoSave();
 
 if(canSaveGame() && W.date && W.date.d===1){
 const tag=`${W.date.y}/${W.date.m}`;
@@ -37800,6 +37814,8 @@ const FREE_SCENARIOS=new Set(["nagashino"]);
 const IAP_ENABLED=true;
 const PAID_SCENARIOS={ sekigahara:{price:"¥500", sku:"jp.kaitoseto.sengoku.sekigahara", code:"SEKI500", pay:"https://www.paypal.com/paypalme/sengokudaimyo/500JPY"} };
 
+const GUMROAD_SEKI="";
+
 const PAY_LINK="";
 
 const ANALYTICS="https://kaito.goatcounter.com/count";
@@ -37856,7 +37872,7 @@ if(trackOff()) return;
 try{ window.goatcounter=Object.assign({allow_local:true}, window.goatcounter||{}); }catch(_){ }
 const sc=document.createElement("script"); sc.async=true; sc.dataset.goatcounter=ANALYTICS; sc.src="https://gc.zgo.at/count.js"; sc.onload=()=>{ try{ trackDevice(); const q=window._gcQueue||[]; window._gcQueue=[]; for(const p of q){ try{ window.goatcounter.count({path:(String(p).startsWith("ev/")?p:"ev/"+p), title:String(p).replace(/^ev\//,""), event:true}); }catch(_){ } } }catch(_){ } }; document.head.appendChild(sc); })();
 const UNLOCK_TOKEN="sVzU74z_zZhdYBWsz_Sk-G2d";
-(function(){ try{ const q=new URLSearchParams(location.search); const t=q.get("unlock"); if(t){ if(t===UNLOCK_TOKEN){ const u=(()=>{ try{ return new Set(JSON.parse(localStorage.getItem("sengoku_unlock")||"[]")); }catch(e){ return new Set(); } })(); for(const k of Object.keys(PAID_SCENARIOS)) u.add(k); localStorage.setItem("sengoku_unlock",JSON.stringify([...u])); setTimeout(()=>{ try{ toast("お支払いありがとうございます。信長包囲網を解除しました"); refreshScenarioLocks(); }catch(e){} },800); } history.replaceState(null,"",location.pathname); } }catch(e){} })();
+(function(){ try{ const q=new URLSearchParams(location.search); const t=q.get("unlock"); if(t){ if(t===UNLOCK_TOKEN){ const u=(()=>{ try{ return new Set(JSON.parse(localStorage.getItem("sengoku_unlock")||"[]")); }catch(e){ return new Set(); } })(); for(const k of Object.keys(PAID_SCENARIOS)) u.add(k); localStorage.setItem("sengoku_unlock",JSON.stringify([...u])); setTimeout(()=>{ try{ toast("お支払いありがとうございます。関ヶ原の戦いを解除しました"); refreshScenarioLocks(); }catch(e){} },800); } history.replaceState(null,"",location.pathname); } }catch(e){} })();
 function unlockedScenarios(){ try{ return new Set(JSON.parse(localStorage.getItem("sengoku_unlock")||"[]")); }catch(e){ return new Set(); } }
 function scenarioLocked(id){ const u=unlockedScenarios(); return !FREE_SCENARIOS.has(id) && !u.has(id) && !u.has("all"); }
 function scenarioAvailable(id){ const u=unlockedScenarios(); return FREE_SCENARIOS.has(id) || PAID_SCENARIOS[id]!==undefined || u.has(id) || u.has("all"); }
@@ -37910,6 +37926,9 @@ if(op&&bx) op.onclick=(e)=>{ e.preventDefault(); bx.hidden=false; op.style.displ
 el.querySelector("#ulPay").onclick=()=>{ track("pay-click/"+id);
 if(app){ try{ window.webkit.messageHandlers.iap.postMessage({buy:id, sku:info.sku}); }catch(e){} el.remove(); return; }
 const u=info.pay||(FUND_PAY_TEMPLATE?FUND_PAY_TEMPLATE.replace("{amt}","500"):""); if(!u){ toast("いまは受け付けていません"); return; }
+if(GUMROAD_SEKI&&id==="sekigahara"){ setTimeout(()=>{ window.open(GUMROAD_SEKI,"_blank"); },100);
+el.innerHTML=`<div class="dialog" style="max-width:440px;text-align:center"><h3>${esc(SCENARIO_DEFS[id].name)}</h3><div class="advice">Gumroad の窓を開きました（${info.price}）。<br>買い終えると、受け取りの頁とメールに〈関ヶ原を開く〉のリンクが届きます。押せばこの端末で遊べます。</div><div class="dlg-actions"><button class="big ghost" style="width:100%" id="ulLater">閉じる</button></div></div>`;
+el.querySelector("#ulLater").onclick=()=>el.remove(); return; }
 setTimeout(()=>{ window.open(u,"_blank"); },100);
 el.innerHTML=`<div class="dialog" style="max-width:440px;text-align:center"><h3>${esc(SCENARIO_DEFS[id].name)}</h3><div class="advice">PayPal の窓を開きました（${info.price}）。<br>払い終えたら下を押してください。<br><span class="tiny muted">窓が開かなければ：${esc(u)}</span></div><div class="dlg-actions" style="display:flex;gap:8px"><button class="big gold" style="flex:1" id="ulPaid">払いました</button><button class="big ghost" style="flex:1" id="ulLater">あとで</button></div></div>`;
 el.querySelector("#ulLater").onclick=()=>el.remove(); el.querySelector("#ulPaid").onclick=()=>{ el.remove(); track("paid/"+id); window.sengokuUnlock(id); }; };
