@@ -1,0 +1,70 @@
+# 戦国立身：通し試遊（kaito 2026-10-11「一万人の試遊」と並べて「通し試遊」）
+# 一人の bot が新しく始めて、桶狭間→評定→城下→支度→次の戦…と全戦を続けて遊ぶ。止まる所・進めない所・出世の画面の誤りを risshin-players/通し.md に記録する
+# 日に2回（UTC 02:23・14:23）。手動の Run workflow も動く（limit に分を入れる。既定 330）。遊ぶ画面は iPhone 横 874×402
+name: risshin-through
+on:
+  schedule:
+    - cron: "23 2,14 * * *"
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "遊ぶ時間の上限（分・最大340）"
+        required: false
+        default: "330"
+permissions:
+  contents: write
+concurrency:
+  group: risshin-through
+  cancel-in-progress: false
+
+jobs:
+  through:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            risshin
+            risshin-players
+            risshin-bot
+          filter: blob:none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: 日本語の字
+        run: |
+          sudo apt-get update -qq >/dev/null
+          sudo apt-get install -y -qq --no-install-recommends fonts-noto-cjk >/dev/null
+      - name: 通して遊ぶ
+        env:
+          RISSHIN_NOCHECK: "1"
+          LIMIT: ${{ github.event.inputs.limit }}
+        run: |
+          set +e
+          L=${LIMIT:-330}; [ "$L" -gt 340 ] && L=340
+          V=$(ls -d risshin/v*/ | tail -1); V=${V%/}
+          export RISSHIN_VER=$(basename "$V")
+          cp risshin-bot/playbot.js risshin-bot/audit.js "$V/src/"
+          (cd risshin && nohup python3 -m http.server 8765 >/dev/null 2>&1 &)
+          sleep 2
+          mkdir -p out/shots
+          timeout -k 30 $(( L * 60 + 60 )) node risshin-bot/botrun.mjs --persona=act --n=40 --size=874x402 --out=out --limit=$L \
+            '--q=mode=tooshi&prog=0&spd=3&buy=buki&view=tp&habit=yomu&through=1' 2>&1 | tee -a out/loop.log | tail -60
+          echo "終わりの印 ${PIPESTATUS[0]}" >> out/loop.log
+          exit 0
+      - name: まとめ 通し.md を書いて置き場に記録する
+        if: always()
+        run: |
+          node risshin-bot/through-gather.mjs --in=out --dest=risshin-players
+          git config user.name "risshin-players-bot"
+          git config user.email "risshin-players-bot@users.noreply.github.com"
+          git add -A risshin-players
+          git diff --cached --quiet && exit 0
+          git commit -q -m "risshin-through: $(date -u +%Y-%m-%dT%H:%M)"
+          for i in 1 2 3 4 5; do
+            git pull --rebase -q origin main && git push -q origin HEAD:main && exit 0
+            git rebase --abort 2>/dev/null
+            sleep $(( i * 20 ))
+          done
+          exit 1

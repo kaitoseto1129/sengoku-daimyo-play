@@ -2243,7 +2243,8 @@ async function runPersona(game, key) {
   aud.scanDom('タイトル');
   // 何を遊ぶか：その人の好みから、ばらばらに n 戦
   const all = listPlayable();
-  const n = clamp(+(Q.get('n') || 1 + Math.floor(Math.random() * 3)), 1, 3);
+  const THROUGH = Q.get('through') === '1';   // 通し試遊：新しく始めて全戦を続けて遊ぶ
+  const n = clamp(+(Q.get('n') || 1 + Math.floor(Math.random() * 3)), 1, THROUGH ? 99 : 3);
   const only = ONLY ? all.filter((x) => ONLY.has(x.id) && (V.mode === 'lord' ? x.kind === 'lord' : !(x.kind === 'lord' && x.scn === 'oda'))) : null;
   const pool = only && only.length ? only : (per.prefer(all).length ? per.prefer(all) : all);
   const plan = [];
@@ -2290,7 +2291,7 @@ async function runPersona(game, key) {
   window.__botFlush = () => { try { partial(); } catch (e) { /* 書けなくても続ける */ } return 1; };
   for (const spec of plan) {
     // 持ち時間の半分を過ぎていたら、次の戦は始めない
-    if (performance.now() > t0 + (BUDGET_END.t - t0) * 0.5) { say(`持ち時間が足りないので${spec.name}は遊ばない`); break; }
+    if (performance.now() > t0 + (BUDGET_END.t - t0) * (THROUGH ? 0.93 : 0.5)) { say(`持ち時間が足りないので${spec.name}は遊ばない`); break; }
     // 続けて遊ぶ時：戦のあとの画面を進めて城下へ、問屋で買い物、出陣
     if (spec.cont) {
       const ok = await campaignTown(game, c, aud, spec);

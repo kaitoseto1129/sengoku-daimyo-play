@@ -296,6 +296,12 @@ async function playOnce() {
   // ---- 積み重ね（まとめの元） ----
   const rec = { at: d.toISOString(), file: `${st}_${short}.md`, id: PID ? +PID : null, v: VQ || '', label: VL, size: PC ? `${SIZE[0]}x${SIZE[1]}` : `${PHONE.width}x${PHONE.height}`, ver: process.env.RISSHIN_VER || '', persona: PERSONA, name: pname, battles: bats.map((b) => b.battle.replace(/（途中で打ち切り）$/, '')), won: bats.filter((b) => b.main === true).length, down: bats.filter((b) => b.down).length, feel: data.feel || '', cut, issues: probs.map((p) => ({ key: p.key, cat: p.cat, title: p.title, what: p.what, where: p.where, sev: p.sev, count: p.count, battles: p.battles, fix: p.fix, shot: p.shot })) };
   appendFileSync(join(PD, 'history.jsonl'), JSON.stringify(rec) + '\n');
+  // 通し試遊（--q に through=1）：戦ごとの結果を through.json に残す（risshin-bot/through-gather.mjs が読む）
+  if (OUT && /(^|&)through=1/.test(VQ)) {
+    const t = { at: d.toISOString(), size: rec.size, sec, cut, plan: data.plan || [], feel: String(data.feel || '').slice(0, 400), issues: rec.issues.slice(0, 40),
+      battles: bats.map((b) => ({ battle: b.battle, key: b.key, time: b.time, main: b.main, down: !!b.down, cut: !!b.cut, timeout: !!b.timeout, note: b.note || '', errors: (b.errors || []).slice(0, 5).map((e) => String(e).slice(0, 240)), stuck: (b.stuck || []).slice(0, 5).map((e) => String(e).slice(0, 160)), flow: (b.flow || []).slice(-6), merit: b.merit, shots: (b.shots || []).map((x) => x.file).slice(0, 3) })) };
+    writeFileSync(join(PD, 'through.json'), JSON.stringify(t));
+  }
   if (!OUT) writeSummary(PD);
   console.log(`感想：${out}（問題 ${probs.length}件）`);
 }

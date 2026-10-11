@@ -75,6 +75,7 @@ export const PORT = +process.env.RISSHIN_PORT || 8765;
 export async function ensureServer(port = PORT) {
   let up = false;
   try { await fetch(`http://localhost:${port}/`); up = true; } catch (e) { /* 起こす */ }
+  if (up && process.env.RISSHIN_NOCHECK) return null;   // 公開の置き場（Actions）は src/ が無いので比べない
   if (up) {
     // そのポートに別の置き場（古い worktree）のサーバーが残っていると、直す前の絵を撮ってしまう（10/9 桶狭間の雨）。中身を比べて止める
     for (const f of ['src/world.js', 'src/main.js']) {
