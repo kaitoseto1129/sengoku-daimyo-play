@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202610110550 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202610111928 として写した） -->
 <title>戦国立身3D　足軽から天下へ、戦国の合戦アクション</title>
 <meta name="description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。">
 <link rel="canonical" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/">
@@ -69,7 +69,7 @@
 })();
 </script>
 <!-- /Meta Pixel -->
-<link rel="icon" type="image/png" sizes="32x32" href="./v202610110550/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610110550/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610110550/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610110550/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202610111928/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610111928/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610111928/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610111928/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
 :root {
@@ -1417,15 +1417,16 @@ html:not(.touch) #hud.calm :is(.bottom, .bl.full, .tl, #h-units, .tr canvas) { o
 html:not(.touch) #hud.calm #objectives { opacity: 1; }
 /* スマホ横・「最小」（.lean）：戦場を見せるのを一番に。常に出すのは体力の細い棒・任務の一行・小地図だけ */
 #hud.lean :is(.tl, #compass, #dateline), html:not(.tc-low) #hud.lean #h-squad { display: none !important; }
-/* 馬で駆ける間は左の札（体力・組）を薄くして、駆ける馬と前の戦場を見せる（player.js が .gallop を付ける。深手の時は付けない） */
+/* 馬で駆ける間も体力と組の字は透かさず、明るい地形で読める濃さを保つ。 */
 #hud :is(.bl, #h-squad) { transition: opacity .5s; }
-#hud.gallop:not(.ending) :is(.bl, #h-squad) { opacity: .3 !important; }
+#hud.gallop:not(.ending) :is(.bl, #h-squad) { opacity: 1 !important; }
 /* 両軍の兵力の帯は「最小」でも消さない（常に出す層）。細く、名と棒だけ */
 #hud.lean #armybar { width: min(300px, 36vw); top: calc(8px + env(safe-area-inset-top, 0px)); gap: 6px; }
 #hud.lean #armybar .side .nm { font-size: max(12px, calc(13px * var(--text-scale, 1))); gap: 4px; }
 #hud.lean #armybar .side canvas { display: none; }
 #hud.lean #armybar .gauge { height: 6px; }
-#hud.lean.calm:not(.army-peek) #armybar { opacity: .72; }
+#hud.lean.calm:not(.army-peek) #armybar { opacity: 1; }
+#hud #armybar .side .nm { background: #14120f; color: var(--washi); }
 #hud.lean .bl { width: 150px; padding: 4px 6px; gap: 0; background: rgba(10,9,7,.35); box-shadow: none; border: 0; }
 #hud.lean .bl > :not(#h-hp) { display: none !important; }
 #hud.lean .bl #h-hp { grid-template-columns: 1fr; }
@@ -1433,7 +1434,7 @@ html:not(.touch) #hud.calm #objectives { opacity: 1; }
 #hud.lean .bl #h-hp:not(.deep) em { display: none; }
 #hud.lean .bl #h-hp.deep { grid-template-columns: 1fr auto; }
 #hud.lean .bl #h-hp i { height: 5px; }
-#hud.lean .bl.full { opacity: .55; }
+#hud.lean .bl.full { opacity: 1; }
 /* 任務は上の端に一行（今やる物だけ）、小地図は小さく薄く */
 #hud.lean #objectives { padding: 3px 8px; max-height: none; background: rgba(10,9,7,.45); box-shadow: none; border: 0; }
 #hud.lean #objectives li:not(.cur) { display: none !important; }
@@ -1485,13 +1486,14 @@ html.touch #hud.lean #subtitle::after { content: none !important; }
 html.touch.inframe .topback { top: calc(70px + env(safe-area-inset-top, 0px)); }
 html.touch.inframe #screen.has-back { padding-top: 124px; }
 html.touch.inframe #screen.has-back::before { height: calc(70px + env(safe-area-inset-top, 0px) + 52px); }
-/* スマホ横・最小：平時（敵が近くにいない時）は、丸の釦も控えめに（突くだけはっきり）。触れればすぐ濃くなる */
-html.touch:has(#hud.lean.calm) #tc .tb:not(.big):not(.sel):not(.glow) { opacity: .42; transition: opacity 1s; }
-html.touch:has(#hud.lean.calm) #tc .tb.big { opacity: .7; transition: opacity 1s; }
+/* スマホ横・最小：平時も操作名を読める濃さで保ち、移動の輪だけ控えめにする。 */
+/* 操作名まで透かすと明るい戦場で読めないため、字の濃さを保つ。 */
+html.touch:has(#hud.lean.calm) #tc .tb:not(.big):not(.sel):not(.glow) { opacity: 1; }
+html.touch:has(#hud.lean.calm) #tc .tb.big { opacity: 1; }
 html.touch:has(#hud.lean.calm) #tc .tb:active { opacity: 1; }
 html.touch:has(#hud.lean.calm) #tc .stick.idle { opacity: .18; }
 #hud.lean.calm #minimap { opacity: .5 !important; }
-#hud.lean.calm #objectives { opacity: .75; }
+#hud.lean.calm #objectives { opacity: 1; }
 /* 最小：任務の印は ◆ を小さく */
 #hud.lean .mk::before { width: 7px; height: 7px; border-width: 1.5px; }
 #hud.lean .mk b { font-size: max(12px, calc(12px * var(--text-scale, 1))); padding: 0 5px; }
@@ -1900,5 +1902,5 @@ dialog.battle-retry .btn { box-sizing: border-box; width: 100%; min-width: 0; he
 } }
 </script>
 <script type="module">
-import('./v202610110550/src/main.js').catch(() => window.__bootFail());
+import('./v202610111928/src/main.js').catch(() => window.__bootFail());
 </script>

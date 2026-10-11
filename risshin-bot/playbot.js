@@ -1173,7 +1173,9 @@ class TouchPad {
       if (dg) {
         const opts = [...document.querySelectorAll('#choice .opt')];
         if (this.shown(q('#choice')) && opts[+dg[1] - 1]) { this.tap(opts[+dg[1] - 1], '選ぶ'); continue; }
-        if ((k === 'Digit1' || k === 'Digit2') && this.shown(btn('wpn'))) { this.tap(btn('wpn'), '持替'); continue; }
+        if (k === 'Digit1' && this.shown(btn('spear'))) { this.tap(btn('spear'), '槍へ'); continue; }
+        if (k === 'Digit1' && p.weapon === 'spear') continue;
+        if (k === 'Digit2' && this.shown(btn('wpn'))) { this.tap(btn('wpn'), '持替'); continue; }
       }
       // 指の端末に釦が無い操作（鍵盤でしか出せない）
       this.ctx.noTouch(k);
@@ -1874,13 +1876,13 @@ async function campaignTown(game, c, aud, spec) {
     if (f1) c.tonyaShot = f1;
   }
   // 3. 出陣（上官屋敷の「任務を受けて出陣」→ 確かめの「出陣」）
-  for (let k = 0; k < 5 && !document.getElementById('b-next') && !game.battle; k++) {
+  for (let k = 0; k < 5 && !document.getElementById('b-next') && !game.battle && document.getElementById('loading').hidden; k++) {
     let go = document.querySelector('#screen #go2') || document.querySelector('#screen #go');
     if (!go || !vis(go)) { const tt = [...document.querySelectorAll('#screen [data-tab]')].find((x) => /上官|屋敷/.test(x.textContent)); if (tt) { pad.cache.clear(); pad.tap(tt, '上官屋敷'); await wait(600); } go = document.querySelector('#screen #go2') || document.querySelector('#screen #go'); }
     if (!go) break;
     pad.cache.clear(); pad.tap(go, go.id === 'go2' ? '出陣（確かめ）' : '任務を受けて出陣'); await wait(1000);
   }
-  if (!document.getElementById('b-next') && !game.battle) {
+  if (!document.getElementById('b-next') && !game.battle && document.getElementById('loading').hidden) {
     c.add('camp-nogo', '城下から出陣できなかった', '「出陣」の釦が見つからない・押しても戦の前の札が出ない', 3, { cat: '使いづらい', shot: true });
     return false;
   }
@@ -1894,7 +1896,8 @@ async function playPersona(game, spec, aud, c) {
   const rep = c.curRep = { battle: name, key: spec.id, kind: spec.kind, scn: spec.scn || '', errors: [], stuck: [], waits: [], flow: [], named: [], time: 0, merit: 0, main: false, squad: '—', down: false, lines: '', loadMs: 0, storyLen: 0, kills: 0, hits: 0, attacks: 0, shots: [] };
   // ---- 始める（戦の前の札 → 押して出陣） ----
   let tClick = performance.now();
-  const previousBattle = game.battle;
+  // 続きの戦は城下の出陣で読み込み済みの場合もある。それを前の戦と取り違えない。
+  const previousBattle = spec.cont ? null : game.battle;
   if (spec.kind === 'dojo') { game.startDojo(); }
   else if (spec.kind === 'castle') {
     const G = newGame('bot', 'normal', 'nagashino');
@@ -1919,7 +1922,8 @@ async function playPersona(game, spec, aud, c) {
       game.G = G; G.battle = spec.i;
       game.story(spec.i);
     }
-    for (let k = 0; k < 30 && !document.getElementById('b-next'); k++) await wait(200);
+    // 組を持たない足軽は、支度の札を挟まず読み込みへ進む。
+    for (let k = 0; k < 30 && !document.getElementById('b-next') && (!game.battle || game.battle === previousBattle) && document.getElementById('loading').hidden; k++) await wait(200);
     await wait(500);
     const st = document.querySelector('#screen .story');
     // 見えている字だけを数える（「もっと読む」に畳んだ続きは数えない）
@@ -1933,7 +1937,10 @@ async function playPersona(game, spec, aud, c) {
     const pad0 = new TouchPad(game, c);
     tClick = performance.now();
     const bn = document.getElementById('b-next');
-    if (!bn || !pad0.tap(bn, '出陣（札の釦）')) { if (bn) bn.click(); else { rep.errors.push('戦の前の札に進む釦が無い'); return rep; } }
+    if (bn) { if (!pad0.tap(bn, '出陣（札の釦）')) bn.click(); }
+    else if ((!game.battle || game.battle === previousBattle) && document.getElementById('loading').hidden) {
+      rep.errors.push('戦の前の札に進む釦が無い'); return rep;
+    }
   }
   // 前の戦が残っていても、新しい戦と読み込み完了を待つ。札の釦の文言には頼らない。
   const vis = (el) => !!el && !el.hidden && el.getClientRects().length > 0;
@@ -2243,8 +2250,7 @@ async function runPersona(game, key) {
   aud.scanDom('タイトル');
   // 何を遊ぶか：その人の好みから、ばらばらに n 戦
   const all = listPlayable();
-  const THROUGH = Q.get('through') === '1';   // 通し試遊：新しく始めて全戦を続けて遊ぶ
-  const n = clamp(+(Q.get('n') || 1 + Math.floor(Math.random() * 3)), 1, THROUGH ? 99 : 3);
+  const n = clamp(+(Q.get('n') || 1 + Math.floor(Math.random() * 3)), 1, 3);
   const only = ONLY ? all.filter((x) => ONLY.has(x.id) && (V.mode === 'lord' ? x.kind === 'lord' : !(x.kind === 'lord' && x.scn === 'oda'))) : null;
   const pool = only && only.length ? only : (per.prefer(all).length ? per.prefer(all) : all);
   const plan = [];
@@ -2291,7 +2297,7 @@ async function runPersona(game, key) {
   window.__botFlush = () => { try { partial(); } catch (e) { /* 書けなくても続ける */ } return 1; };
   for (const spec of plan) {
     // 持ち時間の半分を過ぎていたら、次の戦は始めない
-    if (performance.now() > t0 + (BUDGET_END.t - t0) * (THROUGH ? 0.93 : 0.5)) { say(`持ち時間が足りないので${spec.name}は遊ばない`); break; }
+    if (performance.now() > t0 + (BUDGET_END.t - t0) * 0.5) { say(`持ち時間が足りないので${spec.name}は遊ばない`); break; }
     // 続けて遊ぶ時：戦のあとの画面を進めて城下へ、問屋で買い物、出陣
     if (spec.cont) {
       const ok = await campaignTown(game, c, aud, spec);
