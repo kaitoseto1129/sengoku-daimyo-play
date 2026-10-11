@@ -2921,9 +2921,18 @@ for(const g of Object.values(W.generals))
 if(g.clan===W.player && text.includes(g.name)) return true;
 return false;
 }
+
+function reportText(text){
+return String(text??"不明").replace(/\b(?:undefined|NaN|null|Infinity)\b/g,"不明");
+}
+function foeFenceReport(rows){
+const count=Number.isFinite(rows)&&rows>0?`${Math.floor(rows)}列`:"";
+return `敵が陣の前に馬防柵を${count}組んでおります。騎馬は止められます`;
+}
 let bigNewsTimer=null;
 
 function bigNews(text, force){
+text=reportText(text);
 if(typeof chronicle==="function" && !/月の銭|正月|の麦|の米|暮れ/.test(text)) chronicle(text);
 if(!force && typeof PREF!=="undefined" && !PREF.bigNews) return;
 playSE("siege");
@@ -2936,6 +2945,7 @@ bigNewsTimer=setTimeout(()=>{ el.hidden=true; }, Math.min(12000,Math.max(4000,Ar
 }
 
 function log(text, kind, force, detail){
+text=reportText(text); if(detail!=null) detail=reportText(detail);
 if(/^(?:.+(?:を囲みました|が包囲されました|後詰勢を破りました|付城).*|退く(?:敵|わが軍)は追い討ちを受け、兵を失いました|攻め手は退きました|.+の登用に失敗しました)$/.test(text)){
 const batchKey=t=>String(t).replace(/（六日間で\d+件）$/, "").replace(/^.+?軍団(?:が|は)/,"軍勢が").replace(/兵[\d,]+人/g,"兵").replace(/（守兵.*$/,"（守兵）");
 const prev=(W.events||[]).slice().reverse().find(e=>batchKey(e.batchText||e.text)===batchKey(text)&&dayNumber()-((e.d.y*12+e.d.m-1)*DIM+e.d.d-1)<6);
@@ -5514,6 +5524,15 @@ log(`${a.name}は決戦の任を終え、帰路につきました`,"war",a.clan=
 } else a.orphanDays=0;
 if(a.script) continue;
 a.days=(a.days||0)+1;
+
+if(W.scenario==="nagashino"&&!a.stage&&a.mission==="移動"){
+a.marchDays=(a.marchDays??Math.max(0,a.days-1))+1;
+if(a.marchDays>=180){
+const k=W.clans[a.clan]; if(k){ k.repulsed=k.repulsed||{}; k.repulsed[a.target]={until:dayNumber()+90,garrison:W.castles[a.target]?garrisonTroops(a.target):0}; }
+log(`${a.name||"軍勢"}は長い行軍を切り上げ、帰路につきました`,"war",a.clan===W.player);
+recallArmy(a.id); continue;
+}
+}else a.marchDays=0;
 if(a.mission==="包囲" && a.clan!==W.player && !a.stage && a.days%3===0){ const tc=W.castles[a.target]; if(tc && tc.clan!==null && tc.clan!==a.clan && garrisonTroops(tc.id)*1.0>besiegeForce(tc.id,a.clan)){ log(`${a.name||"軍勢"}は${tc.name}の守りに敵わぬと見て、囲みを解きました`,"war"); recallArmy(a.id); continue; } }
 
 if(a.mission==="待機" && !a.sortie && !a.oke){ const nc=W.castles[nearestCastle(a)]; if(nc && nc.clan!==a.clan && !Object.values(W.armies).some(b=>b!==a&&b.mission==="包囲"&&b.target===nc.id&&hostile(b.clan,a.clan))){ recallArmy(a.id); continue; } }
@@ -6030,7 +6049,7 @@ const t=W.tile[c.id]; if(!t) continue;
 if(Math.abs(t.c-a.x)>0.45||Math.abs(t.r-a.y)>0.45) continue;
 if(c.clan===a.clan||c.clan===null) continue;
 
-if(["nagashino","sekigahara"].includes(W.scenario)&&a.mission==="移動"&&(a.path?.[0]===c.id||a.edge?.[0]===c.id)) continue;
+if((a.mission==="移動"&&["nagashino","sekigahara"].includes(W.scenario)||a.mission==="帰還"&&W.scenario==="nagashino")&&(a.path?.[0]===c.id||a.edge?.[0]===c.id)) continue;
 if(a.mission==="包囲"&&a.target===c.id) continue;
 a.y = t.r + ((a.id%2)?1.5:-1.5); a.x = t.c + (((a.id%3)-1)*0.8);
 break; } } }catch(_){ }
@@ -6217,7 +6236,7 @@ for(const p of parts){ const extra=left>0?Math.min(1,left):0; left-=extra; p.g.t
 
 function relocateHQ(old, lostId){
 if(W.ko && old!==null && old!==undefined && W.clans[old] && W.clans[old].name==="武田家"){ W.ko.lost++; koBond(-8, (W.castles[lostId]||{}).name+"の陥落"); }
-if(W.oda && W.oda.phase==="siege" && old!==null && old!==undefined && W.clans[old] && W.clans[old].name==="北条家"){ W.oda.lost++; W.oda.surrender+=8; W.oda.morale=Math.max(0,W.oda.morale-5); const nm=(W.castles[lostId]||{}).name; W.oda.fellNames=(W.oda.fellNames||[]).concat([nm]); log(`${nm}が落ち、小田原の城内は動揺した（降伏派+8）`,"war",true); try{ odaBranchFall(nm); }catch(e){ console.error(e); } }
+if(W.oda && W.oda.phase==="siege" && old!==null && old!==undefined && W.clans[old] && W.clans[old].name==="北条家"){ W.oda.lost++; W.oda.surrender+=8; W.oda.morale=Math.max(0,W.oda.morale-5); const nm=W.castles[lostId]?.name||"支城"; W.oda.fellNames=(W.oda.fellNames||[]).concat([nm]); log(`${nm}が落ち、小田原の城内は動揺した（降伏派+8）`,"war",true); try{ odaBranchFall(nm); }catch(e){ console.error(e); } }
 const c=W.castles[lostId]; if(!c||!c.hq) return;
 c.hq=false;
 if(old===null||old===undefined) return;
@@ -6480,8 +6499,8 @@ if(diedNames&&diedNames.length&&(clan===W.player||old===W.player)) log(`${diedNa
 if(a){
 for(const id of a.gens){ W.generals[id].castle=cid; W.generals[id].army=null; }
 
-const staying=a.gens.map(id=>W.generals[id]).filter(g=>g&&g.status!=="死亡");
-c.lord = staying.length ? staying.reduce((x,y)=>x.lea>=y.lea?x:y).id : a.commander;
+const staying=a.gens.map(id=>W.generals[id]).filter(g=>g&&g.clan===clan&&g.status!=="死亡"&&g.status!=="捕虜"&&g.status!=="人質"&&!isChild(g));
+c.lord = staying.length ? staying.reduce((x,y)=>x.lea>=y.lea?x:y).id : null;
 delete W.armies[a.id];
 }
 
@@ -7744,14 +7763,13 @@ g.clan=null; g.status="浪人"; g.castle=null; g.troops=0;
 }
 }
 
-let lord=Object.values(W.generals).find(g=>g.clan===c.clan&&g.castle===c.id&&!g.army);
+let lord=Object.values(W.generals).find(g=>g.clan===c.clan&&g.castle===c.id&&!g.army&&g.status!=="死亡"&&g.status!=="捕虜"&&g.status!=="人質"&&!isChild(g));
 if(!lord){
 const spare=selectFirst(Object.values(W.generals).filter(
-g=>g.clan===c.clan&&!g.army&&!g.task&&g.status!=="死亡"&&g.status!=="捕虜"), (x,y)=>y.lea-x.lea);
+g=>g.clan===c.clan&&!g.army&&!g.task&&g.status!=="死亡"&&g.status!=="捕虜"&&g.status!=="人質"&&!isChild(g)), (x,y)=>y.lea-x.lea);
 if(spare){ spare.castle=c.id; lord=spare; }
 }
-if(!lord) seedLordFor(c);
-c.lord=(Object.values(W.generals).find(g=>g.castle===c.id)||{id:null}).id;
+c.lord=lord?lord.id:null;
 }
 } else if(c.riot){ c.riot=0; }
 }
@@ -12990,6 +13008,7 @@ setSpeed(0);
 
 W.chronicle = W.chronicle || [];
 function chronicle(text){
+text=reportText(text);
 { const last=W.chronicle[W.chronicle.length-1]; if(last&&last.t===text&&last.y===W.date.y&&last.m===W.date.m&&last.d===W.date.d) return; }
 W.chronicle.push({y:W.date.y,m:W.date.m,d:W.date.d,t:text});
 if(W.chronicle.length>400) W.chronicle.shift();
@@ -16829,6 +16848,7 @@ if(st) st.classList.toggle("paused", s===0 && W.started && !busy); }
 function resumeSpeed(){ if(promptQueue.length || document.querySelector(".overlay:not([hidden])")){ setSpeed(0); return; } setSpeed(W.speedBefore||1); }
 let toastTimer=null;
 function toast(msg){
+msg=reportText(msg);
 log(msg);
 if(typeof B!=="undefined" && B && B.over===null && !(toast._at>performance.now()-1500)){ toast._at=performance.now(); try{ playSE("tap"); }catch(_){} }
 let el=document.getElementById("toast");
@@ -19314,10 +19334,8 @@ if(!od.war.has(ig.id)) declareWar(od.id,ig.id,"force");
 log("信長は五万を四方の口から伊賀へ入れた","war",true); try{ sekSubQueue(2310,3); }catch(e){ console.error(e); } }},
 {id:1408,daily:true,name:"柴田勝家、越中へ",
 text:["柴田勝家「魚津を落とせば越後の門が開く。上杉の後詰が来る前に」"],
-cond:()=> (eraOnly("nagashino")||eraOnly("honnoji"))&&dateFrom(1582,3)&&W.date.d===15&&!W.uozuSiege&&!W.fired.has(2308)&&(()=>{ const od=clanByName("織田家"); const c=Object.values(W.castles).find(x=>x.name==="魚津城"); return od&&!od.dead&&c&&c.clan!==null&&c.clan!==od.id; })(),
-act:()=>{ const od=clanByName("織田家"); const c=Object.values(W.castles).find(x=>x.name==="魚津城"); if(!od||!c) return; const ue=clanByName("上杉家");
-
-if(ue&&!ue.dead&&c.clan!==ue.id){ try{ captureCastle(c.id, ue.id, null); }catch(e){ console.error(e); } }
+cond:()=> (eraOnly("nagashino")||eraOnly("honnoji"))&&dateFrom(1582,3)&&W.date.d===15&&!W.uozuSiege&&!W.fired.has(2308)&&(()=>{ const od=clanByName("織田家"); const c=Object.values(W.castles).find(x=>x.name==="魚津城"); const ue=clanByName("上杉家"); return od&&!od.dead&&ue&&!ue.dead&&c&&c.clan===ue.id&&c.clan!==od.id; })(),
+act:()=>{ const od=clanByName("織田家"),ue=clanByName("上杉家"); const c=Object.values(W.castles).find(x=>x.name==="魚津城"); if(!od||!ue||ue.dead||!c||c.clan!==ue.id) return;
 const ow=W.clans[c.clan]; if(ow&&!od.war.has(ow.id)) declareWar(od.id,ow.id,"force"); W.uozuSiege=true; log("柴田勝家の四万が越中へ。魚津城を囲む","war",true); }},
 {id:1235,daily:true,name:"荒木村重、有岡に叛く",
 text:["荒木村重「本願寺と毛利が背にある。信長の疑いの目に耐えるより、立つ」"],
@@ -26506,7 +26524,7 @@ function tdTreatAsk(){ const S=W.tdSet; koChoice("旧武田家臣の処遇","降
 function tdSettleApply(){ const S=W.tdSet; const od=W.clans[0]; const tk=W.clans[23]; const lines=[]; S.stab={};
 for(const [pv] of TD_REGIONS){ const k=S.assign[pv]; const cs=Object.values(W.castles).filter(c=>c.clan===0&&DATA.provinces[c.prov]&&DATA.provinces[c.prov].n===pv); let st=tdStab(pv,k)+(S.treat==="hire"?10:S.treat==="some"?5:S.treat==="exile"?-5:S.treat==="kill"?-10:0); S.stab[pv]=Math.max(5,Math.min(95,st));
 if(k==="ieyasu"){ if(tk&&!tk.dead){ for(const c of cs){ c.clan=23; c.lord=null; c.hq=false; } addRel(23,0,pv==="駿河"?10:20); lines.push(`${pv}は徳川へ${pv!=="駿河"?"（IF：家康に"+pv+"を与える）":""}`); } }
-else if(k==="anayama"){ const g=findGeneralByName("穴山信君")||findGeneralByName("穴山梅雪"); if(g&&g.status!=="死亡"&&cs.length){ if(g.clan!==0&&g.clan!==23){ g.clan=0; g.status="家臣"; g.tozama=true; } for(const c of cs) c.lord=g.id; g.castle=cs[0].id; g.army=null; g.task=null; lines.push(`${pv}は穴山梅雪に`); } else lines.push(`${pv}に穴山は置けず、直轄に`); }
+else if(k==="anayama"){ const g=findGeneralByName("穴山信君")||findGeneralByName("穴山梅雪"); if(g&&g.status!=="死亡"&&g.status!=="捕虜"&&g.status!=="人質"&&g.clan!==23&&cs.length){ if(g.clan!==0){ g.clan=0; g.status="家臣"; g.tozama=true; } for(const c of cs) c.lord=g.id; g.castle=cs[0].id; g.army=null; g.task=null; lines.push(`${pv}は穴山梅雪に`); } else lines.push(`${pv}に穴山は置けず、直轄に`); }
 else if(k==="takeda"){ const vets=Object.values(W.generals).filter(g=>g.clan===0&&g.tozama&&g.status==="家臣"&&!g.army).sort((a,b)=>(b.pol||0)-(a.pol||0)); const g=vets[0]; if(g&&cs.length){ for(const c of cs) c.lord=g.id; g.castle=cs[0].id; g.loyalty=Math.min(100,g.loyalty+15); lines.push(`${pv}は旧武田の${g.name}に（IF：武田再興の芽）`); W.tdKeptTakeda=true; } else lines.push(`${pv}に置ける旧武田家臣がなく、直轄に`); }
 else if(k==="direct"){ for(const c of cs) c.minchu=Math.max(0,(c.minchu||50)-6); lines.push(`${pv}は直轄（城主なし）`); }
 else { const nm={kawajiri:"河尻秀隆",takigawa:"滝川一益",mori:"森長可"}[k]; const g=Object.values(W.generals).find(x=>x.name===nm&&x.clan===0&&x.status!=="死亡"); if(g&&cs.length){ for(const c of cs) c.lord=g.id; g.castle=cs[0].id; g.army=null; g.task=null; lines.push(`${pv}は${nm}に${k==="takigawa"&&pv==="上野"?"（関東の目付）":""}`); } else lines.push(`${pv}に${nm}は置けず、直轄に`); } }
@@ -28514,6 +28532,8 @@ const A=(d.atkClanOf&&decClanOf(d.atkClanOf))||clanByName(d.atk)||(d.altAtk?clan
 if(!A||!Bc) continue;
 if(when==="war" && !A.war.has(Bc.id)) continue;
 if(d.cond && !d.cond()) continue;
+
+if(d.key==="uozu"&&!Object.values(W.castles).some(c=>c.name===d.castle&&c.clan===Bc.id)){ cancelDecisive(d,"魚津城は上杉の手にない"); continue; }
 if(when==="date"){
 if(!(W.date.y>d.y || (W.date.y===d.y && W.date.m>=d.m)) || W.date.y>d.y+1) continue;
 if(sameHouse(A.id,Bc.id)) continue;
@@ -29548,7 +29568,7 @@ if(B.nagashino && B.ctx.playerSide!==1){ try{ if(typeof nagApplyOdaPlan==="funct
 if(B.nagashino && !B.firstBattle && !autoBattleMode) setTimeout(()=>{ try{ nagCouncil(); }catch(e){ console.error(e); } }, 400);
 B.rate=1;
 if(!B.firstBattle) setTimeout(()=>tutorial("battle"), 600);
-if(B.foeFences) setTimeout(()=>{ if(B) toast(`敵が陣の前に馬防柵を${B.foeFences}列組んでおります。騎馬は止められます`); }, 900);
+if(B.foeFences){ const battle=B, message=foeFenceReport(B.foeFences); setTimeout(()=>{ if(B===battle&&B.over===null) toast(message); },900); }
 if(B.gate&&!B.kz&&!B.nego&&!B.moatKit&&!B.hachi&&!B.oshi&&!B.gaik&&!B.yz&&!B.fsm&&!B.gf) setTimeout(()=>{ if(B&&B.elapsed<3) toast(B.ctx.playerSide===0?"城門を破ってなだれ込め。鉄砲は壁越しに撃てる":"城門を守れ。破られれば敵がなだれ込む"); }, 900);
 W.stats.battles++;
 track("battle/"+(e.decisive?"decisive":e.castle!==null?"siege":"field"));
@@ -35314,7 +35334,7 @@ foot.querySelectorAll("[data-rate]").forEach(b=>b.onclick=()=>{ B.rate=+b.datase
 foot.querySelectorAll("[data-band]").forEach(b=>b.onclick=()=>{ if(b.dataset.band==="hq"){ const c=B.units.find(u=>u.side===B.ctx.playerSide&&u.cmd&&u.troops>.5); if(c){ B.follow=null; bCamTo(c.x,c.y,true); } return; } const i=+b.dataset.band; const live=B.units.filter(u=>u.troops>.5&&!u.left&&u.morale>0&&Math.floor(u.y/(BF.h/3))===i); const cx=live.length?live.reduce((s2,u)=>s2+u.x,0)/live.length:BF.w/2; B.follow=null; bCamTo(cx, (i+0.5)*BF.h/3, true); });
 foot.querySelectorAll("[data-cam]").forEach(b=>b.onclick=()=>{ const k=b.dataset.cam; const mine=B.units.filter(u=>u.side===B.ctx.playerSide&&u.troops>.5&&!u.left), foe=B.units.filter(u=>u.side!==B.ctx.playerSide&&u.troops>.5&&!u.left); const mc=mine.find(u=>u.cmd)||mine[0], fc=foe.find(u=>u.cmd)||foe[0];
 if(k==="mine"&&mc) bCamTo(mc.x,mc.y,true); else if(k==="foe"&&fc) bCamTo(fc.x,fc.y,true); else { const mx=mine.length?mine.reduce((a,u)=>a+u.x,0)/mine.length:BF.w/2, fx=foe.length?foe.reduce((a,u)=>a+u.x,0)/foe.length:BF.w/2; bCamTo((mx+fx)/2, BF.h/2, true); } });
-{ const ba=document.getElementById("bAdvice"); if(ba) ba.onclick=()=>{ B.adviceUntil=B.elapsed+6; B.sitAt=-9; toast(`軍師「${B.nagAdvice}」`); }; const bu=document.getElementById("bUndo"); if(bu) bu.onclick=()=>{ undoCommand(); renderBattleFoot(); }; }
+{ const ba=document.getElementById("bAdvice"); if(ba) ba.onclick=()=>{ B.adviceUntil=B.elapsed+6; B.sitAt=-9; toast(`軍師「${B.nagAdvice||"隊を寄せ、本陣を守りなされ"}」`); }; const bu=document.getElementById("bUndo"); if(bu) bu.onclick=()=>{ undoCommand(); renderBattleFoot(); }; }
 { const big=document.getElementById("bBeginBig"); if(big){ big.hidden=!(B.opening>0); big.onclick=()=>{ const bb=document.getElementById("bBegin"); if(bb) bb.click(); big.hidden=true; }; } }
 { const bb=document.getElementById("bBegin"); if(bb) bb.onclick=()=>beginBattleNow(); }
 { const br=document.getElementById("bRealign"); if(br) br.onclick=()=>{ applyFormation(B.ctx.playerSide); for(const u of B.units) if(u.side===B.ctx.playerSide){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } toast("陣の形に並べ直しました"); }; }
