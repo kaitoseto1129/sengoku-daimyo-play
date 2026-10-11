@@ -5507,7 +5507,7 @@ if(a.mission==="帰還" && (!W.castles[a.target]||W.castles[a.target].clan!==a.c
 a.stage=false; a.script=false; recallArmy(a.id); if(!W.armies[a.id]) continue;
 }
 if(a.mission==="帰還"&&!a.stage) a.script=false;
-if((!autoBattleMode||W.scenario==="nagashino")&&["nagashino","sekigahara"].includes(W.scenario)&&(W.scenario==="nagashino"||W.decisiveWon?.sekigahara||W.fired.has(2101))&&a.script&&!a.stage&&!a.oke&&!B&&!pendingEncounter&&!overlayEl&&!W.decisivePending&&!W.sekMini){
+if(["nagashino","sekigahara"].includes(W.scenario)&&(W.scenario==="nagashino"||W.decisiveWon?.sekigahara||W.fired.has(2101))&&a.script&&!a.stage&&!a.oke&&!B&&!pendingEncounter&&!overlayEl&&!W.decisivePending&&!W.sekMini){
 a.orphanDays=(a.orphanDays||0)+1;
 if(a.orphanDays>=30){ a.script=false; recallArmy(a.id); if(!W.armies[a.id]) continue;
 log(`${a.name}は決戦の任を終え、帰路につきました`,"war",a.clan===W.player); }
@@ -6030,7 +6030,7 @@ const t=W.tile[c.id]; if(!t) continue;
 if(Math.abs(t.c-a.x)>0.45||Math.abs(t.r-a.y)>0.45) continue;
 if(c.clan===a.clan||c.clan===null) continue;
 
-if(W.scenario==="nagashino"&&a.mission==="移動"&&a.path?.[0]===c.id) continue;
+if(["nagashino","sekigahara"].includes(W.scenario)&&a.mission==="移動"&&(a.path?.[0]===c.id||a.edge?.[0]===c.id)) continue;
 if(a.mission==="包囲"&&a.target===c.id) continue;
 a.y = t.r + ((a.id%2)?1.5:-1.5); a.x = t.c + (((a.id%3)-1)*0.8);
 break; } } }catch(_){ }
@@ -6127,7 +6127,7 @@ if(a.mode===1 && a.siegeDays%3===0){
 for(const g of defenders) g.morale=Math.max(3,g.morale-3);
 }
 
-if(a.siegeDays>(W.scenario==="nagashino"?180:(c.food<=0||c.defense<maxDefense(c)*0.35)?260:180)){
+if(a.siegeDays>(["nagashino","sekigahara"].includes(W.scenario)?180:(c.food<=0||c.defense<maxDefense(c)*0.35)?260:180)){
 log(`${a.name}は${c.name}を落とせず、囲みを解きました`,"war");
 recallArmy(a.id); a.mission="帰還"; a.target=a.origin; a.siegeDays=0;
 continue;
@@ -12272,8 +12272,8 @@ if(W.scenario==="koshu"&&W.clans[c.clan].name==="武田家"&&lord!==0) return nu
 const ruler=W.generals[c.lord], loyalty=ruler?(ruler.loyalty||100):80;
 const ratio=totalTroops(lord)/Math.max(2000,totalTroops(c.clan));
 
-const small=myCastles(lord).length<=3;
-return {cost:(small?8000:20000)+Math.round(garrisonTroops(cid)*(small?2:4)), chance:Math.round(Math.max(["nagashino","sekigahara"].includes(W.scenario)&&start<=2?20:10,Math.min(80,agent.int*.45+Math.min(25,ratio*5)+myCastles(lord).length*.3-loyalty*.25-(c.hq?20:0)))),agent:agent.id};
+const small=myCastles(lord).length<=3||(W.scenario==="sekigahara"&&smallRealmHouse(A)&&myCastles(lord).length<=5);
+return {cost:(small?8000:20000)+Math.round(garrisonTroops(cid)*(small?2:4)), chance:Math.round(Math.max(["nagashino","sekigahara"].includes(W.scenario)&&(start<=2||W.scenario==="sekigahara"&&smallRealmHouse(A))?20:10,Math.min(80,agent.int*.45+Math.min(25,ratio*5)+myCastles(lord).length*.3-loyalty*.25-(c.hq?20:0)))),agent:agent.id};
 }
 function intrigueCastle(lord,cid){
 const terms=castleIntrigueTerms(lord,cid), c=W.castles[cid];
@@ -31438,7 +31438,7 @@ if(!o||o.k==="retreat"){ u._wdD=undefined; u._wdN=0; continue; }
 if(u._pX===undefined || Math.hypot(u.x-u._pX, u.y-u._pY)>1.5){ u._pX=u.x; u._pY=u.y; u._pT=B.elapsed; u._wdN=0; continue; }
 
 const stoppedAt=u._pT??B.elapsed;
-if(W.scenario==="nagashino"&&B.siegeWall&&o.k==="move"&&B.elapsed-stoppedAt>=12&&!(u.engagedAt>B.elapsed-10)){
+if(["nagashino","sekigahara"].includes(W.scenario)&&B.siegeWall&&o.k==="move"&&B.elapsed-stoppedAt>=12&&!(u.engagedAt>B.elapsed-10)){
 
 u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; u.path=null; u.nextCell=null; u._pT=B.elapsed; u.gateWaitUntil=B.elapsed+8; u.gateWaitVer=B._fenceVer||0;
 if(u.side===B.ctx.playerSide&&!u.ally&&!(B._stuckTold>B.elapsed-12)){ B._stuckTold=B.elapsed; toast(`${u.name}隊は道が塞がれています。門か破れ目から進めてください`); }
@@ -35863,7 +35863,8 @@ document.querySelectorAll("#battle .overlay").forEach(o=>o.remove());
 document.querySelectorAll('#stage .overlay[data-bat="1"]').forEach(o=>{ o.remove(); if(overlayEl===o) overlayEl=null; });
 { const big=document.getElementById("bBeginBig"); if(big) big.hidden=true; }
 document.getElementById("bfoot").innerHTML="";
-B=null; if(!W.stage) for(const K of Object.values(W.clans)) if(!K.dead) clampClanTroops(K); resumeSpeed(); retBoundary(); refreshHUD(); autoSave();
+B=null; try{ lostCastleWatch(); }catch(_){ }
+if(!W.stage) for(const K of Object.values(W.clans)) if(!K.dead) clampClanTroops(K); resumeSpeed(); retBoundary(); refreshHUD(); autoSave();
 { const bc=document.getElementById("bCoach"); if(bc) bc.hidden=true; }
 setTimeout(()=>showGuide("after"),400);
 }
@@ -37120,10 +37121,15 @@ playScene(threat?"mapTense":"mapCalm");
 
 let adviceTarget=null;
 
+function smallRealmHouse(K){
+if(!K) return false;
+const start=K.campaignStartCastles??myCastles(K.id).length;
+return start<=3||(W.scenario==="sekigahara"&&start<=5&&!/^(徳川家|豊臣家|石田家|毛利家|上杉家|島津家|前田家|伊達家)$/.test(K.name));
+}
 function nagashinoGrowthAdvice(){
-if(W.scenario!=="nagashino"||W.result) return null;
+if(!["nagashino","sekigahara"].includes(W.scenario)||W.result) return null;
 const id=W.player, K=W.clans[id], own=myCastles(id);
-if(!K||!own.length||(K.campaignStartCastles??own.length)>3) return null;
+if(!K||!own.length||!smallRealmHouse(K)) return null;
 const threat=Object.values(W.armies).find(a=>hostile(id,a.clan)&&a.mission!=="帰還"&&W.castles[a.target]?.clan===id&&armyTroops(a)>garrisonTroops(a.target)*1.2&&bordersOn(id,a.clan)&&powerScore(a.clan)>powerScore(id)*1.2);
 if(threat&&!submissionProtected(K)) return {t:`次の一手：${clanName(threat.clan)}の大軍が迫っています。〈臣従〉で城と家を保ち、傘下で育つ手があります。`,c:threat.target,dip:threat.clan,btn:"臣従を相談"};
 if(K.suzerain!=null){
@@ -37775,6 +37781,7 @@ audioInit(); playSE("notify");
 leavePickMode();
 W.player=clanId;
 k.campaignStartCastles=myCastles(clanId).length;
+W._mine0=Object.fromEntries(myCastles(clanId).map(c=>[c.id,1]));
 if(extendedRealmCampaign()&&k.suzerain!=null&&k.vassalAt==null) k.vassalAt=dayNumber();
 for(const c of Object.values(W.clans)) c.isPlayer=(c.id===clanId);
 alertedArmies.clear();
