@@ -6411,11 +6411,6 @@ milestone("foe"+k.id, `${k.name}　滅亡`, "宿敵が世から消えました")
 }
 
 function captureCastle(cid,clan,a){
-
-try{ const c9=W.castles[cid]; if(c9 && c9.clan===W.player && clan!==W.player){
-c9._lostTold=dayNumber();
-log(`${c9.name}が${clanName(clan)}の手に落ちました`,"bad",true); try{ bigNews(`${c9.name} 落城`); }catch(_){ }
-} }catch(_){ }
 try{ const c0=W.castles[cid]; if(c0 && c0.clan!==null && c0.clan!==undefined && c0.clan!==clan){
 const rest=Object.values(W.castles).filter(x=>x.clan===c0.clan && x.id!==cid).length;
 if(rest===0){ W.killedBy=W.killedBy||{}; W.killedBy[c0.clan]=clan; } } }catch(_){ }
@@ -6549,6 +6544,14 @@ c.clan=X; c.hq=false; c.lord=null; c.delegate=null; c.lostFrom=undefined; c.lost
 addRel(X,clan,20); log(`${KY.name}は取り返した${c.name}を、もとの持ち主${KX.name}へ返しました`,"dip",true); if(typeof chronicle==="function") chronicle(`${c.name}、${KX.name}へ返される`);
 if(X===W.player) bigNews(`${c.name} が戻りました`);
 } else if(old!==null && old!==undefined && hostile(old,clan)){ c.lostFrom=old; c.lostAt=dayNumber(); } else { c.lostFrom=undefined; } }
+
+if(old===W.player&&c.clan!==W.player){
+c._lostTold=dayNumber();
+log(`${c.name}が${clanName(c.clan)}の手に落ちました`,"bad",true);
+try{ bigNews(`${c.name} 落城`); toast(`${c.name}が${clanName(c.clan)}の手に落ちました`); }catch(_){ }
+if(W.scenario==="sekigahara"&&W.clans[old]?.name==="織田家"&&c.name==="岐阜城") W.gifuDefeated=true;
+}
+lostCastleWatch();
 expansionPenalty(clan); checkVictory();
 }
 function expansionPenalty(clan){
@@ -8383,11 +8386,27 @@ return !!(W.scenario==="sekigahara"&&W.decisiveWon?.sekigahara==="atk"&&A&&!A.de
 
 function sekiSubmissionPatron(me){
 const A=W.clans[me], won=W.decisiveWon?.sekigahara;
-if(W.scenario!=="sekigahara"||!A||A.dead||!smallRealmHouse(A)||A.suzerain!=null||A.vassalAt!=null||!won) return null;
-const K=clanByName(won==="atk"?"徳川家":"石田家");
+if(W.scenario!=="sekigahara"||!A||A.dead||!smallRealmHouse(A)||A.suzerain!=null||A.vassalAt!=null) return null;
+const gifuLost=A.name==="織田家"&&(W.gifuDefeated||W.decisiveWon?.gifu1600==="atk");
+if(!won&&!gifuLost) return null;
+const K=clanByName(gifuLost&&!won?"徳川家":won==="atk"?"徳川家":"石田家");
 if(!K||K.dead||K.id===me||powerScore(K.id)<powerScore(me)*1.2) return null;
-if(!kobayakawaAssurance(me,K.id)&&sekSideOf(A)!==(won==="atk"?"west":"east")) return null;
+if(!gifuLost&&!kobayakawaAssurance(me,K.id)&&sekSideOf(A)!==(won==="atk"?"west":"east")) return null;
 return K;
+}
+
+function sekiSettlementAsk(){
+if(W.scenario!=="sekigahara"||B||pendingEncounter||overlayEl||W.result) return;
+const me=W.player, A=W.clans[me], patron=sekiSubmissionPatron(me);
+if(!patron||A.name!=="織田家") return;
+const threatened=Object.values(W.armies).some(a=>hostile(me,a.clan)&&a.mission!=="帰還"&&W.castles[a.target]?.clan===me);
+if(A.sekiOfferAt!=null&&(!threatened||dayNumber()-A.sekiOfferAt<30)) return;
+A.sekiOfferAt=dayNumber();
+log(`${patron.name}から所領安堵の使者が届きました。臣従すれば残る城と家を保てます`,"dip",true);
+koChoice("岐阜敗戦後の所領安堵",`${patron.name}は降伏と引き換えに、残る所領と家の存続を保証すると申し出ています。`,[
+["submit","東軍に降り、家を残す","残る城を保ち、東軍の傘下で立て直す。主家の盟友とも二年停戦",()=>{ const lord=sekiSubmissionPatron(me); if(!lord) return; const err=diplomacy("臣従",me,lord.id); if(err) toast(err); }],
+["fight","抗戦を続ける","降伏を断る。所領安堵は〈次の一手〉と外交からも相談できます",()=>{}]
+]);
 }
 
 function submissionArmyContact(me,other){
@@ -28678,6 +28697,7 @@ const over = (k==="ishiyama" && (!W.ishi||W.ishi.phase==="over"))
 if(over){ try{ clearStage(); }catch(e){ console.error(e); } W.stageLock=false; }
 else if(dayNumber()-W.stage.holdAt>150){ W.stage.aiHold=false; W.stage.lock=false; W.stageLock=false; }
 }
+try{ sekiSettlementAsk(); }catch(e){ console.error(e); }
 try{ sekSubTick(); }catch(e){ console.error(e); }
 if(W.sekAfter){ try{ sekAfterDaily(); }catch(e){ console.error(e); } }
 if(W.kitanoshoAt&&dayNumber()>=W.kitanoshoAt&&!W.fired.has(2250)){ W.kitanoshoAt=null; const sb=clanByName("柴田家"); if(sb&&!sb.dead&&Object.values(W.castles).some(c=>c.name==="北庄城"&&c.clan===sb.id)) W.kitanoshoBattle=true; }
@@ -35950,7 +35970,7 @@ document.querySelectorAll("#battle .overlay").forEach(o=>o.remove());
 document.querySelectorAll('#stage .overlay[data-bat="1"]').forEach(o=>{ o.remove(); if(overlayEl===o) overlayEl=null; });
 { const big=document.getElementById("bBeginBig"); if(big) big.hidden=true; }
 document.getElementById("bfoot").innerHTML="";
-B=null; try{ lostCastleWatch(); }catch(_){ }
+B=null; try{ lostCastleWatch(); sekiSettlementAsk(); }catch(_){ }
 if(!W.stage) for(const K of Object.values(W.clans)) if(!K.dead) clampClanTroops(K); resumeSpeed(); retBoundary(); refreshHUD(); autoSave();
 { const bc=document.getElementById("bCoach"); if(bc) bc.hidden=true; }
 setTimeout(()=>showGuide("after"),400);
@@ -37243,6 +37263,8 @@ if(!field.length || W.spectating) return {t:"わが家は滅びました。〈�
 return {t:`城を失いました。野にある${field.length}軍で城を取り返すほかありませぬ。`,c:null};
 }
 
+const settlementAdvice=nagashinoGrowthAdvice();
+if(settlementAdvice?.dip!=null&&sekiSubmissionPatron(W.player)) return settlementAdvice;
 if(W.stage && W.decisiveAt && !document.querySelector("#dcGo")){ const site=W.stage.site; const left=Math.max(0,W.decisiveAt-dayNumber()); return {t:`軍は${site?site.name:"決戦の地"}へ向かっております（あと${left}日）。▶で日を進め、決戦の窓が開いたら〈采配を取る〉を。`,c:null}; }
 const growth=nagashinoGrowthAdvice();
 if(growth?.dip!=null&&/大軍|本領と家/.test(growth.t)) return growth;
