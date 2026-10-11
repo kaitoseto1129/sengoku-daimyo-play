@@ -488,12 +488,13 @@ const shitaragahara = {
 
     // 本物の列の左右と奥は、同じ向きの軽い鉄砲・槍の列でつなぐ。
     // 開戦時に一度だけ並べる。南北の柵全体を三列でつなぎ、中央の槍だけ奥へ厚くする。
+    // 槍の控えは西へ寄せる。持ち場を結ぶ道（x=-9）と、押し返す奥の柵（x=-21）を空ける。
     // 虎口と本物の兵の足もとは空け、兵の判断処理は増やさない。
     const guardUnits = [...F.guns, ...F.spears, ...F.officers].flatMap((g) => g.units);
     for (const fac of ['oda', 'tokugawa']) for (const kind of ['gun', 'spear']) for (const rank of kind === 'gun' ? [0, 1, 2] : [0]) {
-      const people = [], rows = kind === 'gun' ? [11.6 - rank * 1.5] : [-7, -10, -13, -16, -19, -22, -25, -28, -31, -34];
+      const people = [], rows = kind === 'gun' ? [11.6 - rank * 1.5] : [-40, -43, -46, -49, -52, -55, -58, -61, -64, -67];
       for (const x of rows) for (let z = SB.z0 + 2; z <= SB.z1 - 2; z += 2.4) {
-        if (kind === 'spear' && x < -13 && Math.abs(z) > 94) continue;
+        if (kind === 'spear' && x < -46 && Math.abs(z) > 94) continue;
         if ((z < odaZ ? 'oda' : 'tokugawa') !== fac || SB.gates.some((g) => Math.abs(z - g) < 4)) continue;
         if (guardUnits.some((u) => Math.hypot(u.pos.x - x, u.pos.z - z) < 3.2)) continue;
         people.push({ x, z, k: kind, facing: Math.PI / 2, flag: people.length % 3 === 0 ? 1 : 0 });
@@ -645,6 +646,17 @@ const shitaragahara = {
     // 長篠城は別の戦場。城の囲みを救う後詰として、設楽原の戦が始まる。
     rt.say('語り', '長篠城では、奥平信昌の約五百が武田一万五千の囲みに耐えている。寒狭川と宇連川が合わさる崖の上。木の柵と板葺の小屋を守り、後詰を待つ。', 8);
     rt.say('仙石秀久', 'ここは大宮前。わしと柵の口を守れ。鉄砲の前は空けよ！', 4);
+    rt.after(2, () => {
+      if (F.ending || F.pursuit || F.frontsStarted) return;
+      rt.say(F.voice, '鉄砲衆、弾を込めよ。一斉射の合図を待て！', 3);
+      sfx('taiko', 0.8);
+    });
+    rt.after(4, () => {
+      if (F.ending || F.pursuit) return;
+      // 遠くの騎馬の土煙は、既存の煙の枠を使う。兵や形は足さない。
+      rt.world.dustCloud(125, MOUTHS[0].z + 24, true, true);
+      rt.world.dustCloud(125, MOUTHS[2].z + 24, true, true);
+    });
   },
 
   // 全軍の確かな攻撃順とはしない。南北は並行し、北から中央への長い行軍は場面替えで省く。
@@ -681,7 +693,8 @@ const shitaragahara = {
     g.breach = d < 18 ? best : null;
     g.lane = { x: SB.x0 - SB.gap + 1, z: g.def.z + 4.5 };
     g.formation = 'column'; g.colW = g.count > 14 ? 3 : 2; g.noRout = true;   // 大きな寄せは横に広げ、柵に前の列が並んで取り付く
-    g.attackAt = rt.t; g.speed = F.tobiDone ? 4 : 3;
+    // 先手の南と続く北は早く柵前へ。山県は約三十の距離を、口の減速込みでも四十秒ほどで寄せる。
+    g.attackAt = rt.t; g.speed = F.tobiDone || g.def.bamboo || g.def.brother ? 4 : 3;
     g.siegeStallAt = rt.t; g.lastFenceHp = g.breach?.hp;
     // 既存の槍組が口から誘い出て、敵が迫れば同じ道で柵へ戻る。
     g.lureSpear = F.spears[g.def.bamboo ? 4 : g.def.final ? 2 : 1];
@@ -708,7 +721,10 @@ const shitaragahara = {
     sfx('taiko', 1);
     shReport(rt, '南の山県勢、田を進む！　竹束を盾に寄せて参る！', 3.5);
     const south = F.jinkeiBound.shitara_yamagata;
-    if (south) south.advance(25, 18);
+    if (south) south.advance(25, 12);
+    for (const fc of F.far) if (!fc.v && Math.abs(fc.z - F.south.def.z) < 50) {
+      fc.v = 1; fc.owner = F.south; fc.m.advance(80, 16, { charge: true });
+    }
     F.roll = rollBands(rt, F.bands);
     rt.after(8, () => {
       if (F.ending || F.pursuit) return;
@@ -997,7 +1013,7 @@ const shitaragahara = {
       }
       F.prepT = here && together ? (F.prepT || 0) + dt : 0;
       rt.objProgress('hold', !here ? '槍組の持ち場へ進め' : !together ? '持ち場で組を待て' : F.prepT < 4 ? '槍をそろえよ' : '持ち場を守り、下知を待て');
-      if ((F.prepT >= 4 && rt.t - F.prepAt >= 6) || rt.t - F.prepAt >= 8) {
+      if ((F.prepT >= 4 && rt.t - F.prepAt >= 4) || rt.t - F.prepAt >= 6) {
         F.prepDone = true;
         // 持ち場を確かめただけで、柵の丈夫さや傷を増減させない。
         rt.unmark('prepare');
@@ -1593,7 +1609,7 @@ const shitaragahara = {
 // 総勢は歴史欄だけに置く。個々の討死から全軍の損害へ倍率を掛けない。
 shitaragahara.force = () => ({ a: 38000, a0: 38000, b: 15000, b0: 15000 });
 shitaragahara.canSkip = (rt) => (rt.phase === 'brief' && rt.flags.wave === 0 && rt.t > 3 ? '武田の寄せまで待つ' : '');
-shitaragahara.skip = (rt) => { if (rt.phase === 'brief' && rt.flags.wave === 0) rt.flags.prepAt = rt.t - 8; };
+shitaragahara.skip = (rt) => { if (rt.phase === 'brief' && rt.flags.wave === 0) rt.flags.prepAt = rt.t - 6; };
 // 織田家編では、味方の紋を織田の木瓜に
 shitaragahara.sides = { a: { name: '織田・徳川軍', get mon() { return scenarioKey() === 'oda' ? 'oda' : 'tokugawa'; } }, b: { name: '武田軍', mon: 'takeda' } };
 // 史実でこの戦にいた名のある武将（battle.js の placeFamous が、その家の隊に加える。敵は名乗り、討てば手柄）

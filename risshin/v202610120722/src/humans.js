@@ -5508,33 +5508,32 @@ export function warmLooks(units, cap = 46) {
   for (const u of pickLooks(units, cap)) if (warmOne(u)) made++;
   return made;
 }
-// 作り置きは戦ごとに支度中だけ行う。人ごとに場面全体を compile せず、最後にまとめる。
+// 作り置きは近い人だけ、支度中に短く行う。絵の支度は呼び元で最後に一度だけ行う。
 // コマへ戻るだけでなく描く時間も渡し、支度の取消しを次の一人の前に確かめる。
-export async function primeHumans(rt, renderer, camera, cap = 250, chunk = 1, current = () => true) {
+export async function primeHumans(rt, renderer, camera, cap = 40, chunk = 1, current = () => true) {
   if (rt.humansPrimed || !HUM.on || !HUM.ready || !current()) return 0;
   const picked = [];
-  cap = Math.min(cap, 250); chunk = Math.max(1, chunk);
+  cap = Math.min(cap, 40); chunk = Math.max(1, chunk);
   const player = rt.player.u.pos;
   const distance = u => u.isPlayer ? -1 : Math.min(
     Math.hypot(u.pos.x - camera.position.x, u.pos.z - camera.position.z),
     Math.hypot(u.pos.x - player.x, u.pos.z - player.z));
-  // 同じ姿ばかりで枠を埋めず、遠い武将の材質も先に用意する。
-  for (const u of pickLooks(rt.army.units, Math.min(40, cap))) picked.push(u);
+  // 遠い兵の支度で待たせない。本人と近い兵の材質を先に用意する。
   const close = rt.army.units.filter(u => !u.gone && u.mesh && u.type !== 'dummy' && !u.human);
   close.sort((a, b) => distance(a) - distance(b));
   for (const u of close) {
     if (picked.length >= cap) break;
-    if (distance(u) <= ARMY_REAL_NEAR && !picked.includes(u)) picked.push(u);
+    if (distance(u) <= ARMY_REAL_NEAR) picked.push(u);
   }
   let made = 0;
+  const began = performance.now();
   for (let i = 0; i < picked.length; i += chunk) {
     if (!current()) return made;
+    if (i > 0 && performance.now() - began >= 600) break;
     for (let j = i; j < Math.min(i + chunk, picked.length); j++) if (warmOne(picked[j])) made++;
     await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
   }
   if (!current()) return made;
-  if (renderer?.compileAsync) await renderer.compileAsync(rt.scene, camera);
-  else if (renderer) renderer.compile(rt.scene, camera);
   if (current()) { rt.humansPrimed = true; HUM.primed = true; }
   return made;
 }
@@ -6743,7 +6742,7 @@ let madeHorses = 0;
 function updateHorses(rt) {
   madeHorses = 0;
   const on = HORSE.on && !(typeof location !== 'undefined' && (window.__norender === true || /[?&]norender/.test(location.search)));
-  if (on && !hrLoading) loadHorse();
+  if (on && !hrLoading && !rt.horseLoadPending) loadHorse();
   const want = horseWanted; want.clear();
   if (on && HORSE.ready) {
     const cam = rt.camera, cx = cam.position.x, cz = cam.position.z;

@@ -289,6 +289,8 @@ const BTN = [
   { id: 'more', label: '…', sub: 'ほか', col: 3, row: 0, d: 48 },
   { id: 'form', label: '陣形', col: 3, row: 2, d: 48 },
   { id: 'fire', label: '射撃', col: 3, row: 1, d: 48 },
+  // 輪を開いた時だけ「ほか」の場所を使う。射撃を止める丸は畳まない。
+  { id: 'ceasefire', label: 'やめ', col: 3, row: 0, d: 48 },
 ];
 const ICON = {
   pause: '<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="5" y="4" width="3.2" height="12" fill="currentColor"/><rect x="11.8" y="4" width="3.2" height="12" fill="currentColor"/></svg>',
@@ -411,7 +413,10 @@ function setupTouch({ input, game, setPause, toggleBigMap }) {
       // 持っている得物を 槍→刀→火縄銃→弓 と回す（player.js の WeaponNext）
       case 'wpn': input.edge.add('WeaponNext'); break;
       case 'spear': input.edge.add('WeaponSpear'); break;
-      case 'form': case 'fire': p.command(id); closeRadial(false); break;
+      case 'form': case 'fire': case 'ceasefire':
+        p.command(id);
+        p.radial = p.radialKeyboard = false; p.radialSel = p.radialPreview = -1; p.tabT = null;
+        closeRadial(true); break;
       case 'more': T.more = !T.more; T.moreT = 0; break;
       case 'cmd':
         if (T.sticky) { closeRadial(true); return; }
@@ -935,6 +940,8 @@ export function touchFrame(dt) {
     if (g.kind === 'bow') bowSq = true;
   }
   hide(btn.form, !rOpen || b.G.rank < 1);
+  hide(btn.ceasefire, !rOpen || b.G.rank < 1 || (!gunSq && !bowSq));
+  btn.ceasefire.setAttribute('aria-label', '弓・鉄砲の組、撃ち方やめ');
   hide(btn.fire, !gunSq && (!rOpen || b.G.rank < 1 || !bowSq));
   setText(btn.fire.firstChild, gunSq ? (b.kamae ? '放て' : '構え') : '射撃');
   btn.fire.setAttribute('aria-label', gunSq ? (b.kamae ? '鉄砲の組、放て' : '鉄砲の組、構え') : '弓の射撃');
@@ -1041,6 +1048,8 @@ export function touchFrame(dt) {
   for (const id of fold) hide(btn[id], !T.more);
   if (!fold.length) T.more = false;
   hide(btn.more, !fold.length);
+  // 輪の射撃と停止は、横向きの携帯でも直接押せるようにする。
+  if (rOpen && b.G.rank >= 1 && (gunSq || bowSq)) { hide(btn.fire, false); hide(btn.more, true); }
   tog(btn.more, 'sel', !!T.more);
   let foldKey = '';
   for (const id of fold) foldKey += (foldKey ? '・' : '') + btn[id].firstChild.textContent;

@@ -1103,8 +1103,7 @@ const inabayama = {
     rt.scene.add(kabukimon(W, -20, -116, 7, Math.PI / 2));
     rt.scene.add(kabukimon(W, DEMARU.x, DEMARU.z - 10, 6, 0));
     rt.scene.add(kabukimon(W, YAKATA.x + 17, YAKATA.z, 6, Math.PI / 2, { yakui: true }));   // 館の表門は薬医門
-    // 絵図の小曲輪の東側だけに約一丈（3m）の石垣。西の攻め口と山道を塞がない。
-    rt.scene.add(ishigaki(W, [[TSUKE.x + TSUKE.half, TSUKE.z + TSUKE.half], [TSUKE.x + TSUKE.half, TSUKE.z - TSUKE.half]], { topY: W.heightAt(TSUKE.x, TSUKE.z), minH: 3, maxH: 3, lean: 0.14 }));
+    // 小曲輪の東は切岸と土塀だけ（1567 年の稲葉山に石垣は出さない）
     // 主殿（板葺きの木造。天守・二重櫓は置かない）と、物見の櫓（木造）
     // 主殿は縄張り（castles/inabayama.js の lordSeat）から castle_plan.js が建てる：中に入れて、奥の間に龍興（kaito 10/2）
     // 山頂の曲輪：主殿のほかに、遠侍（板葺きの御殿）・兵糧蔵・長屋を構えて、御殿と蔵と詰所のある城らしくする（kaito 10/2 の見回り）
@@ -1125,10 +1124,12 @@ const inabayama = {
     monomi(rt, HON.x + 10, HON.z - 14, { name: '本丸の井楼' });
     monomi(rt, OTE.x + 12, OTE.z - 6, { name: '大手の井楼' });
     monomi(rt, DEMARU.x + 7, DEMARU.z + 4, { name: '出丸の物見櫓' });
-    // 野面積みの上は板を笠にした土塀。小曲輪の南北は柵、西は本丸からの通り口。
+    // 切岸の上は板を笠にした土塀。小曲輪の南北は柵、西は本丸からの通り口。
     const edgeBatch = makeKitBatch();
-    const eastX = TSUKE.x + TSUKE.half;
-    dobei(W, [eastX, TSUKE.z + TSUKE.half, eastX, TSUKE.z - TSUKE.half], { baseY: W.heightAt(TSUKE.x, TSUKE.z), ita: true, batch: edgeBatch });
+    // 石垣を置かないので、土塀は切岸の肩より内（平場の上）に建て、足もとは地面に合わせる（宙に浮かせない）。
+    // 漆喰の白壁にしない：土を突いた土塀に板の笠（1567 年の斎藤の山城）
+    const eastX = TSUKE.x + TSUKE.half - 1.6;
+    dobei(W, [eastX, TSUKE.z + TSUKE.half, eastX, TSUKE.z - TSUKE.half], { ita: true, tera: true, earth: 0x9a8064, batch: edgeBatch });
     finalizeKitBatch(rt, edgeBatch);
     Object.assign(solidSeg(eastX, TSUKE.z - TSUKE.half, eastX, TSUKE.z + TSUKE.half, 0.25), { missileH: 2.3, missileType: 'wood' });
     noT(wallLine(rt, [[20, TSUKE.z - TSUKE.half], [eastX, TSUKE.z - TSUKE.half]], { team: 1, hp: 1e9, name: '小曲輪の柵' }));
@@ -1301,6 +1302,9 @@ const inabayama = {
     W.timeKey = 'night'; W.lookDark = true;
     rt.setPhase('brief');
     rt.obj('main', hi(rt) ? '藤吉郎の旗へ寄り、下知を聞いて一隊を町へ進め' : '藤吉郎の旗へ寄れ。下知を聞いて町へ進め', 'main', true);
+    // 始まりの知らせ：美濃三人衆の寝返り（信長公記）。字と声だけで、地形は触らない
+    rt.say('', '――西美濃の三人衆（稲葉・氏家・安藤）が、織田方へ寝返った', 4);
+    rt.say('', '――信長はすぐに兵を出し、稲葉山の城を囲みにかかる', 3.5);
     rt.say(officer(rt), `${nm(rt)}、来たか。夜が白んできた。城下の井口の町に火をかける`, 4.5);
     rt.say(officer(rt), '城下を焼き、囲みの支度をする。……松明を用意せい', 4);
     // 話を聞くまでは旗を動かさず、町の敵の手前で下知を渡す。
@@ -1425,6 +1429,12 @@ const inabayama = {
       this.nextObj(rt, '町の出口で仲間と並び、残る斎藤の兵を追い払え');
       for (const q of F.houses.filter((x) => x.mine && !x.burnt)) { rt.uninteract('h' + q.i); rt.unmark('h' + q.i); this.sendTorch(rt, q); }
       rt.say(officer(rt), '町は燃えた。……残る斎藤勢を追い払え！', 3.5);
+      // 井ノ口の町が燃え上がり、黒い煙が金華山へ上っていく（煙の柱は数を絞る）
+      if (!F.townSmoke) {
+        F.townSmoke = true;
+        for (const [x, z, sz] of [[14, 74, 3.6], [-4, 56, 3.2], [32, 60, 3.4]]) rt.world.addSmokeColumn(x, rt.world.heightAt(x, z) + 5, z, { size: sz, black: true });
+        rt.after(4, () => { if (!rt.over && F.step === 1) rt.say('足軽', '煙が山へ上っていく……城からも、この火は見えておろう', 3); });
+      }
       // 町の斎藤の兵を追い払うまで、次の攻めへ進まない。
       F.clearT = rt.t;
     } else {
@@ -1472,6 +1482,12 @@ const inabayama = {
       const seg = wallLine(rt, [[x, z0], [x + SHIKA_W, z1]], { team: 0, hp: 260, name: '鹿垣', segLen: SHIKA_W, h: 1.4, mesh: shikaWall });
       for (const q of seg) q.noTarget = true;
       rt.army.play('knock', { x: x + SHIKA_W / 2, z: z0 }, 0.6);
+    });
+    // 鹿垣を結い終えたら、すぐ内に織田木瓜と永楽通宝の幟を立て並べる（打って出る口と組の立つ所は避ける）
+    rt.after(14, () => {
+      if (rt.over || F.shikaFlags) return;
+      F.shikaFlags = true;
+      [[-32, 'oda'], [-28.5, 'eiraku'], [23, 'oda'], [28, 'eiraku'], [33, 'oda']].forEach(([x, k]) => rt.scene.add(nobori(rt.world, x, SHIKA_Z + 2.2, k, 5.5)));
     });
     F.ote.order = 'hold';
     // 鹿垣の内の組は藤吉郎・柴田・丹羽がその場で下知する（瑞龍寺山からの使番を待たない。待つと列が揃わず、搦手へも出られない）
@@ -1576,6 +1592,8 @@ const inabayama = {
       }
       rt.banner('搦手へ', '土地の者の案内で、藤吉郎の手が山の裏の細道を登る');
       rt.say('', '――大手で城兵を引き付ける間に、藤吉郎の手は山の西の裏道へ回った', 4);
+      // 搦手の別働隊の知らせ（本隊は大手、藤吉郎の手は裏から。本丸で挟む）
+      rt.after(9, () => { if (!rt.over && !F.ending && F.step === 3) rt.say('使番', '殿の下知じゃ。大手の本隊は正面を押す。藤吉郎の手は別働隊として搦手から本丸を突け', 4); });
       rt.after(4, () => { if (!rt.over && !F.ending) rt.say(officer(rt), `${nm(rt)}、ついて来い。わしらは裏から登って、本丸の脇に火をつける`, 4); });
       K.order = 'path'; K.path = KARA_TRAIL.slice(0, -1); K.pathIdx = 0; K.speed = 3.2; K.formation = 'column'; K.colW = 2; K.roadColumn = true; K.aggro = 6; K.holdFire = true; K.fire = false;   // 細道を登る間は鉄砲を撃たず列に付いて歩く
       K.onArrive = (g) => { g.order = 'hold'; g.anchor = { x: KARA[KARA.length - 2][0], z: KARA[KARA.length - 2][1] }; g.formation = 'yari'; g.aggro = 14; g.seekRange = 24; if (F.guardOn) g.order = 'attack'; };
@@ -1718,6 +1736,7 @@ const inabayama = {
         F.oteUp.noRout = true;
         rt.army.play('eshout', NIMON, 1.6);
         rt.say('足軽', '二ノ門から味方じゃ！　大手の衆が上がってきたぞ！', 3);
+        rt.banner('本丸を挟む', '表から大手の本隊、裏から藤吉郎の手');
       });
     }
     // 裏から破られた本丸の守りは浮き足立つ（三人衆の寝返りの後で、もともと士気が低い）
@@ -1839,12 +1858,13 @@ const inabayama = {
       rt.banner('八月十五日、城が開く', '囲みの末、龍興は舟で長島へ退いた');
       rt.say('', '――町への放火と翌日の囲みから、半月ほどが過ぎた。城は織田方へ渡った', 5);
     });
+    // 龍興が逃げた知らせで終わる（次の戦の前ふりは置かない）
+    rt.after(15.5, () => rt.say('使番', '龍興は城を捨て、長良川を舟で下って逃げたぞ！', 4));
     // 合図の後も各備は持ち場を保つ。
     for (const b of F.attackers) b.order({ id: 'hold' });
     rt.army.play('eshout', { x: OTE.x, z: OTE.z + 20 }, 2);
     rt.after(2, () => { if (F.kinoU.alive) rt.say(officer(rt), '聞こえるか、麓の鬨じゃ。瑞龍寺山の殿にも、この火は見えておる', 3); });
     rt.after(11, () => rt.say('', '――信長は井口を「岐阜」と改め、「天下布武」の印を使い始めた', 4));
-    rt.after(15.5, () => rt.say('', '――翌年九月。京へ上る道を、近江の六角が箕作城で塞ぐ', 4));
     rt.player.u.invuln = true;
     // 戦固有の終幕（開城・岐阜・箕作城への一行）を最後まで見せる。共通の追撃に替えて時計を消さない
     rt.finish({ scriptedEnd: true }, 20);
@@ -2107,7 +2127,7 @@ inabayama.famous = [
 ];
 inabayama.date = (rt) => rt.flags.win && rt.t - rt.flags.endT >= 5 ? '永禄十年八月十五日　城が開く' : rt.flags.step >= 2 ? '永禄十年八月二日以後　囲み' : '永禄十年八月一日　井口の町';
 inabayama.canSkip = () => '';
-inabayama.history = '永禄十年（1567）八月、西美濃の稲葉良通（一鉄）・氏家直元（卜全）・安藤守就の三人――美濃三人衆が織田方についた。織田信長はすぐに兵を出して稲葉山城の東の瑞龍寺山に陣を取り、城下の井口の町を焼き払って城を裸にし、まわりに鹿垣を結って囲んだ。城主の斎藤龍興は半月ほどで城を明け渡し、長良川を舟で下って伊勢長島へ逃れた。信長は井口を「岐阜」と改め、この城を新しい居城として、天下布武の印を使い始める。木下藤吉郎（のちの豊臣秀吉）が山の裏の道を案内されて搦手から攻め上ったという話は、のちの『太閤記』などに見える伝えで、確かな記録にはない。この戦では、放火の日と翌日の囲みを分け、八月十五日の開城は後日談で描く。搦手での局地戦と合図は遊びの補いで、これだけで城が降ったとはしない。総勢と各備の人数は仮の目安で、確定した兵数ではない。曲輪の広さ、出丸と厩の位置、土塁・木戸・井楼・建物・小祠と斎藤期の山麓館は、絵図と同時代の美濃の土の城からの推定である。東の小曲輪と石垣は後世の絵図を手掛かりにし、斎藤期の細かな姿まで確かとはしない。百曲りと水の手の向き、川の幅と流れ、舟着きの場所は遊びの補いで、当時の道や川を確かに再現したものではない。山の比高は約三百メートルを保つが、登山道の長さは実距離に達していない。';
+inabayama.history = '永禄十年（1567）八月、西美濃の稲葉良通（一鉄）・氏家直元（卜全）・安藤守就の三人――美濃三人衆が織田方についた。織田信長はすぐに兵を出して稲葉山城の東の瑞龍寺山に陣を取り、城下の井口の町を焼き払って城を裸にし、まわりに鹿垣を結って囲んだ。城主の斎藤龍興は半月ほどで城を明け渡し、長良川を舟で下って伊勢長島へ逃れた。信長は井口を「岐阜」と改め、この城を新しい居城として、天下布武の印を使い始める。木下藤吉郎（のちの豊臣秀吉）が山の裏の道を案内されて搦手から攻め上ったという話は、のちの『太閤記』などに見える伝えで、確かな記録にはない。この戦では、放火の日と翌日の囲みを分け、八月十五日の開城は後日談で描く。搦手での局地戦と合図は遊びの補いで、これだけで城が降ったとはしない。総勢と各備の人数は仮の目安で、確定した兵数ではない。曲輪の広さ、出丸と厩の位置、土塁・木戸・井楼・建物・小祠と斎藤期の山麓館は、絵図と同時代の美濃の土の城からの推定である。東の小曲輪は後世の絵図を手掛かりにし、斎藤期の細かな姿まで確かとはしない。百曲りと水の手の向き、川の幅と流れ、舟着きの場所は遊びの補いで、当時の道や川を確かに再現したものではない。山の比高は約三百メートルを保つが、登山道の長さは実距離に達していない。';
 // 信長で遊ぶ時：居場所の目安（bot の目が始まりの位置を確かめる） と立つ所
 inabayama.lordAt = { x: 112, z: -24, r: 14, why: '瑞龍寺山の本陣（信長は瑞龍寺山に陣を取り、井口の町を焼かせた）' };
 inabayama.lordSpawn = { x: 112, z: -16, heading: -0.55 };

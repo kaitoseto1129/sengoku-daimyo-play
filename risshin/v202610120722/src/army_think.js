@@ -313,11 +313,16 @@ export const ArmyThink = {
       u.moveTo = q;
       return;
     }
-    // 走って列を横切る本人も、近い兵が先に迎える。逃亡・手傷・護衛の判断は先に守る。
+    // 全ての戦で、四歩以内の本人を先に迎える。前線の寄せ先を待って本人を見落とさない。
+    // 逃亡・手傷・護衛の判断は先に守り、隠れた隊や退却中の隊は持ち場を保つ。
     const player = this.playerUnit;
-    if (this.world.def.closeCombatAssist && player?.alive && player.team !== u.team && !player.noTarget &&
-        !u.fleeing && !g.routed && !u.dropped && !u.stdHeld && u.type !== 'bow' && u.type !== 'gun' &&
+    if (player?.alive && player.team !== u.team && !player.noTarget && (!player.invuln || player.allyOk) &&
+        (!player.soloFor || player.soloFor === u || !player.soloFor.alive) &&
+        !u.fleeing && !g.routed && !g.hidden && !g.people && !g.civ && g.order !== 'retreat' &&
+        !u.noTarget && !u.civ && !u.dropped && !u.stdHeld && u.type !== 'dummy' && u.type !== 'porter' &&
+        (u.sidearm || u.type !== 'bow' && u.type !== 'gun') &&
         Math.abs(player.pos.y - u.pos.y) < 1.8 && Math.hypot(player.pos.x - u.pos.x, player.pos.z - u.pos.z) <= 4 &&
+        weatherSees(this.world, u.pos, player.pos) &&
         !this.wallBetween(u.pos, u.team, player.pos, (u.wpnKind || u.lookWeapon) === 'spear')) {
       u.target = player; u.watch = null; return;
     }

@@ -203,7 +203,7 @@ export const RADIAL = [
   { id: 'retreat', label: '退け' }, { id: 'move', label: '前進', min: 2 }, { id: 'follow', label: 'ついて来い' }, { id: 'rally', label: '鼓舞' },
 ];
 
-// 号令の輪の四つ目（右下）は、選んだ隊が弓・鉄砲だけなら「槍衾」の代わりに「放て／やめ」にする（syncRadial）
+// 号令の輪の四つ目（右下）は、選んだ隊に弓・鉄砲がいれば射撃の号令にする（syncRadial）
 const YARI_ITEM = RADIAL[3];
 const FIRE_ITEM = { id: 'fire', label: '放て／やめ', min: 1 };
 // 指の端末（携帯）は、号令の輪の字を丸の中の二字までに（字で景色を隠さない）
@@ -2911,7 +2911,6 @@ export class Player {
     this.rt.tutMark('group');
     sfx('ui');
   }
-  // 号令の輪の四つ目を、選んだ隊に合わせて「槍衾」か「放て／やめ」にする
   // 指を放した時の向きで決める。最後のなぞりが次の更新を待っていても取り落とさない。
   flickRadial(vx, vy) {
     if (Math.hypot(vx, vy) < 25) return false;
@@ -2931,11 +2930,10 @@ export class Player {
   syncRadial() {
     const gs = this.selectedGroups().filter((g) => g.count > 0);
     const sh = gs.some((g) => g.kind === 'bow' || g.kind === 'gun');
-    const other = gs.some((g) => g.kind !== 'bow' && g.kind !== 'gun');
     // 鉄砲の組がいれば「構え／放て」を出す（鉄砲を使いやすく）
     const gun = gs.some((g) => g.kind === 'gun');
-    RADIAL[3] = (sh && !other) || gun ? FIRE_ITEM : YARI_ITEM;
-    if (gun) FIRE_ITEM.label = this.rt.kamae ? '放て' : '構え';
+    RADIAL[3] = sh ? FIRE_ITEM : YARI_ITEM;
+    FIRE_ITEM.label = gun ? (this.rt.kamae ? '放て' : '構え') : gs.some((g) => g.kind === 'bow' && g.fire) ? 'やめ' : '放て';
   }
   selectedGroups() {
     const gs = this.rt.squadGroups;

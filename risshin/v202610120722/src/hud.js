@@ -2244,10 +2244,11 @@ export class Hud {
     const p = rt.player;
     if (!p.radial) { el.hidden = true; this.radialKey = ''; return; }
     el.hidden = false;
+    p.syncRadial();
     const gs = rt.squad.length ? p.selectedGroups().filter((g) => g.count > 0) : [];
     const cur = gs.length ? (gs[0].pending ? gs[0].pending.id : gs[0].focus ? 'focus' : gs[0].order) : '';
     const kinds = this.unitKinds || [];
-    const key = [p.radialSel, p.radialPreview, p.selGroup, cur, rt.G.rank, kinds.join(','), gs.map((g) => tagOf(g)).join(',')].join('|');
+    const key = [p.radialSel, p.radialPreview, p.selGroup, cur, rt.G.rank, RADIAL[3].id, RADIAL[3].label, kinds.join(','), gs.map((g) => tagOf(g)).join(',')].join('|');
     if (key === this.radialKey) return;
     this.radialKey = key;
     const focus = el.contains(document.activeElement) ? document.activeElement : null;

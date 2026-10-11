@@ -76,10 +76,17 @@ export async function ensureServer(port = PORT) {
   let up = false;
   try { await fetch(`http://localhost:${port}/`); up = true; } catch (e) { /* 起こす */ }
   if (up) {
+    // 公開先では道具と本編が別の置き場にあり、部品は index.html が指す版の下にある。
+    const localRoot = join(HERE, '..');
+    const root = existsSync(join(localRoot, 'src', 'main.js')) ? localRoot : join(localRoot, 'risshin');
+    const html = readFileSync(join(root, 'index.html'), 'utf8');
+    const source = html.match(/(?:src=["']|import\(\s*["'])\.\/((?:v\d+\/)?src\/)main\.js/);
+    if (!source) throw new Error('本編の読み込み先が見つかりません。題のページを確かめてください');
     // そのポートに別の置き場（古い worktree）のサーバーが残っていると、直す前の絵を撮ってしまう（10/9 桶狭間の雨）。中身を比べて止める
-    for (const f of ['src/world.js', 'src/main.js']) {
+    for (const name of ['world.js', 'main.js']) {
+      const f = source[1] + name;
       const served = await fetch(`http://localhost:${port}/${f}`).then((r) => r.text()).catch(() => null);
-      if (served != null && served !== readFileSync(join(HERE, '..', f), 'utf8')) {
+      if (served != null && served !== readFileSync(join(root, f), 'utf8')) {
         throw new Error(`ポート ${port} のサーバーは別の置き場を見ています（${f} が違う）。RISSHIN_PORT で別のポートを使ってください`);
       }
     }

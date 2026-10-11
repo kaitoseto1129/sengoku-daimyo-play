@@ -22,12 +22,21 @@ function sakamogiBands(army) {
 
 // 先の一点だけだと、斜面の角を飛び越した所を「歩ける」と見誤る。
 function slopeWay(world, x, z, dx, dz, y) {
+  const lim = (world.def.moveLim || 176) - 0.3;
   for (let i = 1; i <= 5; i++) {
     const px = x + dx * i * 0.2, pz = z + dz * i * 0.2;
+    if (Math.abs(px) > lim || Math.abs(pz) > lim) return false;
     if (!world.walkable(px, pz, y)) return false;
     y = groundAt(world, px, pz, y);
   }
   return true;
+}
+
+// 迂回・馬の旋回・押し合いで変わった歩みも、次の一歩を場の内に収める。
+function fieldSpeed(pos, speed, dt, lim) {
+  if (speed > 0) return Math.min(speed, Math.max(0, lim - pos) / dt);
+  if (speed < 0) return Math.max(speed, Math.min(0, -lim - pos) / dt);
+  return 0;
 }
 
 // 建物の内側に残った兵も、縁へ一息で飛ばさず少しずつ押し出す。
@@ -502,6 +511,14 @@ export const ArmyMove = {
     const pk = Math.min(1, dt * 10);
     u.push.x += (px + sx - u.push.x) * pk; u.push.z += (pz + sz - u.push.z) * pk;
     u.vel.x = u.mv.x + u.push.x; u.vel.z = u.mv.z + u.push.z;
+    if (!u.isPlayer && dt > 0) {
+      const fieldLim = lim - 0.3;
+      const vx = fieldSpeed(u.pos.x, u.vel.x, dt, fieldLim);
+      const vz = fieldSpeed(u.pos.z, u.vel.z, dt, fieldLim);
+      // 外へ向かう力を次のコマへ残さず、縁に沿う歩みは保つ。
+      if (vx !== u.vel.x) { u.vel.x = u.mv.x = vx; u.push.x = 0; }
+      if (vz !== u.vel.z) { u.vel.z = u.mv.z = vz; u.push.z = 0; }
+    }
     u.moving = Math.min(1, Math.max(Math.hypot(u.mv.x, u.mv.z), Math.min(1.6, hl)) / 2.4);
   },
 

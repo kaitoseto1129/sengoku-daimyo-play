@@ -46,6 +46,11 @@ function noticeReady(rt, text) {
   return true;
 }
 
+function deckMeleeThreat(u) {
+  return !u.shipBoat && !u.shipTransit?.active && !u.fleeing && !u.woundOut &&
+    u.type !== 'gun' && u.type !== 'bow' && Math.abs(u.pos.y - DECK.y) < 1;
+}
+
 // 射界の判定は発砲と狙い札で共有する。船の形や兵は増やさない。
 function cannonTarget(F, c) {
   let best = null, distance = F.step === 4 ? 60 : 95;
@@ -694,6 +699,9 @@ const kizugawa = {
   } } },
   noHorse: true,   // 海上の戦。騎馬の組も徒の槍に替え、乗馬の検査から外す
   prelude: false,   // 船団は既に包囲へ寄せている。陸戦の開戦待ちを重ねない。
+  softOpen: 90,   // 最初の乗り込みは傷を半分にし、大筒と構えを覚える間を残す。
+  // 狭い甲板で重なる槍に、構え直して退く間を作る。矢玉・火傷と難しい戦は従来どおり。
+  meleeGrace: { rate: 0.05, burst: 0.08, interval: 0.85 },
   spawn: { x: 3.8, z: -4, heading: -Math.PI / 2 },
   world: {
     seed: 15786,
@@ -1462,6 +1470,16 @@ const kizugawa = {
     const elapsed = rt.t - F.stepT;
     if (rt.t >= F.noticeAt) {
       F.noticeAt = rt.t + 1;
+      // 深手になる前に教える。既存の一秒の確認と字幕枠を使い、兵も札も増やさない。
+      const p = rt.player, u = p.u;
+      if (!rt.over && !F.ending && u.alive && !p.guard &&
+          (!F.guardTipShown || u.hp <= u.maxHp * 0.6) && rt.t >= (F.guardTipAt || 0) &&
+          rt.army.nearestEnemy(u, 6, deckMeleeThreat)) {
+        const word = '敵へ向いて「構え」を押し続けよ。味方のそばへ下がれ';
+        if (noticeReady(rt, word) && rt.hud.say('', word, 4, true)) {
+          F.guardTipShown = true; F.guardTipAt = rt.t + 12;
+        }
+      }
       if (F.bigSunk) for (const groups of [F.boarders, F.small]) for (const g of groups || []) {
         if (g.flagshipHeard) continue;
         const c = g.center(), b = F.big;
