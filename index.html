@@ -206,7 +206,7 @@ body.inbattle #retTicker{display:none}
   position:absolute;top:0;right:0;bottom:0;width:min(470px,94vw);
   background:var(--panel);border-left:1px solid var(--line);
   transform:translateX(102%);transition:transform .08s ease;z-index:25;
-  display:flex;flex-direction:column;
+  display:flex;flex-direction:column;contain:layout style;
 }
 #panel.open{transform:none}
 @media (prefers-reduced-motion:reduce){#panel{transition:none}}
@@ -1405,7 +1405,8 @@ body.inbattle #toast:not(.on){opacity:0;visibility:hidden}
 #panel .castle-primary>button{min-width:0;width:100%;box-sizing:border-box}
 #panel .scroll-x>button{flex:0 0 auto;max-width:100%;margin:0}
 #panel .grid>button,.battle-council .grid>button{min-width:0;min-height:44px;height:auto;box-sizing:border-box;white-space:normal;line-height:1.5}
-#panel .row>[onclick],#panel .face{min-width:44px;min-height:44px;box-sizing:border-box}
+#panel .row>[onclick],#panel .face{flex-shrink:0;min-width:44px;min-height:44px;box-sizing:border-box}
+#panel .nm[onclick]{display:inline-flex;align-items:center;min-width:44px!important;min-height:44px!important;flex-shrink:0;box-sizing:border-box}
 #panel .face.sm{width:44px;height:44px}
 #panel .sim-hot{outline-offset:-3px;box-shadow:inset 0 0 0 3px #FFD166!important;animation:none;z-index:auto}
 #panel .cost,.battle-council .cost{line-height:1.5;overflow-wrap:anywhere}
@@ -2935,8 +2936,8 @@ bigNewsTimer=setTimeout(()=>{ el.hidden=true; }, Math.min(12000,Math.max(4000,Ar
 }
 
 function log(text, kind, force, detail){
-if(/^(?:.+(?:を囲みました|後詰勢を破りました).*|退く(?:敵|わが軍)は追い討ちを受け、兵を失いました|.+の登用に失敗しました)$/.test(text)){
-const batchKey=t=>String(t).replace(/兵[\d,]+人/g,"兵").replace(/（守兵.*$/,"（守兵）");
+if(/^(?:.+(?:を囲みました|後詰勢を破りました|付城).*|退く(?:敵|わが軍)は追い討ちを受け、兵を失いました|.+の登用に失敗しました)$/.test(text)){
+const batchKey=t=>String(t).replace(/（六日間で\d+件）$/, "").replace(/^.+?軍団(?:が|は)/,"軍勢が").replace(/兵[\d,]+人/g,"兵").replace(/（守兵.*$/,"（守兵）");
 const prev=(W.events||[]).slice().reverse().find(e=>batchKey(e.batchText||e.text)===batchKey(text)&&dayNumber()-((e.d.y*12+e.d.m-1)*DIM+e.d.d-1)<6);
 if(prev){ prev.batchText=text; prev.count=(prev.count||1)+1; prev.text=`${text}（六日間で${prev.count}件）`;
 const note=(W.notices||[]).slice().reverse().find(n=>batchKey(n.batchText||n.t)===batchKey(text)); if(note){ note.batchText=text; note.count=prev.count; note.t=prev.text; }
@@ -5504,7 +5505,7 @@ if(a.mission==="帰還" && (!W.castles[a.target]||W.castles[a.target].clan!==a.c
 a.stage=false; a.script=false; recallArmy(a.id); if(!W.armies[a.id]) continue;
 }
 if(a.mission==="帰還"&&!a.stage) a.script=false;
-if(!autoBattleMode&&W.scenario==="sekigahara"&&(W.decisiveWon?.sekigahara||W.fired.has(2101))&&a.script&&!a.stage&&!a.oke&&!B&&!pendingEncounter&&!overlayEl&&!W.decisivePending&&!W.sekMini){
+if((!autoBattleMode||W.scenario==="nagashino")&&["nagashino","sekigahara"].includes(W.scenario)&&(W.scenario==="nagashino"||W.decisiveWon?.sekigahara||W.fired.has(2101))&&a.script&&!a.stage&&!a.oke&&!B&&!pendingEncounter&&!overlayEl&&!W.decisivePending&&!W.sekMini){
 a.orphanDays=(a.orphanDays||0)+1;
 if(a.orphanDays>=30){ a.script=false; recallArmy(a.id); if(!W.armies[a.id]) continue;
 log(`${a.name}は決戦の任を終え、帰路につきました`,"war",a.clan===W.player); }
@@ -5527,7 +5528,7 @@ if(tc && tc.clan!==null && tc.clan!==a.clan && K && !hostile(a.clan,tc.clan) && 
 
 if(tc && tc.clan!==null && tc.clan!==a.clan && hostile(a.clan,tc.clan) && garrisonTroops(tc.id)*1.5>armyTroops(a)){ log(`${a.name||"軍勢"}は${tc.name}の守りが厚くなったのを見て、兵を返しました`,"war"); recallArmy(a.id); continue; } }
 let next=a.path[0];
-if(next===undefined){ a.mission="待機"; a.px=a.x; a.py=a.y; a.moveT=1; a.edge=null; continue; }
+if(next===undefined){if(a.mission==="帰還"){disbandArmy(a);continue;}if(W.castles[a.target])arriveAt(a.target,a);else recallArmy(a.id);continue;}
 
 { const nc=W.castles[next];
 if(nc && nc.clan!==null && nc.clan!==a.clan && hostile(a.clan,nc.clan) && a.target!==next && a.mission!=="包囲"){
@@ -6039,7 +6040,7 @@ if(!c){ a.mission="待機"; continue; }
 if(c.clan!==null&&c.clan!==a.clan&&!hostile(a.clan,c.clan)&&!a.script){ if(a.clan===W.player) log(`${a.name}は${c.name}の囲みを解きました（戦ではない家の城）`,"dip"); try{ recallArmy(a.id); }catch(_){ a.mission="帰還"; a.target=a.origin; } continue; }
 
 if(c.clan===a.clan){ arriveAt(c.id,a); continue; }
-if(decReservedCastle(c.name) && !a.script){ continue; }
+if(decReservedCastle(c.name) && !a.script){ a.reservedDays=(a.reservedDays||0)+1;if(a.reservedDays===1&&a.clan===W.player)log(`${c.name}は決戦の支度中です。囲みは進みません。三十日で帰陣し、ほかの城へ向かえます`,"war",true);if(a.reservedDays>=30)recallArmy(a.id);continue;} a.reservedDays=0;
 if(c.clan!==null && !hostile(a.clan,c.clan)){ recallArmy(a.id); continue; }
 a.siegeDays++;
 
@@ -7054,7 +7055,7 @@ if(!tokugawaCampaign()) return "";
 const td=clanByName("武田家"), od=clanByName("織田家"), t=tokugawaSurugaTerms();
 const targets=Object.values(W.castles).filter(c=>c.clan!=null&&!realmCoveredClans(W.player).has(c.clan)&&["駿河","甲斐","信濃"].includes(DATA.provinces[c.prov]?.n));
 const next=targets.find(c=>td&&!td.dead&&c.clan===td.id&&DATA.provinces[c.prov]?.n==="駿河")||targets.find(c=>!W.clans[W.player].allies.has(c.clan));
-return `<div class="card"><b>徳川の道：駿河 → 甲斐・信濃 → 天下</b><div>甲州征伐では駿河へ。守兵の二倍の兵を集めて出陣し、囲みと所領安堵で城を開く。武田滅亡後、織田が持つ駿河は同盟・友好60・実兵一万で交渉できる。</div><div>本能寺で織田の支配が崩れれば、甲斐・信濃の国人と旧武田家臣を迎え、城を囲むか調略で広げる。武田が健在なら自ら攻めて道を開く。</div>${t?`<button class="big gold" onclick="toast(requestTokugawaSuruga()||'駿河の安堵が成りました');openRemainingRealm();refreshHUD()" ${W.clans[W.player].money>=t.cost?"":"disabled"}>織田と駿河の安堵を交渉<span class="cost">${t.castles.length}城・銭${t.cost.toLocaleString()}。守兵は織田へ帰る</span></button>`:""}${W.jingo&&W.jingo.phase!=="over"?`<button class="big ghost" onclick="openJingoBig()">天正壬午の札：国人・旧武田家臣</button>`:""}${next?`<button class="big ghost" onclick="closePanel();gotoCastle(${next.id});openCastle(${next.id})">拡大先：${esc(next.name)}（${esc(clanName(next.clan))}）</button>`:""}<details><summary>盟友の織田：従属と同盟統一の条件</summary><div>〈従属を求める〉で交渉できる。同盟のまま数えるには、1583年以降・自城20以上・実兵三万以上・相互の友好70以上・双方独立が必要。織田とその従属城が加わり、ほかの全家を従えれば統一。${od&&realmAlliance(W.player)?"現在、織田との同盟は統一の数に入ります。":"現在、同盟を数える条件は未達です。"} 現在：自城${myCastles(W.player).length}・実兵${totalTroops(W.player).toLocaleString()}${od?`・徳川からの友好${getRel(W.player,od.id)}／織田からの友好${getRel(od.id,W.player)}`:""}。</div></details></div>`;
+return `<div class="card"><b>徳川の道：駿河 → 甲斐・信濃 → 天下</b><div>甲州征伐では駿河へ。守兵の二倍の兵を集めて出陣し、囲みと所領安堵で城を開く。武田滅亡後、織田が持つ駿河は同盟・友好60・実兵一万で交渉できる。</div><div>本能寺で織田の支配が崩れれば、甲斐・信濃の国人と旧武田家臣を迎え、城を囲むか調略で広げる。武田が健在なら自ら攻めて道を開く。</div>${t?`<button class="big gold" onclick="toast(requestTokugawaSuruga()||'駿河の安堵が成りました');openRemainingRealm();refreshHUD()" ${W.clans[W.player].money>=t.cost?"":"disabled"}>織田と駿河の安堵を交渉<span class="cost">${t.castles.length}城・銭${t.cost.toLocaleString()}。守兵は織田へ帰る</span></button>`:""}${W.jingo&&W.jingo.phase!=="over"?`<button class="big ghost" onclick="openJingoBig()">天正壬午の札：国人・旧武田家臣</button>`:""}${next?`<button class="big ghost" onclick="closePanel();gotoCastle(${next.id})">拡大先：${esc(next.name)}（${esc(clanName(next.clan))}）</button>`:""}<details><summary>盟友の織田：従属と同盟統一の条件</summary><div>〈従属を求める〉で交渉できる。同盟のまま数えるには、1583年以降・自城20以上・実兵三万以上・相互の友好70以上・双方独立が必要。織田とその従属城が加わり、ほかの全家を従えれば統一。${od&&realmAlliance(W.player)?"現在、織田との同盟は統一の数に入ります。":"現在、同盟を数える条件は未達です。"} 現在：自城${myCastles(W.player).length}・実兵${totalTroops(W.player).toLocaleString()}${od?`・徳川からの友好${getRel(W.player,od.id)}／織田からの友好${getRel(od.id,W.player)}`:""}。</div></details></div>`;
 }
 function realmEndgame(lord){
 if(extendedRealmCampaign()&&W.date.y<nationalSubmissionYear()) return null;
@@ -7226,7 +7227,7 @@ if(ownTroops<requiredTroops) reasons.push(`実兵${ownTroops.toLocaleString()}�
 if(clanTroopLimit(A)<requiredTroops) reasons.push(`必要兵が動員上限${clanTroopLimit(A).toLocaleString()}を超える。徴兵を待たず、他家の城・新田開発・史実の将の登用で動員力を増すか、本拠を奪う・最後の一城を囲む`);
 if(!terms&&!reasons.length&&!canRequestSubmission(lord,k.id)) reasons.push("国境・渡海先の兵が足りず、遠国への使者の条件も未達");
 const explanation=reasons.length?reasons.join("。"):(terms?hint:"本拠を奪うか、最後の一城を囲んで所領安堵を求める");
-return {clan:k.id,name:k.name,count:cs.length,castles:cs.map(c=>({id:c.id,name:c.name,troops:garrisonTroops(c.id),sea:[...c.sea]})),troops:enemyTroops,ownTroops,troopLimit:clanTroopLimit(A),ally:A.allies.has(k.id),war:hostile(lord,k.id),truce:underTruce(lord,k.id),truceUntil:Math.max(A.truce?.[k.id]||0,k.truce?.[lord]||0),suzerain:k.suzerain,suzerainName:k.suzerain!=null?clanName(k.suzerain):null,protected:submissionProtected(k),since:k.submissionSince??null,offer:k.submissionOffer||null,terms,route,crossing:crossing?{...crossing,fromName:W.castles[crossing.from].name,toName:W.castles[crossing.to].name}:null,hint,reasons,explanation};
+return {clan:k.id,name:k.name,count:cs.length,blocker:blocker?{id:blocker.id,name:blocker.name,clan:blocker.clan}:null,castles:cs.map(c=>({id:c.id,name:c.name,province:DATA.provinces[c.prov]?.n||"",troops:garrisonTroops(c.id),sea:[...c.sea]})),troops:enemyTroops,ownTroops,troopLimit:clanTroopLimit(A),ally:A.allies.has(k.id),war:hostile(lord,k.id),truce:underTruce(lord,k.id),truceUntil:Math.max(A.truce?.[k.id]||0,k.truce?.[lord]||0),suzerain:k.suzerain,suzerainName:k.suzerain!=null?clanName(k.suzerain):null,protected:submissionProtected(k),since:k.submissionSince??null,offer:k.submissionOffer||null,terms,route,crossing:crossing?{...crossing,fromName:W.castles[crossing.from].name,toName:W.castles[crossing.to].name}:null,hint,reasons,explanation};
 });
 }
 
@@ -7260,11 +7261,11 @@ out.push(`${r.name}の${c.name}へ${W.generals[t.agent].name}が開城交渉で�
 }
 }
 }
-if(!out.length){const r=rows.find(r=>!r.protected&&r.route);if(r)out.push(`${r.name}：${r.hint}。${r.explanation}`);}
+if(!out.length){const r=rows.find(r=>!r.protected&&r.route);if(r)out.push(`${r.name}：${r.hint}`);}
 return out;
 }
 function realmCouncilDaily(){
-if(W.scenario!=="sekigahara"||W.result||W.date.y<1602||W.date.d!==1||![1,4,7,10].includes(W.date.m)) return;
+if(!["sekigahara","nagashino"].includes(W.scenario)||W.result||W.date.y<(W.scenario==="nagashino"?1582:1602)||W.date.d!==1||![1,4,7,10].includes(W.date.m)) return;
 const A=W.clans[W.player];if(!A||A.dead) return;
 const key=myCastles(W.player).length+":"+Object.values(W.castles).filter(c=>A.vassals.has(c.clan)).length, now=dayNumber();
 if(!W.realmCouncil||W.realmCouncil.key!==key) W.realmCouncil={key,at:now,told:null};
@@ -7308,7 +7309,7 @@ const ally=realmAlliance(W.player), allied=ally?Object.values(W.castles).filter(
 const opportunities=realmOpportunities(rows);
 const osakaGoal=W.scenario==="osaka"&&/^(豊臣家|徳川家)$/.test(W.clans[W.player].name)?`<div class="advice">大坂の勝ちの条件：${W.clans[W.player].name==="豊臣家"?"講和・臣従して豊臣の家と所領を保てば〈家名存続〉。徳川を倒して全家を従えれば〈天下統一〉。":"豊臣との決着をつけ、全家を徳川の下にまとめれば〈天下統一〉。"}${osakaHouseSurvived(W.player)?" 家名存続を達成しました。":""}</div>`:"";
 const authority=(W.scenario==="nagashino"||extendedRealmCampaign())?`<div class="advice">全国交渉は${nationalSubmissionYear()}年から。自城20・実兵五万・天下の四分の三が必要。従属城も交渉の力に数え、実兵二倍（残り一割か最後の主家は一・五倍）を九十日保つ。</div>`:"";
-const h=rows.map(r=>{const k=W.clans[r.clan],revision=realmTruceTerms(W.player,r.clan);return `<div class="card"><b>${esc(k.name)}　${r.count}城</b><div>${esc(r.hint)}</div><div class="tiny">降らない理由：${esc(r.explanation)}</div><div class="tiny">兵 ${r.troops.toLocaleString()}・${r.suzerain!=null?esc(clanName(r.suzerain))+"の傘下":r.ally?"同盟":r.truce?"和睦":r.war?"交戦":"独立"}</div>${r.crossing?`<div class="tiny">渡海：${esc(W.castles[r.crossing.from].name)} → ${esc(W.castles[r.crossing.to].name)}。出陣すると船を調達して航路を進む。出立の城に港を築けば船足が上がる。兵糧を蓄えてから渡す。</div>`:""}<button class="big gold" onclick="toast(requestSubmission(W.player,${r.clan})||'使者を送りました。返書を待ちます');checkVictory();openRemainingRealm();refreshHUD()" ${canRequestSubmission(W.player,r.clan)?"":"disabled"}>${k.submissionOffer?"従属を受け入れる":"従属を求める"}</button><button class="big ghost" onclick="openDiploClan(${r.clan})">外交の手立て</button>${revision?`<button class="big gold" onclick="toast(reviseRealmTruce(${r.clan})||'和睦は九十日後に満了します');openRemainingRealm();refreshHUD()" ${W.clans[W.player].money<revision.cost?"disabled":""}>和睦を見直す<span class="cost">礼金 銭${revision.cost.toLocaleString()}を相手へ渡す・九十日後に満了・破約の信の損失なし</span></button>`:""}${r.route?`<button class="big ghost" onclick="closePanel();gotoCastle(${r.route.from})">兵を集める：${esc(W.castles[r.route.from].name)}</button><button class="big ghost" onclick="closePanel();gotoCastle(${r.route.to});openCastle(${r.route.to})">${esc(W.castles[r.route.to].name)}の調略・出陣先を見る</button>`:""}</div>`;}).join("");
+const h=rows.map(r=>{const k=W.clans[r.clan],revision=realmTruceTerms(W.player,r.clan);return `<div class="card"><b>${esc(k.name)}　${r.count}城</b><div>${r.castles.map(c=>`<button class="chip" onclick="closePanel();gotoCastle(${c.id})">${esc(c.name)}（${esc(c.province)}・守兵${c.troops.toLocaleString()}）</button>`).join(" ")}</div><div>${esc(r.hint)}</div>${r.blocker?`<button class="big ghost" onclick="closePanel();gotoCastle(${r.blocker.id})">先に道を開く：${esc(r.blocker.name)}（${esc(clanName(r.blocker.clan))}）</button>`:""}${r.suzerain!=null?`<button class="big ghost" onclick="openDiploClan(${r.suzerain})">主家の${esc(clanName(r.suzerain))}と交渉</button>`:""}<div class="tiny">降らない理由：${esc(r.explanation)}</div><div class="tiny">兵 ${r.troops.toLocaleString()}・${r.suzerain!=null?esc(clanName(r.suzerain))+"の傘下":r.ally?"同盟":r.truce?"和睦":r.war?"交戦":"独立"}</div>${r.crossing?`<div class="tiny">渡海：${esc(W.castles[r.crossing.from].name)} → ${esc(W.castles[r.crossing.to].name)}。出陣すると船を調達して航路を進む。出立の城に港を築けば船足が上がる。兵糧を蓄えてから渡す。</div>`:""}<button class="big gold" onclick="toast(requestSubmission(W.player,${r.clan})||'使者を送りました。返書を待ちます');checkVictory();openRemainingRealm();refreshHUD()" ${canRequestSubmission(W.player,r.clan)?"":"disabled"}>${k.submissionOffer?"従属を受け入れる":"従属を求める"}</button><button class="big ghost" onclick="openDiploClan(${r.clan})">外交の手立て</button>${revision?`<button class="big gold" onclick="toast(reviseRealmTruce(${r.clan})||'和睦は九十日後に満了します');openRemainingRealm();refreshHUD()" ${W.clans[W.player].money<revision.cost?"disabled":""}>和睦を見直す<span class="cost">礼金 銭${revision.cost.toLocaleString()}を相手へ渡す・九十日後に満了・破約の信の損失なし</span></button>`:""}${r.route?`<button class="big ghost" onclick="closePanel();gotoCastle(${r.route.from})">兵を集める：${esc(W.castles[r.route.from].name)}</button><button class="big ghost" onclick="closePanel();gotoCastle(${r.route.to})">${esc(W.castles[r.route.to].name)}の調略・出陣先を見る</button>`:""}</div>`;}).join("");
 openPanel("天下の残り",`自城 ${myCastles(W.player).length}・従属城 ${Object.values(W.castles).filter(c=>W.clans[W.player].vassals.has(c.clan)).length}${allied?`・同盟城 ${allied}`:""}／主のある全${total}城`, `${opportunities.length?`<div class="card"><b>今できる手</b>${opportunities.slice(0,6).map(t=>`<div>${esc(t)}</div>`).join("")}</div>`:""}${osakaGoal}${ishidaRecoveryHTML()}${tokugawaExpansionHTML()}${authority}<div class="advice">四国・九州は渡海して所領安堵、小田原は支城と本拠を囲み、奥州は参陣と服属を求める。兵と領地の威を保てば、遠国にも使者が届く。</div>${h||(osakaHouseSurvived(W.player)?'<div class="advice">講和で豊臣の家と所領を保ちました。家名存続の条件を満たしています。</div>':'<div class="advice">すべての城がわが家・従属の家・条件を満たした盟友の下にあります。</div>')}`,"天下の残り",()=>openRemainingRealm());setSpeed(0);
 }
 function submissionButtons(){
@@ -10521,7 +10522,7 @@ list.length ? `<div class="list">${list.map((x,i)=>`${noviceMobile()&&i===1?"<de
 <div class="row">
 <span class="chip ${x.lv===2?"shu":x.lv===1?"kin":""}">${x.lv===2?"急":x.lv===1?"要":"心"}</span>
 <span style="flex:1">${esc(x.t)}</span>
-${x.go!==null&&x.go!==undefined?(x.relief?`<button class="chip kin" style="cursor:pointer" onclick="closePanel();openRelief(${x.go})">助ける</button>`:`<button class="chip" style="cursor:pointer" onclick="closePanel();gotoCastle(${x.go});openCastle(${x.go})">見る</button>`):""}
+${x.go!==null&&x.go!==undefined?(x.relief?`<button class="chip kin" style="cursor:pointer" onclick="closePanel();openRelief(${x.go})">助ける</button>`:`<button class="chip" style="cursor:pointer" onclick="closePanel();gotoCastle(${x.go})">見る</button>`):""}
 </div>${noviceMobile()&&i===list.length-1&&i>0?"</details>":""}`).join("")}</div>`
 : '<div class="advice">差し迫った憂いはございませぬ。国を富ませる好機です。</div>');
 setSpeed(0);
@@ -16740,7 +16741,7 @@ foundMarks=null;
 panelKey=null; panelRender=null; panel.classList.remove("open"); panel.inert=true; document.body.classList.remove("panelopen"); if(W.speed===0&&!pendingEncounter&&panelResumeSpeed!==null) setSpeed(panelResumeSpeed);
 panelResumeSpeed=null;
 if(pickMode){ document.getElementById("pickBar").hidden=false; const ps=document.getElementById("pSim"); if(ps&&firstTimer()) ps.hidden=false; }
-if(panelReturnFocus && panelReturnFocus.isConnected && !panelReturnFocus.closest("[inert], [hidden]")) panelReturnFocus.focus({preventScroll:true});
+if(panelReturnFocus){const focus=panelReturnFocus;requestAnimationFrame(()=>{if(!panel.classList.contains("open")&&focus.isConnected&&!focus.closest("[inert], [hidden]"))focus.focus({preventScroll:true});});}
 panelReturnFocus=null; }
 let panelKey=null, panelReturnFocus=null, panelRender=null, panelResumeSpeed=null;
 function panelEnhance(){
@@ -16767,28 +16768,29 @@ if(!wasOpen){ panelReturnFocus=document.activeElement; panelResumeSpeed=W.speed;
 const k = key!==undefined ? key : title;
 
 const same=panelKey===k;
-const keepScroll = same ? pBody.scrollTop : 0;
+const previousScroll=wasOpen?pBody.scrollTop:0;
+const keepScroll = same ? previousScroll : 0;
 const opened=same?Array.from(pBody.querySelectorAll('details[open]')).map(e=>e.querySelector('summary')?.textContent):[];
 const active=same&&pBody.contains(document.activeElement)?document.activeElement:null;
 const activeAction=active?.getAttribute('onclick');
 const activeId=active?.id;
 
 if(panelKey!==null && panelKey!==k && panel.classList.contains("open") && !panelBackNav){
-panelHist.push({title:pTitle.textContent, sub:pSub.textContent, html:pBody.innerHTML, key:panelKey, render:panelRender, opened:Array.from(pBody.querySelectorAll("details[open]")).map(e=>e.querySelector("summary")?.textContent), scroll:pBody.scrollTop});
+panelHist.push({title:pTitle.textContent, sub:pSub.textContent, html:pBody.innerHTML, key:panelKey, render:panelRender, opened:Array.from(pBody.querySelectorAll("details[open]")).map(e=>e.querySelector("summary")?.textContent), scroll:previousScroll});
 if(panelHist.length>8) panelHist.shift();
 }
 panelKey=k; panelRender=render||null;
+if(!keepScroll&&previousScroll)pBody.scrollTop=0;
 pTitle.textContent=title; pSub.textContent=sub||"";
 
-if(!keepScroll && pBody.scrollTop) pBody.scrollTop=0;
 pBody.innerHTML=html; panel.inert=false; panel.classList.add("open"); document.body.classList.add("panelopen");
 panel.classList.toggle("novice-mobile",noviceMobile());
 panelEnhance();
 if(same) pBody.querySelectorAll('details').forEach(e=>{ if(opened.includes(e.querySelector('summary')?.textContent)) e.open=true; });
-if(!same||!wasOpen) pTitle.focus({preventScroll:true});
+if(!same||!wasOpen) requestAnimationFrame(()=>{if(panelKey===k&&panel.classList.contains("open"))pTitle.focus({preventScroll:true});});
 else if(active){
 const next=Array.from(pBody.querySelectorAll('[onclick],input,select,textarea')).find(e=>activeId?e.id===activeId:activeAction&&e.getAttribute('onclick')===activeAction);
-(next||pTitle).focus({preventScroll:true});
+requestAnimationFrame(()=>{if(panelKey===k&&panel.classList.contains("open"))(next||pTitle).focus({preventScroll:true});});
 }
 if(keepScroll) pBody.scrollTop=keepScroll;
 const pb=document.getElementById("pBack"); if(pb) pb.hidden=!panelHist.length;
@@ -19340,7 +19342,7 @@ act:()=>{ W.fired.delete(1323); try{ nobuDaily(); }catch(e){ console.error(e); }
 cond:()=>tokugawaCampaign()&&dateFrom(1581,1)&&!B&&!W.tkjAssault&&(()=>{const c=Object.values(W.castles).find(c=>c.name==="高天神城");return c&&clanName(c.clan)==="武田家";})(),
 act:()=>koChoice("高天神城を取り戻す","遠江の城を取り戻す。総攻めに勝てば高天神城が徳川領となる。史実の落城は1581年。",[
 ["fight","奪還の決戦へ","尾根と曲輪を攻める。勝利で高天神を得る",()=>{W.tkjAssault=true;}],
-["siege","兵糧攻めで囲む","地図で城を選び、自ら兵を集める",()=>{const c=Object.values(W.castles).find(c=>c.name==="高天神城");if(c){gotoCastle(c.id);openCastle(c.id);}}]])},
+["siege","兵糧攻めで囲む","地図で城を選び、自ら兵を集める",()=>{const c=Object.values(W.castles).find(c=>c.name==="高天神城");if(c){gotoCastle(c.id);}}]])},
 {id:1441,daily:true,name:"駿河拝領の交渉",text:["信長「武田の旧領、駿河は家康に任せる」"],
 cond:()=>tokugawaCampaign()&&!B&&!!tokugawaSurugaTerms(),
 act:()=>koChoice("駿河の安堵","甲州征伐の戦果を領地へ。織田の守兵は帰り、駿河の城が徳川領となる。",[
@@ -28563,7 +28565,7 @@ if(k.dead||k.suzerain===null||k.suzerain===undefined) continue;
 const L=W.clans[k.suzerain]; if(!L||L.dead) continue;
 if(k.war.has(L.id)||L.war.has(k.id)){ k.war.delete(L.id); L.war.delete(k.id); }
 }
-if(W.stage && (W.stage.aiHold||W.stage.lock)){
+if(W.stage){
 if(W.stage.holdAt===undefined) W.stage.holdAt=dayNumber();
 const k=String(W.stage.key||"");
 const over = (k==="ishiyama" && (!W.ishi||W.ishi.phase==="over"))
@@ -28593,7 +28595,7 @@ const d=DECISIVE.find(x=>x.id===W.decisivePending);
 clearStage();
 { const pre=d&&PRELUDES[d.key]; if(pre&&pre[0]&&W.preludeDay!==d.key+":0"){ W.preludeDay=d.key+":0"; log(pre[0].t,"war",true); } }
 W.decisivePending=null;
-if(d) fireDecisive(d);
+if(d){const c=d.key==="iga2"&&Object.values(W.castles).find(c=>c.name===d.castle);if(c&&c.clan!==decDef(d)?.id) cancelDecisive(d,"比自山はすでに伊賀勢の城ではない");else fireDecisive(d);}
 }
 }
 
@@ -28657,6 +28659,13 @@ log(`${d.name}は取り消されました（${why}）`,"war",true);
 }
 function expireDecisiveQueues(){
 
+if(W.stage&&!B&&!overlayEl&&!deferredDecisive){
+const d=DECISIVE.find(d=>d.key===W.stage.key);
+if(d&&W.fired.has(d.id)&&W.decisivePending!==d.id&&W.sekMini?.id!==d.id&&!(W.sekSub||[]).some(q=>q.id===d.id)){
+clearStage();W.stageLock=false;
+}
+}
+
 if(W.scenario==="sekigahara"&&W.stage&&!B){
 const d=DECISIVE.find(d=>d.key===W.stage.key);
 if(d){
@@ -28693,6 +28702,7 @@ if(dayNumber()-W.decisiveQueuedAt[q.id]>30) cancelDecisive(d,"戦や談合が続
 function decisiveBlocked(){ return !!(B || panel.classList.contains("open") || pickMode || mapPick || pendingEncounter || pendingEnvoy || overlayEl || [...document.querySelectorAll(".overlay")].some(e=>!e.hidden&&e.isConnected) || document.getElementById("moreMenu").hidden===false); }
 function drainDecisive(){ if(!deferredDecisive || decisiveBlocked()) return; const q=deferredDecisive; deferredDecisive=null; if(q.world===WORLD_GEN && W.started && !W.fired.has(q.d.id)) fireDecisive(q.d); }
 function fireDecisive(d){
+if(d.key==="iga2"){ const c=Object.values(W.castles).find(c=>c.name==="比自山城"),def=decDef(d); if(c&&def&&c.clan!==def.id){cancelDecisive(d,"比自山城は既に守り手の手を離れている");return;} }
 if(decisiveBlocked()){ if(!deferredDecisive){ deferredDecisive={d,world:WORLD_GEN}; W.decisivePending=d.id; W.decisiveAt=dayNumber();   if(!B){ try{ setSpeed(0); toast(`${d.name}が迫っています。札を閉じると始まります`); }catch(_){ } } } return; }
 if(W.decisivePending===d.id){ W.decisivePending=null; W.decisiveAt=null; }
 if(W.quick && d.key==="nagashino") d={...d, firstBattle:true, nAtk:6,nDef:6,strictAtk:true,strictDef:true,
@@ -30224,7 +30234,7 @@ if(B.opening>0||B.over!==null){ el.hidden=true; if(te) te.hidden=false; return; 
 const g=battleGoals(); if(!g){ el.hidden=true; if(te) te.hidden=false; return; }
 const short=compactBattle();
 const html=short?`<b>目的</b> ${esc(B.tobiPhase?"外柵を破り、砦へ":B.nagashino?"柵で迎え撃つ":g.main.split(/[。：（]/)[0])}`:`${B.phaseChip?`<b style="color:#8FD0FF;margin-right:8px">${(/^【/.test(B.phaseChip)?esc(B.phaseChip):"【"+esc(B.phaseChip)+"】").split("｜").map(x=>`<span>${x}</span>`).join("｜")}</b>`:""}<b style="color:#FFD166">目的</b>　<span>${esc(g.main)}</span>${g.subs.length?`<span style="opacity:.8;margin-left:8px">${g.subs.map(x=>`${x.ok?"✓":"・"}<span>${esc(x.t)}</span>`).join("　")}</span>`:""}`;
-el.dataset.full=[g.main,...g.subs.map(x=>(x.ok?"達成：":"未達：")+x.t)].join("。 "); el.onclick=()=>{ if(document.querySelector("#battle .overlay")) return; if(!compactBattle()){ toast(el.dataset.full); return; } const old=document.getElementById("battleGoalDetail"); if(old){ old.remove(); return; } const box=document.createElement("div"); box.id="battleGoalDetail"; box.className="overlay"; box.dataset.bat="1"; box.innerHTML=`<div class="dialog" style="max-width:480px"><h3>合戦の目的</h3><p style="font-size:14px;line-height:1.5">${esc(el.dataset.full)}</p><button class="big">閉じる</button></div>`; const battle=B, paused=B.paused; B.paused=true; box.querySelector("button").onclick=()=>{ box.remove(); if(B===battle) B.paused=paused; }; document.getElementById("battle").appendChild(box); }; el.setAttribute("role","button"); el.tabIndex=0; el.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); el.click(); } };
+el.dataset.full=[g.main,...g.subs.map(x=>(x.ok?"達成：":"未達：")+x.t)].join("。 "); el.onclick=()=>{ if(document.querySelector("#battle .overlay")) return; if(!compactBattle()){ toast(el.dataset.full); return; } const old=document.getElementById("battleGoalDetail"); if(old){ old.remove(); return; } const box=document.createElement("div"); box.id="battleGoalDetail"; box.className="overlay"; box.dataset.bat="1"; box.innerHTML=`<div class="dialog" style="max-width:480px"><h3>合戦の目的</h3><p style="font-size:14px;line-height:1.5">${esc(el.dataset.full)}</p><button class="big">閉じる</button></div>`; const battle=B, paused=B.paused; B.paused=true; box.querySelector("button").onclick=()=>{ box.remove(); if(B===battle) B.paused=paused; }; document.getElementById("battle").appendChild(box); }; if(short){el.style.minHeight="44px";el.style.cursor="pointer";el.setAttribute("role","button");el.tabIndex=0;el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();el.click();}};}else{el.onclick=null;el.onkeydown=null;el.removeAttribute("role");el.removeAttribute("tabindex");el.style.minHeight="";el.style.cursor="default";}
 if(el._h!==html){ el._h=html; el.innerHTML=html; } el.hidden=false; if(te) te.hidden=true; }
 function sekGrade(){ const g=sekGrade0(); if(g && B.over!==B.ctx.playerSide) g.g="敗北"; return g; }
 function sekGrade0(){
@@ -30830,7 +30840,7 @@ if(u.cell){ const [cx,cy]=cellCenter(u.cell[0],u.cell[1]); if(!u.nextCell && (Ma
 if(u.cell){ const k=cellKey(u.cell[0],u.cell[1]); if(m.has(k)&&m.get(k)!==u){ if(u.shareAt===undefined) u.shareAt=B.elapsed; if(u.nextCell || B.elapsed-u.shareAt<1.5){   } else { u.cell=null; u.nextCell=null; u.path=null; u.shareAt=undefined; } } else { m.set(k,u); u.shareAt=undefined; } }
 if(u.cell && u.nextCell){ const k=cellKey(u.nextCell[0],u.nextCell[1]); if(m.has(k)&&m.get(k)!==u){ if(m.get(k).side!==u.side){ u.nextCell=null; u.path=null; }   } else m.set(k,u); } }
 
-for(const u of live){ if(u.morale<=0||u.cell||u.tedCross) continue; const c=gridNearestFree(u.x,u.y,u); if(!c) continue; const [cx,cy]=cellCenter(c[0],c[1]);  u.cell=c; u.x=cx; u.y=cy; if(u.gx!==undefined&&u.order&&u.order.k==="guard"){ u.gx=cx; u.gy=cy; } m.set(cellKey(c[0],c[1]),u); }
+for(const u of live){ if(u.morale<=0||u.cell||u.tedCross) continue; const c=gridNearestFree(u.x,u.y,u); if(!c) continue; const [cx,cy]=cellCenter(c[0],c[1]);  if(B.elapsed>0){if(Math.hypot(cx-u.x,cy-u.y)>GC*.75)continue;u.cell=c;}else{u.cell=c;u.x=cx;u.y=cy;if(u.gx!==undefined&&u.order&&u.order.k==="guard"){u.gx=cx;u.gy=cy;}} m.set(cellKey(c[0],c[1]),u); }
 }
 function gridNearestFree(x,y,u){
 const [c0,r0]=cellOf(x,y); let best=null, bd=1e9;
@@ -30961,7 +30971,7 @@ function unitRole(u){ return u.role || (u.cmd?"本陣":u.reserve?"予備":u.type
 function sigCharge(u, target){ if(!u) return; const sp=SPECIALS[UNITS[u.type].sp]; u.morale=Math.min(100,u.morale+20); u.fatigue=Math.max(0,(u.fatigue||0)-30); u.holdUntil=0; if(u.side===B.ctx.playerSide && !B.autoMine && !autoBattleMode) return; if(target){ u.order={k:"attack", id:target.id}; } else u.order={k:"hold"}; if(u.type===2||u.type===1){ u.spUntil=B.elapsed+sp.dur; u.spReady=B.elapsed+30; u.runup=99; } }
 
 function sigHide(names, side){ for(const u of sigUnits(names, side)){ u.left=true; u.sigHidden=true; u.x=-5; } }
-function sigReveal(side, x, y, name){ const us=B.units.filter(u=>u.side===side && u.sigHidden); us.forEach((u,i)=>{ u.left=false; u.sigHidden=false; u.x=x+(i%2)*1.6; u.y=y+Math.floor(i/2)*2.2; u.gx=u.x; u.gy=u.y; u.morale=100; u.fatigue=0; u.order={k:"hold"}; u.holdUntil=0; u.onTower=false; u.towerFixed=false; u.fortGuard=false; u.cell=null; u.nextCell=null; });     if(us.length){ B.reinforceAt=B.elapsed; B.reinforceName=name||us[0].name; playSE("horse"); } return us; }
+function sigReveal(side, x, y, name){ const us=B.units.filter(u=>u.side===side && u.sigHidden); us.forEach((u,i)=>{ u.left=false; u.sigHidden=false; u.x=x+(i%2)*1.6; u.y=y+Math.floor(i/2)*2.2; u.gx=u.x; u.gy=u.y; u.morale=100; u.fatigue=0; u.order={k:"hold"}; u.holdUntil=0; u.onTower=false; u.towerGun=false; u.towerAt=undefined; u.towerFixed=false; u.fortGuard=false; u.cell=null; u.nextCell=null; });     if(us.length){ B.reinforceAt=B.elapsed; B.reinforceName=name||us[0].name; playSE("horse"); } return us; }
 function sigMorale(side, d){ for(const u of B.units) if(u.side===side && u.troops>.5) u.morale=Math.max(0,Math.min(100,u.morale+d)); }
 const SIGNATURES={
 futamata_retake:[
@@ -31446,11 +31456,12 @@ if(u.side!==B.ctx.playerSide||u.order.k!=="move") continue;
 const dx=u.order.x-u.x, dy=u.order.y-u.y, d=Math.hypot(dx,dy);
 if(d<0.3){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; continue; }
 
-{ let tx=Math.min(u.order.x, bcx(0.45)); if(B.nagashino && B.ctx.playerSide===1 && B.nagFenceX!==undefined) tx=Math.min(tx, B.nagFenceX-GC);
-const [c,r]=cellOf(tx,u.order.y); const other=gridOccAt(c,r);
-if(cellPassable(c,r) && u.cell){ if(other && other!==u){ if(other.side===u.side && !other.nextCell){ const oc=u.cell; other.cell=oc; const [ox,oy]=cellCenter(oc[0],oc[1]); other.x=ox; other.y=oy; other.gx=ox; other.gy=oy; other.order={k:"guard"}; occSet(oc[0],oc[1],other); u.cell=[c,r]; const [nx,ny]=cellCenter(c,r); u.x=nx; u.y=ny; occSet(c,r,u); } }
-else { occDel(u.cell[0],u.cell[1],u); u.cell=[c,r]; const [nx,ny]=cellCenter(c,r); u.x=nx; u.y=ny; occSet(c,r,u); } }
-u.face=Math.atan2(dy,dx); u.nextCell=null; u.path=null; u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; continue; }
+let tx=Math.min(u.order.x,bcx(0.45));
+if(B.nagashino&&B.ctx.playerSide===1&&B.nagFenceX!==undefined)tx=Math.min(tx,B.nagFenceX-GC);
+gridMove(u,[tx,Math.max(1,Math.min(BF.h-1,u.order.y))],UNITS[u.type].spd*1.5,dt);
+u.gx=tx;u.gy=u.order.y;
+if(Math.hypot(tx-u.x,u.order.y-u.y)<.3){u.order={k:"guard"};u.gx=u.x;u.gy=u.y;}
+
 }
 if(B.opening<900 && B.opening>0){ B.opening-=dt; if(B.opening<=0){ B.opening=0; try{ playSE("horn"); }catch(_){ } } }
 return;
@@ -31892,7 +31903,7 @@ const n=B._bbq.shift(); n.at=now; B.bigBanner=n; B._bbPrev=n; B._bbShownAt=now;
 }
 function stepUnit(u,dt){
 
-if(u.onTower||u.towerGun){ if(u.towerAt===undefined){ u.towerAt={x:u.x,y:u.y}; } else { u.x=u.towerAt.x; u.y=u.towerAt.y; }
+if(!u.left&&(u.onTower||u.towerGun)){ if(u.towerAt===undefined){ u.towerAt={x:u.x,y:u.y}; } else { u.x=u.towerAt.x; u.y=u.towerAt.y; }
 if(u.order.k!=="guard"&&u.order.k!=="attack"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } }
 let target=null, goal=null;
 if(u.left) return;
@@ -34558,8 +34569,8 @@ let adv=""; if(mineS===1){ let wi=-1, wv=0; cavNear.forEach((n,i)=>{ if(n>wv){ w
 else { let wi=0; fpct.forEach((v,i)=>{ if(v!==null && (fpct[wi]===null||v<fpct[wi])) wi=i; }); adv=`柵は${bn[wi]}が薄い（${fpct[wi]??"-"}%）→ 足軽で崩し、破れたら騎馬を入れる`; }
 B.nagAdvice=adv; B.nagFence=fpct; }
 if(B.tobiPhase){ el.innerHTML=B.lateChip||""; el.hidden=false; } else
-if(compactBattle()){ el.innerHTML=bn.map((n,i)=>`<span role="button" tabindex="0" onclick="bBandCam(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();bBandCam(${i})}">${esc(n.replace(/.*(左翼|中央|右翼)/,"$1"))} ${esc(ws[i].replace(/[○×△]/g,""))}</span>`).join(" "); }
-else el.innerHTML=[[bn[0],ws[0]],[bn[1],ws[1]],[bn[2],ws[2]]].map(([n,w],i)=>{ n=`<span onclick="bBandCam(${i})" style="cursor:pointer;display:inline-block;padding:5px 6px;margin:-5px -2px" title="押せばこの戦線へ">${n}</span>`; if(B.sek){ try{ const fg2=sekFogWord(i); if(fg2){ w=fg2.w; n=n+`<span style="opacity:.6;font-weight:400;margin-left:3px">${fg2.age?`${fg2.age}秒前の報せ`:"物見"}</span>`; } }catch(_){ } }     if(B.nagashino&&B.nagFence&&B.nagFence[i]!==null&&B.nagFence[i]!==undefined) n=n+`<span style="opacity:.75;font-weight:400;margin-left:3px">柵${B.nagFence[i]}%</span>`; const bg=(w==="○優勢"||w==="確保")?"rgba(201,162,39,.22)":(w==="×劣勢"||w==="敵手")?"rgba(140,50,30,.38)":"rgba(255,255,255,.06)"; const fg=(w==="○優勢"||w==="確保")?"#F3E6C4":(w==="×劣勢"||w==="苦戦"||w==="敵手")?"#F0C0A8":"#DDD4C0"; const warn=(w==="×劣勢"||w==="敵手"); return `<span style="display:inline-block;padding:1px 8px;border-radius:3px;background:${bg};color:${fg};font-size:14px;margin:0 1px;border:1px solid ${warn?"rgba(226,110,80,.55)":"rgba(201,162,39,.25)"}">${n}<b style="margin-left:4px">${w}</b></span>`;     }).join("")+(B.lateChip||"")+(B.nagashino&&B.ctx.playerSide===1&&B.opening<=0&&B.nearM!==null&&B.nearM!==undefined?`<span style="display:inline-block;padding:1px 8px;border-radius:9px;background:${B.nearM<=(B.gunRangeM||100)?"rgba(201,162,39,.45)":"rgba(255,255,255,.08)"};color:${B.nearM<=(B.gunRangeM||100)?"#FFD166":"#EDE6D6"};font-size:14px;margin:0 1px">敵まで ${B.nearM}m${B.nearM<=(B.gunRangeM||100)?"　撃てる":""}</span>`:"");
+if(compactBattle()){ el.innerHTML=bn.map((n,i)=>`<span style="display:inline-flex;align-items:center;min-width:44px;min-height:44px" role="button" tabindex="0" onclick="bBandCam(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();bBandCam(${i})}">${esc(n.replace(/.*(左翼|中央|右翼)/,"$1"))} ${esc(ws[i].replace(/[○×△]/g,""))}</span>`).join(" "); }
+else el.innerHTML=[[bn[0],ws[0]],[bn[1],ws[1]],[bn[2],ws[2]]].map(([n,w],i)=>{ n=`<span onclick="bBandCam(${i})" style="cursor:pointer;display:inline-block;min-width:44px;min-height:44px;box-sizing:border-box;padding:10px 6px" title="押せばこの戦線へ">${n}</span>`; if(B.sek){ try{ const fg2=sekFogWord(i); if(fg2){ w=fg2.w; n=n+`<span style="opacity:.6;font-weight:400;margin-left:3px">${fg2.age?`${fg2.age}秒前の報せ`:"物見"}</span>`; } }catch(_){ } }     if(B.nagashino&&B.nagFence&&B.nagFence[i]!==null&&B.nagFence[i]!==undefined) n=n+`<span style="opacity:.75;font-weight:400;margin-left:3px">柵${B.nagFence[i]}%</span>`; const bg=(w==="○優勢"||w==="確保")?"rgba(201,162,39,.22)":(w==="×劣勢"||w==="敵手")?"rgba(140,50,30,.38)":"rgba(255,255,255,.06)"; const fg=(w==="○優勢"||w==="確保")?"#F3E6C4":(w==="×劣勢"||w==="苦戦"||w==="敵手")?"#F0C0A8":"#DDD4C0"; const warn=(w==="×劣勢"||w==="敵手"); return `<span style="display:inline-block;padding:1px 8px;border-radius:3px;background:${bg};color:${fg};font-size:14px;margin:0 1px;border:1px solid ${warn?"rgba(226,110,80,.55)":"rgba(201,162,39,.25)"}">${n}<b style="margin-left:4px">${w}</b></span>`;     }).join("")+(B.lateChip||"")+(B.nagashino&&B.ctx.playerSide===1&&B.opening<=0&&B.nearM!==null&&B.nearM!==undefined?`<span style="display:inline-block;padding:1px 8px;border-radius:9px;background:${B.nearM<=(B.gunRangeM||100)?"rgba(201,162,39,.45)":"rgba(255,255,255,.08)"};color:${B.nearM<=(B.gunRangeM||100)?"#FFD166":"#EDE6D6"};font-size:14px;margin:0 1px">敵まで ${B.nearM}m${B.nearM<=(B.gunRangeM||100)?"　撃てる":""}</span>`:"");
 if(B.sek&&B.koba){ const kw=sekKobaWord(), mw=sekMoriWord(); const col=v=>/東軍|参戦（東/.test(v)?"rgba(140,50,30,.38)":/西軍|参戦（西/.test(v)?"rgba(201,162,39,.22)":"rgba(255,255,255,.06)"; el.innerHTML += `<span style="display:inline-block;padding:2px 8px;border-radius:12px;background:${col(mw)};font-size:14px;margin:0 1px" title="毛利・吉川の去就">南宮山 ${mw}</span><span onclick="sekScout()" style="display:inline-block;padding:2px 8px;border-radius:12px;background:rgba(201,162,39,.25);color:#FFD166;font-size:14px;margin:0 1px;cursor:pointer;border:1px solid rgba(255,214,102,.5)" title="松尾山・南宮山・敵の予備を確かめる（六十秒に一度）">〈物見〉</span>`; }
 if(!compactBattle() && B.nagashino && B.nagAdvice && B.adviceUntil>B.elapsed){ el.innerHTML += `<span style="display:inline-block;padding:2px 10px;border-radius:12px;background:rgba(201,162,39,.25);color:#FFD166;font-size:14px;margin:0 1px;border:1px solid rgba(255,214,102,.5)">軍師「${B.nagAdvice}」</span>`; }
 el.hidden=false; } } }
@@ -35202,7 +35213,7 @@ else if(k==="sp"){ let n2=0; for(const u of gs){ if(B.elapsed>=u.spReady && !(B.
 renderBattleFoot();
 });
 } else {
-foot.innerHTML=`${B.opening>0?`<button class="tool on" id="bBegin" style="font-weight:800">開戦</button><button class="tool" id="bBeginAuto" title="いまの陣立てのまま開戦し、采配は任せる。いつでも戻せる" style="font-weight:800;outline:2px solid rgba(201,162,39,.85);outline-offset:-2px">自動で戦う</button>${(PREF.playedBattles||0)<3?`<span class="tiny" style="color:#FFD166;margin-left:6px;align-self:center">采配が難しければ〈自動で戦う〉。いつでも手に戻せます</span>`:""}`:`<button class="tool ${B.paused?"on":""}" id="bPause" style="font-size:20px;font-weight:900;min-width:52px" title="一時停止／再開（空白キー）">${B.paused?"▶":"Ⅱ"}</button><span class="tiny muted" style="display:flex;gap:2px;align-items:center">${[1,2,3].map(r=>`<button class="tool sub ${(B.rate||1)===r?"on":""}" data-rate="${r}" style="min-width:34px;padding:0 6px;margin:0 3px">×${r}</button>`).join("")}</span>`}
+foot.innerHTML=`${B.opening>0?`<button class="tool on" id="bBegin" style="font-weight:800">開戦</button><button class="tool" id="bBeginAuto" title="いまの陣立てのまま開戦し、采配は任せる。いつでも戻せる" style="font-weight:800;outline:2px solid rgba(201,162,39,.85);outline-offset:-2px">自動で戦う</button>${(PREF.playedBattles||0)<3?`<span class="tiny" style="color:#FFD166;margin-left:6px;align-self:center">采配が難しければ〈自動で戦う〉。いつでも手に戻せます</span>`:""}`:`<button class="tool ${B.paused?"on":""}" id="bPause" style="font-size:20px;font-weight:900;min-width:52px" title="一時停止／再開（空白キー）">${B.paused?"▶":"Ⅱ"}</button><span class="tiny muted" style="display:flex;gap:2px;align-items:center">${[1,2,3].map(r=>`<button class="tool sub ${(B.rate||1)===r?"on":""}" data-rate="${r}" style="min-width:44px;min-height:44px;flex-shrink:0;padding:0 6px;margin:0 3px">×${r}</button>`).join("")}</span>`}
 ${ ""}
 <!-- 第253巡（作り手）：〈再集結〉〈予備隊 投入〉〈取消〉〈出撃〉〈目安箱〉は合戦の帯から外す（無駄な釦を増やさない）。一斉射撃は一つだけ -->
 ${PREF.wingBtns?`<button class="tool ${B.mode==="multi"?"on":""}" id="bMulti" title="隊を押して幾つも選び、まとめて動かす">複数選択</button>`:""}
@@ -35234,7 +35245,7 @@ ${ ""}
 <span class="fsep"></span>
 <button class="tool sub ${B.autoMine?"on":""}" id="bAutoMine" title="自軍の采配も任せる。もう一度押せば戻る">${B.autoMine?"采配：自動":"采配：手動"}</button>${false?`<button class="tool sub" id="bPolicy" title="任せたときの方針を切り替える（積極→防御→本陣防衛→総大将狙い→側面→鉄砲中心）">方針：${B.aiPolicy||"積極"}</button>`:""}
 ${PREF.wingBtns?`<button class="tool aux ${B.rosterOn?"on":""}" id="bRosterT" title="隊の一覧（織田・徳川・武田に分けて。押せばその隊へ）">隊</button>`:""}
-<button class="tool aux" id="bSpeed" hidden title="速さ（Rキー）">${"速さ ×"+(B.rate||1)}</button><button class="tool aux" id="bSound" title="音（曲と効果音）の入り切り">${(Audio_.enabled&&Audio_.music)?"♪ 入":"♪ 切"}</button>
+<button class="tool aux" id="bSpeed" style="min-width:44px;flex-shrink:0" hidden title="速さ（Rキー）">${"速さ ×"+(B.rate||1)}</button><button class="tool aux" id="bSound" title="音（曲と効果音）の入り切り">${(Audio_.enabled&&Audio_.music)?"♪ 入":"♪ 切"}</button>
 <button class="tool aux ${B.retreatArmed?"on":""}" id="bAllRetreat" style="${B.retreatArmed?"color:#FF9A88":""}">${B.retreatArmed?"本当に退く？":"全軍退却"}</button>`;
 { const bp=document.getElementById("bPause"); if(bp) bp.onclick=()=>{ B.paused=!B.paused; bAct(B.paused?"pause":"resume"); if(B.paused) B._pauses=(B._pauses||0)+1; renderBattleFoot(); }; }
 { const br=document.getElementById("bRosterT"); if(br) br.onclick=()=>{ B.rosterOn=!B.rosterOn; const el=document.getElementById("bRoster"); if(el) el.hidden=!B.rosterOn; if(B.rosterOn) renderRoster(true); renderBattleFoot(); }; }
