@@ -4273,13 +4273,14 @@ if(W.scenario==="koshu" && A.name==="武田家" && lordId!==0) return null;
 let hops=0; while(B.suzerain!==null&&B.suzerain!==undefined&&W.clans[B.suzerain]&&!W.clans[B.suzerain].dead&&hops++<4){ if(B.suzerain===me) break; B=W.clans[B.suzerain]; }
 if(B.id===me) return null;
 if(A.suzerain!==null&&A.suzerain!==undefined&&W.clans[A.suzerain]) W.clans[A.suzerain].vassals.delete(me);
-for(const v of [...A.vassals]){ if(v===B.id) continue; const V=W.clans[v]; if(V){ V.suzerain=B.id; B.vassals.add(v); breakAlly(v,B.id); } } A.vassals.clear();
+for(const v of [...A.vassals]){ if(v===B.id) continue; const V=W.clans[v]; if(V){ V.suzerain=B.id; B.vassals.add(v); for(const ally of [...V.allies]) breakAlly(v,ally); } } A.vassals.clear();
 if(B.vassals.has(me)===false) B.vassals.add(me);
 if(B.suzerain===me) B.suzerain=null;
 A.suzerain=B.id; A.vassalAt=dayNumber(); makePeace(me,B.id); breakAlly(me,B.id);
 for(const x of [...A.allies]) breakAlly(me,x);
 for(const v of [...B.vassals]) if(v!==me) breakAlly(me,v);
 for(const x of [...A.allies]) if(B.war.has(x)){ breakAlly(me,x); log(`${A.name}は主家 ${B.name}の敵である${clanName(x)}との盟を解いた`,"dip",x===W.player||me===W.player); }
+settleHouse(B.id);
 return B;
 }
 function makeVassalOf(name, lordId){
@@ -4810,7 +4811,7 @@ return headOf(A)===headOf(B);
 function stageClanIds(){ if(!W.stage||!W.stage.key) return null; const key=String(W.stage.key).replace(/_open$|_winter$/,""); const d=DECISIVE.find(x=>x.key===key); if(!d) return null; const ids=new Set(); for(const nm of [d.atk,d.def].concat(d.atkAllies||[],d.defAllies||[])){ const K=clanByName(nm); if(K) ids.add(K.id); } return ids; }
 function makePeace(a,b,days,deep){
 const A=W.clans[a], B=W.clans[b]; if(!A||!B||a===b) return;
-{ const sc=stageClanIds(); if(sc && sc.has(a) && sc.has(b)){ if(a===W.player||b===W.player) toast("決戦の前ゆえ、いまは矛を収められませぬ（決戦が済んでから和議をお試しくだされ）"); return; } }
+{ const sc=stageClanIds(); if(sc && sc.has(a) && sc.has(b)&&!sameHouse(a,b)){ if(a===W.player||b===W.player) toast("決戦の前ゆえ、いまは矛を収められませぬ（決戦が済んでから和議をお試しくだされ）"); return; } }
 A.war.delete(b); B.war.delete(a);
 if(!deep){
 const va=[...A.vassals].filter(v=>W.clans[v]&&!W.clans[v].dead), vb=[...B.vassals].filter(v=>W.clans[v]&&!W.clans[v].dead);
@@ -5396,6 +5397,7 @@ const chance=18+recruiter.pol*.35+recruiter.int*.15+prestige+(hasTrait(recruiter
 -(target.lea+target.war+target.int+target.pol)*.10
 -((wantId!==undefined && !(target.castle!==null&&W.castles[target.castle]&&roadHops(target.castle,c.id,6)<=6)) ? 15 : 0);
 if(rnd()*100 < Math.max(5,Math.min(90,chance))){
+for(const old of Object.values(W.castles)) if(old.lord===target.id) old.lord=null;
 target.clan=c.clan; target.castle=c.id; target.status="家臣";
 target.tozama=true; target.loyalty=60; target.troops=Math.min(500,troopCapOf(target)); target.task=null; target.army=null;
 bumpGarrison();
@@ -6027,6 +6029,8 @@ for(const c of Object.values(W.castles)){
 const t=W.tile[c.id]; if(!t) continue;
 if(Math.abs(t.c-a.x)>0.45||Math.abs(t.r-a.y)>0.45) continue;
 if(c.clan===a.clan||c.clan===null) continue;
+
+if(W.scenario==="nagashino"&&a.mission==="移動"&&a.path?.[0]===c.id) continue;
 if(a.mission==="包囲"&&a.target===c.id) continue;
 a.y = t.r + ((a.id%2)?1.5:-1.5); a.x = t.c + (((a.id%3)-1)*0.8);
 break; } } }catch(_){ }
@@ -6965,6 +6969,7 @@ if(k.dead){ if(k.war.size||k.allies.size||k.vassals.size) forgetClan(k.id); cont
 for(const w of [...k.war]){
 const o=W.clans[w];
 if(!o||o.dead){ k.war.delete(w); continue; }
+if(sameHouse(k.id,w)){makePeace(k.id,w);continue;}
 if(!o.war.has(k.id)) o.war.add(k.id);
 if(k.allies.has(w)){ k.allies.delete(w); o.allies.delete(k.id); }
 }
@@ -7310,7 +7315,7 @@ const opportunities=realmOpportunities(rows);
 const osakaGoal=W.scenario==="osaka"&&/^(豊臣家|徳川家)$/.test(W.clans[W.player].name)?`<div class="advice">大坂の勝ちの条件：${W.clans[W.player].name==="豊臣家"?"講和・臣従して豊臣の家と所領を保てば〈家名存続〉。徳川を倒して全家を従えれば〈天下統一〉。":"豊臣との決着をつけ、全家を徳川の下にまとめれば〈天下統一〉。"}${osakaHouseSurvived(W.player)?" 家名存続を達成しました。":""}</div>`:"";
 const authority=(W.scenario==="nagashino"||extendedRealmCampaign())?`<div class="advice">全国交渉は${nationalSubmissionYear()}年から。自城20・実兵五万・天下の四分の三が必要。従属城も交渉の力に数え、実兵二倍（残り一割か最後の主家は一・五倍）を九十日保つ。</div>`:"";
 const h=rows.map(r=>{const k=W.clans[r.clan],revision=realmTruceTerms(W.player,r.clan);return `<div class="card"><b>${esc(k.name)}　${r.count}城</b><div>${r.castles.map(c=>`<button class="chip" onclick="closePanel();gotoCastle(${c.id})">${esc(c.name)}（${esc(c.province)}・守兵${c.troops.toLocaleString()}）</button>`).join(" ")}</div><div>${esc(r.hint)}</div>${r.blocker?`<button class="big ghost" onclick="closePanel();gotoCastle(${r.blocker.id})">先に道を開く：${esc(r.blocker.name)}（${esc(clanName(r.blocker.clan))}）</button>`:""}${r.suzerain!=null?`<button class="big ghost" onclick="openDiploClan(${r.suzerain})">主家の${esc(clanName(r.suzerain))}と交渉</button>`:""}<div class="tiny">降らない理由：${esc(r.explanation)}</div><div class="tiny">兵 ${r.troops.toLocaleString()}・${r.suzerain!=null?esc(clanName(r.suzerain))+"の傘下":r.ally?"同盟":r.truce?"和睦":r.war?"交戦":"独立"}</div>${r.crossing?`<div class="tiny">渡海：${esc(W.castles[r.crossing.from].name)} → ${esc(W.castles[r.crossing.to].name)}。出陣すると船を調達して航路を進む。出立の城に港を築けば船足が上がる。兵糧を蓄えてから渡す。</div>`:""}<button class="big gold" onclick="toast(requestSubmission(W.player,${r.clan})||'使者を送りました。返書を待ちます');checkVictory();openRemainingRealm();refreshHUD()" ${canRequestSubmission(W.player,r.clan)?"":"disabled"}>${k.submissionOffer?"従属を受け入れる":"従属を求める"}</button><button class="big ghost" onclick="openDiploClan(${r.clan})">外交の手立て</button>${revision?`<button class="big gold" onclick="toast(reviseRealmTruce(${r.clan})||'和睦は九十日後に満了します');openRemainingRealm();refreshHUD()" ${W.clans[W.player].money<revision.cost?"disabled":""}>和睦を見直す<span class="cost">礼金 銭${revision.cost.toLocaleString()}を相手へ渡す・九十日後に満了・破約の信の損失なし</span></button>`:""}${r.route?`<button class="big ghost" onclick="closePanel();gotoCastle(${r.route.from})">兵を集める：${esc(W.castles[r.route.from].name)}</button><button class="big ghost" onclick="closePanel();gotoCastle(${r.route.to})">${esc(W.castles[r.route.to].name)}の調略・出陣先を見る</button>`:""}</div>`;}).join("");
-openPanel("天下の残り",`自城 ${myCastles(W.player).length}・従属城 ${Object.values(W.castles).filter(c=>W.clans[W.player].vassals.has(c.clan)).length}${allied?`・同盟城 ${allied}`:""}／主のある全${total}城`, `${opportunities.length?`<div class="card"><b>今できる手</b>${opportunities.slice(0,6).map(t=>`<div>${esc(t)}</div>`).join("")}</div>`:""}${osakaGoal}${ishidaRecoveryHTML()}${tokugawaExpansionHTML()}${authority}<div class="advice">四国・九州は渡海して所領安堵、小田原は支城と本拠を囲み、奥州は参陣と服属を求める。兵と領地の威を保てば、遠国にも使者が届く。</div>${h||(osakaHouseSurvived(W.player)?'<div class="advice">講和で豊臣の家と所領を保ちました。家名存続の条件を満たしています。</div>':'<div class="advice">すべての城がわが家・従属の家・条件を満たした盟友の下にあります。</div>')}`,"天下の残り",()=>openRemainingRealm());setSpeed(0);
+openPanel("天下の残り",`自城 ${myCastles(W.player).length}・従属城 ${Object.values(W.castles).filter(c=>W.clans[W.player].vassals.has(c.clan)).length}${allied?`・同盟城 ${allied}`:""}／主のある全${total}城`, `${opportunities.length?`<div class="card"><b>今できる手</b>${opportunities.slice(0,6).map(t=>`<div>${esc(t)}</div>`).join("")}</div>`:""}${nagashinoGrowthAdvice()?`<div class="advice">${esc(nagashinoGrowthAdvice().t)}</div>`:""}${osakaGoal}${ishidaRecoveryHTML()}${tokugawaExpansionHTML()}${authority}<div class="advice">四国・九州は渡海して所領安堵、小田原は支城と本拠を囲み、奥州は参陣と服属を求める。兵と領地の威を保てば、遠国にも使者が届く。</div>${h||(osakaHouseSurvived(W.player)?'<div class="advice">講和で豊臣の家と所領を保ちました。家名存続の条件を満たしています。</div>':'<div class="advice">すべての城がわが家・従属の家・条件を満たした盟友の下にあります。</div>')}`,"天下の残り",()=>openRemainingRealm());setSpeed(0);
 }
 function submissionButtons(){
 return Object.values(W.clans).filter(k=>k.submissionOffer&&k.submissionOffer.lord===W.player&&submissionTerms(W.player,k.id)).map(k=>`<button class="big gold" onclick="toast(acceptSubmission(W.player,${k.id})||'所領を安堵し、従属を受け入れました');openDiplomacy();refreshHUD()">${esc(k.name)}の従属を受け入れる<span class="cost">銭不要・所領安堵。城${myCastles(k.id).length}が統一の数に加わる</span></button>${k.submissionOffer.opening?`<button class="big ghost" onclick="toast(acceptSubmission(W.player,${k.id},true)||'開城を受け入れました');openDiplomacy();refreshHUD()">${esc(k.name)}の開城を受け入れる<span class="cost">銭不要・城を直接治める。将と兵を保護し、城下を荒らさない</span></button>`:""}`).join("");
@@ -8492,7 +8497,7 @@ for(const o of Object.values(W.clans)) if(o.id!==me) addRel(o.id,me,-12);
 log(`${A.name}が停戦の約定を破りました。諸国の信を失った`,"dip");
 }
 if(A.truce) delete A.truce[other];
-declareWar(me,other,bordersOn(me,other)?undefined:"force");
+declareWar(me,other,W.scenario==="nagashino"?"force":bordersOn(me,other)?undefined:"force");
 addRel(me,other,-50); addRel(other,me,-50);
 log(`${A.name}が${B.name}に宣戦しました`,"war"); break; }
 default: return "実行できません";
@@ -8509,6 +8514,7 @@ function handleCaptive(gid,action){
 const g=W.generals[gid];
 if(!g||g.status!=="捕虜") return "捕虜ではありません";
 const captor=g.captor, former=g.clan;
+for(const c of Object.values(W.castles)) if(c.lord===g.id) c.lord=null;
 if(captor===null||captor===undefined||!W.clans[captor]||W.clans[captor].dead||!myCastles(captor).length) return "捕らえ手の家がありません";
 const wasLord=former!==null&&W.clans[former]&&W.clans[former].daimyo===g.id;
 const formerName = former===null?"旧主":clanName(former);
@@ -12253,7 +12259,7 @@ const c=W.castles[cid], A=W.clans[lord]; if(!c||!A||c.clan==null||c.clan===lord|
 if(!diplomaticCastleReach(lord,cid)) return null;
 const start=A.campaignStartCastles??myCastles(lord).length;
 const major=/^(織田家|武田家|上杉家|北条家|毛利家|島津家|徳川家)$/.test(A.name);
-const interval=W.scenario==="nagashino"?(start<=2?180:major?24:60):W.scenario==="sekigahara"?(start<=2?120:/^(徳川家|豊臣家|石田家|毛利家|上杉家|島津家|前田家|伊達家)$/.test(A.name)?60:90):0;
+const interval=W.scenario==="nagashino"?(start<=2?90:major?24:60):W.scenario==="sekigahara"?(start<=2?120:/^(徳川家|豊臣家|石田家|毛利家|上杉家|島津家|前田家|伊達家)$/.test(A.name)?60:90):0;
 if(A.castleTalkAt!=null&&dayNumber()-A.castleTalkAt<interval) return null;
 const agent=Object.values(W.generals).filter(g=>g.clan===lord&&!g.army&&!g.task&&!g.captor&&["家臣","大名"].includes(g.status)&&!isChild(g)&&!(g.woundedUntil>dayNumber())).sort((a,b)=>b.int-a.int)[0];
 if(!agent) return null;
@@ -12262,7 +12268,7 @@ const ruler=W.generals[c.lord], loyalty=ruler?(ruler.loyalty||100):80;
 const ratio=totalTroops(lord)/Math.max(2000,totalTroops(c.clan));
 
 const small=myCastles(lord).length<=3;
-return {cost:(small?8000:20000)+Math.round(garrisonTroops(cid)*(small?2:4)), chance:Math.round(Math.max(W.scenario==="sekigahara"&&start<=2?20:10,Math.min(80,agent.int*.45+Math.min(25,ratio*5)+myCastles(lord).length*.3-loyalty*.25-(c.hq?20:0)))),agent:agent.id};
+return {cost:(small?8000:20000)+Math.round(garrisonTroops(cid)*(small?2:4)), chance:Math.round(Math.max(["nagashino","sekigahara"].includes(W.scenario)&&start<=2?20:10,Math.min(80,agent.int*.45+Math.min(25,ratio*5)+myCastles(lord).length*.3-loyalty*.25-(c.hq?20:0)))),agent:agent.id};
 }
 function intrigueCastle(lord,cid){
 const terms=castleIntrigueTerms(lord,cid), c=W.castles[cid];
@@ -37080,6 +37086,26 @@ playScene(threat?"mapTense":"mapCalm");
 }
 
 let adviceTarget=null;
+
+function nagashinoGrowthAdvice(){
+if(W.scenario!=="nagashino"||W.result) return null;
+const id=W.player, K=W.clans[id], own=myCastles(id);
+if(!K||!own.length||(K.campaignStartCastles??own.length)>3) return null;
+const threat=Object.values(W.armies).find(a=>hostile(id,a.clan)&&a.mission!=="帰還"&&W.castles[a.target]?.clan===id&&armyTroops(a)>garrisonTroops(a.target)*1.2&&bordersOn(id,a.clan)&&powerScore(a.clan)>powerScore(id)*1.2);
+if(threat&&!submissionProtected(K)) return {t:`次の一手：${clanName(threat.clan)}の大軍が迫っています。〈臣従〉で城と家を保ち、傘下で育つ手があります。`,c:threat.target,dip:threat.clan,btn:"臣従を相談"};
+if(K.suzerain!=null){
+const t=independenceTerms(id,K.suzerain);
+if(t) return {t:`次の一手：${clanName(K.suzerain)}に礼金二万で〈独立交渉〉できます。独立後も同盟の街道を使えます。`,c:own[0].id,dip:K.suzerain,btn:"独立を相談"};
+if(getRel(id,K.suzerain)<70||getRel(K.suzerain,id)<70) return {t:`次の一手：主家${clanName(K.suzerain)}へ贈物を。相互の友好70と二城・兵三千・臣従三年、または五城・兵一万で独立を交渉できます。`,c:own[0].id,dip:K.suzerain,btn:"主家と交渉"};
+}
+const openings=Object.values(W.castles).filter(c=>c.clan!=null&&c.clan!==id&&!sameHouse(id,c.clan)&&!K.allies.has(c.clan)&&diplomaticCastleReach(id,c.id)).map(c=>({c,t:castleIntrigueTerms(id,c.id)})).filter(x=>x.t&&(!x.c.openingTalk||x.c.openingTalk[id]==null||dayNumber()-x.c.openingTalk[id]>=90)).sort((a,b)=>b.t.chance-a.t.chance||a.t.cost-b.t.cost);
+if(openings.length){const {c,t}=openings[0];return {t:`次の一手：${c.name}へ〈開城交渉〉。銭${t.cost.toLocaleString()}・見込み${t.chance}％。同盟・主家の街道からも使者が届き、断られても九十日後に再交渉できます。`,c:c.id,btn:"開城の条件へ"};}
+const patron=[...adjacentClans(id)].map(n=>W.clans[n]).filter(k=>k&&!k.dead&&k.suzerain==null&&!sameHouse(id,k.id)&&myCastles(k.id).length>own.length*2).sort((a,b)=>powerScore(b.id)-powerScore(a.id))[0];
+if(K.suzerain==null&&!K.allies.size&&patron) return {t:`次の一手：${patron.name}を後ろ盾に。${hostile(id,patron.id)?"まず和睦し、":""}贈物で友好70へ上げて同盟を結ぶと、盟友の先の城にも開城交渉できます。`,c:own[0].id,dip:patron.id,btn:"同盟を相談"};
+const next=remainingRealm(id).filter(r=>!r.protected&&r.route?.reachable&&!r.terms).sort((a,b)=>a.route.path.length-b.route.path.length||garrisonTroops(a.route.to)-garrisonTroops(b.route.to))[0];
+if(next){const from=W.castles[next.route.from],to=W.castles[next.route.to],need=Math.max(1500,Math.ceil(garrisonTroops(to.id)*2));return {t:`次の一手：${from.name}へ兵を集め、${to.name}の守兵${garrisonTroops(to.id).toLocaleString()}に対して兵${need.toLocaleString()}を用意。${next.truce?"和睦中なので外交で約定を確認してください。":"城の札から出陣できます。"}`,c:from.id,btn:"兵を集める城へ"};}
+return null;
+}
 function currentAdvice(){
 const me=W.clans[W.player];
 const mine=myCastles(W.player);
@@ -37090,6 +37116,8 @@ return {t:`城を失いました。野にある${field.length}軍で城を取り
 }
 
 if(W.stage && W.decisiveAt && !document.querySelector("#dcGo")){ const site=W.stage.site; const left=Math.max(0,W.decisiveAt-dayNumber()); return {t:`軍は${site?site.name:"決戦の地"}へ向かっております（あと${left}日）。▶で日を進め、決戦の窓が開いたら〈采配を取る〉を。`,c:null}; }
+const growth=nagashinoGrowthAdvice();
+if(growth?.dip!=null&&/大軍/.test(growth.t)) return growth;
 const besieged=Object.values(W.armies).find(a=>a.mission==="包囲"&&W.castles[a.target]&&W.castles[a.target].clan===W.player);
 if(besieged) return {t:`${W.castles[besieged.target].name}が囲まれております。援軍を送るか、籠城の備えを。`,c:besieged.target, relief:true, btn:"助ける"};
 
@@ -37101,6 +37129,7 @@ const coming=Object.values(W.armies).find(a=>a.clan!==W.player&&hostile(W.player
 &&W.castles[a.target]&&W.castles[a.target].clan===W.player&&visible(a));
 if(coming) return {t:`${clanName(coming.clan)}の軍が${W.castles[coming.target].name}へ。守りを固めなされ。`,c:coming.target};
 
+if(growth) return growth;
 const inc=mine.reduce((s,c)=>s+income(c),0);
 const pay=Object.values(W.generals).filter(g=>g.clan===W.player&&g.status!=="死亡").reduce((s,g)=>s+stipend(g),0);
 if(inc-pay<0 && me.money<12000)
@@ -37136,11 +37165,12 @@ return {t:`当面の憂いはございませぬ。国を富ませ、兵を養う
 function refreshAdvice(){
 const a=currentAdvice();
 document.getElementById("adviserText").textContent=a.t;
-adviceTarget=a.c; adviceRelief=!!a.relief;
+adviceTarget=a.c; adviceRelief=!!a.relief; adviceDip=a.dip??null;
 const gb=document.getElementById("adviserGo"); gb.style.display=a.c===null?"none":""; gb.textContent=a.btn||"その城へ";
 }
-let adviceRelief=false;
+let adviceRelief=false, adviceDip=null;
 document.getElementById("adviserGo").onclick=()=>{
+if(adviceDip!=null){openDiploClan(adviceDip);return;}
 if(adviceTarget===null) return;
 if(adviceRelief){ openRelief(adviceTarget); return; }
 jumpToCastle(adviceTarget); openCastle(adviceTarget);
