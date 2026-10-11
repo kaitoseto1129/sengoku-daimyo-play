@@ -30831,6 +30831,14 @@ function gridAllyCell(c,r,u){ if(!cellPassable(c,r)) return false; const o=gridO
 function occSet(c,r,u){ if(B._occ) B._occ.set(cellKey(c,r),u); }
 function occDel(c,r,u){ if(B._occ && B._occ.get(cellKey(c,r))===u) B._occ.delete(cellKey(c,r)); }
 
+const __gridVisual=new WeakMap();
+function battleDrawPosition(u){
+const v=__gridVisual.get(u);
+if(!v) return {x:u.x,y:u.y};
+const k=B.opening>0||v.warp!==B._warpAt?0:Math.max(0,1-(B.elapsed-v.at)/v.sec);
+if(!k){ __gridVisual.delete(u); return {x:u.x,y:u.y}; }
+return {x:u.x+v.dx*k,y:u.y+v.dy*k};
+}
 function gridSettleAll(){
 if(!B) return; const m=new Map(); B._occ=m;
 const live=B.units.filter(u=>u.troops>.5&&!u.left);
@@ -30840,7 +30848,18 @@ if(u.cell){ const [cx,cy]=cellCenter(u.cell[0],u.cell[1]); if(!u.nextCell && (Ma
 if(u.cell){ const k=cellKey(u.cell[0],u.cell[1]); if(m.has(k)&&m.get(k)!==u){ if(u.shareAt===undefined) u.shareAt=B.elapsed; if(u.nextCell || B.elapsed-u.shareAt<1.5){   } else { u.cell=null; u.nextCell=null; u.path=null; u.shareAt=undefined; } } else { m.set(k,u); u.shareAt=undefined; } }
 if(u.cell && u.nextCell){ const k=cellKey(u.nextCell[0],u.nextCell[1]); if(m.has(k)&&m.get(k)!==u){ if(m.get(k).side!==u.side){ u.nextCell=null; u.path=null; }   } else m.set(k,u); } }
 
-for(const u of live){ if(u.morale<=0||u.cell||u.tedCross) continue; const c=gridNearestFree(u.x,u.y,u); if(!c) continue; const [cx,cy]=cellCenter(c[0],c[1]);  if(B.elapsed>0){if(Math.hypot(cx-u.x,cy-u.y)>GC*.75)continue;u.cell=c;}else{u.cell=c;u.x=cx;u.y=cy;if(u.gx!==undefined&&u.order&&u.order.k==="guard"){u.gx=cx;u.gy=cy;}} m.set(cellKey(c[0],c[1]),u); }
+for(const u of live){
+if(u.morale<=0||u.cell||u.tedCross) continue;
+const c=gridNearestFree(u.x,u.y,u); if(!c) continue;
+const [cx,cy]=cellCenter(c[0],c[1]);
+if(B.elapsed>0&&B.opening<=0){
+const v=battleDrawPosition(u), dx=v.x-cx, dy=v.y-cy, d=Math.hypot(dx,dy);
+if(d>.02) __gridVisual.set(u,{dx,dy,at:B.elapsed,sec:d/(UNITS[u.type].spd*1.5),warp:B._warpAt});
+}
+u.cell=c; u.x=cx; u.y=cy;
+if(u.gx!==undefined&&u.order&&u.order.k==="guard"){ u.gx=cx; u.gy=cy; }
+m.set(cellKey(c[0],c[1]),u);
+}
 }
 function gridNearestFree(x,y,u){
 const [c0,r0]=cellOf(x,y); let best=null, bd=1e9;
@@ -33793,7 +33812,8 @@ let dim=false;
 if((B.weather==="霧"||B.night) && u.side!==B.ctx.playerSide && B.over===null){ const see=B.weather==="霧"?9:11; if(!B.units.some(z=>z.side===B.ctx.playerSide&&z.troops>.5&&!z.left&&dist(z,u)<see)){ dim=true; showPlate=false; } }
 
 const lg = (u.lunge>0) ? Math.sin(Math.min(1,u.lunge/0.25)*Math.PI)*0.45 : 0;
-let x=(u.x+Math.cos(u.face||0)*(lg+(u.pushK||0)))*sx, y=(u.y+Math.sin(u.face||0)*(lg+(u.pushK||0)))*sy; if(u.onTower&&u.troops>.5&&!(V.z<1.25)&&((B.fortTowers&&B.fortTowers.some(t=>t.alive&&Math.hypot(t.x-u.x,t.y-u.y)<1.6))||(B.kz&&B.kz.towers.some(t=>t.alive&&Math.hypot(t.x-u.x,t.y-u.y)<1.6)))){ y-=sy*1.2; }
+const visual=battleDrawPosition(u);
+let x=(visual.x+Math.cos(u.face||0)*(lg+(u.pushK||0)))*sx, y=(visual.y+Math.sin(u.face||0)*(lg+(u.pushK||0)))*sy; if(u.onTower&&u.troops>.5&&!(V.z<1.25)&&((B.fortTowers&&B.fortTowers.some(t=>t.alive&&Math.hypot(t.x-u.x,t.y-u.y)<1.6))||(B.kz&&B.kz.towers.some(t=>t.alive&&Math.hypot(t.x-u.x,t.y-u.y)<1.6)))){ y-=sy*1.2; }
 if(u.kick && u.kick.t>0){ const kk=u.kick.t/0.18; x+=u.kick.x*kk*Z; y+=u.kick.y*kk*Z*0.7; u.kick.t-=0.016; }
 if(u.recoilUntil>B.elapsed){ const pr=Math.min(1,(u.recoilUntil-B.elapsed)/1.3); x+=(u.recoilDir||1)*Math.sin(pr*Math.PI)*0.9*sx; }
 if(!battleVisible(x,y,450*Z,350*Z)) continue;
