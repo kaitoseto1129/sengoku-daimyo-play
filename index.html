@@ -4043,7 +4043,7 @@ try{ reliefPick=null; foundPick=null; foundMarks=null; armyRedirect=null; foundB
 W.fired=new Set(); W.alerts=new Set();
 W.shogun=null; W.subj=null; W.result=null; W.nextArmy=1; W.okeWon=false; W.opening=null;
 
-W.osaka=null; W.oda=null; W.ko=null; W.odaWar=false; W.odaBattle=false; W.koTakato=false; W.koTemmoku=false; W.koEscaped=false; W.osakaSummer=false; W.osakaTennoji=false; W.reliefMuster=null; W.stage=null; W.stageLock=false; W.decisiveWon={}; W.decisiveDay={}; W.decisivePending=null; W.scenarioStartDay=undefined;
+W.osaka=null; W.oda=null; W.ko=null; W.odaWar=false; W.odaBattle=false; W.koTakato=false; W.koTemmoku=false; W.koEscaped=false; W.osakaSummer=false; W.osakaTennoji=false; W.reliefMuster=null; W.stage=null; W.stageLock=false; W.decisiveWon={}; W.decisiveDay={}; W.decisiveWarNotices={}; W.decisivePending=null; W.scenarioStartDay=undefined;
 W.osakaBell=null; W.osakaRonin=undefined; W.osakaDelayUntil=null; W.gennaDone=false; W.genna=false; W.okePlan=null; W.okeHold=false; W.okeEscaped=false; W.sekMod=null; W.sekPrep=null; W.nobunagaAlive=false; W.nobutadaAlive=false; W.honnojiHarsh=false; W.hoiNet=0; W.kanegasaki=false; W._roles=null; W._rolesDay=undefined; W.odaUnityAt=0; W.shizugatakeAt=null; W.nagashimaSiegeAt=null; W.moriRiceAt=0; W.osakaTennojiAt=0;
 for(const k of SCEN_FLAGS) W[k]=undefined;
 
@@ -5565,7 +5565,7 @@ if(a.mission==="移動" && a.clan!==W.player && !a.script && a.days%3===0){ cons
 if(tc && tc.clan!==null && tc.clan!==a.clan && K && !hostile(a.clan,tc.clan) && !K.allies.has(tc.clan) && K.suzerain!==tc.clan && !K.vassals.has(tc.clan) && !sameHouse(a.clan,tc.clan)){ recallArmy(a.id); continue; }
 
 if(tc && tc.clan!==null && tc.clan!==a.clan && hostile(a.clan,tc.clan) && garrisonTroops(tc.id)*1.5>armyTroops(a)){ log(`${a.name||"軍勢"}は${tc.name}の守りが厚くなったのを見て、兵を返しました`,"war"); recallArmy(a.id); continue; } }
-if(["nagashino","sekigahara"].includes(W.scenario)&&a.mission==="帰還"&&a.path.some(id=>{ const c=W.castles[id]; return c&&c.clan!==null&&c.clan!==a.clan&&!sameHouse(a.clan,c.clan)&&!W.clans[a.clan].allies.has(c.clan); })){
+if(W.scenario==="nagashino"&&a.mission==="帰還"&&a.path.some(id=>{ const c=W.castles[id]; return c&&c.clan!==null&&c.clan!==a.clan&&!sameHouse(a.clan,c.clan)&&!W.clans[a.clan].allies.has(c.clan); })){
 recallArmy(a.id); if(!W.armies[a.id]) continue;
 }
 let next=a.path[0];
@@ -8327,7 +8327,7 @@ else a.slip=true;
 }
 }
 a.mission="帰還"; a.target=a.origin;
-if(["nagashino","sekigahara"].includes(W.scenario)){
+if(W.scenario==="nagashino"){
 
 const from=a.edge?.[0]??nearestCastle(a);
 const homes=myCastles(a.clan).sort((c,d)=>(c.id===a.origin?-1:d.id===a.origin?1:kmBetween(a.x,a.y,W.tile[c.id].c,W.tile[c.id].r)-kmBetween(a.x,a.y,W.tile[d.id].c,W.tile[d.id].r)));
@@ -13442,7 +13442,7 @@ function showAutoNotice(){ if(!W.autoNoticePending||!W.started||B||decisiveBlock
 function hasSave(){ return !!readSave(SAVE_KEY); }
 
 const SCEN_FLAGS=["hieiBattle","hiei","hieiTalked","religiousAnger","sekIntroDone","sekPlan","hidetadaJoins","sekMini","sekRewardAsk","sekAfter","sekSub","osakaCarry","smaru","msim","kagetora","nagResult","nagShaken","nagGrade","mik","mikBattle","mikResult","kiyo","kiyoResult","shizu","shizuBattle","shizuResult","kom","komBattleHs","komBattleTk","komNagakute","komResult","kyu","kyuResult","shk","shkResult","hon","honBattle","honBattle2","honResult","ueda","uedaBattle","uedaLate","uedaResult","ishi","ishiKizu","ishiRelief","ishiResult","azuchi","naval1","nagCamp","kobaChoice","toyotomiGrudge","sekPrisoners","jingo","jingoBattle","jingoResult","jingoWakaBattle","jingoAuto","otate","otateDay","echizenDone","yoshiakiAt","decisiveWaited","lastHelpAt","okeCastle","gennaPending","stageLock","odaUnityAt","shizugatakeAt","nagashimaSiegeAt","moriRiceAt","osakaTennojiAt","okeEscaped","sekPrep","nagashinoDay","araki","net3","saika","saikaCowed","yamanaAt","hiraguomoDone","negoro","navyPlus","ironShips","ironCfg","kukiBuildAt","kinaiActed","arakiSub","arakiDoubt","arakiSiegeDays","arakiFled","kanbeiSent","kanbeiSaved","kanbeiGrudge","kanbeiRescue","kanbeiFound","arakiId","kanbeiHeld","nagAvoided","honnojiP","akechiShamed","ted","tedResult","tedNext","ane","aneResult","suriDone","odawaraCallDone","mimiAsked","mimiPlan","mimiAfter","okiAfter","okeIntel","okeIntelSrc","okeRoute","okeWait","nag","nagSlain","chugokuCall","honTitles","koFlight","koTakatoMode","koTakatoShake","koTakatoBurn","shikoku","takedaShaken","takatenjin","shinpu","tokugawaTakeda","saikaSplit","saikaWar","warScore","genna","osakaGrudgeDone","scenarioDay0","tedHideyoshiLeft","farWar","shiga","nodaBattle","nodaNight","shigaBattle","nagashimaFinal","nagashimaSeal","odaniBattle","odaniIchi","ichijoBattle","ichijoLater","smaru","smaruResult","smaruHeld","tkj","tkjAssault","tkjBreak","tkjMercy","tkjHarsh","arakiBattle","arakiTurned","tottori","tottoriRelief","takamatsu","takamatsuBattle","kitanoshoBattle","kitanoshoAt","kitanoshoIchi","gifuBattle","gifuAt","kyuHetsugi","kyuNejiro","kyuNejiroNight","shkLastStand","odaYamanaka","odaHachioji","oshiBattle","sekSub","sekOtsu","sekIshigaki","osakaFinalAsked","osakaHideyoriFled","osakaYaoWon","ishiyamaPeaceAt","kyonyoStayed","shkDip","shkCounter","kyuDip","kyuRaidHon","ueda1Mode","ueda1Plan","tkjBreakSmall","shinpu2","azuchiSkip","azuchiHub","kenshinIll","kenshinSurvive","kenshinIllAt","ishiP","chakai","chakaiResult","culture","ieyWary","uma","umaResult","shkSet","shkSettle","tdSet","tdSettle","tdKeptTakeda","iey","ieyResult","ieyasuSakai","ieyasuNotInvited","chugokuWho","nobunagaWest","chugokuNoHelp","courtRel","saika","saikaBattle","saikaGunDeal","nobu","nobuHeir","nobuConfined","nobuRevolt","azuchiPadre","azuchiIeyasu","sects","shuron","shuronResult","shuronLingering","sobujirei","katanagari","bunroku","bunrokuSkipped","hidetsuguAlive","mitsunariRetired","moriStayed","asakuraBond","asakuraBond0","asakuraDefect1","asakuraFled","staged","rankPrev","relPrev"];
-SCEN_FLAGS.push("realmCouncil","ishidaRecoveryAt","futamataRetake","campaignSeasonAt","campaignSeasonCastles","decisiveQueuedAt");
+SCEN_FLAGS.push("realmCouncil","ishidaRecoveryAt","futamataRetake","campaignSeasonAt","campaignSeasonCastles","decisiveQueuedAt","decisiveWarNotices");
 SCEN_FLAGS.push("azaiNeutral","fushimiResult","igaFirstLost","igaHeld","kiyoAllyTerms","koField","koOdaResult","kzGuard","shinpuDelayed","_disp","_told","_tooEarlyLog","_introLogged","_lastB","evAudit","evExpired");
 SCEN_FLAGS.push("azaiOmen","azaiOmenAt","azaiTrust","azaiEnvoyAsked","azaiOmenSkip","azaiStop","mino","minoActed","iwamuraSiege","nanaoSiege","mikiSiege","shigisanSiege","yakamiSiege","tottoriSiege","uozuSiege","igaClan","akechiRefused","akechiWait","killedBy","miles","milesInit","sekAizu","sekWear","shinpuPressure","smAtkPlan","decDrops","monthSaveAt","monthSaveN","castles0","unlocked","quick","quickTold","kiyoAllyDone");
 function loadGame(record){
@@ -19174,7 +19174,7 @@ open:"余呉湖のほとり、砦の柵を挟んで両軍がぶつかった",
 after:{ atkWin:{ text:"勝家は北ノ庄へ敗走し、お市とともに城に火を放って自刃した", kill:"柴田勝家" },
 defWin:{ text:"秀吉は賤ヶ岳の砦の前に討たれ、柴田が織田の天下を継いだ", kill:"羽柴秀吉" } } },
 { id:2337, key:"hieizan", sub:"山道の掃討と堂塔の炎", sc:["hoi"], when:"flag", flag:"hieiBattle", delayDays:1, histWin:"atk",
-name:"比叡山焼き討ち", atk:"織田家", def:"延暦寺", noAllies:true, atkCmd:"織田信長", terrain:1, forts:null,
+name:"比叡山焼き討ち", atk:"織田家", def:"延暦寺", warReady:()=>W.hiei==="attack", noAllies:true, atkCmd:"織田信長", terrain:1, forts:null,
 nAtk:5, nDef:6, atkTroops:15000, defTroops:2400,
 atkGens:["織田信長","明智光秀","佐久間信盛","柴田勝家","丹羽長秀"], defGens:[], site:["坂本城"],
 src:"『信長公記』巻四・元亀二年九月十二日条（根本中堂・僧坊の放火、坂本から山中へ逃れる住民）。『兼見卿記』『多聞院日記』元亀二年九月の記事を関連史料とする。三塔の位置は延暦寺公式境内図 https://www.hieizan.or.jp/grounds/overview.html と横川案内 https://www.hieizan.or.jp/grounds/yokawa.html 。東塔は東、西塔は西、横川は北。坂本からの登山道を模式化。兵数・各将の持ち場・延焼速度・守備時間は遊戯上の仮定で、確定した布陣図はない。『三河物語』『家忠日記』『甲陽軍鑑』『太閤記』は本作全体の参考文献であり、この戦の隊次の直接根拠には用いない。名のある僧の現地参戦を確定できないため匿名の延暦寺僧兵とする。",
@@ -19982,7 +19982,7 @@ open:"佐和山城。琵琶湖を見下ろす山城。寝返った小早川・�
 after:{ atkWin:{ text:"佐和山は落ち、石田正継・正澄は自害した。三成の家は根を断たれた", capture:"佐和山城", kills:["石田正継","石田正澄"], run:()=>{ try{ sekSubQueue(2319,2); }catch(e){ console.error(e); } } },
 defWin:{ text:"佐和山はなお落ちず。東軍は囲みを置いて西へ進んだ" } } },
 { id:2319, key:"minakuchi", sub:"本戦の後、西軍の後始末", sc:["sekigahara","sekbattle","ueda"], when:"never", name:"水口城の戦い", atk:"徳川家", def:"石田家", atkCmd:"池田輝政", defCmd:"長束正家", histWin:"atk",
-terrain:1, forts:"def", castle:"水口城", noAllies:true, nAtk:6, nDef:3, atkTroops:12000, defTroops:1200,
+terrain:1, forts:"def", castle:"水口城", requireCastle:true, noAllies:true, nAtk:6, nDef:3, atkTroops:12000, defTroops:1200,
 atkGens:["池田輝政","亀井茲矩","山内一豊","堀尾忠氏","中村一忠","有馬豊氏"],
 defGens:["長束正家","長束直吉","高野越中"],
 site:["佐和山城","二条御所"],
@@ -20108,7 +20108,24 @@ const decDef = d => (d.defClanOf&&decClanOf(d.defClanOf))||clanByName(d.def)||(d
 function decisiveCastleMismatch(d){
 if(!d?.castle) return false;
 const c=Object.values(W.castles).find(c=>c.name===d.castle),def=decDef(d);
-return !!(c&&def&&c.clan!==def.id);
+return (!c&&!!d.requireCastle)||!!(c&&def&&c.clan!==def.id);
+}
+
+function prepareDecisiveWar(d){
+
+if(d.warReady) return !!d.warReady();
+if(decisiveCastleMismatch(d)){ cancelDecisive(d,"名指しの城が盤面の守り手の手にない"); return false; }
+const A=decAtk(d),D=decDef(d);
+if(!A||!D||A.dead||D.dead||sameHouse(A.id,D.id)){ cancelDecisive(d,"戦う二家が成立していない"); return false; }
+const newlyAtWar=!A.war.has(D.id)||!D.war.has(A.id);
+if(newlyAtWar) declareWar(A.id,D.id,"force");
+const notices=W.decisiveWarNotices||(W.decisiveWarNotices={}),pair=A.id+":"+D.id;
+
+if(newlyAtWar||notices[d.id]!==pair){
+notices[d.id]=pair;
+log(`${A.name}と${D.name}は${newlyAtWar?"手切れとなりました":"交戦中です"}。${d.name}に備えます`,"war",true);
+}
+return A.war.has(D.id)&&D.war.has(A.id);
 }
 
 const GEN_ALIAS={"原田直政":["塙直政"],"塙直政":["原田直政"],"羽柴秀吉":["木下藤吉郎","豊臣秀吉"],"木下藤吉郎":["羽柴秀吉"],"豊臣秀吉":["羽柴秀吉","木下藤吉郎"],"徳川家康":["松平元康"],"上杉謙信":["長尾景虎"],"黒田官兵衛":["黒田孝高"],"細川藤孝":["細川幽斎"],"細川幽斎":["細川藤孝"],"羽柴秀長":["豊臣秀長"],"豊臣秀長":["羽柴秀長"],"豊臣秀次":["羽柴秀次"],"羽柴秀次":["豊臣秀次"],"雑賀孫市":["鈴木孫一"],"鈴木孫一":["雑賀孫市","鈴木重秀"],"鈴木重秀":["鈴木孫一","雑賀孫市"],"片倉小十郎":["片倉景綱"],"伊達成実":["伊達成實"],"武田信玄":["武田晴信"],"武田晴信":["武田信玄"],"斎藤道三":["斎藤利政"],"明智光秀":["惟任光秀"],"松永久秀":["松永弾正"],"北条氏康":["北條氏康"]};
@@ -20194,10 +20211,11 @@ if(sc==="ishiyama" && !W.ishi){ try{ ishiStart(); }catch(e){ console.error(e); }
 if(sc==="jingo" && !W.jingo){ try{ jingoStart(); }catch(e){ console.error(e); } return; }
 if(sc==="honnojiPre" && !W.hon){ try{ honStart(); }catch(e){ console.error(e); } return; }
 if(sc==="sekigahara" && !W.sekIntroDone){ W.sekIntroDone=true; try{ sekIntro(); }catch(e){ console.error(e); } }
-if(sc==="sekbattle"){ const d=DECISIVE.find(x=>x.id===2101); if(d&&!W.fired.has(d.id)){ W.decisivePending=d.id; W.decisiveAt=dayNumber()+1; openingBanner("両軍、関ヶ原に布陣。明朝、決戦",0); log("両軍は関ヶ原に布陣を終えた。明朝、決戦","war"); } return; }
+if(sc==="sekbattle"){ const d=DECISIVE.find(x=>x.id===2101); if(d&&!W.fired.has(d.id)&&prepareDecisiveWar(d)){ W.decisivePending=d.id; W.decisiveAt=dayNumber()+1; openingBanner("両軍、関ヶ原に布陣。明朝、決戦",0); log("両軍は関ヶ原に布陣を終えた。明朝、決戦","war"); } return; }
 const d=DECISIVE.find(x=>decisiveIn(x,sc) && x.when==="open" && !W.fired.has(x.id) && !(sc==="oke"&&x.y));
 if(!d) return;
 if(!clanByName(d.atk)||!clanByName(d.def)) return;
+if(!prepareDecisiveWar(d)) return;
 W.decisivePending=d.id; W.decisiveAt=dayNumber()+(d.key==="nagashino_open"?24:7);
 if(d.key==="nagashino_open"){ try{ stageNagashino(); }catch(e){ console.error(e); } }
 else if(d.stage){ try{ stageDecisive(d); }catch(e){ console.error(e); } }
@@ -21005,7 +21023,7 @@ if(!arrived) return; const d=DECISIVE.find(x=>x.id===M.id); for(const id of M.ar
 const q=W.sekSub[0]; if(dayNumber()<q.at) return; W.sekSub.shift(); const d=DECISIVE.find(x=>x.id===q.id); if(!d||W.fired.has(d.id)) return; let ok=false; const late=(dayNumber()-q.at>30);
 if(!late){ try{ ok=miniMarch(d); }catch(e){ console.error(e); } } if(!ok){ try{ fireDecisive(d); }catch(e){ console.error(e); } } }
 
-function miniMarch(d){ if(d.key==="otate"&&!otateCastle()) return false; const A=(d.atkClanOf&&decClanOf(d.atkClanOf))||clanByName(d.atk)||(d.altAtk?clanByName(d.altAtk):null), Bc=(d.defClanOf&&decClanOf(d.defClanOf))||clanByName(d.def)||(d.altDef?clanByName(d.altDef):null); if(!A||!Bc||W.sekMini) return false; if(!A.war.has(Bc.id)) declareWar(A.id,Bc.id,"force"); let site; try{ site=decisiveSite(d,A,Bc); }catch(e){ return false; } if(!site) return false;
+function miniMarch(d){ if(d.key==="otate"&&!otateCastle()) return false; const A=(d.atkClanOf&&decClanOf(d.atkClanOf))||clanByName(d.atk)||(d.altAtk?clanByName(d.altAtk):null), Bc=(d.defClanOf&&decClanOf(d.defClanOf))||clanByName(d.def)||(d.altDef?clanByName(d.altDef):null); if(!A||!Bc||W.sekMini) return false; if(!prepareDecisiveWar(d)) return false; let site; try{ site=decisiveSite(d,A,Bc); }catch(e){ return false; } if(!site) return false;
 const near=(K)=>{ const cs=myCastles(K.id); if(!cs.length) return null; return cs.map(c=>[c,Math.hypot(W.tile[c.id].c-site.x,W.tile[c.id].r-site.y)]).sort((a,b)=>a[1]-b[1])[0][0]; };
 const mk=(clan,gens,from,dx,total,name)=>{ if(gens.length<1) return null; const t0=W.tile[from.id]; const id=W.nextArmy++; const orig={}; const w=gens.map(g=>0.6+0.4*g.lea/100), sw=w.reduce((a,b)=>a+b,0); gens.forEach((g,i)=>{ orig[g.id]=g.troops; g.troops=Math.round(total*w[i]/sw); }); const a={id,clan:clan.id,gens:gens.map(g=>g.id),commander:gens[0].id,x:t0.c,y:t0.r,px:t0.c,py:t0.r,moveT:1,path:[],origin:from.id,target:null,mission:"移動",siegeDays:0,mode:1,pillaging:false,sea:false,food:9000,name,script:true,stage:true,stageOrig:orig,stageNote:`${name}、${from.name}を発つ`,mini:d.id}; for(const g of gens) g.army=id; W.armies[id]=a; a.route=stageRouteTo(from, site.x+dx, site.y, clan.id); a.day0=dayNumber(); let len=0; for(let i=1;i<(a.route||[]).length;i++) len+=Math.hypot(a.route[i].c-a.route[i-1].c,a.route[i].r-a.route[i-1].r); a.days=Math.max(2,Math.min(8,Math.ceil(len/7))); if(!a.route||a.route.length<2){ a.route=[{c:t0.c,r:t0.r},{c:site.x+dx,r:site.y}]; a.days=2; } return a; };
 const af=near(A); if(!af) return false; const atkEast=W.tile[af.id].c>=site.x;
@@ -28030,6 +28048,7 @@ a.route=route; a.day0=dayNumber(); a.days=Math.max(a.days||1, Math.ceil(len/7));
 const oyamaAt=a.day0+Math.max(2,Math.round(a.days*(turnLen/Math.max(1,len)))); W.sekAizu={on:true, oyamaAt, turned:false}; a.stageNote="家康、会津征伐へ――江戸を発ち北へ";
 if(a.day0+a.days>(W.decisiveAt||0)) W.decisiveAt=a.day0+a.days; updateStageBadge(); }
 function stageDecisive(d){
+if(!prepareDecisiveWar(d)) return;
 const A=decAtk(d), Bc=decDef(d); if(!A||!Bc) return;
 const st=d.stage; const site=decisiveSite(d,A,Bc);
 W.stage={armies:[], site:{x:site.x,y:site.y,name:st.siteName||d.name}, lock:true, follow:true, key:d.key};
@@ -28670,9 +28689,7 @@ if(underTruce(A.id,Bc.id)){ if(A.truce) delete A.truce[Bc.id]; if(Bc.truce) dele
 }
 W.decisivePending=d.id; W.decisiveAt=dayNumber()+(d.delayDays!==undefined?d.delayDays:7);
 
-try{ if(A && Bc && !A.war.has(Bc.id)){ declareWar(A.id, Bc.id, "force");
-if(A.id===W.player||Bc.id===W.player){ bigNews(`${A.name}と${Bc.name}、手切れ`); log(`${A.name}と${Bc.name}は手切れとなりました。${d.name}が近い`,"war",true); }
-} }catch(e){ console.error("dec war",e); }
+if(!prepareDecisiveWar(d)) continue;
 if(d.stage && d.when==="flag"){ try{ stageDecisive(d); }catch(e){ console.error(e); } }
 else if(!d.stage && !W.stage){ try{ if(autoStage(d)) W.decisiveAt=Math.max(W.decisiveAt, dayNumber()+2); }catch(e){ console.error(e); } }
 if(d.key==="tedorigawa"){ try{ tedStart(); }catch(e){ console.error(e); } }
@@ -28899,8 +28916,7 @@ if(D0 && (D0.dead || !myCastles(D0.id).length)){ drop("守り手がもう城を�
 if(A0 && (A0.dead || !myCastles(A0.id).length)){ drop("攻め手がもう城を持たない"); return; }
 }
 }catch(e){ console.error(e); }
-const attack=decAtk(d),defend=decDef(d);
-if(attack&&defend&&!attack.war.has(defend.id)) declareWar(attack.id,defend.id,"force");
+if(!prepareDecisiveWar(d)) return;
 if(W.nag && d && /nagashino/.test(d.key)) W.nag.done=true;
 W.fired.add(d.id);
 if(d.when==="flag"&&d.flag) W[d.flag]=false;
@@ -29311,6 +29327,7 @@ function startBattle(e){
 if(!e){ setSpeed(1); return; }
 const decisive=e.decisive&&DECISIVE.find(d=>d.id===e.decisive);
 if(decisive&&decisiveCastleMismatch(decisive)){ cancelDecisive(decisive,"開戦前に城の持ち主が替わった"); return; }
+if(decisive&&!prepareDecisiveWar(decisive)) return;
 
 if(W.scenario==="nagashino"&&e.castle!==null&&e.castle!==undefined&&!e.sortie&&!e.sanadamaru&&!e.scripted&&!e.stage&&!e.dec&&!e.decisive&&!scriptedSiegeCastle(e.castle)){
 const army=W.armies[e.army],castle=W.castles[e.castle];
