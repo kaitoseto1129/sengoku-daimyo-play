@@ -105,7 +105,7 @@ document.getElementById("loginForm").onsubmit=async e=>{ e.preventDefault();
   if(u){ try{ localStorage.setItem("sd_admin_ok", String(Date.now())); localStorage.setItem("sd_admin_who", u.name||em); }catch(_){ } document.getElementById("gate").style.display="none"; load(); }
   else document.getElementById("gateErr").textContent="メールアドレスか合言葉が違います"; };
 if(opened()){ document.getElementById("gate").style.display="none"; }
-function showSales(){ try{ fetch("sales.json?"+Date.now()).then(r=>r.ok?r.json():null).then(x=>{ if(!x) return;
+function showSales(){ try{ fetch("sales.json?"+Date.now()).then(r=>r.ok?r.json():null).then(x0=>{ if(!x0) return; const x=(x0.games&&x0.games[GAME])||x0; /* 10/12：遊びごとの数 */
   const el=document.getElementById("salesBox"); if(!el) return;
   const ds=(x.days||[]).slice(-30); const mx=Math.max(1,...ds.map(d=>d.new||0));
   const W=640,H=90,p=6, xs=i2=>p+(W-p*2)*(ds.length>1?i2/(ds.length-1):.5);
@@ -115,13 +115,13 @@ function showSales(){ try{ fetch("sales.json?"+Date.now()).then(r=>r.ok?r.json()
   el.innerHTML=`<div style="border-top:1px solid rgba(237,230,214,.12);margin-top:10px;padding-top:10px">
     <div style="font-size:14px;letter-spacing:.08em;color:#C9A227">App Store（アプリ）</div>
     <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:baseline;margin-top:4px">
-      <div><b style="font-size:26px">${x.total_new||0}</b><span class="muted"> 人が入れた（30日）</span></div>
+      <div><b style="font-size:26px">${x.total_new||0}</b><span class="muted"> 人が入れた（${(x.days||[]).length}日）</span></div>
       <div><b style="font-size:26px">${x.total_units||0}</b><span class="muted"> 本の課金</span></div>
       <div><b style="font-size:26px">${x.total_proceeds||0}</b><span class="muted"> ${x.cur||"JPY"} の入金</span></div>
     </div>
     <svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:640px;height:auto;margin-top:6px">${bars}</svg>
     <div class="muted" style="font-size:14px">日ごとに入れた人（金色の日は課金あり）${last?`／最後の日 ${last.d} は ${last.new||0}人`:""}。
-    Apple の集計は一〜二日遅れます。${(x.updated||"").slice(0,16)} 取得</div></div>`;
+    Apple の集計は一〜二日遅れます。${(x0.updated||"").slice(0,16)} 取得</div></div>`;
 }).catch(()=>{}); }catch(_){ } }
 const _load0=load; load=async function(){ await _load0(); try{ if(!document.getElementById("nuGo")) document.getElementById("main").appendChild(usersCard()); }catch(_){ } showSales(); };
 
