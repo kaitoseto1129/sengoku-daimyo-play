@@ -7626,7 +7626,7 @@ if(canSaveGame() && W.date && W.date.d===1){
 const tag=`${W.date.y}/${W.date.m}`;
 if(W.monthSaveAt!==tag){
 const prevAt=W.monthSaveAt, prevN=W.monthSaveN;
-try{ const n=(W.monthSaveN||0)%3; W.monthSaveAt=tag; W.monthSaveN=n+1; localStorage.setItem(MONTH_KEYS[n], serialize());
+try{ const n=(W.monthSaveN||0)%3; W.monthSaveAt=tag; W.monthSaveN=n+1; if(!writeGameRecord(MONTH_KEYS[n],true)){ W.monthSaveAt=prevAt; W.monthSaveN=prevN; return; }
 log(`${W.date.y}年${W.date.m}月――月初の記録を残しました（月初の控え ${n+1}）`,"dip");
 }catch(e){ W.monthSaveAt=prevAt; W.monthSaveN=prevN; }
 }
@@ -10446,8 +10446,7 @@ return info?{...info}:null;
 function saveToSlot(i){
 if(!Number.isInteger(i)||i<0||i>=SLOT_KEYS.length) return;
 if(!canSaveGame()) return toast("戦を終えてから記録してください");
-try{ localStorage.setItem(SLOT_KEYS[i], serialize()); toast(`記録${i+1}に書き留めました　${retBoundary()}`); }
-catch(e){ toast("保存できませんでした"); }
+if(writeGameRecord(SLOT_KEYS[i])) toast(`記録${i+1}に書き留めました　${retBoundary()}`);
 openSystem();
 }
 function loadFromSlot(i){
@@ -13432,12 +13431,53 @@ a.px=a.x; a.py=a.y; a.moveT=1;
 log("記録を今の地図に合わせ直しました");
 }
 }
+
+let saveFailureAt=0;
+function writeGameRecord(key, quiet=false){
+const removed=[];
+try{
+const raw=serialize();
+if(!validSave(JSON.parse(raw))) throw Error(validSave.issue||"記録の形式");
+const quota=e=>e&&(e.name==="QuotaExceededError"||e.code===22||e.code===1014);
+try{ localStorage.setItem(key,raw); }
+catch(e){
+if(!quota(e)) throw e;
+const copies=Object.keys(SCENARIO_DEFS).flatMap(sc=>scenarioSaveKeys(sc).slice(3))
+.filter(k=>k!==key).map(k=>({k,raw:localStorage.getItem(k)})).filter(x=>x.raw)
+.map(x=>{let at=0;try{at=JSON.parse(x.raw).savedAt||0;}catch(_){}return {...x,at};})
+.sort((a,b)=>a.at-b.at);
+let written=false;
+for(const x of copies){
+localStorage.removeItem(x.k); removed.push(x);
+try{ localStorage.setItem(key,raw); written=true; break; }
+catch(err){ if(!quota(err)) throw err; }
+}
+if(!written) throw e;
+}
+saveFailureAt=0;
+if(removed.length) toast("古い月初の控えを整理して記録しました");
+return true;
+}catch(e){
+for(const x of removed) try{ localStorage.setItem(x.k,x.raw); }catch(_){}
+if(!quiet||!saveFailureAt||Date.now()-saveFailureAt>=30000){
+saveFailureAt=Date.now(); toast("記録できませんでした。端末の空き容量を確認して、もう一度記録してください");
+}
+return false;
+}
+}
 function saveGame(){
 if(!canSaveGame()){ toast("戦を終えてから記録してください"); return false; }
-try{ localStorage.setItem(SAVE_KEY, serialize()); toast("記録しました　"+retBoundary()); funnelMark("save"); return true; }
-catch(e){ toast("保存できませんでした"); return false; }
+if(!writeGameRecord(SAVE_KEY)) return false;
+toast("記録しました　"+retBoundary()); funnelMark("save"); return true;
 }
-function autoSave(){ if(!canSaveGame()) return; try{ localStorage.setItem(SAVE_KEY, serialize()); if(noviceUI()&&!localStorage.getItem("sengoku_auto_noticed")) W.autoNoticePending=true; }catch(e){} }
+function autoSave(){
+if(!canSaveGame()||!writeGameRecord(SAVE_KEY,true)) return false;
+try{ if(noviceUI()&&!localStorage.getItem("sengoku_auto_noticed")) W.autoNoticePending=true; }catch(_){}
+return true;
+}
+
+setInterval(()=>{ if(!document.hidden&&canSaveGame()) autoSave(); },15000);
+window.sengokuSuspend=()=>autoSave();
 function showAutoNotice(){ if(!W.autoNoticePending||!W.started||B||decisiveBlocked()) return; try{ if(!localStorage.getItem("sengoku_auto_noticed")){ toast("自動記録：自動で記録しました（いつでも続きから）"); localStorage.setItem("sengoku_auto_noticed","1"); } W.autoNoticePending=false; }catch(_){} }
 function hasSave(){ return !!readSave(SAVE_KEY); }
 
@@ -38610,9 +38650,9 @@ setInterval(()=>{ try{ const ctx=Audio_.ctx; if(!ctx||!Audio_.enabled||document.
 if(shouldRun && Audio_._lastT!==undefined && t===Audio_._lastT){ Audio_._stall=(Audio_._stall||0)+1; if(Audio_._stall===3){ ensureAudioRunning(true); } else if(Audio_._stall>=6){ Audio_._stall=0; audioRebuild(); ensureAudioRunning(true); } }
 else Audio_._stall=0; Audio_._lastT=t; }catch(e){} }, 1000);
 setTimeout(ensureAudioRunning, 800);
-document.addEventListener("visibilitychange", ()=>{ if(!document.hidden){ setTimeout(()=>ensureAudioRunning(true), 150); setTimeout(()=>{ try{ if(terrain&&(W.started||pickMode)&&terrainBlank()){ bakeTerrain(); bakeMinimap(); tileLayer=null; } }catch(_){ } },300); } else if(W.started && !B && !W.result) autoSave(); });
+document.addEventListener("visibilitychange", ()=>{ if(!document.hidden){ setTimeout(()=>ensureAudioRunning(true), 150); setTimeout(()=>{ try{ if(terrain&&(W.started||pickMode)&&terrainBlank()){ bakeTerrain(); bakeMinimap(); tileLayer=null; } }catch(_){ } },300); } else autoSave(); });
 window.addEventListener("pageshow", ()=>{ setTimeout(()=>{ try{ if(terrain&&(W.started||pickMode)&&terrainBlank()){ bakeTerrain(); bakeMinimap(); tileLayer=null; } }catch(_){ } },300); });
-window.addEventListener("pagehide", ()=>{ if(W.started && !B && !W.result) autoSave(); });
+window.addEventListener("pagehide", ()=>{ autoSave(); });
 try{ const mq=matchMedia("(orientation:portrait) and (pointer:coarse)"); mq.addEventListener("change",()=>{ if(mq.matches&&W.started&&!B) setSpeed(0); }); }catch(_){ }
 window.addEventListener("pageshow", ()=>setTimeout(()=>ensureAudioRunning(true),150));
 retOpen();
