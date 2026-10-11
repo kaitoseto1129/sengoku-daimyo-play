@@ -423,6 +423,8 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
 @media(min-width:900px){.ev-strip{grid-template-columns:repeat(4,1fr)}}
 </style>
 <link rel="stylesheet" href="mobile.css">
+<!-- 第260巡：Google Analytics（GA4）。手元では送らない -->
+<script>(function(){ if(/localhost|127\.0\.0\.1/.test(location.hostname)) return; window.dataLayer=window.dataLayer||[]; window.gtag=function(){ dataLayer.push(arguments); }; gtag('js',new Date()); gtag('config','G-CSH4DJMT91'); var g=document.createElement('script'); g.async=true; g.src='https://www.googletagmanager.com/gtag/js?id=G-CSH4DJMT91'; document.head.appendChild(g); })();</script>
 </head>
 <body><a class="skip" href="#mitsu">紹介本文へ</a>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -548,7 +550,7 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
   document.querySelectorAll('#choose .sanTaku button').forEach(function(b){ b.addEventListener('click',function(){ document.querySelectorAll('#choose .sanTaku button').forEach(function(x){ x.classList.remove('on'); x.setAttribute('aria-pressed','false'); }); b.classList.add('on'); b.setAttribute('aria-pressed','true'); var a=ans2[b.dataset.b]; box2.innerHTML='<b>'+a.t+'</b>'+a.b+'<span class="shu">その判断が、戦国大名では戦局を変える</span>'; ev('choose_'+b.dataset.b); }); });
 
   /* 計測（GoatCounter：本編と同じ台）。localhost では送らない */
-  function ev(name){ try{ if(/localhost|127\.0\.0\.1/.test(location.hostname)) return; if(window.goatcounter&&window.goatcounter.count) window.goatcounter.count({path:'ev/lp/'+name, title:'lp '+name, event:true}); else (window._gcq=window._gcq||[]).push(name); }catch(e){} }
+  function ev(name){ try{ if(window.gtag) gtag('event',('lp_'+name).replace(/[^A-Za-z0-9_]/g,'_').slice(0,40)); if(/localhost|127\.0\.0\.1/.test(location.hostname)) return; if(window.goatcounter&&window.goatcounter.count) window.goatcounter.count({path:'ev/lp/'+name, title:'lp '+name, event:true}); else (window._gcq=window._gcq||[]).push(name); }catch(e){} }
   (function(){ if(/localhost|127\.0\.0\.1/.test(location.hostname)) return; var sc=document.createElement('script'); sc.async=true; sc.dataset.goatcounter='https://kaito.goatcounter.com/count'; sc.src='https://gc.zgo.at/count.js'; sc.onload=function(){ try{ var q=window._gcq||[]; window._gcq=[]; q.forEach(ev); var u=new URLSearchParams(location.search); var src=u.get('utm_source')||'direct', cp=u.get('utm_campaign')||'-'; ev('view/'+src+'/'+cp+'/'+(window.__heroVar||'a')); }catch(e){} }; document.head.appendChild(sc); })();
   document.querySelectorAll('a[data-ev]').forEach(function(a){ a.addEventListener('click',function(){ ev(a.dataset.ev); }); });
   /* 第253巡（作り手：広告は紹介ページへ、そこから遊ぶ／App Store に分ける）：
