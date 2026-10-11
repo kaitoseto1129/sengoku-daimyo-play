@@ -72,6 +72,13 @@ function sunoProgress(rt, id, text) {
   if (task && !task.state) task.progress = text;
   if (rt.flags.sunoTask === id) rt.objProgress(id, text);
 }
+// 舟や日暮れの寄せで任務が変わる時は、選んだ持ち場の印も同じ柵へ移す。
+function sunoPost(rt, text, side) {
+  sunoObj(rt, 'post', text, 'order');
+  const pt = side === 'n' ? { x: 0, z: -FORT + 3 }
+    : side === 'w' ? { x: -FORT + 3, z: 0 } : { x: FORT - 3, z: 0 };
+  rt.marker('post3', pt, `${SIDE_WORD[side]}の柵`, { h: 2.5 });
+}
 function sunoClose(rt, id, state) {
   const task = rt.flags.sunoTasks?.get(id);
   if (!task || task.state) return;
@@ -660,6 +667,10 @@ const sunomata = {
     // 共通の札と台詞をこの戦だけで絞る。討死の返事は実際の死亡処理中だけ。
     const bark = rt.bark.bind(rt), say = rt.say.bind(rt), onKill = rt.onKill.bind(rt);
     rt.bark = (text, ...args) => {
+      if (text === '南の控えに命が届いた。押し続けよ') {
+        if (F.southOrderNoticeT != null && rt.t - F.southOrderNoticeT < 120) return;
+        F.southOrderNoticeT = rt.t;
+      }
       if (text.startsWith('弓隊が遅れている')) {
         if (F.bowLagShown) return;
         F.bowLagShown = true;
@@ -1102,7 +1113,7 @@ const sunomata = {
     rt.after(32, () => {
       if (rt.over || F.ending || F.won || F.wave !== 3) return;
       rt.say('足軽', '川に舟が出たぞ！　斎藤の者が川を渡ってくる！', 3.5);
-      sunoObj(rt, 'post', '舟が着く前に東の柵へ。川並衆と並んで守れ', 'order');
+      sunoPost(rt, '舟が着く前に東の柵へ。川並衆と並んで守れ', 'e');
       rt.marker('boats', () => ({ x: F.boats[1].m.position.x, z: F.boats[1].m.position.z }), '川を渡る舟', { red: true, h: 2.5 });
       this.boats(rt, (g, i) => {
         if (i === 0) { F.W3c = g; F.landT = rt.t; }
@@ -1111,7 +1122,7 @@ const sunomata = {
         if (!g.count) { rt.bark('舟から岸へ寄せる者はいない'); return; }
         rt.army.play('eshout', { x: 54, z: -6 }, 1.4);
         rt.say('蜂須賀正勝', ['一の舟が着いた！　川の口はわしと守れ！', '二の舟じゃ！　槍を揃え、柵の内で受けるぞ！', 'これが最後の舟。押し返せば、人足が仕上げに回れるぞ！'][i], 3.5);
-        sunoObj(rt, 'post', i < 2 ? '東の柵で舟の敵を止めよ。次の舟も来る' : '東の柵で最後の舟の敵を止め、普請を守れ', 'order');
+        sunoPost(rt, i < 2 ? '東の柵で舟の敵を止めよ。次の舟も来る' : '東の柵で最後の舟の敵を止め、普請を守れ', 'e');
         battleEvent(rt, EVENT_REINFORCEMENT, { x: 54, z: -6 }, g, 1, true, '川から新手。東の柵を守れ');
         rt.marker('w3', centerOf(g), '敵の寄せ（東）', { red: true, group: g });
       });
@@ -1467,8 +1478,8 @@ const sunomata = {
         rt.after(4, () => {
           if (rt.over || F.ending || F.won || F.wave !== 2) return;
           rt.choose('藤吉郎「北の旗か、川の舟か？」', [
-          { label: '北の柵を守る', note: '旗の隊を柵で受ける。川は小六に任せる' },
-          { label: '東の柵を守る', note: '小六と舟を受ける。北は守りの手に任せる' },
+          { label: '北の柵を守る', note: '旗を止める。川は小六へ' },
+          { label: '東の柵を守る', note: '小六と舟の敵を止める' },
         ], (i) => {
           if (rt.over || F.ending || F.won || F.wave !== 2) return;
           F.post3 = i === 0 ? 'n' : 'e';
@@ -1503,7 +1514,7 @@ const sunomata = {
         if (!gone(g)) {
           g.noAI = false; g.order = 'assault'; g.onArrive = null;
           g.assault = assaultFn(rt, q.side); g.speed = 3; g.aggro = 8; g.seekRange = 45;
-          sunoObj(rt, 'post', `${SIDE_WORD[q.side]}の柵で日暮れの寄せ手を止めよ`, 'order');
+          sunoPost(rt, `${SIDE_WORD[q.side]}の柵で日暮れの寄せ手を止めよ`, q.side);
           rt.marker('w4', centerOf(g), `日暮れの寄せ手（${SIDE_WORD[q.side]}）`, { red: true, group: g });
           rt.bark(`${SIDE_WORD[q.side]}から次の寄せ手。柵の内で受けよ`, true);
         }

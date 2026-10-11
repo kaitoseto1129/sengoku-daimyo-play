@@ -441,6 +441,11 @@ const okehazama = {
     },
   },
   setup(rt) {
+    // 携帯の横画面では、任務札がある間だけ重なる相手の一行を隠す。この戦を離れたら戻す。
+    const taskStyle = document.createElement('style');
+    taskStyle.textContent = '@media (max-height: 500px) { #hud[data-oke-task]:not(.no-objectives):has(#objectives:not([hidden]) .cur) #target { display: none !important; } }';
+    rt.hud.root.setAttribute('data-oke-task', '');
+    rt.hud.root.appendChild(taskStyle);
     // 共通の声は、この戦の側で差し替える。使番へ渡す前にも整える。
     const words = (text) => String(text).replace(/今川義元「討ち取ったり！」/g, '今川義元「うろたえるな！　陣を固めよ！」');
     const say = rt.say, bark = rt.bark;
@@ -530,6 +535,7 @@ const okehazama = {
       for (const [original, copy] of rt.flags.horoShapes) if (original !== copy) copy.dispose();
       rt.flags.horoShapes.clear();
       rt.hud.say = hudSay; rt.hud.bark = hudBark; rt.hud.banner = hudBanner;
+      taskStyle.remove(); rt.hud.root.removeAttribute('data-oke-task');
       dispose();
     };
     // 遠景の村（東の谷。雨の中に茅葺きの屋根）
@@ -1118,6 +1124,13 @@ const okehazama = {
       // 近くの旗本には応戦しながら、馬廻が義元へ歩いて寄る。
       F.nobClosing = true; F.nob.guard = false; F.nob.order = 'attack'; F.nob.focus = y; F.nob.seekRange = 36;
     }
+    // 幕の口へ寄せる任務は、本人が届いた時に済ませ、次の攻めを示す。
+    if (F.guardOpened && !F.mouthReached && !F.koshiLeft && Math.hypot(p.x - fieldX(18, -100), p.z - fieldZ(18, -100)) <= 10) {
+      F.mouthReached = true;
+      F.attackText = '味方と義元の囲みを押せ。服部と毛利を通せ';
+      rt.objDone('attack'); rt.objRemove('attack'); rt.obj('attack', F.attackText, 'main');
+      rt.marker('honjin', unitPos(y), '義元の旗本・味方と押せ', { red: true });
+    }
     // 道の小隊が崩れれば、馬廻も口へ歩いて寄せる。幕の外で止めない。
     if (!F.mainPush && F.roadStep === F.road.length) {
       F.mainPush = true;
@@ -1130,6 +1143,10 @@ const okehazama = {
     // 旗本を減らされると、輿を捨て、囲みを保って陣の口から退く。実際に歩く。
     if (!F.koshiLeft && guards <= 22) {
       F.koshiLeft = true; F.koshiLeftT = rt.t;
+      // 義元が幕を出た後は、空の幕の口へ誘導せず、実際に退く旗本へ印を移す。
+      F.attackText = '服部と毛利に続き、義元の旗本へ寄せよ';
+      rt.obj('attack', F.attackText, 'main');
+      rt.marker('honjin', unitPos(y), '退く義元の旗本・味方と寄せよ', { red: true });
       // 敵将も目の前で生きた声を出す。退却の知らせを同時に重ねない。
       if (readyUnit(y) && Math.hypot(p.x - y.pos.x, p.z - y.pos.z) <= 12 && !rt.army.wallBetween(y.pos, -1, p))
         localSay(rt, y, '今川義元', 'うろたえるな！　囲みを保て。向き直って押し返せ！', 4);
@@ -1190,7 +1207,7 @@ const okehazama = {
       else if (!seenMor && F.moriMarked) rt.unmark('mori');
       F.hattoriMarked = !!seenHat; F.moriMarked = !!seenMor;
       const left = Math.max(0, 3 - (F.guardStart - guards));
-      const next = !F.guardOpened ? `囲みをあと${left}人崩せ` : F.koshiLeft ? '服部・毛利の旗と退き口へ寄せよ' : F.yoshiDown ? '毛利の手が届くよう、味方と押せ' : '義元の幕の口へ寄せ、服部・毛利を通せ';
+      const next = !F.guardOpened ? `囲みをあと${left}人崩せ` : F.koshiLeft ? '服部・毛利の旗と退き口へ寄せよ' : F.yoshiDown || F.mouthReached ? '毛利の手が届くよう、味方と押せ' : '義元の幕の口へ寄せ、服部・毛利を通せ';
       if (!(F.guardNoticeAt > rt.t)) { F.guardNoticeAt = rt.t + 1; rt.objProgress('attack', `旗本は残り${guards}人。${next}`); }
     }
     if (F.mainPush) {
@@ -1239,6 +1256,8 @@ const okehazama = {
   },
   returnHome(rt) {
     const F = rt.flags;
+    // 帰る旗へ進むのは、実際に義元が討たれた後だけ。
+    if (F.yoshimoto.alive || F.victory) return;
     rt.unmark('hattori'); rt.unmark('mori'); rt.unmark('guardGap'); rt.unmark('road'); rt.unmark('honjin');
     F.nob.focus = null;
     F.victory = true; rt.objDone('attack'); rt.objRemove('attack');
@@ -1250,7 +1269,7 @@ const okehazama = {
       const p = rt.player;
       if (!p.lock && !(p.inCombatT > 0)) p.cine = { x: F.yoshimoto.pos.x, z: F.yoshimoto.pos.z, t: 1.4 };
       rt.banner('義元討ち取ったり', '本陣の方で鬨の声が上がる');
-    }
+    } else rt.banner('義元討ち取ったり', '毛利新介が首を挙げた。組の旗から離れるな');
     // 討死を見た生存兵から知らせが走る。隊の番号や時刻だけでは崩さない。
     const witness = F.enemies.flatMap((g) => g.units).find((u) => u.alive && !u.gone && !u.woundOut &&
       Math.hypot(u.pos.x - F.yoshimoto.pos.x, u.pos.z - F.yoshimoto.pos.z) < 30 &&

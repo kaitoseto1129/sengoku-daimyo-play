@@ -12,6 +12,7 @@ import { nobori, hut, tawara, campfire, solidSeg, palisade, kabukimon } from './
 import { flagTexture } from './textures.js';
 import { RANKS } from './state.js';
 import { sfx } from './audio.js';
+import { isTouch } from './touch.js';
 import { jinchiTick } from "./yasen_jinchi.js";
 import { gauss, enemyGroup, allyGroup, nm, centerOf, unitPos, strengthBanner } from './bhelp.js';
 import { dress, gone, more, applyLook, NIGHT } from './b_inabayama.js';
@@ -307,6 +308,7 @@ const TOKUGAWA_JIN = {
 
 const mikatagahara = {
   noticeOnce: true,
+  softOpen: 70, // 先手を受ける序盤だけ本人の傷を半分にし、構えと退き方を覚える間を残す。
   guideMarker: () => null, // 地面に黄色の道案内を描かず、旗・退き口の札で示す。
   noAllyReports: true, // 近くの武将の声だけ聞く。遠い名乗りを使番に運ばせない。
   // 負け戦では、局地の働きを全軍の勝ちや追撃の下知にしない。
@@ -758,10 +760,12 @@ const mikatagahara = {
     }
     // 手ほどきは一度きりなので、深手になる前に原因と退き方を字幕でも知らせる。
     const hit = rt.player.lastHit;
-    if (F.step > 0 && rt.player.u.hp < rt.player.u.maxHp * 0.55 && hit && rt.t - hit.t < 8 && !(F.woundWarnT > rt.t)) {
+    if (F.step > 0 && rt.player.u.hp < rt.player.u.maxHp * 0.65 && hit && rt.t - hit.t < 8 && !(F.woundWarnT > rt.t)) {
       F.woundWarnT = rt.t + 32;
       const cause = hit.ranged ? (hit.type === 'bow' ? '矢が当たった！' : '鉄砲で撃たれた！') : hit.back ? '背中を突かれた！' : hit.side ? '横から打たれた！' : '正面から打たれた！';
-      rt.bark(cause + (hit.ranged ? '射手の正面を外れ、味方の陰へ退け' : '敵へ槍を向け、味方の後ろへ退け'), true);
+      const how = hit.ranged ? '矢玉は構えで防げない。物陰へ退け。' : isTouch ? '敵を向き「構え」を押したまま、味方の列へ下がれ。' : '敵を向き、右クリックで構えたまま味方の列へ下がれ。';
+      // 操作の字幕は話者を付けず、待ち列の先頭へ。武将の台詞に埋もれさせない。
+      rt.hud.say('', cause + how, 4, true);
     }
     const p = rt.player.u.pos;
     // 半秒ごとに近くの実兵だけを見る。兵・弾・札を毎コマ作らない。

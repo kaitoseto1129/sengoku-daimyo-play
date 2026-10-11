@@ -12,6 +12,8 @@ import { battleJin, buildBattleJin } from './b_jinkei_g1.js';
 import { nobori, hut, campfire, tawara, palisade, kuruwaBldg, makeKitBatch, finalizeKitBatch } from './props.js';
 import { RANKS } from './state.js';
 import { sfx } from './audio.js';
+import { S } from './settings.js';
+import { firstHelp } from './first_help.js';
 import { sightPoint } from './battle_sight.js';
 import { gauss, enemyGroup, allyGroup, nm } from './bhelp.js';
 import { dress, gone } from './b_inabayama.js';
@@ -211,7 +213,7 @@ const okawachi = {
     F.gateDef.order({ id: 'hold' });
     // 搦手の控えの一部は下の出撃組として初めから城内に置く。二重に数えない。
     F.gateDef.noSwitch = true;
-    F.gateReserve = makeButai(rt, { name: '搦手の残る控え', at: { x: 10, z: -87 }, lightWidth: 10, lightDepth: 6, nominal: 60, facing: 0, armor: 0x3a2a44, flag: KITABATAKE.flag, team: 1, faction: 'kitabatake', kind: 'ashigaru', real: 0, noSwitch: true });
+    F.gateReserve = makeButai(rt, { name: '搦手の残る控え', at: { x: 10, z: -87 }, lightWidth: 10, lightDepth: 6, nominal: 96, facing: 0, armor: 0x3a2a44, flag: KITABATAKE.flag, team: 1, faction: 'kitabatake', kind: 'ashigaru', real: 0, noSwitch: true });
     // 弓の狙いは明るさに従う。倒れた弓兵の自動補充はしない。
     const KB_B = { team: 1, faction: 'kitabatake', armor: 0x3a2a44, flag: KITABATAKE.flag, real: 0, maxReal: 0 };
     F.kb = {
@@ -347,6 +349,8 @@ const okawachi = {
     rt.obj('main', '丹羽の旗で下知を待て', 'main');
     rt.banner('大軍を止める山城', '坂の上は北畠の城。あなたは丹羽の手で、竹束を守る');
     rt.say('組頭', 'あの丘が北畠具教・具房の城だで。わしらは丹羽長秀様の手じゃ', 4);
+    // 地図の説明は初めの台詞に一度だけ添え、戦の半ばへ持ち越さない。
+    if (S.hints) firstHelp('map', (text) => { rt.say('', text, 6.5); return true; });
     rt.after(1, () => { if (!rt.over && !rt.flags.ending && rt.phase === 'brief' && !rt.player.lock && !rt.game.noLock) rt.player.cine = { x: HON_C.x, z: HON_C.z, t: 2.2 }; });
     rt.marker('mkHon', HON_C, '本丸', { h: 8 });
     rt.after(5, () => { rt.unmark('mkHon'); this.oteDay(rt); });
@@ -526,7 +530,9 @@ const okawachi = {
   retreat(rt) {
     const F = rt.flags;
     if (F.step >= 3 || F.ending) return;
-    rt.objRemove('dp'); rt.unmark('backColumn'); rt.unmark('backEscort');
+    if (F.dp) F.dp.on = false;
+    rt.objRemove('dp'); rt.unmark('dp'); rt.unzone('dp');
+    rt.unmark('gate'); rt.unmark('backColumn'); rt.unmark('backEscort');
     F.step = 3; F.stepT = rt.t;
     rt.setPhase('retreat');
     for (let i = 1; i <= 2; i++) rt.unmark('p' + i);
@@ -536,7 +542,7 @@ const okawachi = {
     rt.say(okSpeaker(rt), F.backHeld ? '退き口をよう守った！　先の組は抜けた。われらも南の陣へ退くぞ！' : '退け！　槍を返せ。組を崩さず陣へ戻るぞ！', 4);
     rt.obj('main', HI(rt) ? '殿を務め、追っ手を防いで南の陣へ退け' : '追っ手を防ぎ、陣へ退け', 'main', true);
     if (HI(rt)) rt.after(1.5, () => rt.say(okSpeaker(rt), `${nm(rt)}、殿を務めよ。最後の組を退かせ、その方も戻るのじゃ`, 4));
-    rt.marker('camp', { x: CAMP.x, z: CAMP.z - 6 }, '戻る陣の旗', { h: 2 });
+    rt.marker('camp', { x: CAMP.x, z: CAMP.z - 6 }, '戻る陣の旗', { h: 4, guidePriority: 100, guideAlways: true });
     rt.marker('backColumn', () => gone(F.niwa) ? null : F.niwa.center(), '陣へ退く丹羽の組');
     rt.zone('camp', CAMP.x, CAMP.z - 6, 8);
     for (const [i, g] of [F.niwa, F.ikeda, F.inaba].entries()) if (!gone(g)) {
@@ -548,6 +554,8 @@ const okawachi = {
     // 生き残りが先に追い、城内の小勢が間をあけて続く。陣の手前で止めない。
     F.chasers = F.chasers.filter((g) => !sortieBroken(g) && !g._okReturning);
     F.chaseAt = rt.t + 12;
+    // 退路守りで使った枠とは別に、まだ城にいる控えを順に寄せる。
+    F.chaseLeft = F.gateReserve.lightCount();
     for (const g of F.chasers) {
       g.order = 'path'; g.formation = 'column'; g.colW = 2; g.aggro = 10;
       g.path = downRoad(g, [CAMP_LINE.x, CAMP_LINE.z - 10]); g.pathIdx = 0;
@@ -638,9 +646,9 @@ const okawachi = {
     { const g = F.gateDef && F.gateDef.real; if (g && !g._rain) { g._rain = true; g._okBaseDmg = g.dmgMult || 1; }
       if (g) g.dmgMult = g._okBaseDmg * nightAccuracyMult(rt.world); }
     if (F.ending || rt.over) return;
-    // やり直しの札と終幕の時間も残し、五百秒を越えて持ち場で待たせない。
-    if (rt.t >= 470) {
-      this.lose(rt, F.step === 3 ? '陣へ戻れず、退きの下知が出た' : '持ち場を保てず、交代の下知が出た', true);
+    // 退きは帰陣で終える。帰陣が遅くても、次の封鎖には持ち場の時間を残す。
+    if (F.step !== 3 && F.step !== 2.5 && (F.step === 4 ? rt.t - F.stepT >= 180 : rt.t >= 470)) {
+      this.lose(rt, '持ち場を保てず、交代の下知が出た', true);
       return;
     }
     // 崩れた小勢の残兵を坂に置き去りにしない。生きた城兵が道を通って帰る。
@@ -713,14 +721,12 @@ const okawachi = {
           F.roadGuide.x = WAY_FROM.d > 3 ? WAY_FROM.x : KARAMETE_WAY[i][0];
           F.roadGuide.z = WAY_FROM.d > 3 ? WAY_FROM.z : KARAMETE_WAY[i][1];
           if (WAY_FROM.s < 0.1 && WAY_FROM.d <= 3) { F.roadGuide.x = CAMP_LINE.x; F.roadGuide.z = CAMP_LINE.z; }
-          if (!F.roadGuideMarked) { F.roadGuideMarked = true; rt.marker('sakamichi', () => F.roadGuide, '坂道を下って陣へ', { h: 2.5 }); }
+          if (!F.roadGuideMarked) { F.roadGuideMarked = true; rt.marker('sakamichi', () => F.roadGuide, '坂道を下って陣へ', { h: 4, guidePriority: 200, guideAlways: true }); }
         } else if (F.roadGuideMarked) { rt.unmark('sakamichi'); F.roadGuideMarked = false; }
       }
       // 本人が旗に入れば帰陣。遅れた組の割合で足止めしない。
       if (d <= 8 && rt.player.u.alive) this.siegeDays(rt);
-      else {
-        okLineDanger(rt, F, CAMP_LINE, 30, 'main', dt, '帰陣の列');
-      }
+
     }
 
   },
@@ -938,7 +944,8 @@ function okNight(W) {
   W.prepareNight = function() {
     const k = prepareNight.call(this);
     if (this.timeKey === 'night') {
-      this.nightFill.intensity = Math.max(this.nightFill.intensity, 1.6 * k);
+      this.nightFill.intensity = Math.max(this.nightFill.intensity, 2.1 * k);
+      this.nightFill.groundColor.setRGB(0.5, 0.56, 0.68);
       if (this.stars) this.stars.visible = false;
       if (this.moon) this.moon.visible = false;
       // 白く太い手前の筋は隠し、細い遠雨と足元の跳ねだけを闇に残す。
@@ -1130,14 +1137,23 @@ function okChaseTick(rt) {
   F.chaseCheckAt = rt.t + 1;
   okChaseWave(rt);
   for (const g of F.chasers) {
-    if (sortieBroken(g) || g._okReturning || g.order !== 'path') continue;
+    if (sortieBroken(g) || g._okReturning || (g.order !== 'path' && g.order !== 'attack')) continue;
     const c = g.center();
     let foe = null;
     rt.army.forNear(c.x, c.z, 12, (u) => {
       if (!foe && u.team === 0 && u.alive && !u.isStruct && !u.fleeing && !u.woundOut && !u.noTarget &&
         !rt.army.wallBetween(c, 1, u.pos)) foe = u;
     });
-    if (!foe) continue;
+    if (!foe) {
+      // 槍を返した後も、その場に残らず陣へ追う。道の角は既存の道順を使う。
+      if (F.step === 3 && g.order === 'attack' && Math.hypot(c.x - CAMP_LINE.x, c.z - CAMP_LINE.z) > 18) {
+        g.order = 'path'; g.march = true; g.formation = 'column'; g.colW = 2;
+        g.path = downRoad(g, [CAMP_LINE.x, CAMP_LINE.z - 10]); g.pathIdx = 0;
+        g.onArrive = (q) => { q.order = 'attack'; q.anchor = q.center(); q.formation = 'yari'; q.width = 6; q.aggro = 18; q.seekRange = 28; };
+      }
+      continue;
+    }
+    if (g.order === 'attack') continue;
     g.order = 'attack'; g.march = false; g.onArrive = null;
     g.anchor.x = c.x; g.anchor.z = c.z;
     g.formation = 'yari'; g.width = 6; g.aggro = 18; g.seekRange = 28;
@@ -1149,7 +1165,11 @@ function okChaseWave(rt) {
   if (rt.t < F.chaseAt || F.chaseLeft <= 0) return;
   F.chaseAt = rt.t + 24;
   let active = 0;
-  for (const g of F.chasers) if (!sortieBroken(g) && !g._okReturning) active++;
+  const p = rt.player.u.pos;
+  for (const g of F.chasers) if (!sortieBroken(g) && !g._okReturning) {
+    const c = g.center();
+    if (Math.hypot(c.x - p.x, c.z - p.z) <= 28) active++;
+  }
   if (active >= 2) return;
   let room = 235;
   for (const u of rt.army.units) if (u.alive && !u.isStruct && u.type !== 'dummy') room--;
@@ -1246,7 +1266,11 @@ function okHold(o) {
       const clear = o.groups.every(sortieBroken);
       if (o.sortie && foes > 0) C.engaged = true;
       const place = o.sortie ? '南の柵の口の列' : '坂の退き口の列';
-      if (okLineDanger(rt, C, o.at, o.r, 'dp', dt, place)) return false;
+      // 退路守りで列が崩れたら退きへ移る。帰陣前に戦を失敗で閉じない。
+      if (rt.flags.step === 2.5) {
+        if (!held) C.dangerT = (C.dangerT || 0) + dt; else C.dangerT = 0;
+        if (C.dangerT >= 10) return true;
+      } else if (okLineDanger(rt, C, o.at, o.r, 'dp', dt, place)) return false;
       if (!C.dangerT && rt.flags.step !== 2.5) rt.objProgress('dp', !near ? '持ち場の旗へ戻れ' : line < 3 ? '道の口へ味方の槍を集めよ' : foes > friends ? '組を呼び、槍をそろえて城兵を止めよ' : C.inT >= o.dur && !clear ? '味方と残る城兵を押し返せ' : '旗で城兵を止め、兵糧の道をふさげ');
       if (rt.flags.step === 2.5) {
         const F = rt.flags;

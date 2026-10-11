@@ -428,6 +428,7 @@ function typeName(u) {
 // 大札・字幕・短い声が実際に出る時の共通の間引き。
 // 待ち列へ入れた時には記録せず、出し方をまたいで同じ時計を使う。
 const WARNING_FAMILY = [
+  [/刃が光った|振りかぶった|前から(?:槍|一撃)|打ち込みを受け/, 'bladeAdvice'],
   [/囲ま|囲み|包囲/, 'encircle'],
   [/横から敵|横から突|横槍|後ろから|後ろだ/, 'flanked'],
   [/矢玉|矢が来る|矢の雨|鉄砲|筒先|火縄/, 'ranged'],
@@ -436,15 +437,41 @@ const WARNING_FAMILY = [
   [/小勢|寄せて[く来]る|敵の隊が寄せ/, 'raid'],
 ];
 class HudNotices extends BattleNotices {
-  constructor(hud) { super(hud); this.warningSeen = new Map(); }
-  reset() { this.warningSeen.clear(); super.reset(); }
+  constructor(hud) {
+    super(hud);
+    this.textSeen = new Map();
+    this.warningSeen = new Map();
+    // 任務と警告は文の高さで縦に並べる。携帯でも札の間を八つ分空ける。
+    const style = document.createElement('style');
+    style.textContent = `
+#hud #battle-notices #battle-message { gap:8px; }
+#hud #battle-notices #battle-message > .battle-notice {
+  position:relative !important; inset:auto !important; transform:none !important;
+  margin:0 !important; height:auto; flex:0 0 auto;
+}
+#hud #target.notice-muted { display:none !important; }
+`;
+    document.head.appendChild(style);
+  }
+  sync() {
+    super.sync();
+    // 枠の外にある相手の字列も知らせの数に含める。任務の裏へは出さない。
+    $('target').classList.toggle('notice-muted', this.sources[1].selected || this.picks.length >= this.limit);
+  }
+  reset() { this.textSeen.clear(); this.warningSeen.clear(); super.reset(); }
   repeatOk(text, remember = false) {
     const key = this.key(text);
-    if (this.clock - (this.seen.get(key) ?? -Infinity) < 120) return false;
+    // 共通の短い記録は三十秒で片付くため、二分の記録は出し口で保つ。
+    if (this.clock - (this.textSeen.get(key) ?? -Infinity) < 120) return false;
     const family = WARNING_FAMILY.find(([re]) => re.test(text)) || BARK_FAMILY.find(([re]) => re.test(text));
     if (family && this.clock - (this.warningSeen.get(family[1]) ?? -Infinity) < 8) return false;
     if (!super.repeatOk(text, remember)) return false;
-    if (remember && family) this.warningSeen.set(family[1], this.clock);
+    if (remember) {
+      // 表示した時だけ記録し、期限を過ぎた物を片付ける。毎コマは作らない。
+      for (const [text, time] of this.textSeen) if (this.clock - time >= 120) this.textSeen.delete(text);
+      this.textSeen.set(key, this.clock);
+      if (family) this.warningSeen.set(family[1], this.clock);
+    }
     return true;
   }
 }
@@ -2244,10 +2271,11 @@ export class Hud {
     const p = rt.player;
     if (!p.radial) { el.hidden = true; this.radialKey = ''; return; }
     el.hidden = false;
+    p.syncRadial();
     const gs = rt.squad.length ? p.selectedGroups().filter((g) => g.count > 0) : [];
     const cur = gs.length ? (gs[0].pending ? gs[0].pending.id : gs[0].focus ? 'focus' : gs[0].order) : '';
     const kinds = this.unitKinds || [];
-    const key = [p.radialSel, p.radialPreview, p.selGroup, cur, rt.G.rank, kinds.join(','), gs.map((g) => tagOf(g)).join(',')].join('|');
+    const key = [p.radialSel, p.radialPreview, p.selGroup, cur, rt.G.rank, RADIAL[3].id, RADIAL[3].label, kinds.join(','), gs.map((g) => tagOf(g)).join(',')].join('|');
     if (key === this.radialKey) return;
     this.radialKey = key;
     const focus = el.contains(document.activeElement) ? document.activeElement : null;

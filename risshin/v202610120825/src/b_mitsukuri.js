@@ -435,7 +435,8 @@ function zoneTask(rt, z, id = 'main', action = '') {
   const name = z.id === 'san' ? '三の郭' : z.id === 'ni' ? '二の丸' : '本丸';
   const enough = (z.friends || 0) >= z.need;
   const next = action || (!enough ? '味方を呼べ' : z.enemies ? '敵を払え' : `あと${Math.max(1, Math.ceil(z.hold - z.holdT))}秒守れ`);
-  rt.obj(id, `${name} 味方 ${z.friends || 0}／${z.need}・${next}`, id === 'main' ? 'main' : 'side', true);
+  rt.obj(id, `${next}（${name}）`, id === 'main' ? 'main' : 'side', true);
+  rt.objProgress(id, `味方${z.friends || 0}人・必要${z.need}人・敵${z.enemies || 0}人・敵をなくして${z.hold}秒守る`);
   rt.flags.callZone = enough ? null : z;
 }
 
@@ -589,6 +590,15 @@ const mitsukuri = {
     const W = rt.world;
     const F = rt.flags;
     F.step = 0; F.ek = 0; F.ak = 0; F.lit = 0; F.litMask = 0; F.fow = true;
+    // 石そのものは止めず、この戦の同じ知らせだけ二分あける。
+    const bark = rt.bark;
+    rt.bark = function(text, warn) {
+      if (text === '上から石が来るぞ！') {
+        if (this.t - (F.stoneWarnAt ?? -Infinity) < 120) return;
+        F.stoneWarnAt = this.t;
+      }
+      return bark.call(this, text, warn);
+    };
     // この戦だけ陰を明るくする。夜も月明かりの色で道と敵の姿を残す。
     F.slopeFill = new THREE.HemisphereLight(0xd6c6ae, 0x867252, 0.9);
     rt.scene.add(F.slopeFill);
@@ -655,7 +665,23 @@ const mitsukuri = {
     solidCircle(22, -98, 0.95);
     finalizeKitBatch(rt, stoneBatch);
     // 位置・広さ・用途は永禄期の近江の推定。各戸口は道につなぐ。
-    const house = (x, z, w, d, rot, name, kind) => goten(rt, x, z, { w, d, rot, name, kind, team: 1, tile: false, naka: true, profile: 'mitsukuri', doorX: 0, noTarget: true });
+    const paper = new THREE.Color(0xf2eee2), soot = new THREE.Color(0x494139);
+    const house = (x, z, w, d, rot, name, kind) => {
+      const fireCount = W.fires.length;
+      const h = goten(rt, x, z, { w, d, rot, name, kind, team: 1, tile: false, naka: true, profile: 'mitsukuri', doorX: 0, noTarget: true });
+      // 戸口の炎の板が障子に重なるため、付属の火を外し、紙だけ煤けた焼け跡にする。
+      // この建物専用の頂点色だけを替え、共通の材質・室内・松明の任務は保つ。
+      while (W.fires.length > fireCount) W.removeFire(W.fires[W.fires.length - 1]);
+      h.mesh.traverse((m) => {
+        const colors = m.geometry?.attributes.color;
+        if (!colors) return;
+        for (let i = 0; i < colors.count; i++) {
+          if (Math.abs(colors.getX(i) - paper.r) < 0.001 && Math.abs(colors.getY(i) - paper.g) < 0.001 && Math.abs(colors.getZ(i) - paper.b) < 0.001) colors.setXYZ(i, soot.r, soot.g, soot.b);
+        }
+        colors.needsUpdate = true;
+      });
+      return h;
+    };
     house(-12, -53, 5, 4, Math.PI / 2, '大手の番所', 'bansho');
     house(12, -51, 5, 4, -Math.PI / 2, '兵糧の蔵', 'kura');
     house(-9, -78, 8, 5, Math.PI / 2, '二の丸の長屋', 'nagaya');
@@ -1222,13 +1248,16 @@ const mitsukuri = {
       }
     }
     if (!F.longWarn && rt.t >= 540) { F.longWarn = true; sayKino(rt, 'まだ落ちぬか。曲輪を奪え。手勢を失えば退くぞ', 4); }
-    // 藤吉郎の手が怯んで退いただけでは負けにしない（立て直して戻る）。三人を切るか、藤吉郎が手傷で退いた時だけ。
-    // その前に、崩れかけを声で知らせる
+    // 藤吉郎の一隊が崩れかけたら知らせる。退却は下で攻め手全体を数えて決める。
     if (F.step >= 2 && !F.ending && !F.kinoWarn && F.kino.count > 0 && (F.kino.routed || F.kino.morale < 35 || F.kino.count < 6)) {
       F.kinoWarn = true; rt.say('組頭', '旗を倒すな！　藤吉郎殿のもとへ寄れ、敵を払え！', 4);
     }
-    // 六人が揃うまでは、時間や藤吉郎の隊の損耗で任務を打ち切らない。
-    const loss = F.step >= 2 && (F.kino.count < 3 || F.kinoU.woundOut);
+    // 一隊の損耗ではなく、札と同じ制圧人数を集められなくなった時だけ早く退く。
+    const target = F.SZ.byId[!F.sanFell ? 'san' : !F.niFell ? 'ni' : 'hon'];
+    let ready = 0;
+    for (const g of F.oda) for (const u of g.units) if (siegeFighter(u)) ready++;
+    if (F.ramNext) for (const u of F.ramNext.units) if (siegeFighter(u)) ready++;
+    const loss = F.step >= 2 && ready < target.need && target.friends < target.need;
     if (F.sixReady && F.step < 4.5 && rt.canFailMission()) {
       if (loss && F.lossDeadline == null) F.lossDeadline = rt.t + 30;
       if (!loss) F.lossDeadline = null;

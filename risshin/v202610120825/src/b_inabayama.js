@@ -653,6 +653,17 @@ function buildKaraRoadWorks(rt) {
       }
     }
   }
+  // 七曲り・百曲りも、急な土の坂にだけ岩の段を混ぜる。裏道と同じ形を共用する。
+  for (const path of [ROAD, HYAKU]) for (let i = 1; i < path.length; i++) {
+    const a = path[i - 1], b = path[i], len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const dx = (b[0] - a[0]) / (len || 1), dz = (b[1] - a[1]) / (len || 1);
+    for (let d = 2; d < len - 1; d += 4.8) {
+      const side = Math.floor(d) % 2 ? 1 : -1;
+      const x = a[0] + dx * d - dz * side * 1.6, z = a[1] + dz * d + dx * side * 1.6;
+      if (Math.abs(W.heightAt(x + dx, z + dz) - W.heightAt(x - dx, z - dz)) < 0.3) continue;
+      stones.push({ x, z, y: W.heightAt(x, z) - 0.08, rot: Math.atan2(dx, dz), len: 1.1 });
+    }
+  }
   const mkI = (geo, color, list, place, mat = null) => {
     if (!list.length) return;
     const m = new THREE.InstancedMesh(geo, mat || new THREE.MeshLambertMaterial({ color }), list.length);
@@ -668,7 +679,7 @@ function buildKaraRoadWorks(rt) {
   const railG = new THREE.BoxGeometry(0.07, 0.07, 1);
   mkI(railG, 0x76603f, rails, (o, q) => { o.position.set(q.x, q.y, q.z); o.rotation.set(0, q.rot, 0); o.scale.set(1, 1, q.len); });
   const rockG = new THREE.IcosahedronGeometry(1, 0);
-  mkI(rockG, 0x918574, stones, (o, q) => { o.position.set(q.x, q.y + 0.05, q.z); o.rotation.set(0.1, q.rot, 0.1); o.scale.set(q.len, 0.23, 0.55); });
+  mkI(rockG, 0x918574, stones, (o, q) => { o.position.set(q.x, q.y + 0.05, q.z); o.rotation.set(0.1, q.rot, 0.1); o.scale.set(q.len, 0.23, 0.55); }, new THREE.MeshLambertMaterial({ map: stoneTex(), color: 0x918574 }));
   const up = new THREE.Vector3(0, 1, 0), end = new THREE.Vector3();
   mkI(new THREE.CylinderGeometry(0.035, 0.09, 1, 5), 0x77634c, roots, (o, q) => {
     end.set(q.rx - q.x, q.ry - q.y, q.rz - q.z); const len = end.length();
@@ -858,9 +869,61 @@ function march(g, path, next = 'hold') {
 }
 
 
+// 半秒に一度だけ周囲を見る。傷が深くなる前に、敵から離れる味方を退き口にする。
+function inabaRetreatTick(rt) {
+  const F = rt.flags;
+  if (rt.t < (F.retreatCheckAt || 0)) return;
+  F.retreatCheckAt = rt.t + 0.5;
+  const player = rt.player.u, p = player.pos;
+  let enemies = 0, ex = 0, ez = 0;
+  for (const u of rt.army.units) {
+    if (!u.alive || u.team !== 1 || u.isStruct || u.noTarget || u.fleeing || u.group?.civ || Math.abs(u.pos.y - p.y) > 5) continue;
+    if (Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 12) { enemies++; ex += u.pos.x - p.x; ez += u.pos.z - p.z; }
+  }
+  const danger = enemies >= 2 || (enemies > 0 && player.hp < player.maxHp * 0.75);
+  if (F.retreatMarked && (F.retreatStep !== F.step || !F.retreatUnit?.alive || (!danger && rt.t - F.retreatDangerAt >= 8))) {
+    rt.unmark('retreat'); F.retreatMarked = false;
+  }
+  if (!danger || F.step < 1) return;
+  F.retreatDangerAt = rt.t;
+  const length = Math.hypot(ex, ez) || 1;
+  let best = null, score = Infinity;
+  for (const u of rt.army.units) {
+    if (!u.alive || u.team !== 0 || u === player || u.isStruct || u.fleeing || u.woundOut || u.naka || Math.abs(u.pos.y - p.y) > 4) continue;
+    const dx = u.pos.x - p.x, dz = u.pos.z - p.z, d = Math.hypot(dx, dz);
+    if (d < 4 || d > 28 || d >= score) continue;
+    // 敵へ進む仲間は選ばない。近い敵から六歩以上離れた味方を指す。
+    if ((dx * ex + dz * ez) / length > 1) continue;
+    let safe = true;
+    for (const v of rt.army.units) {
+      if (v.alive && v.team === 1 && !v.isStruct && !v.noTarget && !v.fleeing && !v.group?.civ
+        && Math.abs(v.pos.y - u.pos.y) < 5 && Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z) < 6) { safe = false; break; }
+    }
+    if (safe && d < score) { best = u; score = d; }
+  }
+  if (!best) {
+    if (F.retreatMarked) { rt.unmark('retreat'); F.retreatMarked = false; }
+    if (!F.retreatNoWayAdvice) {
+      F.retreatNoWayAdvice = true;
+      rt.bark('敵が寄ってくる。来た道から味方の後ろへ下がれ', true);
+    }
+    return;
+  }
+  F.retreatUnit = best;
+  if (!F.retreatMarked) {
+    F.retreatMarked = true; F.retreatStep = F.step;
+    rt.marker('retreat', F.retreatPosition, '退き口・味方の後ろへ', { guideAlways: true });
+  }
+  if (!F.retreatAdvice) {
+    F.retreatAdvice = true;
+    rt.bark('敵が寄ってくる。囲まれる前に、退き口の印へ下がれ', true);
+  }
+}
+
 // 共通の台詞と視点を、この戦の間だけ差し替える。次の戦へ持ち越さない。
 function installInabaPresentation(rt) {
   const F = rt.flags, player = rt.player, hud = rt.hud;
+  F.retreatPosition = () => F.retreatUnit?.alive ? F.retreatUnit.pos : null;
   const say = rt.say, bark = rt.bark, updateCamera = player.updateCamera, dispose = rt.dispose;
   const clean = (text) => /討死|討ち死|討たれ|戦死/.test(text) ? text.replace(/佐久間信盛/g, '味方の組頭') : text;
   const pass = (text) => {
@@ -871,37 +934,27 @@ function installInabaPresentation(rt) {
   rt.say = function (who, text, dur) { text = clean(String(text)); if (pass(text)) return say.call(this, who, text, dur); };
   rt.bark = function (text, warn) { text = clean(String(text)); if (pass(text)) return bark.call(this, text, warn); };
   const style = document.createElement('style');
-  style.textContent = '#hud #subtitle, #hud #subtitle span, #hud #subtitle em, #hud #subtitle i { font-style: normal; }';
+  style.textContent = '#hud #subtitle, #hud #subtitle span, #hud #subtitle em, #hud #subtitle i { font-style: normal; }'
+    + '#hud #vignette.dying, #hud.inaba-down #vignette { backdrop-filter:none; -webkit-backdrop-filter:none; mask-image:none; -webkit-mask-image:none; animation:none; background:rgba(12,10,8,.18); box-shadow:inset 0 0 170px rgba(0,0,0,.65); }';
   hud.root.appendChild(style);
-  const look = new THREE.Vector3(), eye = new THREE.Vector3(), safe = new THREE.Vector3(), forward = new THREE.Vector3(), box = new THREE.Box3();
-  const blocks = [];
+  const look = new THREE.Vector3(), safe = new THREE.Vector3(), forward = new THREE.Vector3();
+  // 屋根や坂の上へ視点を探し直さず、倒れる直前の肩越しの景色を残す。
   F.downCamera = () => {
-    const p = player.u.pos;
     if (!F.downCameraReady) {
-      F.downCameraReady = true; blocks.length = 0;
-      rt.scene.updateMatrixWorld(true);
-      rt.scene.traverse((o) => { if (o.isMesh && o.userData.camBlock) blocks.push(o); });
-      // 焼けて傾いた屋根や板も含める。柵の当たりだけでは倒壊材を拾えない。
-      for (const h of F.houses || []) h.m.traverse((o) => { if (o.isMesh && !blocks.includes(o)) blocks.push(o); });
-      look.set(p.x, p.y + 0.7, p.z);
-      let best = -Infinity;
-      for (let i = 0; i < 8; i++) {
-        const angle = player.yaw + i * Math.PI / 4, x = p.x + Math.sin(angle) * 4, z = p.z + Math.cos(angle) * 4;
-        let y = Math.max(p.y, rt.world.heightAt(x, z)) + 4;
-        for (const o of blocks) {
-          if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
-          box.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld);
-          if (x > box.min.x - 0.8 && x < box.max.x + 0.8 && z > box.min.z - 0.8 && z < box.max.z + 0.8) y = Math.max(y, box.max.y + 2);
-        }
-        eye.set(x, y, z);
-        const hit = player.camBlockHit(eye, look), score = hit === null ? 2 : hit;
-        if (score > best) { best = score; safe.copy(eye); }
+      if (!F.lastBattleView) {
+        safe.copy(rt.camera.position);
+        rt.camera.getWorldDirection(look); look.add(safe);
       }
+      F.downCameraReady = true;
+      hud.root.classList.add('inaba-down');
     }
     rt.camera.position.copy(safe); player.camPos.copy(safe);
-    rt.camera.lookAt(look); rt.camera.updateMatrixWorld();
+    rt.camera.up.set(0, 1, 0); rt.camera.lookAt(look); rt.camera.updateMatrixWorld();
   };
   player.updateCamera = function (dt, camera) {
+    // 登りの最中も携帯の横画面に前方が残る上下角に収める。
+    const onMountain = F.step >= 3 || this.u.pos.y > 20;
+    if (onMountain) this.pitch = Math.max(-0.3, Math.min(0.3, this.pitch));
     updateCamera.call(this, dt, camera);
     // 足元は水平に切った細道。体は横へ倒さず、進む坂に合わせて前へ折る。
     for (const u of rt.army.units) {
@@ -913,16 +966,23 @@ function installInabaPresentation(rt) {
         u.mesh.rotation.set(Math.max(-0.12, Math.min(0.24, Math.atan(uphill) * 0.4)), u.heading, 0, 'YXZ');
       }
     }
-    if (!this.u.alive || rt.result?.down) F.downCamera();
-    else F.downCameraReady = false;
-    // 裏道では見ている方向と上下角を保ち、揺れや騎乗の横傾きだけを戻す。向きの部品は使い回す。
-    if (F.step === 3) {
-      camera.getWorldDirection(forward); forward.add(camera.position);
-      camera.up.set(0, 1, 0); camera.lookAt(forward); camera.updateMatrixWorld();
+    if (!this.u.alive || rt.result?.down) { F.downCamera(); return; }
+    if (F.downCameraReady) hud.root.classList.remove('inaba-down');
+    F.downCameraReady = false;
+    // 坂による持ち上げや被弾の揺れも含め、水平線と前方を保つ。
+    camera.getWorldDirection(forward);
+    if (onMountain) {
+      const horizontal = Math.hypot(forward.x, forward.z);
+      forward.y = Math.max(-horizontal * 0.4, Math.min(horizontal * 0.35, forward.y));
+      forward.normalize();
+      camera.up.set(0, 1, 0); look.copy(camera.position).add(forward);
+      camera.lookAt(look); camera.updateMatrixWorld();
     }
+    safe.copy(camera.position); look.copy(safe).add(forward);
+    F.lastBattleView = true;
   };
   rt.dispose = function () {
-    style.remove(); F.karaMesh?.geometry.dispose(); F.karaMesh?.material.dispose(); this.say = say; this.bark = bark; player.updateCamera = updateCamera; this.dispose = dispose;
+    hud.root.classList.remove('inaba-down'); style.remove(); F.karaMesh?.geometry.dispose(); F.karaMesh?.material.dispose(); this.say = say; this.bark = bark; player.updateCamera = updateCamera; this.dispose = dispose;
     return dispose.call(this);
   };
 }
@@ -942,22 +1002,29 @@ function buildKaraTrail(rt) {
   }
   pos.needsUpdate = true; ground.computeVertexNormals(); ground.computeBoundingSphere();
   W.heightAt = function (x, z) { const q = karaSample(x, z); return q.d <= 2.4 ? q.y : oldHeight.call(this, x, z); };
-  const vertices = [], uv = [];
+  const vertices = [], uv = [], across = [-3.6, -2.4, -0.8, 0.8, 2.4, 3.6];
+  const point = (q, t, w, distance) => {
+    const x = q.ax + q.dx * t, z = q.az + q.dz * t;
+    const edge = 1 + 0.055 * Math.sin(x * 0.7 + z * 1.3);
+    const px = x - q.dz / q.len * w * edge, pz = z + q.dx / q.len * w * edge;
+    const y = q.ya + (q.yb - q.ya) * t;
+    // 歩く高さは保ち、小さな踏み跡と土留めの段を付ける。
+    const relief = Math.abs(w) < 2.4 ? 0.05 * (1 + Math.sin(distance * 5.5)) + 0.025 * Math.sin(px * 2.1 + pz) : 0;
+    const shoulder = Math.abs(w) > 2.4 ? oldHeight.call(W, px, pz) : y + relief;
+    return [px, shoulder + 0.03, pz];
+  };
   let walked = 0;
   for (const q of KARA_GRADES) {
-    const nx = -q.dz / q.len * 2.4, nz = q.dx / q.len * 2.4, n = Math.ceil(q.len);
-    const length = Math.hypot(q.len, q.yb - q.ya);
+    const n = Math.ceil(q.len * 2), length = Math.hypot(q.len, q.yb - q.ya);
     for (let i = 0; i < n; i++) {
-      const a = i / n, b = (i + 1) / n;
-      const ax = q.ax + q.dx * a, az = q.az + q.dz * a, ay = q.ya + (q.yb - q.ya) * a + 0.03;
-      const bx = q.ax + q.dx * b, bz = q.az + q.dz * b, by = q.ya + (q.yb - q.ya) * b + 0.03;
-      const ea = 1 + 0.055 * Math.sin(ax * 0.7 + az * 1.3), eb = 1 + 0.055 * Math.sin(bx * 0.7 + bz * 1.3);
-      vertices.push(ax - nx * ea, ay, az - nz * ea, ax + nx * ea, ay, az + nz * ea, bx + nx * eb, by, bz + nz * eb,
-        ax - nx * ea, ay, az - nz * ea, bx + nx * eb, by, bz + nz * eb, bx - nx * eb, by, bz - nz * eb);
-      // 道の幅と坂を含む歩いた長さで貼り、折れの向きで土の粒を引き伸ばさない。
-      const va = (walked + length * a) * 0.3, vb = (walked + length * b) * 0.3;
-      uv.push(-2.4 * ea * 0.3, va, 2.4 * ea * 0.3, va, 2.4 * eb * 0.3, vb,
-        -2.4 * ea * 0.3, va, 2.4 * eb * 0.3, vb, -2.4 * eb * 0.3, vb);
+      const a = i / n, b = (i + 1) / n, da = walked + length * a, db = walked + length * b;
+      for (let j = 0; j + 1 < across.length; j++) {
+        const w0 = across[j], w1 = across[j + 1];
+        const p0 = point(q, a, w0, da), p1 = point(q, a, w1, da), p2 = point(q, b, w1, db), p3 = point(q, b, w0, db);
+        vertices.push(...p0, ...p1, ...p2, ...p0, ...p2, ...p3);
+        uv.push(w0 * 0.6, da * 0.6, w1 * 0.6, da * 0.6, w1 * 0.6, db * 0.6,
+          w0 * 0.6, da * 0.6, w1 * 0.6, db * 0.6, w0 * 0.6, db * 0.6);
+      }
     }
     walked += length;
   }
@@ -968,7 +1035,7 @@ function buildKaraTrail(rt) {
   }
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
   geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3)); geo.computeVertexNormals();
-  const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: dirtTex(), vertexColors: true, color: 0xd4c4aa, side: THREE.DoubleSide }));
+  const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: dirtTex(), vertexColors: true, color: 0xa18b69, side: THREE.DoubleSide }));
   mesh.receiveShadow = true; rt.scene.add(mesh); rt.flags.karaMesh = mesh;
 }
 
@@ -987,6 +1054,7 @@ const inabayama = {
   guideMarker(rt) {
     const F = rt.flags;
     if (F.ending) return null;
+    if (F.retreatMarked) return 'retreat';
     if (F.step === 0 || F.regroup) return 'kino';
     if (F.step === 1 && F.lit < NEED) return F.houseTargets?.[0] ? 'h' + F.houseTargets[0].i : 'kino';
     if (F.step === 3 && !F.guardOn) return F.karaGuideMarked ? 'karaGuide' : 'kino';
@@ -1912,6 +1980,7 @@ const inabayama = {
     if (F.SZ) F.SZ.tick(dt);
     if (F.keep && F.step >= 4) { F.keep.tick(); if (F.keep.lord) F.keep.lord.noTarget = true; }
     if (F.ending || rt.over) return;
+    inabaRetreatTick(rt);
     if (!F.woundAdvice && rt.player.u.alive && rt.player.u.hp < rt.player.u.maxHp * 0.75) {
       F.woundAdvice = true;
       F.woundAdviceAt = rt.t;
@@ -2052,6 +2121,7 @@ const inabayama = {
 
   onFinish(rt, info) {
     const F = rt.flags;
+    rt.unmark('retreat'); F.retreatMarked = false;
     if (info?.down) F.downCamera();
     if (F.torches) { F.torches.stop(); F.torches = null; }
   },

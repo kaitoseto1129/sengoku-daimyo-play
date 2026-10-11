@@ -54,6 +54,30 @@ const ODA = { cloth: 0x2a384a, flag: 'oda' };
 const dress = (list, lk) => list.map((s) => ({ ...s, o: { ...lk, ...(s.o || {}) } }));
 // 戦える残兵を、退き道・崩れの判定と同じ条件で数える。
 const kgActive = (u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget;
+// 近い味方の得物だけを間引く。兵の当たり・敵の姿・自分の槍は保つ。
+// 共通の視点補正より前に高さを渡し、地形と壁の判定もそのまま使う。
+function retreatView(rt) {
+  const P = rt.player, F = rt.flags, updateCamera = P.updateCamera;
+  const pull = rt.def.camPull || 0;
+  F.nearLift = 0;
+  P.updateCamera = (dt, camera) => {
+    const goal = !rt.over && P.u.alive && S.view !== 'first' && (P.crowd || 0) > 5 ? 1 : 0;
+    F.nearLift += (goal - F.nearLift) * Math.min(1, dt * (S.reduceMotion ? 8 : 2));
+    P.crowdLift = Math.max(P.crowdLift || 0, F.nearLift);
+    rt.def.camPull = pull + F.nearLift;
+    updateCamera.call(P, dt, camera);
+    rt.def.camPull = pull;
+    for (const u of rt.army.units) {
+      if (u === P.u || u.team !== P.u.team || !u.wpn || (u.wpnKind || u.lookWeapon) !== 'spear') continue;
+      const near = u.alive && Math.hypot(u.pos.x - P.u.pos.x, u.pos.z - P.u.pos.z) < 9;
+      // 形と材質は共有したまま、長柄の描く長さだけ約三割縮める。
+      if ((u.wpn.userData.spec?.L || 0) > 5) u.wpn.scale.z = near ? 0.72 : 1;
+      // 自分のすぐ横で打ち合う槍は見せ、ほかは二本に一本にする。
+      if (near && u.id % 2 === 0 && !(u.atk && Math.hypot(u.pos.x - P.u.pos.x, u.pos.z - P.u.pos.z) < 2)) u.wpn.visible = false;
+    }
+  };
+  return () => { P.updateCamera = updateCamera; rt.def.camPull = pull; };
+}
 function kgFlagCounts(rt) {
   return rt.flags.tono.map(g => `${g.name}の旗 ${g.units.reduce((n, u) => n + (kgActive(u) ? 1 : 0), 0)}／${g.initial}人`).join('、');
 }
@@ -610,6 +634,7 @@ const kanegasaki = {
   jinkei: KANEGASAKI_JIN,
   taisho: { a: null, b: null }, // 三将の退却はこの定義が扱う。共通の本陣増設・襲撃・即勝ちを使わない。
   wakeRoom: 200,
+  noWake: true, // 寄せは下の台本で同じ遠景から出す。共通の替えで別の敵を重ねない。
   // 反撃の隙と撤退は戦の頭に任せ、性格の構え直しで突きを消さない。
   botOrders: true,
   latestPhaseBanner: true, // 古い寄せの知らせより、今の退く下知を先に出す。
@@ -674,9 +699,10 @@ const kanegasaki = {
     F.flagMats = new WeakMap(); F.flagTex = new Map(); F.flagMatList = [];
     F.clothMats = new WeakMap(); F.clothTime = { value: 0 };
     F.clothWind = { value: WIND_STATE.gust }; F.clothMotion = { value: S.reduceMotion ? 0 : 1 };
+    const restoreView = retreatView(rt);
     const dispose = rt.dispose.bind(rt);
     rt.dispose = () => {
-      dispose(); F.restoreNotices();
+      restoreView(); dispose(); F.restoreNotices();
       for (const m of F.flagMatList) m.dispose();
       F.flagTex.clear(); F.flagMatList.length = 0;
     };
@@ -859,13 +885,13 @@ const kanegasaki = {
     rt.after(6, () => rt.say('木下藤吉郎', '道を槍で塞げ。狭い道じゃ、多勢でも一度には来られぬぞ', 3.5));
     F.w1 = [
       enemyGroup(rt, { faction: 'asakura', name: '朝倉の先手', anchor: { x: 6, z: -92 }, facing: 0, order: 'attack', seekRange: 90, aggro: 10, width: 14, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 0.65, speed: 2.6 },
-        dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 20 }, { type: 'bow', n: 3 }], ASAKURA)),
+        dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 12 }, { type: 'bow', n: 3 }], ASAKURA)),
     ];
     rt.marker('w0', centerOf(F.w1[0]), () => `朝倉の先手・旗が見える`, { red: true, group: F.w1[0] });
     rt.after(14, () => {
       if (rt.over || F.ending || F.step !== 1) return;
       const g = enemyGroup(rt, { faction: 'asakura', name: '朝倉の東の追手', anchor: HIKIDA_FROM, facing: HIKIDA_FACING, order: 'attack', seekRange: 90, aggro: 10, width: 14, morale: 95, fleeDir: { x: 1, z: 0.3 }, dmgMult: 0.65, speed: 2.6 },
-        dress([{ type: 'busho', n: 1, o: { name: '朝倉の侍大将', horse: true, hat: 'kabuto_m', haori: 0x5a4020 } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 16 }, { type: 'gun', n: 2 }], ASAKURA));
+        dress([{ type: 'busho', n: 1, o: { name: '朝倉の侍大将', horse: true, hat: 'kabuto_m', haori: 0x5a4020 } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 2 }], ASAKURA));
       for (const u of g.units) if (u.type === 'busho') { u.announced = true; }
       F.w1.push(g);
       rt.say('足軽', '東にも朝倉の旗だわ！　横から来よるぞ！', 3);
@@ -1449,13 +1475,13 @@ function kgHold(line, dur, waves, ambush = false) {
     start(rt, C) {
       C.at = L; C.goal = L; C.botRadius = L.r + 8; C.inT = 0; C.waves = waves.slice();
       C.nextReserve = 32;
-      C.reserve = { t: 0, name: '朝倉の後続の槍組', from: line === 0 ? { x: 6, z: -100 } : line === 1 ? { x: 8, z: -32 } : { x: -6, z: 46 }, list: [uS(2), uA(12)] };
+      C.reserve = { t: 0, name: '朝倉の後続の槍組', from: line === 0 ? { x: 6, z: -100 } : line === 1 ? { x: 8, z: -32 } : { x: -6, z: 46 }, list: [uS(2), uA(line === 0 ? 6 : 12)] };
       // 旗の周囲にいる先手も段の追手として探す。自分から十四歩を越えても、
       // 持ち場の範囲に入った敵は迎え撃つ（旗の外へは追わない）。
       for (const g of rt.flags['w' + (line + 1)] || []) C.groups.push(g);
       // 守る段では、この持ち場の下知だけを残す。古い主任務へ戻さない。
       rt.objRemove('main'); rt.objRemove('stay');
-      rt.obj('dp', ambush ? '味方が退く間、槍の備で追手を谷へ引きつけよ' : `${L.mark}で主力の退きを支えよ。下知で退け`, 'main');
+      rt.obj('dp', ambush ? '谷で追手を止めよ' : `${L.mark}を守れ。下知で退け`, 'main');
       rt.marker('dp', L, L.mark, { h: 2, guideAlways: true }); rt.zone('dp', L.x, L.z, L.r);
       if (ambush) {
         for (let side = 0; side < 2; side++) {
@@ -1483,7 +1509,7 @@ function kgHold(line, dur, waves, ambush = false) {
         if (el < w.t) continue;
         C.waves.splice(i, 1);
         const g = enemyGroup(rt, { faction: 'asakura', name: w.name, anchor: w.from, facing: 0, order: 'attack', seekRange: 140,
-          width: 10, aggro: 12, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 0.8, formation: w.gun ? 'line' : 'yari' }, dress(w.list, ASAKURA));
+          width: 10, aggro: 12, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: line === 0 ? 0.55 : 0.8, formation: w.gun ? 'line' : 'yari' }, dress(w.list, ASAKURA));
         C.groups.push(g);
       }
       if (ambush && !C.fired) {
@@ -1517,9 +1543,10 @@ function kgHold(line, dur, waves, ambush = false) {
   };
 }
 function kgA() {
-  return [kgHold(0, 65, [
-    { t: 3, name: '朝倉の後続の槍組', from: { x: 6, z: -104 }, list: [uS(2), uA(18)] },
-    { t: 24, name: '朝倉の西の備', from: { x: -42, z: -90 }, list: [uS(2), uA(14)] },
+  // 一の備に寄せを重ねすぎず、殿が健在のうちに川岸へ退く。
+  return [kgHold(0, 45, [
+    { t: 3, name: '朝倉の後続の槍組', from: { x: 6, z: -104 }, list: [uS(2), uA(10)] },
+    { t: 24, name: '朝倉の西の備', from: { x: -42, z: -90 }, list: [uS(2), uA(8)] },
   ])];
 }
 function kgB() {

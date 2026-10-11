@@ -2105,36 +2105,44 @@ export function deathScreen(G, battleName, onTitle, downInfo, last = {}) {
 export function aijirushiScreen(G, onDone) {
   const kinds = [['ichimonji', '一文字', 'まっすぐな一本の線。遠くからでも見分けやすい'], ['maru', '丸', '円い印。組の和を表す'], ['igeta', '井桁', '井戸の枠の形。固い守りを表す']];
   // 530：押してすぐ決めず、選ぶ → 組の旗の並びで確かめる → 決める の二段にする
-  let sel = null;
+  let sel = null, done = false;
   const pick = (k) => {
     sel = k; sfx('ui');
     document.querySelectorAll('.aiji button').forEach((b) => { b.classList.toggle('on', b.dataset.k === sel); b.setAttribute('aria-pressed', b.dataset.k === sel); });
     const K = kinds.find(([x]) => x === k);
     $('aj-look').innerHTML = `<div class="aj-row">${Array.from({ length: Math.min(8, RANKS[G.rank].squad || 5) }, () => '<canvas width="30" height="60"></canvas>').join('')}</div><p><b>${esc(K[1])}</b>　${esc(K[2])}</p>`;
     $('aj-look').querySelectorAll('canvas').forEach((c) => drawMon(c.getContext('2d'), k, 30, 60));
-    const ok = $('aj-ok'); ok.disabled = false; ok.textContent = `「${K[1]}」に決める`;
+    $('aj-choice').textContent = `「${K[1]}」の印に決めて、城下へ進みます。`;
   };
-  const decide = () => { if (!sel) return; G.aijirushi = sel; sfx('taiko', 0.6); onDone(); };
+  const decide = () => { if (!sel || done) return; done = true; G.aijirushi = sel; sfx('taiko', 0.6); onDone(); };
   show(`<style>
+    .wrap.aj-screen { height: 100%; box-sizing: border-box; padding-block: 0; display: flex; flex-direction: column; }
+    .aj-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-block: 24px 8px; }
+    .aj-actions { flex: 0 0 auto; background: var(--sumi); padding: 8px 0 calc(8px + env(safe-area-inset-bottom, 0px)); }
+    .aj-actions .row { margin: 0; gap: 8px; justify-content: flex-end; }
+    .aj-actions .btn { min-height: 48px; }
+    #aj-choice { margin: 0 0 8px; font-size: max(15px, calc(15px * var(--text-scale, 1))); line-height: 1.6; }
     .aiji button.on { border-color: var(--kin); box-shadow: inset 0 0 0 1px var(--kin); background: rgba(194,162,90,.08); }
     .aiji button { min-height: 44px; }
     #aj-look { min-height: 96px; margin: 4px 0 16px; }
     #aj-look .aj-row { display: flex; gap: 10px; align-items: flex-end; }
     #aj-look canvas { width: 30px; height: 60px; border-left: 2px solid #5a4630; padding-left: 2px; }
     #aj-look p { margin: 8px 0 0; font-size: max(12px, calc(14px * var(--text-scale, 1))); color: var(--washi-dim); } #aj-look b { color: var(--kin); font-weight: 500; }
-  </style><div class="wrap">
+  </style><div class="wrap aj-screen"><div class="aj-body">
     <div class="eyebrow">組の合印</div>
     <h2 style="font-family:var(--display);font-size:max(12px, calc(34px * var(--text-scale, 1)));letter-spacing:.1em;margin:8px 0 12px">預かる組に、印を定める</h2>
     <p class="lead">組頭の見習いとなった者は、配下の足軽の指物に組の合印を付ける。<br>戦場で、自分の後ろに並ぶ旗がこれになる。</p>
     <div class="aiji" role="group" aria-label="合印">${kinds.map(([k, n], i) => `<button data-k="${k}" aria-pressed="false" aria-label="${n}の合印を選ぶ"><canvas width="60" height="120" data-mon="${k}"></canvas>${i + 1}．${n}</button>`).join('')}</div>
     <div id="aj-look" aria-live="polite"><p>印を選ぶと、組の旗の並びがここに出ます。</p></div>
-    <div class="row"><button class="btn primary" id="aj-ok" disabled>印を選んでください</button></div>
     <p class="note">${isTouch ? '印を押して選び、下の釦で決めます' : '数字キー 1〜3 で選び、決定キーで決めます'}。一度決めた印は、この先ずっと組の旗になります。</p>
+    </div><div class="aj-actions"><p id="aj-choice" aria-live="polite"></p><div class="row"><button class="btn primary" id="aj-ok">次へ（城下へ）</button></div></div>
   </div>`, false, (e) => { const i = ['1', '2', '3'].indexOf(e.key); if (i >= 0) pick(kinds[i][0]); else if (e.key === 'Enter') { e.preventDefault(); decide(); } });
   document.querySelectorAll('canvas[data-mon]').forEach((c) => drawMon(c.getContext('2d'), c.dataset.mon, 60, 120));
   document.querySelectorAll('.aiji button').forEach((b) => b.onclick = () => pick(b.dataset.k));
   $('aj-ok').onclick = decide;
-  document.querySelector('.aiji button')?.focus({ preventScroll: true });
+  // はじめに一文字の旗を見せる。ほかの印も選べ、次へを押すまでは確定しない。
+  pick(kinds[0][0]);
+  $('aj-ok').focus({ preventScroll: true });
 }
 
 // ---------------- 城下（拠点） ----------------

@@ -253,7 +253,7 @@ export const ArmyCombat = {
     // 普通の足軽の鎧でも、槍は三突き・刀は四太刀までで決着する。侍と武将は従来の甲冑の強さを保つ。
     if (closeHit) amount = Math.max(amount, t.maxHp * Math.max(this.world.def.playerMeleeFloor || 0, (src.wpnKind || src.lookWeapon || src.weapon) === 'sword' ? 0.25 : 1 / 3) + 0.01);
     // 横や背を突かれた：すぐそばの手の空いた味方（三人まで）が振り返って迎える
-    if (from !== 'front' && !t.isPlayer && t.group && src && src.alive && !src.isStruct && src.pos) {
+    if (from !== 'front' && !t.isPlayer && t.group && src && src.alive && !src.isStruct && src.pos && src.team !== t.team) {
       // 遊び手に突かれた時は一人だけ（三人が一度に向かってくると、横槍が割に合わなくなる）
       let k = src.isPlayer ? 2 : 0;
       this.forNear(t.pos.x, t.pos.z, 3.5, (o) => {
@@ -938,6 +938,8 @@ export const ArmyCombat = {
 
   // 間合いに入った相手を打つ（当たり外れと倍率）。sw は振りの記録（当たり・甲冑・受け・空振りを書く）
   strike(u, t, near, mult = 1, sw = null) {
+    // 狙ってから寝返った相手にも、味方への打ち合いを始めない。
+    if (t.team === u.team) { if (sw) sw.res = 'miss'; return; }
     const g = u.group;
     if (t.isPlayer && u.playerMeleeUntil > this.time) u.playerMeleeUntil = Math.max(u.playerMeleeUntil, this.time + 0.9);
     let dmg = u.dmg * (g.dmgMult ?? 1) * (0.8 + Math.random() * 0.4) * mult;
@@ -986,6 +988,8 @@ export const ArmyCombat = {
   },
   // 振り出す：技ごとの長さ（秒）と、穂先・刃が届く時（割合）
   startSwing(u, kind, t) {
+    // 誤射した味方を反撃相手にせず、同じ側への振りを出さない。
+    if (t && t.team === u.team) return;
     const S_ = SWING[kind] || SWING.thrust;
     u.lastMeleeKind = kind;
     u.swing = { kind, t: 0, dur: S_[0], at: S_[1], target: t, done: false, res: null, d: t ? this.distTo(u, t) : 0, charging: u.charging, side: Math.random() < 0.5 ? 1 : -1 };

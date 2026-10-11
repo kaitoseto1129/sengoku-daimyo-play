@@ -1238,7 +1238,7 @@ const game = {
             LT.assetsDetail[key] = { ms: Math.round(performance.now() - began), ok: true }; }).catch((error) => { LT.assetsDetail[key] = { ms: Math.round(performance.now() - began), ok: false, reason: String(error?.message || error) }; if (my === this.startSeq && !LT.assetNoticed) { LT.assetNoticed = true; notice('！ 人や具足の一部を読めませんでした。軽い形で続けます。題へ戻り、ページを読み直してください'); } });
         };
         const assets = [timed('人', loadHumans), timed('具足', loadDomaru), timed('武器', loadWeapons), timed('城', loadCgt)];
-        if (!isTouch) assets.push(timed('兜', loadKabuto), timed('馬', loadHorse));
+        if (!isTouch) assets.push(timed('兜', loadKabuto));
         if (isTouch) await waitLimited(Promise.all(assets), 2500);
         else await Promise.all(assets);
         LT.assets = Math.round(performance.now() - tw);
@@ -1253,6 +1253,8 @@ const game = {
       LT.build = LT.buildOnly = Math.round(performance.now() - tB);
       applyLord(b);
       b.startAutomatic = tool;
+      // 馬は軽い姿で出し、初めて読む細かな姿は最初の画面の後へ回す。
+      b.horseLoadPending = !tool && !isNorender();
       // 見渡しは今は停止中。出陣後へ映画の引き・見せ場を残さず、本人の視点で支度する。
       b.player.introT = 0; b.player.camShot = null; b.player.cine = null; b.player.shotZoom = 0;
       b.player.updateCamera(1, camera);
@@ -1264,13 +1266,18 @@ const game = {
       if (!tool && !isNorender()) {
         stage('近くの兵の姿を整えています', 'warm');
         await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
-        const tH = performance.now(), cap = isTouch ? 400 : 1500;
+        const tH = performance.now(), cap = isTouch ? 400 : 600;
         // 前の戦の人を片付け、初戦の primed 待ちを支度の中で解く。
         updateHumans(b, 0);
-        if (!isTouch && HUMd.ready) await primeHumans(b, renderer, camera, 250, 1, () => my === this.startSeq).catch((error) => { b.dispose(); throw error; });
+        if (!isTouch && HUMd.ready) await primeHumans(b, renderer, camera, S.quality === 'low' ? 8 : S.quality === 'mid' ? 24 : 40, 1, () => my === this.startSeq).catch((error) => { b.dispose(); throw error; });
         if (my !== this.startSeq) { b.dispose(); return; }
         const tNear = performance.now();
-        for (let n = 0; n < 200 && performance.now() - tNear < cap; n++) updateHumans(b, 0);
+        // 携帯でも心得を読んだり支度を取り消したりできるよう、一人ごとに画面へ戻す。
+        for (let n = 0; n < 200 && performance.now() - tNear < cap; n++) {
+          if (my !== this.startSeq) { b.dispose(); return; }
+          updateHumans(b, 0);
+          await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+        }
         LT.warm = LT.humansWarm = Math.round(performance.now() - tH);
         if (my !== this.startSeq) { b.dispose(); return; }
       }
@@ -1318,8 +1325,8 @@ const game = {
       stage('戦の支度ができました');
       clearInterval(ldIv); ldIv = 0;
       $('ld-left').textContent = '読む札を開いている時は、閉じるまで戦は止まっています';
-      // 指の端末の馬は従来どおり後から読む。パソコンは支度で読んである。
-      if (isTouch && !isNorender()) this.horseTimer = setTimeout(() => { this.horseTimer = 0; if (this.battle === b) loadHorse().catch(() => {}); }, 6000);
+      // 支度の取消しでは止め、次の戦へ古い予約を持ち越さない。
+      if (b.horseLoadPending) this.horseTimer = setTimeout(() => { this.horseTimer = 0; if (this.battle === b) { b.horseLoadPending = false; loadHorse().catch(() => {}); } }, 6000);
       const readingBegan = performance.now();
       await reader.wait();
       b.startTiming.readingMs = Math.round(performance.now() - readingBegan);
@@ -1535,9 +1542,9 @@ const game = {
       actions.push(retry);
     } else if (i === 0 && (scenarioKey() === 'oda' ? !r.mainDone : G.rank === 0)) {
       // 最初の戦をしくじった時は、もう一度（織田家編は桶狭間では昇進しないので、任務を果たせば城下へ進む）
-      actions.push({ label: `${BATTLES[0].name.replace(/の戦い$/, '')}に再挑戦する`, primary: true, fn: retry.fn });
       // 織田家編は、しくじっても戦功なしで城下へ進める（最初の戦で先へ進めなくならないように）
-      if (scenarioKey() === 'oda') actions.push({ label: '城下へ進む（戦功なし）', fn: () => { save(G); this.base(); } });
+      if (scenarioKey() === 'oda') actions.push({ label: '次へ（城下へ・戦功なし）', primary: true, fn: () => { save(G); this.base(); } });
+      actions.push({ label: `${BATTLES[0].name.replace(/の戦い$/, '')}に再挑戦する`, primary: scenarioKey() !== 'oda', fn: retry.fn });
       actions.push({ label: 'タイトルへ', fn: () => this.title() });
     } else if (i === BATTLES.length - 1) {
       save(G);
@@ -1547,7 +1554,7 @@ const game = {
       save(G);
       // 墨の帯で「清洲へ戻る」と一枚挟んでから城下へ（827）
       const toTown = () => inkBand(`${(BATTLES[G.battle] && BATTLES[G.battle].town) || '城下'}へ戻る`, BATTLES[i].name, () => this.base());
-      actions.push({ label: '城下へ戻る', primary: true, fn: () => (G.rank >= 1 && !G.aijirushi ? aijirushiScreen(G, () => { save(G); toTown(); }) : toTown()) });
+      actions.push({ label: '次へ（城下へ）', primary: true, fn: () => (G.rank >= 1 && !G.aijirushi ? aijirushiScreen(G, () => { save(G); toTown(); }) : toTown()) });
       actions.push(retry);
     }
     // 戦の後の曲：昇進なら華やかに、勝てば凱歌、しくじれば尺八の一節

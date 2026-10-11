@@ -488,12 +488,13 @@ const shitaragahara = {
 
     // 本物の列の左右と奥は、同じ向きの軽い鉄砲・槍の列でつなぐ。
     // 開戦時に一度だけ並べる。南北の柵全体を三列でつなぎ、中央の槍だけ奥へ厚くする。
+    // 槍の控えは西へ寄せる。持ち場を結ぶ道（x=-9）と、押し返す奥の柵（x=-21）を空ける。
     // 虎口と本物の兵の足もとは空け、兵の判断処理は増やさない。
     const guardUnits = [...F.guns, ...F.spears, ...F.officers].flatMap((g) => g.units);
     for (const fac of ['oda', 'tokugawa']) for (const kind of ['gun', 'spear']) for (const rank of kind === 'gun' ? [0, 1, 2] : [0]) {
-      const people = [], rows = kind === 'gun' ? [11.6 - rank * 1.5] : [-7, -10, -13, -16, -19, -22, -25, -28, -31, -34];
+      const people = [], rows = kind === 'gun' ? [11.6 - rank * 1.5] : [-40, -43, -46, -49, -52, -55, -58, -61, -64, -67];
       for (const x of rows) for (let z = SB.z0 + 2; z <= SB.z1 - 2; z += 2.4) {
-        if (kind === 'spear' && x < -13 && Math.abs(z) > 94) continue;
+        if (kind === 'spear' && x < -46 && Math.abs(z) > 94) continue;
         if ((z < odaZ ? 'oda' : 'tokugawa') !== fac || SB.gates.some((g) => Math.abs(z - g) < 4)) continue;
         if (guardUnits.some((u) => Math.hypot(u.pos.x - x, u.pos.z - z) < 3.2)) continue;
         people.push({ x, z, k: kind, facing: Math.PI / 2, flag: people.length % 3 === 0 ? 1 : 0 });
