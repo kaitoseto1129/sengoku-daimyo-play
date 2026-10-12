@@ -13,8 +13,8 @@ import { yamaLift } from './yamalift.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { addInterior } from './naka.js';
-import { stoneTex, barkTex } from './nature.js';
-import { nobori, hut, yagura, campfire, kagaribi, kabukimon, tawara, tobira, palisade, solidRect, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
+import { stoneTex, barkTex, woodTex } from './nature.js';
+import { nobori, hut, yagura, campfire, kagaribi, kabukimon, tawara, tobira, palisade, solidRect, makeSimpleBatch, finalizeSimpleBatch, castleStoneMat } from './props.js';
 import { monomi, horiboriHeight } from './castle_parts.js';
 import { RANKS } from './state.js';
 import { sfx } from './audio.js';
@@ -307,32 +307,38 @@ function height(x, z) {
 
 // 材質・基本形は全棟で共有。外壁の戸口と共通室内の当たりを同じ幅にする。
 const ROOM_BOX = new THREE.BoxGeometry(1, 1, 1);
-const ROOM_MAT = new THREE.MeshLambertMaterial({ color: 0x69523c });
+const ROOM_MAT = new THREE.MeshLambertMaterial({ color: 0x594735, map: woodTex() });
 // 道脇の自然石は灰色の石肌を使う。
 const STEP_MAT = new THREE.MeshLambertMaterial({ color: 0x7a7266, map: stoneTex() });
-// 石段の継ぎ目は穴を開けず絵で表す。石肌と材質は全段で使い回す。
+// 石段の踏面と石積みの側面は、他の城の石垣の目地・濃淡を使い回す。
+// 共通材質の色は変えず、この夜の石だけ土に近い暗い灰茶にする。
 let STAIR_MAT = null;
 function stairMaterial() {
   if (STAIR_MAT) return STAIR_MAT;
-  const c = document.createElement('canvas'); c.width = 192; c.height = 64;
-  const g = c.getContext('2d'), img = g.createImageData(c.width, c.height);
-  for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
-    const i = (y * c.width + x) * 4;
-    const grain = ((x * 17 + y * 29 + x * y * 3) % 19) - 9;
-    const tone = [0, 9, -5][Math.floor(x / 64)];
-    img.data[i] = 157 + grain + tone;
-    img.data[i + 1] = 150 + grain + tone;
-    img.data[i + 2] = 135 + grain + tone;
-    img.data[i + 3] = 255;
-  }
-  g.putImageData(img, 0, 0);
-  g.fillStyle = '#69665b';
-  for (const x of [0, 64, 128, 190]) g.fillRect(x, 0, 2, 64);
-  g.fillRect(0, 0, 192, 2); g.fillRect(0, 62, 192, 2);
-  const map = new THREE.CanvasTexture(c); map.colorSpace = THREE.SRGBColorSpace;
-  STAIR_MAT = new THREE.MeshLambertMaterial({ color: 0xffffff, map });
+  STAIR_MAT = castleStoneMat('uchikomi').clone();
+  STAIR_MAT.vertexColors = false;
+  STAIR_MAT.color.setHex(0x625d51);
+  // 各段の実寸で目地を貼る。高い側面も絵を引き伸ばさず、段ごとに貼る位置をずらす。
+  STAIR_MAT.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader.replace('#include <uv_vertex>', `
+      #include <uv_vertex>
+      #ifdef USE_INSTANCING
+        vec3 sgSize = vec3(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz), length(instanceMatrix[2].xyz));
+        vec2 sgFace = abs(normal.x) > 0.5 ? sgSize.zy : (abs(normal.y) > 0.5 ? sgSize.xz : sgSize.xy);
+        vec2 sgUV = uv * sgFace / 2.2 + instanceMatrix[3].xz / 2.2;
+        #ifdef USE_MAP
+          vMapUv = (mapTransform * vec3(sgUV, 1.0)).xy;
+        #endif
+        #ifdef USE_NORMALMAP
+          vNormalMapUv = (normalMapTransform * vec3(sgUV, 1.0)).xy;
+        #endif
+      #endif`);
+  };
+  STAIR_MAT.customProgramCacheKey = () => '信貴山の石段';
   return STAIR_MAT;
 }
+// 基本形は一つ。目地の大きさは段の実寸から材質側でそろえる。
+const STAIR_BOX = ROOM_BOX.clone();
 // 岩は崩れた石垣ではなく山肌の自然石。道の合流・戸口・曲輪の戦う平場には置かない。
 function stoneSpace(x, z) {
   if (ROAD_LEVELS.some((q) => Math.hypot(x - q.x, z - q.z) < q.r + 3)) return false;
@@ -348,7 +354,13 @@ function stoneSpace(x, z) {
 function boardRoom(rt, q) {
   const y = rt.world.heightAt(q.x, q.z), parts = [], H = 2.6;
   const box = (x, yy, z, w, h, d, rot = 0) => {
-    const g = ROOM_BOX.clone().scale(w, h, d); g.rotateX(rot); g.translate(q.x + x, y + yy, q.z + z); parts.push(g);
+    const g = ROOM_BOX.clone().scale(w, h, d), uv = g.attributes.uv, normal = g.attributes.normal;
+    // 床も壁も木目を同じ大きさで貼り、広い板を引き伸ばした平面にしない。
+    for (let i = 0; i < uv.count; i++) {
+      const side = Math.abs(normal.getX(i)) > 0.5, top = Math.abs(normal.getY(i)) > 0.5;
+      uv.setXY(i, uv.getX(i) * (side ? d : w) / 3, uv.getY(i) * (top ? d : h) / 3);
+    }
+    g.rotateX(rot); g.translate(q.x + x, y + yy, q.z + z); parts.push(g);
   };
   box(0, 0.15, 0, q.w, 0.3, q.d);
   box(0, H / 2 + 0.2, -q.d / 2, q.w, H, 0.14);
@@ -540,7 +552,7 @@ function entranceSteps(rt) {
     }
   }
   if (!pts.length) return;
-  const mesh = new THREE.InstancedMesh(ROOM_BOX, stairMaterial(), pts.length), dummy = new THREE.Object3D();
+  const mesh = new THREE.InstancedMesh(STAIR_BOX, stairMaterial(), pts.length), dummy = new THREE.Object3D(), color = new THREE.Color();
   for (let i = 0; i < pts.length; i++) {
     const q = pts[i], hx = Math.sin(q.rot) * q.d / 2, hz = Math.cos(q.rot) * q.d / 2;
     let low = Infinity, high = -Infinity;
@@ -552,6 +564,8 @@ function entranceSteps(rt) {
     const top = high + 0.02, bottom = low - 0.35;
     dummy.position.set(q.x, (top + bottom) / 2, q.z);
     dummy.rotation.set(0, q.rot, 0); dummy.scale.set(width, top - bottom, q.d); dummy.updateMatrix(); mesh.setMatrixAt(i, dummy.matrix);
+    // 石ごとの濃淡も支度時だけ付ける。描く数と歩ける高さは変えない。
+    color.setScalar(0.84 + ((i * 17) % 11) * 0.016); mesh.setColorAt(i, color);
   }
   mesh.receiveShadow = true; rt.scene.add(mesh);
 }

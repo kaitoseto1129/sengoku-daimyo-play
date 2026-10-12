@@ -450,27 +450,35 @@ function addOdaniTrail(rt) {
   const map = new THREE.CanvasTexture(canvas);
   map.colorSpace = THREE.SRGBColorSpace;
   const sign = rt.flags.trailSign = new THREE.Sprite(new THREE.SpriteMaterial({ map, depthTest: false, depthWrite: false, fog: false }));
-  sign.scale.set(4, 4, 1); sign.renderOrder = 8; sign.visible = false; rt.scene.add(sign);
+  sign.scale.set(6, 6, 1); sign.renderOrder = 8; sign.visible = false; rt.scene.add(sign);
+  const distanceCanvas = document.createElement('canvas'); distanceCanvas.width = 384; distanceCanvas.height = 80;
+  const distanceMap = new THREE.CanvasTexture(distanceCanvas); distanceMap.colorSpace = THREE.SRGBColorSpace;
+  const distanceSign = new THREE.Sprite(new THREE.SpriteMaterial({ map: distanceMap, depthTest: false, depthWrite: false, fog: false }));
+  distanceSign.renderOrder = 9; distanceSign.visible = false; rt.scene.add(distanceSign);
+  rt.flags.trailDistance = { canvas: distanceCanvas, map: distanceMap, sign: distanceSign, metres: -1 };
   // この戦の登り斜面だけ、既存の土・岩・草の絵を横から混ぜる。低画質でも面を増やさない。
   const mat = W.terrain.material, compile = mat.onBeforeCompile;
   const key = mat.customProgramCacheKey();
   mat.customProgramCacheKey = () => key + '|odani-slope';
   mat.onBeforeCompile = (sh, renderer) => {
     compile.call(mat, sh, renderer);
-    sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', `
-      #include <color_fragment>
-      float odaniSlope = smoothstep(0.08, 0.4, 1.0 - normalize(vWN).y);
-      float odaniArea = (1.0 - smoothstep(28.0, 48.0, abs(vWP.x + 35.0))) * (1.0 - smoothstep(36.0, 60.0, abs(vWP.z + 60.0)));
+    // 地面の色を作った後へ足す。ならした頂点法線ではなく面の傾きを使う。
+    sh.fragmentShader = sh.fragmentShader.replace('#include <alphamap_fragment>', `
+      #include <alphamap_fragment>
+      vec3 odaniNormal = abs(normalize(cross(dFdx(vWP), dFdy(vWP))));
+      float odaniSlope = smoothstep(0.08, 0.4, 1.0 - odaniNormal.y);
+      float odaniArea = (1.0 - smoothstep(55.0, 95.0, abs(vWP.x + 45.0))) * (1.0 - smoothstep(95.0, 160.0, abs(vWP.z + 25.0)));
       if (odaniSlope * odaniArea > 0.01) {
-        vec3 on = abs(normalize(vWN));
-        vec2 ouv = (vWP.zy * on.x + vWP.xy * on.z) / max(0.001, on.x + on.z);
-        float patch = sin(ouv.x * 0.7 + sin(ouv.y * 0.6)) * sin(ouv.y * 0.43) * 0.5 + 0.5;
-        vec3 soil = texture2D(tDirt, ouv * 0.32).rgb;
-        vec3 rock = texture2D(tStone, ouv * 0.25).rgb;
-        vec3 grass = texture2D(tGrass, ouv * 0.3).rgb;
+        vec2 ow = odaniNormal.xz / max(0.001, odaniNormal.x + odaniNormal.z);
+        float patch = sin(vWP.x * 0.7 + sin(vWP.y * 0.6)) * sin(vWP.z * 0.43) * 0.5 + 0.5;
+        vec3 soil = texture2D(tDirt, vWP.zy * 0.32).rgb * ow.x + texture2D(tDirt, vWP.xy * 0.32).rgb * ow.y;
+        vec3 rock = texture2D(tStone, vWP.zy * 0.25).rgb * ow.x + texture2D(tStone, vWP.xy * 0.25).rgb * ow.y;
+        vec3 grass = texture2D(tGrass, vWP.zy * 0.3).rgb * ow.x + texture2D(tGrass, vWP.xy * 0.3).rgb * ow.y;
         vec3 detail = mix(soil, rock, smoothstep(0.55, 0.85, patch) * 0.6);
         detail = mix(detail, grass, (1.0 - smoothstep(0.2, 0.5, patch)) * 0.7);
-        diffuseColor.rgb = mix(diffuseColor.rgb, detail, odaniSlope * odaniArea * 0.7);
+        float ledge = smoothstep(0.78, 0.94, sin(vWP.y * 2.1 + sin(vWP.x * 0.2 + vWP.z * 0.17)) * 0.5 + 0.5);
+        detail *= mix(1.08, 0.7, ledge);
+        diffuseColor.rgb = mix(diffuseColor.rgb, detail, odaniSlope * odaniArea * 0.8);
       }
     `);
   };
@@ -574,34 +582,35 @@ function addOdaniView(rt) {
   }
 }
 
-// 討死・重傷の終幕は、軒下や斜面へ寄った視点を残さない。
-// 地面と屋根を調べるのは倒れた時の一度だけ。以後は同じ視点を使う。
+// 討死・重傷の終幕も本人の近く。屋根の上へ持ち上げず、水平に見る。
+// 空いた目線を調べるのは倒れた時の一度だけ。
 function odaniDownCamera(rt, camera) {
   const F = rt.flags, p = rt.player.u.pos;
   if (!F.downView) {
     const yaw = rt.player.yaw;
-    const eye = new THREE.Vector3(p.x - Math.sin(yaw) * 6, 0, p.z - Math.cos(yaw) * 6);
-    const look = new THREE.Vector3(p.x, Math.max(p.y, rt.world.heightAt(p.x, p.z)) + .7, p.z);
-    const blocks = [], hits = [];
+    const base = Math.max(p.y, rt.world.heightAt(p.x, p.z));
+    const eye = new THREE.Vector3(p.x, base + 1.35, p.z);
+    const look = new THREE.Vector3(p.x, base + 1.35, p.z);
+    const probe = new THREE.Vector3();
     rt.scene.updateMatrixWorld(true);
-    rt.scene.traverseVisible((o) => { if (o.isMesh && o.userData.camBlock) blocks.push(o); });
-    const ray = new THREE.Raycaster(new THREE.Vector3(), new THREE.Vector3(0, -1, 0), 0, 160);
-    let top = look.y + 1;
-    // 画面の端も壁や屋根へ入らないよう、目線の周り三歩を調べる。
-    // 上から実際の面を拾い、まとめて描く建物の大きな囲いには頼らない。
-    for (const dx of [-1.5, 0, 1.5]) for (const dz of [-1.5, 0, 1.5]) {
-      const x = eye.x + dx, z = eye.z + dz, ground = rt.world.heightAt(x, z);
-      top = Math.max(top, ground);
-      ray.ray.origin.set(x, Math.max(ground, look.y) + 80, z);
-      hits.length = 0;
-      ray.intersectObjects(blocks, false, hits);
-      if (hits.length) top = Math.max(top, hits[0].point.y);
+    let best = Infinity;
+    for (const distance of [3, 1.5, .6]) for (const turn of [0, -.7, .7, -1.4, 1.4, Math.PI]) {
+      const angle = yaw + turn, x = p.x - Math.sin(angle) * distance, z = p.z - Math.cos(angle) * distance;
+      const ground = rt.world.heightAt(x, z);
+      if (Math.abs(ground - base) > .8) continue;
+      probe.set(x, Math.max(base, ground) + 1.35, z);
+      if (rt.player.camBlockHit(look, probe) !== null) continue;
+      const score = Math.abs(turn) + (3 - distance) + Math.abs(ground - base);
+      if (score < best) { best = score; eye.copy(probe); }
     }
-    eye.y = top + 3;
+    if (best === Infinity) look.set(p.x + Math.sin(yaw) * 3, eye.y, p.z + Math.cos(yaw) * 3);
+    else look.y = eye.y;
     F.downView = { eye, look };
+    document.getElementById('vignette')?.setAttribute('data-odani-down', '');
   }
   rt.player.u.fpk = 0;
   camera.position.copy(F.downView.eye);
+  camera.up.set(0, 1, 0);
   camera.lookAt(F.downView.look);
   rt.player.camPos.copy(camera.position);
 }
@@ -675,6 +684,15 @@ const odani = {
   setup(rt) {
     const W = rt.world;
     const F = rt.flags;
+    // 終幕は戦場を残したまま暗くする。次の戦へは持ち越さない。
+    const endStyle = document.createElement('style');
+    endStyle.textContent = '#vignette[data-odani-down]{background:rgba(6,8,12,.42)!important;animation:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;mask-image:none!important;-webkit-mask-image:none!important;box-shadow:inset 0 0 90px rgba(6,8,12,.45)!important}';
+    document.head.appendChild(endStyle);
+    const dispose = rt.dispose;
+    rt.dispose = function (...args) {
+      endStyle.remove(); document.getElementById('vignette')?.removeAttribute('data-odani-down');
+      return dispose.apply(this, args);
+    };
     const updateCamera = rt.player.updateCamera;
     rt.player.updateCamera = function (dt, camera) {
       if (!this.u.alive) { odaniDownCamera(rt, camera); return; }
@@ -1374,7 +1392,24 @@ const odani = {
       const marker = rt.markers.find((m) => m.id === 'trail');
       const point = marker && marker.pos();
       F.trailSign.visible = !!point;
-      if (point) F.trailSign.position.set(point.x, rt.world.heightAt(point.x, point.z) + 8, point.z);
+      const label = F.trailDistance;
+      label.sign.visible = !!point;
+      if (point) {
+        const distance = Math.hypot(point.x - rt.player.u.pos.x, point.z - rt.player.u.pos.z);
+        F.trailSign.position.set(point.x, Math.max(rt.world.heightAt(point.x, point.z) + 10, rt.player.u.pos.y + 7), point.z);
+        const size = Math.max(5, Math.min(28, distance * .16));
+        F.trailSign.scale.set(size, size, 1);
+        label.sign.position.copy(F.trailSign.position); label.sign.position.y -= size * .65;
+        label.sign.scale.set(size * 2.6, size * 2.6 * 80 / 384, 1);
+        const metres = Math.round(distance);
+        if (label.metres !== metres) {
+          label.metres = metres;
+          const c = label.canvas.getContext('2d');
+          c.fillStyle = '#14120f'; c.fillRect(0, 0, 384, 80);
+          c.fillStyle = '#ece4d2'; c.font = 'bold 36px serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+          c.fillText(`あと${metres}メートル`, 192, 40); label.map.needsUpdate = true;
+        }
+      }
     }
     this.supportTick(rt);
     this.reliefTick(rt);

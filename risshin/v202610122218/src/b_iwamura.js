@@ -903,6 +903,43 @@ const iwamura = {
   },
   mountainScene(rt, lifeStart) {
     const W = rt.world;
+    // 通れる地面の格子は変えず、端の頂点から外へ四段の山肌をつなぐ。
+    // 初めに一度だけ同じ地面へまとめるので、描画回数も通行範囲も増やさない。
+    const groundGeo = W.terrain.geometry, seg = groundGeo.parameters.widthSegments;
+    const edge = [];
+    for (let i = 0; i < seg; i++) edge.push(i);
+    for (let i = 0; i < seg; i++) edge.push(i * (seg + 1) + seg);
+    for (let i = 0; i < seg; i++) edge.push(seg * (seg + 1) + seg - i);
+    for (let i = 0; i < seg; i++) edge.push((seg - i) * (seg + 1));
+    const skirtGeo = new THREE.BufferGeometry(), count = edge.length;
+    for (const [name, attr] of Object.entries(groundGeo.attributes)) {
+      const values = new Float32Array(count * 5 * attr.itemSize);
+      for (let ring = 0; ring <= 4; ring++) for (let i = 0; i < count; i++) {
+        const offset = (ring * count + i) * attr.itemSize, source = edge[i] * attr.itemSize;
+        for (let k = 0; k < attr.itemSize; k++) values[offset + k] = attr.array[source + k];
+        if (name === 'position' && ring > 0) {
+          const x = values[offset] * (1 + ring * 60 / W.half);
+          const z = values[offset + 2] * (1 + ring * 60 / W.half);
+          const ridge = 32 * gauss(x, z, -530, -180, 24000)
+            + 38 * gauss(x, z, 540, -260, 28000) + 30 * gauss(x, z, 60, 550, 26000);
+          values[offset] = x; values[offset + 2] = z;
+          values[offset + 1] = baseTerrain(x, z) + ridge * Math.min(1, ring / 2);
+        }
+      }
+      skirtGeo.setAttribute(name, new THREE.BufferAttribute(values, attr.itemSize));
+    }
+    const skirtIndices = [];
+    for (let ring = 0; ring < 4; ring++) for (let i = 0; i < count; i++) {
+      const a = ring * count + i, b = ring * count + (i + 1) % count;
+      skirtIndices.push(a, b, a + count, b, b + count, a + count);
+    }
+    skirtGeo.setIndex(skirtIndices); skirtGeo.computeVertexNormals();
+    // 境目の高さと法線は元の地面から引き継ぎ、割れや照らされ方の筋を残さない。
+    const normals = skirtGeo.attributes.normal, groundNormals = groundGeo.attributes.normal;
+    for (let i = 0; i < count; i++) normals.setXYZ(i,
+      groundNormals.getX(edge[i]), groundNormals.getY(edge[i]), groundNormals.getZ(edge[i]));
+    W.terrain.geometry = mergeGeometries([groundGeo, skirtGeo]);
+    groundGeo.dispose(); skirtGeo.dispose();
     // 八角形の草の面は重ねない。下の地面の草・土・石の絵をそのまま見せる。
     // 細かな割れと灰褐色の土汚れを持つ岩を、道の外に半分埋める。
     const rockGeo = rockShape();
@@ -947,12 +984,17 @@ const iwamura = {
     }
     const roadTex = new THREE.CanvasTexture(roadCanvas); roadTex.flipY = false;
     const terrainMat = W.terrain.material, compileGround = terrainMat.onBeforeCompile;
+    // 夜の切岸が空を白く映さないよう、岩村の地面だけ艶を抑える。
+    terrainMat.envMapIntensity = 0.12; terrainMat.roughness = 1;
     const groundKey = terrainMat.customProgramCacheKey();
     terrainMat.customProgramCacheKey = () => groundKey + '|iwamura';
     terrainMat.onBeforeCompile = (sh, renderer) => {
       compileGround.call(terrainMat, sh, renderer);
       // 岩村の切岸だけ絵の縮尺を細かくする。読み出す枚数は変えず、縦長の傷も縮める。
       sh.fragmentShader = sh.fragmentShader
+        // 夜だけ落ち影の暗さを半分ほどにする。昼と夕方の影はそのまま。
+        .replace('#include <shadowmap_pars_fragment>', THREE.ShaderChunk.shadowmap_pars_fragment
+          .replaceAll('return shadow;', 'return mix(shadow, 1.0, uNight * 0.55);'))
         .replaceAll('uX * 0.12', 'uX * 0.32').replaceAll('uZ * 0.12', 'uZ * 0.32')
         .replaceAll('uX * 0.21', 'uX * 0.48').replaceAll('uZ * 0.21', 'uZ * 0.48')
         .replace('vec2(sx * 0.11, vWP.y * 0.006)', 'vec2(sx * 0.22, vWP.y * 0.045)')
@@ -968,6 +1010,8 @@ const iwamura = {
         float iwaSoil = smoothstep(0.38, 0.72, macro2) * iwaField * (1.0 - iwaWay);
         col = mix(col, dirt * vec3(1.12, 1.04, 0.88), iwaSoil * 0.32);
         col = mix(col, dirt * vec3(1.3, 1.24, 1.1), iwaWay * 0.72);
+        // 雪ではなく土の斜面。粒の濃淡を残した暗い褐色を夜の坂に混ぜる。
+        col = mix(col, dirt * vec3(0.62, 0.48, 0.34), uNight * slopeK * 0.72);
         diffuseColor.rgb *= col;
         // 月の照り返しを土の粒と道の筋に残す。夜だけ効き、白い一枚の帯にしない。
         totalEmissiveRadiance += uNight * (col * iwaField * 0.10

@@ -445,14 +445,32 @@ class HudNotices extends BattleNotices {
     const style = document.createElement('style');
     style.textContent = `
 #hud #battle-notices #battle-message { gap:8px; }
-#hud #battle-notices #battle-message > .battle-notice {
+#hud #battle-notices #battle-message > :is(#subtitle,.battle-notice) {
   position:relative !important; inset:auto !important; transform:none !important;
-  margin:0 !important; height:auto; flex:0 0 auto;
+  width:100% !important; max-width:100% !important; margin:0 !important;
+  height:auto !important; max-height:none !important; flex:0 0 auto;
+  white-space:normal; overflow-wrap:anywhere; overflow:visible;
+  text-overflow:clip; color:#ece4d2; background:#14120f !important;
+}
+#hud #battle-notices #battle-message > :is(#subtitle,.battle-notice).warn { color:#ffcf7a; }
+#hud #battle-notices #battle-message #subtitle :is(.sp,.sys,.more) { color:#ece4d2; }
+@media (max-height:500px) {
+  /* 二枚目まで文の高さで伸ばし、下の操作との間は八つ分空ける。 */
+  html.touch #hud #battle-notices:not(.choosing),
+  html.touch.tc-low #hud #battle-notices:not(.choosing),
+  html.touch #hud #battle-notices:not(.choosing):has(#objectives.expand),
+  html.touch.tc-low #hud #battle-notices:not(.choosing):has(#objectives.expand) {
+    height:auto;
+    max-height:calc(100% - var(--notice-top, 60px) - env(safe-area-inset-top, 0px) - max(104px, var(--notice-floor, calc(104px + env(safe-area-inset-bottom, 0px)))));
+    overflow-y:auto;
+  }
 }
 #hud #target.notice-muted { display:none !important; }
 `;
     document.head.appendChild(style);
   }
+  // 長い台詞を高さだけで消さない。収まらない時は欄全体を送って読む。
+  fitMessage() {}
   sync() {
     super.sync();
     // 枠の外にある相手の字列も知らせの数に含める。任務の裏へは出さない。
@@ -464,14 +482,14 @@ class HudNotices extends BattleNotices {
     // 共通の短い記録は三十秒で片付くため、二分の記録は出し口で保つ。
     if (this.clock - (this.textSeen.get(key) ?? -Infinity) < 120) return false;
     const family = WARNING_FAMILY.find(([re]) => re.test(text)) || BARK_FAMILY.find(([re]) => re.test(text));
-    if (family && this.clock - (this.warningSeen.get(family[1]) ?? -Infinity) < 8) return false;
-    if (!super.repeatOk(text, remember)) return false;
-    if (remember) {
-      // 表示した時だけ記録し、期限を過ぎた物を片付ける。毎コマは作らない。
-      for (const [text, time] of this.textSeen) if (this.clock - time >= 120) this.textSeen.delete(text);
-      this.textSeen.set(key, this.clock);
-      if (family) this.warningSeen.set(family[1], this.clock);
-    }
+    if (family && this.clock - (this.warningSeen.get(family[1]) ?? -Infinity) < 15) return false;
+    if (!remember) return super.repeatOk(text);
+    // 表示時の記録は、共通欄の別の判定で抜けないよう先に残す。
+    // 待ち列の判定では記録せず、期限を過ぎた物だけ片付ける。
+    for (const [text, time] of this.textSeen) if (this.clock - time >= 120) this.textSeen.delete(text);
+    this.textSeen.set(key, this.clock);
+    if (family) this.warningSeen.set(family[1], this.clock);
+    super.repeatOk(text, true);
     return true;
   }
 }
@@ -1320,10 +1338,9 @@ export class Hud {
     while (this.bannerQ.length && !this.notices.repeatOk(this.bannerQ[0].sub ? this.bannerQ[0].text + '\n' + this.bannerQ[0].sub : this.bannerQ[0].text)) this.bannerQ.shift();
     // 開戦の題の札が出ている間は、見出しを待たせる（重ねない）
     // 判断の札（#choice）が開いている間も待たせる（札の上に見出しが重なって読めなかった。見回り 10/2）
-    if (this.bannerT <= 0 && this.bannerQ.length && $('intro').hidden && $('choice').hidden && this.notices.room(80)) {
+    if (this.bannerT <= 0 && this.bannerQ.length && $('intro').hidden && $('choice').hidden && this.notices.room(80) && this.notices.repeatOk(this.bannerQ[0].sub ? this.bannerQ[0].text + '\n' + this.bannerQ[0].sub : this.bannerQ[0].text, true)) {
       const { text, sub, phase } = this.bannerQ.shift();
       this.bannerPhase = phase;
-      this.notices.repeatOk(sub ? text + '\n' + sub : text, true);
       const b = $('banner');
       b.classList.remove('show'); void b.offsetWidth;
       b.innerHTML = `<span class="brush" style="background-image:url(${brushImage()})">${esc(text)}</span>` + (sub ? `<small>${esc(sub)}</small>` : '');
@@ -1412,13 +1429,12 @@ export class Hud {
     if (this.subT > 0 && !introOn && this.notices.visible('subtitle')) this.subT -= dt;
     if (this.subT > 0 && this.shownLine && (this.taskRepeats(this.shownLine.speaker, this.shownLine.text) || !battleSpeechAllowed(rt, this.shownLine.speaker, this.shownLine.text, this.shownLine.speakerUnit))) { this.subT = 0; this.shownLine = null; window.speechSynthesis?.cancel(); setHtml($('subtitle'), ''); }
     while (this.subQ.length && (!battleSpeechAllowed(rt, this.subQ[0].speaker, this.subQ[0].text, this.subQ[0].speakerUnit) || this.taskRepeats(this.subQ[0].speaker, this.subQ[0].text) || this.subQ[0].goalKey && this.subQ[0].goalKey !== rt.missionGuide?.key || !this.notices.repeatOk(this.subQ[0].text))) this.subQ.shift();
-    if (this.subT <= 0 && this.subQ.length && !introOn && this.notices.room(70)) {
+    if (this.subT <= 0 && this.subQ.length && !introOn && this.notices.room(70) && this.notices.repeatOk(this.subQ[0].text, true)) {
       const s = this.subQ.shift();
       this.shownLine = s;
       this.shownGoalKey = s.goalKey;
       s.shown = true;
       s.t = Math.floor(rt.t);
-      this.notices.repeatOk(s.text, true);
       // 話し手ごとに色を変える（上官・名のある人は金、自分は白、足軽は灰、敵は朱）
       // 敵か味方かは、話し手の名の家と、戦場にいるその名の者の陣営で決める
       const foeStem = rt.def.sides && rt.def.sides.b && rt.def.sides.b.name ? rt.def.sides.b.name.replace(/軍$/, '') : '';
@@ -2522,7 +2538,8 @@ export class Hud {
     for (const el of this.threatEls) el.hidden = true;
     const p = rt.player.u, W = innerWidth, H = innerHeight;
     const sources = this.threatSources || (this.threatSources = []), distances = this.threatDistances || (this.threatDistances = []);
-    sources.length = 0; distances.length = 0;
+    const directions = this.threatDirections || (this.threatDirections = []);
+    sources.length = 0; distances.length = 0; directions.length = 0;
     for (const u of rt.army.units) {
       if (!u.alive || u.team === p.team || u.fleeing || u.woundOut || u.playerOpeningBlocked) continue;
       const d = Math.hypot(u.pos.x - p.pos.x, u.pos.z - p.pos.z);
@@ -2540,10 +2557,18 @@ export class Hud {
       if (!ranged && !rt.def.attackWarningDelay) continue;
       if (!called && !flying && (!aimed || d > (ranged ? 90 : 12) || rt.army.wallBetween(u.pos, -1, p.pos) || rt.army.terrainBlocks(u.pos, p.pos))) continue;
       const score = flying ? Math.min(d, 6) : d;
+      const angle = Math.atan2(u.pos.x - p.pos.x, u.pos.z - p.pos.z) - rt.player.yaw;
+      const direction = Math.cos(angle) > .5 ? 0 : Math.cos(angle) < -.5 ? 1 : Math.sin(angle) > 0 ? 2 : 3;
+      // 同じ向きは一枚にまとめ、一番近い危険を残す。
+      const duplicate = directions.indexOf(direction);
+      if (duplicate >= 0) {
+        if (distances[duplicate] <= score) continue;
+        sources.splice(duplicate, 1); distances.splice(duplicate, 1); directions.splice(duplicate, 1);
+      }
       let at = 0; while (at < sources.length && distances[at] <= score) at++;
       if (at >= 3) continue;
-      for (let i = Math.min(2, sources.length); i > at; i--) { sources[i] = sources[i - 1]; distances[i] = distances[i - 1]; }
-      sources[at] = u; distances[at] = score;
+      for (let i = Math.min(2, sources.length); i > at; i--) { sources[i] = sources[i - 1]; distances[i] = distances[i - 1]; directions[i] = directions[i - 1]; }
+      sources[at] = u; distances[at] = score; directions[at] = direction;
     }
     for (let n = 0; n < sources.length; n++) {
       const u = sources[n], ranged = !u.sidearm && (u.type === 'bow' || u.type === 'gun') && (u.atk?.bow || u.atk?.ranged || Math.hypot(u.pos.x - p.pos.x, u.pos.z - p.pos.z) > 4);

@@ -342,6 +342,24 @@ html[data-text-size=l] #hud #battle-notices:not(.choosing) { width:min(380px, 40
  html.touch #hud > #battle-log-entry { min-width:44px; min-height:44px; white-space:nowrap; }
 }
 `;
+    // 墨俣は二つの札を横に並べ、任務は選び終えるまで畳む。
+    style.textContent += `
+#hud.suno-choice #battle-notices.choosing {
+ left:calc(16px + env(safe-area-inset-left, 0px)) !important; right:calc(16px + env(safe-area-inset-right, 0px)) !important;
+ top:calc(60px + env(safe-area-inset-top, 0px)) !important; bottom:auto !important;
+ width:auto !important; max-width:740px; margin-inline:auto; padding:4px; max-height:34vh !important;
+}
+#hud.suno-choice #battle-notices #choice { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:8px; overflow:visible; }
+#hud.suno-choice #battle-notices #choice :is(h5,.choice-help,#choice-seconds,.tm) { grid-column:1 / -1; }
+#hud.suno-choice #battle-notices #choice .opt { margin-top:0; font-size:max(12px, calc(15px * var(--text-scale, 1))); }
+#hud.suno-choice #battle-notices #choice .opt small { white-space:nowrap; overflow-wrap:normal; }
+#hud.suno-choice #choice-tasks, #hud.suno-choice #battle-message, #hud.suno-choice #battle-notices #objectives { display:none !important; }
+@media (max-width:600px) {
+ #hud.suno-choice #battle-notices #choice { grid-template-columns:minmax(0,1fr); }
+ #hud.suno-choice #battle-notices #choice .opt + .opt { margin-top:8px; }
+ #hud.suno-choice #battle-notices.choosing { max-height:45vh !important; }
+}
+`;
     document.head.appendChild(style);
     // 名前・体力の札が伸びた時と画面の向きが変わった時だけ、知らせの下端を測る。
     const nameCard = this.root.querySelector('.bl');
@@ -527,6 +545,8 @@ html[data-text-size=l] #hud #battle-notices:not(.choosing) { width:min(380px, 40
     this.picks.length = 0;
     const intro = !document.getElementById('intro').hidden;
     const choosing = !document.getElementById('choice').hidden;
+    const sunoChoice = choosing && this.hud.rt?.def.key === 'sunomata';
+    this.root.classList.toggle('suno-choice', sunoChoice);
     const phone = this.shortScreen.matches && document.documentElement.classList.contains('touch');
     this.rail.classList.toggle('choosing', choosing);
     const taskParent = choosing && !phone ? this.taskDock : this.rail;
@@ -550,13 +570,13 @@ html[data-text-size=l] #hud #battle-notices:not(.choosing) { width:min(380px, 40
       if (source.id === 'subtitle' && this.hud.shownLine && this.hud.taskRepeats(this.hud.shownLine.speaker, this.hud.shownLine.text)) continue;
       // 箕作城では門の打ち方を先に見せ、首や歩き方の札を重ねない。
       const gateFirst = this.hud.rt?.def.noticeLimit && this.hud.rt?._gg?.objOn;
-      if (active && !(gateFirst && source.id === 'tutorial') && !intro && (!choosing || source.id === 'choice' || source.id === 'objectives')) this.pick(source);
+      if (active && !(sunoChoice && source.id === 'objectives') && !(gateFirst && source.id === 'tutorial') && !intro && (!choosing || source.id === 'choice' || source.id === 'objectives')) this.pick(source);
     }
     for (let i = 0; i < this.queue.length; i++) {
       const item = this.queue[i]; item.selected = false;
       if ((item.valid && !item.valid()) || (item.kind === 'warn' && !item.shown && this.clock - item.born > 3)) { this.rememberWarning(item); this.queue.splice(i--, 1); continue; }
       if (!item.shown && !this.repeatOk(item.text)) { this.queue.splice(i--, 1); continue; }
-      if (!intro && (!choosing || item.kind === 'task' || item.priority >= 110)) this.pick(item);
+      if (!intro && !sunoChoice && (!choosing || item.kind === 'task' || item.priority >= 110)) this.pick(item);
     }
     let card = 0;
     this.message.hidden = true;

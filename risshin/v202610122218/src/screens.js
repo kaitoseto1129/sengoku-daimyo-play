@@ -1663,6 +1663,7 @@ export function evalScreen(G, r, actions) {
   const previousSpoil = G._spoilPrev?.bond || G.horseBonds?.bundori || (G.horse?.id === 'bundori' ? G.horse : null);
   const spoilReplace = !!(r.spoilHorse && (G.horses || []).includes('bundori') && !G._spoilPrev);
   const gradeWord = r.grade === '丙' && r.mainDone ? '働き不足' : GRADE_WORD[r.grade];
+  const mainOutcome = r.mainDone && BATTLES[r.battleIndex]?.id === 'kanegasaki' && !G.lord ? 'しんがりを果たした' : '任務を果たした';
   const categoryHelp = !evalCategoriesExplained;
   evalCategoriesExplained = true;
   const talks = scenarioKey() === 'oda' ? battleTalk(G, BATTLES[r.battleIndex], r) : [];
@@ -1778,8 +1779,8 @@ export function evalScreen(G, r, actions) {
   const nextMini = (nextLore || promoMini) ? `<p class="ek-nextmini">${nextLore ? `<span>次の戦　<b>${esc(nextBattle.name)}</b></span>` : ''}${promoMini ? `<span class="pm">${promoMini}</span>` : ''}</p>` : '';
   const emaki = `<section class="ek" aria-label="${esc(r.battle)}の戦功">${EK_SKY}<div class="ek-in">
     <div class="ek-h">${r.grade ? `<span class="ek-seal" role="img" aria-label="評定 ${r.grade}（${gradeWord}）">${r.grade}<small>${gradeWord}</small></span>` : ''}<div><small>戦功評価</small><h2>${esc(r.battle)}</h2></div></div>
-    ${r.grade === '丙' ? `<p class="ek-failure">理由：${esc(r.mainDone ? '任務は果たした。戦功が次の評定の目安に届かなかった' : r.failureReason || '任務を果たせなかった')}　次は：${esc(r.downInfo?.tip || (!r.mainDone ? '味方の旗のそばで、任務の札を先に果たそう' : r.advice || '任務と組の守りを大事にしよう'))}</p>` : ''}
-    <p class="note">${r.mainDone ? '任務を果たした。' : '任務を果たせなかった。'}${r.total === 0 ? '加点が減点を上回らず、戦功は零。' : ''}${esc(gNote)}</p>
+    ${r.grade === '丙' ? `<p class="ek-failure">理由：${esc(r.mainDone ? `${mainOutcome}。戦功が次の評定の目安に届かなかった` : r.failureReason || '任務を果たせなかった')}　次は：${esc(r.downInfo?.tip || (!r.mainDone ? '味方の旗のそばで、任務の札を先に果たそう' : r.advice || '任務と組の守りを大事にしよう'))}</p>` : ''}
+    <p class="note">${r.mainDone ? `${mainOutcome}。` : '任務を果たせなかった。'}${r.total === 0 ? '加点が減点を上回らず、戦功は零。' : ''}${esc(gNote)}</p>
     ${downHtml(r.downInfo)}${r.damageNote ? `<p class="note">${esc(r.damageNote)}</p>` : ''}
     ${nextMini}
     <p class="note">${r.promoted ? 'この戦の後に昇進した' : G.rank >= (RANK_CEIL[r.battleIndex] ?? RANKS.length - 1) ? 'この戦で上がれる身分の上限に達した。戦功は累計に残る' : esc(r.reason || '昇進には戦功・任務・上官の評価が必要')}</p>

@@ -848,7 +848,7 @@ function honnoClothes(rt, dt) {
   const fit = (src, mesh, foreOnly = false) => {
     if (F.sleeveGeos.has(src)) return F.sleeveGeos.get(src);
     let g = src.clone();
-    const p = g.attributes.position, skin = g.attributes.skinIndex, mtl = g.attributes.mtl;
+    const p = g.attributes.position, skin = g.attributes.skinIndex, mtl = g.attributes.mtl, normal = g.attributes.normal;
     const cloth = (i) => !mtl || Math.floor(mtl.getX(i)) % 8 === MK.cloth;
     if (skin && mesh.skeleton) {
       // 部品をまとめた人は前腕の骨を目印にし、肘を支点に袖だけを縮める。
@@ -873,19 +873,28 @@ function honnoClothes(rt, dt) {
       for (let i = 0; i < p.count; i++) {
         const y = p.getY(i);
         // 軽い腕の形では手の頂点を残す。袂だけを短く、薄くする。
-        if (cloth(i) && (foreOnly || (y < -0.23 && y > -0.525 && Math.hypot(p.getX(i), p.getZ(i)) > 0.06)))
+        if (cloth(i) && (foreOnly || (y < -0.23 && y > -0.525 && Math.hypot(p.getX(i), p.getZ(i)) > 0.06))) {
           p.setXYZ(i, p.getX(i) * 0.8, -0.23 + (y + 0.23) * 0.72, p.getZ(i) * 0.6);
+          // 袖の丸い陰影を保ち、縮めた向きにだけ法線を合わせる。
+          if (normal) {
+            const nx = normal.getX(i) / 0.8, ny = normal.getY(i) / 0.72, nz = normal.getZ(i) / 0.6;
+            const len = Math.hypot(nx, ny, nz) || 1;
+            normal.setXYZ(i, nx / len, ny / len, nz / len);
+          }
+        }
       }
     }
     // 既存の帯と合わせ襟を濃淡で立たせる。袖口も暗い縁で厚みを出す。
     const color = g.attributes.color, col2 = g.attributes.col2;
-    const obi = new THREE.Color(0x302b38), eri = new THREE.Color(0xd4c6ae), cuff = new THREE.Color(0x39342f);
+    const obi = new THREE.Color(0x392822), eri = new THREE.Color(0xaa9980), cuff = new THREE.Color(0x39342f);
     for (let i = 0; i < p.count; i++) {
       if (!cloth(i) || !color) continue;
       const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
       let c = null;
       if (Math.abs(x) < 0.3 && Math.abs(z) < 0.28 && y > 0.935 && y < 1.025) c = obi;
-      else if (z > 0.1 && y > 1.08 && y < 1.48 && Math.abs(x - (-0.052 + (1.472 - y) * 0.33)) < 0.035) c = eri;
+      else if (z > 0.045 && y > 1.08 && y < 1.48 &&
+        (Math.abs(x - (-0.052 + (1.472 - y) * 0.33)) < 0.018 ||
+          (y > 1.25 && Math.abs(x - (0.052 - (1.472 - y) * 0.34)) < 0.018))) c = eri;
       else if (!skin && y > -0.43 && y < -0.4) c = cuff;
       if (c) {
         color.setXYZ(i, c.r, c.g, c.b);
@@ -900,7 +909,11 @@ function honnoClothes(rt, dt) {
       p.setXYZ(i, x * fold, y, z * fold);
     }
     g = honnoFingers(g, mesh);
-    g.attributes.position.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere();
+    // 指をまとめる時に頂点番号が外れる。ここで法線を作り直すと、
+    // 元の丸い肩・胴・袖まで三角形ごとの平面になるため、元の法線を残す。
+    g.attributes.position.needsUpdate = true;
+    if (g.attributes.normal) g.attributes.normal.needsUpdate = true;
+    g.computeBoundingSphere();
     F.sleeveGeos.set(src, g); F.sleeveGeos.set(g, g);
     return g;
   };
@@ -1150,7 +1163,7 @@ function templeGlow(rt) {
     else if (d < d2) { second = q; d2 = d; }
   }
   const a = F.lampLights[0], b = F.lampLights[1];
-  a.intensity = first ? 18 : 0; b.intensity = second ? 12 : 0;
+  a.intensity = first ? 6 : 0; b.intensity = second ? 4 : 0;
   if (first) a.position.set(first.x, first.y, first.z);
   if (second) b.position.set(second.x, second.y, second.z);
   let fire = null, near = 24 * 24;
@@ -1273,12 +1286,16 @@ const honnoji = {
     const P0 = rt.player;
     if (P0.mounted) { rt.army.setMounted(P0.u, false); P0.mounted = false; }
     P0.canRide = false; P0.updateTake = () => {};
-    // 寺の供の衣を少数の色で共有する。名のある人の衣の色はそのまま。
+    // 寺の供の衣を少数の色で共有する。小姓は灯のそばでも肌と衣を見分けられる色にする。
     const spawnHonno = rt.army.spawn;
     const colors = [0x485c70, 0x786052, 0x59694e, 0x8b7961];
     let clothesN = 0;
     rt.army.spawn = function (group, list, ...rest) {
       const varied = list.flatMap(q => {
+        if (q.o?.kosode && q.o.name && q.type === 'samurai') {
+          const col = new THREE.Color(q.o.kosodeCol || 0x78634d).multiplyScalar(0.8).getHex();
+          return [{ ...q, o: { ...q.o, kosodeCol: col, skin: q.o.skin ?? 0xb58c68 } }];
+        }
         if (!q.o?.kosode || q.o.name || q.n < 1) return [q];
         const out = [];
         for (let i = 0; i < q.n; i++) out.push({ ...q, n: 1, o: { ...q.o, kosodeCol: colors[clothesN++ % colors.length] } });

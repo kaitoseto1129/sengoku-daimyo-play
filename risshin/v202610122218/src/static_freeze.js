@@ -83,7 +83,7 @@ export class StaticFreezer {
           this.freeze(c, k.snap);
         }
         this.cand = null; this.phase = 2; this.i = 0;
-        if (S.quality === 'low') this.merge();
+        this.merge();   // 全画質（以前は低だけ。墨俣の高で描く回数が 1000 を超えていた）
       }
     } else {
       this.watch();

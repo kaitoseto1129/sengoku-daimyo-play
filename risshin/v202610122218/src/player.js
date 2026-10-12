@@ -560,6 +560,7 @@ export class Player {
   canStep(x0, z0, x, z, y) {
     const W = this.rt.world;
     const h = groundAt(W, x, z, y);
+    if (W.nonWalkSurface?.(x, z, h)) return false;
     // 切岸で詰まる山道は、横へ退いた一歩で崖から落ちないよう下りも調べる。
     if (W.def.maxWalkDrop != null) {
       const dx = x - x0, dz = z - z0, d = Math.hypot(dx, dz);
@@ -3339,6 +3340,7 @@ export class Player {
   // 自分からカメラへの線が、建物などに当たるか（当たれば 0〜1 の割合）
   camBlockHit(from, to) {
     const rt = this.rt;
+    const volumeHit = rt.world.cameraBlockFraction?.(from, to) ?? null;
     const dir = this._cbDir || (this._cbDir = new THREE.Vector3());
     dir.copy(to).sub(from);
     const len = dir.length();
@@ -3367,7 +3369,7 @@ export class Player {
       }
       this.blockers = list;
     }
-    if (!this.blockers.length) return null;
+    if (!this.blockers.length) return volumeHit;
     if (!this.ray) this.ray = new THREE.Raycaster();
     this.ray.set(from, dir.normalize());
     this.ray.far = len;
@@ -3377,7 +3379,7 @@ export class Player {
       o.updateWorldMatrix(true, false);
       camBlockRaycast(o, this.ray, h);
     }
-    let nearest = Infinity;
+    let nearest = volumeHit === null ? Infinity : volumeHit * len;
     for (const hit of h) nearest = Math.min(nearest, hit.distance);
     return nearest < Infinity ? nearest / len : null;
   }

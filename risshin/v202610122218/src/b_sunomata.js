@@ -132,6 +132,54 @@ function dressHachiFlags(rt) {
 const SHEDS = PLAN_SHEDS.map((p) => ({ ...p, w: p.w * .85, d: p.d * .85 }));
 const MAIN_SHED = { name: '普請小屋', x: 0, z: -4, w: 5.4, d: 3.6, rot: 0, kind: 'yagura' };
 
+// 外から建物へ入る視線は軒・柱の手前で止める。室内からの視線は既存の壁判定へ任せる。
+function fortView(rt) {
+  const W = rt.world, boxes = [];
+  const put = (x, z, rot, w, d, low, top, roof, struct = null) => {
+    boxes.push({ x, z, c: Math.cos(rot), s: Math.sin(rot), hw: w / 2, hd: d / 2, low, top, roof, struct });
+  };
+  for (const p of [MAIN_SHED, ...SHEDS]) {
+    const y = W.heightAt(p.x, p.z) + .14;
+    put(p.x, p.z, p.rot, p.w + .7, p.d + .6, y, y + 2.15 + (p.w / 2 + .35) * .25 + .25, y + 1.95, p === MAIN_SHED ? rt.flags.hut : null);
+  }
+  for (const t of rt.flags.C.towers) {
+    const y = W.heightAt(t.x, t.z);
+    put(t.x, t.z, t.naka.rot, 4, 4, y, y + 9.8, y + 7.75);
+    t.mesh.traverse((m) => { if (m.geometry) m.userData.camBlock = true; });
+  }
+  W.nonWalkSurface = (x, z, y) => {
+    for (const b of boxes) {
+      if (b.struct && !b.struct.alive) continue;
+      const dx = x - b.x, dz = z - b.z;
+      if (y >= b.roof && Math.abs(dx * b.c - dz * b.s) <= b.hw && Math.abs(dx * b.s + dz * b.c) <= b.hd) return true;
+    }
+    return false;
+  };
+  W.cameraBlockFraction = (from, to) => {
+    let nearest = null;
+    for (const b of boxes) {
+      if (b.struct && !b.struct.alive) continue;
+      const x = from.x - b.x, z = from.z - b.z;
+      const fx = x * b.c - z * b.s, fz = x * b.s + z * b.c;
+      const dx = to.x - from.x, dz = to.z - from.z;
+      const vx = dx * b.c - dz * b.s, vz = dx * b.s + dz * b.c;
+      // 本人が中にいる時は、戸口・狭間を通す実際の形で判定する。
+      if (Math.abs(fx) <= b.hw && Math.abs(fz) <= b.hd && from.y >= b.low && from.y <= b.top) continue;
+      let enter = 0, exit = 1;
+      for (let axis = 0; axis < 3; axis++) {
+        const p = axis === 0 ? fx : axis === 1 ? from.y : fz;
+        const v = axis === 0 ? vx : axis === 1 ? to.y - from.y : vz;
+        const low = axis === 0 ? -b.hw - .3 : axis === 1 ? b.low - .3 : -b.hd - .3;
+        const high = axis === 0 ? b.hw + .3 : axis === 1 ? b.top + .3 : b.hd + .3;
+        if (Math.abs(v) < .00001) { if (p < low || p > high) { exit = -1; break; } }
+        else { const a = (low - p) / v, c = (high - p) / v; enter = Math.max(enter, Math.min(a, c)); exit = Math.min(exit, Math.max(a, c)); }
+      }
+      if (enter <= exit && (nearest === null || enter < nearest)) nearest = enter;
+    }
+    return nearest;
+  };
+}
+
 // 墨俣専用の逆茂木。閉じた円柱で木の厚みを出し、削り面・枝・結び縄まで設営時にまとめる。
 let sunoWoodMat, sunoRopeMat;
 function sunoSakamogi(world, x, z, rot, len) {
@@ -718,6 +766,7 @@ const sunomata = {
     const shedParts = [];
     for (const p of SHEDS) fortShed(rt, p, shedParts);
     rt.scene.add(shedMesh(shedParts), tawara(W, 12, 13, .2, 6));
+    fortView(rt);
     // 北西の物見は縄張り側が一つ置く。重ねて置かない。
     // 斜面の逆茂木：柵の外に尖った枝の束を並べる（北と東西。南の門の前は空ける）
     for (let k = -2; k <= 2; k++) rt.scene.add(sunoSakamogi(W, k * 7, -FORT - 5.5, Math.PI, 5), sunoSakamogi(W, -FORT - 5.5, k * 7, -Math.PI / 2, 5), sunoSakamogi(W, FORT + 5.5, k * 7, Math.PI / 2, 5));
@@ -860,8 +909,8 @@ const sunomata = {
       mark('buildGate', F.segs.gate[0], '北門の口');
       mark('buildSide', F.segs.unfinished[0], '北門の西脇の破れ');
       rt.choose('足軽大将「どちらの口から塞ぐ？」', [
-      { label: '北門から塞ぐ', note: '人足を守り、大きな口を先に閉じる' },
-      { label: '脇の柵から直す', note: '西脇を先に固める。北門は後になる' },
+      { label: '北門から塞ぐ', note: '人足を守り、北門を先に閉じる' },
+      { label: '脇の柵から直す', note: '西を先に固め、北門は後にする' },
     ], (i) => {
       rt.unmark('buildGate'); rt.unmark('buildSide');
       if (rt.over || F.ending || F.won) return;
@@ -1394,8 +1443,8 @@ const sunomata = {
       rt.after(4, () => {
         if (rt.over || F.ending || F.won || F.wave !== 1) return;
         rt.choose('足軽大将「次は材木が来る。どこを守る？」', [
-        { label: '砦で柵を直す', note: '人足を守って補強する。林の敵は残る' },
-        { label: '南門から林の敵を追う', note: '荷駄の道を守る。五十秒で砦へ戻る' },
+        { label: '砦で柵を直す', note: '人足を守る。林の敵は残る' },
+        { label: '南門から林の敵を追う', note: '荷駄を守り、五十秒で戻る' },
       ], (i) => {
         if (rt.over || F.ending || F.won || F.wave !== 1) return;
         rt.G.rel.tokichiro.like += 3;

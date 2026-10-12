@@ -58,8 +58,28 @@ export function buildOdaniUpper(rt, ramps) {
         const out = nx * ((a[0] + b[0]) / 2 - k.x) + nz * ((a[1] + b[1]) / 2 - k.cz) > 0 ? 1 : -1;
         // 大小の自然石の既存部品を使い、外へ少し張り出して切岸の土に埋めない。
         const ox = nx * out * 0.8, oz = nz * out * 0.8;
-        ishigaki(W, [[p[0] + ox, p[1] + oz], [q[0] + ox, q[1] + oz]], {
-          topY: k.level + 0.12, minH: k === SANNOMARU ? 5 : 3.2, maxH: k === SANNOMARU ? 6 : 4.8,
+        // 折れ角では隣の辺との交点を使い、石の面の間に空を残さない。
+        const join = (index, x, z) => {
+          const v = poly[index], other = poly[(index + (index === j ? -1 : 1) + poly.length) % poly.length];
+          const ex = other[0] - v[0], ez = other[1] - v[1], el = Math.hypot(ex, ez);
+          let jx = -ez / el, jz = ex / el;
+          if (jx * ((other[0] + v[0]) / 2 - k.x) + jz * ((other[1] + v[1]) / 2 - k.cz) < 0) { jx = -jx; jz = -jz; }
+          const dot = Math.max(.25, 1 + jx * nx * out + jz * nz * out);
+          return [x + (jx + nx * out) * .8 / dot, z + (jz + nz * out) * .8 / dot];
+        };
+        const sp = l === 0 ? join(j, ...p) : [p[0] + ox, p[1] + oz];
+        const sq = u === 1 ? join((j + 1) % poly.length, ...q) : [q[0] + ox, q[1] + oz];
+        // 下端を途中で切らず、張り出した足もとの山肌まで積む。
+        // 一つの面の石の段は同じ高さから始め、坂の高い所は土へ埋める。
+        let foot = k.level - (k === SANNOMARU ? 5 : 3.2);
+        const samples = Math.max(2, Math.ceil((u - l) * len));
+        for (let i = 0; i <= samples; i++) {
+          const t = i / samples, x = sp[0] + (sq[0] - sp[0]) * t, z = sp[1] + (sq[1] - sp[1]) * t;
+          for (const d of [0, 2.5, 5]) foot = Math.min(foot, W.heightAt(x + nx * out * d, z + nz * out * d) - 0.4);
+        }
+        const stoneGround = { heightAt: () => foot + 0.4 };
+        ishigaki(stoneGround, [sp, sq], {
+          topY: k.level + 0.12, minH: 0, maxH: k.level + 0.12 - foot,
           lean: 0.2, out, capIn: 0.95, big: 1.5, noKit: true, batch: stones,
         });
         if (OKURIDGE.includes(k)) {

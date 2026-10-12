@@ -3,7 +3,7 @@
 import { kinome } from './b_kinome.js';
 import * as THREE from 'three';
 import { dirtTex } from './nature.js';
-import { KINOME_PLAN, KINOME_ROADS } from './castles/kinome.js';
+import { KINOME_PLAN, KINOME_ROADS, GATE_KANNON } from './castles/kinome.js';
 import { distToPolyline } from './world.js';
 import { addDeck, groundAt } from './floors.js';
 
@@ -84,6 +84,30 @@ echizen.setup = function (rt) {
       : g[k + row + 1] + (g[k + row] - g[k + row + 1]) * (1 - tx)
         + (g[k + 1] - g[k + row + 1]) * (1 - tz);
   };
+  // 木戸前の石段の下を土で支える。天端だけを横へ延ばすと、谷側へ板が突き出す。
+  // 石の中に上端を埋め、両肩と前後の裾を描かれた斜面の下へつなぐ。
+  const bankPos = [], bankUv = [], bankIndices = [], bankSlices = 70;
+  const bankX = [-2.4, -1.4, 0, 1.4, 2.4], gate = GATE_KANNON;
+  for (let i = 0; i <= bankSlices + 2; i++) {
+    const z = gate.z - 4.1 + i * .1;
+    for (let j = 0; j < bankX.length; j++) {
+      const x = gate.x + bankX[j], soil = W.heightAt(x, z) - .12;
+      const y = i > 0 && i <= bankSlices + 1 && j > 0 && j < bankX.length - 1
+        ? Math.max(soil, heightAt.call(W, x, Math.max(gate.z - 4, Math.min(gate.z + 3, z))) - .12) : soil;
+      bankPos.push(x, y, z); bankUv.push(x * .23, z * .23);
+      if (i && j) {
+        const k = i * bankX.length + j;
+        bankIndices.push(k - bankX.length - 1, k - 1, k - bankX.length,
+          k - bankX.length, k - 1, k);
+      }
+    }
+  }
+  const bankGeo = new THREE.BufferGeometry();
+  bankGeo.setAttribute('position', new THREE.Float32BufferAttribute(bankPos, 3));
+  bankGeo.setAttribute('uv', new THREE.Float32BufferAttribute(bankUv, 2));
+  bankGeo.setIndex(bankIndices); bankGeo.computeVertexNormals();
+  const bank = new THREE.Mesh(bankGeo, floor.material);
+  bank.receiveShadow = true; rt.scene.add(bank);
   const cameraTick = rt.player.updateCamera, direction = new THREE.Vector3();
   rt.player.updateCamera = function (dt, camera) {
     cameraTick.call(this, dt, camera);

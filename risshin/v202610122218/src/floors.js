@@ -109,6 +109,7 @@ export function groundAt(world, x, z, y = 0) {
   let best = base;
   for (const d of nearbyDecks(x, z)) {
     if (!inDeck(d, x, z)) continue;
+    if (world.nonWalkSurface?.(x, z, d.y)) continue;
     if (d.y <= y + 0.9 + 0.01 || d.y <= best + 0.9 + 0.01) { if (d.y > best) best = d.y; }
     else if (d.y > y + 2.2) { /* 段差が高すぎる床は無視（下りるのは別の判定で拾う） */ }
   }
