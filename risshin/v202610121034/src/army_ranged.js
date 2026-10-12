@@ -130,7 +130,7 @@ export const ArmyRanged = {
     // 距離のこもりと遅れは、戦の音の経路で一度だけ付ける
     this.play('gun', u.pos, 1.6);
     u.fireT = 0.45;
-    horseGunshot(this, u.pos);
+    horseGunshot(this, u.pos, u.team);
     this.lastGun = null;
     const d = Math.hypot(targetPos.x - u.pos.x, targetPos.z - u.pos.z);
     // 高い所からは狙いやすく、低い所からは狙いにくい（見下ろす・見上げる）。有効射程も高さぶん伸び縮みする
