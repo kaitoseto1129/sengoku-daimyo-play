@@ -503,12 +503,47 @@ const tottori = {
     const W = rt.world;
     const F = rt.flags;
     dressSlopes(rt);
-    // 共通の水面には川筋に沿う波がある。色だけ替え、動きを減らす設定も保つ。
+    // 遠景の輪は内側だけを描く。既に内向きの面まで反転しない。
+    // 法線も面に合わせ、稜線の裏側が黒い三角として垂れないようにする。
+    const ma = new THREE.Vector3(), mb = new THREE.Vector3(), mc = new THREE.Vector3();
+    const mn = new THREE.Vector3(), edge = new THREE.Vector3();
+    for (const mountain of W.mountains.children) {
+      const index = mountain.geometry.index, pos = mountain.geometry.attributes.position;
+      for (let i = 0; i < index.count; i += 3) {
+        const a = index.getX(i), b = index.getX(i + 1), c = index.getX(i + 2);
+        ma.fromBufferAttribute(pos, a); mb.fromBufferAttribute(pos, b); mc.fromBufferAttribute(pos, c);
+        mn.subVectors(mb, ma).cross(edge.subVectors(mc, ma));
+        if (mn.x * (ma.x + mb.x + mc.x) + mn.z * (ma.z + mb.z + mc.z) > 0) {
+          index.setX(i + 1, c); index.setX(i + 2, b);
+        }
+      }
+      index.needsUpdate = true; mountain.geometry.computeVertexNormals();
+      mountain.material.side = THREE.FrontSide; mountain.material.needsUpdate = true;
+    }
+    // 波は使い回し、水際だけ透かす。夜の空の照り返しを弱め、白い板にしない。
     for (const st of W.def.streams) if (st.mesh) {
-      st.mesh.material.color.setHex(0x3b7888);
-      st.mesh.material.roughness = 0.24;
-      st.mesh.material.emissive.setHex(0x102a30);
-      st.mesh.material.emissiveIntensity = 0.16;
+      const mat = st.mesh.material, geo = st.mesh.geometry;
+      mat.color.setHex(0x59665c); mat.roughness = 0.82; mat.envMapIntensity = 0.12;
+      mat.emissive.setHex(0x000000);
+      // 共通の波の準備は不透明に戻すため、ここで岸の透けを有効にする。
+      // 深さは川の中央に残し、透明な縁では地面や草を隠さない。
+      mat.transparent = true; mat.opacity = 1; mat.depthWrite = true; mat.alphaTest = 0.01;
+      const banks = new Float32Array(geo.attributes.position.count);
+      for (let i = 0; i < banks.length; i++) banks[i] = i % 2;
+      geo.setAttribute('tottoriBank', new THREE.BufferAttribute(banks, 1));
+      const compile = mat.onBeforeCompile, cacheKey = mat.customProgramCacheKey();
+      mat.onBeforeCompile = (sh) => {
+        compile.call(mat, sh);
+        sh.uniforms.uTottoriNight = W.nightU;
+        sh.vertexShader = 'attribute float tottoriBank; varying float vTottoriBank;\n' + sh.vertexShader
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\n vTottoriBank = tottoriBank;');
+        sh.fragmentShader = 'uniform float uTottoriNight; varying float vTottoriBank;\n' + sh.fragmentShader
+          .replace('#include <map_fragment>', `#include <map_fragment>
+            float shore = smoothstep(0.0, 0.14, min(vTottoriBank, 1.0 - vTottoriBank));
+            diffuseColor.a *= shore;`)
+          .replace('uWaterSky * (0.08 + waterEdge * 0.3)', 'uWaterSky * mix(1.0, 0.2, uTottoriNight) * (0.08 + waterEdge * 0.3)');
+      };
+      mat.customProgramCacheKey = () => cacheKey + '|tottori-bank'; mat.needsUpdate = true;
     }
     // 内部の史実札（HIST_A=根拠強い／HIST_B=推定復元／GAME_C=ゲーム補完。表には出さない）
     F.hist = { starving: 'HIST_A', taikogahira: 'HIST_A', kikkawaTsunee: 'HIST_A', kaboBoats: 'HIST_B', marsh: 'HIST_B', townsfolk: 'GAME_C', sallies: 'GAME_C' };
@@ -1297,7 +1332,16 @@ function buildTottoriCastles(rt, noT) {
   wells.forEach(([x, z], i) => { matrix.makeTranslation(x, W.heightAt(x, z) + .33, z); mouths.setMatrixAt(i, matrix); solidCircle(x, z, 1); });
   rt.scene.add(mouths);
   // 北西の海は地形の外の遠景だけ。川・低湿地・刈田と山並みは既存の地形を使う。
-  const sea = new THREE.Mesh(new THREE.PlaneGeometry(320, 110), new THREE.MeshStandardMaterial({ color: 0x3b555c, roughness: .7 }));
+  const sea = new THREE.Mesh(new THREE.PlaneGeometry(320, 110), new THREE.MeshStandardMaterial({ color: 0x303e40, roughness: .9, envMapIntensity: .12, transparent: true, depthWrite: false }));
+  // 地形の外の海も、四辺を霞へほどいて長方形の境を残さない。
+  sea.material.onBeforeCompile = (sh) => {
+    sh.vertexShader = 'varying vec2 vTottoriSea;\n' + sh.vertexShader
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n vTottoriSea = uv;');
+    sh.fragmentShader = 'varying vec2 vTottoriSea;\n' + sh.fragmentShader
+      .replace('#include <map_fragment>', `#include <map_fragment>
+        vec2 edge = min(vTottoriSea, 1.0 - vTottoriSea);
+        diffuseColor.a *= smoothstep(0.0, 0.08, min(edge.x, edge.y));`);
+  };
   sea.rotation.x = -Math.PI / 2; sea.position.set(-160, .7, -350); sea.userData.camBlock = false; rt.scene.add(sea);
   finalizeSimpleBatch(rt, batch);
 }

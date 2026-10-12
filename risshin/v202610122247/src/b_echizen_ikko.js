@@ -225,7 +225,7 @@ function mountainColumn(b) {
   const L = b.light;
   if (!L) return;
   const A = L.army, P = A.parts, base = new Float32Array(A.n * 16);
-  const meshes = [P.body, P.flags, P.shade].filter(Boolean);   // 影の板が無い隊もある（無いと毎コマ例外で戦が止まった）
+  const meshes = [P.body, P.flags, P.shade].filter(Boolean);   // 共通の隊に影の板は無いので、無い部品は更新しない。
   const m = new THREE.Matrix4(), turn = new THREE.Matrix4(), inv = new THREE.Matrix4(), p = new THREE.Vector3();
   let front = 0;
   for (let i = 0; i < A.n; i++) {
@@ -559,6 +559,50 @@ function templeJin(defend) {
 }
 const TEMPLE_JIN = templeJin(false), TEMPLE_DEFEND_JIN = templeJin(true);
 
+// 夜の木だけを調整する。共通の葉の揺れと幹の近距離の抜きは残す。
+function templeNightTrees(rt) {
+  const player = { value: new THREE.Vector3().copy(rt.player.u.pos) };
+  rt.flags.treePlayer = player;
+  const mats = new Map();
+  for (const mesh of rt.world.treeMeshes || []) {
+    const base = mesh.material;
+    let mat = mats.get(base);
+    if (!mat) {
+      mat = base.clone();
+      const leaves = !!base.alphaTest;
+      mat.color.setHex(leaves ? 0x496647 : 0x8b7d6c);
+      mat.emissive.setHex(leaves ? 0x142014 : 0x17130f);
+      if (leaves) {
+        mat.transparent = true; mat.opacity = .65; mat.depthWrite = false;
+        mat.alphaTest = .18;
+      }
+      const key = base.customProgramCacheKey();
+      mat.customProgramCacheKey = () => key + (leaves ? '|templeNightLeaves' : '|templeNightBark');
+      mat.onBeforeCompile = (shader) => {
+        base.onBeforeCompile(shader);
+        if (!leaves) return;
+        shader.uniforms.uTemplePlayer = player;
+        shader.vertexShader = 'varying vec2 vTempleLeafXZ;\n' + shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+          vec4 templeLeaf = vec4(position, 1.0);
+          #ifdef USE_INSTANCING
+            templeLeaf = instanceMatrix * templeLeaf;
+          #endif
+          vTempleLeafXZ = (modelMatrix * templeLeaf).xz;`);
+        shader.fragmentShader = 'uniform vec3 uTemplePlayer; varying vec2 vTempleLeafXZ;\n' + shader.fragmentShader.replace('#include <alphatest_fragment>', `
+          // 遠景用の不透明化を戻し、葉の絵の隙間と夜の透けを保つ。
+          #ifdef USE_MAP
+            diffuseColor.a = texture2D(map, vMapUv).a * opacity;
+          #endif
+          diffuseColor.a *= smoothstep(4.0, 14.0, length(vViewPosition));
+          diffuseColor.a *= smoothstep(3.0, 10.0, distance(vTempleLeafXZ, uTemplePlayer.xz));
+          #include <alphatest_fragment>`);
+      };
+      mats.set(base, mat);
+    }
+    mesh.material = mat;
+  }
+}
+
 const echizen_ikko = {
   get jinkei() { return mode() === 'defend' ? TEMPLE_DEFEND_JIN : TEMPLE_JIN; },
   noticeOnce: true, // 共通の使番・敗走の知らせも、同じ文は一戦に一度。
@@ -597,6 +641,7 @@ const echizen_ikko = {
   setup(rt) {
     const W = rt.world;
     const F = rt.flags;
+    templeNightTrees(rt);
     F.step = 0; F.ek = 0; F.ak = 0;
     F.rescued = true; rt.firstBattle = false; rt.firstFights = false;
     F.fow = true;
@@ -1135,6 +1180,7 @@ const echizen_ikko = {
 
   update(rt, dt) {
     const F = rt.flags, W = rt.world;
+    F.treePlayer.value.copy(rt.player.u.pos);
     // 既存の月光を強め、斜面・甲冑に青い縁を見せる。光源や影の枚数は増やさない。
     W.sun.color.setHex(0xa5c3ff);
     W.sun.intensity = Math.max(W.sun.intensity, .95);
