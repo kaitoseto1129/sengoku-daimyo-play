@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202610130049 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202610130116 として写した） -->
 <title>戦国立身3D　足軽から天下へ、戦国の合戦アクション</title>
 <meta name="description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。">
 <link rel="canonical" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/">
@@ -69,7 +69,7 @@
 })();
 </script>
 <!-- /Meta Pixel -->
-<link rel="icon" type="image/png" sizes="32x32" href="./v202610130049/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610130049/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610130049/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610130049/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202610130116/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610130116/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610130116/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610130116/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
 :root {
@@ -1502,6 +1502,18 @@ html.touch:has(#hud.lean.calm) #tc .stick.idle { opacity: .18; }
 #hud .mk.large-way b { font-size: max(15px, calc(15px * var(--text-scale, 1))); padding: 3px 8px; color: #ece4d2; background: #14120f; }
 #hud .mk.large-way small { font-size: max(13px, calc(13px * var(--text-scale, 1))); padding: 1px 6px; color: #ece4d2; background: #14120f; }
 #hud .mk.large-way.edge::after { font-size: 24px; top: -30px; color: #f3d98a; text-shadow: 0 0 3px #14120f; }
+/* 地図と操作板は別の場所に置く。説明を開いても地図の字に被せない。 */
+#hud { --battle-map-size:min(640px, calc(100vh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)), 55vw); }
+#hud #bigmap { inset:auto; left:calc(16px + env(safe-area-inset-left, 0px)); top:calc(16px + env(safe-area-inset-top, 0px)); margin:0; width:var(--battle-map-size); height:var(--battle-map-size); box-sizing:border-box; }
+#hud #maphint { left:calc(32px + env(safe-area-inset-left, 0px) + var(--battle-map-size)); right:calc(16px + env(safe-area-inset-right, 0px)); top:calc(16px + env(safe-area-inset-top, 0px)); bottom:auto; transform:none; min-width:0; width:auto; max-width:none; max-height:calc(100vh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); padding:8px; overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y; pointer-events:auto; justify-items:stretch; gap:8px; background:#14120f; }
+#hud #maphint .op { gap:8px; }
+#hud #maphint .op button { min-height:44px; flex:1 1 100%; white-space:normal; }
+#hud #maphint summary { line-height:1.5; }
+#hud:has(#bigmap:not([hidden])) :is(.tl,.tr,.bl,#battle-notices,#choice-tasks,#h-units,#compass) { visibility:hidden; }
+@media (orientation:portrait) {
+ #hud { --battle-map-size:min(42vh, calc(100vw - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))); }
+ #hud #maphint { left:calc(16px + env(safe-area-inset-left, 0px)); top:calc(32px + env(safe-area-inset-top, 0px) + var(--battle-map-size)); max-height:calc(100vh - var(--battle-map-size) - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); }
+}
 /* 戦の前の札（背の低い画面）：一画面に収める */
 #screen .story.short .st-who { font-size: max(12px, calc(12px * var(--text-scale, 1))); margin-bottom: 8px; }
 /* パソコンの 900 の高さでも、進む釦が下へはみ出さないように詰める */
@@ -1907,5 +1919,5 @@ dialog.battle-retry .btn { box-sizing: border-box; width: 100%; min-width: 0; he
 } }
 </script>
 <script type="module">
-import('./v202610130049/src/main.js').catch(() => window.__bootFail());
+import('./v202610130116/src/main.js').catch(() => window.__bootFail());
 </script>
