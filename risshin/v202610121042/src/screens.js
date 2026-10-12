@@ -943,8 +943,9 @@ export function settingsHtml() {
     ${row('st-hc', '札の字をくっきりさせる', chk('st-hc', 'hudContrast'))}
     ${row('st-fade', '戦いが無い間は札を薄く', chk('st-fade', 'hudAutoFade'))}
     ${row('st-float', '討った場所に戦功を浮かべる', chk('st-float', 'floatMerit'))}
-
-
+    <p id="st-quality-now" class="note s-row" data-cat="描画">${S.qualityAuto ? `速さに合わせています。今の画質：${{ low: '低', mid: '中', high: '高' }[S.quality]}${S.qualityMeasured ? '（実測済み）' : '（速さを調べる前）'}` : '画質は手で選んだまま保ちます'}。画質の欄から「速さに合わせる」へ戻せます。</p>
+    <div class="s-row" data-cat="描画"><button type="button" class="btn small" id="st-quality-remeasure">端末の速さを計り直す</button><small>次に戦が動く間に計ります。速さに合わせる画質へ切り替えます。</small></div>
+    ${row('st-quality', '画質', `<select id="st-quality"><option value="auto" ${S.qualityAuto ? 'selected' : ''}>速さに合わせる</option>${[['low', '低（軽い）'], ['mid', '中'], ['high', '高（きれい）']].map(([v, l]) => `<option value="${v}" ${!S.qualityAuto && S.quality === v ? 'selected' : ''}>${l}</option>`).join('')}</select>`)}
     ${row('st-cap', '一秒に描く回数の上限', `<select id="st-cap"><option value="0" ${!S.fpsCap ? 'selected' : ''}>上限なし</option><option value="60" ${S.fpsCap === 60 ? 'selected' : ''}>60</option><option value="30" ${S.fpsCap === 30 ? 'selected' : ''}>30（省電力）</option></select>`)}
     ${row('st-dist', '見える遠さ', `<input type="range" id="st-dist" min="0.6" max="1.4" step="0.01" value="${S.drawDist}">`, Math.round(S.drawDist * 100) + '%')}
     ${row('st-ares', '滑らかさ優先（自動で細かさを下げる）', chk('st-ares', 'autoRes'))}

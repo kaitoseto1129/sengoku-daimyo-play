@@ -119,9 +119,6 @@ export const S = Object.assign({}, DEFAULTS, saved0);
 // 自動の印がない昔の保存は、前に選んだ画質を守る。
 if (saved0.qualityAuto === undefined && saved0.quality !== undefined) S.qualityAuto = false;
 try { if (S.qualityAuto && !S.qualityMeasured && matchMedia('(pointer: coarse)').matches) S.quality = 'low'; } catch (e) { /* 端末を判れなければ既定 */ }
-// 画質は「高」だけ（kaito 10/12）。自動で下げる道・手で選ぶ道の書き込みは受けない
-Object.defineProperty(S, 'quality', { get: () => 'high', set() {}, enumerable: true });
-Object.defineProperty(S, 'qualityAuto', { get: () => false, set() {}, enumerable: true });
 S.binds = Object.fromEntries(Object.keys(BIND_DEFAULTS).map((act) => [act, saved0.binds?.[act] ?? BIND_DEFAULTS[act]]));
 // 戻る・説明の鍵は専用。壊れた割り当てで動けなくなるのを防ぐ。
 export const bindReserved = (code) => ['Escape', 'KeyH', 'F1', 'BracketLeft', 'BracketRight', 'AltLeft', 'AltRight'].includes(code) || /^Digit[0-9]$/.test(code);
