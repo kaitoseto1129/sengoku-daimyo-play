@@ -25,7 +25,7 @@ import { depthStart, depthTick, depthBot } from './b_depth.js';
 import { yamaLift, benchRoads } from './yamalift.js';
 import { heightOf, buildCastlePlan, makeLordKeep } from './castle_plan.js';
 import { horiboriHeight } from './castle_parts.js';
-import { addTaba, makeTabaAdvance, tickTabas, tabaInteractTick, patchGunCover } from './taketaba.js';
+import { addTaba, tabaGeo, makeTabaAdvance, tickTabas, tabaInteractTick, patchGunCover } from './taketaba.js';
 import { makeGate, resetGates } from './siege_gate.js';
 import { makeButai, butaiTick, lightClash } from './butai.js';
 import { nightAccuracyMult } from './siege_vis.js';
@@ -285,9 +285,11 @@ const okawachi = {
     addTaba(rt, this.spawn.x - 2, this.spawn.z - 3, 0, { fixed: true });
     addTaba(rt, this.spawn.x + 2, this.spawn.z - 3, 0, { fixed: true });
     const tabaMaterial = F.tabas[0].m.material.clone();
-    tabaMaterial.color.setHex(0xffefbe);
-    tabaMaterial.emissive.setHex(0xb8ad70); tabaMaterial.emissiveIntensity = 0.32;
-    for (const tb of F.tabas) tb.m.material = tabaMaterial;
+    // 円柱と節の陰影は夜の光に任せる。青竹〜灰茶の形と材質を全束で共有する。
+    tabaMaterial.color.setHex(0xffffff);
+    tabaMaterial.emissive.setHex(0x000000); tabaMaterial.emissiveIntensity = 0;
+    const tabaShape = tabaGeo(true);
+    for (const tb of F.tabas) { tb.m.geometry = tabaShape; tb.m.material = tabaMaterial; }
     rt.marker('tabaFront', () => F.TA.items[0].tabas[0].m.position, '竹束の陰へ', { h: 2.5 });
     rt.marker('karamete', GATE, '南の搦手の木戸', { h: 5 });
     // ---- 織田の本陣（東の山。信長）と、城外の四方の囲みの陣（軽い作り。一つのキャンプに集めない） ----
