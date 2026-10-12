@@ -15,6 +15,9 @@ import { S, reduceMotion } from './settings.js';
 import { drawMon } from './textures.js';
 import { lodSwap } from './units_flags.js';
 import { WIND_STATE, WET, ARMY_P, ARMY_REAL_P, ARMY_REAL_R, ARMY_REAL_NEAR } from './world.js';
+// 本物の骨の入った兵に替える範囲（本人とカメラの近く）。高 44m・中 36m・低 40m（以前は 60m 固定）。ARMY_REAL_NEAR は読み込みの名のまま残す。その先は、まとめて描く軽い兵（形は遠さで替わる）
+const realNear = () => (S.quality === 'high' ? 44 : S.quality === 'mid' ? 36 : 40);
+
 import { P as armorPaint, at as armorAt, MK, UNIT_GRIME, nanbanMaterial, HORO_HEIGHT, HORO_TOP, HORO_BACK } from './units_model.js';
 import { syncArmorWear } from './armor_wear.js';
 import { cloneWaterMaterial } from './water_body.js';
@@ -37,6 +40,7 @@ export const HUM = { fx: true, ready: false, primed: false, failed: false, on: t
 // 画質ごとの数は遠景用。本人・カメラの60m以内は画質によらず本物にする。
 // must：この近さ（m）より内の兵は、上限を越えても必ず骨の入った人にする（カメラの前に軽い形の兵を出さない）。その分は遠い者から軽い形へ
 // mustMax は姉川のように合戦が複数同時に組み合う戦で、間近の本物の人が一気に増えないよう控えめに（普段の一本道の合戦では max 止まりで届かない数）
+const HUM_T = { high: { lod: 11, hiN: 16, faceN: 8, hiCap: 8, shadow: 11 }, mid: { lod: 8, hiN: 10, faceN: 4, hiCap: 5, shadow: 8 }, low: { lod: 15, hiN: 24, faceN: 14, hiCap: 10, shadow: 15 } };
 export const HUM_Q = { high: { near: 42, max: 70, must: 34, mustMax: 90 }, mid: { near: 32, max: 40, must: 29, mustMax: 80 }, low: { near: 9, max: 4, far: 12, face: 14 } };
 const q0 = new THREE.Quaternion(), q1 = new THREE.Quaternion(), v0 = new THREE.Vector3(), v1 = new THREE.Vector3(), v2 = new THREE.Vector3(), v3 = new THREE.Vector3(), m0 = new THREE.Matrix4(), m1 = new THREE.Matrix4();
 
@@ -2915,7 +2919,10 @@ function bodyLod(m, h) {
     if (cam.isOrthographicCamera) return;   // 影の描き込みは、画面の描き込みで決めた形のまま
     const e = m.matrixWorld.elements, c = cam.matrixWorld.elements;
     const d2 = (e[12] - c[12]) ** 2 + (e[13] - c[13]) ** 2 + (e[14] - c[14]) ** 2;
-    const far = h.bodyFar ? 38 : 42, mfar = h.bodyMid ? 20 : 22;   // 境目で行き来しないよう 2m の幅
+    // 体の形の切り替え：高は 14m で中・32m で粗く（以前は 22m・42m）、中はさらに近く。900p で 14m の人は背丈 80px ほどで、細かい形の差は見えない
+    const q2 = S.quality === 'mid' ? 1 : S.quality === 'high' ? 0 : 2;
+    const fF = q2 === 1 ? 24 : q2 === 0 ? 32 : 42, mF = q2 === 1 ? 10 : q2 === 0 ? 14 : 22;
+    const far = h.bodyFar ? fF - 2 : fF, mfar = h.bodyMid ? mF - 1 : mF;   // 境目で行き来しないよう 1〜2m の幅
     h.bodyFar = d2 > far * far || HUM.bodyLoD === 2; h.bodyMid = d2 > mfar * mfar || HUM.bodyLoD === 1;
     const want = HUM.lodOff ? hi : (h.bodyFar && lo) || (h.bodyMid && mid) || hi;   // lodOff：前と比べて測る時だけ
     if (m.geometry !== want) m.geometry = want;
@@ -5376,7 +5383,7 @@ export function updateHumans(rt, dt) {
   HUM.budget = 4;
   WORLD = rt.world; ARMY = rt.army;
   const player = rt.player && rt.player.u;
-  if (player) { ARMY_REAL_P.value.set(player.pos.x, player.pos.z); ARMY_REAL_R.value = ARMY_REAL_NEAR; }
+  if (player) { ARMY_REAL_P.value.set(player.pos.x, player.pos.z); ARMY_REAL_R.value = realNear(); }
   // 前の描画で作成待ちになった兵は、出来るまで既存の軽い姿へ戻す。
   for (const u of rt.army.units) if (u.humanPending && u.mesh) { u.mesh.visible = !u.gone && !u.camHidden && !u.imp; u.humanPending = false; }
   // 軽い兵を押し出す輪の中心（カメラの場所）
@@ -5398,8 +5405,8 @@ export function updateHumans(rt, dt) {
   try { humansStep(rt, dt, army, cam); } finally {
     if (player) for (const u of army.units) {
       if (u.gone || !u.mesh || u.type === 'dummy' || (u.human && u.human.root.visible)) continue;
-      if (Math.hypot(u.pos.x - player.pos.x, u.pos.z - player.pos.z) <= ARMY_REAL_NEAR ||
-          (cam && Math.hypot(u.pos.x - cam.position.x, u.pos.z - cam.position.z) <= ARMY_REAL_NEAR)) {
+      if (Math.hypot(u.pos.x - player.pos.x, u.pos.z - player.pos.z) <= realNear() ||
+          (cam && Math.hypot(u.pos.x - cam.position.x, u.pos.z - cam.position.z) <= realNear())) {
         // 骨のある姿がまだ用意できない時は、既存の軽い姿を残す。
         // 近いという理由だけで消すと、姿のない兵が槍を打ち込む。
         u.mesh.visible = !u.camHidden && !u.imp; u.humanPending = false;
@@ -5415,6 +5422,8 @@ function humansStep(rt, dt, army, cam) {
   if (!on) { for (const h of humans) dropHuman(h.u); if (HUM.on && !loading) loadHumans(); return; }
   // 画質と戦ごとの人数制限は遠景用。近景の骨・甲冑・顔は保ち、影と動きの更新を間引く。
   const QBase = HUM_Q[S.quality] || HUM_Q.high;
+  // 画質ごとの細かさ（lod：軽い一体の形へ替わる遠さ・hiN：細かい胴丸と兜の数・faceN：実写の顔の数）。低は元のまま
+  { const t = S.quality === 'mid' ? HUM_T.mid : S.quality === 'high' ? HUM_T.high : HUM_T.low; HUM.lod = t.lod; HUM.hiN = t.hiN; HUM.faceN = t.faceN; HUM.shadow = t.shadow; DOMARU.hiCap = t.hiCap; }
   //   humQ は下げるだけ（画質「低」の max 4 を姉川の 56 で上書きして、携帯で 60 人近くが骨の入った人になっていた。10/2 測って直す）
   let Q = QBase;
   if (rt.def && rt.def.humQ) {
@@ -5439,7 +5448,7 @@ function humansStep(rt, dt, army, cam) {
     if (u.gone || !u.mesh || u.type === 'dummy') continue;
     const d = Math.hypot(u.pos.x - cx, u.pos.z - cz);
     const pd = player ? Math.hypot(u.pos.x - player.pos.x, u.pos.z - player.pos.z) : d;
-    const required = u.isPlayer || Math.min(d, pd) <= ARMY_REAL_NEAR;
+    const required = u.isPlayer || Math.min(d, pd) <= realNear();
     const named = u.look && (isNamed(u.look) || u.type === 'busho');   // 武将（名の無い侍大将も）
     // 六十メートルの外だけ、画質に応じた範囲で武将を残す。
     const lim = u.isPlayer ? 1e9 : named ? (S.quality === 'low' ? 26 : Math.max(60, Q.far ?? HUM.far)) : Q.near;
@@ -5505,7 +5514,7 @@ function humansStep(rt, dt, army, cam) {
     if (!useHuman(u, u.isPlayer)) continue;   // 名のある武将は先に作る（並びの先頭）が、一コマの枠は守る（何人も一度に作って止まらないよう）
     const h = u.human;
     // 遠い人は軽い形（本人・名のある武将は替えない）。境目で行き来しないよう 1m の幅を持たせる
-    if (h.geoFar && !u.isPlayer && !named) setFar(h, !c.required && (c.dist > HUM.lod + (h.lodFar ? -1 : 0) || h.hiOK === false));
+    if (h.geoFar && !u.isPlayer && !named) setFar(h, (!c.required || c.dist > (S.quality === 'mid' ? 14 : S.quality === 'high' ? 20 : 1e9) - (h.lodFar ? 1 : 0)) && (c.dist > HUM.lod + (h.lodFar ? -1 : 0) || h.hiOK === false));   // 60m の内の本物の兵も、高は 20m・中は 14m より先は体ごと一つの軽い形（描く回数を減らす）
     if (!u.alive) h.deadAge = (h.deadAge || 0) + dt; else h.still = false;
     if (u.death?.aid) h.still = false;
     // 武器の握りは毎コマ（動きを間引く人でも、武器が units.js の所へ跳ねないよう）
@@ -5530,7 +5539,7 @@ function humansStep(rt, dt, army, cam) {
     // 影は近くの人だけ（HUM.shadow より先は描かない。切り替わった時だけ辿る。元から影を落とさない物は戻さない）
     //   人一人の影は体と具足で一万五千の三角＝影の描き込みの大半。先の足もとは接地の影（仕上げ）で足りる
     const noSh = !u.isPlayer && !named && d > HUM.shadow + (h.noSh ? -1 : 0);
-    if (h.noSh !== noSh) { h.noSh = noSh; h.root.traverse((o) => { if (!o.isMesh) return; if (o.userData.cs0 === undefined) o.userData.cs0 = o.castShadow; o.castShadow = !noSh && o.userData.cs0; }); }
+    if (h.noSh !== noSh) { h.noSh = noSh; h.root.traverse((o) => { if (!o.isMesh) return; if (o.userData.cs0 === undefined) o.userData.cs0 = o.castShadow && !o.userData.teeth; o.castShadow = !noSh && o.userData.cs0; }); }
     h.near = named || d < HUM.fine;
     h.mwHold = false;
     driveHuman(h, step, u.isPlayer || named || d < HUM.fine, true);
@@ -5595,7 +5604,7 @@ export async function primeHumans(rt, renderer, camera, cap = 40, chunk = 1, cur
   close.sort((a, b) => distance(a) - distance(b));
   for (const u of close) {
     if (picked.length >= cap) break;
-    if (distance(u) <= ARMY_REAL_NEAR) picked.push(u);
+    if (distance(u) <= realNear()) picked.push(u);
   }
   let made = 0;
   const began = performance.now();

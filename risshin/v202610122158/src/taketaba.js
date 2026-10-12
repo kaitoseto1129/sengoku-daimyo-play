@@ -22,14 +22,15 @@ function paint(geo, hex) {
   return g;
 }
 
-let TABA_GEO = null, TABA_MAT = null;
+let TABA_GEO = null, TABA_NIGHT_GEO = null, TABA_MAT = null;
 // 竹束：青竹を束ねて縄で縛った楯（原点に、前 = -z を向けて作る。動かすので一つずつの形）
-export function tabaGeo() {
-  if (TABA_GEO) return TABA_GEO;
+export function tabaGeo(night = false) {
+  if (night ? TABA_NIGHT_GEO : TABA_GEO) return night ? TABA_NIGHT_GEO : TABA_GEO;
   const P = [];
   // 青竹を前後二列に詰めて束ねる（一列の板のようで安く見えた。10/2）。竹ごとに太さ・高さ・色を少し変え、節の輪を付ける
-  const COL = [0x8a8a4c, 0x7a7c42, 0x96904e, 0x6e7040, 0x868244];
-  const lean = 0.2, tilt = (y) => [y * Math.sin(lean), y * Math.cos(lean)];
+  const COL = night ? [0x596b60, 0x526458, 0x706d60, 0x4f6057, 0x65695c] : [0x8a8a4c, 0x7a7c42, 0x96904e, 0x6e7040, 0x868244];
+  // 筒を傾けた時と同じ向きに節と縄を置く。逆向きだと筒から離れ、平らな札に見える。
+  const lean = 0.2, tilt = (y) => [-y * Math.sin(lean), y * Math.cos(lean)];
   for (let row = 0; row < 2; row++) {
     const n = row ? 10 : 11;
     for (let i = 0; i < n; i++) {
@@ -43,15 +44,17 @@ export function tabaGeo() {
         if (y > L - 0.1) break;
         const nd = new THREE.CylinderGeometry(r * 1.08, r * 1.08, 0.025, 7); const [dz, dy] = tilt(y);
         nd.rotateX(lean); nd.translate(x, dy + 0.02, z + dz);
-        P.push(paint(nd, 0x5e5a30));
+        P.push(paint(nd, night ? 0x3e4d43 : 0x5e5a30));
       }
     }
   }
   // 縄：束を三か所で巻く（藁縄の色）
-  for (const yy of [0.45, 1.05, 1.65]) { const [dz, dy] = tilt(yy); const b = new THREE.BoxGeometry(1.82, 0.06, 0.42); b.rotateX(lean); b.translate(0, dy, -0.15 + dz); P.push(paint(b, 0x8a744a)); }
+  for (const yy of [0.45, 1.05, 1.65]) { const [dz, dy] = tilt(yy); const b = new THREE.BoxGeometry(1.82, 0.06, 0.42); b.rotateX(lean); b.translate(0, dy, -0.15 + dz); P.push(paint(b, night ? 0x62594b : 0x8a744a)); }
   const s = new THREE.CylinderGeometry(0.05, 0.05, 1.9, 5); s.rotateX(-0.7); s.translate(0, 0.7, 0.45); P.push(paint(s, 0x5a4a32));
-  TABA_GEO = mergeGeometries(P);
-  return TABA_GEO;
+  const geo = mergeGeometries(P);
+  if (night) TABA_NIGHT_GEO = geo;
+  else TABA_GEO = geo;
+  return geo;
 }
 export function tabaMat() {
   if (!TABA_MAT) TABA_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, map: woodTex(), roughness: 0.9, metalness: 0 });

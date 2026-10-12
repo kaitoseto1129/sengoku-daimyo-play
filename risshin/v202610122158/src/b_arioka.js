@@ -40,7 +40,9 @@ const ARIOKA_BATTLE_PLAN = ARIOKA_PLAN;
 const ARI_BOX = new THREE.BoxGeometry(1, 1, 1);
 const ARI_ROCK = new THREE.DodecahedronGeometry(1, 0);
 const ARI_STONE = new THREE.MeshLambertMaterial({ color: 0x817d6d });
-const ARI_EARTH = new THREE.MeshLambertMaterial({ color: 0x514432, side: THREE.DoubleSide });
+// 土橋と土塁は夜の地面に近い灰褐色。空の弱い光を補い、黒い板にしない。
+const ARI_EARTH = new THREE.MeshLambertMaterial({ color: 0x8c8170, emissive: 0x302a22,
+  emissiveIntensity: .18, side: THREE.DoubleSide });
 const ARI_WOOD = new THREE.MeshLambertMaterial({ color: 0x57412c });
 const ARI_CHAR = new THREE.MeshLambertMaterial({ color: 0x3e342b });
 let ariRuinRoofMat;
@@ -462,8 +464,10 @@ function ariStreetDress(rt) {
     place(glow, disk, x, floor(x, z) + .05, z, 1.8, 1, 1.4);
   }
   // 外縁を土へ溶かし、二本の轍を色の凹みで示す。面や毎コマの処理は増やさない。
-  const roadMat = new THREE.MeshLambertMaterial({ color: 0x79634b, map: dirtTex(), side: THREE.DoubleSide,
-    transparent: true, depthWrite: false });
+  // 土の絵と暗い塗り色を掛けた不透明な帯をやめ、下の地面の色を残す。
+  const roadMat = new THREE.MeshLambertMaterial({ color: 0xb7afa0, map: dirtTex(), side: THREE.DoubleSide,
+    transparent: true, opacity: .22, depthWrite: false, polygonOffset: true,
+    polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
   roadMat.onBeforeCompile = (sh) => {
     sh.vertexShader = 'attribute vec2 ariStreet; varying vec2 vAriStreet;\n' + sh.vertexShader;
     sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvAriStreet = ariStreet;');
@@ -472,7 +476,7 @@ function ariStreetDress(rt) {
       float ariEdge = abs(vAriStreet.x) + sin(vAriStreet.y * 3.1) * 0.045;
       diffuseColor.a *= 1.0 - smoothstep(0.72, 1.0, ariEdge);
       float rut = 1.0 - smoothstep(0.035, 0.09, abs(abs(vAriStreet.x + sin(vAriStreet.y * 0.6) * 0.025) - 0.42));
-      diffuseColor.rgb *= 1.0 - rut * (0.22 + 0.12 * sin(vAriStreet.y * 1.7));`);
+      diffuseColor.rgb *= 1.0 - rut * (0.1 + 0.04 * sin(vAriStreet.y * 1.7));`);
   };
   roadMat.customProgramCacheKey = () => 'arioka-street';
   const mats = [
@@ -486,7 +490,10 @@ function ariStreetDress(rt) {
     // 平面の頂点番号を外し、他の形と同じ形式でまとめる。
     const flat = parts.map((g) => g.index ? g.toNonIndexed() : g);
     const mesh = new THREE.Mesh(mergeGeometries(flat), mats[i]);
-    mesh.receiveShadow = i === 0; rt.scene.add(mesh);
+    // 影は下の地面で受ける。土の重ね面でも受けると影が二重に濃くなる。
+    mesh.receiveShadow = false;
+    mesh.renderOrder = i === 0 ? 1 : i === 1 ? 2 : i === 4 ? 3 : 0;
+    rt.scene.add(mesh);
     for (const g of flat) g.dispose();
     for (const g of parts) if (!flat.includes(g)) g.dispose();
   });
@@ -775,7 +782,8 @@ const arioka = {
       }
       for (const [parts, mat] of [[stone, ARI_STONE], [earth, ARI_EARTH], [wood, ARI_WOOD]]) {
         const g = mergeGeometries(parts), mesh = new THREE.Mesh(g, mat);
-        mesh.receiveShadow = true; mesh.castShadow = true; rt.scene.add(mesh);
+        // 土橋の薄い床自身の影を地面へ重ねない。歩く床と厚みは保つ。
+        mesh.receiveShadow = true; mesh.castShadow = mat !== ARI_EARTH; rt.scene.add(mesh);
         for (const part of parts) part.dispose();
       }
     }

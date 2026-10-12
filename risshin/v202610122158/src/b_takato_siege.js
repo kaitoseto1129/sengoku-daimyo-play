@@ -9,7 +9,6 @@
 // ======================================================================
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { rockShape } from './rock_shape.js';
 import { yamaLift } from './yamalift.js';
 import { RANKS } from './state.js';
 import { sfx } from './audio.js';
@@ -269,11 +268,28 @@ function takatoSpring(rt) {
 // 岩・枯れ草・踏み跡は準備時にまとめる。兵の当たりや通り道は増やさない。
 function takatoGround(rt) {
   const pose = new THREE.Object3D(), color = new THREE.Color();
-  // 共通の岩の割れ・灰褐色・苔と土汚れを使い、白い丸い塊に見せない。
-  // 準備時に一つだけ作り、百二十個で形と材質を使い回す。
-  const rockGeo = rockShape();
+  // 高遠だけ角を丸め、地面に近い茶色にする。形は全ての岩で共用する。
+  const rockGeo = new THREE.SphereGeometry(1, 8, 6);
+  for (const mesh of rt.scene.children) {
+    // 共通の地形が置いた岩も同じ形と色にする。配置や当たりは変えない。
+    if (!mesh.isInstancedMesh || mesh.geometry.type !== 'IcosahedronGeometry'
+        || !mesh.material.bumpMap || mesh.material.map) continue;
+    mesh.geometry.dispose(); mesh.geometry = rockGeo;
+    mesh.material.color.setHex(0x978369);
+  }
+  // 冬も葉の残る杉・松・竹だけを補正する。幹や落葉した枝はそのまま。
+  for (const mesh of rt.world.treeMeshes || []) {
+    if (!mesh.material.alphaTest || !mesh.material.vertexColors) continue;
+    for (let i = 0; i < mesh.count; i++) {
+      color.setRGB(.82, 1, .76); mesh.setColorAt(i, color);
+    }
+    mesh.instanceColor.needsUpdate = true;
+    // 暗い葉の絵と陰が重なっても、黒い塊にならない最低限の緑を残す。
+    mesh.material.emissive.setHex(0x26391f);
+    mesh.material.emissiveIntensity = .35;
+  }
   const rock = new THREE.InstancedMesh(rockGeo,
-    new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true }), 120);
+    new THREE.MeshLambertMaterial({ color: 0x978369 }), 120);
   // 五本の細い葉で枯れ草を作る。三角錐にせず、早春の芽を少しだけ混ぜる。
   const blades = [];
   for (let i = 0; i < 5; i++) {

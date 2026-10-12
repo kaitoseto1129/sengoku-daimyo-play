@@ -124,8 +124,7 @@ function retreatNotices(rt) {
   layout.textContent = `
     #hud.kg-retreat #battle-notices #subtitle,
     #hud.kg-retreat #battle-notices #banner,
-    #hud.kg-retreat #battle-notices .battle-notice,
-    #hud.kg-retreat #objectives:not(.expand) li.cur {
+    #hud.kg-retreat #battle-notices .battle-notice {
       white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
       font-size:max(15px, calc(15px * var(--text-scale, 1))); line-height:1.4;
     }
@@ -135,9 +134,17 @@ function retreatNotices(rt) {
     #hud.kg-retreat #battle-notices #banner small,
     #hud.kg-retreat #objectives:not(.expand) li :is(small,.opb),
     #hud.kg-retreat #objectives:not(.expand) li.more { display:none !important; }
-    #hud.kg-retreat #objectives:not(.expand) .obj-text,
-    #hud.kg-retreat #objectives:not(.expand) .obj-now {
-      white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
+    html:root body #hud.kg-retreat :is(#battle-notices,#choice-tasks) #objectives:not(.expand) li.cur {
+      white-space:normal !important; overflow:visible !important;
+      font-size:max(15px, calc(15px * var(--text-scale, 1))); line-height:1.4;
+    }
+    /* 低画質の一行指定より強くし、今の任務の本文を二行まで見せる。 */
+    html:root body #hud.kg-retreat :is(#battle-notices,#choice-tasks) #objectives:not(.expand) li.cur .obj-text {
+      display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2;
+      white-space:normal !important; overflow:hidden !important; overflow-wrap:anywhere;
+    }
+    html:root body #hud.kg-retreat :is(#battle-notices,#choice-tasks) #objectives:not(.expand) li.cur .obj-now {
+      white-space:normal !important;
     }
     .battle-retry.kg-retry {
       display:flex; flex-direction:column; gap:8px;
@@ -639,6 +646,7 @@ const kanegasaki = {
   botOrders: true,
   latestPhaseBanner: true, // 古い寄せの知らせより、今の退く下知を先に出す。
   noticeLimit: 2, // 任務一枠と台詞一枠。乱戦で知らせを三枚重ねない。
+  pacingWait: rt => !!rt.flags.fleeing, // 最後の退却は時間切れにせず、残兵との合流で終える。
   guideMarker: rt => rt.G.lord || rt.flags.fleeing ? 'kutsuki'
     : rt.flags.step === 2 || rt.flags.step === 4 ? 'line' : rt.flags.dpOn ? 'dp' : 'holdLine',
   botEvacuating: (rt) => !!rt.flags.fleeing || rt.G.lord || rt.flags.step === 2 || rt.flags.step === 4,

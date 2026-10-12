@@ -37,6 +37,8 @@ function enemyPacingTick(rt) {
 export function battlePacingTick(rt) {
   if (rt.over || rt.def.dojo || rt.def.town || !rt.player.u.alive || rt.retryOpen) return;
   enemyPacingTick(rt);
+  // 退き口への合流など、戦固有の終わりを待つ任務は時間で打ち切らない。
+  if (rt.def.pacingWait?.(rt)) return;
   if (rt.t >= 440 && !rt.pacingWarned) {
     rt.pacingWarned = true;
     rt.say('組頭', 'いつまでも寄せられぬ。今の任務を急げ。間に合わねば退くぞ', 4);

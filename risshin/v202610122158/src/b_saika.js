@@ -391,6 +391,12 @@ const saika = {
     rt.hud = new Proxy(hud, { get(target, key, receiver) {
       return key === 'say' ? limitedSay : key === 'bark' ? limitedBark : Reflect.get(target, key, receiver);
     } });
+    // 不透明な水面の裏は描かない。川底から見た暗い面で地面や兵を覆わせない。
+    // 上向きの面と水深の判定は残し、杭抜き・渡河の足場を変えない。
+    for (const st of W.def.streams) {
+      st.mesh.material.side = THREE.FrontSide;
+      st.mesh.material.needsUpdate = true;
+    }
     // 川の色・影・流れは共通の水処理に任せ、白くする上書きや水面の重ね描きをしない。
     const surfaceY = (x, z) => W.heightAt(x, z) + W.waterDepthAt(x, z) + 0.035;
     // 葦は一つの形と材質でまとめ、岸の通り道と中央の渡り口を空ける。

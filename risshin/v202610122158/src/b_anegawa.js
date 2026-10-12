@@ -524,7 +524,7 @@ function anegawaTask(rt) {
     if (Math.hypot(e.pos.x - P.pos.x, e.pos.z - P.pos.z) < 25) near++;
   }
   // 傷の境目で札を行ったり来たりさせない。近くの敵の人数でも文を替えない。
-  if (P.hp < P.maxHp * 0.4) F.taskHurt = true;
+  if (P.hp < P.maxHp * 0.5) F.taskHurt = true;
   else if (P.hp > P.maxHp * 0.55) F.taskHurt = false;
   const east = F.step === 1 && F.flankPick === 0 && !F.flankDone;
   const text = F.taskHurt ? '味方の槍の後ろへ下がれ' : F.step === 2 ? '森の備と浅い瀬を渡り、しんがりを追え' :
@@ -646,6 +646,37 @@ const ANEGAWA_JIN = [
   ], '朝倉八千は信長公記の目安。三田村氏館と各手の配分は復元。'),
 ];
 
+// 半分を切った知らせは一戦に一度。傷や勝敗は変えず、実際の味方の後ろへ案内する。
+function anegawaRetreatGuide(rt) {
+  const F = rt.flags, P = rt.player.u;
+  if (!F.retreatWarned && P.hp > 0 && P.hp < P.maxHp * 0.5) {
+    F.retreatWarned = true; F.retreatGuiding = true;
+    F.retreatPos = { x: P.pos.x, z: P.pos.z };
+    F.taskAt = 0; F.taskChangedAt = -10;
+    rt.marker('hurtRetreat', () => F.retreatGuiding ? F.retreatPos : null, '味方の列の後ろ', { h: 2 });
+    // 混戦の声の八秒待ちと台詞の待ち列に入れず、短い字幕を先に知らせる。
+    rt.hud.say('組頭', '味方の列へ下がれ', 5, true);
+  }
+  if (!F.retreatGuiding) return;
+  if (P.hp > P.maxHp * 0.55) {
+    F.retreatGuiding = false; rt.unmark('hurtRetreat'); return;
+  }
+  if (rt.t < (F.retreatScanAt ?? -1)) return;
+  F.retreatScanAt = rt.t + 0.5;
+  let best = null, score = Infinity;
+  for (const a of rt.army.units) {
+    if (a === P || !a.alive || a.team !== P.team || a.isStruct || a.noTarget || a.mounted || a.fleeing ||
+        a.woundOut || a.rearWound || a.downed || a.dropped || a.group?.routed || a.type === 'gun' || a.type === 'bow') continue;
+    // 敵へ進む印にしない。列の南側を選び、その槍の四歩後ろへ下がる。
+    const z = a.pos.z + 4;
+    if (z < P.pos.z + 1 || F.step < 2 && z < BANK_N) continue;
+    const d = Math.hypot(a.pos.x - P.pos.x, z - P.pos.z);
+    if (d < score) { score = d; best = a; }
+  }
+  const pos = F.retreatPos;
+  pos.x = best ? best.pos.x : F.step === 2 ? 24 : (F.holdAt || POST).x;
+  pos.z = best ? best.pos.z + 4 : F.step === 2 ? -18 : (F.holdAt || POST).z + 6;
+}
 const anegawa = {
   jinkei: ANEGAWA_JIN,
   softOpen: 0,   // 開戦直後も傷を軽くしない
@@ -657,7 +688,7 @@ const anegawa = {
   noDespair: true, // 遠い山の大軍ではなく、目の前の川と浅井の旗から始める。
   sideTaskAfter: Infinity, // 常に主の下知一件を案内し、渡河禁止の札と入れ替えない。
   noAllyReports: true, // 遠い森の独り言を復唱せず、姉川固有の戦況を使番が運ぶ。
-  guideMarker: (rt) => rt.flags.hqThreat ? 'hqGuard' : rt.flags.step === 2 ? (rt.flags.fordMarked ? 'ford' : 'pursuitPost') :
+  guideMarker: (rt) => rt.flags.retreatGuiding ? 'hurtRetreat' : rt.flags.hqThreat ? 'hqGuard' : rt.flags.step === 2 ? (rt.flags.fordMarked ? 'ford' : 'pursuitPost') :
     rt.flags.flankPick === 0 && !rt.flags.flankDone ? 'eastPost' : 'stop',
   botOrders: true, // 持ち場と反撃の判断を、性格の突進・構え直しで上書きしない。
   // 列や建物の当たりを残し、組の脇の空いた所から始める。
@@ -810,14 +841,14 @@ const anegawa = {
     for (const u of F.hqCamp.guard.units) { u.pos.z -= 25; u.pos.y = W.heightAt(u.pos.x, u.pos.z); }
     rt.scene.add(nobori(W, HQ.x - 12, HQ.z + 4, 'eiraku', 7));
     for (const [x, z] of [[8, 38], [34, 38], [-14, 36], [56, 36], [16, 18], [28, 18]]) rt.scene.add(nobori(W, x, z, z < 25 ? 'oda' : (x > 40 ? 'eiraku' : 'oda'), 5));
-    rt.scene.add(tawara(W, 30, 60, 0.3, 5), hut(W, 60, 96, 7, 5, 0.2));
+    rt.scene.add(tawara(W, 30, 60, 0.3, 5), hut(W, 60, 96, 7, 5, 0.2, { wall: 0xa58d6e, minka: false, groundedHome: true }));
     // 向こう岸の浅井の旗
     for (const [x, z] of [[4, -30], [26, -34], [44, -28], [60, -40]]) rt.scene.add(nobori(W, x, z, 'azai', 5.5));
     for (const [x, z] of [[-162, -18], [-176, -22], [-190, -18]]) rt.scene.add(nobori(W, x, z, 'asakura', 5.5));
     mitamuraYakata(rt);
     for (const [x, z] of [[MITAMURA.x - 18, MITAMURA.z - 2], [MITAMURA.x + 20, MITAMURA.z + 10]]) rt.scene.add(nobori(W, x, z, 'asakura', 5));
     // 遠景の村（川の南の田の中）
-    KIT.farVillage(rt, -80, 112, { rot: Math.PI, n: 6, fields: 10, seed: 41 });
+    KIT.farVillage(rt, -80, 112, { rot: Math.PI, n: 6, fields: 10, seed: 41, groundedHomes: true });
 
     // ---- 大軍（軽い作り）：織田の縦備え、徳川は西の瀬、北に浅井と朝倉 ----
     const DA = (x, z, w, d, count, facing, armor, flag, seed, kind) => {
@@ -1264,6 +1295,7 @@ const anegawa = {
     KIT.backTick(rt);
     if (F.ending || rt.over || !rt.player.u.alive) return;
     const player = rt.player, u = player.u;
+    anegawaRetreatGuide(rt);
     coverRetreat(rt);
     anegawaTask(rt);
     if (u.alive && F.step === 1 && (u.mobbed || u.hp < u.maxHp * 0.55) &&
@@ -1398,6 +1430,7 @@ const anegawa = {
     const F = rt.flags;
     if (F.ending || rt.over) return;
     F.ending = true; rt.tracker.main = false;
+    F.retreatGuiding = false; rt.unmark('hurtRetreat');
     // 持ち場を破った敵は、その場で整列して止まらず、奥へ押し寄せる。
     for (const g of F.waves) if (g && !gone(g)) {
       g.order = 'move'; g.dest = { x: HQ.x, z: HQ.z - 12 };
@@ -1416,6 +1449,7 @@ const anegawa = {
   ending(rt, shortPursuit = false) {
     const F = rt.flags;
     F.ending = true;
+    F.retreatGuiding = false; rt.unmark('hurtRetreat');
     rt.objDone('main'); rt.objRemove('mori'); rt.objRemove('stay');
     for (const id of ['iso', 'flank', 'eastPost', 'third', 'rear', 'stop', 'sakai', 'ford', 'pursuitPost', 'hqGuard', 'river']) rt.unmark(id);
     rt.banner('浅井・朝倉、退く', shortPursuit ? '追い討ちはここまで。組を集めよ' : '姉川の戦、終わる');

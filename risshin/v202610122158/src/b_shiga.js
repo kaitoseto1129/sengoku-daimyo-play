@@ -403,13 +403,23 @@ function dressShigaRoad(rt) {
   road.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   const surface = new THREE.Mesh(road, new THREE.MeshLambertMaterial({ map: shigaRoadTextures().soil, side: THREE.DoubleSide }));
   surface.receiveShadow = true; rt.scene.add(surface);
+  // 七本の細い葉を一株にまとめ、円錐の塊にせず草むらとして使い回す。
+  const blades = [], grass = new THREE.BufferGeometry();
+  for (let i = 0; i < 7; i++) {
+    const a = i * 2.4, x = Math.sin(a) * .3, z = Math.cos(a) * .3;
+    const w = .055, top = .12 + (i % 3) * .16;
+    blades.push(x - Math.cos(a) * w, -.5, z - Math.sin(a) * w,
+      x + Math.cos(a) * w, -.5, z + Math.sin(a) * w,
+      x + Math.sin(a) * .14, top, z + Math.cos(a) * .14);
+  }
+  grass.setAttribute('position', new THREE.Float32BufferAttribute(blades, 3)); grass.computeVertexNormals();
   const pose = new THREE.Object3D();
   for (const [kind, geo, color] of [
-    ['grass', new THREE.ConeGeometry(.5, 1, 5), 0x627344],
+    ['grass', grass, 0x627344],
     ['rocks', new THREE.DodecahedronGeometry(.5, 0), 0x7b7b6b],
     ['stones', new THREE.DodecahedronGeometry(.6, 0), 0x777264],
   ]) {
-    const mesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ color }), parts[kind].length);
+    const mesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ color, side: kind === 'grass' ? THREE.DoubleSide : THREE.FrontSide }), parts[kind].length);
     parts[kind].forEach((p, i) => {
       pose.position.set(p.x, p.y, p.z);
       pose.rotation.set(kind === 'stones' ? Math.sin(i * 2.4) * .25 : 0, p.turn, kind === 'stones' ? Math.cos(i * 1.7) * .2 : 0);
@@ -721,7 +731,7 @@ const shiga = {
     const roles = [
       ['朝倉の先手', ASA, 22, -42, 20], ['朝倉の二の手', ASA, 44, -68, 12],
       ['正面から押す朝倉勢', ASA, 24, -110, 8], ['山側から押す浅井勢', AZA, -35, -80, 8],
-      ['浅井の手', AZA, -24, -104, 10], ['追いすがる浅井勢', AZA, 22, -36, 6],
+      ['浅井の手', AZA, -24, -104, 10], ['追いすがる浅井勢', AZA, 22, -36, 3],
       // 山側の控えは初めから大手道に置く。北から全ての折り返しを歩くと籠城に間に合わない。
       ['城へ寄せる朝倉勢', ASA, -115, 30, 10], ['城へ寄せる浅井勢', AZA, -55, 20, 10],
       ['朝倉の新手', ASA, -115, 10, 10], ['木戸へ迫る最後の寄せ手', ASA, -55, 0, 8],
@@ -965,7 +975,7 @@ const shiga = {
       if (F.step !== 2) return;
       // 追手は自分の背（町口の側）から出る。行く手の坂道の上には出さない
       F.chase = enemyGroup(rt, { faction: 'azai', name: '追いすがる浅井勢', anchor: { x: 22, z: -36 }, facing: 0, order: 'attack', seekRange: 60, aggro: 12, width: 3, morale: 55, fleeDir: { x: 0, z: -1 }, speed: 2.4 },
-        dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }], AZA));
+        dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 2 }], AZA));
       F.chase.aggro = 2; F.chase.fire = false; F.chase.roadColumn = true; F.chase.formation = 'column'; F.chase.colW = 1;
       F.chase.order = 'path'; F.chase.path = [[F.chase.anchor.x, F.chase.anchor.z], ...ROAD.slice(2, ROAD.findIndex(([x, z]) => x === GATE_OUT.x && z === GATE_OUT.z) + 1)]; F.chase.pathIdx = 0; F.chase.onArrive = (q) => { q.order = 'attack'; };
       rt.marker('chase', centerOf(F.chase), () => `追手`, { red: true, group: F.chase });
@@ -981,7 +991,7 @@ const shiga = {
     F.step = 3; F.stepT = rt.t; F.retreating = false;
     rt.setPhase('siege');
     for (let i = 0; i < 4; i++) rt.after(8 + i * 30, () => { if (!F.ending) this.siegeMarch(rt, i); });
-    rt.unmark('usa'); rt.unzone('usa'); rt.unmark('w2'); rt.unmark('chase'); rt.objRemove('path');
+    rt.unmark('usa'); rt.unmark('slopeBack'); rt.unzone('usa'); rt.unmark('w2'); rt.unmark('chase'); rt.objRemove('path');
     if (F.chase && !gone(F.chase)) this.castleAdvance(rt, F.chase);
     for (const g of F.waves) if (!gone(g)) {
       g.fire = true;
@@ -1120,6 +1130,7 @@ const shiga = {
     F.campT = (F.campT || 0) - dt;
     if (F.campT <= 0) {
       F.campT = 0.5; this.tickCamps(rt);
+      this.slopeWarning(rt);
       // 槍が届く前の寄せを半秒ごとに拾う。木戸越しの敵は数えない。
       F.nearFoes = 0;
       if (F.step === 1.5 || F.step === 3 || F.step === 3.5) {
@@ -1234,6 +1245,46 @@ const shiga = {
       rt.unmark('hon');
       rt.say('武藤五郎右衛門', 'よう戻った。本丸の口で槍を揃えよ。ここなら寄せ手は横に広がれぬ', 3.5);
     }
+  },
+
+  // 坂で深手の包囲を受けた時だけ、道を通って味方へ戻る印を一度出す。
+  slopeWarning(rt) {
+    const F = rt.flags, u = rt.player.u;
+    if (F.step !== 2) return;
+    if (F.slopeAlly) {
+      const a = F.slopeAlly;
+      if (!a.alive || a.fleeing || a.woundOut || a.gone || Math.hypot(a.pos.x - u.pos.x, a.pos.z - u.pos.z) < 4) {
+        F.slopeAlly = null; rt.unmark('slopeBack');
+      }
+    }
+    if (F.slopeWarned || !u.mobbed || u.hp >= u.maxHp * .5) return;
+    const q = F.slopeRoad || (F.slopeRoad = { x: 0, z: 0, s: 0, d: 0 });
+    const aq = F.slopeAllyRoad || (F.slopeAllyRoad = { x: 0, z: 0, s: 0, d: 0 });
+    roadProjection(u.pos, q);
+    if (q.s < 2 || q.s >= ROAD_OUT || q.d > 4) return;
+    let best = Infinity, ally = null;
+    for (const a of rt.army.units) {
+      if (a === u || a.team !== u.team || !a.alive || a.isStruct || a.fleeing || a.woundOut || a.gone || a.noTarget) continue;
+      if (Math.hypot(a.pos.x - u.pos.x, a.pos.z - u.pos.z) < 4.5) continue;
+      roadProjection(a.pos, aq);
+      if (aq.d > 3 || aq.s < 2) continue;
+      const d = Math.abs(aq.s - q.s);
+      if (d < best) { best = d; ally = a; }
+    }
+    if (!ally) return;
+    F.slopeWarned = true; F.slopeAlly = ally;
+    F.slopePoint = { x: 0, z: 0 };
+    rt.marker('slopeBack', () => {
+      if (!F.slopeAlly || F.step !== 2) return null;
+      roadProjection(u.pos, q); roadProjection(F.slopeAlly.pos, aq);
+      // 折り返しを横切らず、味方へ通じる道の角を順に指す。
+      const i = aq.s >= q.s ? Math.floor(q.s + .08) + 1 : Math.ceil(q.s - .08) - 1;
+      const at = Math.abs(aq.s - q.s) < .5 ? F.slopeAlly.pos : null;
+      F.slopePoint.x = at ? at.x : ROAD[Math.max(0, Math.min(ROAD.length - 1, i))][0];
+      F.slopePoint.z = at ? at.z : ROAD[Math.max(0, Math.min(ROAD.length - 1, i))][1];
+      return F.slopePoint;
+    }, '味方の列へ下がれ', { h: 3, guidePriority: 500 });
+    rt.bark('味方の列へ下がれ', true);
   },
 
   // 落ちたままの待ちぼうけを避ける。傷は戻さず、敵前での引き上げもしない。
@@ -1633,6 +1684,28 @@ shiga.setup = function (rt) {
   };
   const player = rt.player, down = rt.playerDown, cameraUpdate = player.updateCamera;
   const fallenLook = new THREE.Vector3(), fallenFrom = new THREE.Vector3();
+  const slopeLook = new THREE.Vector3(), slopeFrom = new THREE.Vector3(), viewDir = new THREE.Vector3();
+  const maxSlope = Math.tan(Math.PI / 6);
+  const limitView = (camera, look) => {
+    const P = camera.position;
+    const dx = P.x - look.x, dz = P.z - look.z, r = Math.hypot(dx, dz);
+    if (P.y - look.y <= maxSlope * r) { camera.up.set(0, 1, 0); camera.lookAt(look); return; }
+    const nx = r > .01 ? dx / r : -Math.sin(player.yaw);
+    const nz = r > .01 ? dz / r : -Math.cos(player.yaw);
+    // 地肌に押し上げられた目線は、低い位置で手前へ引く。候補は六つだけ。
+    for (let i = 0; i < 6; i++) {
+      const d = 1.5 + i * 1.1, x = look.x + nx * d, z = look.z + nz * d;
+      const y = Math.max(look.y + .25, rt.world.heightAt(x, z) + .65);
+      if (y - look.y > maxSlope * d) continue;
+      slopeFrom.set(x, y, z);
+      if (player.camBlockHit(look, slopeFrom) !== null) continue;
+      P.copy(slopeFrom); break;
+    }
+    // 切岸や柵で引けない時も、縦だけ振って地面を見下ろさない。
+    const span = Math.hypot(P.x - look.x, P.z - look.z);
+    look.y = Math.max(look.y, P.y - maxSlope * span);
+    camera.up.set(0, 1, 0); camera.lookAt(look);
+  };
   let downView = false;
   const holdView = (camera) => {
     const u = player.u;
@@ -1643,8 +1716,9 @@ shiga.setup = function (rt) {
         fallenFrom.x = u.pos.x - Math.sin(player.yaw) * 5;
         fallenFrom.z = u.pos.z - Math.cos(player.yaw) * 5;
       }
-      fallenFrom.y = Math.max(fallenFrom.y, u.pos.y + 5, rt.world.heightAt(fallenFrom.x, fallenFrom.z) + 3);
+      fallenFrom.y = Math.max(u.pos.y + 2.6, rt.world.heightAt(fallenFrom.x, fallenFrom.z) + .65);
       fallenLook.set(u.pos.x, u.pos.y + .6, u.pos.z);
+      camera.position.copy(fallenFrom); limitView(camera, fallenLook); fallenFrom.copy(camera.position);
     }
     camera.position.copy(fallenFrom); camera.up.set(0, 1, 0); camera.lookAt(fallenLook);
   };
@@ -1659,7 +1733,17 @@ shiga.setup = function (rt) {
   };
   player.updateCamera = function (dt, camera) {
     if (!this.u.alive) { holdView(camera); return; }
-    downView = false; return cameraUpdate.call(this, dt, camera);
+    downView = false;
+    // 戦ごとの上限。共通処理が足す構えの振りも含めて三十度までにする。
+    this.pitch = Math.max(-Math.PI / 6 + .06, this.pitch);
+    const result = cameraUpdate.call(this, dt, camera);
+    camera.getWorldDirection(viewDir);
+    if (viewDir.y < -.5) {
+      slopeLook.set(this.u.pos.x, this.u.pos.y + 1.5, this.u.pos.z);
+      limitView(camera, slopeLook);
+      this.camPos.copy(camera.position);
+    }
+    return result;
   };
   shigaSetup.call(this, rt);
   const shapes = new WeakMap();

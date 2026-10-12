@@ -400,7 +400,7 @@ const shitaragahara = {
     const addDistantArmy = W.addDistantArmy.bind(W);
     W.addDistantArmy = (o) => {
       const h = addDistantArmy(o);
-      h.army.parts.shade.visible = false;
+      if (h.army?.parts?.shade) h.army.parts.shade.visible = false;   // 影の板は無い時もある（iw8c_ground_floaters 以後。無いと戦が始まらなかった）
       for (const m of h.children) if (m.isInstancedMesh) {
         const mat = m.material;
         if (mat.userData.shGrounded) continue;

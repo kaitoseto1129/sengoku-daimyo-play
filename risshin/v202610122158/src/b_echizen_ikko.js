@@ -225,7 +225,7 @@ function mountainColumn(b) {
   const L = b.light;
   if (!L) return;
   const A = L.army, P = A.parts, base = new Float32Array(A.n * 16);
-  const meshes = [P.body, P.flags, P.shade];
+  const meshes = [P.body, P.flags, P.shade].filter(Boolean);   // 影の板が無い隊もある（無いと毎コマ例外で戦が止まった）
   const m = new THREE.Matrix4(), turn = new THREE.Matrix4(), inv = new THREE.Matrix4(), p = new THREE.Vector3();
   let front = 0;
   for (let i = 0; i < A.n; i++) {

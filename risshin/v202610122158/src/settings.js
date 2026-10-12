@@ -234,9 +234,9 @@ export function markHint(id) { seen.add(id); try { localStorage.setItem(HINT_KEY
 export function resetHints() { seen.clear(); try { localStorage.removeItem(HINT_KEY); return true; } catch (e) { return false; } }
 
 export const QUALITY = {
-  low: { pixelRatio: 1, shadows: false, shadowMap: 1024, tufts: 0.35, trees: 0.6, shadowDist: 0 },
-  mid: { pixelRatio: 1.25, shadows: true, shadowMap: 1024, tufts: 0.7, trees: 0.85, shadowDist: 14 },
-  high: { pixelRatio: 1.5, shadows: true, shadowMap: 2048, tufts: 0.75, trees: 0.78, shadowDist: 16, bloom: true },
+  low: { pixelRatio: 1, shadows: false, shadowMap: 1024, tufts: 0.35, trees: 0.5, shadowDist: 0 },
+  mid: { pixelRatio: 1, shadows: true, shadowMap: 1024, tufts: 0.5, trees: 0.65, shadowDist: 14 },
+  high: { pixelRatio: 1.25, shadows: true, shadowMap: 2048, tufts: 0.75, trees: 0.8, shadowDist: 16, bloom: true },
 };
 
 export const DIFFICULTY = {

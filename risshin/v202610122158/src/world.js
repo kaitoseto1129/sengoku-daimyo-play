@@ -5508,7 +5508,7 @@ export class World {
   }
   lodTwin(mesh, armor, mid = true, xg = null) {
     const gx = (xg || soldierGeo(armor, 'xlo')).clone(), g = !mid ? mesh.geometry : xg ? gx : soldierGeo(armor, 'lo').clone();
-    const gxx = xg ? gx : soldierGeo(armor, SETTINGS.quality === 'low' ? 'x3lo' : 'xxlo').clone();
+    const gxx = xg ? gx : soldierGeo(armor, 'x3lo').clone();
     for (const k in mesh.geometry.attributes) { const at = mesh.geometry.attributes[k]; if (at.isInstancedBufferAttribute) { if (g !== mesh.geometry) g.setAttribute(k, at); gx.setAttribute(k, at); gxx.setAttribute(k, at); } }
     mesh.userData.lod = { hi: mesh.geometry, lo: g, xlo: gx, xxlo: gxx, n: -1, far: false, lv: -1 };   // lv -1：最初の lodTick で必ず形を選び直す（0 のままだと、低で大きな塊が軽い形になるはずが、遠い塊になるまで 94 面のままだった）
     (this.lodList || (this.lodList = [])).push(mesh);
@@ -5623,13 +5623,16 @@ export class World {
       _lodV.copy(m.boundingSphere.center).applyMatrix4(m.matrixWorld);
       // 隊のいちばん近い端で測る。低でも近い兵は立体の形を保つ。
       const q = SETTINGS.quality === 'low' ? 2 : 1;
-      const dc = Math.hypot(_lodV.x - cx, _lodV.z - cz), d = Math.max(0, dc - m.boundingSphere.radius), h2 = L.lv >= 2 ? 5 : 0;
+      const mid = SETTINGS.quality === 'mid';   // 中は高より近くから軽い形へ（画質の差を本当に付ける）
+      // 隊の長さの全部を「いちばん近い端」で測ると、長い隊が丸ごと細かい形になる（姉川）。中心から半径の半分手前で測る
+      const dc = Math.hypot(_lodV.x - cx, _lodV.z - cz), d = Math.max(0, dc - m.boundingSphere.radius * (q > 1 || mid ? 0.35 : 0.5)), h2 = L.lv >= 2 ? 5 : 0;
       //   3：塊のいちばん近い端が 100m より先は、さらに遠い形
       // 携帯では十八メートルより先の隊を、顔・袖・兜・得物を残した軽い立体へ。
       // 姉川の三つの前線を、三十八メートルまで一斉に細かな形で描いていた。
-      const near = q > 1 ? (L.lv >= 1 ? 16 : 18) : (L.lv >= 1 ? 32 : 38);
+      // 本物の兵に替わる 36〜44m の内は、軽い兵を描かない（シェーダーで外す）ので、細かい形はほぼ要らない
+      const near = q > 1 ? (L.lv >= 1 ? 16 : 18) : mid ? (L.lv >= 1 ? 9 : 11) : (L.lv >= 1 ? 12 : 15);
       //   六十メートルの内は、携帯でも腕・袖・笠の形のある形（棒の形に落とさない。10/7 kaito「棒人間」）
-      const lv = d > (L.lv === 3 ? 92 : 100) ? 3 : d > (q > 1 ? 60 : 50) - h2 ? 2 : d > near ? 1 : 0;
+      const lv = d > (L.lv === 3 ? (mid ? 58 : 72) : (mid ? 64 : 78)) ? 3 : d > (q > 1 ? 60 : mid ? 40 : 46) - h2 ? 2 : d > near ? 1 : 0;
       if (lv !== L.lv) { L.lv = lv; L.far = lv > 0; m.geometry = lv === 3 ? L.xxlo : lv === 2 ? L.xlo : lv ? L.lo : L.hi; }
     }
   }

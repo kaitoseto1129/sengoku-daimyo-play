@@ -487,10 +487,23 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
       // 斜面に建つ時：柱の下の地面が低ければ、束（床下の柱）を地面まで下ろして根石を置く（宙に浮いた小屋にしない）
       const wxp = x + px * Math.cos(rot) + pz * Math.sin(rot), wzp = z - px * Math.sin(rot) + pz * Math.cos(rot), gy = world.heightAt(wxp, wzp) - y;
       if (gy < -0.15) box(vary(postHex, Math.round(u * 5) + k), px, gy / 2, pz, 0.18, -gy + 0.1, 0.18);
-      if (!lo) { const st = new THREE.DodecahedronGeometry(0.2, 0); st.scale(1.3, 0.5, 1.3); st.translate(px, Math.min(0, gy), pz); parts.push(flat(st, vary(0x7d786c, Math.round(u * 13)))); }
+      if (!lo || o.groundedHome) { const st = new THREE.DodecahedronGeometry(0.2, 0); st.scale(1.3, 0.5, 1.3); st.translate(px, Math.min(0, gy), pz); parts.push(flat(st, vary(0x7d786c, Math.round(u * 13)))); }
     }
     // 土台（柱の根を結ぶ横木）と、軒の桁
     box(sillHex, ax + tx * len / 2, 0.14, az + tz * len / 2, len + 0.1, 0.2, 0.18, ry);
+    if (o.groundedHome) {
+      // 低い画質でも石の土台を残す。斜面の低い端まで下ろして隙間を塞ぐ。
+      let bottom = 0;
+      for (const u of [0, len / 2, len]) {
+        const px = ax + tx * u, pz = az + tz * u;
+        bottom = Math.min(bottom, world.heightAt(x + px * Math.cos(rot) + pz * Math.sin(rot), z - px * Math.sin(rot) + pz * Math.cos(rot)) - y);
+      }
+      box(0x918878, ax + tx * len / 2, (bottom + 0.18) / 2, az + tz * len / 2, len + 0.12, 0.18 - bottom + 0.12, 0.26, ry);
+      if (!front) {
+        box(0x453d30, ax + tx * len / 2, 1.5, az + tz * len / 2, 0.85, 0.65, 0.1, ry);
+        for (const offset of [-0.3, 0, 0.3]) box(0xaa9575, ax + tx * (len / 2 + offset), 1.5, az + tz * (len / 2 + offset), 0.06, 0.7, 0.13, ry);
+      }
+    }
     box(0x4c3e30, ax + tx * len / 2, H - 0.05, az + tz * len / 2, len + 0.24, 0.2, 0.2, ry);
     if (!lo) box(0x4c3e30, ax + tx * len / 2, H * 0.55, az + tz * len / 2, len, 0.1, 0.1, ry);   // 貫（壁の中ほどの横木）
   }
@@ -563,6 +576,10 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
     return null;
   }
   const m = merged(parts);
+  if (o.groundedHome) {
+    // 土壁の明るさを板の絵で潰さない。姉川の近景の家だけに使う。
+    m.material = liteMat({ vertexColors: true, roughness: 0.9 });
+  }
   const roof = new THREE.Mesh(roofGeo, roofMat);
   roof.userData.camBlock = true;
   roof.castShadow = true; roof.receiveShadow = true;
@@ -1279,15 +1296,36 @@ export function village(world, x, z, o = {}) {
   const roofMats = [];
   spots.forEach(([lx, lz], i) => {
     const [hx, hz] = W(lx, lz);
-    const y = world.heightAt(hx, hz);
+    let y = world.heightAt(hx, hz);
     const hw = 3.2 + R() * 1.6, hd = 2.4 + R() * 0.8, H = 2.1, rh = 3.2 + R() * 0.8, e = 0.9;
     const ry = rot + (R() < 0.5 ? 0 : Math.PI / 2) + (R() - 0.5) * 0.3;
+    if (o.groundedHomes) for (const px of [-hw, 0, hw]) for (const pz of [-hd, 0, hd])
+      y = Math.max(y, world.heightAt(hx + px * Math.cos(ry) + pz * Math.sin(ry), hz - px * Math.sin(ry) + pz * Math.cos(ry)));
     const place = (g) => { g.rotateY(ry); g.translate(hx, y, hz); return g; };
     solidRect(hx, hz, hw * 2 + 0.3, hd * 2 + 0.3, ry);
     // 壁：下は板、上は土壁。戸口の暗がり
     const wall = new THREE.BoxGeometry(hw * 2, H, hd * 2); wall.translate(0, H / 2, 0); walls.push(paint(place(wall), vary(0x6e5a42, i)));
     const band = new THREE.BoxGeometry(hw * 2 + 0.04, 0.7, hd * 2 + 0.04); band.translate(0, H - 0.5, 0); walls.push(paint(place(band), vary(0xa89878, i + 3)));
-    const door = new THREE.BoxGeometry(1.6, 1.7, 0.05); door.translate(-hw * 0.3, 0.85, hd + 0.02); walls.push(paint(place(door), 0x16120e));
+    const door = new THREE.BoxGeometry(1.6, 1.7, 0.05); door.translate(-hw * 0.3, 0.85, hd + 0.02); walls.push(paint(place(door), o.groundedHomes ? 0x9a8060 : 0x16120e));
+    if (o.groundedHomes) {
+      const box = (px, py, pz, bw, bh, bd, hex) => {
+        const g = new THREE.BoxGeometry(bw, bh, bd); g.translate(px, py, pz); walls.push(paint(place(g), hex));
+      };
+      for (const hy of [0.35, 0.85, 1.35]) box(-hw * 0.3, hy, hd + 0.07, 1.6, 0.07, 0.07, 0x594630);
+      for (const side of [-1, 1]) {
+        box(side * (hw + 0.03), 1.4, 0, 0.08, 0.7, 1.2, 0x453d30);
+        for (const pz of [-0.45, 0, 0.45]) box(side * (hw + 0.09), 1.4, pz, 0.08, 0.76, 0.06, 0xaa9575);
+      }
+      for (const [ax, az, bx, bz] of [[-hw, -hd, hw, -hd], [hw, -hd, hw, hd], [hw, hd, -hw, hd], [-hw, hd, -hw, -hd]]) {
+        let bottom = y;
+        for (const t of [0, 0.5, 1]) {
+          const px = ax + (bx - ax) * t, pz = az + (bz - az) * t;
+          bottom = Math.min(bottom, world.heightAt(hx + px * Math.cos(ry) + pz * Math.sin(ry), hz - px * Math.sin(ry) + pz * Math.cos(ry)));
+        }
+        box((ax + bx) / 2, (bottom - y + 0.16) / 2, (az + bz) / 2,
+          Math.abs(bx - ax) + 0.25, y - bottom + 0.28, Math.abs(bz - az) + 0.25, 0x918878);
+      }
+    }
     // 寄棟の厚い茅葺き屋根：四つの面と、軒の厚み、棟
     const ex = hw + e, ez = hd + e, rl = Math.max(0.6, ex - ez);
     const v = [
@@ -1374,7 +1412,7 @@ export function village(world, x, z, o = {}) {
     }
   }
   const grp = new THREE.Group();
-  if (walls.length) { const m = merged(walls, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide })); m.castShadow = false; grp.add(m); }
+  if (walls.length) { const m = merged(walls, o.groundedHomes ? liteMat({ vertexColors: true, side: THREE.DoubleSide }) : new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide })); m.castShadow = false; grp.add(m); }
   if (roofs.length) {
     const rm = new THREE.Mesh(mergeGeometries(roofs), new THREE.MeshLambertMaterial({ map: thatchTex(), color: 0x9a8a6a }));
     rm.userData.camBlock = true; grp.add(rm);
