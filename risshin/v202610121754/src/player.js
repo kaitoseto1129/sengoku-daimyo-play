@@ -20,6 +20,7 @@ import { interiorFloorAt } from './interior_layouts.js';
 import { ladderAlive, startClimb } from './siege_ladder.js';
 import { decisiveCameraReset, decisiveCameraApply } from './decisive_camera.js';
 import { cloneWaterMaterial } from './water_body.js';
+import { flagBlocksView as flagMeshBlocksView } from './units_flags.js';
 // 刃の軌跡（Player.trailTick）の材質と使い回しのベクトル
 const TRAIL_N = 12;
 const _meleeResult = { res: null };   // 二人目以降の当たり方を調べる入れ物を使い回す
@@ -3605,20 +3606,30 @@ export class Player {
     }
     // 体は残し、視線を塞ぐ旗・馬印・竿だけを描く間避ける。入れ物は使い回す。
     for (const o of this.rt.army.units) {
-      if (o.team !== this.u.team || !o.mesh || o.isStruct) continue;
-      if (!this.flagBlocksView(o.pos, 5, cam)) continue;
-      this.hideNearFlag(o.flag);
-      this.hideNearFlag(o.uma);
-      if (o.look?.standard) this.hideNearFlag(o.wpn);
-      if (o.flag && o.human?.root.visible) this.hideNearFlag(o.human.parts?.pole);
+      if (!o.mesh || o.isStruct) continue;
+      const near = this.flagBlocksView(o.pos, 5, cam);
+      if (near || flagMeshBlocksView(o.flag, cam.position, this.u.pos)) {
+        this.hideNearFlag(o.flag);
+        if (o.flag && o.human?.root.visible) this.hideNearFlag(o.human.parts?.pole);
+      }
+      if (near) this.hideNearFlag(o.uma);
+      if (o.look?.standard && (near || flagMeshBlocksView(o.standardFlag, cam.position, this.u.pos))) this.hideNearFlag(o.wpn);
+      // 槍は構えた後の形と、描く直前のカメラで判定する。柄が横から入る時も拾う。
+      if ((o.wpnKind || o.lookWeapon) === 'spear' && o.wpn?.visible
+        && (flagMeshBlocksView(o.wpn, cam.position, this.u.pos)
+          || (o.wpn.userData.flex?.on && flagMeshBlocksView(o.wpn.userData.flex.b, cam.position, this.u.pos)))) this.hideNearFlag(o.wpn);
     }
     for (const g of this.rt.army.groups) {
-      if (g.team !== this.u.team || !g.stds) continue;
+      if (!g.stds) continue;
       for (const s of g.stds) {
         const d = s.userData.std, carrier = s.userData.carrier;
         const pos = d.down || !carrier ? s.position : carrier.pos;
-        if (this.flagBlocksView(pos, d.H + 1.5, cam)) this.hideNearFlag(s);
+        if (this.flagBlocksView(pos, d.H + 1.5, cam) || flagMeshBlocksView(d.cloth, cam.position, this.u.pos)) this.hideNearFlag(s);
       }
+    }
+    // 置き幟も同じ遮蔽処理へ。開戦時に集めた一覧を使い、竿ごと描く間だけ避ける。
+    if (this.rt.noboriFlags) for (const f of this.rt.noboriFlags) {
+      if (flagMeshBlocksView(f, cam.position, this.u.pos)) this.hideNearFlag(f.parent);
     }
     // カメラが近い兵（敵味方）の体の中に入る時は、その兵を描く間だけ隠す（大写しの甲冑・笠・母衣が画面を塞がない）
     const cp = cam.position;

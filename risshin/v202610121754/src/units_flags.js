@@ -9,21 +9,24 @@ import { cloneWaterMaterial } from './water_body.js';
 
 export function weaponMesh(kind, extra = 0, sk) { return makeWeapon(kind, extra, sk); }
 
-// カメラと本人の胸を結ぶ視線が、実際の布を通る時だけ隠す。
-// 判定の入れ物は共有し、布の外や本人より先の旗はそのまま見せる。
+// カメラから三メートル以内の布・長柄と、本人の胸までの視線を塞ぐ物を隠す。
+// 持ち主の足もとではなく、傾き・縮尺を含む実際の形で判定する。入れ物は共有。
 const flagInverse = new THREE.Matrix4();
 const flagEye = new THREE.Vector3(), flagAim = new THREE.Vector3(), flagHit = new THREE.Vector3();
 const flagBox = new THREE.Box3(), flagRay = new THREE.Ray();
 export function flagBlocksView(f, cam, person) {
-  if (!f?.geometry || !person || Math.hypot(person.x - cam.x, person.z - cam.z) < 0.1) return false;
+  if (!f?.geometry || !person) return false;
   f.updateWorldMatrix(true, false);
   flagInverse.copy(f.matrixWorld).invert();
   flagEye.copy(cam).applyMatrix4(flagInverse);
+  if (!f.geometry.boundingBox) f.geometry.computeBoundingBox();
+  flagBox.copy(f.geometry.boundingBox).expandByScalar(0.1);
+  flagBox.clampPoint(flagEye, flagHit);
+  flagHit.applyMatrix4(f.matrixWorld);
+  if (flagHit.distanceToSquared(cam) <= 9) return true;
   flagAim.set(person.x, person.y + 1.4, person.z).applyMatrix4(flagInverse).sub(flagEye);
   const length = flagAim.length();
   if (!length) return false;
-  if (!f.geometry.boundingBox) f.geometry.computeBoundingBox();
-  flagBox.copy(f.geometry.boundingBox).expandByScalar(0.04);
   flagRay.set(flagEye, flagAim.multiplyScalar(1 / length));
   return !!flagRay.intersectBox(flagBox, flagHit) && flagHit.distanceToSquared(flagEye) < length * length;
 }

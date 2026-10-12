@@ -1240,6 +1240,30 @@ function okeDo(r0, armor) {
   out.push(P(at(hem, 0, OKE_Y0 + 0.002, 0), armor, { mk: MK.lac, reg: 'lacq', c2: 0x4a2a1a, mk2: MK.lac }));
   return out;
 }
+// 足軽の桶側胴（横矧）の近くの形：横長の鉄の板を七段に重ね、鋲で留める（御貸具足）。上の段の裾が下の段の上に重なり、裾の縁が少し外へ出る。
+// 胸から腰へすぼまる（樽のように腹が張らない）。一段を前・左・後・右の四枚に分け、okeV の絵（板の長さに鋲が三つ）を一枚ずつ貼る
+const OKE_PROF = [[0.184, 0.88], [0.19, 0.95], [0.203, 1.05], [0.226, 1.18], [0.245, 1.3], [0.238, 1.38], [0.19, 1.43], [0.1, 1.46]];
+function okeYoko(r0, armor) {
+  const rAt = (y) => { for (let i = 1; i < OKE_PROF.length; i++) { const [ra, ya] = OKE_PROF[i - 1], [rb, yb] = OKE_PROF[i]; if (y <= yb) return ra + (rb - ra) * ((y - ya) / (yb - ya)); } return OKE_PROF[OKE_PROF.length - 1][0]; };
+  const rows = 7, Y0 = 0.876, Y1 = 1.345, H = (Y1 - Y0) / rows, t = 0.0085, out = [];
+  for (let j = 0; j < rows; j++) {
+    const ya = Y0 + j * H, yb = ya + H + 0.007;
+    const prof = [[rAt(ya) + t * 0.2, ya - 0.004], [rAt(ya) + t, ya + 0.002], [rAt(ya + H * 0.45) + t * 0.5, ya + H * 0.45], [rAt(yb) + 0.001, yb]].map(([r, y]) => new THREE.Vector2(r * r0, y));
+    for (let q = 0; q < 4; q++) {
+      const g = new THREE.LatheGeometry(prof, 6, -Math.PI / 4 + q * Math.PI / 2, Math.PI / 2 * 1.015);
+      const p = g.attributes.position, uv = g.attributes.uv, np = prof.length;
+      for (let i = 0; i < p.count; i++) uv.setXY(i, Math.floor(i / np) / 6, Math.min(1, Math.max(0, (p.getY(i) - ya) / (yb - ya))));
+      g.scale(1, 1, 0.8);
+      const v = (j + q * 3) % 4;
+      out.push(P(g, armor, { mk: MK.lac, reg: 'okeV', rv: [v / 4, (v + 1) / 4], c2: 0x4a2a1a, mk2: MK.lac }));
+    }
+  }
+  // 胸の上・脇・背の上の板（いちばん上の段の端にかぶせる）
+  const top = [[rAt(1.338) + 0.008, 1.338], [rAt(1.36) + 0.007, 1.362], [0.238, 1.38], [0.19, 1.43], [0.1, 1.46]].map(([r, y]) => new THREE.Vector2(r * r0, y));
+  const tg = new THREE.LatheGeometry(top, 24, Math.PI, Math.PI * 2); tg.scale(1, 1, 0.8);
+  out.push(P(tg, armor, { mk: MK.lac, reg: 'lacq', c2: 0x4a2a1a, mk2: MK.lac }));
+  return out;
+}
 // 陣羽織のひだ（背の角度 th と高さ y での、外への出っ張り m）
 export const haoriFold = (th, y) => (0.013 * Math.sin(th * 9 + 0.6) + 0.006 * Math.sin(th * 23 + 1.7 + y * 3)) * Math.min(1, Math.max(0.15, (1.44 - y) / 0.64));
 // 体つき：足軽は細く締まり、侍は厚い
@@ -1276,7 +1300,7 @@ function bodyGeometry(key, o, hi, grp) {
     for (const sd of [-1, 1]) parts.push(P(at(new THREE.BoxGeometry(0.018, 0.075, 0.006), sd * 0.03, 1.46, 0.07, -0.25, 0, sd * 0.55), 0xd8d0bc, { reg: 'cloth' }));
   }
   // 胴
-  if (hi && doStyle === 'okegawa') parts.push(...okeDo(r0, armor));
+  if (hi && doStyle === 'okegawa') parts.push(...(T === 0 ? okeYoko(r0, armor) : okeDo(r0, armor)));
   else parts.push(P(cuirass(r0, hi ? 28 : 12, doStyle === 'okegawa' ? 5 : 6, hi), armor, { mk: MK.lac, reg: doStyle, c2: doStyle === 'okegawa' ? 0x4a2a1a : lace, mk2: doStyle === 'okegawa' ? MK.lac : MK.cloth, rv: rows }));
   if (doStyle === 'sugake' && T === 0) {
     // 腹巻は背で引き合わせる：背の割れ目
@@ -1313,12 +1337,15 @@ function bodyGeometry(key, o, hi, grp) {
     const kreg = doStyle === 'okegawa' ? 'sugake' : doStyle;
     const krv = doStyle === 'okegawa' ? [0, 0.625] : doStyle === 'sugake' ? [0, 0.5] : [0, 0.625];
     // 足軽の近くの形：五段の板の下の縁がそれぞれ外へ出る（一枚の板に縞を描いた形に見せない）。上の端は 0.884 まで（上は揺糸の帯。板を揺らす骨の見分けを崩さない）
-    const KY0 = 0.63, KY1 = 0.884, kr = (y) => (0.27 + (0.214 - 0.27) * (y - KY0) / 0.27) * r0;
+    // 足軽の近くの形は、上の端を胴の裾の内へ入れ（腰で胴の外へ張り出さない）、裾へ広がる板を少し長く
+    const ash = hi && T === 0;
+    const KY0 = ash ? 0.6 : 0.63, KY1 = ash ? 0.872 : 0.884, KR0 = ash ? 0.262 : 0.27, KR1 = ash ? 0.18 : 0.214;
+    const kr = (y) => (KR0 + (KR1 - KR0) * (y - KY0) / (KY1 - KY0)) * r0;
     let kprof = null;
     // 近くの形は、侍の草摺も段の板に（一枚の板に縞を描いた形にしない）
     if (hi) {
       kprof = [];
-      const H = (KY1 - KY0) / 5, t = 0.009;
+      const H = (KY1 - KY0) / 5, t = ash ? 0.011 : 0.009;
       for (let j = 0; j < 5; j++) { const ya = KY0 + j * H, yb = ya + H; kprof.push([kr(ya), ya], [kr(ya) + t, ya + 0.002], [kr(ya + H * 0.5) + t * 0.45, ya + H * 0.5], [kr(yb - 0.003), yb - 0.003]); }
       kprof = kprof.map(([r, y]) => new THREE.Vector2(r, y));
     }
@@ -1329,13 +1356,21 @@ function bodyGeometry(key, o, hi, grp) {
       if (kprof) {
         kz = new THREE.LatheGeometry(kprof, 3, a + Math.PI - L / 2, L);
         const p = kz.attributes.position, uv = kz.attributes.uv;
-        for (let i = 0; i < p.count; i++) uv.setY(i, (p.getY(i) - KY0) / 0.27);
+        for (let i = 0; i < p.count; i++) uv.setY(i, (p.getY(i) - KY0) / (KY1 - KY0));
         kz.scale(1, 1, 0.86);
       } else { kz = arcCyl(0.214 * r0, 0.27 * r0, 0.27, hi ? 3 : 2, L, a + Math.PI); kz.scale(1, 1, 0.86); at(kz, 0, 0.765, 0); }
       parts.push(P(kz, armor, { mk: MK.lac, reg: kreg, c2: lace, mk2: MK.cloth, rv: krv, ru: [0, 0.2] }));
+      // 足軽：板の段をつなぐ二列の素懸の糸（段ごとに板の外の面に沿わせる）
+      if (ash) {
+        const H = (KY1 - KY0) / 5, c = a + Math.PI;
+        for (let j = 0; j < 5; j++) for (const sd of [-1, 1]) {
+          const th = c + sd * L * 0.2, y = KY0 + (j + 0.55) * H, r = kr(y) + 0.008;
+          parts.push(P(at(new THREE.BoxGeometry(0.006, H * 0.8, 0.004), Math.sin(th) * r, y, Math.cos(th) * r * 0.86, 0, th, 0), lace, { reg: 'cord' }));
+        }
+      }
     }
     // 揺糸（胴と草摺をつなぐ糸）
-    const yb = new THREE.CylinderGeometry(0.203 * r0, 0.214 * r0, 0.035, hi ? 28 : 10, 1, true); yb.scale(1, 1, 0.84);
+    const yb = hi && T === 0 ? new THREE.CylinderGeometry(0.178 * r0, 0.18 * r0, 0.035, 20, 1, true) : new THREE.CylinderGeometry(0.203 * r0, 0.214 * r0, 0.035, hi ? 28 : 10, 1, true); yb.scale(1, 1, 0.84);
     parts.push(P(at(yb, 0, 0.9, 0), lace, { reg: 'kebiki', rv: [0.3, 0.36], ru: [0, 1] }));
   }
   parts = PT.torso;
@@ -1371,6 +1406,22 @@ function bodyGeometry(key, o, hi, grp) {
     const kb = new THREE.CylinderGeometry(0.126, 0.128, 0.03, hi ? 6 : 3, 1, true, Math.PI * (sd > 0 ? 0.15 : 1.15), Math.PI * 0.7);
     parts.push(P(at(kb, 0.2 * sd, 1.43, 0), armor, { mk: MK.lac, reg: 'lacq' }));
     if (hi && T >= 1) for (const dz of [-0.06, 0.06]) parts.push(P(at(ball(0.012, 0.012, 0.005, 8, 5), 0.2 * sd + sd * 0.128, 1.43, dz, 0, sd * Math.PI / 2), T >= 2 ? gold : brass, { mk: MK.gold }));
+  }
+  // 足軽の小さな袖（近くの形だけ）：肩上から紐で吊った、少し反った板を四段。下の段ほど外へ出て裾が開き、段の間は素懸の糸（絵）。
+  // 腕の筒にせず、肩の外に下がる板にする（袖の骨 swSode で揺れる）
+  if (hi && T === 0 && !o.sode) for (const sd of [1, -1]) {
+    parts = sd > 0 ? PT.sodeP : PT.sodeN;
+    const R = 0.2, H = 0.056, rows = 4;
+    for (let j = 0; j < rows; j++) {
+      const g = arcCyl(R, R, H, 4, 0.74, sd * Math.PI / 2);
+      g.translate(-sd * R, -H / 2, 0); g.rotateZ(sd * (0.16 + 0.03 * j));
+      g.translate(sd * (0.292 + 0.011 * j), 1.418 - j * (H - 0.008), 0.008);
+      parts.push(P(g, armor, { mk: MK.lac, reg: 'sugake', c2: lace, mk2: MK.cloth, rv: [(rows - 1 - j) / 8, (rows - j) / 8], ru: [0, 0.2] }));
+    }
+    // 冠板（上の板の縁）と、肩上へ吊る二本の紐
+    const kb = arcCyl(R + 0.003, R + 0.003, 0.012, 4, 0.76, sd * Math.PI / 2); kb.translate(-sd * R, 0, 0); kb.rotateZ(sd * 0.16); kb.translate(sd * 0.293, 1.42, 0.008);
+    parts.push(P(kb, armor, { mk: MK.lac, reg: 'lacq' }));
+    for (const dz of [-0.045, 0.055]) parts.push(P(limb([sd * 0.17, 1.447, dz * 0.8], [sd * 0.29, 1.422, dz], 0.0035, 0.0035, 3), lace, { reg: 'cord' }));
   }
   parts = PT.torso;
   // 金の縁（家老から）
@@ -1560,7 +1611,8 @@ function thighGeometry(o, hi, part) {
   if (o.nanban && !o.kosode) return nanbanGeometry('thigh', hi, part, 0, { P, at, merge, MK, limb, ball });
   if (o.sohei) return soheiThigh(o, hi);
   const cloth = o.cloth || 0x2b2622, T = o.tier || 0;
-  const k = 'thigh' + cloth + '|' + T + '|' + (o.armor || 0) + '|' + (hi ? 1 : 0) + (part || '');
+  const hd0 = hi && T === 0 && (o.vi || 0) % 2 === 0;   // 足軽の半分は布の佩楯（伊予佩楯）を前に垂らす
+  const k = 'thigh' + cloth + '|' + T + '|' + (o.armor || 0) + '|' + (hi ? 1 : 0) + (part || '') + (hd0 ? '|h' : '');
   if (geoCache.has(k)) return geoCache.get(k);
   DIRT = o.dirt ?? [0.9, 0.7, 0.5, 0.35][T];
   const b = BUILD[T];
@@ -1570,8 +1622,10 @@ function thighGeometry(o, hi, part) {
   if (hi && !part) P_.push(P(at(ball(0.07 * b, 0.1, 0.075 * b, 10, 6), 0, -0.2, 0.03), cloth, { reg: 'cloth' }));   // 腿の張り
   // 佩楯（侍から）：前に小さな板を並べた布
   if (T >= 1) P_.push(P(at(arcCyl(0.118 * b, 0.112 * b, 0.25, hi ? 6 : 3, Math.PI * 0.9, 0.15), 0, -0.15, 0.012, 0.06), T >= 2 ? (o.lace || cloth) : cloth, { reg: 'haidate', c2: o.armor || 0x2a2622, mk2: MK.lac }));
-  // 膝の紐
-  P_.push(P(at(new THREE.CylinderGeometry(0.08 * b, 0.08 * b, 0.04, hi ? 12 : 6), 0, -0.39, 0.01), 0x3a342c, { reg: 'cord' }));
+  // 足軽の佩楯：腿の前を覆う布に、小さな漆の板を縫い付けた物（膝の上まで）。腿の丸みに沿う
+  if (hd0) P_.push(P(at(arcCyl(0.112 * b, 0.104 * b, 0.27, 5, Math.PI * 0.82, 0.12), 0, -0.2, 0.014, 0.07), cloth, { reg: 'haidate', c2: o.armor || 0x2a2622, mk2: MK.lac }));
+  // 膝の紐（細い帯。蓋のある筒にすると膝に円盤が付いて見える）
+  P_.push(P(at(new THREE.CylinderGeometry(0.079 * b, 0.077 * b, 0.026, hi ? 12 : 6, 1, true), 0, -0.39, 0.01), 0x3a342c, { reg: 'cord' }));
   const g = P_.length ? merge(P_) : null;
   geoCache.set(k, g);
   return g;
@@ -1612,6 +1666,8 @@ function shinGeometry(o, hi, part) {
         // 蝶番（板の境の細い鉄）と、上下の紐
         for (const j of [-0.5, 0.5]) { const a = j * w3; P_.push(P(at(new THREE.BoxGeometry(0.006, 0.2, 0.005), Math.sin(a) * 0.075 * b, -0.14, Math.cos(a) * 0.075 * b - 0.004, 0.06, a, 0), 0x2a2420, { mk: MK.iron })); }
         for (const y of [-0.055, -0.225]) P_.push(P(at(new THREE.TorusGeometry((y > -0.1 ? 0.079 : 0.068) * b, 0.004, 3, 12), 0, y, -0.004, Math.PI / 2), 0xcfc4a8, { reg: 'cord' }));
+        // 立挙：膝頭を覆う反った板（臑当の上の端から立ち上がる）。下に布の膝の当て
+        { const g = arcCyl(0.084 * b, 0.086 * b, 0.075, 4, Math.PI * 0.62, 0); g.translate(0, 0.012, 0.004); g.rotateX(-0.12); P_.push(P(g, ac, { mk: MK.lac, reg: 'okeV', rv: [0.75, 1], swap: true, flipV: true, c2: 0x4a2a1a, mk2: MK.lac })); }
       } else P_.push(P(at(arcCyl(0.08 * b, 0.064 * b, 0.22, 4, Math.PI * 0.95, 0), 0, -0.14, -0.004), ac, { mk: MK.lac, reg: 'lacq' }));
     }
   } else {
@@ -1781,7 +1837,7 @@ function armGeometry(o, sd, kote, hi, part) {
     if (part !== 'fore') P_.push(P(limb([0, -0.02, 0], [0, -0.27, 0], 0.058 * b, 0.05 * b, seg), kc, { reg: 'kote', c2: 0x2e3236, mk2: MK.iron }));
     if (hi && part !== 'fore') P_.push(P(at(ball(0.034, 0.03, 0.022, 8, 5), 0, -0.27, -0.034), T === 0 ? (o.armor || 0x2e3236) : 0x2e3236, T === 0 ? { mk: MK.lac, reg: 'lacq', c2: 0x4a2a1a, mk2: MK.lac } : { mk: MK.iron, reg: 'iron' }));   // 肘金
     // 足軽の御貸具足の籠手：二の腕の外に小さな板（家の色の漆）を二枚
-    if (hi && T === 0 && part !== 'fore') for (const y of [-0.1, -0.18]) P_.push(P(at(arcCyl(0.062 * b, 0.058 * b, 0.06, 3, Math.PI * 0.45, sd * Math.PI / 2), 0, y, 0), o.armor || 0x2e3236, { mk: MK.lac, reg: 'okeV', rv: [0.25, 0.5], swap: true, c2: 0x4a2a1a, mk2: MK.lac }));
+    if (hi && T === 0 && part !== 'fore' && part !== 'upper') for (const y of [-0.1, -0.18]) P_.push(P(at(arcCyl(0.062 * b, 0.058 * b, 0.06, 3, Math.PI * 0.45, sd * Math.PI / 2), 0, y, 0), o.armor || 0x2e3236, { mk: MK.lac, reg: 'okeV', rv: [0.25, 0.5], swap: true, c2: 0x4a2a1a, mk2: MK.lac }));
     if (part !== 'upper') P_.push(P(limb([0, -0.27, 0], [0, -0.5, 0], 0.05 * b, 0.041 * b, seg), kc, { reg: 'kote', c2: 0x2e3236, mk2: MK.iron }));
     // 篠（前腕の外側に細い鉄の板）
     // 足軽：筒籠手（前腕の外を包む一枚の鉄の板を家の色の漆で塗り、手首と肘の下を紐で結ぶ）

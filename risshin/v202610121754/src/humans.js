@@ -185,9 +185,9 @@ function prepBody(gl) {
     const CH = { LeftShoulder: 'LeftArm', RightShoulder: 'RightArm', LeftArm: 'LeftForeArm', LeftForeArm: 'LeftHand', RightArm: 'RightForeArm', RightForeArm: 'RightHand', LeftUpLeg: 'LeftLeg', LeftLeg: 'LeftFoot', RightUpLeg: 'RightLeg', RightLeg: 'RightFoot', Hips: 'Spine1', Spine: 'Spine1', Spine1: 'Spine2', Spine2: 'Neck' };
     // MakeHuman の裸の体には、布の厚みを足す：小袖の筒袖は二の腕でゆったり手首で細く、裁着袴は腿で大きく膨らみ膝下で絞る、脛は脚絆を巻いた太さ、胴は小袖の打ち合わせの厚み
     const sleeve = (t) => 1.72 - 0.1 * t, fore = (t) => 1.55 - 0.32 * t;
-    const hakamaM = (t) => 1.34 + 0.34 * Math.sin(Math.PI * Math.min(1, Math.max(0, t / 0.9))) - 0.28 * Math.max(0, (t - 0.8) / 0.2);
+    const hakamaM = (t) => 1.3 + 0.22 * Math.sin(Math.PI * Math.min(1, Math.max(0, t / 0.9))) - 0.28 * Math.max(0, (t - 0.8) / 0.2);
     const SHR = mh ? { LeftShoulder: 1.42, RightShoulder: 1.42, LeftArm: sleeve, RightArm: sleeve, LeftForeArm: fore, RightForeArm: fore, LeftUpLeg: hakamaM, RightUpLeg: hakamaM, LeftLeg: (t) => 1.16 - 0.08 * t, RightLeg: (t) => 1.16 - 0.08 * t, Hips: 1.16, Spine: 1.14, Spine1: 1.18, Spine2: 1.2 } : SHR0;
-    const CAP = mh ? { LeftArm: 0.1, RightArm: 0.1, LeftForeArm: 0.078, RightForeArm: 0.078, LeftUpLeg: (t) => 0.115 + 0.04 * Math.sin(Math.PI * Math.min(1, t / 0.9)), RightUpLeg: (t) => 0.115 + 0.04 * Math.sin(Math.PI * Math.min(1, t / 0.9)), LeftLeg: 0.07, RightLeg: 0.07 } : CAP0;
+    const CAP = mh ? { LeftArm: 0.1, RightArm: 0.1, LeftForeArm: 0.078, RightForeArm: 0.078, LeftUpLeg: (t) => 0.112 + 0.024 * Math.sin(Math.PI * Math.min(1, t / 0.9)), RightUpLeg: (t) => 0.112 + 0.024 * Math.sin(Math.PI * Math.min(1, t / 0.9)), LeftLeg: 0.07, RightLeg: 0.07 } : CAP0;
     const mW = body.matrixWorld, mI = mW.clone().invert();
     const w = new THREE.Vector3(), A = new THREE.Vector3(), Bv = new THREE.Vector3(), D = new THREE.Vector3(), Q = new THREE.Vector3();
     for (let i = 0; i < n; i++) {
@@ -2517,6 +2517,8 @@ function nearArmorParts(parts) {
   enhance('torso', ({ box, band }) => {
     // 桶側は縦矧の板を保ち、腹巻・侍は札板の六段を強調する。
     const oke = T === 0 && (L.vi || 0) % 3 !== 2;
+    // 足軽の桶側（横矧）は板の段と縁を形に持つので、重ねない
+    if (oke && !L.doStyle) return;
     const profile = [[0.2, 0.88], [0.205, 0.95], [0.212, 1.05], [0.232, 1.18], [0.248, 1.3], [0.238, 1.38]];
     for (let row = 0; row < (oke ? 2 : 5); row++) {
       const y = oke ? 0.94 + row * 0.37 : 0.977 + row * 0.097;
@@ -2532,6 +2534,8 @@ function nearArmorParts(parts) {
     }
   });
   enhance('hips', ({ box, band }) => {
+    // 足軽の草摺は、段の縁と素懸の糸を形に持つ（units_model.js）
+    if (T === 0) return;
     const np = T === 0 ? 5 : 7, step = Math.PI * 2 / np;
     for (let k = 0; k < np; k++) {
       const a = k * step + (np === 5 ? Math.PI / 5 : 0) + Math.PI;
@@ -2547,6 +2551,8 @@ function nearArmorParts(parts) {
     }
   });
   for (const sd of [1, -1]) enhance(sd > 0 ? 'sodeP' : 'sodeN', ({ box, band }) => {
+    // 足軽の小さな吊り袖は板の形で足りる（侍の袖の筒に合わせた帯を重ねない）
+    if (T === 0 && !L.sode) return;
     const rows = T >= 2 ? 6 : 5, h = 0.3 / rows, a = Math.PI * (sd > 0 ? 0.15 : 1.15);
     for (let row = 0; row < rows; row++) {
       const y = 1.127 + row * h, r = 0.152 - (y - 1.12) * 0.08 + 0.005;
@@ -2832,7 +2838,14 @@ function crowdGeometry(P, L, only = null, face = false) {
     // 草摺は板ごとの骨へ（体の座標の、まだ骨に合わせる前の位置で板を見分ける）
     if (p.bn === 'swHips' && !L.sohei) {
       const KP = kusaPlates(L), P0 = p.geo.attributes.position;
-      for (let i = 0; i < n; i++) { const k = plateOf(P0.getX(i), P0.getY(i), P0.getZ(i), KP); if (k >= 0) si[i * 4] = ALLB.indexOf('swK' + k); }
+      // 板は上の端を腰に残し、裾ほど板の骨に従わせる（一枚の硬い板が蝶番で回るのでなく、歩くと裾がしなって揺れる）
+      const hipB = ALLB.indexOf('swHips');
+      for (let i = 0; i < n; i++) {
+        const y = P0.getY(i), k = plateOf(P0.getX(i), y, P0.getZ(i), KP);
+        if (k < 0) continue;
+        const f = Math.pow(Math.min(1, Math.max(0, (0.885 - y) / 0.27)), 0.75);
+        si[i * 4] = ALLB.indexOf('swK' + k); sw[i * 4] = 0.15 + 0.85 * f; si[i * 4 + 1] = hipB; sw[i * 4 + 1] = 0.85 - 0.85 * f;
+      }
     }
     g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4));
     g.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
@@ -2932,6 +2945,10 @@ function nearCrowdMat(v) {
   m.onBeforeCompile = (sh, r) => {
     ob.call(UNIT_MAT, sh, r);
     sh.uniforms.uCV = CV; sh.uniforms.uGrimeC = GRIME;
+    // 兵の漆は使い込んだ鈍い照り（新しい樹脂のように光らせない）。雨でも艶は少しだけ増す
+    sh.fragmentShader = sh.fragmentShader.replace('float roughnessFactor = mix(mkRough(mkA), mkRough(mkB), txA.r);', 'float roughnessFactor = mix(mkA == 1 ? 0.56 : mkRough(mkA), mkB == 1 ? 0.56 : mkRough(mkB), txA.r);')
+      .replace('roughnessFactor *= 1.0 - uWet * (mkA == 0 || mkA == 6 ? 0.25 : 0.4);', 'roughnessFactor *= 1.0 - uWet * (mkA == 0 || mkA == 6 ? 0.25 : mkA == 1 ? 0.22 : 0.4);')
+      .replace('roughnessFactor = mix(0.3, 0.62, clamp(worn, 0.0, 1.0));', 'roughnessFactor = mix(0.5, 0.74, clamp(worn, 0.0, 1.0));');
     peopleDetail(); sh.uniforms.uPD = PEOPLE_DET;
     sh.vertexShader = 'varying vec3 vObjN;\n' + sh.vertexShader.replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n vObjN = objectNormal;');
     sh.fragmentShader = 'uniform vec4 uCV;\nuniform float uGrimeC;\nuniform sampler2D uPD;\nvarying vec3 vObjN;\nfloat pdH, pdR;\n' + PEOPLE_GLSL + sh.fragmentShader.replace('diffuseColor.rgb *= baseC;', `diffuseColor.rgb *= baseC;
