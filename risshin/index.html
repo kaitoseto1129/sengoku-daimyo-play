@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202610130157 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202610130310 として写した） -->
 <title>戦国立身3D　足軽から天下へ、戦国の合戦アクション</title>
 <meta name="description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。">
 <link rel="canonical" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/">
@@ -69,7 +69,7 @@
 })();
 </script>
 <!-- /Meta Pixel -->
-<link rel="icon" type="image/png" sizes="32x32" href="./v202610130157/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610130157/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610130157/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610130157/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202610130310/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610130310/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610130310/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610130310/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
 :root {
@@ -1498,6 +1498,9 @@ html.touch:has(#hud.lean.calm) #tc .stick.idle { opacity: .18; }
 #hud.lean .mk::before { width: 7px; height: 7px; border-width: 1.5px; }
 #hud.lean .mk b { font-size: max(12px, calc(12px * var(--text-scale, 1))); padding: 0 5px; }
 /* 大河内城の闇の坂：方向・行き先・距離を、携帯でも読める一枚の印にする。 */
+/* 端の主印の二十八画素指定より強くし、実寸を測る処理へ横幅を渡す。 */
+#hud .mk.large-way, #hud .mk.large-way.main.edge { width: max-content; min-width: 7em; height: auto; }
+#hud .mk.large-way :is(b, small, .behind-label) { flex-shrink: 0; min-width: max-content; white-space: nowrap; overflow-wrap: normal; }
 #hud .mk.large-way::before { width: 20px; height: 20px; border: 3px solid #f3d98a; background: #30291b; box-shadow: 0 0 0 2px #14120f; animation: none; }
 #hud .mk.large-way b { font-size: max(15px, calc(15px * var(--text-scale, 1))); padding: 3px 8px; color: #ece4d2; background: #14120f; }
 #hud .mk.large-way small { font-size: max(13px, calc(13px * var(--text-scale, 1))); padding: 1px 6px; color: #ece4d2; background: #14120f; }
@@ -1919,5 +1922,5 @@ dialog.battle-retry .btn { box-sizing: border-box; width: 100%; min-width: 0; he
 } }
 </script>
 <script type="module">
-import('./v202610130157/src/main.js').catch(() => window.__bootFail());
+import('./v202610130310/src/main.js').catch(() => window.__bootFail());
 </script>
