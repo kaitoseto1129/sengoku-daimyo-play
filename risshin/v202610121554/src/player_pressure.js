@@ -1,8 +1,27 @@
+import { ODA_LINE } from './state.js';
+
+// 戦の難しさの段（0〜1）。無料の3戦は0、稲葉山から上がり、設楽原のあと（終盤）で1。
+let _ti = null;
+export function battleTier(key) {
+  if (!_ti) { _ti = {}; ODA_LINE.forEach((b, i) => { _ti[b.id] = i; }); }
+  const i = _ti[key];
+  if (i == null) return 0.3;
+  if (i < 3) return 0;
+  return Math.min(1, (i - 2) / 26);
+}
+
 // 四人以上が本人へ迫る時は、前の二人の後ろで順番を待つ。
 // 傷の重さは変えず、味方が横から入れる場所と退き口を残す。
 export function playerPressureTick(army) {
   if (army._playerPressureAt > army.time) return;
   army._playerPressureAt = army.time + 0.25;
+  if (army.tier == null) army.tier = battleTier(army.world?.def?.battleKey);
+  army.playerAtkMax = army.tier >= 0.75 ? 3 : 2;
+  army.playerReach = 13 + 5 * army.tier;
+  army.playerPullMax = 2 + Math.round(6 * Math.pow(army.tier, 1.5));
+  let pn = 0;
+  for (const o of army.units) if (o.pullUntil > army.time && o.alive) pn++;
+  army.playerPullN = pn;
   const foes = army._playerPressureFoes || (army._playerPressureFoes = []);
   foes.length = 0;
   const p = army.playerUnit;

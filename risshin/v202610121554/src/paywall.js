@@ -76,7 +76,7 @@ export function showPaywall(onOpen, onClose) {
       <button class="btn" id="pw-close" style="${btn}">閉じる</button>
     </div>
     ${ios ? '' : `<form id="pw-key-form" hidden style="margin-top:24px">
-      <p id="pw-key-help" style="margin:0 0 8px">買った鍵はメールで届きます。そのまま貼ってください。</p>
+      <p id="pw-key-help" style="margin:0 0 8px">買った鍵は、Gumroad からのメールの「View content」を開くと出ます。Copy を押して、ここに貼ってください。</p>
       <label for="pw-key">買った鍵</label>
       <input id="pw-key" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="pw-key-help" style="display:block;box-sizing:border-box;width:100%;min-height:44px;margin:8px 0;padding:8px;font-size:16px;background:#14120f;color:#f1e8d6;border:1px solid #c2a25a;border-radius:4px">
       <button class="btn" id="pw-verify" type="submit" style="${btn}">鍵を確かめる</button>
@@ -110,7 +110,7 @@ export function showPaywall(onOpen, onClose) {
     else if (GUMROAD_URL) {
       // 買い終えると、重ねた画面とメールに鍵が出る。そのまま下に貼れるよう、鍵の欄を先に開いておく
       const form = el.querySelector('#pw-key-form');
-      if (form) { form.hidden = false; el.querySelector('#pw-key-help').textContent = '買い終えると、買った画面とメールに鍵が出ます。ここに貼ってください。'; }
+      if (form) { form.hidden = false; el.querySelector('#pw-key-help').textContent = '買い終えたら、Gumroad からのメールの「View content」を開くと鍵が出ます。Copy を押して、ここに貼ってください。'; }
     }
   };
   el.querySelector('#pw-restore').onclick = () => {
