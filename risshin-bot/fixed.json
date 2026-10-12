@@ -173,5 +173,55 @@
   "key": "through:record-none",
   "at": "2026-10-11T22:02:29.579Z",
   "note": "players_feed がチャッピーに頼んだ 20261012"
+ },
+ {
+  "key": "down:okehazama",
+  "at": "2026-10-12T22:02:06.250Z",
+  "note": "players_feed がチャッピーに頼んだ 20261013"
+ },
+ {
+  "key": "down:tennoji",
+  "at": "2026-10-12T22:02:06.250Z",
+  "note": "players_feed がチャッピーに頼んだ 20261013"
+ },
+ {
+  "key": "cmd-unfit:attack",
+  "at": "2026-10-12T22:02:06.250Z",
+  "note": "players_feed がチャッピーに頼んだ 20261013"
+ },
+ {
+  "key": "aud:使いづらい／押せる所が画面の外にある",
+  "at": "2026-10-12T22:02:06.250Z",
+  "note": "players_feed がチャッピーに頼んだ 20261013"
+ },
+ {
+  "key": "tap-blocked:親指の棒（歩く）／objectives",
+  "at": "2026-10-12T22:02:06.250Z",
+  "note": "players_feed がチャッピーに頼んだ 20261013"
+ },
+ {
+  "key": "sen-nosquad:okehazama",
+  "at": "2026-10-12T22:02:06.250Z",
+  "note": "players_feed がチャッピーに頼んだ 20261013"
+ },
+ {
+  "key": "down:shiga",
+  "at": "2026-10-12T22:02:06.250Z",
+  "note": "players_feed がチャッピーに頼んだ 20261013"
+ },
+ {
+  "key": "stuck:okehazama:#,#",
+  "at": "2026-10-12T22:02:06.250Z",
+  "note": "players_feed がチャッピーに頼んだ 20261013"
+ },
+ {
+  "key": "aud:辻褄／門・柵を破れと言うのに、#秒だれも傷つけていない",
+  "at": "2026-10-12T22:02:06.250Z",
+  "note": "players_feed がチャッピーに頼んだ 20261013"
+ },
+ {
+  "key": "down:tonezaka",
+  "at": "2026-10-12T22:02:06.250Z",
+  "note": "players_feed がチャッピーに頼んだ 20261013"
  }
 ]
