@@ -24909,7 +24909,7 @@ if(g.hp<=0){ g.open=true; B._fenceVer=(B._fenceVer||0)+1; B.bigBanner={t:B.ctx.p
 if(R.i===st&&st<(B.siegeLayers||1)-1){ try{ siegeAdvance(false); }catch(e){ console.error(e); } } } } } }
 function ckRingSideGo(){ const K=B.ck; const st=B.siegeStage||0; const R=K.rings[st]; if(!R) return; const sg=R.gates.find(g=>g!==R.front&&!g.open)||R.gates.find(g=>g!==R.front); if(!sg) return toast("この曲輪に脇の門は無い"); if(sg.open) return toast(`${sg.name}は破れている`); manualCommand();
 const mine=B.units.filter(u=>u.side===0&&!u.cmd&&u.troops>.5&&u.morale>0&&!u.left&&u.type!==3&&!u.breachWork).sort((a,b)=>Math.hypot(a.x-sg.x,a.y-sg.y)-Math.hypot(b.x-sg.x,b.y-sg.y)).slice(0,2); if(!mine.length) return toast("回せる隊がいない");
-const out=sg.dir==="y"?(sg.y<=R.y0+0.5?-1:1):(sg.x<=R.x0+0.5?-1:1); mine.forEach((u,i)=>{ u.reserveHold=false; u.holdUntil=B.elapsed+150; const x=sg.dir==="y"?sg.x+(i-0.5)*1.6:sg.x+out*(1.6+i*1.4), y=sg.dir==="y"?sg.y+out*(1.6+i*0.8):sg.y+(i-0.5)*1.6; u.order={k:"move",x:Math.max(1,Math.min(BF.w-1,x)),y:Math.max(1.5,Math.min(BF.h-1.5,y))}; u.gx=u.order.x; u.gy=u.order.y; }); B.banner={t:`${mine.map(u=>u.name).join("・")}隊、${sg.name}へ回る`, at:B.elapsed}; }
+const out=sg.dir==="y"?(sg.y<=R.y0+0.5?-1:1):(sg.x<=R.x0+0.5?-1:1); mine.forEach((u,i)=>{ u.reserveHold=false; u.holdUntil=0; u.siegeTaskUntil=B.elapsed+150; u.siegeTaskGate={x:sg.x,y:sg.y}; const x=sg.dir==="y"?sg.x+(i-0.5)*1.6:sg.x+out*(1.6+i*1.4), y=sg.dir==="y"?sg.y+out*(1.6+i*0.8):sg.y+(i-0.5)*1.6; u.order={k:"move",x:Math.max(1,Math.min(BF.w-1,x)),y:Math.max(1.5,Math.min(BF.h-1.5,y))}; u.gx=u.order.x; u.gy=u.order.y; }); B.banner={t:`${mine.map(u=>u.name).join("・")}隊、${sg.name}へ回る`, at:B.elapsed}; }
 
 function drawCkRing(sx,sy){ const K=B.ck;
 if(K.stairRoute){ bctx.save(); bctx.strokeStyle="#B3ABA0"; bctx.lineWidth=2;
@@ -24985,10 +24985,10 @@ if(!B||!B.ck||B.ctx.playerSide!==0) return;
 for(const u of near0){ u.morale=Math.min(100,u.morale+4); u.holdUntil=0; } return; }
 if(!B||!B.ck||B.ctx.playerSide!==0||B.autoMine||autoBattleMode) return; const g=B.gate; const near=B.units.filter(u=>u.side===0&&u.troops>.5&&u.morale>0&&!u.left&&!u.cmd&&Math.hypot(u.x-g.x,u.y-g.y)<9); if(!near.length) return;
 koChoice("門が破れた","そのまま突入するか、一度集結して隊列を整えるか。枡形の先は左右から撃たれる。",[["in","そのまま突入","速い。敵を追える（士気+6、隊列は乱れる）",()=>{ manualCommand(); for(const u of near){ u.morale=Math.min(100,u.morale+6); u.charge=true; u.holdUntil=0; u.reformUntil=B.elapsed+5; } }],["form","一度集結","八秒整える。その後、士気+10・守り+（三十秒）",()=>{ manualCommand(); for(const u of near){ u.holdUntil=B.elapsed+8; u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; u.ckFormAt=B.elapsed+8; } setTimeout(()=>{ if(!B||B.over!==null) return; for(const u of near){ if(u.troops<=.5) continue; u.morale=Math.min(100,u.morale+10); u.defBonus=(u.defBonus||1)*0.9; u.ckFormUntil=B.elapsed+30; u.holdUntil=0; } B.banner={t:"隊列整う――突入", at:B.elapsed}; },8200); }]]); }
-function ckBreachGo(ai){ if(!B||!B.ck||!B.ck.breach||B.over!==null) return; const br=B.ck.breach; if(br.open) return toast("破口は開いている"); if(Math.abs(B.gate.x-br.x)>0.5) return; const defLeft=siegeDefLeft(); const dir=defLeft?1:-1; if(!ai) manualCommand(); const mine=B.units.filter(u=>u.side===0&&!u.cmd&&u.troops>.5&&u.morale>0&&!u.left&&u.type!==3&&!u.breachWork).sort((a,b)=>Math.hypot(a.x-br.x,a.y-br.y)-Math.hypot(b.x-br.x,b.y-br.y)).slice(0,2); if(!mine.length) return toast("回せる隊がいない"); mine.forEach((u,i)=>{ u.reserveHold=false; u.holdUntil=B.elapsed+120; u.breachWork=true; u.order={k:"move",x:Math.max(1,Math.min(BF.w-1,br.x+dir*(1.4+i*1.4))),y:br.y}; u.gx=u.order.x; u.gy=u.order.y; }); B.banner={t:ai?"敵の二隊、城壁の薄い所へ――破口を作る気だ":`${mine.map(u=>u.name).join("・")}隊、薄い石垣を崩しに回る`, at:B.elapsed}; }
+function ckBreachGo(ai){ if(!B||!B.ck||!B.ck.breach||B.over!==null) return; const br=B.ck.breach; if(br.open) return toast("破口は開いている"); if(Math.abs(B.gate.x-br.x)>0.5) return; const defLeft=siegeDefLeft(); const dir=defLeft?1:-1; if(!ai) manualCommand(); const mine=B.units.filter(u=>u.side===0&&!u.cmd&&u.troops>.5&&u.morale>0&&!u.left&&u.type!==3&&!u.breachWork).sort((a,b)=>Math.hypot(a.x-br.x,a.y-br.y)-Math.hypot(b.x-br.x,b.y-br.y)).slice(0,2); if(!mine.length) return toast("回せる隊がいない"); mine.forEach((u,i)=>{ u.reserveHold=false; u.holdUntil=0; u.siegeTaskUntil=B.elapsed+120; u.siegeTaskGate={x:br.x,y:br.y}; u.breachWork=true; u.order={k:"move",x:Math.max(1,Math.min(BF.w-1,br.x+dir*(1.4+i*1.4))),y:br.y}; u.gx=u.order.x; u.gy=u.order.y; }); B.banner={t:ai?"敵の二隊、城壁の薄い所へ――破口を作る気だ":`${mine.map(u=>u.name).join("・")}隊、薄い石垣を崩しに回る`, at:B.elapsed}; }
 function ckEncircle(){ if(!B||!B.ck||B.over!==null||B.ctx.playerSide!==0) return; const K=B.ck; const defLeft=siegeDefLeft(); const dir=defLeft?1:-1; const line=B.siegeLine0!==undefined?B.siegeLine0:B.gate.x; manualCommand(); const mine=B.units.filter(u=>u.side===0&&!u.cmd&&u.troops>.5&&u.morale>0&&!u.left&&u.type!==3&&!u.breachWork); if(mine.length<3) return toast("囲むには三隊は要る"); const H=BF.h; const n=Math.min(6,mine.length); mine.sort((a,b)=>b.troops-a.troops); for(let i=0;i<mine.length;i++){ const u=mine[i]; const band=i%n; const y=Math.max(1.5,Math.min(H-1.5,2+(H-4)*(band+.5)/n)); u.reserveHold=false; u.holdUntil=B.elapsed+9999; u.ckEnc=true; u.order={k:"move",x:Math.max(1,Math.min(BF.w-1,line+dir*(4.5+Math.floor(i/n)*1.6))),y}; u.gx=u.order.x; u.gy=u.order.y; } K.encOn=true; B.banner={t:"城を囲め――囲みが七割を超えれば城兵の気が萎える（攻めずに締め上げる）", at:B.elapsed}; }
 function ckEncTick(){ const K=B.ck; if(!K) return; const defLeft=siegeDefLeft(); const dir=defLeft?1:-1; const line=B.siegeLine0!==undefined?B.siegeLine0:B.gate.x; const H=BF.h; const n=6; let cov=0; for(let b=0;b<n;b++){ const y0=2+(H-4)*b/n, y1=2+(H-4)*(b+1)/n; if(B.units.some(u=>u.side===0&&u.troops>.5&&u.morale>0&&!u.left&&u.y>=y0&&u.y<y1&&(u.x-line)*dir>0&&(u.x-line)*dir<8)) cov++; } K.enc=cov/n; if(K.enc>=0.7){ K.encT=(K.encT||0)+2; if(K.encT%20===0){ for(const u of B.units) if(u.side===1&&u.troops>.5) u.morale=Math.max(0,u.morale-2); } if(!K.encCry&&K.encT>=30){ K.encCry=true; B.banner={t:"城は囲まれた――城兵の気が萎えていく（降伏勧告が通りやすい）", at:B.elapsed}; } } else K.encT=0; }
-function ckSideGo(){ if(!B||!B.ck||B.over!==null) return; if(B.ck.ring) return ckRingSideGo(); if(!B.ck.sideGate) return; const sg=B.ck.sideGate; if(sg.open) return toast("側面門は破れている"); const defLeft=siegeDefLeft(); const dir=defLeft?1:-1; manualCommand(); const mine=B.units.filter(u=>u.side===0&&!u.cmd&&u.troops>.5&&u.morale>0&&!u.left&&u.type!==3&&!u.breachWork).sort((a,b)=>Math.hypot(a.x-sg.x,a.y-sg.y)-Math.hypot(b.x-sg.x,b.y-sg.y)).slice(0,2); if(!mine.length) return toast("回せる隊がいない"); mine.forEach((u,i)=>{ u.reserveHold=false; u.holdUntil=B.elapsed+120; u.order={k:"move",x:Math.max(1,Math.min(BF.w-1,sg.x+dir*(1.4+i*1.4))),y:sg.y}; u.gx=u.order.x; u.gy=u.order.y; }); B.banner={t:`${mine.map(u=>u.name).join("・")}隊、側面門へ回る`, at:B.elapsed}; }
+function ckSideGo(){ if(!B||!B.ck||B.over!==null) return; if(B.ck.ring) return ckRingSideGo(); if(!B.ck.sideGate) return; const sg=B.ck.sideGate; if(sg.open) return toast("側面門は破れている"); const defLeft=siegeDefLeft(); const dir=defLeft?1:-1; manualCommand(); const mine=B.units.filter(u=>u.side===0&&!u.cmd&&u.troops>.5&&u.morale>0&&!u.left&&u.type!==3&&!u.breachWork).sort((a,b)=>Math.hypot(a.x-sg.x,a.y-sg.y)-Math.hypot(b.x-sg.x,b.y-sg.y)).slice(0,2); if(!mine.length) return toast("回せる隊がいない"); mine.forEach((u,i)=>{ u.reserveHold=false; u.holdUntil=0; u.siegeTaskUntil=B.elapsed+120; u.siegeTaskGate={x:sg.x,y:sg.y}; u.order={k:"move",x:Math.max(1,Math.min(BF.w-1,sg.x+dir*(1.4+i*1.4))),y:sg.y}; u.gx=u.order.x; u.gy=u.order.y; }); B.banner={t:`${mine.map(u=>u.name).join("・")}隊、側面門へ回る`, at:B.elapsed}; }
 function ckWallHunt(){ if(!B||B.over!==null) return; manualCommand(); let n=0; for(const u of B.units){ if(u.side!==0||u.type!==3||u.troops<=.5) continue; u.wallHunter=B.elapsed+30; n++; } B.banner={t:n?`鉄砲${n}隊、城壁上の守り手を狙う（三十秒）`:"鉄砲隊がいない", at:B.elapsed}; }
 function ckView(){ if(!B) return; if((B.zoom||1)!==1) bSetZoom(1); else bSetZoom(BZ_NORMAL); try{ renderBattleFoot(); }catch(_){ } }
 
@@ -29834,7 +29834,7 @@ u.formSpd=f.spd;
 
 function reformSide(side){
 const f=FORMATIONS[B.form[side]], shape=f.shape;
-const mine=B.units.filter(u=>u.side===side&&u.troops>.5&&u.morale>0&&!u.left&&!u.sigHidden&&!u.postHold&&!u.reserveHold&&!u.fortGuard&&!u.onTower&&!u.towerGun&&!u.tobiGuard&&!u.kzHold&&!u.tobiHold&&!(u.cmd&&(B.sm||B.siegeWall||B.fortKit||B.kz||B.gf||B.ck)));
+const mine=B.units.filter(u=>u.side===side&&u.troops>.5&&u.morale>0&&!u.left&&!u.sigHidden&&!u.postHold&&!u.reserveHold&&!u.fortGuard&&!u.onTower&&!u.towerGun&&!u.tobiGuard&&!u.kzHold&&!u.tobiHold&&!siegeTaskActive(u)&&!(u.cmd&&(B.sm||B.siegeWall||B.fortKit||B.kz||B.gf||B.ck)));
 if(!mine.length) return;
 const left = (side===B.ctx.playerSide);
 const anchor = mine.reduce((s2,u)=>s2+u.x,0)/mine.length;
@@ -31140,7 +31140,7 @@ if(B._edgeCache.size>=4096) B._edgeCache.clear(); B._edgeCache.set(key,hit); ret
 }
 const GDIRS=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
 
-function gridPath(u,gc,gr,avoidIdle){
+function gridPath(u,gc,gr,avoidIdle,avoidOccupied){
 
 if(avoidIdle===undefined){ const r1=gridPath(u,gc,gr,true); if(!r1.partial) return r1; const r2=gridPath(u,gc,gr,false); if(!r2.partial) return r2;
 const gap=r=>{ const p=r.path[r.path.length-1]||u.cell; return Math.hypot(p[0]-gc,p[1]-gr); };
@@ -31153,7 +31153,7 @@ const dd=Math.hypot(c-gc,r-gr); if(dd<bestD){ bestD=dd; best=[c,r]; }
 if(c===gc&&r===gr){ found=[c,r]; break; }
 if(goalOcc && Math.max(Math.abs(c-gc),Math.abs(r-gr))<=1){ found=[c,r]; break; }
 for(const [dc,dr] of GDIRS){ const nc=c+dc, nr=r+dr; const k=cellKey(nc,nr); if(prev.has(k)) continue; if(!cellPassable(nc,nr)) continue;
-if(!(nc===gc&&nr===gr) && !gridFreeCell(nc,nr,u)){ if(!gridAllyCell(nc,nr,u)) continue; if(avoidIdle){ const o=gridOccAt(nc,nr); if(o&&!o.nextCell&&o.idleAt!==undefined&&B.elapsed-o.idleAt>0.8) continue; } }
+if(!(nc===gc&&nr===gr) && !gridFreeCell(nc,nr,u)){ if(!gridAllyCell(nc,nr,u)||avoidOccupied) continue; if(avoidIdle){ const o=gridOccAt(nc,nr); if(o&&!o.nextCell&&o.idleAt!==undefined&&B.elapsed-o.idleAt>0.8) continue; } }
 if(dc&&dr && (!cellPassable(c+dc,r)||!cellPassable(c,r+dr))) continue;
 if(gridBlockedEdge(u,c,r,nc,nr)) continue;
 prev.set(k,[c,r]); q.push([nc,nr]); } }
@@ -31182,6 +31182,13 @@ const gk=cellKey(gc,gr);
 if(!u.path || u.pathGoal!==gk || B.elapsed-(u.pathAt||-9)>1.0){ if(!u.path && u.pathGoal===gk && B.elapsed-(u.pathAt||-9)<0.4){ u.runup=Math.max(0,u.runup-3*dt); if(u.idleAt===undefined) u.idleAt=B.elapsed; return false; } const res=gridPath(u,gc,gr); u.path=res.path; u.pathGoal=gk; u.pathAt=B.elapsed; u.pathPartial=res.partial; }
 const nx=u.path&&u.path[0];
 if(nx && (gridFreeCell(nx[0],nx[1],u) || (gridAllyCell(nx[0],nx[1],u) && !(nx[0]===gc&&nx[1]===gr) && u.path.length>1 && gridFreeCell(u.path[1][0],u.path[1][1],u) && !gridBlockedEdge(u,nx[0],nx[1],u.path[1][0],u.path[1][1]))) && !gridBlockedEdge(u,u.cell[0],u.cell[1],nx[0],nx[1])){ u.path.shift(); u.nextCell=nx; if(gridFreeCell(nx[0],nx[1],u)) occSet(nx[0],nx[1],u); u.atFence=null; return gridMove(u,goal,speed,dt); }
+
+if(nx&&gridAllyCell(nx[0],nx[1],u)&&u.idleAt!==undefined&&B.elapsed-u.idleAt>0.8){
+const detour=gridPath(u,gc,gr,true,true), first=detour.path[0];
+if(first&&gridFreeCell(first[0],first[1],u)&&!gridBlockedEdge(u,u.cell[0],u.cell[1],first[0],first[1])){
+u.path=detour.path; u.pathPartial=detour.partial; u.pathAt=B.elapsed; u.path.shift(); u.nextCell=first; occSet(first[0],first[1],u); return gridMove(u,goal,speed,dt);
+}
+}
 
 u.path=null; u.runup=Math.max(0,u.runup-3*dt); if(u.idleAt===undefined) u.idleAt=B.elapsed;
 { const sc=Math.sign(gc-u.cell[0]), sr=Math.sign(gr-u.cell[1]); let o=null; if(sc||sr) o=gridBlockedEdge(u,u.cell[0],u.cell[1],u.cell[0]+sc,u.cell[1]+sr) || (sc&&gridBlockedEdge(u,u.cell[0],u.cell[1],u.cell[0]+sc,u.cell[1])) || (sr&&gridBlockedEdge(u,u.cell[0],u.cell[1],u.cell[0],u.cell[1]+sr)) || null; u.atFence=o||null;
@@ -31659,7 +31666,7 @@ if(!o||o.k==="retreat"){ u._wdD=undefined; u._wdN=0; continue; }
 if(u._pX===undefined || Math.hypot(u.x-u._pX, u.y-u._pY)>1.5){ u._pX=u.x; u._pY=u.y; u._pT=B.elapsed; u._wdN=0; continue; }
 
 const stoppedAt=u._pT??B.elapsed;
-if(["nagashino","sekigahara"].includes(W.scenario)&&B.siegeWall&&o.k==="move"&&B.elapsed-stoppedAt>=12&&!(u.engagedAt>B.elapsed-10)){
+if(["nagashino","sekigahara"].includes(W.scenario)&&B.siegeWall&&!B.autoMine&&!u.ally&&!u.autoAI&&o.k==="move"&&B.elapsed-stoppedAt>=12&&!(u.engagedAt>B.elapsed-10)){
 
 u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; u.path=null; u.nextCell=null; u._pT=B.elapsed; u.gateWaitUntil=B.elapsed+8; u.gateWaitVer=B._fenceVer||0;
 if(u.side===B.ctx.playerSide&&!u.ally&&!(B._stuckTold>B.elapsed-12)){ B._stuckTold=B.elapsed; toast(`${u.name}隊は道が塞がれています。門か破れ目から進めてください`); }
@@ -31977,7 +31984,7 @@ if(!(B.dangerAt>B.elapsed-0.5)){ B.dangerAt=B.elapsed;
 for(const u of B.units){ if(u.troops<=.5||u.left) continue;
 const foes=B.units.filter(v=>v.side!==u.side&&v.troops>.5&&v.morale>0&&!v.left&&dist(u,v)<4.2);
 const q=new Set(); for(const v of foes){ const a=Math.atan2(v.y-u.y,v.x-u.x); q.add(Math.floor(((a+Math.PI)/(Math.PI/2))%4)); }
-const was=u.surrounded; u.surrounded = u.morale>0 && foes.length>=2 && q.size>=3;
+const was=u.surrounded; u.surrounded = u.morale>0 && foes.length>=2 && q.size>=3 && foes.reduce((n,v)=>n+v.troops,0)>=u.troops*0.5;
 if(u.surrounded && !was && u.side===B.ctx.playerSide && !(u.surrAt>B.elapsed-10)){ u.surrAt=B.elapsed; bshout(u.id,"囲まれた！",2.2); if(false) bCamTo(u.x,u.y); B.banner={t:`${u.name}隊 包囲さる`, at:B.elapsed}; try{ playSE("notify"); }catch(_){ } }
 u.danger = u.morale>0 && (u.troops<u.max*0.3 || u.morale<30 || u.surrounded); } }
 pendingTick();
@@ -32233,7 +32240,7 @@ else if(u.order.k==="move"){
 if(!u.order.snap){ const [c,r]=cellOf(u.order.x,u.order.y); const [cx,cy]=cellCenter(c,r); u.order.x=cx; u.order.y=cy; u.order.snap=true; if(u.gx!==undefined){ u.gx=cx; u.gy=cy; } }
 goal=[u.order.x,u.order.y]; if(dist(u,nearest)<=reachOf(u)) target=nearest;
 
-if(u.order.swap && u.cell && !u.nextCell){ const [gc2,gr2]=cellOf(goal[0],goal[1]); const occ=gridOccAt(gc2,gr2); if(occ && occ!==u && occ.side===u.side && !occ.nextCell && Math.max(Math.abs(u.cell[0]-gc2),Math.abs(u.cell[1]-gr2))<=1){ const oc=u.cell; occDel(oc[0],oc[1],u); occ.cell=oc; const [ox,oy]=cellCenter(oc[0],oc[1]); occ.x=ox; occ.y=oy; occ.gx=ox; occ.gy=oy; occ.nextCell=null; occ.path=null; if(occ.order.k==="move") occ.order={k:"guard"}; occSet(oc[0],oc[1],occ); u.cell=[gc2,gr2]; const [nx2,ny2]=cellCenter(gc2,gr2); u.x=nx2; u.y=ny2; u.path=null; occSet(gc2,gr2,u); } }
+if(u.order.swap && u.cell && !u.nextCell){ const [gc2,gr2]=cellOf(goal[0],goal[1]); const occ=gridOccAt(gc2,gr2); if(occ && occ!==u && occ.side===u.side && !occ.nextCell && Math.max(Math.abs(u.cell[0]-gc2),Math.abs(u.cell[1]-gr2))<=1){ const oc=u.cell; if(u.order.siegeRelief){u.siegeReliefAt=B.elapsed;occ.siegeReliefAt=B.elapsed;} occDel(oc[0],oc[1],u); occ.cell=oc; const [ox,oy]=cellCenter(oc[0],oc[1]); occ.x=ox; occ.y=oy; occ.gx=ox; occ.gy=oy; occ.nextCell=null; occ.path=null; if(occ.order.k==="move") occ.order={k:"guard"}; occSet(oc[0],oc[1],occ); u.cell=[gc2,gr2]; const [nx2,ny2]=cellCenter(gc2,gr2); u.x=nx2; u.y=ny2; u.path=null; occSet(gc2,gr2,u); } }
 
 const _gc=cellOf(goal[0],goal[1]); const _near=u.cell && Math.max(Math.abs(u.cell[0]-_gc[0]),Math.abs(u.cell[1]-_gc[1]))<=1 && !u.nextCell && u.idleAt!==undefined && B.elapsed-u.idleAt>1.5;
 if((Math.hypot(goal[0]-u.x,goal[1]-u.y)<=0.3 || _near) && u.order.wps && u.order.wps.length){ const rest=u.order.wps.slice(); const nx=rest.shift(); u.order={k:"move",x:nx[0],y:nx[1],wps:rest,swap:u.order.swap}; u.gx=nx[0]; u.gy=nx[1]; goal=[nx[0],nx[1]]; u.idleAt=undefined; }
@@ -32388,9 +32395,27 @@ const k=bTileAt(u.x,u.y);
 if(k===BT.HILL) m*=1.15; else if(k===BT.WATER) m*=.7; else if(k===BT.FORD) m*=.85; else if(k===BT.MARSH) m*=(c===2?.7:.85); else if(k===BT.FOREST && c===2) m*=.85; else if(k===BT.MOAT) m*=.75; else if(k===BT.EARTH&&u.side===1&&B.sm) m*=1.1;
 return m;
 }
+
+function shelteredAgainst(u,foe){
+if(u.morale<=0||u.left) return false;
+if(u.histCover>1&&B.histField&&B.histField.choke&&u.histHome&&dist(u,u.histHome)<4) return true;
+const fence=fenceBetween(u,foe);
+if(fence&&(fence.side===undefined?1:fence.side)===u.side&&
+(fence.ring===undefined||ckRingInside(B.ck.rings[fence.ring],u.x,u.y))) return true;
+if(u.side!==1||!(B.siegeWall||B.fortKit)) return false;
+if(B.ck&&B.ck.ring) return B.ck.rings.some(R=>ckRingInside(R,u.x,u.y));
+if(B.fortMain){ const F=B.fortMain; const inside=z=>z.x>F.x0&&z.x<F.x1&&z.y>F.y0&&z.y<F.y1; if(inside(u)&&!inside(foe)) return true; }
+const g=B.gate;
+return !!g&&!g.open&&(siegeDefLeft()?u.x<g.x&&foe.x>g.x:u.x>g.x&&foe.x<g.x);
+}
 function resolveAttack(a,d){
 if(d.yokoIn) return;
 const f=facingOf(a,d);
+
+const aSheltered=shelteredAgainst(a,d), dSheltered=shelteredAgainst(d,a);
+const contact=dSheltered?Math.min(a.troops,d.troops*2):a.troops;
+const troopPressure=Math.min(1,contact/Math.max(1,d.troops));
+const pressure=troopPressure;
 if(f!=="正面"&&d.morale>0&&!(d.flankHitAt>B.elapsed-2.5)){ d.flankHitAt=B.elapsed; d.flankFrom=Math.atan2(a.y-d.y,a.x-d.x); }
 if(f!=="正面"&&d.morale>0&&(d.engagedAt===undefined||B.elapsed-d.engagedAt>1.5)&&!(d.turnAt>B.elapsed-1.2)){ d.turnAt=B.elapsed; d.face=Math.atan2(a.y-d.y,a.x-d.x); d.faceLock=undefined; if(f==="背面"&&!(d.rearCry>B.elapsed-8)){ d.rearCry=B.elapsed; if(d.side===B.ctx.playerSide) B.banner={t:`${d.name}、背後を突かれた――向き直る`, at:B.elapsed}; } }
 const aSp=B.elapsed<a.spUntil?SPECIALS[UNITS[a.type].sp]:null;
@@ -32421,7 +32446,7 @@ if(a.type===3) a.shots=(a.shots||0)+1;
 if(hiddenIn(a)){
 power*=B.night?2.1:1.8;
 a.movedAt=B.elapsed;
-d.morale=Math.max(0,d.morale-8);
+d.morale=Math.max(0,d.morale-8*pressure);
 }
 if(B.keyPoints && B.keyPoints.some(k=>k.owner===a.side)) power*=1.05;
 if(B.firstB) power*=1.32;
@@ -32441,7 +32466,7 @@ if(B.firstBlood && B.firstBlood.id===a.id && B.elapsed-B.firstBlood.at<12) power
 
 if(a.type===3 && dist(a,d)<=2.9 && !fenceBetween(a,d)) power*=0.5;
 
-{ const around=B.units.filter(z=>z.side!==d.side&&z.troops>.5&&z.morale>0&&!z.left&&dist(z,d)<=2.3); if(around.length>=3){ power*=1.15; if(!d.encCry||B.elapsed-d.encCry>6){ d.encCry=B.elapsed; d.morale=Math.max(0,d.morale-4); if(d.side===B.ctx.playerSide) bshout(d.id,"囲まれた！",2); } } }
+{ const around=B.units.filter(z=>z.side!==d.side&&z.troops>.5&&z.morale>0&&!z.left&&dist(z,d)<=2.3); if(around.length>=3&&around.reduce((n,u)=>n+u.troops,0)>=d.troops*0.5){ power*=1.15; if(!d.encCry||B.elapsed-d.encCry>6){ d.encCry=B.elapsed; d.morale=Math.max(0,d.morale-4); if(d.side===B.ctx.playerSide) bshout(d.id,"囲まれた！",2); } } }
 if(a.type===2) power*=M.cav*(a.horse||1);
 
 if(a.rageous){
@@ -32452,9 +32477,9 @@ if(foes>mine2) power*=1+Math.min(.45,(foes/Math.max(1,mine2)-1)*.35);
 if(a.type===3 && bTileAt(a.x,a.y)===BT.WATER){ return; }
 if(a.type===1 && f==="背面") power*=1.15;
 
-if(a.type!==3 && f!=="正面" && d.morale>0 && !(d.flankBanAt>B.elapsed-10)){ d.flankBanAt=B.elapsed; d.morale=Math.max(0,d.morale-(f==="背面"?8:4)); const mineHit=a.side===B.ctx.playerSide; if((mineHit||d.side===B.ctx.playerSide) && !(B.flankBanAt>B.elapsed-8) && !(B.bigBanner&&B.elapsed-B.bigBanner.at<3)){ B.flankBanAt=B.elapsed; B.banner={t:`${f}攻撃！ ${a.name}隊 → ${d.name}隊`, at:B.elapsed}; if(mineHit) log(`${a.name}隊が${d.name}隊を${f}から突きました`,"war"); } }
+if(a.type!==3 && f!=="正面" && d.morale>0 && !(d.flankBanAt>B.elapsed-10)){ d.flankBanAt=B.elapsed; d.morale=Math.max(0,d.morale-(f==="背面"?8:4)*pressure); const mineHit=a.side===B.ctx.playerSide; if((mineHit||d.side===B.ctx.playerSide) && !(B.flankBanAt>B.elapsed-8) && !(B.bigBanner&&B.elapsed-B.bigBanner.at<3)){ B.flankBanAt=B.elapsed; B.banner={t:`${f}攻撃！ ${a.name}隊 → ${d.name}隊`, at:B.elapsed}; if(mineHit) log(`${a.name}隊が${d.name}隊を${f}から突きました`,"war"); } }
 { const mates=B.units.filter(z=>z!==a&&z.side===a.side&&z.troops>.5&&z.morale>0&&!z.left&&dist(z,a)<=3.5&&!feud(a,z)).length; if(mates>=2) power*=1.1; a.linked=mates>=2; }
-if(a.type===2 && B.elapsed<a.spUntil && a.chargeBanKey!==a.spUntil){ a.chargeBanKey=a.spUntil; const blocked = !!fenceBetween(a,d) || (d.type===0 && B.elapsed<d.spUntil) || bTileAt(a.x,a.y)===BT.FOREST; const mineC=a.side===B.ctx.playerSide; if((mineC||d.side===B.ctx.playerSide) && !(B.chargeBanAt>B.elapsed-5)){ B.chargeBanAt=B.elapsed; B.banner={t: blocked ? `${a.name}隊の突撃、阻まる` : `騎馬突撃 成功！ ${a.name}隊`, at:B.elapsed}; } if(!blocked){ d.morale=Math.max(0,d.morale-6); a.morale=Math.min(100,a.morale+4); } else { a.morale=Math.max(0,a.morale-3); } if(mineC) log(blocked?`${a.name}隊の騎馬突撃は${d.name}隊に阻まれました`:`${a.name}隊の騎馬突撃が${d.name}隊に当たりました`,"war"); }
+if(a.type===2 && B.elapsed<a.spUntil && a.chargeBanKey!==a.spUntil){ a.chargeBanKey=a.spUntil; const blocked = !!fenceBetween(a,d) || (d.type===0 && B.elapsed<d.spUntil) || bTileAt(a.x,a.y)===BT.FOREST; const mineC=a.side===B.ctx.playerSide; if((mineC||d.side===B.ctx.playerSide) && !(B.chargeBanAt>B.elapsed-5)){ B.chargeBanAt=B.elapsed; B.banner={t: blocked ? `${a.name}隊の突撃、阻まる` : `騎馬突撃 成功！ ${a.name}隊`, at:B.elapsed}; } if(!blocked){ d.morale=Math.max(0,d.morale-6*pressure); a.morale=Math.min(100,a.morale+4); } else { a.morale=Math.max(0,a.morale-3); } if(mineC) log(blocked?`${a.name}隊の騎馬突撃は${d.name}隊に阻まれました`:`${a.name}隊の騎馬突撃が${d.name}隊に当たりました`,"war"); }
 if(a.volleyBoost) power*=a.volleyBoost;
 if(a.skillAtk) power*=a.skillAtk;
 if(B.chargeBuffUntil>B.elapsed && a.side===B.chargeBuffSide) power*=1.2;
@@ -32486,7 +32511,7 @@ if(a.type===3){ a.ammo=(a.ammo===undefined?30:a.ammo)-1; if(a.ammo<=0){ power*=0
 let loss=Math.max(1, power/Math.max(8,defense)*6*(0.9+rnd()*0.2));
 if(d.tough) loss/=d.tough;
 if(B.siegeWall&&d.side===0&&a.side===1&&!B.fortKit){ if(!(B.sgRatioAt>B.elapsed-2)){ B.sgRatioAt=B.elapsed; const at=B.units.filter(u=>u.side===0&&u.troops>.5&&!u.left).reduce((q,u)=>q+u.troops,0), dt2=B.units.filter(u=>u.side===1&&u.troops>.5&&!u.left).reduce((q,u)=>q+u.troops,0); B.sgRatio=at/Math.max(1,dt2); } if(B.sgRatio>=4) loss*=Math.max(0.5,1.4/Math.sqrt(B.sgRatio)); }
-if(a.type!==3){ loss*=Math.max(1, Math.pow(d.max/1500, B.sek?0.35:0.7)); if(B.sek) loss*=0.45; }
+if(a.type!==3){ loss*=Math.max(1, Math.pow(Math.min(d.max,a.troops*2)/1500, B.sek?0.35:0.7)); if(B.sek) loss*=0.45; }
 battleSE(a.type===2?"horse":a.type===0?"spear":"clash", d.x, d.y, a.type===2?700:450, 0.45);
 if(a.type===0) loss*=(d.type===2?2.6:4.6); else if(a.type===1) loss*=3.0; else if(a.type===2) loss*=2.0;
 if(bTileAt(d.x,d.y)===BT.WATER) loss*=1.25;
@@ -32496,20 +32521,21 @@ else if(bTileAt(d.x,d.y)===BT.MARSH) loss*=1.1;
 if(d.morale<=0){ loss*=B.sek?1.0:(a.type===1?1.5:1.3); d.chased=(d.chased||0)+loss; }
 if(d.vulnUntil && B.elapsed<d.vulnUntil) loss*=1.15;
 if(B.form && B.form[d.side]===2) loss*=0.95;
-if(d.type===3 && a.type!==3 && dist(a,d)<=2.9 && !fenceBetween(a,d)){ loss*=(B.nagashino?1.3:1.6); d.morale=Math.max(0,d.morale-7); if(!d.meleeCry||B.elapsed-d.meleeCry>6){ d.meleeCry=B.elapsed; bshout(d.id,"組み付かれた！ 筒では戦えぬ！",2); } }
+if(d.type===3 && a.type!==3 && dist(a,d)<=2.9 && !fenceBetween(a,d)){ loss*=(B.nagashino?1.3:1.6); d.morale=Math.max(0,d.morale-7*pressure); if(!d.meleeCry||B.elapsed-d.meleeCry>6){ d.meleeCry=B.elapsed; bshout(d.id,"組み付かれた！ 筒では戦えぬ！",2); } }
 
 if(B.nagashino) loss=Math.min(loss, Math.max(1,d.max)*((aSp&&UNITS[a.type].sp==="騎馬突撃")?0.2:(d.type===3?0.1:0.14)));
 else loss=Math.min(loss, Math.max(1,d.max)*(d.cmd?0.07:(aSp&&UNITS[a.type].sp==="騎馬突撃")?0.18:0.13));
 
 loss=Math.min(loss, Math.max(1, a.troops*0.2));
 
-if(a.troops>d.troops*2){ const k2=Math.max(1, Math.min(2.2, a.troops/Math.max(1,d.troops)/2)); loss*=k2; }
-if(a.troops < d.troops*0.5){ const r2=a.troops/Math.max(1,d.troops); loss*=Math.max(0.3, r2*2); }
+if(!dSheltered&&a.troops>d.troops*2){ const k2=Math.max(1, Math.min(2.2, a.troops/Math.max(1,d.troops)/2)); loss*=k2; }
+if(a.troops < d.troops*0.5){ const r2=a.troops/Math.max(1,d.troops); loss*=aSheltered?Math.max(0.3,r2*2):r2*2; }
 
 { if(d._swAt===undefined || B.elapsed-d._swAt>1){ d._swAt=B.elapsed; d._swN=0; }
 d._swN=(d._swN||0)+1;
 if(d._swN>3) loss*=Math.max(0.35, 3/d._swN); }
 if(overWall!==1) loss*=overWall;
+if(dSheltered) loss*=Math.sqrt(contact/Math.max(1,a.troops));
 d.troops=Math.max(0,d.troops-loss);
 if(a.type!==3 && rnd()<0.05){ B.decals=B.decals||[]; if(B.decals.length<70) B.decals.push({k:"mud", x:d.x+(rnd()-.5)*1.5, y:d.y+(rnd()-.5)*1.0, t:B.elapsed}); }
 
@@ -32700,6 +32726,8 @@ if(cmd && cmd.order.k==="guard" && !B.aiGuardId){ const g=selectFirst(B.units.fi
 const _mt=B.units.filter(u=>u.side===foeSide&&u.troops>.5&&!u.left).reduce((s2,u)=>s2+u.troops,0), _ft=B.units.filter(u=>u.side!==foeSide&&u.troops>.5&&!u.left).reduce((s2,u)=>s2+u.troops,0);
 for(const u of B.units){
 if(u.side!==foeSide||u.morale<=0||u.troops<=.5||u.left) continue;
+if(siegeTaskActive(u)) continue;
+if(u.siegeTaskUntil){u.siegeTaskUntil=0;u.siegeTaskGate=null;}
 if(B.ted&&(u.tedGo||u.tedRear||u.tedRole)) continue;
 if(history258Command(u)) continue;
 if(u.reserveHold||u.postHold){ if(u.order.k!=="guard"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } continue; }
@@ -32730,8 +32758,9 @@ if(!foes.length) continue;
 
 if(B.gate && !B.gate.open && foeSide===0 && u.type!==3 && !u.cmd){
 const idx=B.units.filter(x=>x.side===0&&x.troops>.5).indexOf(u); const gdir=siegeDefLeft()?1:-1;
-const gy=B.gate.y+((idx%5)-2)*1.1, gx=B.gate.x+gdir*(1.6+(Math.floor(idx/5))*1.4);
-if(Math.hypot(u.x-gx,u.y-gy)>1.2) u.order={k:"move",x:gx,y:gy}; else { u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; }
+let gy=B.gate.y+((idx%5)-2)*1.1, gx=B.gate.x+gdir*(1.6+(Math.floor(idx/5))*1.4);
+[gx,gy]=siegeApproachPoint(u,gx,gy,B.gate);
+if(Math.hypot(u.x-gx,u.y-gy)>1.2){ u.order={k:"move",x:gx,y:gy,swap:!!u.siegeRelief,siegeRelief:!!u.siegeRelief}; u.siegeRelief=false; } else { u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; }
 continue;
 }
 if(holdsWall){
@@ -32843,6 +32872,56 @@ for(const u of us){ if(B.elapsed-(u.userAt||-99)<20) continue;
 const near=selectFirst(foes.filter(f=>dist(f,u)<12), (a,b)=>dist(a,u)-dist(b,u)); if(near&&!u.nobunaga){ u.order={k:"attack",id:near.id}; u.holdUntil=0; continue; }
 if(reached && !u.nobunaga && hq && hq.troops>.5 && hq.morale>0){ u.order={k:"attack",id:hq.id}; u.charge=true; u.holdUntil=0; continue; }
 const tx=Math.max(1,Math.min(BF.w-1,fx+side2*(u.nobunaga?2.5:4.5))); const lane=B.hist258&&B.hist258.key==="tennoji_relief"&&Math.abs(u.x-fx)>12?B.hist258.reliefY:BF.h/2;   const ty=Math.max(1.5,Math.min(BF.h-1.5,lane+(u.nobunaga?0:((i%3)-1)*3.2))); const rx=B.hist258&&B.hist258.key==="tennoji_relief"&&Math.abs(u.x-fx)>12&&Math.abs(u.y-ty)>2?u.x:tx;   u.order={k:"move",x:rx,y:ty}; u.gx=rx; u.gy=ty; u.charge=false; u.holdUntil=0; i++; } }
+
+function siegeTaskActive(u){
+if(!(u.siegeTaskUntil>B.elapsed)||!u.siegeTaskGate)return false;
+const gates=B.ck&&B.ck.ring?B.ck.rings.flatMap(R=>R.gates):[B.gate,B.ck&&B.ck.sideGate];
+if(B.ck&&B.ck.breach)gates.push(B.ck.breach);
+const g=gates.find(g=>g&&g.x===u.siegeTaskGate.x&&g.y===u.siegeTaskGate.y);
+return !!(g&&!g.open&&!(u.pathPartial&&u.idleAt!==undefined&&B.elapsed-u.idleAt>2)&&
+(u.order.k==="move"||Math.hypot(u.x-g.x,u.y-g.y)<3.2));
+}
+function siegeApproachPoint(u,gx,gy,g){
+if(!u.cell||!g) return [gx,gy];
+if(u.siegeApproach&&u.siegeApproach.request===g&&u.siegeApproach.ver===(B._fenceVer||0)&&!u.siegeApproach.g.open){
+const p=u.siegeApproach, [c,r]=cellOf(p.x,p.y);
+if(gridFreeCell(c,r,u)&&!(u.pathPartial&&u.idleAt!==undefined&&B.elapsed-u.idleAt>1)) return [p.x,p.y];
+}
+const R=B.ck&&B.ck.ring?B.ck.rings[B.siegeStage||0]:null;
+const gates=[g];
+if(R)for(const sg of R.gates){
+if(sg===g||sg.open)continue;
+const onWall=sg.dir==="x"?Math.min(Math.abs(sg.x-R.x0),Math.abs(sg.x-R.x1))<.6&&sg.y>=R.y0&&sg.y<=R.y1:
+Math.min(Math.abs(sg.y-R.y0),Math.abs(sg.y-R.y1))<.6&&sg.x>=R.x0&&sg.x<=R.x1;
+if(onWall)gates.push(sg);
+}
+for(const gate of gates){const [gc,gr]=cellOf(gate.x,gate.y), choices=[];
+for(let dc=-2;dc<=2;dc++)for(let dr=-2;dr<=2;dr++){
+const c=gc+dc,r=gr+dr;if(!gridFreeCell(c,r,u))continue;
+const [x,y]=cellCenter(c,r);if(Math.abs(x-gate.x)>=2.5||Math.abs(y-gate.y)>=2.6)continue;
+if(R){if(ckRingInside(R,x,y))continue;}
+else if((x-gate.x)*(siegeDefLeft()?1:-1)<0)continue;
+choices.push({c,r,x,y,d:Math.hypot(x-(gate===g?gx:gate.x),y-(gate===g?gy:gate.y))+Math.hypot(x-u.x,y-u.y)*.1});
+}
+choices.sort((a,b)=>a.d-b.d);
+for(const p of choices){const route=gridPath(u,p.c,p.r,true,true);if(route.partial)continue;
+u.siegeApproach={request:g,g:gate,ver:B._fenceVer||0,x:p.x,y:p.y};return [p.x,p.y];}
+}
+
+if(u.idleAt!==undefined&&B.elapsed-u.idleAt>2.5&&!(u.siegeReliefAt>B.elapsed-12)){
+for(const gate of gates){const [gc,gr]=cellOf(gate.x,gate.y);
+for(let dc=-1;dc<=1;dc++)for(let dr=-1;dr<=1;dr++){
+const c=gc+dc,r=gr+dr,[x,y]=cellCenter(c,r),v=gridOccAt(c,r);
+if(!v||v===u||v.side!==u.side||v.cmd||v.nextCell||v.postHold||v.reserveHold||v.histGuard||v.onTower||v.towerGun||v.sekHold||v.siegeReliefAt>B.elapsed-12)continue;
+if(Math.abs(x-gate.x)>=2.5||Math.abs(y-gate.y)>=2.6||R&&ckRingInside(R,x,y))continue;
+if(Math.max(Math.abs(u.cell[0]-c),Math.abs(u.cell[1]-r))>1||gridBlockedEdge(u,u.cell[0],u.cell[1],c,r))continue;
+if((v.fatigue||0)<20&&v.troops>=v.max*.85&&!(v.movedAt!==undefined&&B.elapsed-v.movedAt>3))continue;
+u.siegeRelief=true;u.siegeApproach=null;return [x,y];
+}
+}
+}
+u.siegeApproach=null;return [gx,gy];
+}
 function aiCommandSide(side, onlyAlly){
 if(B.hieiKit) return;
 const foes=B.units.filter(x=>x.side!==side&&x.troops>.5&&x.morale>0&&!x.left&&!x.tobiHold);
@@ -32869,6 +32948,9 @@ for(const u of B.units){
 if(u.cmd && !u.kanMain && side===B.ctx.playerSide && u.order.k==="retreat" && u.morale>0 && !B.retreatAll && !B.playerFled){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; }
 if(u.side!==side||u.morale<=0||u.troops<=.5||u.order.k==="retreat"||u.left) continue;
 if(onlyAlly && !u.ally && !u.autoAI) continue;
+
+if(siegeTaskActive(u)) continue;
+if(u.siegeTaskUntil){ u.siegeTaskUntil=0; u.siegeTaskGate=null; }
 if(u.gateWaitUntil>B.elapsed&&u.gateWaitVer===(B._fenceVer||0)){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; continue; }
 if(B.ted&&(u.tedGo||u.tedRear||u.tedRole)) continue;
 if(history258Command(u)) continue;
@@ -32945,10 +33027,11 @@ if(!near){ const F=B.fortMain; if(F&&F.gate&&u.type!==3){ const gx2=Math.max(1,M
 if(B.gate && !B.gate.open && side===0 && u.type!==3 && !u.cmd){
 if(u.holdUntil&&B.elapsed<u.holdUntil&&(u.siegeRole==="second"||u.siegeRole==="reserve")){ if(u.order.k!=="guard"){ u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; } continue; }
 const idx=B.units.filter(x=>x.side===0&&x.troops>.5).indexOf(u);
-const gdir=siegeDefLeft()?1:-1; let gy=B.gate.y+((idx%5)-2)*1.1, gx=B.gate.x+gdir*(1.6+(Math.floor(idx/5))*1.4);
-if(B.ck&&B.ck.ring&&u.ringPost){ const R=B.ck.rings[B.siegeStage||0]; const cands=R?R.gates.filter(g=>g!==R.front&&!g.open):[]; const pref=cands.find(g=>u.ringPost==="E"?g.dir==="x":(u.ringPost==="N"?(g.dir==="y"&&g.y<=R.y0+0.5):(g.dir==="y"&&g.y>=R.y1-0.5))); const sg=pref||cands[0]; if(sg){ const row=idx%4, col=Math.floor(idx/4)%3; if(sg.dir==="y"){ const out=sg.y<=R.y0+0.5?-1:1; gx=sg.x+(row-1.5)*1.2; gy=sg.y+out*(1.8+col*1.4); } else { const out=sg.x<R.cx?-1:1; gx=sg.x+out*(1.8+col*1.4); gy=sg.y+(row-1.5)*1.2; } } }
+let approachGate=B.gate; const gdir=siegeDefLeft()?1:-1; let gy=B.gate.y+((idx%5)-2)*1.1, gx=B.gate.x+gdir*(1.6+(Math.floor(idx/5))*1.4);
+if(B.ck&&B.ck.ring&&u.ringPost){ const R=B.ck.rings[B.siegeStage||0]; const cands=R?R.gates.filter(g=>g!==R.front&&!g.open):[]; const pref=cands.find(g=>u.ringPost==="E"?g.dir==="x":(u.ringPost==="N"?(g.dir==="y"&&g.y<=R.y0+0.5):(g.dir==="y"&&g.y>=R.y1-0.5))); const sg=pref||cands[0]; if(sg){ approachGate=sg; const row=idx%4, col=Math.floor(idx/4)%3; if(sg.dir==="y"){ const out=sg.y<=R.y0+0.5?-1:1; gx=sg.x+(row-1.5)*1.2; gy=sg.y+out*(1.8+col*1.4); } else { const out=sg.x<R.cx?-1:1; gx=sg.x+out*(1.8+col*1.4); gy=sg.y+(row-1.5)*1.2; } } }
+[gx,gy]=siegeApproachPoint(u,gx,gy,approachGate);
 gx=Math.max(1,Math.min(BF.w-1,gx)); gy=Math.max(1.5,Math.min(BF.h-1.5,gy));
-if(Math.hypot(u.x-gx,u.y-gy)>1.2) u.order={k:"move",x:gx,y:gy}; else { u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; }
+if(Math.hypot(u.x-gx,u.y-gy)>1.2){ u.order={k:"move",x:gx,y:gy,swap:!!u.siegeRelief,siegeRelief:!!u.siegeRelief}; u.siegeRelief=false; } else { u.order={k:"guard"}; u.gx=u.x; u.gy=u.y; }
 continue;
 }
 
@@ -35139,7 +35222,7 @@ u.holdUntil=0; u.reserveHold=false; u.reserve=false; u.postHold=false; u.thenHol
 u.autoAI=false; u.thenAttack=undefined; u.breakTo=null; u.flankPath=null; u.charge=false; u.pursue=false; u.faceLock=undefined; u.wingRes=null;
 u.userMoved=true; u.userAt=B.elapsed;
 }
-const ORDER_STATE_KEYS=["order","gx","gy","holdUntil","reserveHold","reserve","postHold","thenHold","stageDelay","autoAI","thenAttack","breakTo","flankPath","charge","pursue","faceLock","wingRes","userMoved","userAt","kzHold"];
+const ORDER_STATE_KEYS=["order","gx","gy","siegeTaskUntil","siegeTaskGate","holdUntil","reserveHold","reserve","postHold","thenHold","stageDelay","autoAI","thenAttack","breakTo","flankPath","charge","pursue","faceLock","wingRes","userMoved","userAt","kzHold"];
 function manualCommand(){
 if(B&&B.over===null) B.undo={at:B.elapsed,autoMine:B.autoMine,snap:B.units.filter(u=>u.side===B.ctx.playerSide).map(u=>({id:u.id,state:Object.fromEntries(ORDER_STATE_KEYS.map(k=>[k,u[k]===undefined?undefined:JSON.parse(JSON.stringify(u[k]))]))}))};
 if(B) B.manualN=(B.manualN||0)+1; try{ bAct("cmd"); }catch(_){ }
@@ -35699,7 +35782,7 @@ if(!o.chipAt || B.elapsed-o.chipAt>0.6){ o.chipAt=B.elapsed; B.chips=B.chips||[]
 if(u.type!==3) u.morale=Math.max(0,u.morale-0.25*dt);
 
 if(u.type!==3 && u.morale>0){ const near=B.units.filter(v=>v.side!==u.side&&v.troops>.5&&!v.left&&v.morale>0&&Math.hypot(v.x-u.x,v.y-u.y)<2.6);
-if(near.length){ const v=near[0]; const dmg=Math.min(v.troops*0.02, u.troops*0.0016*dt*(1+(u.warF||1)-1));
+if(near.length){ const v=near[0]; const contact=shelteredAgainst(v,u)?Math.min(u.troops,v.troops*2):u.troops; const dmg=Math.min(v.troops*0.02, contact*0.0016*dt*(1+(u.warF||1)-1));
 v.troops=Math.max(0,v.troops-dmg); v.engagedAt=B.elapsed; u.engagedAt=B.elapsed;
 if(rnd()<0.12*dt){ B.chips=B.chips||[]; B.chips.push({x:(u.x+v.x)/2, y:(u.y+v.y)/2-0.5, vx:(rnd()-.5)*3, vy:-2, t:0, life:0.5}); } } }
 if(!u.fenceCry || B.elapsed-u.fenceCry>8){ u.fenceCry=B.elapsed; if(rnd()<0.6) bshout(u.id, u.type===3?"柵が邪魔じゃ、下がって撃て！":"柵じゃ！ 崩せ、押し倒せ！", 2); }
