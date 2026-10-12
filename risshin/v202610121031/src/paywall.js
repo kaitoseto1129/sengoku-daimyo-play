@@ -36,6 +36,15 @@ export function isLocked(i) {
   return at >= FREE_BATTLES;
 }
 
+// Gumroad の重ねる買い物画面（gumroad.js）を一度だけ読む
+function loadGumroad() {
+  if (document.querySelector("script[src*='/js/gumroad.js']")) return;
+  const sc = document.createElement('script');
+  sc.src = 'https://gumroad.com/js/gumroad.js';
+  sc.async = true;
+  document.head.appendChild(sc);
+}
+
 const mt = (k) => { try { window.risshinMetrics && window.risshinMetrics[k] && window.risshinMetrics[k](); } catch (e) {} };
 let card = null;
 const closeCard = () => { if (card) { card.remove(); card = null; } };
@@ -61,7 +70,8 @@ export function showPaywall(onOpen, onClose) {
     <p id="pw-msg" role="status" style="margin:6px 0;min-height:24px;color:#e7c873"></p>
     ${canBuy ? '' : '<p style="margin:4px 0">購入の準備中です。今はすべての戦を遊べます。</p>'}
     <div style="display:flex;flex-wrap:wrap;justify-content:center">
-      ${canBuy ? `<button class="btn primary" id="pw-buy" style="${btn}">${ios ? '完全版を買う' : 'Gumroad で買う'}（${PRICE}）</button>` : ''}
+      ${canBuy ? (ios ? `<button class="btn primary" id="pw-buy" style="${btn}">完全版を買う（${PRICE}）</button>`
+        : `<a class="btn primary" id="pw-buy" href="${GUMROAD_URL}" target="_blank" rel="noopener" style="${btn};display:inline-flex;align-items:center;text-decoration:none">完全版を買う（${PRICE}）</a>`) : ''}
       <button class="btn" id="pw-restore" style="${btn}">${ios ? '買ったのを戻す' : '買った鍵を入れる'}</button>
       <button class="btn" id="pw-close" style="${btn}">閉じる</button>
     </div>
@@ -73,6 +83,8 @@ export function showPaywall(onOpen, onClose) {
     </form>`}</div>`;
   document.body.appendChild(el);
   card = el; mt('fullView');
+  // Web は Gumroad の買う画面をこの頁の上に重ねて開く（ほかのサイトへ移らない）。読めない時は新しいタブで開く
+  if (!ios && GUMROAD_URL) loadGumroad();
   const msg = (t, error = false) => {
     const m = el.querySelector('#pw-msg');
     if (m) {
@@ -95,7 +107,11 @@ export function showPaywall(onOpen, onClose) {
   if (buy) buy.onclick = () => {
     mt('fullBuyTap');
     if (ios) { msg('購入の画面を開いています…'); try { iap('buy'); } catch (e) { msg('購入の画面を開けませんでした'); } }
-    else if (GUMROAD_URL) window.open(GUMROAD_URL, '_blank', 'noopener');
+    else if (GUMROAD_URL) {
+      // 買い終えると、重ねた画面とメールに鍵が出る。そのまま下に貼れるよう、鍵の欄を先に開いておく
+      const form = el.querySelector('#pw-key-form');
+      if (form) { form.hidden = false; el.querySelector('#pw-key-help').textContent = '買い終えると、買った画面とメールに鍵が出ます。ここに貼ってください。'; }
+    }
   };
   el.querySelector('#pw-restore').onclick = () => {
     if (ios) { msg('買った記録を確かめています…'); try { iap('restore'); } catch (e) { msg('確かめられませんでした'); } return; }

@@ -1,8 +1,10 @@
 // 馬の怯えと進路の拒み。周囲は四分の一秒ごとに調べ、入れ物を毎コマ作らない。
-export function horseGunshot(army, pos) {
+export function horseGunshot(army, pos, team = -1) {
   for (const u of army.units) {
     const H = (u.mounted || u.isPlayer) && u.alive && u.horse?.userData.horse;
     if (!H) continue;
+    // 自分の馬は慣れた乗馬。味方（自分の組）の鉄砲では止まらない（kaito 10/12：駆ける最中に勝手に手綱を引かれて邪魔）
+    if (u.isPlayer && team === u.team) continue;
     const d = Math.hypot(u.pos.x - pos.x, u.pos.z - pos.z);
     if (d < 35) H.shock = Math.min(2, (H.shock || 0) + (1 - d / 35) * 0.8);
   }
@@ -46,7 +48,13 @@ export function horseThreatTick(army, u, dt, player = null) {
   if (!H || H.dead) return false;
   const now = player ? player.rt.t : army.time;
   H.fear = Math.max(0, (H.fear || 0) - dt * 0.08);
-  if (H.shock > 0) { const shock = H.shock; H.shock = 0; horseStartle(army, u, shock, player); }
+  if (H.shock > 0) {
+    const shock = H.shock; H.shock = 0;
+    // 自分の馬は、敵の筒先がごく近い時だけ竿立ちで止まる。それも十五秒に一度まで。ほかは怯えを溜めるだけ
+    if (!player) horseStartle(army, u, shock, player);
+    else if (shock >= 1.2 && !(H.playerStartleAt > now)) { H.playerStartleAt = now + 15; horseStartle(army, u, shock, player); }
+    else H.fear = Math.min(2, (H.fear || 0) + shock * 0.3);
+  }
   if (!u.mounted) return false;
   if (H.senseAt > now) return H.refuseUntil > now;
   H.senseAt = now + 0.25;
