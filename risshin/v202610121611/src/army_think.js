@@ -602,6 +602,20 @@ export const ArmyThink = {
     }
 
     let t = null;
+    // 本人が近くにいる敵の槍・刀は、隊の受け持ちに関わらず本人へ寄って囲む（打つのは前の二〜三人。後ろは player_pressure が待たせる）
+    {
+      const PP = this.playerUnit;
+      if (PP && PP.alive && PP.team !== u.team && !PP.noTarget && !this.duel && !u.name && !u.isLord && !u.stdHeld && !u.banner && !u.fleeing && !g.guardOn &&
+          u.type !== 'busho' && u.type !== 'porter' && u.type !== 'dummy' && !g.interiorHold && g.order !== 'retreat' && g.order !== 'assault' && g.order !== 'path' &&
+          (u.sidearm || u.type !== 'bow' && u.type !== 'gun') && !u.woundOut && !u.rearWound && !u.downed && !u.climb && !u.perch) {
+        const dx = PP.pos.x - u.pos.x, dz = PP.pos.z - u.pos.z, dd = Math.hypot(dx, dz);
+        if (dd < (this.playerReach || 14) && Math.abs(PP.pos.y - u.pos.y) < 2 && (u.pullUntil > this.time || (this.playerPullN || 0) < (this.playerPullMax || 3)) &&
+            !this.wallBetween(u.pos, u.team, PP.pos, (u.wpnKind || u.lookWeapon) === 'spear')) {
+          if (!(u.pullUntil > this.time)) this.playerPullN = (this.playerPullN || 0) + 1;
+          u.pullUntil = this.time + 2.5; u.target = PP; u.watch = null; return;
+        }
+      }
+    }
     // 槍・刀の者は、塀・柵の向こうで届かない敵を狙わない（弓・鉄砲は越えて撃てる）
     const melee = u.sidearm || u.type !== 'bow' && u.type !== 'gun';
     // 自分の組の槍・刀の者は、近く（持ち場から届く所）に名のある敵（武将・侍大将）がいれば、四人まで寄ってたかって囲む
@@ -715,6 +729,9 @@ export const ArmyThink = {
     return u.doorPt;
   },
 
+  // 戦が進むほど、敵（本人の敵方）の打つ間が詰まる（最大二割）
+  tierCd(u) { const P = this.playerUnit; return P && u.team !== P.team ? 1 - 0.1 * (this.tier || 0) : 1; },
+
   crowdOk(u, o) {
     if (o.isStruct || o.isPlayer || u.target === o || u.type === 'cavalry' || u.mounted) return true;
     let n = 0;
@@ -799,7 +816,7 @@ export const ArmyThink = {
     if (d > 7 && !hold) this.startCharge(u, near);
     if (u.stagger > 0) { result.want = null; result.speed = 0; return result; }
     if (hold) { const home = this.cavalryHome(u); result.want = localPoint(this, u, point, home.x, home.z); result.speed = u.speed; return result; }
-    if ((!t.isPlayer || (u.playerMeleeUntil > this.time || this.playerAttackers < 2) && !(this.playerCounterUntil > this.time)) && d <= u.reach + (u.charging ? 0.9 : 0.4) && (u.charging || u.cd <= 0) && !t.isStruct && !this.wallBetween(u.pos, u.team, t.pos)) {
+    if ((!t.isPlayer || (u.playerMeleeUntil > this.time || this.playerAttackers < (this.playerAtkMax || 2)) && !(this.playerCounterUntil > this.time)) && d <= u.reach + (u.charging ? 0.9 : 0.4) && (u.charging || u.cd <= 0) && !t.isStruct && !this.wallBetween(u.pos, u.team, t.pos)) {
       const was = u.charging;
       // 疲れた馬（u.horseStam が低い）の突撃は弱い：満タンで1.8倍、尽きると1.35倍まで下がる
       const chargeMult = was ? (1 + Math.min(1.2, this.horseMomentum(u, Math.hypot(u.mv.x, u.mv.z)) / 10)) * (0.75 + 0.25 * (u.horseStam ?? 1)) : 1;
@@ -808,7 +825,7 @@ export const ArmyThink = {
       if (t.isPlayer) { if (!(u.playerMeleeUntil > this.time)) this.playerAttackers++; u.playerMeleeUntil = this.time + 1.2; }
       this.strike(u, t, near, chargeMult, u.swing);
       u.strikeT = 0.2;
-      u.cd = u.cdBase * (0.85 + Math.random() * 0.3);
+      u.cd = u.cdBase * (0.85 + Math.random() * 0.3) * this.tierCd(u);
       u.charging = false; u.chargeCd = this.time + (was ? 3 : 1.5);
       // 駆け抜ける：突いたらそのまま前へ抜け、止まって斬り合わない
       const h = u.heading + (was ? 0 : (u.id % 2 ? 0.8 : -0.8));
@@ -1071,7 +1088,7 @@ export const ArmyThink = {
         }
       } else if (a.t <= 0) {
         u.atk = null;
-        u.cd = u.cdBase * (0.85 + Math.random() * 0.45) * (g.morale < 40 ? 1.35 : 1) * (1 + 0.35 * (u.fat || 0));   // 疲れた者は手が遅い
+        u.cd = u.cdBase * (0.85 + Math.random() * 0.45) * this.tierCd(u) * (g.morale < 40 ? 1.35 : 1) * (1 + 0.35 * (u.fat || 0));   // 疲れた者は手が遅い
         this.startSwing(u, a.kind || 'thrust', a.target);
         if (u.swing) { u.swing.heavy = !!a.heavy; u.swing.fast = !!a.fast; }
         if (a.fast && u.swing) u.swing.dur *= 0.7;
@@ -1086,7 +1103,7 @@ export const ArmyThink = {
       const spear = (u.wpnKind || u.lookWeapon || u.weapon) === 'spear';
       // 打ち終わりも二人の枠を保つ。後続は槍先の外へ回り、反撃の間には踏み込まない。
       const meleeWait = t.isPlayer && (u.sidearm || u.type !== 'gun' && u.type !== 'bow') &&
-        (!(u.playerMeleeUntil > this.time) && this.playerAttackers >= 2 || this.playerCounterUntil > this.time);
+        (!(u.playerMeleeUntil > this.time) && this.playerAttackers >= (this.playerAtkMax || 2) || this.playerCounterUntil > this.time);
       if (meleeWait && !u.swing) {
         const base = Math.atan2(u.pos.x - tp.x, u.pos.z - tp.z);
         const a = base + (u.id % 2 ? 1 : -1) * 0.22;
@@ -1261,7 +1278,7 @@ export const ArmyThink = {
           q.x = u.pos.x - Math.sin(fa) * 0.8; q.z = u.pos.z - Math.cos(fa) * 0.8;
           want = q; speed = u.speed * 0.45;
         }
-      } else if (t.isPlayer && !(u.playerMeleeUntil > this.time) && this.playerAttackers >= 2 && !u.stagger) {
+      } else if (t.isPlayer && !(u.playerMeleeUntil > this.time) && this.playerAttackers >= (this.playerAtkMax || 2) && !u.stagger) {
         // 二人が打つ間も、ほかの兵は近い間合いで槍を支え、刀は横の隙を探す。
         const base = Math.atan2(u.pos.x - tp.x, u.pos.z - tp.z);
         const a = base + (u.id % 2 ? 1 : -1) * (spear ? 0.12 : 0.38);

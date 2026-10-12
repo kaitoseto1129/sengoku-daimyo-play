@@ -95,7 +95,7 @@ export const ArmyCombat = {
     if (melee && t.isPlayer && src?.pos && !src.isStruct && Math.hypot(src.pos.x - t.pos.x, src.pos.z - t.pos.z) > Math.min(4.5, src.reach + 0.6)) { if (out) out.res = 'miss'; return; }
     // 踏み当たりなど、振り出しを通らない近接攻撃も同じ二人枠と反撃の間を守る。
     if (melee && t.isPlayer && src && !src.isStruct) {
-      if (this.playerCounterUntil > this.time || !(src.playerMeleeUntil > this.time) && this.playerAttackers >= 2) { if (out) out.res = 'miss'; return; }
+      if (this.playerCounterUntil > this.time || !(src.playerMeleeUntil > this.time) && this.playerAttackers >= (this.playerAtkMax || 2)) { if (out) out.res = 'miss'; return; }
       if (!(src.playerMeleeUntil > this.time)) { this.playerAttackers = (this.playerAttackers || 0) + 1; src.playerMeleeUntil = this.time + 0.9; }
     }
     // 地面の高低だけを見る。馬上の高さを坂の利に数えない。

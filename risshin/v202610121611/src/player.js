@@ -164,8 +164,9 @@ export function playerLook(G, stepOverride) {
     // 身分の格（足軽・組頭・侍大将・武将）。本人の顔、胴と陣笠の家紋、汚れ（出世するほど身綺麗に）
     tier: step >= 4 ? 3 : step >= 2 ? 2 : step, face: 'player', mon: scenario().mon, dirt: [0.7, 0.55, 0.4, 0.3, 0.25][Math.min(4, step)],
     menpoStyle: step >= 3 ? 'hanbo' : 'full',
-    // 侍大将から上は、本物の胴丸（humans.js の3Dスキャン）を着る
-    real: step >= 3 ? 1 : 0,
+    // 兜と具足（胴丸・桶側胴）を着る者は、本物の胴丸（humans.js の3Dスキャン）を着る。色は着た具足の威糸・漆
+    // （前は侍大将の段だけで、本編で城下の具足を着た足軽大将は、箱の胴の形のままだった）
+    real: step >= 3 || (hat.startsWith('kabuto') && (step >= 2 || ITEMS[G.equip.body].look >= 1)) ? 1 : 0,
   };
 }
 
@@ -1351,7 +1352,7 @@ export class Player {
     const stage = rt.army.combatStage || 0;
     const novice = rt.firstBattle && rt.D === DIFFICULTY.normal && !rt.G.lord && (rt.G.rank || 0) === 0;
     const learning = rt.def.learningFight && rt.D === DIFFICULTY.normal && !rt.G.lord && (rt.G.rank || 0) <= 1;
-    const weight = rt.def.dojo || novice ? 0.72 : rt.firstBattle ? 0.95 : learning ? 1 : 1.65 + stage * 0.55;
+    const weight = rt.def.dojo || novice ? 0.72 : rt.firstBattle ? 0.95 : learning ? 1 : (1.65 + stage * 0.55) * (1 + 0.2 * (rt.army.tier || 0));
     let taken = amount * mult * (1 - this.def) * this.D.taken * (rt.def.foeHit || 1) * weight;
     // 一秒内の四本目以降だけ少し緩める。記録の入れ物を毎回作り直さない。
     const hits = this.recentHits, now = rt.t;
