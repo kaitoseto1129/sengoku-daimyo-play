@@ -223,5 +223,55 @@
   "key": "down:tonezaka",
   "at": "2026-10-12T22:02:06.250Z",
   "note": "players_feed がチャッピーに頼んだ 20261013"
+ },
+ {
+  "key": "down:anegawa",
+  "at": "2026-10-13T22:00:09.936Z",
+  "note": "players_feed がチャッピーに頼んだ 20261014"
+ },
+ {
+  "key": "down:tottori",
+  "at": "2026-10-13T22:00:09.936Z",
+  "note": "players_feed がチャッピーに頼んだ 20261014"
+ },
+ {
+  "key": "aud:辻褄／門が壊れないまま戦が終わった（任務は落とした）",
+  "at": "2026-10-13T22:00:09.936Z",
+  "note": "players_feed がチャッピーに頼んだ 20261014"
+ },
+ {
+  "key": "stuck:hieizan:#,#",
+  "at": "2026-10-13T22:00:09.936Z",
+  "note": "players_feed がチャッピーに頼んだ 20261014"
+ },
+ {
+  "key": "down:arioka",
+  "at": "2026-10-13T22:00:09.936Z",
+  "note": "players_feed がチャッピーに頼んだ 20261014"
+ },
+ {
+  "key": "stuck:nagashima:#,-#",
+  "at": "2026-10-13T22:00:09.936Z",
+  "note": "players_feed がチャッピーに頼んだ 20261014"
+ },
+ {
+  "key": "aud:落ちた／console.error：THREE.Object#D.add: object not an inst",
+  "at": "2026-10-13T22:00:09.936Z",
+  "note": "players_feed がチャッピーに頼んだ 20261014"
+ },
+ {
+  "key": "stuck:shigisan:#,-#",
+  "at": "2026-10-13T22:00:09.936Z",
+  "note": "players_feed がチャッピーに頼んだ 20261014"
+ },
+ {
+  "key": "cmd-none:yari",
+  "at": "2026-10-13T22:00:09.936Z",
+  "note": "players_feed がチャッピーに頼んだ 20261014"
+ },
+ {
+  "key": "down:shitaragahara",
+  "at": "2026-10-13T22:00:09.936Z",
+  "note": "players_feed がチャッピーに頼んだ 20261014"
  }
 ]
