@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>戦国大名｜App Storeで無料プレイ</title>
+  <meta name="description" content="戦国大名をiPhone・iPadで無料プレイ。App Storeから今すぐ出陣。">
+  <meta name="theme-color" content="#0b0907">
+  <script>
+  (function () {
+    if (location.hostname !== 'kaitoseto1129.github.io') return;
+    !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+    n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}
+    (window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+    window.fbq('init', '1134385575587937');
+    window.fbq('track', 'PageView');
+  }());
+  </script>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100svh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 50% 20%,#34240f,#090807 62%);color:#f5ead4;font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;text-align:center}.card{width:min(520px,100%);padding:34px 24px;border:1px solid #5d4520;border-radius:22px;background:rgba(15,12,8,.9);box-shadow:0 22px 70px #000}.icon{width:112px;height:112px;border-radius:24px;box-shadow:0 10px 30px #000;margin:auto}h1{margin:20px 0 10px;font-family:"Hiragino Mincho ProN","Yu Mincho",serif;font-size:clamp(36px,10vw,58px);letter-spacing:.08em}.lead{margin:0 auto 24px;color:#ddcfb5;line-height:1.9}.cta{display:flex;align-items:center;justify-content:center;min-height:60px;padding:0 28px;border-radius:30px;background:linear-gradient(#efd077,#b6852d);color:#1b1106;font-weight:800;font-size:18px;text-decoration:none;box-shadow:0 10px 32px #000}.note{margin:14px 0 0;font-size:13px;color:#a99b81}
+  </style>
+</head>
+<body>
+  <main class="card">
+    <img class="icon" src="../icon-512.png" alt="戦国大名">
+    <h1>戦国大名</h1>
+    <p class="lead">一国を治め、兵を集め、盟を結び、敵を討つ。<br>iPhone・iPadで無料プレイ。</p>
+    <a id="app-store-cta" class="cta" href="https://apps.apple.com/app/apple-store/id6811255282?pt=127917008&amp;ct=meta&amp;mt=8">App Storeで無料プレイ</a>
+    <p class="note">AppleのApp Storeへ移動します</p>
+  </main>
+  <script>
+  (function () {
+    var source = new URLSearchParams(location.search).get('utm_source');
+    var cta = document.getElementById('app-store-cta');
+    if (source === 'google') cta.href = cta.href.replace('ct=meta', 'ct=google');
+    cta.addEventListener('click', function () {
+      if (typeof window.fbq === 'function') window.fbq('trackCustom', 'LPClick', {destination:'app_store', app:'daimyo'});
+    });
+  }());
+  </script>
+</body>
+</html>
