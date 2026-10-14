@@ -266,7 +266,7 @@ function render(){
   /* 第254巡：道の区切りまで見て数える。前は ev/battle に ev/battle-end・ev/battle-30s なども混ざり、会戦が三倍に見えていた */
   const ev=p=>hits.filter(h=>h.event && (h.path==="ev/"+p || h.path.startsWith("ev/"+p+"/"))).reduce((s,h)=>s+sumStats(h),0);
   const byPrefix=p=>{ const m={}; for(const h of hits){ if(!h.event||!h.path.startsWith("ev/"+p+"/")) continue; const rest=h.path.slice(("ev/"+p+"/").length); m[rest]=(m[rest]||0)+sumStats(h); } return Object.entries(m).sort((a,b)=>b[1]-a[1]); };
-  const act=ev("activation/first-battle-complete"), adClicks=byPrefix("src").filter(([k])=>/^meta/.test(k)).reduce((a,[,n])=>a+n,0)||ev("src/meta");
+  const act=ev("funnel/first-end"), adClicks=byPrefix("src").filter(([k])=>/^meta/.test(k)).reduce((a,[,n])=>a+n,0)||ev("src/meta");
   const loadFast=ev("load/1s"), load3=ev("load/3s"), loadSlow=ev("load/8s")+ev("load/slow"), loadTot=loadFast+load3+loadSlow;
   const starts=ev("start"), battles=ev("battle"), results=ev("result"), unlocks=ev("unlock"), fundOpen=ev("fund/open"), fundClick=ev("fund-click"), payClick=ev("pay-click"), fundDone=byPrefix("fund").filter(([k])=>k!=="open");
   const pages=pageHits;
@@ -288,7 +288,7 @@ function render(){
   const line=days.map((d,i)=>`${i?"L":"M"}${xs(i).toFixed(1)},${ys(d.n).toFixed(1)}`).join(" ");
   const area=days.length?`${line} L${xs(days.length-1).toFixed(1)},${H-pad} L${xs(0).toFixed(1)},${H-pad} Z`:"";
   /* 三本の折れ線（訪問・遊び始め・初戦を終えた）と、率の折れ線（遊び始め率・継続率・離脱率） */
-  const dStart=dailyOf("start"), dAct=dailyOf("activation/first-battle-complete"), dBat=dailyOf("battle");
+  const dStart=dailyOf("start"), dAct=dailyOf("funnel/first-end"), dBat=dailyOf("battle");
   const series=days.map(d=>({day:d.day, v:d.n, s:dStart[d.day]||0, a:dAct[d.day]||0, b:dBat[d.day]||0}));
   const mx2=Math.max(1,...series.map(d=>Math.max(d.v,d.s,d.a,d.b)));
   const ys2=n=>H-pad-(H-pad*2)*n/mx2;
@@ -333,7 +333,7 @@ function render(){
   /* 第253巡（作り手：ウェブとアプリで数を分けて）：肝心の数の内訳 */
   const platRow=(k)=>{ const app=ev("plat/app/"+k), web=ev("plat/web/"+k); return {app,web,tot:app+web}; };
   const platHtml=RS?"":(()=>{
-    const keys=[["start","遊び始め"],["activation/first-battle-complete","初戦を終えた"],["result","結び"],["fund/open","軍資金の札"],["fund-click","額を押した"],["user/new","新しい人"],["user/return","戻って来た人"]];
+    const keys=[["start","遊び始め"],["funnel/first-end","初戦を終えた"],["result","結び"],["fund/open","軍資金の札"],["fund-click","額を押した"],["user/new","新しい人"],["user/return","戻って来た人"]];
     const rows=keys.map(([k,n])=>[n,platRow(k)]);
     const any=rows.some(([,r])=>r.tot>0);
     if(!any) return `<div class="sec card"><h2>アプリとウェブの内訳</h2><div class="note">まだ分けた数が溜まっていません（この版を出した後の数から分かれます）。アプリの入手数は App Store Connect の Analytics を見てください。</div></div>`;

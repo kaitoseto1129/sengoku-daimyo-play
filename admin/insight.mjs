@@ -24,7 +24,7 @@ export function derive(DATA, RANGE='d7'){
   const systems=((DATA.breakdown||{}).systems||{}).stats||[];
   return {
     days, visits, ev, byPrefix, systems,
-    starts:ev('start'), act:ev('activation/first-battle-complete'),
+    starts:ev('start'), act:ev('funnel/first-end'),
     results:ev('result'), fundOpen:ev('fund/open'), fundClick:ev('fund-click'),
     adClicks: byPrefix('src').filter(([k])=>/^meta/.test(k)).reduce((a,[,n])=>a+n,0)||ev('src/meta'),
     loadFast:ev('load/1s'), load3:ev('load/3s'), loadSlow:ev('load/8s')+ev('load/slow'),
