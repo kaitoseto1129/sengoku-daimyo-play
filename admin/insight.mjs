@@ -8,6 +8,32 @@ import {fileURLToPath} from 'node:url';
 
 const HERE=path.dirname(fileURLToPath(import.meta.url));
 
+// 第260巡：ev/review 専用。同じ集計を管理画面と毎朝の読み取りに使う。
+export function reviewMetrics(hits){
+  const counts={}, scenes={}, houses={}, tails=[]; let starts=0,leaves=0,returns=0,dominance=0;
+  for(const h of hits){if(!h.event||!String(h.path||'').startsWith('ev/review/'))continue;
+    const a=h.path.slice(10).split('/'),cl=a.pop(),sc=a.pop();if(!['nagashino','sekigahara'].includes(sc)||!cl)continue;
+    const n=(h.stats||[]).reduce((s,d)=>s+(Number(d.daily)||0),0),key=sc+'/'+cl;
+    const home=houses[key]||(houses[key]={starts:0,unify:0,replay:0});
+    if(a[0]==='count'){
+      const delta=Number(a.pop());if(!Number.isSafeInteger(delta)||delta<=0)continue;
+      const k=a.slice(1).join('/');counts[k]=(counts[k]||0)+delta*n;
+    }else if(a[0]==='start'){starts+=n;home.starts+=n;}
+    else if(a[0]==='unify')home.unify+=n;
+    else if(a[0]==='replay')home.replay+=n;
+    else if(a[0]==='dominance')dominance+=n;
+    else if(a[0]==='early-leave'){leaves+=n;const k=a.slice(1).join('/');scenes[k]=(scenes[k]||0)+n;}
+    else if(a[0]==='early-return')returns+=n;
+    else if(a[0]==='tail-days'){const days=Number(a[1]);if(Number.isSafeInteger(days)&&days>=0)tails.push({days,n,house:key});}
+  }
+  const sum=p=>Object.entries(counts).filter(([k])=>k===p||k.startsWith(p+'/')).reduce((s,[,n])=>s+n,0);
+  const manual=sum('battle/manual'),auto=sum('battle/auto'),tailN=tails.reduce((s,t)=>s+t.n,0);
+  return {starts,leaves,returns,scenes,counts,houses,dominance,tails,bulk:sum('bulk'),manual,auto,
+    manualPct:manual+auto?Math.round(manual/(manual+auto)*100):null,
+    noticeShow:sum('notice-show'),noticeClose:sum('notice-close'),faults:sum('fault'),recovery:sum('recovery'),resume:sum('resume'),
+    tailN,tailDays:tailN?tails.reduce((s,t)=>s+t.days*t.n,0)/tailN:null};
+}
+
 export function derive(DATA, RANGE='d7'){
   const R=(DATA.ranges||{})[RANGE]; if(!R) return null;
   /* 戦国立身（/risshin/・risshin/ev/…）も同じサイトに入る。ここは戦国大名だけを読む（管理画面の gameHits と同じ分け方） */
@@ -23,7 +49,7 @@ export function derive(DATA, RANGE='d7'){
   const byPrefix=p=>{ const m={}; for(const h of hits){ if(!h.event||!h.path.startsWith('ev/'+p+'/')) continue; const rest=h.path.slice(('ev/'+p+'/').length); m[rest]=(m[rest]||0)+sumStats(h); } return Object.entries(m).sort((a,b)=>b[1]-a[1]); };
   const systems=((DATA.breakdown||{}).systems||{}).stats||[];
   return {
-    days, visits, ev, byPrefix, systems,
+    days, visits, ev, byPrefix, systems, review:reviewMetrics(hits),
     starts:ev('start'), act:ev('funnel/first-end'),
     results:ev('result'), fundOpen:ev('fund/open'), fundClick:ev('fund-click'),
     adClicks: byPrefix('src').filter(([k])=>/^meta/.test(k)).reduce((a,[,n])=>a+n,0)||ev('src/meta'),
@@ -60,6 +86,7 @@ export function insights(c){
   if(neu>=30&&ret/Math.max(1,neu)<0.12) add('中',`戻って来る人が少ない（新しい人 ${neu}／戻って来た人 ${ret}）`,'一度きりで終わっている','〈つづきから〉を表紙で目立たせる。一戦終えた人に「続きは残ります」と一言','return');
   if(ownErr>0) add('急',`こちらの不具合が ${ownErr}件`,'ゲームの中で落ちている','どの画面で出たかを見て直す：'+ownErrTop.map(([k,n])=>`${k}(${n})`).join('、'),'err');
   if(c.results===0&&c.starts>=20) add('良','結びが 0 なのは普通','一つの筋書きを最後まで遊ぶには何時間もかかる','日ごとの手応えは「初戦を終えた」で見る','result');
+  if(c.review.starts) add('良',`レビューの兆し：一括 ${c.review.bulk}回・手動 ${c.review.manual}／自動 ${c.review.auto}・不具合 ${c.review.faults}件`,'回数は差分を合算した下限。裏へ回した回数を去った人数とは数えない','場面別の三十分未満の離脱候補と復帰、知らせの表示・閉じる、優勢から統一までの日数を管理画面で比べる','review-signs');
   if(!out.length) add('良','まだ数が少ない','読み取るには人が足りない','人を増やしてから見る','few');
   return out;
 }
@@ -67,7 +94,7 @@ export function insights(c){
 export function read(range='d7'){
   const DATA=JSON.parse(fs.readFileSync(path.join(HERE,'stats.json'),'utf8'));
   const c=derive(DATA,range); if(!c) return {generated:DATA.generated, range, items:[]};
-  return {generated:DATA.generated, range, visits:c.visits, starts:c.starts, act:c.act, items:insights(c)};
+  return {generated:DATA.generated, range, visits:c.visits, starts:c.starts, act:c.act, review:c.review, items:insights(c)};
 }
 
 if(process.argv[1] && process.argv[1].endsWith('insight.mjs')){

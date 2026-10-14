@@ -58,6 +58,9 @@ a{ color:var(--ai); }
 .gsw [role=menuitemradio][aria-checked=true]{ background:#0F0D09; font-weight:800; }
 .gsw [role=menuitemradio] small{ color:var(--dim); font-size:11px; margin-left:auto; }
 body.risshin header{ border-bottom-color:var(--ai); }
+#reviewSigns{scroll-margin-top:130px}
+#reviewSigns .note,#reviewSigns .muted{font-size:14px;line-height:1.6}
+#reviewSigns .row{flex-wrap:wrap;gap:8px;overflow-wrap:anywhere}
 </style>
 </head>
 <body>
@@ -256,6 +259,32 @@ function mdHtml(md){
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fmtN=n=>Number(n||0).toLocaleString("ja-JP");
 function sumStats(h){ return (h.stats||[]).reduce((s,d)=>s+(d.daily||0),0); }
+// 第260巡：ev/review 専用。同じ集計を管理画面と毎朝の読み取りに使う。
+function reviewMetrics(hits){
+  const counts={}, scenes={}, houses={}, tails=[]; let starts=0,leaves=0,returns=0,dominance=0;
+  for(const h of hits){if(!h.event||!String(h.path||'').startsWith('ev/review/'))continue;
+    const a=h.path.slice(10).split('/'),cl=a.pop(),sc=a.pop();if(!['nagashino','sekigahara'].includes(sc)||!cl)continue;
+    const n=(h.stats||[]).reduce((s,d)=>s+(Number(d.daily)||0),0),key=sc+'/'+cl;
+    const home=houses[key]||(houses[key]={starts:0,unify:0,replay:0});
+    if(a[0]==='count'){
+      const delta=Number(a.pop());if(!Number.isSafeInteger(delta)||delta<=0)continue;
+      const k=a.slice(1).join('/');counts[k]=(counts[k]||0)+delta*n;
+    }else if(a[0]==='start'){starts+=n;home.starts+=n;}
+    else if(a[0]==='unify')home.unify+=n;
+    else if(a[0]==='replay')home.replay+=n;
+    else if(a[0]==='dominance')dominance+=n;
+    else if(a[0]==='early-leave'){leaves+=n;const k=a.slice(1).join('/');scenes[k]=(scenes[k]||0)+n;}
+    else if(a[0]==='early-return')returns+=n;
+    else if(a[0]==='tail-days'){const days=Number(a[1]);if(Number.isSafeInteger(days)&&days>=0)tails.push({days,n,house:key});}
+  }
+  const sum=p=>Object.entries(counts).filter(([k])=>k===p||k.startsWith(p+'/')).reduce((s,[,n])=>s+n,0);
+  const manual=sum('battle/manual'),auto=sum('battle/auto'),tailN=tails.reduce((s,t)=>s+t.n,0);
+  return {starts,leaves,returns,scenes,counts,houses,dominance,tails,bulk:sum('bulk'),manual,auto,
+    manualPct:manual+auto?Math.round(manual/(manual+auto)*100):null,
+    noticeShow:sum('notice-show'),noticeClose:sum('notice-close'),faults:sum('fault'),recovery:sum('recovery'),resume:sum('resume'),
+    tailN,tailDays:tailN?tails.reduce((s,t)=>s+t.days*t.n,0)/tailN:null};
+}
+
 function render(){
   if(!DATA) return; const R=DATA.ranges[RANGE]; if(!R){ return; }
   const hits=gameHits(R.hits); const tot=R.total||{};
@@ -349,9 +378,25 @@ function render(){
       <div class="list">${rows.map(([n,r])=>`<div class="row"><span>${esc(n)}</span><span class="num"><b>${fmtN(r.tot)}</b><span class="tiny muted">　アプリ ${fmtN(r.app)}／ウェブ ${fmtN(r.web)}</span></span></div>`).join("")}</div>
       <div class="note" style="margin-top:8px">アプリの中でもこちらの数取りは動きます（広告の Pixel はアプリでは送りません）。入手数・課金は App Store Connect を。</div></div>`;
   })();
+  const review=reviewMetrics(hits);
+  const reviewLabels={fault:'不具合',recovery:'不具合後の復帰',resume:'再開',urgent:'急報',economy:'収支・季節',history:'史実・節目',council:'軍議',encounter:'合戦の知らせ',auto:'自動消去',choice:'選択して閉じる',replace:'次の知らせに交代',battle:'合戦',guide:'手ほどき',dialog:'対話',panel:'詳細',map:'地図',hidden:'裏へ移動',pagehide:'頁を離れる',nagashino:'長篠',sekigahara:'関ヶ原',error:'実行時の不具合',rejection:'非同期の不具合',save:'記録から',restart:'新しい遊びから'};
+  const reviewName=k=>k.split('/').map(x=>reviewLabels[x]||x).join('／');
+  const reviewRows=rows=>rows.map(([k,n])=>`<div class="row"><span>${esc(reviewName(k))}</span><span>${fmtN(n)}</span></div>`).join('')||'<div class="muted">まだ印がありません</div>';
+  const reviewHtml=RS?'':`<div class="sec card" id="reviewSigns"><h2>レビューの兆し</h2>
+    <p>一括命令 ${fmtN(review.bulk)}回・合戦 手動 ${fmtN(review.manual)}／自動 ${fmtN(review.auto)}（手動 ${review.manualPct===null?'—':review.manualPct+'％'}）</p>
+    <p>知らせ 表示 ${fmtN(review.noticeShow)}／閉じる ${fmtN(review.noticeClose)}・不具合 ${fmtN(review.faults)}／不具合後の復帰 ${fmtN(review.recovery)}・記録再開 ${fmtN(review.resume)}</p>
+    <p>三十分未満の離脱候補 ${fmtN(review.leaves)}回／直後の復帰 ${fmtN(review.returns)}回（計測した開始 ${fmtN(review.starts)}回）</p>
+    ${reviewRows(Object.entries(review.scenes))}
+    <h3>知らせの種類ごと：表示／閉じる</h3>${reviewRows(Object.entries(review.counts).filter(([k])=>k.startsWith('notice-')).map(([k,n])=>[k.replace('notice-show/','表示/').replace('notice-close/','閉じる/'),n]))}
+    <h3>優勢から統一まで</h3><p>自城＋従属城が全国の三分の一に初めて届いてから、平均 ${review.tailDays===null?'—':review.tailDays.toFixed(1)}日（統一 ${fmtN(review.tailN)}件／到達 ${fmtN(review.dominance)}件）</p>
+    ${reviewRows(review.tails.map(t=>[t.house+'／'+t.days+'日',t.n]))}
+    <h3>家ごとの統一／二周目の開始</h3>${Object.entries(review.houses).map(([k,h])=>`<div class="row"><span>${esc(reviewName(k))}</span><span>統一 ${fmtN(h.unify)}／二周目 ${fmtN(h.replay)}</span></div>`).join('')||'<p class="muted">まだ印がありません</p>'}
+    <h3>不具合と復帰の内訳</h3>${reviewRows(Object.entries(review.counts).filter(([k])=>/^(fault|recovery|resume)\//.test(k)))}
+    <p class="note">長篠・関ヶ原だけ。回数は途中最大三回＋結び一回の差分を合計した下限で、人数ではありません。途中終了や送信失敗で未送信分が残り、合戦の比にも偏りが生じます。手動・自動は開戦時の采配で分類します。離脱候補には裏へ移動した操作を含みます。日数はゲーム内の暦（二周目は同じ端末で同じ家の統一後に新しく開始）。不具合は検出できた実行時エラーで、端末やブラウザの強制終了は含みません。</p></div>`;
   const advHtml="";   /* 第256巡（作り手）：読み取れることは載せない。クロードが自分で直す */
   document.getElementById("main").innerHTML=`
     ${platHtml}
+    ${reviewHtml}
     ${advHtml}
     ${RS?`<div class="sec card" id="voicesCard" hidden><h2>テストプレイヤー（bot）の声</h2><div id="voicesBody"></div>
       <div class="note" style="margin-top:8px">reports/players/まとめ.md を、公開のたびに写した物です（tools/mkpages.mjs）。</div></div>`:""}
