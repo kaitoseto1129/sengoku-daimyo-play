@@ -223,7 +223,15 @@ async function loadExtras(){
           <div class="note" style="margin-top:4px">やったこと：${esc(x.did||"")}</div>
           ${x.from?`<div class="note">きっかけ：${esc(x.from)}</div>`:""}</div>`).join(""); } }
   }catch(_){ }
-  if(g!=="risshin") return;
+  if(g!=="risshin"){
+    const card=document.getElementById("feedbackCard");
+    try{ const r=await fetch("feedback.json?t="+Date.now(),{cache:"no-store"}); if(!r.ok) throw Error(r.status);
+      const rows=await r.json(); if(g!==GAME||!card) return;
+      const names={meyasu:"目安箱",survey:"試遊の検証","first-battle":"初めての合戦","first-decisive":"初めての決戦",unify:"天下統一",quit:"合戦をやめた後"};
+      document.getElementById("feedbackBody").innerHTML=rows.slice().reverse().map(x=>`<div style="border-top:1px solid #65543b;padding:10px 0"><b>${esc(x.date)}　${esc(names[x.scene]||x.scene)}　${esc(x.rating)}</b><div style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(x.text||"（一言なし）")}</div><div class="note">版 ${esc(x.build)}・筋書き ${esc(x.scenario)}・${Number(x.count)||1}件</div></div>`).join("")||"まだ声は届いていません";
+    }catch(_){ if(card) document.getElementById("feedbackBody").textContent="声の記録を読み込めませんでした"; }
+    return;
+  }
   try{
     const r=await fetch("../risshin/data/players.md?t="+Date.now(), {cache:"no-store"});
     const card=document.getElementById("voicesCard");
@@ -365,10 +373,11 @@ function render(){
         <div class="row"><span>　そのうち PayPal から戻って「あとで」を押した人</span><span class="n">${fmtN(ev("fund-later"))}</span></div>
         <div class="row"><span>LP で軍資金の額を押した人</span><span class="n">${fmtN(byPrefix("lp").filter(([k])=>/^fund_\d+$/.test(k)).reduce((a,[,n])=>a+n,0))}</span></div>
         <div class="row"><span>関ヶ原（¥500）を「払いました」と押した人</span><span class="n">${fmtN(ev("paid/sekigahara"))}</span></div>
-        <div class="note" style="margin-top:8px">お便りはメールで届きます（この数は送った人の数）。支払いは PayPal の頁へ送ったあと、ゲームに戻って自分で「払いました」を押した数――実際に入金があったかどうかは PayPal の明細で確かめてください。iPhone 版の課金はここには出ません（App Store Connect で見る）。</div></div>`}
+        <div class="note" style="margin-top:8px">お便りは「みんなの声」に届き、メールでも送れます。支払いは PayPal の頁へ送ったあと、ゲームに戻って自分で「払いました」を押した数――実際に入金があったかどうかは PayPal の明細で確かめてください。iPhone 版の課金はここには出ません（App Store Connect で見る）。</div></div>`}
       
       
     </div>
+    ${GAME!=="risshin"?'<div class="sec card" id="feedbackCard"><h2>みんなの声</h2><div id="feedbackBody">読み込み中…</div></div>':""}
     <div class="sec card"><h2>日ごと（訪問・遊び始め・初戦を終えた）</h2>
       <svg viewBox="0 0 ${W} ${H}">
         <path d="${path('v')}" fill="none" stroke="#C9A227" stroke-width="2"/>
