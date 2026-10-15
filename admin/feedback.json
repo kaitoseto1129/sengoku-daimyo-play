@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "date": "2026-10-14",
+    "scene": "quit",
+    "rating": "ふつう",
+    "text": "",
+    "build": "1.1.0 (2026-09-21)",
+    "scenario": "nagashino",
+    "count": 1,
+    "path": "ev/fb/quit/%E3%81%B5%E3%81%A4%E3%81%86/1.1.0%20(2026-09-21)/nagashino/"
+  }
+]
