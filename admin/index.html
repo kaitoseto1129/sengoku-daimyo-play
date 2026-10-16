@@ -693,6 +693,35 @@ function renderDaily(){
  if(document.getElementById('gate').style.display==='none')appendUsers();
 }
 
+/* 10/16 kaito「管理画面は大名も立身も App Store の数だけにして」：遊ぶ先はアプリだけになったので、ブラウザの訪問や出来事の数は出さない。
+   数は sales.json（Apple の売上と入手の報告。遊びごとに games.daimyo／games.risshin） */
+let STORE=null;
+async function loadStore(){ try{ const r=await fetch('sales.json?t='+Date.now(),{cache:'no-store'}); if(!r.ok) throw Error(r.status); STORE=await r.json(); }catch(_){ STORE={error:true}; } }
+render=function(){
+ const main=document.getElementById('main'), G=GAMES[GAME];
+ document.getElementById('rangeTabs').hidden=true;
+ if(!STORE){ main.innerHTML='<div class="card">読み込み中…</div>'; return; }
+ if(STORE.error){ main.innerHTML='<div class="card">App Store の数を読めませんでした。少しして開き直してください。</div>'; return; }
+ const x=(STORE.games&&STORE.games[GAME])||{days:[]}, ds=x.days||[];
+ const end=ds.length?ds[ds.length-1].d:null;
+ const yen=n=>new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY',maximumFractionDigits:0}).format(n||0);
+ const sum=(k,e,n)=>{ if(!e) return null; const w=rangeDays(e,n), rows=ds.filter(d=>w.includes(d.d)); return rows.length?rows.reduce((s,d)=>s+(Number(d[k])||0),0):null; };
+ const card=(label,k,fmt)=>{ const a=sum(k,end,7), b=end?sum(k,shiftDay(end,-7),7):null, y=sum(k,end,1), py=end?sum(k,shiftDay(end,-7),1):null;
+  return `<article class="card kpi"><h3>${label}</h3><div class="value">${a===null?'—':fmt(a)}</div>${a===null?'':delta(a,b)}<div class="yesterday">最後の日 <b>${y===null?'—':fmt(y)}</b>${y===null?'':delta(y,py)}</div></article>`; };
+ const last=ds.slice(-30), mx=Math.max(1,...last.map(d=>d.new||0)), W=640, H=110, bw=(W-12)/Math.max(1,last.length);
+ const bars=last.map((d,i)=>{ const h=Math.round((H-24)*(d.new||0)/mx); return `<rect x="${(6+i*bw+1).toFixed(1)}" y="${H-14-h}" width="${Math.max(2,bw-2).toFixed(1)}" height="${h}" fill="${d.units?'#E3C25A':'#8a7536'}" rx="1"><title>${d.d} 入手 ${d.new||0}人${d.units?'・課金 '+d.units+'件':''}</title></rect>`; }).join('');
+ main.innerHTML=`
+ <div class="daily-head"><h2>いまの${G.name}（App Store）</h2><p>${end?'最後の日 '+esc(end)+' ／ 直近7日':'まだ数がありません'}</p></div>
+ <section class="kpis" aria-label="App Store の数">${card('新しく入れた人','new',fmtN)}${card('入れ直した人','re',fmtN)}${card('課金','units',n=>fmtN(n)+'件')}${card('入金','proceeds',yen)}</section>
+ <section class="card"><h2>日ごとに入れた人</h2><p class="muted">直近30日。金色の日は課金あり。</p><svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img" aria-label="日ごとの入手の棒グラフ">${bars}</svg></section>
+ <section class="card"><h2>はじめからの合計</h2><div class="row"><span>入れた人</span><b>${fmtN(x.total_new||0)}人</b></div><div class="row"><span>課金</span><b>${fmtN(x.total_units||0)}件</b></div><div class="row"><span>入金</span><b>${yen(x.total_proceeds)}</b></div></section>
+ <p class="muted">矢印は前の週（最後の日は前の週の同じ曜日）との比べ。Apple の集計は一〜二日遅れます。${esc((STORE.updated||'').slice(0,16).replace('T',' '))} に取得。</p>
+ <details class="card daily-details"><summary>管理の設定</summary><div id="dailySettings"></div></details>`;
+ const host=document.getElementById('dailySettings'); if(host&&!document.getElementById('nuGo')) host.appendChild(usersCard());
+};
+showSales=function(){}; loadExtras=async function(){};
+load=async function(){ document.getElementById('updated').textContent=''; render(); await loadStore(); render(); };
+
 if(opened()) load();
 </script>
 </body>
