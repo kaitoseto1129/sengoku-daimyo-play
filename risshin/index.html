@@ -30,11 +30,7 @@
   document.addEventListener('click', function (event) {
     var button = event.target && event.target.closest && event.target.closest('button');
     if (!button) return;
-    if (button.id === 'b-cont') {
-      window.__risshinMetaTrack('GameStart', { mode: 'continue' });
-    } else if (button.id === 'ng-next' && button.textContent.indexOf('この名で始める') !== -1) {
-      window.__risshinMetaTrack('GameStart', { mode: 'new' });
-    } else if (button.id === 'intro-go') {
+    if (button.id === 'intro-go') {
       var title = document.getElementById('intro-title');
       window.__risshinMetaTrack('BattleStart', { battle: title ? title.textContent.trim() : '' });
     }
@@ -69,6 +65,8 @@
 })();
 </script>
 <!-- /Meta Pixel -->
+<script>(function(){ if(/localhost|127\.0\.0\.1/.test(location.hostname)) return; window.dataLayer=window.dataLayer||[]; window.gtag=window.gtag||function(){ dataLayer.push(arguments); }; gtag('js',new Date()); gtag('config','G-CSH4DJMT91'); var g=document.createElement('script'); g.async=true; g.src='https://www.googletagmanager.com/gtag/js?id=G-CSH4DJMT91'; document.head.appendChild(g); })();</script>
+<script src="../ads-attribution.js"></script>
 <link rel="icon" type="image/png" sizes="32x32" href="./v202610130955/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610130955/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610130955/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610130955/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>

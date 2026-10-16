@@ -38,6 +38,10 @@
     };
   }
 
+  function titleFromPath(pathname) {
+    return /(?:^|\/)risshin(?:-|\/|$)/.test(pathname || '') ? 'sengoku_risshin' : 'sengoku_daimyo';
+  }
+
   function read(storage) {
     try { return JSON.parse(storage.getItem(STORAGE_KEY) || 'null'); } catch (_) { return null; }
   }
@@ -55,10 +59,11 @@
     return next;
   }
 
-  function eventPayload(name, attribution, extra) {
+  function eventPayload(name, attribution, extra, title) {
     var active = attribution.last || attribution.first || {};
     var payload = {
       event: 'sd_' + name,
+      sd_title: title || 'sengoku_daimyo',
       sd_source: active.source || 'direct',
       sd_medium: active.medium || 'none',
       sd_campaign: active.campaign || 'none',
@@ -71,9 +76,20 @@
 
   function createApi(env) {
     var attribution = remember(env.location, availableStorage(env), env.now && env.now());
+    var title = titleFromPath(env.location && env.location.pathname);
     function emit(name, extra) {
-      var payload = eventPayload(name, attribution, extra);
+      var payload = eventPayload(name, attribution, extra, title);
       (env.dataLayer = env.dataLayer || []).push(payload);
+      var params = {};
+      Object.keys(payload).forEach(function (key) { if (key !== 'event') params[key] = payload[key]; });
+      if (typeof env.gtag === 'function') env.gtag('event', payload.event, params);
+      var metaEvents = {
+        game_start: 'SDGameStart',
+        lp_to_game: 'SDLPToGame',
+        app_store_click: 'SDAppStoreClick',
+        stay_45m: 'SDStay45m'
+      };
+      if (metaEvents[name] && typeof env.fbq === 'function') env.fbq('trackCustom', metaEvents[name], params);
       return payload;
     }
     function mapLegacyEvent(name) {
@@ -85,20 +101,29 @@
     function bind(documentLike) {
       documentLike.addEventListener('click', function (event) {
         var link = event.target && event.target.closest ? event.target.closest('a') : null;
-        if (!link) return;
-        if (link.hasAttribute('data-app')) emit('app_store_click', { sd_link_position: clean(link.getAttribute('data-ev') || 'app', 48) });
-        else if (link.hasAttribute('data-play')) emit('lp_to_game', { sd_link_position: clean(link.getAttribute('data-ev') || 'play', 48) });
+        if (link) {
+          var href = link.getAttribute('href') || '';
+          if (link.hasAttribute('data-app') || href.indexOf('apps.apple.com') !== -1) {
+            emit('app_store_click', { sd_link_position: clean(link.getAttribute('data-ev') || link.id || 'app', 48) });
+          } else if (link.hasAttribute('data-play') || (/risshin-lp/.test(env.location.pathname || '') && /(?:^|\/)risshin\/?(?:[?#]|$)/.test(href))) {
+            emit('lp_to_game', { sd_link_position: clean(link.getAttribute('data-ev') || link.id || 'play', 48) });
+          }
+          return;
+        }
+        var button = event.target && event.target.closest ? event.target.closest('button') : null;
+        if (!button) return;
+        if (button.id === 'b-cont') emit('game_start', { sd_start_mode: 'continue' });
+        else if (button.id === 'ng-next' && button.textContent.indexOf('この名で始める') !== -1) emit('game_start', { sd_start_mode: 'new' });
       });
     }
-    return { attribution: attribution, emit: emit, mapLegacyEvent: mapLegacyEvent, bind: bind };
+    return { attribution: attribution, title: title, emit: emit, mapLegacyEvent: mapLegacyEvent, bind: bind };
   }
 
-  var exported = { parse: parse, remember: remember, eventPayload: eventPayload, createApi: createApi, storageKey: STORAGE_KEY };
+  var exported = { parse: parse, titleFromPath: titleFromPath, remember: remember, eventPayload: eventPayload, createApi: createApi, storageKey: STORAGE_KEY };
   if (typeof module !== 'undefined' && module.exports) module.exports = exported;
   if (!root || !root.location) return;
   root.SDAdsAttribution = createApi(root);
   if (root.document) {
     root.SDAdsAttribution.bind(root.document);
-    root.SDAdsAttribution.emit('page_view');
   }
 })(typeof window !== 'undefined' ? window : null);
