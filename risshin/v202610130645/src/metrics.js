@@ -6,7 +6,7 @@
 import { BATTLES, RANKS } from './state.js';
 import { S } from './settings.js';
 
-export const GA_ID = 'G-XQ8KRZ0WHH';   // 例 'G-XXXXXXXXXX'。GA4 のデータストリームの測定 ID を入れる（空なら送らない）
+export const GA_ID = 'G-417YT11Z8B';   // 戦国大名・戦国立身 広告計測
 
 const LOG = (window.__metricsLog = window.__metricsLog || []);
 const MARK = 'sengoku-risshin-metrics-';
