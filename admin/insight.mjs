@@ -34,67 +34,43 @@ export function reviewMetrics(hits){
     tailN,tailDays:tailN?tails.reduce((s,t)=>s+t.days*t.n,0)/tailN:null};
 }
 
-export function derive(DATA, RANGE='d7'){
-  const R=(DATA.ranges||{})[RANGE]; if(!R) return null;
-  /* 戦国立身（/risshin/・risshin/ev/…）も同じサイトに入る。ここは戦国大名だけを読む（管理画面の gameHits と同じ分け方） */
-  const hits=(R.hits||[]).filter(h=>!/^\/?risshin(\/|$)/.test(String(h.path||''))), tot=R.total||{};
-  const sumStats=h=>(h.stats||[]).reduce((s,d)=>s+(d.daily||0),0);
-  let days=(tot.stats||[]).map(d=>({day:d.day,n:d.daily||0}));
-  if(!days.length){ const m={}; for(const h of hits){ if(h.event) continue; for(const d of (h.stats||[])) m[d.day]=(m[d.day]||0)+(d.daily||0); } days=Object.keys(m).sort().map(k=>({day:k,n:m[k]})); }
-  const evTot=+(tot.total_events||0), rawTot=days.reduce((s,d)=>s+d.n,0);
-  const evByDay={}; for(const h of hits){ if(!h.event) continue; for(const d of (h.stats||[])) evByDay[d.day]=(evByDay[d.day]||0)+(d.daily||0); }
-  days=days.map(d=>({day:d.day,n:Math.max(0,d.n-(evByDay[d.day]||0))}));
-  const visits=(rawTot&&evTot)?Math.max(0,rawTot-evTot):days.reduce((s,d)=>s+d.n,0);
-  const ev=p=>hits.filter(h=>h.event&&h.path.startsWith('ev/'+p)).reduce((s,h)=>s+sumStats(h),0);
-  const byPrefix=p=>{ const m={}; for(const h of hits){ if(!h.event||!h.path.startsWith('ev/'+p+'/')) continue; const rest=h.path.slice(('ev/'+p+'/').length); m[rest]=(m[rest]||0)+sumStats(h); } return Object.entries(m).sort((a,b)=>b[1]-a[1]); };
-  const systems=((DATA.breakdown||{}).systems||{}).stats||[];
-  return {
-    days, visits, ev, byPrefix, systems, review:reviewMetrics(hits),
-    starts:ev('start'), act:ev('funnel/first-end'),
-    results:ev('result'), fundOpen:ev('fund/open'), fundClick:ev('fund-click'),
-    adClicks: byPrefix('src').filter(([k])=>/^meta/.test(k)).reduce((a,[,n])=>a+n,0)||ev('src/meta'),
-    loadFast:ev('load/1s'), load3:ev('load/3s'), loadSlow:ev('load/8s')+ev('load/slow'),
-    get loadTot(){ return this.loadFast+this.load3+this.loadSlow; },
-  };
+// アプリ印だけを正規化する。端末不明の旧記録とウェブ印は補完しない。
+export function appHits(hits){
+  return (hits||[]).filter(h=>h.event&&/^ev\/plat\/(app|ios)\//.test(String(h.path||'')))
+    .map(h=>({...h,path:h.path.replace(/^ev\/plat\/(app|ios)\//,'ev/')}))
+    .filter(h=>{const sc=h.path.split('/').find(x=>['oke','honnoji','kiyosu','shizugatake','komaki','koshu','sekigahara','osaka','hoi','mikata','nagashino','kyushu','odawara','ishiyama'].includes(x));return !sc||['nagashino','sekigahara'].includes(sc);});
 }
-
+export function derive(DATA, RANGE='d7'){
+  const R=DATA.ranges?.[RANGE];if(!R)return null;
+  const hits=appHits(R.hits),sum=h=>(h.stats||[]).reduce((s,d)=>s+(Number(d.daily)||0),0);
+  const matches=(h,p)=>h.path==='ev/'+p||h.path.startsWith('ev/'+p+'/');
+  const ev=p=>hits.filter(h=>matches(h,p)).reduce((s,h)=>s+sum(h),0);
+  const has=p=>hits.some(h=>matches(h,p));
+  const byPrefix=p=>hits.filter(h=>matches(h,p)).map(h=>[h.path.slice(('ev/'+p+'/').length),sum(h)]).sort((a,b)=>b[1]-a[1]);
+  // 旧版の初戦完了と新しい漏斗は同じ到達点。足し合わせない。
+  const first=has('funnel/first-end')?'funnel/first-end':'activation/first-battle-complete';
+  return {hits,ev,has,byPrefix,starts:has('start')?ev('start'):null,act:has(first)?ev(first):null,
+    unified:has('result/天下統一')?ev('result/天下統一'):null,review:reviewMetrics(hits),
+    loadSlow:ev('load/8s')+ev('load/slow'),loadTot:ev('load'),first};
+}
 export function insights(c){
-  const out=[]; const add=(lv,t,why,how,key)=>out.push({lv,t,why,how,key});
-  const pct0=(a,b)=>b?Math.round(a/b*100):0;
-  const startPct=pct0(c.starts,c.visits), actPct=pct0(c.act,c.starts), lateSlow=pct0(c.loadSlow,c.loadTot||1);
-  const lpv=c.byPrefix('lp/view').reduce((a,[,n])=>a+n,0), fromLp=c.ev('from/lp');
-  const appClicks=c.byPrefix('lp').filter(([k])=>/appstore_click$/.test(k)).reduce((a,[,n])=>a+n,0);
-  const iosShare=(()=>{ const tot=c.systems.reduce((a,x)=>a+x.count,0)||1; const ios=(c.systems.find(x=>/iOS/i.test(x.name||x.id||''))||{}).count||0; return Math.round(ios/tot*100); })();
-  const errRows=c.byPrefix('err').concat(c.byPrefix('err-ext'));
-  const isExt=k=>/postMessa|Script error|ResizeObserver|fbclid|instantMessag|invoking/i.test(k);
-  const ownErr=errRows.filter(([k])=>!isExt(k)).reduce((a,[,n])=>a+n,0);
-  const ownErrTop=errRows.filter(([k])=>!isExt(k)).slice(0,5);
-  const ret=c.ev('user/return'), neu=c.ev('user/new');
-  /* 第253巡：アプリとウェブの内訳（この版から分かれる） */
-  const appStart=c.ev('plat/app/start'), webStart=c.ev('plat/web/start');
-  if(appStart+webStart>=20 && appStart>0 && appStart<(appStart+webStart)*0.15)
-    add('中',`遊び始めのうちアプリは ${Math.round(appStart/(appStart+webStart)*100)}％`,'ほとんどがブラウザ版で、アプリに来ていない','紹介ページと本編で App Store の札を上に','plat-app');
-  if(c.loadTot>=20&&lateSlow>=35) add('急',`開くのが遅い（八秒以上が ${lateSlow}％）`,'広告から来た人は数秒で去る。ここが一番大きな漏れ口','本編の読み込みを軽くする（絵と台本の後回し）。広告の行き先は紹介ページ（/lp/）に','load');
-  if(c.visits>=80&&startPct<20) add('急',`遊び始めが少ない（訪問の ${startPct}％）`,'表紙で止まっている。何のゲームか、一目で分からない恐れ','表紙の一文と絵を見直す。〈ゲームをはじめる〉までの手数を増やさない','start');
-  else if(c.visits>=80&&startPct>=35) add('良',`入口は通っている（訪問の ${startPct}％が遊び始め）`,'表紙は効いている','この率を保ったまま人を増やす','start-ok');
-  if(c.starts>=20&&actPct<40) add('急',`最初の合戦を終えた人が少ない（遊び始めの ${actPct}％）`,'最初の戦で躓いている。操作か難しさ','長篠の最初の戦を易しく。〈自動で戦う〉を目立たせる。手引きの一行を戦の始めに','firstbattle');
-  else if(c.starts>=20&&actPct>=60) add('良',`最初の合戦まで届いている（${actPct}％）`,'合戦は伝わっている','次は二戦目・筋書きの続きへ','firstbattle-ok');
-  if(c.adClicks>=50&&lpv<c.adClicks*0.3) add('中',`広告が本編に直行している（紹介ページの表示 ${lpv}／広告 ${c.adClicks}）`,'重い本編に直接落としている','広告の行き先を /lp/ に変える（作り手の手元の作業）','ad-lp');
-  if(fromLp>0) add('良',`紹介ページから本編へ ${fromLp}人`,'導線は働いている','LP 経由と直行の遊び始め率を見比べる','lp-ok');
-  if(iosShare>=60&&appClicks===0&&lpv>=10) add('中',`iPhone の人が ${iosShare}％なのに App Store が押されていない`,'ブラウザ版で完結している','紹介ページの App Store の札を上に。本編にも「アプリなら続きが残る」の一行を','appstore');
-  if(c.fundOpen>=10&&c.fundClick===0) add('中',`軍資金の札は ${c.fundOpen}回開かれたが、額を押した人は 0`,'札の一枚目で金額に届いていない','一枚目に大きな〈軍資金を出す〉があるか確かめる','fund');
-  if(neu>=30&&ret/Math.max(1,neu)<0.12) add('中',`戻って来る人が少ない（新しい人 ${neu}／戻って来た人 ${ret}）`,'一度きりで終わっている','〈つづきから〉を表紙で目立たせる。一戦終えた人に「続きは残ります」と一言','return');
-  if(ownErr>0) add('急',`こちらの不具合が ${ownErr}件`,'ゲームの中で落ちている','どの画面で出たかを見て直す：'+ownErrTop.map(([k,n])=>`${k}(${n})`).join('、'),'err');
-  if(c.results===0&&c.starts>=20) add('良','結びが 0 なのは普通','一つの筋書きを最後まで遊ぶには何時間もかかる','日ごとの手応えは「初戦を終えた」で見る','result');
-  if(c.review.starts) add('良',`レビューの兆し：一括 ${c.review.bulk}回・手動 ${c.review.manual}／自動 ${c.review.auto}・不具合 ${c.review.faults}件`,'回数は差分を合算した下限。裏へ回した回数を去った人数とは数えない','場面別の三十分未満の離脱候補と復帰、知らせの表示・閉じる、優勢から統一までの日数を管理画面で比べる','review-signs');
-  if(!out.length) add('良','まだ数が少ない','読み取るには人が足りない','人を増やしてから見る','few');
+  const out=[],add=(lv,t,why,how,key)=>out.push({lv,t,why,how,key});
+  if(!c.hits.length){add('急','アプリ内の計測がまだありません','アプリと確認できる出来事が届いていません。旧記録は端末不明です','端末の印を付けた版を配信し、実機で開始・初戦完了・統一・離脱の到着を確認する','app-measure');return out;}
+  if(c.act===null||c.unified===null)add('中','アプリの漏斗に未計測の段があります','印がない段をゼロや離脱と断定できません','端末の印が付いた版と到達時の送信を確認する','app-stages');
+  if(c.starts>=20&&c.act!==null&&c.act/c.starts<.4)add('急',`アプリの初戦完了が少ない（${Math.round(c.act/c.starts*100)}％）`,'アプリの遊び始めに比べ初戦完了の記録が少ない','初戦の操作説明と自動で戦う導線を実機で確かめる','firstbattle');
+  if(c.loadTot>=20&&c.loadSlow/c.loadTot>=.35)add('急','アプリの起動が遅い','八秒以上の読み込みが35％以上','実機で起動時間を測り、読み込みを軽くする','load');
+  const errs=c.byPrefix('err').filter(([k])=>!/postMessa|Script error|ResizeObserver|fbclid|instantMessag|invoking/i.test(k));
+  if(errs.length||c.review.faults)add('急',`アプリの不具合が ${errs.reduce((s,[,n])=>s+n,0)+c.review.faults}回`,'アプリ由来の不具合印があります（重複送信を含む回数）','場面と版を確認して実機で再現する','err');
+  const scenes=Object.entries(c.review.scenes).sort((a,b)=>b[1]-a[1]);
+  if(scenes[0]?.[1]>=5)add('急',`アプリの早い離脱候補が ${scenes[0][1]}回`,'三十分未満で裏へ移動した場面があります','離脱が多い場面と直後の復帰を見て、操作と知らせを確かめる','early');
+  if(!out.length)add('良','アプリの数を継続して見る','急ぎの指摘はありません','初戦完了と場面ごとの離脱を翌週も比べる','app-watch');
   return out;
 }
 
 export function read(range='d7'){
   const DATA=JSON.parse(fs.readFileSync(path.join(HERE,'stats.json'),'utf8'));
   const c=derive(DATA,range); if(!c) return {generated:DATA.generated, range, items:[]};
-  return {generated:DATA.generated, range, visits:c.visits, starts:c.starts, act:c.act, review:c.review, items:insights(c)};
+  return {generated:DATA.generated, range, scope:"アプリのみ", starts:c.starts, act:c.act, unified:c.unified, review:c.review, items:insights(c)};
 }
 
 if(process.argv[1] && process.argv[1].endsWith('insight.mjs')){
@@ -102,7 +78,7 @@ if(process.argv[1] && process.argv[1].endsWith('insight.mjs')){
   const r=read(range);
   if(process.argv.includes('--json')) console.log(JSON.stringify(r,null,1));
   else {
-    console.log(`== 数の読み取り（${r.range}／更新 ${r.generated}）　訪問 ${r.visits}／遊び始め ${r.starts}／初戦を終えた ${r.act}`);
+    console.log(`== 数の読み取り（${r.range}／更新 ${r.generated}）　アプリのみ　遊び始め ${r.starts??"未計測"}／初戦を終えた ${r.act??"未計測"}／統一 ${r.unified??"未計測"}`);
     for(const a of r.items) console.log(`【${a.lv}】${a.t}\n    なぜ：${a.why}\n    どうする：${a.how}\n    印：${a.key}`);
   }
 }

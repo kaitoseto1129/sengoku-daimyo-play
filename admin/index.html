@@ -116,8 +116,8 @@ body:not(.risshin) #dailySettings .card{background:var(--bg)}
 @media(max-width:650px){
  body:not(.risshin) header{padding:10px 16px}body:not(.risshin) header .sub{margin-left:0;width:100%}
  body:not(.risshin) main{padding:20px 16px}body:not(.risshin) .card{padding:16px}
- .kpis{grid-template-columns:1fr 1fr;gap:10px}.kpi .value{font-size:32px}
- .store{grid-template-columns:1fr 1fr}.store article{padding:12px!important}.store .store-line{gap:0;display:block}.store .store-line .muted{display:block}.store h3{font-size:14px!important}.work-grid{grid-template-columns:1fr;margin:20px 0;gap:16px}
+ .kpis{grid-template-columns:1fr 1fr;gap:10px}.kpi .value{font-size:26px}
+ .kpis[aria-label="アプリ内の漏斗"]{grid-template-columns:1fr 1fr!important}.store{grid-template-columns:1fr 1fr}.store article{padding:12px!important}.store .store-line{gap:0;display:block}.store .store-line .muted{display:block}.store h3{font-size:14px!important}.work-grid{grid-template-columns:1fr;margin:20px 0;gap:16px}
  .review-grid{grid-template-columns:1fr}.daily-head{gap:6px}.daily-head h2{font-size:22px!important}
 }
 
@@ -292,7 +292,7 @@ async function loadExtras(){
     try{ const r=await fetch("feedback.json?t="+Date.now(),{cache:"no-store"}); if(!r.ok) throw Error(r.status);
       const rows=await r.json(); if(g!==GAME||!card) return;
       const names={meyasu:"目安箱",survey:"試遊の検証","first-battle":"初めての合戦","first-decisive":"初めての決戦",unify:"天下統一",quit:"合戦をやめた後"};
-      document.getElementById("feedbackBody").innerHTML=rows.filter(x=>!x.scenario||["nagashino","sekigahara","長篠","関ヶ原"].includes(x.scenario)).slice().sort((a,b)=>String(b.date||"").localeCompare(String(a.date||""))).slice(0,5).map(x=>`<div style="border-top:1px solid #65543b;padding:10px 0"><b>${esc(x.date)}　${esc(names[x.scene]||x.scene)}　${esc(x.rating)}</b><div style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(x.text||"（一言なし）")}</div><div class="note">版 ${esc(x.build)}・筋書き ${esc(x.scenario)}・${Number(x.count)||1}件</div></div>`).join("")||"まだ声は届いていません";
+      document.getElementById("feedbackBody").innerHTML=rows.filter(x=>/^ev\/plat\/(app|ios)\//.test(x.path||"")).filter(x=>!x.scenario||["nagashino","sekigahara","長篠","関ヶ原"].includes(x.scenario)).slice().sort((a,b)=>String(b.date||"").localeCompare(String(a.date||""))).slice(0,5).map(x=>`<div style="border-top:1px solid #65543b;padding:10px 0"><b>${esc(x.date)}　${esc(names[x.scene]||x.scene)}　${esc(x.rating)}</b><div style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(x.text||"（一言なし）")}</div><div class="note">版 ${esc(x.build)}・筋書き ${esc(x.scenario)}・${Number(x.count)||1}件</div></div>`).join("")||"アプリ由来と確認できる声はまだありません";
     }catch(_){ if(card) document.getElementById("feedbackBody").textContent="声の記録を読み込めませんでした"; }
     return;
   }
@@ -553,63 +553,38 @@ function renderLegacy(){
     </div>
     <div class="sec note">数は GoatCounter（${esc(DATA.site)}）から六時間ごとに写しています。細かい生の数は <a href="${esc(DATA.site)}" target="_blank" rel="noopener">GoatCounter の画面</a>でも見られます。</div>`;
 }
-function derive(DATA, RANGE='d7'){
-  const R=(DATA.ranges||{})[RANGE]; if(!R) return null;
-  /* 戦国立身（/risshin/・risshin/ev/…）も同じサイトに入る。ここは戦国大名だけを読む（管理画面の gameHits と同じ分け方） */
-  const hits=(R.hits||[]).filter(h=>!/^\/?risshin(\/|$)/.test(String(h.path||''))), tot=R.total||{};
-  const sumStats=h=>(h.stats||[]).reduce((s,d)=>s+(d.daily||0),0);
-  let days=(tot.stats||[]).map(d=>({day:d.day,n:d.daily||0}));
-  if(!days.length){ const m={}; for(const h of hits){ if(h.event) continue; for(const d of (h.stats||[])) m[d.day]=(m[d.day]||0)+(d.daily||0); } days=Object.keys(m).sort().map(k=>({day:k,n:m[k]})); }
-  const evTot=+(tot.total_events||0), rawTot=days.reduce((s,d)=>s+d.n,0);
-  const evByDay={}; for(const h of hits){ if(!h.event) continue; for(const d of (h.stats||[])) evByDay[d.day]=(evByDay[d.day]||0)+(d.daily||0); }
-  days=days.map(d=>({day:d.day,n:Math.max(0,d.n-(evByDay[d.day]||0))}));
-  const visits=(rawTot&&evTot)?Math.max(0,rawTot-evTot):days.reduce((s,d)=>s+d.n,0);
-  const ev=p=>hits.filter(h=>h.event&&h.path.startsWith('ev/'+p)).reduce((s,h)=>s+sumStats(h),0);
-  const byPrefix=p=>{ const m={}; for(const h of hits){ if(!h.event||!h.path.startsWith('ev/'+p+'/')) continue; const rest=h.path.slice(('ev/'+p+'/').length); m[rest]=(m[rest]||0)+sumStats(h); } return Object.entries(m).sort((a,b)=>b[1]-a[1]); };
-  const systems=((DATA.breakdown||{}).systems||{}).stats||[];
-  return {
-    days, visits, ev, byPrefix, systems, review:reviewMetrics(hits),
-    starts:ev('start'), act:ev('funnel/first-end'),
-    results:ev('result'), fundOpen:ev('fund/open'), fundClick:ev('fund-click'),
-    adClicks: byPrefix('src').filter(([k])=>/^meta/.test(k)).reduce((a,[,n])=>a+n,0)||ev('src/meta'),
-    loadFast:ev('load/1s'), load3:ev('load/3s'), loadSlow:ev('load/8s')+ev('load/slow'),
-    get loadTot(){ return this.loadFast+this.load3+this.loadSlow; },
-  };
+// アプリ印だけを正規化する。端末不明の旧記録とウェブ印は補完しない。
+function appHits(hits){
+  return (hits||[]).filter(h=>h.event&&/^ev\/plat\/(app|ios)\//.test(String(h.path||'')))
+    .map(h=>({...h,path:h.path.replace(/^ev\/plat\/(app|ios)\//,'ev/')}))
+    .filter(h=>{const sc=h.path.split('/').find(x=>['oke','honnoji','kiyosu','shizugatake','komaki','koshu','sekigahara','osaka','hoi','mikata','nagashino','kyushu','odawara','ishiyama'].includes(x));return !sc||['nagashino','sekigahara'].includes(sc);});
 }
-
+function derive(DATA, RANGE='d7'){
+  const R=DATA.ranges?.[RANGE];if(!R)return null;
+  const hits=appHits(R.hits),sum=h=>(h.stats||[]).reduce((s,d)=>s+(Number(d.daily)||0),0);
+  const matches=(h,p)=>h.path==='ev/'+p||h.path.startsWith('ev/'+p+'/');
+  const ev=p=>hits.filter(h=>matches(h,p)).reduce((s,h)=>s+sum(h),0);
+  const has=p=>hits.some(h=>matches(h,p));
+  const byPrefix=p=>hits.filter(h=>matches(h,p)).map(h=>[h.path.slice(('ev/'+p+'/').length),sum(h)]).sort((a,b)=>b[1]-a[1]);
+  // 旧版の初戦完了と新しい漏斗は同じ到達点。足し合わせない。
+  const first=has('funnel/first-end')?'funnel/first-end':'activation/first-battle-complete';
+  return {hits,ev,has,byPrefix,starts:has('start')?ev('start'):null,act:has(first)?ev(first):null,
+    unified:has('result/天下統一')?ev('result/天下統一'):null,review:reviewMetrics(hits),
+    loadSlow:ev('load/8s')+ev('load/slow'),loadTot:ev('load'),first};
+}
 function insights(c){
-  const out=[]; const add=(lv,t,why,how,key)=>out.push({lv,t,why,how,key});
-  const pct0=(a,b)=>b?Math.round(a/b*100):0;
-  const startPct=pct0(c.starts,c.visits), actPct=pct0(c.act,c.starts), lateSlow=pct0(c.loadSlow,c.loadTot||1);
-  const lpv=c.byPrefix('lp/view').reduce((a,[,n])=>a+n,0), fromLp=c.ev('from/lp');
-  const appClicks=c.byPrefix('lp').filter(([k])=>/appstore_click$/.test(k)).reduce((a,[,n])=>a+n,0);
-  const iosShare=(()=>{ const tot=c.systems.reduce((a,x)=>a+x.count,0)||1; const ios=(c.systems.find(x=>/iOS/i.test(x.name||x.id||''))||{}).count||0; return Math.round(ios/tot*100); })();
-  const errRows=c.byPrefix('err').concat(c.byPrefix('err-ext'));
-  const isExt=k=>/postMessa|Script error|ResizeObserver|fbclid|instantMessag|invoking/i.test(k);
-  const ownErr=errRows.filter(([k])=>!isExt(k)).reduce((a,[,n])=>a+n,0);
-  const ownErrTop=errRows.filter(([k])=>!isExt(k)).slice(0,5);
-  const ret=c.ev('user/return'), neu=c.ev('user/new');
-  /* 第253巡：アプリとウェブの内訳（この版から分かれる） */
-  const appStart=c.ev('plat/app/start'), webStart=c.ev('plat/web/start');
-  if(appStart+webStart>=20 && appStart>0 && appStart<(appStart+webStart)*0.15)
-    add('中',`遊び始めのうちアプリは ${Math.round(appStart/(appStart+webStart)*100)}％`,'ほとんどがブラウザ版で、アプリに来ていない','紹介ページと本編で App Store の札を上に','plat-app');
-  if(c.loadTot>=20&&lateSlow>=35) add('急',`開くのが遅い（八秒以上が ${lateSlow}％）`,'広告から来た人は数秒で去る。ここが一番大きな漏れ口','本編の読み込みを軽くする（絵と台本の後回し）。広告の行き先は紹介ページ（/lp/）に','load');
-  if(c.visits>=80&&startPct<20) add('急',`遊び始めが少ない（訪問の ${startPct}％）`,'表紙で止まっている。何のゲームか、一目で分からない恐れ','表紙の一文と絵を見直す。〈ゲームをはじめる〉までの手数を増やさない','start');
-  else if(c.visits>=80&&startPct>=35) add('良',`入口は通っている（訪問の ${startPct}％が遊び始め）`,'表紙は効いている','この率を保ったまま人を増やす','start-ok');
-  if(c.starts>=20&&actPct<40) add('急',`最初の合戦を終えた人が少ない（遊び始めの ${actPct}％）`,'最初の戦で躓いている。操作か難しさ','長篠の最初の戦を易しく。〈自動で戦う〉を目立たせる。手引きの一行を戦の始めに','firstbattle');
-  else if(c.starts>=20&&actPct>=60) add('良',`最初の合戦まで届いている（${actPct}％）`,'合戦は伝わっている','次は二戦目・筋書きの続きへ','firstbattle-ok');
-  if(c.adClicks>=50&&lpv<c.adClicks*0.3) add('中',`広告が本編に直行している（紹介ページの表示 ${lpv}／広告 ${c.adClicks}）`,'重い本編に直接落としている','広告の行き先を /lp/ に変える（作り手の手元の作業）','ad-lp');
-  if(fromLp>0) add('良',`紹介ページから本編へ ${fromLp}人`,'導線は働いている','LP 経由と直行の遊び始め率を見比べる','lp-ok');
-  if(iosShare>=60&&appClicks===0&&lpv>=10) add('中',`iPhone の人が ${iosShare}％なのに App Store が押されていない`,'ブラウザ版で完結している','紹介ページの App Store の札を上に。本編にも「アプリなら続きが残る」の一行を','appstore');
-  if(c.fundOpen>=10&&c.fundClick===0) add('中',`軍資金の札は ${c.fundOpen}回開かれたが、額を押した人は 0`,'札の一枚目で金額に届いていない','一枚目に大きな〈軍資金を出す〉があるか確かめる','fund');
-  if(neu>=30&&ret/Math.max(1,neu)<0.12) add('中',`戻って来る人が少ない（新しい人 ${neu}／戻って来た人 ${ret}）`,'一度きりで終わっている','〈つづきから〉を表紙で目立たせる。一戦終えた人に「続きは残ります」と一言','return');
-  if(ownErr>0) add('急',`こちらの不具合が ${ownErr}件`,'ゲームの中で落ちている','どの画面で出たかを見て直す：'+ownErrTop.map(([k,n])=>`${k}(${n})`).join('、'),'err');
-  if(c.results===0&&c.starts>=20) add('良','結びが 0 なのは普通','一つの筋書きを最後まで遊ぶには何時間もかかる','日ごとの手応えは「初戦を終えた」で見る','result');
-  if(c.review.starts) add('良',`レビューの兆し：一括 ${c.review.bulk}回・手動 ${c.review.manual}／自動 ${c.review.auto}・不具合 ${c.review.faults}件`,'回数は差分を合算した下限。裏へ回した回数を去った人数とは数えない','場面別の三十分未満の離脱候補と復帰、知らせの表示・閉じる、優勢から統一までの日数を管理画面で比べる','review-signs');
-  if(!out.length) add('良','まだ数が少ない','読み取るには人が足りない','人を増やしてから見る','few');
+  const out=[],add=(lv,t,why,how,key)=>out.push({lv,t,why,how,key});
+  if(!c.hits.length){add('急','アプリ内の計測がまだありません','アプリと確認できる出来事が届いていません。旧記録は端末不明です','端末の印を付けた版を配信し、実機で開始・初戦完了・統一・離脱の到着を確認する','app-measure');return out;}
+  if(c.act===null||c.unified===null)add('中','アプリの漏斗に未計測の段があります','印がない段をゼロや離脱と断定できません','端末の印が付いた版と到達時の送信を確認する','app-stages');
+  if(c.starts>=20&&c.act!==null&&c.act/c.starts<.4)add('急',`アプリの初戦完了が少ない（${Math.round(c.act/c.starts*100)}％）`,'アプリの遊び始めに比べ初戦完了の記録が少ない','初戦の操作説明と自動で戦う導線を実機で確かめる','firstbattle');
+  if(c.loadTot>=20&&c.loadSlow/c.loadTot>=.35)add('急','アプリの起動が遅い','八秒以上の読み込みが35％以上','実機で起動時間を測り、読み込みを軽くする','load');
+  const errs=c.byPrefix('err').filter(([k])=>!/postMessa|Script error|ResizeObserver|fbclid|instantMessag|invoking/i.test(k));
+  if(errs.length||c.review.faults)add('急',`アプリの不具合が ${errs.reduce((s,[,n])=>s+n,0)+c.review.faults}回`,'アプリ由来の不具合印があります（重複送信を含む回数）','場面と版を確認して実機で再現する','err');
+  const scenes=Object.entries(c.review.scenes).sort((a,b)=>b[1]-a[1]);
+  if(scenes[0]?.[1]>=5)add('急',`アプリの早い離脱候補が ${scenes[0][1]}回`,'三十分未満で裏へ移動した場面があります','離脱が多い場面と直後の復帰を見て、操作と知らせを確かめる','early');
+  if(!out.length)add('良','アプリの数を継続して見る','急ぎの指摘はありません','初戦完了と場面ごとの離脱を翌週も比べる','app-watch');
   return out;
 }
-
 
 // 急ぎの判定は insight.mjs の derive / insights と同じ規則を上で使用する。
 let DAILY_SALES=null, SALES_LOADING=false;
@@ -628,13 +603,14 @@ const shiftDay=(day,n)=>{const d=new Date(day+'T12:00:00Z');d.setUTCDate(d.getUT
 const rangeDays=(end,n)=>Array.from({length:n},(_,i)=>shiftDay(end,i-n+1));
 const inScope=p=>{const sc=String(p).split('/').find(x=>['oke','honnoji','kiyosu','shizugatake','komaki','koshu','sekigahara','osaka','hoi','mikata','nagashino','kyushu','odawara','ishiyama'].includes(x));return !sc||['nagashino','sekigahara'].includes(sc);};
 function dailyCounts(hits,allowed){
- const hs=gameHits(hits).filter(h=>!h.event||inScope(h.path));
+ const hs=appHits(hits);
  const sum=h=>(h.stats||[]).filter(d=>!allowed||allowed.includes(d.day)).reduce((n,d)=>n+(Number(d.daily)||0),0);
  const event=p=>hs.filter(h=>h.event&&(h.path==='ev/'+p||h.path.startsWith('ev/'+p+'/'))).reduce((n,h)=>n+sum(h),0);
- return [hs.filter(h=>!h.event).reduce((n,h)=>n+sum(h),0),event('start'),event('funnel/first-end'),event('result/天下統一')];
+ const count=p=>hs.some(h=>h.path==='ev/'+p||h.path.startsWith('ev/'+p+'/'))?event(p):null;
+ return [count('start'),count(hs.some(h=>h.path.startsWith('ev/funnel/first-end'))?'funnel/first-end':'activation/first-battle-complete'),count('result/天下統一')];
 }
 function delta(now,prev){
- if(prev===null)return '<span class="change">— 前週の記録なし</span>';
+ if(now===null||prev===null)return '<span class="change">— 比較できる記録なし</span>';
  if(!prev)return `<span class="change ${now?'good':''}">${now?'↑ ＋'+fmtN(now):'→ 変化なし'}</span>`;
  const d=(now-prev)/prev*100;return `<span class="change ${d>0?'good':d<0?'bad':''}">${d>0?'↑':d<0?'↓':'→'} ${fmtN(Math.round(Math.abs(d)))}％${d?'':'（変化なし）'}</span>`;
 }
@@ -644,15 +620,15 @@ function renderDaily(){
  const r=DATA.ranges.d7,one=DATA.ranges.d1,history=DATA.ranges.d30||DATA.ranges.d90;
  if(!r||!one){document.getElementById('main').innerHTML='<div class="card">昨日・直近7日の記録を取得できませんでした。</div>';return;}
  // 日次統計の day は UTC の日付。d1 の実際のキーを基準に前週を切り出す。
- const end=r.end, dayKeys=[...new Set((one.hits||[]).flatMap(h=>(h.stats||[]).map(d=>d.day)))].sort();
- const keyEnd=dayKeys.at(-1)||end;
+ const dayKeys=[...new Set((one.hits||[]).flatMap(h=>(h.stats||[]).map(d=>d.day)))].sort();
+ const keyEnd=dayKeys.at(-1)||shiftDay(one.end,-1),end=keyEnd;
  const hasHistory=history&&history.start<=shiftDay(end,-13)&&history.end>=end;
  const weekly=dailyCounts(r.hits),yesterday=dailyCounts(one.hits);
  const prev=hasHistory?dailyCounts(history.hits,rangeDays(shiftDay(keyEnd,-7),7)):null;
  const prevDay=hasHistory?dailyCounts(history.hits,[shiftDay(keyEnd,-7)]):null;
- const labels=['訪問','遊び始め','初戦を終えた','統一'];
+ const labels=['遊び始め','初戦を終えた','統一'];
  const c=derive(DATA,'d7'),urgent=c?insights(c).filter(x=>x.lv==='急').slice(0,3):[];
- const hits=gameHits(r.hits).filter(h=>inScope(h.path));const review=reviewMetrics(hits);
+ const hits=appHits(r.hits);const review=reviewMetrics(hits);
  const scenes={};
  // 新しい記録がない期間は従来の「3分未満」を使用。人数と断定しない。
  const newScenes=Object.entries(review.scenes);
@@ -660,29 +636,34 @@ function renderDaily(){
  const sceneNames={title:'表紙',map:'天下の地図',battle:'合戦','title-house':'大名家を選ぶ','battle-setup':'陣立て','battle-result':'合戦の結果',entry:'入口',house:'大名家を選ぶ'};
  const sceneName=k=>k.split('/').map(x=>sceneNames[x]||x.replace(/^panel:/,'札：').replace(/^dialog:/,'知らせ：')).join('・');
  const early=(newScenes.length?newScenes:Object.entries(scenes)).sort((a,b)=>b[1]-a[1]);
- const losses=labels.slice(0,3).map((label,i)=>{const from=weekly[i],to=weekly[i+1];return {label:label+' → '+labels[i+1],from,to,rate:from&&to<=from?Math.round((from-to)/from*100):null};}).sort((a,b)=>(b.rate??-1)-(a.rate??-1));
+ const losses=labels.slice(0,2).map((label,i)=>{const from=weekly[i],to=weekly[i+1];return {label:label+' → '+labels[i+1],from,to,rate:from&&to!==null&&to<=from?Math.round((from-to)/from*100):null};}).sort((a,b)=>(b.rate??-1)-(a.rate??-1));
  const pct=(a,b)=>b?fmtN(Math.round(a/b*100))+'％':'—';
  const storeHtml=key=>{
-  const title=key==='new'?'App Store 新規入手':'売上（入金）';
+  const title=({new:'新規入手',re:'再入手',upd:'更新',proceeds:'売上（推定入金）'})[key];
   if(!DAILY_SALES)return `<article class="card"><h3>${title}</h3><p class="muted">読み込み中…</p></article>`;
   if(DAILY_SALES.error)return `<article class="card"><h3>${title}</h3><p class="muted">記録を取得できませんでした</p></article>`;
   const x=DAILY_SALES.games?.daimyo||DAILY_SALES,ds=x.days||[];
-  const amount=n=>key==='new'?fmtN(n)+'件':new Intl.NumberFormat('ja-JP',{style:'currency',currency:x.cur||'JPY',maximumFractionDigits:2}).format(n);
+  const amount=n=>key!=='proceeds'?fmtN(n)+'件':new Intl.NumberFormat('ja-JP',{style:'currency',currency:x.cur||'JPY',maximumFractionDigits:2}).format(n);
   const period=(e,n)=>{const wanted=rangeDays(e,n),rows=ds.filter(d=>wanted.includes(d.d)),complete=rows.length===n;return {sum:rows.reduce((s,d)=>s+(Number(d[key])||0),0),complete,days:rows.length};};
   const a=period(end,7),b=period(shiftDay(end,-7),7),y=period(end,1),py=period(shiftDay(end,-7),1);
   const val=t=>t.complete?amount(t.sum):t.days?amount(t.sum):'—';
   return `<article class="card"><h3>${title}</h3><div class="store-line"><b class="store-n">${val(a)}</b><span class="muted">${a.complete?'直近7日':a.days+'/7日・判明分'}</span>${a.complete&&b.complete?delta(a.sum,b.sum):'<span class="change">— 前週比未確定</span>'}</div><div class="muted">昨日 ${y.complete?val(y):'集計待ち'} ${y.complete&&py.complete?delta(y.sum,py.sum):''}</div></article>`;
  };
  document.getElementById('main').innerHTML=`
- <div class="daily-head"><h2>いまの戦国大名</h2><p>昨日 ${esc(one.end)} ／ 直近7日 ${esc(r.start)}〜${esc(end)}</p></div>
- <section class="kpis" aria-label="訪問から統一まで">${labels.map((label,i)=>`<article class="card kpi"><h3>${label}</h3><div class="value">${fmtN(weekly[i])}</div>${delta(weekly[i],prev?prev[i]:null)}<div class="yesterday">昨日 <b>${fmtN(yesterday[i])}</b>${delta(yesterday[i],prevDay?prevDay[i]:null)}</div></article>`).join('')}</section>
- <div class="store">${storeHtml('new')}${storeHtml('proceeds')}</div><p class="muted">上の数字は直近7日／矢印は前週比（昨日は前週同日比）。App Store 最新確定 ${esc((DAILY_SALES?.games?.daimyo||DAILY_SALES)?.days?.at(-1)?.d||'—')}。</p>
+ <div class="daily-head"><h2>いまの戦国大名</h2><p>昨日 ${esc(keyEnd)} ／ 直近7日 ${esc(shiftDay(end,-6))}〜${esc(end)}</p></div>
+ <p class="note">広告の効き目：ct（meta・google・lp・guide・lp-meta）の入手別集計は sales.json にありません（売上の日次合計のみ取得）。App Store Connect → App 分析 → 戦国大名 → 獲得 → キャンペーンで確認。<a href="https://developer.apple.com/help/app-store-connect-analytics/acquisition/campaign-links">表示条件</a>：初回入手5人以上。</p>
+ <div class="store">${['new','re','upd','proceeds'].map(storeHtml).join('')}</div>
+ <p class="muted">星レビュー：平均 — ／ 件数 —（未取得。みんなの声の評価は星に換算しません）</p>
+ <h2 style="margin-top:24px">アプリ内の漏斗</h2><p class="muted">アプリ印のある記録のみ。印がない過去の段は未計測。</p>
+ <section class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))" aria-label="アプリ内の漏斗">${labels.map((label,i)=>`<article class="card kpi"><h3>${label}</h3><div class="value">${weekly[i]===null?'未計測':fmtN(weekly[i])}</div>${delta(weekly[i],prev?prev[i]:null)}<div class="yesterday">昨日 <b>${yesterday[i]===null?'未計測':fmtN(yesterday[i])}</b>${delta(yesterday[i],prevDay?prevDay[i]:null)}</div></article>`).join('')}</section>
+ <p class="muted">上の数字は直近7日／矢印は前週比（昨日は前週同日比）。App Store 最新確定 ${esc((DAILY_SALES?.games?.daimyo||DAILY_SALES)?.days?.at(-1)?.d||'—')}。</p>
  <div class="work-grid">
- <section class="card"><h2>どこで去っているか</h2><div class="muted">直近7日・離脱率の高い順</div>${losses.map(x=>`<div class="loss-row"><div>${x.label}<small>${fmtN(x.from)} → ${fmtN(x.to)}回</small></div><span class="loss-rate">${x.rate===null?'—':x.rate+'％'}</span></div>`).join('')}
+ <section class="card"><h2>どこで去っているか</h2><div class="muted">直近7日・離脱率の高い順</div>${losses.map(x=>`<div class="loss-row"><div>${x.label}<small>${x.from===null?'未計測':fmtN(x.from)} → ${x.to===null?'未計測':fmtN(x.to)}回</small></div><span class="loss-rate">${x.rate===null?'—':x.rate+'％'}</span></div>`).join('')}
  <h3>早い離脱が多い場面</h3><div class="muted">${newScenes.length?'30分未満の離脱候補':'3分未満の離脱候補（従来の記録）'}</div>${early.slice(0,5).map(([k,n])=>`<div class="row"><span>${esc(sceneName(k))}</span><b>${fmtN(n)}回</b></div>`).join('')||'<p class="muted">まだ記録がありません</p>'}
- <details><summary>数の読み方</summary><p class="muted">離脱率は各段階の記録回数の差です。同じ人の追跡ではありません。去った候補には裏への移動も含みます。訪問・筋書きのない旧記録は大名全体、筋書きが分かる記録は長篠・関ヶ原だけです。急ぎの判定は毎朝の insight.mjs と同じ規則です。訪問の旧集計式を保っているため、上段のページ表示数と判定の母数は異なります。</p>${early.slice(5).map(([k,n])=>`<div class="row"><span>${esc(sceneName(k))}</span><b>${fmtN(n)}回</b></div>`).join('')}</details></section>
+ <details><summary>数の読み方</summary><p class="muted">離脱率は各段階の記録回数の差です。同じ人の追跡ではありません。去った候補には裏への移動も含みます。端末の印なしは除外。筋書きが分かる記録は長篠・関ヶ原だけです。急ぎの判定は毎朝の insight.mjs と同じ規則です。旧版の初戦完了は activation、以降は funnel/first-end を使い、二重には足しません。</p>${early.slice(5).map(([k,n])=>`<div class="row"><span>${esc(sceneName(k))}</span><b>${fmtN(n)}回</b></div>`).join('')}</details></section>
  <section class="card"><h2>次の一手</h2><p class="muted">直近7日から・急ぎだけ、最大3件</p><ol class="action-list">${urgent.map(x=>`<li><strong>${esc(x.key==='start'?x.t.replace(/（.*）/,''):x.t)}</strong><p>${esc(x.key==='err'?x.how.split('：')[0]:x.how)}</p></li>`).join('')||'<li>急ぎの指摘はありません</li>'}</ol></section>
  </div>
+ <details class="card daily-details"><summary>日ごとの入手・売上</summary>${(()=>{const ds=(DAILY_SALES?.games?.daimyo||DAILY_SALES)?.days||[],wanted=rangeDays(end,7);return wanted.map(day=>{const d=ds.find(x=>x.d===day);return `<div class="row"><span>${esc(day)}</span><span>${d?`新規 ${fmtN(d.new)}／再入手 ${fmtN(d.re)}／更新 ${fmtN(d.upd)}／${fmtN(d.proceeds)} ${esc((DAILY_SALES?.games?.daimyo||DAILY_SALES)?.cur||'JPY')}`:'集計待ち'}</span></div>`;}).join('');})()}</details>
  <details class="card daily-details" id="feedbackCard"><summary>みんなの声 <span class="muted">新しい順・5件まで</span></summary><div id="feedbackBody">読み込み中…</div></details>
  <details class="card daily-details" id="reviewSigns"><summary>レビューの兆し <span class="muted">直近7日</span></summary><dl class="review-grid">
  <div><dt>知らせの閉じる率</dt><dd>${pct(review.noticeClose,review.noticeShow)}</dd><p class="muted">表示 ${fmtN(review.noticeShow)}／閉じる ${fmtN(review.noticeClose)}回</p></div>
@@ -692,35 +673,6 @@ function renderDaily(){
  <details class="card daily-details"><summary>管理の設定</summary><div id="dailySettings"></div></details>`;
  if(document.getElementById('gate').style.display==='none')appendUsers();
 }
-
-/* 10/16 kaito「管理画面は大名も立身も App Store の数だけにして」：遊ぶ先はアプリだけになったので、ブラウザの訪問や出来事の数は出さない。
-   数は sales.json（Apple の売上と入手の報告。遊びごとに games.daimyo／games.risshin） */
-let STORE=null;
-async function loadStore(){ try{ const r=await fetch('sales.json?t='+Date.now(),{cache:'no-store'}); if(!r.ok) throw Error(r.status); STORE=await r.json(); }catch(_){ STORE={error:true}; } }
-render=function(){
- const main=document.getElementById('main'), G=GAMES[GAME];
- document.getElementById('rangeTabs').hidden=true;
- if(!STORE){ main.innerHTML='<div class="card">読み込み中…</div>'; return; }
- if(STORE.error){ main.innerHTML='<div class="card">App Store の数を読めませんでした。少しして開き直してください。</div>'; return; }
- const x=(STORE.games&&STORE.games[GAME])||{days:[]}, ds=x.days||[];
- const end=ds.length?ds[ds.length-1].d:null;
- const yen=n=>new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY',maximumFractionDigits:0}).format(n||0);
- const sum=(k,e,n)=>{ if(!e) return null; const w=rangeDays(e,n), rows=ds.filter(d=>w.includes(d.d)); return rows.length?rows.reduce((s,d)=>s+(Number(d[k])||0),0):null; };
- const card=(label,k,fmt)=>{ const a=sum(k,end,7), b=end?sum(k,shiftDay(end,-7),7):null, y=sum(k,end,1), py=end?sum(k,shiftDay(end,-7),1):null;
-  return `<article class="card kpi"><h3>${label}</h3><div class="value">${a===null?'—':fmt(a)}</div>${a===null?'':delta(a,b)}<div class="yesterday">最後の日 <b>${y===null?'—':fmt(y)}</b>${y===null?'':delta(y,py)}</div></article>`; };
- const last=ds.slice(-30), mx=Math.max(1,...last.map(d=>d.new||0)), W=640, H=110, bw=(W-12)/Math.max(1,last.length);
- const bars=last.map((d,i)=>{ const h=Math.round((H-24)*(d.new||0)/mx); return `<rect x="${(6+i*bw+1).toFixed(1)}" y="${H-14-h}" width="${Math.max(2,bw-2).toFixed(1)}" height="${h}" fill="${d.units?'#E3C25A':'#8a7536'}" rx="1"><title>${d.d} 入手 ${d.new||0}人${d.units?'・課金 '+d.units+'件':''}</title></rect>`; }).join('');
- main.innerHTML=`
- <div class="daily-head"><h2>いまの${G.name}（App Store）</h2><p>${end?'最後の日 '+esc(end)+' ／ 直近7日':'まだ数がありません'}</p></div>
- <section class="kpis" aria-label="App Store の数">${card('新しく入れた人','new',fmtN)}${card('入れ直した人','re',fmtN)}${card('課金','units',n=>fmtN(n)+'件')}${card('入金','proceeds',yen)}</section>
- <section class="card"><h2>日ごとに入れた人</h2><p class="muted">直近30日。金色の日は課金あり。</p><svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img" aria-label="日ごとの入手の棒グラフ">${bars}</svg></section>
- <section class="card"><h2>はじめからの合計</h2><div class="row"><span>入れた人</span><b>${fmtN(x.total_new||0)}人</b></div><div class="row"><span>課金</span><b>${fmtN(x.total_units||0)}件</b></div><div class="row"><span>入金</span><b>${yen(x.total_proceeds)}</b></div></section>
- <p class="muted">矢印は前の週（最後の日は前の週の同じ曜日）との比べ。Apple の集計は一〜二日遅れます。${esc((STORE.updated||'').slice(0,16).replace('T',' '))} に取得。</p>
- <details class="card daily-details"><summary>管理の設定</summary><div id="dailySettings"></div></details>`;
- const host=document.getElementById('dailySettings'); if(host&&!document.getElementById('nuGo')) host.appendChild(usersCard());
-};
-showSales=function(){}; loadExtras=async function(){};
-load=async function(){ document.getElementById('updated').textContent=''; render(); await loadStore(); render(); };
 
 if(opened()) load();
 </script>
