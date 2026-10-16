@@ -39287,7 +39287,7 @@ const q=new URLSearchParams(location.search); if(q.get("notrack")||q.has("pixel_
 const PLAT=(()=>{ try{ return (window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.iap)?"app":"web"; }catch(_){ return "web"; } })();
 const PLAT_KEYS=/^(start|activation|result|fund|fund-click|pay-click|load|src|user|unlock|battle|from)\b/;
 
-const GA_ID="G-CSH4DJMT91";
+const GA_ID="G-417YT11Z8B";
 function gaEvent(ev){ try{ if(!window.gtag) return; ev=String(ev);
 if(/^unlock\/(?!word)/.test(ev)||/^paid\//.test(ev)){ gtag("event","purchase",{currency:"JPY",value:500,items:[{item_id:ev.split("/")[1],item_name:ev.split("/")[1]}],detail:ev}); return; }
 if(/^pay-click\//.test(ev)){ gtag("event","begin_checkout",{currency:"JPY",value:500,detail:ev}); return; }

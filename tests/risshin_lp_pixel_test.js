@@ -8,7 +8,7 @@ const script = [...html.matchAll(/<script(?: [^>]*)?>([\s\S]*?)<\/script>/g)]
 
 assert.ok(script, 'Meta Pixel base script is present on the Risshin LP');
 assert.match(html, /<script src="\.\.\/ads-attribution\.js"><\/script>/);
-assert.match(html, /G-CSH4DJMT91/);
+assert.match(html, /G-417YT11Z8B/);
 assert.match(html, /apps\.apple\.com\/jp\/app\/id6816750198/);
 assert.doesNotMatch(html, /apps\.apple\.com\/jp\/app\/id6811255282/);
 
