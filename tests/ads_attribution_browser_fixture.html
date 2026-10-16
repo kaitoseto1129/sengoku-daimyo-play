@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>戦国大名 広告計測ブラウザ受入</title>
+  <script src="../ads-attribution.js?v=20261012-1"></script>
+</head>
+<body>
+  <h1>戦国大名 広告計測ブラウザ受入</h1>
+  <a id="play" href="#play" data-play data-ev="fixture_play">LPからゲーム</a>
+  <a id="app" href="#app" data-app data-ev="fixture_app">App Storeクリック</a>
+  <button id="start" type="button">ゲーム開始</button>
+  <button id="stay" type="button">45分到達</button>
+  <script>
+    document.querySelectorAll('a').forEach(function (link) {
+      link.addEventListener('click', function (event) { event.preventDefault(); });
+    });
+    document.getElementById('start').addEventListener('click', function () {
+      window.SDAdsAttribution.mapLegacyEvent('start/nagashino/oda');
+    });
+    document.getElementById('stay').addEventListener('click', function () {
+      window.SDAdsAttribution.mapLegacyEvent('funnel/map-45m');
+    });
+  </script>
+</body>
+</html>

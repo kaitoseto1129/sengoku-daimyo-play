@@ -26,6 +26,7 @@
 </script>
 
 <!-- /pixel -->
+<script src="../ads-attribution.js"></script>
 
 
 <style>
@@ -556,9 +557,9 @@ footer a,#player .x{min-height:44px!important;font-size:14px}
   /* 第253巡（作り手：広告は紹介ページへ、そこから遊ぶ／App Store に分ける）：
      ① 広告の印（utm_source・src・fbclid）を「ブラウザで遊ぶ」の行き先へ引き継ぐ（本編でも広告から来た人と数えられる）
      ② 紹介ページを読んでいる間に本編を先に取っておく（押した時にはもう手元にある） */
-  (function(){ var q=new URLSearchParams(location.search); var src=q.get('utm_source')||q.get('src')||(q.get('fbclid')?'meta':''); var cmp=q.get('utm_campaign')||q.get('c')||'';
+  (function(){ var q=new URLSearchParams(location.search); var src=q.get('utm_source')||q.get('src')||(q.get('fbclid')?'meta':''); var cmp=q.get('utm_campaign')||q.get('c')||''; var med=q.get('utm_medium')||''; var content=q.get('utm_content')||'';
     var links=document.querySelectorAll('a[data-play]');
-    if(src){ links.forEach(function(a){ try{ var u=new URL(a.href); u.searchParams.set('src',src); if(cmp) u.searchParams.set('utm_campaign',cmp); u.searchParams.set('from','lp'); a.href=u.toString(); }catch(e){} }); }
+    if(src){ links.forEach(function(a){ try{ var u=new URL(a.href); u.searchParams.set('src',src); u.searchParams.set('utm_source',src); if(med) u.searchParams.set('utm_medium',med); if(cmp) u.searchParams.set('utm_campaign',cmp); if(content) u.searchParams.set('utm_content',content); u.searchParams.set('from','lp'); a.href=u.toString(); }catch(e){} }); }
     else links.forEach(function(a){ try{ var u=new URL(a.href); u.searchParams.set('from','lp'); a.href=u.toString(); }catch(e){} });
     var warm=false; function prefetch(){ if(warm||SDPage.limited()) return; warm=true; try{ var l=document.createElement('link'); l.rel='prefetch'; l.as='document'; l.href='https://kaitoseto1129.github.io/sengoku-daimyo-play/'; document.head.appendChild(l); }catch(e){} }
     

@@ -29,6 +29,7 @@
 })();
 </script>
 <!-- /pixel -->
+<script src="ads-attribution.js"></script>
 </head><body>
 <html lang="ja">
 <meta charset="utf-8">
@@ -39357,6 +39358,7 @@ setInterval(reviewTick,2000);
 function track(ev){
 try{
 if(!ANALYTICS) return; if(trackOff()) return;
+if(window.SDAdsAttribution) window.SDAdsAttribution.mapLegacyEvent(String(ev));
 const send=(p)=>{ if(window.goatcounter&&window.goatcounter.count){ window.goatcounter.count({path:p, title:p.slice(3), event:true}); } else { (window._gcQueue=window._gcQueue||[]).push(p); } };
 send("ev/"+ev);
 if(!String(ev).startsWith("fb/")) gaEvent(ev);
