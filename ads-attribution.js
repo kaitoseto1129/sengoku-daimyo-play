@@ -82,7 +82,10 @@
       (env.dataLayer = env.dataLayer || []).push(payload);
       var params = {};
       Object.keys(payload).forEach(function (key) { if (key !== 'event') params[key] = payload[key]; });
-      if (typeof env.gtag === 'function') env.gtag('event', payload.event, params);
+      var gaParams = {};
+      Object.keys(params).forEach(function (key) { gaParams[key] = params[key]; });
+      gaParams.transport_type = 'beacon';
+      if (typeof env.gtag === 'function') env.gtag('event', payload.event, gaParams);
       var metaEvents = {
         game_start: 'SDGameStart',
         lp_to_game: 'SDLPToGame',
@@ -103,10 +106,18 @@
         var link = event.target && event.target.closest ? event.target.closest('a') : null;
         if (link) {
           var href = link.getAttribute('href') || '';
+          var tracked = false;
           if (link.hasAttribute('data-app') || href.indexOf('apps.apple.com') !== -1) {
             emit('app_store_click', { sd_link_position: clean(link.getAttribute('data-ev') || link.id || 'app', 48) });
+            tracked = true;
           } else if (link.hasAttribute('data-play') || (/risshin-lp/.test(env.location.pathname || '') && /(?:^|\/)risshin\/?(?:[?#]|$)/.test(href))) {
             emit('lp_to_game', { sd_link_position: clean(link.getAttribute('data-ev') || link.id || 'play', 48) });
+            tracked = true;
+          }
+          if (tracked && event.preventDefault && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey && !link.target) {
+            event.preventDefault();
+            var destination = link.href || href;
+            (env.setTimeout || setTimeout)(function () { env.location.href = destination; }, 180);
           }
           return;
         }

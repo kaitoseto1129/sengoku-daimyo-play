@@ -55,6 +55,7 @@ assert.deepEqual(api.emit('app_store_click', { sd_link_position: 'hero_appstore_
 assert.equal(gtagCalls[0][0], 'event');
 assert.equal(gtagCalls[0][1], 'sd_app_store_click');
 assert.equal(gtagCalls[0][2].sd_title, 'sengoku_daimyo');
+assert.equal(gtagCalls[0][2].transport_type, 'beacon');
 assert.deepEqual(fbqCalls[0].slice(0, 2), ['trackCustom', 'SDAppStoreClick']);
 assert.equal(api.mapLegacyEvent('title/start-click').event, 'sd_game_start_click');
 assert.equal(api.mapLegacyEvent('start/nagashino/oda').event, 'sd_game_start');
