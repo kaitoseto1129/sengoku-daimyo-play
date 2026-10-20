@@ -614,6 +614,19 @@ function delta(now,prev){
  if(!prev)return `<span class="change ${now?'good':''}">${now?'↑ ＋'+fmtN(now):'→ 変化なし'}</span>`;
  const d=(now-prev)/prev*100;return `<span class="change ${d>0?'good':d<0?'bad':''}">${d>0?'↑':d<0?'↓':'→'} ${fmtN(Math.round(Math.abs(d)))}％${d?'':'（変化なし）'}</span>`;
 }
+
+async function loadMeta(end){ const el=document.getElementById('metaBody'); if(!el)return;
+ let m; try{const r=await fetch('meta.json?t='+Date.now(),{cache:'no-store'}); if(!r.ok)throw 0; m=await r.json();}catch(_){el.textContent='まだつないでいません（Meta の鍵待ち）';return;}
+ const yen=n=>new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY',maximumFractionDigits:0}).format(n);
+ const sum=(ds,k)=>ds.reduce((a,d)=>a+(Number(d[k])||0),0);
+ const wk=rangeDays(end,7), pw=rangeDays(shiftDay(end,-7),7);
+ const a=m.days.filter(d=>wk.includes(d.d)), b=m.days.filter(d=>pw.includes(d.d));
+ const st=(DAILY_SALES?.games?.daimyo||DAILY_SALES)?.days||[]; const nw=st.filter(d=>wk.includes(d.d)).reduce((n,d)=>n+(Number(d.new)||0),0);
+ const sp=sum(a,'spend'), lk=sum(a,'link');
+ el.className=''; el.innerHTML=`<div class="store-line"><b class="store-n">${yen(sp)}</b><span class="muted">直近7日の広告費</span>${b.length?delta(sp,sum(b,'spend')):''}</div>
+ <div class="row"><span>リンクのクリック</span><b>${fmtN(lk)}回（1回 ${lk?yen(sp/lk):'—'}）</b></div>
+ <div class="row"><span>App Store の新規入手1件あたり</span><b>${nw?yen(sp/nw):'—'}</b></div>
+ <div class="muted">新規入手は広告以外も含む全体の数。Meta 更新 ${esc(String(m.updated).slice(0,10))}</div>`; }
 function render(){if(GAME==='risshin'){renderLegacy();return;}renderDaily();}
 function renderDaily(){
  if(!DATA)return;
@@ -649,10 +662,12 @@ function renderDaily(){
   const val=t=>t.complete?amount(t.sum):t.days?amount(t.sum):'—';
   return `<article class="card"><h3>${title}</h3><div class="store-line"><b class="store-n">${val(a)}</b><span class="muted">${a.complete?'直近7日':a.days+'/7日・判明分'}</span>${a.complete&&b.complete?delta(a.sum,b.sum):'<span class="change">— 前週比未確定</span>'}</div><div class="muted">昨日 ${y.complete?val(y):'集計待ち'} ${y.complete&&py.complete?delta(y.sum,py.sum):''}</div></article>`;
  };
+ setTimeout(()=>loadMeta(end),0);
  document.getElementById('main').innerHTML=`
  <div class="daily-head"><h2>いまの戦国大名</h2><p>昨日 ${esc(keyEnd)} ／ 直近7日 ${esc(shiftDay(end,-6))}〜${esc(end)}</p></div>
  <p class="note">広告の効き目：ct（meta・google・lp・guide・lp-meta）の入手別集計は sales.json にありません（売上の日次合計のみ取得）。App Store Connect → App 分析 → 戦国大名 → 獲得 → キャンペーンで確認。<a href="https://developer.apple.com/help/app-store-connect-analytics/acquisition/campaign-links">表示条件</a>：初回入手5人以上。</p>
  <div class="store">${['new','re','upd','proceeds'].map(storeHtml).join('')}</div>
+ <article class="card" id="metaCard"><h3>Meta 広告</h3><div id="metaBody" class="muted">読み込み中…</div></article>
  <p class="muted">星レビュー：平均 — ／ 件数 —（未取得。みんなの声の評価は星に換算しません）</p>
  <h2 style="margin-top:24px">アプリ内の漏斗</h2><p class="muted">アプリ印のある記録のみ。印がない過去の段は未計測。</p>
  <section class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))" aria-label="アプリ内の漏斗">${labels.map((label,i)=>`<article class="card kpi"><h3>${label}</h3><div class="value">${weekly[i]===null?'未計測':fmtN(weekly[i])}</div>${delta(weekly[i],prev?prev[i]:null)}<div class="yesterday">昨日 <b>${yesterday[i]===null?'未計測':fmtN(yesterday[i])}</b>${delta(yesterday[i],prevDay?prevDay[i]:null)}</div></article>`).join('')}</section>
