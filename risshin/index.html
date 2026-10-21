@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202610130955 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202610211645 として写した） -->
 <title>戦国立身3D　足軽から天下へ、戦国の合戦アクション</title>
 <meta name="description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。">
 <link rel="canonical" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/">
@@ -30,7 +30,11 @@
   document.addEventListener('click', function (event) {
     var button = event.target && event.target.closest && event.target.closest('button');
     if (!button) return;
-    if (button.id === 'intro-go') {
+    if (button.id === 'b-cont') {
+      window.__risshinMetaTrack('GameStart', { mode: 'continue' });
+    } else if (button.id === 'ng-next' && button.textContent.indexOf('この名で始める') !== -1) {
+      window.__risshinMetaTrack('GameStart', { mode: 'new' });
+    } else if (button.id === 'intro-go') {
       var title = document.getElementById('intro-title');
       window.__risshinMetaTrack('BattleStart', { battle: title ? title.textContent.trim() : '' });
     }
@@ -65,9 +69,7 @@
 })();
 </script>
 <!-- /Meta Pixel -->
-<script>(function(){ if(/localhost|127\.0\.0\.1/.test(location.hostname)) return; window.dataLayer=window.dataLayer||[]; window.gtag=window.gtag||function(){ dataLayer.push(arguments); }; gtag('js',new Date()); gtag('config','G-417YT11Z8B'); var g=document.createElement('script'); g.async=true; g.src='https://www.googletagmanager.com/gtag/js?id=G-417YT11Z8B'; document.head.appendChild(g); })();</script>
-<script src="../ads-attribution.js"></script>
-<link rel="icon" type="image/png" sizes="32x32" href="./v202610130955/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610130955/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610130955/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610130955/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202610211645/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610211645/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610211645/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610211645/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
 :root {
@@ -615,6 +617,10 @@ body.rm #intro .card { animation: none !important; opacity: 1; }
 #subtitle .sp { font-family: var(--display); }
 .toast b { text-shadow: 0 0 8px rgba(194,162,90,.4); }
 #target { top: calc(64px + env(safe-area-inset-top, 0px)); }
+/* 心得は一列の横書き。印を隠した時も本文が細い列へ入り、黒札が縦に伸びないようにする。 */
+#hud #objectives #obj-list li.note.note-fresh, #hud #battle-notices #objectives #obj-list li.note.note-fresh, #hud #choice-tasks #objectives #obj-list li.note.note-fresh { display: block !important; }
+#objectives li.note .tag { color: #f0c070; }
+#hud #h-squad.urge { box-shadow: 0 0 0 2px #f0c070, 0 0 12px 2px rgba(240,192,112,.45); }
 #h-squad[hidden] + #target { top: calc(64px + env(safe-area-inset-top, 0px)); }
 @media (max-width: 900px) { #armybar { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); } .bl { width: 240px; } .topc { max-width: 240px; } }
 @media (max-height: 620px) { .bl { padding: 6px 10px; } .topc { bottom: 120px; } }
@@ -1731,9 +1737,9 @@ html.touch.tc-low #hud #armybar { width: min(360px, 40vw); top: calc(6px + env(s
   html body #hud #battle-notices.choosing { left: 50% !important; right: auto !important; top: calc(60px + env(safe-area-inset-top, 0px)) !important; bottom: auto !important; transform: translateX(-50%) !important; width: min(220px, 26vw) !important; max-height: min(65vh, calc(100dvh - 76px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))) !important; box-sizing: border-box; padding: 4px !important; overflow-y: auto; }
   html body #hud #battle-notices.choosing #choice { flex: 0 0 auto; }
 }
-/* 城下の知らせは三枠を縦に並べ、札より手前で読めるようにする。 */
+/* 城下の知らせは三枠を縦に並べる。携帯横でも背後の出陣ボタンへ指を通す。長い文は「直近の操作の結果を見る」で読める。 */
 #screen-notices { position: fixed; z-index: 100; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); width: min(400px, calc(100vw - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))); display: grid; gap: 8px; max-height: 40vh; overflow-y: auto; pointer-events: none; }
-@media (max-height:500px) { #screen-notices { top:calc(8px + env(safe-area-inset-top, 0px)); bottom:auto; max-height:96px; width:min(320px, 40vw); pointer-events:auto; touch-action:pan-y; } }
+@media (max-height:500px) { #screen-notices { top:calc(8px + env(safe-area-inset-top, 0px)); bottom:auto; max-height:96px; width:min(320px, 40vw); } }
 #screen-notices .toastbox { position: static; margin: 0; box-sizing: border-box; overflow-wrap: anywhere; white-space: normal; line-height: 1.6; font-size: max(15px, calc(15px * var(--text-scale))); animation: none; background: #1f1c17; color: var(--washi); border-color: var(--washi-dim); }
 #hud #objectives li.order .tag, #hud .toast.neg b { color: var(--shu-text); }
 
@@ -1760,13 +1766,18 @@ html.touch.tc-low #hud #armybar { width: min(360px, 40vw); top: calc(6px + env(s
   #hud #intro > .card { width: min(560px, calc(100vw - 288px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))); max-height: calc(100dvh - 120px - env(safe-area-inset-top, 0px)); padding: 12px 16px; touch-action: pan-y; }
 }
 #hud #intro-go { position: static; align-self: center; flex-shrink: 0; min-height: 48px; max-width: 100%; }
-/* 戦死の札は安全な画面内に収め、長い釦も折り返して読めるようにする。 */
-html body dialog.battle-retry { inset: auto calc(8px + env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) auto !important; max-height: calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important; }
-dialog.battle-retry .btn { box-sizing: border-box; width: 100%; min-width: 0; height: auto; flex-shrink: 0; padding: 10px 12px; white-space: normal; overflow-wrap: anywhere; letter-spacing: .04em; line-height: 1.4; }
-@media (max-height: 500px) {
-  html body dialog.battle-retry { width: min(420px, calc(100vw - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))) !important; padding: 12px !important; }
-  dialog.battle-retry h2 { font-size: 20px !important; }
-  dialog.battle-retry p { margin-bottom: 8px !important; line-height: 1.4; }
+/* 敗北の札は幅を三分の一未満にし、戦場を広く残す。 */
+html body dialog.battle-retry[open] {
+  inset: auto calc(8px + env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) auto !important;
+  width: min(360px, 32vw) !important; padding: 12px !important;
+  max-height: calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+  font-size: max(16px, calc(16px * var(--text-scale, 1))); line-height: 1.4;
+}
+dialog.battle-retry h2 { font-size: 20px !important; line-height: 1.3; margin: 0 0 8px !important; }
+dialog.battle-retry [data-reason] { font-size: inherit; line-height: 1.4; margin: 0 0 8px !important; }
+dialog.battle-retry .btn { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; height: auto; flex-shrink: 0; padding: 8px; font-size: inherit; white-space: normal; overflow-wrap: anywhere; letter-spacing: 0; line-height: 1.4; }
+@media (orientation: portrait) {
+  html body dialog.battle-retry[open] { width: calc(100vw - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) !important; max-height: 32dvh !important; }
 }
 /* 出陣待ちは操作の丸を隠し、下知を読む高さと出陣の釦を確保する。 */
 @media (orientation: landscape) and (max-height: 500px) {
@@ -1921,5 +1932,5 @@ dialog.battle-retry .btn { box-sizing: border-box; width: 100%; min-width: 0; he
 } }
 </script>
 <script type="module">
-import('./v202610130955/src/main.js').catch(() => window.__bootFail());
+import('./v202610211645/src/main.js').catch(() => window.__bootFail());
 </script>

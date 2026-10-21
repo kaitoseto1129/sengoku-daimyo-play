@@ -107,7 +107,9 @@ export async function openChrome({ width = 1600, height = 900, port = 9400 + Mat
   try {
     // Mac は手元の Chrome。Linux（GitHub Actions の ubuntu）は入っている google-chrome を、箱の中でも動くよう --no-sandbox で（GPU 無し＝swiftshader）
     const linux = process.platform === 'linux';
-    const bin = process.env.CHROME || (linux ? ['/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser'].find((f) => existsSync(f)) : '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome');
+    // Mac は Chrome for Testing を先に使う。普段の Chrome を裏で使うと、kaito が開く Chrome やサインインの頁が裏の Chrome に吸い込まれて開けなかった（10/16）
+    const cft = `${process.env.HOME}/.local/cft/chrome/mac_arm-155.0.8059.79/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing`;
+    const bin = process.env.CHROME || (!linux && existsSync(cft) ? cft : null) || (linux ? ['/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser'].find((f) => existsSync(f)) : '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome');
     if (!bin) throw new Error('Chrome が見つかりません（CHROME= で場所を渡す）');
     chrome = spawn(bin, [
       '--headless=new', `--window-size=${width},${height}`, `--remote-debugging-port=${port}`, `--user-data-dir=${prof}`,
