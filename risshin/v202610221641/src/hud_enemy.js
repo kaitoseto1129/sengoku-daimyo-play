@@ -19,7 +19,7 @@ export class HudEnemy {
       if (Math.cos(angle) < .9) return `画面を${Math.sin(angle) <= 0 ? '右' : '左'}へなぞる`;
     }
     return (typeof rt.def.meleeApproachText === 'function' ? rt.def.meleeApproachText(rt) : rt.def.meleeApproachText) ||
-      (isTouch ? '上へなぞる' : '近づいて たたかう');
+      (isTouch ? '上になぞって攻める' : '近づいて たたかう');
   }
 
 
@@ -177,14 +177,16 @@ export class HudEnemy {
     const spot = this.enemyOrderPosition || (this.enemyOrderPosition = { x: 12, y: 12 });
     const rects = this.hudRects();
     const bodies = this.goalBodyRects(this.rt);
+    spot.x = Math.max(12, Math.min(VIEW.w - width - 12, frame.cx - width / 2));
+    spot.y = Math.max(12, Math.min(VIEW.h - height - 12,
+      Math.min(frame.top, frame.headY) - height - Math.max(headClearance, 12)));
     let best = Infinity;
-    for (let i = 0; i < 9; i++) {
+    // 端の空きへ飛ばさず、本人の頭上と左右だけを比べる。
+    for (let i = 0; i < 5; i++) {
       const x = Math.max(12, Math.min(VIEW.w - width - 12,
-        i >= 5 ? (i % 2 ? 12 : VIEW.w - width - 12) :
         i === 1 || i === 3 ? frame.right + 18 : i === 2 || i === 4 ? frame.left - width - 18 : frame.cx - width / 2));
       // 頭上が狭い時は左右の脇も比べ、本人と周りの兵を避ける。
       const y = Math.max(12, Math.min(VIEW.h - height - 12,
-        i >= 5 ? (i < 7 ? 76 : VIEW.h - height - 72) :
         i >= 3 ? (frame.top + frame.bottom - height) / 2 :
           Math.min(frame.top, frame.headY) - height - Math.max(headClearance, 12)));
       // 画面端へ丸めた結果、体に戻る候補は選ばない。
@@ -250,18 +252,19 @@ export class HudEnemy {
 
   // 呼び名は既存の一枠を使い、剣は本人の頭上へ固定する。
   drawEnemyHeadPointer(g, frame, rt, enemy, showLabel = true) {
-    if (singleBattleGuide(rt)) {
-      // 足元が兵に隠れても、矢じりは選んだ本人の頭から動かさない。
-      const x = frame.cx, tip = Math.min(frame.top, frame.headY) - 6;
-      if (x < 16 || x > VIEW.w - 16 || tip < 16 || tip > VIEW.h - 16) return;
-      const top = Math.max(16, tip - 28);
+    if (singleBattleGuide(rt) || isTouch) {
+      // 操作の矢印と区別し、本人の頭上に「敵」のひし形を一つだけ置く。
+      const x = frame.cx, tip = Math.min(frame.top, frame.headY) - 8;
+      if (x < 26 || x > VIEW.w - 26 || tip < 16 || tip > VIEW.h - 16) return;
+      const y = Math.max(26, tip - 22);
       g.save(); g.lineJoin = 'round'; g.beginPath();
-      g.moveTo(x - 5, top); g.lineTo(x + 5, top);
-      g.lineTo(x + 5, tip - 12); g.lineTo(x + 12, tip - 12);
-      g.lineTo(x, tip); g.lineTo(x - 12, tip - 12); g.lineTo(x - 5, tip - 12); g.closePath();
-      g.strokeStyle = '#14120f'; g.lineWidth = 6; g.stroke();
-      g.fillStyle = '#fff3ba'; g.fill(); g.restore();
-      // 行動の文は任務札一枚に集め、頭上には印だけを残す。
+      g.moveTo(x, y - 22); g.lineTo(x + 22, y);
+      g.lineTo(x, y + 22); g.lineTo(x - 22, y); g.closePath();
+      g.fillStyle = '#14120f'; g.fill();
+      g.strokeStyle = '#14120f'; g.lineWidth = 8; g.stroke();
+      g.strokeStyle = '#fff3ba'; g.lineWidth = 3; g.stroke();
+      g.font = 'bold 16px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = '#fff3df'; g.fillText('敵', x, y); g.restore();
       return;
     }
     // 携帯でも、ねらう本人の頭上に大きな剣を固定する。札は既存の任務一枚を使う。
@@ -289,7 +292,7 @@ export class HudEnemy {
 
   // 向かう一人は足元の輪と短い言葉で示し、兵の姿を空ける。
   drawEnemyOutline(g, u, rt, guarding = false) {
-    if (travelSignPriority(rt) && u !== this.aimGuideEnemy) return;
+    if (travelSignPriority(rt) && u !== this.aimGuideEnemy && u !== this.moveGuideEnemy) return;
     // 近づく時は本人の印を残し、進む先だけ一本で示す。
     if (this.approachGuideEnemy === u) {
       const goal = this.meleeApproachPoint(rt, u);
@@ -324,8 +327,8 @@ export class HudEnemy {
     g.save(); g.beginPath();
     g.ellipse(cx, cy, Math.max(18, (f.right - f.left) / 2 + 7),
       Math.max(24, (f.bottom - f.top) / 2 + 7), 0, 0, Math.PI * 2);
-    g.strokeStyle = '#14120f'; g.lineWidth = 11; g.stroke();
-    g.strokeStyle = '#ffbd8d'; g.lineWidth = 5; g.stroke(); g.restore();
+    g.strokeStyle = '#14120f'; g.lineWidth = 13; g.stroke();
+    g.strokeStyle = '#ffbd8d'; g.lineWidth = 7; g.stroke(); g.restore();
     this.drawEnemyHeadPointer(g, f, rt, u);
     rt.army.guideWayEnemy = u; rt.army.guideWayAt = rt.army.time;
     this.enemyFrameShown = true;

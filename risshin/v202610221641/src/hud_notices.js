@@ -597,7 +597,9 @@ html.touch.tc-low body #hud #battle-notices {
  overflow-y:auto; gap:8px;
 }
 html body #hud #battle-notices:not(.choosing) > #objectives.ground-order:not(.expand) {
- position:relative !important; inset:auto !important; width:100% !important; max-width:100% !important;
+ position:fixed !important; inset:auto !important;
+ left:var(--ground-order-x) !important; top:var(--ground-order-y) !important;
+ width:max-content !important; max-width:min(240px, 30vw) !important;
 }
 html body #hud #battle-message { gap:8px; }
 `;

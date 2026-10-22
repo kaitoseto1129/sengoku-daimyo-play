@@ -383,7 +383,7 @@ export class HudDodge {
     const moveGesture = !rain && touchEscape && rt.def.dodgeMoveGesture !== false;
     // 指の絵がある時は、実際の操作を先に短く書く。
     const turnGesture = isTouch && (showTurn || rain && off);
-    const label = turnGesture ? (cue.ally?.alive ? rt.def.dodgeTurnLabel?.(rt, turnRight, true) : null) || `${turnRight ? '右' : '左'}になぞる` : rain ? off ? isTouch ? `${turnRight ? '右' : '左'}へなぞる` : `${turnRight ? '右' : '左'}を むこう` : 'ここへ' : moveGesture ? rt.def.dodgeMoveCaption?.(rt, moveSide, false) || 'ここからなぞって にげる' : escapeArrow ?
+    const label = turnGesture ? `ここから${turnRight ? '右' : '左'}へ` : rain ? off ? isTouch ? `${turnRight ? '右' : '左'}へなぞる` : `${turnRight ? '右' : '左'}を むこう` : 'ここへ' : moveGesture ? rt.def.dodgeMoveCaption?.(rt, moveSide, false) || 'ここからなぞって にげる' : escapeArrow ?
       rt.def.escapePlaceLabel?.(rt, !!rain, dodgeSide) || `${dodgeSide}へ よける` : baseLabel;
     const fontSize = 24 * Math.max(1, S.textScale || 1);
     const cardHalf = Math.min((W - 24) / 2, label.length * fontSize / 2 + (turnGesture || moveGesture ? 16 : 48));
@@ -396,8 +396,8 @@ export class HudDodge {
     gesture.lastElementChild.classList.remove('swipe-hand');
     let gestureClear = true;
     if (turnGesture) {
-      // 白い輪の近くを始点にし、指先・矢印・入力を同じ座標へそろえる。
-      const start = this.playerControlOrigin(rt, true, true);
+      // 実際に見回せる操作面へ指先・矢印・入力をまとめる。
+      const start = this.playerControlOrigin(rt, true);
       const startX = Math.max(turnRight ? 40 : 104, Math.min(W - (turnRight ? 104 : 40), start.x));
       const startY = Math.max(132, Math.min(H - 80, start.y));
       lx = Math.max(cardHalf + 12, Math.min(W - cardHalf - 12, startX));
@@ -473,17 +473,17 @@ export class HudDodge {
       }
     }
     if (moveGesture) {
-      // 赤い危険枠の中の自分から、安全な逃げ先まで一本で結ぶ。
+      // 入力と同じ向きへ、指先から短い矢印一本で逃げ方を示す。
       const angle = moveSide === '右上' ? -45 : moveSide === '右下' ? 45 : moveSide === '左上' ? -135 : moveSide === '左下' ? 135 :
         moveSide === '右' ? 0 : moveSide === '左' ? 180 : moveSide === '下' ? 90 : -90;
       const ax = Math.cos(angle * Math.PI / 180), ay = Math.sin(angle * Math.PI / 180);
-      const start = this.playerControlOrigin(rt, false, true);
+      const start = this.playerControlOrigin(rt, false);
       const startX = start.x, startY = start.y;
-      const length = Math.max(28, Math.min(
+      const length = Math.max(28, Math.min(72,
         ax > .001 ? (W - 32 - startX) / ax : ax < -.001 ? (32 - startX) / ax : Infinity,
         ay > .001 ? (H - 32 - startY) / ay : ay < -.001 ? (80 - startY) / ay : Infinity));
-      const dx = off ? ax * length : end.x - startX;
-      const dy = off ? ay * length : end.y - startY;
+      const dx = ax * length;
+      const dy = ay * length;
       lx = Math.max(cardHalf + 12, Math.min(W - cardHalf - 12, startX));
       ly = Math.max(28, startY - 76);
       const distance = Math.hypot(dx, dy) || 1, ux = dx / distance, uy = dy / distance;
@@ -495,8 +495,8 @@ export class HudDodge {
       arrow.setAttribute('style', 'filter:drop-shadow(0 0 2px #14120f) drop-shadow(0 0 1px #14120f)');
       const swipeEnd = gesture.querySelector('.swipe-end');
       swipeEnd.setAttribute('transform', `translate(${tipX} ${tipY})`);
-      setStyle(swipeEnd, 'display', !off ? '' : 'none');
-      // 指先は危険枠の始点へ固定し、「ここ」を動かさない。
+      setStyle(swipeEnd, 'display', 'none');
+      // 指先は移動の操作面へ固定し、「ここ」を動かさない。
       setStyle(gesture, 'display', '');
       const origin = this.navigationTouchOrigin || (this.navigationTouchOrigin = {});
       origin.rt = rt; origin.at = rt.t; origin.x = startX; origin.y = startY;

@@ -2761,7 +2761,7 @@ const honnoji = {
       const side = (-dx * Math.cos(yaw) + dz * Math.sin(yaw)) / distance;
       const forward = (dx * Math.sin(yaw) + dz * Math.cos(yaw)) / distance;
       if (forward < -.35) return side >= 0 ? '右の戸口へ' : '左の戸口へ';
-      return side > .35 ? '右の戸口へ' : side < -.35 ? '左の戸口へ' : '上になぞって戸口へ';
+      return side > .35 ? '右の戸口へ' : side < -.35 ? '左の戸口へ' : 'この戸口へ';
     }
     const sign = F.routeSign, p = rt.player.u.pos;
     if (sign && !sign.door && Number.isFinite(sign.dirX) && Number.isFinite(sign.dirZ)) {
@@ -2781,7 +2781,7 @@ const honnoji = {
       const side = (-dx * Math.cos(yaw) + dz * Math.sin(yaw)) / distance;
       const forward = (dx * Math.sin(yaw) + dz * Math.cos(yaw)) / distance;
       if (forward < -.35) return side >= 0 ? '右へ向き直る' : '左へ向き直る';
-      return side > .4 ? '右の角へ' : side < -.4 ? '左の角へ' : '矢印へ進む';
+      return side > .4 ? '右の角へ' : side < -.4 ? '左の角へ' : '旗まで進む';
     }
     // 印と任務札では同じ短い行き先を使う。
     if (!keepDestination) {
@@ -2941,6 +2941,7 @@ const honnoji = {
     return F.hp === 1 || F.hp === 2 || F.hp === 4 || F.hp === 6 || F.hp === 8 ? 'next' : 'nb';
   },
   guardLabel: () => '信長を守ろう',
+  guardName: () => '信長',
   guardTarget(rt) {
     const F = rt.flags;
     if (F.ending || rt.over || !rt.player.u.alive) return null;

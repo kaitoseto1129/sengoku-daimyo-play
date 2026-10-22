@@ -114,6 +114,12 @@ export class HudOverlay {
     }
     if (!this.approachGuideEnemy?.alive || recovering(rt)) setClass($('objectives'), 'approach-order', false);
     let swipeDrawn = false;
+    if (this.moveGuideEnemy?.alive && !rt.over && !rt.choice && !this.openingActive &&
+        !rt.player.camShot && !this.bigmap && !rt.dodgeGuide && !retreatRequired(rt) &&
+        !this.retreatGuide?.active && this.notices.sources[1].selected) {
+      this.drawEnemyOutline(g, this.moveGuideEnemy, rt, true);
+      this.drawEnemyMoveGesture(g, rt);
+    }
     if (!$('objectives').classList.contains('facing-order') && !rt.over && !rt.choice && !rt.dodgeGuide && !this.retreatGuide?.active && !retreatRequired(rt) &&
         !rt.player.camShot && !this.bigmap && !this.openingActive && !S.reduceGuidance && !guidanceEnded(rt) &&
         rt.missionGuide?.objective === currentObjective(rt))
@@ -700,8 +706,8 @@ export class HudOverlay {
         setCssVar(order, '--ground-order-y', top + 'px');
       }
       const label = helping ? 'たすける' :
-        `${guard.name || 'この人'}を守る`;
-      this.drawPersonAction(g, rt, off ? x : frame.cx, off ? y : frame.top, label, off ? null : frame);
+        rt.def.guardName?.(rt, guard) || `${guard.name || 'この人'}を守る`;
+      this.drawPersonAction(g, rt, off ? x : frame.cx, off ? y : frame.top, label, off ? null : frame, !helping);
       g.restore(); drew = true;
       setClass(this.root, 'guard-guide', true);
     }

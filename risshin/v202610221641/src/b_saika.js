@@ -167,10 +167,24 @@ html body #hud.saika-notices #battle-notices:not(.choosing) #objectives.keep-com
   font-size:max(15px, calc(15px * var(--text-scale, 1))) !important;
  }
 }
+/* パソコンでも最初の下知を読める高さを取り、開始の釦は本文と分ける。 */
+html body #hud #intro[data-battle="saika"] > .card.card {
+ width:min(560px, calc(100vw - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+ height:min(620px, 72dvh); display:flex; flex-direction:column; gap:8px;
+}
+html body #hud #intro[data-battle="saika"] .intro-reading {
+ flex:1 1 auto; min-height:0; overflow-y:auto; touch-action:pan-y; pointer-events:auto;
+ padding-bottom:8px; scroll-padding-bottom:8px; overscroll-behavior:contain;
+}
+html body #hud #intro[data-battle="saika"] #intro-wait {
+ white-space:pre-line; text-align:left;
+}
+html body #hud #intro[data-battle="saika"] #intro-go { flex-shrink:0; }
 @media (max-height:500px) {
  /* 開戦前も横幅を使い、下知の末尾と開始の釦を別々に収める。 */
  html body #hud #intro[data-battle="saika"] > .card.card {
   width:min(620px, calc(100vw - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+  height:calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   max-height:calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
   display:flex; flex-direction:column; gap:8px; padding:12px 16px;
  }
@@ -1455,13 +1469,14 @@ const saika = {
   // 史実と操作を同じ案内へまとめる。重複した指定で史実の説明を上書きしない。
   // 公記巻十の山手・浜手の区別。詳しい諸将・分進の日付は戦後の史実に残す。
   // https://ja.wikisource.org/wiki/信長公記
-  introText: 'ここは山手勢の堀秀政の先手が渡る小雑賀川。浜手の中野城攻めとは別の戦場です。山手勢の案内は根来寺の杉之坊と、雑賀の内の三緘衆。雑賀の全てが敵ではありません。敵は西の高岸と柵を鉄砲で守ります。信長公記では、馬も上がれない岸に阻まれ、堀勢は引きます。まず川べりの黄旗へ。杭抜き組を守り、手が空いたら「杭を外す」を長押し。三か所が済んだら中央の口から渡り、退けの合図で東の元の岸へ戻ろう。戻ったら「竹束を確かめる」を長押しし、味方の旗を守ろう。川底の仕掛けと杭抜き、東岸の竹束は遊びの補完です。信長公記の渡河記事には両軍の兵数がなく、表示はこの川岸に描く兵の目安です。渡河の日・時刻・天気も不明で、昼の明るさと湿った岸、地形の寸法や東西の向きは復元です。',
+  introText: 'まず川べりの黄旗へ。杭抜き組を守り、手が空いたら「杭を外す」を長押し。三か所が済んだら中央の口から渡り、退けの合図で東の元の岸へ戻ろう。戻ったら「竹束を確かめる」を長押しし、味方の旗を守ろう。\n\nここは山手勢の堀秀政の先手が渡る小雑賀川。浜手の中野城攻めとは別の戦場です。山手勢の案内は根来寺の杉之坊と、雑賀の内の三緘衆。雑賀の全てが敵ではありません。敵は西の高岸と柵を鉄砲で守ります。信長公記では、馬も上がれない岸に阻まれ、堀勢は引きます。\n\n川底の仕掛けと杭抜き、東岸の竹束は遊びの補完です。信長公記の渡河記事には両軍の兵数がなく、表示はこの川岸に描く兵の目安です。渡河の日・時刻・天気も不明で、昼の明るさと湿った岸、地形の寸法や東西の向きは復元です。',
   noTaisho: true, // 信長・孫一をこの局地へ自動配置し、討取り・本陣襲撃で決着させない。
   // 公記は高岸・柵・鉄砲による渡河阻止を記し、この局地の兵力比は記さない。
   // 共通の開戦演出は正面百五十歩先を仮の大軍として映すため、
   // 雑賀では通常の開戦視点を使い、実際の川岸と守りを見せる。描く兵は減らさない。
   noDespair: true,
   compactIntro: true,
+  introTaskFirst: true, // 最初の行き先と操作を、人物・川岸の補足より先に読む。
   distanceUnit: 'steps',
   flagDirectionOnly: true, // 歩数は任務にある。添える行は向きだけにして二重表示を避ける。
   compactTravelArrow: true, // 道案内は行き先の短い矢印。手前の兵を太い帯で隠さない。

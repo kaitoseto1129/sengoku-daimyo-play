@@ -834,6 +834,9 @@ export class Army {
     const previous = this.gridActive, active = this.gridNext, free = this.gridFree;
     for (const a of previous) a.length = 0;
     active.length = 0;
+    // 列ごとの升の端も使い回す。離れた隊を囲む大きな四角の空白を索敵しない。
+    const rows = this.gridRows || (this.gridRows = new Map());
+    for (const row of rows.values()) { row.min = Infinity; row.max = -Infinity; }
     const c = this.cell;
     let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
     this.maxBodyRadius = 0.6;
@@ -846,6 +849,10 @@ export class Army {
       if (u.mounted) ml.push(u);
       this.maxBodyRadius = Math.max(this.maxBodyRadius, u.bodyRadius || 0.3);
       const x = Math.floor(u.pos.x / c), z = Math.floor(u.pos.z / c);
+      let row = rows.get(x);
+      if (!row) { row = { min: z, max: z }; rows.set(x, row); }
+      if (z < row.min) row.min = z;
+      if (z > row.max) row.max = z;
       if (x < x0) x0 = x;
       if (x > x1) x1 = x;
       if (z < z0) z0 = z;
@@ -874,9 +881,13 @@ export class Army {
     // 兵が一人もいない外側の升は調べない。候補の順・数・当たりの範囲は保つ。
     const x0 = Math.max(this.gridX0, Math.floor((x - r) / c)), x1 = Math.min(this.gridX1, Math.floor((x + r) / c));
     const z0 = Math.max(this.gridZ0, Math.floor((z - r) / c)), z1 = Math.min(this.gridZ1, Math.floor((z + r) / c));
-    for (let i = x0; i <= x1; i++) for (let j = z0; j <= z1; j++) {
-      const a = this.grid.get((i + 20000) * 40000 + j + 20000);
-      if (a) for (let q = 0; q < a.length; q++) fn(a[q], context);
+    for (let i = x0; i <= x1; i++) {
+      const row = this.gridRows.get(i);
+      if (!row) continue;
+      for (let j = Math.max(z0, row.min), end = Math.min(z1, row.max); j <= end; j++) {
+        const a = this.grid.get((i + 20000) * 40000 + j + 20000);
+        if (a) for (let q = 0; q < a.length; q++) fn(a[q], context);
+      }
     }
   }
 
@@ -897,21 +908,25 @@ export class Army {
     }
     const spear = (u.wpnKind || u.lookWeapon || u.weapon) === 'spear';
     // 升目の候補を直接たどり、検索ごとの関数を作らない。同距離の順も保つ。
-    for (let i = x0; i <= x1; i++) for (let j = z0; j <= z1; j++) {
-      const cell = this.grid.get((i + 20000) * 40000 + j + 20000);
-      if (!cell) continue;
-      for (let q = 0; q < cell.length; q++) {
-        const o = cell[q];
-        if (o.team === u.team || !o.alive || (o.invuln && !o.allyOk) || o.noTarget) continue;
-        if (o.soloFor && o.soloFor !== u && o.soloFor.alive) continue;
-        const dx = o.pos.x - x, dz = o.pos.z - z, d = dx * dx + dz * dz;
-        if (d >= r2) continue;
-        const k = late && o.fleeing && d > 100 ? d + 1e6 : d;
-        // 距離で落ちる候補には、呼び出し側の壁判定も霧・森の見通しも調べない。
-        if (k >= bd || (u.naka || o.naka) && Math.abs(o.pos.y - u.pos.y) > 1.8) continue;
-        if (filter && !filter(o)) continue;
-        if (interiorBlocked(INTERIOR_WALLS, u.pos, o.pos, spear)) continue;
-        if (weatherSees(this.world, u.pos, o.pos)) { bd = k; best = o; }
+    for (let i = x0; i <= x1; i++) {
+      const row = this.gridRows.get(i);
+      if (!row) continue;
+      for (let j = Math.max(z0, row.min), end = Math.min(z1, row.max); j <= end; j++) {
+        const cell = this.grid.get((i + 20000) * 40000 + j + 20000);
+        if (!cell) continue;
+        for (let q = 0; q < cell.length; q++) {
+          const o = cell[q];
+          if (o.team === u.team || !o.alive || (o.invuln && !o.allyOk) || o.noTarget) continue;
+          if (o.soloFor && o.soloFor !== u && o.soloFor.alive) continue;
+          const dx = o.pos.x - x, dz = o.pos.z - z, d = dx * dx + dz * dz;
+          if (d >= r2) continue;
+          const k = late && o.fleeing && d > 100 ? d + 1e6 : d;
+          // 距離で落ちる候補には、呼び出し側の壁判定も霧・森の見通しも調べない。
+          if (k >= bd || (u.naka || o.naka) && Math.abs(o.pos.y - u.pos.y) > 1.8) continue;
+          if (filter && !filter(o)) continue;
+          if (interiorBlocked(INTERIOR_WALLS, u.pos, o.pos, spear)) continue;
+          if (weatherSees(this.world, u.pos, o.pos)) { bd = k; best = o; }
+        }
       }
     }
     return best;

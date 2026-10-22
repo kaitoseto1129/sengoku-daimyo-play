@@ -982,7 +982,7 @@ export class HudUpdate {
         !retreatMoving && !retreatRequired(rt) && !this.retreatGuide?.active && !rt.dodgeGuide)
       shownTaskLabel = 'この敵をたおす';
     if (singleBattleGuide(rt) && /^(この旗へ|旗へ進もう)$/.test(shownTaskLabel))
-      shownTaskLabel = '旗まで進む';
+      shownTaskLabel = 'ここへ進む';
     setClass($('objectives'), 'flag-task', !!guide?.marker && /^(旗へもどろう|ここを守ろう|この中を守れ)$/.test(shownTaskLabel));
     setClass($('objectives'), 'rescue-order', shownTaskLabel === 'この人をたすけよう');
     // 歩数と人数の更新だけでは札を開き直さない。任務・進軍段階・下知の変化で八秒間読む。
@@ -1083,7 +1083,8 @@ export class HudUpdate {
     const travellingNow = travelSignPriority(rt) && !this.aimGuideEnemy?.alive;
     const enemyMoveHelp = !travellingNow && !!this.destinationMoveDirection && !!meleeTarget?.alive &&
       (!!this.approachGuideEnemy || this.combatActionUnified) && !retreatMoving && !facingGesture;
-    if (enemyMoveHelp) shownTaskLabel = `${this.destinationMoveDirection}へなぞる`;
+    if (enemyMoveHelp) shownTaskLabel = this.destinationMoveDirection === '上'
+      ? '上になぞって攻める' : `${this.destinationMoveDirection}になぞって敵へ向く`;
     else if (this.combatActionUnified) shownTaskLabel = attackOperation(rt);
     if (travellingNow && !retreatRequired(rt) && !rt.dodgeGuide && !this.retreatGuide?.active &&
         !recovering(rt) && !rainDanger(rt.army)) {
@@ -1133,7 +1134,7 @@ export class HudUpdate {
       shownTaskLabel = `印の敵へ ${attackOperation(rt)}`;
     // 操作の短縮や戦固有の文より後で、触る側と指の動きを一枚に示す。
     if (facingGesture && !careSequence && !retreatMoving && !retreatRequired(rt) && !rt.dodgeGuide && !recovering(rt)) {
-      shownTaskLabel = `${waitFacingSide}になぞる`;
+      shownTaskLabel = `ここから${waitFacingSide}へ`;
       aimHelp = ''; waitFacingHelp = ''; edgeGoalDetail = '';
     }
     // 待つ下知が最終的に選ばれた時だけ、移動を促す印を休める。
@@ -1157,6 +1158,8 @@ export class HudUpdate {
     // 同じ操作を見出しと補足に二度出さない。
     if (edgeGoalDetail === shownTaskLabel || routePriority) edgeGoalDetail = '';
     setClass($('objectives'), 'enemy-move-help', enemyMoveHelp && !dismountFirst(rt));
+    // 操作の文と同じ一人を描画へ渡し、別の兵の印を先に出さない。
+    this.moveGuideEnemy = enemyMoveHelp && !routePriority && !careSequence ? meleeTarget : null;
     setClass($('objectives'), 'compact-steps', /^(?:旗|敵)まで あと\d+歩(?:・.*)?$/.test(shownTaskLabel));
     // 心得の札（史実の負け戦）は、出てから六十秒は狭い画面でも「今」の下に見せる
     const noteFresh = (o) => o.kind === 'note' && !o.state && rt.t - (o.t ?? 0) < 60;
