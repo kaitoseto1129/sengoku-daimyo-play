@@ -47,6 +47,10 @@ function borrowHuman(u) {
   const key = humanPoolKey(u);
   for (const h of humanPool) if (!h.leased && h.poolKey === key) {
     HSTAT.borrowN++;
+    // 動きの差分器は同じ値を再度書かない。討死の上乗せを貸し出し先へ持ち越さない。
+    if (h.poseReady) for (let i = 0; i < h.animB.length; i++) {
+      h.animB[i].quaternion.copy(h.pose[i]); h.animB[i].updateMatrix();
+    }
     for (const k in h) if (k !== 'showAt' && (typeof h[k] === 'number' || typeof h[k] === 'boolean')) {
       if (k in h.poolDefaults) h[k] = h.poolDefaults[k]; else delete h[k];
     }
@@ -3374,8 +3378,14 @@ function cacheHumanSkeleton(h) {
   });
   const update = function () {
     if (!h.skelDirty) return;
+    // 隠れた皮（遠近切替の体・手）も、骨と同じ時点の逆行列を覚える。
+    // 非表示の間の古い逆行列を残すと、再表示時に皮が放射状に伸びる。
+    for (const part of meshes) {
+      part.mesh.updateWorldMatrix(true, false);
+      part.inverse.copy(part.mesh.matrixWorld).invert();
+      part.mesh.bindMatrixInverse.copy(part.inverse);
+    }
     for (const sk of skeletons) THREE.Skeleton.prototype.update.call(sk);
-    for (const part of meshes) part.inverse.copy(part.mesh.bindMatrixInverse);
     h.skelDirty = false;
   };
   for (const sk of skeletons) sk.update = update;
@@ -6922,6 +6932,8 @@ function useHuman(u, force = false) {
   if (h.root.parent !== par) par.add(h.root);
   if (!h.root.visible || !humans.has(h)) {
     h.root.visible = true; h.poseHidden = false; h.skelDirty = true;
+    // 戻した亡骸も最後の倒れ姿を一度作ってから止める。
+    h.still = false; h.drove = false;
     humans.add(h); h.last.copy(u.pos); h.acc = 1;
     h.root.updateWorldMatrix(true, false);
     h.root.updateMatrixWorld(true);
@@ -7177,7 +7189,7 @@ function tipMW(force) {
   // 切岸で手足を接地させる戦では、遠い形にも指まで皮膚の重みが残る。
   // 手首だけを直すと指が以前の場所へ残るため、既存の更新時に先までそろえる。
   // 止まった人は根元の skipHiddenMW で省き、他の戦の間引きは保つ。
-  if (!h || !h.lodFar || WORLD?.def.fullTipMatrices) { _umw.call(this, true); return; }
+  if (!h || !h.lodFar || h.skelDirty || WORLD?.def.fullTipMatrices) { _umw.call(this, true); return; }
   if (this.matrixAutoUpdate) this.updateMatrix();
   if (this.matrixWorldNeedsUpdate || force) { this.matrixWorld.multiplyMatrices(this.parent.matrixWorld, this.matrix); this.matrixWorldNeedsUpdate = false; force = true; }
   // 骨でない子（顔・部品）と、頭に付けた揺れる骨（笠）は辿る

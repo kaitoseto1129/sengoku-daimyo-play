@@ -108,6 +108,11 @@ body.rm #tc .action-coach.move-coach .coach-finger { animation:none; }
 #tc .action-coach.turn-coach.foot-coach span { position:absolute; left:calc(var(--coach-finger-x) - 64px); top:calc(var(--coach-finger-y) + 48px); width:168px; padding:4px 8px; white-space:normal; }
 #tc .action-coach.turn-coach.foot-coach :is(.turn-arrow,.turn-touch,.coach-finger) { display:block; }
 #tc .action-coach.turn-coach.foot-coach .coach-finger { animation:coach-swipe 2.4s ease-in-out infinite; }
+/* なぞる手本は始点の丸と矢印一本にそろえる。入力範囲はそのまま。 */
+#tc .action-coach.turn-coach.foot-coach .coach-finger,
+#tc .action-coach.turn-coach.move-coach .coach-finger,
+#tc .action-coach.swipe-coach .coach-finger { display:none; animation:none; }
+#tc .action-coach.turn-coach.move-coach :is(.turn-arrow,.turn-touch) { display:block; }
 @keyframes coach-swipe { 0%,20%,100% { translate:0 0; } 65%,85% { translate:var(--coach-dx,0px) var(--coach-dy,-40px); } }
 body.rm #tc .action-coach.foot-coach .coach-finger { animation:none; }
 @media (prefers-reduced-motion:reduce) { #tc .action-coach.foot-coach .coach-finger { animation:none; } }
@@ -284,21 +289,9 @@ html.touch body #tc [data-b="atk"].counter-ready .name { font-size:16px; font-we
 html.touch body #tc [data-b="atk"]:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; background:#641f16; border:3px solid #fff3ba; border-radius:10px; }
 html.touch body #tc [data-b="atk"] .name { font-size:22px; line-height:1.2; }
 html.touch body #tc [data-b="atk"].holding { border-radius:12px !important; border:4px double #fff3ba; }
-/* 敵の枠そのものを押せる場所にし、説明はすぐ上の一文だけにする。 */
-html.touch body #tc [data-b="atk"].enemy-linked:not([hidden]) {
- position:fixed !important; left:var(--enemy-x) !important; top:var(--enemy-y) !important;
- right:auto !important; bottom:auto !important; transform:none !important;
- width:var(--enemy-w) !important; height:var(--enemy-h) !important;
- min-width:44px; min-height:44px; background:transparent !important;
- border:3px solid #ffb49d !important; border-radius:3px !important;
- outline:none !important; box-shadow:0 0 0 2px #14120f !important; transition:none;
-}
-html.touch body #tc [data-b="atk"].enemy-linked .name {
- position:absolute; bottom:calc(100% + 40px); left:var(--enemy-label-x,50%); transform:translateX(-50%);
- width:max-content; max-width:none; padding:4px 8px; margin:0; background:#14120f; color:#fff3ce; border-radius:6px;
- font-size:18px !important; line-height:1.4; white-space:nowrap; letter-spacing:0; pointer-events:none;
-}
-html.touch body #tc [data-b="atk"].enemy-linked :is(small,.cd,.attack-finger) { display:none !important; }
+/* 案内の指先は親指側の攻撃釦へ向け、兵の上へ移さない。 */
+#tc .action-linked .attack-finger { display:block; left:-32px; top:calc(50% - 22px); transform:rotate(90deg); }
+#tc .action-linked.guide-swapped .attack-finger { left:auto; right:-32px; transform:rotate(-90deg); }
 /* 押せる丸を保ち、朱の地と金の光で手応えを出す */
 #tc .tb.on, #tc .tb:active { background: #70291c; border-color: #f0c070; border-radius: 50%; box-shadow: inset 0 0 0 2px #f0c070, 0 0 12px rgba(240,192,112,.6); }
 #tc .tb .cd { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(rgba(0,0,0,.55) var(--p, 0%), transparent 0); pointer-events: none; }
@@ -423,7 +416,7 @@ const ORDER_HORSE = ['atk', 'grd', 'dodge', 'use', 'spear', 'cmd', 'mount', 'loc
 const ORDER_RANGED = ['atk', 'grd', 'dodge', 'use', 'spear', 'cmd', 'mount', 'lock', 'wpn', 'fire', 'rally'];
 const ORDER_FOOT = ['atk', 'grd', 'dodge', 'use', 'spear', 'cmd', 'mount', 'lock', 'fire', 'rally', 'wpn'];
 const BTN = [
-  { id: 'atk', label: '突く', sub: '', col: 0, row: 0, d: 84, big: true },
+  { id: 'atk', label: 'つく', sub: '', col: 0, row: 0, d: 84, big: true },
   { id: 'grd', label: 'かまえる', col: 0, row: 1, d: 64 },
   { id: 'dodge', label: '回避', col: 1, row: 0, d: 64 },
   { id: 'lock', label: '狙い', col: 1, row: 1, d: 60 },
@@ -1017,7 +1010,7 @@ export function touchFrame(dt) {
   }
   if (T.hintWeapon !== p.weapon) {
     T.hintWeapon = p.weapon;
-    T.showHint(p.weapon === 'gun' ? '攻撃の釦を押し続けて狙い、離して撃つ' : p.weapon === 'bow' ? '射るを押したままなぞって狙う。放して射る' : '敵へ向き、「突く」を押す');
+    T.showHint(p.weapon === 'gun' ? '攻撃の釦を押し続けて狙い、離して撃つ' : p.weapon === 'bow' ? '射るを押したままなぞって狙う。放して射る' : '敵へ向き、「つく」を押す');
   }
   // 歩く棒
   const st = T.stick;
@@ -1158,29 +1151,7 @@ export function touchFrame(dt) {
   const attackInReach = attackEnemy?.alive && Math.hypot(attackEnemy.pos.x - p.u.pos.x, attackEnemy.pos.z - p.u.pos.z) <= p.meleeReach(p.weapon === 'sword' ? 'slash' : 'thrust');
   const attackAvailable = !town && attackInReach && !S.reduceGuidance && !gunW && !bowW && attackFacing &&
     !T.game.hud?.openingActive && !T.game.hud?.bigmap && !b.over && !b.choice && !p.camShot && !p.radial && !p.cmdOpen;
-  const enemyFrame = attackAvailable && hudR.outlinedEnemy === attackEnemy &&
-    !b.dodgeGuide && !hudR.retreatGuide?.active &&
-    document.getElementById('wait-guard')?.hidden !== false && !b.nearestInteract() &&
-    hudR.measurePersonFrame(attackEnemy, b);
-  // 見えている本人の範囲だけを使う。画面外や守備・移動中は通常の攻撃釦へ戻す。
-  const enemyLinked = !!enemyFrame && enemyFrame.top >= 80 && enemyFrame.bottom > enemyFrame.top &&
-    enemyFrame.cx >= 24 && enemyFrame.cx <= VIEW.w - 24 && enemyFrame.top < VIEW.h - 44;
-  if (enemyLinked) {
-    const width = Math.max(44, Math.min(VIEW.w / 3, enemyFrame.right - enemyFrame.left + 12));
-    const height = Math.max(44, Math.min(VIEW.h / 3, enemyFrame.bottom - enemyFrame.top + 3));
-    const left = Math.max(8, Math.min(VIEW.w - width - 8, enemyFrame.cx - width / 2));
-    const top = Math.min(VIEW.h - height - 8, enemyFrame.top);
-    setCss(btn.atk, '--enemy-x', Math.round(left) + 'px');
-    setCss(btn.atk, '--enemy-y', Math.round(top) + 'px');
-    setCss(btn.atk, '--enemy-w', Math.round(width) + 'px');
-    setCss(btn.atk, '--enemy-h', Math.round(height) + 'px');
-    // 一文が端で切れないよう、札だけを枠の近くで横へ寄せる。
-    const labelX = Math.max(110, Math.min(VIEW.w - 110, left + width / 2));
-    setCss(btn.atk, '--enemy-label-x', Math.round(labelX - left) + 'px');
-  }
-  b.touchEnemyAttack = enemyLinked ? attackEnemy : null;
-  tog(btn.atk, 'enemy-linked', enemyLinked);
-  tog(game.hud.root, 'attack-button-guide', enemyLinked);
+  // 敵の印は見る目標。攻撃釦は常に親指の届く位置に保つ。
   if (T.attackGuideBattle !== b) {
     T.attackGuideBattle = b; T.attackGuideActive = false; T.attackGuideAt = -Infinity;
   }
@@ -1192,6 +1163,7 @@ export function touchFrame(dt) {
   const attackLinked = attackAvailable && T.attackGuideActive;
   b.touchAttackGuideActive = !town && !gunW && !bowW && !S.reduceGuidance;
   tog(btn.atk, 'action-linked', attackLinked);
+  tog(btn.atk, 'guide-swapped', !!S.touchSwap);
   // 押す実物の枠と短い字で示し、人物に重なる指を足さない。
   if (!btn.atk._guideFinger) {
     const finger = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -1203,11 +1175,11 @@ export function touchFrame(dt) {
   tog(btn.atk, 'spear-linked', attackLinked && p.weapon === 'spear');
   const counterReady = attackLinked && !!game.hud.counterGuideEnemy;
   tog(btn.atk, 'counter-ready', counterReady);
-  // 本流の押した時の一撃を保ち、敵の枠では案内を一文にまとめる。押しても字は変えない。
+  // 押した時の一撃と、案内に対応する釦の名前を保つ。
   tog(btn.atk, 'holding', !!input.mouseL);
-  const attackLabel = enemyLinked ? 'この敵をおそう' : gunW ? '攻撃' : bowW ? '射る' : p.weapon === 'sword' ? '斬る' : '突く';
+  const attackLabel = gunW ? '攻撃' : bowW ? '射る' : p.weapon === 'sword' ? 'きる' : 'つく';
   setText(btn.atk.firstChild, attackLabel);
-  const attackAria = enemyLinked ? attackLabel : gunW ? '攻撃' : bowW ? '射る' : p.weapon === 'sword' ? 'きる' : 'つく';
+  const attackAria = attackLabel;
   if (btn.atk.getAttribute('aria-label') !== attackAria) btn.atk.setAttribute('aria-label', attackAria);
   setText(btn.grd.firstChild, gunW || bowW ? '狙う' : '構え');
   tog(btn.grd, 'shield', !gunW && !bowW);
@@ -1417,8 +1389,9 @@ const RUN_COACH = ['⬆ 上へ\n大きくなぞる', '⬈ 右上へ\n大きく�
   '⬇ 下へ\n大きくなぞる', '⬋ 左下へ\n大きくなぞる', '⬅ 左へ\n大きくなぞる', '⬉ 左上へ\n大きくなぞる'];
 const SWIPE_NAMES = ['上', '右上', '右', '右下', '下', '左下', '左', '左上'];
 function placeFootCoach(b, el, turning) {
-  const rightSide = turning ? !S.touchSwap : !!S.touchSwap;
-  const x = VIEW.w * (rightSide ? .75 : .25), y = Math.max(144, VIEW.h - 128);
+  const hud = T.game.hud;
+  const start = hud.playerControlOrigin(b);
+  const x = start.x, y = start.y;
   const left = x - 80, top = y - 86;
   tog(el, 'foot-coach', true);
   el.style.left = left + 'px'; el.style.top = top + 'px';
@@ -1430,7 +1403,16 @@ function placeFootCoach(b, el, turning) {
   const angle = transform.startsWith('rotate(') ? Number.parseFloat(transform.slice(7)) * Math.PI / 180 : turning ? toLeft ? Math.PI : 0 : -Math.PI / 2;
   el.style.setProperty('--coach-dx', Math.round(Math.cos(angle) * 40) + 'px');
   el.style.setProperty('--coach-dy', Math.round(Math.sin(angle) * 40) + 'px');
-  // 左右を入れ替えても、通常の移動・見回しを受ける側へそろえる。
+  // 白い輪から始めれば、画面の左右にかかわらず教えた操作を受ける。
+  const origin = hud.navigationTouchOrigin || (hud.navigationTouchOrigin = {});
+  origin.rt = b; origin.at = b.t; origin.x = x; origin.y = y;
+  origin.look = turning; origin.radius = 36;
+  T.coachOriginAt = b.t;
+  // 札は道の反対側へ離し、横向きの矢印にも重ねない。
+  const caption = el.lastElementChild;
+  const captionX = x + (Math.cos(angle) > .3 ? -216 : 48);
+  caption.style.left = Math.max(12, Math.min(VIEW.w - 180, captionX)) - left + 'px';
+  caption.style.top = Math.max(76, Math.min(VIEW.h - 56, y - 64)) - top + 'px';
 }
 // 通常の戦でも、今必要な移動・見回しだけを実際の操作側へ示す。
 function fieldSwipeCoach(b, el) {
@@ -1533,7 +1515,8 @@ function actionCoach(b, dt) {
   // 見回す手本が任務札にある間は、押す操作の札を足さない。
   if (document.getElementById('objectives')?.classList.contains('facing-order')) { T.actionKey = ''; return; }
   // 戦場側ですでに指を描いたコマは、二つ目の指と説明を重ねない。
-  if (hud?.navigationTouchOrigin?.rt === b && b.t - hud.navigationTouchOrigin.at < .15) { T.actionKey = ''; return; }
+  if (hud?.navigationTouchOrigin?.rt === b && hud.navigationTouchOrigin.at !== T.coachOriginAt &&
+      b.t - hud.navigationTouchOrigin.at < .15) { T.actionKey = ''; return; }
   // 行き先の札に指となぞり方がある間は、操作の札をもう一枚出さない。
   if ((hud?.destinationMoveDirection || hud?.combatActionUnified || hud?.retreatGuide?.active) &&
       hud.notices.sources[1].selected) { T.actionKey = ''; return; }
@@ -1561,7 +1544,7 @@ function actionCoach(b, dt) {
   tog(el, 'foot-coach', false);
   tog(el, 'control-only', false);
   // 長押しの説明は押せる枠の中へ集め、離れた説明札を重ねない。
-  const linkedAttack = T.btn.atk.classList.contains('enemy-linked') || T.btn.atk.classList.contains('action-linked');
+  const linkedAttack = T.btn.atk.classList.contains('action-linked');
   // 押せる丸の中に説明がある時は、外側の操作札を足さない。
   if (linkedAttack) { b.touchCoachActive = true; T.actionKey = ''; return; }
   // 押し方は敵の脇の札だけに置き、上や別の丸へ案内を重ねない。

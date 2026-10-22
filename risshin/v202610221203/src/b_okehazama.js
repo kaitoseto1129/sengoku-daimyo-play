@@ -759,13 +759,13 @@ const okehazama = {
   compactPlayerSign: true,
   playerSignScale: 0.55,
   playerSignMinScale: 0.55,
-  // ねらう一人は足元の細い印、周りの兵は所属の形だけで示す。
+  // ねらう一人は白い囲みと頭上の印、周りの兵は所属の形で示す。
   teamSignsOnly: false,
   noUnitContrast: true,
   // 間引いた骨の位置を案内に使わず、現在の足元へ敵の印を合わせる。
   positionPersonGuide: true,
   enemyFrameAtPosition: true,
-  // 狙う一人は足元の細い弧で示し、甲冑に白い囲みを載せない。
+  // 共通の白い囲みを使い、暗い地面でも狙う一人を見分ける。
   enemyCornerSign: false,
   // 頭上のひし形と既存の任務札だけにし、同じ意味の呼び名を増やさない。
   enemySignOnly: true,
@@ -775,7 +775,7 @@ const okehazama = {
   // 大きな地面の輪と太い囲みで、足運びや具足を隠さない。
   compactFloorGuides: true,
   enemyFootRingRadius: 0.45,
-  enemyFootSignOnly: true,
+  enemyFootSignOnly: false,
   edgeCombatOrders: false,
   nearbyEnemySignLimit: 3,
   groundCombatMarkers: true,

@@ -622,11 +622,13 @@ function templeOccupation(rt, zone, name) {
     : zone.enemies > 0 ? `${name}の敵を味方と払え（あと${zone.enemies}人）`
     : zone.owner === ZONE_STATE.FRIEND ? `${name}の印へ、味方と進め`
     : zone.friends < zone.need ? `${name}で味方を待て（あと${zone.need - zone.friends}人）`
-    : rt.t < zone.quietUntil ? `${name}で敵の反撃に備えよ（あと${Math.ceil(zone.quietUntil - rt.t)}秒）`
+    : rt.t < zone.quietUntil ? `${name}で反撃に備えよ（あと${Math.ceil(zone.quietUntil - rt.t)}秒）`
     : `${name}を守れ（あと${Math.max(0, Math.ceil(zone.hold - zone.holdT))}秒）`;
   rt.obj('main', text, 'main', true);
   // 接近戦の手ほどきが出ても、堂の制圧がどこまで進んだか残す。
-  rt.objProgress('main', zone.test(P.x, P.z) && zone.enemies > 0 ? `残る敵 ${zone.enemies}人。味方と押し返せ` : '');
+  rt.objProgress('main', zone.test(P.x, P.z) && zone.enemies > 0 ? `残る敵 ${zone.enemies}人。味方と押し返せ`
+    : zone.owner !== ZONE_STATE.FRIEND && zone.friends < zone.need
+      ? `堂の庭に味方${zone.friends}人／必要${zone.need}人。庭の内へ入ろう` : '');
 }
 
 // 麓の後備えや、前の堂に残した守りを制圧の援軍に数えない。
@@ -708,7 +710,9 @@ function rallyTempleHall(rt) {
     }
     if (support) {
       if (needsRoute) setRoute(support, [[foe.pos.x, foe.pos.z]], true);
-      return;
+      // 残敵と向き合う一組だけで、後続を呼ぶ処理まで止めない。
+      // 既に間合いにいる少人数の組が毎回選ばれると、人数不足のまま退き陣になる。
+      if (zone.friends >= zone.need) return;
     }
   }
   if (zone.friends >= zone.need) return;

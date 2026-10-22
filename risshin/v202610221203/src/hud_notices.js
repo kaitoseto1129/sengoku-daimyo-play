@@ -961,13 +961,13 @@ html body #hud #battle-message { gap:8px; }
     const fireWork = working && /火を(?:つけ|かけ|放|移)|篝火を焚/.test(document.getElementById('prompt').dataset.action || '');
     // 命・行き先・操作も数える。命の札の一枠は常に空ける。
     if (!choosing) {
-      const destination = phone && !!rt?.missionGuide?.marker;
+      const destination = false; // 小旗と地面の線には札の枠を使わない。
       const operation = dodging || waitGuard || working || !!rt?.touchCoachActive || !!rt?.touchAttackGuideActive || !!rt?.nearestInteract();
       const target = document.getElementById('target');
       const boss = document.getElementById('boss');
       const combatCards = Number(!boss.hidden && !boss.classList.contains('symbol-only')) + Number(!shigaGuardTask && !target.hidden && !target.classList.contains('notice-muted'));
       const defendingPlace = !!this.hud.defendedLocation(rt);
-      // 敵の呼び名も一枚。命・操作と合わせ三枚までに収める。
+      // 敵の太い輪も一枠に数え、命・任務札と合わせて三つまでにする。
       const enemyLabel = !!this.hud.enemyFrameShown && (!rt?.def.enemySignOnly || !rt.def.town && !rt.def.dojo);
       this.limit = Math.max(0, Math.min(this.limit, 3 - Number(!!rt && !intro) - Number(destination && !operation) - Number(operation) - combatCards - Number(defendingPlace) - Number(enemyLabel)));
     }

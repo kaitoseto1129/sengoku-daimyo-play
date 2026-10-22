@@ -1512,7 +1512,7 @@ const saika = {
   coverGuideLabel: '鉄砲を避け、物陰へ',
   // 危険への退避と、渡河後の引き退きの下知を区別する。
   retreatGuideLabel(rt, reached) {
-    if (reached) return '味方のそばで構えよ';
+    if (reached) return rt.flags.step === 1 ? '構えよ。敵が離れたら小旗へ' : '味方のそばで構えよ';
     const p = rt.player;
     // 被弾直後の退避は軽い傷でも出る。深手かどうかは残る体力で分ける。
     if (p.u.hp < p.u.maxHp * .3) return '深手だ。味方へ下がれ';
@@ -1533,7 +1533,7 @@ const saika = {
     const reason = cue.treatment ? this.treatmentGuideLabel(rt, cue) : this.retreatGuideLabel(rt, reached);
     // 見出しに退避の理由が出ていれば繰り返さず、仕事の進みを残す。
     const detail = title.startsWith(reason) ? '' : `${reason}\n`;
-    if (F.step === 1) return `${detail}${progress.split('\n')[0]}\n敵が離れたら${F.workIndex + 1}つ目の小旗へ`;
+    // 退避中も作業兵の状態と長押しの説明を残し、零％のまま待たせない。
     return `${detail}${progress}`;
   },
   // 元気に渡る・引き返す間は中央の口を案内する。応戦・深手・息切れでは身を守る案内を残す。

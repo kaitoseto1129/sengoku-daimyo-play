@@ -533,6 +533,15 @@ function templeRoofFraction(T, a, p, ay, by, margin = 0) {
   return nearest;
 }
 
+// 肩越しの補正で視点だけが回った後も、画面の左右と下知をそろえる。
+// 見回し前の本人の向きではなく、実際に映した向きを使う。点は作らない。
+function templeViewYaw(rt) {
+  const q = rt.camera?.quaternion;
+  if (!q) return rt.player.yaw + (rt.player.camYawOff || 0);
+  const x = -2 * (q.x * q.z + q.w * q.y), z = 2 * (q.x * q.x + q.y * q.y) - 1;
+  return Math.hypot(x, z) > .001 ? Math.atan2(x, z) : rt.player.yaw + (rt.player.camYawOff || 0);
+}
+
 // 戸口の実際の交点で、視点の通る幅と高さを確かめる。
 // 開いた襖も滑った先の位置で調べる。鴨居と閉じた戸は残す。
 function cameraDoorClear(hall, wall, cross, y) {
@@ -2736,7 +2745,7 @@ const honnoji = {
     // 遠い護衛先より、いま通る開いた戸口を札と矢印でそろえる。
     if (F.routeSign?.door && this.routeGuidePriority(rt)) {
       const p = rt.player.u.pos, sign = F.routeSign;
-      const yaw = rt.player.yaw + (rt.player.camYawOff || 0);
+      const yaw = templeViewYaw(rt);
       const dx = sign.x - p.x, dz = sign.z - p.z, distance = Math.hypot(dx, dz) || 1;
       const side = (-dx * Math.cos(yaw) + dz * Math.sin(yaw)) / distance;
       const forward = (dx * Math.sin(yaw) + dz * Math.cos(yaw)) / distance;
@@ -2749,14 +2758,14 @@ const honnoji = {
       if (this.routeTurnReady(rt, sign)) {
         const turn = (dx * sign.dirZ - dz * sign.dirX) / distance;
         if (Math.abs(turn) > .5) {
-          const yaw = rt.player.yaw + (rt.player.camYawOff || 0);
+          const yaw = templeViewYaw(rt);
           const side = -sign.dirX * Math.cos(yaw) + sign.dirZ * Math.sin(yaw);
           return Math.abs(side) < .35 ? '角を曲がって進む' : side >= 0 ? '右へ曲がる' : '左へ曲がる';
         }
       }
     }
     if (sign?.indoor && !sign.door) {
-      const yaw = rt.player.yaw + (rt.player.camYawOff || 0);
+      const yaw = templeViewYaw(rt);
       const dx = sign.x - p.x, dz = sign.z - p.z, distance = Math.hypot(dx, dz) || 1;
       const side = (-dx * Math.cos(yaw) + dz * Math.sin(yaw)) / distance;
       const forward = (dx * Math.sin(yaw) + dz * Math.cos(yaw)) / distance;
@@ -2860,6 +2869,16 @@ const honnoji = {
       return `あと${left}びょう`;
     }
     return F.escortShown && F.farT > 0 ? `あと${Math.max(0, Math.ceil(60 - F.farT))}びょう` : '';
+  },
+  retryAdvice(rt, info) {
+    // 傷で倒れた時は共通の手当ての助言を残す。護衛失敗では実際の役目を示す。
+    if (info.down || rt.G.lord) return '';
+    const F = rt.flags;
+    if (F.step === 5) return '北の口へ退き、町へ逃げよう';
+    if (F.step >= 3) return '御所の西の門の内で、信忠様を守ろう';
+    if (F.hp === 6) return '戸口の印を追い、上様と奥へ退こう';
+    if (F.hp === 8) return '道の印を追い、裏門から逃げよう';
+    return '戸口の印を追い、白い着物の上様へ戻ろう';
   },
   escortGuideTarget(rt) {
     const F = rt.flags;

@@ -913,7 +913,9 @@ function dressSlopes(rt, stoneGeo) {
   // 同じ地面でも描画ごとの視点で面が欠ける余地が残る。
   // 元の格子と細分した面を一枚で描き、追加の頂点・材質・毎コマの詰め替えを作らない。
   geo.userData.terrainViewIndex = geo.index.array;
-  W.terrain.onBeforeRender = THREE.Object3D.prototype.onBeforeRender;
+  // 共通の空処理へ戻すと、場面側の地形選別が再び有効になる。
+  // 鳥取専用の空処理に替え、細分後の全索引を描画のたびに詰め直させない。
+  W.terrain.onBeforeRender = function () {};
   W.terrain.geometry = geo; old.dispose();
 
   // 小石と草は一つずつの束。城道・曲輪・柵の口には置かない。

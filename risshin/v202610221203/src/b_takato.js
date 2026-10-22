@@ -244,15 +244,17 @@ const retreatClear = (rt, from, to) => {
   // 門柱や逆茂木の中、空堀を横切る先を休む場所として示さない。
   // 既存の足場と坂の判定を使い、探索は一秒ごとのまま保つ。
   if (nakaFind(to.x, to.z) || !clearFoot(rt, to) || !localClear(rt.army, from, to, true)) return false;
-  // 足元だけ平らでも、すぐ脇が切岸なら休む印を置かない。押し合いの余裕を残す。
-  if (retreatEdgeDrop(rt, to.x, to.z) > 1.5) return false;
   const dx = to.x - from.x, dz = to.z - from.z, l2 = dx * dx + dz * dz;
+  const startDrop = retreatEdgeDrop(rt, from.x, from.z), endDrop = retreatEdgeDrop(rt, to.x, to.z);
+  // 縁へ押された時は、短い一歩で落差が減る側へ戻れるようにする。
+  // まだ切岸が近い足場を、長い退路の終点や休む場所にはしない。
+  if (endDrop > 1.5 && !(l2 <= 3.5 * 3.5 && endDrop < startDrop - .1)) return false;
   // 終点が空いていても、途中で逆茂木や竹束の端を横切る退路は使わない。
   // 座標入れは支度時に作り、既存の足場検査と同じ間隔で使い回す。
   const step = rt.flags.retreatStep, steps = Math.max(1, Math.ceil(Math.sqrt(l2) / .75));
   // 終点だけ広くても、途中の切岸際は押し合いで空堀へ落ちる。
   // すでに縁へ押された時は、危険を増やさず広い足場へ離れる一歩を残す。
-  let edgeDrop = Math.max(1.5, retreatEdgeDrop(rt, from.x, from.z));
+  let edgeDrop = Math.max(1.5, startDrop);
   let previousY = from.y;
   for (let i = 1; i <= steps; i++) {
     step.x = from.x + dx * i / steps; step.z = from.z + dz * i / steps;

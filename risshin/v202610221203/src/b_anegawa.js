@@ -1664,7 +1664,7 @@ const anegawa = {
     return rt.flags.waitFacingEnemy ? rt.flags.watchEnemy : null;
   },
   waitFacingLabel(rt, ready) {
-    return ready ? 'ここで待つ' : '川へ向く';
+    return ready ? 'そのまま待とう' : rt.flags.waitFacingEnemy ? '敵へ向く' : '川へ向く';
   },
   waitFacingPoint(rt) {
     const F = rt.flags;
@@ -1738,7 +1738,7 @@ const anegawa = {
   // 間合いの外の敵を示す札でも、岸の守備を旗への前進に言い換えない。
   meleeApproachText(rt) {
     const F = rt.flags;
-    if (rt.withdrawal?.losing === 0) return F.withdrawReached ? 'ここで組を集めよう' : '退く印へ集まろう';
+    if (rt.withdrawal?.losing === 0) return F.withdrawReached ? '旗のそばで待とう' : '旗まで進もう';
     if (F.retreatGuiding || F.taskHurt) return anegawa.retreatGuideLabel(rt, F.retreatReached);
     if (F.hqThreat || F.hqDefend) return anegawaGuardLabel(rt, !anegawaReturning(rt));
     if (F.step === 2) return '味方と敵を追おう';
@@ -1859,7 +1859,7 @@ const anegawa = {
   rainDodgeGuideLabel: (rt, reached) => anegawaHqReturnPriority(rt) ? reached ? anegawaHqReturnText(rt) : '矢をよけ、本陣へ戻ろう' :
     rt.flags.hqThreat || rt.flags.hqDefend ? reached ? anegawaHqWatchText(rt) : '矢をよけ、本陣を守ろう' : reached ? 'ここで敵へ槍を向けよう' : '印へよけて、矢を避けよう',
   retreatGuideLabel(rt, reached) {
-    if (rt.withdrawal?.losing === 0) return reached ? 'ここで組を集めよう' : '退く印へ集まろう';
+    if (rt.withdrawal?.losing === 0) return reached ? '旗のそばで待とう' : '旗まで進もう';
     // 共通の退避案内でも、軽傷なら帰陣先と着いてからの守備を残す。
     if (anegawaHqReturnPriority(rt)) return anegawaHqReturnText(rt);
     const hurt = rt.flags.taskHurt || rt.player.u.wounds?.bleed > 0.0001 || rt.player.treating;
@@ -1921,16 +1921,16 @@ const anegawa = {
       if (!rt.flags.withdrawReached && Math.hypot(rt.player.u.pos.x - rt.flags.withdrawAt.x,
           rt.player.u.pos.z - rt.flags.withdrawAt.z) < 8) {
         rt.flags.withdrawReached = true;
-        anegawaObjective(rt, 'main', 'ここで組を集めよ。追手には槍を向けよ', true);
+        anegawaObjective(rt, 'main', '旗のそばで待とう', true);
       }
       return;
     }
     anegawaWithdrawPost(rt);
     rt.flags.withdrawMarked = true;
     for (const id of ['stop', 'eastPost', 'pushPost', 'hqGuard', 'honjinHelp', 'hurtRetreat', 'ford', 'pursuitPost']) rt.unmark(id);
-    anegawaObjective(rt, 'main', '退く印へ集まろう', true);
-    rt.marker('withdrawPost', rt.flags.withdrawAt, '退く旗・ここで組を集める', { guideArea: 'retreat', guideRadius: 8 });
-    rt.hud.say('組頭', '退き太鼓じゃ！　矢印のほうへ、手負いを連れて戻れ！', 8, true);
+    anegawaObjective(rt, 'main', '旗まで進もう', true);
+    rt.marker('withdrawPost', rt.flags.withdrawAt, '集まる旗', { guideArea: 'retreat', guideFlag: true, guideRadius: 8 });
+    rt.hud.say('組頭', '退き太鼓じゃ！　旗のそばで味方を待て！', 8, true);
   },
   botOrders: true, // 持ち場と反撃の判断を、性格の突進・構え直しで上書きしない。
   // 列や建物の当たりを残し、組の脇の空いた所から始める。

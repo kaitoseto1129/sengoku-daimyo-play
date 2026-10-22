@@ -139,6 +139,8 @@ function lightLevel(world) {
 // 絵札に替えたい兵か（距離はカメラから）
 export function efudaWants(u, d, force = false) {
   if (!EFUDA.on || u.name || u.type === 'busho' || u.qualityTier != null && u.qualityTier !== 2 || u.isPlayer || u.imp || u.camHidden || u.mounted || !u.mesh || !u.mesh.visible || u.gone || u.isSub || u.isStandard || u.isStruct || u.climb || u.downed || u.dragging || u.iwaFlagRig || u.tennojiFlagRig) return false;
+  // 倒れる途中は骨の姿を保つ。寝た後にだけ亡骸の絵へ渡す。
+  if ((!u.alive || u.dying) && (u.death ? u.death.t < DEATH_END || u.death.aid : (u.deadT || 0) < 1)) return false;
   if (!force && !(d > (u.efuda ? EFUDA.far - EFUDA.hyst : EFUDA.far))) return false;   // 骨の枠を越えても、品質の段が近景・中景の兵は絵札にしない
   return efudaKeyOf(u) !== null;
 }

@@ -70,7 +70,7 @@ export class BattleOpening {
     this.route = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     this.route.classList.add('opening-route');
     this.route.setAttribute('aria-hidden', 'true');
-    this.route.innerHTML = '<path fill="none" stroke="#14120f" stroke-width="9"/><path fill="none" stroke="#fff3ba" stroke-width="4"/><circle r="18" fill="none" stroke="#14120f" stroke-width="9"/><circle r="18" fill="none" stroke="#fff3ba" stroke-width="4"/>';
+    this.route.innerHTML = '<path fill="none" stroke="#14120f" stroke-width="9"/><path fill="none" stroke="#fff3ba" stroke-width="4"/><circle r="18" fill="none" stroke="#14120f" stroke-width="9"/><circle r="18" fill="none" stroke="#fff3ba" stroke-width="4"/><g class="opening-start"><circle r="10" fill="#14120f" stroke="#fff3ba" stroke-width="3"/><path d="M-4 20V6Q-4 0 0 0Q4 0 4 6V18L9 15L20 24L16 38H-3L-15 26Q-19 20-14 18Q-10 16-4 23Z" fill="#fff3ba" stroke="#14120f" stroke-width="2" stroke-linejoin="round"/></g>';
     this.route.toggleAttribute('hidden', true);
     this.el.prepend(this.route);
     this.personArrow = document.createElement('i');
@@ -93,7 +93,9 @@ export class BattleOpening {
 #hud #battle-opening .opening-move-area { position:absolute; box-sizing:border-box; width:152px; height:128px; border:0; background:none; }
 #hud #battle-opening.opening-controls b { font-size:max(20px,calc(20px * var(--text-scale,1))); white-space:pre-line; }
 #hud #battle-opening.opening-controls span { max-width:calc(100vw / 3 - 24px); min-height:44px; }
-#hud #battle-opening.opening-controls .opening-swipe { position:absolute; width:64px; height:99.2px; transform:translate(-32px,-60.8px); filter:none; }
+#hud #battle-opening.opening-controls .opening-swipe { display:none; }
+/* 始点の丸と上向きの矢印一本だけを残す。 */
+#hud #battle-opening.opening-controls .opening-start > path { display:none; }
 #hud #battle-opening i { display:inline-block; flex:none; font-style:normal; font-size:24px; line-height:1; }
 #hud #battle-opening .opening-person { position:absolute; transform:translate(-50%,-100%); line-height:1; color:#fff3ba; text-shadow:0 2px 3px #14120f; }
 #hud #battle-opening .opening-swipe { position:absolute; width:80px; height:116px; transform:translate(-40px,-76px); filter:drop-shadow(0 1px 2px #14120f); }
@@ -274,12 +276,13 @@ body:has(#hud.opening #battle-opening.opening-linked) #tc .stick { visibility:hi
       arrow.hidden = true;
       arrow.textContent = '↑';
       arrow.style.transform = '';
-      this.text.textContent = '輪までなぞろう';
+      this.text.textContent = '上になぞる';
       // 歩ける側の操作面に始点を置く。
       // 開幕も戦の途中も同じ操作面を使う。
       // 示した輪は navigationTouchOrigin で移動操作として受ける。
       // 左右を入れ替えた設定でも、実際に歩ける下側の操作面へ置く。
-      const fingerX = W * (S.touchSwap ? .75 : .25), fingerY = Math.max(144, H - 128);
+      const start = this.hud.playerControlOrigin(rt);
+      const fingerX = start.x, fingerY = start.y;
       this.swipeX = fingerX; this.swipeY = fingerY;
       const origin = this.hud.navigationTouchOrigin || (this.hud.navigationTouchOrigin = {});
       origin.rt = rt; origin.at = rt.t; origin.x = fingerX; origin.y = fingerY;
@@ -297,7 +300,7 @@ body:has(#hud.opening #battle-opening.opening-linked) #tc .stick { visibility:hi
       const dx = endX - fingerX, dy = endY - fingerY;
       const length = Math.max(1, Math.hypot(dx, dy));
       const ux = dx / length, uy = dy / length;
-      const tipX = endX - ux * 24, tipY = endY - uy * 24;
+      const tipX = endX, tipY = endY;
       // 始点の字に重ねず、終点まで矢じりも同じ向きへそろえる。
       const path = `M${fingerX} ${fingerY}L${tipX} ${tipY}M${tipX - ux * 12 - uy * 8} ${tipY - uy * 12 + ux * 8}L${tipX} ${tipY}L${tipX - ux * 12 + uy * 8} ${tipY - uy * 12 - ux * 8}`;
       for (let i = 0; i < 2; i++) this.route.children[i].setAttribute('d', path);
@@ -305,6 +308,7 @@ body:has(#hud.opening #battle-opening.opening-linked) #tc .stick { visibility:hi
         const circle = this.route.children[i];
         circle.setAttribute('cx', endX); circle.setAttribute('cy', endY);
       }
+      this.route.lastElementChild.setAttribute('transform', `translate(${fingerX} ${fingerY})`);
       this.route.toggleAttribute('hidden', false);
       this.swipe.style.setProperty('--swipe-angle', '0rad');
       this.swipe.style.left = fingerX + 'px';
@@ -312,11 +316,12 @@ body:has(#hud.opening #battle-opening.opening-linked) #tc .stick { visibility:hi
       this.personArrow.hidden = true;
       // 最初の操作は始点の指・矢印・終点の輪にまとめる。
       this.flagGround = null; this.flagBounds = null; this.flagOffscreen = false;
-      // 説明は指の下へ置き、始点を文字で覆わない。
+      // 説明は輪の脇へ置き、指と一本の道を文字で覆わない。
       const half = this.label.offsetWidth / 2;
       const halfHeight = this.label.offsetHeight / 2;
-      x = Math.max(half + 12, Math.min(W - half - 12, fingerX));
-      y = Math.min(H - halfHeight - 12, fingerY + 40 + halfHeight);
+      const side = fingerX + half * 2 + 24 < W - 12 ? 1 : -1;
+      x = Math.max(half + 12, Math.min(W - half - 12, fingerX + side * (half + 20)));
+      y = Math.max(halfHeight + 12, Math.min(H - halfHeight - 12, fingerY));
     }
     if (linkedMove) this.text.textContent = rt.def.openingLinkedLabel || '旗まで進む';
     // 旗への説明は実物か画面端の印の脇へまとめる。
