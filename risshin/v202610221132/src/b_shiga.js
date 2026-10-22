@@ -1299,6 +1299,7 @@ const shiga = {
     runnerWay: shigaRunnerWay,
     terrainTags: true,   // 坂・道の速さを効かせる（曲輪の縁の切岸は登れず、道を通る）
     terrainTriangles: true, // 切岸の足場・小道具・目線を、描く地面の三角形と同じ高さにする。
+    terrainContactView: true, // 描く直前にも視点の中央と四隅を地面の上へ戻し、坂の裏を映さない。
     groundHalf: 240, // 南へ２０４ｍの本丸と２１４ｍの井戸を、地面の端の内へ収める。
     keepTerrainGrid: true, // 携帯でも描く格子と足場をそろえ、切岸で柵や兵を浮かせない。
     height,
@@ -2861,6 +2862,19 @@ shiga.setup = function (rt) {
       look.y = Math.max(P.y - maxSlope * span, Math.min(P.y + maxSlope * span, look.y));
     }
     camera.up.set(0, 1, 0); camera.lookAt(look);
+  };
+  // 近い視点の切り替えや直接描画は updateCamera を通らないことがある。
+  // 描画の直前にも同じ坂よけを通し、地面を上げるだけで本人を見失わせない。
+  const clampDrawCamera = rt.world.clampDrawCamera;
+  rt.world.clampDrawCamera = function (camera) {
+    clampDrawCamera?.call(this, camera);
+    const u = player.u;
+    if (!camera.isPerspectiveCamera || !u.alive || u.naka || player.fpK >= .5) return;
+    slopeLook.set(u.pos.x, u.pos.y + 1.5, u.pos.z);
+    if (slopeHit(slopeLook, camera.position) === null) return;
+    limitView(camera, slopeLook);
+    player.camPos.copy(camera.position);
+    camera.updateMatrixWorld();
   };
   rt.playerDown = function (...args) {
     const result = down.apply(this, args), u = player.u;

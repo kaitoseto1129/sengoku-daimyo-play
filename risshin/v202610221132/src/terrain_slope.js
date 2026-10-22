@@ -32,11 +32,12 @@ export function dressSlope(world, o) {
       pose.position.set(x, y, z).addScaledVector(normal, -size * .3);
       pose.updateMatrix();
       if (o.buryRim) {
-        // 折れた切岸では中心だけを埋めても、谷側の腹が浮く。下半分の縁まで実際の面へ据える。
+        // 回転前の下半分と、回転後に下へ向いた腹をともに実際の面へ据える。
+        // 坂の肩では、元は上半分だった縁も谷へ張り出す。
         let sink = 0;
         for (let j = 0; j < stonePoints.count; j++) {
-          if (stonePoints.getY(j) > .05) continue;
           vertex.fromBufferAttribute(stonePoints, j).applyMatrix4(pose.matrix);
+          if (stonePoints.getY(j) > .05 && vertex.y > pose.position.y + size * .05) continue;
           sink = Math.min(sink, drawGroundAt(world, vertex.x, vertex.z) - vertex.y - .06);
         }
         pose.position.y += sink; pose.updateMatrix();

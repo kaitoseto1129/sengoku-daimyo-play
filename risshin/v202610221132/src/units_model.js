@@ -981,6 +981,19 @@ function surf(nu, nv, fn) {
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   g.setIndex(idx);
   g.computeVertexNormals();
+  // 管や馬体の周回端は位置が同じでも別頂点。法線を合わせて縦の硬い継ぎ目を消す。
+  // 開いた布・面は端の位置が異なるため触らない。面数と共有形は保つ。
+  const normal = g.attributes.normal;
+  for (let j = 0; j <= nv; j++) {
+    const a = j * (nu + 1), b = a + nu;
+    const dx = pos[a * 3] - pos[b * 3], dy = pos[a * 3 + 1] - pos[b * 3 + 1], dz = pos[a * 3 + 2] - pos[b * 3 + 2];
+    if (dx * dx + dy * dy + dz * dz > 1e-10) continue;
+    const x = normal.getX(a) + normal.getX(b), y = normal.getY(a) + normal.getY(b), z = normal.getZ(a) + normal.getZ(b);
+    const length = Math.hypot(x, y, z);
+    if (length < 1e-6) continue;
+    normal.setXYZ(a, x / length, y / length, z / length);
+    normal.setXYZ(b, x / length, y / length, z / length);
+  }
   return g;
 }
 // 前（+z）を中心にした円柱の一部（center＝向き。π なら背）

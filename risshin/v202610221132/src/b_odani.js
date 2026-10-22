@@ -1326,6 +1326,7 @@ const odani = {
     groundedSlopeRocks: true, // 閉じた岩の腹を土へ埋め、斜面の黒い穴や浮いた小石を減らす。
     rockDrawGround: true,
     rockSlopeContact: true,
+    rockLowerRimContact: true, // 折れた谷の肩では、外向きでも下側の腹を実際の地面へ埋める。
     curvedRockTufts: true, // 岩際の草を三角の杭にせず、短く曲がる葉にする。
     litRockTufts: true, // 根草の裏も空の光で照らし、夜の斜面に黒い刃を並べない。
     naturalWoodDebris: true, // 割れ木の色に茶を二重に掛けず、夜の黒い短冊を減らす。
@@ -1462,6 +1463,7 @@ const odani = {
       || Math.hypot(x - KYOKAN.x, z - KYOKAN.z) < 22 || Math.hypot(x - AKAO.x, z - AKAO.z) < 17 || Math.hypot(x - ONOGI.x, z - ONOGI.z) < 17 || FORTS.some((f) => Math.hypot(x - f.x, z - f.z) < 13),
     // 尾根の曲輪・切岸の外の山肌は、夏の杉と雑木の林（道・谷底・田・屋敷は clear と paths で空ける）。
     trees: 650,
+    layeredNeedles: true, // 杉の枝房を段ごとに張らせ、細長い板のような輪郭を崩す。面数は保つ。
     tufts: 1900,
     tuftTint: 0x68704d, // 夜の下草は暗い灰緑。白い穂が一面を覆わないようにする。
     treeDensity: (x, z) => (x < -30 && x > -130 && z > -70 && z < 175 && alongLine(SHIMIZU, x, z).d < 7 ? 0 : 1),

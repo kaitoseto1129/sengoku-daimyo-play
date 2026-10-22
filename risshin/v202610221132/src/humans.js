@@ -1292,7 +1292,7 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
         float wear = ${detailed ? 'dmVn(vDmP * 40.0) * 0.7 + dmVn(vDmP * 140.0) * 0.3' : '0.5'};
         // 露出した鉄は酸化と擦れのある鈍い面。革・布・漆の照りを別々にする。
         roughnessFactor = 0.43 + wear * 0.2;
-        roughnessFactor = mix(roughnessFactor, ${'0.18 + wear * 0.24 + dmEdge * 0.25'}, dmLacq);
+        roughnessFactor = mix(roughnessFactor, ${'0.25 + wear * 0.20 + dmEdge * 0.22'}, dmLacq);
         roughnessFactor = mix(roughnessFactor, 0.72 + wear * 0.14, dmLeather);
         roughnessFactor = mix(roughnessFactor, ${'1.0'}, dmCloth);
         // 金具：磨かれた照りに、細かな引っ掻き傷
@@ -6453,12 +6453,19 @@ function rideHuman(h, dt) {
   const R = h.rs || (h.rs = { y: sy, v: 0 });
   R.v += ((sy - R.y) * 160 - R.v * 14) * dt; R.y += R.v * dt;
   const bob = Math.max(-0.25, Math.min(0.25, (sy - R.y) * 6));
+  // 鞍の弾みは腰と膝でも受け、胴だけが折れる乗り方を避ける。既存の骨を使う。
+  const absorb = Math.max(-.06, Math.min(.06, sy - R.y));
+  h.model.position.y -= absorb * .45;
+  rotWorld(B.RightLeg, _right, bob * .12); rotWorld(B.LeftLeg, _right, bob * .12);
+  rotWorld(B.RightUpLeg, _right, -bob * .06); rotWorld(B.LeftUpLeg, _right, -bob * .06);
   // 上体：速いほど前へ、曲がる時は内へ、止まる時は後ろへ体を残す
   const charge = u.charging ? 0.12 : 0;
   const lean = Math.min(0.1, spd * 0.01) + charge - Math.min(0.2, (h.decel || 0) * 0.25) + Math.max(0, up) * 0.55;
   rotWorld(B.Spine, _right, lean + bob * 0.5);
   rotWorld(B.Spine2, _right, -bob * 0.35);
   rotWorld(B.Spine, _fwd, -(h.turn || 0) * 0.25);
+  // 胸が揺れを受けても兜は遅れて戻る。重い具足の上体と視線を分ける。
+  rotWorld(B.Neck, _right, -bob * .12);
   // 駆ける時は鐙に立つ：膝で弾みを吸い、腰を鞍から浮かせて前へ。頭の高さはほとんど動かさない（名のある武将と本人は深く、兵は浅く）
   const named = isNamed(h.look) || u.isPlayer;
   const stand = clamp01((spd - 5) / 4) * (named ? 1 : 0.6);
@@ -8641,6 +8648,9 @@ const _ry = new THREE.Vector3(0, 1, 0), _rd = new THREE.Vector3();
 function ropeBetween(m, a, b, r) {
   _rd.copy(b).sub(a);
   const L = _rd.length() || 1e-4;
+  // 乗り手の拳の骨が古い所（場面の原点など）を指したコマに、手綱が戦場の端まで伸びて馬上の武将のまわりに星形の線が出た（稲生 10/22）。
+  // 紐は三メートルより長くならない。長すぎる時はそのコマだけ長さを無くして描かない。
+  if (!(L < 3)) { m.scale.set(r, 1e-4, r); return; }
   m.position.copy(a);
   m.quaternion.setFromUnitVectors(_ry, _rd.multiplyScalar(1 / L));
   m.scale.set(r, L, r);

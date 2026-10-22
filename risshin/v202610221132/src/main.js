@@ -1,3 +1,4 @@
+import { simpleControls } from './simple_controls.js';
 import { tinyCull } from './tiny_cull.js';
 import { loadYumi } from './yumi.js';
 import { loadPropsExt, loadBldg } from './props_ext.js';
@@ -875,6 +876,7 @@ window.addEventListener('keydown', (e) => {
   const code = canonical(e.code);
   if (GAME_KEYS.has(e.code) || GAME_KEYS.has(code)) e.preventDefault();
   if (code === null) return;
+  if (simpleControls(game.battle) && ['KeyP', 'KeyL', 'KeyB', 'KeyU'].includes(code)) return;
   // 攻城などの上空視点（rts.js）：Tab で三人称と切り替え。開いている間は号令・武器・移動の鍵を通さない
   if (rtsAvailable(game.battle)) {
     if (code === 'Tab') { if (!e.repeat) toggleRts(game.battle); return; }
@@ -1107,6 +1109,7 @@ function photoUi() {
   if (ph) el.innerHTML = `<b>写真モード</b>　${K('forward')}${K('left')}${K('back')}${K('right')} 移動・${K('dodge')}／${K('attack')} 上下・マウス 見回す・ホイール 画角<br>1〜4 色合い（いま：${FILTER_NAMES[ph.filter]}）・H 自分を隠す・G 構図の線・K 撮る・P 戻る`;
 }
 function togglePhoto() {
+  if (simpleControls(game.battle)) return;
   if (!game.battle) return;
   if (game.photo) {
     game.photo = null; game.hud.root.classList.remove('photo'); canvas.style.filter = ''; document.querySelector('.photogrid')?.remove();
@@ -1385,19 +1388,16 @@ const TIPS = [
   '桶狭間では、信長が「首は取るな、討ち捨てにせよ」と命じたと『信長公記』は伝えています。',
   '敵の頭上に「！」が出たら攻撃の合図。その直前に右クリックで構えると受け流しになります。',
   '敵足軽を倒すだけでは戦功に上限があります。任務・救援・側面攻撃のほうが大きな手柄です。',
-  `${K('follow')}・${K('hold')}・${K('attack')}・${K('retreat')}で、号令の札を開かずに組へ号令できます。文字キーの段を左から数えます。`,
-  `${K('view')}で、自分の目で見る向きと、背中から見る向きを切り替えられます。`,
   '士気が尽きた部隊は崩れて逃げ出します。横や後ろから突くと士気が大きく下がります。',
   `${K('lock')}で敵を狙い定めると、乱戦でも相手を見失いません。`,
   '深追いは「勝手な追撃」として減点されます。上官の言う線を越えないように。',
   '合印は組の旗印です。戦場で自分の後ろに並ぶ旗が、出世の証になります。',
   '森部の戦い（1561年）では、斎藤方の日比野下野守・長井甲斐守らが討ち取られました。',
   '墨俣の「一夜城」は伝承の色が濃い話です。この試作では「墨俣の砦普請」として扱っています。',
-  '左を押し続けて離すと溜め突き。敵の構えを破り、大きな傷を与えます。',
-  '打刀は構えながら左で突き。受け流しの猶予も槍より長めです。',
+  '突く時は、敵へ向いて一度押すだけ。間合いを保ちましょう。',
   '生き残った部下は古参になり、次の戦で強くなります。城下の「組」で名簿を見られます。',
   '敵の武将が近くにいると、画面下に名前と体力が出ます。',
-  '敵も正面からの突きを構えて防ぎます。横や後ろ、薙ぎ払いを使い分けましょう。',
+  '敵も正面からの突きを構えて防ぎます。少し横へ回り、隙を突きましょう。',
   '「組の稽古」で部下全員の練度を上げられます（城下ごとに一度）。',
   '部隊長（侍）を討つと、その部隊は混乱し、士気も大きく下がります。',
   '散開した組は矢に当たりにくく、縦陣は移動が速くなります。',
@@ -1752,7 +1752,7 @@ const game = {
           return Promise.resolve().then(load).then((value) => {
             const failed = key === '人' ? HUMd.failed : key === '具足' ? DOMd.failed : key === '城' ? cgtOn() && !value : value === false;
             if (failed) throw new Error(key === '人' ? HUMd.err : key === '具足' ? DOMd.err : `${key}を読めませんでした`);
-            LT.assetsDetail[key] = { ms: Math.round(performance.now() - began), ok: true }; }).catch((error) => { LT.assetsDetail[key] = { ms: Math.round(performance.now() - began), ok: false, reason: String(error?.message || error) }; if (my === this.startSeq && !LT.assetNoticed) { LT.assetNoticed = true; notice('！ 人や具足の一部を読めませんでした。軽い形で続けます。題へ戻り、ページを読み直してください'); } });
+            LT.assetsDetail[key] = { ms: Math.round(performance.now() - began), ok: true }; }).catch((error) => { LT.assetsDetail[key] = { ms: Math.round(performance.now() - began), ok: false, reason: String(error?.message || error) }; if (my === this.startSeq && !LT.assetNoticed) { LT.assetNoticed = true; console.warn('素材の一部を読めず、軽い形で続けます', key, error); /* 遊ぶ人には知らせない（kaito 10/22） */ } });
         };
         // 展開中の文字列・画像・形を重ねない。一種類ずつ終え、画面へ戻してから次を読む。
         for (const [key, name, load] of [['人', 'mhbody', loadHumans], ['具足', 'domaru', loadDomaru], ['武器', 'weapons', loadWeapons], ['城', 'cgt', loadCgt], ['兜', 'kabuto', loadKabuto], ['弓', 'yumi', loadYumi], ['馬', 'horse', loadHorse], ['道具', 'props_ext', loadPropsExt], ['建物', 'bldg', loadBldg], ['模様', 'tex_people', loadPeopleDetail], ['声', 'voice', loadWarSpeech]]) {

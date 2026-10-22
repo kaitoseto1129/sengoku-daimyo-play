@@ -37,6 +37,10 @@ function fitPinnedArrow(a, parentReady = false) {
   if (arrowAxisScale.y > 1e-8) m.scale.y = s.y / arrowAxisScale.y;
   if (arrowAxisScale.z > 1e-8) m.scale.z = s.z / arrowAxisScale.z;
 }
+// 刺さった矢は、どの戦でも胴・骨・馬の倍率を受け継がず実寸を保つ（稲生などで腰から何十メートルの棒が伸びた。kaito 10/22）。
+// 戦の定義で false を書いた時だけ、古い付け方に戻す。
+const pinLife = (d) => d.lifeSizePinnedArrows !== false && d.keepPinnedArrowSize !== false;
+const pinAxis = (d) => d.pinnedArrowAxisScale !== false;
 const arrowMatrixWorld = THREE.Object3D.prototype.updateMatrixWorld;
 // 親から子へ行列を更新する途中なら、親の最新の倍率をそのまま使える。
 // 描く直前の体格変更にも追従し、矢ごとの祖先の再計算と全矢の再走査を省く。
@@ -727,14 +731,14 @@ export const ArmyRanged = {
     a.stuck = true; a.life = life; a.support = support; a.groundPinned = ground;
     if (parent) {
       const m = a.mesh;
-      if (this.world.def.lifeSizePinnedArrows || this.world.def.keepPinnedArrowSize) {
+      if (pinLife(this.world.def)) {
         // 骨のある兵へ付けても、飛んできた矢の実寸を保つ。
         // 入れ物は矢の再使用時にも使い、毎コマは作らない。
         m.getWorldScale(a.pinScale);
         // 位置と向きだけの変換では、胴や馬の縮尺で矢まで長くなる。
         // 刺さる時だけ世界の変換を保って付け替える。道具の一時行列は使い回される。
         parent.attach(m);
-        if (this.world.def.pinnedArrowAxisScale) fitPinnedArrow(a);
+        if (pinAxis(this.world.def)) fitPinnedArrow(a);
       } else {
         parent.updateMatrixWorld(true);
         parent.getWorldQuaternion(arrowWorldRotation);
@@ -743,7 +747,7 @@ export const ArmyRanged = {
         parent.add(m);
       }
       a.parent = parent;
-      if (this.world.def.pinnedArrowRenderScale && this.world.def.pinnedArrowAxisScale) {
+      if (this.world.def.pinnedArrowRenderScale !== false && pinAxis(this.world.def)) {
         m.userData.pinnedArrow = a;
         m.updateMatrixWorld = pinnedArrowMatrixWorld;
       }
@@ -783,9 +787,9 @@ export const ArmyRanged = {
       a.life -= dt;
       if (a.stuck) {
         if (a.parent && a.mesh.updateMatrixWorld !== pinnedArrowMatrixWorld
-          && (this.world.def.lifeSizePinnedArrows || this.world.def.keepPinnedArrowSize) && a.pinScale) {
+          && (pinLife(this.world.def)) && a.pinScale) {
           // 近い骨入りの体と遠い体を替えても、親の倍率を矢へ重ねない。
-          if (this.world.def.pinnedArrowAxisScale) fitPinnedArrow(a);
+          if (pinAxis(this.world.def)) fitPinnedArrow(a);
           else {
             a.parent.getWorldScale(arrowParentScale);
             a.mesh.scale.copy(a.pinScale).divide(arrowParentScale);
@@ -803,7 +807,7 @@ export const ArmyRanged = {
           // 親の局所座標をそのまま原点へ置かず、最後の世界座標から落とす。
           if (a.parent) {
             a.mesh.getWorldPosition(a.prev); a.mesh.getWorldQuaternion(arrowWorldRotation);
-            if (this.world.def.lifeSizePinnedArrows || this.world.def.keepPinnedArrowSize) this.scene.attach(a.mesh);
+            if (pinLife(this.world.def)) this.scene.attach(a.mesh);
             else this.scene.add(a.mesh);
             a.pos.copy(a.prev); a.mesh.quaternion.copy(arrowWorldRotation);
           }

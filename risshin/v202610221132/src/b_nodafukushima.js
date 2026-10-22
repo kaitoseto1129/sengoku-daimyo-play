@@ -89,6 +89,15 @@ const MIYOSHI = { flag: 'miyoshi', armor: 0x35382c, lace: 0x6b6250, cloth: 0x3a3
 const NO_GROUPS = [];
 const RETREAT_WAIT = 120;
 const canJoin = (u) => u.alive && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget && !u.gone;
+// 生き残りが別の場所で戦っていても、無人の詰め陣へ案内しない。
+// 到着の判定と同じ十歩以内で、実際に迎えられる守兵だけを数える。
+function campJoinAvailable(rt) {
+  const guard = rt.flags.campA.guard;
+  if (gone(guard)) return false;
+  const point = rt.flags.campJoinPoint;
+  return guard.units.some(u => canJoin(u) && Math.hypot(u.pos.x - ODA_JOIN.x, u.pos.z - ODA_JOIN.z) < 10 &&
+    Math.abs(u.pos.y - point.y) < 3 && !rt.army.wallBetween(point, -1, u.pos) && !rt.army.terrainBlocks(point, u.pos));
+}
 // 安全な印は据え置く。味方が動くたびに追わせず、着いた場所で息を整えられるようにする。
 // 敵の接近・味方の離脱・障害物は半秒ごとに読み直す。
 function keepRecoveryPoint(rt, point, radius) {
@@ -1253,6 +1262,16 @@ function nodaWallLine(rt, pts, o = {}) {
     owned.push(geo); return m;
   };
   const walls = wallLine(rt, pts, { ...o, mesh });
+  // 深み・砦の外の柵も含め、描いた木柵をすべて視点の障害物へ登録する。
+  // 堤の二枚だけでは、浅瀬の横の柵へ視点が入り込んでしまう。
+  const cameraWalls = rt.flags.cameraWalls || (rt.flags.cameraWalls = []);
+  for (const s of walls) {
+    const [ax, az, bx, bz] = s.seg;
+    cameraWalls.push({ s, minX: Math.min(ax, bx) - .35, maxX: Math.max(ax, bx) + .35,
+      minZ: Math.min(az, bz) - .35, maxZ: Math.max(az, bz) + .35,
+      bottom: Math.min(rt.world.heightAt(ax, az), rt.world.heightAt(bx, bz)) - .6,
+      top: Math.max(rt.world.heightAt(ax, az), rt.world.heightAt(bx, bz)) + 2.2 });
+  }
   timberGeo.dispose();
   const dispose = rt.dispose;
   rt.dispose = function () { for (const item of owned) item.dispose(); return dispose.call(this); };
@@ -1605,6 +1624,7 @@ const nodafukushima = {
   noUnitContrast: true, // 夜や柵越しで兵から離れて浮く人型線を消す。敵味方の頭上の印は残す。
   openingFootSignOnly: true, // 開始の説明で本人を画面下まで白い箱で囲まない。
   enemyHeadSignOnly: true, // 竹束に重なる胴の箱を省き、頭上の刀で相手を示す。
+  enemyFrameAtPosition: true, // 写真用の視点切替でも、前の骨の位置へ敵の印を残さない。
   woundEffectMin: 0.05, // 歩みへの影響が五分未満の浅い傷は、傷の部位だけを示す。
   groundCombatMarkers: true, // 退避の足元も実際の地面に小さく示す。
   compactDodgeGuide: true, // 一時の回避先は小さい印にし、夜の槍と母衣を覆わない。
@@ -1779,9 +1799,13 @@ const nodafukushima = {
   setup(rt) {
     const W = rt.world;
     const F = rt.flags;
+    F.campJoinPoint = { ...ODA_JOIN, y: W.heightAt(ODA_JOIN.x, ODA_JOIN.z) };
     // 建物用の近景透かしで堤の斜面まで抜くと、足元に空の白い面が現れる。
     // 地形の当たり・高さは保ち、この戦の地面だけ透かす対象から外す。
     W.terrain.material.userData.camNearSolid = true;
+    // 秋の河口の土を雪のような白にしない。既存の土・草・泥の絵へ土色を掛ける。
+    // この戦の材質だけを変え、地形・歩行・描画の数は保つ。
+    W.terrain.material.color.setHex(0xb5a080);
     installNodaNotices(rt);
     installNodaGroundFx(rt);
     installNodaFallenHats(rt);
@@ -1917,15 +1941,9 @@ const nodafukushima = {
     // ---- 堤の土塁（鉄砲衆の胸壁） ----
     F.dorui = nodaLevee(rt);
     // 持ち場のすぐ両脇に柵と火。中央の戻り道と、南東の寄せ道は空ける。
-    const cameraWalls = [];
+    const cameraWalls = F.cameraWalls;
     for (const pts of [[[-12, LEVEE_Z - 2.5], [-5, LEVEE_Z - 2.5]], [[18, LEVEE_Z - 2.5], [25, LEVEE_Z - 2.5]]]) {
-      for (const s of nodaWallLine(rt, pts, { team: 0, name: '堤の柵', hp: 400 })) {
-        const [ax, az, bx, bz] = s.seg;
-        cameraWalls.push({ s, minX: Math.min(ax, bx) - .35, maxX: Math.max(ax, bx) + .35,
-          minZ: Math.min(az, bz) - .35, maxZ: Math.max(az, bz) + .35,
-          bottom: Math.min(W.heightAt(ax, az), W.heightAt(bx, bz)) - .6,
-          top: Math.max(W.heightAt(ax, az), W.heightAt(bx, bz)) + 2.2 });
-      }
+      nodaWallLine(rt, pts, { team: 0, name: '堤の柵', hp: 400 });
     }
     // 束ねた横木を面ごとに探さず、歩く柵と同じ短い線だけ調べる。
     // 本人と視点の間に柵がある時は手前へ寄せ、柱へ視点をめり込ませない。
@@ -1967,6 +1985,21 @@ const nodafukushima = {
         }
       }
       return hit;
+    };
+    // 写真用に視点を直接置いた場合も、追従時と同じ木柵・竹束を避ける。
+    // 注視点は保ち、入れ物は設営時に一度だけ作る。
+    const cameraEye = new THREE.Vector3(), cameraLook = new THREE.Vector3();
+    const clampDrawCamera = W.clampDrawCamera;
+    W.clampDrawCamera = (camera) => {
+      clampDrawCamera?.(camera);
+      if (rt.game?.photo || rt.game?.deployment || rt.player.fpK >= .5) return;
+      cameraEye.copy(rt.player.u.pos); cameraEye.y += 1.58;
+      const hit = W.cameraBlockFraction(cameraEye, camera.position);
+      if (hit === null) return;
+      const distance = cameraEye.distanceTo(camera.position);
+      camera.getWorldDirection(cameraLook).multiplyScalar(Math.max(4, distance)).add(camera.position);
+      camera.position.lerpVectors(cameraEye, camera.position, Math.max(0, hit - .25 / Math.max(.25, distance)));
+      camera.lookAt(cameraLook);
     };
     // 中央の持ち場と東からの寄せ道に薪火を置かず、槍を合わせる足場を空ける。
     for (const [x, z] of [[-6, LEVEE_Z + 13], [28, LEVEE_Z + 13], [-22, LEVEE_Z + 3], [34, LEVEE_Z + 3]]) {
@@ -2520,6 +2553,8 @@ const nodafukushima = {
       retreatColumn(g, { x: ODA_HONJIN.x + (g === F.sassa ? -14 : 12), z: ODA_HONJIN.z });
     }
     retreatColumn(F.namedGuards[1], { x: 28, z: 96 });
+    // 詰め陣の守兵も追撃をやめ、退く兵を迎える場所へ戻す。
+    retreatColumn(F.campA.guard, ODA_JOIN);
     F.bOdaW.order({ id: 'hold' }); // 柴田は殿に残る
     for (const b of [F.bOdaE, F.bOdaS]) b.order({ id: 'retreat', to: { x: 28, z: 96 } });
     for (let i = 0; i < F.waves.length; i++) rt.unmark('w' + i);
@@ -2611,7 +2646,7 @@ const nodafukushima = {
       // 塀・川の向こうや深手の兵を、退き口を塞ぐ追手に数えない。
       const safe = !rt.army.nearestEnemy(rt.player.u, 4, u => canJoin(u) && !u.isStruct && !u.farSim && u.type !== 'dummy' &&
         Math.abs(u.pos.y - pp.y) < 3 && !rt.army.wallBetween(pp, -1, u.pos) && !rt.army.terrainBlocks(pp, u.pos));
-      let joined = !gone(F.campA.guard) && F.campA.guard.units.some(canJoin);
+      let joined = campJoinAvailable(rt);
       const rear = F.namedGuards[1];
       const c = retreatPoint(rt);
       if ((!joined || F.retreatAlt) && c) {

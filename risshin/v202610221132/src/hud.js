@@ -1,3 +1,4 @@
+import { simpleControls } from './simple_controls.js';
 import { retreatRequired as dangerRetreatRequired, rescueTarget as woundedRescueTarget } from './battle_danger.js';
 import { battleSpeechAllowed, battleSpeaker, noOps } from './speech_clean.js';
 import { VIEW } from './viewport.js';
@@ -36,11 +37,11 @@ function guardPostDistance(rt, guide) {
   const point = guide?.marker?.guideDestination?.() || guide?.pos;
   return point ? Math.hypot(point.x - rt.player.u.pos.x, point.z - rt.player.u.pos.z) : Infinity;
 }
-// 押す実物の名前を使う。敵へのタップでは攻撃できない。
+// 通常の攻撃釦の案内。携帯で敵の枠を押せる時は、そちらへ一文をまとめる。
 function attackOperation(rt) {
   const p = rt.player;
-  if (p.charging && p.chargeT > .7) return 'はなして攻撃';
-  return isTouch ? p.weapon === 'spear' ? '長く押して つく' : p.weapon === 'sword' ? '長く押して きる' : `「${p.weapon === 'bow' ? '射る' : '攻撃'}」を長く押す` : '左クリックを長押しして はなす';
+  if (p.weapon === 'gun' || p.weapon === 'bow') return isTouch ? `「${p.weapon === 'bow' ? '射る' : '攻撃'}」を押して狙い、離して放つ` : '左クリックを押して狙い、離して放つ';
+  return isTouch ? `「${p.weapon === 'sword' ? '斬る' : '突く'}」を押す` : '左クリックで突く';
 }
 function byAllyDistance(a, b) { return a.d - b.d; }
 
@@ -2910,7 +2911,7 @@ export class Hud {
       hs.tabIndex = 0; hs.setAttribute('role', 'button'); hs.setAttribute('aria-label', '組の陣形を選ぶ'); hs.setAttribute('aria-expanded', 'false'); hs.setAttribute('aria-controls', 'cmdpanel');
       hs.addEventListener('click', () => {
         const p = this.rt && this.rt.player;
-        if (!p || !this.rt.squadGroups.length) return;
+        if (!p || simpleControls(this.rt) || !this.rt.squadGroups.length) return;
         p.cmdOpen = !p.cmdOpen; p.cmdOpenT = 0; p.radial = false;
       });
       hs.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); if (!e.repeat) hs.click(); } });
@@ -3456,6 +3457,7 @@ export class Hud {
   }
 
   toggleLog(on) {
+    if (simpleControls(this.rt)) return;
     const el = $('sublog');
     el.hidden = typeof on === 'boolean' ? !on : !el.hidden;
     if (!el.hidden) { this.logOpener = document.activeElement; this.renderLog(); $('log-close').focus({ preventScroll:true }); }
@@ -3705,6 +3707,117 @@ export class Hud {
 
   // 手ほどき：いまの段だけを札に出す
   renderTut(t) { this.tutCur = t; this.drawCard(); }
+  // 戦の進み・戦況・次にやること（kaito 10/22 稲生 19）。戦の定義に stages と stageOf があれば左上に出す。
+  //   段：「3／6　柴田隊を受け止める」、戦況：一語と細い帯（def.force の残りの割合）、次：今の任務の札の一行。
+  //   段が変わる時だけ、真ん中に「第三段　柴田隊を受け止める」を短く出す。毎コマ作らず、字が変わる時だけ書く。
+  // 近い敵の頭上に小さな印（▼と「敵」）。四人まで・十四メートルまで。印は使い回し、毎コマ作らない（kaito 10/22 稲生 3）。
+  foeMarks(rt) {
+    if (!rt.def.foeMarks) return;
+    if (!this.foeEls) {
+      this.foeEls = [];
+      const box = document.createElement('div'); box.id = 'foe-marks'; box.setAttribute('aria-hidden', 'true');
+      box.style.cssText = 'position:absolute;inset:0;pointer-events:none';
+      for (let i = 0; i < 4; i++) {
+        const e = document.createElement('div');
+        e.style.cssText = 'position:absolute;left:0;top:0;transform:translate(-50%,-100%);font-size:12px;line-height:1;color:#f1d9c6;text-shadow:0 1px 2px #000,0 0 4px #000;text-align:center;font-weight:600;letter-spacing:.05em';
+        e.innerHTML = '敵<br><span style="color:#c9573d;font-size:14px">▼</span>';
+        e.hidden = true; box.appendChild(e); this.foeEls.push(e);
+      }
+      this.root.appendChild(box);
+      this.foeList = [];
+    }
+    const me = rt.player.u, L = this.foeList; L.length = 0;
+    if (me.alive && !rt.over) {
+      for (const o of rt.army.units) {
+        if (!o.alive || o.team === me.team || o.fleeing || o.gone || o.noTarget || o.isStruct) continue;
+        const d = Math.hypot(o.pos.x - me.pos.x, o.pos.z - me.pos.z);
+        if (d > 14) continue;
+        L.push(o); o._foeD = d;
+      }
+      L.sort((a, b) => a._foeD - b._foeD);
+    }
+    const W = innerWidth, H = innerHeight;
+    for (let i = 0; i < 4; i++) {
+      const e = this.foeEls[i], o = L[i];
+      if (!o) { e.hidden = true; continue; }
+      this.tmpV.set(o.pos.x, o.pos.y + (o.mounted ? 3.1 : 2.15), o.pos.z).project(rt.camera);
+      if (this.tmpV.z > 1 || Math.abs(this.tmpV.x) > 1 || Math.abs(this.tmpV.y) > 1) { e.hidden = true; continue; }
+      e.hidden = false;
+      e.style.transform = `translate(${Math.round((this.tmpV.x + 1) / 2 * W)}px,${Math.round((1 - this.tmpV.y) / 2 * H)}px) translate(-50%,-100%)`;
+    }
+  }
+  progress(rt) {
+    const def = rt.def, root = this.root;
+    if (!def.stages || !def.stageOf) { if (this.prog) { this.prog.hidden = true; root.classList.remove('prog-on'); } return; }
+    if (!this.prog) {
+      const el = document.createElement('div');
+      el.id = 'h-prog';
+      el.innerHTML = '<div class="pg-st"><b></b><span></span></div><div class="pg-sit"><span></span><i><s></s></i></div><div class="pg-next"></div><div class="pg-ally"></div>';
+      root.querySelector('.tl').appendChild(el);
+      const pop = document.createElement('div');
+      pop.id = 'h-stage-pop'; pop.hidden = true; pop.setAttribute('role', 'status');
+      root.appendChild(pop);
+      const st = document.createElement('style');
+      st.textContent = `
+#hud.prog-on .tl .plaque { display:none; }
+#hud #h-prog { box-sizing:border-box; width:min(300px, 34vw); padding:6px 10px; background:rgba(12,10,8,.78); border-left:3px solid var(--kin); color:#fff3df; font-size:max(12px, calc(14px * var(--text-scale, 1))); line-height:1.4; }
+#hud #h-prog .pg-st b { color:var(--kin); margin-right:.5em; font-weight:600; }
+#hud #h-prog .pg-sit { display:flex; align-items:center; gap:8px; margin-top:2px; font-size:max(12px, calc(13px * var(--text-scale, 1))); }
+#hud #h-prog .pg-sit i { flex:1; height:6px; background:#5a2a1c; position:relative; }
+#hud #h-prog .pg-sit s { position:absolute; left:0; top:0; bottom:0; background:#c9b27a; }
+#hud #h-prog .pg-next { margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#hud #h-prog .pg-next::before { content:'次：'; color:var(--kin); }
+#hud #h-prog .pg-ally { margin-top:2px; font-size:max(12px, calc(13px * var(--text-scale, 1))); color:#e6dcc6; }
+#hud #h-prog .pg-ally::before { content:'味方：'; color:var(--kin); }
+#hud #h-stage-pop { position:absolute; left:50%; top:30%; transform:translateX(-50%); padding:8px 20px; background:rgba(12,10,8,.82); color:#fff3df; font-family:var(--display); font-size:max(18px, calc(24px * var(--text-scale, 1))); letter-spacing:.08em; pointer-events:none; white-space:nowrap; }
+@media (min-height:501px) {
+ /* 台詞と任務の札は小地図の下へ。上端の両軍の帯・左上の進みと重ねない（kaito 10/22 稲生 4・17）。 */
+ html:root:not(.touch) body #hud #battle-notices:not(.choosing):not(.pg-x),
+ html:root:not(.touch) body #hud.mission-visible #battle-notices:not(.choosing):not(:has(#objectives.expand)) {
+  left:auto !important; right:calc(20px + env(safe-area-inset-right, 0px)) !important; top:calc(200px + env(safe-area-inset-top, 0px)) !important;
+  bottom:auto !important; width:300px !important; max-height:calc(100% - 340px) !important;
+ }
+ html:root:not(.touch) body #hud.single-guide #battle-notices:not(.choosing) #objectives#objectives.route-summary:not(.ground-order):not(.facing-order):not(.enemy-order):not(.expand) {
+  position:relative !important; left:auto !important; top:auto !important; transform:none !important; width:100% !important;
+ }
+ /* 次にやることは左上の一行に出すので、右の任務の札は重ねて出さない。 */
+ html:root:not(.touch) body #hud.prog-on #battle-notices:not(.choosing) #objectives:not(.expand) { display:none !important; }
+}`;
+      root.appendChild(st);
+      this.prog = el; this.stagePop = pop;
+    }
+    const el = this.prog;
+    el.hidden = !!rt.over; root.classList.toggle('prog-on', !rt.over);
+    const n = def.stages.length, i = Math.max(0, Math.min(n - 1, def.stageOf(rt) | 0));
+    const [stEl, sitEl, nextEl, allyEl] = el.children;
+    const ally = def.allyDoing?.(rt) || '';
+    setText(allyEl, ally); allyEl.hidden = !ally;
+    setText(stEl.firstChild, `${i + 1}／${n}`);
+    setText(stEl.lastChild, def.stages[i]);
+    if (this.progStage !== undefined && i !== this.progStage && !rt.over) {
+      const NUM = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+      setText(this.stagePop, `第${NUM[i] || i + 1}段　${def.stages[i]}`);
+      this.stagePop.hidden = false; this.stagePopUntil = rt.t + 2.6;
+    }
+    this.progStage = i;
+    if (!this.stagePop.hidden && rt.t > (this.stagePopUntil || 0)) this.stagePop.hidden = true;
+    // 戦況：両軍の残りの割合を比べる（def.force が無い戦は帯を出さない）
+    const f = def.force?.(rt);
+    if (f && f.a0 && f.b0) {
+      const a = f.a / f.a0, b = f.b / f.b0, share = a / Math.max(0.001, a + b);
+      setText(sitEl.firstChild, share > 0.55 ? '戦況：押している' : share < 0.45 ? '戦況：押されている' : '戦況：五分');
+      setWidth(sitEl.querySelector('s'), Math.round(share * 100));
+      sitEl.hidden = false;
+    } else sitEl.hidden = true;
+    const cur = document.querySelector('#obj-list li.cur .obj-now') || document.querySelector('#obj-list li.cur .obj-text');
+    // 任務の本文（「ここへ行こう」のような汎用の字でなく、何をするか）に、札の距離（〜歩）だけを添える。
+    const task = rt.objectives?.find((o) => o.kind === 'main' && !o.state)?.text || '';
+    const steps = (cur?.textContent || '').match(/[^\s・]*?\d+歩/);
+    const main = task ? task.replace(/^使番「|」$/g, '').split(/[。／]/)[0] : (cur?.textContent || '').trim();
+    const line = main + (steps ? '・' + steps[0] : '');
+    setText(nextEl, line);
+    nextEl.hidden = !line;
+  }
 
   // 手ほどき・ヒントの札（左の中ほど。携帯の横向きでも隠さない）
   drawCard() {
@@ -3778,7 +3891,7 @@ export class Hud {
   toggleCheat() {
     const el = $('cheat');
     el.hidden = !el.hidden;
-    if (!el.hidden) el.innerHTML = [['キーの位置', '文字キーの段を、左から数えます。上段は数字のすぐ下です'], ['危険の印', '矢・鉄砲：矢玉が来る向き。槍・刀：敵が迫る向き。印へ向いて構えるか、物陰へ退きます'], ['突き', '左クリック（押し続けて離すと溜め突き）'], ['構え', '右クリック（直前で受け流し）'], ['薙ぎ', '構え＋左クリック'], ['回避', K('dodge')], ['狙い', `${K('lock')}（ホイールで相手を替える）`], ['号令', `${K('follow')} ${K('hold')} ${K('attack')} ${K('retreat')}／${K('command')}長押しで輪`], ['鼓舞', K('rally')], ['地図', `${K('map')}（${K('mapzoom')}で縮尺）`], ['視点', `${K('view')}（三人称・一人称。長押しで高くから見渡す）`], ['写真', K('photo')], ['画面の札', K('hud')], ['感度', '左角かっこと右角かっこ'], ['記録', `${K('log')}（会話の記録）`]].map(([a, b]) => `<div><b>${a}</b>${esc(b)}</div>`).join('');
+    if (!el.hidden) el.innerHTML = [['移動', `${K('forward')} ${K('left')} ${K('back')} ${K('right')}`], ['視点', 'マウス'], ['突く', '左クリック（押すだけ）'], ['構え', '右クリックで受ける'], ['避ける', K('dodge')], ['狙い', K('lock')], ['話す・取る', K('use')]].map(([a, b]) => `<div><b>${a}</b>${esc(b)}</div>`).join('');
     if (!el.hidden) {
       el.insertAdjacentHTML('afterbegin', '<h5>操作の早見表</h5><button type="button" class="btn" id="cheat-close" style="min-height:44px;margin-bottom:8px">早見表を閉じる</button>');
       $('cheat-close').onclick = (e) => { e.stopPropagation(); this.toggleCheat(); };
@@ -3993,7 +4106,9 @@ export class Hud {
       this.hpRemaining.className = 'hp-remaining';
       hpEl.appendChild(this.hpRemaining);
     }
-    setText(this.hpRemaining, `命 あと${hpShown}％`);
+    // 字は出さず、印と棒だけ（kaito 10/22「自分の命と書く必要ある？」）。読み上げには残りの割合を渡す。
+    setText(this.hpRemaining, '◇');
+    setAttr(this.hpRemaining, 'aria-label', `命 あと${hpShown}％`);
     const hpTrack = hpEl.querySelector('i');
     setAttr(hpTrack, 'role', 'progressbar');
     setAttr(hpTrack, 'aria-label', '自分の残りの命');
@@ -4039,7 +4154,8 @@ export class Hud {
     setHtml(emEl, VIEW.h <= 500 ? esc(shortInjury) : fallen ? esc(injury) : deep || bloodLoss ? injurySign + esc(injury) + (effect ? `<small>${effect}</small>` : '') : recentInjury ? esc(shortInjury) : effect || esc(injury));
     setClass(hpEl, 'healthy', hpPct >= 100 && !wounded);
     setClass(hpEl, 'blood-loss', bloodLoss);
-    setHidden(emEl, VIEW.h <= 500 ? !shortInjury : !fallen && !deep && !bloodLoss && !recentInjury && !flee);
+    // 傷・血・足のけがの字は出さない（命は印と棒だけ。kaito 10/22）。倒れた時だけ残す。
+    setHidden(emEl, !fallen);
     if (tcLow) setStyle(emEl, "fontWeight", '800');
     // 深手（三割を切る）は言葉でも示す。
     setClass(hpEl, 'deep', deep);
@@ -4051,9 +4167,10 @@ export class Hud {
     if (bl) setClass(bl, 'full', u.hp >= u.maxHp && p.sta >= p.maxSta * 0.98 && (!p.canRide || p.horseHp >= p.horseMax * 0.98));
     const staEl = $('h-sta');
     setWidth(staEl.querySelector('b'), Math.max(0, p.sta / p.maxSta * 100));
-    setText(staEl.querySelector('em'), p.sta < 20 ? '息切れ' : p.sta < p.maxSta * 0.6 ? '疲れ' : '');
-    setClass(staEl, 'low', p.sta < 20);
-    if (p.sta < 20 && !this.breathHelp && !rt.over) { this.breathHelp = true; this.notices.push('息切れ。止まって息を整える', 85, 4); }
+    // 気力で足を遅くしないので、気力の棒と「息切れ」「疲れ」は出さない（kaito 10/22・main 8fc110a79）。
+    setText(staEl.querySelector('em'), '');
+    setClass(staEl, 'low', false);
+    setHidden(staEl, true);
     // 気力の棒は減った時だけ（満ちていれば照準のそばの輪も消えている）
     setClass(staEl, 'full', p.sta >= p.maxSta * 0.98);
     let moraleSum = 0;
@@ -4085,6 +4202,8 @@ export class Hud {
     for (const g of rt.squadGroups) if (g.count > 0) groupCount++;
     this.manyGroups = groupCount > 1;
     setText($('h-merit'), rt.over ? '戦の終わり' : '戦の最中');
+    this.progress(rt);
+    this.foeMarks(rt);
     setText($('h-next'), '');
     setWidth($('h-nextbar'), 0);
     setText($('h-cap'), '');
@@ -4442,7 +4561,7 @@ export class Hud {
     const guardAction = outsideGuardPost ? 'ここへ進め' : guardNow ? 'いま おして！' : passiveWait ? guardStatus : releaseReady ? this.counterGuideEnemy ? 'ふせいだ！ はなす' : '手を はなす' : turnEnemy ? `${turnArrow} ${turnDirection}を向いて かまえる` :
       rt.player.guard ? '押したまま 守る' : guardHeld ? rt.player.guardBroken > 0 ? '体勢を戻す' : 'はなして 休む' : quietHold || groundHold || isTouch ? '長く押して守る' : rt.def.waitGuardButtonText || 'おして かまえる';
     const guardPurpose = rt.def.guardPurposeText?.(rt) || (groundHold ? 'ここで敵を止めよう' : '囲みの敵を止めよう');
-    const guardHint = passiveWait ? '' : releaseReady ? this.approachGuideEnemy ? rt.def.meleeApproachLabel?.(rt) || '次は 敵へ すすめ' : `次は「${p.weapon === 'sword' ? 'きる' : 'つく'}」を長押し` :
+    const guardHint = passiveWait ? '' : releaseReady ? this.approachGuideEnemy ? rt.def.meleeApproachLabel?.(rt) || '次は 敵へ すすめ' : attackOperation(rt) :
       this.guardThreat?.alive || this.defendEnemy?.alive ? '囲みの敵に そなえる' :
       timedWait ? `あと${Math.max(1, Math.ceil(waitUntil - rt.t))}秒` :
       '';
@@ -4467,7 +4586,7 @@ export class Hud {
     else if (retreatRequired(rt) || this.retreatGuide?.active && this.retreatGuide.valid && !this.retreatGuide.treatment || guide?.marker?.guideArea === 'retreat') shownTaskLabel = retreatGuideText(rt, this.retreatGuide?.active && this.retreatGuide.valid && Math.hypot(this.retreatGuide.x - rt.player.u.pos.x, this.retreatGuide.z - rt.player.u.pos.z) < this.retreatGuide.radius, 'にげる場所');
     else if ((!rt.def.keepRescueTaskLabel || rt.def.rescueGuideTarget?.(rt)) && (rescueTarget(rt) || this.guardAlly || (rt.def.guardGuideTarget?.(rt) || rt.def.guardTarget?.(rt))?.alive) && rt.def.guardGuideAllowed?.(rt) !== false) {
       const guard = this.guardAlly || rt.def.guardGuideTarget?.(rt) || rt.def.guardTarget?.(rt);
-      shownTaskLabel = rescueTarget(rt) ? 'たすける' : rt.def.guardLabel?.(rt, guard) || 'この人を守れ';
+      shownTaskLabel = rescueTarget(rt) ? 'この人をたすけよう' : rt.def.guardLabel?.(rt, guard) || 'この人を守れ';
     }
     // 移動中でも目前の斬り合いを先に教える。札は既存の一枚を使う。
     if (!rt.def.keepTaskLabel && !rt.def.routeGuidePriority?.(rt) && navigationEnemy(rt) && !rainDanger(rt.army) && !rt.dodgeGuide && !retreatRequired(rt) &&
@@ -4707,7 +4826,7 @@ export class Hud {
         !retreatMoving && !retreatRequired(rt) && !this.retreatGuide?.active && !rt.dodgeGuide)
       shownTaskLabel = 'この敵をたおす';
     setClass($('objectives'), 'flag-task', !!guide?.marker && /^(旗へもどろう|ここを守ろう|この中を守れ)$/.test(shownTaskLabel));
-    setClass($('objectives'), 'rescue-order', shownTaskLabel === 'たすける');
+    setClass($('objectives'), 'rescue-order', shownTaskLabel === 'この人をたすけよう');
     // 歩数と人数の更新だけでは札を開き直さない。任務・進軍段階・下知の変化で八秒間読む。
     const orderKey = (goalObjective?.id || '') + '|' + rt.phase + '|' +
       (goalObjective?.text || '').replace(/[0-9０-９]+/g, '数') + '|' + shownTaskLabel.replace(/[0-9０-９]+/g, '数');
@@ -4875,7 +4994,7 @@ export class Hud {
         if (combatLabel && o === cur && !rt.def.keepCombatTaskDetail) progress = '';
         if (rt.teachOn && !rt.teachOn()) progress = noOps(progress);
         const detail = o === cur && (careSequence || rt.def.key === 'anegawa' && guide?.marker || !rt.def.town && !rt.def.dojo && !rt.def.keepCombatTask) ? '' : taskDetail(fieldLabel(goalText(rt, title)), fieldLabel(goalText(rt, progress)));
-        objectiveRows.push(`<li class="${o.state === 'done' ? 'done' : o.state === 'fail' ? 'fail' : ''} ${o.kind} ${noteFresh(o) ? 'note-fresh' : ''} ${folded.includes(o) ? 'folded-task' : ''} ${just ? 'justdone' : ''} ${o === cur || (just && !cur) ? 'cur' : ''} ${[...o.text].length > 20 ? 'long' : ''}"><span class="tag">${tag}</span><span class="obj-text">${o === cur ? `<span class="obj-now">${shownTaskLabel === 'たすける' ? RESCUE_SIGN : ''}${shownTaskLabel === 'この人を守れ' ? '<i class="guard-sign" aria-hidden="true"></i>' : ''}${(facingGesture && this.aimGuideEnemy?.alive || this.approachGuideEnemy?.alive && shownTaskLabel === this.meleeApproachText(rt)) ? ENEMY_SIGN : ''}${esc(shownTaskLabel).split(/(\s+)/).map(part => /\s/.test(part) || !/\s/.test(shownTaskLabel) ? part : `<span class="task-phrase">${part}</span>`).join('').replace(/(\d+歩)/g, '<span class="step-count">$1</span>')}${moveGesture}${edgeGoalDetail ? `<small class="edge-goal-detail" style="display:block!important;font-size:max(${taskTimeLabel ? 22 : 15}px,calc(${taskTimeLabel ? 22 : 15}px * var(--text-scale,1)))!important;line-height:1.4">${esc(edgeGoalDetail).replace(/(\d+歩)/g, '<span class="step-count">$1</span>')}</small>` : ''}</span><span class="obj-full">${esc(fieldLabel(goalText(rt, rt.teachOn && !rt.teachOn() ? noOps(o.text) : o.text)))}</span>` : esc(fieldLabel(goalText(rt, rt.teachOn && !rt.teachOn() ? noOps(o.text) : o.text)))}</span>${detail && intelText(rt, o.text) === o.text ? `<small>${esc(detail)}</small>` : ''}${o.cue && !(o === cur && (fighting || this.approachGuideEnemy || rt.def.key === 'anegawa')) && o.state !== 'done' && o.state !== 'fail' && rt.t - (o.cueT || 0) < 30 ? `<small class="obj-cue">${esc(goalText(rt, o.cue))}</small>` : ''}${place ? `<small class="goal-place${facingHelp ? ' facing-help' : ''}">${facingHelp && isTouch ? `<svg class="facing-gesture" viewBox="0 -14 96 60" aria-hidden="true"><g transform="${waitFacingSide === '右' ? '' : 'translate(96 0) scale(-1 1)'}"><circle cx="20" cy="10" r="13" fill="none" stroke="#fff3ba" stroke-width="3"/><path d="M34 10H84M73 1L84 10L73 19" fill="none" stroke="#fff3ba" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 25V10Q14 3 20 3Q26 3 26 10V23L31 20L40 27L36 38H15L5 29Q1 23 7 22Z" fill="#fff3ba" stroke="#14120f" stroke-width="2"/></g></svg>` : ''}${esc(place).replace(/(\d+歩)/g, '<span class="step-count">$1</span>')}</small>` : ''}${pr !== null ? `<i class="opb" aria-hidden="true"><b style="width:${Math.round(pr * 100)}%"></b></i>` : ''}</li>`);
+        objectiveRows.push(`<li class="${o.state === 'done' ? 'done' : o.state === 'fail' ? 'fail' : ''} ${o.kind} ${noteFresh(o) ? 'note-fresh' : ''} ${folded.includes(o) ? 'folded-task' : ''} ${just ? 'justdone' : ''} ${o === cur || (just && !cur) ? 'cur' : ''} ${[...o.text].length > 20 ? 'long' : ''}"><span class="tag">${tag}</span><span class="obj-text">${o === cur ? `<span class="obj-now">${shownTaskLabel === 'この人をたすけよう' ? RESCUE_SIGN : ''}${shownTaskLabel === 'この人を守れ' ? '<i class="guard-sign" aria-hidden="true"></i>' : ''}${(facingGesture && this.aimGuideEnemy?.alive || this.approachGuideEnemy?.alive && shownTaskLabel === this.meleeApproachText(rt)) ? ENEMY_SIGN : ''}${esc(shownTaskLabel).split(/(\s+)/).map(part => /\s/.test(part) || !/\s/.test(shownTaskLabel) ? part : `<span class="task-phrase">${part}</span>`).join('').replace(/(\d+歩)/g, '<span class="step-count">$1</span>')}${moveGesture}${edgeGoalDetail ? `<small class="edge-goal-detail" style="display:block!important;font-size:max(${taskTimeLabel ? 22 : 15}px,calc(${taskTimeLabel ? 22 : 15}px * var(--text-scale,1)))!important;line-height:1.4">${esc(edgeGoalDetail).replace(/(\d+歩)/g, '<span class="step-count">$1</span>')}</small>` : ''}</span><span class="obj-full">${esc(fieldLabel(goalText(rt, rt.teachOn && !rt.teachOn() ? noOps(o.text) : o.text)))}</span>` : esc(fieldLabel(goalText(rt, rt.teachOn && !rt.teachOn() ? noOps(o.text) : o.text)))}</span>${detail && intelText(rt, o.text) === o.text ? `<small>${esc(detail)}</small>` : ''}${o.cue && !(o === cur && (fighting || this.approachGuideEnemy || rt.def.key === 'anegawa')) && o.state !== 'done' && o.state !== 'fail' && rt.t - (o.cueT || 0) < 30 ? `<small class="obj-cue">${esc(goalText(rt, o.cue))}</small>` : ''}${place ? `<small class="goal-place${facingHelp ? ' facing-help' : ''}">${facingHelp && isTouch ? `<svg class="facing-gesture" viewBox="0 -14 96 60" aria-hidden="true"><g transform="${waitFacingSide === '右' ? '' : 'translate(96 0) scale(-1 1)'}"><circle cx="20" cy="10" r="13" fill="none" stroke="#fff3ba" stroke-width="3"/><path d="M34 10H84M73 1L84 10L73 19" fill="none" stroke="#fff3ba" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 25V10Q14 3 20 3Q26 3 26 10V23L31 20L40 27L36 38H15L5 29Q1 23 7 22Z" fill="#fff3ba" stroke="#14120f" stroke-width="2"/></g></svg>` : ''}${esc(place).replace(/(\d+歩)/g, '<span class="step-count">$1</span>')}</small>` : ''}${pr !== null ? `<i class="opb" aria-hidden="true"><b style="width:${Math.round(pr * 100)}%"></b></i>` : ''}</li>`);
       }
       if (vis.length) objectiveRows.push(`<li class="more">ほかの任務<span class="obj-count">（${openCount}件）</span></li>`);
       setListRows($('obj-list'), objectiveRows);
@@ -4903,7 +5022,7 @@ export class Hud {
     }
     // 組の状態
     const sq = $('h-squad');
-    if (rt.squadGroups.some((g) => g.count > 0)) {
+    if (!simpleControls(rt) && rt.squadGroups.some((g) => g.count > 0)) {
       setHidden(sq, false);
       setClass(sq, 'urge', rt.cmdUrgeUntil > rt.t);
       // 自分の組の人数・士気・下知は、後ろにいても知っている。
@@ -5013,30 +5132,18 @@ export class Hud {
       if (opened && this.keyboardInput) cp.querySelector('button')?.focus({ preventScroll:true });
     } else setHidden(cp, true);
     // 武器・号令ショートカット
-    const hasSq = rt.squad.length > 0;
-    const rallyReady = p.rallyCd <= 0;
     const pad = this.padMode;
-    // キー名は短い呼び方にし、号令をまとめる「ほか」は技名と重ねない。
-    const kk = this.shortcutKeys || (this.shortcutKeys = {});
-    kk.cmd = pad ? 'ワイ' : shortcutKey(K('command')); kk.quick = pad ? '十字' : shortcutKey(K('follow'));
-    kk.rally = pad ? '左肩' : shortcutKey(K('rally')); kk.lock = shortcutKey(pad ? '右スティック押し込み' : K('lock'));
-    const gunPct = Math.round((p.gunReload || 0) * 100), rallyPct = rallyReady ? 0 : Math.round(Math.min(100, p.rallyCd / 25 * 100));
-    const dodgeKey = pad ? 'エー' : shortcutKey(K('dodge')), mountKey = shortcutKey(K('mount'));
-    const bottomKey = `${p.weapon}|${G.equip.weapon}|${p.hasKatana}|${p.hasGun}|${p.hasBow}|${hasSq}|${rallyReady}|${p.lock}|${p.mounted}|${p.sta >= 20}|${p.canRide}|${p.gunLoaded}|${gunPct}|${Math.round((1 - (p.gunReload || 0)) * 100)}|${rallyReady ? 0 : Math.ceil(p.rallyCd)}|${rallyPct}|${kk.cmd}|${kk.quick}|${kk.rally}|${kk.lock}|${dodgeKey}|${mountKey}`;
+    const bottomKey = `${pad}|${p.weapon}|${p.lock}|${K('dodge')}|${K('lock')}|${K('use')}`;
     if (this.bottomKey !== bottomKey) {
       this.bottomKey = bottomKey;
-      setHtml($('h-bottom'),
-      `<div class="slot ${p.weapon === 'spear' ? 'on' : ''}"><em>1</em>${ICON.spear}${esc(ITEMS[G.equip.weapon].name.replace('数打の', '').replace('上質な', ''))}</div>` +
-      `<div class="slot ${p.weapon === 'sword' ? 'on' : ''} ${p.hasKatana ? '' : 'locked'}"><em>2</em>${ICON.sword}${p.hasKatana ? '打刀' : '—'}</div>` +
-      // 火縄銃・弓は持っている時だけ。火縄銃は込めの進みを札の下から満ちる影で
-      (p.hasGun ? `<div class="slot ${p.weapon === 'gun' ? 'on' : ''}"><em>3</em>${ICON.gun}${p.gunLoaded ? '火縄銃' : `<span class="why">込め${gunPct}%</span>`}${p.gunLoaded ? '' : `<span class="cd" style="height:${Math.round((1 - (p.gunReload || 0)) * 100)}%"></span>`}</div>` : '') +
-      (p.hasBow ? `<div class="slot ${p.weapon === 'bow' ? 'on' : ''}"><em>4</em>${ICON.bow}弓</div>` : '') +
-      `<div class="slot cmd ${hasSq ? '' : 'off'}"><em>${kk.cmd}</em>${ICON.cmd}指揮</div>` +
-      `<div class="slot cmd ${hasSq ? '' : 'off'}"><em>${kk.quick}</em>${ICON.quick}号令</div>` +
-      `<div class="slot cmd ${rallyReady ? 'ready' : 'wait'}"><em>${kk.rally}</em>${ICON.rally}${rallyReady ? (hasSq ? '鼓舞' : '鬨の声') : `<span class="why">あと${Math.ceil(p.rallyCd)}秒</span>`}${rallyReady ? '' : `<span class="cd" style="height:${rallyPct}%"></span>`}</div>` +
-      `<div class="slot cmd ${p.lock ? 'on' : ''}"><em>${kk.lock}</em>${ICON.lock}${p.lock ? '解除' : '狙い'}</div>` +
-      (p.mounted ? `<div class="slot cmd"><em>${dodgeKey}</em>${ICON.dodge}手綱</div>` : `<div class="slot cmd ${p.sta >= 20 ? '' : 'dim'}"><em>${dodgeKey}</em>${ICON.dodge}${p.sta >= 20 ? '回避' : '<span class="why">気力不足</span>'}</div>`) +
-      (p.canRide ? `<div class="slot cmd ${p.mounted ? 'on' : ''}"><em>${mountKey}</em>${ICON.horse || ICON.quick}${p.mounted ? '降りる' : '乗る'}</div>` : ''));
+      const slots = [
+        [pad ? '右の引き金' : '左クリック', p.weapon === 'sword' ? '斬る' : p.weapon === 'gun' ? '撃つ' : p.weapon === 'bow' ? '射る' : '突く'],
+        [pad ? '左の引き金' : '右クリック', '構え'],
+        [pad ? 'エー' : shortcutKey(K('dodge')), '避ける'],
+        [pad ? '右スティック' : shortcutKey(K('lock')), p.lock ? '狙いを解く' : '狙い'],
+        [pad ? 'エックス' : shortcutKey(K('use')), '話す・取る'],
+      ];
+      setHtml($('h-bottom'), slots.map(([key, label]) => `<div class="slot"><em>${esc(key)}</em>${esc(label)}</div>`).join(''));
     }
     // 操作プロンプト
     // 倒れている間は「取る」などの札を出さない
@@ -5300,6 +5407,7 @@ export class Hud {
   }
 
   playHelp(id) {
+    if (simpleControls(this.rt) && ['map', 'ride', 'gun'].includes(id)) return false;
     if (!S.hints || this.hintCur || this.tutCur || !$('intro').hidden || !$('choice').hidden || this.bannerT > 0 ||
       this.bigmap || this.root.hidden || this.root.classList.contains('photo') || !this.notices.room(10)) return false;
     return firstHelp(id, (text) => {
@@ -5829,7 +5937,7 @@ export class Hud {
   }
 
   // 人の案内は任務札と置き換え、命などと合わせて三枚までにする。
-  drawPersonAction(g, rt, x, y, label) {
+  drawPersonAction(g, rt, x, y, label, frame = null) {
     const order = $('objectives');
     if (order.classList.contains('expand') || rt.nearestInteract() || rt.touchCoachActive ||
         order.querySelector('.battle-action:not([hidden]) button')) return false;
@@ -5840,12 +5948,14 @@ export class Hud {
     const scale = Math.max(1, S.textScale || 1), height = 36 * scale;
     g.save(); g.font = `bold ${18 * scale}px sans-serif`;
     const width = g.measureText(label).width + 20;
-    const spot = this.goalFlagSpot(rt, x, y, width, height);
-    const left = spot.labelX - width / 2, top = spot.labelY - height / 2;
+    const near = frame && this.enemyOrderSpot(frame, width, height, 76);
+    const spot = near || this.goalFlagSpot(rt, x, y, width, height);
+    const left = near ? near.x : spot.labelX - width / 2;
+    const top = near ? near.y : spot.labelY - height / 2;
     this.drawGuideLink(g, x, y, left, top, left + width, top + height, true);
     g.fillStyle = '#14120f'; g.fillRect(left, top, width, height);
     g.fillStyle = '#fff3ba'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText(label, spot.labelX, spot.labelY); g.restore();
+    g.fillText(label, left + width / 2, top + height / 2); g.restore();
     setClass(this.root, 'edge-destination', true);
     return true;
   }
@@ -5862,8 +5972,17 @@ export class Hud {
     g.fillStyle = '#fff3ba'; g.fill(); g.restore();
   }
 
-  // 主人公は肩越しに見えるので、体の囲み・足元と頭上の輪は重ねない。
+  // 自分一人の外周を明るくし、暗い地面や重なった兵から姿勢を分ける。
   drawPlayerSign(g, rt) {
+    let contour = false;
+    if (singleBattleGuide(rt) && rt.player.u.alive && rt.player.u.mesh?.visible &&
+        !rt.over && !rt.choice && !rt.player.camShot && !this.bigmap && rt.player.fpK <= .5) {
+      const frame = this.measurePersonFrame(rt.player.u, rt);
+      if (frame && frame.bottom > frame.top) {
+        this.drawEnemyContour(g, rt, rt.player.u, frame, true);
+        contour = true;
+      }
+    }
     // 向きの印は実際の足元に置く。操作を始める丸とは形も位置も分ける。
     if (!singleBattleGuide(rt) && !this.retreatGuide?.active && !this.headingDrawn && !this.openingActive && !rt.def.town && !rt.def.dojo &&
         !S.reduceGuidance && !guidanceEnded(rt) && !rt.over && !rt.choice && !rt.player.camShot && !this.bigmap &&
@@ -5887,7 +6006,7 @@ export class Hud {
       // 開幕の矢印は端の説明札の中だけに置く。
       return true;
     }
-    return !!this.headingDrawn;
+    return contour || !!this.headingDrawn;
   }
 
   // 札と矢印は同じ持ち場・到着判定・画面の向きを使う。入れ物は使い回す。
@@ -6028,6 +6147,20 @@ export class Hud {
       rt, this.namedGoalPoint || (this.namedGoalPoint = {}));
     let x = point.x, y = point.y, edgeAngle = null;
     const marker = rt.missionGuide?.marker;
+    // 短い案内を使う戦では、実旗の根元か画面端に小印を一つ置く。
+    // 長い経路線・布の囲み・操作札を同時に描かない。
+    if (rt.def.compactCombatGuides && (!isTouch || touchMoveLearned(rt))) {
+      const outside = point.behind || x < 32 || x > VIEW.w - 32 || y < 92 || y > VIEW.h - 24;
+      if (outside) {
+        const angle = this.destinationDirection(rt, pos);
+        x = Math.cos(angle) >= 0 ? VIEW.w - 34 : 34;
+        y = Math.max(100, Math.min(VIEW.h - 48, VIEW.h * .55));
+        this.drawNavigationArrow(g, x, y, angle, .4, true);
+      } else this.drawTargetFootRing(g, rt, pos, .5, false, true);
+      this.namedGoalDrawn = true; this.namedGoalX = x; this.namedGoalY = y;
+      setClass($('objectives'), 'swipe-order', false);
+      return true;
+    }
     const bounds = marker && groundFlag(rt.missionGuide) ? this.goalFlagBounds(rt, marker, pos) : null;
     const flagVisible = bounds && bounds.left >= 40 && bounds.left + bounds.width <= VIEW.w - 40 &&
       bounds.top >= 108 && bounds.top + bounds.height <= VIEW.h - 28;
@@ -6744,8 +6877,8 @@ export class Hud {
     if (this.releaseMoveActive || this.releaseGestureDrawn || this.namedGoalDrawn && singleBattleGuide(rt) &&
         !this.retreatGuide?.active && !retreatRequired(rt)) return false;
     if (target && !singleBattleGuide(rt)) this.drawDestinationStep(g, rt, target);
-    // 移動を覚えた後も、行き先の旗を示す間は同じ操作の始点へ結ぶ。
-    if (rt.def.compactCombatGuides && touchMoveLearned(rt) && !this.namedGoalDrawn) return false;
+    // 歩けた後は行き先だけを残す。旗が出た時も操作の手本を再開しない。
+    if (rt.def.compactCombatGuides && touchMoveLearned(rt)) return false;
     // 合戦では足元の矢印を足さず、手の移動も同じ八方向へそろえる。
     const direction = target ? this.navigationDirection(rt, target) : '上';
     const dx = direction.includes('右') ? 1 : direction.includes('左') ? -1 : 0;
@@ -6795,6 +6928,7 @@ export class Hud {
 
   // 指の操作とは別に、自分の足元から実際の行き先へ細い矢印を結ぶ。
   drawFootRoute(g, rt, goal) {
+    if (rt.def.compactCombatGuides && touchMoveLearned(rt)) return false;
     const p = rt.player.u.pos;
     const from = this.project(p, p.y + .08, rt, this.footRouteFrom || (this.footRouteFrom = {}));
     const to = this.project(goal, groundAt(rt.world, goal.x, goal.z, p.y) + .12, rt,
@@ -6813,6 +6947,8 @@ export class Hud {
   }
 
   drawDirectionChain(g, fromX, fromY, toX, toY, single = false, maxLength = Infinity) {
+    // 指の案内中は、地面に別の向きの矢印を足さない。
+    if (isTouch && (this.rt.touchCoachActive || this.rt.dodgeGuide?.gestureShown)) return false;
     // 合戦では戦ごとの指定がなくても短い矢印一つにする。
     if (singleBattleGuide(this.rt)) { single = true; maxLength = Math.min(maxLength, 72); }
     // 指定の戦だけ、旗・待機・退避のどの経路でも線を足元の短い案内に収める。
@@ -6890,7 +7026,8 @@ export class Hud {
     const centerY = (154 + H - 86) / 2;
     const scale = Math.min((W / 2 - 88) / Math.max(.001, Math.abs(side)),
       Math.max(12, (H - 240) / 2) / Math.max(.001, Math.abs(forward)));
-    const inset = Math.max(128, Math.min(224, W * .24));
+    const compact = !!rt.def.compactFieldGuides;
+    const inset = compact ? 48 : Math.max(128, Math.min(224, W * .24));
     const x = visible ? sx : side >= 0 ? W - inset : inset;
     const y = visible ? sy : centerY - forward * scale;
     let cueX = Math.max(inset, Math.min(W - inset, x));
@@ -6916,7 +7053,16 @@ export class Hud {
     let goalX = visible ? sx : cueX, goalY = visible ? sy : cueY;
     const treatment = !!this.retreatGuide?.treatment;
     const foot = this.project(p, p.y + .08, rt, this.retreatFootProjection || (this.retreatFootProjection = {}));
-    if (rt.def.compactRetreatSign && visible) {
+    if (compact && !treatment) {
+      // 退く先が見える時だけ床へ小印。画面外は端の短い矢印と既存の下知で伝える。
+      if (visible) this.drawTargetFootRing(g, rt, pos, .65);
+      else if (!reached) this.drawNavigationArrow(g, cueX, cueY,
+        this.destinationDirection(rt, way), .5, true);
+      if (isTouch && !reached && !touchMoveLearned(rt)) {
+        const start = this.clearMoveOrigin(rt, foot);
+        this.drawMoveGesture(g, rt, way, start.x, start.y);
+      }
+    } else if (rt.def.compactRetreatSign && visible) {
       // 見えている退避先は床へ描く。指・下矢印・十字の看板を同じ地点へ積まない。
       const placed = treatment
         ? this.drawFloorWaymark(g, rt, pos, false, null, true)
@@ -6989,17 +7135,17 @@ export class Hud {
       // 札は唯一の目印へ添える。重なりがある場合だけ端の候補を使う。
       const nearX = Math.max(12, Math.min(W - width - 12, goalX - width / 2));
       const nearY = Math.max(12, Math.min(H - height - 12, goalY - height - 40));
-      if (!obstacles.some(r => r !== this.guideOrderRect && nearX < r.right + 8 &&
+      if (!compact && !obstacles.some(r => r !== this.guideOrderRect && nearX < r.right + 8 &&
           nearX + width > r.left - 8 && nearY < r.bottom + 8 && nearY + height > r.top - 8)) {
         left = nearX; top = nearY;
       }
-      if (singleBattleGuide(rt) && visible && !treatment) {
+      if (!compact && singleBattleGuide(rt) && visible && !treatment) {
         setClass(order, 'swipe-order', false);
         // 戻る場所のすぐ脇へ添える。札のために地面の輪を動かさない。
         const spot = this.goalFlagSpot(rt, goalX, goalY - 40, width, height);
         left = spot.labelX - width / 2; top = spot.labelY - height / 2;
       }
-      if (isTouch && !reached && !treatment) {
+      if (!compact && isTouch && !reached && !treatment) {
         const start = this.gestureOrigin;
         if (start?.rt === rt) {
           left = Math.max(12, Math.min(W - width - 12, start.x - width / 2));
@@ -7266,6 +7412,18 @@ export class Hud {
     this.tmpV.set(point.x, point.y + .08, point.z).project(rt.camera);
     const x = (this.tmpV.x * .5 + .5) * VIEW.w, y = (-this.tmpV.y * .5 + .5) * VIEW.h;
     if (this.tmpV.z < -1 || this.tmpV.z > 1 || x < 24 || x > VIEW.w - 24 || y < 64 || y > VIEW.h - 16) return;
+    // 小さい案内を選ぶ戦では、強調指定でも足元の細い二弧にそろえる。
+    // 行き先は砂色、敵は朱色とし、白い閉じた輪を重ねない。
+    if (rt.def.compactFieldGuides) {
+      const radius = person ? 13 : guardPost ? 20 : 16;
+      g.save(); g.lineCap = 'round'; g.beginPath();
+      g.ellipse(x, y, radius, radius * .32, 0, .25, Math.PI - .25);
+      g.moveTo(x - Math.cos(.25) * radius, y - Math.sin(.25) * radius * .32);
+      g.ellipse(x, y, radius, radius * .32, 0, Math.PI + .25, Math.PI * 2 - .25);
+      g.strokeStyle = '#211d17'; g.lineWidth = 3.5; g.stroke();
+      g.strokeStyle = person ? '#dba48c' : '#d6c79e'; g.lineWidth = 1.5; g.stroke();
+      g.restore(); return true;
+    }
     // 行き先は旗と金の光る輪。自分の白い輪とは色と旗形で分ける。
     if (!person && (prominent || guardPost)) {
       this.drawGoalArrivalRing(g, x, y);
@@ -9369,8 +9527,8 @@ export class Hud {
       g.moveTo(left, bottom - edge); g.lineTo(left, bottom); g.lineTo(left + edge, bottom);
       g.moveTo(right - edge, bottom); g.lineTo(right, bottom); g.lineTo(right, bottom - edge);
     } else g.roundRect(left, frame.top, right - left, height + 3, ally ? 10 : 2);
-    g.strokeStyle = '#14120f'; g.lineWidth = corners ? 6 : 9; g.stroke();
-    g.strokeStyle = ally ? '#fff3ba' : '#ffb49d'; g.lineWidth = corners ? 3 : 5; g.stroke(); g.restore();
+    g.strokeStyle = '#14120f'; g.lineWidth = corners ? 6 : 12; g.stroke();
+    g.strokeStyle = ally ? '#fff3ba' : '#ffb49d'; g.lineWidth = corners ? 3 : 6; g.stroke(); g.restore();
   }
 
   // 相手の枠と頭上で共通の印。色だけに頼らず、一人の目標を見分ける。
@@ -9556,7 +9714,7 @@ export class Hud {
   }
 
   // 呼び名は知らせの既存の一枠を使う。矢印の先端は本人の頭上へ固定する。
-  drawEnemyHeadPointer(g, frame) {
+  drawEnemyHeadPointer(g, frame, rt, enemy) {
     const x = Math.max(44, Math.min(VIEW.w - 44, frame.cx));
     const tip = Math.max(76, frame.headY - 8);
     g.save(); g.lineJoin = 'round';
@@ -9565,16 +9723,26 @@ export class Hud {
     g.lineTo(x, tip); g.lineTo(x - 17, tip - 18); g.lineTo(x - 7, tip - 18); g.closePath();
     g.strokeStyle = '#14120f'; g.lineWidth = 8; g.stroke();
     g.fillStyle = '#ffb49d'; g.fill();
+    // 押せる敵の枠に同じ一文がある間は、頭上へ説明を重ねない。
+    if (isTouch && rt.touchEnemyAttack === enemy) { g.restore(); return; }
     g.font = 'bold 18px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'bottom';
-    g.fillStyle = '#14120f'; g.fillRect(x - 34, tip - 67, 68, 26);
-    g.fillStyle = '#fff3df'; g.fillText('この敵', x, tip - 43); g.restore();
+    // 囲みは相手の印。向き直り・接近・攻撃・守りの次の動作を短く添える。
+    const label = this.aimGuideEnemy === enemy ? 'この敵へ向こう' :
+      this.approachGuideEnemy === enemy ? 'この敵へ近づこう' :
+      this.defendEnemy === enemy && !this.guardFacing ? 'この敵へ向こう' :
+      this.attackGuideEnemy === enemy ? 'この敵をたたこう' :
+      this.defendEnemy === enemy ? 'この敵にそなえよう' : 'この敵をたおそう';
+    const width = g.measureText(label).width + 20;
+    const labelX = Math.max(width / 2 + 12, Math.min(VIEW.w - width / 2 - 12, x));
+    g.fillStyle = '#14120f'; g.fillRect(labelX - width / 2, tip - 67, width, 28);
+    g.fillStyle = '#fff3df'; g.fillText(label, labelX, tip - 43); g.restore();
   }
 
   // 向かう一人を太く囲み、頭上の矢印と同じ相手を示す。
   drawEnemyOutline(g, u, rt, guarding = false) {
     if (travelSignPriority(rt) && u !== this.aimGuideEnemy) return;
     // 足元へ集約する戦は、頭上の剣・体の囲み・矢印を重ねない。
-    if (rt.def.enemyFootSignOnly && !singleBattleGuide(rt)) {
+    if (rt.def.enemyFootSignOnly && (rt.def.compactFieldGuides || !singleBattleGuide(rt))) {
       if (this.enemyFrameShown || !u.alive || u.dying || !sightScreenUnit(rt, u)) return;
       if (!this.drawTargetFootRing(g, rt, u.pos, .65, true)) return;
       rt.army.guideWayEnemy = u; rt.army.guideWayAt = rt.army.time;
@@ -9586,11 +9754,11 @@ export class Hud {
       if (this.enemyFrameShown || !u.alive || u.dying || !sightScreenUnit(rt, u)) return;
       const frame = this.measurePersonFrame(u, rt);
       if (!frame) return;
-      // 骨から描く白い人型をやめ、実際の兵の投影範囲を太く囲む。
-      // 中を空け、本人の甲冑と動きをそのまま見せる。
+      // 枠に加えて手足の外周も示し、暗い甲冑の向きと姿勢を見分ける。
+      this.drawEnemyContour(g, rt, u, frame);
       this.drawPersonOutline(g, frame);
       // 小さい相手も人ごみに埋もれないよう、頭上の矢印と呼び名を添える。
-      this.drawEnemyHeadPointer(g, frame);
+      this.drawEnemyHeadPointer(g, frame, rt, u);
       rt.army.guideWayEnemy = u; rt.army.guideWayAt = rt.army.time;
       this.enemyFrameShown = true; this.outlinedEnemy = u;
       setHidden($('target'), true); setHidden($('boss'), true);
@@ -10630,7 +10798,10 @@ export class Hud {
     if (rt.dodgeGuide?.valid && !rt.dodgeGuide.rain && !rt.over && !rt.choice &&
         !this.openingActive && !rt.player.camShot && !this.bigmap) {
       const cue = rt.dodgeGuide;
-      if (cue.onScreen) {
+      if (isTouch && cue.gestureShown) {
+        // なぞる始点と終点は操作の一組だけで示す。
+        drew = true;
+      } else if (cue.onScreen) {
         this.drawReturnDestination(g, cue.markX, cue.markY);
         if (!cue.arrived) this.drawRetreatRoute(g, rt, cue.markX, cue.markY);
         drew = true;
@@ -11037,8 +11208,16 @@ export class Hud {
           if (!this.notices.sources[1].selected) this.drawRescueHand(g, x, y - 32);
         } else this.drawGuardSign(g, x, y - 32);
       } else {
-        this.drawPersonOutline(g, frame, true, true);
-        if (helping && !this.notices.sources[1].selected) this.drawRescueHand(g, s.x, s.y - 8);
+        if (helping) {
+          // 兵や旗の手前に太い輪を描き、頭上の人形と同じ一人を示す。
+          g.beginPath();
+          g.ellipse(frame.cx, (frame.top + frame.bottom) / 2,
+            Math.max(24, (frame.right - frame.left) / 2 + 10),
+            Math.max(30, (frame.bottom - frame.top) / 2 + 8), 0, 0, Math.PI * 2);
+          g.strokeStyle = '#14120f'; g.lineWidth = 12; g.stroke();
+          g.strokeStyle = '#fff3ba'; g.lineWidth = 6; g.stroke();
+          this.drawPersonSign(g, frame.cx, frame.top - 12, true);
+        } else this.drawPersonOutline(g, frame, true, true);
         if (!helping) {
           // 盾の先端を頭のすぐ上へ固定し、群れの上に浮かせない。
           g.save(); g.translate(frame.cx, frame.top - 12); g.scale(.7, .7);
@@ -11062,20 +11241,14 @@ export class Hud {
         const above = helping && !off;
         const left = Math.max(12, Math.min(W - width - 12, above ? s.x - width / 2 : off ? x < W / 2 ? x + 30 : x - width - 30 :
           beside ? besideRight + width <= W - 12 ? besideRight : besideLeft : s.x - width / 2));
-        const top = Math.max(12, Math.min(H - height - 12, above ? frame.top - height - 12 : off ? y - height / 2 :
+        const top = Math.max(12, Math.min(H - height - 12, above ? frame.top - height - 76 : off ? y - height / 2 :
           beside ? frame.top - 30 - height / 2 : frame.top - 64 - height));
         setCssVar(order, '--ground-order-x', left + 'px');
         setCssVar(order, '--ground-order-y', top + 'px');
-        if (above) {
-          // 手と文をまとめた札から本人の頭へ短く結ぶ。
-          g.beginPath(); g.moveTo(left + width / 2, top + height); g.lineTo(frame.cx, frame.top - 3);
-          g.strokeStyle = '#14120f'; g.lineWidth = 5; g.stroke();
-          g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
-        }
       }
-      const label = helping ? 'この人をたすける' :
+      const label = helping ? 'この人をたすけよう' :
         rt.def.guardLabel?.(rt, guard) || 'この人のそばで守る';
-      this.drawPersonAction(g, rt, off ? x : frame.cx, off ? y : frame.top, label);
+      this.drawPersonAction(g, rt, off ? x : frame.cx, off ? y : frame.top, label, helping && !off ? frame : null);
       g.restore(); drew = true;
       setClass(this.root, 'guard-guide', true);
     }
@@ -11173,7 +11346,7 @@ export class Hud {
     if (this.bigmap) {
       const lead = (this.rank || 0) >= 2 && this.hasSquad;
       const rows = (this.rt?.allyMapRows || []).filter((r) => r.active && sightRef(this.rt, r, r));
-      mh.innerHTML = `<div class="op" style="display:flex;flex-wrap:wrap;gap:8px"><button type="button" class="btn" data-map-zoom="-200">地図を拡大する</button><button type="button" class="btn" data-map-zoom="200">地図を縮小する</button><button type="button" class="btn" id="map-close">地図を閉じる</button></div><details><summary style="min-height:44px;cursor:pointer">地図の印・操作・味方の名を見る</summary><div class="lg"><span>▲自分</span><span>●自分の組</span><span>■味方</span><span>▲敵</span><span>◇任務</span><span>本陣は本陣の旗</span></div><div class="lg std"><span>${STD_SVG.honjin}本陣</span><span>${STD_SVG.spear}槍・弓</span><span>${STD_SVG.gun}鉄砲</span><span>${STD_SVG.cavalry}騎馬</span></div><p>${lead ? '地図を押すと、号令先の隊がそこへ向かいます。' : '地図で戦場を見渡せます。'}下の顔の札で隊を選べます。</p>${rows.map((r) => `<p>${r.number}　${esc(r.name)}　${esc(r.action || '')}</p>`).join('')}</details><details><summary style="min-height:44px;cursor:pointer">小地図の広さを選ぶ</summary><div class="op" style="display:flex;flex-wrap:wrap;gap:8px">${[40,60,100].map((r) => `<button type="button" class="btn" data-map-range="${r}" aria-pressed="${(this.mmRange || 60) === r}">${destinationDistance(this.rt, r)}</button>`).join('')}</div></details>`;
+      mh.innerHTML = `<div class="op" style="display:flex;flex-wrap:wrap;gap:8px"><button type="button" class="btn" data-map-zoom="-200">地図を拡大する</button><button type="button" class="btn" data-map-zoom="200">地図を縮小する</button><button type="button" class="btn" id="map-close">地図を閉じる</button></div><details><summary style="min-height:44px;cursor:pointer">地図の印・操作・味方の名を見る</summary><div class="lg"><span>▲自分</span><span>●自分の組</span><span>■味方</span><span>▲敵</span><span>◇任務</span><span>本陣は本陣の旗</span></div><div class="lg std"><span>${STD_SVG.honjin}本陣</span><span>${STD_SVG.spear}槍・弓</span><span>${STD_SVG.gun}鉄砲</span><span>${STD_SVG.cavalry}騎馬</span></div><p>${lead ? '地図を押すと、号令先の隊がそこへ向かいます。' : '地図で戦場を見渡せます。'}下の顔の札で隊を選べます。</p>${rows.map((r) => `<p>${r.number}　${esc(r.name)}　${esc(r.action || '')}</p>`).join('')}</details>${simpleControls(this.rt) ? '' : `<details><summary style="min-height:44px;cursor:pointer">小地図の広さを選ぶ</summary><div class="op" style="display:flex;flex-wrap:wrap;gap:8px">${[40,60,100].map((r) => `<button type="button" class="btn" data-map-range="${r}" aria-pressed="${(this.mmRange || 60) === r}">${destinationDistance(this.rt, r)}</button>`).join('')}</div></details>`}`;
       mh.querySelectorAll('button').forEach((b) => { b.style.minHeight = '44px'; b.onkeydown = (e) => { e.stopPropagation(); }; });
       mh.onclick = (e) => {
         e.stopPropagation(); const b = e.target.closest('button'); if (!b) return;
@@ -11185,6 +11358,7 @@ export class Hud {
   }
 
   cycleMinimap() {
+    if (simpleControls(this.rt)) return;
     const ranges = [40, 60, 100];
     this.mmRange = ranges[(ranges.indexOf(this.mmRange || 60) + 1) % 3];
     this.flash(`小地図 ${destinationDistance(this.rt, this.mmRange)}`, 'dim');
@@ -12149,11 +12323,11 @@ export class Hud {
     const touchEscape = escapeArrow && isTouch;
     const moveGesture = !rain && touchEscape && rt.def.dodgeMoveGesture !== false;
     // 指の絵がある時は、実際の操作を先に短く書く。
-    const label = rain ? off ? isTouch ? `${turnRight ? '右' : '左'}へなぞる` : `${turnRight ? '右' : '左'}を むこう` : 'ここへ' : moveGesture ? rt.def.dodgeMoveCaption?.(rt, moveSide, false) || 'ここからなぞって にげる' : escapeArrow ?
-      rt.def.escapePlaceLabel?.(rt, !!rain, dodgeSide) || `${dodgeSide}へ よける` : baseLabel;
     const turnGesture = isTouch && (showTurn || rain && off);
+    const label = turnGesture ? `ここから ${turnRight ? '右' : '左'}へなぞる` : rain ? off ? isTouch ? `${turnRight ? '右' : '左'}へなぞる` : `${turnRight ? '右' : '左'}を むこう` : 'ここへ' : moveGesture ? rt.def.dodgeMoveCaption?.(rt, moveSide, false) || 'ここからなぞって にげる' : escapeArrow ?
+      rt.def.escapePlaceLabel?.(rt, !!rain, dodgeSide) || `${dodgeSide}へ よける` : baseLabel;
     const fontSize = (H < 500 ? 18 : 24) * Math.max(1, S.textScale || 1);
-    const cardHalf = Math.min((W - 24) / 2, label.length * fontSize / 2 + 48);
+    const cardHalf = Math.min((W - 24) / 2, label.length * fontSize / 2 + (turnGesture || moveGesture ? 16 : 48));
     let lx = Math.max(cardHalf + 12, Math.min(W - cardHalf - 12, x)), ly = Math.max(28, y - 82);
     const gesture = el.querySelector('.escape-gesture');
     setStyle(gesture.querySelector('.swipe-end'), 'display', 'none');
@@ -12298,6 +12472,12 @@ export class Hud {
       rt.turnPractice.active = false; rt.turnPractice.done = true;
     }
     setClass(this.root, 'dodge-turn-coach', showTurn && isTouch && gestureClear);
+    // 大きな「〜へ よける」の札は下の操作の帯（槍・鬨の声…）に重ねない。帯の上へ離す（kaito 10/22 稲生 14）。
+    {
+      const bar = document.getElementById('h-bottom');
+      const top = bar && !bar.hidden && bar.offsetParent ? bar.getBoundingClientRect().top : H;
+      if (ly + 34 > top - 8) ly = Math.max(28, top - 8 - 34);
+    }
     el.querySelector('.escape-card').setAttribute('transform', `translate(${lx} ${ly})`);
     setStyle(el.querySelector('.escape-card'), 'display', !gestureClear ? 'none' : '');
     const card = el.querySelector('.escape-card rect');
@@ -12402,6 +12582,7 @@ export class Hud {
       setStyle(el.querySelector('.escape-card'), 'display', '');
       cue.cardX = lx; cue.cardY = ly; cue.markX = x; cue.markY = y;
     }
+    cue.gestureShown = (turnGesture || moveGesture) && gestureClear;
     rt.dodgeGuide = cue;
     this.updateDodgeAction(rt, cue, el, dodgeSide, escapeArrow && isTouch && !showTurn && !moveGesture && !rain);
     return cue;
@@ -12781,7 +12962,7 @@ export class Hud {
         retreatNeeded ? treatmentNeeded ? treatmentGuideText(rt, retreat) :
           retreatGuideText(rt, retreatReached, 'こっちへ にげる') :
         cover ? coverReached ? '' : rt.coverGuide.label : ranged ? rt.def.compactGunAction || `${u?.type === 'gun' ? '鉄砲' : '矢'}！ 柱や壁のうしろへ` :
-        guard ? rescue ? 'この人をたすける' : rt.def.guardLabel?.(rt, guard) || 'この人を守れ' : u && meleeAllowed ? '敵へ向いて かまえる' : '';
+        guard ? rescue ? 'この人をたすけよう' : rt.def.guardLabel?.(rt, guard) || 'この人を守れ' : u && meleeAllowed ? '敵へ向いて かまえる' : '';
       this.guardAlly = !dodge && !retreatNeeded && !cover && !ranged ? guard : null;
       const meleeHelp = !!u && !ranged && action === '敵へ向いて かまえる' && rt.player.weapon !== 'bow' && rt.player.weapon !== 'gun';
       // 届かない相手には前進を教える。本人への打ち込み中は防ぐ案内を優先する。
@@ -12801,7 +12982,7 @@ export class Hud {
         const facing = Math.cos(Math.atan2(u.pos.x - p.pos.x, u.pos.z - p.pos.z) - rt.player.yaw);
         this.guardFacing = facing > (this.guardFacing ? .85 : .94);
         action = approachHelp ? this.meleeApproachText(rt) || 'はたへ すすもう' : !this.guardFacing ? isTouch ? rt.def.meleeTurnText || `${Math.sin(angle) <= 0 ? '右' : '左'}へ なぞる` : rt.player.weapon === 'spear' ? '敵にやりを向けよう' : '敵へ向こう' :
-          attackHelp ? isTouch ? attackOperation(rt) : rt.player.chargeT > .7 ? `はなして ${rt.player.weapon === 'sword' ? 'きる' : 'つく'}` : rt.player.charging ? '輪が満ちるまで 長押し' : '左クリックを長押し → はなす' :
+          attackHelp ? attackOperation(rt) :
           rt.player.guard ? isTouch ? this.waitGuardHeldBattle === rt ? '押したまま ふせぐ' : rt.def.guardWaitText || 'この中で まもれ' : rt.def.guardWaitText || (S.guardToggle ? '構えたまま ふせぐ' : '右クリックを押したまま') :
           isTouch ? rt.def.guardStartText || 'この中で まもれ' : S.guardToggle ? '右クリックを一度押す' : '右クリックを押し続ける';
         if (!isTouch && rt.teachOn && !rt.teachOn() && /クリック|押|なぞ/.test(action)) action = !this.guardFacing ? '敵へ むこう' : attackHelp ? 'たたけ' : 'ふせぐ';
@@ -12830,7 +13011,7 @@ export class Hud {
         if (rt.teachOn && !rt.teachOn()) {
           // 手ほどきを終えた後も、戦固有の「列を守れ」「旗へ戻れ」を残す。
           if (meleeHelp && !guardHelp) action = approachHelp ? this.meleeApproachText(rt) || 'はたへ すすもう' : !this.guardFacing ? '敵へ向こう' : rt.def.enemyTaskLabel?.(rt, u) || attackOperation(rt);
-          else if (this.guardAlly && !retreatNeeded && !dodge) action = rescue ? 'この人をたすける' : rt.def.guardLabel?.(rt, this.guardAlly) || 'この人を守れ';
+          else if (this.guardAlly && !retreatNeeded && !dodge) action = rescue ? 'この人をたすけよう' : rt.def.guardLabel?.(rt, this.guardAlly) || 'この人を守れ';
         }
         const swipeApproach = approachHelp && isTouch &&
           Math.cos(Math.atan2(u.pos.x - p.pos.x, u.pos.z - p.pos.z) - rt.player.yaw) >= .9;
@@ -12843,7 +13024,7 @@ export class Hud {
         setClass(this.actionLabel, 'guard-action', meleeHelp && !approachHelp && !this.guardFacing);
         setCssVar(this.actionLabel, '--enemy-angle', Math.atan2(-Math.cos(angle), -Math.sin(angle)).toFixed(3) + 'rad');
         const attack = rt.player.weapon === 'sword' ? 'きる' : rt.player.weapon === 'bow' ? '射る' : rt.player.weapon === 'gun' ? '攻撃' : 'つく';
-        const help = approachHelp ? '' : rt.teachOn && !rt.teachOn() ? '' : attackHelp && this.guardFacing ? isTouch ? '' : '左クリックを長押し → はなす' : this.guardAlly && !(isTouch && this.attackGuideEnemy) ? isTouch ? rt.player.weapon === 'gun' ? '攻撃の釦を押し続けて狙い、離して撃つ' : `「${attack}」を長押し → はなす` : rt.player.weapon === 'gun' ? '左クリックを押し続けて狙い、離して撃つ' : '敵へ向き、左クリックを長押しして放す' : '';
+        const help = approachHelp ? '' : rt.teachOn && !rt.teachOn() ? '' : attackHelp && this.guardFacing ? isTouch ? '' : '左クリックで突く' : this.guardAlly && !(isTouch && this.attackGuideEnemy) ? isTouch ? rt.player.weapon === 'gun' ? '攻撃の釦を押し続けて狙い、離して撃つ' : `「${attack}」を押す` : rt.player.weapon === 'gun' ? '左クリックを押し続けて狙い、離して撃つ' : '敵へ向き、左クリックで突く' : '';
         const dismount = dismountFirst(rt);
         setHtml(this.actionLabel, dismount ? `<button type="button" class="dismount-action"${rt.player.mountT > 0 ? ' disabled' : ''}>押して 馬をおりる</button>` :
           turnCoach && (!rt.teachOn || rt.teachOn()) ? `${esc(action)}<svg class="turn-gesture" viewBox="0 0 200 82" aria-hidden="true"><g transform="${turnRight ? '' : 'translate(200 0) scale(-1 1)'}"><circle cx="32" cy="24" r="17" fill="none" stroke="#fff3ba" stroke-width="3"/><circle cx="168" cy="24" r="17" fill="none" stroke="#fff3ba" stroke-width="3" stroke-dasharray="4 4"/><path d="M51 24H148M136 15L148 24L136 33" fill="none" stroke="#fff3ba" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M26 40V24Q26 16 32 16Q38 16 38 24V36Q44 31 48 37Q55 35 58 43L56 53Q55 59 47 59H34Q28 59 24 52L14 40Q10 32 16 31Q20 29 26 40Z" fill="#fff3ba" stroke="#14120f" stroke-width="3" stroke-linejoin="round"/></g><g fill="#fff3ba" font-size="13" font-family="sans-serif" text-anchor="middle"><text x="${turnRight ? 32 : 168}" y="78">ここから</text><text x="${turnRight ? 168 : 32}" y="78">ここまで</text></g></svg>` :

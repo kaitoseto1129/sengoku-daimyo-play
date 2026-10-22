@@ -95,78 +95,10 @@ dialog.word-dialog { box-sizing:border-box; width:min(560px,calc(100vw - 32px));
 document.head.appendChild(style);
 
 export function decorateTerms(root) {
-  if (!root || root.nodeType !== Node.ELEMENT_NODE) return;
-  for (const button of pendingTerms) if (!button.isConnected) { firstTerms.unobserve(button); pendingTerms.delete(button); }
-  // 操作の釦の中に、別の釦は作らない。短い説明と一行の補足を添える。
-  const controls = [...root.querySelectorAll('button:not(.word-help)')];
-  if (root.matches('button:not(.word-help)')) controls.push(root);
-  for (const button of controls) {
-    if (button.closest('[data-no-glossary]') || button.dataset.wordControl) continue;
-    words.lastIndex = 0;
-    const name = button.textContent.match(words)?.find((word) => !['備', '備え', '殿'].includes(word));
-    if (!name || !PLAIN[name]) continue;
-    button.dataset.wordControl = name;
-    if (!button.title) button.title = byName.get(name)[2];
-    if (!seenTerms.has(name)) { pendingTerms.add(button); firstTerms.observe(button); }
-  }
-  if (root.closest(skip)) return;
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  const nodes = [];
-  // 結果の札では同じ用語の初出だけを押せるようにする。差し替え時も既存の印を数える。
-  const evalWords = new Map();
-  let node;
-  while ((node = walker.nextNode())) {
-    if (node.parentElement.closest(skip)) continue;
-    words.lastIndex = 0;
-    if (words.test(node.data)) nodes.push(node);
-  }
-  for (const text of nodes) {
-    const value = text.data;
-    const evaluation = text.parentElement.closest('.eval');
-    let used;
-    if (evaluation) {
-      if (!evalWords.has(evaluation)) evalWords.set(evaluation, new Set(Array.from(evaluation.querySelectorAll('button.word-help'), (b) => b.dataset.word)));
-      used = evalWords.get(evaluation);
-    }
-    words.lastIndex = 0;
-    const frag = document.createDocumentFragment();
-    let end = 0, match;
-    while ((match = words.exec(value))) {
-      const name = match[0], at = match.index;
-      if (name === '備え' || name === '備' && value[at + name.length] === 'え') continue;
-      // 「装備」「備前」「信長殿」など、別の意味の字には印を付けない。
-      if ((name === '備' || name === '殿') && (/[一-龯々]/.test(value[at - 1] || '') || /[一-龯々]/.test(value[at + name.length] || ''))) continue;
-      if (used?.has(name)) continue;
-      used?.add(name);
-      frag.append(value.slice(end, at));
-      const button = document.createElement('button');
-      button.type = 'button'; button.className = 'word-help'; button.dataset.word = name;
-      button.textContent = name; button.setAttribute('aria-label', `${name}の意味を読む`);
-      button.title = byName.get(name)[2];
-      if (!seenTerms.has(name)) { pendingTerms.add(button); firstTerms.observe(button); }
-      frag.append(button); end = at + name.length;
-    }
-    if (!end) continue;
-    frag.append(value.slice(end)); text.replaceWith(frag);
-  }
+  // 台詞や札を読む時に、用語の下線や別の操作を足さない。
 }
-
-// 戦の札は hud.js の差分更新から呼ぶ。ここで見張るのは、時の止まった画面だけ。
 export function watchGlossaryScreens() {
-  const roots = ['screen', 'pause'].map((id) => document.getElementById(id)).filter(Boolean);
-  const observer = new MutationObserver((records) => {
-    observer.disconnect();
-    const changed = new Set();
-    for (const r of records) {
-      if (r.type === 'characterData') changed.add(r.target.parentElement);
-      else for (const n of r.addedNodes) changed.add(n.nodeType === Node.TEXT_NODE ? n.parentElement : n);
-    }
-    for (const root of changed) if (root?.isConnected) decorateTerms(root);
-    observe();
-  });
-  const observe = () => { for (const root of roots) observer.observe(root, { childList:true, subtree:true, characterData:true }); };
-  for (const root of roots) decorateTerms(root);
-  observe();
+  // 自動の下線付けをやめたため、画面の変更も見張らない。
 }
 
 export function openGlossary(name = null) {
@@ -194,7 +126,7 @@ export function openGlossary(name = null) {
     reading.textContent = term[1]; dialog.appendChild(reading);
     note.textContent = term[2]; dialog.appendChild(note);
   } else {
-    note.textContent = '言葉を押すと意味が読めます。画面の下線のある言葉も押せます。'; dialog.appendChild(note);
+    note.textContent = '一覧の言葉を押すと、意味が読めます。'; dialog.appendChild(note);
     const label = document.createElement('label'); label.htmlFor = 'word-search'; label.textContent = '言葉や読みで探す'; dialog.appendChild(label);
     const search = document.createElement('input'); search.id = 'word-search'; search.type = 'search'; dialog.appendChild(search);
     const list = document.createElement('div'); dialog.appendChild(list);

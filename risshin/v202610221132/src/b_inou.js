@@ -8,7 +8,7 @@ import { useTerrain } from './asset_manifest.js';
 // 向き：x が東（+x）、z が南（+z）。北に信勝・林、集落、柴田。南に信長、その脇に佐久間と遊び手。
 // 地形は国土地理院の標高（asset_dem_inou.js）。今の堤は高すぎるので、高さを丸めて昔の平らな野に寄せる。
 // ======================================================================
-import { nobori, jinmaku, hut, tawara } from './props.js';
+import { nobori, jinCamp, hut, tawara, kagaribi, umatsunagi, umajirushi, hatazao } from './props.js';
 import { sfx } from './audio.js';
 import { gauss, enemyGroup, allyGroup, nm, centerOf, unitPos } from './bhelp.js';
 import { KIT } from './b_nagashinojo.js';
@@ -54,8 +54,9 @@ function prepareMarch(g) {
   for (const u of g.units) u._inouWay = { x: u.pos.x, z: u.pos.z };
 }
 
-const SHIBA = { armor: 0x2e2a24, lace: 0x5a2a1c, flag: 'kari' };
-const HAYA = { armor: 0x302c26, lace: 0x4a4a3a, flag: 'sujikai' };
+// 信勝方は弁柄（赤茶の漆）の具足、信長方は黒漆に紺の威。ネオンにせず、近くでも遠くでも色の系統で分かる（kaito 10/22 稲生 3）。
+const SHIBA = { armor: 0x5c3224, lace: 0x8a6a2a, flag: 'kari' };
+const HAYA = { armor: 0x60382a, lace: 0x7a6236, flag: 'sujikai' };
 const ODA = { flag: 'oda' };
 const dress = (list, lk) => list.map((s) => ({ ...s, o: { ...lk, ...(s.o || {}) } }));
 const gone = (g) => !g || g.count === 0 || g.routed;
@@ -76,7 +77,11 @@ function height(x, z) {
 
 // 操作の札は既存の仕組みで一枚ずつ出す。敵のいない所で攻撃・防御を教えない。
 const LESSONS = {
-  move: ['move', '歩く', () => `${K('forward')}・${K('left')}・${K('back')}・${K('right')}`, '左の親指でなぞる'],
+  move: ['move', '前・後ろ・左・右に歩く', () => `${K('forward')}・${K('back')}・${K('left')}・${K('right')}`, '左の親指でなぞる'],
+  view: ['view', '一人称と三人称を切り替える', () => `${K('view')}を押す`, '左上の「視点」を押す'],
+  swing: ['swing', '攻撃', () => '左クリックで槍を突く', '「つく」を押す'],
+  chase: ['chase', '林軍を追いかけろ', () => `矢印の方へ。${K('run')}で走る`, '矢印の方へ大きくなぞる'],
+  kill: ['kill', '倒せ', () => '近づいて左クリック', '近づいて「つく」を押す'],
   look: ['look', '見回す', () => 'マウスを動かす', '画面の右をなぞる'],
   run: ['run', '走る', () => `${K('run')}を押して歩く`, '左の親指を大きくなぞる'],
   follow: ['follow', '味方についていく', () => '組頭の印へ進む', '組頭の印へ進む'],
@@ -124,12 +129,28 @@ const inou = {
   teach: true,           // 操作を教える戦（battle.js の teachOn）。ほかの戦は操作のやり方を出さない
   compactIntro: true,
   introTaskFirst: true,
-  introText: () => '信長方は約七百、信勝方は約千七百。柴田勝家も敵に回った。まず組頭について進もう。操作は一つずつ覚えられる。',
+  // 導入は筋書きとして読める文に（意見帳 10/22・kaito の決め）。勝家は討てない・林美作守は討死、の史実に合わせる。
+  introText: () => '家督を継いだ信長。しかし家老の林秀貞と柴田勝家は「弟の信勝こそ当主にふさわしい」と兵を挙げた。信長方は約七百、信勝方は約千七百。稲生の野で、身内同士がぶつかる。まずは退く林美作守の手を、味方と追え。',
   keepTaskLabel: true,
   keepGuardTaskLabel: true,
   keepDestinationTask: true,
   immediateTaskChanges: true,
-  guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? 'genpachi' : 'holdFlag',
+  guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.training === 1 && rt.flags.chase ? 'chase' : rt.flags.step === 0 ? 'genpachi' : 'holdFlag',
+  // 戦の進み（左上の「3／6」）。段の名は設計の流れのまま。
+  stages: ['林の手を追う', '林の手を崩す', '柴田隊を受け止める', '信長が前へ', '林の備を崩す', '追撃と勝家の退き'],
+  stageOf: (rt) => { const F = rt.flags; return F.step === 0 ? (F.training < 5 ? 0 : 1) : F.step === 1 ? 2 : F.step === 2 ? 3 : F.step === 3 ? 4 : F.step === 4 && !F.mainBroken ? 4 : 5; },
+  // 周りの味方が今なにをしているか（左上の進みの札の一行。kaito 10/22 稲生 2）
+  allyDoing: (rt) => {
+    const F = rt.flags;
+    if (F.step === 0) return F.training <= 1 ? '退く林の手を追って前へ走っている' : F.training <= 4 ? '先で林の手と向き合っている' : '林の先手と槍を合わせている';
+    if (F.step === 1) return F.centerBack ? '中央も下がり、列を立て直している' : F.leftBack ? '左が崩れ、中央の脇が空いている' : F.training === 11 || F.training === 12 ? '正面を押さえ、右の畦から回っている' : '柴田隊の寄せを受け止めている';
+    if (F.step === 2) return '信長について前へ出ている';
+    if (F.step === 3) return '林美作守の備を攻めている';
+    if (F.step === 4) return '崩れた林の備を追っている';
+    return '深追いせず、柴田隊の退きを見ている';
+  },
+  noWinCrane: true,
+  foeMarks: true,       // 近い敵の頭上に小さな「敵」の印（身内同士で旗も具足も似るため）     // 勝った後も自分の目線のまま余韻を見せる（上へ引かない。kaito 10/22）
   learningFight: true,   // 新しく始めた人の初陣。傷を軽くする
   noTaisho: true,        // 殿（信長）と大将の流れは、この定義が持つ
   noReserve: true,
@@ -177,7 +198,7 @@ const inou = {
     // ---- 信長方：直属の槍隊・少ない家臣団・若い前田利家・佐久間勢 ----
     F.hata = allyGroup(rt, { name: '信長の旗本', anchor: { ...NOBU }, facing: Math.PI, width: 14, aggro: 6, noRout: true, formation: 'yari', fullStrength: true },
       dress([{ type: 'samurai', n: 1, o: { name: '組頭 源八', invuln: true } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }], ODA));
-    F.nobuGroup = allyGroup(rt, { name: '信長の本旗', anchor: { x: NOBU.x, z: NOBU.z + 24 }, facing: Math.PI, aggro: 0, noRout: true, fullStrength: true },
+    F.nobuGroup = allyGroup(rt, { name: '信長の本旗', anchor: { x: NOBU.x - 16, z: NOBU.z + 7 }, facing: Math.PI, aggro: 0, noRout: true, fullStrength: true },
       dress(lord ? [] : [{ type: 'busho', n: 1, o: { name: '織田信長', invuln: true, horse: true, flagScale: 1.2 } }], ODA));
     F.nobuU = lord ? rt.player.u : F.nobuGroup.units[0];
     F.genU = F.hata.units.find((u) => u.name === '組頭 源八');
@@ -195,6 +216,10 @@ const inou = {
     // 主人公は槍を持つ足軽。配下や借り物の鉄砲・弓は付けない。
     const P = rt.player;
     F.yaw0 = P.yaw; F.look = 0;
+    // 空振りも数える（攻撃の札は敵がいなくても試せる）。この戦の自分にだけ包む。
+    F.strikeN = 0;
+    const strike0 = P.strike.bind(P);
+    P.strike = (...a) => { F.strikeN++; return strike0(...a); };
     F.training = -1;
     for (const g of [...F.friends, F.nazuka, F.nobuGroup]) park(g);
 
@@ -228,7 +253,12 @@ const inou = {
     KIT.markRecyclable(F.nazuka);
 
     // ---- 陣と旗 ----
-    rt.scene.add(jinmaku(W, NOBU.x - 16, NOBU.z, 10, 8, 4, { mon: 'oda' }));
+    // 信長方の本陣：幕だけで空にしない。奥に床几と軍配、地図の机と使いの者（jinCamp と camp_life）、篝火、馬つなぎ、馬印と旗竿（kaito 10/22 稲生 8）。
+    rt.scene.add(jinCamp(W, NOBU.x - 16, NOBU.z, { w: 12, d: 9, gap: 4, mon: 'oda' }));
+    for (const [x, z] of [[NOBU.x - 21, NOBU.z + 6], [NOBU.x - 11, NOBU.z + 6]]) rt.scene.add(kagaribi(W, x, z));
+    rt.scene.add(umatsunagi(W, NOBU.x - 16, NOBU.z + 11, 0, 7));
+    rt.scene.add(umajirushi(W, NOBU.x - 9, NOBU.z - 3, 0));
+    rt.scene.add(hatazao(W, NOBU.x - 23, NOBU.z - 2, Math.PI / 2, 5, 'oda'));
     for (const [x, z, k] of [[NOBU.x - 4, NOBU.z - 6, 'oda'], [NOBU.x - 4, NOBU.z + 6, 'oda'], [NOBU.x + 10, NOBU.z - 24, 'tsuru'], [NAZUKA.x, NAZUKA.z - 4, 'oda']]) rt.scene.add(nobori(W, x, z, k, 5));
     // 小集落は北の本隊と柴田勢の間。大きな砦や城は置かない。
     for (const [x, z, r] of VILLAGE) rt.scene.add(hut(W, x, z, 7, 5, r, { roof: 0x6a5c44 }));
@@ -249,13 +279,21 @@ const inou = {
 
     rt.world.setTime('day');
     rt.setPhase('brief');
-    rt.obj('main', '集合地点で、歩く・見回す・走るを覚えよう', 'main');
+    rt.obj('main', '退く林の手を、味方と追おう', 'main');
     rt.obj('stay', '信長の旗のそばで戦う', 'side');
     rt.marker('holdFlag', () => F.nobuU?.alive ? F.nobuU.pos : NOBU, '信長の旗',
       { guideArea: 'guard', guideFlag: true, guideDefend: true, guideRadius: 20 });
     rt.marker('genpachi', unitPos(F.genU), '組頭 源八', { minor: true, guideRadius: 5 });
-    rt.say('足軽', '柴田様まで向こうについたらしいぞ', 4);
-    rt.after(5, () => rt.say('足軽', 'あの柴田様と戦うのか……。こちらは人数も少ない', 4));
+    // 始まってすぐ、自分以外の味方は退く林の手を追ってまっすぐ前へ走る（Yuto の流れ・kaito 10/22）。自分のまわりから味方がいなくなる。
+    rt.say('組頭 源八', '林の手が退くぞ！　皆、追え！', 4);
+    for (const g of F.friends) {
+      g.order = 'move'; g.speed = 3.2; g.aggro = 0;
+      g.dest = { x: g.anchor.x, z: g === F.hata ? 6 : 10 };
+      g.onArrive = (q) => { q.order = 'hold'; };
+    }
+    F.haya1.order = 'move'; F.haya1.speed = 2.2; F.haya1.dest = { x: 0, z: -4 };
+    F.haya1.onArrive = (q) => { q.order = 'hold'; };
+    rt.after(6, () => rt.say('足軽', '柴田様まで向こうについたらしいぞ', 4));
     this.trainingPhase(rt, 0);
   },
 
@@ -266,19 +304,31 @@ const inou = {
     if (F.lesson) lessonEnd(rt, F.lesson);
     F.training = phase; F.trainT = rt.t;
     F.blocks0 = rt.stats.blocks + rt.stats.parries;
-    if (phase === 0) { lesson(rt, 'move'); return; }
+    if (phase === 0) { rt.after(3, () => { if (F.training === 0) { F.trainT = rt.t; lesson(rt, 'move'); } }); return; }
     if (phase === 1) {
+      // 林兵三人と味方二人の小さな群れ。自分の前で、ゆっくり北へ退く。追いつくと味方は抜け、林兵だけが残る。
       rt.setPhase('march');
-      rt.obj('main', '組頭について、畦道を進もう', 'main');
-      rt.say('組頭 源八', '前へ出るぞ。離れるな！', 4);
-      F.hata.order = 'move'; F.hata.dest = { x: 0, z: 38 }; F.hata.aggro = 0;
-      F.hata.onArrive = (g) => { g.order = 'hold'; };
-      lesson(rt, 'follow'); return;
+      rt.obj('main', '林軍を追いかけろ', 'main');
+      rt.say('組頭 源八', '味方は先へ行った！　遅れた林の兵を追え！', 4);
+      const p = rt.player.u.pos;
+      const at = { x: p.x + 2, z: Math.min(p.z - 20, 34) };
+      const g = enemyGroup(rt, { faction: 'nobukatsu', name: '林の遅れ兵', anchor: { ...at }, facing: Math.PI, width: 3, aggro: 0, noAI: true, noRout: true, order: 'move', dmgMult: 0.25, focus: rt.player.u },
+        dress([{ type: 'ashigaru', n: 3 }], HAYA));
+      g.dest = { x: at.x, z: at.z - 60 }; g.speed = 1.1;
+      for (const u of g.units) { u.hp = u.maxHp = Math.max(30, rt.player.u.dmg * 2.2); u.cdBase *= 1.8; u.noTarget = true; }
+      const a = allyGroup(rt, { name: '追う味方', anchor: { x: at.x + 4, z: at.z + 2 }, facing: Math.PI, width: 2, aggro: 0, noAI: true, noRout: true, order: 'move' },
+        dress([{ type: 'ashigaru', n: 2 }], ODA));
+      a.dest = { x: at.x + 4, z: at.z - 58 }; a.speed = 1.1;
+      prepareMarch(g); prepareMarch(a);
+      F.practice = g; F.chaseA = a; F.chase = true;
+      rt.marker('chase', centerOf(g), '林の兵', { red: true, guideRadius: 6 });
+      lesson(rt, 'chase'); return;
     }
     if (phase >= 2 && phase <= 4) {
       rt.setPhase('practice');
       const count = phase === 3 ? 2 : 1;
-      const g = enemyGroup(rt, { faction: 'nobukatsu', name: '林の先駆け', anchor: { x: 8, z: 32 }, facing: 0, width: 3, aggro: 12, seekRange: 30, noAI: true, noRout: true, order: 'attack', dmgMult: phase === 4 ? 0.4 : 0.25, focus: rt.player.u },
+      const pp = rt.player.u.pos;
+      const g = enemyGroup(rt, { faction: 'nobukatsu', name: '林の先駆け', anchor: { x: pp.x + 3, z: pp.z - 7 }, facing: 0, width: 3, aggro: 12, seekRange: 30, noAI: true, noRout: true, order: 'attack', dmgMult: phase === 4 ? 0.4 : 0.25, focus: rt.player.u },
         dress([{ type: phase === 4 ? 'samurai' : 'ashigaru', n: count }], HAYA));
       F.practice = g;
       prepareMarch(g);
@@ -293,7 +343,9 @@ const inou = {
       F.hata.aggro = 8; F.hata.order = 'attack'; F.hata.seekRange = 24;
       F.haya1.aggro = 6; F.haya1.fire = true;
       for (const u of F.haya1.units) u.noTarget = u === F.hayaLead;
-      F.haya1.order = 'move'; F.haya1.dest = { x: 0, z: 34 }; F.haya1.speed = 1.5;
+      F.haya1.order = 'move'; F.haya1.dest = { x: 0, z: 14 }; F.haya1.speed = 1.5;
+      F.hata.order = 'hold';
+      rt.after(4, () => rt.say('足軽', '林の手が向き直った！　組頭の所で槍を合わせておる', 4));
       F.haya1.onArrive = (g) => { g.order = 'attack'; g.seekRange = 20; };
       lesson(rt, 'together'); return;
     }
@@ -461,6 +513,7 @@ const inou = {
     rt.unmark('shiba');
     rt.setPhase('shibataRetreat');
     rt.banner('柴田隊、孤立', '周りの備が崩れても、槍の列を崩さず退く');
+    rt.after(4, () => rt.say('足軽', '柴田様の隊が下がっていく……。押し返したぞ！', 4));
     rt.say('柴田勝家', '退け！', 3);
     for (const g of F.shiba) {
       g.focus = null; g.onArrive = null; g.noRout = true; g.morale = Math.max(60, g.morale);
@@ -492,13 +545,15 @@ const inou = {
     rt.tracker.main = true;
     if (!F.strayed) rt.objDone('stay');
     sfx('horagai', 0.8);
-    rt.banner('勝利　稲生原で敵主力を破った', '信勝・勝家・林秀貞は末森へ退く。この野での戦は終わった');
-    rt.say('組頭 源八', '追いすぎるな！末森城へは攻め込まぬ。負傷した者を助けよ', 4);
-    rt.after(5, () => rt.say('組頭 源八', `${nm(rt)}、味方と戦い、備を崩した働きが戦功となる。よう生き残った`, 4));
+    // 急に勝ちの札を出さない。先に隊長の声で「退く→勝った」を分からせ、自分の目線のまま余韻を見せる（kaito 10/22 稲生 18）。
+    rt.say('組頭 源八', '柴田隊が退くぞ！　林美作守は討たれた。勝ったぞ！', 4);
+    rt.after(3, () => rt.banner('勝利　稲生原で敵主力を破った', '信勝・勝家・林秀貞は末森へ退く。この野での戦は終わった'));
+    rt.after(6, () => rt.say('組頭 源八', '追いすぎるな！末森城へは攻め込まぬ。負傷した者を助けよ', 4));
+    rt.after(11, () => rt.say('組頭 源八', `${nm(rt)}、味方と戦い、備を崩した働きが戦功となる。よう生き残った`, 4));
     rt.player.u.invuln = true;
     // 逃げる兵、倒れた兵、息を整える味方を八秒見せてから結果へ。
     for (const g of F.friends) { g.order = 'hold'; g.aggro = 0; g.focus = null; }
-    rt.finish({ scriptedEnd: true }, 8);
+    rt.finish({ scriptedEnd: true }, 14);
   },
 
   update(rt, dt) {
@@ -525,13 +580,32 @@ const inou = {
     if (F.step === 0) {
       const elapsed = rt.t - F.trainT;
       if (F.training === 0) {
-        if (F.lesson === 'move' && (F.lessonDone?.move || elapsed > 35)) { F.yaw0 = P.yaw; lesson(rt, 'look'); }
-        else if (F.lesson === 'look' && (F.lessonDone?.look || elapsed > 65)) lesson(rt, 'run');
-        else if (F.lesson === 'run' && (F.lessonDone?.run || elapsed > 90)) this.trainingPhase(rt, 1);
+        // 移動 → 視点 → 攻撃。字で示して試させ、できたら早めに次へ（目安：移動23秒・視点8秒・攻撃6秒）。
+        const since = rt.t - (F.lessonAt || 0);
+        if (F.lesson === 'move' && (F.lessonDone?.move && since > 3 || since > 23)) { F.view0 = SETTINGS.view; lesson(rt, 'view'); F.strike0 = F.strikeN; }
+        else if (F.lesson === 'view' && (SETTINGS.view !== F.view0 && since > 1.5 || since > 8)) { if (SETTINGS.view !== F.view0) rt.tutMark('view'); F.strike0 = F.strikeN; lesson(rt, 'swing'); }
+        else if (F.lesson === 'swing' && (F.strikeN > F.strike0 && since > 0.8 || since > 6)) { rt.tutMark('swing'); this.trainingPhase(rt, 1); }
       } else if (F.training === 1) {
-        const near = Math.hypot(p.x - F.genU.pos.x, p.z - F.genU.pos.z) < 7;
-        if (near && elapsed > 8) rt.tutMark('follow');
-        if (elapsed > 12 && near || elapsed > 50) this.trainingPhase(rt, 2);
+        const g = F.practice, c = g.center();
+        if (!F.caught && Math.hypot(p.x - c.x, p.z - c.z) < 7) {
+          // 追いついた：味方二人は横へ抜け、林兵三人が向き直る。
+          F.caught = rt.t; F.strikeCaught = F.strikeN;
+          rt.unmark('chase'); F.chase = false;
+          const ac = F.chaseA.center();
+          F.chaseA.dest = { x: ac.x + 40, z: ac.z - 30 }; F.chaseA.speed = 3.2;
+          F.chaseA.onArrive = (q) => { for (const u of q.units) { u.mesh.visible = false; u.noTarget = true; } };
+          g.order = 'attack'; g.aggro = 12; g.seekRange = 30; g.speed = 1.6;
+          for (const u of g.units) u.noTarget = false;
+          rt.obj('main', '林の兵を倒せ', 'main');
+          rt.say('組頭 源八', '追いついたぞ。倒せ！', 3);
+          lesson(rt, 'kill');
+        }
+        if (F.caught && !F.firstHitAt && F.strikeN > F.strikeCaught) F.firstHitAt = rt.t;
+        // 初めの攻撃から三十秒は、敵は自分へ打ち込まない（打ち込む前も待つ）。
+        if (F.caught && (!F.firstHitAt || rt.t < F.firstHitAt + 30)) rt.army.playerCounterUntil = rt.army.time + 0.3;
+        if (P.u.alive) P.u.hp = Math.max(P.u.hp, P.u.maxHp * 0.7);
+        if (F.caught && gone(F.practice)) { rt.tutMark('kill'); rt.say('組頭 源八', 'よし、討ったな！　次は防ぎ方じゃ', 3); this.trainingPhase(rt, 3); }
+        else if (!F.caught && rt.t - F.trainT > 70) { const q = rt.player.u.pos; for (const u of g.units) { u.pos.x = q.x + 2; u.pos.z = q.z - 6; } }
       } else if (F.training >= 2 && F.training <= 4) {
         // 最初の実戦は死なせず、一度に敵を足さない。
         if (P.u.alive) P.u.hp = Math.max(P.u.hp, P.u.maxHp * 0.7);
@@ -676,7 +750,7 @@ const inou = {
         F.lastWithdraw = true;
         F.shibaG.order = 'retreat'; F.shibaG.dest = F.retreatWarrior;
       }
-      if (F.lastWithdraw && F.shibaU.pos.z < -105 && (F.shiba1.count === 0 || F.shiba1.center().z < -88)) {
+      if (F.lastWithdraw && F.shibaU.pos.z < -105 && (F.shiba1.count === 0 || F.shiba1.center().z < -88 || elapsed > 60)) {
         F.commanderRetired = true;
         this.win(rt);
       }
@@ -725,7 +799,8 @@ inou.botBrain = (b, inp, { goTo }) => {
   if (F.step === 1 && (F.training === 11 || F.training === 12)) {
     if (Math.hypot(u.pos.x - FLANK.x, u.pos.z - FLANK.z) > 5) { goTo(p, inp, FLANK.x, FLANK.z, 3); return; }
   }
-  if (F.step === 0 && F.training <= 1) { goTo(p, inp, lead.x + 3, lead.z, 2); return; }
+  if (F.step === 0 && F.training === 1 && F.chase) { const c = F.practice.center(); goTo(p, inp, c.x, c.z + 2, 2); return; }
+  if (F.step === 0 && F.training <= 0) { goTo(p, inp, p.u.pos.x, p.u.pos.z - 3, 1); return; }
   const e = b.army.nearestEnemy(u, F.step === 0 ? 35 : 10, (o) => !o.noTarget && !o.fleeing && !o.invuln && (F.step !== 0 || F.training > 4 || o.group === F.practice) && Math.hypot(o.pos.x - lead.x, o.pos.z - lead.z) < 40);
   if (e) {
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);

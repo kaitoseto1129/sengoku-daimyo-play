@@ -1,3 +1,4 @@
+import { simpleControls } from './simple_controls.js';
 import { retryTick, offerRetry, disposeRetry } from './battle_retry.js';
 import { noteHeard, relayNotice, roughPeople } from './notice_source.js';
 import { nanbanAfter } from './nanban.js';
@@ -88,10 +89,10 @@ const DEAF_SOUND = { volley: 11, gun: 4.5 };
 // 状況に応じて一度だけ出すヒント
 const HINTS = {
   // 技の出し方（三度ふるった時に一度だけ）。押す向き・長押し・連打で技が変わる
-  waza: ['槍の技：押す向きと長さで変わる', '横へ押して突く＝払い　後ろ＝石突き　構えて前＝叩き　。長押し＝溜め突き'],
-  waza_k: ['刀の技：押す向きと長さで変わる', '続けて斬る＝切り返し　横へ押して斬る＝横薙ぎ　構えて＝突き　長押し＝真っ向斬り'],
+
+
   get move() { return ['↑ ← ↓ → で歩く', `${K('run')}で走る。マウスで見回す`]; },
-  practice: ['藁人形で試し突き。左クリックで突き、素早く3回押すと連続突き（3回目は強い）', '右クリックで構え、構えたまま左クリックで薙ぎ払い'],
+  practice: ['藁人形で試し突き。左クリックで突き、素早く3回押すと連続突き（3回目は強い）', '敵の打ちは右クリックで受ける'],
   get attack() { return ['敵が近い。照準が朱色になったら槍が届く間合い', `${K('lock')} で敵を狙い定めると、見失わずに戦える`]; },
   guard: ['右クリックで構えると正面からの攻撃を防げる', '敵の頭上に「！」が出たら攻撃の合図。その直前に構えると受け流しになる'],
   counter: ['受け流した直後の一撃は「反撃」になり、威力が大きい', ''],
@@ -102,7 +103,7 @@ const HINTS = {
   get head() { return ['首は討ち取った証になる', `倒れた敵のそばで「首を袋に納める」が出たら、${K('use')}を3秒長押し。敵が近い時は退き、任務を先に果たせ`]; },
   get map() { return [`${K('map')} で戦術マップ。${K('log')} で会話の記録`, '']; },
   get bows() { return [`弓・鉄砲・騎馬の隊は ${K('command')} の号令の輪を開いて、号令先を切り替えて動かせる`, '弓隊は敵に詰め寄られると下がって間合いを取る']; },
-  blocked: ['正面の突きは防がれることがある', '長押しして放すと、強い突き'],
+  blocked: ['正面の突きは防がれることがある', '少し横へ回り、隙を突く'],
   tooClose: ['敵に懐へ入られると、槍は力が出ない', '一歩下がって間合いを取るか、打刀に持ち替える。味方と肩を並べると槍は強い'],
   get ride() { return [`馬上にいる。${K('forward')} で並足、${K('run')} で駆ける。向きは馬が少しずつ変える`, `駆けて突けば重い一撃。${K('dodge')} で手綱を引いて急に止まる。${K('mount')} で降りる`]; },
   get dismount() { return ['馬を降りた。馬はその場で待つ', `近くで ${K('mount')} を押すと乗る。遠ければ ${K('mount')} で口笛を吹いて呼ぶ`]; },
@@ -115,10 +116,10 @@ const HINTS = {
 };
 // 指で遊ぶ端末のヒント（キーの名前を、右下の丸の名前に。null は出さない）
 const HINTS_TOUCH = {
-  waza: ['槍の技：左の棒の向きと長押しで変わる', '横へ倒して「突く」＝払い　後ろ＝石突き　「構え」の直後に前へ＝叩き　。長押し＝溜め突き'],
-  waza_k: ['刀の技：左の棒の向きと長押しで変わる', '続けて押す＝切り返し　横へ倒して＝横薙ぎ　「構え」の直後＝突き　長押し＝真っ向斬り'],
+
+
   move: ['左の親指で画面をなぞって歩く。外まで押し込むと走る', '画面の右側をなぞって見回す'],
-  practice: ['藁人形で試し突き。「突く」を押す。素早く3回で連続突き（3回目は強い）', '「構え」を押したまま「突く」で薙ぎ払い'],
+  practice: ['藁人形で試し突き。「突く」を押す。素早く3回で連続突き（3回目は強い）', '敵の打ちは「構え」で受ける'],
   attack: ['敵が近い。照準が朱色になったら槍が届く間合い', '「狙い」で敵を狙い定めると、見失わずに戦える'],
   guard: ['「構え」を押している間、正面からの攻撃を防げる', '敵の頭上に「！」が出たら攻撃の合図。その直前に構えると受け流しになる'],
   squad: ['組を率いている。「号令」を押して、ついて来い・待て・突撃・退けを選ぶ', '「号令」を押したまま指を滑らせても選べる'],
@@ -127,7 +128,7 @@ const HINTS_TOUCH = {
   head: ['首は討ち取った証になる', '倒れた敵のそばで「首を袋に納める」を3秒長押し。敵が近い時は退き、任務を先に果たせ'],
   map: ['左上の「地図」で戦術地図が開く', '字幕を押すと、会話の記録が開く'],
   bows: ['弓・鉄砲・騎馬の隊は、右下の隊の札を押して号令先を切り替えて動かせる', '弓隊は敵に詰め寄られると下がって間合いを取る'],
-  blocked: ['「つく」を長押し', ''],
+  blocked: ['少し横へ回り、隙を突く', ''],
   tooClose: ['敵に懐へ入られると、槍は力が出ない', '一歩下がって間合いを取るか、「持替」で打刀に持ち替える。味方と肩を並べると槍は強い'],
   ride: ['馬上にいる。左の親指で進む。外まで押し込むと駆ける', '駆けて突けば重い一撃。「手綱」で急に止まる。「降りる」で馬を降りる'],
   dismount: ['馬を降りた。馬はその場で待つ', '近くで「乗る」を押すと乗る。遠ければ「乗る」で口笛を吹いて呼ぶ'],
@@ -151,8 +152,8 @@ const COACH = () => [
 const COACH_GAP = { c_follow: 0.5, c_guard: 0.5, c_swing: 0.5 };
 // 戦ごとの手ほどき（tutStart）の操作を、指の言葉に
 const TUT_TOUCH = {
-  move: '左の親指でなぞる', run: '棒を外まで押し込む', thrust: '「突く」を押す', combo: '「突く」を素早く3回', charged: '「突く」を長押しして放す',
-  guard: '「構える」を押す', sweep: '構えながら「突く」', dodge: '「回避」を押す', parry: '「！」が出たら「構える」を押す',
+  move: '左の親指でなぞる', run: '棒を外まで押し込む', thrust: '「突く」を押す', combo: '「突く」を素早く3回', charged: null,
+  guard: '「構える」を押す', sweep: null, dodge: '「回避」を押す', parry: '「！」が出たら「構える」を押す',
   cmd_follow: '「号令」から選ぶ', cmd_hold: '「号令」から選ぶ', cmd_retreat: '「号令」から選ぶ', radial: '「号令」を押す',
   cmd_yari: '「号令」から「槍衾」', cmd_fire: null, group: '右下の隊の札を押す',
 };
@@ -527,7 +528,7 @@ function mobSoonTick(rt) {
 }
 
 const VICTORY_TASKS = {
-  inou: '林の手を崩し、信長の旗へ戻る',
+  inou: '林の手を崩し、柴田隊が退くのを見届ける',
   okehazama: '義元の討ち取り後、組と帰る',
   moribe: '敵を崩し、組をまとめて戻る',
   sunomata: '材木を届け、人足と砦を守る',
@@ -1090,6 +1091,7 @@ export class Battle {
   }
 
   hint(id) {
+    if (/^waza/.test(id) || simpleControls(this) && ['squad', 'rally', 'far', 'map', 'bows', 'alt', 'ride', 'dismount'].includes(id)) return;
     if (this.def.scriptedLessons) return; // 戦の定義が操作の順番と札を持つ
     // 教えの戦でない戦は、操作の札を出さない（柵・槍衾・名簿のような、操作でない心得だけ残す）
     if (!this.teachOn() && !['fence', 'yarifusuma', 'roster'].includes(id)) return;
@@ -1107,7 +1109,7 @@ export class Battle {
     // 札は一度に一つ。手ほどきの間や、別のヒントが出ている間は、急ぎでないものを後に回す
     if (!HINT_NOW.has(id) && (this.tut || this.tutPause || this.hud.hintBusy())) { if (!this.hintQ.some((q) => q.id === id)) this.hintQ.push({ id, t: this.t }); return; }
     markHint(id);
-    this.hud.hint(isTouch && id === 'blocked' && this.player.weapon === 'sword' ? '「きる」を長押し' : h[0], h[1], /^waza/.test(id) ? 11000 : 0);
+    this.hud.hint(h[0], h[1], /^waza/.test(id) ? 11000 : 0);
   }
 
   // ---------------- 手ほどき（一つずつ出す札） ----------------
@@ -1118,6 +1120,7 @@ export class Battle {
     if (!o.auto && /任意/.test(title) && this.firstCoach()) return false;
     const list = [];
     for (const [id, label, pc, touch] of items) {
+      if (['charged', 'sweep', 'slam', 'butt', 'spin'].includes(id) || simpleControls(this) && /^(c_cmd|cmd_|radial|group)/.test(id)) continue;
       const m = label.match(/^(.*?)（(.*)）$/);
       let how = pc !== undefined ? pc : m ? m[2] : '';
       if (isTouch) how = touch !== undefined ? touch : id in TUT_TOUCH ? TUT_TOUCH[id] : how;
@@ -1203,7 +1206,7 @@ export class Battle {
     // 攻撃と号令は、まだ済ませていなければ後の戦でも一度だけ案内する。
     const steps = COACH().filter(([id]) => !hintSeen(id) &&
       (this.index === 0 || id === 'c_swing' || id === 'c_cmd') &&
-      (id !== 'c_cmd' || this.squad.some((u) => u.alive)));
+      (id !== 'c_cmd' || !simpleControls(this) && this.squad.some((u) => u.alive)));
     if (!steps.length) return false;
     const ok = this.tutStart('手ほどき', steps, null, { auto: true });
     // 初陣で元から用意している猶予は保つ。後の戦には足さない。

@@ -214,11 +214,11 @@ export function rainVolley(army, g, u, to, d) {
   const bows = [];
   for (const o of g.units || []) if (o.alive && !o.gone && o.type === 'bow') bows.push(o);
   if (!bows.length) bows.push(u);
-  // 狭い城道は実際の弓兵に合わせる。指定のない戦は従来の数十本を保つ。
-  const perBow = army.world.def.arrowRainPerBow;
-  const count = perBow == null ? Math.max(36, Math.round(bows.length * 3.5)) : Math.max(1, Math.round(bows.length * perBow));
+  // 降る矢は射手の数に合わせる（一人一本。数人の弓から何十本も降らせない。kaito 10/22）。多く見せたい戦だけ arrowRainPerBow で増やす。
+  const perBow = army.world.def.arrowRainPerBow ?? 1;
+  const count = Math.max(1, Math.round(bows.length * perBow));
   const n = Math.min(FLY_MAX - R.list.length, 80, count);
-  if (n < (perBow == null ? 8 : 1)) return;
+  if (n < 1) return;
   const spread = 3.5 + d * 0.06;
   const th = 1.0;   // 射上げ 57 度ほど
   const T0 = 2 * Math.sqrt(G * Math.max(8, d) / Math.sin(2 * th)) * Math.sin(th) / G;

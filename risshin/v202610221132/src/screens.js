@@ -1,3 +1,4 @@
+import { simpleControls } from './simple_controls.js';
 import { restWounds } from './wounds.js';
 import { validProgress, validExtra, readProgress } from './save_guard.js';
 import { isTouch } from './touch.js';
@@ -421,16 +422,13 @@ function fbBind(root, id, where) {
 
 // いまのキー割り当てで操作表を作る
 const KEYS = () => [
-  [`${K('forward')} ${K('left')} ${K('back')} ${K('right')}`, '移動（前へ二度押しで走る）'], ['マウス', '視点（画面をクリックで開始）'], ['ホイール', '視点の距離／狙い定め中は相手を替える'], ['左クリック', '突き（続けて押すと連続突き、押し続けて離すと溜め突き）'],
-  ['右クリック', '構え・防御（直前なら受け流し）'], ['構え＋左クリック', '薙ぎ払い'], [K('run'), '走る'], [K('dodge'), '回避'], [K('lock'), '敵を狙い定める'],
-  [K('use'), '話す・取る'], [K('command'), '部隊指揮（長押しで号令の輪）'], [`${K('follow')} ${K('hold')} ${K('attack')} ${K('retreat')}`, 'ついて来い・待て・突撃・退け'], [K('rally'), '鼓舞・鬨の声'],
-  [K('map'), '戦術マップ（クリックで組を向かわせる）'], [K('mapzoom'), 'ミニマップの縮尺'], [K('log'), '会話の記録'], [K('shoulder'), '肩越しの左右切替'], [K('view'), '視点の切替（近い・普通・遠い・一人称）'], [K('skip'), '行軍・待ちを飛ばす'],
-  [K('photo'), '写真モード'], [K('hud'), '画面の札を消す・出す'], ['1・2', '槍・打刀'], ['左角かっこ・右角かっこ', '視点の感度'], ['機能1', '操作の早見表'], ['中段6', '操作説明'], ['戻るキー', '一時停止・設定'],
+  [`${K('forward')} ${K('left')} ${K('back')} ${K('right')}`, '移動'], ['マウス', '視点（画面をクリックで開始）'],
+  ['左クリック', '突く（押すだけ）'], ['右クリック', '構え（受ける）'], [K('dodge'), '避ける'], [K('lock'), '狙いを定める'],
+  [K('use'), '話す・取る'], [K('run'), '走る'], ['戻るキー', '一時停止・設定'],
 ];
 const PB = (k) => `<span class="pb pb-${k.toLowerCase()}">${{ A: 'エー', B: 'ビー', X: 'エックス', Y: 'ワイ' }[k]}</span>`;
-const PAD = [['左スティック', '移動'], ['右スティック', '視点'], ['右の引き金・右肩', '攻撃'], ['左の引き金', '構え'], [PB('A'), '回避・決定'], [PB('X'), '話す・取る'], [PB('Y'), '部隊指揮（長押しで号令の輪）'], [PB('B'), '戻る'], ['左肩', '鼓舞'], ['十字キー', '号令（上：ついて来い 左：待て 右：突撃 下：退け）／画面の選択'], ['右スティック押し込み', '狙い定め'], ['左スティック押し込み', '走る'], ['表示の釦（左の小さな釦）', '戦術マップ'], ['メニューの釦（右の小さな釦）', '一時停止']];
-// 指の端末の操作（押す所の名は画面の丸の字と同じに）
-const TOUCH_KEYS = () => [['左の親指', '触れた所に出る輪で歩く。外まで押し込むと走る'], ['右側をなぞる', '見回す'], ['「突く」', '突く。長押しして離すと溜め突き'], ['「構え」', S.guardToggle ? '一度押すと構え、もう一度押すと解く。「！」の直前で受け流し' : '押している間、構える。「！」の直前で受け流し'], ['「回避」', '跳んでかわす'], ['「号令」', '押して輪を出し、指を滑らせて選ぶ'], ['「持替」', '武器を持ち替える'], ['「ほか」', '鼓舞・武器・馬の追加操作を開く'], ['左上の釦', '止める・地図・視点（一人称）']];
+const PAD = [['左スティック', '移動'], ['右スティック', '視点'], ['右の引き金・右肩', '突く（押すだけ）'], ['左の引き金', '構え（受ける）'], [PB('A'), '避ける・決定'], [PB('X'), '話す・取る'], ['右スティック押し込み', '狙いを定める'], ['左スティック押し込み', '走る'], [PB('B'), '戻る'], ['メニューの釦', '一時停止']];
+const TOUCH_KEYS = () => [['左の親指', '輪で歩く。外まで倒すと走る'], ['右側をなぞる', '見回す'], ['「突く」', '押すだけで突く'], ['「構え」', S.guardToggle ? '一度押すと構え、もう一度押すと解く' : '押している間、受ける'], ['「回避」', '避ける'], ['「狙い」', '敵を狙い定める'], ['「話す・取る」', '近くで必要な時だけ出る'], ['左上の「止める」', '一時停止・設定']];
 export function touchKeysHtml() {
   const list = TOUCH_KEYS().map(([key, text]) => {
     if (key === '左の親指' && S.runToggle) text = '輪で歩く。一度外まで倒すと、輪へ戻しても指を放すまで走る';
@@ -3907,7 +3905,7 @@ export function helpOverlay(on) {
     照準が朱色になったら槍が届く。${isTouch ? '狙いの丸' : K('lock')}で狙い定めると相手を見失わない。一度に斬りかかってくる敵は3人まで。</p>
     <p class="note">危険の印：赤い画面の縁は、見える弓兵や鉄砲足軽に狙われる合図。左右の暗い縁は、見える敵に囲まれる合図。敵の頭上の「！」は打ち込みの合図です。</p>
     <div class="eyebrow" style="margin:16px 0 8px">用語集</div>
-    <p class="note">下線のある言葉を押すと、短い説明が出ます。</p>
+    <p class="note">言葉の意味は、用語集で読めます。</p>
     <button class="btn" id="help-words">用語集を開く</button>
     <div class="eyebrow" style="margin:16px 0 8px">戦功の仕組み</div>
     <ul class="note" style="margin:0;padding-left:1.2em;line-height:1.9">
@@ -3943,7 +3941,7 @@ export function pauseMenu(el, o) {
     ${(window.__game?.hud?.warningLog || []).length ? `<details class="objs" style="grid-column:1/-1"><summary style="min-height:44px;cursor:pointer">大事な警告の記録を見る</summary>${window.__game.hud.warningLog.map((line) => `<p>${Math.floor(line.t / 60)}分${line.t % 60}秒　${esc(line.text)}</p>`).join('')}</details>` : ''}
     <div id="pm-confirm" style="grid-column:1/-1"></div>
     <div id="pm-set" style="grid-column:1/-1"></div>
-    ${(o.hud?.log || []).length || (o.hud?.orderLog || []).length ? `<details class="objs" style="grid-column:1/-1"><summary style="min-height:44px;cursor:pointer">止めたまま会話の記録を読む</summary><p>通常の会話は直近40件。下知と伝令は戦の終わりまで残ります。</p>${[...new Set([...(o.hud?.orderLog || []), ...(o.hud?.log || [])])].sort((a, b) => a.t - b.t).map((line) => `<p>${esc(line.speaker || '報せ')}：${esc(line.text)}</p>`).join('')}</details>` : ''}
+    ${!simpleControls(o.hud?.rt) && ((o.hud?.log || []).length || (o.hud?.orderLog || []).length) ? `<details class="objs" style="grid-column:1/-1"><summary style="min-height:44px;cursor:pointer">止めたまま会話の記録を読む</summary><p>通常の会話は直近40件。下知と伝令は戦の終わりまで残ります。</p>${[...new Set([...(o.hud?.orderLog || []), ...(o.hud?.log || [])])].sort((a, b) => a.t - b.t).map((line) => `<p>${esc(line.speaker || '報せ')}：${esc(line.text)}</p>`).join('')}</details>` : ''}
     <div style="grid-column:1/-1">${fbHtml('pm-fb')}</div>
   </div>`;
   fbBind(el, 'pm-fb', 'pause');

@@ -380,9 +380,70 @@ function moribeFord(rt) {
     at.updateMatrix(); pegs.setMatrixAt(i, at.matrix);
   }
   W.scene.add(stones, pegs);
+  // 粗い地形の面に沿う濡れた岸。細分した色の帯で流れと土手をつなぐ。
+  // 高さ・水深・移動判定は保ち、地表から浮く石の列を岸の代わりにしない。
+  const bankPos = [], bankColors = [], bankUV = [], bankIndices = [];
+  const bankColor = new THREE.Color();
+  for (const side of [-1, 1]) {
+    const start = bankPos.length / 3;
+    for (let i = 0; i <= 110; i++) {
+      const x = -100 + i * 2, center = nireZ(x);
+      // 描画と水深調べが参照する川面は浅瀬では高さ〇・一二。
+      // 実際の地表がその高さを越える所を水際にする。
+      let edge = 0;
+      while (edge < 20 && W.heightAt(x, center + side * edge) < .14) edge += .25;
+      for (let j = 0; j < 4; j++) {
+        const offset = edge + j * (1.05 + .2 * Math.sin(x * .23));
+        const z = center + side * offset;
+        bankPos.push(x, W.heightAt(x, z) + .018, z);
+        bankUV.push(x * .45, z * .45);
+        const k = j / 3, grain = .95 + .05 * Math.sin(x * 2.7 + j);
+        bankColor.setRGB((.24 + k * .12) * grain, (.22 + k * .1) * grain, (.16 + k * .05) * grain);
+        bankColors.push(bankColor.r, bankColor.g, bankColor.b, j === 3 ? 0 : .7);
+        if (i < 110 && j < 3) {
+          const a = start + i * 4 + j;
+          bankIndices.push(a, a + 4, a + 1, a + 1, a + 4, a + 5);
+        }
+      }
+    }
+  }
+  const bankGeo = new THREE.BufferGeometry();
+  bankGeo.setAttribute('position', new THREE.Float32BufferAttribute(bankPos, 3));
+  bankGeo.setAttribute('color', new THREE.Float32BufferAttribute(bankColors, 4));
+  bankGeo.setAttribute('uv', new THREE.Float32BufferAttribute(bankUV, 2));
+  bankGeo.setIndex(bankIndices); bankGeo.computeVertexNormals();
+  const bankMat = new THREE.MeshStandardMaterial({ vertexColors: true, bumpMap: mudTex(), bumpScale: .025,
+    roughness: .63, side: THREE.DoubleSide, transparent: true, depthWrite: false,
+    polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+  const banks = new THREE.Mesh(bankGeo, bankMat); banks.receiveShadow = true;
+  W.scene.add(banks);
+  // 水際の草は点状の芽でなく、低く倒れた葉の株。同じ形一つを束ねて描く。
+  const reedPos = [], reedColors = [];
+  for (let i = 0; i < 5; i++) {
+    const angle = i * 2.4, dx = Math.cos(angle), dz = Math.sin(angle), h = .34 + i * .065;
+    reedPos.push(-dz * .025, 0, dx * .025, dz * .025, 0, -dx * .025, dx * .23, h, dz * .23);
+    reedColors.push(.25, .3, .12, .25, .3, .12, .5, .52, .24);
+  }
+  const reedGeo = new THREE.BufferGeometry();
+  reedGeo.setAttribute('position', new THREE.Float32BufferAttribute(reedPos, 3));
+  reedGeo.setAttribute('color', new THREE.Float32BufferAttribute(reedColors, 3)); reedGeo.computeVertexNormals();
+  const reedMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .9, side: THREE.DoubleSide });
+  const reeds = new THREE.InstancedMesh(reedGeo, reedMat, 160);
+  for (let i = 0; i < 160; i++) {
+    const x = -92 + i / 2 * 2.5 + Math.sin(i * 13.1), side = i % 2 ? 1 : -1;
+    let edge = 0;
+    while (edge < 20 && W.heightAt(x, nireZ(x) + side * edge) < .14) edge += .5;
+    const z = nireZ(x) + side * (edge + 2.3 + Math.sin(i * 2.1) * 1.4);
+    const fordTrack = Math.abs(x - START2.x) < 5;
+    at.position.set(x, W.heightAt(x, z), z); at.rotation.set(0, i * 2.4, 0);
+    const scale = fordTrack ? .35 : .8 + (Math.sin(i * 5.1) + 1) * .4;
+    at.scale.set(scale, fordTrack ? .12 : scale, scale); at.updateMatrix(); reeds.setMatrixAt(i, at.matrix);
+  }
+  reeds.computeBoundingSphere(); W.scene.add(reeds);
   const dispose = rt.dispose;
   rt.dispose = function () {
     stoneGeo.dispose(); stoneMat.dispose(); pegGeo.dispose(); pegMat.dispose();
+    bankGeo.dispose(); bankMat.dispose(); reedGeo.dispose(); reedMat.dispose();
     return dispose.call(this);
   };
 }
@@ -1011,7 +1072,7 @@ const moribe = {
     playerMeleeFloor: 1 / 3,   // 無名の足軽は、三歩以内で三度当てれば倒れる。
     muddy: 0.5,
     patchyGround: true,   // 草の株と地肌を同じ不規則な群落へそろえる。
-    wetFieldRuts: true,   // 雨の会戦帯に浅い踏み溝。色・法線・水の照りを同じ形にする。
+    wetFieldRuts: 'wear',   // 通った帯の踏み跡から濡れと溝を出す。野一面に平行な溝を敷かない。
     trampledField: [8, 8, 48, 62],   // 中心と半幅。会戦帯は田の薄い水膜より泥と根を見せる。川・両翼の田・足場は保つ。
     alluvialRocks: true,   // 野の礫は小さく丸め、泥へ埋める。大岩の板を敷き詰めない。
     rockDrawGround: true,
@@ -1105,6 +1166,9 @@ const moribe = {
     W.stampTrail([[38, 68], [29, 45], [12, 22], [4, -8], [-8, -44]], 7, 72);
     W.stampTrail([[-46, 14], [-18, 8], [14, -2], [49, -15]], 9, 60);
     W.stampTrail([[-40, -37], [-12, -32], [25, -39], [61, -51]], 8, 58);
+    // 渡り口から北岸へ続く踏み場。水の上に模様を置かず、両岸の草と泥へつなぐ。
+    W.stampTrail([[40, 123], [40, 104]], 3.2, 130);
+    W.stampTrail([[40, 73], [38, 65], [29, 45]], 3.2, 130);
     moribeFord(rt);
     moribeNearBodies(rt);
     // 落馬した瞬間の描画用の高さを空馬へ引き継ぐと、坂の判定に阻まれて宙で止まる。
@@ -1765,8 +1829,9 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     KT.farVillage(rt, -126, -30, { rot: -Math.PI / 2, n: 6, fields: 8, seed: 4 });
     // 両翼の槍の前線。音・旗・煙の仕組みは共通の呼び口を使う。
     // 中央の実兵の両脇へ同じ人数を寄せ、前列同士の空白を短くする。実兵化と難しさは保つ。
-    F.fronts = [-48, 48].map((x, i) => clash(rt, { x, z: -16, facing: Math.PI, w: 26, gap0: 16, seed: 231 + i,
+    F.fronts = [-25, 27].map((x, i) => clash(rt, { x, z: 12, facing: Math.PI, w: 26, gap0: 16, seed: 231 + i,
       groundedMelee: true,   // 同じ兵数の押し合いから、既存の泥跳ねと低い飛沫の霞を出す。
+      measuredMelee: true,   // 前列の踏み込みと後列の詰め、押し返しの時間差を共通の動きで出す。
       noReserve: true,   // 台本の控え以外に、共通の新手を追加しない。
       noWake: true, noRout: false, killRate: 0.3, nearHide: 0, host: false,
       // 両翼は奥行きの深い槍列。背の旗を減らし、実兵の背後を白い布で塞がない。

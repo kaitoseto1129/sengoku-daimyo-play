@@ -759,13 +759,13 @@ const okehazama = {
   compactPlayerSign: true,
   playerSignScale: 0.55,
   playerSignMinScale: 0.55,
-  // ねらう一人は共通の太い輪郭、周りの兵は所属の形だけで示す。
+  // ねらう一人は足元の細い印、周りの兵は所属の形だけで示す。
   teamSignsOnly: false,
   noUnitContrast: true,
   // 間引いた骨の位置を案内に使わず、現在の足元へ敵の印を合わせる。
   positionPersonGuide: true,
   enemyFrameAtPosition: true,
-  // 狙う一人の体を太いふちで囲み、頭上のひし形へ札を結ぶ。
+  // 狙う一人は足元の細い弧で示し、甲冑に白い囲みを載せない。
   enemyCornerSign: false,
   // 頭上のひし形と既存の任務札だけにし、同じ意味の呼び名を増やさない。
   enemySignOnly: true,
@@ -775,7 +775,7 @@ const okehazama = {
   // 大きな地面の輪と太い囲みで、足運びや具足を隠さない。
   compactFloorGuides: true,
   enemyFootRingRadius: 0.45,
-  enemyFootSignOnly: false,
+  enemyFootSignOnly: true,
   edgeCombatOrders: false,
   nearbyEnemySignLimit: 3,
   groundCombatMarkers: true,
@@ -932,9 +932,9 @@ const okehazama = {
     cedarBoughs: true,
     // 葉房を水平近くに寝かせず、目の高さからも上下の房が重なるようにする。
     // 面数と株数を増やさず、低画質と遠景にも同じ枝の傾きを使う。
-    cedarBoughPitch: 1.05,
+    cedarBoughPitch: 0.78,
     // 同じ葉房を横へ広げ、段の間から裸の幹だけが目立つ隙間を減らす。
-    cedarBoughWidth: 1.15,
+    cedarBoughWidth: 1.08,
     // 高画質の杉は透明な余白を送らず、遠景の葉だけ艶の計算を省く。
     lightCedarFoliage: true,
     // 高画質で杉全体を縦長の三枚板へ戻さず、近景・遠景とも既存の枝房を使う。

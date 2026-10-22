@@ -1632,7 +1632,7 @@ const anegawa = {
   keepTaskWithGuard: true,
   keepCombatTask: true, // 構えや回避の案内が出ても、守る持ち場を一枚の札に残す。
   keepCombatTaskHeading: true, // 携帯の攻撃操作でも、本陣へ戻る下知を消さない。
-  keepTaskWithDodge: false, // よける操作を先に一枚で示し、終わったら持ち場の下知へ戻す。
+  keepTaskWithDodge: true, // 矢をよける間も、川を渡らない下知と本陣へ戻る目的を残す。
   keepDodgeGuideLabel: true, // 画面外の退き先でも、歩数より敵をよける指図を優先する。
   releaseGuardForAttack: true, // 敵の打ち終わりには、押し続ける守りを解いて反撃へ渡す。
   keepOpeningTaskLabel: true, // 最初の旗の囲みでも、渡河禁止の下知を残す。
@@ -1904,7 +1904,7 @@ const anegawa = {
     return !info.down && /本陣.*(?:押|破|通)/.test(info.failureReason || '') ? '本陣の守りを破られた' : null;
   },
   retryAdvice(_rt, info) {
-    return !info.down && /本陣.*(?:押|破|通)/.test(info.failureReason || '') ? '使番の声で本陣へ戻り、敵を止めよう' : null;
+    return !info.down && /本陣.*(?:押|破|通)/.test(info.failureReason || '') ? '本陣の旗へ戻り、幕へ入った敵に槍を向けよう' : null;
   },
   downFogFar: 280, // 終幕でも、戦中より煙を濃くして周りの兵を隠さない。
   noDespair: true, // 遠い山の大軍ではなく、目の前の川と浅井の旗から始める。
@@ -1946,6 +1946,7 @@ const anegawa = {
     fitSupplyCover: true, // 兵糧の筵は俵の表面へ掛け、端を地面へ垂らす。
     variedInfantry: true, // 接敵した兵は腰を戻し、隣と拍子をずらして押し返す。
     infantryWeight: true, // 共通の膝・腰の踏ん張りを使い、近景の兵に重みを残す。
+    wholeInfantrySilhouette: true, // 川を上がった中景の徒歩兵も脚を残し、腰だけ浮く姿へ切り替えない。
     clashMiddleDetail: 36, // 近づいた前線は袖・顔・脚のある既存の形を三十六歩まで保つ。
     livingSpearHedge: true, // 槍衾の密度を保ち、後列にも重心の移りを伝える。
     groundHalf: 420, // 横山城（南へ三百七十八）と西南の別手まで収める。地面の分割数・兵数は増やさない。

@@ -6456,7 +6456,8 @@ export class World {
           col *= mix(0.94, 1.3, macro);
           // 雨で濡れると暗く
           // 夜は濡れによる黒つぶれを抑え、泥と草の濃淡を残す。
-          col *= 1.0 - groundWet * (0.28 + w.z * 0.15) * (1.0 - uNight * 0.55);
+          // 雨の野戦は窪み側で既に沈めた色を、全面の濡れで二重に黒くしない。
+          col *= 1.0 - groundWet * (${this.def.wetFieldRuts ? '0.16 + w.z * 0.09' : '0.28 + w.z * 0.15'}) * (1.0 - uNight * 0.55);
           // 夜も土の茶・草と苔の灰緑を残す。青い灰色への置き換えを弱め、明るさだけを沈める。
           col = mix(col, vec3(dot(col, vec3(0.3, 0.55, 0.15))) * vec3(1.02, 0.98, 0.88), uNight * 0.16) * (1.0 - uNight * 0.2);
           // 田の水面：濁った水の色。空は映すが、ぎらつかせない（照り返しは下で弱める）
@@ -6485,7 +6486,8 @@ export class World {
           col = mix(col, mud * vec3(0.84, 0.78, 0.67),
             groundWet * (w.y + w.z) * earthBasin * 0.32);
           ` : ''}
-          col = mix(col, vec3(0.06, 0.065, 0.06) + mud * 0.18, pool * 0.85);
+          // 浅い泥水は空の灰色と沈んだ土色。黒い穴にせず縁の土塊との段差を読む。
+          col = mix(col, ${this.def.wetFieldRuts ? 'vec3(0.10, 0.105, 0.095) + mud * 0.26' : 'vec3(0.06, 0.065, 0.06) + mud * 0.18'}, pool * 0.85);
           ${this.def.wetFieldRuts ? `
           // 草の房と同じ群落を土にも残す。孤立した草を無地の灰色へ置かない。
           // 既存の斑と配色だけを使い、濡れた窪み・踏み跡は泥のまま保つ。
@@ -6780,6 +6782,14 @@ export class World {
           uv.setX(k, cropped);
         }
       }
+      // 切り詰めた後の縁を湾曲させ、同じ四面で棚板のような水平の切り口を崩す。
+      if (needle) {
+        const p = g.attributes.position, uv = g.attributes.uv;
+        for (let k = 0; k < p.count; k++) {
+          const ridge = (uv.getX(k) - .5) * 2, t = uv.getY(k);
+          p.setY(k, p.getY(k) + w * ridge * ridge * (.10 + t * .08));
+        }
+      }
       if (roll) g.rotateZ(roll);
       g.rotateX(rx); g.rotateY(ry); g.translate(cx, cy, cz);
       const n = g.attributes.normal, p = g.attributes.position, shade = new Float32Array(p.count * 3);
@@ -6846,7 +6856,7 @@ export class World {
               const a = phase + j * Math.PI * 2 / count, d = r * (0.45 + F() * 0.2);
               card(leaves, Math.sin(a) * d, cy + (F() - 0.5) * step * 0.7, Math.cos(a) * d,
                 r * (0.85 + F() * 0.25) * width, Math.max(r * 1.45, step * (1.45 + F() * 0.3)),
-                a, pitch + F() * 0.4, 0, cy, 0, !lowV, true, Math.sin(a * 2.7 + k) * 0.28);
+                a, pitch + F() * 0.4, 0, cy, 0, !lowV, true, Math.sin(a * 2.7 + k) * 0.52);
             }
             // 遠景も同じ方向と傾斜。三方向の板だけで枝張りを残す。
             for (let j = 0; j < 3; j++) {
