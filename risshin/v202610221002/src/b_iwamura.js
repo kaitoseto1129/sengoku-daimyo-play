@@ -1,0 +1,2616 @@
+import { useTerrain } from './asset_manifest.js';
+import { rockShape, groundRocks } from './rock_shape.js';
+import { pressureTick } from './battle_pressure.js';
+import * as THREE from 'three';
+import { bodyGeometry, aimArm } from './units_model.js';
+import { lodSwap } from './units_flags.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { rosterPlan, rosterBuild } from './jinkei_roster.js';
+// ======================================================================
+// 織田家編　岩村城の戦い・水晶山の夜討ち（天正三年十一月十日）
+// 長篠の戦いの後、織田信忠は東美濃の岩村城（武田の秋山虎繁が守る）を囲んだ。
+// 十一月十日の夜、水晶山の陣が夜討ちを受け、河尻秀隆・毛利長秀らがこれを退け、
+// 城方の出撃と合流を阻んだ。城の開城・捕縛は後日の出来事。
+// 足軽は河尻秀隆の手（信忠の軍）。①夕暮れ、水晶山の陣の柵の守りにつく ②夜、山道の夜討ちと城方の出撃を柵で受け止める
+// ③退く武田勢を、城の麓まで追う
+// 向き：北（-z）の山の上に岩村城。南（+z）の水晶山に信忠の陣
+// ======================================================================
+import { nobori, campfire, tawara, village, dou, ishigaki, solidCircle, hut, lumber, hatazao, koshisaku, tateNarabi, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
+import { S as SETTINGS } from './settings.js';
+import { RANKS } from './state.js';
+import { signal } from './audio.js';
+import { battleEvent, EVENT_RETREAT } from './battle_events.js';
+import { gauss, enemyGroup, allyGroup, nm, unitPos, wallLine } from './bhelp.js';
+import { dress, gone } from './b_inabayama.js';
+import { sightUnit } from './battle_sight.js';
+import { KIT } from './b_nagashinojo.js';
+import { camp } from './b_mid.js';
+import { yamaLift, switchback } from './yamalift.js';
+import { horiboriHeight, goten, monomi } from './castle_parts.js';
+import { heightOf, buildCastlePlan, makeLordKeep, inPoly } from './castle_plan.js';
+import { IWAMURA_SUISHOZAN_PLAN, IWAMURA_CASTLE_PLAN, HON as IWA_HON, SHU as IWA_SHU, ROAD as IWA_ROAD, SIDE_ROADS as IWA_SIDE_ROADS, castlePoint } from './castles/iwamura.js';
+
+import { demDetail } from './dem.js';
+import { distToPolyline } from './world.js';
+import { groundAt } from './floors.js';
+// 国土地理院の標高（asset_dem_iwamura.js。山頂は格子の中心から z+70m）は、そのまま混ぜると桁違いに急だった。
+// そこで山の形（高さ）は手書きのままにし、尾根と谷の凹凸（まわり平均との差）だけを 0.3 倍で足す。曲輪の段は広げた尾根の本丸を最高所にそろえる。
+let dem = null;
+useTerrain('dem_iwamura', (data) => { if (!CASTLE_HEIGHT) dem = data; });
+// 足軽大将候補より上（信長で遊ぶ時は除く）：任務の文を「一手を預かる」者の役目に
+const HI = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
+
+const FENCE_Z = -6;                         // 陣の柵
+const CASTLE = { x: IWA_HON.x, z: IWA_HON.z };   // 岩村城・本丸（最高所。本丸約717m・山麓との差約180mの高い山城）
+const FOOT = { x: 0, z: -90 };              // 城の麓（追う先。登城道はここから主郭・本丸へ折れながら登る）
+const POSTS = [{ x: -16, z: FENCE_Z + 5 }, { x: 18, z: FENCE_Z + 5 }];   // 柵の持ち場（篝火を焚く所）
+const RAID_PATHS = [
+  [[0, -24], [0, FENCE_Z + 3]],
+  [[66, -26], [66, 12]],
+  [[0, FOOT.z], [20, -62], [0, -36], [0, FENCE_Z + 3]],
+  [[-8, -24], [0, -18], [0, FENCE_Z + 3]],
+  [[8, -30], [0, -24], [0, FENCE_Z + 3]],
+  [[0, -36], [0, FENCE_Z + 3]],
+];
+// 柵の東の開口（z6〜20）を通り、陣幕より手前で両口をつなぐ。
+// 自動操作も寄せ手も同じ道を使う。道と高さは初めに一度だけ作る。
+const MOUTH_LINK = [[0, FENCE_Z + 3], [0, 14], [52, 14], [66, 12]];
+const MOUTH_BACK = MOUTH_LINK.slice().reverse();
+const RETURN_PATHS = RAID_PATHS.map((path, i) => {
+  const back = path.slice().reverse();
+  back.push([path[0][0], -132 - i * 8]);
+  return back;
+});
+// 追撃も地形をならした九十九折りを通る。兵と自動操作で同じ道を使う。
+const CHASE_PATH = [[0, FENCE_Z + 3], ...switchback([0, FENCE_Z], [0, FOOT.z], 3, 20)];
+const CHASE_EAST_PATH = [...MOUTH_BACK, ...CHASE_PATH.slice(1)];
+// 手当てに退く時も同じ山道を戻る。麓から陣へ直進すると切岸へ迷い込む。
+const REST_PATH = [...CHASE_PATH].reverse().concat([[0, 14], [4, 32]]);
+const REST_EAST_PATH = [...CHASE_EAST_PATH].reverse().concat([[52, 14], [4, 14], [4, 32]]);
+// 『信長公記』巻八では城方を城へ追い入れる。城口の手だけは山中へ散る退路と分ける。
+// 道の細部は復元。既存の九十九折りと登城道を共用し、切岸へ直進させない。
+RETURN_PATHS[2] = [...CHASE_PATH, ...IWA_ROAD];
+const SCOUT_PATH = [[0, -30], [0, FENCE_Z + 3]];
+// 恵那市の富田地区の説明では、中世の城下は富田方面にあった。
+// https://www.city.ena.lg.jp/material/files/group/31/iwamuratomida.pdf
+// 西南の既存の村は名のない在所の推定復元。富田の城下や大円寺をここへ移さない。
+// 民の人数・小堂・畦道も復元。陣と城へは登らず、刈田の平らな小段の奥へ退く。
+const PEOPLE_ROADS = [
+  [[-140, 103], [-140, 126], [-140, 151], [-155, 175]],
+  [[-143, 128], [-143, 151], [-160, 175]],
+  [[-190, 148], [-190, 160], [-190, 176]],
+  [[-198, 146], [-198, 160], [-198, 176]],
+];
+const peopleRoute = (i) => PEOPLE_ROADS[i].slice(1).map(([x, z]) => ({ x, z }));
+const PEOPLE_BANDS = [
+  { x: -140, z: 103, kinds: ['farmer', 'farmer', 'woman', 'child', 'elder'], route: peopleRoute(0) },
+  { x: -143, z: 128, kinds: ['townsman', 'merchant', 'woman', 'child'], route: peopleRoute(1) },
+  { x: -190, z: 148, kinds: ['monk', 'farmer', 'woman'], route: peopleRoute(2) },
+  { x: -198, z: 146, mode: 'inside', kinds: ['monk', 'elder'], route: peopleRoute(3) },
+];
+let FIELD_PATHS_ = null; // 下で決まる道の並びを使うので、初めて要る時に組む
+const fieldPaths = () => FIELD_PATHS_ || (FIELD_PATHS_ = [[[0, 120], [0, FENCE_Z], ...CHASE_PATH.slice(1), ...IWA_ROAD], ...IWA_SIDE_ROADS, ...RAID_PATHS, SCOUT_PATH, ...RETURN_PATHS, ...CAMP_ENTER, ...CAMP_EXIT, ...PEOPLE_ROADS]);
+// 道の色と木の除け方は読み込み時だけ調べる。道の配列は共用する。
+function fieldRoadDistance(x, z) {
+  let d = Infinity;
+  for (const path of fieldPaths()) d = Math.min(d, distToPolyline(x, z, path));
+  return d;
+}
+
+// 柵の内を正、外を負にする。中央と東の口は既存の道幅を残す。
+const CAMP_EDGES = [
+  [-60, -2, -8, -6], [8, -6, 60, -2],
+  [-60, 30, -60, -2], [60, -2, 60, 6], [60, 20, 60, 30],
+];
+function campEdge(x, z) {
+  let nearest = Infinity, signed = Infinity;
+  for (const [ax, az, bx, bz] of CAMP_EDGES) {
+    const dx = bx - ax, dz = bz - az, len = Math.hypot(dx, dz);
+    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (len * len)));
+    const d = Math.hypot(x - ax - dx * t, z - az - dz * t);
+    if (d < nearest) { nearest = d; signed = d * Math.sign(dx * (z - az) - dz * (x - ax)); }
+  }
+  return signed;
+}
+function campEarthwork(x, z) {
+  if (Math.abs(x) > 70 || z < -18 || z > 38 || castleClear(x, z)) return 0;
+  const road = THREE.MathUtils.smoothstep(fieldRoadDistance(x, z), 3.5, 5.5);
+  if (!road) return 0;
+  const d = campEdge(x, z);
+  // 内側の低い土塁と、外側の底幅二メートルの空堀。法面は既存の格子へなじませる。
+  const bank = 0.8 * (1 - THREE.MathUtils.smoothstep(Math.abs(d - 3), 0, 4));
+  const ditch = 0.6 * (1 - THREE.MathUtils.smoothstep(Math.abs(d + 3), 1, 4));
+  const end = 1 - THREE.MathUtils.smoothstep(z, 30, 38);
+  return (bank - ditch) * road * end;
+}
+
+function campGround(W) {
+  const mesh = W.terrain, geo = mesh.geometry, pos = geo.attributes.position;
+  const colors = new Float32Array(pos.count * 4), c = new THREE.Color();
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getZ(i);
+    c.setRGB(0.5, 0.44, 0.3);
+    W.def.tint(x, z, pos.getY(i), c);
+    colors.set([c.r, c.g, c.b, (1 - THREE.MathUtils.smoothstep(Math.abs(x), 85, 110))
+      * THREE.MathUtils.smoothstep(z, -125, -100) * (1 - THREE.MathUtils.smoothstep(z, 90, 120))], i * 4);
+  }
+  // 共通の色指定は草と土の配分に使われるため、岩村の地面だけ実際の色にも反映する。
+  // 下地を混ぜた直後に色を付け、共通側の落ち葉・小石・濡れ・血の跡と夜の補正をその上へ残す。
+  geo.setAttribute('iwaSoil', new THREE.BufferAttribute(colors, 4));
+  const mat = mesh.material, compile = mat.onBeforeCompile, key = mat.customProgramCacheKey();
+  mat.customProgramCacheKey = () => key + '|iwaSoil';
+  mat.onBeforeCompile = (sh, renderer) => {
+    compile.call(mat, sh, renderer);
+    sh.vertexShader = 'attribute vec4 iwaSoil; varying vec4 vIwaSoil;\n' + sh.vertexShader
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvIwaSoil = iwaSoil;');
+    sh.fragmentShader = 'varying vec4 vIwaSoil;\n' + sh.fragmentShader
+      .replace('vec3 col = grass * w.x + dirt * w.y + mud * w.z;', `
+        vec3 col = grass * w.x + dirt * w.y + mud * w.z;
+        float iwaCampGrain = clamp(dot(col, vec3(0.333)) / 0.16, 0.65, 1.25);
+        vec3 iwaColor = vIwaSoil.rgb * iwaCampGrain;
+        // 霜は北向きの法面と柵の北の日陰だけ。道と踏み跡、陣内には積もらせない。
+        float iwaFenceZ = -6.0 + clamp(abs(vWP.x) - 8.0, 0.0, 52.0) * 4.0 / 52.0;
+        float iwaShade = max(smoothstep(0.15, 0.6, -normalize(vWN).z),
+          (1.0 - smoothstep(2.0, 9.0, iwaFenceZ - vWP.z)) * step(vWP.z, iwaFenceZ));
+        float iwaFrost = iwaShade * smoothstep(0.3, 0.65, w.x) * (1.0 - trod)
+          * smoothstep(0.45, 0.7, macro2) * 0.24;
+        iwaColor = mix(iwaColor, vec3(0.66, 0.69, 0.68) * iwaCampGrain, iwaFrost);
+        col = mix(col, iwaColor, vIwaSoil.a);`);
+  };
+  mat.needsUpdate = true;
+  // 口・篝火・小屋を結ぶ往来だけを刻む。等間隔の平行線で陣を畑の畝にしない。
+  for (const path of [
+    [[0, -3], [-2, 12], [0, 27], [0, 40]],
+    [[-16, -1], [-10, 9], [-2, 12]],
+    [[18, -1], [13, 8], [0, 16]],
+    [[0, 27], [10, 30], [22, 28]],
+  ]) W.stampTrail(path, 2.2, 65);
+  const footprint = W.footprint;
+  W.footprint = function (x, z, hoof, rot) {
+    footprint.call(this, x, z, hoof, rot);
+    if (this.feet && Math.abs(x) < 32 && z > -2 && z < 48) {
+      this.feet.material.opacity = 0.38;
+      this.stampWear(x, z, 1.5, 18);
+    }
+  };
+}
+
+// 岩村の材質だけを設営時に直す。カメラの距離は描く側で読み、毎コマ形を作らない。
+function softenIwamuraBoard(mat, leaves = false) {
+  if (!mat || Array.isArray(mat) || mat.userData.iwaNear) return;
+  mat.userData.iwaNear = true;
+  const compile = mat.onBeforeCompile, key = mat.customProgramCacheKey();
+  mat.customProgramCacheKey = () => key + '|iwaNear|' + leaves;
+  mat.onBeforeCompile = (sh, renderer) => {
+    compile.call(mat, sh, renderer);
+    // 岩村の草だけ、裏からの照りを弱めて十一月の枯れ色へ寄せる。
+    // 木や陣幕には草の処理がないので、その照明は変えない。
+    if (leaves && sh.fragmentShader.includes('float rootK =')) {
+      sh.fragmentShader = sh.fragmentShader
+        .replace('back * tipK * 0.3', 'back * tipK * 0.12')
+        .replace('mix(0.85, 1.0, rootK) * 1.35', 'mix(0.85, 1.0, rootK)')
+        .replace('#include <color_fragment>', `#include <color_fragment>
+          float iwaDry = dot(diffuseColor.rgb, vec3(0.3, 0.55, 0.15));
+          diffuseColor.rgb = mix(diffuseColor.rgb, iwaDry * vec3(1.08, 0.9, 0.62), 0.65);`);
+    }
+    sh.vertexShader = 'varying vec3 vIwaBoardView;\n' + sh.vertexShader.replace(
+      '#include <fog_vertex>', '#include <fog_vertex>\nvIwaBoardView = mvPosition.xyz;');
+    sh.fragmentShader = 'varying vec3 vIwaBoardView;\n' + sh.fragmentShader;
+    sh.fragmentShader = sh.fragmentShader.replace('#include <alphatest_fragment>', `
+      ${leaves ? `#ifdef USE_MAP
+        // 負の座標は葉房の芯。絵の端を繰り返して芯へ穴を開けない。
+        if (vMapUv.x >= 0.0 && vMapUv.y >= 0.0)
+          diffuseColor.a = min(diffuseColor.a, texture2D(map, vMapUv, -2.0).a);
+      #endif` : ''}
+      #include <alphatest_fragment>`);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+      float iwaNear = smoothstep(0.8, 3.5, length(vIwaBoardView));
+      vec2 iwaPixel = floor(gl_FragCoord.xy);
+      float iwaMesh = fract(iwaPixel.x * 0.75487766 + iwaPixel.y * 0.56984029);
+      if (iwaNear < iwaMesh) discard;`);
+  };
+  mat.needsUpdate = true;
+}
+
+function detailIwamuraRock(mat, world) {
+  const compile = mat.onBeforeCompile, key = mat.customProgramCacheKey();
+  mat.customProgramCacheKey = () => key + '|iwaRock';
+  mat.onBeforeCompile = (sh, renderer) => {
+    compile.call(mat, sh, renderer);
+    sh.uniforms.iwaStone = world.groundU.tStone;
+    sh.uniforms.iwaStoneNight = world.nightU;
+    sh.vertexShader = 'varying vec3 vIwaRock;\n' + sh.vertexShader.replace(
+      '#include <begin_vertex>', '#include <begin_vertex>\nvIwaRock = position;');
+    sh.fragmentShader = 'uniform sampler2D iwaStone; uniform float iwaStoneNight; varying vec3 vIwaRock;\n' + sh.fragmentShader;
+    sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+      vec3 iwaGrain = texture2D(iwaStone, (vIwaRock.xy + vIwaRock.zy) * 0.7).rgb;
+      // 繰り返す等高線ではなく、途中で切れる二つの割れ面。
+      float iwaSplit = abs(vIwaRock.y + vIwaRock.x * 0.35 - vIwaRock.z * 0.18 - 0.24
+        + sin(vIwaRock.x * 9.0 + vIwaRock.z * 5.0) * 0.025);
+      float iwaBranch = abs(vIwaRock.x - vIwaRock.z * 0.2 + 0.16
+        + sin(vIwaRock.z * 8.0 + vIwaRock.y * 4.0) * 0.035);
+      float iwaCrack = (1.0 - smoothstep(0.006, 0.025, iwaSplit)) * (1.0 - smoothstep(0.35, 0.7, abs(vIwaRock.z)))
+        + (1.0 - smoothstep(0.004, 0.018, iwaBranch)) * (1.0 - smoothstep(0.12, 0.4, abs(vIwaRock.y + 0.12)));
+      diffuseColor.rgb *= (0.95 + iwaGrain * 0.8) * (1.0 - min(1.0, iwaCrack) * 0.38);
+      float iwaMoss = smoothstep(0.1, 0.7, vIwaRock.y) * (0.5 + 0.5 * sin(vIwaRock.x * 12.0 + vIwaRock.z * 9.0));
+      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.72, 1.08, 0.58), iwaMoss * 0.65);`);
+    // 月を背にした岩も、上面の粒と腹の陰を残す。土や昼の照明には足さない。
+    sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      totalEmissiveRadiance += diffuseColor.rgb * iwaStoneNight
+        * (0.06 + smoothstep(-0.3, 0.6, vIwaRock.y) * 0.12);`);
+  };
+}
+const ODA = { flag: 'oda' };
+const TAKEDA = { flag: 'takeda' };
+
+// 六月頃から十一月の夜討ちまでを、待ち時間を足さず戦略の時間で縮める。
+// 日数・蓄え・士気は遊びの補完。実際の兵糧量や包囲開始日を確定する数ではない。
+const SIEGE_DAYS = [30, 31, 31, 30, 31, 10];
+function siegeStart() {
+  const s = { days: 0, food: 180, morale: 85, held: true, pressure: 0, relief: 'unknown' };
+  for (const days of SIEGE_DAYS) {
+    s.days += days;
+    s.food = Math.max(0, s.food - days);
+    // 籠城が長引いても夜討ちに出る力は残す。空腹だけで総崩れにはしない。
+    if (s.food < 90) s.morale = Math.max(72, s.morale - days * 0.12);
+  }
+  return s;
+}
+function siegeRetreatRatio(s, leaderLost) {
+  // 兵糧不足の寄せは損を抱えて長く戦えない。無傷の寄せを時間だけで退かせない。
+  return (leaderLost ? 0.8 : 0.65) + Math.max(0, 1 - s.food / 30) * 0.05;
+}
+
+// 信忠の本陣は x±8、z38〜50 の陣幕。口は南だけで、北の幕は通れない。
+// 入る使番も出る兵も南の口を通る。南の鍋（±11付近）と東の馬繋ぎを大回りし、道の配列は使い回す。
+const CAMP_EXIT = [
+  [[-6.4, 48], [0, 48], [0, 60], [-15, 60], [-15, 35]],
+  [[6.4, 48], [0, 48], [0, 60], [15, 60], [15, 35]],
+];
+const CAMP_ENTER = [
+  [[-15, 35], [-15, 60], [0, 60], [0, 48]],
+  [[15, 35], [15, 60], [0, 60], [0, 48]],
+];
+function inCamp(x, z) { return Math.abs(x) < 8.7 && z > 37.3 && z < 50.7; }
+// 追撃前に柵の外へ出た兵も、口を通って集合する。点列は全員で使い回す。
+const GATHER_RETURN = [[0, -12], [0, 6]];
+const GATHER_EAST_RETURN = [[66, -12], [66, 12], [52, 14]];
+function campWay(army, u, goal) {
+  const p = u.pos;
+  if (u.group?.iwGather && !u.target && !u.atk && !u.swing && !u.combatRetreat && !(u.group.regroupT > 0)) {
+    const fenceZ = fencePostZ(p.x) - 1;
+    if (!u._iwGatherReturn && p.z < fenceZ && Math.abs(p.x) < 80) {
+      u._iwGatherReturn = p.x > 40 ? GATHER_EAST_RETURN : GATHER_RETURN;
+      u._iwGatherI = 0;
+      // すでに口にいる者を、柵の外へ引き返させない。
+      if (Math.abs(p.x - u._iwGatherReturn[0][0]) < 3) u._iwGatherI = 1;
+    }
+    const back = u._iwGatherReturn;
+    if (back) {
+      while (u._iwGatherI < back.length && Math.hypot(p.x - back[u._iwGatherI][0], p.z - back[u._iwGatherI][1]) < 1.5) u._iwGatherI++;
+      if (u._iwGatherI < back.length) {
+        const q = u._iwWay || (u._iwWay = { x: 0, z: 0 });
+        q.x = back[u._iwGatherI][0]; q.z = back[u._iwGatherI][1];
+        return q;
+      }
+      u._iwGatherReturn = null;
+    }
+  } else u._iwGatherReturn = null;
+  // 使番は戦闘隊と別の役目。南の口までの坂も道としてならしてある。
+  const enter = inCamp(goal.x, goal.z);
+  // 途中で下知が変わったら、前の入退場の道を引き継がない。
+  if (u._iwEntering !== enter) { u._iwExit = null; u._iwEntering = enter; }
+  let path = u._iwExit;
+  if (!path && enter && !inCamp(p.x, p.z)) {
+    path = u._iwExit = CAMP_ENTER[p.x < 0 ? 0 : 1]; u._iwExitI = 0;
+    if (p.z >= 60) u._iwExitI = 1;
+    if (p.z > 50 && Math.abs(p.x) < 3) u._iwExitI = 3;
+  } else if (!path && !enter && inCamp(p.x, p.z)) {
+    path = u._iwExit = CAMP_EXIT[p.x < 0 ? 0 : 1]; u._iwExitI = 0;
+    // すでに口の前なら、床几の側まで戻らずそのまま出る。
+    if (p.z > 47 && Math.abs(p.x) < 3) u._iwExitI = 2;
+  }
+  if (!path) return goal;
+  while (u._iwExitI < path.length && Math.hypot(p.x - path[u._iwExitI][0], p.z - path[u._iwExitI][1]) < 1) u._iwExitI++;
+  if (u._iwExitI >= path.length) { u._iwExit = null; return goal; }
+  const q = u._iwWay || (u._iwWay = { x: 0, z: 0 });
+  q.x = path[u._iwExitI][0]; q.z = path[u._iwExitI][1];
+  return q;
+}
+
+function baseTerrain(x, z) {
+  let h = 0.5 * Math.sin(x * 0.03 + 0.3) * Math.cos(z * 0.03) + 0.35 * Math.sin(z * 0.07 + x * 0.03);
+  // 夜討ち・麓の追撃の下地は保つ。北西へ下る曲輪は下の共通の段でならす。
+  h += 10 * gauss(x, z, 0, 50, 3000) + 92 * gauss(x, z, 0, -314, 11000);
+  if (dem) h += demDetail(dem, x, z, { xy: 1, ox: CASTLE.x, oz: CASTLE.z, cz: 70, win: 25, scale: 0.3 });
+  // 城を囲む尾根・谷の奥の山並み（形は東美濃の山地として推定）。
+  h += 54 * gauss(x, z, -210, -250, 12500) + 65 * gauss(x, z, 230, -210, 14500) + 42 * gauss(x, z, 80, -400, 18000);
+  // 西南の村と刈田の小段。川・海や近世の城下の街割りを作り足さない。
+  const d = Math.max(Math.abs(x + 175) - 42, Math.abs(z - 137) - 48);
+  const t = Math.max(0, Math.min(1, d / 18));
+  return 0.7 + (h - 0.7) * t * t * (3 - 2 * t);
+}
+// 水晶山砦（織田の陣）の段と、岩村城（曲輪の段）の二つを下地に重ねる（castles/iwamura.js）
+const HORI_HEIGHTS = IWAMURA_CASTLE_PLAN.hori.map((h) => horiboriHeight(h.pts, { depth: h.deep, width: h.w }));
+let CASTLE_HEIGHT = null;
+function heightRaw(x, z) {
+  if (!CASTLE_HEIGHT) {
+    const campHeight = heightOf(IWAMURA_SUISHOZAN_PLAN, liftedTerrain, 6);
+    // 移した曲輪の下に山の肩を置く。百メートルの比高を三メートルの縁だけで立ち上げない。
+    // 曲輪の高さは元の下地で先に決め、肩を足した分だけ城全体が高くなるのを防ぐ。
+    const terraces = IWAMURA_CASTLE_PLAN.kuruwa.map((k) => ({ ...k, level: k.level(campHeight) }));
+    const castleBase = (x, z) => {
+      let h = campHeight(x, z), shoulder = h, ceiling = Infinity;
+      if (z < FOOT.z) for (const k of terraces) {
+        let distance = Infinity;
+        for (let i = 0, j = k.poly.length - 1; i < k.poly.length; j = i++) {
+          const a = k.poly[j], b = k.poly[i], dx = b[0] - a[0], dz = b[1] - a[1];
+          const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz || 1)));
+          distance = Math.min(distance, Math.hypot(x - a[0] - dx * t, z - a[1] - dz * t));
+        }
+        // 切岸の外は丸い山腹へつなぐ。一定勾配の円錐を重ねると、
+        // 見上げた稜線が大きな三角の板になる。曲輪の足元の高さは保つ。
+        const t = Math.min(1, distance / 140), blend = 1 - t * t * (3 - 2 * t);
+        shoulder = Math.max(shoulder, h + Math.max(0, k.level - 3 - h) * blend);
+        // 移す前の山頂が曲輪より八十メートルも高く残ると、三メートルの縁で
+        // 低い平場へ落ち、巨大な三角の崖になる。低い段から外へ山腹の上限をつなぐ。
+        // 曲輪の床・土塁・堀切は、この後に同じ縄張りから作る。
+        ceiling = Math.min(ceiling, k.level - 3 + distance * 0.9);
+      }
+      // 高い肩を三十メートルで立ち上げると、麓からは空を断つ壁になる。
+      // 麓より城側だけを五十メートルでつなぎ、帯曲輪の手前で元の高さへ戻す。
+      // 柵・追撃路・集合の平場は保つ。曲輪の縁に新しい急段を作らない。
+      const t = Math.max(0, Math.min(1, (FOOT.z - z) / 50));
+      h += (Math.min(shoulder, ceiling) - h) * t * t * (3 - 2 * t);
+      for (const dip of HORI_HEIGHTS) h += dip(x, z);
+      return h;
+    };
+    CASTLE_HEIGHT = heightOf({ ...IWAMURA_CASTLE_PLAN, kuruwa: terraces }, castleBase, 3);
+  }
+  return CASTLE_HEIGHT(x, z);
+}
+
+// 曲輪と道だけ木を除く。建物・虎口に自動の木が食い込まない。
+function castleClear(x, z) {
+  if (z > -150) return false;
+  for (const k of IWAMURA_CASTLE_PLAN.kuruwa) if (inPoly(k.poly, x, z)) return true;
+  for (const path of IWAMURA_CASTLE_PLAN.paths) for (let i = 1; i < path.pts.length; i++) {
+    const a = path.pts[i - 1], b = path.pts[i], dx = b[0] - a[0], dz = b[1] - a[1];
+    const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz || 1)));
+    if (Math.hypot(x - a[0] - dx * t, z - a[1] - dz * t) < 4) return true;
+  }
+  return false;
+}
+
+const CASTLE_HOUSES = [
+    [34, -191.5, 7, 5, '神宮寺の堂', 'hondo'],
+    [34, -201, 5, 4, '八幡の社', 'shrine'],
+    [0, -189, 7, 6, '八幡曲輪の侍屋敷', 'yashiki'],
+    [-16, -216, 5, 6, '二の丸の長屋', 'nagaya'],
+    [1, -238, 4, 6, '主郭の兵糧蔵', 'kura'],
+    [-7, -174, 5, 4, '三の丸の番所', 'bansho'],
+  ].map(([x, z, ...house]) => [...castlePoint(x, z), ...house]);
+
+
+function buildIwamuraLife(rt) {
+  const W = rt.world;
+  // 八幡曲輪の道の両側に寺社・侍屋敷。場所・規模・屋根は同時代の推定。
+  // 0_naibu の共通室内を使い、板床・畳・襖・障子・入口の段と壁の当たりをそろえる。
+  rt.flags.castleHouses = CASTLE_HOUSES.map(([x, z, w, d, name, kind]) => goten(rt, x, z, {
+    w, d, name, kind, team: 1, tile: false, boardRoof: ['yashiki', 'nagaya', 'kura', 'bansho'].includes(kind), earth: 0x9b805b, naka: true, doorX: 0, profile: 'iwamura_' + kind, noTarget: true,
+  }));
+  if (true) {
+    // 雨にさらされた板は灰褐色、差し替えた少数の板だけ明るい木色にする。
+    const roofColors = [0x736c5d, 0x625e52, 0x877963, 0x6b6557, 0x797161];
+    // 主殿型の屋敷の脇に、背の低い板葺き長屋・物置を添える。配置と寸法は推定。
+    // 道・既存の戸口・井楼の梯子から離し、材質ごとにまとめて描く。
+    const batch = makeSimpleBatch();
+    for (const [x, z, w, d, rot] of [
+      [-88, -332, 4, 9, 0], [-88, -318, 4, 6, 0],
+      [8, -272, 4, 9, 0], [-48, -207, 5, 8, 0], [-47, -194, 4, 6, 0],
+    ]) {
+      hut(W, x, z, w, d, rot, { ita: true, boardRoof: true, boardRoofColors: roofColors, weatheredBoards: true, h: 2.2, wall: 0x75634d, minka: false, batch });
+    }
+    // 写真の屋敷地のように、侍屋敷の両脇を背の低い格子柵で区切る。
+    // 北の枝道と南の戸口は広く空ける。外周の防御柵や通行の当たりは増やさない。
+    const yardParts = [];
+    let yardMat;
+    for (const seg of [
+      [-93, -355, -93, -340], [-79, -355, -79, -340],
+      [-93, -355, -90, -355], [-82, -355, -79, -355],
+      // 八幡の長屋二棟の間と脇。東の枝道と南の物見の梯子前は空ける。
+      [-93, -338, -83, -338], [-93, -338, -93, -315],
+      [-93, -325, -83, -325],
+      // 出丸の屋敷地。南北の戸口と中央の道へ抜ける東側を開く。
+      [-54, -216, -54, -190], [-54, -216, -46, -216],
+      [-54, -200, -46, -200],
+    ]) {
+      const fence = koshisaku(W, seg, { h: 1.15 });
+      yardParts.push(fence.geometry); yardMat = fence.material;
+    }
+    const yard = new THREE.Mesh(mergeGeometries(yardParts), yardMat);
+    yard.castShadow = true; yard.receiveShadow = true; rt.scene.add(yard);
+    for (const g of yardParts) g.dispose();
+    // 物置一棟ごとの旗をやめ、曲輪の外向きの縁に二本ずつまとめる。
+    // 武田方の所属を示す復元。秋山個人の未確認の馬印は作らない。
+    for (const [x, z] of [[-93, -349], [-53, -218], [10, -284]]) {
+      for (let i = 0; i < 2; i++) rt.scene.add(nobori(W, x + i * 3, z, 'takeda', 5.1 + i * .6));
+    }
+    // 水晶山は板葺きの仮小屋と修理用の丸太・巻いた織田の幟。陣の南口は空ける。
+    for (const x of [-43, 43]) hut(W, x, 27, 5, 9, 0, { ita: true, boardRoof: true, boardRoofColors: roofColors, weatheredBoards: true, h: 2, wall: 0x796a55, minka: false, batch });
+    finalizeSimpleBatch(rt, batch);
+    rt.scene.add(lumber(W, -37, 57, .15), hatazao(W, -35, 62, 0, 5, 'oda'));
+    // 曲輪の長屋・蔵の脇に補修材と兵糧を寄せる。戸口・枝道・梯子前は空ける。
+    // 写真の作業場の並びを参考にした推定。低い既存の道具だけを使う。
+    rt.scene.add(lumber(W, -80, -330, Math.PI / 2), lumber(W, 10, -244, Math.PI / 2),
+      tawara(W, 10, -249, 0, 3));
+  }
+  // 本丸裏口の短い石留めだけ。現存の大石垣を1575年の総石垣としない。
+  // 中世後期の野面積みという観光協会の記述を参考に、範囲は推定。
+  // 一段の低い野面積み。最低二メートルの共通素材へ替えず、どの画質でも同じ軽い形にする。
+  rt.scene.add(ishigaki(W, [[-12, -160], [-5, -160]], {
+    kind: 'nozura', topY: W.heightAt(-8, -160) + .4, minH: .8, maxH: 1.2, out: -1, noKit: true,
+  }));
+  // 霧ヶ井と本丸の井戸。屋根を板葺きにし、井筒・柱の形と当たりを合わせる。
+  const stone = [], wood = [], rope = [];
+  const fineWell = true;
+  for (const [x, z] of [[24, -206], [-5, -267]].map(([x, z]) => castlePoint(x, z))) {
+    const y = W.heightAt(x, z);
+    const ring = new THREE.CylinderGeometry(.85, .95, .8, 10, 1, true); ring.translate(x, y + .4, z); stone.push(ring);
+    solidCircle(x, z, .95);
+    for (const dx of [-1.1, 1.1]) {
+      const post = new THREE.BoxGeometry(.14, 2.5, .14); post.translate(x + dx, y + 1.25, z); wood.push(post);
+      solidCircle(x + dx, z, .12);
+    }
+    const beam = new THREE.BoxGeometry(2.5, .16, .16); beam.translate(x, y + 2.35, z); wood.push(beam);
+    for (const sign of [-1, 1]) {
+      const boards = fineWell ? 7 : 1;
+      for (let i = 0; i < boards; i++) {
+        const roof = new THREE.BoxGeometry(2.7 / boards - (fineWell ? .012 : 0), fineWell ? .07 : .09, 1);
+        roof.rotateX(sign * .35); roof.translate(x - 1.35 + (i + .5) * 2.7 / boards, y + 2.7, z + sign * .42); wood.push(roof);
+      }
+      if (fineWell) {
+        const batten = new THREE.BoxGeometry(2.8, .08, .08); batten.translate(x, y + 2.67, z + sign * .65); wood.push(batten);
+      }
+    }
+    const bucket = new THREE.CylinderGeometry(.2, .17, .35, 8); bucket.translate(x + .45, y + .98, z); wood.push(bucket);
+    if (fineWell) {
+      // 屋根の下の木滑車と麻縄、井筒に置いた桶の箍・持ち手。全井戸を材質別に結合する。
+      const wheel = new THREE.CylinderGeometry(.16, .16, .12, 8); wheel.rotateZ(Math.PI / 2); wheel.translate(x, y + 2.17, z); wood.push(wheel);
+      for (const [dx, bottom] of [[-.12, .25], [.12, 1.35]]) {
+        const line = new THREE.CylinderGeometry(.018, .018, 2.17 - bottom, 4); line.translate(x + dx, y + (2.17 + bottom) / 2, z); rope.push(line);
+      }
+      for (const h of [.86, 1.09]) {
+        const hoop = new THREE.TorusGeometry(.19, .018, 3, 8); hoop.rotateX(Math.PI / 2); hoop.translate(x + .45, y + h, z); rope.push(hoop);
+      }
+      const handle = new THREE.TorusGeometry(.18, .022, 3, 8, Math.PI); handle.translate(x + .45, y + 1.15, z); rope.push(handle);
+    }
+  }
+  for (const [geos, color] of [[stone, 0x817a68], [wood, 0x66513b], [rope, 0x9b8863]]) {
+    if (!geos.length) continue;
+    const mesh = new THREE.Mesh(mergeGeometries(geos), new THREE.MeshLambertMaterial({ color }));
+    mesh.receiveShadow = true; mesh.userData.camBlock = true; rt.scene.add(mesh);
+    for (const g of geos) g.dispose();
+  }
+  // 村・刈田は曲輪の外の一組にまとめる。十一月に水田を満水にしない。
+  rt.scene.add(village(W, -175, 108, { n: 5, r: 24, fields: 10, autumn: true, smoke: 0, seed: 1575 }));
+  // 大円寺とは別の、名のない村の小堂。家並みの南の小段に置き、階の先から畦道へ出る。
+  rt.scene.add(dou(W, -198, 138, 6, 4));
+}
+
+// 信長公記巻八・水精山の夜襲、城の参照表。河尻・毛利・浅野・猿荻の迎撃は史料。
+// 攻め口・曲輪別の兵数は補完。城内の個々の守将は不明なので名を作らない。
+const JIN = [
+  rosterPlan('包囲の陣', 0, { x: 0, z: 44 }, Math.PI, [
+    ['nobutada', '本陣', '織田信忠', 8000, 0, 44, 'oda', 'oda', 0, { bind: 'honjin' }],
+    ['kawajiri', '水晶山の仕寄り', '河尻秀隆', 5000, -14, 16, 'oda', 'oda', 0, { bind: 'kawa' }],
+    ['mori', '水晶山の仕寄り', '毛利河内', 5000, 20, 16, 'oda', 'oda', 0, { bind: 'mouri' }],
+    ['left', '西の尾根の囲み', '織田の衆（将の名は不明）', 5000, -66, 48, 'oda', 'oda', 100, { w: 30, d: 24 }],
+    ['right', '東の兵糧道の囲み', '織田の衆（将の名は不明）', 5000, 66, 48, 'eiraku', 'oda', 100, { w: 30, d: 24 }],
+    ['road', '登城道の仕寄り', '河尻秀隆の配下（名は不明）', 2000, 24, -64, 'oda', 'oda', 24, { w: 10, d: 8 }],
+  ], '信長公記巻八・十一月十日条、城の参照表の岩村。浅野左近・猿荻甚太郎も水精山に在陣。水精山の四将の兵数は不明'),
+  rosterPlan('曲輪の守り', 1, CASTLE, 0, [
+    ['akiyama', '本陣', '秋山虎繁', 500, CASTLE.x, CASTLE.z, 'takeda', 'takeda', 0, { bind: 'keep.lord' }],
+    ['outer', '三の丸', '秋山虎繁の配下（名は不明）', 500, ...castlePoint(0, -172), 'takeda', 'takeda', 20, { w: 8, d: 8 }],
+    ['hachiman', '八幡曲輪', '秋山虎繁の配下（名は不明）', 300, ...castlePoint(16, -196), 'takeda', 'takeda', 16, { w: 7, d: 7 }],
+    ['ni', '二の丸', '秋山虎繁の配下（名は不明）', 500, ...castlePoint(-10, -218), 'takeda', 'takeda', 16, { w: 7, d: 7 }],
+    ['shu', '主郭', '秋山虎繁の配下（名は不明）', 400, IWA_SHU.x, IWA_SHU.z, 'takeda', 'takeda', 12, { w: 6, d: 6 }],
+    ['obi', '帯曲輪', '秋山虎繁の配下（名は不明）', 300, -33, -238, 'takeda', 'takeda', 12, { w: 5, d: 8 }],
+    ['demaru', '出丸・東曲輪', '秋山虎繁の配下（名は不明）', 500, -40, -210, 'takeda', 'takeda', 12, { w: 5, d: 8 }],
+  ], '信長公記巻八、岩村城の曲輪資料。各曲輪の守将・兵数は不明'),
+];
+const iwamura = {
+  // 共通の民の仕組みで見物・兵や火からの避難を行い、兵数や戦功には加えない。
+  civilianCrowd: { bands: PEOPLE_BANDS },
+  jinkei: JIN,
+  softGuideRings: true, // 行き先の輪を細く淡くする。名前は任務の札に添える。
+  hidePlayerSign: true, // 肩越しに本人が見える。白い二重輪を行き先と取り違えさせない。
+  groundGuideRings: true, // 坂の印は地面へ沿わせ、平たい帯を浮かせない。
+  clearTravelGuide: true, // 道の矢印と旗の上に案内札を重ねない。
+  pauseTurnPractice: false, // 見回しの操作待ちで夜討ちの兵と任務の時計を止めない。
+  compactTravelArrow: true, // 道の帯より、行き先に添える短い矢印を優先する。
+  singleRetreatArrow: true, // 回避と退避も足元の短い矢印一本にし、兵へ点線を重ねない。
+  compactRetreatArea: true, compactDodgeGuide: true,
+  compactGroundGoalRing: true, // 小さな到着輪と旗で、柵の口の兵と槍先を空ける。
+  openingFootSignOnly: true, // 最初の案内も足元の丸だけにし、本人を白い枠で囲まない。
+  singleDestinationArrow: true, // 行き先の矢印に、足元からの案内を重ねない。
+  avoidAllDestinationNotices: true, // 画面外の口への旗も任務札・台詞・小地図を避ける。
+  groundFlagGuides: true, // 実物の幟を囲まず、根元の小さな旗印で示す。
+  compactHoldGuide: true, // 持ち場へ着いた後は、画面内へ別の旗を移さない。
+  distanceUnit: 'steps', // 行き先の距離を歩数にそろえる。
+  groundLockRing: true, // 狙った相手の朱の輪も坂へ沿わせる。
+  compactFieldGuides: true, // 太い人型の枠をやめ、頭の脇の小さな印で相手を示す。
+  noUnitContrast: true, // 兵からずれる簡略な人型線を描かず、敵の三角と味方の丸を残す。
+  compactEnemyFrame: true, // 今ねらう敵は細い四隅で示し、具足と槍先を空ける。
+  enemyCornerSign: true, // 描画側が読む指定で、敵を囲む太い箱を四隅へ替える。
+  compactCombatGuides: true, // 相手へ向ける矢印も細く短くし、兵の姿を空ける。
+  compactGuardGuide: true, // 味方を守る印も小さくし、狭い柵の口を隠さない。
+  compactMapAllies: true, // 小地図は味方一隊の番号だけ。名前と下知は隊の札で読む。
+  noThreatArcs: true, // 夜の斜面では朱の平たい攻撃範囲を重ねない。
+  noDistantBattle: true, // 固有の備え表だけを使い、別の本陣や押し合いを自動で重ねない。
+  noWake: true, // 囲みと城の備は遠景のまま。夜討ちを退けても新たな実兵を足さない。
+  noHorse: true, // 柵の守りと山道の追撃は徒歩。
+  nearAllyFadeRadius: 2.2,
+  nearAllySolidBody: true, // 視点に入った味方だけ描く間避け、顔や具足をばらばらに透かさない。
+  nearAllyWholeOcclusion: true, // 本人を隠す味方にも全身の扱いを通し、透けた笠や胴の内側を残さない。
+  nearEnemyFadeRadius: 2.2, // 混戦で視点へ入る敵の背負い物も、全身と一緒に描く間だけ避ける。
+  nearLongWeaponRadius: 10, // 坂の後列から視点へ届く長柄と旗竿も、描く間だけ避ける。
+  nearGroundSpearRadius: 10, // 持ち主から離れた落ち槍も、視線へ食い込む間だけ避ける。
+  nearSceneryScreenCut: false, // 小屋や井楼を画面の四角で切らず、視点の直近だけ距離で避ける。
+  recoilPitchMin: -0.35, // 槍の手応えが重なっても地面だけの視点にしない。指で見下ろす操作は残す。
+  taskDetails: true, // 携帯でも篝火の長押しと、麓で待つ人数を任務札に残す。
+  persistentTaskNotice: true, // 長押しを含む任務を一時の操作助言と見なして消さない。
+  keepCombatTask: true, // 構えの案内中も、点火の手順と麓の合流人数を畳まない。
+  keepCombatTaskHeading: true, // 携帯の攻撃案内でも、柵を守る下知を残す。
+  keepCombatTaskDetail: true, // 近い敵に応戦している間も、篝火の手順と麓の合流人数を残す。
+  keepTaskPanel: true, keepApproachTaskPanel: true, // 狭い画面で任務札を敵の頭上へ移さない。
+  keepTaskWithGuard: true, // 守る釦を押す間も、柵の口と麓への下知を残す。
+  keepTaskWithRain: true, // 矢をよける間も、戻る口を任務札で読めるようにする。
+  keepTaskWithWork: true, // 点火中も左右の篝火と守る口の順を残す。
+  releaseGuardForAttack: true, // 打ち終わった敵には、釦から指を離して反撃へ移る。
+  // 切岸の上下にいる敵や退く兵を、今ふせぐ相手として案内しない。
+  waitGuardAllowed(rt, enemy) {
+    const p = rt.player.u;
+    return !!enemy?.alive && enemy.team !== p.team && !enemy.fleeing && !enemy.woundOut &&
+      !enemy.downed && !enemy.dropped && !enemy.noTarget && !enemy.isStruct &&
+      (enemy.sidearm || enemy.type !== 'gun' && enemy.type !== 'bow') &&
+      Math.abs(enemy.pos.y - p.pos.y) < 1.5 &&
+      Math.hypot(enemy.pos.x - p.pos.x, enemy.pos.z - p.pos.z) < 6;
+  },
+  meleeGuide(rt, enemy) {
+    const F = rt.flags;
+    if (F.step >= 3) {
+      // 追うのは麓の道をふさぐ兵だけ。退く列や城の坂へ案内を移さない。
+      if (!enemy?.group || !F.roadDefenders.includes(enemy.group) ||
+          !roadEnemy(enemy, F.joinOrder, F.footY)) return false;
+      if (!F.joinOrder && distToPolyline(enemy.pos.x, enemy.pos.z, F.chasePath) >= 6) return false;
+      const u = rt.player.u;
+      if (F.joinOrder && (!atFoot(F, u.pos) || Math.hypot(enemy.pos.x - FOOT.x, enemy.pos.z - FOOT.z) >= 7)) return false;
+      return Math.abs(enemy.pos.y - u.pos.y) < 1.5 &&
+        Math.hypot(enemy.pos.x - u.pos.x, enemy.pos.z - u.pos.z) < 8 &&
+        !rt.army.wallBetween(u.pos, -1, enemy.pos) && !rt.army.terrainBlocks(u.pos, enemy.pos);
+    }
+    // 柵の守りでは、届かない敵を追って口の外へ出る案内をしない。
+    // 間合いに入った相手には、向き・防御・反撃の案内を残す。
+    const p = rt.player, u = p.u;
+    return !!enemy?.alive && Math.abs(enemy.pos.y - u.pos.y) < 1.5 &&
+      Math.hypot(enemy.pos.x - u.pos.x, enemy.pos.z - u.pos.z) <=
+        p.meleeReach(p.weapon === 'sword' ? 'slash' : 'thrust');
+  },
+  enemyGuideAllowed(rt, enemy) {
+    // 通常の敵印からも「敵へ進め」を出さず、同じ守備の間合いを使う。
+    return this.meleeGuide(rt, enemy);
+  },
+  meleeApproachText: (rt) => rt.flags.step < 3 ? '柵の内で敵を受けよ' :
+    rt.flags.joinOrder ? '麓を離れず、敵を受けよ' : '道の敵を退け、麓へ進め',
+  retryAdvice: (rt, info) => info.down ? '' : rt.flags.step === 3 ?
+    '味方と麓へ進み、そこで待とう' : '柵の内で味方と敵を防ごう',
+  keepOpeningTaskLabel: true, // 指の動かし方だけでなく、最初から篝火の行き先を残す。
+  keepTaskWithDodge: true, // よける間も、柵や麓の持ち場を忘れさせない。
+  keepTaskLabel: true, // 近い敵一人への案内で、柵の守りや麓で待つ下知を消さない。
+  keepFlagTravelTask: true, // 口へ戻る間も「旗まで」の歩数だけにせず、守る持ち場を残す。
+  keepGuardTaskLabel: true, keepRescueTaskLabel: true, keepDestinationTask: true,
+  guardStartText: '長押しで一撃を防げ',
+  guardWaitText: '構えたまま一撃を防げ',
+  guardLabel: (rt) => rt.flags.step === 3 ? '麓で味方を守れ' : '柵の内で味方を守れ',
+  keepRetreatReason: true, // 「ここへ」だけに縮めず、道の味方の後ろへ下がる下知を見出しにも残す。
+  retreatStepsNewLine: true, // 下知の途中へ歩数を折り返さず、次の行へそろえる。
+  keepWoundRetreatReason: true, // 傷で下がる時も、柵の内か麓の道かを歩数と一緒に残す。
+  woundEffectMin: 0.08, // 浅い打撲の残りだけで追撃中も退避を続けない。出血・深手の退避は残す。
+  taskLabel(_rt, text) {
+    return text.replace('組を率い、', '').replace('柵の左右に篝火を焚け', '左右の篝火を焚け')
+      .replace('目の前の敵を、味方と押し返せ', '味方と敵を押し返せ')
+      .replace('道の敵を退け、麓へ進め', '敵を退け麓へ進め')
+      .replace('柵で武田の夜討ちを防げ', '柵で夜討ちを防げ').replace('山道を進み、麓の味方につけ', '山道から麓へ進め')
+      .replace('麓に留まり、組の到着を待て', '麓で味方を待て');
+  },
+  taskDetail(rt, _title, detail) {
+    const cue = rt.hud.retreatGuide;
+    if (cue?.active && cue.valid && !cue.treatment && rt.flags.step === 3 && !rt.flags.roadFight)
+      return rt.flags.joinOrder ? (rt.flags.joinStatus || '') + '麓の印で味方を待て。城の坂へ追うな' : '山道の印をたどり、城の麓へ進め';
+    if (cue?.active && cue.valid) return cue.treatment
+      ? '味方の後ろで傷を縛れ。手当てを終えたら持ち場へ'
+      : rt.flags.step === 3 && rt.flags.joinOrder
+        ? (rt.flags.joinStatus || '') + '道の印へ下がれ。麓を離れるな'
+        : rt.flags.step < 3 ? '柵の内の印へ下がり、槍を構えよ。山道へ出るな'
+          : '道の印まで下がり、槍を構えよ。城の坂へ逃げるな';
+    // 狭い札に太鼓の説明を繰り返さず、行き先・操作・到着人数を残す。
+    return detail.replace('法螺と早い太鼓で追撃。', '').replace('篝火の印で長押し', '篝火へ近づき、長押し');
+  },
+  dodgePointAllowed: fieldGuideAllowed,
+  retreatPointAllowed: fieldGuideAllowed,
+  // 追撃の移動中は、打ち合いの余韻で道案内を退避へ置き換えない。
+  // 深手の判断は共通側に残し、近い敵・包囲・息切れには従来の守りを使う。
+  routeGuidePriority(rt) {
+    const F = rt.flags, p = rt.player, u = p.u;
+    if (F.step !== 3 || F.ending || F.roadFight || F.chaseArrived || u.mobbed ||
+        p.sta < 20 || rt.t < (rt.retreatUntil || 0)) return false;
+    for (const enemy of rt.army.units) {
+      if (enemy.team === u.team || !enemy.alive || enemy.gone || enemy.fleeing || enemy.woundOut ||
+          enemy.noTarget || enemy.civ || enemy.isStruct || enemy.downed || enemy.dropped) continue;
+      if (Math.abs(enemy.pos.y - u.pos.y) < 3 && Math.hypot(enemy.pos.x - u.pos.x, enemy.pos.z - u.pos.z) < 12 &&
+          !rt.army.wallBetween(u.pos, u.team, enemy.pos) && !rt.army.terrainBlocks(u.pos, enemy.pos)) return false;
+    }
+    return true;
+  },
+  retreatGuideLabel(rt, reached) {
+    if (rt.hud.retreatGuide?.treatment) return rt.player.treatmentReady || rt.player.treating
+      ? '長押しで傷を縛れ' : '道の味方の後ろで手当て';
+    if (rt.flags.step < 3) return reached ? '柵の内で槍を構えよ' : '柵の味方へ下がれ';
+    if (reached && !rt.flags.roadFight) return rt.flags.joinOrder ? '麓で味方を待て' : '山道の印から麓へ進め';
+    return reached ? '道の上で槍を構えよ' : '道の味方へ下がれ';
+  },
+  dodgeAvoidNotices: true, // 画面端の回避札も任務や小地図を避ける。
+  keepDodgeGuideLabel: true, // 画面外でも、何をよけるかを歩数だけに置き換えない。
+  rainDodgeGuideLabel: (_rt, reached) => reached ? 'ここで構えよ' : '矢の外へよけよ',
+  dodgeGuideLabel: (_rt, reached, rain) => reached ? 'ここで構えよ' : rain ? '矢の外へよけよ' : '道の印へよけよ',
+  // 指の動かし方だけで行き先を消さず、柵・道・矢を避ける先を一緒に示す。
+  dodgeMoveLabel: (rt, side, rain) => `${rain ? '矢の外へ' : rt.flags.step < 3 ? '柵の内へ' : '道の印へ'} ${side}になぞる`,
+  dodgeTurnLabel: (_rt, right, touch) => touch ? 'なぞって振り向く' : `${right ? '右' : '左'}へ動かして振り向く`,
+  dodgeLabel(_rt, direction, rain) {
+    if (direction.includes('振り向く')) return direction;
+    if (direction.startsWith('右')) return '右へよける';
+    if (direction.startsWith('左')) return '左へよける';
+    if (direction.startsWith('前')) return '前へよける';
+    return rain ? '矢の外へよけよ' : '道で敵から離れよ';
+  },
+  namedGuideMarkers: true, // 行き先の札にも篝火・柵・麓の別を残す。
+  travelGuideLabel(rt) {
+    const F = rt.flags;
+    if (F.step === 1 && !F.scoutNear) return F.lit < POSTS.length ? '篝火へ' : '正面の口へ';
+    if (F.step < 3) return F.breached ? '陣の奥へ' : F.raidGuide?.x ? '東の口へ' : '柵の口へ';
+    if (F.roadFight && (!F.joinOrder || F.chaseArrived)) return '道の敵へ';
+    if (F.joinOrder && F.chaseArrived) return '麓を守れ';
+    return '麓への道';
+  },
+  nearFlagFadeRadius: 6, // 狭い柵の口では、横から張り出す長旗も描く間だけ避ける。
+  standardClothScale: 0.72, // 狭い口でも隊旗の布が敵の顔と槍先を覆わない大きさにする。
+  groundStandards: true, // 坂で兵の上体が傾いても、隊旗の竿を地面から立てる。
+  woundedStandardsFall: true, // 深手で倒れた旗持ちの上に隊旗だけ立ち続けさせない。
+  fadeCloseStandards: true, fadeCloseStandardFrame: true, // 近い味方の隊旗は横木も一緒に透かす。
+  immediateTaskChanges: true, // 同じ任務でも下知が変われば、古い文を十秒残さない。
+  armySignals: false, // 固有の警報・退き太鼓・追撃の合図を使い、共通の号令は重ねない。
+  uchisute: true, // 持ち場を守る間は首を取らず、敵を押し返す。
+  moveLim: 410, // 共通の置換も城の奥まで扱う。世界の通行範囲とそろえる。
+  noTaishoRaid: true, // 本陣狙いの架空の新手を共通処理から出さない。
+  taisho: { a: { use: true }, b: { def: true } },
+  botOrders: true, // 追撃や手当ての道を、空馬への寄り道で上書きしない。
+  spawn: { x: 6, z: 14, heading: Math.PI },
+  world: {
+    seed: 15755,
+    blockedHint: () => '柵の内の左右へ。陣幕と小屋を回り、篝火へ進め',
+    terrainTriangles: true, // 描く三角形と接地の高さをそろえ、坂で旗や足を浮かせない。
+    terrainContactView: true, // 視点を切り替えた直後も、描く坂と視点の手前の面を突き抜けない。
+    smoothGroundFire: true, // 篝火の照りを頂点間へ伸ばさず、地面の上の距離でぼかす。
+    distantTerrainTriangles: true, // 遠景の備えも四隅の平均で浮かせず、地面の三角形へ合わせる。
+    distantFootOnly: true, // 山道の控えも徒歩にそろえ、軽い軍勢だけに騎馬を残さない。
+    keepTerrainGrid: true, // 携帯でも同じ格子で描き、麓の切岸に足や視点を埋めない。
+    groundHalf: 430, // 地面の頂点数を増やさず、帯曲輪と外の堀まで地形の範囲に入れる。
+    lookoutLogFrame: true, // 高画質の城の井楼で、指定済みの丸太組みを描く。
+    moveLim: 410,   // 広げた本丸・帯曲輪・裏道の兵を麓へ引き戻さない。
+    noHorse: true, // 武将の自動乗馬も止め、狭い柵と追撃路では徒立ちにする。
+    nearAllyFadeRadius: 2.2, // 近い味方の扱いを描画直前の判定へそろえる。
+    time: 'dusk',
+    mountainScale: 0.58, mountainHaze: 0.82, // 遠い峰は低く霞ませ、近くの城山の上へ切り絵の壁を重ねない。
+    winter: true,
+    winterGrass: true, // 雪ではなく枯れ草を残す。
+    tuftTint: 0xb5a18a, // 草だけを薄い褐色へ。夜の月明かりで白黄に浮かせない。
+    nearGrassTint: 0xb5a18a,
+    darkFootprints: true, // 夜の足跡は光らない小さな泥色。
+    arrowRainPerBow: 1, // 小勢の弓から数十本の飾り矢を増やさない。本物の射矢は残す。
+    naturalArrowRain: true, // 飛ぶ矢を遠くで太い黒棒にせず、夜の霧へなじませる。
+    arrowRainGroundCue: false, // 坂を覆う白黒の大輪を外す。矢の影・警告・よける先の案内は残す。
+    noGroundArrows: true, // 外れ矢を柵の口へ積み重ね、白い針山にしない。射矢の当たりは残す。
+    lifeSizePinnedArrows: true, pinnedArrowAxisScale: true, // 胴の動きと描く体の切り替えに追従し、刺さった矢の実寸を保つ。
+    groundedSlopeRocks: true, // 岩の下側の縁まで坂へ埋め、宙に張り出す影の板を置かない。
+    slopeRockFaces: true, // 急な坂でも岩の厚みを斜面の外へ向ける。
+    rockCenterGround: true, // 岩の中心を埋め、上側の土へ全体を沈めて薄い板にしない。
+    rockDrawGround: true, // 岩と根草を描かれる三角形の高さへ据え、道の折れで浮かせない。
+    curvedRockTufts: true, litRockTufts: true, // 岩の根元を黒い直線の針にせず、短い葉で土へつなぐ。
+    nightLift: 2.4, // 夜の一様な照り返しを抑え、道の形と篝火の明暗を残す。
+    fireLightLift: 1.5, // 既存の灯りだけ強め、篝火の周りに橙の照りを残す。
+    unitNightScale: 0.4, // 兵だけの輪郭補光を抑える。道と篝火の明るさは保つ。
+    climbTan: 0.7, // 道のない切岸を駆け上がらせない。
+    muddy: 0.3,
+    patchyGround: true, // 共通の群落分布で土の絵・遠い草・足元の株の裸地をそろえる。
+    meleeGroundedFeet: true, // 槍を合わせる時は前後の足を坂へ据え、上体だけ滑らせない。
+    livingSpearHedge: true, // 槍の段は保ち、呼吸と押される手元だけを一人ずつ揺らす。
+    variedInfantry: true, variedLoanArmor: true, variedHeadgear: true, // 貸し具足の汚れ・仕立て・被り物を既存の六組で分ける。
+    variedMarch: true, strideLimit: 1.1, // 坂を寄せる列と逃げ足の歩幅を、人の振りに収める。
+    fallPaceSpread: 0.35, // 一斉に討たれても膝の折れる間をずらす。
+    settleSideFalls: true, groundedFalls: true, // 横斬りの亡骸を肩から土へ寝かせる。
+    slopeLitter: true, // 低・中画質でも落ちた槍の傾きを坂へ合わせ、角度の上限で穂を浮かせない。
+    groundedFallImpact: true, wetEarthBursts: true, // 地を打つ時に音と低い泥粒。湿った山道に白煙を出さない。
+    mist: true,   // 霧が出やすい山城。戦の始めは霧が深く、しだいに薄れる。当夜の霧の濃さは復元
+    mood: 'plain', // 夕暮れの支度に朝靄の色を重ねない。
+    mistFar: 230, // 山の靄を残しつつ、柵の外の敵影と尾根の道を読める距離にする。
+    groundMistScale: 0.3,
+    paths: fieldPaths(),
+    slopeForest: 0.65, // 奥の山腹に林の濃淡を残す。道と陣の平場は共通の除け方を使う。
+    stableCliffGrain: true, // 急な城山の地肌を法線で引き伸ばさず、土と苔の斑を連続させる。
+    erodedSlopes: true, // 城山の急斜面に土の溝と岩の斑を残す。地形と通れる道は変えない。
+    pathWidth: 3.5, // 粗い地面でも山道に土の筋を残す。
+    // 枯れ色を裸地と読み違えない。道の外は群落の芯と低い草を残す。
+    grassMix(x, z, pd) {
+      if (Math.abs(x) < 60 && z > FENCE_Z + 4 && z < 80) return 0;
+      const verge = THREE.MathUtils.smoothstep(pd, 1.0, 2.8);
+      const patch = 0.5 + 0.5 * Math.sin(x * 0.23 + Math.sin(z * 0.17)) * Math.cos(z * 0.19);
+      return verge * (0.48 + patch * 0.44);
+    },
+    treePadMul: 1.1, // 枝葉が山道へ張り出さないよう、幹を道から離す。
+    nearTreeFadeRadius: 4.5, // 視点に近い幹だけを薄くし、敵と道標を隠さない。
+    tint(x, z, h, c) {
+      const d = fieldRoadDistance(x, z);
+      const patch = Math.sin(x * 0.09) * Math.cos(z * 0.07);
+      const soil = Math.sin(x * 0.17 + z * 0.11) * Math.cos(z * 0.13);
+      if (d < 3.5) c.setRGB(0.30, 0.24, 0.16);
+      else if (Math.abs(x) < 60 && z > FENCE_Z + 4 && z < 80) {
+        const trod = Math.exp(-(x * x / 900 + (z - 18) ** 2 / 1200));
+        c.setRGB(0.38 - trod * 0.08 + soil * 0.025, 0.31 - trod * 0.07, 0.21 - trod * 0.05);
+      }
+      else if (Math.abs(x) < 110 && z > -125 && z < 120) {
+        c.setRGB(0.5 + patch * 0.045, 0.44 + soil * 0.035, 0.3 + patch * 0.025);
+      }
+      else if (IWAMURA_CASTLE_PLAN.kuruwa.some(k => inPoly(k.poly, x, z))) {
+        // 写真の屋敷段は踏み固めた褐色の平場。段の外の草と切岸は従来の色を残す。
+        c.setRGB(.44 + patch * .025, .37 + soil * .025, .26 + patch * .02);
+      }
+      else if (z < -10) {
+        // 色の緑の割合を共通の地面が草・土へ読み替える。斜面にも土の斑を残す。
+        if (soil > 0.25) c.setRGB(0.36 + patch * 0.04, 0.29, 0.18);
+        else c.setRGB(0.24 + patch * 0.05, 0.34 + soil * 0.05, 0.15);
+      }
+    },
+    height,
+    moveWay: campWay,
+    runnerWay: campWay, // 遠くの点の使番も、姿を出す前から陣幕の口へ回る。
+    // 陣の内と建物は空け、柵の外の斜面には木を残す。道は共通の植え分けで除く。
+    clear: (x, z) => castleClear(x, z) || (Math.abs(x) < 80 && z > -14 && z < 80) || (Math.abs(x - 24) < 6 && Math.abs(z + 64) < 10) || (Math.abs(x + 175) < 50 && z > 88 && z < 190),
+    trees: 520,
+    nearCedarBranches: true, // 高画質でも杉全体を縦長の交差板へ戻さず、共有する枝房を残す。
+    foldedNeedleCards: true, slopingNeedleBoughs: true, // 葉房を浅く折って枝先へ寝かせる。面数と木の位置は保つ。
+    layeredNeedles: true, raggedNeedles: true, // 共用する杉の枝先を崩し、積んだ円錐の直線を和らげる。
+    brokenNeedleTiers: true, // 杉の枝の段を不ぞろいにし、平らな底面の円盤を残さない。
+    keepNeedleLayers: true, // 作った杉の枝葉を残し、粗い八面体への置き換えを避ける。
+    softFarNeedles: true, // 遠い杉も硬い三角の輪郭を残さない。
+    tufts: 3000,
+    treeDensity: (x, z) => (castleClear(x, z) ? 0 : Math.abs(x) < 80 && z > -110 && z < -14 ? 0.65 : 1),
+    groves: [{ x: -38, z: -28, r: 12, n: 16 }, { x: 40, z: -48, r: 12, n: 16 },
+      { x: -28, z: -94, r: 10, n: 12 }, { x: 32, z: -112, r: 12, n: 12 },
+      { x: -46, z: -133, r: 14, n: 12 }], // 麓の道を空け、奥行きの違う木立を残す。
+    fleeOut: (x, z, team) => team === 1 && z < -130,
+  },
+
+  guideMarker: (rt) => {
+    const F = rt.flags;
+    if (F.step === 0) return 'kawa';
+    if (F.step === 1 && !F.scoutNear && F.lit < POSTS.length) return F.litPosts.has(0) ? 'p1' : 'p0';
+    // 目の前で槍を合わせる間は、遠い口への方向案内で持ち場を離れさせない。
+    if (F.step === 2 && (F.localContact || F.atRaidMouth) && !F.breached) return null;
+    if (F.step < 3) return 'raidMouth';
+    if (F.roadFight && (!F.joinOrder || F.chaseArrived)) return F.roadMarker;
+    // 麓に着いたら足元や遠い敵へ移動させない。近い道の敵だけ上で指す。
+    // 押し出された時は下の道標へ戻り、同じ場所で合流を待てるようにする。
+    if (F.joinOrder && F.chaseArrived) return null;
+    return 'chaseRoad';
+  },
+  prelude: false, // この戦の使番と下知で開戦を伝え、共通の待ちを重ねない。
+  compactIntro: true,
+  introTaskFirst: true,
+  introSides: { a: '織田勢', b: '武田勢' },
+  introText: 'まず左右の篝火へ。近づいて長押しで火を焚こう。夜は柵の口で敵を防ごう。追えの声で城の麓へ進み、味方が着くまで待とう。',
+  setup(rt) {
+    const W = rt.world;
+    const F = rt.flags;
+    // 携帯も四本の垂直な柱と交互の横木にする。既存の結合済みの形を使う。
+    const campLookout = { kind: 'ro', mon: 'oda', height: 7.2, boarded: false, logFrame: true };
+    F.step = 0; F.stepT = rt.t; F.ek = 0; F.ak = 0; F.lit = 0;
+    F.botMouthGuide = { x: 0, z: 0 };
+    F.breach = 0; F.pollT = 0; F.quietSince = rt.t; F.duskAt = rt.t + 16; F.raidAt = rt.t + 44;
+    F.siege = siegeStart();
+    // 柵を守る間は地上の仕事を優先し、物見の長押し札へ誘わない。
+    // 追撃に移れば元の梯子操作へ戻す。床や兵の登り方は変えない。
+    const ladderUse = rt.player.updateLadderUse;
+    rt.player.updateLadderUse = function (dt) {
+      if (F.step < 3 && !this.u.climb) {
+        if (this.ladderO) { rt.uninteract('ladder-climb'); this.ladderO = null; }
+        return;
+      }
+      ladderUse.call(this, dt);
+    };
+    this.notices(rt);
+    this.fallenScene(rt);
+    this.slopeScene(rt);
+    F.rescued = true; // この戦では倒れた主人公を共通の担ぎ起こしで戦列へ戻さない。
+    // ---- 水晶山砦（castles/iwamura.js。陣の柵・木戸は下の wallLine で手組みのまま＝場と地形の段だけ借りる） ----
+    F.C = buildCastlePlan(rt, IWAMURA_SUISHOZAN_PLAN, { baseHeight: liftedTerrain, edgeW: 6, skipWalls: ['honjin'], life: false });
+    // ---- 岩村城（外側曲輪→八幡曲輪→二の丸→主郭→本丸。土塁・切岸・木柵・木戸。本丸を総石垣にしない） ----
+    F.castleC = buildCastlePlan(rt, IWAMURA_CASTLE_PLAN, { baseHeight: liftedTerrain, edgeW: 3, buildGates: true, buildTowers: true, gateTeam: 1, towerTeam: 1, life: false });
+    // 城方が出入りする夜討ちの木戸は開放。見た目と通行の当たりをそろえる。
+    for (const g of Object.values(F.castleC.gateObjs)) { g.open(); g.struct.opened = true; }
+    const lifeStart = rt.scene.children.length;
+    buildIwamuraLife(rt);
+    this.mountainScene(rt, lifeStart);
+    campGround(W);
+    // ---- 水晶山の陣：柵（中央に一つの口）、陣幕、小屋 ----
+    // 写真の木柵は細い杭と二段の横木。岩村の高画質だけ既存の軽い柵を使う。
+    // 壊れる区画・高さ・控え・盛り土は保ち、口や兵の配置は動かさない。
+    const campFence = { lightFence: true };
+    F.fenceSegs = [   // F.fence とは名付けない（playbot は F.fence がある戦を設楽原の柵とみなす）
+      ...wallLine(rt, [[-60, FENCE_Z + 4], [-8, FENCE_Z]], { team: 0, hp: 900, name: '陣の柵', segLen: 6, meshOpt: campFence }),
+      ...wallLine(rt, [[8, FENCE_Z], [60, FENCE_Z + 4]], { team: 0, hp: 900, name: '陣の柵', segLen: 6, meshOpt: campFence }),
+    ];
+    // 東の迂回路に口を残し、陣の脇にも柵を置く。南は兵糧を運ぶため開ける。
+    wallLine(rt, [[-60, -2], [-60, 30]], { team: 0, hp: 900, name: '陣の脇の柵', segLen: 8, meshOpt: campFence });
+    wallLine(rt, [[60, -2], [60, 6]], { team: 0, hp: 900, name: '陣の脇の柵', segLen: 8, meshOpt: campFence });
+    wallLine(rt, [[60, 20], [60, 30]], { team: 0, hp: 900, name: '陣の脇の柵', segLen: 8, meshOpt: campFence });
+    if (true) {
+      // 陣の両翼に二枚組の置楯。北へ表を向け、裏の支えを陣内へ出す。
+      // 中央の八メートルの口・東の迂回路・既存の槍組と鉄砲組は空ける。
+      // 未確認の個人紋は付けず、幟で織田方を示す。共通の楯の形と材を使い回す。
+      for (const [ax, bx] of [[-51, -43], [43, 51]])
+        rt.scene.add(tateNarabi(W, ax, 1.5, bx, 1.5, { fieldPairs: true }));
+    }
+    rt.scene.add(tawara(W, -18, 30, 0.3, 6));
+    goten(rt, 22, 28, { w: 7, d: 5, team: 0, tile: false, boardRoof: true, earth: 0x9b805b, naka: true, doorX: 0, kind: 'bansho', profile: 'iwamura_bansho', name: '陣の番小屋', noTarget: true });
+    // 水晶山の本陣（総大将 織田信忠）と、岩村城の城将 秋山虎繁の陣所
+    // 信忠個人の馬印は未確認。信長の金唐傘を自動で借りず、織田の所属旗で本陣を示す。
+    F.honjin = camp(rt, { x: 0, z: 44, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', uma: false, general: { name: '織田信忠' }, guard: 15, reserve: 200, runTo: { x: 0, z: FENCE_Z + 8 } });
+    F.honjin.guard.order = 'move'; F.honjin.guard.dest = { x: 0, z: 34 };
+    F.honjin.guard.onArrive = (g) => { g.order = 'hold'; };
+    F.honjin.guard.formation = 'yari'; F.honjin.guard.aggro = 6;
+    F.keep = makeLordKeep(rt, { name: '秋山虎繁', naka: F.castleC.seat.naka, faction: 'takeda', flag: 'takeda', guardN: 6 });
+    F.keep.lord.invuln = true; F.keep.lord.mustLive = true; // 開城後に捕らえられる城将を夜の討取りにしない。
+    // 切岸の縁を避け、四本の柱と南の梯子を陣内の平場へ据える。
+    for (const y of IWAMURA_SUISHOZAN_PLAN.yagura)
+      monomi(rt, ...y.at, { name: y.name, team: 0, ...campLookout });
+    for (const [x, z, k] of [[-8, 36, 'oda'], [8, 36, 'eiraku'], [-40, FENCE_Z + 8, 'oda'], [40, FENCE_Z + 8, 'oda']]) rt.scene.add(nobori(W, x, z, k, 6));
+    // ---- 包囲する織田の陣は水晶山一つに集めず、尾根・登城道の途中に散らす（見張り・兵糧所。大きな戦闘は置かない） ----
+    monomi(rt, 24, -64, { name: '登城道の物見', team: 0, ...campLookout });
+    rt.scene.add(nobori(W, 24, -70, 'oda', 6));              // 見張り：登城道の折れを見張る物見
+    rt.scene.add(tawara(W, -24, 60, 0.3, 8));
+    goten(rt, -30, 66, { w: 6, d: 4, team: 0, tile: false, boardRoof: true, earth: 0x9b805b, naka: true, doorX: 0, kind: 'kura', profile: 'iwamura_kura', name: '陣の兵糧小屋', noTarget: true });       // 兵糧所：本陣の裏に兵糧の俵と番小屋
+    // ---- 岩村城の曲輪の建物（主殿・倉・番所くらい。大天守は置かない） ----
+    // 本丸の主殿は縄張り（castles/iwamura.js の lordSeat）から castle_plan.js が建てる：中に入れて、奥の間に秋山虎繁（kaito 10/2）
+    for (const [x, z] of [[CASTLE.x - 8, CASTLE.z + 6], [CASTLE.x + 8, CASTLE.z + 6]]) rt.scene.add(nobori(W, x, z, 'takeda', 7));
+    // ---- 河尻秀隆の手（自分の持ち場）、毛利河内の手 ----
+    F.kawa = allyGroup(rt, { name: '河尻秀隆の手', anchor: { x: -9, z: FENCE_Z + 8 }, facing: Math.PI, fixed: true, width: 7, aggro: 6, formation: 'yari' },
+      battleLook(rt, [{ type: 'ashigaru', n: 16 }, { type: 'gun', n: 4 }, { type: 'samurai', n: 2 }, { type: 'busho', n: 1, o: { name: '河尻秀隆', invuln: true, horo: 0 } }], ODA));
+    F.kawaU = F.kawa.units.find((u) => u.name === '河尻秀隆');
+    F.mouri = allyGroup(rt, { name: '毛利河内の手', anchor: { x: 9, z: FENCE_Z + 8 }, facing: Math.PI, fixed: true, width: 7, aggro: 6, formation: 'yari' },
+      battleLook(rt, [{ type: 'ashigaru', n: 14 }, { type: 'bow', n: 4 }, { type: 'busho', n: 1, o: { name: '毛利河内', invuln: true } }], ODA));
+    F.oda = [F.kawa, F.mouri]; F.front = F.oda.slice();
+    // その場の河尻・毛利が列を動かす。折れごとの歩みまで本陣の新しい下知にすると、
+    // 使番待ちで位置が巻き戻り、集合済みの印と到着処理だけが食い違う。
+    for (const g of F.oda) { g.directOrders = true; g.defMult = 1.25; g.dmgMult = 1; g.guardOn = true; g.leader = g.units.find((u) => u.name); }
+    // 鉄砲・口の槍組も初めから持ち場に置く。夜になって突然作らない。
+    F.fgun = allyGroup(rt, { fixed: true, name: '柵の内の鉄砲組', anchor: { x: 4, z: FENCE_Z + 8 }, facing: Math.PI, aggro: 4, formation: 'line' },
+      battleLook(rt, [{ type: 'gun', n: 10 }], ODA));
+    // 信長公記巻八にある迎撃の四将をそろえる。持ち場は復元で、元の侍二人に名を付け、兵数・兵種・強さは保つ。
+    // 個人の指物は未確認。指物を省く指定で、新たな旗持ちへ戦う足軽を振り替えることも防ぐ。
+    F.gate = allyGroup(rt, { fixed: true, name: '水晶山の備え（浅野・猿荻）', anchor: { x: 0, z: FENCE_Z + 3 }, facing: Math.PI, width: 6, aggro: 6, formation: 'yari' },
+      battleLook(rt, [{ type: 'samurai', n: 1, o: { name: '浅野左近', flag: null } }, { type: 'samurai', n: 1, o: { name: '猿荻甚太郎', flag: null } }, { type: 'ashigaru', n: 14 }], ODA));
+    F.oda.push(F.gate);
+    // 夜討ちの先触れ六人。日が落ちてから登城道の下より中央の口へ歩く（配置は復元）。
+    // 第一波から人数を分け、兵の総数を増やさない。
+    F.scout = enemyGroup(rt, {
+      faction: 'takeda', name: '登城道の見張り', anchor: { x: SCOUT_PATH[0][0], z: SCOUT_PATH[0][1] }, facing: 0,
+      order: 'hold', path: SCOUT_PATH, pathIdx: 1, formation: 'column', colW: 2, roadColumn: true,
+      speed: 2.8, march: false, aggro: 0, seekRange: 4, noAI: true, morale: 85, fleeDir: { x: 0, z: -1 },
+    }, battleLook(rt, [{ type: 'ashigaru', n: 6 }], TAKEDA));
+    F.scout.morale = F.siege.morale;
+    F.scout.onArrive = (g) => { g.order = 'attack'; g.march = false; g.formation = 'loose'; g.focus = rt.player.u; };
+    // 元の五十六人のうち八人を追撃路へ分ける。途中の補充はしない。
+    F.directionSaid = new Set(); F.routSaid = new Set(); F.sentWaves = [];
+    F.waves = RAID_PATHS.map((path, i) => enemyGroup(rt, {
+      fixed: true, faction: 'takeda', name: i === 2 ? '城口から出た武田勢' : '山道の夜討ち勢',
+      anchor: { x: path[0][0], z: path[0][1] }, facing: Math.atan2(path[1][0] - path[0][0], path[1][1] - path[0][1]), order: 'hold', formation: 'column', colW: 2, roadColumn: true,
+      aggro: 4, seekRange: 28, noAI: true, morale: 85, fleeDir: { x: 0, z: -1 },
+    }, battleLook(rt, [
+      { type: 'samurai', n: i < 3 ? 2 : 0 },
+      { type: 'ashigaru', n: i < 3 ? [6, 12, 8][i] : i >= 4 ? 2 : 6 },
+      { type: 'bow', n: i < 3 ? 0 : 2 },
+    ], TAKEDA)));
+    // 城へ退く手を守る小隊。ならした道の二つの折れに初めから置く（配置は遊びの補完）。
+    // 追う段で敵に会わない間が長かった（10/6 測り：切れ目79秒）。道の奥の折れにも一組置く。
+    F.roadGuards = [...new Set([2, 3, CHASE_PATH.length - 2])].map((i) => CHASE_PATH[i]).map(([x, z]) => enemyGroup(rt, {
+      fixed: true, faction: 'takeda', name: '麓の道を守る武田勢', anchor: { x, z }, facing: 0,
+      order: 'hold', formation: 'column', colW: 2, aggro: 4, seekRange: 8, noAI: true, guardOn: true,
+      morale: F.siege.morale, fleeDir: { x: 0, z: -1 },
+    }, battleLook(rt, [{ type: 'ashigaru', n: 4 }], TAKEDA)));
+    F.roadDefenders = [...F.waves, ...F.roadGuards];
+    for (let i = 0; i < F.waves.length; i++) {
+      const g = F.waves[i];
+      // 元の山道から口へ着き、必要な時だけ柵の内の連絡道へ回る。
+      g.iwMouthPaths = [
+        [...RAID_PATHS[i], ...(i === 1 ? MOUTH_BACK.slice(1, -1) : [[0, 14]])],
+        [...RAID_PATHS[i], ...(i === 1 ? [] : MOUTH_LINK.slice(1))],
+      ];
+    }
+    for (let i = 0; i < F.waves.length; i++) { F.waves[i].iwReturn = RETURN_PATHS[i].map((q) => q.slice()); F.waves[i].iwInitial = F.waves[i].count; }
+    for (const g of F.waves) g.morale = F.siege.morale;
+    F.contacts = [F.scout, ...F.waves];
+    // 柵の口に着いた列を三メートル以上へ散らさず、後続と槍の前線をつなぐ。
+    // 人数・到着時刻・間合い・攻撃力は元のまま。行軍中は従来の二列を使う。
+    for (const g of F.contacts) g.looseSpacing = 1.15;
+    F.rearGroups = [...F.contacts, ...F.roadGuards];
+    // 上の兵数札は水晶山と麓の実兵。遠景の推定総勢と混ぜず、初期数と残数を同じ隊から数える。
+    F.fieldAllies = [...F.oda, F.fgun, F.honjin.guard];
+    F.forceA0 = F.fieldAllies.reduce((n, g) => n + g.units.length, 0);
+    F.forceB0 = F.rearGroups.reduce((n, g) => n + g.units.length, 0);
+    this.raidTorches(rt);
+    // 待機する列は弓を射ず、夜討ちの下知を待つ。
+    for (const g of F.waves) g.fire = false;
+    // 守りの弓・鉄砲も支度中に山道の先触れを撃たず、敵が寄せてから射る。
+    for (const g of [...F.oda, F.fgun]) g.fire = false;
+    F.raidInitial = F.contacts.reduce((n, g) => n + g.count, 0);
+    const n = Math.min(RANKS[rt.G.rank].squad, battleRoom(rt));
+    if (n) rt.makeSquad({ x: 4, z: FENCE_Z + 14 }, Math.PI, [{ kind: 'spear', n }]);
+    const hosts = rosterBuild(rt, JIN);
+    F.castleDA = hosts[1].ni;
+    // 戦う人数と下知を変えず、寄せ手と守り手の背後へ薄い控えの列をつなぐ。
+    // 本物へ替えないので強さを増やさず、近くでは共通の間引きに任せる。
+    for (const [g, flag, seed] of [[F.kawa, 'oda', 151], [F.mouri, 'oda', 152], [F.waves[0], 'takeda', 153], [F.waves[2], 'takeda', 154]]) {
+      const b = KIT.backOf(rt, g, { flag, count: 24, w: 12, depth: 8, gap: 7, seed });
+      b.army.noWake = true;
+    }
+    for (const [x, z] of [[-10, 40], [14, 42]]) { rt.scene.add(campfire(W, x, z)); W.addFire(x, z); }
+    // 柵の外の両口と山道の折れを照らす。兵の通る筋には置かず、光は共通の四灯を使う。
+    for (const [x, z] of [[-6, -18], [72, 10], [-25, -34], [25, -62]]) {
+      rt.scene.add(campfire(W, x, z)); W.addFire(x, z);
+    }
+    // 城の坂の松明の列（遠くからも城の道筋が見える。B028・B030）
+    for (let i = 2; i < IWA_ROAD.length; i += 3) { const [rx, rz] = IWA_ROAD[i]; W.addFire(rx + 3.5, rz, { torch: true, h: 1.6 }); }
+
+    // 橙の楕円は行き先でなく篝火の大きな照り返し。坂に浮く面を外し、既存の灯で照らす。
+    const hiddenGlows = new THREE.Group(); hiddenGlows.visible = false; rt.scene.add(hiddenGlows);
+    for (const fire of W.fires) hiddenGlows.add(fire.glow);
+
+    // 陣幕は岩村用の材質を共用。夜の白飛びを抑え、既存の染め紋と布の陰影を残す。
+    const campCloths = new Map();
+    rt.scene.traverse((m) => {
+      if (!m.isMesh || !m.geometry?.attributes.jpin) return;
+      let mat = campCloths.get(m.material);
+      if (!mat) {
+        const source = m.material;
+        mat = source.clone();
+        mat.color.setHex(0xd0c6af);
+        const compile = source.onBeforeCompile, key = source.customProgramCacheKey();
+        mat.customProgramCacheKey = () => key + '|iwaCampCloth';
+        mat.onBeforeCompile = (sh, renderer) => {
+          compile.call(mat, sh, renderer);
+          sh.uniforms.iwaClothNight = W.nightU;
+          sh.fragmentShader = 'uniform float iwaClothNight;\n' + sh.fragmentShader.replace(
+            '#include <opaque_fragment>', 'outgoingLight *= mix(1.0, 0.55, iwaClothNight);\n#include <opaque_fragment>');
+        };
+        softenIwamuraBoard(mat);
+        campCloths.set(source, mat);
+      }
+      m.material = mat;
+    });
+
+    rt.world.setTime('dusk');
+    rt.setPhase('brief');
+    rt.obj('siege', '囲みと兵糧道を守れ', 'side', true);
+    rt.objProgress('siege', '山の上は秋山虎繁の城。手前の柵を守れ');
+    rt.obj('main', HI(rt) ? '組を率い、河尻の柵につけ' : '河尻の柵の守りにつけ', 'main', true);
+    rt.banner('遠山氏の山城を囲む', '手前の柵を守る。まず左右の篝火へ');
+    rt.say('河尻秀隆', '敵影じゃ。左右の火を焚き、柵の口を守れ', 4);
+    F.raidGuide = { x: 0, z: FENCE_Z + 3 };
+    rt.marker('raidMouth', F.raidGuide, () => F.breached ? '陣の奥' : F.raidGuide.x ? '東の脇口' : '正面の口', { guideAlways: true });
+    rt.after(9, () => {
+      if (F.ending || rt.over) return;
+      // 持ち場から街道へ誘導せず、城将と守る理由を知らせる。
+      rt.say('使番', '城はまだ落ちぬ。信忠様の下知じゃ。柵の口を守れ', 4);
+    });
+    // 下知の声と任務の行き先を出陣時からそろえる。
+    // 夜討ちの時刻は同じ。味方の点火の助けも元の時刻に残す。
+    this.prepare(rt);
+  },
+
+  // ① 篝火を焚く
+  prepare(rt) {
+    const F = rt.flags;
+    if (F.ending || rt.over || !rt.player.u.alive || F.step >= 1) return;
+    F.step = 1; F.stepT = rt.t;
+    rt.setPhase('prepare');
+    F.litPosts = new Set();
+    rt.unmark('kawa');
+    rt.obj('main', HI(rt) ? '組を率い、左右の篝火を焚け' : '柵の左右に篝火を焚け', 'main', true);
+    rt.objProgress('main', `篝火 0／${POSTS.length}。篝火の印で長押し`);
+    rt.say('組頭', '手を貸せ。暗くなる前に火を起こせ', 3);
+    POSTS.forEach((q, i) => rt.after(25 + i * 10, () => { if (F.step === 1 && !F.ending && !rt.over) this.light(rt, i, true); }));
+    POSTS.forEach((q, i) => {
+      rt.marker('p' + i, q, '篝火', { h: 2 });
+      rt.addInteract('p' + i, q, '篝火を焚く', () => this.light(rt, i), { r: 3, hold: 1.5 });
+    });
+  },
+  light(rt, i, helper = false) {
+    const F = rt.flags;
+    if (F.ending || rt.over || !rt.player.u.alive || F.step !== 1 || F.litPosts.has(i) || !POSTS[i]) return;
+    F.litPosts.add(i);
+    const q = POSTS[i];
+    rt.uninteract('p' + i); rt.unmark('p' + i);
+    rt.scene.add(campfire(rt.world, q.x, q.z)); rt.world.addFire(q.x, q.z);
+    F.lit++;
+    if (!helper) F.playerLit = true;
+    if (F.lit >= POSTS.length) {
+      if (F.playerLit) rt.award((t) => t.side.push('篝火を焚いた'), '柵の篝火をそろえた');
+      rt.obj('main', '柵の内で夜討ちに備えよ', 'main', true);
+      rt.objProgress('main', '火はそろった。正面の口へ進み、味方と槍をそろえよ');
+      rt.say('河尻秀隆', F.playerLit ? 'よし、火がついた。口の敵影を見て、槍をそろえよ' : '火は味方が焚いた。おぬしは口で槍をそろえよ', 4);
+      // 支度を早く済ませても、夜討ちの時刻は変えない。
+    }
+    else rt.objProgress('main', `篝火 ${F.lit}／${POSTS.length}。残る篝火へ近づき、長押し`);
+  },
+
+  // ② 夜討ち
+  raid(rt) {
+    const F = rt.flags;
+    if (F.ending || rt.over || !rt.player.u.alive || F.step >= 2) return;
+    F.step = 2; F.stepT = rt.t; F.pollT = 0.5;
+    rt.setPhase('raid'); rt.objProgress('main', '柵の内で槍をそろえよ');
+    for (let i = 0; i < POSTS.length; i++) { rt.uninteract('p' + i); rt.unmark('p' + i); }
+    rt.obj('main', HI(rt) ? '組を率い、柵で夜討ちを防げ' : '柵で武田の夜討ちを防げ', 'main', true);
+    // 先触れが口へ着く頃に本隊の夜討ちを知らせる。
+    rt.say('河尻秀隆', '夜討ちじゃ。柵の内から槍を出せ。山道へ飛び出すな', 4);
+    for (const g of F.oda) { g.order = 'hold'; g.aggro = 6; }
+    // 寄せる敵の現在地は明かさず、山道から両口へ実際に歩かせる。
+    const send = (i) => {
+      if (F.ending || F.step !== 2) return;
+      const g = F.waves[i]; g.iwSent = true; g.iwSentAt = rt.t; F.sentWaves.push(g);
+      if (!g.count || g.routed) return;
+      // 出現位置だけを固定する。行軍中は道幅に合わせて後列の持ち場を詰める。
+      g.fixed = false; g.fire = true;
+      // 中央は柵の口、東は脇の口まで寄せる。柵の外で止めない。
+      g.order = 'path'; g.path = RAID_PATHS[i]; g.pathIdx = 1; g.speed = 2.8; g.march = true;
+      g.aggro = 4; g.seekRange = 8; g.noAI = true;
+      g.onArrive = (q) => { q.order = 'attack'; q.noAI = true; q.march = false; q.formation = 'loose'; q.seekRange = 45; };
+    };
+    // 山道の夜討ちを先に受け、城方の合流を二つ目の山場にする。
+    // 時機と台詞は復元。既存の十人を歩かせ、兵を増やさない。
+    send(0); send(1);
+    rt.after(24, () => send(2));
+    // 初戦後は十五秒ごとに次の手を寄せ、敵のいない切れ目を短くする。
+    rt.after(30, () => send(3));
+    rt.after(45, () => send(4));
+    rt.after(60, () => send(5));
+  },
+
+  // ③ 城の麓まで追う
+  chase(rt) {
+    const F = rt.flags;
+    if (F.ending || rt.over || !rt.player.u.alive || F.step >= 3) return;
+    F.step = 3; F.stepT = rt.t;
+    F.footY = rt.world.heightAt(FOOT.x, FOOT.z);
+    // 本人と歩く組も河尻の追撃の手。麓へ着いた実兵を、所属だけで到着人数から外さない。
+    // 下知の時に一度だけまとめ、半秒ごとの人数調べでは配列を作らない。
+    F.joinGroups = F.front.concat(rt.squadGroups);
+    // 殿の小隊は山道を守る。共通の追い回しで麓から斜面へ引き出さない。
+    for (const g of F.roadGuards) { g.aggro = 8; g.seekRange = 8; }
+    // 残った列で麓を押さえる。開戦時の人数を追撃の失敗条件にしない。
+    F.chasePath = rt.player.u.pos.x > 40 ? CHASE_EAST_PATH : CHASE_PATH;
+    F.restPath = F.chasePath === CHASE_EAST_PATH ? REST_EAST_PATH : REST_PATH;
+    F.restGuide = { x: 4, z: 32 };
+    F.chaseI = 0;
+    F.chaseGuide = { x: F.chasePath[0][0], z: F.chasePath[0][1] };
+    rt.marker('chaseRoad', F.chaseGuide, () => F.joinOrder ? '麓へ戻る道' : '麓へ続く山道', { guideAlways: true });
+    rt.setPhase('chase'); rt.unmark('raidMouth');
+    if (!gone(F.scout)) { F.scout.iwReturn = [...SCOUT_PATH.slice().reverse(), [0, -140]]; this.withdrawWave(rt, F.scout); }
+    rt.award((t) => t.side.push('夜討ちを受け止めた'), '夜討ちを受け止めた');
+    F.siege.pressure++;
+    F.siege.morale = Math.max(55, F.siege.morale - 8);
+    rt.objProgress('siege', '夜討ちの者が退く。城の麓を押さえよ');
+    // 追撃の下知は早い突撃太鼓。退き太鼓と区別し、河尻の手から届かせる。
+    signal('kakari', rt.distTo(F.kawa.anchor), 1);
+    rt.after(2.4, () => {
+      if (F.ending || rt.over || !rt.player.u.alive || F.step !== 3 || gone(F.kawa)) return;
+      rt.army.play('toki', F.kawa.anchor, 0.8);
+    });
+    battleEvent(rt, EVENT_RETREAT, FOOT, null, 1, true, '夜討ちの者が山道へ退く');
+    rt.banner('追い討ちの下知', '信忠様が先駆けで城へ追い込まれた。河尻の手は麓へ');
+    if (F.playerOpened) rt.award((t) => t.side.push('夜討ちの列を押し返した'), '自分の手で追撃の道を開いた');
+    rt.say('河尻秀隆', F.playerOpened ? 'おぬしの働きで敵が退いた。法螺と早い太鼓が追撃の合図じゃ。麓へ進め' : '法螺と早い太鼓が追撃の合図じゃ。わしの手と麓へ進め。組を離れるな', 4);
+    rt.obj('main', '山道を進み、麓の味方につけ', 'main', true);
+    rt.objProgress('main', '法螺と早い太鼓で追撃。組を離れず、麓へ');
+    rt.marker('foot', FOOT, '城の麓', { h: 2 });
+    rt.zone('foot', FOOT.x, FOOT.z, 8);
+    // 金色の到着範囲は矢の軌跡ではない。平らな輪を坂へ沿わせ、空へ浮く弧をなくす。
+    const footRing = rt.rings.find((m) => m.userData.id === 'foot');
+    rt.drapeRing(footRing, FOOT.x, FOOT.z);
+    footRing.material.opacity = 0.16;
+    // 崩れた手にも道順を残す。立て直すまでは敗走を続け、戻った時に集合から再開する。
+    // ここで除くと、後で到着人数には含まれるのに追撃の下知を持たない隊になる。
+    for (const g of F.front) if (g.count > 0) {
+      g.fixed = false; // 柵の持ち場を離れた列にも、山道の持ち場補正を使う。
+      if (!g.routed) g.order = 'move';
+      // 集合中は三列の塊にする。槍衾は初期人数から横幅を決めるため、
+      // 死傷者が出ても端の持ち場が集合範囲の外に残ってしまう。
+      g.formation = 'dense'; g.width = 3; g.colW = 2;
+      g.roadColumn = true;
+      // 両手とも中央の平場へ集合するので、そこから正面の口へ進む。
+      // 元の持ち場が東でも、集合後に東口まで往復させない。
+      const path = CHASE_PATH;
+      // まず平場へ集まり、それから縦隊を作る。柵際で縦隊へ替えると、
+      // 全員の持ち場が十二メートル以上先へ飛び、後列待ちで要も動けなくなる。
+      // 口の内の左右へ三列で詰める。柵を守った手を陣の奥へ戻さず、
+      // 口から十二メートル内側で組み直して出る。番小屋と本陣の戸口も空ける。
+      const gatherX = g === F.kawa ? -4 : 4;
+      g.dest = { x: gatherX, z: 6 }; g.iwGather = true;
+      g.path = [[gatherX, 34], [gatherX, 6], [path[0][0], 6], ...path];
+      // 味方が敗走から戻ると共通処理が道順と集合先を消す。追撃の下知を残す。
+      g.iwChasePath = g.path; g.iwGatherPoint = g.dest;
+      g.pathIdx = 1; g.speed = 2.2; g.aggro = 4; g.seekRange = 8;
+      // 弓・鉄砲が遠い城兵を狙うと後列が止まり、組全体が麓へ着けない。
+      // 行軍中は近い敵にだけ応戦し、麓で射撃を再開する。
+      g.fire = false; g.focus = null;
+      g.march = false; g.noAI = true;
+      // 集合の下知を、近くを進む別の武将への追従で上書きさせない。
+      // 目の前の敵への応戦・敗走・手当ては共通の判断を残す。
+      g.keepMoveOrder = true;
+      // 死傷者の空いた段を詰める。初期人数は士気の計算に残し、兵の位置は動かさない。
+      let slot = 0;
+      for (const u of g.units) if (chaseReady(u)) u.slot = slot++;
+      for (const u of g.units) if (!chaseReady(u)) u.slot = slot++;
+      g.iwChaseCheck = { x: g.anchor.x, z: g.anchor.z, t: rt.t };
+      g.iwChaseFrom = { x: 0, y: 0, z: 0 };
+      g.iwChaseTo = { x: 0, y: 0, z: 0 };
+      g.onArrive = null;
+      g.iwChaseArrive = (q) => {
+        q.keepMoveOrder = false;
+        q.order = 'hold'; q.formation = 'yari'; q.yariRanks = 3; q.width = 0;
+        q.anchor.x = q === F.kawa ? -6 : 6; q.anchor.z = FOOT.z + 3;
+        q.facing = Math.PI; q.fire = true;
+        // 二手を平場の左右に分け、城の坂へ広がらず麓の道を守る。
+      };
+    }
+    // 馬廻と鉄砲組は陣に残り、追撃で本陣を空にしない。
+  },
+
+  win(rt) {
+    const F = rt.flags;
+    if (F.ending || !rt.player.u.alive || F.step !== 3 || F.joinHold < 3) return;
+    F.ending = true;
+    rt.setPhase('end');
+    rt.unmark('foot'); rt.unzone('foot'); rt.unmark('chaseRoad'); rt.unmark('joinAlly');
+    for (let i = 0; i < F.roadDefenders.length; i++) rt.unmark('roadEnemy' + i);
+    rt.award((t) => t.side.push(`この持ち場の討死：味方${F.ak}人・敵${F.ek}人`), '持ち場の討死');
+    rt.objDone('main');
+    F.siege.pressure++;
+    rt.objDone('siege');
+    rt.award((t) => t.side.push('夜討ちを退け、囲みを守った'), '包囲の陣と麓の道を守った');
+    rt.tracker.main = true;
+    rt.award((t) => { t.main = true; t.special = { label: '水晶山の夜討ちを退け、城の麓まで進んだ', pts: 20 }; }, '水晶山の守りを果たした');
+    rt.banner('水晶山の囲みを守った', '岩村城は後日開城。次は大坂・天王寺へ');
+    rt.say('河尻秀隆', 'よう守った。囲みは崩れなんだ。ここに留まれ', 3);
+    // 十日の夜の任務はここまで。二十一日の捕縛・処刑は戦後の解説に分ける。
+    rt.finish({ scriptedEnd: true }, 7);
+  },
+
+  lose(rt, reason = '') {
+    if (!reason && !rt.canFailMission()) return;
+    const F = rt.flags;
+    if (F.ending || rt.over) return;
+    F.ending = true; rt.setPhase('end'); rt.tracker.main = false;
+    // 局地の失敗は囲みの損として残す。後日の開城をこの夜の成功条件にしない。
+    F.siege.held = false;
+    F.siege.pressure = Math.max(0, F.siege.pressure - 1);
+    rt.objFail('siege');
+    rt.objFail('main');
+    rt.objProgress('main', '');
+    rt.unmark('foot'); rt.unzone('foot'); rt.unmark('chaseRoad'); rt.unmark('joinAlly'); rt.unmark('kawa'); rt.unmark('raidMouth');
+    for (let i = 0; i < POSTS.length; i++) { rt.unmark('p' + i); rt.uninteract('p' + i); }
+    for (let i = 0; i < F.roadDefenders.length; i++) rt.unmark('roadEnemy' + i);
+    const failureReason = reason || (F.step === 3 ? '麓を守る味方の列が崩れた。陣へ退け' : F.front.every(gone) ? '柵の味方の列が崩れた。本陣へ退け' : '敵に陣の奥を奪われた。本陣へ退け');
+    rt.banner('持ち場を守れなかった', failureReason);
+    rt.finish({ failureReason }, 7);
+  },
+
+  update(rt, dt) {
+    const F = rt.flags;
+    KIT.backTick(rt);
+    // 置換した備も持ち場の槍の列に留める。追撃の下知を受けた二手へ勝手に加わらせない。
+    for (const g of rt.army.groups) if (g.woke?.jinkeiGuard && !g.iwGuard) {
+      g.iwGuard = true; g.guardOn = true; g.formation = 'yari'; g.aggro = 4; g.seekRange = 8;
+    }
+    F.keep.tick();
+    this.torchTick(rt);
+    if (F.ending || rt.over || !rt.player.u.alive) return;
+    this.footEarthTick(rt);
+    this.rearTick(rt);
+    if (F.step >= 2 && rt.t >= (F.pressureAt || 0)) {
+      // 道順の詰まりだけを助ける。下知は任務札に残るので同じ台詞を繰り返さない。
+      if (F.pressureStage !== F.step) { F.pressureStage = F.step; F.pressureSince = rt.t; }
+      F.pressureSayAt = Infinity;
+      pressureTick(rt, F.step, F.sentWaves, F.front, '');
+    }
+    // 支度から夜討ちまで四十四秒。色づくりは共通の移ろいに任せる。
+    if (!F.duskStarted && rt.t >= F.duskAt) {
+      F.duskStarted = true;
+      const W = rt.world, from = W.currentLook(), fromNight = W.nightAmount();
+      W.setTime('night');
+      if (W.fade) W.fade.dur = 28;
+      else W.fade = { from, to: W.lookOf('night'), fromNight, t: 0, dur: 28, env: 0 };
+    }
+    // 支度中は先触れも山道に留まる。夜の色になってから実際に歩かせる。
+    if (!F.scout.iwSent && F.duskStarted && rt.world.nightAmount() >= 0.5) {
+      F.scout.iwSent = true; F.scout.order = 'path'; F.scout.march = true;
+      F.scout.aggro = 4; F.scout.seekRange = 32;
+      for (const g of F.oda) g.fire = true;
+      F.fgun.fire = true;
+    }
+    // 夜討ちの始まりは時刻で知らせる。麓の確保は本人と組の到着を待つ。
+    if (F.step === 0 && rt.t - F.stepT >= 5) this.prepare(rt);
+    if (F.step >= 2 && rt.player.u.hp < rt.player.u.maxHp * 0.5 && !F.hurtHint) {
+      this.hurtNotice(rt);
+    }
+    if (F.step < 3 && rt.t >= (F.contactAt || 0)) {
+      F.contactAt = rt.t + 0.5;
+      const lord = F.keep.lord;
+      // 城将は城に留める。近くまで来た時だけ、その場の声を聞かせる。
+      if (!F.castleVoice && lord.alive && Math.hypot(lord.pos.x - rt.player.u.pos.x, lord.pos.z - rt.player.u.pos.z) < 24 && sightUnit(rt, lord)) {
+        F.castleVoice = true;
+        rt.say('秋山虎繁', '城を捨てるな。退いた者を収め、木戸を守れ', 4);
+      }
+      let near = null, distance = Infinity, nearWave = null, waveDistance = Infinity, reachableDistance = Infinity;
+      // 任務の近傍判定も使い、同じ高さで向き合える敵だけを迎撃の相手とする。
+      // 退く隊の残兵を口で受ける寄せ手に数えず、持ち場から追わせない。
+      const closeEnemy = rt.missionGuide?.closeEnemy;
+      F.localContact = !!(closeEnemy?.alive && !closeEnemy.fleeing && !closeEnemy.woundOut &&
+        !closeEnemy.group?.iwWithdraw && !closeEnemy.group?.retreatOnly &&
+        Math.hypot(closeEnemy.pos.x - rt.player.u.pos.x, closeEnemy.pos.z - rt.player.u.pos.z) < 4.5 &&
+        Math.abs(closeEnemy.pos.y - rt.player.u.pos.y) < 2 &&
+        !rt.army.wallBetween(closeEnemy.pos, -1, rt.player.u.pos) &&
+        !rt.army.terrainBlocks(closeEnemy.pos, rt.player.u.pos) && sightUnit(rt, closeEnemy));
+      for (const g of F.contacts) {
+        if (gone(g) || g.iwWithdraw || !g.iwSent) continue;
+        // 夜討ちの下知を受けた列は、守りの命令へ戻っても口への行軍を続ける。
+        if (F.step === 2 && g.iwSent && (g.order === 'hold' || g.order === 'yari')) {
+          g.order = g.onArrive ? 'path' : 'attack';
+          g.march = !!g.onArrive;
+        }
+        // 曲がり角に先頭と隊の要が着けば次へ進む。後列待ちで夜討ちを止めない。
+        if (g.order === 'path' && g.path?.length && g.onArrive) {
+          const q = g.path[Math.min(g.pathIdx, g.path.length - 1)];
+          const front = g.units.some((u) => u.alive && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - q[0], u.pos.z - q[1]) < 5);
+          if (front && Math.hypot(g.anchor.x - q[0], g.anchor.z - q[1]) < 1.5) {
+            if (g.pathIdx < g.path.length - 1) g.pathIdx++;
+            else { const deploy = g.onArrive; g.onArrive = null; deploy(g); }
+          }
+        }
+        let canReach = false;
+        for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut) {
+          const d = Math.hypot(u.pos.x - rt.player.u.pos.x, u.pos.z - rt.player.u.pos.z);
+          if (d < distance) { distance = d; near = u; }
+          if (g.iwMouthPaths && d < waveDistance) { waveDistance = d; nearWave = g; }
+          const clear = d < 45 && !rt.army.wallBetween(u.pos, -1, rt.player.u.pos) &&
+            !rt.army.terrainBlocks(u.pos, rt.player.u.pos);
+          const sameLevel = Math.abs(u.pos.y - rt.player.u.pos.y) < 2;
+          if (clear && sameLevel && (u.sidearm || u.type !== 'bow' && u.type !== 'gun'))
+            reachableDistance = Math.min(reachableDistance, d);
+          if (clear && sameLevel && d <= 6 && (d <= 5 || sightUnit(rt, u))) F.localContact = true;
+          if (clear) canReach = true;
+        }
+        if (g.order === 'attack') g.focus = canReach ? rt.player.u : null;
+      }
+      // 柵越し・切岸の下の兵や弓だけを、斬り合える敵として数えない。
+      // 近くに見えても届かない間は、既存の連絡道を通る寄せ直しを止めない。
+      if (reachableDistance <= 25 || F.step !== 2) F.quietSince = rt.t;
+      // 四秒静かなら本人側の口へ回す。連絡道の移動も含め、三十秒以内に近づける余裕を取る。
+      // 半秒ごとの既存の調べを使い、兵の追加や瞬間移動はしない。
+      if (F.step === 2 && reachableDistance > 25 &&
+          (rt.t - F.quietSince >= 4 || rt.t >= 150) && rt.t >= (F.mouthHelpAt || 0)) {
+        const g = nearWave;
+        if (g?.iwMouthPaths && !g.iwWithdraw && !gone(g)) {
+          const side = rt.player.u.pos.x > 40 ? 1 : 0;
+          const route = g.iwMouthPaths[side];
+          const i = F.waves.indexOf(g);
+          const next = g.order === 'path' && (g.path === RAID_PATHS[i] || g.path === route) ? g.pathIdx : RAID_PATHS[i].length - 1;
+          g.path = route; g.pathIdx = next; g.order = 'path'; g.fixed = false;
+          g.formation = 'column'; g.march = true; g.speed = 2.8; g.focus = null;
+          g.onArrive = (q) => { q.order = 'attack'; q.march = false; q.formation = 'loose'; q.seekRange = 45; };
+          F.mouthHelpAt = rt.t + 12;
+        }
+      }
+      // 現在地の透視ではなく、見張りが知らせる迎撃の口を指す。
+      F.raidMouthX = near && near.pos.x > 40 ? 66 : 0;
+      F.raidGuide.x = F.breached ? 0 : F.raidMouthX;
+      F.raidGuide.z = F.breached ? 32 : F.raidGuide.x ? 12 : FENCE_Z + 3;
+      const squad = rt.squadGroups?.find((g) => g.count > 0);
+      F.actionHint = distance > 25 ? '柵の内を通り、口へ進め' :
+        !squad ? '口で敵を受けよ' : '組の槍をそろえ、口の敵を押し返せ';
+    }
+    if (F.step < 2 && rt.t >= (F.prepareAt || 0)) {
+      F.prepareAt = rt.t + 1;
+      const contact = F.scout.units.some((u) => {
+        if (!u.alive || u.fleeing || u.woundOut) return false;
+        const d = Math.hypot(u.pos.x - rt.player.u.pos.x, u.pos.z - rt.player.u.pos.z);
+        // 背後の打ち手や、画面端で槍を合わせる敵も本人には分かる。
+        return d < 12 && (sightUnit(rt, u) || d < 5 || u.target === rt.player.u);
+      });
+      if (contact) F.scoutSeenAt = rt.t;
+      const scoutNear = contact || rt.t - (F.scoutSeenAt ?? -99) < 4;
+      // 目の前の敵を先に受ける。火の札と迎撃の声で別々の場所へ誘わない。
+      F.scoutNear = scoutNear;
+      rt.obj('main', scoutNear ? '柵の口の敵を押し返せ' : F.lit < POSTS.length ?
+        HI(rt) ? '組を率い、左右の篝火を焚け' : '柵の左右に篝火を焚け' : '柵の内で夜討ちに備えよ', 'main', true);
+      if (scoutNear && !F.scoutWarned) {
+        F.scoutWarned = true;
+        rt.say('組頭', '敵が来た。口で受けよ。火は味方が焚く', 3);
+      }
+      rt.objProgress('main', scoutNear ? '先触れが来た。柵の内で押し返せ。火は味方も焚く' :
+        F.lit < POSTS.length ? `篝火 ${F.lit}／${POSTS.length}。篝火の印で長押し` : '火はそろった。正面の口へ進み、味方と槍をそろえよ');
+    }
+    if (F.step === 1 && F.lit < POSTS.length && rt.t - F.stepT > 22 && !F.litCall) {
+      F.litCall = true; rt.say('組頭', F.scoutNear ? '火は味方も焚く。おぬしは口を守れ' : '日が落ちるぞ。火を絶やすな。柵の口を固めよ', 4);
+    }
+    if (F.step === 1 && rt.t >= F.raidAt && !rt.world.fade) {
+      for (let i = 0; i < POSTS.length; i++) this.light(rt, i, true);
+      this.raid(rt);
+    }
+    if (F.step < 2 || (F.pollT -= dt) > 0) return;
+    const span = 0.5 - F.pollT; F.pollT = 0.5;
+    let inside = 0, deep = 0, guards = 0;
+    for (const g of F.waves) for (const u of g.units) {
+      if (!u.alive || u.fleeing || u.woundOut) continue;
+      if (u.pos.z > -30) F.raidContact = true;
+      if (Math.abs(u.pos.x) < 26 && u.pos.z > 26 && u.pos.z < 58) inside++;
+      if (Math.abs(u.pos.x) < 12 && u.pos.z > 42 && u.pos.z < 58) deep++;
+    }
+    for (const g of [F.honjin.guard, F.gate, F.fgun]) for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut && Math.abs(u.pos.x) < 14 && u.pos.z > 40 && u.pos.z < 60) guards++;
+    const breached = inside > 0 && (inside >= 4 || deep > guards);
+    if (F.step === 2) {
+      if (breached && !F.breached) {
+        rt.say('組頭', '陣の奥へ入られた。味方と押し返せ', 3);
+        rt.hud.notices.push('！ 陣の奥を奪われる。味方と敵を押し返せ', 115, 8, 'warn',
+          () => !rt.over && !F.ending && F.step === 2 && F.breached);
+      }
+      F.breached = breached;
+      // 奥を奪われた時は、口の道標を使い回して救援先を示す。
+      F.raidGuide.x = breached ? 0 : F.raidMouthX || 0;
+      F.raidGuide.z = breached ? 32 : F.raidGuide.x ? 12 : FENCE_Z + 3;
+      F.atRaidMouth = !breached && Math.hypot(rt.player.u.pos.x - F.raidGuide.x, rt.player.u.pos.z - F.raidGuide.z) < 6;
+      rt.obj('main', breached ? '陣の奥の敵を押し返せ' :
+        F.localContact ? '柵の口で味方と敵を押し返せ' :
+        HI(rt) ? '組を率い、柵で夜討ちを防げ' : '柵で武田の夜討ちを防げ', 'main', true);
+    }
+    F.breach = breached ? F.breach + span : Math.max(0, F.breach - span);
+    // 追撃後は下の合流人数で判定する。柵の二手が崩れても、麓の本人の組は守りを続けられる。
+    if (F.step === 2 && (F.breach >= 8 || F.front.every(gone))) {
+      this.lose(rt);
+      if (F.ending || rt.over) return;
+    }
+    if (F.step === 2) {
+      for (let i = 0; i < F.waves.length; i++) {
+        const g = F.waves[i];
+        // 先頭が口へ着いたら構える。後列全員の到着待ちで斬り合いを止めない。
+        if (g.iwSent && !g.iwWithdraw && !gone(g) && g.order === 'path' && g.onArrive && g.pathIdx >= g.path.length - 1) {
+          const mouth = g.path[g.path.length - 1];
+          if (g.units.some((u) => u.alive && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - mouth[0], u.pos.z - mouth[1]) < 8)) {
+            const deploy = g.onArrive; g.onArrive = null; deploy(g);
+          }
+        }
+        const seen = g.units.find((u) => u.alive && !u.fleeing && !u.woundOut && sightUnit(rt, u));
+        // 城方を見た時だけ合流の危機を知らせる。遠い城将の声を陣まで飛ばさない。
+        if (i === 2 && seen && g.iwSent && !F.castleSortieSaid) {
+          F.castleSortieSaid = true; F.directionAt = rt.t + 8;
+          rt.banner('城方も出てきた', '夜討ちの者と合流させるな');
+          rt.say('毛利河内', '城方が来たぞ。両方の口で押し返せ', 4);
+        }
+        const mouth = seen ? seen.pos.x > 20 ? '東' : seen.pos.x < -20 ? '西' : '正面' : null;
+        if (mouth && g.iwSent && !F.directionSaid.has(mouth) && rt.t >= (F.directionAt || 0)) {
+          F.directionSaid.add(mouth); F.directionAt = rt.t + 8;
+          rt.say('見張り', `${mouth}の口だがや！　敵が来よるぞ！`, 4);
+        }
+      }
+      if (!F.raidAlarm) {
+        for (const g of F.waves) for (const u of g.units) if (!F.raidAlarm && u.alive && !u.fleeing && u.pos.z > -40 && sightUnit(rt, u)) {
+          F.raidAlarm = true;
+          // 敵を見つけた口の篝火から警報を鳴らす。姿のない山道では鳴らさない。
+          rt.army.play('horagai', POSTS[u.pos.x > 20 ? 1 : 0], 0.8);
+          rt.banner('夜討ち', '篝火の向こうに武田の者がいる');
+          rt.say('組頭', '法螺は夜討ちの警報じゃ！　槍を出せ、柵から離れるな', 4);
+        }
+      }
+      if (!F.raidAlarm && !F.raidNews && rt.t - F.stepT >= 8) {
+        F.raidNews = true;
+        rt.banner('夜討ちの報せ', '味方が山道の寄せを迎え撃っている');
+        rt.say('使番', '山道で味方が夜討ちを受けておる。こちらの口も固めよ', 4);
+      }
+      const cue = F.withdrawSignal ? '敵の退き太鼓。まだ追うな。' : F.raidAlarm ? '夜討ちじゃ。' : '';
+      rt.objProgress('main', breached ? `陣を守れ。あと${Math.max(0, Math.ceil(8 - F.breach))}秒で持ち場を失う` :
+        F.localContact ? '柵の内で受けよ。味方の列から離れるな' :
+        F.atRaidMouth ? 'この口を守れ。柵の内で、味方と槍をそろえよ' :
+        cue + `${F.raidGuide.x ? '東の脇口' : '正面の口'}へ。柵の内の道を通れ`);
+      let seenBroken = 0;
+      for (const g of F.waves) if ((gone(g) || g.iwWithdraw) && g.units.some((u) => u.alive && sightUnit(rt, u))) seenBroken++;
+      if (seenBroken && !F.brokenSaid) { F.brokenSaid = true; rt.say('見張り', '敵が崩れたがや！　まだ山道におるぞ！', 4); }
+      // 損害で退く。時間を過ぎただけの無傷の寄せは退かせない。
+      if (F.raidContact && inside === 0 && !F.front.every(gone)) {
+        for (const g of F.waves) if (g.iwSent && !g.iwWithdraw && !gone(g)) {
+          let fighting = 0, breached = false;
+          for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut) { fighting++; if (Math.abs(u.pos.x) < 26 && u.pos.z > 26 && u.pos.z < 58) breached = true; }
+          const leaderLost = g.leader && (!g.leader.alive || g.leader.woundOut);
+          // 自分か配下が二人を倒した列は、損害条件を満たせば早く退く。
+          // 無傷の敵の自動退却にはせず、本人の押し返しを追撃につなぐ。
+          const hold = (g.iwOwnKills || 0) >= 2 ? 20 : 30;
+          if (breached || fighting > g.iwInitial * siegeRetreatRatio(F.siege, leaderLost) || rt.t - (g.iwSentAt || F.stepT) < hold) continue;
+          if ((g.iwOwnKills || 0) >= 2) F.playerOpened = true;
+          this.withdrawWave(rt, g);
+        }
+      }
+      if (F.waves.every((g) => g.iwSent && (gone(g) || g.iwWithdraw)) && inside === 0 && !F.front.every(gone)) this.chase(rt);
+
+    } else if (F.step === 3) {
+      const p = rt.player.u.pos;
+      // 道標は次の折れを指す。味方の先頭と隊の要が着けば後列待ちを解く。
+      while (F.chaseI < F.chasePath.length - 1 &&
+          Math.hypot(p.x - F.chasePath[F.chaseI][0], p.z - F.chasePath[F.chaseI][1]) < 6) F.chaseI++;
+      // 戦いで折れを通り過ぎても、通過した道標へ引き返させない。
+      // 道から離れた時は先の折れへ飛ばさず、今の道標を保つ。
+      for (let i = Math.max(1, F.chaseI); i < F.chasePath.length; i++) {
+        const a = F.chasePath[i - 1], b = F.chasePath[i];
+        const dx = b[0] - a[0], dz = b[1] - a[1];
+        const t = Math.max(0, Math.min(1, ((p.x - a[0]) * dx + (p.z - a[1]) * dz) / (dx * dx + dz * dz || 1)));
+        if (Math.hypot(p.x - a[0] - dx * t, p.z - a[1] - dz * t) < 6)
+          F.chaseI = Math.max(F.chaseI, Math.min(F.chasePath.length - 1, i + (t > 0.85 ? 1 : 0)));
+      }
+      if (Math.hypot(p.x - FOOT.x, p.z - FOOT.z) < 8) F.chaseI = F.chasePath.length - 1;
+      F.chaseGuide.x = F.chasePath[F.chaseI][0]; F.chaseGuide.z = F.chasePath[F.chaseI][1];
+      // 一度着いた後も、離れた場所から麓へ一直線に崖を横切らせない。
+      if (F.joinOrder && !atFoot(F, p)) returnToRoad(F.chasePath, p, F.chaseGuide);
+      for (const g of F.front) if (!gone(g) && (g.iwGather || g.onArrive)) {
+        if (g.routed || g.signalUntil > rt.army.time) continue;
+        if (g.iwGather) {
+          // 道順や集合先が残っても、立て直し後の待機命令だけでは列が歩き出せない。
+          if (!g.dest || g.order !== 'move') { g.dest = g.iwGatherPoint; g.order = 'move'; }
+          advanceChaseFront(rt, g, span);
+          gatherChaseFront(rt, g);
+        }
+        // 道の途中で立て直した列も、残した折れ点から再開する。
+        if (!g.iwGather && g.iwChasePath && (!g.path || g.order !== 'path')) {
+          g.path = g.iwChasePath; g.order = 'path'; g.formation = 'column';
+        }
+        if (g.order !== 'path' || !g.path?.length || !g.onArrive) continue;
+        packChaseFront(g);
+        advanceChaseFront(rt, g, span);
+        const q = g.path[Math.min(g.pathIdx, g.path.length - 1)];
+        if (Math.hypot(g.anchor.x - q[0], g.anchor.z - q[1]) < 1.5 &&
+            g.units.some((u) => chaseReady(u) && Math.hypot(u.pos.x - q[0], u.pos.z - q[1]) < 5)) {
+          if (g.pathIdx < g.path.length - 1) g.pathIdx++;
+          else { const deploy = g.onArrive; g.onArrive = null; deploy(g); }
+        }
+      }
+      for (let i = 0; i < F.roadDefenders.length; i++) { const g = F.roadDefenders[i]; if (g.iwRoadMarked && (g.iwWithdraw || !g.units.some((u) => roadEnemy(u, F.joinOrder, F.footY)))) { g.iwRoadMarked = false; rt.unmark('roadEnemy' + i); } }
+      let roadHeld = false, roadDistance = Infinity;
+      F.roadMarker = null;
+      F.roadFight = false;
+      for (const g of F.roadDefenders) if (!g.iwWithdraw) for (const u of g.units) {
+        if (roadEnemy(u, F.joinOrder, F.footY)) {
+          roadHeld = true;
+          if (!g.iwRoadMarked && sightUnit(rt, u)) {
+            g.iwRoadMarked = true;
+            g.iwRoadGuide = u;
+            // 隊の中心が城の坂へ移っても、麓に残る兵を指す。退いた兵を追わせない。
+            rt.marker('roadEnemy' + F.roadDefenders.indexOf(g),
+              () => g.iwRoadGuide?.pos || FOOT,
+              '麓の道を守る敵', { red: true, group: g });
+          }
+          const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z);
+          if (sightUnit(rt, u) && d < roadDistance) { roadDistance = d; g.iwRoadGuide = u; F.roadMarker = 'roadEnemy' + F.roadDefenders.indexOf(g); }
+        }
+      }
+      let joined = 0, available = 0, recovering = 0, nextAllyDistance = Infinity, nextAlly = null;
+      const footY = rt.world.heightAt(FOOT.x, FOOT.z);
+      for (const g of F.joinGroups) if (!gone(g)) for (const u of g.units) {
+        // 後送中の深手の兵には、麓で並び直す役目を負わせない。
+        if (u.alive && !u.isPlayer && !u.noTarget && !u.fleeing && !u.woundOut && !u.rearWound) {
+          // 倒れた兵は起きる余地がある。後送された兵の到着は待たない。
+          if (u.downed) { recovering++; continue; }
+          available++;
+          const d = Math.hypot(u.pos.x - FOOT.x, u.pos.z - FOOT.z);
+          // 崖の上の兵は、同じ麓へ着いた人数に含めない。
+          if (d < 16 && Math.abs(u.pos.y - footY) < 3) joined++;
+          else {
+            const distance = Math.hypot(d, u.pos.y - footY);
+            if (distance < nextAllyDistance) { nextAllyDistance = distance; nextAlly = u; }
+          }
+        }
+      }
+      if (available === 0 && recovering === 0) {
+        this.lose(rt, '麓を守る味方が残っていない。追い討ちを止め、陣へ退け');
+        return;
+      }
+      const arrived = atFoot(F, p);
+      F.chaseArrived = arrived;
+      // 道で斬り合っている間は近い敵を指す。遠い守兵へ道を外れて追わせない。
+      F.roadFight = !!F.roadMarker && roadDistance < 8 && distToPolyline(p.x, p.z, F.chasePath) < 8;
+      if (arrived && !F.joinOrder) {
+        F.joinOrder = true;
+        rt.obj('main', '麓の敵を退け、味方と留まれ', 'main', true);
+        rt.say('組頭', '麓まで来たぞ。道の敵を退け、ここを押さえよ。城の坂へは追うな', 4);
+      }
+      const need = Math.min(6, Math.max(1, Math.ceil(available * 0.3)));
+      // 味方の遅れは任務札で知らせる。待つ間の行き先は麓に保ち、後続へ引き返させない。
+      rt.obj('main', !arrived ? F.joinOrder ? '麓へ戻り、味方と留まれ' : F.roadFight ? '道の敵を退け、麓へ進め' : '山道を進み、麓の味方につけ' : roadHeld ? '麓の道の敵を退けよ' : joined < need ? available ? '麓に留まり、組の到着を待て' : '味方が起きるまで麓を守れ' : '味方と麓の道を守れ', 'main', true);
+      if (available < 6 && !F.joinWarn) { F.joinWarn = true; rt.say('組頭', '手勢が減ったぞ。互いに離れるな', 4); }
+      F.joinHold = arrived && available > 0 && joined >= need && !roadHeld ? (F.joinHold || 0) + span : 0;
+      // 敵が道に残る間も、合流の進みを隠さない。敵だけを追って麓を離れるのを防ぐ。
+      // 到着数が変わらない間も、実兵がどこまで来たかを伝える。迎えに戻らせない。
+      const behind = !nextAlly ? '' : nextAlly.group.iwGather ? '後続は陣で集合中。' :
+        nextAlly.pos.z > FENCE_Z ? '後続は柵の内。' : `後続は麓まで${Math.ceil(nextAllyDistance / 0.75)}歩。`;
+      const waiting = `合流 ${joined}／${need}人。${behind}麓を離れるな`;
+      const joinedText = joined >= need ? '味方は合流済み。' : `味方 ${joined}／${need}人。`;
+      F.joinStatus = joinedText;
+      const progress = !arrived ? F.joinOrder ? `${joinedText}道の印へ戻れ。城の坂へ追うな` : F.roadFight ? '味方と押し返せ。城の坂へ追うな' : '山道の印をたどれ' : roadHeld ? `${joinedText}麓で押し返せ。城の坂へ追うな` : joined < need ? available ? waiting : '倒れた味方が起きるのを待て。麓を離れるな' : `麓で列を保つ あと${Math.max(0, Math.ceil(3 - F.joinHold))}秒`;
+      rt.objProgress('main', !arrived && !F.joinOrder ? '法螺と早い太鼓で追撃。' + progress : progress);
+      if (F.joinHold >= 3) this.win(rt);
+    }
+  },
+
+
+  // 共通の台詞の入口を、この戦の実体だけで整える。他の戦の入口は変えない。
+  notices(rt) {
+    const F = rt.flags;
+    F.noticeBark = rt.bark.bind(rt);
+    const say = rt.say.bind(rt);
+    const holdCall = (text) => F.step < 3 ? text.replace(
+      /敵は総崩れじゃ！|敵が背を見せた！\s*追え！|敵が崩れた！\s*今ぞ、押せ！|敵が槍を捨てた！/g,
+      '敵の一手が退いた。柵の口を守れ') : text;
+    const hurt = /深手だ！|深手じゃ！|危ない！|構え.*下がれ|あと一太刀|布を巻く間は動けない|お命が！/;
+    rt.bark = (text, warn) => {
+      if (rt.player.u.alive && hurt.test(text)) { this.hurtNotice(rt); return; }
+      if (/矢が来る|矢じゃ|矢の雨|笠を傾け|矢玉じゃ|矢が当たった|矢が降る/.test(text)) { this.arrowNotice(rt); return; }
+      if (text === '後ろだ！') return; // 接近の知らせと足音を先に出す。
+      F.noticeBark(holdCall(text), warn);
+    };
+    rt.say = (sp, text, dur) => {
+      if (rt.player.u.alive && hurt.test(text)) { this.hurtNotice(rt); return; }
+      if (text.startsWith('後ろから来た！')) return;
+      text = text.replace('の手に命が届いた。その隊は持ち場を守っている', 'へ下知が届いた。持ち場を守る');
+      say(sp, holdCall(text), dur);
+    };
+    rt.army.hooks.onArrowAtPlayer = () => this.arrowNotice(rt);
+    // 矢は共通の実寸補正を使う。体の根へ移すと、屈んだ胴から刺さり口が離れる。
+    // 矢の警報も任務と同じ三枠へ入れる。中央に別の札を重ねない。
+    rt.army.hooks.onArrowRain = (volley, under) => {
+      if (!under || rt.t < 5 || rt.over || rt.ended || !rt.player.u.alive) return;
+      F.rainUntil = Math.max(F.rainUntil || 0, rt.t + volley.T + 0.4);
+      rt.hud.notices.push('▲ 矢が来る。小屋の陰へ', 110, Math.max(3, volley.T + 0.4), 'warn',
+        () => !rt.over && !rt.ended && rt.player.u.alive);
+    };
+    // 気づく前に間合いへ入った者にも、知らせから三秒の猶予を守る。
+    const damage = rt.army.damage.bind(rt.army);
+    rt.army.damage = (target, amount, src, opts = {}) => {
+      if (target === rt.player.u && src?.team === 1 && src.pos &&
+          opts.kind !== 'arrow' && opts.kind !== 'gun' && opts.kind !== 'fire' && !src.isStruct && this.isRear(rt, src)) {
+        this.rearNotice(rt, src);
+        if (rt.t < src.iwRearReady) { if (opts.out) opts.out.res = 'miss'; return; }
+      }
+      return damage(target, amount, src, opts);
+    };
+  },
+  arrowNotice(rt) {
+    const F = rt.flags;
+    if (rt.t < 10 || rt.t < (F.rainUntil || 0) || rt.t < (F.arrowAt || 0) || (F.arrowN || 0) >= 3) return;
+    F.arrowAt = rt.t + 20;
+    F.noticeBark(['矢が来る。小屋の陰へ', '射手が狙っている。口で立ち止まるな', '矢を避け、小屋の陰へ'][F.arrowN || 0], true);
+    F.arrowN = (F.arrowN || 0) + 1;
+  },
+  hurtNotice(rt) {
+    const F = rt.flags;
+    if (F.hurtHint || !rt.player.u.alive || rt.player.u.hp > rt.player.u.maxHp * 0.5) return;
+    F.hurtHint = true;
+    F.noticeBark('深手だ。構えて味方の後ろへ退き、止まって傷を縛れ', true);
+  },
+  isRear(rt, u) {
+    const p = rt.player.u, dx = u.pos.x - p.pos.x, dz = u.pos.z - p.pos.z;
+    const d = Math.hypot(dx, dz);
+    return d > 0.1 && (dx * Math.sin(p.heading) + dz * Math.cos(p.heading)) / d < -0.25;
+  },
+  rearNotice(rt, u) {
+    if (u.iwRearReady != null) return;
+    const F = rt.flags;
+    u.iwRearReady = rt.t + 3;
+    if (rt.t >= (F.rearNoticeAt || 0)) {
+      F.rearNoticeAt = rt.t + 8;
+      F.noticeBark('後ろから来る。振り向いて構えよ', true);
+    }
+    rt.army.play('step', u.pos, 1.2);
+    u.iwFootAt = rt.t + 0.7;
+  },
+  footEarthTick(rt) {
+    const F = rt.flags;
+    if (rt.t < (F.footEarthAt || 0)) return;
+    F.footEarthAt = rt.t + 0.12;
+    const army = rt.army, p = rt.player.u.pos;
+    let grains = 0;
+    for (const u of army.units) {
+      const x = u.pos.x, z = u.pos.z;
+      const distance = u.iwEarthX == null ? 0 : Math.hypot(x - u.iwEarthX, z - u.iwEarthZ);
+      u.iwEarthX = x; u.iwEarthZ = z;
+      if (!u.alive || u.dying || u.mounted || u.isPlayer || u.downed || u.climb || u.naka || u.perch ||
+          u.woundOut || u.dragging || Math.abs(x - p.x) > 24 || Math.abs(z - p.z) > 24 || distance > 1.8) {
+        u.iwEarthTravel = 0; continue;
+      }
+      // 押されて半歩ずれる時も、敗走も、実際に足を運んだ分だけ。立った列には出さない。
+      u.iwEarthTravel = (u.iwEarthTravel || 0) + distance;
+      if (u.iwEarthTravel < 0.65 + (u.id % 7) * 0.045) continue;
+      u.iwEarthTravel = 0;
+      u.iwEarthSide = -(u.iwEarthSide || (u.id % 2 ? 1 : -1));
+      if (grains >= 8 || army.world.inWaterAt(x, z)) continue;
+      const gy = army.world.heightAt(x, z);
+      if (Math.abs(gy - u.pos.y) > 0.25) continue;
+      const side = u.iwEarthSide * 0.16;
+      army.burst(x + Math.cos(u.heading) * side, gy + 0.04, z - Math.sin(u.heading) * side,
+        1, 'dust', -Math.sin(u.heading) * 0.3, -Math.cos(u.heading) * 0.3, gy);
+      grains++;
+    }
+  },
+  rearTick(rt) {
+    const p = rt.player.u;
+    for (const g of rt.flags.rearGroups) for (const u of g.units) {
+      if (!u.alive || u.fleeing || u.woundOut || g.iwWithdraw || u.type === 'bow' || u.type === 'gun') continue;
+      const d = Math.hypot(u.pos.x - p.pos.x, u.pos.z - p.pos.z);
+      if (d > 16 || !this.isRear(rt, u)) { if (d > 20) u.iwRearReady = null; continue; }
+      if (rt.army.wallBetween(u.pos, -1, p.pos) || rt.army.terrainBlocks(u.pos, p.pos)) continue;
+      this.rearNotice(rt, u);
+      const wait = u.iwRearReady - rt.t;
+      if (wait > 0) {
+        // 歩みは止めず、主人公への振り出しだけを待つ。味方との戦いは続ける。
+        if (u.atk?.target === p) u.atk = null;
+        if (u.swing?.target === p) u.swing = null;
+        if (u.target === p) u.cd = Math.max(u.cd || 0, wait + 0.1);
+        if (rt.t >= u.iwFootAt) { rt.army.play('step', u.pos, 0.9); u.iwFootAt = rt.t + 0.7; }
+      }
+    }
+  },
+  raidTorches(rt) {
+    const F = rt.flags, W = rt.world;
+    F.torches = [];
+    for (const g of F.waves) {
+      let n = 0;
+      for (const u of g.units) if (u.type === 'ashigaru' && n++ < 2) {
+        const fire = W.addFire(u.pos.x, u.pos.z, { torch: true, h: 2 });
+        // 動く松明に固定した煙柱を残さない。光は既存の灯の枠を使う。
+        W.removeSmokeColumn(fire.smoke); fire.smoke = null;
+        F.torches.push({ u, fire });
+      }
+    }
+    F.torchSticks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.045, 0.055, 1.2, 5), new THREE.MeshLambertMaterial({ color: 0x725137 }), F.torches.length);
+    F.torchSticks.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    F.torchSticks.frustumCulled = false;
+    F.torchPose = new THREE.Object3D();
+    rt.scene.add(F.torchSticks);
+    this.torchTick(rt);
+  },
+  torchTick(rt) {
+    const F = rt.flags, pose = F.torchPose;
+    if (!pose) return;
+    for (let i = 0; i < F.torches.length; i++) {
+      const { u, fire } = F.torches[i];
+      const live = u.alive && !u.woundOut;
+      fire.lit = live; fire.flame.visible = fire.inner.visible = fire.glow.visible = live;
+      const x = u.pos.x + Math.cos(u.heading) * 0.4, z = u.pos.z - Math.sin(u.heading) * 0.4;
+      fire.x = x; fire.z = z; fire.base = u.pos.y + 2.2; fire.ly = 2.45;
+      fire.flame.position.set(x, fire.base, z); fire.inner.position.set(x, fire.base - 0.06, z);
+      fire.glow.position.set(x, u.pos.y + 0.06, z);
+      if (!live && fire.light) fire.light.intensity = 0;
+      pose.position.set(x, u.pos.y + 1.4, z); pose.scale.setScalar(live ? 1 : 0); pose.updateMatrix();
+      F.torchSticks.setMatrixAt(i, pose.matrix);
+    }
+    F.torchSticks.instanceMatrix.needsUpdate = true;
+  },
+  // この軍勢だけの短めの槍と接地。共通の装備や床・梯子の動きはそのまま使う。
+  slopeScene(rt) {
+    const A = rt.army, W = rt.world, add = A.addUnit, animate = A.animate;
+    A.addUnit = function (g, o) {
+      const u = add.call(this, g, o.type === 'ashigaru' ? { ...o, spear: 'su' } : o);
+      if (u) u.iwaSlopeFeet = true;
+      return u;
+    };
+    A.animate = function (u, dt, near) {
+      animate.call(this, u, dt, near);
+      if (!u.alive || u.dying || u.climb || u.downed || u.mounted || u.isStruct || u.camD > 45) return;
+      const x = u.pos.x, z = u.pos.z, y = groundAt(W, x, z, u.pos.y);
+      // 櫓の床にも同じ高さの読みを使う。高い床から地面へ引き下ろさない。
+      const sn = Math.sin(u.heading), cs = Math.cos(u.heading), e = 0.22;
+      const forward = (groundAt(W, x + sn * e, z + cs * e, y) - groundAt(W, x - sn * e, z - cs * e, y)) / (2 * e);
+      const side = (groundAt(W, x + cs * e, z - sn * e, y) - groundAt(W, x - cs * e, z + sn * e, y)) / (2 * e);
+      // 床の縁の段差は傾きにしない。止まった兵にも前後・左右の傾きを合わせる。
+      if (Math.abs(forward) > 0.9 || Math.abs(side) > 0.9) return;
+      u.mesh.position.y = y;
+      u.mesh.rotation.order = 'YXZ';
+      // 体全体を坂へ倒すと、走りの膝まで浮く。足は骨の接地補正で合わせる。
+      u.mesh.rotation.x = -Math.atan(forward) * 0.15;
+      u.mesh.rotation.z = Math.atan(side) * 0.15;
+    };
+  },
+  // この戦の倒れ方だけを補う。形・材質・計算用の入れ物は使い回す。
+  fallenScene(rt) {
+    const A = rt.army, W = rt.world, animate = A.animDeath;
+    const fallenKit = A.fallenKit;
+    A.fallenKit = function (u) {
+      // この戦では落ちた旗を消す。共通処理で別の四角い布を地面へ複製しない。
+      const flag = u.flag, standard = u.standardFlag;
+      u.flag = null;
+      try { return fallenKit.call(this, u); }
+      finally {
+        u.flag = flag;
+        if (flag) flag.visible = false;
+        // 共通の落とし物処理は手持ちの幟を再表示する。背の指物と同じ扱いに戻す。
+        if (standard) standard.visible = false;
+      }
+    };
+    const axis = new THREE.Vector3(), normal = new THREE.Vector3(), tangent = new THREE.Vector3();
+    const up = new THREE.Vector3(0, 1, 0), slope = new THREE.Quaternion();
+    const dropHat = A.dropHat, hatPoint = new THREE.Vector3();
+    A.dropHat = function (u) {
+      if (u.hatOff) return;
+      dropHat.call(this, u);
+      const hat = u.hatOff;
+      if (!hat?.isMesh || u.death?.floor) return;
+      // 笠の縁を坂と平行にする。一番高い土へ水平に載せて宙へ浮かせない。
+      hat.updateMatrix(); hatPoint.set(0, 1.66, 0).applyMatrix4(hat.matrix);
+      const x = hatPoint.x, z = hatPoint.z, e = 0.4;
+      normal.set(W.heightAt(x - e, z) - W.heightAt(x + e, z), 2 * e,
+        W.heightAt(x, z - e) - W.heightAt(x, z + e)).normalize();
+      slope.setFromUnitVectors(up, normal); hat.quaternion.premultiply(slope);
+      hat.updateMatrix();
+      hatPoint.set(0, 1.66, 0).applyMatrix4(hat.matrix);
+      hat.position.x += x - hatPoint.x; hat.position.z += z - hatPoint.z;
+      hat.updateMatrix();
+      const points = hat.geometry.attributes.position;
+      let lift = -Infinity;
+      for (let i = 0; i < points.count; i++) {
+        hatPoint.fromBufferAttribute(points, i).applyMatrix4(hat.matrix);
+        lift = Math.max(lift, W.heightAt(hatPoint.x, hatPoint.z) + 0.015 - hatPoint.y);
+      }
+      if (Number.isFinite(lift)) hat.position.y += lift;
+    };
+    const identity = new THREE.Quaternion();
+    A.animDeath = function (u, dt, near) {
+      u.iwaGrounded = true;
+      animate.call(this, u, dt, near);
+      const D = u.death, m = u.mesh;
+      // 倒れ始めから布を隠す。描かない旗の竿・材質・毎コマの姿勢計算も作らない。
+      if (u.flag) u.flag.visible = false;
+      if (u.standardFlag) u.standardFlag.visible = false;
+      if (u.gone || D.aid || D.t < 0.9) return;
+      const settle = THREE.MathUtils.smoothstep(D.t, 0.9, 1.3);
+      axis.copy(up).applyQuaternion(m.quaternion);
+      // 胸だけを上下させると、坂の折れで足と頭が浮く。体格も含め、体の向きを胸の下の坂へ合わせる。
+      const chest = 0.85 * m.scale.y;
+      if (!D.floor) {
+        const x = m.position.x + axis.x * chest, z = m.position.z + axis.z * chest, e = 0.6;
+        normal.set(W.heightAt(x - e, z) - W.heightAt(x + e, z), 2 * e,
+          W.heightAt(x, z - e) - W.heightAt(x, z + e)).normalize();
+        tangent.copy(axis).addScaledVector(normal, -axis.dot(normal)).normalize();
+        if (tangent.lengthSq() > 0.5) {
+          slope.setFromUnitVectors(axis, tangent);
+          slope.slerp(identity, 1 - settle);
+          m.quaternion.premultiply(slope);
+          axis.copy(up).applyQuaternion(m.quaternion);
+        }
+        // 腰・胸・肩のうち土へ沈む所で支える。床の上と救助中の倒れ方は変えない。
+        let support = -Infinity;
+        for (let i = 0; i < 3; i++) {
+          const d = (0.35 + i * 0.5) * m.scale.y;
+          support = Math.max(support, W.heightAt(m.position.x + axis.x * d, m.position.z + axis.z * d) + 0.16 - axis.y * d);
+        }
+        m.position.y += (support - m.position.y) * settle;
+      }
+      if (u.armR) { aimArm(u.armR, 0.36, 0.95, 0.22); aimArm(u.armL, -0.34, 0.9, 0.18); }
+      if (!u.flag) return;
+      if (!u.iwaPoleRemoved && u.body && u.look) {
+        u.iwaPoleRemoved = true;
+        const look = { ...u.look, pole: false }, key = u.body.userData.lookKey + '|iwaFallen';
+        lodSwap(u.body, bodyGeometry(key, look, true, 'nohead'), bodyGeometry(key, look, false, 'nohead'));
+      }
+    };
+  },
+  mountainScene(rt, lifeStart) {
+    const W = rt.world;
+    // 深い靄の向こうの星を控える。大きな白点が雪のように空を埋めない。
+    if (W.stars) { W.stars.geometry.setDrawRange(0, 240); W.stars.material.size = 1; W.stars.material.opacity = 0.35; }
+    // 土や草の明るさは保ち、常緑の葉だけ灰緑の照り返しを抑える。
+    // 遠近で共有する材質は一度だけ直し、毎コマの仕事や描画を増やさない。
+    const leafMats = new Set();
+    for (const m of [...(W.treeMeshes || []), ...(W.farTreeMeshes || [])]) {
+      const mat = m.material;
+      if (!mat?.map || mat.side !== THREE.DoubleSide || leafMats.has(mat)) continue;
+      leafMats.add(mat);
+      mat.color.multiply(new THREE.Color(0.64, 0.72, 0.52));
+      mat.envMapIntensity = 0.08;
+      const compile = mat.onBeforeCompile, key = mat.customProgramCacheKey();
+      mat.customProgramCacheKey = () => key + '|iwaEvergreen';
+      mat.onBeforeCompile = (sh, renderer) => {
+        compile.call(mat, sh, renderer);
+        sh.fragmentShader = sh.fragmentShader.replace('lback * 0.35', 'lback * 0.1');
+      };
+      mat.needsUpdate = true;
+    }
+    // 木・低木・草の絵の抜きを保つ。縮小した絵が根元で白い板になるのを防ぐ。
+    rt.scene.traverse((m) => {
+      if (m.isInstancedMesh && m.material?.map && m.material.side === THREE.DoubleSide) softenIwamuraBoard(m.material, true);
+      // 葉房の芯にも同じ近距離の抜きを使う。葉だけ消えて黒い多面体が視点へ残るのを防ぐ。
+      if (m.isInstancedMesh && m.userData.treeFoliage) softenIwamuraBoard(m.material);
+      // 共通の小石も岩村では苔・土汚れの頂点色を使う。
+      if (m.isInstancedMesh && m.geometry?.attributes.color && m.material?.bumpMap && !m.material.map) {
+        m.material.vertexColors = true; m.material.color.setHex(0xffffff);
+        detailIwamuraRock(m.material, W); m.material.needsUpdate = true;
+      }
+    });
+    // 通れる地面の格子は変えず、端の頂点から外へ四段の山肌をつなぐ。
+    // 初めに一度だけ同じ地面へまとめるので、描画回数も通行範囲も増やさない。
+    const groundGeo = W.terrain.geometry, seg = groundGeo.parameters.widthSegments;
+    // 支度の途中に描画済みでも、視点の外の面を捨てた索引を結合しない。
+    // 元の全索引を戻し、山肌と足場の高さが違う穴を残さない。
+    const fullIndex = groundGeo.userData.terrainViewIndex;
+    if (fullIndex) groundGeo.setIndex(new THREE.BufferAttribute(fullIndex.slice(), 1));
+    groundGeo.setDrawRange(0, Infinity);
+    const edge = [];
+    for (let i = 0; i < seg; i++) edge.push(i);
+    for (let i = 0; i < seg; i++) edge.push(i * (seg + 1) + seg);
+    for (let i = 0; i < seg; i++) edge.push(seg * (seg + 1) + seg - i);
+    for (let i = 0; i < seg; i++) edge.push((seg - i) * (seg + 1));
+    const skirtGeo = new THREE.BufferGeometry(), count = edge.length;
+    for (const [name, attr] of Object.entries(groundGeo.attributes)) {
+      const values = new Float32Array(count * 5 * attr.itemSize);
+      for (let ring = 0; ring <= 4; ring++) for (let i = 0; i < count; i++) {
+        const offset = (ring * count + i) * attr.itemSize, source = edge[i] * attr.itemSize;
+        for (let k = 0; k < attr.itemSize; k++) values[offset + k] = attr.array[source + k];
+        if (name === 'position' && ring > 0) {
+          const x = values[offset] * (1 + ring * 60 / W.half);
+          const z = values[offset + 2] * (1 + ring * 60 / W.half);
+          const ridge = 32 * gauss(x, z, -530, -180, 24000)
+            + 38 * gauss(x, z, 540, -260, 28000) + 30 * gauss(x, z, 60, 550, 26000);
+          values[offset] = x; values[offset + 2] = z;
+          // 城の持ち上げを最初の一段で落とさず、外の山肌まで四段でつなぐ。
+          const t = ring / 4, blend = t * t * (3 - 2 * t);
+          const outerY = baseTerrain(x, z) + ridge * Math.min(1, ring / 2);
+          values[offset + 1] += (outerY - values[offset + 1]) * blend;
+        }
+      }
+      skirtGeo.setAttribute(name, new THREE.BufferAttribute(values, attr.itemSize));
+    }
+    const skirtIndices = [];
+    for (let ring = 0; ring < 4; ring++) for (let i = 0; i < count; i++) {
+      const a = ring * count + i, b = ring * count + (i + 1) % count;
+      skirtIndices.push(a, b, a + count, b, b + count, a + count);
+    }
+    skirtGeo.setIndex(skirtIndices); skirtGeo.computeVertexNormals();
+    // 境目の高さと法線は元の地面から引き継ぎ、割れや照らされ方の筋を残さない。
+    const normals = skirtGeo.attributes.normal, groundNormals = groundGeo.attributes.normal;
+    for (let i = 0; i < count; i++) normals.setXYZ(i,
+      groundNormals.getX(edge[i]), groundNormals.getY(edge[i]), groundNormals.getZ(edge[i]));
+    W.terrain.geometry = mergeGeometries([groundGeo, skirtGeo]);
+    groundGeo.dispose(); skirtGeo.dispose();
+    // 八角形の草の面は重ねない。下の地面の草・土・石の絵をそのまま見せる。
+    // 細かな割れと灰褐色の土汚れを持つ岩を、道の外に半分埋める。
+    const rockGeo = rockShape(1, true);
+    const rockMat = new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0x171410 });
+    detailIwamuraRock(rockMat, W);
+    const rocks = new THREE.InstancedMesh(rockGeo, rockMat, 24);
+    const pose = new THREE.Object3D();
+    for (let i = 0; i < rocks.count; i++) {
+      // 道の節ごとに同じ大岩を積まず、節の間へ大小を散らす。道の幅は空ける。
+      const at = (i * 0.61803398875 % 1) * (CHASE_PATH.length - 1);
+      const j = Math.floor(at), t = at - j, a = CHASE_PATH[j], b = CHASE_PATH[j + 1];
+      const x = a[0] + (b[0] - a[0]) * t + (i % 2 ? -1 : 1) * (7 + Math.sin(i * 4.1) * 2);
+      const z = a[1] + (b[1] - a[1]) * t;
+      const size = 0.3 + Math.pow((i * 0.754877666 % 1), 2) * 0.7;
+      // 上半分を残し、夜の地面に薄い黒い穴のような面を並べない。
+      pose.position.set(x, W.heightAt(x, z) - size * 0.12, z);
+      pose.rotation.set(Math.sin(i) * 0.15, i * 1.3, Math.cos(i) * 0.12);
+      // 横に広い同じ岩を並べず、高さと奥行きを残した大小の露岩にする。
+      pose.scale.set(size * (1.05 + i % 3 * 0.12), size * (1.1 + i % 2 * 0.18), size * (0.9 + i % 4 * 0.08)); pose.updateMatrix();
+      rocks.setMatrixAt(i, pose.matrix);
+    }
+    groundRocks(W, rocks);
+    rocks.receiveShadow = true; rt.scene.add(rocks);
+    // 戦う足元には小石の厚みを残す。同じ岩の形と材質を共有し、描画は一束。
+    const gravel = new THREE.InstancedMesh(rockGeo, rockMat, 144);
+    for (let i = 0; i < 144; i++) {
+      const x = -28 + ((i * 0.61803398875) % 1) * 64;
+      const z = -18 + ((i * 0.754877666) % 1) * 55;
+      const size = 0.045 + (i % 7) * 0.012;
+      pose.position.set(x, W.heightAt(x, z) - size * 0.25, z);
+      pose.rotation.set(Math.sin(i) * 0.3, i * 2.4, Math.cos(i) * 0.2);
+      pose.scale.set(size * 1.4, size * 0.7, size); pose.updateMatrix();
+      gravel.setMatrixAt(i, pose.matrix);
+    }
+    groundRocks(W, gravel); gravel.receiveShadow = true; rt.scene.add(gravel);
+    // 麓の見張りの篝火。霧は共通の空気の処理に任せ、杉の根元の白い板を置かない。
+    for (const [x, z] of [[-14, -94], [18, -119]]) W.addFire(x, z, { torch: true, h: 1.2, nightOnly: true });
+    // 岩村だけの道の絵を初めに一度作る。粗い地形の頂点の間にも九十九折りを残す。
+    // 地面そのものに混ぜるので、斜面に浮く板や境目を作らず、描画や灯りも増やさない。
+    const roadCanvas = document.createElement('canvas'); roadCanvas.width = roadCanvas.height = 1024;
+    const roadCtx = roadCanvas.getContext('2d'), scale = roadCanvas.width / 240;
+    roadCtx.fillStyle = '#000'; roadCtx.fillRect(0, 0, roadCanvas.width, roadCanvas.height);
+    roadCtx.strokeStyle = '#f00'; roadCtx.lineWidth = 3.5 * scale;
+    roadCtx.lineJoin = roadCtx.lineCap = 'round';
+    for (const path of fieldPaths()) {
+      roadCtx.beginPath();
+      for (let i = 0; i < path.length; i++) {
+        const x = (path[i][0] + 120) * scale, z = (path[i][1] + 140) * scale;
+        if (i === 0) roadCtx.moveTo(x, z); else roadCtx.lineTo(x, z);
+      }
+      roadCtx.stroke();
+    }
+    // 赤は道幅、緑は足跡。山道へ車の轍のような平行線を並べない。
+    roadCtx.globalCompositeOperation = 'lighter';
+    roadCtx.fillStyle = '#005000';
+    for (const path of fieldPaths()) for (let i = 1; i < path.length; i++) {
+      const a = path[i - 1], b = path[i], dx = b[0] - a[0], dz = b[1] - a[1];
+      const len = Math.hypot(dx, dz);
+      if (len < 0.1) continue;
+      const nx = -dz / len, nz = dx / len;
+      for (let s = 0, step = 0; s < len; step++) {
+        const t = s / len, x = a[0] + dx * t, z = a[1] + dz * t;
+        const drift = Math.sin(step * 2.4 + i * 1.7) * 0.38;
+        for (const side of [-1, 1]) {
+          roadCtx.beginPath();
+          roadCtx.ellipse((x + nx * (side * 0.22 + drift) + dx / len * side * 0.3 + 120) * scale,
+            (z + nz * (side * 0.22 + drift) + dz / len * side * 0.3 + 140) * scale,
+            0.11 * scale, 0.24 * scale, -Math.atan2(dx, dz), 0, Math.PI * 2);
+          roadCtx.fill();
+        }
+        s += 1.5 + (0.5 + 0.5 * Math.sin(step * 1.9 + i)) * 0.9;
+      }
+    }
+    // 青には折れ草と小屋の軒下の堆積を焼く。足場を変えず、一枚の絵で場所の違いを出す。
+    roadCtx.strokeStyle = '#0000b0'; roadCtx.lineWidth = 0.055 * scale;
+    for (let i = 0; i < 1600; i++) {
+      const x = -32 + ((i * 0.61803398875) % 1) * 76;
+      const z = -22 + ((i * 0.754877666) % 1) * 70;
+      const edge = Math.max(Math.abs(x - 22) / 3.8, Math.abs(z - 28) / 2.8);
+      if (fieldRoadDistance(x, z) < 1.2 || (edge < 1 && edge > 0.15)) continue;
+      const a = i * 2.4, length = 0.14 + (i % 5) * 0.035;
+      roadCtx.beginPath(); roadCtx.moveTo((x + 120) * scale, (z + 140) * scale);
+      roadCtx.lineTo((x + Math.sin(a) * length + 120) * scale, (z + Math.cos(a) * length + 140) * scale);
+      roadCtx.stroke();
+    }
+    const roadTex = new THREE.CanvasTexture(roadCanvas); roadTex.flipY = false;
+    const terrainMat = W.terrain.material, compileGround = terrainMat.onBeforeCompile;
+    // 坂の土は穴を開けて透かさない。柵や木の手前を透かす処理とは分ける。
+    terrainMat.userData.camNearSolid = true;
+    // 夜の切岸が空を白く映さないよう、岩村の地面だけ艶を抑える。
+    terrainMat.envMapIntensity = 0.12; terrainMat.roughness = 1;
+    const groundKey = terrainMat.customProgramCacheKey();
+    terrainMat.customProgramCacheKey = () => groundKey + '|iwamura';
+    terrainMat.onBeforeCompile = (sh, renderer) => {
+      compileGround.call(terrainMat, sh, renderer);
+      // 岩村の切岸だけ絵の縮尺を細かくする。読み出す枚数は変えず、縦長の傷も縮める。
+      sh.fragmentShader = sh.fragmentShader
+        // 夜だけ落ち影の暗さを半分ほどにする。昼と夕方の影はそのまま。
+        .replace('#include <shadowmap_pars_fragment>', THREE.ShaderChunk.shadowmap_pars_fragment
+          // 九点の読み出しは増やさず、縁を広げてぼかす。
+          .replaceAll('vec2 texelSize = vec2( 1.0 ) / shadowMapSize;', 'vec2 texelSize = vec2( 2.5 ) / shadowMapSize;')
+          .replaceAll('return shadow;', 'return mix(shadow, 1.0, uNight * 0.55);'))
+        .replaceAll('uX * 0.12', 'uX * 0.32').replaceAll('uZ * 0.12', 'uZ * 0.32')
+        .replaceAll('uX * 0.21', 'uX * 0.48').replaceAll('uZ * 0.21', 'uZ * 0.48')
+        // 規則的な泥の窪みの縁を控える。歩いた跡と土の濃淡は残す。
+        .replace('float clodK = (w.y * 0.55 + w.z)', 'float clodK = 0.22 * (w.y * 0.55 + w.z)')
+        // 高画質の角張った土塊も薄める。升目状の割れ目を地面一面へ並べない。
+        .replace('float crustK = w.y', 'float crustK = 0.18 * w.y')
+        .replace('vec2(sx * 0.11, vWP.y * 0.006)', 'vec2(sx * 0.22, vWP.y * 0.045)')
+        .replace('vec3 cliff = mix(earth, stT, rockK);', 'vec3 cliff = mix(earth, stT * vec3(0.72, 0.62, 0.48), rockK);');
+      // 共通の濡れの処理が粗さを下げるので、その後でも夜の土の艶を抑える。
+      sh.fragmentShader = sh.fragmentShader.replace('#include <metalnessmap_fragment>',
+        '#include <metalnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 1.0, uNight);');
+      sh.uniforms.iwaRoad = { value: roadTex };
+      sh.fragmentShader = 'uniform sampler2D iwaRoad;\n' + sh.fragmentShader;
+      // 土の細かな起伏は法線だけに付け、歩ける坂・足場・難しさは保つ。
+      sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        vec2 iwaReliefUV = (vWP.xz + vec2(120.0, 140.0)) / 240.0;
+        float iwaReliefMask = step(0.0, iwaReliefUV.x) * step(iwaReliefUV.x, 1.0)
+          * step(0.0, iwaReliefUV.y) * step(iwaReliefUV.y, 1.0);
+        float iwaRelief = -texture2D(iwaRoad, iwaReliefUV).g * 0.018 * iwaReliefMask;
+        // 既存の土の絵から浅い起伏を読む。周期的な正弦波を掛けて升目を作らない。
+        float iwaClose = 1.0 - smoothstep(8.0, 26.0, length(vWP - cameraPosition));
+        iwaRelief += (dot(dirt, vec3(0.333)) - 0.2)
+          * 0.012 * iwaClose * iwaReliefMask;
+        vec3 iwaDx = dFdx(-vViewPosition), iwaDy = dFdy(-vViewPosition);
+        vec3 iwaS = cross(iwaDy, normal), iwaT = cross(normal, iwaDx);
+        float iwaDet = dot(iwaDx, iwaS);
+        normal = normalize(abs(iwaDet) * normal - sign(iwaDet)
+          * (dFdx(iwaRelief) * iwaS + dFdy(iwaRelief) * iwaT));`);
+      sh.fragmentShader = sh.fragmentShader.replace('diffuseColor.rgb *= col;', `
+        vec2 iwaUV = (vWP.xz + vec2(120.0, 140.0)) / 240.0;
+        float iwaField = smoothstep(0.0, 0.04, iwaUV.x) * (1.0 - smoothstep(0.96, 1.0, iwaUV.x))
+          * smoothstep(0.0, 0.04, iwaUV.y) * (1.0 - smoothstep(0.96, 1.0, iwaUV.y));
+        vec3 iwaTrack = texture2D(iwaRoad, iwaUV).rgb * iwaField;
+        float iwaWay = iwaTrack.r;
+        // 土と落葉の斑は共通の絵を使い、道端の草へなだらかにつなぐ。
+        float iwaSoil = smoothstep(0.38, 0.72, macro2) * iwaField * (1.0 - iwaWay);
+        col = mix(col, dirt * vec3(1.12, 1.04, 0.88), iwaSoil * 0.32);
+        col = mix(col, dirt * vec3(1.3, 1.24, 1.1), iwaWay * 0.72);
+        col = mix(col, dirt * vec3(0.63, 0.58, 0.48), iwaTrack.g * 0.7);
+        col = mix(col, vec3(0.16, 0.12, 0.065), iwaTrack.b * 0.65);
+        // 足跡の浅い窪みと共通の土粒を残し、道一面へ周期的な畝を足さない。
+        // 雪ではなく土の斜面。粒の濃淡を残した暗い褐色を夜の坂に混ぜる。
+        // 共通側が付けた土の溝・露岩・苔の斑を、そのまま褐色へ寄せる。
+        // 別の二色へ置き換えると、溝も消えて大きな一枚の壁に戻ってしまう。
+        vec3 iwaSlope = col * vec3(0.72, 0.66, 0.55);
+        // 陣の切岸は土色を保つ。奥の山まで九割塗ると杉林も岩肌も消え、空を断つ一枚の壁になる。
+        col = mix(col, iwaSlope, uNight * slopeK * mix(0.22, 0.92, iwaField));
+        // 緩い坂と道も褐色を残す。切岸だけを直すと麓の土が雪のように白くなる。
+        col *= mix(vec3(1.0), vec3(0.68, 0.51, 0.34), uNight * iwaField);
+        // 柵の根元は踏んだ土から草へぼかす。板や草の描画を増やさない。
+        float iwaFenceX = abs(vWP.x);
+        float iwaFence = (1.0 - smoothstep(0.4, 2.2, abs(vWP.z - (-6.0 + max(0.0, iwaFenceX - 8.0) * 4.0 / 52.0))))
+          * smoothstep(6.0, 9.0, iwaFenceX) * (1.0 - smoothstep(59.0, 62.0, iwaFenceX));
+        col = mix(col, mix(dirt * vec3(0.72, 0.60, 0.42), grass * vec3(0.65, 0.82, 0.48), macro2), iwaFence * 0.55);
+        diffuseColor.rgb *= col;
+        // 月の照り返しを土の粒と道の筋に残す。夜だけ効き、白い一枚の帯にしない。
+        totalEmissiveRadiance += uNight * col * (iwaField * 0.04 + iwaWay * 0.04);`);
+      // 山肌だけを空色へ重ね塗りすると、同じ高さの木戸や兵だけが濃く残り、
+      // 空中に浮いて見える。山・木戸・兵には共通の距離の霧だけを通す。
+    };
+    terrainMat.needsUpdate = true;
+    // 戦を離れる時、岩村専用の絵・岩・地面の材質を解放する。
+    W.terrain.geometry.addEventListener('dispose', () => {
+      roadTex.dispose(); rockGeo.dispose(); rocks.material.dispose(); terrainMat.dispose();
+    });
+
+    // 当時の短い石留めだけを月明かりに残す。総石垣や天守は足さない。
+    const center = new THREE.Vector3();
+    for (let i = lifeStart; i < rt.scene.children.length; i++) rt.scene.children[i].traverse((m) => {
+      if (!m.isMesh || !m.geometry || Array.isArray(m.material)) return;
+      m.geometry.computeBoundingBox(); m.geometry.boundingBox.getCenter(center);
+      m.updateWorldMatrix(true, false); center.applyMatrix4(m.matrixWorld);
+      if (Math.abs(center.x) < 12 && center.z < -156 && center.z > -164) {
+        m.material = m.material.clone(); m.material.fog = true;
+        if (m.material.emissive) m.material.emissive.setHex(0x171b24);
+      }
+    });
+    const lampGeo = new THREE.BoxGeometry(0.75, 0.45, 0.08);
+    const lampMat = new THREE.MeshBasicMaterial({ color: 0xffbb62, fog: true });
+    for (const tower of rt.flags.castleC.towers) {
+      tower.mesh.traverse((m) => {
+        if (!m.isMesh || Array.isArray(m.material)) return;
+        // 山肌だけ霞んで櫓が宙に浮いて見えないよう、同じ距離の霧を通す。
+        m.material = m.material.clone(); m.material.fog = true;
+        if (m.material.color) m.material.color.multiplyScalar(0.65);
+      });
+      const lamp = new THREE.Mesh(lampGeo, lampMat);
+      lamp.position.set(tower.x, tower.topY + 0.8, tower.z + 1.1); rt.scene.add(lamp);
+      W.addFire(tower.x + 1, tower.z, { torch: true, h: tower.topY - W.heightAt(tower.x, tower.z) + 0.5 });
+    }
+  },
+
+  withdrawWave(rt, g) {
+    const F = rt.flags;
+    // 損害を受けた夜討ち勢が実際に退く時だけ、一度知らせる。先触れには鳴らさない。
+    if (F.step === 2 && !F.withdrawSignal && F.waves.includes(g) &&
+        g.units.some((u) => u.alive && !u.fleeing && !u.woundOut)) {
+      F.withdrawSignal = true;
+      signal('nobiki', rt.distTo(g.anchor), 0.8);
+      rt.say('見張り', '敵の法螺と退き太鼓じゃ。まだ追うな、下知まで柵を守れ', 4);
+      rt.objProgress('siege', '敵の退き太鼓。追撃の下知までは柵を守れ');
+    }
+    g.iwWithdraw = true; g.order = 'path'; g.formation = 'column'; g.path = g.iwReturn;
+    // 寄せた道を戻る。東の端の兵を柵の中へ斜めに引き戻さない。
+    let nearest = Infinity;
+    for (let i = 0; i < g.path.length; i++) {
+      const d = Math.hypot(g.anchor.x - g.path[i][0], g.anchor.z - g.path[i][1]);
+      if (d < nearest) { nearest = d; g.pathIdx = i; }
+    }
+    g.speed = 2.2; g.aggro = 0; g.seekRange = 1.8; g.retreatOnly = true; g.noAI = true;
+    g.focus = null;
+    for (const u of g.units) { u.target = null; u.watch = null; }
+    g.onArrive = (q) => { q.order = 'hold'; q.retreatOnly = false; q.noAI = false; q.aggro = 6; };
+  },
+
+  onKill(rt, v, k) {
+    const F = rt.flags;
+    if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
+    if (F.step === 2 && v.team === 1 && F.waves.includes(v.group) && (k === rt.player.u || k?.isSub)) {
+      v.group.iwOwnKills = (v.group.iwOwnKills || 0) + 1;
+      if (gone(v.group) && v.group.iwOwnKills >= 2) F.playerOpened = true;
+    }
+  },
+  onRout(rt, g) {
+    if (g.team !== 1) return;
+    const F = rt.flags;
+    if (F.step === 2 && F.waves.includes(g) && (g.iwOwnKills || 0) >= 2) F.playerOpened = true;
+    const name = String(g.name).replace(/（[^）]*）/g, '');
+    if (F.routSaid.has(name)) return;
+    if (rt.t - (F.routSaidT ?? -99) < 8 || g.iwRoutSaid) return;
+    if (!g.units.some((u) => u.alive && sightUnit(rt, u))) return;
+    g.iwRoutSaid = true; F.routSaidT = rt.t; F.routSaid.add(name);
+    rt.say('足軽', `${name}が退いてくがや！`, 2.5);
+  },
+  onStructDestroyed(rt, s) {
+    const F = rt.flags;
+    if (!(F.fenceSegs || []).includes(s) || F.fenceWarned) return;
+    F.fenceWarned = true; rt.bark('陣の柵が破られた！', true);
+  },
+};
+
+// 三万対三千は復元の参考人数。上の札は水晶山・麓の備えで、城内と遠景は加えない。
+// 先触れ・鉄砲組・馬廻・麓の守兵も同じ条件で数え、開戦だけで兵数を減らさない。
+iwamura.force = (rt) => {
+  const F = rt.flags;
+  let a = 0, b = 0;
+  for (const g of F.fieldAllies || []) for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut) a++;
+  for (const g of F.rearGroups || []) for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut) b++;
+  return { a, a0: F.forceA0 || 1, b, b0: F.forceB0 || 1 };
+};
+iwamura.sides = { a: { name: '織田勢（水晶山）', mon: 'oda' }, b: { name: '武田勢（夜討ち）', mon: 'takeda' } };
+// 座光寺は開城後に捕らえられる。夜襲隊へ名付きの討取り相手を追加しない。
+iwamura.famous = [];
+iwamura.date = (rt) => `天正三年十一月十日　冬・${rt.world.nightAmount() >= 0.5 ? '夜' : '夕暮れ'}`;
+iwamura.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? '下知まで待つ' : '');
+iwamura.skip = (rt) => { if (rt.phase === 'brief') iwamura.prepare(rt); };
+iwamura.rts = true;   // 侍大将以上は上空の指揮（rtsCanCommand の身分の縛りは rts.js 側）
+iwamura.history = '天正三年、織田信忠は秋山虎繁らの守る岩村城を囲んだ。『信長公記』巻八によれば、十一月十日の夜、水精山の攻め衆が夜討ちを受け、河尻与兵衛・毛利河内・浅野左近・猿荻甚太郎が退けた。城方は柵を破り、夜討ちの者と合流しようとしたが、信忠が先駆けとなって城へ追い込んだ。勝頼の後詰の報せを受け、信長が京都を発ったのは十四日夜。十日夜の陣に報せが届いた時刻は分からない。後日、秋山・大島・座光寺は降伏の礼に出て捕らえられ、岐阜の長良川で磔にされた。本編は河尻の手が夜討ちを退け、麓を押さえるまでを描く。夜討ち勢の所属、各備の兵数、陣所・道・霧・夕暮れの支度は復元。総勢三万対三千は『信長公記』のこの条に記された人数ではない。';
+
+// 素直な遊び手：篝火を焚き、柵の前で夜討ちを受け、城の麓まで追う
+// 左右の柵は端へ向けて南へ傾く。内側に一歩残して槍を届かせる。
+function fencePostZ(x) { return FENCE_Z + Math.max(0, Math.min(52, Math.abs(x) - 8)) * 4 / 52 + 1; }
+function chaseReady(u) {
+  return u.alive && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget;
+}
+// 出発後に先頭が倒れた時も、次の兵が列の先へ歩ける持ち場にする。
+// 空いた先頭を残すと、後列待ちを助ける五メートル内に誰も来なくなる。
+function packChaseFront(g) {
+  let ready = 0;
+  for (const u of g.units) if (chaseReady(u)) ready++;
+  if (g.iwMarchReady === ready && !g.units.some((u) => chaseReady(u) && u.slot >= ready)) return;
+  g.iwMarchReady = ready;
+  let slot = 0;
+  for (const u of g.units) if (chaseReady(u)) u.slot = slot++;
+  for (const u of g.units) if (!chaseReady(u)) u.slot = slot++;
+  g._fitAt = 0;
+}
+// 集まった実兵を先頭へ詰めてから道の縦隊へ。兵の位置・士気・傷は変えない。
+function gatherChaseFront(rt, g) {
+  if (g.routed || g.signalUntil > rt.army.time || !g.dest) return;
+  // 集合先へ南向きに歩いたままだと、後列の持ち場が柵の外へ伸びる。
+  // 要が止まってから城側へ向き直し、陣内で列を作る。実兵は歩いて並び直す。
+  // 共通の移動が向きを更新する三十センチの外では、旋回を取り合わない。
+  if (Math.hypot(g.anchor.x - g.dest.x, g.anchor.z - g.dest.z) <= 0.3 && g.facing !== Math.PI) {
+    g.facing = Math.PI; g._fitAt = 0;
+  }
+  let ready = 0, gathered = 0;
+  for (const u of g.units) if (chaseReady(u)) {
+    ready++;
+    if (Math.hypot(u.pos.x - g.dest.x, u.pos.z - g.dest.z) < 6) gathered++;
+  }
+  // 集合中の死傷・後送で先頭に空きが出た時だけ詰め直す。
+  // 士気用の初期人数や兵の現在位置は変えず、後列を歩いて集合させる。
+  if (g.iwGatherReady !== ready) {
+    g.iwGatherReady = ready;
+    let slot = 0;
+    for (const u of g.units) if (chaseReady(u)) u.slot = slot++;
+    for (const u of g.units) if (!chaseReady(u)) u.slot = slot++;
+    g._fitAt = 0;
+  }
+  // 後れた兵を待ち続けて、麓の本人だけを孤立させない。
+  // 四人そろわなくても、集合先で八秒静まり、実兵が一人は着いていれば先頭から出る。
+  // 合流の必要人数は減らさず、後列も同じ道を歩かせる。斬り合い・敗走中は待つ。
+  const quiet = rt.t - Math.max(g.iwChaseCheck.t, g.iwChaseQuiet ?? g.iwChaseCheck.t) >= 8;
+  if (!ready || gathered < Math.min(4, ready) && !(gathered > 0 && quiet) ||
+      Math.hypot(g.anchor.x - g.dest.x, g.anchor.z - g.dest.z) > 0.3) return;
+  let slot = 0;
+  for (const u of g.units) if (chaseReady(u) && Math.hypot(u.pos.x - g.dest.x, u.pos.z - g.dest.z) < 6) u.slot = slot++;
+  for (const u of g.units) if (chaseReady(u) && Math.hypot(u.pos.x - g.dest.x, u.pos.z - g.dest.z) >= 6) u.slot = slot++;
+  for (const u of g.units) if (!chaseReady(u)) u.slot = slot++;
+  g.iwGather = false; g.dest = null; g.order = 'path'; g.formation = 'column'; g.width = 0;
+  g.path = g.iwChasePath;
+  g.onArrive = g.iwChaseArrive; g.iwChaseArrive = null;
+  g.iwChaseCheck.x = g.anchor.x; g.iwChaseCheck.z = g.anchor.z; g.iwChaseCheck.t = rt.t;
+}
+// 後列一人の遅れで二手とも柵に残さない。先頭の実兵が付いている時だけ、道順に沿って歩みを促す。
+// 任務と同じ半秒の調べで動かし、到着の人数・斬り合い・崩れの判定は残す。
+function advanceChaseFront(rt, g, span) {
+  const check = g.iwChaseCheck;
+  if (!check || g.routed || g.signalUntil > rt.army.time) return;
+  // 集合中は道順が消えていても実際の集合先へ進む。道の途中だけ折れ点を読む。
+  const q = g.iwGather ? g.dest : g.path?.[g.pathIdx];
+  if (!q) return;
+  const qx = g.iwGather ? q.x : q[0], qz = g.iwGather ? q.z : q[1];
+  if (Math.hypot(g.anchor.x - check.x, g.anchor.z - check.z) > 1) {
+    check.x = g.anchor.x; check.z = g.anchor.z; check.t = rt.t;
+  }
+  let front = false;
+  for (const u of g.units) if (chaseReady(u)) {
+    const target = u.target, pos = target?.pos;
+    // 遠く後れた一人の打ち合いで、道を進む先頭まで柵に縛り付けない。
+    // 先頭の周囲の敵には列で応戦し、後列の兵自身の戦いは止めない。
+    if (Math.hypot(u.pos.x - g.anchor.x, u.pos.z - g.anchor.z) < 12 &&
+        (target?.isStruct && (u.atk || u.swing) || pos && chaseReady(target) &&
+        Math.hypot(u.pos.x - pos.x, u.pos.z - pos.z) < 4 &&
+        !target.fleeing && !target.group?.iwWithdraw &&
+        !rt.army.wallBetween(u.pos, -1, pos) && !rt.army.terrainBlocks(u.pos, pos))) {
+      g.iwChaseQuiet = rt.t;
+      return;
+    }
+    // 集まり直した先頭が次の折れに着いていても、要の後れを少しずつ詰める。
+    // 倒れた敵・退く敵・柵越しの敵を、全列を止める斬り合いとは数えない。
+    if (Math.hypot(u.pos.x - g.anchor.x, u.pos.z - g.anchor.z) < 5 ||
+        Math.hypot(u.pos.x - qx, u.pos.z - qz) < 5) front = true;
+  }
+  // 柵での立て直し位置は、縦隊へ変わると道の後方へ動き続ける。
+  // 追撃の下知後、敵が離れて四秒たったら、その場の列で歩き直す。
+  // 要が動く間も静かな時間を数える。要の停止待ちでは後退する集合先を追い続ける。
+  // 士気・死傷・敗走は戻さず、斬り合い中の列は上の判定で待つ。
+  if (g.regroupT > 0) {
+    if (g.iwChaseQuiet == null) g.iwChaseQuiet = rt.t;
+    if (rt.t - g.iwChaseQuiet < 4) return;
+    g.regroupT = 0; g.regroupRecovered = true;
+    for (const u of g.units) if (chaseReady(u)) { u.combatRetreat = false; u.aiT = 0; }
+  }
+  if (rt.t - check.t < 4) return;
+  if (!front) return;
+  const dx = qx - g.anchor.x, dz = qz - g.anchor.z, d = Math.hypot(dx, dz);
+  if (d < 1) return;
+  const from = g.iwChaseFrom, to = g.iwChaseTo, step = Math.min(d, span * 1.4);
+  from.x = g.anchor.x; from.z = g.anchor.z; from.y = rt.world.heightAt(from.x, from.z);
+  to.x = from.x + dx / d * step; to.z = from.z + dz / d * step;
+  to.y = rt.world.heightAt(to.x, to.z);
+  if (rt.army.wallBetween(from, -1, to) || rt.army.terrainBlocks(from, to)) return;
+  g.anchor.x = to.x; g.anchor.z = to.z;
+  // 促した分を基準点へ反映し、先頭が付く間は四秒待ちを繰り返さない。
+  check.x = g.anchor.x; check.z = g.anchor.z;
+}
+// 麓の任務で数える敵と、道標・自動操作が追う敵をそろえる。
+function roadEnemy(u, atFoot = false, footY = u.pos.y) {
+  return chaseReady(u) && !u.group?.iwWithdraw &&
+    // 到着後は城側から麓へ迫る兵も受ける。城の坂の上や柵の残兵は追わない。
+    (atFoot ? Math.hypot(u.pos.x - FOOT.x, u.pos.z - FOOT.z) < 16 && Math.abs(u.pos.y - footY) < 3
+      : u.pos.z > FOOT.z - 4 && Math.abs(u.pos.x) < 30);
+}
+// 最初は八歩以内で到着。押し合いで少し退いても十二歩までは同じ持ち場とする。
+// 城の坂は距離が近くても麓へ含めず、味方の到着と同じ高さで判定する。
+function atFoot(F, p) {
+  return Math.hypot(p.x - FOOT.x, p.z - FOOT.z) < (F.chaseArrived ? 12 : 8) && Math.abs(p.y - F.footY) < 3;
+}
+// 退避も任務と同じ道へ。近くに味方がいても、切岸や城の坂を逃げ先にしない。
+// 道を外れた本人には、道へ近づく向きだけを残す。既存の候補点を調べ、形は作らない。
+function fieldGuideAllowed(rt, point) {
+  const F = rt.flags, p = rt.player.u.pos;
+  if (F.step < 3) return p.z < fencePostZ(p.x) || point.z >= fencePostZ(point.x);
+  const path = F.chasePath;
+  const distance = distToPolyline(point.x, point.z, path);
+  const current = distToPolyline(p.x, p.z, path);
+  if (distance > 4 && distance >= current) return false;
+  if (F.chaseArrived && (Math.hypot(point.x - FOOT.x, point.z - FOOT.z) >= 12 ||
+      Math.abs(rt.world.heightAt(point.x, point.z) - F.footY) >= 3)) return false;
+  return true;
+}
+// 道を外れたら最寄りの道へ戻り、道に乗ったら麓側の折れへ進む。
+// 行き先の入れ物を使い回し、計算は任務の半秒ごとの更新だけで行う。
+function returnToRoad(path, p, guide) {
+  let nearest = Infinity;
+  for (let i = 1; i < path.length; i++) {
+    const a = path[i - 1], b = path[i], dx = b[0] - a[0], dz = b[1] - a[1];
+    const t = Math.max(0, Math.min(1, ((p.x - a[0]) * dx + (p.z - a[1]) * dz) / (dx * dx + dz * dz || 1)));
+    const x = a[0] + dx * t, z = a[1] + dz * t, d = Math.hypot(p.x - x, p.z - z);
+    // 折れ目では前後の道が同じ距離になる。麓側を選び、その場で止めない。
+    if (d > nearest) continue;
+    nearest = d;
+    // 歩く処理は一・五メートル手前で止まる。角のすぐ手前では次の折れへ送る。
+    // これがないと、麓から押し戻された後に通過済みの角を指し続ける。
+    const next = d <= 2 && Math.hypot(p.x - b[0], p.z - b[1]) < 2
+      ? path[Math.min(i + 1, path.length - 1)] : b;
+    // 道幅の外から次の折れを直に狙うと、内側の切岸を横切ってしまう。
+    guide.x = d > 2 ? x : next[0]; guide.z = d > 2 ? z : next[1];
+  }
+}
+iwamura.botBrain = (b, inp, { goTo, patientStrike }) => {
+  const p = b.player, u = p.u, F = b.flags;
+  const reach = p.weapon === 'sword' ? 1.9 : 2.8;
+  inp.quickCmd = null;
+  inp.k.delete('KeyW'); inp.k.delete('KeyE');
+  inp.leftPressed = false; inp.chargeHold = false; inp.guardHold = false;
+  if (!u.alive || F.ending) return;
+  // 手当て済みなら待ち続けない。味方のいる後方まで退き、狙いを解いて止まる。
+  if (u.hp < u.maxHp * 0.5 && !p.bandaged && p.treatmentLeft > 0) b.botRest = true;
+  if (b.botRest && (u.hp > u.maxHp * 0.85 || p.bandaged || p.treatmentLeft <= 0)) b.botRest = false;
+  if (b.botRest) {
+    if (p.lock) inp.e.add('KeyQ');
+    if (b.squad.length && !(b.botCmdT > b.t) && b.squadGroups[0].order === 'attack') {
+      inp.e.add('KeyZ'); b.botCmdT = b.t + 2;
+    }
+    if (p.treatmentReady) inp.k.add('KeyE');
+    else if (F.step === 3) {
+      returnToRoad(F.restPath, u.pos, F.restGuide);
+      goTo(p, inp, F.restGuide.x, F.restGuide.z, 2);
+    } else goTo(p, inp, 4, 32, 2);
+    return;
+  }
+  // 実際の打ち手を先に受ける。塀越し・高低差のある敵へ歩き続けない。
+  const reachable = (o) => !o.fleeing && !o.woundOut && !o.rearWound && !o.noTarget && !o.invuln && !o.isStruct && o.type !== 'dummy' &&
+    Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos, F.step === 2 && p.weapon === 'spear') &&
+    !b.army.terrainBlocks(u.pos, o.pos);
+  // 退却命令は個人の敗走とは別。退く列を追って柵の持ち場から離れない。
+  // 退き太鼓の後も柵の外や坂の縁へ追わず、間合い内の打ち手には下の処理で防御・反撃する。
+  const chaseTarget = (o) => !o.group?.iwWithdraw && !o.group?.retreatOnly &&
+    (F.step !== 3 || o.group && F.roadDefenders.includes(o.group) && roadEnemy(o, F.joinOrder, F.footY));
+  const pursue = (o) => chaseTarget(o) && (F.step !== 3 || (F.joinOrder
+    ? Math.hypot(o.pos.x - FOOT.x, o.pos.z - FOOT.z) < 7
+    : distToPolyline(o.pos.x, o.pos.z, F.chasePath) < 6));
+  // 到着後、麓から離れていたら先に列へ戻る。近い打ち手には構えて退く。
+  if (F.step === 3 && F.joinOrder && !atFoot(F, u.pos)) {
+    // 戻る間も追撃中の組を呼び戻す。敵を追わせたまま本人だけ麓へ退かない。
+    if (b.squad.length && !(b.botCmdT > b.t) && b.squadGroups[0].order === 'attack') {
+      inp.e.add('KeyZ'); b.botCmdT = b.t + 2;
+    }
+    if (p.lock) inp.e.add('KeyQ');
+    inp.guardHold = (b.army.threats || []).some((o) => o.alive && Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 4);
+    goTo(p, inp, F.chaseGuide.x, F.chaseGuide.z, 1.5);
+    return;
+  }
+  let attacker = null, ad = 5;
+  for (const o of b.army.threats || []) if (o.alive && o.type !== 'gun' && o.type !== 'bow' && reachable(o)) {
+    const d = Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
+    // 道外の打ち手には構えるが、届かない所まで追い回さない。
+    if (!pursue(o) && d > reach) { inp.guardHold = true; continue; }
+    if (d < ad) { ad = d; attacker = o; }
+  }
+  // 柵の口へ寄せる敵も見る。柵の内へ入るまで待つと、味方だけが斬り合ってしまう。
+  // 塀越しは reachable で除き、追撃では遠い城兵より麓への下知を優先する。
+  const e = attacker || b.army.nearestEnemy(u, F.step === 3 ? 8 : 24, (o) => reachable(o) && pursue(o) &&
+    (F.step >= 2 || o.group === F.scout && F.scout.iwSent) &&
+    (F.step !== 3 || F.joinOrder || distToPolyline(o.pos.x, o.pos.z, F.chasePath) < 8) &&
+    (F.step !== 2 || o.pos.z > fencePostZ(o.pos.x) - reach + 0.1 && u.pos.z > FENCE_Z));
+  if (e) {
+    const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
+    if (p.lock && p.lock !== e) inp.e.add('KeyQ');
+    p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
+    if (d > reach * 0.85 && !e.charging && pursue(e)) {
+      // 刀も届く所まで詰める。打ち手が五歩先にいるだけで立ち止まらない。
+      // 夜討ち中は柵の内側で止め、口の外へ追い出ない。
+      const z = F.step === 2 ? Math.max(e.pos.z, fencePostZ(e.pos.x)) : e.pos.z;
+      goTo(p, inp, e.pos.x, z, z !== e.pos.z ? 0.5 : reach * 0.85);
+    }
+    if (b.squad.length && pursue(e) && !(b.botCmdT > b.t) && b.squadGroups[0].order !== 'attack') {
+      inp.e.add('KeyC'); b.botCmdT = b.t + 2;
+    }
+    if (b.squad.length && !pursue(e) && b.squadGroups[0].order === 'attack') {
+      inp.e.add('KeyZ'); b.botCmdT = b.t + 2;
+    }
+    patientStrike(p, inp, e, d);
+    return;
+  }
+  if (b.squad.length && !(b.botCmdT > b.t) && b.squadGroups[0].order === 'attack') {
+    inp.e.add('KeyZ'); b.botCmdT = b.t + 2;
+  }
+  if (F.step === 1) {
+    const it = b.interacts.find((q) => q.id.startsWith('p'));
+    if (it) {
+      const d = Math.hypot(it.pos.x - u.pos.x, it.pos.z - u.pos.z);
+      // 兵の持ち場の中心へ無理に割り込まず、実際に焚ける範囲で止まる。
+      if (d >= it.r - 0.3) goTo(p, inp, it.pos.x, it.pos.z, it.r - 0.5);
+      else inp.k.add('KeyE');
+    } else goTo(p, inp, F.raidGuide.x, F.raidGuide.z, 1.5);
+    return;
+  }
+  if (F.step === 2) {
+    // 戻る時は退いた敵への狙いを解く。陣の奥を救う下知も同じ印へ従う。
+    if (p.lock) inp.e.add('KeyQ');
+    if (F.breached) {
+      goTo(p, inp, F.raidGuide.x, F.raidGuide.z, 1.5);
+      return;
+    }
+    // 押し合いで道を外れても、近い折れ点へ斜めに突っ切らず、道へ戻ってから口へ進む。
+    // 追撃と同じ線分への投影を使い、井楼の柱へ向かう往復を避ける。
+    returnToRoad(F.raidGuide.x > 40 ? MOUTH_LINK : MOUTH_BACK, u.pos, F.botMouthGuide);
+    goTo(p, inp, F.botMouthGuide.x, F.botMouthGuide.z, 0.6);
+    return;
+  }
+  if (F.step === 3) {
+    const q = F.chaseGuide;
+    goTo(p, inp, q.x, q.z, 1.5);
+  }
+};
+
+// 生きた戦闘員だけで上限を数える。柵・門は兵の枠に入れない。
+function battleRoom(rt) {
+  let room = 225;
+  for (const u of rt.army.units) if (u.alive && !u.isStruct && u.type !== 'dummy') room--;
+  return Math.max(0, room);
+}
+function battleLook(rt, list, look) {
+  let room = battleRoom(rt);
+  return dress(list.map((q) => { const n = Math.min(q.n, room); room -= n; return { ...q, n }; }), look);
+}
+
+export { iwamura };
+
+// 麓側の持ち上げは旧配置のまま保つ。夜討ち・追撃の坂と混戦の場所を変えない。
+const LIFT = { x: 0, z: -354, tx: 0, tz: -172, w: 54, R: Math.abs(-172 - FOOT.z), rise: 1 };
+LIFT.rise = (180 - (baseTerrain(0, -354) + 6 - baseTerrain(FOOT.x, FOOT.z))) /
+  (1 - yamaLift(FOOT.x, FOOT.z, LIFT));
+// 移した山頂にも比高180mを保つ。麓の平場の外から山頂へ広くすり付ける。
+const SUMMIT_RISE = 180 - (baseTerrain(CASTLE.x, CASTLE.z) + yamaLift(CASTLE.x, CASTLE.z, LIFT) + 6 - baseTerrain(FOOT.x, FOOT.z));
+function liftedTerrain(x, z) {
+  // 約79mの補正を12mで立ち上げると、道脇が尖った三角の崖になる。
+  // 本丸（z=-190）では全量、麓（z=-90）ではゼロのまま六十メートルでつなぐ。
+  const t = Math.max(0, Math.min(1, (-130 - z) / 60));
+  // 山頂の補正を東西の端まで足すと、城の左右も長い崖になる。
+  // 尾根の中央百メートルは保ち、その外の二百二十メートルで元の山肌へ戻す。
+  const side = Math.max(0, Math.min(1, (Math.abs(x - CASTLE.x) - 100) / 220));
+  const shoulder = 1 - side * side * (3 - 2 * side);
+  return baseTerrain(x, z) + yamaLift(x, z, LIFT) + SUMMIT_RISE * t * t * (3 - 2 * t) * shoulder;
+}
+
+let ROAD_HEIGHTS = null;
+let RAID_RAMPS = null;
+let HOUSE_PADS = null;
+let CHASE_HEIGHTS = null;
+let FOOT_HEIGHT = null;
+function height(x, z) {
+  const h = fieldHeight(x, z);
+  // 麓の道脇だけ、二格子先までの山肌へなじませる。
+  // 道から八メートル以内・城の段・集合場所は元の高さを保つ。
+  // 地形の格子を作る時に使い、形や材質、毎コマの仕事は増やさない。
+  if (z < -140 || z > -60 || Math.abs(x) > 100) return h;
+  const k = THREE.MathUtils.smoothstep(fieldRoadDistance(x, z), 8, 18)
+    * THREE.MathUtils.smoothstep(Math.hypot(x - FOOT.x, z - FOOT.z), 20, 28)
+    * THREE.MathUtils.smoothstep(z, -140, -128)
+    * (1 - THREE.MathUtils.smoothstep(z, -72, -60))
+    * (1 - THREE.MathUtils.smoothstep(Math.abs(x), 80, 100));
+  if (!k) return h;
+  const e = 12;
+  const around = (fieldHeight(x - e, z) + fieldHeight(x + e, z)
+    + fieldHeight(x, z - e) + fieldHeight(x, z + e)) / 4;
+  return h + (around - h) * k;
+}
+function fieldHeight(x, z) {
+  // 本丸までと枝道の全てをならす。道の高さを点の間でつなぎ、切岸の急な段差を登れる坂にする。
+  if (!ROAD_HEIGHTS) {
+    // 曲輪の中心を高さの基準にする。曲輪の外の高い下地を途中の木戸へ採ると、入口に急坂ができる。
+    const main = IWA_ROAD.map(([px, pz]) => [px, pz, heightRaw(px, pz)]);
+    // 麓から三の丸までを一本の坂にすると、迂回する中腹の道が百メートル以上
+    // 山肌をえぐる。城外は折れごとの下地を採り、曲輪間だけ段の高さでつなぐ。
+    const outer = castlePoint(0, -172);
+    const outerIndex = IWA_ROAD.findIndex(([x, z]) => x === outer[0] && z === outer[1]);
+    const anchors = main.slice(0, outerIndex).map((p, i) => ({ i, y: p[2] }));
+    for (const [id, x, z] of [['outer', 0, -172], ['hachiman', 16, -196], ['ni', -10, -218], ['shu', 6, -240], ['hon', 0, -258]].map(([id, x, z]) => [id, ...castlePoint(x, z)])) {
+      const k = IWAMURA_CASTLE_PLAN.kuruwa.find((q) => q.id === id);
+      anchors.push({ i: IWA_ROAD.findIndex((q) => q[0] === x && q[1] === z), y: k.level(liftedTerrain) });
+    }
+    for (let j = 1; j < anchors.length; j++) {
+      const a = anchors[j - 1], b = anchors[j]; let len = 0, at = 0;
+      for (let i = a.i + 1; i <= b.i; i++) len += Math.hypot(main[i][0] - main[i - 1][0], main[i][1] - main[i - 1][1]);
+      main[a.i][2] = a.y;
+      for (let i = a.i + 1; i <= b.i; i++) {
+        at += Math.hypot(main[i][0] - main[i - 1][0], main[i][1] - main[i - 1][1]);
+        main[i][2] = a.y + (b.y - a.y) * at / len;
+      }
+    }
+    const heights = new Map(main.map(([px, pz, y]) => [px + ',' + pz, y]));
+    // 枝道も平場の間を道の長さでつなぐ。曲輪外の高い下地を途中の坂に採らない。
+    const branches = IWA_SIDE_ROADS.map((pts) => {
+      const first = pts[0], last = pts[pts.length - 1];
+      const y0 = heights.get(first.join(',')) ?? heightRaw(...first), y1 = heights.get(last.join(',')) ?? heightRaw(...last);
+      let len = 0, at = 0;
+      for (let i = 1; i < pts.length; i++) len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+      return pts.map(([px, pz], i) => {
+        if (i) at += Math.hypot(px - pts[i - 1][0], pz - pts[i - 1][1]);
+        const y = y0 + (y1 - y0) * at / (len || 1);
+        heights.set(px + ',' + pz, y);
+        return [px, pz, y];
+      });
+    });
+    ROAD_HEIGHTS = [[...switchback([0, FENCE_Z], [0, FOOT.z], 3, 20), ...IWA_ROAD], ...RAID_PATHS, MOUTH_LINK, ...RETURN_PATHS, ...CAMP_ENTER, ...CAMP_EXIT, [[0, -10], [0, -140]]]
+      .map((pts) => {
+        // 山へ散る退路だけでなく、移した城へ向かう長い道も途中の山肌を読む。
+        // 端の高さだけで数百メートルを結ぶと、麓に薄い土の壁を作ってしまう。
+        // 曲輪間の短い坂は決めた高さを保つ。点を足すのは初めの一度だけ。
+        const retreat = RETURN_PATHS.includes(pts) && pts !== RETURN_PATHS[2];
+        if (retreat ||
+            pts.some((p, i) => i > 0 && Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]) > 24)) {
+          const sampled = [pts[0]];
+          for (let i = 1; i < pts.length; i++) {
+            const a = pts[i - 1], b = pts[i];
+            const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+            const steps = length > 24 || retreat ? Math.max(1, Math.ceil(length / 12)) : 1;
+            for (let j = 1; j <= steps; j++) sampled.push([a[0] + (b[0] - a[0]) * j / steps, a[1] + (b[1] - a[1]) * j / steps]);
+          }
+          pts = sampled;
+        }
+        return pts.map(([px, pz]) => [px, pz, heights.get(px + ',' + pz) ?? heightRaw(px, pz)]);
+      });
+    ROAD_HEIGHTS.push(...branches);
+  }
+  const raw = heightRaw(x, z);
+  // 麓から最初の木戸までの道脇だけ広くすり付ける。
+  // 高い曲輪と低い道を一格子でつなぎ、薄い三角の土の尖りにしない。
+  const shoulderT = THREE.MathUtils.smoothstep(-z, 90, 124) * THREE.MathUtils.smoothstep(z, -180, -156);
+  // 九十九折りの外縁も数列の格子へ分散する。六メートル角の一列だけで
+  // 高い山腹へ戻すと、麓から見て道の脇が薄い三角の土の板になる。
+  const roadEdge = 6.3 + 45 * shoulderT, roadFade = 3.5 + 45 * shoulderT;
+  let weight = 0, roadH = 0, blend = 0;
+  for (const pts of ROAD_HEIGHTS) for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], b = pts[i], dx = b[0] - a[0], dz = b[1] - a[1];
+    const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz || 1)));
+    const d = Math.hypot(x - a[0] - dx * t, z - a[1] - dz * t);
+    if (d >= roadEdge) continue;
+    const k = Math.max(0, Math.min(1, (roadEdge - d) / roadFade)), w = k * k * (3 - 2 * k);
+    weight += w; roadH += (a[2] + (b[2] - a[2]) * t) * w;
+    blend = Math.max(blend, w);
+  }
+  // 二本の道の中間で最寄りを切り替えると、高さが数メートル跳ねて兵が止まる。
+  // 重なる坂を重みでつなぎ、道の境にも高さの切れ目を作らない。
+  let h = weight > 0 ? raw + (roadH / weight - raw) * blend : raw;
+  // 口の外は一本の坂にそろえる。重なる九十九折りの横の段を馬や寄せ手へ踏ませない。
+  // 中央は幅24m、東は幅12m。高さの基準は初めに一度だけ作り、切岸全体はならさない。
+  if (!RAID_RAMPS) RAID_RAMPS = [
+    [0, -62, FENCE_Z + 3, 12, heightRaw(0, -62), heightRaw(0, FENCE_Z + 3)],
+    [66, -62, 12, 6, heightRaw(66, -62), heightRaw(66, 12)],
+  ];
+  for (const ramp of RAID_RAMPS) {
+    const side = Math.max(0, Math.abs(x - ramp[0]) - ramp[3]) / 12;
+    const end = Math.max(0, ramp[1] - z, z - ramp[2]) / 10;
+    const fade = Math.max(side, end);
+    if (fade >= 1) continue;
+    const t = Math.max(0, Math.min(1, (z - ramp[1]) / (ramp[2] - ramp[1])));
+    const y = ramp[4] + (ramp[5] - ramp[4]) * t;
+    const k = 1 - fade * fade * (3 - 2 * fade);
+    h += (y - h) * k;
+  }
+  // 追撃路では交差する退却路の高い中腹を平均しない。組と主人公が通る道の高さを優先する。
+  // 折れの高さと計算用の点列は初めに一度だけ作る。
+  if (!CHASE_HEIGHTS) CHASE_HEIGHTS = CHASE_PATH.map(([px, pz]) => [px, pz, heightRaw(px, pz)]);
+  let chaseWeight = 0, chaseY = 0, chaseBlend = 0;
+  for (let i = 1; i < CHASE_HEIGHTS.length; i++) {
+    const a = CHASE_HEIGHTS[i - 1], b = CHASE_HEIGHTS[i], dx = b[0] - a[0], dz = b[1] - a[1];
+    const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz || 1)));
+    const d = Math.hypot(x - a[0] - dx * t, z - a[1] - dz * t);
+    if (d >= 16) continue;
+    // 近い道が切り替わる境も高さをつなぐ。六メートルの格子に二列分の道幅を残す。
+    const fade = Math.max(0, (d - 6) / 10), k = 1 - fade * fade * (3 - 2 * fade);
+    chaseWeight += k; chaseY += (a[2] + (b[2] - a[2]) * t) * k;
+    chaseBlend = Math.max(chaseBlend, k);
+  }
+  if (chaseWeight > 0) h += (chaseY / chaseWeight - h) * chaseBlend;
+  // 最後の折れから麓の集合場所までを一つの平場へつなぐ。
+  // 待つ輪のすぐ脇に急な段を残すと、味方の後列が坂へ張り付き、合流できない。
+  const footD = Math.hypot(x - FOOT.x, z - FOOT.z);
+  // 平場の外周を七列ほどの格子へ分散し、高い山腹へ戻る縁を尖らせない。
+  // 城内の曲輪（麓から八十メートル以上先）と、合流を数える平場の高さは保つ。
+  if (footD < 64) {
+    const t = Math.max(0, (footD - 20) / 44), k = 1 - t * t * (3 - 2 * t);
+    if (FOOT_HEIGHT === null) FOOT_HEIGHT = heightRaw(FOOT.x, FOOT.z);
+    h += (FOOT_HEIGHT - h) * k;
+  }
+  // 道のなだらかさを家の床下へ持ち込まない。建物の足もとは曲輪と同じ平らな小段。
+  // 初めに一度だけ作り、毎コマ配列や形を作らない。
+  // 縄張りを直して家が曲輪の外に出ても落ちないよう、曲輪の無い家は小段を作らない。
+  if (!HOUSE_PADS) HOUSE_PADS = CASTLE_HOUSES.flatMap(([px, pz, w, d]) => {
+    const k = IWAMURA_CASTLE_PLAN.kuruwa.find((q) => inPoly(q.poly, px, pz));
+    return k ? [[px, pz, w / 2 + .6, d / 2 + .6, k.level(liftedTerrain)]] : [];
+  });
+  for (const pad of HOUSE_PADS) {
+    const d = Math.max(Math.abs(x - pad[0]) - pad[2], Math.abs(z - pad[1]) - pad[3]);
+    if (d >= 1.4) continue;
+    const t = Math.max(0, d / 1.4), k = 1 - t * t * (3 - 2 * t);
+    h += (pad[4] - h) * k;
+  }
+  return h + campEarthwork(x, z);
+}
