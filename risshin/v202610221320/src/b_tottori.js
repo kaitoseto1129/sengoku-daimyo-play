@@ -1416,6 +1416,7 @@ const tottori = {
   compactDodgeGuide: true, compactGroundGoalRing: true, compactHoldGuide: true,
   compactTravelArrow: true, // 岸道・城道の矢印を縮め、先を歩く兵を隠さない。
   smallFlagAvoidNotices: true, // 画面の端の旗と添え字も任務・台詞の札を避ける。
+  routeDestinationSight: true, // 岸の曲がり角を肩越しに収め、遠い旗だけを探させない。
   smallTaskAreas: true, taskAreaFootRing: true, // 守り場は中心の小さい印。到着範囲を白い大輪で覆わない。
   // 鳥取の井楼だけ、垂直の通し柱と交互に重なる横木を使う。
   lookoutLogFrame: true,
@@ -1479,7 +1480,7 @@ const tottori = {
   introTaskFirst: true,
   introPeopleFolded: true,
   compactIntro: true,
-  introText: 'まず川岸の味方の組へ。味方と力を合わせ、敵の舟番を退けよう。岸の舟二艘に火をかけ、合図で柵へ戻ろう。城兵を止めたら、使いと木戸へ進もう。退く敵は追わない。',
+  introText: 'まず川岸の味方の組へ。味方と舟番を退け、岸の道から舟へ回ろう。舟のそばで放火の札を長押し。二艘を焼き、合図で柵へ戻ろう。城兵を止めたら、使いと木戸へ。退く敵は追わない。',
   // 手当て後も体力は自然に戻らない。岸が安全なら、残った傷だけで放火の札を隠さない。
   fireWorkAllowed: (rt, it) => (it.id === 'b0' || it.id === 'b1') &&
     atBank(rt.player.u.pos.x, rt.player.u.pos.z) && bankRouteClear(rt),
@@ -1550,6 +1551,9 @@ const tottori = {
     if (F.step === 3) return '使いのそばへ';
     return '持ち場へ';
   },
+  // 画面の外へ出た道の印にも同じ行き先を出す。「旗へ」では舟の岸を探せない。
+  edgeDestinationLabel(rt) { return this.travelGuideLabel(rt); },
+  edgeDestinationCaption(rt) { return this.travelGuideLabel(rt); },
   // 本人が守り続けている寄せと、停戦への移り目を共通の八分で切らない。
   // 持ち場を離れた待機は延ばさず、各段の猶予にも上限を置く。
   pacingWait(rt) {
@@ -1702,6 +1706,8 @@ const tottori = {
     W.groundU.tStone.value = W.groundU.tDirt.value;
     // tint は草・土の配分用。実際の地色は鳥取の既存材質へ重ね、月光でも白い崖にしない。
     const groundMat = W.terrain.material, compileGround = groundMat.onBeforeCompile;
+    // 平地にも湿った土の色を残す。夜の青い光で岸全体が雪原に見えるのを抑える。
+    groundMat.color.setHex(0xc1b196);
     const groundKey = groundMat.customProgramCacheKey;
     groundMat.customProgramCacheKey = () => groundKey.call(groundMat) + '|tottoriAutumnBank3';
     groundMat.onBeforeCompile = function (sh, renderer) {

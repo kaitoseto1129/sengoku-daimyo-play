@@ -1862,13 +1862,9 @@ const iwamura = {
       }
     });
     // 通れる地面の格子は変えず、端の頂点から外へ四段の山肌をつなぐ。
-    // 初めに一度だけ同じ地面へまとめるので、描画回数も通行範囲も増やさない。
+    // 通れる格子は差し替えず、山裾だけ同じ材質の別の面にする。
+    // 地面の索引と視点ごとの面の控えを保ち、遠い平場の間引きも残す。
     const groundGeo = W.terrain.geometry, seg = groundGeo.parameters.widthSegments;
-    // 支度の途中に描画済みでも、視点の外の面を捨てた索引を結合しない。
-    // 元の全索引を戻し、山肌と足場の高さが違う穴を残さない。
-    const fullIndex = groundGeo.userData.terrainViewIndex;
-    if (fullIndex) groundGeo.setIndex(new THREE.BufferAttribute(fullIndex.slice(), 1));
-    groundGeo.setDrawRange(0, Infinity);
     const edge = [];
     for (let i = 0; i < seg; i++) edge.push(i);
     for (let i = 0; i < seg; i++) edge.push(i * (seg + 1) + seg);
@@ -1904,8 +1900,12 @@ const iwamura = {
     const normals = skirtGeo.attributes.normal, groundNormals = groundGeo.attributes.normal;
     for (let i = 0; i < count; i++) normals.setXYZ(i,
       groundNormals.getX(edge[i]), groundNormals.getY(edge[i]), groundNormals.getZ(edge[i]));
-    W.terrain.geometry = mergeGeometries([groundGeo, skirtGeo]);
-    groundGeo.dispose(); skirtGeo.dispose();
+    const skirt = new THREE.Mesh(skirtGeo, W.terrain.material);
+    skirt.receiveShadow = true; skirt.userData.noFreeze = true;
+    rt.scene.add(skirt);
+    groundGeo.addEventListener('dispose', () => {
+      skirt.removeFromParent(); skirtGeo.dispose();
+    });
     // 八角形の草の面は重ねない。下の地面の草・土・石の絵をそのまま見せる。
     // 細かな割れと灰褐色の土汚れを持つ岩を、道の外に半分埋める。
     const rockGeo = rockShape(1, true);

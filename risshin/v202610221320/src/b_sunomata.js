@@ -2208,6 +2208,8 @@ const sunomata = {
     // 体や馬に刺さっても、飛んでいた矢の長さを保つ。
     keepPinnedArrowSize: true,
     pinnedArrowAxisScale: true,
+    // 親子の行列更新で描く時の体格へ合わせる。場全体から矢を走査し直さない。
+    pinnedArrowRenderScale: true,
     unitFlagMaterial: (base) => sunoNearMaterial(sunoClothMaterial(base)),
     // 外壁と共通室内の梁・壁で同じ透かし方を使い、近い屋根に網目を重ねない。
     interiorMaterial: (mat) => sunoNearMaterial(mat),
@@ -2316,12 +2318,6 @@ const sunomata = {
     W.groundU.tDirt.value = W.groundU.tBank.value = dirtTex(true, true);
     W.groundU.tMud.value = mudTex(true);
     W.terrain.material.color.setHex(0xc7b495);
-    // 兵の姿は矢の更新後にも切り替わる。描く直前の親の倍率へ合わせる。
-    const beforeDraw = rt.scene.onBeforeRender;
-    rt.scene.onBeforeRender = function (renderer, scene, camera, target) {
-      beforeDraw.call(this, renderer, scene, camera, target);
-      rt.army.syncPinnedArrowScales();
-    };
     sunoChoiceLayout(rt);
     flReset();
     // 人足の救援と近い槍の守りを優先する。首取りは安全になれば同じ遺体で再開できる。

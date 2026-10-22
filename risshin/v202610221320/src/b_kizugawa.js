@@ -2282,6 +2282,8 @@ const kizugawa = {
   },
   guardStartText: '「構え」を長押し',
   guardWaitText: '敵へ槍を向けて防げ',
+  // 横持ちの回避釦で、語尾一字だけを次の行へ送らない。
+  dodgeActionText: 'ここを長押し',
   guardLabel: (rt, u) => rt.flags.kukiDanger || u && u === rt.flags.kukiU ? rescueTask(rt) : '近い味方を守れ',
   openingMoveLabel: '大筒へ。上へなぞる',
   introText: 'まず印をたどり、西の船べりの大筒へ。敵を防ぎ、合図で撃とう。',
@@ -2294,8 +2296,16 @@ const kizugawa = {
       .replace(/^西の大筒へ。船の横腹を待て$/, '西の大筒で横腹を待て')
       .replace(/^西の大筒で敵船を迎えよ$/, '船べりの大筒へ進め')
       .replace(/^西の大筒で(?:大船の横腹|迫る敵船)を撃て$/, '「大筒を撃つ」を長押し')
+      .replace(/^西の大筒で敵船の横腹を撃て$/, '大筒で敵船の横腹を撃て')
+      .replace(/^弾込め中。西の船べりを見張れ$/, '弾込め中。西を見張れ')
+      .replace(/^目の前の敵へ向き、構えて防げ$/, '敵へ向き、構えよ')
       .replace(/^敵の法螺貝と退き太鼓。甲板を守り、残る敵を押し返せ$/, '甲板に残る敵を退けよ')
       .replace(/^甲板を守り、退く(?:敵)?船を見張れ$/, '敵船を見張り、船を守れ');
+  },
+  // 見張る下知は見出しにある。補足には砲手の残り時間だけを置く。
+  taskDetail(_rt, title, progress) {
+    return /^弾込め中。/.test(title) ?
+      progress.replace(/^弾込めあと(\d+)秒。西の船べりを見張れ$/, '砲手の弾込め あと$1秒') : progress;
   },
   // ひし形の意味を、回避する理由と一緒に示す。画面外の方向は保つ。
   dodgeLabel(_rt, direction, rain) {

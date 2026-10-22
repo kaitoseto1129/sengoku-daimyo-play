@@ -172,7 +172,7 @@ echizen.taskText = (rt, text) => {
     return `味方の旗へ。${passGuardAction()}`;
   // 「次の木戸」だけでは、確保した観音丸へ戻るのか区別できない。
   if (text === '本道の印へ。次の木戸へ進め')
-    return '本道の印へ。木ノ芽峠城を目指せ';
+    return '本道から木ノ芽峠城へ';
   if (text === '進み太鼓と法螺貝。竹束と木戸へ進み、味方と中を押さえよ')
     return '竹束と木戸へ。開いたら味方と中へ';
   // 届かない所で長押しを促さない。掛矢に届いた時の指図だけ操作名へ替える。
@@ -341,7 +341,7 @@ echizen.botRetreatWay = (rt, back) => {
 // 「丸」は城の曲輪とも読める。十字の印が手当ての場所だと伝える。
 echizen.treatmentApproachLabel = '十字へ退き、手当て';
 // 共通の指なぞり案内で、十字を「旗」と呼び直さない。
-echizen.treatmentMoveCaption = '十字へ下がれ。着いたら手当て';
+echizen.treatmentMoveCaption = '十字へ退け。着いたら手当て';
 echizen.treatmentTaskGuidance = true;
 echizen.treatmentCrossSign = true;
 // 移動中・画面外でも、手当て先を集合の旗に取り違えない。
@@ -632,6 +632,7 @@ echizen.setup = function (rt) {
   html body #hud.echizen #battle-notices #objectives:not(.expand) li.cur :is(.obj-text,.obj-now) {
     display:block; width:auto !important; min-width:0; max-width:100%;
     white-space:normal !important; overflow-wrap:anywhere; line-height:1.4 !important;
+    text-wrap:pretty;
   }
   /* 退く札へ切り替わった間は、攻める補足と構えの重複札を畳む。
      任務の一覧を開けば本来の下知を読める。携帯・パソコンで共通にする。 */

@@ -1167,7 +1167,7 @@ const iga = {
   introTaskFirst: true,
   introPeopleFolded: true,
   introKeepControls: true, // 開始札にも、消火に必要な八秒の長押しを残す。
-  introText: 'まず味方の列で備えよう。小屋が燃えたら、印のそばで「水を掛ける」を八秒押し続けよう。',
+  introText: '味方の列を守ろう。火のそばで「水を掛ける」を八秒押し続けよう。',
   distanceUnit: 'steps',
   // 夜討ちを終えて山を往復する段は、戦全体の八分で途切れさせない。
   // 移動は実際の前進で猶予を更新する。立ち止まりと各段の上限は残す。

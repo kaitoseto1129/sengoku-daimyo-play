@@ -60,7 +60,14 @@ function takatoCameraWalls(rt) {
     const count = Math.max(1, Math.round(length / (wall.samaStep || 1.5))), span = length / count;
     for (let i = 0; i < count; i++) {
       const x = ax + tx * (i + .5) * span, z = az + tz * (i + .5) * span;
-      boxes.push({ wall, x, z, y: W.heightAt(x, z), tx, tz, half: span / 2 + .04 });
+      // 板の裾は坂に沿い、柱先は板の上へ六十センチ出る。
+      // 柱間の中央だけの高さでは、裾と柱先を視点が通り抜ける。
+      let bottom = Infinity, top = -Infinity;
+      for (const u of [-.5, 0, .5]) for (const side of [-.12, .12]) {
+        const y = W.heightAt(x + tx * span * u - tz * side, z + tz * span * u + tx * side);
+        bottom = Math.min(bottom, y - .25); top = Math.max(top, y + wall.h + .6);
+      }
+      boxes.push({ wall, x, z, bottom, top, tx, tz, half: span / 2 + .04 });
     }
   }
   W.cameraBlockFraction = function (from, to) {
@@ -73,10 +80,10 @@ function takatoCameraWalls(rt) {
       if (Math.abs(x) > Math.abs(dx) + b.half + .4 || Math.abs(z) > Math.abs(dz) + b.half + .4) continue;
       let lo = 0, hi = hit ?? 1;
       for (let axis = 0; axis < 3; axis++) {
-        const p = axis === 0 ? x * b.tx + z * b.tz : axis === 1 ? -x * b.tz + z * b.tx : from.y - b.y;
+        const p = axis === 0 ? x * b.tx + z * b.tz : axis === 1 ? -x * b.tz + z * b.tx : from.y;
         const d = axis === 0 ? dx * b.tx + dz * b.tz : axis === 1 ? -dx * b.tz + dz * b.tx : dy;
-        const min = axis === 0 ? -b.half : axis === 1 ? -.3 : -.1;
-        const max = axis === 0 ? b.half : axis === 1 ? .3 : 2.85;
+        const min = axis === 0 ? -b.half : axis === 1 ? -.3 : b.bottom;
+        const max = axis === 0 ? b.half : axis === 1 ? .3 : b.top;
         if (Math.abs(d) < .000001) {
           if (p < min || p > max) { hi = -1; break; }
         } else {
@@ -724,7 +731,28 @@ takato.world.tint = (x, z, h, c) => {
   c.multiplyScalar(shade);
 };
 
+// 一隊の敗走や玉込めを、列を離れて追えという下知にしない。
+// 高遠だけの声に替え、撤収・本丸確保後と史実の会話は元のまま通す。
+function takatoAssaultVoice(rt, text) {
+  const F = rt.flags;
+  if (F.honFell || F.ending || rt.over || !rt.player.u.alive) return text;
+  const pursuit = /^(敵は総崩れじゃ|敵が背を見せた！|敵が崩れた！|敵が槍を捨てた！|敵が下がった！|敵が退いて列を組み直す|敵が息を継いでおる|敵の列が乱れておる)/.test(text);
+  const reload = /^(弾込めの隙じゃ|玉込めの隙じゃ|次の玉まで間がある|撃ち終えたぞ！)/.test(text);
+  const guns = text.startsWith('鉄砲の列だ');
+  const spears = text.startsWith('槍衾だ');
+  if (!pursuit && !reload && !spears && !guns) return text;
+  if (F.retreatTo || needsBreath(rt)) return retreatTravelLabel(rt);
+  if (spears) return '敵の槍列へ踏み込むな。味方の列で受けよ';
+  if (guns) return '敵の鉄砲だ。物陰で撃ち終わりを待て';
+  if (reload) return F.closeFoe?.alive
+    ? '敵の玉込めだ。城兵を追わず、味方の列で受けよ'
+    : '敵の玉込めだ。味方と道の印へ進め';
+  return '城兵が退く。深追いせず、味方の列を保て';
+}
+
 takato.setup = function (rt) {
+  const bark = rt.bark;
+  rt.bark = function (text, warn) { return bark.call(this, takatoAssaultVoice(this, text), warn); };
   baseSetup.call(this, rt);
   // 裸地と切岸に同じ粒の土を使い、四角い土塊と足跡の反復を広場へ敷き詰めない。
   // 既存の共有画像だけを切り替え、残雪・踏み荒れ・血と地形の当たりは保つ。

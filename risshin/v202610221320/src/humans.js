@@ -3421,7 +3421,7 @@ function shareHumanSkeleton(h) {
 }
 
 // 胴丸の侍に重ねる部品（兜・顔・母衣・陣羽織）
-const DM_KEEP = new Set(['hat', 'kato', 'back', 'haori', 'koshi', 'pole']);
+const DM_KEEP = new Set(['hat', 'back', 'haori', 'koshi', 'pole']);
 // 束ねた人の形は「形」と「色」に分けて持つ：
 //   形（position・normal・uv・skinIndex・skinWeight・index）は同じ甲冑の並びなら姿（色）が違っても一つを共有し、GPU にも一度しか送らない。
 //   色（color・col2・mtl）だけ姿ごとに持つ（一頂点 10 byte）。前は姿ごとに全部（一頂点 84 byte）を作り、開戦後に 30 秒で 100MB 増えていた（iPhone の 2GB の壁）。
@@ -3463,18 +3463,6 @@ function crowdGeometry(P, L, only = null, face = false, whole = false) {
   let shapeKey = null;
   const key = memTight() ? (shapeKey = list.map((p) => p.bn + ':' + shapeId(p.geo) + ':' + fitKey(p.fit)).join('|') + '|' + kp) + '#' + list.map((p) => colorId(p.geo)).join(',') : list.map((p) => p.geo.uuid).join('|');
   if (crowdGeos.has(key)) { HSTAT.crowdHit++; const g0 = crowdGeos.get(key); const sh0 = g0 && crowdShapes.get(g0.userData.shapeKey); if (sh0) sh0.use = performance.now(); return g0; }
-  // 胴丸だけで装いが済む兵には、重ねる部品が無い。空の配列は結合せず、
-  // 遠近の切替と骨の共有にも渡せる零頂点の形を覚えて使い回す。
-  if (!list.length) {
-    const g = new THREE.BufferGeometry();
-    for (const [name, size] of [['position', 3], ['normal', 3], ['uv', 2], ['skinWeight', 4], ['color', 3], ['col2', 3], ['mtl', 1]])
-      g.setAttribute(name, new THREE.BufferAttribute(new Float32Array(0), size));
-    g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute([], 4));
-    g.setIndex(new THREE.BufferAttribute(new Uint16Array(0), 1));
-    g.boundingSphere = BSPH.clone(); g.userData.use = performance.now();
-    crowdGeos.set(key, g);
-    return g;
-  }
   if (!shapeKey) shapeKey = list.map((p) => p.bn + ':' + shapeId(p.geo) + ':' + fitKey(p.fit)).join('|') + '|' + kp;
   let shape = crowdShapes.get(shapeKey);
   if (!shape) {

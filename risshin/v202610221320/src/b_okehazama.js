@@ -928,6 +928,9 @@ const okehazama = {
     branchTrees: true,
     // 共通の透かした葉の房で、杉・松・雑木の硬い多面体を置き換える。
     branchFoliage: true,
+    // 段状の杉ばかりが並ばないよう、既存の松と雑木の型へ配分する。
+    // 本数・置き場所の抽選回数・当たりは変えない。値は累積の境目。
+    treeMix: { sugi: 0.16, matsu: 0.36 },
     // 杉は外へ垂れる専用の枝葉、松・雑木は折った房。縦長の葉の板を避ける。
     // 既存の型と材質を林全体で使い回し、幹・兵の配置や当たりは保つ。
     cedarBoughs: true,
@@ -1098,6 +1101,26 @@ const okehazama = {
     rt.world.terrain.material.color.setHex(0xc4b69d);
     // 空の照り返しで濡れ土の色を消さず、草・踏み跡の濃淡を残す。
     rt.world.terrain.material.envMapIntensity = 0.2;
+    // 浅い泥の窪みは共通の照り抑えから外れるため、曇天を白く映しやすい。
+    // この戦の裸地だけ上限を設ける。田の水・草・既存の土粒と踏み跡は残す。
+    const soilMaterial = rt.world.terrain.material;
+    const soilCompile = soilMaterial.onBeforeCompile;
+    const soilKey = soilMaterial.customProgramCacheKey();
+    soilMaterial.onBeforeCompile = function (shader, renderer) {
+      soilCompile.call(this, shader, renderer);
+      shader.fragmentShader = shader.fragmentShader
+        .replace('roughnessFactor = mix(roughnessFactor, 0.26, pool);',
+          'roughnessFactor = mix(roughnessFactor, 0.52, pool);')
+        .replace('reflectedLight.directSpecular *= 1.0 - wat * 0.6;', `
+          reflectedLight.directSpecular *= 1.0 - wat * 0.6;
+          float okeBareSoil = clamp(w.y + w.z, 0.0, 1.0) * (1.0 - wat);
+          reflectedLight.indirectSpecular = mix(reflectedLight.indirectSpecular,
+            min(reflectedLight.indirectSpecular, diffuseColor.rgb * 0.10 + vec3(0.002)), okeBareSoil);
+          reflectedLight.directSpecular *= 1.0 - okeBareSoil * 0.45;
+        `);
+    };
+    soilMaterial.customProgramCacheKey = () => soilKey + '|okeWetSoil';
+    soilMaterial.needsUpdate = true;
     // 設営と荷運びで既に荒れた筋。直線の帯を敷かず、既存の踏み跡へ刻む。
     // 草の房も同じ跡で倒れ、戦闘中は兵の足でさらに泥が広がる。
     for (const side of [-1, 1]) {
