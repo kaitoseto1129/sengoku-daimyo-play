@@ -51,6 +51,8 @@ export class BattleNotices {
     this.clock = 0;
     const style = document.createElement('style');
     style.textContent = `
+/* 接敵中の細かな数字は、地図や号令を開いた時に読む。 */
+html.touch body #hud.combat-three :is(.tr,.tl,#armybar,#compass,#boss,#target,#h-squad,#h-units,#sonae-cards,#yasen-hud,#siegecards) { display:none !important; }
 #hud #battle-notices { position:absolute; left:calc(76px + env(safe-area-inset-left, 0px)); top:calc(96px + env(safe-area-inset-top, 0px)); width:min(320px, 32%); max-height:calc(100% - 196px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); display:flex; flex-direction:column; gap:8px; overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y; pointer-events:auto; }
 #hud #boss { left:calc(100px + min(320px, 32%) + env(safe-area-inset-left, 0px)); right:calc(216px + env(safe-area-inset-right, 0px)); width:auto; max-width:none; margin-top:0; transform:none; min-width:0; grid-template-columns:minmax(0, 1fr); text-align:center; }
 #hud #boss span { min-width:0; width:100%; max-width:100%; overflow-wrap:anywhere; box-sizing:border-box; }
@@ -981,10 +983,15 @@ html body #hud #battle-message { gap:8px; }
     if (retreatMarks) this.limit = Math.min(this.limit, 1);
     if (waitGuard) this.limit = Math.min(this.limit, 1);
     if (rainUrgent) this.limit = Math.min(this.limit, 1);
+    const combatThree = !choosing && this.root.classList.contains('combat-three') &&
+      !waitGuard && !rainUrgent && !dodging && !working && !retreatMarks;
+    // 目標の枠と体力に二枠を使い、読む札は操作を含む指示一枚にする。
+    if (combatThree) this.limit = 1;
     const retreatGuidance = rt?.def.withdrawGuidance && rt.withdrawal?.losing === 0 && rt.player.u.alive && !rt.ended && !rt.retryOpen;
     for (const source of this.sources) {
       source.selected = false;
       if (rt?.retryOpen) continue;
+      if (combatThree && source.id !== 'objectives') continue;
       // 下馬から手当てまでは今の操作だけ。命と出血は既存の命の札へまとめる。
       if (careSequence && source.id !== 'objectives') continue;
       // 指の案内中は今の操作一枚へ集め、命と行き先の印の場所を空ける。
@@ -1045,6 +1052,7 @@ html body #hud #battle-message { gap:8px; }
     }
     for (let i = 0; i < this.queue.length; i++) {
       const item = this.queue[i]; item.selected = false;
+      if (combatThree) continue;
       if (rt?.retryOpen) continue;
       if (careSequence) continue;
       // 指の案内中は今の操作一枚へ集め、命と行き先の印の場所を空ける。

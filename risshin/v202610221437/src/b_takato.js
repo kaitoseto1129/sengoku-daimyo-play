@@ -173,7 +173,7 @@ const retreatTravelLabel = (rt) => rt.player.u.wounds?.bleed > .0001 && rt.playe
     ? '印へ下がり、止まって手当て'
     : 'まず敵から離れ、味方の後ろへ'
   : rt.flags.meleePressure ? '囲まれる前に、敵を向いて印へ'
-  : '休む印へ。敵を向いて下がろう';
+  : '敵を向き、休む印へ退け';
 // 一撃三割五分の戦で、残り三割五分まで退き始めないと次の一撃に間に合わない。
 // 手当て案内と同じ六割を切ったら列へ下がる。傷と兵の強さは変えない。
 const needsRest = (rt) => rt.player.sta < rt.player.maxSta * .35 || rt.player.guardBroken > 0;
@@ -715,6 +715,9 @@ takato.world.livingSpearHedge = true;
 takato.world.fallPaceSpread = .35;
 takato.world.settleSideFalls = true;
 takato.world.groundedFalls = true;
+// 切岸を下りる途中の高さの遅れを、櫓や館の板床と取り違えない。
+// 実際の床は共通の床判定で保ち、土の上の亡骸だけ坂へ降ろす。
+takato.world.terrainContactFalls = true;
 // 胴が地を打つ瞬間に一度だけ具足を鳴らし、既存の粒から低い土煙を添える。
 // 板床・雨・水中は煙を出さず、近場でも全体で一秒に六十粒まで。
 takato.world.contactFalls = true;
@@ -780,6 +783,22 @@ takato.setup = function (rt) {
   F.cameraHead = new THREE.Vector3();
   F.cameraCorner = new THREE.Vector3();
   takatoCameraWalls(rt);
+  // 討たれた兵は生きた兵の視点よけから外れる。壁際で視点が亡骸の
+  // 胴へ入った時だけ、描く間は全身を避け、描いた後は共通の一覧で戻す。
+  const fadeBodies = rt.player.allyFade, corpseEye = new THREE.Vector3();
+  rt.player.allyFade = function (cam) {
+    fadeBodies.call(this, cam);
+    if (!cam || rt.game?.photo) return;
+    for (const u of rt.army.dead) {
+      const mesh = u.mesh;
+      if (u.gone || !mesh?.visible || !u.death || mesh.position.distanceToSquared(cam.position) > 16) continue;
+      mesh.worldToLocal(corpseEye.copy(cam.position));
+      // 倒れた根元の回転と体格を含め、笠から脛までの近写しだけを拾う。
+      if (corpseEye.y < -.2 || corpseEye.y > 2.1 ||
+          corpseEye.x * corpseEye.x + corpseEye.z * corpseEye.z > .64) continue;
+      this.hideNearFlag(mesh);
+    }
+  };
   F.exitRoom = null;
   F.roomExitPoint = { x: 0, y: 0, z: 0 };
   F.roomExitLocal = { x: 0, z: 0 };
@@ -1057,6 +1076,8 @@ html:root body #hud #battle-notices #tutorial :is(.what,.how,.lbl) {
   const dispose = rt.dispose;
   rt.dispose = function (...args) {
     style.remove();
+    rt.player.allyFade(null);
+    rt.player.allyFade = fadeBodies;
     rt.army.addUnit = addUnit;
     for (const g of clothShapes.values()) g.dispose();
     for (const m of clothMats.values()) m.dispose();

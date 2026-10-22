@@ -262,20 +262,19 @@ export class HudRoute {
         point.valid = length > .8 && clear;
       }
     }
-    // 室内は足あと、庭では太い矢印を続け、火や兵の中でも道の向きを保つ。
-    const indoor = !rt.def.routeDestinationSight || rt.flags.routeSign?.indoor;
+    // 庭でも足形を並べ、次の戸口まで進む向きを保つ。
     trail.maxPixels = 32;
-    let lastX = -1000, lastY = -1000, shown = 0;
+    let lastX = -1000, lastY = -1000;
     const projection = this.footstepProjection || (this.footstepProjection = {});
     for (let i = 0; i < trail.points.length; i++) {
       const point = trail.points[i];
-      if (!point.valid || !indoor && i % 3 !== 1) continue;
+      if (!point.valid) continue;
       this.project(point, point.y + .1, rt, projection);
       // 終点を残し、遠い床で間引いても戸口や次の角の手前で途切れさせない。
       if (i + 1 < trail.points.length && trail.points[i + 1].valid &&
-          Math.hypot(projection.x - lastX, projection.y - lastY) < (indoor ? 28 : 40)) continue;
-      if (this.drawFloorWaymark(g, rt, point, indoor && shown % 4 !== 3 && !!trail.points[i + 1]?.valid, trail)) {
-        lastX = projection.x; lastY = projection.y; shown++;
+          Math.hypot(projection.x - lastX, projection.y - lastY) < 28) continue;
+      if (this.drawFloorWaymark(g, rt, point, true, trail)) {
+        lastX = projection.x; lastY = projection.y;
       }
     }
   }

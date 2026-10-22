@@ -238,6 +238,24 @@ function moribeBuildings(rt) {
       const xx = x - 1.35 + i * .43, zz = z + 1.6 + (i % 3) * .09;
       store(xx, W.heightAt(xx, zz) + .035, zz, .36, .07, 1.1 + (i % 2) * .3, 0x62513c);
     }
+    // 荷置き場の片側に差し掛け。柱・母屋・葺き板を同じ束へ入れ、描画は増やさない。
+    // 正面の通路と槍架を避け、左右同じ箱だけに見えない雨宿りの輪郭を作る。
+    const leanSide = x < 0 ? -1 : 1, leanX = x + leanSide * 3.4;
+    for (const dz of [-1.35, 1.35]) {
+      const px = x + leanSide * 4.45, pz = z + dz, gy = W.heightAt(px, pz);
+      store(px, (gy + y + 1.7) / 2, pz, .13, Math.max(.1, y + 1.7 - gy), .13, 0x493624);
+      store(leanX, y + 1.92, pz, 2.5, .14, .14, 0x55422f);
+    }
+    for (let i = 0; i < 9; i++) {
+      at.position.set(leanX, y + 2.02, z - 1.5 + i * .37);
+      at.rotation.set(0, 0, -leanSide * .22); at.scale.set(2.65, .075, .4); at.updateMatrix();
+      bundles.get(i % 3 ? 0x62513c : 0x55422f).push(at.matrix.clone());
+    }
+    for (let i = 0; i < 3; i++) {
+      const px = leanX + leanSide * .35, pz = z - .95 + i * .9, gy = W.heightAt(px, pz);
+      store(px, gy + .22, pz, .75, .44, .65, 0x79634b);
+      for (const dx of [-.24, .24]) store(px + dx, gy + .46, pz, .055, .055, .7, 0x493624);
+    }
     rt.scene.add(timberRoof(x, y + 2.3, z, 4.8, 3.1, 0, { eave: .45, pitch: .3, color: 0x62513c }));
   }
   // 柱・壁は一束、細部は影なしの一束。色は各部品へ持たせ、材質と形は共用する。
@@ -273,7 +291,7 @@ function moribeBuildings(rt) {
 // 当たり・地形の高さを変えず、一つの形・材質・描画で崩れた土の輪郭を出す。
 function moribeSoil(rt) {
   const W = rt.world, geo = new THREE.SphereGeometry(1, 5, 3);
-  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: mudTex(), bumpMap: mudTex(), bumpScale: .018, roughness: .94, envMapIntensity: .2 });
+  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: mudTex(true), bumpMap: mudTex(true), bumpScale: .018, roughness: .94, envMapIntensity: .2 });
   // 泥の絵に茶と個体色を重ねると黒い破片になる。絵の濃淡を地表と同じ湿土へ戻す。
   mat.onBeforeCompile = sh => {
     sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>',
@@ -293,11 +311,14 @@ function moribeSoil(rt) {
     const patch = Math.sin(x * .26 + Math.sin(z * .17)) * Math.cos(z * .21);
     if (patch < -.15) continue;
     // 小粒だけでは横から輪郭が消える。大小を混ぜ、崩れた芝土の低い肩を残す。
-    const length = .18 + R() * R() * .6;
+    // 一部は踏み場の縁に寄った低い土の肩。小さな同形の粒だけで野を覆わない。
+    const shoulder = count % 7 === 0;
+    const length = shoulder ? .75 + R() * 1.5 : .18 + R() * R() * .6;
     at.position.set(x, W.heightAt(x, z) - .025, z);
     at.rotation.set((W.heightAt(x, z + .3) - W.heightAt(x, z - .3)) / .6,
       R() * Math.PI * 2, -(W.heightAt(x + .3, z) - W.heightAt(x - .3, z)) / .6);
-    at.scale.set(length, .055 + length * .12, length * (.35 + R() * .6)); at.updateMatrix();
+    at.scale.set(length, shoulder ? .09 + R() * .06 : .055 + length * .12,
+      length * (shoulder ? .18 + R() * .2 : .35 + R() * .6)); at.updateMatrix();
     soil.setMatrixAt(count, at.matrix);
     const tone = .88 + R() * .22;
     color.setRGB(tone, tone, tone); soil.setColorAt(count++, color);
@@ -1833,7 +1854,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     // https://www.town.anpachi.lg.jp/0000000392.html
     // 同じ人数の三備を雨の中景へ寄せ、残る後続は北の奥に保つ。配置は復元。
     // 墨俣側の控え。龍興本人の出陣を確かな事として描かない。
-    F.farS = [[-106, -92], [-168, -360], [-30, -116], [74, -102], [136, -320], [-180, -240], [100, -260], null, [-100, -440]]
+    F.farS = [[-86, -64], [-168, -360], [-30, -88], [74, -70], [136, -320], [-180, -240], [100, -260], null, [-100, -440]]
       .map((q, i) => {
         if (!q) return null;
         const army = DA(q[0], q[1], 52, KS[i] === 'bow' ? 12 : (KS[i] === 'honjin' ? 44 : 24), KS[i] === 'cavalry' ? 80 : KS[i] === 'bow' ? 220 : 600, 0, i % 2 ? 0x3a3a30 : 0x35382c, 'saito', 5 + i, KS[i]);
@@ -1869,7 +1890,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     KT.farVillage(rt, -126, -30, { rot: -Math.PI / 2, n: 6, fields: 8, seed: 4 });
     // 両翼の槍の前線。音・旗・煙の仕組みは共通の呼び口を使う。
     // 中央の実兵の両脇へ同じ人数を寄せ、前列同士の空白を短くする。実兵化と難しさは保つ。
-    F.fronts = [-19, 21].map((x, i) => clash(rt, { x, z: 24, facing: Math.PI, w: 26, gap0: 16, seed: 231 + i,
+    F.fronts = [-19, 21].map((x, i) => clash(rt, { x, z: i ? 38 : 30, facing: Math.PI, w: 26, gap0: 16, seed: 231 + i,
       groundedMelee: true,   // 同じ兵数の押し合いから、既存の泥跳ねと低い飛沫の霞を出す。
       measuredMelee: true,   // 前列の踏み込みと後列の詰め、押し返しの時間差を共通の動きで出す。
       noReserve: true,   // 台本の控え以外に、共通の新手を追加しない。

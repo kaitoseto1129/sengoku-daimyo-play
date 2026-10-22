@@ -273,13 +273,13 @@ export class HudNavigation {
 
 
   // 移動と到着に同じ太い矢印を使う。先端が指す一点は動かさない。
-  drawNavigationArrow(g, x, y, angle = Math.PI / 2, scale = 1, atFoot = false) {
+  drawNavigationArrow(g, x, y, angle = Math.PI / 2, scale = 1, atFoot = false, doorway = false) {
     if (this.rt?.touchSwipeActive && !atFoot && !this.rt.missionGuide?.marker) return;
     // 近い視点で、矢印が本人の頭や体に重なる時は描かない（頭を指す矢印に見える）。
     // 向き直し中は今の横なぞりだけを見せ、別方向の矢印を足さない。
     if (isTouch && (this.rt?.dodgeGuide?.gestureShown || $('objectives').classList.contains('facing-order'))) return;
     const rt = this.rt, me = rt?.player?.u?.pos;
-    if (rt && singleBattleGuide(rt) && !this.openingActive) {
+    if (rt && singleBattleGuide(rt) && !this.openingActive && !doorway) {
       this.drawSmallGoalFlag(g, x, y, .5, false, false, '');
       return;
     }
@@ -293,7 +293,7 @@ export class HudNavigation {
     }
     g.save(); g.translate(x, y); g.rotate(angle - Math.PI / 2);
     // 案内は押すボタンではない。小型指定の倍率を保ち、兵より大きく拡大しない。
-    const size = rt?.def.compactTravelArrow ? Math.min(.65, scale) : scale;
+    const size = rt?.def.compactTravelArrow && !doorway ? Math.min(.65, scale) : scale;
     g.scale(size, size);
     g.lineJoin = 'round';
     g.beginPath(); g.moveTo(0, 0); g.lineTo(-18, -22);
@@ -384,19 +384,22 @@ export class HudNavigation {
   }
 
 
-  // 操作の始点は自分の足元の脇。画面外の時だけ端へ戻す。
-  playerControlOrigin(rt) {
+  // 操作面へ固定し、本人の足元と指の案内の間を空ける。
+  playerControlOrigin(rt, look = false, nearPlayer = false) {
     const point = this.playerControlPoint || (this.playerControlPoint = {});
+    const right = look ? !S.touchSwap : !!S.touchSwap;
     point.visible = false;
-    point.x = S.touchSwap ? VIEW.w - 112 : 112;
+    point.x = VIEW.w * (right ? .78 : .22);
     point.y = Math.max(144, VIEW.h - 112);
-    const p = rt.player.u.pos;
-    const foot = this.project(p, p.y + .12, rt,
-      this.controlSignFoot || (this.controlSignFoot = {}));
-    if (!foot.behind && foot.x >= 48 && foot.x <= VIEW.w - 48 && foot.y >= 100 && foot.y <= VIEW.h + 12) {
-      point.x = Math.max(104, Math.min(VIEW.w - 104, foot.x + (S.touchSwap ? 1 : -1) * 72));
-      point.y = Math.max(144, Math.min(VIEW.h - 80, foot.y));
-      point.visible = true;
+    // 開幕の丸は本人の足元へ。ここは左右どちらでも歩行入力として受ける。
+    if (nearPlayer && rt.player.fpK <= .5) {
+      const p = rt.player.u.pos;
+      const foot = this.project(p, p.y + .12, rt,
+        this.openingControlFoot || (this.openingControlFoot = {}));
+      if (!foot.behind) {
+        point.x = Math.max(88, Math.min(VIEW.w - 88, foot.x));
+        point.y = Math.max(176, Math.min(VIEW.h - 64, foot.y));
+      }
     }
     // 指の下端まで体力札から八画素離す。操作の左右入れ替えにも合わせる。
     const health = this.healthRect;
@@ -408,17 +411,22 @@ export class HudNavigation {
 
   // 自分は足元の白い太い輪で示す。相手の剣と見分け、押すボタンに見える枠は付けない。
   drawPlayerSign(g, rt) {
+    // 接敵中は相手を優先し、開幕は本人の位置に指の手本を置く。
+    if (this.root.classList.contains('combat-three') ||
+        isTouch && this.openingActive && this.opening?.el.classList.contains('opening-controls')) return false;
     let footDrawn = false;
     const coaching = isTouch && (this.openingActive || rt.touchSwipeActive || this.moveGestureDrawn);
     // 操作案内が消えた後も、自分の実際の足元に白い輪を残す。
     if (!rt.def.town && !rt.def.dojo && rt.player.u.alive && rt.player.u.mesh?.visible &&
         !rt.over && !rt.choice && !rt.player.camShot && !this.bigmap && rt.player.fpK <= .5) {
+      const frame = this.measurePersonFrame(rt.player.u, rt);
+      if (frame) this.drawEnemyContour(g, rt, rt.player.u, frame);
       const p = rt.player.u.pos;
       const foot = this.project(p, p.y + .12, rt,
         this.playerSignFoot || (this.playerSignFoot = {}));
       if (!foot.behind && foot.x >= 32 && foot.x <= VIEW.w - 32 && foot.y >= 64 && foot.y <= VIEW.h + 12) {
         // 足元の輪と呼び名は手前の兵にも隠れない画面の層へ描く。
-        // 自分は太い輪と頭上のひし形。味方の丸、敵の刀と区別する。
+        // 自分の印と呼び名は足元だけにまとめる。
         g.save(); g.beginPath();
         g.ellipse(foot.x, foot.y, 30, 13, 0, 0, Math.PI * 2);
         g.strokeStyle = '#14120f'; g.lineWidth = 10; g.stroke();
@@ -429,18 +437,7 @@ export class HudNavigation {
         g.fillStyle = '#fff'; g.fillText('自分', foot.x, labelY); g.restore();
         footDrawn = true;
       }
-      const u = rt.player.u;
-      const head = this.project(p, p.y + (u.mounted ? 3.7 : (u.bodyHeight ?? 1.72) + .65), rt,
-        this.playerSignHead || (this.playerSignHead = {}));
-      if (!head.behind && head.x >= 20 && head.x <= VIEW.w - 20 && head.y >= 24 && head.y <= VIEW.h - 24) {
-        g.save(); g.beginPath();
-        g.moveTo(head.x, head.y - 12); g.lineTo(head.x + 10, head.y);
-        g.lineTo(head.x, head.y + 12); g.lineTo(head.x - 10, head.y); g.closePath();
-        g.strokeStyle = '#14120f'; g.lineWidth = 8; g.stroke();
-        g.fillStyle = '#fff3ba'; g.fill();
-        g.strokeStyle = '#fff'; g.lineWidth = 3; g.stroke(); g.restore();
-        footDrawn = true;
-      }
+
     }
     // 向きの印は実際の足元に置く。操作を始める丸とは形も位置も分ける。
     if (!coaching && !singleBattleGuide(rt) && !this.retreatGuide?.active && !this.headingDrawn && !this.openingActive && !rt.def.town && !rt.def.dojo &&

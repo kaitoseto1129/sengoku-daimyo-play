@@ -638,6 +638,23 @@ export class Player {
       const blocksSelf = this.fpK < .5 && along > 0 && along < 1 &&
         (dx - sx * along) ** 2 + (dz - sz * along) ** 2 < sightWidth * sightWidth &&
         lineY > o.pos.y + .5 && lineY < o.pos.y + (o.mounted ? RIDE.y : 0) + 2.5;
+      // 自分の脇から行き先を覆う味方も、手前の一人だけ描く間避ける。
+      // 人数・当たり・攻撃はそのまま。骨の姿と長柄も一緒に戻す。
+      const goal = this.rt.hud?.outlinedEnemy?.pos || this.rt.guideEnemy?.pos || this.rt.missionGuide?.pos;
+      let blocksGoal = false;
+      if (goal && dx * dx + dz * dz < 16) {
+        const gx = goal.x - cam.position.x, gz = goal.z - cam.position.z;
+        const gl2 = gx * gx + gz * gz;
+        const t = gl2 > .01 ? (dx * gx + dz * gz) / gl2 : -1;
+        const gy = cam.position.y + ((goal.y ?? u.pos.y) + 1 - cam.position.y) * t;
+        blocksGoal = t > 0 && t < .85 && (dx - gx * t) ** 2 + (dz - gz * t) ** 2 < 1.44 &&
+          gy > o.pos.y + .3 && gy < o.pos.y + (o.mounted ? RIDE.y : 0) + 2.5;
+      }
+      if (blocksGoal) {
+        this.hideNearFlag(o.mesh); this.hideNearFlag(o.human?.root);
+        this.hideNearFlag(o.wpn); this.hideNearFlag(o.flag); this.hideNearFlag(o.standardFlag);
+        return;
+      }
       // 指定のある戦では、騎手の高さから外れた視点も馬の胴の高さで拾う。
       const closeHorse = this.rt.def.nearAllyHorseFade && o.mounted && o.horse?.visible
         && Math.abs(o.pos.y + 1.3 - cam.position.y) < 2;
@@ -646,7 +663,7 @@ export class Player {
       if (blocksSelf) {
         // 指定のある戦では、味方を部位ごとに透かさず、視線を塞ぐ間だけ全身を避ける。
         if (this.rt.def.nearAllyWholeOcclusion) {
-          this.hideNearFlag(o.mesh);
+          this.hideNearFlag(o.mesh); this.hideNearFlag(o.human?.root); this.hideNearFlag(o.wpn);
           this.hideNearFlag(o.flag); this.hideNearFlag(o.standardFlag);
           return;
         }
@@ -660,7 +677,10 @@ export class Player {
       // 顔・兜・胴を別々に透かして、首や具足の内側が浮いて見えるのを防ぐ。
       if (this.rt.def.nearAllySolidBody) {
         const rideHeight = this.rt.def.nearAllyWholeOcclusion && o.mounted ? RIDE.y : 0;
-        if (cam.position.y >= o.pos.y - 0.2 && cam.position.y <= o.pos.y + rideHeight + 2.4) this.hideNearFlag(o.mesh);
+        if (cam.position.y >= o.pos.y - 0.2 && cam.position.y <= o.pos.y + rideHeight + 2.4) {
+          this.hideNearFlag(o.mesh); this.hideNearFlag(o.human?.root); this.hideNearFlag(o.wpn);
+          this.hideNearFlag(o.flag); this.hideNearFlag(o.standardFlag);
+        }
         return;
       }
       if (closeHorse) o.horse.traverse(this.nearAllyFadePart);
@@ -3771,7 +3791,10 @@ export class Player {
       end.copy(f).addScaledVector(r, col * .4 * side).addScaledVector(up, row * (2 / 3) * top);
       // 軒や壁が少し離れていても、画面を覆う手前の家として拾う。
       end.normalize().multiplyScalar(8).add(pos);
-      if (cameraWallBlocked(rt, pos, end)) blocked++;
+      // 束ねた門・開いた扉も、指定した戦では壁と同じく視界の遮りに数える。
+      // 既存の箱を使い、画面の中央を外れた柱や戸板も肩位置の選び直しへ渡す。
+      if (cameraWallBlocked(rt, pos, end) || rt.def.cameraVolumeView &&
+          (rt.world.cameraBlockFraction?.(pos, end) ?? null) !== null) blocked++;
     }
     return blocked;
   }
@@ -4485,7 +4508,7 @@ export class Player {
     if (this.rt.army.forNear) {
       this.nearAllyCam = cam;
       const viewRadius = this.fpK < .5 ? Math.hypot(this.u.pos.x - cp.x, this.u.pos.z - cp.z) + 1 : 0;
-      this.rt.army.forNear(cp.x, cp.z, Math.max(this.rt.def.nearAllyFadeRadius || 2.2, viewRadius), this.nearAllyVisit);
+      this.rt.army.forNear(cp.x, cp.z, Math.max(4, this.rt.def.nearAllyFadeRadius || 2.2, viewRadius), this.nearAllyVisit);
     }
     if (this.rt.army.forNear) this.rt.army.forNear(cp.x, cp.z, Math.max(1.6, D.nearEnemyFadeRadius || 0), hideCameraEnemy, this);
     // 一人称：近い味方の槍・長物は視界を塞ぐので描く間だけ隠す。軒下などでカメラが自分の体に寄った時は自分の体も隠す
@@ -5220,9 +5243,10 @@ export class Player {
     this.rt.def.frameCamera?.(this.rt, camera.position, look);
     this.clearWallView(camera.position, look);
     camera.lookAt(look);
-    // 足元を見る指定のある戦だけ、視点補正の後にも本人の足を画面内へ戻す。
+    // 合戦では視点補正の後にも本人の足を画面内へ戻し、下端に余白を残す。
     // 位置は動かさず見下ろす角度だけ補い、壁の内側へカメラを押し出さない。
-    if (this.rt.def.keepPlayerFeet && !inRoom && e < .01 && !this.aiming && !this.camShot &&
+    const fieldFeet = !this.rt.def.town && !this.rt.def.dojo;
+    if ((fieldFeet || this.rt.def.keepPlayerFeet) && !inRoom && e < .01 && !this.aiming && !this.camShot &&
         Math.hypot(camera.position.x - u.pos.x, camera.position.z - u.pos.z) >= (this.rt.def.footFrameMinDistance || 0) &&
         !this.cine && !this.rt.game?.photo && !this.rt.over) {
       camera.updateMatrixWorld();
@@ -5233,7 +5257,7 @@ export class Player {
         _cQ.set(enemy.pos.x, enemy.pos.y, enemy.pos.z).project(camera);
         if (_cQ.z >= -1 && _cQ.z <= 1 && Math.abs(_cQ.x) < .9) footY = Math.min(footY, _cQ.y);
       }
-      const bottom = -.58;
+      const bottom = fieldFeet && VIEW.h <= 500 && VIEW.w > VIEW.h ? -.46 : -.58;
       if (footY < bottom) {
         const halfFov = Math.tan(camera.fov * Math.PI / 360) / camera.zoom;
         const distance = Math.hypot(look.x - camera.position.x, look.z - camera.position.z);

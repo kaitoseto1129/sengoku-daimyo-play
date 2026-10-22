@@ -148,9 +148,11 @@ export class HudGestures {
   drawSwipeArrow(g, fromX, fromY, toX, toY, radius = 24, fixedOrigin = false) {
     const rt = this.rt;
     // 向き直す案内中も、実際に触る側へ指と短い矢印を出す。
-    if (singleBattleGuide(rt) && !this.openingActive && !(fixedOrigin && $('objectives').classList.contains('facing-order'))) return false;
+    const order = $('objectives');
+    const enemyGesture = fixedOrigin && order.classList.contains('enemy-move-help');
+    if (singleBattleGuide(rt) && !this.openingActive && !(fixedOrigin && order.classList.contains('facing-order')) && !enemyGesture) return false;
     // 操作面の手本は一コマに一組。触る操作側の指とも重ねない。
-    const facing = fixedOrigin && $('objectives').classList.contains('facing-order');
+    const facing = fixedOrigin && (order.classList.contains('facing-order') || enemyGesture && this.destinationMoveDirection !== '上');
     if (isTouch && (rt.touchCoachActive || this.moveGestureDrawn || !facing &&
         (this.root.classList.contains('attack-button-guide') || this.root.classList.contains('wait-guard-active')))) return false;
     // 操作の一組にも一枠を使い、命の欄を含め三枚に収める。
@@ -194,7 +196,6 @@ export class HudGestures {
       ? `${Math.abs(dx) > Math.abs(dy) ? dx > 0 ? '右' : '左' : dy > 0 ? '下' : '上'}になぞる` : '';
     this.drawMoveOrigin(g, fromX, fromY, radius, caption, dx / distance * Math.min(56, end - 12), dy / distance * Math.min(56, end - 12));
     // なぞり方を含む既存の一枚を、実際に触る丸のそばへ移す。
-    const order = $('objectives');
     if (isTouch && this.destinationMoveDirection && !order.classList.contains('facing-order') && !order.classList.contains('enemy-move-help') && !this.retreatGuide?.active && !retreatRequired(rt) &&
         this.notices.sources[1].selected && !order.classList.contains('expand')) {
       setClass(order, 'swipe-order', true);
@@ -225,7 +226,7 @@ export class HudGestures {
     result.rt = rt; result.w = W; result.h = H; result.dx = dx; result.dy = dy;
     result.look = look; result.swap = S.touchSwap; result.at = rt.t;
     if (isTouch && !rt.def.town && !rt.def.dojo) {
-      const start = this.playerControlOrigin(rt);
+      const start = this.playerControlOrigin(rt, look);
       result.x = start.x; result.y = start.y;
       return result;
     }
@@ -304,13 +305,7 @@ export class HudGestures {
     const side = right ? 1 : -1, start = origin || this.clearGestureOrigin(rt, side, 0, true);
     // 操作面へ指の軌跡を直接重ねる。別の押せる枠に見せない。
     const drew = this.drawSwipeArrow(g, start.x, start.y, start.x + side * 88, start.y, 26, true);
-    if (drew) {
-      // 指を置く始点を常に囲む。手が動いても、ここから横へなぞると分かる。
-      g.save(); g.beginPath(); g.arc(start.x, start.y, 24, 0, Math.PI * 2);
-      g.strokeStyle = '#14120f'; g.lineWidth = 6; g.stroke();
-      g.strokeStyle = '#fff3ba'; g.lineWidth = 3; g.stroke(); g.restore();
-      this.navigationTouchOrigin.look = true;
-    }
+    if (drew) this.navigationTouchOrigin.look = true;
     return drew;
   }
 
@@ -445,8 +440,23 @@ export class HudGestures {
     g.save();
     let goalX = visible ? sx : cueX, goalY = visible ? sy : cueY;
     const treatment = !!this.retreatGuide?.treatment;
+    // 安全な退き先の判定は保ち、その場所の味方一人へ案内をまとめる。
+    const ally = this.retreatGuide?.ally;
+    const allyFrame = !treatment && singleBattleGuide(rt) && ally?.alive && !ally.gone &&
+      !ally.fleeing && Math.hypot(ally.pos.x - pos.x, ally.pos.z - pos.z) < 8 &&
+      sightScreenUnit(rt, ally) ? this.measurePersonFrame(ally, rt) : null;
+    const allyVisible = allyFrame && allyFrame.cx > 48 && allyFrame.cx < W - 48 &&
+      allyFrame.top > 100 && allyFrame.top < H - 48;
+    if (allyVisible) { goalX = allyFrame.cx; goalY = allyFrame.top - 8; }
     const foot = this.project(p, p.y + .08, rt, this.retreatFootProjection || (this.retreatFootProjection = {}));
-    if (compact && !treatment) {
+    if (allyVisible) {
+      // 頭のすぐ上の旗一つ。安全な床の丸や別向きの矢印は重ねない。
+      this.drawSmallGoalFlag(g, goalX, goalY, .65, false, false, '');
+      if (isTouch && !reached && !touchMoveLearned(rt)) {
+        const start = this.clearMoveOrigin(rt, foot);
+        this.drawMoveGesture(g, rt, way, start.x, start.y);
+      }
+    } else if (compact && !treatment) {
       if (visible) this.drawReturnDestination(g, sx, sy);
       this.drawSmallGoalFlag(g, goalX, goalY, .65, false, false, '');
       if (!visible && !reached) this.drawNavigationArrow(g, cueX, cueY + 28,
@@ -568,11 +578,14 @@ export class HudGestures {
     const spot = this.avoidRects(x, y + 40, W, H, 'v', null, Math.max(26, 12 * textScale + 6), 64, true);
     if (!spot) return;
     const labelY = spot[1] - 40;
-    g.save(); g.font = `bold ${20 * textScale}px sans-serif`;
+    g.save(); g.font = `bold ${20 * textScale}px serif`;
     g.textAlign = 'center'; g.textBaseline = 'middle';
     const half = Math.max(20, g.measureText('敵').width / 2 + 6);
-    g.fillStyle = '#14120f'; g.fillRect(spot[0] - half, labelY - 15, half * 2, 30);
-    g.fillStyle = '#fff3ba'; g.fillText('敵', spot[0], labelY);
+    // 墨の字と短い朱線だけを残し、相手の頭上へ黒い四角を重ねない。
+    g.strokeStyle = '#14120f'; g.lineWidth = 4; g.strokeText('敵', spot[0], labelY);
+    g.fillStyle = '#f5e5c3'; g.fillText('敵', spot[0], labelY);
+    g.strokeStyle = '#d09278'; g.lineWidth = 2; g.beginPath();
+    g.moveTo(spot[0] - 9, labelY + 13); g.lineTo(spot[0] + 9, labelY + 13); g.stroke();
     if (frame) this.drawGuideLink(g, frame.cx, Math.max(24, frame.top - 4),
       spot[0] - half, labelY - 15, spot[0] + half, labelY + 15, true);
     else this.drawNavigationArrow(g, spot[0], labelY + 38, Math.atan2(-forward, side), .5);

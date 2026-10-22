@@ -29,6 +29,7 @@ import { sightPoint, sightUnit, sightScreenUnit } from './battle_sight.js';
 import { butaiTick, adoptGroup } from './butai.js';
 import { fieldButai, routButai } from './b_yasen.js';
 import { SWING } from './units.js';
+import { flagBlocksView } from './units_flags.js';
 import { isTouch } from './touch.js';
 import { sfx, withPan } from './audio.js';
 
@@ -41,6 +42,16 @@ function toneWoundRetreat(rt) {
 }
 function retreatRequired(rt) {
   return dangerRetreatRequired(rt) || !rt.over && rt.player.u.alive && toneWoundRetreat(rt);
+}
+
+// 向きと皺を直した後の隊旗で、胸への視線と画面中央の見通しを調べる。
+// 近い敵の旗も対象にするが、倒れた旗と遠い軍勢の旗は残す。
+function toneStandardBlocks(rt, s, viewAhead) {
+  const d = s.userData.std, carrier = s.userData.carrier;
+  if (!s.visible || d.down || !carrier ||
+      Math.hypot(carrier.pos.x - rt.camera.position.x, carrier.pos.z - rt.camera.position.z) >= 14) return false;
+  return flagBlocksView(d.cloth, rt.camera.position, rt.player.u.pos) ||
+    flagBlocksView(d.cloth, rt.camera.position, viewAhead, 0.8);
 }
 
 // 下知の節目だけ合成の合図を鳴らす。道案内の札が変わるたびには鳴らさない。
@@ -862,7 +873,8 @@ const tonezaka = {
       : F.guideBend ? '印は味方へ戻る道。道なりに進め' : '印は味方。そばへ寄れ';
     if (toneGuardEnemy(rt)) return rt.player.guard ? '味方と並び、槍を向ける敵を押せ'
       : isTouch ? '敵へ向き「構える」を押せ' : '敵へ向き、右クリックで構えよ';
-    if (F.guideVisible && F.guideEnemy && near(rt.player.u.pos, F.guideEnemy.pos, CLOSE_REAR)) return '印は道を塞ぐ敵。味方と近づけ';
+    if (F.guideVisible && F.guideEnemy && near(rt.player.u.pos, F.guideEnemy.pos, CLOSE_REAR)) return F.guideBend
+      ? '印は道の曲がり。その先の敵へ味方と進め' : '印は道を塞ぐ敵。味方と近づけ';
     if (F.guideBend) return F.guideVisible ? '印は曲がり。その先の敵へ味方と進め' : '印は道の曲がり。道なりに進め';
     return F.guideVisible ? '印の敵へ、味方と近づけ' : '印は道。味方の旗に続け';
   },
@@ -1645,8 +1657,12 @@ const tonezaka = {
     // 備の隊旗も雨の布へそろえる。旗持ちが視点のため隠れた時は旗だけを残さない。
     // 地へ倒れた旗は共通の皺を使い、拾われたら元の雨の布へ戻す。
     const updateStandards = rt.updateStandards;
+    const standardViewAhead = new THREE.Vector3();
     rt.updateStandards = function (dt) {
       updateStandards.call(this, dt);
+      this.camera.getWorldDirection(standardViewAhead).multiplyScalar(18).add(this.camera.position);
+      // 共通の判定は足元の位置に胸の高さを足すので、中央への線では差し引く。
+      standardViewAhead.y -= 1.4;
       for (const g of this.army.groups) {
         if (!g.stds) continue;
         for (const s of g.stds) {
@@ -1678,8 +1694,10 @@ const tonezaka = {
               if (faint) d.cloth.material = d.faintClothMat;
             }
             // 半透明の大旗を敵へ重ねない。共通側が近い味方用の材質を選んだ間は竿ごと省く。
-            // 離れた時の表示は共通側が毎回戻す。落ちた旗・敵の旗・旗持ちの体には触れない。
-            if (carrier?.camHidden || d.faintClothMat && d.cloth.material === d.faintClothMat) s.visible = false;
+            // 風向きから竿際へ戻した後に再判定し、裸の竿も中央へ残さない。
+            // 離れた時の表示は共通側が毎回戻す。旗持ちの体・戦力は変えない。
+            if (carrier?.camHidden || d.faintClothMat && d.cloth.material === d.faintClothMat ||
+                toneStandardBlocks(this, s, standardViewAhead)) s.visible = false;
           }
         }
       }

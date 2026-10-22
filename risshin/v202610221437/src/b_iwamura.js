@@ -817,6 +817,7 @@ const iwamura = {
   prelude: false, // この戦の使番と下知で開戦を伝え、共通の待ちを重ねない。
   compactIntro: true,
   introTaskFirst: true,
+  openingFootSignOnly: true, // 本人を囲む縦長の枠を省き、足元の丸と進む向きを残す。
   introSides: { a: '織田勢', b: '武田勢' },
   introText: 'まず左右の篝火へ。近づいて長押しで火を焚こう。夜は柵の口で敵を防ごう。追えの声で城の麓へ進み、味方が着くまで待とう。',
   setup(rt) {

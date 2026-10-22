@@ -599,24 +599,11 @@ export class HudDestination {
     bounds.left = left; bounds.right = right; bounds.top = top; bounds.bottom = bottom;
     // 凸形の開口内にある頂点の平均を使い、画面外の上辺へ引かれないようにする。
     bounds.arrowX = cx / count; bounds.arrowY = cy / count;
-    // 太い矢印が隣の壁へはみ出す細い開口は、枠だけで示す。
-    // 凸形の内側に軸と矢じりが収まる時だけ描く。入れ物は毎コマ作らない。
-    const scale = 1.05, halfWidth = 18 * scale + 6, halfHeight = 26 * scale + 6;
-    let arrowFits = true;
-    for (let corner = 0; corner < 4 && arrowFits; corner++) {
-      const x = bounds.arrowX + (corner < 2 ? -halfWidth : halfWidth);
-      const y = bounds.arrowY + (corner % 2 ? -halfHeight : halfHeight);
-      let side = 0;
-      for (let i = 0; i < count; i++) {
-        const a = i * 3, b = ((i + 1) % count) * 3;
-        const cross = (poly[b] - poly[a]) * (y - poly[a + 1]) - (poly[b + 1] - poly[a + 1]) * (x - poly[a]);
-        if (Math.abs(cross) < .001) continue;
-        const nextSide = Math.sign(cross);
-        if (side && side !== nextSide) { arrowFits = false; break; }
-        side = nextSide;
-      }
-    }
-    if (arrowFits) this.drawNavigationArrow(g, bounds.arrowX, bounds.arrowY + 26 * scale, Math.PI / 2, scale, true);
+    // 細い開口でも印を消さず、矢じりを実際の戸口の内側へ置く。
+    // 普通の行き先で使う小旗への置き換えを避け、大きな矢印を保つ。
+    const scale = 1.25;
+    this.drawNavigationArrow(g, bounds.arrowX, Math.min(bottom - 8, bounds.arrowY + 26 * scale),
+      Math.PI / 2, scale, true, true);
     this.doorFramePolygon = poly; this.doorFrameCount = count;
     this.placeFrameShown = true;
     return true;

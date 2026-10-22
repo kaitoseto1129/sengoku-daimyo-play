@@ -167,6 +167,8 @@ function retreatRequired(rt) {
 
 // 任務札・地面の札・操作の案内は同じ短い言葉で示す。
 function retreatGuideText(rt, reached, fallback) {
+  const cue = rt.hud?.retreatGuide;
+  if (!reached && cue?.active && cue.valid && !cue.treatment && cue.ally?.alive) return 'ここへ';
   if (woundRetreat(rt) && !(rt.def.keepWoundRetreatReason && rt.def.retreatGuideLabel)) return reached ? '味方と かまえる' : 'ここへ さがろう';
   const label = rt.def.retreatGuideLabel?.(rt, reached);
   if (!reached && (label === '味方のうしろへ さがる' || label === '旗まで下がる')) return 'ここへ さがろう';

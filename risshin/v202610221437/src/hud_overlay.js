@@ -92,10 +92,7 @@ export class HudOverlay {
       // 端の札と同じ旗形を実際の行き先に付け、操作の矢印と分ける。
       const opening = this.opening;
       if (opening.flagGround) {
-        if (!opening.flagOffscreen) {
-          this.drawTargetFootRing(g, rt, opening.flagGround, 1, false, true);
-          if (opening.flagBounds) this.drawGoalFlagFrame(g, opening.flagBounds, true);
-        }
+        // 行き先は旗一つ。実旗の囲みや足元の輪を指の操作図へ重ねない。
         this.drawFlagDestinationSign(g, opening.flagX, opening.flagY);
       }
       const origin = this.navigationTouchOrigin;
@@ -398,7 +395,7 @@ export class HudOverlay {
       drew = true; dangerSign = true;
     }
     rt.guideEnemyShown = false;
-    const quietBattle = !rt.def.town && !rt.def.dojo && !P.showSquad;
+    const quietBattle = this.root.classList.contains('combat-three') || !rt.def.town && !rt.def.dojo && !P.showSquad;
     let allySigns = 0, enemySigns = 0;
     const signSpots = this.signSpots || (this.signSpots = []); signSpots.length = 0;
     const protectedAlly = missionGuard || this.guardAlly;
@@ -715,7 +712,7 @@ export class HudOverlay {
       setClass(this.root, 'guard-guide', true);
     }
     // 自分の組も、目に入る者だけ白い印で示す。
-    if (rt.player.showSquad && !guard && !this.guardAlly) {
+    if (rt.player.showSquad && !this.root.classList.contains('combat-three') && !guard && !this.guardAlly) {
       g.font = '12px "Shippori Mincho B1", serif'; g.textAlign = 'center';
       for (const u of rt.squad) {
         if (u.offscreen || u === guard) continue;

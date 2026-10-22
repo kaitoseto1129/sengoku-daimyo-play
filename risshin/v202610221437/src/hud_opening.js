@@ -174,7 +174,7 @@ export class HudOpening {
     for (let i = 0; i < 3; i++) {
       const el = document.createElement('div');
       el.className = 'threat edge'; el.hidden = true;
-      el.style.cssText = 'transform:translate(-50%,-50%);font-size:15px;color:#ffb09a;background:#14120f;padding:4px 8px;border:2px solid #c0452e;text-align:center';
+      el.style.cssText = 'transform:translate(-50%,-50%);font-size:15px;color:#30251b;background:linear-gradient(100deg,#d6c5a3,#eee0bf 48%,#d6c5a3);padding:4px 8px;border:0;border-left:3px solid #843c2b;border-radius:2px;text-shadow:none;font-family:var(--display);text-align:center';
       $('threats').appendChild(el); this.threatEls.push(el);
       this.threatSizes.push({ width: 0, height: 0, left: 0, right: 0, top: 0, bottom: 0 });
     }

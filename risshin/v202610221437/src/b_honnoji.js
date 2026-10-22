@@ -2185,8 +2185,8 @@ const honnoji = {
     return true;
   },
   reserveCombatCues: true, // 間合い・気力の字に、上様の行き先を重ねない。
-  nearAllyFadeRadius: 1.1,
-  nearAllySolidBody: true, // 視点が体へ入る時だけ避け、そばで戦う上様や小姓は濃く残す。
+  nearAllyFadeRadius: 2.4,
+  nearAllySolidBody: true, // 手前の味方だけ描く間避け、戸口と戦う相手への視界を空ける。
   nearSceneryScreenCut: true, // 屋根の近い面を抜き、画面の三分の二以上を見通す。
   nearAllyWholeOcclusion: true, // 自分との間を塞ぐ一人も全身で避け、透けた顔や手を宙に残さない。
   woundEffectMin: .05, // 浅い打撲で護衛の案内を退避へ替えない。出血と深手は引き続き知らせる。

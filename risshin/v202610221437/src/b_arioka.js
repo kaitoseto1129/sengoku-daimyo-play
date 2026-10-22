@@ -1116,6 +1116,7 @@ const arioka = {
   nearAllyWholeOcclusion: true, // 本人との間に立つ味方も全身で避け、笠と顔の中身を重ねない。
   nearAllySightWidth: 1.2, // 密集時の肩と笠も拾い、本人の印だけが味方の横へ離れて見えるのを抑える。
   nearSceneryScreenCut: false, // 焼けた町屋の梁と空を画面の長方形で切らず、既存の距離の遮蔽に任せる。
+  cameraVolumeView: true, // 門柱・開いた戸板・竹束で画面が塞がれた時も、空いている肩位置を選ぶ。
   groundGuideRings: true, // 木戸を守る黄色い輪は設置時に地形へ沿わせる。
   nearAllyFadeRadius: 2.2, // 目の前の笠と肩で通りが埋まる前に避ける。兵の当たりと動きは保つ。
   nearAllyFadeLevel: 1, // 既存の半分の濃さの材質を使い、近い肩から行く先を見通す。
@@ -2378,9 +2379,9 @@ function ariStage(o, defending) {
           const instruction = !present ? '道の印で組と辻へ進め' : enemy > friend
             ? '味方へ寄り、槍を構えよ' : secure
             ? `辻を守れ。あと${Math.max(0, Math.ceil(12 - C.inT))}秒`
-              : enemy && !advantage ? '敵の倍の味方を辻に集めよ'
+              : enemy && !advantage ? `辻で味方を待て。あと${enemy * 2 - friend}人`
                 : C.rangedEnemy ? '町屋を盾に、辻の射手を崩せ'
-                : !ready ? (C.orders.length ? '辻で新手を迎え撃て' : '辻を離れず、町屋の間の敵に備えよ') : '辻の印に味方を集めよ';
+                : !ready ? (C.orders.length ? '辻で新手を迎え撃て' : '辻を離れず、町屋の間の敵に備えよ') : '辻の印で味方を待て';
           // 横長の携帯でも、残り時間と今する事を本文から読めるようにする。
           // 人数と残り秒はその場で見える事。使番を毎回出し直さない。
           rt.obj('dp', instruction, 'main', true);

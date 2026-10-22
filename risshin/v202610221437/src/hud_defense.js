@@ -22,10 +22,7 @@ export class HudDefense {
     const spot = this.defenseGroundPoint || (this.defenseGroundPoint = {});
     spot.visible = false; spot.overview = false;
     const W = VIEW.w, H = VIEW.h, p = rt.player.u.pos;
-    if (!this.drawDefenseBoundary(g, rt, pos, radius)) {
-      this.drawDefenseOverview(g, rt, pos, radius, spot);
-      return spot;
-    }
+    this.drawDefenseBoundary(g, rt, pos, radius);
     let best = Infinity;
     // 中心が背後でも、範囲内の床からだけ選ぶ。旗を画面端へずらさない。
     for (let i = 0; i < 25; i++) {
@@ -37,6 +34,8 @@ export class HudDefense {
       const score = Math.hypot(sx - W * .5, sy - H * .65) + distance;
       if (score < best) { best = score; spot.x = sx; spot.y = sy; spot.visible = true; }
     }
+    // 境目だけが画面外でも、範囲内の床が見えればそこへ旗を置く。
+    if (!spot.visible) this.drawDefenseOverview(g, rt, pos, radius, spot);
     return spot;
   }
 
@@ -65,8 +64,12 @@ export class HudDefense {
     for (let i = 0; i <= 48; i++) {
       const visible = projected[i * 3 + 2];
       const sx = projected[i * 3], sy = projected[i * 3 + 1];
-      if (visible && previous) { g.lineTo(sx, sy); drawn = true; }
-      else if (visible) g.moveTo(sx, sy);
+      if (visible && previous) {
+        g.lineTo(sx, sy);
+        const px = projected[(i - 1) * 3], py = projected[(i - 1) * 3 + 1];
+        if (Math.max(px, sx) >= 12 && Math.min(px, sx) <= VIEW.w - 12 &&
+            Math.max(py, sy) >= 64 && Math.min(py, sy) <= VIEW.h - 24) drawn = true;
+      } else if (visible) g.moveTo(sx, sy);
       previous = visible;
     }
     // 太い点線を二色で縁取り、中は塗らずに兵と地形を見せる。
@@ -126,7 +129,7 @@ export class HudDefense {
     if (visible) {
       x = ground.x; y = ground.y;
       // 範囲内の地面へ旗を一つ置き、札もそのすぐ上にまとめる。
-      if (!ground.overview) this.drawSmallGoalFlag(g, x, y, .65, false, true, '');
+      if (!ground.overview) this.drawNamedGoal(g, x, y);
     } else {
       // 範囲が画面外なら、同じ守備位置へ端の矢印を向ける。
       const p = rt.player.u.pos, dx = pos.x - p.x, dz = pos.z - p.z;
@@ -144,10 +147,13 @@ export class HudDefense {
         !order.classList.contains('facing-order') && !order.classList.contains('enemy-order')) {
       setClass(order, 'enemy-order', false);
       setClass(order, 'approach-order', false);
+      setClass(order, 'swipe-order', false);
+      setClass(order, 'defense-order', false);
+      setClass(order, 'linked-destination', false);
       setClass(order, 'ground-order', true);
       setClass(order, 'destination-sign', true);
       const left = Math.max(16, Math.min(VIEW.w - width - 16, x - width / 2));
-      const top = Math.max(64, Math.min(VIEW.h - height - 24, y - (ground.overview ? 100 : 44) - height));
+      const top = Math.max(64, Math.min(VIEW.h - height - 24, y - (ground.overview ? 100 : 64) - height));
       setCssVar(order, '--ground-order-x', Math.round(left) + 'px');
       setCssVar(order, '--ground-order-y', Math.round(top) + 'px');
       // 守備の輪と小旗の上へ札を置き、長い矢印を重ねない。

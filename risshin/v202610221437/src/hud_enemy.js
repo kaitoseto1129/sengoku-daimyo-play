@@ -68,7 +68,7 @@ export class HudEnemy {
   // 選んだ一人だけ、現在の頭・腕・脚に沿う輪郭を重ねる。投影用の配列は使い回す。
   drawEnemyContour(g, rt, u, frame, talk = false) {
     const bones = u.human?.root.visible && u.human.bones;
-    if (!bones || u.mounted && !talk) {
+    if (!bones || u.mounted && !talk && !u.isPlayer) {
       this.drawTalkModelContour(g, rt, u);
       return;
     }
@@ -213,18 +213,18 @@ export class HudEnemy {
   drawEnemyMoveGesture(g, rt) {
     const direction = this.destinationMoveDirection;
     if (!isTouch || !direction || rt.touchSwipeActive) return;
-    // 操作面の図を再開せず、実際の敵へ向かう進路だけを一本残す。
-    const enemy = this.approachGuideEnemy || this.attackGuideEnemy || this.aimGuideEnemy || rt.guideEnemy;
-    if (enemy?.alive && !this.footDirectionDrawn) {
-      const goal = this.approachClear?.enemy === enemy && this.approachClear.bend ? this.approachClear.way : enemy;
-      this.drawEnemyDirection(g, rt, goal);
-      this.footDirectionDrawn = true;
-    }
+    // 横は見回す側、上は歩く側。同じ指と矢印で触る始点・終点を示す。
+    const look = direction !== '上', side = direction === '右' ? 1 : -1;
+    const start = this.clearGestureOrigin(rt, look ? side : 0, look ? 0 : -1, look);
+    const drew = this.drawSwipeArrow(g, start.x, start.y,
+      start.x + (look ? side * 88 : 0), start.y - (look ? 0 : 88), 26, true);
+    if (drew) { this.navigationTouchOrigin.look = look; this.footDirectionDrawn = true; }
     const order = $('objectives');
     const width = this.enemyOrderW || this.approachOrderW || order.offsetWidth;
     const height = this.enemyOrderH || this.approachOrderH || order.offsetHeight;
-    const spot = this.combatOrderEdge(width, height);
-    setCssVar(order, '--enemy-order-move', `translate(${Math.round(spot.x)}px,${Math.round(spot.y)}px)`);
+    const x = Math.max(12, Math.min(VIEW.w - width - 12, start.x - width / 2));
+    const y = Math.max(64, start.y - height - (look ? 32 : 104));
+    setCssVar(order, '--enemy-order-move', `translate(${Math.round(x)}px,${Math.round(y)}px)`);
   }
 
 
@@ -303,18 +303,25 @@ export class HudEnemy {
     // 現在の立ち位置から頭上の印の位置を測る。
     const f = this.measurePersonFrame(u, rt);
     if (!u.alive || u.dying || !f || f.bottom <= f.top || !sightScreenUnit(rt, u)) return;
-    // ねらう一人だけに下向き矢印。手前の兵より上の画面の層へ描く。
+    // ねらう一人は四隅の枠と矢印。味方の丸や行き先の旗と形で見分ける。
     if (this.enemyFrameShown) return;
+    // 相手の全身を四隅で囲み、頭上の矢印も同じ本人へ固定する。
+    this.drawPersonOutline(g, f, false, true);
+    // 頭上の矢印と同じ一人の足元を囲む。人混みで隠れても画面の層に残す。
+    const foot = this.project(u.pos, u.pos.y + .08, rt,
+      this.enemyRingFoot || (this.enemyRingFoot = {}));
+    if (!isTouch && !foot.behind && foot.x >= 30 && foot.x <= VIEW.w - 30 && foot.y >= 64 && foot.y <= VIEW.h - 16) {
+      g.save(); g.beginPath(); g.ellipse(foot.x, foot.y, 28, 11, 0, 0, Math.PI * 2);
+      g.strokeStyle = '#14120f'; g.lineWidth = 10; g.stroke();
+      g.strokeStyle = '#ffb49d'; g.lineWidth = 5; g.stroke(); g.restore();
+    }
     const headX = Math.max(30, Math.min(VIEW.w - 30, f.cx));
-    const headY = Math.max(48, Math.min(VIEW.h - 48, Math.min(f.top, f.headY) - 8));
-    g.save(); g.lineJoin = 'round'; g.beginPath();
-    g.moveTo(headX - 6, headY - 36); g.lineTo(headX + 6, headY - 36);
-    g.lineTo(headX + 6, headY - 18); g.lineTo(headX + 14, headY - 18);
-    g.lineTo(headX, headY); g.lineTo(headX - 14, headY - 18);
-    g.lineTo(headX - 6, headY - 18); g.closePath();
-    g.strokeStyle = '#14120f'; g.lineWidth = 8; g.stroke();
-    g.fillStyle = '#ffb49d'; g.fill();
-    g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke(); g.restore();
+    const headY = Math.max(48, Math.min(VIEW.h - 48, f.headY - 8));
+    this.drawNavigationArrow(g, headX, headY - 12, Math.PI / 2, .65, true);
+    // 接敵中は形だけにし、指示・目標・体力の三つへ収める。
+    if (!this.root.classList.contains('combat-three') && (!isTouch || !this.aimGuideEnemy?.alive && !this.defendEnemy?.alive &&
+        !$('objectives').classList.contains('facing-order')))
+      this.drawTeamWord(g, Math.max(24, Math.min(VIEW.w - 24, headX + 30)), headY - 22, '敵');
     rt.army.guideWayEnemy = u; rt.army.guideWayAt = rt.army.time;
     this.enemyFrameShown = true;
     this.outlinedEnemy = u;

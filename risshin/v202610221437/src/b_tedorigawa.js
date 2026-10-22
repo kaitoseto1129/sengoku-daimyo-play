@@ -1098,6 +1098,7 @@ const tedorigawa = {
   playerSignMinScale: 0.3, // 小さい下限も指定し、共通の下限で元の大きさへ戻されないようにする。
   playerSignBodyScale: 0, // 足元の小輪を残し、具足に白い人型の絵を重ねない。
   compactDestinationArea: true, // 持ち場の円が画面を覆う時は省く。到着の判定と旗は残す。
+  compactHoldGuide: true, // 待機中も持ち場全体を大輪で囲まず、地面の小旗で待つ場所を示す。
   compactDestinationSign: true, // 火へ退く印を小さくし、追手の姿を空ける。
   compactRetreatSign: true,
   compactDodgeGuide: true, // 矢を避ける輪も小さくし、殿の持ち場の大きさと混同させない。
@@ -1160,6 +1161,7 @@ const tedorigawa = {
   pauseRetry: true, // 重傷後にやり直しを選ぶ間、残る殿の戦況を進めない。
   edgeBehindWaymarks: true, // 背後の渡り口の札は端へ寄せ、本人と追手の姿を空ける。
   reserveCombatCues: true, // 行き先の札は、気力や間合いの字も避ける。
+  avoidWaymarkThreats: true, // 追手の予告札も、行き先の旗と振り向く案内を避ける。
   standardClothScale: 0.72, // 持ち場へ寄っても、隊旗の布で追手の顔と槍先を隠さない。
   groundStandards: true, // 走る旗持ちの体に竿を傾けず、川原へ根元を合わせる。
   nearSpearFade: false, // 八歩以内の槍をまとめて縮めず、視線を塞ぐ柄だけ既存の判定で避ける。
@@ -1194,6 +1196,8 @@ const tedorigawa = {
     seed: 15777,
     moveLim: 230,   // 置いた兵が 176 の端に貼り付いていた（見回り 10/2）
     time: 'night',
+    nightLift: 2.3, // 雨雲の夜に刈田全体を昼のように持ち上げず、火と近くの列を目じるしにする。
+    nightFill: 0.45,
     drawTimeUnitParts: true, // 移動後の骨と具足を描く時にそろえ、手を離れた槍の束や浮く笠を残さない。
     lifeSizePinnedArrows: true, // 胴や骨の倍率を刺さった矢へ重ねず、飛来時の長さを保つ。
     pinnedArrowAxisScale: true,

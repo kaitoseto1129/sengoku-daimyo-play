@@ -122,6 +122,13 @@ export class HudUpdate {
     if (this.nearFoeT <= 0) { this.nearFoeT = 0.5; this.nearFoe = !!(u.alive && rt.army.nearestEnemy && rt.army.nearestEnemy(u, 35, (o) => !o.fleeing && o.type !== 'dummy')); }
     const coachFoe = this.nearFoe || p.inCombatT > 0 || (rt.army.threats || []).length > 0;
     setClass(this.root, 'combat-brief', coachFoe && !rt.def.town && !rt.def.dojo);
+    // 携帯の接敵中は指示・目標・体力の三つ。地図や号令を開けば詳細へ戻す。
+    setClass(this.root, 'combat-three', isTouch && coachFoe && !rt.def.town && !rt.def.dojo &&
+      !p.cmdOpen && !p.radial && !this.bigmap && !rt.choice && !this.openingActive &&
+      !rt.over && !p.camShot && !rt.dodgeGuide && !retreatRequired(rt) &&
+      !this.retreatGuide?.active && !recovering(rt) && !this.guardAlly &&
+      !rainDanger(rt.army) && !rt.nearestInteract() &&
+      (!this.waitGuardButton || this.waitGuardButton.hidden));
     if (this.coachFoe !== coachFoe) { this.coachFoe = coachFoe; this.drawCard(); }
     const busy = p.inCombatT > 0 || (rt.army.threats || []).length > 0 || p.cmdOpen || p.radial || this.nearFoe;
     this.calmT = busy ? 0 : (this.calmT || 0) + dt;
@@ -856,7 +863,8 @@ export class HudUpdate {
         'この敵をたおす';
     }
     if (retreatCaption && !this.retreatGuide.treatment && !retreatTaskLabel)
-      shownTaskLabel = rt.def.retreatDestinationLabel?.(rt) || shownTaskLabel;
+      shownTaskLabel = this.retreatGuide.ally?.alive ? retreatGuideText(rt, !retreatMoving) :
+        rt.def.retreatDestinationLabel?.(rt) || shownTaskLabel;
     if (retreatMoving && !retreatCaption && /^旗まで あと\d+歩$/.test(shownTaskLabel))
       shownTaskLabel += '・' + this.navigationMoveText(rt, this.retreatGuide);
     // 槍を向ける案内は、生きて見える相手と結ぶ。退避中は旗の案内を優先する。
@@ -868,6 +876,28 @@ export class HudUpdate {
     this.aimGuideEnemy = aimEnemy?.alive && !aimEnemy.gone && !aimEnemy.fleeing && !aimEnemy.woundOut &&
       !aimEnemy.downed && !aimEnemy.dropped && !aimEnemy.noTarget && !aimEnemy.isStruct &&
       aimEnemy.team !== u.team && sightScreenUnit(rt, aimEnemy) ? aimEnemy : null;
+    // 下知の相手が隠れていても、見えて戦える一人と操作を結ぶ。探索は毎秒五回まで。
+    if (aiming && !this.aimGuideEnemy) {
+      const search = this.aimSearch || (this.aimSearch = { rt: null, at: -1, enemy: null });
+      if (search.rt !== rt || rt.t < search.at || rt.t - search.at >= .2) {
+        search.rt = rt; search.at = rt.t; search.enemy = null;
+        let nearest = 18 * 18;
+        for (const enemy of rt.army.units) {
+          if (!enemy.alive || enemy.team === u.team || enemy.gone || enemy.fleeing || enemy.woundOut ||
+              enemy.downed || enemy.dropped || enemy.noTarget || enemy.civ || enemy.isStruct ||
+              enemy.group?.hidden || enemy.isOfficer && !enemyKnown(rt, enemy) ||
+              rt.def.enemyGuideAllowed?.(rt, enemy) === false) continue;
+          const distance = (enemy.pos.x - u.pos.x) ** 2 + (enemy.pos.z - u.pos.z) ** 2;
+          if (distance >= nearest || !sightScreenUnit(rt, enemy)) continue;
+          nearest = distance; search.enemy = enemy;
+        }
+      }
+      const enemy = search.enemy;
+      if (enemy?.alive && !enemy.gone && !enemy.fleeing && !enemy.woundOut &&
+          !enemy.downed && !enemy.dropped && !enemy.group?.hidden &&
+          Math.hypot(enemy.pos.x - u.pos.x, enemy.pos.z - u.pos.z) < 18 &&
+          sightScreenUnit(rt, enemy)) this.aimGuideEnemy = enemy;
+    }
     let aimHelp = '';
     // 向きが合ったら指の札を畳む。小さな揺れでは出し直さない。
     const aimAlignment = this.aimGuideEnemy ? Math.cos(Math.atan2(this.aimGuideEnemy.pos.x - u.pos.x,
@@ -876,14 +906,17 @@ export class HudUpdate {
       (this.aimFacingEnemy === this.aimGuideEnemy && this.aimFacingReady ? .82 : .87);
     this.aimFacingEnemy = this.aimGuideEnemy;
     const aimTurning = !!this.aimGuideEnemy && !this.aimFacingReady;
-    if ((aiming || waitFacing) && this.aimGuideEnemy && !aimTurning)
-      shownTaskLabel = aiming ? rt.def.aimReadyLabel?.(rt) || '輪の敵を 見て待とう' : '輪の敵を 見て待とう';
+    if ((aiming || waitFacing) && this.aimGuideEnemy && !aimTurning) {
+      shownTaskLabel = aiming ? rt.def.aimReadyLabel?.(rt) || '印の敵を 見て待とう' : '印の敵を 見て待とう';
+      // 向きが合った後に「向けよう」を残して、さらに回すよう促さない。
+      if (/敵.*(?:槍|やり).*向け/.test(shownTaskLabel)) shownTaskLabel = 'そのまま待とう';
+    }
     if (aimTurning) {
       const enemy = this.aimGuideEnemy, dx = enemy.pos.x - u.pos.x, dz = enemy.pos.z - u.pos.z;
       const yaw = rt.player.yaw + (rt.player.camYawOff || 0);
       waitFacingSide = -dx * Math.cos(yaw) + dz * Math.sin(yaw) >= 0 ? '右' : '左';
       shownTaskLabel = isTouch ? rt.player.weapon === 'spear' ? '敵に やりを向けよう' : '敵へ 向こう' : rt.def.aimGuideLabel?.(rt) || 'この敵をねらう';
-      aimHelp = isTouch ? '輪の敵へ やりを向ける' : `マウスを${waitFacingSide}へ動かす`;
+      aimHelp = isTouch ? '印の敵へ やりを向ける' : `マウスを${waitFacingSide}へ動かす`;
       if (!isTouch && !rt.def.hideGuideSteps) aimHelp += `・敵まで あと${Math.max(1, Math.ceil(Math.hypot(dx, dz) / .75))}歩`;
     }
     const facingGesture = isTouch && (aimTurning || !!waitFacing && !this.waitFacingReady);
@@ -988,7 +1021,8 @@ export class HudUpdate {
         shownTaskLabel = this.destinationMoveDirection === '上' ? '上になぞる' : `${this.destinationMoveDirection}になぞって敵へ向く`;
     }
     if (retreatMoving && !this.retreatGuide.treatment) {
-      if (!rt.def.keepRetreatReason && !rt.def.keepWoundRetreatReason) shownTaskLabel = 'ここへ行こう';
+      if (this.retreatGuide.ally?.alive) shownTaskLabel = 'ここへ';
+      else if (!rt.def.keepRetreatReason && !rt.def.keepWoundRetreatReason) shownTaskLabel = 'ここへ行こう';
       this.destinationMoveDirection = '';
     }
     if (!this.destinationMoveDirection || facingGesture) setClass($('objectives'), 'swipe-order', false);
@@ -1076,7 +1110,7 @@ export class HudUpdate {
     }
     if (singleBattleGuide(rt) && !this.openingActive && !enemyMoveHelp && !facingGesture && /なぞ|矢印|指をはな/.test(shownTaskLabel)) {
       shownTaskLabel = retreatMoving ? retreatGuideText(rt, false) :
-        rt.guideEnemyShown && rt.guideEnemy?.alive ? `輪の敵へ進み ${attackOperation(rt)}` :
+        rt.guideEnemyShown && rt.guideEnemy?.alive ? `印の敵へ進み ${attackOperation(rt)}` :
         taskText(rt, goalObjective?.text || '味方の旗へ進む');
       aimHelp = ''; waitFacingHelp = '';
     }
@@ -1090,12 +1124,13 @@ export class HudUpdate {
       if (!fighting && !targetingEnemy && !facingGesture) shownTaskLabel = defendText;
       else edgeGoalDetail = defendText; // 接敵中も同じ札の中で、持ち場の内外を伝える。
     }
-    if (/^(?:この)?敵をたおす$/.test(shownTaskLabel) && rt.guideEnemyShown && rt.guideEnemy?.alive &&
+    if (/^(?:この)?敵を\s*たおす$/.test(shownTaskLabel) &&
+        (meleeTarget?.alive || this.outlinedEnemy?.alive) &&
         !careSequence && !retreatRequired(rt) && !rt.dodgeGuide && !rainDanger(rt.army) && !recovering(rt))
-      shownTaskLabel = `輪の敵へ ${attackOperation(rt)}`;
+      shownTaskLabel = `印の敵へ ${attackOperation(rt)}`;
     // 操作の短縮や戦固有の文より後で、触る側と指の動きを一枚に示す。
     if (facingGesture && !careSequence && !retreatMoving && !retreatRequired(rt) && !rt.dodgeGuide && !recovering(rt)) {
-      shownTaskLabel = `${waitFacingSide}になぞって向こう`;
+      shownTaskLabel = `${waitFacingSide}になぞる`;
       aimHelp = ''; waitFacingHelp = ''; edgeGoalDetail = '';
     }
     this.releaseMoveActive = shownTaskLabel === '指をはなそう';
