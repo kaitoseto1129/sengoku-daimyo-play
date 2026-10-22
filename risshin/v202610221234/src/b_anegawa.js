@@ -1641,6 +1641,10 @@ const anegawa = {
   keepWaitFacingLabel: true, // 携帯でも向き直しを移動の案内に替えない。
   defendLocation: (rt) => rt.flags.step < 2 && !rt.flags.ending && rt.withdrawal?.losing !== 0 ? HQ : null,
   keepWaitOrderLabel: true, // 到着前も「輪に入る」で本陣や次の槍列への下知を消さない。
+  // 到着後に許される十八歩までを、共通の守備の輪と内外の案内にも使う。
+  defendGuideRadius(rt, marker) {
+    return marker.guideDefend ? rt.flags.atHq ? 18 : 12 : marker.guideRadius;
+  },
   namedGuideMarkers: true,
   // 見張る相手と槍の印をそろえる。周囲の敵は既存の見張りで集める。
   aimGuideTarget(rt) {

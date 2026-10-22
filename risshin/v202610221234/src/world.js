@@ -1082,7 +1082,9 @@ void cPose(inout APose P) {
   P.off += cOff;
   // 前線の圧が後列へ遅れて届く。両軍を同じ方向へ動かし、間に穴を作らない。
   if (aClash.w < 0.5 && P.run < 0.5) {
-    float pressWave = sin(uAT * 0.95 - aClash.x * 0.62 - aClash.z * 0.38);
+    // 前列の打ち込みと同じ時計で後列が踏ん張る。列ごとの遅れだけ残す。
+    float pressWave = sin((uAT / (2.35 + fract(aClash.x * 0.731) * 0.55)
+      + aClash.x * 0.173) * 6.283185 - aClash.z * 0.38);
     float pressure = (cFight + cPress) * uAMotion;
     P.off.z += uSide * pressure * 0.48 * pressWave;
     // 同じ列へ届く圧で腰を落として槍を送り返す。足の位置や討死の抽選は変えない。
@@ -1133,9 +1135,10 @@ void cPose(inout APose P) {
       P.off.x += f * detail * 0.12 * sin(T * 0.9 + sd * 17.0);
       P.tilt += f * detail * 0.08 * sin(T * 1.3 + sd * 5.0);
       if (uMeasuredMelee > 0.5) {
-        float heave = sin(T * 1.6 - aClash.x * 0.7 - aClash.z * 0.5);
+        // 両軍の同じ組へ圧が届き、後列ほど遅れる。個人の時計では列がばらばらに揺れる。
+        float heave = sin(uAT * 1.6 - aClash.x * 0.7 - aClash.z * 0.5 + sd * 0.35);
         float heaveWeight = f * detail * (0.82 + sd * 0.18);
-        P.off.z += heaveWeight * heave * 0.16;
+        P.off.z += heaveWeight * heave * 0.16 * uSide;
         P.tilt += heaveWeight * heave * 0.07;
         P.spear += heaveWeight * heave * 0.09;
       }
@@ -6046,7 +6049,7 @@ export class World {
           dirt *= mix(vec3(1.08, 1.01, 0.88), vec3(0.59, 0.57, 0.49), fieldWet * uWet);
           mud *= mix(vec3(1.16, 1.05, 0.91), vec3(0.62, 0.65, 0.61), fieldWet);
           // 中景の起伏も濡れた窪みと同じ輪郭へ。物理の坂や兵の足場は変えない。
-          earthRelief += (earthShoulder * 0.065 - fieldWet * 0.12) * earthK;
+          earthRelief += (earthShoulder * 0.085 - fieldWet * 0.19) * earthK;
           ` : ''}
           ${this.def.wetFieldRuts === 'wear' ? `
           // 開戦時に焼いた荷車の筋と、既に読んだ窪みを共用する。溝の座標や微分を読み直さない。
@@ -6476,12 +6479,12 @@ export class World {
           ${this.def.wetFieldRuts ? `
           // 雨の裸地は轍以外の浅い窪みにも水を残す。斜面・草の肩・田は避ける。
           // 土の色と同じ大小の斑を使い、一定間隔の水玉にはしない。
-          float fieldPool = smoothstep(0.62, 0.82, macro2) * earthBasin
+          float fieldPool = smoothstep(0.46, 0.76, macro2) * earthBasin
             * (w.y + w.z) * groundWet * (1.0 - steep) * (1.0 - wat);
           pool = max(pool, fieldPool * 0.72);
           // 暗い泥の絵だけで全面を水膜にしない。水は低い窪みへ集め、
           // 土塊の肩と草の根には地肌を残す。既存の斑・高さを共用する。
-          pool *= smoothstep(0.25, 0.8, earthBasin) * smoothstep(0.38, 0.7, macro2);
+          pool *= smoothstep(0.25, 0.8, earthBasin);
           ${this.def.wetFieldRuts !== 'wear' ? 'pool = max(pool, rutWet * 0.65);' : ''}
           col = mix(col, mud * vec3(0.84, 0.78, 0.67),
             groundWet * (w.y + w.z) * earthBasin * 0.32);
@@ -6836,13 +6839,13 @@ export class World {
         // 細い幹の頂は梢へ尖らせ、平らな切り口を残さない。
         const tr = capless(new THREE.CylinderGeometry(this.def.layeredNeedles ? 0.07 * trunkScale : trunkScale < 1 ? 0 : 0.13, 0.38 * trunkScale, H, this.def.templeNeedles ? 10 : 7), false, true); tr.translate(0, H / 2, 0); bark.push(tr);
         // 下枝から頂まで葉を重ね、低画質でも幹だけの柱にしない。
-        const c0 = H * (0.22 + T() * 0.06), R0 = 2.2 + T() * 0.7;
+        const c0 = H * ((naturalNeedles ? 0.18 : 0.22) + T() * 0.06), R0 = 2.2 + T() * 0.7;
         const tiers = lowV ? 4 : 6, step = (H - c0) / tiers;
         for (let k = 0; k < tiers; k++) {
           const broken = !!this.def.brokenNeedleTiers;
           const t = k / (tiers - 1), r = R0 * (1 - t * 0.76) * (broken ? 0.88 + 0.16 * Math.sin(k * 2.7 + H) : 1);
           if (naturalNeedles) {
-            const cy = c0 + step * (0.5 + k), phase = k * 2.4 + H;
+            const cy = c0 + step * (0.5 + k + 0.16 * Math.sin(k * 2.7 + H)), phase = k * 2.4 + H;
             // 新しく葉房へ替える杉は葉だけの乱数を使う。幹・枝の形と矢の当たりを保つ。
             const F = this.def.raggedNeedles ? T : rng(Math.floor(H * 10000) + k * 97);
             // 葉の根元から先へ向かう軸を、幹から外へ伸びる枝とそろえる。
@@ -6853,16 +6856,16 @@ export class World {
             const pitch = this.def.cedarBoughPitch ?? 1.05;
             const width = this.def.cedarBoughWidth ?? 1;
             for (let j = 0; j < count; j++) {
-              const a = phase + j * Math.PI * 2 / count, d = r * (0.45 + F() * 0.2);
+              const a = phase + j * Math.PI * 2 / count, d = r * (0.3 + F() * 0.2);
               card(leaves, Math.sin(a) * d, cy + (F() - 0.5) * step * 0.7, Math.cos(a) * d,
-                r * (0.85 + F() * 0.25) * width, Math.max(r * 1.45, step * (1.45 + F() * 0.3)),
-                a, pitch + F() * 0.4, 0, cy, 0, !lowV, true, Math.sin(a * 2.7 + k) * 0.52);
+                r * (0.85 + F() * 0.25) * width, Math.max(r * 1.65, step * (1.85 + F() * 0.3)),
+                a, pitch + F() * 0.65, 0, cy, 0, !lowV, true, Math.sin(a * 2.7 + k) * 0.52);
             }
             // 遠景も同じ方向と傾斜。三方向の板だけで枝張りを残す。
             for (let j = 0; j < 3; j++) {
-              const a = phase + j * Math.PI * 2 / 3, d = r * 0.55;
+              const a = phase + j * Math.PI * 2 / 3, d = r * 0.4;
               card(farLeaves, Math.sin(a) * d, cy, Math.cos(a) * d,
-                r * 1.25 * width, Math.max(r * 1.45, step * 1.6), a, this.def.cedarBoughPitch == null ? 1.25 : pitch + 0.2, 0, cy, 0, false, true, Math.sin(a * 2.7 + k) * 0.28);
+                r * 1.25 * width, Math.max(r * 1.65, step * 2.0), a, this.def.cedarBoughPitch == null ? 1.25 : pitch + 0.2 + Math.sin(a + k) * 0.2, 0, cy, 0, false, true, Math.sin(a * 2.7 + k) * 0.28);
             }
             continue;
           }
@@ -6918,9 +6921,16 @@ export class World {
           farLeaves.push(needleLayer(this.def.nearCedarBranches ? 7 : 5, this.def.nearCedarBranches ? 3 : 2));
         }
         if (this.def.thickTrees || this.def.branchTrees || this.def.templeNeedles) for (let k = 0; k < 6; k++) {
-          const a = k * 2.4, y = c0 + (H - c0) * (0.12 + k * 0.1), r = R0 * (0.8 - k * 0.08);
-          const br = capless(new THREE.CylinderGeometry(0.05, 0.13, r, 5), true, false);
-          br.rotateZ(Math.PI / 2); br.rotateY(-a); br.translate(Math.cos(a) * r / 2, y, Math.sin(a) * r / 2); bark.push(br);
+          // 葉房のある段へ短い枝をつなぐ。裸の水平な棒を段違いに並べない。
+          const level = naturalNeedles ? k * (tiers - 1) / 5 : k;
+          const a = level * 2.4 + (naturalNeedles ? H : 0);
+          const y = naturalNeedles ? c0 + step * (0.5 + level + 0.16 * Math.sin(level * 2.7 + H))
+            : c0 + (H - c0) * (0.12 + k * 0.1);
+          const r = R0 * (0.8 - k * 0.08) * (naturalNeedles ? 0.7 : 1);
+          const rise = naturalNeedles ? -r * (0.12 + 0.15 * Math.sin(a)) : 0;
+          const br = capless(new THREE.CylinderGeometry(0.05, 0.13, Math.hypot(r, rise), 5), true, false);
+          br.rotateZ(Math.PI / 2 + Math.atan2(rise, r)); br.rotateY(-a);
+          br.translate(Math.cos(a) * r / 2, y + rise / 2, Math.sin(a) * r / 2); bark.push(br);
         }
       } else if (kind === 'matsu') {
         // 曲がった幹と、枝先の平たい葉の雲
@@ -7361,7 +7371,10 @@ export class World {
       }
     }
     for (let tries = 0; n < tufts && tries < tufts * (lowV ? 6 : 8); tries++) {
-      const near = n > 0 && R() < 0.55, ca = R() * 6.28, cd = 0.35 + R() * 1.1;
+      // 道肩へ寄せた草は株同士をつなげ、同じ本数で下草の面を作る。
+      const clustered = !!(this.def.roadsideGrass || this.def.undergrowthBands?.length);
+      const near = n > 0 && R() < (clustered ? 0.76 : 0.55), ca = R() * 6.28;
+      const cd = clustered ? 0.22 + R() * 0.75 : 0.35 + R() * 1.1;
       // 群落の起点を道肩・沢の帯へ寄せる。本数と束は保ち、戦う道は下の判定で空ける。
       const bands = this.def.undergrowthBands;
       const band = !near && bands?.length && tries % 3 !== 2 ? bands[tries % bands.length] : null;
@@ -7391,6 +7404,7 @@ export class World {
       dummy.position.set(x, this.heightAt(x, z) - 0.1, z);
       const s = (0.45 + Math.pow(R(), 1.5) * 1.0) * (0.7 + clump * 0.6);
       dummy.scale.set(s * (0.8 + R() * 0.4), s * (0.7 + R() * 0.9), s * (0.8 + R() * 0.4));
+      if (this.def.tuftHeight) dummy.scale.y *= this.def.tuftHeight(x, z);
       dummy.rotation.set((R() - 0.5) * 0.45, R() * 6.28, (R() - 0.5) * 0.45);
       if (this.def.roundNeedles) {
         const patch = .5 + .5 * Math.sin(x * 1.7 + z * .93);
@@ -7624,6 +7638,8 @@ export class World {
       this.nearCell = null;
       this.nearM = new Float32Array(N * 16); this.nearShow = new Uint8Array(N);
       this.nearC = this.nearGrass.instanceColor ? this.nearGrass.instanceColor.array.slice() : null;
+      // 足元も遠い株と同じ地表の色へ。巻き戻す前の色へ重ね掛けしない。
+      if (this.def.tuftColor && this.nearC) this.nearBaseC = this.nearC.slice();
       this.nearGrass.count = 0;
       this.scene.add(this.nearGrass);
       lap('susuki+near');
@@ -7737,6 +7753,12 @@ export class World {
       d.rotation.set(((i * 7) % 11 - 5) * 0.025, rot, ((i * 3) % 7 - 3) * 0.03);
       const size = sc * (0.65 + clump * 0.7);
       d.scale.set(size * (0.75 + (i % 7) * 0.07), size * (0.65 + (i % 5) * 0.16) * (0.35 + verge * 0.65) * (0.55 + gw * 0.45), size * (0.85 + (i % 3) * 0.1));
+      if (show && this.def.tuftHeight) d.scale.y *= this.def.tuftHeight(x, z);
+      if (show && this.nearBaseC) {
+        const color = this.nearSoilColor || (this.nearSoilColor = new THREE.Color());
+        color.fromArray(this.nearBaseC, i * 3);
+        this.def.tuftColor(x, z, color); color.toArray(this.nearC, i * 3);
+      }
       d.updateMatrix();
       d.matrix.toArray(this.nearM, i * 16); this.nearShow[i] = show ? 1 : 0; changed = true;
     }

@@ -2599,7 +2599,7 @@ const honnoji = {
     if (sign.at > rt.t && sign.at <= rt.t + .5 && sign.gx === goal.x && sign.gz === goal.z &&
         Math.hypot(p.x - sign.px, p.z - sign.pz) < .4) return sign;
     sign.at = rt.t + .5; sign.gx = goal.x; sign.gz = goal.z; sign.px = p.x; sign.pz = p.z;
-    sign.x = goal.x; sign.z = goal.z; sign.y = undefined; sign.door = false; sign.frame = null; sign.indoor = false;
+    sign.x = goal.x; sign.z = goal.z; sign.y = undefined; sign.door = false; sign.frame = null; sign.indoor = false; sign.corridor = false;
     // 共通の案内点は座標だけを写すため、元の道の角から向きを取り直す。
     const F = rt.flags;
     const route = F.hp <= 3 ? F.patrolGuide : F.hp <= 5 ? F.hondoGuide : F.hp === 6 ? F.mvGuide : F.hp === 7 ? F.guardGuide : F.escapeGuide;
@@ -2634,12 +2634,20 @@ const honnoji = {
     const findExit = sign.indoor && !rt.G.lord && (rt.flags.hp === 2 || rt.flags.hp === 3 ||
       (rt.flags.hp === 4 || rt.flags.hp === 5) && p.z > 80);
     const probe = rt.flags.routeDoorProbe || (rt.flags.routeDoorProbe = { x: 0, y: 0, z: 0 });
-    // 廊下の角の床を旗にすると、その奥の閉じた襖が出口に見える。
-    // 同じ廊下から通れる時だけ、表門へ出る実際の北の戸口を示す。
+    // 遠い戸口を斜めに見ると、背後の襖に肩位置を押され、本人が消える。
+    // まず廊下に沿って角へ進み、戸口の前で庭へ向きを変える。
     if (findExit) for (const hall of halls) {
       if (hall.id !== 'goten' || hall.rec.state === 2 || p.x <= hall.x0 || p.x >= hall.x1 ||
           p.z <= hall.z0 || p.z >= 83.2) continue;
       const wall = hall.H.walls[0], x = -52, z = hall.z0;
+      if (Math.abs(p.x - x) > 2.4) {
+        probe.x = x; probe.z = 82.2; probe.y = hall.rec.y0;
+        if (patrolClear(rt, probe.x, probe.z) && !this.sightBlocked(rt, p, probe, p.y + 1.2, probe.y + 1.2)) {
+          sign.x = probe.x; sign.z = probe.z; sign.y = probe.y; sign.corridor = true;
+          sign.dirX = Math.sign(x - p.x); sign.dirZ = 0;
+          return sign;
+        }
+      }
       probe.x = x; probe.z = z + .55; probe.y = hall.rec.y0;
       if (Math.hypot(p.x - x, p.z - z) < .7 || !cameraDoorClear(hall, wall, x, p.y + 1.2) ||
           !patrolClear(rt, probe.x, probe.z) || this.sightBlocked(rt, p, probe, p.y + 1.2, probe.y + 1.2)) continue;
@@ -2742,6 +2750,9 @@ const honnoji = {
     if ((F.hp === 2 || F.hp === 3) && F.gateApproach?.alive) return '門へ進む';
     if (gateDefending(rt)) return '門の内で 上様を守る';
     if ((F.hp === 2 || F.hp === 3) && F.routeSign && !F.routeSign.indoor) return '門へ進む';
+    if (F.routeSign?.corridor && this.routeGuidePriority(rt)) {
+      return F.hp === 4 || F.hp === 5 ? '廊下の先から 本堂へ' : '廊下の先から 表門へ';
+    }
     // 遠い護衛先より、いま通る開いた戸口を札と矢印でそろえる。
     if (F.routeSign?.door && this.routeGuidePriority(rt)) {
       const p = rt.player.u.pos, sign = F.routeSign;

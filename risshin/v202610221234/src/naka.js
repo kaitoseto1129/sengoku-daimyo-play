@@ -773,6 +773,8 @@ function buildInside(rt, I) {
     grp.traverse(o => { if (o.isMesh) o.material = Array.isArray(o.material) ? o.material.map(smooth) : smooth(o.material); });
   }
   I.mesh = grp;
+  // 戦固有の見通しは、後から作る室内にも棟を渡して適用する。
+  rt.world.def.prepareInteriorMesh?.(grp, I);
 }
 
 // 外の見た目：戸口（暗い口）と、外から上がる石段（戦の始めに全部まとめて一つ）

@@ -1626,7 +1626,7 @@ function handMat(L, kote = 0) {
       .replace('#include <begin_vertex>', '#include <begin_vertex>\n vTk = tk.x * (tk.y < 0.5 ? uTkOn.x : uTkOn.y);\n transformed += objectNormal * uTkH * smoothstep(0.3, 0.6, vTk);');
     sh.fragmentShader = 'uniform float uGrime, uWet;\nuniform vec3 uTkCol;\nvarying float vTk;\nfloat tkK;\n' + sh.fragmentShader
       .replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb = pow(diffuseColor.rgb, vec3(1.1)) * 1.08 * (1.0 - uGrime * 0.16 - uWet * 0.08);\n tkK = smoothstep(0.3, 0.6, vTk);\n diffuseColor.rgb = mix(diffuseColor.rgb, uTkCol * (0.85 + 0.3 * diffuseColor.g), tkK);')
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(0.7 + (1.0 - diffuseColor.g) * 0.12, 0.38, tkK) * (1.0 - 0.4 * uWet);')
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix((0.7 + (1.0 - diffuseColor.g) * 0.12) * (1.0 - 0.18 * uWet), 0.38 * (1.0 - 0.32 * uWet), tkK);')
       .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
         { float nv = clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0);
           reflectedLight.indirectDiffuse += diffuseColor.rgb * vec3(0.10, 0.04, 0.025) * (1.0 - nv) * (1.0 - tkK);
@@ -2028,6 +2028,7 @@ const MHY_GLSL = () => HEAD && HEAD.mh ? `float mhy(float y) {
 }
 ` : 'float mhy(float y) { return y; }\n';
 function headCompile(sh) {
+  sh.uniforms.uSkinRain = WET;
   sh.uniforms.uHatAO = (this.userData && this.userData.ao) || { value: 0 };
   sh.uniforms.uFaceV = (this.userData && this.userData.fv) || { value: new THREE.Vector4(0, 0, 0, 0) };
   // 表情（x 口を開く・y 苦しむ（顔をしかめる）・z 怒る（眉を寄せて下げる））。頭の座標（1 が 4cm ほど）で形を動かす
@@ -2057,7 +2058,7 @@ function headCompile(sh) {
    transformed.y += brow * (uExpr.y * 0.08 * inner - uExpr.z * 0.1 * (0.4 + inner));
    transformed.x -= sign(hp0.x + 0.09) * brow * (uExpr.z + uExpr.y) * 0.05;
  }`);
-  sh.fragmentShader = `uniform float uHatAO;\nuniform vec4 uFaceV, uExpr;\nuniform sampler2D uPD;\nvarying vec3 vHP;\nfloat skinD;
+  sh.fragmentShader = `uniform float uHatAO, uSkinRain;\nuniform vec4 uFaceV, uExpr;\nuniform sampler2D uPD;\nvarying vec3 vHP;\nfloat skinD;
 float fh3(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
 float fn3(vec3 x) { vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(mix(fh3(i), fh3(i + vec3(1,0,0)), f.x), mix(fh3(i + vec3(0,1,0)), fh3(i + vec3(1,1,0)), f.x), f.y),
@@ -2081,6 +2082,11 @@ float faceWet;
       // 汗の筋：こめかみと額から頬へ流れた跡（埃が流されて少し明るく、濡れて照る）
       float st = smoothstep(0.72, 0.95, fn3(vec3(vHP.x * 5.0 + uFaceV.w, vHP.y * 0.7, 0.0))) * smoothstep(2.6, 1.2, vHP.y) * smoothstep(-0.5, 0.6, vHP.y);
       faceWet = uFaceV.y * (st * 0.8 + 0.45 * exp(-x0 * x0 / 0.9 - pow(vHP.y - 2.3, 2.0) / 0.25)) * fr;
+      // 笠が守る額と、横殴りの雨に濡れる頬を分ける。汗の個人差と既存の斑を使う。
+      float rainSkin = uSkinRain * fr * (0.35 + st * 0.45)
+        * (1.0 - uHatAO * smoothstep(1.2, 2.4, vHP.y) * 0.8);
+      faceWet = max(faceWet, rainSkin);
+      diffuseColor.rgb *= 1.0 - rainSkin * 0.07;
       diffuseColor.rgb *= 1.0 + st * uFaceV.y * uFaceV.x * 0.18 * fr;
       // 日焼けの赤み：鼻・頬・耳
       float fl = exp(-x0 * x0 / 0.12 - pow(vHP.y - 1.2, 2.0) / 0.25) + 0.8 * exp(-pow(x0 - 1.15, 2.0) / 0.15 - pow(vHP.y - 1.1, 2.0) / 0.2) + 0.6 * smoothstep(3.3, 3.9, abs(vHP.x));
