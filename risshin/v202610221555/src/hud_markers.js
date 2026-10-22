@@ -230,6 +230,10 @@ export class HudMarkers {
     const seen = this.markerSeen || (this.markerSeen = new Set());
     const placed = this.markerPlaced || (this.markerPlaced = []);
     seen.clear(); placed.length = 0;
+    if (this.quietWait) {
+      for (const el of this.markerEls.values()) el.hidden = true;
+      return;
+    }
     // 地面の矢印と同じ行き先を、画面の端でも示す。
     const posOf = (m) => (typeof m.pos === 'function' ? m.pos() : m.pos);
     if (this.retreatGuide?.active && this.retreatGuide.valid || dismountFirst(rt) || recovering(rt) || rt.guideEnemyShown && rt.guideEnemy?.alive || this.attackGuideEnemy?.alive || this.defendEnemy?.alive || navigationEnemy(rt) || singleBattleGuide(rt) && rt.guideEnemy?.alive || this.root.classList.contains('wait-guard-active') || guidanceEnded(rt) || rt.dodgeGuide || this.guardAlly || (rt.def.guardGuideTarget?.(rt) || rt.def.guardTarget?.(rt))?.alive || retreatRequired(rt)) {

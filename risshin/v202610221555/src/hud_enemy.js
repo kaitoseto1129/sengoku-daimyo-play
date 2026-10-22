@@ -250,7 +250,20 @@ export class HudEnemy {
 
   // 呼び名は既存の一枠を使い、剣は本人の頭上へ固定する。
   drawEnemyHeadPointer(g, frame, rt, enemy, showLabel = true) {
-    if (singleBattleGuide(rt)) return; // 合戦では本人の囲みと「敵」に統一する。
+    if (singleBattleGuide(rt)) {
+      // 足元が兵に隠れても、矢じりは選んだ本人の頭から動かさない。
+      const x = frame.cx, tip = Math.min(frame.top, frame.headY) - 6;
+      if (x < 16 || x > VIEW.w - 16 || tip < 16 || tip > VIEW.h - 16) return;
+      const top = Math.max(16, tip - 28);
+      g.save(); g.lineJoin = 'round'; g.beginPath();
+      g.moveTo(x - 5, top); g.lineTo(x + 5, top);
+      g.lineTo(x + 5, tip - 12); g.lineTo(x + 12, tip - 12);
+      g.lineTo(x, tip); g.lineTo(x - 12, tip - 12); g.lineTo(x - 5, tip - 12); g.closePath();
+      g.strokeStyle = '#14120f'; g.lineWidth = 6; g.stroke();
+      g.fillStyle = '#fff3ba'; g.fill(); g.restore();
+      this.drawTeamWord(g, x, Math.max(14, top - 18), 'この敵');
+      return;
+    }
     // 携帯でも、ねらう本人の頭上に大きな剣を固定する。札は既存の任務一枚を使う。
     const x = frame.cx;
     const tip = Math.min(frame.top, frame.headY) - 8;
@@ -305,22 +318,7 @@ export class HudEnemy {
     if (!u.alive || u.dying || !f || f.bottom <= f.top || !sightScreenUnit(rt, u)) return;
     // 進む場所だけ足形にし、守る時の敵を移動先と呼ばない。
     if (this.enemyFrameShown) return;
-    const advancing = this.approachGuideEnemy === u;
-    const goal = advancing ? this.meleeApproachPoint(rt, u) : u.pos;
-    const foot = this.project(goal, groundAt(rt.world, goal.x, goal.z, u.pos.y) + .08, rt,
-      this.enemyRingFoot || (this.enemyRingFoot = {}));
-    if (!foot.behind && foot.x >= 30 && foot.x <= VIEW.w - 30 && foot.y >= 64 && foot.y <= VIEW.h - 16) {
-      if (advancing) {
-        this.drawMoveFootprints(g, foot.x, foot.y);
-        if (!this.destinationStepDrawn) {
-          this.drawEnemyDirection(g, rt, goal);
-          this.destinationStepDrawn = true;
-        }
-      }
-      const low = foot.y > VIEW.h - 44;
-      this.drawTeamWord(g, Math.max(64, Math.min(VIEW.w - 64, low ? foot.x + 80 : foot.x)),
-        low ? foot.y : foot.y + 27, advancing ? 'ここへ進む' : '敵');
-    }
+    this.drawEnemyHeadPointer(g, f, rt, u);
     rt.army.guideWayEnemy = u; rt.army.guideWayAt = rt.army.time;
     this.enemyFrameShown = true;
     this.outlinedEnemy = u;

@@ -18,7 +18,7 @@ export class HudGoal {
     if (singleBattleGuide(rt) && this.destinationDrawn) return true;
     this.destinationDrawn = true;
     if (singleBattleGuide(rt) && (groundFlag(rt.missionGuide) || marker?.guideWaitRing) &&
-        !marker?.guidePerson && !marker?.person && !marker?.entrance && !marker?.guideDefend && !marker?.treatment) {
+        !marker?.guidePerson && !marker?.entrance && !marker?.guideDefend && !marker?.treatment) {
       setClass(this.root, 'travel-guide', true);
       return this.drawNamedDestination(g, rt, pos);
     }
@@ -66,10 +66,10 @@ export class HudGoal {
       const head = this.project(escort.pos, escort.pos.y + (escort.bodyHeight ?? 1.72) + .2, rt,
         this.escortHeadProjection || (this.escortHeadProjection = {}));
       if (!head.behind && head.x >= 40 && head.x <= VIEW.w - 52 && head.y >= 64 && head.y <= VIEW.h - 24 && this.talkPersonVisible(rt, escort)) {
-        this.drawEscortFlag(g, head.x, head.y);
         // 相手が見えている間は、壁際の戸口へもう一つの印を出さない。
         this.placeEdgeOrder(head.x, head.y - 64);
-        this.drawPersonAction(g, rt, head.x, head.y, 'この人についていく');
+        const frame = this.measurePersonFrame(escort, rt, true);
+        this.drawPersonAction(g, rt, head.x, head.y, `${escort.name || 'この人'}と進む`, frame);
         setClass(this.root, 'travel-guide', true);
         return true;
       }
@@ -615,11 +615,15 @@ export class HudGoal {
         // 戸口は開口に、曲がり角は床に示す。空いた頭上へ旗を移さない。
         if (bend) {
           x = this.bendScreen[4]; y = this.bendScreen[5];
+          if (rt.def.routeFootsteps) this.drawSmallGoalFlag(g, x, y, .65, false, false, '');
         } else if (floorCorner) {
           const direction = this.cornerFloorDirection || (this.cornerFloorDirection = { dirX:0, dirZ:0, maxPixels:64 });
           const span = Math.hypot(sign.x - p.x, sign.z - p.z) || 1;
           direction.dirX = (sign.x - p.x) / span; direction.dirZ = (sign.z - p.z) / span;
           this.drawFloorWaymark(g, rt, point, false, direction);
+        } else if (rt.def.routeFootsteps) {
+          // 旗の根元を戸口か次の角に固定し、手前の足あとへ移さない。
+          this.drawSmallGoalFlag(g, s.x, s.y, .65, false, false, '');
         } else if (this.drawDoorFloorGoal(g, rt, point, sign, x, y)) {
           const bounds = this.doorwayBounds;
           x = bounds.arrowX;
@@ -706,7 +710,7 @@ export class HudGoal {
       setCssVar(order, '--ground-order-y', Math.round(ly) + 'px');
       // 戸口の矢印と横の札を結び、隣の襖への札と取り違えないようにする。
       if (!escort?.alive && !doorway && !rt.def.footFlagGuides && !doorBounds && (!isFlag || visible && flagBounds)) this.drawGuideLink(g, flagBounds && visible ? flagBounds.left + flagBounds.width / 2 : x, flagBounds && visible ? flagBounds.top + flagBounds.height / 2 : y - 18,
-        lx, ly, lx + width, ly + height, true);
+        lx, ly, lx + width, ly + height, true, /この旗へ/.test(order.textContent));
     }
     const occupied = this.notices.picks.length + Number(!$('boss').hidden) +
       Number(!$('target').hidden && !$('target').classList.contains('notice-muted')) +

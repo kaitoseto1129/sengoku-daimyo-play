@@ -272,6 +272,10 @@ export class HudTeamSigns {
 
   // 近い兵は小さな旗と刀だけで示し、操作中も所属を見分けられるようにする。
   drawNearbyTeamSigns(g, rt, candidates) {
+    // 敵か行き先を案内する間は、周囲の刀や小旗を重ねない。
+    if (singleBattleGuide(rt) && !rt.player.showSquad &&
+        (rt.missionGuide?.marker || rt.guideEnemy?.alive || this.attackGuideEnemy?.alive ||
+         this.approachGuideEnemy?.alive || this.aimGuideEnemy?.alive || this.defendEnemy?.alive)) return false;
     // 通常も近い相手の所属を示す。字の札は増やさず、小さな印に絞る。
     if (this.openingActive || rt.dodgeGuide ||
         retreatRequired(rt) || this.retreatGuide?.active) return false;

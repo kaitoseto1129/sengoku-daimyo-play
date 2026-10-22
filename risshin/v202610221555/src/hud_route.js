@@ -179,7 +179,7 @@ export class HudRoute {
     point.x = pos.x; point.z = pos.z;
     point.y = pos.y ?? groundAt(rt.world, pos.x, pos.z, p.y);
     if (!this.floorGoalVisible(rt, point, false)) return false;
-    if (singleBattleGuide(rt) && !this.openingActive && !footprints && !treatment) {
+    if (singleBattleGuide(rt) && !this.openingActive && !footprints && !treatment && !direction) {
       const end = this.floorLineEnd || (this.floorLineEnd = { x:0, y:0, z:0 });
       end.x = pos.x + ux * .8; end.z = pos.z + uz * .8;
       end.y = groundAt(rt.world, end.x, end.z, point.y);
@@ -262,17 +262,41 @@ export class HudRoute {
         point.valid = length > .8 && clear;
       }
     }
-    // 庭でも足形を並べ、次の戸口まで進む向きを保つ。
+    // 自分の輪・到着の旗・札の範囲を空け、途中の足あとだけを描く。
     trail.maxPixels = 32;
-    let lastX = -1000, lastY = -1000;
+    const self = this.project(p, p.y + .12, rt,
+      this.routeSelfProjection || (this.routeSelfProjection = {}));
+    const end = this.project(goal, goal.y + .18, rt,
+      this.routeEndProjection || (this.routeEndProjection = {}));
+    const rects = this.hudRects();
+    let lastX = -1000, lastY = -1000, arrowX = -1000, arrowY = -1000;
     const projection = this.footstepProjection || (this.footstepProjection = {});
+    // 道の途中に一つだけ矢印を入れる。向きは足あとと同じ実際の床に沿わせる。
+    for (let i = Math.floor(trail.points.length / 2); i >= 0; i--) {
+      const point = trail.points[i];
+      if (!point.valid) continue;
+      this.project(point, point.y + .1, rt, projection);
+      if (projection.behind || projection.x < 48 || projection.x > VIEW.w - 48 ||
+          projection.y < 96 || projection.y > VIEW.h - 48 ||
+          !self.behind && Math.hypot(projection.x - self.x, projection.y - self.y) < 80 ||
+          !end.behind && Math.hypot(projection.x - end.x, projection.y - end.y) < 80 ||
+          rects.some(r => r !== this.guideOrderRect && projection.x + 32 > r.left &&
+            projection.x - 32 < r.right && projection.y + 32 > r.top && projection.y - 32 < r.bottom)) continue;
+      if (this.drawFloorWaymark(g, rt, point, false, trail)) {
+        arrowX = projection.x; arrowY = projection.y; break;
+      }
+    }
     for (let i = 0; i < trail.points.length; i++) {
       const point = trail.points[i];
       if (!point.valid) continue;
       this.project(point, point.y + .1, rt, projection);
-      // 終点を残し、遠い床で間引いても戸口や次の角の手前で途切れさせない。
-      if (i + 1 < trail.points.length && trail.points[i + 1].valid &&
-          Math.hypot(projection.x - lastX, projection.y - lastY) < 28) continue;
+      if (projection.behind || Math.hypot(projection.x - lastX, projection.y - lastY) < 36 ||
+          Math.hypot(projection.x - arrowX, projection.y - arrowY) < 44 ||
+          !self.behind && Math.abs(projection.x - self.x) < 56 && Math.abs(projection.y - self.y) < 40 ||
+          !end.behind && projection.x > end.x - 28 && projection.x < end.x + 64 &&
+            projection.y > end.y - 80 && projection.y < end.y + 24 ||
+          rects.some(r => r !== this.guideOrderRect && projection.x + 20 > r.left &&
+            projection.x - 20 < r.right && projection.y + 16 > r.top && projection.y - 16 < r.bottom)) continue;
       if (this.drawFloorWaymark(g, rt, point, true, trail)) {
         lastX = projection.x; lastY = projection.y;
       }

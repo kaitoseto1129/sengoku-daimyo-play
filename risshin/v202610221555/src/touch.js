@@ -296,8 +296,8 @@ html.touch.tc-sw body #tc [data-b="atk"]:not([hidden]) { right:auto; left:calc(1
 html.touch body #tc [data-b="atk"] .name { font-size:22px; line-height:1.2; }
 html.touch body #tc [data-b="atk"].holding { border-radius:12px !important; border:4px double #fff3ba; }
 /* 案内の指先は親指側の攻撃釦へ向け、兵の上へ移さない。 */
-#tc .action-linked .attack-finger { display:block; left:-32px; top:calc(50% - 22px); transform:rotate(90deg); }
-#tc .action-linked.guide-swapped .attack-finger { left:auto; right:-32px; transform:rotate(-90deg); }
+#tc .action-linked .attack-finger { display:block; left:-44px; top:calc(50% - 16px); width:40px; height:32px; transform:none; }
+#tc .action-linked.guide-swapped .attack-finger { left:auto; right:-44px; transform:scaleX(-1); }
 /* 押せる丸を保ち、朱の地と金の光で手応えを出す */
 #tc .tb.on, #tc .tb:active { background: #70291c; border-color: #f0c070; border-radius: 50%; box-shadow: inset 0 0 0 2px #f0c070, 0 0 12px rgba(240,192,112,.6); }
 #tc .tb .cd { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(rgba(0,0,0,.55) var(--p, 0%), transparent 0); pointer-events: none; }
@@ -1171,13 +1171,14 @@ export function touchFrame(dt) {
   const attackLinked = attackAvailable && T.attackGuideActive;
   b.touchAttackGuideActive = !town && !gunW && !bowW && !S.reduceGuidance;
   tog(btn.atk, 'action-linked', attackLinked);
+  tog(game.hud?.root, 'attack-button-guide', attackLinked);
   tog(btn.atk, 'guide-swapped', !!S.touchSwap);
   // 押す実物の枠と短い字で示し、人物に重なる指を足さない。
   if (!btn.atk._guideFinger) {
     const finger = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    finger.setAttribute('class', 'attack-finger'); finger.setAttribute('viewBox', '0 0 32 40');
+    finger.setAttribute('class', 'attack-finger'); finger.setAttribute('viewBox', '0 0 40 32');
     finger.setAttribute('aria-hidden', 'true');
-    finger.innerHTML = '<circle cx="16" cy="6" r="8" fill="#14120f" stroke="#fff3ce" stroke-width="3"/><path d="M12 23V6q0-5 5-3q2 1 2 4v12l3-1 6 4q3 2 2 7l-3 9H13L5 27q-3-5 1-6q2-1 6 2Z" fill="#fff3ce" stroke="#14120f" stroke-width="3"/>';
+    finger.innerHTML = '<path d="M4 16H34M23 5L34 16L23 27" fill="none" stroke="#14120f" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16H34M23 5L34 16L23 27" fill="none" stroke="#fff3ce" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>';
     btn.atk.appendChild(finger); btn.atk._guideFinger = finger;
   }
   tog(btn.atk, 'spear-linked', attackLinked && p.weapon === 'spear');
@@ -1196,7 +1197,7 @@ export function touchFrame(dt) {
   const blade = !gunW && !bowW;
   // 攻撃の押し方は実物の釦の中にまとめる。
   const teachB = allowCoach;
-  if (sub) setText(sub, blade ? '' : !teachB ? (gunW ? p.gunAmmo === 0 ? '弾がない' : p.gunLoaded ? '' : '弾込め中' : p.bowAmmo <= 0 ? '矢がない' : '') : gunW ? (p.gunLoaded ? (p.aiming ? '離して撃つ' : '長押しで狙う') : p.gunAmmo === 0 ? '弾がない' : p.knockT > 0 || p.staggerT > 0 ? '体勢を戻す' : '弾込め中') : p.bowAmmo <= 0 ? '矢がない' : p.draw >= 2 ? (p.bowHold > 3 ? '腕が疲れる' : '離して射る') : p.draw >= 0.6 ? '引き絞る' : p.draw > 0 ? '矢を番える' : '押して引く');
+  if (sub) setText(sub, blade ? attackLinked ? '押す' : '' : !teachB ? (gunW ? p.gunAmmo === 0 ? '弾がない' : p.gunLoaded ? '' : '弾込め中' : p.bowAmmo <= 0 ? '矢がない' : '') : gunW ? (p.gunLoaded ? (p.aiming ? '離して撃つ' : '長押しで狙う') : p.gunAmmo === 0 ? '弾がない' : p.knockT > 0 || p.staggerT > 0 ? '体勢を戻す' : '弾込め中') : p.bowAmmo <= 0 ? '矢がない' : p.draw >= 2 ? (p.bowHold > 3 ? '腕が疲れる' : '離して射る') : p.draw >= 0.6 ? '引き絞る' : p.draw > 0 ? '矢を番える' : '押して引く');
   // 弓の任意の構えと、近接の構えの案内。鉄砲の構え釦は隠す。
   { let gs = btn.grd.querySelector('small'); const t = bowW ? (p.guardOn ? 'もう一度で解く' : '押して保つ') : p.guardBroken > 0 ? '体勢を戻す' : p.sta <= 0 ? '気力不足' : p.guardOn ? 'もう一度で解く' : teachB ? '押して保つ' : '';
     if (t && !gs) { gs = document.createElement('small'); btn.grd.appendChild(gs); } if (gs) setText(gs, teachB ? t : p.guardBroken > 0 ? '体勢を戻す' : p.sta <= 0 ? '気力不足' : ''); }

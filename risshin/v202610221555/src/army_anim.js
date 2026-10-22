@@ -733,7 +733,9 @@ export const ArmyAnim = {
         lane.next = this.time + .24 + (u.id % 5) * .017; lane.blocked = lane.rearBlocked = false; lane.obstacles = 0;
         const face = u.heading + u.body.rotation.y + ry;
         lane.sin = Math.sin(face); lane.cos = Math.cos(face);
-        lane.length = Math.min(7, tip + .8); // 突き出す分と長柄の穂先まで肩を調べる。
+        // 相手の後ろの味方まで障害にすると、前列も全員立て槍になる。
+        // 構えは目前の相手までを調べ、手前の肩と背後の石突きは引き続き避ける。
+        lane.length = Math.min(7, tip + .8, dT < 99 ? Math.max(.65, dT - .45) : 7);
         lane.handX = u.hand.position.x;
         // 繰り込んだ柄は後ろへ長く出る。短く握る予定の分も含め、戻す前に背後を測る。
         const drawBack = dT < 99 ? Math.min(Math.max(0, tip - .95), Math.max(0, reach0 - dT + .55)) : 0;

@@ -686,7 +686,7 @@ function drawScene(scene, fresh = false) {
   } else camera.updateMatrixWorld();
   // 夜の散乱光にも、視点切替後の行列を渡す。低画質も同じ順にする。
   const night = nightWorld && nightWorld.scene === scene ? nightWorld.prepareNight() : 0;
-  UNIT_NIGHT.value = nightWorld && nightWorld.scene === scene ? (nightWorld.def.unitNightScale === 0 ? 0 : Math.max(0.35, night * (nightWorld.def.unitNightScale ?? 1))) : 0;
+  UNIT_NIGHT.value = nightWorld && nightWorld.scene === scene ? (nightWorld.def.unitNightScale === 0 ? 0 : Math.max(nightWorld.def.unitCloudFill ?? 0.35, night * (nightWorld.def.unitNightScale ?? 1))) : 0;
   UNIT_FIRE_METAL.value = nightWorld && nightWorld.scene === scene ? night * (nightWorld.def.nightMetalness ?? 0) : 0;
   FLAG_MOON.value = night;
   if (UNIT_NIGHT.value) UNIT_NIGHT_FOCUS.value.copy(game.battle.player.u.pos).applyMatrix4(camera.matrixWorldInverse).multiplyScalar(-1);

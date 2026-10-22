@@ -42,11 +42,11 @@ export class HudDefense {
 
   // 守備判定の内側だけに短い斜線を置く。地面の高さは持ち場が変わる時に測る。
   drawDefensePattern(g, rt, pos, radius) {
-    const cache = this.defensePattern || (this.defensePattern = { points: new Float32Array(49 * 6) });
+    const cache = this.defensePattern || (this.defensePattern = { points: new Float32Array(81 * 6) });
     if (cache.rt !== rt || cache.x !== pos.x || cache.z !== pos.z || cache.radius !== radius) {
       cache.rt = rt; cache.x = pos.x; cache.z = pos.z; cache.radius = radius; cache.count = 0;
-      for (let row = -3; row <= 3; row++) for (let col = -3; col <= 3; col++) {
-        const dx = col * radius / 4, dz = row * radius / 4, half = radius / 32;
+      for (let row = -4; row <= 4; row++) for (let col = -4; col <= 4; col++) {
+        const dx = col * radius / 5, dz = row * radius / 5, half = radius / 28;
         if (Math.hypot(Math.abs(dx) + half, Math.abs(dz) + half) >= radius) continue;
         for (let end = -1; end <= 1; end += 2) {
           const x = pos.x + dx + end * half, z = pos.z + dz + end * half;
@@ -66,8 +66,8 @@ export class HudDefense {
       g.moveTo(x, y); g.lineTo((this.tmpV.x * .5 + .5) * VIEW.w, (-this.tmpV.y * .5 + .5) * VIEW.h);
     }
     g.lineCap = 'round';
-    g.strokeStyle = 'rgba(20,18,15,.45)'; g.lineWidth = 5; g.stroke();
-    g.strokeStyle = 'rgba(255,243,186,.65)'; g.lineWidth = 2; g.stroke(); g.restore();
+    g.strokeStyle = 'rgba(20,18,15,.75)'; g.lineWidth = 6; g.stroke();
+    g.strokeStyle = 'rgba(255,243,186,.85)'; g.lineWidth = 3; g.stroke(); g.restore();
   }
 
 
@@ -141,7 +141,7 @@ export class HudDefense {
     g.beginPath(); g.arc(px, py, 6, 0, Math.PI * 2);
     g.strokeStyle = '#14120f'; g.lineWidth = 7; g.stroke();
     g.strokeStyle = '#fff'; g.lineWidth = 3; g.stroke();
-    g.fillStyle = '#fff'; g.fillText('自分', px, py + 17);
+    // 呼び名は本人の足元の札一つにし、見取り図には同じ白い輪だけを残す。
     if (distance > radius) {
       const angle = Math.atan2(y - py, x - px);
       this.drawNavigationArrow(g, px + Math.cos(angle) * 20, py + Math.sin(angle) * 20, angle, .25, true);

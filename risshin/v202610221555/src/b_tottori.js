@@ -251,6 +251,14 @@ function nextBankBoat(rt) {
   // 別の舟に隙がなければ同じ舟の脇へ進み、手元の敵だけに応戦する。
   // ここを空にすると、岸道から遠い番兵へ戻り続けて放火が終わらない。
   if (!boat && current && !current.burnt) return current;
+  // 焼いた舟の次も、番のいない瞬間を待って行き先を空にしない。
+  // 番が残っていても岸の脇を案内し、手元の応戦と実際の放火は別に判定する。
+  // 最初の一艘を選ぶ時にも同じ道順を使い、番全員を討つ役目へ戻さない。
+  if (!boat) for (const b of F.boats) {
+    if (b.burnt) continue;
+    const d = rt.distTo(b);
+    if (d < nearest) { boat = b; nearest = d; }
+  }
   F.bankBoat = boat; F.bankBlockedAt = null;
   return boat;
 }
@@ -1726,6 +1734,12 @@ const tottori = {
         // 真上から貼った草と土で上書きすると、急坂に長い折れ線の筋が戻る。
         vec3 hillTint = mix(vec3(0.62, 0.48, 0.32), vec3(0.76, 0.62, 0.44), soilPatch);
         col *= mix(vec3(1.0), hillTint, hillMask * (1.0 - wat));
+        // 月明かりでも川岸に湿った土の色を残す。水面と山肌には重ねない。
+        float riverBankX = vWP.z < 0.0 ? -66.0 + vWP.z * 8.0 / 90.0 : -66.0 - vWP.z * 6.0 / 80.0;
+        float bankDistance = abs(vWP.x - riverBankX);
+        float bankMask = smoothstep(12.0, 16.0, bankDistance) * (1.0 - smoothstep(28.0, 36.0, bankDistance));
+        bankMask *= smoothstep(-100.0, -90.0, vWP.z) * (1.0 - smoothstep(80.0, 90.0, vWP.z));
+        col *= mix(vec3(1.0), vec3(0.84, 0.76, 0.57), bankMask * (1.0 - wat));
         diffuseColor.rgb *= col;`);
     };
     groundMat.needsUpdate = true;

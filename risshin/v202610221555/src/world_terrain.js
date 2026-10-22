@@ -89,8 +89,8 @@ export class WorldTerrain {
     mat.userData.camNearSolid = true;
     // 道肩の湿乾差・草の斑・濡れた踏み溝は、それぞれの指定に合う描き方を使う。
     mat.customProgramCacheKey = () => `ground|${!!(this.def.patchyGround || this.def.roadsideGrass)}|${!!this.def.slopeForestTint}|${this.half}|${!!this.def.autumn}|${!!this.def.winter}|${!!this.def.snow}|${SETTINGS.quality}|${!!this.def.springSnowPatch}|${JSON.stringify(this.def.gravelCourt || null)}|${!!this.def.softEarthCrust}|${!!this.def.stableSlopeGrain}|${!!this.def.subtleMudRelief}|${!!this.def.churnedMud}|${!!this.def.sparseEarthCrust}|${!!this.def.stableCliffGrain}|${!!this.def.stableRockProjection}|${!!this.def.patchyGround}|${this.def.wetFieldRuts || false}|${JSON.stringify(this.def.trampledField || null)}`;
-    // 通行の跡を持つ戦では、素材に焼かれた足形を重ねない。実際の踏み跡と窪みで泥を作る。
-    this.groundU = { tGrass: { value: grassTex(!!this.def.plainGrassGround) }, tDirt: { value: dirtTex() }, tBank: { value: bankTex() }, tMud: { value: mudTex(this.def.wetFieldRuts === 'wear') }, tStone: { value: stoneTex() }, tMacro: { value: macroTex() }, uWet: { value: 0 }, uForest: { value: this.def.slopeForest ?? 0 }, uRock: { value: this.def.cliffRock ?? 0 }, uNight: this.nightU, uSoilRain: { value: 0 }, tWear: WEAR, uTime: { get value() { return SETTINGS.reduceMotion ? 0 : WIND.value; } }, uSoilSky: { value: this.hemi.color } };
+    // 通行の跡を持つ戦は無地の泥を使う。窪みと足形を残す指定の戦だけ従来の絵へ戻す。
+    this.groundU = { tGrass: { value: grassTex(!!this.def.plainGrassGround) }, tDirt: { value: dirtTex() }, tBank: { value: bankTex() }, tMud: { value: mudTex(this.def.wetFieldRuts === 'wear' && !this.def.mudImprints) }, tStone: { value: stoneTex() }, tMacro: { value: macroTex() }, uWet: { value: 0 }, uForest: { value: this.def.slopeForest ?? 0 }, uRock: { value: this.def.cliffRock ?? 0 }, uNight: this.nightU, uSoilRain: { value: 0 }, tWear: WEAR, uTime: { get value() { return SETTINGS.reduceMotion ? 0 : WIND.value; } }, uSoilSky: { value: this.hemi.color } };
     if (this.def.gravelCourt) this.groundU.tCourt = { value: gravelTex() };
     mat.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, this.groundU);
@@ -216,7 +216,8 @@ export class WorldTerrain {
           float fieldTrample = (1.0 - smoothstep(0.72, 1.0, max(fieldUV.x, fieldUV.y) + (macro2 - 0.5) * 0.12))
             * (0.78 + macro2 * 0.22);
           surfaceWater *= 1.0 - fieldTrample;
-          float fieldRoots = w.x * fieldTrample * 0.68;
+          // 会戦帯の指定だけで全ての根を剥がさない。実際の通行跡で下の草を倒す。
+          float fieldRoots = w.x * fieldTrample * 0.42;
           w.x -= fieldRoots; w.y += fieldRoots * 0.55; w.z += fieldRoots * 0.45;
           ` : 'float fieldTrample = 0.0;'}
           w.x = clamp(w.x + (edge - 0.5) * 0.6 * w.x * (1.0 - w.x) * 4.0, 0.0, 1.0);
@@ -236,7 +237,7 @@ export class WorldTerrain {
           ` : ''}
           // 踏み荒らされた所：草が倒れて土が出て、濡れていれば泥になる（縁は絵の濃淡でばらつかせる）
           vec2 wearMarks = texture2D(tWear, (vWP.xz + ${this.half.toFixed(1)}) / ${(this.half * 2).toFixed(1)}).rg;
-          float wear = max(wearMarks.r, fieldTrample * 0.62);
+          float wear = max(wearMarks.r, fieldTrample * 0.32);
           wear = smoothstep(0.05, 0.75, wear * (0.75 + edge * 0.5));
           float trod = wear * (1.0 - smoothstep(0.3, 0.8, surfaceWater));
           w.y += w.x * trod * (0.75 - uWet * 0.35);
@@ -842,7 +843,7 @@ export class WorldTerrain {
           // 田の水面は残す。濡れ斑・轍の艶の差は同じ粗さで表す。
           float soilFilm = groundWet * (w.y + w.z) * (1.0 - wat);
           reflectedLight.indirectSpecular = mix(reflectedLight.indirectSpecular,
-            min(reflectedLight.indirectSpecular, diffuseColor.rgb * (0.12 + pool * 0.3) + vec3(0.003)), soilFilm);
+            min(reflectedLight.indirectSpecular, diffuseColor.rgb * (0.12 + pool * 0.55) + vec3(0.003 + pool * 0.025)), soilFilm);
           reflectedLight.directSpecular *= 1.0 - soilFilm * (0.35 + pool * 0.25);
           ` : ''}
           reflectedLight.directSpecular *= 1.0 - wat * 0.6;`)

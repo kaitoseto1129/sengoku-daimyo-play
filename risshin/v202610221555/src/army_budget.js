@@ -1,10 +1,17 @@
 import { qualityThink } from './army_quality.js';
 
+// 門や塀は pos ではなく線分を持つ。攻城中も判断を進め、兵と同じ座標を読まない。
+function closeThinkingTarget(u) {
+  const target = u.target;
+  return !!(target?.alive && (target.isStruct || target.pos &&
+    Math.hypot(u.pos.x - target.pos.x, u.pos.z - target.pos.z) < Math.max(14, (u.reach || 0) + 8)));
+}
+
 // 判断だけを予算内で進める。足・攻撃・描画の時計は呼び出し側で毎コマ進める。
 export function combatThinking(u, dist) {
   return dist <= 30 || u.isPlayer || u.name || u.isSub || u.type === 'busho' || u.atk || u.swing || u.bind ||
     u.charging || u.hit || u.stagger > 0 || u.fleeing || u.group?.routed ||
-    u.target?.alive && Math.hypot(u.pos.x - u.target.pos.x, u.pos.z - u.target.pos.z) < Math.max(14, (u.reach || 0) + 8);
+    closeThinkingTarget(u);
 }
 
 export function thinkingPhase(u, dist, frame) {
@@ -14,7 +21,7 @@ export function thinkingPhase(u, dist, frame) {
 
 function priority(u, dist) {
   if (u.atk || u.swing || u.bind || u.charging || u.hit || u.stagger > 0 ||
-      u.target?.alive && Math.hypot(u.pos.x - u.target.pos.x, u.pos.z - u.target.pos.z) < Math.max(14, (u.reach || 0) + 8)) return 0;
+      closeThinkingTarget(u)) return 0;
   if (dist <= 30) return 1;
   if (!u.offscreen) return 2;
   if (u.name || u.isSub || u.type === 'busho') return 3;

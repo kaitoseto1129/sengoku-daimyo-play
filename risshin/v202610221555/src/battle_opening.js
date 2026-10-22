@@ -91,7 +91,7 @@ export class BattleOpening {
 /* 指と説明は、実際になぞる棒のそばへ一緒に置く。 */
 #hud #battle-opening.opening-controls span { transform:translate(-50%,-50%); gap:4px; border:0; border-radius:6px; padding:6px 10px; background:#14120f; color:#fff; max-width:none; }
 #hud #battle-opening .opening-move-area { position:absolute; box-sizing:border-box; width:152px; height:128px; border:2px dashed #fff3ba; border-radius:16px; background:rgba(20,18,15,.16); box-shadow:0 0 0 2px #14120f; }
-#hud #battle-opening.opening-controls b { font-size:max(24px,calc(24px * var(--text-scale,1))); white-space:pre-line; overflow-wrap:normal; flex:none; }
+#hud #battle-opening.opening-controls b { font-size:max(20px,calc(20px * var(--text-scale,1))); white-space:pre-line; overflow-wrap:normal; flex:none; }
 #hud #battle-opening.opening-controls span { width:max-content; max-width:calc(100vw / 3 - 24px); min-height:44px; }
 #hud #battle-opening.opening-controls.has-flag b::before { content:none; }
 #hud #battle-opening.opening-controls .opening-route > circle { display:none; }
@@ -99,7 +99,7 @@ export class BattleOpening {
 /* 触る始点の丸と短い矢印を、説明と一組にする。 */
 #hud #battle-opening.opening-controls .opening-start > path { display:block; animation:opening-finger-slide 8s ease-in-out infinite; }
 #hud #battle-opening.opening-compact.opening-controls span { background:rgba(20,18,15,.65); padding:4px 6px; border-radius:3px; }
-#hud #battle-opening.opening-compact.opening-controls b { font-size:max(24px,calc(24px * var(--text-scale,1))); }
+#hud #battle-opening.opening-compact.opening-controls b { font-size:max(20px,calc(20px * var(--text-scale,1))); }
 #hud #battle-opening.opening-compact .opening-route > path:first-child { stroke-width:6; }
 #hud #battle-opening.opening-compact .opening-route > path:nth-child(2) { stroke-width:2.5; }
 #hud #battle-opening i { display:inline-block; flex:none; font-style:normal; font-size:24px; line-height:1; }
@@ -283,7 +283,7 @@ body:has(#hud.opening #battle-opening.opening-linked) #tc .stick { visibility:hi
       arrow.hidden = true;
       arrow.textContent = '↑';
       arrow.style.transform = '';
-      this.text.textContent = '上へなぞって すすむ';
+      this.text.textContent = '上へなぞって進む';
       // 左右どちらに足元があっても、示した輪から歩行入力を受ける。
       const start = this.hud.playerControlOrigin(rt, false, true);
       const fingerX = start.x, fingerY = start.y;
@@ -313,9 +313,9 @@ body:has(#hud.opening #battle-opening.opening-linked) #tc .stick { visibility:hi
       this.el.classList.toggle('has-flag', !!this.flagGround);
       const half = this.label.offsetWidth / 2;
       const halfHeight = this.label.offsetHeight / 2;
-      // 説明は足元から伸びる矢印の上へ置く。
+      // 指のすぐ下に説明を置き、なぞる矢印を空ける。
       x = Math.max(half + 12, Math.min(W - half - 12, fingerX));
-      y = Math.max(halfHeight + 12, fingerY - 104 - halfHeight);
+      y = Math.min(H - halfHeight - 12, fingerY + 48 + halfHeight);
     }
     this.el.classList.toggle('has-flag', !!this.flagGround);
     if (linkedMove) this.text.textContent = rt.def.openingLinkedLabel || 'あの旗へ';
@@ -333,13 +333,13 @@ body:has(#hud.opening #battle-opening.opening-linked) #tc .stick { visibility:hi
       const forward = dx * Math.sin(yaw) + dz * Math.cos(yaw);
       this.flagOffscreen = !groundVisible;
       this.flagAngle = Math.atan2(-forward, side);
-      this.text.textContent = rt.def.keepOpeningTaskLabel ? this.hud.destinationPurpose(rt) : 'あの旗へ';
+      this.text.textContent = rt.def.keepOpeningTaskLabel ? this.hud.destinationPurpose(rt) : 'ここまで進む';
       const halfW = this.label.offsetWidth / 2, halfH = this.label.offsetHeight / 2;
       this.flagX = groundVisible ? ground.x : side >= 0 ? W - 64 : 64;
       this.flagY = groundVisible ? ground.y : Math.max(112, Math.min(H - 64, H / 2));
-      const spot = this.hud.goalFlagSpot(rt, this.flagX, this.flagY - 60, halfW * 2, halfH * 2);
       this.flagBounds = null; this.flagFoot = this.flagGround;
-      x = spot.labelX; y = spot.labelY;
+      x = Math.max(halfW + 12, Math.min(W - halfW - 12, this.flagX));
+      y = Math.max(halfH + 12, this.flagY - 40 - halfH);
       const box = this.flagLabelBox || (this.flagLabelBox = {});
       box.left = x - halfW; box.right = x + halfW;
       box.top = y - halfH; box.bottom = y + halfH;

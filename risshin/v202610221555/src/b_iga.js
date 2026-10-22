@@ -576,18 +576,6 @@ function igaHoroDetail(rt) {
     shapes.clear(); return result;
   };
 }
-// 近い兵の体格は矢の更新より後にも変わる。描く直前の倍率で矢を実寸へ戻す。
-function igaPinnedArrows(rt) {
-  const before = rt.scene.onBeforeRender, dispose = rt.dispose;
-  rt.scene.onBeforeRender = function (renderer, scene, camera, target) {
-    before.call(this, renderer, scene, camera, target);
-    rt.army.syncPinnedArrowScales();
-  };
-  rt.dispose = function () {
-    this.scene.onBeforeRender = before;
-    return dispose.call(this);
-  };
-}
 // 伊賀の小屋だけの板肌。絵と材質は使い回し、共通の木肌には手を加えない。
 let igaWoodMat = null;
 function igaHut(W, x, z, w, d, rot = 0, o = {}) {
@@ -1227,6 +1215,7 @@ const iga = {
     naturalArrowRain: true, noGroundArrows: true, // 外れ矢を坂へ積まず、飛ぶ矢・兵や木に刺さる矢は残す。
     keepPinnedArrowSize: true, // 胴や馬の拡大率を受け継がず、刺さる前の矢の長さを保つ。
     pinnedArrowAxisScale: true, // 斜めに刺さる矢も、胴の縦横を含めた各軸で実寸を保つ。
+    pinnedArrowRenderScale: true, // 親子の行列更新で、描く直前の体格にも矢の実寸を合わせる。
     arrowRainGroundCue: false, // 切岸に沿って伸びる白黒の帯を外す。矢の影・声・退き先の印で知らせる。
     wind: [0.5, 1],
     clothFolds: true,
@@ -1284,7 +1273,6 @@ const iga = {
     });
     igaSlopeCamera(rt);
     igaHoroDetail(rt);
-    igaPinnedArrows(rt);
     igaRaidGrace(rt);
     // 矢を避ける印にも山道の足場検査を渡す。候補と途中の点は既存の入れ物を使う。
     rt.army.hooks.rainEscapePointAllowed = (point) => igaRetreatPointAllowed(rt, point);

@@ -718,7 +718,9 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
       {
         // 光源によらない白い縁光は足さず、実際の空と篝火の照りで素材を読む。
         // 黒漆の空の映り込みを抑え、金具の反射と威糸の艶消しを分ける。
-        reflectedLight.indirectSpecular *= mix(1.0, 0.32 + uWet * 0.28, dmLacq);
+        // 雨空の広い照りを残し、黒漆の袖と胴の面を曇天でも分ける。
+        reflectedLight.indirectSpecular *= mix(1.0, 0.48 + uWet * 0.28, dmLacq);
+        reflectedLight.indirectSpecular *= mix(1.0, 0.42, dmLeather);
         reflectedLight.indirectSpecular *= mix(1.0, 0.25, dmCloth);
       }`).replace('#include <aomap_fragment>', `#include <aomap_fragment>
       {

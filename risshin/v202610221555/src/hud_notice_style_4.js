@@ -133,6 +133,14 @@ html body #hud #battle-notices:not(.choosing) #objectives:not(.expand) li.cur {
 }
 `;
 export const noticeStyle17 = `
+/* 待つ札は人物の足元から離し、既存の任務一枚を上の端へ戻す。 */
+html body #hud.quiet-wait #battle-notices:not(.choosing) #objectives#objectives:not(.expand) {
+ position:fixed !important; left:calc(76px + env(safe-area-inset-left,0px)) !important;
+ top:calc(64px + env(safe-area-inset-top,0px)) !important; right:auto !important; bottom:auto !important;
+ width:max-content !important; max-width:min(280px,32vw) !important;
+ transform:none !important; translate:none !important;
+}
+
 /* 守りから反撃へ移っても、携帯の行動案内は同じ親指側に保つ。 */
 /* 攻撃できる時は押す釦へ案内を集め、同じ位置の任務札を畳む。 */
 html.touch body #hud.attack-button-guide #battle-notices:not(.choosing) #objectives#objectives:not(.expand) { display:none !important; }

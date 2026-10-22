@@ -6,6 +6,7 @@ import { S as SETTINGS } from './settings.js';
 // 森部：雨中の渡河 → 先手 → 長い槍の押し合い → 両将の備を崩す → 集結。
 import { gauss, centerOf, allyGroup, enemyGroup } from './bhelp.js';
 import { distToPolyline } from './world.js';
+import { tuftClumpAt } from './world_common.js';
 import { RANKS } from './state.js';
 import { nobori, timberRoof, jinmaku } from './props.js';
 import { woodTex, mudTex } from './nature.js';
@@ -256,6 +257,15 @@ function moribeBuildings(rt) {
       store(px, gy + .22, pz, .75, .44, .65, 0x79634b);
       for (const dx of [-.24, .24]) store(px + dx, gy + .46, pz, .055, .055, .7, 0x493624);
     }
+    // 雨除けの妻に槍組の印。低い屋根と幟を重ね、野の中でも荷置きの所在を読めるようにする。
+    rt.scene.add(nobori(W, x + leanSide * 4.8, z - 1.9, x < 0 ? 'oda' : 'saito', 4.6));
+    // 屋根下の腰掛けと長い荷台。柱と同じ描画の束で、人が使う高さの横線を残す。
+    for (const dx of [-1.5, 1.5]) {
+      store(x + dx, y + .32, z + .6, .16, .64, .9, 0x493624);
+      store(x + dx, y + .68, z + .6, .8, .12, 1.15, 0x79634b);
+    }
+    store(x, y + .76, z - .55, 3.6, .14, .75, 0x79634b);
+    for (const dx of [-1.4, 1.4]) store(x + dx, y + .35, z - .55, .14, .7, .65, 0x493624);
     rt.scene.add(timberRoof(x, y + 2.3, z, 4.8, 3.1, 0, { eave: .45, pitch: .3, color: 0x62513c }));
   }
   // 柱・壁は一束、細部は影なしの一束。色は各部品へ持たせ、材質と形は共用する。
@@ -308,16 +318,18 @@ function moribeSoil(rt) {
     const x = -66 + R() * 140, z = -84 + R() * 160;
     if (peoplePathDistance(x, z) < 2 || W.def.paddy(x, z) > .2
       || W.def.streams.some(st => distToPolyline(x, z, st.pts) < st.w + 1)) continue;
-    const patch = Math.sin(x * .26 + Math.sin(z * .17)) * Math.cos(z * .21);
-    if (patch < -.15) continue;
+    // 草の株と同じ群落の縁へ芝土を残し、泥の真ん中に石粒のように散らさない。
+    const patch = tuftClumpAt(x, z), road = distToPolyline(x, z, ROAD2);
+    if (patch < .28 || patch > .72 || road < 2) continue;
     // 小粒だけでは横から輪郭が消える。大小を混ぜ、崩れた芝土の低い肩を残す。
     // 一部は踏み場の縁に寄った低い土の肩。小さな同形の粒だけで野を覆わない。
-    const shoulder = count % 7 === 0;
-    const length = shoulder ? .75 + R() * 1.5 : .18 + R() * R() * .6;
+    const shoulder = count % 3 === 0;
+    const length = shoulder ? 1.1 + R() * 1.8 : .18 + R() * R() * .6;
     at.position.set(x, W.heightAt(x, z) - .025, z);
     at.rotation.set((W.heightAt(x, z + .3) - W.heightAt(x, z - .3)) / .6,
-      R() * Math.PI * 2, -(W.heightAt(x + .3, z) - W.heightAt(x - .3, z)) / .6);
-    at.scale.set(length, shoulder ? .09 + R() * .06 : .055 + length * .12,
+      shoulder ? Math.atan2(1, .18 + Math.cos(z * .06) * .2) : R() * Math.PI * 2,
+      -(W.heightAt(x + .3, z) - W.heightAt(x - .3, z)) / .6);
+    at.scale.set(length, shoulder ? .10 + R() * .08 : .055 + length * .12,
       length * (shoulder ? .18 + R() * .2 : .35 + R() * .6)); at.updateMatrix();
     soil.setMatrixAt(count, at.matrix);
     const tone = .88 + R() * .22;
@@ -1116,6 +1128,7 @@ const moribe = {
     stormLight: { sunI: 1.65, hemiI: 1.3, sunPos: [-65, 85, 40],
       sky: 0x7e8c90, top: 0x52656f, fog: 0x8b9999,
       hemiSky: 0xb7c6ca, hemiGround: 0x514735 },   // 雲越しの斜光と土の照り返し。兵の見通しは同じ。
+    unitCloudFill: .55,   // 共通の近景補光で、黒漆の胴・袖・威糸へ雲の柔らかな光を回す。
     closeCombatAssist: true,   // 初めて組を預かる槍戦の、近い相手への向き直り。
     allyPersonalSpace: 1.2,   // 自分の六歩以内だけ、味方の肩が食い込まない間合い。
     playerMeleeFloor: 1 / 3,   // 無名の足軽は、三歩以内で三度当てれば倒れる。
@@ -1131,8 +1144,9 @@ const moribe = {
     grassMix(x, z, pd) {
       const front = Math.max(0, 1 - Math.abs(x - 8) / 85)
         * Math.max(0, 1 - Math.abs(z - 4) / 78);
-      const patch = 0.5 + 0.5 * Math.sin(x * 0.19 + Math.sin(z * 0.13));
-      return THREE.MathUtils.smoothstep(pd, 0.7, 3.8) * (0.88 - front * (0.3 + patch * 0.45));
+      const patch = tuftClumpAt(x, z);
+      // 群落の芯には根を残す。会戦帯全体の草を三重に削らず、通った場所だけ倒す。
+      return THREE.MathUtils.smoothstep(pd, 0.7, 3.8) * (0.72 + patch * .24 - front * .32);
     },
     softEarthCrust: true,   // 乾いた土塊の陰を升の境で切らず、泥の野を敷石に見せない。
     sparseEarthCrust: true,   // 雨の裸地には土塊をまばらに残す。
@@ -1200,7 +1214,7 @@ const moribe = {
     // 雨を吸った下葉は灰緑、踏まれた帯は低く泥色へ。遠景と足元で同じ分布を使う。
     tuftHeight(x, z) {
       const front = Math.max(0, 1 - Math.abs(x - 8) / 65) * Math.max(0, 1 - Math.abs(z - 12) / 75);
-      return .85 - front * .42;
+      return (.68 + tuftClumpAt(x, z) * .44) * (1 - front * .28);
     },
     tuftColor(x, z, color) {
       const front = Math.max(0, 1 - Math.abs(x - 8) / 65) * Math.max(0, 1 - Math.abs(z - 12) / 75);

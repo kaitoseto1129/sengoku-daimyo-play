@@ -691,8 +691,8 @@ const okehazama = {
       if (!rt.flags.guardOpened) return rt.flags.attackText || 'あと3人たおす';
       if (rt.flags.yoshiDown) return rt.flags.nobKill[1]?.woundOut ? '毛利は手当て中。味方と構えよ' : '義元は深手。討取りは毛利に任せよ';
       if (rt.flags.koshiLeft) return rt.hud.defendEnemy?.alive || rt.hud.approachGuideEnemy?.alive || rt.guideEnemy?.alive
-        ? 'この敵をたおす' : '味方と旗へ進む';
-      return '味方と旗へ進む';
+        ? 'この敵をたおす' : 'この旗へ';
+      return 'この旗へ';
     }
     return '';
   },
@@ -1002,6 +1002,9 @@ const okehazama = {
     // 踏まれた低い草を群落の縁へつなぐ。株数を増やさず、土との色差を弱める。
     tuftHeight: () => 0.72,
     tuftColor(_x, _z, color) { color.multiplyScalar(0.9); },
+    // 守山向けの芯へ寄せる間引きを使わず、従来の群落の縁を残す。
+    nearGrassClumpBase: 0.3,
+    nearGrassClumpGain: 0.95,
     // 既存の草を斜面の肩と会戦帯の縁へ集める。株数は増やさない。
     undergrowthBands: [[-25, -48, 19, 28], [34, -72, 18, 35], [-34, -108, 21, 24]]
       .map(([x, z, w, d]) => ({ ...fieldPoint(x, z), w, d })),
@@ -1015,6 +1018,8 @@ const okehazama = {
     },
     // 荷車の二筋は開戦時の踏み跡へ焼き、毎画素の溝探しと追加の水面計算を避ける。
     wetFieldRuts: 'wear',
+    // 実際の踏み跡に加え、従来の土塊の窪みと足跡を泥の絵にも残す。
+    mudImprints: true,
     // 土塊の陰を塊の縁へ限り、坂一面を四角い敷石に見せない。
     softEarthCrust: true,
     // 泥の窪みは踏まれた所へ薄く残す。既存の絵と凹凸を使い、面を増やさない。

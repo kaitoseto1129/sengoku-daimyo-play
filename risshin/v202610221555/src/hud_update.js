@@ -1121,7 +1121,7 @@ export class HudUpdate {
         `${rt.def.waitFacingTarget?.(rt)?.alive ? '印の敵へ向く' : rt.def.waitFacingLabel?.(rt, false) || '矢印へ向く'}${isTouch ? `・${waitFacingSide}へなぞる` : ''}`;
     if (guide?.marker?.guideDefend &&
         !retreatRequired(rt) && !this.retreatGuide?.active && !careSequence && !rt.dodgeGuide && !rainDanger(rt.army) && !recovering(rt)) {
-      const defendText = guardPostDistance(rt, guide) >= defenseRadius(rt, guide.marker) ? '線の中へ' : 'この中でまもる';
+      const defendText = guardPostDistance(rt, guide) >= defenseRadius(rt, guide.marker) ? '旗へ すすむ' : 'ここで まもる';
       if (!fighting && !targetingEnemy && !facingGesture) shownTaskLabel = defendText;
       else edgeGoalDetail = defendText; // 接敵中も同じ札の中で、持ち場の内外を伝える。
     }
@@ -1134,6 +1134,11 @@ export class HudUpdate {
       shownTaskLabel = `${waitFacingSide}になぞる`;
       aimHelp = ''; waitFacingHelp = ''; edgeGoalDetail = '';
     }
+    // 待つ下知が最終的に選ばれた時だけ、移動を促す印を休める。
+    this.quietWait = shownTaskLabel === 'そのまま待とう' && !fighting && !targetingEnemy &&
+      !this.openingActive && !rt.choice && !rt.over && !careSequence &&
+      !retreatRequired(rt) && !this.retreatGuide?.active && !rt.dodgeGuide && !rainDanger(rt.army);
+    setClass(this.root, 'quiet-wait', this.quietWait);
     this.releaseMoveActive = shownTaskLabel === '指をはなそう';
     // 同じ操作を見出しと補足に二度出さない。
     if (edgeGoalDetail === shownTaskLabel) edgeGoalDetail = '';
