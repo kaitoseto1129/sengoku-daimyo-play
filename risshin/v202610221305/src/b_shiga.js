@@ -326,6 +326,8 @@ function castleWatchText(rt) {
     if (F.gates.indexOf(g._shigaGate) < F.gates.indexOf(gate?.struct))
       return '敵は下の木戸を攻めている。ここで後詰を待て';
   }
+  for (const g of F.waves || []) if (!gone(g) && g.order === 'path')
+    return '敵が坂道を上ってくる。木戸を閉じて待て';
   return '木戸を開けず、外を見張れ';
 }
 
@@ -1515,7 +1517,8 @@ const shiga = {
       dress([{ type: 'samurai', n: 1, o: { name: '青地茂綱', invuln: true, hat: 'kabuto_g', haori: 0x5a2a1c } }, { type: 'ashigaru', n: 10 }], ODA));
     F.aochiU = F.sakai.units[0];
     // 城に残る者（武藤五郎右衛門ら）
-    F.keep = allyGroup(rt, { name: '宇佐山城の守り', fixed: true, anchor: { x: -8, z: 56 }, facing: GA, width: 4, aggro: 10, formation: 'yari' },
+    // 槍衾の横幅は width ではなく人数と段数で決まる。三人幅で塀と門柱を空ける。
+    F.keep = allyGroup(rt, { name: '宇佐山城の守り', fixed: true, anchor: { x: -8, z: 56 }, facing: GA, width: 4, yariRanks: 5, aggro: 10, formation: 'yari' },
       dress([{ type: 'samurai', n: 1, o: { name: '武藤五郎右衛門', invuln: true, hat: 'kabuto_w', horse: false } }, { type: 'ashigaru', n: 8 }, { type: 'bow', n: 4 }], ODA));
     F.hida = allyGroup(rt, { name: '肥田彦左衛門の本丸守り', fixed: true, fullStrength: true, anchor: { x: GATE_HON.x, z: GATE_HON.z + 8 }, facing: GATE_HON.rot, width: 3, formation: 'yari', aggro: 8 },
       dress([{ type: 'samurai', n: 1, o: { name: '肥田彦左衛門', invuln: true, horse: false } }, { type: 'ashigaru', n: 7 }], ODA));
@@ -3218,11 +3221,16 @@ html body #hud.shiga #battle-notices #objectives.has-action:not(.expand) li.cur 
   if (rt.world.terrain) {
     // 大きな多角形の土塊を一面へ敷かず、細粒の地肌に町の踏み跡を重ねる。
     // 一度作った既存の絵を使い、他の戦が使う土の材質は変えない。
-    rt.world.groundU.tDirt.value = dirtTex(true);
+    const terrain = rt.world.terrain, soil = dirtTex(true, true);
+    rt.world.groundU.tDirt.value = soil;
     // 志賀は地肌の描き方を小さく独立させる。長い共通の地表用の式と、
     // その古い文面への置換を重ねず、既存の草・土・泥と足場の頂点を使う。
     // 陰影・影・昼の霞は通常の材質に任せ、地形の索引と歩く高さは変えない。
-    const mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    const mat = new THREE.MeshLambertMaterial({ color: 0xffffff, map: soil });
+    // 地肌の処理が外れても白地へ戻さず、地形の色と細粒の土を残す。
+    const tint = terrain.geometry.getAttribute('slopeTint');
+    if (tint) { terrain.geometry.setAttribute('color', tint); mat.vertexColors = true; }
+    mat.extensions.derivatives = true;
     mat.onBeforeCompile = (shader) => {
       Object.assign(shader.uniforms, rt.world.groundU);
       shader.vertexShader = 'attribute vec3 splat, slopeTint; varying vec3 vShigaGround, vShigaMix, vShigaTint;\n'
@@ -3232,7 +3240,7 @@ html body #hud.shiga #battle-notices #objectives.has-action:not(.expand) li.cur 
       shader.fragmentShader = `uniform sampler2D tGrass, tDirt, tMud, tMacro, tWear;
         uniform float uWet;
         varying vec3 vShigaGround, vShigaMix, vShigaTint;
-        ` + shader.fragmentShader.replace('#include <map_fragment>', `
+        ` + shader.fragmentShader.replace('#include <color_fragment>', '').replace('#include <map_fragment>', `
           vec3 p = vShigaGround;
           vec3 n = abs(normalize(cross(dFdx(p), dFdy(p))));
           vec3 axis = pow(n, vec3(4.0)); axis /= max(0.001, axis.x + axis.y + axis.z);
@@ -3259,8 +3267,9 @@ html body #hud.shiga #battle-notices #objectives.has-action:not(.expand) li.cur 
         `);
     };
     mat.customProgramCacheKey = () => '志賀の草土と切岸';
+    terrain.material = mat;
     mat.userData.camNearSolid = true;
-    rt.world.terrain.material = mat;
+    mat.needsUpdate = true;
   }
   const shapes = new WeakMap();
   const shape = (source) => {

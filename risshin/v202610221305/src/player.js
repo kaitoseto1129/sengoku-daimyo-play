@@ -4974,7 +4974,7 @@ export class Player {
     // 速い移動ほど追従を早め、曲がる時に視点だけ置き去りにしない。
     const lagK = this.mounted && Math.abs(this.hspd || 0) > 6 ? 18 : running ? 20 : 22;
     this.camPos.lerp(want, 1 - Math.exp(-dt * lagK));
-    if (!inRoom && this.fpK < 0.5 && this.rt.def.nearAllySolidBody) {
+    if (!inRoom && this.fpK < 0.5 && this.rt.def.nearAllySolidBody && this.rt.def.nearAllyCameraAvoid !== false) {
       avoidCameraBodies(this.rt.army.units, u, target, this.camPos);
     }
     if (inRoom) nakaCamClamp(this.camPos, this.fpK < 0.5);

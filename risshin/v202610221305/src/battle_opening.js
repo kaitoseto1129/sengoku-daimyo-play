@@ -91,8 +91,10 @@ export class BattleOpening {
 /* 指と説明は、実際になぞる棒のそばへ一緒に置く。 */
 #hud #battle-opening.opening-controls span { transform:translate(-50%,-50%); gap:4px; border:0; border-radius:6px; padding:6px 10px; background:#14120f; color:#fff; max-width:none; }
 #hud #battle-opening .opening-move-area { position:absolute; box-sizing:border-box; width:152px; height:128px; border:0; background:none; }
-#hud #battle-opening.opening-controls b { font-size:max(20px,calc(20px * var(--text-scale,1))); white-space:pre-line; }
-#hud #battle-opening.opening-controls span { max-width:calc(100vw / 3 - 24px); min-height:44px; }
+#hud #battle-opening.opening-controls b { font-size:max(16px,calc(16px * var(--text-scale,1))); white-space:nowrap; overflow-wrap:normal; flex:none; }
+#hud #battle-opening.opening-controls span { width:max-content; max-width:calc(100vw / 3 - 24px); min-height:44px; }
+#hud #battle-opening.opening-controls.has-flag b::before { content:none; }
+#hud #battle-opening.opening-controls .opening-route > circle { display:none; }
 #hud #battle-opening.opening-controls .opening-swipe { display:none; }
 /* 始点の丸と上向きの矢印一本だけを残す。 */
 #hud #battle-opening.opening-controls .opening-start > path { display:none; }
@@ -276,7 +278,7 @@ body:has(#hud.opening #battle-opening.opening-linked) #tc .stick { visibility:hi
       arrow.hidden = true;
       arrow.textContent = '↑';
       arrow.style.transform = '';
-      this.text.textContent = '上になぞる';
+      this.text.textContent = 'ここを上へなぞる';
       // 歩ける側の操作面に始点を置く。
       // 開幕も戦の途中も同じ操作面を使う。
       // 示した輪は navigationTouchOrigin で移動操作として受ける。
@@ -292,11 +294,11 @@ body:has(#hud.opening #battle-opening.opening-linked) #tc .stick { visibility:hi
       this.moveArea.style.left = origin.left + 'px';
       this.moveArea.style.top = origin.top + 'px';
       // 指先を実際の始点へ合わせ、一本の線で終点の輪へ結ぶ。
-      this.swipe.toggleAttribute('hidden', false);
+      this.swipe.toggleAttribute('hidden', true);
       this.linkStart = null;
       // 歩く操作は上向き。遠近で変わる地面の投影位置へは結ばない。
       const endX = fingerX;
-      const endY = fingerY - 96;
+      const endY = fingerY - 40;
       const dx = endX - fingerX, dy = endY - fingerY;
       const length = Math.max(1, Math.hypot(dx, dy));
       const ux = dx / length, uy = dy / length;
@@ -306,6 +308,7 @@ body:has(#hud.opening #battle-opening.opening-linked) #tc .stick { visibility:hi
       for (let i = 0; i < 2; i++) this.route.children[i].setAttribute('d', path);
       for (let i = 2; i < 4; i++) {
         const circle = this.route.children[i];
+        circle.setAttribute('r', '10');
         circle.setAttribute('cx', endX); circle.setAttribute('cy', endY);
       }
       this.route.lastElementChild.setAttribute('transform', `translate(${fingerX} ${fingerY})`);
@@ -315,14 +318,15 @@ body:has(#hud.opening #battle-opening.opening-linked) #tc .stick { visibility:hi
       this.swipe.style.top = fingerY + 'px';
       this.personArrow.hidden = true;
       // 最初の操作は始点の指・矢印・終点の輪にまとめる。
-      this.flagGround = null; this.flagBounds = null; this.flagOffscreen = false;
-      // 説明は輪の脇へ置き、指と一本の道を文字で覆わない。
+      // 目的の旗の印は、操作の説明と独立して残す。
+      this.el.classList.toggle('has-flag', !!this.flagGround);
       const half = this.label.offsetWidth / 2;
       const halfHeight = this.label.offsetHeight / 2;
-      const side = fingerX + half * 2 + 24 < W - 12 ? 1 : -1;
-      x = Math.max(half + 12, Math.min(W - half - 12, fingerX + side * (half + 20)));
-      y = Math.max(halfHeight + 12, Math.min(H - halfHeight - 12, fingerY));
+      // 説明を始点のすぐ上へ添え、実旗と反対側へ離さない。
+      x = Math.max(half + 12, Math.min(W - half - 12, fingerX));
+      y = Math.max(halfHeight + 12, fingerY - 80 - halfHeight);
     }
+    this.el.classList.toggle('has-flag', !!this.flagGround);
     if (linkedMove) this.text.textContent = rt.def.openingLinkedLabel || '旗まで進む';
     // 旗への説明は実物か画面端の印の脇へまとめる。
     if (this.flagGround && !this.el.classList.contains('opening-controls')) {

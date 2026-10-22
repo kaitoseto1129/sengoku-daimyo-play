@@ -116,6 +116,11 @@ body.rm #tc .action-coach.move-coach .coach-finger { animation:none; }
 @keyframes coach-swipe { 0%,20%,100% { translate:0 0; } 65%,85% { translate:var(--coach-dx,0px) var(--coach-dy,-40px); } }
 body.rm #tc .action-coach.foot-coach .coach-finger { animation:none; }
 @media (prefers-reduced-motion:reduce) { #tc .action-coach.foot-coach .coach-finger { animation:none; } }
+/* 操作の絵と説明は端の小さな一枚に収める。 */
+#tc .action-coach.turn-coach.foot-coach { width:168px; height:64px; }
+#tc .action-coach.turn-coach.foot-coach svg { left:0; top:0; width:56px; height:64px; overflow:hidden; }
+#tc .action-coach.turn-coach.foot-coach span { width:108px; padding:6px; font-size:13px; line-height:1.4; }
+#tc .action-coach.turn-coach.foot-coach .coach-finger { display:none; animation:none; }
 /* 触る端末だけ：ページの拡大・端の戻る・長押しの選択を止める */
 html.touch, html.touch body { overscroll-behavior: none; touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
 html.touch input, html.touch textarea { -webkit-user-select: text; user-select: text; }
@@ -853,6 +858,8 @@ function setupTouch({ input, game, setPause, toggleBigMap }) {
     const dx = (e.clientX - l.x) * 1.7 * k * aimSlow, dy = (e.clientY - l.y) * 1.5 * k * aimSlow;
     input.dx += dx; input.dy += dy;
     input.touchDx += dx; input.touchDy += dy;
+    T.lookTravel = (T.lookTravel || 0) + Math.hypot(e.clientX - l.x, e.clientY - l.y);
+    if (pl?.u.alive && !pl.camShot && T.lookTravel >= 32) T.lookLearned = true;
     l.x = e.clientX; l.y = e.clientY;
   });
   const cEnd = (e) => {
@@ -982,7 +989,7 @@ export function touchFrame(dt) {
     // 案内の控えが前の戦の兵・地形を次の支度まで抱え込まないようにする。
     T.battle = T.coachBattle = T.idleBattle = T.attackLearnedBattle = T.attackPressedBattle = T.coachTut = null;
   }
-  if (on && T.battle !== b) { reset(); clearTimeout(T.lhT); T.battle = b; T.lockTip = false; T.glowId = null; T.coachSwap = null; T.coachTut = null; T.moved = false; T.moveLearned = false; T.idleY = 0; T.hookAt = 0; T.zoneAt = 0; }
+  if (on && T.battle !== b) { reset(); clearTimeout(T.lhT); T.battle = b; T.lockTip = false; T.glowId = null; T.coachSwap = null; T.coachTut = null; T.moved = false; T.moveLearned = false; T.lookLearned = false; T.lookTravel = 0; T.idleY = 0; T.hookAt = 0; T.zoneAt = 0; }
   // ゲームの外の画面（城下・図鑑・設定）では、ページの拡大を許す（戦の間だけ止める）
   const inGame = on;
   if (T.zoomLock !== inGame) { T.zoomLock = inGame; setZoomLock(inGame); }
@@ -1390,29 +1397,18 @@ const RUN_COACH = ['⬆ 上へ\n大きくなぞる', '⬈ 右上へ\n大きく�
 const SWIPE_NAMES = ['上', '右上', '右', '右下', '下', '左下', '左', '左上'];
 function placeFootCoach(b, el, turning) {
   const hud = T.game.hud;
-  const start = hud.playerControlOrigin(b);
-  const x = start.x, y = start.y;
-  const left = x - 80, top = y - 86;
+  // 見本は左右の端に収める。小さい絵でも入力の始点は同じ場所にする。
+  const left = (turning ? !S.touchSwap : S.touchSwap) ? VIEW.w - 188 : 20;
+  const top = Math.max(80, VIEW.h - 144);
   tog(el, 'foot-coach', true);
   el.style.left = left + 'px'; el.style.top = top + 'px';
-  el.style.setProperty('--coach-finger-x', '64px');
-  el.style.setProperty('--coach-finger-y', '80px');
-  const arrow = el.querySelector('.turn-arrow');
-  const transform = arrow.getAttribute('transform') || '';
-  const toLeft = turning && transform.includes('-1');
-  const angle = transform.startsWith('rotate(') ? Number.parseFloat(transform.slice(7)) * Math.PI / 180 : turning ? toLeft ? Math.PI : 0 : -Math.PI / 2;
-  el.style.setProperty('--coach-dx', Math.round(Math.cos(angle) * 40) + 'px');
-  el.style.setProperty('--coach-dy', Math.round(Math.sin(angle) * 40) + 'px');
-  // 白い輪から始めれば、画面の左右にかかわらず教えた操作を受ける。
-  const origin = hud.navigationTouchOrigin || (hud.navigationTouchOrigin = {});
-  origin.rt = b; origin.at = b.t; origin.x = x; origin.y = y;
-  origin.look = turning; origin.radius = 36;
-  T.coachOriginAt = b.t;
-  // 札は道の反対側へ離し、横向きの矢印にも重ねない。
+  el.querySelector('svg').setAttribute('viewBox', '-64 -80 160 176');
   const caption = el.lastElementChild;
-  const captionX = x + (Math.cos(angle) > .3 ? -216 : 48);
-  caption.style.left = Math.max(12, Math.min(VIEW.w - 180, captionX)) - left + 'px';
-  caption.style.top = Math.max(76, Math.min(VIEW.h - 56, y - 64)) - top + 'px';
+  caption.style.left = '60px'; caption.style.top = '8px';
+  const origin = hud.navigationTouchOrigin || (hud.navigationTouchOrigin = {});
+  origin.rt = b; origin.at = b.t; origin.x = left + 28; origin.y = top + 32;
+  origin.look = turning; origin.radius = 28;
+  T.coachOriginAt = b.t;
 }
 // 通常の戦でも、今必要な移動・見回しだけを実際の操作側へ示す。
 function fieldSwipeCoach(b, el) {
@@ -1444,7 +1440,7 @@ function fieldSwipeCoach(b, el) {
   if (turning && !enemy && !travelling && forward > Math.hypot(dx, dz) * .94) return;
   const direction = turning ? side >= 0 ? 2 : 6 : (Math.round(Math.atan2(side, forward) / (Math.PI / 4)) + 8) % 8;
   const key = `field-${turning ? 'turn' : 'move'}-${direction}`;
-  if ((!turning && touchMoveLearned(b)) || T.input.touchMoving || T.input.touchDx || T.input.touchDy) return;
+  if ((turning ? T.lookLearned : touchMoveLearned(b)) || T.input.touchMoving || T.input.touchDx || T.input.touchDy) return;
   if (T.coachBattle !== b) { T.coachBattle = b; T.coachSeen.clear(); T.actionKey = ''; }
   if (T.actionKey === key && b.t - (T.coachSeen.get(key) ?? b.t) >= 3) { T.actionKey = ''; return; }
   if (T.actionKey !== key && b.t - (T.coachSeen.get(key) ?? -99) < 8) return;
@@ -1507,6 +1503,8 @@ function actionCoach(b, dt) {
   if (T.coachButton) { T.coachButton.classList.remove('coach-now'); T.coachButton = null; }
   // 教える二つの戦以外では、指や操作の札を出さない。
   if (!coachAllowed(b) || S.reduceGuidance) { T.actionKey = ''; return; }
+  // 合戦の操作図は開幕の一枚だけ。戦の途中は任務と敵の印に譲る。
+  if (!b.def.town && !b.def.dojo && !T.game.hud?.openingActive) { T.actionKey = ''; return; }
   const p = b.player, rain = b.army.rainEscape || b.dodgeGuide;
   if (b.touchAttackGuideActive && !rain && (T.game.hud?.attackGuideEnemy?.alive || b.guideEnemyShown && b.guideEnemy?.alive)) { T.actionKey = ''; return; }
   const compact = T.game.hud?.root.classList.contains('compact-battle');
@@ -1542,6 +1540,7 @@ function actionCoach(b, dt) {
   tog(el, 'route-coach', false);
   tog(el, 'enemy-turn-coach', false);
   tog(el, 'foot-coach', false);
+  el.querySelector('svg').setAttribute('viewBox', '0 0 32 40');
   tog(el, 'control-only', false);
   // 長押しの説明は押せる枠の中へ集め、離れた説明札を重ねない。
   const linkedAttack = T.btn.atk.classList.contains('action-linked');
@@ -1574,7 +1573,7 @@ function actionCoach(b, dt) {
     hud.bigmap || hud.openingActive || b.choice || hud.coverEl && !hud.coverEl.hidden ||
     b.nearestInteract() || p.u.wounds?.bleed > .0001 || p.u.hp < p.u.maxHp * .6 ||
     hud.retreatGuide?.active || b.tut && !b.tut.ok || occupied > 3;
-  if (turnEnemy && !rain && !turnBlocked) {
+  if (turnEnemy && !T.lookLearned && !rain && !turnBlocked) {
     tog(el, 'enemy-turn-coach', true);
     const key = 'turn-enemy';
     if (T.actionKey === key && b.t - (T.coachSeen.get(key) ?? b.t) >= 3) { T.actionKey = ''; return; }
@@ -1616,6 +1615,7 @@ function actionCoach(b, dt) {
     const side = -dx * Math.cos(yaw) + dz * Math.sin(yaw);
     const forward = dx * Math.sin(yaw) + dz * Math.cos(yaw);
     const turn = forward < Math.hypot(dx, dz) * .7, right = side >= 0;
+    if (turn && T.lookLearned) return;
     const key = turn ? right ? 'route-right' : 'route-left' : 'route-forward';
     if (T.actionKey === key && b.t - (T.coachSeen.get(key) ?? b.t) >= 3) { T.actionKey = ''; return; }
     if (T.actionKey !== key && b.t - (T.coachSeen.get(key) ?? -99) < 8) return;
@@ -1639,7 +1639,8 @@ function actionCoach(b, dt) {
   if (!T.moveLearned && (!route?.marker || route.distance >= (route.marker.guideRadius || 8)) && !blocked && !rain && !near && !b.def.town && !b.def.dojo && !b.over && !p.camShot && !b.choice && !p.radial && !p.cmdOpen && !T.sticky && !T.game.hud?.openingActive && !T.game.hud?.bigmap && T.openingHelp < 8) {
     T.openingHelp += dt;
     tog(el, 'move-coach', true);
-    setText(el.lastElementChild, '上になぞる');
+    tog(el, 'opening-coach', true);
+    setText(el.lastElementChild, '敵へ進もう\nここから上へなぞる');
     tog(el, 'turn-coach', true); tog(el, 'at-button', false); tog(el, 'attack-only', false);
     el.querySelector('.turn-arrow').setAttribute('d', 'M16 6V-50M4-38L16-50L28-38');
     el.querySelector('.turn-arrow').setAttribute('transform', '');

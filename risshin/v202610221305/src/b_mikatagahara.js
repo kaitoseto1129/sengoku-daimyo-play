@@ -659,9 +659,10 @@ const mikatagahara = {
   taskLabel(rt, text) {
     if (rt.flags.ending) return '城に着いた。仲間を待て';
     if (text === '右から来る赤備えを支えよ') return '右の赤備えを防げ';
+    if (text === '味方と右へ槍を向け、馬を受けよ') return '右へ槍を向け、馬を防げ';
     if (!rt.flags.dpOn && rt.flags.step <= 1 &&
         Math.hypot(rt.player.u.pos.x - HIRATE_POST.x, rt.player.u.pos.z - HIRATE_POST.z) < 8)
-      return '敵へ槍を向け、味方の列を守れ';
+      return '敵へ槍を向け、列を守れ';
     return text;
   },
   // 退く下知の後は、近くの空き地へ逃げる案内より決めた道を優先する。
@@ -709,6 +710,8 @@ const mikatagahara = {
     ? `${right ? '右' : '左'}へなぞって振り向く`
     : `マウスを${right ? '右' : '左'}へ動かして振り向く`,
   dodgeTurnDuration: 3,
+  compactCombatGuides: true, // 接敵の印と回避釦を小さくし、迫る兵を見る場所を空ける。
+  dodgeActionHalfWidth: 112,
   compactDodgeGuide: true, // 一時の回避先は小さなひし形。大旗で下知や敵の姿を覆わない。
   dodgeDiamondSign: true, // 足元の輪だけでなく回避先の旗面もひし形にし、城への道印と分ける。
   shortDodgeArrow: true, // 矢をよける案内も足元の八十ピクセルに収め、兵を横切らない。
@@ -741,6 +744,7 @@ const mikatagahara = {
   nearHatFadeRadius: 0, // 笠だけを透かして顔や首布を露出させない。食い込みは全身の回避で扱う。
   nearAllyFadeRadius: 2.6, // 肩越しの外側から大写しになる騎手も、描く間だけ全身で避ける。
   nearAllySightWidth: 1.2, // 胴の中心だけでなく、騎手の袖と母衣が本人を覆う時も拾う。
+  nearEnemyFadeRadius: 2.6, // 敵馬の胴へ視点が入る時も同じ範囲で避け、当たりは保つ。
   nearAllySolidBody: true, // 既存の視点の押し戻しで胴への潜り込みを避け、隣の具足は濃く残す。
   nearAllyWholeOcclusion: true, // 視点と本人の間の味方は全身で避け、透けた顔・具足・背旗を重ねない。
   nearAllyHorseFade: true, // 騎手より低い視点でも、すぐ横の馬が退路を隠さない。
@@ -749,7 +753,7 @@ const mikatagahara = {
   nearHoroWhole: true, // 別部品の母衣は布と竹籠を一緒に避け、一体の具足では両方を残す。
   nearHoroMergedFadeRadius: 4.5, // 一体の母衣も目の前だけ上半身ごと透かし、布と籠を分離しない。
   nearCourierHoroHide: true,
-  nearCourierHoroWhole: true, // 視線を塞ぐ使番は人馬ごと描く間だけ避け、布と籠を分離しない。
+  nearCourierHoroWhole: true, // 軍勢と別扱いの使番も、視線を塞ぐ間だけ布・籠・人馬をまとめて避ける。
   nearFlagFadeRadius: 6,
   nearLongWeaponRadius: 4.5, // 視点のすぐ横から差し込む長柄と隊旗だけを描く間避ける。
   // 近い隊旗を半透明の白い板にせず、紋と布色を残す。
@@ -1073,7 +1077,7 @@ html body #hud.mikata-guide #battle-notices #objectives.has-action:not(.expand) 
   html.touch body #hud.mikata-guide .bl #h-hp.deep :is(span,em) { color:#e38a74; }
   html.touch body #hud.mikata-guide .bl #h-sta i { height:5px; }
   /* 回避の丸に幅を取りすぎず、「押し続ける」の語尾まで同じ行へ収める。 */
-  html.touch body #hud.mikata-guide .dodge-button .dodge-gesture { width:64px; height:64px; }
+  html.touch body #hud.mikata-guide .dodge-button .dodge-gesture { width:44px; height:44px; }
   html.touch body #hud.mikata-guide .dodge-button span { flex:1; }
   html.touch body #hud.mikata-guide .dodge-button b {
     font-size:max(18px,calc(18px * var(--text-scale,1)));

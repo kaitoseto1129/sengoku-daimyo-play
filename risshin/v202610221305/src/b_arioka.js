@@ -627,7 +627,10 @@ function gateWay(army, u, goal) {
   const streetX = TOWN_X + 2 + lane;
   // 帰る味方も北から寄せる敵も、通りから木戸と同じ横道へ出る。
   // 北の控えを西へ先に曲げると、町屋の裏と砦の北柵へ詰まってしまう。
-  if (Math.abs(p.z - GATE.z) > 2.5 && goal.x < GATE.x + 23 && p.x > GATE.x + 23) {
+  // 東口で待つ控えも、町屋の裏を斜めに横切らず、通りを南へ下ってから曲がる。
+  const approachDepth = goal.x < GATE.x + 23 ? 2.5 : 10;
+  const gateApproach = goal.x < GATE.x + 23 || (goal.x < TOWN_X && Math.abs(goal.z - GATE.z) <= 10);
+  if (Math.abs(p.z - GATE.z) > approachDepth && gateApproach && p.x > GATE.x + 23) {
     q.x = streetX; q.z = Math.abs(p.x - streetX) > .8 ? p.z : GATE.z;
     return q;
   }
@@ -1109,6 +1112,7 @@ const arioka = {
   compactHoldGuide: true, // 持ち場の印は地面へ収め、兵より大きな輪を重ねない。
   softGuideRings: true, dashedGuideRings: true, nearAllyBodyOnly: true,
   nearAllySolidBody: true, // 視点に入り込んだ味方だけ全身で避け、透けた顔や馬具を重ねない。
+  nearAllyCameraAvoid: false, // 密集した味方で視点を本人の胴へ押し込まず、描く間の全身よけを使う。
   nearAllyWholeOcclusion: true, // 本人との間に立つ味方も全身で避け、笠と顔の中身を重ねない。
   nearAllySightWidth: 1.2, // 密集時の肩と笠も拾い、本人の印だけが味方の横へ離れて見えるのを抑える。
   nearSceneryScreenCut: false, // 焼けた町屋の梁と空を画面の長方形で切らず、既存の距離の遮蔽に任せる。
@@ -1121,6 +1125,7 @@ const arioka = {
   nearHoroCrowdFade: true, nearHoroClothHide: true, // 具足と一つにまとまった母衣にも既存の布の処理を使う。
   nearHoroWhole: true, // 近い母衣は布と竹籠を一緒に避け、空の籠だけを浮かせない。
   nearHoroMergedFadeRadius: 5.5, // 胴と一体の母衣にも既存の透かし方を通し、近い袋で敵を覆わない。
+  nearHoroMergedWhole: true, // 一体の母衣も視線を塞ぐ人ごと避け、上半身だけ抜けた姿を残さない。
   nearCourierHoroHide: true, nearCourierHoroWhole: true, // 使番は近い視線を塞ぐ間だけ人馬ごと避け、竹籠だけ残さない。
   nearLongWeaponRadius: 10, // 長槍の持ち主が後列にいても、視点へ差し込む柄と竿を既存の処理で拾う。
   nearSpearBatchRadius: 18, // 近い槍は持ち主と一緒に隠す。遠景用の別描画で空中に柄だけ残さない。
@@ -2396,14 +2401,16 @@ function ariStage(o, defending) {
           : enemy ? '組と木戸の敵を押し返せ'
             : C.rangedEnemy ? '土塁を盾に、町側の射手を崩せ'
             : friend <= 1 ? '木戸で先手の槍列を待て'
-            : !ready ? (C.orders.length ? '木戸を離れず、町側に備えよ' : '木戸を離れず、町側を見張れ')
+            : !ready ? (C.groups.some((g) => !ariSpent(g) && !g.ariEngaged)
+              ? '町から敵が来る。木戸で迎え撃て' : '木戸を離れず、町側に備えよ')
               : secure && C.inT >= 12 && !lastRepelled && el < o.dur ? '木戸で次の寄せに備えよ'
                 : secure ? `木戸を守れ。あと${Math.max(0, Math.ceil(12 - C.inT))}秒`
                 : '木戸で組と敵を迎え撃て';
       // 横長の携帯では補足が畳まれるため、今する事を札の本文にも出す。
       rt.obj('dp', instruction, 'main', true);
       // 本文の秒数は、確保か寄せの目安のどちらか一つだけにする。
-      rt.objProgress('dp', `味方${friend}人・敵${enemy}人${C.rangedEnemy ? `・射手${C.rangedEnemy}人` : ''}\n${C.orders.length ? `新手あと${C.orders.length}組／` : !ready ? `守りの目安あと${Math.max(0, Math.ceil(o.dur - el))}秒／` : ''}期限あと${Math.max(0, Math.ceil(o.dur + 60 - el))}秒`);
+      const approaching = C.groups.reduce((n, g) => n + (!ariSpent(g) && !g.ariEngaged ? 1 : 0), 0);
+      rt.objProgress('dp', `味方${friend}人・持ち場の敵${enemy}人${C.rangedEnemy ? `・射手${C.rangedEnemy}人` : ''}\n${approaching ? `町から${approaching}組が移動中／` : C.orders.length ? `新手あと${C.orders.length}組／` : ''}期限あと${Math.max(0, Math.ceil(o.dur + 60 - el))}秒`);
       return (lastRepelled || el >= o.dur) && C.inT >= 12;
     },
     end(rt, C, m) {
