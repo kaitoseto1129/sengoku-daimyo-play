@@ -195,6 +195,16 @@ function moribeBuildings(rt) {
       store(x - 2.1 + i * .38, y + 1.05, z - 1.4, .35, 1.95, .065,
         i % 3 ? 0x79634b : 0x5b4937);
     for (const h of [.5, 1.65]) store(x, y + h, z - 1.34, 4.55, .12, .12, 0x493624);
+    // 妻側の腰板・桁・棟束。横からも屋根を支える構造と、雨を避ける荷置き場を読む。
+    // 既存の箱の束へ入れ、兵の当たりと通り道は変えない。
+    for (const side of [-1, 1]) {
+      store(x + side * 2.2, y + 2.15, z, .14, .18, 2.95, 0x493624);
+      store(x + side * 2.2, y + 2.47, z, .12, .55, .12, 0x493624);
+      store(x + side * 2.2, y + .38, z, .075, .65, 2.6, 0x79634b);
+      store(x + side * 2.2, y + .75, z, .14, .1, 2.8, 0x493624);
+      for (const dz of [-.85, 0, .85])
+        store(x + side * 2.245, y + .38, z + dz, .025, .65, .025, 0x493e30);
+    }
     for (const side of [-1, 1]) {
       at.position.set(x + side * 1.72, y + 1.75, z + 1.4);
       at.rotation.set(0, 0, side * -.72); at.scale.set(.12, 1.05, .12); at.updateMatrix();
@@ -1148,6 +1158,18 @@ const moribe = {
     undergrowthBands: [{ x: -20, z: 22, w: 22, d: 72 }, { x: 28, z: 18, w: 22, d: 64 },
       { x: -82, z: 30, w: 22, d: 46 }, { x: 36, z: 64, w: 28, d: 7 }],
     young: true,
+    // 雨を吸った下葉は灰緑、踏まれた帯は低く泥色へ。遠景と足元で同じ分布を使う。
+    tuftHeight(x, z) {
+      const front = Math.max(0, 1 - Math.abs(x - 8) / 65) * Math.max(0, 1 - Math.abs(z - 12) / 75);
+      return .85 - front * .42;
+    },
+    tuftColor(x, z, color) {
+      const front = Math.max(0, 1 - Math.abs(x - 8) / 65) * Math.max(0, 1 - Math.abs(z - 12) / 75);
+      const grey = color.r * .3 + color.g * .55 + color.b * .15;
+      color.setRGB(color.r * .52 + grey * .48, color.g * .52 + grey * .48, color.b * .52 + grey * .48);
+      const soil = .18 + front * .28;
+      color.setRGB(color.r + (.22 - color.r) * soil, color.g + (.235 - color.g) * soil, color.b + (.135 - color.b) * soil);
+    },
     // 草と泥の配分は上の会戦帯の定義を使う。重複定義で畦や川岸の草まで薄めない。
     tuftTint: 0x8fa783,   // 雨の初夏。黄白色の草が一面に光らないようにする。
     // 川べりの会戦の帯は開け、木は在所寄りの野の縁へ置く（位置は復元）。
@@ -1814,7 +1836,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     F.odaCamp = camp(rt, { x: CAMP2.x, z: CAMP2.z, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', general: { name: '織田信長', haori: 0x7a1d14 }, guard: 15, reserve: 0, runTo: { x: -20, z: 60 } });
     // 両翼の後方に控えの幕。白幟だけの野に、地面へ接した陣の横の輪郭を置く。
     // 所在は復元。戦う帯・控えの進路から外し、新たな兵や障害物を増やさない。
-    for (const [x, z] of [[-58, -64], [64, -58]]) {
+    for (const [x, z] of [[-58, -30], [64, -28]]) {
       W.addGroundShade(x, z, 22, 12, 0, .3);
       rt.scene.add(jinmaku(W, x, z, 20, 10, 8, { mon: 'saito', solid: false }));
       for (const dx of [-11, 11]) rt.scene.add(nobori(W, x + dx, z - 4, 'saito', 5.5));
@@ -1829,7 +1851,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     KT.farVillage(rt, -126, -30, { rot: -Math.PI / 2, n: 6, fields: 8, seed: 4 });
     // 両翼の槍の前線。音・旗・煙の仕組みは共通の呼び口を使う。
     // 中央の実兵の両脇へ同じ人数を寄せ、前列同士の空白を短くする。実兵化と難しさは保つ。
-    F.fronts = [-25, 27].map((x, i) => clash(rt, { x, z: 12, facing: Math.PI, w: 26, gap0: 16, seed: 231 + i,
+    F.fronts = [-19, 21].map((x, i) => clash(rt, { x, z: 24, facing: Math.PI, w: 26, gap0: 16, seed: 231 + i,
       groundedMelee: true,   // 同じ兵数の押し合いから、既存の泥跳ねと低い飛沫の霞を出す。
       measuredMelee: true,   // 前列の踏み込みと後列の詰め、押し返しの時間差を共通の動きで出す。
       noReserve: true,   // 台本の控え以外に、共通の新手を追加しない。

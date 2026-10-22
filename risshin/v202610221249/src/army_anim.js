@@ -30,7 +30,8 @@ function spearLaneVisit(other, u) {
   const side = Math.abs(dx * lane.cos - dz * lane.sin - lane.handX);
   if (side < (other.mounted ? 1.15 : .6)) {
     if (ahead - bodyLength < .25) lane.rearBlocked = true;
-    if (ahead + bodyLength >= .25) { lane.blocked = true; lane.obstacles = Math.min(2, lane.obstacles + 1); }
+    // 敵の肩は脅威であって味方の背ではない。接敵線で全員が槍を立てるのを防ぐ。
+    if (ahead + bodyLength >= .25 && other.team === u.team) { lane.blocked = true; lane.obstacles = Math.min(2, lane.obstacles + 1); }
   }
 }
 // 回した長方形が触れる升だけを調べる。前の二人と背後が分かれば残りは同じ構えになる。
@@ -721,7 +722,8 @@ export const ArmyAnim = {
         lane.next = this.time + .24 + (u.id % 5) * .017; lane.blocked = lane.rearBlocked = false; lane.obstacles = 0;
         const face = u.heading + u.body.rotation.y + ry;
         lane.sin = Math.sin(face); lane.cos = Math.cos(face);
-        lane.length = Math.min(7, tip + .8); // 突き出す分と長柄の穂先まで肩を調べる。 lane.handX = u.hand.position.x;
+        lane.length = Math.min(7, tip + .8); // 突き出す分と長柄の穂先まで肩を調べる。
+        lane.handX = u.hand.position.x;
         // 繰り込んだ柄は後ろへ長く出る。短く握る予定の分も含め、戻す前に背後を測る。
         const drawBack = dT < 99 ? Math.min(Math.max(0, tip - .95), Math.max(0, reach0 - dT + .55)) : 0;
         lane.back = Math.min(6.5, Math.abs(w?.userData.butt || -1.25) + Math.max(drawBack, -(w?.position.z || 0), 0));

@@ -494,6 +494,8 @@ echizen.world = {
   // 胴や骨の倍率を刺さった矢へ重ねず、飛来時の長さを保つ。
   lifeSizePinnedArrows: true,
   pinnedArrowAxisScale: true,
+  // 描く直前の体格変更にも、矢自身の行列更新で追従する。
+  pinnedArrowRenderScale: true,
   // 本人に当たらない味方の援護射撃で、持ち場から退く案内を出さない。
   enemyArrowWarnings: true,
   // 外れ矢が門前に積もり、太い黒い破片の山に見えるのを避ける。
@@ -1333,16 +1335,9 @@ echizen.setup = function (rt) {
   // 深手は出血の共通札一つに任せ、同じ退避の声を重ねない。
   rt.player.treatmentHint = true;
   rt.retreatCallN = 4;
-  const beforeRender = rt.scene.onBeforeRender;
-  rt.scene.onBeforeRender = function (renderer, scene, camera, target) {
-    beforeRender.call(this, renderer, scene, camera, target);
-    // 近い兵の体格は矢の更新後にも替わる。描く直前の倍率へ合わせる。
-    rt.army.syncPinnedArrowScales();
-  };
   const dispose = rt.dispose;
   rt.dispose = function (...args) {
     layout.remove();
-    rt.scene.onBeforeRender = beforeRender;
     rt.camera.far = cameraFar;
     rt.camera.updateProjectionMatrix();
     W.sky.geometry.dispose();

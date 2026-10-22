@@ -276,7 +276,8 @@ body:has(#hud.opening #battle-opening.opening-linked) #tc .stick { visibility:hi
       arrow.hidden = true;
       arrow.textContent = '↑';
       arrow.style.transform = '';
-      this.text.textContent = '上になぞる';
+      this.text.textContent = rt.missionGuide?.marker
+        ? `${this.hud.destinationPurpose(rt)}\n上になぞる` : '敵へ進もう\n上になぞる';
       // 歩ける側の操作面に始点を置く。
       // 開幕も戦の途中も同じ操作面を使う。
       // 示した輪は navigationTouchOrigin で移動操作として受ける。

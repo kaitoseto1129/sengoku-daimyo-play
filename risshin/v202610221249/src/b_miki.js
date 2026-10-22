@@ -1096,7 +1096,10 @@ const miki = {
       const at = this.spearAt(F.joinGroup);
       if (at && !rt.army.wallBetween(rt.player.u.pos, -1, at)) return 'join';
     }
-    // 大村への移動中も、柵を挟まない生きた味方の列を先に示す。
+    // 大村への回り道では曲がり角を先に示す。南で戦う味方へ印を戻すと、
+    // 「北へ進め」の札と逆向きになり、柵の南で足踏みを続けてしまう。
+    if (F.step === 2 && F.routeAt && (F.routeIndex || 0) < 4) return 'route';
+    // 坂の口まで進んだら、柵を挟まない生きた味方の列へ合流する。
     if (F.step === 2 && F.joinGroup && !F.foes.every(gone)) {
       const at = this.spearAt(F.joinGroup);
       if (at && !rt.army.wallBetween(rt.player.u.pos, -1, at)) return 'join';
@@ -1167,6 +1170,9 @@ const miki = {
     unitNightScale: .4, // 月光の明るさは保ち、兵の縁だけ青白く光る補光を弱める。
     // 描かれた斜面と足・視点の高さをそろえる。播磨の低い丘陵に留める。
     terrainTriangles: true, mountainScale: .58,
+    // 近い視点へ切り替えた直後も、手前の四隅を実際に描く坂の上へ戻す。
+    // 地面の裏から空を映さず、歩行の高さ・地形の面数は変えない。
+    terrainContactView: true,
     // 携帯も足場と同じ格子で描く。粗い地面に木戸の裾や土塁・兵の足を埋めない。
     keepTerrainGrid: true,
     // 丸太組みを指定した三木の井楼だけ、垂直の四本柱と交互の横木を使う。
@@ -2870,6 +2876,10 @@ miki.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   // 下知待ちは開始地点の道で待つ。北の槍組へ直進すると道を外れる。
   if (!F.step) { goTo(p, inp, b.def.spawn.x, b.def.spawn.z, 1); return; }
   if (F.step === 2) {
+    // 画面と同じ曲がり角をたどる。南に残った槍組の後ろで待ち続けない。
+    if (F.routeAt && (F.routeIndex || 0) < 4 && miki.guideMarker(b) === 'route') {
+      goTo(p, inp, F.routeAt.x, F.routeAt.z, 3); return;
+    }
     // 槍組より先に大村へ着くと、寄せ手の控えに一人で囲まれる。列の少し後ろについて坂を上る。
     const guard = miki.omuraSupport(b);
     if (guard && !F.foes.every(gone)) {

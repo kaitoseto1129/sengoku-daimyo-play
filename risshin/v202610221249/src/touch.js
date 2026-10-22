@@ -1639,7 +1639,8 @@ function actionCoach(b, dt) {
   if (!T.moveLearned && (!route?.marker || route.distance >= (route.marker.guideRadius || 8)) && !blocked && !rain && !near && !b.def.town && !b.def.dojo && !b.over && !p.camShot && !b.choice && !p.radial && !p.cmdOpen && !T.sticky && !T.game.hud?.openingActive && !T.game.hud?.bigmap && T.openingHelp < 8) {
     T.openingHelp += dt;
     tog(el, 'move-coach', true);
-    setText(el.lastElementChild, '上になぞる');
+    tog(el, 'opening-coach', true);
+    setText(el.lastElementChild, '敵へ進もう\nここから上へなぞる');
     tog(el, 'turn-coach', true); tog(el, 'at-button', false); tog(el, 'attack-only', false);
     el.querySelector('.turn-arrow').setAttribute('d', 'M16 6V-50M4-38L16-50L28-38');
     el.querySelector('.turn-arrow').setAttribute('transform', '');

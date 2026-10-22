@@ -281,6 +281,23 @@ export const ArmyMove = {
         speed = Math.max(speed, u.speed * 0.6);
       }
     }
+    // 真横で重なる控えだけ半歩よける。交戦中の兵・敵・人数・間合いは変えない。
+    if (p?.alive && u !== p && u.team === p.team && !u.name && !u.isSub &&
+        !u.isStruct && !u.group?.isRunner && !u.target && !u.atk && !u.swing &&
+        !u.mounted && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed &&
+        !u.climb && !u.perch && !u.naka && !u.dragging && !u.dodging && !u.hit &&
+        !(u.stagger > 0) && !(u.confused > 0) && Math.abs(u.pos.y - p.pos.y) < .7) {
+      const dx = u.pos.x - p.pos.x, dz = u.pos.z - p.pos.z;
+      const distance2 = dx * dx + dz * dz;
+      if (distance2 < 1.44) {
+        const d = Math.sqrt(distance2), side = u.id % 2 ? 1 : -1;
+        const q = u._selfSpace || (u._selfSpace = { x:0, z:0 });
+        const nx = d > .1 ? dx / d : Math.cos(p.heading) * side;
+        const nz = d > .1 ? dz / d : -Math.sin(p.heading) * side;
+        q.x = p.pos.x + nx * 1.5; q.z = p.pos.z + nz * 1.5;
+        want = q; speed = Math.max(speed, u.speed * .4);
+      }
+    }
     // 戦っていない味方だけが目当ての敵への細い道を譲る。両脇の乱戦と攻撃中の足は保つ。
     const way = guideWay(this);
     if (way.active && u !== p && u.team === p.team &&

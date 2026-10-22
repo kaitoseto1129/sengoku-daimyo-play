@@ -1626,7 +1626,7 @@ function handMat(L, kote = 0) {
       .replace('#include <begin_vertex>', '#include <begin_vertex>\n vTk = tk.x * (tk.y < 0.5 ? uTkOn.x : uTkOn.y);\n transformed += objectNormal * uTkH * smoothstep(0.3, 0.6, vTk);');
     sh.fragmentShader = 'uniform float uGrime, uWet;\nuniform vec3 uTkCol;\nvarying float vTk;\nfloat tkK;\n' + sh.fragmentShader
       .replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb = pow(diffuseColor.rgb, vec3(1.1)) * 1.08 * (1.0 - uGrime * 0.16 - uWet * 0.08);\n tkK = smoothstep(0.3, 0.6, vTk);\n diffuseColor.rgb = mix(diffuseColor.rgb, uTkCol * (0.85 + 0.3 * diffuseColor.g), tkK);')
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(0.7 + (1.0 - diffuseColor.g) * 0.12, 0.38, tkK) * (1.0 - 0.4 * uWet);')
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix((0.7 + (1.0 - diffuseColor.g) * 0.12) * (1.0 - 0.18 * uWet), 0.38 * (1.0 - 0.32 * uWet), tkK);')
       .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
         { float nv = clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0);
           reflectedLight.indirectDiffuse += diffuseColor.rgb * vec3(0.10, 0.04, 0.025) * (1.0 - nv) * (1.0 - tkK);
@@ -2028,6 +2028,7 @@ const MHY_GLSL = () => HEAD && HEAD.mh ? `float mhy(float y) {
 }
 ` : 'float mhy(float y) { return y; }\n';
 function headCompile(sh) {
+  sh.uniforms.uSkinRain = WET;
   sh.uniforms.uHatAO = (this.userData && this.userData.ao) || { value: 0 };
   sh.uniforms.uFaceV = (this.userData && this.userData.fv) || { value: new THREE.Vector4(0, 0, 0, 0) };
   // 表情（x 口を開く・y 苦しむ（顔をしかめる）・z 怒る（眉を寄せて下げる））。頭の座標（1 が 4cm ほど）で形を動かす
@@ -2057,7 +2058,7 @@ function headCompile(sh) {
    transformed.y += brow * (uExpr.y * 0.08 * inner - uExpr.z * 0.1 * (0.4 + inner));
    transformed.x -= sign(hp0.x + 0.09) * brow * (uExpr.z + uExpr.y) * 0.05;
  }`);
-  sh.fragmentShader = `uniform float uHatAO;\nuniform vec4 uFaceV, uExpr;\nuniform sampler2D uPD;\nvarying vec3 vHP;\nfloat skinD;
+  sh.fragmentShader = `uniform float uHatAO, uSkinRain;\nuniform vec4 uFaceV, uExpr;\nuniform sampler2D uPD;\nvarying vec3 vHP;\nfloat skinD;
 float fh3(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
 float fn3(vec3 x) { vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(mix(fh3(i), fh3(i + vec3(1,0,0)), f.x), mix(fh3(i + vec3(0,1,0)), fh3(i + vec3(1,1,0)), f.x), f.y),
@@ -2081,6 +2082,11 @@ float faceWet;
       // 汗の筋：こめかみと額から頬へ流れた跡（埃が流されて少し明るく、濡れて照る）
       float st = smoothstep(0.72, 0.95, fn3(vec3(vHP.x * 5.0 + uFaceV.w, vHP.y * 0.7, 0.0))) * smoothstep(2.6, 1.2, vHP.y) * smoothstep(-0.5, 0.6, vHP.y);
       faceWet = uFaceV.y * (st * 0.8 + 0.45 * exp(-x0 * x0 / 0.9 - pow(vHP.y - 2.3, 2.0) / 0.25)) * fr;
+      // 笠が守る額と、横殴りの雨に濡れる頬を分ける。汗の個人差と既存の斑を使う。
+      float rainSkin = uSkinRain * fr * (0.35 + st * 0.45)
+        * (1.0 - uHatAO * smoothstep(1.2, 2.4, vHP.y) * 0.8);
+      faceWet = max(faceWet, rainSkin);
+      diffuseColor.rgb *= 1.0 - rainSkin * 0.07;
       diffuseColor.rgb *= 1.0 + st * uFaceV.y * uFaceV.x * 0.18 * fr;
       // 日焼けの赤み：鼻・頬・耳
       float fl = exp(-x0 * x0 / 0.12 - pow(vHP.y - 1.2, 2.0) / 0.25) + 0.8 * exp(-pow(x0 - 1.15, 2.0) / 0.15 - pow(vHP.y - 1.1, 2.0) / 0.2) + 0.6 * smoothstep(3.3, 3.9, abs(vHP.x));
@@ -3415,7 +3421,7 @@ function shareHumanSkeleton(h) {
 }
 
 // 胴丸の侍に重ねる部品（兜・顔・母衣・陣羽織）
-const DM_KEEP = new Set(['hat', 'back', 'haori', 'koshi', 'pole']);
+const DM_KEEP = new Set(['hat', 'kato', 'back', 'haori', 'koshi', 'pole']);
 // 束ねた人の形は「形」と「色」に分けて持つ：
 //   形（position・normal・uv・skinIndex・skinWeight・index）は同じ甲冑の並びなら姿（色）が違っても一つを共有し、GPU にも一度しか送らない。
 //   色（color・col2・mtl）だけ姿ごとに持つ（一頂点 10 byte）。前は姿ごとに全部（一頂点 84 byte）を作り、開戦後に 30 秒で 100MB 増えていた（iPhone の 2GB の壁）。
@@ -3457,6 +3463,18 @@ function crowdGeometry(P, L, only = null, face = false, whole = false) {
   let shapeKey = null;
   const key = memTight() ? (shapeKey = list.map((p) => p.bn + ':' + shapeId(p.geo) + ':' + fitKey(p.fit)).join('|') + '|' + kp) + '#' + list.map((p) => colorId(p.geo)).join(',') : list.map((p) => p.geo.uuid).join('|');
   if (crowdGeos.has(key)) { HSTAT.crowdHit++; const g0 = crowdGeos.get(key); const sh0 = g0 && crowdShapes.get(g0.userData.shapeKey); if (sh0) sh0.use = performance.now(); return g0; }
+  // 胴丸だけで装いが済む兵には、重ねる部品が無い。空の配列は結合せず、
+  // 遠近の切替と骨の共有にも渡せる零頂点の形を覚えて使い回す。
+  if (!list.length) {
+    const g = new THREE.BufferGeometry();
+    for (const [name, size] of [['position', 3], ['normal', 3], ['uv', 2], ['skinWeight', 4], ['color', 3], ['col2', 3], ['mtl', 1]])
+      g.setAttribute(name, new THREE.BufferAttribute(new Float32Array(0), size));
+    g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute([], 4));
+    g.setIndex(new THREE.BufferAttribute(new Uint16Array(0), 1));
+    g.boundingSphere = BSPH.clone(); g.userData.use = performance.now();
+    crowdGeos.set(key, g);
+    return g;
+  }
   if (!shapeKey) shapeKey = list.map((p) => p.bn + ':' + shapeId(p.geo) + ':' + fitKey(p.fit)).join('|') + '|' + kp;
   let shape = crowdShapes.get(shapeKey);
   if (!shape) {

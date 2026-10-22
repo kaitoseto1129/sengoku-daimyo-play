@@ -1135,9 +1135,10 @@ void cPose(inout APose P) {
       P.off.x += f * detail * 0.12 * sin(T * 0.9 + sd * 17.0);
       P.tilt += f * detail * 0.08 * sin(T * 1.3 + sd * 5.0);
       if (uMeasuredMelee > 0.5) {
-        float heave = sin(T * 1.6 - aClash.x * 0.7 - aClash.z * 0.5);
+        // 両軍の同じ組へ圧が届き、後列ほど遅れる。個人の時計では列がばらばらに揺れる。
+        float heave = sin(uAT * 1.6 - aClash.x * 0.7 - aClash.z * 0.5 + sd * 0.35);
         float heaveWeight = f * detail * (0.82 + sd * 0.18);
-        P.off.z += heaveWeight * heave * 0.16;
+        P.off.z += heaveWeight * heave * 0.16 * uSide;
         P.tilt += heaveWeight * heave * 0.07;
         P.spear += heaveWeight * heave * 0.09;
       }
@@ -6048,7 +6049,7 @@ export class World {
           dirt *= mix(vec3(1.08, 1.01, 0.88), vec3(0.59, 0.57, 0.49), fieldWet * uWet);
           mud *= mix(vec3(1.16, 1.05, 0.91), vec3(0.62, 0.65, 0.61), fieldWet);
           // 中景の起伏も濡れた窪みと同じ輪郭へ。物理の坂や兵の足場は変えない。
-          earthRelief += (earthShoulder * 0.065 - fieldWet * 0.12) * earthK;
+          earthRelief += (earthShoulder * 0.085 - fieldWet * 0.19) * earthK;
           ` : ''}
           ${this.def.wetFieldRuts === 'wear' ? `
           // 開戦時に焼いた荷車の筋と、既に読んだ窪みを共用する。溝の座標や微分を読み直さない。
@@ -6478,12 +6479,12 @@ export class World {
           ${this.def.wetFieldRuts ? `
           // 雨の裸地は轍以外の浅い窪みにも水を残す。斜面・草の肩・田は避ける。
           // 土の色と同じ大小の斑を使い、一定間隔の水玉にはしない。
-          float fieldPool = smoothstep(0.62, 0.82, macro2) * earthBasin
+          float fieldPool = smoothstep(0.46, 0.76, macro2) * earthBasin
             * (w.y + w.z) * groundWet * (1.0 - steep) * (1.0 - wat);
           pool = max(pool, fieldPool * 0.72);
           // 暗い泥の絵だけで全面を水膜にしない。水は低い窪みへ集め、
           // 土塊の肩と草の根には地肌を残す。既存の斑・高さを共用する。
-          pool *= smoothstep(0.25, 0.8, earthBasin) * smoothstep(0.38, 0.7, macro2);
+          pool *= smoothstep(0.25, 0.8, earthBasin);
           ${this.def.wetFieldRuts !== 'wear' ? 'pool = max(pool, rutWet * 0.65);' : ''}
           col = mix(col, mud * vec3(0.84, 0.78, 0.67),
             groundWet * (w.y + w.z) * earthBasin * 0.32);
@@ -7403,6 +7404,7 @@ export class World {
       dummy.position.set(x, this.heightAt(x, z) - 0.1, z);
       const s = (0.45 + Math.pow(R(), 1.5) * 1.0) * (0.7 + clump * 0.6);
       dummy.scale.set(s * (0.8 + R() * 0.4), s * (0.7 + R() * 0.9), s * (0.8 + R() * 0.4));
+      if (this.def.tuftHeight) dummy.scale.y *= this.def.tuftHeight(x, z);
       dummy.rotation.set((R() - 0.5) * 0.45, R() * 6.28, (R() - 0.5) * 0.45);
       if (this.def.roundNeedles) {
         const patch = .5 + .5 * Math.sin(x * 1.7 + z * .93);
@@ -7636,6 +7638,8 @@ export class World {
       this.nearCell = null;
       this.nearM = new Float32Array(N * 16); this.nearShow = new Uint8Array(N);
       this.nearC = this.nearGrass.instanceColor ? this.nearGrass.instanceColor.array.slice() : null;
+      // 足元も遠い株と同じ地表の色へ。巻き戻す前の色へ重ね掛けしない。
+      if (this.def.tuftColor && this.nearC) this.nearBaseC = this.nearC.slice();
       this.nearGrass.count = 0;
       this.scene.add(this.nearGrass);
       lap('susuki+near');
@@ -7749,6 +7753,12 @@ export class World {
       d.rotation.set(((i * 7) % 11 - 5) * 0.025, rot, ((i * 3) % 7 - 3) * 0.03);
       const size = sc * (0.65 + clump * 0.7);
       d.scale.set(size * (0.75 + (i % 7) * 0.07), size * (0.65 + (i % 5) * 0.16) * (0.35 + verge * 0.65) * (0.55 + gw * 0.45), size * (0.85 + (i % 3) * 0.1));
+      if (show && this.def.tuftHeight) d.scale.y *= this.def.tuftHeight(x, z);
+      if (show && this.nearBaseC) {
+        const color = this.nearSoilColor || (this.nearSoilColor = new THREE.Color());
+        color.fromArray(this.nearBaseC, i * 3);
+        this.def.tuftColor(x, z, color); color.toArray(this.nearC, i * 3);
+      }
       d.updateMatrix();
       d.matrix.toArray(this.nearM, i * 16); this.nearShow[i] = show ? 1 : 0; changed = true;
     }
