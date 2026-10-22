@@ -31,7 +31,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { AdaptPass, FinishPass, clearEdgeDark } from './post.js';
 import { initAudio, silence, sfx, setVolume, duck, townMusic, playMusic, stopMusic } from './audio.js';
-import { titleScreen, storyCard, loadingStory, inkBand, evalScreen, spoilHorseInfo, aijirushiScreen, baseScreen, finalScreen, hideScreen, helpOverlay, settingsScreen, townEntryScreen, pauseMenu, notice, deathScreen, promoScreen, ronkoScreen, recordsScreen, dojoResult, epilogueScreen, ladderScreen } from './screens.js';
+import { titleScreen, storyCard, loadingStory, inkBand, evalScreen, spoilHorseInfo, aijirushiScreen, baseScreen, finalScreen, hideScreen, helpOverlay, settingsScreen, pauseMenu, notice, deathScreen, promoScreen, ronkoScreen, recordsScreen, dojoResult, epilogueScreen, ladderScreen } from './screens.js';
 import { S, QUALITY, saveSettings, canonical, K, reduceMotion, MEM_TIGHT, MEM_TIGHT_TEST } from './settings.js';
 // 自動計測専用：x_pr75（倍率0.75。x_pr70も可）・x_noshadow・x_noai（兵の判断と当たりを停止）・x_noskin（骨を停止）・x_nosmoke（煙・炎・土埃なし）・x_simplemat（照明なし）。通常の高画質には適用しない。
 // 既存の札：x_nopost・x_nobloom・x_sm1024・x_noao・x_nodof・x_norays・x_sec180・x_shfull・x_bloomblend。
@@ -119,19 +119,10 @@ function ldTick() {
   const into = performance.now() - P.t;
   let left = Math.max(0, P.est[i] - into);
   for (let k = i + 1; k < P.keys.length; k++) left += P.est[k];
-  const overdue = into >= P.est[i];
-  let reading = 0, building = 0;
-  for (let k = i; k < P.keys.length; k++) {
-    const remain = k === i ? Math.max(0, P.est[k] - into) : P.est[k];
-    if (P.keys[k] === 'defs' || P.keys[k] === 'assets') reading += remain;
-    else building += remain;
-  }
+  // 見込みを超えても残り秒を消さず、残る段と現在の超過分から目安を直す。
+  if (into >= P.est[i]) left += Math.max(1000, P.est[i] * .2);
   const seconds = Math.floor((performance.now() - P.t0) / 1000);
-  const pulse = RMm() ? '' : '・'.repeat(seconds % 3 + 1);
-  const text = seconds >= 10 ? `${ldName}の支度中${pulse}　${seconds}秒経過。混んでいる時は時間がかかります。待てば進みます`
-    : overdue ? `${ldName}の支度を続けています${pulse}　${seconds}秒経過`
-    : left > 900 ? `目安：素材の読込 あと約${Math.ceil(reading / 1000)}秒・組立てと絵 あと約${Math.ceil(building / 1000)}秒。下の札で戦の背景を読めます`
-      : '支度を仕上げています。読む札は、自分で閉じられます';
+  const text = `動けるまで あと約${Math.max(1, Math.ceil(left / 1000))}秒（目安）・${seconds}秒経過`;
   if (el.textContent !== text) el.textContent = text;
 }
 // 段に入る：棒をこの段の終わりの手前まで、見込みの時間で伸ばす
@@ -227,7 +218,7 @@ import { odaTown } from './oda_town.js';
 let townModule = null;
 const townLoad = () => import('./town3d.js').then((m) => (townModule = m));
 import { initTouch, touchFrame, isTouch } from './touch.js';
-import { loadHumans, loadHorse, primeHorses, preparationFrame, loadDomaru, loadKabuto, primeHumans, prefetchHumanShapes, prefetchFaces, updateHumans, setHumanCompiler, humanShadowLod, DOMARU as DOMd, HUM as HUMd } from './humans.js';
+import { loadHumans, loadHorse, primeHorses, preparationFrame, loadDomaru, loadKabuto, primeHumans, prefetchHumanShapes, updateHumans, setHumanCompiler, humanShadowLod, DOMARU as DOMd, HUM as HUMd } from './humans.js';
 import { loadCgt, cgtOn } from './cgt.js';   // 買った素材（城の部品）。低・描かない時は読まない
 import { lordGame, lordDef, lordOf, applyLord, lordFrame, LORD_BATTLES, lordList } from './lord.js';
 import { toggleGunbai, gunbaiFrame, isGunbaiOpen, setGunbaiHooks } from './gunbai.js';
@@ -397,17 +388,26 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 // 影は形の転送前に軽くし、影を描き終えたら画面用へ戻す（影では onBeforeRender が呼ばれない）。
 {
   const shadowHeld = [];
-  const limitUnitShadow = o => {
-    if (!o.castShadow || o.isLight || o.userData.unitShadowBatch) return;
-    let root = o;
-    while (root && !root._armyUnit) root = root.parent;
-    if (!root?._armyUnit?.shOn || !root._armyUnit.alive || root._armyUnit.dying || root._armyUnit.gone) { shadowHeld.push(o); o.castShadow = false; }
+  const limitUnitShadow = (o, unit) => {
+    // 隠れた枝は影にも出ない。所属する兵は子へ渡し、部品ごとに親を探し直さない。
+    if (!o.visible) return;
+    unit = o._armyUnit || unit;
+    if (o.castShadow && !o.isLight && !o.userData.unitShadowBatch &&
+        (!unit?.shOn || !unit.alive || unit.dying || unit.gone)) {
+      shadowHeld.push(o); o.castShadow = false;
+    }
+    const children = o.children;
+    for (let i = 0; i < children.length; i++) limitUnitShadow(children[i], unit);
   };
   const shadowRender = renderer.shadowMap.render;
   renderer.shadowMap.render = function (lights, scene, camera) {
+    // 影を更新しないコマには、人の形の切替と場面の巡回も要らない。
+    if (!this.enabled || !this.autoUpdate && !this.needsUpdate || lights.length === 0) {
+      return shadowRender.call(this, lights, scene, camera);
+    }
     try {
       // 景物・遠景・新しく追加された小道具も、動く影の描き込みへ入れない。
-      if (scene.userData.limitedUnitShadows) scene.traverse(limitUnitShadow);
+      if (scene.userData.limitedUnitShadows) limitUnitShadow(scene, null);
       humanShadowLod(scene, true);
       return shadowRender.call(this, lights, scene, camera);
     } finally {
@@ -840,9 +840,25 @@ const input = {
   key(c) { return this.keys.has(c); },
   pressed(c) { return this.edge.has(c); },
   endFrame() { this.edge.clear(); this.dx = 0; this.dy = 0; this.touchDx = 0; this.touchDy = 0; this.wheel = 0; this.leftPressed = false; this.rightPressed = false; this.lockPressed = false; this.quickCmd = null; },
-  clear() { this.keys.clear(); this.mouseL = this.mouseR = this.padL = this.padR = this.runHeld = false; this.axis = null; this.endFrame(); },
+  clear() { this.keys.clear(); this.mouseL = this.mouseR = this.padL = this.padR = this.runHeld = false; this.axis = null; this.touchMoving = false; this.endFrame(); },
 };
 const GAME_KEYS = new Set(['AltLeft', 'AltRight', 'Enter', 'KeyP', 'KeyU', 'KeyB', 'BracketLeft', 'BracketRight', 'Tab', 'Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyE', 'KeyF', 'KeyM', 'KeyH', 'KeyG', 'KeyQ', 'KeyR', 'KeyT', 'KeyL', 'KeyZ', 'KeyX', 'KeyC', 'KeyV', 'KeyN', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'ShiftLeft', 'ShiftRight']);
+const MOVE_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD']);
+function movementKeydown(e) {
+  const code = canonical(e.code);
+  if (!MOVE_KEYS.has(code) || !$('loading').hidden || !game.battle || game.townShop) return;
+  // 名前の入力や設定の変更中は、文字や値の操作を保つ。
+  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement ||
+      e.target instanceof HTMLSelectElement || e.target.isContentEditable) return;
+  if (game.deployment) { e.preventDefault(); game.deployment.jump(); return; }
+  if (game.hud.introWaiting) $('intro-go')?.click();
+  if (game.paused || game.photo || isRtsOn(game.battle)) return;
+  e.preventDefault();
+  game.hud.padMode = false;
+  if (!e.repeat) input.edge.add(code);
+  input.keys.add(code);
+}
+window.addEventListener('keydown', movementKeydown, true);
 window.addEventListener('keydown', (e) => {
   if (!$('loading').hidden) return;
   if (game.deployment) {
@@ -855,7 +871,7 @@ window.addEventListener('keydown', (e) => {
   if (game.hud.introWaiting) { if (e.code === 'Escape') { e.preventDefault(); setPause(true); } return; }
   if (e.target.closest?.('#hud button, #hud summary, #hud [role=button], #hud [role=menuitem], #choice h5, .battle-retry button')) return;
   if (!game.battle || game.townShop) return;   // 城下の店の札を開いている間は、札の画面が鍵を使う
-  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
+  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement || e.target.isContentEditable) return;
   const code = canonical(e.code);
   if (GAME_KEYS.has(e.code) || GAME_KEYS.has(code)) e.preventDefault();
   if (code === null) return;
@@ -884,7 +900,7 @@ window.addEventListener('keydown', (e) => {
   if (code === 'KeyP' && !e.repeat) togglePhoto();
   if (code === 'Enter' && !e.repeat) game.battle.skip();
 });
-window.addEventListener('keyup', (e) => { const c = canonical(e.code); if (c) input.keys.delete(c); });
+window.addEventListener('keyup', (e) => { const c = canonical(e.code); if (c) input.keys.delete(c); }, true);
 window.addEventListener('blur', () => input.clear());
 let locked = false;
 let edgeX = null;   // ポインタロックが無い時のカーソルの横位置（端で回り続けるため）
@@ -1142,6 +1158,7 @@ function updatePhoto(dt) {
 // ---------------- ゲームパッド ----------------
 const padPrev = [];
 let padRun = false;
+const padAxis = { x: 0, y: 0 };
 function pollPad() {
   // ポインタロックが使えない時（noLock）は、カーソルが画面の端に着いてもそこで止まらず、端に押し当てている間は向きが回り続ける（左右とも360度向ける）
   if (game.noLock && !locked && game.battle && !game.paused && !isRtsOn(game.battle) && edgeX !== null && !isTouchLd()) {
@@ -1152,7 +1169,7 @@ function pollPad() {
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
   let gp = null;
   for (const p of pads) if (p && p.connected) { gp = p; break; }
-  if (!gp) { input.axis = null; input.padL = input.padR = false; return; }
+  if (!gp) { if (input.axis === padAxis) input.axis = null; input.padL = input.padR = false; return; }
   const dz = (v) => (Math.abs(v) < 0.15 ? 0 : v);
   const b = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed);
   const edge = (i) => b(i) && !padPrev[i];
@@ -1177,7 +1194,8 @@ function pollPad() {
   }
   if (edge(9)) { if (glossaryDialog()) glossaryDialog().close(); else if (game.battle && !game.battle.over) setPause(game.gungiOn ? $('pause').hidden : !game.paused); }
   if (!game.paused && game.battle) {
-    input.axis = { x: dz(gp.axes[0] || 0), y: dz(gp.axes[1] || 0) };
+    padAxis.x = dz(gp.axes[0] || 0); padAxis.y = dz(gp.axes[1] || 0);
+    if (!input.touchMoving) input.axis = padAxis;
     input.dx += dz(gp.axes[2] || 0) * 16 * S.padSens;
     input.dy += dz(gp.axes[3] || 0) * 11 * S.padSens;
     input.padL = b(7) || b(5);
@@ -1193,8 +1211,8 @@ function pollPad() {
     for (const [i, id] of Object.entries(dpad)) if (edge(+i)) input.quickCmd = id;
     if (edge(11)) input.lockPressed = true;
     if (edge(10)) padRun = !padRun;
-    input.runHeld = padRun && Math.hypot(input.axis.x, input.axis.y) > 0.2;
-    if (!input.runHeld && Math.hypot(input.axis.x, input.axis.y) < 0.2) padRun = false;
+    if (!input.touchMoving) input.runHeld = padRun && Math.hypot(padAxis.x, padAxis.y) > 0.2;
+    if (!input.runHeld && Math.hypot(padAxis.x, padAxis.y) < 0.2) padRun = false;
     if (edge(8)) toggleBigMap();   // 922：キーの M と同じ道（信長の軍配・mapOpen もそろう）
   }
   gp.buttons.forEach((bt, i) => { padPrev[i] = bt.pressed; });
@@ -1702,7 +1720,7 @@ const game = {
       if (my !== this.startSeq) return;
       // 前の戦を解放した後は、空のコマを挟んで自動回収へ時間を渡す。
       if (this.battleReleasePending) {
-        const until = performance.now() + 1500;
+        const until = performance.now() + (MEM_TIGHT ? 1500 : 250);
         while (performance.now() < until) {
           await preparationFrame();
           if (my !== this.startSeq) return;
@@ -1774,7 +1792,7 @@ const game = {
         b.horseLoadPending = false;
         // 携帯は顔の支度と同じ24人まで。残りは開戦後の小分け作成へ回す。
         // 戦中は updateHumans が制限を外すので、兵の人数・密度・画質は変えない。
-        b.humanPreparationCap = MEM_TIGHT ? 16 : (matchMedia('(pointer: coarse)').matches ? 24 : 64);   // iPhone：開戦の支度で作る人は 16（骨入りの枠 40 の内。10/21）
+        b.humanPreparationCap = MEM_TIGHT ? 16 : 24;   // iPhone：開戦の支度で作る人は 16（骨入りの枠 40 の内。10/21）
         // 前の戦の人を片付け、初戦の primed 待ちを支度の中で解く。
         updateHumans(b, 0);
         if (HUMd.ready) await primeHumans(b, renderer, camera, b.humanPreparationCap, 1, warmCurrent).catch((error) => { LT.humanPrimeError = String(error?.message || error); });
@@ -1788,7 +1806,7 @@ const game = {
         }
         // 指の端末：近くの兵の形だけは前もって作る（開戦後の一人ずつの形づくりを軽く。材質は作らないので固まらない）
         if (HUMd.ready && warmCurrent()) await prefetchHumanShapes(b, camera, 700, warmCurrent);
-        if (HUMd.ready && warmCurrent()) await prefetchFaces(b, camera, 1500, warmCurrent);
+        // まだ見えない兵の顔は、近づいた時に作る。全員分を開戦前に描かない。
         HUMd.primed = true;
         LT.warm = LT.humansWarm = Math.round(performance.now() - tH);
         if (my !== this.startSeq) { b.dispose(); return; }
@@ -1851,7 +1869,7 @@ const game = {
         freeUploadedImages(b.scene, () => my === this.startSeq && this.battle === b).catch(() => { /* 手放せなくてもよい */ });
       });
       // 図鑑は地図の部品も読むので、戦ができる前の読み込みに重ねない。
-      if (!ZKm) zkLoad();
+      // 図鑑は開いた時に読む。戦場では地図の部品を先読みしない。
       b.startTiming = { loadingMs: LT.total, readingMs: 0, deploymentMs: 0, introMs: 0, ready: false };
       LT.startTiming = b.startTiming;
       console.info('読み込みの時間（ミリ秒）', JSON.stringify(LT));
@@ -2193,10 +2211,6 @@ const game = {
     }
     save(this.G);
     if (!progressStored(this.G) && !this.G.practice) notice('！ 城下の記録を保存できませんでした。題へ戻る前に、端末の保存の空きを確かめてください');
-    if (!this.townEntryChosen && !this.noLock && !isNorender() && !/[?&]bot/.test(location.search) && !window.__cardTown && !this.battle?.def.town) {
-      const choose = (view) => { this.townEntryChosen = true; S.townWalk = view; const stored = saveSettings(); this.base(); if (!stored) notice('！ 城下の設定を保存できませんでした。今の間だけ使えます'); };
-      townEntryScreen(() => choose('walk'), () => choose('cards')); return;
-    }
     // 稲葉山前の札は、歩く城下と札の城下のどちらでも一度だけ。
     if (phase2HintScreen(this.G, () => this.base(), save)) return;
     // 城下を歩く（設定の既定）。すでに町にいれば、そのまま町へ戻る
@@ -2226,7 +2240,7 @@ const game = {
       if (my !== this.startSeq) return false;
       // 戦・中止した町・題の形と、次の町の組み立てを重ねない。
       if (this.battleReleasePending) {
-        const until = performance.now() + 1500;
+        const until = performance.now() + (MEM_TIGHT ? 1500 : 250);
         while (performance.now() < until) {
           await preparationFrame();
           if (my !== this.startSeq) return false;

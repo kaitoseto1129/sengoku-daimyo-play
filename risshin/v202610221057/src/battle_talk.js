@@ -36,7 +36,7 @@ export function battleTalk(G, battle, result) {
   return scenes;
 }
 
-export function battleTalkHtml(scenes) {
+export function battleTalkHtml(scenes, automatic = false) {
   if (!scenes.length) return '';
   return `<style>
     #screen .bt-talk{max-width:32em;margin:8px auto 16px;padding:8px 16px;border:1px solid #c2a25a;background:#14120f;color:#ece4d2;text-align:left;box-sizing:border-box}
@@ -45,22 +45,59 @@ export function battleTalkHtml(scenes) {
     #screen .bt-talk p b{color:#c2a25a;margin-right:8px;font-weight:500}
     #screen .bt-talk .row{gap:8px;margin:8px 0 0;justify-content:flex-end;flex-wrap:wrap}
     #screen .bt-talk button{min-height:44px;margin:0;font-size:max(15px,calc(15px * var(--text-scale,1)))}
-    #screen .bt-talk button:focus-visible{outline:3px solid #c2a25a;outline-offset:3px;box-shadow:0 0 0 6px #14120f}
-  </style><section class="bt-talk" aria-label="戦の前後の会話"><div data-bt-lines aria-live="polite"></div><div class="row"><button class="btn" data-bt-skip>会話を飛ばす</button><button class="btn" data-bt-next>次の会話を読む</button></div></section>`;
+    #screen .bt-talk[role="button"]{min-height:44px;cursor:pointer}
+    #screen .bt-talk[role="button"]:focus-visible, #screen .bt-talk button:focus-visible{outline:3px solid #c2a25a;outline-offset:3px;box-shadow:0 0 0 6px #14120f}
+  </style><section class="bt-talk" ${automatic ? 'data-bt-auto role="button" tabindex="0" aria-label="戦の後の会話。押すと早送りします"' : 'aria-label="戦の前後の会話"'}><div data-bt-lines aria-live="polite"></div>${automatic ? '<small>会話は自動で進みます。押すと早送りします。</small>' : '<div class="row"><button class="btn" data-bt-skip>会話を飛ばす</button><button class="btn" data-bt-next>次の会話を読む</button></div>'}</section>`;
 }
 
+let talkTimer = null;
+export function stopBattleTalk() { clearTimeout(talkTimer); talkTimer = null; }
+
 export function bindBattleTalk(root, scenes, nextButton) {
+  stopBattleTalk();
   const box = root.querySelector('.bt-talk');
-  if (!box) return;
+  if (!box || !scenes.length) return;
+  const automatic = box.hasAttribute('data-bt-auto');
   let i = 0;
   const next = box.querySelector('[data-bt-next]');
-  const close = () => { box.hidden = true; (nextButton || root.querySelector('#ev-actions button'))?.focus({ preventScroll: true }); };
+  let closed = false;
+  const proceed = nextButton?.onclick;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    stopBattleTalk();
+    const focused = box.contains(document.activeElement);
+    box.hidden = true;
+    if (automatic && nextButton) {
+      nextButton.classList.remove('talk-pending');
+      nextButton.onclick = proceed;
+      nextButton.removeAttribute('title');
+    }
+    if (!automatic || focused) nextButton?.focus({ preventScroll: true });
+  };
+  const advance = () => {
+    if (closed) return;
+    stopBattleTalk();
+    if (!box.isConnected) return;
+    if (++i >= scenes.length) close(); else render();
+  };
   const render = () => {
     const s = scenes[i];
     box.querySelector('[data-bt-lines]').innerHTML = `<small>${esc(s.place)}　${i + 1}／${scenes.length} ・ 遊びの中の会話</small>${s.lines.map(([who, line]) => `<p><b>${esc(who)}</b>「${esc(line)}」</p>`).join('')}`;
-    next.textContent = i === scenes.length - 1 ? '会話を閉じる' : '次の会話を読む';
+    if (next) next.textContent = i === scenes.length - 1 ? '会話を閉じる' : '次の会話を読む';
+    if (automatic) talkTimer = setTimeout(advance, 5000);
   };
-  box.querySelector('[data-bt-skip]').onclick = close;
-  next.onclick = () => { if (++i >= scenes.length) close(); else render(); };
+  if (automatic) {
+    box.onclick = (e) => { e.stopPropagation(); advance(); };
+    box.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); advance(); } };
+    if (nextButton) {
+      nextButton.classList.add('talk-pending');
+      nextButton.title = '会話は自動で進みます。押すと早送りし、終わると城下へ進めます。';
+      nextButton.onclick = (e) => { e.stopPropagation(); advance(); };
+    }
+  } else {
+    box.querySelector('[data-bt-skip]').onclick = close;
+    next.onclick = advance;
+  }
   render();
 }

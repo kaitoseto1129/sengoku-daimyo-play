@@ -2018,7 +2018,7 @@ export class Player {
     if (input.key('KeyS')) iz -= 1;
     if (input.key('KeyD')) ix += 1;
     if (input.key('KeyA')) ix -= 1;
-    if (input.axis && Math.hypot(input.axis.x, input.axis.y) > (input.touchMoving ? 0 : 0.18)) { ix = input.axis.x; iz = -input.axis.y; }
+    if (!input.key('KeyW') && !input.key('KeyA') && !input.key('KeyS') && !input.key('KeyD') && input.axis && Math.hypot(input.axis.x, input.axis.y) > (input.touchMoving ? 0 : 0.18)) { ix = input.axis.x; iz = -input.axis.y; }
     if (this.u && this.u.climb) { ix = 0; iz = 0; }   // 梯子を登る間は歩かない（siege_ladder.js）
     if (treating) { ix = 0; iz = 0; }   // 布を巻く間は足を止める。放せば中断して退ける。
     this.inX = ix; this.inZ = iz;   // 押している向き（技の出し分けに使う）

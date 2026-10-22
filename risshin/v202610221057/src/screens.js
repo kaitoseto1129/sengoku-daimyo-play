@@ -22,7 +22,7 @@ import { pickTip } from './tips.js';
 import { openGlossary, watchGlossaryScreens } from './glossary.js';
 import { watchFirstHelp, stopFirstHelp, resetFirstHelp } from './first_help.js';
 import { ronkoHtml } from './ronko.js';
-import { battleTalk, battleTalkHtml, bindBattleTalk } from './battle_talk.js';
+import { battleTalk, battleTalkHtml, bindBattleTalk, stopBattleTalk } from './battle_talk.js';
 import { COMMUNITY_URL } from './community.js';
 import { canRestorePurchases, restorePurchases, isFull, isLocked, isBattleLocked, remainingBattles, showPaywall, PRICE } from './paywall.js';
 
@@ -305,6 +305,7 @@ function scrollIn(el, where = 'nearest') {
 function show(html, clear = false, keys = null) {
   const s = $('screen');
   stopTitleResize();
+  stopBattleTalk();
   stopBind();
   if (titleKotoOnce) { document.removeEventListener('pointerdown', titleKotoOnce); titleKotoOnce = null; }
   // 画面が変わるとき、墨の帯が掃く（「動きを減らす」では出さない）
@@ -334,7 +335,7 @@ export function topBack(fn, label = '戻る', parent = null, pad = true) {
   if (pad) s.classList.add('has-back');
   return b;
 }
-export function hideScreen() { stopTitleResize(); stopBind(); if (titleKotoOnce) { document.removeEventListener('pointerdown', titleKotoOnce); titleKotoOnce = null; } stopFirstHelp(); $('screen').hidden = true; $('screen').innerHTML = ''; screenKeys = null; }
+export function hideScreen() { stopBattleTalk(); stopTitleResize(); stopBind(); if (titleKotoOnce) { document.removeEventListener('pointerdown', titleKotoOnce); titleKotoOnce = null; } stopFirstHelp(); $('screen').hidden = true; $('screen').innerHTML = ''; screenKeys = null; }
 
 // 知らせは同時に三つまで・同じ文は 8 秒に一度まで（docs/ui-guidelines.md）
 const noticeSeen = new Map();
@@ -1195,12 +1196,6 @@ export function bindSettings(onChange) {
 let bindHandler = null;
 function stopBind() { if (bindHandler) { window.removeEventListener('keydown', bindHandler, true); bindHandler = null; } }
 
-export function townEntryScreen(onWalk, onCards) {
-  show('<div class="wrap"><h2>城下の過ごし方を選ぶ</h2><p class="lead">町を歩くか、軽い札で用意を進められます。</p><p class="note">どちらでも、同じ買い物・稽古・出陣ができます。あとから設定で替えられます。</p><div class="row" style="gap:8px"><button type="button" class="btn" id="town-cards">軽い札で進める</button><button type="button" class="btn primary" id="town-walk">町を歩く</button></div></div>');
-  $('town-cards').onclick = onCards; $('town-walk').onclick = onWalk;
-  $('town-cards').focus({ preventScroll: true });
-}
-
 export function settingsScreen(onChange, onClose) {
   const closeSt = () => { window.speechSynthesis?.cancel(); stopBind(); const stored = saveSettings(); onClose(); if (!stored) notice('！ 設定を保存できませんでした。次に開くと元に戻ります'); };
   show(`<div class="wrap st-screen"><h2 class="st-h">設定</h2>
@@ -1443,7 +1438,8 @@ function catNotes(c, r, hadSquad) {
     if (as) good.push(`足軽を${num(as.detail)}討つ`);
     if ((st.parries || 0) >= 5) good.push(`受け流し ${st.parries}回`);
     if (as && /上限/.test(as.detail)) lack.push('足軽の討ち取りは上限に達した');
-    else if (!bs.length && !sm && !as) lack.push('討ち取りの記録なし');
+    else if (!bs.length && !sm && !as && !(st.kills > 0)) lack.push('討ち取りの記録なし');
+    if (st.kills > 0) good.unshift(`自ら討ち取った数 ${Math.max(0, Math.floor(st.kills))}人`);
     if (st.parries === 0) lack.push('受け流しの記録なし');
   } else if (c === '任') {
     if (one('任務達成')) good.push('任務を果たした');
@@ -1649,6 +1645,16 @@ const EVAL_CSS = `<style>
     #screen .ev2 .ev-actbar { position: relative; }
   }
   @media (max-width: 560px) { .ev2 .ek-cols { grid-template-columns: 1fr 1fr; } .ev2 .ek-c:nth-child(odd) { border-left: 0; padding-left: 2px; } .ev2 .ek-c:nth-child(n+3) { border-top: 1px solid rgba(29,26,22,.35); } }
+  html body #screen .eval.ev2 .ev-actbar { flex: none; position: relative; justify-content: center; flex-direction: column; max-height: none; overflow: visible; padding: 8px 0 max(8px, env(safe-area-inset-bottom, 0px)); }
+  html body #screen .eval.ev2 #ev-actions { flex: none; width: min(100%, 360px); justify-content: center; }
+  html body #screen .eval.ev2 #ev-actions > .btn { flex: 1; min-height: 56px; margin: 0; font-size: max(20px, calc(20px * var(--text-scale, 1))); }
+  html body #screen .eval.ev2 #ev-actions > .btn.talk-pending { background: #242019; border-color: #b9b09c; color: #ece4d2; box-shadow: none; }
+  html body #screen .eval.ev2 .ev-body::before { content: none; }
+  html body #screen .eval.ev2 .ev-secondary { min-height: 44px; margin: 0; padding: 8px; font-size: 13px; border: 0; background: transparent; color: #c9bfaa; text-decoration: underline; box-shadow: none; }
+  html body #screen .eval.ev2 .ev-actbar .bt-talk { width: min(100%, 32em); margin: 0; }
+  html body #screen .eval.ev2 #ev-other-actions { gap: 8px; margin: 8px 0; }
+  html body #screen .eval.ev2 .ev-body > details { margin: 8px 0; padding: 0; border: 0; }
+  html body #screen .eval.ev2 .ev-body > details > summary { box-sizing: border-box; min-height: 44px; padding: 10px 0; font-size: 15px; letter-spacing: 0; color: #c9bfaa; border-top: 1px solid var(--line); cursor: pointer; }
 </style>`;
 // 絵巻の上の墨絵（遠い山と、並ぶ旗）。一度描いた物を使い回す
 const EK_SKY = `<svg class="ek-sky" viewBox="0 0 600 64" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
@@ -1850,19 +1856,18 @@ export function evalScreen(G, r, actions) {
     ${nextLore ? `<p class="ek-next"><small>次の戦の心得</small>${esc(nextLore[1])}</p>` : ''}
   </div></section>`;
   const rel = (r.relChange || []).map((x) => `<p class="ev-rel"><b>${esc(REL_NAME[x.k] || x.k)}の覚え</b>${REL_KEYS.filter(([k]) => x.d[k]).map(([k, n]) => `<span class="${(k === 'wary' ? -x.d[k] : x.d[k]) > 0 ? 'up' : 'dn'}">${n} ${sgn(x.d[k])}（${x.after[k]}）</span>`).join('') || '<span>変わらず</span>'}</p>`).join('');
-  const screen = show(`${EVAL_CSS}<div class="eval ev2"><div class="ev-body">
+  const screen = show(`${EVAL_CSS}<div class="eval ev2" data-no-glossary><div class="ev-body">
     ${emaki}
-    <p class="ev-record-hint">下へ送ると、戦の詳しい記録が読めます。</p>
-    ${!lost ? '<button type="button" class="btn ev-scroll ev-scroll-body"><span aria-hidden="true">↓</span>昇進の欄を見る</button>' : ''}
-    ${!lost && conds?.find(([ok]) => !ok) ? `<p class="note">昇進へ足りない条件：${esc(conds.find(([ok]) => !ok)[1])}（${esc(conds.find(([ok]) => !ok)[2])}）。ほかの条件は下の昇進札で読めます。</p>` : ''}
-    ${categoryHelp ? '<p class="note">戦功の四区分：武は自ら戦う働き。任は任務。将は組の指揮。忠は下知を守る働き。</p>' : ''}
-    ${battleTalkHtml(talks)}
+    <p class="ev-record-hint"><span aria-hidden="true">↓</span> 下へ送ると、昇進と詳しい記録が読めます。</p>
     <div class="ev-ach-notices" aria-label="得た実績"></div>
-    ${!r.mainDone && r.bossLine ? `<div class="ev-fail"><b>${r.taishoLost ? '殿を討たれた' : 'しくじり'}</b><p><span>${esc(r.bossLine[0])}</span>「${esc(r.bossLine[1])}」</p><div class="row" id="ev-fail-acts" style="margin:8px 0 0"></div></div>` : ''}
+    ${!r.mainDone && r.bossLine ? `<div class="ev-fail"><b>${r.taishoLost ? '殿を討たれた' : 'しくじり'}</b><p><span>${esc(r.bossLine[0])}</span>「${esc(r.bossLine[1])}」</p></div>` : ''}
+    <details class="ek-more"><summary>助言と昇進</summary>
     ${promo}
     ${(() => { const notes = ['武','任','将','忠'].map((c) => catNotes(c, r, hadSquad)); const good = notes.find((n) => n.good.length)?.good[0]; const lack = notes.find((n) => n.lack.length)?.lack[0]; return `<div class="histnote">${good ? `<p>良かったこと：${esc(good)}</p>` : ''}${lack ? `<p>次の課題：${esc(lack)}</p>` : ''}${firstBattle && r.stats?.parries === 0 ? `<details><summary style="min-height:44px;cursor:pointer">受け流しの方法を見る</summary><p>敵が打ち込む直前に${isTouch ? '右の「構え」の丸を押す' : '右クリックで構える'}。矢と鉄砲は物陰で避ける。</p></details>` : ''}</div>`; })()}
+    </details>
     ${r.spoilHorse ? `<div class="histnote" style="border-color:var(--kin)"><b>分捕った馬</b><br>${esc(r.spoilHorse.who)}の馬。${spoilReplace ? `持ち帰ると前の馬（${esc(previousSpoil?.name || previousSpoil?.from || '分捕り馬')}）と入れ替わる。持ち帰る釦で決めるまでは前の馬を残す` : '持ち帰って城下の馬屋に並べる'}${ladderStep(G) < 2 ? '（乗れるのは足軽大将から）' : ''}。<div class="row" style="margin:6px 0 0"><button class="btn small" id="ev-spoil" aria-pressed="${spoilReplace}">${spoilReplace ? '持ち帰る' : '置いていく'}</button></div><div id="ev-spoil-confirm"></div></div>` : ''}
-    <details class="ek-more" id="ek-more"><summary>手柄・褒美・組の働きをくわしく見る</summary>
+    <details class="ek-more" id="ek-more"><summary>手柄・褒美・組の記録</summary>
+    ${categoryHelp ? '<p class="note">戦功の四区分：武は自ら戦う働き。任は任務。将は組の指揮。忠は下知を守る働き。</p>' : ''}
     <p class="note">ほかの手柄 ${Math.max(0, ekAllDeeds.length - 3)}件と、評定の内訳を読めます。</p>
     ${(window.__game?.hud?.resultNotices || []).length ? `<div class="histnote"><b>戦で届いた大事な成果</b>${window.__game.hud.resultNotices.map((line) => `<p>${esc(line.text)}</p>`).join('')}</div>` : ''}
     ${gNote ? `<p class="ev-gnote">${esc(gNote)}${gTable}</p>` : ''}
@@ -1896,24 +1901,19 @@ export function evalScreen(G, r, actions) {
       <p class="note">区分ごとの一律の上限はありません。働きごとの上限があります。<br>武：足軽の討ち取りは40、侍は30、首級は20まで。武将は一人30。<br>任：主の任務は50、地点の確保は15。副任務と救援は各20。<br>将：組の討ち取りは20、横槍は50、生き残りは30まで。<br>忠：下知を守り通すと10。違反と追撃は差し引く。合計はこの戦の上限まで。</p><div class="ledger">${ledger || '<div class="ln"><span>記すべき働きなし</span><span></span><span class="p">0</span></div>'}</div>
     </details>
     </details>
-    ${r.history ? `<details class="histnote"><summary>史実と後日談を読む</summary><p>${esc(r.history)}</p></details>` : ''}
+    ${r.history ? `<details class="ek-more"><summary>史実と後日談</summary><p>${esc(r.history)}</p></details>` : ''}
     ${fbHtml('ev-fb')}
+    <div id="ev-other-actions" class="row"></div><div id="ev-retry-cf"></div>
+    ${fullResult ? `<details class="ek-more" id="full-result"><summary>完全版の案内</summary><p>続きは完全版で（${PRICE}）</p>${fullPurchaseButton()}</details>` : ''}
     </div>
-    <div class="ev-actbar" style="animation-delay:0s">${fullResult ? `<aside id="full-result" aria-label="完全版の案内" style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px"><strong>続きは完全版で（${PRICE}）</strong>${fullPurchaseButton()}<button type="button" class="btn small" id="full-result-close" style="min-height:44px;font-size:16px">案内を閉じる</button></aside>` : ''}<div class="row" id="ev-actions" style="margin:0"></div><div id="ev-retry-cf"></div></div>
+    <div class="ev-actbar">${battleTalkHtml(talks, true)}<div class="row" id="ev-actions" style="margin:0"></div></div>
   </div>`, false, (e) => {
-    if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement) && !(e.target.tagName === 'SUMMARY')) { e.preventDefault(); if (primary) { sfx('ui'); primary.fn(); } }
+    if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement) && !(e.target.tagName === 'SUMMARY')) { e.preventDefault(); $('ev-actions button')?.click(); }
     else if (e.key === 'd' || e.key === 'D') { const d = $('ev-detail'); if (d) { d.open = !d.open; if (d.open && $('ek-more')) $('ek-more').open = true; } }
   });
   bindFullPurchase();
-  const fullClose = $('full-result-close');
-  if (fullClose) fullClose.onclick = () => {
-    fullResultDismissed = true;
-    $('full-result').remove();
-    $('ev-actions').querySelector('button')?.focus({ preventScroll: true });
-  };
   // 戦が終わった直後の実績の札も、巻物に重ならない専用欄へ移す。
   const achNotices = document.querySelector('.zk-toasts');
-  bindBattleTalk(screen, talks, null);
   if (achNotices) screen.querySelector('.ev-ach-notices').appendChild(achNotices);
   const evs = $('ev-spoil');
   if (evs) {
@@ -1935,28 +1935,29 @@ export function evalScreen(G, r, actions) {
   document.querySelectorAll('[data-zk]').forEach((b) => b.onclick = (ev) => { ev.stopPropagation(); openZukan('card', b.dataset.zk); });
   fbBind(screen, 'ev-fb', 'eval');
   const box = $('ev-actions');
+  let retryAdded = false;
   for (const a of actions) {
+    const retry = a.confirm || /再挑戦|やり直す/.test(a.label);
+    if (retry && retryAdded) continue;
+    if (retry) retryAdded = true;
     const b = document.createElement('button');
-    // やり直すは主の釦と並べない（小さく）。押すと、評定を捨てる確かめを挟む（取り消せない操作）
-    b.className = 'btn' + (a.primary ? ' primary' : a.confirm ? ' small' : '');
-    b.textContent = /次へ（城下へ/.test(a.label)
-      ? `${G.rank >= 1 && !G.aijirushi && r.mainDone ? '合印を決めて' : ''}城下へ戻る${/戦功なし/.test(a.label) ? '（戦功なし）' : ''}`
-      : a.label === 'タイトルへ' ? '題の画面へ戻る' : a.label === '後日譚へ' ? '後日譚を読む' : a.label;
+    const main = a === primary;
+    b.className = main ? 'btn primary' : 'btn small ev-secondary';
+    b.textContent = main && /城下/.test(a.label) ? '次へ' : retry ? 'この戦をやり直す' : a.label === 'タイトルへ' ? '題の画面へ戻る' : a.label === '後日譚へ' ? '後日譚を読む' : a.label;
+    if (main && /城下/.test(a.label)) b.setAttribute('aria-label', '次へ（城下へ）');
     b.onclick = (ev) => {
       ev.stopPropagation();
-      if (a.confirm) { confirmBox($('ev-retry-cf'), '今の評定は消えて、この戦をもう一度始めからやり直します。', 'やり直す', () => { delete G._spoilPrev; a.fn(); }); return; }
+      if (retry) {
+        const confirm = $('ev-retry-cf');
+        confirmBox(confirm, '今の評定は消えて、この戦をもう一度始めからやり直します。', 'やり直す', () => { delete G._spoilPrev; a.fn(); });
+        confirm.scrollIntoView({ block: 'nearest' });
+        return;
+      }
       sfx('ui'); delete G._spoilPrev; a.fn();
     };
-    box.appendChild(b);
+    (main ? box : $('ev-other-actions')).appendChild(b);
   }
-  // 左上の戻る：戦には戻れないので、戻る先は城下（無ければタイトル・日本地図）
-  {
-    const home = actions.find((x) => /城下/.test(x.label)) || actions.find((x) => /地図|タイトル/.test(x.label));
-    if (home) topBack(() => { delete G._spoilPrev; home.fn(); }, home.label.match(/（([^）・]+)/)?.[1] || '城下へ');
-  }
-  // しくじった時は、やり直しの釦を叱りの札のすぐ下にも出す（821）
-  const fa = $('ev-fail-acts');
-  if (fa) for (const a of actions.filter((x) => /再挑戦|やり直す/.test(x.label))) { const b = document.createElement('button'); b.className = 'btn small'; b.textContent = a.label; b.onclick = (ev) => { ev.stopPropagation(); if (a.confirm) { confirmBox($('ev-retry-cf'), '今の評定は消えて、この戦をもう一度始めからやり直します。', 'やり直す', () => { delete G._spoilPrev; a.fn(); }); return; } sfx('ui'); delete G._spoilPrev; a.fn(); }; fa.appendChild(b); }
+  bindBattleTalk(screen, talks, box.querySelector('button'));
   // 合計戦功を数え上げる
   const tot = $('ev-total');
   const countUp = (dur) => {
@@ -1974,20 +1975,13 @@ export function evalScreen(G, r, actions) {
   }, delay * 1000);
   const ev = screen.querySelector('.eval');
   const skip = () => { clearTimeout(cuT); bigT.forEach(clearTimeout); tot.textContent = r.total; const kan = $('ev-kan'); if (kan) kan.textContent = zeni(r.reward); ev.classList.add('fast'); const bar = $('ev-bar'); if (bar) bar.style.width = Math.min(100, r.meritAfter / progTarget * 100) + '%'; };
-  // 画面の下に続く昇進札へ、中身だけを送る。次の戦へ進む釦は動かさない。
-  ev.querySelectorAll('.ev-scroll').forEach((button) => { button.onclick = (e) => {
-    e.stopPropagation();
-    skip();
-    const body = ev.querySelector('.ev-body'), promo = body.querySelector('.promo');
-    body.scrollTop += promo.getBoundingClientRect().top - body.getBoundingClientRect().top - 8;
-  }; });
   ev.addEventListener('click', (e) => { if (!e.target.closest('summary, details')) skip(); });
   // 動きを減らす時は、数え上げも出てくる動きも飛ばして、すぐ全部を見せる
   if (RM()) skip();
   setTimeout(() => { const bar = $('ev-bar'); if (bar) bar.style.width = Math.min(100, r.meritAfter / progTarget * 100) + '%'; }, (delay + 0.4) * 1000);
   if (r.promoted && !promoSeen) { setTimeout(() => sfx('promote', 0.9), (delay + 0.6) * 1000); setTimeout(() => sfx('flute', 0.8), (delay + 1.8) * 1000); }
   // すぐ Tab で主のボタンへ行けるように
-  const pb = box.querySelector('.primary'); if (pb) pb.focus({ preventScroll: true });
+  const pb = box.querySelector('.primary'); if (pb && !talks.length) pb.focus({ preventScroll: true });
 }
 
 // ---------------- 昇進の場面 ----------------

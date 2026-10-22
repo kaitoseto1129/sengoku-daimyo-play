@@ -112,14 +112,14 @@ function nearNochargeFence(army, u) {
 // 半歩〜一歩踏み直し、敵の方へ向き直る。騎馬は馬を小さく回して落ち着かせる。持ち場（home）からは離れない。
 function millTick(army, u, dt, want) {
   const P = army.playerUnit, t = u.target;
-  const M = u._mill || (u._mill = { t: 0, on: 0, st: 0, wait: 2.2 + (u.id % 7) * 0.3, x: 0, z: 0, y: 0, hx: u.pos.x, hz: u.pos.z, face: null });
+  const M = u._mill || (u._mill = { t: 0, on: 0, st: 0, wait: 0.6 + (u.id % 7) * 0.18, x: 0, z: 0, y: 0, hx: u.pos.x, hz: u.pos.z, face: null });
   // 行き先があるのに人垣や柵で四秒進めない者も、その場で足を踏みかえて横へずれる（押し合いの揺れ）。
   const moved = Math.hypot(u.pos.x - (M.px ?? u.pos.x), u.pos.z - (M.pz ?? u.pos.z)); M.px = u.pos.x; M.pz = u.pos.z;
   M.st = want && want !== M && moved < 0.4 * dt ? M.st + dt : 0;
-  const quiet = !u.isPlayer && P && (!want || M.on > 0 || M.st > 4) && !u.atk && !(u.swing && !u.swing.done) && !u.bind && !u.fleeing && !(u.stagger > 0) &&
+  const quiet = !u.isPlayer && P && (!want || Math.hypot(want.x - u.pos.x, want.z - u.pos.z) < 0.9 || M.on > 0 || M.st > 4) && !u.atk && !(u.swing && !u.swing.done) && !u.bind && !u.fleeing && !(u.stagger > 0) &&
     !u.reload && !u.climb && !u.downed && !u.perch && !u.duelW && !u.isStruct && !u.civ && u.type !== 'dummy' &&
     !(u.idl?.sit > 0.5) && !(u.woundRest > 0.5) && !(u.pinT > army.time) && !(army.duel && army.duel.foe === u) &&
-    !u.group?.hidden && !u._crouch && !(t?.alive && !t.isStruct && Math.hypot(t.pos.x - u.pos.x, t.pos.z - u.pos.z) < 7) &&
+    !u.group?.hidden && !u._crouch && !(t?.alive && !t.isStruct && Math.hypot(t.pos.x - u.pos.x, t.pos.z - u.pos.z) < Math.max(3, (u.reach || 2) + 1)) &&
     Math.abs(u.pos.x - P.pos.x) + Math.abs(u.pos.z - P.pos.z) < 90;
   if (!quiet) { M.t = 0; M.on = 0; return null; }
   if (M.st > 4) { M.st = 0; M.t = M.wait; M.hx = u.pos.x; M.hz = u.pos.z; }
@@ -130,9 +130,9 @@ function millTick(army, u, dt, want) {
   }
   M.t += dt;
   if (M.t < M.wait) return null;
-  M.t = 0; M.wait = 1.8 + Math.random() * 2.2;
+  M.t = 0; M.wait = 0.8 + Math.random() * 1.2;
   if (Math.hypot(M.hx - u.pos.x, M.hz - u.pos.z) > 3) { M.hx = u.pos.x; M.hz = u.pos.z; }
-  const r = u.mounted ? 1.6 + Math.random() * 1.6 : 0.9 + Math.random() * 0.9, a = Math.random() * Math.PI * 2;
+  const r = u.mounted ? 0.8 + Math.random() * 0.8 : 0.4 + Math.random() * 0.4, a = Math.random() * Math.PI * 2;
   localPoint(army, u, M, M.hx + Math.sin(a) * r, M.hz + Math.cos(a) * r);
   M.on = u.mounted ? 3.2 : 1.6;
   // 徒歩は敵（近くに無ければ組の向き）を見たまま足を運ぶ。騎馬は馬の向きごと変える。

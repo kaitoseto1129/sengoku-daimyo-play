@@ -1099,6 +1099,12 @@ const arioka = {
   playerSignMinScale: .4, playerSignScale: .6, // 小輪の下限も指定し、共通の大きな白輪へ戻さない。
   playerSignBodyScale: 0, playerFootSignOnly: true, // 本人は足元だけで示し、重なる味方へ白い人型を載せない。
   groundFlagGuides: true, compactFlagGuide: true, compactFloorGuides: true,
+  groundAdvanceGuides: true, // 曲がり角は通れる床の短い矢印で示し、通りがかった兵を大枠で囲まない。
+  compactDestinationSign: true, compactFlagEmphasis: true,
+  cornerFlagFrames: true, subtleFlagFrames: true,
+  namedGuideMarkers: true,
+  travelGuideLabel: () => '道の印へ進め',
+  edgeDestinationLabel: () => '道の印へ', // 実物の旗がない曲がり角を「旗へ」と呼ばない。
   hideArrivedDestination: true, // 辻や曲がり角に着いたら、本人を覆う大きな印を足元へ畳む。
   compactHoldGuide: true, // 持ち場の印は地面へ収め、兵より大きな輪を重ねない。
   softGuideRings: true, dashedGuideRings: true, nearAllyBodyOnly: true,
@@ -2423,7 +2429,7 @@ const ARI_RETURN_LIMIT = 150;
 function ariReturnGuide(p) {
   if (p.x > GATE.x + 23 && p.z > GATE.z + 2.5) {
     if (Math.abs(p.x - (TOWN_X + 2)) > .8) return '道の印で通りへ戻れ';
-    return '道の印をたどり、木戸へ戻れ';
+    return '通りを進み、木戸の横道へ';
   }
   if (p.x > GATE.x + 23) return '横道を曲がり、木戸へ戻れ';
   return '土橋を渡り、木戸の外へ戻れ';

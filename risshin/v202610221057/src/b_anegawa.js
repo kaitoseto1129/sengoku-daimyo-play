@@ -1492,10 +1492,10 @@ function anegawaHqWatchText(rt) {
   // 侵入の札は短く保ち、振り向いたら実際に敵を止める下知へ替える。
   if (F.hqBreached) {
     if (side !== '前') return `本陣に敵！ ${side}を向こう`;
-    return dx * dx + dz * dz > 12 * 12 ? '本陣の敵へ近づこう' : '本陣の敵へ槍を向けよう';
+    return dx * dx + dz * dz > 12 * 12 ? '本陣の敵へ近づこう' : '敵に やりを向けよう';
   }
   // 二十五歩内の別の敵ではなく、案内している敵が槍を向ける距離に来たかを見る。
-  if (dx * dx + dz * dz < 12 * 12) return '本陣前で敵へ槍を向けよう';
+  if (dx * dx + dz * dz < 12 * 12) return '敵に やりを向けよう';
   return side === '前' ? '本陣前で、敵を待ち受けよう' : `本陣を守ろう。${side === '後ろ' ? 'うしろ' : side}の敵を見よう`;
 }
 // 軽傷で歩ける間は、手当ての退き先で本陣への道案内を消さない。
@@ -1523,7 +1523,7 @@ function anegawaHoldRoute(rt) {
   const at = rt.flags.holdAt;
   if (!at || at.z <= POST.z + 4) return '岸へ進もう';
   // 既に列の南へ退いた者には、さらに下がるよう案内しない。
-  return at.z > rt.player.u.pos.z + 4 ? '次の旗へ下がろう' : '味方の旗へ戻ろう';
+  return at.z > rt.player.u.pos.z + 4 ? 'この旗まで さがろう' : '味方の旗へ戻ろう';
 }
 // 退き太鼓の時だけ選ぶ。空の畑を「味方の旗」と呼ばず、残る徒歩兵の後ろを探す。
 function anegawaWithdrawPost(rt) {
@@ -1636,8 +1636,8 @@ const anegawa = {
   keepDodgeGuideLabel: true, // 画面外の退き先でも、歩数より敵をよける指図を優先する。
   releaseGuardForAttack: true, // 敵の打ち終わりには、押し続ける守りを解いて反撃へ渡す。
   keepOpeningTaskLabel: true, // 最初の旗の囲みでも、渡河禁止の下知を残す。
-  openingMoveLabel: '上へなぞって進もう',
-  openingLinkedLabel: '旗まで進む',
+  openingMoveLabel: 'ここまで なぞろう',
+  openingLinkedLabel: 'ここまで なぞろう',
   keepWaitFacingLabel: true, // 携帯でも向き直しを移動の案内に替えない。
   defendLocation: (rt) => rt.flags.step < 2 && !rt.flags.ending && rt.withdrawal?.losing !== 0 ? HQ : null,
   keepWaitOrderLabel: true, // 到着前も「輪に入る」で本陣や次の槍列への下知を消さない。
@@ -1713,7 +1713,7 @@ const anegawa = {
   },
   travelGuideLabel(rt) {
     const marker = anegawa.guideMarker(rt);
-    if (marker === 'withdrawPost') return '退く旗へ集まろう';
+    if (marker === 'withdrawPost') return 'この旗まで さがろう';
     if (marker === 'hurtRetreat') return '味方の後ろで手当てしよう';
     if (marker === 'honjinHelp' || marker === 'hqGuard') return anegawaHqReturnText(rt);
     if (marker === 'ford' || marker === 'pursuitPost') return '浅い川をわたろう';
@@ -2198,7 +2198,8 @@ const anegawa = {
     rt.scene.add(nobori(W, HQ.x - 12, HQ.z + 4, 'eiraku', 7));
     F.hqGuideFlag = nobori(W, HQ.x, HQ.z - 14, 'eiraku', 6);
     rt.scene.add(F.hqGuideFlag);
-    for (const [x, z] of [[8, 38], [34, 38], [-14, 36], [56, 36], [16, 18], [28, 18]]) rt.scene.add(nobori(W, x, z, z < 25 ? 'oda' : (x > 40 ? 'eiraku' : 'oda'), 5));
+    // 出発点に近い二本だけ低くし、手前の布で進む先をふさがない。
+    for (const [x, z] of [[8, 38], [34, 38], [-14, 36], [56, 36], [16, 18], [28, 18]]) rt.scene.add(nobori(W, x, z, z < 25 ? 'oda' : (x > 40 ? 'eiraku' : 'oda'), z < 25 ? 3.2 : 5));
     rt.scene.add(tawara(W, 30, 60, 0.3, 5), hut(W, 60, 96, 7, 5, 0.2, { wall: 0xa58d6e, minka: false, groundedHome: true,
       interior: { name: '南の小屋', kind: 'nagaya', profile: 'anegawa', team: 0 } }));
     // 向こう岸の浅井の旗
