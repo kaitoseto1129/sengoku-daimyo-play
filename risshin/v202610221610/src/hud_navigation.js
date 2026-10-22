@@ -354,11 +354,12 @@ export class HudNavigation {
     const occupied = this.notices.picks.length - Number(this.notices.sources[1].selected) +
       Number(!!this.healthRect) + Number(!$('boss').hidden) +
       Number(!$('target').hidden && !$('target').classList.contains('notice-muted'));
+    if (occupied >= 3) return false;
     if (frame) {
-      // 救援は本人の頭へ竿をつなぐ大旗一枚。任務札と置き換える。
+      // 向かう相手の頭へ名前付きの旗をつなぎ、任務札と置き換える。
       const scale = Math.max(1, S.textScale || 1);
       g.save(); g.font = `bold ${20 * scale}px sans-serif`;
-      const width = g.measureText('たすける').width + 30, height = 38 * scale;
+      const width = g.measureText(label).width + 30, height = 38 * scale;
       const left = Math.max(12, Math.min(VIEW.w - width - 12, frame.cx - width / 2));
       const top = Math.max(12, frame.top - height - 26);
       g.lineJoin = 'round'; g.lineCap = 'round';
@@ -374,12 +375,11 @@ export class HudNavigation {
       g.strokeStyle = '#fff3ba'; g.lineWidth = 3; g.stroke();
       if (occupied < 3) {
         g.fillStyle = '#fff3ba'; g.textAlign = 'center'; g.textBaseline = 'middle';
-        g.fillText('たすける', left + (width - 8) / 2, top + height / 2);
+        g.fillText(label, left + (width - 8) / 2, top + height / 2);
         setClass(this.root, 'edge-destination', true);
       }
       g.restore(); return true;
     }
-    if (occupied >= 3) return false;
     const scale = Math.max(1, S.textScale || 1), height = 36 * scale;
     g.save(); g.font = `bold ${18 * scale}px sans-serif`;
     const width = g.measureText(label).width + 20;
@@ -469,27 +469,13 @@ export class HudNavigation {
         footDrawn = true;
       }
       if (!foot.behind && foot.x >= 32 && foot.x <= VIEW.w - 32 && foot.y >= 64 && foot.y <= VIEW.h - 17) {
-        // 足元の輪と呼び名は手前の兵にも隠れない画面の層へ描く。
-        // 白い輪と濃い下地の呼び名を、実寸でも見分けられる太さにする。
+        // 本人は足元の太い輪だけ。名前札と頭上の印は増やさない。
         const scale = Math.max(1, S.textScale || 1);
         g.save(); g.beginPath();
-        g.ellipse(foot.x, foot.y, 36 * scale, 20 * scale, 0, 0, Math.PI * 2);
-        g.strokeStyle = '#14120f'; g.lineWidth = 10; g.stroke();
-        g.strokeStyle = '#fff'; g.lineWidth = 5; g.stroke();
-        g.font = `bold ${18 * scale}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
-        const labelY = foot.y; // 大きい字と濃い下地を保ち、本人の輪の中へ収める。
-        g.fillStyle = '#14120f'; g.fillRect(foot.x - 25 * scale, labelY - 13 * scale, 50 * scale, 26 * scale);
-        g.strokeStyle = '#14120f'; g.lineWidth = 5; g.strokeText('自分', foot.x, labelY);
-        g.fillStyle = '#fff'; g.fillText('自分', foot.x, labelY); g.restore();
-        footDrawn = true;
-      }
-      // 頭上の白い菱形も本人へ固定し、手前の兵に隠されないようにする。
-      if (frame && frame.top >= 28 && frame.top < VIEW.h - 28 && frame.cx >= 20 && frame.cx <= VIEW.w - 20) {
-        const x = frame.cx, y = frame.top - 4;
-        g.save(); g.lineJoin = 'round'; g.beginPath();
-        g.moveTo(x, y); g.lineTo(x - 11, y - 14); g.lineTo(x, y - 28); g.lineTo(x + 11, y - 14); g.closePath();
-        g.strokeStyle = '#14120f'; g.lineWidth = 8; g.stroke();
-        g.fillStyle = '#fff'; g.fill(); g.restore();
+        const rx = (rt.player.mounted ? 46 : 38) * scale, ry = 22 * scale;
+        g.ellipse(foot.x, foot.y, rx, ry, 0, 0, Math.PI * 2);
+        g.strokeStyle = '#14120f'; g.lineWidth = 12; g.stroke();
+        g.strokeStyle = '#fff'; g.lineWidth = 7; g.stroke(); g.restore();
         footDrawn = true;
       }
 

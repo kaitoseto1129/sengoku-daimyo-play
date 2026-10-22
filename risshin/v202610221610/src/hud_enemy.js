@@ -250,7 +250,20 @@ export class HudEnemy {
 
   // 呼び名は既存の一枠を使い、剣は本人の頭上へ固定する。
   drawEnemyHeadPointer(g, frame, rt, enemy, showLabel = true) {
-    if (singleBattleGuide(rt)) return; // 合戦では本人の囲みと「敵」に統一する。
+    if (singleBattleGuide(rt)) {
+      // 足元が兵に隠れても、矢じりは選んだ本人の頭から動かさない。
+      const x = frame.cx, tip = Math.min(frame.top, frame.headY) - 6;
+      if (x < 16 || x > VIEW.w - 16 || tip < 16 || tip > VIEW.h - 16) return;
+      const top = Math.max(16, tip - 28);
+      g.save(); g.lineJoin = 'round'; g.beginPath();
+      g.moveTo(x - 5, top); g.lineTo(x + 5, top);
+      g.lineTo(x + 5, tip - 12); g.lineTo(x + 12, tip - 12);
+      g.lineTo(x, tip); g.lineTo(x - 12, tip - 12); g.lineTo(x - 5, tip - 12); g.closePath();
+      g.strokeStyle = '#14120f'; g.lineWidth = 6; g.stroke();
+      g.fillStyle = '#fff3ba'; g.fill(); g.restore();
+      // 行動の文は任務札一枚に集め、頭上には印だけを残す。
+      return;
+    }
     // 携帯でも、ねらう本人の頭上に大きな剣を固定する。札は既存の任務一枚を使う。
     const x = frame.cx;
     const tip = Math.min(frame.top, frame.headY) - 8;
@@ -305,18 +318,15 @@ export class HudEnemy {
     if (!u.alive || u.dying || !f || f.bottom <= f.top || !sightScreenUnit(rt, u)) return;
     // 進む場所だけ足形にし、守る時の敵を移動先と呼ばない。
     if (this.enemyFrameShown) return;
-    // 相手の印は接近先ではなく、本人の実際の足元へ付ける。
-    const foot = this.project(u.pos, u.pos.y + .12, rt,
-      this.enemyRingFoot || (this.enemyRingFoot = {}));
-    if (!foot.behind && foot.x >= 30 && foot.x <= VIEW.w - 30 && foot.y >= 64 && foot.y <= VIEW.h - 16) {
-      g.save(); g.lineJoin = 'round'; g.beginPath();
-      g.moveTo(foot.x, foot.y - 12); g.lineTo(foot.x + 27, foot.y);
-      g.lineTo(foot.x, foot.y + 12); g.lineTo(foot.x - 27, foot.y); g.closePath();
-      g.strokeStyle = '#14120f'; g.lineWidth = 9; g.stroke();
-      g.strokeStyle = '#ffbd8d'; g.lineWidth = 4; g.stroke(); g.restore();
-      // 名前は形の中へ収め、画面下で別人の名前の上へ押し上げない。
-      this.drawTeamWord(g, foot.x, foot.y, '敵');
-    }
+    // 本人の現在の体を太い閉じた輪で囲み、重なった兵から見分ける。
+    // 頭上の印と同じ投影枠を毎コマ使い、移動や踏み込みにも追従する。
+    const cx = (f.left + f.right) / 2, cy = (f.top + f.bottom) / 2;
+    g.save(); g.beginPath();
+    g.ellipse(cx, cy, Math.max(18, (f.right - f.left) / 2 + 7),
+      Math.max(24, (f.bottom - f.top) / 2 + 7), 0, 0, Math.PI * 2);
+    g.strokeStyle = '#14120f'; g.lineWidth = 11; g.stroke();
+    g.strokeStyle = '#ffbd8d'; g.lineWidth = 5; g.stroke(); g.restore();
+    this.drawEnemyHeadPointer(g, f, rt, u);
     rt.army.guideWayEnemy = u; rt.army.guideWayAt = rt.army.time;
     this.enemyFrameShown = true;
     this.outlinedEnemy = u;

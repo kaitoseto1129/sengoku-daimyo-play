@@ -291,7 +291,7 @@ html.touch body #tc [data-b="atk"] small:empty { display:none !important; }
 html.touch body #tc [data-b="atk"] small { display:block !important; white-space:pre-line; overflow-wrap:normal; letter-spacing:0; }
 html.touch body #tc [data-b="atk"].counter-ready .name { font-size:16px; font-weight:900; }
 /* 攻撃は親指の位置に固定。押している間は角形と進みの輪で示す。 */
-html.touch body #tc [data-b="atk"]:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; background:#641f16; border:3px solid #fff3ba; border-radius:10px; top:auto !important; left:auto !important; right:calc(16px + env(safe-area-inset-right, 0px)); bottom:calc(16px + env(safe-area-inset-bottom, 0px)); min-width:88px; min-height:88px; z-index:2; }
+html.touch body #tc [data-b="atk"]:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; background:#641f16; border:3px solid #fff3ba; border-radius:10px; top:auto !important; left:auto !important; right:calc(16px + env(safe-area-inset-right, 0px)); bottom:calc(16px + env(safe-area-inset-bottom, 0px)); min-width:88px; min-height:88px; box-sizing:border-box; pointer-events:auto; z-index:3; }
 html.touch.tc-sw body #tc [data-b="atk"]:not([hidden]) { right:auto; left:calc(16px + env(safe-area-inset-left, 0px)) !important; }
 html.touch body #tc [data-b="atk"] .name { font-size:22px; line-height:1.2; }
 html.touch body #tc [data-b="atk"].holding { border-radius:12px !important; border:4px double #fff3ba; }
@@ -1197,7 +1197,7 @@ export function touchFrame(dt) {
   const blade = !gunW && !bowW;
   // 攻撃の押し方は実物の釦の中にまとめる。
   const teachB = allowCoach;
-  if (sub) setText(sub, blade ? attackLinked ? '押す' : '' : !teachB ? (gunW ? p.gunAmmo === 0 ? '弾がない' : p.gunLoaded ? '' : '弾込め中' : p.bowAmmo <= 0 ? '矢がない' : '') : gunW ? (p.gunLoaded ? (p.aiming ? '離して撃つ' : '長押しで狙う') : p.gunAmmo === 0 ? '弾がない' : p.knockT > 0 || p.staggerT > 0 ? '体勢を戻す' : '弾込め中') : p.bowAmmo <= 0 ? '矢がない' : p.draw >= 2 ? (p.bowHold > 3 ? '腕が疲れる' : '離して射る') : p.draw >= 0.6 ? '引き絞る' : p.draw > 0 ? '矢を番える' : '押して引く');
+  if (sub) setText(sub, blade ? '押す' : !teachB ? (gunW ? p.gunAmmo === 0 ? '弾がない' : p.gunLoaded ? '' : '弾込め中' : p.bowAmmo <= 0 ? '矢がない' : '') : gunW ? (p.gunLoaded ? (p.aiming ? '離して撃つ' : '長押しで狙う') : p.gunAmmo === 0 ? '弾がない' : p.knockT > 0 || p.staggerT > 0 ? '体勢を戻す' : '弾込め中') : p.bowAmmo <= 0 ? '矢がない' : p.draw >= 2 ? (p.bowHold > 3 ? '腕が疲れる' : '離して射る') : p.draw >= 0.6 ? '引き絞る' : p.draw > 0 ? '矢を番える' : '押して引く');
   // 弓の任意の構えと、近接の構えの案内。鉄砲の構え釦は隠す。
   { let gs = btn.grd.querySelector('small'); const t = bowW ? (p.guardOn ? 'もう一度で解く' : '押して保つ') : p.guardBroken > 0 ? '体勢を戻す' : p.sta <= 0 ? '気力不足' : p.guardOn ? 'もう一度で解く' : teachB ? '押して保つ' : '';
     if (t && !gs) { gs = document.createElement('small'); btn.grd.appendChild(gs); } if (gs) setText(gs, teachB ? t : p.guardBroken > 0 ? '体勢を戻す' : p.sta <= 0 ? '気力不足' : ''); }

@@ -1552,7 +1552,7 @@ function anegawaGuardLabel(rt, reached) {
   const F = rt.flags;
   if (F.hqThreat || F.hqDefend) return reached ? anegawaHqWatchText(rt) : anegawaHqReturnText(rt);
   if (!reached) return anegawaHoldRoute(rt);
-  if (rt.phase === 'brief') return '川へ槍を向けて待とう';
+  if (rt.phase === 'brief') return '敵が川を渡るまで待とう';
   if (F.nearEnemies > 0) return '敵に槍を向けよう';
   if (F.inabaT) return 'ここで残る敵を見張ろう';
   if (F.westReported) return '横から来る味方を待とう';
@@ -1668,7 +1668,7 @@ const anegawa = {
     return rt.flags.waitFacingEnemy ? rt.flags.watchEnemy : null;
   },
   waitFacingLabel(rt, ready) {
-    return ready ? 'そのまま待とう' : rt.flags.waitFacingEnemy ? '敵へ向く' : '川へ向く';
+    return ready ? anegawaGuardLabel(rt, true) : rt.flags.waitFacingEnemy ? '敵へ向く' : '川へ向く';
   },
   waitFacingPoint(rt) {
     const F = rt.flags;

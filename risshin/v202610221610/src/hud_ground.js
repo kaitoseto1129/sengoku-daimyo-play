@@ -130,18 +130,19 @@ export class HudGround {
     const retreat = this.retreatGuide?.active && this.retreatGuide.valid ? this.retreatGuide : null;
     // 防ぐ時は名前付きの盾だけにし、足形や待つ輪を重ねない。
     const hasCover = !!this.coverEl && !this.coverEl.hidden && !!rt.coverGuide?.valid;
-    const fighting = !!(this.defendEnemy?.alive || rt.guideEnemyShown && rt.guideEnemy?.alive || this.attackGuideEnemy?.alive);
-    // 接敵しても、まだ遠い持ち場への行き先を失わせない。
+    const fighting = !!(this.outlinedEnemy?.alive || this.aimGuideEnemy?.alive || this.defendEnemy?.alive || rt.guideEnemyShown && rt.guideEnemy?.alive || this.attackGuideEnemy?.alive);
+    // 現在の任務に対応する持ち場だけを行き先の候補にする。
     const route = rt.missionGuide?.objective === currentObjective(rt) ? rt.missionGuide : null;
     const travellingFlag = groundFlag(route) && route.distance > (route.marker.guideRadius || 8);
-    const routePriority = travellingFlag || travelSignPriority(rt);
+    // 今示している敵がいる間は進軍先を畳む。倒すか見失った後に旗へ戻す。
+    const routePriority = !fighting && (travellingFlag || travelSignPriority(rt));
     const enemyGuide = !routePriority && singleBattleGuide(rt) && (rt.guideEnemyShown || rt.guideEnemyDirection) && rt.guideEnemy?.alive;
     const guardDestination = rt.def.keepGuardTaskLabel && rt.missionGuide?.marker?.guideArea === 'guard' &&
       !this.root.classList.contains('wait-guard-active') && !guardWait && !this.guardAlly;
     const dismount = !!this.actionLabel && !this.actionLabel.hidden && !!this.actionLabel.querySelector('.dismount-action') && rt.player.mounted;
     const helpedPerson = rescueTarget(rt) || this.guardAlly;
     const personLocated = helpedPerson?.alive && sightScreenUnit(rt, helpedPerson);
-    const enabled = !$('objectives').classList.contains('facing-order') && (!personLocated || retreat || hasCover) && (!fighting || routePriority || retreat || hasCover) && !dismount && (!this.approachGuideEnemy || routePriority || retreat || hasCover) && (routePriority || retreat || hasCover || guardDestination || !enemyGuide && !navigationEnemy(rt) && !this.defendEnemy?.alive && !this.root.classList.contains('wait-guard-active') && !guardWait && !(rt.def.guardGuideTarget?.(rt) || rt.def.guardTarget?.(rt))?.alive && !this.defendEnemy && !this.guardAlly) && !rainDanger(rt.army) && !S.reduceGuidance && !guidanceEnded(rt) && !this.openingActive && !rt.choice && !rt.player.camShot && !this.bigmap && !rt.dodgeGuide;
+    const enabled = !this.root.classList.contains('wait-guard-active') && !$('objectives').classList.contains('facing-order') && (!personLocated || retreat || hasCover) && (!fighting || routePriority || retreat || hasCover) && !dismount && (!this.approachGuideEnemy || routePriority || retreat || hasCover) && (routePriority || retreat || hasCover || guardDestination || !enemyGuide && !navigationEnemy(rt) && !this.defendEnemy?.alive && !this.root.classList.contains('wait-guard-active') && !guardWait && !(rt.def.guardGuideTarget?.(rt) || rt.def.guardTarget?.(rt))?.alive && !this.defendEnemy && !this.guardAlly) && !rainDanger(rt.army) && !S.reduceGuidance && !guidanceEnded(rt) && !this.openingActive && !rt.choice && !rt.player.camShot && !this.bigmap && !rt.dodgeGuide;
     const guide = rt.missionGuide?.objective === currentObjective(rt) ? rt.missionGuide : null;
     const cover = !retreat && this.coverEl && !this.coverEl.hidden && rt.coverGuide?.valid ? rt.coverGuide.pos : null;
     setClass(this.root, 'cover-guidance', hasCover);

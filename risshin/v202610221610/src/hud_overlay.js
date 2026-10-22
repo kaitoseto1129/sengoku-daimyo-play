@@ -664,7 +664,7 @@ export class HudOverlay {
         s.x = Math.max(28, Math.min(W - 28, W / 2 - Math.sin(angle) * (W / 2 - 40)));
         s.y = Math.max(80, Math.min(H - 64, H / 2 - Math.cos(angle) * (H / 2 - 80)));
       }
-      // 画面内は本人の頭上、画面外は端の矢印。盾と別の道案内を重ねない。
+      // 画面内は名前付きの旗、画面外は端の矢印で相手を示す。
       const x = Math.max(64, Math.min(W - 64, s.x));
       const y = Math.max(112, Math.min(H - 64, s.y));
       g.save();
@@ -673,14 +673,9 @@ export class HudOverlay {
         this.drawNavigationArrow(g, x, y, angle, .65);
         if (helping) {
           if (!this.notices.sources[1].selected) this.drawRescueHand(g, x, y - 32);
-        } else this.drawGuardSign(g, x, y - 32);
+        }
       } else {
         if (!helping) this.drawPersonOutline(g, frame, true, true);
-        if (!helping) {
-          // 盾の先端を頭のすぐ上へ固定し、群れの上に浮かせない。
-          g.save(); g.translate(frame.cx, frame.top - 12); g.scale(.7, .7);
-          this.drawGuardSign(g, 0, 0); g.restore();
-        }
       }
       if (this.notices.sources[1].selected) {
         const order = $('objectives');
@@ -705,8 +700,8 @@ export class HudOverlay {
         setCssVar(order, '--ground-order-y', top + 'px');
       }
       const label = helping ? 'たすける' :
-        rt.def.guardLabel?.(rt, guard) || 'この人のそばで守る';
-      this.drawPersonAction(g, rt, off ? x : frame.cx, off ? y : frame.top, label, helping && !off ? frame : null);
+        `${guard.name || 'この人'}を守る`;
+      this.drawPersonAction(g, rt, off ? x : frame.cx, off ? y : frame.top, label, off ? null : frame);
       g.restore(); drew = true;
       setClass(this.root, 'guard-guide', true);
     }

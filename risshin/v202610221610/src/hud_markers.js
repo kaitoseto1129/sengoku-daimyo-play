@@ -255,6 +255,8 @@ export class HudMarkers {
       if (i >= 0 && m === main) continue;
       if (m.guideSymbol === 'fire' && singleBattleGuide(rt)) continue;
       if (singleBattleGuide(rt) && m === main && m.guideTalk && m.guidePerson) continue;
+      // 戸口は共通の任務札と開口の印へ集め、同じ行き先の札を足さない。
+      if (singleBattleGuide(rt) && m === main && rt.def.routeDestinationSight) continue;
       if (m.guideArea || m === main && (groundFlag(rt.missionGuide) || !m.person && !m.guidePerson && (!m.entrance || !rt.def.town && !rt.def.dojo)) || m.entrance && this.placeFrameShown) continue;
       // 戦では人の印も含めて、今の行き先一つだけにする。
       if (!rt.def.town && !rt.def.dojo && m !== main) continue;
