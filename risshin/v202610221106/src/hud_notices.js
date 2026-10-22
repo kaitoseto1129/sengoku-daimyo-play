@@ -922,6 +922,7 @@ html body #hud #battle-message { gap:8px; }
     this.picks.length = 0;
     const intro = !document.getElementById('intro').hidden || !!this.hud.openingActive;
     const choosing = !document.getElementById('choice').hidden;
+    const careSequence = !choosing && this.sources[1].el.classList.contains('sequential-order');
     const sunoChoice = choosing && this.hud.rt?.def.key === 'sunomata';
     this.root.classList.toggle('suno-choice', sunoChoice);
     this.root.classList.toggle('shiga-choice', choosing && this.hud.rt?.def.key === 'shiga' && this.hud.rt?.choice?.options.length === 2);
@@ -967,7 +968,7 @@ html body #hud #battle-message { gap:8px; }
       const combatCards = Number(!boss.hidden && !boss.classList.contains('symbol-only')) + Number(!shigaGuardTask && !target.hidden && !target.classList.contains('notice-muted'));
       const defendingPlace = !!this.hud.defendedLocation(rt);
       // 敵の呼び名も一枚。命・操作と合わせ三枚までに収める。
-      const enemyLabel = !!this.hud.enemyFrameShown && !rt?.def.enemySignOnly;
+      const enemyLabel = !!this.hud.enemyFrameShown && (!rt?.def.enemySignOnly || !rt.def.town && !rt.def.dojo);
       this.limit = Math.max(0, Math.min(this.limit, 3 - Number(!!rt && !intro) - Number(destination && !operation) - Number(operation) - combatCards - Number(defendingPlace) - Number(enemyLabel)));
     }
     const oke = rt?.def.key === 'okehazama';
@@ -984,6 +985,8 @@ html body #hud #battle-message { gap:8px; }
     for (const source of this.sources) {
       source.selected = false;
       if (rt?.retryOpen) continue;
+      // 下馬から手当てまでは今の操作だけ。命と出血は既存の命の札へまとめる。
+      if (careSequence && source.id !== 'objectives') continue;
       // 指の案内中は今の操作一枚へ集め、命と行き先の印の場所を空ける。
       if (rt?.touchCoachActive && source.id !== 'choice' && !((shigaGuardTask || rt.def.keepTaskWithCoach) && source.id === 'objectives') && !source.el.classList.contains('expand')) continue;
       if (retreatMarks && source.id !== 'objectives') continue;
@@ -1043,6 +1046,7 @@ html body #hud #battle-message { gap:8px; }
     for (let i = 0; i < this.queue.length; i++) {
       const item = this.queue[i]; item.selected = false;
       if (rt?.retryOpen) continue;
+      if (careSequence) continue;
       // 指の案内中は今の操作一枚へ集め、命と行き先の印の場所を空ける。
       if (rt?.touchCoachActive) continue;
       if (item.kind !== 'injury' && (defending || waitGuard || retreating || guarding || dodging)) continue;

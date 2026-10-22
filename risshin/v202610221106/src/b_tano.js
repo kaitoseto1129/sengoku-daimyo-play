@@ -735,13 +735,15 @@ const tano = {
   enemyCornerSign: true,
   // 間引き描画の古い頭の骨を使わず、今いる床から敵の囲みを測る。
   enemyFrameAtPosition: true,
-  // 選んだ敵の刀印も小さくする。大矢印を重ねず、兜のすぐ上で相手を示す。
-  compactEnemyPointer: true,
+  // 四隅で敵を示し、頭上の刀印を重ねない。接近の大輪は足元からの案内へ替える。
+  enemySignOnly: true, compactApproachGuide: true, enemyFootRingRadius: 0.45,
   quietCombatCues: true, compactDestinationArea: true, compactHoldGuide: true, groundLockRing: true,
   // 近い退き先・回避先も小さく示し、槍先と敵の体を空ける。
   compactFloorGuides: true, compactDodgeGuide: true, compactDestinationSign: true,
   // 待つ印・集合の旗にも小さい指定を通す。到着の広さは変えない。
   groundFlagGuides: true, goalFlagScale: 0.55,
+  // 待機・開幕が強調した輪を求めても、小さい足元の印にそろえる。
+  compactFlagEmphasis: true, compactGroundGoalRing: true,
   // 画面外の敵を示す補助旗も同じ大きさへ。通常の旗の縮小指定だけでは届かない。
   destinationPointerScale: 0.55,
   // 待機の旗は実際の床へ置く。頭上へ持ち上げて別の行き先に見せない。

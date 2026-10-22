@@ -2018,7 +2018,7 @@ export class Player {
     if (input.key('KeyS')) iz -= 1;
     if (input.key('KeyD')) ix += 1;
     if (input.key('KeyA')) ix -= 1;
-    if (input.axis && Math.hypot(input.axis.x, input.axis.y) > (input.touchMoving ? 0 : 0.18)) { ix = input.axis.x; iz = -input.axis.y; }
+    if (!input.key('KeyW') && !input.key('KeyA') && !input.key('KeyS') && !input.key('KeyD') && input.axis && Math.hypot(input.axis.x, input.axis.y) > (input.touchMoving ? 0 : 0.18)) { ix = input.axis.x; iz = -input.axis.y; }
     if (this.u && this.u.climb) { ix = 0; iz = 0; }   // 梯子を登る間は歩かない（siege_ladder.js）
     if (treating) { ix = 0; iz = 0; }   // 布を巻く間は足を止める。放せば中断して退ける。
     this.inX = ix; this.inZ = iz;   // 押している向き（技の出し分けに使う）
@@ -2054,25 +2054,25 @@ export class Player {
     else {
       // 技の出始めだけ駆け足を控える。打ち終わってから三秒も歩かせない。
       // 息切れ後は三割まで歩いて戻す。走る・歩くを毎コマ繰り返さない。
-      if (this.sta <= 5) this.runRest = true;
-      else if (this.sta >= this.maxSta * 0.3) this.runRest = false;
-      const canRun = u.hp > u.maxHp * 0.4 && !(Math.max(u.rangedWound || 0, u.woundSlow || 0) > 0.25) && this.running && !this.runRest && this.sta > 5 && ml > 0 && !this.guard && !this.aiming && !(this.draw > 0) && !this.pending && !this.assistImpact && !(u.swing && u.swing.t < Math.min(0.18, u.swing.dur));
+      // 10/22 kaito「体力がなくなったら動きが遅くなるの、イライラする」：息切れ・傷・気力で足を遅くしない（走りもいつでも）
+      this.runRest = false;
+      const canRun = this.running && ml > 0 && !this.guard && !this.aiming && !(this.draw > 0) && !this.pending && !this.assistImpact && !(u.swing && u.swing.t < Math.min(0.18, u.swing.dur));
       // よろめいている間は足が思うように出ない（騎馬に倒された時はほとんど動けない）
       // 撃たれた後しばらくは足が重い（走れても遅い。gunHurtT が減るにつれ戻る）
-      const shot = this.gunHurtT > 0 ? 0.55 + 0.45 * (1 - this.gunHurtT / 8) : 1;
+      const shot = 1;
       // 深手（体力が三割を切る）は足が重い：歩みも走りも鈍る（傷の深さに応じて）
       const wound = !TOFF ? Math.max(0, 1 - u.hp / (u.maxHp * 0.5)) : 0;
-      const lowHp = TOFF ? 1 : Math.min(1, Math.max(0.35, u.hp / (u.maxHp * 0.5))) * (1 - Math.min(0.65, Math.max(u.rangedWound || 0, u.woundSlow || 0)));
+      const lowHp = 1;
       const tf = terrainFx(rt.world, u, u.pos.x, u.pos.z, uphillAt(rt.world, u.pos.x, u.pos.z, mx, mz));
       u.terrain = tf.tag; u._tdef = tf.def; u._tdefHigh = tf.defHigh;
-      const mud = tf.spd * (0.55 + 0.45 * this.sta / this.maxSta);
+      const mud = tf.spd;
       const speed = mud * (this.guard || this.aiming || this.draw > 0 || this.charging ? 2.0 : canRun ? 5.8 : 3.2) * ml * shot * lowHp * (this.knockT > 0 ? 0.1 : this.staggerT > 0 ? 0.45 : 1);
       this.staDelay -= dt;
 
       // 回避
       this.dodgeT -= dt; this.iframe -= dt;
-      if (!treating && input.pressed('Space') && !u.climb && !(this.knockT > 0) && this.sta >= 20 && this.dodgeT <= -0.3) {
-        this.sta -= 20; this.staDelay = 0.6;
+      if (!treating && input.pressed('Space') && !u.climb && !(this.knockT > 0) && this.dodgeT <= -0.3) {
+        this.sta = Math.max(0, this.sta - 20); this.staDelay = 0.6;
         this.dodgeT = 0.32; this.iframe = 0.3;
         if (this.weapon === 'spear') this.cancelAttack();
         rt.tutMark('dodge');
@@ -2205,7 +2205,8 @@ export class Player {
     else this.rangedIdle();
     // 押し続けると溜め突き（離したときに出る）
     const blade = this.weapon === 'spear' || this.weapon === 'sword';
-    if (input.left && blade && !rt.flags?.carry && this.cd <= 0 && this.dodgeT <= 0 && !this.guard && !this.pending) this.chargeT += dt;
+    // 10/22 kaito「長く押して突くとかいる？ただ突くで良くない？」：溜め突きをやめる（押せば突く、続けて押せば連続突きだけ）
+    // if (input.left && blade && !rt.flags?.carry && this.cd <= 0 && this.dodgeT <= 0 && !this.guard && !this.pending) this.chargeT += dt;
     this.charging = this.chargeT > 0.25 && input.left && blade;
     // 刀の長押し：溜める間、刀を頭上（上段）へ振りかぶって見せる。槍は引いて突きに備える
     if (this.charging && !this.pending) {

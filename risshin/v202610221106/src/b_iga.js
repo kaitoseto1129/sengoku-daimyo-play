@@ -246,19 +246,24 @@ function igaSlopeCamera(rt) {
       // 肩まで縮んだ時も、上り・下りと同じ高さの道をたどる。
       // 角度を抑えた後の視線も調べる。上りで注視点だけ下げると、
       // 視点が土の上にあっても、その先の切岸で画面が埋まる。
-      // 道を短くたどり直し、壁の手前で見通せる所へ目線を置く。
-      for (let i = 0; i <= 11; i++) {
-        igaRoadSight(road.s, direction, 3 - i * 0.25, ahead, true);
+      // 正面は四分の一歩ずつたどり、見通せない時だけ反対側も調べる。
+      let clear = false;
+      for (let side = 0; side < 2 && !clear; side++) for (let i = 0; i < (side ? 3 : 12); i++) {
+        igaRoadSight(road.s, side ? -direction : direction, side ? 3 / (1 << i) : 3 - i * 0.25, ahead, true);
         const eyeY = drawGroundAt(rt.world, ahead.x, ahead.z) + 1.6;
         look.set(ahead.x, eyeY, ahead.z);
         flat = Math.hypot(look.x - P.x, look.z - P.z);
         look.y = Math.max(P.y - flat * 0.55, Math.min(P.y + flat * 0.45, look.y));
-        if (sightClear(P, look)) break;
+        if (sightClear(P, look) && player.camBlockHit(P, look) === null) { clear = true; break; }
         // 急な上りでは道に沿って見上げる。水平へ戻し続けると土壁を向く。
         look.y = eyeY;
-        if (sightClear(P, look)) break;
+        if (sightClear(P, look) && player.camBlockHit(P, look) === null) { clear = true; break; }
       }
-    } else look.y = Math.max(P.y - flat * 0.55, Math.min(P.y + flat * 0.45, look.y));
+    }
+    // 肩を見る時も、角度を抑えた先に土や建物があるなら元の目線を残す。
+    const clearY = look.y;
+    look.y = Math.max(P.y - flat * 0.55, Math.min(P.y + flat * 0.45, clearY));
+    if (!sightClear(P, look) || player.camBlockHit(P, look) !== null) look.y = clearY;
     camera.up.set(0, 1, 0);
     camera.lookAt(look);
   };
@@ -407,7 +412,7 @@ function igaSlopeCamera(rt) {
     avoidCameraBodies(rt.army.units, this.u, shoulder, P);
     // 近すぎる時は笠の上へ跳ね上げず、道を見る目の高さを保つ。
     levelLook(camera, direction);
-    for (let i = 0; i < 8 && (frameBlocked(camera) || !sightClear(P, look)); i++) {
+    for (let i = 0; i < 8 && (frameBlocked(camera) || offBench(P, p) || !sightClear(shoulder, P) || !sightClear(P, look)); i++) {
       P.lerp(shoulder, 0.5);
       P.y = Math.max(P.y, W.heightAt(P.x, P.z) + 0.65);
       levelLook(camera, direction);
@@ -1819,7 +1824,7 @@ const iga = {
     depthStart(rt, igaCtx(rt), [
       igaMove({ to: SHU, r: 3, max: 45, label: '主郭', obj: '主郭を調べよ' }),
       igaMove({ to: KITA, r: 9, max: 45, label: '北の曲輪', obj: '北の曲輪へ進め', say: [['足軽', '堂も空だがね。北へ足跡が続いとる', 4]] }),
-      rest({ dur: 8, fn: (r) => { r.objRemove('dp'); r.obj('main', '北の曲輪で組をそろえ、報せを待て', 'main'); }, say: [['伝令', '城に敵はおらぬ。柏原へ退いたとの報せだ', 4]] }),
+      rest({ dur: 8, fn: (r) => { r.objRemove('dp'); r.obj('main', '北の曲輪で、報せを待て', 'main'); }, say: [['伝令', '城に敵はおらぬ。柏原へ退いたとの報せだ', 4]] }),
     ], () => { rt.objRemove('dp'); if (!F.ending) this.win(rt); });
   },
 

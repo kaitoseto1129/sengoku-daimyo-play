@@ -58,7 +58,7 @@ export class BattleOpening {
     this.el = document.createElement('div');
     this.el.id = 'battle-opening';
     this.el.hidden = true;
-    this.el.innerHTML = '<span><i aria-hidden="true">↑</i><svg class="opening-swipe" viewBox="-16 0 80 116" aria-hidden="true" hidden><circle cx="24" cy="76" r="26" fill="#14120f" stroke="#fff3ba" stroke-width="4"/><path d="M24 76V10M10 26L24 10L38 26" fill="none" stroke="#14120f" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M24 76V10M10 26L24 10L38 26" fill="none" stroke="#fff3ba" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><path class="opening-finger" d="M18 91V76Q18 68 24 68Q30 68 30 76V88L35 85Q39 83 43 87L50 94L46 110H20L7 97Q3 90 9 89Q13 88 18 94Z" fill="#fff3ba" stroke="#14120f" stroke-width="3" stroke-linejoin="round"/></svg><b></b></span>';
+    this.el.innerHTML = '<span><i aria-hidden="true">↑</i><svg class="opening-swipe" viewBox="-16 -8 80 124" aria-hidden="true" hidden><circle cx="24" cy="10" r="14" fill="#14120f" stroke="#fff3ba" stroke-width="4"/><path d="M24 76V10M10 26L24 10L38 26" fill="none" stroke="#14120f" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M24 76V10M10 26L24 10L38 26" fill="none" stroke="#fff3ba" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><path class="opening-finger" d="M18 91V76Q18 68 24 68Q30 68 30 76V88L35 85Q39 83 43 87L50 94L46 110H20L7 97Q3 90 9 89Q13 88 18 94Z" fill="#fff3ba" stroke="#14120f" stroke-width="3" stroke-linejoin="round"/></svg><b></b></span>';
     this.label = this.el.firstElementChild;
     this.text = this.label.lastElementChild;
     this.swipe = this.label.querySelector('.opening-swipe');
@@ -70,7 +70,7 @@ export class BattleOpening {
     this.route = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     this.route.classList.add('opening-route');
     this.route.setAttribute('aria-hidden', 'true');
-    this.route.innerHTML = '<path fill="none" stroke="#14120f" stroke-width="8"/><path fill="none" stroke="#ffffff" stroke-width="4"/>';
+    this.route.innerHTML = '<path fill="none" stroke="#14120f" stroke-width="9"/><path fill="none" stroke="#fff3ba" stroke-width="4"/><circle r="18" fill="none" stroke="#14120f" stroke-width="9"/><circle r="18" fill="none" stroke="#fff3ba" stroke-width="4"/>';
     this.route.toggleAttribute('hidden', true);
     this.el.prepend(this.route);
     this.personArrow = document.createElement('i');
@@ -93,14 +93,15 @@ export class BattleOpening {
 #hud #battle-opening .opening-move-area { position:absolute; box-sizing:border-box; width:152px; height:128px; border:0; background:none; }
 #hud #battle-opening.opening-controls b { font-size:max(20px,calc(20px * var(--text-scale,1))); white-space:pre-line; }
 #hud #battle-opening.opening-controls span { max-width:calc(100vw / 3 - 24px); min-height:44px; }
-#hud #battle-opening.opening-controls .opening-swipe { position:absolute; width:56px; height:81.2px; transform:translate(-28px,-53.2px); filter:none; }
+#hud #battle-opening.opening-controls .opening-swipe { position:absolute; width:64px; height:99.2px; transform:translate(-32px,-67.2px); filter:none; }
 #hud #battle-opening i { display:inline-block; flex:none; font-style:normal; font-size:24px; line-height:1; }
 #hud #battle-opening .opening-person { position:absolute; transform:translate(-50%,-100%); line-height:1; color:#fff3ba; text-shadow:0 2px 3px #14120f; }
 #hud #battle-opening .opening-swipe { position:absolute; width:80px; height:116px; transform:translate(-40px,-76px); filter:drop-shadow(0 1px 2px #14120f); }
 #hud #battle-opening .opening-swipe circle { display:block; }
-/* 一本の矢印は共通の案内側で描き、指のそばに輪と短い矢印を重ねない。 */
-#hud #battle-opening.opening-controls .opening-swipe > :not(.opening-finger) { display:none; }
+/* 始点の指と目的の丸を一本の道で結ぶ。古い短い矢印は重ねない。 */
+#hud #battle-opening.opening-controls .opening-swipe > path:not(.opening-finger) { display:none; }
 #hud #battle-opening.opening-controls .opening-finger { animation:none; }
+#hud #battle-opening.opening-controls .opening-swipe circle { display:none; }
 #hud #battle-opening.opening-foot .opening-swipe { transform:translate(-19px,-61px); }
 #hud #battle-opening.opening-foot .opening-swipe > path:not(.opening-finger) { display:none; }
 #hud #battle-opening .opening-route { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
@@ -273,8 +274,8 @@ body:has(#hud.opening #battle-opening.opening-linked) #tc .stick { visibility:hi
       arrow.hidden = true;
       arrow.textContent = '↑';
       arrow.style.transform = '';
-      this.text.textContent = '上に なぞって 進む';
-      // 歩ける側の操作面に始点と上向きの矢印をまとめる。
+      this.text.textContent = 'ここから\n上の輪まで なぞろう';
+      // 歩ける側の操作面に始点を置く。
       // 開幕も戦の途中も同じ操作面を使う。
       // 示した輪は navigationTouchOrigin で移動操作として受ける。
       // 左右を入れ替えた設定でも、実際に歩ける下側の操作面へ置く。
@@ -287,20 +288,35 @@ body:has(#hud.opening #battle-opening.opening-linked) #tc .stick { visibility:hi
       origin.top = fingerY - 80; origin.bottom = fingerY + 48;
       this.moveArea.style.left = origin.left + 'px';
       this.moveArea.style.top = origin.top + 'px';
-      this.swipe.toggleAttribute('hidden', false);
+      // 指の絵と始点の輪は出さず、触る場所の字から終点の輪へ矢印を伸ばす。
+      this.swipe.toggleAttribute('hidden', true);
       this.linkStart = null;
-      this.route.toggleAttribute('hidden', true);
+      // 歩く操作は上向き。遠近で変わる地面の投影位置へは結ばない。
+      const endX = fingerX;
+      const endY = fingerY - 96;
+      const dx = endX - fingerX, dy = endY - fingerY;
+      const length = Math.max(1, Math.hypot(dx, dy));
+      const ux = dx / length, uy = dy / length;
+      const tipX = endX - ux * 24, tipY = endY - uy * 24;
+      // 始点の字に重ねず、終点まで矢じりも同じ向きへそろえる。
+      const path = `M${fingerX} ${fingerY - 24}L${tipX} ${tipY}M${tipX - ux * 12 - uy * 8} ${tipY - uy * 12 + ux * 8}L${tipX} ${tipY}L${tipX - ux * 12 + uy * 8} ${tipY - uy * 12 - ux * 8}`;
+      for (let i = 0; i < 2; i++) this.route.children[i].setAttribute('d', path);
+      for (let i = 2; i < 4; i++) {
+        const circle = this.route.children[i];
+        circle.setAttribute('cx', endX); circle.setAttribute('cy', endY);
+      }
+      this.route.toggleAttribute('hidden', false);
       this.swipe.style.setProperty('--swipe-angle', '0rad');
       this.swipe.style.left = fingerX + 'px';
       this.swipe.style.top = fingerY + 'px';
       this.personArrow.hidden = true;
-      // 最初の操作は指と短い説明にまとめ、離れた行き先の印を重ねない。
+      // 最初の操作は始点の字・矢印・終点の輪にまとめる。
       this.flagGround = null; this.flagBounds = null; this.flagOffscreen = false;
-      // 説明は上向きの指のすぐ下へ固定し、一か所で読めるようにする。
+      // 説明は実際に触る始点へ固定する。
       const half = this.label.offsetWidth / 2;
       const halfHeight = this.label.offsetHeight / 2;
       x = Math.max(half + 12, Math.min(W - half - 12, fingerX));
-      y = Math.min(H - halfHeight - 12, fingerY + 32 + halfHeight);
+      y = Math.min(H - halfHeight - 12, fingerY);
     }
     if (linkedMove) this.text.textContent = rt.def.openingLinkedLabel || '旗まで進む';
     // 旗への説明は実物か画面端の印の脇へまとめる。

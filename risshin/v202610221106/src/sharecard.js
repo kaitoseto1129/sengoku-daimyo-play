@@ -76,14 +76,14 @@ export function mountSharecard(card, host) {
   card.mounted = true;
   // 絵は巻物の中へ。携帯の下の操作帯を大きくしない。
   host = host.closest('.ev2')?.querySelector('.ev-body') || host;
-  const box = document.createElement('div');
-  box.style.cssText = 'display:flex;box-sizing:border-box;width:100%;max-width:480px;flex-direction:column;gap:8px;align-items:flex-start;margin:24px auto 8px';
+  const box = document.createElement('details');
+  box.className = 'ek-more';
+  const summary = document.createElement('summary');
+  summary.textContent = '戦果の札を残す・送る';
+  box.appendChild(summary);
   card.canvas.style.cssText = 'display:block;width:100%;height:auto';
   card.canvas.setAttribute('role', 'img');
   card.canvas.setAttribute('aria-label', card.description);
-  const link = document.createElement('a');
-  link.href = card.link; link.textContent = '同じ戦を遊ぶ';
-  link.style.cssText = 'display:inline-flex;align-items:center;min-height:44px;font-size:13px;color:var(--washi-dim);text-decoration:underline';
   // 評定の Enter で次へ進む処理に、リンクと共有の操作を渡さない。
   box.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') ev.stopPropagation(); };
   box.onclick = (ev) => ev.stopPropagation();
@@ -96,7 +96,9 @@ export function mountSharecard(card, host) {
   const status = document.createElement('span');
   status.setAttribute('role', 'status'); status.style.fontSize = '15px';
   status.textContent = '札を用意しています';
-  box.append(card.canvas, link, button, status); host.appendChild(box);
+  box.append(card.canvas, button, status);
+  const other = host.querySelector('#ev-other-actions');
+  if (other) host.insertBefore(box, other); else host.appendChild(box);
   let file = null;
   card.blob.then((blob) => {
     if (!blob) { status.textContent = '札を作れませんでした。この戦をやり直してお試しください。'; return; }

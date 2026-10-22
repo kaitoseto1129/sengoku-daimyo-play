@@ -77,6 +77,7 @@ function mikiScenery(W) {
   }
   for (const st of W.def.streams || []) {
     const geo = st.mesh.geometry, p = geo.attributes.position, flow = geo.attributes.waterFlow;
+    const bank = new Float32Array(p.count);
     const surface = st.surface, rows = surface.length / 3;
     for (let row = 0; row < rows; row++) {
       const before = Math.max(0, row - 1) * 3, after = Math.min(rows - 1, row + 1) * 3;
@@ -98,6 +99,7 @@ function mikiScenery(W) {
         const i = row * 2 + side, sign = side ? -1 : 1;
         p.setXYZ(i, x - dz / len * width * sign, level, z + dx / len * width * sign);
         flow.setXY(i, dx / len, dz / len);
+        bank[i] = sign;
       }
     }
     // 行の間の谷底も調べる。端だけを下げても、斜めの水面が低い川床を覆ってしまう。
@@ -120,6 +122,7 @@ function mikiScenery(W) {
         for (const r of [row - 1, row]) for (let side = 0; side < 2; side++) p.setY(r * 2 + side, surface[r * 3 + 2]);
       }
     }
+    geo.setAttribute('mikiBank', new THREE.BufferAttribute(bank, 1));
     p.needsUpdate = flow.needsUpdate = true;
     geo.computeVertexNormals(); geo.computeBoundingSphere();
     // 既存のさざ波・流れ・岸の泡へ、細かな波頭を同じ描画の中で足す。
@@ -127,7 +130,17 @@ function mikiScenery(W) {
     mat.customProgramCacheKey = () => key + '|miki';
     mat.onBeforeCompile = function (sh, renderer) {
       compile.call(this, sh, renderer);
+      // 川の両端だけを湿った土色へ寄せ、細かな入り組みで直線の切り口を崩す。
+      // 川床・水深・浅瀬の判定は保ち、形や描画の回数は増やさない。
+      sh.vertexShader = 'attribute float mikiBank; varying float vMikiBank;\n' + sh.vertexShader.replace(
+        '#include <begin_vertex>', '#include <begin_vertex>\n vMikiBank = mikiBank;');
+      sh.fragmentShader = 'varying float vMikiBank;\n' + sh.fragmentShader;
       sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+        float mikiBankDistance = (1.0 - abs(vMikiBank)) * ${st.w.toFixed(2)};
+        float mikiBankNoise = texture2D(tMacro, vWPw.xz * 0.7).r;
+        if (mikiBankDistance < 0.06 + mikiBankNoise * 0.3) discard;
+        diffuseColor.rgb = mix(diffuseColor.rgb * vec3(0.65, 0.64, 0.53), diffuseColor.rgb,
+          smoothstep(0.15, 0.9, mikiBankDistance));
         float mikiAlong = dot(vWPw.xz, normalize(vWaterFlow + vec2(0.00001)));
         float mikiAcross = dot(vWPw.xz, vec2(-vWaterFlow.y, vWaterFlow.x));
         float mikiWave = sin(mikiAlong * 6.3 - uTime * 2.4 + sin(mikiAcross * 3.7));
@@ -917,7 +930,7 @@ const miki = {
   introPeopleFolded: true, // 人物と砦の説明は、下知を読んでから開ける。
   compactCombatGuides: true, // 敵へ向ける矢印を細く短くし、槍と胴を覆わない。
   // 実旗の頭上へ囲み・矢印・別の旗を重ねず、合流先の足元へ小さく示す。
-  groundFlagGuides: true, compactFlagGuide: true, compactHoldGuide: true,
+  groundFlagGuides: true, footFlagGuides: true, compactFlagGuide: true, compactHoldGuide: true,
   // 曲がり角は実物の隊旗ではない。画面外も短い矢印で示す。
   routeGuideArrowOnly: true, directionalDestinationArrow: true,
   goalFlagScale: .55,
@@ -957,6 +970,7 @@ const miki = {
   },
   keepCombatTask: true, keepCombatTaskDetail: true,
   keepCombatTaskHeading: true, // 接敵中も、護衛を退ける目的と味方の人数を残す。
+  keepTaskPanel: true, keepApproachTaskPanel: true, // 接敵や移動でも下知は同じ欄に残す。
   taskLabelMinFont: 16, // 横持ちの十六画素を共通処理で二十画素へ戻し、末尾一字を折り返さない。
   keepOpeningTaskLabel: true,
   // 敵一人の手ほどきで、木戸の守りや味方へ戻る下知を消さない。
@@ -1141,9 +1155,11 @@ const miki = {
     compactScenery: true,
     mergeStaticBatches: true,
     // 城域と東の付城を地面の内に収める。共通地形の頂点数は増やさない。
-    seed: 15799, groundHalf: 780, moveLim: 750, time: 'night', nightLift: 2.8, fogFar: 420,
+    seed: 15799, groundHalf: 780, moveLim: 750, time: 'night', nightLift: 2.8, nightFill: .48, fogFar: 420,
     // 既存の丸い炎を使い、門前に三角の札のような火を立てない。
     roundedFire: true,
+    // 松明の暖色を粗い地形の頂点から広げず、火の届く足元だけへ描く。
+    smoothGroundFire: true,
     // 指物で敵の胴と穂先を覆わない。隊旗・名のある兵・自分の組の旗は残す。
     ordinaryFlagStride: 3,
     // 胴や骨の縮尺を刺さった矢へ重ねず、動いた後も実寸を保ち、長い棒にしない。

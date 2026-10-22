@@ -89,6 +89,15 @@ const MIYOSHI = { flag: 'miyoshi', armor: 0x35382c, lace: 0x6b6250, cloth: 0x3a3
 const NO_GROUPS = [];
 const RETREAT_WAIT = 120;
 const canJoin = (u) => u.alive && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget && !u.gone;
+// 生き残りが別の場所で戦っていても、無人の詰め陣へ案内しない。
+// 到着の判定と同じ十歩以内で、実際に迎えられる守兵だけを数える。
+function campJoinAvailable(rt) {
+  const guard = rt.flags.campA.guard;
+  if (gone(guard)) return false;
+  const point = rt.flags.campJoinPoint;
+  return guard.units.some(u => canJoin(u) && Math.hypot(u.pos.x - ODA_JOIN.x, u.pos.z - ODA_JOIN.z) < 10 &&
+    Math.abs(u.pos.y - point.y) < 3 && !rt.army.wallBetween(point, -1, u.pos) && !rt.army.terrainBlocks(point, u.pos));
+}
 // 安全な印は据え置く。味方が動くたびに追わせず、着いた場所で息を整えられるようにする。
 // 敵の接近・味方の離脱・障害物は半秒ごとに読み直す。
 function keepRecoveryPoint(rt, point, radius) {
@@ -1779,9 +1788,13 @@ const nodafukushima = {
   setup(rt) {
     const W = rt.world;
     const F = rt.flags;
+    F.campJoinPoint = { ...ODA_JOIN, y: W.heightAt(ODA_JOIN.x, ODA_JOIN.z) };
     // 建物用の近景透かしで堤の斜面まで抜くと、足元に空の白い面が現れる。
     // 地形の当たり・高さは保ち、この戦の地面だけ透かす対象から外す。
     W.terrain.material.userData.camNearSolid = true;
+    // 秋の河口の土を雪のような白にしない。既存の土・草・泥の絵へ土色を掛ける。
+    // この戦の材質だけを変え、地形・歩行・描画の数は保つ。
+    W.terrain.material.color.setHex(0xb5a080);
     installNodaNotices(rt);
     installNodaGroundFx(rt);
     installNodaFallenHats(rt);
@@ -2520,6 +2533,8 @@ const nodafukushima = {
       retreatColumn(g, { x: ODA_HONJIN.x + (g === F.sassa ? -14 : 12), z: ODA_HONJIN.z });
     }
     retreatColumn(F.namedGuards[1], { x: 28, z: 96 });
+    // 詰め陣の守兵も追撃をやめ、退く兵を迎える場所へ戻す。
+    retreatColumn(F.campA.guard, ODA_JOIN);
     F.bOdaW.order({ id: 'hold' }); // 柴田は殿に残る
     for (const b of [F.bOdaE, F.bOdaS]) b.order({ id: 'retreat', to: { x: 28, z: 96 } });
     for (let i = 0; i < F.waves.length; i++) rt.unmark('w' + i);
@@ -2611,7 +2626,7 @@ const nodafukushima = {
       // 塀・川の向こうや深手の兵を、退き口を塞ぐ追手に数えない。
       const safe = !rt.army.nearestEnemy(rt.player.u, 4, u => canJoin(u) && !u.isStruct && !u.farSim && u.type !== 'dummy' &&
         Math.abs(u.pos.y - pp.y) < 3 && !rt.army.wallBetween(pp, -1, u.pos) && !rt.army.terrainBlocks(pp, u.pos));
-      let joined = !gone(F.campA.guard) && F.campA.guard.units.some(canJoin);
+      let joined = campJoinAvailable(rt);
       const rear = F.namedGuards[1];
       const c = retreatPoint(rt);
       if ((!joined || F.retreatAlt) && c) {

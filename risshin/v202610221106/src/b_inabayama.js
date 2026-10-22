@@ -2623,11 +2623,16 @@ const inabayama = {
   },
   world: {
     compactScenery: true,
+    // 視点を直接描く時も、面を選ぶ前に実際の山肌と手前の四隅を避ける。
+    terrainContactView: true,
     lookoutLogFrame: true, // 高画質の各曲輪の井楼で、指定済みの丸太組みを描く。
     // 落ちた笠に頭の垂れ布を残さず、首のような支柱で立たせない。
     bareFallenHats: true,
     // 骨入りの体へ切り替わった後も、刺さった矢を飛来時の実寸へ戻す。
     keepPinnedArrowSize: true,
+    // 斜めの矢も三軸で実寸を保ち、描く直前の胴や骨の倍率に追従する。
+    pinnedArrowAxisScale: true,
+    pinnedArrowRenderScale: true,
     // 落ちた笠と長柄も坂へ沿わせ、水平なまま宙へ張り出させない。
     slopeLitter: true,
     // 坂で倒れた兵は足元でなく胴の下を支え、宙に寝かせない。

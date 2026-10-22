@@ -125,7 +125,6 @@ function guideAround(rt, p, goal) {
   }
   // 曲がり角の一歩手前でも、壁の向こうへ直進できるまでは同じ角を保つ。
   if (q.active && Math.hypot(goal.x - q.gx, goal.z - q.gz) < 1
-      && Math.hypot(p.x - q.point.x, p.z - q.point.z) > 0.8
       && guideClear(rt, p, q.point)
       && (q.twoTurns ? guideClear(rt, q.point, q.turn) && guideClear(rt, q.turn, q.goal) : guideClear(rt, q.point, q.goal))) {
     goal.x = q.point.x; goal.z = q.point.z; return true;
@@ -1609,7 +1608,7 @@ const shigisan = {
     if (F.step === 3) return '門の印で、掛矢を使い続けよ';
     if (this.castleFightNeeded(rt)) return F.step === 4 ? '先手と本丸の敵を討て' : '先手と曲輪の敵を討て';
     if (F.castleGuideArrived) return F.step === 4 ? '先手と本丸の南口を守れ' : '先手と曲輪を取れ';
-    return F.step === 4 ? '道の矢印で、本丸の南口へ' : '道の矢印で、曲輪の入口へ';
+    return F.step === 4 ? '西の尾根道から、本丸の南口へ' : '門を抜け、西の道から曲輪へ';
   },
   waitOrderLabel(rt) {
     const F = rt.flags;
@@ -1656,6 +1655,7 @@ const shigisan = {
   compactDestinationSign: true, // 携帯の近い兵や槍を、大きな行き先の矢印で覆わない。
   groundFlagGuides: true, footFlagGuides: true, // 先手の幟を白い大輪で囲まず、根元の小旗で示す。
   avoidDestinationNotices: true, // 行き先が任務札と重なる時は、空いている側で向きを示す。
+  avoidAllDestinationNotices: true, // 道の印が旗の形でも、任務札や退く操作の札を避ける。
   // 文と印の名が違っても、今の段の行き先を必ず選ぶ。敵の印へ直進させない。
   guideMarker(rt) {
     const F = rt.flags;

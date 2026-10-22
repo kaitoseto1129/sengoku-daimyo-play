@@ -30,7 +30,7 @@ const DEFAULTS = {
   volVoice: 1,        // 台詞の声の音量
   volMusic: 0.7,      // 楽の音
   townMusic: true,    // 城下の楽の音
-  townWalk: 'walk',   // 城下：walk（3Dの町を歩く）／cards（札で選ぶ。iPhone で重い時）
+  townWalk: typeof navigator !== 'undefined' && /iPhone/.test(navigator.userAgent) ? 'cards' : 'walk', // 初めての城下は携帯で軽く。切り替えは設定から
   subBg: true,        // 字幕の下地
   hudContrast: false, // HUDのコントラストを上げる
   hudAutoFade: true,  // 平時はHUDを薄く

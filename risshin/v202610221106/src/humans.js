@@ -674,7 +674,7 @@ vec3 clothBump(vec3 surf_pos, vec3 surf_norm, vec2 dHdxy, float fd) {
 // ・人形は腕を下ろして立っているので、骨をその姿に合わせた「着せる時の立ち姿」を作り、そこからの動きで甲冑を動かす
 // crowd：侍・騎馬武者・武将（兵）にも着せる（人形の兜と顔は描かず、兵ごとの兜と顔を付ける）
 // hiCap：細かい形（胴丸hi 約2.8万面・兜hi 約1.6万面）を同時に出す人数の上限（カメラに近い順。名のある武将と本人は数えず必ず細かい形）
-export const DOMARU = { on: true, ready: false, failed: false, near: 17, crowd: true, hiCap: 40, ashigaruMidCap: 8 };
+export const DOMARU = { on: true, ready: false, failed: false, near: 17, crowd: true, hiCap: 40 };
 let DM = null, dmLoading = null;
 export function loadDomaru() {
   if (dmLoading) return dmLoading;
@@ -779,7 +779,8 @@ export function loadKabuto() {
       const [mg, mc, mn] = await Promise.all([new GLTFLoader().parseAsync(mbuf.buffer, ''), ...['menpo_col', 'menpo_nrm'].map((n) => texOr(n, new URL('../assets/menpo_lite/' + n + '.jpg', import.meta.url).href, { srgb: /col$/.test(n), anisotropy: 4 }))]);
       let g = null; mg.scene.traverse((o) => { if (o.isMesh) g = o.geometry; });
       g.computeVertexNormals();
-      KB.menpo = { geo: g, mc, mn, mats: new Map() };
+      // 一般兵の口元は共用の軽い形。元の輪郭と絵を保ち、支度中に一度だけ作る。
+      KB.menpo = { geo: g, crowdGeo: bodyLoGeo(g, 1 / 96) || g, mc, mn, mats: new Map() };
     } catch (e) { console.warn('面頬の形を読めませんでした（今の面頬で描きます）', e); }
   })().catch((e) => { KABUTO.failed = true; KABUTO.err = String(e && e.stack || e).slice(0, 400); console.warn('本物の兜を読めませんでした（胴丸の兜で描きます）', e); });
   return kbLoading;
@@ -810,7 +811,10 @@ function dressMenpo(h) {
   if (h.parts.menpo) return;
   const hd = SRC.rest.Head, k = MP_FIT.s;
   const fit = new THREE.Matrix4().makeTranslation(hd.x, hd.y + MP_FIT.y, hd.z + MP_FIT.z).multiply(new THREE.Matrix4().makeScale(k, k, k));
-  const m = attachBody(h, 'Head', KB.menpo.geo, fit, menpoMat(h.look && (h.look.menpoScan || h.look.menpo)));
+  const geo = qualityKeeper(h.u) ? KB.menpo.geo : KB.menpo.crowdGeo;
+  const m = attachBody(h, 'Head', geo, fit, menpoMat(h.look && (h.look.menpoScan || h.look.menpo)));
+  // 口元は共有の実物を保つ。小さな面頬のために影の描画を追加しない。
+  m.castShadow = false;
   h.parts.menpo = m;
 }
 // 名のある武将の頭に、本物の兜をかぶせる（遠くは軽い形）
@@ -1143,7 +1147,8 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
   m.onBeforeCompile = (sh) => {
     unitContour(sh);
     Object.assign(sh.uniforms, U);
-    if (noHead) {
+    // 一般兵は頭の面を形から除いてあるので、画素を捨てる処理も不要。
+    if (noHead && (detailed || helm)) {
       sh.vertexShader = 'varying float vHd;\nvarying vec3 vHP0;\n' + sh.vertexShader.replace('#include <skinbase_vertex>', `#include <skinbase_vertex>
         vHd = 0.0; vHP0 = position;
         for (int i = 0; i < 4; i++) { float bi = skinIndex[i]; if (abs(bi - ${hi}.0) < 0.5) vHd += skinWeight[i]; }`);
@@ -1211,7 +1216,7 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
         float lb = min(dot(texture2D(map, vMapUv, 2.5).rgb * 1.55, vec3(0.2126, 0.7152, 0.0722)), 1.0);
         dmH = clamp(l - lb, -0.25, 0.25);
         dmWv = 0.5; dmEdge = 0.0; dmDust = 0.0;
-        if (gl_FrontFacing) {
+        if (${detailed ? 'gl_FrontFacing' : 'false'}) {
           vec3 p = vDmP;
           float n1 = dmVn(p * 16.0), n2 = dmVn(p * 75.0 + 3.1), n3 = dmVn(p * 260.0 + 7.7);
           // 縅糸の編み目：糸は縦に通る（胴・袖・草摺・錣）。一筋 1cm ほどの平組に、杉綾の目。遠くでは消す
@@ -1284,14 +1289,14 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
       }`).replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
       {
         // 漆は擦れ・埃で照りに斑（新品の一律の照りにしない）。滑らかな所は深い照り、擦れた所は曇る
-        float wear = dmVn(vDmP * 40.0) * 0.7 + dmVn(vDmP * 140.0) * 0.3;
+        float wear = ${detailed ? 'dmVn(vDmP * 40.0) * 0.7 + dmVn(vDmP * 140.0) * 0.3' : '0.5'};
         // 露出した鉄は酸化と擦れのある鈍い面。革・布・漆の照りを別々にする。
         roughnessFactor = 0.43 + wear * 0.2;
         roughnessFactor = mix(roughnessFactor, ${'0.18 + wear * 0.24 + dmEdge * 0.25'}, dmLacq);
         roughnessFactor = mix(roughnessFactor, 0.72 + wear * 0.14, dmLeather);
         roughnessFactor = mix(roughnessFactor, ${'1.0'}, dmCloth);
         // 金具：磨かれた照りに、細かな引っ掻き傷
-        float scr = smoothstep(0.55, 0.8, dmVn(vec3(vDmP.x * 600.0, vDmP.y * 40.0, vDmP.z * 600.0)));
+        float scr = ${detailed ? 'smoothstep(0.55, 0.8, dmVn(vec3(vDmP.x * 600.0, vDmP.y * 40.0, vDmP.z * 600.0)))' : '0.5'};
         roughnessFactor = mix(roughnessFactor, 0.24 + scr * 0.22, dmGold);
         roughnessFactor = mix(roughnessFactor, 0.95, dmDust);
         // 雨：漆と金具は濡れて照りが増し、糸は水を吸って暗く重くなる（照りは少しだけ）
@@ -1336,9 +1341,11 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
         reflectedLight.indirectSpecular *= occlusion;
       }`);
     // 一人称：目のすぐ前（FP_CUT の球の中）に来た自分の袖・肩の板は描かない（目の前を塞がない。他の人は目から遠いので消えない）
-    sh.uniforms.uFpCut = FP_CUT;
-    sh.vertexShader = 'varying vec3 vFpW;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n vFpW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-    sh.fragmentShader = 'uniform vec4 uFpCut;\nvarying vec3 vFpW;\n' + sh.fragmentShader.replace('void main() {', 'void main() {\n if (uFpCut.w > 0.0 && distance(vFpW, uFpCut.xyz) < uFpCut.w) discard;');
+    if (detailed) {
+      sh.uniforms.uFpCut = FP_CUT;
+      sh.vertexShader = 'varying vec3 vFpW;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n vFpW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      sh.fragmentShader = 'uniform vec4 uFpCut;\nvarying vec3 vFpW;\n' + sh.fragmentShader.replace('void main() {', 'void main() {\n if (uFpCut.w > 0.0 && distance(vFpW, uFpCut.xyz) < uFpCut.w) discard;');
+    }
   };
   m.customProgramCacheKey = () => 'domaru' + (helm ? '-hm' : noHead ? '-nh' : '') + (detailed ? '-detail' : '-crowd');
   dmMats.set(k, m);
@@ -1349,14 +1356,16 @@ function dressDomaru(h, noHead = false) {
   // 元の体は隠す（現代の服の膨らみが甲冑の外へ出るので）。脇の、スキャンに写っていない所は、甲冑の裏（暗い）が見える
   h.body.visible = false;
   const sk = new THREE.Skeleton(DM.bones.map((nm) => h.bones[nm]), domaruInverses());
-  const detailed = !!(h.u.isPlayer || h.u.name || isNamed(h.look) || h.look.hero);
-  h.loanedDomaru = noHead === true && !detailed && (h.look.tier ?? 0) < 1;
-  const variant = Math.floor(((h.seed || 0) * 5.37) % 1 * 4);
+  const detailed = qualityKeeper(h.u) || !!h.u.name;
+  // 一般兵は足軽も武者も頭を除いた中精細スキャンを共有する。
+  h.loanedDomaru = noHead === true && !detailed;
+  const variant = detailed ? Math.floor(((h.seed || 0) * 5.37) % 1 * 4) : 0;
   const m = new THREE.SkinnedMesh(h.loanedDomaru ? DM.loanMid : DM.hi, domaruMaterial(h.look, noHead, variant, detailed));
   m.userData.surfaceBase = m.material;
-  m.userData.surfaceFine = domaruMaterial(h.look, noHead, variant, true);
+  // 一般兵の凹凸と汚れはスキャンの絵・法線で描く。画素ごとの多重雑音は本人・武将だけ。
+  m.userData.surfaceFine = detailed ? domaruMaterial(h.look, noHead, variant, true) : m.material;
   m.bind(sk, new THREE.Matrix4());
-  // 足軽の影は、元からある具足の一体形で描く。胴丸を加えても影を描く物を増やさない。
+  // 一般兵の影は、元からある具足の一体形で描く。胴丸の影は追加しない。
   m.castShadow = !h.loanedDomaru; m.receiveShadow = true;
   m.frustumCulled = true; m.boundingSphere = BSPH;
   // 遠くは軽い形（影を描く時も軽い形）
@@ -1364,11 +1373,11 @@ function dressDomaru(h, noHead = false) {
     const e = m.matrixWorld.elements, c = cam.matrixWorld.elements;
     const d2 = (e[12] - c[12]) ** 2 + (e[13] - c[13]) ** 2 + (e[14] - c[14]) ** 2;
     const near = DOMARU.near;
-    // 御貸具足は近景に中の段。本人・名将の細かい形と、侍の三十五メートル以内の中の段は保つ。
+    // 十五メートル以内は全員、中精細以上のスキャン。遠景と影は軽い段。
     // 遠景の形も読み込み時に共用で作り、描くたびに形の置き場を検索しない。
     const close = !cam.isOrthographicCamera && d2 < near * near;
     const want = h.loanedDomaru
-      ? close && m.userData.midOK !== false ? DM.loanMid : DM.loanLo
+      ? close ? DM.loanMid : DM.loanLo
       : !cam.isOrthographicCamera && (qualityKeeper(h.u) || close && m.userData.hiOK !== false) ? DM.hi
         : !cam.isOrthographicCamera && d2 < 35 * 35 ? DM.mid
           : !cam.isOrthographicCamera && d2 > 35 * 35 && !HUM.lodOff ? DM.far : DM.lo;
@@ -7450,16 +7459,13 @@ function humansStep(rt, dt, army, cam) {
     // 元からある距離順の並べ替えで、足を合わせる近い十八人も決める。
     for (const [u, c] of want) { const h = u.human; if (h) { h.groundFeet = false; const item = humanNearPool[near.length]; if (item) { item.h = h; item.dist = c.dist; near.push(item); } } }
     near.sort((a, b) => a.dist - b.dist);
-    let feet = 0, armor = 0, ashigaruArmor = 0;
+    let feet = 0, armor = 0;
     for (let i = 0; i < near.length; i++) {
       const h = near[i].h, u = h.u;
       if (u.alive && !u.dying && !u.mounted && !u.isPlayer && near[i].dist < HUM.ik) h.groundFeet = feet++ < 18;
       if (u.isPlayer || u.look && (isNamed(u.look) || u.type === 'busho') || !(h.parts.domaru || h.parts.kabuto)) continue;
-      // 足軽は最も近い八人まで中の段。その外は軽い段。侍の細かい形の枠は使わない。
-      if (h.loanedDomaru) {
-        h.parts.domaru.userData.midOK = near[i].dist < DOMARU.near && ashigaruArmor++ < DOMARU.ashigaruMidCap;
-        continue;
-      }
+      // 一般兵は人数によらず共有の中精細。本人・武将の細かい形の枠を使わない。
+      if (h.loanedDomaru) continue;
       // 十五メートル以内は人数で粗くしない。骨入りの総枠と影の軽い形は保つ。
       const allow = (!MEM_TIGHT && near[i].dist <= 15) || armor++ < DOMARU.hiCap;
       if (h.parts.domaru) h.parts.domaru.userData.hiOK = allow;
@@ -7696,6 +7702,8 @@ export function humanProgramSamples(rt) {
       add(body.geometry, nearCrowdMat(v));
       if (DM && DOMARU.ready) for (const nh of [false, true, 'helm']) add(DM.hi, domaruMaterial({}, nh, v));
     }
+    // 一般兵用も支度中に作り、開戦後の最初の描画で処理を組み立てない。
+    if (DM && DOMARU.ready) add(DM.loanMid, domaruMaterial({}, true, 0, false));
     for (const m of headMats.values()) add(HEAD.geo, m, false);
     if (MHHAND) for (const m of MHHAND.mats.values()) add(handGeo(), m);
     // 目・歯（mheye・mhteeth）は戦中に初めて描かれる事が多い。見本に入れて支度で作る（10/20）
