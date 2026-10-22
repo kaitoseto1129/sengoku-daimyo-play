@@ -283,10 +283,12 @@ body:has(#hud.opening #battle-opening.opening-linked) #tc .stick { visibility:hi
       arrow.hidden = true;
       arrow.textContent = '↑';
       arrow.style.transform = '';
-      this.text.textContent = '上へなぞって進む';
+      this.text.textContent = 'ここを上になぞる';
       // 左右どちらに足元があっても、示した輪から歩行入力を受ける。
-      const start = this.hud.playerControlOrigin(rt, false, true);
-      const fingerX = start.x, fingerY = start.y;
+      const start = this.hud.playerControlOrigin(rt, false, false);
+      // 操作する端へ寄せ、旗への地面の矢印と指の手本を離す。
+      const fingerX = S.touchSwap ? W - 108 : 108;
+      const fingerY = Math.max(168, Math.min(H - 100, start.y));
       this.swipeX = fingerX; this.swipeY = fingerY;
       const origin = this.hud.navigationTouchOrigin || (this.hud.navigationTouchOrigin = {});
       origin.rt = rt; origin.at = rt.t; origin.x = fingerX; origin.y = fingerY;
@@ -295,10 +297,11 @@ body:has(#hud.opening #battle-opening.opening-linked) #tc .stick { visibility:hi
       origin.top = fingerY - 80; origin.bottom = fingerY + 48;
       this.moveArea.style.left = origin.left + 'px';
       this.moveArea.style.top = origin.top + 'px';
+      this.moveArea.hidden = false;
       // 戦の途中と同じく、指は操作面から真上へ動かす。旗へ曲げない。
       this.swipe.toggleAttribute('hidden', true);
       this.linkStart = null;
-      const radius = 26, endY = fingerY - 88;
+      const radius = 26, endY = fingerY - 64;
       const path = `M${fingerX} ${fingerY}V${endY}M${fingerX - 7} ${endY + 12}L${fingerX} ${endY}L${fingerX + 7} ${endY + 12}`;
       for (let i = 0; i < 2; i++) this.route.children[i].setAttribute('d', path);
       const startMark = this.route.lastElementChild;

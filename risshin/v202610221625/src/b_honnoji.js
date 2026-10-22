@@ -2747,9 +2747,9 @@ const honnoji = {
     if (F.step === 5) return this.escapeGuideLabel(rt);
     if (F.step >= 3) return '御所の西の門へ';
     if ((F.hp === 2 || F.hp === 3) && gateFight(rt)) return '敵をたおせ';
-    if ((F.hp === 2 || F.hp === 3) && F.gateApproach?.alive) return '門へ進む';
+    if ((F.hp === 2 || F.hp === 3) && F.gateApproach?.alive) return '門へ走る';
     if (gateDefending(rt)) return '門の内で 上様を守る';
-    if ((F.hp === 2 || F.hp === 3) && F.routeSign && !F.routeSign.indoor) return '門へ進む';
+    if ((F.hp === 2 || F.hp === 3) && F.routeSign && !F.routeSign.indoor) return '門へ走る';
     if (F.routeSign?.corridor && this.routeGuidePriority(rt)) {
       return F.hp === 4 || F.hp === 5 ? '廊下の先から 本堂へ' : '廊下の先から 表門へ';
     }
@@ -2781,7 +2781,7 @@ const honnoji = {
       const side = (-dx * Math.cos(yaw) + dz * Math.sin(yaw)) / distance;
       const forward = (dx * Math.sin(yaw) + dz * Math.cos(yaw)) / distance;
       if (forward < -.35) return side >= 0 ? '右へ向き直る' : '左へ向き直る';
-      return side > .4 ? '右の角へ進む' : side < -.4 ? '左の角へ進む' : '足あとをたどる';
+      return side > .4 ? '右の角へ' : side < -.4 ? '左の角へ' : '旗まで進む';
     }
     // 印と任務札では同じ短い行き先を使う。
     if (!keepDestination) {
@@ -2792,8 +2792,8 @@ const honnoji = {
     if (F.hp === 2 || F.hp === 3) {
       const sign = F.routeSign;
       if (sign?.door) return 'ここへ・戸をぬける';
-      if (sign && !sign.door && !sign.indoor) return '門へ進む';
-      if (!(F.patrolDistance > 10 && sign?.indoor)) return '門へ進む';
+      if (sign && !sign.door && !sign.indoor) return '門へ走る';
+      if (!(F.patrolDistance > 10 && sign?.indoor)) return '門へ走る';
       // 敵の増減で札を切り替えず、いま通る戸口の動作を短く保つ。
       return '次の印へ進む';
     }
@@ -2810,9 +2810,10 @@ const honnoji = {
     if (!rt.G.lord && rt.flags.step === 5) return '御所の北の口へ 退け';
     if (!rt.G.lord && rt.flags.hp === 8) return '裏門から 外へ退け';
     if (!point) return '印へ にげよう';
-    const sign = rt.flags.routeSign;
-    const direction = rt.hud.navigationDirection(rt, sign?.gx === point.x && sign?.gz === point.z ? sign : point);
-    return direction.includes('右') ? '右へにげろ' : direction.includes('左') ? '左へにげろ' : '印へにげろ';
+    const target = point;
+    const p = rt.player.u.pos, yaw = templeViewYaw(rt);
+    const side = -(target.x - p.x) * Math.cos(yaw) + (target.z - p.z) * Math.sin(yaw);
+    return Math.abs(side) < .5 ? '旗へにげる' : side > 0 ? '右へにげる' : '左へにげる';
   },
   // 退避先の共通の旗と同じ言葉で示す。
   dodgeLabel: () => 'ここへ にげる',
@@ -2861,6 +2862,7 @@ const honnoji = {
         ? '火から離れ、印へ退け' : '白い着物の上様を守る';
     }
     if ((F.hp === 2 || F.hp === 3) && gateFight(rt)) return '敵をたおせ';
+    if (F.hp === 2 && !F.gMain && rt.nearestInteract()?.id === 'gate' && !gateBlocker(rt)) return '門をしめる';
     if (F.hp >= 2 && this.routeGuidePriority(rt)) return this.travelGuideLabel(rt, true);
     if (F.hp === 2) {
       if (F.gMain) return '門の内を守る';
@@ -2939,6 +2941,7 @@ const honnoji = {
     return F.hp === 1 || F.hp === 2 || F.hp === 4 || F.hp === 6 || F.hp === 8 ? 'next' : 'nb';
   },
   guardLabel: () => '信長を守ろう',
+  guardName: () => '信長',
   guardTarget(rt) {
     const F = rt.flags;
     if (F.ending || rt.over || !rt.player.u.alive) return null;
@@ -3363,7 +3366,7 @@ const honnoji = {
     // 門の正面は兵が二列で通る。篝の脚を口の真ん中へ置かない。
     for (const dz of [-9, -4.5, 9]) honnoTorch(rt, -26, 50 + dz);
     rt.banner('明智光秀、謀反', '供は百ほど。寺を囲む明智勢は一万三千');
-    rt.obj('main', '表門へ走り、門を閉めよ', 'main', true);
+    rt.obj('main', '門へ走る', 'main', true);
     rt.objProgress('main', '上様も弓を取って表へ出られる。先に立って門を閉め、明智勢を入れるな');
     rt.addInteract('gate', { x: GATES.main.x - 1.5, z: GATES.main.z }, '門をしめる', () => closeGate(rt, 'me'), { r: 4.5, hold: 1, prio: 1 });
     patrolGuide(rt); F.patrolScan = 0;
@@ -4139,10 +4142,10 @@ function honnoTick(def, rt, dt) {
       F.gateOccupied = nearGate && blocker?.team === 1 ? (F.gateOccupied || 0) + 0.5 : 0;
       rt.obj('main', nearGate && blocker ? blocker.team === 1
         ? '門の口の敵を押し返し、門を閉めよ' : '門の内へ下がり、口を空けよ'
-        : '表門へ走り、門を閉めよ', 'main', true);
+        : nearGate ? '門をしめる' : '門へ走る', 'main', true);
       rt.objProgress('main', Math.hypot(p.x - GATES.main.x, p.z - GATES.main.z) > 6
         ? '上様も表へ出られる。先に立ち、表門の内側へ走れ'
-        : blocker ? gateHint(rt, blocker) : '門の内側で「表門を閉める」を長押しせよ');
+        : blocker ? gateHint(rt, blocker) : '「門をしめる」を長押し');
     }
     // 門へ着く前も、見通せる敵が三人未満なら四秒で後続を寄せる。
     // 逃げる負傷兵や壁の向こうの兵は、斬り合いの相手に数えない。

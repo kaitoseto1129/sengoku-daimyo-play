@@ -347,7 +347,7 @@ export class HudNavigation {
 
 
   // 人の案内は任務札と置き換え、命などと合わせて三枚までにする。
-  drawPersonAction(g, rt, x, y, label, frame = null) {
+  drawPersonAction(g, rt, x, y, label, frame = null, protect = false) {
     const order = $('objectives');
     if (order.classList.contains('expand') || rt.nearestInteract() || rt.touchCoachActive ||
         order.querySelector('.battle-action:not([hidden]) button')) return false;
@@ -359,7 +359,8 @@ export class HudNavigation {
       // 向かう相手の頭へ名前付きの旗をつなぎ、任務札と置き換える。
       const scale = Math.max(1, S.textScale || 1);
       g.save(); g.font = `bold ${20 * scale}px sans-serif`;
-      const width = g.measureText(label).width + 30, height = 38 * scale;
+      const shieldWidth = protect ? 32 * scale : 0;
+      const width = g.measureText(label).width + 30 + shieldWidth, height = 38 * scale;
       const left = Math.max(12, Math.min(VIEW.w - width - 12, frame.cx - width / 2));
       const top = Math.max(12, frame.top - height - 26);
       g.lineJoin = 'round'; g.lineCap = 'round';
@@ -367,6 +368,7 @@ export class HudNavigation {
       g.lineTo(frame.cx, frame.top - 4);
       g.strokeStyle = '#14120f'; g.lineWidth = 10; g.stroke();
       g.strokeStyle = '#fff3ba'; g.lineWidth = 5; g.stroke();
+      if (protect) this.drawNavigationArrow(g, frame.cx, frame.top - 4, Math.PI / 2, .3, true);
       g.beginPath(); g.moveTo(left, top); g.lineTo(left + width, top);
       g.lineTo(left + width - 10, top + height / 2);
       g.lineTo(left + width, top + height); g.lineTo(left, top + height); g.closePath();
@@ -375,7 +377,11 @@ export class HudNavigation {
       g.strokeStyle = '#fff3ba'; g.lineWidth = 3; g.stroke();
       if (occupied < 3) {
         g.fillStyle = '#fff3ba'; g.textAlign = 'center'; g.textBaseline = 'middle';
-        g.fillText(label, left + (width - 8) / 2, top + height / 2);
+        g.fillText(label, left + (width - 8 + shieldWidth) / 2, top + height / 2);
+        if (protect) {
+          g.save(); g.translate(left + 20 * scale, top + 32 * scale); g.scale(.48 * scale, .48 * scale);
+          this.drawGuardSign(g, 0, 0); g.restore();
+        }
         setClass(this.root, 'edge-destination', true);
       }
       g.restore(); return true;
@@ -455,8 +461,9 @@ export class HudNavigation {
 
   // 自分は足元の白い太い輪で示す。相手の剣と見分け、押すボタンに見える枠は付けない。
   drawPlayerSign(g, rt) {
-    // 案内中は敵か行き先の一つに絞る。自分の輪を進む場所に見せない。
-    if (singleBattleGuide(rt) && (this.openingActive || this.enemyFrameShown || this.namedGoalDrawn)) return false;
+    // 見回す手本の間は、触る始点と紛らわしい別の白い輪を休める。
+    const origin = this.navigationTouchOrigin;
+    if (isTouch && origin?.rt === rt && origin.look && rt.t - origin.at < .15) return false;
     let footDrawn = false;
     // 操作案内が消えた後も、自分の実際の足元に白い輪を残す。
     if (!rt.def.town && !rt.def.dojo && rt.player.u.alive && rt.player.u.mesh?.visible &&
@@ -470,14 +477,38 @@ export class HudNavigation {
         this.drawEnemyContour(g, rt, rt.player.u, frame);
         footDrawn = true;
       }
-      if (!foot.behind && foot.x >= 32 && foot.x <= VIEW.w - 32 && foot.y >= 64 && foot.y <= VIEW.h - 17) {
+      if (!foot.behind && foot.x >= 32 && foot.x <= VIEW.w - 32 && foot.y >= 64 &&
+          (foot.y <= VIEW.h - 17 || frame && foot.y <= VIEW.h + 80)) {
         // 本人は足元の太い輪だけ。名前札と頭上の印は増やさない。
         const scale = Math.max(1, S.textScale || 1);
         g.save(); g.beginPath();
         const rx = (rt.player.mounted ? 46 : 38) * scale, ry = 22 * scale;
-        g.ellipse(foot.x, foot.y, rx, ry, 0, 0, Math.PI * 2);
+        // 足が下端へ切れる視点でも、輪全体が見える位置まで寄せる。
+        const x = Math.max(rx + 22, Math.min(VIEW.w - rx - 22, foot.x));
+        const y = Math.min(VIEW.h - ry - 22, foot.y);
+        g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
         g.strokeStyle = '#14120f'; g.lineWidth = 12; g.stroke();
         g.strokeStyle = '#fff'; g.lineWidth = 7; g.stroke(); g.restore();
+        // 実際の歩行方向を白い短い山形で示す。旗への金の矢印とは分ける。
+        const u = rt.player.u, speed = Math.hypot(u.vel.x, u.vel.z);
+        const dx = speed > .2 ? u.vel.x / speed : Math.sin(u.heading);
+        const dz = speed > .2 ? u.vel.z / speed : Math.cos(u.heading);
+        const point = this.playerHeadingPoint || (this.playerHeadingPoint = { x:0, y:0, z:0 });
+        point.x = p.x + dx * 2; point.z = p.z + dz * 2;
+        const end = this.project(point, p.y + .12, rt,
+          this.playerHeadingProjection || (this.playerHeadingProjection = {}));
+        const length = Math.hypot(end.x - foot.x, end.y - foot.y);
+        if (!this.openingActive && !end.behind && length > 2) {
+          const ux = (end.x - foot.x) / length, uy = (end.y - foot.y) / length;
+          const reach = 1 / Math.hypot(ux / rx, uy / ry) + 15;
+          const tipX = x + ux * reach, tipY = y + uy * reach;
+          g.save(); g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath();
+          g.moveTo(tipX - ux * 12 - uy * 9, tipY - uy * 12 + ux * 9);
+          g.lineTo(tipX, tipY);
+          g.lineTo(tipX - ux * 12 + uy * 9, tipY - uy * 12 - ux * 9);
+          g.strokeStyle = '#14120f'; g.lineWidth = 10; g.stroke();
+          g.strokeStyle = '#fff'; g.lineWidth = 5; g.stroke(); g.restore();
+        }
         footDrawn = true;
       }
 

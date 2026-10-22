@@ -18,6 +18,16 @@ export class HudThreats {
       const marks = this.dodgeMarks = document.createElementNS(ns, 'g');
       marks.setAttribute('aria-hidden', 'true');
       marks.innerHTML = '<defs><pattern id="dodge-hatch" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M-2 2L2-2M0 10L10 0M8 12L12 8" stroke="#ffb49d" stroke-width="2"/></pattern></defs><path class="danger-floor" fill="url(#dodge-hatch)" stroke="#ffb49d" stroke-width="3"/><path class="danger-person" fill="none" stroke="#ffb49d" stroke-width="4" stroke-linejoin="round"/><g class="safe-floor" fill="none" stroke-linejoin="round"><path d="M-48 0a48 23 0 1 0 96 0a48 23 0 1 0-96 0 M-32 0a32 13 0 1 0 64 0a32 13 0 1 0-64 0 M-7-80H7V-50H18L0-28L-18-50H-7Z" stroke="#14120f" stroke-width="10"/><path d="M-48 0a48 23 0 1 0 96 0a48 23 0 1 0-96 0 M-32 0a32 13 0 1 0 64 0a32 13 0 1 0-64 0 M-7-80H7V-50H18L0-28L-18-50H-7Z" stroke="#fff3ba" stroke-width="4"/></g>';
+      const dangerLabel = document.createElementNS(ns, 'text');
+      dangerLabel.setAttribute('class', 'danger-label');
+      dangerLabel.setAttribute('fill', '#ffb49d');
+      dangerLabel.setAttribute('stroke', '#14120f');
+      dangerLabel.setAttribute('stroke-width', '4');
+      dangerLabel.setAttribute('paint-order', 'stroke');
+      dangerLabel.setAttribute('font-size', '16');
+      dangerLabel.setAttribute('font-weight', 'bold');
+      dangerLabel.textContent = 'てきの攻め';
+      marks.appendChild(dangerLabel);
       el.insertBefore(marks, el.firstChild);
       const box = this.dodgeAction = document.createElementNS(ns, 'foreignObject');
       box.setAttribute('height', '64');
@@ -141,6 +151,8 @@ export class HudThreats {
     // 矢の雨は既存の落下範囲の斜線を使い、別の範囲を作らない。
     const area = marks.querySelector('.danger-floor');
     setStyle(area, 'display', 'none');
+    const dangerLabel = marks.querySelector('.danger-label');
+    setStyle(dangerLabel, 'display', 'none');
     // 急な坂で床の範囲が兵へ重なる戦は、敵の印と回避先だけを残す。
     if (rt.def.dodgeDangerFloor === false) return;
     if (!enemy?.alive || cue.rain) return;
@@ -152,7 +164,7 @@ export class HudThreats {
     const start = ranged ? Math.max(0, distance - 5) : .3, end = ranged ? distance + 1 : enemy.reach || 2;
     const point = this.dodgeDangerPoint || (this.dodgeDangerPoint = { x:0, y:0, z:0 });
     const screen = this.dodgeDangerProjection || (this.dodgeDangerProjection = {});
-    let path = '';
+    let path = '', labelX = 0, labelY = 0;
     for (let i = 0; i < 4; i++) {
       const along = i < 2 ? start : end, across = (i === 0 || i === 3 ? -1 : 1) * (ranged ? .65 : along * .55);
       point.x = enemy.pos.x + ux * along - uz * across; point.z = enemy.pos.z + uz * along + ux * across;
@@ -160,9 +172,13 @@ export class HudThreats {
       if (!this.floorGoalVisible(rt, point, false)) return;
       this.project(point, point.y + .08, rt, screen);
       if (screen.behind) return;
+      labelX += screen.x / 4; labelY += screen.y / 4;
       path += `${i ? 'L' : 'M'}${screen.x} ${screen.y}`;
     }
     area.setAttribute('d', path + 'Z'); setStyle(area, 'display', '');
+    dangerLabel.setAttribute('x', Math.max(12, Math.min(VIEW.w - 92, labelX)));
+    dangerLabel.setAttribute('y', Math.max(80, Math.min(VIEW.h - 32, labelY)));
+    setStyle(dangerLabel, 'display', '');
   }
 
 

@@ -464,55 +464,23 @@ export class HudGestures {
     g.save();
     let goalX = visible ? sx : cueX, goalY = visible ? sy : cueY;
     const treatment = !!this.retreatGuide?.treatment;
-    // 安全な退き先の判定は保ち、その場所の味方一人へ案内をまとめる。
-    const ally = this.retreatGuide?.ally;
-    const allyFrame = !treatment && singleBattleGuide(rt) && ally?.alive && !ally.gone &&
-      !ally.fleeing && Math.hypot(ally.pos.x - pos.x, ally.pos.z - pos.z) < 8 &&
-      sightScreenUnit(rt, ally) ? this.measurePersonFrame(ally, rt) : null;
-    const allyVisible = allyFrame && allyFrame.cx > 48 && allyFrame.cx < W - 48 &&
-      allyFrame.top > 100 && allyFrame.top < H - 48;
-    if (allyVisible) { goalX = allyFrame.cx; goalY = allyFrame.top - 8; }
+    // 退避の旗は味方の頭へ移さず、逃げ道の入口に固定する。
     const foot = this.project(p, p.y + .08, rt, this.retreatFootProjection || (this.retreatFootProjection = {}));
-    if (allyVisible) {
-      // 頭のすぐ上の旗一つ。安全な床の丸や別向きの矢印は重ねない。
-      this.drawSmallGoalFlag(g, goalX, goalY, .65, false, false, '');
-      if (isTouch && !reached && !touchMoveLearned(rt)) {
-        const start = this.clearMoveOrigin(rt, foot);
-        this.drawMoveGesture(g, rt, way, start.x, start.y);
-      }
-    } else if (compact && !treatment) {
+    if (!treatment) {
       if (visible) this.drawReturnDestination(g, sx, sy);
       this.drawSmallGoalFlag(g, goalX, goalY, .65, false, false, '');
-      if (!visible && !reached) this.drawNavigationArrow(g, cueX, cueY + 28,
-        Math.atan2(-forward, side), .5, true);
-      if (isTouch && !reached && !touchMoveLearned(rt)) {
-        const start = this.clearMoveOrigin(rt, foot);
-        this.drawMoveGesture(g, rt, way, start.x, start.y);
+      if (!reached) {
+        const horizontal = visible && !foot.behind ? sx - foot.x : side;
+        const vertical = visible && !foot.behind ? sy - foot.y : -forward;
+        const angle = Math.abs(horizontal) > Math.abs(vertical) * .4142
+          ? horizontal >= 0 ? 0 : Math.PI : Math.atan2(vertical, horizontal);
+        this.drawNavigationArrow(g, goalX + Math.cos(angle) * 36, goalY + 28,
+          angle, .5, true);
       }
     } else if (treatment) {
       // 戻る床の＋へ、自分から一本で結ぶ。歩けた後も戻る向きを残す。
       if (!reached && link) this.drawRetreatRoute(g, rt, goalX, goalY - 40, true);
       this.drawTreatmentCross(g, goalX, goalY);
-    } else if (rt.def.compactRetreatSign && visible) {
-      if (!this.drawFloorGoal(g, rt, pos.x, pos.z, false, .65))
-        this.drawReturnDestination(g, goalX, goalY);
-      if (!reached && link) this.drawRetreatRoute(g, rt, goalX, goalY);
-      if (isTouch && !reached && !touchMoveLearned(rt)) {
-        const start = this.clearMoveOrigin(rt, foot);
-        this.drawMoveGesture(g, rt, way, start.x, start.y);
-      }
-    } else if (singleBattleGuide(rt)) {
-      if (visible) this.drawTargetFootRing(g, rt, pos, 1, false, true);
-      this.drawNamedGoal(g, goalX, goalY, visible ? null : Math.atan2(-forward, side));
-      if (isTouch && !reached && !touchMoveLearned(rt)) {
-        const start = this.clearMoveOrigin(rt, foot);
-        this.drawMoveGesture(g, rt, way, start.x, start.y);
-      }
-    } else {
-      // 行き先は一つ。見える時はその場所の丸、見えない時だけ同じ札の下に矢印を出す。
-      if (visible) this.drawReturnDestination(g, goalX, goalY);
-      else if (!reached) this.drawNavigationArrow(g, goalX, goalY,
-        this.destinationDirection(rt, way), .85, true);
     }
     // 旗とは別向きに見える足元の山形は重ねない。
     g.restore();

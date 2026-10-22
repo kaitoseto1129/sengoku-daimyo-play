@@ -427,4 +427,25 @@ html:root body #hud.compact-battle #battle-notices #objectives#objectives:not(.e
  display:block !important; visibility:visible !important; font-size:max(16px,calc(16px * var(--text-scale,1))) !important;
  line-height:1.4 !important; white-space:normal !important;
 }
+/* 携帯横の守り札は端の一行。補足は読み上げ用の説明に残す。 */
+@media (max-height:500px) {
+ html:root.touch body #hud #wait-guard#wait-guard:not([hidden]) {
+  display:flex !important; align-items:center; justify-content:center;
+  left:auto !important; right:calc(8px + env(safe-area-inset-right, 0px)) !important;
+  top:auto !important; bottom:calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+  width:max-content !important; max-width:calc(100vw / 3 - 16px) !important;
+  min-width:44px !important; min-height:48px !important; height:auto !important;
+  padding:8px 12px !important; gap:0 !important; border-width:2px !important;
+ }
+ html:root.touch.tc-sw body #hud #wait-guard#wait-guard:not([hidden]) {
+  right:auto !important; left:calc(8px + env(safe-area-inset-left, 0px)) !important;
+ }
+ html:root.touch body #hud #wait-guard#wait-guard:not([hidden]) :is(svg,small,.guard-meter) {
+  display:none !important;
+ }
+ html:root.touch body #hud #wait-guard#wait-guard:not([hidden]) span {
+  font-size:max(18px,calc(18px * var(--text-scale,1))) !important;
+  line-height:1.3 !important; white-space:normal !important; margin:0 !important;
+ }
+}
 `;

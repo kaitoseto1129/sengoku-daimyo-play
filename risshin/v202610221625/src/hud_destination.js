@@ -43,16 +43,15 @@ export class HudDestination {
 
   // 目的は行き先の札にも残す。「ここへ」だけには縮めない。
   destinationPurpose(rt) {
-    if (this.openingActive && isTouch) return 'ここまで進む';
+    if (this.openingActive && isTouch) return '旗まで進む';
     const label = rt.def.travelGuideLabel?.(rt);
     if (label) return label;
-    return rt.def.routeWaymarkLabel || 'ここまで進む';
+    return rt.def.routeWaymarkLabel || '旗まで進む';
   }
 
 
   // 行き先だけ金色の光る輪にする。点滅させず、自分の白い輪と区別する。
   drawGoalArrivalRing(g, x, y) {
-    if (singleBattleGuide(this.rt)) { this.drawNamedGoal(g, x, y); return; }
     g.save(); g.beginPath(); g.ellipse(x, y, 38, 14, 0, 0, Math.PI * 2);
     g.fillStyle = 'rgba(255,243,186,.18)'; g.fill();
     g.strokeStyle = '#14120f'; g.lineWidth = 11; g.stroke();
@@ -62,11 +61,11 @@ export class HudDestination {
 
 
   // 足元から次に踏む地面へ短い道を引く。道の検査と入れ物は使い回す。
-  drawDestinationStep(g, rt, goal) {
+  drawDestinationStep(g, rt, goal, groundOnly = false) {
     if (this.releaseMoveActive || this.releaseGestureDrawn) return false;
     if (isTouch && $('objectives').classList.contains('facing-order')) return false;
     // 携帯は歩行入力と同じ向きの手本一本。地面への投影で逆向きに見える矢印を重ねない。
-    if (isTouch && singleBattleGuide(rt)) return this.drawMoveGesture(g, rt, goal);
+    if (!groundOnly && isTouch && singleBattleGuide(rt)) return this.drawMoveGesture(g, rt, goal);
     if (this.destinationStepDrawn) return true;
     const p = rt.player.u.pos;
     const step = this.destinationStep || (this.destinationStep = { x: 0, y: 0, z: 0, at: -1 });
@@ -94,7 +93,7 @@ export class HudDestination {
     // 次に踏む床へ太い矢印を寝かせる。七つの頂点と投影の入れ物は共有する。
     const distance = Math.hypot(step.x - p.x, step.z - p.z);
     const ux = (step.x - p.x) / distance, uz = (step.z - p.z) / distance;
-    const reach = distance * Math.min(1, 128 / length);
+    const reach = distance * Math.min(1, (rt.def.floorArrowMaxPixels || 96) / length);
     const tail = Math.min(.7, reach * .2), neck = reach * .62;
     const width = Math.min(.85, reach * .25), shaft = width * .36;
     const points = this.destinationArrowPoints || (this.destinationArrowPoints = new Float32Array(14));
@@ -149,15 +148,9 @@ export class HudDestination {
     const point = this.project(pos, groundAt(rt.world, pos.x, pos.z, pos.y ?? rt.player.u.pos.y) + .15,
       rt, this.namedGoalPoint || (this.namedGoalPoint = {}));
     let x = point.x, y = point.y, edgeAngle = null;
-    const marker = rt.missionGuide?.marker;
-    const bounds = marker && groundFlag(rt.missionGuide) ? this.goalFlagBounds(rt, marker, pos) : null;
-    const flagVisible = bounds && bounds.left >= 40 && bounds.left + bounds.width <= VIEW.w - 40 &&
-      bounds.top >= 108 && bounds.top + bounds.height <= VIEW.h - 28;
-    if (flagVisible) {
-      // 旗の根元の投影が画面外でも、見えている布を行き先にする。
-      this.drawGoalFlagFrame(g, bounds);
-      x = bounds.left + bounds.width / 2; y = bounds.top;
-    } else if (point.behind || x < 40 || x > VIEW.w - 40 || y < 100 || y > VIEW.h - 28) {
+    // 旗の布や画面端へ移さず、歩いて着く地面だけを示す。
+    if (point.behind || x < 40 || x > VIEW.w - 40 || y < 100 || y > VIEW.h - 28 ||
+        !this.floorGoalVisible(rt, pos)) {
       const yaw = rt.player.yaw + (rt.player.camYawOff || 0), p = rt.player.u.pos;
       const dx = pos.x - p.x, dz = pos.z - p.z;
       const side = -dx * Math.cos(yaw) + dz * Math.sin(yaw);
@@ -172,18 +165,21 @@ export class HudDestination {
       const spot = this.avoidRects(x, y, VIEW.w, VIEW.h, 'v', null, 40, 88, true);
       if (spot) y = spot[1];
     }
-    // 行き先の印は黄色い旗一つ。地面の足形や赤い矢印を重ねない。
-    if (!flagVisible) {
-      this.drawFlagDestinationSign(g, x, y);
-      y -= 24;
-      if (edgeAngle !== null) this.drawNavigationArrow(g, x, y + 58, edgeAngle, .45, true);
+    if (edgeAngle === null) {
+      // 見える着地点だけに大きな輪を残し、旗の軸を輪の中心へ合わせる。
+      this.drawGoalArrivalRing(g, point.x, point.y);
+      this.drawFlagDestinationSign(g, x + 9, y - 17);
+    } else {
+      // 画面外は向きだけ。端に着地点の旗や輪を作らない。
+      this.drawNavigationArrow(g, x, y, edgeAngle, .65, true);
     }
+    y -= edgeAngle === null ? 40 : 24;
     this.namedGoalDrawn = true; this.goalFlagDrawn = true;
     const order = $('objectives');
     // 開幕は操作と行き先の二枚。通常は既存の任務を旗に寄せて一枚にする。
     if (this.openingActive) {
       if (this.opening?.el.classList.contains('opening-controls'))
-        this.drawTeamWord(g, x, y - 20, 'ここまで進む');
+        this.drawTeamWord(g, x, y - 20, '旗まで進む');
     } else if (this.notices.sources[1].selected && !order.classList.contains('expand')) {
       setClass(order, 'swipe-order', false);
       setClass(order, 'ground-order', true);
@@ -191,26 +187,8 @@ export class HudDestination {
       setCssVar(order, '--ground-order-x', Math.round(Math.max(12, Math.min(VIEW.w - width - 12, x - width / 2))) + 'px');
       setCssVar(order, '--ground-order-y', Math.round(Math.max(12, y - 12 - height)) + 'px');
     }
-    if (edgeAngle === null) {
-      // 操作の矢印とは別に、足元から実際の旗へ向かう短い道を示す。
-      const p = rt.player.u.pos;
-      const foot = this.project(p, p.y + .12, rt,
-        this.namedGoalStart || (this.namedGoalStart = {}));
-      if (!foot.behind) {
-        const dx = x - foot.x, dy = y - foot.y, length = Math.hypot(dx, dy);
-        if (length > 56) {
-          const reach = Math.min(length - 24, 96), start = Math.min(24, reach / 3);
-          g.save(); g.lineCap = 'round'; g.beginPath();
-          g.moveTo(foot.x + dx * start / length, foot.y + dy * start / length);
-          g.lineTo(foot.x + dx * reach / length, foot.y + dy * reach / length);
-          g.strokeStyle = '#14120f'; g.lineWidth = 8; g.stroke();
-          g.strokeStyle = '#fff3ba'; g.lineWidth = 3; g.stroke(); g.restore();
-          this.drawNavigationArrow(g, foot.x + dx * reach / length,
-            foot.y + dy * reach / length, Math.atan2(dy, dx), .45, true);
-        }
-      }
-    }
-    this.destinationStepDrawn = true;
+    // 指の手本とは離し、次に踏める床へ短い矢印を寝かせる。
+    this.drawDestinationStep(g, rt, pos, true);
     return true;
   }
 

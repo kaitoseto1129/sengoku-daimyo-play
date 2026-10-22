@@ -34,46 +34,13 @@ export class HudDefense {
       const score = Math.hypot(sx - W * .5, sy - H * .65) + distance;
       if (score < best) { best = score; spot.x = sx; spot.y = sy; spot.visible = true; }
     }
-    // 近くでは境目が一本の線になるため、閉じた囲みで旗と自分の内外も示す。
-    if (!spot.visible || !this.defenseBoundaryWhole) this.drawDefenseOverview(g, rt, pos, radius, spot);
+    // 見取り図で実際の場所を置き換えない。見えない時は向きを示す。
     return spot;
   }
 
 
-  // 守備判定の内側だけに短い斜線を置く。地面の高さは持ち場が変わる時に測る。
-  drawDefensePattern(g, rt, pos, radius) {
-    const cache = this.defensePattern || (this.defensePattern = { points: new Float32Array(81 * 6) });
-    if (cache.rt !== rt || cache.x !== pos.x || cache.z !== pos.z || cache.radius !== radius) {
-      cache.rt = rt; cache.x = pos.x; cache.z = pos.z; cache.radius = radius; cache.count = 0;
-      for (let row = -4; row <= 4; row++) for (let col = -4; col <= 4; col++) {
-        const dx = col * radius / 5, dz = row * radius / 5, half = radius / 28;
-        if (Math.hypot(Math.abs(dx) + half, Math.abs(dz) + half) >= radius) continue;
-        for (let end = -1; end <= 1; end += 2) {
-          const x = pos.x + dx + end * half, z = pos.z + dz + end * half;
-          cache.points[cache.count++] = x;
-          cache.points[cache.count++] = groundAt(rt.world, x, z, rt.player.u.pos.y) + .15;
-          cache.points[cache.count++] = z;
-        }
-      }
-    }
-    g.save(); g.beginPath(); g.rect(12, 64, VIEW.w - 24, VIEW.h - 88); g.clip(); g.beginPath();
-    for (let i = 0; i < cache.count; i += 6) {
-      this.tmpV.set(cache.points[i], cache.points[i + 1], cache.points[i + 2]).project(rt.camera);
-      if (this.tmpV.z < -1 || this.tmpV.z > 1) continue;
-      const x = (this.tmpV.x * .5 + .5) * VIEW.w, y = (-this.tmpV.y * .5 + .5) * VIEW.h;
-      this.tmpV.set(cache.points[i + 3], cache.points[i + 4], cache.points[i + 5]).project(rt.camera);
-      if (this.tmpV.z < -1 || this.tmpV.z > 1) continue;
-      g.moveTo(x, y); g.lineTo((this.tmpV.x * .5 + .5) * VIEW.w, (-this.tmpV.y * .5 + .5) * VIEW.h);
-    }
-    g.lineCap = 'round';
-    g.strokeStyle = 'rgba(20,18,15,.75)'; g.lineWidth = 6; g.stroke();
-    g.strokeStyle = 'rgba(255,243,186,.85)'; g.lineWidth = 3; g.stroke(); g.restore();
-  }
-
-
-  // 守備の判定と同じ閉じた境目を地面へ投影する。模様のある側が内側。
+  // 守備の判定と同じ境目だけを示し、内側の兵と旗を空ける。
   drawDefenseBoundary(g, rt, pos, radius) {
-    this.drawDefensePattern(g, rt, pos, radius);
     const circle = this.defenseCircle || (this.defenseCircle = new Float32Array(98));
     if (!this.defenseCircleReady) {
       for (let i = 0; i <= 48; i++) {
@@ -107,13 +74,13 @@ export class HudDefense {
       } else if (visible) g.moveTo(sx, sy);
       previous = visible;
     }
-    // 閉じた実線と内側の模様を一組にする。全体が見えない時は見取り図も残す。
+    // 境目は細い破線にし、遠くの敵や旗を線で覆わない。
     if (this.defenseBoundaryWhole) g.closePath();
-    this.defenseSolid ||= [];
-    g.setLineDash(this.defenseSolid);
+    this.defenseBoundaryDash ||= [10, 14];
+    g.setLineDash(this.defenseBoundaryDash);
     g.lineCap = 'round'; g.lineJoin = 'round';
-    g.strokeStyle = '#14120f'; g.lineWidth = 7; g.stroke();
-    g.strokeStyle = '#fff3ba'; g.lineWidth = 3; g.stroke(); g.restore();
+    g.strokeStyle = '#14120f'; g.lineWidth = 4; g.stroke();
+    g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke(); g.restore();
     return drawn;
   }
 
@@ -155,16 +122,17 @@ export class HudDefense {
   drawDefendedFlag(g, rt, marker, pos) {
     if (!singleBattleGuide(rt) || !marker?.guideDefend || !pos) return false;
     if (this.defendedFlagDrawn) return true;
-    const flag = marker.guideFlagMesh?.();
     const radius = defenseRadius(rt, marker);
     const ground = this.defenseGroundSpot(g, rt, pos, radius);
-    if (!ground.visible && !flag?.visible) return false;
     const visible = ground.visible;
     let x, y;
     if (visible) {
       x = ground.x; y = ground.y;
       // 範囲内の地面へ旗を一つ置き、札もそのすぐ上にまとめる。
-      if (!ground.overview) this.drawNamedGoal(g, x, y);
+      g.save(); g.beginPath(); g.ellipse(x, y, 30, 11, 0, 0, Math.PI * 2);
+      g.strokeStyle = '#14120f'; g.lineWidth = 8; g.stroke();
+      g.strokeStyle = '#fff3ba'; g.lineWidth = 3; g.stroke(); g.restore();
+      this.drawFlagDestinationSign(g, x + 9, y - 17);
     } else {
       // 範囲が画面外なら、同じ守備位置へ端の矢印を向ける。
       const p = rt.player.u.pos, dx = pos.x - p.x, dz = pos.z - p.z;
@@ -174,7 +142,6 @@ export class HudDefense {
       const forward = dx * Math.sin(yaw) + dz * Math.cos(yaw);
       const angle = Math.atan2(-forward, right);
       x = right >= 0 ? VIEW.w - 112 : 112; y = Math.max(152, VIEW.h / 2);
-      this.drawSmallGoalFlag(g, x - 10, y, .65, false, false, '');
       this.drawNavigationArrow(g, x + Math.cos(angle) * 44, y + Math.sin(angle) * 44, angle, .55, true);
     }
     const order = $('objectives'), width = order.offsetWidth, height = order.offsetHeight;

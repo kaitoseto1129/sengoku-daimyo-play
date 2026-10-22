@@ -700,8 +700,8 @@ export class HudOverlay {
         setCssVar(order, '--ground-order-y', top + 'px');
       }
       const label = helping ? 'たすける' :
-        `${guard.name || 'この人'}を守る`;
-      this.drawPersonAction(g, rt, off ? x : frame.cx, off ? y : frame.top, label, off ? null : frame);
+        rt.def.guardName?.(rt, guard) || `${guard.name || 'この人'}を守る`;
+      this.drawPersonAction(g, rt, off ? x : frame.cx, off ? y : frame.top, label, off ? null : frame, !helping);
       g.restore(); drew = true;
       setClass(this.root, 'guard-guide', true);
     }

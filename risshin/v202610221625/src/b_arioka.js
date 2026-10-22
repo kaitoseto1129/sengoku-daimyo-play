@@ -54,6 +54,7 @@ const ARI_CHAR = new THREE.MeshLambertMaterial({ color: 0x3e342b });
 const ARI_WORK_WOOD = ARI_WOOD.clone(); ARI_WORK_WOOD.vertexColors = true;
 const ARI_WORK_ROOF = ARI_CHAR.clone(); ARI_WORK_ROOF.vertexColors = true;
 let ariRuinRoofMat;
+let ariTabaMat;
 const ARI_RIDER_GEOMETRIES = new WeakMap();
 const ARI_FLAG_GEOMETRIES = new WeakMap();
 // 写真は構造の参考。有岡の天正七年の木造の備えだけに適用する。
@@ -1097,6 +1098,7 @@ const arioka = {
   enemySignOnly: true, enemyFootRingRadius: .4, // 四隅と足元を残し、刀の印と大きな輪で胴を覆わない。
   enemyFrameAtPosition: true, compactApproachGuide: true, // 現在の相手を示し、接近の大旗を重ねない。
   compactPlayerSign: true, // 足元と向きは残し、白い輪で土橋や兵の足を隠さない。
+  keepPlayerFeet: true, footFrameMinDistance: 1.6, // 携帯横でも本人の足を画面内へ収め、輪だけを残さない。壁際の寄った視点は保つ。
   openingFootSignOnly: true, // 開門待ちでも本人を白い全身枠で覆わず、足元で示す。
   hideArmyPeek: true, // 局地の任務札へ両軍の帯を重ねない。軍の名は出陣札に残す。
   playerSignMinScale: .4, playerSignScale: .6, // 小輪の下限も指定し、共通の大きな白輪へ戻さない。
@@ -1861,6 +1863,12 @@ const arioka = {
       // 寄せる竹束を静止景物へ結合せず、押す位置と見た目をそろえる。
       tb.m.userData.noFreeze = true;
       tb.ariCamera = ariTabaCamera(tb);
+      // 竹の頂点色へ角材の暗い木目を掛けると、月夜には黒い杭になる。
+      // 有岡の束だけ木目を外す。近景・遠景は同じ材質を共有し、形と弾よけは保つ。
+      const near = tb.m.isLOD ? tb.m.levels[0].object : tb.m;
+      if (!ariTabaMat) { ariTabaMat = near.material.clone(); ariTabaMat.map = null; }
+      if (tb.m.isLOD) for (const level of tb.m.levels) level.object.material = ariTabaMat;
+      else tb.m.material = ariTabaMat;
     }
     rt.after(3, () => { if (F.step === 0) { F.taki.order = 'move'; F.taki.dest = { x: GATE.x - 12, z: GATE.z }; F.taki.onArrive = (g) => { g.order = 'hold'; g.anchor = { x: GATE.x - 12, z: GATE.z }; }; } });
     // 先手は本人の踏み込みを待たず、合図で進む。

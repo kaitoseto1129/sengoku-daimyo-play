@@ -10,6 +10,8 @@ export class HudGoal {
 
 
   drawSingleDestination(g, rt, pos, marker) {
+    // 危険な間は守る操作を先に見せ、安全になったら移動案内へ戻す。
+    if (this.root.classList.contains('wait-guard-active')) return false;
     if (this.releaseMoveActive || this.releaseGestureDrawn) return true;
     // 向き直す間は、別方向の移動矢印を重ねない。
     if (isTouch && $('objectives').classList.contains('facing-order')) return false;
@@ -302,6 +304,9 @@ export class HudGoal {
     const sign = doorway ? rt.def.routeSignPoint?.(rt, nextPoint) || nextPoint : pos;
     point.x = sign.x; point.z = sign.z;
     point.y = sign.y ?? groundAt(rt.world, point.x, point.z, pos.y ?? p.y);
+    // 道の旗だけで終わらず、直近の通れる床にも進む向きを残す。
+    if (doorway && !marker?.person && !marker?.guidePerson)
+      this.drawDestinationStep(g, rt, point, true);
     // 旗を持つ人が動く時は根元を追う。待つ持ち場の中心は動かさない。
     const isFlag = !doorway && marker === rt.missionGuide?.marker && groundFlag(rt.missionGuide);
     let flagBounds = !waiting && (isFlag || marker?.guideFlag) ? this.goalFlagBounds(rt, marker, pos) : null;
@@ -346,20 +351,9 @@ export class HudGoal {
       sight.rt = rt; sight.at = rt.t + .5; sight.x = point.x; sight.z = point.z; sight.px = p.x; sight.pz = p.z;
       sight.clear = localClear(rt.army, p, sightPointPos);
     }
-    const turnLabel = doorway && rt.def.travelGuideLabel?.(rt);
-    const doorYaw = rt.player.yaw + (rt.player.camYawOff || 0);
-    const turnToDoor = doorway && sign.door &&
-      (sign.x - p.x) * Math.sin(doorYaw) + (sign.z - p.z) * Math.cos(doorYaw) < -doorDistance * .35;
-    const routeTurning = isTouch && !S.reduceGuidance &&
-      (turnToDoor || /^(右|左)へ(?:向|曲)/.test(turnLabel || ''));
-    if (routeTurning && !sign.door) this.drawRouteTurn(g, rt, turnToDoor ?
-      -(sign.x - p.x) * Math.cos(doorYaw) + (sign.z - p.z) * Math.sin(doorYaw) >= 0 : turnLabel.startsWith('右'));
     this.placeFrameShown = false;
     const framedDoor = doorway && sign.door && sign.frame && sight.clear &&
       sightPoint(rt, cameraProbe, 170, true, 1.2) && this.drawPlaceFrame(g, rt, sign.frame);
-    // 入口の枠が見えても、手前からそこまで足あとをつなぐ。
-    if (doorway && rt.def.routeFootsteps && !S.reduceGuidance)
-      this.drawRouteFootsteps(g, rt, point);
     const bend = doorway && this.drawRouteBend(g, rt, sign);
     let visible = bend || framedDoor || !s.behind && s.x >= 48 && s.x <= W - 48 && s.y >= (doorway ? 64 : 100) && s.y <= H - 32 &&
       (doorway ? sight.clear && sightPoint(rt, cameraProbe, 170, true, 1.2) : waiting || this.floorGoalVisible(rt, point));
@@ -493,7 +487,6 @@ export class HudGoal {
     // 到着後に持ち場が背中へ隠れても、戻る矢印は出さない。
     if (atWait && marker.guideArea !== 'guard') this.drawDestinationArea(g, rt, pos, marker.guideRadius || 8, false);
     // 戸口が曲がり角の向こうなら、壁に横矢印を貼らず、そこまで通れる床を示す。
-    let floorCorner = false;
     if (doorway && !visible) {
       const dx = point.x - p.x, dz = point.z - p.z, length = Math.hypot(dx, dz);
       const ahead = this.cornerFloorPoint || (this.cornerFloorPoint = { x:0, y:0, z:0 });
@@ -505,7 +498,7 @@ export class HudGoal {
         if (q.behind || q.x < 64 || q.x > W - 64 || q.y < 100 || q.y > H - 48 ||
             !localClear(rt.army, p, ahead) || !this.floorGoalVisible(rt, ahead)) continue;
         point.x = ahead.x; point.y = ahead.y; point.z = ahead.z;
-        s = q; visible = true; floorCorner = true; break;
+        s = q; visible = true; break;
       }
     }
     // 行き先は目的地の印か端の矢印にまとめ、足元の矢印と競わせない。
@@ -579,7 +572,7 @@ export class HudGoal {
           const direction = this.navigationDirection(rt, sign);
           const ax = direction.includes('右') ? 1 : direction.includes('左') ? -1 : 0;
           const ay = direction.includes('下') ? 1 : direction.includes('上') ? -1 : 0;
-          if (!routeTurning || sign.door) this.drawNavigationArrow(g, x, y, Math.atan2(ay, ax), .55, true);
+          this.drawNavigationArrow(g, x, y, Math.atan2(ay, ax), .55, true);
 
         } else if (isFlag || !defendRoute && !marker?.treatment) {
           if (isFlag && !atWait) {
@@ -608,26 +601,22 @@ export class HudGoal {
     // 実物の旗には同じ旗形を付け、近い人の足元へ印を移さない。
     if (visible) {
       if (doorway) {
-        if (!sign.door && !sign.indoor && !rt.def.routeFootsteps) {
-          this.drawTargetFootRing(g, rt, point, .85);
-          this.drawSmallGoalFlag(g, x, y - 8, .65);
-        }
-        // 戸口は開口に、曲がり角は床に示す。空いた頭上へ旗を移さない。
+        // 戸口の枠と一本の矢印にまとめ、旗や足あとは重ねない。
+        // 曲がり角はすでに描いた折れ矢印だけを使う。
         if (bend) {
           x = this.bendScreen[4]; y = this.bendScreen[5];
-          if (rt.def.routeFootsteps) this.drawSmallGoalFlag(g, x, y, .65, false, false, '');
-        } else if (floorCorner) {
+        } else if (framedDoor) {
+          const bounds = this.doorwayBounds;
+          x = bounds.arrowX; y = bounds.arrowY;
+          // 枠の描画側で矢印を出す戦には追加しない。
+          if (rt.def.routeFootsteps) this.drawNavigationArrow(g, x, y,
+            this.destinationDirection(rt, sign), .65, true);
+        } else {
           const direction = this.cornerFloorDirection || (this.cornerFloorDirection = { dirX:0, dirZ:0, maxPixels:64 });
           const span = Math.hypot(sign.x - p.x, sign.z - p.z) || 1;
           direction.dirX = (sign.x - p.x) / span; direction.dirZ = (sign.z - p.z) / span;
-          this.drawFloorWaymark(g, rt, point, false, direction);
-        } else if (rt.def.routeFootsteps) {
-          // 旗の根元を戸口か次の角に固定し、手前の足あとへ移さない。
-          this.drawSmallGoalFlag(g, s.x, s.y, .65, false, false, '');
-        } else if (this.drawDoorFloorGoal(g, rt, point, sign, x, y)) {
-          const bounds = this.doorwayBounds;
-          x = bounds.arrowX;
-          y = bounds.arrowY;
+          if (!this.drawFloorWaymark(g, rt, point, false, direction))
+            this.drawNavigationArrow(g, x, y, this.destinationDirection(rt, sign), .65, true);
         }
       } else if (marker?.treatment) {
         const floorSign = this.drawFloorWaymark(g, rt, point, false, null, true);

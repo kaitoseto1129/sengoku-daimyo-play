@@ -976,11 +976,13 @@ export class HudUpdate {
     shownTaskLabel = facingGesture ? '印の敵へ向く' :
       fieldLabel(rt.def.conciseTaskLabel?.(rt, shownTaskLabel) || shownTaskLabel);
     // 既存の任務札を目標に添える。退避・守備の下知は保つ。
-    if (!rt.def.keepCombatTaskHeading && !rt.def.keepTaskLabel &&
+    if ((!rt.def.keepCombatTaskHeading && !rt.def.keepTaskLabel || singleBattleGuide(rt) && !!combatLabel) &&
         rt.guideEnemyShown && rt.guideEnemy?.alive && !this.aimGuideEnemy &&
         (!this.defendEnemy || this.attackGuideEnemy || this.approachGuideEnemy) &&
         !retreatMoving && !retreatRequired(rt) && !this.retreatGuide?.active && !rt.dodgeGuide)
       shownTaskLabel = 'この敵をたおす';
+    if (singleBattleGuide(rt) && /^(この旗へ|旗へ進もう)$/.test(shownTaskLabel))
+      shownTaskLabel = '旗まで進む';
     setClass($('objectives'), 'flag-task', !!guide?.marker && /^(旗へもどろう|ここを守ろう|この中を守れ)$/.test(shownTaskLabel));
     setClass($('objectives'), 'rescue-order', shownTaskLabel === 'この人をたすけよう');
     // 歩数と人数の更新だけでは札を開き直さない。任務・進軍段階・下知の変化で八秒間読む。
@@ -1117,11 +1119,11 @@ export class HudUpdate {
     }
     // 待つ向きと守備範囲は、短縮処理の後も実際の判定に合わせる。札は増やさない。
     if (waitFacing && !aimTurning && !retreatMoving && !careSequence && !recovering(rt))
-      shownTaskLabel = this.waitFacingReady ? 'そのまま待とう' :
+      shownTaskLabel = this.waitFacingReady ? rt.def.waitFacingLabel?.(rt, true) || rt.def.waitOrderLabel?.(rt, true) || '敵が来るまで待とう' :
         `${rt.def.waitFacingTarget?.(rt)?.alive ? '印の敵へ向く' : rt.def.waitFacingLabel?.(rt, false) || '矢印へ向く'}${isTouch ? `・${waitFacingSide}へなぞる` : ''}`;
     if (guide?.marker?.guideDefend &&
         !retreatRequired(rt) && !this.retreatGuide?.active && !careSequence && !rt.dodgeGuide && !rainDanger(rt.army) && !recovering(rt)) {
-      const defendText = guardPostDistance(rt, guide) >= defenseRadius(rt, guide.marker) ? '旗へ すすむ' : 'ここで まもる';
+      const defendText = guardPostDistance(rt, guide) >= defenseRadius(rt, guide.marker) ? 'ここへ' : 'ここをまもる';
       if (!fighting && !targetingEnemy && !facingGesture) shownTaskLabel = defendText;
       else edgeGoalDetail = defendText; // 接敵中も同じ札の中で、持ち場の内外を伝える。
     }
@@ -1131,17 +1133,29 @@ export class HudUpdate {
       shownTaskLabel = `印の敵へ ${attackOperation(rt)}`;
     // 操作の短縮や戦固有の文より後で、触る側と指の動きを一枚に示す。
     if (facingGesture && !careSequence && !retreatMoving && !retreatRequired(rt) && !rt.dodgeGuide && !recovering(rt)) {
-      shownTaskLabel = `${waitFacingSide}になぞる`;
+      shownTaskLabel = `ここから${waitFacingSide}へ`;
       aimHelp = ''; waitFacingHelp = ''; edgeGoalDetail = '';
     }
     // 待つ下知が最終的に選ばれた時だけ、移動を促す印を休める。
-    this.quietWait = shownTaskLabel === 'そのまま待とう' && !fighting && !targetingEnemy &&
+    const idleWait = shownTaskLabel === 'そのまま待とう' ||
+      waitFacing && this.waitFacingReady && shownTaskLabel === rt.def.waitFacingLabel?.(rt, true);
+    if (shownTaskLabel === 'そのまま待とう')
+      shownTaskLabel = rt.def.waitOrderLabel?.(rt, true) || '合図が出るまで待とう';
+    this.quietWait = idleWait && !fighting && !targetingEnemy &&
       !this.openingActive && !rt.choice && !rt.over && !careSequence &&
       !retreatRequired(rt) && !this.retreatGuide?.active && !rt.dodgeGuide && !rainDanger(rt.army);
     setClass(this.root, 'quiet-wait', this.quietWait);
     this.releaseMoveActive = shownTaskLabel === '指をはなそう';
+    // 道案内中は次の入口だけを示し、攻撃の説明を重ねない。
+    const routePriority = !careSequence && !retreatMoving && !rt.dodgeGuide &&
+      !retreatRequired(rt) && !this.retreatGuide?.active && rt.def.routeGuidePriority?.(rt);
+    if (routePriority) {
+      shownTaskLabel = rt.def.taskLabel?.(rt, shownTaskLabel) || this.destinationPurpose(rt);
+      aimHelp = ''; waitFacingHelp = ''; edgeGoalDetail = '';
+      this.combatActionUnified = false;
+    }
     // 同じ操作を見出しと補足に二度出さない。
-    if (edgeGoalDetail === shownTaskLabel) edgeGoalDetail = '';
+    if (edgeGoalDetail === shownTaskLabel || routePriority) edgeGoalDetail = '';
     setClass($('objectives'), 'enemy-move-help', enemyMoveHelp && !dismountFirst(rt));
     setClass($('objectives'), 'compact-steps', /^(?:旗|敵)まで あと\d+歩(?:・.*)?$/.test(shownTaskLabel));
     // 心得の札（史実の負け戦）は、出てから六十秒は狭い画面でも「今」の下に見せる
@@ -1179,7 +1193,7 @@ export class HudUpdate {
         const place = facingHelp ? aimHelp || waitFacingHelp || ' ' : !fighting && !treatmentWaiting && !recovering(rt) && o === cur && guide?.marker && !waitingOrder && !flagTravel && !unifiedDestination && !retreatMoving ? (timedWait ? '敵が来たら 防いでつく' : destinationDistance(rt, guide.distance, true)) + (guide.floorHint ? '・' + guide.floorHint : '') : '';
         // 指定した戦だけ、現在の案内に合う補足へ言い換える。任務の進みや判定は変えない。
         let progress = o === cur ? rt.def.taskDetail?.(rt, title, o.progress || '') ?? (o.progress || '') : o.progress || '';
-        if (combatLabel && o === cur && !rt.def.keepCombatTaskDetail) progress = '';
+        if ((combatLabel && !rt.def.keepCombatTaskDetail || routePriority) && o === cur) progress = '';
         if (rt.teachOn && !rt.teachOn()) progress = noOps(progress);
         const detail = o === cur && (careSequence || rt.def.key === 'anegawa' && guide?.marker || !rt.def.town && !rt.def.dojo && !rt.def.keepCombatTask) ? '' : taskDetail(fieldLabel(goalText(rt, title)), fieldLabel(goalText(rt, progress)));
         objectiveRows.push(`<li class="${o.state === 'done' ? 'done' : o.state === 'fail' ? 'fail' : ''} ${o.kind} ${noteFresh(o) ? 'note-fresh' : ''} ${folded.includes(o) ? 'folded-task' : ''} ${just ? 'justdone' : ''} ${o === cur || (just && !cur) ? 'cur' : ''} ${[...o.text].length > 20 ? 'long' : ''}"><span class="tag">${tag}</span><span class="obj-text">${o === cur ? `<span class="obj-now">${shownTaskLabel === 'この人をたすけよう' ? RESCUE_SIGN : ''}${shownTaskLabel === 'この人を守れ' ? '<i class="guard-sign" aria-hidden="true"></i>' : ''}${(!isTouch && (facingGesture && this.aimGuideEnemy?.alive || this.approachGuideEnemy?.alive && shownTaskLabel === this.meleeApproachText(rt))) ? ENEMY_SIGN : ''}${esc(shownTaskLabel).split(/(\s+)/).map(part => /\s/.test(part) || !/\s/.test(shownTaskLabel) ? part : `<span class="task-phrase">${part}</span>`).join('').replace(/(\d+歩)/g, '<span class="step-count">$1</span>')}${moveGesture}${edgeGoalDetail ? `<small class="edge-goal-detail" style="display:block!important;font-size:max(${taskTimeLabel ? 22 : 15}px,calc(${taskTimeLabel ? 22 : 15}px * var(--text-scale,1)))!important;line-height:1.4">${esc(edgeGoalDetail).replace(/(\d+歩)/g, '<span class="step-count">$1</span>')}</small>` : ''}</span><span class="obj-full">${esc(fieldLabel(goalText(rt, rt.teachOn && !rt.teachOn() ? noOps(o.text) : o.text)))}</span>` : esc(fieldLabel(goalText(rt, rt.teachOn && !rt.teachOn() ? noOps(o.text) : o.text)))}</span>${detail && intelText(rt, o.text) === o.text ? `<small>${esc(detail)}</small>` : ''}${o.cue && !(o === cur && (fighting || this.approachGuideEnemy || rt.def.key === 'anegawa')) && o.state !== 'done' && o.state !== 'fail' && rt.t - (o.cueT || 0) < 30 ? `<small class="obj-cue">${esc(goalText(rt, o.cue))}</small>` : ''}${place ? `<small class="goal-place${facingHelp ? ' facing-help' : ''}">${facingHelp && isTouch ? `<svg class="facing-gesture" viewBox="0 -14 96 60" aria-hidden="true"><g transform="${waitFacingSide === '右' ? '' : 'translate(96 0) scale(-1 1)'}"><circle cx="20" cy="10" r="13" fill="none" stroke="#fff3ba" stroke-width="3"/><path d="M34 10H84M73 1L84 10L73 19" fill="none" stroke="#fff3ba" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 25V10Q14 3 20 3Q26 3 26 10V23L31 20L40 27L36 38H15L5 29Q1 23 7 22Z" fill="#fff3ba" stroke="#14120f" stroke-width="2"/></g></svg>` : ''}${esc(place).replace(/(\d+歩)/g, '<span class="step-count">$1</span>')}</small>` : ''}${pr !== null ? `<i class="opb" aria-hidden="true"><b style="width:${Math.round(pr * 100)}%"></b></i>` : ''}</li>`);
