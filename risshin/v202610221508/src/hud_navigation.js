@@ -411,19 +411,19 @@ export class HudNavigation {
 
   // 自分は足元の白い太い輪で示す。相手の剣と見分け、押すボタンに見える枠は付けない。
   drawPlayerSign(g, rt) {
-    // 接敵中は相手を優先し、開幕は本人の位置に指の手本を置く。
-    if (this.root.classList.contains('combat-three') ||
-        isTouch && this.openingActive && this.opening?.el.classList.contains('opening-controls')) return false;
     let footDrawn = false;
-    const coaching = isTouch && (this.openingActive || rt.touchSwipeActive || this.moveGestureDrawn);
     // 操作案内が消えた後も、自分の実際の足元に白い輪を残す。
     if (!rt.def.town && !rt.def.dojo && rt.player.u.alive && rt.player.u.mesh?.visible &&
         !rt.over && !rt.choice && !rt.player.camShot && !this.bigmap && rt.player.fpK <= .5) {
-      const frame = this.measurePersonFrame(rt.player.u, rt);
-      if (frame) this.drawEnemyContour(g, rt, rt.player.u, frame);
       const p = rt.player.u.pos;
       const foot = this.project(p, p.y + .12, rt,
         this.playerSignFoot || (this.playerSignFoot = {}));
+      // 足元が画面の下へ切れても、見えている本人の白ふちは残す。
+      const frame = this.measurePersonFrame(rt.player.u, rt);
+      if (frame && !isTouch) {
+        this.drawEnemyContour(g, rt, rt.player.u, frame);
+        footDrawn = true;
+      }
       if (!foot.behind && foot.x >= 32 && foot.x <= VIEW.w - 32 && foot.y >= 64 && foot.y <= VIEW.h + 12) {
         // 足元の輪と呼び名は手前の兵にも隠れない画面の層へ描く。
         // 自分の印と呼び名は足元だけにまとめる。
@@ -439,29 +439,6 @@ export class HudNavigation {
       }
 
     }
-    // 向きの印は実際の足元に置く。操作を始める丸とは形も位置も分ける。
-    if (!coaching && !singleBattleGuide(rt) && !this.retreatGuide?.active && !this.headingDrawn && !this.openingActive && !rt.def.town && !rt.def.dojo &&
-        !S.reduceGuidance && !guidanceEnded(rt) && !rt.over && !rt.choice && !rt.player.camShot && !this.bigmap &&
-        rt.player.u.alive && rt.player.fpK <= .5 &&
-        (this.aimGuideEnemy?.alive || this.defendEnemy?.alive || rt.def.waitFacingPoint?.(rt))) {
-      const p = rt.player.u.pos;
-      const foot = this.project(p, p.y + .12, rt, this.headingFoot || (this.headingFoot = {}));
-      const tip = this.headingPoint || (this.headingPoint = { x:0, y:0, z:0 });
-      tip.x = p.x + Math.sin(rt.player.yaw) * 2;
-      tip.z = p.z + Math.cos(rt.player.yaw) * 2; tip.y = p.y + .12;
-      const end = this.project(tip, tip.y, rt, this.headingEnd || (this.headingEnd = {}));
-      const dx = end.x - foot.x, dy = end.y - foot.y, length = Math.hypot(dx, dy);
-      if (!foot.behind && !end.behind && length > 1 && foot.x > 24 && foot.x < VIEW.w - 24 && foot.y > 64 && foot.y < VIEW.h - 24) {
-        this.drawNavigationArrow(g, foot.x + dx / length * 34, foot.y + dy / length * 34,
-          Math.atan2(dy, dx), .65, true);
-        this.headingDrawn = true;
-      }
-    }
-    if (this.openingActive && this.opening?.el.classList.contains('opening-controls') &&
-        !rt.choice && !rt.player.camShot && !this.bigmap && rt.player.fpK <= .5) {
-      // 開幕の矢印は端の説明札の中だけに置く。
-      return true;
-    }
-    return footDrawn || !!this.headingDrawn;
+    return footDrawn;
   }
 }

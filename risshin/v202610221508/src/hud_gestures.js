@@ -1,7 +1,7 @@
 import { VIEW } from "./viewport.js";
 import { isTouch, touchMoveLearned } from "./touch.js";
 import { singleBattleGuide, setClass, $, retreatRequired, setCssVar } from "./hud_common.js";
-import { S } from "./settings.js";
+import { S, reduceMotion } from "./settings.js";
 import { groundAt } from "./floors.js";
 import { sightUnit, sightScreenUnit } from "./battle_sight.js";
 
@@ -109,6 +109,22 @@ export class HudGestures {
     // 描いた丸は左右どちらにあっても、同じ大きさで歩く操作を受ける。
     const origin = this.navigationTouchOrigin || (this.navigationTouchOrigin = {});
     origin.rt = this.rt; origin.at = this.rt.t; origin.x = x; origin.y = y; origin.look = false; origin.radius = radius;
+    if (isTouch && (shiftX || shiftY)) {
+      // 囲みの全体で入力を受け、指の見本と触る範囲を一致させる。
+      origin.areaAt = origin.at;
+      origin.left = Math.max(16, x + Math.min(0, shiftX) - 30);
+      origin.right = Math.min(VIEW.w - 16, x + Math.max(0, shiftX) + 34);
+      origin.top = Math.max(44, y + Math.min(0, shiftY) - 24);
+      origin.bottom = Math.min(VIEW.h - 12, y + Math.max(0, shiftY) + 48);
+      g.save();
+      g.fillStyle = 'rgba(20,18,15,.16)';
+      g.fillRect(origin.left, origin.top, origin.right - origin.left, origin.bottom - origin.top);
+      g.strokeStyle = '#14120f'; g.lineWidth = 5;
+      g.strokeRect(origin.left, origin.top, origin.right - origin.left, origin.bottom - origin.top);
+      g.strokeStyle = '#fff3ba'; g.lineWidth = 2;
+      g.strokeRect(origin.left, origin.top, origin.right - origin.left, origin.bottom - origin.top);
+      g.restore();
+    }
     // 操作を受ける半径は変えず、目で見る始点だけを小さくする。
     const control = isTouch && singleBattleGuide(this.rt);
     const compact = this.rt?.def.compactFloorGuides;
@@ -121,6 +137,14 @@ export class HudGestures {
     g.strokeStyle = '#ffffff'; g.lineWidth = compact ? 1.5 : 2.5; g.stroke();
     if (isTouch) {
       g.save();
+      // 短い見本の後は始点へ戻す。同じ方向の見本は八秒あける。
+      if (this.swipeDemoRt !== this.rt || this.swipeDemoX !== shiftX || this.swipeDemoY !== shiftY) {
+        this.swipeDemoRt = this.rt; this.swipeDemoX = shiftX; this.swipeDemoY = shiftY;
+        this.swipeDemoAt = this.rt.t;
+      }
+      const phase = (this.rt.t - this.swipeDemoAt) % 8;
+      const slide = reduceMotion() || phase >= 1.8 ? 0 : phase < .3 ? 0 : phase < 1.2 ? (phase - .3) / .9 : (1.8 - phase) / .6;
+      g.translate(shiftX * slide, shiftY * slide);
       if (compact) { g.translate(x, y); g.scale(.65, .65); g.translate(-x, -y); }
       g.beginPath(); g.moveTo(x - 5, y + 22); g.lineTo(x - 5, y);
       g.bezierCurveTo(x - 5, y - 9, x + 5, y - 9, x + 5, y);
@@ -193,7 +217,7 @@ export class HudGestures {
     g.strokeStyle = '#fff3ba'; g.lineWidth = compact ? 2.5 : 5; g.stroke();
     g.restore();
     const caption = isTouch && !this.notices.sources[1].selected
-      ? `${Math.abs(dx) > Math.abs(dy) ? dx > 0 ? '右' : '左' : dy > 0 ? '下' : '上'}になぞる` : '';
+      ? `${Math.abs(dx) > Math.abs(dy) ? dx > 0 ? '右' : '左' : dy > 0 ? '下' : '上'}へなぞる` : '';
     this.drawMoveOrigin(g, fromX, fromY, radius, caption, dx / distance * Math.min(56, end - 12), dy / distance * Math.min(56, end - 12));
     // なぞり方を含む既存の一枚を、実際に触る丸のそばへ移す。
     if (isTouch && this.destinationMoveDirection && !order.classList.contains('facing-order') && !order.classList.contains('enemy-move-help') && !this.retreatGuide?.active && !retreatRequired(rt) &&
@@ -376,9 +400,9 @@ export class HudGestures {
   }
 
 
-  // 退避も既存の案内の長さを守り、乱戦を横切る長い線を引かない。
-  drawRetreatRoute(g, rt, x, y) {
-    if (isTouch && singleBattleGuide(rt)) return false;
+  // 通常の退避は短く、手当て先へは＋まで一本で結ぶ。
+  drawRetreatRoute(g, rt, x, y, treatment = false) {
+    if (!treatment && isTouch && singleBattleGuide(rt)) return false;
     const p = rt.player.u.pos;
     const foot = this.project(p, p.y + .12, rt,
       this.returnRouteFoot || (this.returnRouteFoot = {}));
@@ -387,7 +411,7 @@ export class HudGestures {
     if (distance < 64) return false;
     const ux = dx / distance, uy = dy / distance;
     // 輪の外側で止め、到着点と矢じりを重ねない。
-    const end = Math.min(distance - 1 / Math.sqrt(ux * ux / (38 * 38) + uy * uy / (19 * 19)),
+    const end = treatment ? distance - 36 : Math.min(distance - 1 / Math.sqrt(ux * ux / (38 * 38) + uy * uy / (19 * 19)),
       32 + (rt.def.retreatArrowLength ?? rt.def.guideArrowLength ?? 72));
     if (end <= 32) return false;
     const tx = foot.x + ux * end, ty = foot.y + uy * end;
@@ -466,18 +490,9 @@ export class HudGestures {
         this.drawMoveGesture(g, rt, way, start.x, start.y);
       }
     } else if (treatment) {
-      // 手当て先は移動中も到着後も大きな十字。地面の位置は動かさない。
-      if (visible) this.drawTargetFootRing(g, rt, pos, 1, false, true);
+      // 戻る床の＋へ、自分から一本で結ぶ。歩けた後も戻る向きを残す。
+      if (!reached && link) this.drawRetreatRoute(g, rt, goalX, goalY - 40, true);
       this.drawTreatmentCross(g, goalX, goalY);
-      if (!reached) {
-        if (link && visible) this.drawRetreatRoute(g, rt, goalX, goalY);
-        this.drawNavigationArrow(g, goalX, goalY + 24,
-          this.destinationDirection(rt, way), .7, true);
-        if (isTouch && !touchMoveLearned(rt)) {
-          const start = this.clearMoveOrigin(rt, foot);
-          this.drawMoveGesture(g, rt, way, start.x, start.y);
-        }
-      }
     } else if (rt.def.compactRetreatSign && visible) {
       if (!this.drawFloorGoal(g, rt, pos.x, pos.z, false, .65))
         this.drawReturnDestination(g, goalX, goalY);
@@ -519,7 +534,9 @@ export class HudGestures {
           side % 2 === 0 ? W - width - 12 : 12));
         const ly = Math.max(12, Math.min(H - height - 12,
           12 + Math.floor(i / 2) * Math.max(0, (H - height - 24) / 3)));
-        let overlap = 0;
+        // ＋の四角と札には最低十二画素の隙間を置く。
+        let overlap = treatment ? Math.max(0, Math.min(lx + width + 12, goalX + 31) - Math.max(lx - 12, goalX - 31)) *
+          Math.max(0, Math.min(ly + height + 12, goalY - 9) - Math.max(ly - 12, goalY - 71)) : 0;
         for (const r of obstacles) {
           if (r === this.guideOrderRect) continue;
           overlap += Math.max(0, Math.min(lx + width + 8, r.right) - Math.max(lx - 8, r.left)) *
@@ -535,8 +552,8 @@ export class HudGestures {
         top = Math.max(12, health.top - height - 8);
       // 札は唯一の目印へ添える。重なりがある場合だけ端の候補を使う。
       const nearX = Math.max(12, Math.min(W - width - 12, goalX - width / 2));
-      const nearY = Math.max(12, Math.min(H - height - 12, goalY - height - 40));
-      if (!obstacles.some(r => r !== this.guideOrderRect && nearX < r.right + 8 &&
+      const nearY = Math.max(12, Math.min(H - height - 12, goalY - height - (treatment ? 84 : 40)));
+      if ((!treatment || nearY + height <= goalY - 83) && !obstacles.some(r => r !== this.guideOrderRect && nearX < r.right + 8 &&
           nearX + width > r.left - 8 && nearY < r.bottom + 8 && nearY + height > r.top - 8)) {
         left = nearX; top = nearY;
       }

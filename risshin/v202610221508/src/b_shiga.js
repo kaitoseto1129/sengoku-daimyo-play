@@ -1057,6 +1057,7 @@ const shiga = {
   introPeopleFolded: true,
   noUnitContrast: true, // 体から離れる白い人型を出さず、敵味方の頭上の印を残す。
   nearLongWeaponRadius: 10, // 後列の長柄も肩越しへ届く。描く間だけ避け、兵と当たりは残す。
+  nearGroundSpearRadius: 10, // 落ち槍も視点を横切る間だけ避け、道と本人を見せる。
   nearFlagFadeRadius: 5, // 本丸前の大幟も実際の布の位置で拾い、門と守兵を見せる。
   nearAllySolidBody: true, // 木戸で視点が味方の頭へ入る前に、共通の処理で目線を避ける。
   nearAllyWholeOcclusion: true, // 目の前を塞ぐ間だけ全身を避け、首や笠の内側を浮かせない。
@@ -1165,6 +1166,7 @@ const shiga = {
   rainDodgeGuideLabel: (_rt, reached) => reached ? 'ここで矢をよけよう' : '矢をよけ、足元の印へ',
   escapePlaceLabel: (_rt, rain) => rain ? '矢をよけ、足元の印へ' : '印へよけ、構えよう',
   compactDodgeGuide: true,
+  dodgeActionText: '長おしで進む', // 狭い札でも語尾を一字だけ次の行へ送らない。
   singleRetreatArrow: true, // 乱戦を横切る点線を短い矢印一本にし、行き先の旗は残す。
   dodgeAvoidNotices: true,
   dodgeTurnLabel: (_rt, right, touch) => touch
@@ -1340,6 +1342,7 @@ const shiga = {
     unevenCrowns: true, // 松・雑木も共有の葉房を崩し、刈り込んだ塊の輪郭を和らげる。
     // 林の追加の株も含めて道から離し、近い樹冠で坂と下の段の兵を隠さない。
     treePadMul: 2.2,
+    clearGroves: true, // 追加の林にも同じ道幅を適用し、折り返しへ枝を張り出させない。
     tufts: 3400,
     treeDensity: (x, z) => (x > -30 && x < 70 && z > -80 && z < 60 ? 0.15 : 1),
     groves: [{ x: -40, z: 0, r: 14, n: 20 }, { x: 50, z: 70, r: 12, n: 16 }],
@@ -1349,7 +1352,8 @@ const shiga = {
   setup(rt) {
     const W = rt.world;
     const F = rt.flags;
-    // 志賀の昼は陰の形を残す。補助光で土や茅まで白く照らし過ぎない。
+    // 志賀の昼だけ陰を補い、土・草・茅の白飛びを抑える。
+    // 補助光を抑えた本流の配分で、陰の形と甲冑の見やすさを保つ。
     const lookOf = W.lookOf.bind(W);
     W.lookOf = (key) => {
       const look = lookOf(key);
@@ -3226,6 +3230,8 @@ html body #hud.shiga #battle-notices #objectives.has-action:not(.expand) li.cur 
     // 地肌の処理が外れても白地へ戻さず、地形の色と細粒の土を残す。
     const tint = terrain.geometry.getAttribute('slopeTint');
     if (tint) { terrain.geometry.setAttribute('color', tint); mat.vertexColors = true; }
+    // 標準材質に拡張設定がない時も、地肌の支度を止めない。
+    mat.extensions ??= {};
     mat.extensions.derivatives = true;
     mat.onBeforeCompile = (shader) => {
       Object.assign(shader.uniforms, rt.world.groundU);

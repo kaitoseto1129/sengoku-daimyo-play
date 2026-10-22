@@ -613,11 +613,11 @@ export class HudDestination {
   // 手当ての十字は移動中と到着後で同じ形にする。
   drawTreatmentCross(g, x, y) {
     g.save(); g.lineJoin = 'round';
-    g.beginPath(); g.rect(x - 20, y - 60, 40, 40);
+    g.beginPath(); g.rect(x - 28, y - 68, 56, 56);
     g.fillStyle = '#fff3ba'; g.strokeStyle = '#14120f'; g.lineWidth = 5;
     g.stroke(); g.fill();
-    g.beginPath(); g.moveTo(x, y - 53); g.lineTo(x, y - 27);
-    g.moveTo(x - 13, y - 40); g.lineTo(x + 13, y - 40);
+    g.beginPath(); g.moveTo(x, y - 58); g.lineTo(x, y - 22);
+    g.moveTo(x - 18, y - 40); g.lineTo(x + 18, y - 40);
     g.lineWidth = 4; g.stroke(); g.restore();
   }
 

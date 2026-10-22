@@ -19,7 +19,7 @@ export class HudEnemy {
       if (Math.cos(angle) < .9) return `画面を${Math.sin(angle) <= 0 ? '右' : '左'}へなぞる`;
     }
     return (typeof rt.def.meleeApproachText === 'function' ? rt.def.meleeApproachText(rt) : rt.def.meleeApproachText) ||
-      (isTouch ? '上になぞって近づく' : '近づいて たたかう');
+      (isTouch ? '上へなぞる' : '近づいて たたかう');
   }
 
 
@@ -274,7 +274,7 @@ export class HudEnemy {
   }
 
 
-  // 向かう一人を太く囲み、頭上の矢印と同じ相手を示す。
+  // 向かう一人は足元の輪と短い言葉で示し、兵の姿を空ける。
   drawEnemyOutline(g, u, rt, guarding = false) {
     if (travelSignPriority(rt) && u !== this.aimGuideEnemy) return;
     // 近づく時は本人の印を残し、進む先だけ一本で示す。
@@ -300,28 +300,21 @@ export class HudEnemy {
         else this.drawDestinationPointer(g, rt, clear.bend ? clear.way : goal, true);
       }
     }
-    // 現在の立ち位置から頭上の印の位置を測る。
+    // 見えている本人だけを目標にする。
     const f = this.measurePersonFrame(u, rt);
     if (!u.alive || u.dying || !f || f.bottom <= f.top || !sightScreenUnit(rt, u)) return;
-    // ねらう一人は四隅の枠と矢印。味方の丸や行き先の旗と形で見分ける。
+    // 目標は足元の輪と言葉だけ。兵の姿へ枠・旗・剣を重ねない。
     if (this.enemyFrameShown) return;
-    // 相手の全身を四隅で囲み、頭上の矢印も同じ本人へ固定する。
-    this.drawPersonOutline(g, f, false, true);
-    // 頭上の矢印と同じ一人の足元を囲む。人混みで隠れても画面の層に残す。
     const foot = this.project(u.pos, u.pos.y + .08, rt,
       this.enemyRingFoot || (this.enemyRingFoot = {}));
-    if (!isTouch && !foot.behind && foot.x >= 30 && foot.x <= VIEW.w - 30 && foot.y >= 64 && foot.y <= VIEW.h - 16) {
+    if (!foot.behind && foot.x >= 30 && foot.x <= VIEW.w - 30 && foot.y >= 64 && foot.y <= VIEW.h - 16) {
       g.save(); g.beginPath(); g.ellipse(foot.x, foot.y, 28, 11, 0, 0, Math.PI * 2);
       g.strokeStyle = '#14120f'; g.lineWidth = 10; g.stroke();
       g.strokeStyle = '#ffb49d'; g.lineWidth = 5; g.stroke(); g.restore();
+      const low = foot.y > VIEW.h - 44;
+      this.drawTeamWord(g, low ? Math.min(VIEW.w - 40, foot.x + 64) : foot.x,
+        low ? foot.y : foot.y + 27, 'ここへ');
     }
-    const headX = Math.max(30, Math.min(VIEW.w - 30, f.cx));
-    const headY = Math.max(48, Math.min(VIEW.h - 48, f.headY - 8));
-    this.drawNavigationArrow(g, headX, headY - 12, Math.PI / 2, .65, true);
-    // 接敵中は形だけにし、指示・目標・体力の三つへ収める。
-    if (!this.root.classList.contains('combat-three') && (!isTouch || !this.aimGuideEnemy?.alive && !this.defendEnemy?.alive &&
-        !$('objectives').classList.contains('facing-order')))
-      this.drawTeamWord(g, Math.max(24, Math.min(VIEW.w - 24, headX + 30)), headY - 22, '敵');
     rt.army.guideWayEnemy = u; rt.army.guideWayAt = rt.army.time;
     this.enemyFrameShown = true;
     this.outlinedEnemy = u;

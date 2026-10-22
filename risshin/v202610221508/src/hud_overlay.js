@@ -129,7 +129,6 @@ export class HudOverlay {
       const left = Math.max(12, Math.min(W - width - 12, start.x - width / 2));
       const top = Math.max(64, start.y - height - 32);
       if (frame) this.drawEnemyOutline(g, enemy, rt, true);
-      else this.drawEnemySign(g, this.facingSwipeRight ? W - 40 : 40, Math.max(96, H * .4));
       setCssVar(order, '--facing-order-x', Math.round(left) + 'px');
       setCssVar(order, '--facing-order-y', Math.round(top) + 'px');
       swipeDrawn = this.drawRouteTurn(g, rt, this.facingSwipeRight, start) || swipeDrawn;
