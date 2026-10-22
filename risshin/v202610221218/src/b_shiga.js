@@ -1173,6 +1173,8 @@ const shiga = {
   compactCombatGuides: true,
   compactTravelArrow: true, // 道の大矢印を小さくし、前の兵と坂の先を見せる。
   routeDestinationSight: true, // 坂の次の角と近い敵を肩越しに収め、町口の乱戦で視点を引き過ぎない。
+  keepPlayerFeet: true, // 携帯の近い視点でも本人の足と進む道を画面に残す。
+  footFrameMinDistance: 3, // 壁際で寄った目線は、既存の坂・町屋よけに任せる。
   edgeDestinationLabel(rt) {
     const F = rt.flags;
     if (F.step < 2) return '森隊へ';
@@ -1189,6 +1191,7 @@ const shiga = {
   visibleFlagGuides: true, // 兵や門に隠れた布へ、宙に浮く囲みを残さない。
   enemyCornerSign: true, // 兵の胴を塞がず、細い四隅で相手を示す。
   enemySignOnly: true, // 「この敵」の別札を出さず、守る下知と相手の小印を残す。
+  teamSignsOnly: true, // 黄色い全身の線画を外し、敵の具足と動きは四隅の内側に見せる。
   hideArrivedDestination: true, // 木戸の持ち場へ着いたら、大矢印を足元の小さな印へ替える。
   // 狭い木戸でも味方の馬越しに本人と寄せ手を見せる。既存の共用材質で透かす。
   nearAllyFadeRadius: 3.8,
@@ -3249,7 +3252,8 @@ html body #hud.shiga #battle-notices #objectives.has-action:not(.expand) li.cur 
           vec3 grass = texture2D(tGrass, p.xz * 0.23).rgb;
           vec3 mud = texture2D(tMud, p.xz * 0.23).rgb;
           float mottling = mix(0.85, 1.12, texture2D(tMacro, p.xz * 0.023 + 0.37).r);
-          vec3 tint = clamp(vShigaTint * 2.8, vec3(0.45), vec3(1.2));
+          // 昼の照明が加わる前の土色。頂点色を白近くまで増幅せず、秋の褐色を残す。
+          vec3 tint = clamp(vShigaTint * 1.5, vec3(0.2), vec3(0.75));
           diffuseColor.rgb *= (grass * w.x + soil * w.y + mud * w.z) * tint
             * mottling * (1.0 - uWet * 0.18);
         `);

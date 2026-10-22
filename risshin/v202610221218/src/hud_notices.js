@@ -967,8 +967,8 @@ html body #hud #battle-message { gap:8px; }
       const boss = document.getElementById('boss');
       const combatCards = Number(!boss.hidden && !boss.classList.contains('symbol-only')) + Number(!shigaGuardTask && !target.hidden && !target.classList.contains('notice-muted'));
       const defendingPlace = !!this.hud.defendedLocation(rt);
-      // 通常の戦の敵印は図だけ。呼び名を出す時だけ札の枠に数える。
-      const enemyLabel = !!this.hud.enemyFrameShown && !rt?.def.enemySignOnly && (rt.def.town || rt.def.dojo);
+      // 敵の太い輪も一枠に数え、命・任務札と合わせて三つまでにする。
+      const enemyLabel = !!this.hud.enemyFrameShown && (!rt?.def.enemySignOnly || !rt.def.town && !rt.def.dojo);
       this.limit = Math.max(0, Math.min(this.limit, 3 - Number(!!rt && !intro) - Number(destination && !operation) - Number(operation) - combatCards - Number(defendingPlace) - Number(enemyLabel)));
     }
     const oke = rt?.def.key === 'okehazama';

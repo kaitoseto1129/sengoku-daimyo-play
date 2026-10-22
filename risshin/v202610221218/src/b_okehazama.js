@@ -759,15 +759,15 @@ const okehazama = {
   compactPlayerSign: true,
   playerSignScale: 0.55,
   playerSignMinScale: 0.55,
-  // ねらう一人は白い囲みと頭上の印、周りの兵は所属の形で示す。
+  // ねらう一人は足元の二弧、周りの兵は所属の形で示す。
   teamSignsOnly: false,
   noUnitContrast: true,
   // 間引いた骨の位置を案内に使わず、現在の足元へ敵の印を合わせる。
   positionPersonGuide: true,
   enemyFrameAtPosition: true,
-  // 共通の白い囲みを使い、暗い地面でも狙う一人を見分ける。
+  // 共通の足元の印を使い、相手の胴と手足を空ける。
   enemyCornerSign: false,
-  // 頭上のひし形と既存の任務札だけにし、同じ意味の呼び名を増やさない。
+  // 呼び名は既存の任務札へまとめ、相手の頭上には重ねない。
   enemySignOnly: true,
   compactApproachGuide: true,
   compactTreatmentSign: true,
@@ -775,8 +775,9 @@ const okehazama = {
   // 大きな地面の輪と太い囲みで、足運びや具足を隠さない。
   compactFloorGuides: true,
   enemyFootRingRadius: 0.45,
-  enemyFootSignOnly: false,
-  edgeCombatOrders: false,
+  enemyFootSignOnly: true,
+  transientCombatOrders: true,
+  edgeCombatOrders: true,
   nearbyEnemySignLimit: 3,
   groundCombatMarkers: true,
   // 守備・待機の呼び出しが大輪を指定しても、既存の上限付きの足元の輪へそろえる。
@@ -932,9 +933,9 @@ const okehazama = {
     cedarBoughs: true,
     // 葉房を水平近くに寝かせず、目の高さからも上下の房が重なるようにする。
     // 面数と株数を増やさず、低画質と遠景にも同じ枝の傾きを使う。
-    cedarBoughPitch: 0.78,
+    cedarBoughPitch: 0.46,
     // 同じ葉房を横へ広げ、段の間から裸の幹だけが目立つ隙間を減らす。
-    cedarBoughWidth: 1.08,
+    cedarBoughWidth: 1.18,
     // 高画質の杉は透明な余白を送らず、遠景の葉だけ艶の計算を省く。
     lightCedarFoliage: true,
     // 高画質で杉全体を縦長の三枚板へ戻さず、近景・遠景とも既存の枝房を使う。
@@ -974,6 +975,10 @@ const okehazama = {
     slopeLitter: true,
     longitudinalSpearFalls: true,
     patchyGround: true,
+    roadsideGrass: true,
+    // 既存の草を斜面の肩と会戦帯の縁へ集める。株数は増やさない。
+    undergrowthBands: [[-25, -48, 19, 28], [34, -72, 18, 35], [-34, -108, 21, 24]]
+      .map(([x, z, w, d]) => ({ ...fieldPoint(x, z), w, d })),
     softPathSoil: true,
     // 本陣の広場にも残った草と踏み荒らした裸地を混ぜる。足場の高さは保つ。
     grassMix(wx, wz, pathDistance) {
@@ -997,7 +1002,8 @@ const okehazama = {
         * Math.max(0, Math.min(1, (z + 158) / 24));
       // 谷筋は踏まれて泥が露出し、草は斜面の肩にまとまって残る。
       // 地面の配色と既存の草の房が同じ分布を読む。株数は増やさない。
-      return 1 - field * 0.28;
+      const shoulder = 0.5 + 0.5 * Math.sin(x * 0.105 + Math.sin(z * 0.08) * 1.7);
+      return 1 - field * (0.12 + (1 - shoulder) * 0.22);
     },
     paths: [APPROACH, HORSE_ROAD, TOKAIDO],
     height(wx, wz) {
@@ -1089,7 +1095,7 @@ const okehazama = {
     // この戦の地面は残し、視点の潜り込みは既存の地形判定で防ぐ。
     rt.world.terrain.material.userData.camNearSolid = true;
     // 濡れた土の下地を褐色へ。既存の草・泥・踏み跡の絵と凹凸はそのまま使う。
-    rt.world.terrain.material.color.setHex(0xa58b67);
+    rt.world.terrain.material.color.setHex(0xc4b69d);
     // 空の照り返しで濡れ土の色を消さず、草・踏み跡の濃淡を残す。
     rt.world.terrain.material.envMapIntensity = 0.2;
     // 設営と荷運びで既に荒れた筋。直線の帯を敷かず、既存の踏み跡へ刻む。
@@ -1608,10 +1614,10 @@ const okehazama = {
     }
     // 本陣の左右でも、ほかの織田の組が今川の備えと組み合う（軽い作り。兵の数・任務には数えない）。
     // 接近路の小隊で止まっても、その両脇から本陣へ続く押し合いを中景に残す。
-    // 二隊の人数・幅・列の密度を保ったまま手前へ寄せる。至近の非表示範囲も保つ。
+    // 二隊の人数を保ち、幅と接敵までの空きを詰める。至近の非表示範囲は保つ。
     rt.flags.wings = [[-31, -69, 0.12, 191], [39, -69, -0.12, 192]].map(([x, z, f, seed]) => clash(rt, {
-      ...fieldPoint(x, z), facing: Math.PI + FIELD_TURN + f, w: 40, gap0: 44, closeSpeed: 2.6, seed, noRout: true, killRate: 0.1,
-      gap: 2.8, measuredMelee: true, // 人数と前線の幅を保ち、槍列の間合いを詰めて突き・受け・引きを使う。
+      ...fieldPoint(x, z), facing: Math.PI + FIELD_TURN + f, w: 34, gap0: 36, closeSpeed: 2.6, seed, noRout: true, killRate: 0.1,
+      gap: 2.35, measuredMelee: true, // 人数と前線の幅を保ち、槍列の間合いを詰めて突き・受け・引きを使う。
       groundedMelee: true, // 雨後の泥跳ね・膝からの崩れ・塊ごとに伝わる敗走。
       A: { flag: 'oda', armor: 0x2b3140, count: 220 },
       B: { flag: 'imagawa', armor: 0x3f2a24, count: 300, bows: true, flagRate: 0.5 } }));

@@ -1082,7 +1082,9 @@ void cPose(inout APose P) {
   P.off += cOff;
   // 前線の圧が後列へ遅れて届く。両軍を同じ方向へ動かし、間に穴を作らない。
   if (aClash.w < 0.5 && P.run < 0.5) {
-    float pressWave = sin(uAT * 0.95 - aClash.x * 0.62 - aClash.z * 0.38);
+    // 前列の打ち込みと同じ時計で後列が踏ん張る。列ごとの遅れだけ残す。
+    float pressWave = sin((uAT / (2.35 + fract(aClash.x * 0.731) * 0.55)
+      + aClash.x * 0.173) * 6.283185 - aClash.z * 0.38);
     float pressure = (cFight + cPress) * uAMotion;
     P.off.z += uSide * pressure * 0.48 * pressWave;
     // 同じ列へ届く圧で腰を落として槍を送り返す。足の位置や討死の抽選は変えない。
@@ -6836,13 +6838,13 @@ export class World {
         // 細い幹の頂は梢へ尖らせ、平らな切り口を残さない。
         const tr = capless(new THREE.CylinderGeometry(this.def.layeredNeedles ? 0.07 * trunkScale : trunkScale < 1 ? 0 : 0.13, 0.38 * trunkScale, H, this.def.templeNeedles ? 10 : 7), false, true); tr.translate(0, H / 2, 0); bark.push(tr);
         // 下枝から頂まで葉を重ね、低画質でも幹だけの柱にしない。
-        const c0 = H * (0.22 + T() * 0.06), R0 = 2.2 + T() * 0.7;
+        const c0 = H * ((naturalNeedles ? 0.18 : 0.22) + T() * 0.06), R0 = 2.2 + T() * 0.7;
         const tiers = lowV ? 4 : 6, step = (H - c0) / tiers;
         for (let k = 0; k < tiers; k++) {
           const broken = !!this.def.brokenNeedleTiers;
           const t = k / (tiers - 1), r = R0 * (1 - t * 0.76) * (broken ? 0.88 + 0.16 * Math.sin(k * 2.7 + H) : 1);
           if (naturalNeedles) {
-            const cy = c0 + step * (0.5 + k), phase = k * 2.4 + H;
+            const cy = c0 + step * (0.5 + k + 0.16 * Math.sin(k * 2.7 + H)), phase = k * 2.4 + H;
             // 新しく葉房へ替える杉は葉だけの乱数を使う。幹・枝の形と矢の当たりを保つ。
             const F = this.def.raggedNeedles ? T : rng(Math.floor(H * 10000) + k * 97);
             // 葉の根元から先へ向かう軸を、幹から外へ伸びる枝とそろえる。
@@ -6853,16 +6855,16 @@ export class World {
             const pitch = this.def.cedarBoughPitch ?? 1.05;
             const width = this.def.cedarBoughWidth ?? 1;
             for (let j = 0; j < count; j++) {
-              const a = phase + j * Math.PI * 2 / count, d = r * (0.45 + F() * 0.2);
+              const a = phase + j * Math.PI * 2 / count, d = r * (0.3 + F() * 0.2);
               card(leaves, Math.sin(a) * d, cy + (F() - 0.5) * step * 0.7, Math.cos(a) * d,
-                r * (0.85 + F() * 0.25) * width, Math.max(r * 1.45, step * (1.45 + F() * 0.3)),
-                a, pitch + F() * 0.4, 0, cy, 0, !lowV, true, Math.sin(a * 2.7 + k) * 0.52);
+                r * (0.85 + F() * 0.25) * width, Math.max(r * 1.65, step * (1.85 + F() * 0.3)),
+                a, pitch + F() * 0.65, 0, cy, 0, !lowV, true, Math.sin(a * 2.7 + k) * 0.52);
             }
             // 遠景も同じ方向と傾斜。三方向の板だけで枝張りを残す。
             for (let j = 0; j < 3; j++) {
-              const a = phase + j * Math.PI * 2 / 3, d = r * 0.55;
+              const a = phase + j * Math.PI * 2 / 3, d = r * 0.4;
               card(farLeaves, Math.sin(a) * d, cy, Math.cos(a) * d,
-                r * 1.25 * width, Math.max(r * 1.45, step * 1.6), a, this.def.cedarBoughPitch == null ? 1.25 : pitch + 0.2, 0, cy, 0, false, true, Math.sin(a * 2.7 + k) * 0.28);
+                r * 1.25 * width, Math.max(r * 1.65, step * 2.0), a, this.def.cedarBoughPitch == null ? 1.25 : pitch + 0.2 + Math.sin(a + k) * 0.2, 0, cy, 0, false, true, Math.sin(a * 2.7 + k) * 0.28);
             }
             continue;
           }
@@ -6918,9 +6920,16 @@ export class World {
           farLeaves.push(needleLayer(this.def.nearCedarBranches ? 7 : 5, this.def.nearCedarBranches ? 3 : 2));
         }
         if (this.def.thickTrees || this.def.branchTrees || this.def.templeNeedles) for (let k = 0; k < 6; k++) {
-          const a = k * 2.4, y = c0 + (H - c0) * (0.12 + k * 0.1), r = R0 * (0.8 - k * 0.08);
-          const br = capless(new THREE.CylinderGeometry(0.05, 0.13, r, 5), true, false);
-          br.rotateZ(Math.PI / 2); br.rotateY(-a); br.translate(Math.cos(a) * r / 2, y, Math.sin(a) * r / 2); bark.push(br);
+          // 葉房のある段へ短い枝をつなぐ。裸の水平な棒を段違いに並べない。
+          const level = naturalNeedles ? k * (tiers - 1) / 5 : k;
+          const a = level * 2.4 + (naturalNeedles ? H : 0);
+          const y = naturalNeedles ? c0 + step * (0.5 + level + 0.16 * Math.sin(level * 2.7 + H))
+            : c0 + (H - c0) * (0.12 + k * 0.1);
+          const r = R0 * (0.8 - k * 0.08) * (naturalNeedles ? 0.7 : 1);
+          const rise = naturalNeedles ? -r * (0.12 + 0.15 * Math.sin(a)) : 0;
+          const br = capless(new THREE.CylinderGeometry(0.05, 0.13, Math.hypot(r, rise), 5), true, false);
+          br.rotateZ(Math.PI / 2 + Math.atan2(rise, r)); br.rotateY(-a);
+          br.translate(Math.cos(a) * r / 2, y + rise / 2, Math.sin(a) * r / 2); bark.push(br);
         }
       } else if (kind === 'matsu') {
         // 曲がった幹と、枝先の平たい葉の雲
@@ -7361,7 +7370,10 @@ export class World {
       }
     }
     for (let tries = 0; n < tufts && tries < tufts * (lowV ? 6 : 8); tries++) {
-      const near = n > 0 && R() < 0.55, ca = R() * 6.28, cd = 0.35 + R() * 1.1;
+      // 道肩へ寄せた草は株同士をつなげ、同じ本数で下草の面を作る。
+      const clustered = !!(this.def.roadsideGrass || this.def.undergrowthBands?.length);
+      const near = n > 0 && R() < (clustered ? 0.76 : 0.55), ca = R() * 6.28;
+      const cd = clustered ? 0.22 + R() * 0.75 : 0.35 + R() * 1.1;
       // 群落の起点を道肩・沢の帯へ寄せる。本数と束は保ち、戦う道は下の判定で空ける。
       const bands = this.def.undergrowthBands;
       const band = !near && bands?.length && tries % 3 !== 2 ? bands[tries % bands.length] : null;

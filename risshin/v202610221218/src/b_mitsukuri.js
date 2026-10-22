@@ -1087,7 +1087,7 @@ function zoneTask(rt, z, id = 'main', action = '') {
   const next = id === 'main' && courtyardHouse(rt, rt.player.u) ? '戸口から庭の旗へ戻れ' : action || (approaching ? way : !enough ? z.enemies ? `${place}で敵を払い、味方を呼べ` : rt.t < (rt.flags.callReadyAt || 0) ? `${place}で味方を待て` : `${place}で味方を呼べ` : z.enemies ? `${place}の敵を払え` : `${place}をあと${Math.max(1, Math.ceil(z.hold - z.holdT))}秒守れ`);
   // 指図と人数を別の行へ分け、同じ人数を本文と補足に重ねない。
   rt.obj(id, next, id === 'main' ? 'main' : 'side', true);
-  rt.objProgress(id, `郭内：味方${z.friends || 0}／${z.need}人・敵${z.enemies || 0}人`);
+  rt.objProgress(id, `${place}：味方${z.friends || 0}人・敵${z.enemies || 0}人${enough ? '' : `・あと味方${z.need - (z.friends || 0)}人`}`);
   rt.flags.callZone = enough ? null : z;
   // 郭の印に案内をそろえる。人数不足の時も同じ場所に二枚目を重ねない。
 }
@@ -1713,6 +1713,9 @@ const mitsukuri = {
     nearAllyFadeRadius: 1.1, // 兵の更新側も描画直前の全身よけへそろえる。
     blockedHint: () => '急な崖は通れない。二の丸から本丸へは西の道と石段を通れ',
     seed: 1568,
+    // 八十ｍの一様な霞で郭の外の山肌まで空色にしない。
+    // 既存の百五十ｍの描画上限内に収め、兵・草木の数や形は増やさない。
+    battleViewDistance: 140,
     wind: [0.7, 0.7],   // 風向き・強さは景色の復元で、史料の断定ではない
     time: 'day', // 箕作用の時計で申の刻の西日から始める。雨上がりの時刻では時計が進まない。
     // 松明のある攻め口では、月と空の補助光を重ねて具足や木々を白くしない。

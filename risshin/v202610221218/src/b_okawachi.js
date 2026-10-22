@@ -413,8 +413,8 @@ const okawachi = {
     if (rt.flags.step !== 4 || rt.flags.ending) return text;
     // 破られる猶予は道案内より先に出す。残り秒数を「南の柵へ」で隠さない。
     if (rt.flags.dp?.cur?.dangerT) return `あと${Math.max(0, Math.ceil(10 - rt.flags.dp.cur.dangerT))}秒で列が崩れる。柵の味方へ戻れ`;
-    // 槍不足の猶予も補足と同じ時計で示す。「援けを待て」だけで期限を迎えさせない。
-    if (rt.flags.dp?.cur?.shortLineT > 0) return `あと${Math.max(0, Math.ceil(60 - rt.flags.dp.cur.shortLineT))}秒で守りが破れる。柵で槍を三人そろえよ`;
+    // 残り秒数は補足に一度だけ出し、見出しには実際に取れる手を残す。
+    if (rt.flags.dp?.cur?.shortLineThreat) return okShortLineOrder(rt, rt.flags.dp.cur);
     const left = Math.max(0, Math.ceil(240 - (rt.t - rt.flags.stepT)));
     if (okAtSouthLine(rt)) {
       const C = rt.flags.dp?.cur;
@@ -1718,8 +1718,8 @@ function okSlopeDetail(W) {
       float okWaterHold = smoothstep(0.92, 0.995, abs(gN.y));
       pool *= okWaterHold;
       col = mix(col, vec3(0.06, 0.065, 0.06) + mud * 0.18, pool * 0.85);`)
-      .replace('roughnessFactor = mix(roughnessFactor, 0.12, pool);', `
-      roughnessFactor = mix(roughnessFactor, 0.12, pool);
+      .replace('roughnessFactor = mix(roughnessFactor, 0.26, pool);', `
+      roughnessFactor = mix(roughnessFactor, 0.26, pool);
       roughnessFactor = max(roughnessFactor, (1.0 - okWaterHold) * 0.82);`)
       .replace('// 雨で濡れると暗く', `
       float okSlope = smoothstep(0.08, 0.45, 1.0 - abs(gN.y));
@@ -2358,7 +2358,20 @@ function okReliefComing(C, groups = C.reliefSent) {
 function okShortLineOrder(rt, C) {
   if (okReliefComing(C) || okReliefComing(C, rt.flags.lineGroups)) return '援けの組が向かう。柵の旗で待て';
   if (okReliefGroup(C.reliefGroups)) return '援けを呼ぶ。柵の旗で待て';
+  if (C.shortLineThreat) return '援けは来ない。柵で城兵を押し返せ';
   return `柵で交代を待て。あと${Math.max(0, Math.ceil(240 - (rt.t - rt.flags.stepT)))}秒`;
+}
+// 判定の縁を一瞬出ても、破られかけた守りは元に戻らない。
+// 槍が三人そろうか敵を押し返して、二秒保った時だけ猶予を戻す。
+function okShortLineTick(C, near, line, foes, dt) {
+  C.shortLineThreat = near && line < 3 && foes > 0;
+  if (line >= 3 || foes === 0) {
+    C.shortLineSafeT += dt;
+    if (C.shortLineSafeT >= 2) C.shortLineT = 0;
+  } else {
+    C.shortLineSafeT = 0;
+    if (C.shortLineThreat) C.shortLineT += dt;
+  }
 }
 // 隣の折り返し道や切岸の上は、同じ持ち場に着いた扱いにしない。
 // 任務と案内が同じ平場・範囲を見て、到着後に引き返す印を出さない。
@@ -2395,7 +2408,8 @@ function okHold(o) {
   return { kind: 'hold', max: Infinity,
     start(rt, C) {
       C.at = C.goal = o.at; C.botRadius = o.r; C.inT = 0; C.dangerT = 0; C.groups = o.groups; C.joinedLine = false; C.clearT = 0;
-      C.shortLineT = 0; C.reliefWaitT = 0; C.reliefGroup = null; C.engagedHoldT = 0; C.repelling = false;
+      C.shortLineT = 0; C.shortLineSafeT = 0; C.shortLineThreat = false;
+      C.reliefWaitT = 0; C.reliefGroup = null; C.engagedHoldT = 0; C.repelling = false;
       C.quietHoldT = 0;
       // 竹束の組が崩れた場合は、帰陣先で待つ滝川の生き残りへ下知する。
       // 候補は開始時だけ用意し、死傷者の補充や敗走の取り消しはしない。
@@ -2496,9 +2510,9 @@ function okHold(o) {
       }
       // 十人の番だけになってから損害を待つと、坂を来る援けが間に合わない。
       // 番の人数まで減った時か、城兵が道を来る間に既存の控えへ下知する。
+      if (o.sortie) okShortLineTick(C, near, line, foes, dt);
       if (o.sortie && (line <= 10 || C.sortieReleased && !C.engaged)) {
         C.reliefWaitT += dt;
-        C.shortLineT = near && line < 3 && foes > 0 ? C.shortLineT + dt : 0;
         // 夜攻めから戻った二組の生き残りを、それぞれ一度だけ番へ回す。
         // 新しい兵や死者を足さず、既存の坂道から合流させる。
         // 本人が着くまで援けを待たせない。帰陣中から不足を見て道を進ませる。
@@ -2527,7 +2541,7 @@ function okHold(o) {
           rt.def.lose(rt, '南の番の槍が足りず、柵の口を守れなかった', true);
           return false;
         }
-      } else { C.shortLineT = 0; C.reliefWaitT = 0; }
+      } else { C.reliefWaitT = 0; }
       const held = near && foes <= friends && friends > 0 && line >= 3;
       C.holding = held;
       if (held) C.inT += dt;

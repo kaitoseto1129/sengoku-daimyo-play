@@ -95,7 +95,6 @@ export class BattleOpening {
 #hud #battle-opening.opening-controls span { max-width:calc(100vw / 3 - 24px); min-height:44px; }
 #hud #battle-opening.opening-controls .opening-swipe { display:none; }
 /* 始点の丸と上向きの矢印一本だけを残す。 */
-#hud #battle-opening.opening-controls .opening-route > circle,
 #hud #battle-opening.opening-controls .opening-start > path { display:none; }
 #hud #battle-opening i { display:inline-block; flex:none; font-style:normal; font-size:24px; line-height:1; }
 #hud #battle-opening .opening-person { position:absolute; transform:translate(-50%,-100%); line-height:1; color:#fff3ba; text-shadow:0 2px 3px #14120f; }
@@ -320,9 +319,9 @@ body:has(#hud.opening #battle-opening.opening-linked) #tc .stick { visibility:hi
       // 説明は輪の脇へ置き、指と一本の道を文字で覆わない。
       const half = this.label.offsetWidth / 2;
       const halfHeight = this.label.offsetHeight / 2;
-      const side = fingerX + half * 2 + 56 < W - 12 ? 1 : -1;
-      x = Math.max(half + 12, Math.min(W - half - 12, fingerX + side * (half + 48)));
-      y = Math.max(halfHeight + 12, Math.min(H - halfHeight - 12, fingerY - 24));
+      const side = fingerX + half * 2 + 24 < W - 12 ? 1 : -1;
+      x = Math.max(half + 12, Math.min(W - half - 12, fingerX + side * (half + 20)));
+      y = Math.max(halfHeight + 12, Math.min(H - halfHeight - 12, fingerY));
     }
     if (linkedMove) this.text.textContent = rt.def.openingLinkedLabel || '旗まで進む';
     // 旗への説明は実物か画面端の印の脇へまとめる。

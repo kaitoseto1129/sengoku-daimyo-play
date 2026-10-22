@@ -2284,8 +2284,9 @@ const kizugawa = {
   guardWaitText: '敵へ槍を向けて防げ',
   guardLabel: (rt, u) => rt.flags.kukiDanger || u && u === rt.flags.kukiU ? rescueTask(rt) : '近い味方を守れ',
   openingMoveLabel: '大筒へ。上へなぞる',
-  introText: 'まず印をたどり、船べりの大筒へ。敵を防ぎ、合図で撃とう。',
+  introText: 'まず印をたどり、西の船べりの大筒へ。敵を防ぎ、合図で撃とう。',
   // 横持ちでは待つ理由と、撃てる時の操作を短い一文で示す。
+  // 横持ちの短い札でも「待て」の一字だけを次の行へ送らない。
   taskText(_rt, text) {
     return text
       .replace(/^西の大筒へ。敵船を待て$/, '西の大筒で待て')
@@ -3448,13 +3449,21 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       const wt = 1; // 短い戦闘中に潮を何度も満ち引きさせない。風向・潮位の史料は未確定。
       const sp = (b.sp || 2.5) * wt * (b.damageStage ? Math.max(0, 1 - (rt.t - b.hitAt) / 8) : b.leak ? 0.72 : 1);
       if (b.rudderLost) b.z += Math.sin(rt.t * 0.7 + b.x) * 2.2 * dt;
+      // 乗り口へ着く前に舳先をそろえる。位置だけで接舷を終えると、
+      // 横を向いた舟から長い板が海を斜めに渡り、兵が宙を歩いて見える。
+      const mooring = b.exit && !b.approach && !b.withdrawing && !b.damageStage && d < 12;
+      const dockHeading = b.from === 's' ? Math.PI : Math.PI / 2;
+      const dockTurn = mooring ? Math.atan2(Math.sin(dockHeading - b.m.rotation.y), Math.cos(dockHeading - b.m.rotation.y)) : 0;
       if (d > 0.5) {
-        const want = Math.atan2(dx, dz), turn = Math.atan2(Math.sin(want - b.m.rotation.y), Math.cos(want - b.m.rotation.y));
+        const want = mooring ? dockHeading : Math.atan2(dx, dz), turn = Math.atan2(Math.sin(want - b.m.rotation.y), Math.cos(want - b.m.rotation.y));
         b.m.rotation.y += Math.max(-dt * 0.35, Math.min(dt * 0.35, turn));
         // 接舷の最後は櫓で横へ寄せる。旋回半径より近い所で回り続けない。
         const docking = d < 12;
         const advance = Math.min(d, sp * dt) * (docking ? 1 : Math.max(0, Math.cos(turn)));
         b.x += (docking ? dx / d : Math.sin(b.m.rotation.y)) * advance; b.z += (docking ? dz / d : Math.cos(b.m.rotation.y)) * advance; b.m.position.x = b.x; b.m.position.z = b.z;
+      }
+      else if (mooring && Math.abs(dockTurn) > 0.02) {
+        b.m.rotation.y += Math.max(-dt * 0.35, Math.min(dt * 0.35, dockTurn));
       }
       else if (b.approach) { b.approach = null; b.t = b.dock; }
       else if (b.withdrawing && F.bigSunk && !b.passed && !b.damageStage) { b.t.x = 430; b.t.z = 0; }

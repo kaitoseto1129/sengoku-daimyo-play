@@ -189,7 +189,14 @@ function castleExitGuide(rt, goal) {
   }
   const I = exit.room;
   if (!I) return false;
-  if (Math.hypot(p.x - I.doorOut.x, p.z - I.doorOut.z) < 0.65 && Math.abs(p.y - I.doorOut.y) < 0.8) {
+  const dx = p.x - I.x, dz = p.z - I.z;
+  const lx = dx * I.c - dz * I.s, lz = (dx * I.s + dz * I.c) * I.door.side;
+  // 出口の点を踏み越しても、戸口から地面へ出ていれば道案内へ戻す。
+  // 壁の横や上階から外へ出た場合は、出口を通過した扱いにしない。
+  const outsideDoor = exit.through && u.naka == null && lz > I.levels[0].d / 2
+    && Math.abs(lx - I.door.lx) < I.door.w / 2 + 0.6
+    && Math.abs(p.y - rt.world.heightAt(p.x, p.z)) < 0.8;
+  if (outsideDoor || Math.hypot(p.x - I.doorOut.x, p.z - I.doorOut.z) < 0.65 && Math.abs(p.y - I.doorOut.y) < 0.8) {
     exit.room = null; return false;
   }
   if (!exit.through && Math.hypot(p.x - I.doorIn.x, p.z - I.doorIn.z) < 0.55 && Math.abs(p.y - I.doorIn.y) < 0.8) exit.through = true;
@@ -2212,10 +2219,10 @@ html body #hud.shigisan-notices.cover-guidance #battle-notices #objectives:not(.
       }
       return copies.get(mat);
     };
-    rt.scene.traverse(o => {
+    const prepareNearMesh = (o, room = null) => {
       if (!o.isMesh) return;
-      let owner = null;
-      for (let at = o; at && at !== rt.scene; at = at.parent) {
+      let owner = room;
+      for (let at = o; !owner && at && at !== rt.scene; at = at.parent) {
         if (at.userData.sgView) { owner = at.userData.sgView; break; }
         if (at.userData.naka?.sgOverhead) { owner = at.userData.naka; break; }
       }
@@ -2238,7 +2245,10 @@ html body #hud.shigisan-notices.cover-guidance #battle-notices #objectives:not(.
         }
         for (const m of materials) m.userData.sgRoomInside.value = inside ? 1 : 0;
       };
-    });
+    };
+    rt.scene.traverse(o => prepareNearMesh(o));
+    // 室内は接近してから作られる。開始時の走査にない壁にも同じ見通しを付ける。
+    W.def.prepareInteriorMesh = (mesh, room) => mesh.traverse(o => prepareNearMesh(o, room));
 
     rt.world.setTime('night');
     rt.setPhase('brief'); rt.objProgress('main', '');
