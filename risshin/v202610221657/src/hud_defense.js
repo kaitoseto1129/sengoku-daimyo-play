@@ -133,6 +133,8 @@ export class HudDefense {
       g.strokeStyle = '#14120f'; g.lineWidth = 8; g.stroke();
       g.strokeStyle = '#fff3ba'; g.lineWidth = 3; g.stroke(); g.restore();
       this.drawFlagDestinationSign(g, x + 9, y - 17);
+      if (Math.hypot(pos.x - rt.player.u.pos.x, pos.z - rt.player.u.pos.z) >= radius)
+        this.drawDestinationTrail(g, rt, x, y);
     } else {
       // 範囲が画面外なら、同じ守備位置へ端の矢印を向ける。
       const p = rt.player.u.pos, dx = pos.x - p.x, dz = pos.z - p.z;

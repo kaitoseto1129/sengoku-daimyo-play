@@ -371,7 +371,8 @@ export class WorldTerrain {
           ${mat.isMeshLambertMaterial ? '' : `
           // 踏まれた土に、前足と踵の圧痕。土塊の升・向き・乱数を使い回す。
           // 草・水面・坂・遠景には出さず、足跡を格子いっぱいに並べない。
-          float soleK = smoothstep(0.12, 0.65, trod) * (w.y + w.z) * (1.0 - slopeK)
+          // 会戦帯の指定だけでは足跡を敷かない。実際に兵が通った濃い筋だけへ残す。
+          float soleK = smoothstep(0.22, 0.7, wearMarks.r) * (w.y + w.z) * (1.0 - slopeK)
             * (1.0 - smoothstep(0.1, 0.4, surfaceWater)) * clodFilter
             * smoothstep(0.48, 0.72, clodSeed)
             * (1.0 - smoothstep(10.0, 18.0, soilViewDistance));
@@ -714,9 +715,11 @@ export class WorldTerrain {
           ${this.def.wetFieldRuts ? `
           // 雨の裸地は轍以外の浅い窪みにも水を残す。斜面・草の肩・田は避ける。
           // 土の色と同じ大小の斑を使い、一定間隔の水玉にはしない。
-          float fieldPool = smoothstep(0.46, 0.76, macro2) * earthBasin
+          float fieldPool = smoothstep(0.38, 0.72, macro2) * earthBasin
             * (w.y + w.z) * groundWet * (1.0 - steep) * (1.0 - wat);
-          pool = max(pool, fieldPool * 0.72);
+          // 踏まれた窪みほど泥水を残し、通っていない土塊とは艶で分ける。
+          // 既存の踏み跡と斑だけを読み、反射用の面・絵は増やさない。
+          pool = max(pool, fieldPool * mix(0.58, 0.88, trod));
           // 暗い泥の絵だけで全面を水膜にしない。水は低い窪みへ集め、
           // 土塊の肩と草の根には地肌を残す。既存の斑・高さを共用する。
           pool *= smoothstep(0.25, 0.8, earthBasin);

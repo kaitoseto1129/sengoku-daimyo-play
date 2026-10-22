@@ -283,7 +283,7 @@ body:has(#hud.opening #battle-opening.opening-linked) #tc .stick { visibility:hi
       arrow.hidden = true;
       arrow.textContent = '↑';
       arrow.style.transform = '';
-      this.text.textContent = 'ここを上になぞる';
+      this.text.textContent = '上になぞって進む';
       // 左右どちらに足元があっても、示した輪から歩行入力を受ける。
       const start = this.hud.playerControlOrigin(rt, false, false);
       // 操作する端へ寄せ、旗への地面の矢印と指の手本を離す。

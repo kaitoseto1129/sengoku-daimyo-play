@@ -246,7 +246,7 @@ export const ArmyAnim = {
     const trench = !!u._trench && u.type === 'gun' && u.moving < 0.15 && !u.fleeing && !u.mounted && !u.isPlayer;
     const kneel = ((u.stagger > 0.7 && u.hit?.res !== 'block') || u._crouch || trench) && !u.mounted && !u.isPlayer;
     // 相手の間合いへ入った徒歩は腰を落として受ける。攻撃・移動・当たりの値は変えない。
-    const front = u._contactFront?.alive ? u._contactFront : u._lineFront?.alive ? u._lineFront : u.pressBack?.alive ? u.pressBack : braceFront(this, u);
+    const front = u._contactFront?.alive ? u._contactFront : u._lineFront?.alive ? u._lineFront : u.pressBack?.alive ? u.pressBack : u.spearFront?.alive ? u.spearFront : braceFront(this, u);
     const contactWeapon = u.wpnKind || u.lookWeapon || TYPES[u.type].weapon;
     const frontTarget = front?.swing?.target || front?.atk?.target || front?.target || front?.poseTarget;
     const frontWeapon = front && (front.wpnKind || front.lookWeapon || TYPES[front.type].weapon);
@@ -392,7 +392,8 @@ export const ArmyAnim = {
     const pushSwing = u.swing || (rearPress > 0 ? front.swing : null);
     const pushWant = contact > 0 && !reduceMotion() && pushSwing
       && (pushSwing.kind === 'thrust' || pushSwing.kind === 'charge')
-      ? thrustOut(pushSwing.t / Math.max(0.05, pushSwing.dur), pushSwing.dur) : 0;
+      ? thrustOut(pushSwing.t / Math.max(0.05, pushSwing.dur), pushSwing.dur)
+      : contact > 0 && rearPress > 0 && !reduceMotion() ? (front.contactPush || 0) * rearPress * 0.75 : 0;
     u.contactPush = (u.contactPush || 0) + (pushWant - (u.contactPush || 0)) * Math.min(1, dt * (u.swing ? 14 : 6));
     const bracePush = !u.hit && !kneel && !u.dodging && !reduceMotion() ? u.contactPush * u.contactBrace : 0;
     // 相手の振りに手元も応じる。防御の判定は作らず、攻撃前の備えだけを見せる。
@@ -406,6 +407,10 @@ export const ArmyAnim = {
       u.body.rotation.x += u.contactBrace * (0.14 * braceWeight + braceSway);
       u.body.rotation.y += u.contactBrace * braceSide * 0.12;
       u.body.rotation.z += u.contactBrace * (braceSide * 0.05 + braceSway);
+      // 背へ詰めた後列にも前列の受けを遅らせて返す。位置・攻撃の時計は動かさない。
+      const rankLoad = rearPress * braceRecover;
+      u.body.rotation.z += rankLoad * braceSide * .04;
+      u.body.rotation.x -= rankLoad * .10;
       u.body.rotation.x -= u.contactBrace * braceRecover * 0.2 + (u.contactStop || 0) * 0.16;
       u.body.rotation.y += u.contactBrace * braceRecover * braceSide * 0.13;
       // 後列へ伝わる押しと本人の突きを残し、同じ踏み込みの前傾は重ねない。
@@ -914,7 +919,7 @@ export const ArmyAnim = {
     }
     // 敵を見つけただけでは後列の槍を寝かせない。前の味方を越すまでは立てて運ぶ。
     // 攻撃中の軌道・間合い・当たりは保ち、構えの絵だけを整える。
-    let front = u.spearFront?.alive ? u.spearFront : u._lineFront?.alive ? u._lineFront : u.pressBack?.alive ? u.pressBack : u._poseFront?.alive ? u._poseFront : null;
+    let front = u.spearFront?.alive ? u.spearFront : u._contactFront?.alive ? u._contactFront : u._lineFront?.alive ? u._lineFront : u.pressBack?.alive ? u.pressBack : u._poseFront?.alive ? u._poseFront : null;
     // 前列が離れた後も古い印だけで立て続けない。実際に柄が触れる肩幅だけを避ける。
     if (front) {
       const dx = front.pos.x - u.pos.x, dz = front.pos.z - u.pos.z;

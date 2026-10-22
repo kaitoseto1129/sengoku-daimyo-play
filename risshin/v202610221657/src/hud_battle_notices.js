@@ -39,12 +39,23 @@ export class HudNotices extends BattleNotices {
     style.textContent += noticeStyle22;
     style.textContent += noticeStyle23;
     style.textContent += noticeStyle24;
+    // 同じ下知と操作文は一度だけ読み、押せる操作がある方を残す。
+    style.textContent += `
+html body #hud #battle-notices:not(.choosing) #objectives.duplicate-action:not(.expand) #obj-list {
+ display:none !important;
+}
+`;
     document.head.appendChild(style);
   }
   // 長い台詞を高さだけで消さない。収まらない時は欄全体を送って読む。
   fitMessage() {}
   sync() {
     super.sync();
+    const order = $('objectives');
+    const action = order.querySelector('.battle-action:not([hidden])');
+    const task = order.querySelector('li.cur .obj-now');
+    order.classList.toggle('duplicate-action', !!action && !!task &&
+      action.textContent.replace(/\s+/g, '') === task.textContent.replace(/\s+/g, ''));
     // 枠の外にある相手の字列も知らせの数に含める。任務の裏へは出さない。
     $('target').classList.toggle('notice-muted', this.sources[1].selected || this.picks.length >= this.limit);
     this.root.classList.toggle('danger-notice', this.picks.some((item) => item.kind === 'warn'));

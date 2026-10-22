@@ -982,7 +982,7 @@ export class HudUpdate {
         !retreatMoving && !retreatRequired(rt) && !this.retreatGuide?.active && !rt.dodgeGuide)
       shownTaskLabel = 'この敵をたおす';
     if (singleBattleGuide(rt) && /^(この旗へ|旗へ進もう)$/.test(shownTaskLabel))
-      shownTaskLabel = '旗まで進む';
+      shownTaskLabel = 'ここへ進む';
     setClass($('objectives'), 'flag-task', !!guide?.marker && /^(旗へもどろう|ここを守ろう|この中を守れ)$/.test(shownTaskLabel));
     setClass($('objectives'), 'rescue-order', shownTaskLabel === 'この人をたすけよう');
     // 歩数と人数の更新だけでは札を開き直さない。任務・進軍段階・下知の変化で八秒間読む。
@@ -1083,7 +1083,8 @@ export class HudUpdate {
     const travellingNow = travelSignPriority(rt) && !this.aimGuideEnemy?.alive;
     const enemyMoveHelp = !travellingNow && !!this.destinationMoveDirection && !!meleeTarget?.alive &&
       (!!this.approachGuideEnemy || this.combatActionUnified) && !retreatMoving && !facingGesture;
-    if (enemyMoveHelp) shownTaskLabel = `${this.destinationMoveDirection}へなぞる`;
+    if (enemyMoveHelp) shownTaskLabel = this.destinationMoveDirection === '上'
+      ? '上になぞって攻める' : `${this.destinationMoveDirection}になぞって敵へ向く`;
     else if (this.combatActionUnified) shownTaskLabel = attackOperation(rt);
     if (travellingNow && !retreatRequired(rt) && !rt.dodgeGuide && !this.retreatGuide?.active &&
         !recovering(rt) && !rainDanger(rt.army)) {
@@ -1123,7 +1124,7 @@ export class HudUpdate {
         `${rt.def.waitFacingTarget?.(rt)?.alive ? '印の敵へ向く' : rt.def.waitFacingLabel?.(rt, false) || '矢印へ向く'}${isTouch ? `・${waitFacingSide}へなぞる` : ''}`;
     if (guide?.marker?.guideDefend &&
         !retreatRequired(rt) && !this.retreatGuide?.active && !careSequence && !rt.dodgeGuide && !rainDanger(rt.army) && !recovering(rt)) {
-      const defendText = guardPostDistance(rt, guide) >= defenseRadius(rt, guide.marker) ? 'ここへ' : 'ここをまもる';
+      const defendText = guardPostDistance(rt, guide) >= defenseRadius(rt, guide.marker) ? '旗まで進む' : 'ここをまもる';
       if (!fighting && !targetingEnemy && !facingGesture) shownTaskLabel = defendText;
       else edgeGoalDetail = defendText; // 接敵中も同じ札の中で、持ち場の内外を伝える。
     }
@@ -1157,6 +1158,8 @@ export class HudUpdate {
     // 同じ操作を見出しと補足に二度出さない。
     if (edgeGoalDetail === shownTaskLabel || routePriority) edgeGoalDetail = '';
     setClass($('objectives'), 'enemy-move-help', enemyMoveHelp && !dismountFirst(rt));
+    // 操作の文と同じ一人を描画へ渡し、別の兵の印を先に出さない。
+    this.moveGuideEnemy = enemyMoveHelp && !routePriority && !careSequence ? meleeTarget : null;
     setClass($('objectives'), 'compact-steps', /^(?:旗|敵)まで あと\d+歩(?:・.*)?$/.test(shownTaskLabel));
     // 心得の札（史実の負け戦）は、出てから六十秒は狭い画面でも「今」の下に見せる
     const noteFresh = (o) => o.kind === 'note' && !o.state && rt.t - (o.t ?? 0) < 60;
@@ -1334,6 +1337,8 @@ export class HudUpdate {
       if (opened && this.keyboardInput) cp.querySelector('button')?.focus({ preventScroll:true });
     } else setHidden(cp, true);
     // 武器・号令ショートカット
+    // 戦闘中の常設五枚は畳む。開戦直後と号令を開いた時にだけ見せ、近くの行動札は保つ。
+    setHidden($('h-bottom'), !rt.def.town && !rt.def.dojo && !p.cmdOpen && (rt.t > 8 || coachFoe));
     const pad = this.padMode;
     const bottomKey = `${pad}|${p.weapon}|${p.lock}|${K('dodge')}|${K('lock')}|${K('use')}`;
     if (this.bottomKey !== bottomKey) {

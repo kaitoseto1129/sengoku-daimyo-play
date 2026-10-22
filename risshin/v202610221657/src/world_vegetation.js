@@ -148,7 +148,13 @@ export class WorldVegetation {
         }
       } else if (fold) {
         const p = g.attributes.position;
-        for (let k = 0; k < p.count; k++) p.setZ(k, (1 - Math.abs(p.getX(k)) / (w * 0.5)) * w * 0.24);
+        // 同じ六頂点を舟形に曲げる。直線の上下縁と一枚の折り板を葉房の輪郭へ残さない。
+        for (let k = 0; k < p.count; k++) {
+          const side = p.getX(k) / (w * 0.5), top = p.getY(k) / h;
+          p.setXYZ(k, p.getX(k) * (top > 0 ? 0.78 : 1),
+            p.getY(k) + h * (side * side * 0.18 + side * 0.08),
+            (1 - Math.abs(side)) * w * 0.3 + side * top * w * 0.16);
+        }
       }
       if (needle && lightCedar) {
         // 折り目の各段を同じ面の上で切り詰め、絵の座標も合わせる。
@@ -335,9 +341,9 @@ export class WorldVegetation {
           for (let j = 0; j < 2; j++) {
             const a = c * 2.4 + j * 2.7, d = (1.5 + T() * 0.9) * (1 - c * 0.13);
             // 三方ヶ原の松は左右の枝を同じ高さにそろえず、棚状の段を崩す。
-            const branchY = cy + (this.def.raggedPineCrowns ? Math.sin(a * 1.7 + H) * H * 0.055 : 0);
+            const branchY = cy + (this.def.raggedPineCrowns || this.def.branchFoliage ? Math.sin(a * 1.7 + H) * H * 0.055 : 0);
             const cx = x * (cy / H) + Math.cos(a) * d, cz = z * (cy / H) + Math.sin(a) * d;
-            const rise = this.def.raggedPineCrowns ? branchY - cy + 0.2 : 0;
+            const rise = this.def.raggedPineCrowns || this.def.branchFoliage ? branchY - cy + 0.2 : 0;
             const br = capless(new THREE.CylinderGeometry(0.05, 0.1, Math.hypot(d, rise), 5), true, true);
             // 高さを散らした葉房へ、幹から枝をつなぐ。水平な黒い切れ端を残さない。
             br.rotateZ(Math.PI / 2 + Math.atan2(rise, d)); br.rotateY(-a);
@@ -430,15 +436,16 @@ export class WorldVegetation {
             const d = j === 0 ? 0 : 0.2 + T() * 0.2;
             const lift = T(), width = T(), height = T(), tilt = T();
             if (j >= boughCount) continue;
-            const a = j * Math.PI * 2 / 3 + (j >= 3 ? 0.8 : 0);
+            const a = j * 2.39996 + center.y * 0.37;
             const cx = center.x + Math.cos(a) * size.x * d * 0.7;
-            const cy = center.y + (j >= 3 ? 0.18 : -0.12) * size.y + (lift - 0.5) * size.y * 0.2;
+            const cy = center.y + (j >= 3 ? 0.3 : -0.24) * size.y + (lift - 0.5) * size.y * 0.55;
             const cz = center.z + Math.sin(a) * size.z * d * 0.7;
-            const w = size.x * (0.64 + width * 0.16), h = size.y * (0.9 + height * 0.2);
-            const pitch = (j >= 3 ? -0.55 : 0.5) + (tilt - 0.5) * 0.4;
-            card(leaves, cx, cy, cz, w, h, a, pitch, center.x, center.y, center.z, true);
+            const w = size.x * (0.57 + width * 0.23), h = size.y * (1.15 + height * 0.35);
+            const pitch = (j >= 3 ? -0.65 : 0.65) + (tilt - 0.5) * 0.75;
+            const roll = Math.sin(a * 1.7 + center.y) * 0.5;
+            card(leaves, cx, cy, cz, w, h, a, pitch, center.x, center.y, center.z, true, false, roll);
             // 遠くは同じ三方向の葉房だけ。絵・陰影・枝張りを共有し、細分を増やさない。
-            if (j < 3) card(farLeaves, cx, cy, cz, w * 1.08, h * 1.08, a, pitch, center.x, center.y, center.z, true);
+            if (j < 3) card(farLeaves, cx, cy, cz, w * 1.08, h * 1.08, a, pitch, center.x, center.y, center.z, true, false, roll);
           }
           g.dispose();
         }

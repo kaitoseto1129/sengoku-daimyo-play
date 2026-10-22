@@ -132,7 +132,8 @@ export function qualityThink(army, u, immediate = false) {
   // 代表の相手と移動差分を写すと、一人へ向きがそろい、隣の敵を押さえなくなる。
   // 非交戦時の行軍だけは従来どおり判断を共有する。
   if (u.target?.alive || q.target?.alive || u.atk || u.swing || u.bind || u.hit) {
-    army.think(u); return;
+    // ここは判断予算の実行中。再予約すると、呼び元の完了処理で予約が消えてしまう。
+    army.thinkNow(u); return;
   }
   if (q.at <= army.time || q.order !== g.order || q.signal !== g.signalSerial || q.target && !q.target.alive) {
     // 兵種ごとの代表だけが索敵する。移動先は各自の持ち場へ同じ差分を渡す。

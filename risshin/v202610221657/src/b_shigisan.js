@@ -1411,7 +1411,7 @@ const CAMP_CLEARINGS = JIN[0].sonae.map((s) => ({
   hw: (s.w || 32) / 2 + 8, hd: (s.d || 32) / 2 + 8,
 }));
 const shigisan = {
-  introText: '先手の旗に続き、尾根道を進もう。門前では、木づちで門を打つ味方を守ります。兵数と攻め口は推定です。',
+  introText: '味方の旗に続いて、尾根道を登ろう。門に着いたら、木づちで門を打つ味方を守ろう。兵数と攻め口は推定です。',
   compactIntro: true,
   introTaskFirst: true, // 城の紹介より先に、最初の下知と勝つ条件を読む。
   noticeOnce: true, // 同じ下知・使番の知らせは一戦に一度だけ。
@@ -1695,7 +1695,7 @@ const shigisan = {
     fieldStage: 'stubble',
     paddy: (x, z) => x > 84 && x < 130 && z > 164 && z < 204 ? 1 : 0,
     time: 'night',
-    nightLift: 2.6, // 足元の月光は残し、夜空に対して山肌だけ昼のように白くしない。
+    nightLift: 1.6, // 月光の強さは保ち、空から一様に当たる光だけを抑えて夜の陰を残す。
     unitNightScale: 0, // 兵だけの白い縁取りを止め、道と同じ月光・篝火で漆と布を照らす。
     fogFar: 310, // 月明かりの尾根越しに、城の櫓の輪郭を見せる。
     treePadMul: 1.2, // 幹は道の半幅六歩より外。折り返しの外の林縁を近づける。

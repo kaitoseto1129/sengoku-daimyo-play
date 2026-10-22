@@ -19,6 +19,7 @@ import { sightPoint } from './battle_sight.js';
 import { gone as groupGone, seasonOf } from './b_shared.js';
 import { camp } from './b_mid.js';
 import { demBlend, demSample } from './dem.js';
+import { drawGroundAt } from './render_camera.js';
 import { clash } from './b_sekigahara.js';
 import { battleEvent, EVENT_COMMANDER_ADVANCE, EVENT_UNIT_BREAK, EVENT_COMMANDER_KILLED, EVENT_REINFORCEMENT, EVENT_RETREAT } from './battle_events.js';
 
@@ -84,9 +85,9 @@ function moribeBuildings(rt) {
     const { x, z, w, d, rot, h } = b, hw = w / 2, hd = d / 2, temple = b.kind === 'hondo';
     const c = Math.cos(rot), s = Math.sin(rot), door = 1.8, dh = 2.2;
     const P = (lx, lz) => [x + lx * c + lz * s, z - lx * s + lz * c];
-    let ground = W.heightAt(x, z);
+    let ground = drawGroundAt(W, x, z);
     for (const lx of [-hw, hw]) for (const lz of [-hd, hd]) {
-      const [px, pz] = P(lx, lz); ground = Math.max(ground, W.heightAt(px, pz));
+      const [px, pz] = P(lx, lz); ground = Math.max(ground, drawGroundAt(W, px, pz));
     }
     const y = ground + .45;
     W.addGroundShade(x, z, w + 2.4, d + 2.4, rot, .43);
@@ -110,7 +111,7 @@ function moribeBuildings(rt) {
     if (b.shoji) for (const panel of I.doors || []) panel.kind = 'shoji';
     box(0, y - .1, 0, w + .3, .2, d + .3, 0x55422f);
     for (const lx of [-hw, hw]) for (const lz of [-hd, hd]) {
-      const [px, pz] = P(lx, lz), gy = W.heightAt(px, pz), rise = y - gy;
+      const [px, pz] = P(lx, lz), gy = drawGroundAt(W, px, pz), rise = y - gy;
       box(lx, gy + .09, lz, .56, .22, .54, 0x625c4c);
       box(lx, gy + rise / 2, lz, .3, rise, .3, temple ? 0x827b6d : 0x55422f);
       box(lx, y + h / 2, lz, .16, h, .16, 0x493624);
@@ -182,15 +183,25 @@ function moribeBuildings(rt) {
     bundles.get(color).push(at.matrix.clone());
   };
   for (const [x, z] of [[-29, 42], [56, 24]]) {
-    let y = W.heightAt(x, z);
+    let y = drawGroundAt(W, x, z);
     for (const dx of [-2.2, 2.2]) for (const dz of [-1.4, 1.4])
-      y = Math.max(y, W.heightAt(x + dx, z + dz));
+      y = Math.max(y, drawGroundAt(W, x + dx, z + dz));
     W.addGroundShade(x, z, 6.2, 4.5, 0, .35);
     for (const dx of [-2.2, 2.2]) for (const dz of [-1.4, 1.4]) {
-      const gy = W.heightAt(x + dx, z + dz);
+      const gy = drawGroundAt(W, x + dx, z + dz);
       store(x + dx, (gy + y + 2.25) / 2, z + dz, .14, y + 2.25 - gy, .14, 0x493624);
     }
     store(x, y + 2.15, z, 4.7, .16, .16, 0x55422f);
+    // 雨除けは棟・母屋・垂木で支える。横からも軒裏と荷台がつながる復元。
+    for (const dz of [-1.35, 1.35]) store(x, y + 2.2, z + dz, 4.7, .16, .16, 0x55422f);
+    for (let i = 0; i < 7; i++) {
+      const px = x - 2.1 + i * .7;
+      for (const side of [-1, 1]) {
+        at.position.set(px, y + 2.5, z + side * .85);
+        at.rotation.set(side * .3, 0, 0); at.scale.set(.095, .12, 1.85); at.updateMatrix();
+        bundles.get(0x493624).push(at.matrix.clone());
+      }
+    }
     // 風上の板壁・貫・筋交いで雨除けの骨組みを見せる。既存の箱の束へまとめる。
     for (let i = 0; i < 12; i++)
       store(x - 2.1 + i * .38, y + 1.05, z - 1.4, .35, 1.95, .065,
@@ -213,7 +224,7 @@ function moribeBuildings(rt) {
     }
     for (let i = 0; i < 5; i++) {
       const xx = x - 1.45 + (i % 3) * 1.2, zz = z + (i > 2 ? .55 : -.5);
-      const gy = W.heightAt(xx, zz);
+      const gy = drawGroundAt(W, xx, zz);
       store(xx, gy + .34, zz, 1.05, .68, .8, i % 2 ? 0x786044 : 0x62513c);
       store(xx, gy + .7, zz, 1.1, .06, .85, 0x493624);
       // 荷箱の帯と蓋。単色の積み木へ見せず、同じ木材の描画に収める。
@@ -237,13 +248,13 @@ function moribeBuildings(rt) {
     // 小屋掛けの足元に濡れた板の敷場。長短を崩し、屋根だけが野に浮いた見え方を避ける。
     for (let i = 0; i < 7; i++) {
       const xx = x - 1.35 + i * .43, zz = z + 1.6 + (i % 3) * .09;
-      store(xx, W.heightAt(xx, zz) + .035, zz, .36, .07, 1.1 + (i % 2) * .3, 0x62513c);
+      store(xx, drawGroundAt(W, xx, zz) + .035, zz, .36, .07, 1.1 + (i % 2) * .3, 0x62513c);
     }
     // 荷置き場の片側に差し掛け。柱・母屋・葺き板を同じ束へ入れ、描画は増やさない。
     // 正面の通路と槍架を避け、左右同じ箱だけに見えない雨宿りの輪郭を作る。
     const leanSide = x < 0 ? -1 : 1, leanX = x + leanSide * 3.4;
     for (const dz of [-1.35, 1.35]) {
-      const px = x + leanSide * 4.45, pz = z + dz, gy = W.heightAt(px, pz);
+      const px = x + leanSide * 4.45, pz = z + dz, gy = drawGroundAt(W, px, pz);
       store(px, (gy + y + 1.7) / 2, pz, .13, Math.max(.1, y + 1.7 - gy), .13, 0x493624);
       store(leanX, y + 1.92, pz, 2.5, .14, .14, 0x55422f);
     }
@@ -253,7 +264,7 @@ function moribeBuildings(rt) {
       bundles.get(i % 3 ? 0x62513c : 0x55422f).push(at.matrix.clone());
     }
     for (let i = 0; i < 3; i++) {
-      const px = leanX + leanSide * .35, pz = z - .95 + i * .9, gy = W.heightAt(px, pz);
+      const px = leanX + leanSide * .35, pz = z - .95 + i * .9, gy = drawGroundAt(W, px, pz);
       store(px, gy + .22, pz, .75, .44, .65, 0x79634b);
       for (const dx of [-.24, .24]) store(px + dx, gy + .46, pz, .055, .055, .7, 0x493624);
     }
@@ -300,7 +311,7 @@ function moribeBuildings(rt) {
 // 足元の低い泥塊。広大な野へ均等に薄めず、渡河後の会戦帯にだけ置く（配置は復元）。
 // 当たり・地形の高さを変えず、一つの形・材質・描画で崩れた土の輪郭を出す。
 function moribeSoil(rt) {
-  const W = rt.world, geo = new THREE.SphereGeometry(1, 5, 3);
+  const W = rt.world, geo = new THREE.SphereGeometry(1, 8, 4);
   const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: mudTex(true), bumpMap: mudTex(true), bumpScale: .018, roughness: .94, envMapIntensity: .2 });
   // 泥の絵に茶と個体色を重ねると黒い破片になる。絵の濃淡を地表と同じ湿土へ戻す。
   mat.onBeforeCompile = sh => {
@@ -324,12 +335,16 @@ function moribeSoil(rt) {
     // 小粒だけでは横から輪郭が消える。大小を混ぜ、崩れた芝土の低い肩を残す。
     // 一部は踏み場の縁に寄った低い土の肩。小さな同形の粒だけで野を覆わない。
     const shoulder = count % 3 === 0;
-    const length = shoulder ? 1.1 + R() * 1.8 : .18 + R() * R() * .6;
-    at.position.set(x, W.heightAt(x, z) - .025, z);
-    at.rotation.set((W.heightAt(x, z + .3) - W.heightAt(x, z - .3)) / .6,
+    const length = shoulder ? .5 + R() * .9 : .18 + R() * R() * .6;
+    // 歩行用の補間と描く三角形には差がある。土塊の腹を描く地面へ埋める。
+    const ground = drawGroundAt(W, x, z);
+    const rim = Math.min(ground, drawGroundAt(W, x - length, z), drawGroundAt(W, x + length, z),
+      drawGroundAt(W, x, z - length * .4), drawGroundAt(W, x, z + length * .4));
+    at.position.set(x, rim - .065, z);
+    at.rotation.set((drawGroundAt(W, x, z + .3) - drawGroundAt(W, x, z - .3)) / .6,
       shoulder ? Math.atan2(1, .18 + Math.cos(z * .06) * .2) : R() * Math.PI * 2,
-      -(W.heightAt(x + .3, z) - W.heightAt(x - .3, z)) / .6);
-    at.scale.set(length, shoulder ? .10 + R() * .08 : .055 + length * .12,
+      -(drawGroundAt(W, x + .3, z) - drawGroundAt(W, x - .3, z)) / .6);
+    at.scale.set(length, shoulder ? .09 + R() * .04 : .055 + length * .12,
       length * (shoulder ? .18 + R() * .2 : .35 + R() * .6)); at.updateMatrix();
     soil.setMatrixAt(count, at.matrix);
     const tone = .88 + R() * .22;
@@ -1214,7 +1229,7 @@ const moribe = {
     // 雨を吸った下葉は灰緑、踏まれた帯は低く泥色へ。遠景と足元で同じ分布を使う。
     tuftHeight(x, z) {
       const front = Math.max(0, 1 - Math.abs(x - 8) / 65) * Math.max(0, 1 - Math.abs(z - 12) / 75);
-      return (.68 + tuftClumpAt(x, z) * .44) * (1 - front * .28);
+      return (.38 + Math.pow(tuftClumpAt(x, z), 2) * 1.05) * (1 - front * .28);
     },
     tuftColor(x, z, color) {
       const front = Math.max(0, 1 - Math.abs(x - 8) / 65) * Math.max(0, 1 - Math.abs(z - 12) / 75);

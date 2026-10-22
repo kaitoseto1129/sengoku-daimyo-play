@@ -230,7 +230,12 @@ function setListRows(el, rows) {
 
 const SHORT_KEY_NAMES = { 左上の横矢印キー: '横矢', 空白キー: '空白', 右スティック押し込み: '右押込' };
 
-function shortcutKey(s) { return SHORT_KEY_NAMES[s] || s.replace(/のキー$/, ''); }
+const SHORT_LETTERS = ['エー', 'ビー', 'シー', 'ディー', 'イー', 'エフ', 'ジー', 'エイチ', 'アイ', 'ジェー', 'ケー', 'エル', 'エム', 'エヌ', 'オー', 'ピー', 'キュー', 'アール', 'エス', 'ティー', 'ユー', 'ブイ', 'ダブリュー', 'エックス', 'ワイ', 'ゼット'];
+function shortcutKey(s) {
+  if (/^[A-Z]$/i.test(s)) return SHORT_LETTERS[s.toUpperCase().charCodeAt(0) - 65];
+  if (/^F\d+$/.test(s)) return '上段' + s.slice(1);
+  return SHORT_KEY_NAMES[s] || s.replace(/のキー$/, '');
+}
 
 
 // 同じ属性を再設定すると配置の観測も起きるので、今の値が変わる時だけ書く。
@@ -605,6 +610,7 @@ body.rm #aimwarn.on { animation: none; }
 /* 技の列はキー名・絵・技名を縦に分け、拡大した字も省略せず折り返す。 */
 #hud #h-bottom .slot { box-sizing:border-box; height:auto; min-height:64px; padding:2px 4px 4px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:2px; }
 #hud #h-bottom .slot.off { display:none; }
+#hud #h-bottom[hidden] { display:none !important; }
 #hud #h-bottom .slot em { position:static; margin:0; width:100%; font-size:max(12px, calc(12px * var(--text-scale, 1))); line-height:1.2; white-space:normal; overflow:visible; overflow-wrap:anywhere; text-overflow:clip; text-align:center; }
 #hud #h-bottom .slot svg { position:static; transform:none; width:22px; height:22px; flex-shrink:0; }
 /* 岩村・高遠：間合いは照準の上、気力は左上で輪の下。体と命中の印から離す。 */

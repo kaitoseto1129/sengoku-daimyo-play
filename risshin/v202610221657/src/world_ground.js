@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { WEAR, WEAR_HALF } from './world_weather.js';
 import { S as SETTINGS } from './settings.js';
 import { rng } from './world_common.js';
+import { drawGroundAt } from './render_camera.js';
 
 
 export class WorldGround {
@@ -27,7 +28,7 @@ export class WorldGround {
     for (let i = 0; i < p.count; i++) {
       const lx = p.getX(i), lz = p.getY(i);
       const px = x + lx * c + lz * s, pz = z - lx * s + lz * c;
-      p.setXYZ(i, px, this.heightAt(px, pz) + 0.018, pz);
+      p.setXYZ(i, px, drawGroundAt(this, px, pz) + 0.018, pz);
     }
     // 濃さの違う材質は作らず、頂点色の透過率で一枚の材質を共用する。
     geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(p.count * 4).fill(1), 4));
@@ -121,13 +122,13 @@ export class WorldGround {
     const d = this.feetD, i = this.feetI;
     this.feetI = (i + 1) % 48;
     this.feetPositions[i * 2] = x; this.feetPositions[i * 2 + 1] = z;
-    d.position.set(x, this.heightAt(x, z) + 0.012, z);
+    d.position.set(x, drawGroundAt(this, x, z) + 0.012, z);
     // 足跡も土の斜面へ沿わせる。一度置く時だけ測り、共用の面を使う。
     const sn = Math.sin(rot), cs = Math.cos(rot), step = 0.2;
-    const sx = (this.heightAt(x + cs * step, z - sn * step)
-      - this.heightAt(x - cs * step, z + sn * step)) / (step * 2);
-    const sz = (this.heightAt(x + sn * step, z + cs * step)
-      - this.heightAt(x - sn * step, z - cs * step)) / (step * 2);
+    const sx = (drawGroundAt(this, x + cs * step, z - sn * step)
+      - drawGroundAt(this, x - cs * step, z + sn * step)) / (step * 2);
+    const sz = (drawGroundAt(this, x + sn * step, z + cs * step)
+      - drawGroundAt(this, x - sn * step, z - cs * step)) / (step * 2);
     d.rotation.order = 'YXZ';
     d.rotation.set(-Math.atan(sz), rot, Math.atan(sx / Math.sqrt(1 + sz * sz)));
     if (hoof) d.scale.set(0.32, 1, 0.3); else d.scale.set(0.2, 1, 0.5);
@@ -247,9 +248,16 @@ export class WorldGround {
       const k = Math.floor(R() * (p.length - 1)), t = R();
       const x = p[k][0] + (p[k + 1][0] - p[k][0]) * t + (R() - 0.5) * 3, z = p[k][1] + (p[k + 1][1] - p[k][1]) * t + (R() - 0.5) * 3;
       const m = new THREE.Mesh(shapes[i % 4], mat);
-      m.position.set(x, this.heightAt(x, z) + 0.04, z);
+      m.position.set(x, drawGroundAt(this, x, z) + 0.018, z);
       m.scale.set(0.6 + R() * 1.4, 1, 0.4 + R() * 0.9);
-      m.rotation.y = R() * 3;
+      const yaw = R() * 3, sn = Math.sin(yaw), cs = Math.cos(yaw), step = .3;
+      // 水の薄膜も道の勾配へ据える。水平の暗い円板を坂から張り出させない。
+      const sx = (drawGroundAt(this, x + cs * step, z - sn * step)
+        - drawGroundAt(this, x - cs * step, z + sn * step)) / (2 * step);
+      const sz = (drawGroundAt(this, x + sn * step, z + cs * step)
+        - drawGroundAt(this, x - sn * step, z - cs * step)) / (2 * step);
+      m.rotation.order = 'YXZ';
+      m.rotation.set(-Math.atan(sz), yaw, Math.atan(sx / Math.sqrt(1 + sz * sz)));
       this.scene.add(m);
     }
   }

@@ -291,7 +291,7 @@ html.touch body #tc [data-b="atk"] small:empty { display:none !important; }
 html.touch body #tc [data-b="atk"] small { display:block !important; white-space:pre-line; overflow-wrap:normal; letter-spacing:0; }
 html.touch body #tc [data-b="atk"].counter-ready .name { font-size:16px; font-weight:900; }
 /* 攻撃は親指の位置に固定。押している間は角形と進みの輪で示す。 */
-html.touch body #tc [data-b="atk"]:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; background:#641f16; border:3px solid #fff3ba; border-radius:10px; top:auto !important; left:auto !important; right:calc(16px + env(safe-area-inset-right, 0px)); bottom:calc(16px + env(safe-area-inset-bottom, 0px)); min-width:88px; min-height:88px; box-sizing:border-box; pointer-events:auto; z-index:3; }
+html.touch body #tc [data-b="atk"]:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; background:#641f16; border:3px solid #fff3ba; border-radius:10px; top:auto !important; left:auto !important; right:calc(16px + env(safe-area-inset-right, 0px)); bottom:calc(16px + env(safe-area-inset-bottom, 0px)); min-width:96px; min-height:96px; box-sizing:border-box; pointer-events:auto; z-index:3; }
 html.touch.tc-sw body #tc [data-b="atk"]:not([hidden]) { right:auto; left:calc(16px + env(safe-area-inset-left, 0px)) !important; }
 html.touch body #tc [data-b="atk"] .name { font-size:22px; line-height:1.2; }
 html.touch body #tc [data-b="atk"].holding { border-radius:12px !important; border:4px double #fff3ba; }
@@ -422,7 +422,7 @@ const ORDER_HORSE = ['atk', 'grd', 'dodge', 'use', 'spear', 'cmd', 'mount', 'loc
 const ORDER_RANGED = ['atk', 'grd', 'dodge', 'use', 'spear', 'cmd', 'mount', 'lock', 'wpn', 'fire', 'rally'];
 const ORDER_FOOT = ['atk', 'grd', 'dodge', 'use', 'spear', 'cmd', 'mount', 'lock', 'fire', 'rally', 'wpn'];
 const BTN = [
-  { id: 'atk', label: 'つく', sub: '', col: 0, row: 0, d: 84, big: true },
+  { id: 'atk', label: 'つく', sub: '', col: 0, row: 0, d: 96, big: true },
   { id: 'grd', label: 'かまえる', col: 0, row: 1, d: 64 },
   { id: 'dodge', label: 'よける', col: 1, row: 0, d: 64 },
   { id: 'lock', label: '狙い', col: 1, row: 1, d: 60 },
@@ -1896,7 +1896,7 @@ function layout() {
     let lo = 0, hi = k;
     for (let i = 0; i < 12; i++) {
       const mid = (lo + hi) / 2;
-      const width = Math.max(88, Math.ceil(84 * mid)) + Math.max(64, Math.ceil(64 * mid)) + Math.max(44, Math.ceil(56 * mid)) + Math.max(44, Math.ceil(48 * mid)) + gap * 3 + Math.ceil(12 * mid);
+      const width = Math.max(96, Math.ceil(84 * mid)) + Math.max(64, Math.ceil(64 * mid)) + Math.max(44, Math.ceil(56 * mid)) + Math.max(44, Math.ceil(48 * mid)) + gap * 3 + Math.ceil(12 * mid);
       if (width <= available) lo = mid; else hi = mid;
     }
     k = lo;
@@ -1907,7 +1907,7 @@ function layout() {
   const cols = [0, 0, 0, 0], rows = [0, 0, 0];
   for (const d of BTN) {
     if (d.id === 'treat') continue;
-    const s = Math.ceil(Math.max(d.id === 'use' && T.layoutGate ? 48 : d.id === 'atk' ? 88 : d.id === 'grd' || d.id === 'dodge' ? 64 : 44, d.d * k));
+    const s = Math.ceil(Math.max(d.id === 'use' && T.layoutGate ? 48 : d.id === 'atk' ? 96 : d.id === 'grd' || d.id === 'dodge' ? 64 : 44, d.d * k));
     cols[d.col] = Math.max(cols[d.col], T.layoutGate && d.id === 'use' ? Math.max(120, s) : s);
     rows[d.row] = Math.max(rows[d.row], s);
   }
@@ -1938,7 +1938,7 @@ function layout() {
     const d = T.town && d0.id === 'use' ? { ...d0, col: 0, row: 0, d: 84 } : d0;
     const el = T.btn[d.id];
     if (d.id === 'use') el.classList.toggle('big', !!T.town);
-    const s = Math.ceil(Math.max(d.id === 'use' && T.layoutGate ? 48 : d.id === 'atk' ? 88 : d.id === 'grd' || d.id === 'dodge' ? 64 : 44, d.d * k)); // 押せる所は 44px 以上を必ず確保
+    const s = Math.ceil(Math.max(d.id === 'use' && T.layoutGate ? 48 : d.id === 'atk' ? 96 : d.id === 'grd' || d.id === 'dodge' ? 64 : 44, d.d * k)); // 押せる所は 44px 以上を必ず確保
     const width = T.layoutGate && d.id === 'use' ? Math.max(120, s) : s;
     el.style.width = width + 'px'; el.style.height = s + 'px';
     // 攻めを頂点に、構えと回避を少し内側へ寄せた親指の弧。

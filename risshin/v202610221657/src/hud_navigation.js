@@ -419,7 +419,8 @@ export class HudNavigation {
     const point = this.playerControlPoint || (this.playerControlPoint = {});
     const right = look ? !S.touchSwap : !!S.touchSwap;
     point.visible = false;
-    point.x = VIEW.w * (right ? .78 : .22);
+    point.x = isTouch && !rt.def.town && !rt.def.dojo
+      ? right ? VIEW.w - 108 : 108 : VIEW.w * (right ? .78 : .22);
     point.y = Math.max(144, VIEW.h - 112);
     // 指と上向き矢印・説明が収まる地面を、本人の横で探す。
     if (nearPlayer && rt.player.fpK <= .5) {
@@ -461,34 +462,40 @@ export class HudNavigation {
 
   // 自分は足元の白い太い輪で示す。相手の剣と見分け、押すボタンに見える枠は付けない。
   drawPlayerSign(g, rt) {
+    // 操作面とは別に、実際の本人の頭上へ短い名前を残す。
+    if (!rt.def.town && !rt.def.dojo && rt.player.u.alive && !rt.over && !rt.choice &&
+        !rt.player.camShot && !this.bigmap && rt.player.fpK <= .5) {
+      const u = rt.player.u;
+      const head = this.project(u.pos, u.pos.y + (u.mounted ? 3.7 : (u.bodyHeight ?? 1.72) + .45), rt,
+        this.playerNameProjection || (this.playerNameProjection = {}));
+      if (!head.behind && head.x >= 32 && head.x <= VIEW.w - 32 && head.y >= 24 && head.y <= VIEW.h - 24) {
+        this.drawTeamWord(g, head.x, head.y, '自分');
+        if (isTouch) return true;
+      }
+      if (isTouch) return false;
+    }
     // 見回す手本の間は、触る始点と紛らわしい別の白い輪を休める。
     const origin = this.navigationTouchOrigin;
     if (isTouch && origin?.rt === rt && origin.look && rt.t - origin.at < .15) return false;
     let footDrawn = false;
-    // 操作案内が消えた後も、自分の実際の足元に白い輪を残す。
+    // 人体を白線でなぞらず、見えている実際の足元だけを小さな輪で示す。
     if (!rt.def.town && !rt.def.dojo && rt.player.u.alive && rt.player.u.mesh?.visible &&
         !rt.over && !rt.choice && !rt.player.camShot && !this.bigmap && rt.player.fpK <= .5) {
       const p = rt.player.u.pos;
       const foot = this.project(p, p.y + .12, rt,
         this.playerSignFoot || (this.playerSignFoot = {}));
-      // 足元が画面の下へ切れても、見えている本人の白ふちは残す。
-      const frame = this.measurePersonFrame(rt.player.u, rt);
-      if (frame && !isTouch) {
-        this.drawEnemyContour(g, rt, rt.player.u, frame);
-        footDrawn = true;
-      }
       if (!foot.behind && foot.x >= 32 && foot.x <= VIEW.w - 32 && foot.y >= 64 &&
-          (foot.y <= VIEW.h - 17 || frame && foot.y <= VIEW.h + 80)) {
+          foot.y <= VIEW.h - 22) {
         // 本人は足元の太い輪だけ。名前札と頭上の印は増やさない。
         const scale = Math.max(1, S.textScale || 1);
         g.save(); g.beginPath();
-        const rx = (rt.player.mounted ? 46 : 38) * scale, ry = 22 * scale;
-        // 足が下端へ切れる視点でも、輪全体が見える位置まで寄せる。
+        const rx = (rt.player.mounted ? 22 : 16) * scale, ry = 7 * scale;
+        // 画面の端へ切れた本人の代わりに、別の位置へ印を浮かべない。
         const x = Math.max(rx + 22, Math.min(VIEW.w - rx - 22, foot.x));
         const y = Math.min(VIEW.h - ry - 22, foot.y);
         g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
-        g.strokeStyle = '#14120f'; g.lineWidth = 12; g.stroke();
-        g.strokeStyle = '#fff'; g.lineWidth = 7; g.stroke(); g.restore();
+        g.strokeStyle = '#14120f'; g.lineWidth = 5; g.stroke();
+        g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke(); g.restore();
         // 実際の歩行方向を白い短い山形で示す。旗への金の矢印とは分ける。
         const u = rt.player.u, speed = Math.hypot(u.vel.x, u.vel.z);
         const dx = speed > .2 ? u.vel.x / speed : Math.sin(u.heading);
@@ -498,7 +505,7 @@ export class HudNavigation {
         const end = this.project(point, p.y + .12, rt,
           this.playerHeadingProjection || (this.playerHeadingProjection = {}));
         const length = Math.hypot(end.x - foot.x, end.y - foot.y);
-        if (!this.openingActive && !end.behind && length > 2) {
+        if (this.openingActive && !end.behind && length > 2) {
           const ux = (end.x - foot.x) / length, uy = (end.y - foot.y) / length;
           const reach = 1 / Math.hypot(ux / rx, uy / ry) + 15;
           const tipX = x + ux * reach, tipY = y + uy * reach;
