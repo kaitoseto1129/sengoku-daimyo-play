@@ -316,7 +316,10 @@ function makeAtlas() {
       const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, 1); gr.addColorStop(0, `rgba(${col},${a})`); gr.addColorStop(1, `rgba(${col},0)`);
       ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, 1, 0, 7); ctx.fill(); ctx.restore();
     };
-    const line = (ctx, pts, col, a, wd) => { ctx.strokeStyle = `rgba(${col},${a})`; ctx.lineWidth = wd; ctx.lineCap = 'round'; ctx.beginPath(); pts.forEach(([th, ph], i) => { const [x, y] = P(th, ph); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.stroke(); };
+    // 簡易顔が残る段も、墨の目鼻や輪郭を描かず、柔らかな濃淡だけにする。
+    const line = (ctx, pts, col, a, wd) => {
+      for (const [th, ph] of pts) blob(ctx, th, ph, 0.095, wd / 256 * Math.PI * 1.8, col, a * 0.24);
+    };
     clip(ALL, faceReg(t), () => {
       // 肌の斑（毛穴・赤み・日焼けのむら）
       for (let i = 0; i < 2600; i++) { G.fillStyle = rnd() < 0.5 ? gray(255, 0.05 * rnd()) : gray(0, 0.07 * rnd()); G.fillRect(x0 + rnd() * 256, y0 + rnd() * 256, 1 + rnd() * 2, 1 + rnd() * 2); }

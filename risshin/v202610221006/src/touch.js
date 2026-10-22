@@ -11,7 +11,7 @@ const phoneViewport = () => innerWidth > innerHeight && innerWidth <= 1000 && in
 export let isTouch = typeof window !== 'undefined' && (matchMedia('(any-pointer: coarse)').matches || phoneViewport());
 // 指の操作を教えるのは稲生と桶狭間だけ。
 const coachAllowed = (battle) => battle?.def.key === 'inou' || battle?.def.key === 'okehazama';
-export function touchMoveLearned(battle) { return T.battle === battle && !!T.moveLearned; }
+export function touchMoveLearned(battle) { return !!T && T.battle === battle && !!T.moveLearned; }   // 10/22：指の操作の前（T が空）に呼ばれて稲生が始まらなかった
 // 携帯か（短い辺が 600px 未満）
 let isPhone = isTouch && (Math.min(screen.width, screen.height) < 600 || phoneViewport());
 
@@ -271,10 +271,11 @@ html.touch #tc [data-b="more"] small { font-size: 12px; }
 #tc .tb.big { font-size: 17px; background: rgba(120,34,20,var(--tc-bg, .62)); border-width: 2px; }
 /* 案内中も実物の押せる範囲を保ち、敵の頭上の印と形を分ける。 */
 html.touch body #tc [data-b="atk"].action-linked { border-radius:10px !important; border:3px solid #fff3ce; min-width:44px; min-height:44px; }
-html.touch body #tc [data-b="atk"]:is(.action-linked,.hold-guide) .name { white-space:normal; overflow-wrap:anywhere; font-size:18px; font-weight:900; line-height:1.2; }
+html.touch body #tc [data-b="atk"]:is(.action-linked,.hold-guide) .name { white-space:normal; overflow-wrap:anywhere; font-size:20px; font-weight:900; line-height:1.15; }
 html.touch body #tc [data-b="atk"].action-linked .name::before { content:none; }
 html.touch body #tc [data-b="atk"]:is(.action-linked,.hold-guide) small { display:block !important; font-size:16px; font-weight:800; white-space:pre-line; }
 #tc .attack-finger { display:none; position:absolute; left:calc(100% - 28px); top:8px; width:36px; height:44px; pointer-events:none; z-index:2; }
+html.touch body #tc [data-b="atk"] small:empty { display:none !important; }
 #tc .action-linked .attack-finger { display:none; }
 html.touch body #tc [data-b="atk"] small { display:block !important; white-space:pre-line; overflow-wrap:normal; letter-spacing:0; }
 html.touch body #tc [data-b="atk"].counter-ready .name { font-size:16px; font-weight:900; }
@@ -1172,20 +1173,19 @@ export function touchFrame(dt) {
   tog(btn.atk, 'counter-ready', counterReady);
   // 押す場所は固定し、押している間は同じ字の位置で離す操作を伝える。
   tog(btn.atk, 'holding', !!input.mouseL);
-  setText(btn.atk.firstChild, input.mouseL && !gunW && !bowW ? 'はなす' : gunW ? '攻撃' : bowW ? '射る' : p.weapon === 'sword' ? '刀できる' : 'やりでつく');
+  setText(btn.atk.firstChild, gunW ? '攻撃' : bowW ? '射る' : input.mouseL ? p.weapon === 'sword' ? 'はなして きる' : 'はなして つく' : p.sta <= 0 ? p.weapon === 'sword' ? 'きる' : 'つく' : p.weapon === 'sword' ? '長く押して きる' : '長く押して つく');
   setText(btn.grd.firstChild, gunW || bowW ? '狙う' : 'かまえる');
   tog(btn.grd, 'shield', !gunW && !bowW);
   const sub = btn.atk.querySelector('small');
   // 押している間は、離すと攻撃することだけを短く伝える。
   const blade = !gunW && !bowW;
-  const tech = blade ? 'はなすと攻撃' : '';
   // 攻撃の押し方は実物の釦の中にまとめる。
   const teachB = allowCoach;
-  if (sub) setText(sub, blade ? p.sta <= 0 ? '気力不足' : input.mouseL ? tech : '長く押す' : !teachB ? (gunW ? p.gunAmmo === 0 ? '弾がない' : p.gunLoaded ? '' : '弾込め中' : p.bowAmmo <= 0 ? '矢がない' : '') : gunW ? (p.gunLoaded ? (p.aiming ? '離して撃つ' : '長押しで狙う') : p.gunAmmo === 0 ? '弾がない' : p.knockT > 0 || p.staggerT > 0 ? '体勢を戻す' : '弾込め中') : p.bowAmmo <= 0 ? '矢がない' : p.draw >= 2 ? (p.bowHold > 3 ? '腕が疲れる' : '離して射る') : p.draw >= 0.6 ? '引き絞る' : p.draw > 0 ? '矢を番える' : '押して引く');
+  if (sub) setText(sub, blade ? p.sta <= 0 ? '気力不足' : '' : !teachB ? (gunW ? p.gunAmmo === 0 ? '弾がない' : p.gunLoaded ? '' : '弾込め中' : p.bowAmmo <= 0 ? '矢がない' : '') : gunW ? (p.gunLoaded ? (p.aiming ? '離して撃つ' : '長押しで狙う') : p.gunAmmo === 0 ? '弾がない' : p.knockT > 0 || p.staggerT > 0 ? '体勢を戻す' : '弾込め中') : p.bowAmmo <= 0 ? '矢がない' : p.draw >= 2 ? (p.bowHold > 3 ? '腕が疲れる' : '離して射る') : p.draw >= 0.6 ? '引き絞る' : p.draw > 0 ? '矢を番える' : '押して引く');
   // 弓の任意の構えと、近接の構えの案内。鉄砲の構え釦は隠す。
   { let gs = btn.grd.querySelector('small'); const t = bowW ? (p.guardOn ? 'もう一度で解く' : '押して保つ') : p.guardBroken > 0 ? '体勢を戻す' : p.sta <= 0 ? '気力不足' : p.guardOn ? 'もう一度で解く' : teachB ? '押して保つ' : '';
     if (t && !gs) { gs = document.createElement('small'); btn.grd.appendChild(gs); } if (gs) setText(gs, teachB ? t : p.guardBroken > 0 ? '体勢を戻す' : p.sta <= 0 ? '気力不足' : ''); }
-  tog(btn.atk, 'tech', !!tech && tech !== '長押しで溜め');
+  tog(btn.atk, 'tech', false);
   tog(btn.atk, 'rl', gunW && !p.gunLoaded);
   tog(btn.atk, 'ready', gunW && p.gunLoaded && (p.aimK || 0) > 0.5);
   if (gunW && !p.gunLoaded) btn.atk.style.setProperty('--rl', `${Math.round((p.gunReload || 0) * 100)}%`);

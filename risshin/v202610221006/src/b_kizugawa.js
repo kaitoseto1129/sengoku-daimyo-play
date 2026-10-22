@@ -606,6 +606,21 @@ function shipTex() {
   return SHIPTEX;
 }
 let SHIPMAT = null;
+// 海上の船は水面と同じ距離の霞へ溶かす。陸の低地用の濃い靄で白く塗り潰さない。
+// 共通の霧の near は雲の時計なので、見通しを入れた far だけを読む。
+function shipHaze(mat) {
+  mat.onBeforeCompile = shader => {
+    shader.fragmentShader = shader.fragmentShader.replace('#include <fog_fragment>', `
+      #ifdef USE_FOG
+        float shipVisibility = max(140.0, floor(fogFar));
+        float shipHaze = smoothstep(shipVisibility * 0.42, shipVisibility, length(vFogOff));
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, shipHaze);
+      #endif
+    `);
+  };
+  mat.customProgramCacheKey = () => 'kizugawa-ship-haze-1';
+  return mat;
+}
 function shipMats() {
   if (SHIPMAT) return SHIPMAT;
   const T = shipTex();
@@ -623,6 +638,7 @@ function shipMats() {
     black: new THREE.MeshStandardMaterial({ color: 0x141210, roughness: 0.8 }),
     copper: new THREE.MeshStandardMaterial({ color: 0x554b39, roughness: 0.9, metalness: 0.25 }),
   };
+  for (const mat of Object.values(SHIPMAT)) shipHaze(mat);
   return SHIPMAT;
 }
 // 大安宅船だけの鉄張り。鋲と狭間はキャンバスにまとめ、面の数を増やさない。
@@ -741,6 +757,7 @@ function ironShipMats() {
     upperBoard: new THREE.MeshStandardMaterial({ map: upperBoards, roughness: 1, side: THREE.DoubleSide }),
     plaster: new THREE.MeshStandardMaterial({ map: shipTex().board, color: 0xbca483, roughness: 1 })
   };
+  for (const mat of Object.values(IRONSHIP)) shipHaze(mat);
   return IRONSHIP;
 }
 // 竿側を原点に固定し、自由な端だけたわませる。遠い船も同じ小さな形を使う。
@@ -944,7 +961,7 @@ function rigParts() {
   const a = sail.attributes.position;
   for (let i = 0; i < a.count; i++) a.setZ(i, 0.16 * Math.cos(a.getX(i) * Math.PI) * Math.cos(a.getY(i) * Math.PI));
   sail.computeVertexNormals();
-  const cloth = new THREE.MeshStandardMaterial({ color: 0xd7c9a8, roughness: 1, side: THREE.DoubleSide });
+  const cloth = shipHaze(new THREE.MeshStandardMaterial({ color: 0xd7c9a8, roughness: 1, side: THREE.DoubleSide }));
   // 帆布の縦の継ぎ目。外の素材を読まず小さな絵を共有する。
   const c = document.createElement('canvas'); c.width = c.height = 64;
   const ctx = c.getContext('2d'); ctx.fillStyle = '#ded2b9'; ctx.fillRect(0, 0, 64, 64);
@@ -1979,7 +1996,7 @@ function compactShip(g) {
       if (!geo) continue;
       SHIP_MERGED.set(sig, geo);
     }
-    if (plain && !SHIP_PLAIN) SHIP_PLAIN = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 });
+    if (plain && !SHIP_PLAIN) SHIP_PLAIN = shipHaze(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }));
     const one = new THREE.Mesh(geo, plain ? SHIP_PLAIN : list[0].material);
     one.castShadow = list.some((m) => m.castShadow); one.receiveShadow = list.some((m) => m.receiveShadow);
     for (const m of list) g.remove(m);
@@ -2408,6 +2425,7 @@ const kizugawa = {
     muddy: 0,
     contactFalls: true,
     settleSideFalls: true,
+    settleFallenBody: true, // 軽い姿の亡骸も腰と胸を船板へ下ろし、胴だけを宙に残さない。
     noticeRepeatGap: 30,
     height,
     // 歩く高さの格子は保つ。描く地面だけ海底へ戻し、粗い三角形が
@@ -3571,6 +3589,13 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
           const s = cannonPriority(rt, gun) - d * 0.1;
           if (s > score) { score = s; c = gun; }
         }
+        // 同じ射撃条件なら直前の筒を保つ。半歩の移動で隣の筒へ案内を替えない。
+        if (F.step === 1 && F.cannonPost) {
+          const previous = F.cannonPost;
+          const s = cannonPriority(rt, previous) - deckRouteDistance(u, previous.post) * 0.1;
+          if (s >= score - 0.3) c = previous;
+        }
+        F.cannonPost = c;
         const b = cannonTarget(F, c);
         // 弾込め中の守備札へ、大筒までの行き先を添えない。
         const guideBlocked = guarding || !!F.kukiDanger || rt.t < c.cd;

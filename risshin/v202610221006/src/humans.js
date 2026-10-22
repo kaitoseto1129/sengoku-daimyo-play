@@ -144,6 +144,9 @@ export function loadHumans() {
       const sk = await Promise.all(['young', 'mid', 'old'].map((f) => tl.loadAsync(new URL('../assets/mh/skin_' + f + '.jpg', import.meta.url).href)));
       prepHeadMH(head, sk);
     }
+    // 簡易具足で人を作って貸出枠へ残さないよう、甲冑も支度中に読み終える。
+    await loadDomaru();
+    await loadKabuto();
     HUM.ready = true;
   })().catch((e) => { HUM.failed = true; HUM.err = String(e && e.stack || e).slice(0, 400); console.warn('骨の入った人を読めませんでした（今の形で描きます）', e); });
   return loading;
@@ -804,6 +807,7 @@ function menpoMat(col) {
   return M.get(key);
 }
 function dressMenpo(h) {
+  if (h.parts.menpo) return;
   const hd = SRC.rest.Head, k = MP_FIT.s;
   const fit = new THREE.Matrix4().makeTranslation(hd.x, hd.y + MP_FIT.y, hd.z + MP_FIT.z).multiply(new THREE.Matrix4().makeScale(k, k, k));
   const m = attachBody(h, 'Head', KB.menpo.geo, fit, menpoMat(h.look && (h.look.menpoScan || h.look.menpo)));
@@ -1071,9 +1075,9 @@ function dressKabuto(h) {
 }
 // 人と具足の素材は、出陣や姿の見本で必要になった時だけ読む。
 // 本物の胴丸を着る人：名のある武将と、look.real の人（侍大将より上の本人）
-export function wantsDomaru(look) { return DOMARU.on && !!look && !look.kosode && !look.nanban && !namedKacchu(look) && (!!look.real || (typeof look.face === 'string' && look.face.startsWith('g:'))); }
-// 兵の侍と、足軽の三人に一人は御貸具足の胴丸を着る。本人・名将の着せ分けは専用の処理に任せる。
-const crowdDomaru = (look) => DOMARU.on && DOMARU.crowd && !!look && !look.takedaRed && ((look.tier ?? 0) >= 1 || ((look.vi || 0) % 3 === 0)) && !look.kosode && !look.hero && !look.nanban && !namedKacchu(look) && !isSohei(look) && !wantsDomaru(look);
+export function wantsDomaru(look) { return DOMARU.on && !!look && (!!look.hero || !!look.real || isNamed(look)); }
+// 近い一般兵は全員スキャンの具足。遠景は dressCrowd の元の姿を使う。
+const crowdDomaru = (look) => DOMARU.on && DOMARU.crowd && !!look && !look.kosode && !isSohei(look) && !wantsDomaru(look);
 // 着せる時の骨の立ち姿（人の根元の座標）の逆行列。腕と脚の骨は人形の腕・脚の向きへ回し、どの骨も人形の関節の位置へ
 function domaruInverses() {
   if (DM.inv) return DM.inv;
@@ -1156,8 +1160,19 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
     sh.uniforms.uWet = WET;
     sh.uniforms.uGrime = GRIME;
     // 着せる前の立ち姿の位置（m。足の裏が 0、前が +z）：縅の目・汚れの場所を、動いても甲冑に貼り付いたまま描く
-    sh.vertexShader = 'varying vec3 vDmP;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vDmP = position;');
-    sh.fragmentShader = 'uniform vec3 uLace, uArm;\nuniform float uLaceAmt, uArmAmt, uWet, uGrime;\nuniform vec4 uWV;\nvarying vec3 vDmP;\nfloat dmCloth, dmGold, dmLacq, dmLeather, dmH, dmWv, dmEdge, dmDust;\n' + DM_GLSL + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+    const handBones = humanBoneMap(DM.bones, domaruInverses());
+    const rightHand = handBones[DM.bones.indexOf('RightHand')], leftHand = handBones[DM.bones.indexOf('LeftHand')];
+    sh.vertexShader = 'varying vec3 vDmP;\nvarying vec2 vDmGlove;\n' + sh.vertexShader
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n vDmP = position;')
+      .replace('#include <skinbase_vertex>', `#include <skinbase_vertex>
+        float handWeight = 0.0;
+        #ifdef USE_SKINNING
+        for (int i = 0; i < 4; i++) {
+          if (abs(skinIndex[i] - ${rightHand}.0) < 0.5 || abs(skinIndex[i] - ${leftHand}.0) < 0.5) handWeight += skinWeight[i];
+        }
+        #endif
+        vDmGlove = vec2(smoothstep(0.35, 0.75, handWeight), smoothstep(0.15, 0.7, normal.z));`);
+    sh.fragmentShader = 'uniform vec3 uLace, uArm;\nuniform float uLaceAmt, uArmAmt, uWet, uGrime;\nuniform vec4 uWV;\nvarying vec3 vDmP;\nvarying vec2 vDmGlove;\nfloat dmCloth, dmGold, dmLacq, dmLeather, dmH, dmWv, dmEdge, dmDust;\n' + DM_GLSL + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
       {
         // スキャンの絵は博物館の暗い照明で撮られているので、少し明るく戻す
         diffuseColor.rgb = min(diffuseColor.rgb * 1.55, vec3(1.0));
@@ -1186,6 +1201,11 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
         dmLeather = smoothstep(1.12, 1.6, c.r / max(c.g, 0.003))
           * smoothstep(1.06, 1.5, c.g / max(c.b, 0.003))
           * (1.0 - max(dmGold, max(dmCloth, dmLacq)));
+        // 手の肌は出さず、黒い布と手甲の鈍い鉄に替える（形・材質は全員で共有）。
+        float glove = vDmGlove.x, plate = vDmGlove.y;
+        diffuseColor.rgb = mix(diffuseColor.rgb, mix(vec3(0.018, 0.021, 0.019), vec3(0.055, 0.061, 0.058), plate), glove);
+        dmCloth = mix(dmCloth, 1.0 - plate, glove);
+        dmLeather *= 1.0 - glove; dmGold *= 1.0 - glove; dmLacq *= 1.0 - glove;
         diffuseColor.rgb *= 1.0 - uWet * 0.25 * dmCloth;
         // 絵の細かな起伏：ぼかした明るさとの差。小札の段の影・縅の目・金具の縁が、後で凹凸になる（絵の段にそろう）
         float lb = min(dot(texture2D(map, vMapUv, 2.5).rgb * 1.55, vec3(0.2126, 0.7152, 0.0722)), 1.0);
@@ -2605,8 +2625,14 @@ const isNamed = (L) => typeof L.face === 'string' && L.face.startsWith('g:');
 function humanLook(look0) {
   let look = look0;
   const sohei = isSohei(look0);
-  // 足軽の籠手：御貸具足の籠手は多くの者が着ける（素肌の前腕の者は三人に一人ほど。片籠手の者も）
-  if (!look.hero && (look.tier ?? 0) === 0 && look.kote == null && !isNamed(look)) look = { ...look, kote: [3, 0, 3, 1, 3, 0][(look.vi || 0) % 6] };
+  // 近景では全員に籠手。足軽は簡素な御貸具足と陣笠、武者は兜と面頬。
+  if (!sohei && !look.kosode) {
+    const warrior = (look.tier ?? 0) >= 1 || isNamed(look);
+    look = { ...look, kote: 3, nanban: false,
+      hat: warrior ? (String(look.hat || '').startsWith('kabuto') ? look.hat : 'kabuto') : 'jingasa',
+      ...(warrior ? { menpo: look.menpo || 0x242522, menpoScan: look.menpo || 0x242522, menpoStyle: 'tare' }
+        : { armor: 0x292b27, lace: 0x373a32, menpo: null, menpoScan: null }) };
+  }
   // 目の下頬は、実写の顔に沿わせて作る（兜の形の面は喉の垂だけにする。兵は近くで実写の顔に替えた時に付ける）
   // 面頬（半頬・目の下頬）は、実写の顔の形から打ち出す（units.js の遠目の面頬は平らな黒い板で、近くでは貼った板に見える）
   if (look.menpo && (look.menpoStyle === 'hanbo' || look.menpoStyle === 'full' || !look.menpoStyle) && !sohei) look = { ...look, menpoStyle: 'tare', menpoScan: look.menpo };
@@ -2886,10 +2912,13 @@ function* buildHuman(u, look0) {
     h.mode = 'full'; const nd = isNamed(L) || !!u.isPlayer; h.helmScan = nd;
     // 本物の兜が読めていれば、胴丸の人形の兜は描かずに、兜のスキャンをかぶせる
     const kb = nd && KABUTO.on && KABUTO.ready;
-    tm('domaru', () => dressDomaru(h, nd ? (kb ? true : 'helm') : false));
-    if (kb) tm('kabuto', () => dressKabuto(h));
-    if (nd) tm('named', () => dressNamed(h, P, L));
+    const ashigaru = (L.tier ?? 0) < 1 && !isNamed(L);
+    tm('domaru', () => dressDomaru(h, ashigaru ? true : nd ? (kb ? true : 'helm') : false));
+    if (ashigaru) tm('crowd', () => dressCrowd(h, P, L, DM_KEEP, look0));
+    if (!ashigaru && kb) tm('kabuto', () => dressKabuto(h));
+    if (nd && !ashigaru) tm('named', () => dressNamed(h, P, L));
   }
+  else if (DOMARU.ready && crowdDomaru(L)) { h.domaru = true; tm('domaru', () => dressDomaru(h, true)); tm('crowd', () => dressCrowd(h, P, L, DM_KEEP, look0)); }
   else if (L.nanban || qualityKeeper(u)) {
     h.mode = 'full'; tm('parts', () => dressParts(h, P, L));
     // 本人の手は写実の手（MakeHuman）に替える（一人称で目の前に来る）
@@ -2905,7 +2934,6 @@ function* buildHuman(u, look0) {
       if (dm) h.parts.mon = attachBody(h, 'Spine2', dm.geometry, SRC.fitT, dm.material);
     }
   }
-  else if (DOMARU.ready && crowdDomaru(L)) { h.domaru = true; tm('domaru', () => dressDomaru(h, true)); tm('crowd', () => dressCrowd(h, P, L, DM_KEEP, look)); }
   else tm('crowd', () => dressCrowd(h, P, L, null, look));
   pause = performance.now(); yield; waited += performance.now() - pause;
   if (!h.domaru && !u.isPlayer) body.geometry = coveredBodyGeo(body.geometry, P, L);
@@ -3164,7 +3192,7 @@ function splitKusazuri(h, L) {
 const NAMED_KEEP = new Set(['hat', 'haori', 'back', 'koshi', 'pole']);
 function dressNamed(h, P, L) {
   layParts(P, L, (k, nm, geo, fit) => {
-    if (k === 'face') { if (HEAD) { h.parts.face = scanFace(h, L.face, L, P.F, true); if (h.parts.face && L.menpoScan) { const a = performance.now(); if (h.parts.kabuto && KB.menpo) dressMenpo(h); else scanMenpo(h.parts.face, L.face, L.menpoScan); const TX = HSTAT.tx || (HSTAT.tx = {}); TX.menpo = +((TX.menpo || 0) + performance.now() - a).toFixed(1); } } return; }
+    if (k === 'face') { if (HEAD) { h.parts.face = scanFace(h, L.hero ? 'player' : L.face, L, P.F, true); if (h.parts.face && L.menpoScan) { const a = performance.now(); if (KB?.menpo) dressMenpo(h); else scanMenpo(h.parts.face, L.face, L.menpoScan); const TX = HSTAT.tx || (HSTAT.tx = {}); TX.menpo = +((TX.menpo || 0) + performance.now() - a).toFixed(1); } } return; }
     // 兜は少し深くかぶる（眉庇が眉の上に来るように）
     // 兜はスキャンの胴丸の兜（本人と同じ作り）を使い、この人の形の兜からは前立・脇立・後立・毛だけを取って載せる
     // 本物の兜の人は、前立も兜の側で付ける（dressKabuto）ので、この形からは何も取らない
@@ -3175,7 +3203,7 @@ function dressNamed(h, P, L) {
   h.F = P.F;
   // 陣羽織の背の家紋（絵の一枚にない家の紋も描けるよう、武将ごとに小さな絵を作る）
   const hp = h.parts.haori;
-  const gd = GENERALS[L.face.slice(2)] || {};
+  const gd = GENERALS[String(L.face || '').slice(2)] || {};
   const mon = L.haoriMon || gd.mon || L.mon;
   if (hp && mon && mon !== 'none') {
     const a0 = performance.now();
@@ -3929,7 +3957,7 @@ function dressCrowd(h, P, L, only = null, look = L) {
   const Plo = lookParts(look, false);
   const geoLo = crowdGeometry(Plo, L, only);
   // 遠く（HUM.lod より先）は、体（骨の入った人形・胴丸）を隠し、units.js の軽い体と顔まで一つの形にまとめる（骨組み一つ・描く回数一回・三角は一割ほど）
-  h.geoFar = crowdGeometry(Plo, L, null, true, true);
+  h.geoFar = crowdGeometry(Plo, Plo.look, null, true, true);
   // この人が使う束の形（掃除 sweepCrowdGeos が、誰かが使っている間は表から外さないように。外すと同じ姿の次の人が形を作り直し、
   //   古い形はこの人が持ったまま残って二重になっていた：森部 70 秒で束の形 199（表）に対し生きている物 530・+90MB。10/20）
   h.cg = [geo, geoLo, h.geoFar];
@@ -3959,6 +3987,7 @@ function dressCrowd(h, P, L, only = null, look = L) {
   h.root.add(m);
   h.parts.armor = m;
   h.F = P.F;
+  if (L.menpoScan && KB?.menpo) dressMenpo(h);
   // 今の顔（遠くの顔）：僧兵以外は具足と同じ描き物に束ねる（描く回数を一人一回減らす）。近い形・遠い形・実写の顔の有る無しで四通りの形を持ち、描く直前に選ぶ
   //   僧兵は顔の形と材質を比叡山の場面が差し替えるので、これまで通り別の描き物
   //   iPhone も別の描き物に：顔は人ごとに違うので、束ねると一人ずつ体ごとの形（0.5〜1MB）を新しく作り、乱戦の作り直しで記憶を押していた（10/21）
@@ -3998,11 +4027,12 @@ function crowdFace(h, on) {
     if (!headMats.has(key) && madeThisFrame > 0) return;
     h.parts.face = scanFace(h, named ? h.look.face : key, h.look, h.F, named);
     if (!h.parts.face) return;
-    if (h.look.menpoScan) scanMenpo(h.parts.face, named ? h.look.face : 'c' + ((h.look.face | 0) % 12), h.look.menpoScan);
+    if (h.look.menpoScan && KB?.menpo) dressMenpo(h);
   }
   h.scanOn = on;
   h.skelDirty = true;
   if (h.parts.face) h.parts.face.visible = on;
+  if (h.parts.menpo) h.parts.menpo.visible = !h.lodFar;
   if (h.parts.pface) h.parts.pface.visible = !on && !h.lodFar;
 }
 // 遠い人の軽い形へ替える・戻す（体・胴丸・顔を隠し、甲冑の形を体ごとまとめた物に）
@@ -4016,6 +4046,7 @@ function setFar(h, far) {
   if (!far) h.mw0 = null;
   if (!h.domaru) h.body.visible = !far;
   if (h.parts.domaru) h.parts.domaru.visible = !far;
+  if (h.parts.menpo) h.parts.menpo.visible = !far;
   if (h.parts.pface) h.parts.pface.visible = !far && !h.scanOn;
 }
 // 絵札（efuda.js）に焼く時の姿：0 立ち・1 歩き（phase 0〜1）・2 駆け。細かい形に戻し、速さを強いて一度だけ骨を動かす
@@ -4060,13 +4091,13 @@ function scanFace0(h, key, L, F, full) {
   }
   const hat = L.hat || '';
   // 笠の遮光を残しつつ、目鼻と頬へ空からの回り込みを残す。
-  const ao = hat.startsWith('jingasa') ? 0.42 : hat.startsWith('kabuto') ? 0.4 : 0;
+  const ao = hat.startsWith('jingasa') ? 0.78 : hat.startsWith('kabuto') ? 0.8 : 0;
   // スキャンの兜をかぶる武将：兜に隠れる頭（眉より上と、耳の後ろ）は描かない（鉢の内から頭の肌が覗かないよう）
   const hg = h.helmScan ? clipScalp(headGeo(gk, F)) : headGeo(gk, F);
   // 兵は一人ずつ汚れ・汗・日焼けを変える（絵は型ごとに同じで、材質の値だけ四通り）
   // 武将と本人も、戦場の埃と汗を薄く（いちばん軽い型）
   const fv = full ? 0 : Math.floor((((h.seed || 0) * 7.31) % 1) * 4);
-  const hm = new THREE.Mesh(hg, ao || h.helmScan || fv >= 0 ? hatFaceMat(headMaterial(key, L, F), h.helmScan ? 0.55 : ao, fv) : headMaterial(key, L, F));
+  const hm = new THREE.Mesh(hg, ao || h.helmScan || fv >= 0 ? hatFaceMat(headMaterial(key, L, F), h.helmScan ? 0.8 : ao, fv) : headMaterial(key, L, F));
   // 表情は人ごと：材質を一人に一つ写す（形の作りと絵は同じ。値だけ別）
   if (MEM_TIGHT) {
     h.expr = new THREE.Vector4(0, 0, 0, 0);   // 表情の形だけ個別。肌の材質・絵は共有する。
@@ -4537,7 +4568,7 @@ function driveHuman0(h, dt, fine = true, arms = true) {
     h.model.position.z -= h.settledZ;
     h.settledOffset = false;
   }
-  if (!fallen && u.contactFrozen) return;
+  if (!fallen && u.contactFrozen && h.drove && !fine) return;
   const B = h.bones;
   const time = (h.clock = (h.clock || 0) + dt);
   // 速さ（位置の動きから）
@@ -5790,7 +5821,7 @@ const spearShoulder = new THREE.Vector3(), spearElbow = new THREE.Vector3(), spe
 function armsPose(h, B, dt, time, w) {
   const u = h.u;
   const hd = u.hand;
-  const closeSpear = w === 'spear' && !u.mounted && (u.isPlayer || u.focusD <= 15);
+  const closeSpear = w === 'spear' && !u.mounted && (u.isPlayer || h.near || u.focusD <= 15);
   if (u.ramGrip) {
     // 丸太の両手の支えは世界の位置で受け、兵の向きや坂でも木から手が離れない。
     _tgt.copy(u.ramGrip.right); _tgt2.copy(u.ramGrip.left);
@@ -6332,17 +6363,18 @@ function gripSet(h, u, hd, w, dt) {
     const k = h.upK, s = h.seed;
     // 構え：右手は右の腰（体の少し後ろ）、槍は units.js の向きのまま。叩きで振り上げる時は手も上がる
     const raise = Math.max(0, -hd.rotation.x - 0.25) * 0.28;
+    const close = u.isPlayer || h.near || u.focusD <= 15;
     // 突き出す時は、右手を柄の線に沿って前へ（穂先の高さのまま一直線に）押し出し、手元を体の真ん中へ絞る
     const ez0 = hd.position.z - 0.18;
     // 踏み込んで腰が沈む分だけ手元も下げる（手が顔の前へ上がらない）
     const sink = h.atkB ? 0.1 * h.atkB.L + 0.05 * h.atkB.W : 0;
     // 二列目の頭越しの構えも、共通のばねでならした高さを一度だけ渡す。
-    const ex = 0.2 + (s - 0.5) * 0.03 - Math.max(0, ez0) * 0.12, ey = 1.08 + (s - 0.5) * 0.06 + raise + (u.spLift || 0) + ez0 * Math.sin(-hd.rotation.x) * 0.9 - sink, ez = hd.position.z - 0.16;
+    const ex = 0.2 + (s - 0.5) * 0.03 - Math.max(0, ez0) * 0.12, ey = 1.08 + (s - 0.5) * 0.06 + raise + (u.spLift || 0) + ez0 * Math.sin(-hd.rotation.x) * 0.9 - sink, ez = close ? Math.max(0.22, hd.position.z - 0.16) : hd.position.z - 0.16;
     // 立て槍：右手は胸の右、穂先を少し前へ。歩く・走るほど前へ傾ける
     const mv = Math.min(1, (u.moving || 0) / 1.4);
     // 立てた槍も握り直す：同じ腕の骨と握り合わせを使い、手元を少し上げて戻す
     const regrip = calm && u.idl && u.idl.a === 'regrip' ? Math.sin(clamp01(u.idl.k / u.idl.d) * Math.PI) : 0;
-    const ux = 0.23, uy = 1.2 + (s - 0.5) * 0.04 + regrip * 0.055, uz = 0.1, urx = -1.47 + 0.06 * s + 0.25 * mv + regrip * 0.12 + (u.passCarry || 0);
+    const ux = 0.23, uy = 1.2 + (s - 0.5) * 0.04 + regrip * 0.055, uz = close ? 0.24 : 0.1, urx = -1.47 + 0.06 * s + 0.25 * mv + regrip * 0.12 + (u.passCarry || 0);
     hd.position.set(ex + (ux - ex) * k, ey + (uy - ey) * k, ez + (uz - ez) * k);
     if (k > 0.001) {
       hd.rotation.x += (urx - hd.rotation.x) * k;
@@ -7429,7 +7461,7 @@ function humansStep(rt, dt, army, cam) {
         continue;
       }
       // 十五メートル以内は人数で粗くしない。骨入りの総枠と影の軽い形は保つ。
-      const allow = near[i].dist <= 15 || armor++ < DOMARU.hiCap;
+      const allow = (!MEM_TIGHT && near[i].dist <= 15) || armor++ < DOMARU.hiCap;
       if (h.parts.domaru) h.parts.domaru.userData.hiOK = allow;
       if (h.parts.kabuto) h.parts.kabuto.userData.hiOK = allow;
     }
@@ -7440,7 +7472,7 @@ function humansStep(rt, dt, army, cam) {
     // 顔と小札の枠を背後の兵で使い切らず、画面にいる近い兵へ回す。人数の上限は同じ。
     for (const [u, c] of want) { const h = u.human; if (h && !u.isPlayer && !(u.look && (isNamed(u.look) || u.type === 'busho'))) { const item = humanNearPool[near.length]; if (item) { item.h = h; item.dist = c.dist * (h.lodFar ? 1.15 : 1) * (c.vis ? 1 : 3); near.push(item); } } }
     near.sort((a, b) => a.dist - b.dist);   // 今もう軽い形の人は少し遠く見る（境目で形が行き来しないよう）
-    for (let i = 0; i < near.length; i++) { const h = near[i].h; const close = want.get(h.u).dist <= 15; h.hiOK = close || i < HUM.hiN; h.faceOK = close || i < HUM.faceN; }
+    for (let i = 0; i < near.length; i++) { const h = near[i].h; const close = want.get(h.u).dist <= 15; h.hiOK = (!MEM_TIGHT && close) || i < HUM.hiN; h.faceOK = (!MEM_TIGHT && close) || i < HUM.faceN; }
   }
   HSTAT.want = want.size; HSTAT.driven = 0;
   for (const h of humans) h.mwHold = !h.u.isPlayer;   // 骨を動かした人だけ、下で外す（skipHiddenMW）。h.hold は構えの癖（armsPose）なので別の名前にする（同じ名前だと、構えの癖が入った人は骨の行列が止まり、手と指だけ古い所に残って皮が帯のように伸びた）
@@ -7478,7 +7510,7 @@ function humansStep(rt, dt, army, cam) {
       const p = h.facePending;
       h.parts.face = scanFace(h, p.key, p.L, p.F, p.full);
       if (h.parts.face && p.L.menpoScan) {
-        if (h.parts.kabuto && KB.menpo) dressMenpo(h);
+        if (KB?.menpo) dressMenpo(h);
         else scanMenpo(h.parts.face, p.key, p.L.menpoScan);
       }
     }
@@ -7538,7 +7570,7 @@ function humansStep(rt, dt, army, cam) {
     if (u.mounted && u.seat) { u.mesh.updateMatrix(); u.mesh.updateWorldMatrix(false, false); u.seat.updateWorldMatrix(false, false); }
     // 倒れた者も近くは実写の顔のまま（亡骸の顔が人形の顔に戻らないよう）
     //   携帯も十四メートルまで実写の顔（六メートルでは騎馬武者の顔が描いた目の人形の顔に見えた。10/7 kaito）。
-    if (h.xb) crowdFace(h, d < (Q.face ?? HUM.face) && !h.lodFar && h.faceOK !== false);
+    if (h.xb) crowdFace(h, d <= Math.max(15, Q.face ?? HUM.face) && !h.lodFar && h.faceOK !== false);
     h.far = !u.isPlayer && !named && d > HUM.lite;
     h.near = nearPose;
     h.mwHold = false;

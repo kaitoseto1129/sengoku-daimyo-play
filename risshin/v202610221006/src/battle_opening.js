@@ -91,13 +91,16 @@ export class BattleOpening {
 /* 指と説明は、実際になぞる棒のそばへ一緒に置く。 */
 #hud #battle-opening.opening-controls span { transform:translate(-50%,-50%); gap:4px; border:0; border-radius:6px; padding:6px 10px; background:#14120f; color:#fff; max-width:none; }
 #hud #battle-opening .opening-move-area { position:absolute; box-sizing:border-box; width:152px; height:128px; border:0; background:none; }
-#hud #battle-opening.opening-controls b { font-size:max(16px,calc(16px * var(--text-scale,1))); white-space:pre-line; }
+#hud #battle-opening.opening-controls b { font-size:max(20px,calc(20px * var(--text-scale,1))); white-space:pre-line; }
 #hud #battle-opening.opening-controls span { max-width:calc(100vw / 3 - 24px); min-height:44px; }
 #hud #battle-opening.opening-controls .opening-swipe { position:absolute; width:56px; height:81.2px; transform:translate(-28px,-53.2px); filter:none; }
 #hud #battle-opening i { display:inline-block; flex:none; font-style:normal; font-size:24px; line-height:1; }
 #hud #battle-opening .opening-person { position:absolute; transform:translate(-50%,-100%); line-height:1; color:#fff3ba; text-shadow:0 2px 3px #14120f; }
 #hud #battle-opening .opening-swipe { position:absolute; width:80px; height:116px; transform:translate(-40px,-76px); filter:drop-shadow(0 1px 2px #14120f); }
 #hud #battle-opening .opening-swipe circle { display:block; }
+/* 一本の矢印は共通の案内側で描き、指のそばに輪と短い矢印を重ねない。 */
+#hud #battle-opening.opening-controls .opening-swipe > :not(.opening-finger) { display:none; }
+#hud #battle-opening.opening-controls .opening-finger { animation:none; }
 #hud #battle-opening.opening-foot .opening-swipe { transform:translate(-19px,-61px); }
 #hud #battle-opening.opening-foot .opening-swipe > path:not(.opening-finger) { display:none; }
 #hud #battle-opening .opening-route { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }

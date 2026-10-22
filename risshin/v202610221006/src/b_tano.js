@@ -814,8 +814,8 @@ const tano = {
       : /待て/.test(text) ? '射手の後ろで待て' : '射手の後ろを守れ';
     if (/鉄砲を待たず/.test(text)) return '崖道で槍の組と押せ';
     if (/鉄砲が鳴った|敵へ構え、味方と押せ|先手と谷道の敵を退けよ/.test(text)) return `${place}で味方と押せ`;
-    if (/出てくる敵を退け/.test(text)) return '柵の口の敵を味方と押せ';
-    if (/柵の口から入り、奥の敵/.test(text)) return '屋敷の奥の敵を味方と押せ';
+    if (/出てくる敵を退け/.test(text)) return '柵の口で味方と押せ';
+    if (/柵の口から入り、奥の敵/.test(text)) return '屋敷の奥で味方と押せ';
     if (/進み太鼓と法螺/.test(text)) return '谷道の先手へ続け';
     return text;
   },
@@ -876,6 +876,8 @@ const tano = {
     // 共通の既存処理をこの戦でも使い、切岸の裏から山肌が消えるのを防ぐ。
     terrainContactView: true,
     patchyGround: true, subtleMudRelief: true,
+    // 定義済みの土・枯草・沢の色を実際の山肌にも渡す。共通の緑一色へ戻さない。
+    slopeForestTint: true,
     // 屋敷の炎は既存の丸く細る舌を使い、壁に貼った三角の板に見える縁を崩す。
     roundedFire: true,
     // 草の絵の丸い窪みも省く。土と泥だけを替えても、道端に同じ輪が残る。
@@ -1142,6 +1144,10 @@ const tano = {
     W.baseHemi = W.hemi.intensity * 1.6;
     W.hemi.intensity = W.baseHemi;
     W.hemi.groundColor.setHex(0x665d4b);
+    // 乾いた谷道が空を白く映さないよう、この戦の地面だけ照りを抑える。
+    // 人の陰を見せる散乱光と、道・川岸の足場は保つ。
+    W.terrain.material.envMapIntensity = 0.12;
+    W.terrain.material.roughness = 1;
     // 土塊と足形の同じ絵を敷き詰めず、粒と連続した土色を共有する。足跡と轍は既存の処理に任せる。
     W.groundU.tDirt.value = dirtTex(true);
     W.groundU.tMud.value = mudTex(true);
