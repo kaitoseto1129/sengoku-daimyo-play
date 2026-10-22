@@ -383,9 +383,9 @@ export class HudDodge {
     const moveGesture = !rain && touchEscape && rt.def.dodgeMoveGesture !== false;
     // 指の絵がある時は、実際の操作を先に短く書く。
     const turnGesture = isTouch && (showTurn || rain && off);
-    const label = turnGesture ? (cue.ally?.alive ? rt.def.dodgeTurnLabel?.(rt, turnRight, true) : null) || `${turnRight ? '右' : '左'}になぞって向こう` : rain ? off ? isTouch ? `${turnRight ? '右' : '左'}へなぞる` : `${turnRight ? '右' : '左'}を むこう` : 'ここへ' : moveGesture ? rt.def.dodgeMoveCaption?.(rt, moveSide, false) || 'ここからなぞって にげる' : escapeArrow ?
+    const label = turnGesture ? (cue.ally?.alive ? rt.def.dodgeTurnLabel?.(rt, turnRight, true) : null) || `${turnRight ? '右' : '左'}になぞる` : rain ? off ? isTouch ? `${turnRight ? '右' : '左'}へなぞる` : `${turnRight ? '右' : '左'}を むこう` : 'ここへ' : moveGesture ? rt.def.dodgeMoveCaption?.(rt, moveSide, false) || 'ここからなぞって にげる' : escapeArrow ?
       rt.def.escapePlaceLabel?.(rt, !!rain, dodgeSide) || `${dodgeSide}へ よける` : baseLabel;
-    const fontSize = (H < 500 ? 18 : 24) * Math.max(1, S.textScale || 1);
+    const fontSize = 24 * Math.max(1, S.textScale || 1);
     const cardHalf = Math.min((W - 24) / 2, label.length * fontSize / 2 + (turnGesture || moveGesture ? 16 : 48));
     let lx = Math.max(cardHalf + 12, Math.min(W - cardHalf - 12, x)), ly = Math.max(28, y - 82);
     const gesture = el.querySelector('.escape-gesture');

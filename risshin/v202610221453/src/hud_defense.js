@@ -34,8 +34,8 @@ export class HudDefense {
       const score = Math.hypot(sx - W * .5, sy - H * .65) + distance;
       if (score < best) { best = score; spot.x = sx; spot.y = sy; spot.visible = true; }
     }
-    // 境目だけが画面外でも、範囲内の床が見えればそこへ旗を置く。
-    if (!spot.visible) this.drawDefenseOverview(g, rt, pos, radius, spot);
+    // 近くでは境目が一本の線になるため、閉じた囲みで旗と自分の内外も示す。
+    if (!spot.visible || !this.defenseBoundaryWhole) this.drawDefenseOverview(g, rt, pos, radius, spot);
     return spot;
   }
 
@@ -51,11 +51,14 @@ export class HudDefense {
       this.defenseCircleReady = true;
     }
     const projected = this.defenseProjection || (this.defenseProjection = new Float32Array(147));
+    this.defenseBoundaryWhole = true;
     for (let i = 0; i <= 48; i++) {
       const x = pos.x + circle[i * 2] * radius, z = pos.z + circle[i * 2 + 1] * radius;
       this.tmpV.set(x, groundAt(rt.world, x, z, rt.player.u.pos.y) + .15, z).project(rt.camera);
       const sx = (this.tmpV.x * .5 + .5) * VIEW.w, sy = (-this.tmpV.y * .5 + .5) * VIEW.h;
       const visible = this.tmpV.z >= -1 && this.tmpV.z <= 1;
+      if (!visible || sx < 12 || sx > VIEW.w - 12 || sy < 64 || sy > VIEW.h - 24)
+        this.defenseBoundaryWhole = false;
       projected[i * 3] = sx; projected[i * 3 + 1] = sy; projected[i * 3 + 2] = visible ? 1 : 0;
     }
     // 輪の全体が入らなくても、見えている境目は地面に残す。
@@ -85,20 +88,20 @@ export class HudDefense {
   // 見取り図は右下の小さい一組。上が見ている方向で、丸は実際の守備半径。
   drawDefenseOverview(g, rt, pos, radius, spot) {
     const order = $('objectives'), facing = order.classList.contains('facing-order');
-    const x = facing && !order.classList.contains('facing-left') ? 104 : VIEW.w - 104;
-    const y = VIEW.h - (facing ? 148 : 108), r = 54;
+    const x = facing && !order.classList.contains('facing-left') ? 84 : VIEW.w - 84;
+    const y = VIEW.h - (facing ? 148 : 88), r = 38;
     const p = rt.player.u.pos, dx = p.x - pos.x, dz = p.z - pos.z;
     rt.camera.getWorldDirection(this.tmpV);
     const yaw = Math.atan2(this.tmpV.x, this.tmpV.z);
     const right = -dx * Math.cos(yaw) + dz * Math.sin(yaw);
     const forward = dx * Math.sin(yaw) + dz * Math.cos(yaw);
-    const distance = Math.hypot(dx, dz), scale = Math.min(r / Math.max(.1, radius), 64 / Math.max(.1, distance));
+    const distance = Math.hypot(dx, dz), scale = Math.min(r / Math.max(.1, radius), 48 / Math.max(.1, distance));
     const px = x + right * scale, py = y - forward * scale;
     g.save();
-    g.fillStyle = 'rgba(20,18,15,.82)'; g.fillRect(x - 88, y - 92, 176, 180);
+    g.fillStyle = 'rgba(20,18,15,.82)'; g.fillRect(x - 68, y - 64, 136, 128);
     g.font = 'bold 13px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillStyle = '#fff3ba'; g.fillText('守る場所の地図', x, y - 80);
-    g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2);
+    g.fillStyle = '#fff3ba'; g.fillText('旗のまわり', x, y - 52);
+    g.beginPath(); g.arc(x, y, radius * scale, 0, Math.PI * 2);
     g.strokeStyle = '#14120f'; g.lineWidth = 8; g.stroke();
     g.strokeStyle = '#fff3ba'; g.lineWidth = 4; g.stroke();
     // 旗は守備の中心。本人は小さな白い輪で示し、範囲の内外を保つ。
@@ -153,7 +156,7 @@ export class HudDefense {
       setClass(order, 'ground-order', true);
       setClass(order, 'destination-sign', true);
       const left = Math.max(16, Math.min(VIEW.w - width - 16, x - width / 2));
-      const top = Math.max(64, Math.min(VIEW.h - height - 24, y - (ground.overview ? 100 : 64) - height));
+      const top = Math.max(64, Math.min(VIEW.h - height - 24, y - (ground.overview ? 72 : 64) - height));
       setCssVar(order, '--ground-order-x', Math.round(left) + 'px');
       setCssVar(order, '--ground-order-y', Math.round(top) + 'px');
       // 守備の輪と小旗の上へ札を置き、長い矢印を重ねない。

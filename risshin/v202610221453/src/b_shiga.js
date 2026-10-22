@@ -3226,6 +3226,8 @@ html body #hud.shiga #battle-notices #objectives.has-action:not(.expand) li.cur 
     // 地肌の処理が外れても白地へ戻さず、地形の色と細粒の土を残す。
     const tint = terrain.geometry.getAttribute('slopeTint');
     if (tint) { terrain.geometry.setAttribute('color', tint); mat.vertexColors = true; }
+    // 標準材質に拡張設定がない時も、地肌の支度を止めない。
+    mat.extensions ??= {};
     mat.extensions.derivatives = true;
     mat.onBeforeCompile = (shader) => {
       Object.assign(shader.uniforms, rt.world.groundU);

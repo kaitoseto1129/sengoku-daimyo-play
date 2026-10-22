@@ -395,7 +395,7 @@ export class HudOverlay {
       drew = true; dangerSign = true;
     }
     rt.guideEnemyShown = false;
-    const quietBattle = !rt.def.town && !rt.def.dojo && !P.showSquad;
+    const quietBattle = this.root.classList.contains('combat-three') || !rt.def.town && !rt.def.dojo && !P.showSquad;
     let allySigns = 0, enemySigns = 0;
     const signSpots = this.signSpots || (this.signSpots = []); signSpots.length = 0;
     const protectedAlly = missionGuard || this.guardAlly;
@@ -712,7 +712,7 @@ export class HudOverlay {
       setClass(this.root, 'guard-guide', true);
     }
     // 自分の組も、目に入る者だけ白い印で示す。
-    if (rt.player.showSquad && !guard && !this.guardAlly) {
+    if (rt.player.showSquad && !this.root.classList.contains('combat-three') && !guard && !this.guardAlly) {
       g.font = '12px "Shippori Mincho B1", serif'; g.textAlign = 'center';
       for (const u of rt.squad) {
         if (u.offscreen || u === guard) continue;

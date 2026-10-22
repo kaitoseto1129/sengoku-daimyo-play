@@ -32,7 +32,7 @@ html:root.touch body #hud #battle-notices:not(.choosing) #objectives#objectives.
  display:none !important;
 }
 html:root.touch body #hud #battle-notices:not(.choosing) #objectives#objectives.facing-order:not(.expand) .obj-now {
- font-size:max(20px,calc(20px * var(--text-scale,1))) !important; line-height:1.4 !important;
+ font-size:max(24px,calc(24px * var(--text-scale,1))) !important; line-height:1.4 !important;
  white-space:nowrap !important; overflow-wrap:normal !important;
 }
 html:root.touch body #hud #objectives.facing-order .facing-hand { display:block; width:160px; height:84px; margin:4px auto 0; }

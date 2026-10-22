@@ -1,7 +1,7 @@
 import { VIEW } from "./viewport.js";
 import { isTouch, touchMoveLearned } from "./touch.js";
 import { singleBattleGuide, setClass, $, retreatRequired, setCssVar } from "./hud_common.js";
-import { S } from "./settings.js";
+import { S, reduceMotion } from "./settings.js";
 import { groundAt } from "./floors.js";
 import { sightUnit, sightScreenUnit } from "./battle_sight.js";
 
@@ -109,6 +109,22 @@ export class HudGestures {
     // 描いた丸は左右どちらにあっても、同じ大きさで歩く操作を受ける。
     const origin = this.navigationTouchOrigin || (this.navigationTouchOrigin = {});
     origin.rt = this.rt; origin.at = this.rt.t; origin.x = x; origin.y = y; origin.look = false; origin.radius = radius;
+    if (isTouch && (shiftX || shiftY)) {
+      // 囲みの全体で入力を受け、指の見本と触る範囲を一致させる。
+      origin.areaAt = origin.at;
+      origin.left = Math.max(16, x + Math.min(0, shiftX) - 30);
+      origin.right = Math.min(VIEW.w - 16, x + Math.max(0, shiftX) + 34);
+      origin.top = Math.max(44, y + Math.min(0, shiftY) - 24);
+      origin.bottom = Math.min(VIEW.h - 12, y + Math.max(0, shiftY) + 48);
+      g.save();
+      g.fillStyle = 'rgba(20,18,15,.16)';
+      g.fillRect(origin.left, origin.top, origin.right - origin.left, origin.bottom - origin.top);
+      g.strokeStyle = '#14120f'; g.lineWidth = 5;
+      g.strokeRect(origin.left, origin.top, origin.right - origin.left, origin.bottom - origin.top);
+      g.strokeStyle = '#fff3ba'; g.lineWidth = 2;
+      g.strokeRect(origin.left, origin.top, origin.right - origin.left, origin.bottom - origin.top);
+      g.restore();
+    }
     // 操作を受ける半径は変えず、目で見る始点だけを小さくする。
     const control = isTouch && singleBattleGuide(this.rt);
     const compact = this.rt?.def.compactFloorGuides;
@@ -121,6 +137,14 @@ export class HudGestures {
     g.strokeStyle = '#ffffff'; g.lineWidth = compact ? 1.5 : 2.5; g.stroke();
     if (isTouch) {
       g.save();
+      // 短い見本の後は始点へ戻す。同じ方向の見本は八秒あける。
+      if (this.swipeDemoRt !== this.rt || this.swipeDemoX !== shiftX || this.swipeDemoY !== shiftY) {
+        this.swipeDemoRt = this.rt; this.swipeDemoX = shiftX; this.swipeDemoY = shiftY;
+        this.swipeDemoAt = this.rt.t;
+      }
+      const phase = (this.rt.t - this.swipeDemoAt) % 8;
+      const slide = reduceMotion() || phase >= 1.8 ? 0 : phase < .3 ? 0 : phase < 1.2 ? (phase - .3) / .9 : (1.8 - phase) / .6;
+      g.translate(shiftX * slide, shiftY * slide);
       if (compact) { g.translate(x, y); g.scale(.65, .65); g.translate(-x, -y); }
       g.beginPath(); g.moveTo(x - 5, y + 22); g.lineTo(x - 5, y);
       g.bezierCurveTo(x - 5, y - 9, x + 5, y - 9, x + 5, y);
@@ -193,7 +217,7 @@ export class HudGestures {
     g.strokeStyle = '#fff3ba'; g.lineWidth = compact ? 2.5 : 5; g.stroke();
     g.restore();
     const caption = isTouch && !this.notices.sources[1].selected
-      ? `${Math.abs(dx) > Math.abs(dy) ? dx > 0 ? '右' : '左' : dy > 0 ? '下' : '上'}になぞる` : '';
+      ? `${Math.abs(dx) > Math.abs(dy) ? dx > 0 ? '右' : '左' : dy > 0 ? '下' : '上'}へなぞる` : '';
     this.drawMoveOrigin(g, fromX, fromY, radius, caption, dx / distance * Math.min(56, end - 12), dy / distance * Math.min(56, end - 12));
     // なぞり方を含む既存の一枚を、実際に触る丸のそばへ移す。
     if (isTouch && this.destinationMoveDirection && !order.classList.contains('facing-order') && !order.classList.contains('enemy-move-help') && !this.retreatGuide?.active && !retreatRequired(rt) &&
@@ -578,11 +602,14 @@ export class HudGestures {
     const spot = this.avoidRects(x, y + 40, W, H, 'v', null, Math.max(26, 12 * textScale + 6), 64, true);
     if (!spot) return;
     const labelY = spot[1] - 40;
-    g.save(); g.font = `bold ${20 * textScale}px sans-serif`;
+    g.save(); g.font = `bold ${20 * textScale}px serif`;
     g.textAlign = 'center'; g.textBaseline = 'middle';
     const half = Math.max(20, g.measureText('敵').width / 2 + 6);
-    g.fillStyle = '#14120f'; g.fillRect(spot[0] - half, labelY - 15, half * 2, 30);
-    g.fillStyle = '#fff3ba'; g.fillText('敵', spot[0], labelY);
+    // 墨の字と短い朱線だけを残し、相手の頭上へ黒い四角を重ねない。
+    g.strokeStyle = '#14120f'; g.lineWidth = 4; g.strokeText('敵', spot[0], labelY);
+    g.fillStyle = '#f5e5c3'; g.fillText('敵', spot[0], labelY);
+    g.strokeStyle = '#d09278'; g.lineWidth = 2; g.beginPath();
+    g.moveTo(spot[0] - 9, labelY + 13); g.lineTo(spot[0] + 9, labelY + 13); g.stroke();
     if (frame) this.drawGuideLink(g, frame.cx, Math.max(24, frame.top - 4),
       spot[0] - half, labelY - 15, spot[0] + half, labelY + 15, true);
     else this.drawNavigationArrow(g, spot[0], labelY + 38, Math.atan2(-forward, side), .5);

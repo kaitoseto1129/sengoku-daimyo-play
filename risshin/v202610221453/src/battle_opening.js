@@ -90,16 +90,16 @@ export class BattleOpening {
 #hud #battle-opening b { font-size:max(20px, calc(20px * var(--text-scale, 1))); font-weight:700; overflow-wrap:anywhere; white-space:pre-line; }
 /* 指と説明は、実際になぞる棒のそばへ一緒に置く。 */
 #hud #battle-opening.opening-controls span { transform:translate(-50%,-50%); gap:4px; border:0; border-radius:6px; padding:6px 10px; background:#14120f; color:#fff; max-width:none; }
-#hud #battle-opening .opening-move-area { position:absolute; box-sizing:border-box; width:152px; height:128px; border:0; background:none; }
-#hud #battle-opening.opening-controls b { font-size:max(16px,calc(16px * var(--text-scale,1))); white-space:nowrap; overflow-wrap:normal; flex:none; }
+#hud #battle-opening .opening-move-area { position:absolute; box-sizing:border-box; width:152px; height:128px; border:2px dashed #fff3ba; border-radius:16px; background:rgba(20,18,15,.16); box-shadow:0 0 0 2px #14120f; }
+#hud #battle-opening.opening-controls b { font-size:max(24px,calc(24px * var(--text-scale,1))); white-space:pre-line; overflow-wrap:normal; flex:none; }
 #hud #battle-opening.opening-controls span { width:max-content; max-width:calc(100vw / 3 - 24px); min-height:44px; }
 #hud #battle-opening.opening-controls.has-flag b::before { content:none; }
 #hud #battle-opening.opening-controls .opening-route > circle { display:none; }
 #hud #battle-opening.opening-controls .opening-swipe { display:none; }
 /* 触る始点の丸と短い矢印を、説明と一組にする。 */
-#hud #battle-opening.opening-controls .opening-start > path { display:block; animation:opening-finger-slide 2.4s ease-in-out infinite; }
+#hud #battle-opening.opening-controls .opening-start > path { display:block; animation:opening-finger-slide 8s ease-in-out infinite; }
 #hud #battle-opening.opening-compact.opening-controls span { background:rgba(20,18,15,.65); padding:4px 6px; border-radius:3px; }
-#hud #battle-opening.opening-compact.opening-controls b { font-size:max(15px,calc(15px * var(--text-scale,1))); }
+#hud #battle-opening.opening-compact.opening-controls b { font-size:max(24px,calc(24px * var(--text-scale,1))); }
 #hud #battle-opening.opening-compact .opening-route > path:first-child { stroke-width:6; }
 #hud #battle-opening.opening-compact .opening-route > path:nth-child(2) { stroke-width:2.5; }
 #hud #battle-opening i { display:inline-block; flex:none; font-style:normal; font-size:24px; line-height:1; }
@@ -116,7 +116,7 @@ export class BattleOpening {
 #hud #battle-opening .opening-finger { animation:opening-finger-slide 2.4s ease-in-out infinite; }
 #hud #battle-opening .opening-swipe > path:not(.opening-finger) { animation:none; }
 @keyframes opening-arrow-slide { 0%,20%,100% { transform:translateY(0); } 65%,85% { transform:translateY(-8px); } }
-@keyframes opening-finger-slide { 0%,20%,100% { transform:translateY(0); } 65%,85% { transform:translateY(-56px); } }
+@keyframes opening-finger-slide { 0%,4%,23%,100% { transform:translateY(0); } 15%,18% { transform:translateY(-56px); } }
 body.rm #hud #battle-opening .opening-finger, body.rm #hud #battle-opening .opening-start > path { animation:none; }
 @media (prefers-reduced-motion:reduce) { #hud #battle-opening .opening-finger, #hud #battle-opening .opening-start > path { animation:none; } }
 body.rm #hud #battle-opening .opening-swipe > path { animation:none; }
@@ -283,7 +283,7 @@ body:has(#hud.opening #battle-opening.opening-linked) #tc .stick { visibility:hi
       arrow.hidden = true;
       arrow.textContent = '↑';
       arrow.style.transform = '';
-      this.text.textContent = '上に指をすべらす';
+      this.text.textContent = 'ここを上になぞる';
       // 歩ける側の操作面に始点を置く。
       // 開幕も戦の途中も同じ操作面を使う。
       // 示した輪は navigationTouchOrigin で移動操作として受ける。

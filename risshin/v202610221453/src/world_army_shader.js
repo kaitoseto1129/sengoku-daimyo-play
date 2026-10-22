@@ -91,7 +91,7 @@ APose aPose() {
   // 指定した槍隊の待機中だけ、城側へ約三十度傾けて穂先をそろえる。
   // 進軍・突撃・敗走では従来の持ち替えへ戻す。旗持ちと騎馬の得物は変えない。
   float ranks = uFieldRanks * (1.0 - min(1.0, max(gait, uCharge)));
-  if (kd == 0.0) P.spear = mix(P.spear, -0.50 + (sd - 0.5) * 0.04 + 0.015 * sin(uAT * 0.37 + sd), ranks);
+  if (kd == 0.0) P.spear = mix(P.spear, -0.50 + (sd - 0.5) * 0.12 + 0.04 * sin(T * (0.27 + s2 * 0.13)), ranks);
   P.spLen = kd == 0.0 && ex > 0.0 ? max(0.65, ex) : 1.0;
   if ((pt == 3.0 || pt == 4.0) && run > 0.5 && s2 > 0.55) P.show = 0.0;
   P.kneel = (kd == 1.0 && ex > 0.5) ? mix(0.7, 1.0, min(1.0, gait)) : 1.0;
@@ -107,7 +107,8 @@ APose aPose() {
   #endif
   // 槍ぶすまの列はその場を保つ。呼吸と足踏みは残す。
   wand *= 1.0 - ranks;
-  P.yaw = mix(P.yaw, uTurn * 3.14159, ranks);
+  // 槍列も一人ずつ小さく見回す。隊の向きと立ち位置は保つ。
+  P.yaw = mix(P.yaw, uTurn * 3.14159 + look * 0.12 * uAMotion, ranks);
   P.off = wand * (1.0 - uYose) + aRotY(P.yaw) * vec3(0.0, 0.0, rtm * spd * (kd == 5.0 ? 2.0 : 1.0));
   P.lift += down * 0.12;
   if (kd == 5.0 && pt < 20.0) P.lift += 0.98;
@@ -124,7 +125,16 @@ APose aPose() {
     P.off.z += waiting * pressureWave * 0.48;
     P.off.x += waiting * sin(uAT * 0.31 + ip.y * 0.08) * 0.16;
     P.leg += waiting * cos(uAT * 0.42 + ip.x * 0.065 + ip.y * 0.047) * 0.07;
-    P.spear += waiting * pressureWave * 0.055;
+    P.spear += waiting * (pressureWave * 0.055 + (sd - 0.5) * 0.16);
+    // 同じ高さの黒い帯を作らず、圧を受ける腰と肩に個々の遅れを残す。
+    P.tilt += waiting * pressureWave * (0.025 + sd * 0.025);
+    P.lift -= waiting * (0.5 + 0.5 * pressureWave) * 0.035;
+    // 地形に沿う控えは、組ごとに前の槍を下ろし、後ろは立てて待つ。
+    // 兵の位置・長さは保ち、全員同じ角度の針の壁にしない。
+    if (kd == 0.0) {
+      float readyRank = step(0.48, fract(floor(ip.y / 2.3) * 0.3819 + floor(ip.x / 7.0) * 0.618));
+      P.spear += waiting * readyRank * (0.48 + sd * 0.32);
+    }
     P.off.z += (1.0 - uYose) * uAMotion * mk * (0.55 * wv + 0.28 * rankWave);
     P.off.x += (1.0 - uYose) * uAMotion * mk * 0.18 * sin(uAT * 0.65 - row * 0.4 + ip.x * 0.07);
     P.lift += mk * 0.05 * max(0.0, wv);
@@ -333,7 +343,9 @@ const ARMY_PROJ = `vec4 aIP = vec4(transformed, 1.0), aFP = vec4(AP.off.x, 0.0, 
           mvPosition.x += aSh * sin(uAT * 7.3 + aW.y * 5.0 + aW.x * 0.37);
           mvPosition.y += aSh * 0.5 * sin(uAT * 5.1 + aW.y * 4.0 + aW.z * 0.41);
           // 軽い兵も奥へ行くほど霞の色へなじませ、黒い点の列にしない。
-          vAHz = max(aHost * 0.42, 0.24) * smoothstep(35.0, 140.0, aDist);
+          // 足元の湿った空気へなじませ、頭・槍先の輪郭は残す。
+          vAHz = (max(aHost * 0.42, 0.24) + uOrganicRanks * 0.10
+            * (1.0 - smoothstep(0.2, 2.4, aW.y - aG))) * smoothstep(35.0, 140.0, aDist);
         }
         gl_Position = projectionMatrix * mvPosition;`;
 // 陽炎の強さ（晴れて乾いた昼ほど強い。World.update が決める）

@@ -58,7 +58,7 @@ export class WorldGrass {
       const clump = tuftClumpAt(x, z);
       // 足もとの小片を均等に散らさず、遠い株と同じ群落の芯を濃く、縁を低くする。
       // 土の混じる草地にも低い下葉を残す。草の混合率を閾値で切り捨てない。
-      let show = gw > 0.12 && ((i * 7919) % 100) / 100 < gw * (0.3 + clump * 0.95);
+      let show = gw > 0.12 && ((i * 7919) % 100) / 100 < gw * (0.1 + clump * 1.5);
       let verge = 1;
       if (show && paths) for (const p of paths) {
         const clearance = distToPolyline(x, z, p) - (p.w ?? this.def.pathWidth ?? 2) * 0.5;
@@ -73,6 +73,13 @@ export class WorldGrass {
       const size = sc * (0.65 + clump * 0.7);
       d.scale.set(size * (0.75 + (i % 7) * 0.07), size * (0.65 + (i % 5) * 0.16) * (0.35 + verge * 0.65) * (0.55 + gw * 0.45), size * (0.85 + (i % 3) * 0.1));
       if (show && this.def.tuftHeight) d.scale.y *= this.def.tuftHeight(x, z);
+      // 通った帯の草は株を消すだけにせず、泥へ伏せて幅を残す。同じ踏み跡の絵を使う。
+      if (show && this.def.wetFieldRuts === 'wear' && this.wearData) {
+        const trod = this.wearAt(x, z);
+        d.scale.y *= 1 - trod * .78;
+        d.scale.x *= 1 + trod * .55;
+        d.rotation.x += trod * .65;
+      }
       if (show && this.nearBaseC) {
         const color = this.nearSoilColor || (this.nearSoilColor = new THREE.Color());
         color.fromArray(this.nearBaseC, i * 3);

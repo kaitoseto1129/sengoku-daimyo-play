@@ -475,7 +475,7 @@ takato.edgeBehindWaymarks = true;
 // 安全を調べた退き先がある間は、共通の回避が別の空き地を指さないようにする。
 // 矢の落下範囲から逃れる案内は共通側で引き続き優先される。
 takato.routeGuidePriority = (rt) => !!(roomExit(rt) || rt.flags.retreatTo) && rt.player.u.alive &&
-  !rt.over && !rt.flags.ending && !rt.flags.honFell;
+  !rt.over && !rt.flags.ending;
 // 回避先の絵の旗を、本物の味方の隊旗と取り違えさせない。
 takato.dodgeLabel = (_rt, direction, rain) => direction || (rain ? '矢の外へよけよう' : '足元の印へ下がろう');
 takato.dodgeGuideLabel = (_rt, reached, rain) => reached ? 'ここで敵へ槍を向けよう'
@@ -499,8 +499,8 @@ takato.retreatArrowLength = 80;
 takato.dodgeAvoidNotices = true;
 // 横画面で折り返した退避の札が、残りの命を覆わないようにする。
 takato.retreatOrderAvoidHealth = true;
-takato.guideMarker = (rt) => roomExit(rt) ? 'roomExit' : !rt.over && !rt.flags.ending && !rt.flags.honFell &&
-  (rt.flags.retreatTo || rt.flags.closeFoe?.alive)
+takato.guideMarker = (rt) => roomExit(rt) ? 'roomExit' : !rt.over && !rt.flags.ending &&
+  (rt.flags.retreatTo || !rt.flags.honFell && rt.flags.closeFoe?.alive)
   // 斬り合い中は移動先を示さない。敵の印は案内に選ばれず、別の遠い印が残るため。
   ? rt.flags.retreatTo ? 'fallBack' : null : baseGuide(rt);
 takato.botRetreatWay = (rt, back) => roomExit(rt) || rt.flags.retreatTo || back;
@@ -693,6 +693,9 @@ takato.world.unevenCrowns = true;
 // 狭い寄せ道では、長く広がる硝煙と幹の壁で次の口を隠さない。
 takato.world.gunHazeScale = .6;
 takato.world.smokeFogFloor = 140;
+// 現行の描画距離指定で、門と尾根の見通しを百八十メートルまで残す。
+// 霧と遠景の細部を分ける共通処理へ渡し、雨と硝煙の補正も保つ。
+takato.world.battleViewDistance = 180;
 takato.world.groundMistScale = .25;
 takato.world.nearTreeFadeRadius = 5.5;
 // 門の喰違いと土橋は徒歩で攻める。武将の自動の乗馬も準備時から止める。
@@ -807,7 +810,7 @@ takato.setup = function (rt) {
   F.retreatPoint = { x: 0, y: 0, z: 0 };
   F.retreatStep = { x: 0, y: 0, z: 0 };
   F.retreatProbe = { team: rt.player.u.team, pos: { x: 0, y: 0, z: 0 } };
-  rt.marker('fallBack', () => rt.player.u.alive && !F.ending && !rt.over && !F.honFell
+  rt.marker('fallBack', () => rt.player.u.alive && !F.ending && !rt.over
     ? F.retreatTo : null, () => !F.retreatGuarded ? '退く印' : needsBandage(rt)
       ? F.retreatSheltered ? '味方の後ろ' : '退く印'
       : F.retreatOnRoad ? '寄せ道の休み場' : '休む印', { h: 1.2 });
@@ -1111,7 +1114,9 @@ html:root body #hud #battle-notices #tutorial :is(.what,.how,.lbl) {
 takato.guideAssault = function (rt) {
   const F = rt.flags;
   if ((F.step < 1 && !F.closeFoe) || F.ending) return;
-  if (F.honFell) {
+  // 本丸を取っても城将と城兵は残る。退避と手当てを終えてから主殿の下知へ戻す。
+  if (F.honFell && !F.retreatTo && !rt.player.treating && !rt.player.treatmentReady &&
+      !(F.closeFoe?.alive && needsBreath(rt))) {
     const outside = !F.C.kuruwa.hon.test(rt.player.u.pos.x, rt.player.u.pos.z);
     const text = outside ? '道の印に沿い、本丸の門を通れ'
       : F.keep.down || F.lordDying ? '味方と本丸の旗を守れ' : '本丸の城兵を退け、主殿の守りを崩せ';
@@ -1152,7 +1157,7 @@ takato.update = function (rt, dt) {
     let closest = F.closeFoe?.alive ? 7 : 5;
     F.closeFoe = null;
     let attackers = 0, nearby = 0;
-    if (!rt.G.lord && p.alive && !rt.over && !F.ending && !F.honFell) for (const o of rt.army.units) {
+    if (!rt.G.lord && p.alive && !rt.over && !F.ending) for (const o of rt.army.units) {
       if (!o.alive || o.team === p.team || o.isStruct || o.noTarget || o.fleeing || o.woundOut ||
           o.downed || o.rearWound || o.civ || o.farSim || o.type === 'dummy' || o.type === 'porter' ||
           o.group?.hidden || o.group?.routed || Math.abs(o.pos.y - p.pos.y) >= 3 ||
@@ -1202,7 +1207,7 @@ takato.update = function (rt, dt) {
     // 護衛と間合いが崩れた時の再探索は、この下の判定へ渡す。
     if (distance < 1.5 && treating && bandageSpace(rt, pos, 8))
       F.retreatUntil = Math.max(F.retreatUntil, rt.t + 12, player.treatmentNext + 6);
-    if (F.honFell || rt.t >= F.retreatUntil || !rt.world.walkable(q.x, q.z, pos.y) || rt.army.wallBetween(pos, -1, q) ||
+    if (rt.t >= F.retreatUntil || !rt.world.walkable(q.x, q.z, pos.y) || rt.army.wallBetween(pos, -1, q) ||
         !retreatClear(rt, pos, q) ||
         // 護衛のいない緊急の一歩は、城兵を離したら役目を終える。
         // 野原の印を追い続けず、今の味方の後ろを探し直す。
@@ -1221,7 +1226,7 @@ takato.update = function (rt, dt) {
         (distance < 1.5 && player.sta >= player.maxSta * .65 &&
           !(player.guardBroken > 0) && !F.meleePressure && !treating)) F.retreatTo = null;
   }
-  if (!F.retreatTo && !F.honFell && needsBreath(rt) && (F.closeFoe?.alive || treating || needsRest(rt))) {
+  if (!F.retreatTo && needsBreath(rt) && (F.closeFoe?.alive || treating || needsRest(rt))) {
     const p = rt.player.u.pos, foe = F.closeFoe?.alive ? F.closeFoe.pos : null;
     const point = F.retreatPoint, probe = F.retreatProbe;
     const danger = foe ? Math.hypot(p.x - foe.x, p.z - foe.z) : 0;
@@ -1377,7 +1382,7 @@ takato.update = function (rt, dt) {
   if (guide === 'roomExit') {
     this.guideAssault(rt);
     rt.objProgress('main', '壁へ進まず、戸口の印を通ろう');
-  } else if (!F.honFell && !F.ending && !rt.over && (player.treating || player.treatmentReady)) {
+  } else if (!F.ending && !rt.over && (player.treating || player.treatmentReady)) {
     this.guideAssault(rt);
     // 道へ戻る補足も残さず、長押しの間は足を止める案内にそろえる。
     rt.objProgress('main', '足を止めたまま「手当て」を三秒長押し');

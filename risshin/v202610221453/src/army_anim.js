@@ -700,6 +700,10 @@ export const ArmyAnim = {
         const face = u.heading + u.body.rotation.y;
         const along = dx * Math.sin(face) + dz * Math.cos(face), lat = dx * Math.cos(face) - dz * Math.sin(face);
         if (along > 0.3 && Math.abs(lat) < 1.3 + along * 0.35) { dT = along; sideT = lat; }
+        // 肩が触れる距離でも横・背後の扱いへ飛ばさず、柄を繰り込む距離を渡す。
+        else if (!u.isPlayer && !u.mounted && along > -.2 && dx * dx + dz * dz < 2.25) {
+          dT = Math.max(.45, along); sideT = lat;
+        }
       }
     }
     const reach0 = 0.18 + tip;
@@ -1023,6 +1027,15 @@ export const ArmyAnim = {
       const gripY = h.position.y - (u.spLift || 0) + u.body.position.y + lift;
       slide = Math.max(0, Math.abs(w?.userData.butt || -1.25)
         - Math.max(.15, gripY - .06) / Math.max(.5, Math.sin(-rx)));
+    }
+    // 密着時は半身で肩を外す。移動・当たりは変えず、腰と手元の向きだけを合わせる。
+    if (this.world.def.livingSpearHedge && close && dT < 1.5 && !u.isPlayer && !u.mounted
+      && !a && !sw && !u.hit && !u.downed && !u.dodging && !u.fleeing) {
+      const avoid = clamp01((1.5 - dT) / .9), side = sideT >= 0 ? -1 : 1;
+      u.body.rotation.y += side * avoid * .22;
+      u.body.rotation.z += side * avoid * .07;
+      ry -= side * avoid * .22;
+      ext = Math.min(ext, -.18 * avoid);
     }
     // 戦っていない徒歩の長柄は立てて運び、通り道を横切る長い線を減らす。
     // 人数・武器の長さ・攻撃と当たりは変えず、構えのばねだけへ渡す。

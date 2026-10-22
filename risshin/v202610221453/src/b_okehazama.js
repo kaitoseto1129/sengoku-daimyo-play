@@ -464,15 +464,35 @@ function okeSupplyCovers(scenery) {
       pole.translate(wx, (top + bottom) / 2, wz); poles.push(pole);
     }
   }
-  const soil = world.groundU.tDirt.value;
-  const materials = [new THREE.MeshStandardMaterial({ color: 0xb1a58a, vertexColors: true,
-    map: soil, bumpMap: soil, bumpScale: 0.018, roughness: 0.96, side: THREE.DoubleSide,
+  // 土の絵を布へ流用せず、六張りで一枚の麻布を共用する。
+  const canvas = document.createElement('canvas'); canvas.width = canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#b5a486'; ctx.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 256; i += 2) {
+    ctx.fillStyle = i % 4 ? 'rgba(54,43,29,.16)' : 'rgba(239,224,190,.22)';
+    ctx.fillRect(i, 0, 1, 256); ctx.fillRect(0, i, 256, 1);
+  }
+  // 縫い合わせと濡れた裾。設営時だけ焼き込み、布と同じ一枚を凹凸にも使う。
+  for (const x of [3, 127, 251]) {
+    ctx.fillStyle = 'rgba(58,44,27,.35)'; ctx.fillRect(x, 0, 2, 256);
+    ctx.fillStyle = '#d4c4a5';
+    for (let y = 3; y < 256; y += 6) ctx.fillRect(x + 3, y, 2, 3);
+  }
+  const stain = ctx.createLinearGradient(0, 0, 0, 256);
+  stain.addColorStop(0, 'rgba(45,38,25,.27)'); stain.addColorStop(.3, 'rgba(45,38,25,0)');
+  stain.addColorStop(.7, 'rgba(45,38,25,0)'); stain.addColorStop(1, 'rgba(45,38,25,.27)');
+  ctx.fillStyle = stain; ctx.fillRect(0, 0, 256, 256);
+  const soil = new THREE.CanvasTexture(canvas); soil.colorSpace = THREE.SRGBColorSpace;
+  soil.wrapS = soil.wrapT = THREE.RepeatWrapping;
+  const materials = [new THREE.MeshStandardMaterial({ color: 0xf0e3ca, vertexColors: true,
+    map: soil, bumpMap: soil, bumpScale: 0.009, roughness: 0.96, side: THREE.DoubleSide,
     envMapIntensity: 0.12 }), new THREE.MeshStandardMaterial({ color: 0x514332, roughness: 0.95 })];
   for (const [index, parts] of [cloth, poles].entries()) {
     const mesh = new THREE.Mesh(mergeGeometries(parts), materials[index]);
     for (const part of parts) part.dispose();
     mesh.castShadow = true; mesh.receiveShadow = true; scenery.scene.add(mesh);
   }
+  return soil;
 }
 
 // 今川の小荷駄（本陣の北の窪み）。俵と幔幕の脇に荷の隊を置く（遠景。数は軽い）
@@ -999,6 +1019,10 @@ const okehazama = {
     softEarthCrust: true,
     // 泥の窪みは踏まれた所へ薄く残す。既存の絵と凹凸を使い、面を増やさない。
     subtleMudRelief: true,
+    // 窪みの間引きは保ち、通った兵の圧痕と泥の縁だけを深くする。
+    churnedMud: true,
+    // 既存の控えを地形に沿って緩く崩し、槍と腰へ前列の圧を伝える。
+    distantOrganicRanks: true,
     // 本陣へ踏み込む斜面は草原にせず、草の残る縁と荒れた地肌を混ぜる。
     // 共通の草の分布を使い、足元の房も地面の色とそろえる。
     groundCover(wx, wz) {
@@ -1420,6 +1444,7 @@ const okehazama = {
     rt.world.dispose = () => {
       for (const [original, copy] of rt.flags.horoShapes) if (original !== copy) copy.dispose();
       rt.flags.horoShapes.clear();
+      supplyCloth.dispose();
       rt.hud.say = hudSay; rt.hud.bark = hudBark; rt.hud.banner = hudBanner;
       notices.push = noticePush;
       taskStyle.remove(); rt.hud.root.removeAttribute('data-oke-task');
@@ -1429,7 +1454,7 @@ const okehazama = {
     };
     // 本陣の脇に兵糧の俵
     scenery.scene.add(tawara(W, HONJIN.x - 16, HONJIN.z + 4, 0.3, 6), tawara(W, HONJIN.x + 16, HONJIN.z - 3, -0.5, 5));
-    okeSupplyCovers(scenery);
+    const supplyCloth = okeSupplyCovers(scenery);
     for (const [x, z] of [[6, -106], [30, -106], [4, -128], [32, -128]]) scenery.scene.add(nobori(W, x, z, 'imagawa', 6));
     // 今川の赤鳥の幟：白地に朱の赤鳥（櫛の形）。本陣の奥に混ぜる
     customFlag('akadori', (g) => {

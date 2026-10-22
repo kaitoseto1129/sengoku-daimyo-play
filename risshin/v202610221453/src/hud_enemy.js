@@ -19,7 +19,7 @@ export class HudEnemy {
       if (Math.cos(angle) < .9) return `画面を${Math.sin(angle) <= 0 ? '右' : '左'}へなぞる`;
     }
     return (typeof rt.def.meleeApproachText === 'function' ? rt.def.meleeApproachText(rt) : rt.def.meleeApproachText) ||
-      (isTouch ? '上になぞって近づく' : '近づいて たたかう');
+      (isTouch ? '上へなぞる' : '近づいて たたかう');
   }
 
 
@@ -303,8 +303,10 @@ export class HudEnemy {
     // 現在の立ち位置から頭上の印の位置を測る。
     const f = this.measurePersonFrame(u, rt);
     if (!u.alive || u.dying || !f || f.bottom <= f.top || !sightScreenUnit(rt, u)) return;
-    // ねらう一人だけに下向き矢印。手前の兵より上の画面の層へ描く。
+    // ねらう一人は四隅の枠と矢印。味方の丸や行き先の旗と形で見分ける。
     if (this.enemyFrameShown) return;
+    // 相手の全身を四隅で囲み、頭上の矢印も同じ本人へ固定する。
+    this.drawPersonOutline(g, f, false, true);
     // 頭上の矢印と同じ一人の足元を囲む。人混みで隠れても画面の層に残す。
     const foot = this.project(u.pos, u.pos.y + .08, rt,
       this.enemyRingFoot || (this.enemyRingFoot = {}));
@@ -314,15 +316,9 @@ export class HudEnemy {
       g.strokeStyle = '#ffb49d'; g.lineWidth = 5; g.stroke(); g.restore();
     }
     const headX = Math.max(30, Math.min(VIEW.w - 30, f.cx));
-    const headY = Math.max(48, Math.min(VIEW.h - 48, Math.min(f.top, f.headY) - 8));
-    g.save(); g.lineJoin = 'round'; g.beginPath();
-    g.moveTo(headX - 6, headY - 36); g.lineTo(headX + 6, headY - 36);
-    g.lineTo(headX + 6, headY - 18); g.lineTo(headX + 14, headY - 18);
-    g.lineTo(headX, headY); g.lineTo(headX - 14, headY - 18);
-    g.lineTo(headX - 6, headY - 18); g.closePath();
-    g.strokeStyle = '#14120f'; g.lineWidth = 8; g.stroke();
-    g.fillStyle = '#ffb49d'; g.fill();
-    g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke(); g.restore();
+    const headY = Math.max(48, Math.min(VIEW.h - 48, f.headY - 8));
+    this.drawNavigationArrow(g, headX, headY - 12, Math.PI / 2, .65, true);
+    // 「敵」は矢印と一組の目印。接敵中も文字を残す。
     this.drawTeamWord(g, Math.max(24, Math.min(VIEW.w - 24, headX + 30)), headY - 22, '敵');
     rt.army.guideWayEnemy = u; rt.army.guideWayAt = rt.army.time;
     this.enemyFrameShown = true;

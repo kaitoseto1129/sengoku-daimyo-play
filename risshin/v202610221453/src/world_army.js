@@ -21,7 +21,7 @@ export class WorldArmy {
     const yose = o.yose ?? (!o.people && ['takeda', 'azai', 'asakura', 'imagawa'].includes(family)
       && ['mixed', 'cavalry'].includes(o.kind || 'mixed') && (o.w || 20) >= 8 && (o.d || 10) >= 8);
     const redCavalry = family === 'takeda' && o.kind === 'cavalry';
-    o = { ...o, yose, flagRate: redCavalry ? 1 : o.flagRate };
+    o = { ...o, terrainRanks: o.terrainRanks ?? this.def.distantOrganicRanks, yose, flagRate: redCavalry ? 1 : o.flagRate };
     const R = rng(o.seed || 9);
     if (!this.hgtTex) {
       const t = new THREE.DataTexture(this.grid, SEG + 1, SEG + 1, THREE.RedFormat, THREE.FloatType);

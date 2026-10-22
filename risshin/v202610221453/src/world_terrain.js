@@ -88,8 +88,9 @@ export class WorldTerrain {
     // 手前の山肌が画面中央の四角い範囲で消え、空の色が露出する。
     mat.userData.camNearSolid = true;
     // 道肩の湿乾差・草の斑・濡れた踏み溝は、それぞれの指定に合う描き方を使う。
-    mat.customProgramCacheKey = () => `ground|${!!(this.def.patchyGround || this.def.roadsideGrass)}|${!!this.def.slopeForestTint}|${this.half}|${!!this.def.autumn}|${!!this.def.winter}|${!!this.def.snow}|${SETTINGS.quality}|${!!this.def.springSnowPatch}|${JSON.stringify(this.def.gravelCourt || null)}|${!!this.def.softEarthCrust}|${!!this.def.stableSlopeGrain}|${!!this.def.subtleMudRelief}|${!!this.def.sparseEarthCrust}|${!!this.def.stableCliffGrain}|${!!this.def.stableRockProjection}|${!!this.def.patchyGround}|${this.def.wetFieldRuts || false}|${JSON.stringify(this.def.trampledField || null)}`;
-    this.groundU = { tGrass: { value: grassTex(!!this.def.plainGrassGround) }, tDirt: { value: dirtTex() }, tBank: { value: bankTex() }, tMud: { value: mudTex() }, tStone: { value: stoneTex() }, tMacro: { value: macroTex() }, uWet: { value: 0 }, uForest: { value: this.def.slopeForest ?? 0 }, uRock: { value: this.def.cliffRock ?? 0 }, uNight: this.nightU, uSoilRain: { value: 0 }, tWear: WEAR, uTime: { get value() { return SETTINGS.reduceMotion ? 0 : WIND.value; } }, uSoilSky: { value: this.hemi.color } };
+    mat.customProgramCacheKey = () => `ground|${!!(this.def.patchyGround || this.def.roadsideGrass)}|${!!this.def.slopeForestTint}|${this.half}|${!!this.def.autumn}|${!!this.def.winter}|${!!this.def.snow}|${SETTINGS.quality}|${!!this.def.springSnowPatch}|${JSON.stringify(this.def.gravelCourt || null)}|${!!this.def.softEarthCrust}|${!!this.def.stableSlopeGrain}|${!!this.def.subtleMudRelief}|${!!this.def.churnedMud}|${!!this.def.sparseEarthCrust}|${!!this.def.stableCliffGrain}|${!!this.def.stableRockProjection}|${!!this.def.patchyGround}|${this.def.wetFieldRuts || false}|${JSON.stringify(this.def.trampledField || null)}`;
+    // 通行の跡を持つ戦では、素材に焼かれた足形を重ねない。実際の踏み跡と窪みで泥を作る。
+    this.groundU = { tGrass: { value: grassTex(!!this.def.plainGrassGround) }, tDirt: { value: dirtTex() }, tBank: { value: bankTex() }, tMud: { value: mudTex(this.def.wetFieldRuts === 'wear') }, tStone: { value: stoneTex() }, tMacro: { value: macroTex() }, uWet: { value: 0 }, uForest: { value: this.def.slopeForest ?? 0 }, uRock: { value: this.def.cliffRock ?? 0 }, uNight: this.nightU, uSoilRain: { value: 0 }, tWear: WEAR, uTime: { get value() { return SETTINGS.reduceMotion ? 0 : WIND.value; } }, uSoilSky: { value: this.hemi.color } };
     if (this.def.gravelCourt) this.groundU.tCourt = { value: gravelTex() };
     mat.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, this.groundU);
@@ -156,7 +157,8 @@ export class WorldTerrain {
             grass = mix(grass, gS + grass * tw.y, slopeK);
             dirt = mix(dirt, dS + dirt * tw.y, slopeK);
           }
-          vec3 mud = texture2D(tMud, wuv * 0.26).rgb;
+          // 既に読んだ大小の斑で泥の座標を曲げ、等間隔の模様を崩す。読み出し数は保つ。
+          vec3 mud = texture2D(tMud, wuv * 0.26 ${this.def.wetFieldRuts === 'wear' ? '+ vec2(macro, macro2) * 0.7' : ''}).rgb;
           ${this.def.wetFieldRuts ? `
           // 雨の野でも地肌を空の灰色へ寄せない。共用の絵の粒を残し、
           // 湿った沖積土と乾いた肩の色を大小の斑で分ける。
@@ -328,7 +330,7 @@ export class WorldTerrain {
             * (1.0 - smoothstep(0.3, 0.8, surfaceWater)) * clodFilter
             * (1.0 - smoothstep(8.0, 32.0, soilViewDistance));
           ${this.def.subtleMudRelief ? `// 指定した戦の泥は踏まれた所だけ。窪みの色・照り・凹凸を一緒に薄める。
-          clodK *= smoothstep(0.55, 0.86, clodSeed) * smoothstep(0.15, 0.65, trod) * 0.28;` : ''}
+          clodK *= smoothstep(0.55, 0.86, clodSeed) * smoothstep(0.15, 0.65, trod) * ${this.def.churnedMud ? '0.72' : '0.28'};` : ''}
           float clodHollow = smoothstep(0.3, 0.9, clod);
           float clodRim = smoothstep(0.05, 0.24, clod) * (1.0 - smoothstep(0.3, 0.6, clod))
             * smoothstep(-0.12, 0.12, clodLocal.x + clodLocal.y * 0.5 + (clodSeed - 0.5) * 0.2);
@@ -386,7 +388,7 @@ export class WorldTerrain {
           // 踏み出す側にだけ土を押し出し、閉じた黒い輪を避ける。
           float soleLip = smoothstep(0.7 - soleAA, 1.0, soleD) * (1.0 - smoothstep(1.0, 1.45 + soleAA, soleD))
             * smoothstep(-0.06, 0.18, clodLocal.y + clodLocal.x * 0.4);
-          float soleRelief = (soleLip * 0.008 - solePress * mix(0.016, 0.035, max(uWet, w.z))) * soleK;
+          float soleRelief = (soleLip * 0.008 - solePress * mix(0.016, ${this.def.churnedMud ? '0.052' : '0.035'}, max(uWet, w.z))) * soleK;
           dirt *= 1.0 + (soleLip * 0.10 - solePress * (0.13 + uWet * 0.08)) * soleK;
           mud *= 1.0 + (soleLip * 0.12 - solePress * 0.20) * soleK;
           `}
@@ -789,10 +791,11 @@ export class WorldTerrain {
           }`)
         .replace('#include <roughnessmap_fragment>', `
           float roughnessFactor = roughness;
-          roughnessFactor = mix(roughnessFactor, 0.55, max(w.z * 0.7, vGroundCover.x * 0.65));
+          // 泥の粒と草の根は粗さを残す。滑らかな反射は下段の水たまりへ限る。
+          roughnessFactor = mix(roughnessFactor, 0.82, max(w.z * 0.7, vGroundCover.x * 0.65));
           // 濡れた窪みだけ空や火を鈍く映す。乾いた肩まで一様な艶で覆わない。
           // 土の水膜は粗い粒を残す。水たまりだけ後段で滑らかな水面へ移す。
-          roughnessFactor = mix(roughnessFactor, 0.62 + w.x * 0.10, groundWet * (0.55 + w.z * 0.45));
+          roughnessFactor = mix(roughnessFactor, 0.76 + w.x * 0.10, groundWet * (0.55 + w.z * 0.45));
           // 乾いた縁はざらつかせ、雨の時だけ窪みの底の照りを強める。
           roughnessFactor += (earthShoulder * 0.08 - earthBasin * uWet * 0.12) * earthK;
           // 踏み締めた底だけ艶を持ち、押し出した土は乾いた粒を残す。

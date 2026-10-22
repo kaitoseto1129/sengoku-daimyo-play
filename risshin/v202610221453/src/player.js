@@ -3791,7 +3791,10 @@ export class Player {
       end.copy(f).addScaledVector(r, col * .4 * side).addScaledVector(up, row * (2 / 3) * top);
       // 軒や壁が少し離れていても、画面を覆う手前の家として拾う。
       end.normalize().multiplyScalar(8).add(pos);
-      if (cameraWallBlocked(rt, pos, end)) blocked++;
+      // 束ねた門・開いた扉も、指定した戦では壁と同じく視界の遮りに数える。
+      // 既存の箱を使い、画面の中央を外れた柱や戸板も肩位置の選び直しへ渡す。
+      if (cameraWallBlocked(rt, pos, end) || rt.def.cameraVolumeView &&
+          (rt.world.cameraBlockFraction?.(pos, end) ?? null) !== null) blocked++;
     }
     return blocked;
   }
