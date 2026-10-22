@@ -23,8 +23,14 @@ export class HudTeamSigns {
     let y = Math.max(76, Math.min(H - 28, (-this.tmpV.y * .5 + .5) * H));
     const goal = enemy.pos || enemy;
     this.tmpV.set(goal.x, (goal.y ?? p.y) + .2, goal.z).project(rt.camera);
-    if (this.tmpV.z < -1 || this.tmpV.z > 1) return;
-    const dx = (this.tmpV.x * .5 + .5) * W - x, dy = (-this.tmpV.y * .5 + .5) * H - y;
+    let dx = (this.tmpV.x * .5 + .5) * W - x, dy = (-this.tmpV.y * .5 + .5) * H - y;
+    if (this.tmpV.z < -1 || this.tmpV.z > 1) {
+      const yaw = rt.player.yaw + (rt.player.camYawOff || 0);
+      const gx = goal.x - p.x, gz = goal.z - p.z;
+      const angle = Math.atan2(-(gx * Math.sin(yaw) + gz * Math.cos(yaw)),
+        -gx * Math.cos(yaw) + gz * Math.sin(yaw));
+      dx = Math.cos(angle) * 64; dy = Math.sin(angle) * 64;
+    }
     const length = Math.hypot(dx, dy);
     if (length < 16) return;
     const compact = isTouch || besideFoot || rt.def.compactCombatGuides;
@@ -266,15 +272,10 @@ export class HudTeamSigns {
 
   // 近い兵は小さな旗と刀だけで示し、操作中も所属を見分けられるようにする。
   drawNearbyTeamSigns(g, rt, candidates) {
-    if (this.root.classList.contains('combat-three')) return false;
     // 通常も近い相手の所属を示す。字の札は増やさず、小さな印に絞る。
     if (this.openingActive || rt.dodgeGuide ||
         retreatRequired(rt) || this.retreatGuide?.active) return false;
-    // 操作・自分・体力の三枚を優先し、周囲の所属札を足さない。
-    if (isTouch && (this.aimGuideEnemy?.alive || this.defendEnemy?.alive ||
-        $('objectives').classList.contains('facing-order') ||
-        this.root.classList.contains('hand-action-guide') ||
-        this.root.classList.contains('dodge-turn-coach'))) return false;
+    // 所属は字の札を足さず、小さな旗と刀で示す。相手の枠と操作札は後で避ける。
     // 近い味方は旗、敵は交差した刀。共通の合戦でも字の札を増やさない。
     if (rt.def.town || rt.def.dojo || rt.over || rt.choice ||
         this.openingActive && !this.opening?.el.classList.contains('opening-controls') ||
@@ -288,7 +289,8 @@ export class HudTeamSigns {
     const rects = this.hudRects(), p = rt.player.u;
     const enemyRange = rt.def.nearbyEnemySignRange ?? 18;
     const enemyLimit = Math.min(3, rt.def.nearbyEnemySignLimit ?? 3);
-    const allyLimit = 3;
+    // 任務の旗へ進む間は味方の小旗を畳む。組を開いた時だけ詳しく示す。
+    const allyLimit = rt.player.showSquad ? 3 : moving ? 0 : 1;
     const visible = this.teamSignUnits || (this.teamSignUnits = []);
     // 視線の確認は既存の候補更新と同じ毎秒十回まで。入れ物は使い回す。
     const signAt = Math.floor(rt.t * 10);
@@ -298,7 +300,7 @@ export class HudTeamSigns {
       for (const u of candidates) {
         const enemy = u.team !== p.team;
         // 描かない敵印の視線・地形は調べない。味方の印と戦闘相手の案内は保つ。
-        if (enemy && enemyLimit <= 0) continue;
+        if (enemy ? enemyLimit <= 0 : allyLimit <= 0) continue;
         if (!rt.player.showSquad && (enemy ? checkedEnemies : checkedAllies) >= 4) continue;
         if (u.isPlayer || u.noTarget || u.civ || u.isStruct || u.type === 'dummy' || u.type === 'porter' ||
             !u.alive || u.gone || u.offscreen || !u.mesh.visible ||
@@ -325,6 +327,8 @@ export class HudTeamSigns {
     this.tmpV.set(p.pos.x, p.pos.y + (p.mounted ? 3.7 : (p.bodyHeight ?? 1.72) + .65), p.pos.z).project(rt.camera);
     const selfVisible = this.tmpV.z >= -1 && this.tmpV.z <= 1;
     const selfX = (this.tmpV.x * .5 + .5) * VIEW.w, selfY = (-this.tmpV.y * .5 + .5) * VIEW.h;
+    const selfFoot = this.project(p.pos, p.pos.y + .12, rt,
+      this.teamSelfFootProjection || (this.teamSelfFootProjection = {}));
     g.save(); g.lineJoin = 'round';
     for (const u of visible) {
       if (count >= budget) break;
@@ -356,7 +360,7 @@ export class HudTeamSigns {
           y + 16 > focusTop - 12 && y - 36 < focusBottom + 8 ||
           Math.abs(x - focusX) < 32 && Math.abs(y - focusTop) < 80)) continue;
       // 味方の旗も自分の丸と名前から離す。兵そのものは減らさない。
-      if (selfVisible && Math.abs(x - selfX) < 48 && y + 32 > selfY - 32 && y - 22 < selfY + 40) continue;
+      if (selfVisible && Math.abs(x - selfX) < 48 && y + 32 > selfY - 32 && y - 22 < (selfFoot.behind ? selfY + 40 : selfFoot.y + 24)) continue;
       let covered = false;
       for (const r of rects) if (x + 52 > r.left && x - 20 < r.right && y + 12 > r.top && y - 22 < r.bottom) { covered = true; break; }
       if (covered) continue;
@@ -366,9 +370,9 @@ export class HudTeamSigns {
       slots[count * 2] = x; slots[count * 2 + 1] = y; count++;
       if (enemy) {
         enemies++;
-        // 周りの敵は小さい刀。ねらう一人は大きい刀と足元の輪で示す。
+        // 周りの敵は小さい菱形。操作を促す剣とは分ける。
         g.save(); g.translate(x, y); g.scale(.9, .9);
-        this.drawEnemySign(g, 0, 0); g.restore();
+        this.drawFocusDiamond(g, 0, 0); g.restore();
         continue;
       } else {
         allies++;
@@ -416,7 +420,7 @@ export class HudTeamSigns {
 
 
   // 敵は交差した刀。味方の旗・自分の輪と形で区別する。
-  drawEnemySign(g, x, y, label = false) {
+  drawEnemySign(g, x, y, label = true) {
     g.save(); g.translate(x, y - 3); g.scale(1.35, 1.35); g.lineJoin = 'round'; g.lineCap = 'round';
     g.beginPath();
     g.moveTo(-10, 0); g.lineTo(10, -24); g.lineTo(13, -30);
@@ -425,14 +429,17 @@ export class HudTeamSigns {
     g.moveTo(13, -7); g.lineTo(4, 0);
     g.strokeStyle = '#14120f'; g.lineWidth = 8; g.stroke();
     g.strokeStyle = '#ffb49d'; g.lineWidth = 3; g.stroke(); g.restore();
-    if (label) this.drawTeamWord(g, x + 28, y - 20, '敵');
+    if (label) this.drawTeamWord(g, x, y + 14, 'たたかう');
   }
 
 
   // 所属の字は形のすぐ隣へ。札を追加せず、明暗の縁で床から分ける。
   drawTeamWord(g, x, y, word) {
-    g.save(); g.font = `bold ${15 * Math.max(1, S.textScale || 1)}px sans-serif`;
+    const scale = Math.max(1, S.textScale || 1);
+    g.save(); g.font = `bold ${18 * scale}px sans-serif`;
     g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+    const width = g.measureText(word).width + 12;
+    g.fillStyle = '#14120f'; g.fillRect(x - width / 2, y - 13 * scale, width, 26 * scale);
     g.strokeStyle = '#14120f'; g.lineWidth = 5; g.strokeText(word, x, y);
     g.fillStyle = '#fff'; g.fillText(word, x, y); g.restore();
   }

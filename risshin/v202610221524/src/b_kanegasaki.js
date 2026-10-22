@@ -227,6 +227,41 @@ function retreatSurface(geometry, hex = 0xffffff) {
   return geometry;
 }
 function retreatGroundDetail(rt) {
+  // 草土の混合をこの戦の短い式へ収める。携帯で地表が白い無地になり、
+  // 草・俵だけ浮いて見える状態を避ける。足場・索引・共用の絵はそのまま使う。
+  const ground = rt.world.terrain.material;
+  ground.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, rt.world.groundU);
+    shader.vertexShader = 'attribute vec3 splat; varying vec3 vKgGround, vKgMix;\n'
+      + shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+        vKgGround = (modelMatrix * vec4(transformed, 1.0)).xyz;
+        vKgMix = splat;`);
+    shader.fragmentShader = `uniform sampler2D tGrass, tDirt, tBank, tMud, tMacro, tWear;
+      uniform float uWet;
+      varying vec3 vKgGround, vKgMix;
+      ` + shader.fragmentShader.replace('#include <map_fragment>', `
+        vec3 p = vKgGround;
+        vec3 n = abs(normalize(cross(dFdx(p), dFdy(p))));
+        vec3 axis = pow(n, vec3(4.0)); axis /= max(0.001, axis.x + axis.y + axis.z);
+        // 切岸にも同じ粒の大きさを保ち、縦に伸びた板模様にしない。
+        vec3 soil = texture2D(tBank, p.zy * 0.23).rgb * axis.x
+          + texture2D(tDirt, p.xz * 0.23).rgb * axis.y
+          + texture2D(tBank, p.xy * 0.23).rgb * axis.z;
+        vec3 w = max(vKgMix, vec3(0.0));
+        float wear = texture2D(tWear, (p.xz + 240.0) / 480.0).r;
+        w.x *= (1.0 - smoothstep(0.05, 0.75, wear)) * smoothstep(0.4, 0.8, n.y);
+        w.z = clamp(w.z + uWet * 0.25, 0.0, 0.8);
+        w.y = max(0.0, 1.0 - w.x - w.z);
+        w /= max(0.001, w.x + w.y + w.z);
+        vec3 grass = texture2D(tGrass, p.xz * 0.23).rgb;
+        vec3 mud = texture2D(tMud, p.xz * 0.23).rgb;
+        float patch = mix(0.85, 1.12, texture2D(tMacro, p.xz * 0.023 + 0.37).r);
+        diffuseColor.rgb *= (grass * w.x + soil * w.y + mud * w.z)
+          * patch * (1.0 - uWet * 0.18);
+      `);
+  };
+  ground.customProgramCacheKey = () => '金ヶ崎の草土と川岸';
+  ground.needsUpdate = true;
   const W = rt.world, resources = rt.flags.sceneryResources;
   const mat = new THREE.MeshStandardMaterial({ color:0xffffff, vertexColors:true, roughness:1 });
   // 地面へ重ねた二本の長い帯は坂で浮き、道を裂く板に見えるので置かない。
@@ -1072,7 +1107,7 @@ function pursuersTick(rt) {
       gg.order = 'attack'; gg.path = null; gg.onArrive = null;
       gg.formation = formation; gg.roadColumn = false; gg._routeCols = 0; gg._slotFit = null;
     };
-    if (F.fleeing) { g.focus = rt.player.u; g.speed = 3.3; }
+    if (F.fleeing) { g.speed = 3.3; }
     g.kgPending = false;
     // 上限で一部しか替えられなかった時は残りも同じ列で待つ。
     let left = used;
@@ -1259,7 +1294,8 @@ function retreatFieldTick(rt) {
     for (const q of RETREAT_ROAD) if (q[1] > c.z && q[1] < KUTSUKI.z) g.path.push(q);
     g.path.push([KUTSUKI.x, KUTSUKI.z]); g.pathIdx = 0;
     g.dest = { x: KUTSUKI.x, z: KUTSUKI.z }; g.order = 'path';
-    g.fixed = false; g.formation = 'column'; g.speed = 3.3; g.focus = P;
+    // 追手は殿の組全体を追う。全隊で本人だけを狙い、味方の槍列を素通りしない。
+    g.fixed = false; g.formation = 'column'; g.speed = 3.3; g.focus = null;
     g.onArrive = gg => { gg.order = 'attack'; gg.path = null; gg.onArrive = null; };
   }
   if (near && rt.t >= (F.stepsAt || 0)) {
@@ -1763,6 +1799,7 @@ const kanegasaki = {
     bareFallenHats: true, slopeLitter: true, // 落ちた笠の首布を除き、武具を坂の傾きへ合わせる。
     groundedFalls: true, settleSideFalls: true, // 横倒しの肩と胴を接地させ、槍を体に沿わせる。
     groundMistScale: 0.35, // 川岸の足場が見える薄さにする。
+    battleViewDistance: 120, // 共通の描画距離に合わせ、対岸の備と退き道を白い壁で隠さない。
     smokeFogFloor: 180, // 硝煙の粒を残し、橋と川南の味方を白い幕で隠さない。
     young: true,     // 四月の越前：若葉の草
     variedInfantry: true, // 名のない貸し具足だけ、既存の使い込みと仕立ての差を使う。

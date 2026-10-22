@@ -277,7 +277,7 @@ export class HudNavigation {
     if (this.rt?.touchSwipeActive && !atFoot && !this.rt.missionGuide?.marker) return;
     // 近い視点で、矢印が本人の頭や体に重なる時は描かない（頭を指す矢印に見える）。
     // 向き直し中は今の横なぞりだけを見せ、別方向の矢印を足さない。
-    if (isTouch && (this.rt?.dodgeGuide?.gestureShown || $('objectives').classList.contains('facing-order'))) return;
+    if (isTouch && (this.rt?.touchCoachActive || this.moveGestureDrawn || this.rt?.dodgeGuide?.gestureShown || $('objectives').classList.contains('facing-order'))) return;
     const rt = this.rt, me = rt?.player?.u?.pos;
     if (rt && singleBattleGuide(rt) && !this.openingActive && !doorway) {
       this.drawSmallGoalFlag(g, x, y, .5, false, false, '');
@@ -354,14 +354,38 @@ export class HudNavigation {
     const occupied = this.notices.picks.length - Number(this.notices.sources[1].selected) +
       Number(!!this.healthRect) + Number(!$('boss').hidden) +
       Number(!$('target').hidden && !$('target').classList.contains('notice-muted'));
+    if (frame) {
+      // 救援は本人の頭へ竿をつなぐ大旗一枚。任務札と置き換える。
+      const scale = Math.max(1, S.textScale || 1);
+      g.save(); g.font = `bold ${20 * scale}px sans-serif`;
+      const width = g.measureText('たすける').width + 30, height = 38 * scale;
+      const left = Math.max(12, Math.min(VIEW.w - width - 12, frame.cx - width / 2));
+      const top = Math.max(12, frame.top - height - 26);
+      g.lineJoin = 'round'; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(left, top); g.lineTo(left, frame.top - 4);
+      g.lineTo(frame.cx, frame.top - 4);
+      g.strokeStyle = '#14120f'; g.lineWidth = 10; g.stroke();
+      g.strokeStyle = '#fff3ba'; g.lineWidth = 5; g.stroke();
+      g.beginPath(); g.moveTo(left, top); g.lineTo(left + width, top);
+      g.lineTo(left + width - 10, top + height / 2);
+      g.lineTo(left + width, top + height); g.lineTo(left, top + height); g.closePath();
+      g.strokeStyle = '#14120f'; g.lineWidth = 9; g.stroke();
+      g.fillStyle = '#14120f'; g.fill();
+      g.strokeStyle = '#fff3ba'; g.lineWidth = 3; g.stroke();
+      if (occupied < 3) {
+        g.fillStyle = '#fff3ba'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillText('たすける', left + (width - 8) / 2, top + height / 2);
+        setClass(this.root, 'edge-destination', true);
+      }
+      g.restore(); return true;
+    }
     if (occupied >= 3) return false;
     const scale = Math.max(1, S.textScale || 1), height = 36 * scale;
     g.save(); g.font = `bold ${18 * scale}px sans-serif`;
     const width = g.measureText(label).width + 20;
-    const near = frame && this.enemyOrderSpot(frame, width, height, 76);
-    const spot = near || this.goalFlagSpot(rt, x, y, width, height);
-    const left = near ? near.x : spot.labelX - width / 2;
-    const top = near ? near.y : spot.labelY - height / 2;
+    const spot = this.goalFlagSpot(rt, x, y, width, height);
+    const left = spot.labelX - width / 2;
+    const top = spot.labelY - height / 2;
     this.drawGuideLink(g, x, y, left, top, left + width, top + height, true);
     g.fillStyle = '#14120f'; g.fillRect(left, top, width, height);
     g.fillStyle = '#fff3ba'; g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -411,8 +435,6 @@ export class HudNavigation {
 
   // 自分は足元の白い太い輪で示す。相手の剣と見分け、押すボタンに見える枠は付けない。
   drawPlayerSign(g, rt) {
-    // 開幕は操作の手本を優先する。接敵中も本人の輪は残す。
-    if (isTouch && this.openingActive && this.opening?.el.classList.contains('opening-controls')) return false;
     let footDrawn = false;
     // 操作案内が消えた後も、自分の実際の足元に白い輪を残す。
     if (!rt.def.town && !rt.def.dojo && rt.player.u.alive && rt.player.u.mesh?.visible &&
@@ -420,25 +442,37 @@ export class HudNavigation {
       const p = rt.player.u.pos;
       const foot = this.project(p, p.y + .12, rt,
         this.playerSignFoot || (this.playerSignFoot = {}));
+      // 足元が画面の下へ切れても、見えている本人の白ふちは残す。
+      const frame = this.measurePersonFrame(rt.player.u, rt);
+      if (frame && !isTouch) {
+        this.drawEnemyContour(g, rt, rt.player.u, frame);
+        footDrawn = true;
+      }
       if (!foot.behind && foot.x >= 32 && foot.x <= VIEW.w - 32 && foot.y >= 64 && foot.y <= VIEW.h + 12) {
         // 足元の輪と呼び名は手前の兵にも隠れない画面の層へ描く。
-        // 自分の印と呼び名は足元だけにまとめる。
+        // 白い輪と濃い下地の呼び名を、実寸でも見分けられる太さにする。
         g.save(); g.beginPath();
         g.ellipse(foot.x, foot.y, 30, 13, 0, 0, Math.PI * 2);
         g.strokeStyle = '#14120f'; g.lineWidth = 10; g.stroke();
         g.strokeStyle = '#fff'; g.lineWidth = 5; g.stroke();
-        g.font = 'bold 15px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        const scale = Math.max(1, S.textScale || 1);
+        g.font = `bold ${18 * scale}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
         const labelY = Math.max(80, Math.min(VIEW.h - 14, foot.y - 25));
+        g.fillStyle = '#14120f'; g.fillRect(foot.x - 25 * scale, labelY - 13 * scale, 50 * scale, 26 * scale);
         g.strokeStyle = '#14120f'; g.lineWidth = 5; g.strokeText('自分', foot.x, labelY);
         g.fillStyle = '#fff'; g.fillText('自分', foot.x, labelY); g.restore();
         footDrawn = true;
       }
+      // 頭上の白い菱形も本人へ固定し、手前の兵に隠されないようにする。
+      if (frame && frame.top >= 28 && frame.top < VIEW.h - 28 && frame.cx >= 20 && frame.cx <= VIEW.w - 20) {
+        const x = frame.cx, y = frame.top - 4;
+        g.save(); g.lineJoin = 'round'; g.beginPath();
+        g.moveTo(x, y); g.lineTo(x - 11, y - 14); g.lineTo(x, y - 28); g.lineTo(x + 11, y - 14); g.closePath();
+        g.strokeStyle = '#14120f'; g.lineWidth = 8; g.stroke();
+        g.fillStyle = '#fff'; g.fill(); g.restore();
+        footDrawn = true;
+      }
 
-    }
-    if (this.openingActive && this.opening?.el.classList.contains('opening-controls') &&
-        !rt.choice && !rt.player.camShot && !this.bigmap && rt.player.fpK <= .5) {
-      // 開幕の矢印は端の説明札の中だけに置く。
-      return true;
     }
     return footDrawn;
   }

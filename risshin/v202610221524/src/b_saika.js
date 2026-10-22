@@ -72,6 +72,14 @@ html body #hud.saika-notices.working #prompt button[data-work]::after {
  content:'この札を押し続ける'; grid-column:1 / -1;
  font-size:max(13px, calc(13px * var(--text-scale, 1))); line-height:1.5;
 }
+/* 操作札を先頭に保つ。長い護衛の説明で押す所が欄の外へ追い出されない。 */
+html body #hud.saika-notices.working #prompt.work-action:not([hidden]) {
+ order:-3; top:0 !important;
+}
+/* 長押し中は操作札に名前と割合が出る。任務は護衛の下知と補足を残す。 */
+html:root body #hud.saika-notices.working #battle-notices #objectives#objectives:not(.expand) #obj-list li.cur .obj-now {
+ font-size:max(16px, calc(16px * var(--text-scale, 1))) !important;
+}
 /* 向きを変える手ほどきの間も、戻る目的と杭抜きの進みは残す。
    親欄の声や手ほどきは隠したまま、選ばれた任務だけを見せる。 */
 html body #hud.saika-notices:is(.touch-turn-coach,.dodge-turn-coach,.wait-guard-active,.dodge-active,.cover-guidance,.rain-danger) #battle-notices:not(.choosing) #objectives.keep-combat-task:not(.expand):not([hidden]):not(.notice-muted) {
@@ -2795,7 +2803,7 @@ const saika = {
           close ? '「列を整える」を長押し' : '竹束の陰へ。止まって列を整えよ';
         if (F.coverTask !== action) { F.coverTask = action; rt.obj('main', action, 'main', true); }
         rt.objProgress('main', fighting ? '整えた分は残る。敵を払って続けよ' :
-          close ? `列を整える ${Math.min(6, Math.floor(F.coverWorkT || 0))}／6秒\n止まって、作業の札を押し続けよう` : '鉄砲衆の前へ。出た「列を整える」の札を六秒長押し');
+          close ? `列を整える ${Math.min(6, Math.floor(F.coverWorkT || 0))}／6秒\n止まって、作業の札を押し続けよう。敵が来たら先に払え` : '竹束の陰へ。出た「列を整える」の札を六秒長押し');
       }
       if (F.cover) this.hold(rt);
       else {

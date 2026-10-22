@@ -218,7 +218,7 @@ body:has(#hud.opening #battle-opening.opening-linked) #tc .stick { visibility:hi
     this.el.classList.remove('opening-foot');
     this.el.classList.toggle('opening-compact', !!rt.def.compactFloorGuides);
     this.el.classList.toggle('opening-controls', !linkedMove && swipeHelp && (firstMove || !rt.def.keepOpeningTaskLabel));
-    this.moveArea.hidden = !this.el.classList.contains('opening-controls');
+    this.moveArea.hidden = true;
     // 絵の hidden 属性は直接切り替える。通常の要素と違い、代入だけでは属性が残る。
     this.swipe.toggleAttribute('hidden', !!linkedMove || !swipeHelp || !firstMove && !!rt.def.keepOpeningTaskLabel);
     this.route.toggleAttribute('hidden', true);
@@ -279,16 +279,13 @@ body:has(#hud.opening #battle-opening.opening-linked) #tc .stick { visibility:hi
     }
     // 指の動きは絵で示す。戦固有の大切な下知は消さない。
     if (swipeHelp && !linkedMove && (firstMove || !rt.def.keepOpeningTaskLabel)) {
-      // 操作の棒と同じ場所に指を置き、景色の灯りを指さない。
+      // 自分の足元を始点にし、目前の旗を操作する絵に見せない。
       arrow.hidden = true;
       arrow.textContent = '↑';
       arrow.style.transform = '';
-      this.text.textContent = 'ここを上になぞる';
-      // 歩ける側の操作面に始点を置く。
-      // 開幕も戦の途中も同じ操作面を使う。
-      // 示した輪は navigationTouchOrigin で移動操作として受ける。
-      // 左右を入れ替えた設定でも、実際に歩ける下側の操作面へ置く。
-      const start = this.hud.playerControlOrigin(rt);
+      this.text.textContent = '上へなぞって すすむ';
+      // 左右どちらに足元があっても、示した輪から歩行入力を受ける。
+      const start = this.hud.playerControlOrigin(rt, false, true);
       const fingerX = start.x, fingerY = start.y;
       this.swipeX = fingerX; this.swipeY = fingerY;
       const origin = this.hud.navigationTouchOrigin || (this.hud.navigationTouchOrigin = {});
@@ -298,17 +295,11 @@ body:has(#hud.opening #battle-opening.opening-linked) #tc .stick { visibility:hi
       origin.top = fingerY - 80; origin.bottom = fingerY + 48;
       this.moveArea.style.left = origin.left + 'px';
       this.moveArea.style.top = origin.top + 'px';
-      // 指の動きは真上へ短く示し、行き先の旗とは結ばない。
+      // 戦の途中と同じく、指は操作面から真上へ動かす。旗へ曲げない。
       this.swipe.toggleAttribute('hidden', true);
       this.linkStart = null;
-      // 景色の行き先とは結ばず、実際の歩行入力と同じ真上への短い手本にする。
-      const compact = !!rt.def.compactFloorGuides;
-      const radius = compact ? 22 : 28;
-      const endX = fingerX;
-      const endY = fingerY - 72;
-      const ux = 0, uy = -1;
-      const head = 12, wing = 7;
-      const path = `M${fingerX + ux * radius} ${fingerY + uy * radius}L${endX} ${endY}M${endX - ux * head - uy * wing} ${endY - uy * head + ux * wing}L${endX} ${endY}L${endX - ux * head + uy * wing} ${endY - uy * head - ux * wing}`;
+      const radius = 26, endY = fingerY - 88;
+      const path = `M${fingerX} ${fingerY}V${endY}M${fingerX - 7} ${endY + 12}L${fingerX} ${endY}L${fingerX + 7} ${endY + 12}`;
       for (let i = 0; i < 2; i++) this.route.children[i].setAttribute('d', path);
       const startMark = this.route.lastElementChild;
       startMark.firstElementChild.setAttribute('r', String(radius));
@@ -318,13 +309,13 @@ body:has(#hud.opening #battle-opening.opening-linked) #tc .stick { visibility:hi
       this.swipe.style.left = fingerX + 'px';
       this.swipe.style.top = fingerY + 'px';
       this.personArrow.hidden = true;
-      // 指と真上の矢印、説明を操作面の一組にする。
+      // 真上へ動かす指と説明を操作面の一組にする。
       this.el.classList.toggle('has-flag', !!this.flagGround);
       const half = this.label.offsetWidth / 2;
       const halfHeight = this.label.offsetHeight / 2;
-      // 説明は短い矢印の上。本人の足元へは寄せない。
+      // 説明は足元から伸びる矢印の上へ置く。
       x = Math.max(half + 12, Math.min(W - half - 12, fingerX));
-      y = Math.max(halfHeight + 12, fingerY - 96 - halfHeight);
+      y = Math.max(halfHeight + 12, fingerY - 104 - halfHeight);
     }
     this.el.classList.toggle('has-flag', !!this.flagGround);
     if (linkedMove) this.text.textContent = rt.def.openingLinkedLabel || 'あの旗へ';

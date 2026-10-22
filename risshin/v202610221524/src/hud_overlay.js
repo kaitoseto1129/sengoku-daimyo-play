@@ -129,7 +129,6 @@ export class HudOverlay {
       const left = Math.max(12, Math.min(W - width - 12, start.x - width / 2));
       const top = Math.max(64, start.y - height - 32);
       if (frame) this.drawEnemyOutline(g, enemy, rt, true);
-      else this.drawEnemySign(g, this.facingSwipeRight ? W - 40 : 40, Math.max(96, H * .4));
       setCssVar(order, '--facing-order-x', Math.round(left) + 'px');
       setCssVar(order, '--facing-order-y', Math.round(top) + 'px');
       swipeDrawn = this.drawRouteTurn(g, rt, this.facingSwipeRight, start) || swipeDrawn;
@@ -667,16 +666,7 @@ export class HudOverlay {
           if (!this.notices.sources[1].selected) this.drawRescueHand(g, x, y - 32);
         } else this.drawGuardSign(g, x, y - 32);
       } else {
-        if (helping) {
-          // 兵や旗の手前に太い輪を描き、頭上の人形と同じ一人を示す。
-          g.beginPath();
-          g.ellipse(frame.cx, (frame.top + frame.bottom) / 2,
-            Math.max(24, (frame.right - frame.left) / 2 + 10),
-            Math.max(30, (frame.bottom - frame.top) / 2 + 8), 0, 0, Math.PI * 2);
-          g.strokeStyle = '#14120f'; g.lineWidth = 12; g.stroke();
-          g.strokeStyle = '#fff3ba'; g.lineWidth = 6; g.stroke();
-          this.drawPersonSign(g, frame.cx, frame.top - 12, true);
-        } else this.drawPersonOutline(g, frame, true, true);
+        if (!helping) this.drawPersonOutline(g, frame, true, true);
         if (!helping) {
           // 盾の先端を頭のすぐ上へ固定し、群れの上に浮かせない。
           g.save(); g.translate(frame.cx, frame.top - 12); g.scale(.7, .7);
@@ -705,7 +695,7 @@ export class HudOverlay {
         setCssVar(order, '--ground-order-x', left + 'px');
         setCssVar(order, '--ground-order-y', top + 'px');
       }
-      const label = helping ? 'この人をたすけよう' :
+      const label = helping ? 'たすける' :
         rt.def.guardLabel?.(rt, guard) || 'この人のそばで守る';
       this.drawPersonAction(g, rt, off ? x : frame.cx, off ? y : frame.top, label, helping && !off ? frame : null);
       g.restore(); drew = true;

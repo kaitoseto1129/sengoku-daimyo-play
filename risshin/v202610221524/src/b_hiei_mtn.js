@@ -1052,10 +1052,12 @@ function hieiBacktrack(rt) {
     const q = T.points[(T.start + T.count - 1) % T.points.length];
     if (Math.hypot(q.x - p.x, q.z - p.z) < .35) { T.count--; continue; }
     // 通れない足跡の先へ印を飛ばさない。通常の道探しは引き続き行う。
-    if (Math.hypot(q.x - p.x, q.z - p.z) > 3) return;
     if (T.checked !== q || rt.t >= T.next) {
       T.checked = q; T.next = rt.t + .5;
-      T.clear = runnerClear(rt.army, rt.player.u, p, q);
+      // 押し出されて最後の点が遠くなっても、近い古い点を調べる。
+      // 三歩を超える点への直行は許さず、履歴は失敗時にも残す。
+      T.clear = Math.hypot(q.x - p.x, q.z - p.z) <= 3
+        && runnerClear(rt.army, rt.player.u, p, q);
       // 押し合いで最後の足跡だけが柱や階段の横へ隠れても、そこで戻り道を
       // 捨てない。三歩以内の古い足跡まで、壁と足場を調べ直してつなぐ。
       // 通れる点がない時は履歴を残し、半秒後に同じ範囲を調べる。
@@ -1627,6 +1629,9 @@ const hiei_mtn = {
   compactRetreatSign: true, // 近い兵を覆わない小さな退避の旗と矢印を使う。
   compactFloorGuides: true, // 近い視点で画面の三分の一を超える退避の輪は畳む。
   compactDestinationSign: true, // 狭い本坂で、行き先の旗と輪が前列の兵を覆わない大きさにする。
+  singleDestinationArrow: true, // 道の角の矢印へ、足元からの別の矢印を重ねない。
+  directionalDestinationArrow: true, // 見えている道の角へ向け、常に下を指す印にしない。
+  compactFieldGuides: true, // 任務札の指の大きな絵を畳み、なぞる向きは字で残す。
   retreatForLimbWounds: false, // 止血後の足・腕のけがだけでは、登る任務を退避の札へ替え続けない。
   keepWoundRetreatReason: true,
   keepRetreatReason: true, // 出血や深手で下がる時も、行き先と理由を歩数で消さない。
@@ -1738,7 +1743,7 @@ const hiei_mtn = {
     // 半数を割る前は損害の声だけで知らせ、戸口・本道・合流先の下知を残す。
     if (/退く|深手/.test(text)) return text;
     if (F.exitMarked) return hieiReturnTask(rt, '戸口から道へ戻れ', '戸口へ戻れ');
-    if (F._gHold) return F.trailActive ? hieiReturnTask(rt, '足跡の印へ戻れ', '足跡へ戻れ') : '来た道へ引き返せ';
+    if (F._gHold) return F.trailActive ? hieiReturnTask(rt, '道の印へ戻れ', '道の印へ戻れ') : '来た道へ引き返せ';
     if (F.guideReturn?.active) {
       // 鳥居前で横へ寄せる時は、遠い鳥居と直近の復帰先を一度に示さない。
       if (F.step === 1) return hieiReturnTask(rt, '道の印へ戻れ', '道の印へ戻れ');

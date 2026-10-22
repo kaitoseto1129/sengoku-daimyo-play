@@ -340,7 +340,7 @@ export const noticeStyle22 = `
  }
  html.touch body #hud #wait-guard#wait-guard:not([hidden]) svg + svg { display:none; }
  html.touch body #hud #wait-guard#wait-guard:not([hidden]) span {
-  font-size:max(18px,calc(18px * var(--text-scale,1))) !important; line-height:1.3;
+  font-size:max(22px,calc(22px * var(--text-scale,1))) !important; line-height:1.3;
  }
  html.touch body #hud #wait-guard#wait-guard:not([hidden]) small {
   font-size:max(16px,calc(16px * var(--text-scale,1))) !important; line-height:1.4;
@@ -358,6 +358,15 @@ html.touch body #hud #wait-guard#wait-guard .guard-meter b {
  height:8px; border:1px solid #fff3ba; box-sizing:border-box; transform:none;
  background:linear-gradient(to right,#fff3ba calc(var(--hold-progress,0) * 100%),#14120f 0);
 }
+/* 守っている間は指を盾に替え、大きい状態の字を同じ押す場所に出す。 */
+html.touch body #hud #wait-guard#wait-guard.guarding:not([hidden]) svg:first-child { display:none; }
+html.touch body #hud #wait-guard#wait-guard.guarding:not([hidden]) svg + svg {
+ display:block; grid-column:1; grid-row:1; width:32px; height:40px;
+}
+html.touch body #hud #wait-guard#wait-guard.guarding:not([hidden]) span {
+ font-size:max(26px,calc(26px * var(--text-scale,1))) !important;
+}
+html.touch body #hud #wait-guard#wait-guard small:empty { display:none; }
 /* 下馬は押せる釦一つにまとめ、一覧を開くと任務を読める。 */
 html:root body #hud #battle-notices #objectives#objectives.dismount-order:not(.expand):has(.battle-action:not([hidden]) .dismount-action) #obj-list {
  display:none !important;

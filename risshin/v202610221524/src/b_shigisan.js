@@ -3336,9 +3336,10 @@ function climbWayPoint(p, x, z, out) {
   goal.x = x; goal.z = z; goal.y = p.u.pos.y;
   climbRoadPoint(p.u.pos.x, p.u.pos.z, from);
   climbRoadPoint(x, z, to);
-  p.rt.flags.climbReturning = from.d > ROAD_HALF - 1;
+  // 道の幅内でも、切岸の下や柵の外へ押される事がある。距離だけで復帰を済ませない。
+  p.rt.flags.climbReturning = from.d > ROAD_HALF - 1 || !guideClear(p.rt, p.u.pos, from);
   // 真横の道が切岸の上なら、歩いて戻れる道の口を探す。再探索は半秒に一度だけ。
-  if (from.d > ROAD_HALF - 1) {
+  if (p.rt.flags.climbReturning) {
     const q = p._sgRejoin || (p._sgRejoin = { x: 0, z: 0, at: -1, found: false, probe: {} });
     if (p.rt.t >= q.at) {
       q.at = p.rt.t + 0.5; q.found = false;
@@ -3350,6 +3351,10 @@ function climbWayPoint(p, x, z, out) {
           probe.x = a[0] + (b[0] - a[0]) * k / n; probe.z = a[1] + (b[1] - a[1]) * k / n;
           const d = Math.hypot(probe.x - p.u.pos.x, probe.z - p.u.pos.z);
           if (d > 60 || d >= best || !guideClear(p.rt, p.u.pos, probe)) continue;
+          // 戻り口から次の角まで進める所だけ選ぶ。足元の行き止まりへ戻し続けない。
+          const end = to.s < i ? a : b;
+          goal.x = end[0]; goal.z = end[1]; goal.y = p.rt.world.heightAt(goal.x, goal.z);
+          if (!guideClear(p.rt, probe, goal)) continue;
           best = d; q.x = probe.x; q.z = probe.z; q.found = true;
         }
       }

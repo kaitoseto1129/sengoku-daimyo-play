@@ -835,9 +835,9 @@ const okehazama = {
   compactRetreatSign: true, // 退く床の旗と矢印で、目の前の敵の胴・槍を隠さない。
   compactRetreatArea: true, // 近い退避先も画面上の小さな輪に収める。
   treatmentCrossSign: true,
-  treatmentApproachLabel: '十字まで もどる',
+  treatmentApproachLabel: '＋へ戻って 手当て',
   // 移動しただけでは血は止まらない。馬上では先に下馬を案内する。
-  treatmentMoveCaption: (rt) => rt.player.mounted ? '馬をおりて 十字の印へ' : '十字まで もどる',
+  treatmentMoveCaption: (rt) => rt.player.mounted ? '馬をおりて 十字の印へ' : '＋へ戻って 手当て',
   dismountActionLabel: '馬をおりる',
   treatmentGuideLabel(rt, cue) {
     const p = rt.player;

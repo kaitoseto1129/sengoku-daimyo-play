@@ -119,7 +119,7 @@ body.rm #tc .action-coach.foot-coach .coach-finger { animation:none; }
 /* 操作の絵と説明は端の小さな一枚に収める。 */
 #tc .action-coach.turn-coach.foot-coach { width:168px; height:64px; }
 #tc .action-coach.turn-coach.foot-coach svg { left:0; top:0; width:56px; height:64px; overflow:hidden; }
-#tc .action-coach.turn-coach.foot-coach span { width:108px; padding:6px; font-size:13px; line-height:1.4; }
+#tc .action-coach.turn-coach.foot-coach span { width:108px; padding:6px; font-size:15px; line-height:1.4; }
 #tc .action-coach.turn-coach.foot-coach .coach-finger { display:none; animation:none; }
 /* 触る端末だけ：ページの拡大・端の戻る・長押しの選択を止める */
 html.touch, html.touch body { overscroll-behavior: none; touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
@@ -1472,7 +1472,7 @@ function fieldSwipeCoach(b, el) {
   const destination = dodge ? '攻撃をよける' : retreat ? '味方の後ろへ下がる' : enemy ? '印の敵へ向く' : travelling
     ? b.def.travelGuideLabel?.(b, true) || (route.marker.red ? '敵の印へ進め' : '旗へ進め') : '敵の方へ向く';
   tog(el, 'with-destination', !!destination && turning);
-  setText(el.lastElementChild, turning ? `ここを${SWIPE_NAMES[direction]}になぞる` : 'ここを上になぞる');
+  setText(el.lastElementChild, `${turning ? `${SWIPE_NAMES[direction]}を向く` : destination}\n${SWIPE_NAMES[direction]}へなぞる`);
   const arrow = el.querySelector('.turn-arrow');
   el.querySelector('.turn-touch').setAttribute('r', '22');
   arrow.setAttribute('d', 'M40 6H88M76-6L88 6L76 18');
@@ -1584,7 +1584,7 @@ function actionCoach(b, dt) {
     const dx = turnEnemy.pos.x - p.u.pos.x, dz = turnEnemy.pos.z - p.u.pos.z;
     const right = -dx * Math.cos(yaw) + dz * Math.sin(yaw) >= 0;
     tog(el, 'turn-coach', true); tog(el, 'at-button', false); tog(el, 'attack-only', false);
-    setText(el.lastElementChild, `ここを${right ? '右' : '左'}になぞる`);
+    setText(el.lastElementChild, `敵へ向く\n${right ? '右' : '左'}へなぞる`);
     el.style.setProperty('--turn-shift', right ? '40px' : '-40px');
     el.querySelector('.turn-arrow').setAttribute('d', 'M16 6H80M68-6L80 6L68 18');
     el.querySelector('.turn-arrow').setAttribute('transform', right ? '' : 'translate(32 0) scale(-1 1)');
@@ -1624,7 +1624,7 @@ function actionCoach(b, dt) {
     tog(el, 'turn-coach', true); tog(el, 'at-button', false); tog(el, 'attack-only', false);
     tog(el, 'move-coach', !turn);
     tog(el, 'route-coach', true);
-    setText(el.lastElementChild, turn ? `ここを${right ? '右' : '左'}になぞる` : 'ここを上になぞる');
+    setText(el.lastElementChild, turn ? `${right ? '右' : '左'}を向く\n${right ? '右' : '左'}へなぞる` : '旗へ進む\n上へなぞる');
     const arrow = el.querySelector('.turn-arrow');
     arrow.setAttribute('d', turn ? 'M16 6H80M68-6L80 6L68 18' : 'M16 6V-50M4-38L16-50L28-38');
     arrow.setAttribute('transform', turn && !right ? 'translate(32 0) scale(-1 1)' : '');
@@ -1641,7 +1641,7 @@ function actionCoach(b, dt) {
     T.openingHelp += dt;
     tog(el, 'move-coach', true);
     tog(el, 'opening-coach', true);
-    setText(el.lastElementChild, 'ここを上になぞる');
+    setText(el.lastElementChild, route?.marker ? '旗へ進む\n上へなぞる' : '前へ進む\n上へなぞる');
     tog(el, 'turn-coach', true); tog(el, 'at-button', false); tog(el, 'attack-only', false);
     el.querySelector('.turn-arrow').setAttribute('d', 'M16 6V-50M4-38L16-50L28-38');
     el.querySelector('.turn-arrow').setAttribute('transform', '');

@@ -1,7 +1,7 @@
 import { groundAt } from "./floors.js";
 import { VIEW } from "./viewport.js";
 import { S } from "./settings.js";
-import { $, setAttr, setClass, setText, setHtml, esc, setStyle, setHidden, setCssVar } from "./hud_common.js";
+import { $, setAttr, setClass, setText, setHtml, esc, setStyle, setHidden } from "./hud_common.js";
 import { isTouch, touchInput } from "./touch.js";
 import { clearFoot } from "./cover_guide.js";
 import { visibleRainEscape } from "./arrow_rain.js";
@@ -397,13 +397,13 @@ export class HudDodge {
     let gestureClear = true;
     if (turnGesture) {
       // 白い輪の近くを始点にし、指先・矢印・入力を同じ座標へそろえる。
-      const start = this.playerControlOrigin(rt);
+      const start = this.playerControlOrigin(rt, true, true);
       const startX = Math.max(turnRight ? 40 : 104, Math.min(W - (turnRight ? 104 : 40), start.x));
       const startY = Math.max(132, Math.min(H - 80, start.y));
       lx = Math.max(cardHalf + 12, Math.min(W - cardHalf - 12, startX));
       ly = startY - 56;
       gesture.setAttribute('transform', `translate(${startX} ${startY + 12})`);
-      gesture.querySelector('.swipe-arrow').setAttribute('d', 'M24-12H80M66-24L80-12L66 0');
+      gesture.querySelector('.swipe-arrow').setAttribute('d', 'M0-12H88M74-24L88-12L74 0');
       gesture.querySelector('.swipe-arrow').setAttribute('transform', turnRight ? '' : 'scale(-1 1)');
       gesture.querySelector('.swipe-arrow').setAttribute('style', 'filter:drop-shadow(0 0 2px #14120f)');
       // 始点の指を動かさず、矢印だけでなぞる向きを示す。
@@ -473,34 +473,30 @@ export class HudDodge {
       }
     }
     if (moveGesture) {
-      // 指の向きは歩く操作と一致させる。矢のしまでは終点を安全な床に合わせる。
+      // 赤い危険枠の中の自分から、安全な逃げ先まで一本で結ぶ。
       const angle = moveSide === '右上' ? -45 : moveSide === '右下' ? 45 : moveSide === '左上' ? -135 : moveSide === '左下' ? 135 :
         moveSide === '右' ? 0 : moveSide === '左' ? 180 : moveSide === '下' ? 90 : -90;
       const ax = Math.cos(angle * Math.PI / 180), ay = Math.sin(angle * Math.PI / 180);
-      let startX = W * (S.touchSwap ? .72 : .28), startY = Math.min(H - 128, Math.max(180, H * .68));
-      let length = 88;
-      if (rain && !off) {
-        length = Math.max(28, Math.min(88,
-          ax > .001 ? (x - 44) / ax : ax < -.001 ? (W - 44 - x) / -ax : 88,
-          ay > .001 ? (y - 100) / ay : ay < -.001 ? (H - 68 - y) / -ay : 88));
-        startX = x - ax * length; startY = y - ay * length;
-      }
+      const start = this.playerControlOrigin(rt, false, true);
+      const startX = start.x, startY = start.y;
+      const length = Math.max(28, Math.min(
+        ax > .001 ? (W - 32 - startX) / ax : ax < -.001 ? (32 - startX) / ax : Infinity,
+        ay > .001 ? (H - 32 - startY) / ay : ay < -.001 ? (80 - startY) / ay : Infinity));
+      const dx = off ? ax * length : end.x - startX;
+      const dy = off ? ay * length : end.y - startY;
       lx = Math.max(cardHalf + 12, Math.min(W - cardHalf - 12, startX));
-      ly = Math.max(28, Math.min(startY, startY + ay * length) - 60);
-      const dx = ax * length, dy = ay * length;
+      ly = Math.max(28, startY - 76);
       const distance = Math.hypot(dx, dy) || 1, ux = dx / distance, uy = dy / distance;
       const tipX = dx, tipY = dy - 12;
       gesture.setAttribute('transform', `translate(${startX} ${startY + 12})`);
       const arrow = gesture.querySelector('.swipe-arrow');
-      arrow.setAttribute('d', `M${ux * 26} ${-12 + uy * 26}L${tipX} ${tipY}M${tipX - ux * 14 - uy * 10} ${tipY - uy * 14 + ux * 10}L${tipX} ${tipY}L${tipX - ux * 14 + uy * 10} ${tipY - uy * 14 - ux * 10}`);
+      arrow.setAttribute('d', `M0 -12L${tipX} ${tipY}M${tipX - ux * 14 - uy * 10} ${tipY - uy * 14 + ux * 10}L${tipX} ${tipY}L${tipX - ux * 14 + uy * 10} ${tipY - uy * 14 - ux * 10}`);
       arrow.removeAttribute('transform');
       arrow.setAttribute('style', 'filter:drop-shadow(0 0 2px #14120f) drop-shadow(0 0 1px #14120f)');
       const swipeEnd = gesture.querySelector('.swipe-end');
       swipeEnd.setAttribute('transform', `translate(${tipX} ${tipY})`);
-      setStyle(swipeEnd, 'display', rain && !off ? '' : 'none');
-      setCssVar(gesture, '--swipe-shift', `${ux * Math.min(64, distance)}px`);
-      setCssVar(gesture, '--swipe-rise', `${uy * Math.min(64, distance)}px`);
-      gesture.lastElementChild.classList.add('swipe-hand');
+      setStyle(swipeEnd, 'display', !off ? '' : 'none');
+      // 指先は危険枠の始点へ固定し、「ここ」を動かさない。
       setStyle(gesture, 'display', '');
       const origin = this.navigationTouchOrigin || (this.navigationTouchOrigin = {});
       origin.rt = rt; origin.at = rt.t; origin.x = startX; origin.y = startY;

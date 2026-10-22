@@ -8,6 +8,20 @@ import { S } from "./settings.js";
 
 export class HudDestination {
 
+  // 押す指や自分の輪とは違う、歩いて着く場所の足形。
+  drawMoveFootprints(g, x, y) {
+    g.save(); g.translate(x, y); g.rotate(-.2);
+    for (let i = 0; i < 2; i++) {
+      const sx = i === 0 ? -9 : 9, sy = i === 0 ? 3 : -5;
+      g.beginPath(); g.ellipse(sx, sy, 5, 10, 0, 0, Math.PI * 2);
+      g.strokeStyle = '#14120f'; g.lineWidth = 5; g.stroke();
+      g.fillStyle = '#fff3ba'; g.fill();
+      g.beginPath(); g.ellipse(sx, sy + 14, 4, 3, 0, 0, Math.PI * 2);
+      g.stroke(); g.fill();
+    }
+    g.restore();
+  }
+
 
   // 札と矢印は同じ持ち場・到着判定・画面の向きを使う。入れ物は使い回す。
   waitDestinationCue(rt, guide) {
@@ -167,13 +181,22 @@ export class HudDestination {
       const spot = this.avoidRects(x, y, VIEW.w, VIEW.h, 'v', null, 40, 88, true);
       if (spot) y = spot[1];
     }
-    // 実旗が見えていても、着く床の輪を省かない。
+    // 実旗が見える時は太い縁と「ここへ」だけ。別の旗印を増やさない。
     const floorVisible = !point.behind && point.x >= 48 && point.x <= VIEW.w - 48 &&
       point.y >= 100 && point.y <= VIEW.h - 32;
-    if (floorVisible) this.drawTargetFootRing(g, rt, pos, 1, false, true);
-    this.drawNamedGoal(g, x, y, edgeAngle);
+    if (flagVisible) {
+      this.drawTeamWord(g, Math.max(48, Math.min(VIEW.w - 48, bounds.left + bounds.width / 2)),
+        bounds.top - 18, 'ここへ');
+    } else {
+      if (floorVisible) this.drawMoveFootprints(g, point.x, point.y);
+      this.drawNamedGoal(g, x, y, edgeAngle);
+    }
     if (this.openingActive) return true;
     const reached = rt.missionGuide?.distance < (marker?.guideRadius || 8);
+    if (!reached && !this.destinationStepDrawn) {
+      this.drawEnemyDirection(g, rt, pos);
+      this.destinationStepDrawn = true;
+    }
     // 行き先の旗へ案内を一本化する。画面外の時だけ旗に矢印を添える。
     // 任務一枚を旗のそばへ置き、操作の札を増やさない。
     if (isTouch && singleBattleGuide(rt) && !this.openingActive) {
@@ -613,11 +636,11 @@ export class HudDestination {
   // 手当ての十字は移動中と到着後で同じ形にする。
   drawTreatmentCross(g, x, y) {
     g.save(); g.lineJoin = 'round';
-    g.beginPath(); g.rect(x - 20, y - 60, 40, 40);
+    g.beginPath(); g.rect(x - 28, y - 68, 56, 56);
     g.fillStyle = '#fff3ba'; g.strokeStyle = '#14120f'; g.lineWidth = 5;
     g.stroke(); g.fill();
-    g.beginPath(); g.moveTo(x, y - 53); g.lineTo(x, y - 27);
-    g.moveTo(x - 13, y - 40); g.lineTo(x + 13, y - 40);
+    g.beginPath(); g.moveTo(x, y - 58); g.lineTo(x, y - 22);
+    g.moveTo(x - 18, y - 40); g.lineTo(x + 18, y - 40);
     g.lineWidth = 4; g.stroke(); g.restore();
   }
 

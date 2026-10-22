@@ -2203,8 +2203,8 @@ const anegawa = {
     rt.scene.add(nobori(W, HQ.x - 12, HQ.z + 4, 'eiraku', 7));
     F.hqGuideFlag = nobori(W, HQ.x, HQ.z - 14, 'eiraku', 6);
     rt.scene.add(F.hqGuideFlag);
-    // 出発点に近い二本だけ低くし、手前の布で進む先をふさがない。
-    for (const [x, z] of [[8, 38], [34, 38], [-14, 36], [56, 36], [16, 18], [28, 18]]) rt.scene.add(nobori(W, x, z, z < 25 ? 'oda' : (x > 40 ? 'eiraku' : 'oda'), z < 25 ? 3.2 : 5));
+    // 出発点の背後の旗は西の端へ寄せ、足元の操作案内と川岸への見通しを空ける。
+    for (const [x, z] of [[8, 38], [34, 38], [-32, 36], [56, 36], [16, 18], [28, 18]]) rt.scene.add(nobori(W, x, z, z < 25 ? 'oda' : (x > 40 ? 'eiraku' : 'oda'), z < 25 ? 3.2 : 5));
     rt.scene.add(tawara(W, 30, 60, 0.3, 5), hut(W, 60, 96, 7, 5, 0.2, { wall: 0xa58d6e, minka: false, groundedHome: true,
       interior: { name: '南の小屋', kind: 'nagaya', profile: 'anegawa', team: 0 } }));
     // 向こう岸の浅井の旗

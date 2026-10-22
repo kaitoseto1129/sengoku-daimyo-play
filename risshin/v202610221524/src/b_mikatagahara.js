@@ -882,6 +882,15 @@ const mikatagahara = {
     lowBamboo: true,
     wind: [0.8, 0.6],
     muddy: 0.2,
+    // 台地と坂に描いた三角形へ岩の腹まで据え、浮く石と離れた根草を残さない。
+    // 設営時だけ既存の接地処理を使い、歩く床・退く道・兵の数は変えない。
+    groundedSlopeRocks: true,
+    rockDrawGround: true,
+    rockSlopeContact: true,
+    rockLowerRimContact: true,
+    curvedRockTufts: true,
+    litRockTufts: true,
+    patchyGround: true, // 共用の土の絵の湿乾差を出し、冬の原を一色の板にしない。
     softEarthCrust: true, // 土塊の升の境で陰を切らず、退き道に四角い敷石模様を残さない。
     plainGrassGround: true, // 草の絵の円い窪みを省き、冬の原を輪模様で埋めない。
     subtleMudRelief: true, // 丸い窪みを原一面に並べず、踏まれた泥の所へ薄く残す。

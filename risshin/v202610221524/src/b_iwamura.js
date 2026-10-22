@@ -146,15 +146,16 @@ function campGround(W) {
     sh.fragmentShader = 'varying vec4 vIwaSoil;\n' + sh.fragmentShader
       .replace('vec3 col = grass * w.x + dirt * w.y + mud * w.z;', `
         vec3 col = grass * w.x + dirt * w.y + mud * w.z;
-        float iwaCampGrain = clamp(dot(col, vec3(0.333)) / 0.16, 0.65, 1.25);
-        vec3 iwaColor = vIwaSoil.rgb * iwaCampGrain;
+        // 土の絵を単色へ置き換えず、草・泥それぞれの粒と暗い窪みを残す。
+        // 配分用の明るい色をそのまま塗ると、夕方も夜も雪原のようになる。
+        vec3 iwaColor = col * clamp(vIwaSoil.rgb / vec3(0.36, 0.30, 0.20), vec3(0.65), vec3(1.4));
         // 霜は北向きの法面と柵の北の日陰だけ。道と踏み跡、陣内には積もらせない。
         float iwaFenceZ = -6.0 + clamp(abs(vWP.x) - 8.0, 0.0, 52.0) * 4.0 / 52.0;
         float iwaShade = max(smoothstep(0.15, 0.6, -normalize(vWN).z),
           (1.0 - smoothstep(2.0, 9.0, iwaFenceZ - vWP.z)) * step(vWP.z, iwaFenceZ));
         float iwaFrost = iwaShade * smoothstep(0.3, 0.65, w.x) * (1.0 - trod)
           * smoothstep(0.45, 0.7, macro2) * 0.24;
-        iwaColor = mix(iwaColor, vec3(0.66, 0.69, 0.68) * iwaCampGrain, iwaFrost);
+        iwaColor = mix(iwaColor, iwaColor * vec3(1.15, 1.22, 1.3), iwaFrost);
         col = mix(col, iwaColor, vIwaSoil.a);`);
   };
   mat.needsUpdate = true;
@@ -529,6 +530,8 @@ const iwamura = {
   clearTravelGuide: true, // 道の矢印と旗の上に案内札を重ねない。
   pauseTurnPractice: false, // 見回しの操作待ちで夜討ちの兵と任務の時計を止めない。
   compactTravelArrow: true, // 道の帯より、行き先に添える短い矢印を優先する。
+  compactDestinationSign: true, // 守る旗も小さくし、携帯の中央を覆う黒い案内札を畳む。
+  smallFlagAvoidNotices: true, // 小旗の竿と布も任務札・操作札に重ねない。
   singleRetreatArrow: true, // 回避と退避も足元の短い矢印一本にし、兵へ点線を重ねない。
   compactRetreatArea: true, compactDodgeGuide: true,
   compactGroundGoalRing: true, // 小さな到着輪と旗で、柵の口の兵と槍先を空ける。
@@ -856,7 +859,7 @@ const iwamura = {
     // ---- 水晶山の陣：柵（中央に一つの口）、陣幕、小屋 ----
     // 写真の木柵は細い杭と二段の横木。岩村の高画質だけ既存の軽い柵を使う。
     // 壊れる区画・高さ・控え・盛り土は保ち、口や兵の配置は動かさない。
-    const campFence = { lightFence: true };
+    const campFence = { lightFence: true, terrainRails: true }; // 横木を途中の杭へ継ぎ、坂を斜めに横切らせない。
     F.fenceSegs = [   // F.fence とは名付けない（playbot は F.fence がある戦を設楽原の柵とみなす）
       ...wallLine(rt, [[-60, FENCE_Z + 4], [-8, FENCE_Z]], { team: 0, hp: 900, name: '陣の柵', segLen: 6, meshOpt: campFence }),
       ...wallLine(rt, [[8, FENCE_Z], [60, FENCE_Z + 4]], { team: 0, hp: 900, name: '陣の柵', segLen: 6, meshOpt: campFence }),
@@ -884,7 +887,8 @@ const iwamura = {
     F.keep.lord.invuln = true; F.keep.lord.mustLive = true; // 開城後に捕らえられる城将を夜の討取りにしない。
     // 切岸の縁を避け、四本の柱と南の梯子を陣内の平場へ据える。
     for (const y of IWAMURA_SUISHOZAN_PLAN.yagura)
-      monomi(rt, ...y.at, { name: y.name, team: 0, ...campLookout });
+      // 篝火の持ち場の背後を空け、肩越しの視点を井楼の丸太へ入れない。
+      monomi(rt, Math.sign(y.at[0]) * 46, y.at[1], { name: y.name, team: 0, ...campLookout });
     for (const [x, z, k] of [[-8, 36, 'oda'], [8, 36, 'eiraku'], [-40, FENCE_Z + 8, 'oda'], [40, FENCE_Z + 8, 'oda']]) rt.scene.add(nobori(W, x, z, k, 6));
     // ---- 包囲する織田の陣は水晶山一つに集めず、尾根・登城道の途中に散らす（見張り・兵糧所。大きな戦闘は置かない） ----
     monomi(rt, 24, -64, { name: '登城道の物見', team: 0, ...campLookout });
