@@ -12,6 +12,7 @@ import { GENERALS, WOUND_FLOOR } from './units.js';
 import { lordGame, lordList } from './lord.js';
 import { depthBot } from './b_depth.js';
 import { botInput as fake } from './bot_input.js';
+import { retreatDodge } from './bot_retreat.js';
 
 const Q = new URLSearchParams(location.search);
 const ONLY = Q.get('only') ? new Set(Q.get('only').split(',')) : null;
@@ -252,15 +253,14 @@ function survive(b, inp) {
       inp.runHeld = !bladeNear && !inp.guardHold && impact > guardLead &&
         u.hp > u.maxHp * 0.4 && p.sta > p.maxSta * 0.45 && Math.hypot(dx, dz) > 0.5;
       // 二方向の刃や、体がまだ向けていない刃には人と同じ回避を使う。
-      // 普通の一歩が空いていても、その倍ほど進む回避が壁を越えないか調べる。
+      // 普通の一歩が空いていても、三歩分の途中の切岸・兵・戦ごとの退路を調べる。
+      // その向きが塞がれていれば、退く側の斜めや横の隙間へかわす。
       // 次の一撃で倒れる深手と構え崩れでは、受ける余力より目前の回避を優先する。
       // 元気な時は従来どおり四割を残す。回避そのものの消費は二十のまま。
       if ((crossedStrikes || uncovered || critical) && impact <= 0.35 && Math.hypot(dx, dz) > 0.5 &&
           !p.mounted && p.dodgeT <= -0.3 && !(p.knockT > 0) && !u.climb &&
           p.sta >= 20 + (critical || p.guardBroken > 0 ? 0 : p.maxSta * 0.4)) {
-        step.x = u.pos.x + dx * 3; step.z = u.pos.z + dz * 3;
-        if (!army.wallBetween(u.pos, -1, step) && b.world.walkable(step.x, step.z, u.pos.y) &&
-            (!b.def.botRetreatStepAllowed || b.def.botRetreatStepAllowed(b, step))) inp.e.add('Space');
+        retreatDodge(b, inp, Math.atan2(dx, dz), b.def.botRetreatStepAllowed);
       }
       // 深手や包囲から退く時は、振りが途切れても歩みを止めない。
       // 反撃のための半秒の待ちで止まると、次の打ち込みで退避をやり直し続ける。
@@ -687,14 +687,15 @@ function cover(b, inp) {
     !o.isStruct && o.type !== 'gun' && o.type !== 'bow' &&
     Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos));
   if (melee && s.type === 'gun' && s.atk?.target === u && s.atk.t > 0.5) return false;
-  // 塀へ同じ避け足を出し続けない。通れる側を選び、入れ物は使い回す。
+  // 普通の横歩きだけでなく、回避一回分（三歩）の先まで通れる側を選ぶ。
+  // 二歩だけ調べてから回避すると、その先の炎や切岸へ踏み込んでしまう。
   const step = b._botCoverPoint || (b._botCoverPoint = { x: 0, y: 0, z: 0 });
   let side = u.id % 2 ? 1 : -1;
   const len = sd || 1, dx = sz / len, dz = -sx / len;
-  step.x = u.pos.x + dx * side * 2; step.y = u.pos.y; step.z = u.pos.z + dz * side * 2;
+  step.x = u.pos.x + dx * side * 3; step.y = u.pos.y; step.z = u.pos.z + dz * side * 3;
   if (b.army.wallBetween(u.pos, -1, step) || b.def.botCoverBlocked?.(b, u.pos, step)) {
     side = -side;
-    step.x = u.pos.x + dx * side * 2; step.z = u.pos.z + dz * side * 2;
+    step.x = u.pos.x + dx * side * 3; step.y = u.pos.y; step.z = u.pos.z + dz * side * 3;
     if (b.army.wallBetween(u.pos, -1, step) || b.def.botCoverBlocked?.(b, u.pos, step)) return false;
   }
   let face = s, ad = 6;
@@ -707,13 +708,13 @@ function cover(b, inp) {
   if (p.lock && p.lock !== face) inp.e.add('KeyQ');
   p.yaw = Math.atan2(face.pos.x - u.pos.x, face.pos.z - u.pos.z);
   // 鉄砲を避ける時も、横からの槍には正面を向けて構える。
-  inp.axis = null;
   inp.guardHold = face !== s; inp.leftPressed = false; inp.chargeHold = false;
   inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.k.delete('KeyE');
   const fw = (step.x - u.pos.x) * Math.sin(p.yaw) + (step.z - u.pos.z) * Math.cos(p.yaw);
   const across = -(step.x - u.pos.x) * Math.cos(p.yaw) + (step.z - u.pos.z) * Math.sin(p.yaw);
-  if (Math.abs(fw) > 0.3) inp.k.add(fw > 0 ? 'KeyW' : 'KeyS');
-  if (Math.abs(across) > 0.3) inp.k.add(across > 0 ? 'KeyD' : 'KeyA');
+  // 追手へ向き直っても、八方向へ丸めて調べた線から外れない。
+  const axis = b._botCoverAxis || (b._botCoverAxis = { x: 0, y: 0 });
+  axis.x = across / 3; axis.y = -fw / 3; inp.axis = axis;
   inp.runHeld = !inp.guardHold;
   if (s.type === 'gun' && s.atk && s.atk.t < 0.5 && p.sta >= 20 && p.dodgeT <= -0.3) inp.e.add('Space');
   b.botCovering = true;
