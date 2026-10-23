@@ -1051,12 +1051,14 @@ function pursuersTick(rt) {
   if (active >= 36) return;
   for (let i = 0; i < F.pursuers.length; i++) {
     const q = F.pursuers[i], host = F.host[q.source];
-    const list = cappedList(rt, q.list), n = list.reduce((a, e) => a + e.n, 0);
+    // 広く散った十八人を一度に縦隊へすると、後列待ちで寄せが止まる。
+    // 近い八人ずつ同じ遠景から引き継ぎ、残りは既存の待ち列へ残す。
+    const list = cappedList(rt, q.list), n = Math.min(8, list.reduce((a, e) => a + e.n, 0));
     if (!n || active + n > 48) continue;
     // 同じ列の先頭から替える。見通しを待って後続が一斉に出るのを防ぐ。
     // 平らな山腹や登城道も歩けるが、麓の追手とは別の高さになる。
     // 北・西は退き道、東は疋田の道に沿う列だけを実兵へ替える。
-    const pts = host.m.take(q.at.x, Math.max(host.z, q.at.z), n, 100, null, (x, z) =>
+    const pts = host.m.take(host.x, Math.max(host.z, q.at.z), n, 24, null, (x, z) =>
       Math.hypot(x - rt.player.u.pos.x, z - rt.player.u.pos.z) > 22 && rt.world.walkable(x, z) &&
       (distToPolyline(x, z, RETREAT_ROAD) <= 8 || q.source === 2 && distToPolyline(x, z, HIKIDA_ROAD) <= 8) &&
       rt.world.slopeTan(x, z) <= 0.55 && !rt.world.inWaterAt(x, z));
@@ -1792,7 +1794,7 @@ const kanegasaki = {
     time: 'day', // 当日の天気と時刻は未詳。雨上がりを史実として補わず、昼の景色を復元。
     keepTerrainGrid: true, // 携帯でも足場と同じ格子で描く。山道の肩で兵や落ちた荷を浮かせない。
     terrainTriangles: true, // 同じ格子の中も、描く三角形と同じ高さで兵と視点を支える。
-    terrainContactView: true, // 視点を直接替えた写真も、面を選ぶ直前に描く地面の上へ戻す。
+    terrainContactView: true, // 視点を直接替えた時も、手前の面全体を斜面の上へ戻してから地面の面を選ぶ。
     climbTan: 0.55, // 麓の足場選びと同じ勾配。道を外れた追い合いで山腹へ登らせない。
     looseHorseClimbTan: 0.55, // 空馬も同じ麓を通り、急な城山へ逃げ上がらない。
     followColumnRoad: true, // 退く後列も道の折れをたどり、橋岸や谷の内側へ直進しない。

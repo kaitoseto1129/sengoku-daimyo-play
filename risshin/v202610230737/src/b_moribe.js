@@ -42,7 +42,8 @@ const START2 = { x: 40, z: 98 };
 const POINT2 = { x: 40, z: 79 };
 const FORD_R = 4;
 // 向こう岸へ上がれば渡河済み。浅瀬から横へそれても、小旗へ戻らせない。
-const atFordBank = (p) => p.z <= nireZ(p.x) - 9;
+const atFordBank = (p, world) => p.z <= nireZ(p.x) - 9 ||
+  p.z < nireZ(p.x) && world.heightAt(p.x, p.z) >= .14;
 const FRONT2 = { x: 4, z: 20 };
 const ASSEMBLY2 = { x: 14, z: 10 };
 const RETREAT2 = { x: 24, z: 48 };
@@ -476,6 +477,10 @@ const moribeHeight = (x, z, b) => (moribeDem ? demBlend(moribeDem, x, z, b + mor
 // 森部だけの浅瀬。粗い地形の岸に引かれて埋もれた川面を、渡る帯でそろえる。
 function moribeFord(rt) {
   const W = rt.world, st = W.def.streams[1], pa = st.mesh.geometry.attributes.position;
+  // ピンも到着判定も、描いた水面から地面が出る最初の岸に合わせる。
+  let bank = 0;
+  while (bank < st.w && W.heightAt(START2.x, nireZ(START2.x) - bank) < .14) bank += .25;
+  POINT2.z = nireZ(START2.x) - bank;
   for (let i = 0; i < st.surface.length; i += 3) {
     const x = st.surface[i], k = Math.max(0, Math.min(1, (160 - Math.abs(x)) / 30));
     const y = st.surface[i + 2] + (0.12 - st.surface[i + 2]) * k;
@@ -504,7 +509,7 @@ function moribeFord(rt) {
       float fordGrain = texture2D(tMacro, vWPw.xz * 0.9).r;
       float fordRipple = smoothstep(0.86, 0.98, sin(vWPw.z * 6.0 + fordGrain * 2.0 - uTime * 1.4));
       vec3 fordSand = mix(vec3(0.40, 0.34, 0.21), vec3(0.64, 0.59, 0.43), fordGrain);
-      diffuseColor.rgb = mix(diffuseColor.rgb, fordSand, fordBand * 0.9);
+      diffuseColor.rgb = mix(diffuseColor.rgb, fordSand, fordBand * 0.6);
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.76, 0.78, 0.66), fordRipple * fordBand * 0.45);
       #include <lights_fragment_begin>
     `);
@@ -1152,6 +1157,7 @@ const moribe = {
       // 仲間が集まる岸を一本のピンで保つ。到着済みは塗りを替え、踏み直させない。
       pos = POINT2; r = FORD_R; hide = 0;
       q.waiting = q.arrived = !!F.pointInside;
+      q.progress = q.arrived ? this.missionWaitProgress(rt) || 0 : 0;
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
     } else if (F.stage === 'assemble') {
@@ -2307,7 +2313,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     // 渡河の到着だけはピンと同じコマで反映する。隊の見直しの一秒を待たせない。
     if (!F.signal) {
       // 一度渡った後は北岸全体を到着済みとする。小旗を通り越しても戻らせない。
-      F.pointInside = atFordBank(p);
+      F.pointInside = atFordBank(p, rt.world);
       if (F.pointInside) F.pointReached = true;
     }
     // 任務と隊の見直しは一秒ごと。毎コマ配列や行き先を作らない。
@@ -2327,7 +2333,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       if (Math.hypot(u.pos.x - POINT2.x, u.pos.z - POINT2.z) < 16) squadAcross++;
       if (distance > trailDist) { trailDist = distance; trailing = u; }
     }
-    const atPoint = atFordBank(p);
+    const atPoint = atFordBank(p, rt.world);
     F.squadContext = !F.signal
       ? atPoint ? `自分は到着・仲間 ${squadAcross}／${squadAlive}人が到着` : `仲間 ${squadNear}／${squadAlive}人がついてくる`
       : `仲間：そばに${squadNear}／${squadAlive}人`;
@@ -2451,8 +2457,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       if (!F.vBroken && gone(F.V)) this.onRout(rt, F.V);
       rt.objProgress(F.vBroken ? 'support' : 'break', '');
       // 先手が退いた時点で本備と控えを寄せる。次の斬り合いを待ってから下知しない。
-      if (F.vBroken || rt.t - F.signal >= 55) {
-        if (!F.vBroken) { if (gone(F.V)) this.onRout(rt, F.V); else rt.objFail('break'); }
+      if (F.vBroken) {
         rt.objRemove('break'); rt.unmark('V');
         rt.objRemove('support'); rt.unmark('support');
         moribeHoldPoint(rt);
@@ -2692,7 +2697,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
           !u.target.fleeing && !u.target.woundOut && !u.target.noTarget &&
           Math.hypot(u.pos.x - u.target.pos.x, u.pos.z - u.target.pos.z) < 8)) continue;
       const c = fightingCenter(g);
-      if (Math.hypot(c.x - aim.x, c.z - aim.z) <= 18) {
+      if (Math.hypot(c.x - aim.x, c.z - aim.z) <= 8) {
         // 前列は着いている。後列の到着待ちで「移動」の探索六歩に閉じ込めない。
         g.order = 'attack'; g.seekRange = 35; g.onArrive = null;
         continue;
@@ -2754,6 +2759,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     const F = rt.flags;
     if (rt.over || F.ending || F.signal) return;
     F.signal = rt.t; F.stage = 'contact'; rt.setPhase('contact');
+    // 合図の後は先手が岸の遊び手へ寄せる。古い持ち場で待ち続けない。
+    if (!gone(F.V)) { F.V.order = 'attack'; F.V.seekRange = 35; F.V.aggro = 18; F.V.onArrive = null; }
     if (!F.pointDone) rt.objFail('point');
     rt.objRemove('point'); rt.unmark('point'); rt.unzone('point');
     rt.tutEnd();

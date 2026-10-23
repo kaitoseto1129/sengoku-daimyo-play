@@ -667,7 +667,7 @@ const okehazama = {
     if ((rt.phase === 'march' || rt.phase === 'wait') && rt.flags.scoutFighting) return '▼の兵を倒せ';
     if (rt.phase === 'march' && this.squadFlagReached(rt)) return '仲間を待て';
     // 迎撃する相手がいない間だけ待つ。迎撃の終了判定は既存の組の下知に従う。
-    if (rt.phase === 'wait') return '雨やみを待て';
+    if (rt.phase === 'wait') return this.squadFlagReached(rt) ? '雨やみを待て' : '仲間と集まれ';
     return this.missions[this.missionOf(rt)];
   },
   // 今の行き先と同じ旗持ちを示す。兵は増やさない。
@@ -729,11 +729,7 @@ const okehazama = {
         pin.x = pos.x; pin.z = pos.z;
         pin.area = true; pin.hide = 0; pin.r = 8;
         pin.arrived = this.squadFlagReached(rt); pin.waiting = pin.arrived;
-        // 人について歩く印にはせず、終点までの残りを同じピンの穴に満たす。
-        const remaining = Math.max(0, this.squadFlagDistance(rt) - pin.r);
-        F.marchGuideLength ??= Math.max(1, remaining);
-        F.marchGuideProgress = Math.max(0, Math.min(1, 1 - remaining / F.marchGuideLength));
-        pin.progress = F.marchGuideProgress;
+        // 穴が満ちるのは到着後の待ち時間だけ。歩いた量と混ぜない。
         return pin;
       }
       const pos = this.squadFlagPosition(rt);
@@ -1448,13 +1444,13 @@ const okehazama = {
     }
     #hud[data-oke-task] #intro .intro-scroll { flex: none; font-size: 12px; }
     #hud[data-oke-task] #intro .intro-pin { display:inline-block; width:32px; height:32px; vertical-align:middle; }
-    /* 任務は一行。待つ間だけ、同じ場所の丸が合図まで満ちる。 */
-    html:root body #hud[data-oke-task].mission-only #h-prog .pg-next:not([hidden]) { display:block !important; }
-    html:root body #hud[data-oke-task].mission-only #h-prog .pg-time:has(.pg-pie:not([hidden])) { display:flex !important; }
+    /* 任務は一行。待つ進みは足元のピンだけにまとめる。 */
+    html:root body #hud[data-oke-task].mission-only #h-prog :is(.pg-next,.pg-time) { display:none !important; }
     /* 操作する札に見せず、目的だけを戦場へ重ねる。 */
     html:root body #hud[data-oke-task] #h-prog { background:none; border:0; text-shadow:0 2px 3px #14120f, 0 0 4px #14120f; }
     #hud[data-oke-task] #h-prog .pg-pie { width:36px; height:36px; margin-top:4px; }
-    html:root body #hud[data-oke-task].mission-only #h-prog .pg-st span { white-space:normal; overflow:visible; }
+    html:root body #hud[data-oke-task].mission-only #h-prog { max-width:calc(100% - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)); }
+    html:root body #hud[data-oke-task].mission-only #h-prog .pg-st span { max-width:100%; white-space:normal; overflow:visible; overflow-wrap:anywhere; }
     #hud[data-oke-task] #h-mor { display:none !important; }
 
     #hud[data-oke-task] #intro .intro-people summary {

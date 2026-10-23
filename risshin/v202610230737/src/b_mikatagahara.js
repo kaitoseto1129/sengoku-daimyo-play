@@ -298,7 +298,7 @@ function winterGround(W) {
       col = mix(col, vec3(0.12, 0.14, 0.16), winterPool * 0.65);
       float frost = smoothstep(0.57, 0.74, macro2) * smoothstep(0.42, 0.67, macro)
         * w.x * (1.0 - roadside) * (1.0 - clashSoil) * (1.0 - rut);
-      col = mix(col, vec3(0.54, 0.51, 0.41), frost * 0.08);
+      col = mix(col, vec3(0.54, 0.51, 0.41), frost * 0.06);
       diffuseColor.rgb *= col;`);
   };
   mat.needsUpdate = true;
@@ -896,6 +896,11 @@ const mikatagahara = {
     subtleMudRelief: true, // 丸い窪みを原一面に並べず、踏まれた泥の所へ薄く残す。
     softPathSoil: true, // 道の泥を距離でなだらかに薄め、格子ごとの濃淡の段を抑える。
     pathWidth: 4,
+    terrainTriangles: true, // 足場を描く三角形にそろえ、坂の折れで足を浮かせない。
+    groundedSlopeRocks: true,
+    rockDrawGround: true,
+    rockSlopeContact: true,
+    rockLowerRimContact: true, // 回転した岩の腹も設営時だけ土へ据える。
     paths: [...FIELD_PATHS, ...PEOPLE_PATHS],
     height,
     tint(x, z, h, c) {
@@ -1129,9 +1134,9 @@ html:root body #hud.mikata-guide.single-guide #battle-notices #objectives#object
 html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:not(.expand) #obj-list li.cur > small:not(.obj-cue):not(.goal-place) {
  background:transparent; padding:2px 0; margin-top:2px; line-height:1.3;
 }
-/* 背の高い画面では任務も知らせ欄の中へ戻し、右上の地図と重ねない。 */
+/* 背の高い画面では下知を左の知らせ欄へ戻す。地面に沿う札は共通の配置を保つ。 */
 @media (min-height:501px) {
- html:root body #hud.mikata-guide.single-guide #battle-notices:not(.choosing) #objectives#objectives.route-summary:not(.ground-order):not(.expand) {
+ html:root body #hud.mikata-guide.single-guide #battle-notices:not(.choosing) #objectives#objectives#objectives:not(.ground-order):not(.expand) {
   position:relative !important; inset:auto !important; transform:none !important;
   width:100% !important; max-width:100% !important; box-sizing:border-box;
  }

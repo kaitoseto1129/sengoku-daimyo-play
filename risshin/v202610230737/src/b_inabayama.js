@@ -2565,7 +2565,7 @@ const inabayama = {
   // ミッション（kaito 10/23 1・49・50）。右上の一行は「何をするか」だけ。向き・行き先の字は書かない。
   lendBow: true, // 美濃攻めは弓を覚える戦（kaito の役割分担）。問屋で買っていなくても弓を貸す。
   noSiegeCards: true, // 右の曲輪の札（未見・様子不明）は出さない。字は右上の一行だけ（kaito 10/23）。
-  missions: ['この人のそばへ', 'ここで火をつける', 'さくを守れ', '搦手の山道を攻め上る', '斎藤龍興の馬廻を討つ', '本丸に合図の火を放つ'],
+  missions: ['藤吉郎のそばへ', 'ここで火をつける', 'さくを守れ', '搦手の山道を攻め上る', '斎藤龍興の馬廻を討つ', '本丸に合図の火を放つ'],
   missionHeading(rt) {
     if (this.missionOf(rt) === 1) {
       if (rt.flags.lit >= NEED) return '町の出口へ';
@@ -3706,7 +3706,7 @@ const inabayama = {
     this.nextObj(rt, '旗の人の所へ。さくの中の敵を引きつけよう');
     F.holdArrived = false;
     F.holdPoint = { x: -4, z: SHIKA_Z + 5 };
-    rt.marker('holdFlag', F.holdPoint, 'さくの内', { h: 0, guideAlways: true, guideArea: 'wait', guideWaitRing: true, guideDefend: true, guideDefensePoint: { x: 4.25, z: SHIKA_Z + (Math.sin(4) + Math.sin(5)) * 0.6 }, guideDefenseOutline: [{ x: 0, z: SHIKA_Z + Math.sin(4) * 1.2 }, { x: SHIKA_W, z: SHIKA_Z + Math.sin(5) * 1.2 }], guideRadius: 3 });
+    rt.marker('holdFlag', F.holdPoint, 'さくの内', { h: 0, guideAlways: true, guideArea: 'wait', guideWaitRing: true, guideDefend: true, guideFootRing: true, guideRadius: 3 });
     // 足軽が鹿垣（枝を組んだ低い垣）を一間ずつ結っていく。三か所は打って出る口に空けておく
     for (let i = 0; i < 8; i++) rt.after(2 + i * 1.5, () => {
       if (F.step !== 2 || SHIKA_GAPS.includes(i)) return;

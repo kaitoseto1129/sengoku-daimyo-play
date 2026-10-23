@@ -35,7 +35,9 @@ function borrowHuman(u) {
     if (h.poseReady) for (let i = 0; i < h.animB.length; i++) {
       h.animB[i].quaternion.copy(h.pose[i]); h.animB[i].updateMatrix();
     }
-    for (const k in h) if (k !== 'showAt' && (typeof h[k] === 'number' || typeof h[k] === 'boolean')) {
+    // 遠近と顔の印は、今着ている形・胴丸・中の体の表示と一組。
+    // 印だけ初期化すると、近くへ借り直した時に胴丸を戻す処理が飛び、頭と脚だけが残る。
+    for (const k in h) if (k !== 'showAt' && k !== 'lodFar' && k !== 'scanOn' && (typeof h[k] === 'number' || typeof h[k] === 'boolean')) {
       if (k in h.poolDefaults) h[k] = h.poolDefaults[k]; else delete h[k];
     }
     h.leased = true; h.u = u; h.lookSrc = u.look; u.human = h;

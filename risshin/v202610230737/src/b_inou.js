@@ -125,6 +125,7 @@ function pinPoint(rt, pos, radius, hide, unit = null, name = '') {
   const pin = rt.flags.goalPin;
   pin.x = pos.x; pin.z = pos.z; pin.r = radius; pin.hide = hide;
   pin.unit = unit; pin.name = name; pin.enemy = !!unit && unit.team !== rt.player.u.team;
+  pin.approach = false;
   return pin;
 }
 
@@ -192,10 +193,18 @@ const inou = {
       if (F.training >= 0 && F.training <= 8) {
         const u = F.training === 8 ? F.hayaLead : approachUnit(rt);
         if (!fighting(u)) return null;
-        const radius = F.chase ? 7 : rt.player.meleeReach('thrust');
+        if (rt.player.inRange && fighting(rt.player.rangeCueTarget)) return null;
+        const radius = rt.player.meleeReach('thrust') * .8;
         const name = F.chase ? '林の遅れ兵' : F.training === 8 ? '林の小隊長' : '林の兵';
         // 追う間も同じ林兵に印を付け、旗と追う相手を取り違えさせない。
-        return pinPoint(rt, u.pos, radius, radius, u, name);
+        const pin = pinPoint(rt, u.pos, 0, 0, u, name);
+        const me = rt.player.u.pos, dx = me.x - u.pos.x, dz = me.z - u.pos.z;
+        const d = Math.hypot(dx, dz);
+        // 敵の立ち位置でなく、槍が届く手前の足場へ一本だけ刺す。
+        pin.x += (d > .01 ? dx / d : -Math.sin(rt.player.u.heading)) * radius;
+        pin.z += (d > .01 ? dz / d : -Math.cos(rt.player.u.heading)) * radius;
+        pin.approach = true;
+        return pin;
       }
       return null;
     }

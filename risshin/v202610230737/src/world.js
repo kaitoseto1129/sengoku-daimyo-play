@@ -53,13 +53,15 @@ export class World {
       const before = scene.onBeforeRender;
       scene.onBeforeRender = (r, sc, cam, target) => {
         this.armyBatch.restore();
-        before.call(sc, r, sc, cam, target);
         if (cam?.isPerspectiveCamera && cam.far > 150) { cam.far = 150; cam.updateProjectionMatrix(); }
         // 写真用の直接描画でも斜面の内側へ入らない。地面の面を選ぶ前に視点を補正する。
         if (this.def.terrainContactView && cam?.isPerspectiveCamera && this.terrain) {
           this.drawContact || (this.drawContact = {});
           guardDrawCamera(this, cam, this.drawContact);
         }
+        // 地面の区画選別も、この場の呼び出しに含まれる。
+        // 補正前の視点で選ぶと、坂で目線を上げた直後に必要な土面が抜ける。
+        before.call(sc, r, sc, cam, target);
         // 索引の転送より先に地面の面を選ぶ。地面自身の描画直前では一コマ遅れる。
         if (cam && this.terrain?.visible) {
           const terrain = this.terrain;
