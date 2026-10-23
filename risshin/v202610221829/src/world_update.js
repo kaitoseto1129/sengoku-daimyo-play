@@ -42,7 +42,8 @@ export class WorldUpdate {
         }
       }
       this.lodTick(dt);
-      this.cullTick();
+      // 景物の詰め直しは描画直前の今のカメラで一束だけ進める。
+      // 更新でも進めると、古い視点の一束と描画時の一束が同じコマへ重なる。
     }
     // 小川の石のまわりの泡がゆらぐ
     if (this.streamFoam) for (const f of this.streamFoam) f.material.opacity = 0.28 + Math.sin((this.time || 0) * 3.1) * 0.07;

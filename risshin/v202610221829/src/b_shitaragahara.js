@@ -983,10 +983,13 @@ const shitaragahara = {
     // 長い柵は材質ごとに結合し、画面と影に入る区画だけを描く。破壊は区画ごとに保つ。
     mergeFenceBatches: true,
     distantMaterialBatch: true,
+    staticBatchBeforeDraw: true, // 柵の索引を転送前に確定し、前の視点の面を送らない。
     staticBackfaceCull: true, // 柵の裏向きの面は送らず、列の密度と影は保つ。
     staticFaceCell: 2, // 長い馬防柵の画面外を二メートル区画で外す。同じ材質は一回で描く。
     distantDetailGrid: 0.05,
     distantDetailNear: 28,
+    distantDetailFarGrid: 0.2, // 遠い柵の凹凸だけをまとめ、細い杭と横木の輪郭は既存の判定で保つ。
+    distantDetailFar: 80,
     middleInfantryArms: true, // 近い控えの中距離の形にも腕・袖を残す。既存の軽い形を共有する。
     highClashDetail: true, // 遠い乱戦の細部だけを省く。兵の数・位置・斬り合いは同じ。
     highClashFarDetail: 32, // 三十二メートル先は輪郭の形を共有し、袖と草摺の細部だけを省く。
@@ -1114,6 +1117,12 @@ const shitaragahara = {
   setup(rt) {
     const W = rt.world;
     const F = rt.flags;
+    // 支度の途中で増える柵も、毎回同じ一覧から転送前に準備する。
+    const beforeScenery = rt.scene.onBeforeRender;
+    rt.scene.onBeforeRender = function (renderer, scene, camera, target) {
+      beforeScenery.call(this, renderer, scene, camera, target);
+      if (W.materialDrawPreparers) for (const prepare of W.materialDrawPreparers) prepare(renderer, scene, camera);
+    };
     // 人の姿と体格は矢の更新後にも替わる。描く束へ写す直前に実寸へ戻す。
     // この戦の軍勢だけを包み、共有の形・矢の当たり・寿命は変えない。
     const batchDraw = rt.army.batchDraw;

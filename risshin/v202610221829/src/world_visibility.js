@@ -148,6 +148,8 @@ export class WorldVisibility {
         // 遠景は葉の形が違うので、同じ全株の配置で専用の囲みを先に作る。
         const count = distant.count;
         distant.instanceMatrix.array.set(m.instanceMatrix.array);
+        // 遠景へ初めて切り替わるコマに、全株ぶんの色の領域を作らない。
+        if (m.instanceColor && !distant.instanceColor) distant.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(N * 3), 3);
         distant.count = N;
         distant.computeBoundingBox(); distant.computeBoundingSphere();
         distant.count = count;

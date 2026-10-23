@@ -78,9 +78,15 @@ export function retreatDodge(b, inp, walk, allowed) {
       if (Math.abs(dx) > 7 || Math.abs(dz) > 7 || b.army.wallBetween(u.pos, -1, o.pos)) continue;
       const forward = dx * sx + dz * sz, along = Math.max(0, Math.min(3, forward));
       const end = Math.hypot(o.pos.x - step.x, o.pos.z - step.z);
+      // 追う相手と、既に振り出した刃の相手は別。戸口で止まった時も
+      // 本人へ残る突き・横薙ぎの間合いへ回避しない。
+      const striking = o.atk?.target === u && !o.atk.ranged && !o.atk.bow ||
+        o.swing?.target === u && !o.swing.done;
+      const pursuing = !o.playerQueue && o.target === u &&
+        (o.sidearm || o.type !== 'gun' && o.type !== 'bow');
       // 既に触れている兵から離れる足は通し、途中で肩を横切る足は除く。
       if ((forward <= 0 ? end : Math.hypot(dx - sx * along, dz - sz * along)) < 1.4 ||
-          o.team !== u.team && !o.fleeing && !o.woundOut && !o.playerQueue && o.target === u &&
+          o.team !== u.team && !o.fleeing && !o.woundOut && (striking || pursuing) &&
           end < (o.reach || 2.8) + .6 && end < Math.hypot(dx, dz)) { clear = false; break; }
     }
     if (!clear) continue;

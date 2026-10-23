@@ -2018,7 +2018,9 @@ html.touch.tc-low body #hud[data-odani] #battle-notices #objectives:not(.expand)
       // 十六個以下の固定部品も対象にする。独自の描画処理を持つ小さな束は動きを保つ。
       if (m.isInstancedMesh && m.count > 0 && !m.userData.lod && !culled.has(m) &&
         (m.count > 16 || !m.userData.noFreeze && m.onBeforeRender === THREE.Object3D.prototype.onBeforeRender)) {
-        W.viewCull([m], 12); // 建物は本数を間引かず、見えない部品だけ省く。
+        // 動く影を省いた城の固定部品は、近くでも背中側を送らない。
+        // 本数の間引きは使わず、視点を戻すと同じ部品を復帰させる。
+        W.viewCull([m], 0, Infinity, false);
       }
     }
     // ---- 小谷を囲む織田勢（軽い作り）：谷の口・東の谷・南の山麓。南西の丘には虎御前山の信長の本陣 ----

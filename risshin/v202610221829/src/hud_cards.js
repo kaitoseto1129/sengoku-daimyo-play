@@ -13,6 +13,28 @@ export class HudCards {
   //   段が変わる時だけ、真ん中に「第三段　柴田隊を受け止める」を短く出す。毎コマ作らず、字が変わる時だけ書く。
   // 近い敵の頭上に小さな印（▼と「敵」）。四人まで・十四メートルまで。印は使い回し、毎コマ作らない（kaito 10/22 稲生 3）。
   foeMarks(rt) {
+    // 目当ての味方一人だけを、実際の姿に小さな名札で示す。名札と投影の入れ物は使い回す。
+    const ally = rt.def.missionAlly?.(rt);
+    if (ally && !this.missionAllyEl) {
+      this.missionAllyEl = document.createElement('div');
+      this.missionAllyEl.style.cssText = 'position:absolute;left:0;top:0;padding:2px 5px;background:#17140fe6;color:#fff3df;border-bottom:2px solid #e8c25a;font-size:12px;line-height:1.4;pointer-events:none';
+      this.root.appendChild(this.missionAllyEl);
+    }
+    if (this.missionAllyEl) {
+      const e = this.missionAllyEl;
+      e.hidden = true;
+      if (ally && rt.player.u.alive && !rt.over && !rt.choice && !rt.player.camShot && !this.bigmap &&
+          Math.hypot(ally.pos.x - rt.player.u.pos.x, ally.pos.z - rt.player.u.pos.z) <= 40 &&
+          !rt.army.wallBetween(rt.player.u.pos, -1, ally.pos)) {
+        this.tmpV.set(ally.pos.x, ally.pos.y + (ally.mounted ? 3.1 : 2.3), ally.pos.z).project(rt.camera);
+        if (this.tmpV.z < 1 && Math.abs(this.tmpV.x) < .9 && Math.abs(this.tmpV.y) < .85) {
+          setText(e, ally === rt.flags.genpachi ? '隊長' : '仲間');
+          e.hidden = false;
+          e.style.transform = `translate(${Math.round((this.tmpV.x + 1) / 2 * innerWidth)}px,${Math.round((1 - this.tmpV.y) / 2 * innerHeight)}px) translate(-50%,-100%)`;
+        }
+      }
+    }
+    this.fieldMarks(rt);
     if (!rt.def.foeMarks) return;
     if (!this.foeEls) {
       this.foeEls = [];
@@ -48,6 +70,40 @@ export class HudCards {
     }
   }
 
+  // 初陣の所属は近い二人だけ。札と投影用の点を使い回す。
+  fieldMarks(rt) {
+    const signs = !rt.over && !this.introWaiting && !this.root.classList.contains('photo') && rt.def.fieldSigns?.(rt);
+    if (!signs) { if (this.fieldMarkBox) this.fieldMarkBox.hidden = true; return; }
+    if (!this.fieldMarkBox) {
+      const box = document.createElement('div'); box.id = 'field-signs';
+      box.style.cssText = 'position:absolute;inset:0;pointer-events:none';
+      this.fieldMarkEls = [];
+      for (let i = 0; i < 2; i++) {
+        const el = document.createElement('div');
+        el.style.cssText = 'position:absolute;left:0;top:0;padding:2px 5px;background:rgba(12,10,8,.88);border-bottom:2px solid;font-size:12px;line-height:1.4;white-space:nowrap';
+        el.style.color = i ? '#ffb6a0' : '#f3e7c5';
+        box.appendChild(el); this.fieldMarkEls.push(el);
+      }
+      this.root.appendChild(box); this.fieldMarkBox = box;
+    }
+    this.fieldMarkBox.hidden = false;
+    let firstX = -1000, firstY = -1000;
+    for (let i = 0; i < 2; i++) {
+      const el = this.fieldMarkEls[i], sign = signs[i], u = sign?.unit;
+      if (!u?.alive || u.gone || u.mesh?.visible === false) { el.hidden = true; continue; }
+      this.tmpV.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.3), u.pos.z).project(rt.camera);
+      el.hidden = this.tmpV.z < -1 || this.tmpV.z > 1 || Math.abs(this.tmpV.x) > .85 || Math.abs(this.tmpV.y) > .8;
+      if (el.hidden) continue;
+      setText(el, sign.label);
+      const x = Math.round((this.tmpV.x + 1) / 2 * innerWidth);
+      let y = Math.round((1 - this.tmpV.y) / 2 * innerHeight);
+      if (i && Math.abs(x - firstX) < 150 && Math.abs(y - firstY) < 26) y -= 28;
+      if (y < 84 || x > innerWidth - 240 && y < 150) { el.hidden = true; continue; }
+      firstX = x; firstY = y;
+      el.style.transform = `translate(${x}px,${y}px) translate(-50%,-100%)`;
+    }
+  }
+
   // ミッションの札（kaito 10/23 稲生 1・2）。右に小さく「ミッション 2／4　林の手を崩す」と、進みの点・遊んだ時間・終わりまでの目安。
   //   戦の定義に missions（または stages）と missionOf（または stageOf）があればそれを使う。無い戦は、主の任務が変わるたびに一つ進める。
   //   字が変わる時だけ書く（setText）。毎コマ作らない。
@@ -57,7 +113,7 @@ export class HudCards {
     if (!this.prog) {
       const el = document.createElement('div');
       el.id = 'h-prog';
-      el.innerHTML = '<div class="pg-st"><b></b><span></span></div><div class="pg-next"></div><div class="pg-dots"></div><div class="pg-time"><i class="pg-pie" hidden></i><span></span></div>';
+      el.innerHTML = '<div class="pg-st"><b></b><span></span></div><div class="pg-next"></div><div class="pg-dots"></div><div class="pg-time"><i class="pg-pie" hidden></i><span></span></div><div class="pg-context" hidden></div>';
       root.appendChild(el);
       const pop = document.createElement('div');
       pop.id = 'h-stage-pop'; pop.hidden = true; pop.setAttribute('role', 'status');
@@ -69,6 +125,7 @@ export class HudCards {
 #hud #h-prog .pg-st b { color:var(--kin); margin-right:.5em; font-weight:600; }
 #hud #h-prog .pg-st span { font-weight:600; }
 #hud #h-prog .pg-next { margin-top:1px; font-size:max(12px, calc(13px * var(--text-scale, 1))); color:#e6dcc6; }
+#hud #h-prog .pg-context { font-size:12px; color:#e6dcc6; }
 #hud #h-prog .pg-dots { margin-top:2px; letter-spacing:.2em; color:var(--kin); font-size:12px; }
 #hud #h-prog .pg-time { margin-top:1px; font-size:12px; color:#d9cfb8; font-variant-numeric:tabular-nums; display:flex; justify-content:flex-end; align-items:center; gap:6px; }
 #hud #h-prog .pg-pie, #hud .tm-pie { display:inline-block; width:16px; height:16px; border-radius:50%; box-shadow:0 0 0 1.5px #c9b27a; background:conic-gradient(#e8c25a calc(var(--p, 0) * 1%), rgba(255,255,255,.12) 0); flex:none; }
@@ -76,8 +133,9 @@ export class HudCards {
 #hud #h-stage-pop { position:absolute; left:50%; top:30%; transform:translateX(-50%); padding:8px 20px; background:rgba(12,10,8,.82); color:#fff3df; font-family:var(--display); font-size:max(18px, calc(24px * var(--text-scale, 1))); letter-spacing:.08em; pointer-events:none; white-space:nowrap; }
 @media (max-height:500px), (pointer:coarse) {
  #hud #h-prog { right:calc(8px + env(safe-area-inset-right, 0px)); top:calc(8px + env(safe-area-inset-top, 0px)); width:min(210px, 26vw); padding:4px 6px; font-size:12px; line-height:1.3; }
- #hud #h-prog .pg-next { font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+ #hud #h-prog .pg-next { font-size:12px; white-space:normal; }
 }
+#hud #h-prog[data-battle="okehazama"] .pg-next { white-space:normal; overflow:visible; text-overflow:clip; }
 #hud.ending #h-prog, #hud:has(#cine.on) #h-prog, #hud:has(#bigmap:not([hidden])) #h-prog { visibility:hidden; }
 /* 任務は任務の札にまとめる。右の任務の札は重ねて出さない（台詞の札は残す）。 */
 html:root body #hud.prog-on #battle-notices:not(.choosing) #objectives:not(.expand) { display:none !important; }
@@ -93,8 +151,10 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
       this.prog = el; this.stagePop = pop;
     }
     const el = this.prog;
+    if (el.dataset.battle !== def.key) el.dataset.battle = def.key || '';
     el.hidden = !!rt.over; root.classList.toggle('prog-on', !rt.over);
-    const [stEl, nextEl, dotsEl, timeEl] = el.children;
+    const [stEl, nextEl, dotsEl, timeEl, contextEl] = el.children;
+    setText(contextEl, def.missionContext || ''); contextEl.hidden = !def.missionContext;
     const list = def.missions || def.stages;
     const task = rt.objectives?.find((o) => o.kind === 'main' && !o.state)?.text || '';
     const taskLine = task.replace(/^使番「|」$/g, '').split(/[。／]/)[0].trim();
@@ -110,7 +170,8 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     }
     setText(stEl.firstChild, n ? `任務 ${i + 1}／${n}` : `任務 ${i + 1}`);
     setText(stEl.lastChild, title);
-    const sub = taskLine && taskLine !== title ? taskLine : '';
+    const status = def.missionStatus?.(rt, taskLine) || taskLine;
+    const sub = status && status !== title ? status : '';
     setText(nextEl, sub); nextEl.hidden = !sub;
     setText(dotsEl, n ? '●'.repeat(i) + '◉' + '○'.repeat(Math.max(0, n - i - 1)) : ''); dotsEl.hidden = !n;
     const sec = Math.max(0, rt.t | 0), est = (def.minutes || 7) * 60;

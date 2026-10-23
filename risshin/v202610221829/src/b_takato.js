@@ -526,8 +526,15 @@ takato.botBrain = (rt, inp, helpers) => {
     let foe = rt.flags.closeFoe?.alive ? rt.flags.closeFoe : null, soonest = Infinity;
     // 八歩先の城兵へ後ずさりを続けると、刃を離しても追いつかれる。
     // まだ打ち込まれていない間は駆けて離れ、間合いに入った追手へ向き直る。
-    if (foe && Math.hypot(foe.pos.x - p.u.pos.x, foe.pos.z - p.u.pos.z) > (foe.reach || 2.8) + 1.5)
-      foe = null;
+    if (foe) {
+      const d = Math.hypot(foe.pos.x - p.u.pos.x, foe.pos.z - p.u.pos.z);
+      // 伏せた兵や塀の向こうの城兵は、今の退き口を追ってこない。
+      // 古い近敵の印に構え続けず、布を巻ける後方へ離れる。
+      if (foe.noTarget || foe.fleeing || foe.woundOut || foe.rearWound || foe.downed || foe.group?.hidden ||
+          Math.abs(foe.pos.y - p.u.pos.y) >= 3 || d > (foe.reach || 2.8) + 1.5 ||
+          rt.army.wallBetween(foe.pos, -1, p.u.pos,
+            (foe.wpnKind || foe.lookWeapon) === 'spear' && d <= (foe.reach || 2.8) + .3)) foe = null;
+    }
     let firstAngle = null, crossed = false;
     // 近い城兵だけを向くと、横や背から先に届く槍を受け損なう。
     // 退く足は保ち、実際に自分へ打ち込む刃のうち先に届く方を受ける。
