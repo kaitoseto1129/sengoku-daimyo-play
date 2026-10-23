@@ -1,6 +1,6 @@
 import { VIEW } from "./viewport.js";
 import { isTouch, touchMoveLearned } from "./touch.js";
-import { singleBattleGuide, setClass, $, retreatRequired, setCssVar } from "./hud_common.js";
+import { singleBattleGuide, setClass, $, retreatRequired, setCssVar, drawFieldPaper } from "./hud_common.js";
 import { S, reduceMotion } from "./settings.js";
 import { groundAt } from "./floors.js";
 import { sightUnit, sightScreenUnit } from "./battle_sight.js";
@@ -119,10 +119,14 @@ export class HudGestures {
       g.save();
       g.fillStyle = 'rgba(20,18,15,.16)';
       g.fillRect(origin.left, origin.top, origin.right - origin.left, origin.bottom - origin.top);
-      g.strokeStyle = '#14120f'; g.lineWidth = 5;
-      g.strokeRect(origin.left, origin.top, origin.right - origin.left, origin.bottom - origin.top);
-      g.strokeStyle = '#fff3ba'; g.lineWidth = 2;
-      g.strokeRect(origin.left, origin.top, origin.right - origin.left, origin.bottom - origin.top);
+      // 操作の範囲は保ち、戦場を四角く切る囲みは四隅の短い墨線へ。
+      g.strokeStyle = '#e6d7b6'; g.lineWidth = 2; g.beginPath();
+      for (let i = 0; i < 4; i++) {
+        const cx = i % 2 ? origin.right : origin.left, cy = i < 2 ? origin.top : origin.bottom;
+        g.moveTo(cx + (i % 2 ? -12 : 12), cy); g.lineTo(cx, cy);
+        g.lineTo(cx, cy + (i < 2 ? 12 : -12));
+      }
+      g.stroke();
       g.restore();
     }
     // 操作を受ける半径は変えず、目で見る始点だけを小さくする。
@@ -157,13 +161,13 @@ export class HudGestures {
       g.restore();
     }
     if (caption) {
-      g.font = 'bold 16px sans-serif'; g.textAlign = 'left'; g.textBaseline = 'middle';
+      g.font = 'bold 16px serif'; g.textAlign = 'left'; g.textBaseline = 'middle';
       const width = g.measureText(caption).width;
       const left = Math.max(12, Math.min(VIEW.w - width - 20, control ? x - width / 2 : x + radius + 8));
       const top = Math.max(24, Math.min(VIEW.h - 24, control ? y + 60 : y));
       if (compact) { g.strokeStyle = '#14120f'; g.lineWidth = 3; g.strokeText(caption, left, top); }
-      else { g.fillStyle = '#14120f'; g.fillRect(left - 4, top - 12, width + 8, 24); }
-      g.fillStyle = '#fff'; g.fillText(caption, left, top);
+      else drawFieldPaper(g, left - 5, top - 14, width + 10, 28);
+      g.fillStyle = compact ? '#fff3ba' : '#241d15'; g.fillText(caption, left, top);
     }
     g.restore();
   }

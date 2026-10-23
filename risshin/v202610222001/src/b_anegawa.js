@@ -1552,8 +1552,8 @@ function anegawaGuardLabel(rt, reached) {
   const F = rt.flags;
   if (F.hqThreat || F.hqDefend) return reached ? anegawaHqWatchText(rt) : anegawaHqReturnText(rt);
   if (!reached) return anegawaHoldRoute(rt);
-  if (rt.phase === 'brief') return '敵が川を渡るまで待とう';
-  if (F.nearEnemies > 0) return '敵に槍を向けよう';
+  if (rt.phase === 'brief') return '岸でまつ';
+  if (F.nearEnemies > 0) return '味方と敵を止める';
   if (F.inabaT) return 'ここで残る敵を見張ろう';
   if (F.westReported) return '横から来る味方を待とう';
   if (F.holdAt.z > POST.z + 4) return '味方と槍を揃えて待とう';
@@ -1800,7 +1800,7 @@ const anegawa = {
     if (rt.phase === 'brief') {
       const p = rt.player.u.pos;
       return F.holdAt && Math.hypot(p.x - F.holdAt.x, p.z - F.holdAt.z) < 8
-        ? '川を渡らず、岸で待とう' : anegawaHoldRoute(rt);
+        ? '岸でまつ' : anegawaHoldRoute(rt);
     }
     if (F.hqThreat || F.hqDefend) return anegawaGuardLabel(rt, !anegawaReturning(rt));
     if (F.step === 2) return text;

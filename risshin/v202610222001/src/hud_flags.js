@@ -1,5 +1,5 @@
 import { VIEW } from "./viewport.js";
-import { $, singleBattleGuide } from "./hud_common.js";
+import { $, singleBattleGuide, drawFieldPaper } from "./hud_common.js";
 import { S } from "./settings.js";
 import { groundAt } from "./floors.js";
 
@@ -141,7 +141,7 @@ export class HudFlags {
       let left = x - sp.ox, right = left + sp.w, top = y - sp.oy, bottom = top + sp.h;
       if (caption) {
         const textScale = Math.max(1, S.textScale || 1);
-        g.save(); g.font = `bold ${20 * textScale}px sans-serif`;
+        g.save(); g.font = `bold ${20 * textScale}px serif`;
         const width = g.measureText(caption).width;
         g.restore();
         const side = x + 40 * scale + width + 12 > VIEW.w ? -width - 12 : 40 * scale;
@@ -158,13 +158,13 @@ export class HudFlags {
     if (caption) {
       g.save(); g.translate(x, y);
       // 字は縮めず旗の横へまとめ、兵の姿に重ねない。
-      g.font = `bold ${20 * Math.max(1, S.textScale || 1)}px sans-serif`; g.textAlign = 'left'; g.textBaseline = 'middle';
+      g.font = `bold ${20 * Math.max(1, S.textScale || 1)}px serif`; g.textAlign = 'left'; g.textBaseline = 'middle';
       const width = g.measureText(caption).width, top = -44 * scale;
       const side = x + 40 * scale + width + 12 > VIEW.w ? -width - 12 : 40 * scale;
       const left = Math.max(16 - x, Math.min(VIEW.w - x - width - 16, side));
       const height = 30 * Math.max(1, S.textScale || 1);
-      g.fillStyle = '#14120f'; g.fillRect(left - 6, top - height / 2, width + 12, height);
-      g.fillStyle = '#fff3ba'; g.fillText(caption, left, top);
+      drawFieldPaper(g, left - 6, top - height / 2, width + 12, height);
+      g.fillStyle = '#241d15'; g.fillText(caption, left, top);
       g.restore();
     }
   }
@@ -190,12 +190,12 @@ export class HudFlags {
     if (caption) {
       // 字は縮めず旗の横へまとめ、兵の姿に重ねない。
       g.scale(1 / scale, 1 / scale);
-      g.font = 'bold 16px sans-serif'; g.textAlign = 'left'; g.textBaseline = 'middle';
+      g.font = 'bold 16px serif'; g.textAlign = 'left'; g.textBaseline = 'middle';
       const width = g.measureText(caption).width, top = -44 * scale;
       const side = x + 40 * scale + width + 12 > VIEW.w ? -width - 12 : 40 * scale;
       const left = Math.max(16 - x, Math.min(VIEW.w - x - width - 16, side));
-      g.fillStyle = '#14120f'; g.fillRect(left - 4, top - 13, width + 8, 26);
-      g.fillStyle = '#fff3ba'; g.fillText(caption, left, top);
+      drawFieldPaper(g, left - 4, top - 13, width + 8, 26);
+      g.fillStyle = '#241d15'; g.fillText(caption, left, top);
     }
     g.restore();
   }

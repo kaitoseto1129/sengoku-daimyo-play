@@ -44,7 +44,7 @@ export function tacticsCueTick(rt, dt) {
     }
   }
   if (!pick) return;
-  const cmd = hasSq ? isTouch ? '「号令」で配下に命じて押せ' : '配下に命じて押せ' : '';
+  const cmd = hasSq ? rt.def.tacticsCommandText ?? (isTouch ? '「号令」で配下に命じて押せ' : '配下に命じて押せ') : '';
   const text = pick.k === 'yari'
     ? `槍衾だ。正面は避け、横へ回れ${cmd ? '。' + cmd : ''}`
     : `鉄砲の列だ。撃ち終わりに詰めよ${cmd ? '。' + cmd : ''}`;

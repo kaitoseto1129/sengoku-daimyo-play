@@ -153,7 +153,7 @@ export class WorldVegetation {
           const side = p.getX(k) / (w * 0.5), top = p.getY(k) / h;
           p.setXYZ(k, p.getX(k) * (top > 0 ? 0.78 : 1),
             p.getY(k) + h * (side * side * 0.18 + side * 0.08),
-            (1 - Math.abs(side)) * w * 0.3 + side * top * w * 0.16);
+            (1 - Math.abs(side)) * w * 0.17 + side * top * w * 0.16);
         }
       }
       if (needle && lightCedar) {
@@ -437,12 +437,13 @@ export class WorldVegetation {
             const lift = T(), width = T(), height = T(), tilt = T();
             if (j >= boughCount) continue;
             const a = j * 2.39996 + center.y * 0.37;
-            const cx = center.x + Math.cos(a) * size.x * d * 0.7;
+            const cx = center.x + Math.cos(a) * size.x * d;
             const cy = center.y + (j >= 3 ? 0.3 : -0.24) * size.y + (lift - 0.5) * size.y * 0.55;
-            const cz = center.z + Math.sin(a) * size.z * d * 0.7;
-            const w = size.x * (0.57 + width * 0.23), h = size.y * (1.15 + height * 0.35);
-            const pitch = (j >= 3 ? -0.65 : 0.65) + (tilt - 0.5) * 0.75;
-            const roll = Math.sin(a * 1.7 + center.y) * 0.5;
+            const cz = center.z + Math.sin(a) * size.z * d;
+            // 縦長の折り板を枝ごとの横に張る葉房へ。枚数と共有材質は増やさない。
+            const w = size.x * (0.75 + width * 0.23), h = size.y * (0.78 + height * 0.3);
+            const pitch = (j >= 3 ? -0.8 : 0.72) + (tilt - 0.5) * 0.9;
+            const roll = Math.sin(a * 1.7 + center.y) * 0.8;
             card(leaves, cx, cy, cz, w, h, a, pitch, center.x, center.y, center.z, true, false, roll);
             // 遠くは同じ三方向の葉房だけ。絵・陰影・枝張りを共有し、細分を増やさない。
             if (j < 3) card(farLeaves, cx, cy, cz, w * 1.08, h * 1.08, a, pitch, center.x, center.y, center.z, true, false, roll);
@@ -883,13 +884,13 @@ export class WorldVegetation {
         if (R() > 0.25 + sl * 0.5) continue;
         // 急な山腹の四つに一つは小石でなく露頭にする。既存の岩の数・共用形・材質を保つ。
         // 道の縁と平場を跨がない所だけ使い、指定済みの露岩帯は従来のまま。
-        const outcrop = highRocks && !band && !this.def.slopeRockFaces && tries % 4 === 0
+        const outcrop = highRocks && !band && !this.def.alluvialRocks && !this.def.slopeRockFaces && tries % 4 === 0
           && Math.hypot(dx, dz) > 2.8 && ok(x, z, 5)
           && !clear(x - 2.5, z) && !clear(x + 2.5, z)
           && !clear(x, z - 2.5) && !clear(x, z + 2.5);
         let sc = band ? 1.2 + R() * 1.8 : outcrop ? 1.05 + R() * 0.55 : 0.18 + Math.pow(R(), 2.5) * 1.3;
         // 沖積地は丸い礫が泥に埋まる。岩の総数と共用形を保ち、平場の大きな板を避ける。
-        if (this.def.alluvialRocks && !band && !outcrop) sc = Math.min(.46, sc * .6);
+        if (this.def.alluvialRocks && !band) sc = Math.min(.28, sc * .6);
         dummy.position.set(x, this.heightAt(x, z), z);
         dummy.rotation.set(R() * 0.5, R() * 6, R() * 0.5);
         // 形の種類：丸い石・平たい岩・縦に割れた岩

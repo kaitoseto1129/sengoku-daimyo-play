@@ -225,25 +225,25 @@ export function canonical(code) {
 // 表示だけ日本語にする。操作の判定や保存するキー名は変えない。
 // 片仮名をやめ、鍵盤の字か、ふつうの日本語で（kaito 10/23 稲生 26）
 const KEY_LABELS = {
-  ShiftLeft: '左Shift', ShiftRight: '右Shift', ControlLeft: '左Ctrl', ControlRight: '右Ctrl',
-  AltLeft: '左Alt', AltRight: '右Alt', MetaLeft: '左⌘', MetaRight: '右⌘',
-  Space: '空白', Tab: 'Tab', Enter: 'Enter', Escape: 'Esc',
+  ShiftLeft: '左シフト', ShiftRight: '右シフト', ControlLeft: '左コントロール', ControlRight: '右コントロール',
+  AltLeft: '左オルト', AltRight: '右オルト', MetaLeft: '左⌘', MetaRight: '右⌘',
+  Space: '空白', Tab: 'タブ', Enter: '決定', Escape: '戻る',
   ArrowUp: '上矢印', ArrowDown: '下矢印', ArrowLeft: '左矢印', ArrowRight: '右矢印',
-  Backspace: 'Backspace', Delete: 'Delete', Insert: 'Insert', Home: 'Home', End: 'End',
-  PageUp: 'PageUp', PageDown: 'PageDown', CapsLock: 'CapsLock', NumLock: 'NumLock',
-  ScrollLock: 'ScrollLock', Pause: 'Pause', PrintScreen: 'PrintScreen', ContextMenu: 'Menu',
+  Backspace: '後ろを消す', Delete: '削除', Insert: '挿入', Home: '先頭', End: '末尾',
+  PageUp: '前の頁', PageDown: '次の頁', CapsLock: '大文字固定', NumLock: '数字固定',
+  ScrollLock: '送り固定', Pause: '中断', PrintScreen: '画面の写し', ContextMenu: 'メニュー',
   BracketLeft: '[', BracketRight: ']', Semicolon: ';', Quote: "'",
   Comma: ',', Period: '.', Slash: '/', Backslash: '\\', IntlBackslash: '\\',
   IntlRo: 'ろ', IntlYen: '¥', Backquote: '`', Minus: '-', Equal: '=',
   NumpadAdd: '数字欄の+', NumpadSubtract: '数字欄の-', NumpadMultiply: '数字欄の*',
-  NumpadDivide: '数字欄の/', NumpadDecimal: '数字欄の.', NumpadEnter: '数字欄のEnter',
+  NumpadDivide: '数字欄の/', NumpadDecimal: '数字欄の.', NumpadEnter: '数字欄の決定',
 };
 // 鍵盤に書かれた文字を、日本語で読める名前にする。かなのない鍵盤でも探せる。
 const LETTER_NAMES = ['えー', 'びー', 'しー', 'でぃー', 'いー', 'えふ', 'じー', 'えいち', 'あい', 'じぇー', 'けー', 'える', 'えむ', 'えぬ', 'おー', 'ぴー', 'きゅー', 'あーる', 'えす', 'てぃー', 'ゆー', 'ぶい', 'だぶりゅー', 'えっくす', 'わい', 'ぜっと'];
-// 10/22 kaito「カタカナやめて」：文字のキーは鍵盤の字そのまま（W・A・S・D）で見せる。LETTER_NAMES は読み上げ用に残す
-for (let i = 0; i < LETTER_NAMES.length; i++) KEY_LABELS['Key' + String.fromCharCode(65 + i)] = String.fromCharCode(65 + i);
+// 英字を出さず、鍵盤の文字を日本語の読みで示す。割り当ての変更にも従う。
+for (let i = 0; i < LETTER_NAMES.length; i++) KEY_LABELS['Key' + String.fromCharCode(65 + i)] = LETTER_NAMES[i];
 for (let i = 0; i < 10; i++) { KEY_LABELS['Digit' + i] = String(i); KEY_LABELS['Numpad' + i] = '数字欄の' + i; }
-for (let i = 1; i <= 24; i++) KEY_LABELS['F' + i] = 'F' + i;
+for (let i = 1; i <= 24; i++) KEY_LABELS['F' + i] = '機能' + i;
 export function keyLabel(code) {
   if (!code) return '割り当てなし';
   return KEY_LABELS[code] || '割り当てた釦';

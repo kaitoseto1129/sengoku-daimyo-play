@@ -79,6 +79,17 @@ html:root body #hud #battle-notices #objectives.approach-order.has-action:not(.e
  margin:0 !important; padding:0 !important; font-size:max(20px,calc(20px * var(--text-scale,1))) !important;
  line-height:1.4 !important;
 }
+/* 行き先と操作の札は和紙色と墨文字へ統一。位置・操作面・文字の大きさは保つ。 */
+html:root body #hud #battle-notices #objectives#objectives:is(.swipe-order,.facing-order,.ground-order,.destination-sign):not(.expand) {
+ background:repeating-linear-gradient(3deg,transparent 0 6px,rgba(100,75,40,.06) 7px 8px),#e6d7b6 !important;
+ color:#241d15 !important; border:1px solid #806647 !important;
+ border-radius:1px !important; text-shadow:none !important;
+ box-shadow:0 1px 3px #14120f66 !important;
+}
+html:root body #hud #battle-notices #objectives#objectives:is(.swipe-order,.facing-order,.ground-order,.destination-sign):not(.expand) :is(.obj-now,.swipe-instruction,.obj-text,.goal-place) {
+ color:#241d15 !important; font-family:"Yu Mincho","Hiragino Mincho ProN",serif !important;
+ text-shadow:none !important; background:transparent !important;
+}
 `;
 export const noticeStyle15 = `
 /* 鳥取は操作中も岸・柵の任務を同じ幅で読む。横一杯の黒帯を作らない。 */

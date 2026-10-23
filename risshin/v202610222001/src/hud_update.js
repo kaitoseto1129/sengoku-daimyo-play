@@ -1377,9 +1377,9 @@ export class HudUpdate {
       this.bottomKey = bottomKey;
       const slots = [
         // 構え・避けるは札に出さない（自分で判断できる。kaito 10/23 稲生 4）。片仮名の名も使わない（26）。
-        [pad ? '右の引き金' : '左押し', p.weapon === 'sword' ? '斬る' : p.weapon === 'gun' ? '撃つ' : p.weapon === 'bow' ? '射る' : '突く'],
-        [pad ? '右の棒' : shortcutKey(K('lock')), p.lock ? '狙いを解く' : '狙い'],
-        [pad ? '左の釦' : shortcutKey(K('use')), '話す・取る'],
+        [pad ? '右の引き金' : 'マウスの左ボタン', p.weapon === 'sword' ? '斬る' : p.weapon === 'gun' ? '撃つ' : p.weapon === 'bow' ? '射る' : '突く'],
+        [pad ? '右の棒を押す' : `${shortcutKey(K('lock'))}キー`, p.lock ? '狙いを解く' : '狙い'],
+        [pad ? '左の釦' : `${shortcutKey(K('use'))}キー`, '話す・取る'],
       ];
       setHtml($('h-bottom'), slots.map(([key, label]) => `<div class="slot"><em>${esc(key)}</em>${esc(label)}</div>`).join(''));
     }

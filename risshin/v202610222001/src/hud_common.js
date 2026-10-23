@@ -13,6 +13,27 @@ import { VIEW } from "./viewport.js";
 
 const EMPTY_MAP_PATH = [];
 
+// 行き先と操作の札に共用する和紙。繊維と欠けた縁は一度だけ描いて写す。
+let fieldPaper;
+export function drawFieldPaper(g, x, y, width, height) {
+  if (!fieldPaper) {
+    fieldPaper = document.createElement('canvas');
+    fieldPaper.width = 192; fieldPaper.height = 64;
+    const p = fieldPaper.getContext('2d');
+    p.beginPath(); p.moveTo(3, 3); p.lineTo(63, 1); p.lineTo(123, 3);
+    p.lineTo(189, 2); p.lineTo(191, 30); p.lineTo(188, 62);
+    p.lineTo(124, 60); p.lineTo(62, 63); p.lineTo(2, 61); p.closePath();
+    p.fillStyle = '#e6d7b6'; p.fill();
+    p.strokeStyle = '#6b5435'; p.lineWidth = 2; p.stroke(); p.clip();
+    p.strokeStyle = 'rgba(100,75,40,.12)'; p.lineWidth = .5;
+    for (let i = 0; i < 90; i++) {
+      const px = (i * 53) % 192, py = (i * 29) % 64;
+      p.beginPath(); p.moveTo(px, py); p.lineTo(px + 4 + i % 9, py + 1); p.stroke();
+    }
+  }
+  g.drawImage(fieldPaper, x, y, width, height);
+}
+
 const YASEN_BANDS = ['A', 'B', 'C'];
 
 const SONAE_ALERT = new Set(['敗走', '混乱', '動揺']);

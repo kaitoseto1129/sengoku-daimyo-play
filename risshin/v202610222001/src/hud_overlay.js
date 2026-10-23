@@ -20,8 +20,12 @@ export class HudOverlay {
   // 全戦の今の目標を一つだけ示す。輪は実物に固定し、札だけ空いた所へ逃がす。
   drawBattleGoal(g, rt) {
     if (S.reduceGuidance) return;
+    // 稲生は到着判定と同じ行き先だけ。古い味方の輪へ誘わない。
+    const inou = rt.def.key === 'inou';
+    const pinTarget = inou ? rt.def.missionPin(rt) : null;
+    if (inou && (!pinTarget || Math.hypot(pinTarget.x - rt.player.u.pos.x, pinTarget.z - rt.player.u.pos.z) <= (pinTarget.hide ?? pinTarget.r))) return;
     const guide = rt.missionGuide;
-    const retreat = this.retreatGuide?.active && this.retreatGuide.valid ? this.retreatGuide : null;
+    const retreat = !inou && this.retreatGuide?.active && this.retreatGuide.valid ? this.retreatGuide : null;
     const objectives = rt.def.objectiveEnemies?.(rt);
     const ally = rt.def.missionAlly?.(rt);
     let unit = objectives?.find((u) => u.alive && !u.gone && !u.woundOut);
@@ -30,8 +34,8 @@ export class HudOverlay {
       const target = this.attackCueEnemy || this.aimGuideEnemy || rt.guideEnemy || rt.player.lock;
       if (target?.alive && !target.gone && !target.woundOut) unit = target;
     }
-    const enemy = !retreat && !!unit && unit.team !== rt.player.u.team;
-    let pos = retreat || unit?.pos || guide?.marker && guide.pos || ally?.pos;
+    const enemy = !inou && !retreat && !!unit && unit.team !== rt.player.u.team;
+    let pos = pinTarget || retreat || unit?.pos || guide?.marker && guide.pos || ally?.pos;
     if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.z)) return;
     // 敵は既に姿を確かめた相手だけ。地形の向こうの伏兵は明かさない。
     let seen = true;
@@ -52,6 +56,8 @@ export class HudOverlay {
     const at = this.project(pos, y + .2, rt, this.battleGoalProjection || (this.battleGoalProjection = {}));
     const W = VIEW.w, H = VIEW.h;
     const on = seen && !at.behind && at.x > 48 && at.x < W - 48 && at.y > 96 && at.y < H - 48;
+    // 見えている間は地面のピン一本。画面外へ出た時だけ同じ場所へ矢印を出す。
+    if (inou && on) return;
     let x = at.x, sy = at.y - 30, angle = 0;
     if (!on) {
       const dx = pos.x - rt.player.u.pos.x, dz = pos.z - rt.player.u.pos.z;
@@ -69,7 +75,7 @@ export class HudOverlay {
       if (item.id === 'objectives' && !item.el.classList.contains('expand')) continue;
       cards++;
     }
-    const label = cards < 3;
+    const label = !inou && cards < 3;
     const spot = this.avoidRects(x, sy, W, H, '', null, 44, 32, true);
     g.save(); g.lineJoin = 'round';
     if (on) {
@@ -422,6 +428,10 @@ export class HudOverlay {
     const cam = rt.camera.position;
     const zoom = 1;
     const namesPut = [];
+    // 所属の札と武将名が同じ兵の上に重ならないよう、その場所を先に空ける。
+    if (this.fieldMarkBounds && !this.fieldMarkBox?.hidden) {
+      for (const bounds of this.fieldMarkBounds) if (bounds[2]) namesPut.push(bounds);
+    }
     // 近い兵の候補は 0.1 秒に一度だけ選び直す（毎コマ全兵を回さない。遠い兵・倒れた兵・寝ている兵は外す）
     const P = rt.player;
     const incoming = this.guardThreat || (!this.waitGuardButton?.hidden && this.defendEnemy);

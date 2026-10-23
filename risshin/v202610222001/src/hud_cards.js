@@ -1,7 +1,7 @@
-import { setText, setWidth, coachCss, $, esc, keyCaps } from "./hud_common.js";
+import { setText, setWidth, coachCss, $, esc, keyCaps, shortTask } from "./hud_common.js";
+import { currentObjective, taskText } from "./mission_guide.js";
 import { isTouch } from "./touch.js";
 import { K } from "./settings.js";
-import { currentObjective, taskText } from "./mission_guide.js";
 
 export class HudCards {
 
@@ -97,12 +97,14 @@ export class HudCards {
 
   // 初陣の所属は近い二人だけ。札と投影用の点を使い回す。
   fieldMarks(rt) {
+    if (this.fieldMarkBounds) for (const bounds of this.fieldMarkBounds) bounds[2] = 0;
     const signs = !rt.over && !this.introWaiting && !this.root.classList.contains('photo') && rt.def.fieldSigns?.(rt);
     if (!signs) { if (this.fieldMarkBox) this.fieldMarkBox.hidden = true; return; }
     if (!this.fieldMarkBox) {
       const box = document.createElement('div'); box.id = 'field-signs';
       box.style.cssText = 'position:absolute;inset:0;pointer-events:none';
       this.fieldMarkEls = [];
+      this.fieldMarkBounds = [[0, 0, 0], [0, 0, 0]];
       for (let i = 0; i < 2; i++) {
         const el = document.createElement('div');
         el.style.cssText = 'position:absolute;left:0;top:0;padding:2px 5px;background:rgba(12,10,8,.88);border-bottom:2px solid;font-size:12px;line-height:1.4;white-space:nowrap';
@@ -124,12 +126,20 @@ export class HudCards {
       let y = Math.round((1 - this.tmpV.y) / 2 * innerHeight);
       if (i && Math.abs(x - firstX) < 150 && Math.abs(y - firstY) < 26) y -= 28;
       if (y < 84 || x > innerWidth - 240 && y < 150) { el.hidden = true; continue; }
+      // 任務・台詞の下へ入り込む所属札は畳む。画面の四角は既存の測定を使う。
+      const width = sign.label.length * 12 + 10;
+      for (const r of this.rects || []) {
+        if (x + width / 2 > r.left && x - width / 2 < r.right && y > r.top && y - 26 < r.bottom) { el.hidden = true; break; }
+      }
+      if (el.hidden) continue;
       firstX = x; firstY = y;
+      const bounds = this.fieldMarkBounds[i];
+      bounds[0] = x; bounds[1] = y - 12; bounds[2] = width;
       el.style.transform = `translate(${x}px,${y}px) translate(-50%,-100%)`;
     }
   }
 
-  // ミッションの札（kaito 10/23 稲生 1・2）。右に小さく「ミッション 2／4　林の手を崩す」と、進みの点・遊んだ時間・終わりまでの目安。
+  // 任務の札。右上に今することを大きく一行、必要な進みと残り時間を小さく添える。
   //   戦の定義に missions（または stages）と missionOf（または stageOf）があればそれを使う。無い戦は、主の任務が変わるたびに一つ進める。
   //   字が変わる時だけ書く（setText）。毎コマ作らない。
   progress(rt) {
@@ -146,9 +156,9 @@ export class HudCards {
       const st = document.createElement('style');
       st.textContent = `
 #hud.prog-on .tl .plaque { display:none; }
-#hud #h-prog { position:absolute; right:calc(16px + env(safe-area-inset-right, 0px)); top:calc(14px + env(safe-area-inset-top, 0px)); box-sizing:border-box; width:min(260px, 30vw); padding:6px 10px; background:rgba(12,10,8,.62); border-right:3px solid var(--kin); color:#fff3df; font-size:max(12px, calc(14px * var(--text-scale, 1))); line-height:1.4; text-align:right; pointer-events:none; }
-#hud #h-prog .pg-st b { color:var(--kin); margin-right:.5em; font-weight:600; }
-#hud #h-prog .pg-st span { font-weight:600; }
+#hud #h-prog { position:absolute; right:calc(16px + env(safe-area-inset-right, 0px)); top:calc(14px + env(safe-area-inset-top, 0px)); box-sizing:border-box; width:max-content; max-width:calc(100% - 32px); padding:8px 12px; background:#14120f; border-right:3px solid var(--kin); color:#fff3df; font-size:max(20px, calc(20px * var(--text-scale, 1))); line-height:1.4; text-align:right; pointer-events:none; }
+#hud #h-prog .pg-st b { display:none; }
+#hud #h-prog .pg-st span { font-weight:700; }
 #hud #h-prog .pg-next { margin-top:1px; font-size:max(12px, calc(13px * var(--text-scale, 1))); color:#e6dcc6; }
 #hud #h-prog .pg-context { font-size:12px; color:#e6dcc6; }
 #hud #h-prog .pg-dots { margin-top:2px; letter-spacing:.2em; color:var(--kin); font-size:12px; }
@@ -157,11 +167,11 @@ export class HudCards {
 #hud #h-prog .pg-pie[hidden] { display:none; }
 #hud #h-stage-pop { position:absolute; left:50%; top:30%; transform:translateX(-50%); padding:8px 20px; background:rgba(12,10,8,.82); color:#fff3df; font-family:var(--display); font-size:max(18px, calc(24px * var(--text-scale, 1))); letter-spacing:.08em; pointer-events:none; white-space:nowrap; }
 @media (max-height:500px), (pointer:coarse) {
- #hud #h-prog { right:calc(8px + env(safe-area-inset-right, 0px)); top:calc(8px + env(safe-area-inset-top, 0px)); width:min(210px, 26vw); padding:4px 6px; font-size:12px; line-height:1.3; }
+ #hud #h-prog { right:calc(8px + env(safe-area-inset-right, 0px)); top:calc(8px + env(safe-area-inset-top, 0px)); max-width:calc(100% - 32px); padding:6px 10px; font-size:max(20px, calc(20px * var(--text-scale, 1))); line-height:1.4; }
  #hud #h-prog .pg-next { font-size:12px; white-space:normal; }
 }
 /* 大きな行動一行と、小さい進み・時間を同じ札へまとめる。 */
-#hud #h-prog { width:max-content; max-width:calc(100vw - 112px); background:rgba(12,10,8,.88); }
+#hud #h-prog { width:max-content; max-width:calc(100vw - 112px); background:#14120f; }
 #hud #h-prog .pg-st { display:flex; flex-direction:column-reverse; align-items:flex-end; }
 #hud #h-prog .pg-st span { font-size:max(20px, calc(20px * var(--text-scale, 1))); line-height:1.4; white-space:nowrap; }
 #hud #h-prog .pg-st b { margin:2px 0 0; font-size:12px; }
@@ -170,6 +180,21 @@ export class HudCards {
 @media (max-height:500px) { #hud #h-prog .pg-next { max-width:320px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } }
 
 #hud.ending #h-prog, #hud:has(#cine.on) #h-prog, #hud:has(#bigmap:not([hidden])) #h-prog { visibility:hidden; }
+/* 稲生は任務を右、台詞を左。兵数と方位の帯の下を使う。 */
+html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog {
+ top:calc(104px + env(safe-area-inset-top, 0px)); width:min(320px, 40vw); max-width:40vw;
+}
+html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog :is(.pg-st span,.pg-next) {
+ white-space:normal; overflow:visible; text-overflow:clip; overflow-wrap:anywhere;
+}
+html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog .pg-context { display:none; }
+html:root body #hud.prog-on:has(#h-prog[data-battle="inou"]) #battle-notices:not(.choosing):not(.pg-x) {
+ left:calc(16px + env(safe-area-inset-left, 0px)) !important; right:auto !important;
+ top:calc(104px + env(safe-area-inset-top, 0px)) !important; bottom:auto !important;
+ width:min(300px, 38vw) !important; max-width:38vw !important; max-height:calc(100% - 200px) !important;
+}
+/* 操作の試し中は、同じ手ほどきを左右へ二枚出さない。 */
+html:root body #hud:has(#h-prog[data-battle="inou"][data-practice="true"]) #tutorial { display:none !important; }
 /* 任務は任務の札にまとめる。右の任務の札は重ねて出さない（台詞の札は残す）。 */
 html:root body #hud.prog-on #battle-notices:not(.choosing) #objectives:not(.expand) { display:none !important; }
 /* 構えの待ち釦も出さない（構えは自分で判断する。kaito 10/23 稲生 4）。 */
@@ -185,6 +210,7 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     }
     const el = this.prog;
     if (el.dataset.battle !== def.key) el.dataset.battle = def.key || '';
+    if (def.key === 'inou') el.dataset.practice = String(rt.flags.step === 0 && rt.flags.training === 0);
     el.hidden = !!rt.over; root.classList.toggle('prog-on', !rt.over);
     const [stEl, nextEl, dotsEl, timeEl, contextEl] = el.children;
     const context = typeof def.missionContext === 'function' ? def.missionContext(rt) : def.missionContext;
@@ -197,16 +223,17 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     if (list && of) {
       n = list.length; i = Math.max(0, Math.min(n - 1, of(rt) | 0)); title = list[i];
     } else {
-      // 段の無い戦：主の任務が変わるたびに一つ進める（数は分からないので「ミッション 3」とだけ出す）。
+      // 段の無い戦も、主の任務の切り替わりを覚える。札には番号を出さない。
       if (this.progRt !== rt) { this.progRt = rt; this.progSeen = []; this.progStage = undefined; }
       if (taskLine && this.progSeen[this.progSeen.length - 1] !== taskLine) this.progSeen.push(taskLine);
       i = Math.max(0, this.progSeen.length - 1); n = 0; title = this.progSeen[i] || '';
     }
-    setText(stEl.firstChild, n ? `任務 ${i + 1}／${n}` : `任務 ${i + 1}`);
-    const action = taskText(rt, def.taskLabel?.(rt) || task) || title;
+    setText(stEl.firstChild, '');
+    const action = shortTask(taskText(rt, def.taskLabel?.(rt) || task || title));
     const headline = action.split(/[。／\n、]/)[0].replace(/^.*隊長(?:と合流|へ.*|の所へ.*)$/, '隊長のそばへ').replace(/(?<!敵の)本陣へ/g, '敵の本陣へ').replace(/討ち取れ|倒せ/g, 'たおせ');
     setText(stEl.lastChild, headline);
-    const status = def.missionStatus?.(rt, taskLine) || taskLine;
+    // 戦固有の案内と任務の進みは残す。同じ任務の全文は重ねない。
+    const status = def.missionStatus?.(rt, taskLine);
     const sub = currentObjective(rt)?.progress || (status && status !== headline ? status : '');
     setText(nextEl, sub); nextEl.hidden = !sub;
     // 必要な号令だけ、今の任務の直下で一度押せるようにする。
@@ -238,16 +265,18 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
         this.missionActionButton.disabled = !!action.disabled || rt.t < this.missionActionUntil;
       }
     }
-    setText(dotsEl, n && !def.hideMissionDots ? '●'.repeat(i) + '◉' + '○'.repeat(Math.max(0, n - i - 1)) : ''); dotsEl.hidden = !n || !!def.hideMissionDots;
+    setText(dotsEl, ''); dotsEl.hidden = true;
     const sec = Math.max(0, rt.t | 0), est = (def.minutes || 7) * 60;
     const left = Math.max(1, Math.round((est - sec) / 60));
-    setText(timeEl.lastChild, `${(sec / 60) | 0}分${String(sec % 60).padStart(2, '0')}秒　終わりまで 約${left}分`);
+    setText(timeEl.lastChild, `残り 約${left}分`);
     // 待つ間（陣を敷く・寄せを待つ）の残りは、秒の字でなく満ちていく丸で（kaito 10/23 稲生 14）。
     const gm = rt.missionGuide?.marker, wu = gm?.waitUntil?.();
     const progress = def.missionWaitProgress?.(rt);
     const pie = timeEl.firstChild, waiting = Number.isFinite(progress) || Number.isFinite(wu) && wu > rt.t && gm.waitDuration > 0;
     pie.hidden = !waiting;
     if (waiting) pie.style.setProperty('--p', String(Math.round(Math.max(0, Math.min(1, Number.isFinite(progress) ? progress : 1 - (wu - rt.t) / gm.waitDuration)) * 100)));
+    // 切り替わりも右上の一枚で伝え、戦場の中央へ同じ札を重ねない。
+    this.stagePop.hidden = true;
     this.progStage = i;
     if (!this.stagePop.hidden && rt.t > (this.stagePopUntil || 0)) this.stagePop.hidden = true;
   }
