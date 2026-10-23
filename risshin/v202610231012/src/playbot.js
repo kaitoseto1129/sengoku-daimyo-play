@@ -12,6 +12,7 @@ import { GENERALS, WOUND_FLOOR } from './units.js';
 import { lordGame, lordList } from './lord.js';
 import { depthBot } from './b_depth.js';
 import { botInput as fake } from './bot_input.js';
+import { retreatDodge } from './bot_retreat.js';
 
 const Q = new URLSearchParams(location.search);
 const ONLY = Q.get('only') ? new Set(Q.get('only').split(',')) : null;
@@ -94,7 +95,9 @@ function survive(b, inp) {
         // 距離より、先に届く刃を受ける。近い侍の溜めを見て背後の突きを受けない。
         const soon = o.charging ? 0 : o.swing && !o.swing.done && o.swing.target === u
           ? Math.max(0, o.swing.dur * o.swing.at - o.swing.t) : o.atk.t;
-        if (soon < impact || soon === impact && d < ad) { impact = soon; ad = d; attacker = o; }
+        // 遠くで先に空振りする刃より、間合いに入った打ち手を受ける。
+        if (d <= (o.reach || 2.8) + 1 &&
+            (soon < impact || soon === impact && d < ad)) { impact = soon; ad = d; attacker = o; }
         // 二人の刃が別の向きから届く時は、傷を受けてから構え直さず間合いを外す。
         if (soon <= 1 && d <= (o.reach || 2.8) + 1) {
           const angle = Math.atan2(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
@@ -176,11 +179,13 @@ function survive(b, inp) {
     // 長い溜めの間は歩いて息を戻し、指と体の向き直りを見込んで刃を受ける。
     const turnToStrike = attacker ? Math.atan2(attacker.pos.x - u.pos.x, attacker.pos.z - u.pos.z) - u.heading : 0;
     const guardLead = Math.cos(turnToStrike) < 0.5 ? 1.3 : 0.9;
+    inp.guardHold = !!attacker && impact <= guardLead;
     inp.runHeld = false;
     if (retreating && foe && (fd < 8 || md > 6)) {
       // 退避中も実際の打ち手を受ける。近いだけの敵へ向くと、横からの一撃が構えを抜ける。
       const face = attacker || pursuer || foe;
       // 狙いを残すと、指で向き直っても更新時に別の敵へ引き戻される。
+      if (p.lock) inp.e.add('KeyQ');
       p.yaw = Math.atan2(face.pos.x - u.pos.x, face.pos.z - u.pos.z);
       // 味方へ戻る方向を、敵に向いたまま前後左右の歩みに替える。
       let dx = mate ? mate.pos.x - u.pos.x : u.pos.x - (close ? ex / close : foe.pos.x);
@@ -252,6 +257,12 @@ function survive(b, inp) {
         u.hp > u.maxHp * 0.4 && p.sta > p.maxSta * 0.45 && Math.hypot(dx, dz) > 0.5;
       // 二方向の刃や、体がまだ向けていない刃には人と同じ回避を使う。
       // 普通の一歩が空いていても、三歩分の途中の切岸・兵・戦ごとの退路を調べる。
+      if ((crossedStrikes || uncovered || critical) && impact <= 0.35 && !p.mounted &&
+          p.dodgeT <= -0.3 && !(p.knockT > 0) && !u.climb &&
+          p.sta >= 20 + (critical || p.guardBroken > 0 ? 0 : p.maxSta * 0.4)) {
+        retreatDodge(b, inp, Math.hypot(dx, dz) > 0.5 ? Math.atan2(dx, dz) : p.yaw + Math.PI,
+          b.def.botRetreatStepAllowed);
+      }
       // 深手や包囲から退く時は、振りが途切れても歩みを止めない。
       // 反撃のための半秒の待ちで止まると、次の打ち込みで退避をやり直し続ける。
       // 一人を相手にし、元気か、手当てを終えて味方の列へ戻れた時だけ隙を突く。

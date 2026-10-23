@@ -96,6 +96,13 @@ const FLAG_W = { value: new THREE.Vector2(0.565, 0.825) };
 function flagMaterial(kind, boost = 0, enemy = false) {
   const key = (boost ? kind + '|' + boost : kind) + (enemy ? '|e' : '');
   if (flagMatCache.has(key)) return flagMatCache.get(key);
+  if (kind === 'player_gold') {
+    // 無地・つや消し。近景の布への交換も避け、しわ・破れ・点滅を付けない。
+    const m = new THREE.MeshLambertMaterial({ color: 0xe6ac28, emissive: 0x382307, side: THREE.DoubleSide });
+    m.userData.nearFlag = true;
+    flagMatCache.set(key, m);
+    return m;
+  }
   const m = S.simpleMaterials ? new THREE.MeshPhongMaterial({ map: flagTexture(kind, false, enemy), side: THREE.DoubleSide, shininess: 4, specular: 0x171717, alphaTest: 0.5 }) : new THREE.MeshStandardMaterial({ map: flagTexture(kind, false, enemy), side: THREE.DoubleSide, roughness: 0.95, alphaTest: 0.5 });
   // 薄暮の味方だけ紋の地色を残す。強めた材質も旗ごとに共有する。
   if (boost) { m.emissive.set(0xffffff); m.emissiveMap = m.map; m.emissiveIntensity = boost; }

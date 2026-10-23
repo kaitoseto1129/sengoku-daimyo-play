@@ -561,6 +561,10 @@ const okehazama = {
   },
   missionSignTarget(rt) {
     const F = rt.flags, p = rt.player;
+    // 任務の一人を大きな▼で保つ。近くの別人へ切り替えて目的を見失わせない。
+    const objective = this.objectiveEnemies(rt)[0];
+    if (objective) return objective;
+    if (rt.phase === 'assault' && F.entered && !F.victory && !F.yoshiDown && readyUnit(F.yoshimoto)) return F.yoshimoto;
     if (rt.phase === 'assault' && !F.victory || F.scoutFighting) {
       if (p.inRange && readyUnit(p.rangeCueTarget)) return p.rangeCueTarget;
       // 遠い任務の兵より、今いる場所から戦える一人を優先する。探索は半秒ごと。
@@ -656,7 +660,7 @@ const okehazama = {
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は、今する動きを短くやさしく伝える。
   missionSingleLine: true,
-  missions: ['信長軍と集まれ', '集合場所へ進め', '合図を待て', '▼の兵を倒せ', 'いまがわよしもとを倒せ', 'にげる敵を追え', '仲間と集まれ'],
+  missions: ['信長軍と集まれ', '集合場所へ進め', '合図を待て', '今川の兵を倒せ', 'いまがわよしもとを倒せ', 'にげる敵を追え', '仲間と集まれ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -664,7 +668,8 @@ const okehazama = {
     return rt.phase === 'assault' ? 3 : rt.phase === 'wait' ? 2 : rt.phase === 'march' ? 1 : 0;
   },
   missionHeading(rt) {
-    if ((rt.phase === 'march' || rt.phase === 'wait') && rt.flags.scoutFighting) return '▼の兵を倒せ';
+    if ((rt.phase === 'march' || rt.phase === 'wait') && rt.flags.scoutFighting) return '今川の兵を倒せ';
+    if (rt.phase === 'assault' && rt.flags.entered && !rt.flags.victory && this.objectiveEnemies(rt).length) return '今川の旗本を倒せ';
     if (rt.phase === 'wait') return '合図を待て';
     if (rt.phase === 'brief' && rt.flags.briefed) return '出発を待て';
     if (rt.phase === 'march' && this.squadFlagReached(rt)) return '仲間を待て';
@@ -866,9 +871,13 @@ const okehazama = {
         (F.guardOpened && !F.mouthReached && !F.koshiLeft)) return 'honjin';
     return F.entered ? null : 'genpachi';
   },
-  // 行き先と合流の物差しは、布の見え方でなく同じ旗持ちの足元にそろえる。
+  // 最初の集合先も地面へ固定し、組頭の歩みでピンと到着判定を動かさない。
   squadFlagPosition(rt) {
-    if (rt.phase === 'brief') return rt.flags.genpachi?.pos;
+    if (rt.phase === 'brief') {
+      const F = rt.flags, pos = F.genpachi?.pos;
+      if (!pos) return null;
+      return F.joinPos || (F.joinPos = { x: pos.x, y: pos.y, z: pos.z });
+    }
     if (rt.phase === 'march') return rt.flags.marchGoal;
     if (rt.phase === 'wait') {
       const marker = rt.markers.find((m) => m.id === 'wait');

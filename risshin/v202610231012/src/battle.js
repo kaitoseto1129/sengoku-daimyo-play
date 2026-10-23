@@ -820,6 +820,7 @@ export class Battle {
     distantBattleInit(this);
     campLifeInit(this);
     this.player.prepareCameraBlocks();
+    this.army.prepareCollisionGrids();
     this.ready = true;
     battleEventsStart(this);
     this.tracker.subsInit = this.squad.length;

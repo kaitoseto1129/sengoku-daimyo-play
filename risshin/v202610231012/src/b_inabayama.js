@@ -2233,7 +2233,7 @@ function installInabaPresentation(rt) {
     const thirdPerson = player.fpK < 0.5 && player.u.alive;
     camera.updateMatrixWorld();
     viewProbe.copy(body).project(camera);
-    const bodyVisible = !thirdPerson || (Math.abs(viewProbe.x) < 0.8 && Math.abs(viewProbe.y) < 0.75
+    const bodyVisible = !thirdPerson || Math.abs(player.pitch) > 0.3 || (Math.abs(viewProbe.x) < 0.8 && Math.abs(viewProbe.y) < 0.75
       && viewProbe.z > -1 && viewProbe.z < 1 && camera.position.distanceToSquared(body) > 1);
     // 胸が見えていても、すぐ前の山肌で画面が埋まる向きは選び直す。
     camera.getWorldDirection(forward);
@@ -2266,9 +2266,9 @@ function installInabaPresentation(rt) {
       if (candidate.y > drawGroundAt(W, candidate.x, candidate.z) + 0.8
         && player.camBlockHit(body, candidate) === null) camera.position.copy(candidate);
     }
-    look.copy(body); camera.up.set(0, 1, 0); camera.lookAt(look); camera.updateMatrixWorld();
+    look.copy(camera.position).add(forward); camera.up.set(0, 1, 0); camera.lookAt(look); camera.updateMatrixWorld();
     guardDrawCamera(W, camera, cameraMeasure);
-    camera.lookAt(look); camera.updateMatrixWorld();
+    look.copy(camera.position).add(forward); camera.lookAt(look); camera.updateMatrixWorld();
   };
   // 倒れた体を上から見る。歩行用の補間だけでなく、描く山肌と建物も避ける。
   F.downCamera = () => {
@@ -2352,23 +2352,8 @@ function installInabaPresentation(rt) {
   };
   player.updateCamera = function (dt, camera) {
     if (!this.u.alive || rt.result?.down) { F.downCamera(); return; }
-    // 登りの最中も携帯の横画面に前方が残る上下角に収める。
+    // 山道でも手で決めた向きと上下角を保つ。
     const onMountain = F.step >= 3 || this.u.pos.y > 20;
-    if (onMountain) this.pitch = Math.max(-0.3, Math.min(0.3, this.pitch));
-    if (F.step === 3 && !this.u.naka) {
-      const q = karaSample(this.u.pos.x, this.u.pos.z);
-      if (q.d < 3.4 && !reduceMotion()) {
-        // 高さの読み取りも同じ見本を使うので、道の向きは先に控える。
-        const dx = q.dx, dz = q.dz, vx = Math.sin(this.yaw), vz = Math.cos(this.yaw);
-        const ahead = W.heightAt(this.u.pos.x + vx * 4, this.u.pos.z + vz * 4);
-        if (ahead > this.u.pos.y + 3) {
-          let angle = Math.atan2(dx, dz);
-          if (dx * vx + dz * vz < 0) angle += Math.PI;
-          const delta = Math.atan2(Math.sin(angle - this.yaw), Math.cos(angle - this.yaw));
-          this.yaw += delta * Math.min(1, dt * 2);
-        }
-      }
-    }
     updateCamera.call(this, dt, camera);
     // 足元は水平に切った細道。体は横へ倒さず、進む坂に合わせて前へ折る。
     for (const u of rt.army.units) {
@@ -2392,7 +2377,7 @@ function installInabaPresentation(rt) {
       camera.getWorldDirection(forward);
     } else if (onMountain) {
       const horizontal = Math.hypot(forward.x, forward.z);
-      forward.y = Math.max(-horizontal * 0.4, Math.min(horizontal * 0.75, forward.y));
+      forward.y = Math.max(-horizontal * 2, Math.min(horizontal * 2, forward.y));
       forward.normalize();
       camera.up.set(0, 1, 0); look.copy(camera.position).add(forward);
       camera.lookAt(look); camera.updateMatrixWorld();
@@ -2413,29 +2398,12 @@ function installInabaPresentation(rt) {
       }
       const lift = guardDrawCamera(W, camera, cameraMeasure);
       if (blocked || lift > 0.05) {
-        look.copy(body);
-        if (camera.position.distanceToSquared(body) < 0.04) look.copy(camera.position).add(forward);
+        look.copy(camera.position).add(forward);
         camera.lookAt(look); camera.updateMatrixWorld(); camera.getWorldDirection(forward);
       }
-      if (!falling && this.fpK < 0.5 && F.step === 3) {
-        // 坂では胸へ寄せた視点を上げ直し、前方の道と敵の胸を画面に収める。
-        const p = this.u.pos, vx = Math.sin(this.yaw), vz = Math.cos(this.yaw);
-        // 屋根を避けた後の視点を無条件に上げると、軒や梁の中へ戻る。
-        candidate.copy(camera.position); candidate.y = Math.max(candidate.y, p.y + 3.2);
-        if (this.camBlockHit(body, candidate) === null) camera.position.copy(candidate);
-        look.set(p.x + vx * 6, 0, p.z + vz * 6);
-        // 六歩先が別の折れの崖でも、その高さへ顔を向けない。
-        look.y = Math.max(p.y - 2, Math.min(p.y + 3.5, W.heightAt(look.x, look.z) + 1.3));
-        let nearest = 15;
-        for (const u of rt.army.units) {
-          if (!u.alive || u.team !== 1 || u.isStruct || u.noTarget || u.fleeing || u.group?.civ) continue;
-          const dx = u.pos.x - p.x, dz = u.pos.z - p.z, d = Math.hypot(dx, dz);
-          if (d < 2 || d >= nearest || dx * vx + dz * vz < d * 0.4 || Math.abs(u.pos.y - p.y) > 9) continue;
-          nearest = d; look.copy(u.pos); look.y += 1.2;
-        }
-        camera.up.set(0, 1, 0); camera.lookAt(look); camera.updateMatrixWorld(); camera.getWorldDirection(forward);
-      }
-      // 山道の向きへ向き直した後も、柱・屋根と画面の手前を避ける。
+      // 地形を避けて寄っても、手で決めた視線を保つ。
+      look.copy(camera.position).add(forward);
+      // 柱・屋根と画面の手前を避ける。
       this.camFrontClear(body, camera.position, look, false);
       const hit = this.camBlockHit(body, camera.position);
       if (hit !== null) camera.position.lerpVectors(body, camera.position,
@@ -2448,7 +2416,7 @@ function installInabaPresentation(rt) {
       if (!falling) {
         const horizontal = Math.hypot(forward.x, forward.z);
         if (horizontal < 0.01) forward.set(Math.sin(this.yaw), 0, Math.cos(this.yaw));
-        else forward.y = Math.max(-horizontal * 0.4, Math.min(horizontal * 0.75, forward.y));
+        else forward.y = Math.max(-horizontal * 2, Math.min(horizontal * 2, forward.y));
         forward.normalize(); look.copy(camera.position).add(forward);
         camera.up.set(0, 1, 0); camera.lookAt(look); camera.updateMatrixWorld();
         guardDrawCamera(W, camera, cameraMeasure);

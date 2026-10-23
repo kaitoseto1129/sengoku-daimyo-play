@@ -293,19 +293,18 @@ export class WorldUpdate {
     this.rain.material.opacity = (this.def.rainOpacity ?? 0.24) * r;
     const arr = this.rain.geometry.attributes.position.array;
     const d = this.rainData;
-    const N = d.length / 3;
+    const N = Math.floor(d.length / 3 * (this.rainParticleScale ?? 1));
     const count = Math.floor(N * r);
     this.rain.geometry.setDrawRange(0, count * 2);
     // 雨筋は風下へ斜めに流れ、突風で強く傾く。粒ごとに速さと長さが違う（近い粒ほど長い筋に見える）
     // 戦ごとに雨の吹く向きを決められる（def.rainDir：[x, z]。桶狭間は織田の背から今川の顔へ）
     const RD = this.def.rainDir, rdx = RD ? RD[0] : WIND_STATE.dirX, rdz = RD ? RD[1] : WIND_STATE.dirZ;
     const wk = (RD ? 4.5 : 2.5) + WIND_STATE.gust * 4.5, wdx = rdx * wk, wdz = rdz * wk;
-    for (let i = 0; i < N; i++) {
+    for (let i = 0; i < count; i++) {
       const sp = 24 + (i % 7) * 1.6;
       d[i * 3 + 1] -= dt * sp;
       d[i * 3] += dt * wdx; d[i * 3 + 2] += dt * wdz;
       if (d[i * 3 + 1] < 0) { d[i * 3 + 1] += 30; d[i * 3] = (Math.random() - 0.5) * 70; d[i * 3 + 2] = (Math.random() - 0.5) * 70; }
-      if (i >= count) continue;
       const x = focus.x + d[i * 3], y = focus.y - 6 + d[i * 3 + 1], z = focus.z + d[i * 3 + 2];
       const o = i * 6;
       const len = 0.025 * (0.7 + (i % 5) * 0.15);
@@ -316,7 +315,8 @@ export class WorldUpdate {
     this.updateNearRain(dt, r, wdx, wdz);
     // 跳ね：足もと20mほどの地面に、雨の強さに応じて
     this.splashPts.visible = true;
-    const sp = this.splash, SN = this.splashT.length, SL = this.splashLine;
+    const sp = this.splash, SN = Math.min(this.splashT.length, this.rainSplashCount ?? this.splashT.length), SL = this.splashLine;
+    this.splashPts.geometry.setDrawRange(0, SN * 6);
     const splashScale = this.def.rainSplashScale ?? 1;
     for (let i = 0; i < SN; i++) {
       this.splashT[i] -= dt;

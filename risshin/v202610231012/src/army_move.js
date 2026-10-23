@@ -785,6 +785,17 @@ export const ArmyMove = {
     u.pos.x += tx; u.pos.z += tz;
   },
 
+  // 開戦前に区画表を作り、最初に兵が触れたコマへ全件の組立てを残さない。
+  prepareCollisionGrids() {
+    const SG = this.structCollision || (this.structCollision = new CollisionGrid());
+    SG.update(this.structs, this.time, true);
+    if (this.solids?.length) {
+      const WG = this.solidCollision || (this.solidCollision = new CollisionGrid());
+      WG.update(this.solids, this.time, false);
+    }
+    this.segGrid();
+  },
+
   collide(u, dt = 0.016) {
     const fromX = u.pos.x, fromZ = u.pos.z, cap = Math.max(0.3, 12 * Math.min(dt, 0.1));
     const SG = this.structCollision || (this.structCollision = new CollisionGrid());

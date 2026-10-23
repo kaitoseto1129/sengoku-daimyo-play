@@ -17,7 +17,7 @@ export class CollisionGrid {
       this.marks = new Uint32Array(list.length + 64);
       this.bounds = new Int32Array((list.length + 64) * 4); changed = true;
     }
-    const B = this.bounds;
+    const rebuild = changed, B = this.bounds;
     for (let i = 0; i < list.length; i++) {
       const w = list[i];
       let x0, x1, z0, z1;
@@ -41,18 +41,30 @@ export class CollisionGrid {
       } else { x0 = z0 = 1; x1 = z1 = 0; }
       const at = i * 4;
       if (B[at] !== x0 || B[at + 1] !== x1 || B[at + 2] !== z0 || B[at + 3] !== z1) {
+        // 一つ動いただけで、動かない陣幕や柵まで全て置き直さない。
+        // 古い升から外して新しい升へ入れる。候補の順は query で元に戻す。
+        if (!rebuild) this.place(i, true);
         changed = true; B[at] = x0; B[at + 1] = x1; B[at + 2] = z0; B[at + 3] = z1;
+        if (!rebuild) this.place(i, false);
       }
     }
     if (!changed) return;
     this.version++;
+    if (!rebuild) return;
     for (const cell of this.cells.values()) cell.length = 0;
-    for (let i = 0; i < list.length; i++) {
-      const at = i * 4;
-      for (let x = B[at]; x <= B[at + 1]; x++) {
-        for (let z = B[at + 2]; z <= B[at + 3]; z++) {
-          const key = keyOf(x, z);
-          let cell = this.cells.get(key);
+    for (let i = 0; i < list.length; i++) this.place(i, false);
+  }
+  place(i, remove) {
+    const B = this.bounds, at = i * 4;
+    for (let x = B[at]; x <= B[at + 1]; x++) {
+      for (let z = B[at + 2]; z <= B[at + 3]; z++) {
+        const key = keyOf(x, z);
+        let cell = this.cells.get(key);
+        if (remove) {
+          if (!cell) continue;
+          const n = cell.indexOf(i);
+          if (n >= 0) { cell[n] = cell[cell.length - 1]; cell.pop(); }
+        } else {
           if (!cell) { cell = []; this.cells.set(key, cell); }
           cell.push(i);
         }

@@ -3,7 +3,8 @@
 //   ・倍率 2 の iPhone（XR・11・SE 2/3・8 以前）・短辺 375 以下（X・XS・11 Pro・12/13 mini）・414×896 の倍率 3（XS Max・11 Pro Max）は弱い。
 //   ・390×844（12〜14・16e）・393×852・402×874・428×926・430×932・440×956 は強い（今のまま）。
 //   ・iPad は 768×1024 の倍率 2（無印 5〜9 世代・mini 4/5・Air 2）を弱いとする。
-//   ・ほかの機械は deviceMemory が 4GB 以下、または GPU の名が古い Adreno 5xx・Mali-G5x/T・PowerVR の時。
+//   ・Android は deviceMemory が 8GB 以下、ほかの機械は 4GB 以下なら弱い。
+//   ・GPU が Mali・Adreno 6xx 以下・PowerVR、Windows の Intel UHD/Iris も弱い。
 //   ・戦の途中で頁が読み直された（落ちた）機械も、次から弱いとする（risshin-weak）。
 //   試し：?weak=1 で弱い作り・?weak=0 で強い作りに決める。
 const q = typeof location !== 'undefined' ? location.search : '';
@@ -22,7 +23,7 @@ function detect() {
   }
   const iPad = /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
   if (iPad) return s <= 768 && l <= 1024 ? 'ipad-old' : '';
-  if (navigator.deviceMemory && navigator.deviceMemory <= 4) return 'mem' + navigator.deviceMemory;
+  if (navigator.deviceMemory && navigator.deviceMemory <= (/Android/i.test(ua) ? 8 : 4)) return 'mem' + navigator.deviceMemory;
   return '';
 }
 const why = detect();
@@ -33,7 +34,8 @@ export function noteGL(gl) {
   try {
     const ext = gl.getExtension('WEBGL_debug_renderer_info');
     const name = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : '');
-    if (/Adreno \(TM\) [345]\d\d|Mali-(G5\d|T\d)|PowerVR/i.test(name) || gl.getParameter(gl.MAX_TEXTURE_SIZE) < 8192) { TIER.weak = true; TIER.why = 'gpu:' + name.slice(0, 40); }
+    const windowsIntel = typeof navigator !== 'undefined' && /Windows/i.test(navigator.userAgent || '') && /Intel.*(?:UHD|Iris)/i.test(name);
+    if (/Adreno\s*(?:\(TM\)\s*)?[0-6]\d\d\b|Mali|PowerVR/i.test(name) || windowsIntel || gl.getParameter(gl.MAX_TEXTURE_SIZE) < 8192) { TIER.weak = true; TIER.why = 'gpu:' + name.slice(0, 40); }
   } catch (e) { /* 判らなければ強いまま */ }
 }
 // 戦の途中の印。戦の外へ出る前に頁が読み直されたら、落ちたと見なして次から弱い作りに。

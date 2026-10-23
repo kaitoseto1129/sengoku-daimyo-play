@@ -187,6 +187,11 @@ export function buildModel(u, look) {
     flag = new THREE.Mesh(u.team === 1 ? enemyFlagGeo : flagGeo, flagMaterial(look.flag, look.flagBoost, u.team === 1));
     flag.castShadow = true;
     flag.position.set(0, 2.36, -0.24);
+    if (look.flag === 'player_gold') {
+      flag.position.y += .26;
+      // 母衣のある身分でも布と竿が背の袋に埋まらない。
+      if (look.horo) flag.position.z = -.65;
+    }
     flag.scale.setScalar(look.flagScale || 1);
     // 旗の形で兵種が読めるように：槍組の隊旗は細長い長旗、鉄砲の小旗は横に広い四角、騎馬は細く長い（吹流しに寄せる）。下の端の高さは変えない
     if (!look.hero) {
@@ -241,6 +246,7 @@ function heroFlagBar() {
   const k = 'herobar';
   if (geoCache.has(k)) return geoCache.get(k);
   const g = merge([
+    P(at(new THREE.CylinderGeometry(0.009, 0.011, 1.5, 5), 0, -0.36, 0), 0x897044, { reg: 'wood', swap: true }),
     P(at(new THREE.CylinderGeometry(0.009, 0.009, 0.38, 5), 0.18, 0.365, 0, 0, 0, Math.PI / 2), 0x2a1c12, { mk: MK.lac }),
     P(at(new THREE.ConeGeometry(0.018, 0.06, 6), 0, 0.41, 0), 0xa8893f, { mk: MK.gold }),
   ]);
