@@ -69,6 +69,9 @@ export function cleanBattleSpeech(rt, text) {
     .replace(/生き残った者は次の戦で古参となり、強くなる/g, '生き残った仲間は、次の戦では経験を積んで強くなる')
     .replace(/今川の陣/g, '今川（いまがわ）の軍が集まる場所')
     .replace(/伝令の兵/g, '知らせを運ぶ兵');
+  if (rt.def.key === 'moribe') t = t
+    .replace('囲まれるぞ。味方の方へ退け', '囲まれるぞ。矢印の方へ下がれ')
+    .replace('槍衾だ。正面は避け、横へ回れ', '槍の正面は危険だ。列の端より外へ回れ');
   for (const [from, to] of MITSUHIDE) if (t.includes(from)) t = t.replace(from, to);
   t = t.replace(/崩れました/g, '崩れたぞ').replace(/押されています/g, '押されておる');
   if (/敵(?:は|が|勢は).*総崩れ/.test(t) && rt.army.groups.some((g) => g.team !== rt.player.u.team && g.count > 0 && !g.routed && g.order !== 'retreat' && g.order !== 'flee'))

@@ -1135,7 +1135,7 @@ export function touchFrame(dt) {
   const hasSq = !!b.squad?.some((o) => o.alive);
   const rid = p.mounted;
   // 基本の丸は突く・構え・回避・狙い。話す・取るは必要な時に出す。
-  hide(btn.atk, town); hide(btn.grd, town || p.weapon === 'gun'); hide(btn.dodge, town);
+  hide(btn.atk, town); hide(btn.grd, town || p.weapon !== 'bow'); hide(btn.dodge, town);
   // 馬上は 突く・構え・手綱・降りる（と号令）だけにし、狙い・鼓舞・持ち替えは隠す（丸が七つ並ばないように）
   // 狙いの丸は、敵が近い時（35m）か狙いを定めている時だけ（平時の戦場に丸を並べない）
   const hudR = game.hud, near = !!(hudR && hudR.nearFoe);
@@ -1229,13 +1229,13 @@ export function touchFrame(dt) {
   hide(btn.form, !rOpen || b.G.rank < 1);
   hide(btn.ceasefire, !rOpen || b.G.rank < 1 || (!gunSq && !bowSq));
   btn.ceasefire.setAttribute('aria-label', '弓・鉄砲の組、撃ち方やめ');
-  hide(btn.fire, !gunSq && (!rOpen || b.G.rank < 1 || !bowSq));
+  hide(btn.fire, gunSq ? !b.kamae : !rOpen || b.G.rank < 1 || !bowSq);
   setText(btn.fire.firstChild, gunSq ? (b.kamae ? '放て' : '構え') : '射撃');
   btn.fire.setAttribute('aria-label', gunSq ? (b.kamae ? '鉄砲の組、放て' : '鉄砲の組、構え') : '弓の射撃');
   tog(btn.fire, 'sel', !!(gunSq && b.kamae));
   // 空馬の手綱を取れる時は、乗り降りの丸を「手綱」にして必ず出す
   const dismountAction = b.hud?.actionLabel;
-  const guidedDismount = rid && dismountAction && !dismountAction.hidden && !!dismountAction.querySelector('.dismount-action');
+  const guidedDismount = rid && !b.hud?.root.classList.contains('mission-only') && dismountAction && !dismountAction.hidden && !!dismountAction.querySelector('.dismount-action');
   hide(btn.mount, simpleControls(b) || town || guidedDismount || (!rid && !p.canRide && !p.takeO));
   const horseH = p.horse?.userData.horse, catchP = p.catching ? Math.min(1, p.catching.t / (p.catching.dur)) : b.holdId === 'horse-take' ? b.holdPct || 0 : 0;
   setSub(btn.mount, p.mountT > 0 ? (rid ? '乗っている途中' : '降りている途中') : rid ? p.horseStopUntil > b.t || horseH?.refuseUntil > b.t ? `${horseH?.refuseReason || '危険'}を避ける` : horseH?.fear > 0.5 ? '怯えている' : horseH?.exhausted || p.hfat >= 0.85 ? '疲れて歩く' : p.breathRest || p.breath <= 5 ? '息切れ・並足で休む' : p.horseHp < p.horseMax * 0.5 ? '傷で足が鈍る' : '馬を降りる' : catchP > 0 ? `あと${Math.max(1, Math.ceil(p.catching ? (p.catching.dur) - p.catching.t : (1 - catchP) * 1.5))}秒` : p.u.climb ? '登っている' : p.loose?.mode === 'come' ? 'こちらへ来ている' : p.loose?.mode === 'flee' ? '逃げる先を追う' : p.loose?.mode === 'fled' ? '空馬を探す' : horseH?.fear > 0.5 ? '怯えて呼べない' : p.spoil ? '口笛では来ない' : horseH?.exhausted || p.hfat >= 0.85 ? '疲れて歩いて来る' : 'そばへ寄る');
@@ -1509,7 +1509,7 @@ function actionCoach(b, dt) {
   el.hidden = true;
   if (T.coachButton) { T.coachButton.classList.remove('coach-now'); T.coachButton = null; }
   // 教える二つの戦以外では、指や操作の札を出さない。
-  if (!coachAllowed(b) || S.reduceGuidance) { T.actionKey = ''; return; }
+  if (!b.def.town && !b.def.dojo || !coachAllowed(b) || S.reduceGuidance) { T.actionKey = ''; return; }
   // 合戦の操作図は開幕の一枚だけ。戦の途中は任務と敵の印に譲る。
   if (!b.def.town && !b.def.dojo && !T.game.hud?.openingActive) { T.actionKey = ''; return; }
   const p = b.player, rain = b.army.rainEscape || b.dodgeGuide;
@@ -1788,6 +1788,7 @@ function setSub(el, text) {
   setText(sub, text);
 }
 function coachText(text) {
+  if (/構え|かまえ|ふせぐ|ふせげ/.test(text)) return '';
   return text.split('\n').map(line => {
     const parts = line.match(/[^ 、。]+[ 、。]*/g) || [''];
     let out = '', row = '';

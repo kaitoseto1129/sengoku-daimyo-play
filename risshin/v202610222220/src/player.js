@@ -4170,7 +4170,7 @@ export class Player {
     if (CAM_NEAR_FADE.value) CAM_NEAR_PROJECTION.value.set(cam.projectionMatrix.elements[0], cam.projectionMatrix.elements[5]);
     if (!on) {
       if (this.hid) { for (const o of this.hid) o.visible = true; this.hid = null; }
-      if (this.hidHead) { this.hidHead.scale.setScalar(1); this.hidHead = null; }
+      if (this.hidHead) { this.hidHead.scale.setScalar(1); this.hidHead.updateMatrix(); this.hidHead.updateMatrixWorld(true); this.hidHead = null; }
       if (this.mirOn) { const m = this.mirOn; this.mirOn = null; m.scale.x = -m.scale.x; m.updateMatrixWorld(true); }
       setFpCut(null); setFpArm(false);
       this.allyFade(null);
@@ -4232,6 +4232,8 @@ export class Player {
       // 頭の骨を小さく縮めると、頭に付いた物（兜・顔・胴丸の兜）がまとめて消える
       const hb = h.bones.Head;
       hb.scale.setScalar(0.001);
+      // 骨は行列の自動更新を止めてある。縮尺だけ変えても笠と顔が残り、視界を覆ってしまう。
+      hb.updateMatrix();
       hb.updateMatrixWorld(true);
       this.hidHead = hb;
     } else {

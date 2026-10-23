@@ -1,6 +1,6 @@
 import { pinGuideOn } from './mission_pin.js';
-import { setText, setWidth, coachCss, $, esc, keyCaps, shortTask, singleBattleGuide, rescueTarget, retreatRequired } from "./hud_common.js";
-import { currentObjective, taskText } from "./mission_guide.js";
+import { setText, setWidth, coachCss, $, esc, keyCaps, singleBattleGuide, rescueTarget, retreatRequired } from "./hud_common.js";
+import { currentObjective, missionCaption } from "./mission_guide.js";
 import { isTouch } from "./touch.js";
 import { K } from "./settings.js";
 
@@ -72,7 +72,10 @@ export class HudCards {
     }
     this.fieldMarks(rt);
     this.squadMarks(rt);
-    if (!rt.def.foeMarks) return;
+    if (!rt.def.town && !rt.def.dojo || !rt.def.foeMarks) {
+      if (this.foeEls) for (const el of this.foeEls) el.hidden = true;
+      return;
+    }
     if (!this.foeEls) {
       this.foeEls = [];
       const box = document.createElement('div'); box.id = 'foe-marks'; box.setAttribute('aria-hidden', 'true');
@@ -174,7 +177,7 @@ export class HudCards {
     let firstX = -1000, firstY = -1000;
     for (let i = 0; i < 2; i++) {
       const el = this.fieldMarkEls[i], sign = signs[i], u = i || sign?.label ? sign?.unit : null;
-      if (i) this.fieldFoe = u;
+      if (i) { this.fieldFoe = null; el.hidden = true; continue; }
       if (!u?.alive || u.gone || u.mesh?.visible === false) { el.hidden = true; continue; }
       this.tmpV.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.3), u.pos.z).project(rt.camera);
       el.hidden = this.tmpV.z < -1 || this.tmpV.z > 1 || Math.abs(this.tmpV.x) > .85 || Math.abs(this.tmpV.y) > .8;
@@ -291,10 +294,7 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     const el = this.prog;
     if (el.dataset.battle !== def.key) el.dataset.battle = def.key || '';
     if (def.key === 'inou') el.dataset.practice = String(rt.flags.step === 0 && rt.flags.training === 0);
-    // 救助中は通常の任務を畳み、本人の札と長押しの操作に切り替える。
-    const helping = !!rescueTarget(rt) && def.guardGuideAllowed?.(rt) !== false &&
-      !retreatRequired(rt) && !rt.dodgeGuide && !this.retreatGuide?.active;
-    el.hidden = !!rt.over || helping; root.classList.toggle('prog-on', !rt.over && !helping);
+    el.hidden = !!rt.over; root.classList.toggle('prog-on', !rt.over);
     const [stEl, nextEl, dotsEl, timeEl, contextEl] = el.children;
     const context = typeof def.missionContext === 'function' ? def.missionContext(rt) : def.missionContext;
     setText(contextEl, context || ''); contextEl.hidden = !context;
@@ -312,24 +312,15 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
       i = Math.max(0, this.progSeen.length - 1); n = 0; title = this.progSeen[i] || '';
     }
     setText(stEl.firstChild, '');
-    const retreat = this.retreatGuide?.active && this.retreatGuide.valid ? this.retreatGuide : null;
-    const escaping = retreat || (rt.dodgeGuide?.valid ? rt.dodgeGuide.pos : null);
-    const movingBack = escaping && Math.hypot(escaping.x - rt.player.u.pos.x, escaping.z - rt.player.u.pos.z) >= (retreat?.radius || 1);
-    const yaw = rt.player.yaw + (rt.player.camYawOff || 0), p = rt.player.u.pos;
-    const dx = movingBack ? escaping.x - p.x : 0, dz = movingBack ? escaping.z - p.z : 0;
-    const right = -dx * Math.cos(yaw) + dz * Math.sin(yaw), forward = dx * Math.sin(yaw) + dz * Math.cos(yaw);
-    const moveWord = Math.abs(right) > Math.abs(forward) ? right >= 0 ? '右' : '左' : forward >= 0 ? '前' : '後ろ';
-    const action = movingBack && !retreat?.treatment ? def.retreatMoveLabel || `${moveWord}へ動いて敵からはなれる` :
-      shortTask(taskText(rt, def.taskLabel?.(rt) || task || title));
-    const headline = action.split(/[。／\n、]/)[0].replace(/^.*隊長(?:と合流|へ.*|の所へ.*)$/, '隊長のそばへ').replace(/(?<!敵の)本陣へ/g, '敵の本陣へ').replace(/討ち取れ|倒せ/g, 'たおせ');
+    const headline = missionCaption(rt, title || task);
     setText(stEl.lastChild, headline);
     // 戦固有の案内と任務の進みは残す。同じ任務の全文は重ねない。
     const status = def.missionStatus?.(rt, taskLine);
-    const sub = movingBack ? '' : def.missionDetail ? def.missionDetail(rt) :
+    const sub = def.missionDetail ? def.missionDetail(rt) :
       (typeof def.missionStatusFirst === 'function' ? def.missionStatusFirst(rt) : def.missionStatusFirst) ? status || '' :
         currentObjective(rt)?.progress || (status && status !== headline ? status : '');
     // 稲生では操作の場所・キーと残りの距離を折り返して残す。文字数だけで隠さない。
-    setText(nextEl, sub); nextEl.hidden = !(sub && (def.key === 'inou' || sub.length <= 14) && (rt.teachOn?.() || !!def.missionDetail));
+    setText(nextEl, sub); nextEl.hidden = !(sub && (def.key === 'inou' || sub.length <= (def.missionStatusMaxLength ?? 14)) && (rt.teachOn?.() || !!def.missionDetail));
     // 必要な号令だけ、今の任務の直下で一度押せるようにする。
     if (def.missionAction && !this.missionActionButton) {
       const button = this.missionActionButton = document.createElement('button');
@@ -362,7 +353,7 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     setText(dotsEl, ''); dotsEl.hidden = true;
     const sec = Math.max(0, rt.t | 0), est = (def.minutes || 7) * 60;
     const left = Math.max(1, Math.round((est - sec) / 60));
-    setText(timeEl.lastChild, `${def.missionTimeLabel || '残り'} 約${left}分`);
+    setText(timeEl.lastChild, def.missionTimeText?.(rt) || `${def.missionTimeLabel || '残り'} 約${left}分`);
     // 待つ間（陣を敷く・寄せを待つ）の残りは、秒の字でなく満ちていく丸で（kaito 10/23 稲生 14）。
     const gm = rt.missionGuide?.marker, wu = gm?.waitUntil?.();
     const progress = def.missionWaitProgress?.(rt);

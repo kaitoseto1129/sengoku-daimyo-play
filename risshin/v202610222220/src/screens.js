@@ -489,6 +489,13 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
   const readings = [0, 1, 2].map(readProgress);
   const slots = readings.map((r) => r.game);
   saved = slots[S.slot];
+  // 保存も壊れた記録もない入口は、旗を一度押すだけ。
+  if (readings.every(r => !r.game && !r.bad)) {
+    show(`<div style="min-height:80vh;display:grid;place-items:center"><button type="button" class="btn primary" id="b-new" data-first-depart aria-label="出陣" style="width:112px;height:112px;border-radius:50%"><svg viewBox="0 0 64 64" width="64" height="64" aria-hidden="true"><path d="M18 56V8m2 2h28l-7 13 7 13H20" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/><path d="M28 44l8 7-8 7" fill="none" stroke="currentColor" stroke-width="3"/></svg></button></div>`);
+    $('b-new').onclick = () => { $('b-new').disabled = true; initAudio(); onNew('弥五郎', 'normal', 'oda'); };
+    $('b-new').focus({ preventScroll: true });
+    return;
+  }
   const ARGS = arguments;
   // 保存ごとに筋書きが違うので、その保存の筋書きの戦の並びで「次は」を出す
   const scOf = (g) => SCENARIOS[g.scenario || 'okehazama'];
@@ -1156,12 +1163,21 @@ let bindHandler = null;
 function stopBind() { if (bindHandler) { window.removeEventListener('keydown', bindHandler, true); bindHandler = null; } }
 
 export function settingsScreen(onChange, onClose) {
+  const game = window.__game;
+  const G = game?.battle || game?.inTown ? game.G : readProgress(S.slot).game;
   const closeSt = () => { window.speechSynthesis?.cancel(); stopBind(); const stored = saveSettings(); onClose(); if (!stored) notice('！ 設定を保存できませんでした。次に開くと元に戻ります'); };
   show(`<div class="wrap st-screen"><h2 class="st-h">設定</h2>
+    ${G ? `<div class="field"><label for="st-player-name">名前</label><input id="st-player-name" maxlength="8" value="${esc(G.name)}" autocomplete="off" spellcheck="false"></div>` : ''}
     ${settingsHtml()}
     <div style="margin:8px 0"><div class="row" style="gap:8px">${fullPurchaseButton()}${canRestorePurchases() ? '<button type="button" class="btn" id="st-restore" style="min-height:44px;min-width:44px;font-size:16px">購入を復元する</button>' : ''}</div><p id="st-restore-msg" role="status" aria-live="polite"></p></div>
     <div class="title-act st-act" style="gap:8px;flex-wrap:wrap"><button class="btn primary" id="st-close">決めて戻る</button>${COMMUNITY_URL ? '<button type="button" class="btn" id="st-community" style="min-height:44px">感想・不具合を送る</button>' : ''}${isTouch ? '' : '<span class="hintk">Escでも戻れます</span>'}</div></div>`, false, (e) => { if (e.key === 'Escape') closeSt(); });
   bindSettings(onChange);
+  const playerName = $('st-player-name');
+  if (playerName) playerName.onchange = () => {
+    G.name = shortName(playerName.value) || '弥五郎';
+    playerName.value = G.name;
+    if (!G.practice) save(G);
+  };
   bindFullPurchase();
   $('st-close').onclick = closeSt;
   const restore = $('st-restore');
@@ -1226,14 +1242,14 @@ export function loadingStory(bt, story, tips, G) {
   el.style.cssText = 'max-width:36em;margin:8px auto;color:var(--washi);text-align:left';
   const talks = scenarioKey() === 'oda' ? battleTalk(G, bt) : [];
   const paragraphs = [...(story.text || []), ...(L ? [`史実：${L[0]}`, `見どころ：${L[1]}`] : [])];
-  el.innerHTML = `<button type="button" class="btn" data-read-open aria-expanded="false" aria-controls="ld-story-body" style="width:100%;min-height:48px;font-size:16px">戦いの前の話を読む（用意は続きます）</button><div id="ld-story-body" hidden><div style="max-height:45dvh;overflow-y:auto;overscroll-behavior:contain;padding:8px" tabindex="0" aria-label="戦の背景と心得"><b>${esc(story.year)}　${esc(story.title)}</b>${paragraphs.map((t) => `<p style="font-size:max(15px,calc(16px * var(--text-scale,1)));line-height:1.6;color:var(--washi);text-align:left;margin:8px 0;padding:0">${esc(t)}</p>`).join('')}<p style="font-size:16px;line-height:1.6;color:var(--washi)">心得：${esc(tips)}</p>${talks.map((t) => `<p style="font-size:16px;line-height:1.6;color:var(--washi)">${esc(t.place)}（遊びの中の会話）<br>${t.lines.map(([who, line]) => `${esc(who)}「${esc(line)}」`).join('<br>')}</p>`).join('')}</div><button type="button" class="btn" data-read-done style="min-height:48px">読み終えたので閉じる</button><p data-read-ready role="status" hidden style="font-size:15px;color:var(--washi)">支度ができました。読み終えたら閉じてください。</p></div>`;
+  el.innerHTML = `<button type="button" class="btn" data-read-open aria-expanded="false" aria-controls="ld-story-body" style="width:100%;min-height:48px;font-size:16px">戦いの前の話を読む</button><div id="ld-story-body" hidden><div style="max-height:45dvh;overflow-y:auto;overscroll-behavior:contain;padding:8px" tabindex="0" aria-label="戦の背景と心得"><b>${esc(story.year)}　${esc(story.title)}</b>${paragraphs.map((t) => `<p style="font-size:max(15px,calc(16px * var(--text-scale,1)));line-height:1.6;color:var(--washi);text-align:left;margin:8px 0;padding:0">${esc(t)}</p>`).join('')}<p style="font-size:16px;line-height:1.6;color:var(--washi)">心得：${esc(tips)}</p>${talks.map((t) => `<p style="font-size:16px;line-height:1.6;color:var(--washi)">${esc(t.place)}（遊びの中の会話）<br>${t.lines.map(([who, line]) => `${esc(who)}「${esc(line)}」`).join('<br>')}</p>`).join('')}</div><button type="button" class="btn" data-read-done style="min-height:48px">読み終えたので閉じる</button><p data-read-ready role="status" hidden style="font-size:15px;color:var(--washi)">支度ができました。読み終えたら閉じてください。</p></div>`;
   const toggle = (on) => {
     reading = on;
     el.classList.toggle('reading', on);
     el.querySelector('#ld-story-body').hidden = !on;
     const button = el.querySelector('[data-read-open]');
     button.setAttribute('aria-expanded', String(on));
-    button.textContent = on ? '戦いの前の話を閉じる' : '戦いの前の話を読む（用意は続きます）';
+    button.textContent = on ? '戦いの前の話を閉じる' : '戦いの前の話を読む';
     if (!on && release) { const f = release; release = null; f(); }
     (on ? el.querySelector('[tabindex]') : button).focus({ preventScroll: true });
   };

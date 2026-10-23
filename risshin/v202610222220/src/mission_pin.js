@@ -1,17 +1,16 @@
-// 行き先は字のないピン一本。画面外では端へ寄せる。
+// 行き先は太い輪と下向き矢印。画面外では端の方向矢印に替える。
 //   戦の定義の missionPin(rt) が { x, z, r } を返す間だけ立てる（r＝着いたとみなす半径。定義の判定と同じ値を返す）。
 //   着いたら消す。印と投影用の点は一つを使い回す。
 import * as THREE from 'three';
 import { VIEW } from './viewport.js';
-import { S } from './settings.js';
 import { currentObjective } from './mission_guide.js';
 
 let pin = null;
 function make() {
   const el = document.createElement('div');
   el.id = 'mission-goal';
-  el.innerHTML = '<svg width="40" height="28" viewBox="0 0 40 28" aria-hidden="true"><g stroke="#14120f" stroke-width="5" stroke-linejoin="round"><ellipse cx="20" cy="24" rx="16" ry="3" fill="none"/><path d="M18 24V2H33L29 8L33 13H18" fill="#fff3ba"/></g><g stroke="#fff3ba" stroke-width="2" stroke-linejoin="round"><ellipse cx="20" cy="24" rx="16" ry="3" fill="none"/><path d="M18 24V2H33L29 8L33 13H18" fill="#fff3ba"/></g></svg>';
-  el.style.cssText = 'position:absolute;left:0;top:0;width:56px;height:52px;text-align:center;pointer-events:none;z-index:3;color:#fff3ba;font-size:13px;line-height:18px';
+  el.innerHTML = '<svg width="80" height="80" viewBox="0 0 80 80" aria-hidden="true"><g class="goal-ground" stroke-linejoin="round"><ellipse cx="40" cy="68" rx="30" ry="9" fill="none" stroke="#14120f" stroke-width="10"/><ellipse cx="40" cy="68" rx="30" ry="9" fill="none" stroke="#fff3ba" stroke-width="5"/><path d="M32 8H48V37H61L40 59L19 37H32Z" fill="#fff3ba" stroke="#14120f" stroke-width="4"/></g><path class="goal-edge" d="M12 31H43V17L69 40L43 63V49H12Z" fill="#fff3ba" stroke="#14120f" stroke-width="4" stroke-linejoin="round" style="display:none;transform-origin:40px 40px"/></svg>';
+  el.style.cssText = 'position:absolute;left:0;top:0;width:80px;height:80px;pointer-events:none;z-index:3';
   const style = document.createElement('style');
   style.textContent = '#hud.photo #mission-goal,#hud.ending #mission-goal,#hud:has(#bigmap:not([hidden])) #mission-goal,#hud:has(#cine.on) #mission-goal{display:none}';
   el.appendChild(style);
@@ -88,15 +87,18 @@ export function updateMissionPin(rt) {
     }
     if (!found) { pin.hidden = true; return; }
   }
-  pin.children[0].style.transform = outside ? 'scale(.7)' : '';
-  // 丸めずに少数一桁で置く（一画素ずつ跳ねない）。上下はゆっくり穏やかに。
-  pin.style.transform = `translate(${(x - 28).toFixed(1)}px,${(y - 46 + (S.reduceMotion ? 0 : 2 * Math.sin(now / 700))).toFixed(1)}px)`;
+  pin.querySelector('.goal-ground').style.display = outside ? 'none' : '';
+  const arrow = pin.querySelector('.goal-edge');
+  arrow.style.display = outside ? '' : 'none';
+  arrow.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
+  // 丸めず小数一桁で置き、地面に固定する。
+  pin.style.transform = `translate(${(x - 40).toFixed(1)}px,${(y - (outside ? 40 : 68)).toFixed(1)}px)`;
 }
 const goalPoint = new THREE.Vector3();
 const pinAt = { x: 0, z: 0, y: 0, ox: 0, oy: 0, at: 0, rt: null };
 function goalFree(x, y, W, H, rects) {
-  if (x < 36 || x > W - 36 || y < 60 || y > H - 14) return false;
-  for (const r of rects) if (x + 36 >= r.left && x - 36 <= r.right && y + 6 >= r.top && y - 52 <= r.bottom) return false;
+  if (x < 44 || x > W - 44 || y < 88 || y > H - 44) return false;
+  for (const r of rects) if (x + 44 >= r.left && x - 44 <= r.right && y + 40 >= r.top && y - 72 <= r.bottom) return false;
   return true;
 }
 

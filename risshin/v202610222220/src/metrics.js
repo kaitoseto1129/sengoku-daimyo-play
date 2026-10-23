@@ -91,6 +91,20 @@ export function initMetrics(game) {
 
   const falls = {};   // 戦の id ごとに、今回の遊びで倒れた回数
   let cur = null;     // いま戦っている戦 { id, mode }
+  let titleAt = null;
+  const prepared = new WeakSet();
+  document.addEventListener('click', e => {
+    const button = e.target?.closest?.('[data-first-depart], #b-next');
+    if (!button || button.disabled) return;
+    metric('depart_tap', { battle_id: button.hasAttribute('data-first-depart') ? 'inou' : bid(game.G?.battle || 0) });
+  }, true);
+  window.addEventListener('risshin-battle-ready', () => {
+    const b = game.battle, timing = b?.startTiming;
+    if (!b || !timing?.ready || prepared.has(b)) return;
+    prepared.add(b);
+    metric('preparation_ready', { battle_id: bid(b.index), loading_ms: timing.loadingMs, total_ms: timing.totalMs,
+      title_ms: titleAt == null ? -1 : Math.round(performance.now() - titleAt) });
+  });
   const begin = (id, mode) => {
     cur = { id, mode };
     once('first-battle', 'first_battle_start', { battle_id: id });
@@ -109,6 +123,9 @@ export function initMetrics(game) {
     perfEnd();
     if (b && !b.over && cur) metric('battle_quit', { battle_id: cur.id, sec: Math.round(b.t || 0), falls: falls[cur.id] || 0, kills: (b.stats && b.stats.kills) || 0 });
     cur = null;
+  }, function () {
+    titleAt = performance.now();
+    metric('title_view', { battle_id: document.querySelector('[data-first-depart]') ? 'inou' : bid(this.G?.battle || 0) });
   });
   wrap(game, 'endBattle', function (b) {
     return { prevResult: this.lastResult, id: (b.def && b.def.dojo) ? 'dojo' : (b.def && b.def.mapCastle) ? 'mapcastle' : bid(b.index) };
