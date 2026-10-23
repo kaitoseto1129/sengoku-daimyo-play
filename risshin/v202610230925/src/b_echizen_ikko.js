@@ -2659,7 +2659,6 @@ const echizen_ikko = {
     // 講堂の西壁から離し、戸口へ回る兵と肩越しの視点を火床へ重ねない。
     for (const [x, z] of [[GATE_SOMON.x - 4.5, GATE_SOMON.z - 4], [GATE_SOMON.x + 4.5, GATE_SOMON.z - 4], [GATE_SANMON.x - 4.5, GATE_SANMON.z - 4], [GATE_SANMON.x + 4.5, GATE_SANMON.z - 4], [gezanC.x + 5, gezanC.z - 11], [hondoC.x + 3, hondoC.z - 5], [okuC.x - 4, okuC.z - 4], [okuC.x + 4, okuC.z + 8]]) {
       rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { torch: true, h: 1.35 });
-      solidCircle(x, z, .35);
     }
     for (const [x, z] of [[VILLAGE.x - 5, VILLAGE.z + 4], [GOKA_MURA.x + 2, GOKA_MURA.z + 10],
       [gezanC.x - 9.5, gezanC.z + 3], [gezanC.x + 12.5, gezanC.z - 7]]) templeLantern(rt, x, z);

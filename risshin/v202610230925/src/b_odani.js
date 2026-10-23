@@ -546,7 +546,6 @@ function valleyTimber(W, x, z, rot) {
     base = Math.min(base, W.heightAt(x + foot.x, z + foot.z) - foot.y);
   }
   pile.position.set(x, base - .04, z);
-  solidRect(x, z, 1.1, 1.8, rot);
   return pile;
 }
 
@@ -2055,7 +2054,6 @@ html.touch.tc-low body #hud[data-odani] #battle-notices #objectives:not(.expand)
       const x = TORAGOZEN.x, z = TORAGOZEN.z - 11;
       const timber = lumber(W, x - 11, z, 0), other = timber.clone();
       other.position.set(x + 11, W.heightAt(x + 11, z), z);
-      solidRect(x + 11, z, 4.1, 1.4);
       rt.scene.add(timber, other);
     }
     DA(TORAGOZEN.x, TORAGOZEN.z + 10, 30, 8, 72, Math.PI, ODA_ARMOR, 'oda', 15735);

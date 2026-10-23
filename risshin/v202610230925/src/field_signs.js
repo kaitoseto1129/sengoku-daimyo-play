@@ -24,7 +24,7 @@ function build(rt, root) {
     0,.23,.001, -.11,.14,.001, 0,.05,.001, 0,.23,.001, 0,.05,.001, .11,.14,.001];
   tri.setAttribute('position', new THREE.Float32BufferAttribute(compact ? diamond : [-.17,.28,0, .17,.28,0, 0,0,0, -.115,.245,.001, .115,.245,.001, 0,.065,.001], 3));
   const colors = [];
-  for (const color of [0x14120f, rt.def.key === 'okehazama' ? 0xff342e : 0xff634d]) {
+  for (const color of [0x14120f, rt.def.key === 'okehazama' || rt.def.key === 'moribe' ? 0xff342e : 0xff634d]) {
     const c = new THREE.Color(color);
     for (let i = 0; i < (compact ? 6 : 3); i++) colors.push(c.r, c.g, c.b);
   }
@@ -93,6 +93,7 @@ export function fieldSignsTick(rt, root) {
   // 間合い内の相手・狙う相手・すぐ近くの敵を先に示す。攻撃の判定は変えない。
   const reachableTarget = rt.player.inRange && rt.player.rangeCueTarget?.alive ? rt.player.rangeCueTarget : null;
   const missionEnemy = rt.def.missionSignTarget?.(rt) || reachableTarget ||
+    rt.hud.approachGuideEnemy || rt.hud.attackGuideEnemy || rt.hud.aimGuideEnemy ||
     (rt.player.lock?.alive ? rt.player.lock : null) || rt.missionGuide?.closeEnemy ||
     (rt.guideEnemyShown ? rt.guideEnemy : null);
   // 敵は小さな所属印へ統一し、剣や全身の枠を重ねない。
@@ -138,7 +139,7 @@ export function fieldSignsTick(rt, root) {
   const gens = s.gens; gens.length = 0;
   if (!hide) for (const u of rt.army.units) {
     // 自分が討った時だけ、同じ▼を短く縮めて消す。空振りや味方の討ち取りでは出さない。
-    const defeated = moribe && !u.alive && (u.moribeHitUntil || 0) - rt.t > 1.15;
+    const defeated = moribe && !u.alive && (u.moribeHitUntil || 0) - rt.t > 1.2;
     if ((!u.alive || u.dying || u.woundOut || u.rearWound || u.downed) && !defeated || u.gone || u.isPlayer || u.isStruct || u.civ || u.type === 'dummy' || u.type === 'porter' || u.team > 1) continue;
     const dx = u.pos.x - P.x, dz = u.pos.z - P.z, d2 = dx * dx + dz * dz;
     const foe = u.team !== me.team;
@@ -157,15 +158,21 @@ export function fieldSignsTick(rt, root) {
     // 体力の横棒だけを遠くに残さず、同じ本人の▼と揃える。
     if (inou && !near && (foe || general(u)) && !inouSignVisible(rt, u)) continue;
     if (general(u) && (u === commander && d2 < 180 * 180 || d2 < GEN_R * GEN_R || d2 < GEN_R * GEN_R * 1.3 && s.bound?.includes(u)) && !u.woundOut) { u._fsD = d2; gens.push(u); }
-    if (quietSigns && !near && (!s.nearby.includes(u) || !u._nearSignOn || u.fleeing || u.group?.routed || u.mesh?.visible === false || u.camHidden)) continue;
+    if (quietSigns && !near && (u !== focusEnemy && (!s.nearby.includes(u) || !u._nearSignOn) || u.fleeing || u.group?.routed || u.mesh?.visible === false || u.camHidden)) continue;
+    if (quietSigns && !near && u === focusEnemy) {
+      if (u._focusSignAt == null || rt.t >= u._focusSignAt || rt.t < u._focusSignAt - .2) {
+        u._focusSignSeen = sightScreenUnit(rt, u); u._focusSignAt = rt.t + .2;
+      }
+      if (!u._focusSignSeen) continue;
+    }
     // 稲生・森部は敵の赤い▼だけ。味方の丸と重ねて所属を迷わせない。
     if ((moribe || inou || rt.def.key === 'okehazama') && !foe) continue;
     // 森部は見える敵全員へ同じ▼を付ける。控えや対岸の兵も所属を変えない。
     // 見通しの上限と揃え、武将だけ印が残る距離の違いをなくす。
     const signRadius = moribe ? 170 : u === commander ? (u._fsOn ? 180 : 170) : oke && u === missionEnemy ? (u._fsOn ? 100 : 90) : (u._fsOn ? FOE_OUT : FOE_R);
     u._fsOn = near || inou || d2 < signRadius * signRadius;
-    if ((foe && u.noTarget && !moribe && !rt.def.foeMarkVisible?.(rt, u)) || !u._fsOn || (foe ? n : a) >= CAP) continue;
-    if (moribe && !near) {
+    if ((foe && u.noTarget && !moribe && !oke && !rt.def.foeMarkVisible?.(rt, u)) || !u._fsOn || (foe ? n : a) >= CAP) continue;
+    if ((moribe || oke) && !near) {
       if (u.mesh?.visible === false || u.camHidden) continue;
       // 見通しは半秒ごと。判定も入れ物も兵ごとに使い回す。
       if (u._moribeSignAt == null || rt.t < u._moribeSignAt - .5 || rt.t >= u._moribeSignAt) {
@@ -180,30 +187,38 @@ export function fieldSignsTick(rt, root) {
     // 稲生は笠を含めた高さより上へ固定する。頭の動きは追わない。
     if ((moribe || inou || oke) && !u.mounted) headPos.y = u.pos.y + Math.max(2.1, (u.bodyHeight || 1.72) + .35) + .12;
     // 森部は笠のすぐ上へ寄せる。遠い印と手前の別人が重なって見える隙間を減らす。
-    if (moribe && !u.mounted) headPos.y = u.pos.y + Math.max(2, (u.bodyHeight || 1.72) + .2);
+    if ((moribe || oke) && !u.mounted) headPos.y = u.pos.y + Math.max(2, (u.bodyHeight || 1.72) + .2);
     // 稲生・森部・桶狭間とも立ち位置の上へ固定し、構えや突きの頭の揺れを追わない。
     v.copy(headPos).applyMatrix4(cam.matrixWorldInverse);
     if (v.z >= 0) continue;
     // 森部の討つ武将は近くの兵へ乗り換えず、大きな▼を保つ。
-    const readyEnemy = (moribe || inou || oke) && rt.player.inRange ? rt.player.rangeCueTarget : null;
+    const readyEnemy = rt.player.inRange ? rt.player.rangeCueTarget : null;
     // 追う一人の▼は近づくほど大きくする。足場のピンと同じ本人を示す。
     const approach = (oke || inou) && u === missionEnemy ? Math.max(0, 1 - Math.hypot(u.pos.x - me.pos.x, u.pos.z - me.pos.z) / 30) : 0;
     // 森部は届く一人を大きくし、命中時は縦横に広げて少し保つ。
     // 討つ武将は別の大きさを保ち、任務の相手を見失わせない。
     // 稲生は追う一人を少し大きくし、届く時には幅も広げる。
-    const pixels = moribe ? (u === commander ? 26 : u === readyEnemy ? 24 : 16) :
+    // 自分へ振りかぶる本人だけ縦長にする。届く時の横幅、命中時の拡大とは形を分ける。
+    const threatening = moribe && foe && u.alive && !u.fleeing && !(u.stagger > 0) &&
+      (u.atk?.target === me && !u.atk.bow && !u.atk.gun || u.swing?.target === me && !u.swing.done);
+    const pixels = moribe ? ((u.moribeHitUntil || 0) > rt.t ? 26 : u === readyEnemy ? 26 : u === commander ? 26 : threatening ? 22 : near ? 16 : 11) :
       inou ? (u === readyEnemy ? 32 : u === missionEnemy ? 24 + 2 * approach : d2 < 20 * 20 ? 16 : 12) :
       oke ? (u === readyEnemy ? 34 : u === missionEnemy ? 26 + 6 * approach :
         (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 < 12 * 12 ? 18 : 10) :
-      foe ? 12 : 8;
+      foe ? (u === readyEnemy ? 28 : u === focusEnemy ? 22 : 12) : 8;
     // 稲生・森部・桶狭間では命を減らした相手の▼だけを一度大きくし、滑らかに戻す。
     // 頭上の先端は固定し、既存の形・材質・描画の束をそのまま使う。
     // 稲生は命中の形を少し保ってから戻す。連打の合間にも当たった本人が分かる。
-    const hit = foe && (moribe || inou || oke) ? Math.min(1, Math.max(0, ((oke ? u.okeHitUntil : inou ? u.inouHitUntil : u.moribeHitUntil) || 0) - rt.t) / 1.2) : 0;
-    const reachable = (moribe || inou || oke) && foe && rt.player.inRange && rt.player.rangeCueTarget === u;
+    const hitLeft = ((oke ? u.okeHitUntil : inou ? u.inouHitUntil : u.moribeHitUntil) || 0) - rt.t;
+    // 森部は一撃ごとに短く広がり、その後は小さく残す。続けて当てても拡大を読み取れる。
+    const hit = foe && (moribe || inou || oke) ? moribe
+      ? Math.max(Math.min(1, Math.max(0, (hitLeft - 2.05) / .35)), .3 * Math.min(1, Math.max(0, hitLeft / .6)))
+      : Math.min(1, Math.max(0, hitLeft) / 1.2) : 0;
+    const reachable = foe && u === readyEnemy;
     // 森部の命中は同じ赤い▼を大きくして示す。空振りでは変わらない。
     // 稲生は「届く＝幅広い▼」「命中＝一度だけ広がる▼」。残りの命は中の赤の面積で示す。
     const pulse = still ? (moribe || inou) && hit > 0 ? 1 : 0 : hit;
+    // 桶狭間は画面外の▼を端へ寄せない。実際の兵の頭上だけに置く。
     if (foe && !moribe && !oke) {
       // 前にいる敵の印は、近すぎても端でも画面内へ収める。印同士は重なっても残す。
       const depth = Math.max(-v.z, cam.near * 2);
@@ -231,7 +246,8 @@ export function fieldSignsTick(rt, root) {
     const okeScale = oke ? Math.min(u === missionEnemy ? 8 : 3, pixels * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) : k;
     dummy.scale.set(oke ? okeScale * (reachable ? 1.6 : 1) : moribe || inou ? k * (reachable ? 1.6 : 1) : k * (1 + .5 * pulse),
       oke || moribe || inou ? (oke ? okeScale : k) * (1 + pulse) : k, oke ? okeScale : k);
-    if (defeated) dummy.scale.multiplyScalar(Math.max(0, Math.min(1, (u.moribeHitUntil - rt.t - 1.15) / .65)));
+    if (threatening && !hit) { dummy.scale.x *= .8; dummy.scale.y *= 1.8; }
+    if (defeated) dummy.scale.multiplyScalar(Math.max(0, Math.min(1, (u.moribeHitUntil - rt.t - 1.2) / 1.2)));
     dummy.updateMatrix();
     if (foe) {
       // 瀕死でも所属の赤は残す。黒い外枠だけになって敵の印を見失わない。

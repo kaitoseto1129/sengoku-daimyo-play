@@ -205,7 +205,6 @@ export function siegeApproach(rt, pts, batch, soften = false) {
   const W = rt.world, last = pts[pts.length - 1];
   const bale = tawara(W, pts[0][0] + 4, pts[0][1], 0, 6);
   rt.scene.add(bale);
-  Object.assign(SOLIDS[SOLIDS.length - 1], { missileH: 1.3, missileType: 'earth' });
   let shieldMaterial;
   for (let i = 1; i < pts.length; i++) {
     const [x, z] = pts[i], [ax, az] = pts[i - 1];
@@ -216,7 +215,6 @@ export function siegeApproach(rt, pts, batch, soften = false) {
     if (soften) shield.material = shieldMaterial || (shieldMaterial = mikiCoverMaterial(shield.material, 'bamboo'));
     rt.scene.add(shield);
     const m = bale.clone(); m.position.set(x + 4, W.heightAt(x + 4, z + 1), z + 1); rt.scene.add(m);
-    Object.assign(solidRect(x + 4, z + 1, 1.1, 1.8), { missileH: 1.3, missileType: 'earth' });
   }
   // 後ろの竹の虎落。入口を空け、夜討ちが道の横から回り込むのを防ぐ。
   const [x, z] = pts[0], bamboo = new THREE.CylinderGeometry(1, 1, 1, 5);

@@ -116,7 +116,7 @@ function shareHumanSkeleton(h) {
   h.skeleton = sk;
   for (const [m, remap] of meshes) {
     m.geometry = remap(m.geometry);
-    if (WORLD?.def.shadowBoneOrder) m.userData.humanBoneMap = remap;
+    m.userData.humanBoneMap = remap;
     // 距離で体や胴丸の形を替える時も同じ並びにする。形と番号は全員で使い回す。
     const before = m.onBeforeRender;
     m.onBeforeRender = function (r, scene, cam, geo, mat, group) { before.call(this, r, scene, cam, geo, mat, group); this.geometry = remap(this.geometry); };

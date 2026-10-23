@@ -1578,8 +1578,6 @@ export const ArmyThink = {
       if (u.mounted) speed *= 1 - 0.4 * Math.max(0, (u.hfat || 0) - 0.15) / 0.85;
     }
     if (g.formation === 'column') speed *= 1.15;
-    // 倒れた体の上は足もとが悪い（踏み越えるのに足が鈍る）
-    if (this.corpses && this.corpses.size && !u.mounted && this.corpses.get((Math.floor(u.pos.x / 2) + 20000) * 40000 + Math.floor(u.pos.z / 2) + 20000)) speed *= 0.8;
     if (u.target && u.target.group && u.target.group.formation === 'yari' && !u.target.isStruct && u.team !== u.target.team && u.type !== 'cavalry' && this.distTo(u, u.target) < 4.5) speed *= 0.4;
     if (u.fleeing) speed = u.run * (0.9 + ((u.id * 0.377) % 1) * 0.3)
       * (1 - 0.35 * (u.fat || 0)) * (u.mounted ? 1 - 0.4 * (u.hfat || 0) : 1)

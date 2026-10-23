@@ -1,5 +1,5 @@
 import { pinGuideOn, missionTarget } from './mission_pin.js';
-import { setText, setWidth, coachCss, $, esc, keyCaps, shortTask, singleBattleGuide, rescueTarget, retreatRequired } from "./hud_common.js";
+import { setText, setWidth, coachCss, $, esc, keyCaps, shortTask, singleBattleGuide, rescueTarget, retreatRequired, attackOperation } from "./hud_common.js";
 import { currentObjective, taskText, missionCaption, missionFollowTarget } from "./mission_guide.js";
 import { isTouch } from "./touch.js";
 import { K, S } from "./settings.js";
@@ -379,7 +379,16 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     stEl.style.alignItems = following ? 'center' : '';
     // 「左へ下がる」のような向きの字は出さない（kaito 10/23）。
     const yaw = rt.player.yaw + (rt.player.camYawOff || 0), p = rt.player.u.pos;
-    const headline = missionCaption(rt, def.missionTaskFirst ? task || title : title || task);
+    let headline = missionCaption(rt, def.missionTaskFirst ? task || title : title || task);
+    // 任務の一行へ実際の攻撃操作を収める。別の札や知らせは増やさない。
+    if (/^(?:近くの|この)?敵を\s*(?:たおせ|倒せ)$/.test(headline)) {
+      const player = rt.player;
+      const enemy = (player.inRange && player.rangeCueTarget?.alive ? player.rangeCueTarget : null) ||
+        this.approachGuideEnemy || this.attackGuideEnemy || this.aimGuideEnemy ||
+        (rt.guideEnemyShown && rt.guideEnemy) || rt.missionGuide?.closeEnemy;
+      if (enemy?.alive && enemy.team !== player.u.team && sightUnit(rt, enemy))
+        headline = player.inRange ? `印の敵へ ${attackOperation(rt)}` : '印の敵へ近づこう';
+    }
     setText(stEl.lastChild, headline);
     stEl.lastChild.classList.toggle('foe-task', def.key === 'okehazama' && headline.startsWith('▼'));
     // 戦固有の案内と任務の進みは残す。同じ任務の全文は重ねない。

@@ -43,7 +43,8 @@ const START2 = { x: 40, z: 98 };
 const POINT2 = { x: 40, z: 79 };
 const FORD_R = 4;
 // 向こう岸へ上がれば渡河済み。浅瀬から横へそれても、小旗へ戻らせない。
-const atFordBank = (p) => p.z <= nireZ(p.x) - NIRE_WIDTH2;
+const atFordBank = (p, world) => p.z <= nireZ(p.x) - NIRE_WIDTH2 ||
+  p.z < nireZ(p.x) && world.waterFootDepthAt(p.x, p.z, p.y) <= .12;
 const FRONT2 = { x: 4, z: 20 };
 const ASSEMBLY2 = { x: 14, z: 10 };
 const RETREAT2 = { x: 24, z: 48 };
@@ -487,9 +488,9 @@ function moribeFord(rt) {
     pa.setY(i / 3 * 2, y); pa.setY(i / 3 * 2 + 1, y);
   }
   pa.needsUpdate = true;
-  // 杭に挟まれた渡り道だけ砂色にする。既存の川面の色を変え、描画や形は増やさない。
+  // 杭の間は明るい青緑の浅瀬。乾いた岸と色を分け、既存の川面だけを使う。
   const colors = st.mesh.geometry.attributes.color;
-  const sand = new THREE.Color(0x9b956b);
+  const sand = new THREE.Color(0x648481);
   for (let i = 0; i < pa.count; i++) {
     const k = Math.max(0, Math.min(1, (7 - Math.abs(pa.getX(i) - START2.x)) / 2));
     colors.setXYZ(i, colors.getX(i) + (sand.r - colors.getX(i)) * k,
@@ -497,7 +498,7 @@ function moribeFord(rt) {
       colors.getZ(i) + (sand.b - colors.getZ(i)) * k);
   }
   colors.needsUpdate = true;
-  // 粗い頂点の色だけでは帯がぼやける。水面自身に砂底と細かい白波を描き、杭の間を岸から岸へつなぐ。
+  // 水の色を残した明るい川底と細かい白波で、杭の間を岸から岸へつなぐ。
   const waterMat = st.mesh.material, waterCompile = waterMat.onBeforeCompile;
   const waterKey = waterMat.customProgramCacheKey();
   waterMat.onBeforeCompile = function (sh, renderer) {
@@ -507,9 +508,12 @@ function moribeFord(rt) {
       float fordBand = 1.0 - smoothstep(4.5, 6.0, fordEdge);
       float fordGrain = texture2D(tMacro, vWPw.xz * 0.9).r;
       float fordRipple = smoothstep(0.86, 0.98, sin(vWPw.z * 6.0 + fordGrain * 2.0 - uTime * 1.4));
-      vec3 fordSand = mix(vec3(0.40, 0.34, 0.21), vec3(0.64, 0.59, 0.43), fordGrain);
-      diffuseColor.rgb = mix(diffuseColor.rgb, fordSand, fordBand * 0.6);
-      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.76, 0.78, 0.66), fordRipple * fordBand * 0.45);
+      vec3 fordSand = mix(vec3(0.12, 0.27, 0.28), vec3(0.26, 0.43, 0.42), fordGrain);
+      diffuseColor.rgb = mix(diffuseColor.rgb, fordSand, fordBand * 0.85);
+      // 浅瀬も水の色を保つ。両岸の細い白波を既存の川面へ描き、終点を土と分ける。
+      float fordShore = smoothstep(7.5, 8.6, abs(vWPw.z - ${NIREMATA2.toFixed(1)}));
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.76, 0.85, 0.82),
+        max(fordRipple * 0.3, fordShore * (0.4 + fordGrain * 0.35)) * fordBand);
       #include <lights_fragment_begin>
     `);
   };
@@ -549,9 +553,8 @@ function moribeFord(rt) {
     const start = bankPos.length / 3;
     for (let i = 0; i <= 110; i++) {
       const x = -100 + i * 2, center = nireZ(x);
-      // 描画と水深調べが参照する川面は浅瀬では高さ〇・一二。
-      // 実際の地表がその高さを越える所を水際にする。
-      let edge = 0;
+      // 川面の幅より内側へ岸を描かない。浅瀬の川底が高くても川の中央に土手を作らない。
+      let edge = st.w;
       while (edge < 20 && W.heightAt(x, center + side * edge) < .14) edge += .25;
       for (let j = 0; j < 4; j++) {
         const offset = edge + j * (1.05 + .2 * Math.sin(x * .23));
@@ -1016,7 +1019,7 @@ const moribe = {
   // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は「何をするか」だけ（kaito 10/23 49・50）。段の総称で通し、向き・行き先の字は書かない。
-  missions: ['川を渡れ', '仲間を待て', '赤い▼の敵を倒せ', '仲間と耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
+  missions: ['川を渡れ', '仲間を待て', '赤い▼の敵を倒せ', '仲間と敵を迎え撃て', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
   // ピン・▼・名前は同じ本人へ。描画の間引きで相手を替えない。
   commanderTarget(rt) {
     const F = rt.flags;
@@ -1070,7 +1073,7 @@ const moribe = {
   missionHeading(rt) {
     const F = rt.flags, p = rt.player.u.pos;
     // 渡河済みのコマから待機へ替える。集合判定の更新を待たせない。
-    if (!F.signal && F.pointInside) return F.fordThreat ? '敵を倒せ' : '仲間を待て';
+    if (!F.signal && (F.pointInside || atFordBank(p, rt.world))) return F.fordThreat ? '敵を倒せ' : '仲間を待て';
     // 集まる間と、その場で耐える間を同じ一行で区別する。向き・距離は書かない。
     if (F.stage === 'assemble') {
       if (F.gatherUnit || Math.hypot(p.x - F.asm.x, p.z - F.asm.z) >= 12) return '仲間と集まれ';
@@ -1078,8 +1081,7 @@ const moribe = {
     }
     if (F.squadGuide && Math.hypot(p.x - F.squadGuide.pos.x, p.z - F.squadGuide.pos.z) >= 16 ||
         !F.signal && F.pointReached && !F.pointInside ||
-        (F.stage === 'hold' || F.stage === 'contact' && F.vBroken) &&
-        Math.hypot(rt.player.u.pos.x - F.linePoint.x, rt.player.u.pos.z - F.linePoint.z) >= 24)
+        (F.stage === 'hold' || F.stage === 'contact' && F.vBroken) && F.lineReturning)
       return '仲間と集まれ';
     if (F.stage === 'hold') return '仲間と敵を迎え撃て';
     return this.missions[this.missionOf(rt)];
@@ -1148,15 +1150,28 @@ const moribe = {
     const F = rt.flags, q = F.moribePin;
     if (!q || F.ending || rt.over) return null;
     // 人を追う印と地面の小旗を区別し、段が変わったら追う相手を消す。
-    q.unit = null;
+    q.unit = null; q.enemy = false;
     // 着いた後の足元や画面端へ、移動を促す印を残さない。
     q.waiting = false; q.arrived = false; q.progress = 0;
-    if (F.stage === 'contact' && !F.vBroken && !F.squadGuide) return null;
+    if (F.stage === 'contact' && !F.vBroken && !F.squadGuide) {
+      // 先手が脇へ外れた時だけ同じ敵へピンを置く。視点は遊び手に任せ、向いたら▼だけに戻す。
+      const p = rt.player, me = p.u.pos;
+      let target = null, best = Infinity;
+      for (const u of F.V.units) if (moribeFoeReady(u, p)) {
+        const d = (u.pos.x - me.x) ** 2 + (u.pos.z - me.z) ** 2;
+        if (d < best) { best = d; target = u; }
+      }
+      if (!target) return null;
+      const yaw = p.yaw + (p.camYawOff || 0);
+      if ((target.pos.x - me.x) * Math.sin(yaw) + (target.pos.z - me.z) * Math.cos(yaw) >= Math.sqrt(best) * .75) return null;
+      q.x = target.pos.x; q.z = target.pos.z; q.unit = target; q.enemy = true; q.r = q.hide = 0;
+      return q;
+    }
     let pos = null, r = 6, hide = 6;
     if (!F.signal) {
       if (F.pointDone) return null;
       // 岸に上がるまで一本だけ示し、渡った瞬間に消す。足元へ戻らせない。
-      if (F.pointInside) return null;
+      if (F.pointInside || atFordBank(rt.player.u.pos, rt.world)) return null;
       pos = POINT2; r = FORD_R; hide = 0;
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
@@ -1174,9 +1189,10 @@ const moribe = {
       if (!boss) return null;
       q.unit = boss; pos = boss.pos; r = hide = 6;
     } else if (F.stage === 'hold' || F.vBroken) {
+      if (!F.lineReturning) return null;
       // 守備を始めた地点に固定し、隊が動いても守る場所を動かさない。
       pos = F.linePoint;
-      r = hide = 24;
+      r = hide = 18;
       q.waiting = true;
       q.arrived = !!pos && Math.hypot(rt.player.u.pos.x - pos.x, rt.player.u.pos.z - pos.z) < r;
       // 迎撃中のピンをその場の進み具合へ替え、余計な矢印を残さない。
@@ -2098,7 +2114,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       const result = damage.call(this, t, amount, src, ...rest);
       if (src?.isPlayer && t?.team !== src.team && t.hp < hp) {
         // 命中後は少し形を保ってから戻す。乱戦でも一瞬の変化で終わらせない。
-        t.moribeHitUntil = rt.t + 1.8;
+        t.moribeHitUntil = rt.t + 2.4;
         // 命を減らした本人だけがよろめく。空振りや味方には反応を付けない。
         if (t.alive) {
           t.stagger = Math.max(t.stagger || 0, .6);
@@ -2314,8 +2330,13 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     // 渡河の到着だけはピンと同じコマで反映する。隊の見直しの一秒を待たせない。
     if (!F.signal) {
       // 一度渡った後は北岸全体を到着済みとする。小旗を通り越しても戻らせない。
-      F.pointInside = atFordBank(p);
+      F.pointInside = atFordBank(p, rt.world);
       if (F.pointInside) F.pointReached = true;
+    }
+    // 迎撃中は少し敵へ踏み込んでも集合へ戻さない。戻りの印は合流まで保つ。
+    if (F.stage === 'hold' || F.stage === 'contact' && F.vBroken) {
+      const d = Math.hypot(p.x - F.linePoint.x, p.z - F.linePoint.z);
+      F.lineReturning = d >= (F.lineReturning ? 18 : 36);
     }
     // 任務と隊の見直しは一秒ごと。毎コマ配列や行き先を作らない。
     F.taskTick -= dt;
@@ -2334,7 +2355,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       if (Math.hypot(u.pos.x - POINT2.x, u.pos.z - POINT2.z) < 16) squadAcross++;
       if (distance > trailDist) { trailDist = distance; trailing = u; }
     }
-    const atPoint = atFordBank(p);
+    const atPoint = atFordBank(p, rt.world);
     F.squadContext = !F.signal
       ? atPoint ? `自分は到着・仲間 ${squadAcross}／${squadAlive}人が到着` : `仲間 ${squadNear}／${squadAlive}人がついてくる`
       : `仲間：そばに${squadNear}／${squadAlive}人`;
@@ -2475,7 +2496,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       let together = 0;
       for (const u of rt.squad) if (u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget && !u.group?.routed && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 16) together++;
       const closeEnemy = rt.army.nearestEnemy(rt.player.u, 16, (u) => !u.fleeing && !u.woundOut && !u.noTarget);
-      const insideLine = Math.hypot(p.x - F.linePoint.x, p.z - F.linePoint.z) < 24;
+      const insideLine = !F.lineReturning;
       const lineReady = (together > 0 || squadAlive === 0) && insideLine && !gone(F.B);
       F.lineTogether = together; F.lineReady = lineReady;
       // 退く下知と、旗で待つ秒読みを同時に出さない。退避中は働きの確認も休める。

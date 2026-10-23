@@ -2709,11 +2709,6 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     // 自船と、三艘ずつ二手をなす五艘の供船（並びは推定）。船を板で繋がない。
     F.deckShip = hull(W, 0, DECK.z0, DECK.z1, 11, true); addWake(F.deckShip, 5.5, 26); rt.scene.add(F.deckShip);
     addDeck({ ...DECK, name: '大船の甲板' });
-    // 見える桶と同じ位置・幅で止める。低い縄と上甲板の通行は妨げない。
-    for (const water of WATER) {
-      const bucket = solidRect(water.x, water.z, 0.68, 0.68, 0, DECK.y + 0.75);
-      bucket.yBot = DECK.y - 0.2;
-    }
     // 屋形の床下へ兵が入り込まない。梯子で上甲板へ登った後は通せる。
     solidRect(0, 9, CABIN.x1 - CABIN.x0, CABIN.z1 - CABIN.z0, 0, YAG_Y);
     // 床下の板囲いは通れず、槍も届かない。視点だけの壁にすると、
@@ -2764,10 +2759,6 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       const m = taihou(shipMats());
       compactShip(m);   // 帯・台・支えを材質ごとに一つの形へ（一門で十二回描いていた）
       m.scale.setScalar(0.75); m.position.set(c.x - 0.8, DECK.y + 0.72, c.z);
-      // 見える台の幅と横木に合わせ、船の兵も遊び手も筒の中へ入れない。
-      // 小舟の低い床と屋形の上甲板には当てない。
-      const bed = solidRect(m.position.x + 0.225, c.z, 1.95, 0.94, 0, DECK.y + 1.2);
-      bed.yBot = DECK.y - 0.2;
       // 視点に近い台や支えも薄くする。筒だけ薄くして木の塊が残るのを防ぐ。
       // 大筒だけ専用の材質にし、他の船具へ波及させない。
       for (let i = 0; i < m.children.length; i++) {

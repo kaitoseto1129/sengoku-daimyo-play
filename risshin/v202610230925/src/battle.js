@@ -1952,8 +1952,12 @@ export class Battle {
     // 手当ての専用ボタンは、近くの門や落とし物を誤って操作しない。
     const moving = input.key('KeyW') || input.key('KeyA') || input.key('KeyS') || input.key('KeyD') ||
       !!input.axis && Math.hypot(input.axis.x, input.axis.y) > (input.touchMoving ? 0 : .18);
-    const autoTreatment = this.def.autoTreatment && this.player.treatmentReady &&
-      !moving && !input.left && !input.right && !input.key('Space');
+    const resting = !moving && !input.left && !input.right && !input.key('Space');
+    // 森部では移動の切れ目で勝手に巻き始めず、足を止めた後に手当てする。
+    if (this.def.key === 'moribe') this.player.treatmentRest = resting
+      ? (this.player.treatmentRest || 0) + dt : 0;
+    const autoTreatment = this.def.autoTreatment && this.player.treatmentReady && resting &&
+      (this.def.key !== 'moribe' || this.player.treatmentRest >= .75);
     const treatmentHeld = autoTreatment || input.key('TreatWound') || this.hud.workHoldId === 'bandage';
     let it = null;
     if (treatmentHeld) {

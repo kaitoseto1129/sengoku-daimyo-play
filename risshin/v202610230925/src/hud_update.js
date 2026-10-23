@@ -970,8 +970,9 @@ export class HudUpdate {
         guide?.marker?.entrance && guide.marker.guideDestination && !rt.nearestInteract())
       shownTaskLabel = rt.def.travelGuideLabel?.(rt) || '入口の印へ進む';
     // 距離の判定は実際の武器の間合いを使い、任務と操作を一文にする。
-    const meleeTarget = this.approachGuideEnemy || this.attackGuideEnemy ||
-      this.aimGuideEnemy || (rt.guideEnemyShown && rt.guideEnemy);
+    const meleeTarget = (p.inRange && p.rangeCueTarget?.alive ? p.rangeCueTarget : null) ||
+      this.approachGuideEnemy || this.attackGuideEnemy ||
+      this.aimGuideEnemy || (rt.guideEnemyShown && rt.guideEnemy) || guide?.closeEnemy;
     this.combatActionUnified = isTouch && meleeTarget?.alive &&
       (this.approachGuideEnemy?.alive || this.attackGuideEnemy?.alive ||
         !rt.def.keepCombatTaskHeading && !rt.def.keepTaskLabel && !rt.def.singleTaskGuide) &&
@@ -1047,10 +1048,10 @@ export class HudUpdate {
       if (!fighting && !targetingEnemy && !facingGesture) shownTaskLabel = defendText;
       else edgeGoalDetail = defendText; // 接敵中も同じ札の中で、持ち場の内外を伝える。
     }
-    if (/^(?:この)?敵を\s*たおす$/.test(shownTaskLabel) &&
+    if (/^(?:この|近くの)?敵を\s*たお[すせ]$/.test(shownTaskLabel) &&
         (meleeTarget?.alive || this.outlinedEnemy?.alive) &&
         !careSequence && !retreatRequired(rt) && !rt.dodgeGuide && !rainDanger(rt.army) && !recovering(rt))
-      shownTaskLabel = `印の敵へ ${attackOperation(rt)}`;
+      shownTaskLabel = p.inRange ? `印の敵へ ${attackOperation(rt)}` : '印の敵へ近づこう';
     // 操作の短縮や戦固有の文より後で、触る側と指の動きを一枚に示す。
     if (facingGesture && !careSequence && !retreatMoving && !retreatRequired(rt) && !rt.dodgeGuide && !recovering(rt)) {
       shownTaskLabel = aimTurning || rt.def.waitFacingTarget?.(rt)?.alive ? '敵へ向こう' :
@@ -1117,6 +1118,9 @@ export class HudUpdate {
     if (edgeGoalDetail === shownTaskLabel || routePriority) edgeGoalDetail = '';
     // 移動の歩数を畳む時も、合流に間に合うまでの残り時間は別行に残す。
     if (routePriority && taskTimeLabel) edgeGoalDetail = taskTimeLabel;
+    // 共通の旗の囲みへ、守備中の短い下知だけを渡す。
+    this.missionFlagLabel = /^(この旗を守ろう|ここを守ろう|ここで守ろう)$/.test(shownTaskLabel) ? shownTaskLabel : '';
+    this.missionFlagObjective = goalObjective;
     setClass($('objectives'), 'enemy-move-help', enemyMoveHelp && !dismountFirst(rt));
     // 操作の文と同じ一人を描画へ渡し、別の兵の印を先に出さない。
     this.moveGuideEnemy = enemyMoveHelp && !routePriority && !careSequence ? meleeTarget : null;
@@ -1316,7 +1320,9 @@ export class HudUpdate {
     setClass(this.root, 'retreat-priority', retreatRequired(rt) || !!this.retreatGuide?.active && this.retreatGuide.valid && !this.retreatGuide.treatment || rt.missionGuide?.marker?.guideArea === 'retreat');
     setClass(this.root, 'rain-danger', rainUrgent);
     // 手当てが使える時は、門や落とし物より専用の操作札を先に出す。
-    const it = u.alive ? (p.treatmentReady && rt.interacts.find(item => item.id === 'bandage')) || rt.nearestInteract() : null;
+    let it = u.alive ? (p.treatmentReady && rt.interacts.find(item => item.id === 'bandage')) || rt.nearestInteract() : null;
+    // 森部の手当ては自動。布を巻く動きと回復する命の棒で示す。
+    if (rt.def.key === 'moribe' && it?.id === 'bandage') it = null;
     const pr = $('prompt');
     const talkAction = !!it && !it.hold && /話す|話を聞く/.test(it.label);
     const talkMarker = talkAction ? rt.missionGuide?.marker : null;

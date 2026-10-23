@@ -141,6 +141,7 @@ const CAM_BLOCK_MAT = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
 const CAM_NEAR_PROJECTION = { value: new THREE.Vector2(1, 1) };
 const CAM_NEAR_FOOT = { value: 0 };
 const CAM_NEAR_SCREEN_CUT = { value: 1 };
+const CAM_NEAR_CLEAR_DEPTH = { value: 9.5 };
 const CAM_NEAR_FADE = { value: 0 }, camNearMaterials = new WeakSet();
 const camNearSources = new WeakMap();
 // 前の戦で見通しを付けた共有材質からも、処理を重ねず堂専用の材質を作る。
@@ -168,6 +169,7 @@ function camNearMaterial(m) {
     sh.uniforms.camNearProjection = CAM_NEAR_PROJECTION;
     sh.uniforms.camNearFoot = CAM_NEAR_FOOT;
     sh.uniforms.camNearScreenCut = CAM_NEAR_SCREEN_CUT;
+    sh.uniforms.camNearClearDepth = CAM_NEAR_CLEAR_DEPTH;
     // 棟を指定した材質だけ、外から見た壁を残す。通常の材質は従来どおり。
     if (roomInside) sh.uniforms.camRoomInside = roomInside;
     // 揺れる木（world.js の sway）は project_vertex を展開済みで、印が残らない。その時は gl_Position の後ろへ足す。
@@ -188,7 +190,7 @@ function camNearMaterial(m) {
     // 滑らかに薄くする材質は diffuseColor の後（color_fragment）で掛ける。clipping の所ではまだ diffuseColor が無く、三方ヶ原などで shader が組めなかった。
     const smooth = !!(m.userData.igaSmoothNear || m.userData.sgSmoothNear || m.userData.camNearSmooth);
     const fs = sh.fragmentShader, canSmooth = smooth && fs.includes('#include <clipping_planes_fragment>') && fs.includes('#include <color_fragment>');
-    sh.fragmentShader = (roomInside ? 'uniform float camRoomInside;\n' : '') + 'uniform float camNearFade;\nuniform float camNearFoot;\nuniform float camNearScreenCut;\nuniform vec2 camNearProjection;\nvarying vec3 vCamNear;\nvarying vec2 vCamSurface;\n' + fs.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+    sh.fragmentShader = (roomInside ? 'uniform float camRoomInside;\n' : '') + 'uniform float camNearFade;\nuniform float camNearFoot;\nuniform float camNearScreenCut;\nuniform float camNearClearDepth;\nuniform vec2 camNearProjection;\nvarying vec3 vCamNear;\nvarying vec2 vCamSurface;\n' + fs.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
       float camKeep = 1.0;
       if (camNearFade > 0.5${roomInside ? ' && camRoomInside > 0.5' : ''}) {
         // 目のすぐ前の面は抜き、二・四歩の外で元へ戻す。
@@ -201,12 +203,12 @@ function camNearMaterial(m) {
         float corridor = smoothstep(0.82, 0.9, max(screenNear.x, screenNear.y));
         // 横長の画面でも左右の壁だけ濃く戻らないよう、奥行きで判じる。
         // 屋根は軒の先まで抜き、手前の大きな瓦面で戦場を覆わない。
-        float farKeep = smoothstep(${roof ? '16.0, 24.0' : '7.0, 12.0'}, max(0.0, -vCamNear.z));
+        float farKeep = smoothstep(${roof ? '16.0, 24.0' : 'camNearClearDepth - 2.5, camNearClearDepth + 2.5'}, max(0.0, -vCamNear.z));
         // 狭い城内では画面の長方形で梁を切らず、目の前の面だけ距離で避ける。
         if (camNearScreenCut > 0.5) camKeep = min(camKeep, max(corridor, farKeep));
         // 床は残し、手前の柱・梁だけを避ける。
         // 床は世界の高さと上向きの面で見分ける。視点の高さで壁を輪切りにすると白壁や黒い腰板が足元へ残る。
-        bool groundSurface = vCamSurface.x <= camNearFoot + 0.35 && vCamSurface.y > 0.45;
+        bool groundSurface = gl_FrontFacing && vCamSurface.x <= camNearFoot + 0.35 && vCamSurface.y > 0.45;
         // 不透明な材質にも見通しの処理を適用する。材質の追加や深度の変更は要らない。
         if (groundSurface) camKeep = 1.0;
         ${smooth ? '' : 'if (!groundSurface && camKeep < 0.5) discard;'}
@@ -4169,6 +4171,7 @@ export class Player {
     //   カメラが物に埋まる時は clearDrawBuildings・camBlock の線で手前へ寄せる。戦の定義が nearFade: true の時だけ元のまま。
     CAM_NEAR_FADE.value = on && this.rt.def.nearFade === true && cam === this.rt.camera && !(this.rt.game && this.rt.game.photo) ? 1 : 0;
     CAM_NEAR_SCREEN_CUT.value = this.rt.def.nearSceneryScreenCut === false ? 0 : 1;
+    CAM_NEAR_CLEAR_DEPTH.value = this.rt.def.nearSceneryClearDepth ?? 9.5;
     CAM_NEAR_FOOT.value = this.u.pos.y;
     if (CAM_NEAR_FADE.value) CAM_NEAR_PROJECTION.value.set(cam.projectionMatrix.elements[0], cam.projectionMatrix.elements[5]);
     if (!on) {
