@@ -498,19 +498,6 @@ export class HudNavigation {
     if (!rt.def.town && !rt.def.dojo && rt.player.u.alive &&
         !rt.over && !rt.choice && !rt.player.camShot && !this.bigmap && rt.player.fpK <= .5) {
       const p = rt.player.u.pos;
-      const frame = this.measurePersonFrame(rt.player.u, rt);
-      if (frame && frame.bottom > 0 && frame.top < VIEW.h && frame.cx >= 0 && frame.cx <= VIEW.w) {
-        // 既存の骨に沿った輪郭を自分にも使い、煙と乱戦の中でも姿をたどれるようにする。
-        this.drawEnemyContour(g, rt, rt.player.u, frame);
-        const x = frame.cx, y = frame.headY - 12;
-        if (y >= 16 && y < VIEW.h - 16) {
-          g.save(); g.beginPath();
-          g.moveTo(x - 6, y - 6); g.lineTo(x + 6, y - 6); g.lineTo(x, y + 3); g.closePath();
-          g.strokeStyle = '#14120f'; g.lineWidth = 5; g.stroke();
-          g.fillStyle = '#fff'; g.fill(); g.restore();
-          footDrawn = true;
-        }
-      }
       const foot = this.project(p, p.y + .12, rt,
         this.playerSignFoot || (this.playerSignFoot = {}));
       if (!foot.behind && foot.x >= 32 && foot.x <= VIEW.w - 32 && foot.y >= 64 &&

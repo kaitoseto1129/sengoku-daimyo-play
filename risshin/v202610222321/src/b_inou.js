@@ -157,7 +157,7 @@ const inou = {
   missionPinCaption: '',
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.training === 1 && rt.flags.chase ? 'chase' : rt.flags.step === 0 ? rt.flags.training <= 0 ? 'genpachi' : null : 'holdFlag',
   // ミッション（kaito 10/23 稲生 1）。右の札に「ミッション 2／4　林の手を崩す」。林美作守を討ち取れば勝ちへ向かう。
-  missions: ['林の兵を追う', '林の部隊を崩す', '柴田隊を受け止める', '林美作守を討ち取る'],
+  missions: ['赤い▼の林の兵に近づく', '林の部隊を崩す', '柴田隊を受け止める', '林美作守を討ち取る'],
   missionOf: (rt) => { const F = rt.flags; return F.step === 0 ? (F.training <= 1 && !F.caught ? 0 : 1) : F.step === 1 ? 2 : 3; },
   minutes: 9,
   // 初陣の操作は日本語のキー名が長くても省かない。見出しに距離、次の一行に操作を出す。
@@ -177,6 +177,16 @@ const inou = {
     return null;
   },
   missionStatusFirst: true,
+  missionDetail(rt) {
+    const F = rt.flags;
+    if (F.step === 0 && F.chase && F.practice) {
+      const c = F.practice.center(), p = rt.player.u.pos;
+      const left = Math.max(0, Math.ceil(Math.hypot(c.x - p.x, c.z - p.z) - 7));
+      return `金の矢印へ進む・あと${left}メートルで追いつく`;
+    }
+    if (F.step === 0 && F.caught && F.training === 1) return `赤い▼の兵を突く・残り${F.practice.count}人`;
+    return rt.teachOn?.() ? this.missionStatus(rt) : '';
+  },
   missionStatus: (rt) => {
     const F = rt.flags;
     if (F.step === 0 && F.training === 0 && F.lesson === 'move') {
@@ -419,7 +429,7 @@ const inou = {
       // 林兵三人と味方二人の小さな群れ。自分の前で、ゆっくり北へ退く。追いつくと味方は抜け、林兵だけが残る。
       rt.setPhase('march');
       rt.obj('main', '金の矢印の方へ走ろう', 'main');
-      rt.say('組頭 源八', '金の矢印の方へ走れ！ 地面のピンまで行くぞ。', 4);
+      rt.say('組頭 源八', '赤い▼が林の兵だ。金の矢印を追え！', 4);
       const p = rt.player.u.pos;
       const at = { x: p.x + 2, z: p.z - 14 };
       const g = enemyGroup(rt, { faction: 'nobukatsu', name: '林の遅れ兵', anchor: { ...at }, facing: Math.PI, width: 3, aggro: 0, noAI: true, noRout: true, order: 'move', dmgMult: 0.25, focus: rt.player.u },

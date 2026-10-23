@@ -226,7 +226,7 @@ export class HudUpdate {
       this.notices.sources[3].born = this.notices.clock;
     } else if (this.subT <= 0) setHtml($('subtitle'), '');
     // ゲージ
-    setHtml($('h-who'), `${esc(G.name)}<small>${esc(rt.def.key === 'okehazama' ? rankLabel(G).replace(/足軽/g, 'あしがる（歩いて戦う兵）').replace(/侍大将/g, 'さむらいだいしょう（兵をまとめる武将）') : rankLabel(G))}</small>`);
+    setHtml($('h-who'), `${esc(rt.def.key === 'moribe' && G.name === '弥五郎' ? '弥五郎（やごろう）' : G.name)}<small>${esc((rt.def.key === 'okehazama' || rt.def.key === 'moribe') ? rankLabel(G).replace(/足軽/g, 'あしがる（歩いて戦う兵）').replace(/侍大将/g, 'さむらいだいしょう（兵をまとめる武将）') : rankLabel(G))}</small>`);
     const hpEl = $('h-hp');
     const hpPct = Math.max(0, Math.min(100, u.hp / u.maxHp * 100));
     const fallen = !u.alive || u.hp <= 0;
@@ -309,8 +309,8 @@ export class HudUpdate {
     const mor = rt.squadGroups.length ? moraleSum / rt.squadGroups.length : rt.hostGroup ? Math.max(0, rt.hostGroup.morale) : 100;
     const morEl = $('h-mor');
     setWidth(morEl.querySelector('b'), mor);
-    setText(morEl.querySelector('span'), rt.def.key === 'okehazama' ? 'やる気' : '士気');
-    setText(morEl.querySelector('em'), rt.def.key === 'okehazama' ? mor >= 75 ? 'やる気十分' : mor >= 50 ? '落ち着いている' : mor >= 30 ? 'こわがっている' : '逃げ出しそう' : moraleWord(mor));
+    setText(morEl.querySelector('span'), (rt.def.key === 'okehazama' || rt.def.key === 'moribe') ? 'やる気' : '士気');
+    setText(morEl.querySelector('em'), (rt.def.key === 'okehazama' || rt.def.key === 'moribe') ? mor >= 75 ? 'やる気十分' : mor >= 50 ? '落ち着いている' : mor >= 30 ? 'こわがっている' : '逃げ出しそう' : moraleWord(mor));
     setClass(morEl, 'low', mor < 40);
     if (mor < 40 && !this.moraleHelp && !rt.over) { this.moraleHelp = true; this.notices.push('組が動揺している。号令が届いても動きが鈍ることがある', 85, 5); }
     // 馬の体力と息（馬に乗れる身分から）
@@ -1482,11 +1482,11 @@ export class HudUpdate {
       const text = `${fenceBlocked ? '<strong>柵を倒して通る</strong>' : ''}${isTouch ? entry ? '' : '「使う」' : `<kbd>${pad ? 'X' : K('use')}</kbd>`}${esc(it.label)}${it.hold ? `<small>（${fenceBlocked ? `長押し・あと${Math.max(1, Math.ceil(it.hold * (1 - hp)))}秒` : '長押し'}）</small><i class="holdbar"><b style="width:${Math.round(hp * 100)}%"></b></i>` : ''}`;
       if (workAction) {
         const fire = fireWork;
-        const label = bandageAction ? 'きずを手当て' : fire ? 'ここを長押しで火をつける' : it.label.replace(/（[^）]*）/g, '');
+        const label = bandageAction ? 'ここを長押しで手当て' : fire ? 'ここを長押しで火をつける' : it.label.replace(/（[^）]*）/g, '');
         const key = it.id + '|' + label + '|' + !!doorWork;
         if (this.workPromptKey !== key || !pr.querySelector('[data-work]')) {
           this.workHoldId = null; this.workPromptKey = key;
-          setHtml(pr, `<button type="button" data-work="${esc(it.id)}"${fire ? ' class="fire-work"' : ''} aria-label="${esc(fire ? label : '長押しで' + label)}">${doorWork ? '<svg viewBox="0 0 36 44" aria-hidden="true"><path d="M4 42V2H32V42ZM9 38H27V7H9Z" fill="#fff3ba" stroke="#14120f" stroke-width="2"/><path d="M23 23V28" stroke="#fff3ba" stroke-width="3"/></svg>' : fire ? '<svg viewBox="-18 -36 36 44" aria-hidden="true"><path d="M0-32C3-20 16-18 14-7C12 7-14 7-14-7C-14-16-6-20-7-25L-3-20Z" fill="#fff3ba" stroke="#14120f" stroke-width="6" stroke-linejoin="round"/><path d="M0-13Q9 0 0 0Q-7 0 0-13" fill="#14120f"/></svg>' : ''}<span>${esc(label)}</span><small>長押し</small><i class="holdbar" role="progressbar" aria-label="作業の進み具合" aria-valuemin="0" aria-valuemax="100"><b></b></i></button>`);
+          setHtml(pr, `<button type="button" data-work="${esc(it.id)}"${fire ? ' class="fire-work"' : ''} aria-label="${esc(fire || bandageAction ? label : '長押しで' + label)}">${doorWork ? '<svg viewBox="0 0 36 44" aria-hidden="true"><path d="M4 42V2H32V42ZM9 38H27V7H9Z" fill="#fff3ba" stroke="#14120f" stroke-width="2"/><path d="M23 23V28" stroke="#fff3ba" stroke-width="3"/></svg>' : fire ? '<svg viewBox="-18 -36 36 44" aria-hidden="true"><path d="M0-32C3-20 16-18 14-7C12 7-14 7-14-7C-14-16-6-20-7-25L-3-20Z" fill="#fff3ba" stroke="#14120f" stroke-width="6" stroke-linejoin="round"/><path d="M0-13Q9 0 0 0Q-7 0 0-13" fill="#14120f"/></svg>' : ''}<span>${esc(label)}</span><small>長押し</small><i class="holdbar" role="progressbar" aria-label="作業の進み具合" aria-valuemin="0" aria-valuemax="100"><b></b></i></button>`);
         }
         const progress = Math.round(hp * 100);
         setStyle(pr.querySelector('.holdbar b'), 'width', `${progress}%`);
@@ -1494,7 +1494,7 @@ export class HudUpdate {
         const bar = pr.querySelector('.holdbar');
         if (bar.getAttribute('aria-valuenow') !== String(progress)) bar.setAttribute('aria-valuenow', progress);
         setClass(pr.querySelector('[data-work]'), 'holding', hp > 0);
-        setText(pr.querySelector('small'), fire ? '' : bandageAction ? hp > 0 ? `あと${Math.max(1, Math.ceil(it.hold * (1 - hp)))}秒` : '三秒 長く押す' : hp > 0 ? `${progress}％` : '長押し');
+        setText(pr.querySelector('small'), fire ? '' : bandageAction ? hp > 0 ? `手当て中・あと${Math.max(1, Math.ceil(it.hold * (1 - hp)))}秒` : `ここを${it.hold}秒押し続ける` : hp > 0 ? `${progress}％` : '長押し');
       } else { this.workPromptKey = ''; setHtml(pr, talkAction ? talkTarget ? `<button type="button" data-talk aria-label="話す"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M4 3H44V31H29L21 44L18 31H4Z" fill="#fff3ba" stroke="#14120f" stroke-width="4"/><path d="M12 12H36M12 22H30" stroke="#14120f" stroke-width="3"/></svg><span class="talk-label">話す<strong>ここをおす</strong></span></button>` : '<button type="button" data-talk><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M4 3H44V31H29L21 44L18 31H4Z" fill="#fff3ba" stroke="#14120f" stroke-width="4"/><path d="M12 12H36M12 22H30" stroke="#14120f" stroke-width="3"/></svg>話す</button>' : entry ? `<button type="button" data-entry="${esc(it.id)}">${text}</button>` : text); }
     } else { this.workPromptKey = ''; setHidden(pr, true); }
     if (doorWork && this.workHoldId !== it.id && rt.holdId !== it.id) {

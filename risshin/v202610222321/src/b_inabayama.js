@@ -10,7 +10,7 @@ import { battleJin, buildBattleJin } from './b_jinkei_g1.js';
 // ======================================================================
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { kitFence, paintGeo, WOOD_MAT } from './props.js';
+import { kitFence, paintGeo, WOOD_MAT, SOLIDS } from './props.js';
 import { nobori, hut, dou, kabukimon, yagura, tawara, campfire, palisade, village, ishigaki, sakamogi, kagaribi, dorui, dobei, kuruwaBldg, makeKitBatch, finalizeKitBatch, makeSimpleBatch, finalizeSimpleBatch, solidSeg, carryTorches } from './props.js';
 import { flagTexture } from './textures.js';
 import { stoneTex, barkTex, dirtTex, mudTex, leafTex } from './nature.js';
@@ -364,21 +364,165 @@ const townWay = makeTownWay(HOUSES);
 // https://www.city.gifu.lg.jp/kankoubunka/kankou/1013050/1005149/1017450/1017461/1020354.html
 const TERA = { x: -58, z: 50 };
 const civilRoute = (pts) => pts.map(([x, z]) => ({ x, z }));
+// 村の戸口から外縁へ、隣家の軒を横切らない生活道を設営時だけ求める。
+// 家の角を結ぶ最短路。避難中の形・材質や毎コマの探索は増やさない。
+function villageCivilWay(world, homes, door, edge, south, onward, army, burnHome) {
+  const boxes = homes.map((h) => ({ x0: h.x0 - 2, x1: h.x1 + 2, z0: h.z0 - 2, z1: h.z1 + 2 }));
+  // 後から延焼する家も先に避ける。火が上がってから生活道が塞がるのを防ぐ。
+  const fires = (world.fires || []).filter((f) => f.lit !== false && f.size >= 1);
+  if (burnHome) {
+    fires.push(burnHome);
+    edge = edge > burnHome.x ? Math.max(edge, burnHome.x + 11) : Math.min(edge, burnHome.x - 11);
+    south = Math.max(south, burnHome.z + 11);
+  }
+  // 外縁へ出てから家並みの南を回る。目印を候補に混ぜるだけでは、
+  // 最短路がそれらを省き、家の間や軍の通る中央へ戻ってしまう。
+  // 外側の生活道を順に通り、川を渡らない南の退き口まで検査する。
+  const nodes = [{ x: door.x, z: door.z }, { x: edge, z: door.z },
+    { x: edge, z: south }, ...onward.map(([x, z]) => ({ x, z }))];
+  const stops = nodes.length;
+  for (const b of boxes) for (const x of [b.x0, b.x1]) for (const z of [b.z0, b.z1]) nodes.push({ x, z });
+  // 道端の焚き火も家と同じく迂回する。避難中と同じ十歩を空ける。
+  for (const f of fires) for (const dx of [-11, 11]) for (const dz of [-11, 11]) nodes.push({ x: f.x + dx, z: f.z + dz });
+  const clear = (a, b) => {
+    // 戸口では通れても、道の先で柵に突き当たる経路を作らない。
+    if (army.wallBetween(a, 0, b) || army.wallBetween(a, 1, b)) return false;
+    for (const box of boxes) {
+      let enter = 0, leave = 1;
+      // 角に沿う線は通し、矩形の内側へ入る線だけを止める。
+      for (const axis of ['x', 'z']) {
+        const delta = b[axis] - a[axis], lo = box[`${axis}0`] + 0.001, hi = box[`${axis}1`] - 0.001;
+        if (Math.abs(delta) < 0.00001) {
+          if (a[axis] <= lo || a[axis] >= hi) { leave = -1; break; }
+        } else {
+          const t0 = (lo - a[axis]) / delta, t1 = (hi - a[axis]) / delta;
+          enter = Math.max(enter, Math.min(t0, t1)); leave = Math.min(leave, Math.max(t0, t1));
+        }
+      }
+      if (enter < leave) return false;
+    }
+    // 実際の避難と同じ間隔で水・斜面・段差を見る。家だけを避けた直線で
+    // 川岸や急な斜面へ案内しない。探索は村を置く時の一度だけ。
+    const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.6));
+    let last = world.heightAt(a.x, a.z);
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps, x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t;
+      if (Math.abs(x) > 174 || Math.abs(z) > 174) return false;
+      if (!world.walkable(x, z) || world.inWaterAt(x, z)) return false;
+      for (const f of fires) if (Math.hypot(x - f.x, z - f.z) < 10) {
+        // 火元の家の戸口だけは、実際の避難と同じく離れ続ける向きへ出られる。
+        if (Math.hypot(a.x - f.x, a.z - f.z) >= 10
+          || (a.x - f.x) * (b.x - a.x) + (a.z - f.z) * (b.z - a.z) < 0) return false;
+      }
+      // 村の家だけでなく、接続先の町家・塀・寺の当たりも避ける。
+      for (const s of SOLIDS) if (x > s.x0 - 0.3 && x < s.x1 + 0.3 && z > s.z0 - 0.3 && z < s.z1 + 0.3) return false;
+      const y = world.heightAt(x, z);
+      if (Math.abs(y - last) > 0.45) return false;
+      last = y;
+    }
+    return true;
+  };
+  const dist = nodes.map(() => Infinity), prev = nodes.map(() => -1), done = nodes.map(() => false);
+  // 区間で共用する通行結果。設営時の地形・家・火は変わらない。
+  const links = new Int8Array(nodes.length * nodes.length), route = [];
+  for (let goal = 1; goal < stops; goal++) {
+    const start = goal - 1;
+    dist.fill(Infinity); prev.fill(-1); done.fill(false); dist[start] = 0;
+    for (let n = 0; n < nodes.length; n++) {
+      let at = -1;
+      for (let i = 0; i < nodes.length; i++) if (!done[i] && Number.isFinite(dist[i]) && (at < 0 || dist[i] < dist[at])) at = i;
+      if (at < 0 || at === goal) break;
+      done[at] = true;
+      for (let i = 0; i < nodes.length; i++) {
+        // ほかの区間の目印へ先回りしない。家の角は迂回に使える。
+        if (done[i] || i < stops && i !== goal) continue;
+        const d = dist[at] + Math.hypot(nodes[i].x - nodes[at].x, nodes[i].z - nodes[at].z);
+        if (d >= dist[i]) continue;
+        const key = at * nodes.length + i;
+        if (!links[key]) {
+          const pass = clear(nodes[at], nodes[i]) ? 1 : -1;
+          // 火元から出る道と火元へ戻る道は通行の可否が違う。
+          links[key] = pass;
+        }
+        if (links[key] < 0) continue;
+        dist[i] = d; prev[i] = at;
+      }
+    }
+    if (!Number.isFinite(dist[goal])) return null;
+    const leg = [];
+    for (let i = goal; i !== start; i = prev[i]) leg.push([nodes[i].x, nodes[i].z]);
+    route.push(...leg.reverse());
+  }
+  return route;
+}
 // 西の川を渡らず東岸を南へ。東の町人は瑞龍寺山の本陣へ登らず、町の外へ抜ける。
 const CIVIL_WEST = [[-88, 110], [-90, 142], [-88, 172]];
+// 東側も町と南の里の外縁を通る。位置は圧縮地形への推定で、史実の避難路とはしない。
+const CIVIL_EAST = [[124, 112], [124, 150], [110, 172]];
+// 通常は民家の南面。南を隣家が塞ぐ家は東の脇へ出し、家族が軒の当たりに入らない所へ置く。
+// 町や寺の位置と同じく、戸口と退き道の細部は遊びのための推定。
+const civilDoor = (i, side = 0) => {
+  const [x, z, rot] = HOUSES[i];
+  return { x: x + Math.sin(rot + side) * 8, z: z + Math.cos(rot + side) * 8 };
+};
 const CIVILIAN_BANDS = [
-  { x: -62, z: 95, kinds: ['townsman', 'merchant', 'woman', 'child', 'elder'],
+  { x: -62, z: 95, watchAt: { x: -18, z: 70 }, kinds: ['townsman', 'merchant', 'woman', 'child'],
     route: civilRoute([[-78, 100], ...CIVIL_WEST]) },
   // 南西の遠景の里の脇。織田勢の列と家並みから離れて見物する。
-  { x: -64, z: 132, kinds: ['farmer', 'farmer', 'woman', 'child', 'elder'],
+  // 女と子は村の戸口に残し、兵や火が迫った時に家から逃がす。
+  { x: -64, z: 132, watchAt: { x: -4, z: 86 }, kinds: ['farmer'],
     route: civilRoute([[-80, 146], [-88, 172]]) },
-  { x: TERA.x - 2, z: TERA.z + 12, kinds: ['monk', 'monk', 'merchant', 'woman'],
-    route: civilRoute([[-80, 80], ...CIVIL_WEST]) },
+  // 八十、六十の佐久間勢は、軽い大軍の列の外縁まで避けて見物する。
+  // 逃げる時も備へ戻らず、南の篝火（六十、百二十付近）と里の家並みを東へ避ける。
+  { x: 124, z: 78, watchAt: { x: 34, z: 66 }, kinds: ['townsman', 'merchant', 'woman', 'child'],
+    route: civilRoute([[132, 96], ...CIVIL_EAST]) },
+  // 南東の里（四十、百四十二）の畑の外。軍の通る中央へ戻らず、家並みの東を南へ逃げる。
+  { x: 84, z: 150, watchAt: { x: 44, z: 78 }, kinds: ['farmer', 'elder'],
+    route: civilRoute([[96, 156], [110, 172]]) },
+  // 寺の正面は北の美濃三人衆に近い。備の幅も避けて南西の道端で見物し、川の東岸を南へ逃げる。
+  { x: TERA.x - 30, z: TERA.z + 44, watchAt: { x: -18, z: 70 }, kinds: ['monk', 'monk'],
+    route: civilRoute([[-94, 96], ...CIVIL_WEST]) },
+  // 堂に残る僧と里の者。南の戸口から出て、北の備・東の町の乱戦を避けて川沿いへ退く。
+  // 堂の当たり（奥行きに縁側を含めて九・四）より外に置く。避難路は地形に合わせた推定。
+  { x: TERA.x, z: TERA.z + 7, mode: 'inside', kinds: ['monk', 'woman', 'elder'],
+    route: civilRoute([[-58, 70], [-62, 95], [-78, 100], ...CIVIL_WEST]) },
   // 戸口にいる者は、兵や火が近づくまで家に籠もる。
-  { x: -22, z: 76, mode: 'inside', kinds: ['townsman', 'woman', 'child', 'elder'],
-    route: civilRoute([[-38, 78], [-62, 96], ...CIVIL_WEST]) },
-  { x: 44, z: 59, mode: 'inside', kinds: ['merchant', 'townsman', 'woman', 'child'],
-    route: civilRoute([[62, 60], [82, 80], [96, 120], [110, 172]]) },
+  // 火付け候補の五軒すべてに住人を置く。既存の共用描画と四十四人の上限内で扱う。
+  { ...civilDoor(0), mode: 'inside', kinds: ['woman', 'child'],
+    // 西へ抜けると南隣の家の火から六歩まで寄る。家の東を回り、南東の退き口へ。
+    route: civilRoute([[38, 96], [54, 98], [84, 98], [112, 98], [132, 96], ...CIVIL_EAST]) },
+  { ...civilDoor(1), mode: 'inside', kinds: ['merchant', 'elder'],
+    // 西隣と南隣の家の間を抜け、南北の軍の往来を外れる。
+    // 南の家（負四、八十六）の延焼からも十歩を空けて路地へ出る。
+    route: civilRoute([[-8, 76], [-22, 84], [-22, 104], [-62, 110], ...CIVIL_WEST]) },
+  { ...civilDoor(3), mode: 'inside', kinds: ['townsman', 'woman'],
+    // 大手へ戻らず、寺の南と西の乱戦の外をたどる。
+    route: civilRoute([[-24, 54], [-44, 62], [-48, 90], [-62, 110], ...CIVIL_WEST]) },
+  { ...civilDoor(4), mode: 'inside', kinds: ['woman', 'child'],
+    // 東の乱戦の南へ退き、二つの焚き火より北を回って町の東へ。
+    route: civilRoute([[54, 98], [84, 98], [112, 98], [132, 96], ...CIVIL_EAST]) },
+  { ...civilDoor(5), mode: 'inside', kinds: ['townsman', 'woman', 'child', 'elder'],
+    // 西の町外れの乱戦へ入らず、家の南から川の東岸へ回る。
+    route: civilRoute([[-22, 84], [-22, 104], [-62, 110], ...CIVIL_WEST]) },
+  { ...civilDoor(2), mode: 'inside', kinds: ['merchant', 'townsman', 'woman', 'child'],
+    // 北の六十二、二十八には包囲後も乱戦が残る。麓へ戻らず、町の東脇を南へ退く。
+    // 四十四、七十八の家の火から十歩以上離れ、既存の南の脇道へ合流する推定の退き道。
+    // 火元の戸口から北東へ切り返さず、まず東へ離れてから南へ向く。
+    route: civilRoute([[54, 64], [56, 98], [84, 98], [112, 98], [132, 96], ...CIVIL_EAST]) },
+  // 南端の二軒にも家の者を残す。見物人の二人分を振り替え、全体は四十四人以内。
+  // 町の中央にいる藤吉郎の手へ寄らず、西へ抜けて里の家並みの外を南下する。
+  { ...civilDoor(8), mode: 'inside', kinds: ['woman', 'child'],
+    route: civilRoute([[-14, 98], [-22, 104], [-62, 110], ...CIVIL_WEST]) },
+  { ...civilDoor(9), mode: 'inside', kinds: ['merchant', 'elder'],
+    route: civilRoute([[-8, 112], [-22, 114], [-62, 110], ...CIVIL_WEST]) },
+  // 見物の四人を北端の二軒へ振り分け、民の総数は四十四人のまま。十軒とも住人を残す。
+  { ...civilDoor(6), mode: 'inside', kinds: ['woman', 'child'],
+    // 大手の坂へ登らず、西隣の家と南の家の間を通って寺の南へ抜ける。
+    // 負十八、七十の家が燃えても、北を回ってから西の脇へ出られる道幅を残す。
+    route: civilRoute([[8, 50], [-18, 58], [-32, 56], [-34, 74], [-48, 90], [-62, 110], ...CIVIL_WEST]) },
+  { ...civilDoor(7, Math.PI / 2), mode: 'inside', kinds: ['townsman', 'elder'],
+    // 南面は三十八、五十四の家が塞ぐため東の脇から出る。年寄りを麓の乱戦へ戻さない。
+    route: civilRoute([[54, 56], [56, 98], [84, 98], [112, 98], [132, 96], ...CIVIL_EAST]) },
 ];
 const MINE = 5;
 const NEED = 3;                            // 自分で火を放つ数
@@ -2390,7 +2534,87 @@ function buildKaraTrail(rt) {
 const inabayama = {
   jinkei: INABAYAMA_JIN,
   // 民は描画専用。兵の名簿・人数・当たり・戦功には入れない（war_people.js）。
-  civilianCrowd: { bounds: { minX: -176, maxX: 176, minZ: -176, maxZ: 176 }, bands: CIVILIAN_BANDS },
+  civilianCrowd: {
+    bounds: { minX: -176, maxX: 176, minZ: -176, maxZ: 176 }, bands: CIVILIAN_BANDS,
+    // 決着後の終幕でも町の火は残る。家に残る者の警戒と南への避難を続ける。
+    evacuateAfterBattle: true,
+    // 家や踏み跡と同じ描画面へ足を据える。通行・兵の警戒に使う地形は保つ。
+    drawHeight: drawGroundAt,
+    // 山上の守備兵の平均位置ではなく、それぞれの町外れから井口の騒ぎを見る。
+    // 近景も七人の使い回しのまま、町人・商人・年寄りを百姓の姿で代用しない。
+    nearKinds: ['farmer', 'townsman', 'merchant', 'woman', 'child', 'monk', 'elder'],
+    // 同じ身分の近景が使用中なら共用の軽い姿を保つ。空いた百姓の姿へ着替えさせない。
+    strictNearKinds: true,
+    // 列が見物場所へ張り出した時は、川の東岸・里の脇へ続く退き道の手前で見物する。
+    // 水や家を横切らず、元の場所から二十四歩以内。民の上限は増やさない。
+    watchPlacementDistance: 24,
+    // 寺や町外れの最初の角が兵に近ければ、その先の道端まで探す。
+    // 見物を始めた角から南へ逃がし、通過済みの角へ引き返させない。
+    followWatchEscape: true,
+    // 見物の立ち位置から退き道の次の角まで、水や家を横切らずに出られること。
+    checkWatchEscape: true,
+    // 立つ所だけでなく、最初の角まで兵の列を横切らず退ける道端で見物する。
+    checkWatchEscapeSoldiers: true,
+    // 交戦中の兵や大火の警戒も逃走時と揃え、初めは安全な道端から見物する。
+    checkWatchDanger: true,
+    // 町・寺・村の戸口も最初の角へ出られる位置にする。家の脇から六歩以内で探す。
+    // 女・子・年寄りが配置の散らばりで軒の反対側へ回り、逃げ出せなくなるのを防ぐ。
+    doorPlacementDistance: 6, checkDoorEscape: true,
+    avoidLightArmies: true, avoidClashes: true, scanIndividuals: true,
+    // 頭上の曲輪や別の尾根の兵を、麓の路地にいる兵として扱わない。
+    // 八歩以内の高さにいる兵は従来どおり警戒する。地形を縮めた遊び上の目安。
+    soldierHeightClearance: 8,
+    // 主人公の刀・槍だけでなく、弓を引く姿や鉄砲の発射も町・寺・里の者が警戒する。
+    watchPlayerCombat: true,
+    // 兵の短い発砲も見落とさず、撃った直後に的を失っても民は遠巻きに退く。
+    rememberSoldierCombat: true,
+    // 南へ逃げる途中も、進んでくる兵・乱戦や新しい火で路地が塞がれたら一歩を選び直す。
+    recheckEscapeStep: true,
+    // 兵が去り火も落ちた路地では、古い危険を避け続けず南の退き道をたどる。
+    followRouteWhenCalm: true,
+    // 曲がった路地で退く向きが塞がれた時だけ、安全な脇道も探す。
+    // 兵・火・水・家の通行判定は保ち、危険からの距離だけで戸口に閉じ込めない。
+    allowSafeRouteDetour: true,
+    // 延焼や兵で生活道の角が塞がれたら、通れる次の道へ手前から回り込む。
+    // 寺・町・里の南への退き道は保ち、家や川を横切る近道は選ばない。
+    bypassUnsafeRouteCorner: true,
+    // 民家の大火だけでなく、道端の焚き火も避ける。兵の手の松明は兵との距離で避ける。
+    fireSize: 1,
+    // 逃げる先の判定と歩行中の見直しで、すべての火から同じ十歩を空ける。
+    // 一番近い火だけを見て、隣の燃える家や焚き火へ逃げ込ませない。
+    fireClearance: 10,
+    // 強風の日の町の大火は遠巻きの民や南の里にも見えるとする推定。
+    // 南の里の見物人は町から八十〜百三十歩ほど離れる。延焼を待たず、大火を見て退く。
+    // 小さな焚き火で里全体を逃がさず、退く一歩の安全判定は近い火だけを見る。
+    fireAlarm: { size: 2, radius: 140 },
+    // 路地を逃げる隣人の声が近くの戸口にも届く。距離は遊び上の推定。
+    // 町・寺・里の者は兵を直に見るまで待たず、指定済みの南の道へ退く。
+    neighborAlarmRadius: 18,
+    // 大火から退く途中は、見物をやめた時と同じ範囲で家族の待ち止まりを避ける。
+    waitFireAlarm: true,
+    // 家や寺の戸口へ兵が迫っても、既存の南への避難路へ退けるようにする。
+    retreatFromSoldiers: true,
+    // 町外れや川沿いで兵・火を迂回したら、越えた角へ戻らず南の退き道を続ける。
+    passRouteCorners: true,
+    // 路地の角を省く前に次の目印まで通れるかを見る。先の家・塀へ向けて角を捨てない。
+    // 次の路地を見通せない時は、町・寺・村の角まで歩幅を詰めてから曲がる。
+    checkFullEscapeCorner: true,
+    // 川の東岸・南の町外れも、兵や火が迫る間は退避済みにしない。
+    safeRouteExit: true,
+    // 南の退き口が塞がれた時は、同じ南端の近い脇へ退く。川を渡る道や
+    // 里の家・急斜面を横切る道は共通の通行判定で除く。避難口の幅は推定。
+    routeExitOffsets: [16, -16, 32, -32, 48, -48],
+    // 退き口までの道に兵や火が入った時も、家族全員が歩ける別の退き口を選ぶ。
+    checkRouteExitApproach: true,
+    // 町・寺・里の家族は、子や年寄りを置き去りにせず南の退き道を走る。
+    keepFamiliesTogether: true,
+    // 路地で離れた家族は、安全な道端で六歩以内に揃うまで待つ。
+    familyWaitDistance: 6,
+    // 家の角や寺の塀越しに近く見えても、生活道で遅れている子・年寄りを待つ。
+    familyFollowPath: true,
+    // 町・寺・村から川沿いへ合流しても、前の人をすり抜けず空いた脇へ退く。
+    keepCivilianSpacing: true,
+  },
   // 視点へ入り込む一人だけ全身を避け、隣の味方の顔や具足を透かさない。
   nearAllyFadeRadius: 1.1,
   nearAllySolidBody: true,
@@ -3119,9 +3343,84 @@ const inabayama = {
     F.keep.guard.formation = 'yari';
     for (const [x, z] of [[-24, -90], [22, -86], [OTE.x - 14, OTE.z - 12], [36, -116]]) rt.scene.add(nobori(W, x, z, 'saito', 6));
     // 井口の町の奥へ続く家並み（遠景）。焼き討ちが進むと、こちらにも煙が上がる
-    F.farTown = [village(W, 40, 142, { n: 7, r: 26, rot: Math.PI, fields: 4, seed: 67, smoke: 0 }), village(W, -30, 130, { n: 6, r: 22, rot: Math.PI, fields: 4, seed: 68, smoke: 0 })];
-    for (const v of F.farTown) rt.scene.add(v);
+    // 見物の四人を二つの村の住人へ振り替える。配置は推定で、民の上限は四十四人のまま。
+    // 村を作った時の当たりから戸口を求め、乱数で並ぶ家にも位置を合わせる。
+    rt.civilianBands = [...CIVILIAN_BANDS];
+    // 生活道を求める前に火を置く。道を描いた後で焚き火が退き口を塞がないようにする。
     for (const [x, z] of [[60, 120], [68, 110]]) { rt.scene.add(campfire(W, x, z)); W.addFire(x, z); }
+    F.farHomes = []; F.farFires = [];
+    F.farTown = [[40, 142, 7, 26, 67, 1], [-30, 130, 6, 22, 68, -1]].map(([x, z, n, r, seed, side]) => {
+      const first = SOLIDS.length;
+      // 避難する家族の戸口も町と同じ地面に据え、斜面の低い側は土台で支える。
+      const v = village(W, x, z, { n, r, rot: Math.PI, fields: 4, seed, smoke: 0, groundedHomes: true });
+      const homes = SOLIDS.slice(first).filter((s) => s.k === 'r' && s.hw > 3 && s.hd > 2.4);
+      // 家並みの外端の家から脇を回る。北の軍勢や、中央の家・畑へ戻らない。
+      // 外端の一軒の戸口が塞がれていても、村の住人を省かず次の家を探す。
+      // 探索は設営時だけ。置く家族は従来どおり一組で、人数や描画は増やさない。
+      const candidates = [...homes].sort((a, b) => side > 0 ? b.x1 - a.x1 : a.x0 - b.x0);
+      // 遠景の火は従来の外端の家に残し、避難する戸口の選び直しと分ける。
+      if (candidates.length) F.farHomes.push(candidates[0]);
+      const edge = side > 0 ? Math.max(...homes.map((s) => s.x1)) + 5 : Math.min(...homes.map((s) => s.x0)) - 5;
+      const south = Math.max(...homes.map((s) => s.z1)) + 5;
+      const joinZ = Math.max(south, side > 0 ? 156 : 146);
+      const onward = side > 0 ? [[96, joinZ], [110, 172]] : [[-80, joinZ], [-88, 172]];
+      // 村外れの百姓も、固定の直線ではなく実際の家並みの外を退く。
+      // 外端の家の延焼も先に避ける。見物場所が塞がる時は同じ外縁の道端を探す。
+      // 定義の共用配列は変えず、設営時だけこの戦の二組を選び直す。
+      const watchIndex = rt.civilianBands.findIndex((b) => b.mode !== 'inside'
+        && b.kinds.includes('farmer') && (b.x > 0) === (side > 0));
+      if (watchIndex >= 0) {
+        const watch = rt.civilianBands[watchIndex];
+        let placed = false;
+        // 家並みの無い時や道を結べない時に、定義の固定路を残さない。
+        // 安全な生活道のある場所だけで見物させ、川・軒・火を横切る避難を防ぐ。
+        const spots = homes.length ? [watch, { x: edge, z: watch.z }, { x: edge, z: south }] : [];
+        for (const spot of spots) {
+          const way = villageCivilWay(W, homes, spot, edge, south, onward, rt.army, candidates[0]);
+          if (!way) continue;
+          rt.civilianBands[watchIndex] = { ...watch, x: spot.x, z: spot.z, route: civilRoute(way) };
+          placed = true;
+          break;
+        }
+        if (!placed) rt.civilianBands.splice(watchIndex, 1);
+      }
+      for (const h of candidates) {
+        const dx = -0.3 * (h.hw - 0.15);
+        // 戸口の向きは家ごとに違う。民の配置判定が使う外接矩形からも離す。
+        // 二人分の散らばりを含め、正面への線が最初に矩形を出る所まで延ばす。
+        const outX = Math.abs(h.s) > 0.001 ? ((h.x1 - h.x) + 3.5 - Math.sign(h.s) * dx * h.c) / Math.abs(h.s) : Infinity;
+        const outZ = Math.abs(h.c) > 0.001 ? ((h.z1 - h.z) + 3.5 + Math.sign(h.c) * dx * h.s) / Math.abs(h.c) : Infinity;
+        const dz = Math.max(h.hd + 3, Math.min(outX, outZ));
+        const door = { x: h.x + dx * h.c + dz * h.s, z: h.z - dx * h.s + dz * h.c };
+        // 一軒の軒を回っただけで村の中へ斜めに戻らない。
+        // 家並み全体の外側を南端までたどる。設営時だけ求める推定の生活道。
+        const way = villageCivilWay(W, homes, door, edge, south, onward, rt.army, candidates[0]);
+        // 道を結べない戸口には民を閉じ込めない。歩行中も既存の水・斜面・兵・火の判定を使う。
+        if (!way) continue;
+        rt.civilianBands.push({ ...door, mode: 'inside', kinds: ['woman', 'child'],
+          route: civilRoute(way) });
+        break;
+      }
+      return v;
+    });
+    for (const v of F.farTown) rt.scene.add(v);
+    // 寺・町の戸口と村の脇道を、民が実際に逃げる道へつなぐ。
+    // 圧縮地形に合わせた推定の生活道。既存の踏み跡へ設営時だけ描き、面と材質は増やさない。
+    // 共通の南の道は一度だけ踏む。重なる退き道だけが濃い大通りになるのを避ける。
+    const civilLegs = new Set();
+    for (const band of rt.civilianBands) {
+      let from = [band.x, band.z];
+      for (const point of band.route) {
+        const to = [point.x, point.z];
+        const a = `${from[0]},${from[1]}`, b = `${to[0]},${to[1]}`;
+        const key = a < b ? `${a}:${b}` : `${b}:${a}`;
+        if (!civilLegs.has(key)) {
+          civilLegs.add(key);
+          W.stampTrail([from, to], 1.4, 65);
+        }
+        from = to;
+      }
+    }
 
     // 出兵して瑞龍寺山へ登った後の放火。時刻は不明なので夜襲にはせず、日のある場面にする。
     W.lookDark = false;
@@ -3190,7 +3489,12 @@ const inabayama = {
     // 味方もほかの家に火を放っていく
     // 松明を持った足軽が家に寄ってから火が上がる
     F.houses.filter((h) => !h.mine).forEach((h, k) => rt.after(14 + k * 9, () => this.sendTorch(rt, h)));
-    rt.after(40, () => { if (F.ending || rt.over) return; for (const [x, z, sz] of [[34, 146, 2.6], [-26, 128, 2.4]]) rt.world.addSmokeColumn(x, rt.world.heightAt(x, z) + 5, z, { size: sz }); });
+    rt.after(40, () => {
+      if (F.step !== 1 || F.ending || rt.over) return;
+      // 延焼する家の位置は遊びの補い。煙だけにせず、里の者が察知できる火を各里に一つ置く。
+      // 炎が煙も出すため、煙の柱を重ねて足さない。
+      for (const h of F.farHomes) F.farFires.push(rt.world.addFire(h.x, h.z, { h: 2.8, size: 2.4, blackSmoke: true }));
+    });
     // 家に火が付くのを待たず、町の後続も斬り込む。
     rt.after(12, () => {
       if (F.step !== 1) return;
@@ -3296,6 +3600,16 @@ const inabayama = {
     blackCut(rt, () => {
       if (rt.over || F.ending || F.step !== 2) return;
       const W = rt.world;
+      // 放火の日から一夜が過ぎた。民だけ逃走の数秒後のまま焼け跡へ残さない。
+      // 南の里・川沿いへ退避した扱いにする遊び上の補い。避難の実際の時刻は不明。
+      // 日中は既存の道で逃がし、日をまたぐ暗転の中だけで退避を完了する。
+      const crowd = rt.warCrowd;
+      if (crowd) {
+        for (const band of crowd.bands) band.state = 'gone';
+        for (const a of crowd.agents) { a.out = false; a.model = null; }
+        for (const p of crowd.pool) { p.a = null; p.mesh.visible = false; }
+        crowd.im.visible = false;
+      }
       // 日をまたぐ暗転の中で町の乱戦を片付け、麓の戦と二重に数えない。
       if (F.townClash) {
         const meshes = new Set();
@@ -3322,6 +3636,9 @@ const inabayama = {
     sfx('taiko', 1);
     // 一夜明けて、町は焼け跡。火は落ち、煙だけが残る
     for (const h of F.houses) charHouse(rt, h);
+    // 南の里も同じ夜に火が落ちる。翌日の民の警戒に、前日の炎を残さない。
+    for (const fire of F.farFires) rt.world.removeFire(fire);
+    F.farFires.length = 0;
     for (const [x, z, sz] of [[10, 70, 2.4], [-6, 50, 2], [38, 52, 2.2]]) rt.world.addSmokeColumn(x, rt.world.heightAt(x, z) + 4, z, { size: sz });
     this.nextObj(rt, '旗の人の所へ。さくの中の敵を引きつけよう');
     F.holdArrived = false;

@@ -27,7 +27,7 @@ function concealed(rt, text, group) {
   return !!(group && group.team !== 0 && /本陣|旗本|馬廻/.test(group.name || '') && !I.camp);
 }
 export function intelText(rt, text) {
-  return concealed(rt, String(text || '')) ? '敵の備えを崩せ。大きな旗の場所はまだ分からぬ' : noticeText(rt, text);
+  return concealed(rt, String(text || '')) ? '敵のいる方へ進め' : noticeText(rt, text);
 }
 export function intelMarker(rt, m) {
   const label = String(typeof m.label === 'function' ? m.label() : m.label || '');

@@ -41,7 +41,7 @@ export function currentObjective(rt) {
 
 // 任務は右上の一行だけ。接敵や操作の状態で目当てを書き換えない。
 export function missionCaption(rt, title = currentObjective(rt)?.text || '') {
-  return noOps(goalText(rt, title))
+  return noOps(goalText(rt, rt.def.missionHeading?.(rt) || title))
     .split(/[。！？\n]/)
     .map(line => line.trim().replace(/討ち取る$|討ち取れ$|たおそう$|たおす$/, '倒せ'))
     .find(line => line && !/構え|かまえ|かまえる|ふせ[ぐげ]|防いで|押し|なぞ/.test(line)) || '';

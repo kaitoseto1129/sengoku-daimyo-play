@@ -2571,6 +2571,14 @@ const honnoji = {
     return !rt.G.lord && F.step < 3 && (F.hp === 2 || F.hp === 3) &&
       !gateFight(rt) && !gateDefending(rt) ? GATES.main : null;
   },
+  destinationName(rt) {
+    const F = rt.flags;
+    if (!rt.G.lord && F.step < 3) {
+      if (F.hp === 2 || F.hp === 3) return '表門';
+      if (F.hp >= 4 && F.hp <= 7) return '信長';
+    }
+    return '';
+  },
   namedGuideMarkers: true,
   hideGuideSteps: true, // 道案内は次の旗と短い下知だけ。
   keepDestinationTask: true, // 戸口への短い案内を、遠い表門の案内に戻さない。
@@ -3550,7 +3558,7 @@ const honnoji = {
     rt.marker('next', () => F.hondoDirect && F.hondoDistance < 6 ? null : F.hondoGuide, '信長のもとへ',
       { h: 3, guidePriority: 200, guideAlways: true, alwaysDistance: true, routeDistance: () => F.hondoDistance });
     nbSay(rt, 'まだ退くな！　ここで一息に押し返す。……者ども、続け', 3.5);
-    rt.obj('main', '上様の前で、明智の侍を斬り払え', 'main', true);
+    rt.obj('main', '信長を守れ', 'main', true);
     // 戦が長いので、本堂の僧が手当ての布を一枚渡す（三枚まで）。堂の奥は味方の陰で巻ける。
     if (rt.player.treatmentLeft < 3) {
       rt.player.treatmentLeft++;
@@ -3646,7 +3654,7 @@ const honnoji = {
     rt.marker('next', () => F.guardDirect && F.guardDistance < 6 ? null : F.guardGuide, '上様へ戻る道',
       { h: 3, guidePriority: 200, guideAlways: true, alwaysDistance: true, routeDistance: () => F.guardDistance });
     nbSay(rt, '……ここが最後の間じゃ。一人も通すな', 3);
-    rt.obj('main', '上様の前で、最後の間に寄せる侍を斬り払え', 'main', true);
+    rt.obj('main', '信長を守れ', 'main', true);
     rt.zone('gt', PT.hikae.x + 3, PT.hikae.z, 7);
     F.uma.order = 'hold'; F.uma.anchor = { x: -55, z: 86 };
     const at = (s, f) => rt.after(s, () => { if (F.hp === 7 && !F.ending) f(); });

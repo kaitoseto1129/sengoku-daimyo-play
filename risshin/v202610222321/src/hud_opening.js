@@ -92,7 +92,7 @@ export class HudOpening {
         }
       };
     }
-    if (battle?.def.key === 'inou' || battle?.def.key === 'moribe') {
+    if (battle?.def.key === 'inou' || battle?.def.key === 'moribe' || battle?.def.key === 'okehazama') {
       el.querySelector('#intro-go').insertAdjacentHTML('beforebegin', '<small class="intro-scroll">説明欄は上下に送れます</small>');
     }
     if (battle?.def.key === 'inou') {
@@ -118,6 +118,18 @@ export class HudOpening {
         pages.querySelector(selector).onclick = e => { e.preventDefault(); e.stopPropagation(); page = Math.max(0, Math.min(cards.length - 1, page + direction)); showPage(); };
       }
       showPage();
+    }
+    if (battle?.def.key === 'okehazama') {
+      // 戦場と同じ矢印の形を、最初の下知の横で見せる。
+      el.querySelector('#intro-wait').insertAdjacentHTML('afterbegin', '<svg class="intro-pin" viewBox="0 0 80 80" aria-hidden="true"><ellipse cx="40" cy="68" rx="30" ry="9" fill="none" stroke="#fff3ba" stroke-width="5"/><path d="M32 8H48V37H61L40 59L19 37H32Z" fill="#fff3ba" stroke="#14120f" stroke-width="4"/></svg>');
+      el.querySelector('#intro-people-body').insertAdjacentHTML('beforeend', '<p>帰りの旗は、義元が倒れた後に仲間が立てる。帰る時も黄色い矢印が旗を示す。</p>');
+      if (peopleToggle) {
+        const toggle = peopleToggle.onclick;
+        peopleToggle.onclick = e => {
+          toggle(e);
+          if (!el.querySelector('#intro-people-body').hidden) el.querySelector('#intro-people-body').scrollIntoView({ block: 'start' });
+        };
+      }
     }
     decorateTerms(el.querySelector('.intro-reading'));
     el.style.pointerEvents = 'none';

@@ -3,7 +3,7 @@
 //   着いたら消す。印と投影用の点は一つを使い回す。
 import * as THREE from 'three';
 import { VIEW } from './viewport.js';
-import { currentObjective } from './mission_guide.js';
+import { currentObjective, markerName } from './mission_guide.js';
 import { groundAt } from './floors.js';
 
 let pin = null;
@@ -15,6 +15,10 @@ function make() {
   const style = document.createElement('style');
   style.textContent = '#hud.photo #mission-goal,#hud.ending #mission-goal,#hud:has(#bigmap:not([hidden])) #mission-goal,#hud:has(#cine.on) #mission-goal{display:none}';
   el.appendChild(style);
+  const label = document.createElement('span');
+  label.className = 'goal-name'; label.hidden = true;
+  label.style.cssText = 'position:absolute;top:80px;left:50%;transform:translateX(-50%);padding:3px 8px;background:#14120f;color:#fff3df;font:bold 16px/1.4 sans-serif;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis';
+  el.appendChild(label);
   return el;
 }
 
@@ -34,7 +38,9 @@ function target(rt) {
 }
 
 export function updateMissionPin(rt) {
-  // 全戦の行き先は、この字のないピン一本だけ。
+  // 行き先の矢印は一本。画面外では方向と名前を同じ印に添える。
+  rt.hud.missionPinLabelShown = false;
+  rt.hud.missionPinOutside = false;
   const want = pinGuideOn(rt) && !rt.over && !rt.choice && rt.player?.u?.alive ? target(rt) : null;
   if (!want) { if (pin) pin.hidden = true; return; }
   if (!pin) pin = make();
@@ -80,7 +86,7 @@ export function updateMissionPin(rt) {
     const gx = want.x - me.x, gz = want.z - me.z;
     dx = -gx * Math.cos(yaw) + gz * Math.sin(yaw);
     dy = -(gx * Math.sin(yaw) + gz * Math.cos(yaw));
-    const scale = Math.min((W / 2 - 48) / Math.max(Math.abs(dx), .001), (H / 2 - 80) / Math.max(Math.abs(dy), .001));
+    const scale = Math.min((W / 2 - 92) / Math.max(Math.abs(dx), .001), (H / 2 - 92) / Math.max(Math.abs(dy), .001));
     x = W / 2 + dx * scale; y = H / 2 + dy * scale;
   }
   // 右上の札や操作面を避ける。空きが無ければ重ねず畳む。
@@ -100,6 +106,19 @@ export function updateMissionPin(rt) {
   const arrow = pin.querySelector('.goal-edge');
   arrow.style.display = outside ? '' : 'none';
   arrow.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
+  hud.missionPinOutside = outside;
+  const label = pin.querySelector('.goal-name');
+  const marker = rt.missionGuide?.marker;
+  const name = rt.def.destinationName?.(rt) || want.name || (marker ? markerName(marker) : '') || '行き先';
+  const direction = Math.abs(dx) > Math.abs(dy) ? dx >= 0 ? '右' : '左' : dy <= 0 ? '前' : '後ろ';
+  // 敵・任務・命も含め三枚まで。端の案内を優先し、知らせ側もこの一枠を数える。
+  const cards = 1 + (hud.notices?.picks.length || 0);
+  label.hidden = !outside || cards >= 3;
+  if (!label.hidden) {
+    const text = `${direction}・${String(name).replace(/[A-Za-z]+/g, '').slice(0, 10)}`;
+    if (label.textContent !== text) label.textContent = text;
+    hud.missionPinLabelShown = true;
+  }
   // 丸めず小数一桁で置き、地面に固定する。
   pin.style.transform = `translate(${(x - 40).toFixed(1)}px,${(y - (outside ? 40 : 68)).toFixed(1)}px)`;
 }
@@ -107,8 +126,8 @@ const goalPoint = new THREE.Vector3();
 const goalDirection = new THREE.Vector3();
 const pinAt = { x: 0, z: 0, y: 0, ox: 0, oy: 0, at: 0, rt: null };
 function goalFree(x, y, W, H, rects) {
-  if (x < 44 || x > W - 44 || y < 88 || y > H - 44) return false;
-  for (const r of rects) if (x + 44 >= r.left && x - 44 <= r.right && y + 40 >= r.top && y - 72 <= r.bottom) return false;
+  if (x < 92 || x > W - 92 || y < 88 || y > H - 76) return false;
+  for (const r of rects) if (x + 88 >= r.left && x - 88 <= r.right && y + 72 >= r.top && y - 72 <= r.bottom) return false;
   return true;
 }
 

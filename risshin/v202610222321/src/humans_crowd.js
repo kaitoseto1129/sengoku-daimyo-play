@@ -91,6 +91,12 @@ function nearCrowdMat(v) {
         vec3 q = vObjP + vec3(uCV.w, uCV.w * 0.6, 0.0);
         float n1 = uVn(q * 7.0), n2 = uVn(q * 31.0 + 3.0), n3 = uVn(q * 120.0 + 9.0);
         int wornKind = txA.r > 0.5 ? mkB : mkA;
+        // 脛の鉄と袴にも同じ泥を乗せ、色だけ汚れて照りが新品のまま残るのを防ぐ。
+        if (wornKind == 0 || wornKind == 6 || wornKind == 1 || wornKind == 3) {
+          pdMud = (1.0 - smoothstep(0.15, 1.1, vObjP.y)) * smoothstep(0.4, 0.76, n1)
+            * clamp(0.2 + uGrimeC * 0.8 + uWet * 0.3, 0.0, 1.0);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.075, 0.052, 0.032), pdMud * 0.65);
+        }
         if (wornKind == 1 || wornKind == 3) {
           // 打ち出した鉄板の浅い歪み。汚れに使う二つの斑を再利用し、均一な照りを崩す。
           // 漆の下の形なので色は変えず、法線だけを一ミリほど揺らす。泥の厚い所には出さない。
@@ -110,9 +116,6 @@ function nearCrowdMat(v) {
           float chip = smoothstep(0.78, 0.92, n2 * 0.6 + n3 * 0.4) * uCV.z;
           // 同じ斑を照りにも使い、残った漆・擦れた下地・泥の違いを残す。
           pdWear = clamp(chip + smoothstep(0.42, 0.78, n2) * uCV.z * 0.5, 0.0, 1.0);
-          pdMud = (1.0 - smoothstep(0.15, 1.1, vObjP.y)) * smoothstep(0.4, 0.76, n1)
-            * clamp(0.2 + uGrimeC * 0.8 + uWet * 0.3, 0.0, 1.0);
-          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.075, 0.052, 0.032), pdMud * 0.65);
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.16, 0.1, 0.06), chip * 0.7);
           float scr = (1.0 - smoothstep(0.0, 0.05, abs(fract(dot(q.xy, vec2(0.6, 0.8)) * 14.0 + n1) - 0.5))) * smoothstep(0.65, 0.8, n1) * uCV.z;
           scr *= 1.0 - smoothstep(0.4, 1.2, fwidth(q.y) * 70.0);
@@ -161,7 +164,8 @@ function nearCrowdMat(v) {
           metalnessFactor = 0.0;
         } else if (finishKind == 1) {
           // 漆の照りは残し、使い込んだ板の曇りを雨の鏡面から分ける。
-          roughnessFactor = mix(clamp(0.3 + pdR * kD + (uCV.x - 0.5) * 0.1 - uWet * .06, .24, .52), .78, pdWear);
+          roughnessFactor = mix(clamp(0.32 + pdR * kD + (uCV.x - 0.5) * 0.1 - uWet * .14, .18, .52), .78, pdWear);
+          metalnessFactor = 0.0;
         } else if (finishKind == 3 || finishKind == 4) {
           // 鉄の磨きと曇りを布・漆から分ける。既存の汚れと四種の材質を共用する。
           roughnessFactor = mix(clamp(${'0.24'} + pdR * kD + uCV.z * 0.14, ${'0.24'}, 0.72), 0.94, pdMud);
@@ -189,13 +193,15 @@ function nearCrowdMat(v) {
         plateAO *= mix(0.55, 1.0, smoothstep(-0.5, 0.65, skyUp));
       }
       reflectedLight.indirectDiffuse *= plateAO;
-      reflectedLight.indirectSpecular *= plateAO;
+      // 雨空の照りは泥の無い漆の面だけへ戻す。威糸と鉄の陰は従来どおり。
+      float rainLacquer = cavityKind == 1 ? uWet * (1.0 - pdMud) * (1.0 - pdWear) : 0.0;
+      reflectedLight.indirectSpecular *= plateAO * (1.0 + rainLacquer * 0.7);
       `);
     // 八隅の乱数を毎画素で作らず、一回の読み取りで二層を得る。元の関数定義は残す。
     sh.fragmentShader = CROWD_NOISE_GLSL + sh.fragmentShader.replace(/uVn\(/g, 'crowdNoise(')
       .replace('float crowdNoise(vec3 x)', 'float uVn(vec3 x)');
   };
-  m.customProgramCacheKey = () => 'nearcrowd-finish6';
+  m.customProgramCacheKey = () => 'nearcrowd-finish7';
   crowdMats[v] = m;
   return m;
 }

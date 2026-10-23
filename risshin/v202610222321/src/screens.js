@@ -489,9 +489,9 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
   const readings = [0, 1, 2].map(readProgress);
   const slots = readings.map((r) => r.game);
   saved = slots[S.slot];
-  // 保存も壊れた記録もない入口は、旗を一度押すだけ。
+  // 初めての入口は、押すと何が始まるかを字で示す。
   if (readings.every(r => !r.game && !r.bad)) {
-    show(`<div style="min-height:80vh;display:grid;place-items:center"><button type="button" class="btn primary" id="b-new" data-first-depart aria-label="出陣" style="width:112px;height:112px;border-radius:50%"><svg viewBox="0 0 64 64" width="64" height="64" aria-hidden="true"><path d="M18 56V8m2 2h28l-7 13 7 13H20" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/><path d="M28 44l8 7-8 7" fill="none" stroke="currentColor" stroke-width="3"/></svg></button></div>`);
+    show(`<div style="min-height:70dvh;display:grid;place-items:center"><button type="button" class="btn primary" id="b-new" data-first-depart style="min-height:64px;padding:16px 24px;font-size:20px;letter-spacing:0;display:flex;align-items:center;gap:12px"><svg viewBox="0 0 64 64" width="40" height="40" aria-hidden="true"><path d="M18 56V8m2 2h28l-7 13 7 13H20" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/><path d="M28 44l8 7-8 7" fill="none" stroke="currentColor" stroke-width="3"/></svg><span>稲生の戦いを始める</span></button></div>`);
     $('b-new').onclick = () => { $('b-new').disabled = true; initAudio(); onNew('弥五郎', 'normal', 'oda'); };
     $('b-new').focus({ preventScroll: true });
     return;

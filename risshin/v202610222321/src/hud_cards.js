@@ -3,6 +3,7 @@ import { setText, setWidth, coachCss, $, esc, keyCaps, singleBattleGuide, rescue
 import { currentObjective, missionCaption } from "./mission_guide.js";
 import { isTouch } from "./touch.js";
 import { K } from "./settings.js";
+import { sightUnit } from './battle_sight.js';
 
 export class HudCards {
 
@@ -15,6 +16,7 @@ export class HudCards {
   //   段が変わる時だけ、真ん中に「第三段　柴田隊を受け止める」を短く出す。毎コマ作らず、字が変わる時だけ書く。
   // 近い敵の頭上に小さな印（▼と「敵」）。四人まで・十四メートルまで。印は使い回し、毎コマ作らない（kaito 10/22 稲生 3）。
   foeMarks(rt) {
+    this.enemyTriangleSigns(rt);
     if (pinGuideOn(rt)) {
       for (const el of this.missionAllyEls || []) el.hidden = true;
       return; // 全戦で兵・隊・旗の頭上の札と印を作らない。
@@ -111,6 +113,39 @@ export class HudCards {
       setText(e.firstChild, name); e.firstChild.hidden = !name;
       e.style.transform = `translate(${Math.round((this.tmpV.x + 1) / 2 * W)}px,${Math.round((1 - this.tmpV.y) / 2 * H)}px) translate(-50%,-100%)`;
     }
+  }
+
+  // 森部の敵印。枠は初回に確保し、毎コマは頭の位置だけ更新する。
+  enemyTriangleSigns(rt) {
+    const me = rt.player.u;
+    const on = rt.def.enemyTriangleSigns && me.alive && !rt.over && !rt.choice &&
+      !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
+    if (!this.enemyTriangles) {
+      if (!on) return;
+      this.enemyTriangles = [];
+      const box = document.createElement('div');
+      box.style.cssText = 'position:absolute;inset:0;pointer-events:none';
+      for (let i = 0; i < 250; i++) {
+        const el = document.createElement('span');
+        el.textContent = '▼';
+        el.style.cssText = 'position:absolute;left:0;top:0;color:#ff634d;font-size:17px;line-height:1;-webkit-text-stroke:1px #32140d;text-shadow:0 1px 2px #000;pointer-events:none';
+        el.hidden = true; box.appendChild(el); this.enemyTriangles.push(el);
+      }
+      this.root.appendChild(box);
+    }
+    let n = 0;
+    if (on) for (const u of rt.army.units) {
+      if (n === this.enemyTriangles.length) break;
+      if (!u.alive || u.gone || u.woundOut || u.noTarget || u.isStruct || u.team === me.team ||
+          u.mesh?.visible === false || u.camHidden ||
+          (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 1600 || !sightUnit(rt, u)) continue;
+      this.tmpV.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
+      if (this.tmpV.z < -1 || this.tmpV.z > 1 || Math.abs(this.tmpV.x) > 1 || Math.abs(this.tmpV.y) > 1) continue;
+      const el = this.enemyTriangles[n++];
+      el.hidden = false;
+      el.style.transform = `translate(${((this.tmpV.x + 1) * innerWidth / 2).toFixed(1)}px,${((1 - this.tmpV.y) * innerHeight / 2).toFixed(1)}px) translate(-50%,-100%)`;
+    }
+    for (; n < this.enemyTriangles.length; n++) this.enemyTriangles[n].hidden = true;
   }
 
   // 自分の組の兵の頭上に小さな菱形（字の札の代わり。kaito 10/23）。士気は色と明るさで（高い＝金・ふつう＝白・下がる＝くすむ）。

@@ -973,7 +973,7 @@ html body #hud #battle-message { gap:8px; }
     const fireWork = working && /火を(?:つけ|かけ|放|移)|篝火を焚/.test(document.getElementById('prompt').dataset.action || '');
     // 命・行き先・操作も数える。命の札の一枠は常に空ける。
     if (!choosing) {
-      const destination = false; // 小旗と地面の線には札の枠を使わない。
+      const destination = !!this.hud.missionPinOutside; // 端の方向と行き先の名前も一枚に数える。
       const operation = dodging || working || !!rt?.touchCoachActive || !!rt?.touchAttackGuideActive || !!rt?.nearestInteract();
       const target = document.getElementById('target');
       const boss = document.getElementById('boss');
@@ -984,7 +984,7 @@ html body #hud #battle-message { gap:8px; }
       const damageLabel = !!rt && rt.player.u.alive && !rt.over && !rt.choice && !this.hud.openingActive &&
         !rt.player.camShot && !this.hud.bigmap && this.hud.damageWordRt === rt &&
         rt.t < this.hud.damageWordUntil && rt.t < this.hud.damageDirectionUntil;
-      this.limit = Math.max(0, Math.min(this.limit, 3 - Number(!!rt && !intro) - Number(destination && !operation) - Number(operation) - combatCards - Number(defendingPlace) - Number(enemyLabel) - Number(damageLabel)));
+      this.limit = Math.max(0, Math.min(this.limit, 3 - Number(!!rt && !intro) - Number(destination) - Number(operation) - combatCards - Number(defendingPlace) - Number(enemyLabel) - Number(damageLabel)));
     }
     const oke = rt?.def.key === 'okehazama';
     // 隅の報せも一枚と数える。危険がある時は任務と警告を先にする。

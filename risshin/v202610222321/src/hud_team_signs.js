@@ -270,12 +270,10 @@ export class HudTeamSigns {
   }
 
 
-  // 近い兵は小さな旗と刀だけで示し、操作中も所属を見分けられるようにする。
+  // 近い兵は小さな丸とひし形で示し、操作中も所属を見分けられるようにする。
   drawNearbyTeamSigns(g, rt, candidates) {
     if (this.teamSignsDrawn) return false;
     this.teamSignsDrawn = true;
-    // 戦場では今の行き先と選んだ相手を優先。組を調べる時だけ周囲の所属も示す。
-    if (!rt.def.town && !rt.def.dojo && !rt.player.showSquad) return false;
     // 進軍・接敵・退避でも、近い兵の所属は小さな形で残す。字の札は増やさない。
     if (rt.def.town || rt.def.dojo || rt.over || rt.choice ||
         this.openingActive && !this.opening?.el.classList.contains('opening-controls') ||
@@ -289,8 +287,7 @@ export class HudTeamSigns {
     const rects = this.hudRects(), p = rt.player.u;
     const enemyRange = rt.def.nearbyEnemySignRange ?? 18;
     const enemyLimit = Math.min(3, rt.def.nearbyEnemySignLimit ?? 3);
-    // 両軍三人まで。行き先の大旗と競わない小さな丸・刀にする。
-    // 戦ごとに味方の印を減らせる（行き先の旗と白い小旗が並んで迷う。kaito 10/23）。
+    // 両軍三人まで。行き先の旗と競わない小さな形にする。
     const allyLimit = Math.min(3, rt.def.nearbyAllySignLimit ?? 3);
     const visible = this.teamSignUnits || (this.teamSignUnits = []);
     // 視線の確認は既存の候補更新と同じ毎秒十回まで。入れ物は使い回す。
@@ -317,6 +314,7 @@ export class HudTeamSigns {
     let count = 0, enemies = 0, allies = 0;
     const focus = this.aimGuideEnemy || this.guardThreat || this.attackGuideEnemy || this.approachGuideEnemy || this.defendEnemy || rt.guideEnemy || rt.player.lock;
     const destinationPerson = guide?.marker?.guidePerson?.();
+    const followAlly = rt.def.missionAlly?.(rt);
     const guard = rescueTarget(rt) || this.guardAlly || rt.def.guardGuideTarget?.(rt) || rt.def.guardTarget?.(rt);
     const passageUnits = rt.def.passageGuideUnits?.(rt);
     // 字の札は増やさず、頭上の小さな印を両軍三人ずつまでに絞る。
@@ -337,7 +335,7 @@ export class HudTeamSigns {
       // 攻撃の瞬間以外も近くの所属を示す。候補は本人に近い順のまま使う。
       if (!rt.player.showSquad && Math.hypot(u.pos.x - p.pos.x, u.pos.z - p.pos.z) > 12) continue;
       if (travelling && Math.hypot(u.pos.x - p.pos.x, u.pos.z - p.pos.z) > 12) continue;
-      if ((enemy ? enemies >= enemyLimit : allies >= allyLimit) || u === focus && this.enemyFrameShown || u === guard || u === destinationPerson || passageUnits?.includes(u) ||
+      if ((enemy ? enemies >= enemyLimit : allies >= allyLimit) || u === focus && this.enemyFrameShown || u === this.battleSignEnemy || u === followAlly || u === guard || u === destinationPerson || passageUnits?.includes(u) ||
           !u.alive || u.gone || u.offscreen || !u.mesh.visible || u.group?.hidden || u.fleeing || u.woundOut ||
           Math.hypot(u.pos.x - p.pos.x, u.pos.z - p.pos.z) > (enemy ? enemyRange : 18) ||
           enemy && u.isOfficer && !enemyKnown(rt, u)) continue;
@@ -397,10 +395,13 @@ export class HudTeamSigns {
       }
       if (enemy) {
         enemies++;
-        // 敵は交差した刀、味方は旗。色を見分けなくても所属が分かる。
+        // 敵は任務と同じひし形。味方の丸と形でも分ける。
         g.save(); g.translate(signX, signY + 10);
         const scale = rt.def.nearbyTeamSignScale || .5; g.scale(scale, scale);
-        this.drawSwordSign(g, 0, 0); g.restore();
+        g.beginPath(); g.moveTo(0, -30); g.lineTo(16, -12);
+        g.lineTo(0, 6); g.lineTo(-16, -12); g.closePath();
+        g.strokeStyle = '#14120f'; g.lineWidth = 7; g.stroke();
+        g.fillStyle = '#b52d21'; g.fill(); g.strokeStyle = '#fff3ba'; g.lineWidth = 3; g.stroke(); g.restore();
         continue;
       } else {
         allies++;
@@ -433,15 +434,12 @@ export class HudTeamSigns {
   }
 
 
-  // 味方は小さい丸。行き先の切れ込み旗や敵の三角と形で分ける。
+  // 味方は小さい丸。追う旗や敵のひし形と形で分ける。
   drawAllySign(g, x, y, label = false) {
-    // 味方の白い小旗は宙に浮いて変に見えた（kaito 10/23）。味方は印なし（自分の組だけ頭上の小さな菱形。hud_cards.squadMarks）。
-    if (!this.rt?.def?.town && !this.rt?.def?.dojo) return;
     g.save(); g.lineJoin = 'round'; g.beginPath();
-    g.moveTo(x - 6, y); g.lineTo(x - 6, y - 26); g.lineTo(x + 12, y - 26);
-    g.lineTo(x + 7, y - 19); g.lineTo(x + 12, y - 12); g.lineTo(x - 6, y - 12);
-    g.strokeStyle = '#14120f'; g.lineWidth = 7; g.stroke();
-    g.strokeStyle = '#e7f8ff'; g.lineWidth = 3; g.stroke(); g.restore();
+    g.arc(x, y - 10, 5, 0, Math.PI * 2);
+    g.strokeStyle = '#14120f'; g.lineWidth = 6; g.stroke();
+    g.strokeStyle = '#e7f8ff'; g.lineWidth = 2; g.stroke(); g.restore();
     if (label) this.drawTeamWord(g, x + 30, y - 12, 'みかた');
   }
 

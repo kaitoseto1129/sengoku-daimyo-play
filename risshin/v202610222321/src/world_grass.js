@@ -36,6 +36,11 @@ export class WorldGrass {
     if (fresh || this.nearCell[0] !== cx || this.nearCell[1] !== cz) {
       this.nearCell[0] = cx; this.nearCell[1] = cz; this.nearLeft = this.nearN;
     }
+    // 視点が止まった乱戦でも踏まれた株を伏せる。地面の転送と同じ半秒刻みで、四コマへ配る。
+    const trackWear = this.def.wetFieldRuts === 'wear' && this.wearData;
+    if (trackWear && this.nearWearRevision !== this.wearRevision) {
+      this.nearWearRevision = this.wearRevision; this.nearLeft = this.nearN;
+    }
     if (!this.nearLeft) return;
     const work = fresh ? this.nearN : Math.min(this.nearLeft, Math.ceil(this.nearN / 4));
     const start = this.nearCursor || 0;
@@ -44,6 +49,7 @@ export class WorldGrass {
     const G = this.nearG, d = this.nearDummy || (this.nearDummy = new THREE.Object3D());
     const paths = this.def.paths;
     const NP = this.nearPos || (this.nearPos = new Float32Array(this.nearN * 2).fill(1e9));
+    const NW = trackWear ? this.nearWear || (this.nearWear = new Float32Array(this.nearN).fill(-1)) : null;
     const span = G * 2, x0 = focus.x - G, z0 = focus.z - G;
     const clumpBase = this.def.nearGrassClumpBase ?? 0.1;
     const clumpGain = this.def.nearGrassClumpGain ?? 1.5;
@@ -54,7 +60,10 @@ export class WorldGrass {
       // 自分の周りの正方形に、ずれないよう巻き戻して置く
       const x = x0 + (((ox - x0) % span + span) % span), z = z0 + (((oz - z0) % span + span) % span);
       // 置き場の変わらない株は置き直さない（端を越えて反対側へ回った株だけ）
-      if (Math.abs(NP[i * 2] - x) < 0.01 && Math.abs(NP[i * 2 + 1] - z) < 0.01) continue;
+      const trod = trackWear ? this.wearAt(x, z) : 0;
+      if (Math.abs(NP[i * 2] - x) < 0.01 && Math.abs(NP[i * 2 + 1] - z) < 0.01 &&
+          (!NW || Math.abs(NW[i] - trod) < .03)) continue;
+      if (NW) NW[i] = trod;
       NP[i * 2] = x; NP[i * 2 + 1] = z;
       const gw = this.grassAt(x, z);
       const clump = tuftClumpAt(x, z);
@@ -76,8 +85,7 @@ export class WorldGrass {
       d.scale.set(size * (0.75 + (i % 7) * 0.07), size * (0.65 + (i % 5) * 0.16) * (0.35 + verge * 0.65) * (0.55 + gw * 0.45), size * (0.85 + (i % 3) * 0.1));
       if (show && this.def.tuftHeight) d.scale.y *= this.def.tuftHeight(x, z);
       // 通った帯の草は株を消すだけにせず、泥へ伏せて幅を残す。同じ踏み跡の絵を使う。
-      if (show && this.def.wetFieldRuts === 'wear' && this.wearData) {
-        const trod = this.wearAt(x, z);
+      if (show && trackWear) {
         d.scale.y *= 1 - trod * .78;
         d.scale.x *= 1 + trod * .55;
         d.rotation.x += trod * .65;

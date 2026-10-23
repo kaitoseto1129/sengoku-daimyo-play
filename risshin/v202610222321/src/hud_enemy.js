@@ -102,8 +102,8 @@ export class HudEnemy {
       const y = cache.points[index + 1] + cache.edge[i + 2] * width;
       if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
     }
-    g.closePath(); g.strokeStyle = '#14120f'; g.lineWidth = 8; g.stroke();
-    g.strokeStyle = talk ? '#fff3ba' : '#fff'; g.lineWidth = u.isPlayer ? 6 : 4; g.stroke(); g.restore();
+    g.closePath(); g.strokeStyle = '#14120f'; g.lineWidth = u.isPlayer ? 4 : 8; g.stroke();
+    g.strokeStyle = talk ? '#fff3ba' : '#fff'; g.lineWidth = u.isPlayer ? 2 : 4; g.stroke(); g.restore();
   }
 
 
@@ -158,8 +158,8 @@ export class HudEnemy {
       const at = c.hull[i] * 2;
       if (i) g.lineTo(c.points[at], c.points[at + 1]); else g.moveTo(c.points[at], c.points[at + 1]);
     }
-    g.closePath(); g.strokeStyle = '#14120f'; g.lineWidth = 10; g.stroke();
-    g.strokeStyle = u.isPlayer || u.team !== rt.player.u.team ? '#fff' : '#fff3ba'; g.lineWidth = u.isPlayer ? 6 : 5; g.stroke(); g.restore();
+    g.closePath(); g.strokeStyle = '#14120f'; g.lineWidth = u.isPlayer ? 4 : 10; g.stroke();
+    g.strokeStyle = u.isPlayer || u.team !== rt.player.u.team ? '#fff' : '#fff3ba'; g.lineWidth = u.isPlayer ? 2 : 5; g.stroke(); g.restore();
   }
 
 
