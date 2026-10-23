@@ -2839,7 +2839,7 @@ export class Player {
     let hits = army.enemiesInArc(u.pos, heading, reach, half, u.team, over, true, fenceClear, this.lock);
     // 初陣・森部の間合いの変化は、実際の向き直り・踏み込みまで含めて届く本人に付ける。
     // 攻撃と同じ選び方にし、横の敵へ向き直す操作を何度も要求しない。
-    if ((this.rt.def.key === 'inou' || this.rt.def.key === 'moribe') && !hits.length && assist && !this.mounted && kind !== 'butt') {
+    if ((this.rt.def.key === 'inou' || this.rt.def.key === 'moribe' || this.rt.def.key === 'okehazama') && !hits.length && assist && !this.mounted && kind !== 'butt') {
       const target = this.meleeAssistTarget(kind, heading);
       if (target) { this.inRange = true; this.rangeCueTarget = target; }
       return;

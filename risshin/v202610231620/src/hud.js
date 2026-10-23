@@ -14,29 +14,33 @@ export class Hud {
       const css = document.createElement('style'); css.id = 'field-clean-css';
       css.textContent = `html body #hud.field-clean :is(#markers,#foe-marks,#squad-marks,#field-signs,#battle-opening,#floats,#threats,#boss,#target,#objectives,#prompt,#staring,#tutorial,#hint,#skiphint,#compass,.destination-distance,.battle-action,.victory-condition,.combat-cue-label,#crosshair,.hold-cover,.cover-guide,.dodge-guide) { display:none !important; }
       html body #hud.field-clean :is(.bar,.bar *,#aimwarn), html body:has(#hud.field-clean:not([hidden])) :is(#mobfx,#tc *) { animation:none !important; }
-      /* 名前・心臓の印・残量を一つの小さな帯へ収める。危険は点滅せず形でも示す。 */
+      /* 体力の名前と危険を同じ札に置き、太い一本の棒で残量を示す。 */
       html:root body #hud.field-clean.field-clean .bl #h-hp.hp {
-        display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important;
-        align-items:center; gap:8px; padding:4px 8px; max-width:calc(100vw / 3 - 16px);
+        display:grid !important; grid-template-columns:auto auto !important;
+        align-items:center; gap:4px 8px; padding:6px 8px; width:224px; max-width:calc(100vw / 3 - 16px);
         background:#14120f !important; color:#fff3df;
       }
       html:root body #hud.field-clean.field-clean .bl #h-hp.hp .hp-remaining {
         display:block !important; font-size:max(18px,calc(18px * var(--text-scale,1))) !important;
-        line-height:1.4; white-space:nowrap;
+        grid-column:1; grid-row:1; line-height:1.4; white-space:nowrap;
       }
       html:root body #hud.field-clean.field-clean .bl #h-hp.hp i {
-        width:128px !important; min-width:32px; flex:0 1 128px;
-        height:20px !important; border:2px solid #fff3df; padding:0;
+        grid-column:1 / -1; grid-row:2; width:100% !important; min-width:32px;
+        height:28px !important; border:2px solid #fff3df; padding:0;
         background:repeating-linear-gradient(135deg,#514a3f 0 3px,#14120f 3px 6px) !important;
         position:relative; mask:none !important; -webkit-mask:none !important; box-sizing:border-box;
       }
       html:root body #hud.field-clean.field-clean .bl #h-hp.hp > span,
       html:root body #hud.field-clean.field-clean .bl #h-hp.hp i::before { display:none !important; }
       html:root body #hud.field-clean.field-clean .bl #h-hp.hp i::after {
-        content:''; display:block !important; position:absolute; inset:0; pointer-events:none;
-        background:linear-gradient(to right,transparent calc(100% - 2px),#14120f 0) 0 0 / 25% 100%;
+        content:none;
       }
-      html:root body #hud.field-clean.field-clean .bl #h-hp.hp i strong { background:#fff3df; }
+      html:root body #hud.field-clean.field-clean .bl #h-hp.hp i strong { inset:0; background:#fff3df; }
+      html:root body #hud.field-clean.field-clean .bl #h-hp.hp em {
+        grid-column:2; grid-row:1; justify-self:end; margin:0; padding:0;
+        font:bold max(16px,calc(16px * var(--text-scale,1)))/1.4 sans-serif !important;
+        white-space:nowrap; color:#fff3df !important;
+      }
       html:root body #hud.field-clean.field-clean .bl #h-hp.hp.deep { outline:2px solid #fff3df; }
       html:root body #hud.field-clean.field-clean .bl #h-hp.hp.deep i strong {
         background:repeating-linear-gradient(135deg,#fff3df 0 4px,#a33124 4px 8px);

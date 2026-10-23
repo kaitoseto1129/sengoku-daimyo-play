@@ -248,7 +248,7 @@ export class HudUpdate {
       hpEl.appendChild(this.hpRemaining);
     }
     // 名前と数字を残し、色や棒だけに頼らず残量を伝える。
-    setText(this.hpRemaining, fieldBars ? `♥ 体力${hpPct < 30 ? ' ！' : ''}` : `♥ 体力 ${hpShown}％`);
+    setText(this.hpRemaining, fieldBars ? '♥ 体力' : `♥ 体力 ${hpShown}％`);
     setHidden(this.hpRemaining, false);
     setAttr(this.hpRemaining, 'aria-label', `命 あと${hpShown}％`);
     const hpTrack = hpEl.querySelector('i');
@@ -264,7 +264,7 @@ export class HudUpdate {
       this.hpFill = hpTrack.firstElementChild;
     }
     // 数字と塗りは同じ残量。枠内の塗りは、親の配置や高さの割合に依存させない。
-    setCssVar(hpTrack, '--hp-ratio', hpShown / 100);
+    setCssVar(hpTrack, '--hp-ratio', hpPct / 100);
     setAttr(hpTrack, 'aria-valuetext', fallen ? '倒れた' : `残り${hpShown}％`);
     const tcLow = isTouch && document.documentElement.classList.contains('tc-low');
     const emEl = hpEl.querySelector('em');
@@ -293,11 +293,11 @@ export class HudUpdate {
       !(this.retreatGuide?.active && this.retreatGuide.valid &&
         Math.hypot(this.retreatGuide.x - u.pos.x, this.retreatGuide.z - u.pos.z) < this.retreatGuide.radius);
     // 傷は命の札へ、退く指示は行き先に結ぶ任務札へ置く。
-    setHtml(emEl, VIEW.h <= 500 ? esc(shortInjury) : fallen ? esc(injury) : deep || bloodLoss ? injurySign + esc(injury) + (effect ? `<small>${effect}</small>` : '') : recentInjury ? esc(shortInjury) : effect || esc(injury));
+    setHtml(emEl, !fallen && deep ? 'あと少し！' : VIEW.h <= 500 ? esc(shortInjury) : fallen ? esc(injury) : deep || bloodLoss ? injurySign + esc(injury) + (effect ? `<small>${effect}</small>` : '') : recentInjury ? esc(shortInjury) : effect || esc(injury));
     setClass(hpEl, 'healthy', hpPct >= 100 && !wounded);
     setClass(hpEl, 'blood-loss', bloodLoss);
-    // 傷・血・足のけがの字は出さない（命は印と棒だけ。kaito 10/22）。倒れた時だけ残す。
-    setHidden(emEl, !fallen);
+    // 危険は同じ体力の札へ常時添える。繰り返す一時の知らせは作らない。
+    setHidden(emEl, !fallen && !deep);
     if (tcLow) setStyle(emEl, "fontWeight", '800');
     // 深手（三割を切る）は言葉でも示す。
     setClass(hpEl, 'deep', deep);

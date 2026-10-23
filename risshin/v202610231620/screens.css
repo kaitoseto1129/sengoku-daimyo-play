@@ -969,17 +969,16 @@ html body #hud #intro[data-battle="inou"]:has(#intro-go) > .card.card {
   max-height:calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
   gap:8px; padding:12px 16px;
 }
-#hud #intro[data-battle="inou"] .intro-reading { min-height:0; overflow-y:auto; touch-action:pan-y; pointer-events:auto; }
-#hud #intro[data-battle="inou"] .intro-scroll { flex:none; font-size:12px; color:#e6dcc6; }
+#hud #intro[data-battle="inou"] .intro-reading { flex:1 1 auto; min-height:0; overflow-y:auto; touch-action:pan-y; pointer-events:auto; overscroll-behavior:contain; padding-bottom:12px; scroll-padding-bottom:12px; }
+#hud #intro[data-battle="inou"] .intro-reading > * { flex-shrink:0; }
 #hud #intro[data-battle="inou"] #intro-go { flex:none; }
-/* 人物は一人分ずつ。指で送る操作を知らなくても最後まで読める。 */
-#hud #intro[data-battle="inou"] .intro-person[hidden] { display:none; }
-#hud #intro[data-battle="inou"] .intro-pages:not([hidden]) { display:flex; align-items:center; justify-content:center; gap:8px; }
-#hud #intro[data-battle="inou"] .intro-pages .btn { min-height:44px; padding:8px 12px; font-size:15px; }
-#hud #intro[data-battle="inou"] .intro-person { padding:8px; }
-#hud #intro[data-battle="inou"] .intro-person b { font-size:20px; }
-#hud #intro[data-battle="inou"].people-reading .intro-reading > :not(.intro-people) { display:none; }
-#hud #intro[data-battle="inou"] .intro-pages { flex:none; pointer-events:auto; }
+@media (max-height:500px) {
+  #hud #intro[data-battle="inou"] .intro-reading .ttl { font-size:24px; line-height:1.3; margin:4px 0; }
+  #hud #intro[data-battle="inou"] .intro-reading .date { margin-bottom:4px; }
+  #hud #intro[data-battle="inou"] .intro-reading .rule { margin:6px auto; }
+  #hud #intro[data-battle="inou"] .intro-reading .sides { font-size:14px; letter-spacing:0; }
+  #hud #intro[data-battle="inou"] .intro-reading p { margin:6px 0; }
+}
 #loading #ld-story > [data-read-open] { background:#f2d17a; color:#17130d; border:2px solid #fff3ce; font-weight:700; }
 #hud #h-prog[data-battle="inou"] .pg-next { font-size:15px; }
 #hud #h-prog .pg-lesson[hidden] { display:none !important; }

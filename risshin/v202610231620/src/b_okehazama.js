@@ -587,7 +587,8 @@ const okehazama = {
     const F = rt.flags;
     if (rt.phase === 'brief' && F.briefed) return Math.max(0, Math.min(1, 1 - (F.briefReadyAt - rt.t) / 3));
     if (rt.phase === 'wait' && Number.isFinite(F.waitReadyAt))
-      return Math.max(0, Math.min(1, 1 - (F.waitReadyAt - rt.t) / 17));
+      // 満ち切った丸を一息見せてから攻め始める。最後の一欠けで消さない。
+      return Math.max(0, Math.min(1, (rt.t - (F.waitReadyAt - 17)) / 16.2));
     if (F.pursuitDone && F.returnGatherT > 0) return Math.min(1, F.returnGatherT / 10);
     return null;
   },
@@ -660,7 +661,7 @@ const okehazama = {
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は、今する動きを短くやさしく伝える。
   missionSingleLine: true,
-  missions: ['仲間と集まれ', '仲間と進め', '合図を待て', '今川の兵を倒せ', 'いまがわよしもとを倒せ', 'にげる敵を追え', '仲間と集まれ'],
+  missions: ['織田隊と集まれ', '織田隊と集まれ', '雨がやむまで待て', '▼ 今川の兵を倒せ', '▼ いまがわよしもとを倒せ', 'にげる敵を追え', '織田隊と集まれ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -668,15 +669,17 @@ const okehazama = {
     return rt.phase === 'assault' ? 3 : rt.phase === 'wait' ? 2 : rt.phase === 'march' ? 1 : 0;
   },
   missionHeading(rt) {
-    if ((rt.phase === 'march' || rt.phase === 'wait') && rt.flags.scoutFighting) return '今川の兵を倒せ';
-    if (rt.phase === 'assault' && rt.flags.entered && !rt.flags.victory && this.objectiveEnemies(rt).length) return '今川の旗本を倒せ';
-    if (rt.phase === 'wait') return '合図を待て';
+    if ((rt.phase === 'march' || rt.phase === 'wait') && rt.flags.scoutFighting) return '▼ 今川の兵を倒せ';
+    if (rt.phase === 'assault' && rt.flags.entered && !rt.flags.victory && this.objectiveEnemies(rt).length) return '▼ 今川の旗本を倒せ';
+    if (rt.phase === 'wait') return '雨がやむまで待て';
     if (rt.phase === 'brief' && rt.flags.briefed) return '出発を待て';
     if (rt.phase === 'march' && this.squadFlagReached(rt)) return '仲間を待て';
     return this.missions[this.missionOf(rt)];
   },
   // 今の行き先と同じ旗持ちを示す。兵は増やさない。
   missionAlly(rt) {
+    // 行軍は固定の集合ピン一つ。歩く兵を別の行き先に見せない。
+    if (rt.phase === 'march' || rt.phase === 'wait') return null;
     if (rt.phase === 'brief') return rt.flags.genpachi && readyUnit(rt.flags.genpachi) ? rt.flags.genpachi : null;
     if (rt.phase === 'assault' && !rt.flags.victory &&
         (rt.flags.entered || this.objectiveEnemies(rt).length || this.guideMarker(rt) !== 'genpachi')) return null;
@@ -712,13 +715,18 @@ const okehazama = {
     const F = rt.flags;
     if (F.ending || rt.hud.retreatGuide?.active && rt.hud.retreatGuide.valid) return null;
     // 見張りと戦う間は赤い▼だけ。雨待ちのピンも敵へ重ねない。
-    if (F.scoutFighting && rt.phase !== 'assault') return null;
+    if (F.scoutFighting && rt.phase !== 'assault' && !(F.waitPinCompleteUntil > rt.t)) return null;
     const pin = F.missionPinTarget || (F.missionPinTarget = { x: 0, z: 0, r: 8, hide: 8 });
     pin.enemy = false; pin.dodge = false; pin.unit = null; pin.waiting = undefined;
     pin.area = false; pin.arrived = false; pin.progress = null; pin.footRing = false; pin.follow = false;
-    pin.arrivalProgress = 0;
     // 任務札の更新で、同じ集合ピンの到着表示を初期化しない。
     pin.key = rt.phase;
+    // 満ちた瞬間に消さず、一拍保って出発・総攻めへの切り替わりを見せる。
+    if (F.waitPinCompleteUntil > rt.t && F.waitPinCompletePos) {
+      pin.x = F.waitPinCompletePos.x; pin.z = F.waitPinCompletePos.z;
+      pin.hide = 0; pin.area = true; pin.waiting = true; pin.arrived = true; pin.progress = 1;
+      return pin;
+    }
     // 戦う相手は頭上の赤い▼だけ。ピンは通れる幕の口だけに残す。
     if (rt.phase === 'assault' && !F.victory) {
       const entrance = !F.entered && F.roadStep >= F.road.length ||
@@ -747,8 +755,9 @@ const okehazama = {
         pin.x = pos.x; pin.z = pos.z;
         pin.area = true; pin.hide = 0; pin.r = 8;
         pin.arrived = this.squadFlagReached(rt); pin.waiting = pin.arrived;
-        pin.arrivalProgress = Math.max(0, Math.min(1, 1 - (this.squadFlagDistance(rt) - pin.r) / 12));
-        // 穴が満ちるのは到着後の待ち時間だけ。歩いた量と混ぜない。
+        // 出発から到着までの歩みを同じ内周で示す。近づいた分だけ閉じる。
+        pin.arrivalProgress = Math.max(0, Math.min(1, 1 - (this.squadFlagDistance(rt) - pin.r) / F.marchGuideLength));
+        // 到着後の待ち時間は progress で示し、歩いた量と分ける。
         return pin;
       }
       const pos = this.squadFlagPosition(rt);
@@ -758,7 +767,6 @@ const okehazama = {
       // ピンは到着判定と同じ地面の一点へ。人物への話しかけの印にしない。
       pin.hide = 0; pin.waiting = false; pin.area = true;
       pin.arrived = rt.phase === 'brief' && F.briefed || this.squadFlagReached(rt);
-      pin.arrivalProgress = Math.max(0, Math.min(1, 1 - (this.squadFlagDistance(rt) - pin.r) / 12));
       // 出発前も同じピンの穴が満ちる。別の時計や人物の印へ切り替えない。
       if (pin.arrived) {
         pin.waiting = true;
@@ -2050,6 +2058,8 @@ const okehazama = {
   },
   startMarch(rt) {
     if (rt.over || rt.flags.ending || rt.phase !== 'brief') return;
+    rt.flags.waitPinCompletePos = this.squadFlagPosition(rt);
+    rt.flags.waitPinCompleteUntil = rt.t + .8;
     rt.setPhase('march'); rt.flags.marchBegan = rt.t; rt.objDone('talk'); rt.objRemove('talk'); rt.objRemove('honjin0');
     rt.flags.speechCheckAt = 0; this.clearOldSpeech(rt);
     this.marchFlag(rt);
@@ -2326,13 +2336,12 @@ const okehazama = {
       rt.after(4, () => { if (rt.phase === 'wait') { sfx('thunder', 1); rt.bark('石や氷を投げつけるような雨が、今川の陣へ吹きつけている'); } });
     }
     rt.objProgress('wait', '');
-    if (rt.pt > 11 && !F.clear) {
+    // 丸が満ちる時に雨がやみ、同じ時刻に味方が攻め始める。見えない号令だけで待たせない。
+    if (rt.t >= F.waitReadyAt && !F.clear) {
       F.clear = true; rt.world.setRainTarget(0); rt.world.setTime('after'); rt.world.addPuddles(30);
       for (const g of F.enemies) g.guardSight = 32;
       rt.banner('雨が弱まった', '霧の向こうに、今川本陣の幕と旗が見える');
-      // 晴れ間に、本陣の方へ一息だけ目を向ける。構えている時は奪わない。
-      const p = rt.player;
-      if (!p.lock && !(p.inCombatT > 0)) p.cine = { x: FIELD_HONJIN.x, z: FIELD_HONJIN.z, t: 1.6 };
+      // 視点を奪わず、目の前の仲間が一斉に動き出す様子を合図にする。
     }
     if (rt.t >= F.waitReadyAt && !F.kakare) {
       F.kakare = true; hush(2);
@@ -2344,6 +2353,8 @@ const okehazama = {
   startAssault(rt) {
     const F = rt.flags;
     if (rt.over || F.ending || rt.phase !== 'wait') return;
+    F.waitPinCompletePos = this.squadFlagPosition(rt);
+    F.waitPinCompleteUntil = rt.t + .8;
     rt.setPhase('assault'); rt.objRemove('col'); rt.objRemove('wait'); rt.objRemove('honjin0');
     rt.unmark('wait');
     F.quiet = false;

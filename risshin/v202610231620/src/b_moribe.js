@@ -1019,7 +1019,7 @@ const moribe = {
   // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は「何をするか」だけ（kaito 10/23 49・50）。段の総称で通し、向き・行き先の字は書かない。
-  missions: ['川を渡れ', '仲間を待て', '敵を倒せ', '敵を倒して耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
+  missions: ['川を渡れ', '仲間を待て', '斎藤勢を倒せ', '耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
   // ピン・▼・名前は同じ本人へ。描画の間引きで相手を替えない。
   commanderTarget(rt) {
     const F = rt.flags;
@@ -1078,7 +1078,7 @@ const moribe = {
   missionHeading(rt) {
     const F = rt.flags, p = rt.player.u.pos;
     // 渡河済みのコマから待機へ替える。集合判定の更新を待たせない。
-    if (!F.signal && (F.pointInside || atFordBank(p, rt.world))) return F.fordThreat ? '敵を倒せ' : '仲間を待て';
+    if (!F.signal && (F.pointInside || atFordBank(p, rt.world))) return F.fordThreat ? '斎藤勢を倒せ' : '仲間を待て';
     // 集まる間と、その場で耐える間を同じ一行で区別する。向き・距離は書かない。
     if (F.stage === 'assemble') {
       if (F.gatherUnit || Math.hypot(p.x - F.asm.x, p.z - F.asm.z) >= 12) return '仲間と集まれ';
@@ -1088,7 +1088,8 @@ const moribe = {
         !F.signal && F.pointReached && !F.pointInside ||
         (F.stage === 'hold' || F.stage === 'contact' && F.vBroken) && F.lineReturning)
       return '仲間と集まれ';
-    if (F.stage === 'hold') return '敵を倒して耐えろ';
+    // 守備の終了に撃破人数の条件はない。倒す人数を探させない。
+    if (F.stage === 'hold') return '耐えろ';
     return this.missions[this.missionOf(rt)];
   },
   minutes: 7,
@@ -1178,9 +1179,7 @@ const moribe = {
       // 岸に上がるまで一本だけ示し、渡った瞬間に消す。足元へ戻らせない。
       if (F.pointInside || atFordBank(rt.player.u.pos, rt.world)) return null;
       pos = POINT2; r = FORD_R; hide = 0;
-      // 渡るほど同じピンの中が満ち、乾いた岸へ着いた瞬間に消える。
-      q.progress = Math.max(0, Math.min(.95,
-        (START2.z - rt.player.u.pos.z) / (START2.z - (nireZ(rt.player.u.pos.x) - NIRE_WIDTH2))));
+      // 移動中は岸に刺さるピンだけ。待機の進みと混ぜず、乾いた岸へ着いた瞬間に消す。
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
     } else if (F.stage === 'assemble') {
