@@ -124,6 +124,28 @@ export class HudWork {
     if (!p) return false;
     const foot = this.workGuideFoot || (this.workGuideFoot = { x:0, y:0, z:0 });
     foot.x = p.x; foot.z = p.z; foot.y = groundAt(rt.world, p.x, p.z, rt.player.u.pos.y);
+    // 火付けは軒先の小さな炎一つ。任務札は所定の欄に残し、家や兵を囲まない。
+    if (main.guideSymbol === 'fire') {
+      const door = typeof main.pos === 'function' ? main.pos() : main.pos;
+      const anchor = door || foot;
+      const sign = this.project(anchor, (anchor.y ?? foot.y) + 2.7, rt);
+      const order = $('objectives');
+      setClass(order, 'work-order', false);
+      setClass(order, 'destination-sign', false);
+      setClass(order, 'entrance-order', false);
+      if (!sign.behind && sign.x >= 24 && sign.x <= VIEW.w - 24 && sign.y >= 56 && sign.y <= VIEW.h - 32) {
+        g.save(); g.translate(sign.x, sign.y); g.lineJoin = 'round';
+        g.beginPath(); g.moveTo(0, -14);
+        g.bezierCurveTo(3, -5, 11, -3, 9, 5);
+        g.bezierCurveTo(7, 15, -10, 14, -9, 4);
+        g.bezierCurveTo(-9, -1, -3, -4, -4, -8);
+        g.lineTo(-1, -4); g.closePath();
+        g.strokeStyle = '#18150f'; g.lineWidth = 4; g.stroke();
+        g.fillStyle = '#ffe6a0'; g.fill(); g.restore();
+      } else this.drawOffscreenDirection(g, rt, p, true);
+      setClass(this.root, 'travel-guide', true);
+      return true;
+    }
     const building = this.drawWorkBuilding(g, rt, main);
     const sign = building || this.project(foot, foot.y + .12, rt);
     const visible = !!building || !main.guideObject && !sign.behind && sign.x >= 48 && sign.x <= VIEW.w - 48 && sign.y >= 112 && sign.y <= VIEW.h - 32 && this.floorGoalVisible(rt, foot);

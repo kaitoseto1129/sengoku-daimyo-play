@@ -1727,6 +1727,14 @@ function buildInabaMountain(rt) {
       col = mix(col, stone * vec3(0.83, 0.80, 0.75), ibRock);
       float ibTrail = texture2D(inabaTrail, ibMap).r * smoothstep(0.55, 0.72, abs(gN.y));
       col = mix(col, dirt * vec3(0.92, 0.83, 0.72), ibTrail * 0.94);
+      // 土の細粒と乾湿の斑を別の大きさで重ねる。面は増やさず、遠くの粒は薄める。
+      vec3 ibGrain = texture2D(tDirt, ibUv * 1.7).rgb;
+      float ibFine = dot(ibGrain, vec3(0.3, 0.5, 0.2));
+      float ibNear = 1.0 - smoothstep(15.0, 48.0, distance(cameraPosition, vInabaPoint));
+      col *= mix(1.0, 0.82 + ibFine * 0.46, ibNear * (1.0 - ibRock));
+      float ibPatch = sin(ibUv.x * 0.31 + sin(ibUv.y * 0.19) * 1.8)
+        * sin(ibUv.y * 0.27 - ibUv.x * 0.13);
+      col *= 1.0 + ibPatch * 0.09 * (1.0 - ibRock);
       col = mix(col, col * vec3(0.55, 0.3, 0.26), ibWear.g * 0.7);
       diffuseColor.rgb *= col;`);
   };
@@ -2448,9 +2456,21 @@ function installInabaPresentation(rt) {
   };
 }
 
-// 裏道の近くだけ地面そのものを細分する。別の土の板を重ねず、足場と山肌を一枚にする。
+// 裏道と民家の造成面だけ細分する。足場・庭・山肌を一枚の地面にする。
 function buildKaraTrail(rt) {
   const W = rt.world, oldHeight = W.heightAt;
+  // 造成の境目を大きな三角形でまたぐと、水平にした庭が再び斜面になる。
+  // 家の周りだけ既存の細分枠へ入れる。調べる入れ物は読み込み時に一度だけ作る。
+  const homes = HOUSES.map(([x, z, r], i) => ({ x, z, c: Math.cos(r), s: Math.sin(r),
+    w: (6 + i % 3) / 2 + 5.1, d: 4.5 / 2 + 5.1 }));
+  const nearHome = (x, z, radius = 0) => {
+    for (const h of homes) {
+      const dx = x - h.x, dz = z - h.z;
+      if (Math.abs(dx * h.c - dz * h.s) < h.w + radius
+        && Math.abs(dx * h.s + dz * h.c) < h.d + radius) return true;
+    }
+    return false;
+  };
   const old = W.terrain.geometry, attrs = old.attributes, p = attrs.position;
   // 描く面の間引きが済んでいても、山肌全体から道を作る。詰めた描画用の索引は使わない。
   const source = old.userData.terrainViewIndex || old.index.array;
@@ -2476,7 +2496,7 @@ function buildKaraTrail(rt) {
     const a = source[i], b = source[i + 1], c = source[i + 2];
     const x = (p.getX(a) + p.getX(b) + p.getX(c)) / 3, z = (p.getZ(a) + p.getZ(b) + p.getZ(c)) / 3;
     const radius = Math.max(Math.hypot(p.getX(a) - x, p.getZ(a) - z), Math.hypot(p.getX(b) - x, p.getZ(b) - z), Math.hypot(p.getX(c) - x, p.getZ(c) - z));
-    if (karaSample(x, z).d > KARA_BLEND + radius) { coarse.push([a, b, c]); continue; }
+    if (karaSample(x, z).d > KARA_BLEND + radius && !nearHome(x, z, radius)) { coarse.push([a, b, c]); continue; }
     for (let u = 0; u < 4; u++) for (let v = 0; u + v < 4; v++) {
       const va = vertex(a, b, c, u / 4, v / 4), vb = vertex(a, b, c, (u + 1) / 4, v / 4), vc = vertex(a, b, c, u / 4, (v + 1) / 4);
       indices.push(va, vb, vc);
@@ -2501,7 +2521,7 @@ function buildKaraTrail(rt) {
   }
   for (let i = 0; i < vertices.length; i += 3) {
     const x = vertices[i], z = vertices[i + 2];
-    if (karaSample(x, z).d < KARA_BLEND) vertices[i + 1] = height(x, z);
+    if (karaSample(x, z).d < KARA_BLEND || nearHome(x, z)) vertices[i + 1] = height(x, z);
   }
   const geo = new THREE.BufferGeometry();
   for (let k = 0; k < names.length; k++) geo.setAttribute(names[k], new THREE.Float32BufferAttribute(arrays[k], attrs[names[k]].itemSize));
@@ -2511,10 +2531,10 @@ function buildKaraTrail(rt) {
   const row = Math.round(W.half * 2 / W.step) + 1;
   for (let z = 0; z < row; z++) for (let x = 0; x < row; x++) {
     const px = -W.half + x * W.step, pz = -W.half + z * W.step;
-    if (karaSample(px, pz).d < KARA_BLEND) W.grid[z * row + x] = drawGroundAt(W, px, pz);
+    if (karaSample(px, pz).d < KARA_BLEND || nearHome(px, pz)) W.grid[z * row + x] = drawGroundAt(W, px, pz);
   }
   W.heightAt = function (x, z) {
-    if (karaSample(x, z).d < KARA_BLEND) {
+    if (karaSample(x, z).d < KARA_BLEND || (x > -28 && x < 54 && z > 28 && z < 108)) {
       const y = drawGroundAt(this, x, z);
       if (Number.isFinite(y)) return y;
     }
@@ -2926,6 +2946,8 @@ const inabayama = {
     contactShadows: true,
     contactDust: true,
     livingSpearHedge: true,
+    // 後列も前の兵の相手へ槍を添える。人数と攻撃判定はそのまま。
+    rearSpearSupport: true,
     variedMarch: true,
     strideLimit: 1.25,
     // 伏せた指物は短くしわを寄せ、町に白い板を残さない。
@@ -3002,6 +3024,8 @@ const inabayama = {
     layeredNeedles: true,
     raggedNeedles: true,
     branchFoliage: true,
+    // 同じ松の棚を反復せず枝先を上下に散らし、葉房の重なる腹を暗くする。
+    raggedPineCrowns: true,
     // 高画質でも杉全体を三枚の板へ戻さず、使い回す枝房を残す。
     nearCedarBranches: true,
     slopingNeedleBoughs: true,
@@ -3027,6 +3051,13 @@ const inabayama = {
     curvedRockTufts: true,
     tufts: 3800,
     patchyGround: true,
+    // 実際の往来と乱戦で踏まれた帯を、土の色と伏せた草で共用する。
+    wetFieldRuts: 'wear',
+    nearGrassClumpBase: 0.06,
+    nearGrassClumpGain: 1.8,
+    tuftHeight(x, z) {
+      return 0.72 + 0.2 * Math.sin(x * 0.37 + z * 0.16) * Math.sin(z * 0.29 - x * 0.11);
+    },
     // 土塊の升目の陰を縁で消し、町と裏道を四角い敷石に見せない。
     softEarthCrust: true,
     // 同じ穴を裸地全体へ並べず、踏まれた泥の所だけ薄く残す。
@@ -3057,6 +3088,9 @@ const inabayama = {
     const F = rt.flags;
     installInabaPresentation(rt);
     buildKaraTrail(rt);
+    // 城下の使われた往来。足跡の個数や戦う兵には触れず、初期の踏み跡だけを敷く。
+    W.stampTrail([[36, 122], [28, 104], [26, 92], [20, 74], [26, 52], [24, 30]], 1.6, 32);
+    for (const [hx, hz] of HOUSES) W.stampTrail([[hx, hz + 3], [hx, hz + 7], [23 + Math.sin((hz + 7) * 0.055) * 4, hz + 7]], 0.8, 20);
     // 大きな土塊と足形を同じ間隔で繰り返すと、坂まで敷石に見える。
     // 稲葉山だけ粒の細かな土へ替え、広い湿乾の斑と道の色は残す。
     W.groundU.tDirt.value = dirtTex(true);

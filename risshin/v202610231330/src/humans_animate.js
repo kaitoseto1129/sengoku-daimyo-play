@@ -70,7 +70,7 @@ function driveHuman0(h, dt, fine = true, arms = true) {
   // 接敵した徒歩は大股の走りから、構えを保った短い足運びへ移る。
   // 今ある相手だけを見る。兵の位置・速さ・攻撃の時計には触れない。
   const gaitWeapon = u.wpnKind || u.lookWeapon;
-  const gaitFoe = u.atk?.target || u.swing?.target || u.target;
+  const gaitFoe = u.atk?.target || u.swing?.target || u.target || u.poseTarget;
   let closeGait = 0;
   if (!h.far && !fallen && !u.isPlayer && !u.mounted && !u.fleeing && !u.downed && !u.climb
     && !u.dodging && !u.hit && !(u.stagger > 0) && !(u.pinT > (ARMY?.time ?? 0))
@@ -78,7 +78,7 @@ function driveHuman0(h, dt, fine = true, arms = true) {
     && gaitFoe.team !== u.team && Math.abs(gaitFoe.pos.y - u.pos.y) < 1.2) {
     const reach = gaitWeapon === 'spear' ? 5.2 : 3;
     closeGait = clamp01((reach - Math.hypot(gaitFoe.pos.x - u.pos.x, gaitFoe.pos.z - u.pos.z)) / 1.8)
-      * (1 - clamp01((sp - 3.2) / 1.2));
+      * (1 - clamp01((sp - 4.2) / 1.8));
   }
   // 後列は敵を直接狙っていなくても、前列から伝わる押し合いに合わせて足を刻む。
   // 脚だけが大股で走り続ける姿を避け、既存の接触量を使う。
@@ -140,6 +140,14 @@ function driveHuman0(h, dt, fine = true, arms = true) {
     // 歩幅を縮めた分は上の時計を進め、足だけが地面を滑らないようにする。
     const amp = (1 + need) * (1 + (strideK - 1) * Math.min(1, wWalk + wRun)) * shortStride;
     if (Math.abs(amp - 1) > 0.01) for (const nm in SRC.restQ) { const b = h.bones[nm]; _fq.copy(SRC.restQ[nm]).slerp(b.quaternion, amp); b.quaternion.copy(_fq); b.updateMatrix(); }
+    // 鎧を着た駆け足は腿を腰より上へ振り上げない。録画の脚だけを抑え、
+    // この後の踏み込み・受け・坂の足裏補正には制限を重ねない。
+    for (const nm in SRC.restQ) {
+      const b = B[nm], rest = SRC.restQ[nm];
+      const angle = rest.angleTo(b.quaternion);
+      const limit = nm.endsWith('UpLeg') ? 0.88 - combatGait * 0.2 : 1.3 - combatGait * 0.2;
+      if (angle > limit) { _fq.copy(rest).slerp(b.quaternion, limit / angle); b.quaternion.copy(_fq); b.updateMatrix(); }
+    }
   }
   // 根元の向き（人は兵の根元の子）。倒れる途中は根元がコマごとに大きく回るので、先に今のコマの行列にしておく（前のコマの向きで骨を回すと、体がねじれて跳ねる）
   if (!u.mounted) u.mesh.updateWorldMatrix(false, false);

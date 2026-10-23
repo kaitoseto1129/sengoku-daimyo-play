@@ -302,7 +302,10 @@ function groundedHomeMat() {
       diffuseColor.rgb *= mix(1.0, 0.78 + homeWood * 0.44, homeTimber);
       diffuseColor.rgb *= mix(1.0, (0.92 + homeGrain * 0.16)
         * (1.0 - homeFoot * (0.18 + homeRain * 0.12)), homeWall);
-      diffuseColor.rgb *= 1.0 - homeFoot * homeTimber * 0.22;`);
+      diffuseColor.rgb *= 1.0 - homeFoot * homeTimber * 0.22;
+      // 茅の張り出しのすぐ下は空からの光も遮られる。共有材質内で軒の陰を残す。
+      float homeEave = smoothstep(1.9, 2.6, vHomeSurface.y);
+      diffuseColor.rgb *= 1.0 - homeEave * (homeWall * 0.22 + homeTimber * 0.12);`);
   };
   mat.customProgramCacheKey = () => 'grounded-home-earth-timber';
   return (_groundedHome = mat);
@@ -1830,7 +1833,7 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
     // 木以外の根石・草・土の裾は木目を掛けない。色でなく部品の用途で分ける。
     const kind = g.userData.homeWall ? 1 : g.userData.homeTimber ? 0 : 2;
     for (let i = 0; i < pos.count; i++) {
-      surface[i * 2] = kind; surface[i * 2 + 1] = pos.getY(i);
+      surface[i * 2] = kind; surface[i * 2 + 1] = pos.getY(i) * 2.6 / H;
       if (kind === 0) uv.setXY(i, uv.getX(i) * .38, uv.getY(i) * 1.6);
     }
     g.setAttribute('homeSurface', new THREE.BufferAttribute(surface, 2));

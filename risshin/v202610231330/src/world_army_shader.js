@@ -445,7 +445,7 @@ void cInit(float sd) {
 float cCycle(float sd) {
   return fract(uAT / (2.35 + fract(aClash.x * 0.731) * 0.55)
     + aClash.x * 0.173 - aClash.z * 0.09
-    + (sd - 0.5) * 0.24 + (uSide < 0.0 ? 0.5 : 0.0));
+    + (sd - 0.5) * 0.62 + (uSide < 0.0 ? 0.5 : 0.0));
 }
 void cPose(inout APose P) {
   float sd = aInfo.x, T = uAT + sd * 97.0;
@@ -546,6 +546,13 @@ void cPose(inout APose P) {
       P.leg = mix(P.leg, 0.18 - 0.10 * windup + 0.24 * strike + 0.08 * settle - 0.15 * receive, weight);
       P.lift -= weight * (0.025 + 0.035 * windup + 0.04 * settle + 0.055 * receive);
       P.kneel = mix(P.kneel, 1.0 - 0.035 * windup - 0.04 * settle - 0.06 * receive, weight);
+      // 受け流す者と、押し負けて半歩引く者を混ぜる。兵数や戦闘判定は変えない。
+      float recoil = smoothstep(0.68, 0.94, style) * receive * weight;
+      P.off.z -= recoil * 0.36;
+      P.off.x += recoil * side * 0.25;
+      P.yaw += recoil * side * 0.38;
+      P.fall -= recoil * 0.13;
+      P.kneel *= 1.0 - recoil * 0.09;
       // 鉄砲・弓・旗持ちには槍の突きを付けない。
       P.kneel = mix(P.kneel, 0.75, f * detail * (1.0 - melee) * step(aInfo.y, 1.0));
       // 個人の踏み込みだけを足から差し引く。前線全体の押し引きは残す。
@@ -574,6 +581,12 @@ void cPose(inout APose P) {
     P.off.x += q * (sd - 0.5) * 0.10 * brace;
     P.fall += q * (0.09 * press - 0.04 * brace);
     P.spear += q * 0.14 * beat * (aInfo.y == 0.0 || aInfo.y == 3.0 ? 1.0 : 0.0);
+    // 後列の全員が槍を直立させない。前を支える低い穂先と、頭越しの構えを混ぜる。
+    if (aInfo.y == 0.0) {
+      float ready = 0.48 + fract(sd * 23.17) * 0.48;
+      P.spear = mix(P.spear, ready + 0.16 * press - 0.10 * brace, q);
+      P.yaw += q * (fract(sd * 17.31) - 0.5) * 0.28;
+    }
     P.leg = mix(P.leg, 0.14 + 0.16 * press - 0.08 * brace, q);
     P.lift -= q * 0.035 * brace;
   }

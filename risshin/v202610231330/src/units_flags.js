@@ -204,10 +204,12 @@ function umaGeometry(kind) {
     // 金の三つ団子。竿の上に三球を縦に並べる。
     for (let i = 0; i < 3; i++) parts.push(paint(at(new THREE.SphereGeometry(0.23, 10, 6), 0, 3.25 + i * .46, 0), gold));
   } else if (kind === 'gourd') {
-    parts.push(paint(at(new THREE.SphereGeometry(0.3, 12, 8), 0, 3.4, 0), gold));
-    parts.push(paint(at(new THREE.SphereGeometry(0.2, 12, 8), 0, 3.82, 0), gold));
-    parts.push(paint(at(new THREE.CylinderGeometry(0.05, 0.08, 0.14, 8), 0, 4.06, 0), 0xb8231a));
-    for (let i = 0; i < 8; i++) parts.push(paint(at(new THREE.BoxGeometry(0.03, 0.34, 0.03), Math.sin(i * 0.8) * 0.12, 3.05, Math.cos(i * 0.8) * 0.12), 0xb8231a));
+    // 持ち手の頭幅ほどの実にする。倒れた時も人の胴より大きい金の球に見せない。
+    const agedGold = 0xa8853d;
+    parts.push(paint(at(new THREE.SphereGeometry(0.19, 12, 8), 0, 3.3, 0), agedGold));
+    parts.push(paint(at(new THREE.SphereGeometry(0.12, 12, 8), 0, 3.57, 0), agedGold));
+    parts.push(paint(at(new THREE.CylinderGeometry(0.025, 0.045, 0.1, 8), 0, 3.72, 0), 0x752b21));
+    for (let i = 0; i < 8; i++) parts.push(paint(at(new THREE.BoxGeometry(0.018, 0.22, 0.018), Math.sin(i * 0.8) * 0.08, 3.04, Math.cos(i * 0.8) * 0.08), 0x752b21));
   } else {
     parts.push(paint(at(new THREE.CylinderGeometry(0.36, 0.36, 0.03, 20), 0, 3.5, 0, Math.PI / 2), gold));
     parts.push(paint(at(new THREE.CylinderGeometry(0.2, 0.2, 0.035, 18), 0, 3.5, 0.01, Math.PI / 2), 0xb8231a));
