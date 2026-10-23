@@ -118,6 +118,7 @@ export class HudOverlay {
       setCssVar(this.flagDirectionEl, 'display', 'none', 'important');
     }
     setClass($('objectives'), 'attached-destination', false);
+    if (this.destinationDistanceLabel) this.destinationDistanceLabel.hidden = true;
     const cv = $('overlay');
     setClass(this.root, 'single-guide', singleBattleGuide(rt));
     // 写真モードでは頭上の名札・体力も消す

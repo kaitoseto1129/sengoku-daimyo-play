@@ -1,4 +1,4 @@
-import { singleBattleGuide, guardPostDistance, defenseRadius, travelSignPriority, $, groundFlag, setClass, setCssVar, esc } from "./hud_common.js";
+import { singleBattleGuide, guardPostDistance, defenseRadius, travelSignPriority, $, groundFlag, setClass, setCssVar, setText, esc } from "./hud_common.js";
 import { groundAt } from "./floors.js";
 import { VIEW } from "./viewport.js";
 import { isTouch } from "./touch.js";
@@ -43,8 +43,8 @@ export class HudDestination {
 
   // 目的は行き先の札にも残す。「ここへ」だけには縮めない。
   destinationPurpose(rt) {
-    if (this.openingActive && isTouch) return 'ここへ進む';
     const label = rt.def.travelGuideLabel?.(rt);
+    if (this.openingActive && isTouch && !label) return '輪の中へ';
     if (label) return label;
     return rt.def.routeWaymarkLabel || 'ここへ進む';
   }
@@ -180,7 +180,7 @@ export class HudDestination {
       const side = -dx * Math.cos(yaw) + dz * Math.sin(yaw);
       const forward = dx * Math.sin(yaw) + dz * Math.cos(yaw);
       edgeAngle = Math.atan2(-forward, side);
-      const top = 140, bottom = VIEW.h - 76, centerY = (top + bottom) / 2;
+      const top = Math.min(140, VIEW.h / 3), bottom = VIEW.h - 96, centerY = (top + bottom) / 2;
       const scale = Math.min((VIEW.w / 2 - 96) / Math.max(.001, Math.abs(side)),
         Math.max(12, (bottom - top) / 2) / Math.max(.001, Math.abs(forward)));
       x = VIEW.w / 2 + side * scale; y = centerY - forward * scale;
@@ -208,6 +208,20 @@ export class HudDestination {
       }
     }
     const order = $('objectives');
+    // 画面外の案内も任務一枚に収め、矢じりと同じ向き・次の通り口までの歩数を示す。
+    if (!this.destinationDistanceLabel) {
+      this.destinationDistanceLabel = document.createElement('div');
+      this.destinationDistanceLabel.className = 'destination-distance';
+      order.appendChild(this.destinationDistanceLabel);
+    }
+    this.destinationDistanceLabel.hidden = edgeAngle === null;
+    if (edgeAngle !== null) {
+      const p = rt.player.u.pos;
+      const steps = Math.max(1, Math.ceil(Math.hypot(pos.x - p.x, pos.z - p.z) / .75));
+      const direction = Math.sin(edgeAngle) > .5 ? '後ろへ' : Math.cos(edgeAngle) > .5 ? '右へ' :
+        Math.cos(edgeAngle) < -.5 ? '左へ' : '前へ';
+      setText(this.destinationDistanceLabel, `${direction}・あと${steps}歩`);
+    }
     const openingControls = isTouch && this.openingActive && this.opening?.el.classList.contains('opening-controls');
     const attached = !this.openingActive && this.notices.sources[1].selected && !order.classList.contains('expand');
     // 入口の中心は動かさず、旗と任務を同じ札へ入れる。人を避けて別の床へ移さない。

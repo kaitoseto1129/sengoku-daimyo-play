@@ -578,6 +578,8 @@ function outerFence(rt) {
 }
 // 三木の使番だけを着せ替える。共通の姿・共有された形は書き換えない。
 function mikiHoro(rt) {
+  // 母衣を着けない使番には、布や骨の形も作らない。
+  if (!rt.couriers.some(c => c.u.look.horo)) return;
   const vertices = [], indices = [], bones = [];
   const segments = 24, rows = 6;
   const radius = t => 0.035 + 0.095 * Math.sin(t * Math.PI * 0.8);
@@ -612,6 +614,7 @@ function mikiHoro(rt) {
   const frameMaterial = new THREE.LineBasicMaterial({ color: 0x8a7047 });
   rt.flags.horoCloths = [];
   for (const c of rt.couriers) {
+    if (!c.u.look.horo) continue;
     const look = { ...c.u.look, horo: 0 }, key = lookKey(look);
     // 近く用と遠く用の両方から旧い袋を除く。頭・手足・馬・旗はそのまま。
     lodSwap(c.u.body, bodyGeometry(key, look, true, 'nohead'), bodyGeometry(key, look, false, 'nohead'));
@@ -1467,7 +1470,9 @@ const miki = {
       return dispose.apply(this, args);
     };
     mikiScenery(W);
-    mikiHoro(rt);
+    // 使番は戦の支度後に作られる。着せ替えは生成後の一回だけ行う。
+    F.horoCloths = [];
+    rt.after(0, () => mikiHoro(rt));
     // 視点が馬上の胴へ入る時は、腰を濃く残す透かしでは前が見えない。
     // 三木だけ、体の中と本人までの視線を塞ぐ味方を描く間避ける。
     // 距離だけで脇の列まで消さず、坂の高低も含めて肩越しの細い範囲を調べる。

@@ -646,7 +646,7 @@ export class HudUpdate {
       button.addEventListener('blur', release);
       window.addEventListener('blur', release);
       button.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); });
-      this.root.appendChild(button);
+      $('objectives').appendChild(button);
     }
     // 反撃のすきも押している札を残し、指を離してから攻撃の案内へ渡す。
     const guardHeld = this.waitGuardHeldBattle === rt;
@@ -670,6 +670,7 @@ export class HudUpdate {
     if (!waitGuard || outsideGuardPost) this.releaseWaitGuard();
     setHidden(this.waitGuardButton, !waitGuard);
     setClass(this.root, 'wait-guard-active', !!waitGuard);
+    setClass($('objectives'), 'integrated-guard', !!waitGuard);
     setClass(this.root, 'hand-action-guide', isTouch && !rt.over && !rt.choice && !this.openingActive &&
       !rt.player.camShot && !this.bigmap && !rt.dodgeGuide && !retreatRequired(rt) && !this.retreatGuide?.active &&
       !rt.def.town && !rt.def.dojo && !!(waitGuard || this.defendEnemy?.alive || this.attackGuideEnemy?.alive || this.approachGuideEnemy?.alive));
@@ -938,7 +939,7 @@ export class HudUpdate {
       aimHelp = isTouch ? '印の敵へ やりを向ける' : `手元の操作器を${waitFacingSide}へ動かす`;
       if (!isTouch && !rt.def.hideGuideSteps) aimHelp += `・敵まで あと${Math.max(1, Math.ceil(Math.hypot(dx, dz) / .75))}歩`;
     }
-    const facingGesture = isTouch && (aimTurning || !!waitFacing && !this.waitFacingReady);
+    const facingGesture = isTouch && !rt.def.routeGuidePriority?.(rt) && (aimTurning || !!waitFacing && !this.waitFacingReady);
     setClass($('objectives'), 'facing-order', !!facingGesture);
     setClass($('objectives'), 'facing-left', !!facingGesture && !!S.touchSwap);
     if (facingGesture) {
@@ -1151,7 +1152,7 @@ export class HudUpdate {
       shownTaskLabel = `印の敵へ ${attackOperation(rt)}`;
     // 操作の短縮や戦固有の文より後で、触る側と指の動きを一枚に示す。
     if (facingGesture && !careSequence && !retreatMoving && !retreatRequired(rt) && !rt.dodgeGuide && !recovering(rt)) {
-      shownTaskLabel = `ここから${waitFacingSide}へ`;
+      shownTaskLabel = `${S.touchSwap ? '左' : '右'}の画面を${waitFacingSide}へなぞって向く`;
       aimHelp = ''; waitFacingHelp = ''; edgeGoalDetail = '';
     }
     // 待つ下知が最終的に選ばれた時だけ、移動を促す印を休める。

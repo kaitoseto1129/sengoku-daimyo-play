@@ -307,7 +307,7 @@ export class HudGoal {
     point.x = sign.x; point.z = sign.z;
     point.y = sign.y ?? groundAt(rt.world, point.x, point.z, pos.y ?? p.y);
     // 携帯の道案内は、既存の任務一枚を次の戸口の旗へ添える。
-    if (isTouch && doorway && rt.def.routeGuidePriority?.(rt)) {
+    if (doorway && rt.def.routeGuidePriority?.(rt)) {
       setClass(this.root, 'travel-guide', true);
       return this.drawNamedDestination(g, rt, point, sign.door ? sign.frame : null);
     }

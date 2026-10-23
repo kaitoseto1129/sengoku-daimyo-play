@@ -974,7 +974,7 @@ html body #hud #battle-message { gap:8px; }
     // 命・行き先・操作も数える。命の札の一枠は常に空ける。
     if (!choosing) {
       const destination = false; // 小旗と地面の線には札の枠を使わない。
-      const operation = dodging || waitGuard || working || !!rt?.touchCoachActive || !!rt?.touchAttackGuideActive || !!rt?.nearestInteract();
+      const operation = dodging || working || !!rt?.touchCoachActive || !!rt?.touchAttackGuideActive || !!rt?.nearestInteract();
       const target = document.getElementById('target');
       const boss = document.getElementById('boss');
       const combatCards = Number(!boss.hidden && !boss.classList.contains('symbol-only')) + Number(!shigaGuardTask && !target.hidden && !target.classList.contains('notice-muted'));
@@ -1017,7 +1017,7 @@ html body #hud #battle-message { gap:8px; }
           (rt?.def.routeGuidePriority?.(rt) || rt?.missionGuide?.marker && !rt.guideEnemyShown &&
           rt.missionGuide.distance >= (rt.missionGuide.marker.guideRadius || 8))) continue;
       // 待機中の指図は押せる札に集める。いのちと危険の知らせの分を空ける。
-      if (waitGuard && source.id !== 'choice' && !(rt?.def.keepTaskWithGuard && source.id === 'objectives')) continue;
+      if (waitGuard && source.id !== 'choice' && source.id !== 'objectives') continue;
       if (defending && source.id !== 'objectives' && source.id !== 'choice') continue;
       if (rainUrgent && !(rt?.def.keepTaskWithRain && source.id === 'objectives')) continue;
       // よける操作が済むまでは移動の下知を重ねず、済んだ次の更新で任務へ戻す。
@@ -1047,7 +1047,7 @@ html body #hud #battle-message { gap:8px; }
         const expanded = el.classList.contains('expand');
         const action = el.querySelector('.battle-action:not([hidden])');
         const text = el.querySelector('li.cur .obj-now');
-        const hasTask = expanded ? !!el.querySelector('li') : !!(text?.textContent.trim() || action?.textContent.trim());
+        const hasTask = waitGuard || (expanded ? !!el.querySelector('li') : !!(text?.textContent.trim() || action?.textContent.trim()));
         el.classList.toggle('empty-task', !hasTask);
         if (!hasTask) continue;
       }

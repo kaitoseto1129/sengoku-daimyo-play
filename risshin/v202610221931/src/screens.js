@@ -581,7 +581,7 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
     ${saved ? `${(saved.scenario || 'okehazama') !== 'oda' ? `<p class="note">古い保存：${esc(scOf(saved).name)}。続きから遊べます。<br>いま新しく始められる本編：織田家編。</p>` : ''}${(saved.scenario || 'okehazama') === 'oda' && !saved.owari && !saved.japan ? '<p class="note">新しい戦：桶狭間より前の尾張統一戦「稲生の戦い」。続きはそのまま遊べます。<br><button class="btn small" id="b-pre">稲生の戦いを遊ぶ（記録は残らない）</button></p>' : ''}<p class="savebox">保存の枠${S.slot + 1}：${saveInfo}<br>${esc(preparation(saved))}${saved.journal && saved.journal.length ? `<br>前回：${esc(saved.journal[saved.journal.length - 1]?.t || '')}　${esc(String(saved.journal[saved.journal.length - 1]?.s || '').slice(0, 40))}` : ''}</p><div id="new-confirm"></div>` : ''}
     ${!saved && slots.some(Boolean) ? '<p class="note">この枠は空きです。別の枠に記録があります。「保存記録」から続きの枠を選べます。</p>' : ''}
     <div class="title-act">${saved ? `<button class="btn primary" id="b-cont" aria-describedby="tt-save-note">続きから</button><button class="btn" id="b-new">新しく始める</button><small class="note" id="tt-save-note">城下までの記録です。戦の途中は保存されません。</small>` : '<button class="btn primary" id="b-new" style="min-height:56px;min-width:280px;font-size:20px">稲生へ出陣する</button>'}
-      ${fullPurchaseButton(true)}<span class="tt-sub" role="group" aria-label="ほかの操作"><button type="button" class="btn small" id="b-controls">操作を見る</button>${mapOn ? '<button class="btn small" id="b-japan">天下の地図へ</button>' : ''}<button class="btn small" id="b-alt" aria-expanded="false" aria-controls="tt-alt">別の遊び方</button><button class="btn small" id="b-data" aria-expanded="false" aria-controls="tt-data">保存記録</button><button class="btn small" id="b-set">設定</button></span>${isTouch ? '' : `<span class="hintk">Enterで「${saved ? '続きから' : '稲生へ出陣する'}」</span>`}</div>
+      ${!saved ? `<small class="note">${esc(pre.name || '弥五郎')}として出陣。支度ができたら動けます。</small>` : ''}${fullPurchaseButton(true)}<span class="tt-sub" role="group" aria-label="ほかの操作">${!saved ? '<button type="button" class="btn small" id="b-name">名を変える</button>' : ''}<button type="button" class="btn small" id="b-controls">操作を見る</button>${mapOn ? '<button class="btn small" id="b-japan">天下の地図へ</button>' : ''}<button class="btn small" id="b-alt" aria-expanded="false" aria-controls="tt-alt">別の遊び方</button><button class="btn small" id="b-data" aria-expanded="false" aria-controls="tt-data">保存記録</button><button class="btn small" id="b-set">設定</button></span>${isTouch ? '' : `<span class="hintk">Enterで「${saved ? '続きから' : '稲生へ出陣する'}」</span>`}</div>
     <section class="tt-panel" id="tt-alt" hidden aria-labelledby="tt-alt-h"><h3 class="tt-ph" id="tt-alt-h">別の遊び方</h3><div class="row"><button class="btn small" id="b-words">用語集を開く</button></div><p class="note">本編とは別に遊べます。戦功・身分・物語の進みには反映しません。会った武将は共通の図鑑に残ります。稽古場の最高と、稽古場で得た実績も全保存記録共通です。</p><div class="row">${onSamurai ? '<button class="btn small" id="b-samurai">侍大将で出陣</button>' : ''}<button class="btn small" id="b-dojo">稽古場で腕試し</button>${onJapan && !mapOn ? '<button class="btn small" id="b-japan">日本地図を試す</button>' : ''}${location.hash === '#mvp' ? '<button class="btn small" id="b-rojotest">籠城の試し（開発用）</button>' : ''}</div>${onJapan && !mapOn ? '<p class="note">日本地図は、本編で足軽大将になるか、筋書きを終えると、城下から本編の続きとして進められます。</p>' : ''}</section>
     <div id="samurai-pick"></div>
     <section class="tt-panel" id="tt-data" hidden aria-labelledby="tt-data-h"><h3 class="tt-ph" id="tt-data-h">保存記録</h3><p class="note">空き枠を押してから、出陣の釦で始めます。<br>保存はこの閲覧画面だけに残ります。別の端末や閲覧画面へは保存文字列か保存保存文書で移します。<br>城下で自動保存します。保存文字列は城下で保存した時の控えです。進行・図鑑・実績・稽古の記録が入ります。端末の設定と戦の途中の状態は含みません。</p>
@@ -644,13 +644,10 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
     }
   }
   // 難易度の選びは無くした（kaito 2026-09-27）。いつも「普通」で始める
-  // 始める：名と筋書きを先に読んでから、織田家編ならオープニングを挟む（題の画面の字は消えるため）
+  // 名の変更は任意。出陣の後に紹介の確認を挟まない。
   const start = () => {
     const nm = shortName($('nm').value) || '弥五郎', scn = (document.querySelector('input[name=scn]:checked') || {}).value || scns[0] || 'oda';
-    const go = () => onNew(nm, 'normal', scn);
-    if (scn !== 'oda') { go(); return; }
-    try { initAudio(); } catch (e) { /* 音が出せなくても進める */ }
-    openingScreen(nm, go, () => titleScreen.apply(null, ARGS));
+    onNew(nm, 'normal', scn);
   };
   // 保存コード（別のブラウザや端末へ進行を持ち運ぶ）
   $('b-export').onclick = () => {
@@ -760,7 +757,7 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
     $('ng-top').hidden = ORDER.length === 1;
     $('ng-count').textContent = `${k + 1} / ${ORDER.length}・${n === 0 ? '名を決める' : '本編を確かめる'}`;
     // 「出陣」は物語の札の釦だけに使う。ここは始める合図だけ
-    $('ng-next').textContent = last ? 'この名で始める' : '決めて次へ進む';
+    $('ng-next').textContent = last ? 'この名で出陣する' : '決めて次へ進む';
     $('screen').scrollTop = 0;
     // 焦点：名の欄（触る端末では文字盤で画面が隠れるので当てない）か、選んである札
     const touch = isTouch;
@@ -773,9 +770,11 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
     if (ORDER[step] === 0 && !$('nm').value.trim()) $('nm').value = '弥五郎';
     if (step < ORDER.length - 1) ngShow(step + 1); else begin();
   };
+  if ($('b-name')) $('b-name').onclick = () => readings[S.slot].bad ? $('b-new').click() : ngShow(0);
   $('b-new').onclick = () => {
     if (readings[S.slot].bad) return confirmBox($('new-confirm'), `枠${S.slot + 1}の読めない記録を、新しい物語を始めた時に上書きします。元へ戻せません。`, '名を決めて進む', () => ngShow(0));
-    if (!saved || freeSlot >= 0) return ngShow(0);
+    if (!saved) return begin();
+    if (freeSlot >= 0) return ngShow(0);
     // 保存データがあるときは上書きの確認をはさむ
     confirmBox($('new-confirm'), `枠${S.slot + 1}の保存記録（${saved.name}・${RANKS[saved.rank].name}）は、新しい物語を始めた時に上書きします。その前なら題へ戻れます。ほかの枠は残ります。`, '名を決めて進む', () => ngShow(0));
   };
