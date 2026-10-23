@@ -29,6 +29,9 @@ const COMMAND_SOUNDS = new Set(['horagai', 'taiko', 'sig_susume', 'sig_hike', 's
 const DANGER_SOUNDS = new Set(['whiz', 'heart', 'woundPulse', 'parry', 'block', 'guard']);
 const NOTICE_SOUNDS = new Set(['ui', 'obj', 'merit', 'neg', 'victory', 'promote', 'back', 'deny', 'gateBreak', 'commanderKilled', 'reinforcement']);
 const SOLDIER_SOUNDS = new Set(['jinchuWhisper', 'cry', 'shout', 'toki', 'eiei', 'eshout', 'umeki', 'far', 'siegeDistant', 'unitBreak']);
+// 日本語の肉声と確認できない兵声は、効果音・遠景・出来事からも鳴らさない。
+const MUTED_VOICES = new Set(['jinchuWhisper', 'cry', 'shout', 'toki', 'eiei', 'eshout', 'umeki', 'far', 'himei', 'fukusho', 'ou', 'roar']);
+const mutedVoice = (name) => name.startsWith('soldier_') || MUTED_VOICES.has(name);
 // 自分の馬の一完歩ごとの蹄・馬具の音。入口の間引き（同じ音は1.2秒に一度・三回で休み）を受けず、足並みのまま鳴る
 const FOOT_SOUNDS = new Set(['hoofWalk', 'hoofTrot', 'hoofCanter', 'hoofGallop', 'tack']);
 const HORSE_SOUNDS = new Set(['hoofWalk', 'hoofTrot', 'hoofCanter', 'hoofGallop', 'tack', 'gallop', 'hooves', 'hoovesWet', 'hoofBeat', 'neigh', 'snort', 'tramp']);
@@ -741,6 +744,7 @@ let curD = 0, inFar = false, curLag = 0, spatialUntil = 0;   // 音の遠さ・�
 const has = (k) => !!(BANK[k] && BANK[k].length);
 // 焼いた音を鳴らす。o：{ t0 遅れ, wet 残響へ送る量, jit 高さの揺らぎ, rate, to 出口 }。鳴らせば true
 function play(k, vol, o = {}) {
+  if (mutedVoice(k)) return false;
   if (!ctx || !has(k) || full(vol)) return false;
   const b = BANK[k];
   let variant = o.variant === undefined ? (Math.random() * b.length) | 0 : o.variant % b.length;
@@ -1161,6 +1165,7 @@ async function bakeAll() {
   try {
     while (bakeNext < RECIPES.length && S.volume > 0 && !audioDucked) {
       const [k, dur, n, fn, opt] = RECIPES[bakeNext++];
+      if (mutedVoice(k)) continue; // 鳴らさない声を焼かず、携帯の負荷とメモリも減らす。
       try { await bake(k, dur, n, fn, opt); } catch (e) { /* 焼けない音は合成のまま */ }
       await new Promise((r) => setTimeout(r, 30));
     }
@@ -1251,7 +1256,7 @@ function eventSound(name, vol) {
   else emit();
 }
 function emitSfx(name, vol) {
-  if (name.startsWith('soldier_')) return; // 「退け」「助けて」などの台詞を止める。
+  if (mutedVoice(name)) return;
   // 人の声は、小さく聞こえる（遠い）ほどこもらせる
   const muf = 900 + 4200 * Math.min(1, vol);
   if (name.startsWith('soldier_')) {
@@ -1647,49 +1652,8 @@ function voice(syl, o) {
     tr ? [vg, jg, f1, f2, f3, g2, g3, env, bg, tg] : [vg, jg, f1, f2, f3, g2, g3, env, bg], o.vol);
 }
 // 大勢の声：一人ずつ高さと出だしをずらして重ね、多い時は群れの息を足す
-function crowd(kind, n, vol, len = 1.4, pitch = 1) {
-  if (!ctx) return;
-  // 混んでいる時は声の数を減らす
-  n = Math.max(1, Math.min(n, 6, Math.floor((CAP - live()) / 6)));
-  const base = 0.045 * vol / Math.sqrt(n);
-  const pf = () => (105 + Math.random() * 60) * pitch;
-  if (kind === 'eiei') {
-    // 大将「えい、えい」→ 皆「おう！」
-    voice([['e', 0.3, 1.1], ['i', 0.12, 1.2], [null, 0.28], ['e', 0.3, 1.1], ['i', 0.12, 1.2]], { f0: 165 * pitch, vol: base * 1.8, rasp: 0.4 });
-    if (play('ou', 0.2 * vol, { t0: 1.25, wet: 0.3, rate: pitch })) voice([['o', 0.5, 1.15], ['u', 0.35, 1]], { f0: pf() * 1.2, vol: base, rasp: 0.5, t0: 1.28 });
-    else for (let i = 0; i < n; i++) voice([['o', 0.5, 1.15], ['u', 0.35, 1]], { f0: pf() * 1.2, vol: base, rasp: 0.5, t0: 1.25 + Math.random() * 0.12 });
-    noise(0.9, 'bandpass', 600 * pitch, 1.2, 0.05 * vol * Math.min(1, n / 4), 1.25);
-  } else if (kind === 'fukusho') {
-    // 号令を受けて、組の者が口々に「おう」「はっ」
-    for (let i = 0; i < n; i++) {
-      // 「おう」「はっ」「応っ」「しょうち」（短い母音の並びで）。一人ずつ違う返事
-      const r = Math.random();
-      const s = r < 0.35 ? [['o', 0.28, 1.1], ['u', 0.14, 1]] : r < 0.55 ? [['a', 0.2, 1.15]] : r < 0.75 ? [['o', 0.1, 1.2], ['o', 0.22, 1.05]] : r < 0.9 ? [['o', 0.12, 1], ['o', 0.1, 1.08], ['i', 0.14, 1.12]] : [['e', 0.12, 1.1], ['i', 0.2, 1.2]];
-      voice(s, { f0: pf() * 1.1, vol: base * 1.2, rasp: 0.4, t0: 0.12 + i * 0.07 + Math.random() * 0.12 });
-    }
-  } else {
-    // 鬨の声：「おおおー」と上がって下がる大きな声のうねり
-    for (let i = 0; i < n; i++) voice([['o', len * 0.55, 1.1], ['o', len * 0.45, 0.92]], { f0: pf() * 1.15, vol: base, rasp: 0.6, t0: Math.random() * 0.2 });
-    const f = noise(len + 0.3, 'bandpass', 520 * pitch, 1.3, 0.08 * vol * Math.min(1, n / 4), 0.05);
-    f.frequency.exponentialRampToValueAtTime(380 * pitch, ctx.currentTime + len);
-  }
-}
-
-function foeShout(vol) {
-  const f = scene.foe || '';
-  const n = Math.max(1, Math.min(3, Math.floor((CAP - live()) / 6)));
-  const base = 0.045 * 0.8 * vol / Math.sqrt(n);
-  const pf = () => (105 + Math.random() * 60) * 0.9;
-  if (f === 'imagawa') {
-    for (let i = 0; i < n; i++) { const t0 = Math.random() * 0.15; voice([['e', 0.22, 1.15], ['i', 0.1, 1.2], [null, 0.12], ['o', 0.3, 1.05]], { f0: pf() * 1.15, vol: base, rasp: 0.55, t0 }); }
-  } else if (f === 'saito' || f === 'azai' || f === 'asakura') {
-    for (let i = 0; i < n; i++) voice([['o', 0.4, 1.1], ['a', 0.3, 1.2], ['a', 0.2, 0.95]], { f0: pf() * 1.1, vol: base * 1.1, rasp: 0.75, t0: Math.random() * 0.2 });
-  } else if (f === 'namu' || f === 'sagarifuji') {
-    // 唱え：低く揃った声で、同じ高さを刻む
-    const f0 = 100 + Math.random() * 10;
-    for (let i = 0; i < n; i++) voice([['a', 0.18, 1], ['u', 0.18, 1], ['a', 0.18, 1], ['i', 0.18, 1], ['a', 0.2, 1], ['u', 0.3, 0.95]], { f0: f0 * (0.97 + Math.random() * 0.06), vol: base * 0.9, rasp: 0.4, t0: Math.random() * 0.06 });
-  } else crowd('toki', 3, vol * 0.8, 1.0, 0.9);
-}
+function crowd() { /* 合成の群声は鳴らさない。勝鬨にも重ねない。 */ }
+function foeShout() { /* 陣営ごとの母音だけの唱えも鳴らさない。 */ }
 
 // ---------------- 586：合図 ----------------
 // 陣鉦：金物の響き（倍音が整数倍でない）
@@ -1910,8 +1874,7 @@ export function setRain(level) {
 
 export function setCrowd(level) {
   if (!ctx) return;
-  if (!crowdNode) crowdNode = loop(700, 'bandpass', 0.9);
-  // 581：喧噪は一定の雑音でなく、うねるように（ambience が揺らす）
+  // 声に見立てた雑音のループは作らず、戦の強さだけを楽へ渡す。
   crowdLv = level;
   if (music) music.setIntensity(Math.max(level, heatLv));
 }

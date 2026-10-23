@@ -527,6 +527,19 @@ const CIVILIAN_BANDS = [
 ];
 const MINE = 5;
 const NEED = 3;                            // 自分で火を放つ数
+const HOUSE_FIRE_R = 4.5;
+// 戸口の足場から届く家を一軒だけ選ぶ。体や視点の向き、長押しは問わない。
+function nearFireHouse(rt) {
+  const F = rt.flags, p = rt.player.u.pos;
+  if (rt.G.lord || rt.over || F.ending || F.step !== 1 || F.lit >= NEED || !rt.player.u.alive) return null;
+  let best = null, distance = HOUSE_FIRE_R;
+  for (const h of F.houses) {
+    if (!h.mine || h.burnt) continue;
+    const d = Math.hypot(h.approach.x - p.x, h.approach.z - p.z);
+    if (d <= distance) { best = h; distance = d; }
+  }
+  return best;
+}
 // 翌日の鹿垣：町の北の端（山の麓。z 26 から北は金華山の斜面）に東西に結う。三か所は打って出る口
 const SHIKA_Z = 33, SHIKA_X0 = -34, SHIKA_W = 8.5, SHIKA_GAPS = [1, 3, 5];
 // 鹿垣は丸太に竹と柴を結う。形・材質を共用し、一間を四つのまとめ描画で返す。
@@ -2765,7 +2778,7 @@ const inabayama = {
   mapPaths: (rt, small) => small && rt.flags.step === 3 ? INABA_CLIMB_MAP : INABA_PATHS,
   introTaskFirst: true, // 人物紹介より先に、初めの行き先と勝つ条件を読めるようにする。
   introPeopleFolded: true,
-  introText: 'まず印の人、藤吉郎と話そう。次に印の家へ近づき、「火をつける」を長押ししよう。三軒焼いたら、仲間と城を囲む。山では道の印をたどろう。',
+  introText: 'まず印の人、藤吉郎のそばへ。三軒焼いたら、仲間と城を囲む。山では道の印をたどろう。',
   immediateTaskChanges: true, // 道へ戻る下知は、携帯の畳んだ任務にもすぐ出す。
   // 火付けと道の下知を、近くの射手による空き地への退避案内で隠さない。
   // 深手の時は、この戦で歩ける所を調べた味方の後ろの退き口を優先する。
@@ -3499,9 +3512,8 @@ const inabayama = {
     rt.obj('main', rt.G.lord ? `足軽の火付けを守れ。町の番の兵を払え（${NEED}軒）` : `目印の家に近づこう（${NEED}軒）`, 'main', true);
     rt.say(officer(rt), rt.G.lord ? '火付けは足軽が担います。町の兵を払い、足軽をお守りくだされ' : '火の印の家へ すすめ', 4);
     if (!rt.G.lord) rt.after(9, () => { if (!rt.over) rt.say('足軽', '逃げ遅れた町の者がおる。刃を向けるな', 3.5); });   // 焼く迷い（A054）
-    // 次に向かう一軒だけに印を付ける。火付けの判定と選べる家は保つ。
+    // 次に向かう一軒だけに印を付ける。本人は攻撃ボタンで火を移す。
     if (rt.G.lord) { for (const h of F.houses) if (h.mine) this.sendTorch(rt, h); }
-    else for (const h of F.houses.filter((q) => q.mine)) rt.addInteract('h' + h.i, h.approach, '火をつける', () => this.light(rt, h), { r: 4, hold: 1.4 });
     this.markHouses(rt);
     const go = (g, x, z) => { g.order = 'move'; g.dest = { x, z }; g.speed = 2.4; g.onArrive = (gg) => { gg.order = 'hold'; gg.anchor = { x, z }; gg.aggro = 12; }; };
     // 藤吉郎の旗は町の後ろ。先手と控えの間を退き道にする。
@@ -3544,17 +3556,23 @@ const inabayama = {
     });
   },
 
+  attackAction(rt) {
+    const h = nearFireHouse(rt);
+    if (!h) return false;
+    this.light(rt, h);
+    return true;
+  },
   markHouses(rt) {
     const F = rt.flags, p = rt.player.u.pos;
     // 今の目当ては八歩ほど優先する。等距離の家の間で印を揺らさない。
     const want = F.houseTargets || (F.houseTargets = [null]);
     const old0 = want[0];
-    const action = !rt.G.lord && rt.nearestInteract();
+    const action = nearFireHouse(rt);
     let first = null, d1 = Infinity;
     if (F.lit < NEED) for (const q of F.houses) {
       if (!q.mine || q.burnt) continue;
-      // 長押しできる家を示し、別の家の印と釦を取り違えない。
-      if (action && action.id === 'h' + q.i) { first = q; break; }
+      // 攻撃ボタンで火を移す家と、印の家をそろえる。
+      if (action === q) { first = q; break; }
       const d = Math.hypot(q.x - p.x, q.z - p.z) - (q === old0 ? 8 : 0);
       if (d < d1 || (d === d1 && q.i < first.i)) { first = q; d1 = d; }
     }
@@ -3564,7 +3582,7 @@ const inabayama = {
       const label = rt.G.lord ? '足軽が焼く家' : '火をつける家';
       const marker = rt.markers.find((m) => m.id === 'h' + q.i);
       if (marker) marker.label = label;
-      else rt.marker('h' + q.i, q.entrance, label, { h: 0, entrance: true, guideAlways: true, guideSymbol: 'fire', guideObject: q.m, guideDestination: () => q.approach });
+      else rt.marker('h' + q.i, q.entrance, label, { h: 0, entrance: true, guideAlways: true, guideSymbol: 'fire', guideAttack: true, guideObject: q.m, guideDestination: () => q.approach });
     }
   },
   // 味方の足軽が松明を持って家に寄り、着いてから火が上がる
@@ -4187,7 +4205,6 @@ const inabayama = {
       if (F.lit < NEED) rt.objProgress('main', rt.G.lord ? `${F.lit}／${NEED}軒・火付けの足軽を守れ。町の兵を払え` : `${F.lit}／${NEED}軒・目印の家へ`);
       if (rt.t > (F.mhT || 0)) { F.mhT = rt.t + 1; if (F.lit < NEED) this.markHouses(rt); }
       // 火を放ちに来ない時は、藤吉郎がやり方を言う（一度だけ）
-      if (rt.t - F.stepT > 45 && F.lit < NEED && !F.burnCall) { F.burnCall = true; rt.say(officer(rt), rt.G.lord ? '足軽が家へ向かっています。町の兵を払い、火付けをお守りくだされ' : '目印の家に近づけ。札が出たら「火をつける」を長押しじゃ', 4); }
     }
     if (F.step === 2) {
       // 到着は案内だけの区切り。敵の動きや戦の進みはそのまま。
@@ -4533,9 +4550,9 @@ inabayama.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   inp.guardHold = false;
   if (p.lock) inp.e.add('KeyQ');
   if (F.step === 1) {
-    const q = nearIt(b, 'h');
-    // 操作できる家の前で止まる。札が届いているのに戸口へ詰め続けない。
-    if (q) { if (b.nearestInteract() === q.it) inp.k.add('KeyE'); else goTo(p, inp, q.it.pos.x, q.it.pos.z, Math.min(1.2, q.it.r * 0.8)); return; }
+    const h = F.lit < NEED && !b.G.lord && (nearFireHouse(b) || F.houseTargets?.[0]);
+    // 遊び手と同じ足場へ寄り、攻撃ボタンを一度押す。
+    if (h) { if (nearFireHouse(b)) inp.leftPressed = true; else goTo(p, inp, h.approach.x, h.approach.z, 1.2); return; }
     // 散った隊の中心は家の中や誰もいない所にもなる。残る兵本人へ寄る。
     let t = null, td = Infinity;
     for (const g of F.townGuards) {

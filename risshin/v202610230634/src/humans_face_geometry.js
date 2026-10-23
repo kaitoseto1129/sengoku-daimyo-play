@@ -106,9 +106,11 @@ function hairMats() {
     };
     m.customProgramCacheKey = () => 'hair' + (bun ? 'b' : 's');
     m.userData.T = { value: new THREE.Vector3() };
+    m.userData.humanBatch = true;   // 同じ髪の色の房は、全員で一つの束に描く（army_human_batch.js）
     return m;
   };
   HAIR_MATS = { shell: new Map(), bun: new Map(), mk, tie: new THREE.MeshStandardMaterial({ color: 0xd8d0bc, roughness: 0.8 }) };
+  HAIR_MATS.tie.userData.humanBatch = true;
   return HAIR_MATS;
 }
 function addHair(hm, hg, F, lite) {
@@ -338,6 +340,7 @@ function addEyesMH(hm, key, F) {
       sh.fragmentShader = 'varying float vEyY;\n' + sh.fragmentShader.replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n float eyS = mix(1.0, 0.6, smoothstep(-0.1, 0.6, vEyY));\n reflectedLight.directDiffuse *= eyS; reflectedLight.indirectDiffuse *= eyS * 0.85;\n // 空の映り込みは瞳の上の小さな照りだけ（目の玉いっぱいに灰色の空が映ると、青白く光る人形の目になる）。上まぶたと眼窩の陰で上ほど消す\n reflectedLight.indirectSpecular *= 0.35 * eyS * eyS;\n #ifdef USE_CLEARCOAT\n clearcoatSpecularIndirect *= 0.3 * eyS * eyS;\n #endif');
     };
     EYE_MH.mat.customProgramCacheKey = () => 'mheye';
+    EYE_MH.mat.userData.humanBatch = true;
   }
   const m = new THREE.Mesh(EYE_MH.geos.get(gk), EYE_MH.mat);
   m.frustumCulled = false; m.receiveShadow = true;

@@ -688,7 +688,7 @@ function moribeNearBodies(rt) {
           const k = Math.max(0, Math.min(1,
             ((qx - butt.x) * sx + (qy - butt.y) * sy + (qz - butt.z) * sz) / (length2 || 1)));
           if ((butt.x + sx * k - qx) ** 2 + (butt.y + sy * k - qy) ** 2
-              + (butt.z + sz * k - qz) ** 2 < 0.49) { this.hideNearFlag(w); break; }
+              + (butt.z + sz * k - qz) ** 2 < 0.81) { this.hideNearFlag(w); break; }
         }
       }
       // 手前の味方の長槍が空まで横切ると、敵の構えが棒の陰に埋もれる。
@@ -721,7 +721,7 @@ function moribeNearBodies(rt) {
       // カメラの近さだけでは、少し先の肩や馬の胴が自分を覆う。
       // 自分までの線分に限り、前線の敵と自分より先の味方は残す。
       const t = len2 > 0.01 ? (dx * vx + dz * vz) / len2 : -1;
-      const width = u.mounted ? 1.9 : 0.85;
+      const width = u.mounted ? 1.9 : 1.1;
       const y = c.y + (p.y + 1.3 - c.y) * t;
       const blocks = ally && this.fpK < 0.5 && t > 0 && t < 1
         && (dx - vx * t) ** 2 + (dz - vz * t) ** 2 < width * width
@@ -1013,19 +1013,27 @@ const moribe = {
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は「何をするか」だけ（kaito 10/23 49・50）。段の総称で通し、向き・行き先の字は書かない。
   missions: ['川を渡れ', '仲間を待て', '斎藤の先手を倒せ', '耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
+  // ピン・▼・名前は同じ本人へ。描画の間引きで相手を替えない。
+  commanderTarget(rt) {
+    const F = rt.flags;
+    if (F.stage !== 'press' || F.pursuing || F.ending) return null;
+    for (let i = 0; i < 2; i++) {
+      const g = i === 0 ? F.HM : F.HN;
+      if (!g) continue;
+      for (const u of g.units) if (u.type === 'busho' && u.alive && !u.gone && !u.dying &&
+          !u.fleeing && !u.woundOut && !u.noTarget) return u;
+    }
+    return null;
+  },
+  namedGuideTarget(rt) { return this.commanderTarget(rt); },
   // 頭上の▼一つを大きくして、まず戦う相手を示す。選び直しは四分の一秒に一度。
   missionSignTarget(rt) {
     const F = rt.flags, p = rt.player;
     if (!F.signal || F.ending || F.stage === 'assemble') return null;
     // 討ち取りの段では、離れた一般兵へ印を乗り換えない。
     if (F.stage === 'press' && !F.pursuing) {
-      for (let i = 0; i < 2; i++) {
-        const group = i === 0 ? F.HM : F.HN;
-        if (!group || gone(group)) continue;
-        for (const u of group.units) if (u.type === 'busho' && moribeFoeReady(u, p)) {
-          F.signTarget = u; return u;
-        }
-      }
+      const u = this.commanderTarget(rt);
+      if (u) { F.signTarget = u; return u; }
     }
     if (p.inRange && moribeFoeReady(p.rangeCueTarget, p)) return p.rangeCueTarget;
     if (rt.t < F.signTargetAt && F.signStage === F.stage && moribeFoeReady(F.signTarget, p)) return F.signTarget;
@@ -1056,11 +1064,16 @@ const moribe = {
     return 6;
   },
   missionHeading(rt) {
-    const F = rt.flags;
+    const F = rt.flags, p = rt.player.u.pos;
     // 渡河済みのコマから待機へ替える。集合判定の更新を待たせない。
     if (!F.signal && F.pointInside) return F.fordThreat ? '敵を倒せ' : '仲間を待て';
     // 集まる間と、その場で耐える間を同じ一行で区別する。向き・距離は書かない。
-    if (F.squadGuide || !F.signal && F.pointReached && !F.pointInside ||
+    if (F.stage === 'assemble') {
+      if (F.gatherUnit || Math.hypot(p.x - F.asm.x, p.z - F.asm.z) >= 12) return '仲間と集まれ';
+      return '仲間を待て';
+    }
+    if (F.squadGuide && Math.hypot(p.x - F.squadGuide.pos.x, p.z - F.squadGuide.pos.z) >= 16 ||
+        !F.signal && F.pointReached && !F.pointInside ||
         (F.stage === 'hold' || F.stage === 'contact' && F.vBroken) &&
         Math.hypot(rt.player.u.pos.x - F.linePoint.x, rt.player.u.pos.z - F.linePoint.z) >= 24)
       return '仲間と集まれ';
@@ -1140,13 +1153,19 @@ const moribe = {
     } else if (F.stage === 'assemble') {
       pos = F.gatherUnit ? F.gatherUnit.pos : F.asm;
       r = hide = F.gatherUnit ? 6 : 12;
+      // 集結地点へ着いたら歩き直させず、同じピンの中で帰着を待つ。
+      q.waiting = !F.gatherUnit;
+      q.arrived = q.waiting && Math.hypot(rt.player.u.pos.x - pos.x, rt.player.u.pos.z - pos.z) < r;
+      q.progress = q.arrived ? Math.min(1, (F.assembleT || 0) / 8) : 0;
     } else if (F.stage === 'press' && F.pursuing) {
       return null; // 敵を追う段は赤い▼だけ。地面の行き先と混ぜない。
     } else if (F.stage === 'press') {
-      return null;
+      const boss = this.commanderTarget(rt);
+      if (!boss) return null;
+      q.unit = boss; pos = boss.pos; r = hide = 6;
     } else if (F.stage === 'hold' || F.vBroken) {
       // 守備を始めた地点に固定し、隊が動いても守る場所を動かさない。
-      pos = !gone(F.B) ? F.linePoint : null;
+      pos = F.linePoint;
       r = hide = 24;
       q.waiting = true;
       q.arrived = !!pos && Math.hypot(rt.player.u.pos.x - pos.x, rt.player.u.pos.z - pos.z) < r;
@@ -2056,7 +2075,15 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       if (src?.isPlayer && t?.team !== src.team && t.hp < hp) {
         t.moribeHitUntil = rt.t + 1.2;
         // 命を減らした本人だけがよろめく。空振りや味方には反応を付けない。
-        if (t.alive) t.stagger = Math.max(t.stagger || 0, .45);
+        if (t.alive) {
+          t.stagger = Math.max(t.stagger || 0, .6);
+          // 当たった体を小さく押し戻し、重なった隣の兵と反応を見分ける。
+          if (t.push && !t.mounted && !t.isStruct) {
+            const dx = t.pos.x - src.pos.x, dz = t.pos.z - src.pos.z;
+            const d = Math.hypot(dx, dz) || 1;
+            t.push.x += dx / d * .7; t.push.z += dz / d * .7;
+          }
+        }
       }
       return result;
     };
@@ -2086,6 +2113,10 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     rt.flags.HN = enemyGroup(rt, { faction: 'saito', name: '長井甲斐守の旗本', fixed: true, anchor: { x: -36, z: -58 }, facing: 0, fleeDir: { x: -0.2, z: -1 }, aggro: 3, morale: 100, noRout: true, formation: 'yari', yariRanks: 2 },
       [{ type: 'busho', n: 1, o: { name: '長井甲斐守' } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }]);
     rt.flags.HM.hatamoto = rt.flags.HN.hatamoto = true;
+    // 畦道沿いの持ち場で迎え撃つ。広い野へ味方を追い続けさせない。
+    for (const g of [rt.flags.HM, rt.flags.HN]) {
+      g.noAI = true; g.noPursue = true;
+    }
     for (const [x, z] of [[30, 124], [-30, 126], [0, 120]]) rt.scene.add(nobori(W, x, z, 'oda', 5.5));
     for (const [x, z] of [[0, -96], [-34, -90], [-60, -100]]) rt.scene.add(nobori(W, x, z, 'saito', 5.5));
 
@@ -2331,9 +2362,12 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     for (const g of rt.squadGroups) if (!gone(g)) { const c = g.center(); squadDist = Math.min(squadDist, Math.hypot(p.x - c.x, p.z - c.z)); }
     const separated = F.signal && rt.t >= 30 && rt.t - F.signal >= 30 && F.stage !== 'assemble' &&
       (friendDist > 40 || (squadDist !== Infinity && squadDist > 40));
-    // 遠い組へ呼びかけるだけでは届かない。生きて戦える一人を示し、迎えに行けるようにする。
-    let squadGuide = null, squadGuideDist = Infinity;
-    if (separated) for (const u of rt.squad) {
+    // 一度示した仲間は合流まで保つ。四十歩の境で消したり別人へ移したりしない。
+    let squadGuide = F.squadGuide;
+    if (squadGuide && (F.stage === 'assemble' || !squadGuide.alive || squadGuide.gone || squadGuide.fleeing ||
+        squadGuide.woundOut || squadGuide.rearWound || squadGuide.noTarget || squadGuide.group?.routed)) squadGuide = null;
+    let squadGuideDist = squadGuide ? Math.hypot(squadGuide.pos.x - p.x, squadGuide.pos.z - p.z) : Infinity;
+    if (!squadGuide && separated) for (const u of rt.squad) {
       if (!u.alive || u.gone || u.fleeing || u.woundOut || u.rearWound || u.noTarget || u.group?.routed) continue;
       const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z);
       if (d < squadGuideDist) { squadGuideDist = d; squadGuide = u; }
@@ -2449,7 +2483,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
           moribeSignal(rt, 'kakari');
           // 長い押し合いで両将も手負い。旗本に守られても、囲めば討てる。
           for (const g of [F.HM, F.HN]) if (!gone(g)) {
-            g.speed = 2.2; g.seekRange = 35;
+            g.speed = 2.2; g.seekRange = 8;
+            g.order = 'hold'; g.dest = null; g.onArrive = null;
             for (const u of g.units) if (u.type === 'busho' && u.alive) u.hp = Math.min(u.hp, u.maxHp * 0.5);
             // 大将の後ろに控えていた後備が雨の中から続き、大将の周りが入り乱れる（見える兵は250まで）。
             const live = rt.army.units.reduce((n, u) => n + (u.alive ? 1 : 0), 0);
@@ -2633,7 +2668,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     const p = rt.player.u.pos;
     const aim = Math.hypot(cFlag.x - p.x, cFlag.z - p.z) <= 24 ? p : cFlag;
     for (const g of F.opposition) {
-      if (gone(g) || (g === F.reserves[0] && !F.wave1) || (g === F.reserves[1] && !F.wave2) || (g.hatamoto && F.stage !== 'press')) continue;
+      if (gone(g) || g.hatamoto || (g === F.reserves[0] && !F.wave1) || (g === F.reserves[1] && !F.wave2)) continue;
       if (g.units.some((u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget &&
           u.type !== 'bow' && u.type !== 'gun' && u.target?.alive && !u.target.gone &&
           !u.target.fleeing && !u.target.woundOut && !u.target.noTarget &&

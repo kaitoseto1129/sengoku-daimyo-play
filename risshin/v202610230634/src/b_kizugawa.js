@@ -607,18 +607,18 @@ function shipTex() {
 }
 let SHIPMAT = null;
 // 海上の船は水面と同じ距離の霞へ溶かす。陸の低地用の濃い靄で白く塗り潰さない。
-// 共通の霧の near は雲の時計なので、見通しを入れた far だけを読む。
+// 硝煙で共通の見通しが縮んでも、海・帆・乗員と同じ150〜360mを保つ。
+// 船体だけを手前で白く消すと、旗と兵が海の上へ浮いて見えてしまう。
 function shipHaze(mat) {
   mat.onBeforeCompile = shader => {
     shader.fragmentShader = shader.fragmentShader.replace('#include <fog_fragment>', `
       #ifdef USE_FOG
-        float shipVisibility = max(140.0, floor(fogFar));
-        float shipHaze = smoothstep(shipVisibility * 0.42, shipVisibility, length(vFogOff));
+        float shipHaze = smoothstep(150.0, 360.0, length(vFogOff));
         gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, shipHaze);
       #endif
     `);
   };
-  mat.customProgramCacheKey = () => 'kizugawa-ship-haze-1';
+  mat.customProgramCacheKey = () => 'kizugawa-ship-haze-2';
   return mat;
 }
 function shipMats() {

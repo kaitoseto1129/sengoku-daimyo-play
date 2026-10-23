@@ -11,25 +11,33 @@ import { GENERALS, FACTION } from "./units.js";
 import { pinGuideOn } from "./mission_pin.js";
 
 // 共通の目標の輪・端の矢印・所属の形を使い、以前の案内を重ねない。
-const PIN_OFF = "AdvanceStep ApproachRoute CornerArrow DefendedFlag DefendedLocation DefenseArea DefenseBoundary DefenseLine DefenseOverview DefensePattern DestinationArea DestinationPointer DestinationSign DestinationStep DirectionChain DoorFloorGoal EdgeDestination EscortFlag FlagDestinationSign FlagGuide FlagLink FloorGoal FloorWaymark FootDirection FootRoute GoalArrivalRing GoalArrow GoalFlagFrame GroundGuide GuardPost GuardPostFrame GuideLink MarkedGoalFlag MoveFootprints MoveGoal MoveOrigin NamedDestination NamedGoal NavigationArrow OffscreenDirection PassageGuides PlaceFrame PlayerSign RaisedGoalFlag RetreatDestination RetreatRoute ReturnDestination RouteBend RouteFootsteps RoutePath RouteTurn SelectedGoalFlag SingleDestination SmallGoalFlag SmallGoalFlagPath SwipeArrow TargetFootRing TaskDestinationSign TravelGuide WaitFootprints WaitFrame EnemyHeadPointer TargetPointer FocusDiamond EnemyOutline EnemyContour TeamWord EnemySign SpearSign UnitContrast EnemyDirection CoverDirection CoverSign MoveGesture ReleaseGesture EnemyMoveGesture".split(" ").map((n) => "draw" + n);
+const PIN_OFF = "AdvanceStep ApproachRoute CornerArrow DefendedFlag DefendedLocation DefenseArea DefenseBoundary DefenseLine DefenseOverview DefensePattern DestinationArea DestinationPointer DestinationSign DestinationStep DirectionChain DoorFloorGoal EdgeDestination EscortFlag FlagDestinationSign FlagGuide FlagLink FloorGoal FloorWaymark FootDirection FootRoute GoalArrivalRing GoalArrow GoalFlagFrame GroundGuide GuardPost GuardPostFrame GuideLink MarkedGoalFlag MoveFootprints MoveGoal MoveOrigin NamedDestination NamedGoal NavigationArrow OffscreenDirection PassageGuides PlaceFrame PlayerSign RaisedGoalFlag RetreatDestination RetreatRoute ReturnDestination RouteBend RouteFootsteps RoutePath RouteTurn SelectedGoalFlag SingleDestination SmallGoalFlag SmallGoalFlagPath SwipeArrow TargetFootRing TaskDestinationSign TravelGuide WaitFootprints WaitFrame TargetPointer FocusDiamond EnemyOutline EnemyContour TeamWord EnemySign SpearSign UnitContrast EnemyDirection CoverDirection CoverSign MoveGesture ReleaseGesture EnemyMoveGesture".split(" ").map((n) => "draw" + n);
 const off = () => false;
 
 export class HudOverlay {
 
   // 森部は先端が地面に刺さるピンで、到着する地点を示す。
   drawBattleGoalSign(g, rt, x, y, landmark, pin = null) {
-    if (landmark) return this.drawGateSign(g, x, y);
+    // 通る場所も待つ場所と同じ太い矢印で示す。
+    if (landmark || rt.def.routeGuidePriority?.(rt))
+      return this.drawDestinationPin(g, x, y);
     if (rt.def.key !== 'moribe') return this.drawDestinationPin(g, x, y);
     g.save(); g.lineJoin = 'round';
-    g.beginPath(); g.moveTo(x, y); g.lineTo(x - 13, y - 25);
-    g.bezierCurveTo(x - 26, y - 53, x + 26, y - 53, x + 13, y - 25);
+    // 地面の接点と短い軸を持たせ、人物の頭上の印と形を分ける。
+    g.beginPath(); g.ellipse(x, y + 1, 11, 3, 0, 0, Math.PI * 2);
+    g.fillStyle = 'rgba(20,18,15,.65)'; g.fill();
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x, y - 13);
+    g.strokeStyle = '#14120f'; g.lineWidth = 6; g.stroke();
+    g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
+    g.beginPath(); g.moveTo(x, y - 10); g.lineTo(x - 10, y - 26);
+    g.bezierCurveTo(x - 21, y - 48, x + 21, y - 48, x + 10, y - 26);
     g.closePath();
     g.strokeStyle = '#14120f'; g.lineWidth = 7; g.stroke();
     g.fillStyle = pin?.arrived ? '#14120f' : '#fff3ba'; g.fill();
     if (pin?.arrived) {
       g.strokeStyle = '#fff3ba'; g.lineWidth = 3; g.stroke();
     }
-    g.beginPath(); g.arc(x, y - 33, 12, 0, Math.PI * 2);
+    g.beginPath(); g.arc(x, y - 33, 8, 0, Math.PI * 2);
     g.fillStyle = '#14120f'; g.fill();
     // 実際の到着半径へ入った時だけ、同じピンの内周を閉じる。
     // 地点を踏み直す必要がないことを形で伝え、別の輪や札は足さない。
@@ -96,10 +104,17 @@ export class HudOverlay {
     const pinTarget = rt.def.missionPin?.(rt);
     // 森部は任務が返したピン一本。敵や味方の位置で上書きしない。
     if (moribe && !pinTarget) return;
-    // 到着後は同じピンを任務の下へ固定し、中身で待つ進みを示す。
-    // 地面や画面端に移動先を残さず、足元を探し直させない。
+    // 到着後は移動のピンを消す。残る進み具合は任務の一行内で満たす。
     if (moribe && pinTarget.waiting && pinTarget.arrived) {
-      this.drawBattleGoalSign(g, rt, VIEW.w - 40, 138, null, pinTarget);
+      const x = VIEW.w - Math.min(320, VIEW.w * .38) + 21, y = 28;
+      g.save(); g.beginPath(); g.arc(x, y, 11, 0, Math.PI * 2);
+      g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
+      if (pinTarget.progress > 0) {
+        g.beginPath(); g.moveTo(x, y);
+        g.arc(x, y, 8, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, pinTarget.progress));
+        g.closePath(); g.fillStyle = '#e8c25a'; g.fill();
+      }
+      g.restore();
       return true;
     }
     const guide = rt.missionGuide;
@@ -127,7 +142,8 @@ export class HudOverlay {
     const landmark = !moribe && !enemy && !retreat && !dodge && rt.def.destinationLandmark?.(rt);
     const route = !moribe && !holding && !enemy && !retreat && !dodge && guide?.marker?.id === 'next' &&
       rt.def.routeGuidePriority?.(rt) ? rt.def.routeSignPoint?.(rt, pos) : null;
-    pos = landmark || route || pos;
+    // 遠い表門の位置より、いま通れる手前の戸口を優先する。
+    pos = route || landmark || pos;
     const radius = retreat?.radius || (dodge ? 1 : !enemy ? pinTarget?.hide ?? pinTarget?.r ?? guide?.marker?.guideRadius ?? 3 : 0);
     if (!enemy && Math.hypot(pos.x - rt.player.u.pos.x, pos.z - rt.player.u.pos.z) < radius) {
       const facing = !moribe && !retreat && !dodge && waiting && rt.def.waitFacingPoint?.(rt);
@@ -651,7 +667,8 @@ export class HudOverlay {
     const chosenEnemy = canPoint(P.lock) ? P.lock :
       canPoint(this.approachGuideEnemy) ? this.approachGuideEnemy :
       !canPoint(rt.guideEnemy) && focus === P.aimed && canPoint(focus) ? focus : null;
-    if ((!missionGuard || this.attackGuideEnemy || chosenEnemy) && !retreating && inPlace && (!this.guardAlly || this.attackGuideEnemy || chosenEnemy) && !rt.over && !P.camShot && !this.openingActive) {
+    const guardingCombat = !!missionGuard && !rescueTarget(rt) && !rt.def.routeGuidePriority?.(rt);
+    if ((!missionGuard || guardingCombat || this.attackGuideEnemy || chosenEnemy) && !retreating && inPlace && (!this.guardAlly || guardingCombat || this.attackGuideEnemy || chosenEnemy) && !rt.over && !P.camShot && !this.openingActive) {
       if (chosenEnemy) rt.guideEnemy = chosenEnemy;
       if (this.defendEnemy) rt.guideEnemy = canPoint(this.defendEnemy) ? this.defendEnemy : null;
       else if (canPoint(blockingEnemy)) rt.guideEnemy = blockingEnemy;
@@ -702,7 +719,7 @@ export class HudOverlay {
       Number(!!this.prog && !this.prog.hidden) - Number(!$('boss').hidden) -
       Number(!$('target').hidden && !$('target').classList.contains('notice-muted')));
     for (const u of this.ovCand) {
-      if (rescueTarget(rt) || protectedAlly?.alive) continue;
+      if (rescueTarget(rt) || protectedAlly?.alive && u !== focus) continue;
       // 開幕は目的地の輪と短い札にまとめ、離れた顔や青旗を重ねない。
       if (this.openingActive) continue;
       // 逃げる間は行き先一つだけを残し、敵味方の旗や刀を重ねない。
@@ -740,7 +757,7 @@ export class HudOverlay {
       if (this.pinOnly && u.name && !u.isSub && (u.type === 'busho' || u.type === 'samurai') && d < 40 && !u.fleeing) named = true;
       const crest = !this.pinOnly && !quietBattle && u.team === 0 && knownGeneral && d >= 22 && d < 48;
       // 剣や盾は選んだ相手一人だけ。周りの兵には追加しない。
-      const ally = u.team === P.u.team, missionEnemy = !!objectiveEnemies?.includes(u), selected = (!missionGuard || u === this.attackGuideEnemy || u === chosenEnemy) && !retreating && (!this.guardAlly || u === this.attackGuideEnemy || u === chosenEnemy) && u === focus && !movingToFlag;
+      const ally = u.team === P.u.team, missionEnemy = !!objectiveEnemies?.includes(u), selected = (!missionGuard || guardingCombat || u === this.attackGuideEnemy || u === chosenEnemy) && !retreating && (!this.guardAlly || guardingCombat || u === this.attackGuideEnemy || u === chosenEnemy) && u === focus && !movingToFlag;
       const teamSign = selected && !rt.over && !rt.def.town && !rt.def.dojo && !P.camShot && !this.openingActive &&
         !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - P.u.pos.x, u.pos.z - P.u.pos.z) <= 22;
       if (!showBar && !named && !crest && !teamSign) continue;
@@ -780,6 +797,10 @@ export class HudOverlay {
         if (ally) allySigns++; else enemySigns++;
 
         if (selected && !ally) {
+          if (this.pinOnly) {
+            const headFrame = this.measurePersonFrame(u, rt);
+            if (headFrame) this.drawEnemyHeadPointer(g, headFrame, rt, u, false);
+          }
           // 狙う一人の姿を空け、操作は既存の札へまとめる。
           if (rt.def.hidePlayerSign && !rt.def.hideDefenseArea && u === this.defendEnemy && !this.attackGuideEnemy && !this.approachGuideEnemy) {
             const area = this.defendArea || (this.defendArea = { x:0, y:0, z:0 });

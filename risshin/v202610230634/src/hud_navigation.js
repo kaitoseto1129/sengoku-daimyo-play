@@ -353,7 +353,18 @@ export class HudNavigation {
     if (protect && frame) {
       if (this.guardSymbolDrawn) return true;
       this.guardSymbolDrawn = true;
-      this.drawGuardSign(g, frame.cx, Math.max(58, frame.top - 8));
+      const tip = Math.max(90, frame.top - 8);
+      this.drawGuardSign(g, frame.cx, tip);
+      // 命の棒と既存の札を数え、守る人の呼び名も三枚の枠内に収める。
+      const cards = 1 + this.notices.picks.length + Number(!!this.prog && !this.prog.hidden) +
+        Number(!$('boss').hidden) + Number(!$('target').hidden && !$('target').classList.contains('notice-muted'));
+      if (cards < 3) {
+        g.save(); g.font = 'bold 16px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        const width = g.measureText('守る人').width + 16;
+        const cx = Math.max(width / 2 + 12, Math.min(VIEW.w - width / 2 - 12, frame.cx));
+        g.fillStyle = '#14120f'; g.fillRect(cx - width / 2, tip - 82, width, 26);
+        g.fillStyle = '#fff3ba'; g.fillText('守る人', cx, tip - 69); g.restore();
+      }
       return true;
     }
     const order = $('objectives');

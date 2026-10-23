@@ -132,7 +132,7 @@ function sunoRainDuty(rt) {
   if (F.sunoTask === 'rescue') return '人足の前で敵を止める';
   if (F.sunoTask === 'nida' || F.sunoTask === 'porters') return '道の印から人足を迎える';
   if (F.woodDelivered && F.buildBusy) return '柵を直す人足を守る';
-  return `${SIDE_WORD[F.guardSide] || '北'}の柵を守る`;
+  return '柵を守る';
 }
 // 人足は修理と退避で動く。空になった北の置き場へ材木を渡させない。
 // 受け手の位置をそのまま使い、少し近い人が現れるたびに印を飛ばさない。
@@ -1932,7 +1932,7 @@ const sunomata = {
     const id = rt.missionGuide?.marker?.id;
     if (id === 'insideGuard' || id === 'workGuard') return '印の人足を守る';
     if (id === 'post0' || id === 'post3' || id === 'gateGuard')
-      return `${SIDE_WORD[rt.flags.guardSide] || '北'}の柵の内で守る`;
+      return '柵の内で守る';
     return '味方と並び、近い敵を止める';
   },
   hideEdgeGoalDistance: true,
@@ -1992,9 +1992,8 @@ const sunomata = {
       ? '味方と並び、人足を守る' : '人足の前の印へ進む';
     if (rt.missionGuide?.marker?.id === 'workGuard')
       return reached ? '道を空け、人足を守る' : '柵を直す人足の印へ進む';
-    const side = SIDE_WORD[rt.flags.guardSide] || '北';
-    return reached ? rt.flags.wave ? `${side}の柵の内で敵を槍で突く` : `${side}の柵の内で寄せを待つ`
-      : `${side}の柵の内の印へ進む`;
+    return reached ? rt.flags.wave ? '柵の内で敵を槍で突く' : '柵の内で寄せを待つ'
+      : '柵の内の印へ進む';
   },
   // 負傷時の退避を、普請の持ち場そのものと取り違えさせない。
   retreatGuideLabel(rt, reached) {
@@ -2062,8 +2061,7 @@ const sunomata = {
       : rt.missionGuide.distance < 6 ? '人足のそばで敵を止める' : '材木を担ぐ人足へ進む';
     if (F.sunoTask === 'defend' && F.woodDelivered && F.buildBusy && sunoSupplyLull(rt)) return '柵を直す人足を守る';
     if (id === 'post0' || id === 'post3' || id === 'gateGuard') {
-      const side = SIDE_WORD[F.guardSide] || '北';
-      return !F.wave ? `${side}の柵の内で寄せを待つ` : `${side}の柵の内で敵を止める`;
+      return !F.wave ? '柵の内で寄せを待つ' : '柵の内で敵を止める';
     }
     return text;
   },
@@ -2647,7 +2645,7 @@ const sunomata = {
     F.returnPoint = { x: 0, z: FORT + 4 };
     rt.marker('returnGate', () => sunoReturnPoint(rt), '砦へ戻る道（南門）', { h: 2.5, guideAlways: true });
     F.guardSide = 'n';
-    rt.marker('post0', { x: 0, z: -FORT + 6 }, '守る場所（北の普請の口）', SUNO_GUARD_GUIDE);
+    rt.marker('post0', { x: 6, z: -FORT + 1.4 }, '守る柵', SUNO_GUARD_GUIDE);
 
     // 守る砦：後詰は三の手の段で一度だけ呼び、区域側からは重ねて出さない。
     // 寄せが退き、人足と柵が残り、敵のいない砦を二十秒守ってから勝つ。
@@ -2674,7 +2672,7 @@ const sunomata = {
     // 砦は完成していない所から始まる（spec 17〜24）：北の柵は普請の途中で、北門もまだ塞がっていない。
     // 上役が出した普請の順に、組で人足を守る。敵が迫れば作業を止める。
     sunoObj(rt, 'gate', '北の口で、人足の普請を守れ', 'side');
-    rt.marker('gateGuard', { x: 0, z: -FORT + 6 }, () => !rt.over && !F.ending && F.sunoTask === 'gate' ? '普請を守る北の口' : '', SUNO_GUARD_GUIDE);
+    rt.marker('gateGuard', { x: 6, z: -FORT + 1.4 }, () => !rt.over && !F.ending && F.sunoTask === 'gate' ? '守る柵' : '', SUNO_GUARD_GUIDE);
     rt.after(4, () => {
       if (rt.over || F.ending || F.won) return;
       const mark = (id, seg, label) => rt.marker(id, { x: (seg.seg[0] + seg.seg[2]) / 2, z: (seg.seg[1] + seg.seg[3]) / 2 }, label);
@@ -2942,7 +2940,7 @@ const sunomata = {
       else sunoFail(rt, 'nida');
     }
     F.wave = 3; F.waveT = 0; F.nextWaveAt = 0; sunoRemove(rt, 'nida');
-    sunoPost(rt, F.post3 === 'e' ? '東の柵で川並衆と舟の敵を止めよ' : '北の柵を守れ。舟は川並衆に任せよ', F.post3 || 'n');
+    sunoPost(rt, F.post3 === 'e' ? '東の柵で川並衆と舟の敵を止めよ' : '柵を守れ。舟は川並衆に任せよ', F.post3 || 'n');
     rt.setPhase('w3');
     rt.world.setTime('dusk');
     F.w3T = rt.t;

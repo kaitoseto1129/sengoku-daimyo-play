@@ -21,6 +21,7 @@ import { clash } from './b_sekigahara.js';
 import { cryCaption } from './battle_cries.js';
 import { rescueTarget, retreatRequired } from './battle_danger.js';
 import { cloneRoomNearMaterial } from './player.js';
+import { localPoint } from './army_local_way.js';
 
 // ======================================================================
 // 第1戦　桶狭間
@@ -559,6 +560,19 @@ const okehazama = {
       ? '届く距離、赤い矢印の敵へ向き直る' : '攻撃が届く、赤い矢印の敵を倒す';
   },
   missionSignTarget(rt) {
+    const F = rt.flags, p = rt.player;
+    if (rt.phase === 'assault' && !F.victory || F.scoutFighting) {
+      if (p.inRange && readyUnit(p.rangeCueTarget)) return p.rangeCueTarget;
+      // 遠い任務の兵より、今いる場所から戦える一人を優先する。探索は半秒ごと。
+      if (!(F.nearSignAt > rt.t) || F.nearSignEnemy && !readyUnit(F.nearSignEnemy)) {
+        F.nearSignAt = rt.t + .5;
+        const near = rt.army.nearestEnemy(p.u, 14, readyUnit);
+        const old = F.nearSignEnemy;
+        const distance = (u) => Math.hypot(u.pos.x - p.u.pos.x, u.pos.z - p.u.pos.z);
+        F.nearSignEnemy = readyUnit(old) && distance(old) < 16 && (!near || distance(old) <= distance(near) + 2) ? old : near;
+      }
+      if (readyUnit(F.nearSignEnemy)) return F.nearSignEnemy;
+    }
     return this.objectiveEnemies(rt)[0] ||
       ((rt.phase === 'march' || rt.phase === 'wait') && rt.flags.scoutFighting && rt.flags.scoutEnemy && readyUnit(rt.flags.scoutEnemy) ? rt.flags.scoutEnemy : null);
   },
@@ -652,7 +666,7 @@ const okehazama = {
     if (rt.phase === 'brief' && rt.flags.briefed) return '出発を待て';
     if ((rt.phase === 'march' || rt.phase === 'wait') && rt.flags.scoutFighting) return '▼の兵を倒せ';
     if (rt.phase === 'wait' && !this.squadFlagReached(rt)) return '仲間と集まれ';
-    if (rt.phase === 'wait' && rt.flags.clear) return '攻めの合図を待て';
+    if (rt.phase === 'wait' && rt.flags.clear) return '攻めを待て';
     return this.missions[this.missionOf(rt)];
   },
   // 今の行き先と同じ旗持ちを示す。兵は増やさない。
@@ -700,7 +714,28 @@ const okehazama = {
       pin.x = dodge.pos.x; pin.z = dodge.pos.z; pin.r = 1; pin.hide = 0; pin.waiting = false; pin.dodge = true;
       return pin;
     }
-    // 敵への地面の矢印は出さず、実際の頭上の赤い▼に任せる。
+    // 届く時は頭上の▼だけ。離れている時は、槍が届く立ち位置へピン一本で導く。
+    if (enemy && (rt.phase === 'assault' && !F.victory || F.scoutFighting)) {
+      if (rt.player.inRange) return null;
+      const p = rt.player, me = p.u.pos;
+      const distance = Math.hypot(enemy.pos.x - me.x, enemy.pos.z - me.z);
+      const reach = p.meleeReach(p.weapon === 'sword' ? 'slash' : 'thrust') * .8;
+      if (distance <= reach) return null;
+      const goal = F.approachGoal || (F.approachGoal = { x: 0, z: 0, y: 0 });
+      const step = F.approachStep || (F.approachStep = { x: 0, z: 0, y: 0 });
+      if (F.approachEnemy !== enemy || !(F.approachAt > rt.t)) {
+        F.approachEnemy = enemy; F.approachAt = rt.t + .5;
+        goal.x = enemy.pos.x + (me.x - enemy.pos.x) / distance * reach;
+        goal.z = enemy.pos.z + (me.z - enemy.pos.z) / distance * reach;
+        goal.y = me.y;
+        const way = honjinWay(rt.army, p.u, goal);
+        localPoint(rt.army, p.u, step, way.x, way.z);
+      }
+      if (Math.hypot(step.x - me.x, step.z - me.z) < .5) return null;
+      pin.x = step.x; pin.z = step.z; pin.r = .5; pin.hide = .5;
+      pin.area = true; pin.waiting = false;
+      return pin;
+    }
     if (rt.phase === 'assault' && !F.victory && (enemy ||
         this.objectiveEnemies(rt).length || !F.entered && F.roadStep < F.road.length)) return null;
     if (rt.phase === 'brief' || rt.phase === 'march' || rt.phase === 'wait') {
@@ -720,9 +755,8 @@ const okehazama = {
       // ピンは到着判定と同じ地面の一点へ。人物への話しかけの印にしない。
       pin.hide = 0; pin.waiting = false; pin.area = true;
       pin.arrived = rt.phase === 'brief' && F.briefed || this.squadFlagReached(rt);
-      // 到着で同じピンを確認の形へ替える。待つ進みも同じ位置にまとめる。
-      pin.waiting = true;
-      if (pin.arrived) pin.progress = this.missionWaitProgress(rt);
+      // 到着後に行き先を残さない。「待て」の間は、その場にいてよい。
+      if (pin.arrived) return null;
       return pin;
     }
     const guide = rt.missionGuide, marker = guide?.marker;

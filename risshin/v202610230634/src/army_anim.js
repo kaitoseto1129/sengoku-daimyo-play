@@ -818,7 +818,8 @@ export const ArmyAnim = {
       // 突き：まっすぐ出して、引く。当たれば穂先は相手の所で止まり、外れれば体の脇を抜ける
       const p = sw.t / sw.dur;
       const out = thrustOut(p, sw.dur, close ? 0.14 : 0.26);
-      let e = 0.62 * out;
+      // 自分の突きは大きく出して、振りが見えるように（兵は今までどおり）
+      let e = (u.isPlayer ? 0.86 : 0.62) * out;
       const cur = (reach0 + slide) * Math.cos(rx);
       if (sw.res === 'hit') e = Math.min(e, sw.d - 0.1 - cur);
       // 近すぎて穂先を上げていた槍は、突きで相手の胸へ突き下ろす（手元は少しでも前へ押し込む。引くだけの突きにしない）

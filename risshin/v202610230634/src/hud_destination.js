@@ -146,12 +146,11 @@ export class HudDestination {
   // 行き先の床に一本だけ刺す。兵や描画用の物は増やさない。
   drawDestinationPin(g, x, y) {
     g.save(); g.translate(x, y); g.lineJoin = 'round';
-    g.beginPath(); g.moveTo(0, 0); g.lineTo(-12, -24);
-    g.bezierCurveTo(-26, -52, 26, -52, 12, -24); g.closePath();
-    g.fillStyle = '#14120f'; g.fill();
-    g.strokeStyle = '#14120f'; g.lineWidth = 8; g.stroke();
-    g.strokeStyle = '#fff3ba'; g.lineWidth = 3; g.stroke();
-    g.beginPath(); g.arc(0, -32, 4, 0, Math.PI * 2);
+    // 待つ輪と同じ太い矢印。先端を入口や行き先の実際の床へ固定する。
+    g.beginPath(); g.moveTo(0, 0); g.lineTo(-21, -22);
+    g.lineTo(-8, -22); g.lineTo(-8, -51); g.lineTo(8, -51);
+    g.lineTo(8, -22); g.lineTo(21, -22); g.closePath();
+    g.strokeStyle = '#14120f'; g.lineWidth = 7; g.stroke();
     g.fillStyle = '#fff3ba'; g.fill(); g.restore();
   }
 

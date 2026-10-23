@@ -7,6 +7,7 @@ import { loadWarSpeech, releaseWarSpeech } from './war_speech.js';
 import { assetsForBattle, prepareBattleAssets, releaseBattleAssets } from './asset_manifest.js';
 import { cancelAssetReads } from './asset_reader.js';
 import { rememberWounds } from './wounds.js';
+import { recoverBattle } from './battle_retry.js';
 import { readProgress, progressStored, deleteProgress } from './save_guard.js';
 import * as THREE from 'three';
 import { installCanvasAstc } from './astc_rt.js';
@@ -201,6 +202,7 @@ const hideLoading = () => { game.loadingReader?.dispose(); game.loadingReader = 
 // 不具合の知らせ（window の error・unhandledrejection・戦の輪の失敗で同じ文と lastError を作る）
 function reportBug(message, where) {
   const b = game.battle;
+  game.battleFault = b;
   game.lastError = `${message}\n${where}\n戦：${b ? (BATTLES[b.index] ? BATTLES[b.index].name : '稽古') : '-'}　経過 ${b ? Math.round(b.t) : 0}秒　場面 ${b ? b.phase : '-'}`;
   crashNotice();
 }
@@ -1244,6 +1246,17 @@ window.addEventListener('gamepadconnected', () => notice('手持ち操作器を�
 
 // ---------------- 一時停止 ----------------
 function resumePlay() {
+  const b = game.battle;
+  if (b && game.battleFault === b) {
+    game.battleFault = null;
+    if (!recoverBattle(b)) {
+      // 写しをまだ作れていない開戦直後だけ、既存の出陣処理で立て直す。
+      game.G = JSON.parse(game.snapshot || 'null') || game.G;
+      game.startBattle(b.index);
+      return;
+    }
+    game.lastError = null;
+  }
   game.starting = false;
   // 再開はマウスの捕捉を待たない。次に戦場を押した時に捕捉できる。
   if (!locked) game.noLock = true;
@@ -1632,7 +1645,7 @@ const game = {
   },
 
   title(pick = '') {
-    this.lastError = null;
+    this.lastError = null; this.battleFault = null;
     this.trialReturn = '';
     // 題の画面では戦・人物の素材を読み始めない。
     closeJapan();
@@ -1713,7 +1726,7 @@ const game = {
 
   startBattle(i) {
     if (memReloadGate(this, 'startBattle', [i])) return;
-    this.lastError = null;
+    this.lastError = null; this.battleFault = null;
     try { localStorage.setItem('risshin-lastbattle', BATTLES[i]?.id || String(i)); localStorage.setItem('risshin-lastbattle-at', String(Date.now())); } catch (e) { /* 保存できなければ記さない */ }
     if (isLocked(i)) return showPaywall(() => this.startBattle(i), () => this.base());
     const firstBattle = BATTLES[i]?.id === 'inou' && !this.G.practice && !this.G.lord && !this.G.history?.some(Boolean);

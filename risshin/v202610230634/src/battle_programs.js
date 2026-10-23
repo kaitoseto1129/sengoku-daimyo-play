@@ -5,6 +5,7 @@ import { humanProgramSamples, preparationFrame } from './humans.js';
 import { YUMI } from './yumi.js';
 import { fallenVariant } from './army_ground.js';
 import { armorProgramSamples } from './armor_wear.js';
+import { hasMultiDraw } from './world.js';
 
 // compileAsync は外の待ち切りだけでは内部の確認時計が止まらず、材質と戦場を持ち続ける。
 // 同じ組み立てを開始し、完了の確認だけをこちらで持って必ず片付ける。
@@ -149,8 +150,15 @@ export async function prepareBattlePrograms(renderer, battle, camera, current = 
         if (!material) continue;
         if (!await prepare(source, material)) return stats;
         // 傷・泥・血は高画質で束ねる。普通の板だけの支度では、最初の乱戦で束用の組み立てが残る。
-        if (material.userData?.unitBatch && !source.isInstancedMesh)
+        //   骨の入った人の髪・目・近くの指物も束で描く（army_human_batch.js）。束用の描き方も支度で作る
+        const ud = material.userData;
+        if (ud && (ud.unitBatch || ud.humanBatch || ud.nearFlag) && !source.isInstancedMesh)
           if (!await prepare(source, material, true)) return stats;
+        // 顔の形ごとに違う小さな部品（目玉・髷・元結）は BatchedMesh で描く。その描き方も作る
+        if (ud?.humanBatch && hasMultiDraw() && source.geometry && source.geometry.attributes.position.count <= 1500) {
+          const g = source.geometry, bm = new THREE.BatchedMesh(1, g.attributes.position.count, g.index ? g.index.count : 3, material);
+          try { bm.addGeometry(g); bm.receiveShadow = true; bm.castShadow = source.castShadow; if (!await prepare(bm, material)) return stats; } catch (e) { /* 入らない形は束にしない */ } finally { bm.dispose(); }
+        }
         if (source.isBatchedMesh) continue;
         // 兵の遠い形・透過・倒れを総当たりで作らない。
         // 初回に三十ミリ秒を超えると測れた姿だけ、今後ここへ個別に加える。
