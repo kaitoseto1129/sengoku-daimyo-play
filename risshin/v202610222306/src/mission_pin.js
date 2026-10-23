@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { VIEW } from './viewport.js';
 import { currentObjective } from './mission_guide.js';
+import { groundAt } from './floors.js';
 
 let pin = null;
 function make() {
@@ -26,7 +27,9 @@ function target(rt) {
   // 定義の無い戦は、任務の手引きが選んだ行き先（今の任務と同じ印・同じ半径）へ立てる。
   const g = rt.missionGuide, m = g?.marker;
   if (!m || !g.objective || g.objective.id === '_wait' || g.objective !== currentObjective(rt)) return null;
-  tmp.x = g.pos.x; tmp.z = g.pos.z; tmp.r = m.guideRadius || 6;
+  tmp.x = g.pos.x; tmp.z = g.pos.z;
+  // 戸口や曲がり角は六歩手前で印を消さず、すぐそばまで案内する。
+  tmp.r = m.guideRadius ?? (m.entrance || m.id === 'next' ? 1 : 6);
   return tmp;
 }
 
@@ -41,13 +44,18 @@ export function updateMissionPin(rt) {
   //   遠くへ跳んだ時だけすぐ移し、ふだんは一メートル足らずの揺れを無視して、ゆっくり追わせる。地面の高さも同じ点で取る。
   const now = performance.now(), U = pinAt;
   const dt = Math.min(0.1, Math.max(0, (now - (U.at || now)) / 1000)); U.at = now;
-  if (U.rt !== rt || Math.hypot(want.x - U.x, want.z - U.z) > 15) { U.x = want.x; U.z = want.z; U.rt = rt; U.y = rt.world.heightAt(U.x, U.z); U.ox = 0; U.oy = 0; }
+  const me = rt.player.u.pos, key = rt.missionGuide?.key;
+  const changed = U.rt !== rt || U.key !== key;
+  if (changed || Math.hypot(want.x - U.x, want.z - U.z) > 15) {
+    U.x = want.x; U.z = want.z; U.rt = rt; U.key = key;
+    U.y = groundAt(rt.world, U.x, U.z, me.y); U.ox = 0; U.oy = 0;
+    U.out = undefined; U.outAt = 0; pin.hidden = false;
+  }
   else if (Math.hypot(want.x - U.x, want.z - U.z) > 0.8) {
     const k = 1 - Math.exp(-dt * 1.5);
     U.x += (want.x - U.x) * k; U.z += (want.z - U.z) * k;
-    U.y += (rt.world.heightAt(U.x, U.z) - U.y) * k;
+    U.y += (groundAt(rt.world, U.x, U.z, me.y) - U.y) * k;
   }
-  const me = rt.player.u.pos;
   const d = Math.hypot(want.x - me.x, want.z - me.z);
   const near = want.hide ?? (want.r || 6);
   // 着いた・離れたの境で毎コマ出たり消えたりしない（チカチカ。kaito 10/23 稲生 27）。消えた後は一歩半離れてから出す。
@@ -63,11 +71,12 @@ export function updateMissionPin(rt) {
   // 足元を別の場所へずらさず、札に隠れる時も端の矢印へ切り替える。
   //   画面の端・札の縁でも、前のコマと同じ形を少しの間は保つ（地面の旗と端の矢印が入れ替わり続けない）。
   let outside = behind || !goalFree(x, y, W, H, rects);
-  if (!behind && outside !== U.out && now - (U.outAt || 0) < 400) outside = U.out;
+  if (!behind && U.out !== undefined && outside !== U.out && now - (U.outAt || 0) < 400) outside = U.out;
   else if (outside !== U.out) { U.out = outside; U.outAt = now; }
   if (outside) {
     // 足元の投影は画面の下に出る。進む方向は地面上の向きから求め、前の目標へ下向きの矢印を出さない。
-    const yaw = rt.player.yaw + (rt.player.camYawOff || 0);
+    rt.camera.getWorldDirection(goalDirection);
+    const yaw = Math.atan2(goalDirection.x, goalDirection.z);
     const gx = want.x - me.x, gz = want.z - me.z;
     dx = -gx * Math.cos(yaw) + gz * Math.sin(yaw);
     dy = -(gx * Math.sin(yaw) + gz * Math.cos(yaw));
@@ -95,6 +104,7 @@ export function updateMissionPin(rt) {
   pin.style.transform = `translate(${(x - 40).toFixed(1)}px,${(y - (outside ? 40 : 68)).toFixed(1)}px)`;
 }
 const goalPoint = new THREE.Vector3();
+const goalDirection = new THREE.Vector3();
 const pinAt = { x: 0, z: 0, y: 0, ox: 0, oy: 0, at: 0, rt: null };
 function goalFree(x, y, W, H, rects) {
   if (x < 44 || x > W - 44 || y < 88 || y > H - 44) return false;
@@ -128,5 +138,6 @@ export function updateAimDot(rt, root) {
   if (v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) { dot.style.display = 'none'; return; }
   dot.style.display = 'block';
   dot.style.background = t ? '#e8573e' : '#f3e2b8';
-  dot.style.transform = `translate(${Math.round((v.x + 1) / 2 * innerWidth)}px,${Math.round((1 - v.y) / 2 * innerHeight)}px)`;
+  const tf = `translate(${Math.round((v.x + 1) / 2 * VIEW.w)}px,${Math.round((1 - v.y) / 2 * VIEW.h)}px)`;
+  if (dot._tf !== tf) { dot._tf = tf; dot.style.transform = tf; }
 }

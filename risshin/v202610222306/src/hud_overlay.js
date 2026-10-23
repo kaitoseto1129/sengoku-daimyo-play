@@ -269,10 +269,12 @@ export class HudOverlay {
     const marker = rt.missionGuide?.marker, P = rt.player;
     const person = typeof marker?.guidePerson === 'function' ? marker.guidePerson() : marker?.guidePerson;
     const ally = rt.def.missionAlly?.(rt) || rt.def.guardGuideTarget?.(rt) || rt.def.guardTarget?.(rt);
+    this.drawPlayerSign(g, rt);
     const names = this.battleNameCandidates || (this.battleNameCandidates = []);
     if (this.battleNameRt !== rt || rt.t < this.battleNameAt || rt.t - this.battleNameAt >= .1) {
       this.battleNameRt = rt; this.battleNameAt = rt.t; names.length = 0;
-      for (const u of rt.army.units) if (u.name && !u.isSub && !u.isPlayer) names.push(u);
+      // 普通の兵の役名を頭上へ戻さない。組は指物と肩印、名札は武将だけ。
+      for (const u of rt.army.units) if (u.type === 'busho' && u.name && !u.isSub && !u.isPlayer) names.push(u);
     }
     const placed = this.battleNameSpots || (this.battleNameSpots = []); placed.length = 0;
     const slots = Math.min(2, Math.max(0, 3 - (this.notices?.picks.length || 0) -

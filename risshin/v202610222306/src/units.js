@@ -263,7 +263,7 @@ function shadowBox(g) {
 }
 // 倒れた兵の補光の材質（army_ground.js fallenMaterial）で、元が兵の材質の物
 // 一人だけの形をまとめる入れ物（soloDraw）：材質と頂点の作りごとに一つ。形の数・頂点・番号の上限
-const SOLO = { on: true, multi: 2, pools: 6, g: 420, v: 150000, i: 480000 }, _soloM = new THREE.Matrix4();
+const SOLO = { on: true, multi: 2, pools: 10, shards: 3, g: 420, v: 150000, i: 480000 }, _soloM = new THREE.Matrix4();
 // 満ちた入れ物で、二秒ほど使っていない形の場所のうち、大きさの足りるいちばん小さい所へ上書きする（無ければ -1）
 // 束（BatchedMesh）専用の材質の写し。元の材質を束と普通の形で使い回すと、three が物の入れ替わりごとに
 // 描き方を選び直し（getParameters・文字列の鍵）、毎秒数十MBの捨てる物を作っていた。写しは onBeforeCompile・鍵・defines を引き継ぐ。
@@ -282,6 +282,9 @@ function batchVariant(mat) {
   }
   return v;
 }
+// 配列の長さだけを知る。GPU にだけ置いた形（main.js の gpuOnly）・束へ預けた形（_poolRef）は、長さを見るだけで読み戻さない
+//   （読み戻しは GPU を待たせる。満ちた入れ物の空き探しで毎秒数回起きていた。10/23）
+function arrayLength(a) { return a._gpuRef ? a._gpuRef.len : a._poolRef ? a._poolRef.len : a.array.length; }
 function soloReuse(pool, g, nv, ni, frame) {
   if (pool.reuseOff) return -1;
   // 形の属性は後から変わることもある。初回の判定だけに頼らず、
@@ -290,7 +293,7 @@ function soloReuse(pool, g, nv, ni, frame) {
     if (name === 'batchId') continue;
     const src = g.attributes[name], dst = pool.bm.geometry.attributes[name];
     if (!src || src.isInterleavedBufferAttribute || src.itemSize !== dst.itemSize ||
-        src.normalized !== dst.normalized || src.count !== nv || src.array.length !== nv * src.itemSize) return -1;
+        src.normalized !== dst.normalized || src.count !== nv || arrayLength(src) !== nv * src.itemSize) return -1;
   }
   const R = pool.bm._reservedRanges;
   let best = -1, bestV = Infinity;
@@ -1862,8 +1865,10 @@ export class Army {
         P.sig.set(g, sig);
       }
       if (!sig) continue;
-      const key = e.bmat.uuid + '|' + sig;
-      let pool = P.pools.get(key);
+      // 満ちた入れ物は、同じ材質の二つ目・三つ目へ回す（10/23 実機：満杯待ちが30秒に二千回。束ねられない一人だけの束が百五十ほど残り、描く回数を押し上げていた）
+      const base = e.bmat.uuid + '|' + sig;
+      let key = base, pool = P.pools.get(key);
+      for (let s = 1; s < SOLO.shards && pool && pool.fullAt > P.frame - 60 && !pool.ids.has(g); s++) { key = base + '|' + s; pool = P.pools.get(key); }
       if (!pool) {
         if (P.pools.size >= SOLO.pools || made >= 1 || workMs >= 1) continue;
         const started = performance.now();
@@ -1904,7 +1909,7 @@ export class Army {
         let id;
         if (pool.nv + rv > pool.maxV || pool.ni + ri > pool.maxI || pool.ng >= pool.maxG) id = soloReuse(pool, g, nv, ni, P.frame);
         else { try { id = pool.bm.addGeometry(g, rv, ni ? ri : -1); } catch (err) { pool.ng = pool.maxG; id = -1; } if (id >= 0) { pool.nv += rv; pool.ni += ri; pool.ng++; } }
-        if (id < 0) { pool.retry.set(g, P.frame + 30); SOLO_STAT.full++; break; }
+        if (id < 0) { pool.retry.set(g, P.frame + 30); pool.fullAt = P.frame; SOLO_STAT.full++; break; }
         pool.retry.delete(g);
         soloUpload(pool.bm, id);
         // 二人分の片方だけ出来た場合、完成まで元の束に任せる。

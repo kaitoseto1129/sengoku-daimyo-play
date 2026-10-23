@@ -90,7 +90,10 @@ export class WorldUpdate {
       else if (mv > 0.6) { this.stampWear(focus.x, focus.z, 0.8, 5); this.footprint(focus.x, focus.z, false, Math.atan2(focus.x - this.lastFoot.x, focus.z - this.lastFoot.z)); this.lastFoot.copy(focus); }
     } else if (focus) (this.lastFoot || (this.lastFoot = new THREE.Vector3())).copy(focus);
     this.wearT = (this.wearT || 0) + dt;
-    if (this.wearDirty && this.wearT > 0.5) { this.wearT = 0; this.wearDirty = 0; this.wearTex.needsUpdate = true; }
+    if (this.wearDirty && this.wearT > 0.5) {
+      this.wearT = 0; this.wearDirty = 0; this.wearTex.needsUpdate = true;
+      this.wearRevision = (this.wearRevision || 0) + 1;
+    }
     this.updateHaze(dt, focus);
     if (this.haze) this.haze.mesh.material.uniforms.color.value.set(this.def.hazeColor ?? (this.timeKey === 'night' ? 0x3a4250 : this.timeKey === 'dusk' ? 0xcbb4a0 : this.timeKey === 'storm' ? 0x9a9e9e : 0xd4d2cc));
     if (this.dustVeil) this.dustVeil.mesh.material.uniforms.color.value.set(this.timeKey === 'dusk' ? 0xb08a68 : 0xa89878);

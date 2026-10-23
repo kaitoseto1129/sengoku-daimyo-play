@@ -312,7 +312,7 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
       i = Math.max(0, this.progSeen.length - 1); n = 0; title = this.progSeen[i] || '';
     }
     setText(stEl.firstChild, '');
-    const headline = missionCaption(rt, title || task);
+    const headline = missionCaption(rt, def.missionTaskFirst ? task || title : title || task);
     setText(stEl.lastChild, headline);
     // 戦固有の案内と任務の進みは残す。同じ任務の全文は重ねない。
     const status = def.missionStatus?.(rt, taskLine);

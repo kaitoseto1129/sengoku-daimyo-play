@@ -63,6 +63,8 @@ function fallenBody(src, direction) {
   const g = bendFallen(src, direction);
   // 写しは GPU へ送った後に CPU の配列を手放す（main.js の gpuOnly）。描かれないまま残る写しは、iPhone では units.js の
   //   掃除（dropLazyGeo）が配列を手放し、要る時にここで作り直す（_make）。clone は印を写さない
+  // 囲み（箱と球）は配列があるうちに作る。手放した後に視野の判定や影の箱で求めると、GPU から読み戻して待たせる（10/23）
+  if (!g.boundingBox) g.computeBoundingBox(); if (!g.boundingSphere) g.computeBoundingSphere();
   for (const k in g.attributes) g.attributes[k].gpuOnly = true; if (g.index) g.index.gpuOnly = true;
   g._make = () => bendFallen(src, direction);
   variants[direction] = g; fallenMade.add(g);
@@ -461,6 +463,14 @@ export const ArmyGround = {
       }
       // 近い敵味方だけ、既存の四百枠に実際の足運びの向きで跡を残す。
       const view = focus || this.playerUnit?.pos;
+      // 雨の踏み込みにも既存の土粒枠を使う。二秒に一度の兵だけ、足の後ろへ低く跳ねる。
+      if (!S.reduceMotion && wet && w.def.wetEarthBursts && moved2 >= 0.0625 && view &&
+          (x - view.x) ** 2 + (z - view.z) ** 2 < 18 ** 2 &&
+          (u.id + Math.floor(this.time * 2)) % 4 === 0) {
+        const stepLength = Math.sqrt(moved2);
+        this.burst(x, u.pos.y + .035, z, u.mounted ? 4 : 2, 'dust',
+          -dx / stepLength * .35, -dz / stepLength * .35, u.pos.y);
+      }
       // 既存の煙の枠を使い、近い兵の踏み込みにだけ低い土煙を添える。
       // 半秒ごとの足運びを間引き、湿った岸や水面では乾いた煙を増やさない。
       if (!S.reduceMotion && !wet && moved2 >= 0.0625 && view &&

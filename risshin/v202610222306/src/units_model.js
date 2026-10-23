@@ -920,6 +920,8 @@ function merge(parts) {
     // 色（color・col2）は 8 bit の正規化で持つ（見た目は同じで一頂点 60→44 byte。読む側は getX・setXYZ）。部品として束ね直す時は dequantize
     quantize8(g, 'color'); quantize8(g, 'col2');
     // 兵の形は GPU へ送った後に CPU の配列を手放してよい（main.js の gpuOnly。要る時は GPU から読み戻す）
+    // 囲み（箱と球）は配列があるうちに作る。手放した後に視野の判定や影の箱で求めると、GPU から読み戻して待たせる（10/23）
+    if (!g.boundingBox) g.computeBoundingBox(); if (!g.boundingSphere) g.computeBoundingSphere();
     for (const k in g.attributes) g.attributes[k].gpuOnly = true; if (g.index) g.index.gpuOnly = true;
     shareShape(g);
   }

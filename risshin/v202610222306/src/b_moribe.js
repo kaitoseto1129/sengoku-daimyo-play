@@ -935,21 +935,24 @@ const F_autoAt = (rt) => rt.flags.autoOrderAt || 0;
 
 const moribe = {
   compactIntro: true,
+  introName: '森部（もりべ）の戦い',
   introTaskFirst: true,
   introPeopleFolded: true,   // 横持ちでは下知を先に読み、人物紹介は自分で開く。
   // 操作は稲生で覚える。ここでは行き先と勝つための流れを伝える。
-  introText: 'まず、川向こうの小旗の印へ。杭の間を歩いて渡ろう。\n帰りは、その時に出る小旗の印を目指す。',
+  introText: 'まず、川のくいの間を歩いて、向こう岸の印へ。\n行き先は、うす黄色の小旗の形をした印。仲間は後から来ます。',
+  introSides: { a: '織田軍（おだぐん）', b: '斎藤軍（さいとうぐん）' },
   introPeople: [
-    { id: 'moribe-oda', name: '織田信長', note: '味方の大将。織田軍の兵として戦う。' },
-    { id: 'moribe-nagai', name: '長井甲斐守（ながい かいのかみ）', note: '敵の大将。まわりで守る兵と一緒にいる。味方と協力して倒す。' },
-    { id: 'moribe-hibino', name: '日比野下野守（ひびの しもつけのかみ）', note: 'もう一人の敵の大将。二人の大将と守る兵を倒したら、新しく出る小旗の印へ仲間と戻る。' },
+    { id: 'moribe-oda', name: '織田信長（おだ のぶなが）', note: '味方の大将。大将は、兵たちをまとめる人。味方と一緒に戦おう。' },
+    { id: 'moribe-nagai', name: '長井甲斐守（ながい かいのかみ）', note: '敵の大将の一人。まわりで守る敵の兵と一緒にいる。仲間と協力して倒す。' },
+    { id: 'moribe-hibino', name: '日比野下野守（ひびの しもつけのかみ）', note: 'もう一人の敵の大将。長井と日比野を倒したら、新しく出る小旗の印へ仲間と戻る。' },
   ],
   nearbyAllySignLimit: 0, // 味方の頭上に白い小旗を出さない。追う旗はピン一本、敵は赤い印で分ける。
   noDodgeCard: true, // 矢の雨で「〜をむこう」「にげる」の札を出さない（kaito 10/23 稲生 4）。
   hideMissionDots: true, // 任務の段数は見出しにある。仲間の人数と紛れる五つの丸は出さない。
   // 仲間の名札は一人だけ。密集しても五人分の文字を重ねない。
   missionAllyLabel: 'ついてくる仲間',
-  missionContext() { return ''; }, // 字で数えず、仲間は頭上の印と兵の動きで見せる（kaito 10/23）。
+  missionContext: '永禄四年（一五六一）・森部（もりべ）の戦い',
+  missionTaskFirst: true, // 段の総称より、今の到着・待機・攻めの任務を一行で伝える。
   missions: ['仲間と川を渡る', '味方と前の敵を倒す', '仲間と味方のそばを守る', '二人の敵の大将と戦う', '逃げる敵を追う', '仲間と旗へ戻って守る'],
   missionOf(rt) {
     const F = rt.flags;
@@ -1173,7 +1176,7 @@ const moribe = {
   namedGuideMarkers: true,
   travelGuideLabel(rt) {
     const F = rt.flags;
-    if (!F.signal) return F.pointInside ? '自分は到着。ここで仲間を待て' : '杭の間を渡り、小旗の印へ';
+    if (!F.signal) return F.pointInside ? '川を渡った、ここで仲間を待て' : 'くいの間を歩いて、向こう岸の小旗へ';
     if (F.squadGuide || F.stage === 'assemble' && F.gatherUnit) return '仲間のそばへ';
     if (F.stage === 'assemble') return F.assembleT >= 8 ? '旗で川への道を見張れ' : '追わず、戻る場所の旗へ戻れ';
     if (F.stage === 'press') return F.pursuing ? '逃げる敵を追う' : F.marked ? '味方と進み、敵の印へ' : '仲間と待て';
@@ -1291,6 +1294,8 @@ const moribe = {
     playerMeleeFloor: 1 / 3,   // 無名の足軽は、三歩以内で三度当てれば倒れる。
     muddy: 0.5,
     patchyGround: true,   // 草の株と地肌を同じ不規則な群落へそろえる。
+    nearGrassClumpBase: .025,
+    nearGrassClumpGain: 1.8,   // 株の総枠は保ち、裸地と根の残る群落を分ける。
     wetFieldRuts: 'wear',   // 通った帯の踏み跡から濡れと溝を出す。野一面に平行な溝を敷かない。
     trampledField: [8, 8, 48, 62],   // 中心と半幅。会戦帯は田の薄い水膜より泥と根を見せる。川・両翼の田・足場は保つ。
     alluvialRocks: true,   // 野の礫は小さく丸め、泥へ埋める。大岩の板を敷き詰めない。
@@ -1309,6 +1314,7 @@ const moribe = {
     sparseEarthCrust: true,   // 雨の裸地には土塊をまばらに残す。
     softPathSoil: true,   // 畦道の土と草を連続して混ぜる。足場の高さは変えない。
     subtleMudRelief: true,   // 泥の窪みは踏まれた帯に薄く散らし、野一面を丸い穴で埋めない。
+    churnedMud: true,   // 既存の濡れた圧痕を深め、踏まれた土の縁と窪みで照りを分ける。
     livingSpearHedge: true,   // 槍衾でも息と押される力で手元が小さく動く。
     steadyHorseReactions: true,   // 泥の槍列では踏みとどまる。驚くたびに人馬ごと宙へ跳ばさない。
     rearSpearSupport: true,   // 近い後列は、打ち合う前列の笠の上へ槍を送る。密着・行軍中は立てる。
@@ -1993,12 +1999,12 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     W.setTime('storm'); W.setRainTarget(0.65);
     W.rainLevel = W.wetness = 0.65;
     rt.setPhase('brief');
-    rt.banner('雨の森部、敵は川向こう', '仲間と川の向こうの印まで歩け');
-    rt.obj('point', '杭の間を渡り、小旗の印へ', 'main');
+    rt.banner('雨の森部（もりべ）、敵は川の向こう', 'くいの間を歩いて、向こう岸の小旗へ');
+    rt.obj('point', 'くいの間を歩いて、向こう岸の小旗へ', 'main');
     rt.marker('point', POINT2, () => rt.flags.pointInside ? '川の向こうの印・そばで仲間を待て' : '向こう岸の印',
       { guideArea: 'wait', guideRadius: 10 });
     rt.zone('point', POINT2.x, POINT2.z, 10);
-    rt.say('隊長 源八（げんぱち）', '杭の間を渡り、小旗の印へ進め。仲間はついてくるぞ', 5);
+    rt.say('隊長 源八（げんぱち）', 'くいの間は歩いて渡れる。小旗の印で止まれ。仲間は後から来るぞ', 5);
     // 公記：勘当の身の前田利家が、許しなく森部に加わり首を挙げた。
     rt.after(17, () => { if (!rt.flags.ending && !rt.over) rt.bark('仲間「勘当の前田利家殿まで、槍を持って駆けつけたぞ」'); });
     rt.flags.point = POINT2;
@@ -2110,7 +2116,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     // 水深は描いた川面を使う。歩みの遅さと足元のしぶきも共通の水の処理へ結ぶ。
     if (!F.fordVoice && Math.abs(p.z - nireZ(p.x)) < 9 && rt.world.waterFootDepthAt(p.x, p.z, p.y) >= 0.4) {
       F.fordVoice = true;
-      rt.hud.bark('仲間「杭の間は歩ける。対岸の小旗の印まで進め」');
+      rt.hud.bark('仲間「先に小旗まで進め。おれたちも後から渡るぞ」');
     }
     // 任務と隊の見直しは一秒ごと。毎コマ配列や行き先を作らない。
     F.taskTick -= dt;
@@ -2147,7 +2153,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       // 号令を続けて出しても、往復の知らせで任務を埋めない。
       if (rt.t >= (F.orderNoticeAt || 0)) {
         F.orderNoticeAt = rt.t + 32;
-        rt.bark(waitingOrder ? '使番が組へ走っている。旗のそばで下知を待て' : '下知が組へ届いた。旗のそばで組の返事を聞け');
+        rt.bark(waitingOrder ? '隊長の合図を仲間へ伝えている' : '隊長の合図が仲間に届いた');
       }
     }
     // 届いた号令と、列や地形で止まる理由を分けて記録する。一秒に一度だけ。
@@ -2213,11 +2219,13 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       const d = Math.hypot(p.x - POINT2.x, p.z - POINT2.z);
       // 畦のふちで足元がわずかに揺れても確認をやり直さない。外へ歩けば途切れる。
       F.pointInside = d < 10 || (F.pointInside && d < 10.8);
-      F.pointReady = alive > 0 && near >= Math.ceil(alive * 0.6);
-      const waiting = rt.squadGroups.some((g) => !gone(g) && g.order === 'hold');
-      const holdPending = rt.squadGroups.some((g) => !gone(g) && g.pending?.id === 'hold');
-      // 「待て」が届いてから列を確認する。追従中に残り秒だけを進めない。
-      if (F.pointReady && F.pointInside && waiting) F.holdT = (F.holdT || 0) + elapsed;
+      F.pointReady = alive === 0 || near >= Math.ceil(alive * 0.6);
+      if (F.pointInside && !F.pointReached) {
+        F.pointReached = true;
+        orderSpeech(rt, '川を渡ったぞ。ここで止まり、仲間を待て', 4);
+      }
+      // 集結は実際の位置で確かめる。自動号令の伝達待ちで到着を取り消さない。
+      if (F.pointReady && F.pointInside) F.holdT = (F.holdT || 0) + elapsed;
       else {
         if (F.holdT > 0 && !F.pointInside && !(F.pointBreakAt > rt.t)) { F.pointBreakAt = rt.t + 8; rt.bark('印から離れたぞ。印に戻って仲間を待て'); }
         F.holdT = 0;
@@ -2229,20 +2237,20 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         const ready = F.pointReady;
         const task = rt.objectives.find((o) => o.id === 'point');
         if (task) {
-          if (holdPending) task.text = F.fordThreat ? '仲間と迎え撃つ' : F.pointInside ? '仲間を待つ' : '杭の間を渡り、小旗の印へ';
-          else if (!F.pointInside) task.text = F.fordThreat ? '敵を防ぎ、仲間と川の向こうの印へ' : '杭の間を渡り、小旗の印へ';
-          else if (!ready) task.text = '到着。ここで仲間を待つ';
-          else task.text = '仲間と列をそろえる';
+          if (!F.pointInside) task.text = F.pointReached ? '小旗へ戻って仲間を待て' : `くいの間を渡れ（小旗まであと${Math.max(1, Math.ceil((d - 10) / .75))}歩）`;
+          else if (F.fordThreat) task.text = 'この場所で仲間と敵を迎え撃て';
+          else if (!ready) task.text = `川を渡った、ここで仲間を待て（${near}／${alive}人）`;
+          else task.text = `ここで合図を待て（あと${Math.max(1, Math.ceil(8 - (F.holdT || 0)))}秒）`;
         }
         rt.objProgress('point', '');
       }
       if (!F.pointDone && F.holdT >= 8) {
         F.pointDone = true; rt.objDone('point'); rt.objRemove('point'); rt.unmark('point'); rt.unzone('point');
-        rt.obj('wait', '渡河完了。その場で太鼓の合図を待て', 'main');
+        rt.obj('wait', '川を渡った、その場で太鼓の合図を待て', 'main');
         rt.award((t) => { t.c.point = 1; }, '渡河して組をそろえた');
         orderSpeech(rt, 'よし、仲間がそろったな。ここで前の敵を待つぞ', 4);
       }
-      if (!F.fordNudge && rt.t > 20 && !F.pointDone) { F.fordNudge = true; orderSpeech(rt, '小旗の印へ進め。着いたら、その場で仲間を待て', 4); }
+      if (!F.fordNudge && rt.t > 20 && !F.pointReached) { F.fordNudge = true; orderSpeech(rt, '小旗の印へ進め。着いたら、その場で仲間を待て', 4); }
       if (F.pointDone) rt.objProgress('wait', '');
       if ((rt.t >= 12 && F.pointDone) || rt.t >= 45) this.signal(rt);
       return;

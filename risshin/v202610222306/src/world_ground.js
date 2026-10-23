@@ -110,6 +110,16 @@ export class WorldGround {
       const g = new THREE.CircleGeometry(0.5, 10); g.rotateX(-Math.PI / 2);
       // 全戦で光を受ける泥色にする。夜に道案内の橙の板として浮かせない。
       const mat = new THREE.MeshLambertMaterial({ color: 0x393329, transparent: true, opacity: 0.25, depthWrite: false, fog: true });
+      // 丸い面の輪郭をそのまま泥へ押さない。縁を崩して薄め、既存の地肌の凹凸を透かす。
+      mat.onBeforeCompile = sh => {
+        sh.vertexShader = 'varying vec2 vFootUv;\n' + sh.vertexShader.replace('#include <begin_vertex>',
+          '#include <begin_vertex>\nvFootUv = uv * 2.0 - 1.0;');
+        sh.fragmentShader = 'varying vec2 vFootUv;\n' + sh.fragmentShader.replace('#include <color_fragment>',
+          `#include <color_fragment>
+          float footEdge = length(vFootUv) + sin(vFootUv.y * 19.0 + vFootUv.x * 11.0) * 0.06;
+          diffuseColor.a *= 1.0 - smoothstep(0.3, 0.95, footEdge);`);
+      };
+      mat.customProgramCacheKey = () => 'soft-ground-footprint';
       this.feet = new THREE.InstancedMesh(g, mat, 48);
       this.feet.count = 0; this.feet.renderOrder = 1; this.feetI = 0; this.feetD = new THREE.Object3D();
       this.feetColor = new THREE.Color();
@@ -138,7 +148,7 @@ export class WorldGround {
     d.updateMatrix();
     this.feet.setMatrixAt(i, d.matrix);
     // 白を掛ける乾いた跡は淡く、泥の跡は暗くする。同じ材質で描く。
-    this.feet.setColorAt(i, this.feetColor.setScalar(this.def.darkFootprints || wet || mud >= 0.35 ? 0.35 : 1));
+    this.feet.setColorAt(i, this.feetColor.setScalar(this.def.darkFootprints ? 0.35 : wet || mud >= 0.35 ? 0.65 : 1));
     this.feet.instanceColor.needsUpdate = true;
     this.feet.count = Math.max(this.feet.count, i + 1);
     this.feet.instanceMatrix.needsUpdate = true;
