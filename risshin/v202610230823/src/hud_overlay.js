@@ -268,6 +268,8 @@ export class HudOverlay {
         rt.player.u.alive && !rt.player.camShot && !this.bigmap) {
       if (this.drawBattleGoal(g, rt)) this.ovBlank = false;
     }
+    if (!rt.over && !rt.choice && !this.introWaiting && rt.player.u.alive && !rt.player.camShot && !this.bigmap &&
+        rt.def.drawMissionMarks?.(g, rt, this)) this.ovBlank = false;
     // 本人の足元は兵が重なっても見える白い輪。行き先の旗とは形を分ける。
     if (this.drawPlayerSign(g, rt)) this.ovBlank = false;
     // 合流する本人だけ、武器や旗を含めず手足の輪郭を囲む。既存の形と配列を使い回す。

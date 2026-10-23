@@ -3,12 +3,12 @@
 //   武将：今の行動に関係する一人の名と体力の棒
 //   形と材質は戦ごとに一度だけ作り、毎コマ new しない。
 import * as THREE from 'three';
-import { sightScreenUnit, inouSignVisible } from './battle_sight.js';
+import { sightScreenUnit, inouSignVisible, cameraWallBlocked } from './battle_sight.js';
 import { enemyKnown } from './battle_intel.js';
 import { reduceMotion } from './settings.js';
 
 const CAP = 360, BARS = 12, NAMES = 1;
-const FOE_R = 55, FOE_OUT = 62, GEN_R = 60;
+const FOE_R = 55, FOE_OUT = 62, GEN_R = 60, NEAR_R = 18, NEAR_OUT = 22;
 const BAR_FOE = new THREE.Color(0xe8452c), BAR_ALLY = new THREE.Color(0xe8c25a), BAR_BG = new THREE.Color(0x14120f);
 const STATE = new WeakMap();
 const dummy = new THREE.Object3D(), v = new THREE.Vector3(), headPos = new THREE.Vector3();
@@ -31,9 +31,8 @@ function build(rt, root) {
   tri.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   // 赤い▼の中身だけを残りの命に合わせて減らす。外枠は保ち、棒や数字を足さない。
   const triMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, fog: false, depthWrite: false });
-  // 稲生・桶狭間・森部の乱戦でも、旗や笠、槍や味方の背に赤い▼を隠さない。
-  // 描画の束は増やさず、壁越しは既存の見通しで除く。
-  if (rt.def.key === 'inou' || rt.def.key === 'okehazama' || rt.def.key === 'moribe') triMat.depthTest = false;
+  // 乱戦でも旗や笠、槍や味方の背に敵印を隠さない。壁は見通しで除く。
+  triMat.depthTest = false;
   if (rt.def.key === 'inou' || rt.def.key === 'okehazama' || rt.def.key === 'moribe') {
     tri.setAttribute('signLife', new THREE.InstancedBufferAttribute(new Float32Array(CAP).fill(1), 1));
     triMat.onBeforeCompile = shader => {
@@ -141,18 +140,30 @@ export function fieldSignsTick(rt, root) {
     if (!u.alive || u.gone || u.dying || u.woundOut || u.rearWound || u.downed || u.isPlayer || u.isStruct || u.civ || u.type === 'dummy' || u.type === 'porter' || u.team > 1) continue;
     const dx = u.pos.x - P.x, dz = u.pos.z - P.z, d2 = dx * dx + dz * dz;
     const foe = u.team !== me.team;
+    // 近い敵は人数・重なり・体の描画省略で消さない。距離は本人から測り、境に幅を持たせる。
+    const nearRadius = u._fsNearOn ? NEAR_OUT : NEAR_R;
+    const near = foe && (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 < nearRadius * nearRadius;
+    u._fsNearOn = near;
+    if (near) {
+      // 壁だけを五分の一秒ごとに調べる。画面端や霧による出入りを混ぜない。
+      if (u._fsNearAt == null || rt.t < u._fsNearAt - .2 || rt.t >= u._fsNearAt) {
+        u._fsNearSeen = !cameraWallBlocked(rt, P, u.pos, P.y, headY(u));
+        u._fsNearAt = rt.t + .2;
+      }
+      if (!u._fsNearSeen) continue;
+    }
     // 体力の横棒だけを遠くに残さず、同じ本人の▼と揃える。
-    if (inou && (foe || general(u)) && !inouSignVisible(rt, u)) continue;
+    if (inou && !near && (foe || general(u)) && !inouSignVisible(rt, u)) continue;
     if (general(u) && (u === commander && d2 < 180 * 180 || d2 < GEN_R * GEN_R || d2 < GEN_R * GEN_R * 1.3 && s.bound?.includes(u)) && !u.woundOut) { u._fsD = d2; gens.push(u); }
-    if (quietSigns && (!s.nearby.includes(u) || !u._nearSignOn || u.fleeing || u.group?.routed || u.mesh?.visible === false || u.camHidden)) continue;
+    if (quietSigns && !near && (!s.nearby.includes(u) || !u._nearSignOn || u.fleeing || u.group?.routed || u.mesh?.visible === false || u.camHidden)) continue;
     // 稲生・森部は敵の赤い▼だけ。味方の丸と重ねて所属を迷わせない。
     if ((moribe || inou || rt.def.key === 'okehazama') && !foe) continue;
     // 森部は見える敵全員へ同じ▼を付ける。控えや対岸の兵も所属を変えない。
     // 見通しの上限と揃え、武将だけ印が残る距離の違いをなくす。
     const signRadius = moribe ? 170 : u === commander ? (u._fsOn ? 180 : 170) : oke && u === missionEnemy ? (u._fsOn ? 100 : 90) : (u._fsOn ? FOE_OUT : FOE_R);
-    u._fsOn = inou || d2 < signRadius * signRadius;
+    u._fsOn = near || inou || d2 < signRadius * signRadius;
     if ((foe && u.noTarget && !moribe && !rt.def.foeMarkVisible?.(rt, u)) || !u._fsOn || (foe ? n : a) >= CAP) continue;
-    if (moribe) {
+    if (moribe && !near) {
       if (u.mesh?.visible === false || u.camHidden) continue;
       // 見通しは半秒ごと。判定も入れ物も兵ごとに使い回す。
       if (u._moribeSignAt == null || rt.t < u._moribeSignAt - .5 || rt.t >= u._moribeSignAt) {
@@ -177,26 +188,30 @@ export function fieldSignsTick(rt, root) {
     // 討つ武将は別の大きさを保ち、任務の相手を見失わせない。
     // 稲生は届く一人だけ大きくし、遠い先手を刀の間合いと混同させない。
     const pixels = moribe ? (u === commander ? 26 : u === readyEnemy ? 24 : 16) :
-      inou ? (u === readyEnemy ? 32 : d2 < 20 * 20 ? 16 : 12) :
+      inou ? (u === readyEnemy ? 32 : u === missionEnemy ? 24 : d2 < 20 * 20 ? 16 : 12) :
       oke ? (u === readyEnemy ? 34 : u === missionEnemy ? 26 + 6 * approach :
         (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 < 12 * 12 ? 18 : 10) :
       foe ? 12 : 8;
     // 稲生・森部・桶狭間では命を減らした相手の▼だけを一度大きくし、滑らかに戻す。
     // 頭上の先端は固定し、既存の形・材質・描画の束をそのまま使う。
+    // 稲生は命中の形を少し保ってから戻す。連打の合間にも当たった本人が分かる。
     const hit = foe && (moribe || inou || oke) ? Math.min(1, Math.max(0, ((oke ? u.okeHitUntil : inou ? u.inouHitUntil : u.moribeHitUntil) || 0) - rt.t) / 1.2) : 0;
     const reachable = (moribe || inou || oke) && foe && rt.player.inRange && rt.player.rangeCueTarget === u;
     // 森部の命中は同じ赤い▼を大きくして示す。空振りでは変わらない。
     // 稲生は「届く＝幅広い▼」「命中＝一度だけ広がる▼」。残りの命は中の赤の面積で示す。
     const pulse = still ? (moribe || inou) && hit > 0 ? 1 : 0 : hit;
-    if (inou) {
-      // 画面の端へ印を寄せない。頭が画面外の兵の▼だけが下端に残るのを防ぐ。
-      // 投影用の点は使い回し、先端と印全体が画面内の時だけ描く。
-      headPos.project(cam);
-      const sx = (headPos.x + 1) * innerWidth / 2, sy = (1 - headPos.y) * innerHeight / 2;
-      const halfWidth = pixels * (reachable ? 1.6 : 1) / 2;
-      const height = pixels * .28 / .34 * (1 + pulse);
-      if (headPos.z < -1 || headPos.z > 1 || sx < halfWidth || sx > innerWidth - halfWidth || sy < height || sy > innerHeight - 8) continue;
-      headPos.set(u.pos.x, u.pos.y + (u.mounted ? 3.05 : Math.max(2.1, (u.bodyHeight || 1.72) + .35)) + .12, u.pos.z);
+    if (foe) {
+      // 前にいる敵の印は、近すぎても端でも画面内へ収める。印同士は重なっても残す。
+      const depth = Math.max(-v.z, cam.near * 2);
+      v.multiplyScalar(depth / -v.z);
+      const halfWidth = pixels * (reachable ? 1.6 : 1) * (1 + pulse) / 2 + 4;
+      const height = pixels * .28 / .34 * (1 + pulse) + 4;
+      const ex = Math.max(0, 1 - halfWidth * 2 / innerWidth);
+      const ey = Math.max(0, 1 - height * 2 / innerHeight);
+      const pe = cam.projectionMatrix.elements;
+      v.x = Math.max(-ex * depth / pe[0], Math.min(ex * depth / pe[0], v.x));
+      v.y = Math.max((-1 + 16 / innerHeight) * depth / pe[5], Math.min(ey * depth / pe[5], v.y));
+      headPos.copy(v).applyMatrix4(cam.matrixWorld);
     }
     // 森部は届く一人だけ横に広げ、命中した時だけ縦にも広げる。
     // 間合いに入っただけの変化と、実際に命を減らした変化を分ける。

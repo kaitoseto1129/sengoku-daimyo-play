@@ -238,6 +238,7 @@ const inou = {
     sparseEarthCrust: true,
     noFootShadows: true,
     solidSpearView: true,
+    closeCombatAssist: true, // 穂先の幅だけの判定を避け、見た目どおり正面の兵を突ける。
     time: 'day',
     muddy: 0.2,
     paths: PATHS,
@@ -304,7 +305,7 @@ const inou = {
     rt.army.damage = function (t, amount, src, ...rest) {
       const hp = t?.hp;
       const result = damage.call(this, t, amount, src, ...rest);
-      if (t && src?.isPlayer && t.team !== src.team && t.hp < hp) t.inouHitUntil = rt.t + 1.2;
+      if (t && src?.isPlayer && t.team !== src.team && t.hp < hp) t.inouHitUntil = rt.t + 2.4;
       return result;
     };
     F.training = -1;

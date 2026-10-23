@@ -20,6 +20,7 @@ import { reduceMotion, S } from './settings.js';
 import { sightPoint, sightScreenUnit } from './battle_sight.js';
 import { revealName } from './battle_intel.js';
 import { makeTownWay } from './inabayama_town_way.js';
+import { VIEW } from './viewport.js';
 import { gauss, enemyGroup, allyGroup, nm, centerOf, wallLine } from './bhelp.js';
 import { camp } from './b_mid.js';
 import { placeGroup, placePlayer } from './b_opening.js';
@@ -2082,6 +2083,7 @@ function karaPushBlocked(x0, z0, x, z, y) {
 
 function guardKaraPush(rt, move) {
   return function (u, dt) {
+    if (rt.flags.step === 0 && u === rt.flags.kinoU) return;
     const x = u.pos.x, z = u.pos.z;
     const result = move.call(this, u, dt);
     if ((u.pos.x !== x || u.pos.z !== z) && rt.flags.step === 3 && u.alive && !u.isStruct && !u.naka && !u.climb && !u.fall
@@ -2108,6 +2110,15 @@ function installInabaPresentation(rt) {
   player.canStep = function (x0, z0, x, z, y) {
     if (karaPushBlocked(x0, z0, x, z, y)) return false;
     return canStep.call(this, x0, z0, x, z, y);
+  };
+  // 合流するまでは歩きも押し戻しも止め、本人の位置を保つ。
+  const steer = rt.army.steer;
+  rt.army.steer = function (u, dt, want, speed, face) {
+    if (F.step === 0 && u === F.kinoU) {
+      u.mv.x = u.mv.z = u.push.x = u.push.z = u.vel.x = u.vel.z = u.moving = 0;
+      return;
+    }
+    return steer.call(this, u, dt, want, speed, face);
   };
   rt.army.bodies = guardKaraPush(rt, rt.army.bodies);
   rt.army.collide = guardKaraPush(rt, rt.army.collide);
@@ -2462,6 +2473,7 @@ function installInabaPresentation(rt) {
     rt.army.hooks.onArrowRain = onArrowRain;
     player.nearAllyVisit = nearAllyVisit;
     player.canStep = canStep;
+    rt.army.steer = steer;
     hud.say = hudSay;
     hud.root.classList.remove('inaba-down', 'inaba-notices'); style.remove(); this.say = say; this.bark = bark; player.updateCamera = updateCamera; this.dispose = dispose;
     return dispose.call(this);
@@ -2880,12 +2892,47 @@ const inabayama = {
     if (best) marks[0] = best;
     return marks;
   },
+  // 戦いの最中も次の行き先を保ち、敵の近さでピンを消さない。
+  missionPin(rt) {
+    const F = rt.flags;
+    if (F.ending) return null;
+    let id = this.guideMarker(rt);
+    // 追う先と敵の▼を分ける。木戸で戦う間も藤吉郎を見失わせない。
+    if (id === 'kguard' || id === 'town' || id === 'town2' || id === 'honGuard') id = 'kino';
+    const marker = rt.markers.find((m) => m.id === id);
+    const pos = marker && (marker.guideDestination?.() || (typeof marker.pos === 'function' ? marker.pos() : marker.pos));
+    if (!pos) return null;
+    const pin = F.missionPin || (F.missionPin = { r: 0, hide: -2, waiting: false, arrived: false, always: true, silent: true });
+    pin.x = pos.x; pin.z = pos.z;
+    return pin;
+  },
+  drawMissionMarks(g, rt, hud) {
+    const F = rt.flags;
+    if (F.step !== 1 || F.lit >= NEED || F.ending) return false;
+    const point = F.houseMarkPoint || (F.houseMarkPoint = {});
+    let drawn = false;
+    for (const h of F.houses) {
+      if (!h.mine || h.burnt) continue;
+      // 家の上にも行き先と同じ穴のある印。投影点を使い回す。
+      point.x = h.x; point.z = h.z;
+      const at = hud.project(point, h.m.position.y + 5, rt, F.houseMarkProjection || (F.houseMarkProjection = {}));
+      if (at.behind || at.x < 16 || at.x > VIEW.w - 16 || at.y < 40 || at.y > VIEW.h - 16) continue;
+      g.save(); g.translate(at.x, at.y); g.scale(.45, .45);
+      g.beginPath(); g.moveTo(0, 0); g.lineTo(-15, -30);
+      g.bezierCurveTo(-35, -59, 35, -59, 15, -30); g.closePath();
+      g.moveTo(6, -42); g.arc(0, -42, 6, 0, Math.PI * 2);
+      g.lineJoin = 'round'; g.strokeStyle = '#14120f'; g.lineWidth = 4; g.stroke();
+      g.fillStyle = '#fff3ba'; g.fill('evenodd'); g.restore();
+      drawn = true;
+    }
+    return drawn;
+  },
   guideMarker(rt) {
     const F = rt.flags;
     if (F.ending) return null;
     if (F.retreatMarked) return 'retreat';
     if (F.step === 0) return 'kino';
-    if (F.step === 1 && F.lit >= NEED) return F.exitArrived ? null : 'townExit';
+    if (F.step === 1 && F.lit >= NEED) return F.exitArrived ? 'kino' : 'townExit';
     // 山道では、離れた旗へ直進せず、次の折れをたどって列へ戻る。
     if (F.step === 3 && (!F.guardOn || gone(F.kguard) || !inabaAtWoodGate(rt))) return F.karaGuideMarked ? 'karaGuide' : F.guardOn ? 'kino' : 'kido';
     if (F.regroup && F.step !== 3) return 'kino';
@@ -3482,18 +3529,7 @@ const inabayama = {
     rt.say(officer(rt), `${nm(rt)}、来たか。今日は風が強い。城下の井口の町に火をかける`, 4.5);
     rt.say(officer(rt), '城下を焼き、囲みの支度をする。……松明を用意せい', 4);
     // 話を聞くまでは旗を動かさず、町の敵の手前で下知を渡す。
-    rt.marker('kino', () => F.kinoU.alive ? F.kinoU.pos : null, 'とうきちろう', { group: F.kino, guideAlways: true, guidePerson: () => F.kinoU, guideFootRing: true, guideRadius: 5, guideName: 'とうきちろうへ', guideTalk: false, guideVisibleOnly: true, guideCompact: true });
-    rt.addInteract('talk', () => F.kinoU.alive ? F.kinoU.pos : null, '藤吉郎（とうきちろう）の話を聞く', () => {
-      if (F.joinedKino) return;
-      F.joinedKino = true; rt.uninteract('talk');
-      rt.say(officer(rt), 'よし、行くぞ。わしの手から離れるな', 2.5);
-      rt.after(2.5, () => this.burnStart(rt));
-    }, { r: 5 });
-    rt.after(35, () => {
-      if (F.step !== 0 || F.ending || rt.over) return;
-      rt.say('使番', '火の印の家へ すすめ', 4);
-      this.burnStart(rt);
-    });
+    rt.marker('kino', () => F.kinoU.alive ? F.kinoU.pos : null, 'とうきちろう', { group: F.kino, guideAlways: true, guidePerson: () => F.kinoU, guideFootRing: true, guideRadius: 8, guideName: 'とうきちろうへ', guideTalk: false, guideVisibleOnly: true, guideCompact: true });
     buildBattleJin(rt);
   },
 
@@ -4032,10 +4068,8 @@ const inabayama = {
     rt.unmark('honGuard');
     const S = { x: HON.x + 8, z: HON.z + 12 };
     F.sig = S; F.sigT = rt.t;
-    this.nextObj(rt, '目印の小屋に近づこう。火をつけて味方に知らせる');
-    rt.say(officer(rt), '目印の小屋に近づけ。着いたら「火をつける」の札が出るぞ', 4);
-    rt.marker('sig', { x: S.x - 4, z: S.z }, '火をつける小屋', { h: 1.8, entrance: true, guideAlways: true, guideSymbol: 'fire', guideDestination: () => inabaSignalApproach(rt) });
-    rt.addInteract('sig', { x: S.x - 4, z: S.z }, '小屋に火をつける（合図）', () => this.win(rt), { r: 4, hold: 1.6 });
+    // 本丸の守りを退けた時点で合図を上げ、移動や操作を待たず勝ちにする。
+    this.win(rt);
   },
 
   // 軍議の作戦（七曲り・百曲り・水の手）で、外の部隊を動かす。自分の筋（藤吉郎の手と搦手）はそのまま
@@ -4126,7 +4160,7 @@ const inabayama = {
     const F = rt.flags;
     // 藤吉郎のそばへ寄るだけで組に加わる（「話す」を押させない。kaito 10/23 39・初めての人の迷い）。
     if (F.step === 0 && !F.joinedKino && F.kinoU?.alive && rt.player.u.alive &&
-        Math.hypot(F.kinoU.pos.x - rt.player.u.pos.x, F.kinoU.pos.z - rt.player.u.pos.z) < 5) {
+        Math.hypot(F.kinoU.pos.x - rt.player.u.pos.x, F.kinoU.pos.z - rt.player.u.pos.z) <= 8) {
       F.joinedKino = true; rt.uninteract('talk');
       rt.say(officer(rt), 'よし、行くぞ。わしの手から離れるな', 2.5);
       rt.after(2.5, () => this.burnStart(rt));
@@ -4327,8 +4361,6 @@ const inabayama = {
       // 表と裏から挟まれて四十五秒、残る旗本も主殿の奥へ退く（合図の火を放てないまま囲みの時間切れにしない）
       if (!F.sig && !F.honBroke && rt.t - F.stepT > 45) { F.honBroke = true; for (const g of F.honGuards) if (!gone(g)) { g.noRout = false; g.morale = 0; } }
       if (!F.sig && F.hata.every(gone) && gone(F.tatsu) && gone(F.keep.guard)) this.lightSig(rt);
-      // 合図は本人が実際に火を付けるまで待つ。
-      if (F.sig && rt.t - F.sigT > 20 && !F.sigCall) { F.sigCall = true; rt.say(officer(rt), '目印の小屋に近づけ。札が出たら「火をつける」を長押しじゃ', 4); }
     }
   },
 
@@ -4474,11 +4506,7 @@ inabayama.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   // 敵の前での退避は共通の survive に任せ、上役へ背を向けない。
   const c = F.kino.center();
   if (F.step === 0) {
-    const q = nearIt(b, 'talk');
-    if (q) {
-      if (b.nearestInteract() === q.it) inp.e.add('KeyE');
-      else goTo(p, inp, q.it.pos.x, q.it.pos.z, 2);
-    }
+    if (!F.joinedKino) goTo(p, inp, F.kinoU.pos.x, F.kinoU.pos.z, 6);
     return;
   }
   // 構えは正面だけに効く。近い兵より、実際に打ち込む兵へ向く。

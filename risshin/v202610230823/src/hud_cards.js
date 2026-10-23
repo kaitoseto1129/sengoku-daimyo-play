@@ -281,15 +281,16 @@ export class HudCards {
   //   字が変わる時だけ書く（setText）。毎コマ作らない。
   progress(rt) {
     const def = rt.def, root = this.root;
-    if (def.town || def.dojo) { if (this.prog) { this.prog.hidden = true; root.classList.remove('prog-on'); } return; }
+    if (def.town || def.dojo) {
+      this.progChangeAnimation?.cancel(); this.progChangeAnimation = null;
+      if (this.prog) { this.prog.hidden = true; this.prog.classList.remove('pg-changing'); root.classList.remove('prog-on'); }
+      return;
+    }
     if (!this.prog) {
       const el = document.createElement('div');
       el.id = 'h-prog';
       el.innerHTML = '<div class="pg-st"><b></b><span></span></div><div class="pg-next"></div><div class="pg-dots"></div><div class="pg-time"><i class="pg-pie" hidden></i><span></span></div><div class="pg-context" hidden></div>';
       root.appendChild(el);
-      const pop = document.createElement('div');
-      pop.id = 'h-stage-pop'; pop.hidden = true; pop.setAttribute('role', 'status');
-      root.appendChild(pop);
       const st = document.createElement('style');
       st.textContent = `
 #hud.prog-on .tl .plaque { display:none; }
@@ -305,7 +306,6 @@ export class HudCards {
 /* 桶狭間の満ちる丸は時計の針を添え、待ちの経過を形だけで示す。 */
 #hud #h-prog[data-battle="okehazama"] .pg-pie { position:relative; }
 #hud #h-prog[data-battle="okehazama"] .pg-pie::after { content:""; position:absolute; left:calc(50% - 1px); top:12%; width:2px; height:38%; background:#fff3df; box-shadow:0 0 1px 1px #14120f; transform-origin:50% 100%; transform:rotate(calc(var(--p, 0) * 3.6deg)); }
-#hud #h-stage-pop { position:absolute; left:50%; top:30%; transform:translateX(-50%); padding:8px 20px; background:rgba(12,10,8,.82); color:#fff3df; font-family:var(--display); font-size:max(18px, calc(24px * var(--text-scale, 1))); letter-spacing:.08em; pointer-events:none; white-space:nowrap; }
 @media (max-height:500px), (pointer:coarse) {
  #hud #h-prog { right:calc(8px + env(safe-area-inset-right, 0px)); top:calc(8px + env(safe-area-inset-top, 0px)); max-width:calc(100% - 32px); padding:6px 10px; font-size:max(20px, calc(20px * var(--text-scale, 1))); line-height:1.4; }
  #hud #h-prog .pg-next { font-size:12px; white-space:normal; }
@@ -328,6 +328,9 @@ export class HudCards {
 
 /* 共通の行動札は右上に固定し、携帯横でも一行を大きく読む。 */
 #hud.field-clean #h-prog .pg-st span { font-size:max(24px, calc(24px * var(--text-scale, 1))); }
+/* 同じ任務の一行だけを中央へ運ぶ。札や字を複製しない。 */
+html:root body #hud #h-prog.pg-changing > :not(.pg-st) { display:none !important; }
+html:root body #hud #h-prog.pg-changing .pg-st span { white-space:nowrap; }
 #hud.ending #h-prog, #hud:has(#cine.on) #h-prog, #hud:has(#bigmap:not([hidden])) #h-prog { visibility:hidden; }
 /* 稲生は任務を右、台詞を左。兵数と方位の帯の下を使う。 */
 html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog {
@@ -359,7 +362,7 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
  }
 }`;
       root.appendChild(st);
-      this.prog = el; this.stagePop = pop;
+      this.prog = el;
     }
     const el = this.prog;
     if (el.dataset.battle !== def.key) el.dataset.battle = def.key || '';
@@ -461,10 +464,49 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     timeEl.hidden = def.key === 'inou' || def.key === 'moribe' || !!def.missionSingleLine;
     pie.hidden = !waiting;
     if (waiting) pie.style.setProperty('--p', String(Math.round(Math.max(0, Math.min(1, Number.isFinite(progress) ? progress : 1 - (wu - rt.t) / gm.waitDuration)) * 100)));
-    // 切り替わりも右上の一枚で伝え、戦場の中央へ同じ札を重ねない。
-    this.stagePop.hidden = true;
+    // 古い別札は使わず、今ある一行そのものの切り替わりを伝える。
     this.progStage = i;
-    if (!this.stagePop.hidden && rt.t > (this.stagePopUntil || 0)) this.stagePop.hidden = true;
+    this.missionChange(rt, headline);
+  }
+
+  missionChange(rt, headline) {
+    const el = this.prog, reduced = S.reduceMotion;
+    const changed = this.progChangeRt !== rt || this.progChangeHeadline !== headline;
+    const stopMotion = reduced && this.progChangeAnimation && !this.progChangeReduced;
+    if (!changed && !stopMotion && !rt.over) return;
+    this.progChangeRt = rt; this.progChangeHeadline = headline;
+    this.progChangeAnimation?.cancel(); this.progChangeAnimation = null;
+    el.classList.remove('pg-changing');
+    if (rt.over || !headline) return;
+    this.progChangeReduced = reduced;
+    let animation;
+    if (reduced) {
+      // 移動や拡縮をせず、右上で一度だけ明るくして戻す。
+      animation = el.animate([
+        { boxShadow: '0 0 0 transparent' },
+        { boxShadow: '0 0 18px #e8c25a', offset: .35 },
+        { boxShadow: '0 0 0 transparent' },
+      ], { duration: 800, easing: 'ease-in-out' });
+    } else {
+      el.classList.add('pg-changing');
+      // 寸法を読むのは任務が変わった時だけ。毎コマの計算や要素追加はしない。
+      const bounds = el.getBoundingClientRect(), area = this.root.getBoundingClientRect();
+      const scale = Math.min(1.4, (area.width - 32) / Math.max(1, bounds.width));
+      const x = area.left + area.width / 2 - (bounds.left + bounds.width / 2);
+      const y = area.top + area.height * .28 - (bounds.top + bounds.height / 2);
+      const center = `translate(${x}px, ${y}px) scale(${scale})`;
+      animation = el.animate([
+        { transform: center, offset: 0 },
+        { transform: center, offset: 2000 / 2650, easing: 'ease-in-out' },
+        { transform: 'translate(0, 0) scale(1)', offset: 1 },
+      ], { duration: 2650 });
+    }
+    this.progChangeAnimation = animation;
+    animation.onfinish = () => {
+      if (this.progChangeAnimation !== animation) return;
+      this.progChangeAnimation = null;
+      el.classList.remove('pg-changing');
+    };
   }
 
 

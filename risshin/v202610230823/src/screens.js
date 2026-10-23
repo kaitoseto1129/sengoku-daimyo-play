@@ -1243,7 +1243,7 @@ function loadingSlides(bt) {
   box.style.cssText = 'position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;background:var(--sumi)';
   const n = SLIDES[bt?.id] || 0, urls = [];
   for (let k = 1; k <= n; k++) urls.push(Promise.resolve(`assets/slides/${bt.id}-${k}.jpg`));
-  if (urls.length < 3) for (const key of [illustKey(bt?.id), ...SLIDE_FILL].filter((k, i, a) => k && a.indexOf(k) === i).slice(0, 3)) urls.push(illustURL(key));
+  if (!urls.length) for (const key of [illustKey(bt?.id), ...SLIDE_FILL].filter((k, i, a) => k && a.indexOf(k) === i).slice(0, 3)) urls.push(illustURL(key));
   const imgs = [0, 1].map(() => {
     const im = document.createElement('img'); im.alt = ''; im.decoding = 'async';
     im.style.cssText = `position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:${RM() ? 'none' : 'opacity 1.2s ease'}`;
@@ -1272,8 +1272,10 @@ function loadingSlides(bt) {
   return () => { gone = true; clearInterval(timer); box.remove(); };
 }
 // 読む札を開いた時だけ待つ。支度が先に済んでも、読み終えるまで勝手に閉じない。
-export function loadingStory(bt, story, tips, G) {
+export function loadingStory(bt, story, tips, G, slidesOnly = false) {
   const stopSlides = loadingSlides(bt);
+  // 初陣も戦の絵を流す。読む札や釦は追加せず、取消・完了で必ず片付ける。
+  if (slidesOnly) return { wait: () => Promise.resolve(), dispose: stopSlides };
   const L = LORE[bt.id], el = document.createElement('section');
   let release = null, disposed = false, reading = false;
   el.id = 'ld-story';

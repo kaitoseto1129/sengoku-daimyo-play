@@ -2791,8 +2791,8 @@ export class Battle {
     const won = this.tracker.main === true;
     const wins = {
       inou: '稲生原で敵主力が崩れ、柴田勝家が退いた',
-      okehazama: this.flags.returnDone ? '義元が討たれ、あなたも組と帰った' : '義元討取りの大手柄を挙げた',
-      moribe: '敵を崩し、組をまとめて戻った',
+      okehazama: '義元討取りの大手柄を挙げた',
+      moribe: '敵の備を崩し、斎藤勢を退けた',
       sunomata: '材木を届け、人足と砦を守った',
       shitaragahara: '柵を守り、武田勢を退けた',
       anegawa: '浅井の寄せを退けた',
