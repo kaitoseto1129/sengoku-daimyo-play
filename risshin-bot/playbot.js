@@ -1316,8 +1316,8 @@ class TouchPad {
       else if (sb.n > 6) { this.sub = null; this.ctx.noTouchCmd(sb.id); this.real.quickCmd = sb.id; const c = btn('cmd'); if (c && c.classList.contains('sel')) this.tap(c, '号令（閉じる）'); }
     }
     // そのほかの釦
-    const MAP = { Space: () => btn('dodge'), KeyF: () => btn('rally'), KeyQ: () => btn('lock'), KeyR: () => btn('mount'), KeyV: () => q('#tc-view'), Enter: () => q('#hud #skiphint') };
-    const NAME = { Space: '回避', KeyF: '鼓舞', KeyQ: '狙い', KeyR: '乗る', KeyV: '視点', Enter: '飛ばす' };
+    const MAP = { Space: () => btn('dodge'), KeyQ: () => btn('lock'), KeyR: () => btn('mount'), KeyV: () => q('#tc-view'), Enter: () => q('#hud #skiphint') };
+    const NAME = { Space: '回避', KeyQ: '狙い', KeyR: '乗る', KeyV: '視点', Enter: '飛ばす' };
     // 「…」に畳まれた丸は、前のコマで「…」を開いてから押す（人もそうする）
     const keys = [...(this.pend || []), ...inp.e]; this.pend = null;
     for (const k of keys) {
@@ -1419,7 +1419,7 @@ const HABIT = {
     // 構えない
     if (Math.random() < 0.8) inp.guardHold = false;
     // 目についた丸を押してみる
-    if (Math.random() < 0.01) inp.e.add(pick(['Space', 'KeyF', 'KeyQ']));
+    if (Math.random() < 0.01) inp.e.add(pick(['Space', 'KeyQ']));
     // 台詞は飛ばす
     if (document.querySelector('#hud #skiphint:not([hidden])')) inp.e.add('Enter');
   },
@@ -1627,7 +1627,6 @@ const HABIT = {
     // 射撃（弓・鉄砲の組がいれば）も一度は試す
     if (!c.firedTry && b.G.rank >= 2 && e && b.squad.some((s) => s.type === 'bow' || s.type === 'gun')) { want = 'fire'; c.firedTry = true; }
     if (want) { inp.quickCmd = want; c.cmdT = t; }
-    if (e && !(c.rallyT > t - 25) && Math.random() < 0.2) { inp.e.add('KeyF'); c.rallyT = t; }
   },
   sek(b, inp, c) {
     if (document.querySelector('#hud #skiphint:not([hidden])')) inp.e.add('Enter');
