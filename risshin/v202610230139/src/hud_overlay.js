@@ -214,6 +214,44 @@ export class HudOverlay {
   // 兵や部隊に印を重ねない。
   drawFollowAlly(g, rt, ally) { return false; }
 
+  // 桶狭間では自分を白い菱形で示し、追う矢印や敵の▼と形を分ける。
+  // 敵は選んだ一人の胴の両脇だけ。骨・材質を増やさず、投影用の点を使い回す。
+  drawOkehazamaPeople(g, rt) {
+    if (rt.def.key !== 'okehazama' || rt.over || rt.choice || this.introWaiting ||
+        this.bigmap || rt.player.camShot || !rt.player.u.alive) return false;
+    let drawn = false;
+    const me = rt.player.u;
+    if ((rt.player.fpK || 0) < .3) {
+      const at = this.project(me.pos, me.pos.y + (me.mounted ? 3.35 : 2.35), rt,
+        this.okePlayerPoint || (this.okePlayerPoint = {}));
+      if (!at.behind && at.x > 10 && at.x < VIEW.w - 10 && at.y > 10 && at.y < VIEW.h - 10) {
+        g.save(); g.beginPath();
+        g.moveTo(at.x, at.y - 6); g.lineTo(at.x + 5, at.y);
+        g.lineTo(at.x, at.y + 6); g.lineTo(at.x - 5, at.y); g.closePath();
+        g.strokeStyle = '#14120f'; g.lineWidth = 3; g.stroke();
+        g.fillStyle = '#fff'; g.fill(); g.restore(); drawn = true;
+      }
+    }
+    const enemy = rt.def.missionSignTarget(rt);
+    if (this.missionEnemyVisible(rt, enemy)) {
+      const top = this.project(enemy.pos, enemy.pos.y + (enemy.mounted ? 2.65 : 1.65), rt,
+        this.okeEnemyTop || (this.okeEnemyTop = {}));
+      const bottom = this.project(enemy.pos, enemy.pos.y + (enemy.mounted ? 1.6 : .65), rt,
+        this.okeEnemyBottom || (this.okeEnemyBottom = {}));
+      if (!top.behind && !bottom.behind && bottom.y > top.y) {
+        const half = Math.max(6, Math.min(28, (bottom.y - top.y) * .45));
+        g.save(); g.beginPath();
+        g.moveTo(top.x - half + 4, top.y); g.lineTo(top.x - half, top.y);
+        g.lineTo(bottom.x - half, bottom.y); g.lineTo(bottom.x - half + 4, bottom.y);
+        g.moveTo(top.x + half - 4, top.y); g.lineTo(top.x + half, top.y);
+        g.lineTo(bottom.x + half, bottom.y); g.lineTo(bottom.x + half - 4, bottom.y);
+        g.strokeStyle = '#14120f'; g.lineWidth = 5; g.stroke();
+        g.strokeStyle = '#ff634d'; g.lineWidth = 2; g.stroke(); g.restore(); drawn = true;
+      }
+    }
+    return drawn;
+  }
+
   // 今の任務・会話・狙う相手の名前だけを、暗い下地付きで読む。
   drawBattleNames(rt) {
     const cv = $('overlay'), W = VIEW.w, H = VIEW.h;
@@ -223,18 +261,12 @@ export class HudOverlay {
     this.ovBlank = true;
     if (this.root.classList.contains('photo')) return;
     this.drawRainDrops(g, W, H, rt); this.drawBrim(g, W, H, rt);
-    this.ovBlank = false;
-    if (rt.over || rt.choice || this.introWaiting || rt.player.camShot || this.bigmap) return;
-    this.hudRects();
-    this.drawMissionArea(g, rt); this.drawMissionEnemies(g, rt);
-    const marker = rt.missionGuide?.marker, P = rt.player;
-    const person = typeof marker?.guidePerson === 'function' ? marker.guidePerson() : marker?.guidePerson;
-    const ally = rt.def.missionAlly?.(rt) || rt.def.guardGuideTarget?.(rt) || rt.def.guardTarget?.(rt);
-    this.drawPlayerSign(g, rt);
-    this.drawFollowAlly(g, rt, rt.def.missionAlly?.(rt));
-    this.teamSignsDrawn = false;
-    this.drawNearbyTeamSigns(g, rt, rt.army.units);
-    // 武将の名は field_signs.js が出す（戦の終わりまで消さない。kaito 10/23 稲生 40）。
+    // 雨粒も笠の縁も無いコマは、次のコマで消す仕事を省く。
+    this.ovBlank = !(this.drops && this.drops.length) && !((rt.player.fpK || 0) > 0.7);
+    if (this.drawOkehazamaPeople(g, rt)) this.ovBlank = false;
+    // 桶狭間の本人の印以外は従来どおり。持ち場の輪や味方の旗を重ねない。
+    // 行き先はピン、敵は頭上の赤い▼、武将の名と体力は field_signs.js。
+    this.battleSignEnemy = null; this.enemyFrameShown = false;
   }
 
   // 兵の頭上の体力（近くの兵だけ）

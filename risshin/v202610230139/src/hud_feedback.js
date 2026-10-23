@@ -7,6 +7,9 @@ import { sightUnit, sightScreenUnit } from "./battle_sight.js";
 import { taskText } from "./mission_guide.js";
 import { battleDialogueMuted } from './speech_clean.js';
 
+// 戦の画面では、知らせ・見出し・連撃の字を出さない（kaito 10/23「無駄なものが多すぎる」）。
+const fieldScreen = (rt) => !!rt?.def && !rt.def.town && !rt.def.dojo;
+
 export class HudFeedback {
 
 
@@ -22,6 +25,7 @@ export class HudFeedback {
 
   // 見出しも共通の三枠で出す。古い待ち見出しは短い報せへ回す。
   banner(text, sub = '') {
+    if (fieldScreen(this.rt)) return;
     sub = taskDetail(text, sub);
     // 決着の知らせは、すでに終わった寄せや下知の見出しを待たせない。
     // 決着後の重傷などは残すため、古い列を片付けるのは一戦に一度だけ。
@@ -62,6 +66,7 @@ export class HudFeedback {
 
 
   flash(text, tone = 'gold') {
+    if (fieldScreen(this.rt)) return;
     // 戦の中の小さな助言（dim）は字を出さない（字は使わない。kaito 10/23 稲生 35）。
     if (tone === 'dim' && this.rt && !this.rt.def.town && !this.rt.def.dojo) return;
     text = this.terse(text);
@@ -147,6 +152,7 @@ export class HudFeedback {
 
   // ヒント：手ほどきと同じ札に出す（札は一度に一つ。ヒントの間は手ほどきを少し休む）
   hint(text, keys, ms) {
+    if (fieldScreen(this.rt)) return;   // 戦の画面では操作の手ほどきの札を出さない（kaito 10/23）。
     // 開戦の題字（#intro）が出ている間は待たせる（携帯で題字の上に札が重なっていた。見回り 10/2）
     clearTimeout(this.hintDefer);
     // 待ち直すだけの呼び出しを、新しいヒントとして記録しない。
@@ -191,6 +197,7 @@ export class HudFeedback {
 
   // 連撃の数
   combo(n) {
+    if (fieldScreen(this.rt)) return;
     const el = $('combo');
     el.hidden = false;
     el.textContent = `${n} 連撃`;

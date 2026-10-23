@@ -12,7 +12,9 @@ export class Hud {
     // 戦場に重ねる札・吹き出し・操作案内は全戦で隠す。人数の帯と操作釦は残す。
     if (!document.getElementById('field-clean-css')) {
       const css = document.createElement('style'); css.id = 'field-clean-css';
-      css.textContent = `html body #hud.field-clean :is(#markers,#foe-marks,#squad-marks,#field-signs,#battle-opening,#floats,#threats,#boss,#target,#objectives,#prompt,#staring,#tutorial,#hint,#skiphint,#compass,.destination-distance,.battle-action,.victory-condition,.combat-cue-label,#crosshair,.hold-cover,.cover-guide,.dodge-guide) { display:none !important; }`;
+      css.textContent = `html body #hud.field-clean :is(#markers,#foe-marks,#squad-marks,#field-signs,#battle-opening,#floats,#threats,#boss,#target,#objectives,#prompt,#staring,#tutorial,#hint,#skiphint,#compass,.destination-distance,.battle-action,.victory-condition,.combat-cue-label,#crosshair,.hold-cover,.cover-guide,.dodge-guide) { display:none !important; }
+      html body #hud.field-clean :is(.bar,.bar *,#aimwarn), html body:has(#hud.field-clean:not([hidden])) :is(#mobfx,#tc *) { animation:none !important; }`;
+      // ↑ 戦の画面は動きを減らす設定が無くても点滅させない（命の棒・狙われた時の縁・囲まれた時の縁・丸の光り。kaito 10/23「チカチカがほんとにやだ」）。
       document.head.appendChild(css);
     }
     stackBottomLeft();

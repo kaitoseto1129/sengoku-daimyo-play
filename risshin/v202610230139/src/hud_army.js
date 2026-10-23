@@ -108,7 +108,7 @@ export class HudArmy {
   // 変わった時だけ6秒強く見せ、普段は薄く。rt.nawabari（K）が無い戦は何も出さない
   updateSiegeCards(rt) {
     const K = rt.nawabari;
-    if (!K || !K.kuruwa || rt.over || rt.ended) { if (this._scEl) { this._scEl.hidden = true; setStyle(this._scEl, 'display', 'none'); } return; }
+    if (!K || !K.kuruwa || rt.over || rt.ended || rt.def.noSiegeCards) { if (this._scEl) { this._scEl.hidden = true; setStyle(this._scEl, 'display', 'none'); } return; }
     if (!this._scEl) {
       const d = document.createElement('div');
       d.id = 'siegecards';

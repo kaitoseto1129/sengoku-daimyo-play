@@ -991,6 +991,8 @@ export class Battle {
   teachOn() { return !!(this.def.teach || this.def.dojo || this.def.town); }
   plainOps(t) { return this.teachOn() || typeof t !== 'string' ? t : noOps(t); }
   banner(t, s) {
+    // 戦ごとに、見出しを大きな出来事（討ち取り・勝ち）だけに絞れる。指示の見出しは出さない（kaito 10/23「字は使わない」）。
+    if (this.def.bannerAllowed && !this.def.bannerAllowed(this, String(t ?? ""))) return;
     t = this.plainOps(t); s = this.plainOps(s);
     this._lastBanner = { t: String(t ?? ''), s: s ? String(s) : '', at: this.t };
     if (relayNotice(this, '', String(t) + '。' + (s || ''), () => this.say('使番', roughPeople(String(t) + '。' + (s || ''))))) return;
@@ -1251,6 +1253,8 @@ export class Battle {
   // 戦の中の選択（1・2 のキーで選ぶ。選ばなければ既定の方）
   // 斬り合いの最中（敵が近い・打たれた直後）は判断の札を出さず、落ち着いてから出す（邪魔にならないように）
   choose(title, options, onPick, timeout = 25) {
+    // 戦の画面では選ぶ札を出さず、一つめ（本来の流れ）で進める（kaito 10/23「選ぶ画面は要らない」）。
+    if (!this.def.town && !this.def.dojo) { this.after(0, () => { if (!this.ended) onPick(0); }, true, true); return; }
     if (this.player && this.player.inCombatT > 0) { this.pendingChoice = { title, options, onPick, timeout, at: this.t }; return; }
     this.choice = { title, options, onPick, t: timeout };
     this.hud.renderChoice(this.choice);

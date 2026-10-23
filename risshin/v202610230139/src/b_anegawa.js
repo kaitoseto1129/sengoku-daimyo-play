@@ -1,5 +1,6 @@
 import { useTerrain } from './asset_manifest.js';
 import { sightPoint } from './battle_sight.js';
+import { currentObjective } from './mission_guide.js';
 import { sendOrder } from './denrei.js';
 import { battleJin, buildBattleJin } from './b_jinkei_g1.js';
 import { HISTORICAL_GENERALS } from './b_historical_generals.js';
@@ -1791,6 +1792,15 @@ const anegawa = {
           Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z) < 4.5) return false;
     }
     return true;
+  },
+  // 右上は今すること一つ。目的地は共通の輪と同じ持ち場を使う。
+  missionHeading(rt) {
+    const text = currentObjective(rt)?.text || '';
+    if (/印の槍列へ戻り|印の槍列で槍を揃え直せ/.test(text)) return '旗の所へ戻れ';
+    if (/味方と槍を揃え、浅井を止めよ|ここで槍を揃え/.test(text)) return '味方の横で待て';
+    if (/川を渡らず、岸で浅井を(?:待て|止めよ)/.test(text))
+      return rt.flags.atHold ? '味方の横で待て' : '旗の所へ戻れ';
+    return text;
   },
   // 表示の言い換えだけ。兵の動き・傷・任務の成否は変えない。
   taskText(rt, text) {

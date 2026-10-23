@@ -16,10 +16,6 @@ function make() {
   const style = document.createElement('style');
   style.textContent = '#hud.photo #mission-goal,#hud.ending #mission-goal,#hud:has(#bigmap:not([hidden])) #mission-goal,#hud:has(#cine.on) #mission-goal{display:none}';
   el.appendChild(style);
-  const label = document.createElement('span');
-  label.className = 'goal-name'; label.hidden = true;
-  label.style.cssText = 'position:absolute;top:80px;left:50%;transform:translateX(-50%);padding:3px 8px;background:#14120f;color:#fff3df;font:bold 16px/1.4 sans-serif;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis';
-  el.appendChild(label);
   el._rings = el.querySelectorAll('.goal-ground ellipse');
   for (const ring of el._rings) { ring.setAttribute('rx', '40'); ring.setAttribute('ry', '13'); }
   const flag = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -76,7 +72,7 @@ export function updateMissionPin(rt) {
   const d = Math.hypot(want.x - me.x, want.z - me.z);
   const near = want.hide ?? (want.r || 6);
   const marker = rt.missionGuide?.marker;
-  const waiting = !want.unit && !!marker && (marker.waitAction || marker.waitGuide || /^(wait|guard)$/.test(marker.guideArea));
+  const waiting = want.waiting ?? (!want.unit && !!marker && (marker.waitAction || marker.waitGuide || /^(wait|guard)$/.test(marker.guideArea)));
   // 着いた・離れたの境で毎コマ出たり消えたりしない（チカチカ。kaito 10/23 稲生 27）。消えた後は一歩半離れてから出す。
   pin.hidden = !waiting && d <= near + (pin.hidden ? 1.5 : 0);
   if (pin.hidden) return;
@@ -123,13 +119,18 @@ export function updateMissionPin(rt) {
       if (goalFree(x, y + offset, W, H, rects)) { y += offset; U.ox = 0; U.oy = offset; found = true; break; }
       if (goalFree(x + offset, y, W, H, rects)) { x += offset; U.ox = offset; U.oy = 0; found = true; break; }
     }
-    if (!found) { pin.hidden = true; return; }
+    // 空きが無い時も消さず、前のコマの場所に残す（出たり消えたりさせない）。
+    if (!found) return;
   }
   pin.querySelector('.goal-ground').style.display = outside ? 'none' : '';
   const person = !!want.unit;
-  pin.querySelector('.goal-ground path').style.display = person ? '' : 'none';
+  if (pin._enemy !== !!want.enemy) {
+    pin._enemy = !!want.enemy;
+    for (const part of pin.querySelectorAll('.goal-ground path,.goal-edge')) part.setAttribute('fill', want.enemy ? '#ff634d' : '#fff3ba');
+  }
+  pin.querySelector('.goal-ground path').style.display = person || want.dodge ? '' : 'none';
   const flag = pin.querySelector('.goal-flag');
-  flag.style.display = person ? 'none' : '';
+  flag.style.display = person || want.dodge ? 'none' : '';
   // 端では旗を矢印の上へ置き、見えている時は輪の中心に竿を立てる。
   flag.setAttribute('transform', outside ? 'translate(0,-24) scale(.75)' : '');
   if (pin._person !== person) {
@@ -140,20 +141,7 @@ export function updateMissionPin(rt) {
   arrow.style.display = outside ? '' : 'none';
   arrow.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
   hud.missionPinOutside = outside;
-  const label = pin.querySelector('.goal-name');
-  // 敵・任務・命も含め三枚まで。端の案内を優先し、知らせ側もこの一枠を数える。
-  let cards = 1 + (hud.notices?.picks.length || 0);
-  for (const id of ['boss', 'target', 'prompt', 'wait-guard']) {
-    const el = document.getElementById(id);
-    if (el && !el.hidden && el.offsetParent && !el.classList.contains('notice-muted') && !el.classList.contains('symbol-only')) cards++;
-  }
-  // 待つ場所だけ短い一枚を添える。任務と命を含め三枚以内に収める。
-  label.hidden = !waiting || outside || rt.guideEnemyShown || cards >= 3;
-  if (!label.hidden) {
-    const text = 'ここで待つ';
-    if (label.textContent !== text) label.textContent = text;
-    hud.missionPinLabelShown = true;
-  }
+  // 行き先の名前と向きの字は出さない。ピンだけで示す（kaito 10/23「行き先の名前とか出す必要ある？」）。
   // 丸めず小数一桁で置き、地面に固定する。
   pin.style.transform = `translate(${(x - 40).toFixed(1)}px,${(y - (outside ? 40 : 68)).toFixed(1)}px)`;
 }
@@ -165,34 +153,4 @@ function goalFree(x, y, W, H, rects) {
   if (x < 52 || x > W - 52 || y < 80 || y > H - 52) return false;
   for (const r of rects) if (x + 48 >= r.left && x - 48 <= r.right && y + 48 >= r.top && y - 76 <= r.bottom) return false;
   return true;
-}
-
-// 槍の狙う先の小さな点（kaito 10/23 稲生 23）。狙っている敵がいれば胴に、いなければ穂先の先の地面に。
-//   点は一つを使い回し、位置だけ毎コマ動かす。
-let dot = null;
-const v = new THREE.Vector3();
-export function updateAimDot(rt, root) {
-  const p = rt.player, u = p?.u;
-  const on = pinGuideOn(rt) && u?.alive && !rt.over && !rt.choice && !p.camShot && !p.mounted && (p.weapon === 'spear' || p.weapon === 'sword');
-  if (!dot) {
-    dot = document.createElement('i');
-    dot.id = 'aim-dot'; dot.setAttribute('aria-hidden', 'true');
-    dot.style.cssText = 'position:absolute;left:0;top:0;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;background:#f3e2b8;box-shadow:0 0 0 1.5px #14120f;pointer-events:none;z-index:2;display:none';
-  }
-  if (dot.parentNode !== root) root.appendChild(dot);
-  // 敵の胴の赤い点は出さない（kaito 10/23「点の印は使わない」）。狙いの点は使わない。
-  if (!on || true) { dot.style.display = 'none'; return; }
-  const t = p.aimed?.alive && !p.aimed.fleeing ? p.aimed : p.lock?.alive ? p.lock : null;
-  if (t && Math.hypot(t.pos.x - u.pos.x, t.pos.z - u.pos.z) < 6) v.set(t.pos.x, t.pos.y + (t.mounted ? 2.2 : 1.15), t.pos.z);
-  else {
-    const reach = p.weapon === 'spear' ? 2.9 : 2;
-    const x = u.pos.x + Math.sin(p.yaw) * reach, z = u.pos.z + Math.cos(p.yaw) * reach;
-    v.set(x, rt.world.heightAt(x, z) + 0.05, z);
-  }
-  v.project(rt.camera);
-  if (v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) { dot.style.display = 'none'; return; }
-  dot.style.display = 'block';
-  dot.style.background = t ? '#e8573e' : '#f3e2b8';
-  const tf = `translate(${Math.round((v.x + 1) / 2 * VIEW.w)}px,${Math.round((1 - v.y) / 2 * VIEW.h)}px)`;
-  if (dot._tf !== tf) { dot._tf = tf; dot.style.transform = tf; }
 }

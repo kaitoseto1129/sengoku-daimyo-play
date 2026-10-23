@@ -18,6 +18,7 @@ import { RANKS } from './state.js';
 import { sfx } from './audio.js';
 import { reduceMotion, S } from './settings.js';
 import { sightPoint, sightScreenUnit } from './battle_sight.js';
+import { revealName } from './battle_intel.js';
 import { makeTownWay } from './inabayama_town_way.js';
 import { gauss, enemyGroup, allyGroup, nm, centerOf, wallLine } from './bhelp.js';
 import { camp } from './b_mid.js';
@@ -1532,7 +1533,7 @@ function buildInabaWardLife(rt, batch) {
   }
   for (const [x, z] of [[NI.x + 7, NI.z - 6], [MATSU.x - 7, MATSU.z + 6],
     [UMAYA.x + 8, UMAYA.z - 5], [DEMARU.x - 8, DEMARU.z - 5], [YAKATA.x - 12, YAKATA.z - 8]]) {
-    rt.scene.add(nobori(W, x, z, 'saito', 5));
+    rt.scene.add(nobori(W, x, z, 'saito', 5.5));
   }
 }
 
@@ -1666,7 +1667,7 @@ function buildInabaMountain(rt) {
   const previousGround = W.terrain.material;
   // 夏の裸地を白い雪面に見せない。照り返しを抑えた材質にも灰褐色の下地を残す。
   const mat = new THREE.MeshLambertMaterial({ color: 0xb9aa8d });
-  mat.extensions.derivatives = true;
+  // r160 の MeshLambertMaterial に extensions は無い（WebGL2 は微分が標準）。触ると稲葉山が読み込みで止まる。
   mat.userData.camNearSolid = true;
   mat.customProgramCacheKey = () => 'inaba-ground-soil-rock-trail';
   mat.onBeforeCompile = (sh) => {
@@ -2533,6 +2534,21 @@ function buildKaraTrail(rt) {
 
 const inabayama = {
   jinkei: INABAYAMA_JIN,
+  // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
+  bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
+  // ミッション（kaito 10/23 1・49・50）。右上の一行は「何をするか」だけ。向き・行き先の字は書かない。
+  lendBow: true, // 美濃攻めは弓を覚える戦（kaito の役割分担）。問屋で買っていなくても弓を貸す。
+  noSiegeCards: true, // 右の曲輪の札（未見・様子不明）は出さない。字は右上の一行だけ（kaito 10/23）。
+  missions: ['藤吉郎の組に加わる', '井口の町に火を放つ', '鹿垣を守り抜く', '搦手の山道を攻め上る', '斎藤龍興の馬廻を討つ', '本丸に合図の火を放つ'],
+  missionOf(rt) {
+    const F = rt.flags, ph = rt.phase;
+    if (ph === 'end') return 5;
+    if (ph === 'honmaru') {
+      if (F.hata?.every(gone) && gone(F.tatsu) && gone(F.keep?.guard)) return 5;
+      revealName(rt, '斎藤龍興'); return 4;
+    }
+    return ph === 'karamete' ? 3 : ph === 'ote' ? 2 : ph === 'burn' ? 1 : 0;
+  },
   // 民は描画専用。兵の名簿・人数・当たり・戦功には入れない（war_people.js）。
   civilianCrowd: {
     bounds: { minX: -176, maxX: 176, minZ: -176, maxZ: 176 }, bands: CIVILIAN_BANDS,
@@ -3088,7 +3104,7 @@ const inabayama = {
     // 写真の幟は屋根と井楼より低い。高画質では主殿・蔵・通路を避けて縁へ分散する。
     const summitFlags = high ? [[HON.x - 15, HON.z + 7], [HON.x + 15, HON.z - 3], [HON.x, HON.z - 14]]
       : [[HON.x - 8, HON.z + 4], [HON.x + 8, HON.z + 4], [HON.x, HON.z - 2]];
-    for (const [x, z] of summitFlags) rt.scene.add(nobori(W, x, z, 'saito', high ? 6.5 : 14));
+    for (const [x, z] of summitFlags) rt.scene.add(nobori(W, x, z, 'saito', 5.5));
     // ---- 大手の木戸（七曲りの道を切る柵。口は開いている） ----
     const noT = (segs) => { for (const s of segs) { s.noTarget = true; s.wall = true; } return segs; };
     // この別置きの柵にも裏道の口を空ける。旧端の西二十六は裏道の中心に重なる。
@@ -3143,7 +3159,7 @@ const inabayama = {
     // 山頂の小曲輪：入口曲輪（七曲りと百曲りが合う所）→ 二ノ門 → 中枢曲輪（本丸の口の前）
     rt.scene.add(kabukimon(W, NIMON.x, NIMON.z, 4.2, Math.atan2(-(NAKA.z - IRI.z), NAKA.x - IRI.x) + Math.PI / 2));
     for (const [x, z] of [[NIMON.x - 2.6, NIMON.z + 1.6], [NIMON.x + 2.6, NIMON.z - 1.6]]) { rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { h: 1.2 }); }
-    rt.scene.add(nobori(W, IRI.x + 5, IRI.z - 3, 'saito', 6), nobori(W, NAKA.x - 4, NAKA.z + 3, 'saito', 6));
+    rt.scene.add(nobori(W, IRI.x + 5, IRI.z - 3, 'saito', 5.5), nobori(W, NAKA.x - 4, NAKA.z + 3, 'saito', 5.5));
     // 城の見栄え：大手の前に逆茂木、木戸に篝火
     {
       rt.scene.add(sakamogi(W, OTE.x - 13, OTE.z + 9, 0.2, 7), sakamogi(W, OTE.x + 13, OTE.z + 9, -0.2, 7));
@@ -3160,13 +3176,13 @@ const inabayama = {
       for (const g of F.keep.kin) g.noRout = false;
       // 主殿の前の馬廻（見上げに来れば旗が見える。寄り過ぎなければ打って出ない）
       F.tatsu = enemyGroup(rt, { fixed: true, faction: 'saito', name: '斎藤龍興の馬廻', anchor: { x: HON.x - 3, z: HON.z + 2 }, facing: -Math.PI / 2, order: 'hold', aggro: 3, width: 6, morale: 100, fleeDir: { x: 0, z: -1 } },
-        dress([{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 2 }], { flag: 'saito' }));
+        dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 4 }], { flag: 'saito' }));
       // 城主は居所の隊の頭。馬廻は別の組頭が指揮する。
     }
     // 長屋の中と遠侍の軒際に残っていた幟を外へ。井楼脇の幟とも重ねない。
     const wardFlags = high ? [[HON.x + 17, HON.z - 8], [OTE.x - 8, OTE.z - 6], [-30, -120]]
       : [[HON.x - 4, HON.z + 10], [HON.x + 10, HON.z + 2], [OTE.x - 8, OTE.z - 6], [OTE.x + 8, OTE.z - 6], [-30, -120]];
-    for (const [x, z] of wardFlags) rt.scene.add(nobori(W, x, z, 'saito', 6));
+    for (const [x, z] of wardFlags) rt.scene.add(nobori(W, x, z, 'saito', 5.5));
     // 中枢曲輪の道の上の小屋は置かず、番所は平場の脇へ寄せる。
     rt.scene.add(hut(W, 22, -84, 6, 4, -0.3, high
       ? { ita: true, boardRoof: true, weatheredBoards: true, wall: 0x786650,
@@ -3177,7 +3193,7 @@ const inabayama = {
       dress([{ type: 'busho', n: 1, o: { name: '木下藤吉郎', invuln: true } }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 2 }], ODA));
     F.kinoU = F.kino.units[0];
     customFlag('inabaGuide', (g) => flagColumn(g, '藤吉郎', 64, 30, 224, 32), '#d5b44e');
-    const guideFlag = nobori(W, 0, 0, 'inabaGuide', 6);
+    const guideFlag = nobori(W, 0, 0, 'inabaGuide', 5.5);
     guideFlag.position.set(-0.7, 0, -0.35); guideFlag.scale.set(1.5, 1, 1.5);
     F.kinoU.mesh.add(guideFlag);
     F.kinoFlag = guideFlag.userData.flag;
@@ -3249,7 +3265,8 @@ const inabayama = {
     F.ote2 = enemyGroup(rt, { fixed: true, faction: 'saito', name: '大手の新手', anchor: { x: -24, z: 21 }, facing: 0, order: 'hold', aggro: 0, fire: false, noAI: true, historicalOrders: true, width: 7, morale: 66, fleeDir: { x: 0, z: -1 } },
         [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 10 }, { type: 'bow', n: 2 }]);
     // 最初の折れの先で迎える。場面替え直後の味方の列へ守兵を重ねない。
-    F.climbGuards = [0.15, 0.4].map((t, i) => enemyGroup(rt, { fixed: true, faction: 'saito',
+    // 登り口の守りは一組だけ（小さな斬り合いを重ねて搦手を長くしない。一つの戦は4〜7分）。
+    F.climbGuards = [0.25].map((t, i) => enemyGroup(rt, { fixed: true, faction: 'saito',
       name: i ? '裏道の下の段の守り' : '裏道の登り口の守り',
       anchor: { x: KARA_TRAIL[1][0] + (KARA_TRAIL[2][0] - KARA_TRAIL[1][0]) * t, z: KARA_TRAIL[1][1] + (KARA_TRAIL[2][1] - KARA_TRAIL[1][1]) * t },
       facing: Math.PI / 2, order: 'hold', aggro: 0, width: 2, morale: 85, noAI: true, historicalOrders: true }, [{ type: 'ashigaru', n: 5 }]));
@@ -3278,10 +3295,10 @@ const inabayama = {
     const DA = (x, z, w, d, count, facing, armor, flag, seed) => W.addDistantArmy({ x, z, w, d, count, facing, armor, flagTex: flagTexture(flag), seed });
     // 瑞龍寺山の本陣：信長と旗本（控えは周りの大軍。信長で遊ぶ時は旗本だけ）
     F.odaCamp = camp(rt, { x: ZUI.x, z: ZUI.z, facing: Math.atan2(HON.x - ZUI.x, HON.z - ZUI.z), team: 0, faction: 'oda', mon: 'oda', general: { name: '織田信長' }, guard: 15, reserve: 0, runTo: { x: 70, z: 20 } });
-    for (const [x, z, k] of [[ZUI.x - 10, ZUI.z + 8, 'oda'], [ZUI.x - 4, ZUI.z + 9, 'eiraku'], [ZUI.x + 4, ZUI.z + 9, 'oda'], [ZUI.x + 10, ZUI.z + 8, 'eiraku']]) rt.scene.add(nobori(W, x, z, k, 6.5));
+    for (const [x, z, k] of [[ZUI.x - 10, ZUI.z + 8, 'oda'], [ZUI.x - 4, ZUI.z + 9, 'eiraku'], [ZUI.x + 4, ZUI.z + 9, 'oda'], [ZUI.x + 10, ZUI.z + 8, 'eiraku']]) rt.scene.add(nobori(W, x, z, k, 5.5));
     DA(ZUI.x - 16, ZUI.z + 20, 26, 12, 220, -Math.PI * 0.75, 0x2b3140, 'oda', 15671);
     DA(ZUI.x + 14, ZUI.z - 12, 24, 10, 160, -Math.PI * 0.7, 0x2b3140, 'eiraku', 15672);
-    for (const [x, z] of [[-58, 26], [-70, 30]]) rt.scene.add(nobori(W, x, z, 'inaba', 6));
+    for (const [x, z] of [[-58, 26], [-70, 30]]) rt.scene.add(nobori(W, x, z, 'inaba', 5.5));
     // ---- 部隊（butai.js）：囲む織田の備と、山の曲輪に籠もる斎藤の備。名目の数を持ち、近い所だけ本物の兵になる ----
     // （物語の組＝藤吉郎・柴田・丹羽の手はそのまま。部隊は、その外の大きな流れ＝軍議の作戦で動く手）
     const mkB = (o) => makeButai(rt, { real: 0, ...o });
@@ -3341,7 +3358,7 @@ const inabayama = {
     F.K = makeNawabari(rt, F.castle, { SZ: F.SZ, team: 1, friendTeam: 0 });
     rt.nawabari = F.K;
     F.keep.guard.formation = 'yari';
-    for (const [x, z] of [[-24, -90], [22, -86], [OTE.x - 14, OTE.z - 12], [36, -116]]) rt.scene.add(nobori(W, x, z, 'saito', 6));
+    for (const [x, z] of [[-24, -90], [22, -86], [OTE.x - 14, OTE.z - 12], [36, -116]]) rt.scene.add(nobori(W, x, z, 'saito', 5.5));
     // 井口の町の奥へ続く家並み（遠景）。焼き討ちが進むと、こちらにも煙が上がる
     // 見物の四人を二つの村の住人へ振り替える。配置は推定で、民の上限は四十四人のまま。
     // 村を作った時の当たりから戸口を求め、乱数で並ぶ家にも位置を合わせる。
@@ -3432,9 +3449,10 @@ const inabayama = {
     rt.say(officer(rt), `${nm(rt)}、来たか。今日は風が強い。城下の井口の町に火をかける`, 4.5);
     rt.say(officer(rt), '城下を焼き、囲みの支度をする。……松明を用意せい', 4);
     // 話を聞くまでは旗を動かさず、町の敵の手前で下知を渡す。
-    rt.marker('kino', () => F.kinoU.alive ? F.kinoU.pos : null, '藤吉郎（話を聞く）', { group: F.kino, guideAlways: true, guidePerson: () => F.kinoU, guideName: 'とうきちろうへ', guideTalk: true, guideVisibleOnly: true, guideCompact: true });
+    rt.marker('kino', () => F.kinoU.alive ? F.kinoU.pos : null, '藤吉郎', { group: F.kino, guideAlways: true, guidePerson: () => F.kinoU, guideName: 'とうきちろうへ', guideTalk: false, guideVisibleOnly: true, guideCompact: true });
     rt.addInteract('talk', () => F.kinoU.alive ? F.kinoU.pos : null, '藤吉郎（とうきちろう）の話を聞く', () => {
-      rt.uninteract('talk');
+      if (F.joinedKino) return;
+      F.joinedKino = true; rt.uninteract('talk');
       rt.say(officer(rt), 'よし、行くぞ。わしの手から離れるな', 2.5);
       rt.after(2.5, () => this.burnStart(rt));
     }, { r: 5 });
@@ -3600,6 +3618,8 @@ const inabayama = {
     blackCut(rt, () => {
       if (rt.over || F.ending || F.step !== 2) return;
       const W = rt.world;
+      // 鹿垣の内から、坂を下る斎藤勢を弓で迎える（弓を覚える場面）。寄られたら持ち替えて槍で突く。
+      if (rt.player.hasBow && rt.player.weapon !== 'bow' && !rt.player.mounted) rt.player.switchWeapon('bow');
       // 放火の日から一夜が過ぎた。民だけ逃走の数秒後のまま焼け跡へ残さない。
       // 南の里・川沿いへ退避した扱いにする遊び上の補い。避難の実際の時刻は不明。
       // 日中は既存の道で逃がし、日をまたぐ暗転の中だけで退避を完了する。
@@ -3735,6 +3755,8 @@ const inabayama = {
     F.step = 3; F.stepT = rt.t;
     rt.unmark('holdFlag');
     rt.setPhase('karamete');
+    // 細い山道は槍で登る。
+    if (rt.player.weapon === 'bow') rt.player.switchWeapon('spear');
     rt.unmark('ote'); rt.unmark('ote2');
     for (const q of [F.ote, F.ote2]) if (q && !gone(q)) { q.noRout = false; q.morale = Math.min(q.morale, 15); }
     rt.award((t) => t.side.push('大手の打って出を退けた'), '大手の斎藤勢を退けた');
@@ -4059,6 +4081,13 @@ const inabayama = {
 
   update(rt, dt) {
     const F = rt.flags;
+    // 藤吉郎のそばへ寄るだけで組に加わる（「話す」を押させない。kaito 10/23 39・初めての人の迷い）。
+    if (F.step === 0 && !F.joinedKino && F.kinoU?.alive && rt.player.u.alive &&
+        Math.hypot(F.kinoU.pos.x - rt.player.u.pos.x, F.kinoU.pos.z - rt.player.u.pos.z) < 5) {
+      F.joinedKino = true; rt.uninteract('talk');
+      rt.say(officer(rt), 'よし、行くぞ。わしの手から離れるな', 2.5);
+      rt.after(2.5, () => this.burnStart(rt));
+    }
     if (F.torches) {
       if (F.step === 1 && !F.ending && !rt.over && rt.player.u.alive) F.torches.update();
       else { F.torches.stop(); F.torches = null; }

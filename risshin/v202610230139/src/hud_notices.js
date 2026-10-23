@@ -818,6 +818,9 @@ html body #hud #battle-message { gap:8px; }
         if (log.length > 60) log.shift();
       }
     }
+    // 戦の画面では知らせの札を出さない。終わりの記録だけ残す（kaito 10/23「無駄なものが多すぎる」）。
+    const rt = this.hud.rt;
+    if (rt?.def && !rt.def.town && !rt.def.dojo) return;
     if (this.queue.some((item) => item.key === key)) return;
     // 古い任務の書き換えは持ち越さない。
     if (kind === 'task') for (let i = this.queue.length - 1; i >= 0; i--) if (this.queue[i].kind === kind) this.release(i);

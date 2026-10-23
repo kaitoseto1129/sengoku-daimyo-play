@@ -10,7 +10,7 @@ import { battleSpeechAllowed, noOps } from "./speech_clean.js";
 import { isTouch, touchInput, touchMoveLearned } from "./touch.js";
 import { rankLabel } from "./state.js";
 import { woundText } from "./wounds.js";
-import { updateMissionPin, updateAimDot, pinGuideOn } from "./mission_pin.js";
+import { updateMissionPin, pinGuideOn } from "./mission_pin.js";
 import { currentObjective, destinationText, taskText, navigationEnemy, goalText } from "./mission_guide.js";
 import { rainDanger } from "./arrow_rain.js";
 import { groundAt } from "./floors.js";
@@ -80,15 +80,17 @@ export class HudUpdate {
     { const tu = $('tutorial'); if (tu) setClass(tu, 'tutold', rt.t > 40 && !this.hintCur && !this.tutCur); }
     // 目に入る兵の気配の数（上の帯）は一秒に二回で足りる（毎コマ全ての兵の見通しを調べると重い）
     if (periodic & 32) this.updateArmy(rt);   // 見通しの集計も小分けにし、完成した時だけ帯へ渡す。
-    if ((this.siegeCardsT = (this.siegeCardsT || 0) - dt) <= 0) { this.siegeCardsT = 0.1; this.updateSiegeCards(rt); }
+    // 戦の画面では方角の帯・縄張りの札・備えの札・野戦の帯を作らない（出さない物は作らない。kaito 10/23）。
+    const fieldOnly = pinGuideOn(rt);
+    if (fieldOnly) for (const el of [this._scEl, document.getElementById('sonae-cards'), document.getElementById('yasen-hud')]) { if (el && !el.hidden) el.hidden = true; }
+    if (!fieldOnly && (this.siegeCardsT = (this.siegeCardsT || 0) - dt) <= 0) { this.siegeCardsT = 0.1; this.updateSiegeCards(rt); }
     this.updateArmyGhost(dt);
     this.drawOverlay(rt);
     if (isRtsOn(rt)) this.updateRts(rt); else this.hideRts();
     // 方角の帯は毎コマ作り直さなくても気付かれない（字と印を毎コマ組み立て直すのが重かった）。十回/秒で足りる
-    if ((this.compassT = (this.compassT || 0) - dt) <= 0) { this.compassT = 0.1; this.updateCompass(rt); }
+    if (!fieldOnly && (this.compassT = (this.compassT || 0) - dt) <= 0) { this.compassT = 0.1; this.updateCompass(rt); }
     this.updateRadial(rt);
-    this.sonaeCards(rt);
-    this.yasenHud(rt);
+    if (!fieldOnly) { this.sonaeCards(rt); this.yasenHud(rt); }
     // 城下：どこから出陣すればよいか迷わないよう、右下に常の「出陣する」釦を置く
     setClass(this.root, 'battle-active', !rt.def.town);
     setClass(this.root, 'anegawa', rt.def.key === 'anegawa');
@@ -169,9 +171,11 @@ export class HudUpdate {
       ring.after(label);
     }
     setText(this.staminaLabel, rt.def.staminaLabel || '気力');
-    setHidden(this.staminaLabel, p.sta / p.maxSta > .98 || rt.over);
+    // 戦の画面では気力の輪と字を出さない（出たり消えたりでちらつく。kaito 10/23）。
+    const staOff = pinGuideOn(rt);
+    setHidden(this.staminaLabel, staOff || p.sta / p.maxSta > .98 || rt.over);
     const sr = p.sta / p.maxSta;
-    setHidden(ring, sr > 0.98 || rt.over);
+    setHidden(ring, staOff || sr > 0.98 || rt.over);
     const ringPct = String(Math.round(sr * 100));
     if (ring.style.getPropertyValue('--p') !== ringPct) ring.style.setProperty('--p', ringPct);
     setClass(ring, 'low', p.sta < 20);
@@ -228,7 +232,10 @@ export class HudUpdate {
       this.notices.sources[3].born = this.notices.clock;
     } else if (this.subT <= 0) setHtml($('subtitle'), '');
     // ゲージ
-    setHtml($('h-who'), `${esc(rt.def.key === 'moribe' && G.name === '弥五郎' ? '弥五郎（やごろう）' : G.name)}<small>${esc((rt.def.key === 'okehazama' || rt.def.key === 'moribe') ? rankLabel(G).replace(/足軽/g, 'あしがる（歩いて戦う兵）').replace(/侍大将/g, 'さむらいだいしょう（兵をまとめる武将）') : rankLabel(G))}</small>`);
+    // 戦の画面は命の棒だけ。名・字・士気の帯は出さない（kaito 10/23「無駄なものが多すぎる」）。
+    const fieldBars = pinGuideOn(rt);
+    setHidden($('h-who'), fieldBars);
+    if (!fieldBars) setHtml($('h-who'), `${esc(rt.def.key === 'moribe' && G.name === '弥五郎' ? '弥五郎（やごろう）' : G.name)}<small>${esc((rt.def.key === 'okehazama' || rt.def.key === 'moribe') ? rankLabel(G).replace(/足軽/g, 'あしがる（歩いて戦う兵）').replace(/侍大将/g, 'さむらいだいしょう（兵をまとめる武将）') : rankLabel(G))}</small>`);
     const hpEl = $('h-hp');
     const hpPct = Math.max(0, Math.min(100, u.hp / u.maxHp * 100));
     const fallen = !u.alive || u.hp <= 0;
@@ -240,7 +247,8 @@ export class HudUpdate {
       hpEl.appendChild(this.hpRemaining);
     }
     // 名前と数字を残し、色や棒だけに頼らず残量を伝える。
-    setText(this.hpRemaining, `体力 ${hpShown}％`);
+    setText(this.hpRemaining, fieldBars ? '' : `体力 ${hpShown}％`);
+    setHidden(this.hpRemaining, fieldBars);
     setAttr(this.hpRemaining, 'aria-label', `命 あと${hpShown}％`);
     const hpTrack = hpEl.querySelector('i');
     setAttr(hpTrack, 'role', 'progressbar');
@@ -294,7 +302,8 @@ export class HudUpdate {
     setClass(hpEl, 'deep', deep);
     setClass(hpEl, 'bleeding', u.alive && !rt.over && u.hp < 40 && u.wounds?.bleed > 0.0001 && !S.reduceMotion);
     this.deepWas = deep;
-    setText(hpEl.querySelector('span'), 'いのち');
+    setText(hpEl.querySelector('span'), fieldBars ? '' : 'いのち');
+    setHidden(hpEl.querySelector('span'), fieldBars);
     // 他の帯の省略判定は保ち、命だけは満ちていても見せる。
     const bl = hpEl.parentElement;
     if (bl) setClass(bl, 'full', u.hp >= u.maxHp && p.sta >= p.maxSta * 0.98 && (!p.canRide || p.horseHp >= p.horseMax * 0.98));
@@ -310,6 +319,7 @@ export class HudUpdate {
     for (const g of rt.squadGroups) moraleSum += Math.max(0, g.morale);
     const mor = rt.squadGroups.length ? moraleSum / rt.squadGroups.length : rt.hostGroup ? Math.max(0, rt.hostGroup.morale) : 100;
     const morEl = $('h-mor');
+    setHidden(morEl, fieldBars);
     setWidth(morEl.querySelector('b'), mor);
     const plainMorale = rt.def.key === 'inou' || rt.def.key === 'okehazama' || rt.def.key === 'moribe';
     setText(morEl.querySelector('span'), plainMorale ? 'やる気' : '士気');
@@ -338,14 +348,16 @@ export class HudUpdate {
     this.manyGroups = groupCount > 1;
     setText($('h-merit'), rt.over ? '戦の終わり' : '戦の最中');
     this.progress(rt);
-    updateMissionPin(rt); updateAimDot(rt, this.root);
+    updateMissionPin(rt);
+    // 戦の画面では、打たれた向きの「！」・狙われた時と囲まれた時の縁の脈を出さない（出たり消えたりする。kaito 10/23）。
+    const quietEdges = pinGuideOn(rt);
     this.foeMarks(rt);
     setText($('h-next'), '');
     setWidth($('h-nextbar'), 0);
     setText($('h-cap'), '');
     // 攻撃元は小さい「！」。行き先と同じ矢印にせず、言葉は八秒あける。
     const damageDirection = $('dmgdir');
-    const showDamageDirection = u.alive && !rt.over && !rt.choice && !this.openingActive &&
+    const showDamageDirection = !quietEdges && u.alive && !rt.over && !rt.choice && !this.openingActive &&
       !p.camShot && !this.bigmap && rt.t < (this.damageDirectionUntil || 0);
     if (this.damageWordRt !== rt) {
       this.damageWordRt = rt; this.damageWordNext = 0; this.damageWordUntil = 0;
@@ -377,10 +389,10 @@ export class HudUpdate {
     // 囲まれた時：画面の左右の縁が墨でじわりと狭まる（字を出さずに、下がれ・抜けろと伝える）
     let mob = $('mobfx');
     if (!mob) { mob = document.createElement('div'); mob.id = 'mobfx'; mob.setAttribute('aria-hidden', 'true'); $('vignette').after(mob); }
-    setClass(mob, 'on', !!(u.alive && u.mobbed && (rt.army.threats || []).some((o) => sightUnit(rt, o))));
+    setClass(mob, 'on', !quietEdges && !!(u.alive && u.mobbed && (rt.army.threats || []).some((o) => sightUnit(rt, o))));
     let aw = $('aimwarn');
     if (!aw) { aw = document.createElement('div'); aw.id = 'aimwarn'; $('vignette').after(aw); }
-    setClass(aw, 'on', u.alive && (rt.army.threats || []).some((o) => sightUnit(rt, o) && (o.type === 'gun' || o.type === 'bow')) && !rt.over);
+    setClass(aw, 'on', !quietEdges && u.alive && (rt.army.threats || []).some((o) => sightUnit(rt, o) && (o.type === 'gun' || o.type === 'bow')) && !rt.over);
     // 囲み：敵のいる向きの画面の縁が赤黒く染まる（前＝上・後ろ＝下。囲まれつつある時だけ）
     this.encT = (this.encT || 0) - dt;
     if (this.encT <= 0) {
@@ -1415,9 +1427,11 @@ export class HudUpdate {
     } else if (this.headPromptSizeKey) {
       setStyle(pr, "left", ''); setStyle(pr, "top", ''); setStyle(pr, "transform", ''); this.headPromptSizeKey = '';
     }
-    if (periodic & 4) { this.firstHelpT = 0.5; this.newPlayHelp(rt, it); }
+    if (periodic & 4 && !pinGuideOn(rt)) { this.firstHelpT = 0.5; this.newPlayHelp(rt, it); }
     this.rt = rt;
-    if (periodic & 2) { this.unitsT = 0.2; this.updateUnits(rt); }
+    // 戦の画面では自分の組の札（右下）を作らない（kaito 10/23「部隊の印」は要らない）。
+    if (pinGuideOn(rt)) setHidden($('h-units'), true);
+    else if (periodic & 2) { this.unitsT = 0.2; this.updateUnits(rt); }
     if (rescue && !retreatRequired(rt)) {
       setHidden($('target'), true); setHidden($('boss'), true);
       for (const marker of this.markerEls.values()) marker.hidden = true;
