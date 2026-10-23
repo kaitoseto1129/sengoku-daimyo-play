@@ -208,27 +208,12 @@ function drawLetter(canvas, G, r) {
 // 手柄の評定：論功行賞・昇進の後、身分に合う褒美を受け取る。受け取り済みの戦では重ねない。
 export function hyojoScreen(G, r, onDone, save) {
   if (!hyojoOn(G) || !r || !r.mainDone || G.hyojoLog?.at === G.battle) { onDone(); return; }
-  const list = rewardOptions(G);
-  const fixed = (G.rank || 0) >= 1;
-  let sel = 0, done = false;
-  const draw = () => {
-    const rank = RANKS[G.rank] || RANKS[0];
-    const sc = open(`<section class="hy" aria-labelledby="hy-t"><h2 id="hy-t">手柄の評定</h2>
-      <p class="hy-sub">${esc(r.battle)}。戦功 <span class="v">${r.total}</span>・評定 <span class="v">${esc(r.grade || '')}</span>。${r.promoted ? `<span class="v">${esc(rank.name)}</span>に取り立てられた。` : `いまは<span class="v">${esc(rank.name)}</span>。`}${fixed ? '主君から褒美を賜る。' : '褒美を一つ選ぶ。'}</p>
-      ${fixed ? `<div class="hy-reward"><p><b>${esc(list[0].name)}</b></p><p>${esc(list[0].why)}</p>${list[0].k === 'village' ? `<canvas class="hy-letter" id="hy-letter" width="720" height="240" role="img" aria-label="${esc(`${G.name || 'そなた'}殿。${r.battle}での働きを褒め、${domOf(G).mura}を預ける織田信長の感状`)}"></canvas><p class="hy-note">遊びの感状。文と花押は史料の写しではありません。</p>` : ''}<p>${esc(list[0].eff)}</p></div>` : `<div class="hy-grid" role="group" aria-label="褒美を一つ選ぶ">${list.map((o, i) => card(o, i, sel)).join('')}</div>`}
-      <div class="hy-act"><button class="btn primary" id="hy-ok">${esc(list[sel].btn)}（受け取る）</button></div></section>`);
-    drawLetter($('hy-letter'), G, r);
-    pickable(sc, list, sel, (i) => { sel = i; draw(); $('hy-ok').focus({ preventScroll: true }); });
-    $('hy-ok').onclick = () => {
-      if (done) return; done = true;
-      const msg = applyReward(G, list[sel]);
-      G.hyojoLog = { at: G.battle, k: list[sel].k, msg };
-      if (save) save(G);
-      onDone(msg);
-    };
-    $('hy-ok').focus({ preventScroll: true });
-  };
-  draw();
+  // 身分に合う先頭の褒美を自動で受け取り、次へ進む。
+  const reward = rewardOptions(G)[0];
+  const msg = applyReward(G, reward);
+  G.hyojoLog = { at: G.battle, k: reward.k, msg };
+  if (save) save(G);
+  onDone(msg);
 }
 
 // ---------------- 支度（次の戦の前に一つ整える） ----------------

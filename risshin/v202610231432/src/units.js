@@ -1290,7 +1290,10 @@ export class Army {
         } else this.kill(u, u.woundSource);
       }
       if (u.dying) { u.detailDt = 0; u.detailNextAt = 0; u.motionDt = 0; u.motionFrame = 0; this.animate(u, dt, true); continue; }
-      if (u.hitFlash > 0) u.hitFlash -= dt;
+      // 止め・遅回し中も、打たれた体のよろけは実時間で進める。
+      const reactionExtra = dt * Math.max(0, (this.hitReactionScale || 1) - 1);
+      if (u.hit && reactionExtra > 0) u.hit.t += reactionExtra;
+      if (u.hitFlash > 0) u.hitFlash -= dt + reactionExtra;
       u.lastHitT += dt;
       const focusD = u.focusD;
       if (focusD <= 60) u.farSim = false;
@@ -1647,10 +1650,11 @@ export class Army {
   contactShadow(u, B) {
     // 足元の板を省く戦では、束ねた接触影も作らない。
     if (this.world.def.noFootShadows) return;
-    if (u.qualityTier === 2 || !u.alive || u.dying || u.gone || u.isStruct || u.type === 'dummy' || !u.mesh?.parent || (!u.mesh.visible && !u.imp)) return;
+    if ((u.qualityTier === 2 && !this.world.def.contactShadowRange) || !u.alive || u.dying || u.gone || u.isStruct || u.type === 'dummy' || !u.mesh?.parent || (!u.mesh.visible && !u.imp)) return;
     const p = u.pos, focus = this.playerUnit?.pos || this.world.lastFocus;
     // 影地図の淡い影にも足元の芯を残す。遠い兵には追加しない。
-    if ((u.shOn && !this.world.def.contactShadows) || !focus || (p.x - focus.x) ** 2 + (p.z - focus.z) ** 2 >= 576) return;
+    const range = this.world.def.contactShadowRange ?? 24;
+    if ((u.shOn && !this.world.def.contactShadows) || !focus || (p.x - focus.x) ** 2 + (p.z - focus.z) ** 2 >= range * range) return;
     B.sph.center.set(p.x, p.y, p.z); B.sph.radius = 0.6;
     if (!B.fr.intersectsSphere(B.sph)) return;
     if (!this.contactGeo) {

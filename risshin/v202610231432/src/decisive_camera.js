@@ -22,7 +22,7 @@ export function decisiveCameraEvent(rt, type, pos, team, big, text = '') {
   if (!s) s = rt.decisiveCamera = { applied: 0 };
   s.start = now; s.until = now + 1.8; s.next = now + 8;
   // 背後では字幕だけ。動きを減らす設定でも、出来事の一言は残す。
-  s.motion = !(p.inCombatT > 0 || p.dodgeT > 0 || p.pending || p.swingImpact || p.u.atk || p.charging || now - (p.manualLookAt ?? -10) < 1.5) && !reduceMotion() && !p.camShot && !p.cine && !p.aiming && !(p.draw > 0) && !p.radial && !p.cmdOpen && !p.lock && !p.overHold &&
+  s.motion = false;
     d >= 1 && -(dx * m[8] + dz * m[10]) / d >= 0.65;
   s.zoom = commander ? 6 : 5;
   rt.hud.say('', text || (gate ? '門が破れた' : team === 0 ? '味方の大将が討たれた' : '敵の大将が討たれた'), 1.8, true);

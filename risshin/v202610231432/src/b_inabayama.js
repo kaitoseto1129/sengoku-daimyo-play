@@ -896,6 +896,8 @@ function buildTownGround(rt) {
 
 // 町の焼け跡は、箱を傾けず黒い柱と落ちた梁で示す。形と材質は十軒で共用する。
 const CHAR_GEO = new THREE.BoxGeometry(1, 1, 1);
+const TOWN_RUBBLE_GEO = new THREE.IcosahedronGeometry(1, 0);
+const TOWN_RUBBLE_MAT = new THREE.MeshStandardMaterial({ roughness: 1 });
 const CHAR_MAT = new THREE.MeshStandardMaterial({ color: 0x211c18, roughness: 1 });
 const CHAR_TREE_MATRIX = new THREE.Matrix4(), CHAR_TREE_COLOR = new THREE.Color(0x51443a);
 function charTownTrees(W, h) {
@@ -960,6 +962,22 @@ function townRuin(W, h) {
     board.updateMatrix(); boards.setMatrixAt(i, board.matrix);
   }
   h.m.add(boards);
+  // 土壁の割れた塊と小片をまとめて描く。焼けた木と違う厚い断面を残す。
+  const rubble = new THREE.InstancedMesh(TOWN_RUBBLE_GEO, TOWN_RUBBLE_MAT, 32);
+  const clay = new THREE.Color();
+  for (let i = 0; i < 32; i++) {
+    const side = i % 4, t = Math.sin(i * 17.13 + h.i * 3.7) * 0.5;
+    const spread = 0.2 + (i % 5) * 0.18;
+    const x = side < 2 ? (side ? 1 : -1) * (w / 2 + spread) : t * w;
+    const z = side < 2 ? t * d : (side === 2 ? 1 : -1) * (d / 2 + spread);
+    const size = i < 8 ? 0.42 : 0.13 + i % 4 * 0.055;
+    board.position.set(x, ground(x, z) + size * 0.18, z);
+    board.rotation.set(i * 0.51, i * 2.39, i * 0.29);
+    board.scale.set(size * 1.8, size * 0.55, size);
+    board.updateMatrix(); rubble.setMatrixAt(i, board.matrix);
+    rubble.setColorAt(i, clay.setHex(i % 3 ? 0x988264 : 0x655443));
+  }
+  rubble.receiveShadow = true; h.m.add(rubble);
   let stump = h.i;
   for (const x of [-w / 2, w / 2]) for (const z of [-d / 2, d / 2]) {
     const foot = ground(x, z), height = 0.55 + (stump++ % 4) * 0.42;
@@ -1687,14 +1705,15 @@ function buildInabaMountain(rt) {
   }
   ctx.stroke();
   const trail = new THREE.CanvasTexture(canvas);
-  // 山肌が抜ける時に、共通の土の細工へさらに描画処理を継ぎ足さない。
-  // この戦の地面だけ軽い材質へ。足場・索引・陰・霧は同じものを使う。
+  // 共通の土の細工を丸ごと重ねず、この戦の地面だけで草・裸地・露岩を混ぜる。
+  // 高画質は画素ごとの照明で土粒を照らす。足場・索引・陰・霧は共用する。
   const previousGround = W.terrain.material;
   // 夏の裸地を白い雪面に見せない。照り返しを抑えた材質にも灰褐色の下地を残す。
-  const mat = new THREE.MeshLambertMaterial({ color: 0xb9aa8d });
-  // r160 の MeshLambertMaterial に extensions は無い（WebGL2 は微分が標準）。触ると稲葉山が読み込みで止まる。
+  const mat = S.quality === 'high'
+    ? new THREE.MeshStandardMaterial({ color: 0xb9aa8d, roughness: 0.98, metalness: 0, envMapIntensity: 0.45 })
+    : new THREE.MeshLambertMaterial({ color: 0xb9aa8d });
   mat.userData.camNearSolid = true;
-  mat.customProgramCacheKey = () => 'inaba-ground-soil-rock-trail';
+  mat.customProgramCacheKey = () => 'inaba-ground-soil-rock-trail-relief';
   mat.onBeforeCompile = (sh) => {
     for (const name of ['tGrass', 'tDirt', 'tStone', 'tWear', 'uWet']) sh.uniforms[name] = W.groundU[name];
     sh.uniforms.inabaTrail = { value: trail };
@@ -1736,7 +1755,15 @@ function buildInabaMountain(rt) {
         * sin(ibUv.y * 0.27 - ibUv.x * 0.13);
       col *= 1.0 + ibPatch * 0.09 * (1.0 - ibRock);
       col = mix(col, col * vec3(0.55, 0.3, 0.26), ibWear.g * 0.7);
+      // 色に使った土粒を高さにも使う。別の絵を読まず、近くの踏み固めた地面にも細かな陰を残す。
+      float ibRelief = (ibFine * 0.045 + dot(dirt, vec3(0.333)) * 0.055) * ibNear * (1.0 - ibRock);
       diffuseColor.rgb *= col;`);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+      vec3 ibDx = dFdx(-vViewPosition), ibDy = dFdy(-vViewPosition);
+      vec3 ibR1 = cross(ibDy, normal), ibR2 = cross(normal, ibDx);
+      float ibDet = dot(ibDx, ibR1) * faceDirection;
+      normal = normalize(abs(ibDet) * normal - sign(ibDet)
+        * (dFdx(ibRelief) * ibR1 + dFdy(ibRelief) * ibR2));`);
   };
   W.terrain.material = mat;
   previousGround.dispose();
@@ -2557,8 +2584,8 @@ function buildKaraTrail(rt) {
 }
 
 const inabayama = {
-  // 近い屋根・壁だけ共通の見通し処理で抜き、町と柵の向こうを見渡せるようにする。
-  nearFade: true,
+  // 壁や屋根を切り抜かず、共通の衝突回避で視点を建物の手前へ寄せる。
+  nearFade: false,
   jinkei: INABAYAMA_JIN,
   // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
@@ -2942,8 +2969,10 @@ const inabayama = {
     settleFallenLimbs: true,
     variedInfantry: true,
     infantryWeight: true,
+    meleeGroundedFeet: true, // 踏み込む両足も描く地面へ据える。攻撃の判定は保つ。
     // 高画質の落ち影にも足元の柔らかい陰を重ねる。接触の土煙は見た目だけ。
     contactShadows: true,
+    contactShadowRange: 55, // 町の向こうの実兵も既存の影の一束へ入れる。
     contactDust: true,
     livingSpearHedge: true,
     // 後列も前の兵の相手へ槍を添える。人数と攻撃判定はそのまま。
@@ -3053,8 +3082,12 @@ const inabayama = {
     patchyGround: true,
     // 実際の往来と乱戦で踏まれた帯を、土の色と伏せた草で共用する。
     wetFieldRuts: 'wear',
-    nearGrassClumpBase: 0.06,
-    nearGrassClumpGain: 1.8,
+    nearGrassClumpBase: 0.24,
+    nearGrassClumpGain: 1.65,
+    nearGrassMinCover: 0.045,
+    curvedNearGrass: true,
+    tuftTint: 0x92996a,
+    nearGrassTint: 0x92996a,
     tuftHeight(x, z) {
       return 0.72 + 0.2 * Math.sin(x * 0.37 + z * 0.16) * Math.sin(z * 0.29 - x * 0.11);
     },

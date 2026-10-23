@@ -316,7 +316,7 @@ export class HudCards {
 /* 同じ任務の一行だけを中央へ運ぶ。札や字を複製しない。 */
 html:root body #hud #h-prog.pg-changing > :not(.pg-st) { display:none !important; }
 html:root body #hud #h-prog.pg-changing .pg-st span { white-space:nowrap; }
-#hud.ending #h-prog, #hud:has(#cine.on) #h-prog, #hud:has(#bigmap:not([hidden])) #h-prog { visibility:hidden; }
+#hud.ending #h-prog, #hud:has(#bigmap:not([hidden])) #h-prog { visibility:hidden; }
 /* 稲生は任務を右、台詞を左。兵数と方位の帯の下を使う。 */
 html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog {
  top:calc(72px + env(safe-area-inset-top, 0px)); width:max-content; max-width:calc(100% - 32px);
@@ -379,7 +379,7 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     stEl.style.alignItems = following ? 'center' : '';
     // 「左へ下がる」のような向きの字は出さない（kaito 10/23）。
     const yaw = rt.player.yaw + (rt.player.camYawOff || 0), p = rt.player.u.pos;
-    let headline = missionCaption(rt, def.missionTaskFirst ? task || title : title || task);
+    let headline = missionCaption(rt, def.missionTaskFirst ? task || title : title || task) || '味方の旗へ進め';
     // 任務の一行へ実際の攻撃操作を収める。別の札や知らせは増やさない。
     if (def.key !== 'moribe' && /^(?:近くの|この)?敵を\s*(?:たおせ|倒せ)$/.test(headline)) {
       const player = rt.player;

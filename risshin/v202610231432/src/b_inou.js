@@ -125,7 +125,7 @@ function pinPoint(rt, pos, radius, hide, unit = null, name = '') {
   const pin = rt.flags.goalPin;
   pin.x = pos.x; pin.z = pos.z; pin.r = radius; pin.hide = hide;
   pin.unit = unit; pin.name = name; pin.enemy = !!unit && unit.team !== rt.player.u.team;
-  pin.approach = false; pin.silent = false;
+  pin.approach = false; pin.silent = false; pin.arrow = false;
   return pin;
 }
 
@@ -157,8 +157,8 @@ const inou = {
   missionHeading(rt) {
     const F = rt.flags;
     if (F.step === 1) {
-      if (F.training === 11 && !F.flankReached) return '右の畦へ進め';
-      if (F.training === 12) return '柴田隊を横から攻めろ';
+      if (F.training === 11 && !F.flankReached) return '矢印の先へ進め';
+      if (F.training === 12) return '矢印の先へ進め';
       const lead = F.nobuU?.alive ? F.nobuU.pos : NOBU;
       if (Math.hypot(rt.player.u.pos.x - lead.x, rt.player.u.pos.z - lead.z) >= 20) return '旗まで進め';
       if (F.training === 11) return 'ここで生きのこれ';
@@ -196,26 +196,20 @@ const inou = {
     }
     return signs;
   },
-  // ピンは槍が届く足場まで。着いたら敵の頭上の赤い▼だけを残す。
+  // 倒す場面は敵の印だけ。側面への移動は成功判定と同じ東側へ導く。
   missionPin: (rt) => {
     const F = rt.flags;
-    if (F.ending) return null;
-    if (F.step === 0) {
-      if (F.training < 0) return null;
-      const ready = rt.player.inRange && fighting(rt.player.rangeCueTarget);
-      const enemy = F.training === 8 ? F.hayaLead : approachUnit(rt);
-      if (ready || !fighting(enemy)) return null;
-      const me = rt.player.u.pos, dx = me.x - enemy.pos.x, dz = me.z - enemy.pos.z;
-      const distance = Math.hypot(dx, dz), reach = rt.player.meleeReach(rt.player.previewMeleeKind() || 'thrust') * .8;
-      if (distance <= reach) return null;
-      const pin = pinPoint(rt, enemy.pos, 0, 0, enemy);
-      pin.x += dx / distance * reach; pin.z += dz / distance * reach;
-      pin.approach = true;
-      return pin;
-    }
+    if (F.ending || F.step === 0 || F.step === 3) return null;
     if (F.step === 1) {
-      if (F.training === 11 && !F.flankReached) return pinPoint(rt, FLANK, 8);
-      if (F.training === 12 && !gone(F.shiba1)) return pinPoint(rt, F.shiba1.center(), 8, 16);
+      if (F.training === 11 && !F.flankReached) {
+        const pin = pinPoint(rt, FLANK, 8); pin.arrow = true; return pin;
+      }
+      if (F.training === 12 && !gone(F.shiba1)) {
+        const c = F.shiba1.center();
+        const pin = pinPoint(rt, c, 2, 2);
+        pin.x += 11; pin.arrow = true;
+        return pin;
+      }
       // 持ち場にいる間は移動の印を消し、右上の残り時間だけを示す。
       const lead = F.nobuU?.alive ? F.nobuU.pos : NOBU;
       if (Math.hypot(rt.player.u.pos.x - lead.x, rt.player.u.pos.z - lead.z) < 20) return null;

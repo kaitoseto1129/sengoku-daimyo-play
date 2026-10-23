@@ -980,13 +980,22 @@ export class WorldVegetation {
       // 背のそろった点の列を避け、根元に低い葉の広がりを残す。
       const widths = [0.23, 0.43, 0.51], heights = [0.52, 0.32, 0.22];
       for (let k = 0; k < 3; k++) {
-        const g = new THREE.PlaneGeometry(widths[k], heights[k]);
+        // 指定した野では一つの折れで葉の房を曲げ、平たい十字の輪郭を崩す。
+        // 草の株数・共用の絵・描く回数は同じ。低画質は元の二三角形を保つ。
+        const curved = this.def.curvedNearGrass && !lowV;
+        const g = new THREE.PlaneGeometry(widths[k], heights[k], 1, curved ? 2 : 1);
         const p = g.attributes.position;
         for (let q = 0; q < p.count; q++) {
           const top = p.getY(q) > 0;
           const side = p.getX(q) > 0 ? 1 : -1;
           p.setXYZ(q, p.getX(q) * (top ? 0.78 : 0.42) + (top ? (k - 1) * 0.06 : 0),
             p.getY(q) + heights[k] * 0.5 + (top ? side * (k - 1) * 0.035 : 0), top ? 0.09 + k * 0.09 : 0);
+        }
+        if (curved) for (let q = 0; q < p.count; q++) {
+          const rise = Math.max(0, Math.min(1, p.getY(q) / heights[k]));
+          // 立つ芯・斜めの下葉・伏せた広葉を同じ三枚で作る。
+          p.setXYZ(q, p.getX(q) + Math.sin(rise * Math.PI) * (k - 1) * 0.055,
+            p.getY(q) * (1 - rise * (k * 0.1)), p.getZ(q) + rise * rise * (0.08 + k * 0.07));
         }
         g.rotateY(k * Math.PI / 3 + 0.3);
         // 光は上から受ける向きに（板ごとの明暗を消す）

@@ -69,7 +69,7 @@ export class WorldGrass {
       const clump = tuftClumpAt(x, z);
       // 足もとの小片を均等に散らさず、遠い株と同じ群落の芯を濃く、縁を低くする。
       // 土の混じる草地にも低い下葉を残す。草の混合率を閾値で切り捨てない。
-      let show = gw > 0.12 && ((i * 7919) % 100) / 100 < gw * (clumpBase + clump * clumpGain);
+      let show = gw > (this.def.nearGrassMinCover ?? 0.12) && ((i * 7919) % 100) / 100 < gw * (clumpBase + clump * clumpGain);
       let verge = 1;
       if (show && paths) for (const p of paths) {
         const clearance = distToPolyline(x, z, p) - (p.w ?? this.def.pathWidth ?? 2) * 0.5;
