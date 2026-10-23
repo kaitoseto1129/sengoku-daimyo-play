@@ -1,5 +1,5 @@
 // 戦場の頭上の印（全戦。kaito 10/23 稲生 40・41・46）
-//   敵は大きめの下向き三角、味方は丸。頭の上に固定し、近くの兵を覆わない。
+//   共通の敵は剣、味方は旗。頭の上に固定し、近くの兵を覆わない。
 //   武将：今の行動に関係する一人の名と体力の棒
 //   形と材質は戦ごとに一度だけ作り、毎コマ new しない。
 import * as THREE from 'three';
@@ -17,19 +17,38 @@ const dummy = new THREE.Object3D(), v = new THREE.Vector3(), headPos = new THREE
 const general = (u) => !!u.name && !u.isSub && (u.type === 'busho' || u.type === 'samurai');
 const headY = (u) => (u.pos.y || 0) + (u.mounted ? 3.05 : 2.1);
 
+// 一枚の形に暗い外縁と明るい内側を重ね、描画の束を増やさない。
+function outlinedSign(points, tone) {
+  const shape = new THREE.Shape();
+  points.forEach(([x, y], i) => i ? shape.lineTo(x, y) : shape.moveTo(x, y));
+  shape.closePath();
+  const face = new THREE.ShapeGeometry(shape).toNonIndexed();
+  const source = face.getAttribute('position'), positions = [], colors = [];
+  for (let layer = 0; layer < 2; layer++) {
+    const color = new THREE.Color(layer ? tone : 0x14120f);
+    for (let i = 0; i < source.count; i++) {
+      const x = source.getX(i), y = source.getY(i);
+      positions.push(layer ? x * .68 : x, layer ? .24 + (y - .24) * .82 : y, layer * .001);
+      colors.push(color.r, color.g, color.b);
+    }
+  }
+  face.dispose();
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  return geometry;
+}
+
 function build(rt, root) {
   const compact = !['inou', 'okehazama', 'moribe'].includes(rt.def.key);
-  const tri = new THREE.BufferGeometry();
-  // 共通の敵印は小さな赤いひし形。行き先の金のピンと形・色を分ける。
-  const diamond = [0,.28,0, -.17,.14,0, 0,0,0, 0,.28,0, 0,0,0, .17,.14,0,
-    0,.23,.001, -.11,.14,.001, 0,.05,.001, 0,.23,.001, 0,.05,.001, .11,.14,.001];
-  tri.setAttribute('position', new THREE.Float32BufferAttribute(compact ? diamond : [-.17,.28,0, .17,.28,0, 0,0,0, -.115,.245,.001, .115,.245,.001, 0,.065,.001], 3));
+  const tri = compact ? outlinedSign([[0,.48],[-.07,.37],[-.07,.17],[-.17,.17],[-.17,.10],[-.045,.10],[-.045,0],[.045,0],[.045,.10],[.17,.10],[.17,.17],[.07,.17],[.07,.37]], 0xffb4a2) : new THREE.BufferGeometry();
+  if (!compact) tri.setAttribute('position', new THREE.Float32BufferAttribute([-.17,.28,0, .17,.28,0, 0,0,0, -.115,.245,.001, .115,.245,.001, 0,.065,.001], 3));
   const colors = [];
   for (const color of [0x14120f, rt.def.key === 'okehazama' || rt.def.key === 'moribe' ? 0xff342e : 0xff634d]) {
     const c = new THREE.Color(color);
-    for (let i = 0; i < (compact ? 6 : 3); i++) colors.push(c.r, c.g, c.b);
+    for (let i = 0; i < 3; i++) colors.push(c.r, c.g, c.b);
   }
-  tri.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  if (!compact) tri.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   // 赤い▼の中身だけを残りの命に合わせて減らす。外枠は保ち、棒や数字を足さない。
   const triMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, fog: false, depthWrite: false });
   // 乱戦でも旗や笠、槍や味方の背に敵印を隠さない。壁は見通しで除く。
@@ -62,15 +81,17 @@ function build(rt, root) {
   }
   const marks = new THREE.InstancedMesh(tri, triMat, CAP);
   marks.count = 0; marks.frustumCulled = false; marks.renderOrder = 5;
-  const circle = new THREE.RingGeometry(.065, .17, 16, 3);
+  const circle = compact ? outlinedSign([[-.14,0],[-.14,.44],[.17,.44],[.10,.32],[.17,.20],[-.07,.20],[-.07,0]], 0xffedb0) : new THREE.RingGeometry(.065, .17, 16, 3);
   const ringColors = [];
   for (let i = 0; i < 4; i++) {
     const c = new THREE.Color(i === 0 || i === 3 ? 0x14120f : 0xffedb0);
     for (let j = 0; j <= 16; j++) ringColors.push(c.r, c.g, c.b);
   }
-  circle.setAttribute('color', new THREE.Float32BufferAttribute(ringColors, 3));
-  circle.translate(0, .13, 0);
-  const allyMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, fog: false, depthWrite: false });
+  if (!compact) {
+    circle.setAttribute('color', new THREE.Float32BufferAttribute(ringColors, 3));
+    circle.translate(0, .13, 0);
+  }
+  const allyMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, fog: false, depthWrite: false, depthTest: !compact });
   const allies = new THREE.InstancedMesh(circle, allyMat, CAP);
   allies.count = 0; allies.frustumCulled = false; allies.renderOrder = 5;
   const bar = new THREE.PlaneGeometry(1, 0.045); bar.translate(0.5, 0, 0);
@@ -140,7 +161,7 @@ export function fieldSignsTick(rt, root) {
     rt.hud.approachGuideEnemy || rt.hud.attackGuideEnemy || rt.hud.aimGuideEnemy ||
     (rt.player.lock?.alive ? rt.player.lock : null) || rt.missionGuide?.closeEnemy ||
     (rt.guideEnemyShown ? rt.guideEnemy : null);
-  // 敵は小さな所属印へ統一し、剣や全身の枠を重ねない。
+  // 敵の剣は一人一つ。同じ相手へ別の印を重ねない。
   const focusEnemy = missionEnemy;
   rt.hud.outlinedEnemy = null;
   const moribe = rt.def.key === 'moribe';
@@ -259,7 +280,7 @@ export function fieldSignsTick(rt, root) {
       inou ? (u === missionEnemy || hot ? 24 + 2 * approach : meD2 < 25 * 25 ? 16 : 9) :
       oke ? (u === readyEnemy ? 34 : u === missionEnemy ? 26 + 6 * approach :
         (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 < 12 * 12 ? 18 : 10) :
-      foe ? (u === readyEnemy ? 28 : u === focusEnemy ? 22 : 12) : 8;
+      foe ? (u === readyEnemy ? 24 : u === focusEnemy ? 22 : 18) : 14;
     // 稲生・森部・桶狭間では命を減らした相手の▼だけを一度大きくし、滑らかに戻す。
     // 頭上の先端は固定し、既存の形・材質・描画の束をそのまま使う。
     // 稲生は命中の形を少し保ってから戻す。連打の合間にも当たった本人が分かる。
@@ -274,16 +295,9 @@ export function fieldSignsTick(rt, root) {
     const pulse = still ? (moribe || inou) && hit > 0 ? 1 : 0 : hit;
     // 桶狭間は画面外の▼を端へ寄せない。実際の兵の頭上だけに置く。
     if (foe && !moribe && !oke && !inou) {
-      // 前にいる敵の印は、近すぎても端でも画面内へ収める。印同士は重なっても残す。
-      const depth = Math.max(-v.z, cam.near * 2);
-      v.multiplyScalar(depth / -v.z);
-      const halfWidth = pixels * (reachable ? 1.6 : 1) * (1 + pulse) / 2 + 4;
-      const height = pixels * .28 / .34 * (1 + pulse) + 4;
-      const ex = Math.max(0, 1 - halfWidth * 2 / innerWidth);
-      const ey = Math.max(0, 1 - height * 2 / innerHeight);
-      const pe = cam.projectionMatrix.elements;
-      v.x = Math.max(-ex * depth / pe[0], Math.min(ex * depth / pe[0], v.x));
-      v.y = Math.max((-1 + 16 / innerHeight) * depth / pe[5], Math.min(ey * depth / pe[5], v.y));
+      // 画面外の兵を端へ寄せると、見えている味方に剣が付いて見える。
+      headPos.copy(v).applyMatrix4(cam.projectionMatrix);
+      if (Math.abs(headPos.x) > 1 || Math.abs(headPos.y) > 1) continue;
       headPos.copy(v).applyMatrix4(cam.matrixWorld);
     }
     // 森部・桶狭間の▼は本人の頭上から動かさない。画面外の敵を端へ集めると、

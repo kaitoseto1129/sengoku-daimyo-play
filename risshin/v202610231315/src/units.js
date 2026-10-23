@@ -960,18 +960,31 @@ export class Army {
   }
   // over：槍で柵越しに突く（すぐ前の柵は、敵味方どちらの柵でも越えて届く。塀は越えない）
   // clear：柵越しに届く間合い（既定 2.2m）。馬上は馬の図体の分だけ柵に近寄れないので、呼ぶ側が広げて渡す
-  // 柵や塀（seg のある物）を16m の区画に置いた表。structs の数が変わった時だけ作り直す（seg は動かない）
+  // 柵や塀を16m の区画へ置く。支度済みの表へ追加分だけ登録し、戦の途中で全件を作り直さない（seg は動かない）。
   segGrid() {
-    if (this._segGridN === this.structs.length && this._segGrid) return this._segGrid;
-    const grid = new Map();
-    for (const s of this.structs) {
+    const list = this.structs;
+    const grid = this._segGrid || (this._segGrid = new Map());
+    // 開戦前の prepareCollisionGrids で余りの升も用意し、増設時の配列づくりを先に済ませる。
+    const free = this._segGridFree || (this._segGridFree = []);
+    let start = this._segGridN || 0;
+    if (this._segGridList !== list || start > list.length || start && list[start - 1] !== this._segGridLast) {
+      for (const cell of grid.values()) { cell.length = 0; free.push(cell); }
+      grid.clear(); start = 0;
+    }
+    if (start === list.length && this._segGridList === list) return grid;
+    for (let i = start; i < list.length; i++) {
+      const s = list[i];
       const g = s.seg; if (!g) continue;
       for (let cx = Math.floor(Math.min(g[0], g[2]) / 16); cx <= Math.floor(Math.max(g[0], g[2]) / 16); cx++)
         for (let cz = Math.floor(Math.min(g[1], g[3]) / 16); cz <= Math.floor(Math.max(g[1], g[3]) / 16); cz++) {
-          const k = cx * 4096 + cz; let a = grid.get(k); if (!a) grid.set(k, a = []); a.push(s);
+          const k = cx * 4096 + cz; let a = grid.get(k); if (!a) grid.set(k, a = free.pop() || []); a.push(s);
         }
     }
-    this._segGrid = grid; this._segGridN = this.structs.length;
+    this._segGridList = list; this._segGridN = list.length; this._segGridLast = list[list.length - 1];
+    if (!this._segGridPrepared) {
+      for (let i = 0; i < 64; i++) free.push([]);
+      this._segGridPrepared = true;
+    }
     return grid;
   }
 
