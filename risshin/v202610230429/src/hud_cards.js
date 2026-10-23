@@ -1,6 +1,6 @@
 import { pinGuideOn, missionTarget } from './mission_pin.js';
 import { setText, setWidth, coachCss, $, esc, keyCaps, shortTask, singleBattleGuide, rescueTarget, retreatRequired } from "./hud_common.js";
-import { currentObjective, taskText, missionCaption } from "./mission_guide.js";
+import { currentObjective, taskText, missionCaption, missionFollowTarget } from "./mission_guide.js";
 import { isTouch } from "./touch.js";
 import { K } from "./settings.js";
 import { sightUnit } from './battle_sight.js';
@@ -355,7 +355,14 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
       if (taskLine && this.progSeen[this.progSeen.length - 1] !== taskLine) this.progSeen.push(taskLine);
       i = Math.max(0, this.progSeen.length - 1); n = 0; title = this.progSeen[i] || '';
     }
-    setText(stEl.firstChild, '');
+    const following = !!missionFollowTarget(rt);
+    setText(stEl.firstChild, following ? '◆' : '');
+    stEl.firstChild.style.display = following ? 'inline-block' : 'none';
+    stEl.firstChild.style.fontSize = following ? '20px' : '';
+    stEl.firstChild.style.color = '#fff3ba';
+    stEl.firstChild.style.marginRight = following ? '6px' : '0';
+    stEl.style.flexDirection = following ? 'row' : '';
+    stEl.style.alignItems = following ? 'center' : '';
     // 「左へ下がる」のような向きの字は出さない（kaito 10/23）。
     const yaw = rt.player.yaw + (rt.player.camYawOff || 0), p = rt.player.u.pos;
     const headline = missionCaption(rt, def.missionTaskFirst ? task || title : title || task);
@@ -420,8 +427,10 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     // 待つ間（陣を敷く・寄せを待つ）の残りは、秒の字でなく満ちていく丸で（kaito 10/23 稲生 14）。
     const gm = rt.missionGuide?.marker, wu = gm?.waitUntil?.();
     const progress = def.missionWaitProgress?.(rt);
-    const pie = timeEl.firstChild, waiting = Number.isFinite(progress) || Number.isFinite(wu) && wu > rt.t && gm.waitDuration > 0;
-    timeEl.hidden = def.key === 'inou' || !!def.missionSingleLine;
+    // 桶狭間の null は「今は待ちではない」。接敵中に共通の時計を戻さない。
+    const pie = timeEl.firstChild, waiting = def.key === 'okehazama' ? Number.isFinite(progress) :
+      Number.isFinite(progress) || Number.isFinite(wu) && wu > rt.t && gm.waitDuration > 0;
+    timeEl.hidden = def.key === 'okehazama' ? !waiting : def.key === 'inou' || !!def.missionSingleLine;
     pie.hidden = !waiting;
     if (waiting) pie.style.setProperty('--p', String(Math.round(Math.max(0, Math.min(1, Number.isFinite(progress) ? progress : 1 - (wu - rt.t) / gm.waitDuration)) * 100)));
     // 切り替わりも右上の一枚で伝え、戦場の中央へ同じ札を重ねない。

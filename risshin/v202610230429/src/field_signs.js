@@ -26,7 +26,7 @@ function build(rt, root) {
   tri.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   // 赤い▼の中身だけを残りの命に合わせて減らす。外枠は保ち、棒や数字を足さない。
   const triMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, fog: false, depthWrite: false });
-  if (rt.def.key === 'inou') {
+  if (rt.def.key === 'inou' || rt.def.key === 'okehazama') {
     tri.setAttribute('signLife', new THREE.InstancedBufferAttribute(new Float32Array(CAP).fill(1), 1));
     triMat.onBeforeCompile = shader => {
       shader.vertexShader = 'attribute float signLife;\n' + shader.vertexShader;
@@ -144,11 +144,11 @@ export function fieldSignsTick(rt, root) {
     const readyEnemy = (inou || oke) && rt.player.inRange ? rt.player.rangeCueTarget : null;
     const pixels = moribe ? (u === missionEnemy ? 17 : d2 < 20 * 20 ? 12 : 9) :
       inou ? (u === readyEnemy ? 26 : (u === missionEnemy && !readyEnemy || u.inouHitUntil > rt.t) ? 20 : 10) :
-      oke ? (u === readyEnemy ? 22 : u === missionEnemy && !readyEnemy ? 17 : 10) :
+      oke ? (u === readyEnemy ? 28 : u === missionEnemy && !readyEnemy ? 20 : d2 < 20 * 20 ? 14 : 10) :
       u === missionEnemy ? 17 : foe ? 16 : 10;
     // 稲生・森部・桶狭間では命を減らした相手の▼だけを一度大きくし、滑らかに戻す。
     // 頭上の先端は固定し、既存の形・材質・描画の束をそのまま使う。
-    const hit = foe && (moribe || inou || oke) ? Math.min(1, Math.max(0, ((oke ? u.okeHitUntil : inou ? u.inouHitUntil : u.moribeHitUntil) || 0) - rt.t) / .7) : 0;
+    const hit = foe && (moribe || inou || oke) ? Math.min(1, Math.max(0, ((oke ? u.okeHitUntil : inou ? u.inouHitUntil : u.moribeHitUntil) || 0) - rt.t) / (oke ? 1.2 : .7)) : 0;
     const reachable = (moribe || inou || oke) && foe && rt.player.inRange && rt.player.rangeCueTarget === u;
     // 森部の命中は同じ赤い▼を大きくして示す。空振りでは変わらない。
     const width = moribe ? pixels + (reachable ? 8 : 0) + 10 * hit : pixels;
@@ -157,13 +157,13 @@ export function fieldSignsTick(rt, root) {
     dummy.position.copy(headPos);
     dummy.quaternion.copy(q); dummy.scale.set(moribe ? k : k * (1 + .5 * hit + ((inou || oke) && reachable ? .35 : 0)), k, k); dummy.updateMatrix();
     if (foe) {
-      if (inou) s.marks.geometry.attributes.signLife.setX(n, Math.sqrt(Math.max(0, Math.min(1, u.hp / (u.maxHp || 1)))));
+      if (inou || oke) s.marks.geometry.attributes.signLife.setX(n, Math.sqrt(Math.max(0, Math.min(1, u.hp / (u.maxHp || 1)))));
       s.marks.setMatrixAt(n++, dummy.matrix);
     }
     else s.allies.setMatrixAt(a++, dummy.matrix);
   }
   s.marks.count = n; s.marks.instanceMatrix.needsUpdate = true;
-  if (inou) s.marks.geometry.attributes.signLife.needsUpdate = true;
+  if (inou || oke) s.marks.geometry.attributes.signLife.needsUpdate = true;
   s.allies.count = a; s.allies.instanceMatrix.needsUpdate = true;
   if (gens.length > 1) gens.sort((a, c) => a._fsD - c._fsD);
   // 武将の体力の棒（黒い下地と色の棒）
@@ -185,12 +185,14 @@ export function fieldSignsTick(rt, root) {
   const hud = rt.hud, marker = rt.missionGuide?.marker;
   const person = typeof marker?.guidePerson === 'function' ? marker.guidePerson() : marker?.guidePerson;
   const ally = rt.def.missionAlly?.(rt) || rt.def.guardGuideTarget?.(rt) || rt.def.guardTarget?.(rt);
+  const named = rt.def.namedGuideTarget?.(rt);
   const enemies = rt.def.objectiveEnemies?.(rt);
-  const related = (u) => u === person || u === ally || u === rt.player.lock || u === rt.player.aimed ||
+  const related = (u) => u === named || u === person || u === ally || u === rt.player.lock || u === rt.player.aimed ||
     enemies?.includes(u) || !!marker?.group && u.group === marker.group;
   const available = (u) => related(u) && (u.team === me.team || enemyKnown(rt, u)) && sightScreenUnit(rt, u);
   const previous = s.nameUnit;
-  const chosen = previous && gens.includes(previous) && available(previous) ? previous : gens.find(available);
+  const chosen = named && gens.includes(named) && available(named) ? named :
+    previous && gens.includes(previous) && available(previous) ? previous : gens.find(available);
   s.nameUnit = chosen;
   let cards = Math.max(2, 1 + (hud?.notices?.picks.length || 0));
   for (const id of ['boss', 'target', 'prompt', 'wait-guard']) {
