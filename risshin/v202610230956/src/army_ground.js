@@ -407,19 +407,24 @@ export const ArmyGround = {
   },
 
   trimCorpses() {
-    const cap = 80;
+    const cap = 40, view = this._groundView || this.playerUnit?.pos;
+    const frustum = this._viewFrustum;
+    // 見える体は数合わせで消さない。視野が分からない間も残す。
+    if (this.dead.length <= cap || !view || !frustum) return;
+    const sphere = this._corpseSphere || (this._corpseSphere = new THREE.Sphere(new THREE.Vector3(), 3));
+    const player = this.playerUnit?.pos || view;
     while (this.dead.length > cap) {
-      // 手当て中の兵と自分を守り、見る所から遠い亡骸を先に片付ける。
-      const view = this._groundView || this.playerUnit?.pos;
-      let index = -1, far = -1;
+      let index = -1, oldest = Infinity;
       for (let i = 0; i < this.dead.length; i++) {
         const u = this.dead[i];
         if (u.isPlayer || u.death?.aid) continue;
         if (u.mounted ? u.deadT < 4 : u.death ? u.death.t < DEATH_END : u.deadT < 1) continue;
-        const d = view ? (u.pos.x - view.x) ** 2 + (u.pos.z - view.z) ** 2 : this.time - u.killedAt;
-        // 見える近さ（55m）の亡骸は枠の片付けでも消さない（稲生 54）。
-        if (view && d < 55 * 55 && this.dead.length < cap * 2) continue;
-        if (d > far) { far = d; index = i; }
+        if ((u.pos.x - view.x) ** 2 + (u.pos.z - view.z) ** 2 < 900 ||
+            (u.pos.x - player.x) ** 2 + (u.pos.z - player.z) ** 2 < 900) continue;
+        // 頭や足、馬まで含む余白を取り、画面の外の古い体から片付ける。
+        sphere.center.copy(u.pos); sphere.center.y += 0.5;
+        if (frustum.intersectsSphere(sphere)) continue;
+        if (u.killedAt < oldest) { oldest = u.killedAt; index = i; }
       }
       if (index < 0) break;
       this.clearCorpse(index);

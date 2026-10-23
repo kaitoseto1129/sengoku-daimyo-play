@@ -180,6 +180,16 @@ const _umw = THREE.Object3D.prototype.updateMatrixWorld;
 const _mwT = new THREE.Matrix4();
 function skipHiddenMW(force) {
   const h = this.userData.hum;
+  // 倒れ切った姿は親からの強制更新でも骨を辿らない。運ばれた時は更新する。
+  if (h?.still && !h.u.alive && !h.u.death?.aid && this.parent) {
+    if (this.matrixAutoUpdate) this.updateMatrix();
+    _mwT.multiplyMatrices(this.parent.matrixWorld, this.matrix);
+    if (h.mw0 && _mwT.equals(h.mw0)) { this.matrixWorldNeedsUpdate = false; return; }
+    h.skelDirty = true;
+    _umw.call(this, true);
+    (h.mw0 || (h.mw0 = new THREE.Matrix4())).copy(this.matrixWorld);
+    return;
+  }
   if (!this.visible || h?.poseHidden && h.noSh) {
     // 親から強制更新されても、描かず影も使わない子へは降りない。
     if (this.matrixAutoUpdate) this.updateMatrix();

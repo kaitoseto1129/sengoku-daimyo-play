@@ -2191,16 +2191,17 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     W.birdSpot = function (flock, focus) {
       return rt.over ? birdSpot.call(this, flock, focus) : null;
     };
-    // 雨量・濡れ・雨音は保つ。手前の太い板を描かず、細い線を半分にして薄くする。
+    // 雨量・濡れ・雨音は保つ。手前の太い板を描かず、細い線を三割にして薄くする。
     W.updateNearRain = function () { this.rainNear.visible = false; };
+    // 描く直前の間引きではなく、雨と跳ねの計算そのものを減らす。
+    W.rainParticleScale = 0.3;
+    W.rainSplashCount = 48;
     const updateWorld = W.update;
     W.update = function (dt, focus) {
       updateWorld.call(this, dt, focus);
       if (!this.rain.visible) return;
-      this.rain.geometry.setDrawRange(0, Math.floor(this.rain.geometry.drawRange.count / 4) * 2);
       this.rain.material.opacity *= 0.65;
       // 泥の跳ねを白い草のように野一面へ並べない。既存の線を少数だけ描く。
-      this.splashPts.geometry.setDrawRange(0, Math.floor(this.splashT.length / 4) * 6);
       this.splashPts.material.color.setHex(0x807d70);
       this.splashPts.material.opacity = 0.18 * this.rainLevel;
     };

@@ -428,12 +428,10 @@ export function playerLook(G, stepOverride) {
   const hat = HAT_ORDER.indexOf(STEP_HAT[step]) > HAT_ORDER.indexOf(eqHat) ? STEP_HAT[step] : eqHat;
   const ar = STEP_ARMOR[step] || {};
   const uma = STEP_UMA[step];
-  // 母衣を負う段（4・5）は背の指物を差さない（母衣と竿が重なる。母衣衆は母衣が印）
-  const horoStep = step === 4 || step === 5;
   return {
     armor: ar.armor ?? bl.armor, lace: ar.lace ?? bl.lace, trim: ar.trim || 0, sode: bl.sode || step >= 2, hat,
-    flag: uma || horoStep ? null : (G.rank >= 1 || step >= 1) && G.aijirushi ? G.aijirushi : scenario().mon, pole: !uma && !horoStep,
-    flagScale: [1, 1.15, 1.3, 1.45, 1.6, 1.7][Math.min(5, step)] + (step === 0 ? 0.12 * G.rank : 0),
+    // 本人だけは身分によらず、少し高い無地の金旗を背負う。
+    flag: 'player_gold', pole: true, flagScale: 1.25, flagShape: 0,
     uma,
     weapon: 'spear', weaponExtra: wItem.reach || 0,
     haori: STEP_HAORI[step] || (G.equip.coat ? 0x8e2f1f : 0),
@@ -2198,38 +2196,19 @@ export class Player {
     this.chargeT = 0; this.charging = false; this.chargeCue = false;
     if (blade && !rt.flags?.carry && this.buffer > 0 && this.cd <= 0 && !this.pending && this.dodgeT <= 0) {
       this.buffer = 0;
-      // 向きと構えの入力では技を選ばず、敵との間合いで選ぶ。
+      // 槍は押すたびに突き・突き・横払いを繰り返す。
       const kind = this.autoMeleeKind();
       if (this.weapon === 'spear') {
-        if (kind === 'slam' && this.sta >= 18) {
-          this.sta -= 18; this.staDelay = 0.7;
-          this.pending = { t: 0.08, kind: 'slam' };
-          this.cd = 1.0;
-          sfx('swing'); this.techNote('slam');
-        } else if (kind === 'hook' && this.sta >= 12 && army.enemiesInArc(u.pos, u.heading, 3.3, 0.6, u.team).length) {
-          this.sta -= 12; this.staDelay = 0.6;
-          this.pending = { t: 0.14, kind: 'hook' };
-          this.cd = 0.85 * this.spearCd;
-          sfx('thrust', 0.9); this.techNote('hook');
-        } else if (kind === 'sweep' && this.sta >= 14) {
-          this.sta -= 14; this.staDelay = 0.7;
-          this.pending = { t: 0.08, kind: 'sweep', dir: 1 };
-          this.cd = 0.9;
-          sfx('swing'); this.techNote(this.jumonji ? 'kama' : 'sweep');
-        } else if (kind === 'butt' && this.sta >= 6) {
-          this.sta -= 6; this.staDelay = 0.4;
-          this.pending = { t: 0.08, kind: 'butt' };
-          this.cd = 0.5;
-          sfx('swing', 0.7); this.techNote('butt');
-        } else if (this.sta >= 6) {
+        if (this.sta >= 6) {
           this.combo = this.comboT > 0 ? this.combo + 1 : 1;
-          const third = this.combo >= 3 && this.sta >= 12;
-          this.sta -= 6 + (third ? 6 : 0); this.staDelay = 0.5;
-          this.pending = { t: 0.12, kind: 'thrust', third };
-          this.cd = (third ? 0.85 : this.combo === 2 ? 0.32 : 0.42) * this.spearCd;
+          const third = this.combo >= 3;
+          this.sta -= kind === 'sweep' ? Math.min(this.sta, 12) : 6;
+          this.staDelay = 0.5;
+          this.pending = { t: kind === 'sweep' ? 0.08 : 0.12, kind, third, dir: 1 };
+          this.cd = (kind === 'sweep' ? 0.52 : this.combo === 2 ? 0.32 : 0.42) * this.spearCd;
           if (third) this.combo = 0;
-          this.comboT = 0.75;
-          sfx('thrust');
+          this.comboT = this.cd + 0.65;
+          sfx(kind === 'sweep' ? 'swing' : 'thrust');
         } else rt.hud.flash('気力が足りない（少し構えを解くと戻る）', 'dim');
       } else if (this.sta >= 5) {
         this.sta -= 5; this.staDelay = 0.4;
@@ -2831,33 +2810,15 @@ export class Player {
   // 離した時の分岐順と必要な気力を、操作丸と間合いの印で共有する。
   previewMeleeKind() {
     if (this.weapon !== 'spear' && this.weapon !== 'sword') return '';
-    if (this.pending) return this.mounted && this.weapon === 'spear' ? 'thrust' : this.pending.kind;
+    if (this.pending) return this.pending.kind;
     if (this.swingImpact) return this.swingImpact.kind;
     return this.autoMeleeKind();
   }
-  // 短い間隔で周囲を読み、予告と実際の一撃で同じ選び方を使う。
+  // 周囲の全兵を調べず、連撃の段だけで予告と実際の技をそろえる。
   autoMeleeKind() {
     if (this.weapon === 'sword') return this.sta >= 5 ? 'slash' : '';
     if (this.sta < 6) return '';
-    if (this.mounted) return 'thrust';
-    if (this.autoMeleeAt > this.rt.t) return this.autoMelee;
-    this.autoMeleeAt = this.rt.t + 0.12;
-    let target = null, nearest = 3.3 * 3.3;
-    for (const enemy of this.rt.army.units) {
-      if (!enemy.alive || enemy.team === this.u.team || enemy.noTarget || enemy.civ || enemy.woundOut || Math.abs(enemy.pos.y - this.u.pos.y) > 2) continue;
-      const dx = enemy.pos.x - this.u.pos.x, dz = enemy.pos.z - this.u.pos.z, d = dx * dx + dz * dz;
-      if (d < nearest) { nearest = d; target = enemy; }
-    }
-    let kind = 'thrust';
-    if (target) {
-      const angle = Math.abs(angleDiff(this.u.heading, Math.atan2(target.pos.x - this.u.pos.x, target.pos.z - this.u.pos.z)));
-      if (nearest < 1.8 * 1.8 && angle > 2.2) kind = 'butt';
-      else if (angle < 1.1 && nearest < 1.6 * 1.6 && this.sta >= 14) kind = 'sweep';
-      else if (angle < 0.6 && target.guard && this.sta >= 18) kind = 'slam';
-      else if (angle < 0.6 && this.jumonji && target.fleeing && this.sta >= 12) kind = 'hook';
-    }
-    this.autoMelee = kind;
-    return kind;
+    return this.comboT > 0 && this.combo >= 2 ? 'sweep' : 'thrust';
   }
 
   updateRangeCue(kind) {
@@ -2887,7 +2848,7 @@ export class Player {
   }
   meleeHalf(kind) {
     if (this.weapon === 'spear' && (kind === 'thrust' || kind === 'charged' || kind === 'hook' || kind === 'slam')) return Math.max(this.rt.world.def.closeCombatAssist ? 0.45 : 0, Math.atan2(0.35, this.meleeReach(kind)));
-    return kind === 'kthrust' || kind === 'charged' ? 0.5 : kind === 'slam' ? 0.4 : kind === 'hook' ? 0.55 : kind === 'kara' ? 0.45 : kind === 'nagi' ? 1.15 : kind === 'sweep' ? this.jumonji ? 1 : 1.1 : kind === 'spin' ? Math.PI : kind === 'slash' ? 0.8 : kind === 'butt' ? 0.7 : 0.62;
+    return kind === 'kthrust' || kind === 'charged' ? 0.5 : kind === 'slam' ? 0.4 : kind === 'hook' ? 0.55 : kind === 'kara' ? 0.45 : kind === 'nagi' ? 1.15 : kind === 'sweep' ? Math.PI / 3 : kind === 'spin' ? Math.PI : kind === 'slash' ? 0.8 : kind === 'butt' ? 0.7 : 0.62;
   }
   meleeReach(kind) {
     if (this.weapon === 'spear') return spearReach(this.u, kind);
@@ -2932,7 +2893,6 @@ export class Player {
   }
   strike(kind, third, impact = false, assisted = false) {
     if (kind === 'spin') kind = 'charged';
-    if (this.mounted && this.weapon === 'spear') kind = 'thrust';
     const u = this.u;
     const army = this.rt.army;
     if (this.assistImpact && !assisted) return;
@@ -2941,11 +2901,14 @@ export class Player {
       if (!army.enemiesInArc(u.pos, u.heading, reach, half, u.team, over, true, clear, this.lock).length) {
         const stepMax = isTouch ? 0.9 : 0.35;
         const wide = isTouch || this.rt.firstFights || this.rt.world.def.closeCombatAssist ? Math.PI : half + this.D.aim;
-        const target = this.assistPick(army.enemiesInArc(u.pos, u.heading, reach + stepMax, wide, u.team, over, true, clear, this.lock));
+        let target = this.assistPick(army.enemiesInArc(u.pos, u.heading, reach + stepMax, wide, u.team, over, true, clear, this.lock));
+        // 届く距離より一歩先（＋1m）でも、前の60度にいる敵へは体と槍を向け直して半歩踏み込む（空振りを減らす）
+        let stepTo = stepMax;
+        if (!target) { target = this.assistPick(army.enemiesInArc(u.pos, u.heading, reach + 1, 0.52, u.team, over, true, clear, this.lock)); if (target) stepTo = 1; }
         if (target) {
           const dx = target.pos.x - u.pos.x, dz = target.pos.z - u.pos.z, d = Math.hypot(dx, dz) || 1, h = Math.atan2(dx, dz);
           this.assist = { h, t: 0.65 };
-          const step = Math.max(0, Math.min(stepMax, d - (reach - 0.2)));
+          const step = Math.max(0, Math.min(stepTo, d - (reach - 0.2)));
           if (step > 0) this.lunge = { x: dx / d * step, z: dz / d * step, t: 0.12 };
           this.assistImpact = { kind, third, h, t: 0.12 }; this.cd = Math.max(this.cd, 0.2);
           return;
@@ -2976,14 +2939,15 @@ export class Player {
       // 馬の首の実寸と穂先までの長さで測る。技の届く長さを超えて柵を抜けない。
       const fenceClear = this.meleeFenceClear(reach);
       // 味方の騎馬も、的を絞って（this.lock）選んだ時だけ混ぜる（自分の馬・味方の馬も討てるように。kaito 10/1）
-      let h = army.enemiesInArc(u.pos, heading, reach, half, u.team, over, true, fenceClear, this.lock);
-      return h.slice(0, 1); // 刃や穂は最初の体・鎧で止まり、一撃で列を抜かない。
+      const sweep = this.weapon === 'spear' && kind === 'sweep';
+      const h = army.enemiesInArc(u.pos, heading, reach, half, u.team, over, !sweep, fenceClear, this.lock);
+      return sweep ? h : h.slice(0, 1); // 横払いは扇の中の敵全員へ一度ずつ当てる。
     };
     let hits, dmg;
     if (kind === 'thrust') { hits = arc(2.9 + reachExtra + ride, 0.62, this.mounted && this.hspd > 8 ? 2 : 1); dmg = this.spearDmg() * (third ? 1.3 : 1) * rush; }
     else if (kind === 'charged') { hits = arc(3.2 + reachExtra + ride, 0.5, 1); dmg = this.spearDmg() * 2 * rush; }
     else if (kind === 'kthrust') { hits = arc(2.3, 0.5, 1); dmg = 17 * (1 + 0.06 * (this.G.stats.spear - 1)); }
-    // 十文字槍の薙ぎ：鎌刃が横へ張り出す分、深く斬る。最初の一人で止まる
+    // 十文字槍の薙ぎ：鎌刃が横へ張り出す分、深く斬る
     else if (kind === 'sweep' && this.jumonji) { hits = arc(2.8 + reachExtra + ride, 1.0, 2); dmg = this.spearDmg() * 1.0 * rush; }
     else if (kind === 'sweep') { hits = arc(2.6 + ride, 1.1, this.mounted ? 5 : 4); dmg = this.spearDmg() * 0.7 * rush; }
     // 十文字槍の引き倒し：突き出して鎌刃を相手の首・膝裏へ掛け、手前へ引く。傷は浅いが、相手は倒れてしばらく起きられない
@@ -3053,14 +3017,15 @@ export class Player {
       army.damage(t, dmg * m, u, { kind: wk, out: result, selectedAlly: this.lock === t && t.team === u.team, pierce: kind === 'sweep' || kind === 'hook' || kind === 'charged' || kind === 'kara' || kind === 'butt' || kind === 'spin' || counter || facing < -0.2, guardBreak: kind === 'slam' || kind === 'kara' || kind === 'hook' });
       h.res = result.res;
       // 突きは後ろへ小さく、払いは横へ、叩きは足を止める。大きなよろけの連続は避ける
-      if (spearKind && !this.mounted && t.alive && !t.isStruct && !t.isPlayer && !t.mounted && t.team !== u.team && (h.res === 'hit' || h.res === 'armor' || (kind === 'slam' && h.res === 'block'))) {
-        const fresh = !(t.spearStagT > army.time - 1.2);
-        const solid = h.res === 'hit' || kind === 'slam';
-        const stagger = !solid ? 0.12 : kind === 'slam' ? 0.75 : kind === 'sweep' ? 0.4 : kind === 'charged' || third || counter ? 0.55 : 0.18;
+      if (spearKind && (!this.mounted || kind === 'sweep') && t.alive && !t.isStruct && !t.isPlayer && !t.mounted && t.team !== u.team && (h.res === 'hit' || h.res === 'armor' || (kind === 'slam' && h.res === 'block'))) {
+        const sweepSoldier = kind === 'sweep' && t.type !== 'busho' && !t.isOfficer && !t.isTaisho && !t.name && !t.invuln;
+        const fresh = sweepSoldier || !(t.spearStagT > army.time - 1.2);
+        const solid = h.res === 'hit' || kind === 'slam' || sweepSoldier;
+        const stagger = sweepSoldier ? 0.75 : !solid ? 0.12 : kind === 'slam' ? 0.75 : kind === 'sweep' ? 0.4 : kind === 'charged' || third || counter ? 0.55 : 0.18;
         if (fresh) {
           t.spearStagT = army.time;
           t.stagger = Math.max(t.stagger || 0, stagger);
-          if (kind === 'slam') { t.atk = null; t.guarding = 0; t.cd = Math.max(t.cd || 0, 0.8); }
+          if (kind === 'slam' || sweepSoldier) { t.atk = null; t.swing = null; t.guarding = 0; t.cd = Math.max(t.cd || 0, 0.8); }
           if (t.push && (kind === 'thrust' || kind === 'charged' || kind === 'sweep' || kind === 'slam')) {
             const force = !solid ? 0.15 : kind === 'sweep' ? 1.1 : kind === 'slam' ? 0.65 : kind === 'charged' ? 1 : 0.35;
             t.push.x += (kind === 'sweep' ? Math.cos(heading) * dir : -dx / d) * force;
@@ -3137,17 +3102,24 @@ export class Player {
       // 薙ぎが当たると、重い柄が体に食い込む手応え：少し長い止めと、下へ沈む揺れ
       if (kind === 'sweep') { this.addShake(0.08); if (!reduceMotion()) this.recoilPitch(0.015); }
       if (hits.some((h) => h.u.type === 'samurai' || h.u.type === 'busho' || h.u.type === 'cavalry')) sfx('clank', heavy ? 1.3 : 0.9);
+      let burstBudget = 12;
       for (const h of hits) {
         if (spearFeel && h.res !== 'hit' && h.res !== 'armor') continue;
         h.u.flinchT = Math.max(h.u.flinchT || 0, spearFeel ? (kind === 'slam' ? 0.3 : kind === 'sweep' ? 0.22 : 0.12) : heavy ? 0.32 : 0.18);
         if (!spearFeel && heavy && h.u.alive) h.u.stagger = Math.max(h.u.stagger || 0, 0.9);
         // 当たった相手は半歩よろけて下がる（当たったのが目で分かる）。小さな血しぶきか土埃
+        // 当たった相手の体が一瞬（約0.12秒）白く光る。▼の広がりと同じ本人（field_signs.js が描く）
+        if (!h.u.isStruct && h.res !== 'block') {
+          h.u.hurtGlowUntil = this.rt.t + 0.12;
+          const list = this.rt.hurtGlow || (this.rt.hurtGlow = []);
+          if (!list.includes(h.u)) { if (list.length >= 8) list.shift(); list.push(h.u); }
+        }
         if (h.u.alive && !h.u.isStruct) {
           h.u.flinchT = Math.max(h.u.flinchT || 0, 0.24);
           h.u.stagger = Math.max(h.u.stagger || 0, 0.28);
           if (h.u.push) { const dx = h.u.pos.x - u.pos.x, dz = h.u.pos.z - u.pos.z, dl = Math.hypot(dx, dz) || 1; h.u.push.x += dx / dl * 0.9; h.u.push.z += dz / dl * 0.9; }
         }
-        if (!h.u.isStruct && h.u.pos) { const dx = h.u.pos.x - u.pos.x, dz = h.u.pos.z - u.pos.z, dl = Math.hypot(dx, dz) || 1; army.burst(h.u.pos.x - dx / dl * 0.2, h.u.pos.y + 1.1, h.u.pos.z - dz / dl * 0.2, 4, h.res === 'armor' || !bloodLv() || army.hideBlood ? 'dust' : 'blood', dx / dl, dz / dl, h.u.pos.y); }
+        if (burstBudget > 0 && !h.u.isStruct && h.u.pos) { burstBudget -= 4; const dx = h.u.pos.x - u.pos.x, dz = h.u.pos.z - u.pos.z, dl = Math.hypot(dx, dz) || 1; army.burst(h.u.pos.x - dx / dl * 0.2, h.u.pos.y + 1.1, h.u.pos.z - dz / dl * 0.2, 4, h.res === 'armor' || !bloodLv() || army.hideBlood ? 'dust' : 'blood', dx / dl, dz / dl, h.u.pos.y); }
       }
       this.addShake(heavy ? 0.12 : 0.06);
       // 馬上の一撃は馬の勢いが乗って重い：長めに止まり、低い音、突かれた者は馬の進む向きへ大きく突き飛ばされ、腕に返る衝撃で馬が少し落ちる
@@ -4093,13 +4065,14 @@ export class Player {
       const aiming = this.aiming || this.draw > 0 || ((this.weapon === 'gun' || this.weapon === 'bow') && input.right);
       tdx = dx * (aiming ? 0.85 : 0.85 + Math.min(1, Math.abs(this.tdx) / 1800) * 0.55); tdy = dy * 0.8;
     }
-    this.yaw -= (mdx * S.sens + tdx) * 0.0024;
-    this.pitch = Math.max(-0.95, Math.min(0.55, this.pitch - (mdy * S.sens + tdy) * 0.0022 * inv));
+    // 指・マウスとも従来の一・七五倍。保存済みの感度もそのまま効く。
+    this.yaw -= (mdx * S.sens + tdx) * 0.0042;
+    this.pitch = Math.max(-1.1, Math.min(1.05, this.pitch - (mdy * S.sens + tdy) * 0.00385 * inv));
     if (Math.abs(input.dx) + Math.abs(input.dy) > 0.5) this.manualLookAt = performance.now() / 1000;
     this.lookIdle = Math.abs(input.dx) + Math.abs(input.dy) > 0.5 ? 0 : this.lookIdle + dt;
   }
 
-  // 壁よけで本人まで寄った三人称は、頭上か左右の肩へ逃がす。体の材質は変えない。
+  // 壁よけで本人まで寄った三人称は左右の肩へ逃がす。頭上へ切り替えない。
   clearCameraBody(camera) {
     const u = this.u, rt = this.rt, pos = camera.position;
     if (!u.alive || this.mounted || this.fpK > .01 || u.naka || NAKA.cur || rt.game?.photo) return;
@@ -4112,10 +4085,11 @@ export class Player {
     const hits = this._bodyHits || (this._bodyHits = []);
     from.copy(u.pos); from.y += 1.4;
     const yaw = this.yaw + (this.camYawOff || 0), sx = Math.cos(yaw), sz = -Math.sin(yaw);
-    // 頭上なら背後の陣幕へ近づかない。軒下では空いている肩を使う（最大三本）。
+    // 左右の肩、次に肩のすぐ後ろを試す（最大三本）。
     for (let i = 0; i < 3; i++) {
-      const side = i === 0 ? 0 : i === 1 ? 1.2 : -1.2;
-      candidate.set(u.pos.x + sx * side, u.pos.y + (i === 0 ? 2.7 : 2.05), u.pos.z + sz * side);
+      const side = i === 0 ? 1.2 : i === 1 ? -1.2 : 0;
+      const back = i === 2 ? 1.2 : 0;
+      candidate.set(u.pos.x + sx * side - Math.sin(yaw) * back, u.pos.y + 2.05, u.pos.z + sz * side - Math.cos(yaw) * back);
       rt.def.clampCamera?.(rt, candidate);
       const x = candidate.x - u.pos.x, z = candidate.z - u.pos.z;
       if (x * x + z * z < 1.05 * 1.05 && candidate.y < u.pos.y + 2.55 ||
@@ -4777,10 +4751,11 @@ export class Player {
     }
     // 屋外も近い肩越しで見る。携帯とパソコンで同じ間合いを保つ。
     const fieldView = !this.rt.def.town && !this.rt.def.dojo && !NAKA.cur && !this.aiming && !this.fpWanted();
+    const selfFrame = fieldView && u.alive && !this.rt.over && !this.overHold && !this.cine && !this.camShot && !this.rt.game?.photo;
     this.fieldViewK = (this.fieldViewK || 0) + ((fieldView ? 1 : 0) - (this.fieldViewK || 0)) * Math.min(1, dt * 4);
     const viewK = this.fieldViewK;
     const rc = (this.rideClose || 0) * (1 - viewK);
-    // 乱戦：近くの敵を数え、見やすい角度へカメラだけ少し回す（体の向き・狙いの向きは変えない。自分で視点を動かした直後は回さない）
+    // 近くの敵は間合いの調整に数える。視点の向きは変えない。
     this.frameT = (this.frameT || 0) - dt;
     if (this.frameT <= 0) {
       this.frameT = 0.25;
@@ -4803,22 +4778,12 @@ export class Player {
       (this.lookIdle || 0) > .7 && !this.rt.army.wallBetween(u.pos, u.team, guardPerson.pos);
     this.guardFrameK = (this.guardFrameK || 0) + ((guardFrame ? 1 : 0) - (this.guardFrameK || 0)) * Math.min(1, dt * (reduceMotion() ? 30 : 3));
     let offWant = 0;
-    if (S.autoCam && this.foeYaw != null && !this.lock && !this.aiming && !this.mounted && !this.cine && !reduceMotion() && (this.lookIdle || 0) > 2 && this.fpK < 0.5) {
-      const a = angleDiff(this.yaw, this.foeYaw);
-      // 正面から 0.35 ほどまでは回さない（いつも動く画面にしない）。回すのは最大 0.4 ほど
-      if (Math.abs(a) > 0.35) offWant = Math.max(-0.4, Math.min(0.4, (Math.abs(a) - 0.35) * Math.sign(a) * 0.6));
-      // 体と移動の向きは保ち、敵が画面の端に入る所までカメラだけ回す。
-      if (this.rt.def.rearThreatFrame && this.rearFoeYaw != null && !this.guard) {
-        const rear = angleDiff(this.yaw, this.rearFoeYaw);
-        offWant = rear - Math.sign(rear) * 0.45;
-      }
-    }
+    // 敵の数や背後の敵で視点を自動回転させない。
     if (guardFrame && guardDistance > .8) offWant = angleDiff(this.yaw, Math.atan2(guardPerson.pos.x - u.pos.x, guardPerson.pos.z - u.pos.z));
     // 戸口のある狭い戦場では、壁越しの集団の平均でなく通れる側の一人を中央へ収める。
     const closeFightFrame = S.autoCam && this.rt.def.routeDestinationSight && this.closeFoeYaw != null &&
       !this.lock && !this.aiming && !this.cine && !this.camShot && !this.overHold &&
       !this.rt.over && !this.rt.choice && !this.rt.game?.photo && !this.fpWanted() && (this.lookIdle || 0) > .7;
-    if (closeFightFrame && !guardFrame) offWant = angleDiff(this.yaw, this.closeFoeYaw);
     // 道案内中は遠い目的地でなく、次に通る戸口や曲がり角を画面へ収める。
     // 手で見回した直後や戦っている間は、本人の視点を優先する。
     const route = this.rt.missionGuide;
@@ -4869,8 +4834,8 @@ export class Player {
     this.camYawOff = (this.camYawOff || 0) + angleDiff(this.camYawOff || 0, offWant) * Math.min(1, dt * (this.lookIdle < 0.7 || this.aiming || this.lock || this.fpK > 0.3 ? 12 : 1.4));
     const cyaw = this.yaw + this.camYawOff;
     this.frameK = (this.frameK || 0) + (((this.foeNear || 99) < 4.5 && !this.mounted && !reduceMotion() ? 1 : 0) - (this.frameK || 0)) * Math.min(1, dt * 2);
-    const cp = Math.cos(this.pitch - this.frameK * 0.06);
-    const dir = _cD.set(Math.sin(cyaw) * cp, Math.sin(this.pitch - this.frameK * 0.06), Math.cos(cyaw) * cp);
+    const cp = Math.cos(this.pitch);
+    const dir = _cD.set(Math.sin(cyaw) * cp, Math.sin(this.pitch), Math.cos(cyaw) * cp);
     const right = _cR.set(-Math.cos(cyaw), 0, Math.sin(cyaw));
     // 止まって 1.5 秒ほどすると、ゆっくり寄る（周りを眺める間合い）。動けば元へ
     const still = Math.hypot(u.vel.x, u.vel.z) < 0.3 && !fight && !this.mounted;
@@ -4905,7 +4870,7 @@ export class Player {
     // 開戦の引き
     if (this.introT > 0) this.introT -= dt;
     const pr = this.introT > 0 && !reduceMotion() ? Math.min(1, this.introT / 3.4) : 0;
-    const pull = pr * pr * (3 - 2 * pr);
+    const pull = selfFrame ? 0 : pr * pr * (3 - 2 * pr);
     // 大事な場面では、その方へ視点を向ける
     if (reduceMotion()) { this.cine = null; this.camShot = null; this.shotZoom = 0; this.camPush = null; this.camLean = null; }
     if (this.cine && (this.lookIdle < 0.2 || this.aiming || this.lock || this.inCombatT > 0)) this.cine = null;
@@ -4968,7 +4933,7 @@ export class Player {
     // 遠さの設定と戦ごとの引きを、肩越しの上限にも反映する。
     // 壁・柱の検査はこの後で行い、狭い所を突き抜けない。
     const footLimit = S.camRange === 'near' ? 4.2 : S.camRange === 'far' ? 5.2 : 4.8;
-    const distR = Math.min(desiredDist + (routeNear ? 0 : landscapePull), Math.max(this.mounted ? 6 : footLimit, guardPull) + landscapePull);
+    const distR = selfFrame ? (this.mounted ? 6 : S.camRange === 'near' ? 3.8 : S.camRange === 'far' ? 4.8 : 4.4) : Math.min(desiredDist + (routeNear ? 0 : landscapePull), Math.max(this.mounted ? 6 : footLimit, guardPull) + landscapePull);
     this.camDist = this.camDist ? this.camDist + (distR - this.camDist) * Math.min(1, dt * (inRoom ? 5 : 3)) : distR;
     this.sideK = (this.sideK ?? 0.85) + ((routeNear || closeFightFrame ? .2 : fight || this.guard ? 0.95 : 0.85) - (this.sideK ?? 0.85)) * Math.min(1, dt * 3);
     // 狭い所（門・塀の内）：肩の側が壁に近ければ、空いている逆の肩へカメラだけ回す（決めた肩の設定は変えない）
@@ -5318,7 +5283,7 @@ export class Player {
     // 合戦では視点補正の後にも本人の足を画面内へ戻し、下端に余白を残す。
     // 位置は動かさず見下ろす角度だけ補い、壁の内側へカメラを押し出さない。
     const fieldFeet = !this.rt.def.town && !this.rt.def.dojo;
-    if ((fieldFeet || this.rt.def.keepPlayerFeet) && !inRoom && e < .01 && !this.aiming && !this.camShot &&
+    if (!selfFrame && (fieldFeet || this.rt.def.keepPlayerFeet) && !inRoom && e < .01 && !this.aiming && !this.camShot &&
         Math.hypot(camera.position.x - u.pos.x, camera.position.z - u.pos.z) >= (this.rt.def.footFrameMinDistance || 0) &&
         !this.cine && !this.rt.game?.photo && !this.rt.over) {
       camera.updateMatrixWorld();
@@ -5348,6 +5313,13 @@ export class Player {
     this.prevYawCam = u.heading;
     if (e > 0 && this.fpRoll) roll += this.fpRoll * e;
     if (roll) camera.rotateZ(roll);
+    // 最後の補正でも胴を中央より少し下へ固定。壁を避けた位置は保ち、
+    // 開戦・走り・乱戦で本人を探し直させない。作業用ベクトルを使い回す。
+    if (selfFrame && e < .01) {
+      _cTmp.set(u.pos.x, u.pos.y + (1.25 + (this.mounted ? RIDE.y : 0)) * bodySc, u.pos.z);
+      camera.lookAt(_cTmp);
+      camera.rotateX(Math.atan(.18 * Math.tan(camera.fov * Math.PI / 360) / camera.zoom));
+    }
   }
 
   // 川・浅瀬の中にいるか（足音と蹄の音を水の音に替える）

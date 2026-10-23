@@ -905,11 +905,12 @@ function humansStep(rt, dt, army, cam) {
     h.poseHidden = !c.vis && h.drove;
     if (poseWasHidden && !h.poseHidden) h.root.updateMatrixWorld(true);
     if (h.poseHidden) { h.animEvery = -1; continue; }
+    // 固まった亡骸には握りや指の計算も行わない。
+    if ((!u.alive || u.dying) && h.still) { h.acc = 0; continue; }
     // 近い人の握りは毎コマ。外は骨を動かす時だけ、経過分を渡す。
     const d = c.dist, nearPose = named || u.isPlayer || d <= 15 || (u.qualityTier != null ? u.qualityTier === 0 : d < HUM.fine);
     if (nearPose) gripPose(h, dt);
     // 倒れ切った人は動かさない（最後の姿勢のまま固める。人に作り直した時は、倒れ切った姿勢で一度だけ動かす）
-    if ((!u.alive || u.dying) && h.still) continue;
     // 本流の距離別の時計を保ち、携帯の中景・遠景だけ番号でコマを分散する。パソコンは毎コマ。
     // 近景・武将・斬り合い・倒れる途中は待たせない。経過分は h.acc に残す。
     const protectedPose = nearPose || combatThinking(u, Infinity);
