@@ -939,7 +939,7 @@ export class HudUpdate {
       aimHelp = isTouch ? '印の敵へ やりを向ける' : `手元の操作器を${waitFacingSide}へ動かす`;
       if (!isTouch && !rt.def.hideGuideSteps) aimHelp += `・敵まで あと${Math.max(1, Math.ceil(Math.hypot(dx, dz) / .75))}歩`;
     }
-    const facingGesture = isTouch && !rt.def.routeGuidePriority?.(rt) && (aimTurning || !!waitFacing && !this.waitFacingReady);
+    const facingGesture = isTouch && (aimTurning || !!waitFacing && !this.waitFacingReady);
     setClass($('objectives'), 'facing-order', !!facingGesture);
     setClass($('objectives'), 'facing-left', !!facingGesture && !!S.touchSwap);
     if (facingGesture) {
@@ -1152,7 +1152,7 @@ export class HudUpdate {
       shownTaskLabel = `印の敵へ ${attackOperation(rt)}`;
     // 操作の短縮や戦固有の文より後で、触る側と指の動きを一枚に示す。
     if (facingGesture && !careSequence && !retreatMoving && !retreatRequired(rt) && !rt.dodgeGuide && !recovering(rt)) {
-      shownTaskLabel = `${S.touchSwap ? '左' : '右'}の画面を${waitFacingSide}へなぞって向く`;
+      shownTaskLabel = `ここから${waitFacingSide}へ`;
       aimHelp = ''; waitFacingHelp = ''; edgeGoalDetail = '';
     }
     // 待つ下知が最終的に選ばれた時だけ、移動を促す印を休める。
@@ -1377,9 +1377,9 @@ export class HudUpdate {
       this.bottomKey = bottomKey;
       const slots = [
         // 構え・避けるは札に出さない（自分で判断できる。kaito 10/23 稲生 4）。片仮名の名も使わない（26）。
-        [pad ? '右の引き金' : '左押し', p.weapon === 'sword' ? '斬る' : p.weapon === 'gun' ? '撃つ' : p.weapon === 'bow' ? '射る' : '突く'],
-        [pad ? '右の棒' : shortcutKey(K('lock')), p.lock ? '狙いを解く' : '狙い'],
-        [pad ? '左の釦' : shortcutKey(K('use')), '話す・取る'],
+        [pad ? '右の引き金' : 'マウスの左ボタン', p.weapon === 'sword' ? '斬る' : p.weapon === 'gun' ? '撃つ' : p.weapon === 'bow' ? '射る' : '突く'],
+        [pad ? '右の棒を押す' : `${shortcutKey(K('lock'))}キー`, p.lock ? '狙いを解く' : '狙い'],
+        [pad ? '左の釦' : `${shortcutKey(K('use'))}キー`, '話す・取る'],
       ];
       setHtml($('h-bottom'), slots.map(([key, label]) => `<div class="slot"><em>${esc(key)}</em>${esc(label)}</div>`).join(''));
     }

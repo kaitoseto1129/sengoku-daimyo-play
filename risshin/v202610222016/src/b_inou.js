@@ -91,7 +91,7 @@ const LESSONS = {
   counter: ['counter', '防御した後に反撃', () => '構えを解いて左押し', '構えを解いて「つく」を押す'],
   dodge: ['dodge', '横へ回避', () => `横へ動きながら${K('dodge')}`, '横へ動きながら「回避」を押す'],
   together: ['together', '味方と一緒に戦え', () => '槍の列と並んで進む', '槍の列と並んで進む'],
-  identify: ['identify', '◇は味方、▼は林美作守の手', () => '頭上の形と字を見て、味方と並ぶ', '頭上の形と字を見て、味方と並ぶ'],
+  identify: ['identify', '◇は味方、▼は林の兵', () => '頭上の形と字を見て、味方と並ぶ', '頭上の形と字を見て、味方と並ぶ'],
   lock: ['lock', '敵に狙いを定める', () => `${K('lock')}を押す`, '「狙い」を押す'],
   morale: ['morale', '侍大将を失った部隊は士気が下がる', () => '敵の動きと退きを見る', '敵の動きと退きを見る'],
   stay: ['stay', '突出するな。味方と並べ', () => '一人で槍の列へ入らない', '一人で槍の列へ入らない'],
@@ -125,55 +125,61 @@ function park(g) {
   // 敵も狙える。控えの隊も、近づいた者とは打ち合う（kaito 10/23 稲生 17）。
 }
 
+function pinPoint(rt, pos, radius, hide) {
+  const pin = rt.flags.goalPin;
+  pin.x = pos.x; pin.z = pos.z; pin.r = radius; pin.hide = hide;
+  return pin;
+}
+
 const inou = {
   scriptedLessons: true, // 共通の手ほどきを重ねず、この戦の順番で出す
   teach: true,           // 操作を教える戦（battle.js の teachOn）。ほかの戦は操作のやり方を出さない
   compactIntro: true,
   introTaskFirst: true,
+  introPeopleFolded: true,
   // 導入は筋書きとして読める文に（意見帳 10/22・kaito の決め）。勝家は討てない・林美作守は討死、の史実に合わせる。
-  introText: () => '家督を継いだ信長。しかし家老の林秀貞と柴田勝家は「弟の信勝こそ当主にふさわしい」と兵を挙げた。信長方は約七百、信勝方は約千七百。稲生の野で、身内同士がぶつかる。まずは退く林美作守の手を、味方と追え。',
+  introText: () => '信長の弟・信勝が背き、柴田勝家と林勢も敵方についた。あなたは信長方の足軽。まず操作を試し、味方と林の兵を追う。',
   keepTaskLabel: true,
   keepGuardTaskLabel: true,
   keepDestinationTask: true,
   immediateTaskChanges: true,
-  guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.training === 1 && rt.flags.chase ? 'chase' : rt.flags.step === 0 ? null : 'holdFlag',
-  // 操作の練習中は、先に走る味方を到着地点として示さない。
-  routeGuidePriority: (rt) => rt.flags.step === 0 && rt.flags.training <= 1 && !rt.flags.caught,
-  taskLabel(rt, fallback) {
-    const F = rt.flags;
-    if (F.step !== 0) return fallback;
-    if (F.training === 0) {
-      if (F.lesson === 'view') return isTouch ? '左上の「視点」を一度押す' : '見え方を切り替えてみよう';
-      if (F.lesson === 'swing') return isTouch ? '「つく」で槍を一度突く' : '左押しで槍を一度突く';
-      return isTouch ? `${SETTINGS.touchSwap ? '右' : '左'}の画面をなぞって歩く` : 'まず少し歩いてみよう';
-    }
-    if (F.training === 1 && !F.caught && F.practice) {
-      const c = F.practice.center(), p = rt.player.u.pos;
-      const steps = Math.max(1, Math.ceil((Math.hypot(p.x - c.x, p.z - c.z) - 7) / .75));
-      return `林の兵を追う・あと約${steps}歩`;
-    }
-    return fallback;
-  },
+  guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.training === 1 && rt.flags.chase ? 'chase' : rt.flags.step === 0 ? 'genpachi' : 'holdFlag',
   // ミッション（kaito 10/23 稲生 1）。右の札に「ミッション 2／4　林の手を崩す」。林美作守を討ち取れば勝ちへ向かう。
-  missions: ['林美作守の手を追う', '林の手を崩す', '柴田隊を受け止める', '林美作守を討ち取る'],
+  missions: ['林の兵を追う', '林の部隊を崩す', '柴田隊を受け止める', '林美作守を討ち取る'],
   missionOf: (rt) => { const F = rt.flags; return F.step === 0 ? (F.training <= 1 && !F.caught ? 0 : 1) : F.step === 1 ? 2 : 3; },
   minutes: 9,
+  taskLabel: (rt) => {
+    const F = rt.flags;
+    if (F.step === 0 && F.training === 0) return F.lesson ? LESSONS[F.lesson][1] : 'まず前へ歩いてみよう';
+    return null;
+  },
+  missionStatus: (rt) => {
+    const F = rt.flags;
+    if (F.step === 0 && F.training === 0) return F.lesson ? (isTouch ? LESSONS[F.lesson][3] : LESSONS[F.lesson][2]()) : isTouch ? '左の親指で前へなぞる' : `前は「${K('forward')}」`;
+    if (F.step === 0 && F.chase && F.practice) {
+      const c = F.practice.center(), p = rt.player.u.pos;
+      const left = Math.max(1, Math.ceil(Math.hypot(c.x - p.x, c.z - p.z) - 7));
+      return `追いつくまで あと約${left}メートル。着いたら槍で突く`;
+    }
+    if (F.step === 0 && F.caught && F.training === 1) return '▼の林の兵に近づき、槍で突く';
+    return '';
+  },
   missionContext: '弘治二年（一五五六）・稲生の戦い',
   // 初陣の見分けだけ二枚。追う兵と味方を、色のほかに字と形で示す。
   fieldSigns: (rt) => {
     const F = rt.flags;
-    if (F.step !== 0 || F.ending) return null;
+    if (F.step !== 0 || F.ending || F.training === 0) return null;
     const signs = F.fieldSigns;
     if (F.signPhase === F.training && rt.t < F.signNext) return signs;
     F.signPhase = F.training; F.signNext = rt.t + 0.3;
     const ally = F.chase && F.chaseA ? F.chaseA : F.hata;
     const foe = F.training >= 5 ? F.haya1 : F.practice || F.haya1;
     for (let i = 0; i < 2; i++) {
-      const group = i === 0 ? ally : foe;
+      const group = i === 0 ? (F.chase ? null : ally) : foe;
       let best = 55 * 55, chosen = null;
       if (!group) { signs[i].unit = null; continue; }
       for (const u of group.units) {
-        if (!u.alive || u.gone || u.mesh?.visible === false || u === rt.player.u) continue;
+        if (!u.alive || u.gone || u.mesh?.visible === false || u === rt.player.u || u.name) continue;
         const d = (u.pos.x - rt.player.u.pos.x) ** 2 + (u.pos.z - rt.player.u.pos.z) ** 2;
         if (d < best) { best = d; chosen = u; }
       }
@@ -183,21 +189,21 @@ const inou = {
   },
   // 行き先のピン一本。判定と同じ所・同じ半径を返す（追いつく 7m・右の畦 8m）。戦う相手の上には立てない（近づけば消える）。
   missionPin: (rt) => {
-    const F = rt.flags, u = (o) => o?.alive ? { x: o.pos.x, z: o.pos.z, r: 4, hide: 12 } : null;
+    const F = rt.flags;
     if (F.ending) return null;
     if (F.step === 0) {
-      if (F.training === 1 && F.chase && F.practice) { const c = F.practice.center(); return { x: c.x, z: c.z, r: 7, hide: 7 }; }
-      if (F.training >= 5 && F.training < 8 && !gone(F.haya1)) { const c = F.haya1.center(); return { x: c.x, z: c.z, r: 6, hide: 14 }; }
-      if (F.training === 8) return u(F.hayaLead);
+      if (F.training === 1 && F.chase && F.practice) return pinPoint(rt, F.practice.center(), 7, 7);
+      if (F.training >= 5 && F.training < 8 && !gone(F.haya1)) return pinPoint(rt, F.haya1.center(), 6, 14);
+      if (F.training === 8) return F.hayaLead?.alive ? pinPoint(rt, F.hayaLead.pos, 4, 12) : null;
       return null;
     }
     if (F.step === 1) {
-      if (F.training === 11 && !F.flankReached) return { ...FLANK, r: 8 };
-      if (F.training === 12 && !gone(F.shiba1)) { const c = F.shiba1.center(); return { x: c.x, z: c.z, r: 8, hide: 16 }; }
-      const n = F.nobuU?.alive ? F.nobuU.pos : NOBU; return { x: n.x, z: n.z, r: 20, hide: 22 };
+      if (F.training === 11 && !F.flankReached) return pinPoint(rt, FLANK, 8);
+      if (F.training === 12 && !gone(F.shiba1)) return pinPoint(rt, F.shiba1.center(), 8, 16);
+      return pinPoint(rt, F.nobuU?.alive ? F.nobuU.pos : NOBU, 20, 22);
     }
-    if (F.step === 2) { const n = F.nobuU?.alive ? F.nobuU.pos : NOBU; return { x: n.x, z: n.z, r: 10 }; }
-    if (F.step === 3) return u(F.hayaU);
+    if (F.step === 2) return pinPoint(rt, F.nobuU?.alive ? F.nobuU.pos : NOBU, 10);
+    if (F.step === 3) return F.hayaU?.alive ? pinPoint(rt, F.hayaU.pos, 4, 12) : null;
     return null;
   },
   // 周りの味方が今なにをしているか（左上の進みの札の一行。kaito 10/22 稲生 2）
@@ -256,7 +262,8 @@ const inou = {
     const F = rt.flags;
     const lord = !!rt.G.lord;
     F.step = 0; F.ek = 0; F.ak = 0;
-    F.fieldSigns = [{ label: '◇ 味方・信長方', unit: null }, { label: '▼ 林美作守の手', unit: null }];
+    F.goalPin = { x: 0, z: 0, r: 7, hide: 7 };
+    F.fieldSigns = [{ label: '◇ 味方・信長方', unit: null }, { label: '▼ 林の兵', unit: null }];
     // ---- 信長方：直属の槍隊・少ない家臣団・若い前田利家・佐久間勢 ----
     F.hata = allyGroup(rt, { name: '信長の旗本', anchor: { ...NOBU }, facing: Math.PI, width: 14, aggro: 6, noRout: true, formation: 'yari', fullStrength: true },
       dress([{ type: 'samurai', n: 1, o: { name: '組頭 源八', invuln: true } }, { type: 'ashigaru', n: 11 }], ODA));
@@ -343,13 +350,13 @@ const inou = {
 
     rt.world.setTime('day');
     rt.setPhase('brief');
-    rt.obj('main', 'まず少し歩いてみよう', 'main');
+    rt.obj('main', 'まず前へ歩いてみよう', 'main');
     rt.obj('stay', '信長の旗のそばで戦う', 'side');
     rt.marker('holdFlag', () => F.nobuU?.alive ? F.nobuU.pos : NOBU, '信長の旗',
       { guideArea: 'guard', guideFlag: true, guideDefend: true, guideRadius: 20 });
     rt.marker('genpachi', unitPos(F.genU), '組頭 源八', { minor: true, guideRadius: 5 });
     // 始まってすぐ、自分以外の味方は退く林の手を追ってまっすぐ前へ走る（Yuto の流れ・kaito 10/22）。自分のまわりから味方がいなくなる。
-    rt.say('組頭 源八', 'まず歩いてみよ。できたら次を教えるぞ！', 5);
+    rt.say('組頭 源八', 'まず歩いてみよ。できたら次の操作を教えるぞ。', 5);
     for (const g of F.friends) {
       g.order = 'move'; g.speed = 3.2; g.aggro = 0;
       g.dest = { x: g.anchor.x, z: g === F.hata ? 6 : 10 };
@@ -368,12 +375,12 @@ const inou = {
     if (F.lesson) lessonEnd(rt, F.lesson);
     F.training = phase; F.trainT = rt.t;
     F.blocks0 = rt.stats.blocks + rt.stats.parries;
-    if (phase === 0) { F.move0 = rt.player.movedAcc || 0; rt.after(3, () => { if (F.training === 0) { F.trainT = rt.t; lesson(rt, 'move'); } }); return; }
+    if (phase === 0) { rt.after(3, () => { if (F.training === 0) { F.trainT = rt.t; lesson(rt, 'move'); } }); return; }
     if (phase === 1) {
       // 林兵三人と味方二人の小さな群れ。自分の前で、ゆっくり北へ退く。追いつくと味方は抜け、林兵だけが残る。
       rt.setPhase('march');
-      rt.obj('main', '金の印の林兵に追いつこう', 'main');
-      rt.say('組頭 源八', '金の印の林兵を追え。追いついたら槍じゃ！', 4);
+      rt.obj('main', '金の印へ走ろう', 'main');
+      rt.say('組頭 源八', '金の印まで走れ！ 追いついたら林の兵と戦うぞ。', 4);
       const p = rt.player.u.pos;
       const at = { x: p.x + 2, z: p.z - 14 };
       const g = enemyGroup(rt, { faction: 'nobukatsu', name: '林の遅れ兵', anchor: { ...at }, facing: Math.PI, width: 3, aggro: 0, noAI: true, noRout: true, order: 'move', dmgMult: 0.25, focus: rt.player.u },
@@ -647,7 +654,7 @@ const inou = {
       if (F.training === 0) {
         // 移動 → 視点 → 攻撃。字で示して試させ、できたら早めに次へ（目安：移動23秒・視点8秒・攻撃6秒）。
         const since = rt.t - (F.lessonAt || 0);
-        if (F.lesson === 'move' && ((F.lessonDone?.move || P.movedAcc - F.move0 > 6) && since > 3 || since > 23)) { F.view0 = SETTINGS.view; lesson(rt, 'view'); F.strike0 = F.strikeN; }
+        if (F.lesson === 'move' && (F.lessonDone?.move && since > 3 || since > 23)) { F.view0 = SETTINGS.view; lesson(rt, 'view'); F.strike0 = F.strikeN; }
         else if (F.lesson === 'view' && (SETTINGS.view !== F.view0 && since > 1.5 || since > 8)) { if (SETTINGS.view !== F.view0) rt.tutMark('view'); F.strike0 = F.strikeN; lesson(rt, 'swing'); }
         else if (F.lesson === 'swing' && (F.strikeN > F.strike0 && since > 0.8 || since > 6)) { rt.tutMark('swing'); this.trainingPhase(rt, 1); }
       } else if (F.training === 1) {

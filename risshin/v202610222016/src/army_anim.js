@@ -77,13 +77,13 @@ function braceFront(army, u) {
     || u.camD > 28 || u.moving > 1.2) return null;
   if (!(u._poseFrontAt > army.time)) {
     u._poseFrontAt = army.time + 0.35 + u.id % 4 * 0.03; u._poseFront = null;
-    braceArmy = army; braceUnit = u; braceBest = 3.24;
+    braceArmy = army; braceUnit = u; braceBest = 7.84;
     braceSin = Math.sin(u.heading); braceCos = Math.cos(u.heading);
-    army.forNear(u.pos.x, u.pos.z, 1.8, braceVisit);
+    army.forNear(u.pos.x, u.pos.z, 2.8, braceVisit);
     braceArmy = braceUnit = null;
   }
   const f = u._poseFront;
-  return f?.alive && !f.fleeing && army.distTo(u, f) < 1.8 ? f : null;
+  return f?.alive && !f.fleeing && army.distTo(u, f) < 2.8 ? f : null;
 }
 // 斬撃の見た目だけを三種追加する。怯む時間・押される位置・当たりは変えない。
 export function cutReaction(H, id) {
@@ -259,7 +259,7 @@ export const ArmyAnim = {
     const rearPress = front && front.team === u.team && !front.fleeing && !front.dying && !front.mounted
       && (closeFront || ((front.target?.alive || front.contactBrace > 0.2) && u.moving < 0.8))
       && (contactWeapon === 'spear' || contactWeapon === 'sword')
-      ? clamp01(((closeFront ? 2.2 : 2.0) - this.distTo(u, front)) / 1.1) * (closeFront ? 0.95 : 0.8) : 0;
+      ? clamp01(((closeFront && this.world.def.rearSpearSupport ? 3.1 : closeFront ? 2.2 : 2.0) - this.distTo(u, front)) / 1.1) * (closeFront ? 0.95 : 0.8) : 0;
     // 近接の溜め・振り・戻しでも踏ん張りを保つ。攻撃のたびに腰と両膝が伸び切るのを防ぐ。
     // 前列が応戦している間も、見張っている近い敵へ槍を構える。
     // 既存の見張り先だけを使う描画用の間合い。狙い・移動・攻撃の判断は変えない。

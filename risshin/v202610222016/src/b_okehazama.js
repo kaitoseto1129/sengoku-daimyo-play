@@ -1123,6 +1123,8 @@ const okehazama = {
     muddy: 0.85,     // 豪雨の後の山道はぬかるむ
     // 共通の足元の陰と、相手・前列へ連動する構えを使う。兵数と判定は保つ。
     contactShadows: true,
+    // 左右の槍列は中景でも胴・手足を残す。共有形の選別距離だけを替える。
+    clashMiddleDetail: 44,
     contactDust: true,
     livingSpearHedge: true,
     infantryWeight: true,
@@ -1808,10 +1810,11 @@ const okehazama = {
     }
     // 本陣の左右でも、ほかの織田の組が今川の備えと組み合う（軽い作り。兵の数・任務には数えない）。
     // 接近路の小隊で止まっても、その両脇から本陣へ続く押し合いを中景に残す。
-    // 二隊の人数を保ち、幅と接敵までの空きを詰める。至近の非表示範囲は保つ。
+    // 二隊の人数と配置は保つ。実兵の間合いの外まで槍列を残し、空いた広場にしない。
     rt.flags.wings = [[-31, -69, 0.12, 191], [39, -69, -0.12, 192]].map(([x, z, f, seed]) => clash(rt, {
       ...fieldPoint(x, z), facing: Math.PI + FIELD_TURN + f, w: 34, gap0: 36, closeSpeed: 2.6, seed, noRout: true, killRate: 0.1,
       gap: 2.35, measuredMelee: true, // 人数と前線の幅を保ち、槍列の間合いを詰めて突き・受け・引きを使う。
+      realNear: 16, // 至近は実兵へ渡し、十六〜六十メートルの軽い兵まで一律に消さない。
       groundedMelee: true, // 雨後の泥跳ね・膝からの崩れ・塊ごとに伝わる敗走。
       A: { flag: 'oda', armor: 0x2b3140, count: 220 },
       B: { flag: 'imagawa', armor: 0x3f2a24, count: 300, bows: true, flagRate: 0.5 } }));

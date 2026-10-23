@@ -45,7 +45,7 @@ export class HudOpening {
     const welcome = battle?.def.key === 'moribe'
       ? `<div class="intro-people"><button type="button" class="btn" id="intro-people-toggle" aria-expanded="false" aria-controls="intro-people-body" style="min-height:44px;pointer-events:auto">人物と戦場の説明を読む</button><div id="intro-people-body" hidden>${peopleText}</div></div>`
       : battle?.def.introPeopleFolded && peopleText
-        ? `<details class="intro-people"><summary>人物と砦の説明を読む</summary>${peopleText}</details>` : peopleText;
+        ? `<details class="intro-people"><summary>人物と戦場の説明を読む</summary>${peopleText}</details>` : peopleText;
     for (const person of people) this.peopleIntroduced.add(person.id);
     if (document.pointerLockElement) document.exitPointerLock?.();
     el.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-labelledby="intro-title" aria-describedby="intro-wait"><div class="intro-reading" tabindex="0" aria-label="戦の下知"><div class="date">${esc(date)}</div><div class="ttl" id="intro-title">${esc(battle?.def.introName || name)}</div><i class="rule" aria-hidden="true"></i><div class="sides">味方　${esc(sideName(sides.a.name))}<em>対</em>敵　${esc(sideName(sides.b.name))}</div><p id="intro-wait" style="font-size:max(15px, calc(15px * var(--text-scale, 1)));line-height:1.6">${esc(waitShown)}</p><p style="font-size:max(15px, calc(15px * var(--text-scale, 1)));line-height:1.6"><b>勝つには：${esc(goal)}</b></p><p style="font-size:max(13px, calc(13px * var(--text-scale, 1)));line-height:1.6">${prepared}${read ? '' : '読む時間は自分で選べます'}</p></div><button type="button" class="btn primary" id="intro-go" style="min-height:48px;pointer-events:auto">出陣する</button></div>`;

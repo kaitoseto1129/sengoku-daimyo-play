@@ -81,7 +81,7 @@ S.quality = 'high';
 let BM = null, bmPromise = null;
 const bmLoad = () => { if (!bmPromise) bmPromise = import('./battle.js').then((m) => (BM = m)).catch((e) => { bmPromise = null; throw e; }); return bmPromise; };
 // 戦を始める前の「支度中……」の一行（#tip の下）。失敗したら字とやり直しボタンに変える
-// 読み込みの進み（10/2）：段ごとの見込みの時間（前に測った時間を覚える）から、進みを出す。
+// 読み込みの進み（10/2）：段ごとの見込みの時間（前に測った時間を覚える）から、進みの棒と「あと約○秒」を出す。
 //   棒は transform の移り変わりで動かす（組み立ての重い間も、画面の合成の側で動き続ける）。動きを減らす設定では段ごとに跳ぶだけ
 const LD_KEY = 'risshin-ld-ms';
 const LD_DEF = { defs: 600, assets: 800, build: 1500, warm: 500, compile: 900, first: 400 };
@@ -110,13 +110,6 @@ function ldBegin(keys, battle = '') {
   cancel.style.cssText = 'min-height:44px;margin-top:16px';
   cancel.onclick = () => { game.startSeq = (game.startSeq || 0) + 1; hideLoading(); game.title(); };
   document.querySelector('#loading .ldbar').parentElement.appendChild(cancel);
-  if (!$('ld-progress')) {
-    const circle = document.createElement('div');
-    circle.id = 'ld-progress'; circle.setAttribute('role', 'progressbar');
-    circle.setAttribute('aria-label', '陣の支度'); circle.setAttribute('aria-valuemin', '0'); circle.setAttribute('aria-valuemax', '100');
-    circle.style.cssText = 'width:40px;height:40px;border-radius:50%;margin:0 auto 12px;background:#393329';
-    $('ld-left').before(circle);
-  }
   ldTick();
 }
 function ldTick() {
@@ -125,13 +118,12 @@ function ldTick() {
   if (!el || document.hidden) return;
   const P = ldPlan, i = Math.max(0, P.cur);
   const into = performance.now() - P.t;
-  const progress = Math.min(.98, (i + Math.min(.9, into / P.est[i] * .9)) / P.keys.length);
-  const circle = $('ld-progress');
-  if (circle) {
-    circle.style.background = `conic-gradient(#c5a955 ${Math.round(progress * 360)}deg, #393329 0deg)`;
-    circle.setAttribute('aria-valuenow', String(Math.round(progress * 100)));
-  }
-  const text = ldPlan.battle === 'inou' ? '支度ができたら、そのまま動けます' : '陣の支度を進めています';
+  let left = Math.max(0, P.est[i] - into);
+  for (let k = i + 1; k < P.keys.length; k++) left += P.est[k];
+  // 見込みを超えても残り秒を消さず、残る段と現在の超過分から目安を直す。
+  if (into >= P.est[i]) left += Math.max(1000, P.est[i] * .2);
+  const seconds = Math.floor((performance.now() - P.t0) / 1000);
+  const text = `動けるまで あと約${Math.max(1, Math.ceil(left / 1000))}秒（目安）・${seconds}秒経過`;
   if (el.textContent !== text) el.textContent = text;
 }
 // 段に入る：棒をこの段の終わりの手前まで、見込みの時間で伸ばす
@@ -931,7 +923,7 @@ function autoLock() {
 // 戦を始める：マウスを捕まえていれば（捕まえられない環境でも）そのまま始める。捕まえ損ねたら案内だけ出して始める
 function beginPlay(afterView = false) {
   const seenIntro = game.hud.introRead || game.G?.battle > 0 || game.G?.history?.some(Boolean);
-  if (!afterView && !seenIntro && game.battle && game.battle.def.key !== 'inou' && !isNorender()) {
+  if (!afterView && !seenIntro && game.battle && !isNorender()) {
     game.paused = true;
     game.hud.show(false);
     lockHint(false);
@@ -1900,11 +1892,7 @@ const game = {
         // 支度を待たずに進める試走へ、開戦前の札を遅れて重ねない。
         // 通常の出陣は零秒のままなので、読む時間と開戦の停止を保つ。
         if (this.battle !== b || b.t > 0 || b.over || b.ended) return;
-        if (def.key === 'inou') {
-          b.startTiming.ready = true; b.startTiming.battleSecondsAtReady = b.t;
-          b.startTiming.totalMs = b.startTiming.loadingMs + b.startTiming.readingMs;
-          this.hud.onIntroReady?.();
-        } else if (def.sides) this.hud.intro(def.sides, BATTLES[i].name, def.date(b).split('　')[0]);
+        if (def.sides) this.hud.intro(def.sides, BATTLES[i].name, def.date(b).split('　')[0]);
         else this.hud.banner(BATTLES[i].name, BATTLES[i].year);
         sfx('horagai', 0.6);
       };

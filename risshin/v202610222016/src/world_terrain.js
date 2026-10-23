@@ -172,13 +172,13 @@ export class WorldTerrain {
           // 草の下地も雨後の土と同じ明るさの範囲へ収める。
           // 素材の明るい枯草が灰白色の面を作らず、既存の粒と群落の境を残す。
           float fieldGrassGrain = clamp(dot(grass, vec3(0.333)) / max(0.003, ${SETTINGS.quality === 'high' ? 'vSoilMean.x * 0.333' : '0.12'}), 0.5, 1.65);
-          grass = mix(grass, mix(vec3(0.055, 0.075, 0.025), vec3(0.135, 0.155, 0.065), loamPatch)
+          grass = mix(grass, mix(vec3(0.075, 0.095, 0.038), vec3(0.115, 0.14, 0.062), loamPatch)
             * fieldGrassGrain, 0.72);
           // 土色への補正で元の粒まで塗り潰さない。近景から中景へ写真の濃淡を残す。
           dirt = mix(dirt * vec3(0.9, 0.81, 0.66),
-            mix(vec3(0.105, 0.075, 0.043), vec3(0.22, 0.165, 0.09), loamPatch) * dirtGrain, 0.8);
+            mix(vec3(0.125, 0.095, 0.06), vec3(0.18, 0.14, 0.085), loamPatch) * dirtGrain, 0.8);
           mud = mix(mud * vec3(0.78, 0.69, 0.55),
-            mix(vec3(0.065, 0.048, 0.03), vec3(0.145, 0.105, 0.059), loamPatch) * clayGrain, 0.8);
+            mix(vec3(0.085, 0.065, 0.043), vec3(0.125, 0.095, 0.06), loamPatch) * clayGrain, 0.8);
           ` : ''}
           // 粘土の細かな塊を近景だけ重ねる。泥の広い色むらと別の縮尺にする。
           ${`

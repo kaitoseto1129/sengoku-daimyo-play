@@ -67,12 +67,11 @@ function nearArmorParts(parts) {
     }
   });
   enhance('hips', ({ box, band }) => {
-    // 足軽の草摺は、段の縁と素懸の糸を形に持つ（units_model.js）
-    if (T === 0) return;
+    // 足軽にも下二段の重なりを残す。近い姿の同じ束へ結合し、描画回数は増やさない。
     const np = T === 0 ? 5 : 7, step = Math.PI * 2 / np;
     for (let k = 0; k < np; k++) {
       const a = k * step + (np === 5 ? Math.PI / 5 : 0) + Math.PI;
-      for (let row = 0; row < 5; row++) {
+      for (let row = 0; row < (T === 0 ? 2 : 5); row++) {
         const y = 0.644 + row * 0.048, r = (0.27 - 0.056 * (y - 0.63) / 0.27) * b + 0.01;
         band(r, y, step * 0.94, a - step * 0.47, 0.86);
         // 二列の素懸縅。糸を斜めに交差させ、段をつなぐ。
@@ -251,6 +250,16 @@ function sleeveGeo(L) {
   const hex = L.cloth || 0x2b2622, k = hex + '|' + (L.tier || 0);
   if (!sleeveGeos.has(k)) {
     const tube = new THREE.CylinderGeometry(0.074, 0.066, 0.29, 12, 3, true); tube.translate(0, -0.125, 0);
+    // 肩から垂れる布を肘で絞る。同じ頂点で袂と縫い目の襞を作り、筒の輪郭を崩す。
+    const tp = tube.attributes.position;
+    for (let i = 0; i < tp.count; i++) {
+      const x = tp.getX(i), y = tp.getY(i), z = tp.getZ(i);
+      const t = THREE.MathUtils.clamp((.02 - y) / .29, 0, 1), a = Math.atan2(z, x);
+      const belly = Math.sin(t * Math.PI);
+      const fold = 1 + belly * (.12 + .065 * Math.cos(a * 5 + t * 2));
+      tp.setXYZ(i, x * fold, y, z * fold - .018 * belly);
+    }
+    tube.computeVertexNormals();
     const cap = new THREE.SphereGeometry(0.074, 12, 5, 0, Math.PI * 2, 0, Math.PI / 2); cap.scale(1, 0.5, 1); cap.translate(0, 0.02, 0);
     // 袖口：少し厚みのある折り返し
     const cuff = new THREE.TorusGeometry(0.066, 0.007, 4, 12); cuff.rotateX(Math.PI / 2); cuff.translate(0, -0.27, 0);

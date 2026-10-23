@@ -1,4 +1,4 @@
-import { singleBattleGuide, guardPostDistance, defenseRadius, travelSignPriority, $, groundFlag, setClass, setCssVar, setText, esc } from "./hud_common.js";
+import { singleBattleGuide, guardPostDistance, defenseRadius, travelSignPriority, $, groundFlag, setClass, setCssVar, setText, esc, drawFieldPaper } from "./hud_common.js";
 import { groundAt } from "./floors.js";
 import { VIEW } from "./viewport.js";
 import { isTouch } from "./touch.js";
@@ -247,16 +247,16 @@ export class HudDestination {
       else if (openingControls) {
         // 操作面からの点線を残し、着地点の札は人物と輪を避ける。
         const size = 20 * Math.max(1, S.textScale || 1);
-        g.save(); g.font = `bold ${size}px sans-serif`;
+        g.save(); g.font = `bold ${size}px serif`;
         const width = g.measureText('ここへ').width + 44, height = Math.max(44, size + 16);
         const spot = this.goalFlagSpot(rt, x, y, width, height);
         const left = spot.labelX - width / 2, top = spot.labelY - height / 2;
         this.drawGuideLink(g, x, y, left, top, left + width, top + height, true, true);
-        g.fillStyle = '#14120f'; g.fillRect(left, top, width, height);
+        drawFieldPaper(g, left, top, width, height);
         g.translate(left + 10, top + height / 2); g.scale(.65, .65);
         this.drawFlagDestinationSign(g, 9, 0); g.restore();
-        g.save(); g.font = `bold ${size}px sans-serif`; g.textBaseline = 'middle';
-        g.fillStyle = '#fff3ba'; g.fillText('ここへ', left + 36, top + height / 2); g.restore();
+        g.save(); g.font = `bold ${size}px serif`; g.textBaseline = 'middle';
+        g.fillStyle = '#241d15'; g.fillText('ここへ', left + 36, top + height / 2); g.restore();
       } else if (!attached) this.drawFlagDestinationSign(g, x + 9, y - 17);
     } else {
       // 画面外は向きだけ。端に着地点の旗や輪を作らない。
