@@ -1704,7 +1704,7 @@ const game = {
     // 初陣は題の旗を一度押すだけ。名と開戦の確認を挟まない。
     // 初陣の背景は支度中に読める。組の支度が要らなければ、そのまま戦へ。
     // 稲生は札の説明の画面を出さず、すぐ戦へ（kaito 10/23 稲生 15）。
-    if (BATTLES[i]?.id === 'inou' || !this.G.lord && !RANKS[this.G.rank].squad) return this.startBattle(i);
+    if (BATTLES[i]?.id === 'inou' || BATTLES[i]?.id === 'okehazama' || !this.G.lord && !RANKS[this.G.rank].squad) return this.startBattle(i);
     // 信長で遊ぶ時は、信長の立場の札
     const L = this.G.lord && lordOf(BATTLES[i].id);
     if (L) { storyCard({ year: L.year, title: L.name, text: L.goal ? [...L.text, `任務：${L.goal}`] : L.text, button: L.button, tips: L.tip }, () => this.startBattle(i)); return; }

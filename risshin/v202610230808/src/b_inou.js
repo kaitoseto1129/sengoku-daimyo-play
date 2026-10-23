@@ -152,8 +152,8 @@ const inou = {
   nearAllySolidBody: true,
   missionPinCaption: '',
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
-  // 任務は一行。距離・向き・操作は書かず、同じ兵をピンで追う。
-  missions: ['敵を倒せ', '敵を倒せ', '柴田隊に耐えろ', 'はやしを倒せ'],
+  // 任務は一行。兵と武将を区別し、距離・向き・操作は書かない。
+  missions: ['林の兵を倒せ', '林の兵を倒せ', '柴田隊に耐えろ', '林美作守を倒せ'],
   missionHeading(rt) {
     return rt.flags.step === 0 && rt.flags.training === 8 ? '敵の隊長を倒せ' : this.missions[this.missionOf(rt)];
   },
@@ -185,27 +185,11 @@ const inou = {
     }
     return signs;
   },
-  // 行き先は一本。林兵は頭上を指し、追いつく七メートル・槍の間合い・右の畦八メートルで消す。
+  // ピンは移動先だけ。敵は頭上の赤い▼に統一し、黄色い印を重ねない。
   missionPin: (rt) => {
     const F = rt.flags;
     if (F.ending) return null;
     if (F.step === 0) {
-      if (F.training >= 0 && F.training <= 8) {
-        const u = F.training === 8 ? F.hayaLead : approachUnit(rt);
-        if (!fighting(u)) return null;
-        if (rt.player.inRange && fighting(rt.player.rangeCueTarget)) return null;
-        const radius = rt.player.meleeReach('thrust') * .8;
-        const name = F.chase ? '林の遅れ兵' : F.training === 8 ? '林の小隊長' : '林の兵';
-        // 追う間も同じ林兵に印を付け、旗と追う相手を取り違えさせない。
-        const pin = pinPoint(rt, u.pos, 0, 0, u, name);
-        const me = rt.player.u.pos, dx = me.x - u.pos.x, dz = me.z - u.pos.z;
-        const d = Math.hypot(dx, dz);
-        // 敵の立ち位置でなく、槍が届く手前の足場へ一本だけ刺す。
-        pin.x += (d > .01 ? dx / d : -Math.sin(rt.player.u.heading)) * radius;
-        pin.z += (d > .01 ? dz / d : -Math.cos(rt.player.u.heading)) * radius;
-        pin.approach = true;
-        return pin;
-      }
       return null;
     }
     if (F.step === 1) {
@@ -214,7 +198,7 @@ const inou = {
       return pinPoint(rt, F.nobuU?.alive ? F.nobuU.pos : NOBU, 20, 22);
     }
     if (F.step === 2) return pinPoint(rt, F.nobuU?.alive ? F.nobuU.pos : NOBU, 10);
-    if (F.step === 3) return fighting(F.hayaU) ? pinPoint(rt, F.hayaU.pos, 4, 12, F.hayaU) : null;
+    if (F.step === 3) return null;
     return null;
   },
   // 周りの味方が今なにをしているか（左上の進みの札の一行。kaito 10/22 稲生 2）

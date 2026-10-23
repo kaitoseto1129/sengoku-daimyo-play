@@ -1020,14 +1020,22 @@ export function touchFrame(dt) {
     // 端の外（60px、点線の輪）まで押し込むと走る。走りを切替式にしていれば、一度越えたら指を放すまで走り続ける
     let run = L > R * 1.2;
     if (S.runToggle) { if (run) T.runLatch = true; run = run || !!T.runLatch; }
-    // 触れただけで歩き出さないよう、8px の遊び
-    if (L < 8) { dx = 0; dy = 0; }
+    // 親指の小さな揺れで歩き出さないよう、12px の遊び
+    const dead = 12;
+    if (L <= dead) { dx = 0; dy = 0; }
     // 指が遠くへ行ったら、棒の根も少しついて来る（押し込み続けても戻しやすい）
     if (L > R * 1.8) { const k = (L - R * 1.8) / L; T.move.ox += dx * k; T.move.oy += dy * k; dx = T.move.x - T.move.ox; dy = T.move.y - T.move.oy; }
     const L2 = Math.hypot(dx, dy);
     if (L2 > 16 && p.u.alive && !p.camShot && Math.hypot(p.u.pos.x - (T.moveStartX ?? p.u.pos.x), p.u.pos.z - (T.moveStartZ ?? p.u.pos.z)) > .35) T.moveLearned = true;
-    const m = Math.min(1, Math.max(0, L2 - 8) / (R - 8));
-    const ax = L2 > 0 ? dx / L2 * m : 0, ay = L2 > 0 ? dy / L2 * m : 0;
+    const m = Math.min(1, Math.max(0, L2 - dead) / (R - dead));
+    // 前後の14度はまっすぐに吸い付く。外側は横向きまで連続して広げ、境目で跳ねない。
+    const snap = 14 * Math.PI / 180;
+    const angle = Math.max(0, Math.atan2(Math.abs(dx), Math.abs(dy)) - snap) * (Math.PI / 2) / (Math.PI / 2 - snap);
+    let ax = Math.sign(dx) * Math.sin(angle) * m, ay = Math.sign(dy) * Math.cos(angle) * m;
+    // 約70ミリ秒でなじませる。更新回数によらず同じ手応えにし、中心へ戻した時はすぐ止める。
+    const blend = 1 - Math.exp(-Math.max(0, dt) / .07);
+    ax = m > 0 ? T.axis.x + (ax - T.axis.x) * blend : 0;
+    ay = m > 0 ? T.axis.y + (ay - T.axis.y) * blend : 0;
     T.axis.x = ax; T.axis.y = ay; input.axis = T.axis;
     input.runHeld = run;
     st.classList.remove('idle');

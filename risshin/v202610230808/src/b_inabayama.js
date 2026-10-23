@@ -2565,7 +2565,7 @@ const inabayama = {
   // ミッション（kaito 10/23 1・49・50）。右上の一行は「何をするか」だけ。向き・行き先の字は書かない。
   lendBow: true, // 美濃攻めは弓を覚える戦（kaito の役割分担）。問屋で買っていなくても弓を貸す。
   noSiegeCards: true, // 右の曲輪の札（未見・様子不明）は出さない。字は右上の一行だけ（kaito 10/23）。
-  missions: ['藤吉郎のそばへ', 'ここで火をつける', 'さくを守れ', '搦手の山道を攻め上る', '斎藤龍興の馬廻を討つ', '本丸に合図の火を放つ'],
+  missions: ['この人についていく', '火の印へ', 'さくを守れ', '搦手の山道を攻め上る', '斎藤龍興の馬廻を討つ', '本丸に合図の火を放つ'],
   missionHeading(rt) {
     if (this.missionOf(rt) === 1) {
       if (rt.flags.lit >= NEED) return '町の出口へ';
@@ -3482,7 +3482,7 @@ const inabayama = {
     rt.say(officer(rt), `${nm(rt)}、来たか。今日は風が強い。城下の井口の町に火をかける`, 4.5);
     rt.say(officer(rt), '城下を焼き、囲みの支度をする。……松明を用意せい', 4);
     // 話を聞くまでは旗を動かさず、町の敵の手前で下知を渡す。
-    rt.marker('kino', () => F.kinoU.alive ? F.kinoU.pos : null, '藤吉郎', { group: F.kino, guideAlways: true, guidePerson: () => F.kinoU, guideFootRing: true, guideRadius: 5, guideName: 'とうきちろうへ', guideTalk: false, guideVisibleOnly: true, guideCompact: true });
+    rt.marker('kino', () => F.kinoU.alive ? F.kinoU.pos : null, 'とうきちろう', { group: F.kino, guideAlways: true, guidePerson: () => F.kinoU, guideFootRing: true, guideRadius: 5, guideName: 'とうきちろうへ', guideTalk: false, guideVisibleOnly: true, guideCompact: true });
     rt.addInteract('talk', () => F.kinoU.alive ? F.kinoU.pos : null, '藤吉郎（とうきちろう）の話を聞く', () => {
       if (F.joinedKino) return;
       F.joinedKino = true; rt.uninteract('talk');
@@ -4032,10 +4032,8 @@ const inabayama = {
     rt.unmark('honGuard');
     const S = { x: HON.x + 8, z: HON.z + 12 };
     F.sig = S; F.sigT = rt.t;
-    this.nextObj(rt, '目印の小屋に近づこう。火をつけて味方に知らせる');
-    rt.say(officer(rt), '目印の小屋に近づけ。着いたら「火をつける」の札が出るぞ', 4);
-    rt.marker('sig', { x: S.x - 4, z: S.z }, '火をつける小屋', { h: 1.8, entrance: true, guideAlways: true, guideSymbol: 'fire', guideDestination: () => inabaSignalApproach(rt) });
-    rt.addInteract('sig', { x: S.x - 4, z: S.z }, '小屋に火をつける（合図）', () => this.win(rt), { r: 4, hold: 1.6 });
+    // 本丸の守りを退けた時点で合図を上げ、移動や操作を待たず勝ちにする。
+    this.win(rt);
   },
 
   // 軍議の作戦（七曲り・百曲り・水の手）で、外の部隊を動かす。自分の筋（藤吉郎の手と搦手）はそのまま
@@ -4327,8 +4325,6 @@ const inabayama = {
       // 表と裏から挟まれて四十五秒、残る旗本も主殿の奥へ退く（合図の火を放てないまま囲みの時間切れにしない）
       if (!F.sig && !F.honBroke && rt.t - F.stepT > 45) { F.honBroke = true; for (const g of F.honGuards) if (!gone(g)) { g.noRout = false; g.morale = 0; } }
       if (!F.sig && F.hata.every(gone) && gone(F.tatsu) && gone(F.keep.guard)) this.lightSig(rt);
-      // 合図は本人が実際に火を付けるまで待つ。
-      if (F.sig && rt.t - F.sigT > 20 && !F.sigCall) { F.sigCall = true; rt.say(officer(rt), '目印の小屋に近づけ。札が出たら「火をつける」を長押しじゃ', 4); }
     }
   },
 

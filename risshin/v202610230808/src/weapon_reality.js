@@ -1,11 +1,13 @@
 // 槍の実寸と手の出を、本人・兵・届く印で共有する。形は縮めない。
+export const spearThrustExtension = (u) => u.isPlayer ? 0.86 : 0.62;
+
 export function spearReach(u, kind = 'thrust') {
   const data = u.wpn?.userData;
   if (!data?.tip) return u.reach || 2.9;
   const scale = u.mesh?.scale.z || 1;
   if (kind === 'butt') return (Math.abs(data.butt || -1) + 0.33) * scale;
   // 構えの拳は体の前十八糎。技の手の出は描く姿と同じ寸法。
-  const hand = kind === 'thrust' || kind === 'charged' || kind === 'charge' ? 0.8 : kind === 'hook' ? 0.73 : kind === 'slam' ? 0.08 : 0.18;
+  const hand = kind === 'thrust' || kind === 'charged' || kind === 'charge' ? 0.18 + spearThrustExtension(u) : kind === 'hook' ? 0.73 : kind === 'slam' ? 0.08 : 0.18;
   return (data.tip + hand) * scale;
 }
 

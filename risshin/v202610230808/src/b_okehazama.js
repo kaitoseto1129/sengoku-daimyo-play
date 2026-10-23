@@ -655,7 +655,7 @@ const okehazama = {
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は、今する動きを短くやさしく伝える。
   missionSingleLine: true,
-  missions: ['仲間と集まれ', '集合場所へ進め', '雨やみを待て', '▼の兵を倒せ', 'いまがわよしもとを倒せ', 'にげる敵を追え', '仲間と集まれ'],
+  missions: ['仲間と集まれ', '集合場所へ進め', '合図を待て', '▼の兵を倒せ', 'いまがわよしもとを倒せ', 'にげる敵を追え', '仲間と集まれ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -663,11 +663,10 @@ const okehazama = {
     return rt.phase === 'assault' ? 3 : rt.phase === 'wait' ? 2 : rt.phase === 'march' ? 1 : 0;
   },
   missionHeading(rt) {
+    if (rt.phase === 'wait') return '合図を待て';
     if (rt.phase === 'brief' && rt.flags.briefed) return '出発を待て';
     if ((rt.phase === 'march' || rt.phase === 'wait') && rt.flags.scoutFighting) return '▼の兵を倒せ';
     if (rt.phase === 'march' && this.squadFlagReached(rt)) return '仲間を待て';
-    // 迎撃する相手がいない間だけ待つ。迎撃の終了判定は既存の組の下知に従う。
-    if (rt.phase === 'wait') return this.squadFlagReached(rt) ? '雨やみを待て' : '仲間と集まれ';
     return this.missions[this.missionOf(rt)];
   },
   // 今の行き先と同じ旗持ちを示す。兵は増やさない。
@@ -706,11 +705,21 @@ const okehazama = {
   missionPin(rt) {
     const F = rt.flags;
     if (F.ending || rt.hud.retreatGuide?.active && rt.hud.retreatGuide.valid) return null;
-    // 戦っている間は敵の頭上の赤い▼だけ。足元の黄色い別目標へ誘わない。
-    if (F.scoutFighting || rt.phase === 'assault' && !F.victory) return null;
+    if (F.scoutFighting && rt.phase !== 'assault') return null;
     const pin = F.missionPinTarget || (F.missionPinTarget = { x: 0, z: 0, r: 8, hide: 8 });
     pin.enemy = false; pin.dodge = false; pin.unit = null; pin.waiting = undefined;
     pin.area = false; pin.arrived = false; pin.progress = null; pin.footRing = false; pin.follow = false;
+    // 道の守りが崩れたら、同じピンを次の敵か幕の口へ移す。
+    if (rt.phase === 'assault' && !F.victory) {
+      const entrance = !F.entered && F.roadStep >= F.road.length ||
+        F.guardOpened && !F.mouthReached && !F.koshiLeft;
+      const enemy = entrance ? null : this.objectiveEnemies(rt)[0] || F.yoshimoto;
+      const pos = entrance ? F.honjinPin || (F.honjinPin = fieldPoint(18, -100)) : readyUnit(enemy) ? enemy.pos : null;
+      if (!pos) return null;
+      pin.x = pos.x; pin.z = pos.z; pin.r = 0; pin.hide = 0;
+      pin.enemy = !!enemy; pin.unit = enemy; pin.footRing = !!enemy;
+      return pin;
+    }
     // 雨待ちの進みは同じ集合ピンの穴で示す。接敵中は上の判定で敵の印を優先する。
     if (rt.phase === 'wait') {
       const pos = this.squadFlagPosition(rt);
@@ -2021,7 +2030,7 @@ const okehazama = {
     rt.setPhase('march'); rt.flags.marchBegan = rt.t; rt.objDone('talk'); rt.objRemove('talk'); rt.objRemove('honjin0');
     rt.flags.speechCheckAt = 0; this.clearOldSpeech(rt);
     this.marchFlag(rt);
-    localSay(rt, rt.hostGroup, 'たいちょう', '出発じゃ！　黄色い矢印の旗持ちに続け', 3);
+    localSay(rt, rt.hostGroup, 'たいちょう', '出発じゃ！　ピンの場所へ進め', 3);
     // 合図で移し直さず、同じ兵が林の低地から歩いて接近する。
     for (const g of rt.flags.cols) { g.arrived = false; g.order = 'path'; g.pathIdx = 0; }
     rt.flags.nob.order = 'path'; rt.flags.nob.pathIdx = 0;
@@ -2235,13 +2244,13 @@ const okehazama = {
     if (atGoal) {
       if (F.marchSpeed !== undefined) host.speed = F.marchSpeed;
       rt.setPhase('wait'); rt.objRemove('col');
-      rt.obj('wait', '組の旗で 雨がやむのを待つ', 'main');
+      rt.obj('wait', '合図を待て', 'main');
       // 下知を待つ場所だけを固定して示す。隊や兵の動きには触れない。
       F.waitPos = F.marchGoal;
       F.waitReadyAt = rt.t + 17;
       rt.marker('wait', F.waitPos, '組の旗で待つ場所', { guideArea: 'wait', guideFlag: true, group: host, guideRadius: 8, guidePriority: 200,
         waitUntil: () => rt.phase === 'wait' ? F.waitReadyAt : null, waitDuration: 17 });
-      localSay(rt, rt.hostGroup, '組頭', '矢印の旗で待て。「かかれ」は攻め始めの合図じゃ', 3);
+      localSay(rt, rt.hostGroup, '組頭', '合図を待て', 3);
     }
   },
   // 行軍が短く終わっても、見張りの寄せを取りこぼさない。
@@ -2302,11 +2311,11 @@ const okehazama = {
       const p = rt.player;
       if (!p.lock && !(p.inCombatT > 0)) p.cine = { x: FIELD_HONJIN.x, z: FIELD_HONJIN.z, t: 1.6 };
     }
-    if (rt.pt > 15 && !F.kakare) {
+    if (rt.t >= F.waitReadyAt && !F.kakare) {
       F.kakare = true; hush(2);
       localSay(rt, rt.G.lord ? rt.player.u : rt.flags.nob, '織田信長', 'すわ、かかれ、かかれ！', 3);
       if (!rt.G.lord) rt.after(0.6, () => localSay(rt, rt.hostGroup, '組頭', '攻め始めるぞ！　仲間と赤い▼の敵を倒せ！', 2.5));
-      rt.after(2, () => this.startAssault(rt));
+      this.startAssault(rt);
     }
   },
   startAssault(rt) {
@@ -2382,99 +2391,6 @@ const okehazama = {
   assault(rt, dt) {
     const F = rt.flags, y = F.yoshimoto, p = rt.player.u.pos;
     if (F.ending) return;
-    if (F.victory) {
-      // 公記：深田へ逃げ込んだ者は這いまわり、若者どもが追いついて討った。退き鉦までの短い追い討ち。
-      if (F.pursuitUntil > rt.t) {
-        if (!(F.returnNoticeAt > rt.t)) {
-          F.returnNoticeAt = rt.t + 1;
-          rt.objProgress('pursue', '');
-          // 近くに敵がいなくなれば、早めに鉦を打つ。
-          if (rt.t - F.pursuitStart > 15 && !rt.army.nearestEnemy(rt.player.u, 40)) F.pursuitUntil = rt.t;
-        }
-        return;
-      }
-      if (F.pursuitUntil && !F.pursuitDone) {
-        F.pursuitDone = true; F.returnRetryAt = 0;
-        F.returnDeadline = rt.t + 120;
-        // 鉦を聞いた組はその場で追い討ちをやめる。動く旗を延々追わせない。
-        for (const g of F.attackers) if (readyGroup(g)) {
-          const c = g.center();
-          g.anchor.x = c.x; g.anchor.z = c.z;
-          g.order = 'hold'; g.guard = true; g.focus = null; g.aggro = 3; g.seekRange = 8;
-        }
-        // 二つ打ちは「止まれ」。追撃を切り上げる退き鉦は既存の乱打にそろえる。
-        rt.army.playFar('sig_hike', rt.G.lord ? rt.player.u.pos : F.nob.center(), 1);
-        rt.objDone('pursue'); rt.objRemove('pursue');
-        localSay(rt, F.returnGroup || rt.hostGroup, '組頭', '退き鉦じゃ！　追うのはここまで。組の旗へ集まれ', 4);
-        rt.obj('return', '退き鉦の乱打。追うのをやめ、帰る組の旗へ集まれ', 'main');
-        rt.marker('genpachi', () => returnCenter(rt), '帰る組の旗', { guideFlag: true, group: F.returnGroup, guideRadius: 8 });
-        rt.hud.root.setAttribute('data-oke-return', '');
-      }
-      const c = returnCenter(rt);
-      const distance = c ? Math.hypot(c.x - p.x, c.z - p.z) : Infinity;
-      const atFlag = distance <= 8 && !rt.army.wallBetween(p, -1, c);
-      // 組頭は遅れた本人を置き去りにしない。列と下知は保ち、追いつけば同じ道を再開する。
-      const returning = F.returnGroup;
-      if (returning?.okeReturnOrdered) {
-        if (distance > 12 && !returning.okeRegrouping) {
-          returning.okeRegrouping = true;
-          returning.anchor.x = c.x; returning.anchor.z = c.z;
-          returning.order = 'hold'; returning.guard = true; returning.focus = null;
-        } else if (returning.okeRegrouping && atFlag) {
-          returning.okeRegrouping = false;
-          returning.order = 'path'; returning.guard = false;
-        }
-      }
-      // 帰る列が詰まっても、旗の下で安全に十秒集まれば帰還の終幕へ進む。
-      // 使番の到着や下知そのものを、時刻だけで成立させるわけではない。
-      if (atFlag && !(F.returnEnemyAt > rt.t)) {
-        F.returnEnemyAt = rt.t + 0.5;
-        // 背を見せて逃げる者・手負いで退く者は、帰る支度を止めない。
-        F.returnEnemyNear = !!rt.army.nearestEnemy(rt.player.u, 12, (o) => !o.fleeing && !o.woundOut &&
-          Math.abs(o.pos.y - rt.player.u.pos.y) < 3 && !rt.army.wallBetween(p, -1, o.pos));
-      }
-      const enemyNear = atFlag && F.returnEnemyNear;
-      F.returnGatherT = atFlag && !enemyNear ? (F.returnGatherT || 0) + dt : 0;
-      // 使番の遅れや交戦を、共通の寄せ時間で帰還失敗にしない。
-      // 組が谷を抜けた後、一人で離れ続けた時だけ知らせて待つ。
-      const leftBehind = c && F.returnGroup.okeReturnOrdered && localZ(c.x, c.z) > 0 && Math.hypot(c.x - p.x, c.z - p.z) >= 16;
-      F.returnAwayT = leftBehind ? (F.returnAwayT || 0) + dt : 0;
-      if (!leftBehind) F.returnWarn = false;
-      if (!F.returnWarn && F.returnAwayT > 30) { F.returnWarn = true; rt.bark('組は谷を抜けた。帰る旗へ戻れ。このまま離れると組に戻れぬぞ', true); }
-      if (!F.returnDeadlineWarn && rt.t >= F.returnDeadline - 30) {
-        F.returnDeadlineWarn = true;
-        rt.bark('帰る旗へ集まれ。あと三十秒で組をまとめて退くぞ', true);
-      }
-      if (!(F.returnRetryAt > rt.t)) { F.returnRetryAt = rt.t + 8; this.returnOrders(rt); }
-      if (!(F.returnNoticeAt > rt.t)) {
-        F.returnNoticeAt = rt.t + 1;
-        // 閉じた札でも、迎撃と帰る支度の残り時間を読めるようにする。
-        const text = atFlag ? enemyNear ? '帰る組の旗で、味方と敵を迎え撃て' :
-          '帰る組の旗で待て。組をまとめて退く' : '帰る組の旗へ集まれ';
-        const objective = rt.objectives.find((o) => o.id === 'return' && !o.state);
-        if (objective && objective.text !== text) rt.obj('return', text, 'main', true);
-        rt.objProgress('return', '');
-      }
-      // 谷の曲がりまで組も本人も離脱すれば帰還。砦までの空歩きはさせない。
-      const leftValley = c && F.returnGroup.okeReturnOrdered && localZ(c.x, c.z) > 0 && localZ(p.x, p.z) > 0 && distance < 16;
-      if (leftValley || F.returnGatherT >= 10) {
-        F.ending = true; F.returnDone = true; rt.unmark('genpachi'); rt.objDone('return'); rt.tracker.main = true;
-        const deed = leftValley ? '組と砦方面へ離脱した' : '帰る旗の下で組と合流した';
-        rt.award((t) => t.side.push(deed), deed);
-        rt.banner(leftValley ? '組と谷を抜けた' : '帰る組に合流した', '毛利が義元を討ち取り、織田勢が勝った');
-        // 余韻と次への引き。森部（美濃）へつながる一言。
-        rt.after(1.5, () => localSay(rt, F.returnGroup || rt.hostGroup, '組頭', 'よう生きて戻った。倒れた仲間を忘れるな。次は美濃で働こうぞ', 5));
-        rt.finish({ scriptedEnd: true }, 7);
-      } else if (!c || F.returnAwayT > 60 || rt.t >= F.returnDeadline) {
-        F.ending = true; rt.objFail('return'); rt.tracker.main = false;
-        rt.unmark('genpachi');
-        const failureReason = !c ? '義元は討たれたが、帰る組が崩れ、組への合流を果たせなかった。' : F.returnAwayT > 60 ?
-          '義元は討たれたが、帰る旗から離れ続け、組への合流を果たせなかった。' :
-          '義元は討たれたが、退き鉦から二分たっても組と帰る支度が整わなかった。帰る旗へ集まり、近くの敵には味方と構えよう。';
-        rt.banner('織田勢は勝った', failureReason); localSay(rt, rt.hostGroup, '組頭', '残った者を集め、砦の方へ退け！', 3); rt.finish({ scriptedEnd: true, failureReason }, 5);
-      }
-      return;
-    }
     // 局地の変化は一秒に一度。段が替わっても兵は増やさず、生存隊が歩いて動く。
     F.tacticalT = (F.tacticalT || 0) - dt;
     if (F.tacticalT > 0) return;
@@ -2699,7 +2615,7 @@ const okehazama = {
   },
   returnHome(rt) {
     const F = rt.flags;
-    // 帰る旗へ進むのは、実際に義元が討たれた後だけ。
+    // 実際に義元が討たれた時点で勝ちにする。
     if (F.yoshimoto.alive || F.victory) return;
     rt.unmark('hattori'); rt.unmark('mori'); rt.unmark('guardGap'); rt.unmark('road'); rt.unmark('honjin');
     F.nob.focus = null;
@@ -2740,46 +2656,10 @@ const okehazama = {
         }
       });
     }
-    F.returnGroup = readyGroup(rt.hostGroup) ? rt.hostGroup : F.attackers.find(readyGroup);
-    for (const q of F.far) if (q.m.visible) q.returnWaiting = true;
-    // 帰る下知の前に、二十秒だけ追い討ち。集まる十秒と合わせ、帰陣へ進む。
-    F.pursuitStart = rt.t; F.pursuitUntil = rt.t + 20;
-    for (const g of F.attackers) if (readyGroup(g)) { g.order = 'attack'; g.seekRange = 30; g.focus = null; }
-    rt.obj('pursue', '深田へ逃げる敵を 組と追う', 'main');
-    if (!rt.G.lord) rt.after(2.5, () => localSay(rt, rt.hostGroup, '組頭', '逃げる者を追え！　首は捨て置け。組の旗の見える所までじゃ', 4));
-  },
-  // 討死と帰る下知は生きた使番で届ける。失われた便だけ送り直す。
-  returnOrders(rt) {
-    const F = rt.flags, mor = F.nobKill[1];
-    if (F.pursuitUntil > rt.t) return;
-    const commander = rt.G.lord ? rt.player.u : F.nob.units.find((u) => u.name === '織田信長' && readyUnit(u));
-    // 下知役が戦列を離れた時は、古い受け手を待ち続けず報告からやり直す。
-    if (F.returnChief && !readyUnit(F.returnChief)) F.returnChief = null;
-    if (!F.returnChief) {
-      if (F.returnReport?.state === 'run') return;
-      F.returnReport = fieldNotice(rt, mor, commander || mor, 0, (chief) => {
-        F.returnChief = chief;
-        for (let i = 0; i < F.far.length; i++) {
-          const q = F.far[i];
-          if (!q.m.visible) continue;
-          fieldNotice(rt, chief, q.a, 0, () => {
-            q.path = [[localX(q.x, q.z), localZ(q.x, q.z)], ...q.path.slice().reverse(), [-28 + i * 8, 206 + (i % 2) * 16]];
-            q.s = 0; q.done = false; q.returnWaiting = false;
-          });
-        }
-      });
-    }
-    const chief = F.returnChief;
-    if (!chief || !readyUnit(chief)) return;
-    for (const g of F.attackers) if (readyGroup(g) && !g.okeReturnOrdered && g.okeReturnRunner?.state !== 'run') {
-      g.okeReturnRunner = fieldNotice(rt, chief, g, 0, (q) => {
-        retreatGroup(q);
-        if (q === F.returnGroup || q === rt.hostGroup) {
-          if (!sightPoint(rt, F.yoshimoto.pos)) rt.bark('義元討死の知らせが届いた。組と元の道へ戻れ');
-          localSay(rt, q, '組頭', '追うのはここまでじゃ。組の旗について戻れ！', 4);
-        }
-      });
-    }
+    // 義元の討取りで決着。追撃や帰る旗への合流を待たない。
+    F.ending = true; rt.tracker.main = true;
+    rt.player.u.invuln = true;
+    rt.finish({ scriptedEnd: true }, 7);
   },
   onKill(rt, v, k) {
     // 討った本人だけを覚える。味方の働きを自分の手柄にはしない。
@@ -2793,7 +2673,7 @@ const okehazama = {
     if (!rt.G.lord) rt.violation('分捕りを禁じる下知に背いた', ['組頭', '首を置け。敵を突き崩せ！']);
   },
   onFinish(rt, info) {
-    // 義元討取りが主の手柄。帰る組への合流は、別に得た副任務の加点とする。
+    // 義元討取りが主の手柄。
     const mainDone = rt.flags.victory === true;
     rt.tracker.main = mainDone;
     if (mainDone) {

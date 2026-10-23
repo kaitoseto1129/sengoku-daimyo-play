@@ -42,8 +42,7 @@ const START2 = { x: 40, z: 98 };
 const POINT2 = { x: 40, z: 79 };
 const FORD_R = 4;
 // 向こう岸へ上がれば渡河済み。浅瀬から横へそれても、小旗へ戻らせない。
-const atFordBank = (p, world) => p.z <= nireZ(p.x) - 9 ||
-  p.z < nireZ(p.x) && world.heightAt(p.x, p.z) >= .14;
+const atFordBank = (p) => p.z <= nireZ(p.x) - (NIREMATA2 - POINT2.z);
 const FRONT2 = { x: 4, z: 20 };
 const ASSEMBLY2 = { x: 14, z: 10 };
 const RETREAT2 = { x: 24, z: 48 };
@@ -478,8 +477,13 @@ const moribeHeight = (x, z, b) => (moribeDem ? demBlend(moribeDem, x, z, b + mor
 function moribeFord(rt) {
   const W = rt.world, st = W.def.streams[1], pa = st.mesh.geometry.attributes.position;
   // ピンも到着判定も、描いた水面から地面が出る最初の岸に合わせる。
-  let bank = 0;
-  while (bank < st.w && W.heightAt(START2.x, nireZ(START2.x) - bank) < .14) bank += .25;
+  // 川の中央で地面が浅くなっていても、ピンを中央へ置かない。
+  // 描かれた北岸と到着判定の両方を満たす地点を、出陣時に一度だけ探す。
+  // 川幅は片側の幅。水面の外から探し、岸へ一歩上がった所を行き先にする。
+  // 幅と同じ値から「幅より小さい間」で探すと、一度も岸を調べられない。
+  let bank = st.w + .5;
+  while (bank < st.w + 12 && (W.heightAt(START2.x, nireZ(START2.x) - bank) < .14 ||
+    drawGroundAt(W, START2.x, nireZ(START2.x) - bank) < .14)) bank += .25;
   POINT2.z = nireZ(START2.x) - bank;
   for (let i = 0; i < st.surface.length; i += 3) {
     const x = st.surface[i], k = Math.max(0, Math.min(1, (160 - Math.abs(x)) / 30));
@@ -1017,7 +1021,7 @@ const moribe = {
   // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は「何をするか」だけ（kaito 10/23 49・50）。段の総称で通し、向き・行き先の字は書かない。
-  missions: ['川を渡れ', '仲間を待て', '斎藤の先手を倒せ', '仲間と迎え撃て', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
+  missions: ['川を渡れ', '仲間を待て', '赤い▼の敵を倒せ', '仲間と耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
   // ピン・▼・名前は同じ本人へ。描画の間引きで相手を替えない。
   commanderTarget(rt) {
     const F = rt.flags;
@@ -1154,10 +1158,9 @@ const moribe = {
     let pos = null, r = 6, hide = 6;
     if (!F.signal) {
       if (F.pointDone) return null;
-      // 仲間が集まる岸を一本のピンで保つ。到着済みは塗りを替え、踏み直させない。
+      // 岸に上がるまで一本だけ示し、渡った瞬間に消す。足元へ戻らせない。
+      if (F.pointInside) return null;
       pos = POINT2; r = FORD_R; hide = 0;
-      q.waiting = q.arrived = !!F.pointInside;
-      q.progress = q.arrived ? this.missionWaitProgress(rt) || 0 : 0;
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
     } else if (F.stage === 'assemble') {
@@ -2097,7 +2100,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       const hp = t?.hp;
       const result = damage.call(this, t, amount, src, ...rest);
       if (src?.isPlayer && t?.team !== src.team && t.hp < hp) {
-        t.moribeHitUntil = rt.t + 1.2;
+        // 命中後は少し形を保ってから戻す。乱戦でも一瞬の変化で終わらせない。
+        t.moribeHitUntil = rt.t + 1.8;
         // 命を減らした本人だけがよろめく。空振りや味方には反応を付けない。
         if (t.alive) {
           t.stagger = Math.max(t.stagger || 0, .6);
@@ -2313,7 +2317,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     // 渡河の到着だけはピンと同じコマで反映する。隊の見直しの一秒を待たせない。
     if (!F.signal) {
       // 一度渡った後は北岸全体を到着済みとする。小旗を通り越しても戻らせない。
-      F.pointInside = atFordBank(p, rt.world);
+      F.pointInside = atFordBank(p);
       if (F.pointInside) F.pointReached = true;
     }
     // 任務と隊の見直しは一秒ごと。毎コマ配列や行き先を作らない。
@@ -2333,7 +2337,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       if (Math.hypot(u.pos.x - POINT2.x, u.pos.z - POINT2.z) < 16) squadAcross++;
       if (distance > trailDist) { trailDist = distance; trailing = u; }
     }
-    const atPoint = atFordBank(p, rt.world);
+    const atPoint = atFordBank(p);
     F.squadContext = !F.signal
       ? atPoint ? `自分は到着・仲間 ${squadAcross}／${squadAlive}人が到着` : `仲間 ${squadNear}／${squadAlive}人がついてくる`
       : `仲間：そばに${squadNear}／${squadAlive}人`;
@@ -2565,94 +2569,16 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       const markedBoss = F.marked?.units.find((u) => u.type === 'busho' && u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget);
       if (task && markedBoss && !F.squadGuide) task.text = `${markedBoss.name}を仲間と討て`;
       rt.objProgress('commanders', '');
-      if (!left && !F.routWaitSaid && (F.bossDown || 0) < 2) { F.routWaitSaid = true; orderSpeech(rt, '敵は引いた。ほかの手の敗走を確かめるまで、川への道を守れ', 4); }
-      if (left) F.routConfirmT = null;
-      else if (F.routConfirmT == null) F.routConfirmT = rt.t;
-      // 両将が討たれて崩れたら、湿地を逃げる斎藤勢を組で追う（森部の見せ場＝追撃）。
-      //   一番近い逃げる兵へピンを付ける。二十秒か、近くに逃げる兵がいなくなったら集結へ。
-      F.pursuing = F.bossDown >= 2 && !left;
-      if (F.pursuing) {
-        if (!F.pursueSaid) {
-          F.pursueSaid = true; moribeSignal(rt, 'kakari');
-          rt.say('源八', '斎藤勢が崩れたぞ！　ぬかるみで足が鈍っておる、追え！', 4);
-          F.asmPre = !gone(F.A) ? { ...fightingCenter(F.A) } : { x: p.x, z: p.z };
-        }
-        let best = null, bd = 90;
-        for (const u of rt.army.units) {
-          if (!u.alive || u.gone || u.team === rt.player.u.team || !u.fleeing || u.noTarget) continue;
-          const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z);
-          if (d < bd) { bd = d; best = u; }
-        }
-        F.pursueTarget = best;
-        const task = rt.objectives.find((o) => o.id === 'commanders');
-        if (task) task.text = '逃げる敵を追う';
-        rt.objProgress('commanders', '');
-      }
-      if (F.bossDown >= 2 && !left && rt.t - F.routConfirmT >= (F.pursueTarget ? 22 : 15)) {
-        F.pursuing = false; F.pursueTarget = null;
-        F.sBack = true; F.stage = 'assemble'; F.assembleStart = rt.t; F.assembleT = 0;
-        F.squadGuide = null; rt.unmark('squadReturn');
-        // 集結は柴田の旗の下（遠い元の畦まで歩かせない）。柴田の備が無ければ自分の居る所。
-        { const c = F.asmPre || (!gone(F.A) ? fightingCenter(F.A) : p); F.asm = { x: c.x, z: c.z }; }
-        rt.objDone('commanders'); rt.objRemove('commanders'); rt.unmark('commanders');
-        rt.banner('斎藤勢、崩れる', '旗が倒れ、北へ退いていく');
+      // 最後の敵の備が崩れたら、その場で勝ちにする。
+      if (!left) {
         battleEvent(rt, EVENT_RETREAT, FRONT2, null, 1, true, '斎藤勢が墨俣の方へ退き始めた');
         F.farS.forEach((m, i) => rt.after(i * 1.2, () => m.rout({ hideAfter: 0 })));
         F.fronts.forEach((c) => c.rout('B', { hideAfter: Infinity }));
-        moribeSignal(rt, 'atsumare');
-        rt.obj('assemble', '仲間と旗へ戻る', 'main');
-        rt.marker('assemble', F.asm, '戻る場所の旗'); rt.zone('assemble', F.asm.x, F.asm.z, 12);
-        orderSpeech(rt, 'もう追うな。仲間と戻る場所の旗へ戻れ。そろったら川への道を見張れ', 4);
-        for (const g of F.friends) if (!gone(g)) { g.order = 'move'; g.dest = { x: F.asm.x + (g === F.Y ? -26 : g === F.R3 ? 26 : g === F.A ? -8 : -16), z: F.asm.z };
-          g.onArrive = (u) => { u.order = 'hold'; }; }
+        this.endBattle(rt, true);
+        return;
       }
-    } else if (F.stage === 'assemble') {
-      let alive = 0, near = 0;
-      for (const u of rt.squad) if (u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.noTarget && !u.group?.routed) { alive++; if (Math.hypot(u.pos.x - F.asm.x, u.pos.z - F.asm.z) < 18) near++; }
-      // 旗で同じ号令を繰り返させず、離れた仲間まで迎えに行けるようにする。
-      // 呼びに向かった後は相手を保つ。合流したら旗へ戻り、元の六割・八秒の条件で確かめる。
-      const previous = F.gatherUnit;
-      if (previous && (!previous.alive || previous.gone || previous.fleeing || previous.woundOut || previous.rearWound || previous.noTarget || previous.group?.routed ||
-          Math.hypot(previous.pos.x - F.asm.x, previous.pos.z - F.asm.z) < 18 || Math.hypot(previous.pos.x - p.x, previous.pos.z - p.z) < 6)) F.gatherUnit = null;
-      if (!F.gatherUnit && near < Math.ceil(alive * 0.6) && Math.hypot(p.x - F.asm.x, p.z - F.asm.z) < 12) {
-        let distance = Infinity;
-        for (const u of rt.squad) {
-          if (!u.alive || u.gone || u.fleeing || u.woundOut || u.rearWound || u.noTarget || u.group?.routed || Math.hypot(u.pos.x - F.asm.x, u.pos.z - F.asm.z) < 18) continue;
-          const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z);
-          if (d < distance) { distance = d; F.gatherUnit = u; }
-        }
-      }
-      if (previous !== F.gatherUnit) {
-        F.gatherCalled = false;
-        if (F.gatherUnit) rt.marker('gatherSquad', () => F.gatherUnit?.pos, '離れた仲間・近くで呼べ');
-        else rt.unmark('gatherSquad');
-      }
-      const danger = rt.army.nearestEnemy(rt.player.u, 30, (u) => !u.fleeing && !u.woundOut && !u.noTarget);
-      if (danger && sightPoint(rt, danger.pos) && !(F.pursuerAt > rt.t)) {
-        F.pursuerAt = rt.t + 8;
-        const dx = danger.pos.x - p.x, dz = danger.pos.z - p.z;
-        rt.bark(`${Math.abs(dx) > Math.abs(dz) ? dx > 0 ? '東' : '西' : dz > 0 ? '南' : '北'}の追手が近い。味方と押し返せ`);
-      }
-      // 移動命令の終わりでなく、生きて戦列に残る兵の帰着を数える。
-      // 畦の端で止まった隊も、持ち場に六割が着けば集結したと扱う。
-      let returning = 0;
-      for (const g of F.friends) if (!gone(g)) {
-        const x = F.asm.x + (g === F.Y ? -26 : g === F.R3 ? 26 : g === F.A ? -8 : -16);
-        let count = 0, arrived = 0;
-        for (const u of g.units) if (u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.noTarget) {
-          count++; if (Math.hypot(u.pos.x - x, u.pos.z - F.asm.z) < 18) arrived++;
-        }
-        if (arrived < Math.ceil(count * 0.6)) returning++;
-      }
-      const othersReady = returning === 0;
-      if (!danger && Math.hypot(p.x - F.asm.x, p.z - F.asm.z) < 12 && near >= Math.ceil(alive * 0.6)) F.assembleT += elapsed;
-      else F.assembleT = 0;
-      const task = rt.objectives.find((o) => o.id === 'assemble');
-      if (task) task.text = F.gatherUnit ? '矢印の仲間を迎えに行け' : Math.hypot(p.x - F.asm.x, p.z - F.asm.z) >= 12 ? '戻る印へ仲間と集まれ' : '仲間とここで川への道を守れ';
-      rt.objProgress('assemble', '');
-      if (F.bossDown >= 2 && othersReady && F.assembleT >= 8) this.endBattle(rt, true);
     }
-    if (!F.longWarn && rt.t >= 390) { F.longWarn = true; orderSpeech(rt, F.stage === 'assemble' ? '集結が遅れておる。旗の下へ組を呼べ。そろわねば任務を果たせぬ' : '攻めが長引いておる。備が崩れねば、組を川へ下げるぞ', 4); }
+    if (!F.longWarn && rt.t >= 390) { F.longWarn = true; orderSpeech(rt, '攻めが長引いておる。備が崩れねば、組を川へ下げるぞ', 4); }
     if (!F.ending && rt.t >= 420) this.endBattle(rt, false);
   },
 
@@ -2825,13 +2751,12 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     if (!won) for (const g of F.friends) if (!gone(g)) {
       g.order = 'move'; g.dest = { x: g.anchor.x, z: 116 }; g.onArrive = (u) => { u.order = 'hold'; };
     }
-    if (F.stage === 'assemble') {
-      if (won && F.assembleT >= 8) { rt.objDone('assemble'); rt.award((t) => t.side.push('勝った後も組をまとめた'), '勝った後も組をまとめた'); }
-      else rt.objFail('assemble');
-    } else { rt.objFail(F.stage === 'hold' ? 'line' : F.stage === 'contact' ? 'break' : 'commanders'); }
+    const objective = F.stage === 'hold' ? 'line' : F.stage === 'contact' ? 'break' : 'commanders';
+    if (won) rt.objDone(objective);
+    else rt.objFail(objective);
     rt.unmark('frontFlag'); rt.unmark('support'); rt.objRemove('support');
     rt.unmark('assemble'); rt.unmark('gatherSquad'); F.gatherUnit = null; rt.unzone('assemble'); rt.unmark('commanders'); rt.unmark('line'); rt.unmark('lineFlag'); rt.unzone('line'); rt.unmark('V');
-    rt.banner(won ? '森部の勝ち戦' : '仲間と川へ下がれ', won ? '敵が退き、組の持ち場を固めた' : F.friends.every(gone) || F.odaCamp.general?.woundOut ? '味方の備が崩れた。残る者と川へ退け' : F.stage === 'assemble' ? '組の集結を果たせなかった。川への道を守りながら退け' : '攻めが長引いた。敵の備が残るため川へ退け');
+    rt.banner(won ? '森部の勝ち戦' : '仲間と川へ下がれ', won ? '敵の備が崩れ、斎藤勢が退いた' : F.friends.every(gone) || F.odaCamp.general?.woundOut ? '味方の備が崩れた。残る者と川へ退け' : '攻めが長引いた。敵の備が残るため川へ退け');
     orderSpeech(rt, won ? 'よう押し切った。組を離すな。勝鬨を上げるぞ' : '低い法螺貝と二つ打ちの太鼓は退けの合図じゃ。仲間と川へ下がり、備えを立て直せ', 4);
     if (won) {
       // 雨が細り、勝鬨。首実検と次の戦（墨俣）への引きで余韻を残す。
@@ -2856,7 +2781,6 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     }
     const failureReason = won ? '' : F.friends.every(gone) || F.odaCamp.general?.woundOut
       ? '味方の列が崩れ、川岸を守れなくなった'
-      : F.stage === 'assemble' ? '時間内に組と味方の集結を終えられなかった'
       : '時間内に敵を押し返せなかった';
     rt.finish({ scriptedEnd: true, failureReason }, won ? 16 : 11);
     // 終幕の共通音が鳴った後に札を出す。同じ退けの音を札からもう一度鳴らさない。

@@ -1544,7 +1544,7 @@ function anegawaHurtHqText(rt, reached) {
   if (P.treating) return '布を 巻き終えよう';
   if (!F.retreatSafe) return '本陣が危ない。かまえて下がろう';
   if (P.treatmentLeft > 0 && P.treatmentNext <= rt.t)
-    return reached ? 'ここで 布を巻こう' : '印へ さがって 手当てしよう';
+    return reached ? '止まって手当しよう' : '手当の場所へ';
   return reached ? '本陣前で かまえよう' : anegawaHqReturnText(rt);
 }
 function anegawaHoldRoute(rt) {
@@ -1750,7 +1750,7 @@ const anegawa = {
   travelGuideLabel(rt) {
     const marker = anegawa.guideMarker(rt);
     if (marker === 'withdrawPost') return 'この旗まで さがろう';
-    if (marker === 'hurtRetreat') return '味方の後ろで手当てしよう';
+    if (marker === 'hurtRetreat') return '手当の場所へ';
     if (marker === 'honjinHelp' || marker === 'hqGuard') return anegawaHqReturnText(rt);
     if (marker === 'ford' || marker === 'pursuitPost') return '浅い川をわたろう';
     if (marker === 'eastPost') return '東の川岸へ進もう';
@@ -1916,7 +1916,7 @@ const anegawa = {
       return reached ? anegawaHqWatchText(rt) : anegawaHqReturnText(rt);
     }
     return rt.flags.retreatGuiding && rt.player.treatmentLeft > 0 && rt.player.treatmentNext <= rt.t
-      ? reached ? 'ここで布を巻こう' : '印へ下がり、手当てしよう'
+      ? reached ? '止まって手当しよう' : '手当の場所へ'
       : reached ? 'ここで構えて休もう' : anegawaHoldRoute(rt);
   },
   retreatDestinationLabel: (rt) => rt.withdrawal?.losing === 0 ? '退き先・ここで組を集める' : 'ここまで下がろう',
