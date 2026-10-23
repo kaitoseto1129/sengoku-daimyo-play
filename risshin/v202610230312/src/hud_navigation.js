@@ -493,6 +493,8 @@ export class HudNavigation {
 
   // 本人は短い足元の線。行き先の大きな輪とは形で分ける。
   drawPlayerSign(g, rt) {
+    // 稲生は行き先のピンと敵の▼だけ。自分の足元を行き先に見せない。
+    if (rt.def.key === 'inou') return false;
     const u = rt.player.u;
     if (!u.alive || rt.over || rt.choice || this.introWaiting || this.bigmap ||
         rt.player.camShot || rt.player.fpK > .7) return false;
@@ -500,8 +502,13 @@ export class HudNavigation {
       this.playerFootProjection || (this.playerFootProjection = {}));
     if (at.behind || !Number.isFinite(at.x) || !Number.isFinite(at.y) ||
         at.x < 0 || at.x > VIEW.w || at.y < 0 || at.y > VIEW.h) return false;
+    // 骨の姿に沿った細い白縁で、手前の兵が重なっても自分を見失わない。
+    if (rt.player.fpK < .5) {
+      const frame = this.measurePersonFrame(u, rt);
+      if (frame) this.drawEnemyContour(g, rt, u, frame);
+    }
     g.save(); g.beginPath();
-    const width = u.mounted ? 18 : 12;
+    const width = u.mounted ? 20 : 16;
     g.moveTo(at.x - width, at.y - 2);
     g.lineTo(at.x, at.y + 3);
     g.lineTo(at.x + width, at.y - 2);

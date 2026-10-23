@@ -2550,7 +2550,14 @@ const inabayama = {
   // ミッション（kaito 10/23 1・49・50）。右上の一行は「何をするか」だけ。向き・行き先の字は書かない。
   lendBow: true, // 美濃攻めは弓を覚える戦（kaito の役割分担）。問屋で買っていなくても弓を貸す。
   noSiegeCards: true, // 右の曲輪の札（未見・様子不明）は出さない。字は右上の一行だけ（kaito 10/23）。
-  missions: ['旗の人のそばへ', '井口の町に火を放つ', 'さくを守れ', '搦手の山道を攻め上る', '斎藤龍興の馬廻を討つ', '本丸に合図の火を放つ'],
+  missions: ['この人のそばへ', '火の印の家で火をつける', 'さくを守れ', '搦手の山道を攻め上る', '斎藤龍興の馬廻を討つ', '本丸に合図の火を放つ'],
+  missionHeading(rt) {
+    if (this.missionOf(rt) === 1) {
+      if (rt.flags.lit >= NEED) return '町の出口へ';
+      if (rt.G.lord) return '足軽の火付けを守れ';
+    }
+    return this.missions[this.missionOf(rt)];
+  },
   missionOf(rt) {
     const F = rt.flags, ph = rt.phase;
     if (ph === 'end') return 5;

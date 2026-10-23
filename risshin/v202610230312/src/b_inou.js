@@ -104,7 +104,7 @@ function practiceLeft(rt) {
 // 追う一人を保ち、札・ピン・到着判定で共有する。群れの中心を毎コマ作らない。
 function approachUnit(rt) {
   const F = rt.flags;
-  const group = F.training > 0 && F.training < 5 ? F.practice : F.haya1;
+  const group = F.chase || F.training >= 0 && F.training < 5 ? F.practice : F.haya1;
   if (!group) return null;
   const previous = F.approachGroup === group && fighting(F.approachUnit) && F.approachUnit.mesh?.visible !== false ? F.approachUnit : null;
   const reach = rt.player.meleeReach('thrust');
@@ -147,15 +147,17 @@ const inou = {
   keepDestinationTask: true,
   immediateTaskChanges: true,
   missionPinCaption: '',
-  guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.training === 1 && rt.flags.chase ? 'chase' : rt.flags.step === 0 ? rt.flags.training <= 0 ? 'genpachi' : null : 'holdFlag',
+  guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
   // 任務は一行。距離・向き・操作は書かず、同じ兵をピンで追う。
-  missions: ['林の兵を倒せ', '林の部隊を崩せ', '柴田隊に耐えろ', '林美作守を倒せ'],
-  missionHeading(rt) { return this.missions[this.missionOf(rt)]; },
+  missions: ['林の兵を倒せ', '林の兵を倒せ', '柴田隊に耐えろ', '林美作守を倒せ'],
+  missionHeading(rt) {
+    return rt.flags.step === 0 && rt.flags.training === 8 ? '林の小隊長を倒せ' : this.missions[this.missionOf(rt)];
+  },
   // 控えや追跡中の兵も敵の姿として見分けられる。攻撃できるかで▼を消さない。
   foeMarkVisible: () => true,
   missionSignTarget: (rt) => rt.flags.step === 0 && rt.flags.training >= 0 && rt.flags.training <= 8 ?
     rt.flags.training === 8 ? rt.flags.hayaLead : approachUnit(rt) : null,
-  missionOf: (rt) => { const F = rt.flags; return F.step === 0 ? (F.training <= 1 && !F.caught ? 0 : 1) : F.step === 1 ? 2 : 3; },
+  missionOf: (rt) => { const F = rt.flags; return F.step === 0 ? (F.training <= 4 ? 0 : 1) : F.step === 1 ? 2 : 3; },
   minutes: 9,
   // 初陣の見分けだけ二枚。追う兵と味方を、色のほかに字と形で示す。
   fieldSigns: (rt) => {
@@ -298,6 +300,14 @@ const inou = {
     P.strike = (...a) => {
       const swing = P.u.swing, assist = P.assistImpact, result = strike0(...a);
       if (!a[2] && !a[3] && (P.u.swing !== swing || P.assistImpact && P.assistImpact !== assist)) F.strikeN++;
+      return result;
+    };
+    // 命を減らした本人の印だけで命中を返す。空振り・味方への攻撃では反応しない。
+    const damage = rt.army.damage;
+    rt.army.damage = function (t, amount, src, ...rest) {
+      const hp = t?.hp;
+      const result = damage.call(this, t, amount, src, ...rest);
+      if (t && src?.isPlayer && t.team !== src.team && t.hp < hp) t.inouHitUntil = rt.t + .7;
       return result;
     };
     F.training = -1;
