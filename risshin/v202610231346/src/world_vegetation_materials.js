@@ -80,7 +80,8 @@ function leafLit(sh) {
   sh.fragmentShader = sh.fragmentShader.replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
     #if NUM_DIR_LIGHTS > 0
       float lback = pow(max(dot(normalize(-vViewPosition), directionalLights[0].direction), 0.0), 4.0);
-      reflectedLight.directDiffuse += diffuseColor.rgb * directLight.color * lback * 0.35;
+      // 影を受けた光だけを葉の裏へ回す。日陰にも直射色を足すと白い板になる。
+      reflectedLight.directDiffuse *= 1.0 + lback * 0.16;
     #endif`);
 }
 // 葉の板は読み込み時だけ作る。遠景は頂点処理でカメラへ向け、毎コマの向き直しを省く。

@@ -39,11 +39,11 @@ const NIRE_WIDTH2 = 9;
 const nireZ = (x) => x < -70 ? NIREMATA2 + 2 * Math.min(1, (-70 - x) / 730) : x < 46 ? NIREMATA2 : NIREMATA2 + 6 * Math.min(1, (x - 46) / 454);
 // 南岸の水際から始め、渡河そのものは残して岸までの長い歩きを省く。
 const START2 = { x: 40, z: 98 };
-// 水際から二歩だけ土へ上がった地点。水面にピンを刺さない。
+// 向こう岸の水際。実際の水面を整えた後、最初に足が着く土へ合わせる。
 const POINT2 = { x: 40, z: 76.5 };
 const FORD_R = 4;
 // 向こう岸へ上がれば渡河済み。浅瀬から横へそれても、小旗へ戻らせない。
-const atFordBank = (p, world) => p.z <= nireZ(p.x) - (NIREMATA2 - POINT2.z) &&
+const atFordBank = (p, world) => p.z <= nireZ(p.x) - NIRE_WIDTH2 + .5 &&
   world.waterFootDepthAt(p.x, p.z, p.y) <= .12;
 const FRONT2 = { x: 4, z: 20 };
 const ASSEMBLY2 = { x: 14, z: 10 };
@@ -478,9 +478,6 @@ const moribeHeight = (x, z, b) => (moribeDem ? demBlend(moribeDem, x, z, b + mor
 // 森部だけの浅瀬。粗い地形の岸に引かれて埋もれた川面を、渡る帯でそろえる。
 function moribeFord(rt) {
   const W = rt.world, st = W.def.streams[1], pa = st.mesh.geometry.attributes.position;
-  // 土へ上がる地点を一度だけ決め、ピンと到着判定をそろえる。
-  POINT2.z = nireZ(START2.x) - st.w - 2.5;
-  for (let i = 0; i < 12 && W.waterFootDepthAt(POINT2.x, POINT2.z, W.heightAt(POINT2.x, POINT2.z)) > .12; i++) POINT2.z -= .5;
   for (let i = 0; i < st.surface.length; i += 3) {
     const x = st.surface[i], k = Math.max(0, Math.min(1, (160 - Math.abs(x)) / 30));
     const y = st.surface[i + 2] + (0.12 - st.surface[i + 2]) * k;
@@ -508,7 +505,7 @@ function moribeFord(rt) {
       float fordBand = 1.0 - smoothstep(4.5, 6.0, fordEdge);
       float fordGrain = texture2D(tMacro, vWPw.xz * 0.9).r;
       float fordRipple = smoothstep(0.86, 0.98, sin(vWPw.z * 6.0 + fordGrain * 2.0 - uTime * 1.4));
-      vec3 fordSand = mix(vec3(0.12, 0.27, 0.28), vec3(0.26, 0.43, 0.42), fordGrain);
+      vec3 fordSand = mix(vec3(0.30, 0.39, 0.30), vec3(0.52, 0.60, 0.46), fordGrain);
       diffuseColor.rgb = mix(diffuseColor.rgb, fordSand, fordBand * 0.85);
       // 浅瀬も水の色を保つ。両岸の細い白波を既存の川面へ描き、終点を土と分ける。
       float fordShore = smoothstep(7.5, 8.6, abs(vWPw.z - ${NIREMATA2.toFixed(1)}));
@@ -520,6 +517,9 @@ function moribeFord(rt) {
   waterMat.customProgramCacheKey = () => waterKey + '|森部の浅瀬';
   waterMat.needsUpdate = true;
   st.mesh.userData.waterSurfaceReady = true;
+  // 川面を直した後の水深で出口を決める。岸より奥まで歩かせない。
+  POINT2.z = nireZ(START2.x) - st.w + .5;
+  for (let i = 0; i < 12 && W.waterFootDepthAt(POINT2.x, POINT2.z, W.heightAt(POINT2.x, POINT2.z)) > .12; i++) POINT2.z -= .5;
   st.mesh.geometry.computeVertexNormals();
   st.mesh.geometry.computeBoundingSphere();
   // 岸と浅瀬の石、渡る帯の杭。出陣時だけ作り、形と材質を使い回す。
@@ -1019,7 +1019,7 @@ const moribe = {
   // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は「何をするか」だけ（kaito 10/23 49・50）。段の総称で通し、向き・行き先の字は書かない。
-  missions: ['川を渡れ', '仲間を待て', '敵の先手を倒せ', '敵の反撃に耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
+  missions: ['川を渡れ', '仲間を待て', '敵を倒せ', '敵を倒して耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
   // ピン・▼・名前は同じ本人へ。描画の間引きで相手を替えない。
   commanderTarget(rt) {
     const F = rt.flags;
@@ -1042,12 +1042,17 @@ const moribe = {
       const u = this.commanderTarget(rt);
       if (u) { F.signTarget = u; return u; }
     }
-    if (p.inRange && moribeFoeReady(p.rangeCueTarget, p)) return p.rangeCueTarget;
-    if (rt.t < F.signTargetAt && F.signStage === F.stage && moribeFoeReady(F.signTarget, p)) return F.signTarget;
+    const vanguard = F.stage === 'contact' && !F.vBroken ? F.V : null;
+    if (p.inRange && moribeFoeReady(p.rangeCueTarget, p) &&
+        (!vanguard || p.rangeCueTarget.group === vanguard)) return p.rangeCueTarget;
+    if (rt.t < F.signTargetAt && F.signStage === F.stage && moribeFoeReady(F.signTarget, p) &&
+        (!vanguard || F.signTarget.group === vanguard)) return F.signTarget;
     F.signTargetAt = rt.t + .25; F.signStage = F.stage;
     let target = null, best = 48 * 48;
-    for (const u of rt.army.units) {
+    for (const u of vanguard ? vanguard.units : rt.army.units) {
       if (!moribeFoeReady(u, p)) continue;
+      // 最初の任務は川岸へ来た隊。奥の控えへ大きな▼を移さない。
+      if (F.stage === 'contact' && !F.vBroken && u.group !== F.V) continue;
       const dx = u.pos.x - p.u.pos.x, dz = u.pos.z - p.u.pos.z;
       const yaw = p.yaw + (p.camYawOff || 0);
       if (dx * Math.sin(yaw) + dz * Math.cos(yaw) < 0) continue;
@@ -1083,7 +1088,7 @@ const moribe = {
         !F.signal && F.pointReached && !F.pointInside ||
         (F.stage === 'hold' || F.stage === 'contact' && F.vBroken) && F.lineReturning)
       return '仲間と集まれ';
-    if (F.stage === 'hold') return '敵の反撃に耐えろ';
+    if (F.stage === 'hold') return '敵を倒して耐えろ';
     return this.missions[this.missionOf(rt)];
   },
   minutes: 7,
@@ -1173,6 +1178,9 @@ const moribe = {
       // 岸に上がるまで一本だけ示し、渡った瞬間に消す。足元へ戻らせない。
       if (F.pointInside || atFordBank(rt.player.u.pos, rt.world)) return null;
       pos = POINT2; r = FORD_R; hide = 0;
+      // 渡るほど同じピンの中が満ち、乾いた岸へ着いた瞬間に消える。
+      q.progress = Math.max(0, Math.min(.95,
+        (START2.z - rt.player.u.pos.z) / (START2.z - (nireZ(rt.player.u.pos.x) - NIRE_WIDTH2))));
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
     } else if (F.stage === 'assemble') {

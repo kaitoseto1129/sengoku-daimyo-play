@@ -136,6 +136,14 @@ function ldTick() {
   const fraction = into <= P.est[i] ? into / P.est[i] * .8 : .8 + .18 * (1 - Math.exp(-(into - P.est[i]) / P.est[i]));
   P.progress = Math.max(P.progress || 0, Math.min(.99, (completed + P.est[i] * fraction) / total));
   $('loading').style.setProperty('--ld-progress', `${(P.progress * 100).toFixed(1)}%`);
+  // 初陣は棒一本にそろえる。見込みを超えても次の工程を先取りしない。
+  if ($('loading').classList.contains('first-battle')) {
+    const bar = document.querySelector('#loading .ldbar i');
+    if (bar) {
+      bar.style.transition = RMm() ? 'none' : 'transform 250ms linear';
+      bar.style.transform = `scaleX(${P.progress})`;
+    }
+  }
   if (!el) return;
   let left = Math.max(0, P.est[i] - into);
   for (let k = i + 1; k < P.keys.length; k++) left += P.est[k];
@@ -997,6 +1005,8 @@ function beginPlay(afterView = false) {
 }
 // 画面の上寄りの小さな案内「クリックすると、マウスで見回せます」（下に出すと最初の台詞の字幕に重なる。大きな一時停止の画面にはしない）
 function lockHint(on) {
+  // 初陣はピンと敵印だけで案内する。指の画面にもマウスの説明を重ねない。
+  if (game.battle?.def.key === 'inou' || isTouch) on = false;
   let el = document.getElementById('lockhint');
   if (on && !el) {
     el = document.createElement('div');

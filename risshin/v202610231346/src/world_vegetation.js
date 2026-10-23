@@ -978,14 +978,15 @@ export class WorldVegetation {
       const bg = [];
       // 同じ三枚・六三角形で、立つ葉と横へ伏せる下葉を組む。
       // 背のそろった点の列を避け、根元に低い葉の広がりを残す。
-      const widths = [0.28, 0.58, 0.70], heights = [0.52, 0.32, 0.22];
+      const widths = [0.23, 0.43, 0.51], heights = [0.52, 0.32, 0.22];
       for (let k = 0; k < 3; k++) {
         const g = new THREE.PlaneGeometry(widths[k], heights[k]);
         const p = g.attributes.position;
         for (let q = 0; q < p.count; q++) {
           const top = p.getY(q) > 0;
-          p.setXYZ(q, p.getX(q) * (top ? 1 : 0.42) + (top ? (k - 1) * 0.06 : 0),
-            p.getY(q) + heights[k] * 0.5, top ? 0.05 + k * 0.07 : 0);
+          const side = p.getX(q) > 0 ? 1 : -1;
+          p.setXYZ(q, p.getX(q) * (top ? 0.78 : 0.42) + (top ? (k - 1) * 0.06 : 0),
+            p.getY(q) + heights[k] * 0.5 + (top ? side * (k - 1) * 0.035 : 0), top ? 0.09 + k * 0.09 : 0);
         }
         g.rotateY(k * Math.PI / 3 + 0.3);
         // 光は上から受ける向きに（板ごとの明暗を消す）

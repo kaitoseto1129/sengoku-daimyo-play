@@ -107,7 +107,7 @@ function approachUnit(rt) {
   const group = F.chase || F.training >= 0 && F.training < 5 ? F.practice : F.haya1;
   if (!group) return null;
   const previous = F.approachGroup === group && fighting(F.approachUnit) && F.approachUnit.mesh?.visible !== false ? F.approachUnit : null;
-  const reach = rt.player.meleeReach('thrust');
+  const reach = rt.player.meleeReach(rt.player.previewMeleeKind() || 'thrust');
   // 間合いに入った林兵を優先する。遠い一人へのピンで、目前の敵から引き離さない。
   if (previous && Math.hypot(previous.pos.x - rt.player.u.pos.x, previous.pos.z - rt.player.u.pos.z) <= reach) return previous;
   let chosen = null, best = Infinity;
@@ -191,12 +191,12 @@ const inou = {
     const F = rt.flags;
     if (F.ending) return null;
     if (F.step === 0) {
-      if (F.training < 1) return null;
+      if (F.training < 0) return null;
       const ready = rt.player.inRange && fighting(rt.player.rangeCueTarget);
       const enemy = F.training === 8 ? F.hayaLead : approachUnit(rt);
       if (ready || !fighting(enemy)) return null;
       const me = rt.player.u.pos, dx = me.x - enemy.pos.x, dz = me.z - enemy.pos.z;
-      const distance = Math.hypot(dx, dz), reach = rt.player.meleeReach('thrust') * .8;
+      const distance = Math.hypot(dx, dz), reach = rt.player.meleeReach(rt.player.previewMeleeKind() || 'thrust') * .8;
       if (distance <= reach) return null;
       const pin = pinPoint(rt, enemy.pos, 0, 0, enemy);
       pin.x += dx / distance * reach; pin.z += dz / distance * reach;

@@ -563,7 +563,7 @@ const okehazama = {
     const F = rt.flags, p = rt.player;
     // 任務の一人を大きな▼で保つ。近くの別人へ切り替えて目的を見失わせない。
     const objective = this.objectiveEnemies(rt)[0];
-    if (objective) return objective;
+    if (objective && F.entered) return objective;
     if (rt.phase === 'assault' && F.entered && !F.victory && !F.yoshiDown && readyUnit(F.yoshimoto)) return F.yoshimoto;
     if (rt.phase === 'assault' && !F.victory || F.scoutFighting) {
       if (p.inRange && readyUnit(p.rangeCueTarget)) return p.rangeCueTarget;
@@ -711,10 +711,12 @@ const okehazama = {
   missionPin(rt) {
     const F = rt.flags;
     if (F.ending || rt.hud.retreatGuide?.active && rt.hud.retreatGuide.valid) return null;
-    if (F.scoutFighting && rt.phase !== 'assault') return null;
+    if (F.scoutFighting && rt.phase !== 'assault' && rt.phase !== 'wait') return null;
     const pin = F.missionPinTarget || (F.missionPinTarget = { x: 0, z: 0, r: 8, hide: 8 });
     pin.enemy = false; pin.dodge = false; pin.unit = null; pin.waiting = undefined;
     pin.area = false; pin.arrived = false; pin.progress = null; pin.footRing = false; pin.follow = false;
+    // 任務札の更新で、同じ集合ピンの到着表示を初期化しない。
+    pin.key = rt.phase;
     // 戦う相手は頭上の赤い▼だけ。ピンは通れる幕の口だけに残す。
     if (rt.phase === 'assault' && !F.victory) {
       const entrance = !F.entered && F.roadStep >= F.road.length ||
@@ -725,12 +727,12 @@ const okehazama = {
       pin.x = pos.x; pin.z = pos.z; pin.r = 0; pin.hide = 0;
       return pin;
     }
-    // 雨待ちの進みは同じ集合ピンの穴で示す。接敵中は上の判定で敵の印を優先する。
+    // 雨待ちは到着した時に始まる。少し歩いても時計は止まらず、集合をやり直させない。
     if (rt.phase === 'wait') {
       const pos = this.squadFlagPosition(rt);
       if (!pos) return null;
       pin.x = pos.x; pin.z = pos.z; pin.r = 8; pin.hide = 0;
-      pin.area = true; pin.waiting = true; pin.arrived = this.squadFlagReached(rt);
+      pin.area = true; pin.waiting = true; pin.arrived = true;
       pin.progress = this.missionWaitProgress(rt);
       return pin;
     }

@@ -2837,6 +2837,13 @@ export class Player {
     const lunge = assist ? isTouch ? 0.9 : 0.35 : 0;
     let turnCandidate = null;
     let hits = army.enemiesInArc(u.pos, heading, reach, half, u.team, over, true, fenceClear, this.lock);
+    // 初陣の白縁は、実際の向き直り・踏み込みまで含めて届く本人に付ける。
+    // 攻撃と同じ選び方にし、横の敵へ向き直す操作を何度も要求しない。
+    if (this.rt.def.key === 'inou' && !hits.length && assist && !this.mounted && kind !== 'butt') {
+      const target = this.meleeAssistTarget(kind, heading);
+      if (target) { this.inRange = true; this.rangeCueTarget = target; }
+      return;
+    }
     if (!hits.length && assist) turnCandidate = this.assistPick(army.enemiesInArc(u.pos, heading, reach + lunge, isTouch ? Math.max(half + this.D.aim, 1.05) : half + this.D.aim, u.team, over, true, fenceClear, this.lock));
     let turn = turnCandidate;
     if (!hits.length && !turn && assist && (isTouch || this.rt.firstFights)) turn = this.assistPick(army.enemiesInArc(u.pos, heading, reach + lunge * 0.5, Math.PI, u.team, over, true, fenceClear, this.lock));
@@ -2891,6 +2898,19 @@ export class Player {
     }
     return result.st ? result : null;
   }
+  // 予告と攻撃で、味方・壁・地形を含む同じ判定を使う。入れ物は増やさない。
+  meleeAssistTarget(kind, heading) {
+    const u = this.u, army = this.rt.army, reach = this.meleeReach(kind), half = this.meleeHalf(kind);
+    const clear = this.meleeFenceClear(reach), over = this.weapon === 'spear';
+    this.meleeAssistStep = isTouch ? 0.9 : 0.35;
+    const wide = isTouch || this.rt.firstFights || this.rt.world.def.closeCombatAssist ? Math.PI : half + this.D.aim;
+    let target = this.assistPick(army.enemiesInArc(u.pos, heading, reach + this.meleeAssistStep, wide, u.team, over, true, clear, this.lock));
+    if (!target) {
+      target = this.assistPick(army.enemiesInArc(u.pos, heading, reach + 1, 0.52, u.team, over, true, clear, this.lock));
+      if (target) this.meleeAssistStep = 1;
+    }
+    return target;
+  }
   strike(kind, third, impact = false, assisted = false) {
     if (kind === 'spin') kind = 'charged';
     const u = this.u;
@@ -2899,12 +2919,7 @@ export class Player {
     if (!impact && !assisted && kind !== 'butt' && !this.mounted && (S.aimAssist || isTouch)) {
       const reach = this.meleeReach(kind), half = this.meleeHalf(kind), clear = this.meleeFenceClear(reach), over = this.weapon === 'spear';
       if (!army.enemiesInArc(u.pos, u.heading, reach, half, u.team, over, true, clear, this.lock).length) {
-        const stepMax = isTouch ? 0.9 : 0.35;
-        const wide = isTouch || this.rt.firstFights || this.rt.world.def.closeCombatAssist ? Math.PI : half + this.D.aim;
-        let target = this.assistPick(army.enemiesInArc(u.pos, u.heading, reach + stepMax, wide, u.team, over, true, clear, this.lock));
-        // 届く距離より一歩先（＋1m）でも、前の60度にいる敵へは体と槍を向け直して半歩踏み込む（空振りを減らす）
-        let stepTo = stepMax;
-        if (!target) { target = this.assistPick(army.enemiesInArc(u.pos, u.heading, reach + 1, 0.52, u.team, over, true, clear, this.lock)); if (target) stepTo = 1; }
+        const target = this.meleeAssistTarget(kind, u.heading), stepTo = this.meleeAssistStep;
         if (target) {
           const dx = target.pos.x - u.pos.x, dz = target.pos.z - u.pos.z, d = Math.hypot(dx, dz) || 1, h = Math.atan2(dx, dz);
           this.assist = { h, t: 0.65 };

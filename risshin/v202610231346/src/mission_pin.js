@@ -332,9 +332,12 @@ export function updateMissionPin(rt) {
   // 持ち場の判定半径は変えず、足元だけを示す指定では大きな囲みを重ねない。
   const footMark = want.passage || want.fire || want.footRing || marker?.guideFootRing || marker?.guideFlag || marker?.guideFlagMesh;
   const waitArea = waiting && !person && !want.treatment && !want.fire && !want.passage;
-  const areaRadius = waitArea ? want.r ?? 8 : footMark ? want.fire ? 1.25 : .85 : want.r;
+  // 集合地点は旗の小さな足元印より、実際の到着範囲を優先する。
+  // 出発前・行軍中・合図待ちで根元の大きさを変えない。
+  const areaRadius = want.area ? want.r : waitArea ? want.r ?? 8 : footMark ? want.fire ? 1.25 : .85 : want.r;
   // 集合ピンの根元は、実際に着いたとみなす範囲を囲む。自分を追う輪にはしない。
-  const showArea = (waitArea ? !occluded : want.passage ? !behind && !occluded : !outside) && (footMark || !want.unit && (want.area || waiting || want.defend) && want.r > 0);
+  // 桶狭間はピン一本。集合範囲の大きな二重線を重ねない。
+  const showArea = rt.def.key !== 'okehazama' && (waitArea ? !occluded : want.passage ? !behind && !occluded : !outside) && (footMark || !want.unit && (want.area || waiting || want.defend) && want.r > 0);
   pin._area.style.display = pin._areaBack.style.display = showArea ? '' : 'none';
   pin._area.setAttribute('stroke-width', want.passage ? '7' : '5');
   pin._area.setAttribute('stroke-dasharray', '');
@@ -350,7 +353,7 @@ export function updateMissionPin(rt) {
     }
     // 判定と同じ外周と、その内側の輪。本人の足元印より大きく、面は塗らない。
     let path = '';
-    for (let ring = 0; ring < (waitArea ? 2 : 1); ring++) {
+    for (let ring = 0; ring < (waitArea && rt.def.key !== 'okehazama' ? 2 : 1); ring++) {
       let connected = false, complete = true;
       for (let i = 0; i <= pin._areaPoints.length; i++) {
         areaPoint.copy(pin._areaPoints[i % pin._areaPoints.length]);
@@ -391,7 +394,8 @@ export function updateMissionPin(rt) {
       : 'M40 68L25 38C5 9 75 9 55 38Z M40 20A6 6 0 1 0 40 32A6 6 0 1 0 40 20Z' : 'M32 65V5H65L56 18L65 31H32');
     flag.setAttribute('fill-rule', 'evenodd');
   }
-  const showProgress = oke && arrived && waiting && Number.isFinite(want.progress);
+  // 合図の時刻は範囲を出ても進む。同じピンの円も途切れさせない。
+  const showProgress = oke && waiting && Number.isFinite(want.progress);
   const showHold = showProgress || arrived && (!person || want.footRing) && !want.defend && (!outside || oke) && (!flagDestination || oke);
   flag.style.display = destinationArrow || (person && !groundPerson) || want.defend || inouEnemy || want.fire || want.gate || want.dodge || showHold && !oke ? 'none' : '';
   if (flagDestination && !oke) flag.style.display = '';
