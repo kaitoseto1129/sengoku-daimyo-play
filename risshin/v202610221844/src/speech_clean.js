@@ -61,6 +61,9 @@ const MITSUHIDE = new Map([
 export function cleanBattleSpeech(rt, text) {
   let t = String(text ?? '').trim();
   if (!t || /^[0０]+$/.test(t)) return '';
+  if (rt.def.key === 'okehazama') t = t
+    .replace('囲まれるぞ。味方の方へ退け', '囲まれるぞ。目印の仲間へ戻れ')
+    .replace('囲まれるぞ。来た道へ退け', '囲まれるぞ。来た道へ戻れ');
   for (const [from, to] of MITSUHIDE) if (t.includes(from)) t = t.replace(from, to);
   t = t.replace(/崩れました/g, '崩れたぞ').replace(/押されています/g, '押されておる');
   if (/敵(?:は|が|勢は).*総崩れ/.test(t) && rt.army.groups.some((g) => g.team !== rt.player.u.team && g.count > 0 && !g.routed && g.order !== 'retreat' && g.order !== 'flee'))
@@ -115,7 +118,7 @@ export function varyBattleBark(rt, text) {
     if (!pattern.test(text)) continue;
     const recent = rt._barkVariants || (rt._barkVariants = {});
     const n = recent[i] || 0; recent[i] = (n + 1) % lines.length;
-    return text.replace(pattern, lines[n]);
+    return text.replace(pattern, rt.def.key === 'okehazama' && i === 4 ? '伝令の兵が 味方へ知らせを運ぶ' : lines[n]);
   }
   return text;
 }

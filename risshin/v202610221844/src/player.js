@@ -3168,6 +3168,8 @@ export class Player {
       const heavy = kind === 'charged' || kind === 'slam' || kind === 'hook' || (kind === 'thrust' && third) || (kind === 'slash' && third) || counter;
       const spearFeel = spearKind && !this.mounted;
       const blocked = swing.res === 'block' && kind !== 'slam' && kind !== 'kara' && kind !== 'hook';
+      if (this.rt.def.meleeHitFeedback && (swing.res === 'block' || swing.res === 'hit' || swing.res === 'armor'))
+        this.rt.hud.hitMarker(swing.res === 'block');
       // 石突き：当たった者を突き放す。振り回し：当たった者はみなよろめく
       if (kind === 'butt' || kind === 'spin') for (const h of hits) if (h.u.alive) { h.u.stagger = Math.max(h.u.stagger || 0, kind === 'butt' ? 0.8 : 0.5); if (h.u.push) { const dx = h.u.pos.x - u.pos.x, dz = h.u.pos.z - u.pos.z, dl = Math.hypot(dx, dz) || 1; h.u.push.x += dx / dl * (kind === 'butt' ? 2.4 : 1.4); h.u.push.z += dz / dl * (kind === 'butt' ? 2.4 : 1.4); } }
       // 得物ごとの手応え：槍の突きは短く鋭く止まり、刀の斬りは刃が肉を通る分だけ少し長く止まって、斬った向きへ目線が流れる

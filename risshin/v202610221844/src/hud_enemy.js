@@ -257,6 +257,10 @@ export class HudEnemy {
       const x = frame.cx, tip = Math.min(frame.top, frame.headY) - 8;
       if (x < 26 || x > VIEW.w - 26 || tip < 16 || tip > VIEW.h - 16) return;
       const y = Math.max(26, tip - 22);
+      if (rt.def.enemySwordSign) {
+        g.save(); g.translate(x, y + 18); g.scale(.65, .65);
+        this.drawSwordSign(g, 0, 0); g.restore(); return;
+      }
       const ready = this.attackCueEnemy === enemy;
       g.save(); g.lineJoin = 'round'; g.beginPath();
       if (ready) g.roundRect(x - 22, y - 22, 44, 44, 4);

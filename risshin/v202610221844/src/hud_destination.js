@@ -142,6 +142,18 @@ export class HudDestination {
   }
 
 
+  // 行き先の床に一本だけ刺す。兵や描画用の物は増やさない。
+  drawDestinationPin(g, x, y) {
+    g.save(); g.translate(x, y); g.lineJoin = 'round';
+    g.beginPath(); g.moveTo(0, 0); g.lineTo(-12, -24);
+    g.bezierCurveTo(-26, -52, 26, -52, 12, -24); g.closePath();
+    g.fillStyle = '#14120f'; g.fill();
+    g.strokeStyle = '#14120f'; g.lineWidth = 8; g.stroke();
+    g.strokeStyle = '#fff3ba'; g.lineWidth = 3; g.stroke();
+    g.beginPath(); g.arc(0, -32, 4, 0, Math.PI * 2);
+    g.fillStyle = '#fff3ba'; g.fill(); g.restore();
+  }
+
   drawNamedDestination(g, rt, pos, doorwayFrame = null) {
     if (this.namedGoalDrawn) return true;
     if (this.releaseMoveActive || this.releaseGestureDrawn) return true;
@@ -216,8 +228,9 @@ export class HudDestination {
       this.drawDestinationTrail(g, rt, x, y, opening.swipeX, opening.swipeY - 64);
     }
     if (edgeAngle === null) {
-      if (!framed) this.drawGoalArrivalRing(g, point.x, point.y);
-      if (openingControls) {
+      if (!framed && !rt.def.destinationPin) this.drawGoalArrivalRing(g, point.x, point.y);
+      if (rt.def.destinationPin) this.drawDestinationPin(g, x, y);
+      else if (openingControls) {
         // 操作面からの点線を残し、着地点の札は人物と輪を避ける。
         const size = 20 * Math.max(1, S.textScale || 1);
         g.save(); g.font = `bold ${size}px sans-serif`;

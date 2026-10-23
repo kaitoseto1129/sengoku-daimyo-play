@@ -224,6 +224,8 @@ export class HudFeedback {
     const c = $('crosshair');
     c.classList.toggle('blocked-hit', blocked);
     c.setAttribute('aria-label', blocked ? '防がれた一撃' : '当たった一撃');
+    if (this.rt?.def.key === 'okehazama')
+      this.notices.push(blocked ? '敵に防がれた' : '敵に当たった', 50, 1.5);
     c.classList.remove('hit'); void c.offsetWidth; c.classList.add('hit');
   }
 
@@ -242,7 +244,7 @@ export class HudFeedback {
     const hit = word === '槍' ? '槍で突かれた' : word === '鉄砲' ? '鉄砲で撃たれた' : word === '矢' ? '矢を受けた' : '一撃を受けた';
     const retreat = this.rt?.def.damageRetreatNeeded?.(this.rt) ?? true;
     if (this.rt && retreat) this.rt.retreatUntil = Math.max(this.rt.retreatUntil || 0, this.rt.t + 3);
-    const action = retreat ? '味方の後ろへ下がれ' : word === '矢' || word === '鉄砲' ? '物陰で矢玉を避けよ' : '敵へ向いて構えよ';
+    const action = retreat ? this.rt?.def.damageRetreatText || '味方の後ろへ下がれ' : word === '矢' || word === '鉄砲' ? '物陰で矢玉を避けよ' : '敵へ向いて構えよ';
     this.notices.push((visible ? direction + 'から' : '') + hit + '。' + action, 85, 3);
   }
 

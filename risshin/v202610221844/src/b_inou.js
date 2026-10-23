@@ -90,7 +90,7 @@ const LESSONS = {
   counter: ['counter', '防御した後に反撃', () => '構えを解いて左押し', '構えを解いて「つく」を押す'],
   dodge: ['dodge', '横へ回避', () => `横へ動きながら${K('dodge')}`, '横へ動きながら「回避」を押す'],
   together: ['together', '味方と一緒に戦え', () => '槍の列と並んで進む', '槍の列と並んで進む'],
-  identify: ['identify', '旗と装備で敵味方を見分ける', () => '味方の旗と、向こうの林の旗を見る', '味方の旗と、向こうの林の旗を見る'],
+  identify: ['identify', '◇は味方、▼は林美作守の手', () => '頭上の形と字を見て、味方と並ぶ', '頭上の形と字を見て、味方と並ぶ'],
   lock: ['lock', '敵に狙いを定める', () => `${K('lock')}を押す`, '「狙い」を押す'],
   morale: ['morale', '侍大将を失った部隊は士気が下がる', () => '敵の動きと退きを見る', '敵の動きと退きを見る'],
   stay: ['stay', '突出するな。味方と並べ', () => '一人で槍の列へ入らない', '一人で槍の列へ入らない'],
@@ -137,9 +137,32 @@ const inou = {
   immediateTaskChanges: true,
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.training === 1 && rt.flags.chase ? 'chase' : rt.flags.step === 0 ? 'genpachi' : 'holdFlag',
   // ミッション（kaito 10/23 稲生 1）。右の札に「ミッション 2／4　林の手を崩す」。林美作守を討ち取れば勝ちへ向かう。
-  missions: ['林軍を追う', '林の手を崩す', '柴田隊を受け止める', '林美作守を討ち取る'],
+  missions: ['林美作守の手を追う', '林の手を崩す', '柴田隊を受け止める', '林美作守を討ち取る'],
   missionOf: (rt) => { const F = rt.flags; return F.step === 0 ? (F.training <= 1 && !F.caught ? 0 : 1) : F.step === 1 ? 2 : 3; },
   minutes: 9,
+  missionContext: '弘治二年（一五五六）・稲生の戦い',
+  // 初陣の見分けだけ二枚。追う兵と味方を、色のほかに字と形で示す。
+  fieldSigns: (rt) => {
+    const F = rt.flags;
+    if (F.step !== 0 || F.ending) return null;
+    const signs = F.fieldSigns;
+    if (F.signPhase === F.training && rt.t < F.signNext) return signs;
+    F.signPhase = F.training; F.signNext = rt.t + 0.3;
+    const ally = F.chase && F.chaseA ? F.chaseA : F.hata;
+    const foe = F.training >= 5 ? F.haya1 : F.practice || F.haya1;
+    for (let i = 0; i < 2; i++) {
+      const group = i === 0 ? ally : foe;
+      let best = 55 * 55, chosen = null;
+      if (!group) { signs[i].unit = null; continue; }
+      for (const u of group.units) {
+        if (!u.alive || u.gone || u.mesh?.visible === false || u === rt.player.u) continue;
+        const d = (u.pos.x - rt.player.u.pos.x) ** 2 + (u.pos.z - rt.player.u.pos.z) ** 2;
+        if (d < best) { best = d; chosen = u; }
+      }
+      signs[i].unit = chosen;
+    }
+    return signs;
+  },
   // 行き先のピン一本。判定と同じ所・同じ半径を返す（追いつく 7m・右の畦 8m）。戦う相手の上には立てない（近づけば消える）。
   missionPin: (rt) => {
     const F = rt.flags, u = (o) => o?.alive ? { x: o.pos.x, z: o.pos.z, r: 4, hide: 12 } : null;
@@ -215,6 +238,7 @@ const inou = {
     const F = rt.flags;
     const lord = !!rt.G.lord;
     F.step = 0; F.ek = 0; F.ak = 0;
+    F.fieldSigns = [{ label: '◇ 味方・信長方', unit: null }, { label: '▼ 林美作守の手', unit: null }];
     // ---- 信長方：直属の槍隊・少ない家臣団・若い前田利家・佐久間勢 ----
     F.hata = allyGroup(rt, { name: '信長の旗本', anchor: { ...NOBU }, facing: Math.PI, width: 14, aggro: 6, noRout: true, formation: 'yari', fullStrength: true },
       dress([{ type: 'samurai', n: 1, o: { name: '組頭 源八', invuln: true } }, { type: 'ashigaru', n: 11 }], ODA));
@@ -301,13 +325,13 @@ const inou = {
 
     rt.world.setTime('day');
     rt.setPhase('brief');
-    rt.obj('main', '退く林の手を、味方と追おう', 'main');
+    rt.obj('main', '◇の味方と前へ進もう', 'main');
     rt.obj('stay', '信長の旗のそばで戦う', 'side');
     rt.marker('holdFlag', () => F.nobuU?.alive ? F.nobuU.pos : NOBU, '信長の旗',
       { guideArea: 'guard', guideFlag: true, guideDefend: true, guideRadius: 20 });
     rt.marker('genpachi', unitPos(F.genU), '組頭 源八', { minor: true, guideRadius: 5 });
     // 始まってすぐ、自分以外の味方は退く林の手を追ってまっすぐ前へ走る（Yuto の流れ・kaito 10/22）。自分のまわりから味方がいなくなる。
-    rt.say('組頭 源八', '林の手が退くぞ！　皆、追え！', 4);
+    rt.say('組頭 源八', '◇は味方じゃ。退く林美作守の手は▼で分かるぞ！', 5);
     for (const g of F.friends) {
       g.order = 'move'; g.speed = 3.2; g.aggro = 0;
       g.dest = { x: g.anchor.x, z: g === F.hata ? 6 : 10 };
@@ -330,8 +354,8 @@ const inou = {
     if (phase === 1) {
       // 林兵三人と味方二人の小さな群れ。自分の前で、ゆっくり北へ退く。追いつくと味方は抜け、林兵だけが残る。
       rt.setPhase('march');
-      rt.obj('main', '林軍を追いかけろ', 'main');
-      rt.say('組頭 源八', '味方は先へ行った！　遅れた林の兵を追え！', 4);
+      rt.obj('main', '金の印へ進み、▼の林勢を追おう', 'main');
+      rt.say('組頭 源八', '▼が林美作守の兵じゃ。金の印へ進め！', 4);
       const p = rt.player.u.pos;
       const at = { x: p.x + 2, z: Math.min(p.z - 14, 38) };
       const g = enemyGroup(rt, { faction: 'nobukatsu', name: '林の遅れ兵', anchor: { ...at }, facing: Math.PI, width: 3, aggro: 0, noAI: true, noRout: true, order: 'move', dmgMult: 0.25, focus: rt.player.u },

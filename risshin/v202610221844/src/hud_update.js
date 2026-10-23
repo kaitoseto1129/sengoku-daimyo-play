@@ -349,8 +349,8 @@ export class HudUpdate {
     }
     const damageWord = showDamageDirection && rt.t < this.damageWordUntil;
     setClass(damageDirection, 'on', showDamageDirection);
-    setClass(damageDirection, 'has-word', damageWord);
-    setText(damageDirection, damageWord ? '攻撃' : '');
+    setClass(damageDirection, 'has-word', damageWord || showDamageDirection && rt.def.key === 'okehazama');
+    setText(damageDirection, showDamageDirection && rt.def.key === 'okehazama' ? '敵の攻撃' : damageWord ? '攻撃' : '');
     setAttr(damageDirection, 'aria-label', '攻撃が来た方');
     if (showDamageDirection) {
       rt.camera.getWorldDirection(this.tmpV);

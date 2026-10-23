@@ -46,12 +46,15 @@ export class HudOpening {
       ? `<details class="intro-people"><summary>人物と砦の説明を読む</summary>${peopleText}</details>` : peopleText;
     for (const person of people) this.peopleIntroduced.add(person.id);
     if (document.pointerLockElement) document.exitPointerLock?.();
-    el.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-labelledby="intro-title" aria-describedby="intro-wait"><div class="intro-reading" tabindex="0" aria-label="戦の下知"><div class="date">${esc(date)}</div><div class="ttl" id="intro-title">${esc(name)}</div><i class="rule" aria-hidden="true"></i><div class="sides">味方　${esc(sideName(sides.a.name))}<em>対</em>敵　${esc(sideName(sides.b.name))}</div><p id="intro-wait" style="font-size:max(15px, calc(15px * var(--text-scale, 1)));line-height:1.6">${esc(waitShown)}</p><p style="font-size:max(15px, calc(15px * var(--text-scale, 1)));line-height:1.6"><b>勝つには：${esc(goal)}</b></p><p style="font-size:max(13px, calc(13px * var(--text-scale, 1)));line-height:1.6">${prepared}${read ? '' : '読む時間は自分で選べます'}</p></div><button type="button" class="btn primary" id="intro-go" style="min-height:48px;pointer-events:auto">出陣する</button></div>`;
+    el.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-labelledby="intro-title" aria-describedby="intro-wait"><div class="intro-reading" tabindex="0" aria-label="戦の下知"><div class="date">${esc(date)}</div><div class="ttl" id="intro-title">${esc(battle?.def.introName || name)}</div><i class="rule" aria-hidden="true"></i><div class="sides">味方　${esc(sideName(sides.a.name))}<em>対</em>敵　${esc(sideName(sides.b.name))}</div><p id="intro-wait" style="font-size:max(15px, calc(15px * var(--text-scale, 1)));line-height:1.6">${esc(waitShown)}</p><p style="font-size:max(15px, calc(15px * var(--text-scale, 1)));line-height:1.6"><b>勝つには：${esc(goal)}</b></p><p style="font-size:max(13px, calc(13px * var(--text-scale, 1)));line-height:1.6">${prepared}${read ? '' : '読む時間は自分で選べます'}</p></div><button type="button" class="btn primary" id="intro-go" style="min-height:48px;pointer-events:auto">出陣する</button></div>`;
     // 札の外は指を受け取らない。出陣待ちの停止は保つ。
     el.querySelector('.sides').innerHTML = `味方　${esc(openingSide('a'))}<em>対</em>敵　${esc(openingSide('b'))}`;
     // 指定した戦では、下知と勝つ条件を読んでから人物紹介へ送る。
     if (battle?.def.introTaskFirst) el.querySelector('.intro-reading').insertAdjacentHTML('beforeend', welcome);
     else el.querySelector('.sides').insertAdjacentHTML('afterend', welcome);
+    if (battle?.def.key === 'inou') {
+      el.querySelector('#intro-go').insertAdjacentHTML('beforebegin', '<small class="intro-scroll">背景は上下に送って最後まで読めます</small>');
+    }
     decorateTerms(el.querySelector('.intro-reading'));
     el.style.pointerEvents = 'none';
     $('cine').classList.toggle('on', !reduceMotion());

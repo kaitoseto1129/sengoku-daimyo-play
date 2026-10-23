@@ -203,8 +203,8 @@ export class HudArmy {
     // 総勢・残数・兵力比は武者の目には分からない。目に入る兵の気配だけ。
     // 残りの人数は数で（kaito 10/23 稲生 21）。戦の定義に force があれば両軍の残り、無ければ目に入る兵の数。
     const f = rt.def.force?.(rt), fmt = (n) => `${Math.max(0, Math.round(n)).toLocaleString('ja-JP')}人`;
-    setText($('ab-a'), f ? fmt(f.a) : a ? `目の前 ${fmt(a)}` : '味方は視界の外');
-    setText($('ab-b'), f ? fmt(f.b) : b ? `目の前 ${fmt(b)}` : '敵は視界の外');
+    setText($('ab-a'), f ? (f.aCaption || '') + fmt(f.a) : a ? `目の前 ${fmt(a)}` : '味方は視界の外');
+    setText($('ab-b'), f ? (f.bCaption || '') + fmt(f.b) : b ? `目の前 ${fmt(b)}` : '敵は視界の外');
     const pa = a ? 50 : 0, pb = b ? 50 : 0;
     $('ab-ga').parentElement.hidden = true;
     $('ab-gb').parentElement.hidden = true;

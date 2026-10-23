@@ -393,7 +393,8 @@ export class HudTeamSigns {
       if (enemy) {
         enemies++;
         // 敵は刀、味方は丸。色を見分けなくても所属が分かる。
-        g.save(); g.translate(signX, signY + 10); g.scale(.5, .5);
+        g.save(); g.translate(signX, signY + 10);
+        const scale = rt.def.nearbyTeamSignScale || .5; g.scale(scale, scale);
         this.drawSwordSign(g, 0, 0); g.restore();
         continue;
       } else {

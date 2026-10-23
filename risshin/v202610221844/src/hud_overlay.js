@@ -70,6 +70,7 @@ export class HudOverlay {
       setClass($('objectives'), 'enemy-order', false);
       this.drawRainDrops(g, W, H, rt); this.drawBrim(g, W, H, rt);
       this.drawPlayerSign(g, rt);
+      if (rt.def.nearbyTeamSignScale) this.drawNearbyTeamSigns(g, rt, rt.army.units);
       this.ovBlank = false;
       return;
     }

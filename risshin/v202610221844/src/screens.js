@@ -483,7 +483,7 @@ const INK_CSS = `<style>
   @media (max-height: 500px) { .op .beat { padding: 50px 20px; gap: 8px; } .op .b3 p { font-size: max(12px, calc(14px * var(--text-scale, 1))); } }
 </style>`;
 function inkTitle() { return `${INK_DEFS}<div class="ink-title">${INK_STROKE}<h1 class="title">戦国<span>立身</span></h1><i class="seal" aria-hidden="true">立<br>身</i></div>`; }
-// 新しく始めた時の入り（大河の始まりのように）。押すと次へ、「飛ばす」で終わる。back は題の画面へ
+// 新しく始めた時の入り。最後の語りから稲生の支度へ進む。back は題の画面へ
 function openingScreen(name, next, back) {
   let done = false, beat = 0, automatic = true;
   const timers = [];
@@ -494,7 +494,7 @@ function openingScreen(name, next, back) {
     <div class="beat b1" aria-hidden="true">${inkTitle()}</div>
     <div class="beat b2"><p>応仁の乱から、百年。<br>国は割れ、戦は絶えない。</p></div>
     <div class="beat b3"><small>弘治二年（一五五六）　尾張</small><b><span>織田の足軽</span>${esc(name)}</b><p>殿の弟・信勝が背いた。尾張が二つに割れる。</p></div>
-    </div><div class="op-foot"><button type="button" class="btn" id="op-next">次へ進む</button><button type="button" class="btn" id="op-skip">出陣の札へ進む</button></div>
+    </div><div class="op-foot"><button type="button" class="btn" id="op-next">稲生の支度へ進む</button></div>
   </div>`, false, (e) => {
     if (e.key === 'Escape') { e.preventDefault(); finish(); }
     else if (e.code === S.binds.skip || ((e.key === 'Enter' || e.key === ' ') && !e.target.closest?.('button'))) { e.preventDefault(); go(beat + 1); }
@@ -506,6 +506,7 @@ function openingScreen(name, next, back) {
     timers.forEach(clearTimeout); timers.length = 0;
     if (k >= beats.length) { finish(); return; }
     beat = k;
+    $('op-next').textContent = k === beats.length - 1 ? '稲生の支度へ進む' : '物語の続きを見る';
     beats.forEach((el, i) => { el.classList.toggle('on', i === k); el.setAttribute('aria-hidden', String(i !== k)); });
     if (k === 0) sfx('taiko', 0.8); else if (k === 2) sfx('horagai', 0.5);
     if (automatic) timers.push(setTimeout(() => go(k + 1), LEN[k] * 1000));
@@ -513,7 +514,6 @@ function openingScreen(name, next, back) {
   st.querySelector('.op').addEventListener('click', (e) => { if (!e.target.closest('button')) go(beat + 1); });
   $('op-auto').onclick = (e) => { e.stopPropagation(); automatic = !automatic; e.currentTarget.setAttribute('aria-pressed', String(automatic)); e.currentTarget.textContent = automatic ? '自動を止める' : '自動で進める'; timers.forEach(clearTimeout); timers.length = 0; if (automatic) timers.push(setTimeout(() => go(beat + 1), LEN[beat] * 1000)); };
   $('op-next').onclick = (e) => { e.stopPropagation(); go(beat + 1); };
-  $('op-skip').onclick = (e) => { e.stopPropagation(); sfx('ui'); finish(); };
   // 左上の戻る（題の画面へ）
   topBack(() => { if (done) return; done = true; timers.forEach(clearTimeout); back(); }, '題の画面へ', st.querySelector('.op-head'), false);
   $('op-next').focus({ preventScroll: true });
@@ -581,7 +581,7 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
     ${saved ? `${(saved.scenario || 'okehazama') !== 'oda' ? `<p class="note">古い保存：${esc(scOf(saved).name)}。続きから遊べます。<br>いま新しく始められる本編：織田家編。</p>` : ''}${(saved.scenario || 'okehazama') === 'oda' && !saved.owari && !saved.japan ? '<p class="note">新しい戦：桶狭間より前の尾張統一戦「稲生の戦い」。続きはそのまま遊べます。<br><button class="btn small" id="b-pre">稲生の戦いを遊ぶ（記録は残らない）</button></p>' : ''}<p class="savebox">保存の枠${S.slot + 1}：${saveInfo}<br>${esc(preparation(saved))}${saved.journal && saved.journal.length ? `<br>前回：${esc(saved.journal[saved.journal.length - 1]?.t || '')}　${esc(String(saved.journal[saved.journal.length - 1]?.s || '').slice(0, 40))}` : ''}</p><div id="new-confirm"></div>` : ''}
     ${!saved && slots.some(Boolean) ? '<p class="note">この枠は空きです。別の枠に記録があります。「保存記録」から続きの枠を選べます。</p>' : ''}
     <div class="title-act">${saved ? `<button class="btn primary" id="b-cont" aria-describedby="tt-save-note">続きから</button><button class="btn" id="b-new">新しく始める</button><small class="note" id="tt-save-note">城下までの記録です。戦の途中は保存されません。</small>` : '<button class="btn primary" id="b-new" style="min-height:56px;min-width:280px;font-size:20px">稲生へ出陣する</button>'}
-      ${fullPurchaseButton(true)}<span class="tt-sub" role="group" aria-label="ほかの操作">${mapOn ? '<button class="btn small" id="b-japan">天下の地図へ</button>' : ''}<button class="btn small" id="b-alt" aria-expanded="false" aria-controls="tt-alt">別の遊び方</button><button class="btn small" id="b-data" aria-expanded="false" aria-controls="tt-data">保存記録</button><button class="btn small" id="b-set">設定</button></span>${isTouch ? '' : `<span class="hintk">Enterで「${saved ? '続きから' : '稲生へ出陣する'}」</span>`}</div>
+      ${fullPurchaseButton(true)}<span class="tt-sub" role="group" aria-label="ほかの操作"><button type="button" class="btn small" id="b-controls">操作を見る</button>${mapOn ? '<button class="btn small" id="b-japan">天下の地図へ</button>' : ''}<button class="btn small" id="b-alt" aria-expanded="false" aria-controls="tt-alt">別の遊び方</button><button class="btn small" id="b-data" aria-expanded="false" aria-controls="tt-data">保存記録</button><button class="btn small" id="b-set">設定</button></span>${isTouch ? '' : `<span class="hintk">Enterで「${saved ? '続きから' : '稲生へ出陣する'}」</span>`}</div>
     <section class="tt-panel" id="tt-alt" hidden aria-labelledby="tt-alt-h"><h3 class="tt-ph" id="tt-alt-h">別の遊び方</h3><div class="row"><button class="btn small" id="b-words">用語集を開く</button></div><p class="note">本編とは別に遊べます。戦功・身分・物語の進みには反映しません。会った武将は共通の図鑑に残ります。稽古場の最高と、稽古場で得た実績も全保存記録共通です。</p><div class="row">${onSamurai ? '<button class="btn small" id="b-samurai">侍大将で出陣</button>' : ''}<button class="btn small" id="b-dojo">稽古場で腕試し</button>${onJapan && !mapOn ? '<button class="btn small" id="b-japan">日本地図を試す</button>' : ''}${location.hash === '#mvp' ? '<button class="btn small" id="b-rojotest">籠城の試し（開発用）</button>' : ''}</div>${onJapan && !mapOn ? '<p class="note">日本地図は、本編で足軽大将になるか、筋書きを終えると、城下から本編の続きとして進められます。</p>' : ''}</section>
     <div id="samurai-pick"></div>
     <section class="tt-panel" id="tt-data" hidden aria-labelledby="tt-data-h"><h3 class="tt-ph" id="tt-data-h">保存記録</h3><p class="note">空き枠を押してから、出陣の釦で始めます。<br>保存はこの閲覧画面だけに残ります。別の端末や閲覧画面へは保存文字列か保存保存文書で移します。<br>城下で自動保存します。保存文字列は城下で保存した時の控えです。進行・図鑑・実績・稽古の記録が入ります。端末の設定と戦の途中の状態は含みません。</p>
@@ -593,7 +593,7 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
     <div id="io-box"></div>
     </section>
     <div style="height:36px"></div>
-    ${isTouch ? '<details><summary class="note" style="cursor:pointer">操作を見る</summary><div style="height:10px"></div>' + touchKeysHtml() + '<p class="note">鍵盤や手持ち操作器をつなぐと、そのまま使えます</p><div style="height:14px"></div><p class="note" style="margin:0 0 6px">鍵盤・手元の操作器の操作</p>' + keysHtml() + '</details>' : `<details><summary class="note" style="cursor:pointer">鍵盤・手元の操作器の操作</summary><div style="height:10px"></div>${keysHtml()}</details>`}
+    ${isTouch ? '' : `<details><summary class="note" style="cursor:pointer">鍵盤・手元の操作器の操作</summary><div style="height:10px"></div>${keysHtml()}</details>`}
     <div style="height:18px"></div>
     <details><summary class="note" style="cursor:pointer">手持ち操作器の操作</summary><div style="height:10px"></div>${keysHtml(true)}</details>
     <div style="height:22px"></div>
@@ -614,6 +614,18 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
   const limitName = () => { const name = Array.from(nameField.value).slice(0, 8).join(''); if (nameField.value !== name) nameField.value = name; };
   nameField.addEventListener('input', (e) => { if (!e.isComposing) limitName(); });
   nameField.addEventListener('compositionend', limitName);
+  $('b-controls').onclick = () => {
+    const opener = $('b-controls'), dialog = document.createElement('dialog');
+    dialog.className = 'title-controls';
+    dialog.setAttribute('aria-labelledby', 'title-controls-heading');
+    dialog.innerHTML = `<h2 id="title-controls-heading">操作の手引き</h2><div class="controls-reading" tabindex="0">${isTouch ? touchKeysHtml() : '<p>移動の四つのキーで歩く。走るキーを押しながら動くと走ります。</p><p>手元で見回し、左押しで突き、右押しで構えます。</p>'}<p class="note">稲生では、移動から一つずつ練習できます。</p><p class="note">鍵盤・手持ち操作器の割り当ては「設定」で確認できます。</p></div><button type="button" class="btn">操作を閉じて題へ戻る</button>`;
+    scr.appendChild(dialog);
+    dialog.addEventListener('keydown', (e) => e.stopPropagation());
+    dialog.querySelector('button').onclick = () => dialog.close();
+    dialog.addEventListener('close', () => { dialog.remove(); opener.focus({ preventScroll: true }); }, { once: true });
+    dialog.showModal();
+    dialog.querySelector('button').focus({ preventScroll: true });
+  };
   $('b-words').onclick = () => openGlossary();
   // 折り返しや字の拡大で操作帯が高くなっても、最後の文まで帯の上へ送れるようにする。
   {
@@ -1259,20 +1271,29 @@ const LORE = {
 };
 // 読む札を開いた時だけ待つ。支度が先に済んでも、読み終えるまで勝手に閉じない。
 export function loadingStory(bt, story, tips, G) {
-  const L = LORE[bt.id], el = document.createElement('details');
-  let release = null, disposed = false;
+  const L = LORE[bt.id], el = document.createElement('section');
+  let release = null, disposed = false, reading = false;
   el.id = 'ld-story';
   el.style.cssText = 'max-width:36em;margin:8px auto;color:var(--washi);text-align:left';
   const talks = scenarioKey() === 'oda' ? battleTalk(G, bt) : [];
   const paragraphs = [...(story.text || []), ...(L ? [`史実：${L[0]}`, `見どころ：${L[1]}`] : [])];
-  el.innerHTML = `<summary style="min-height:44px;padding:10px 8px;box-sizing:border-box;border:1px solid var(--line);font-size:16px;cursor:pointer">戦の背景と心得を読む（支度は続きます）</summary><div style="max-height:45dvh;overflow-y:auto;overscroll-behavior:contain;padding:8px" tabindex="0" aria-label="戦の背景と心得"><b>${esc(story.year)}　${esc(story.title)}</b>${paragraphs.map((t) => `<p style="font-size:max(15px,calc(16px * var(--text-scale,1)));line-height:1.6;color:var(--washi);text-align:left;margin:8px 0;padding:0">${esc(t)}</p>`).join('')}<p style="font-size:16px;line-height:1.6;color:var(--washi)">心得：${esc(tips)}</p>${talks.map((t) => `<p style="font-size:16px;line-height:1.6;color:var(--washi)">${esc(t.place)}（遊びの中の会話）<br>${t.lines.map(([who, line]) => `${esc(who)}「${esc(line)}」`).join('<br>')}</p>`).join('')}</div><button type="button" class="btn" data-read-done style="min-height:48px">読み終えたので閉じる</button><p data-read-ready role="status" hidden style="font-size:15px;color:var(--washi)">支度ができました。読み終えたら閉じてください。</p>`;
-  const settle = () => { if (!el.open && release) { const f = release; release = null; f(); } };
-  el.addEventListener('toggle', settle);
-  el.querySelector('[data-read-done]').onclick = () => { el.open = false; settle(); el.querySelector('summary').focus({ preventScroll: true }); };
+  el.innerHTML = `<button type="button" class="btn" data-read-open aria-expanded="false" aria-controls="ld-story-body" style="width:100%;min-height:48px;font-size:16px">戦の背景と心得を読む（支度は続きます）</button><div id="ld-story-body" hidden><div style="max-height:45dvh;overflow-y:auto;overscroll-behavior:contain;padding:8px" tabindex="0" aria-label="戦の背景と心得"><b>${esc(story.year)}　${esc(story.title)}</b>${paragraphs.map((t) => `<p style="font-size:max(15px,calc(16px * var(--text-scale,1)));line-height:1.6;color:var(--washi);text-align:left;margin:8px 0;padding:0">${esc(t)}</p>`).join('')}<p style="font-size:16px;line-height:1.6;color:var(--washi)">心得：${esc(tips)}</p>${talks.map((t) => `<p style="font-size:16px;line-height:1.6;color:var(--washi)">${esc(t.place)}（遊びの中の会話）<br>${t.lines.map(([who, line]) => `${esc(who)}「${esc(line)}」`).join('<br>')}</p>`).join('')}</div><button type="button" class="btn" data-read-done style="min-height:48px">読み終えたので閉じる</button><p data-read-ready role="status" hidden style="font-size:15px;color:var(--washi)">支度ができました。読み終えたら閉じてください。</p></div>`;
+  const toggle = (on) => {
+    reading = on;
+    el.classList.toggle('reading', on);
+    el.querySelector('#ld-story-body').hidden = !on;
+    const button = el.querySelector('[data-read-open]');
+    button.setAttribute('aria-expanded', String(on));
+    button.textContent = on ? '戦の背景と心得を閉じる' : '戦の背景と心得を読む（支度は続きます）';
+    if (!on && release) { const f = release; release = null; f(); }
+    (on ? el.querySelector('[tabindex]') : button).focus({ preventScroll: true });
+  };
+  el.querySelector('[data-read-open]').onclick = () => toggle(!reading);
+  el.querySelector('[data-read-done]').onclick = () => toggle(false);
   $('tip').before(el);
   return {
     wait() {
-      if (disposed || !el.open) return Promise.resolve();
+      if (disposed || !reading) return Promise.resolve();
       el.querySelector('[data-read-ready]').hidden = false;
       return new Promise((resolve) => { release = resolve; });
     },
