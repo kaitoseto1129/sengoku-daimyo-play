@@ -50,18 +50,24 @@ export function missionWaitReached(rt) {
 
 // 「つけ」だけの下知も、実際について行く一人と札をそろえる。
 export function missionFollowTarget(rt, heading = rt.def.missionHeading?.(rt) || currentObjective(rt)?.text || '') {
-  if (!/^(?:つけ|続け|(?:味方|仲間|この人|[^。！？、]+の旗)について(?:いけ|行け)|[^。！？、]+に続け)[。！]?$/.test(heading.trim())) return null;
+  if (!/^(?:つけ|続け|(?:味方|仲間|この人|[^。！？、]+の旗)について(?:いけ|行け|いく)?|[^。！？、]+に続け)[。！]?$/.test(heading.trim())) return null;
   const m = rt.missionGuide?.marker;
   const u = (typeof m?.guidePerson === 'function' ? m.guidePerson() : m?.guidePerson) ||
     rt.def.missionAlly?.(rt) || rt.hostGroup?.leader;
   return u?.alive && !u.gone && !u.fleeing && !u.woundOut && u !== rt.player.u && u.team === rt.player.u.team ? u : null;
 }
 
-// 任務は右上の一行だけ。接敵や操作の状態で目当てを書き換えない。
+// 任務は右上の一行。待機と火付けは実際の判定に合わせる。
 export function missionCaption(rt, title = currentObjective(rt)?.text || '') {
   let heading = rt.def.missionHeading?.(rt) || title;
   // 稲生は戦の目的だけ。旗の到着判定で向きや移動の説明に置き換えない。
   if (rt.def.key === 'inou') return heading;
+  if (/^(敵をたおす|ここで待つ|火をつける)$/.test(heading)) return heading;
+  const fireMarker = rt.missionGuide?.marker;
+  if (fireMarker?.guideSymbol === 'fire') {
+    const action = rt.nearestInteract();
+    if (action?.id === fireMarker.id && /火/.test(action.label)) return '火をつける';
+  }
   // 桶狭間は、雨・出発・合図という待つ目的を戦の一行に残す。
   if (rt.def.key !== 'okehazama' && rt.def.key !== 'moribe' && /待[つてと]|^(旗にもどれ|丸まで行け)$/.test(heading)) {
     const reached = missionWaitReached(rt);
@@ -71,11 +77,16 @@ export function missionCaption(rt, title = currentObjective(rt)?.text || '') {
   const marker = rt.missionGuide?.marker;
   if (marker?.guideDefend || marker?.guideArea === 'guard') {
     const reached = missionWaitReached(rt);
-    if (reached !== null) heading = reached ? rt.def.waitOrderLabel?.(rt, true) || (/待/.test(heading) ? '輪の中で待とう' : '近づく敵をたおそう') : '旗へ行こう';
+    if (reached === true) {
+      const enemy = rt.missionGuide?.closeEnemy;
+      return enemy?.alive && !enemy.gone && !enemy.fleeing && enemy.team !== rt.player.u.team &&
+        Math.hypot(enemy.pos.x - rt.player.u.pos.x, enemy.pos.z - rt.player.u.pos.z) < 6 ? '敵をたおす' : 'ここで待つ';
+    }
+    if (reached === false) heading = '旗へ行こう';
   }
   if (missionWaitReached(rt) === true && /輪.*待とう/.test(heading)) heading = 'ここで待とう';
   heading = heading.replace(/旗にもどれ/g, '旗へもどろう');
-  if (missionFollowTarget(rt, heading) || missionFollowTarget(rt)) heading = '味方についていけ';
+  if (missionFollowTarget(rt, heading) || missionFollowTarget(rt)) return 'この人について';
   else if (/^(つけ|続け)$/.test(heading)) heading = missionWaitReached(rt) === true ? 'そのまま待とう' : '丸まで行け';
   return noOps(goalText(rt, heading))
     .split(/[。！？\n]/)

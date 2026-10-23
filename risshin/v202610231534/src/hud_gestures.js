@@ -566,6 +566,8 @@ export class HudGestures {
 
   // 命・敵・行き先の三枚。退く道筋は同じ形の矢印で示す。
   drawRetreatCues(g, rt) {
+    // 「敵」の字と線は出さない。敵は頭上の赤い▼だけ（kaito 10/23「字は一切使わない」・bot が「敵の印の下に人が見えない」と迷った）。
+    if (g || rt) return false;
     const W = VIEW.w, H = VIEW.h, p = rt.player.u.pos;
     const enemy = this.retreatGuide.enemy;
     if (!enemy?.alive || !sightUnit(rt, enemy)) return;

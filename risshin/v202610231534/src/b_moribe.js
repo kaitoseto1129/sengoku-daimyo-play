@@ -1957,7 +1957,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       // 命中は相手の赤い▼で示す。胴に別の印を重ねない。
       if (battle === rt) {
         const pin = rt.def.missionPin(rt);
-        if (combatSignsOnly() || !pin || pin.arrived && !pin.waiting) return false;
+        // 先手が視野の外へ回った時は、missionPin が選んだ行き先だけを残す。
+        if (!pin || pin.arrived && !pin.waiting) return false;
       }
       return hudBattleGoal.call(this, g, battle);
     };

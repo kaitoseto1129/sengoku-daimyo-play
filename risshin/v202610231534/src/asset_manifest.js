@@ -63,8 +63,10 @@ export async function prepareBattleAssets(id, current = () => true) {
   const { readAsset } = await import('./asset_reader.js');
   for (const name of assetsForBattle(id)) {
     if (!name.startsWith('dem_')) continue;
-    const data = active.get(name) || await readAsset(name, 'dem');
+    // 標高が読めない時（通信・古い版の消えた公開）は、戦を止めずに手書きの地形（各 b_*.js の base）で始める
+    const data = active.get(name) || await readAsset(name, 'dem').catch((e) => { console.warn('標高を読めず、手書きの地形で続けます', name, e); return null; });
     if (seq !== generation || !current()) return false;
+    if (!data) continue;
     active.set(name, data);
     for (const receive of users.get(name) || []) receive(data);
   }

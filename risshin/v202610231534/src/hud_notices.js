@@ -983,7 +983,7 @@ html body #hud #battle-message { gap:8px; }
       const combatCards = Number(!boss.hidden && !boss.classList.contains('symbol-only')) + Number(!shigaGuardTask && !target.hidden && !target.classList.contains('notice-muted'));
       const defendingPlace = !!this.hud.defendedLocation(rt);
       // 敵の太い輪も一枠に数え、命・任務札と合わせて三つまでにする。
-      const enemyLabel = !!this.hud.enemyFrameShown && (!rt?.def.enemySignOnly || !rt.def.town && !rt.def.dojo);
+      const enemyLabel = !!this.hud.missionEnemyShown || !!this.hud.enemyFrameShown && (!rt?.def.enemySignOnly || !rt.def.town && !rt.def.dojo);
       const damageLabel = !!rt && rt.player.u.alive && !rt.over && !rt.choice && !this.hud.openingActive &&
         !rt.player.camShot && !this.hud.bigmap && this.hud.damageWordRt === rt &&
         rt.t < this.hud.damageWordUntil && rt.t < this.hud.damageDirectionUntil;

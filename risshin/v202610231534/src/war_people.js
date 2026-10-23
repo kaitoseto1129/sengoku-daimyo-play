@@ -441,6 +441,25 @@ function crowdInit(rt) {
   rt.scene.add(im);
   C.im = im; C.m4 = new THREE.Matrix4(); C.q = new THREE.Quaternion(); C.e = new THREE.Euler(); C.p = new THREE.Vector3(); C.sv = new THREE.Vector3();
   C.zero = new THREE.Matrix4().makeScale(0, 0, 0); C.wp = { x: 0, z: 0 };
+  // 兵とは別の描画専用の民にも、同じ大きさの柔らかな接点を一束で残す。
+  if (rt.world.def.contactShadows) {
+    const geo = new THREE.PlaneGeometry(1, 1); geo.rotateX(-Math.PI / 2);
+    const mat = new THREE.MeshBasicMaterial({ color: 0x211b16, transparent: true, opacity: 0.48,
+      depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+    mat.onBeforeCompile = sh => {
+      sh.vertexShader = 'varying vec2 vCivilFoot;\n' + sh.vertexShader.replace('#include <begin_vertex>',
+        '#include <begin_vertex>\nvCivilFoot = uv * 2.0 - 1.0;');
+      sh.fragmentShader = 'varying vec2 vCivilFoot;\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+        float bodyContact = (1.0 - smoothstep(0.05, 1.0, length(vCivilFoot))) * 0.45;
+        vec2 feet = vec2(abs(vCivilFoot.x) - 0.3, vCivilFoot.y);
+        float soleContact = 1.0 - smoothstep(0.08, 0.52, length(feet * vec2(1.3, 1.0)));
+        diffuseColor.a *= max(bodyContact, soleContact);`);
+    };
+    mat.customProgramCacheKey = () => 'civilian-foot-contact';
+    C.shade = new THREE.InstancedMesh(geo, mat, C.agents.length);
+    C.shade.frustumCulled = false; rt.scene.add(C.shade);
+    C.shadeClock = 0;
+  }
   // 近くで本物の形に入れ替える数人（使い回す。毎コマ作らない）。
   for (const kind of rt.def.civilianCrowd?.nearKinds ?? POOL) {
     const col = CROWD[kind][0], monk = kind === 'monk', u = {};
@@ -813,6 +832,11 @@ function rememberSoldierCombat(rt) {
   }
 }
 
+function crowdGround(rt, x, z) {
+  const height = rt.def.civilianCrowd?.drawHeight;
+  return height ? height(rt.world, x, z) : rt.world.heightAt(x, z);
+}
+
 function crowdTick(rt, dt) {
   const C = rt.warCrowd;
   if (!C) return;
@@ -841,6 +865,9 @@ function crowdTick(rt, dt) {
     }
   }
   const im = C.im;
+  C.shadeClock -= dt;
+  const shadeUpdate = C.shade && C.shadeClock <= 0;
+  if (shadeUpdate) C.shadeClock = 0.25;
   for (const [i, a] of C.agents.entries()) {
     const g = a.g;
     let moving = false;
@@ -873,6 +900,22 @@ function crowdTick(rt, dt) {
     } else if (!still) a.idle += dt;
     if (moving && !still) a.ph += dt * a.spd * 3.4;
     const P = a.model;
+    if (shadeUpdate) {
+      const W = rt.world;
+      if (!a.out || Math.hypot(a.x - cam.x, a.z - cam.z) > 55 || W.inWaterAt(a.x, a.z)) C.shade.setMatrixAt(i, C.zero);
+      else {
+        const y = crowdGround(rt, a.x, a.z), span = 0.8 * a.sc;
+        const gx = (crowdGround(rt, a.x + 0.3, a.z) - crowdGround(rt, a.x - 0.3, a.z)) / 0.6;
+        const gz = (crowdGround(rt, a.x, a.z + 0.3) - crowdGround(rt, a.x, a.z - 0.3)) / 0.6;
+        const cs = Math.cos(a.h) * span, sn = Math.sin(a.h) * span;
+        if (!Number.isFinite(y + gx + gz) || gx * gx + gz * gz > 4) C.shade.setMatrixAt(i, C.zero);
+        else {
+          C.m4.set(cs, 0, sn, a.x, gx * cs - gz * sn, 1, gx * sn + gz * cs, y + 0.022,
+            -sn, 0, cs, a.z, 0, 0, 0, 1);
+          C.shade.setMatrixAt(i, C.m4);
+        }
+      }
+    }
     if (!a.out || P) { im.setMatrixAt(i, C.zero); if (!P) continue; }
     // 細分した描画面がある戦では、近景・遠景とも家や道と同じ面に立つ。
     const drawHeight = rt.def.civilianCrowd?.drawHeight;
@@ -895,12 +938,16 @@ function crowdTick(rt, dt) {
     else if (a.kind === 'monk') { u.armL.rotation.x = -0.7; u.armR.rotation.x = -0.7; }  // 合掌
   }
   im.instanceMatrix.needsUpdate = true;
+  if (shadeUpdate) C.shade.instanceMatrix.needsUpdate = true;
 }
 
 function crowdDispose(rt) {
   const C = rt.warCrowd;
   if (!C) return;
   rt.scene.remove(C.im); C.im.dispose();
+  if (C.shade) {
+    rt.scene.remove(C.shade); C.shade.geometry.dispose(); C.shade.material.dispose(); C.shade.dispose();
+  }
   for (const P of C.pool) rt.scene.remove(P.mesh);
   rt.warCrowd = null;
 }

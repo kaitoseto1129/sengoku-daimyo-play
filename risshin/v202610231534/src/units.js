@@ -510,7 +510,8 @@ export class Army {
       hachi: o.hachi,   // 鉢巻の色（手ごとに変えて、味方の手を見分ける）
       sode: o.sode ?? (loanArmor ? fac.sode ?? false : u.type === 'samurai' || u.type === 'cavalry' || u.type === 'busho'),
       kote: o.kote ?? (tier >= 1 ? 3 : undefined),
-      haori: o.haori ?? gen.haori ?? (u.type === 'busho' || o.name && o.horse ? (fac.haori ?? (g.team === 0 ? 0x6b1f18 : 0x5a4a22)) : detail85 && privateArmor && vi === 1 ? (fac.haori ?? fac.cloth?.[vi] ?? 0x34342e) : 0),
+      // 陣羽織はマントに見えるので誰にも着せない（kaito 10/24「マントやめて」）。
+      haori: 0,
       // 旗は数を減らし、大きさを揃える（kaito 10/23 稲生 48）。足軽の指物は三人に一人。隊旗の旗持ちだけ少し大きい。
       pole: o.flag !== null && u.type !== 'porter' && !(u.type === 'ashigaru' && !o.name && !o.flagScale && !o.standard && vi % 3 !== 0),
       flag: o.flag === null || u.type === 'porter' || (u.type === 'ashigaru' && !o.name && !o.flagScale && !o.standard && vi % 3 !== 0) ? null : (o.flag || gen.flag || fac.flag),
@@ -1650,10 +1651,11 @@ export class Army {
   contactShadow(u, B) {
     // 足元の板を省く戦では、束ねた接触影も作らない。
     if (this.world.def.noFootShadows) return;
-    if (u.qualityTier === 2 || !u.alive || u.dying || u.gone || u.isStruct || u.type === 'dummy' || !u.mesh?.parent || (!u.mesh.visible && !u.imp)) return;
+    if ((u.qualityTier === 2 && !this.world.def.contactShadowRange) || !u.alive || u.dying || u.gone || u.isStruct || u.type === 'dummy' || !u.mesh?.parent || (!u.mesh.visible && !u.imp)) return;
     const p = u.pos, focus = this.playerUnit?.pos || this.world.lastFocus;
     // 影地図の淡い影にも足元の芯を残す。遠い兵には追加しない。
-    if ((u.shOn && !this.world.def.contactShadows) || !focus || (p.x - focus.x) ** 2 + (p.z - focus.z) ** 2 >= 576) return;
+    const range = this.world.def.contactShadowRange ?? 24;
+    if ((u.shOn && !this.world.def.contactShadows) || !focus || (p.x - focus.x) ** 2 + (p.z - focus.z) ** 2 >= range * range) return;
     B.sph.center.set(p.x, p.y, p.z); B.sph.radius = 0.6;
     if (!B.fr.intersectsSphere(B.sph)) return;
     if (!this.contactGeo) {

@@ -1242,7 +1242,7 @@ function loadingSlides(bt) {
   box.id = 'ld-slides'; box.setAttribute('aria-hidden', 'true');
   box.style.cssText = 'position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;background:var(--sumi)';
   const n = SLIDES[bt?.id] || 0, urls = [];
-  for (let k = 1; k <= n; k++) urls.push(Promise.resolve(`assets/slides/${bt.id}-${k}.jpg`));
+  for (let k = 1; k <= n; k++) urls.push(Promise.resolve(new URL(`../assets/slides/${bt.id}-${k}.jpg`, import.meta.url).href));   // 公開の Web は版の下に絵がある
   if (!urls.length) for (const key of [illustKey(bt?.id), ...SLIDE_FILL].filter((k, i, a) => k && a.indexOf(k) === i).slice(0, 3)) urls.push(illustURL(key));
   const imgs = [0, 1].map(() => {
     const im = document.createElement('img'); im.alt = ''; im.decoding = 'async';

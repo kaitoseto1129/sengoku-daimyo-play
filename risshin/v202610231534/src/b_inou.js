@@ -125,7 +125,7 @@ function pinPoint(rt, pos, radius, hide, unit = null, name = '') {
   const pin = rt.flags.goalPin;
   pin.x = pos.x; pin.z = pos.z; pin.r = radius; pin.hide = hide;
   pin.unit = unit; pin.name = name; pin.enemy = !!unit && unit.team !== rt.player.u.team;
-  pin.approach = false; pin.silent = false;
+  pin.approach = false; pin.silent = false; pin.arrow = false;
   return pin;
 }
 
@@ -156,15 +156,6 @@ const inou = {
   missions: ['赤い▼の敵を倒せ', '赤い▼の敵を倒せ', '柴田隊に耐えろ', '林美作守を倒せ'],
   missionHeading(rt) {
     const F = rt.flags;
-    if (F.step === 1) {
-      if (F.training === 11 && !F.flankReached) return '右の畦へ進め';
-      if (F.training === 12) return '柴田隊を横から攻めろ';
-      const lead = F.nobuU?.alive ? F.nobuU.pos : NOBU;
-      if (Math.hypot(rt.player.u.pos.x - lead.x, rt.player.u.pos.z - lead.z) >= 20) return '旗まで進め';
-      if (F.training === 11) return 'ここで生きのこれ';
-      return `あと${Math.max(1, Math.ceil((F.training < 11 ? 24 : 112) - (rt.t - F.stepT)))}秒 生きのこれ`;
-    }
-    if (F.step === 2) return '信長について進め';
     return F.step === 0 && F.training === 8 ? '敵の隊長を倒せ' : this.missions[this.missionOf(rt)];
   },
   // 控えや追跡中の兵も敵の姿として見分けられる。攻撃できるかで▼を消さない。
@@ -196,26 +187,20 @@ const inou = {
     }
     return signs;
   },
-  // ピンは槍が届く足場まで。着いたら敵の頭上の赤い▼だけを残す。
+  // 倒す場面は敵の印だけ。側面への移動は成功判定と同じ東側へ導く。
   missionPin: (rt) => {
     const F = rt.flags;
-    if (F.ending) return null;
-    if (F.step === 0) {
-      if (F.training < 0) return null;
-      const ready = rt.player.inRange && fighting(rt.player.rangeCueTarget);
-      const enemy = F.training === 8 ? F.hayaLead : approachUnit(rt);
-      if (ready || !fighting(enemy)) return null;
-      const me = rt.player.u.pos, dx = me.x - enemy.pos.x, dz = me.z - enemy.pos.z;
-      const distance = Math.hypot(dx, dz), reach = rt.player.meleeReach(rt.player.previewMeleeKind() || 'thrust') * .8;
-      if (distance <= reach) return null;
-      const pin = pinPoint(rt, enemy.pos, 0, 0, enemy);
-      pin.x += dx / distance * reach; pin.z += dz / distance * reach;
-      pin.approach = true;
-      return pin;
-    }
+    if (F.ending || F.step === 0 || F.step === 3) return null;
     if (F.step === 1) {
-      if (F.training === 11 && !F.flankReached) return pinPoint(rt, FLANK, 8);
-      if (F.training === 12 && !gone(F.shiba1)) return pinPoint(rt, F.shiba1.center(), 8, 16);
+      if (F.training === 11 && !F.flankReached) {
+        const pin = pinPoint(rt, FLANK, 8); pin.arrow = true; return pin;
+      }
+      if (F.training === 12 && !gone(F.shiba1)) {
+        const c = F.shiba1.center();
+        const pin = pinPoint(rt, c, 2, 2);
+        pin.x += 11; pin.arrow = true;
+        return pin;
+      }
       // 持ち場にいる間は移動の印を消し、右上の残り時間だけを示す。
       const lead = F.nobuU?.alive ? F.nobuU.pos : NOBU;
       if (Math.hypot(rt.player.u.pos.x - lead.x, rt.player.u.pos.z - lead.z) < 20) return null;
@@ -299,7 +284,7 @@ const inou = {
     F.hata = allyGroup(rt, { name: '信長の旗本', anchor: { ...NOBU }, facing: Math.PI, width: 14, aggro: 6, noRout: true, formation: 'yari', fullStrength: true },
       dress([{ type: 'samurai', n: 1, o: { name: '組頭 源八', invuln: true } }, { type: 'ashigaru', n: 11 }], ODA));
     // 本陣には信長と旗本（馬廻の騎馬・槍・旗持ち）を置く（kaito 10/23 稲生 19）。ほとんどは足軽。
-    const HATAMOTO = [{ type: 'samurai', n: 2, o: { horse: true } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 18 }];
+    const HATAMOTO = [{ type: 'samurai', n: 1, o: { horse: true } }, { type: 'ashigaru', n: 24 }];   // 10/24 kaito「足軽ばかりに」
     F.nobuGroup = allyGroup(rt, { name: '信長の本旗', anchor: { x: NOBU.x - 16, z: NOBU.z + 7 }, facing: Math.PI, width: 10, aggro: 0, noRout: true, fullStrength: true, formation: 'yari' },
       dress(lord ? HATAMOTO : [{ type: 'busho', n: 1, o: { name: '織田信長', invuln: true, horse: true } }, ...HATAMOTO], ODA));
     F.nobuU = lord ? rt.player.u : F.nobuGroup.units[0];
@@ -310,7 +295,7 @@ const inou = {
       dress([{ type: 'samurai', n: 1, o: { name: '佐々孫介', invuln: true } }, { type: 'ashigaru', n: 12 }, { type: 'bow', n: 2 }], ODA));
     F.sassaU = F.sassa.units.find((u) => u.name === '佐々孫介');
     F.inu = allyGroup(rt, { name: '前田利家', anchor: { x: NOBU.x + 10, z: NOBU.z + 8 }, facing: Math.PI, width: 6, aggro: 10, noRout: true },
-      dress([{ type: 'samurai', n: 1, o: { name: '前田利家', invuln: true, keep: true } }, { type: 'samurai', n: 1 }], ODA));
+      dress([{ type: 'samurai', n: 1, o: { name: '前田利家', invuln: true, keep: true } }, { type: 'ashigaru', n: 2 }], ODA));
     F.nazuka = allyGroup(rt, { name: '佐久間勢', anchor: { x: NAZUKA.x + 6, z: NAZUKA.z }, facing: Math.PI, width: 12, aggro: 6, noRout: true, formation: 'yari' },
       dress([{ type: 'samurai', n: 1, o: { name: '佐久間大学', invuln: true } }, { type: 'ashigaru', n: 10 }, { type: 'bow', n: 4 }], ODA));
     F.friends = [F.hata, F.mori, F.sassa, F.inu];
@@ -342,7 +327,7 @@ const inou = {
     F.shiba1 = enemyGroup(rt, { faction: 'nobukatsu', name: '柴田の長槍隊', anchor: { ...SHIBA0 }, facing: 0, fleeDir: { x: 0, z: -1 }, width: 12, noRout: true, formation: 'yari', dmgMult: 0.85, defMult: 1.2, morale: 95 },
       dress([{ type: 'ashigaru', n: 30, o: { spear: 'nagae' } }], SHIBA));
     F.shibaG = enemyGroup(rt, { faction: 'nobukatsu', name: '柴田勝家の徒歩武者', anchor: { x: 0, z: SHIBA0.z - 9 }, facing: 0, fleeDir: { x: 0, z: -1 }, width: 10, noRout: true, formation: 'line', dmgMult: 0.85, defMult: 1.2, morale: 98 },
-      dress([{ type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true, keep: true } }, { type: 'samurai', n: 4 }, { type: 'samurai', n: 1, o: { name: '宮井勘兵衛' } }, { type: 'ashigaru', n: 19 }], SHIBA));
+      dress([{ type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true, keep: true } }, { type: 'samurai', n: 1, o: { name: '宮井勘兵衛' } }, { type: 'ashigaru', n: 26 }], SHIBA));
     F.shibaU = F.shibaG.units.find((u) => u.type === 'busho');
     F.shibaU.maxHp *= 1.4; F.shibaU.hp = F.shibaU.maxHp;
     // 勝家を殴り続けても、共通の深手による単独離脱を起こさない。
@@ -397,7 +382,7 @@ const inou = {
     rt.obj('stay', '信長の旗のそばで戦う', 'side');
     rt.marker('holdFlag', () => F.nobuU?.alive ? F.nobuU.pos : NOBU, '信長の旗',
       { guideArea: 'guard', guideFlag: true, guideDefend: true, guideRadius: 20 });
-    rt.marker('genpachi', unitPos(F.genU), '組頭 源八', { minor: true, guideRadius: 5 });
+    rt.marker('genpachi', unitPos(F.genU), '組頭 源八', { minor: true, guideRadius: 9 });
     // 始まってすぐ、自分以外の味方は退く林の手を追ってまっすぐ前へ走る（Yuto の流れ・kaito 10/22）。自分のまわりから味方がいなくなる。
     rt.say('組頭 源八', '前へ二メートル歩いてみよ。できたら次の操作だ。', 5);
     for (const g of F.friends) {
@@ -448,7 +433,7 @@ const inou = {
       const count = phase === 3 ? 2 : 1;
       const pp = rt.player.u.pos;
       const g = enemyGroup(rt, { faction: 'nobukatsu', name: '林の先駆け', anchor: { x: pp.x + 3, z: pp.z - 7 }, facing: 0, width: 3, aggro: 12, seekRange: 30, noAI: true, noRout: true, order: 'attack', dmgMult: phase === 4 ? 0.4 : 0.25, focus: rt.player.u },
-        dress([{ type: phase === 4 ? 'samurai' : 'ashigaru', n: count }], HAYA));
+        dress([{ type: 'ashigaru', n: count }], HAYA));
       F.practice = g;
       prepareMarch(g);
       for (const u of g.units) { u.hp = u.maxHp = Math.max(30, rt.player.u.dmg * 2.2); u.cdBase *= 1.8; }
@@ -520,7 +505,7 @@ const inou = {
     rt.unmark('hayashiCamp');
     // 従来の旗本十六人を二つの備へ分ける。兵の総数は増やさない。
     F.hayaG = enemyGroup(rt, { faction: 'nobukatsu', name: '林美作守の旗本', anchor: { x: -24, z: -8 }, facing: 0, fleeDir: { x: -0.3, z: -1 }, aggro: 6, width: 7, noAI: true, noRout: true, morale: 75, formation: 'yari', dmgMult: 0.55, defMult: 1.2 },
-      dress([{ type: 'busho', n: 1, o: { name: '林美作守', invuln: true, horse: true, hat: 'kabuto_m', haori: 0x3a3a2a } }, { type: 'samurai', n: 1 }, { type: 'ashigaru', n: 6 }], HAYA));
+      dress([{ type: 'busho', n: 1, o: { name: '林美作守', invuln: true, horse: true, hat: 'kabuto_m' } }, { type: 'ashigaru', n: 8 }], HAYA));
     F.hayaU = F.hayaG.leader;
     F.hayaU.dmg *= 0.5; F.hayaU.noTarget = true;
     F.hayaCenter = enemyGroup(rt, { faction: 'nobukatsu', name: '林の中央の備', anchor: { x: -10, z: -12 }, facing: 0, fleeDir: { x: 0, z: -1 }, aggro: 6, width: 7, noAI: true, noRout: true, morale: 75, formation: 'yari', dmgMult: 0.55 },
@@ -532,7 +517,7 @@ const inou = {
       g.onArrive = (q) => { q.order = 'hold'; };
     }
     F.kuroda = allyGroup(rt, { name: '黒田半平', anchor: { x: -18, z: 46 }, facing: Math.PI, width: 6, aggro: 8, noAI: true, noRout: true, order: 'hold' },
-      dress([{ type: 'samurai', n: 1, o: { name: '黒田半平', invuln: true, keep: true } }, { type: 'samurai', n: 2 }], ODA));
+      dress([{ type: 'samurai', n: 1, o: { name: '黒田半平', invuln: true, keep: true } }, { type: 'ashigaru', n: 3 }], ODA));
     prepareMarch(F.kuroda);
     rt.marker('hayaU', unitPos(F.hayaU), '林美作守', { red: true, h: 3.4 });
   },
