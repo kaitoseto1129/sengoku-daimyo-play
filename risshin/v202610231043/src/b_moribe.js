@@ -39,12 +39,12 @@ const NIRE_WIDTH2 = 9;
 const nireZ = (x) => x < -70 ? NIREMATA2 + 2 * Math.min(1, (-70 - x) / 730) : x < 46 ? NIREMATA2 : NIREMATA2 + 6 * Math.min(1, (x - 46) / 454);
 // 南岸の水際から始め、渡河そのものは残して岸までの長い歩きを省く。
 const START2 = { x: 40, z: 98 };
-// 北岸の水際で渡河を終える。岸へ上がった後まで、奥の集合場所を追わせない。
-const POINT2 = { x: 40, z: 79 };
+// 水際から二歩だけ土へ上がった地点。水面にピンを刺さない。
+const POINT2 = { x: 40, z: 76.5 };
 const FORD_R = 4;
 // 向こう岸へ上がれば渡河済み。浅瀬から横へそれても、小旗へ戻らせない。
-const atFordBank = (p, world) => p.z <= nireZ(p.x) - NIRE_WIDTH2 ||
-  p.z < nireZ(p.x) && world.waterFootDepthAt(p.x, p.z, p.y) <= .12;
+const atFordBank = (p, world) => p.z <= nireZ(p.x) - (NIREMATA2 - POINT2.z) &&
+  world.waterFootDepthAt(p.x, p.z, p.y) <= .12;
 const FRONT2 = { x: 4, z: 20 };
 const ASSEMBLY2 = { x: 14, z: 10 };
 const RETREAT2 = { x: 24, z: 48 };
@@ -478,9 +478,9 @@ const moribeHeight = (x, z, b) => (moribeDem ? demBlend(moribeDem, x, z, b + mor
 // 森部だけの浅瀬。粗い地形の岸に引かれて埋もれた川面を、渡る帯でそろえる。
 function moribeFord(rt) {
   const W = rt.world, st = W.def.streams[1], pa = st.mesh.geometry.attributes.position;
-  // 水面の帯を抜けた所で渡河を終える。低い陸地を水中とみなして奥へ誘わない。
-  // ピンは水際の半歩先。横へそれても同じ川幅で到着を判定する。
-  POINT2.z = nireZ(START2.x) - st.w - .5;
+  // 土へ上がる地点を一度だけ決め、ピンと到着判定をそろえる。
+  POINT2.z = nireZ(START2.x) - st.w - 2.5;
+  for (let i = 0; i < 12 && W.waterFootDepthAt(POINT2.x, POINT2.z, W.heightAt(POINT2.x, POINT2.z)) > .12; i++) POINT2.z -= .5;
   for (let i = 0; i < st.surface.length; i += 3) {
     const x = st.surface[i], k = Math.max(0, Math.min(1, (160 - Math.abs(x)) / 30));
     const y = st.surface[i + 2] + (0.12 - st.surface[i + 2]) * k;
@@ -525,22 +525,22 @@ function moribeFord(rt) {
   // 岸と浅瀬の石、渡る帯の杭。出陣時だけ作り、形と材質を使い回す。
   const stoneGeo = new THREE.SphereGeometry(1, 7, 5);
   const stoneMat = new THREE.MeshStandardMaterial({ color: 0x827b69, roughness: 1 });
-  const stones = new THREE.InstancedMesh(stoneGeo, stoneMat, 24);
+  const stones = new THREE.InstancedMesh(stoneGeo, stoneMat, 12);
   const pegGeo = new THREE.CylinderGeometry(0.045, 0.065, 1.2, 5);
   const pegMat = new THREE.MeshStandardMaterial({ color: 0xe8cd81, roughness: 1 });
-  const pegs = new THREE.InstancedMesh(pegGeo, pegMat, 8), at = new THREE.Object3D();
-  for (let i = 0; i < 24; i++) {
-    // 同じ二十四個を帯の両脇へ。両岸だけでなく流れの中にも石が続く。
+  const pegs = new THREE.InstancedMesh(pegGeo, pegMat, 4), at = new THREE.Object3D();
+  for (let i = 0; i < 12; i++) {
+    // 石は両岸だけに散らす。流れの中へ飛び石に見える列を作らない。
     const x = START2.x + (i % 2 ? 1 : -1) * (5.5 + Math.sin(i * 2) * .45);
-    const z = nireZ(x) - 10 + Math.floor(i / 2) * 20 / 11;
+    const z = nireZ(x) + (i < 6 ? -1 : 1) * (10.8 + i % 3 * .7);
     at.position.set(x, Math.max(W.heightAt(x, z) + 0.12, 0.1), z);
     at.scale.set(0.45 + i % 3 * 0.12, 0.22, 0.36); at.rotation.y = i * 1.7;
     at.updateMatrix(); stones.setMatrixAt(i, at.matrix);
   }
   at.scale.set(1, 1, 1); at.rotation.set(0, 0, 0);
-  for (let i = 0; i < 8; i++) {
-    const x = i % 2 ? 46 : 34, z = POINT2.z + Math.floor(i / 2) * (START2.z - POINT2.z) / 3;
-    // 同じ八本を渡り口から対岸まで並べ、水中でも杭の頭を水面に出す。
+  for (let i = 0; i < 4; i++) {
+    const x = i % 2 ? 46 : 34, z = i < 2 ? POINT2.z : START2.z;
+    // 杭は入口と出口の一対ずつ。水の中の通り道は白波と川底で見せる。
     at.position.set(x, Math.max(W.heightAt(x, z), .12) + 0.55, z);
     at.updateMatrix(); pegs.setMatrixAt(i, at.matrix);
   }
@@ -1019,7 +1019,7 @@ const moribe = {
   // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は「何をするか」だけ（kaito 10/23 49・50）。段の総称で通し、向き・行き先の字は書かない。
-  missions: ['川を渡れ', '仲間を待て', '赤い▼の敵を倒せ', '仲間と敵を迎え撃て', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
+  missions: ['川を渡れ', '仲間を待て', '敵の先手を倒せ', '敵の反撃に耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
   // ピン・▼・名前は同じ本人へ。描画の間引きで相手を替えない。
   commanderTarget(rt) {
     const F = rt.flags;
@@ -1083,7 +1083,7 @@ const moribe = {
         !F.signal && F.pointReached && !F.pointInside ||
         (F.stage === 'hold' || F.stage === 'contact' && F.vBroken) && F.lineReturning)
       return '仲間と集まれ';
-    if (F.stage === 'hold') return '仲間と敵を迎え撃て';
+    if (F.stage === 'hold') return '敵の反撃に耐えろ';
     return this.missions[this.missionOf(rt)];
   },
   minutes: 7,
@@ -1189,7 +1189,6 @@ const moribe = {
       if (!boss) return null;
       q.unit = boss; pos = boss.pos; r = hide = 6;
     } else if (F.stage === 'hold' || F.vBroken) {
-      if (!F.lineReturning) return null;
       // 守備を始めた地点に固定し、隊が動いても守る場所を動かさない。
       pos = F.linePoint;
       r = hide = 18;
@@ -1609,20 +1608,7 @@ const moribe = {
     noticeStyle.textContent = `
 /* 次の一手と号令を右の任務札にまとめる。横持ちでも二行を切らない。 */
 #hud #h-prog[data-battle="moribe"] { width:min(320px, 38vw); }
-/* 待ち時間の丸は任務と同じ一行。秒の字や別の札は足さない。 */
-html:root body #hud.mission-only #h-prog[data-battle="moribe"]:has(.pg-pie:not([hidden])) {
- display:flex; align-items:center; gap:12px;
-}
-html:root body #hud.mission-only #h-prog[data-battle="moribe"] .pg-st { flex:1; min-width:0; }
-html:root body #hud.mission-only #h-prog[data-battle="moribe"] > .pg-time:has(.pg-pie:not([hidden])) {
- display:flex !important; order:-1; margin:0; flex:none;
-}
-#hud #h-prog[data-battle="moribe"] .pg-pie { width:28px; height:28px; position:relative; }
-#hud #h-prog[data-battle="moribe"] .pg-pie::after {
- content:""; position:absolute; left:calc(50% - 1px); top:12%; width:2px; height:38%;
- background:#fff3df; box-shadow:0 0 1px 1px #14120f; transform-origin:50% 100%;
- transform:rotate(calc(var(--p, 0) * 3.6deg));
-}
+/* 耐える間の進み具合は、守る地点のピンの中だけを満たす。 */
 /* 共通の一行省略より優先し、今することを最後まで読めるようにする。 */
 html:root body #hud.mission-only #h-prog[data-battle="moribe"] .pg-st span {
  max-width:100% !important; white-space:normal !important; overflow:visible !important;
@@ -2118,6 +2104,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         // 命を減らした本人だけがよろめく。空振りや味方には反応を付けない。
         if (t.alive) {
           t.stagger = Math.max(t.stagger || 0, .6);
+          // 突きの途中の姿を残さず、命中した本人のよろめきを見せる。
+          t.atk = null; t.swing = null; t.cd = Math.max(t.cd || 0, .6);
           // 当たった体を小さく押し戻し、重なった隣の兵と反応を見分ける。
           if (t.push && !t.mounted && !t.isStruct) {
             const dx = t.pos.x - src.pos.x, dz = t.pos.z - src.pos.z;
@@ -2129,10 +2117,10 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       return result;
     };
     const n = Math.min(24, RANKS[rt.G.rank].squad || 5);
-    rt.makeSquad({ x: START2.x + 5, z: START2.z - 3 }, Math.PI, [{ kind: 'spear', n }]);   // 組は右前で一緒に流れへ入る
+    rt.makeSquad({ x: START2.x + 8, z: START2.z + 3 }, Math.PI, [{ kind: 'spear', n }]);   // 先に渡る前備と重ねず、組はすぐ後ろから続く
     // 三手は楡俣川の南岸に並び、遊び手と同じ流れを渡る。柴田・本備・森の備は勝ち戦の芯なので、
     // 兵は討たれても隊ごとの総崩れはしない（右手の小勢は崩れうる）。
-    rt.flags.A = allyGroup(rt, { name: '柴田の前備', fixed: true, anchor: { x: 32, z: 98 }, facing: Math.PI, aggro: 12, morale: 100, noRout: true, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 16 }, { type: 'samurai', n: 1, o: { name: '源八', invuln: true } }, { type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true } }]);
+    rt.flags.A = allyGroup(rt, { name: '柴田の前備', fixed: true, anchor: { x: 40, z: 91 }, facing: Math.PI, aggro: 12, morale: 100, noRout: true, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 16 }, { type: 'samurai', n: 1, o: { name: '源八', invuln: true } }, { type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true } }]);
     rt.flags.B = allyGroup(rt, { name: '本備', fixed: true, anchor: { x: -22, z: 116 }, facing: Math.PI, aggro: 12, morale: 100, noRout: true, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 24 }, { type: 'bow', n: 2 }, { type: 'samurai', n: 2 }]);
     // 上役の源八は戦の後に城下で昇進を告げる。この戦では討たれない。
     rt.flags.moribeOfficer = rt.flags.A.units.find((u) => u.name === '源八');
@@ -2300,18 +2288,22 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       const V = rt.flags.V;
       if (gone(V)) return;
       V.speed = 2.1;   // 雨の畦を先手が北岸へ寄せてくる。
-      V.order = 'move'; V.dest = { x: 30, z: 60 };
-      V.onArrive = (g) => { rt.flags.vArrived = rt.t; g.order = 'attack'; g.seekRange = 18; g.anchor = { x: 30, z: 60 }; };
+      V.order = 'move'; V.dest = { x: 40, z: 72 };
+      V.onArrive = (g) => { rt.flags.vArrived = rt.t; g.order = 'attack'; g.seekRange = 35; g.anchor = { x: 40, z: 72 }; };
       if (!rt.flags.signal) rt.marker('V', centerOf(V), '斎藤の先手', { red: true, group: V });
       rt.say('足軽', '向こう岸に斎藤の先手！　岸へ寄せてくるぞ！', 3);
     });
     buildBattleJin(rt);
     moribeCloth(rt);
-    // 備え表の結び直しで弓混じりの横陣に戻っても、三列の槍組を保つ。
-    for (const g of [...F.friends, ...F.opposition]) { g.formation = 'yari'; g.yariRanks = 3; }
+    // 備え表の結び直し後も槍列を保つ。最初に接する先手だけは二列で動きを見せる。
+    for (const g of [...F.friends, ...F.opposition]) {
+      g.formation = 'yari'; g.yariRanks = g === F.V ? 2 : 3;
+      // 接触中も肩が重ならない間隔を残し、本人の構えと穂先を読めるようにする。
+      g.spacing = Math.max(g.spacing, 1.9);
+    }
     for (const g of rt.squadGroups) { g.formation = 'yari'; g.yariRanks = 2; }
-    // 三手も遊び手と並んで楡俣川を渡り、北岸の畦に槍をそろえる。
-    for (const [g, x, z] of [[F.A, 20, 60], [F.B, -22, 70], [F.Y, -40, 60], [F.R3, 64, 66]]) {
+    // 前備は目の前の浅瀬を歩いて渡る。仲間の足取りで水へ入れることを示す。
+    for (const [g, x, z] of [[F.A, 40, 70], [F.B, -22, 70], [F.Y, -40, 60], [F.R3, 64, 66]]) {
       g.leader = g.units.find((u) => u.type === 'busho') || g.units.find((u) => u.type === 'samurai');
       g.order = 'move'; g.dest = { x, z }; g.speed = 2;
       g.onArrive = (u) => { u.order = 'hold'; };

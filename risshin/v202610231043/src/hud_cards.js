@@ -474,8 +474,8 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     if (rt.over || !headline) return;
     this.progChangeReduced = reduced;
     let animation;
-    if (reduced) {
-      // 移動や拡縮をせず、右上で一度だけ明るくして戻す。
+    if (reduced || rt.def.key === 'moribe') {
+      // 森部は渡河直後も敵を隠さず、右上の一行をその場で強調する。
       animation = el.animate([
         { boxShadow: '0 0 0 transparent' },
         { boxShadow: '0 0 18px #e8c25a', offset: .35 },

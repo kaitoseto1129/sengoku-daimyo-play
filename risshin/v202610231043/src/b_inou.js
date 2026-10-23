@@ -160,7 +160,8 @@ const inou = {
   // 控えや追跡中の兵も敵の姿として見分けられる。攻撃できるかで▼を消さない。
   foeMarkVisible: () => true,
   missionSignTarget: (rt) => rt.flags.step === 0 && rt.flags.training >= 0 && rt.flags.training <= 8 ?
-    rt.flags.training === 8 ? rt.flags.hayaLead : approachUnit(rt) : rt.flags.step === 3 ? rt.flags.hayaU : null,
+    rt.flags.training === 8 ? rt.flags.hayaLead :
+      rt.player.inRange && fighting(rt.player.rangeCueTarget) ? rt.player.rangeCueTarget : approachUnit(rt) : rt.flags.step === 3 ? rt.flags.hayaU : null,
   missionOf: (rt) => { const F = rt.flags; return F.step === 0 ? (F.training <= 4 ? 0 : 1) : F.step === 1 ? 2 : 3; },
   minutes: 9,
   // 初陣の見分けだけ二枚。追う兵と味方を、色のほかに字と形で示す。

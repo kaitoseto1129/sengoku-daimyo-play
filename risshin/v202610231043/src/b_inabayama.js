@@ -2545,7 +2545,7 @@ const inabayama = {
   // ミッション（kaito 10/23 1・49・50）。右上の一行は「何をするか」だけ。向き・行き先の字は書かない。
   lendBow: true, // 美濃攻めは弓を覚える戦（kaito の役割分担）。問屋で買っていなくても弓を貸す。
   noSiegeCards: true, // 右の曲輪の札（未見・様子不明）は出さない。字は右上の一行だけ（kaito 10/23）。
-  missions: ['この人についていく', '火の印へ', 'さくを守れ', '搦手の山道を攻め上る', '斎藤龍興の馬廻を討つ', '本丸に合図の火を放つ'],
+  missions: ['この人についていく', '火の印へ', 'さくを守れ', '山道をのぼれ', '斎藤龍興の馬廻を討つ', '本丸に合図の火を放つ'],
   missionHeading(rt) {
     if (this.missionOf(rt) === 1) {
       if (rt.flags.lit >= NEED) return '町の出口へ';
@@ -2871,30 +2871,21 @@ const inabayama = {
     const pos = marker && (marker.guideDestination?.() || (typeof marker.pos === 'function' ? marker.pos() : marker.pos));
     if (!pos) return null;
     const pin = F.missionPin || (F.missionPin = { r: 0, hide: -2, waiting: false, arrived: false, always: true, silent: true });
-    pin.x = pos.x; pin.z = pos.z;
+    // 共通の印へ人・炎・入口の情報も渡す。位置だけでは自分を指す矢印になる。
+    pin.marker = marker; pin.key = id;
+    pin.unit = id === 'kino' && F.kinoU?.alive ? F.kinoU : null;
+    pin.follow = !!pin.unit; pin.footRing = !!pin.unit;
+    pin.fire = marker.guideSymbol === 'fire';
+    pin.gate = marker.guideSymbol === 'gate';
+    pin.x = pin.unit ? pin.unit.pos.x : pos.x; pin.z = pin.unit ? pin.unit.pos.z : pos.z;
+    // 最初は登り口、その後は今まで通りの曲がり角。案内だけを切り替える。
+    if (id === 'karaGuide' && F.karaNext === 1 && !F.karaEntryShown) {
+      if (Math.hypot(rt.player.u.pos.x - KARA_FOOT.x, rt.player.u.pos.z - KARA_FOOT.z) <= 3) F.karaEntryShown = true;
+      else { pin.x = KARA_FOOT.x; pin.z = KARA_FOOT.z; }
+    }
     return pin;
   },
-  drawMissionMarks(g, rt, hud) {
-    const F = rt.flags;
-    if (F.step !== 1 || F.lit >= NEED || F.ending) return false;
-    const point = F.houseMarkPoint || (F.houseMarkPoint = {});
-    let drawn = false;
-    for (const h of F.houses) {
-      if (!h.mine || h.burnt) continue;
-      // 家の上にも行き先と同じ穴のある印。投影点を使い回す。
-      point.x = h.x; point.z = h.z;
-      const at = hud.project(point, h.m.position.y + 5, rt, F.houseMarkProjection || (F.houseMarkProjection = {}));
-      if (at.behind || at.x < 16 || at.x > VIEW.w - 16 || at.y < 40 || at.y > VIEW.h - 16) continue;
-      g.save(); g.translate(at.x, at.y); g.scale(.45, .45);
-      g.beginPath(); g.moveTo(0, 0); g.lineTo(-15, -30);
-      g.bezierCurveTo(-35, -59, 35, -59, 15, -30); g.closePath();
-      g.moveTo(6, -42); g.arc(0, -42, 6, 0, Math.PI * 2);
-      g.lineJoin = 'round'; g.strokeStyle = '#14120f'; g.lineWidth = 4; g.stroke();
-      g.fillStyle = '#fff3ba'; g.fill('evenodd'); g.restore();
-      drawn = true;
-    }
-    return drawn;
-  },
+  // 火付け先は共通の大きな炎一本に集め、ほかの家に紛らわしい印を重ねない。
   guideMarker(rt) {
     const F = rt.flags;
     if (F.ending) return null;

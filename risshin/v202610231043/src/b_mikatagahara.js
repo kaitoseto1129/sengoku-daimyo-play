@@ -778,6 +778,7 @@ const mikatagahara = {
   positionPersonGuide: false, // 突き・のけぞりの姿勢も拾い、立ち位置の空間だけを囲まない。
   noUnitContrast: true, // 歩く体とずれる白い人型線を消す。敵味方の頭上の印は残す。
   hidePlayerSign: true, // 肩越しの本人から離れる白輪を、進む先の印と取り違えさせない。
+  playerFootSignOnly: true, // 常時の本人案内にも渡し、別経路から白い棒人間を描かない。
   openingFootSignOnly: true, // 出だしは足元の印だけ。本人を頭から足まで白枠で囲まない。
   enemyCornerSign: true, // 描画側が読む指定で四隅へ畳み、太い長方形を残さない。
   enemyFootRingRadius: 0.4, // 相手の足元だけを示し、隣の兵まで白い輪へ入れない。
@@ -980,6 +981,16 @@ html body #hud.mikata-guide #intro:has(#intro-go) .intro-reading {
 #hud.mikata-guide .mk.main.large-way.edge { padding-top:40px; }
 #hud.mikata-guide .mk.main.large-way.edge::after { content:''; top:0; width:0; height:0; border:12px solid transparent; border-bottom:24px solid #f3d98a; border-top:0; font-size:0; }
 #hud.mikata-guide .bl #h-hp i { height:8px; }
+/* 草や具足へ操作の字を直に重ねず、左右クリックも一行で読める幅を取る。 */
+html:not(.touch) #hud.mikata-guide:not(.ending):not(:has(#intro:not([hidden]))) #h-bottom { opacity:1; }
+html:not(.touch) #hud.mikata-guide #h-bottom .slot {
+  width:auto; min-width:72px; padding:4px 8px;
+  background:#14120f; color:#ece4d2; opacity:1;
+  font-size:max(13px, calc(13px * var(--text-scale, 1))); line-height:1.4;
+}
+html:not(.touch) #hud.mikata-guide #h-bottom .slot em {
+  width:auto; white-space:nowrap; color:#ece4d2; opacity:1;
+}
 /* 背の高い画面では知らせを左へ置き、右上の地図と退路を隠さない。 */
 @media (min-height:501px) {
   /* 畳んだ任務の共通指定にも優先し、右上への寄せと幅・高さを持ち越さない。 */

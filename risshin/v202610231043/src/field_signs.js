@@ -8,7 +8,7 @@ import { enemyKnown } from './battle_intel.js';
 import { reduceMotion } from './settings.js';
 
 const CAP = 360, BARS = 12, NAMES = 1, GLOW = 8, HOT = 16;
-const hotM = Array.from({ length: HOT }, () => new THREE.Matrix4()), hotLife = new Float32Array(HOT);
+const hotM = Array.from({ length: HOT }, () => new THREE.Matrix4()), hotLife = new Float32Array(HOT), hotTone = new Float32Array(HOT);
 const FOE_R = 55, FOE_OUT = 62, GEN_R = 60, NEAR_R = 18, NEAR_OUT = 22;
 const BAR_FOE = new THREE.Color(0xe8452c), BAR_ALLY = new THREE.Color(0xe8c25a), BAR_BG = new THREE.Color(0x14120f);
 const STATE = new WeakMap();
@@ -46,6 +46,18 @@ function build(rt, root) {
         '#include <begin_vertex>\nif (position.z > 0.0) { transformed.xy = vec2(0.0, 0.065) + (position.xy - vec2(0.0, 0.065)) * signLife; }')
         .replace('#include <color_vertex>', '#include <color_vertex>\nvSignA = (signTone < 0.5 ? 0.55 : 1.0) * signFade;\nif (signTone > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(1.0);');
       shader.fragmentShader = 'varying float vSignA;\n' + shader.fragmentShader.replace('vec4 diffuseColor = vec4( diffuse, opacity );', 'vec4 diffuseColor = vec4( diffuse, opacity * vSignA );');
+      if (rt.def.key === 'moribe' || rt.def.key === 'inou') {
+        // 赤の高さが命の残り。小さな赤い点へ縮めず、黒い空きが増える▼にする。
+        shader.vertexShader = 'varying vec3 vSignLevel;\n' + shader.vertexShader;
+        shader.vertexShader = shader.vertexShader.replace(
+          'if (position.z > 0.0) { transformed.xy = vec2(0.0, 0.065) + (position.xy - vec2(0.0, 0.065)) * signLife; }',
+          'vSignLevel = vec3(position.z > 0.0 ? 1.0 : 0.0, position.y, signLife);');
+        // 届く時の白い縁と分け、実際の命中だけ中を白く、縁を赤く保つ。
+        shader.vertexShader = shader.vertexShader.replace('if (signTone > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(1.0);',
+          'if (signTone > 2.5) vColor = position.z > 0.0 ? vec3(1.0) : vec3(1.0, 0.06, 0.02); else if (signTone > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(1.0);');
+        shader.fragmentShader = 'varying vec3 vSignLevel;\n' + shader.fragmentShader.replace('#include <color_fragment>',
+          '#include <color_fragment>\nif (vSignLevel.x > 0.5 && vSignLevel.y > mix(0.065, 0.245, vSignLevel.z)) diffuseColor.rgb = vec3(0.007, 0.006, 0.005);');
+      }
     };
   }
   const marks = new THREE.InstancedMesh(tri, triMat, CAP);
@@ -85,7 +97,7 @@ function build(rt, root) {
   (root || document.body).appendChild(box);
   const s = { marks, allies, bars, glow, box, labels, gens: [], at: -1, nearby: [], nearbyAt: -1,
     signPool: Array.from({ length: rt.def.key === 'inou' ? CAP : 0 }, () => ({ matrix: new THREE.Matrix4() })),
-    signCandidates: [], signChosen: [], signPickAt: -1, signFrameAt: -1 };
+    signCandidates: [] };
   const clean = () => {
     rt.scene.remove(marks, allies, bars, glow);
     glowGeo.dispose(); glowMat.dispose(); glow.dispose?.();
@@ -98,63 +110,18 @@ function build(rt, root) {
   return s;
 }
 
-// 選ぶ順は届く敵、近い敵。選択済みの兵には半歩の余裕を持たせ、僅差で入れ替えない。
-const signPriority = (a, b) => Number(b.hot) - Number(a.hot) || a.score - b.score;
-const signBackFirst = (a, b) => b.distance - a.distance;
-const signsOverlap = (a, b) => Math.abs(a.x - b.x) < 32 && Math.abs(a.y - b.y) < 40;
-const signsCrowded = (a, b) => a.u.group && a.u.group === b.u.group &&
-  ((a.u.pos.x - b.u.pos.x) ** 2 + (a.u.pos.z - b.u.pos.z) ** 2 < 36 ||
-    Math.abs(a.x - b.x) < 60 && Math.abs(a.y - b.y) < 65);
-function signCluster(c) {
-  while (c.cluster !== c) { c.cluster = c.cluster.cluster; c = c.cluster; }
-  return c;
-}
-
-function drawInouSigns(s, rt) {
-  const list = s.signCandidates, chosen = s.signChosen;
-  if (rt.t >= s.signPickAt || rt.t < s.signPickAt - .2) {
-    s.signPickAt = rt.t + .2;
-    list.sort(signPriority);
-    chosen.length = 0;
-    for (const c of list) { c.cluster = c; c.clusterCount = 0; }
-    // 密集が横へ連なる場合も同じ塊にまとめ、四人目以降を出さない。
-    for (let i = 0; i < list.length; i++) for (let j = 0; j < i; j++) {
-      if (signsCrowded(list[i], list[j])) signCluster(list[i]).cluster = signCluster(list[j]);
-    }
-    for (const c of list) {
-      const cluster = signCluster(c);
-      c.u._inouSignOn = cluster.clusterCount < 3;
-      if (c.u._inouSignOn) { cluster.clusterCount++; chosen.push(c); }
-    }
-    // 同じ画面位置では自分から近い本人を前景にする。先端の位置は動かさない。
-    chosen.sort(signBackFirst);
-    for (let i = 0; i < chosen.length; i++) {
-      const c = chosen[i];
-      let behind = false, front = false;
-      for (let j = 0; j < chosen.length; j++) {
-        if (i === j || !signsOverlap(c, chosen[j])) continue;
-        if (j > i) behind = true; else front = true;
-      }
-      c.u._inouSignScaleGoal = behind ? Math.min(.7, 12 / c.width) : front ? Math.max(1.2, 22 / c.width) : 1;
-      c.u._inouSignFadeGoal = behind ? .4 : 1;
-    }
-  }
-  // 描画順も遠い方から。入れ物・行列は使い回し、表示の大きさと濃さだけ滑らかに変える。
+// 赤い▼を人数で間引かない。遠い敵から描き、届く本人を最後に重ねる。
+// 候補の入れ物と行列は使い回し、密集した隊同士の総当たりをしない。
+const signBackFirst = (a, b) => Number(a.hot) - Number(b.hot) || b.distance - a.distance;
+function drawInouSigns(s) {
+  const list = s.signCandidates;
   list.sort(signBackFirst);
-  const mix = 1 - Math.exp(-Math.max(0, Math.min(.1, rt.t - s.signFrameAt)) / .12);
-  s.signFrameAt = rt.t;
   let n = 0;
   for (const c of list) {
-    const u = c.u;
-    if (!u._inouSignOn) continue;
-    u._inouSignScale = (u._inouSignScale ?? 1) + ((u._inouSignScaleGoal ?? 1) - (u._inouSignScale ?? 1)) * mix;
-    u._inouSignFade = (u._inouSignFade ?? 1) + ((u._inouSignFadeGoal ?? 1) - (u._inouSignFade ?? 1)) * mix;
-    v.set(u._inouSignScale, u._inouSignScale, 1);
-    c.matrix.scale(v);
     s.marks.setMatrixAt(n, c.matrix);
     s.marks.geometry.attributes.signLife.setX(n, c.life);
-    s.marks.geometry.attributes.signTone.setX(n, c.hot ? 2 : c.tone);
-    s.marks.geometry.attributes.signFade.setX(n++, u._inouSignFade);
+    s.marks.geometry.attributes.signTone.setX(n, c.tone);
+    s.marks.geometry.attributes.signFade.setX(n++, 1);
   }
   s.marks.geometry.attributes.signFade.needsUpdate = true;
   return n;
@@ -220,12 +187,14 @@ export function fieldSignsTick(rt, root) {
   const gens = s.gens; gens.length = 0;
   if (!hide) for (const u of rt.army.units) {
     // 自分が討った時だけ、同じ▼を短く縮めて消す。空振りや味方の討ち取りでは出さない。
-    const defeated = moribe && !u.alive && (u.moribeHitUntil || 0) - rt.t > 1.2;
+    const defeatUntil = inou ? u.inouHitUntil : u.moribeHitUntil;
+    const defeated = (moribe && !u.alive || inou && (!u.alive || u.dying || u.downed || u.woundOut || u.rearWound)) && (defeatUntil || 0) - rt.t > 1.2;
     if ((!u.alive || u.dying || u.woundOut || u.rearWound || u.downed) && !defeated || u.gone || u.isPlayer || u.isStruct || u.civ || u.type === 'dummy' || u.type === 'porter' || u.team > 1) continue;
     const dx = u.pos.x - P.x, dz = u.pos.z - P.z, d2 = dx * dx + dz * dz;
     const foe = u.team !== me.team;
     const meD2 = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
-    const hot = foe && reachHot > 0 && u.alive && meD2 <= reachHot * reachHot;
+    // 稲生・森部の白縁は実際に攻撃が届く一人だけ。横や背後の敵まで同時に強調しない。
+    const hot = foe && reachHot > 0 && u.alive && ((moribe || inou) ? u === reachableTarget : meD2 <= reachHot * reachHot);
     // 近い敵は人数・重なり・体の描画省略で消さない。距離は本人から測り、境に幅を持たせる。
     const nearRadius = u._fsNearOn ? NEAR_OUT : NEAR_R;
     const near = foe && (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 < nearRadius * nearRadius;
@@ -269,8 +238,8 @@ export function fieldSignsTick(rt, root) {
     headPos.set(u.pos.x, headY(u) + .12, u.pos.z);
     // 稲生は笠を含めた高さより上へ固定する。頭の動きは追わない。
     if ((moribe || inou || oke) && !u.mounted) headPos.y = u.pos.y + Math.max(2.1, (u.bodyHeight || 1.72) + .35) + .12;
-    // 森部は笠のすぐ上へ寄せる。遠い印と手前の別人が重なって見える隙間を減らす。
-    if ((moribe || oke) && !u.mounted) headPos.y = u.pos.y + Math.max(2, (u.bodyHeight || 1.72) + .2);
+    // 稲生・森部・桶狭間は笠のすぐ上へ寄せる。遠い印と手前の別人が重なって見える隙間を減らす。
+    if ((moribe || inou || oke) && !u.mounted) headPos.y = u.pos.y + Math.max(2, (u.bodyHeight || 1.72) + .2);
     // 稲生・森部・桶狭間とも立ち位置の上へ固定し、構えや突きの頭の揺れを追わない。
     v.copy(headPos).applyMatrix4(cam.matrixWorldInverse);
     if (v.z >= 0) continue;
@@ -279,7 +248,7 @@ export function fieldSignsTick(rt, root) {
     const readyEnemy = rt.player.inRange && (!oke || rt.player.rangeCueTarget === missionEnemy) ? rt.player.rangeCueTarget : null;
     // 追う一人の▼は近づくほど大きくする。足場のピンと同じ本人を示す。
     const approach = (oke || inou) && u === missionEnemy ? Math.max(0, 1 - Math.hypot(u.pos.x - me.pos.x, u.pos.z - me.pos.z) / 30) : 0;
-    // 森部は届く一人を大きくし、命中時は縦横に広げて少し保つ。
+    // 届く一人を大きくし、命中時は縦横に広げて少し保つ。
     // 討つ武将は別の大きさを保ち、任務の相手を見失わせない。
     // 稲生は追う一人を少し大きくし、届く時には幅も広げる。
     // 自分へ振りかぶる本人だけ縦長にする。届く時の横幅、命中時の拡大とは形を分ける。
@@ -287,7 +256,7 @@ export function fieldSignsTick(rt, root) {
       (u.atk?.target === me && !u.atk.bow && !u.atk.gun || u.swing?.target === me && !u.swing.done);
     const pixels = moribe ? ((u.moribeHitUntil || 0) > rt.t ? 26 : u === readyEnemy ? 26 : u === commander ? 26 : threatening ? 22 : near ? 16 : 11) :
       // 稲生は25m より遠い敵を小さく薄く、届く敵は少し大きく明るく（重なっても近い本人が分かる）
-      inou ? (u === missionEnemy ? 24 + 2 * approach : meD2 < 25 * 25 ? 16 : 9) * (hot ? 1.3 : 1) :
+      inou ? (u === missionEnemy || hot ? 24 + 2 * approach : meD2 < 25 * 25 ? 16 : 9) :
       oke ? (u === readyEnemy ? 34 : u === missionEnemy ? 26 + 6 * approach :
         (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 < 12 * 12 ? 18 : 10) :
       foe ? (u === readyEnemy ? 28 : u === focusEnemy ? 22 : 12) : 8;
@@ -295,11 +264,11 @@ export function fieldSignsTick(rt, root) {
     // 頭上の先端は固定し、既存の形・材質・描画の束をそのまま使う。
     // 稲生は命中の形を少し保ってから戻す。連打の合間にも当たった本人が分かる。
     const hitLeft = ((oke ? u.okeHitUntil : inou ? u.inouHitUntil : u.moribeHitUntil) || 0) - rt.t;
-    // 森部は一撃ごとに短く広がり、その後は小さく残す。続けて当てても拡大を読み取れる。
-    const hit = foe && (moribe || inou || oke) ? moribe
+    // 稲生・森部は一撃ごとに短く広がり、その後は小さく残す。続けて当てても拡大を読み取れる。
+    const hit = foe && (moribe || inou || oke) ? (moribe || inou)
       ? Math.max(Math.min(1, Math.max(0, (hitLeft - 2.05) / .35)), .3 * Math.min(1, Math.max(0, hitLeft / .6)))
       : Math.min(1, Math.max(0, hitLeft) / 1.2) : 0;
-    const reachable = !inou && foe && u === readyEnemy;
+    const reachable = foe && u === readyEnemy;
     // 森部の命中は同じ赤い▼を大きくして示す。空振りでは変わらない。
     // 稲生は「届く＝幅広い▼」「命中＝一度だけ広がる▼」。残りの命は中の赤の面積で示す。
     const pulse = still ? (moribe || inou) && hit > 0 ? 1 : 0 : hit;
@@ -321,7 +290,7 @@ export function fieldSignsTick(rt, root) {
     // 手前の味方の印に見えてしまう。投影後の画面端で自然に切れるようにする。
     // 森部は届く一人だけ横に広げ、命中した時だけ縦にも広げる。
     // 間合いに入っただけの変化と、実際に命を減らした変化を分ける。
-    const width = oke ? pixels + 14 * pulse : moribe ? pixels * (1 + .45 * pulse) : pixels;
+    const width = oke ? pixels + 14 * pulse : (moribe || inou) ? pixels * (1 + .45 * pulse) : pixels;
     const k = Math.min(u === commander ? 32 : moribe ? 5 : (inou || oke) && u === missionEnemy ? 8 : 3, width * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) *
       (moribe || inou ? 1 : 1 + (pulse > 0 ? 1.2 * pulse : reachable && !oke ? .55 : 0));
     dummy.position.copy(headPos);
@@ -332,39 +301,37 @@ export function fieldSignsTick(rt, root) {
     dummy.scale.set(oke ? okeScale * (reachable ? 1.6 : 1) : moribe || inou ? k * (reachable ? 1.6 : 1) : k * (1 + .5 * pulse),
       oke || moribe || inou ? (oke ? okeScale : k) * (1 + pulse) : k, oke ? okeScale : k);
     if (threatening && !hit) { dummy.scale.x *= .8; dummy.scale.y *= 1.8; }
-    if (defeated) dummy.scale.multiplyScalar(Math.max(0, Math.min(1, (u.moribeHitUntil - rt.t - 1.2) / 1.2)));
+    if (defeated) dummy.scale.multiplyScalar(Math.max(0, Math.min(1, (defeatUntil - rt.t - 1.2) / 1.2)));
     dummy.updateMatrix();
     if (foe) {
-      // 瀕死でも所属の赤は残す。黒い外枠だけになって敵の印を見失わない。
-      const life = Math.sqrt(Math.max(moribe ? .09 : oke ? .36 : .16, Math.min(1, u.hp / (u.maxHp || 1))));
+      // 稲生は赤の高さで残りの命を示す。他の戦の赤い面積は保つ。
+      const life = inou ? Math.max(0, Math.min(1, u.hp / (u.maxHp || 1))) : Math.sqrt(Math.max(moribe ? .09 : oke ? .36 : .16, Math.min(1, u.hp / (u.maxHp || 1))));
       // 届く敵の▼は最後に描き、重なった所でも上に出す。
+      const tone = (moribe || inou) && hitLeft > 2.05 ? 3 : hot ? 2 : inou && u !== missionEnemy && meD2 > 25 * 25 ? 0 : 1;
       if (inou) {
         const c = s.signPool[s.signCandidates.length];
         c.u = u; c.matrix.copy(dummy.matrix); c.life = life; c.hot = hot;
-        c.width = Math.max(1, dummy.scale.x * innerHeight * cam.projectionMatrix.elements[5] * .34 / (-v.z * 2));
-        c.distance = Math.sqrt(meD2); c.score = c.distance - (u._inouSignOn ? .6 : 0);
-        c.tone = u !== missionEnemy && meD2 > 25 * 25 ? 0 : 1;
+        c.distance = Math.sqrt(meD2); c.tone = tone;
         v.copy(headPos).project(cam);
-        c.x = (v.x + 1) * innerWidth / 2; c.y = (1 - v.y) * innerHeight / 2;
         // 画面外の兵は端へ寄せず、選択枠も使わない。
         if (Math.abs(v.x) <= 1.1 && Math.abs(v.y) <= 1.2 && v.z <= 1) s.signCandidates.push(c);
       }
-      else if (special && hot && hotN < HOT) { hotM[hotN].copy(dummy.matrix); hotLife[hotN++] = life; }
+      else if (special && hot && hotN < HOT) { hotM[hotN].copy(dummy.matrix); hotLife[hotN] = life; hotTone[hotN++] = tone; }
       else {
         if (special) {
           s.marks.geometry.attributes.signLife.setX(n, life);
-          s.marks.geometry.attributes.signTone.setX(n, inou && u !== missionEnemy && meD2 > 25 * 25 ? 0 : 1);
+          s.marks.geometry.attributes.signTone.setX(n, tone);
         }
         s.marks.setMatrixAt(n++, dummy.matrix);
       }
     }
     else s.allies.setMatrixAt(a++, dummy.matrix);
   }
-  if (inou) n = drawInouSigns(s, rt);
+  if (inou) n = drawInouSigns(s);
   for (let i = 0; i < hotN && n < CAP; i++, n++) {
     s.marks.setMatrixAt(n, hotM[i]);
     s.marks.geometry.attributes.signLife.setX(n, hotLife[i]);
-    s.marks.geometry.attributes.signTone.setX(n, 2);
+    s.marks.geometry.attributes.signTone.setX(n, hotTone[i]);
   }
   s.marks.count = n; s.marks.instanceMatrix.needsUpdate = true;
   if (special) { s.marks.geometry.attributes.signLife.needsUpdate = true; s.marks.geometry.attributes.signTone.needsUpdate = true; }

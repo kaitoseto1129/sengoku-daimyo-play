@@ -65,13 +65,13 @@ export function missionCaption(rt, title = currentObjective(rt)?.text || '') {
   // 桶狭間は、雨・出発・合図という待つ目的を戦の一行に残す。
   if (rt.def.key !== 'okehazama' && rt.def.key !== 'moribe' && /待[つてと]|^(旗にもどれ|丸まで行け)$/.test(heading)) {
     const reached = missionWaitReached(rt);
-    if (reached !== null) heading = reached ? 'そのまま待とう' : /旗にもどれ/.test(heading) ? '旗へもどろう' : '旗へ行こう';
+    if (reached !== null) heading = reached ? rt.def.waitOrderLabel?.(rt, true) || '輪の中で待とう' : /旗にもどれ/.test(heading) ? '旗へもどろう' : '旗へ行こう';
   }
   // 守備の札も印も同じ到着判定を使い、移動中に「守ろう」を出さない。
   const marker = rt.missionGuide?.marker;
   if (marker?.guideDefend || marker?.guideArea === 'guard') {
     const reached = missionWaitReached(rt);
-    if (reached !== null) heading = reached ? 'ここで守ろう' : '旗へ行こう';
+    if (reached !== null) heading = reached ? rt.def.waitOrderLabel?.(rt, true) || (/待/.test(heading) ? '輪の中で待とう' : '近づく敵をたおそう') : '旗へ行こう';
   }
   heading = heading.replace(/旗にもどれ/g, '旗へもどろう');
   if (missionFollowTarget(rt, heading) || missionFollowTarget(rt)) heading = '味方についていけ';
