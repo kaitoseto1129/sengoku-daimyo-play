@@ -17,7 +17,7 @@ const off = () => false;
 export class HudOverlay {
 
   // 森部は先端が地面に刺さるピンで、到着する地点を示す。
-  drawBattleGoalSign(g, rt, x, y, landmark) {
+  drawBattleGoalSign(g, rt, x, y, landmark, pin = null) {
     if (landmark) return this.drawGateSign(g, x, y);
     if (rt.def.key !== 'moribe') return this.drawDestinationPin(g, x, y);
     g.save(); g.lineJoin = 'round';
@@ -26,8 +26,15 @@ export class HudOverlay {
     g.closePath();
     g.strokeStyle = '#14120f'; g.lineWidth = 7; g.stroke();
     g.fillStyle = '#fff3ba'; g.fill();
-    g.beginPath(); g.arc(x, y - 33, 5, 0, Math.PI * 2);
-    g.fillStyle = '#14120f'; g.fill(); g.restore();
+    g.beginPath(); g.arc(x, y - 33, 9, 0, Math.PI * 2);
+    g.fillStyle = '#14120f'; g.fill();
+    if (pin?.progress > 0) {
+      // ピンの中だけを満たす。待ち時間の札や別の印は増やさない。
+      g.beginPath(); g.moveTo(x, y - 33);
+      g.arc(x, y - 33, 8, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, pin.progress));
+      g.closePath(); g.fillStyle = '#e8c25a'; g.fill();
+    }
+    g.restore();
   }
 
   // 文と矢印は同じ行き先・視点から向きを取る。入れ物は使い回す。
@@ -67,9 +74,9 @@ export class HudOverlay {
   drawBattleGoal(g, rt) {
     // 行き先はこの印一つ。合流済みの半径では消し、別の輪を重ねない。
     // 稲生は到着判定と同じ行き先だけ。古い味方の輪へ誘わない。
-    const inou = rt.def.key === 'inou';
+    const inou = rt.def.key === 'inou', moribe = rt.def.key === 'moribe';
     if (inou || rescueTarget(rt)) return;
-    const guard = rt.def.guardGuideTarget?.(rt) || rt.def.guardTarget?.(rt);
+    const guard = !moribe && (rt.def.guardGuideTarget?.(rt) || rt.def.guardTarget?.(rt));
     // 接近戦の描画で途中を抜ける時も、守る本人の盾は残す。
     if (guard?.alive) {
       const frame = sightScreenUnit(rt, guard) && this.measurePersonFrame(guard, rt, true);
@@ -78,35 +85,37 @@ export class HudOverlay {
       return false;
     }
     const pinTarget = rt.def.missionPin?.(rt);
+    // 森部は任務が返したピン一本。敵や味方の位置で上書きしない。
+    if (moribe && !pinTarget) return;
     const guide = rt.missionGuide;
-    const retreat = !inou && this.retreatGuide?.active && this.retreatGuide.valid ? this.retreatGuide : null;
-    const dodge = rt.dodgeGuide?.valid ? rt.dodgeGuide : null;
-    const objectives = rt.def.objectiveEnemies?.(rt);
-    const ally = rt.def.missionAlly?.(rt);
+    const retreat = !inou && !moribe && this.retreatGuide?.active && this.retreatGuide.valid ? this.retreatGuide : null;
+    const dodge = !moribe && rt.dodgeGuide?.valid ? rt.dodgeGuide : null;
+    const objectives = moribe ? null : rt.def.objectiveEnemies?.(rt);
+    const ally = !moribe && rt.def.missionAlly?.(rt);
     let unit = objectives?.find((u) => u.alive && !u.gone && !u.woundOut);
     const attacking = /たお|倒|討|崩|押せ|押し返/.test(taskLabel(rt, currentObjective(rt)?.text || ''));
-    if (!unit && !ally && (!guide?.marker || attacking)) {
+    if (!moribe && !unit && !ally && (!guide?.marker || attacking)) {
       const target = this.attackCueEnemy || this.aimGuideEnemy || rt.guideEnemy || rt.player.lock;
       if (target?.alive && !target.gone && !target.woundOut) unit = target;
     }
-    const waiting = guide?.marker && /^(wait|guard)$/.test(guide.marker.guideArea);
+    const waiting = moribe ? pinTarget.waiting : guide?.marker && /^(wait|guard)$/.test(guide.marker.guideArea);
     if (waiting && !attacking) unit = null;
     const enemy = !retreat && !dodge && !!unit && unit.team !== rt.player.u.team;
     // 討つ相手は名で探す。足元の輪・頭上の印・画面外の矢印も出さない。
     if (enemy) return;
     // 桶狭間が合流済み・戦闘中として消したピンを、古い任務の場所へ復活させない。
     if (rt.def.key === 'okehazama' && !retreat && !dodge && !pinTarget) return;
-    let pos = retreat || dodge?.pos || (waiting && !attacking ? guide.pos : null) || unit?.pos || pinTarget || guide?.marker && guide.pos || ally?.pos;
+    let pos = moribe ? pinTarget : retreat || dodge?.pos || (waiting && !attacking ? guide.pos : null) || unit?.pos || pinTarget || guide?.marker && guide.pos || ally?.pos;
     if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.z)) return;
-    const holding = !enemy && !retreat && !dodge && /待/.test(taskLabel(rt, currentObjective(rt)?.text || ''));
+    const holding = !moribe && !enemy && !retreat && !dodge && /待/.test(taskLabel(rt, currentObjective(rt)?.text || ''));
     if (holding) pos = guide?.marker?.guideDestination?.() || guide?.marker?.guideGoal?.() || pos;
-    const landmark = !enemy && !retreat && !dodge && rt.def.destinationLandmark?.(rt);
-    const route = !holding && !enemy && !retreat && !dodge && guide?.marker?.id === 'next' &&
+    const landmark = !moribe && !enemy && !retreat && !dodge && rt.def.destinationLandmark?.(rt);
+    const route = !moribe && !holding && !enemy && !retreat && !dodge && guide?.marker?.id === 'next' &&
       rt.def.routeGuidePriority?.(rt) ? rt.def.routeSignPoint?.(rt, pos) : null;
     pos = landmark || route || pos;
     const radius = retreat?.radius || (dodge ? 1 : !enemy ? pinTarget?.hide ?? pinTarget?.r ?? guide?.marker?.guideRadius ?? 3 : 0);
     if (!enemy && Math.hypot(pos.x - rt.player.u.pos.x, pos.z - rt.player.u.pos.z) < radius) {
-      const facing = !retreat && !dodge && waiting && rt.def.waitFacingPoint?.(rt);
+      const facing = !moribe && !retreat && !dodge && waiting && rt.def.waitFacingPoint?.(rt);
       if (facing) return this.drawBattleDirection(g, rt, facing);
       if (!waiting && !holding) return false;
     }
@@ -131,7 +140,7 @@ export class HudOverlay {
     const W = VIEW.w, H = VIEW.h;
     const floor = this.battleGoalFloor || (this.battleGoalFloor = { x:0, y:0, z:0 });
     floor.x = pos.x; floor.y = y; floor.z = pos.z;
-    const on = seen && (enemy || this.floorGoalVisible(rt, floor)) && !at.behind && at.x > 48 && at.x < W - 48 && at.y > 96 && at.y < H - 48;
+    const on = seen && (moribe || enemy || this.floorGoalVisible(rt, floor)) && !at.behind && at.x > 48 && at.x < W - 48 && at.y > 96 && at.y < H - 48;
     // 地面の行き先と画面外の向きは、この一つの矢印で示す。
     let x = at.x, sy = at.y - 54, angle = Math.PI / 2;
     if (!on) {
@@ -159,7 +168,7 @@ export class HudOverlay {
     g.save(); g.lineJoin = 'round';
     if (on) {
       if (rt.def.key === 'moribe' && !enemy && !landmark) {
-        this.drawBattleGoalSign(g, rt, at.x, at.y, landmark);
+        this.drawBattleGoalSign(g, rt, at.x, at.y, landmark, pinTarget);
       } else {
         g.beginPath(); g.ellipse(at.x, at.y, enemy ? 29 : 38, enemy ? 12 : 16, 0, 0, Math.PI * 2);
         g.strokeStyle = '#14120f'; g.lineWidth = 10; g.stroke();
@@ -174,13 +183,15 @@ export class HudOverlay {
       if (!on) {
         // 床と同じ形に矢印を添え、目的地と進む向きを結ぶ。
         if (!enemy) {
-          this.drawBattleGoalSign(g, rt, x, sy - 16, landmark);
+          this.drawBattleGoalSign(g, rt, x, sy - 16, landmark, pinTarget);
         }
+        if (!moribe) {
         g.save(); g.translate(x, sy); g.rotate(angle); g.beginPath();
         g.moveTo(-22, -9); g.lineTo(5, -9); g.lineTo(5, -21); g.lineTo(33, 0);
         g.lineTo(5, 21); g.lineTo(5, 9); g.lineTo(-22, 9); g.closePath();
         g.strokeStyle = '#14120f'; g.lineWidth = 7; g.stroke();
         g.fillStyle = '#fff3ba'; g.fill(); g.restore();
+        }
       } else if (label) {
         g.beginPath(); g.moveTo(x, sy); g.lineTo(at.x, at.y - 15);
         g.strokeStyle = '#14120f'; g.lineWidth = 5; g.stroke();
@@ -226,6 +237,11 @@ export class HudOverlay {
     this.drawRainDrops(g, W, H, rt); this.drawBrim(g, W, H, rt);
     // 雨粒も笠の縁も無いコマは、次のコマで消す仕事を省く。
     this.ovBlank = !(this.drops && this.drops.length) && !((rt.player.fpK || 0) > 0.7);
+    // 森部のピンはこの描画経路で一本だけ出す。通常の案内描画には進まない。
+    if (rt.def.key === 'moribe' && !rt.over && !rt.choice && !this.introWaiting &&
+        rt.player.u.alive && !rt.player.camShot && !this.bigmap) {
+      if (this.drawBattleGoal(g, rt)) this.ovBlank = false;
+    }
     // 本人の足元は兵が重なっても見える白い輪。行き先の旗とは形を分ける。
     if (this.drawPlayerSign(g, rt)) this.ovBlank = false;
     // 行き先は共通のピンに任せ、持ち場の輪や味方の旗を重ねて描かない。

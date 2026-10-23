@@ -32,10 +32,11 @@ export class HudOpening {
     const goal = battle ? openingGoal(battle) : '味方と命令を果たし、生きて戻る';
     this.opening?.dispose();
     this.opening = battle && !battle.def.town && !battle.def.dojo ? new BattleOpening(this, battle) : null;
-    if (battle?.firstBattle || battle?.def.key === 'moribe') {
+    if (battle?.firstBattle || battle?.def.key === 'moribe' || battle?.def.key === 'okehazama') {
       // kaito の導入の結びだけを短く見せ、追加の操作は求めない。
       // 森部は説明を読ませず、川と岸のピンが見える戦場から始める。
-      el.innerHTML = battle.def.key === 'moribe' ? '' : '<div class="card"><p>あなたは信長方の足軽として、林勢を追う。</p></div>';
+      const immediate = battle.def.key === 'moribe' || battle.def.key === 'okehazama';
+      el.innerHTML = immediate ? '' : '<div class="card"><p>あなたは信長方の足軽として、林勢を追う。</p></div>';
       el.style.pointerEvents = 'none';
       clearTimeout(this.introT);
       this.introT = setTimeout(() => {
@@ -49,7 +50,7 @@ export class HudOpening {
         try { localStorage.setItem('risshin-intro-read', '1'); } catch (e) { /* 記録できなくても進む */ }
         this.introWaiting = false; el.hidden = true;
         $('cine').classList.remove('on'); this.onIntroReady?.();
-      }, automatic || battle.def.key === 'moribe' ? 0 : 1800);
+      }, automatic || immediate ? 0 : 1800);
       return;
     }
     const instruction = battle?.def.introText;

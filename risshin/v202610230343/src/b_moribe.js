@@ -984,20 +984,31 @@ const moribe = {
   nearbyAllySignLimit: 0, // 味方の頭上に白い小旗を出さない。追う旗はピン一本、敵は赤い印で分ける。
   noDodgeCard: true, // 矢の雨で「〜をむこう」「にげる」の札を出さない（kaito 10/23 稲生 4）。
   hideMissionDots: true, // 任務の段数は見出しにある。仲間の人数と紛れる五つの丸は出さない。
+  missionSingleLine: true, // 進行はピンの中で示し、右上は任務の一行だけ。
   // 仲間の名札は一人だけ。密集しても五人分の文字を重ねない。
   missionAllyLabel: 'ついてくる仲間',
   missionContext: '永禄四年（一五六一）・森部（もりべ）の戦い',
   // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は「何をするか」だけ（kaito 10/23 49・50）。段の総称で通し、向き・行き先の字は書かない。
-  missions: ['川を渡れ', '仲間を待て', '敵を倒せ', '耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
+  missions: ['浅瀬を歩いて渡れ', '仲間を待て', '敵を倒せ', 'この場を守れ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
   // 頭上の▼一つを大きくして、まず戦う相手を示す。選び直しは四分の一秒に一度。
   missionSignTarget(rt) {
     const F = rt.flags, p = rt.player;
     if (!F.signal || F.ending || F.stage === 'assemble') return null;
     if (p.inRange && moribeFoeReady(p.rangeCueTarget, p)) return p.rangeCueTarget;
-    if (rt.t < F.signTargetAt && moribeFoeReady(F.signTarget, p)) return F.signTarget;
-    F.signTargetAt = rt.t + .25;
+    if (rt.t < F.signTargetAt && F.signStage === F.stage && moribeFoeReady(F.signTarget, p)) return F.signTarget;
+    F.signTargetAt = rt.t + .25; F.signStage = F.stage;
+    // 討ち取りの段では、離れた一般兵へ印を乗り換えない。
+    if (F.stage === 'press' && !F.pursuing) {
+      for (let i = 0; i < 2; i++) {
+        const group = i === 0 ? F.HM : F.HN;
+        if (!group || gone(group)) continue;
+        for (const u of group.units) if (u.type === 'busho' && moribeFoeReady(u, p)) {
+          F.signTarget = u; return u;
+        }
+      }
+    }
     let target = null, best = 48 * 48;
     for (const u of rt.army.units) {
       if (!moribeFoeReady(u, p)) continue;
@@ -1092,23 +1103,22 @@ const moribe = {
     if (F.stage === 'contact' && !F.vBroken && !F.squadGuide) return null;
     let pos = null, r = 6, hide = 6;
     if (!F.signal) {
-      if (F.pointDone || F.pointReached || atFordBank(rt.player.u.pos, F.pointInside ? FORD_OUT : FORD_R)) return null;
+      if (F.pointDone) return null;
       // 水中で半径に入っても消さず、実際に岸へ上がったコマで消す。
       pos = POINT2; r = FORD_R; hide = 0;
+      q.waiting = true; q.arrived = !!F.pointInside;
+      // 渡り終えた同じピンが満ちる。仲間の到着見込みに合わせ、逆戻りはさせない。
+      q.progress = q.arrived ? F.fordGatherProgress || 0 :
+        Math.max(0, Math.min(1, (START2.z - rt.player.u.pos.z) / (START2.z - POINT2.z)));
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
     } else if (F.stage === 'assemble') {
       pos = F.gatherUnit ? F.gatherUnit.pos : F.asm;
       r = hide = F.gatherUnit ? 6 : 12;
     } else if (F.stage === 'press' && F.pursuing) {
-      const u = F.pursueTarget;
-      if (!u || !u.alive || u.gone) return null;
-      pos = u.pos; r = 3; hide = 5;
+      return null; // 敵を追う段は赤い▼だけ。地面の行き先と混ぜない。
     } else if (F.stage === 'press') {
-      if (!F.marked || gone(F.marked)) return null;
-      for (const u of F.marked.units) if (u.type === 'busho' && u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget) { pos = u.pos; q.unit = u; break; }
-      if (!pos) pos = fightingCenter(F.marked);
-      r = 4; hide = 12;
+      return null;
     } else if (F.stage === 'hold' || F.vBroken) {
       // 札の「味方の黄旗」と同じ旗持ちへ。隊の真ん中を指すと、旗と印がずれて見える。
       pos = !gone(F.B) ? F.linePoint : null;
@@ -1869,7 +1879,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       // 命中は相手の赤い▼で示す。胴に別の印を重ねない。
       if (battle === rt) {
         const pin = rt.def.missionPin(rt);
-        if (combatSignsOnly() || !pin || pin.arrived) return false;
+        if (combatSignsOnly() || !pin || pin.arrived && !pin.waiting) return false;
       }
       return hudBattleGoal.call(this, g, battle);
     };
@@ -1959,6 +1969,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     rt.dispose = function () {
       hud.bark = hudBark; hud.banner = hudBanner; hud.say = hudSay; hud.hudRects = hudRects;
       hud.drawPlayerSign = hudPlayerSign; hud.drawWaitFrame = hudWaitFrame;
+      hud.drawBattleGoal = hudBattleGoal; hud.drawFootDirection = hudFootDirection;
       hud.drawEnemyOutline = hudEnemyOutline;
       hud.drawTargetFootRing = hudFootRing;
       hud.root.classList.remove('moribe-notices'); noticeStyle.remove();
@@ -2329,6 +2340,10 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       arrivals.sort((a, b) => a - b);
       const waitSeconds = Math.max(1, Math.ceil(arrivals[Math.ceil(alive * .6) - 1] || 0));
       F.pointReady = alive === 0 || near >= Math.ceil(alive * 0.6);
+      if (F.pointInside) {
+        F.fordWaitMax = Math.max(F.fordWaitMax || 1, waitSeconds);
+        F.fordGatherProgress = F.pointReady ? 1 : Math.max(F.fordGatherProgress || 0, 1 - waitSeconds / F.fordWaitMax);
+      }
       // 実際に六割が岸へ着いたらすぐ合図。集合の後に秒待ちを重ねない。
       // 集結中にも先手は寄せてくる。「待て」だけで無防備に立たせない。
       const approaching = rt.army.nearestEnemy(rt.player.u, 8, (u) => !u.fleeing && !u.woundOut && !u.noTarget);

@@ -105,6 +105,28 @@ function hieiRoadGround(W) {
   };
 }
 
+// 粗い遠景の端を戦場の境へ寄せる。坂本の切り土を遠景の面で覆わない。
+// 設営時だけ頂点を動かし、足場・兵・面数・材質は変えない。
+function hieiFarBoundary(W) {
+  const geo = W.farLand?.geometry;
+  if (!geo) return;
+  const pos = geo.attributes.position, half = W.half;
+  let edgeX = 0, edgeZ = 0;
+  for (let i = 0; i < pos.count; i++) {
+    const x = Math.abs(pos.getX(i)), z = Math.abs(pos.getZ(i));
+    if (x <= half) edgeX = Math.max(edgeX, x);
+    if (z <= half) edgeZ = Math.max(edgeZ, z);
+  }
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getZ(i);
+    const nx = Math.abs(Math.abs(x) - edgeX) < .001 ? Math.sign(x) * half : x;
+    const nz = Math.abs(Math.abs(z) - edgeZ) < .001 ? Math.sign(z) * half : z;
+    if (nx !== x || nz !== z) pos.setXYZ(i, nx, W.farH(nx, nz), nz);
+  }
+  pos.needsUpdate = true;
+  geo.computeVertexNormals(); geo.computeBoundingSphere();
+}
+
 // 根本中堂の建具だけを別のまとめへ。木目を実寸で繰り返す。
 class HieiHallGaran extends Garan {
   stairs(path, point, o = {}) {
@@ -1852,6 +1874,7 @@ const hiei_mtn = {
   setup(rt) {
     const W = rt.world;
     const F = rt.flags;
+    hieiFarBoundary(W);
     F.aidStops = []; F.aidNearby = [];
     for (const path of PATHS) {
       if (path.lv > 2) continue;

@@ -84,7 +84,7 @@ export function fieldSignsTick(rt, root) {
     (rt.guideEnemyShown ? rt.guideEnemy : null);
   const focus = s.focus;
   let focused = false;
-  if (rt.def.key !== 'okehazama' && !hide && !rt.over && !rt.choice && missionEnemy?.alive && !missionEnemy.gone &&
+  if (rt.def.key !== 'okehazama' && rt.def.key !== 'moribe' && !hide && !rt.over && !rt.choice && missionEnemy?.alive && !missionEnemy.gone &&
       !missionEnemy.dying && !missionEnemy.woundOut && missionEnemy.team !== me.team &&
       (!missionEnemy.name || enemyKnown(rt, missionEnemy)) && sightScreenUnit(rt, missionEnemy)) {
     v.set(missionEnemy.pos.x, headY(missionEnemy) + .6, missionEnemy.pos.z).project(cam);
@@ -99,6 +99,7 @@ export function fieldSignsTick(rt, root) {
   if (focus.hidden === focused) focus.hidden = !focused;
   const moribe = rt.def.key === 'moribe';
   const inou = rt.def.key === 'inou';
+  const oke = rt.def.key === 'okehazama';
   let n = 0, a = 0, b = 0;
   const gens = s.gens; gens.length = 0;
   if (!hide) for (const u of rt.army.units) {
@@ -118,7 +119,7 @@ export function fieldSignsTick(rt, root) {
     // 笠や肩が重なる近接戦でも、▼の先端を笠より上に保つ。
     headPos.set(u.pos.x, headY(u) + .12, u.pos.z);
     // 近接中は実際の頭へ付ける。遠景の骨は更新せず、携帯の負荷を抑える。
-    const head = (moribe || inou) && d2 < 20 * 20 && u.human?.root.visible && u.human.bones?.Head;
+    const head = (moribe || inou || oke) && d2 < 20 * 20 && u.human?.root.visible && u.human.bones?.Head;
     if (head) {
       head.updateWorldMatrix(true, false);
       head.getWorldPosition(headPos); headPos.y += .38;
@@ -131,20 +132,20 @@ export function fieldSignsTick(rt, root) {
     v.copy(headPos).applyMatrix4(cam.matrixWorldInverse);
     if (v.z >= 0) continue;
     // 届く相手を最優先にし、遠い任務の相手を同時に大きくしない。
-    const readyEnemy = inou && rt.player.inRange ? rt.player.rangeCueTarget : null;
-    const pixels = moribe ? (u === missionEnemy ? 8 : 5) :
-      inou ? (u === readyEnemy ? 22 : u === missionEnemy && !readyEnemy ? 17 : 10) :
+    const readyEnemy = (inou || oke) && rt.player.inRange ? rt.player.rangeCueTarget : null;
+    const pixels = moribe ? (u === missionEnemy ? 17 : d2 < 20 * 20 ? 12 : 9) :
+      inou || oke ? (u === readyEnemy ? 22 : u === missionEnemy && !readyEnemy ? 17 : 10) :
       u === missionEnemy ? 17 : foe ? 16 : 10;
-    // 稲生・森部では命を減らした相手の▼だけを一度大きくし、滑らかに戻す。
+    // 稲生・森部・桶狭間では命を減らした相手の▼だけを一度大きくし、滑らかに戻す。
     // 頭上の先端は固定し、既存の形・材質・描画の束をそのまま使う。
-    const hit = foe && (moribe || inou) ? Math.min(1, Math.max(0, ((inou ? u.inouHitUntil : u.moribeHitUntil) || 0) - rt.t) / .7) : 0;
-    const reachable = (moribe || inou) && foe && rt.player.inRange && rt.player.rangeCueTarget === u;
-    // 森部は命中時も横に膨らませず、最大十画素。頭への追従と命中の反応は残す。
-    const width = moribe ? Math.min(10, pixels + (hit > 0 ? 2 * hit : reachable ? 2 : 0)) : pixels;
+    const hit = foe && (moribe || inou || oke) ? Math.min(1, Math.max(0, ((oke ? u.okeHitUntil : inou ? u.inouHitUntil : u.moribeHitUntil) || 0) - rt.t) / .7) : 0;
+    const reachable = (moribe || inou || oke) && foe && rt.player.inRange && rt.player.rangeCueTarget === u;
+    // 森部の命中は同じ赤い▼を大きくして示す。空振りでは変わらない。
+    const width = moribe ? pixels + (reachable ? 8 : 0) + 10 * hit : pixels;
     const k = Math.min(moribe ? 1.6 : 3, width * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) *
-      (moribe ? 1 : 1 + (hit > 0 ? 1.2 * hit : reachable && !inou ? .55 : 0));
+      (moribe ? 1 : 1 + (hit > 0 ? 1.2 * hit : reachable && !inou && !oke ? .55 : 0));
     dummy.position.copy(headPos);
-    dummy.quaternion.copy(q); dummy.scale.set(moribe ? k : k * (1 + .5 * hit + (inou && reachable ? .35 : 0)), k, k); dummy.updateMatrix();
+    dummy.quaternion.copy(q); dummy.scale.set(moribe ? k : k * (1 + .5 * hit + ((inou || oke) && reachable ? .35 : 0)), k, k); dummy.updateMatrix();
     if (foe) s.marks.setMatrixAt(n++, dummy.matrix);
     else s.allies.setMatrixAt(a++, dummy.matrix);
   }

@@ -42,6 +42,7 @@ function enemyGroup(rt, options, list) {
 
 const P1 = [[0, 172], [-4, 150], [-4, 144], [4, 140], [6, 118], [-8, 90], [-24, 60], [-30, 30], [-22, 0], [-12, -30], [-8, -46]];
 const HONJIN = { x: 18, z: -116 };
+const JOIN_RADIUS = 3.5;
 const readyUnit = (u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget;
 const readyGroup = (g) => g && !g.routed && g.units.some(readyUnit);
 
@@ -641,7 +642,7 @@ const okehazama = {
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は、今する動きを短くやさしく伝える。
   missionSingleLine: true,
-  missions: ['なかまの所へ', 'なかまの所へ', '雨やみを待て', 'てきをたおそう', '今川義元をたおそう', 'にげるてきを追おう', 'なかまの所へ'],
+  missions: ['織田隊の所へ', '織田隊の所へ', '雨やみを待て', 'いまがわ兵をたおそう', 'いまがわよしもとをたおそう', 'にげるいまがわ兵を追おう', '織田隊の所へ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -649,7 +650,8 @@ const okehazama = {
     return rt.phase === 'assault' ? 3 : rt.phase === 'wait' ? 2 : rt.phase === 'march' ? 1 : 0;
   },
   missionHeading(rt) {
-    if ((rt.phase === 'march' || rt.phase === 'wait') && rt.flags.scoutFighting) return 'てきをたおそう';
+    if (rt.phase === 'brief' && rt.flags.briefed) return '出発を待て';
+    if ((rt.phase === 'march' || rt.phase === 'wait') && rt.flags.scoutFighting) return 'いまがわ兵をたおそう';
     if (rt.phase === 'march' && rt.flags.scoutAtFlag) return '雨やみを待て';
     return this.missions[this.missionOf(rt)];
   },
@@ -699,15 +701,16 @@ const okehazama = {
       return pin;
     }
     // 敵への地面の矢印は出さず、実際の頭上の赤い▼に任せる。
-    if (enemy || rt.phase === 'assault' && !F.victory &&
-        (this.objectiveEnemies(rt).length || !F.entered && F.roadStep < F.road.length)) return null;
+    if (rt.phase === 'assault' && !F.victory && (enemy ||
+        this.objectiveEnemies(rt).length || !F.entered && F.roadStep < F.road.length)) return null;
     if (rt.phase === 'brief' || rt.phase === 'march' || rt.phase === 'wait') {
-      const pos = rt.phase === 'brief' ? F.genpachi?.pos : F.marchGoal;
+      const pos = this.squadFlagPosition(rt);
       if (!pos) return null;
       pin.x = pos.x; pin.z = pos.z;
-      pin.r = rt.phase === 'brief' ? 3.5 : 8;
+      pin.r = rt.phase === 'brief' ? JOIN_RADIUS : 8;
       // 合流・行軍・待機の範囲は、今の本流の行き先と待ち時間の丸にそろえる。
       pin.hide = 0; pin.waiting = true; pin.area = true;
+      // 隊長への印は足元へ置き、合流範囲と待ち時間の丸も同じ場所に残す。
       pin.unit = rt.phase === 'brief' ? F.genpachi : null;
       pin.footRing = !!pin.unit;
       pin.arrived = rt.phase === 'brief' ? !!F.briefed :
@@ -1306,6 +1309,12 @@ const okehazama = {
     },
   },
   setup(rt) {
+    // 実際に命を減らした敵だけ、既存の頭上の▼で命中を返す。
+    const meritHit = rt.army.hooks.onMeritHit;
+    rt.army.hooks.onMeritHit = function (target, source, kind, amount) {
+      if (source?.isPlayer && target.team !== source.team && amount > 0) target.okeHitUntil = rt.t + .7;
+      meritHit?.call(this, target, source, kind, amount);
+    };
     // 矢へ甲冑の拡大を重ねない。距離で縮尺が替わる甲冑の部品は避け、
     // 兵の根へ留める。飛翔中の長さ・命中・傷・寿命はそのまま使う。
     const pinArrow = rt.army.pinArrow;
@@ -1381,6 +1390,7 @@ const okehazama = {
     #hud[data-oke-task] #objectives:is(.enemy-order,.approach-order):not(.expand) :is(.enemy-swipe,.obj-now > svg,.battle-action > svg,.swipe-instruction svg) { display: none !important; }
     #hud[data-oke-task] #objectives:is(.enemy-order,.approach-order):not(.expand) .battle-action { font-size: max(16px, calc(16px * var(--text-scale, 1))) !important; white-space: normal !important; }
     /* 下知と勝つ条件を先に読み、長い説明は釦を隠さず送れるようにする。 */
+    #hud.okehazama #dateline { display: none !important; }
     #hud[data-oke-task] #intro:has(#intro-go) > .card {
       display: flex; flex-direction: column; gap: 8px;
     }
@@ -1751,7 +1761,8 @@ const okehazama = {
         // 列を細くし、背中と槍が正面に重なりにくくする。
         g.colW = 3;
         rt.flags.genpachi = g.units[0];
-        g.units[0].name = 'たいちょう';
+        // この組頭は遊びの補い。実在の武将と紛らわしい仮の名札は出さない。
+        g.units[0].name = '';
         rt.flags.yashichi = g.units[1];
         // 組頭と足軽にも、普通の兵と同じ死傷がある。
         rt.hostGroup = g;
@@ -1862,7 +1873,7 @@ const okehazama = {
     } else {
     rt.banner('丸根・鷲津の砦が落ちた', '昼までは今川の優勢。近づいた信長勢に、激しい雨が降る');
     rt.obj('talk', 'たいちょうのそばまで歩こう', 'main');
-    rt.marker('genpachi', unitPos(rt.flags.genpachi), 'たいちょう', { person: true, guideFlag: true, group: rt.hostGroup, guideRadius: 3.5 });
+    rt.marker('genpachi', unitPos(rt.flags.genpachi), '組の合流先', { person: true, guideFlag: true, group: rt.hostGroup, guideRadius: JOIN_RADIUS });
     rt.setPhase('brief');
     rt.world.setTime('storm'); rt.world.setRainTarget(1);
     localSay(rt, rt.flags.yashichi, '仲間', `おう、${nm(rt)}。「たいちょう」の人のそばまで歩こう`, 4);
@@ -2000,7 +2011,7 @@ const okehazama = {
     if (rt.over || F.ending || !rt.player.u.alive) return;
     this.horoDetail(rt);
     if (rt.phase === 'brief' && !F.briefed && F.genpachi && readyUnit(F.genpachi) &&
-        Math.hypot(F.genpachi.pos.x - rt.player.u.pos.x, F.genpachi.pos.z - rt.player.u.pos.z) <= 3.5 &&
+        Math.hypot(F.genpachi.pos.x - rt.player.u.pos.x, F.genpachi.pos.z - rt.player.u.pos.z) <= JOIN_RADIUS &&
         !rt.army.wallBetween(rt.player.u.pos, -1, F.genpachi.pos)) this.brief(rt);
     nagashinojo.kit.backTick(rt);
     this.guideBack(rt);
