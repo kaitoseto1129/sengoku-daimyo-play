@@ -578,6 +578,8 @@ function outerFence(rt) {
 }
 // 三木の使番だけを着せ替える。共通の姿・共有された形は書き換えない。
 function mikiHoro(rt) {
+  // 母衣を着けない使番には、布や骨の形も作らない。
+  if (!rt.couriers.some(c => c.u.look.horo)) return;
   const vertices = [], indices = [], bones = [];
   const segments = 24, rows = 6;
   const radius = t => 0.035 + 0.095 * Math.sin(t * Math.PI * 0.8);
@@ -612,6 +614,7 @@ function mikiHoro(rt) {
   const frameMaterial = new THREE.LineBasicMaterial({ color: 0x8a7047 });
   rt.flags.horoCloths = [];
   for (const c of rt.couriers) {
+    if (!c.u.look.horo) continue;
     const look = { ...c.u.look, horo: 0 }, key = lookKey(look);
     // 近く用と遠く用の両方から旧い袋を除く。頭・手足・馬・旗はそのまま。
     lodSwap(c.u.body, bodyGeometry(key, look, true, 'nohead'), bodyGeometry(key, look, false, 'nohead'));
@@ -1067,8 +1070,8 @@ const miki = {
   // 三間半の長柄は、持ち手が四歩半より外でも肩越しへ差し込む。
   nearFlagFadeRadius: 6, nearLongWeaponRadius: 10,
   // 持ち主から離れた落ち槍も、肩越しの視線を横切る間だけ描くのを避ける。
-  // 生きた兵の槍と同じ既存の処理で戻し、拾える物や当たりは変えない。
-  nearGroundSpearRadius: 10, nearGroundSpearClearance: .8,
+  // 視線より下を横切る柄も拾う。描いた後は戻し、拾える物や当たりは変えない。
+  nearGroundSpearRadius: 10, nearGroundSpearClearance: 3,
   // 木戸・大村への下知と目前の危険を、古い任務の十秒待ちで隠さない。
   immediateTaskChanges: true, immediatePhaseTasks: true,
   avoidWaymarkThreats: true, // 前方の危険札は、道の印の名・距離・矢印を避ける。
@@ -1467,7 +1470,9 @@ const miki = {
       return dispose.apply(this, args);
     };
     mikiScenery(W);
-    mikiHoro(rt);
+    // 使番は戦の支度後に作られる。着せ替えは生成後の一回だけ行う。
+    F.horoCloths = [];
+    rt.after(0, () => mikiHoro(rt));
     // 視点が馬上の胴へ入る時は、腰を濃く残す透かしでは前が見えない。
     // 三木だけ、体の中と本人までの視線を塞ぐ味方を描く間避ける。
     // 距離だけで脇の列まで消さず、坂の高低も含めて肩越しの細い範囲を調べる。
@@ -1899,7 +1904,8 @@ const miki = {
       // 遠い縞は平均色へ溶かす。追加の絵の読み出しや描画は要らない。
       sh.fragmentShader = sh.fragmentShader.replace('vec3 col = grass * w.x + dirt * w.y + mud * w.z;', `
         float mikiRoadK = smoothstep(0.1, 0.75, vMikiRoad);
-        float mikiSoilGrain = clamp(dot(dirt, vec3(0.3333)) / 0.36, 0.55, 1.35);
+        // 明るい土粒の上限を保ち、刈り田と畦にも暗い土粒の濃淡を残す。
+        float mikiSoilGrain = clamp(dot(dirt, vec3(0.3333)) / 0.36, 0.32, 1.35);
         // 草・湿土・斜面の割合を残す。単色への置換で川岸まで砂地にしない。
         vec3 col = grass * w.x + dirt * w.y + mud * w.z;
         vec3 mikiRoadSoil = mix(dirt, mud, w.z) * vec3(1.0, 0.94, 0.82)
@@ -2316,9 +2322,9 @@ const miki = {
     this.routeTick(rt);
     this.commandSignal(rt, 'nobiki', '合図：低い法螺貝と間を空けた退き太鼓。大村へ退け');
     rt.marker('omura', OMURA, () => placeLabel(rt, OMURA, '大村の持ち場', OMURA.r), {});
-    rt.zone('omura', OMURA.x, OMURA.z, OMURA.r);
-    // 坂の地面に沿わせ、判定と同じ輪を一度だけ作る。
-    rt.drapeRing(rt.rings[rt.rings.length - 1], OMURA.x, OMURA.z);
+    // 庭全体を囲む輪を小屋や兵へ重ねず、持ち場の中心だけ示す。
+    // 到着・勝敗は下の更新で引き続き OMURA.r を使う。接地は zone に任せる。
+    rt.zone('omura', OMURA.x, OMURA.z, .85);
     rt.banner('平田から大村へ', '谷大膳の持ち場は敵の手に。西の坂で立て直せ');
     rt.say('伝令', '谷大膳殿が討たれた！　西の道から大村へ退け！', 4);
     // 谷大膳は見せている組と別の持ち場。見える兵を秒数で殺さない。

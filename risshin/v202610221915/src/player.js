@@ -4798,17 +4798,25 @@ export class Player {
     const escape = this.rt.dodgeGuide?.valid && !this.rt.dodgeGuide.arrived ? this.rt.dodgeGuide.pos : null;
     // まだ着いていない味方の旗も道案内の対象にし、画面端の矢印だけにしない。
     const waitingPlace = route?.marker && /^(wait|guard)$/.test(route.marker.guideArea);
+    const followAlly = this.rt.def.missionFollowAlly?.(this.rt);
     const flagTravel = isTouch && VIEW.h <= 500 && (route?.marker?.guideFlag || waitingPlace) && route.pos &&
       !this.rt.def.footFlagGuides && Math.hypot(route.pos.x - u.pos.x, route.pos.z - u.pos.z) > (route.marker.guideRadius || 8);
     const routeFrame = S.autoCam && !S.reduceGuidance && !reduceMotion() && (escape || route?.marker &&
-      (flagTravel || this.rt.def.routeGuidePriority?.(this.rt) || route.marker.entrance || route.marker.guideArea === 'move')) &&
+      (followAlly || flagTravel || this.rt.def.routeGuidePriority?.(this.rt) || route.marker.entrance || route.marker.guideArea === 'move')) &&
       !this.lock && !this.aiming && !this.cine && !this.camShot && !this.overHold &&
       !this.rt.over && !this.rt.choice && !this.rt.game?.photo && !this.fpWanted() &&
       (this.lookIdle || 0) > 1.2 && (escape || !closeFightFrame && (!fight || this.foeYaw == null)) && !guardFrame;
     const routeGoal = escape || route?.pos;
     let routePoint = routeFrame ? this.rt.def.routeSignPoint?.(this.rt, routeGoal) ||
       this.rt.world.def.guideWay?.(u, routeGoal) || routeGoal : null;
-    if (routeFrame && flagTravel && !escape) {
+    if (routeFrame && followAlly && !escape) {
+      // 布や足元でなく、追う本人とその先の道を見る。入れ物は使い回す。
+      routePoint = this.flagCameraPoint || (this.flagCameraPoint = new THREE.Vector3());
+      routePoint.set(followAlly.pos.x, followAlly.pos.y + 1.6, followAlly.pos.z);
+      const distance = Math.max(1, Math.hypot(routePoint.x - u.pos.x, routePoint.z - u.pos.z));
+      const pitch = Math.max(-.15, Math.min(.15, Math.atan2(routePoint.y - target.y, distance)));
+      this.pitch += (pitch - this.pitch) * Math.min(1, dt * 2.4);
+    } else if (routeFrame && flagTravel && !escape) {
       const hud = this.rt.hud;
       // 画面外でも選んだ実旗を保つ。布の中心を見せ、足元だけへ向けない。
       hud.goalFlagBounds(this.rt, route.marker, route.pos);

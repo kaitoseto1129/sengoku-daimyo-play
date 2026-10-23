@@ -272,6 +272,8 @@ export class HudTeamSigns {
 
   // 近い兵は小さな旗と刀だけで示し、操作中も所属を見分けられるようにする。
   drawNearbyTeamSigns(g, rt, candidates) {
+    if (this.teamSignsDrawn) return false;
+    this.teamSignsDrawn = true;
     // 進軍・接敵・退避でも、近い兵の所属は小さな形で残す。字の札は増やさない。
     if (rt.def.town || rt.def.dojo || rt.over || rt.choice ||
         this.openingActive && !this.opening?.el.classList.contains('opening-controls') ||
@@ -392,7 +394,7 @@ export class HudTeamSigns {
       }
       if (enemy) {
         enemies++;
-        // 敵は刀、味方は丸。色を見分けなくても所属が分かる。
+        // 敵は交差した刀、味方は旗。色を見分けなくても所属が分かる。
         g.save(); g.translate(signX, signY + 10);
         const scale = rt.def.nearbyTeamSignScale || .5; g.scale(scale, scale);
         this.drawSwordSign(g, 0, 0); g.restore();
@@ -430,11 +432,11 @@ export class HudTeamSigns {
 
   // 味方は小さい丸。行き先の切れ込み旗や敵の三角と形で分ける。
   drawAllySign(g, x, y, label = false) {
-    g.save(); g.beginPath(); g.arc(x, y - 12, 8, 0, Math.PI * 2);
-    g.fillStyle = '#14120f'; g.fill();
-    g.strokeStyle = '#14120f'; g.lineWidth = 8; g.stroke();
-    g.strokeStyle = '#f4fcff'; g.lineWidth = 4; g.stroke();
-    g.strokeStyle = '#9de5ff'; g.lineWidth = 2; g.stroke(); g.restore();
+    g.save(); g.lineJoin = 'round'; g.beginPath();
+    g.moveTo(x - 6, y); g.lineTo(x - 6, y - 26); g.lineTo(x + 12, y - 26);
+    g.lineTo(x + 7, y - 19); g.lineTo(x + 12, y - 12); g.lineTo(x - 6, y - 12);
+    g.strokeStyle = '#14120f'; g.lineWidth = 7; g.stroke();
+    g.strokeStyle = '#e7f8ff'; g.lineWidth = 3; g.stroke(); g.restore();
     if (label) this.drawTeamWord(g, x + 30, y - 12, 'みかた');
   }
 
@@ -466,14 +468,17 @@ export class HudTeamSigns {
   // 刀の形と二重の縁で、暗い服の敵も色だけに頼らず示す。
   drawSwordSign(g, x, y) {
     g.save(); g.translate(x, y - 18); g.lineJoin = 'round';
-    g.beginPath(); g.moveTo(-5, -20); g.lineTo(9, -49); g.lineTo(16, -57);
-    g.lineTo(15, -45); g.lineTo(1, -17); g.closePath();
-    g.strokeStyle = '#14120f'; g.lineWidth = 7; g.stroke();
-    g.fillStyle = '#ffb49d'; g.fill();
-    g.beginPath(); g.moveTo(-10, -23); g.lineTo(6, -15);
-    g.moveTo(-3, -18); g.lineTo(-9, -6);
-    g.strokeStyle = '#14120f'; g.lineWidth = 9; g.stroke();
-    g.strokeStyle = '#ffb49d'; g.lineWidth = 4; g.stroke(); g.restore();
+    for (let side = -1; side <= 1; side += 2) {
+      g.save(); g.scale(side, 1); g.beginPath();
+      g.moveTo(-12, -8); g.lineTo(14, -48); g.lineTo(14, -37); g.lineTo(-7, -5); g.closePath();
+      g.strokeStyle = '#14120f'; g.lineWidth = 7; g.stroke();
+      g.fillStyle = '#ffccb5'; g.fill();
+      g.beginPath(); g.moveTo(-16, -14); g.lineTo(-2, -4);
+      g.moveTo(-9, -8); g.lineTo(-15, 1);
+      g.strokeStyle = '#14120f'; g.lineWidth = 8; g.stroke();
+      g.strokeStyle = '#ffccb5'; g.lineWidth = 3; g.stroke(); g.restore();
+    }
+    g.restore();
   }
 
 

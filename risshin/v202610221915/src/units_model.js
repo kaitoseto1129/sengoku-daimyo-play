@@ -476,7 +476,7 @@ function unitFill(strength, focus) {
       // 暗い床や柱の前でも、黒い具足の手足を読める散乱光を残す。
       reflectedLight.indirectDiffuse += max(material.diffuseColor, vec3(0.065)) * vec3(0.7, 0.76, 0.85) * (0.38 + 0.65 * fillFace + 0.12 * fillRim) * fillNear;
       // 逆光の袖や脚も暗い柱から離して読む。面の色を残し、線の形は増やさない。
-      reflectedLight.indirectDiffuse += max(material.diffuseColor, vec3(0.22)) * vec3(0.78, 0.84, 0.95) * smoothstep(0.45, 0.95, fillEdge) * 0.65 * fillNear;
+      reflectedLight.indirectDiffuse += max(material.diffuseColor, vec3(0.22)) * vec3(0.78, 0.84, 0.95) * smoothstep(0.35, 0.9, fillEdge) * 1.05 * fillNear;
     }
     #include <aomap_fragment>`;
 }

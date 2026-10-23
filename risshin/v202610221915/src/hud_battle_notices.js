@@ -44,6 +44,46 @@ export class HudNotices extends BattleNotices {
 html body #hud #battle-notices:not(.choosing) #objectives.duplicate-action:not(.expand) #obj-list {
  display:none !important;
 }
+html:root body #hud #battle-notices #objectives#objectives:not(.expand) li.cur .obj-now {
+ font-size:max(22px,calc(22px * var(--text-scale,1))) !important; line-height:1.35 !important;
+}
+/* 長押しも任務の中で押す。移動先・命と合わせて三枚以内に保つ。 */
+html:root body #hud.wait-guard-active #battle-notices:not(.choosing) {
+ top:calc(8px + env(safe-area-inset-top,0px)) !important;
+ left:auto !important; right:calc(8px + env(safe-area-inset-right,0px)) !important;
+ width:min(280px,32vw) !important; max-height:calc(100% / 3) !important;
+}
+
+html:root body #hud.wait-guard-active #battle-notices #objectives#objectives.integrated-guard:not(.notice-muted) {
+ display:block !important;
+}
+html:root body #hud #battle-notices #objectives#objectives.integrated-guard:not(.expand) > :is(.battle-action,.victory-condition) {
+ display:none !important;
+}
+html:root body #hud #battle-notices #objectives#objectives.integrated-guard:not(.expand) #obj-list {
+ display:block !important; min-height:44px !important; padding:0 !important; margin:0 0 8px !important;
+}
+html:root body #hud #battle-notices #objectives#objectives.integrated-guard:not(.expand) #obj-list :is(li:not(.cur),small,.obj-full,.tag,.opb) {
+ display:none !important;
+}
+html:root body #hud #battle-notices #objectives#objectives #wait-guard#wait-guard:not([hidden]) {
+ position:relative !important; inset:auto !important; transform:none !important;
+ display:flex !important; align-items:center; justify-content:center; box-sizing:border-box;
+ width:100% !important; max-width:none !important; min-width:44px !important;
+ min-height:44px !important; height:auto !important; margin:0 !important; padding:8px !important;
+ touch-action:none; pointer-events:auto;
+}
+html:root body #hud #battle-notices #objectives#objectives #wait-guard#wait-guard :is(svg,small,.guard-meter) {
+ display:none !important;
+}
+html:root body #hud #battle-notices #objectives#objectives #wait-guard#wait-guard span {
+ font-size:max(20px,calc(20px * var(--text-scale,1))) !important; line-height:1.3 !important;
+ margin:0 !important; white-space:normal !important;
+}
+html:root body #hud #battle-notices #objectives#objectives .destination-distance:not([hidden]) {
+ display:block !important; font-size:max(16px,calc(16px * var(--text-scale,1))) !important;
+ line-height:1.4; color:#fff3ba; margin-top:4px;
+}
 `;
     document.head.appendChild(style);
   }

@@ -646,7 +646,7 @@ export class HudUpdate {
       button.addEventListener('blur', release);
       window.addEventListener('blur', release);
       button.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); });
-      this.root.appendChild(button);
+      $('objectives').appendChild(button);
     }
     // 反撃のすきも押している札を残し、指を離してから攻撃の案内へ渡す。
     const guardHeld = this.waitGuardHeldBattle === rt;
@@ -670,6 +670,7 @@ export class HudUpdate {
     if (!waitGuard || outsideGuardPost) this.releaseWaitGuard();
     setHidden(this.waitGuardButton, !waitGuard);
     setClass(this.root, 'wait-guard-active', !!waitGuard);
+    setClass($('objectives'), 'integrated-guard', !!waitGuard);
     setClass(this.root, 'hand-action-guide', isTouch && !rt.over && !rt.choice && !this.openingActive &&
       !rt.player.camShot && !this.bigmap && !rt.dodgeGuide && !retreatRequired(rt) && !this.retreatGuide?.active &&
       !rt.def.town && !rt.def.dojo && !!(waitGuard || this.defendEnemy?.alive || this.attackGuideEnemy?.alive || this.approachGuideEnemy?.alive));

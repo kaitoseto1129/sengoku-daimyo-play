@@ -1,6 +1,7 @@
 import { setText, setWidth, coachCss, $, esc, keyCaps } from "./hud_common.js";
 import { isTouch } from "./touch.js";
 import { K } from "./settings.js";
+import { currentObjective, taskText } from "./mission_guide.js";
 
 export class HudCards {
 
@@ -13,21 +14,24 @@ export class HudCards {
   //   段が変わる時だけ、真ん中に「第三段　柴田隊を受け止める」を短く出す。毎コマ作らず、字が変わる時だけ書く。
   // 近い敵の頭上に小さな印（▼と「敵」）。四人まで・十四メートルまで。印は使い回し、毎コマ作らない（kaito 10/22 稲生 3）。
   foeMarks(rt) {
-    // 目当ての味方一人だけを、実際の姿に小さな名札で示す。名札と投影の入れ物は使い回す。
-    const ally = rt.def.missionAlly?.(rt);
-    if (ally && !this.missionAllyEl) {
-      this.missionAllyEl = document.createElement('div');
-      this.missionAllyEl.style.cssText = 'position:absolute;left:0;top:0;padding:2px 5px;background:#17140fe6;color:#fff3df;border-bottom:2px solid #e8c25a;font-size:12px;line-height:1.4;pointer-events:none';
-      this.root.appendChild(this.missionAllyEl);
+    // 組の仲間は五人まで。名札と投影用の点は使い回す。
+    const allies = rt.def.missionAllies?.(rt), single = allies ? null : rt.def.missionAlly?.(rt);
+    const count = allies ? Math.min(5, allies.length) : single ? 1 : 0;
+    const labels = this.missionAllyEls || (this.missionAllyEls = []);
+    while (labels.length < count) {
+      const e = document.createElement('div');
+      e.style.cssText = 'position:absolute;left:0;top:0;padding:2px 5px;background:#17140fe6;color:#fff3df;border-bottom:2px solid #e8c25a;font-size:12px;line-height:1.4;pointer-events:none';
+      this.root.appendChild(e); labels.push(e);
     }
-    if (this.missionAllyEl) {
-      const e = this.missionAllyEl;
+    for (let i = 0; i < labels.length; i++) {
+      const e = labels[i], ally = i < count ? allies ? allies[i] : single : null;
       e.hidden = true;
-      if (ally && rt.player.u.alive && !rt.over && !rt.choice && !rt.player.camShot && !this.bigmap &&
+      if (ally?.alive && !ally.gone && !ally.fleeing && !ally.woundOut && !ally.noTarget &&
+          rt.player.u.alive && !rt.over && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap &&
           Math.hypot(ally.pos.x - rt.player.u.pos.x, ally.pos.z - rt.player.u.pos.z) <= (rt.def.missionAllyEdge ? 100 : 40) &&
           !rt.army.wallBetween(rt.player.u.pos, -1, ally.pos)) {
         this.tmpV.set(ally.pos.x, ally.pos.y + (ally.mounted ? 3.1 : 2.3), ally.pos.z).project(rt.camera);
-        const label = rt.def.missionAllyLabel?.(rt) || (ally === rt.flags.genpachi ? '隊長' : '仲間');
+        const label = (typeof rt.def.missionAllyLabel === 'function' ? rt.def.missionAllyLabel(rt) : rt.def.missionAllyLabel) || (ally === rt.flags.genpachi ? '隊長' : '仲間');
         const onScreen = this.tmpV.z >= -1 && this.tmpV.z < 1 &&
           Math.abs(this.tmpV.x) < (rt.def.missionAllyEdge ? .8 : .9) && Math.abs(this.tmpV.y) < (rt.def.missionAllyEdge ? .7 : .85);
         let x = Math.round((this.tmpV.x + 1) / 2 * innerWidth), y = Math.round((1 - this.tmpV.y) / 2 * innerHeight);
@@ -156,7 +160,15 @@ export class HudCards {
  #hud #h-prog { right:calc(8px + env(safe-area-inset-right, 0px)); top:calc(8px + env(safe-area-inset-top, 0px)); width:min(210px, 26vw); padding:4px 6px; font-size:12px; line-height:1.3; }
  #hud #h-prog .pg-next { font-size:12px; white-space:normal; }
 }
-#hud #h-prog[data-battle="okehazama"] .pg-next { white-space:normal; overflow:visible; text-overflow:clip; }
+/* 大きな行動一行と、小さい進み・時間を同じ札へまとめる。 */
+#hud #h-prog { width:max-content; max-width:calc(100vw - 112px); background:rgba(12,10,8,.88); }
+#hud #h-prog .pg-st { display:flex; flex-direction:column-reverse; align-items:flex-end; }
+#hud #h-prog .pg-st span { font-size:max(20px, calc(20px * var(--text-scale, 1))); line-height:1.4; white-space:nowrap; }
+#hud #h-prog .pg-st b { margin:2px 0 0; font-size:12px; }
+#hud #h-prog .pg-next { max-width:320px; font-size:13px; }
+#hud #h-prog .pg-dots { display:none; }
+@media (max-height:500px) { #hud #h-prog .pg-next { max-width:320px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } }
+
 #hud.ending #h-prog, #hud:has(#cine.on) #h-prog, #hud:has(#bigmap:not([hidden])) #h-prog { visibility:hidden; }
 /* 任務は任務の札にまとめる。右の任務の札は重ねて出さない（台詞の札は残す）。 */
 html:root body #hud.prog-on #battle-notices:not(.choosing) #objectives:not(.expand) { display:none !important; }
@@ -175,9 +187,10 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     if (el.dataset.battle !== def.key) el.dataset.battle = def.key || '';
     el.hidden = !!rt.over; root.classList.toggle('prog-on', !rt.over);
     const [stEl, nextEl, dotsEl, timeEl, contextEl] = el.children;
-    setText(contextEl, def.missionContext || ''); contextEl.hidden = !def.missionContext;
+    const context = typeof def.missionContext === 'function' ? def.missionContext(rt) : def.missionContext;
+    setText(contextEl, context || ''); contextEl.hidden = !context;
     const list = def.missions || def.stages;
-    const task = rt.objectives?.find((o) => o.kind === 'main' && !o.state)?.text || '';
+    const task = currentObjective(rt)?.text || '';
     const taskLine = task.replace(/^使番「|」$/g, '').split(/[。／]/)[0].trim();
     let i, n, title;
     const of = def.missionOf || def.stageOf;
@@ -190,9 +203,11 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
       i = Math.max(0, this.progSeen.length - 1); n = 0; title = this.progSeen[i] || '';
     }
     setText(stEl.firstChild, n ? `任務 ${i + 1}／${n}` : `任務 ${i + 1}`);
-    setText(stEl.lastChild, title);
+    const action = taskText(rt, def.taskLabel?.(rt) || task) || title;
+    const headline = action.split(/[。／\n、]/)[0].replace(/^.*隊長(?:と合流|へ.*|の所へ.*)$/, '隊長のそばへ').replace(/(?<!敵の)本陣へ/g, '敵の本陣へ').replace(/討ち取れ|倒せ/g, 'たおせ');
+    setText(stEl.lastChild, headline);
     const status = def.missionStatus?.(rt, taskLine) || taskLine;
-    const sub = status && status !== title ? status : '';
+    const sub = currentObjective(rt)?.progress || (status && status !== headline ? status : '');
     setText(nextEl, sub); nextEl.hidden = !sub;
     // 必要な号令だけ、今の任務の直下で一度押せるようにする。
     if (def.missionAction && !this.missionActionButton) {
@@ -223,7 +238,7 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
         this.missionActionButton.disabled = !!action.disabled || rt.t < this.missionActionUntil;
       }
     }
-    setText(dotsEl, n ? '●'.repeat(i) + '◉' + '○'.repeat(Math.max(0, n - i - 1)) : ''); dotsEl.hidden = !n;
+    setText(dotsEl, n && !def.hideMissionDots ? '●'.repeat(i) + '◉' + '○'.repeat(Math.max(0, n - i - 1)) : ''); dotsEl.hidden = !n || !!def.hideMissionDots;
     const sec = Math.max(0, rt.t | 0), est = (def.minutes || 7) * 60;
     const left = Math.max(1, Math.round((est - sec) / 60));
     setText(timeEl.lastChild, `${(sec / 60) | 0}分${String(sec % 60).padStart(2, '0')}秒　終わりまで 約${left}分`);
@@ -233,10 +248,6 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     const pie = timeEl.firstChild, waiting = Number.isFinite(progress) || Number.isFinite(wu) && wu > rt.t && gm.waitDuration > 0;
     pie.hidden = !waiting;
     if (waiting) pie.style.setProperty('--p', String(Math.round(Math.max(0, Math.min(1, Number.isFinite(progress) ? progress : 1 - (wu - rt.t) / gm.waitDuration)) * 100)));
-    if (this.progStage !== undefined && i !== this.progStage && !rt.over && title) {
-      setText(this.stagePop, `任務${i + 1}　${title}`);
-      this.stagePop.hidden = false; this.stagePopUntil = rt.t + 2.6;
-    }
     this.progStage = i;
     if (!this.stagePop.hidden && rt.t > (this.stagePopUntil || 0)) this.stagePop.hidden = true;
   }
