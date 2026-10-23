@@ -129,11 +129,16 @@ export class WorldLod {
     }
     const A = m.instanceMatrix.array, e = m.matrixWorld.elements, cx = ARMY_P.value.x, cz = ARMY_P.value.y, rx = ARMY_REAL_P.value.x, rz = ARMY_REAL_P.value.y;
     const clash = !!m.geometry.attributes.aClash, r = RR - (clash ? 16 : 6);
+    // 描く式が視点の近くで消す兵と、四十八メートル内の後詰めも送らない。
+    // 本人の置換範囲とは分け、足踏みと更新待ちの余裕は残す。
+    const cameraR = Math.max(0, r, (m.material.userData?.armyU?.uNear?.value ?? 0) - 7);
+    const hosts = m.geometry.attributes.aHost?.array;
+    const hostR2 = Math.max(cameraR, 41) ** 2;
     // 長い隊も兵ごとに遠さを測る。乱戦の押し引きは専用の距離切替に任せる。
     const farNear = !clash && L.x4 && L.lv !== 4 ? this.def.armyFarDetail ?? Infinity : Infinity;
     const heightLOD = !!this.def.armyHeightLOD;
     const cy = heightLOD ? (this.detailCam?.matrixWorld.elements[13] ?? this.heightAt(cx, cz) + 1.6) : 0;
-    const r2 = r * r, far2 = (farNear + 7) * (farNear + 7);
+    const r2 = r * r, cameraR2 = cameraR * cameraR, far2 = (farNear + 7) * (farNear + 7);
     let keep = 0, distant = 0;
     const W = L.cmpIdx || (L.cmpIdx = new Int32Array(m.instanceMatrix.count));
     for (let i = 0, k = 0; i < m.count; i++, k += 16) {
@@ -141,7 +146,7 @@ export class WorldLod {
       const wx = e[0] * x + e[4] * y + e[8] * z + e[12], wz = e[2] * x + e[6] * y + e[10] * z + e[14];
       const dx = wx - cx, dz = wz - cz, rdx = wx - rx, rdz = wz - rz;
       const d2 = dx * dx + dz * dz, realD2 = rdx * rdx + rdz * rdz;
-      if (d2 < r2 || realD2 < r2) continue;
+      if (d2 < (hosts?.[i] > 0 ? hostR2 : cameraR2) || realD2 < r2) continue;
       if (!clash && !this.armyInstanceVisible(m, k, wx, wz, Math.sqrt(d2))) continue;
       // 足踏みと更新間隔に七メートルの余裕。近景と遠景へ重ねて送らない。
       // 本物への置換は水平距離のまま。上の曲輪の細部だけ、視点との高低差も含める。
@@ -227,6 +232,9 @@ export class WorldLod {
     // 本物の兵へ替わって描かれない内側は、近い形の写しにも送らない。
     // 押し合いの位置は下で反映し、残る足踏みと更新間隔には七メートルの余裕を取る。
     const hiddenR = Math.max(0, (m.material.userData.armyU?.uRealNear || ARMY_REAL_R).value - 7);
+    const cameraHiddenR = Math.max(hiddenR, (m.material.userData.armyU?.uNear?.value ?? 0) - 7);
+    const hosts = L.hi.attributes.aHost?.array;
+    const hostHidden2 = Math.max(cameraHiddenR, 41) ** 2;
     for (const t of L.split) { t.material = m.material; t.layers.mask = m.layers.mask; }
     const far = L.splitFar;
     const distant = L.splitDistant;
@@ -241,7 +249,7 @@ export class WorldLod {
     const A = m.instanceMatrix.array, e = m.matrixWorld.elements;
     const rx = ARMY_REAL_P.value.x, rz = ARMY_REAL_P.value.y;
     // 比較は二乗のまま行い、兵ごとの立体距離の計算を一度にまとめる。
-    const hidden2 = hiddenR * hiddenR, M02 = M0 * M0, M12 = M1 * M1;
+    const hidden2 = hiddenR * hiddenR, cameraHidden2 = cameraHiddenR * cameraHiddenR, M02 = M0 * M0, M12 = M1 * M1;
     const nearStart = Math.max(0, R.x - 7), farStart = Math.max(0, two ? R.y - 9 : R.x - 7);
     const far2 = single ? (two ? M12 : M02) : farStart * farStart;
     const distant2 = distantNear * distantNear;
@@ -280,7 +288,7 @@ export class WorldLod {
       const wx = e[0] * x + e[4] * y + e[8] * z + e[12], wz = e[2] * x + e[6] * y + e[10] * z + e[14];
       const dx = wx - cx, dz = wz - cz, rdx = wx - rx, rdz = wz - rz;
       const horizontal2 = dx * dx + dz * dz;
-      if (horizontal2 < hidden2 || rdx * rdx + rdz * rdz < hidden2) continue;
+      if (horizontal2 < (hosts?.[i] > 0 ? hostHidden2 : cameraHidden2) || rdx * rdx + rdz * rdz < hidden2) continue;
       if (!this.armyInstanceVisible(m, k, wx, wz, Math.sqrt(horizontal2))) continue;
       const dy = heightLOD ? e[1] * x + e[5] * y + e[9] * z + e[13] - cy : 0;
       const d2 = horizontal2 + dy * dy;

@@ -1496,35 +1496,18 @@ function anegawaReturning(rt) {
   const F = rt.flags, at = F.hqDefend ? F.hqDefensePos : F.hqThreat ? F.hqGuardPos : null;
   return !!at && Math.hypot(rt.player.u.pos.x - at.x, rt.player.u.pos.z - at.z) >= (F.atHq ? 18 : 12);
 }
-// 的を付けた相手と同じ一人へ、実際の操作面・武器に合う一行を出す。
-function anegawaEnemyAction(rt, enemy) {
-  const P = rt.player, p = P.u.pos;
-  const angle = Math.atan2(enemy.pos.x - p.x, enemy.pos.z - p.z) - P.yaw;
-  if (Math.cos(angle) < .94) return isTouch
-    ? `${SETTINGS.touchSwap ? '左' : '右'}側を${Math.sin(angle) <= 0 ? '右' : '左'}へなぞる`
-    : 'マウスで的の敵へ向く';
-  if (P.weapon === 'gun' || P.weapon === 'bow') return isTouch
-    ? `「${P.weapon === 'gun' ? '撃つ' : '射る'}」を押す` : '左クリックで撃つ';
-  if (Math.hypot(enemy.pos.x - p.x, enemy.pos.z - p.z) > P.meleeReach(P.weapon === 'sword' ? 'slash' : 'thrust'))
-    return isTouch ? `${SETTINGS.touchSwap ? '右' : '左'}側を上へなぞる` : '的の敵へ近づく';
-  return isTouch ? `「${P.weapon === 'sword' ? 'きる' : 'つく'}」を押す` :
-    P.weapon === 'sword' ? '左クリックできる' : '左クリックでつく';
-}
 // 遠い敵を止めるよう急かさず、旗の前で見張る向きと接敵後の行動を分ける。
 function anegawaHqWatchText(rt) {
   const F = rt.flags, p = rt.player.u.pos, enemy = F.hqEnemy;
-  if (!enemy?.alive) return 'ここで待つ';
+  if (!enemy?.alive) return '輪の中で待とう';
   const dx = enemy.pos.x - p.x, dz = enemy.pos.z - p.z;
-  // 方位磁針を読ませず、目前の危険の矢印と同じ視点から向きを伝える。
-  const angle = Math.atan2(dx, dz) - rt.player.yaw - (rt.player.camYawOff || 0);
-  const side = Math.cos(angle) > 0.5 ? '前' : Math.cos(angle) < -0.5 ? '後ろ' : Math.sin(angle) > 0 ? '左' : '右';
-  // 侵入の札は短く保ち、振り向いたら実際に敵を止める下知へ替える。
+  // 本陣へ抜けた敵か、同じ相手が接近した時だけ迎撃を示す。
   if (F.hqBreached) {
-    return anegawaEnemyAction(rt, enemy);
+    return '近づく敵をたおそう';
   }
   // 二十五歩内の別の敵ではなく、案内している敵が槍を向ける距離に来たかを見る。
-  if (dx * dx + dz * dz < 12 * 12) return anegawaEnemyAction(rt, enemy);
-  return side === '前' ? 'ここで待つ' : `本陣を守ろう。${side === '後ろ' ? 'うしろ' : side}の敵を見よう`;
+  if (dx * dx + dz * dz < 12 * 12) return '近づく敵をたおそう';
+  return '輪の中で待とう';
 }
 // 軽傷で歩ける間は、手当ての退き先で本陣への道案内を消さない。
 // 出血・深手と布を巻いている間は傷の案内を優先する。
@@ -1535,7 +1518,7 @@ function anegawaHqReturnPriority(rt) {
 }
 // 帰陣の道は、戻る旗に短い下知を添える。
 function anegawaHqReturnText(rt) {
-  return anegawaReturning(rt) ? '旗へもどろう' : 'この旗を守ろう';
+  return anegawaReturning(rt) ? '旗へもどろう' : '旗を守ろう';
 }
 // 傷の案内が任務札を置き換える時も、本陣の危険と今する事を一緒に伝える。
 function anegawaHurtHqText(rt, reached) {
@@ -1577,12 +1560,8 @@ function anegawaGuardLabel(rt, reached) {
   const F = rt.flags;
   if (F.hqThreat || F.hqDefend) return reached ? anegawaHqWatchText(rt) : anegawaHqReturnText(rt);
   if (!reached) return anegawaHoldRoute(rt);
-  if (rt.phase === 'brief') return '川をわたらず、ここで待つ';
-  if (F.nearEnemies > 0) return '味方と敵を止める';
-  if (F.inabaT) return 'ここで敵を見張る';
-  if (F.westReported) return 'ここで味方を待つ';
-  if (F.holdAt.z > POST.z + 4) return 'ここで待つ';
-  return '川をわたらず、ここで待つ';
+  if (rt.phase !== 'brief' && F.nearEnemies > 0) return '近づく敵をたおそう';
+  return '輪の中で待とう';
 }
 const anegawa = {
   // 共通の見物・避難を使い、軍の周りへの自動配置は止める。民は兵の名簿に入らない。
@@ -1823,9 +1802,15 @@ const anegawa = {
   // 右上は今すること一つ。目的地は共通の輪と同じ持ち場を使う。
   missionHeading(rt) {
     const text = currentObjective(rt)?.text || '';
+    const F = rt.flags;
+    if (F.step < 2 && !rt.withdrawal && !F.taskHurt && !rt.player.treating &&
+        !F.retreatGuiding && !F.pushGuiding && !(F.flankPick === 0 && !F.flankDone)) {
+      if (F.hqThreat || F.hqDefend) return anegawaGuardLabel(rt, !anegawaReturning(rt));
+      return anegawaGuardLabel(rt, !!F.holdAt && Math.hypot(rt.player.u.pos.x - F.holdAt.x, rt.player.u.pos.z - F.holdAt.z) < 8);
+    }
     if (/印の槍列へ戻り|印の槍列で槍を揃え直せ|味方と槍を揃え、浅井を止めよ|ここで槍を揃え|川を渡らず、岸で浅井を(?:待て|止めよ)/.test(text)) {
       const at = rt.flags.holdAt, p = rt.player.u.pos;
-      return at && Math.hypot(p.x - at.x, p.z - at.z) < 8 ? 'この旗を守ろう' : '旗へもどろう';
+      return at && Math.hypot(p.x - at.x, p.z - at.z) < 8 ? anegawaGuardLabel(rt, true) : '旗へもどろう';
     }
     return text;
   },
