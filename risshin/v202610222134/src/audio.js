@@ -50,6 +50,7 @@ const mixSlots = Array.from({ length: MIX.events }, () => ({ node: null, wet: nu
 let mixCurrent = null, speechUntil = 0, commandUntil = 0, dangerUntil = 0;
 function mixLevel(kind, now = ctx.currentTime) {
   let k = kind.gain;
+  if (kind === MIX_KIND.soldier) k *= S.battleVoice === 'off' ? 0 : S.volVoice;
   if (now < speechUntil) k *= kind.priority >= 3 ? MIX.speech.danger : kind.priority >= 2 ? MIX.speech.command : MIX.speech.background;
   if (kind.priority < 2) {
     if (now < commandUntil) k *= MIX.command.background;
@@ -1219,7 +1220,7 @@ export function sfx(name, vol = 1) {
 // 組み方だけ一度作り、焼いてある木・太鼓・声の音源を使い回す。音源の蔵は増やさない。
 const EVENT_LAYERS = {
   gateBreak: [['wood', 0.5, { t0: 0, rate: 0.7, wet: 0.12 }], ['wood', 0.3, { t0: 0.16, rate: 1.2 }], ['toki', 0.14, { t0: 0.35, rate: 1, wet: 0.2 }]],
-  unitBreak: [['soldier_flee', 0.06, { t0: 0, rate: 0.9 }], ['soldier_flee', 0.045, { t0: 0.24, rate: 1.18 }], ['soldier_help', 0.04, { t0: 0.5, rate: 1.08, wet: 0.25 }]],
+  unitBreak: [['cry', 0.06, { t0: 0, rate: 0.9 }], ['cry', 0.045, { t0: 0.24, rate: 1.18 }], ['umeki', 0.04, { t0: 0.5, rate: 1.08, wet: 0.25 }]],
   commanderKilled: [['taiko', 0.55, { t0: 0, rate: 0.85, wet: 0.2 }], ['ou', 0.15, { t0: 0.22, rate: 0.8, wet: 0.25 }]],
   reinforcement: [['hora', 0.12, { t0: 0, rate: 1, wet: 0.2 }], ['toki', 0.12, { t0: 0.5, rate: 1.05, wet: 0.2 }]],
   fireSpread: [['wood', 0.16, { t0: 0, rate: 1.8 }], ['wood', 0.1, { t0: 0.18, rate: 1.4 }]],
@@ -1240,6 +1241,7 @@ function eventSound(name, vol) {
   else emit();
 }
 function emitSfx(name, vol) {
+  if (name.startsWith('soldier_')) return; // 「退け」「助けて」などの台詞を止める。
   // 人の声は、小さく聞こえる（遠い）ほどこもらせる
   const muf = 900 + 4200 * Math.min(1, vol);
   if (name.startsWith('soldier_')) {

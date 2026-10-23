@@ -2929,7 +2929,7 @@ const anegawa = {
   epilogue(rt) {
     const F = rt.flags;
     if (!F.epiloguePending || rt.over) return;
-    if ((rt.hud.subT > 0 || rt.hud.subQ.length) && rt.t - F.epilogueAt < 12) { rt.after(1, () => this.epilogue(rt)); return; }
+    if (rt.t - F.epilogueAt < 5) { rt.after(1, () => this.epilogue(rt)); return; }
     F.epiloguePending = false;
     // 戦の最中の古い下知で終幕を待たせない。決着後も読める台詞として直接並べる。
     rt.hud.subQ.length = 0;

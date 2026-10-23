@@ -94,7 +94,7 @@ export function createWarSpeech(rt) {
   function sync() {
     if (!ctx) return;
     voiceBus.gain.setTargetAtTime(allowed() ? 0.9 * S.volume * S.volVoice : 0, ctx.currentTime, 0.05);
-    crowdBus.gain.setTargetAtTime(allowed() ? 0.55 * S.volume * S.volSfx : 0, ctx.currentTime, 0.05);
+    crowdBus.gain.setTargetAtTime(allowed() && S.battleVoice !== 'off' ? 0.55 * S.volume * S.volVoice : 0, ctx.currentTime, 0.05);
   }
   function unlock() {
     if (!allowed() || !audio()) return;
@@ -193,14 +193,11 @@ export function createWarSpeech(rt) {
     canName(text) { const m = /^(?:(.+?)が家来)?(.+?)なり$/.exec(norm(text)); return !!(asset && m && names.has(m[2])); },
     // 字幕に出た台詞。同じ言葉を声にできたら true（読み上げの声と重ねない）
     line(speaker, text, unit, tts) {
-      if (rt.over || !allowed()) return false;
-      return say(speaker, text, unit, tts) === 2;
+      return false; // 台詞の音源は使わない。鬨・叫び・うめきは crowd で鳴らす。
     },
     // 兵の短い声の札（「味方の足軽「押せ！」」の形）
     bark(text) {
-      if (rt.over || !allowed()) return;
-      const m = /^(.*?)「(.+)」$/.exec(String(text || ''));
-      say(m ? m[1] : '', m ? m[2] : text, null, false);
+      // 短い台詞も読み上げない。
     },
     // 鬨・突撃・斬り合い・倒れの声に、本物の群声を重ねる
     crowd(name, pos, vol = 1) {

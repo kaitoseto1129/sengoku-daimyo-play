@@ -9,7 +9,7 @@ import { battleSpeechAllowed, noOps } from "./speech_clean.js";
 import { isTouch, touchInput, touchMoveLearned } from "./touch.js";
 import { rankLabel } from "./state.js";
 import { woundText } from "./wounds.js";
-import { updateMissionPin, updateAimDot } from "./mission_pin.js";
+import { updateMissionPin, updateAimDot, pinGuideOn } from "./mission_pin.js";
 import { currentObjective, destinationText, taskText, navigationEnemy, goalText } from "./mission_guide.js";
 import { rainDanger } from "./arrow_rain.js";
 import { groundAt } from "./floors.js";
@@ -212,7 +212,7 @@ export class HudUpdate {
         : rt.def.town
           ? (page.match(/[^。！？]+[。！？]?|[。！？]/g) || []).map(sentence => `<span class="town-sentence">${esc(sentence)}</span>`).join('')
         : esc(page);
-      setHtml($('subtitle'), (s.speaker ? `<span class="sp ${sc}">${esc(s.speaker)}</span>` : '') + `<span class="${s.speaker ? '' : 'sys'}">${pageHtml}</span>` +
+      setHtml($('subtitle'), (s.speaker ? `<span class="sp ${sc}">${esc(rt.def.key === 'okehazama' ? s.speaker.replace(/隊長/g, 'たいちょう').replace(/槍組/g, 'やりの組').replace(/侍大将/g, '兵をまとめる武将').replace(/足軽/g, '歩いて戦う兵').replace(/伝令|使番/g, '知らせを運ぶ兵') : s.speaker)}</span>` : '') + `<span class="${s.speaker ? '' : 'sys'}">${pageHtml}</span>` +
         (this.subDrop ? `<small class="more">台詞を一部とばしました（${isTouch ? '字幕を押すと会話の記録' : `<kbd class="cap">${esc(K('log').replace(/^文字([上中下])段(\d+)$/, '文字釦の$1段、左から$2番目'))}</kbd> で会話の記録`}）</small>` : ''));
       if (!this.subQ.length) this.subDrop = false;
       if (s.speaker) speaking(duration);
@@ -223,7 +223,7 @@ export class HudUpdate {
       this.notices.sources[3].born = this.notices.clock;
     } else if (this.subT <= 0) setHtml($('subtitle'), '');
     // ゲージ
-    setHtml($('h-who'), `${esc(G.name)}<small>${esc(rankLabel(G))}</small>`);
+    setHtml($('h-who'), `${esc(G.name)}<small>${esc(rt.def.key === 'okehazama' ? rankLabel(G).replace(/足軽/g, 'あしがる（歩いて戦う兵）').replace(/侍大将/g, 'さむらいだいしょう（兵をまとめる武将）') : rankLabel(G))}</small>`);
     const hpEl = $('h-hp');
     const hpPct = Math.max(0, Math.min(100, u.hp / u.maxHp * 100));
     const fallen = !u.alive || u.hp <= 0;
@@ -306,7 +306,8 @@ export class HudUpdate {
     const mor = rt.squadGroups.length ? moraleSum / rt.squadGroups.length : rt.hostGroup ? Math.max(0, rt.hostGroup.morale) : 100;
     const morEl = $('h-mor');
     setWidth(morEl.querySelector('b'), mor);
-    setText(morEl.querySelector('em'), moraleWord(mor));
+    setText(morEl.querySelector('span'), rt.def.key === 'okehazama' ? 'やる気' : '士気');
+    setText(morEl.querySelector('em'), rt.def.key === 'okehazama' ? mor >= 75 ? 'やる気十分' : mor >= 50 ? '落ち着いている' : mor >= 30 ? 'こわがっている' : '逃げ出しそう' : moraleWord(mor));
     setClass(morEl, 'low', mor < 40);
     if (mor < 40 && !this.moraleHelp && !rt.over) { this.moraleHelp = true; this.notices.push('組が動揺している。号令が届いても動きが鈍ることがある', 85, 5); }
     // 馬の体力と息（馬に乗れる身分から）
@@ -831,7 +832,8 @@ export class HudUpdate {
     if (waitFacing) {
       const dx = waitFacing.x - u.pos.x, dz = waitFacing.z - u.pos.z;
       const yaw = rt.player.yaw + (rt.player.camYawOff || 0);
-      const alignment = (Math.sin(yaw) * dx + Math.cos(yaw) * dz) / Math.max(.001, Math.hypot(dx, dz));
+      // 槍を向けた本人の向きで判定する。見回す視点だけでは合格にしない。
+      const alignment = (Math.sin(p.yaw) * dx + Math.cos(p.yaw) * dz) / Math.max(.001, Math.hypot(dx, dz));
       this.waitFacingReady = alignment >= (this.waitFacingReady ? .82 : .87);
       const side = -dx * Math.cos(yaw) + dz * Math.sin(yaw) >= 0 ? '右' : '左';
       waitFacingSide = side;
@@ -1192,6 +1194,22 @@ export class HudUpdate {
       shownTaskLabel = `今${attackOperation(rt)}`;
       aimHelp = ''; waitFacingHelp = ''; edgeGoalDetail = '';
     }
+    // 共通の印と同じ行き先から、最後に一つだけ下知を選ぶ。
+    if (pinGuideOn(rt) && !careSequence && !recovering(rt)) {
+      const dodge = rt.dodgeGuide?.valid ? rt.dodgeGuide : null;
+      const withdrawing = retreatMoving && !this.retreatGuide.treatment;
+      const retreatOrder = guide?.marker && /下が|さが|退[くきけ]|退却/.test(shownTaskLabel) &&
+        guide.distance >= (guide.marker.guideRadius || 8);
+      const pos = dodge?.pos || (withdrawing ? this.retreatGuide : retreatOrder ? guide.pos : null);
+      if (pos) {
+        shownTaskLabel = dodge?.arrived ? 'ここで かまえよう' : `${this.battleMoveCue(rt, pos).direction}へ さがろう`;
+        aimHelp = ''; waitFacingHelp = ''; edgeGoalDetail = ''; this.destinationMoveDirection = '';
+      } else if (waitFacing && !retreatMoving) {
+        shownTaskLabel = this.waitFacingReady ? 'そのまま 待とう' : rt.def.waitFacingLabel?.(rt, false) || '矢印へ 向こう';
+        aimHelp = ''; waitFacingHelp = ''; edgeGoalDetail = ''; this.destinationMoveDirection = '';
+      }
+    }
+    // 救助中は共通の向き案内より、守る本人への下知を優先する。
     if (rescue && rt.def.guardGuideAllowed?.(rt) !== false && !careSequence &&
         !retreatRequired(rt) && !this.retreatGuide?.active && !rt.dodgeGuide) {
       shownTaskLabel = rescueNear ? 'そばで 敵からまもる' : 'この人に 近づこう';
@@ -1238,7 +1256,7 @@ export class HudUpdate {
         if (o.state === 'done') this.doneSet.add(o.id + o.text);
         const pr = intelText(rt, o.text) === o.text && o.progress && o.state !== 'done' && o.state !== 'fail' ? progressRatio(o.progress) : null;
         const title = o === cur ? shownTaskLabel : (rt.teachOn && !rt.teachOn() ? noOps(o.text) : o.text);
-        const facingHelp = o === cur && (waitFacing && !this.waitFacingReady || aimTurning);
+        const facingHelp = !pinGuideOn(rt) && o === cur && (waitFacing && !this.waitFacingReady || aimTurning);
         const place = facingHelp ? aimHelp || waitFacingHelp || ' ' : !fighting && !treatmentWaiting && !recovering(rt) && o === cur && guide?.marker && !waitingOrder && !flagTravel && !unifiedDestination && !retreatMoving ? (timedWait ? '敵が来たら 防いでつく' : destinationDistance(rt, guide.distance, true)) + (guide.floorHint ? '・' + guide.floorHint : '') : '';
         // 指定した戦だけ、現在の案内に合う補足へ言い換える。任務の進みや判定は変えない。
         let progress = o === cur ? rt.def.taskDetail?.(rt, title, o.progress || '') ?? (o.progress || '') : o.progress || '';

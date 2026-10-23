@@ -5,6 +5,7 @@ import { isTouch } from "./touch.js";
 import { VIEW } from "./viewport.js";
 import { sightUnit, sightScreenUnit } from "./battle_sight.js";
 import { taskText } from "./mission_guide.js";
+import { battleDialogueMuted } from './speech_clean.js';
 
 export class HudFeedback {
 
@@ -72,6 +73,7 @@ export class HudFeedback {
   // 立て続けの知らせは、警告でないものから間引く（docs/ui-guidelines.md）
   // 出してよい知らせか（出すかどうかだけを見る。記録はしない）。呼ぶ側が先に見て、出さない物は呼ばないようにも使える
   barkOk(text, warn = false) {
+    if (battleDialogueMuted(this.rt)) return false;
     // 間は戦の中の時で数える（機械が重くて戦がゆっくり進む時も、戦の20秒に同じ知らせを何度も出さない）
     const now = this.notices.clock * 1000;
     if (!this.barkSeen || this.barkRt !== this.rt) { this.barkSeen = new Map(); this.barkCounts = new Map(); this.barkTimes = []; this.barkRt = this.rt; }

@@ -27,7 +27,7 @@ const DEFAULTS = {
   volume: 0.8,        // 全体の音量
   volSfx: 1,          // 効果音
   volAmb: 1,          // 環境音
-  volVoice: 1,        // 台詞の声の音量
+  volVoice: 1,        // 戦いの声の音量
   volMusic: 0.7,      // 楽の音
   townMusic: true,    // 城下の楽の音
   townWalk: typeof navigator !== 'undefined' && /iPhone/.test(navigator.userAgent) ? 'cards' : 'walk', // 初めての城下は携帯で軽く。切り替えは設定から
@@ -42,7 +42,8 @@ const DEFAULTS = {
   toastLevel: 'all',  // 戦功の通知：all / important
   crosshair: 'dot',   // 照準の形：dot / cross / none
   mapNorth: false,    // ミニマップを北が上に固定
-  voice: 'off',       // 台詞の読み上げ：off / major / all
+  battleVoice: 'all', // 戦いの声：off / all
+  voice: 'off',       // 城下の読み上げの旧設定：off / major / all
   voiceRate: 1.05,    // 読み上げの速さ
   fontBody: 'gothic', // 本文の字：gothic / mincho
   minimapOff1023: false, // 小地図を既定で消した印（一度だけ）
@@ -92,7 +93,7 @@ const RANGES = {
 };
 const CHOICES = {
   camRange: ['near', 'mid', 'far'], view: ['third', 'first'], townWalk: ['walk', 'cards'], toastLevel: ['all', 'important'],
-  crosshair: ['dot', 'cross', 'none'], voice: ['off', 'major', 'all'], fontBody: ['gothic', 'mincho'],
+  crosshair: ['dot', 'cross', 'none'], battleVoice: ['off', 'all'], voice: ['off', 'major', 'all'], fontBody: ['gothic', 'mincho'],
   quality: ['high'], blood: ['on', 'low', 'off'], hudMode: ['min', 'normal', 'full'],
   uiScale: ['s', 'm', 'l'], subSize: ['s', 'm', 'l'], touchSize: ['s', 'm', 'l'],
   radialTime: ['slow', 'run'], fpsCap: [0, 30, 60],

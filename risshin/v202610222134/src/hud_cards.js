@@ -171,16 +171,34 @@ export class HudCards {
       if (!u?.alive || u.gone || u.mesh?.visible === false) { el.hidden = true; continue; }
       this.tmpV.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.3), u.pos.z).project(rt.camera);
       el.hidden = this.tmpV.z < -1 || this.tmpV.z > 1 || Math.abs(this.tmpV.x) > .85 || Math.abs(this.tmpV.y) > .8;
-      if (el.hidden) continue;
-      setText(i ? el.firstChild : el, sign.label); if (i) el.firstChild.hidden = !sign.label;
-      const x = Math.round((this.tmpV.x + 1) / 2 * innerWidth);
+      const edgeEnemy = i === 1 && rt.def.key === 'inou';
+      if (el.hidden && !edgeEnemy) continue;
+      const label = sign.label || '';
+      let mark = '▼';
+      let x = Math.round((this.tmpV.x + 1) / 2 * innerWidth);
       let y = Math.round((1 - this.tmpV.y) / 2 * innerHeight);
+      if (edgeEnemy && (el.hidden || y < 84 || x > innerWidth - 240 && y < 150)) {
+        const dx = u.pos.x - rt.player.u.pos.x, dz = u.pos.z - rt.player.u.pos.z;
+        const yaw = rt.player.yaw + (rt.player.camYawOff || 0);
+        const right = -dx * Math.cos(yaw) + dz * Math.sin(yaw);
+        const forward = dx * Math.sin(yaw) + dz * Math.cos(yaw);
+        x = right >= 0 ? innerWidth - 85 : 85;
+        y = innerHeight * .55;
+        mark = forward < 0 ? (right >= 0 ? '↘' : '↙') : (right >= 0 ? '→' : '←');
+        el.hidden = false;
+      }
+      // 名と印を別々に更新し、画面外の案内でも赤い印を残す。
+      setText(i ? el.firstChild : el, label);
+      if (i) { el.firstChild.hidden = !label; setText(el.lastChild, mark); }
       if (i && Math.abs(x - firstX) < 150 && Math.abs(y - firstY) < 26) y -= 28;
       if (y < 84 || x > innerWidth - 240 && y < 150) { el.hidden = true; continue; }
       // 任務・台詞の下へ入り込む所属札は畳む。画面の四角は既存の測定を使う。
-      const width = sign.label.length * 12 + 10;
+      const width = Math.max(i ? 24 : 0, label.length * 12 + 10);
       for (const r of this.rects || []) {
-        if (x + width / 2 > r.left && x - width / 2 < r.right && y > r.top && y - 26 < r.bottom) { el.hidden = true; break; }
+        if (x + width / 2 > r.left && x - width / 2 < r.right && y > r.top && y - 26 < r.bottom) {
+          if (edgeEnemy) y = Math.min(innerHeight - 90, r.bottom + 32);
+          else { el.hidden = true; break; }
+        }
       }
       if (el.hidden) continue;
       firstX = x; firstY = y;
@@ -242,7 +260,7 @@ html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog {
 html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog :is(.pg-st span,.pg-next) {
  white-space:normal; overflow:visible; text-overflow:clip; overflow-wrap:anywhere;
 }
-html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog .pg-context { display:none; }
+html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog .pg-context { display:block; }
 html:root body #hud.prog-on:has(#h-prog[data-battle="inou"]) #battle-notices:not(.choosing):not(.pg-x) {
  left:calc(16px + env(safe-area-inset-left, 0px)) !important; right:auto !important;
  top:calc(104px + env(safe-area-inset-top, 0px)) !important; bottom:auto !important;
@@ -294,14 +312,14 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     const dx = movingBack ? escaping.x - p.x : 0, dz = movingBack ? escaping.z - p.z : 0;
     const right = -dx * Math.cos(yaw) + dz * Math.sin(yaw), forward = dx * Math.sin(yaw) + dz * Math.cos(yaw);
     const moveWord = Math.abs(right) > Math.abs(forward) ? right >= 0 ? '右' : '左' : forward >= 0 ? '前' : '後ろ';
-    const action = movingBack && !retreat?.treatment ? `${moveWord}へ さがる` :
+    const action = movingBack && !retreat?.treatment ? def.retreatMoveLabel || `${moveWord}へ さがる` :
       shortTask(taskText(rt, def.taskLabel?.(rt) || task || title));
     const headline = action.split(/[。／\n、]/)[0].replace(/^.*隊長(?:と合流|へ.*|の所へ.*)$/, '隊長のそばへ').replace(/(?<!敵の)本陣へ/g, '敵の本陣へ').replace(/討ち取れ|倒せ/g, 'たおせ');
     setText(stEl.lastChild, headline);
     // 戦固有の案内と任務の進みは残す。同じ任務の全文は重ねない。
     const status = def.missionStatus?.(rt, taskLine);
     const sub = movingBack ? '' : def.missionDetail ? def.missionDetail(rt) :
-      def.missionStatusFirst ? status || '' :
+      (typeof def.missionStatusFirst === 'function' ? def.missionStatusFirst(rt) : def.missionStatusFirst) ? status || '' :
         currentObjective(rt)?.progress || (status && status !== headline ? status : '');
     // 右上の札の長い文（「追いつくまで あと約27メートル。着いたら槍で突く」など）は出さない。行き先はピンと矢印、相手は赤い▼で見せる（kaito 10/23）。
     //   操作を教える戦・戦が決めた一行の、短い物（「V を押す」など）だけ残す（押す物が分からず止まった。初めての人の bot 10/23）。

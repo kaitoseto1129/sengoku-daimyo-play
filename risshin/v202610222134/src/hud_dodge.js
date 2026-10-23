@@ -6,6 +6,7 @@ import { isTouch, touchInput } from "./touch.js";
 import { clearFoot } from "./cover_guide.js";
 import { visibleRainEscape } from "./arrow_rain.js";
 import { localClear } from "./army_local_way.js";
+import { pinGuideOn } from "./mission_pin.js";
 
 export class HudDodge {
 
@@ -89,12 +90,14 @@ export class HudDodge {
           if (input?.axis === this.coverHoldAxis) input.axis = null;
           this.coverHeldBattle = null;
           setAttr(el, 'aria-pressed', 'false');
+          if (this.rt?.def.coverGuideHeldText) setText(el.lastElementChild, this.rt.def.coverGuideTouchLabel);
         };
         const start = () => {
           const b = this.rt;
           if (!el.hidden && b?.player.u.alive && !b.over && !b.choice) {
             this.releaseWaitGuard?.(); this.coverHeldBattle = b;
             setAttr(el, 'aria-pressed', 'true');
+            if (b.def.coverGuideHeldText) setText(el.lastElementChild, b.def.coverGuideHeldText);
           }
         };
         el.addEventListener('pointerdown', e => {
@@ -120,6 +123,7 @@ export class HudDodge {
       ? off ? `${right >= 0 ? '右' : '左'}をむこう` : Math.hypot(dx, dz) < .8 ? 'ここで隠れよう' : rt.coverGuide?.label || '物かげへ'
       : Math.hypot(dx, dz) < .8 ? 'ここで かくれる' : 'しるしまで さがろう';
     if (isTouch) setText(el.lastElementChild, Math.hypot(dx, dz) < .8 ? 'ここで かくれる'
+      : this.coverHeldBattle === rt && rt.def.coverGuideHeldText ? rt.def.coverGuideHeldText
       : rt.def.coverGuideTouchLabel || `長く押して\n${rt.coverGuide?.label || '隠れる印へ'}`);
     else setHtml(el, esc(label));
     setStyle(el, '--ang', (forward < 0 ? right >= 0 ? 0 : Math.PI : Math.atan2(-forward, right)).toFixed(3) + 'rad');
@@ -259,6 +263,17 @@ export class HudDodge {
     if (rt.bowRing) rt.bowRing.visible = false;
     if (rt.moveRing) rt.moveRing.visible = false;
     for (const group of rt.squadGroups) { if (group.orderRing) group.orderRing.visible = false; if (group.selRing) group.selRing.visible = false; }
+    // 共通案内では任務一枚と矢印一本へ渡す。安全地点の選び方は同じ。
+    if (pinGuideOn(rt)) {
+      if (this.dodgeEl) { this.dodgeEl.hidden = true; setStyle(this.dodgeEl, 'display', 'none'); }
+      if (this.dodgeHeldBattle) this.releaseDodgeHold();
+      if (rt.turnPractice?.active) { rt.turnPractice.active = false; rt.turnPractice.done = true; }
+      setClass(this.root, 'dodge-active', false);
+      setClass(this.root, 'dodge-turn-coach', false);
+      cue.gestureShown = false;
+      rt.dodgeGuide = cue;
+      return cue;
+    }
     // 落下範囲のふちと模様は残し、安全な行き先と同時に見せる。
     let el = this.dodgeEl;
     if (!el) {

@@ -64,7 +64,11 @@ export function cleanBattleSpeech(rt, text) {
   if (rt.def.key === 'okehazama' && rt.def.speechAllowed?.(rt, '', t) === false) return '';
   if (rt.def.key === 'okehazama') t = t
     .replace('囲まれるぞ。味方の方へ退け', '囲まれるぞ。目印の仲間へ戻れ')
-    .replace('囲まれるぞ。来た道へ退け', '囲まれるぞ。来た道へ戻れ');
+    .replace('囲まれるぞ。来た道へ退け', '囲まれるぞ。来た道へ戻れ')
+    .replace(/穂先をそろえよ！/g, 'やりの先を敵へ向けよ！')
+    .replace(/生き残った者は次の戦で古参となり、強くなる/g, '生き残った仲間は、次の戦では経験を積んで強くなる')
+    .replace(/今川の陣/g, '今川（いまがわ）の軍が集まる場所')
+    .replace(/伝令の兵/g, '知らせを運ぶ兵');
   for (const [from, to] of MITSUHIDE) if (t.includes(from)) t = t.replace(from, to);
   t = t.replace(/崩れました/g, '崩れたぞ').replace(/押されています/g, '押されておる');
   if (/敵(?:は|が|勢は).*総崩れ/.test(t) && rt.army.groups.some((g) => g.team !== rt.player.u.team && g.count > 0 && !g.routed && g.order !== 'retreat' && g.order !== 'flee'))
@@ -96,7 +100,12 @@ const MOURNING = [
   '惜しい者を失った……。残る者を守るぞ', '無念じゃ。だが列を空けてはならぬ', 'その働きは覚えておく。今は退く道を守れ',
   '仲間が……。残る者は離れるな！', '忘れぬぞ。今は皆を守る！', '無念じゃ……。その持ち場はわしが支える！',
 ];
+// 導入の札と決着後の場面は残し、戦の最中は台詞を使わない。
+export function battleDialogueMuted(rt) {
+  return !!rt?.def && !rt.def.town && !rt.over && !rt.flags?.ending && rt.phase !== 'end';
+}
 export function battleSpeechAllowed(rt, speaker, text, unit = undefined) {
+  if (battleDialogueMuted(rt)) return false;
   if (rt?.def?.speechAllowed?.(rt, speaker, text) === false) return false;
   if (!rt?.army) return true;
   if (unit === undefined) unit = battleSpeaker(rt, speaker, text);
@@ -119,7 +128,7 @@ export function varyBattleBark(rt, text) {
     if (!pattern.test(text)) continue;
     const recent = rt._barkVariants || (rt._barkVariants = {});
     const n = recent[i] || 0; recent[i] = (n + 1) % lines.length;
-    return text.replace(pattern, rt.def.key === 'okehazama' && i === 4 ? '伝令の兵が 味方へ知らせを運ぶ' : lines[n]);
+    return text.replace(pattern, rt.def.key === 'okehazama' && i === 4 ? '知らせを運ぶ兵が 味方へ向かった' : lines[n]);
   }
   return text;
 }

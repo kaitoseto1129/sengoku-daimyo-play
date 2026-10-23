@@ -540,6 +540,7 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
     ${INK_CSS}${inkTitle()}
     <style>.tt-lead .ls{display:none}@media (max-height:500px){.tt-lead{margin:2px 0 0;line-height:1.6}.tt-lead .ll{display:none}.tt-lead .ls{display:inline}.tt-gap{height:4px!important}}</style>
     <p class="lead tt-lead">名もなき足軽が、戦国の世に身を立てる。</p>
+    <p class="note">初陣は弘治二年（一五五六）の稲生。信長と、弟の信勝・柴田勝家・林勢が戦う。<br>史実をもとに、足軽の働きや兵の配置を遊びとして再現します。</p>
     <div class="tt-gap" style="height:20px"></div>${!saved ? '<div id="new-confirm"></div>' : ''}
     ${saved ? `${(saved.scenario || 'okehazama') !== 'oda' ? `<p class="note">古い保存：${esc(scOf(saved).name)}。続きから遊べます。<br>いま新しく始められる本編：織田家編。</p>` : ''}${(saved.scenario || 'okehazama') === 'oda' && !saved.owari && !saved.japan ? '<p class="note">新しい戦：桶狭間より前の尾張統一戦「稲生の戦い」。続きはそのまま遊べます。<br><button class="btn small" id="b-pre">稲生の戦いを遊ぶ（記録は残らない）</button></p>' : ''}<p class="savebox">保存の枠${S.slot + 1}：${saveInfo}<br>${esc(preparation(saved))}${saved.journal && saved.journal.length ? `<br>前回：${esc(saved.journal[saved.journal.length - 1]?.t || '')}　${esc(String(saved.journal[saved.journal.length - 1]?.s || '').slice(0, 40))}` : ''}</p><div id="new-confirm"></div>` : ''}
     ${!saved && slots.some(Boolean) ? '<p class="note">この枠は空きです。別の枠に記録があります。「保存記録」から続きの枠を選べます。</p>' : ''}
@@ -866,7 +867,7 @@ const SET_DESC = {
   'st-hudArmy': '敵と味方の兵力の帯を表示します',
   'st-hudSquad': '預かった組の人数や様子を表示します',
   'st-hudBottom': '下の操作の早見表を表示します。指の端末では丸で操作します',
-  'st-vol': '効果音・環境音・楽の音・台詞の読み上げをまとめて変えます。零で音を消します',
+  'st-vol': '効果音・環境音・楽の音・戦いの声をまとめて変えます。零で音を消します',
   'st-shake': '打たれた時などの画面の揺れを変えます',
   'st-metrics': '作り手が直すための記録を、名前なしで送ります。どの戦で詰まったか、重さ（一こまの時間）、止まった戦と秒、誤りの文と場所です。名前・保存の中身・位置は送りません。切ると何も送りません',
   'st-blood': '血の見え方だけを変えます。受ける傷は変わりません',
@@ -894,27 +895,13 @@ const SET_DESC = {
   'st-rm': '揺れ・点滅・流れる文字を抑えます。端末で動きを減らしている時は、ここを切っても有効です', 'st-ca': '敵味方を色の明るさと形でも見分ける', 'st-fade': '戦いが無い間は、まわりの札を薄くする',
   'st-mark': '遠くの敵にも頭上に小さな印を出す', 'st-toast': '「大事なものだけ」では5点未満の通知を出さない', 'st-north': '小地図を回さず、北を上にしておく',
   'st-town': '城下だけの楽の音を入れます。戦の楽の音は上の音量で変えます。風や人の声は残ります', 'st-fps': '左下に一秒の絵の数と兵の数を出す',
-  'st-voice': '日本語の声で台詞を読みます。声が使えない時も字幕は残ります', 'st-font': '本文の字の形を変えます。題字や戦の見出しはそのままです', 'st-ui': '戦の札・台詞・城下の文・釦をまとめて変えます。大きい字は行が増えます',
+  'st-voice': '鬨の声・掛け声・叫び・うめきの声を入れます', 'st-font': '本文の字の形を変えます。題字や戦の見出しはそのままです', 'st-ui': '戦の札・台詞・城下の文・釦をまとめて変えます。大きい字は行が増えます',
 };
 // あまり使わない項目は「細かな設定」に畳む（押すと出る）。指の端末ではゲームパッドの項目を出さない
 const SET_ADV = new Set(['st-psens', 'st-smooth', 'st-rtime', 'st-vib', 'st-inv', 'st-float', 'st-mark', 'st-toast', 'st-cross', 'st-north', 'st-fps', 'st-cap', 'st-dist', 'st-hc', 'st-fade', 'st-subbg', 'st-font', 'st-vrate', 'st-talpha',
   'st-hudMinimap', 'st-hudCompass', 'st-hudArmy', 'st-hudSquad', 'st-hudBottom', 'st-hudObjectives']);
 let setAdv = false, setCat = '操作';
-let voiceChecked = false;
-function voiceDescription() {
-  try {
-    if (!window.speechSynthesis) return 'この端末では声を使えません。字幕で読めます';
-    const voices = window.speechSynthesis.getVoices();
-    if (voices.some((v) => /^ja(?:[-_]|$)/i.test(v.lang || ''))) return '日本語の声が使えます。台詞を読み上げます';
-    return voices.length || voiceChecked ? '日本語の声が見つかりません。端末の声の設定を確かめ、調べ直してください。字幕で読めます' : '声を準備しています。台詞は字幕で読めます';
-  } catch (e) { return 'この端末では声を使えません。字幕で読めます'; }
-}
-window.speechSynthesis?.addEventListener?.('voiceschanged', () => {
-  voiceChecked = true;
-  const desc = $('st-voice-desc'); if (desc) desc.textContent = voiceDescription();
-});
 export function settingsHtml() {
-  SET_DESC['st-voice'] = voiceDescription();
   const row = (id, label, input, out = '') => {
     const cat = Object.keys(SET_CAT).find((c) => SET_CAT[c].includes(id)) || '操作';
     // 指の端末でも、つないだマウスと手持ちの操作器の感度を変えられる。   // 指の端末は「指でなぞる見回しの感度」だけ（マウスの感度と二つ並べない）
@@ -970,10 +957,9 @@ export function settingsHtml() {
     ${row('st-north', '小地図を北が上に', chk('st-north', 'mapNorth'))}
     ${row('st-font', '文字の書体', `<select id="st-font"><option value="gothic" ${S.fontBody === 'gothic' ? 'selected' : ''}>ごしっく（読みやすい）</option><option value="mincho" ${S.fontBody === 'mincho' ? 'selected' : ''}>明朝（雰囲気）</option></select>`)}
     ${['hudMinimap:小地図', 'hudCompass:方角の帯', 'hudArmy:両軍の兵力', 'hudSquad:組の札', 'hudBottom:下の札', 'hudObjectives:任務の札'].map((x) => { const [k, l] = x.split(':'); return row('st-' + k, `表示：${l}`, `<input type="checkbox" id="st-${k}" ${S[k] ? 'checked' : ''}>`); }).join('')}
-    ${row('st-voice', '台詞の読み上げ', `<select id="st-voice"><option value="off" ${S.voice === 'off' ? 'selected' : ''}>読み上げない</option><option value="major" ${S.voice === 'major' ? 'selected' : ''}>主な人物だけ</option><option value="all" ${S.voice === 'all' ? 'selected' : ''}>すべて</option></select>`)}
-    ${row('st-vvoice', '台詞の声の音量', `<input type="range" id="st-vvoice" min="0" max="1" step="0.05" value="${S.volVoice}">`, Math.round(S.volVoice * 100) + '%')}
-    <div class="s-row" data-cat="音"><div class="row" style="gap:8px"><button type="button" class="btn small" id="st-voice-check">声を調べ直す</button><button type="button" class="btn small" id="st-voice-test">声を試す</button><button type="button" class="btn small" id="st-signal-test">合図を聞く</button><button type="button" class="btn small" id="st-weapon-test">槍の音を聞く</button></div></div>
-    ${row('st-vrate', '読み上げの速さ', `<input type="range" id="st-vrate" min="0.7" max="1.5" step="0.05" value="${S.voiceRate}">`, S.voiceRate.toFixed(2))}
+    ${row('st-voice', '戦いの声', `<select id="st-voice"><option value="off" ${S.battleVoice === 'off' ? 'selected' : ''}>切る</option><option value="all" ${S.battleVoice !== 'off' ? 'selected' : ''}>入れる</option></select>`)}
+    ${row('st-vvoice', '戦いの声の音量', `<input type="range" id="st-vvoice" min="0" max="1" step="0.05" value="${S.volVoice}">`, Math.round(S.volVoice * 100) + '%')}
+    <div class="s-row" data-cat="音"><div class="row" style="gap:8px"><button type="button" class="btn small" id="st-voice-test">戦いの声を聞く</button><button type="button" class="btn small" id="st-signal-test">合図を聞く</button><button type="button" class="btn small" id="st-weapon-test">槍の音を聞く</button></div></div>
     <p class="note st-save-note">変えた設定はこの閲覧画面に保存されます。画質の草・木の量は次の戦から変わります。</p>
     <div class="row st-reset-row"><button class="btn small" id="st-rehint">手ほどきと初回の説明をもう一度表示する</button><button class="btn small" id="st-reset">設定を初期値に戻す</button></div><div id="st-reset-cf"></div>
     ${isTouch ? '' : `<div id="kb-cf" class="kb-lbl"></div>
@@ -997,24 +983,12 @@ export function bindSettings(onChange) {
   };
   touchSample();
   const feedback = settingsFeedback;
-  const checkVoice = () => {
-    voiceChecked = false;
-    if ($('st-voice-desc')) $('st-voice-desc').textContent = voiceDescription();
-    const desc = $('st-voice-desc');
-    setTimeout(() => { if (!desc?.isConnected) return; voiceChecked = true; desc.textContent = voiceDescription(); }, 2500);
-  };
-  if ($('st-voice-check')) { $('st-voice-check').onclick = checkVoice; checkVoice(); }
-  if ($('st-voice-test')) $('st-voice-test').onclick = () => {
-    try {
-      const voice = window.speechSynthesis?.getVoices().find((v) => /^ja(?:[-_]|$)/i.test(v.lang || ''));
-      if (!voice) { feedback(voiceDescription()); return; }
-      if (S.volume <= 0 || S.volVoice <= 0) { feedback('全体と台詞の声の音量を上げてください'); return; }
-      speechSynthesis.cancel();
-      const line = new SpeechSynthesisUtterance('出陣の用意を整えましょう。');
-      line.lang = 'ja-JP'; line.voice = voice; line.rate = S.voiceRate; line.volume = S.volume * S.volVoice;
-      line.onerror = () => { if ($('st-voice-test')) feedback('声を出せませんでした。端末の声の設定を確かめてください'); };
-      speechSynthesis.speak(line); feedback('選んだ音量と速さで声を試しています');
-    } catch (e) { feedback('声を出せませんでした。台詞は字幕で読めます'); }
+  if ($('st-voice-test')) $('st-voice-test').onclick = async (e) => {
+    const button = e.currentTarget;
+    await initAudio();
+    if (!button.isConnected) return;
+    sfx('toki', 0.6);
+    feedback(S.battleVoice !== 'off' && S.volume > 0 && S.volVoice > 0 && S.volSfx > 0 ? '選んだ音量で戦いの声を試しています' : '声を入れ、全体・戦いの声・効果音の音量を上げてください');
   };
   for (const [id, sound] of [['st-signal-test', 'horagai'], ['st-weapon-test', 'thrust']]) if ($(id)) $(id).onclick = async (e) => { const button = e.currentTarget; await initAudio(); if (!button.isConnected) return; sfx(sound, 0.6); feedback(S.volume > 0 && S.volSfx > 0 ? '選んだ音量で試しています' : '全体と効果音の音量を上げてください'); };
   const adv = $('st-adv');
@@ -1089,7 +1063,7 @@ export function bindSettings(onChange) {
   bind('st-hudmode', 'hudMode', (e) => e.value);
   bind('st-north', 'mapNorth', (e) => e.checked);
   bind('st-font', 'fontBody', (e) => e.value);
-  bind('st-voice', 'voice', (e) => e.value);
+  bind('st-voice', 'battleVoice', (e) => e.value);
   bind('st-vvoice', 'volVoice', (e) => +e.value, (v) => Math.round(v * 100) + '%');
   bind('st-vrate', 'voiceRate', (e) => +e.value, (v) => v.toFixed(2));
   for (const k of ['hudMinimap', 'hudCompass', 'hudArmy', 'hudSquad', 'hudBottom', 'hudObjectives']) bind('st-' + k, k, (e) => e.checked);

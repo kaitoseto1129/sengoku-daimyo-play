@@ -16,6 +16,37 @@ const off = () => false;
 
 export class HudOverlay {
 
+  // 文と矢印は同じ行き先・視点から向きを取る。入れ物は使い回す。
+  battleMoveCue(rt, pos) {
+    const p = rt.player.u.pos, yaw = rt.player.yaw + (rt.player.camYawOff || 0);
+    const dx = pos.x - p.x, dz = pos.z - p.z;
+    const right = -dx * Math.cos(yaw) + dz * Math.sin(yaw);
+    const forward = dx * Math.sin(yaw) + dz * Math.cos(yaw);
+    const cue = this.battleMoveState || (this.battleMoveState = {});
+    cue.angle = Math.atan2(-forward, right);
+    cue.direction = Math.abs(right) > Math.abs(forward) ? right >= 0 ? '右' : '左' : forward >= 0 ? '前' : '後ろ';
+    return cue;
+  }
+
+  // 向く先は足元から短い一本で示す。目的地の札や操作の矢印を足さない。
+  drawBattleDirection(g, rt, pos) {
+    if (this.footDirectionDrawn) return false;
+    const p = rt.player.u.pos, cue = this.battleMoveCue(rt, pos);
+    const at = this.project(p, p.y + .12, rt,
+      this.battleFootProjection || (this.battleFootProjection = {}));
+    if (at.behind) return false;
+    // 矢じりまで画面内に収め、足元のすぐそばに保つ。
+    const x = Math.max(92, Math.min(VIEW.w - 92, at.x));
+    const y = Math.max(152, Math.min(VIEW.h - 92, at.y));
+    g.save(); g.translate(x, y); g.rotate(cue.angle); g.lineJoin = 'round';
+    g.beginPath(); g.moveTo(12, -5); g.lineTo(48, -5); g.lineTo(48, -14);
+    g.lineTo(70, 0); g.lineTo(48, 14); g.lineTo(48, 5); g.lineTo(12, 5); g.closePath();
+    g.strokeStyle = '#14120f'; g.lineWidth = 7; g.stroke();
+    g.fillStyle = this.waitFacingReady ? '#e4f2cb' : '#fff3ba'; g.fill(); g.restore();
+    this.footDirectionDrawn = true;
+    return true;
+  }
+
 
   // 全戦の今の目標を一つだけ示す。輪は実物に固定し、札だけ空いた所へ逃がす。
   drawBattleGoal(g, rt) {
@@ -35,11 +66,17 @@ export class HudOverlay {
       const target = this.attackCueEnemy || this.aimGuideEnemy || rt.guideEnemy || rt.player.lock;
       if (target?.alive && !target.gone && !target.woundOut) unit = target;
     }
+    const waiting = guide?.marker && /^(wait|guard)$/.test(guide.marker.guideArea);
+    if (waiting && !attacking) unit = null;
     const enemy = !retreat && !dodge && !!unit && unit.team !== rt.player.u.team;
-    let pos = retreat || dodge?.pos || unit?.pos || pinTarget || guide?.marker && guide.pos || ally?.pos;
+    let pos = retreat || dodge?.pos || (waiting && !attacking ? guide.pos : null) || unit?.pos || pinTarget || guide?.marker && guide.pos || ally?.pos;
     if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.z)) return;
     const radius = retreat?.radius || (dodge ? 1 : !enemy ? pinTarget?.hide ?? pinTarget?.r ?? guide?.marker?.guideRadius ?? 3 : 0);
-    if (!enemy && Math.hypot(pos.x - rt.player.u.pos.x, pos.z - rt.player.u.pos.z) <= radius) return;
+    if (!enemy && Math.hypot(pos.x - rt.player.u.pos.x, pos.z - rt.player.u.pos.z) < radius) {
+      const facing = !retreat && !dodge && waiting && rt.def.waitFacingPoint?.(rt);
+      return facing ? this.drawBattleDirection(g, rt, facing) : false;
+    }
+    if ((retreat && !retreat.treatment) || dodge) return this.drawBattleDirection(g, rt, pos);
     // 敵は既に姿を確かめた相手だけ。地形の向こうの伏兵は明かさない。
     let seen = true;
     if (enemy && !retreat) {
@@ -55,7 +92,7 @@ export class HudOverlay {
         pos = memory;
       }
     }
-    const y = pos.y ?? rt.world.heightAt(pos.x, pos.z);
+    const y = enemy ? pos.y ?? rt.world.heightAt(pos.x, pos.z) : groundAt(rt.world, pos.x, pos.z, rt.player.u.pos.y);
     const at = this.project(pos, y + .2, rt, this.battleGoalProjection || (this.battleGoalProjection = {}));
     const W = VIEW.w, H = VIEW.h;
     const on = seen && !at.behind && at.x > 48 && at.x < W - 48 && at.y > 96 && at.y < H - 48;
@@ -77,20 +114,19 @@ export class HudOverlay {
       if (item.id === 'objectives' && !item.el.classList.contains('expand')) continue;
       cards++;
     }
-    const label = !inou && cards < 3;
+    const label = enemy && cards < 3;
     // 札の上端から矢じりの下端までを一組で避ける。
     const spot = this.avoidRects(x, sy + 34, W, H, '', null, 52, 94, true);
     g.save(); g.lineJoin = 'round';
     if (on) {
-      g.beginPath(); g.ellipse(at.x, at.y, 29, 12, 0, 0, Math.PI * 2);
+      g.beginPath(); g.ellipse(at.x, at.y, enemy ? 29 : 38, enemy ? 12 : 16, 0, 0, Math.PI * 2);
       g.strokeStyle = '#14120f'; g.lineWidth = 10; g.stroke();
       g.strokeStyle = enemy ? '#ffccb5' : '#fff3ba'; g.lineWidth = 5; g.stroke();
     }
     if (spot) {
       x = spot[0]; sy = spot[1] - 34;
-      if (!on || !enemy) {
-        // 見える行き先にも大きな一本。矢じりは実際の到着点へ向ける。
-        if (on) angle = Math.atan2(at.y - sy, at.x - x);
+      if (!on) {
+        // 画面外だけに一本。見える目的地は地面の太い輪で示す。
         g.save(); g.translate(x, sy); g.rotate(angle); g.beginPath();
         g.moveTo(-22, -9); g.lineTo(5, -9); g.lineTo(5, -21); g.lineTo(33, 0);
         g.lineTo(5, 21); g.lineTo(5, 9); g.lineTo(-22, 9); g.closePath();

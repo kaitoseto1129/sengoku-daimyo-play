@@ -1,7 +1,7 @@
 import { S } from "./settings.js";
 import { fieldLabel, $, esc } from "./hud_common.js";
 import { goalText } from "./mission_guide.js";
-import { battleSpeaker, battleSpeechAllowed } from "./speech_clean.js";
+import { battleSpeaker, battleSpeechAllowed, battleDialogueMuted } from "./speech_clean.js";
 import { simpleControls } from "./simple_controls.js";
 
 
@@ -19,11 +19,13 @@ export class HudSpeech {
 
   // 台詞の読み上げ（ブラウザの音声合成。日本語の声があるときだけ）
   canSpeak(speaker) {
+    if (this.rt?.def && !this.rt.def.town) return false;
     if (!speaker || S.voice === 'off' || S.volume <= 0 || S.volVoice <= 0 || S.voice === 'major' && !VOICE_MAJOR.test(speaker) || !window.speechSynthesis || !window.SpeechSynthesisUtterance) return false;
     try { if (!jaVoice) jaVoice = speechSynthesis.getVoices().find((v) => /^ja(?:[-_]|$)/i.test(v.lang || '')) || null; return !!jaVoice; } catch (e) { return false; }
   }
 
   speak(speaker, text) {
+    if (this.rt?.def && !this.rt.def.town) return;
     if (!this._voiceHook && window.speechSynthesis) { this._voiceHook = true; try { speechSynthesis.addEventListener('voiceschanged', () => { jaVoice = null; }); } catch (e) { /* 声の入れ替えを聞けない環境 */ } }
     if (!window.speechSynthesis) { if (S.voice !== 'off' && !this.voiceUnavailable) { this.voiceUnavailable = true; this.notices.push('この端末では声が使えません。台詞は字幕で読めます', 60, 4, 'info'); } return; }
     // 字幕が切り替わったら、前の声を待たせず片付ける。
@@ -80,6 +82,7 @@ export class HudSpeech {
 
 
   say(speaker, text, dur = 4, urgent = false, detail = null) {
+    if (battleDialogueMuted(this.rt)) return false;
     // 遊び手への括弧の説明は省かない。内部注は呼び出す側のデータで外す。
     text = String(text);
     const speakerUnit = battleSpeaker(this.rt, speaker, text);

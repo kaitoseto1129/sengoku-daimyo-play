@@ -42,13 +42,13 @@ export class HudOpening {
     const openingSide = (side) => sideName(battle?.def.introSides?.[side] || sides[side].name);
     const people = battle?.def.introPeople || battlePeople(battle), castle = castleWelcome(battle);
     const peopleText = people.map((p) => `<div class="intro-person"><b>${esc(p.name)}</b><span>${esc(p.note)}</span></div>`).join('') + (castle ? `<p class="intro-castle">${esc(castle)}</p>` : '');
-    const welcome = battle?.def.key === 'moribe' || battle?.def.key === 'okehazama'
+    const welcome = battle?.def.key === 'moribe' || battle?.def.key === 'okehazama' || battle?.def.key === 'inou'
       ? `<div class="intro-people"><button type="button" class="btn" id="intro-people-toggle" aria-expanded="false" aria-controls="intro-people-body" style="min-height:44px;pointer-events:auto">人物と戦場の説明を読む</button><div id="intro-people-body" hidden>${peopleText}</div></div>`
       : battle?.def.introPeopleFolded && peopleText
         ? `<details class="intro-people"><summary>人物と戦場の説明を読む</summary>${peopleText}</details>` : peopleText;
     for (const person of people) this.peopleIntroduced.add(person.id);
     if (document.pointerLockElement) document.exitPointerLock?.();
-    el.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-labelledby="intro-title" aria-describedby="intro-wait"><div class="intro-reading" tabindex="0" aria-label="戦の下知"><div class="date">${esc(date)}</div><div class="ttl" id="intro-title">${esc(battle?.def.introName || name)}</div><i class="rule" aria-hidden="true"></i><div class="sides">味方　${esc(sideName(sides.a.name))}<em>対</em>敵　${esc(sideName(sides.b.name))}</div><p id="intro-wait" style="font-size:max(15px, calc(15px * var(--text-scale, 1)));line-height:1.6">${esc(waitShown)}</p><p style="font-size:max(15px, calc(15px * var(--text-scale, 1)));line-height:1.6"><b>勝つには：${esc(goal)}</b></p><p style="font-size:max(13px, calc(13px * var(--text-scale, 1)));line-height:1.6">${prepared}${read ? '' : '読む時間は自分で選べます'}</p></div><button type="button" class="btn primary" id="intro-go" style="min-height:48px;pointer-events:auto">出陣する</button></div>`;
+    el.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-labelledby="intro-title" aria-describedby="intro-wait"><div class="intro-reading" tabindex="0" aria-label="戦の下知"><div class="date">${esc(date)}</div><div class="ttl" id="intro-title">${esc(battle?.def.introName || name)}</div><i class="rule" aria-hidden="true"></i><div class="sides">味方　${esc(openingSide('a'))}<em>対</em>敵　${esc(openingSide('b'))}</div><p id="intro-wait" style="font-size:max(15px, calc(15px * var(--text-scale, 1)));line-height:1.6">${esc(waitShown)}</p><p style="font-size:max(15px, calc(15px * var(--text-scale, 1)));line-height:1.6"><b>勝つには：${esc(goal)}</b></p><p style="font-size:max(13px, calc(13px * var(--text-scale, 1)));line-height:1.6">${prepared}${read ? '' : '読む時間は自分で選べます'}</p></div><button type="button" class="btn primary" id="intro-go" style="min-height:48px;pointer-events:auto">出陣する</button></div>`;
     // 札の外は指を受け取らない。出陣待ちの停止は保つ。
     el.querySelector('.sides').innerHTML = `味方　${esc(openingSide('a'))}<em>対</em>敵　${esc(openingSide('b'))}`;
     // 指定した戦では、下知と勝つ条件を読んでから人物紹介へ送る。
@@ -65,11 +65,14 @@ export class HudOpening {
         body.hidden = !open;
         peopleToggle.setAttribute('aria-expanded', String(open));
         peopleToggle.textContent = open ? '人物と戦場の説明を閉じる' : '人物と戦場の説明を読む';
-        if (open) el.querySelector('.intro-reading').scrollTop = body.parentElement.offsetTop - el.querySelector('.intro-reading').offsetTop;
+        if (open) {
+          const reading = el.querySelector('.intro-reading');
+          reading.scrollTop += peopleToggle.getBoundingClientRect().top - reading.getBoundingClientRect().top;
+        }
       };
     }
     if (battle?.def.key === 'inou') {
-      el.querySelector('#intro-go').insertAdjacentHTML('beforebegin', '<small class="intro-scroll">背景は上下に送って最後まで読めます</small>');
+      el.querySelector('#intro-go').insertAdjacentHTML('beforebegin', '<small class="intro-scroll">説明欄を上下に送ると、人物の説明も読めます</small>');
     }
     decorateTerms(el.querySelector('.intro-reading'));
     el.style.pointerEvents = 'none';

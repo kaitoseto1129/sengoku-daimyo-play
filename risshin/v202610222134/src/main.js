@@ -970,7 +970,11 @@ canvas.addEventListener('mousedown', (e) => {
   initAudio();
   // ロックに一度しくじって noLock になっても、押すたびにもう一度捕まえに行く（成功すれば元の見回しに戻る。しくじれば押した動作はそのまま通す）
   if (game.noLock && !locked && canvas.requestPointerLock && !(game.hud.introWaiting)) { try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (err) { /* そのまま続ける */ } }
-  if (!locked && !game.noLock) { requestLock(); return; }
+  if (!locked && !game.noLock) {
+    requestLock();
+    // 初陣の攻撃練習は、見回しを始める最初の一押しでも槍を出す。
+    if (game.battle.def.key !== 'inou' || game.battle.flags.lesson !== 'swing') return;
+  }
   if (e.button === 0) { input.mouseL = true; input.leftPressed = true; }
   if (e.button === 1) { input.lockPressed = true; e.preventDefault(); }
   if (e.button === 2) { input.mouseR = true; input.rightPressed = true; }

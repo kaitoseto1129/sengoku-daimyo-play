@@ -42,7 +42,7 @@ import { TITLES } from './state.js';
 import { Commander } from './ai.js';
 import { allyOrdersTick } from './ally_orders.js';
 import { runScriptOrders, relaySpeech, relayObjective } from './script_orders.js';
-import { stripOps, noOps, cleanBattleSpeech, battleVoiceLines, battleSpeechAllowed, varyBattleBark } from './speech_clean.js';
+import { stripOps, noOps, cleanBattleSpeech, battleVoiceLines, battleSpeechAllowed, battleDialogueMuted, varyBattleBark } from './speech_clean.js';
 import { sendOrder } from './denrei.js';
 import { courierTick } from './courier.js';
 import { notice } from './senkyo.js';
@@ -787,6 +787,7 @@ export class Battle {
     // 血は設定の「血の見せ方」に従って出す（kaito 10/23 稲生 10「倒した時に血しぶきが出ない」）
     this.army.hideBlood = false;
     this.hud.reset();
+    this.hud.rt = this; // 戦の支度中の直接の台詞も、同じ表示の決まりで扱う。
     this.ready = false;
     // 戦ごとの環境音：川のある戦・夕暮れや夜・嵐
     silence();
@@ -973,6 +974,7 @@ export class Battle {
   }
   // 同じ文の間引きは、知らせと台詞に共通の仕組みで行う。
   say(sp, text, dur = 4) {
+    if (battleDialogueMuted(this)) return;
     text = cleanBattleSpeech(this, roughPeople(text));
     if (!text || !battleSpeechAllowed(this, sp, text)) return;
     // 武将の台詞に操作の名・キーの名を入れない。言い添えは小さな手ほどきの札へ。
@@ -1066,13 +1068,16 @@ export class Battle {
     if (striking) this.army.play('eshout', u.pos, 1.1);
     // 押せる防御札が出ている間は、同じ指図の声札を重ねない。
     if (this.hud.defendEnemy?.alive || this.hud.waitGuardButton && !this.hud.waitGuardButton.hidden) return;
-    if (this.def.rearAdviceView) {
+    if (this.def.rearAdviceText) {
+      this.bark(this.def.rearAdviceText(this), true);
+    } else if (this.def.rearAdviceView) {
       const direction = Math.cos(angle) > 0.5 ? '前' : Math.cos(angle) < -0.5 ? '後ろ' : Math.sin(angle) > 0 ? '左' : '右';
       const arrow = direction === '左' ? '←' : direction === '右' ? '→' : direction === '後ろ' ? '↓' : '↑';
       this.bark(`${arrow} ${direction}を向いて、ふせごう`, true);
     } else this.bark('↓ 後ろを向いて、ふせごう', true);
   }
   bark(text, warn) {
+    if (battleDialogueMuted(this)) return;
     text = this.plainOps(text);
     if (!tacticsCueBarkAllowed(this, text, warn)) return;
     text = cleanBattleSpeech(this, text);

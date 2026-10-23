@@ -3982,7 +3982,8 @@ export class Player {
       const all = this.blockAll || []; all.length = 0;
       rt.scene.traverse((o) => {
         if (!o.geometry) return;
-        if (o.userData.camBlock && o !== rt.world.terrain) all.push(o);
+        // 近くで透かしていた物（陣幕・柵・塀）も、透かさずにカメラを手前へ寄せる相手にする（kaito 10/23 稲生 22）。
+        if ((o.userData.camBlock || o.userData.camNear) && o !== rt.world.terrain) all.push(o);
         if (o.userData.camBlock || o.userData.camNear || o.userData.ext) camNearMesh(o);
       });
       // 室内の梁・柱は壁の判定とは別。束ねた面も近い部分だけ抜く。
@@ -4161,7 +4162,9 @@ export class Player {
 
   // 描く直前（on）と後：一人称の時だけ、自分の頭（兜・陣笠・顔）と背の指物・馬印を隠す。腕・手・武器・胴・脚は見せる
   fpHide(on, cam) {
-    CAM_NEAR_FADE.value = on && cam === this.rt.camera && !(this.rt.game && this.rt.game.photo) ? 1 : 0;
+    // 近い物を透かす仕組みは止める（透けて見えるのに当たりは残り、見えない壁になっていた。kaito 10/23 稲生 22）。
+    //   カメラが物に埋まる時は clearDrawBuildings・camBlock の線で手前へ寄せる。戦の定義が nearFade: true の時だけ元のまま。
+    CAM_NEAR_FADE.value = on && this.rt.def.nearFade === true && cam === this.rt.camera && !(this.rt.game && this.rt.game.photo) ? 1 : 0;
     CAM_NEAR_SCREEN_CUT.value = this.rt.def.nearSceneryScreenCut === false ? 0 : 1;
     CAM_NEAR_FOOT.value = this.u.pos.y;
     if (CAM_NEAR_FADE.value) CAM_NEAR_PROJECTION.value.set(cam.projectionMatrix.elements[0], cam.projectionMatrix.elements[5]);

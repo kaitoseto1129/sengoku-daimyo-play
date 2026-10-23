@@ -23,7 +23,8 @@ const CALLS = {
   utchi: [['u', .15], ['i', .12, 'ch'], ['o', .17, 't'], ['a', .28, 't']], // 討ち取った
   help: [['a', .18, 't'], ['u', .14, 's'], ['e', .2, 'k'], ['e', .28, 't']], // 助けて
 };
-const KINDS = { toki: 'toki', eiei: 'toki', shout: 'charge', eshout: 'clash', cry: 'fall', umeki: 'groan', soldier_advance: 'advance', soldier_retreat: 'withdraw', soldier_flee: 'withdraw', soldier_fire: 'fire', soldier_help: 'help' };
+const KINDS = { toki: 'toki', eiei: 'toki', shout: 'charge', eshout: 'clash', cry: 'fall', umeki: 'groan' };
+const BATTLE_CRY_KINDS = new Set(['toki', 'charge', 'clash', 'clashOu', 'fall', 'groan']);
 const cache = new Map();
 // 三通りだけ焼く。携帯で合成処理が重ならないよう一つずつ作る。
 let bakeQueue = Promise.resolve();
@@ -185,7 +186,7 @@ export function createWarVoices(rt) {
   }
   function allowed() { return !disposed && !document.hidden && document.hasFocus() && !rt.game.paused && !rt.game.photo; }
   function sync() {
-    if (master) master.gain.setTargetAtTime(allowed() ? .7 * S.volume * S.volSfx : 0, ctx.currentTime, .04);
+    if (master) master.gain.setTargetAtTime(allowed() && S.battleVoice !== 'off' ? .7 * S.volume * S.volVoice : 0, ctx.currentTime, .04);
   }
   function unlock() {
     if (!allowed() || !audio()) return;
@@ -199,7 +200,8 @@ export function createWarVoices(rt) {
   // 音量変更・一時停止は描画と独立して追う。毎コマ音源や配列を作らない。
   const timer = setInterval(sync, 120);
   async function playKind(kind, pos, vol, command = false, speaker = null) {
-    if (!allowed() || S.volume <= 0 || S.volSfx <= 0 || !audio()) return;
+    if (!BATTLE_CRY_KINDS.has(kind)) return;
+    if (!allowed() || S.battleVoice === 'off' || S.volume <= 0 || S.volVoice <= 0 || !audio()) return;
     // 合成の依頼も間引く。下知は群声の混雑とは別の席を使う。
     const now = ctx.currentTime;
     if (now < (command ? commandGate : gate) || pending >= 2) return;

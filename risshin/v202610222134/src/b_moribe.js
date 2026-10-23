@@ -917,7 +917,7 @@ const moribe = {
   introTaskFirst: true,
   introPeopleFolded: true,   // 横持ちでは下知を先に読み、人物紹介は自分で開く。
   // 操作は稲生で覚える。ここでは行き先と勝つための流れを伝える。
-  introText: (rt) => `動かすのは「${rt.player.u.name}」一人。まず川の向こうの印まで歩こう。川は歩いて渡れる。\n目印のついた仲間${rt.squad.length}人は、あなたについてくる。指示は右上の任務のボタンで出す。\n二人の敵の大将と、まわりで守る兵を味方と倒したら、印の出る旗へ戻る。\n仲間と旗のそばにとどまり、川への道を守ろう。`,
+  introText: 'まず、仲間と川の向こうの印へ。川は歩いて渡れる。',
   introPeople: [
     { id: 'moribe-oda', name: '織田信長', note: '味方の大将。織田軍の兵として戦う。' },
     { id: 'moribe-nagai', name: '長井甲斐守（ながい かいのかみ）', note: '敵の大将。まわりで守る兵と一緒にいる。味方と協力して倒す。' },
@@ -934,6 +934,9 @@ const moribe = {
     return F.stage === 'assemble' ? 4 : F.stage === 'press' ? 3 : F.stage === 'hold' ? 2 : 1;
   },
   minutes: 7,
+  missionTimeLabel: '戦の残り目安',
+  missionStatusFirst: (rt) => !rt.flags.signal && !rt.flags.pointDone,
+  retreatMoveLabel: '印の方へ移動',
   missionAlly(rt) {
     return rt.flags.squadGuide || rt.squad.find((u) => u.alive && !u.gone && !u.fleeing && !u.woundOut);
   },
@@ -956,18 +959,21 @@ const moribe = {
     const action = F.missionAction || (F.missionAction = {});
     action.command = command;
     action.disabled = pending;
-    action.label = pending ? '仲間へ伝えている' : command === 'hold' ? '仲間を止める' : F.signal && (F.stage === 'contact' || F.stage === 'press') ? '仲間と進む' : '仲間を呼ぶ';
+    action.label = pending ? '仲間へ伝えている' : command === 'hold' ? 'ここで仲間を待たせる' : F.signal && (F.stage === 'contact' || F.stage === 'press') ? '仲間と進む' : '仲間を呼ぶ';
     return action;
   },
   missionStatus(rt, task) {
     const F = rt.flags;
     if (!F.signal && !F.pointDone) {
-      if (!F.pointInside) return moribeDestination(rt, POINT2, '川の向こうの印まで歩く。川は歩いて渡れる');
-      if (rt.squadGroups.some((g) => !gone(g) && g.pending)) return '印に到着。仲間へ伝えている';
+      if (!F.pointInside) {
+        const p = rt.player.u.pos, left = Math.max(1, Math.ceil((Math.hypot(p.x - POINT2.x, p.z - POINT2.z) - 10) / .75));
+        return moribeDestination(rt, POINT2, `渡り終えるまで あと${left}歩`);
+      }
+      if (rt.squadGroups.some((g) => !gone(g) && g.pending)) return '到着。仲間に待つ場所を伝えている';
       if (!F.pointReady) return rt.squadGroups.every((g) => gone(g) || g.order === 'follow')
-        ? '印に到着。仲間が集まるまで待つ' : 'この札の「仲間を呼ぶ」を押す';
-      if (!rt.squadGroups.some((g) => !gone(g) && g.order === 'hold')) return 'この札の「仲間を止める」を押す';
-      return '到着。この場で待つ';
+        ? '自分は到着。ここで仲間を待つ' : 'この札の「仲間を呼ぶ」を押す';
+      if (!rt.squadGroups.some((g) => !gone(g) && g.order === 'hold')) return '「ここで仲間を待たせる」を一度押す';
+      return `この場で列をそろえる あと${Math.max(1, Math.ceil(8 - (F.holdT || 0)))}秒`;
     }
     if (F.stage === 'hold' && !F.squadGuide && !rt.player.u.mobbed && !(F.breathUntil > rt.t) && !gone(F.B)) {
       if (!F.lineTogether) return '仲間を呼んで、味方の印へ戻る';
@@ -992,7 +998,7 @@ const moribe = {
     let pos = null, r = 6, hide = 6;
     if (!F.signal) {
       if (F.pointDone) return null;
-      pos = POINT2; r = hide = 10;
+      pos = POINT2; r = 10; hide = F.pointInside ? 10.8 : 10;
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
     } else if (F.stage === 'assemble') {
@@ -1170,7 +1176,8 @@ const moribe = {
   keepWoundRetreatReason: true,   // 出血時も、下がる理由と手当ての下知を残す。
   treatmentApproachLabel: '手当ての印へ下がれ',
   coverGuideLabel: '矢を避けて、物かげへ',
-  coverGuideTouchLabel: '矢をよける\nこのボタンを押し続ける',
+  coverGuideTouchLabel: '長押しで物かげへ移動',
+  coverGuideHeldText: '物かげへ移動中\n指を離すと止まる',
   shortRetreatArrow: true,   // 画面外の味方へ退く印は端の短い矢印にし、槍の間合いを横切らない。
   swipeArrowLength: 48,   // 足元から旗まで兵を横断する線を引かず、進む向きだけを短く示す。
   guideArrowLength: 48,   // 待機・退避の別経路も同じ長さにそろえる。
@@ -1546,6 +1553,7 @@ html body #hud.moribe-notices.retreat-priority #battle-notices:not(.choosing) #o
 html body #hud.moribe-notices.retreat-priority #battle-notices:not(.choosing) #objectives.travel-retreat:not(.expand) .battle-action:not(:has(button)) {
  display:none !important;
 }
+#hud.moribe-notices .hold-cover[aria-pressed="true"] { background:#65552a !important; box-shadow:inset 0 0 0 3px #fff3ba; }
 #hud.moribe-notices .battle-notice.treatment { white-space:nowrap; font-size:max(12px, calc(12px * var(--text-scale, 1))); line-height:1.4; }
 #hud.moribe-notices:has(#battle-message:not([hidden])) .range-cue { display:none; }
 /* 本文と人物紹介は縮めずに送る。出陣の釦には重ならない。 */
@@ -1973,7 +1981,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     rt.marker('point', POINT2, () => rt.flags.pointInside ? '川の向こうの印・そばで仲間を待て' : '向こう岸の印',
       { guideArea: 'wait', guideRadius: 10 });
     rt.zone('point', POINT2.x, POINT2.z, 10);
-    rt.say('隊長 源八（げんぱち）', '仲間はついてくる。川の向こうの印へまっすぐ。川は歩いて渡れるぞ', 5);
+    rt.say('隊長 源八（げんぱち）', '川の向こうの印へ進め。仲間はついてくるぞ', 5);
     // 公記：勘当の身の前田利家が、許しなく森部に加わり首を挙げた。
     rt.after(17, () => { if (!rt.flags.ending && !rt.over) rt.bark('仲間「勘当の前田利家殿まで、槍を持って駆けつけたぞ」'); });
     rt.flags.point = POINT2;
@@ -2103,9 +2111,9 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       if (distance > trailDist) { trailDist = distance; trailing = u; }
     }
     F.squadContext = !F.signal
-      ? `仲間：そばに${squadNear}／${squadAlive}人\n印に着いた仲間：${squadAcross}／${squadAlive}人`
+      ? F.pointInside ? `自分は到着・仲間 ${squadAcross}／${squadAlive}人が到着` : `仲間 ${squadNear}／${squadAlive}人がついてくる`
       : `仲間：そばに${squadNear}／${squadAlive}人`;
-    if (trailing && trailDist >= 16) F.squadContext += '\n' + moribeDestination(rt, trailing.pos, `離れた仲間まで約${Math.ceil(trailDist / .75)}歩`);
+    if (F.signal && trailing && trailDist >= 16) F.squadContext += '\n' + moribeDestination(rt, trailing.pos, `離れた仲間まで約${Math.ceil(trailDist / .75)}歩`);
     clearOldSpeech(rt);
     if (!F.breathUsed && F.signal && rt.player.u.hp > 0 && rt.player.u.hp < 30 && rt.G.difficulty !== 'hard') {
       F.breathUsed = true; F.breathUntil = rt.t + 12;
@@ -2204,12 +2212,12 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
           if (holdPending) task.text = F.fordThreat ? '仲間へ伝えている。敵を防げ' : F.pointInside ? '印のそばで仲間を待て' : '川の向こうの印へ。仲間へ伝えている';
           else if (!F.pointInside) task.text = F.fordThreat ? '敵を防ぎ、仲間と川の向こうの印へ' : '仲間と川の向こうの印へ';
           else if (!ready) task.text = rt.squadGroups.every((g) => gone(g) || g.order === 'follow')
-            ? '印のそばで仲間を待つ' : '印のそばで「仲間を呼ぶ」を押す';
-          else if (!waiting) task.text = '「仲間を止める」を押す';
-          else task.text = '到着。この場で待つ';
+            ? '到着。ここで仲間を待つ' : '印のそばで「仲間を呼ぶ」を押す';
+          else if (!waiting) task.text = '「ここで仲間を待たせる」を押す';
+          else task.text = '仲間と列をそろえる';
         }
         rt.objProgress('point', holdPending ? `仲間へ伝えている。${F.fordThreat ? '敵へ槍を向け、構えよ' : F.pointInside ? '印のそばで仲間を待て' : '川の向こうの印へ進め'}` : F.pointInside ? ready
-          ? waiting ? `仲間 ${near}／${alive}人。その場で待つ あと${Math.max(1, Math.ceil(8 - F.holdT))}秒${F.fordThreat ? `。敵へ構えよ` : ''}` : `仲間 ${near}／${alive}人。「仲間を止める」を押す${F.fordThreat ? `。敵へ構えよ` : ''}`
+          ? waiting ? `仲間 ${near}／${alive}人。その場で待つ あと${Math.max(1, Math.ceil(8 - F.holdT))}秒${F.fordThreat ? `。敵へ構えよ` : ''}` : `仲間 ${near}／${alive}人。「ここで仲間を待たせる」を押す${F.fordThreat ? `。敵へ構えよ` : ''}`
           : `仲間 ${near}／${alive}人。${rt.squadGroups.every((g) => gone(g) || g.order === 'follow') ? 'その場で仲間を待つ' : '「仲間を呼ぶ」を押す'}`
           : `川の向こうの印まで歩く。あと${Math.max(1, Math.ceil((d - 10) / 0.75))}歩`);
       }
