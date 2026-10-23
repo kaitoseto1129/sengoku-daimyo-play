@@ -585,8 +585,10 @@ export const ArmyFx = {
   },
 
   updateParticles(dt) {
+    let changed = false;
     for (let i = 0; i < this.sN; i++) {
       if (this.sLife[i] <= 0) continue;
+      changed = true;
       this.sLife[i] -= dt;
       if (this.sLife[i] <= 0) { this.sPos[i * 3 + 1] = -999; continue; }
       this.sVel[i * 3 + 1] -= 9 * dt;
@@ -594,6 +596,7 @@ export const ArmyFx = {
     }
     for (let i = 0; i < this.pN; i++) {
       if (this.pLife[i] <= 0) continue;
+      changed = true;
       this.pLife[i] -= dt;
       // 地面に落ちたら消える
       if (this.pLife[i] <= 0 || this.pPos[i * 3 + 1] < this.pGround[i]) { this.pLife[i] = 0; this.pPos[i * 3 + 1] = -999; continue; }
@@ -602,6 +605,7 @@ export const ArmyFx = {
       this.pPos[i * 3 + 1] += this.pVel[i * 3 + 1] * dt;
       this.pPos[i * 3 + 2] += this.pVel[i * 3 + 2] * dt;
     }
-    this.points.geometry.attributes.position.needsUpdate = true;
+    // 最後の粒を消す転送まで行い、全て止まった後の同じ位置は送り直さない。
+    if (changed) this.points.geometry.attributes.position.needsUpdate = true;
   }
 };

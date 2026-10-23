@@ -875,6 +875,7 @@ export const ArmyThink = {
 
   // 向きを変える：なめらかに、ただし一度に回れる速さ（rad/s）には限りがある
   turn(u, h, dt, rate) {
+    u._turnH = h; u._turnR = rate;   // 判断を休むコマも同じ向きへ回し続ける（units.js の間引き）
     const d = angleDiff(u.heading, h);
     const winding = u.atk && !u.atk.gun && !u.atk.bow;
     const tracking = winding && u.atk.target?.isPlayer && this.world.def.closeCombatAssist;
@@ -1071,6 +1072,7 @@ export const ArmyThink = {
   },
 
   act(u, dt, near) {
+    u._turnH = undefined;   // このコマの判断で回した向きだけを、休むコマへ持ち越す
     const g = u.group;
     const order = signalWait(this, g, u) ? g.signalFrom : g.order;
     enduranceTick(this, u, dt);

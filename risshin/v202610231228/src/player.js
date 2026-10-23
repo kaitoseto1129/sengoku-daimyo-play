@@ -4122,16 +4122,34 @@ export class Player {
     const length = dir.length();
     if (length < .45) { this.clearCameraBody(camera); camera.updateMatrixWorld(); return; }
     const ray = this._drawRay || (this._drawRay = new THREE.Raycaster());
-    ray.camera = camera; ray.set(from, dir.multiplyScalar(1 / length)); ray.far = length + .35;
-    const hits = this._drawHits || (this._drawHits = []); hits.length = 0;
-    for (const o of this.blockers) {
-      if (!camBlockVisible(o, this.rt.scene)) continue;
-      camBlockWorld(o); camBlockRaycast(o, ray, hits);
-    }
+    const end = this._drawEnd || (this._drawEnd = new THREE.Vector3());
+    const right = this._drawRight || (this._drawRight = new THREE.Vector3());
+    const up = this._drawUp || (this._drawUp = new THREE.Vector3());
+    const sweep = this._drawSweep || (this._drawSweep = new THREE.Vector3());
+    right.set(1, 0, 0).applyQuaternion(camera.quaternion);
+    up.set(0, 1, 0).applyQuaternion(camera.quaternion);
+    // 中心が壁を抜けても、横長の画面の下隅が戸板へ残ることがある。
+    // 目元から四隅までの幅も確保し、描く直前の視点を壁の手前へ寄せる。
+    const halfH = Math.max(.22, Math.tan(camera.fov * Math.PI / 360) / camera.zoom * .6);
+    const halfW = halfH * camera.aspect;
+    const hits = this._drawHits || (this._drawHits = []);
     let distance = length;
-    for (const hit of hits) distance = Math.min(distance, Math.max(.1, hit.distance - .4));
+    for (let i = 0; i < 5; i++) {
+      end.copy(camera.position);
+      if (i) end.addScaledVector(right, (i % 2 ? -1 : 1) * halfW)
+        .addScaledVector(up, (i < 3 ? -1 : 1) * halfH);
+      sweep.copy(end).sub(from);
+      const span = sweep.length();
+      ray.camera = camera; ray.set(from, sweep.multiplyScalar(1 / span)); ray.far = span + .35;
+      hits.length = 0;
+      for (const o of this.blockers) {
+        if (!camBlockVisible(o, this.rt.scene)) continue;
+        camBlockWorld(o); camBlockRaycast(o, ray, hits);
+      }
+      for (const hit of hits) distance = Math.min(distance, Math.max(.1, (hit.distance - .4) / span * length));
+    }
     if (distance < length) {
-      camera.position.copy(from).addScaledVector(dir, distance);
+      camera.position.copy(from).addScaledVector(dir, distance / length);
       this.camPos.copy(camera.position);
       camera.updateMatrixWorld();
     }

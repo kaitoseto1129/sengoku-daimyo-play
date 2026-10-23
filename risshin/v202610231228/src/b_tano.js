@@ -53,7 +53,7 @@ function tanoWaitText(rt) {
   if (!C?.waiting) return '射手の後ろで構えよ';
   const d = Math.hypot(p.x - C.waitAt.x, p.z - C.waitAt.z);
   if (d > 4) return `鉄砲の待ち場へ${p.x > C.waitAt.x + 2 ? '下がれ' : '進め'}`;
-  return rt.flags.tgun?.order !== 'hold' ? 'ここで待て。射手が前へ出る' : 'ここで鉄砲の合図を待て';
+  return rt.flags.tgun?.order !== 'hold' ? '印の所で待て。射手が前へ出る' : 'ここで鉄砲の合図を待て';
 }
 // 山腹の上だけ傾きを徐々に寝かせる。高さ四十で急に折れる平らな稜線を作らない。
 // 下の二十までは従来と同じ。道・崖道の足場と川岸の低い段は動かさない。
@@ -870,9 +870,6 @@ const tano = {
     // 八十歩の霞で柵と対岸まで白く消さず、描く範囲の内で谷筋を読ませる。
     // 遠景の本数や面数は増やさず、既存の霞の終点だけを百二十歩へ延ばす。
     battleViewDistance: 120,
-    // 切岸の近くでは視点の中心だけでなく、描く直前の四隅も土の上へ戻す。
-    // 既存の接地処理を田野でも使い、地面の裏から岩や木を見せない。
-    terrainContactView: true,
     // 早春の落葉樹と常緑の杉を混ぜ、残雪は日陰の斑だけに残す。
     // 携帯でも足場と描く面を同じ格子にする。崖際の兵・岸石が面に埋まるのを防ぐ。
     winter: true, autumn: true, terrainTriangles: true, keepTerrainGrid: true, groundedSlopeRocks: true, softFarNeedles: true, springSnowPatch: true, spreadFalls: true,
