@@ -9,7 +9,7 @@ import { S } from './settings.js';
 const GOALS = {
   inou: '林軍を追い、林美作守を討ち取る',
   okehazama: '義元（よしもと）を守る敵を仲間と倒し、帰りの旗へ集まる',
-  moribe: '敵の旗本を崩し、集結の旗へ戻る',
+  moribe: '敵将と護衛を仲間と倒し、集結の旗で川への道を守る',
   sunomata: '材木を一度届け、人足と砦を守る',
   inabayama: '火の合図を出し、味方と城へ進む',
   mitsukuri: '木戸を破る味方を守り、本丸を取る',

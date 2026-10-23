@@ -10,12 +10,95 @@ import { enemyKnown } from "./battle_intel.js";
 import { GENERALS, FACTION } from "./units.js";
 import { pinGuideOn } from "./mission_pin.js";
 
-// ピン一本の案内（kaito 10/23 稲生 3・11）：行き先の字・地面の矢印と輪・自分の白い輪郭と足元の丸・敵の字の印を描かない。
-const PIN_OFF = "AdvanceStep ApproachRoute CornerArrow DefendedFlag DefendedLocation DefenseArea DefenseBoundary DefenseLine DefenseOverview DefensePattern DestinationArea DestinationPointer DestinationSign DestinationStep DirectionChain DoorFloorGoal EdgeDestination EscortFlag FlagDestinationSign FlagGuide FlagLink FloorGoal FloorWaymark FootDirection FootRoute GoalArrivalRing GoalArrow GoalFlagFrame GroundGuide GuardPost GuardPostFrame GuideLink MarkedGoalFlag MoveFootprints MoveGoal MoveOrigin NamedDestination NamedGoal NavigationArrow OffscreenDirection PassageGuides PlaceFrame PlayerSign RaisedGoalFlag RetreatDestination RetreatRoute ReturnDestination RouteBend RouteFootsteps RoutePath RouteTurn SelectedGoalFlag SingleDestination SmallGoalFlag SmallGoalFlagPath SwipeArrow TargetFootRing TaskDestinationSign TravelGuide WaitFootprints WaitFrame EnemyHeadPointer TargetPointer FocusDiamond EnemyOutline EnemyContour TeamWord EnemySign NearbyTeamSigns AllySign SwordSign SpearSign UnitContrast EnemyDirection CoverDirection CoverSign MoveGesture ReleaseGesture EnemyMoveGesture".split(" ").map((n) => "draw" + n);
+// 共通の目標の輪・端の矢印・所属の形を使い、以前の案内を重ねない。
+const PIN_OFF = "AdvanceStep ApproachRoute CornerArrow DefendedFlag DefendedLocation DefenseArea DefenseBoundary DefenseLine DefenseOverview DefensePattern DestinationArea DestinationPointer DestinationSign DestinationStep DirectionChain DoorFloorGoal EdgeDestination EscortFlag FlagDestinationSign FlagGuide FlagLink FloorGoal FloorWaymark FootDirection FootRoute GoalArrivalRing GoalArrow GoalFlagFrame GroundGuide GuardPost GuardPostFrame GuideLink MarkedGoalFlag MoveFootprints MoveGoal MoveOrigin NamedDestination NamedGoal NavigationArrow OffscreenDirection PassageGuides PlaceFrame PlayerSign RaisedGoalFlag RetreatDestination RetreatRoute ReturnDestination RouteBend RouteFootsteps RoutePath RouteTurn SelectedGoalFlag SingleDestination SmallGoalFlag SmallGoalFlagPath SwipeArrow TargetFootRing TaskDestinationSign TravelGuide WaitFootprints WaitFrame EnemyHeadPointer TargetPointer FocusDiamond EnemyOutline EnemyContour TeamWord EnemySign SpearSign UnitContrast EnemyDirection CoverDirection CoverSign MoveGesture ReleaseGesture EnemyMoveGesture".split(" ").map((n) => "draw" + n);
 const off = () => false;
 
 export class HudOverlay {
 
+
+  // 全戦の今の目標を一つだけ示す。輪は実物に固定し、札だけ空いた所へ逃がす。
+  drawBattleGoal(g, rt) {
+    if (S.reduceGuidance) return;
+    const guide = rt.missionGuide;
+    const retreat = this.retreatGuide?.active && this.retreatGuide.valid ? this.retreatGuide : null;
+    const objectives = rt.def.objectiveEnemies?.(rt);
+    const ally = rt.def.missionAlly?.(rt);
+    let unit = objectives?.find((u) => u.alive && !u.gone && !u.woundOut);
+    const attacking = /たお|倒|討|崩|押せ|押し返/.test(taskLabel(rt, currentObjective(rt)?.text || ''));
+    if (!unit && !ally && (!guide?.marker || attacking)) {
+      const target = this.attackCueEnemy || this.aimGuideEnemy || rt.guideEnemy || rt.player.lock;
+      if (target?.alive && !target.gone && !target.woundOut) unit = target;
+    }
+    const enemy = !retreat && !!unit && unit.team !== rt.player.u.team;
+    let pos = retreat || unit?.pos || guide?.marker && guide.pos || ally?.pos;
+    if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.z)) return;
+    // 敵は既に姿を確かめた相手だけ。地形の向こうの伏兵は明かさない。
+    let seen = true;
+    if (enemy && !retreat) {
+      if (unit.isOfficer && !enemyKnown(rt, unit)) return;
+      seen = sightScreenUnit(rt, unit);
+      const memory = this.battleGoalMemory || (this.battleGoalMemory = { rt:null, unit:null, t:-99, x:0, y:0, z:0 });
+      if (seen) {
+        memory.rt = rt; memory.unit = unit; memory.t = rt.t;
+        memory.x = pos.x; memory.y = pos.y; memory.z = pos.z;
+      } else {
+        // 振り向いた時は最後に見た場所へ。隠れた敵の移動は追わない。
+        if (memory.rt !== rt || memory.unit !== unit || rt.t - memory.t > 8) return;
+        pos = memory;
+      }
+    }
+    const y = pos.y ?? rt.world.heightAt(pos.x, pos.z);
+    const at = this.project(pos, y + .2, rt, this.battleGoalProjection || (this.battleGoalProjection = {}));
+    const W = VIEW.w, H = VIEW.h;
+    const on = seen && !at.behind && at.x > 48 && at.x < W - 48 && at.y > 96 && at.y < H - 48;
+    let x = at.x, sy = at.y - 30, angle = 0;
+    if (!on) {
+      const dx = pos.x - rt.player.u.pos.x, dz = pos.z - rt.player.u.pos.z;
+      const yaw = rt.player.yaw + (rt.player.camYawOff || 0);
+      const right = -dx * Math.cos(yaw) + dz * Math.sin(yaw);
+      const forward = dx * Math.sin(yaw) + dz * Math.cos(yaw);
+      angle = Math.atan2(-forward, right);
+      const scale = Math.min((W / 2 - 64) / Math.max(.001, Math.abs(right)), (H / 2 - 100) / Math.max(.001, Math.abs(forward)));
+      x = W / 2 + right * scale; sy = H / 2 - forward * scale;
+    }
+    const word = enemy ? 'この敵' : 'ここへ';
+    // 進行札も一枚として数え、同時に三枚まで。輪と形だけは残す。
+    let cards = Number(!!this.prog && !this.prog.hidden) + 1; // 体力も一枚。
+    for (const item of this.notices.picks) {
+      if (item.id === 'objectives' && !item.el.classList.contains('expand')) continue;
+      cards++;
+    }
+    const label = cards < 3;
+    const spot = this.avoidRects(x, sy, W, H, '', null, 44, 32, true);
+    g.save(); g.lineJoin = 'round';
+    if (on) {
+      g.beginPath(); g.ellipse(at.x, at.y, 29, 12, 0, 0, Math.PI * 2);
+      g.strokeStyle = '#14120f'; g.lineWidth = 10; g.stroke();
+      g.strokeStyle = enemy ? '#ffccb5' : '#fff3ba'; g.lineWidth = 5; g.stroke();
+    }
+    if (spot) {
+      x = spot[0]; sy = spot[1];
+      if (!on) {
+        g.save(); g.translate(x, sy + 15); g.rotate(angle); g.beginPath();
+        g.moveTo(-14, -7); g.lineTo(3, -7); g.lineTo(3, -14); g.lineTo(19, 0);
+        g.lineTo(3, 14); g.lineTo(3, 7); g.lineTo(-14, 7); g.closePath();
+        g.strokeStyle = '#14120f'; g.lineWidth = 7; g.stroke();
+        g.fillStyle = '#fff3ba'; g.fill(); g.restore();
+      } else if (label) {
+        g.beginPath(); g.moveTo(x, sy); g.lineTo(at.x, at.y - 15);
+        g.strokeStyle = '#14120f'; g.lineWidth = 5; g.stroke();
+        g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
+      }
+      if (label) {
+        g.font = 'bold 20px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'bottom';
+        g.fillStyle = '#14120f'; g.fillRect(x - 38, sy - 29, 76, 29);
+        g.fillStyle = '#fff3df'; g.fillText(word, x, sy - 3);
+      }
+    }
+    g.restore();
+    return true;
+  }
 
   // 兵の頭上の体力（近くの兵だけ）
   drawOverlay(rt) {
@@ -64,12 +147,21 @@ export class HudOverlay {
     this.defenseAreaDrawn = false;
     setClass($('objectives'), 'defense-order', false);
     this.hudRects();
+    this.teamSignsDrawn = false;
+    this.battleCuesDrawn = false;
+    if (pinOnly && !rt.over && !rt.choice && !this.introWaiting && !this.openingActive &&
+        rt.player.u.alive && !rt.player.camShot && !this.bigmap) {
+      this.battleCuesDrawn = this.drawBattleGoal(g, rt);
+      this.battleCuesDrawn = this.drawNearbyTeamSigns(g, rt, rt.army.units) || this.battleCuesDrawn;
+      this.ovBlank = false;
+    }
     // 待つ間は本人の丸と既存の任務だけ。旗・向きの矢印・注意印を重ねない。
     if (this.quietWait && !rt.choice && !rt.over && !rt.dodgeGuide && !rainDanger(rt.army) && !retreatRequired(rt)) {
       setClass($('objectives'), 'ground-order', false);
       setClass($('objectives'), 'enemy-order', false);
       this.drawRainDrops(g, W, H, rt); this.drawBrim(g, W, H, rt);
       this.drawPlayerSign(g, rt);
+      if (rt.def.nearbyTeamSignScale) this.drawNearbyTeamSigns(g, rt, rt.army.units);
       this.ovBlank = false;
       return;
     }
@@ -99,7 +191,7 @@ export class HudOverlay {
           drew = true;
         }
       }
-      this.ovBlank = !drew;
+      this.ovBlank = !drew && !this.battleCuesDrawn;
       return;
     }
     // なぞり始めは操作の一枚と、名前付きの自分・行き先に絞る。
@@ -743,7 +835,7 @@ export class HudOverlay {
     drew = this.drawPlayerSign(g, rt) || drew;
     // 次のコマに消さずに済むか：組の印・雨粒・笠の縁も描いていない時だけ
     if (previousEnemyFrame !== !!this.enemyFrameShown) this.notices.sync();
-    this.ovBlank = !drew && !rt.player.showSquad && !(this.drops && this.drops.length) && !((rt.player.fpK || 0) > 0.7);
+    this.ovBlank = !drew && !this.battleCuesDrawn && !rt.player.showSquad && !(this.drops && this.drops.length) && !((rt.player.fpK || 0) > 0.7);
   }
 
 

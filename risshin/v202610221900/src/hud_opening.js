@@ -40,10 +40,12 @@ export class HudOpening {
     // 開戦の札は軍の名だけ（「出陣時の目安」は兵の数の横で使う言葉）
     const sideName = (n) => String(n || '').replace(/（出陣時の目安）/g, '');
     const openingSide = (side) => sideName(battle?.def.introSides?.[side] || sides[side].name);
-    const people = battlePeople(battle), castle = castleWelcome(battle);
+    const people = battle?.def.introPeople || battlePeople(battle), castle = castleWelcome(battle);
     const peopleText = people.map((p) => `<div class="intro-person"><b>${esc(p.name)}</b><span>${esc(p.note)}</span></div>`).join('') + (castle ? `<p class="intro-castle">${esc(castle)}</p>` : '');
-    const welcome = battle?.def.introPeopleFolded && peopleText
-      ? `<details class="intro-people"><summary>人物と砦の説明を読む</summary>${peopleText}</details>` : peopleText;
+    const welcome = battle?.def.key === 'moribe'
+      ? `<div class="intro-people"><button type="button" class="btn" id="intro-people-toggle" aria-expanded="false" aria-controls="intro-people-body" style="min-height:44px;pointer-events:auto">人物と戦場の説明を読む</button><div id="intro-people-body" hidden>${peopleText}</div></div>`
+      : battle?.def.introPeopleFolded && peopleText
+        ? `<details class="intro-people"><summary>人物と砦の説明を読む</summary>${peopleText}</details>` : peopleText;
     for (const person of people) this.peopleIntroduced.add(person.id);
     if (document.pointerLockElement) document.exitPointerLock?.();
     el.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-labelledby="intro-title" aria-describedby="intro-wait"><div class="intro-reading" tabindex="0" aria-label="戦の下知"><div class="date">${esc(date)}</div><div class="ttl" id="intro-title">${esc(battle?.def.introName || name)}</div><i class="rule" aria-hidden="true"></i><div class="sides">味方　${esc(sideName(sides.a.name))}<em>対</em>敵　${esc(sideName(sides.b.name))}</div><p id="intro-wait" style="font-size:max(15px, calc(15px * var(--text-scale, 1)));line-height:1.6">${esc(waitShown)}</p><p style="font-size:max(15px, calc(15px * var(--text-scale, 1)));line-height:1.6"><b>勝つには：${esc(goal)}</b></p><p style="font-size:max(13px, calc(13px * var(--text-scale, 1)));line-height:1.6">${prepared}${read ? '' : '読む時間は自分で選べます'}</p></div><button type="button" class="btn primary" id="intro-go" style="min-height:48px;pointer-events:auto">出陣する</button></div>`;
@@ -52,6 +54,18 @@ export class HudOpening {
     // 指定した戦では、下知と勝つ条件を読んでから人物紹介へ送る。
     if (battle?.def.introTaskFirst) el.querySelector('.intro-reading').insertAdjacentHTML('beforeend', welcome);
     else el.querySelector('.sides').insertAdjacentHTML('afterend', welcome);
+    const peopleToggle = el.querySelector('#intro-people-toggle');
+    if (peopleToggle) {
+      for (const name of ['pointerdown', 'pointerup']) peopleToggle.addEventListener(name, e => e.stopPropagation());
+      peopleToggle.onclick = e => {
+        e.preventDefault(); e.stopPropagation();
+        const body = el.querySelector('#intro-people-body'), open = body.hidden;
+        body.hidden = !open;
+        peopleToggle.setAttribute('aria-expanded', String(open));
+        peopleToggle.textContent = open ? '人物と戦場の説明を閉じる' : '人物と戦場の説明を読む';
+        if (open) el.querySelector('.intro-reading').scrollTop = peopleToggle.parentElement.offsetTop - el.querySelector('.intro-reading').offsetTop;
+      };
+    }
     if (battle?.def.key === 'inou') {
       el.querySelector('#intro-go').insertAdjacentHTML('beforebegin', '<small class="intro-scroll">背景は上下に送って最後まで読めます</small>');
     }

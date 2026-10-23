@@ -1067,8 +1067,8 @@ const miki = {
   // 三間半の長柄は、持ち手が四歩半より外でも肩越しへ差し込む。
   nearFlagFadeRadius: 6, nearLongWeaponRadius: 10,
   // 持ち主から離れた落ち槍も、肩越しの視線を横切る間だけ描くのを避ける。
-  // 生きた兵の槍と同じ既存の処理で戻し、拾える物や当たりは変えない。
-  nearGroundSpearRadius: 10, nearGroundSpearClearance: .8,
+  // 視線より下を横切る柄も拾う。描いた後は戻し、拾える物や当たりは変えない。
+  nearGroundSpearRadius: 10, nearGroundSpearClearance: 3,
   // 木戸・大村への下知と目前の危険を、古い任務の十秒待ちで隠さない。
   immediateTaskChanges: true, immediatePhaseTasks: true,
   avoidWaymarkThreats: true, // 前方の危険札は、道の印の名・距離・矢印を避ける。
@@ -1899,7 +1899,8 @@ const miki = {
       // 遠い縞は平均色へ溶かす。追加の絵の読み出しや描画は要らない。
       sh.fragmentShader = sh.fragmentShader.replace('vec3 col = grass * w.x + dirt * w.y + mud * w.z;', `
         float mikiRoadK = smoothstep(0.1, 0.75, vMikiRoad);
-        float mikiSoilGrain = clamp(dot(dirt, vec3(0.3333)) / 0.36, 0.55, 1.35);
+        // 明るい土粒の上限を保ち、刈り田と畦にも暗い土粒の濃淡を残す。
+        float mikiSoilGrain = clamp(dot(dirt, vec3(0.3333)) / 0.36, 0.32, 1.35);
         // 草・湿土・斜面の割合を残す。単色への置換で川岸まで砂地にしない。
         vec3 col = grass * w.x + dirt * w.y + mud * w.z;
         vec3 mikiRoadSoil = mix(dirt, mud, w.z) * vec3(1.0, 0.94, 0.82)
@@ -2316,9 +2317,9 @@ const miki = {
     this.routeTick(rt);
     this.commandSignal(rt, 'nobiki', '合図：低い法螺貝と間を空けた退き太鼓。大村へ退け');
     rt.marker('omura', OMURA, () => placeLabel(rt, OMURA, '大村の持ち場', OMURA.r), {});
-    rt.zone('omura', OMURA.x, OMURA.z, OMURA.r);
-    // 坂の地面に沿わせ、判定と同じ輪を一度だけ作る。
-    rt.drapeRing(rt.rings[rt.rings.length - 1], OMURA.x, OMURA.z);
+    // 庭全体を囲む輪を小屋や兵へ重ねず、持ち場の中心だけ示す。
+    // 到着・勝敗は下の更新で引き続き OMURA.r を使う。接地は zone に任せる。
+    rt.zone('omura', OMURA.x, OMURA.z, .85);
     rt.banner('平田から大村へ', '谷大膳の持ち場は敵の手に。西の坂で立て直せ');
     rt.say('伝令', '谷大膳殿が討たれた！　西の道から大村へ退け！', 4);
     // 谷大膳は見せている組と別の持ち場。見える兵を秒数で殺さない。
