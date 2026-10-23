@@ -2747,21 +2747,13 @@ const honnoji = {
     if (F.step === 5) return this.escapeGuideLabel(rt);
     if (F.step >= 3) return '御所の西の門へ';
     if ((F.hp === 2 || F.hp === 3) && gateFight(rt)) return '敵をたおせ';
+    // 戸口の枠と旗に添える札は、遠い門の行き先より先に示す。
+    if (F.routeSign?.door && this.routeGuidePriority(rt)) return 'ここへ';
     if ((F.hp === 2 || F.hp === 3) && F.gateApproach?.alive) return '門へ走る';
     if (gateDefending(rt)) return '門の内で 上様を守る';
     if ((F.hp === 2 || F.hp === 3) && F.routeSign && !F.routeSign.indoor) return '門へ走る';
     if (F.routeSign?.corridor && this.routeGuidePriority(rt)) {
       return F.hp === 4 || F.hp === 5 ? '廊下の先から 本堂へ' : '廊下の先から 表門へ';
-    }
-    // 遠い護衛先より、いま通る開いた戸口を札と矢印でそろえる。
-    if (F.routeSign?.door && this.routeGuidePriority(rt)) {
-      const p = rt.player.u.pos, sign = F.routeSign;
-      const yaw = templeViewYaw(rt);
-      const dx = sign.x - p.x, dz = sign.z - p.z, distance = Math.hypot(dx, dz) || 1;
-      const side = (-dx * Math.cos(yaw) + dz * Math.sin(yaw)) / distance;
-      const forward = (dx * Math.sin(yaw) + dz * Math.cos(yaw)) / distance;
-      if (forward < -.35) return side >= 0 ? '右の戸口へ' : '左の戸口へ';
-      return side > .35 ? '右の戸口へ' : side < -.35 ? '左の戸口へ' : 'この戸口へ';
     }
     const sign = F.routeSign, p = rt.player.u.pos;
     if (sign && !sign.door && Number.isFinite(sign.dirX) && Number.isFinite(sign.dirZ)) {
@@ -2791,7 +2783,7 @@ const honnoji = {
     // 戸口の印にも行き先を添える。守りへの合流と退却を同じ「ここへ」にしない。
     if (F.hp === 2 || F.hp === 3) {
       const sign = F.routeSign;
-      if (sign?.door) return 'ここへ・戸をぬける';
+      if (sign?.door) return 'ここへ';
       if (sign && !sign.door && !sign.indoor) return '門へ走る';
       if (!(F.patrolDistance > 10 && sign?.indoor)) return '門へ走る';
       // 敵の増減で札を切り替えず、いま通る戸口の動作を短く保つ。

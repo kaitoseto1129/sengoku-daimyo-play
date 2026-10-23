@@ -1084,7 +1084,7 @@ export class HudUpdate {
     const enemyMoveHelp = !travellingNow && !!this.destinationMoveDirection && !!meleeTarget?.alive &&
       (!!this.approachGuideEnemy || this.combatActionUnified) && !retreatMoving && !facingGesture;
     if (enemyMoveHelp) shownTaskLabel = this.destinationMoveDirection === '上'
-      ? '上になぞって攻める' : `${this.destinationMoveDirection}になぞって敵へ向く`;
+      ? '上になぞる' : `${this.destinationMoveDirection}になぞる`;
     else if (this.combatActionUnified) shownTaskLabel = attackOperation(rt);
     if (travellingNow && !retreatRequired(rt) && !rt.dodgeGuide && !this.retreatGuide?.active &&
         !recovering(rt) && !rainDanger(rt.army)) {
@@ -1124,7 +1124,7 @@ export class HudUpdate {
         `${rt.def.waitFacingTarget?.(rt)?.alive ? '印の敵へ向く' : rt.def.waitFacingLabel?.(rt, false) || '矢印へ向く'}${isTouch ? `・${waitFacingSide}へなぞる` : ''}`;
     if (guide?.marker?.guideDefend &&
         !retreatRequired(rt) && !this.retreatGuide?.active && !careSequence && !rt.dodgeGuide && !rainDanger(rt.army) && !recovering(rt)) {
-      const defendText = guardPostDistance(rt, guide) >= defenseRadius(rt, guide.marker) ? 'ここへ' : 'ここをまもる';
+      const defendText = guardPostDistance(rt, guide) >= defenseRadius(rt, guide.marker) ? '旗まで進む' : 'ここで守る';
       if (!fighting && !targetingEnemy && !facingGesture) shownTaskLabel = defendText;
       else edgeGoalDetail = defendText; // 接敵中も同じ札の中で、持ち場の内外を伝える。
     }
@@ -1154,6 +1154,20 @@ export class HudUpdate {
       shownTaskLabel = rt.def.taskLabel?.(rt, shownTaskLabel) || this.destinationPurpose(rt);
       aimHelp = ''; waitFacingHelp = ''; edgeGoalDetail = '';
       this.combatActionUnified = false;
+    }
+    // 反撃の判断は既存の案内を使い、届く正面の一人だけを「今」の合図にする。
+    const attackCue = this.attackGuideEnemy;
+    this.attackCueEnemy = isTouch && attackCue?.alive && this.guardFacing &&
+      !enemyMoveHelp && !facingGesture && !routePriority && !travellingNow && !careSequence &&
+      !retreatMoving && !retreatRequired(rt) && !this.retreatGuide?.active &&
+      !rt.dodgeGuide && !rainDanger(rt.army) && !recovering(rt) &&
+      !this.openingActive && !rt.over && !rt.choice && !p.camShot && !this.bigmap && !S.reduceGuidance &&
+      p.weapon !== 'gun' && p.weapon !== 'bow' &&
+      Math.hypot(attackCue.pos.x - u.pos.x, attackCue.pos.z - u.pos.z) <=
+        p.meleeReach(p.weapon === 'sword' ? 'slash' : 'thrust') ? attackCue : null;
+    if (this.attackCueEnemy) {
+      shownTaskLabel = `今${attackOperation(rt)}`;
+      aimHelp = ''; waitFacingHelp = ''; edgeGoalDetail = '';
     }
     // 同じ操作を見出しと補足に二度出さない。
     if (edgeGoalDetail === shownTaskLabel || routePriority) edgeGoalDetail = '';
@@ -1337,6 +1351,8 @@ export class HudUpdate {
       if (opened && this.keyboardInput) cp.querySelector('button')?.focus({ preventScroll:true });
     } else setHidden(cp, true);
     // 武器・号令ショートカット
+    // 戦闘中の常設五枚は畳む。開戦直後と号令を開いた時にだけ見せ、近くの行動札は保つ。
+    setHidden($('h-bottom'), !rt.def.town && !rt.def.dojo && !p.cmdOpen && (rt.t > 8 || coachFoe));
     const pad = this.padMode;
     const bottomKey = `${pad}|${p.weapon}|${p.lock}|${K('dodge')}|${K('lock')}|${K('use')}`;
     if (this.bottomKey !== bottomKey) {

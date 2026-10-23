@@ -10,6 +10,8 @@ export class HudGoal {
 
 
   drawSingleDestination(g, rt, pos, marker) {
+    // 守る旗と道が描かれている時は、別の到着点を足さない。
+    if (this.defendedFlagDrawn && marker?.guideDefend) return true;
     // 危険な間は守る操作を先に見せ、安全になったら移動案内へ戻す。
     if (this.root.classList.contains('wait-guard-active')) return false;
     if (this.releaseMoveActive || this.releaseGestureDrawn) return true;
@@ -307,7 +309,7 @@ export class HudGoal {
     // 携帯の道案内は、既存の任務一枚を次の戸口の旗へ添える。
     if (isTouch && doorway && rt.def.routeGuidePriority?.(rt)) {
       setClass(this.root, 'travel-guide', true);
-      return this.drawNamedDestination(g, rt, point);
+      return this.drawNamedDestination(g, rt, point, sign.door ? sign.frame : null);
     }
     // 道の旗だけで終わらず、直近の通れる床にも進む向きを残す。
     if (doorway && !marker?.person && !marker?.guidePerson)

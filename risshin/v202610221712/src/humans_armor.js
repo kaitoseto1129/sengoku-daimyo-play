@@ -684,7 +684,7 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
         float wear = ${detailed ? 'dmVn(vDmP * 40.0) * 0.7 + dmVn(vDmP * 140.0) * 0.3' : '0.5'};
         // 露出した鉄は酸化と擦れのある鈍い面。革・布・漆の照りを別々にする。
         roughnessFactor = 0.43 + wear * 0.2;
-        roughnessFactor = mix(roughnessFactor, ${'0.25 + wear * 0.20 + dmEdge * 0.22'}, dmLacq);
+        roughnessFactor = mix(roughnessFactor, ${'0.36 + wear * 0.22 + dmEdge * 0.16'}, dmLacq);
         roughnessFactor = mix(roughnessFactor, 0.72 + wear * 0.14, dmLeather);
         roughnessFactor = mix(roughnessFactor, ${'1.0'}, dmCloth);
         // 金具：磨かれた照りに、細かな引っ掻き傷
@@ -692,7 +692,8 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
         roughnessFactor = mix(roughnessFactor, 0.24 + scr * 0.22, dmGold);
         roughnessFactor = mix(roughnessFactor, 0.95, dmDust);
         // 雨：漆と金具は濡れて照りが増し、糸は水を吸って暗く重くなる（照りは少しだけ）
-        roughnessFactor *= 1.0 - uWet * mix(0.28, 0.1, max(dmCloth, dmLeather));
+        // 濡れた漆も使い込んだ擦れを残す。鉄板と威糸を同じ鏡面へしない。
+        roughnessFactor *= 1.0 - uWet * mix(0.18, 0.06, max(dmCloth, dmLeather));
       }`).replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
       ${'metalnessFactor = 0.82 * (1.0 - dmDust);'}
       metalnessFactor = mix(metalnessFactor, 0.0, max(dmLeather, max(dmCloth, dmLacq)));

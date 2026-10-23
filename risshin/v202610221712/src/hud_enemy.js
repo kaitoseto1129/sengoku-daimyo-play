@@ -253,18 +253,22 @@ export class HudEnemy {
   // 呼び名は既存の一枠を使い、剣は本人の頭上へ固定する。
   drawEnemyHeadPointer(g, frame, rt, enemy, showLabel = true) {
     if (singleBattleGuide(rt) || isTouch) {
-      // 操作の矢印と区別し、本人の頭上に「敵」のひし形を一つだけ置く。
+      // 見張る時はひし形、攻め時は四角と「今」。色や点滅だけに頼らない。
       const x = frame.cx, tip = Math.min(frame.top, frame.headY) - 8;
       if (x < 26 || x > VIEW.w - 26 || tip < 16 || tip > VIEW.h - 16) return;
       const y = Math.max(26, tip - 22);
+      const ready = this.attackCueEnemy === enemy;
       g.save(); g.lineJoin = 'round'; g.beginPath();
-      g.moveTo(x, y - 22); g.lineTo(x + 22, y);
-      g.lineTo(x, y + 22); g.lineTo(x - 22, y); g.closePath();
+      if (ready) g.roundRect(x - 22, y - 22, 44, 44, 4);
+      else {
+        g.moveTo(x, y - 22); g.lineTo(x + 22, y);
+        g.lineTo(x, y + 22); g.lineTo(x - 22, y); g.closePath();
+      }
       g.fillStyle = '#14120f'; g.fill();
       g.strokeStyle = '#14120f'; g.lineWidth = 8; g.stroke();
       g.strokeStyle = '#fff3ba'; g.lineWidth = 3; g.stroke();
       g.font = 'bold 16px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillStyle = '#fff3df'; g.fillText('敵', x, y); g.restore();
+      g.fillStyle = '#fff3df'; g.fillText(ready ? '今' : '敵', x, y); g.restore();
       return;
     }
     // 携帯でも、ねらう本人の頭上に大きな剣を固定する。札は既存の任務一枚を使う。
@@ -328,7 +332,17 @@ export class HudEnemy {
     g.ellipse(cx, cy, Math.max(18, (f.right - f.left) / 2 + 7),
       Math.max(24, (f.bottom - f.top) / 2 + 7), 0, 0, Math.PI * 2);
     g.strokeStyle = '#14120f'; g.lineWidth = 13; g.stroke();
-    g.strokeStyle = '#ffbd8d'; g.lineWidth = 7; g.stroke(); g.restore();
+    g.strokeStyle = '#fff3ba'; g.lineWidth = 7; g.stroke();
+    // 四方の照準で、本人の名前や移動先の輪と形でも見分ける。
+    const rx = Math.max(18, (f.right - f.left) / 2 + 7);
+    const ry = Math.max(24, (f.bottom - f.top) / 2 + 7);
+    g.beginPath();
+    g.moveTo(cx - rx - 9, cy); g.lineTo(cx - rx + 5, cy);
+    g.moveTo(cx + rx - 5, cy); g.lineTo(cx + rx + 9, cy);
+    g.moveTo(cx, cy - ry - 9); g.lineTo(cx, cy - ry + 5);
+    g.moveTo(cx, cy + ry - 5); g.lineTo(cx, cy + ry + 9);
+    g.strokeStyle = '#14120f'; g.lineWidth = 12; g.stroke();
+    g.strokeStyle = '#fff3ba'; g.lineWidth = 6; g.stroke(); g.restore();
     this.drawEnemyHeadPointer(g, f, rt, u);
     rt.army.guideWayEnemy = u; rt.army.guideWayAt = rt.army.time;
     this.enemyFrameShown = true;
@@ -339,6 +353,8 @@ export class HudEnemy {
 
   // 守る線は任務の行き先と別に残す。他の戦でも同じ指定を使える。
   drawDefenseLine(g, rt) {
+    // 守る旗が出たら、その旗への道だけにする。正面の線や小印は重ねない。
+    if (this.defendedFlagDrawn || rt.missionGuide?.marker?.guideDefend) return false;
     if (this.aimGuideEnemy?.alive || this.outlinedEnemy?.alive || rt.guideEnemyShown ||
         rainDanger(rt.army) || rt.dodgeGuide || retreatRequired(rt) || this.retreatGuide?.active && this.retreatGuide.valid) return false;
     const destination = rt.missionGuide;

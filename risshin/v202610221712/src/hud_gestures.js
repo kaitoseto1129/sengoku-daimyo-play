@@ -215,10 +215,17 @@ export class HudGestures {
     g.lineJoin = 'round';
     g.strokeStyle = '#14120f'; g.lineWidth = compact ? 6 : 10; g.stroke();
     g.strokeStyle = '#fff3ba'; g.lineWidth = compact ? 2.5 : 5; g.stroke();
+    // 終点も丸で示し、指は同じ一本の矢印の先まで動かす。
+    if (facing) {
+      g.beginPath(); g.arc(tipX, tipY, 10, 0, Math.PI * 2);
+      g.strokeStyle = '#14120f'; g.lineWidth = 5; g.stroke();
+      g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
+    }
     g.restore();
     const caption = isTouch && !this.notices.sources[1].selected
       ? `${Math.abs(dx) > Math.abs(dy) ? dx > 0 ? '右' : '左' : dy > 0 ? '下' : '上'}へなぞる` : '';
-    this.drawMoveOrigin(g, fromX, fromY, radius, caption, dx / distance * Math.min(56, end - 12), dy / distance * Math.min(56, end - 12));
+    const fingerTravel = facing ? end : Math.min(56, end - 12);
+    this.drawMoveOrigin(g, fromX, fromY, radius, caption, dx / distance * fingerTravel, dy / distance * fingerTravel);
     // なぞり方を含む既存の一枚を、実際に触る丸のそばへ移す。
     if (isTouch && this.destinationMoveDirection && !order.classList.contains('facing-order') && !order.classList.contains('enemy-move-help') && !this.retreatGuide?.active && !retreatRequired(rt) &&
         this.notices.sources[1].selected && !order.classList.contains('expand')) {

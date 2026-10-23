@@ -601,6 +601,14 @@ html body #hud #battle-notices:not(.choosing) > #objectives.ground-order:not(.ex
  left:var(--ground-order-x) !important; top:var(--ground-order-y) !important;
  width:max-content !important; max-width:min(240px, 30vw) !important;
 }
+/* 現地の札の中に旗を入れ、上の任務と地面の大旗に分けない。 */
+html body #hud #battle-notices:not(.choosing) > #objectives.attached-destination:not(.expand) {
+ padding-left:36px !important;
+}
+html body #hud #battle-notices:not(.choosing) > #objectives.attached-destination:not(.expand)::before {
+ content:'⚑'; position:absolute; left:8px; top:50%; transform:translateY(-50%);
+ font-size:26px; line-height:1; color:#fff3ba;
+}
 html body #hud #battle-message { gap:8px; }
 `;
     document.head.appendChild(style);

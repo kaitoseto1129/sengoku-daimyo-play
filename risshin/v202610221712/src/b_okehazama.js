@@ -7,6 +7,7 @@ import { SOLIDS } from './props.js';
 import { UNIT_MAT } from './units.js';
 import { gauss, allyGroup, enemyGroup as commonEnemyGroup, unitPos, nm, guardRecover, jpNum } from './bhelp.js';
 import { distToPolyline } from './world.js';
+import { tuftClumpAt } from './world_common.js';
 import { palisade, hut, dou, yagura, nobori, tawara, campfire, koshi, umaFollow } from './props.js';
 import { nagashinojo } from './b_nagashinojo.js';
 import { customFlag } from './b_inabayama.js';
@@ -773,7 +774,7 @@ const okehazama = {
   // 小さな案内で兵と槍先を空ける。印の広さだけ替え、到着・回避の判定は保つ。
   compactFieldGuides: true,
   compactCombatGuides: true,
-  // 足元の人の印で本人を示す。体の姿勢や騎乗に左右されない。
+  // 共通の小さな足元の輪で本人を示し、甲冑を白い人体図で覆わない。
   hidePlayerSign: false,
   playerFootSignOnly: true,
   compactPlayerSign: true,
@@ -999,12 +1000,11 @@ const okehazama = {
     longitudinalSpearFalls: true,
     patchyGround: true,
     roadsideGrass: true,
-    // 踏まれた低い草を群落の縁へつなぐ。株数を増やさず、土との色差を弱める。
-    tuftHeight: () => 0.72,
-    tuftColor(_x, _z, color) { color.multiplyScalar(0.9); },
-    // 守山向けの芯へ寄せる間引きを使わず、従来の群落の縁を残す。
-    nearGrassClumpBase: 0.3,
-    nearGrassClumpGain: 0.95,
+    // 同じ群落の芯は丈と緑を残し、縁は低い下葉から泥へつなぐ。平均の丈・株数は保つ。
+    tuftHeight(x, z) { return 0.5 + tuftClumpAt(x, z) * 0.44; },
+    tuftColor(x, z, color) { color.multiplyScalar(0.82 + tuftClumpAt(x, z) * 0.16); },
+    nearGrassClumpBase: 0.12,
+    nearGrassClumpGain: 1.3,
     // 既存の草を斜面の肩と会戦帯の縁へ集める。株数は増やさない。
     undergrowthBands: [[-25, -48, 19, 28], [34, -72, 18, 35], [-34, -108, 21, 24]]
       .map(([x, z, w, d]) => ({ ...fieldPoint(x, z), w, d })),

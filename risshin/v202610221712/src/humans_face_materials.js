@@ -446,6 +446,12 @@ float faceWet;
       faceWet = max(faceWet, rainSkin);
       diffuseColor.rgb *= 1.0 - rainSkin * 0.07;
       diffuseColor.rgb *= 1.0 + st * uFaceV.y * uFaceV.x * 0.18 * fr;
+      // 眉間・頬・口元の力みを表情の値と結ぶ。既存の顔だけを使い、模様の枚数は増やさない。
+      float tense = clamp(uExpr.y + uExpr.z * 0.7, 0.0, 1.0) * fr;
+      float browCrease = exp(-x0 * x0 / 0.035 - pow(vHP.y - 2.05, 2.0) / 0.12);
+      float cheekFold = exp(-pow(x0 - (0.45 + (1.0 - vHP.y) * 0.3), 2.0) / 0.018)
+        * exp(-pow(vHP.y - 0.7, 2.0) / 0.28);
+      diffuseColor.rgb *= 1.0 - tense * (browCrease * 0.16 + cheekFold * 0.12);
       // 日焼けの赤み：鼻・頬・耳
       float fl = exp(-x0 * x0 / 0.12 - pow(vHP.y - 1.2, 2.0) / 0.25) + 0.8 * exp(-pow(x0 - 1.15, 2.0) / 0.15 - pow(vHP.y - 1.1, 2.0) / 0.2) + 0.6 * smoothstep(3.3, 3.9, abs(vHP.x));
       diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.12, 0.86, 0.78), clamp(fl, 0.0, 1.0) * uFaceV.z * 0.7);
@@ -486,7 +492,7 @@ float faceWet;
       float x0 = abs(vHP.x + 0.09), fr = smoothstep(0.9, 1.7, vHP.z);
       float tz = exp(-x0 * x0 / 0.5 - pow(vHP.y - 2.35, 2.0) / 0.12) + exp(-x0 * x0 / 0.05 - pow(vHP.y - 1.45, 2.0) / 0.2) + 0.7 * exp(-pow(x0 - 1.1, 2.0) / 0.06 - pow(vHP.y - 1.4, 2.0) / 0.05);
       roughnessFactor *= 1.0 - 0.38 * clamp(tz, 0.0, 1.0) * fr;
-      roughnessFactor *= 1.0 - 0.45 * clamp(faceWet, 0.0, 1.0);
+      roughnessFactor *= 1.0 - 0.28 * clamp(faceWet, 0.0, 1.0);
       // 毛穴と肌理：照りを細かく斑にし、ろうのような一様な照りにしない
       // 汗のある鼻・額だけは照りを残す。頬の乾いた肌理と同じ粗さに潰さない。
       roughnessFactor = clamp(roughnessFactor + (fn3(vHP * 55.0) - 0.5) * 0.16 + (fn3(vHP * 9.0) - 0.5) * 0.08, mix(0.62, 0.46, clamp(faceWet + tz * fr * 0.35, 0.0, 1.0)), 0.94);

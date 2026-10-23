@@ -133,7 +133,10 @@ APose aPose() {
     // 兵の位置・長さは保ち、全員同じ角度の針の壁にしない。
     if (kd == 0.0) {
       float readyRank = step(0.48, fract(floor(ip.y / 2.3) * 0.3819 + floor(ip.x / 7.0) * 0.618));
+      // 列ごとの準備と個々の持ち替えを分け、縦一列の針の壁を崩す。
+      float shoulderReady = smoothstep(0.45, 0.85, sd);
       P.spear += waiting * readyRank * (0.48 + sd * 0.32);
+      P.spear += uOrganicRanks * uAMotion * (1.0 - run) * shoulderReady * (0.16 + s2 * 0.22);
     }
     P.off.z += (1.0 - uYose) * uAMotion * mk * (0.55 * wv + 0.28 * rankWave);
     P.off.x += (1.0 - uYose) * uAMotion * mk * 0.18 * sin(uAT * 0.65 - row * 0.4 + ip.x * 0.07);

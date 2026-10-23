@@ -349,6 +349,8 @@ html body #hud.nodafukushima #battle-notices:not(.choosing) #objectives.keep-com
  line-height:1.45!important; font-weight:normal!important; color:#b9b09c;
 }
 @media(min-width:901px) and (min-height:621px) {
+ /* 中央の休息・退避の下知に両軍名を重ねない。所属は開戦札と旗で示す。 */
+ html body #hud.nodafukushima.mission-visible #armybar { display:none!important; }
  html body #hud.nodafukushima #battle-notices:not(.choosing),
  html body #hud.nodafukushima.mission-visible #battle-notices:not(.choosing):not(:has(#objectives.expand)) {
   left:auto!important; right:calc(208px + env(safe-area-inset-right,0px))!important; top:104px!important; width:min(300px,26vw)!important; max-height:32vh!important;
@@ -1712,6 +1714,7 @@ const nodafukushima = {
     noGroundArrows: true, // 一斉射ちの矢も地面へ積み重ねず、白い針山を残さない。
     keepPinnedArrowSize: true, // 胴の倍率を矢へ掛けず、刺さった後も飛来時の長さを保つ。
     pinnedArrowAxisScale: true, // 斜めの矢も矢自身の軸で補正し、胴から長い棒を伸ばさない。
+    pinnedArrowRenderScale: true, // 描く直前の体格変更にも合わせ、刺さった矢を再び引き伸ばさない。
     mountainScale: 0.24, // 河口の低地。遠山は低くし、四方を高い峰で囲まない。
     mountainHaze: 0.65,
     smokeFogFloor: 100, // 鉄砲の煙で戦場全体を白くせず、堤の寄せ手と退く列を見せる。

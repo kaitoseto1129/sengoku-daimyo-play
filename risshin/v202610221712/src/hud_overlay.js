@@ -27,6 +27,7 @@ export class HudOverlay {
       this.flagDirectionEl.hidden = true;
       setCssVar(this.flagDirectionEl, 'display', 'none', 'important');
     }
+    setClass($('objectives'), 'attached-destination', false);
     const cv = $('overlay');
     setClass(this.root, 'single-guide', singleBattleGuide(rt));
     // 写真モードでは頭上の名札・体力も消す
@@ -165,7 +166,7 @@ export class HudOverlay {
 
     // 向きを教える札を出した時は、長押しの釦が出ない場合も丸と旗を必ず結ぶ。
     const facingGuide = rt.missionGuide;
-    if (isTouch && this.notices.sources[1].selected &&
+    if (isTouch && !this.defendedFlagDrawn && this.notices.sources[1].selected &&
         facingGuide?.distance < (facingGuide?.marker?.guideRadius || 8) &&
         !rt.dodgeGuide && !retreatRequired(rt) && !this.retreatGuide?.active &&
         !this.openingActive && !rt.over && !rt.choice && !rt.player.camShot && !this.bigmap && !S.reduceGuidance &&
@@ -173,7 +174,7 @@ export class HudOverlay {
       const facing = rt.def.waitFacingPoint?.(rt);
       if (facing) swipeDrawn = this.drawFootDirection(g, rt, facing) || swipeDrawn;
     }
-    const aimEnemy = travelSignPriority(rt) ? null : this.aimGuideEnemy;
+    const aimEnemy = travelSignPriority(rt) ? null : this.attackCueEnemy || this.aimGuideEnemy;
     if (aimEnemy?.alive && !rt.over && !rt.choice && !this.openingActive && !rt.player.camShot &&
         !this.bigmap && !S.reduceGuidance && !guidanceEnded(rt) &&
         !rt.dodgeGuide && !retreatRequired(rt) && !this.retreatGuide?.active && sightScreenUnit(rt, aimEnemy) &&
@@ -231,7 +232,7 @@ export class HudOverlay {
     drew = this.drawDefendedLocation(g, rt) || drew;
     // 守備中は持ち場の境を残し、退く時は逃げ先の印だけを優先する。
     const holdGuide = rt.missionGuide?.objective === currentObjective(rt) ? rt.missionGuide : null;
-    if (!retreatRequired(rt) && (holdGuide?.marker?.guideArea === 'guard' || !rt.guideEnemyShown && !this.defendEnemy) && (holdGuide?.marker?.guideArea === 'guard' || holdGuide?.marker?.waitAction &&
+    if (!this.defendedFlagDrawn && !retreatRequired(rt) && (holdGuide?.marker?.guideArea === 'guard' || !rt.guideEnemyShown && !this.defendEnemy) && (holdGuide?.marker?.guideArea === 'guard' || holdGuide?.marker?.waitAction &&
         holdGuide.distance < (holdGuide.marker.guideRadius || 8)) && !this.retreatGuide?.active && !rt.dodgeGuide &&
         (!this.coverEl || this.coverEl.hidden) && !S.reduceGuidance && !guidanceEnded(rt) &&
         !rt.over && !rt.choice && !rt.player.camShot && !this.bigmap) {

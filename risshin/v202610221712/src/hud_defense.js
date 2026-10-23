@@ -22,10 +22,11 @@ export class HudDefense {
     const spot = this.defenseGroundPoint || (this.defenseGroundPoint = {});
     spot.visible = false; spot.overview = false;
     const W = VIEW.w, H = VIEW.h, p = rt.player.u.pos;
-    this.drawDefenseBoundary(g, rt, pos, radius);
+    const outside = Math.hypot(pos.x - p.x, pos.z - p.z) >= radius;
+    if (!outside) this.drawDefenseBoundary(g, rt, pos, radius);
     let best = Infinity;
     // 中心が背後でも、範囲内の床からだけ選ぶ。旗を画面端へずらさない。
-    for (let i = 0; i < 25; i++) {
+    for (let i = 0; i < (outside ? 1 : 25); i++) {
       const angle = i * Math.PI / 4, distance = i === 0 ? 0 : radius * (i <= 8 ? .3 : i <= 16 ? .55 : .8);
       const x = pos.x + Math.cos(angle) * distance, z = pos.z + Math.sin(angle) * distance;
       this.tmpV.set(x, groundAt(rt.world, x, z, p.y) + .15, z).project(rt.camera);
@@ -133,6 +134,8 @@ export class HudDefense {
       g.strokeStyle = '#14120f'; g.lineWidth = 8; g.stroke();
       g.strokeStyle = '#fff3ba'; g.lineWidth = 3; g.stroke(); g.restore();
       this.drawFlagDestinationSign(g, x + 9, y - 17);
+      if (Math.hypot(pos.x - rt.player.u.pos.x, pos.z - rt.player.u.pos.z) >= radius)
+        this.drawDestinationTrail(g, rt, x, y);
     } else {
       // 範囲が画面外なら、同じ守備位置へ端の矢印を向ける。
       const p = rt.player.u.pos, dx = pos.x - p.x, dz = pos.z - p.z;

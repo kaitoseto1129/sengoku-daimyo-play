@@ -1654,7 +1654,7 @@ const anegawa = {
     return rt.flags.hqThreat || rt.flags.hqDefend ? '本陣の敵をねらおう' : '持ち場の敵をねらおう';
   },
   enemyTaskLabel(rt) {
-    return rt.flags.hqThreat || rt.flags.hqDefend ? '本陣の敵の すきにたたこう' : '敵のすきに たたこう';
+    return rt.flags.hqThreat || rt.flags.hqDefend ? '本陣の敵を見て まもる' : '敵を見て まもる';
   },
   enemyTaskTarget(rt) {
     if (!(rt.flags.hqThreat || rt.flags.hqDefend) || anegawaReturning(rt)) return null;

@@ -403,7 +403,7 @@ html:root.touch body #hud #battle-notices #objectives#objectives.enemy-move-help
  display:block !important; width:auto !important; margin:0 !important; padding:0 !important;
  font-size:max(16px,calc(16px * var(--text-scale,1))) !important; line-height:1.4 !important;
 }
-html:root.touch body #hud #battle-notices #objectives#objectives.enemy-move-help:not(.expand) .swipe-instruction svg { display:none !important; }
+html:root.touch body #hud #battle-notices #objectives#objectives.enemy-move-help:not(.expand) :is(.swipe-instruction svg,.enemy-swipe,.facing-gesture,.facing-hand) { display:none !important; }
 `;
 export const noticeStyle24 = `
 /* 体力は全ての戦で名前・割合・四分割の目盛りをそろえる。 */
