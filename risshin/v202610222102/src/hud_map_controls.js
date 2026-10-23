@@ -83,6 +83,8 @@ export class HudMapControls {
     for (let k = 0; k < 8; k++) if (k % 2) items.push({ a: k * Math.PI / 4, html: '<i></i>', cls: 'tick' });
     const pu = p.u.pos;
     for (const m of rt.markers) {
+      // 稲生の行き先は地面の印一本。味方の持ち場を金の目標として重ねない。
+      if (rt.def.key === 'inou') continue;
       const q = typeof m.pos === 'function' ? m.pos() : m.pos;
       if (!q || m.red || (m.group && m.group.team !== 0) || m.intelHidden || ((m.red || m.person) && !sightRef(rt, m, q))) continue;
       const d = Math.hypot(q.x - pu.x, q.z - pu.z);

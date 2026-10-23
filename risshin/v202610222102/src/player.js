@@ -1966,7 +1966,12 @@ export class Player {
     }
     if (!simpleControls(rt) && input.pressed('KeyT')) { this.shoulder *= -1; sfx('ui'); rt.hud.flash(this.shoulder > 0 ? '右肩から見る' : '左肩から見る', 'dim'); }
     // V：短く押すと視点を回す（三人称の近い・普通・遠い、一人称）。長く押している間は「大将の目」で高くから見渡す（身分が上がるほど高く）
-    if (!simpleControls(rt) && input.pressed('KeyV')) { this.vHeld = 0; this.vStartedAt = performance.now(); }
+    // 足軽の簡単操作でも視点は切り替えられる。教えの間も押した瞬間に一度だけ切り替える。
+    if (input.pressed('KeyV')) {
+      if (simpleControls(rt) || rt.def.key === 'inou' && rt.flags.lesson === 'view') {
+        this.vHeld = null; this.overHold = false; this.toggleView();
+      } else { this.vHeld = 0; this.vStartedAt = performance.now(); }
+    }
     if (this.vHeld != null) {
       if (input.key('KeyV')) { this.vHeld = Math.max(0, (performance.now() - this.vStartedAt) / 1000); this.overHold = this.vHeld > 0.35; }
       else { if (this.vHeld <= 0.35) this.toggleView(); this.vHeld = null; this.overHold = false; }

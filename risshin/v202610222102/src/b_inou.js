@@ -78,8 +78,8 @@ function height(x, z) {
 
 // 操作の札は既存の仕組みで一枚ずつ出す。敵のいない所で攻撃・防御を教えない。
 const LESSONS = {
-  move: ['move', '前・後ろ・左・右に歩く', () => `${K('forward')}・${K('back')}・${K('left')}・${K('right')}`, '左の親指でなぞる'],
-  view: ['view', '一人称と三人称を切り替える', () => `${K('view')}を押す`, '左上の「視点」を押す'],
+  move: ['move', '前へ二メートル歩く', () => `「${K('forward')}」のキーを押し続ける`, '左の親指で前へなぞり続ける'],
+  view: ['view', '視点を一度変えよう', () => `「${K('view')}」のキーを一度押す`, '左上の「視点」を一度押す'],
   swing: ['swing', '攻撃', () => '左押しで槍を突く', '「つく」を押す'],
   chase: ['chase', '林軍を追いかけろ', () => `地面に立つ金の印へ。${K('run')}で走る`, '金の印の方へ大きくなぞる'],
   kill: ['kill', '倒せ', () => '近づいて左押し', '近づいて「つく」を押す'],
@@ -108,6 +108,7 @@ function lesson(rt, k) {
   if (F.lesson) lessonEnd(rt, F.lesson);
   F.lessonDone ||= {};
   F.lesson = k; F.lessonAt = rt.t; F.lessonHidden = false;
+  if (k === 'move') F.move0 = rt.player.movedAcc;
   const it = LESSONS[k];
   // 一枚が消えても戦は続く。説明を隠す設定でも敵や行軍を飛ばさない。
   if (!rt.G.lord && SETTINGS.hints) rt.tutStart('手ほどき', [[it[0], it[1], it[2](), it[3]]], () => {
@@ -143,6 +144,7 @@ const inou = {
   keepGuardTaskLabel: true,
   keepDestinationTask: true,
   immediateTaskChanges: true,
+  missionPinCaption: '',
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.training === 1 && rt.flags.chase ? 'chase' : rt.flags.step === 0 ? 'genpachi' : 'holdFlag',
   // ミッション（kaito 10/23 稲生 1）。右の札に「ミッション 2／4　林の手を崩す」。林美作守を討ち取れば勝ちへ向かう。
   missions: ['林の兵を追う', '林の部隊を崩す', '柴田隊を受け止める', '林美作守を討ち取る'],
@@ -150,16 +152,20 @@ const inou = {
   minutes: 9,
   taskLabel: (rt) => {
     const F = rt.flags;
-    if (F.step === 0 && F.training === 0) return F.lesson ? LESSONS[F.lesson][1] : 'まず前へ歩いてみよう';
+    if (F.step === 0 && F.training === 0) return F.lesson === 'swing' && F.viewSuccess ? '視点を変えた！ 次は槍を突こう' : F.lesson ? LESSONS[F.lesson][1] : '前へ二メートル歩く';
     return null;
   },
   missionStatus: (rt) => {
     const F = rt.flags;
-    if (F.step === 0 && F.training === 0) return F.lesson ? (isTouch ? LESSONS[F.lesson][3] : LESSONS[F.lesson][2]()) : isTouch ? '左の親指で前へなぞる' : `前は「${K('forward')}」`;
+    if (F.step === 0 && F.training === 0 && F.lesson === 'move') {
+      const left = Math.max(0, Math.ceil(2 - (rt.player.movedAcc - F.move0)));
+      return `${isTouch ? '左の親指で前へなぞり続ける' : `「${K('forward')}」を押し続ける`}。あと${left}メートル`;
+    }
+    if (F.step === 0 && F.training === 0) return F.lesson ? (isTouch ? LESSONS[F.lesson][3] : LESSONS[F.lesson][2]()) : isTouch ? '左の親指で前へなぞる' : `「${K('forward')}」のキーを押し続ける`;
     if (F.step === 0 && F.chase && F.practice) {
       const c = F.practice.center(), p = rt.player.u.pos;
-      const left = Math.max(1, Math.ceil(Math.hypot(c.x - p.x, c.z - p.z) - 7));
-      return `追いつくまで あと約${left}メートル。着いたら槍で突く`;
+      const left = Math.max(0, Math.ceil(Math.hypot(c.x - p.x, c.z - p.z) - 7));
+      return `${isTouch ? '左の親指を印の方へ大きくなぞる' : `「${K('run')}」を押しながら「${K('forward')}」で前へ`}。あと約${left}メートル`;
     }
     if (F.step === 0 && F.caught && F.training === 1) return '▼の林の兵に近づき、槍で突く';
     return '';
@@ -350,13 +356,13 @@ const inou = {
 
     rt.world.setTime('day');
     rt.setPhase('brief');
-    rt.obj('main', 'まず前へ歩いてみよう', 'main');
+    rt.obj('main', '前へ二メートル歩く', 'main');
     rt.obj('stay', '信長の旗のそばで戦う', 'side');
     rt.marker('holdFlag', () => F.nobuU?.alive ? F.nobuU.pos : NOBU, '信長の旗',
       { guideArea: 'guard', guideFlag: true, guideDefend: true, guideRadius: 20 });
     rt.marker('genpachi', unitPos(F.genU), '組頭 源八', { minor: true, guideRadius: 5 });
     // 始まってすぐ、自分以外の味方は退く林の手を追ってまっすぐ前へ走る（Yuto の流れ・kaito 10/22）。自分のまわりから味方がいなくなる。
-    rt.say('組頭 源八', 'まず歩いてみよ。できたら次の操作を教えるぞ。', 5);
+    rt.say('組頭 源八', '前へ二メートル歩いてみよ。できたら次の操作だ。', 5);
     for (const g of F.friends) {
       g.order = 'move'; g.speed = 3.2; g.aggro = 0;
       g.dest = { x: g.anchor.x, z: g === F.hata ? 6 : 10 };
@@ -380,7 +386,7 @@ const inou = {
       // 林兵三人と味方二人の小さな群れ。自分の前で、ゆっくり北へ退く。追いつくと味方は抜け、林兵だけが残る。
       rt.setPhase('march');
       rt.obj('main', '金の印へ走ろう', 'main');
-      rt.say('組頭 源八', '金の印まで走れ！ 追いついたら林の兵と戦うぞ。', 4);
+      rt.say('組頭 源八', '地面の金の印へ進め！ 林の兵を追うぞ。', 4);
       const p = rt.player.u.pos;
       const at = { x: p.x + 2, z: p.z - 14 };
       const g = enemyGroup(rt, { faction: 'nobukatsu', name: '林の遅れ兵', anchor: { ...at }, facing: Math.PI, width: 3, aggro: 0, noAI: true, noRout: true, order: 'move', dmgMult: 0.25, focus: rt.player.u },
@@ -654,8 +660,12 @@ const inou = {
       if (F.training === 0) {
         // 移動 → 視点 → 攻撃。字で示して試させ、できたら早めに次へ（目安：移動23秒・視点8秒・攻撃6秒）。
         const since = rt.t - (F.lessonAt || 0);
-        if (F.lesson === 'move' && (F.lessonDone?.move && since > 3 || since > 23)) { F.view0 = SETTINGS.view; lesson(rt, 'view'); F.strike0 = F.strikeN; }
-        else if (F.lesson === 'view' && (SETTINGS.view !== F.view0 && since > 1.5 || since > 8)) { if (SETTINGS.view !== F.view0) rt.tutMark('view'); F.strike0 = F.strikeN; lesson(rt, 'swing'); }
+        if (F.lesson === 'move' && (P.movedAcc - F.move0 >= 2 || F.lessonDone?.move || since > 23)) { rt.tutMark('move'); F.view0 = SETTINGS.view; F.range0 = SETTINGS.camRange; lesson(rt, 'view'); F.strike0 = F.strikeN; }
+        else if (F.lesson === 'view' && (SETTINGS.view !== F.view0 || SETTINGS.camRange !== F.range0 || since > 8)) {
+          F.viewSuccess = SETTINGS.view !== F.view0 || SETTINGS.camRange !== F.range0;
+          if (F.viewSuccess) rt.tutMark('view');
+          F.strike0 = F.strikeN; lesson(rt, 'swing');
+        }
         else if (F.lesson === 'swing' && (F.strikeN > F.strike0 && since > 0.8 || since > 6)) { rt.tutMark('swing'); this.trainingPhase(rt, 1); }
       } else if (F.training === 1) {
         const g = F.practice, c = g.center();

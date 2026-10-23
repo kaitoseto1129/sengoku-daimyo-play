@@ -1,4 +1,4 @@
-import { retreatRequired } from './battle_danger.js';
+import { retreatRequired, rescueTarget } from './battle_danger.js';
 import { noticeReason, refreshNoticeReasons, headNoticeAllowed } from './notice_source.js';
 // 並びが同じなら書き直さない。札の選び直しでも表示を一度消してから戻さない。
 function setOrder(el, order) { const value = String(order); if (el.style.order !== value) el.style.order = value; }
@@ -962,7 +962,7 @@ html body #hud #battle-message { gap:8px; }
     const retreatArrived = !!rt && retreat?.active && retreat.valid && !retreat.treatment &&
       Math.hypot(retreat.x - rt.player.u.pos.x, retreat.z - rt.player.u.pos.z) < retreat.radius;
     const retreatMarks = !choosing && retreat?.active && retreat.valid && !retreat.treatment;
-    const guarding = !choosing && !!this.hud.guardAlly;
+    const guarding = !choosing && (!!this.hud.guardAlly || !!rt && !!rescueTarget(rt) && rt.def.guardGuideAllowed?.(rt) !== false);
     const rainUrgent = !choosing && this.root.classList.contains('rain-danger');
     const dodging = !choosing && this.root.classList.contains('dodge-active');
     const working = !choosing && this.root.classList.contains('working');
@@ -995,6 +995,8 @@ html body #hud #battle-message { gap:8px; }
     // 命と「敵」の印に二枠を使い、退く先は既存の任務一枚へまとめる。
     if (retreatMarks) this.limit = Math.min(this.limit, 1);
     if (waitGuard) this.limit = Math.min(this.limit, 1);
+    // 命・救助の指示と操作・本人の札で三枚。別の知らせは記録へ回す。
+    if (!choosing && rt && rescueTarget(rt) && !retreating) this.limit = Math.min(this.limit, 1);
     if (rainUrgent) this.limit = Math.min(this.limit, 1);
     const combatThree = !choosing && this.root.classList.contains('combat-three') &&
       !waitGuard && !rainUrgent && !dodging && !working && !retreatMarks;
@@ -1037,7 +1039,7 @@ html body #hud #battle-message { gap:8px; }
           ['c_swing', 'c_guard'].includes(this.hud.tutCur.items.find(item => !item.done)?.id) &&
           (rt.missionGuide?.marker || defending || waitGuard || rt.guideEnemyShown)) continue;
       // 天王寺の退避中は、道順と手当てを示す任務を短い警告で追い出さない。
-      if (source.id === 'objectives') source.priority = rt?.def.key === 'tennoji' && rt.flags.shelterShown ? 115 : rt?.guideEnemyShown ? 105 : this.root.classList.contains('compact-battle') ? 110 : 90;
+      if (source.id === 'objectives') source.priority = guarding ? 115 : rt?.def.key === 'tennoji' && rt.flags.shelterShown ? 115 : rt?.guideEnemyShown ? 105 : this.root.classList.contains('compact-battle') ? 110 : 90;
       if (oke && source.id === 'tutorial') {
         source.priority = 10;
         if (!this.adviceVisible(source.el.textContent)) continue;
@@ -1070,6 +1072,7 @@ html body #hud #battle-message { gap:8px; }
       if (careSequence) continue;
       // 指の案内中は今の操作一枚へ集め、命と行き先の印の場所を空ける。
       if (rt?.touchCoachActive) continue;
+      if (guarding && !retreating) continue;
       if (item.kind !== 'injury' && (defending || waitGuard || retreating || guarding || dodging)) continue;
       // 逃げ先の札へ警告をまとめ、上端に同じ指示を重ねない。
       if (rt?.dodgeGuide && item.kind === 'warn' && /^矢が来る/.test(item.text)) continue;

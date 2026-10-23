@@ -274,6 +274,8 @@ export class HudTeamSigns {
   drawNearbyTeamSigns(g, rt, candidates) {
     if (this.teamSignsDrawn) return false;
     this.teamSignsDrawn = true;
+    // 戦場では今の行き先と選んだ相手を優先。組を調べる時だけ周囲の所属も示す。
+    if (!rt.def.town && !rt.def.dojo && !rt.player.showSquad) return false;
     // 進軍・接敵・退避でも、近い兵の所属は小さな形で残す。字の札は増やさない。
     if (rt.def.town || rt.def.dojo || rt.over || rt.choice ||
         this.openingActive && !this.opening?.el.classList.contains('opening-controls') ||

@@ -529,7 +529,7 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
     <section class="ng-step" aria-labelledby="ng-h0"><h2 id="ng-h0" tabindex="-1">名を決める</h2><div class="field"><label for="nm">足軽の名</label><input id="nm" value="${esc(pre.name || '弥五郎')}" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" aria-describedby="nm-help"><small class="note" id="nm-help">8字まで。空のままなら「弥五郎」になります。普通の難しさで始めます</small></div></section>
     <section class="ng-step" aria-labelledby="ng-h1" hidden><h2 id="ng-h1" tabindex="-1">${scns.length === 1 ? '本編を確かめる' : '筋書きを選ぶ'}</h2><p class="note">${scns.length === 1 ? '織田家編を史実の順で進みます' : '遊ぶ時代を選ぶ'}</p><div class="diffs scn scn-all" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px" role="radiogroup" aria-labelledby="ng-h1">${scns.map((k) => scnCard(k, k === scn0)).join('')}</div></section>
     <section class="ng-step" aria-labelledby="ng-h2" hidden><h2 id="ng-h2" tabindex="-1">難易度を選ぶ</h2><p class="note">迷ったら「普通」</p><div class="diffs" role="radiogroup" aria-labelledby="ng-h2">${Object.entries(DIFFICULTY).map(([k, d]) => `<label><span><input type="radio" name="diff" value="${k}" ${k === diff0 ? 'checked' : ''}> ${d.name}</span><small>${d.note}</small></label>`).join('')}</div></section>
-    <p class="note">${readings[S.slot].bad ? `新しい物語を始めると、枠${S.slot + 1}の読めない記録を上書きします。ほかの枠は残ります。` : saved ? freeSlot >= 0 ? `新しい物語は枠${freeSlot + 1}へ保存します。枠${S.slot + 1}の「${esc(saved.name)}」は残ります。` : `新しい物語を始めると、枠${S.slot + 1}の「${esc(saved.name)}」を上書きします。はじまりの札から題へ戻れば、前の記録は残ります。ほかの枠の記録は残ります。` : `新しい物語は枠${S.slot + 1}へ保存します。`}</p><div class="ng-act"><button class="btn" id="ng-back">ひとつ前へ戻る</button><button class="btn primary" id="ng-next">決めて次へ進む</button>${isTouch ? '' : '<span class="hintk">Enterで次へ・Escで戻る</span>'}</div>
+    <p class="note">${readings[S.slot].bad ? `新しい物語を始めると、枠${S.slot + 1}の読めない記録を上書きします。ほかの枠は残ります。` : saved ? freeSlot >= 0 ? `新しい物語は「保存記録」の枠${freeSlot + 1}に自動保存します。枠${S.slot + 1}の「${esc(saved.name)}」は残ります。` : `新しい物語を始めると、枠${S.slot + 1}の「${esc(saved.name)}」を上書きします。はじまりの札から題へ戻れば、前の記録は残ります。ほかの枠の記録は残ります。` : `新しい物語は「保存記録」の枠${S.slot + 1}に自動保存します。`}</p><div class="ng-act"><button class="btn" id="ng-back">ひとつ前へ戻る</button><button class="btn primary" id="ng-next">決めて次へ進む</button>${isTouch ? '' : '<span class="hintk">エンターで次へ・エスケープで戻る</span>'}</div>
   </div>`;
   const scr = show(`<div class="wrap">
     <div id="tt-home">
@@ -543,8 +543,8 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
     <div class="tt-gap" style="height:20px"></div>${!saved ? '<div id="new-confirm"></div>' : ''}
     ${saved ? `${(saved.scenario || 'okehazama') !== 'oda' ? `<p class="note">古い保存：${esc(scOf(saved).name)}。続きから遊べます。<br>いま新しく始められる本編：織田家編。</p>` : ''}${(saved.scenario || 'okehazama') === 'oda' && !saved.owari && !saved.japan ? '<p class="note">新しい戦：桶狭間より前の尾張統一戦「稲生の戦い」。続きはそのまま遊べます。<br><button class="btn small" id="b-pre">稲生の戦いを遊ぶ（記録は残らない）</button></p>' : ''}<p class="savebox">保存の枠${S.slot + 1}：${saveInfo}<br>${esc(preparation(saved))}${saved.journal && saved.journal.length ? `<br>前回：${esc(saved.journal[saved.journal.length - 1]?.t || '')}　${esc(String(saved.journal[saved.journal.length - 1]?.s || '').slice(0, 40))}` : ''}</p><div id="new-confirm"></div>` : ''}
     ${!saved && slots.some(Boolean) ? '<p class="note">この枠は空きです。別の枠に記録があります。「保存記録」から続きの枠を選べます。</p>' : ''}
-    <div class="title-act">${saved ? `<button class="btn primary" id="b-cont" aria-describedby="tt-save-note">続きから</button><button class="btn" id="b-new">新しく始める</button><small class="note" id="tt-save-note">城下までの記録です。戦の途中は保存されません。</small>` : '<button class="btn primary" id="b-new" style="min-height:56px;min-width:280px;font-size:20px">稲生へ出陣する</button>'}
-      ${fullPurchaseButton(true)}<span class="tt-sub" role="group" aria-label="ほかの操作"><button type="button" class="btn small" id="b-controls">操作を見る</button>${mapOn ? '<button class="btn small" id="b-japan">天下の地図へ</button>' : ''}<button class="btn small" id="b-alt" aria-expanded="false" aria-controls="tt-alt">稽古・別の出陣</button><button class="btn small" id="b-data" aria-expanded="false" aria-controls="tt-data">保存記録</button><button class="btn small" id="b-set">設定</button></span>${isTouch ? '' : `<span class="hintk">決定キーで「${saved ? '続きから' : '稲生へ出陣する'}」</span>`}</div>
+    <div class="title-act">${saved ? `<button class="btn primary" id="b-cont" aria-describedby="tt-save-note">続きから</button><button class="btn" id="b-new">新しく始める</button><small class="note" id="tt-save-note">城下までの記録です。戦の途中は保存されません。</small>` : '<button class="btn primary" id="b-new" style="min-height:56px;min-width:280px;font-size:20px">稲生（いのう）へ出陣する</button>'}
+      ${fullPurchaseButton(true)}<span class="tt-sub" role="group" aria-label="ほかの操作"><button type="button" class="btn small" id="b-controls">操作を見る</button>${mapOn ? '<button class="btn small" id="b-japan">天下の地図へ</button>' : ''}<button class="btn small" id="b-alt" aria-expanded="false" aria-controls="tt-alt">稽古・別の出陣</button><button class="btn small" id="b-data" aria-expanded="false" aria-controls="tt-data">保存記録</button><button class="btn small" id="b-set">設定</button></span>${isTouch ? '' : `<span class="hintk" id="tt-key-hint" aria-live="polite"></span>`}</div>
     <section class="tt-panel" id="tt-alt" hidden aria-labelledby="tt-alt-h"><h3 class="tt-ph" id="tt-alt-h">稽古・別の出陣</h3><div class="row"><button class="btn small" id="b-words">用語集を開く</button></div><p class="note">本編とは別に遊べます。戦功・身分・物語の進みには反映しません。会った武将は共通の図鑑に残ります。稽古場の最高と、稽古場で得た実績も全保存記録共通です。</p><div class="row">${onSamurai ? '<button class="btn small" id="b-samurai">侍大将で出陣</button>' : ''}<button class="btn small" id="b-dojo">稽古場で腕試し</button>${onJapan && !mapOn ? '<button class="btn small" id="b-japan">日本地図を試す</button>' : ''}${location.hash === '#mvp' ? '<button class="btn small" id="b-rojotest">籠城の試し（開発用）</button>' : ''}</div>${onJapan && !mapOn ? '<p class="note">日本地図は、本編で足軽大将になるか、筋書きを終えると、城下から本編の続きとして進められます。</p>' : ''}</section>
     <div id="samurai-pick"></div>
     <section class="tt-panel" id="tt-data" hidden aria-labelledby="tt-data-h"><h3 class="tt-ph" id="tt-data-h">保存記録</h3><p class="note">空き枠を押してから、出陣の釦で始めます。<br>保存はこの閲覧画面だけに残ります。別の端末や閲覧画面へは保存文字列か保存保存文書で移します。<br>城下で自動保存します。保存文字列は城下で保存した時の控えです。進行・図鑑・実績・稽古の記録が入ります。端末の設定と戦の途中の状態は含みません。</p>
@@ -573,6 +573,17 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
     // 釦に焦点がある時の Enter は、その釦を押す（信長・侍大将の札の戦を選べるように）
     if (e.key === 'Enter' && !e.isComposing && !e.repeat && !e.target.closest?.('button, textarea, input, select, summary, [contenteditable]')) { e.preventDefault(); (saved ? $('b-cont') : $('b-new')).click(); }
   });
+  // 決定は焦点のある釦に従う。案内も同じ釦を示す。
+  const titleHint = () => {
+    const hint = $('tt-key-hint');
+    if (!hint) return;
+    const focused = document.activeElement;
+    const button = focused?.matches?.('#tt-home button') ? focused : (saved ? $('b-cont') : $('b-new'));
+    hint.textContent = `エンター（改行キー）で「${button.textContent.trim()}」${button.id === 'b-new' ? '。押すと名を決めます' : ''}`;
+  };
+  scr.addEventListener('focusin', titleHint);
+  scr.addEventListener('focusout', () => queueMicrotask(titleHint));
+  titleHint();
   const nameField = $('nm');
   const limitName = () => { const name = Array.from(nameField.value).slice(0, 8).join(''); if (nameField.value !== name) nameField.value = name; };
   nameField.addEventListener('input', (e) => { if (!e.isComposing) limitName(); });
@@ -581,7 +592,7 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
     const opener = $('b-controls'), dialog = document.createElement('dialog');
     dialog.className = 'title-controls';
     dialog.setAttribute('aria-labelledby', 'title-controls-heading');
-    dialog.innerHTML = `<h2 id="title-controls-heading">操作の手引き</h2><div class="controls-reading" tabindex="0">${isTouch ? touchKeysHtml() : `<p>前：${esc(K('forward'))}　後ろ：${esc(K('back'))}<br>左：${esc(K('left'))}　右：${esc(K('right'))}</p><p>${esc(K('run'))}を押しながら移動すると走ります。</p><p>マウスを動かして見回す。左ボタンで突き、右ボタンで構えます。</p>`}<p class="note">稲生では、移動から一つずつ練習できます。</p><p class="note">鍵盤・手持ち操作器の割り当ては「設定」で確認できます。</p></div><button type="button" class="btn">操作を閉じて題へ戻る</button>`;
+    dialog.innerHTML = `<h2 id="title-controls-heading">操作の手引き</h2><div class="controls-reading" tabindex="0">${isTouch ? touchKeysHtml() : `<p>前：${esc(K('forward'))}　後ろ：${esc(K('back'))}<br>左：${esc(K('left'))}　右：${esc(K('right'))}</p><p>${esc(K('run'))}を押しながら移動すると走ります。</p><p>マウスを動かして見回す。左ボタンで攻撃（槍は突く・刀は斬る）。</p><p>右ボタンで構えて防ぐ。横へ動きながら${esc(K('dodge'))}で回避。</p>`}<p class="note">稲生（いのう）は最初の実戦。移動から一つずつ覚えます。稽古だけなら「稽古・別の出陣」へ。</p><p class="note">鍵盤・手持ち操作器の割り当ては「設定」で確認できます。</p></div><button type="button" class="btn">操作を閉じて題へ戻る</button>`;
     scr.appendChild(dialog);
     dialog.addEventListener('keydown', (e) => e.stopPropagation());
     dialog.querySelector('button').onclick = () => dialog.close();

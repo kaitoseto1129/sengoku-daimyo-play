@@ -33,9 +33,14 @@ function target(rt) {
 }
 
 export function updateMissionPin(rt) {
-  const want = pinGuideOn(rt) && !rt.over && !rt.choice && rt.player?.u?.alive ? target(rt) : null;
+  // 通常の戦は描画面の行き先一つへまとめる。稲生の到着印だけを残す。
+  const want = pinGuideOn(rt) && rt.def.key === 'inou' && !rt.over && !rt.choice && rt.player?.u?.alive ? target(rt) : null;
   if (!want) { if (pin) pin.hidden = true; return; }
   if (!pin) pin = make();
+  const caption = rt.def.missionPinCaption ?? 'ここへ';
+  if (pin.firstChild.textContent !== caption) pin.firstChild.textContent = caption;
+  const captionDisplay = caption ? 'block' : 'none';
+  if (pin.firstChild.style.display !== captionDisplay) pin.firstChild.style.display = captionDisplay;
   const hud = rt.hud, root = hud.root;
   if (pin.parentNode !== root) root.appendChild(pin);
   const me = rt.player.u.pos;
@@ -53,9 +58,13 @@ export function updateMissionPin(rt) {
   // 足元を別の場所へずらさず、札に隠れる時も端の矢印へ切り替える。
   const outside = behind || !goalFree(x, y, W, H, rects);
   if (outside) {
-    const scale = Math.max(Math.abs(dx) / .88, Math.abs(dy) / .68, .001);
-    dx /= scale; dy /= scale;
-    x = (dx + 1) * W / 2; y = (dy + 1) * H / 2;
+    // 足元の投影は画面の下に出る。進む方向は地面上の向きから求め、前の目標へ下向きの矢印を出さない。
+    const yaw = rt.player.yaw + (rt.player.camYawOff || 0);
+    const gx = want.x - me.x, gz = want.z - me.z;
+    dx = -gx * Math.cos(yaw) + gz * Math.sin(yaw);
+    dy = -(gx * Math.sin(yaw) + gz * Math.cos(yaw));
+    const scale = Math.min((W / 2 - 48) / Math.max(Math.abs(dx), .001), (H / 2 - 80) / Math.max(Math.abs(dy), .001));
+    x = W / 2 + dx * scale; y = H / 2 + dy * scale;
   }
   // 右上の札や操作面を避ける。空きが無ければ重ねず畳む。
   if (!goalFree(x, y, W, H, rects)) {

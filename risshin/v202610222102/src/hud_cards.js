@@ -1,4 +1,4 @@
-import { setText, setWidth, coachCss, $, esc, keyCaps, shortTask } from "./hud_common.js";
+import { setText, setWidth, coachCss, $, esc, keyCaps, shortTask, singleBattleGuide, rescueTarget, retreatRequired } from "./hud_common.js";
 import { currentObjective, taskText } from "./mission_guide.js";
 import { isTouch } from "./touch.js";
 import { K } from "./settings.js";
@@ -35,7 +35,13 @@ export class HudCards {
         const onScreen = this.tmpV.z >= -1 && this.tmpV.z < 1 &&
           Math.abs(this.tmpV.x) < (rt.def.missionAllyEdge ? .8 : .9) && Math.abs(this.tmpV.y) < (rt.def.missionAllyEdge ? .7 : .85);
         let x = Math.round((this.tmpV.x + 1) / 2 * innerWidth), y = Math.round((1 - this.tmpV.y) / 2 * innerHeight);
-        if (onScreen) setText(e, label + (rt.def.missionAllyEdge ? ' ▼' : ''));
+        const symbolOnly = singleBattleGuide(rt);
+        e.style.background = symbolOnly ? 'transparent' : '#17140fe6';
+        e.style.borderBottom = symbolOnly ? '0' : '2px solid #e8c25a';
+        e.style.fontSize = symbolOnly ? '26px' : '12px';
+        e.style.textShadow = symbolOnly ? '0 2px 2px #14120f, 2px 0 2px #14120f' : '';
+        e.setAttribute('aria-label', label);
+        if (onScreen) setText(e, symbolOnly ? '◆' : label + (rt.def.missionAllyEdge ? ' ▼' : ''));
         else if (rt.def.missionAllyEdge) {
           // 画面外も同じ人物へ向ける。名札を端へ寄せ、右上の任務と下の釦を避ける。
           const dx = ally.pos.x - rt.player.u.pos.x, dz = ally.pos.z - rt.player.u.pos.z;
@@ -51,7 +57,7 @@ export class HudCards {
             y = this.tmpV.y > 0 ? 110 : innerHeight * .68;
             arrow = this.tmpV.y > 0 ? '↑ ' : '↓ ';
           }
-          setText(e, arrow + label + (forward < 0 ? '・後ろ' : ''));
+          setText(e, symbolOnly ? '◆' : arrow + label + (forward < 0 ? '・後ろ' : ''));
         }
         if (onScreen || rt.def.missionAllyEdge) {
           e.hidden = false;
@@ -175,9 +181,13 @@ export class HudCards {
 #hud #h-prog .pg-st { display:flex; flex-direction:column-reverse; align-items:flex-end; }
 #hud #h-prog .pg-st span { font-size:max(20px, calc(20px * var(--text-scale, 1))); line-height:1.4; white-space:nowrap; }
 #hud #h-prog .pg-st b { margin:2px 0 0; font-size:12px; }
-#hud #h-prog .pg-next { max-width:320px; font-size:13px; }
+#hud #h-prog .pg-next { max-width:320px; font-size:max(16px, calc(16px * var(--text-scale, 1))); line-height:1.4; }
 #hud #h-prog .pg-dots { display:none; }
-@media (max-height:500px) { #hud #h-prog .pg-next { max-width:320px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } }
+@media (max-height:500px) {
+ #hud #h-prog { max-width:min(360px, 44vw); }
+ #hud #h-prog .pg-st span, #hud #h-prog .pg-next { max-width:100%; white-space:normal; overflow:visible; overflow-wrap:anywhere; }
+ #hud #h-prog .pg-time { font-size:max(15px, calc(15px * var(--text-scale, 1))); }
+}
 
 #hud.ending #h-prog, #hud:has(#cine.on) #h-prog, #hud:has(#bigmap:not([hidden])) #h-prog { visibility:hidden; }
 /* 稲生は任務を右、台詞を左。兵数と方位の帯の下を使う。 */
@@ -211,7 +221,10 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     const el = this.prog;
     if (el.dataset.battle !== def.key) el.dataset.battle = def.key || '';
     if (def.key === 'inou') el.dataset.practice = String(rt.flags.step === 0 && rt.flags.training === 0);
-    el.hidden = !!rt.over; root.classList.toggle('prog-on', !rt.over);
+    // 救助中は通常の任務を畳み、本人の札と長押しの操作に切り替える。
+    const helping = !!rescueTarget(rt) && def.guardGuideAllowed?.(rt) !== false &&
+      !retreatRequired(rt) && !rt.dodgeGuide && !this.retreatGuide?.active;
+    el.hidden = !!rt.over || helping; root.classList.toggle('prog-on', !rt.over && !helping);
     const [stEl, nextEl, dotsEl, timeEl, contextEl] = el.children;
     const context = typeof def.missionContext === 'function' ? def.missionContext(rt) : def.missionContext;
     setText(contextEl, context || ''); contextEl.hidden = !context;
@@ -229,12 +242,22 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
       i = Math.max(0, this.progSeen.length - 1); n = 0; title = this.progSeen[i] || '';
     }
     setText(stEl.firstChild, '');
-    const action = shortTask(taskText(rt, def.taskLabel?.(rt) || task || title));
+    const retreat = this.retreatGuide?.active && this.retreatGuide.valid ? this.retreatGuide : null;
+    const escaping = retreat || (rt.dodgeGuide?.valid ? rt.dodgeGuide.pos : null);
+    const movingBack = escaping && Math.hypot(escaping.x - rt.player.u.pos.x, escaping.z - rt.player.u.pos.z) >= (retreat?.radius || 1);
+    const yaw = rt.player.yaw + (rt.player.camYawOff || 0), p = rt.player.u.pos;
+    const dx = movingBack ? escaping.x - p.x : 0, dz = movingBack ? escaping.z - p.z : 0;
+    const right = -dx * Math.cos(yaw) + dz * Math.sin(yaw), forward = dx * Math.sin(yaw) + dz * Math.cos(yaw);
+    const moveWord = Math.abs(right) > Math.abs(forward) ? right >= 0 ? '右' : '左' : forward >= 0 ? '前' : '後ろ';
+    const action = movingBack && !retreat?.treatment ? `${moveWord}へ さがる` :
+      shortTask(taskText(rt, def.taskLabel?.(rt) || task || title));
     const headline = action.split(/[。／\n、]/)[0].replace(/^.*隊長(?:と合流|へ.*|の所へ.*)$/, '隊長のそばへ').replace(/(?<!敵の)本陣へ/g, '敵の本陣へ').replace(/討ち取れ|倒せ/g, 'たおせ');
     setText(stEl.lastChild, headline);
     // 戦固有の案内と任務の進みは残す。同じ任務の全文は重ねない。
     const status = def.missionStatus?.(rt, taskLine);
-    const sub = currentObjective(rt)?.progress || (status && status !== headline ? status : '');
+    const sub = movingBack ? '' : def.missionDetail ? def.missionDetail(rt) :
+      def.missionStatusFirst ? status || '' :
+        currentObjective(rt)?.progress || (status && status !== headline ? status : '');
     setText(nextEl, sub); nextEl.hidden = !sub;
     // 必要な号令だけ、今の任務の直下で一度押せるようにする。
     if (def.missionAction && !this.missionActionButton) {
@@ -268,7 +291,7 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     setText(dotsEl, ''); dotsEl.hidden = true;
     const sec = Math.max(0, rt.t | 0), est = (def.minutes || 7) * 60;
     const left = Math.max(1, Math.round((est - sec) / 60));
-    setText(timeEl.lastChild, `残り 約${left}分`);
+    setText(timeEl.lastChild, `${def.missionTimeLabel || '残り'} 約${left}分`);
     // 待つ間（陣を敷く・寄せを待つ）の残りは、秒の字でなく満ちていく丸で（kaito 10/23 稲生 14）。
     const gm = rt.missionGuide?.marker, wu = gm?.waitUntil?.();
     const progress = def.missionWaitProgress?.(rt);
