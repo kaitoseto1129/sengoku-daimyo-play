@@ -535,7 +535,7 @@ takato.botBrain = (rt, inp, helpers) => {
           rt.army.wallBetween(foe.pos, -1, p.u.pos,
             (foe.wpnKind || foe.lookWeapon) === 'spear' && d <= (foe.reach || 2.8) + .3)) foe = null;
     }
-    let firstAngle = null, crossed = false;
+    let firstAngle = null, crossed = false, imminent = false;
     // 近い城兵だけを向くと、横や背から先に届く槍を受け損なう。
     // 退く足は保ち、実際に自分へ打ち込む刃のうち先に届く方を受ける。
     for (const o of rt.army.threats || []) {
@@ -548,8 +548,12 @@ takato.botBrain = (rt, inp, helpers) => {
       if (d > 8 || rt.army.wallBetween(o.pos, -1, p.u.pos,
           (o.wpnKind || o.lookWeapon) === 'spear' && d <= o.reach + .3)) continue;
       const soon = o.charging ? 0 : swing ? Math.max(0, o.swing.dur * o.swing.at - o.swing.t) : o.atk.t;
-      if (soon < soonest) { foe = o; soonest = soon; }
-      if (soon <= .65 && d <= (o.reach || 2.8) + .6) {
+      // 遠い空振りの残り時間だけで、目前へ届く刃への向き直りや回避を奪わない。
+      const reaches = soon <= .65 && d <= (o.reach || 2.8) + .6;
+      if (reaches && !imminent || reaches === imminent && soon < soonest) {
+        foe = o; soonest = soon; imminent = reaches;
+      }
+      if (reaches) {
         const angle = Math.atan2(o.pos.x - p.u.pos.x, o.pos.z - p.u.pos.z);
         if (firstAngle === null) firstAngle = angle;
         else if (Math.cos(angle - firstAngle) < .5) crossed = true;

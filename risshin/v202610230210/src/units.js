@@ -1824,6 +1824,7 @@ export class Army {
     // 同時に休眠した束を一斉に返さない。通常の束と合わせて二つまで、返却が半ミリ秒を越えたら次のコマへ。
     // 待つ束も非表示にし、再び使う束は休眠を取り消す。返却待ちの配列や写しは作らない。
     B.retired = 0; B.retireMs = 0;
+    let restored = 0;
     // 束が多い時は一コマに返す数（二つ・半ミリ秒）を前借りで増やす（十二・一ミリ秒）。姿の入れ替えで一人だけの束が次々に出来、
     //   二つずつでは追いつかず、森部 4 分で 1100 個に増え、捨てた形（束ねた人の色の配列）を鍵に抱えていた（10/20）
     if (B.maps) { let nb = 0; for (const bm of B.maps) nb += bm.size; if (nb > 240) { B.retired = -10; B.retireMs = -0.5; } }
@@ -1831,13 +1832,36 @@ export class Army {
     // 短い休眠は再利用し、今も描く兵の束は保つ。材質はほかの束と共有なので返さない。
     for (const [key, pool] of P.pools) {
       pool.idle = pool.used.length ? 0 : (pool.idle || 0) + 1;
+      if (pool.used.length) pool.retireGeo = 0;
       for (const id of pool.used) pool.bm.setVisibleAt(id, false);
       pool.used.length = 0; pool.bm.visible = false;
       if (pool.idle > (MEM_TIGHT ? 240 : 900) && B.retired < 2 && B.retireMs < 0.5) {
         const started = performance.now();
-        for (const g of pool.geos) soloMaterialize(g);
+        // 配列は束の中だけに残っている。全形を一度に読み戻すと、返却一つでも
+        // 大量の確保と写しが集中する。束を残したまま一コマ一配列ずつ戻す。
+        let scanned = 0, waiting = false;
+        pool.retireGeo = pool.retireGeo || 0;
+        while (pool.retireGeo < pool.geos.length && scanned < 32) {
+          const g = pool.geos[pool.retireGeo];
+          for (const name in g?.attributes) {
+            const a = g.attributes[name];
+            if (!a._poolRef) continue;
+            if (restored >= 1) { waiting = true; break; }
+            void a.array; restored++;
+          }
+          if (waiting) break;
+          if (g?.index?._poolRef) {
+            if (restored >= 1) { waiting = true; break; }
+            void g.index.array; restored++;
+          }
+          pool.retireGeo++; scanned++;
+          if (performance.now() - started >= 0.5) break;
+        }
+        B.retireMs += performance.now() - started;
+        if (waiting || pool.retireGeo < pool.geos.length || B.retireMs >= 0.5) continue;
+        const disposeAt = performance.now();
         this.scene.remove(pool.bm); pool.bm.dispose(); P.pools.delete(key); SOLO_STAT.poolsDisposed++;
-        B.retired++; B.retireMs += performance.now() - started;
+        B.retired++; B.retireMs += performance.now() - disposeAt;
       }
     }
     if (!SOLO.on || !hasMultiDraw()) return;

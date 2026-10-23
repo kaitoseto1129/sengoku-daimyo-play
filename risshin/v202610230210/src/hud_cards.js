@@ -362,7 +362,7 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     setText(stEl.lastChild, headline);
     // 戦固有の案内と任務の進みは残す。同じ任務の全文は重ねない。
     const status = def.missionStatus?.(rt, taskLine);
-    const sub = def.key === 'inou' ? '' : def.missionDetail ? def.missionDetail(rt) :
+    const sub = def.key === 'inou' || def.missionSingleLine ? '' : def.missionDetail ? def.missionDetail(rt) :
       (typeof def.missionStatusFirst === 'function' ? def.missionStatusFirst(rt) : def.missionStatusFirst) ? status || '' :
         currentObjective(rt)?.progress || (status && status !== headline ? status : '');
     // 稲生は任務の一行だけ。操作や距離の説明を重ねない。
@@ -397,7 +397,7 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
       }
     }
     // 段の進み（2／4・％）と行き先の向き（矢印）。％は段の数と、今の段の中の進み（def.missionPercent があれば）から。
-    if (n && def.key !== 'inou') {
+    if (n && def.key !== 'inou' && !def.missionSingleLine) {
       const inner = Math.max(0, Math.min(0.99, def.missionPercent?.(rt) ?? 0));
       const pct = Math.round((i + inner) / n * 100);
       const goal = missionTarget(rt);
@@ -421,7 +421,7 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     const gm = rt.missionGuide?.marker, wu = gm?.waitUntil?.();
     const progress = def.missionWaitProgress?.(rt);
     const pie = timeEl.firstChild, waiting = Number.isFinite(progress) || Number.isFinite(wu) && wu > rt.t && gm.waitDuration > 0;
-    timeEl.hidden = def.key === 'inou';
+    timeEl.hidden = def.key === 'inou' || !!def.missionSingleLine;
     pie.hidden = !waiting;
     if (waiting) pie.style.setProperty('--p', String(Math.round(Math.max(0, Math.min(1, Number.isFinite(progress) ? progress : 1 - (wu - rt.t) / gm.waitDuration)) * 100)));
     // 切り替わりも右上の一枚で伝え、戦場の中央へ同じ札を重ねない。

@@ -526,6 +526,7 @@ const iwamura = {
   jinkei: JIN,
   softGuideRings: true, // 行き先の輪を細く淡くする。名前は任務の札に添える。
   hidePlayerSign: true, // 肩越しに本人が見える。白い二重輪を行き先と取り違えさせない。
+  openingFootSignOnly: true, // 開幕の手ほどきにも胴を囲う縦長の枠を出さない。
   groundGuideRings: true, // 坂の印は地面へ沿わせ、平たい帯を浮かせない。
   clearTravelGuide: true, // 道の矢印と旗の上に案内札を重ねない。
   pauseTurnPractice: false, // 見回しの操作待ちで夜討ちの兵と任務の時計を止めない。

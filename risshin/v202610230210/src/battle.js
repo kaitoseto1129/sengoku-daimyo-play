@@ -1949,7 +1949,11 @@ export class Battle {
   // 長押しの進み具合（首取りなど。その間は無防備）
   updateHold(dt, input) {
     // 手当ての専用ボタンは、近くの門や落とし物を誤って操作しない。
-    const treatmentHeld = input.key('TreatWound') || this.hud.workHoldId === 'bandage';
+    const moving = input.key('KeyW') || input.key('KeyA') || input.key('KeyS') || input.key('KeyD') ||
+      !!input.axis && Math.hypot(input.axis.x, input.axis.y) > (input.touchMoving ? 0 : .18);
+    const autoTreatment = this.def.autoTreatment && this.player.treatmentReady &&
+      !moving && !input.left && !input.right && !input.key('Space');
+    const treatmentHeld = autoTreatment || input.key('TreatWound') || this.hud.workHoldId === 'bandage';
     let it = null;
     if (treatmentHeld) {
       for (const item of this.interacts) if (item.id === 'bandage') { it = item; break; }
@@ -1964,7 +1968,7 @@ export class Battle {
       !head || (u.alive && !this.over && !this.player.mounted && !u.moving && !u.pAtk && !u.swing && !u.stagger && !this.player.guard && !input.left && !hurt);
     const wasTreating = this.player.treating;
     this.player.treating = !!(bandage && canHold && held);
-    if (wasTreating && !this.player.treating && held) this.hud.flash('手当てを中断した。味方の後ろへ退け', 'dim');
+    if (!this.def.autoTreatment && wasTreating && !this.player.treating && held) this.hud.flash('手当てを中断した。味方の後ろへ退け', 'dim');
     if (it && it.hold && canHold && held) {
       this.holdT = (this.holdId === it.id ? this.holdT : 0) + dt;
       this.holdId = it.id;

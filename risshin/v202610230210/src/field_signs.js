@@ -8,22 +8,34 @@ import { enemyKnown } from './battle_intel.js';
 
 const CAP = 360, BARS = 12, NAMES = 1;
 const FOE_R = 55, FOE_OUT = 62, GEN_R = 60;
-const RED = new THREE.Color(0xff3b22), BAR_FOE = new THREE.Color(0xe8452c), BAR_ALLY = new THREE.Color(0xe8c25a), BAR_BG = new THREE.Color(0x14120f);
+const BAR_FOE = new THREE.Color(0xe8452c), BAR_ALLY = new THREE.Color(0xe8c25a), BAR_BG = new THREE.Color(0x14120f);
 const STATE = new WeakMap();
-const dummy = new THREE.Object3D(), v = new THREE.Vector3();
+const dummy = new THREE.Object3D(), v = new THREE.Vector3(), headPos = new THREE.Vector3();
 
 const general = (u) => !!u.name && !u.isSub && (u.type === 'busho' || u.type === 'samurai');
 const headY = (u) => (u.pos.y || 0) + (u.mounted ? 3.05 : 2.1);
 
 function build(rt, root) {
   const tri = new THREE.BufferGeometry();
-  tri.setAttribute('position', new THREE.Float32BufferAttribute([-0.17, 0.26, 0, 0.17, 0.26, 0, 0, 0, 0], 3));
-  const triMat = new THREE.MeshBasicMaterial({ color: RED, side: THREE.DoubleSide, fog: false, depthWrite: false });
+  tri.setAttribute('position', new THREE.Float32BufferAttribute([-.17,.28,0, .17,.28,0, 0,0,0, -.115,.245,.001, .115,.245,.001, 0,.065,.001], 3));
+  const colors = [];
+  for (const color of [0x14120f, 0xff634d]) {
+    const c = new THREE.Color(color);
+    for (let i = 0; i < 3; i++) colors.push(c.r, c.g, c.b);
+  }
+  tri.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  const triMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, fog: false, depthWrite: false });
   const marks = new THREE.InstancedMesh(tri, triMat, CAP);
   marks.count = 0; marks.frustumCulled = false; marks.renderOrder = 5;
-  const circle = new THREE.RingGeometry(.09, .14, 12);
+  const circle = new THREE.RingGeometry(.065, .17, 16, 3);
+  const ringColors = [];
+  for (let i = 0; i < 4; i++) {
+    const c = new THREE.Color(i === 0 || i === 3 ? 0x14120f : 0xffedb0);
+    for (let j = 0; j <= 16; j++) ringColors.push(c.r, c.g, c.b);
+  }
+  circle.setAttribute('color', new THREE.Float32BufferAttribute(ringColors, 3));
   circle.translate(0, .13, 0);
-  const allyMat = new THREE.MeshBasicMaterial({ color: 0xffedb0, side: THREE.DoubleSide, fog: false, depthWrite: false });
+  const allyMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, fog: false, depthWrite: false });
   const allies = new THREE.InstancedMesh(circle, allyMat, CAP);
   allies.count = 0; allies.frustumCulled = false; allies.renderOrder = 5;
   const bar = new THREE.PlaneGeometry(1, 0.09); bar.translate(0.5, 0, 0);
@@ -64,6 +76,7 @@ export function fieldSignsTick(rt, root) {
   const hide = photo || rt.hud?.introWaiting;
   // 任務で追う一人の▼を大きくする。形・材質・描画回数は増やさない。
   const missionEnemy = rt.def.missionSignTarget?.(rt);
+  const moribe = rt.def.key === 'moribe';
   let n = 0, a = 0, b = 0;
   const gens = s.gens; gens.length = 0;
   if (!hide) for (const u of rt.army.units) {
@@ -71,16 +84,35 @@ export function fieldSignsTick(rt, root) {
     const dx = u.pos.x - P.x, dz = u.pos.z - P.z, d2 = dx * dx + dz * dz;
     const foe = u.team !== me.team;
     if (general(u) && (d2 < GEN_R * GEN_R || d2 < GEN_R * GEN_R * 1.3 && s.bound?.includes(u)) && !u.woundOut) { u._fsD = d2; gens.push(u); }
+    // 森部は敵の赤い▼だけ。味方の丸と重ねて所属を迷わせない。
+    if (moribe && !foe) continue;
     // 境で出たり消えたりしないよう、出す時は 55m・消す時は 62m と幅を持たせる（kaito 10/23「チカチカがほんとにやだ」）。
     u._fsOn = d2 < (u._fsOn ? FOE_OUT * FOE_OUT : FOE_R * FOE_R);
     if ((foe && u.noTarget && !rt.def.foeMarkVisible?.(rt, u)) || !u._fsOn || (foe ? n : a) >= CAP) continue;
     // 投影後の幅を最大十画素に収める。近距離でも三角を兵の顔より大きくしない。
-    v.set(u.pos.x, headY(u) + .12, u.pos.z).applyMatrix4(cam.matrixWorldInverse);
+    // 笠や肩が重なる近接戦でも、▼の先端を笠より上に保つ。
+    headPos.set(u.pos.x, headY(u) + .12, u.pos.z);
+    // 近接中は実際の頭へ付ける。遠景の骨は更新せず、携帯の負荷を抑える。
+    const head = moribe && d2 < 20 * 20 && u.human?.root.visible && u.human.bones?.Head;
+    if (head) {
+      head.updateWorldMatrix(true, false);
+      head.getWorldPosition(headPos); headPos.y += .38;
+      if (u.mesh) {
+        headPos.x += u.pos.x - u.mesh.position.x;
+        headPos.y += u.pos.y - u.mesh.position.y;
+        headPos.z += u.pos.z - u.mesh.position.z;
+      }
+    }
+    v.copy(headPos).applyMatrix4(cam.matrixWorldInverse);
     if (v.z >= 0) continue;
-    const pixels = u === missionEnemy ? (rt.def.key === 'inou' ? 14 : 10) : 8;
-    const k = Math.min(1.6, pixels * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34));
-    dummy.position.set(u.pos.x, headY(u) + .12, u.pos.z);
-    dummy.quaternion.copy(q); dummy.scale.set(k, k, k); dummy.updateMatrix();
+    const pixels = u === missionEnemy ? (rt.def.key === 'inou' ? 14 : 10) : 10;
+    // 森部では命を減らした相手の▼だけを一度大きくし、滑らかに戻す。
+    // 頭上の先端は固定し、既存の形・材質・描画の束をそのまま使う。
+    const hit = foe && moribe ? Math.max(0, (u.moribeHitUntil || 0) - rt.t) / .65 : 0;
+    const reachable = moribe && foe && rt.player.inRange && rt.player.rangeCueTarget === u;
+    const k = Math.min(3, pixels * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) * (1 + (hit > 0 ? 1.2 * hit : reachable ? .55 : 0));
+    dummy.position.copy(headPos);
+    dummy.quaternion.copy(q); dummy.scale.set(k * (1 + .5 * hit), k, k); dummy.updateMatrix();
     if (foe) s.marks.setMatrixAt(n++, dummy.matrix);
     else s.allies.setMatrixAt(a++, dummy.matrix);
   }

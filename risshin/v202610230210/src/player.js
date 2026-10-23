@@ -1899,6 +1899,10 @@ export class Player {
     if (this.twist) { const k = Math.min(1, dt * 9); this.yaw += this.twist * k * 0.5; this.twist *= (1 - k); if (Math.abs(this.twist) < 0.002) this.twist = 0; }
     const rt = this.rt;
     const army = rt.army;
+    // 自動の手当ては歩く・攻撃する入力ですぐ解く。足止めしたままにしない。
+    if (rt.def.autoTreatment && this.treating && (input.left || input.right || input.key('KeyW') ||
+        input.key('KeyA') || input.key('KeyS') || input.key('KeyD') || input.key('Space') ||
+        input.axis && Math.hypot(input.axis.x, input.axis.y) > (input.touchMoving ? 0 : .18))) this.treating = false;
     const treating = this.treating;
     this.cliffRescue(rt);
     // 火皿へ移った火は、よろめきや担ぎで取り消せない。
@@ -3666,7 +3670,7 @@ export class Player {
     this.treatmentCheckT -= dt;
     if (this.treatmentCheckT > 0) return;
     this.treatmentCheckT = 0.2;
-    if (u.alive && !rt.over && u.wounds?.bleed > 0.0001 && rt.t >= this.bleedHelpAt) {
+    if (!rt.def.autoTreatment && u.alive && !rt.over && u.wounds?.bleed > 0.0001 && rt.t >= this.bleedHelpAt) {
       this.bleedHelpAt = rt.t + 16;
       const canBind = this.treatmentLeft > 0 && this.treatmentNext <= rt.t;
       const advice = canBind ? '血が止まらない。味方の後ろで座って布で止めよ。「手当て」を三秒長押し' :
@@ -3674,7 +3678,7 @@ export class Player {
         '血が止まらない。布は使い切った。味方の後ろへ退き、戦の後は宿へ';
       rt.hud.notices.push(advice, 110, 8, 'warn', () => u.alive && !rt.over && u.wounds?.bleed > 0.0001);
     }
-    if (u.hp < u.maxHp * 0.5 && !this.treatmentHint && this.treatmentLeft > 0 && this.treatmentNext <= rt.t) {
+    if (!rt.def.autoTreatment && u.hp < u.maxHp * 0.5 && !this.treatmentHint && this.treatmentLeft > 0 && this.treatmentNext <= rt.t) {
       this.treatmentHint = true;
       rt.bark('味方の列の後ろへ退け。布を巻く間は動けない', true);
     }
@@ -3686,7 +3690,7 @@ export class Player {
     rt.addInteract('bandage', this.treatmentPoint, `手当て（三秒長押し・あと${this.treatmentLeft}回）`, () => {
       if (!this.treatWounds(0.15, 0.6)) return;
       rt.uninteract('bandage'); this.treatmentReady = false;
-      rt.hud.flash('手当て完了。血を止めた', 'dim');
+      if (!rt.def.autoTreatment) rt.hud.flash('手当て完了。血を止めた', 'dim');
     }, { r: 1.5, hold: 3 });
   }
 

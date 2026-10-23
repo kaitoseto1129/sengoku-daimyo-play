@@ -214,42 +214,41 @@ export class HudOverlay {
   // 兵や部隊に印を重ねない。
   drawFollowAlly(g, rt, ally) { return false; }
 
-  // 桶狭間では自分を白い菱形で示し、追う矢印や敵の▼と形を分ける。
-  // 敵は選んだ一人の胴の両脇だけ。骨・材質を増やさず、投影用の点を使い回す。
+  // ピンの足元に実際の到着範囲を描く。草に隠さず、入ると面が満ちる。
   drawOkehazamaPeople(g, rt) {
     if (rt.def.key !== 'okehazama' || rt.over || rt.choice || this.introWaiting ||
         this.bigmap || rt.player.camShot || !rt.player.u.alive) return false;
-    let drawn = false;
-    const me = rt.player.u;
-    if ((rt.player.fpK || 0) < .3) {
-      const at = this.project(me.pos, me.pos.y + (me.mounted ? 3.35 : 2.35), rt,
-        this.okePlayerPoint || (this.okePlayerPoint = {}));
-      if (!at.behind && at.x > 10 && at.x < VIEW.w - 10 && at.y > 10 && at.y < VIEW.h - 10) {
-        g.save(); g.beginPath();
-        g.moveTo(at.x, at.y - 6); g.lineTo(at.x + 5, at.y);
-        g.lineTo(at.x, at.y + 6); g.lineTo(at.x - 5, at.y); g.closePath();
-        g.strokeStyle = '#14120f'; g.lineWidth = 3; g.stroke();
-        g.fillStyle = '#fff'; g.fill(); g.restore(); drawn = true;
+    const pin = rt.def.missionPin(rt);
+    if (!pin?.area || pin.enemy) return false;
+    const points = this.okeArrivalPoints || (this.okeArrivalPoints = Array.from({ length: 33 },
+      () => ({ x: 0, y: 0, z: 0, screen: {} })));
+    // 地形を読むのは五分の一秒に一度。投影用の点と形は使い回す。
+    if (this.okeArrivalRt !== rt || this.okeArrivalRadius !== pin.r || rt.t >= (this.okeArrivalAt || 0) ||
+        Math.hypot(pin.x - this.okeArrivalX, pin.z - this.okeArrivalZ) > .2) {
+      this.okeArrivalRt = rt; this.okeArrivalAt = rt.t + .2;
+      this.okeArrivalX = pin.x; this.okeArrivalZ = pin.z; this.okeArrivalRadius = pin.r;
+      for (let i = 0; i < points.length; i++) {
+        const q = points[i], angle = i / 32 * Math.PI * 2;
+        q.x = pin.x + Math.cos(angle) * pin.r; q.z = pin.z + Math.sin(angle) * pin.r;
+        q.y = groundAt(rt.world, q.x, q.z, rt.player.u.pos.y) + .08;
       }
     }
-    const enemy = rt.def.missionSignTarget(rt);
-    if (this.missionEnemyVisible(rt, enemy)) {
-      const top = this.project(enemy.pos, enemy.pos.y + (enemy.mounted ? 2.65 : 1.65), rt,
-        this.okeEnemyTop || (this.okeEnemyTop = {}));
-      const bottom = this.project(enemy.pos, enemy.pos.y + (enemy.mounted ? 1.6 : .65), rt,
-        this.okeEnemyBottom || (this.okeEnemyBottom = {}));
-      if (!top.behind && !bottom.behind && bottom.y > top.y) {
-        const half = Math.max(6, Math.min(28, (bottom.y - top.y) * .45));
-        g.save(); g.beginPath();
-        g.moveTo(top.x - half + 4, top.y); g.lineTo(top.x - half, top.y);
-        g.lineTo(bottom.x - half, bottom.y); g.lineTo(bottom.x - half + 4, bottom.y);
-        g.moveTo(top.x + half - 4, top.y); g.lineTo(top.x + half, top.y);
-        g.lineTo(bottom.x + half, bottom.y); g.lineTo(bottom.x + half - 4, bottom.y);
-        g.strokeStyle = '#14120f'; g.lineWidth = 5; g.stroke();
-        g.strokeStyle = '#ff634d'; g.lineWidth = 2; g.stroke(); g.restore(); drawn = true;
+    g.save(); g.beginPath();
+    let joined = false, complete = true;
+    for (const q of points) {
+      const at = this.project(q, q.y, rt, q.screen);
+      if (at.behind || Math.abs(at.x) > VIEW.w * 4 || Math.abs(at.y) > VIEW.h * 4) {
+        joined = false; complete = false; continue;
       }
+      if (joined) g.lineTo(at.x, at.y); else g.moveTo(at.x, at.y);
+      joined = true;
     }
-    return drawn;
+    if (complete) {
+      g.closePath(); g.fillStyle = pin.arrived ? 'rgba(255,243,186,.24)' : 'rgba(255,243,186,.06)'; g.fill();
+    }
+    g.lineJoin = 'round'; g.strokeStyle = '#14120f'; g.lineWidth = 7; g.stroke();
+    g.strokeStyle = '#fff3ba'; g.lineWidth = pin.arrived ? 4 : 3; g.stroke();
+    g.restore(); return true;
   }
 
   // 今の任務・会話・狙う相手の名前だけを、暗い下地付きで読む。
@@ -264,8 +263,10 @@ export class HudOverlay {
     // 雨粒も笠の縁も無いコマは、次のコマで消す仕事を省く。
     this.ovBlank = !(this.drops && this.drops.length) && !((rt.player.fpK || 0) > 0.7);
     if (this.drawOkehazamaPeople(g, rt)) this.ovBlank = false;
-    // 桶狭間の本人の印以外は従来どおり。持ち場の輪や味方の旗を重ねない。
-    // 行き先はピン、敵は頭上の赤い▼、武将の名と体力は field_signs.js。
+    // 本人の足元は兵が重なっても見える白い輪。行き先の旗とは形を分ける。
+    if (this.drawPlayerSign(g, rt)) this.ovBlank = false;
+    // 行き先は共通のピンに任せ、持ち場の輪や味方の旗を重ねて描かない。
+    // 敵は頭上の赤い▼、武将の名と体力は field_signs.js。
     this.battleSignEnemy = null; this.enemyFrameShown = false;
   }
 

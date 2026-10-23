@@ -4744,7 +4744,7 @@ honnoji.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
         p._gtGoal ? Math.hypot(p._gtGoal.x - u.pos.x, p._gtGoal.z - u.pos.z) : 1.5);
     const walk = p.yaw, moving = inp.k.has('KeyW');
     let face = null, soonest = Infinity;
-    let firstAngle = null, crossed = false;
+    let firstAngle = null, crossed = false, imminent = false;
     for (const o of b.army.threats || []) {
       if (!o.alive || o.team === u.team || o.fleeing || o.woundOut || o.noTarget ||
           Math.abs(o.pos.y - u.pos.y) >= 3) continue;
@@ -4755,8 +4755,12 @@ honnoji.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
       if (d > 8 || b.army.wallBetween(o.pos, -1, u.pos,
           (o.wpnKind || o.lookWeapon) === 'spear' && d <= o.reach + 0.3)) continue;
       const soon = o.charging ? 0 : swing ? Math.max(0, o.swing.dur * o.swing.at - o.swing.t) : o.atk.t;
-      if (soon < soonest) { face = o; soonest = soon; }
-      if (soon <= .65 && d <= (o.reach || 2.8) + .6) {
+      // 遠い空振りの残り時間だけで、目前へ届く刃への向き直りや回避を奪わない。
+      const reaches = soon <= .65 && d <= (o.reach || 2.8) + .6;
+      if (reaches && !imminent || reaches === imminent && soon < soonest) {
+        face = o; soonest = soon; imminent = reaches;
+      }
+      if (reaches) {
         const angle = Math.atan2(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
         if (firstAngle === null) firstAngle = angle;
         else if (Math.cos(angle - firstAngle) < .5) crossed = true;
