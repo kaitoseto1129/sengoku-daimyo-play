@@ -3,6 +3,11 @@ import { weatherSees } from './weather_gameplay.js';
 import { noticeText } from './notice_source.js';
 
 function intel(rt) { return rt.enemyIntel || (rt.enemyIntel = { names: new Set(), camp: false, next: 0, version: 0 }); }
+// ミッションで名を挙げた敵将は、右上の一行で伏せない（「今川義元を討つ」など）。
+export function revealName(rt, name) {
+  const I = intel(rt);
+  if (name && !I.names.has(name)) { I.names.add(name); I.version++; }
+}
 export function enemyKnown(rt, u) { return u.team === 0 || intel(rt).names.has(u.name); }
 export function campKnown(rt) { return intel(rt).camp; }
 function seenFlag(rt, u) {

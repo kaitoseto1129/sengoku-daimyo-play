@@ -16,6 +16,7 @@ import { sendOrder } from './denrei.js';
 import { nagashinojo } from './b_nagashinojo.js';
 import { sfx } from './audio.js';
 import { sightPoint } from './battle_sight.js';
+import { revealName } from './battle_intel.js';
 import { gone as groupGone, seasonOf } from './b_shared.js';
 import { camp } from './b_mid.js';
 import { demBlend, demSample } from './dem.js';
@@ -300,7 +301,7 @@ function moribeBuildings(rt) {
     }
     for (const h of [.32, .88]) store(x, y + h, z - 2.5, 7.6, .075, .09, 0x55422f);
     // 雨除けの妻に槍組の印。低い屋根と幟を重ね、野の中でも荷置きの所在を読めるようにする。
-    rt.scene.add(nobori(W, x + leanSide * 4.8, z - 1.9, x < 0 ? 'oda' : 'saito', 4.6));
+    rt.scene.add(nobori(W, x + leanSide * 4.8, z - 1.9, x < 0 ? 'oda' : 'saito', 5.5));
     // 屋根下の腰掛けと長い荷台。柱と同じ描画の束で、人が使う高さの横線を残す。
     for (const dx of [-1.5, 1.5]) {
       store(x + dx, y + .32, z + .6, .16, .64, .9, 0x493624);
@@ -965,8 +966,8 @@ const moribe = {
   introTaskFirst: true,
   introPeopleFolded: true,   // 横持ちでは下知を先に読み、人物紹介は自分で開く。
   // 操作は稲生で覚える。ここでは行き先と勝つための流れを伝える。
-  introText: 'まずは、黄色い杭の間を通って岸の印へ。',
-  introSides: { a: '織田軍（おだぐん）・信長', b: '斎藤軍（さいとうぐん）・長井甲斐守と日比野下野守' },
+  introText: '黄色い杭の間の浅瀬を渡り、向こう岸の小旗へ。',
+  introSides: { a: '織田軍（おだぐん）・信長', b: '斎藤軍（さいとうぐん）' },
   introPeople: [
     { id: 'moribe-oda', name: '織田信長（おだ のぶなが）', note: '味方の大将。大将は、兵たちをまとめる人。味方と一緒に戦おう。' },
     { id: 'moribe-nagai', name: '長井甲斐守（ながい かいのかみ）', note: '敵の大将の一人。まわりで守る敵の兵と一緒にいる。仲間と協力して倒す。' },
@@ -979,12 +980,21 @@ const moribe = {
   // 仲間の名札は一人だけ。密集しても五人分の文字を重ねない。
   missionAllyLabel: 'ついてくる仲間',
   missionContext: '永禄四年（一五六一）・森部（もりべ）の戦い',
-  missionTaskFirst: true, // 段の総称より、今の到着・待機・攻めの任務を一行で伝える。
-  missions: ['仲間と川を渡る', '味方と前の敵を倒す', '仲間と味方のそばを守る', '二人の敵の大将と戦う', '逃げる敵を追う', '仲間と旗へ戻って守る'],
+  // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
+  bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
+  // 右上の一行は「何をするか」だけ（kaito 10/23 49・50）。段の総称で通し、向き・行き先の字は書かない。
+  missions: ['森部の川を渡る', '岸で仲間を待つ', '斎藤の先手を崩す', '槍の列を守り抜く', '日比野下野守を討つ', '長井甲斐守を討つ', '逃げる斎藤勢を追う', '勝ちどきの旗に集まる'],
   missionOf(rt) {
     const F = rt.flags;
-    if (!F.signal) return 0;
-    return F.stage === 'assemble' ? 5 : F.stage === 'press' ? F.pursuing ? 4 : 3 : F.stage === 'hold' ? 2 : 1;
+    if (!F.signal) return F.pointReached ? 1 : 0;
+    if (F.stage === 'contact') return 2;
+    if (F.stage === 'hold') return 3;
+    if (F.stage === 'assemble') return 7;
+    if (F.pursuing) return 6;
+    const boss = (g) => !gone(g) && g.units.some((u) => u.type === 'busho' && u.alive && !u.fleeing);
+    if (boss(F.HM)) { revealName(rt, '日比野下野守'); return 4; }
+    if (boss(F.HN)) { revealName(rt, '長井甲斐守'); return 5; }
+    return 6;
   },
   minutes: 7,
   missionTimeLabel: '戦の残り目安',
@@ -1025,21 +1035,7 @@ const moribe = {
     action.label = pending ? command === 'hold' ? '止まる合図を伝えている' : 'ついてくる合図を伝えている' : command === 'hold' ? 'ここで仲間を待たせる' : F.signal && (F.stage === 'contact' || F.stage === 'press') ? '仲間と進む' : '仲間を呼ぶ';
     return action;
   },
-  // 共通の見出しは句点で切るため、「到着」だけを先頭に置かない。
-  missionHeading(rt) {
-    const F = rt.flags;
-    if (!F.signal) return rt.objectives.find((o) => o.id === 'point' && !o.state)?.text || 'ここで仲間を待て';
-    if (F.stage === 'contact' && !F.vBroken && !F.squadGuide) return '赤い三角の敵と戦え';
-    if (F.stage === 'hold') {
-      const task = rt.objectives.find((o) => o.id === 'line' && !o.state);
-      if (!F.lineReady && task?.text === '印へ仲間と集まれ') {
-        const d = Math.hypot(rt.player.u.pos.x - F.linePoint.x, rt.player.u.pos.z - F.linePoint.z);
-        return `守る印へ集まれ（あと${Math.max(1, Math.ceil((d - 24) / .75))}歩）`;
-      }
-      return task?.text.replace(/^到着。/, '') || '仲間とこの場を守れ';
-    }
-    return '';
-  },
+  // 右上はミッションの一行だけ。距離・向き・操作の字を見出しに出さない（kaito 10/23 49・50）。
   meleeHitFeedback: true, // 本人の一撃だけ、命中と防がれた時を既存の印で区別する。
   missionStatus() { return ''; }, // 行き先は黄色い矢印と輪だけで示す。
   tacticsCommandText: '', // 横へ回る助言に、操作のない「配下に命じて押せ」を足さない。
@@ -1052,6 +1048,8 @@ const moribe = {
   missionPin(rt) {
     const F = rt.flags, q = F.moribePin;
     if (!q || F.ending || rt.over) return null;
+    // 人を追う印と地面の小旗を区別し、段が変わったら追う相手を消す。
+    q.unit = null;
     if (F.stage === 'contact' && !F.vBroken && !F.squadGuide) return null;
     let pos = null, r = 6, hide = 6;
     if (!F.signal) {
@@ -1068,13 +1066,16 @@ const moribe = {
       pos = u.pos; r = 3; hide = 5;
     } else if (F.stage === 'press') {
       if (!F.marked || gone(F.marked)) return null;
-      for (const u of F.marked.units) if (u.type === 'busho' && u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget) { pos = u.pos; break; }
+      for (const u of F.marked.units) if (u.type === 'busho' && u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget) { pos = u.pos; q.unit = u; break; }
       if (!pos) pos = fightingCenter(F.marked);
       r = 4; hide = 12;
     } else if (F.stage === 'hold' || F.vBroken) {
       // 札の「味方の黄旗」と同じ旗持ちへ。隊の真ん中を指すと、旗と印がずれて見える。
       pos = !gone(F.B) ? F.linePoint : null;
       r = hide = 24;
+    } else if (!gone(F.V)) {
+      // 「斎藤の先手を崩す」の間は、その先手の真ん中へ。味方の旗を指すと、どれが先手か分からない（初めての人の迷い）。
+      pos = fightingCenter(F.V); r = 6; hide = 8;
     } else {
       pos = !gone(F.A) ? flagPos(F.A) : !gone(F.B) ? flagPos(F.B) : null;
       r = hide = 10;
@@ -1820,6 +1821,19 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     const combatSignsOnly = () => rt.flags.stage === 'contact' && !rt.flags.vBroken && !rt.flags.squadGuide;
     const hudBattleGoal = hud.drawBattleGoal, hudFootDirection = hud.drawFootDirection;
     hud.drawBattleGoal = function (g, battle) {
+      // 実際に命を減らした相手の胴へ一瞬だけ印を置く。移動の矢印と形を分ける。
+      const hit = rt.flags.playerHitUnit;
+      if (battle === rt && hit && rt.t < rt.flags.playerHitUntil && sightPoint(rt, hit.pos)) {
+        const at = this.project(hit.pos, hit.pos.y + (hit.mounted ? 2 : 1.2), rt,
+          this.moribeHitProjection || (this.moribeHitProjection = {}));
+        if (!at.behind) {
+          g.save(); g.beginPath();
+          g.moveTo(at.x - 6, at.y - 6); g.lineTo(at.x + 6, at.y + 6);
+          g.moveTo(at.x + 6, at.y - 6); g.lineTo(at.x - 6, at.y + 6);
+          g.strokeStyle = '#14120f'; g.lineWidth = 6; g.stroke();
+          g.strokeStyle = '#fff3ba'; g.lineWidth = 3; g.stroke(); g.restore();
+        }
+      }
       if (battle === rt && combatSignsOnly()) return false;
       return hudBattleGoal.call(this, g, battle);
     };
@@ -1981,7 +1995,12 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     const damage = rt.army.damage;
     rt.army.damage = function (t, amount, src, ...rest) {
       if (t && t.team === 0 && !t.isPlayer && !t.group?.isPlayerSquad && src?.team === 1) amount *= 0.7;
-      return damage.call(this, t, amount, src, ...rest);
+      const hp = t?.hp;
+      const result = damage.call(this, t, amount, src, ...rest);
+      if (src?.isPlayer && t?.team !== src.team && t.hp < hp) {
+        rt.flags.playerHitUnit = t; rt.flags.playerHitUntil = rt.t + .65;
+      }
+      return result;
     };
     const n = Math.min(24, RANKS[rt.G.rank].squad || 5);
     rt.makeSquad({ x: START2.x + 5, z: START2.z - 3 }, Math.PI, [{ kind: 'spear', n }]);   // 組は右前で一緒に流れへ入る
@@ -2009,8 +2028,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     rt.flags.HN = enemyGroup(rt, { faction: 'saito', name: '長井甲斐守の旗本', fixed: true, anchor: { x: -36, z: -58 }, facing: 0, fleeDir: { x: -0.2, z: -1 }, aggro: 3, morale: 100, noRout: true, formation: 'yari', yariRanks: 2 },
       [{ type: 'busho', n: 1, o: { name: '長井甲斐守' } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }]);
     rt.flags.HM.hatamoto = rt.flags.HN.hatamoto = true;
-    for (const [x, z] of [[30, 124], [-30, 126], [0, 120]]) rt.scene.add(nobori(W, x, z, 'oda', 5));
-    for (const [x, z] of [[-20, -92], [0, -96], [-34, -90], [-60, -100], [-46, -100]]) rt.scene.add(nobori(W, x, z, 'saito', 5.5));
+    for (const [x, z] of [[30, 124], [-30, 126], [0, 120]]) rt.scene.add(nobori(W, x, z, 'oda', 5.5));
+    for (const [x, z] of [[0, -96], [-34, -90], [-60, -100]]) rt.scene.add(nobori(W, x, z, 'saito', 5.5));
 
     // 曇天の明るさを保ち、土からの照り返しを抑えて軒裏と具足の陰を分ける。
     const lookOf = W.lookOf;
@@ -2129,7 +2148,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     guard.anchor.z = CAMP2.z - 13;
     for (const u of guard.units) { u.pos.z += shift; u.pos.y = W.heightAt(u.pos.x, u.pos.z); u.mesh.position.copy(u.pos); }
     F.odaCamp.guard.formation = 'yari';
-    rt.scene.add(nobori(W, -12, CAMP2.z + 6, 'eiraku', 6));
+    rt.scene.add(nobori(W, -12, CAMP2.z + 6, 'eiraku', 5.5));
     // 遠景の村（西の在所）
     KT.farVillage(rt, -126, -30, { rot: -Math.PI / 2, n: 6, fields: 8, seed: 4 });
     // 両翼の槍の前線。音・旗・煙の仕組みは共通の呼び口を使う。
@@ -2296,7 +2315,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         const ready = F.pointReady;
         const task = rt.objectives.find((o) => o.id === 'point');
         if (task) {
-          if (!F.pointInside) task.text = `岸の印へ${F.pointReached ? '戻れ' : '渡れ'}（あと${Math.max(1, Math.ceil((d - 10) / .75))}歩）`;
+          if (!F.pointInside) task.text = `岸の小旗へ${F.pointReached ? '戻れ' : '渡れ'}（あと${Math.max(1, Math.ceil((d - 10) / .75))}歩）`;
           else if (F.fordThreat) task.text = 'この場所で仲間と敵を迎え撃て';
           else if (!ready) task.text = `仲間を待て（目安${waitSeconds}秒）`;
           else task.text = '仲間がそろった、味方と進め';
@@ -2345,7 +2364,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       if (lineReady && !fallingBack) F.lineT += elapsed;
       // 敵がいる時もいない時も任務は守備。攻撃を禁じる「待て」は出さない。
       const holdSeconds = Math.max(1, Math.ceil(100 - el));
-      const lineAction = F.breathUntil > rt.t ? '退く道の印へ下がる' : gone(F.B) ? closeEnemy ? '構えながら、南の畦へ下がれ' : '南の畦へ下がる' : u.mobbed ? '味方と列をそろえ直せ' : !insideLine ? '印へ仲間と集まれ' : `仲間と敵を迎え撃て（残り目安${holdSeconds}秒）`;
+      const lineAction = F.breathUntil > rt.t ? '退く道の印へ下がる' : gone(F.B) ? closeEnemy ? '構えながら、南の畦へ下がれ' : '南の畦へ下がる' : u.mobbed ? '味方と列をそろえ直せ' : !insideLine ? '印へ仲間と集まれ' : `到着。この場を守れ（反撃まで最長${holdSeconds}秒）`;
       const task = rt.objectives.find((o) => o.id === 'line');
       if (task) task.text = lineAction;
       const guardHelp = closeEnemy && lineReady && !fallingBack && !F.squadGuide ? '。印に到着。味方とこの場を守れ' : '';
@@ -2423,6 +2442,9 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         else if (target) rt.marker('commanders', centerOf(target), '斎藤の旗', { red: true, group: target });
         else rt.unmark('commanders');
       }
+      // 進む印と任務は同じ大将一人を指す。二人分の長い官名を並べない。
+      const markedBoss = F.marked?.units.find((u) => u.type === 'busho' && u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget);
+      if (task && markedBoss && !F.squadGuide) task.text = `${markedBoss.name}を仲間と討て`;
       rt.objProgress('commanders', '');
       if (!left && !F.routWaitSaid && (F.bossDown || 0) < 2) { F.routWaitSaid = true; orderSpeech(rt, '敵は引いた。ほかの手の敗走を確かめるまで、川への道を守れ', 4); }
       if (left) F.routConfirmT = null;

@@ -1322,6 +1322,8 @@ export function touchFrame(dt) {
   btn.more.setAttribute('aria-description', T.foldNames);
   if (btn.more.title !== '武器の持ち替え・馬の追加操作を開く') btn.more.title = '武器の持ち替え・馬の追加操作を開く';
   if (T.more && !T.held.size && !root.querySelector('.on') && (T.moreT = (T.moreT || 0) + dt) > 6) T.more = false;
+  // 戦の画面の丸は 攻撃・武器を替える だけ（動かす棒は別）。構え・よける・狙う・鼓舞・取る・乗る などは出さない（kaito 10/23「狙う避けるはもうないよね」）。
+  if (!town && !b.def.dojo) for (const id in btn) if (id !== 'atk' && id !== 'wpn' && id !== 'spear') hide(btn[id], true);
   for (const id of LABEL_BTNS) {
     const el = btn[id], label = el.firstChild.textContent + (el.querySelector('small')?.textContent ? '、' + el.querySelector('small').textContent : '');
     if (el.getAttribute('aria-label') !== label) el.setAttribute('aria-label', label);
@@ -1782,7 +1784,8 @@ const COACH_BTN = { c_swing: 'atk', c_cmd: 'cmd', thrust: 'atk', combo: 'atk', r
 function coachGlow(b) {
   // 初めての戦の手ほどき（auto）と、戦ごとの手ほどき（桶狭間の稽古など）の両方
   const t = b.tut || null;
-  const cur = coachAllowed(b) && t && !t.ok && b.hud.notices.visible('tutorial') ? t.items.find((x) => !x.done) : null;
+  // 戦の画面では丸を光らせない（点滅させない。kaito 10/23「チカチカがほんとにやだ」）。
+  const cur = !b.def.town && !b.def.dojo ? null : coachAllowed(b) && t && !t.ok && b.hud.notices.visible('tutorial') ? t.items.find((x) => !x.done) : null;
   const id = cur && !(touchMoveLearned(b) && ['c_move', 'move', 'run'].includes(cur.id)) ? cur.id : '';
   if (T.glowId === id && T.coachSwap === S.touchSwap && T.coachTut === t) return;
   T.glowId = id; T.coachSwap = S.touchSwap; T.coachTut = t;

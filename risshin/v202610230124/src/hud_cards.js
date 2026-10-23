@@ -118,7 +118,8 @@ export class HudCards {
   // 敵印。枠は初回に確保し、毎コマは頭の位置だけ更新する。
   enemyTriangleSigns(rt) {
     const me = rt.player.u;
-    const on = rt.def.enemyTriangleSigns && me.alive && !rt.over && !rt.choice &&
+    // 敵の▼は field_signs.js の一つの形に任せる（頭上に固定。字の▼を毎コマ見え隠れさせない。kaito 10/23）。
+    const on = !pinGuideOn(rt) && rt.def.enemyTriangleSigns && me.alive && !rt.over && !rt.choice &&
       !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
     if (!this.enemyTriangles) {
       if (!on) return;
@@ -274,6 +275,8 @@ export class HudCards {
 #hud #h-prog { position:absolute; right:calc(16px + env(safe-area-inset-right, 0px)); top:calc(14px + env(safe-area-inset-top, 0px)); box-sizing:border-box; width:max-content; max-width:calc(100% - 32px); padding:8px 12px; background:#14120f; border-right:3px solid var(--kin); color:#fff3df; font-size:max(20px, calc(20px * var(--text-scale, 1))); line-height:1.4; text-align:right; pointer-events:none; }
 #hud #h-prog .pg-st b { display:none; }
 #hud #h-prog .pg-st span { font-weight:700; }
+#hud #h-prog .pg-view { min-height:44px; padding:8px 12px; border:2px solid #c2a25a; background:#47391f; color:#fff3df; font:inherit; font-weight:700; cursor:pointer; pointer-events:auto; }
+#hud #h-prog .pg-view:focus-visible { outline:3px solid #fff3df; outline-offset:3px; }
 #hud #h-prog .pg-next { margin-top:1px; font-size:max(12px, calc(13px * var(--text-scale, 1))); color:#e6dcc6; }
 #hud #h-prog .pg-context { font-size:12px; color:#e6dcc6; }
 #hud #h-prog .pg-dots { margin-top:2px; letter-spacing:.2em; color:var(--kin); font-size:12px; }
@@ -340,8 +343,8 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     el.hidden = !!rt.over; root.classList.toggle('prog-on', !rt.over);
     const [stEl, nextEl, dotsEl, timeEl, contextEl] = el.children;
     const context = typeof def.missionContext === 'function' ? def.missionContext(rt) : def.missionContext;
-    // 右上は任務の一行・段の進み・行き先の向きだけ（字を減らす。kaito 10/23 稲生 49・50・52）。年月の行は出さない。
-    void context; setText(contextEl, ''); contextEl.hidden = true;
+    // 右上は任務の一行・段の進み・行き先の向きだけ（字を減らす。kaito 10/23 稲生 49・50・52）。稲生では戦の年と場所を小さく添える。
+    setText(contextEl, def.key === 'inou' ? context || '' : ''); contextEl.hidden = def.key !== 'inou' || !context;
     const list = def.missions || def.stages;
     const task = currentObjective(rt)?.text || '';
     const taskLine = task.replace(/^使番「|」$/g, '').split(/[。／]/)[0].trim();
@@ -359,7 +362,29 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     // 「左へ下がる」のような向きの字は出さない（kaito 10/23）。
     const yaw = rt.player.yaw + (rt.player.camYawOff || 0), p = rt.player.u.pos;
     const headline = missionCaption(rt, def.missionTaskFirst ? task || title : title || task);
-    setText(stEl.lastChild, headline);
+    const viewLesson = def.key === 'inou' && rt.flags.step === 0 && rt.flags.training === 0 && rt.flags.lesson === 'view';
+    if (viewLesson) {
+      // 読んだ札をそのまま押せる。釦は使い回し、斬る操作へ押下を流さない。
+      if (!this.viewLessonButton) {
+        const button = this.viewLessonButton = document.createElement('button');
+        button.type = 'button'; button.className = 'pg-view';
+        for (const name of ['pointerdown', 'pointerup', 'keydown', 'keyup']) button.addEventListener(name, e => e.stopPropagation());
+        button.addEventListener('click', e => {
+          e.preventDefault(); e.stopPropagation();
+          const battle = this.rt;
+          if (!battle || battle.def.key !== 'inou' || battle.over || battle.choice || battle.game.paused || !battle.player.u.alive ||
+              battle.flags.step !== 0 || battle.flags.training !== 0 || battle.flags.lesson !== 'view' || button.disabled) return;
+          button.disabled = true;
+          battle.player.toggleView();
+        });
+      }
+      const button = this.viewLessonButton;
+      if (button.parentElement !== stEl.lastChild) { setText(stEl.lastChild, ''); stEl.lastChild.replaceChildren(button); button.disabled = false; }
+      setText(button, headline);
+    } else {
+      if (this.viewLessonButton?.parentElement === stEl.lastChild) stEl.lastChild.replaceChildren();
+      setText(stEl.lastChild, headline);
+    }
     // 戦固有の案内と任務の進みは残す。同じ任務の全文は重ねない。
     const status = def.missionStatus?.(rt, taskLine);
     const sub = def.missionDetail ? def.missionDetail(rt) :

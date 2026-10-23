@@ -103,9 +103,9 @@ const MOURNING = [
   '惜しい者を失った……。残る者を守るぞ', '無念じゃ。だが列を空けてはならぬ', 'その働きは覚えておく。今は退く道を守れ',
   '仲間が……。残る者は離れるな！', '忘れぬぞ。今は皆を守る！', '無念じゃ……。その持ち場はわしが支える！',
 ];
-// 導入の札と決着後の場面は残し、戦の最中は台詞を使わない。
+// 戦の画面では台詞の字を使わない。決着の前後も同じ（鬨の声は音だけ。kaito 10/23「無駄なものが多すぎる」）。
 export function battleDialogueMuted(rt) {
-  return !!rt?.def && !rt.def.town && !rt.over && !rt.flags?.ending && rt.phase !== 'end';
+  return !!rt?.def && !rt.def.town;
 }
 export function battleSpeechAllowed(rt, speaker, text, unit = undefined) {
   if (battleDialogueMuted(rt)) return false;

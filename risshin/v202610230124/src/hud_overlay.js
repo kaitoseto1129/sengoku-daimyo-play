@@ -223,18 +223,11 @@ export class HudOverlay {
     this.ovBlank = true;
     if (this.root.classList.contains('photo')) return;
     this.drawRainDrops(g, W, H, rt); this.drawBrim(g, W, H, rt);
-    this.ovBlank = false;
-    if (rt.over || rt.choice || this.introWaiting || rt.player.camShot || this.bigmap) return;
-    this.hudRects();
-    this.drawMissionArea(g, rt); this.drawMissionEnemies(g, rt);
-    const marker = rt.missionGuide?.marker, P = rt.player;
-    const person = typeof marker?.guidePerson === 'function' ? marker.guidePerson() : marker?.guidePerson;
-    const ally = rt.def.missionAlly?.(rt) || rt.def.guardGuideTarget?.(rt) || rt.def.guardTarget?.(rt);
-    this.drawPlayerSign(g, rt);
-    this.drawFollowAlly(g, rt, rt.def.missionAlly?.(rt));
-    this.teamSignsDrawn = false;
-    this.drawNearbyTeamSigns(g, rt, rt.army.units);
-    // 武将の名は field_signs.js が出す（戦の終わりまで消さない。kaito 10/23 稲生 40）。
+    // 雨粒も笠の縁も無いコマは、次のコマで消す仕事を省く。
+    this.ovBlank = !(this.drops && this.drops.length) && !((rt.player.fpK || 0) > 0.7);
+    // 戦の画面の重ね描きは、雨粒と笠の縁だけ。持ち場の輪・敵の枠・自分の輪・味方の旗・所属の印は描かない。
+    //   行き先はピン（mission_pin.js）、敵は頭上の赤い▼、武将の名と体力は field_signs.js（kaito 10/23）。
+    this.battleSignEnemy = null; this.enemyFrameShown = false;
   }
 
   // 兵の頭上の体力（近くの兵だけ）

@@ -14,6 +14,7 @@ import { customFlag } from './b_inabayama.js';
 import { farArmy, moveFar, gone, sky } from './b_shared.js';
 import { sfx, hush } from './audio.js';
 import { sightPoint } from './battle_sight.js';
+import { revealName } from './battle_intel.js';
 import { demBlend } from './dem.js';
 import { sendOrder, posOf } from './denrei.js';
 import { clash } from './b_sekigahara.js';
@@ -536,7 +537,7 @@ function quietOtherFlags(rt, keep) {
   const team = rt.player.u.team;
   for (const g of rt.army.groups) {
     if (g.team !== team || g.isPlayerSquad || !g.stds?.length) continue;
-    const k = !keep || g === keep ? 1 : .55;
+    const k = 1; // 旗の大きさは揃える（kaito 10/23 48）。追う先はピン一本で示す。
     for (const s of g.stds) if (s.parent && s.parent !== rt.scene && s.scale.x !== k) s.scale.setScalar(k);
   }
 }
@@ -545,9 +546,7 @@ const okehazama = {
   jinkei: OKEHAZAMA_JIN,
   minutes: 7,
   nearbyAllySignLimit: 3, // 近い味方は丸、追う本人は切れ込み旗で分ける。
-  missionHeading(rt) {
-    return this.taskLabel(rt);
-  },
+  // 右上はミッションの一行だけ。距離・向き・操作の字を見出しに出さない（kaito 10/23 49・50）。
   // 距離は実際の武器の届く範囲で判定し、攻める相手と札をそろえる。
   enemyOrder(rt, enemy) {
     if (!enemy) return '仲間と赤い▼の敵を迎え撃つ';
@@ -578,7 +577,6 @@ const okehazama = {
   noReserve: true,
   botOrders: true,   // 性格の突進で、組について進む下知や反撃の隙を上書きしない。
   contextualCoach: false, // 操作は稲生で覚える。この戦では目的と行き先を伝える。
-  missionTaskFirst: true,
   tacticsCommandText: '', // この戦では組について動く。操作の案内がない指揮を要求しない。
   pauseRetry: true, // やり直しを選ぶ間に味方が討たれ、戦況が変わらないようにする。
   retryReason(rt) {
@@ -637,9 +635,16 @@ const okehazama = {
     return marked;
   },
   // 戦の段だけで番号を進める。包囲や到着で指示が替わっても別の任務にしない。
-  missions: ['矢印のたいちょうに近づく', '矢印の旗持ちと谷を進む', '旗のそばで雨やみを待つ', '敵のいる幕へ進む', '味方と敵を追う', '仲間と帰る'],
-  missionOf: (rt) => rt.flags.victory ? rt.flags.pursuitDone ? 5 : 4 :
-    rt.phase === 'assault' ? 3 : rt.phase === 'wait' ? 2 : rt.phase === 'march' ? 1 : 0,
+  // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
+  bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
+  // 右上の一行は「何をするか」だけ（kaito 10/23 49・50）。向き・行き先の字は書かない。
+  missions: ['たいちょうと合流する', '今川の本陣へ忍び寄る', '雨がやむまで旗の下で待つ', '道を守る今川勢を破る', '今川義元を討つ', '逃げる今川勢を追う', '勝ちどきの旗に集まる'],
+  missionOf: (rt) => {
+    const F = rt.flags;
+    if (F.victory) return F.pursuitDone ? 6 : 5;
+    if (rt.phase === 'assault' && F.entered) { revealName(rt, '今川義元'); return 4; }
+    return rt.phase === 'assault' ? 3 : rt.phase === 'wait' ? 2 : rt.phase === 'march' ? 1 : 0;
+  },
   // 今の行き先と同じ旗持ちを示す。兵は増やさない。
   missionAlly(rt) {
     if (rt.phase === 'brief') return rt.flags.genpachi && readyUnit(rt.flags.genpachi) ? rt.flags.genpachi : null;
@@ -690,7 +695,6 @@ const okehazama = {
       : `雨やみまで あと${Math.max(0, Math.ceil(F.waitReadyAt - 6 - rt.t))}秒`;
     return '';
   },
-  missionTaskFirst: true,
   missionStatusMaxLength: 30,
   missionContext: '',
   missionStatusFirst: true,
@@ -1696,7 +1700,7 @@ const okehazama = {
     // 本陣の脇に兵糧の俵
     scenery.scene.add(tawara(W, HONJIN.x - 16, HONJIN.z + 4, 0.3, 6), tawara(W, HONJIN.x + 16, HONJIN.z - 3, -0.5, 5));
     const supplyCloth = okeSupplyCovers(scenery);
-    for (const [x, z] of [[6, -106], [30, -106], [4, -128], [32, -128]]) scenery.scene.add(nobori(W, x, z, 'imagawa', 6));
+    for (const [x, z] of [[6, -106], [30, -106]]) scenery.scene.add(nobori(W, x, z, 'imagawa', 5.5));
     // 今川の赤鳥の幟：白地に朱の赤鳥（櫛の形）。本陣の奥に混ぜる
     customFlag('akadori', (g) => {
       g.save(); g.fillStyle = g.strokeStyle = '#a8281c';
@@ -1706,7 +1710,7 @@ const okehazama = {
       g.fillStyle = '#e8e2d2'; g.beginPath(); g.ellipse(0, -8, 22, 8, 0, Math.PI, 0); g.fill();
       g.restore();
     });
-    for (const [x, z] of [[12, -132], [26, -132], [-2, -118]]) scenery.scene.add(nobori(W, x, z, 'akadori', 6.5));
+    for (const [x, z] of [[12, -132], [26, -132]]) scenery.scene.add(nobori(W, x, z, 'akadori', 5.5));
     // 隊の中心へ攻め寄せた兵が焚火の当たりで止まらないよう、火は備えの脇に置く。
     // 円陣の中心（18, -114）と退く口も空ける。
     for (const [x, z] of [[-10, -96], [50, -92], [-32, -118], [10, -116]]) { scenery.scene.add(campfire(W, x, z)); rt.world.addFire(fieldX(x, z), fieldZ(x, z)); }
@@ -1767,7 +1771,7 @@ const okehazama = {
     rt.flags.okeSquadN = squadN;
     // 信長の馬廻
     const nob = allyGroup(rt, { fixed: true, fullStrength: true, noGuard: true, name: '馬廻', anchor: fieldPoint(-44, 2), facing: Math.PI + FIELD_TURN, formation: 'column', order: 'hold', speed: 3.3, noRout: true },
-      [...(rt.G.lord ? [] : [{ type: 'busho', n: 1, o: { name: '織田信長', invuln: true, flag: 'eiraku', horse: true, haori: 0x7a1d14 } }]), { type: 'samurai', n: 1, o: { name: '服部小平太', flag: 'eiraku', invuln: true, horse: false } }, { type: 'samurai', n: 1, o: { name: '毛利新介', flag: 'eiraku', invuln: true, horse: false } }, { type: 'busho', n: 1, o: { name: '前田利家', flag: 'eiraku', invuln: true, horse: false } }, { type: 'busho', n: 1, o: { name: '木下雅楽助', flag: 'eiraku', invuln: true, horse: false } }, { type: 'busho', n: 1, o: { name: '中川金右衛門', flag: 'eiraku', invuln: true, horse: false } }, { type: 'samurai', n: 12, o: { flag: 'eiraku', horse: false } }]);
+      [...(rt.G.lord ? [] : [{ type: 'busho', n: 1, o: { name: '織田信長', invuln: true, flag: 'eiraku', horse: true, haori: 0x7a1d14 } }]), { type: 'samurai', n: 1, o: { name: '服部小平太', flag: 'eiraku', invuln: true, horse: false } }, { type: 'samurai', n: 1, o: { name: '毛利新介', flag: 'eiraku', invuln: true, horse: false } }, { type: 'busho', n: 1, o: { name: '前田利家', flag: 'eiraku', invuln: true, horse: false } }, { type: 'busho', n: 1, o: { name: '木下雅楽助', flag: 'eiraku', invuln: true, horse: false } }, { type: 'busho', n: 1, o: { name: '中川金右衛門', flag: 'eiraku', invuln: true, horse: false } }, { type: 'samurai', n: 3, o: { flag: 'eiraku', horse: false } }, { type: 'ashigaru', n: 12, o: { flag: 'eiraku' } }]);
     nob.path = [[-44, 2], [-44, -30]].map(fieldPathPoint);
     nob.onArrive = (g) => { g.order = 'hold'; g.formation = 'line'; g.facing = Math.PI + FIELD_TURN; };
     rt.flags.nob = nob;
@@ -1812,7 +1816,7 @@ const okehazama = {
     E.push(enemyGroup(rt, { fixed: true, noGuard: true, faction: 'imagawa', formation: 'yari', spacing: 1.5, width: 12, anchor: fieldPoint(-4, -134), facing: (0.2) + FIELD_TURN, morale: 85, fleeDir: fieldVector(-0.2, -1), aggro: 7 }, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 11 }, { type: 'bow', n: 2 }]));
     // 義元が刀で戦う姿は後世の伝承を借りた補い。武将の既定の騎乗を使わない。
     const H = enemyGroup(rt, { fixed: true, noGuard: true, faction: 'imagawa', name: '義元の旗本', formation: 'ring', yariRanks: 3, width: 12, anchor: fieldPoint(HONJIN.x, HONJIN.z + 2), facing: FIELD_TURN, morale: 100, fleeDir: fieldVector(0, -1), aggro: 6, noRout: true, spacing: 1.8 },
-      [{ type: 'busho', n: 1, o: { name: '今川義元', horse: false, invuln: true, noHead: true, flagScale: 1.4 } }, { type: 'busho', n: 1, o: { name: '山田新右衛門', horse: false } }, { type: 'samurai', n: 29, o: { hp: 55, maxHp: 55 } }]);
+      [{ type: 'busho', n: 1, o: { name: '今川義元', horse: false, invuln: true, noHead: true } }, { type: 'busho', n: 1, o: { name: '山田新右衛門', horse: false } }, { type: 'samurai', n: 5, o: { hp: 55, maxHp: 55 } }, { type: 'ashigaru', n: 24, o: { hp: 55, maxHp: 55 } }]);
     rt.flags.yoshimoto = H.units[0];
     // 義元は主人公だけでなく味方の槍でも傷つく。首を挙げる筋は毛利新介へ結ぶ。
     H.units[0].allyOk = true;

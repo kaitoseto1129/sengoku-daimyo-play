@@ -555,7 +555,7 @@ export class Player {
     if (this.hasKatana) this.swordMesh = weaponMesh('sword');
     // 飛び道具（問屋で買った物）：火縄銃（3）と弓（4）。持ち替えて撃つ・射る
     this.hasGun = G.owned.includes('teppo');
-    this.hasBow = G.owned.includes('yumi');
+    this.hasBow = G.owned.includes('yumi') || !!rt.def?.lendBow; // 戦で貸す弓（稲葉山＝弓を覚える戦。kaito 10/23）
     if (this.hasGun) this.gunMesh = weaponMesh('gun');
     this.u.gunRainCover = !!this.gunMesh?.userData.rainCover;
     if (this.hasBow) this.bowMesh = weaponMesh('bow');
@@ -4133,7 +4133,8 @@ export class Player {
     // 武器を右手で画面の右に、手綱を左手で画面の左に見せる（動きの計算は映す前のまま。描く間だけ）
     if (u.mesh) { u.mesh.scale.x = -u.mesh.scale.x; u.mesh.updateMatrixWorld(true); this.mirOn = u.mesh; }
     // 目のすぐ前に来た自分の袖・肩の板（胴丸）は描かない。作った袖は隠す
-    setFpCut(cam.position, 0.24); setFpArm(true);
+    // 初陣の胴丸は肩と袖が目を囲む。手と槍を残し、目の周りの具足だけ広めに除く。
+    setFpCut(cam.position, rt.def.key === 'inou' ? 0.65 : 0.24); setFpArm(true);
     if (h && h.parts) {
       for (const k of ['sodeP', 'sodeN', 'yoke', 'back', 'pole']) { const o = h.parts[k]; if (o && o.visible) { o.visible = false; hid.push(o); } }
       // 馬上：鞍に座った腿の筒（袴・佩楯の部品）は目の真下 0.5m に来て、見下ろすと中の空いた青い板が浮いて見える。一人称では描かない（見本の体の腿がそのまま見える）
