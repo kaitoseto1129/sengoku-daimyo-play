@@ -149,9 +149,9 @@ const inou = {
   missionPinCaption: '',
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
   // 任務は一行。距離・向き・操作は書かず、同じ兵をピンで追う。
-  missions: ['林の兵を倒せ', '林の兵を倒せ', '柴田隊に耐えろ', '林美作守を倒せ'],
+  missions: ['林美作守の兵（赤い▼）を倒せ', '林美作守の兵（赤い▼）を倒せ', '柴田隊に耐えろ', '林美作守を倒せ'],
   missionHeading(rt) {
-    return rt.flags.step === 0 && rt.flags.training === 8 ? '林の小隊長を倒せ' : this.missions[this.missionOf(rt)];
+    return rt.flags.step === 0 && rt.flags.training === 8 ? '林美作守の小隊長を倒せ' : this.missions[this.missionOf(rt)];
   },
   // 控えや追跡中の兵も敵の姿として見分けられる。攻撃できるかで▼を消さない。
   foeMarkVisible: () => true,
@@ -369,7 +369,7 @@ const inou = {
 
     rt.world.setTime('day');
     rt.setPhase('brief');
-    rt.obj('main', '前へ二メートル歩く', 'main');
+    rt.obj('main', '林美作守の兵を倒せ', 'main');
     rt.obj('stay', '信長の旗のそばで戦う', 'side');
     rt.marker('holdFlag', () => F.nobuU?.alive ? F.nobuU.pos : NOBU, '信長の旗',
       { guideArea: 'guard', guideFlag: true, guideDefend: true, guideRadius: 20 });
@@ -413,7 +413,7 @@ const inou = {
     }
     if (phase === 1) {
       rt.setPhase('march');
-      rt.obj('main', '林の兵を倒せ', 'main');
+      rt.obj('main', '林美作守の兵を倒せ', 'main');
       for (const g of [F.practice, F.chaseA]) {
         g.order = 'move'; g.dest = { x: g.anchor.x, z: g.anchor.z - 60 };
       }
@@ -428,13 +428,13 @@ const inou = {
       F.practice = g;
       prepareMarch(g);
       for (const u of g.units) { u.hp = u.maxHp = Math.max(30, rt.player.u.dmg * 2.2); u.cdBase *= 1.8; }
-      rt.obj('main', phase === 2 ? '赤い▼の林の兵を槍で突こう' : phase === 3 ? '林の兵をたおそう' : '林の強い兵をたおそう', 'main');
+      rt.obj('main', '林美作守の兵を倒せ', 'main');
       // 構える・避けるは教えない（自分で判断できる。kaito 10/23 稲生 4）。
       if (phase === 2) lesson(rt, 'thrust'); return;
     }
     if (phase === 5) {
       rt.setPhase('hayashiSkirmish');
-      rt.obj('main', '味方とならんで、林の兵をおし返そう', 'main');
+      rt.obj('main', '林美作守の兵を倒せ', 'main');
       rt.say('組頭 源八', '林の兵が来たぞ。味方と一緒に戦え！', 4);
       F.hata.aggro = 8; F.hata.order = 'attack'; F.hata.seekRange = 24;
       F.haya1.aggro = 6; F.haya1.fire = true;
@@ -452,7 +452,7 @@ const inou = {
     }
     if (phase === 8) {
       F.hayaLead.noTarget = false;
-      rt.obj('main', '味方と林の隊長をたおそう', 'main');
+      rt.obj('main', '林美作守の小隊長を倒せ', 'main');
       rt.say('組頭 源八', 'あの隊長をたおせば林の兵はにげる。味方と押せ！', 4);
       lesson(rt, 'morale');
     }
@@ -701,7 +701,7 @@ const inou = {
           F.chaseA.onArrive = (q) => { for (const u of q.units) { u.mesh.visible = false; u.noTarget = true; } };
           g.order = 'attack'; g.aggro = 12; g.seekRange = 30; g.speed = 1.6;
           for (const u of g.units) u.noTarget = false;
-          rt.obj('main', '林の兵を倒せ', 'main');
+          rt.obj('main', '林美作守の兵を倒せ', 'main');
           rt.say('組頭 源八', '追いついたぞ。倒せ！', 3);
           lesson(rt, 'kill');
         }

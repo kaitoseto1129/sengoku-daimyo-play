@@ -158,6 +158,10 @@ export class HudDestination {
   drawNamedDestination(g, rt, pos, doorwayFrame = null) {
     if (this.namedGoalDrawn) return true;
     if (this.releaseMoveActive || this.releaseGestureDrawn) return true;
+    // 輪や戸口が画面外でも、通れる床へ足あとと進む矢印を残す。携帯も同じ道を使う。
+    if (rt.def.routeFootsteps && !rt.missionGuide?.marker?.waitArrived?.() &&
+        Math.hypot(pos.x - rt.player.u.pos.x, pos.z - rt.player.u.pos.z) > 1.2)
+      this.drawRouteFootsteps(g, rt, pos);
     const destinationLabel = rt.def.namedDestinationLabel?.(rt, pos) || '';
     const point = this.project(pos, groundAt(rt.world, pos.x, pos.z, pos.y ?? rt.player.u.pos.y) + .15,
       rt, this.namedGoalPoint || (this.namedGoalPoint = {}));
@@ -169,7 +173,7 @@ export class HudDestination {
       const inset = Math.min(.35, distance * .5) / distance;
       probe.x = pos.x + (rt.camera.position.x - pos.x) * inset;
       probe.z = pos.z + (rt.camera.position.z - pos.z) * inset; probe.y = pos.y ?? rt.player.u.pos.y;
-      framed = sightPoint(rt, probe, 170, true, 1.2) && this.drawDoorwayFrame(g, rt, doorwayFrame, false);
+      framed = sightPoint(rt, probe, 170, true, 1.2) && this.drawDoorwayFrame(g, rt, doorwayFrame);
     }
     let x = framed ? this.doorwayBounds.arrowX : point.x;
     let y = framed ? this.doorwayBounds.arrowY + 17 : point.y, edgeAngle = null;
@@ -244,8 +248,8 @@ export class HudDestination {
       const opening = this.opening;
       this.drawDestinationTrail(g, rt, x, y, opening.swipeX, opening.swipeY - 64);
     }
-    if (edgeAngle === null) {
-      if (!framed && !rt.def.destinationPin) this.drawGoalArrivalRing(g, point.x, point.y);
+    if (edgeAngle === null && !framed) {
+      if (!rt.def.destinationPin) this.drawGoalArrivalRing(g, point.x, point.y);
       if (destinationLabel) this.drawNavigationArrow(g, x, y - 32, Math.PI / 2, 1.1, true);
       if (rt.def.destinationPin) this.drawDestinationPin(g, x, y);
       else if (openingControls || destinationLabel && !attached) {
@@ -262,13 +266,13 @@ export class HudDestination {
         g.save(); g.font = `bold ${size}px serif`; g.textBaseline = 'middle';
         g.fillStyle = '#241d15'; g.fillText('ここへ', left + 36, top + height / 2); g.restore();
       } else if (!attached) this.drawFlagDestinationSign(g, x + 9, y - 17);
-    } else {
+    } else if (edgeAngle !== null) {
       // 画面外は向きだけ。端に着地点の旗や輪を作らない。
       this.drawNavigationArrow(g, x, y, edgeAngle, destinationLabel ? 1.1 : .65, true, false, true);
     }
     this.namedGoalDrawn = true; this.goalFlagDrawn = true;
     // 指の手本とは離し、次に踏める床へ短い矢印を寝かせる。
-    if (!isTouch) this.drawDestinationStep(g, rt, pos, true);
+    if (!isTouch && !rt.def.routeFootsteps) this.drawDestinationStep(g, rt, pos, true);
     return true;
   }
 
@@ -710,7 +714,7 @@ export class HudDestination {
     // 細い開口でも印を消さず、矢じりを実際の戸口の内側へ置く。
     // 普通の行き先で使う小旗への置き換えを避け、大きな矢印を保つ。
     const scale = 1.25;
-    if (arrow && !rt.def.routeFootsteps) this.drawNavigationArrow(g, bounds.arrowX, Math.min(bottom - 8, bounds.arrowY + 26 * scale),
+    if (arrow) this.drawNavigationArrow(g, bounds.arrowX, Math.min(bottom - 8, bounds.arrowY + 26 * scale),
       Math.PI / 2, scale, true, true);
     this.doorFramePolygon = poly; this.doorFrameCount = count;
     this.placeFrameShown = true;

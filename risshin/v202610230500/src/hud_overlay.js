@@ -25,13 +25,21 @@ export class HudOverlay {
     g.bezierCurveTo(x - 26, y - 53, x + 26, y - 53, x + 13, y - 25);
     g.closePath();
     g.strokeStyle = '#14120f'; g.lineWidth = 7; g.stroke();
-    g.fillStyle = '#fff3ba'; g.fill();
-    g.beginPath(); g.arc(x, y - 33, 9, 0, Math.PI * 2);
+    g.fillStyle = pin?.arrived ? '#14120f' : '#fff3ba'; g.fill();
+    if (pin?.arrived) {
+      g.strokeStyle = '#fff3ba'; g.lineWidth = 3; g.stroke();
+    }
+    g.beginPath(); g.arc(x, y - 33, 12, 0, Math.PI * 2);
     g.fillStyle = '#14120f'; g.fill();
+    // 実際の到着半径へ入った時だけ、同じピンの内周を閉じる。
+    // 地点を踏み直す必要がないことを形で伝え、別の輪や札は足さない。
+    if (pin?.arrived) {
+      g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
+    }
     if (pin?.progress > 0) {
       // ピンの中だけを満たす。待ち時間の札や別の印は増やさない。
       g.beginPath(); g.moveTo(x, y - 33);
-      g.arc(x, y - 33, 8, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, pin.progress));
+      g.arc(x, y - 33, 10, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, pin.progress));
       g.closePath(); g.fillStyle = '#e8c25a'; g.fill();
     }
     g.restore();
