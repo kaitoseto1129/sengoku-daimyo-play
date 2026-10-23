@@ -478,7 +478,8 @@ function dressKabuto(h) {
 }
 // 人と具足の素材は、出陣や姿の見本で必要になった時だけ読む。
 // 本物の胴丸を着る人：名のある武将と、look.real の人（侍大将より上の本人）
-function wantsDomaru(look) { return DOMARU.on && !!look && (!!look.hero || !!look.real || isNamed(look)); }
+// 小袖・僧衣は衣そのものが胴と腕を描く。名将でも鎧の経路へ送って中の体を隠さない。
+function wantsDomaru(look) { return DOMARU.on && !!look && !look.kosode && !isSohei(look) && (!!look.hero || !!look.real || isNamed(look)); }
 // 近い一般兵は全員スキャンの具足。遠景は dressCrowd の元の姿を使う。
 const crowdDomaru = (look) => DOMARU.on && DOMARU.crowd && !!look && !look.kosode && !isSohei(look) && !wantsDomaru(look);
 // 着せる時の骨の立ち姿（人の根元の座標）の逆行列。腕と脚の骨は人形の腕・脚の向きへ回し、どの骨も人形の関節の位置へ

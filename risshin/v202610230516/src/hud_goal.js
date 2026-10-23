@@ -24,6 +24,15 @@ export class HudGoal {
     if (singleBattleGuide(rt) && (groundFlag(rt.missionGuide) || marker?.guideWaitRing) &&
         !marker?.guidePerson && !marker?.entrance && !marker?.guideDefend && !marker?.treatment) {
       setClass(this.root, 'travel-guide', true);
+      // 共通の旗案内から入っても、遠い目的地へ飛ばさず最初の戸口を囲む。
+      if (rt.def.routeDestinationSight && marker?.id === 'next' && marker.guideArea !== 'wait' &&
+          !marker.waitGuide && rt.def.routeGuidePriority?.(rt)) {
+        const sign = rt.def.routeSignPoint?.(rt, pos) || pos;
+        const point = this.singleGoalPoint || (this.singleGoalPoint = { x:0, y:0, z:0 });
+        point.x = sign.x; point.z = sign.z;
+        point.y = sign.y ?? groundAt(rt.world, sign.x, sign.z, rt.player.u.pos.y);
+        return this.drawNamedDestination(g, rt, point, sign.door ? sign.frame : null);
+      }
       return this.drawNamedDestination(g, rt, pos);
     }
     if (this.drawDefendedFlag(g, rt, marker, pos)) return true;

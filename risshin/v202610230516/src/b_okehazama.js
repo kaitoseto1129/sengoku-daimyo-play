@@ -641,7 +641,7 @@ const okehazama = {
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は、今する動きを短くやさしく伝える。
   missionSingleLine: true,
-  missions: ['織田隊の所へ', '織田隊の所へ', '雨やみを待て', 'いまがわ兵をたおそう', 'いまがわよしもとをたおそう', 'にげるいまがわ兵を追おう', '織田隊の所へ'],
+  missions: ['織田隊に合流せよ', '織田隊に合流せよ', '雨やみを待て', 'いまがわ兵をたおそう', 'いまがわよしもとをたおそう', 'にげるいまがわ兵を追おう', '織田隊に合流せよ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -708,7 +708,7 @@ const okehazama = {
       pin.x = pos.x; pin.z = pos.z;
       pin.r = rt.phase === 'brief' ? JOIN_RADIUS : 8;
       // ピンは到着判定と同じ地面の一点へ。人物への話しかけの印にしない。
-      pin.hide = 0; pin.waiting = true; pin.area = true;
+      pin.hide = 0; pin.waiting = false; pin.area = true;
       pin.arrived = rt.phase === 'brief' && F.briefed || this.squadFlagReached(rt);
       // 待機や接敵中は行き先を重ねず、待つ進みは右上の丸に任せる。
       if (pin.arrived || F.scoutFighting) return null;
@@ -1412,7 +1412,9 @@ const okehazama = {
     /* 任務は一行。待つ間だけ、同じ場所の丸が合図まで満ちる。 */
     html:root body #hud[data-oke-task].mission-only #h-prog .pg-next:not([hidden]) { display:block !important; }
     html:root body #hud[data-oke-task].mission-only #h-prog .pg-time:has(.pg-pie:not([hidden])) { display:flex !important; }
-    #hud[data-oke-task] #h-prog .pg-pie { width:28px; height:28px; margin-top:4px; }
+    /* 操作する札に見せず、目的だけを戦場へ重ねる。 */
+    html:root body #hud[data-oke-task] #h-prog { background:none; border:0; text-shadow:0 2px 3px #14120f, 0 0 4px #14120f; }
+    #hud[data-oke-task] #h-prog .pg-pie { width:36px; height:36px; margin-top:4px; }
     html:root body #hud[data-oke-task].mission-only #h-prog .pg-st span { white-space:normal; overflow:visible; }
     #hud[data-oke-task] #h-mor { display:none !important; }
 

@@ -27,7 +27,7 @@ function build(rt, root) {
   tri.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   // 赤い▼の中身だけを残りの命に合わせて減らす。外枠は保ち、棒や数字を足さない。
   const triMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, fog: false, depthWrite: false });
-  if (rt.def.key === 'inou' || rt.def.key === 'okehazama') {
+  if (rt.def.key === 'inou' || rt.def.key === 'okehazama' || rt.def.key === 'moribe') {
     tri.setAttribute('signLife', new THREE.InstancedBufferAttribute(new Float32Array(CAP).fill(1), 1));
     triMat.onBeforeCompile = shader => {
       shader.vertexShader = 'attribute float signLife;\n' + shader.vertexShader;
@@ -65,12 +65,12 @@ function build(rt, root) {
     e.hidden = true; box.appendChild(e); labels.push(e);
   }
   (root || document.body).appendChild(box);
-  // 任務でねらう一人だけを的で示す。兵の体を隠さず、文字の札も増やさない。
+  // ねらう一人だけを頭上の剣で示す。味方の丸や敵の所属の三角と形を分ける。
   const focus = document.createElement('div');
   focus.style.cssText = 'position:absolute;width:48px;height:48px;pointer-events:none';
-  focus.innerHTML = '<svg viewBox="0 0 32 32" aria-hidden="true"><g fill="none" stroke="#14120f" stroke-width="7"><circle cx="16" cy="16" r="10"/><path d="M16 1V8M16 24V31M1 16H8M24 16H31"/></g><g fill="none" stroke="#fff3ba" stroke-width="3"><circle cx="16" cy="16" r="10"/><path d="M16 1V8M16 24V31M1 16H8M24 16H31"/></g><circle cx="16" cy="16" r="3" fill="#ff634d"/></svg>';
+  focus.innerHTML = '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 3L30 11V29H18V11Z M13 30H35V35H27V43H21V35H13Z" fill="#fff3ba" stroke="#14120f" stroke-width="4" stroke-linejoin="round"/><path d="M24 11V27" stroke="#b74b32" stroke-width="2"/></svg>';
   focus.hidden = true; box.appendChild(focus);
-  // 戦う相手の足元の輪と頭上の刀は出さない。敵は頭上の赤い▼だけ（kaito 10/23「足元の輪」は要らない・見え隠れでちらつく）。
+  // 足元へ印を重ねず、剣は選んだ敵一人の頭上だけに置く。
   const s = { marks, allies, bars, box, labels, focus, gens: [], at: -1 };
   const clean = () => {
     rt.scene.remove(marks, allies, bars);
@@ -89,8 +89,10 @@ export function fieldSignsTick(rt, root) {
   const me = rt.player.u, cam = rt.camera, P = cam.position, q = cam.quaternion;
   const photo = root?.classList?.contains('photo') || rt.player.camShot;
   const hide = photo || rt.hud?.introWaiting;
-  // 任務の一人に大きな的を付ける。名のない兵も、見えていれば示す。
+  // 間合い内の相手・狙う相手・すぐ近くの敵を先に示す。攻撃の判定は変えない。
   const missionEnemy = rt.def.missionSignTarget?.(rt) ||
+    (rt.player.inRange && rt.player.rangeCueTarget?.alive ? rt.player.rangeCueTarget : null) ||
+    (rt.player.lock?.alive ? rt.player.lock : null) || rt.missionGuide?.closeEnemy ||
     (rt.guideEnemyShown ? rt.guideEnemy : null);
   const focus = s.focus;
   let focused = false;
@@ -110,6 +112,7 @@ export function fieldSignsTick(rt, root) {
   const moribe = rt.def.key === 'moribe';
   const inou = rt.def.key === 'inou';
   const oke = rt.def.key === 'okehazama';
+  const still = reduceMotion();
   let n = 0, a = 0, b = 0;
   const gens = s.gens; gens.length = 0;
   if (!hide) for (const u of rt.army.units) {
@@ -122,52 +125,45 @@ export function fieldSignsTick(rt, root) {
     if (inou && (u.mesh?.visible === false || u.rearWound)) continue;
     // 森部の一般兵は元の距離に戻し、対岸一面を赤い印で埋めない。
     // 任務の相手と稲生の案内は残す。境には幅を持たせ、ちらつきを防ぐ。
-    const signRadius = inou || moribe && u === missionEnemy ? (u._fsOn ? 100 : 90) : (u._fsOn ? FOE_OUT : FOE_R);
+    const signRadius = inou || (moribe || oke) && u === missionEnemy ? (u._fsOn ? 100 : 90) : (u._fsOn ? FOE_OUT : FOE_R);
     u._fsOn = d2 < signRadius * signRadius;
     if ((foe && u.noTarget && !rt.def.foeMarkVisible?.(rt, u)) || !u._fsOn || (foe ? n : a) >= CAP) continue;
     // 敵の三角は味方の丸より大きくし、乱戦でも形を読み取れる幅に保つ。
     // 笠や肩が重なる近接戦でも、▼の先端を笠より上に保つ。
     headPos.set(u.pos.x, headY(u) + .12, u.pos.z);
-    // 稲生は立ち位置の上に固定し、構える腕や頭の上下動で印を揺らさない。
-    // ほかの近接中の兵は実際の頭へ付ける。遠景の骨は更新しない。
-    const head = (moribe || oke) && d2 < 20 * 20 && u.human?.root.visible && u.human.bones?.Head;
-    if (head) {
-      head.updateWorldMatrix(true, false);
-      head.getWorldPosition(headPos); headPos.y += .38;
-      if (u.mesh) {
-        headPos.x += u.pos.x - u.mesh.position.x;
-        headPos.y += u.pos.y - u.mesh.position.y;
-        headPos.z += u.pos.z - u.mesh.position.z;
-      }
-    }
+    // 稲生・森部・桶狭間とも立ち位置の上へ固定し、構えや突きの頭の揺れを追わない。
     v.copy(headPos).applyMatrix4(cam.matrixWorldInverse);
     if (v.z >= 0) continue;
     // 届く相手を最優先にし、遠い任務の相手を同時に大きくしない。
-    const readyEnemy = (inou || oke) && rt.player.inRange ? rt.player.rangeCueTarget : null;
-    const pixels = moribe ? (u === missionEnemy ? 17 : d2 < 20 * 20 ? 12 : 9) :
+    const readyEnemy = (moribe || inou || oke) && rt.player.inRange ? rt.player.rangeCueTarget : null;
+    const pixels = moribe ? (u === readyEnemy ? 28 : u === missionEnemy && !readyEnemy ? 18 : d2 < 20 * 20 ? 12 : 9) :
       inou ? (u === readyEnemy ? 26 : (u === missionEnemy && !readyEnemy || u.inouHitUntil > rt.t) ? 20 : 10) :
       oke ? (u === readyEnemy ? 28 : u === missionEnemy && !readyEnemy ? 20 : d2 < 20 * 20 ? 14 : 10) :
       u === missionEnemy ? 17 : foe ? 16 : 10;
     // 稲生・森部・桶狭間では命を減らした相手の▼だけを一度大きくし、滑らかに戻す。
     // 頭上の先端は固定し、既存の形・材質・描画の束をそのまま使う。
-    const hit = foe && (moribe || inou || oke) ? Math.min(1, Math.max(0, ((oke ? u.okeHitUntil : inou ? u.inouHitUntil : u.moribeHitUntil) || 0) - rt.t) / (oke || inou ? 1.2 : .7)) : 0;
+    const hit = !still && foe && (moribe || inou || oke) ? Math.min(1, Math.max(0, ((oke ? u.okeHitUntil : inou ? u.inouHitUntil : u.moribeHitUntil) || 0) - rt.t) / 1.2) : 0;
     const reachable = (moribe || inou || oke) && foe && rt.player.inRange && rt.player.rangeCueTarget === u;
     // 森部の命中は同じ赤い▼を大きくして示す。空振りでは変わらない。
     // 稲生は「届く＝幅広い▼」「命中＝一度だけ広がる▼」。残りの命は中の赤の面積で示す。
-    const pulse = inou && reduceMotion() ? 0 : hit;
-    const width = moribe ? pixels + (reachable ? 8 : 0) + 10 * hit : pixels;
-    const k = Math.min(moribe ? 1.6 : 3, width * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) *
+    const pulse = (inou || moribe) && reduceMotion() ? 0 : hit;
+    // 森部は届く一人だけ横に広げ、命中した時だけ縦にも広げる。
+    // 間合いに入っただけの変化と、実際に命を減らした変化を分ける。
+    const width = moribe ? pixels + 14 * pulse : pixels;
+    const k = Math.min(moribe ? 1.6 : oke && u === missionEnemy ? 8 : 3, width * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) *
       (moribe ? 1 : 1 + (pulse > 0 ? 1.2 * pulse : reachable && !inou && !oke ? .55 : 0));
     dummy.position.copy(headPos);
-    dummy.quaternion.copy(q); dummy.scale.set(moribe ? k : k * (1 + .5 * pulse + ((inou || oke) && reachable ? .35 : 0)), k, k); dummy.updateMatrix();
+    dummy.quaternion.copy(q);
+    dummy.scale.set(moribe ? k * (reachable ? 1.6 : 1) : k * (1 + .5 * pulse + ((inou || oke) && reachable ? .35 : 0)), k, k);
+    dummy.updateMatrix();
     if (foe) {
-      if (inou || oke) s.marks.geometry.attributes.signLife.setX(n, Math.sqrt(Math.max(0, Math.min(1, u.hp / (u.maxHp || 1)))));
+      if (moribe || inou || oke) s.marks.geometry.attributes.signLife.setX(n, Math.sqrt(Math.max(0, Math.min(1, u.hp / (u.maxHp || 1)))));
       s.marks.setMatrixAt(n++, dummy.matrix);
     }
     else s.allies.setMatrixAt(a++, dummy.matrix);
   }
   s.marks.count = n; s.marks.instanceMatrix.needsUpdate = true;
-  if (inou || oke) s.marks.geometry.attributes.signLife.needsUpdate = true;
+  if (moribe || inou || oke) s.marks.geometry.attributes.signLife.needsUpdate = true;
   s.allies.count = a; s.allies.instanceMatrix.needsUpdate = true;
   if (gens.length > 1) gens.sort((a, c) => a._fsD - c._fsD);
   // 武将の体力の棒（黒い下地と色の棒）

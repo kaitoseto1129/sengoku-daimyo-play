@@ -3681,7 +3681,7 @@ const inabayama = {
     this.nextObj(rt, '旗の人の所へ。さくの中の敵を引きつけよう');
     F.holdArrived = false;
     F.holdPoint = { x: -4, z: SHIKA_Z + 5 };
-    rt.marker('holdFlag', F.holdPoint, 'さくの内', { h: 0, guideAlways: true, guideArea: 'wait', guideWaitRing: true, guideDefend: true, guideDefensePoint: { x: 4.25, z: SHIKA_Z + (Math.sin(4) + Math.sin(5)) * 0.6 }, guideRadius: 3 });
+    rt.marker('holdFlag', F.holdPoint, 'さくの内', { h: 0, guideAlways: true, guideArea: 'wait', guideWaitRing: true, guideDefend: true, guideDefensePoint: { x: 4.25, z: SHIKA_Z + (Math.sin(4) + Math.sin(5)) * 0.6 }, guideDefenseOutline: [{ x: 0, z: SHIKA_Z + Math.sin(4) * 1.2 }, { x: SHIKA_W, z: SHIKA_Z + Math.sin(5) * 1.2 }], guideRadius: 3 });
     // 足軽が鹿垣（枝を組んだ低い垣）を一間ずつ結っていく。三か所は打って出る口に空けておく
     for (let i = 0; i < 8; i++) rt.after(2 + i * 1.5, () => {
       if (F.step !== 2 || SHIKA_GAPS.includes(i)) return;

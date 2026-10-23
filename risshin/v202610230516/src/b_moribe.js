@@ -494,6 +494,25 @@ function moribeFord(rt) {
       colors.getZ(i) + (sand.b - colors.getZ(i)) * k);
   }
   colors.needsUpdate = true;
+  // 粗い頂点の色だけでは帯がぼやける。水面自身に砂底と細かい白波を描き、杭の間を岸から岸へつなぐ。
+  const waterMat = st.mesh.material, waterCompile = waterMat.onBeforeCompile;
+  const waterKey = waterMat.customProgramCacheKey();
+  waterMat.onBeforeCompile = function (sh, renderer) {
+    waterCompile.call(this, sh, renderer);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <lights_fragment_begin>', `
+      float fordEdge = abs(vWPw.x - ${START2.x.toFixed(1)}) + sin(vWPw.z * 1.7) * 0.22;
+      float fordBand = 1.0 - smoothstep(4.5, 6.0, fordEdge);
+      float fordGrain = texture2D(tMacro, vWPw.xz * 0.9).r;
+      float fordRipple = smoothstep(0.86, 0.98, sin(vWPw.z * 6.0 + fordGrain * 2.0 - uTime * 1.4));
+      vec3 fordSand = mix(vec3(0.40, 0.34, 0.21), vec3(0.64, 0.59, 0.43), fordGrain);
+      diffuseColor.rgb = mix(diffuseColor.rgb, fordSand, fordBand * 0.9);
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.76, 0.78, 0.66), fordRipple * fordBand * 0.45);
+      #include <lights_fragment_begin>
+    `);
+  };
+  waterMat.customProgramCacheKey = () => waterKey + '|森部の浅瀬';
+  waterMat.needsUpdate = true;
+  st.mesh.userData.waterSurfaceReady = true;
   st.mesh.geometry.computeVertexNormals();
   st.mesh.geometry.computeBoundingSphere();
   // 岸と浅瀬の石、渡る帯の杭。出陣時だけ作り、形と材質を使い回す。
@@ -504,15 +523,18 @@ function moribeFord(rt) {
   const pegMat = new THREE.MeshStandardMaterial({ color: 0xe8cd81, roughness: 1 });
   const pegs = new THREE.InstancedMesh(pegGeo, pegMat, 8), at = new THREE.Object3D();
   for (let i = 0; i < 24; i++) {
-    const x = 17 + (i % 12) * 4.2, z = nireZ(x) + (i < 12 ? -1 : 1) * (7.8 + Math.sin(i * 2) * 1.1);
+    // 同じ二十四個を帯の両脇へ。両岸だけでなく流れの中にも石が続く。
+    const x = START2.x + (i % 2 ? 1 : -1) * (5.5 + Math.sin(i * 2) * .45);
+    const z = nireZ(x) - 10 + Math.floor(i / 2) * 20 / 11;
     at.position.set(x, Math.max(W.heightAt(x, z) + 0.12, 0.1), z);
     at.scale.set(0.45 + i % 3 * 0.12, 0.22, 0.36); at.rotation.y = i * 1.7;
     at.updateMatrix(); stones.setMatrixAt(i, at.matrix);
   }
   at.scale.set(1, 1, 1); at.rotation.set(0, 0, 0);
   for (let i = 0; i < 8; i++) {
-    const x = i % 2 ? 46 : 34, z = 72 + Math.floor(i / 2) * 10;
-    at.position.set(x, W.heightAt(x, z) + 0.55, z);
+    const x = i % 2 ? 46 : 34, z = POINT2.z + Math.floor(i / 2) * (START2.z - POINT2.z) / 3;
+    // 同じ八本を渡り口から対岸まで並べ、水中でも杭の頭を水面に出す。
+    at.position.set(x, Math.max(W.heightAt(x, z), .12) + 0.55, z);
     at.updateMatrix(); pegs.setMatrixAt(i, at.matrix);
   }
   W.scene.add(stones, pegs);
@@ -702,7 +724,7 @@ function moribeNearBodies(rt) {
       const t = len2 > 0.01 ? (dx * vx + dz * vz) / len2 : -1;
       const width = u.mounted ? 1.9 : 0.85;
       const y = c.y + (p.y + 1.3 - c.y) * t;
-      const blocks = ally && this.fpK < 0.5 && t > 0 && t < 0.92
+      const blocks = ally && this.fpK < 0.5 && t > 0 && t < 1
         && (dx - vx * t) ** 2 + (dz - vz * t) ** 2 < width * width
         && y >= u.pos.y && y <= u.pos.y + (u.mounted ? 4.4 : 2.5);
       // 寄った視点では自分までの線分が短くなり、少し先の騎手の胴を拾えない。
@@ -991,7 +1013,7 @@ const moribe = {
   // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は「何をするか」だけ（kaito 10/23 49・50）。段の総称で通し、向き・行き先の字は書かない。
-  missions: ['浅瀬を歩いて渡れ', '仲間を待て', '敵を倒せ', 'この場を守れ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
+  missions: ['川を渡れ', '仲間を待て', '敵を倒せ', '耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
   // 頭上の▼一つを大きくして、まず戦う相手を示す。選び直しは四分の一秒に一度。
   missionSignTarget(rt) {
     const F = rt.flags, p = rt.player;
@@ -1089,7 +1111,13 @@ const moribe = {
   tacticsCommandText: '', // 横へ回る助言に、操作のない「配下に命じて押せ」を足さない。
   missionWaitProgress(rt) {
     const F = rt.flags;
-    if (F.stage === 'hold' && F.lineReady && F.lineT < 25) return Math.min(1, F.lineT / 25);
+    if (F.stage === 'hold') {
+      const elapsed = Math.max(0, rt.t - F.holdStart);
+      const reservesReady = (F.wave1 || gone(F.reserves[0])) && (F.wave2 || gone(F.reserves[1]));
+      // 列を支える働き・控えの到着・反撃の時刻を、実際の終了条件とそろえる。
+      return Math.min(1, Math.max(elapsed / 100,
+        Math.min(F.lineT / 25, elapsed / 45, reservesReady ? 1 : .85)));
+    }
     return null;
   },
   // 任務の到着判定と同じ位置・半径。入れ物と既存の隊の中心を使い回す。
@@ -1107,9 +1135,10 @@ const moribe = {
       // 水中で半径に入っても消さず、実際に岸へ上がったコマで消す。
       pos = POINT2; r = FORD_R; hide = 0;
       q.waiting = true; q.arrived = !!F.pointInside;
-      // 渡り終えた同じピンが満ちる。仲間の到着見込みに合わせ、逆戻りはさせない。
-      q.progress = q.arrived ? F.fordGatherProgress || 0 :
-        Math.max(0, Math.min(1, (START2.z - rt.player.u.pos.z) / (START2.z - POINT2.z)));
+      // 渡河で八割、仲間がそろうまでに残りを満たす。岸に着いた時に空へ戻さない。
+      // 渡河の終点は到着判定と同じ水際。道から外れたまま満杯にはしない。
+      q.progress = q.arrived ? .8 + .2 * (F.fordGatherProgress || 0) :
+        .8 * Math.max(0, Math.min(.99, (START2.z - rt.player.u.pos.z) / (START2.z - (nireZ(rt.player.u.pos.x) - 9))));
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
     } else if (F.stage === 'assemble') {
@@ -1120,13 +1149,13 @@ const moribe = {
     } else if (F.stage === 'press') {
       return null;
     } else if (F.stage === 'hold' || F.vBroken) {
-      // 札の「味方の黄旗」と同じ旗持ちへ。隊の真ん中を指すと、旗と印がずれて見える。
+      // 守備を始めた地点に固定し、隊が動いても守る場所を動かさない。
       pos = !gone(F.B) ? F.linePoint : null;
       r = hide = 24;
       q.waiting = true;
       q.arrived = !!pos && Math.hypot(rt.player.u.pos.x - pos.x, rt.player.u.pos.z - pos.z) < r;
       // 迎撃中のピンをその場の進み具合へ替え、余計な矢印を残さない。
-      q.progress = F.stage === 'hold' ? Math.min(1, (rt.t - F.holdStart) / 100) : 0;
+      q.progress = this.missionWaitProgress(rt) || 0;
     } else if (!gone(F.V)) {
       // 「斎藤の先手を崩す」の間は、その先手の真ん中へ。味方の旗を指すと、どれが先手か分からない（初めての人の迷い）。
       pos = fightingCenter(F.V); r = 6; hide = 8;
@@ -2029,7 +2058,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       const hp = t?.hp;
       const result = damage.call(this, t, amount, src, ...rest);
       if (src?.isPlayer && t?.team !== src.team && t.hp < hp) {
-        t.moribeHitUntil = rt.t + 1;
+        t.moribeHitUntil = rt.t + 1.2;
         // 命を減らした本人だけがよろめく。空振りや味方には反応を付けない。
         if (t.alive) t.stagger = Math.max(t.stagger || 0, .45);
       }

@@ -2190,6 +2190,7 @@ const honnoji = {
   reserveCombatCues: true, // 間合い・気力の字に、上様の行き先を重ねない。
   nearAllyFadeRadius: 2.4,
   nearAllySolidBody: true, // 手前の味方だけ描く間避け、戸口と戦う相手への視界を空ける。
+  nearFade: true, // 共通の見通し処理を有効にし、手前の柱・梁を抜いて進む口を見せる。
   nearSceneryScreenCut: true, // 屋根の近い面を抜き、画面の三分の二以上を見通す。
   nearAllyWholeOcclusion: true, // 自分との間を塞ぐ一人も全身で避け、透けた顔や手を宙に残さない。
   woundEffectMin: .05, // 浅い打撲で護衛の案内を退避へ替えない。出血と深手は引き続き知らせる。
@@ -2772,14 +2773,14 @@ const honnoji = {
     if (F.step >= 3) return '御所の西の門へ';
     if ((F.hp === 2 || F.hp === 3) && gateFight(rt)) return '敵をたおせ';
     // 戸口の枠と旗に添える札は、遠い門の行き先より先に示す。
-    if (F.hp === 1) return F.waitReached ? 'ここで待て' : '光る輪へ';
+    if (F.hp === 1) return F.waitReached ? 'ここで待て' : '矢印へ進め';
     if (F.hp === 4 || F.hp === 5) {
       if (F.hp === 4 && Math.hypot(rt.player.u.pos.x - HONDO_IN.x, rt.player.u.pos.z - HONDO_IN.z) < 6)
         return '部屋で信長を待て';
       const door = rt.nearestInteract();
       return door?.id === 'naka_tobira' && door.label !== '戸を開ける' ? '東の戸を通る' : '東の戸を開ける';
     }
-    if (F.routeSign?.door && this.routeGuidePriority(rt)) return 'この戸を通れ';
+    if (F.routeSign?.door && this.routeGuidePriority(rt)) return 'ここを通る';
     if ((F.hp === 2 || F.hp === 3) && F.gateApproach?.alive) return '門へ走れ';
     if (gateDefending(rt)) return '門の内で信長を守れ';
     if ((F.hp === 2 || F.hp === 3) && F.routeSign && !F.routeSign.indoor) return '門へ走れ';
@@ -2814,7 +2815,7 @@ const honnoji = {
     // 戸口の印にも行き先を添える。守りへの合流と退却を同じ「ここへ」にしない。
     if (F.hp === 2 || F.hp === 3) {
       const sign = F.routeSign;
-      if (sign?.door) return 'この戸を通れ';
+      if (sign?.door) return 'ここを通る';
       if (sign && !sign.door && !sign.indoor) return '門へ走れ';
       if (!(F.patrolDistance > 10 && sign?.indoor)) return '門へ走れ';
       // 敵の増減で札を切り替えず、いま通る戸口の動作を短く保つ。
@@ -2827,7 +2828,7 @@ const honnoji = {
     return F.hp === 1 ? '次の印へ進む' : '印へ すすめ';
   },
   waitOrderLabel(rt, reached) {
-    if (!rt.G.lord && rt.flags.hp === 1) return reached ? 'ここで待て' : '光る輪へ';
+    if (!rt.G.lord && rt.flags.hp === 1) return reached ? 'ここで待て' : '矢印へ進め';
   },
   escapeGuideLabel(rt, point = rt.missionGuide?.pos) {
     if (!rt.G.lord && rt.flags.step === 5) return '御所の北の口へ 退け';
@@ -2906,7 +2907,7 @@ const honnoji = {
       const blocker = gateBlocker(rt);
       return blocker ? blocker.team === 1 ? '敵をたおせ' : '門の内へ下がる' : '門をしめる';
     }
-    return ({ 1: F.waitReached ? 'ここで待て' : '光る輪へ', 3: '信長を守れ', 4: this.travelGuideLabel(rt, true), 5: !F.hondoDirect || F.hondoDistance >= 6 ? this.travelGuideLabel(rt, true) : '信長を守れ',
+    return ({ 1: F.waitReached ? 'ここで待て' : '矢印へ進め', 3: '信長を守れ', 4: this.travelGuideLabel(rt, true), 5: !F.hondoDirect || F.hondoDistance >= 6 ? this.travelGuideLabel(rt, true) : '信長を守れ',
       6: this.travelGuideLabel(rt, true), 7: '信長を守れ', 8: this.escapeGuideLabel(rt) })[F.hp] || text;
   },
   // 残り時間は同じ任務札に大きく示す。失敗までの猶予は変えない。
@@ -2953,7 +2954,7 @@ const honnoji = {
   introPlace: '京 本能寺（油小路蛸薬師）',
   introTaskFirst: true,
   introText: (rt) => rt.G.lord ? '明智勢が寺を囲む。寄せ手を防ぎ、御殿の奥へ退け。'
-    : '廊下の輪へ進み、命令を待とう。合図が出たら、戸口を抜けて表門へ。',
+    : '廊下の矢印へ進み、命令を待とう。合図が出たら、戸口を抜けて表門へ。',
   battleVoices: { lines: {
     ally: { encircle1: ['敵が回り込む。上様の前を守れ'], encircle2: ['上様の前の敵を斬り、囲みを抜けよ'], ambient: ['煙を吸うな。口を袖で覆え', '火が迫る。仲間の退く道を空けよ', '倒れた者がおる。残る者で口を支えよ'] },
     enemy: { ambient: ['門を押せ！　信長は寺の中じゃ！'], nanori: ['明智の先手じゃ！　参る！'],
@@ -3340,13 +3341,13 @@ const honnoji = {
   p1(rt) {
     const F = rt.flags;
     F.hp = 1; F.pT = rt.t;
-    rt.obj('main', '旗の輪へ すすむ', 'main', true);
+    rt.obj('main', '矢印へ進め', 'main', true);
     F.waitReached = false;
     const wait = F.waitPlace = { x: PT.start.x + 7.5, z: PT.start.z, y: groundAt(rt.world, PT.start.x + 7.5, PT.start.z, rt.player.u.pos.y) };
     const ring = F.waitRing = rt.ring(wait.x, wait.z, 1.1, 0xfff3ba, .65, 48, false);
     ring.position.y = wait.y + .09;
     ring.material.depthTest = true; // 床に沿わせ、人の体の向こうには描かない。
-    rt.marker('next', wait, () => F.waitReached ? 'ここで待て' : '光る輪へ', { guideArea: 'wait', h: .1, guideRadius: 1.1, waitArrived: () => F.waitReached, waitGuide: () => F.waitReached ? `待っている・あと${Math.max(1, Math.ceil(14 - (rt.t - F.pT)))}秒` : '' });
+    rt.marker('next', wait, () => F.waitReached ? 'ここで待て' : '矢印へ進め', { guideArea: 'wait', h: .1, guideRadius: 1.1, waitArrived: () => F.waitReached, waitGuide: () => F.waitReached ? `待っている・あと${Math.max(1, Math.ceil(14 - (rt.t - F.pT)))}秒` : '' });
     const at = (s, f) => rt.after(s, () => { if (F.hp === 1 && !F.ending && !rt.over) f(); });
     // 供は百ほど。寺の外には一万三千の明智勢。まだ誰も知らない
     at(1.2, () => { rt.army.play('wood', { x: GATES.main.x, z: GATES.main.z }, 0.7); rt.bark('表の方で、物音がした'); });
