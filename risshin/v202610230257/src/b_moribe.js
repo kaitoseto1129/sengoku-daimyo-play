@@ -39,11 +39,11 @@ const nireZ = (x) => x < -70 ? NIREMATA2 + 2 * Math.min(1, (-70 - x) / 730) : x 
 // 南岸の水際から始め、渡河そのものは残して岸までの長い歩きを省く。
 const START2 = { x: 40, z: 98 };
 // 北岸の水際で渡河を終える。岸へ上がった後まで、奥の集合場所を追わせない。
-const POINT2 = { x: 40, z: 74 };
+const POINT2 = { x: 40, z: 79 };
 const FORD_R = 4, FORD_OUT = 4.8;
 // 杭の間から岸へ上がれば渡河済み。小旗の中心を踏むために岸で往復させない。
 const atFordBank = (p, r = FORD_R) => Math.abs(p.x - POINT2.x) <= r * 2 &&
-  p.z <= POINT2.z + r && p.z >= POINT2.z - r * 2;
+  p.z <= nireZ(p.x) - 9;
 const FRONT2 = { x: 4, z: 20 };
 const ASSEMBLY2 = { x: 14, z: 10 };
 const RETREAT2 = { x: 24, z: 48 };
@@ -964,6 +964,8 @@ function quietOtherFlags(rt, keep) {
 }
 
 const F_autoAt = (rt) => rt.flags.autoOrderAt || 0;
+const moribeFoeReady = (u, p) => u?.alive && !u.gone && !u.dying && !u.fleeing && !u.woundOut &&
+  !u.noTarget && !u.isStruct && !u.civ && u.team !== p.u.team && u.mesh?.visible !== false;
 
 const moribe = {
   compactIntro: true,
@@ -988,7 +990,27 @@ const moribe = {
   // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は「何をするか」だけ（kaito 10/23 49・50）。段の総称で通し、向き・行き先の字は書かない。
-  missions: ['川を渡れ', '仲間を待て', '赤い▼の斎藤兵を倒せ', '斎藤兵を迎え撃て', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる斎藤勢を追え', '仲間と集まれ'],
+  missions: ['川を渡れ', '仲間を待て', '敵を倒せ', '耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
+  // 頭上の▼一つを大きくして、まず戦う相手を示す。選び直しは四分の一秒に一度。
+  missionSignTarget(rt) {
+    const F = rt.flags, p = rt.player;
+    if (!F.signal || F.ending || F.stage === 'assemble') return null;
+    if (p.inRange && moribeFoeReady(p.rangeCueTarget, p)) return p.rangeCueTarget;
+    if (rt.t < F.signTargetAt && moribeFoeReady(F.signTarget, p)) return F.signTarget;
+    F.signTargetAt = rt.t + .25;
+    let target = null, best = 48 * 48;
+    for (const u of rt.army.units) {
+      if (!moribeFoeReady(u, p)) continue;
+      const dx = u.pos.x - p.u.pos.x, dz = u.pos.z - p.u.pos.z;
+      const yaw = p.yaw + (p.camYawOff || 0);
+      if (dx * Math.sin(yaw) + dz * Math.cos(yaw) < 0) continue;
+      const d = (dx * dx + dz * dz) * (u === F.signTarget ? .8 : 1);
+      if (d >= best || !sightPoint(rt, u.pos)) continue;
+      best = d; target = u;
+    }
+    F.signTarget = target;
+    return target;
+  },
   missionOf(rt) {
     const F = rt.flags;
     if (!F.signal) return F.pointReached ? 1 : 0;
@@ -1071,7 +1093,8 @@ const moribe = {
     let pos = null, r = 6, hide = 6;
     if (!F.signal) {
       if (F.pointDone || F.pointReached || atFordBank(rt.player.u.pos, F.pointInside ? FORD_OUT : FORD_R)) return null;
-      pos = POINT2; r = FORD_R; hide = F.pointInside ? FORD_OUT : FORD_R;
+      // 水中で半径に入っても消さず、実際に岸へ上がったコマで消す。
+      pos = POINT2; r = FORD_R; hide = 0;
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
     } else if (F.stage === 'assemble') {
@@ -1844,7 +1867,10 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     const hudBattleGoal = hud.drawBattleGoal, hudFootDirection = hud.drawFootDirection;
     hud.drawBattleGoal = function (g, battle) {
       // 命中は相手の赤い▼で示す。胴に別の印を重ねない。
-      if (battle === rt && (combatSignsOnly() || !rt.def.missionPin(rt))) return false;
+      if (battle === rt) {
+        const pin = rt.def.missionPin(rt);
+        if (combatSignsOnly() || !pin || pin.arrived) return false;
+      }
       return hudBattleGoal.call(this, g, battle);
     };
     hud.drawFootDirection = function (g, battle, target) {
@@ -1992,9 +2018,9 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       const hp = t?.hp;
       const result = damage.call(this, t, amount, src, ...rest);
       if (src?.isPlayer && t?.team !== src.team && t.hp < hp) {
-        t.moribeHitUntil = rt.t + .65;
+        t.moribeHitUntil = rt.t + 1;
         // 命を減らした本人だけがよろめく。空振りや味方には反応を付けない。
-        if (t.alive) t.stagger = Math.max(t.stagger || 0, .3);
+        if (t.alive) t.stagger = Math.max(t.stagger || 0, .45);
       }
       return result;
     };

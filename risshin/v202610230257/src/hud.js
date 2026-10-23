@@ -15,21 +15,26 @@ export class Hud {
       css.textContent = `html body #hud.field-clean :is(#markers,#foe-marks,#squad-marks,#field-signs,#battle-opening,#floats,#threats,#boss,#target,#objectives,#prompt,#staring,#tutorial,#hint,#skiphint,#compass,.destination-distance,.battle-action,.victory-condition,.combat-cue-label,#crosshair,.hold-cover,.cover-guide,.dodge-guide) { display:none !important; }
       html body #hud.field-clean :is(.bar,.bar *,#aimwarn), html body:has(#hud.field-clean:not([hidden])) :is(#mobfx,#tc *) { animation:none !important; }
       /* 名前・心臓の印・残量を一つの小さな帯へ収める。危険は点滅せず形でも示す。 */
-      html:root body #hud.field-clean .bl #h-hp.hp {
+      html:root body #hud.field-clean.field-clean .bl #h-hp.hp {
         display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important;
         align-items:center; gap:8px; padding:4px 8px; max-width:calc(100vw / 3 - 16px);
         background:#14120f !important; color:#fff3df;
       }
-      html:root body #hud.field-clean .bl #h-hp.hp .hp-remaining {
+      html:root body #hud.field-clean.field-clean .bl #h-hp.hp .hp-remaining {
         display:block !important; font-size:max(16px,calc(16px * var(--text-scale,1))) !important;
         line-height:1.4; white-space:nowrap;
       }
-      html:root body #hud.field-clean .bl #h-hp.hp i {
+      html:root body #hud.field-clean.field-clean .bl #h-hp.hp i {
         width:128px !important; min-width:32px; flex:0 1 128px;
         height:14px !important; border:1px solid #fff3df; padding:0;
+        background:#14120f; mask:none !important; -webkit-mask:none !important; box-sizing:border-box;
       }
-      html:root body #hud.field-clean .bl #h-hp.hp.deep { outline:2px solid #fff3df; }
-      html:root body #hud.field-clean .bl #h-hp.hp.deep i strong {
+      html:root body #hud.field-clean.field-clean .bl #h-hp.hp > span,
+      html:root body #hud.field-clean.field-clean .bl #h-hp.hp i::before,
+      html:root body #hud.field-clean.field-clean .bl #h-hp.hp i::after { display:none !important; }
+      html:root body #hud.field-clean.field-clean .bl #h-hp.hp i strong { background:#fff3df; }
+      html:root body #hud.field-clean.field-clean .bl #h-hp.hp.deep { outline:2px solid #fff3df; }
+      html:root body #hud.field-clean.field-clean .bl #h-hp.hp.deep i strong {
         background:repeating-linear-gradient(135deg,#fff3df 0 4px,#a33124 4px 8px);
       }`;
       // ↑ 戦の画面は動きを減らす設定が無くても点滅させない（命の棒・狙われた時の縁・囲まれた時の縁・丸の光り。kaito 10/23「チカチカがほんとにやだ」）。

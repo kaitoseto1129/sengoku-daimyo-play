@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202610230241 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202610230257 として写した） -->
 <title>戦国立身3D　足軽から天下へ、戦国の合戦アクション</title>
 <meta name="description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。">
 <link rel="canonical" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/">
@@ -69,7 +69,7 @@
 })();
 </script>
 <!-- /Meta Pixel -->
-<link rel="icon" type="image/png" sizes="32x32" href="./v202610230241/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610230241/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610230241/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610230241/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202610230257/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610230257/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610230257/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610230257/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
 :root {
@@ -805,8 +805,9 @@ body:has(#hud.photo) #overlay { display: none; }
 .base main > * { animation: ln .35s ease-out; }
 .roster .rr[data-who]:hover { background: rgba(236,228,210,.04); }
 #loading .ldmon { width: 56px; height: 56px; margin: 0 auto 16px; border-radius: 50%; border: 2px solid var(--kin); border-top-color: transparent; animation: spin 1.1s linear infinite; }
-#loading.first-battle .ldmon { border: 0; animation: none; background: conic-gradient(var(--kin) var(--ld-progress, 0%), var(--sumi-3) 0); }
+#loading.first-battle .ldmon { width: 80px; height: 80px; border: 0; animation: none; background: conic-gradient(var(--kin) var(--ld-progress, 0%), var(--sumi-3) 0); }
 #loading.first-battle .ldbar, #loading.first-battle #tip { display: none; }
+#loading.first-battle .ldmon { box-shadow: inset 0 0 0 2px var(--kin); }
 @keyframes spin { to { transform: rotate(360deg); } }
 #ld-lore { max-width: 30em; margin: 20px auto 0; display: grid; gap: 8px; text-align: left; }
 #ld-lore p { margin: 0; font-family: var(--display); font-size: max(12px, calc(16px * var(--text-scale, 1))); line-height: 1.6; color: var(--washi); display: grid; grid-template-columns: 5em 1fr; gap: 10px; align-items: baseline; }
@@ -1944,5 +1945,5 @@ dialog.battle-retry .btn { box-sizing: border-box; width: 100%; min-width: 0; mi
 } }
 </script>
 <script type="module">
-import('./v202610230241/src/main.js').catch(() => window.__bootFail());
+import('./v202610230257/src/main.js').catch(() => window.__bootFail());
 </script>

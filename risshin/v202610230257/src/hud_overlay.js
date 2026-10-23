@@ -16,17 +16,18 @@ const off = () => false;
 
 export class HudOverlay {
 
-  // 森部は地面と画面の端を同じ小旗で示し、兵の頭上の印と分ける。
+  // 森部は先端が地面に刺さるピンで、到着する地点を示す。
   drawBattleGoalSign(g, rt, x, y, landmark) {
     if (landmark) return this.drawGateSign(g, x, y);
     if (rt.def.key !== 'moribe') return this.drawDestinationPin(g, x, y);
     g.save(); g.lineJoin = 'round';
-    g.beginPath(); g.moveTo(x, y); g.lineTo(x, y - 38);
-    g.lineTo(x + 24, y - 38); g.lineTo(x + 18, y - 28);
-    g.lineTo(x + 24, y - 18); g.lineTo(x, y - 18);
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x - 13, y - 25);
+    g.bezierCurveTo(x - 26, y - 53, x + 26, y - 53, x + 13, y - 25);
+    g.closePath();
     g.strokeStyle = '#14120f'; g.lineWidth = 7; g.stroke();
     g.fillStyle = '#fff3ba'; g.fill();
-    g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke(); g.restore();
+    g.beginPath(); g.arc(x, y - 33, 5, 0, Math.PI * 2);
+    g.fillStyle = '#14120f'; g.fill(); g.restore();
   }
 
   // 文と矢印は同じ行き先・視点から向きを取る。入れ物は使い回す。

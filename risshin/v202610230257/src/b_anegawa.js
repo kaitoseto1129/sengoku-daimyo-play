@@ -17,6 +17,7 @@ import { nobori, tawara, hut, dou, dorui, kabukimon, solidSeg, koshisaku,
   yagura, bobosaku, tateNarabi, takataba, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
 import { addRamp } from './floors.js';
 import { S as SETTINGS } from './settings.js';
+import { isTouch } from './touch.js';
 import { flagTexture } from './textures.js';
 import { woodTex, dirtTex } from './nature.js';
 import { RANKS } from './state.js';
@@ -101,6 +102,16 @@ function aneBankColor(x, z, color) {
     0.44 - shore * 0.13 + grass * 0.03 - wet * 0.23 + fleck,
     0.30 - shore * 0.09 - grass * 0.03 - wet * 0.15 + fleck);
 }
+// 矩形の短冊を避け、根元から細まり、先が曲がる葉を同じ二面で作る。
+function aneGrassBlade(width, height) {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute([
+    -width * 0.5, 0, 0, width * 0.5, 0, 0,
+    width * 0.28, height * 0.6, height * 0.07, -width * 0.4, height, height * 0.22,
+  ], 3));
+  g.setIndex([0, 1, 2, 0, 2, 3]); g.computeVertexNormals();
+  return g;
+}
 function aneBankGrassMaterial(height) {
   const mat = new THREE.MeshLambertMaterial({ side: THREE.DoubleSide });
   mat.onBeforeCompile = (sh) => {
@@ -151,6 +162,9 @@ function anegawaRiver(rt) {
     mat.onBeforeCompile = function (sh, renderer) {
       compile.call(this, sh, renderer);
       if (!sh.uniforms.uHgt) return;
+      // 対岸の具足・小袖・顔にも空からの照り返しを残す。色と描く人数は保つ。
+      sh.fragmentShader = sh.fragmentShader.replace('#include <lights_fragment_end>',
+        '#include <lights_fragment_end>\n reflectedLight.indirectDiffuse += diffuseColor.rgb * 0.16;');
       sh.uniforms.uHgt = heightMap; sh.uniforms.uHP = heightScale;
       // 水中は小さく脚を送る。前進・敗走の位置と勝敗の時計は変えない。
       const foot = sh.vertexShader.includes('void cInit(') ? 'modelMatrix * (instanceMatrix[3] + vec4(cOff.x, 0.0, cOff.z, 0.0))' : 'modelMatrix * instanceMatrix[3]';
@@ -372,7 +386,7 @@ function anegawaRiver(rt) {
   // 元の石は補修前の川床に乗っている。姉川だけ同じ石の枠へ大小を散らし、新しい岸へ接地する。
   if (st.rockMesh) st.rockMesh.visible = false;
   const dummy = new THREE.Object3D(), stones = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.12, 0), new THREE.MeshLambertMaterial({ color: 0x77786f }), 640);   // 小石は十二面（百四十四面×六百四十が重かった）
-  const blade = new THREE.PlaneGeometry(0.09, 0.45); blade.translate(0, 0.225, 0);
+  const blade = aneGrassBlade(0.09, 0.45);
   const grasses = new THREE.InstancedMesh(blade, aneBankGrassMaterial(0.45), 640);
   let seed = 1570;
   const R = () => { seed = seed * 16807 % 2147483647; return seed / 2147483647; };
@@ -1018,8 +1032,8 @@ function anegawaGround(rt) {
   const R = () => { seed = seed * 16807 % 2147483647; return seed / 2147483647; };
   const blades = [];
   for (let i = 0; i < 3; i++) {
-    const g = new THREE.PlaneGeometry(0.065, 0.42);
-    g.translate(0, 0.21, 0); g.rotateY(i * Math.PI / 3); blades.push(g);
+    const g = aneGrassBlade(0.065, 0.42);
+    g.rotateY(i * Math.PI / 3); blades.push(g);
   }
   const grassGeo = mergeGeometries(blades);
   for (const g of blades) g.dispose();
@@ -1482,21 +1496,34 @@ function anegawaReturning(rt) {
   const F = rt.flags, at = F.hqDefend ? F.hqDefensePos : F.hqThreat ? F.hqGuardPos : null;
   return !!at && Math.hypot(rt.player.u.pos.x - at.x, rt.player.u.pos.z - at.z) >= (F.atHq ? 18 : 12);
 }
+// 的を付けた相手と同じ一人へ、実際の操作面・武器に合う一行を出す。
+function anegawaEnemyAction(rt, enemy) {
+  const P = rt.player, p = P.u.pos;
+  const angle = Math.atan2(enemy.pos.x - p.x, enemy.pos.z - p.z) - P.yaw;
+  if (Math.cos(angle) < .94) return isTouch
+    ? `${SETTINGS.touchSwap ? '左' : '右'}側を${Math.sin(angle) <= 0 ? '右' : '左'}へなぞる`
+    : 'マウスで的の敵へ向く';
+  if (P.weapon === 'gun' || P.weapon === 'bow') return isTouch
+    ? `「${P.weapon === 'gun' ? '撃つ' : '射る'}」を押す` : '左クリックで撃つ';
+  if (Math.hypot(enemy.pos.x - p.x, enemy.pos.z - p.z) > P.meleeReach(P.weapon === 'sword' ? 'slash' : 'thrust'))
+    return isTouch ? `${SETTINGS.touchSwap ? '右' : '左'}側を上へなぞる` : '的の敵へ近づく';
+  return isTouch ? `「${P.weapon === 'sword' ? 'きる' : 'つく'}」を押す` :
+    P.weapon === 'sword' ? '左クリックできる' : '左クリックでつく';
+}
 // 遠い敵を止めるよう急かさず、旗の前で見張る向きと接敵後の行動を分ける。
 function anegawaHqWatchText(rt) {
   const F = rt.flags, p = rt.player.u.pos, enemy = F.hqEnemy;
-  if (!enemy) return 'ここで待つ';
+  if (!enemy?.alive) return 'ここで待つ';
   const dx = enemy.pos.x - p.x, dz = enemy.pos.z - p.z;
   // 方位磁針を読ませず、目前の危険の矢印と同じ視点から向きを伝える。
   const angle = Math.atan2(dx, dz) - rt.player.yaw - (rt.player.camYawOff || 0);
   const side = Math.cos(angle) > 0.5 ? '前' : Math.cos(angle) < -0.5 ? '後ろ' : Math.sin(angle) > 0 ? '左' : '右';
   // 侵入の札は短く保ち、振り向いたら実際に敵を止める下知へ替える。
   if (F.hqBreached) {
-    if (side !== '前') return `本陣に敵！ ${side}を向こう`;
-    return dx * dx + dz * dz > 12 * 12 ? '本陣の敵へ近づこう' : '敵に やりを向けよう';
+    return anegawaEnemyAction(rt, enemy);
   }
   // 二十五歩内の別の敵ではなく、案内している敵が槍を向ける距離に来たかを見る。
-  if (dx * dx + dz * dz < 12 * 12) return '敵に やりを向けよう';
+  if (dx * dx + dz * dz < 12 * 12) return anegawaEnemyAction(rt, enemy);
   return side === '前' ? 'ここで待つ' : `本陣を守ろう。${side === '後ろ' ? 'うしろ' : side}の敵を見よう`;
 }
 // 軽傷で歩ける間は、手当ての退き先で本陣への道案内を消さない。
@@ -1835,7 +1862,7 @@ const anegawa = {
     return text;
   },
   placeText(label) {
-    if (/信長|本陣/.test(label)) return '本陣の前';
+    if (/信長|本陣/.test(label)) return '味方の旗';
     if (/東|別手/.test(label)) return '東の川岸';
     if (/槍列/.test(label)) return '味方の旗';
     return label;

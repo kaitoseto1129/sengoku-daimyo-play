@@ -124,13 +124,17 @@ function ldBegin(keys, battle = '') {
 function ldTick() {
   const el = $('ld-left');
   if ($('loading').hidden || !ldPlan) { clearInterval(ldIv); ldPlan = null; return; }
-  if (!el || document.hidden) return;
+  if (document.hidden) return;
   const P = ldPlan, i = Math.max(0, P.cur);
   const into = performance.now() - P.t;
   const total = P.est.reduce((sum, ms) => sum + ms, 0) || 1;
   const completed = P.est.slice(0, i).reduce((sum, ms) => sum + ms, 0);
-  P.progress = Math.max(P.progress || 0, Math.min(.97, (completed + Math.min(into, P.est[i] * .92)) / total));
+  // 見込みを超えても丸を止めず、現在の段の終わりへゆっくり近づける。
+  // 次の段を先取りせず、満ち切るのは実際に支度が終わった時だけ。
+  const fraction = into <= P.est[i] ? into / P.est[i] * .8 : .8 + .18 * (1 - Math.exp(-(into - P.est[i]) / P.est[i]));
+  P.progress = Math.max(P.progress || 0, Math.min(.99, (completed + P.est[i] * fraction) / total));
   $('loading').style.setProperty('--ld-progress', `${(P.progress * 100).toFixed(1)}%`);
+  if (!el) return;
   let left = Math.max(0, P.est[i] - into);
   for (let k = i + 1; k < P.keys.length; k++) left += P.est[k];
   // 見込みを超えても残り秒を消さず、残る段と現在の超過分から目安を直す。
@@ -1902,6 +1906,7 @@ const game = {
       if (!tool && !isNorender()) ldLearn({ defs: LT.defs, assets: LT.assets, build: LT.buildOnly, warm: LT.humansWarm, compile: LT.compile, first: LT.first });
       stage('戦の支度ができました');
       clearInterval(ldIv); ldIv = 0;
+      $('loading').style.setProperty('--ld-progress', '100%');
       { const bar = document.querySelector('#loading .ldbar i'); if (bar) { bar.style.transition = 'transform .3s linear'; bar.style.transform = 'scaleX(1)'; } await new Promise((r) => setTimeout(r, 350)); }   // 残りを急に消さず、満ちてから閉じる（kaito 10/23 稲生 37）
       const readingBegan = performance.now();
       await reader.wait();
