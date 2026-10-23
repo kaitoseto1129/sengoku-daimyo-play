@@ -254,8 +254,8 @@ export function updateMissionPin(rt) {
   if (inouEnemy && inouSignVisible(rt, want.unit)) {
     const u = want.unit;
     // 実際の▼と同じ頭上を投影する。近くても画面外や任務の下ならピンで追う。
-    const head = u.mounted ? 3.05 : Math.max(2.1, (u.bodyHeight || 1.72) + .35);
-    goalPoint.set(u.pos.x, u.pos.y + head + .12, u.pos.z).project(rt.camera);
+    const head = u.mounted ? 3.17 : Math.max(2, (u.bodyHeight || 1.72) + .2);
+    goalPoint.set(u.pos.x, u.pos.y + head, u.pos.z).project(rt.camera);
     const sx = (goalPoint.x + 1) * W / 2, sy = (1 - goalPoint.y) * H / 2;
     enemyVisible = goalPoint.z >= -1 && goalPoint.z <= 1 && sx >= 20 && sx <= W - 20 && sy >= 40 && sy <= H - 20 &&
       !rects.some(r => sx + 20 > r.left && sx - 20 < r.right && sy > r.top && sy - 40 < r.bottom);
@@ -544,7 +544,7 @@ export function updateMissionPin(rt) {
   // 守備の案内は右上の任務札へまとめる。
   const personName = typeof marker?.label === 'function' ? marker.label() : marker?.label;
   const distanceLabel = !oke && !person && !want.fire && !want.gate && !want.dodge && !want.turn && !arrived;
-  const text = working ? action.hold ? '火をつける（長押し）' : '火をつける' : want.fire ? '' : want.silent ? '' :
+  const text = working ? action.hold ? '火をつける（長押し）' : '火をつける' : friendlyPerson ? '' : want.fire ? '' : want.silent ? '' :
     want.treatment && arrived ? '止まって手当' : distanceLabel ? `${want.treatment ? '手当まで ' : 'あと'}${Math.ceil(Math.max(0, d - (want.r ?? 6)) / .75)}歩` :
     friendlyPerson ? personName || 'この人' : '';
   if (pin._words.textContent !== text) pin._words.textContent = text;
@@ -675,9 +675,9 @@ let enemyTarget = null;
 function updateEnemyTarget(rt) {
   const hud = rt.hud, me = rt.player?.u;
   hud.missionEnemyShown = false;
-  // 桶狭間・森部は実際の頭上に固定した共通の▼だけを使う。
+  // 稲生・桶狭間・森部は実際の頭上に固定した共通の▼だけを使う。
   // 画面端へ移す「敵」の札と二重にせず、見えている兵との対応を保つ。
-  if (rt.def.key === 'okehazama' || rt.def.key === 'moribe') {
+  if (rt.def.key === 'inou' || rt.def.key === 'okehazama' || rt.def.key === 'moribe') {
     if (enemyTarget) enemyTarget.hidden = true;
     return false;
   }

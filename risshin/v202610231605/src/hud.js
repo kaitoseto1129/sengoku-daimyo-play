@@ -21,17 +21,21 @@ export class Hud {
         background:#14120f !important; color:#fff3df;
       }
       html:root body #hud.field-clean.field-clean .bl #h-hp.hp .hp-remaining {
-        display:block !important; font-size:max(16px,calc(16px * var(--text-scale,1))) !important;
+        display:block !important; font-size:max(18px,calc(18px * var(--text-scale,1))) !important;
         line-height:1.4; white-space:nowrap;
       }
       html:root body #hud.field-clean.field-clean .bl #h-hp.hp i {
         width:128px !important; min-width:32px; flex:0 1 128px;
-        height:14px !important; border:1px solid #fff3df; padding:0;
-        background:#14120f; mask:none !important; -webkit-mask:none !important; box-sizing:border-box;
+        height:20px !important; border:2px solid #fff3df; padding:0;
+        background:repeating-linear-gradient(135deg,#514a3f 0 3px,#14120f 3px 6px) !important;
+        position:relative; mask:none !important; -webkit-mask:none !important; box-sizing:border-box;
       }
       html:root body #hud.field-clean.field-clean .bl #h-hp.hp > span,
-      html:root body #hud.field-clean.field-clean .bl #h-hp.hp i::before,
-      html:root body #hud.field-clean.field-clean .bl #h-hp.hp i::after { display:none !important; }
+      html:root body #hud.field-clean.field-clean .bl #h-hp.hp i::before { display:none !important; }
+      html:root body #hud.field-clean.field-clean .bl #h-hp.hp i::after {
+        content:''; display:block !important; position:absolute; inset:0; pointer-events:none;
+        background:linear-gradient(to right,transparent calc(100% - 2px),#14120f 0) 0 0 / 25% 100%;
+      }
       html:root body #hud.field-clean.field-clean .bl #h-hp.hp i strong { background:#fff3df; }
       html:root body #hud.field-clean.field-clean .bl #h-hp.hp.deep { outline:2px solid #fff3df; }
       html:root body #hud.field-clean.field-clean .bl #h-hp.hp.deep i strong {

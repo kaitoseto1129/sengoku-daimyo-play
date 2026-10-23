@@ -75,10 +75,11 @@ function build(rt, root) {
         // 森部は赤い▼を保ち、幅と高さで間合い・命中を分ける。
         shader.vertexShader = shader.vertexShader.replace('if (signTone > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(1.0);',
           rt.def.key === 'moribe' ? 'if (signTone > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(0.007, 0.006, 0.005);' :
+          rt.def.key === 'inou' ? 'if (signTone > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(1.0);' :
           'if (signTone > 2.5) vColor = position.z > 0.0 ? vec3(1.0) : vec3(1.0, 0.06, 0.02); else if (signTone > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(1.0);');
         shader.fragmentShader = 'varying vec3 vSignLevel;\n' + shader.fragmentShader.replace('#include <color_fragment>',
           '#include <color_fragment>\nif (vSignLevel.x > 0.5 && vSignLevel.y > mix(0.065, 0.245, vSignLevel.z)) diffuseColor.rgb = vec3(0.007, 0.006, 0.005);');
-        if (rt.def.key === 'moribe') {
+        if (rt.def.key === 'moribe' || rt.def.key === 'inou') {
           // 傷で赤が減っても敵の印は赤のまま。黒い▼を味方と取り違えさせない。
           shader.fragmentShader = shader.fragmentShader.replace(
             'diffuseColor.rgb = vec3(0.007, 0.006, 0.005);',
@@ -169,9 +170,9 @@ export function fieldSignsTick(rt, root) {
   const hide = photo || rt.hud?.introWaiting;
   // 間合い内の相手・狙う相手・すぐ近くの敵を先に示す。攻撃の判定は変えない。
   const reachableTarget = rt.player.inRange && rt.player.rangeCueTarget?.alive ? rt.player.rangeCueTarget : null;
-  // 森部・桶狭間は共通の頭上印を保ち、大きな札への置き換えや周囲の縮小をしない。
-  const marked = rt.def.key === 'moribe' || rt.def.key === 'okehazama' ? null : markedEnemy(rt);
-  const missionEnemy = marked || reachableTarget ||
+  // 稲生も共通の頭上印を保ち、大きな札への置き換えや周囲の縮小をしない。
+  const marked = rt.def.key === 'inou' || rt.def.key === 'moribe' || rt.def.key === 'okehazama' ? null : markedEnemy(rt);
+  const missionEnemy = marked || (rt.def.key === 'inou' ? rt.def.missionSignTarget?.(rt) : null) || reachableTarget ||
     rt.hud.approachGuideEnemy || rt.hud.attackGuideEnemy || rt.hud.aimGuideEnemy ||
     (rt.player.lock?.alive ? rt.player.lock : null) || rt.missionGuide?.closeEnemy ||
     (rt.guideEnemyShown ? rt.guideEnemy : null);
@@ -252,8 +253,9 @@ export function fieldSignsTick(rt, root) {
       }
       if (!u._focusSignSeen) continue;
     }
-    // 一人の大きな札と囲みは共通案内に任せ、本人の印を二重にしない。
-    if (u === marked && !oke) continue;
+    // 稲生は共通の▼を本人の頭上に残す。札や囲みへの置き換えはしない。
+    if (u === marked && !oke && !inou) continue;
+    if (inou && (u.mesh?.visible === false || u.camHidden) && !defeated) continue;
     // 稲生・森部は敵の赤い▼だけ。味方の丸と重ねて所属を迷わせない。
     if ((moribe || inou || rt.def.key === 'okehazama') && !foe) continue;
     // 森部は見える敵全員へ同じ▼を付ける。控えや対岸の兵も所属を変えない。
@@ -289,7 +291,7 @@ export function fieldSignsTick(rt, root) {
     // 討つ武将は別の大きさを保ち、任務の相手を見失わせない。
     // 稲生は追う一人を少し大きくし、届く時には幅も広げる。
     // 森部の縦の拡大は命中だけに使い、敵の振りかぶりと混ぜない。
-    const pixels = marked && u !== marked && foe ? 9 : moribe ? ((u.moribeHitUntil || 0) > rt.t ? 26 : u === readyEnemy ? 26 : u === missionEnemy ? 26 : u === commander ? 26 : near ? 16 : 11) :
+    const pixels = !inou && marked && u !== marked && foe ? 9 : moribe ? ((u.moribeHitUntil || 0) > rt.t ? 26 : u === readyEnemy ? 26 : u === missionEnemy ? 26 : u === commander ? 26 : near ? 16 : 11) :
       // 稲生は近づく変化を大きくし、届く本人はさらに幅広い▼へ切り替える。
       inou ? (hot ? 32 : u === missionEnemy ? 14 + 12 * approach : meD2 < 25 * 25 ? 18 : 9) :
       oke ? (u === readyEnemy ? 34 : u === missionEnemy ? 26 + 6 * approach :
@@ -329,7 +331,7 @@ export function fieldSignsTick(rt, root) {
     dummy.scale.set(oke ? okeScale * (reachable ? 1.6 : 1) : moribe || inou ? k * (reachable ? 1.6 : 1) : k * (1 + .5 * pulse),
       oke || moribe || inou ? (oke ? okeScale : k) * (1 + pulse) : k, oke ? okeScale : k);
     if (defeated) dummy.scale.multiplyScalar(Math.max(0, Math.min(1, (defeatUntil - rt.t - 1.2) / 1.2)));
-    if (marked && foe && u !== marked) dummy.scale.multiplyScalar(.55);
+    if (!inou && marked && foe && u !== marked) dummy.scale.multiplyScalar(.55);
     dummy.updateMatrix();
     if (foe) {
       // 森部も赤の高さを命の残りにそろえ、一撃ごとの減りを隠さない。

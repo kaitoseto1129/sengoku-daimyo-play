@@ -113,6 +113,7 @@ function ldBegin(keys, battle = '') {
   const bar = document.querySelector('#loading .ldbar i');
   if (bar) { bar.style.transition = 'none'; bar.style.transform = 'scaleX(0)'; }
   $('loading').style.setProperty('--ld-progress', '0%');
+  $('loading').style.setProperty('--ld-stages', String(keys.length));
   clearInterval(ldIv); ldIv = setInterval(ldTick, 250);
   const actions = document.querySelector('#loading .ld-cancel');
   if (actions) actions.remove();
@@ -134,10 +135,13 @@ function ldTick() {
   // 見込みを超えても丸を止めず、現在の段の終わりへゆっくり近づける。
   // 次の段を先取りせず、満ち切るのは実際に支度が終わった時だけ。
   const fraction = into <= P.est[i] ? into / P.est[i] * .8 : .8 + .18 * (1 - Math.exp(-(into - P.est[i]) / P.est[i]));
-  P.progress = Math.max(P.progress || 0, Math.min(.99, (completed + P.est[i] * fraction) / total));
+  const firstBattle = $('loading').classList.contains('first-battle');
+  // 初陣は一工程を一区画にする。空の区画が残る工程で、済んだ区画は戻さない。
+  const progress = firstBattle ? (i + fraction) / P.keys.length : (completed + P.est[i] * fraction) / total;
+  P.progress = Math.max(P.progress || 0, Math.min(.99, progress));
   $('loading').style.setProperty('--ld-progress', `${(P.progress * 100).toFixed(1)}%`);
-  // 初陣は棒一本にそろえる。見込みを超えても次の工程を先取りしない。
-  if ($('loading').classList.contains('first-battle')) {
+  // 見込みを超えても次の区画を先取りせず、実際の完了でだけ満たす。
+  if (firstBattle) {
     const bar = document.querySelector('#loading .ldbar i');
     if (bar) {
       bar.style.transition = RMm() ? 'none' : 'transform 250ms linear';
@@ -158,6 +162,7 @@ function ldStep(key) {
   const P = ldPlan; if (!P) return;
   const i = P.keys.indexOf(key); if (i < 0 || i === P.cur) return;
   P.cur = i; P.t = performance.now();
+  if ($('loading').classList.contains('first-battle')) { ldTick(); return; }
   const sum = P.est.reduce((a, v) => a + v, 0) || 1;
   let a = 0; for (let k = 0; k < i; k++) a += P.est[k];
   const end = (a + P.est[i] * 0.92) / sum;

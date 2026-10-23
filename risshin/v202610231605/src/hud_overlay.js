@@ -277,14 +277,7 @@ export class HudOverlay {
         rt.def.drawMissionMarks?.(g, rt, this)) this.ovBlank = false;
     // 本人の足元は兵が重なっても見える白い輪。行き先の旗とは形を分ける。
     if (this.drawPlayerSign(g, rt)) this.ovBlank = false;
-    // 合流する本人だけ、武器や旗を含めず手足の輪郭を囲む。既存の形と配列を使い回す。
-    const marker = rt.missionGuide?.objective === currentObjective(rt) && rt.missionGuide.marker;
-    const person = typeof marker?.guidePerson === 'function' ? marker.guidePerson() : marker?.guidePerson;
-    if (person?.alive && !person.gone && person.team === rt.player.u.team && !rt.over && !rt.choice &&
-        !this.introWaiting && !rt.player.camShot && !this.bigmap && sightScreenUnit(rt, person)) {
-      const frame = this.measurePersonFrame(person, rt, true);
-      if (frame) { this.drawEnemyContour(g, rt, person, frame, true); this.ovBlank = false; }
-    }
+    // 案内役は共通ピンの頭上の人型一つ。体の輪郭を別の人型に見せない。
     // 行き先は共通のピンに任せ、持ち場の輪や味方の旗を重ねて描かない。
     // 敵は頭上の赤い▼、武将の名と体力は field_signs.js。
     this.battleSignEnemy = null; this.enemyFrameShown = false;

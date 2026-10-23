@@ -2592,13 +2592,23 @@ const inabayama = {
   // ミッション（kaito 10/23 1・49・50）。右上の一行は「何をするか」だけ。向き・行き先の字は書かない。
   lendBow: true, // 美濃攻めは弓を覚える戦（kaito の役割分担）。問屋で買っていなくても弓を貸す。
   noSiegeCards: true, // 右の曲輪の札（未見・様子不明）は出さない。字は右上の一行だけ（kaito 10/23）。
-  missions: ['この人についていく', '火の印へ', 'さくを守れ', '山道をのぼれ', '斎藤龍興の馬廻を討つ', '本丸に合図の火を放つ'],
+  missions: ['この人について', '火の印へ', 'さくを守れ', '山道をのぼれ', '斎藤龍興の馬廻を討つ', '本丸に合図の火を放つ'],
   missionHeading(rt) {
-    if (this.missionOf(rt) === 1) {
-      if (rt.flags.lit >= NEED) return '町の出口へ';
+    const stage = this.missionOf(rt), F = rt.flags;
+    if (stage === 1 || stage === 2) {
+      const enemy = rt.player.inRange && rt.player.rangeCueTarget?.alive ? rt.player.rangeCueTarget : rt.missionGuide?.closeEnemy;
+      const valid = enemy?.alive && enemy.team !== rt.player.u.team && !enemy.gone && !enemy.fleeing && !enemy.downed && !enemy.woundOut;
+      const distance = valid ? Math.hypot(enemy.pos.x - rt.player.u.pos.x, enemy.pos.z - rt.player.u.pos.z) : Infinity;
+      // 境で札を往復させない。表示だけに余裕を持たせ、兵の判断は変えない。
+      F.actionEnemy = valid && distance < (F.actionEnemy === enemy ? 8 : 6) ? enemy : null;
+      if (stage === 1 && !rt.G.lord && nearFireHouse(rt)) return '火をつける';
+      if (F.actionEnemy) return '敵をたおす';
+    }
+    if (stage === 1) {
+      if (F.lit >= NEED) return '町の出口へ';
       if (rt.G.lord) return '足軽の火付けを守れ';
     }
-    return this.missions[this.missionOf(rt)];
+    return this.missions[stage];
   },
   missionOf(rt) {
     const F = rt.flags, ph = rt.phase;

@@ -4815,6 +4815,9 @@ honnoji.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
       inp.runHeld = moving && !b.honnoCatchBreath;
       return;
     }
+    // 構え・回避は廃止済み。追手を待ち受けず、戸口まで調べた道を駆ける。
+    // 向き直っても退路への棒を保ち、背や横の刃から離れる。
+    inp.runHeld = moving;
     const uncovered = p.guardBroken > 0 ||
       Math.cos(Math.atan2(face.pos.x - u.pos.x, face.pos.z - u.pos.z) - u.heading) <= .25;
     // 追うだけの兵へ構え続けると、長い退路で歩みと気力を失う。
@@ -4838,7 +4841,9 @@ honnoji.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
         !p.mounted && !u.climb &&
         !(p.knockT > 0) && p.dodgeT <= -.3 &&
         p.sta >= 20 + (u.hp <= u.maxHp * .35 || p.guardBroken > 0 ? 0 : p.maxSta * .15)) {
-      retreatDodge(b, inp, moving ? walk : p.yaw + Math.PI, honnoRetreatDodgeAllowed);
+      if (retreatDodge(b, inp, moving ? walk : p.yaw + Math.PI, honnoRetreatDodgeAllowed)) {
+        inp.runHeld = true;
+      }
     }
   };
   const fight = (r, post = null) => {
