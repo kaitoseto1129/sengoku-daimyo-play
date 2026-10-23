@@ -1375,12 +1375,7 @@ const tedorigawa = {
       this.dispose = dispose; return dispose.call(this);
     };
     riverSoldiers(rt);
-    // 描く直前にも体の形が替わるため、最後の骨の倍率で矢の長さをそろえる。
-    const beforeDraw = rt.scene.onBeforeRender;
-    rt.scene.onBeforeRender = function (renderer, scene, camera, target) {
-      beforeDraw.call(this, renderer, scene, camera, target);
-      rt.army.syncPinnedArrowScales();
-    };
+    // 刺さった矢の長さは、共通の矢の行列更新で最後の骨の倍率に合わせる。
     riverRear(rt);
     riverTorches(W);
     riverVillage(rt);

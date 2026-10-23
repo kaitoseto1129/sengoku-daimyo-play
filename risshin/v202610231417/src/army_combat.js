@@ -312,7 +312,7 @@ export const ArmyCombat = {
     const woundNow = t.invuln && !this.playerMayKill(t, src) && t.hp <= t.maxHp * WOUND_FLOOR;
     if (woundNow) t.hp = t.maxHp * WOUND_FLOOR;
     t.lastHitT = 0;
-    t.hitFlash = 0.15;
+    t.hitFlash = 0.08;
     // 渡河中の矢・弾は足場を乱す。隊の動揺は一秒に一度までに抑える。
     const crossingShot = (kind === 'arrow' || kind === 'gun') && amount > 0 && this.world.def.waterSlow && this.world.waterFootDepthAt(t.pos.x, t.pos.z, t.pos.y) > 0.15;
     if (crossingShot) {

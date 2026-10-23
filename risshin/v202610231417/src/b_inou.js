@@ -125,7 +125,7 @@ function pinPoint(rt, pos, radius, hide, unit = null, name = '') {
   const pin = rt.flags.goalPin;
   pin.x = pos.x; pin.z = pos.z; pin.r = radius; pin.hide = hide;
   pin.unit = unit; pin.name = name; pin.enemy = !!unit && unit.team !== rt.player.u.team;
-  pin.approach = false;
+  pin.approach = false; pin.silent = false;
   return pin;
 }
 
@@ -155,7 +155,17 @@ const inou = {
   // 任務は一行。兵と武将を区別し、距離・向き・操作は書かない。
   missions: ['赤い▼の敵を倒せ', '赤い▼の敵を倒せ', '柴田隊に耐えろ', '林美作守を倒せ'],
   missionHeading(rt) {
-    return rt.flags.step === 0 && rt.flags.training === 8 ? '敵の隊長を倒せ' : this.missions[this.missionOf(rt)];
+    const F = rt.flags;
+    if (F.step === 1) {
+      if (F.training === 11 && !F.flankReached) return '右の畦へ進め';
+      if (F.training === 12) return '柴田隊を横から攻めろ';
+      const lead = F.nobuU?.alive ? F.nobuU.pos : NOBU;
+      if (Math.hypot(rt.player.u.pos.x - lead.x, rt.player.u.pos.z - lead.z) >= 20) return '旗まで進め';
+      if (F.training === 11) return 'ここで生きのこれ';
+      return `あと${Math.max(1, Math.ceil((F.training < 11 ? 24 : 112) - (rt.t - F.stepT)))}秒 生きのこれ`;
+    }
+    if (F.step === 2) return '信長について進め';
+    return F.step === 0 && F.training === 8 ? '敵の隊長を倒せ' : this.missions[this.missionOf(rt)];
   },
   // 控えや追跡中の兵も敵の姿として見分けられる。攻撃できるかで▼を消さない。
   foeMarkVisible: () => true,
@@ -206,7 +216,12 @@ const inou = {
     if (F.step === 1) {
       if (F.training === 11 && !F.flankReached) return pinPoint(rt, FLANK, 8);
       if (F.training === 12 && !gone(F.shiba1)) return pinPoint(rt, F.shiba1.center(), 8, 16);
-      return pinPoint(rt, F.nobuU?.alive ? F.nobuU.pos : NOBU, 20, 22);
+      // 持ち場にいる間は移動の印を消し、右上の残り時間だけを示す。
+      const lead = F.nobuU?.alive ? F.nobuU.pos : NOBU;
+      if (Math.hypot(rt.player.u.pos.x - lead.x, rt.player.u.pos.z - lead.z) < 20) return null;
+      const pin = pinPoint(rt, lead, 20, 20);
+      pin.silent = true;
+      return pin;
     }
     if (F.step === 2) return pinPoint(rt, F.nobuU?.alive ? F.nobuU.pos : NOBU, 10);
     if (F.step === 3) return null;

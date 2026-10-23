@@ -1290,7 +1290,10 @@ export class Army {
         } else this.kill(u, u.woundSource);
       }
       if (u.dying) { u.detailDt = 0; u.detailNextAt = 0; u.motionDt = 0; u.motionFrame = 0; this.animate(u, dt, true); continue; }
-      if (u.hitFlash > 0) u.hitFlash -= dt;
+      // 止め・遅回し中も、打たれた体のよろけは実時間で進める。
+      const reactionExtra = dt * Math.max(0, (this.hitReactionScale || 1) - 1);
+      if (u.hit && reactionExtra > 0) u.hit.t += reactionExtra;
+      if (u.hitFlash > 0) u.hitFlash -= dt + reactionExtra;
       u.lastHitT += dt;
       const focusD = u.focusD;
       if (focusD <= 60) u.farSim = false;

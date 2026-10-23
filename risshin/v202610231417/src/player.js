@@ -17,7 +17,7 @@ import { isTouch } from './touch.js';
 import { setFpCut, setFpArm } from './humans.js';
 import { kamae, volley, kamaeOff, volleyRoll, ceaseFire } from './kumi.js';
 import { groundAt, rampAt, ladderNear, FL } from './floors.js';
-import { NAKA, nakaCamClamp, nakaWindowAt } from './naka.js';
+import { NAKA, nakaCamClamp } from './naka.js';
 import { interiorFloorAt } from './interior_layouts.js';
 import { ladderAlive, startClimb } from './siege_ladder.js';
 import { decisiveCameraReset, decisiveCameraApply } from './decisive_camera.js';
@@ -1230,7 +1230,7 @@ export class Player {
       if (loss < 1) {
         this.hspd *= loss; this.rideDrive *= loss; u.vel.x *= loss; u.vel.z *= loss;
         // 当たりの重さ：一瞬止まり、首が前へ振られ、視野が詰まる
-        rt.game.hitstop = Math.max(rt.game.hitstop || 0, 0.085);
+        rt.game.hitstop = Math.min(0.06, Math.max(rt.game.hitstop || 0, 0.085));
         if (!reduceMotion()) { this.pitch -= 0.035; if (S.shake) this.fovKick = Math.min(this.fovKick || 0, -3.2); }
         this.addShake(0.2);
         sfx('hoofBeat', 1);
@@ -1701,7 +1701,7 @@ export class Player {
           this.rt.army.clashAt(src, u);
           sfx('parry', perfect ? 1.15 : 1);
           // 受け流しの手応え：刃が弾き合う一瞬の止めと小さな揺れ、視野がわずかに開く
-          this.rt.game.hitstop = Math.max(this.rt.game.hitstop || 0, this.weapon === 'spear' ? (perfect ? 0.05 : 0.035) : perfect ? 0.16 : 0.07);
+          this.rt.game.hitstop = Math.min(0.06, Math.max(this.rt.game.hitstop || 0, this.weapon === 'spear' ? (perfect ? 0.05 : 0.035) : perfect ? 0.16 : 0.07));
           this.addShake(perfect ? 0.13 : 0.09);
           if (!reduceMotion() && S.shake) this.fovKick = perfect ? 2.6 : 1.8;
           // 別の敵がすぐ差し込まず、受け流した一手を打ち返せる間を作る。
@@ -1731,7 +1731,7 @@ export class Player {
         sfx('block', 1);
         if (this.weapon === 'spear') {
           sfx('wood', 0.35);
-          this.rt.game.hitstop = Math.max(this.rt.game.hitstop || 0, 0.025);
+          this.rt.game.hitstop = Math.min(0.06, Math.max(this.rt.game.hitstop || 0, 0.025));
         }
         if (this.rt.game.haptic) this.rt.game.haptic('block', Math.min(1, amount / 30));
         hud.hurt(0.1);
@@ -1817,7 +1817,7 @@ export class Player {
     const heavy = w > 0.6;
     const calm = reduceMotion();
     // ① 一瞬の止め（0.06〜0.1 秒）
-    rt.game.hitstop = Math.max(rt.game.hitstop || 0, 0.05 + 0.05 * w);
+    rt.game.hitstop = Math.min(0.06, Math.max(rt.game.hitstop || 0, 0.05 + 0.05 * w));
     // ② よろめき：打たれた向きへ体が押される。槍の突きは半歩下がり、刀の斬りは体がねじれ、騎馬の突きは倒される
     let dx = 0, dz = 0;
     if (src && !src.isStruct && src.pos) { dx = u.hitIncoming ? u.hitIncoming.x : u.pos.x - src.pos.x; dz = u.hitIncoming ? u.hitIncoming.z : u.pos.z - src.pos.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d; }
@@ -2837,9 +2837,9 @@ export class Player {
     const lunge = assist ? isTouch ? 0.9 : 0.35 : 0;
     let turnCandidate = null;
     let hits = army.enemiesInArc(u.pos, heading, reach, half, u.team, over, true, fenceClear, this.lock);
-    // 初陣の白縁は、実際の向き直り・踏み込みまで含めて届く本人に付ける。
+    // 初陣・森部の間合いの変化は、実際の向き直り・踏み込みまで含めて届く本人に付ける。
     // 攻撃と同じ選び方にし、横の敵へ向き直す操作を何度も要求しない。
-    if (this.rt.def.key === 'inou' && !hits.length && assist && !this.mounted && kind !== 'butt') {
+    if ((this.rt.def.key === 'inou' || this.rt.def.key === 'moribe') && !hits.length && assist && !this.mounted && kind !== 'butt') {
       const target = this.meleeAssistTarget(kind, heading);
       if (target) { this.inRange = true; this.rangeCueTarget = target; }
       return;
@@ -3079,7 +3079,7 @@ export class Player {
         const y = this.rt.world.heightAt(best.px, best.pz) + 1.0;
         army.burst(best.px, y, best.pz, thick ? 3 : 7, 'wood', -fx * 0.6, -fz * 0.6);
         sfx(thick ? 'thud' : 'crack', thick ? 0.9 : 1.1); sfx('wood', 0.7);
-        this.rt.game.hitstop = Math.max(this.rt.game.hitstop || 0, thick ? 0.06 : 0.05);
+        this.rt.game.hitstop = Math.min(0.06, Math.max(this.rt.game.hitstop || 0, thick ? 0.06 : 0.05));
         this.addShake(thick ? 0.08 : 0.05);
         if (thick && !this.thickHint) { this.thickHint = true; this.rt.hud.flash(`太い門や塀は、${this.weapon === 'sword' ? '刀' : '槍'}では少ししか傷まない`, 'dim'); }
       } else if (kind !== 'spin' && kind !== 'butt') {
@@ -3104,9 +3104,9 @@ export class Player {
       // 得物ごとの手応え：槍の突きは短く鋭く止まり、刀の斬りは刃が肉を通る分だけ少し長く止まって、斬った向きへ目線が流れる
       // 軽い一撃は短く軽く、重い一撃は長く止まり、鈍い音と時のゆるみ（見切りの反撃がいちばん重い）
       const blade = kind === 'slash' || kind === 'kthrust';
-      // 当たった瞬間の止まりは 55〜80ms（短すぎると当たったか分からない。テストプレイ 10/23）
+      // 当たった瞬間の止まりは、どの得物でも最大60ミリ秒。
       const stop = spearFeel ? (blocked ? 0.04 : counter && this.counterPerfect ? 0.08 : kind === 'slam' ? 0.075 : heavy ? 0.07 : kind === 'sweep' ? 0.065 : 0.058) : counter && this.counterPerfect ? 0.16 : heavy ? 0.11 : kind === 'sweep' ? 0.08 : blade ? 0.07 : 0.058;
-      this.rt.game.hitstop = Math.max(this.rt.game.hitstop || 0, stop);
+      this.rt.game.hitstop = Math.min(0.06, Math.max(this.rt.game.hitstop || 0, stop));
       if (this.rt.game.haptic) this.rt.game.haptic(heavy ? 'heavy' : 'hit', Math.min(1, 0.45 + stop * 5));
       if (spearFeel) sfx(blocked ? 'kin' : kind === 'sweep' || kind === 'butt' || kind === 'spin' ? 'wood' : heavy ? 'thud' : swing.res === 'armor' ? 'kin' : 'hit', blocked ? 0.65 : kind === 'slam' ? 0.9 : 0.8);
       if (!blocked && swing.res !== 'block') sfx('hit', spearFeel ? 0.55 : 0.7);   // 肉に入った芯の音（どの得物でも当たりが耳で分かる）
@@ -3123,9 +3123,9 @@ export class Player {
         h.u.flinchT = Math.max(h.u.flinchT || 0, spearFeel ? (kind === 'slam' ? 0.3 : kind === 'sweep' ? 0.22 : 0.12) : heavy ? 0.32 : 0.18);
         if (!spearFeel && heavy && h.u.alive) h.u.stagger = Math.max(h.u.stagger || 0, 0.9);
         // 当たった相手は半歩よろけて下がる（当たったのが目で分かる）。小さな血しぶきか土埃
-        // 当たった相手の体が一瞬（約0.12秒）白く光る。▼の広がりと同じ本人（field_signs.js が描く）
+        // 当たった相手の体が一瞬（実時間で0.08秒）薄く白く光る。▼の広がりと同じ本人（field_signs.js が描く）
         if (!h.u.isStruct && h.res !== 'block') {
-          h.u.hurtGlowUntil = this.rt.t + 0.12;
+          h.u.hurtGlowUntil = performance.now() / 1000 + 0.08;
           const list = this.rt.hurtGlow || (this.rt.hurtGlow = []);
           if (!list.includes(h.u)) { if (list.length >= 8) list.shift(); list.push(h.u); }
         }
@@ -3140,7 +3140,7 @@ export class Player {
       // 馬上の一撃は馬の勢いが乗って重い：長めに止まり、低い音、突かれた者は馬の進む向きへ大きく突き飛ばされ、腕に返る衝撃で馬が少し落ちる
       const mh = this.mounted ? Math.min(1, Math.abs(this.hspd) / 10) : 0;
       if (mh > 0.3 && (kind === 'thrust' || kind === 'charged' || kind === 'sweep' || kind === 'slash')) {
-        this.rt.game.hitstop = Math.max(this.rt.game.hitstop || 0, 0.07 + 0.06 * mh);
+        this.rt.game.hitstop = Math.min(0.06, Math.max(this.rt.game.hitstop || 0, 0.07 + 0.06 * mh));
         sfx('thud', 0.5 + 0.5 * mh);
         this.addShake(0.06 + 0.08 * mh);
         if (!reduceMotion()) { this.fovKick = Math.min(this.fovKick || 0, -1.5 * mh); this.pitch -= 0.012 * mh; }
@@ -3151,7 +3151,7 @@ export class Player {
       // 構えの上から受けられた：得物が弾かれて腕が浮き、半歩押し戻されて次の一手が遅れる（崩す技は別）
       if (blocked) {
         this.cd += 0.18;
-        this.rt.game.hitstop = Math.max(this.rt.game.hitstop || 0, spearFeel ? 0.035 : 0.07);
+        this.rt.game.hitstop = Math.min(0.06, Math.max(this.rt.game.hitstop || 0, spearFeel ? 0.035 : 0.07));
         if (!this.mounted) this.lunge = { x: -Math.sin(heading) * 0.22, z: -Math.cos(heading) * 0.22, t: 0.12 };
         this.addShake(0.05);
       }
@@ -4020,9 +4020,7 @@ export class Player {
   // 例）桶狭間の「かかれ」：player.showShot({ x: 前へ 8m, z }, () => 自分の位置, 2)。森部・姉川の開戦：敵の横陣の正面 20m の低い所から敵陣を 3 秒
   // 戦っている時・一人称の時は撮らない（操作を奪わない）
   showShot(from, at, dur = 2.5, o = {}) {
-    if (this.inCombatT > 0 || this.lock || this.aiming || this.draw > 0 || this.fpWanted() || this.lookIdle < 0.7 || reduceMotion()) return false;
-    this.camShot = { from, at, dur, t: 0, ...o };
-    return true;
+    return false;
   }
 
   toggleView() {
@@ -4039,8 +4037,7 @@ export class Player {
   // 一人称で見てよい時か。開戦の引き・大事な場面・倒れた時・戦の終わり・写真モードは三人称に戻す（終われば一人称へ戻る）
   fpWanted() {
     const rt = this.rt;
-    const window = (this.weapon === 'gun' || this.weapon === 'bow') && nakaWindowAt(this.u, this.yaw);
-    return (S.view === 'first' || window) && this.u.alive && !(this.introT > 0) && !this.cine && !rt.over && !(rt.game && rt.game.photo);
+    return S.view === 'first' && this.u.alive && !(this.introT > 0) && !this.cine && !rt.over && !(rt.game && rt.game.photo);
   }
   // 目の位置：骨の入った人なら頭の骨の少し上・前。無ければ体の高さから
   eyeRaw(out) {
@@ -4713,6 +4710,8 @@ export class Player {
   updateCamera(dt, camera) {
     this.camCameraFrame = (this.camCameraFrame || 0) + 1;
     this.cameraRayFrame();
+    // 自動の見せ場と開戦の寄りを使わず、手動で選んだ距離を保つ。
+    this.cine = null; this.camShot = null; this.shotZoom = 0; this.introT = 0;
     decisiveCameraReset(this.rt, camera);
     const u = this.u;
     if (!u.alive && this.rt.result?.down) { this.updateDownCamera(dt, camera); return; }
@@ -4787,7 +4786,7 @@ export class Player {
     const selfFrame = fieldView && u.alive && !this.rt.over && !this.overHold && !this.cine && !this.camShot && !this.rt.game?.photo;
     this.fieldViewK = (this.fieldViewK || 0) + ((fieldView ? 1 : 0) - (this.fieldViewK || 0)) * Math.min(1, dt * 4);
     const viewK = this.fieldViewK;
-    const rc = (this.rideClose || 0) * (1 - viewK);
+    const rc = 0;
     // 近くの敵は間合いの調整に数える。視点の向きは変えない。
     this.frameT = (this.frameT || 0) - dt;
     if (this.frameT <= 0) {
@@ -4870,12 +4869,12 @@ export class Player {
     const cp = Math.cos(this.pitch);
     const dir = _cD.set(Math.sin(cyaw) * cp, Math.sin(this.pitch), Math.cos(cyaw) * cp);
     const right = _cR.set(-Math.cos(cyaw), 0, Math.sin(cyaw));
-    // 止まって 1.5 秒ほどすると、ゆっくり寄る（周りを眺める間合い）。動けば元へ
+    // 止まっている時間を覚える。視点の距離は変えない。
     const still = Math.hypot(u.vel.x, u.vel.z) < 0.3 && !fight && !this.mounted;
     this.stillT = still ? (this.stillT || 0) + dt : 0;
     this.stillK = (this.stillK || 0) + ((this.stillT > 1.5 && !reduceMotion() ? 1 : 0) - (this.stillK || 0)) * Math.min(1, dt * 0.7);
-    // 戦っている時は肩越しに近く（敵と自分が画面の左右に並ぶ）。走ると引いて速さを見せる。止まると寄る。敵がすぐ近いとさらに少し寄る
-    const base = (this.cmdOpen || this.radial ? 7.5 : this.aiming ? 2.5 : this.guard ? 3.0 : running ? 4.2 : fight ? 3.0 : 4.0) - this.stillK * 0.6 - this.frameK * 0.35 + (gallop ? 0.9 : 0);
+    // 戦闘・停止・煙で自動的に寄せず、同じ距離を保つ。
+    const base = this.cmdOpen || this.radial ? 7.5 : 4.0;
     // 一人称への寄り（0.3秒ほど。動きを減らす設定ならすぐ）
     const fpGoal = this.fpWanted() && !this.overHold ? 1 : 0;
     if (reduceMotion() || dt >= 0.5) this.fpK = fpGoal;
@@ -4894,7 +4893,7 @@ export class Player {
     this.gallopK = (this.gallopK || 0) + (rideGoal * (reduceMotion() ? 0.3 : 1) - (this.gallopK || 0)) * Math.min(1, dt * 2.2);
     // 携帯の横では近い兵の姿を大きく保つ。兵数や当たり判定は変えない。
     const fieldFov = isTouch && VIEW.h <= 500 && !this.rt.def.town && !this.rt.def.dojo ? 46 : 54;
-    const fovWant = Math.min(fieldFov, S.fov + (running && !this.mounted && !reduceMotion() ? 6 : 0) + this.gallopK) + e * 2 - (this.aimK || 0) * (e > 0.5 ? 24 : 12) + (reduceMotion() ? 0 : this.fovKick) - (this.shotZoom || 0);
+    const fovWant = Math.min(fieldFov, S.fov) + e * 2;
     if (Math.abs(camera.fov - fovWant) > 0.05) { camera.fov += (fovWant - camera.fov) * Math.min(1, dt * (Math.abs(this.fovKick) > 0.3 ? 18 : 4)); camera.updateProjectionMatrix(); }
     decisiveCameraApply(this.rt, camera);
     // 目の前の手と武器が切れないよう、一人称では手前の切り口を近づける
@@ -4943,14 +4942,14 @@ export class Player {
     this.smokeK = (this.smokeK || 0) + (smoke - (this.smokeK || 0)) * Math.min(1, dt * 0.8);
     // 騎乗して味方に囲まれている時（鹿垣の段など）は、馬の首・鞍で前が塞がらないよう、もう少し引く
     const mountCrowd = this.mounted ? Math.min(1.1, (this.crowd || 0) / 6) : 0;
-    const dist = Math.max(2.2, (base + this.zoom + range + (this.mounted ? 2.8 - rc * 6.4 + mountCrowd * 1.4 : 0)) * (1 - this.smokeK * 0.18)) + pull * 7 + this.marchK * 0.8 * (1 - rc * 0.85) + wk * 9 + this.cineK * 7 + ok * overH * 0.7 + ((rt0.holdPct || 0) > 0 ? 1.5 : 0) + ((rt0.def && rt0.def.camPull) || 0) + defeatPull;   // 戦ごとの引き（塀・暗い林で前が塞がる戦。B099・B112）   // 長押し（首取りなど）の間は少し引いて周りを見せる
+    const dist = Math.max(2.2, (base + this.zoom + range + (this.mounted ? 2.8 - rc * 6.4 + mountCrowd * 1.4 : 0)) * 1) + pull * 7 + this.marchK * 0.8 * (1 - rc * 0.85) + wk * 9 + this.cineK * 7 + ok * overH * 0.7 + ((rt0.holdPct || 0) > 0 ? 1.5 : 0) + ((rt0.def && rt0.def.camPull) || 0) + defeatPull;   // 戦ごとの引き（塀・暗い林で前が塞がる戦。B099・B112）   // 長押し（首取りなど）の間は少し引いて周りを見せる
     // 天守・櫓・御殿の中（naka.js）：狭い部屋なので肩越しに寄る
     const inRoom = !!NAKA.cur;
     // 横持ちでも近くの相手がいる間は少し寄せ、本人と敵の姿を読み取りやすくする。
     const closeEnemy = rt0.hud.approachGuideEnemy || rt0.hud.attackGuideEnemy || rt0.hud.defendEnemy || this.lock;
     const closeBattle = this.inCombatT > 0 || closeEnemy?.alive &&
       Math.hypot(closeEnemy.pos.x - u.pos.x, closeEnemy.pos.z - u.pos.z) < 14;
-    const landscapePull = !inRoom && !this.aiming && !rt0.def.town && !rt0.def.dojo && VIEW.h <= 500 && VIEW.w > VIEW.h ? closeBattle ? .6 : 1.2 : 0;
+    const landscapePull = !inRoom && !this.aiming && !rt0.def.town && !rt0.def.dojo && VIEW.h <= 500 && VIEW.w > VIEW.h ? 1.2 : 0;
     const fieldDistance = (this.mounted ? 7 : 4.4) + landscapePull;
     // 護衛中は二人の間を見る。肩越しの距離上限で守る人が切れないよう、
     // 視野に収まる距離までだけ引く。兵の位置や当たり判定は変えない。
@@ -4961,12 +4960,12 @@ export class Player {
     }
     const guardPull = guardFrame ? Math.min(12, 4.8 + guardDistance * .65) : 0;
     const routeNear = routeFrame && (this.rt.def.routeDestinationSight || this.rt.def.singlePassageArrow || route?.marker?.entrance && Math.hypot(route.pos.x - u.pos.x, route.pos.z - u.pos.z) < 8);
-    const desiredDist = inRoom ? Math.min(dist, 2.3) : routeNear || closeFightFrame ? Math.max(4.2, Math.min(dist, 5.2)) : Math.max(dist, dist + (fieldDistance - dist) * viewK, guardPull);
+    const desiredDist = Math.max(dist, dist + (fieldDistance - dist) * viewK, guardPull);
     // 肩越しの本人を大きく保つ。馬上は首と鞍を越す距離を残す。
     // 遠さの設定と戦ごとの引きを、肩越しの上限にも反映する。
     // 壁・柱の検査はこの後で行い、狭い所を突き抜けない。
     const footLimit = S.camRange === 'near' ? 4.2 : S.camRange === 'far' ? 5.2 : 4.8;
-    const distR = selfFrame ? (this.mounted ? 6 : S.camRange === 'near' ? 3.8 : S.camRange === 'far' ? 4.8 : 4.4) : Math.min(desiredDist + (routeNear ? 0 : landscapePull), Math.max(this.mounted ? 6 : footLimit, guardPull) + landscapePull);
+    const distR = selfFrame ? Math.max(2.2, (this.mounted ? 6 : S.camRange === 'near' ? 3.8 : S.camRange === 'far' ? 4.8 : 4.4) + this.zoom) : Math.min(desiredDist + (routeNear ? 0 : landscapePull), Math.max(this.mounted ? 6 : footLimit, guardPull) + landscapePull);
     this.camDist = this.camDist ? this.camDist + (distR - this.camDist) * Math.min(1, dt * (inRoom ? 5 : 3)) : distR;
     this.sideK = (this.sideK ?? 0.85) + ((routeNear || closeFightFrame ? .2 : fight || this.guard ? 0.95 : 0.85) - (this.sideK ?? 0.85)) * Math.min(1, dt * 3);
     // 狭い所（門・塀の内）：肩の側が壁に近ければ、空いている逆の肩へカメラだけ回す（決めた肩の設定は変えない）

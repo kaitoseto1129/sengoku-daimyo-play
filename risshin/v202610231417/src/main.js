@@ -2692,11 +2692,16 @@ function loop() {
   if (document.hidden || (b && game.townShop)) { input.endFrame(); return; }
   if (b) {
     // 攻撃が当たった瞬間のわずかな溜め（ヒットストップ）。「動きを減らす」では使わない
-    if (game.hitstop > 0) { game.hitstop -= dt; if (!RMm()) dt *= 0.12; }
+    if (game.hitstop > 0) {
+      const stopped = Math.min(real, game.hitstop, 0.06);
+      game.hitstop = Math.max(0, Math.min(game.hitstop, 0.06) - real);
+      if (!RMm()) dt -= stopped * 0.65;
+    }
     // 受け流し・武将討ちの瞬間はゆっくり
     const momentSpeed = decisiveCameraSpeed(b);
     if (game.slowmo > 0) { game.slowmo -= real; if (!RMm()) dt *= Math.min(0.35, momentSpeed); }
     else dt *= momentSpeed;
+    b.army.hitReactionScale = dt > 0 ? real / dt : 1;
     // 軍配の図を開いている間は、時がゆっくり流れる
     if (game.cmdMap && isGunbaiOpen()) dt *= 0.15;
     b.world.distMul = S.drawDist;
