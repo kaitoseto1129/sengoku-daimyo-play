@@ -4097,6 +4097,45 @@ export class Player {
     this.lookIdle = Math.abs(input.dx) + Math.abs(input.dy) > 0.5 ? 0 : this.lookIdle + dt;
   }
 
+  // 壁よけで本人まで寄った三人称は、頭上か左右の肩へ逃がす。体の材質は変えない。
+  clearCameraBody(camera) {
+    const u = this.u, rt = this.rt, pos = camera.position;
+    if (!u.alive || this.mounted || this.fpK > .01 || u.naka || NAKA.cur || rt.game?.photo) return;
+    const dx = pos.x - u.pos.x, dz = pos.z - u.pos.z, height = pos.y - u.pos.y;
+    if (dx * dx + dz * dz >= 1.05 * 1.05 || height >= 2.55 || height < .25) return;
+    const from = this._bodyFrom || (this._bodyFrom = new THREE.Vector3());
+    const candidate = this._bodyCandidate || (this._bodyCandidate = new THREE.Vector3());
+    const dir = this._bodyDir || (this._bodyDir = new THREE.Vector3());
+    const ray = this._bodyRay || (this._bodyRay = new THREE.Raycaster());
+    const hits = this._bodyHits || (this._bodyHits = []);
+    from.copy(u.pos); from.y += 1.4;
+    const yaw = this.yaw + (this.camYawOff || 0), sx = Math.cos(yaw), sz = -Math.sin(yaw);
+    // 頭上なら背後の陣幕へ近づかない。軒下では空いている肩を使う（最大三本）。
+    for (let i = 0; i < 3; i++) {
+      const side = i === 0 ? 0 : i === 1 ? 1.2 : -1.2;
+      candidate.set(u.pos.x + sx * side, u.pos.y + (i === 0 ? 2.7 : 2.05), u.pos.z + sz * side);
+      rt.def.clampCamera?.(rt, candidate);
+      const x = candidate.x - u.pos.x, z = candidate.z - u.pos.z;
+      if (x * x + z * z < 1.05 * 1.05 && candidate.y < u.pos.y + 2.55 ||
+          candidate.y < cameraGroundAt(rt.world, candidate.x, candidate.z) + .65 ||
+          rt.def.cameraBodyClear?.(rt, candidate) === false || cameraWallBlocked(rt, from, candidate) ||
+          (rt.world.cameraBlockFraction?.(from, candidate) ?? null) !== null) continue;
+      dir.copy(candidate).sub(from);
+      const length = dir.length();
+      ray.camera = camera; ray.set(from, dir.multiplyScalar(1 / length)); ray.far = length + .2;
+      hits.length = 0;
+      if (this.blockers) for (const o of this.blockers) {
+        if (!camBlockVisible(o, rt.scene)) continue;
+        camBlockWorld(o); camBlockRaycast(o, ray, hits);
+        if (hits.length) break;
+      }
+      if (hits.length) continue;
+      pos.copy(candidate);
+      this.camPos.copy(pos);
+      return;
+    }
+  }
+
   // 戦ごとの補正と地面の持ち上げの後に、実際の屋根・壁を両面で調べる。
   clearDrawBuildings(camera) {
     if (this.fpK > .5 || this.u.naka || !this.u.alive || !this.blockers?.length) return;
@@ -4105,7 +4144,7 @@ export class Player {
     from.copy(this.u.pos); from.y += this.mounted ? 2.8 : 1.4;
     dir.copy(camera.position).sub(from);
     const length = dir.length();
-    if (length < .45) return;
+    if (length < .45) { this.clearCameraBody(camera); camera.updateMatrixWorld(); return; }
     const ray = this._drawRay || (this._drawRay = new THREE.Raycaster());
     ray.camera = camera; ray.set(from, dir.multiplyScalar(1 / length)); ray.far = length + .35;
     const hits = this._drawHits || (this._drawHits = []); hits.length = 0;
@@ -4120,6 +4159,8 @@ export class Player {
       this.camPos.copy(camera.position);
       camera.updateMatrixWorld();
     }
+    this.clearCameraBody(camera);
+    camera.updateMatrixWorld();
   }
 
   // 描く直前（on）と後：一人称の時だけ、自分の頭（兜・陣笠・顔）と背の指物・馬印を隠す。腕・手・武器・胴・脚は見せる
@@ -5269,6 +5310,7 @@ export class Player {
     } else { this.routeNearK = 0; this.routeObscured = false; this.routeSightAt = -1; }
     this.rt.def.frameCamera?.(this.rt, camera.position, look);
     this.clearWallView(camera.position, look);
+    this.clearCameraBody(camera);
     camera.lookAt(look);
     // 合戦では視点補正の後にも本人の足を画面内へ戻し、下端に余白を残す。
     // 位置は動かさず見下ろす角度だけ補い、壁の内側へカメラを押し出さない。

@@ -3512,7 +3512,12 @@ const inabayama = {
     rt.obj('main', rt.G.lord ? `足軽の火付けを守れ。町の番の兵を払え（${NEED}軒）` : `目印の家に近づこう（${NEED}軒）`, 'main', true);
     rt.say(officer(rt), rt.G.lord ? '火付けは足軽が担います。町の兵を払い、足軽をお守りくだされ' : '火の印の家へ すすめ', 4);
     if (!rt.G.lord) rt.after(9, () => { if (!rt.over) rt.say('足軽', '逃げ遅れた町の者がおる。刃を向けるな', 3.5); });   // 焼く迷い（A054）
-    // 次に向かう一軒だけに印を付ける。本人は攻撃ボタンで火を移す。
+    // 火を移せる距離と家は攻撃操作と共通。近づいた時だけ専用の釦を出す。
+    if (!rt.G.lord) for (const h of F.houses) if (h.mine) {
+      rt.addInteract('h' + h.i, () => nearFireHouse(rt) === h ? h.approach : null, '火をつける', () => {
+        if (nearFireHouse(rt) === h) this.light(rt, h);
+      }, { r: HOUSE_FIRE_R + .01, prio: 10 });
+    }
     if (rt.G.lord) { for (const h of F.houses) if (h.mine) this.sendTorch(rt, h); }
     this.markHouses(rt);
     const go = (g, x, z) => { g.order = 'move'; g.dest = { x, z }; g.speed = 2.4; g.onArrive = (gg) => { gg.order = 'hold'; gg.anchor = { x, z }; gg.aggro = 12; }; };

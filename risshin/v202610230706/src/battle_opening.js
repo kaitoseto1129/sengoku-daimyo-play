@@ -152,8 +152,9 @@ body:has(#hud.opening #battle-opening.opening-linked) #tc .stick { visibility:hi
     this.hud.root.classList.toggle('opening', active);
     this.el.hidden = !active;
     if (!active) return;
-    // 最初の歩き方は、実際に歩けたら次の案内へ渡す。
-    if (!isTouch || touchMoveLearned(rt)) this.left -= dt;
+    // 戦が時間で案内を閉じる指定なら、操作の記録がなくても任務へ渡す。
+    // 出陣札を読んでいる間は上で戻るので、六秒の案内時間を減らさない。
+    if (!isTouch || touchMoveLearned(rt) || rt.def.timedOpening) this.left -= dt;
     // 見回す側に丸が寄っても、示した丸からは必ず歩く操作を受ける。
     if (isTouch && this.el.classList.contains('opening-controls') && this.swipeX != null) {
       const origin = this.hud.navigationTouchOrigin || (this.hud.navigationTouchOrigin = {});

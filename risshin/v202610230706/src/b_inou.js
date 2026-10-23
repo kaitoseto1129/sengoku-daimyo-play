@@ -152,14 +152,14 @@ const inou = {
   missionPinCaption: '',
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
   // 任務は一行。距離・向き・操作は書かず、同じ兵をピンで追う。
-  missions: ['林美作守の兵（赤い▼）を倒せ', '林美作守の兵（赤い▼）を倒せ', '柴田隊に耐えろ', '林美作守を倒せ'],
+  missions: ['敵を倒せ', '敵を倒せ', '柴田隊に耐えろ', 'はやしを倒せ'],
   missionHeading(rt) {
-    return rt.flags.step === 0 && rt.flags.training === 8 ? '林美作守の小隊長を倒せ' : this.missions[this.missionOf(rt)];
+    return rt.flags.step === 0 && rt.flags.training === 8 ? '敵の隊長を倒せ' : this.missions[this.missionOf(rt)];
   },
   // 控えや追跡中の兵も敵の姿として見分けられる。攻撃できるかで▼を消さない。
   foeMarkVisible: () => true,
   missionSignTarget: (rt) => rt.flags.step === 0 && rt.flags.training >= 0 && rt.flags.training <= 8 ?
-    rt.flags.training === 8 ? rt.flags.hayaLead : approachUnit(rt) : null,
+    rt.flags.training === 8 ? rt.flags.hayaLead : approachUnit(rt) : rt.flags.step === 3 ? rt.flags.hayaU : null,
   missionOf: (rt) => { const F = rt.flags; return F.step === 0 ? (F.training <= 4 ? 0 : 1) : F.step === 1 ? 2 : 3; },
   minutes: 9,
   // 初陣の見分けだけ二枚。追う兵と味方を、色のほかに字と形で示す。
@@ -205,7 +205,7 @@ const inou = {
       return pinPoint(rt, F.nobuU?.alive ? F.nobuU.pos : NOBU, 20, 22);
     }
     if (F.step === 2) return pinPoint(rt, F.nobuU?.alive ? F.nobuU.pos : NOBU, 10);
-    if (F.step === 3) return F.hayaU?.alive ? pinPoint(rt, F.hayaU.pos, 4, 12) : null;
+    if (F.step === 3) return fighting(F.hayaU) ? pinPoint(rt, F.hayaU.pos, 4, 12, F.hayaU) : null;
     return null;
   },
   // 周りの味方が今なにをしているか（左上の進みの札の一行。kaito 10/22 稲生 2）

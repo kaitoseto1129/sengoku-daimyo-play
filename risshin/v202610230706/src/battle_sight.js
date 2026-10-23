@@ -228,6 +228,29 @@ export function sightScreenUnit(rt, u) {
   }
   return c.seen;
 }
+// 稲生の印とピンは同じ見通しを使う。薄い霧や土埃で姿の見える敵の印だけを消さない。
+// 壁は透かさず、見通しは兵ごとに五分の一秒だけ覚える。
+const inouSignCache = new WeakMap();
+export function inouSignVisible(rt, u) {
+  if (!u?.alive || u.gone || u.dying || u.woundOut || u.rearWound || u.camHidden || u.mesh?.visible === false) return false;
+  const p = u.pos, cam = rt.camera.position, fog = rt.scene.fog;
+  const range = Math.min(55, fog ? fog.near + (fog.far - fog.near) * .65 : 55);
+  let c = inouSignCache.get(u);
+  const radius = range + (c?.rt === rt && c.on ? 3 : 0);
+  if ((p.x - cam.x) ** 2 + (p.z - cam.z) ** 2 >= radius * radius) {
+    if (c) c.on = false;
+    return false;
+  }
+  if (!c) { c = { rt: null, t: -99, seen: false }; inouSignCache.set(u, c); }
+  if (c.rt !== rt || rt.t < c.t || rt.t - c.t >= .2 ||
+      (cam.x - c.x) ** 2 + (cam.y - c.y) ** 2 + (cam.z - c.z) ** 2 > .25 ||
+      (p.x - c.ux) ** 2 + (p.z - c.uz) ** 2 > .25) {
+    c.rt = rt; c.t = rt.t; c.x = cam.x; c.y = cam.y; c.z = cam.z; c.ux = p.x; c.uz = p.z;
+    c.seen = !cameraWallBlocked(rt, cam, p, cam.y, p.y + (u.mounted ? 3.05 : 2.1));
+  }
+  c.on = c.seen;
+  return c.seen;
+}
 const distantCache = new WeakMap();
 // 備えの中央と四隅を見る。見える一部があれば軍勢の気配を知らせる。
 export function sightDistant(rt, ref, x, z, hw, hd, facing = 0) {

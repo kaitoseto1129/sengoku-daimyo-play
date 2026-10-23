@@ -60,6 +60,8 @@ export function missionFollowTarget(rt, heading = rt.def.missionHeading?.(rt) ||
 // 任務は右上の一行だけ。接敵や操作の状態で目当てを書き換えない。
 export function missionCaption(rt, title = currentObjective(rt)?.text || '') {
   let heading = rt.def.missionHeading?.(rt) || title;
+  // 稲生は戦の目的だけ。旗の到着判定で向きや移動の説明に置き換えない。
+  if (rt.def.key === 'inou') return heading;
   // 桶狭間は、雨・出発・合図という待つ目的を戦の一行に残す。
   if (rt.def.key !== 'okehazama' && rt.def.key !== 'moribe' && /待[つてと]|^(旗にもどれ|丸まで行け)$/.test(heading)) {
     const reached = missionWaitReached(rt);
