@@ -2192,6 +2192,7 @@ const honnoji = {
   nearAllySolidBody: true, // 手前の味方だけ描く間避け、戸口と戦う相手への視界を空ける。
   nearFade: true, // 共通の見通し処理を有効にし、手前の柱・梁を抜いて進む口を見せる。
   nearSceneryScreenCut: true, // 屋根の近い面を抜き、画面の三分の二以上を見通す。
+  nearSceneryClearDepth: 18, // 庭の幅に合わせ、手前の灰色の壁面と床の裏を視界へ残さない。
   nearAllyWholeOcclusion: true, // 自分との間を塞ぐ一人も全身で避け、透けた顔や手を宙に残さない。
   woundEffectMin: .05, // 浅い打撲で護衛の案内を退避へ替えない。出血と深手は引き続き知らせる。
   woundRetreatNeeded(rt) {

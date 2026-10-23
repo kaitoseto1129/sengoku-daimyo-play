@@ -402,7 +402,8 @@ function setFar(h, far) {
   const armor = h.parts.armor;
   if (far) {
     h.nearArmorGeometry = armor.geometry;
-    armor.geometry = h.geoFar;
+    // 中の体を隠す前に、共通の骨番号へ直した全身を渡す。
+    armor.geometry = armor.userData?.humanBoneMap?.(h.geoFar) || h.geoFar;
   } else if (h.nearArmorGeometry) armor.geometry = h.nearArmorGeometry;
   h.lodFar = far;
   h.skelDirty = true;

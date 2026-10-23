@@ -1,6 +1,25 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { jinkeiSlot } from './jinkei.js';
+import { TIER } from './device_tier.js';
+
+// 隊ごとに替えるのは兵の並びだけ。弱い端末では頂点と面番号を共有し、
+// 見回しで新しい隊を作る時も、描画装置から形を読み戻して複製しない。
+export function armyGeometryCopy(base) {
+  if (!TIER.weak) return base.clone();
+  const g = new THREE.BufferGeometry();
+  g.name = base.name;
+  g.index = base.index;
+  g.attributes = { ...base.attributes };
+  g.morphAttributes = { ...base.morphAttributes };
+  g.morphTargetsRelative = base.morphTargetsRelative;
+  g.groups = base.groups.map((group) => ({ ...group }));
+  g.drawRange = { ...base.drawRange };
+  g.boundingBox = base.boundingBox ? base.boundingBox.clone() : null;
+  g.boundingSphere = base.boundingSphere ? base.boundingSphere.clone() : null;
+  g.userData = { ...base.userData };
+  return g;
+}
 
 // 形の部品に色と部品の番号を付ける
 // 形は頂点を分け合う形（index 付き）のまま束ねる：三角ごとに頂点を分けると、描くたびの頂点の計算（高さの絵の読み取り・揺れ）が三倍ほどになる

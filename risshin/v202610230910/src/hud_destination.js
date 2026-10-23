@@ -164,7 +164,7 @@ export class HudDestination {
     const destinationLabel = rt.def.namedDestinationLabel?.(rt, pos) || '';
     const point = this.project(pos, groundAt(rt.world, pos.x, pos.z, pos.y ?? rt.player.u.pos.y) + .15,
       rt, this.namedGoalPoint || (this.namedGoalPoint = {}));
-    // 携帯でも入口の実際の四隅を残す。床の旗だけで枠を省かない。
+    // 通れる開口の中へ印を置く。戸口全体を囲う枠は描かない。
     let framed = false;
     if (doorwayFrame) {
       const probe = this.namedDoorProbe || (this.namedDoorProbe = { x:0, y:0, z:0 });
@@ -653,7 +653,7 @@ export class HudDestination {
   }
 
 
-  // 開口そのものを太い枠で囲み、通れる内側へ矢印を重ねる。
+  // 開口の投影は印の位置を求めるためだけに使い、枠や面は描かない。
   drawDoorwayFrame(g, rt, frame, arrow = true) {
     const W = VIEW.w, H = VIEW.h, camera = rt.camera;
     let poly = this.doorFramePolyA || (this.doorFramePolyA = new Float64Array(48));
@@ -696,17 +696,11 @@ export class HudDestination {
     }
     const bounds = this.doorwayBounds || (this.doorwayBounds = {});
     let left = Infinity, right = -Infinity, top = Infinity, bottom = -Infinity, cx = 0, cy = 0;
-    g.save(); g.beginPath();
     for (let i = 0; i < count; i++) {
       const x = poly[i * 3], y = poly[i * 3 + 1];
-      if (i) g.lineTo(x, y); else g.moveTo(x, y);
       left = Math.min(left, x); right = Math.max(right, x);
       top = Math.min(top, y); bottom = Math.max(bottom, y); cx += x; cy += y;
     }
-    g.closePath(); g.lineJoin = 'round';
-    g.strokeStyle = '#14120f'; g.lineWidth = 10; g.stroke();
-    g.strokeStyle = '#fff3ba'; g.lineWidth = 5; g.stroke();
-    g.restore();
     bounds.left = left; bounds.right = right; bounds.top = top; bounds.bottom = bottom;
     // 凸形の開口内にある頂点の平均を使い、画面外の上辺へ引かれないようにする。
     bounds.arrowX = cx / count; bounds.arrowY = cy / count;

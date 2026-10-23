@@ -1314,8 +1314,8 @@ export class Army {
       }
       if (u.slipT > 0) u.slipT = Math.max(0, u.slipT - dt);
       if (doLod && u.alive) {
-        // 指定した戦の徒歩兵は遠くでも全身を保つ。既存の形と距離別の動きを使う。
-        u.legL.visible = u.legR.visible = (near || !!this.world.def.wholeInfantrySilhouette && !u.mounted) && !u.efuda;   // 絵札（efuda.js）の兵は部品を出さない
+        // 徒歩兵は距離だけで脚を消さない。遠景は既存の軽い全身へ替える。
+        u.legL.visible = u.legR.visible = (near || !u.mounted) && !u.efuda;   // 絵札（efuda.js）の兵は部品を出さない
         if (u.flag) u.flag.visible = dist < 110 && !(u.group && u.group.hideFlags);
       }
       // 画面の外にいる兵は手足の動きを省く

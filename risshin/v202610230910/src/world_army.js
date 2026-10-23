@@ -1,6 +1,6 @@
 import { rng, SEG } from './world_common.js';
 import * as THREE from 'three';
-import { armyLayout, soldierGeo, clothGeo, soldierTint, horseGeo, horseGeoX3, armyPart, armyViewTest, frontKeep, lowKeep, hostGeo } from './world_army_geometry.js';
+import { armyGeometryCopy, armyLayout, soldierGeo, clothGeo, soldierTint, horseGeo, horseGeoX3, armyPart, armyViewTest, frontKeep, lowKeep, hostGeo } from './world_army_geometry.js';
 import { flagTexture, yoseFlagTexture, yoseFlagKinds } from './textures.js';
 import { WIND, GUST } from './world_weather.js';
 import { ARMY_IDLE } from './world_vegetation_materials.js';
@@ -99,7 +99,7 @@ export class WorldArmy {
     const setInfo = (mesh, idx) => {
       const a = new Float32Array(idx.length * 4), b = new Float32Array(idx.length * 2);
       idx.forEach((j, n) => { a.set(info.subarray(j * 4, j * 4 + 4), n * 4); b.set(info2.subarray(j * 2, j * 2 + 2), n * 2); });
-      mesh.geometry = mesh.geometry.clone();
+      mesh.geometry = armyGeometryCopy(mesh.geometry);
       mesh.geometry.setAttribute('aInfo', new THREE.InstancedBufferAttribute(a, 4));
       mesh.geometry.setAttribute('aInfo2', new THREE.InstancedBufferAttribute(b, 2));
       mesh.geometry.setAttribute('aHost', new THREE.InstancedBufferAttribute(new Float32Array(idx.length), 1));
@@ -429,8 +429,8 @@ export class WorldArmy {
     for (let i = S.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [S[i], S[j]] = [S[j], S[i]]; }
     const N = S.length, U = { ...o.U, uRealNear: ARMY_REAL_R, uNear: { value: 0 }, uUnavailable: { value: 0 } };
     if (!SASHI_GEO) { SASHI_GEO = clothGeo(0.34, 0.62, 3, 1, 0, 2.62, -0.17, 11); BANNER_GEO = clothGeo(0.72, 2.6, 3, 6, 0.3, 5.2, 0.14, 12); }
-    const body = new THREE.InstancedMesh(hostGeo(o.armor || 0x2b3140).clone(), armyShader(new THREE.MeshLambertMaterial({ vertexColors: true }), U), N);
-    const flags = new THREE.InstancedMesh(SASHI_GEO.clone(), armyShader(new THREE.MeshLambertMaterial({ map: o.flagTex, side: THREE.DoubleSide }), U), N);
+    const body = new THREE.InstancedMesh(armyGeometryCopy(hostGeo(o.armor || 0x2b3140)), armyShader(new THREE.MeshLambertMaterial({ vertexColors: true }), U), N);
+    const flags = new THREE.InstancedMesh(armyGeometryCopy(SASHI_GEO), armyShader(new THREE.MeshLambertMaterial({ map: o.flagTex, side: THREE.DoubleSide }), U), N);
     const bear = [];
     const info = new Float32Array(N * 4), info2 = new Float32Array(N * 2), host = new Float32Array(N);
     const d = new THREE.Object3D(), col = new THREE.Color();
@@ -458,7 +458,7 @@ export class WorldArmy {
     const meshes = [body, flags];
     let banners = null;
     if (bear.length) {
-      banners = new THREE.InstancedMesh(BANNER_GEO.clone(), armyShader(new THREE.MeshLambertMaterial({ map: o.flagTex, side: THREE.DoubleSide }), U), bear.length);
+      banners = new THREE.InstancedMesh(armyGeometryCopy(BANNER_GEO), armyShader(new THREE.MeshLambertMaterial({ map: o.flagTex, side: THREE.DoubleSide }), U), bear.length);
       const m4 = new THREE.Matrix4();
       bear.forEach((j, m) => { body.getMatrixAt(j, m4); banners.setMatrixAt(m, m4); });
       attr(banners, bear); this.lodFlag(banners, true); meshes.push(banners);
@@ -586,7 +586,7 @@ export class WorldArmy {
     const grp = deferred ? C.mesh : new THREE.Group();
     const m4 = new THREE.Matrix4(), q4 = new THREE.Quaternion(), p3 = new THREE.Vector3(), s3 = new THREE.Vector3(1, 1, 1), z3 = new THREE.Vector3(0, 0, 0), yAx = new THREE.Vector3(0, 1, 0);
     const mkAttr = (geo, n) => {
-      const g = geo.clone();
+      const g = armyGeometryCopy(geo);
       g.setAttribute('aInfo', new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4));
       g.setAttribute('aInfo2', new THREE.InstancedBufferAttribute(new Float32Array(n * 2), 2));
       g.setAttribute('aClash', new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4));
@@ -1256,7 +1256,7 @@ export class WorldArmy {
       uHgt: { value: this.hgtTex }, uHP: { value: new THREE.Vector3(this.half, this.step, SEG) },
     };
     const mk = (geo) => {
-      const g = geo.clone();
+      const g = armyGeometryCopy(geo);
       g.setAttribute('aInfo', new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4).setUsage(THREE.DynamicDrawUsage));
       g.setAttribute('aInfo2', new THREE.InstancedBufferAttribute(new Float32Array(cap * 2), 2).setUsage(THREE.DynamicDrawUsage));
       g.setAttribute('aHost', new THREE.InstancedBufferAttribute(new Float32Array(cap), 1));

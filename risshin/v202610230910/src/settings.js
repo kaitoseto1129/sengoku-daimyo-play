@@ -1,3 +1,4 @@
+import { TIER } from './device_tier.js';
 // 設定（このブラウザに保存）
 const KEY = 'sengoku-risshin-settings-v1';
 const HINT_KEY = 'sengoku-risshin-hints-v1';
@@ -131,7 +132,7 @@ if (!saved0.minimapOff1023) { saved0.hudMinimap = false; saved0.minimapOff1023 =
 export const S = Object.assign({}, DEFAULTS, saved0);
 // 記憶のきつい機械：iPhone（GPU process が約 600MB・WebContent が 2048MB で切られる）。
 //   実機の確かめで iPad に同じ作りをさせる時は -autoplay tight,戦,… か ?tight=1（10/20）
-export const MEM_TIGHT = typeof navigator !== 'undefined' && (/iPhone/.test(navigator.userAgent)
+export const MEM_TIGHT = typeof navigator !== 'undefined' && (/iPhone/.test(navigator.userAgent) || TIER.weak
   || (typeof window !== 'undefined' && (/\btight\b/.test(String(window.__autoplay || '')) || /[?&]tight=1/.test(location.search))));
 // 試しの印で iPhone の作りにした大きな画面（iPad）：描く画素も iPhone（874×402 の 1.25 倍＝約 55 万画素）に合わせる（的の大きさを同じにして測る）
 export const MEM_TIGHT_TEST = MEM_TIGHT && !/iPhone/.test(navigator.userAgent);
@@ -267,7 +268,7 @@ export function resetHints() { seen.clear(); try { localStorage.removeItem(HINT_
 export const QUALITY = {
   low: { pixelRatio: 1, shadows: false, shadowMap: 1024, tufts: 0.35, trees: 0.5, shadowDist: 0 },
   mid: { pixelRatio: 1, shadows: true, shadowMap: 1024, tufts: 0.5, trees: 0.65, shadowDist: 14 },
-  high: { pixelRatio: 1.25, shadows: true, shadowMap: 2048, tufts: 0.6, trees: 0.7, shadowDist: 16, bloom: true },   // 木と草むらは少し減らす（一コマの三角と描く回数の目標。10/14）
+  high: { pixelRatio: 1.25, shadows: true, shadowMap: TIER.weak ? 1024 : 2048, tufts: 0.6, trees: 0.7, shadowDist: 16, bloom: true },   // 木と草むらは少し減らす（一コマの三角と描く回数の目標。10/14）
 };
 
 export const DIFFICULTY = {

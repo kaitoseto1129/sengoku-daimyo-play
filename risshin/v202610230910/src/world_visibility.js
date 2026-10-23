@@ -1,4 +1,4 @@
-import { clothGeo, soldierGeo } from './world_army_geometry.js';
+import { armyGeometryCopy, clothGeo, soldierGeo } from './world_army_geometry.js';
 import * as THREE from 'three';
 import { S as SETTINGS, MEM_TIGHT } from './settings.js';
 
@@ -17,8 +17,8 @@ export class WorldVisibility {
   lodTwin(mesh, armor, mid = true, xg = null, minLv = 0, xg3 = null) {
     // 指定した戦の中遠景は、近景と同じ形を重ねず、腕と袖の細部を省いた形へ。
     // 兵数・塊ごとの打ち合い・骨の動きは変えない。馬と旗には専用の形を使う。
-    const gx = (xg || soldierGeo(armor, this.def.middleInfantryArms ? 'xlo' : true || this.def.lowArmyMiddleDetail ? 'xxlo' : 'xlo')).clone(), g = !mid ? mesh.geometry : xg ? gx : soldierGeo(armor, false && (this.def.denseFront || this.def.lowArmyDetail) ? 'xlo' : 'lo').clone();
-    const gxx = xg ? (xg3 ? xg3.clone() : gx) : soldierGeo(armor, !mesh.geometry.attributes.aClash ? 'x4lo' : 'x3lo').clone(), g4 = xg ? null : soldierGeo(armor, 'x4lo').clone();
+    const gx = armyGeometryCopy(xg || soldierGeo(armor, this.def.middleInfantryArms ? 'xlo' : true || this.def.lowArmyMiddleDetail ? 'xxlo' : 'xlo')), g = !mid ? mesh.geometry : xg ? gx : armyGeometryCopy(soldierGeo(armor, false && (this.def.denseFront || this.def.lowArmyDetail) ? 'xlo' : 'lo'));
+    const gxx = xg ? (xg3 ? armyGeometryCopy(xg3) : gx) : armyGeometryCopy(soldierGeo(armor, !mesh.geometry.attributes.aClash ? 'x4lo' : 'x3lo')), g4 = xg ? null : armyGeometryCopy(soldierGeo(armor, 'x4lo'));
     for (const k in mesh.geometry.attributes) { const at = mesh.geometry.attributes[k]; if (at.isInstancedBufferAttribute) { if (g !== mesh.geometry) g.setAttribute(k, at); gx.setAttribute(k, at); gxx.setAttribute(k, at); if (g4) g4.setAttribute(k, at); } }
     mesh.userData.lod = { hi: mesh.geometry, lo: g, xlo: gx, xxlo: gxx, x4: g4, minLv, n: -1, far: false, lv: -1 };   // 遠い側は近距離判定でも重い形に戻さない。
     (this.lodList || (this.lodList = [])).push(mesh);
@@ -28,7 +28,7 @@ export class WorldVisibility {
   soldierDetail(source, group, armor, middle = 32) {
     const capacity = source.instanceMatrix.count, matrix = new THREE.Matrix4(), point = new THREE.Vector3();
     const meshes = [source.userData.lod.hi, soldierGeo(armor, 'xlo'), soldierGeo(armor, 'x3lo')].map((base) => {
-      const geo = base.clone();
+      const geo = armyGeometryCopy(base);
       for (const [name, attribute] of Object.entries(source.geometry.attributes)) if (attribute.isInstancedBufferAttribute) {
         geo.setAttribute(name, new THREE.InstancedBufferAttribute(new attribute.array.constructor(attribute.array.length), attribute.itemSize, attribute.normalized).setUsage(THREE.DynamicDrawUsage));
       }

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { TIER } from './device_tier.js';
 import { HALF } from './world_common.js';
 import { POST } from './post.js';
 
@@ -152,7 +153,7 @@ export class WorldWeather {
     this.nightU = { value: 0 };
     this.sun = new THREE.DirectionalLight(0xffffff, 2);
     this.sun.castShadow = true;
-    const shadowMap = 2048;
+    const shadowMap = TIER.weak ? 1024 : 2048;   // 記憶の少ない端末は影の的を 1/4 に（device_tier.js）
     this.sun.shadow.mapSize.set(shadowMap, shadowMap);
     const s = this.sun.shadow.camera;
     s.left = -20; s.right = 20; s.top = 20; s.bottom = -20; s.near = 1; s.far = 300;   // 影は本人の回り 20m（兵の影16m・人の影11mを覆い、近くの影を細かく保つ）
