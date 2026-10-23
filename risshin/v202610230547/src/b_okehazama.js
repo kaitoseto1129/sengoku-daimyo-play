@@ -641,7 +641,7 @@ const okehazama = {
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は、今する動きを短くやさしく伝える。
   missionSingleLine: true,
-  missions: ['織田隊に合流せよ', '織田隊に合流せよ', '雨やみを待て', 'いまがわ兵をたおそう', 'いまがわよしもとをたおそう', 'にげるいまがわ兵を追おう', '織田隊に合流せよ'],
+  missions: ['織田隊に合流せよ', '織田隊と進め', '雨やみを待て', 'いまがわ兵をたおそう', 'いまがわよしもとをたおそう', 'にげるいまがわ兵を追おう', '織田隊に合流せよ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -651,6 +651,7 @@ const okehazama = {
   missionHeading(rt) {
     if (rt.phase === 'brief' && rt.flags.briefed) return '出発を待て';
     if ((rt.phase === 'march' || rt.phase === 'wait') && rt.flags.scoutFighting) return 'いまがわ兵をたおそう';
+    if (rt.phase === 'wait' && !this.squadFlagReached(rt)) return '織田隊に合流せよ';
     if (rt.phase === 'wait' && rt.flags.clear) return '合図を待て';
     return this.missions[this.missionOf(rt)];
   },
@@ -694,7 +695,7 @@ const okehazama = {
     const enemy = this.missionSignTarget(rt);
     const pin = F.missionPinTarget || (F.missionPinTarget = { x: 0, z: 0, r: 8, hide: 8 });
     pin.enemy = false; pin.dodge = false; pin.unit = null; pin.waiting = undefined;
-    pin.area = false; pin.arrived = false; pin.progress = null; pin.footRing = false;
+    pin.area = false; pin.arrived = false; pin.progress = null; pin.footRing = false; pin.follow = false;
     if (dodge?.rain && dodge.valid && !dodge.arrived) {
       pin.x = dodge.pos.x; pin.z = dodge.pos.z; pin.r = 1; pin.hide = 0; pin.waiting = false; pin.dodge = true;
       return pin;
@@ -703,6 +704,15 @@ const okehazama = {
     if (rt.phase === 'assault' && !F.victory && (enemy ||
         this.objectiveEnemies(rt).length || !F.entered && F.roadStep < F.road.length)) return null;
     if (rt.phase === 'brief' || rt.phase === 'march' || rt.phase === 'wait') {
+      if (F.scoutFighting) return null;
+      // 行軍中は実際の旗持ちに一本だけ付ける。集合地点と兵を取り違えさせない。
+      if (rt.phase === 'march') {
+        const ally = this.missionAlly(rt);
+        if (!ally) return null;
+        pin.x = ally.pos.x; pin.z = ally.pos.z; pin.unit = ally;
+        pin.follow = true; pin.hide = -2; pin.r = 0; pin.waiting = false;
+        return pin;
+      }
       const pos = this.squadFlagPosition(rt);
       if (!pos) return null;
       pin.x = pos.x; pin.z = pos.z;
@@ -710,8 +720,9 @@ const okehazama = {
       // ピンは到着判定と同じ地面の一点へ。人物への話しかけの印にしない。
       pin.hide = 0; pin.waiting = false; pin.area = true;
       pin.arrived = rt.phase === 'brief' && F.briefed || this.squadFlagReached(rt);
-      // 待機や接敵中は行き先を重ねず、待つ進みは右上の丸に任せる。
-      if (pin.arrived || F.scoutFighting) return null;
+      // 到着で同じピンを確認の形へ替える。待つ進みも同じ位置にまとめる。
+      pin.waiting = true;
+      if (pin.arrived) pin.progress = this.missionWaitProgress(rt);
       return pin;
     }
     const guide = rt.missionGuide, marker = guide?.marker;

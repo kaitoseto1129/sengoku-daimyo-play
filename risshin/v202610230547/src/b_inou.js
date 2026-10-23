@@ -116,7 +116,8 @@ function approachUnit(rt) {
     const d = Math.hypot(u.pos.x - rt.player.u.pos.x, u.pos.z - rt.player.u.pos.z);
     if (d < best) { chosen = u; best = d; }
   }
-  if (previous && best > reach) chosen = previous;
+  // 二歩以上近い兵が現れたら追う相手を替える。僅差では同じ一人を保つ。
+  if (previous && best > reach && Math.hypot(previous.pos.x - rt.player.u.pos.x, previous.pos.z - rt.player.u.pos.z) <= best + 2) chosen = previous;
   F.approachGroup = group; F.approachUnit = chosen;
   return chosen;
 }
@@ -146,6 +147,8 @@ const inou = {
   keepGuardTaskLabel: true,
   keepDestinationTask: true,
   immediateTaskChanges: true,
+  nearAllyWholeOcclusion: true,
+  nearAllySolidBody: true,
   missionPinCaption: '',
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
   // 任務は一行。距離・向き・操作は書かず、同じ兵をピンで追う。
@@ -241,6 +244,7 @@ const inou = {
     softEarthCrust: true,
     sparseEarthCrust: true,
     noFootShadows: true,
+    solidSpearView: true,
     time: 'day',
     muddy: 0.2,
     paths: PATHS,

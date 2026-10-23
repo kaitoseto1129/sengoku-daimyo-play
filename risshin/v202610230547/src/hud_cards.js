@@ -281,6 +281,9 @@ export class HudCards {
 #hud #h-prog .pg-time { margin-top:1px; font-size:12px; color:#d9cfb8; font-variant-numeric:tabular-nums; display:flex; justify-content:flex-end; align-items:center; gap:6px; }
 #hud #h-prog .pg-pie, #hud .tm-pie { display:inline-block; width:16px; height:16px; border-radius:50%; box-shadow:0 0 0 1.5px #c9b27a; background:conic-gradient(#e8c25a calc(var(--p, 0) * 1%), rgba(255,255,255,.12) 0); flex:none; }
 #hud #h-prog .pg-pie[hidden] { display:none; }
+/* 桶狭間の満ちる丸は時計の針を添え、待ちの経過を形だけで示す。 */
+#hud #h-prog[data-battle="okehazama"] .pg-pie { position:relative; }
+#hud #h-prog[data-battle="okehazama"] .pg-pie::after { content:""; position:absolute; left:calc(50% - 1px); top:12%; width:2px; height:38%; background:#fff3df; box-shadow:0 0 1px 1px #14120f; transform-origin:50% 100%; transform:rotate(calc(var(--p, 0) * 3.6deg)); }
 #hud #h-stage-pop { position:absolute; left:50%; top:30%; transform:translateX(-50%); padding:8px 20px; background:rgba(12,10,8,.82); color:#fff3df; font-family:var(--display); font-size:max(18px, calc(24px * var(--text-scale, 1))); letter-spacing:.08em; pointer-events:none; white-space:nowrap; }
 @media (max-height:500px), (pointer:coarse) {
  #hud #h-prog { right:calc(8px + env(safe-area-inset-right, 0px)); top:calc(8px + env(safe-area-inset-top, 0px)); max-width:calc(100% - 32px); padding:6px 10px; font-size:max(20px, calc(20px * var(--text-scale, 1))); line-height:1.4; }
@@ -430,7 +433,8 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     // 桶狭間の null は「今は待ちではない」。接敵中に共通の時計を戻さない。
     const pie = timeEl.firstChild, waiting = def.key === 'okehazama' ? Number.isFinite(progress) :
       Number.isFinite(progress) || Number.isFinite(wu) && wu > rt.t && gm.waitDuration > 0;
-    timeEl.hidden = def.key === 'okehazama' ? !waiting : def.key === 'inou' || !!def.missionSingleLine;
+    // 一行だけの戦は待ち時間も行き先のピンにまとめる。
+    timeEl.hidden = def.key === 'inou' || !!def.missionSingleLine;
     pie.hidden = !waiting;
     if (waiting) pie.style.setProperty('--p', String(Math.round(Math.max(0, Math.min(1, Number.isFinite(progress) ? progress : 1 - (wu - rt.t) / gm.waitDuration)) * 100)));
     // 切り替わりも右上の一枚で伝え、戦場の中央へ同じ札を重ねない。

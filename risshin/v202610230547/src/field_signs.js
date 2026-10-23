@@ -26,7 +26,9 @@ function build(rt, root) {
   }
   tri.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   // 赤い▼の中身だけを残りの命に合わせて減らす。外枠は保ち、棒や数字を足さない。
-  const triMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, fog: false, depthWrite: false });
+  const triMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, fog: rt.def.key === 'inou', depthWrite: false });
+  // 桶狭間の乱戦でも、旗や隣の笠に赤い▼を隠さない。描画の束は増やさない。
+  if (rt.def.key === 'okehazama') triMat.depthTest = false;
   if (rt.def.key === 'inou' || rt.def.key === 'okehazama' || rt.def.key === 'moribe') {
     tri.setAttribute('signLife', new THREE.InstancedBufferAttribute(new Float32Array(CAP).fill(1), 1));
     triMat.onBeforeCompile = shader => {
@@ -90,8 +92,8 @@ export function fieldSignsTick(rt, root) {
   const photo = root?.classList?.contains('photo') || rt.player.camShot;
   const hide = photo || rt.hud?.introWaiting;
   // 間合い内の相手・狙う相手・すぐ近くの敵を先に示す。攻撃の判定は変えない。
-  const missionEnemy = rt.def.missionSignTarget?.(rt) ||
-    (rt.player.inRange && rt.player.rangeCueTarget?.alive ? rt.player.rangeCueTarget : null) ||
+  const reachableTarget = rt.player.inRange && rt.player.rangeCueTarget?.alive ? rt.player.rangeCueTarget : null;
+  const missionEnemy = (rt.def.key === 'okehazama' ? reachableTarget : null) || rt.def.missionSignTarget?.(rt) || reachableTarget ||
     (rt.player.lock?.alive ? rt.player.lock : null) || rt.missionGuide?.closeEnemy ||
     (rt.guideEnemyShown ? rt.guideEnemy : null);
   const focus = s.focus;
@@ -113,6 +115,8 @@ export function fieldSignsTick(rt, root) {
   const inou = rt.def.key === 'inou';
   const oke = rt.def.key === 'okehazama';
   const still = reduceMotion();
+  const fog = rt.scene.fog;
+  const inouRadius = Math.min(55, fog ? fog.near + (fog.far - fog.near) * .65 : 55);
   let n = 0, a = 0, b = 0;
   const gens = s.gens; gens.length = 0;
   if (!hide) for (const u of rt.army.units) {
@@ -122,22 +126,25 @@ export function fieldSignsTick(rt, root) {
     if (general(u) && (d2 < GEN_R * GEN_R || d2 < GEN_R * GEN_R * 1.3 && s.bound?.includes(u)) && !u.woundOut) { u._fsD = d2; gens.push(u); }
     // 稲生・森部は敵の赤い▼だけ。味方の丸と重ねて所属を迷わせない。
     if ((moribe || inou || rt.def.key === 'okehazama') && !foe) continue;
-    if (inou && (u.mesh?.visible === false || u.rearWound)) continue;
+    if (inou && (u.mesh?.visible === false || u.camHidden || u.rearWound)) continue;
     // 森部の一般兵は元の距離に戻し、対岸一面を赤い印で埋めない。
     // 任務の相手と稲生の案内は残す。境には幅を持たせ、ちらつきを防ぐ。
-    const signRadius = inou || (moribe || oke) && u === missionEnemy ? (u._fsOn ? 100 : 90) : (u._fsOn ? FOE_OUT : FOE_R);
+    const signRadius = inou ? inouRadius + (u._fsOn ? 3 : 0) : (moribe || oke) && u === missionEnemy ? (u._fsOn ? 100 : 90) : (u._fsOn ? FOE_OUT : FOE_R);
     u._fsOn = d2 < signRadius * signRadius;
     if ((foe && u.noTarget && !rt.def.foeMarkVisible?.(rt, u)) || !u._fsOn || (foe ? n : a) >= CAP) continue;
+    if (inou && !sightScreenUnit(rt, u)) continue;
     // 敵の三角は味方の丸より大きくし、乱戦でも形を読み取れる幅に保つ。
     // 笠や肩が重なる近接戦でも、▼の先端を笠より上に保つ。
     headPos.set(u.pos.x, headY(u) + .12, u.pos.z);
+    // 徒歩兵の背丈に合わせ、笠のすぐ上へ固定する。頭の動きは追わない。
+    if (inou && !u.mounted) headPos.y = u.pos.y + (u.bodyHeight || 1.72) + .18;
     // 稲生・森部・桶狭間とも立ち位置の上へ固定し、構えや突きの頭の揺れを追わない。
     v.copy(headPos).applyMatrix4(cam.matrixWorldInverse);
     if (v.z >= 0) continue;
     // 届く相手を最優先にし、遠い任務の相手を同時に大きくしない。
     const readyEnemy = (moribe || inou || oke) && rt.player.inRange ? rt.player.rangeCueTarget : null;
     const pixels = moribe ? (u === readyEnemy ? 28 : u === missionEnemy && !readyEnemy ? 18 : d2 < 20 * 20 ? 12 : 9) :
-      inou ? (u === readyEnemy ? 26 : (u === missionEnemy && !readyEnemy || u.inouHitUntil > rt.t) ? 20 : 10) :
+      inou ? (u === readyEnemy ? 26 : u === missionEnemy && !readyEnemy ? 16 : d2 < 20 * 20 ? 13 : 9) :
       oke ? (u === readyEnemy ? 28 : u === missionEnemy && !readyEnemy ? 20 : d2 < 20 * 20 ? 14 : 10) :
       u === missionEnemy ? 17 : foe ? 16 : 10;
     // 稲生・森部・桶狭間では命を減らした相手の▼だけを一度大きくし、滑らかに戻す。
@@ -146,15 +153,19 @@ export function fieldSignsTick(rt, root) {
     const reachable = (moribe || inou || oke) && foe && rt.player.inRange && rt.player.rangeCueTarget === u;
     // 森部の命中は同じ赤い▼を大きくして示す。空振りでは変わらない。
     // 稲生は「届く＝幅広い▼」「命中＝一度だけ広がる▼」。残りの命は中の赤の面積で示す。
-    const pulse = (inou || moribe) && reduceMotion() ? 0 : hit;
+    const pulse = still ? 0 : hit;
     // 森部は届く一人だけ横に広げ、命中した時だけ縦にも広げる。
     // 間合いに入っただけの変化と、実際に命を減らした変化を分ける。
-    const width = moribe ? pixels + 14 * pulse : pixels;
+    const width = moribe || oke ? pixels + 14 * pulse : pixels;
     const k = Math.min(moribe ? 1.6 : oke && u === missionEnemy ? 8 : 3, width * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) *
       (moribe ? 1 : 1 + (pulse > 0 ? 1.2 * pulse : reachable && !inou && !oke ? .55 : 0));
     dummy.position.copy(headPos);
     dummy.quaternion.copy(q);
-    dummy.scale.set(moribe ? k * (reachable ? 1.6 : 1) : k * (1 + .5 * pulse + ((inou || oke) && reachable ? .35 : 0)), k, k);
+    // 桶狭間も、届く相手は横幅、命中は縦の伸びで区別する。先端は頭上に固定。
+    // 桶狭間は届く時は幅だけ、命中時は高さだけを変え、空振りと区別する。
+    const okeScale = oke ? Math.min(3, pixels * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) : k;
+    dummy.scale.set(oke ? okeScale * (reachable ? 1.6 : 1) : moribe ? k * (reachable ? 1.6 : 1) : k * (1 + .5 * pulse + (inou && reachable ? .35 : 0)),
+      oke ? okeScale * (1 + pulse) : k, oke ? okeScale : k);
     dummy.updateMatrix();
     if (foe) {
       if (moribe || inou || oke) s.marks.geometry.attributes.signLife.setX(n, Math.sqrt(Math.max(0, Math.min(1, u.hp / (u.maxHp || 1)))));

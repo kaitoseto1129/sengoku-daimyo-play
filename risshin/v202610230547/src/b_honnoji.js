@@ -4758,7 +4758,7 @@ honnoji.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
         p._gtGoal ? Math.hypot(p._gtGoal.x - u.pos.x, p._gtGoal.z - u.pos.z) : 1.5);
     const walk = p.yaw, moving = inp.k.has('KeyW');
     let face = null, soonest = Infinity;
-    let firstAngle = null, crossed = false, imminent = false;
+    let firstAngle = null, leftAngle = 0, rightAngle = 0, crossed = false, imminent = false;
     for (const o of b.army.threats || []) {
       if (!o.alive || o.team === u.team || o.fleeing || o.woundOut || o.noTarget ||
           Math.abs(o.pos.y - u.pos.y) >= 3) continue;
@@ -4777,7 +4777,13 @@ honnoji.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
       if (reaches) {
         const angle = Math.atan2(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
         if (firstAngle === null) firstAngle = angle;
-        else if (Math.cos(angle - firstAngle) < .5) crossed = true;
+        else {
+          // 正面の一人だけとの比較では、左右から挟む二本の刃を見落とす。
+          // 向きの折り返しをそろえ、届く刃全体の開きで退く判断をする。
+          const turn = Math.atan2(Math.sin(angle - firstAngle), Math.cos(angle - firstAngle));
+          leftAngle = Math.min(leftAngle, turn); rightAngle = Math.max(rightAngle, turn);
+          if (rightAngle - leftAngle > Math.PI / 3) crossed = true;
+        }
       }
     }
     // 振りの切れ目にも、間合いまで来た追手へ背を向けない。順番待ちや壁越しの兵は除く。

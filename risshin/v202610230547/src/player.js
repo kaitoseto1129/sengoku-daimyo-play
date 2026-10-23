@@ -653,6 +653,12 @@ export class Player {
           gy > o.pos.y + .3 && gy < o.pos.y + (o.mounted ? RIDE.y : 0) + 2.5;
       }
       if (blocksGoal) {
+        // 全身を避ける戦では、行き先を塞ぐ味方にも半透明の残像を作らない。
+        if (this.rt.def.nearAllyWholeOcclusion) {
+          this.hideNearFlag(o.mesh); this.hideNearFlag(o.human?.root); this.hideNearFlag(o.wpn);
+          this.hideNearFlag(o.flag); this.hideNearFlag(o.standardFlag);
+          return;
+        }
         const body = o.human?.root.visible ? o.human.root : o.mesh;
         body.traverseVisible(this.nearSelfFadePart);
         this.fadeNearFlag(o.wpn); this.fadeNearFlag(o.flag); this.fadeNearFlag(o.standardFlag);

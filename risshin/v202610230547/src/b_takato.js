@@ -535,7 +535,7 @@ takato.botBrain = (rt, inp, helpers) => {
           rt.army.wallBetween(foe.pos, -1, p.u.pos,
             (foe.wpnKind || foe.lookWeapon) === 'spear' && d <= (foe.reach || 2.8) + .3)) foe = null;
     }
-    let firstAngle = null, crossed = false, imminent = false;
+    let firstAngle = null, leftAngle = 0, rightAngle = 0, crossed = false, imminent = false;
     // 近い城兵だけを向くと、横や背から先に届く槍を受け損なう。
     // 退く足は保ち、実際に自分へ打ち込む刃のうち先に届く方を受ける。
     for (const o of rt.army.threats || []) {
@@ -556,7 +556,12 @@ takato.botBrain = (rt, inp, helpers) => {
       if (reaches) {
         const angle = Math.atan2(o.pos.x - p.u.pos.x, o.pos.z - p.u.pos.z);
         if (firstAngle === null) firstAngle = angle;
-        else if (Math.cos(angle - firstAngle) < .5) crossed = true;
+        else {
+          // 正面の一人だけとの比較では、左右から挟む二本の刃を見落とす。
+          const turn = Math.atan2(Math.sin(angle - firstAngle), Math.cos(angle - firstAngle));
+          leftAngle = Math.min(leftAngle, turn); rightAngle = Math.max(rightAngle, turn);
+          if (rightAngle - leftAngle > Math.PI / 3) crossed = true;
+        }
       }
     }
     // 城兵が近い間こそ退く。敵が離れるまで応戦を優先すると、印があっても退けない。
