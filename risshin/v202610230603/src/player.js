@@ -199,8 +199,9 @@ function camNearMaterial(m) {
         vec2 screenNear = abs(vCamNear.xy * camNearProjection / max(0.01, -vCamNear.z));
         // 中央の幅・高さの各八割強を空け、横長の携帯でも戦場の三分の二を見通す。
         float corridor = smoothstep(0.82, 0.9, max(screenNear.x, screenNear.y));
+        // 横長の画面でも左右の壁だけ濃く戻らないよう、奥行きで判じる。
         // 屋根は軒の先まで抜き、手前の大きな瓦面で戦場を覆わない。
-        float farKeep = smoothstep(${roof ? '16.0, 24.0' : '7.0, 12.0'}, length(vCamNear));
+        float farKeep = smoothstep(${roof ? '16.0, 24.0' : '7.0, 12.0'}, max(0.0, -vCamNear.z));
         // 狭い城内では画面の長方形で梁を切らず、目の前の面だけ距離で避ける。
         if (camNearScreenCut > 0.5) camKeep = min(camKeep, max(corridor, farKeep));
         // 床は残し、手前の柱・梁だけを避ける。
@@ -654,7 +655,7 @@ export class Player {
       }
       if (blocksGoal) {
         // 全身を避ける戦では、行き先を塞ぐ味方にも半透明の残像を作らない。
-        if (this.rt.def.nearAllyWholeOcclusion) {
+        if (this.rt.def.nearAllyWholeOcclusion !== false) {
           this.hideNearFlag(o.mesh); this.hideNearFlag(o.human?.root); this.hideNearFlag(o.wpn);
           this.hideNearFlag(o.flag); this.hideNearFlag(o.standardFlag);
           return;
@@ -671,7 +672,7 @@ export class Player {
         || (!closeHorse && Math.abs(o.pos.y + 1.5 + (o.mounted ? RIDE.y : 0) - cam.position.y) > 2.4))) return;
       if (blocksSelf) {
         // 指定のある戦では、味方を部位ごとに透かさず、視線を塞ぐ間だけ全身を避ける。
-        if (this.rt.def.nearAllyWholeOcclusion) {
+        if (this.rt.def.nearAllyWholeOcclusion !== false) {
           this.hideNearFlag(o.mesh); this.hideNearFlag(o.human?.root); this.hideNearFlag(o.wpn);
           this.hideNearFlag(o.flag); this.hideNearFlag(o.standardFlag);
           return;

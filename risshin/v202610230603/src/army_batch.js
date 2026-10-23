@@ -126,6 +126,7 @@ export class ArmyBatch {
     this.geometryIds = new WeakMap(); this.geometries = new Map(); this.nextGeometry = 0;
     this.batches = new Map(); this.materials = new Map(); this.sources = []; this.hidden = [];
     this.sourceBatches = new WeakMap();
+    this.jobs = [];
     this.selections = new WeakMap(); this.blockStates = new WeakMap(); this.frame = 0;
     this.matrix = new THREE.Matrix4(); this.worldMatrix = new THREE.Matrix4();
     this.frustum = new THREE.Frustum(); this.projection = new THREE.Matrix4();
@@ -336,6 +337,8 @@ export class ArmyBatch {
   }
   draw(renderer, camera, armies, clashes) {
     this.frame++;
+    let jobs = 0;
+    for (const batch of this.batches.values()) { batch.planned = 0; batch.needed = 0; }
     this.sources.length = 0;
     for (const army of armies || []) army.mesh.traverse(this.visit);
     for (const clash of clashes || []) clash.mesh.traverse(this.visit);
@@ -355,17 +358,31 @@ export class ArmyBatch {
       if (source.count && camera.layers.test(source.layers)) {
         const table = this.tables[source.material.userData.armyU.uBlk ? 1 : 0];
         const row = table.row(source.material), batch = this.batch(source, table);
-        const start = batch.mesh?.count || 0, count = source.count;
-        if (start + count > batch.capacity) this.grow(batch, start + count);
-        const mesh = batch.mesh;
-        mesh.count += this.pack(source, batch, row, start, count);
-        mesh.visible = mesh.count > 0;
-        if (mesh.count && !mesh.parent) this.scene.add(mesh);
+        // 全隊を数えてから一度だけ広げる。同じコマで64→128→256…と
+        // 配列・形・描画用の領域を何度も捨てて作り直さない。
+        const count = source.count, selection = this.selection(source, batch.flagOnly);
+        const start = batch.planned || 0;
+        batch.needed = Math.max(batch.needed || 0, start + count);
+        batch.planned = start + (selection ? selection.kept : count);
+        const job = this.jobs[jobs] || (this.jobs[jobs] = {});
+        job.source = source; job.batch = batch; job.row = row; job.count = count;
+        jobs++;
       }
       source.onAfterRender(renderer, this.scene, camera, source.geometry, source.material, null);
       // 0人も元の束を描かない。層は次の進行の前に戻す。
       source.userData.armyBatchMask = source.layers.mask;
       source.layers.mask = 0; this.hidden.push(source);
+    }
+    for (const batch of this.batches.values()) if (batch.needed > batch.capacity) this.grow(batch, batch.needed);
+    for (let i = 0; i < jobs; i++) {
+      const job = this.jobs[i], source = job.source, batch = job.batch, mesh = batch.mesh;
+      // 描画後に枠数を戻す亡骸・遠近の写しも、選別には描く時の数を使う。
+      const saved = source.count;
+      source.count = job.count;
+      try { mesh.count += this.pack(source, batch, job.row, mesh.count, job.count); }
+      finally { source.count = saved; job.source = job.batch = null; }
+      mesh.visible = mesh.count > 0;
+      if (mesh.count && !mesh.parent) this.scene.add(mesh);
     }
     for (const table of this.tables) table.update();
     for (const batch of this.batches.values()) {

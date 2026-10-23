@@ -433,7 +433,8 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     // 桶狭間の null は「今は待ちではない」。接敵中に共通の時計を戻さない。
     const pie = timeEl.firstChild, waiting = def.key === 'okehazama' ? Number.isFinite(progress) :
       Number.isFinite(progress) || Number.isFinite(wu) && wu > rt.t && gm.waitDuration > 0;
-    timeEl.hidden = def.key === 'okehazama' ? !waiting : def.key === 'inou' || !!def.missionSingleLine;
+    // 一行だけの戦は待ち時間も行き先のピンにまとめる。
+    timeEl.hidden = def.key === 'inou' || !!def.missionSingleLine;
     pie.hidden = !waiting;
     if (waiting) pie.style.setProperty('--p', String(Math.round(Math.max(0, Math.min(1, Number.isFinite(progress) ? progress : 1 - (wu - rt.t) / gm.waitDuration)) * 100)));
     // 切り替わりも右上の一枚で伝え、戦場の中央へ同じ札を重ねない。

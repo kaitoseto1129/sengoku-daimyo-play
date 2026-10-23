@@ -989,15 +989,15 @@ const shitaragahara = {
     distantDetailGrid: 0.05,
     distantDetailNear: 28,
     distantDetailFarGrid: 0.2, // 遠い柵の凹凸だけをまとめ、細い杭と横木の輪郭は既存の判定で保つ。
-    distantDetailFar: 80,
+    distantDetailFar: 64, // 六十四メートル先の凹凸だけ軽くし、細い杭や横木の輪郭保護は保つ。
     middleInfantryArms: true, // 近い控えの中距離の形にも腕・袖を残す。既存の軽い形を共有する。
     highClashDetail: true, // 遠い乱戦の細部だけを省く。兵の数・位置・斬り合いは同じ。
-    highClashFarDetail: 32, // 三十二メートル先は輪郭の形を共有し、袖と草摺の細部だけを省く。
-    clashSoldierLOD: true, // 十六メートル先の乱戦は、隊の端でなく兵ごとに輪郭の形を選ぶ。
+    highClashFarDetail: 24, // 二十四メートル先は輪郭の形を共有し、袖と草摺の細部だけを省く。
+    clashSoldierLOD: true, // 乱戦の細部は、隊の端でなく兵ごとの距離で選ぶ。
     singleSoldierLOD: true, // 遠近の境でも同じ兵を重ねて送らず、一人一束で描く。
-    armyFarDetail: 44, // 四十四メートルに足踏みの余裕を足した先は輪郭の形へ。人数・隊列・動きは同じ。
-    soldierDetailNear: 16, // 十六メートル内の細かい形を保ち、その先も同じ人数を描く。
-    soldierDetailMiddle: 28, // 二十八メートルに足踏みの余裕を足した先は輪郭の形へ。射撃と押し合いは同じ。
+    armyFarDetail: 36, // 三十六メートルに足踏みの余裕を足した先は輪郭の形へ。人数・隊列・動きは同じ。
+    soldierDetailNear: 12, // 十二メートルに移動の余裕を足すまで細かい形を保ち、その先も全員を描く。
+    soldierDetailMiddle: 24, // 二十四メートルに足踏みの余裕を足した先は輪郭の形へ。射撃と押し合いは同じ。
     soldierDetailMargin: 3, // 押し引きは実際の位置で測り、足踏みの余裕を三メートル残す。
     tightSceneryCull: true, // 草木の実寸で囲み、画面外の長い株を余分に送らない。
     staticFaceNormalStep: 0.0625, // 丸太の向きの余裕を狭め、裏に隠れる面だけ送らない。

@@ -70,9 +70,15 @@ function bodyLoGeo(geo, frac) {
     if (!geo.boundingBox) geo.computeBoundingBox();
     const bb = geo.boundingBox, cell = Math.max(bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z) * frac;
     const pos = geo.attributes.position, nor = geo.attributes.normal, part = geo.attributes.part, n = pos.count;
+    const skin = geo.attributes.skinIndex, weight = geo.attributes.skinWeight;
     const map = new Map(), rep = new Int32Array(n), cnt = [], sum = [];
     for (let i = 0; i < n; i++) {
-      const k = Math.floor((pos.getX(i) - bb.min.x) / cell) + ',' + Math.floor((pos.getY(i) - bb.min.y) / cell) + ',' + Math.floor((pos.getZ(i) - bb.min.z) / cell) + ',' + (part ? part.getX(i) : 0);
+      // 同じ升でも関節の重みが違う頂点は合わせない。肘・膝・首の皮が別の骨へ引かれるのを防ぐ。
+      const joint = skin && weight ? ',' + skin.getX(i) + ':' + Math.round(weight.getX(i) * 16) +
+        ',' + skin.getY(i) + ':' + Math.round(weight.getY(i) * 16) +
+        ',' + skin.getZ(i) + ':' + Math.round(weight.getZ(i) * 16) +
+        ',' + skin.getW(i) + ':' + Math.round(weight.getW(i) * 16) : '';
+      const k = Math.floor((pos.getX(i) - bb.min.x) / cell) + ',' + Math.floor((pos.getY(i) - bb.min.y) / cell) + ',' + Math.floor((pos.getZ(i) - bb.min.z) / cell) + ',' + (part ? part.getX(i) : 0) + joint;
       let j = map.get(k);
       if (j === undefined) { j = cnt.length; map.set(k, j); cnt.push(0); sum.push([0, 0, 0, 0, 0, 0, i]); }
       rep[i] = j; cnt[j]++; const s = sum[j];

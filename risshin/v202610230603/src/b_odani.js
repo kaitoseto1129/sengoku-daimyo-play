@@ -1317,9 +1317,12 @@ const odani = {
     armyViewCull: true, // 遠景の兵は人数を保ち、画面外の分だけ送らない。
     armyTerrainCull: true, // 山腹に完全に隠れる遠景兵だけ送らない。近景と影は保つ。
     singleSoldierLOD: true, // 遠近の境の兵を二重に送らず、一人につき一つの形で描く。
-    armyFarDetail: 44, // 四十四メートルに足踏みの余裕を足した先は輪郭の形へ。人数・隊列・動きは同じ。
+    armyFarDetail: 36, // 三十六メートルに足踏みの余裕を足した先は輪郭の形へ。人数・隊列・動きは同じ。
     highClashDetail: true, // 遠い斬り合いは輪郭の形へ。人数・位置・動きは保つ。
-    highClashFarDetail: 32, // 三十二メートル先の顔と甲冑の細部だけを省く。
+    highClashFarDetail: 24, // 二十四メートル先の顔と甲冑の細部だけを省く。
+    soldierDetailNear: 12, // 十二メートルに移動の余裕を足すまで細かい形を保ち、その先も全員を描く。
+    soldierDetailMiddle: 24, // 離れた控えの細部だけ輪郭の形へ。接近すれば元の形へ戻す。
+    soldierDetailMargin: 3, // 押し引きの位置を反映した上で、足踏みと更新間隔の余裕を残す。
     terrainTriangles: true,
     terrainViewCull: true, // 足場の面は保ち、画面の外の地面だけ描かない。
     terrainBackfaceCull: true, // 尾根の裏向きの地面は送らない。足場・影・表向きの切岸は保つ。
@@ -1376,9 +1379,9 @@ const odani = {
     // 遠景も五センチ刻みにし、丸太の輪郭を保つ。材質の束と区画の省略は続ける。
     distantDetailGrid: 0.05,
     distantDetailNear: 28,
-    // 八十メートル先だけ石の細かな凹凸をまとめる。手前の杭と横木は五センチの形を保つ。
+    // 六十四メートル先だけ石の細かな凹凸をまとめる。細い杭と横木は既存の輪郭保護を使う。
     distantDetailFarGrid: 0.2,
-    distantDetailFar: 80,
+    distantDetailFar: 64,
     pathWidth: 1.1,
     interiorFit: true, // 斜面の建物は、床の端まで地面より上にそろえる。
     climbTan: 0.7,   // 山城：尾根の両側は急な切岸（登れない）、道と段の間の坂は登れる

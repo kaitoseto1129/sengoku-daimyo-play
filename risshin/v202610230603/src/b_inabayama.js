@@ -2544,13 +2544,15 @@ function buildKaraTrail(rt) {
 }
 
 const inabayama = {
+  // 近い屋根・壁だけ共通の見通し処理で抜き、町と柵の向こうを見渡せるようにする。
+  nearFade: true,
   jinkei: INABAYAMA_JIN,
   // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // ミッション（kaito 10/23 1・49・50）。右上の一行は「何をするか」だけ。向き・行き先の字は書かない。
   lendBow: true, // 美濃攻めは弓を覚える戦（kaito の役割分担）。問屋で買っていなくても弓を貸す。
   noSiegeCards: true, // 右の曲輪の札（未見・様子不明）は出さない。字は右上の一行だけ（kaito 10/23）。
-  missions: ['この人のそばへ', '火の印の家で火をつける', 'さくを守れ', '搦手の山道を攻め上る', '斎藤龍興の馬廻を討つ', '本丸に合図の火を放つ'],
+  missions: ['この人のそばへ', 'ここで火をつける', 'さくを守れ', '搦手の山道を攻め上る', '斎藤龍興の馬廻を討つ', '本丸に合図の火を放つ'],
   missionHeading(rt) {
     if (this.missionOf(rt) === 1) {
       if (rt.flags.lit >= NEED) return '町の出口へ';

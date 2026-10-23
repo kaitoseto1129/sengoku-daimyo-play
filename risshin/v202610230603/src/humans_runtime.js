@@ -409,7 +409,8 @@ function setFar(h, far) {
   carryFlag(h, true);
   // 近くへ戻る時は、遠い間に辿らなかった指と手の骨の行列を次の一コマで必ず辿り直す（止まった人は skipHiddenMW が全部を飛ばし、手の皮だけ古い所へ帯のように伸びた）
   if (!far) h.mw0 = null;
-  if (!h.domaru) h.body.visible = !far;
+  // 小袖・僧衣の束には中の体の手足が含まれない。遠目でもつながる下着を残す。
+  if (!h.domaru) h.body.visible = !far || !!h.look.sohei || !!h.look.kosode;
   if (h.parts.domaru) h.parts.domaru.visible = !far;
   if (h.parts.menpo) h.parts.menpo.visible = !far;
   if (h.parts.pface) h.parts.pface.visible = !far && !h.scanOn;

@@ -96,6 +96,12 @@ export class HudOverlay {
     const pinTarget = rt.def.missionPin?.(rt);
     // 森部は任務が返したピン一本。敵や味方の位置で上書きしない。
     if (moribe && !pinTarget) return;
+    // 到着後は同じピンを任務の下へ固定し、中身で待つ進みを示す。
+    // 地面や画面端に移動先を残さず、足元を探し直させない。
+    if (moribe && pinTarget.waiting && pinTarget.arrived) {
+      this.drawBattleGoalSign(g, rt, VIEW.w - 40, 138, null, pinTarget);
+      return true;
+    }
     const guide = rt.missionGuide;
     const retreat = !inou && !moribe && this.retreatGuide?.active && this.retreatGuide.valid ? this.retreatGuide : null;
     const dodge = !moribe && rt.dodgeGuide?.valid ? rt.dodgeGuide : null;
@@ -150,7 +156,9 @@ export class HudOverlay {
     const floor = this.battleGoalFloor || (this.battleGoalFloor = { x:0, y:0, z:0 });
     floor.x = pos.x; floor.y = y; floor.z = pos.z;
     const on = seen && (moribe || enemy || this.floorGoalVisible(rt, floor)) && !at.behind && at.x > 48 && at.x < W - 48 && at.y > 96 && at.y < H - 48;
-    // 地面の行き先と画面外の向きは、この一つの矢印で示す。
+    // 到着済みの持ち場が画面外でも、戻る行き先として出さない。
+    if (moribe && pinTarget.arrived && !on) return false;
+    // 地面の行き先と画面外の向きは、この一つの印で示す。
     let x = at.x, sy = at.y - 54, angle = Math.PI / 2;
     if (!on) {
       const next = route || pos;
@@ -161,8 +169,9 @@ export class HudOverlay {
       const forward = dx * Math.sin(yaw) + dz * Math.cos(yaw);
       angle = Math.atan2(-forward, right);
       const scale = Math.min((W / 2 - 64) / Math.max(.001, Math.abs(right)), (H / 2 - 100) / Math.max(.001, Math.abs(forward)));
-      // 横の端へ置き、前後の向きも矢じりで示す。
-      x = right >= 0 ? W - 64 : 64; sy = H / 2 - forward * scale;
+      // 森部は実際の向きの端へ置く。後方の地点を横の端に固定しない。
+      x = moribe ? W / 2 + right * scale : right >= 0 ? W - 64 : 64;
+      sy = H / 2 - forward * scale;
     }
     const word = enemy ? 'この敵' : retreat?.treatment ? '手当てへ' : 'ここへ';
     // 進行札も一枚として数え、同時に三枚まで。輪と形だけは残す。
@@ -192,7 +201,11 @@ export class HudOverlay {
       if (!on) {
         // 床と同じ形に矢印を添え、目的地と進む向きを結ぶ。
         if (!enemy) {
-          this.drawBattleGoalSign(g, rt, x, sy - 16, landmark, pinTarget);
+          if (moribe) {
+            // ピンの先端そのものを行き先へ向け、別の矢印は足さない。
+            g.save(); g.translate(x, sy - 16); g.rotate(angle - Math.PI / 2);
+            this.drawBattleGoalSign(g, rt, 0, 0, landmark, pinTarget); g.restore();
+          } else this.drawBattleGoalSign(g, rt, x, sy - 16, landmark, pinTarget);
         }
         if (!moribe) {
         g.save(); g.translate(x, sy); g.rotate(angle); g.beginPath();
