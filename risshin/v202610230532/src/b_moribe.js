@@ -500,7 +500,8 @@ function moribeFord(rt) {
   waterMat.onBeforeCompile = function (sh, renderer) {
     waterCompile.call(this, sh, renderer);
     sh.fragmentShader = sh.fragmentShader.replace('#include <lights_fragment_begin>', `
-      float fordBand = 1.0 - smoothstep(4.5, 6.0, abs(vWPw.x - 40.0));
+      float fordEdge = abs(vWPw.x - ${START2.x.toFixed(1)}) + sin(vWPw.z * 1.7) * 0.22;
+      float fordBand = 1.0 - smoothstep(4.5, 6.0, fordEdge);
       float fordGrain = texture2D(tMacro, vWPw.xz * 0.9).r;
       float fordRipple = smoothstep(0.86, 0.98, sin(vWPw.z * 6.0 + fordGrain * 2.0 - uTime * 1.4));
       vec3 fordSand = mix(vec3(0.40, 0.34, 0.21), vec3(0.64, 0.59, 0.43), fordGrain);
@@ -522,15 +523,18 @@ function moribeFord(rt) {
   const pegMat = new THREE.MeshStandardMaterial({ color: 0xe8cd81, roughness: 1 });
   const pegs = new THREE.InstancedMesh(pegGeo, pegMat, 8), at = new THREE.Object3D();
   for (let i = 0; i < 24; i++) {
-    const x = 17 + (i % 12) * 4.2, z = nireZ(x) + (i < 12 ? -1 : 1) * (7.8 + Math.sin(i * 2) * 1.1);
+    // 同じ二十四個を帯の両脇へ。両岸だけでなく流れの中にも石が続く。
+    const x = START2.x + (i % 2 ? 1 : -1) * (5.5 + Math.sin(i * 2) * .45);
+    const z = nireZ(x) - 10 + Math.floor(i / 2) * 20 / 11;
     at.position.set(x, Math.max(W.heightAt(x, z) + 0.12, 0.1), z);
     at.scale.set(0.45 + i % 3 * 0.12, 0.22, 0.36); at.rotation.y = i * 1.7;
     at.updateMatrix(); stones.setMatrixAt(i, at.matrix);
   }
   at.scale.set(1, 1, 1); at.rotation.set(0, 0, 0);
   for (let i = 0; i < 8; i++) {
-    const x = i % 2 ? 46 : 34, z = 72 + Math.floor(i / 2) * 10;
-    at.position.set(x, W.heightAt(x, z) + 0.55, z);
+    const x = i % 2 ? 46 : 34, z = POINT2.z + Math.floor(i / 2) * (START2.z - POINT2.z) / 3;
+    // 同じ八本を渡り口から対岸まで並べ、水中でも杭の頭を水面に出す。
+    at.position.set(x, Math.max(W.heightAt(x, z), .12) + 0.55, z);
     at.updateMatrix(); pegs.setMatrixAt(i, at.matrix);
   }
   W.scene.add(stones, pegs);
@@ -1009,7 +1013,7 @@ const moribe = {
   // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は「何をするか」だけ（kaito 10/23 49・50）。段の総称で通し、向き・行き先の字は書かない。
-  missions: ['浅瀬を歩いて渡れ', '仲間を待て', '敵を倒せ', '耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
+  missions: ['川を渡れ', '仲間を待て', '敵を倒せ', '耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
   // 頭上の▼一つを大きくして、まず戦う相手を示す。選び直しは四分の一秒に一度。
   missionSignTarget(rt) {
     const F = rt.flags, p = rt.player;
@@ -1131,9 +1135,10 @@ const moribe = {
       // 水中で半径に入っても消さず、実際に岸へ上がったコマで消す。
       pos = POINT2; r = FORD_R; hide = 0;
       q.waiting = true; q.arrived = !!F.pointInside;
-      // 渡り終えた同じピンが満ちる。仲間の到着見込みに合わせ、逆戻りはさせない。
-      q.progress = q.arrived ? F.fordGatherProgress || 0 :
-        Math.max(0, Math.min(1, (START2.z - rt.player.u.pos.z) / (START2.z - POINT2.z)));
+      // 渡河で八割、仲間がそろうまでに残りを満たす。岸に着いた時に空へ戻さない。
+      // 渡河の終点は到着判定と同じ水際。道から外れたまま満杯にはしない。
+      q.progress = q.arrived ? .8 + .2 * (F.fordGatherProgress || 0) :
+        .8 * Math.max(0, Math.min(.99, (START2.z - rt.player.u.pos.z) / (START2.z - (nireZ(rt.player.u.pos.x) - 9))));
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
     } else if (F.stage === 'assemble') {

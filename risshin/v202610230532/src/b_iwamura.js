@@ -744,6 +744,7 @@ const iwamura = {
     fallPaceSpread: 0.35, // 一斉に討たれても膝の折れる間をずらす。
     settleSideFalls: true, groundedFalls: true, // 横斬りの亡骸を肩から土へ寝かせる。
     slopeLitter: true, // 低・中画質でも落ちた槍の傾きを坂へ合わせ、角度の上限で穂を浮かせない。
+    longitudinalSpearFalls: true, // 長柄は握り直下の法線でなく、穂先と石突を結ぶ坂へ寝かせる。
     groundedFallImpact: true, wetEarthBursts: true, // 地を打つ時に音と低い泥粒。湿った山道に白煙を出さない。
     mist: true,   // 霧が出やすい山城。戦の始めは霧が深く、しだいに薄れる。当夜の霧の濃さは復元
     mood: 'plain', // 夕暮れの支度に朝靄の色を重ねない。
@@ -1755,6 +1756,13 @@ const iwamura = {
   // この戦の倒れ方だけを補う。形・材質・計算用の入れ物は使い回す。
   fallenScene(rt) {
     const A = rt.army, W = rt.world, animate = A.animDeath;
+    const dropWeapon = A.dropWeapon;
+    A.dropWeapon = function (u) {
+      dropWeapon.call(this, u);
+      // 深手で落とした時から、地面に寝た幟の布を隠す。亡骸になるまで黒い板を残さない。
+      if (u.dropped?.userData.standard && u.standardFlag && u.dropped.parent === this.scene)
+        u.standardFlag.visible = false;
+    };
     const fallenKit = A.fallenKit;
     A.fallenKit = function (u) {
       // この戦では落ちた旗を消す。共通処理で別の四角い布を地面へ複製しない。

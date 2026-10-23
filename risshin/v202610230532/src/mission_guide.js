@@ -45,7 +45,7 @@ export function missionWaitReached(rt) {
   if (!m || g.objective !== currentObjective(rt) || m.guidePerson ||
       !(m.waitAction || m.waitGuide || /^(wait|guard)$/.test(m.guideArea))) return null;
   const pos = m.guideDestination?.() || g.pos, p = rt.player.u.pos;
-  return m.waitArrived?.() ?? Math.hypot(pos.x - p.x, pos.z - p.z) < (m.guideRadius ?? 8);
+  return m.waitArrived?.() ?? Math.hypot(pos.x - p.x, pos.z - p.z) < (rt.def.defendGuideRadius?.(rt, m) ?? m.guideRadius ?? 8);
 }
 
 // 「つけ」だけの下知も、実際について行く一人と札をそろえる。
@@ -60,12 +60,13 @@ export function missionFollowTarget(rt, heading = rt.def.missionHeading?.(rt) ||
 // 任務は右上の一行だけ。接敵や操作の状態で目当てを書き換えない。
 export function missionCaption(rt, title = currentObjective(rt)?.text || '') {
   let heading = rt.def.missionHeading?.(rt) || title;
-  if (/^(旗にもどれ|ここで待て|丸まで行け)$/.test(heading)) {
+  // 桶狭間は、雨・出発・合図という待つ目的を戦の一行に残す。
+  if (rt.def.key !== 'okehazama' && /待[つてと]|^(旗にもどれ|丸まで行け)$/.test(heading)) {
     const reached = missionWaitReached(rt);
-    if (reached !== null) heading = reached ? 'ここで待て' : heading === '旗にもどれ' ? '旗にもどれ' : '丸まで行け';
+    if (reached !== null) heading = reached ? 'そのまま待とう' : heading === '旗にもどれ' ? '旗にもどれ' : '丸まで行け';
   }
   if (missionFollowTarget(rt, heading) || missionFollowTarget(rt)) heading = '味方についていけ';
-  else if (/^(つけ|続け)$/.test(heading)) heading = missionWaitReached(rt) === true ? 'ここで待て' : '丸まで行け';
+  else if (/^(つけ|続け)$/.test(heading)) heading = missionWaitReached(rt) === true ? 'そのまま待とう' : '丸まで行け';
   return noOps(goalText(rt, heading))
     .split(/[。！？\n]/)
     .map(line => line.trim().replace(/討ち取る$|討ち取れ$|たおそう$|たおす$/, '倒せ'))

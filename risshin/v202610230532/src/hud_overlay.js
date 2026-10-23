@@ -83,7 +83,8 @@ export class HudOverlay {
     // 行き先はこの印一つ。合流済みの半径では消し、別の輪を重ねない。
     // 稲生は到着判定と同じ行き先だけ。古い味方の輪へ誘わない。
     const inou = rt.def.key === 'inou', moribe = rt.def.key === 'moribe';
-    if (inou || rescueTarget(rt)) return;
+    // 桶狭間の行き先は共通のピン一本。別の投影位置へ同じピンを重ねない。
+    if (inou || rt.def.key === 'okehazama' || rescueTarget(rt)) return;
     const guard = !moribe && (rt.def.guardGuideTarget?.(rt) || rt.def.guardTarget?.(rt));
     // 接近戦の描画で途中を抜ける時も、守る本人の盾は残す。
     if (guard?.alive) {
