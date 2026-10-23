@@ -81,13 +81,14 @@ export class HudUnits {
       const tg = tagOf(g0);
       const i = kinds.indexOf(k) + 1;
       const nm = many ? GROUP_NAME[k] || '組' : '自分の組';
+      const countHint = rt.def.key === 'okehazama' ? `見える${n}人` : numberHint(n);
       // 最後の号令への返事を札に残す。短い知らせが間引かれても読み直せる。
       let receipt = g0._commandStatus || '';
       for (const g of gs) if (g._commandStatus && g._commandStatus !== '届いた') receipt = g._commandStatus;
       if (gs.some((g) => g.pending)) receipt = '伝え中';
-      const lbl = `${nm} ${numberHint(n)} 号令${ORDER_NAME[ord] || '様子不明'}${receipt ? `（${receipt}）` : ''}${guns ? ` 込め終わり${ready}／${guns}` : ''}`;
+      const lbl = `${nm} ${countHint} 号令${ORDER_NAME[ord] || '様子不明'}${receipt ? `（${receipt}）` : ''}${guns ? ` 込め終わり${ready}／${guns}` : ''}`;
       const inner = `<span class="face ${faceCls(k, mon)} ${mor < 30 ? 'waver' : ''}"></span>` +
-        `<i class="ord ${g0.pending ? 'pend' : ''}" aria-hidden="true">${ORDER_MARK[ord] || '・'}</i>${g0.pending ? `<i class="runner" aria-hidden="true" title="使番が走っている">使番を出した</i>` : ''}<i class="cnt" style="box-shadow:inset 4px 0 0 ${TAG_COL[tg]}, 0 0 0 1px #000" aria-hidden="true">${numberHint(n)}</i>` +
+        `<i class="ord ${g0.pending ? 'pend' : ''}" aria-hidden="true">${ORDER_MARK[ord] || '・'}</i>${g0.pending ? `<i class="runner" aria-hidden="true" title="使番が走っている">使番を出した</i>` : ''}<i class="cnt" style="box-shadow:inset 4px 0 0 ${TAG_COL[tg]}, 0 0 0 1px #000" aria-hidden="true">${countHint}</i>` +
         `<span class="nm">${esc(nm)}</span>${many ? `<kbd aria-hidden="true">${i}</kbd>` : ''}` +
         (guns ? `<i class="ready" aria-hidden="true" title="込め終わり">${ready}/${guns}</i>` : '') +
         (receipt ? `<i class="command-status" aria-hidden="true">${esc(receipt)}</i>` : '');

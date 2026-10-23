@@ -137,7 +137,7 @@ export class HudCards {
     const markedGroup = on ? rt.def.enemyTriangleGroup?.(rt) : null;
     if (on) for (const u of rt.army.units) {
       if (n === this.enemyTriangles.length) break;
-      if (!u.alive || u.gone || u.woundOut || u.noTarget && !(markedGroup && u.group === markedGroup) || u.isStruct || u.team === me.team ||
+      if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget && !(markedGroup && u.group === markedGroup) || u.isStruct || u.team === me.team ||
           u.mesh?.visible === false || u.camHidden ||
           (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 1600 || !sightUnit(rt, u)) continue;
       this.tmpV.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
@@ -308,6 +308,10 @@ html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog {
 }
 html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog :is(.pg-st span,.pg-next) {
  white-space:normal; overflow:visible; text-overflow:clip; overflow-wrap:anywhere;
+}
+/* 稲生の今の操作は任務の二行目に残す。共通の一行表示で隠さない。 */
+html:root body #hud.mission-only #h-prog[data-battle="inou"] > .pg-next:not([hidden]) {
+ display:block !important;
 }
 html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog .pg-context { display:block; }
 html:root body #hud.prog-on:has(#h-prog[data-battle="inou"]) #battle-notices:not(.choosing):not(.pg-x) {
@@ -503,7 +507,7 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
   toggleCheat() {
     const el = $('cheat');
     el.hidden = !el.hidden;
-    if (!el.hidden) el.innerHTML = [['移動', `${K('forward')} ${K('left')} ${K('back')} ${K('right')}`], ['視点', '動かして見回す'], ['突く', '左押し（押すだけ）'], ['構え', '右押しで受ける'], ['避ける', K('dodge')], ['狙い', K('lock')], ['話す・取る', K('use')]].map(([a, b]) => `<div><b>${a}</b>${esc(b)}</div>`).join('');
+    if (!el.hidden) el.innerHTML = [['移動', `${K('forward')} ${K('left')} ${K('back')} ${K('right')}`], ['視点', '動かして見回す'], ['突く', '左押し（押すだけ）'], ['話す・取る', K('use')]].map(([a, b]) => `<div><b>${a}</b>${esc(b)}</div>`).join('');
     if (!el.hidden) {
       el.insertAdjacentHTML('afterbegin', '<h5>操作の早見表</h5><button type="button" class="btn" id="cheat-close" style="min-height:44px;margin-bottom:8px">早見表を閉じる</button>');
       $('cheat-close').onclick = (e) => { e.stopPropagation(); this.toggleCheat(); };

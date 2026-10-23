@@ -973,7 +973,7 @@ html body #hud #battle-message { gap:8px; }
     const fireWork = working && /火を(?:つけ|かけ|放|移)|篝火を焚/.test(document.getElementById('prompt').dataset.action || '');
     // 命・行き先・操作も数える。命の札の一枠は常に空ける。
     if (!choosing) {
-      const destination = !!this.hud.missionPinOutside; // 端の方向と行き先の名前も一枚に数える。
+      const destination = !!this.hud.missionPinOutside || !!this.hud.missionPinLabelShown; // 待つ場所の札も一枚に数える。
       const operation = dodging || working || !!rt?.touchCoachActive || !!rt?.touchAttackGuideActive || !!rt?.nearestInteract();
       const target = document.getElementById('target');
       const boss = document.getElementById('boss');

@@ -491,30 +491,6 @@ export class HudNavigation {
   }
 
 
-  // 自分は足元の白い太い輪で示す。相手の剣と見分け、押すボタンに見える枠は付けない。
-  drawPlayerSign(g, rt) {
-    if (rt.def.noPlayerSign) return false;
-    let footDrawn = false;
-    // 足元の白い輪は出さない（kaito 10/23「部隊に白い○が出るのはおかしい」）。
-    if (rt) return footDrawn;
-    // 見回す案内中や味方に隠れた時も、本人の足元に同じ白い輪を保つ。
-    if (!rt.def.town && !rt.def.dojo && rt.player.u.alive &&
-        !rt.over && !rt.choice && !rt.player.camShot && !this.bigmap && rt.player.fpK <= .5) {
-      const p = rt.player.u.pos;
-      const foot = this.project(p, p.y + .12, rt,
-        this.playerSignFoot || (this.playerSignFoot = {}));
-      if (!foot.behind && foot.x >= 32 && foot.x <= VIEW.w - 32 && foot.y >= 64 &&
-          foot.y <= VIEW.h - 22) {
-        // 地面の金のひし形と、形と色の両方で見分ける。
-        const scale = Math.max(1, Math.min(1.25, S.textScale || 1));
-        g.save(); g.beginPath();
-        g.ellipse(foot.x, foot.y, 23 * scale, 8 * scale, 0, 0, Math.PI * 2);
-        g.strokeStyle = '#14120f'; g.lineWidth = 8; g.stroke();
-        g.strokeStyle = '#fff'; g.lineWidth = 4; g.stroke(); g.restore();
-        footDrawn = true;
-      }
-
-    }
-    return footDrawn;
-  }
+  // 兵や部隊に印を重ねない。
+  drawPlayerSign(g, rt) { return false; }
 }

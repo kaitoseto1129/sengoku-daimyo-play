@@ -211,7 +211,7 @@ function localSay(rt, source, who, text, dur) {
   const u = source?.units ? source.units.find(readyUnit) : source;
   if (!u || !readyUnit(u)) return;
   const p = rt.player.u.pos;
-  if (Math.hypot(u.pos.x - p.x, u.pos.z - p.z) <= 12 && !rt.army.wallBetween(u.pos, -1, p)) rt.say(who === '組頭' ? '隊長' : who, text, dur);
+  if (Math.hypot(u.pos.x - p.x, u.pos.z - p.z) <= 12 && !rt.army.wallBetween(u.pos, -1, p)) rt.say(who === '組頭' ? 'たいちょう' : who, text, dur);
 }
 
 function retreatGroup(g) {
@@ -546,9 +546,18 @@ const okehazama = {
   minutes: 7,
   nearbyAllySignLimit: 3, // 近い味方は丸、追う本人は切れ込み旗で分ける。
   missionHeading(rt) {
-    if (this.objectiveEnemies(rt).length) return '◆ この敵をたおせ';
-    if (rt.phase === 'march' && !rt.flags.scoutFighting && !rt.hostGroup?.arrived && this.squadFlagDistance(rt) > 12) return '旗の仲間についていけ';
     return this.taskLabel(rt);
+  },
+  // 距離は実際の武器の届く範囲で判定し、攻める相手と札をそろえる。
+  enemyOrder(rt, enemy) {
+    if (!enemy) return '仲間と赤い▼の敵を迎え撃つ';
+    const p = rt.player, d = Math.hypot(enemy.pos.x - p.u.pos.x, enemy.pos.z - p.u.pos.z);
+    const reach = p.meleeReach(p.weapon === 'sword' ? 'slash' : 'thrust');
+    return d > reach ? `大きな赤い▼へ近づく・約${Math.ceil(d)}メートル` : '仲間と大きな赤い▼の敵を倒す';
+  },
+  missionSignTarget(rt) {
+    return this.objectiveEnemies(rt)[0] ||
+      ((rt.phase === 'march' || rt.phase === 'wait') && rt.flags.scoutFighting && rt.flags.scoutEnemy && readyUnit(rt.flags.scoutEnemy) ? rt.flags.scoutEnemy : null);
   },
   noPlayerSign: true, // 自分の白い輪郭・三角・輪を行き先の印と取り違えさせない。
   noDodgeCard: true, // 矢の雨で「〜をむこう」「にげる」の札を出さない（kaito 10/23 稲生 4）。
@@ -582,11 +591,17 @@ const okehazama = {
     const F = rt.flags, marked = F.guardMarks || (F.guardMarks = []);
     if (rt.phase === 'assault' && !F.entered && !F.victory) {
       const roadMarks = F.roadMarks || (F.roadMarks = []);
-      if (F.roadMarksAt > rt.t && (!roadMarks.length || readyUnit(roadMarks[0]))) return roadMarks;
+      const group = F.road[F.roadStep];
+      // 生きている同じ相手を保ち、近い兵へ印が飛び移るのを防ぐ。
+      if (F.roadMarksGroup === group && roadMarks[0] && readyUnit(roadMarks[0]) && sightPoint(rt, roadMarks[0].pos)) return roadMarks;
+      if (F.roadMarksGroup === group && F.roadMarksAt > rt.t && (!roadMarks.length || readyUnit(roadMarks[0]))) return roadMarks;
+      F.roadMarksGroup = group;
       F.roadMarksAt = rt.t + .5;
+      // まだ戦える同じ相手を追う。近さの入れ替わりだけで矢印を飛ばさない。
+      if (roadMarks[0]?.group === F.road[F.roadStep] && readyUnit(roadMarks[0]) && sightPoint(rt, roadMarks[0].pos)) return roadMarks;
       roadMarks.length = 0;
       let best = null, distance = Infinity;
-      for (const u of F.road[F.roadStep]?.units || []) {
+      for (const u of group?.units || []) {
         if (!readyUnit(u) || !sightPoint(rt, u.pos)) continue;
         const d = Math.hypot(u.pos.x - rt.player.u.pos.x, u.pos.z - rt.player.u.pos.z);
         if (d < distance) { best = u; distance = d; }
@@ -622,7 +637,7 @@ const okehazama = {
     return marked;
   },
   // 戦の段だけで番号を進める。包囲や到着で指示が替わっても別の任務にしない。
-  missions: ['矢印の隊長に合流する', '矢印の旗持ちと谷を進む', '旗のそばで雨やみを待つ', '敵の本陣へ進む', '味方と敵を追う', '仲間と帰る'],
+  missions: ['矢印のたいちょうに近づく', '矢印の旗持ちと谷を進む', '旗のそばで雨やみを待つ', '敵のいる幕へ進む', '味方と敵を追う', '仲間と帰る'],
   missionOf: (rt) => rt.flags.victory ? rt.flags.pursuitDone ? 5 : 4 :
     rt.phase === 'assault' ? 3 : rt.phase === 'wait' ? 2 : rt.phase === 'march' ? 1 : 0,
   // 今の行き先と同じ旗持ちを示す。兵は増やさない。
@@ -643,20 +658,20 @@ const okehazama = {
   missionDetail(rt) {
     const F = rt.flags;
     if (rt.dodgeGuide || rt.hud.retreatGuide?.active) return '';
-    if (rt.phase === 'brief') return F.briefed ? '' : '近づくだけで合流できる';
+    if (rt.phase === 'brief') return '';
     if (rt.phase === 'march' || rt.phase === 'wait') {
-      if (F.scoutFighting) return '赤い▼は敵。仲間と倒す';
+      if (F.scoutFighting) return '赤い▼の兵だけが敵';
       if (!F.scoutAtFlag) {
         const d = F.scoutDistance ?? this.squadFlagDistance(rt);
-        return Number.isFinite(d) ? `合流まであと${Math.max(1, Math.ceil(d - 8))}メートル` : '黄色い矢印の旗持ちへ';
+        return Number.isFinite(d) ? `仲間のそばまであと${Math.max(1, Math.ceil(d - 8))}メートル` : '黄色い矢印の旗持ちへ';
       }
       if (rt.phase === 'wait') return ''; // 待ちは残り時間と丸だけを下の一行へ。
-      const end = P1[P1.length - 1], p = rt.player.u.pos;
-      const left = Math.ceil(Math.hypot(fieldX(end[0], end[1]) - p.x, fieldZ(end[0], end[1]) - p.z));
-      return rt.hostGroup?.arrived ? '谷の出口で仲間を待つ' : `印の谷の出口まで約${left}メートル`;
+      return rt.hostGroup?.arrived ? '谷の出口で仲間を待つ' : '黄色いピンは組の旗持ち';
     }
     if (rt.phase === 'assault' && !F.entered && !F.victory) {
-      return F.roadStep < F.road.length ? `道を守る敵・残り${F.road.length - F.roadStep}組` : '道が開いた。本陣へ';
+      let count = 0;
+      for (const g of F.road) for (const u of g.units) if (readyUnit(u)) count++;
+      return F.roadStep < F.road.length ? `道の赤い▼の兵 ${count}人・崩せば道が開く` : '道が開いた。敵のいる幕へ';
     }
     if (rt.phase === 'assault' && F.entered && !F.victory) {
       if (!F.guardOpened) return F.attackText || 'あと3人たおす';
@@ -694,20 +709,25 @@ const okehazama = {
   },
   missionPin(rt) {
     const F = rt.flags;
-    if (F.ending || rt.phase === 'brief' && F.briefed || rt.hud.retreatGuide?.active && rt.hud.retreatGuide.valid) return null;
+    if (F.ending || rt.phase === 'brief' && F.briefed || rt.hud.retreatGuide?.active && rt.hud.retreatGuide.valid ||
+        F.scoutFighting && (rt.phase === 'march' || rt.phase === 'wait') ||
+        rt.phase === 'wait' && F.scoutAtFlag ||
+        rt.phase === 'assault' && !F.victory && (this.objectiveEnemies(rt).length || !F.entered && F.roadStep < F.road.length)) return null;
     const guide = rt.missionGuide, marker = guide?.marker;
-    if (!marker || !guide.objective) return null;
+    const enemy = this.objectiveEnemies(rt)[0] || null;
+    if (!enemy && (!marker || !guide.objective)) return null;
     const pin = rt.flags.missionPinTarget || (rt.flags.missionPinTarget = { x: 0, z: 0, r: 8, hide: 8 });
-    // 組のそばでは実際の行軍の終点を示す。離れた時は組への合流を先にする。
-    const enemy = rt.phase === 'assault' && !F.entered ? this.objectiveEnemies(rt)[0] : null;
-    const exit = rt.phase === 'march' && this.squadFlagDistance(rt) <= 12 && rt.hostGroup?.path?.at(-1);
-    const pos = enemy?.pos || exit || (rt.phase === 'brief' || rt.phase === 'march' || rt.phase === 'wait'
+    // 黄色いピンは仲間と行き先だけ。敵は既存の頭上の印で示す。
+    const ally = rt.phase === 'brief' ? this.missionAlly(rt) : null;
+    // 行軍中も同じ旗持ちを追い、誰もいない出口へ印を飛ばさない。
+    const pos = ally?.pos || (rt.phase === 'brief' || rt.phase === 'march' || rt.phase === 'wait'
       ? this.squadFlagPosition(rt) : guide.pos);
     if (!pos) return null;
-    pin.x = exit && !enemy ? exit[0] : pos.x; pin.z = exit && !enemy ? exit[1] : pos.z;
-    pin.r = enemy ? 4 : exit ? 3 : rt.phase === 'brief' ? 3.5 : marker.guideRadius || 8;
-    // 組へ戻る間も旗持ちを示し、出口では到着の半径で印を消す。
-    pin.hide = rt.phase === 'march' && !F.scoutFighting && !exit ? 0 : pin.r;
+    pin.x = pos.x; pin.z = pos.z;
+    pin.unit = ally;
+    pin.r = rt.phase === 'brief' ? 3.5 : marker.guideRadius || 8;
+    // 近づいても歩く旗持ちの印を保つ。到着後の待機は冒頭の判定で消す。
+    pin.hide = rt.phase === 'march' && !F.scoutFighting && !rt.hostGroup?.arrived ? 0 : pin.r;
     return pin;
   },
   immediateTaskChanges: true, // 見張りの接近・雨上がり・帰陣の支度を、今の札へすぐ反映する。
@@ -830,15 +850,16 @@ const okehazama = {
     const reached = !!F.scoutAtFlag;
     const retreat = this.retreatTaskLabel(rt, rt.hud.retreatGuide);
     if (retreat) return retreat;
-    if (rt.phase === 'brief') return F.briefed ? '今いる場所で出発を待つ' : '矢印の隊長に合流する';
-    if (fighting) return '仲間と迎え撃つ';
+    if (rt.phase === 'brief') return F.briefed ? '仲間に会えた、その場で出発を待つ' : '黄色いピンのたいちょうに近づく';
+    if (fighting) return this.enemyOrder(rt, F.scoutEnemy);
     if (rt.phase === 'march') {
-      if (this.squadFlagDistance(rt) > 12) return '矢印の旗持ちに合流する';
-      return rt.hostGroup?.arrived ? '谷の出口で仲間を待つ' : '仲間と谷の出口へ進む';
+      if (this.squadFlagDistance(rt) > 12) return '矢印の旗持ちに近づく';
+      return rt.hostGroup?.arrived ? '谷の出口で仲間を待つ' : '黄色いピンの旗持ちについていく';
     }
-    if (!reached) return '組の旗へ戻る';
-    if (F.kakare) return '味方と攻めに出る';
-    return F.clear ? '「かかれ」の声を待つ' : '旗のそばで雨やみを待つ';
+    if (F.kakare) return '攻める合図だ、仲間と進む';
+    if (!reached) return '黄色い矢印の旗へ近づく';
+    if (F.clear) return 'ここで攻める合図を待つ';
+    return F.scoutEngaged ? '旗を守り、近づく赤い▼を迎え撃つ' : '旗に着いた、ここで雨やみを待つ';
   },
   taskLabel(rt) {
     if (rt.flags.victory && !rt.flags.pursuitDone)
@@ -854,12 +875,12 @@ const okehazama = {
       return this.squadOrder(rt);
     }
     if (rt.phase === 'assault' && !rt.flags.entered) {
-      if (this.objectiveEnemies(rt).length) return '仲間と目印の敵を倒す';
-      if (this.guideMarker(rt) === 'genpachi') return '矢印の旗持ちと本陣へ進む';
-      return '味方と 本陣の入口へ進め';
+      if (this.objectiveEnemies(rt).length) return this.enemyOrder(rt, this.objectiveEnemies(rt)[0]);
+      if (rt.flags.roadStep < rt.flags.road.length) return '仲間と道の赤い▼の敵を崩す';
+      return '仲間と敵のいる幕の入口へ進む';
     }
     if (rt.phase === 'assault' && rt.flags.entered && !rt.flags.victory) {
-      if (this.objectiveEnemies(rt).length) return '味方と この敵をたおす';
+      if (this.objectiveEnemies(rt).length) return this.enemyOrder(rt, this.objectiveEnemies(rt)[0]);
       // 残り人数は攻めの処理が数えた本文を使い、毎コマ兵を数え直さない。
       if (!rt.flags.guardOpened) return rt.flags.attackText || 'あと3人たおす';
       if (rt.flags.yoshiDown) return rt.flags.nobKill[1]?.woundOut ? '毛利は手当て中。味方と構えよ' : '義元は深手。討取りは毛利に任せよ';
@@ -889,7 +910,7 @@ const okehazama = {
     if (rt.dodgeGuide) return 'まず敵の攻撃をよけ、味方のそばへ戻ろう';
     if (F.victory) return progress;
     if ((rt.phase === 'march' || rt.phase === 'wait') && F.scoutFighting)
-      return '赤い刀印が敵。青い丸印が味方';
+      return '赤い▼の兵だけが敵';
     // 目前の操作が出る時は、別の進軍指示を下へ足さない。
     if (rt.hud.approachGuideEnemy?.alive || rt.hud.defendEnemy?.alive || rt.guideEnemyShown) return '';
     if (rt.phase === 'assault' && this.objectiveEnemies(rt).length) return '';
@@ -906,8 +927,13 @@ const okehazama = {
   introTaskFirst: true,
   introName: '桶狭間（おけはざま）の戦い',
   introPeopleFolded: true,
+  introPeople: [
+    { id: '信長', name: '織田信長（おだ のぶなが）', note: '味方の軍を率いる人。あなたはこの人の仲間。' },
+    { id: '義元', name: '今川義元（いまがわ よしもと）', note: '敵の軍を率いる人。奥の幕にいる。仲間と守りの敵を倒すと、味方が義元を討つ。' },
+    { id: '桶狭間', name: '桶狭間（おけはざま）', note: '丘の間を通り、敵のいる幕へ近づく。' },
+  ],
   introSides: { a: '織田（おだ）の軍 約２千人', b: '今川（いまがわ）の軍 約２万５千人' },
-  introText: '黄色い矢印の兵が隊長。近づくと合流できる。',
+  introText: 'まず、黄色い矢印のたいちょうに近づこう。',
   prelude: false,   // 奇襲の戦は溜めない（prelude.js）
   // 組頭の旗のすぐ後ろから出る。谷の行軍と本陣の位置は保つ。
   spawn: { ...fieldPoint(-12, -25), heading: Math.PI + FIELD_TURN },
@@ -1725,7 +1751,7 @@ const okehazama = {
         // 列を細くし、背中と槍が正面に重なりにくくする。
         g.colW = 3;
         rt.flags.genpachi = g.units[0];
-        g.units[0].name = '隊長';
+        g.units[0].name = 'たいちょう';
         rt.flags.yashichi = g.units[1];
         // 組頭と足軽にも、普通の兵と同じ死傷がある。
         rt.hostGroup = g;
@@ -1891,7 +1917,7 @@ const okehazama = {
     scenery.finish();
     buildBattleJin(rt);
     // 名のない敵の仮名は、この戦だけの名簿から選ぶ。実在の武将の名は保つ。
-    const foeNames = ['源六', '平八', '彦七', '新八', '又六', '弥三郎', '喜助', '弥五郎']
+    const foeNames = ['げんろく', 'へいはち', 'ひこしち', 'しんぱち', 'またろく', 'やさぶろう', 'きすけ', 'やごろう']
       .filter((name) => name !== rt.G.name && name !== nm(rt));
     for (const g of E) for (const u of g.units) {
       if (!u.name && u.type === 'samurai') u.name = foeNames[u.id % foeNames.length];
@@ -2028,13 +2054,14 @@ const okehazama = {
     if ((rt.phase !== 'brief' && rt.phase !== 'march' && rt.phase !== 'wait') || rt.t < (F.scoutGuideAt || 0)) return;
     F.scoutGuideAt = rt.t + 0.5;
     // 遠い見張りだけでは、進む下知を戦う下知へ替えない。
-    let fighting = !!rt.army.nearestEnemy(rt.player.u, F.scoutFighting ? 10 : 8, readyUnit);
+    F.scoutEnemy = rt.army.nearestEnemy(rt.player.u, F.scoutFighting ? 10 : 8, readyUnit);
+    let fighting = !!F.scoutEnemy;
     // 雨で遠目の探索が止まっても、方角の札が出る至近の敵には構えを案内する。
     if (!fighting) for (const u of rt.army.units) {
       if (u.team === rt.player.u.team || !readyUnit(u) || u.civ || u.isStruct || u.playerOpeningBlocked) continue;
       if (Math.hypot(u.pos.x - rt.player.u.pos.x, u.pos.z - rt.player.u.pos.z) < this.nearThreatRange &&
           !rt.army.wallBetween(u.pos, -1, rt.player.u.pos) && !rt.army.terrainBlocks(u.pos, rt.player.u.pos)) {
-        fighting = true; break;
+        F.scoutEnemy = u; fighting = true; break;
       }
     }
     F.scoutFighting = fighting;
@@ -2146,7 +2173,7 @@ const okehazama = {
       F.waitReadyAt = rt.t + 17;
       rt.marker('wait', F.waitPos, '組の旗で待つ場所', { guideArea: 'wait', guideFlag: true, group: host, guideRadius: 8, guidePriority: 200,
         waitUntil: () => rt.phase === 'wait' ? F.waitReadyAt : null, waitDuration: 17 });
-      localSay(rt, rt.hostGroup, '組頭', 'ここで待て。「かかれ」の声が攻めの合図じゃ', 3);
+      localSay(rt, rt.hostGroup, '組頭', '矢印の旗で待て。「かかれ」は攻め始めの合図じゃ', 3);
     }
   },
   // 行軍が短く終わっても、見張りの寄せを取りこぼさない。
@@ -2202,7 +2229,7 @@ const okehazama = {
     if (rt.pt > 11 && !F.clear) {
       F.clear = true; rt.world.setRainTarget(0); rt.world.setTime('after'); rt.world.addPuddles(30);
       for (const g of F.enemies) g.guardSight = 32;
-      rt.banner('雨が上がった', '霧の向こうに、今川本陣の幕と旗が見える');
+      rt.banner('雨が弱まった', '霧の向こうに、今川本陣の幕と旗が見える');
       // 晴れ間に、本陣の方へ一息だけ目を向ける。構えている時は奪わない。
       const p = rt.player;
       if (!p.lock && !(p.inCombatT > 0)) p.cine = { x: FIELD_HONJIN.x, z: FIELD_HONJIN.z, t: 1.6 };
@@ -2210,7 +2237,7 @@ const okehazama = {
     if (rt.pt > 15 && !F.kakare) {
       F.kakare = true; hush(2);
       localSay(rt, rt.G.lord ? rt.player.u : rt.flags.nob, '織田信長', 'すわ、かかれ、かかれ！', 3);
-      if (!rt.G.lord) rt.after(0.6, () => localSay(rt, rt.hostGroup, '組頭', '殿が鑓を取られた！　かかれ！', 2.5));
+      if (!rt.G.lord) rt.after(0.6, () => localSay(rt, rt.hostGroup, '組頭', '攻め始めるぞ！　仲間と赤い▼の敵を倒せ！', 2.5));
       rt.after(2, () => this.startAssault(rt));
     }
   },
@@ -2269,7 +2296,7 @@ const okehazama = {
         const task = rt.objectives.find((o) => o.id === 'attack' && !o.state);
         if (task) { task.cue = '合図：法螺と陣太鼓の早打ちで攻める'; task.cueT = rt.cueAt.kakari; }
       }
-      if (block) rt.marker('road', block.anchor, '道を守る小隊・味方と崩せ', { red: true });
+      if (block) rt.marker('road', () => this.objectiveEnemies(rt)[0]?.pos || block.center(), '道を守る敵', { red: true, group: block });
       else rt.marker('honjin', fieldPoint(18, -100), '本陣の入口', { guidePriority: 200 });
     }
     // 行き先と探す広さは毎秒かけ直す。隊の頭の仕組みが狭い探索へ戻すと、二十歩先の小隊の前で立ち止まった（10/7）。
@@ -2739,10 +2766,9 @@ okehazama.uchisute = true;
 okehazama.noAllyReports = true;
 // 信長はこの戦の馬廻で扱う。共通の手傷による退場・本陣襲撃を重ねない。
 okehazama.taisho = { a: { name: '織田信長', def: true } };
-okehazama.sides = { a: { name: '織田軍', mon: 'oda' }, b: { name: '今川軍', mon: 'imagawa' } };
-okehazama.introSides = { a: '織田軍 約2千', b: '今川軍 約2万5千' };
+okehazama.sides = { a: { name: 'おだの軍', mon: 'oda' }, b: { name: 'いまがわの軍', mon: 'imagawa' } };
 // 参戦者は開始時の馬廻・旗本へ置いた。後から名前のある兵を足さない。
-okehazama.date = (rt) => `永禄（えいろく）三年五月十九日　初夏・${sky(rt)}`;
+okehazama.date = (rt) => `永禄３年（１５６０年）５月１９日　初夏・${sky(rt)}`;
 // 見える局地戦の数。本陣から離れた大高・鳴海などの兵をここへ合算しない。
 // 損害一人を何十人へ水増しせず、出陣時の目安を示す。
 // 残りの人数（kaito 10/23 稲生 21）。戦う実兵の減り方の割合で、目安の総数を減らす。

@@ -579,7 +579,7 @@ export class HudUpdate {
     }
     if (!singleBattleGuide(rt) && !rt.def.keepGuardTaskLabel && rt.guideEnemyShown && rt.guideEnemy?.alive && /敵.*止め|敵.*押し返/.test(shownTaskLabel)) {
       const distance = Math.hypot(rt.guideEnemy.pos.x - p.u.pos.x, rt.guideEnemy.pos.z - p.u.pos.z);
-      shownTaskLabel = distance > 3 ? `近づいて とめよう・約${Math.ceil(distance / .75)}歩` : 'かまえて すきに つこう';
+      shownTaskLabel = distance > 3 ? `近づいて とめよう・約${Math.ceil(distance / .75)}歩` : 'すきに つこう';
     }
     if (!rt.def.keepTaskLabel && rt.guideEnemyShown && rt.guideEnemy?.alive && /この.*てき|この敵|敵.*止め|敵.*押し返/.test(shownTaskLabel)) shownTaskLabel = 'この敵を たおす';
     if (!rt.def.keepTaskPanel && this.attackGuideEnemy?.alive && this.guardFacing) shownTaskLabel = 'この敵を たおす';
@@ -588,8 +588,7 @@ export class HudUpdate {
       const reached = (guide.marker.guideArea === 'guard' ? guardPostDistance(rt, guide) : guide.distance) < (guide.marker.guideRadius || 8);
       shownTaskLabel = (rt.def.keepWaitOrderLabel && rt.def.waitOrderLabel?.(rt, reached)) ||
         (!reached ? guide.marker.guideArea === 'guard' ? 'ここへ進め' : '旗まで すすむ' : rt.def.waitOrderLabel?.(rt, reached) ||
-        (guide.marker.guideArea === 'guard' ? rt.player.guard ? '押したまま ふせごう' :
-          isTouch ? 'ながおしで まもる' : S.guardToggle ? '右押しで かまえよう' : '右押しを 長くおそう' : 'ここで待とう'));
+        'ここで待とう');
     }
     setClass($('objectives'), 'wait-order', waitingOrder);
     const atWait = guide?.marker?.waitAction && guide.distance < (guide.marker.guideRadius || 8) && !rt.guideEnemyShown;
@@ -601,140 +600,16 @@ export class HudUpdate {
       `${Math.round(Math.max(0, Math.min(1, 1 - (waitUntil - rt.t) / (guide.marker.waitDuration || 1))) * 100)}%`);
     if (atWait) {
       shownTaskLabel = timedWait ? '敵の寄せを待つ' :
-        rt.def.waitActionText?.(rt) || (rt.player.guard ? '一撃を防いで つく' : isTouch ? '押して構え、一撃を防ぐ' :
-        S.guardToggle ? '右押しで構える' : '右押しを押し続ける');
+        '味方と並んで待つ';
     }
-    // 待つ案内を出す時は、同じ操作を親指の届く場所で必ず押せるようにする。
-    if (!this.waitGuardButton) {
-      const button = this.waitGuardButton = document.createElement('button');
-      button.id = 'wait-guard'; button.type = 'button'; button.hidden = true;
-      button.innerHTML = '<svg viewBox="-26 -34 64 80" aria-hidden="true"><circle cy="-12" r="18" fill="none" stroke="#655f50" stroke-width="4"/><circle class="hold-progress" cy="-12" r="18" fill="none" stroke="#fff3ba" stroke-width="4"/><path class="swipe-hand" d="M-6 10V-12C-6-22 6-22 6-12V6L12 2L26 12L22 32H-5L-20 16C-28 5-16 0-6 14Z" fill="#fff3ba" stroke="#14120f" stroke-width="3" stroke-linejoin="round"/></svg><svg viewBox="0 0 48 56" aria-hidden="true"><g class="shield-sign"><path d="M5 5H43V28Q42 44 24 52Q6 44 5 28Z" fill="none" stroke="#fff3ba" stroke-width="4"/><path d="M24 14V37M14 25H34" stroke="#fff3ba" stroke-width="4"/></g><path class="release-sign" d="M8 24L24 8L40 24M8 46L24 30L40 46" fill="none" stroke="#fff3ba" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg><span></span><small></small>';
-      const meter = document.createElement('i');
-      meter.className = 'guard-meter'; meter.setAttribute('aria-hidden', 'true');
-      meter.innerHTML = '<em></em><b></b>';
-      button.insertBefore(meter, button.lastElementChild);
-      let heldBattle = null, heldPointer = null;
-      const start = () => {
-        const battle = this.rt, input = touchInput();
-        if (!heldBattle && !button.disabled && !button.hidden && battle?.player.u.alive && !battle.over && !battle.choice && input) {
-          heldBattle = battle;
-          this.waitGuardHeldBattle = battle;
-          input.touchGuardToggle = true; input.mouseR = true;
-          input.rightPressed = !battle.player.guardOn;
-        }
-      };
-      const release = this.releaseWaitGuard = () => {
-        if (!heldBattle) return;
-        heldBattle.player.guardOn = false;
-        const input = touchInput();
-        if (input) { input.mouseR = false; input.rightPressed = false; }
-        heldBattle = null; heldPointer = null;
-        this.waitGuardHeldBattle = null;
-      };
-      button.addEventListener('pointerdown', e => {
-        e.stopPropagation(); e.preventDefault();
-        if (e.button !== 0 || heldBattle) return;
-        start();
-        if (heldBattle) { heldPointer = e.pointerId; button.setPointerCapture(e.pointerId); }
-      });
-      for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) button.addEventListener(name, e => {
-        e.stopPropagation();
-        if (e.pointerId === heldPointer) release();
-      });
-      button.addEventListener('keydown', e => {
-        e.stopPropagation();
-        if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); if (!e.repeat) start(); }
-      });
-      button.addEventListener('keyup', e => {
-        e.stopPropagation();
-        if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); release(); }
-      });
-      button.addEventListener('blur', release);
-      window.addEventListener('blur', release);
-      button.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); });
-      $('objectives').appendChild(button);
-    }
-    // 反撃のすきも押している札を残し、指を離してから攻撃の案内へ渡す。
+    // 構えの操作と案内は使わない。持ち場と救助の位置だけ判定する。
     const rescue = rescueTarget(rt);
-    // 回復や猶予の判定は変えず、そばで守る既存の長押し操作へ案内する。
     const rescueNear = !!rescue && rt.def.guardGuideAllowed?.(rt) !== false &&
       Math.hypot(rescue.pos.x - u.pos.x, rescue.pos.z - u.pos.z) < 3.5 &&
       Math.abs(rescue.pos.y - u.pos.y) < 1.5 && !rt.army.wallBetween(u.pos, -1, rescue.pos);
-    const guardHeld = this.waitGuardHeldBattle === rt;
-    const releaseReady = guardHeld && !!(this.approachGuideEnemy || this.counterGuideEnemy || rt.def.releaseGuardForAttack && this.attackGuideEnemy);
     const guardDistance = guide?.marker?.guideArea === 'guard' ? guardPostDistance(rt, guide) : guide?.distance;
-    const guardOrder = guide?.marker && guardDistance < (guide.marker.guideRadius || 8) &&
-      (guide.marker.guideArea === 'guard' || /かまえる|構え/.test(shownTaskLabel)) && !this.attackGuideEnemy;
     const outsideGuardPost = guide?.marker?.guideArea === 'guard' && guardDistance >= (guide.marker.guideRadius || 8);
-    const waitGuard = isTouch && !outsideGuardPost && (rescueNear || (guardHeld || !this.approachGuideEnemy) &&
-      !(this.defendEnemy?.alive && !this.guardFacing) && rt.def.waitGuardAllowed?.(rt, this.defendEnemy || this.guardThreat) !== false &&
-      (guardHeld || !this.counterGuideEnemy && !(rt.def.releaseGuardForAttack && this.attackGuideEnemy)) && (guardHeld ||
-      guardOrder ||
-      guide?.marker?.waitAction && guide.distance < (guide.marker.guideRadius || 8) && !rt.guideEnemyShown ||
-      this.defendEnemy?.alive && !this.attackGuideEnemy ||
-      this.guardThreat?.alive && !this.attackGuideEnemy && Math.cos(Math.atan2(this.guardThreat.pos.x - rt.player.u.pos.x,
-        this.guardThreat.pos.z - rt.player.u.pos.z) - rt.player.yaw) > .85)) &&
-      rt.player.u.alive && !rt.over && !rt.choice && !rt.player.camShot && !rt.player.radial && !rt.player.cmdOpen &&
-      !this.bigmap && !this.openingActive && !guidanceEnded(rt) && !rt.dodgeGuide && !retreatRequired(rt) &&
-      !this.retreatGuide?.active && !rainDanger(rt.army) && !rt.def.town && !rt.def.dojo &&
-      rt.player.weapon !== 'bow' && rt.player.weapon !== 'gun' && !$('objectives').classList.contains('expand');
-    if (!waitGuard || outsideGuardPost) this.releaseWaitGuard();
-    setHidden(this.waitGuardButton, !waitGuard);
-    setClass(this.root, 'wait-guard-active', !!waitGuard);
-    setClass($('objectives'), 'integrated-guard', !!waitGuard);
-    setClass(this.root, 'hand-action-guide', isTouch && !rt.over && !rt.choice && !this.openingActive &&
-      !rt.player.camShot && !this.bigmap && !rt.dodgeGuide && !retreatRequired(rt) && !this.retreatGuide?.active &&
-      !rt.def.town && !rt.def.dojo && !!(waitGuard || this.defendEnemy?.alive || this.attackGuideEnemy?.alive || this.approachGuideEnemy?.alive));
-    const turnEnemy = !this.approachGuideEnemy && this.defendEnemy?.alive && !this.guardFacing ? this.defendEnemy : null;
-    const turnAngle = turnEnemy ? Math.atan2(turnEnemy.pos.x - rt.player.u.pos.x, turnEnemy.pos.z - rt.player.u.pos.z) -
-      rt.player.yaw - (rt.player.camYawOff || 0) : 0;
-    const turnDirection = Math.cos(turnAngle) > .5 ? '前' : Math.cos(turnAngle) < -.5 ? '後ろ' : Math.sin(turnAngle) > 0 ? '左' : '右';
-    const turnArrow = turnDirection === '左' ? '←' : turnDirection === '右' ? '→' : turnDirection === '後ろ' ? '↓' : '↑';
-    setClass(this.waitGuardButton, 'turn-guard', !!turnEnemy);
-    // 実際に振りかぶった敵に合わせる。同じ呼びかけの出し直しは八秒あける。
-    const incoming = this.guardThreat?.alive && this.guardThreat.atk?.target === rt.player.u &&
-      !this.guardThreat.atk.ranged && !this.guardThreat.atk.bow;
-    if (waitGuard && !turnEnemy && incoming && !rt.player.guard && rt.t - this.guardPromptAt >= 8) {
-      this.guardPromptAt = rt.t; this.guardPromptUntil = rt.t + 2; this.guardPromptAttack = this.guardThreat.atk;
-    }
-    // 手の印と動作を端の同じ場所へ。味方を追って敵や道を隠さない。
-    const guardNow = waitGuard && !outsideGuardPost && incoming && this.guardThreat.atk === this.guardPromptAttack &&
-      !rt.player.guard && rt.t < this.guardPromptUntil;
-    setClass(this.waitGuardButton, 'guard-now', !!guardNow);
-    // 向き直りと反撃の案内を保ち、待つ場所でも押す操作を一文で示す。
-    const groundHold = guide?.marker?.guideArea === 'guard' && !outsideGuardPost;
-    const passiveWait = outsideGuardPost || !rescueNear && !groundHold && !!rt.def.passiveGuardStatus && rt.player.guard && !guardHeld && !releaseReady;
-    setClass(this.waitGuardButton, 'guard-travel', outsideGuardPost);
-    setClass(this.waitGuardButton, 'ground-hold', !!groundHold);
-    this.waitGuardButton.disabled = passiveWait;
-    setClass(this.waitGuardButton, 'wait-status', passiveWait);
-    setAttr(this.waitGuardButton, 'role', passiveWait ? 'status' : 'button');
-    const guardStatus = rt.player.guard ? '守り中' : rt.def.guardStatusText || 'ここで まつ';
-    const quietHold = groundHold && !this.defendEnemy?.alive && !this.guardThreat?.alive && !guardHeld && !rt.player.guard;
-    const guardAction = rescueNear ? rt.player.guard ? '押したまま たすける' : '長押しで たすける' : outsideGuardPost ? 'ここへ進め' : guardNow ? 'いま おして！' : passiveWait ? guardStatus : releaseReady ? this.counterGuideEnemy ? 'ふせいだ！ はなす' : '手を はなす' : turnEnemy ? `${turnArrow} ${turnDirection}を向いて かまえる` :
-      rt.player.guard ? guardHeld ? 'おし続けて守る' : '長くおして守る' : guardHeld ? rt.player.guardBroken > 0 ? '体勢を戻す' : 'はなして 休む' : quietHold || groundHold || isTouch ? '長くおして守る' : rt.def.waitGuardButtonText || 'おして かまえる';
-    const guardPurpose = rt.def.guardPurposeText?.(rt) || (groundHold ? 'ここで敵を止めよう' : '囲みの敵を止めよう');
-    const guardHint = passiveWait ? '' : releaseReady ? this.approachGuideEnemy ? rt.def.meleeApproachLabel?.(rt) || '次は 敵へ すすめ' : attackOperation(rt) :
-      this.guardThreat?.alive || this.defendEnemy?.alive ? '敵の攻撃にそなえる' :
-      timedWait ? `あと${Math.max(1, Math.ceil(waitUntil - rt.t))}秒` :
-      '';
-    // 待機は残り時間、守る操作は指を離した時の動作を同じ札で示す。
-    const guardDetail = rt.player.guard && !passiveWait && !releaseReady
-      ? timedWait ? `あと${Math.max(1, Math.ceil(waitUntil - rt.t))}秒` : 'はなすと 守りをやめる'
-      : guardHint;
-    setClass(this.waitGuardButton, 'release-ready', releaseReady);
-    setClass(this.waitGuardButton, 'guarding', !!rt.player.guard && !releaseReady);
-    setText(this.waitGuardButton.querySelector('span'), guardAction);
-    const guardCaption = guardDetail;
-    setAttr(this.waitGuardButton, 'aria-label', `${guardPurpose}。${guardAction}${guardDetail ? `。${guardDetail}` : ''}`);
-    // 決まった待ち時間は実際の残り秒数に合わせる。構えに架空の完了時間を付けない。
-    const waitProgress = timedWait ? Math.max(0, Math.min(1, 1 - (waitUntil - rt.t) / (guide.marker.waitDuration || 1))) : Math.max(0, Math.min(1, rt.player.sta / rt.player.maxSta));
-    setStyle(this.waitGuardButton, '--hold-progress', String(waitProgress));
-    setText(this.waitGuardButton.querySelector('.guard-meter em'), timedWait ? '待ち時間' : '守る力');
-    setText(this.waitGuardButton.lastElementChild, guardCaption);
-    if (passiveWait) this.waitGuardButton.removeAttribute('aria-pressed');
-    else this.waitGuardButton.setAttribute('aria-pressed', String(!!rt.player.guard));
-    setStyle(this.waitGuardButton, 'right', '');
+    const waitGuard = false, releaseReady = false;
     if (this.retreatGuide?.active && this.retreatGuide.valid && this.retreatGuide.treatment)
       shownTaskLabel = treatmentGuideText(rt, this.retreatGuide);
     else if (retreatRequired(rt) || this.retreatGuide?.active && this.retreatGuide.valid && !this.retreatGuide.treatment || guide?.marker?.guideArea === 'retreat') shownTaskLabel = retreatGuideText(rt, this.retreatGuide?.active && this.retreatGuide.valid && Math.hypot(this.retreatGuide.x - rt.player.u.pos.x, this.retreatGuide.z - rt.player.u.pos.z) < this.retreatGuide.radius, 'にげる場所');
@@ -1209,7 +1084,7 @@ export class HudUpdate {
         guide.distance >= (guide.marker.guideRadius || 8);
       const pos = dodge?.pos || (withdrawing ? this.retreatGuide : retreatOrder ? guide.pos : null);
       if (pos) {
-        shownTaskLabel = dodge?.arrived ? 'ここで かまえよう' : `${this.battleMoveCue(rt, pos).direction}へ さがろう`;
+        shownTaskLabel = dodge?.arrived ? 'ここで 待とう' : `${this.battleMoveCue(rt, pos).direction}へ さがろう`;
         aimHelp = ''; waitFacingHelp = ''; edgeGoalDetail = ''; this.destinationMoveDirection = '';
       } else if (waitFacing && !retreatMoving) {
         shownTaskLabel = this.waitFacingReady ? 'そのまま 待とう' : rt.def.waitFacingLabel?.(rt, false) || '矢印へ 向こう';
@@ -1567,7 +1442,6 @@ export class HudUpdate {
     if (!this.coverEl || this.coverEl.hidden) this.releaseCoverHold?.();
     if (isTouch && this.coverEl && !this.coverEl.hidden) {
       this.releaseWaitGuard?.();
-      setHidden(this.waitGuardButton, true);
       setClass(this.root, 'wait-guard-active', false);
     }
     const safetyGoal = this.retreatGuide?.active && this.retreatGuide.valid && !this.retreatGuide.treatment ? this.retreatGuide :

@@ -92,11 +92,9 @@ const HINTS = {
 
 
   get move() { return ['↑ ← ↓ → で歩く', `${K('run')}で走る。手元の操作器で見回す`]; },
-  practice: ['藁人形で試し突き。左押しで突き、素早く3回押すと連続突き（3回目は強い）', '敵の打ちは右押しで受ける'],
-  get attack() { return ['敵が近い。照準が朱色になったら槍が届く間合い', `${K('lock')} で敵を狙い定めると、見失わずに戦える`]; },
-  guard: ['右押しで構えると正面からの攻撃を防げる', '敵の頭上に「！」が出たら攻撃の合図。その直前に構えると受け流しになる'],
-  counter: ['受け流した直後の一撃は「反撃」になり、威力が大きい', ''],
-  run: ['走ると気力を使う。気力が尽きると回避も攻撃もできない', ''],
+  practice: ['藁人形で試し突き。左押しで突き、素早く3回押すと連続突き（3回目は強い）', '味方と肩を並べて戦う'],
+  get attack() { return ['敵が近い。照準が朱色になったら槍が届く間合い', '相手を向いて攻撃を押す']; },
+  run: ['走ると気力を使う。味方の後ろで休むと戻る', ''],
   get squad() { return [`組を率いている。${K('follow')} ついて来い／${K('hold')} 待て／${K('attack')} 突撃／${K('retreat')} 退け`, `${K('command')} を開くと全ての号令と説明が見られる`]; },
   get rally() { return ['組の士気が下がっている', '士気が尽きた組は崩れて逃げ出す']; },
   get far() { return [`組と離れすぎている。${K('follow')} で「ついて来い」`, '']; },
@@ -105,9 +103,9 @@ const HINTS = {
   get bows() { return [`弓・鉄砲・騎馬の隊は ${K('command')} の号令の輪を開いて、号令先を切り替えて動かせる`, '弓隊は敵に詰め寄られると下がって間合いを取る']; },
   blocked: ['正面の突きは防がれることがある', '少し横へ回り、隙を突く'],
   tooClose: ['敵に懐へ入られると、槍は力が出ない', '一歩下がって間合いを取るか、打刀に持ち替える。味方と肩を並べると槍は強い'],
-  get ride() { return [`馬上にいる。${K('forward')} で並足、${K('run')} で駆ける。向きは馬が少しずつ変える`, `駆けて突けば重い一撃。${K('dodge')} で手綱を引いて急に止まる。${K('mount')} で降りる`]; },
+  get ride() { return [`馬上にいる。${K('forward')} で並足、${K('run')} で駆ける。向きは馬が少しずつ変える`, `駆けて突けば重い一撃。${K('mount')} で降りる`]; },
   get dismount() { return ['馬を降りた。馬はその場で待つ', `近くで ${K('mount')} を押すと乗る。遠ければ ${K('mount')} で口笛を吹いて呼ぶ`]; },
-  get gun() { return ['鉄砲は狙いを定めるのに時間がかかり、撃てば長い装填に入る', `「！」が出たら回避（${K('dodge')}）するか、装填の間に詰め寄れ。散開すると当たりにくい`]; },
+  get gun() { return ['鉄砲は狙いを定めるのに時間がかかり、撃てば長い装填に入る', '射線から横へ歩くか、装填の間に詰め寄れ。散開すると当たりにくい']; },
   alt: ['Altを押している間、自分の組の居場所と名前が頭上に出る', '乱戦で組を見失ったときに'],
   roster: ['部下には名前がある。生き残った者は次の戦で古参となり、強くなる', '城下の「組」で名簿を見られる'],
   // 初めて出会った時だけの短い札（二度目からは出さない）
@@ -120,8 +118,7 @@ const HINTS_TOUCH = {
 
   move: ['左の親指で画面をなぞって歩く。外まで押し込むと走る', '画面の右側をなぞって見回す'],
   practice: ['藁人形で試し突き。「突く」を押す。素早く3回で連続突き（3回目は強い）', '敵の打ちは「構え」で受ける'],
-  attack: ['敵が近い。照準が朱色になったら槍が届く間合い', '「狙い」で敵を狙い定めると、見失わずに戦える'],
-  guard: ['「構え」を押している間、正面からの攻撃を防げる', '敵の頭上に「！」が出たら攻撃の合図。その直前に構えると受け流しになる'],
+  attack: ['敵が近い。照準が朱色になったら槍が届く間合い', '相手を向いて攻撃を押す'],
   squad: ['組を率いている。「号令」を押して、ついて来い・待て・突撃・退けを選ぶ', '「号令」を押したまま指を滑らせても選べる'],
   rally: ['組の士気が下がっている', '士気が尽きた組は崩れて逃げ出す'],
   far: ['組と離れすぎている。「号令」から「ついて来い」', ''],
@@ -130,9 +127,9 @@ const HINTS_TOUCH = {
   bows: ['弓・鉄砲・騎馬の隊は、右下の隊の札を押して号令先を切り替えて動かせる', '弓隊は敵に詰め寄られると下がって間合いを取る'],
   blocked: ['少し横へ回り、隙を突く', ''],
   tooClose: ['敵に懐へ入られると、槍は力が出ない', '一歩下がって間合いを取るか、「持替」で打刀に持ち替える。味方と肩を並べると槍は強い'],
-  ride: ['馬上にいる。左の親指で進む。外まで押し込むと駆ける', '駆けて突けば重い一撃。「手綱」で急に止まる。「降りる」で馬を降りる'],
+  ride: ['馬上にいる。左の親指で進む。外まで押し込むと駆ける', '駆けて突けば重い一撃。移動を緩めると止まる。「降りる」で馬を降りる'],
   dismount: ['馬を降りた。馬はその場で待つ', '近くで「乗る」を押すと乗る。遠ければ「乗る」で口笛を吹いて呼ぶ'],
-  gun: ['鉄砲は狙いを定めるのに時間がかかり、撃てば長い装填に入る', '「！」が出たら「回避」を押すか、装填の間に詰め寄れ。散開すると当たりにくい'],
+  gun: ['鉄砲は狙いを定めるのに時間がかかり、撃てば長い装填に入る', '射線から横へ歩くか、装填の間に詰め寄れ。散開すると当たりにくい'],
   alt: ['下の組の札を長押しすると、組の兵の居場所と名が頭の上に出る', '乱戦で組を見失ったときに'],
 };
 // 手ほどきの間でも、すぐに出すヒント（戦いの最中の大事な事）
@@ -145,15 +142,13 @@ const HINT_NOW = new Set(['attack', 'guard', 'counter', 'gun', 'tooClose', 'bloc
 const COACH = () => [
   ['c_move', '歩く', '↑ ← ↓ →', '左をなぞる'],
   ['c_follow', '組の旗について行く', '旗へ歩く', '旗へ歩く'],
-  ['c_swing', 'てきに むかって つく', '右を放して左押し', ''],
+  ['c_swing', 'てきに むかって つく', '左押し', ''],
   ['c_cmd', '味方に指図する', `${K('command')}で号令を開き、一つ選ぶ`, '「号令」を押し、一つ選ぶ'],
-  ['c_guard', '敵の「！」で構える', '「！」が出たら右押し', '「！」が出たら「かまえる」を押す'],
 ];
 const COACH_GAP = { c_follow: 0.5, c_guard: 0.5, c_swing: 0.5 };
 // 戦ごとの手ほどき（tutStart）の操作を、指の言葉に
 const TUT_TOUCH = {
   move: '左の親指でなぞる', run: '棒を外まで押し込む', thrust: '「突く」を押す', combo: '「突く」を素早く3回', charged: null,
-  guard: '「構える」を押す', sweep: null, dodge: '「回避」を押す', parry: '「！」が出たら「構える」を押す',
   cmd_follow: '「号令」から選ぶ', cmd_hold: '「号令」から選ぶ', cmd_retreat: '「号令」から選ぶ', radial: '「号令」を押す',
   cmd_yari: '「号令」から「槍衾」', cmd_fire: null, group: '右下の隊の札を押す',
 };
@@ -601,12 +596,6 @@ export class Battle {
       onWindup: (u, target) => {
         this.army.rearWindup(u, target, true);
         this.warnRear(u, target);
-        // 初陣は傷を受ける前に構えを教える。足軽・信長とも一度だけ。
-        // 構えの案内は出さない（自分で判断できる。kaito 10/23 稲生 4）。
-        if (false && this.firstBattle && target.isPlayer && target.alive && !this.over && u.team !== target.team && !this.player.guard && !this.flags.guardTip) {
-          this.flags.guardTip = true;
-          this.say('', isTouch ? '敵が来る！　敵を向き「構える」を押す' : '敵が来る！　敵を向き右押しで構える', 4);
-        }
       },
       onMeritHit: (v, k, kind, amount) => meritHit(this, v, k, kind, amount),
       canDuel: () => !this.over && !this.choice && !this.def.dojo && !this.def.duel,
@@ -618,7 +607,7 @@ export class Battle {
         this.after(1.2, () => { if (!this.over && this.army.duel === duel) { this.warVoices.call('nanori', this.player.u.pos); cryCaption(this, this.player.u.pos, nameLine(this, this.player.u)); } });
         if (!this.duelBannerShown) {
           this.duelBannerShown = true;
-          this.hud.banner('一騎打ち', '溜めた一撃を受け流し、隙を突け');
+          this.hud.banner('一騎打ち', '相手の隙を突け');
         }
         this.hud.cineFlash(2.4);
       },
@@ -1097,6 +1086,7 @@ export class Battle {
   }
 
   hint(id) {
+    if (['guard', 'counter', 'dodge', 'lock'].includes(id)) return;
     if (/^waza/.test(id) || simpleControls(this) && ['squad', 'rally', 'far', 'map', 'bows', 'alt', 'ride', 'dismount'].includes(id)) return;
     if (this.def.scriptedLessons) return; // 戦の定義が操作の順番と札を持つ
     // 教えの戦でない戦は、操作の札を出さない（柵・槍衾・名簿のような、操作でない心得だけ残す）
@@ -1126,7 +1116,7 @@ export class Battle {
     if (!o.auto && /任意/.test(title) && this.firstCoach()) return false;
     const list = [];
     for (const [id, label, pc, touch] of items) {
-      if (['charged', 'sweep', 'slam', 'butt', 'spin'].includes(id) || simpleControls(this) && /^(c_cmd|cmd_|radial|group)/.test(id)) continue;
+      if (['charged', 'sweep', 'slam', 'butt', 'spin', 'guard', 'parry', 'dodge', 'c_guard', 'c_dodge'].includes(id) || simpleControls(this) && /^(c_cmd|cmd_|radial|group)/.test(id)) continue;
       const m = label.match(/^(.*?)（(.*)）$/);
       let how = pc !== undefined ? pc : m ? m[2] : '';
       if (isTouch) how = touch !== undefined ? touch : id in TUT_TOUCH ? TUT_TOUCH[id] : how;
@@ -1434,6 +1424,8 @@ export class Battle {
     geo.setAttribute('position', new THREE.BufferAttribute(points, 3));
     const m = new THREE.LineLoop(geo, new THREE.LineBasicMaterial({ color: narrow && color === 0xc2a25a ? 0xc7c6b7 : color, transparent: true, opacity: narrow ? Math.min(opacity, 0.18) : opacity, depthWrite: false }));
     m.position.set(x, this.world.heightAt(x, z) + 0.15, z);
+    // 兵や部隊、指示地点の輪は描かない。行き先は共通のピンだけ。
+    m.material.visible = false;
     m.renderOrder = 2;
     this.scene.add(m);
     return m;
@@ -2276,7 +2268,7 @@ export class Battle {
         input.key('KeyW') || input.key('KeyA') || input.key('KeyS') || input.key('KeyD') ||
         (input.axis && Math.hypot(input.axis.x, input.axis.y) > 0.18);
       if (!ready) {
-        if (!this.flags.readyHint) { this.flags.readyHint = true; this.bark('動くか「構え」を押すと、戦が始まる'); }
+        if (!this.flags.readyHint) { this.flags.readyHint = true; this.bark('動くと、戦が始まる'); }
         this.player.update(dt, input); // 見回す操作は使える。
         this.hud.update(dt, this);
         return;
@@ -2664,7 +2656,7 @@ export class Battle {
     if (lh && this.t - lh.t < 6) {
       const who = lh.name || { ashigaru: '敵の足軽', samurai: '敵の侍', busho: '敵の武将', bow: '敵の弓', gun: '敵の鉄砲', cavalry: '敵の騎馬' }[lh.type] || '敵';
       const how = lh.kind === 'fire' ? '焼かれた' : lh.ranged ? lh.type === 'bow' ? '矢を射込まれた' : '撃たれた' : lh.mounted ? '馬上から突かれた' : lh.back ? '背後から突かれた' : lh.side ? '横から突かれた' : '正面から打ち負けた';
-      const tip = lh.kind === 'fire' ? '燃える広間を離れ、控えの間へ' : lh.ranged ? '物陰か味方の列の後ろへ' : lh.mounted ? '騎馬は槍を揃えた列の中で待つ' : lh.back || lh.side ? '囲まれる前に下がり、味方と肩を並べる' : isTouch ? '「構え」を押し、打たれる直前に受け流す' : '右押しで構え、打たれる直前に受け流す';
+      const tip = lh.kind === 'fire' ? '燃える広間を離れ、控えの間へ' : lh.ranged ? '物陰か味方の列の後ろへ' : lh.mounted ? '騎馬は槍を揃えた列の中で待つ' : lh.back || lh.side ? '囲まれる前に下がり、味方と肩を並べる' : '味方と肩を並べ、囲まれる前に下がる';
       this.downReason = `${who}に${how}。次は：${tip}`;
       this.say('', this.downReason, 3.2);
       why = true;

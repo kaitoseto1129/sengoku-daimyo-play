@@ -1507,7 +1507,7 @@ function anegawaHqReturnPriority(rt) {
 }
 // 帰陣の道は、戻る旗に短い下知を添える。
 function anegawaHqReturnText(rt) {
-  return anegawaReturning(rt) ? '旗のそばへ' : 'ここで待つ';
+  return anegawaReturning(rt) ? '旗の所へもどる' : 'ここで待つ';
 }
 // 傷の案内が任務札を置き換える時も、本陣の危険と今する事を一緒に伝える。
 function anegawaHurtHqText(rt, reached) {
@@ -1520,10 +1520,7 @@ function anegawaHurtHqText(rt, reached) {
   return reached ? '本陣前で かまえよう' : anegawaHqReturnText(rt);
 }
 function anegawaHoldRoute(rt) {
-  const at = rt.flags.holdAt;
-  if (!at || at.z <= POST.z + 4) return '岸へ進もう';
-  // 既に列の南へ退いた者には、さらに下がるよう案内しない。
-  return at.z > rt.player.u.pos.z + 4 ? 'この旗まで さがろう' : '味方の旗へ戻ろう';
+  return '旗の所へもどる';
 }
 // 退き太鼓の時だけ選ぶ。空の畑を「味方の旗」と呼ばず、残る徒歩兵の後ろを探す。
 function anegawaWithdrawPost(rt) {
@@ -1552,12 +1549,12 @@ function anegawaGuardLabel(rt, reached) {
   const F = rt.flags;
   if (F.hqThreat || F.hqDefend) return reached ? anegawaHqWatchText(rt) : anegawaHqReturnText(rt);
   if (!reached) return anegawaHoldRoute(rt);
-  if (rt.phase === 'brief') return '岸でまつ';
-  if (F.nearEnemies > 0) return 'この敵を止めよう';
-  if (F.inabaT) return 'ここで残る敵を見張ろう';
-  if (F.westReported) return '横から来る味方を待とう';
-  if (F.holdAt.z > POST.z + 4) return '味方と槍を揃えて待とう';
-  return 'ここで待とう';
+  if (rt.phase === 'brief') return '川をわたらず、ここで待つ';
+  if (F.nearEnemies > 0) return '味方と敵を止める';
+  if (F.inabaT) return 'ここで敵を見張る';
+  if (F.westReported) return 'ここで味方を待つ';
+  if (F.holdAt.z > POST.z + 4) return 'ここで待つ';
+  return '川をわたらず、ここで待つ';
 }
 const anegawa = {
   // 共通の見物・避難を使い、軍の周りへの自動配置は止める。民は兵の名簿に入らない。
@@ -1807,7 +1804,7 @@ const anegawa = {
     if (rt.phase === 'brief') {
       const p = rt.player.u.pos;
       return F.holdAt && Math.hypot(p.x - F.holdAt.x, p.z - F.holdAt.z) < 8
-        ? '岸でまつ' : anegawaHoldRoute(rt);
+        ? '川をわたらず、ここで待つ' : anegawaHoldRoute(rt);
     }
     if (F.hqThreat || F.hqDefend) return anegawaGuardLabel(rt, !anegawaReturning(rt));
     if (F.step === 2) return text;
