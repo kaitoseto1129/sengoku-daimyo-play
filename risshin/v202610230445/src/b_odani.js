@@ -456,8 +456,8 @@ const nextObj = (rt, text) => { if (!rt.flags.ending) rt.obj('main', text, 'main
 // 小谷当夜の秀吉の装備は ODANI_KACCHU の復元案を近景・遠景ともに使う。
 // 八月二十七日の夜の攻め。月齢・晴雨は断定せず、暗い空を保つ。
 // 小谷だけの月明かりと地面の照り返しで、岩肌・木・曲輪の輪郭を読めるようにする。
-// 旧暦八月末（初秋）の夜明け前。月明かりでも土と草の色を残し、雪のように白く飛ばさない。
-const PREDAWN = { time: 'night', sky: 0x18212f, fog: 0x252c36, sun: 0xb6c3d9, sunI: 0.76, hs: 0x8a96ac, hg: 0x514638, hI: 1.05, top: 0x101722, glow: 0.03, dir: [0.6, 0.55, -0.3], mount: 0x141820 };
+// 旧暦八月末（初秋）の夜。空からの光を抑え、土と草の色と篝火の明暗を残す。
+const PREDAWN = { time: 'night', sky: 0x18212f, fog: 0x252c36, sun: 0xb6c3d9, sunI: 0.55, hs: 0x8a96ac, hg: 0x514638, hI: 0.55, top: 0x101722, glow: 0.03, dir: [0.6, 0.55, -0.3], mount: 0x141820 };
 const battleReady = (u) => u.alive && !u.fleeing && !u.gone && !u.woundOut && !u.noTarget && !u.campProtected;
 // 京極丸の守備は、攻め込んだ組を口から押し返す任務。遠い弓兵の全滅までは求めない。
 // 一度も来ていない組は待つ。実兵が曲輪へ入った事と、口の近くに敵がいない事を確かめる。
@@ -1303,7 +1303,9 @@ const odani = {
     livingSpearHedge: true,
     variedMarch: true,
     strideLimit: 1.1, // 走る速さは保ち、腿・膝・腰の弾みだけを抑えて宙を蹴る姿を避ける。
-    nightFill: .78,
+    // 共通の月光の下限で明るさが戻らないよう、夜の直射と補助光を一緒に抑える。
+    nightMoonMin: .55,
+    nightFill: .4,
     roundedFire: true, // 篝火を三角の板にせず、既存の丸い火の舌を使い回す。
     smoothGroundFire: true, // 坂の火明かりを画素ごとに測り、地面の三角形へ橙色を引き伸ばさない。
     namedKacchu: ODANI_KACCHU, // 兵の組み立ては世界の指定を読む。小谷当夜の復元を近景・遠景へ渡す。

@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { sightScreenUnit } from './battle_sight.js';
 import { enemyKnown } from './battle_intel.js';
+import { reduceMotion } from './settings.js';
 
 const CAP = 360, BARS = 12, NAMES = 1;
 const FOE_R = 55, FOE_OUT = 62, GEN_R = 60;
@@ -26,7 +27,7 @@ function build(rt, root) {
   tri.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   // 赤い▼の中身だけを残りの命に合わせて減らす。外枠は保ち、棒や数字を足さない。
   const triMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, fog: false, depthWrite: false });
-  if (rt.def.key === 'inou') {
+  if (rt.def.key === 'inou' || rt.def.key === 'okehazama') {
     tri.setAttribute('signLife', new THREE.InstancedBufferAttribute(new Float32Array(CAP).fill(1), 1));
     triMat.onBeforeCompile = shader => {
       shader.vertexShader = 'attribute float signLife;\n' + shader.vertexShader;
@@ -127,8 +128,9 @@ export function fieldSignsTick(rt, root) {
     // 敵の三角は味方の丸より大きくし、乱戦でも形を読み取れる幅に保つ。
     // 笠や肩が重なる近接戦でも、▼の先端を笠より上に保つ。
     headPos.set(u.pos.x, headY(u) + .12, u.pos.z);
-    // 近接中は実際の頭へ付ける。遠景の骨は更新せず、携帯の負荷を抑える。
-    const head = (moribe || inou || oke) && d2 < 20 * 20 && u.human?.root.visible && u.human.bones?.Head;
+    // 稲生は立ち位置の上に固定し、構える腕や頭の上下動で印を揺らさない。
+    // ほかの近接中の兵は実際の頭へ付ける。遠景の骨は更新しない。
+    const head = (moribe || oke) && d2 < 20 * 20 && u.human?.root.visible && u.human.bones?.Head;
     if (head) {
       head.updateWorldMatrix(true, false);
       head.getWorldPosition(headPos); headPos.y += .38;
@@ -144,26 +146,28 @@ export function fieldSignsTick(rt, root) {
     const readyEnemy = (inou || oke) && rt.player.inRange ? rt.player.rangeCueTarget : null;
     const pixels = moribe ? (u === missionEnemy ? 17 : d2 < 20 * 20 ? 12 : 9) :
       inou ? (u === readyEnemy ? 26 : (u === missionEnemy && !readyEnemy || u.inouHitUntil > rt.t) ? 20 : 10) :
-      oke ? (u === readyEnemy ? 22 : u === missionEnemy && !readyEnemy ? 17 : 10) :
+      oke ? (u === readyEnemy ? 28 : u === missionEnemy && !readyEnemy ? 20 : d2 < 20 * 20 ? 14 : 10) :
       u === missionEnemy ? 17 : foe ? 16 : 10;
     // 稲生・森部・桶狭間では命を減らした相手の▼だけを一度大きくし、滑らかに戻す。
     // 頭上の先端は固定し、既存の形・材質・描画の束をそのまま使う。
-    const hit = foe && (moribe || inou || oke) ? Math.min(1, Math.max(0, ((oke ? u.okeHitUntil : inou ? u.inouHitUntil : u.moribeHitUntil) || 0) - rt.t) / .7) : 0;
+    const hit = foe && (moribe || inou || oke) ? Math.min(1, Math.max(0, ((oke ? u.okeHitUntil : inou ? u.inouHitUntil : u.moribeHitUntil) || 0) - rt.t) / (oke || inou ? 1.2 : .7)) : 0;
     const reachable = (moribe || inou || oke) && foe && rt.player.inRange && rt.player.rangeCueTarget === u;
     // 森部の命中は同じ赤い▼を大きくして示す。空振りでは変わらない。
+    // 稲生は「届く＝幅広い▼」「命中＝一度だけ広がる▼」。残りの命は中の赤の面積で示す。
+    const pulse = inou && reduceMotion() ? 0 : hit;
     const width = moribe ? pixels + (reachable ? 8 : 0) + 10 * hit : pixels;
     const k = Math.min(moribe ? 1.6 : 3, width * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) *
-      (moribe ? 1 : 1 + (hit > 0 ? 1.2 * hit : reachable && !inou && !oke ? .55 : 0));
+      (moribe ? 1 : 1 + (pulse > 0 ? 1.2 * pulse : reachable && !inou && !oke ? .55 : 0));
     dummy.position.copy(headPos);
-    dummy.quaternion.copy(q); dummy.scale.set(moribe ? k : k * (1 + .5 * hit + ((inou || oke) && reachable ? .35 : 0)), k, k); dummy.updateMatrix();
+    dummy.quaternion.copy(q); dummy.scale.set(moribe ? k : k * (1 + .5 * pulse + ((inou || oke) && reachable ? .35 : 0)), k, k); dummy.updateMatrix();
     if (foe) {
-      if (inou) s.marks.geometry.attributes.signLife.setX(n, Math.sqrt(Math.max(0, Math.min(1, u.hp / (u.maxHp || 1)))));
+      if (inou || oke) s.marks.geometry.attributes.signLife.setX(n, Math.sqrt(Math.max(0, Math.min(1, u.hp / (u.maxHp || 1)))));
       s.marks.setMatrixAt(n++, dummy.matrix);
     }
     else s.allies.setMatrixAt(a++, dummy.matrix);
   }
   s.marks.count = n; s.marks.instanceMatrix.needsUpdate = true;
-  if (inou) s.marks.geometry.attributes.signLife.needsUpdate = true;
+  if (inou || oke) s.marks.geometry.attributes.signLife.needsUpdate = true;
   s.allies.count = a; s.allies.instanceMatrix.needsUpdate = true;
   if (gens.length > 1) gens.sort((a, c) => a._fsD - c._fsD);
   // 武将の体力の棒（黒い下地と色の棒）

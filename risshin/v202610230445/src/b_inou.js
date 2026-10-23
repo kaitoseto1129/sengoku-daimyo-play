@@ -149,7 +149,7 @@ const inou = {
   missionPinCaption: '',
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
   // 任務は一行。距離・向き・操作は書かず、同じ兵をピンで追う。
-  missions: ['林の兵を倒せ', '林の兵を倒せ', '柴田隊に耐えろ', '林美作守を倒せ'],
+  missions: ['赤い▼の兵を倒せ', '赤い▼の兵を倒せ', '柴田隊に耐えろ', '林美作守を倒せ'],
   missionHeading(rt) {
     return rt.flags.step === 0 && rt.flags.training === 8 ? '林の小隊長を倒せ' : this.missions[this.missionOf(rt)];
   },

@@ -271,7 +271,7 @@ export function updateMissionPin(rt) {
   if (arrived && !U.arrived) U.arrivalAt = rt.t;
   U.arrived = arrived;
   // 待つ場所と桶狭間の合流範囲は実寸で地面へ投影する。到着後も範囲を残す。
-  const showArea = !outside && (waiting || rt.def.key === 'okehazama' && want.area);
+  const showArea = rt.def.key !== 'okehazama' && !outside && waiting;
   pin._area.style.display = showArea ? '' : 'none';
   pin._area.setAttribute('stroke-width', arrived ? '5' : '3');
   pin._area.setAttribute('stroke-dasharray', arrived ? '' : '10 7');
@@ -336,7 +336,7 @@ export function updateMissionPin(rt) {
   // 端では同じ旗を矢印の上へ置き、見えている時は目的の人や床に竿を合わせる。
   flag.setAttribute('transform', oke ? outside ? 'translate(0,-24) scale(.75)' : '' : outside ? 'translate(0,-24)' : 'translate(-8,-16) scale(1.25)');
   // 帰る旗までの向きは、自分の足元から短い一本で示す。
-  const showFoot = !arrived && !person && !want.fire && !want.dodge &&
+  const showFoot = !oke && !arrived && !person && !want.fire && !want.dodge &&
     (waiting || marker?.guideFlag) && d > (want.r ?? 6);
   pin._foot.style.display = 'none'; pin._inside.style.display = 'none';
   if (showFoot || arrived && waiting && !outside) {

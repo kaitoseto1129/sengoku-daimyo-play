@@ -427,8 +427,10 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     // 待つ間（陣を敷く・寄せを待つ）の残りは、秒の字でなく満ちていく丸で（kaito 10/23 稲生 14）。
     const gm = rt.missionGuide?.marker, wu = gm?.waitUntil?.();
     const progress = def.missionWaitProgress?.(rt);
-    const pie = timeEl.firstChild, waiting = Number.isFinite(progress) || Number.isFinite(wu) && wu > rt.t && gm.waitDuration > 0;
-    timeEl.hidden = def.key === 'inou' || !!def.missionSingleLine;
+    // 桶狭間の null は「今は待ちではない」。接敵中に共通の時計を戻さない。
+    const pie = timeEl.firstChild, waiting = def.key === 'okehazama' ? Number.isFinite(progress) :
+      Number.isFinite(progress) || Number.isFinite(wu) && wu > rt.t && gm.waitDuration > 0;
+    timeEl.hidden = def.key === 'okehazama' ? !waiting : def.key === 'inou' || !!def.missionSingleLine;
     pie.hidden = !waiting;
     if (waiting) pie.style.setProperty('--p', String(Math.round(Math.max(0, Math.min(1, Number.isFinite(progress) ? progress : 1 - (wu - rt.t) / gm.waitDuration)) * 100)));
     // 切り替わりも右上の一枚で伝え、戦場の中央へ同じ札を重ねない。

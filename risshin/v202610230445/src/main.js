@@ -1038,7 +1038,7 @@ document.addEventListener('pointerlockchange', () => {
   if (locked) { autoTry = false; lockHint(false); game.noLock = false; edgeX = null; }
   // 軍議の間（城を回して見る・始めの寄せ）は、マウスを放しても捕まえても一時停止の札を出し入れしない
   if (game.gungiOn || game.deployment || game.hud.introWaiting) return;
-  if (!locked && game.battle && !game.battle.over && !game.helpOpen && !game.mapOpen && !game.townShop) setPause(true);
+  if (!locked && !game.noLock && game.battle && !game.battle.over && !game.helpOpen && !game.mapOpen && !game.townShop) setPause(true);
   if (locked) setPause(false);
 });
 document.addEventListener('pointerlockerror', () => { if (autoTry) { autoTry = false; if (game.battle) lockHint(true); return; } game.noLock = true; setPause(false); });
@@ -1238,6 +1238,12 @@ function pollPad() {
 window.addEventListener('gamepadconnected', () => notice('手持ち操作器をつなぎました'));
 
 // ---------------- 一時停止 ----------------
+function resumePlay() {
+  game.starting = false;
+  // 再開はマウスの捕捉を待たない。次に戦場を押した時に捕捉できる。
+  if (!locked) game.noLock = true;
+  setPause(false);
+}
 function setPause(on) {
   if (!$('loading').hidden) { input.clear(); return; }
   if (game.deployment) { input.clear(); return; }
@@ -1257,7 +1263,7 @@ function setPause(on) {
       town: !!b.def.town,
       title: game.starting ? `${b.def.title || BATTLES[b.index].name}　押して開始` : '一時停止',
       objectives: b.objectives, merit: b.tracker.total(), time: b.t, lines: b.tracker.lines(), difficulty: b.D.name,
-      resume: () => { game.starting = false; setPause(false); requestLock(); },
+      resume: resumePlay,
       help: () => { toggleHelp(); },
       onSettings,
       // 城攻めの型を使う筋書きの戦（稲葉山など）は地図の城攻めではないので、地図の写し（mapSnap）が無い時は戦の前の写しに戻す
@@ -1267,7 +1273,7 @@ function setPause(on) {
     });
     silence();
     // メニューの外側をクリックしても再開できる
-    el.onclick = (e) => { if (e.target === el) { game.starting = false; setPause(false); requestLock(); } };
+    el.onclick = (e) => { if (e.target === el) resumePlay(); };
   }
 }
 setGlossaryBeforeOpen(() => {
