@@ -227,7 +227,7 @@ export function canonical(code) {
 const KEY_LABELS = {
   ShiftLeft: '左シフト', ShiftRight: '右シフト', ControlLeft: '左コントロール', ControlRight: '右コントロール',
   AltLeft: '左オルト', AltRight: '右オルト', MetaLeft: '左⌘', MetaRight: '右⌘',
-  Space: '空白', Tab: 'タブ', Enter: '決定', Escape: '戻る',
+  Space: '空白', Tab: 'タブ', Enter: 'エンター（改行）', Escape: 'エスケープ' ,
   ArrowUp: '上矢印', ArrowDown: '下矢印', ArrowLeft: '左矢印', ArrowRight: '右矢印',
   Backspace: '後ろを消す', Delete: '削除', Insert: '挿入', Home: '先頭', End: '末尾',
   PageUp: '前の頁', PageDown: '次の頁', CapsLock: '大文字固定', NumLock: '数字固定',
@@ -242,6 +242,11 @@ const KEY_LABELS = {
 const LETTER_NAMES = ['えー', 'びー', 'しー', 'でぃー', 'いー', 'えふ', 'じー', 'えいち', 'あい', 'じぇー', 'けー', 'える', 'えむ', 'えぬ', 'おー', 'ぴー', 'きゅー', 'あーる', 'えす', 'てぃー', 'ゆー', 'ぶい', 'だぶりゅー', 'えっくす', 'わい', 'ぜっと'];
 // 英字を出さず、鍵盤の文字を日本語の読みで示す。割り当ての変更にも従う。
 for (let i = 0; i < LETTER_NAMES.length; i++) KEY_LABELS['Key' + String.fromCharCode(65 + i)] = LETTER_NAMES[i];
+// 日本語の鍵盤で探せるかなを添える。英字の読みも残し、かなのない鍵盤にも対応。
+Object.assign(KEY_LABELS, {
+  KeyW: 'て（だぶりゅー）', KeyA: 'ち（えー）', KeyS: 'と（えす）',
+  KeyD: 'し（でぃー）', KeyV: 'ひ（ぶい）',
+});
 for (let i = 0; i < 10; i++) { KEY_LABELS['Digit' + i] = String(i); KEY_LABELS['Numpad' + i] = '数字欄の' + i; }
 for (let i = 1; i <= 24; i++) KEY_LABELS['F' + i] = '機能' + i;
 export function keyLabel(code) {

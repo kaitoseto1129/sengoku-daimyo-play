@@ -19,13 +19,14 @@ export class HudOverlay {
 
   // 全戦の今の目標を一つだけ示す。輪は実物に固定し、札だけ空いた所へ逃がす。
   drawBattleGoal(g, rt) {
-    if (S.reduceGuidance) return;
+    // 行き先はこの印一つ。合流済みの半径では消し、別の輪を重ねない。
     // 稲生は到着判定と同じ行き先だけ。古い味方の輪へ誘わない。
     const inou = rt.def.key === 'inou';
-    const pinTarget = inou ? rt.def.missionPin(rt) : null;
-    if (inou && (!pinTarget || Math.hypot(pinTarget.x - rt.player.u.pos.x, pinTarget.z - rt.player.u.pos.z) <= (pinTarget.hide ?? pinTarget.r))) return;
+    if (inou) return; // 稲生の行き先は到着判定付きの印が一つだけ担当する。
+    const pinTarget = rt.def.missionPin?.(rt);
     const guide = rt.missionGuide;
     const retreat = !inou && this.retreatGuide?.active && this.retreatGuide.valid ? this.retreatGuide : null;
+    const dodge = rt.dodgeGuide?.valid ? rt.dodgeGuide : null;
     const objectives = rt.def.objectiveEnemies?.(rt);
     const ally = rt.def.missionAlly?.(rt);
     let unit = objectives?.find((u) => u.alive && !u.gone && !u.woundOut);
@@ -34,9 +35,11 @@ export class HudOverlay {
       const target = this.attackCueEnemy || this.aimGuideEnemy || rt.guideEnemy || rt.player.lock;
       if (target?.alive && !target.gone && !target.woundOut) unit = target;
     }
-    const enemy = !inou && !retreat && !!unit && unit.team !== rt.player.u.team;
-    let pos = pinTarget || retreat || unit?.pos || guide?.marker && guide.pos || ally?.pos;
+    const enemy = !retreat && !dodge && !!unit && unit.team !== rt.player.u.team;
+    let pos = retreat || dodge?.pos || unit?.pos || pinTarget || guide?.marker && guide.pos || ally?.pos;
     if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.z)) return;
+    const radius = retreat?.radius || (dodge ? 1 : !enemy ? pinTarget?.hide ?? pinTarget?.r ?? guide?.marker?.guideRadius ?? 3 : 0);
+    if (!enemy && Math.hypot(pos.x - rt.player.u.pos.x, pos.z - rt.player.u.pos.z) <= radius) return;
     // 敵は既に姿を確かめた相手だけ。地形の向こうの伏兵は明かさない。
     let seen = true;
     if (enemy && !retreat) {
@@ -56,9 +59,8 @@ export class HudOverlay {
     const at = this.project(pos, y + .2, rt, this.battleGoalProjection || (this.battleGoalProjection = {}));
     const W = VIEW.w, H = VIEW.h;
     const on = seen && !at.behind && at.x > 48 && at.x < W - 48 && at.y > 96 && at.y < H - 48;
-    // 見えている間は地面のピン一本。画面外へ出た時だけ同じ場所へ矢印を出す。
-    if (inou && on) return;
-    let x = at.x, sy = at.y - 30, angle = 0;
+    // 地面の行き先と画面外の向きは、この一つの矢印で示す。
+    let x = at.x, sy = at.y - 54, angle = Math.PI / 2;
     if (!on) {
       const dx = pos.x - rt.player.u.pos.x, dz = pos.z - rt.player.u.pos.z;
       const yaw = rt.player.yaw + (rt.player.camYawOff || 0);
@@ -68,7 +70,7 @@ export class HudOverlay {
       const scale = Math.min((W / 2 - 64) / Math.max(.001, Math.abs(right)), (H / 2 - 100) / Math.max(.001, Math.abs(forward)));
       x = W / 2 + right * scale; sy = H / 2 - forward * scale;
     }
-    const word = enemy ? 'この敵' : 'ここへ';
+    const word = enemy ? 'この敵' : retreat?.treatment ? '手当てへ' : 'ここへ';
     // 進行札も一枚として数え、同時に三枚まで。輪と形だけは残す。
     let cards = Number(!!this.prog && !this.prog.hidden) + 1; // 体力も一枚。
     for (const item of this.notices.picks) {
@@ -76,7 +78,8 @@ export class HudOverlay {
       cards++;
     }
     const label = !inou && cards < 3;
-    const spot = this.avoidRects(x, sy, W, H, '', null, 44, 32, true);
+    // 札の上端から矢じりの下端までを一組で避ける。
+    const spot = this.avoidRects(x, sy + 34, W, H, '', null, 52, 94, true);
     g.save(); g.lineJoin = 'round';
     if (on) {
       g.beginPath(); g.ellipse(at.x, at.y, 29, 12, 0, 0, Math.PI * 2);
@@ -84,11 +87,13 @@ export class HudOverlay {
       g.strokeStyle = enemy ? '#ffccb5' : '#fff3ba'; g.lineWidth = 5; g.stroke();
     }
     if (spot) {
-      x = spot[0]; sy = spot[1];
-      if (!on) {
-        g.save(); g.translate(x, sy + 15); g.rotate(angle); g.beginPath();
-        g.moveTo(-14, -7); g.lineTo(3, -7); g.lineTo(3, -14); g.lineTo(19, 0);
-        g.lineTo(3, 14); g.lineTo(3, 7); g.lineTo(-14, 7); g.closePath();
+      x = spot[0]; sy = spot[1] - 34;
+      if (!on || !enemy) {
+        // 見える行き先にも大きな一本。矢じりは実際の到着点へ向ける。
+        if (on) angle = Math.atan2(at.y - sy, at.x - x);
+        g.save(); g.translate(x, sy); g.rotate(angle); g.beginPath();
+        g.moveTo(-22, -9); g.lineTo(5, -9); g.lineTo(5, -21); g.lineTo(33, 0);
+        g.lineTo(5, 21); g.lineTo(5, 9); g.lineTo(-22, 9); g.closePath();
         g.strokeStyle = '#14120f'; g.lineWidth = 7; g.stroke();
         g.fillStyle = '#fff3ba'; g.fill(); g.restore();
       } else if (label) {
@@ -98,8 +103,9 @@ export class HudOverlay {
       }
       if (label) {
         g.font = 'bold 20px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'bottom';
-        g.fillStyle = '#14120f'; g.fillRect(x - 38, sy - 29, 76, 29);
-        g.fillStyle = '#fff3df'; g.fillText(word, x, sy - 3);
+        const half = g.measureText(word).width / 2 + 8;
+        g.fillStyle = '#14120f'; g.fillRect(x - half, sy - 57, half * 2, 29);
+        g.fillStyle = '#fff3df'; g.fillText(word, x, sy - 31);
       }
     }
     g.restore();
@@ -156,7 +162,7 @@ export class HudOverlay {
     this.hudRects();
     this.teamSignsDrawn = false;
     this.battleCuesDrawn = false;
-    if (pinOnly && !rt.over && !rt.choice && !this.introWaiting && !this.openingActive &&
+    if (pinOnly && !rt.over && !rt.choice && !this.introWaiting &&
         rt.player.u.alive && !rt.player.camShot && !this.bigmap) {
       this.battleCuesDrawn = this.drawBattleGoal(g, rt);
       this.battleCuesDrawn = this.drawNearbyTeamSigns(g, rt, rt.army.units) || this.battleCuesDrawn;

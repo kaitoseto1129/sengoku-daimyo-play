@@ -78,8 +78,8 @@ function height(x, z) {
 
 // 操作の札は既存の仕組みで一枚ずつ出す。敵のいない所で攻撃・防御を教えない。
 const LESSONS = {
-  move: ['move', '前・後ろ・左・右に歩く', () => `${K('forward')}・${K('back')}・${K('left')}・${K('right')}`, '左の親指でなぞる'],
-  view: ['view', '一人称と三人称を切り替える', () => `${K('view')}を押す`, '左上の「視点」を押す'],
+  move: ['move', '前へ二メートル歩く', () => `前は「${K('forward')}」を押し続ける`, '左の親指でなぞる'],
+  view: ['view', '視点の距離や見方を変える', () => `${K('view')}を押す`, '左上の「視点」を押す'],
   swing: ['swing', '攻撃', () => '左押しで槍を突く', '「つく」を押す'],
   chase: ['chase', '林軍を追いかけろ', () => `地面に立つ金の印へ。${K('run')}で走る`, '金の印の方へ大きくなぞる'],
   kill: ['kill', '倒せ', () => '近づいて左押し', '近づいて「つく」を押す'],
@@ -108,6 +108,7 @@ function lesson(rt, k) {
   if (F.lesson) lessonEnd(rt, F.lesson);
   F.lessonDone ||= {};
   F.lesson = k; F.lessonAt = rt.t; F.lessonHidden = false;
+  if (k === 'move') F.move0 = rt.player.movedAcc;
   const it = LESSONS[k];
   // 一枚が消えても戦は続く。説明を隠す設定でも敵や行軍を飛ばさない。
   if (!rt.G.lord && SETTINGS.hints) rt.tutStart('手ほどき', [[it[0], it[1], it[2](), it[3]]], () => {
@@ -155,6 +156,10 @@ const inou = {
   },
   missionStatus: (rt) => {
     const F = rt.flags;
+    if (F.step === 0 && F.training === 0 && F.lesson === 'move') {
+      const left = Math.max(0, Math.ceil(2 - (rt.player.movedAcc - F.move0)));
+      return `${isTouch ? '左の親指で前へなぞり続ける' : `「${K('forward')}」を押し続ける`}。あと${left}メートル`;
+    }
     if (F.step === 0 && F.training === 0) return F.lesson ? (isTouch ? LESSONS[F.lesson][3] : LESSONS[F.lesson][2]()) : isTouch ? '左の親指で前へなぞる' : `前は「${K('forward')}」`;
     if (F.step === 0 && F.chase && F.practice) {
       const c = F.practice.center(), p = rt.player.u.pos;
@@ -356,7 +361,7 @@ const inou = {
       { guideArea: 'guard', guideFlag: true, guideDefend: true, guideRadius: 20 });
     rt.marker('genpachi', unitPos(F.genU), '組頭 源八', { minor: true, guideRadius: 5 });
     // 始まってすぐ、自分以外の味方は退く林の手を追ってまっすぐ前へ走る（Yuto の流れ・kaito 10/22）。自分のまわりから味方がいなくなる。
-    rt.say('組頭 源八', 'まず歩いてみよ。できたら次の操作を教えるぞ。', 5);
+    rt.say('組頭 源八', '前へ二メートル歩いてみよ。できたら次の操作だ。', 5);
     for (const g of F.friends) {
       g.order = 'move'; g.speed = 3.2; g.aggro = 0;
       g.dest = { x: g.anchor.x, z: g === F.hata ? 6 : 10 };
@@ -654,8 +659,8 @@ const inou = {
       if (F.training === 0) {
         // 移動 → 視点 → 攻撃。字で示して試させ、できたら早めに次へ（目安：移動23秒・視点8秒・攻撃6秒）。
         const since = rt.t - (F.lessonAt || 0);
-        if (F.lesson === 'move' && (F.lessonDone?.move && since > 3 || since > 23)) { F.view0 = SETTINGS.view; lesson(rt, 'view'); F.strike0 = F.strikeN; }
-        else if (F.lesson === 'view' && (SETTINGS.view !== F.view0 && since > 1.5 || since > 8)) { if (SETTINGS.view !== F.view0) rt.tutMark('view'); F.strike0 = F.strikeN; lesson(rt, 'swing'); }
+        if (F.lesson === 'move' && (P.movedAcc - F.move0 >= 2 || F.lessonDone?.move || since > 23)) { rt.tutMark('move'); F.view0 = SETTINGS.view; F.range0 = SETTINGS.camRange; lesson(rt, 'view'); F.strike0 = F.strikeN; }
+        else if (F.lesson === 'view' && (SETTINGS.view !== F.view0 || SETTINGS.camRange !== F.range0 || since > 8)) { if (SETTINGS.view !== F.view0 || SETTINGS.camRange !== F.range0) rt.tutMark('view'); F.strike0 = F.strikeN; lesson(rt, 'swing'); }
         else if (F.lesson === 'swing' && (F.strikeN > F.strike0 && since > 0.8 || since > 6)) { rt.tutMark('swing'); this.trainingPhase(rt, 1); }
       } else if (F.training === 1) {
         const g = F.practice, c = g.center();

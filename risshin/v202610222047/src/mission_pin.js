@@ -33,9 +33,14 @@ function target(rt) {
 }
 
 export function updateMissionPin(rt) {
-  const want = pinGuideOn(rt) && !rt.over && !rt.choice && rt.player?.u?.alive ? target(rt) : null;
+  // 通常の戦は描画面の行き先一つへまとめる。稲生の到着印だけを残す。
+  const want = pinGuideOn(rt) && rt.def.key === 'inou' && !rt.over && !rt.choice && rt.player?.u?.alive ? target(rt) : null;
   if (!want) { if (pin) pin.hidden = true; return; }
   if (!pin) pin = make();
+  const caption = rt.def.missionPinCaption ?? 'ここへ';
+  if (pin.firstChild.textContent !== caption) pin.firstChild.textContent = caption;
+  const captionDisplay = caption ? 'block' : 'none';
+  if (pin.firstChild.style.display !== captionDisplay) pin.firstChild.style.display = captionDisplay;
   const hud = rt.hud, root = hud.root;
   if (pin.parentNode !== root) root.appendChild(pin);
   const me = rt.player.u.pos;
