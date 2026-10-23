@@ -1614,7 +1614,7 @@ export class Army {
     for (const st of I.values()) st.n = 0;
     for (const u of this.units) {
       const k = IMP_KIND[u.type];
-      const far = IMP.on && u.qualityTier === 2 && u.alive && !u.camHidden && !u.efuda &&
+      const far = IMP.on && u.qualityTier === 2 && u.alive && !u.camHidden && !u.efuda && !u.vatOn &&
         !u.isPlayer && !u.isSub && !u.isStandard && !u.mounted && k !== undefined && !u.name &&
         !(u.fall > 0) && u.look && !(u.human?.root?.visible) && !u.perch && !u.naka && !u.climb;
       if (!far) { if (u.imp) { u.imp = false; if (u.mesh && !u.gone) u.mesh.visible = !u.camHidden; } continue; }
@@ -1715,6 +1715,8 @@ export class Army {
     // iPhone：10 秒描かれていない体・頭の細かい形の配列を手放す（要る時に作り直す。units_model の lazyGeo）
     if (MEM_TIGHT && !(window.__apx && window.__apx.nolazy)) sweepLazyGeometries(this, LAZY_NOW);   // x_nolazy：実機で切って比べる
     this.restoreBatchRoots();
+    // 中景の焼いた動きの兵（crowd_vat.js）：手を見せ直す兵の行列も、下の束ねの前に今のコマへそろえる
+    if (this.vatDraw && cam) this.vatDraw(cam);
     this.selectShadows(this.playerUnit?.pos || this.world.lastFocus);
     // 描かない早送りの後の一枚（写真・測り）も、遊びの時と同じく遠い兵を束の軽い形へ写してから描く
     if (cam && isNoRender()) { const p = cam.position; for (const q of this.units) q.camD = Math.hypot(q.pos.x - p.x, q.pos.z - p.z); this.updateImpostors(p); }

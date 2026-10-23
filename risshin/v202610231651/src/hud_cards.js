@@ -376,7 +376,7 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     const yaw = rt.player.yaw + (rt.player.camYawOff || 0), p = rt.player.u.pos;
     let headline = missionCaption(rt, def.missionTaskFirst ? task || title : title || task) || '味方の旗へ進め';
     // 任務の一行へ実際の攻撃操作を収める。別の札や知らせは増やさない。
-    if (def.key !== 'moribe' && /^(?:近くの|この)?敵を\s*(?:たおせ|倒せ)$/.test(headline)) {
+    if (!def.missionSignTarget && def.key !== 'moribe' && /^(?:近くの|この)?敵を\s*(?:たおせ|倒せ)$/.test(headline)) {
       const player = rt.player;
       const enemy = (player.inRange && player.rangeCueTarget?.alive ? player.rangeCueTarget : null) ||
         this.approachGuideEnemy || this.attackGuideEnemy || this.aimGuideEnemy ||

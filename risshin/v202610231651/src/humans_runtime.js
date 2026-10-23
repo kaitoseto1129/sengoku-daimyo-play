@@ -27,6 +27,7 @@ import { horsesOn, detachReal, horseWanted, horseCandidates, updateHorses } from
 import { HR } from './humans_horse_model.js';
 import { placeHorseExtras } from './humans_horse_animate.js';
 import { combatThinking, thinkingPhase } from './army_budget.js';
+import { VAT, vatSelect } from './crowd_vat.js';
 
 let faceWarmUnits = null;
 // 手の材質：MakeHuman の肌の写真（明るい肌）を、顔と同じ日焼けの色へ。肌の中へ回る赤い光、戦が進むほどの汚れ、濡れ
@@ -519,6 +520,8 @@ function useHuman(u, force = false) {
     // 戻した亡骸も最後の倒れ姿を一度作ってから止める。
     h.still = false; h.drove = false;
     humans.add(h); h.last.copy(u.pos); h.acc = 1;
+    // 焼いた動きから替わる時は、同じ歩みの割合と速さから始める（足が跳ねない）
+    if (u.vatOn && u.vat) { h.gaitPhase = u.vat.phase; h.spd = u.vat.sp; }
     h.root.updateWorldMatrix(true, false);
     h.root.updateMatrixWorld(true);
   }
@@ -625,6 +628,8 @@ function updateHumans(rt, dt) {
   // 支度の後も必要な人は、一コマ一人ずつ作る。開戦直後も作成量を増やさない。
   HUM.budget = 4;
   setHumanWorld(rt.world); setHumanArmy(rt.army);
+  // 中景（8m〜）の兵は焼いた動きで描く。骨の人を作る候補から外す（crowd_vat.js）
+  vatSelect(rt, dt);
   const player = rt.player && rt.player.u;
   if (player) { ARMY_REAL_P.value.set(player.pos.x, player.pos.z); ARMY_REAL_R.value = realNear(); }
   // 前の描画で作成待ちになった兵は、出来るまで既存の軽い姿へ戻す。
@@ -733,7 +738,7 @@ function humansStep(rt, dt, army, cam) {
     _fr.setFromProjectionMatrix(_pv);
     const cand = humanCandidates; cand.length = 0;
     for (const u of army.units) {
-      if (u.gone || !u.mesh || u.type === 'dummy') continue;
+      if (u.gone || !u.mesh || u.type === 'dummy' || u.vatWant) continue;
       const d = Math.hypot(u.pos.x - cx, u.pos.z - cz);
       const pd = player ? Math.hypot(u.pos.x - player.pos.x, u.pos.z - player.pos.z) : d;
       const required = u.isPlayer || qualityKeeper(u) && d < Math.max(60, Q.far ?? HUM.far) || (MEM_TIGHT
@@ -962,5 +967,9 @@ function humansStep(rt, dt, army, cam) {
 }
 // 見本の画面（tools/inspect.js）から：一人を人にして、一コマ動かす
 function showHuman(u) { madeThisFrame = -99; madeFaces = 0; const ok = useHuman(u, true); if (ok) { u.human.skelDirty = true; if (u.human.xb) crowdFace(u.human, true); } return ok; }
+
+// 中景の焼いた動き（crowd_vat.js）が、場面の外の作り物の人を作る・手放す
+VAT.hooks.build = buildHuman;
+VAT.hooks.release = (h) => { humanPool.delete(h); releaseHumanBounds(h); h.mixer?.stopAllAction(); h.mixer?.uncacheRoot(h.model); };
 
 export { prefetchLook, prefetchFaces, makeHuman, buildHuman, efudaPose, disposeBattleHumans, updateHumans, showHuman };

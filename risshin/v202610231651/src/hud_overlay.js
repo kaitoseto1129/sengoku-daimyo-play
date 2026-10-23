@@ -23,13 +23,18 @@ export class HudOverlay {
       return this.drawDestinationPin(g, x, y);
     if (rt.def.key !== 'moribe') return this.drawDestinationPin(g, x, y);
     g.save(); g.lineJoin = 'round';
-    if (pin?.arrived) { g.translate(x, y); g.scale(1.3, 1.3); x = 0; y = 0; }
+    // 横持ちでも中の残りを読める大きさ。渡河中は近づくほど同じピンが育つ。
+    const pinScale = pin?.arrived ? 1.6 : 1 + .6 * Math.max(0, Math.min(1, pin?.progress || 0));
+    g.translate(x, y); g.scale(pinScale, pinScale); x = 0; y = 0;
     // 地面の接点と短い軸を持たせ、人物の頭上の印と形を分ける。
     g.beginPath(); g.ellipse(x, y + 1, 11, 3, 0, 0, Math.PI * 2);
     g.fillStyle = 'rgba(20,18,15,.65)'; g.fill();
-    g.beginPath(); g.moveTo(x, y); g.lineTo(x, y - 13);
+    // 場所のピンは軸を長くし、兵の頭上の印と見分けられるよう地面までつなぐ。
+    const stem = pin?.unit ? 13 : 43;
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x, y - stem);
     g.strokeStyle = '#14120f'; g.lineWidth = 6; g.stroke();
     g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
+    g.translate(0, 13 - stem);
     g.beginPath(); g.moveTo(x, y - 10); g.lineTo(x - 10, y - 26);
     g.bezierCurveTo(x - 21, y - 48, x + 21, y - 48, x + 10, y - 26);
     g.closePath();
@@ -38,8 +43,11 @@ export class HudOverlay {
     if (pin?.arrived) {
       g.strokeStyle = '#fff3ba'; g.lineWidth = 3; g.stroke();
     }
-    g.beginPath(); g.arc(x, y - 33, 11, 0, Math.PI * 2);
-    g.fillStyle = '#14120f'; g.fill();
+    // 移動先は塗りつぶしたピン。中の円は到着後に待つ時だけ使う。
+    if (pin?.waiting || pin?.arrived) {
+      g.beginPath(); g.arc(x, y - 33, 11, 0, Math.PI * 2);
+      g.fillStyle = '#14120f'; g.fill();
+    }
     // 実際の到着半径へ入った時だけ、同じピンの内周を閉じる。
     // 地点を踏み直す必要がないことを形で伝え、別の輪や札は足さない。
     if (pin?.arrived) {
@@ -161,10 +169,10 @@ export class HudOverlay {
     const floor = this.battleGoalFloor || (this.battleGoalFloor = { x:0, y:0, z:0 });
     floor.x = pos.x; floor.y = y; floor.z = pos.z;
     const on = seen && (moribe || enemy || this.floorGoalVisible(rt, floor)) && !at.behind && at.x > 48 && at.x < W - 48 && at.y > 96 && at.y < H - 48;
-    // 到着後は同じピンを手前に保つ。持ち場が背後でも進み具合を見失わせない。
-    // 向きを付けず、戻るよう促さない。新しい時計や札は作らない。
-    if (moribe && pinTarget.arrived && !on) {
-      this.drawBattleGoalSign(g, rt, W / 2, H - 64, false, pinTarget);
+    // 到着したピンは任務の下へ収める。足元の死体や槍・自分の体と重ねず、
+    // 持ち場を見直しても同じ場所で満ちる。別の時計や札は作らない。
+    if (moribe && pinTarget.arrived) {
+      this.drawBattleGoalSign(g, rt, W - 54, 152, false, pinTarget);
       return true;
     }
     // 地面の行き先と画面外の向きは、この一つの印で示す。

@@ -555,4 +555,4 @@ function setHumanCompiler(f, fAsync, renderer) {
   }
 }
 
-export { headMats, headTexs, faceRenderer, finishFaceCopies, faceStyles, faceStyle, mhPick, headMaterial, MH_PORES, headCompile, COMPILE, setHumanCompiler };
+export { headMats, headTexs, faceRenderer, finishFaceCopies, faceStyles, faceStyle, mhPick, headMaterial, MH_PORES, headCompile, COMPILE, COMPILE_ASYNC, setHumanCompiler };
