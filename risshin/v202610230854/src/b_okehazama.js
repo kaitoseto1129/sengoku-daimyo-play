@@ -655,7 +655,7 @@ const okehazama = {
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は、今する動きを短くやさしく伝える。
   missionSingleLine: true,
-  missions: ['仲間と集まれ', '集合場所へ進め', '合図を待て', '▼の兵を倒せ', 'いまがわよしもとを倒せ', 'にげる敵を追え', '仲間と集まれ'],
+  missions: ['信長軍と集まれ', '集合場所へ進め', '合図を待て', '▼の兵を倒せ', 'いまがわよしもとを倒せ', 'にげる敵を追え', '仲間と集まれ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -663,9 +663,9 @@ const okehazama = {
     return rt.phase === 'assault' ? 3 : rt.phase === 'wait' ? 2 : rt.phase === 'march' ? 1 : 0;
   },
   missionHeading(rt) {
+    if ((rt.phase === 'march' || rt.phase === 'wait') && rt.flags.scoutFighting) return '▼の兵を倒せ';
     if (rt.phase === 'wait') return '合図を待て';
     if (rt.phase === 'brief' && rt.flags.briefed) return '出発を待て';
-    if ((rt.phase === 'march' || rt.phase === 'wait') && rt.flags.scoutFighting) return '▼の兵を倒せ';
     if (rt.phase === 'march' && this.squadFlagReached(rt)) return '仲間を待て';
     return this.missions[this.missionOf(rt)];
   },
@@ -709,15 +709,13 @@ const okehazama = {
     const pin = F.missionPinTarget || (F.missionPinTarget = { x: 0, z: 0, r: 8, hide: 8 });
     pin.enemy = false; pin.dodge = false; pin.unit = null; pin.waiting = undefined;
     pin.area = false; pin.arrived = false; pin.progress = null; pin.footRing = false; pin.follow = false;
-    // 道の守りが崩れたら、同じピンを次の敵か幕の口へ移す。
+    // 戦う相手は頭上の赤い▼だけ。ピンは通れる幕の口だけに残す。
     if (rt.phase === 'assault' && !F.victory) {
       const entrance = !F.entered && F.roadStep >= F.road.length ||
         F.guardOpened && !F.mouthReached && !F.koshiLeft;
-      const enemy = entrance ? null : this.objectiveEnemies(rt)[0] || F.yoshimoto;
-      const pos = entrance ? F.honjinPin || (F.honjinPin = fieldPoint(18, -100)) : readyUnit(enemy) ? enemy.pos : null;
-      if (!pos) return null;
+      if (!entrance) return null;
+      const pos = F.honjinPin || (F.honjinPin = fieldPoint(18, -100));
       pin.x = pos.x; pin.z = pos.z; pin.r = 0; pin.hide = 0;
-      pin.enemy = !!enemy; pin.unit = enemy; pin.footRing = !!enemy;
       return pin;
     }
     // 雨待ちの進みは同じ集合ピンの穴で示す。接敵中は上の判定で敵の印を優先する。

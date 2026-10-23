@@ -8,25 +8,10 @@ import { sightUnit } from './battle_sight.js';
 export class HudCards {
 
 
-  // 開戦後の八秒だけ、実際の操作を一枚にまとめる。再表示せず、名札の一枠と入れ替える。
-  openingControls(dt, rt) {
-    if (this.controlsBattle !== rt) { this.controlsBattle = rt; this.controlsTime = 0; }
-    const on = isTouch && pinGuideOn(rt) && this.controlsTime < 8 && !rt.over && !rt.choice &&
-      !this.introWaiting && !rt.player.camShot && !this.bigmap && !rt.game.paused &&
-      $('intro').hidden && !rt.nearestInteract()?.hold && !this.root.classList.contains('photo');
-    this.openingControlsActive = on;
-    if (!on) { if (this.controlsEl) this.controlsEl.hidden = true; return; }
-    if (!this.controlsEl) {
-      const el = this.controlsEl = document.createElement('div');
-      el.id = 'opening-controls'; el.setAttribute('role', 'status');
-      el.style.cssText = 'position:absolute;left:50%;bottom:16px;transform:translateX(-50%);max-width:32vw;box-sizing:border-box;padding:6px 10px;background:#14120f;color:#fff3df;font-size:16px;line-height:1.4;white-space:pre-line;pointer-events:none;z-index:4';
-      this.root.appendChild(el);
-    }
-    this.controlsTime += dt;
-    const move = S.touchSwap ? '右' : '左', look = S.touchSwap ? '左' : '右';
-    const attack = rt.player.weapon === 'gun' ? '撃つ' : rt.player.weapon === 'bow' ? '射る' : rt.player.weapon === 'sword' ? 'きる' : 'つく';
-    setText(this.controlsEl, `${move}側をなぞって歩く\n${look}側をなぞって見回す\n「${attack}」を押して攻める`);
-    this.controlsEl.hidden = false;
+  // 操作は絵で示し、開戦時の字の案内は出さない。
+  openingControls() {
+    this.openingControlsActive = false;
+    if (this.controlsEl) this.controlsEl.hidden = true;
   }
 
   // 手ほどき：いまの段だけを札に出す
@@ -512,39 +497,9 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
 
   // 手ほどき・ヒントの札（左の中ほど。携帯の横向きでも隠さない）
   drawCard() {
-    coachCss();
     const el = $('tutorial');
-    el.classList.add('coach');
-    el.setAttribute('role', 'status');
-    el.setAttribute('aria-live', 'polite');
-    const h = this.hintCur, t = this.tutCur;
-    el.classList.toggle('first-controls', !!t?.auto);
-    const firstControl = t?.auto && !t.ok && ['c_swing', 'c_cmd'].includes(t.items.find((x) => !x.done)?.id);
-    const guardPractice = t?.auto && !t.ok && t.items.find((x) => !x.done)?.id === 'c_guard';
-    // 優先の順：手ほどきの「よし」確認 ＞ ヒント ＞ 手ほどきの段（確認の途中でヒントに取られない）
-    let html = '';
-    if (this.coachFoe && !guardPractice && !firstControl && !t?.ok) {
-      html = '';
-    } else if (t && t.ok) {
-      const n = t.items.filter((x) => x.done).length;
-      const head = `<span class="lbl">${esc(t.title)}<b>${n}/${t.items.length}</b></span>`;
-      html = head + `<p class="what ok"><i aria-hidden="true">✓</i>${esc(t.ok)}　よし</p>`;
-    } else if (h && !guardPractice && !firstControl) {
-      html = `<span class="lbl">手がかり</span><p class="what sm">${keyCaps(h.text)}</p>${h.keys ? `<p class="how">${keyCaps(h.keys)}</p>` : ''}`;
-    } else if (t) {
-      const n = t.items.filter((x) => x.done).length;
-      const it = t.items.find((x) => !x.done);
-      const head = `<span class="lbl">${esc(t.title)}<b>${n}/${t.items.length}</b></span>`;
-      if (it) html = head + `<p class="what">${esc(it.label)}</p>${it.how ? `<p class="how">${keyCaps(it.how)}</p>` : ''}`;
-    }
-    const key = html;
-    if (key === this.cardKey) return;
-    this.cardKey = key;
-    el.hidden = !html;
-    el.classList.toggle('hintc', !!h && !guardPractice && !t?.ok);
-    el.innerHTML = html;
-    // 新しい札は少しだけ動かして気づかせる（動きを減らす設定では動かさない）
-    if (html) { el.classList.remove('in'); void el.offsetWidth; el.classList.add('in'); }
+    el.hidden = true;
+    if (el.textContent) el.textContent = '';
   }
 
 

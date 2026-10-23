@@ -23,6 +23,7 @@ export class HudOverlay {
       return this.drawDestinationPin(g, x, y);
     if (rt.def.key !== 'moribe') return this.drawDestinationPin(g, x, y);
     g.save(); g.lineJoin = 'round';
+    if (pin?.arrived) { g.translate(x, y); g.scale(1.3, 1.3); x = 0; y = 0; }
     // 地面の接点と短い軸を持たせ、人物の頭上の印と形を分ける。
     g.beginPath(); g.ellipse(x, y + 1, 11, 3, 0, 0, Math.PI * 2);
     g.fillStyle = 'rgba(20,18,15,.65)'; g.fill();
@@ -160,8 +161,12 @@ export class HudOverlay {
     const floor = this.battleGoalFloor || (this.battleGoalFloor = { x:0, y:0, z:0 });
     floor.x = pos.x; floor.y = y; floor.z = pos.z;
     const on = seen && (moribe || enemy || this.floorGoalVisible(rt, floor)) && !at.behind && at.x > 48 && at.x < W - 48 && at.y > 96 && at.y < H - 48;
-    // 到着済みの持ち場が画面外でも、戻る行き先として出さない。
-    if (moribe && pinTarget.arrived && !on) return false;
+    // 到着後は同じピンを手前に保つ。持ち場が背後でも進み具合を見失わせない。
+    // 向きを付けず、戻るよう促さない。新しい時計や札は作らない。
+    if (moribe && pinTarget.arrived && !on) {
+      this.drawBattleGoalSign(g, rt, W / 2, H - 64, false, pinTarget);
+      return true;
+    }
     // 地面の行き先と画面外の向きは、この一つの印で示す。
     let x = at.x, sy = at.y - 54, angle = Math.PI / 2;
     if (!on) {

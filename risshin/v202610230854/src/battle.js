@@ -38,6 +38,7 @@ import { createBattleSound } from './battle_sound.js';
 import { nameCry, nameLine, cryCaption, beforeMelee, killCry } from './battle_cries.js';
 import { BattleEnvironment } from './battle_environment.js';
 import { S, QUALITY, DIFFICULTY, hintSeen, markHint, K } from './settings.js';
+import { markInBattle } from './device_tier.js';
 import { TITLES } from './state.js';
 import { Commander } from './ai.js';
 import { allyOrdersTick } from './ally_orders.js';
@@ -2819,6 +2820,7 @@ export class Battle {
     if (this.disposed) return;
     this.disposed = true;
     this.ended = true;
+    if (!this.game.battle || this.game.battle === this) markInBattle(false);
     const errors = [];
     const clean = (fn) => { try { fn(); } catch (error) { errors.push(error); } };
     // 描く側から先に外す。終了した戦を同じコマの残りでも更新しない。

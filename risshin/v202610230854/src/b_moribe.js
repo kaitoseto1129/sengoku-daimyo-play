@@ -34,6 +34,7 @@ const NAGARA2 = 500;
 const ROAD2 = [[-40, FIELD2], [-40, 176], [-28, 100], [-14, 40], [-6, -40], [4, -176], [4, -FIELD2]];
 // 楡俣川（南の支流）の南岸から始め、腿までの流れを渡って北岸の川岸で組をそろえる。
 const NIREMATA2 = 88;
+const NIRE_WIDTH2 = 9;
 // 楡俣川の流れの中ほどの z（下の streams の折れ線と同じ形）。
 const nireZ = (x) => x < -70 ? NIREMATA2 + 2 * Math.min(1, (-70 - x) / 730) : x < 46 ? NIREMATA2 : NIREMATA2 + 6 * Math.min(1, (x - 46) / 454);
 // 南岸の水際から始め、渡河そのものは残して岸までの長い歩きを省く。
@@ -42,7 +43,7 @@ const START2 = { x: 40, z: 98 };
 const POINT2 = { x: 40, z: 79 };
 const FORD_R = 4;
 // 向こう岸へ上がれば渡河済み。浅瀬から横へそれても、小旗へ戻らせない。
-const atFordBank = (p) => p.z <= nireZ(p.x) - (NIREMATA2 - POINT2.z);
+const atFordBank = (p) => p.z <= nireZ(p.x) - NIRE_WIDTH2;
 const FRONT2 = { x: 4, z: 20 };
 const ASSEMBLY2 = { x: 14, z: 10 };
 const RETREAT2 = { x: 24, z: 48 };
@@ -476,15 +477,9 @@ const moribeHeight = (x, z, b) => (moribeDem ? demBlend(moribeDem, x, z, b + mor
 // 森部だけの浅瀬。粗い地形の岸に引かれて埋もれた川面を、渡る帯でそろえる。
 function moribeFord(rt) {
   const W = rt.world, st = W.def.streams[1], pa = st.mesh.geometry.attributes.position;
-  // ピンも到着判定も、描いた水面から地面が出る最初の岸に合わせる。
-  // 川の中央で地面が浅くなっていても、ピンを中央へ置かない。
-  // 描かれた北岸と到着判定の両方を満たす地点を、出陣時に一度だけ探す。
-  // 川幅は片側の幅。水面の外から探し、岸へ一歩上がった所を行き先にする。
-  // 幅と同じ値から「幅より小さい間」で探すと、一度も岸を調べられない。
-  let bank = st.w + .5;
-  while (bank < st.w + 12 && (W.heightAt(START2.x, nireZ(START2.x) - bank) < .14 ||
-    drawGroundAt(W, START2.x, nireZ(START2.x) - bank) < .14)) bank += .25;
-  POINT2.z = nireZ(START2.x) - bank;
+  // 水面の帯を抜けた所で渡河を終える。低い陸地を水中とみなして奥へ誘わない。
+  // ピンは水際の半歩先。横へそれても同じ川幅で到着を判定する。
+  POINT2.z = nireZ(START2.x) - st.w - .5;
   for (let i = 0; i < st.surface.length; i += 3) {
     const x = st.surface[i], k = Math.max(0, Math.min(1, (160 - Math.abs(x)) / 30));
     const y = st.surface[i + 2] + (0.12 - st.surface[i + 2]) * k;
@@ -1086,6 +1081,7 @@ const moribe = {
         (F.stage === 'hold' || F.stage === 'contact' && F.vBroken) &&
         Math.hypot(rt.player.u.pos.x - F.linePoint.x, rt.player.u.pos.z - F.linePoint.z) >= 24)
       return '仲間と集まれ';
+    if (F.stage === 'hold') return '仲間と敵を迎え撃て';
     return this.missions[this.missionOf(rt)];
   },
   minutes: 7,
@@ -1141,8 +1137,9 @@ const moribe = {
       const elapsed = Math.max(0, rt.t - F.holdStart);
       const reservesReady = (F.wave1 || gone(F.reserves[0])) && (F.wave2 || gone(F.reserves[1]));
       // 列を支える働き・控えの到着・反撃の時刻を、実際の終了条件とそろえる。
-      return Math.min(1, Math.max(elapsed / 100,
-        Math.min(F.lineT / 25, elapsed / 45, reservesReady ? 1 : .85)));
+      F.holdProgress = Math.max(F.holdProgress || 0, Math.min(1, Math.max(elapsed / 100,
+        Math.min(F.lineT / 25, elapsed / 45, reservesReady ? 1 : .85))));
+      return F.holdProgress;
     }
     return null;
   },
@@ -1519,7 +1516,7 @@ const moribe = {
     },
     // 長良川は東の約五百メートル先。川幅・曲がり・楡俣川の浅瀬は復元。
     streams: [{ pts: [[NAGARA2 + 20, -FIELD2], [NAGARA2, -450], [NAGARA2 - 10, -100], [NAGARA2 + 20, 300], [NAGARA2 + 50, FIELD2]], w: 60, depth: 1.4 },
-      { pts: [[-FIELD2, NIREMATA2 + 2], [-70, NIREMATA2], [46, NIREMATA2], [NAGARA2, NIREMATA2 + 6]], w: 9, depth: 0.7 },   // 楡俣川：川幅十八メートル・腿までの流れ（川幅は復元。w は片側の幅）
+      { pts: [[-FIELD2, NIREMATA2 + 2], [-70, NIREMATA2], [46, NIREMATA2], [NAGARA2, NIREMATA2 + 6]], w: NIRE_WIDTH2, depth: 0.7 },   // 楡俣川：川幅十八メートル・腿までの流れ（川幅は復元。w は片側の幅）
       { pts: [[-70, -FIELD2], [-66, -40], [-74, 60], [-70, FIELD2]], w: 1.2, depth: 0.7 }],
     mist: false,   // 雨は公記にあるが、濃い霧は確定できない。
     fogFar: 360,   // 雨は残し、川向こうと両将の槍列の輪郭まで読めるようにする。

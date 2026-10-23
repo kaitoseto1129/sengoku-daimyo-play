@@ -95,7 +95,7 @@ function park(g) {
 }
 
 // 深手で倒れた兵は生存中でも、追う相手・倒す残り人数には含めない。
-const fighting = (u) => !!u?.alive && !u.gone && !u.dying && !u.woundOut && !u.rearWound && !u.fleeing;
+const fighting = (u) => !!u?.alive && !u.gone && !u.dying && !u.downed && !u.woundOut && !u.rearWound && !u.fleeing;
 function practiceLeft(rt) {
   let n = 0;
   for (const u of rt.flags.practice?.units || []) if (fighting(u)) n++;
@@ -153,7 +153,7 @@ const inou = {
   missionPinCaption: '',
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
   // 任務は一行。兵と武将を区別し、距離・向き・操作は書かない。
-  missions: ['林の兵を倒せ', '林の兵を倒せ', '柴田隊に耐えろ', '林美作守を倒せ'],
+  missions: ['赤い▼の敵を倒せ', '赤い▼の敵を倒せ', '柴田隊に耐えろ', '林美作守を倒せ'],
   missionHeading(rt) {
     return rt.flags.step === 0 && rt.flags.training === 8 ? '敵の隊長を倒せ' : this.missions[this.missionOf(rt)];
   },
@@ -185,12 +185,22 @@ const inou = {
     }
     return signs;
   },
-  // ピンは移動先だけ。敵は頭上の赤い▼に統一し、黄色い印を重ねない。
+  // ピンは槍が届く足場まで。着いたら敵の頭上の赤い▼だけを残す。
   missionPin: (rt) => {
     const F = rt.flags;
     if (F.ending) return null;
     if (F.step === 0) {
-      return null;
+      if (F.training < 1) return null;
+      const ready = rt.player.inRange && fighting(rt.player.rangeCueTarget);
+      const enemy = F.training === 8 ? F.hayaLead : approachUnit(rt);
+      if (ready || !fighting(enemy)) return null;
+      const me = rt.player.u.pos, dx = me.x - enemy.pos.x, dz = me.z - enemy.pos.z;
+      const distance = Math.hypot(dx, dz), reach = rt.player.meleeReach('thrust') * .8;
+      if (distance <= reach) return null;
+      const pin = pinPoint(rt, enemy.pos, 0, 0, enemy);
+      pin.x += dx / distance * reach; pin.z += dz / distance * reach;
+      pin.approach = true;
+      return pin;
     }
     if (F.step === 1) {
       if (F.training === 11 && !F.flankReached) return pinPoint(rt, FLANK, 8);

@@ -1,5 +1,6 @@
 // 人の処理：共有する体・骨・設定。外部向けの入口は humans.js。
 import { S, MEM_TIGHT } from './settings.js';
+import { TIER } from './device_tier.js';
 import * as THREE from 'three';
 import { UNIT_MAT, soheiLook } from './units.js';
 
@@ -7,8 +8,9 @@ import { UNIT_MAT, soheiLook } from './units.js';
 // 記憶の少ない機械：iPhone（WebContent が 2048MB で切られる）。パソコンは保存済みの軽量設定で落とさない。
 const memTight = () => MEM_TIGHT;
 // 携帯だけ、骨入りの貸出枠と中景の細かな形の枠を分ける。
-const SKIN_MAX = 40;
-const MIDDLE_MAX = 80;
+// 記憶の少ない端末（iPhone 11 など。device_tier.js）は骨入りの貸出枠と中景の枠を 6 割に（近くの乱戦 15m の内は残る）
+const SKIN_MAX = TIER.weak ? 24 : 40;
+const MIDDLE_MAX = TIER.weak ? 48 : 80;
 const SKIN_IN = 15;
 const SKIN_OUT = 17;
 const humanPool = new Set();
@@ -54,7 +56,7 @@ function borrowHuman(u) {
   }
   return false;
 }
-const realNear = () => (S.lowMem ? 30 : 44);
+const realNear = () => (S.lowMem || TIER.weak ? 30 : 44);
 
 // near：骨の入った人にする距離（m）・max：その数の上限・far：名のある武将の距離
 // fine：草摺の揺れ・実写の顔まで細かくする距離・ik：腕を毎コマ武器へ合わせる距離（その先は間引く）

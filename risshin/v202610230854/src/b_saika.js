@@ -1681,6 +1681,11 @@ const saika = {
     // 当日の時刻は不明。移動の速さと光・影の品質は保ち、方角だけを合わせる。
     // https://eco.mtk.nao.ac.jp/koyomi/faq/glossary.html
     sunDriftSign: -1,
+    // 川を往復して画面外へ出た兵も、手首と指・具足を同じ位置へそろえる。
+    // 槍は持ち主と同じ束で描き、透かした兵の柄だけを宙へ残さない。
+    drawTimeUnitParts: true, fullTipMatrices: true, movingHiddenBones: true,
+    // 胴や騎手の骨へ刺さった矢を、親の縮尺で長槍ほどに引き伸ばさない。
+    keepPinnedArrowSize: true, pinnedArrowAxisScale: true, pinnedArrowRenderScale: true,
     // 川岸の足の踏み替えと、槍衾の呼吸・押し返しを一人ずつずらす。当たりの間は変えない。
     variedMarch: true, livingSpearHedge: true,
     // 川沿いの二つの軽い斬り合いは、十六歩先から黒い輪郭へ落とさない。

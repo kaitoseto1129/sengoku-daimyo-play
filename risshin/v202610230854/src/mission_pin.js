@@ -238,6 +238,14 @@ export function updateMissionPin(rt) {
   const groundPerson = rt.def.key === 'okehazama' && want.unit && (want.footRing || want.follow);
   // 集合済みなら自分の足元へ同じピンを下ろす。集団へさらに進ませない。
   if (rt.def.key === 'okehazama' && want.area && arrived) goalPoint.set(me.x, me.y + .08, me.z);
+  // 集合前は入れば到着する範囲の手前側に刺す。中心まで余分に歩かせない。
+  // 半歩だけ内側へ置き、先端に触れれば実際の到着判定も必ず満たす。
+  else if (rt.def.key === 'okehazama' && want.area && d > want.r && want.r > 0) {
+    const radius = Math.max(0, want.r - .4);
+    const ax = want.x + (me.x - want.x) * radius / d;
+    const az = want.z + (me.z - want.z) * radius / d;
+    goalPoint.set(ax, groundAt(rt.world, ax, az, me.y) + .08, az);
+  }
   else if (inouEnemy) goalPoint.set(want.x, groundAt(rt.world, want.x, want.z, me.y) + .08, want.z);
   else if (groundPerson) goalPoint.set(U.x, U.y + .08, U.z);
   else if (want.unit) goalPoint.set(want.unit.pos.x, want.unit.pos.y + (want.unit.mounted ? 3.3 : 2.1), want.unit.pos.z);
@@ -349,9 +357,11 @@ export function updateMissionPin(rt) {
   const oke = rt.def.key === 'okehazama';
   // 全戦の行き先も一本のピンへまとめ、旗・矢印を並べない。
   const groundPin = oke || inouEnemy || flagDestination;
-  if (pin._groundPin !== groundPin) {
-    pin._groundPin = groundPin;
-    flag.setAttribute('d', groundPin ? 'M40 68L25 38C5 9 75 9 55 38Z M40 20A6 6 0 1 0 40 32A6 6 0 1 0 40 20Z' : 'M32 65V5H65L56 18L65 31H32');
+  if (pin._groundPin !== groundPin || pin._wideHole !== oke) {
+    pin._groundPin = groundPin; pin._wideHole = oke;
+    flag.setAttribute('d', groundPin ? oke
+      ? 'M40 68L25 38C5 9 75 9 55 38Z M40 14A12 12 0 1 0 40 38A12 12 0 1 0 40 14Z'
+      : 'M40 68L25 38C5 9 75 9 55 38Z M40 20A6 6 0 1 0 40 32A6 6 0 1 0 40 20Z' : 'M32 65V5H65L56 18L65 31H32');
     flag.setAttribute('fill-rule', 'evenodd');
   }
   const showProgress = oke && arrived && Number.isFinite(want.progress);
@@ -395,7 +405,7 @@ export function updateMissionPin(rt) {
   if (edgeFlag) flag.style.display = '';
   flag.setAttribute('transform', outside ? edgeFlag ? 'translate(14,-34) scale(.65)' :
     groundPin ? 'translate(0,-24) scale(.75)' : 'translate(0,-24)' : groundPin ? '' : 'translate(16,19.25) scale(.75)');
-  pin._hold.setAttribute('transform', oke ? `${flag.getAttribute('transform')} translate(22,13.4) scale(.45)` : '');
+  pin._hold.setAttribute('transform', oke ? `${flag.getAttribute('transform')} translate(18,10.6) scale(.55)` : '');
   // 方向は端の旗一本へまとめ、自分の足元には輪だけを残す。
   // 行き先の輪は足さず、自分の水色の足元印と役割を分ける。
   const groundRing = false;
@@ -422,7 +432,7 @@ export function updateMissionPin(rt) {
   // 画面外も同じピンの先端で示す。大きな矢印とピンを二つ並べない。
   if (groundPin && outside) {
     flag.setAttribute('transform', `translate(40,40) rotate(${Math.atan2(dy, dx) * 180 / Math.PI - 90}) translate(-40,-40)`);
-    pin._hold.setAttribute('transform', `${flag.getAttribute('transform')} translate(22,13.4) scale(.45)`);
+    pin._hold.setAttribute('transform', `${flag.getAttribute('transform')} translate(18,10.6) scale(.55)`);
   }
   // 到着したピンは白い縁を残して暗くし、穴の進みだけを目立たせる。
   if (oke) {

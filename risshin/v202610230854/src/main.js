@@ -35,6 +35,7 @@ import { AdaptPass, FinishPass, clearEdgeDark } from './post.js';
 import { initAudio, silence, sfx, setVolume, duck, townMusic, playMusic, stopMusic } from './audio.js';
 import { titleScreen, storyCard, loadingStory, inkBand, evalScreen, spoilHorseInfo, aijirushiScreen, baseScreen, finalScreen, hideScreen, helpOverlay, settingsScreen, pauseMenu, notice, deathScreen, promoScreen, ronkoScreen, recordsScreen, dojoResult, epilogueScreen, ladderScreen } from './screens.js';
 import { S, QUALITY, saveSettings, canonical, K, reduceMotion, MEM_TIGHT, MEM_TIGHT_TEST } from './settings.js';
+import { TIER, noteGL, markInBattle, markCrashed, WEAK_TEX_MAX } from './device_tier.js';
 // 自動計測専用：x_pr75（倍率0.75。x_pr70も可）・x_noshadow・x_noai（兵の判断と当たりを停止）・x_noskin（骨を停止）・x_nosmoke（煙・炎・土埃なし）・x_simplemat（照明なし）。通常の高画質には適用しない。
 // 既存の札：x_nopost・x_nobloom・x_sm1024・x_noao・x_nodof・x_norays・x_sec180・x_shfull・x_bloomblend。
 const APX = (() => {
@@ -317,7 +318,16 @@ const canvas = $('view');
 let renderer;
 try {
   // iPhone は直接描画し、輪郭を滑らかにする追加の描画領域も持たない。
+  // 記憶の少ない端末（device_tier.js）：絵の一辺の上限を 1024 と答え、three が 2048 の絵を送る時に半分へ縮める（GPU の絵が 1/4）
+  if (TIER.weak) for (const C of [window.WebGL2RenderingContext, window.WebGLRenderingContext]) {
+    if (!C || C.prototype.__weakMax) continue;
+    const gp = C.prototype.getParameter; C.prototype.__weakMax = true;
+    C.prototype.getParameter = function (p) { const v = gp.call(this, p); return p === 0x0D33 && TIER.weak ? Math.min(v, WEAK_TEX_MAX) : v; };
+  }
   renderer = new THREE.WebGLRenderer({ canvas, antialias: !MEM_TIGHT, powerPreference: 'high-performance' });
+  noteGL(renderer.getContext());
+  window.__tier = TIER;   // 確かめ用
+  addEventListener('pagehide', () => markInBattle(false));
 } catch (e) {
   $('glfail').hidden = false;
   try { window.__bootDone && window.__bootDone(); } catch (e2) { /* noop */ }
@@ -369,10 +379,22 @@ if (MEM_TIGHT) {
       Object.defineProperty(attr, 'array', { value: a, writable: true, configurable: true, enumerable: true });
       return a;
     };
+    if (TIER.weak) {
+      // 返す形は先に読み戻す（共有の形は次の戦でまた送る。消えた GL の buffer からは読めない）
+      const GP = THREE.BufferGeometry.prototype, gd = GP.dispose;
+      GP.dispose = function () {
+        for (const k in this.attributes) { const a = this.attributes[k]; if (a && a._gpuRef && !a.gpuOnly) void a.array; }
+        if (this.index && this.index._gpuRef && !this.index.gpuOnly) void this.index.array;
+        return gd.call(this);
+      };
+    }
     const P = THREE.BufferAttribute.prototype;
+    // 記憶の少ない端末（device_tier.js）：兵の形だけでなく、一度だけ送る動かない形（地面・建物・木・束など 64KB 以上）も手放す。
+    //   CPU の写しが 120〜160MB あった（10/23 計り：森部・稲葉山）。二度目に送る物（描き換える形）・兵の重ね（Instanced）は手放さない
+    const weakDrop = (a, arr) => TIER.weak && arr.byteLength >= 65536 && a.usage === THREE.StaticDrawUsage && !a.isInstancedBufferAttribute && !a.isInterleavedBufferAttribute && (a._upN = (a._upN || 0) + 1) === 1;
     P.onUploadCallback = function () {
       const arr = this.array;
-      if (!this.gpuOnly || !bound.buf || !arr || arr.byteLength < 16384 || this._gpuRef) return;
+      if (!bound.buf || !arr || arr.byteLength < 16384 || this._gpuRef || !(this.gpuOnly || weakDrop(this, arr))) return;
       this._gpuRef = { buf: bound.buf, target: bound.target, ctor: arr.constructor, len: arr.length };
       STAT.dropped++; STAT.droppedMB += arr.byteLength / 1048576;
       Object.defineProperty(this, 'array', {
@@ -1727,6 +1749,7 @@ const game = {
   startBattle(i) {
     if (memReloadGate(this, 'startBattle', [i])) return;
     this.lastError = null; this.battleFault = null;
+    markInBattle(true);   // 戦の途中で頁が読み直されたら、次から記憶の少ない作りに（device_tier.js）
     try { localStorage.setItem('risshin-lastbattle', BATTLES[i]?.id || String(i)); localStorage.setItem('risshin-lastbattle-at', String(Date.now())); } catch (e) { /* 保存できなければ記さない */ }
     if (isLocked(i)) return showPaywall(() => this.startBattle(i), () => this.base());
     const firstBattle = BATTLES[i]?.id === 'inou' && !this.G.practice && !this.G.lord && !this.G.history?.some(Boolean);
@@ -2573,7 +2596,7 @@ try {
     const secs = from && at > from ? Math.round((at - from) / 1000) : null;
     const log = JSON.parse(localStorage.getItem('risshin-crashes') || '[]'); log.push([at, id, S.quality, secs, qs.has('th') ? Number(qs.get('th')) : null, S.heatFloor || 0]); localStorage.setItem('risshin-crashes', JSON.stringify(log.slice(-20)));
     localStorage.setItem('risshin-crashcount', String((Number(localStorage.getItem('risshin-crashcount')) || 0) + 1));
-    S.quality = 'high'; S.lowMem = true; saveSettings();
+    S.quality = 'high'; S.lowMem = true; saveSettings(); markCrashed();
     history.replaceState(null, '', location.pathname);
     if (!window.__autoplay) setTimeout(() => crashCard(id), 1500);
   }
