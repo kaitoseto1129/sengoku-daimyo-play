@@ -127,6 +127,22 @@ export function startRemember(rt, extra, prev = null) {
   }
 }
 export function rememberBattle(rt, extra) { return startRemember(rt, extra).step(0); }
+// 不具合の途中の状態を再び動かさず、完成している直前の写しへ戻す。
+// 一時停止の「再開する」から使い、読み込みや新しい札は増やさない。
+export function recoverBattle(rt) {
+  const m = memories.get(rt);
+  if (!m) return false;
+  const point = rt.t - m.recent.time >= 8 ? m.recent : m.previous;
+  m.dialog?.close(); m.dialog?.remove(); m.dialog = null;
+  m.pending = null; m.accept = null; m.accepting = false; m.downShown = false; m.job = null;
+  m.input.clear?.(); point.restore();
+  m.recent = m.previous = point; m.next = rt.t + 12;
+  rt.retryOpen = false;
+  rt.game.G = rt.G; rt.game.hitstop = rt.game.slowmo = 0;
+  rt.player.cancelAttack();
+  rt.hud.reset(); if (rt.choice) rt.hud.renderChoice(rt.choice);
+  return true;
+}
 function sameList(a, b) {
   if (a === b) return true;
   if (!a || !b || a.length !== b.length) return false;

@@ -43,7 +43,7 @@ function enemyGroup(rt, options, list) {
 const P1 = [[0, 172], [-4, 150], [-4, 144], [4, 140], [6, 118], [-8, 90], [-24, 60], [-30, 30], [-22, 0], [-12, -30], [-8, -46]];
 const HONJIN = { x: 18, z: -116 };
 const JOIN_RADIUS = 3.5;
-const readyUnit = (u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget;
+const readyUnit = (u) => !!u && u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget;
 const readyGroup = (g) => g && !g.routed && g.units.some(readyUnit);
 
 // 退く囲みを追う時は、別の備えの残兵へ散らず、近い旗本へ歩いて寄せる。
@@ -641,7 +641,7 @@ const okehazama = {
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は、今する動きを短くやさしく伝える。
   missionSingleLine: true,
-  missions: ['織田隊に合流せよ', '織田隊と進め', '雨やみを待て', 'いまがわ兵をたおそう', 'いまがわよしもとをたおそう', 'にげるいまがわ兵を追おう', '織田隊に合流せよ'],
+  missions: ['仲間と集まれ', '仲間と進め', '雨やみを待て', '▼の兵を倒せ', 'いまがわよしもとを倒せ', 'にげる敵を追え', '仲間と集まれ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -650,9 +650,9 @@ const okehazama = {
   },
   missionHeading(rt) {
     if (rt.phase === 'brief' && rt.flags.briefed) return '出発を待て';
-    if ((rt.phase === 'march' || rt.phase === 'wait') && rt.flags.scoutFighting) return 'いまがわ兵をたおそう';
-    if (rt.phase === 'wait' && !this.squadFlagReached(rt)) return '織田隊に合流せよ';
-    if (rt.phase === 'wait' && rt.flags.clear) return '合図を待て';
+    if ((rt.phase === 'march' || rt.phase === 'wait') && rt.flags.scoutFighting) return '▼の兵を倒せ';
+    if (rt.phase === 'wait' && !this.squadFlagReached(rt)) return '仲間と集まれ';
+    if (rt.phase === 'wait' && rt.flags.clear) return '攻めの合図を待て';
     return this.missions[this.missionOf(rt)];
   },
   // 今の行き先と同じ旗持ちを示す。兵は増やさない。
@@ -705,12 +705,12 @@ const okehazama = {
         this.objectiveEnemies(rt).length || !F.entered && F.roadStep < F.road.length)) return null;
     if (rt.phase === 'brief' || rt.phase === 'march' || rt.phase === 'wait') {
       if (F.scoutFighting) return null;
-      // 行軍中は実際の旗持ちに一本だけ付ける。集合地点と兵を取り違えさせない。
+      // 歩く旗持ちではなく、実際に到着すると次の段へ進む集合地点へ刺す。
       if (rt.phase === 'march') {
-        const ally = this.missionAlly(rt);
-        if (!ally) return null;
-        pin.x = ally.pos.x; pin.z = ally.pos.z; pin.unit = ally;
-        pin.follow = true; pin.hide = -2; pin.r = 0; pin.waiting = false;
+        const pos = this.squadFlagPosition(rt);
+        if (!pos) return null;
+        pin.x = pos.x; pin.z = pos.z;
+        pin.area = true; pin.hide = 0; pin.r = 8; pin.waiting = false;
         return pin;
       }
       const pos = this.squadFlagPosition(rt);

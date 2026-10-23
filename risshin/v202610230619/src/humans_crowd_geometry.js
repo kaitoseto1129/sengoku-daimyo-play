@@ -154,7 +154,7 @@ const to8 = (x) => Math.round(Math.min(1, Math.max(0, x)) * 255);
 function crowdGeometry(P, L, only = null, face = false, whole = false) {
   // 遠目で中の体を隠す時は、甲冑だけでなく袴と脛の布も残す。
   // 近景の体と二重にせず、形は既存の置き場と一体の描画を使う。
-  if (whole && WORLD?.def.completeCrowdLegs && !L.sohei && !L.nanban) {
+  if (whole && !L.sohei && !L.nanban) {
     P = { ...P, thigh: thighGeometry(P.look, false), leg: shinGeometry(P.look, false, 'coveredLeg') };
   }
   const list = [];

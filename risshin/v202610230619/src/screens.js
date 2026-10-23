@@ -3972,7 +3972,11 @@ export function pauseMenu(el, o) {
   if (pe) pe.onclick = () => {
     // 写せなかった時は、欄に全文を出して選んで写せるようにする（986）
     const show2 = () => { if (!el.querySelector('#pm-err-text')) pe.insertAdjacentHTML('afterend', `<label for="pm-err-text" class="note" style="display:block;margin-top:6px">不具合の内容（全部選んで写してください）</label><textarea id="pm-err-text" readonly style="width:100%;min-height:90px">${esc(o.error)}</textarea>`); const t = el.querySelector('#pm-err-text'); t.focus(); t.select(); };
-    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(o.error).then(() => notice('写しました')).catch(show2); else show2();
+    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(o.error).then(() => {
+      // 文字や札を増やさず、押した場所の色で写せたことを返す。
+      pe.style.background = 'var(--kin, #c2a25a)'; pe.style.color = '#14120f';
+      pe.style.borderColor = 'var(--kin, #c2a25a)';
+    }).catch(show2); else show2();
   };
   el.querySelector('#pm-help').onclick = o.help;
   el.querySelector('#pm-words').onclick = () => openGlossary();

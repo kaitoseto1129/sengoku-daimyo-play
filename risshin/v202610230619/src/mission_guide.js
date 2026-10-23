@@ -61,7 +61,7 @@ export function missionFollowTarget(rt, heading = rt.def.missionHeading?.(rt) ||
 export function missionCaption(rt, title = currentObjective(rt)?.text || '') {
   let heading = rt.def.missionHeading?.(rt) || title;
   // 桶狭間は、雨・出発・合図という待つ目的を戦の一行に残す。
-  if (rt.def.key !== 'okehazama' && /待[つてと]|^(旗にもどれ|丸まで行け)$/.test(heading)) {
+  if (rt.def.key !== 'okehazama' && rt.def.key !== 'moribe' && /待[つてと]|^(旗にもどれ|丸まで行け)$/.test(heading)) {
     const reached = missionWaitReached(rt);
     if (reached !== null) heading = reached ? 'そのまま待とう' : heading === '旗にもどれ' ? '旗にもどれ' : '丸まで行け';
   }

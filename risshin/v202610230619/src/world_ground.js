@@ -30,9 +30,9 @@ export class WorldGround {
       const px = x + lx * c + lz * s, pz = z - lx * s + lz * c;
       p.setXYZ(i, px, drawGroundAt(this, px, pz) + 0.018, pz);
     }
-    // 濃さの違う材質は作らず、頂点色の透過率で一枚の材質を共用する。
+    // 家が重なる町でも道を黒く塗りつぶさない。頂点色で濃さを抑え、一枚の材質を共用する。
     geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(p.count * 4).fill(1), 4));
-    for (let i = 0; i < p.count; i++) geo.attributes.color.setW(i, opacity);
+    for (let i = 0; i < p.count; i++) geo.attributes.color.setW(i, Math.min(opacity, 0.24));
     this.groundShadeMat.vertexColors = true;
     const mesh = new THREE.Mesh(geo, this.groundShadeMat);
     // 地形へ写した面は上向きにそろえる。
