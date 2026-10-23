@@ -655,7 +655,7 @@ const okehazama = {
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は、今する動きを短くやさしく伝える。
   missionSingleLine: true,
-  missions: ['仲間と集まれ', '仲間と進め', '雨やみを待て', '▼の兵を倒せ', 'いまがわよしもとを倒せ', 'にげる敵を追え', '仲間と集まれ'],
+  missions: ['仲間と集まれ', '集合場所へ進め', '雨やみを待て', '▼の兵を倒せ', 'いまがわよしもとを倒せ', 'にげる敵を追え', '仲間と集まれ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -664,9 +664,10 @@ const okehazama = {
   },
   missionHeading(rt) {
     if (rt.phase === 'brief' && rt.flags.briefed) return '出発を待て';
-    // 雨の間の迎撃も同じ任務。敵との間合いだけで「倒せ」「待て」を往復させない。
-    if (rt.phase === 'wait') return '仲間と耐えろ';
     if ((rt.phase === 'march' || rt.phase === 'wait') && rt.flags.scoutFighting) return '▼の兵を倒せ';
+    if (rt.phase === 'march' && this.squadFlagReached(rt)) return '仲間を待て';
+    // 迎撃する相手がいない間だけ待つ。迎撃の終了判定は既存の組の下知に従う。
+    if (rt.phase === 'wait') return this.squadFlagReached(rt) ? '雨やみを待て' : '仲間と集まれ';
     return this.missions[this.missionOf(rt)];
   },
   // 今の行き先と同じ旗持ちを示す。兵は増やさない。
@@ -705,12 +706,12 @@ const okehazama = {
   missionPin(rt) {
     const F = rt.flags;
     if (F.ending || rt.hud.retreatGuide?.active && rt.hud.retreatGuide.valid) return null;
-    const dodge = rt.dodgeGuide;
-    const enemy = this.missionSignTarget(rt);
+    // 戦っている間は敵の頭上の赤い▼だけ。足元の黄色い別目標へ誘わない。
+    if (F.scoutFighting || rt.phase === 'assault' && !F.victory) return null;
     const pin = F.missionPinTarget || (F.missionPinTarget = { x: 0, z: 0, r: 8, hide: 8 });
     pin.enemy = false; pin.dodge = false; pin.unit = null; pin.waiting = undefined;
     pin.area = false; pin.arrived = false; pin.progress = null; pin.footRing = false; pin.follow = false;
-    // 接敵しても雨待ちの時計は進む。同じ集合ピンの穴で、合図までの進みを示す。
+    // 雨待ちの進みは同じ集合ピンの穴で示す。接敵中は上の判定で敵の印を優先する。
     if (rt.phase === 'wait') {
       const pos = this.squadFlagPosition(rt);
       if (!pos) return null;
@@ -719,34 +720,6 @@ const okehazama = {
       pin.progress = this.missionWaitProgress(rt);
       return pin;
     }
-    if (dodge?.rain && dodge.valid && !dodge.arrived) {
-      pin.x = dodge.pos.x; pin.z = dodge.pos.z; pin.r = 1; pin.hide = 0; pin.waiting = false; pin.dodge = true;
-      return pin;
-    }
-    // 届く時は頭上の▼だけ。離れている時は、槍が届く立ち位置へピン一本で導く。
-    if (enemy && (rt.phase === 'assault' && !F.victory || F.scoutFighting)) {
-      if (rt.player.inRange) return null;
-      const p = rt.player, me = p.u.pos;
-      const distance = Math.hypot(enemy.pos.x - me.x, enemy.pos.z - me.z);
-      const reach = p.meleeReach(p.weapon === 'sword' ? 'slash' : 'thrust') * .8;
-      if (distance <= reach) return null;
-      const goal = F.approachGoal || (F.approachGoal = { x: 0, z: 0, y: 0 });
-      const step = F.approachStep || (F.approachStep = { x: 0, z: 0, y: 0 });
-      if (F.approachEnemy !== enemy || !(F.approachAt > rt.t)) {
-        F.approachEnemy = enemy; F.approachAt = rt.t + .5;
-        goal.x = enemy.pos.x + (me.x - enemy.pos.x) / distance * reach;
-        goal.z = enemy.pos.z + (me.z - enemy.pos.z) / distance * reach;
-        goal.y = me.y;
-        const way = honjinWay(rt.army, p.u, goal);
-        localPoint(rt.army, p.u, step, way.x, way.z);
-      }
-      if (Math.hypot(step.x - me.x, step.z - me.z) < .5) return null;
-      pin.x = step.x; pin.z = step.z; pin.r = .5; pin.hide = .5;
-      pin.area = true; pin.waiting = false;
-      return pin;
-    }
-    if (rt.phase === 'assault' && !F.victory && (enemy ||
-        this.objectiveEnemies(rt).length || !F.entered && F.roadStep < F.road.length)) return null;
     if (rt.phase === 'brief' || rt.phase === 'march' || rt.phase === 'wait') {
       if (F.scoutFighting) return null;
       // 歩く旗持ちではなく、実際に到着すると次の段へ進む集合地点へ刺す。
@@ -754,7 +727,9 @@ const okehazama = {
         const pos = this.squadFlagPosition(rt);
         if (!pos) return null;
         pin.x = pos.x; pin.z = pos.z;
-        pin.area = true; pin.hide = 0; pin.r = 8; pin.waiting = false;
+        pin.area = true; pin.hide = 0; pin.r = 8;
+        pin.arrived = this.squadFlagReached(rt); pin.waiting = pin.arrived;
+        // 穴が満ちるのは到着後の待ち時間だけ。歩いた量と混ぜない。
         return pin;
       }
       const pos = this.squadFlagPosition(rt);
@@ -1469,13 +1444,13 @@ const okehazama = {
     }
     #hud[data-oke-task] #intro .intro-scroll { flex: none; font-size: 12px; }
     #hud[data-oke-task] #intro .intro-pin { display:inline-block; width:32px; height:32px; vertical-align:middle; }
-    /* 任務は一行。待つ間だけ、同じ場所の丸が合図まで満ちる。 */
-    html:root body #hud[data-oke-task].mission-only #h-prog .pg-next:not([hidden]) { display:block !important; }
-    html:root body #hud[data-oke-task].mission-only #h-prog .pg-time:has(.pg-pie:not([hidden])) { display:flex !important; }
+    /* 任務は一行。待つ進みは足元のピンだけにまとめる。 */
+    html:root body #hud[data-oke-task].mission-only #h-prog :is(.pg-next,.pg-time) { display:none !important; }
     /* 操作する札に見せず、目的だけを戦場へ重ねる。 */
     html:root body #hud[data-oke-task] #h-prog { background:none; border:0; text-shadow:0 2px 3px #14120f, 0 0 4px #14120f; }
     #hud[data-oke-task] #h-prog .pg-pie { width:36px; height:36px; margin-top:4px; }
-    html:root body #hud[data-oke-task].mission-only #h-prog .pg-st span { white-space:normal; overflow:visible; }
+    html:root body #hud[data-oke-task].mission-only #h-prog { max-width:calc(100% - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)); }
+    html:root body #hud[data-oke-task].mission-only #h-prog .pg-st span { max-width:100%; white-space:normal; overflow:visible; overflow-wrap:anywhere; }
     #hud[data-oke-task] #h-mor { display:none !important; }
 
     #hud[data-oke-task] #intro .intro-people summary {
@@ -2059,6 +2034,8 @@ const okehazama = {
   marchFlag(rt) {
     const end = rt.hostGroup.path[rt.hostGroup.path.length - 1];
     rt.flags.marchGoal = { x: end[0], y: rt.world.heightAt(end[0], end[1]), z: end[1] };
+    rt.flags.marchGuideLength = Math.max(1, this.squadFlagDistance(rt) - 8);
+    rt.flags.marchGuideProgress = 0;
     rt.obj('col', '目印の仲間に ついて進もう', 'main');
     rt.marker('genpachi', rt.flags.marchGoal, '組の集合場所', { guideFlag: true, group: rt.hostGroup, guideRadius: 8 });
   },

@@ -1325,6 +1325,7 @@ const nagashima = {
     return detail ? `${reason}\n${detail}` : reason;
   },
   spacedCombatCues: true, // 間合いと気力を兵の顔・行き先の印から離す。
+  nearSpearBatchRadius: 18, // 肩越しで隠した近い槍を、遠景用の別の束へ残さない。
   hidePlayerSign: true, // 肩越しで本人から離れて見える白輪を、行き先と取り違えさせない。
   noUnitContrast: true, // 柵越しの兵から浮いて見える白い人型を消す。敵味方の頭上の印は残す。
   compactDestinationSign: true, // 東の柵への矢印を小さくし、近い兵の顔と胴を隠さない。
@@ -1420,6 +1421,7 @@ const nagashima = {
     bankCloth: true, // 門徒の小袖は戦うため袖と裾を絞る。僧の直綴の広い袂と分ける。
     settleSideFalls: true, // 横へ斬られた兵も、倒れ切った後は地面へ寝かせる。
     groundedFalls: true,
+    drawTimeUnitParts: true, // 日送り・旋回後の骨と具足を描く時にそろえ、手から離れた槍や浮く部品を抑える。
     contactDust: true, // 近い兵が踏ん張る時も、共通の固定枠で岸の泥と低い飛沫を出す。
     wetEarthBursts: true,
     variedMarch: true, // 泥の岸では列を保っても、一人ずつ足を踏み替える間をずらす。
@@ -1432,6 +1434,7 @@ const nagashima = {
     noticeRepeatGap: Infinity, // 共通の声や知らせも、同じ文はこの戦で一度だけ。
     muddy: 0.7,
     autumn: true,
+    softPathSoil: true, // 作業道と湿った岸をなじませ、格子ごとに泥の境が切り替わらないようにする。
     wetFieldRuts: 'wear', // 既存の沖積土の色と照りの抑制を使う。踏み跡だけを残し、雨の轍は足さない。
     patchyGround: true, // 岸の土にも湿乾のむらと草の切れ目を残す。
     plainGrassGround: true, // 草地の絵にも円い窪みがある。土と泥だけ替えても岸の縁に輪が残る。

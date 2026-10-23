@@ -104,19 +104,9 @@ export class HudOverlay {
     const pinTarget = rt.def.missionPin?.(rt);
     // 森部は任務が返したピン一本。敵や味方の位置で上書きしない。
     if (moribe && !pinTarget) return;
-    // 到着後は移動のピンを消す。残る進み具合は任務の一行内で満たす。
-    if (moribe && pinTarget.waiting && pinTarget.arrived) {
-      const x = VIEW.w - Math.min(320, VIEW.w * .38) + 21, y = 28;
-      g.save(); g.beginPath(); g.arc(x, y, 11, 0, Math.PI * 2);
-      g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
-      if (pinTarget.progress > 0) {
-        g.beginPath(); g.moveTo(x, y);
-        g.arc(x, y, 8, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, pinTarget.progress));
-        g.closePath(); g.fillStyle = '#e8c25a'; g.fill();
-      }
-      g.restore();
-      return true;
-    }
+    // 到着後の時計は任務の一行内に置く。画面上の固定座標へ重ねない。
+    // 渡河直後だけは仲間の集合先を残す。守備の時計と移動のピンは重ねない。
+    if (moribe && rt.flags.signal && pinTarget.waiting && pinTarget.arrived) return false;
     const guide = rt.missionGuide;
     const retreat = !inou && !moribe && this.retreatGuide?.active && this.retreatGuide.valid ? this.retreatGuide : null;
     const dodge = !moribe && rt.dodgeGuide?.valid ? rt.dodgeGuide : null;

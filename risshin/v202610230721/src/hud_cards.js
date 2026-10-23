@@ -2,11 +2,32 @@ import { pinGuideOn, missionTarget } from './mission_pin.js';
 import { setText, setWidth, coachCss, $, esc, keyCaps, shortTask, singleBattleGuide, rescueTarget, retreatRequired } from "./hud_common.js";
 import { currentObjective, taskText, missionCaption, missionFollowTarget } from "./mission_guide.js";
 import { isTouch } from "./touch.js";
-import { K } from "./settings.js";
+import { K, S } from "./settings.js";
 import { sightUnit } from './battle_sight.js';
 
 export class HudCards {
 
+
+  // 開戦後の八秒だけ、実際の操作を一枚にまとめる。再表示せず、名札の一枠と入れ替える。
+  openingControls(dt, rt) {
+    if (this.controlsBattle !== rt) { this.controlsBattle = rt; this.controlsTime = 0; }
+    const on = isTouch && pinGuideOn(rt) && this.controlsTime < 8 && !rt.over && !rt.choice &&
+      !this.introWaiting && !rt.player.camShot && !this.bigmap && !rt.game.paused &&
+      $('intro').hidden && !rt.nearestInteract()?.hold && !this.root.classList.contains('photo');
+    this.openingControlsActive = on;
+    if (!on) { if (this.controlsEl) this.controlsEl.hidden = true; return; }
+    if (!this.controlsEl) {
+      const el = this.controlsEl = document.createElement('div');
+      el.id = 'opening-controls'; el.setAttribute('role', 'status');
+      el.style.cssText = 'position:absolute;left:50%;bottom:16px;transform:translateX(-50%);max-width:32vw;box-sizing:border-box;padding:6px 10px;background:#14120f;color:#fff3df;font-size:16px;line-height:1.4;white-space:pre-line;pointer-events:none;z-index:4';
+      this.root.appendChild(el);
+    }
+    this.controlsTime += dt;
+    const move = S.touchSwap ? '右' : '左', look = S.touchSwap ? '左' : '右';
+    const attack = rt.player.weapon === 'gun' ? '撃つ' : rt.player.weapon === 'bow' ? '射る' : rt.player.weapon === 'sword' ? 'きる' : 'つく';
+    setText(this.controlsEl, `${move}側をなぞって歩く\n${look}側をなぞって見回す\n「${attack}」を押して攻める`);
+    this.controlsEl.hidden = false;
+  }
 
   // 手ほどき：いまの段だけを札に出す
   renderTut(t) { this.tutCur = t; this.drawCard(); }
@@ -310,10 +331,10 @@ export class HudCards {
 #hud.ending #h-prog, #hud:has(#cine.on) #h-prog, #hud:has(#bigmap:not([hidden])) #h-prog { visibility:hidden; }
 /* 稲生は任務を右、台詞を左。兵数と方位の帯の下を使う。 */
 html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog {
- top:calc(104px + env(safe-area-inset-top, 0px)); width:min(320px, 40vw); max-width:40vw;
+ top:calc(72px + env(safe-area-inset-top, 0px)); width:max-content; max-width:calc(100% - 32px);
 }
 html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog :is(.pg-st span,.pg-next) {
- white-space:normal; overflow:visible; text-overflow:clip; overflow-wrap:anywhere;
+ white-space:nowrap; overflow:visible; text-overflow:clip;
 }
 /* 稲生の今の操作は任務の二行目に残す。共通の一行表示で隠さない。 */
 html:root body #hud.mission-only #h-prog[data-battle="inou"] > .pg-next:not([hidden]) {
@@ -437,7 +458,7 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     const pie = timeEl.firstChild, waiting = def.key === 'okehazama' ? Number.isFinite(progress) :
       Number.isFinite(progress) || Number.isFinite(wu) && wu > rt.t && gm.waitDuration > 0;
     // 一行だけの戦は待ち時間も行き先のピンにまとめる。
-    timeEl.hidden = def.key === 'inou' || !!def.missionSingleLine;
+    timeEl.hidden = def.key === 'inou' || !!def.missionSingleLine && !(def.key === 'moribe' && waiting);
     pie.hidden = !waiting;
     if (waiting) pie.style.setProperty('--p', String(Math.round(Math.max(0, Math.min(1, Number.isFinite(progress) ? progress : 1 - (wu - rt.t) / gm.waitDuration)) * 100)));
     // 切り替わりも右上の一枚で伝え、戦場の中央へ同じ札を重ねない。

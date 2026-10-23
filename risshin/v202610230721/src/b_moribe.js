@@ -1005,14 +1005,14 @@ const moribe = {
   nearbyAllySignLimit: 0, // 味方の頭上に白い小旗を出さない。追う旗はピン一本、敵は赤い印で分ける。
   noDodgeCard: true, // 矢の雨で「〜をむこう」「にげる」の札を出さない（kaito 10/23 稲生 4）。
   hideMissionDots: true, // 任務の段数は見出しにある。仲間の人数と紛れる五つの丸は出さない。
-  missionSingleLine: true, // 進行はピンの中で示し、右上は任務の一行だけ。
+  missionSingleLine: true, // 右上は任務一行と、文字のない待ち時間の丸だけ。
   // 仲間の名札は一人だけ。密集しても五人分の文字を重ねない。
   missionAllyLabel: 'ついてくる仲間',
   missionContext: '永禄四年（一五六一）・森部（もりべ）の戦い',
   // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は「何をするか」だけ（kaito 10/23 49・50）。段の総称で通し、向き・行き先の字は書かない。
-  missions: ['川を渡れ', '仲間を待て', '斎藤の先手を倒せ', '耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
+  missions: ['川を渡れ', '仲間を待て', '斎藤の先手を倒せ', '仲間と迎え撃て', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
   // ピン・▼・名前は同じ本人へ。描画の間引きで相手を替えない。
   commanderTarget(rt) {
     const F = rt.flags;
@@ -1125,6 +1125,9 @@ const moribe = {
   tacticsCommandText: '', // 横へ回る助言に、操作のない「配下に命じて押せ」を足さない。
   missionWaitProgress(rt) {
     const F = rt.flags;
+    if (!F.signal && F.pointInside && !F.pointDone) return F.pointReady ? 1 : F.fordGatherProgress || 0;
+    if (F.stage === 'assemble' && !F.gatherUnit && Math.hypot(rt.player.u.pos.x - F.asm.x, rt.player.u.pos.z - F.asm.z) < 12)
+      return Math.min(1, (F.assembleT || 0) / 8);
     if (F.stage === 'hold') {
       const elapsed = Math.max(0, rt.t - F.holdStart);
       const reservesReady = (F.wave1 || gone(F.reserves[0])) && (F.wave2 || gone(F.reserves[1]));
@@ -1145,9 +1148,10 @@ const moribe = {
     if (F.stage === 'contact' && !F.vBroken && !F.squadGuide) return null;
     let pos = null, r = 6, hide = 6;
     if (!F.signal) {
-      if (F.pointDone || F.pointInside) return null;
-      // 岸に着いたらピンを消す。待つ間に足元の印を踏み直させない。
+      if (F.pointDone) return null;
+      // 仲間が集まる岸を一本のピンで保つ。到着済みは塗りを替え、踏み直させない。
       pos = POINT2; r = FORD_R; hide = 0;
+      q.waiting = q.arrived = !!F.pointInside;
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
     } else if (F.stage === 'assemble') {
@@ -1583,6 +1587,20 @@ const moribe = {
     noticeStyle.textContent = `
 /* 次の一手と号令を右の任務札にまとめる。横持ちでも二行を切らない。 */
 #hud #h-prog[data-battle="moribe"] { width:min(320px, 38vw); }
+/* 待ち時間の丸は任務と同じ一行。秒の字や別の札は足さない。 */
+html:root body #hud.mission-only #h-prog[data-battle="moribe"]:has(.pg-pie:not([hidden])) {
+ display:flex; align-items:center; gap:12px;
+}
+html:root body #hud.mission-only #h-prog[data-battle="moribe"] .pg-st { flex:1; min-width:0; }
+html:root body #hud.mission-only #h-prog[data-battle="moribe"] > .pg-time:has(.pg-pie:not([hidden])) {
+ display:flex !important; order:-1; margin:0; flex:none;
+}
+#hud #h-prog[data-battle="moribe"] .pg-pie { width:28px; height:28px; position:relative; }
+#hud #h-prog[data-battle="moribe"] .pg-pie::after {
+ content:""; position:absolute; left:calc(50% - 1px); top:12%; width:2px; height:38%;
+ background:#fff3df; box-shadow:0 0 1px 1px #14120f; transform-origin:50% 100%;
+ transform:rotate(calc(var(--p, 0) * 3.6deg));
+}
 /* 共通の一行省略より優先し、今することを最後まで読めるようにする。 */
 html:root body #hud.mission-only #h-prog[data-battle="moribe"] .pg-st span {
  max-width:100% !important; white-space:normal !important; overflow:visible !important;

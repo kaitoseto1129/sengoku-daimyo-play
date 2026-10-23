@@ -1535,7 +1535,7 @@ function anegawaHqReturnPriority(rt) {
 }
 // 帰陣の道は、戻る旗に短い下知を添える。
 function anegawaHqReturnText(rt) {
-  return anegawaReturning(rt) ? '旗へもどろう' : 'ここで守ろう';
+  return anegawaReturning(rt) ? '旗へもどろう' : 'この旗を守ろう';
 }
 // 傷の案内が任務札を置き換える時も、本陣の危険と今する事を一緒に伝える。
 function anegawaHurtHqText(rt, reached) {
@@ -1825,7 +1825,7 @@ const anegawa = {
     const text = currentObjective(rt)?.text || '';
     if (/印の槍列へ戻り|印の槍列で槍を揃え直せ|味方と槍を揃え、浅井を止めよ|ここで槍を揃え|川を渡らず、岸で浅井を(?:待て|止めよ)/.test(text)) {
       const at = rt.flags.holdAt, p = rt.player.u.pos;
-      return at && Math.hypot(p.x - at.x, p.z - at.z) < 8 ? 'ここで守ろう' : '旗へもどろう';
+      return at && Math.hypot(p.x - at.x, p.z - at.z) < 8 ? 'この旗を守ろう' : '旗へもどろう';
     }
     return text;
   },

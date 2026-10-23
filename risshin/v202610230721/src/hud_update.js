@@ -23,6 +23,7 @@ export class HudUpdate {
   update(dt, rt) {
     if (window.__apx && window.__apx.nohud) return;   // 実機の試し：札を書かない（外の時間が DOM の配置かを見る）
     this.rt = rt;
+    this.openingControls(dt, rt);
     fieldSignsTick(rt, this.root);   // 敵の▼・武将の名と体力の棒（全戦）
     setClass(this.root, 'field-clean', pinGuideOn(rt));
     const missionOnly = !rt.def.town && !rt.def.dojo;
