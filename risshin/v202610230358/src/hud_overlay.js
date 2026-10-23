@@ -237,6 +237,11 @@ export class HudOverlay {
     this.drawRainDrops(g, W, H, rt); this.drawBrim(g, W, H, rt);
     // 雨粒も笠の縁も無いコマは、次のコマで消す仕事を省く。
     this.ovBlank = !(this.drops && this.drops.length) && !((rt.player.fpK || 0) > 0.7);
+    // 森部のピンはこの描画経路で一本だけ出す。通常の案内描画には進まない。
+    if (rt.def.key === 'moribe' && !rt.over && !rt.choice && !this.introWaiting &&
+        rt.player.u.alive && !rt.player.camShot && !this.bigmap) {
+      if (this.drawBattleGoal(g, rt)) this.ovBlank = false;
+    }
     // 本人の足元は兵が重なっても見える白い輪。行き先の旗とは形を分ける。
     if (this.drawPlayerSign(g, rt)) this.ovBlank = false;
     // 行き先は共通のピンに任せ、持ち場の輪や味方の旗を重ねて描かない。

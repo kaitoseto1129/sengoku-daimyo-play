@@ -3947,11 +3947,11 @@ export function pauseMenu(el, o) {
   el.innerHTML = `<div class="pmenu">
     <h3 id="pm-h">${esc(o.title || '一時停止')}</h3>
     <div class="btns">
-      <button class="btn primary" id="pm-resume">再開する${isTouch ? '' : '（Esc）'}</button>
+      <button class="btn primary" id="pm-resume">再開する</button>
       <button class="btn" id="pm-settings" aria-expanded="false" aria-controls="pm-set">設定</button>
       <button class="btn" id="pm-help">操作の一覧を見る</button>
       <button class="btn" id="pm-words">用語集を開く</button>
-      <button class="btn" id="pm-retry">${o.town ? '町に入り直す' : 'やり直す'}${isTouch ? '' : '（R）'}</button>
+      <button class="btn" id="pm-retry">${o.town ? '町に入り直す' : 'やり直す'}</button>
       <button class="btn" id="pm-title">題の画面へ</button>
     </div>
     <div class="objs"><div class="eyebrow" style="margin-bottom:6px">現在の任務</div>${o.objectives.map((x) => `<div>${x.state === 'done' ? '済み' : x.state === 'fail' ? '失敗' : '進行中'} <b>${esc(x.text)}</b>${x.progress ? `　<small>${esc(x.progress)}</small>` : ''}</div>`).join('') || 'いまは任務がありません'}
@@ -3993,8 +3993,17 @@ export function pauseMenu(el, o) {
     box.querySelector('.s-row:not([hidden]) input, .s-row:not([hidden]) select')?.focus({ preventScroll: true });
   };
   const box = el.querySelector('#pm-confirm');
-  el.querySelector('#pm-retry').onclick = () => confirmBox(box, o.town ? '町に入り直します。' : 'この戦を最初からやり直します。', o.town ? '町に入り直す' : 'やり直す', o.retry, { sub: o.town ? '城下までの記録は残ります。' : 'この戦で得た戦功は消えます。城下までの記録は残ります。' });
-  el.querySelector('#pm-title').onclick = () => confirmBox(box, '題の画面へ戻ります。', '題の画面へ戻る', o.title2, { sub: 'この戦の進み具合は消えます。城下までの記録は残ります。' });
+  // 不具合の後は既存の釦一つで復帰。通常の確認も押した釦のすぐ下に置く。
+  el.querySelector('#pm-retry').onclick = () => {
+    if (o.error) { o.retry(); return; }
+    el.querySelector('#pm-retry').after(box);
+    confirmBox(box, o.town ? '町に入り直します。' : 'この戦を最初からやり直します。', o.town ? '町に入り直す' : 'やり直す', o.retry, { sub: o.town ? '城下までの記録は残ります。' : 'この戦で得た戦功は消えます。城下までの記録は残ります。' });
+  };
+  el.querySelector('#pm-title').onclick = () => {
+    if (o.error) { o.title2(); return; }
+    el.querySelector('#pm-title').after(box);
+    confirmBox(box, '題の画面へ戻ります。', '題の画面へ戻る', o.title2, { sub: 'この戦の進み具合は消えます。城下までの記録は残ります。' });
+  };
   el.querySelector('#pm-resume').focus({ preventScroll: true });
   // 戦の中のキー（Tab・Enter・Space）は戦の操作に取られるので、一時停止の札の中ではボタンの操作に戻す
   el.onkeydown = (e) => {

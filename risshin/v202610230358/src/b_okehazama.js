@@ -701,8 +701,8 @@ const okehazama = {
       return pin;
     }
     // 敵への地面の矢印は出さず、実際の頭上の赤い▼に任せる。
-    if (enemy || rt.phase === 'assault' && !F.victory &&
-        (this.objectiveEnemies(rt).length || !F.entered && F.roadStep < F.road.length)) return null;
+    if (rt.phase === 'assault' && !F.victory && (enemy ||
+        this.objectiveEnemies(rt).length || !F.entered && F.roadStep < F.road.length)) return null;
     if (rt.phase === 'brief' || rt.phase === 'march' || rt.phase === 'wait') {
       const pos = this.squadFlagPosition(rt);
       if (!pos) return null;
@@ -1309,6 +1309,12 @@ const okehazama = {
     },
   },
   setup(rt) {
+    // 実際に命を減らした敵だけ、既存の頭上の▼で命中を返す。
+    const meritHit = rt.army.hooks.onMeritHit;
+    rt.army.hooks.onMeritHit = function (target, source, kind, amount) {
+      if (source?.isPlayer && target.team !== source.team && amount > 0) target.okeHitUntil = rt.t + .7;
+      meritHit?.call(this, target, source, kind, amount);
+    };
     // 矢へ甲冑の拡大を重ねない。距離で縮尺が替わる甲冑の部品は避け、
     // 兵の根へ留める。飛翔中の長さ・命中・傷・寿命はそのまま使う。
     const pinArrow = rt.army.pinArrow;

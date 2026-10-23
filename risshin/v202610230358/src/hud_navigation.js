@@ -494,7 +494,7 @@ export class HudNavigation {
   // 本人は短い足元の線。行き先の大きな輪とは形で分ける。
   drawPlayerSign(g, rt) {
     // 稲生は行き先のピンと敵の▼だけ。自分の足元を行き先に見せない。
-    if (rt.def.key === 'inou') return false;
+    if (rt.def.key === 'inou' || rt.def.key === 'okehazama') return false;
     const u = rt.player.u;
     if (!u.alive || rt.over || rt.choice || this.introWaiting || this.bigmap ||
         rt.player.camShot || rt.player.fpK > .7) return false;

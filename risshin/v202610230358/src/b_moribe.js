@@ -984,6 +984,7 @@ const moribe = {
   nearbyAllySignLimit: 0, // 味方の頭上に白い小旗を出さない。追う旗はピン一本、敵は赤い印で分ける。
   noDodgeCard: true, // 矢の雨で「〜をむこう」「にげる」の札を出さない（kaito 10/23 稲生 4）。
   hideMissionDots: true, // 任務の段数は見出しにある。仲間の人数と紛れる五つの丸は出さない。
+  missionSingleLine: true, // 進行はピンの中で示し、右上は任務の一行だけ。
   // 仲間の名札は一人だけ。密集しても五人分の文字を重ねない。
   missionAllyLabel: 'ついてくる仲間',
   missionContext: '永禄四年（一五六一）・森部（もりべ）の戦い',
@@ -996,8 +997,18 @@ const moribe = {
     const F = rt.flags, p = rt.player;
     if (!F.signal || F.ending || F.stage === 'assemble') return null;
     if (p.inRange && moribeFoeReady(p.rangeCueTarget, p)) return p.rangeCueTarget;
-    if (rt.t < F.signTargetAt && moribeFoeReady(F.signTarget, p)) return F.signTarget;
-    F.signTargetAt = rt.t + .25;
+    if (rt.t < F.signTargetAt && F.signStage === F.stage && moribeFoeReady(F.signTarget, p)) return F.signTarget;
+    F.signTargetAt = rt.t + .25; F.signStage = F.stage;
+    // 討ち取りの段では、離れた一般兵へ印を乗り換えない。
+    if (F.stage === 'press' && !F.pursuing) {
+      for (let i = 0; i < 2; i++) {
+        const group = i === 0 ? F.HM : F.HN;
+        if (!group || gone(group)) continue;
+        for (const u of group.units) if (u.type === 'busho' && moribeFoeReady(u, p)) {
+          F.signTarget = u; return u;
+        }
+      }
+    }
     let target = null, best = 48 * 48;
     for (const u of rt.army.units) {
       if (!moribeFoeReady(u, p)) continue;
@@ -1105,14 +1116,9 @@ const moribe = {
       pos = F.gatherUnit ? F.gatherUnit.pos : F.asm;
       r = hide = F.gatherUnit ? 6 : 12;
     } else if (F.stage === 'press' && F.pursuing) {
-      const u = F.pursueTarget;
-      if (!u || !u.alive || u.gone) return null;
-      pos = u.pos; r = 3; hide = 5;
+      return null; // 敵を追う段は赤い▼だけ。地面の行き先と混ぜない。
     } else if (F.stage === 'press') {
-      if (!F.marked || gone(F.marked)) return null;
-      for (const u of F.marked.units) if (u.type === 'busho' && u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget) { pos = u.pos; q.unit = u; break; }
-      if (!pos) pos = fightingCenter(F.marked);
-      r = 4; hide = 12;
+      return null;
     } else if (F.stage === 'hold' || F.vBroken) {
       // 札の「味方の黄旗」と同じ旗持ちへ。隊の真ん中を指すと、旗と印がずれて見える。
       pos = !gone(F.B) ? F.linePoint : null;
@@ -1873,7 +1879,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       // 命中は相手の赤い▼で示す。胴に別の印を重ねない。
       if (battle === rt) {
         const pin = rt.def.missionPin(rt);
-        if (combatSignsOnly() || !pin || pin.arrived) return false;
+        if (combatSignsOnly() || !pin || pin.arrived && !pin.waiting) return false;
       }
       return hudBattleGoal.call(this, g, battle);
     };
@@ -1963,6 +1969,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     rt.dispose = function () {
       hud.bark = hudBark; hud.banner = hudBanner; hud.say = hudSay; hud.hudRects = hudRects;
       hud.drawPlayerSign = hudPlayerSign; hud.drawWaitFrame = hudWaitFrame;
+      hud.drawBattleGoal = hudBattleGoal; hud.drawFootDirection = hudFootDirection;
       hud.drawEnemyOutline = hudEnemyOutline;
       hud.drawTargetFootRing = hudFootRing;
       hud.root.classList.remove('moribe-notices'); noticeStyle.remove();

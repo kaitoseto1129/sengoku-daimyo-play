@@ -1010,7 +1010,7 @@ window.addEventListener('音が使えない', () => notice('音を出せませ�
 window.addEventListener('beforeunload', (e) => { if (!window.__memReloading && game.battle && !game.battle.over && !(game.battle.def && game.battle.def.town)) { e.preventDefault(); e.returnValue = ''; } });
 // 思わぬ不具合が起きたら知らせる
 // 戦の途中で不具合が起きた時の知らせ（携帯と PC で同じ文。中断の札から立て直せる）
-function crashNotice() { notice('問題が起きました。中断の札の「この戦をやり直す」で立て直せます'); }
+function crashNotice() { setPause(true); }
 function preparationError(type, message, source) {
   if (!window.__autoplay && !new URLSearchParams(location.search).has('autoplay')) return;
   const errors = window.__preparationErrors ||= [];
@@ -1621,6 +1621,7 @@ const game = {
   },
 
   title(pick = '') {
+    this.lastError = null;
     this.trialReturn = '';
     // 題の画面では戦・人物の素材を読み始めない。
     closeJapan();
@@ -1701,6 +1702,7 @@ const game = {
 
   startBattle(i) {
     if (memReloadGate(this, 'startBattle', [i])) return;
+    this.lastError = null;
     try { localStorage.setItem('risshin-lastbattle', BATTLES[i]?.id || String(i)); localStorage.setItem('risshin-lastbattle-at', String(Date.now())); } catch (e) { /* 保存できなければ記さない */ }
     if (isLocked(i)) return showPaywall(() => this.startBattle(i), () => this.base());
     const firstBattle = BATTLES[i]?.id === 'inou' && !this.G.practice && !this.G.lord && !this.G.history?.some(Boolean);
@@ -2663,7 +2665,6 @@ function loop() {
       } catch (e) {
         console.error(e);
         reportBug(e.message, (e.stack || '').split('\n')[1] || '');
-        setPause(true);
       }
     }
     if (b.disposed || game.battle !== b) { input.endFrame(); return; }
