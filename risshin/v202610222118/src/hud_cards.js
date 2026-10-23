@@ -1,4 +1,4 @@
-import { setText, setWidth, coachCss, $, esc, keyCaps, shortTask, singleBattleGuide } from "./hud_common.js";
+import { setText, setWidth, coachCss, $, esc, keyCaps, shortTask, singleBattleGuide, rescueTarget, retreatRequired } from "./hud_common.js";
 import { currentObjective, taskText } from "./mission_guide.js";
 import { isTouch } from "./touch.js";
 import { K } from "./settings.js";
@@ -35,7 +35,7 @@ export class HudCards {
         const onScreen = this.tmpV.z >= -1 && this.tmpV.z < 1 &&
           Math.abs(this.tmpV.x) < (rt.def.missionAllyEdge ? .8 : .9) && Math.abs(this.tmpV.y) < (rt.def.missionAllyEdge ? .7 : .85);
         let x = Math.round((this.tmpV.x + 1) / 2 * innerWidth), y = Math.round((1 - this.tmpV.y) / 2 * innerHeight);
-        const symbolOnly = singleBattleGuide(rt);
+        const symbolOnly = singleBattleGuide(rt) && !rt.def.missionAllyNamed;
         e.style.background = symbolOnly ? 'transparent' : '#17140fe6';
         e.style.borderBottom = symbolOnly ? '0' : '2px solid #e8c25a';
         e.style.fontSize = symbolOnly ? '26px' : '12px';
@@ -66,6 +66,7 @@ export class HudCards {
       }
     }
     this.fieldMarks(rt);
+    this.squadMarks(rt);
     if (!rt.def.foeMarks) return;
     if (!this.foeEls) {
       this.foeEls = [];
@@ -74,7 +75,8 @@ export class HudCards {
       for (let i = 0; i < 4; i++) {
         const e = document.createElement('div');
         e.style.cssText = 'position:absolute;left:0;top:0;transform:translate(-50%,-100%);font-size:12px;line-height:1;color:#f1d9c6;text-shadow:0 1px 2px #000,0 0 4px #000;text-align:center;font-weight:600;letter-spacing:.05em';
-        e.innerHTML = '敵<br><span style="color:#c9573d;font-size:14px">▼</span>';
+        // 名（戦の定義の foeLabel。例「林の兵」）と赤い▼。「敵」の字は出さない（kaito 10/23 稲生 6）。
+        e.innerHTML = '<b style="display:block;padding:1px 4px;margin-bottom:1px;background:rgba(12,10,8,.82);font-size:12px;font-weight:600;color:#ffd2c2"></b><span style="color:#ff4a2e;font-size:20px;-webkit-text-stroke:1px #2a0d06">▼</span>';
         e.hidden = true; box.appendChild(e); this.foeEls.push(e);
       }
       this.root.appendChild(box);
@@ -85,7 +87,7 @@ export class HudCards {
       for (const o of rt.army.units) {
         if (!o.alive || o.team === me.team || o.fleeing || o.gone || o.noTarget || o.isStruct) continue;
         const d = Math.hypot(o.pos.x - me.pos.x, o.pos.z - me.pos.z);
-        if (d > 14) continue;
+        if (d > (rt.def.foeMarkRange || 14) || o === this.fieldFoe) continue;
         L.push(o); o._foeD = d;
       }
       L.sort((a, b) => a._foeD - b._foeD);
@@ -97,7 +99,47 @@ export class HudCards {
       this.tmpV.set(o.pos.x, o.pos.y + (o.mounted ? 3.1 : 2.15), o.pos.z).project(rt.camera);
       if (this.tmpV.z > 1 || Math.abs(this.tmpV.x) > 1 || Math.abs(this.tmpV.y) > 1) { e.hidden = true; continue; }
       e.hidden = false;
+      const fl = rt.def.foeLabel, name = i < 2 ? (typeof fl === 'function' ? fl(rt, o) : fl) || (o.type === 'busho' && o.name) || '' : '';
+      setText(e.firstChild, name); e.firstChild.hidden = !name;
       e.style.transform = `translate(${Math.round((this.tmpV.x + 1) / 2 * W)}px,${Math.round((1 - this.tmpV.y) / 2 * H)}px) translate(-50%,-100%)`;
+    }
+  }
+
+  // 自分の組の兵の頭上に小さな菱形（字の札の代わり。kaito 10/23）。士気は色と明るさで（高い＝金・ふつう＝白・下がる＝くすむ）。
+  //   近い十二人まで・四十メートルまで。印は使い回し、毎コマ作らない。
+  squadMarks(rt) {
+    const L = rt.squad, me = rt.player.u;
+    const on = L?.length && me.alive && !rt.over && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
+    if (!this.sqEls) {
+      if (!on) return;
+      this.sqEls = []; this.sqList = [];
+      const box = document.createElement('div'); box.id = 'squad-marks'; box.setAttribute('aria-hidden', 'true');
+      box.style.cssText = 'position:absolute;inset:0;pointer-events:none';
+      for (let i = 0; i < 12; i++) {
+        const e = document.createElement('i');
+        e.style.cssText = 'position:absolute;left:0;top:0;width:7px;height:7px;margin:-4px 0 0 -4px;transform-origin:center;box-shadow:0 0 0 1px #14120f;font-style:normal';
+        e.hidden = true; box.appendChild(e); this.sqEls.push(e);
+      }
+      this.root.appendChild(box);
+    }
+    const list = this.sqList; list.length = 0;
+    if (on) for (const s of L) {
+      if (!s.alive || s.gone || s === me || s.mesh?.visible === false) continue;
+      const d = (s.pos.x - me.pos.x) ** 2 + (s.pos.z - me.pos.z) ** 2;
+      if (d > 1600) continue;
+      s._sqD = d; list.push(s);
+    }
+    if (list.length > 12) list.sort((a, b) => a._sqD - b._sqD);
+    for (let i = 0; i < 12; i++) {
+      const e = this.sqEls[i], s = list[i];
+      if (!s) { e.hidden = true; continue; }
+      this.tmpV.set(s.pos.x, s.pos.y + (s.mounted ? 3.0 : 2.05), s.pos.z).project(rt.camera);
+      if (this.tmpV.z > 1 || Math.abs(this.tmpV.x) > 1 || Math.abs(this.tmpV.y) > 1) { e.hidden = true; continue; }
+      e.hidden = false;
+      const m = s.group?.morale ?? 70;
+      const c = m >= 75 ? '#f0c75a' : m >= 50 ? '#efe6cf' : m >= 30 ? '#a99d82' : '#6e675a';
+      if (e.dataset.c !== c) { e.dataset.c = c; e.style.background = c; e.style.opacity = m >= 30 ? '1' : '.7'; }
+      e.style.transform = `translate(${Math.round((this.tmpV.x + 1) / 2 * innerWidth)}px,${Math.round((1 - this.tmpV.y) / 2 * innerHeight)}px) rotate(45deg)`;
     }
   }
 
@@ -105,7 +147,7 @@ export class HudCards {
   fieldMarks(rt) {
     if (this.fieldMarkBounds) for (const bounds of this.fieldMarkBounds) bounds[2] = 0;
     const signs = !rt.over && !this.introWaiting && !this.root.classList.contains('photo') && rt.def.fieldSigns?.(rt);
-    if (!signs) { if (this.fieldMarkBox) this.fieldMarkBox.hidden = true; return; }
+    if (!signs) { this.fieldFoe = null; if (this.fieldMarkBox) this.fieldMarkBox.hidden = true; return; }
     if (!this.fieldMarkBox) {
       const box = document.createElement('div'); box.id = 'field-signs';
       box.style.cssText = 'position:absolute;inset:0;pointer-events:none';
@@ -114,7 +156,9 @@ export class HudCards {
       for (let i = 0; i < 2; i++) {
         const el = document.createElement('div');
         el.style.cssText = 'position:absolute;left:0;top:0;padding:2px 5px;background:rgba(12,10,8,.88);border-bottom:2px solid;font-size:12px;line-height:1.4;white-space:nowrap';
-        el.style.color = i ? '#ffb6a0' : '#f3e7c5';
+        el.style.color = i ? '#ffd2c2' : '#f3e7c5';
+        // 追う相手・倒す相手は、名の下に大きな赤い▼（味方には出さない）。
+        if (i) { el.style.textAlign = 'center'; el.style.borderBottom = '0'; el.style.background = 'transparent'; el.innerHTML = '<b style="display:block;padding:1px 5px;background:rgba(12,10,8,.88);font-size:13px;font-weight:600"></b><span style="display:block;line-height:1;color:#ff4a2e;font-size:24px;-webkit-text-stroke:1px #2a0d06">▼</span>'; }
         box.appendChild(el); this.fieldMarkEls.push(el);
       }
       this.root.appendChild(box); this.fieldMarkBox = box;
@@ -122,12 +166,13 @@ export class HudCards {
     this.fieldMarkBox.hidden = false;
     let firstX = -1000, firstY = -1000;
     for (let i = 0; i < 2; i++) {
-      const el = this.fieldMarkEls[i], sign = signs[i], u = sign?.unit;
+      const el = this.fieldMarkEls[i], sign = signs[i], u = i || sign?.label ? sign?.unit : null;
+      if (i) this.fieldFoe = u;
       if (!u?.alive || u.gone || u.mesh?.visible === false) { el.hidden = true; continue; }
       this.tmpV.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.3), u.pos.z).project(rt.camera);
       el.hidden = this.tmpV.z < -1 || this.tmpV.z > 1 || Math.abs(this.tmpV.x) > .85 || Math.abs(this.tmpV.y) > .8;
       if (el.hidden) continue;
-      setText(el, sign.label);
+      setText(i ? el.firstChild : el, sign.label); if (i) el.firstChild.hidden = !sign.label;
       const x = Math.round((this.tmpV.x + 1) / 2 * innerWidth);
       let y = Math.round((1 - this.tmpV.y) / 2 * innerHeight);
       if (i && Math.abs(x - firstX) < 150 && Math.abs(y - firstY) < 26) y -= 28;
@@ -221,7 +266,10 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     const el = this.prog;
     if (el.dataset.battle !== def.key) el.dataset.battle = def.key || '';
     if (def.key === 'inou') el.dataset.practice = String(rt.flags.step === 0 && rt.flags.training === 0);
-    el.hidden = !!rt.over; root.classList.toggle('prog-on', !rt.over);
+    // 救助中は通常の任務を畳み、本人の札と長押しの操作に切り替える。
+    const helping = !!rescueTarget(rt) && def.guardGuideAllowed?.(rt) !== false &&
+      !retreatRequired(rt) && !rt.dodgeGuide && !this.retreatGuide?.active;
+    el.hidden = !!rt.over || helping; root.classList.toggle('prog-on', !rt.over && !helping);
     const [stEl, nextEl, dotsEl, timeEl, contextEl] = el.children;
     const context = typeof def.missionContext === 'function' ? def.missionContext(rt) : def.missionContext;
     setText(contextEl, context || ''); contextEl.hidden = !context;
@@ -255,7 +303,9 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     const sub = movingBack ? '' : def.missionDetail ? def.missionDetail(rt) :
       def.missionStatusFirst ? status || '' :
         currentObjective(rt)?.progress || (status && status !== headline ? status : '');
-    setText(nextEl, sub); nextEl.hidden = !sub;
+    // 右上の札の長い文（「追いつくまで あと約27メートル。着いたら槍で突く」など）は出さない。行き先はピンと矢印、相手は赤い▼で見せる（kaito 10/23）。
+    //   操作を教える戦・戦が決めた一行の、短い物（「V を押す」など）だけ残す（押す物が分からず止まった。初めての人の bot 10/23）。
+    setText(nextEl, sub); nextEl.hidden = !(sub && sub.length <= 14 && (rt.teachOn?.() || !!def.missionDetail));
     // 必要な号令だけ、今の任務の直下で一度押せるようにする。
     if (def.missionAction && !this.missionActionButton) {
       const button = this.missionActionButton = document.createElement('button');

@@ -274,6 +274,8 @@ export class HudTeamSigns {
   drawNearbyTeamSigns(g, rt, candidates) {
     if (this.teamSignsDrawn) return false;
     this.teamSignsDrawn = true;
+    // 戦場では今の行き先と選んだ相手を優先。組を調べる時だけ周囲の所属も示す。
+    if (!rt.def.town && !rt.def.dojo && !rt.player.showSquad) return false;
     // 進軍・接敵・退避でも、近い兵の所属は小さな形で残す。字の札は増やさない。
     if (rt.def.town || rt.def.dojo || rt.over || rt.choice ||
         this.openingActive && !this.opening?.el.classList.contains('opening-controls') ||
@@ -432,6 +434,8 @@ export class HudTeamSigns {
 
   // 味方は小さい丸。行き先の切れ込み旗や敵の三角と形で分ける。
   drawAllySign(g, x, y, label = false) {
+    // 味方の白い小旗は宙に浮いて変に見えた（kaito 10/23）。味方は印なし（自分の組だけ頭上の小さな菱形。hud_cards.squadMarks）。
+    if (!this.rt?.def?.town && !this.rt?.def?.dojo) return;
     g.save(); g.lineJoin = 'round'; g.beginPath();
     g.moveTo(x - 6, y); g.lineTo(x - 6, y - 26); g.lineTo(x + 12, y - 26);
     g.lineTo(x + 7, y - 19); g.lineTo(x + 12, y - 12); g.lineTo(x - 6, y - 12);

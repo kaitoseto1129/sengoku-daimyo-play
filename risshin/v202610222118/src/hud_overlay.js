@@ -22,7 +22,7 @@ export class HudOverlay {
     // 行き先はこの印一つ。合流済みの半径では消し、別の輪を重ねない。
     // 稲生は到着判定と同じ行き先だけ。古い味方の輪へ誘わない。
     const inou = rt.def.key === 'inou';
-    if (inou) return; // 稲生の行き先は到着判定付きの印が一つだけ担当する。
+    if (inou || rescueTarget(rt)) return; // 救助中は本人の頭上の札へ集める。稲生の行き先は到着判定付きの印が一つだけ担当する。
     const pinTarget = rt.def.missionPin?.(rt);
     const guide = rt.missionGuide;
     const retreat = !inou && this.retreatGuide?.active && this.retreatGuide.valid ? this.retreatGuide : null;
@@ -169,7 +169,7 @@ export class HudOverlay {
       this.ovBlank = false;
     }
     // 待つ間は本人の丸と既存の任務だけ。旗・向きの矢印・注意印を重ねない。
-    if (this.quietWait && !rt.choice && !rt.over && !rt.dodgeGuide && !rainDanger(rt.army) && !retreatRequired(rt)) {
+    if (this.quietWait && !rescueTarget(rt) && !rt.choice && !rt.over && !rt.dodgeGuide && !rainDanger(rt.army) && !retreatRequired(rt)) {
       setClass($('objectives'), 'ground-order', false);
       setClass($('objectives'), 'enemy-order', false);
       this.drawRainDrops(g, W, H, rt); this.drawBrim(g, W, H, rt);
@@ -286,7 +286,7 @@ export class HudOverlay {
       const facing = rt.def.waitFacingPoint?.(rt);
       if (facing) swipeDrawn = this.drawFootDirection(g, rt, facing) || swipeDrawn;
     }
-    const aimEnemy = travelSignPriority(rt) ? null : this.attackCueEnemy || this.aimGuideEnemy;
+    const aimEnemy = travelSignPriority(rt) || rescueTarget(rt) ? null : this.attackCueEnemy || this.aimGuideEnemy;
     if (aimEnemy?.alive && !rt.over && !rt.choice && !this.openingActive && !rt.player.camShot &&
         !this.bigmap && !S.reduceGuidance && !guidanceEnded(rt) &&
         !rt.dodgeGuide && !retreatRequired(rt) && !this.retreatGuide?.active && sightScreenUnit(rt, aimEnemy) &&
@@ -536,6 +536,7 @@ export class HudOverlay {
     drew = this.drawNearbyTeamSigns(g, rt, this.ovCand) || drew;
     drew = this.drawPassageGuides(g, rt) || drew;
     for (const u of this.ovCand) {
+      if (rescueTarget(rt)) continue;
       // 開幕は目的地の輪と短い札にまとめ、離れた顔や青旗を重ねない。
       if (this.openingActive) continue;
       // 逃げる間は行き先一つだけを残し、敵味方の旗や刀を重ねない。
@@ -543,7 +544,8 @@ export class HudOverlay {
       // 会話相手の名前は吹き出しと一組にし、通常の名札を重ねない。
       if (u === talkPerson && !S.reduceGuidance && !guidanceEnded(rt)) continue;
       // 普段の合戦では対象一人の囲みだけを残す。人数や戦い方は変えない。
-      if (quietBattle && u !== focus) continue;
+      //   武将と名のある侍の名は、普段の合戦でも出す（kaito 10/23「武将の名前が出ていない」）。
+      if (quietBattle && u !== focus && !(this.pinOnly && u.name && !u.isSub && (u.type === 'busho' || u.type === 'samurai'))) continue;
       // 小さな形だけを両軍六人まで。近い味方だけで敵の印を使い切らない。
       if (u !== focus && (u.team === P.u.team ? allySigns : enemySigns) >= 6) continue;
       // 守る相手は下で大きな盾だけを示し、ほかの印や名を重ねない。
@@ -795,14 +797,20 @@ export class HudOverlay {
       g.save();
       if (off) {
         const angle = Math.atan2(s.y - H / 2, s.x - W / 2);
-        this.drawNavigationArrow(g, x, y, angle, .65);
+        if (helping) {
+          // 通常の行き先の印を消している時も、救助する方向は残す。
+          g.save(); g.translate(x, y); g.rotate(angle);
+          g.beginPath(); g.moveTo(18, 0); g.lineTo(-10, -12); g.lineTo(-10, 12); g.closePath();
+          g.strokeStyle = '#14120f'; g.lineWidth = 5; g.stroke();
+          g.fillStyle = '#fff3ba'; g.fill(); g.restore();
+        } else this.drawNavigationArrow(g, x, y, angle, .65);
         if (helping) {
           if (!this.notices.sources[1].selected) this.drawRescueHand(g, x, y - 32);
         }
       } else {
         if (!helping) this.drawPersonOutline(g, frame, true, true);
       }
-      if (this.notices.sources[1].selected) {
+      if (this.notices.sources[1].selected && !helping) {
         const order = $('objectives');
         setClass(order, 'ground-order', true);
         setClass(order, 'linked-destination', true);
@@ -824,7 +832,7 @@ export class HudOverlay {
         setCssVar(order, '--ground-order-x', left + 'px');
         setCssVar(order, '--ground-order-y', top + 'px');
       }
-      const label = helping ? 'たすける' :
+      const label = helping ? 'この人' :
         rt.def.guardName?.(rt, guard) || `${guard.name || 'この人'}を守る`;
       this.drawPersonAction(g, rt, off ? x : frame.cx, off ? y : frame.top, label, off ? null : frame, !helping);
       g.restore(); drew = true;

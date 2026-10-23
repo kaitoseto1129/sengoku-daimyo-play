@@ -36,6 +36,7 @@ import { bodiesWorkerTick } from './army_bodies_worker.js';
 import { ArmyAnim } from './army_anim.js';
 import { ArmyGround, fallenMaterial } from './army_ground.js';
 import { signalWait } from './army_signals.js';
+const ENEMY_RED = new THREE.Color(0x9a2c1c);
 export { MK, UNIT_MAT, UNIT_WET, haoriFold, HORSE_HOOK, poseArms, SPEARS, spearSpec, arrowGeometry, makeWeapon, setBowDraw, kickSpear, ENEMY_HORSE, COATS, coatOf, animateHorse, soheiLook, headEnvelope, katoGeometry } from './units_model.js';
 export { weaponMesh, LOD, IDLE } from './units_flags.js';
 export { lookParts } from './units_look.js';
@@ -573,6 +574,12 @@ export class Army {
     look.longHoro = fieldLook.longHoro === 'round' ? 'round' : !!fieldLook.longHoro;
     look.shoulderMark = u.team === 0 ? fieldLook.allyShoulderMark || 0 : 0;
     look.flagBoost = u.team === 0 ? fieldLook.allyFlagBoost || 0 : 0;
+    // 敵の兵は布の一部（鎧下・袴と、半分の者の陣笠）を落ち着いた朱へ寄せ、遠くから塊が赤っぽく見えるように（kaito 10/23）。
+    //   全員を赤備えにしない。名のある武将・本人・小袖姿は元の色のまま。戦の定義の noEnemyTint で止められる。
+    if (u.team === 1 && !u.name && u.type !== 'player' && !look.kosode && !look.sohei && !fieldLook.noEnemyTint) {
+      if (look.cloth != null) look.cloth = new THREE.Color(look.cloth).lerp(ENEMY_RED, 0.62).getHex();
+      if (vi % 2 === 0 && (look.hat === 'jingasa' || look.hat === 'jingasa_n')) look.hatColor = new THREE.Color(look.hatColor ?? look.armor ?? 0x2a2420).lerp(ENEMY_RED, 0.5).getHex();
+    }
     look.flag = fieldLook.armyFlagKinds?.[look.flag] || look.flag;
     look.standard = fieldLook.armyFlagKinds?.[look.standard] || look.standard;
     // 全戦共通：背の受筒から一本だけ立てる。母衣衆と幟持ちは背の旗を重ねない。

@@ -1966,9 +1966,14 @@ export class Player {
     }
     if (!simpleControls(rt) && input.pressed('KeyT')) { this.shoulder *= -1; sfx('ui'); rt.hud.flash(this.shoulder > 0 ? '右肩から見る' : '左肩から見る', 'dim'); }
     // V：短く押すと視点を回す（三人称の近い・普通・遠い、一人称）。長く押している間は「大将の目」で高くから見渡す（身分が上がるほど高く）
-    if (!simpleControls(rt) && input.pressed('KeyV')) { this.vHeld = 0; this.vStartedAt = performance.now(); }
+    // 足軽の簡単操作でも視点は切り替えられる。教えの間も押した瞬間に一度だけ切り替える。
+    if (input.pressed('KeyV')) {
+      if (simpleControls(rt) || rt.def.key === 'inou' && rt.flags.lesson === 'view') {
+        this.vHeld = null; this.overHold = false; this.toggleView();
+      } else { this.vHeld = 0; this.vStartedAt = performance.now(); }
+    }
     if (this.vHeld != null) {
-      if (input.key('KeyV')) { this.vHeld = Math.max(0, (performance.now() - this.vStartedAt) / 1000); this.overHold = this.vHeld > 0.35; }
+      if (input.key('KeyV')) { this.vHeld = Math.max(0, (performance.now() - this.vStartedAt) / 1000); this.overHold = this.vHeld > 0.35 && !simpleControls(rt); }
       else { if (this.vHeld <= 0.35) this.toggleView(); this.vHeld = null; this.overHold = false; }
     }
     this.showSquad = input.key('AltLeft') || input.key('AltRight');
@@ -4070,10 +4075,10 @@ export class Player {
 
   toggleView() {
     const r = S.camRange || 'mid';
-    if (S.view === 'first') { S.view = 'third'; S.camRange = 'near'; }
-    else if (r === 'mid') S.camRange = 'far';
-    else if (r === 'far') S.view = 'first';
-    else S.camRange = 'mid';
+    // 押すたびに一人称と三人称を行き来する（三人称は近い・普通・遠いの三段を回してから一人称へ行くと、押しても変わらないように見えた）。
+    if (S.view === 'first') S.view = 'third';
+    else S.view = 'first';
+    void r;
     saveSettings();
     sfx('ui');
     const nm = { near: '近い', mid: '普通', far: '遠い' }[S.camRange || 'mid'];

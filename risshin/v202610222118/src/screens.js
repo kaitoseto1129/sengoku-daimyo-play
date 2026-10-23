@@ -526,7 +526,7 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
   </style>
   <div id="ng" class="ng" hidden>
     <div class="ng-top" id="ng-top"><span class="eyebrow" id="ng-count" aria-live="polite">1 / 3</span><ol class="ng-dots" aria-hidden="true"><li class="on"></li><li></li><li></li></ol></div>
-    <section class="ng-step" aria-labelledby="ng-h0"><h2 id="ng-h0" tabindex="-1">名を決める</h2><div class="field"><label for="nm">足軽の名</label><input id="nm" value="${esc(pre.name || '弥五郎')}" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" aria-describedby="nm-help"><small class="note" id="nm-help">8字まで。空のままなら「弥五郎」になります。普通の難しさで始めます</small></div></section>
+    <section class="ng-step" aria-labelledby="ng-h0"><h2 id="ng-h0" tabindex="-1">名を決める</h2><div class="field"><label for="nm">あなたの名前</label><input id="nm" value="${esc(pre.name || '弥五郎')}" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" aria-describedby="nm-help"><small class="note" id="nm-help">8字まで。空のままなら「弥五郎」になります。普通の難しさで始めます</small></div></section>
     <section class="ng-step" aria-labelledby="ng-h1" hidden><h2 id="ng-h1" tabindex="-1">${scns.length === 1 ? '本編を確かめる' : '筋書きを選ぶ'}</h2><p class="note">${scns.length === 1 ? '織田家編を史実の順で進みます' : '遊ぶ時代を選ぶ'}</p><div class="diffs scn scn-all" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px" role="radiogroup" aria-labelledby="ng-h1">${scns.map((k) => scnCard(k, k === scn0)).join('')}</div></section>
     <section class="ng-step" aria-labelledby="ng-h2" hidden><h2 id="ng-h2" tabindex="-1">難易度を選ぶ</h2><p class="note">迷ったら「普通」</p><div class="diffs" role="radiogroup" aria-labelledby="ng-h2">${Object.entries(DIFFICULTY).map(([k, d]) => `<label><span><input type="radio" name="diff" value="${k}" ${k === diff0 ? 'checked' : ''}> ${d.name}</span><small>${d.note}</small></label>`).join('')}</div></section>
     <p class="note">${readings[S.slot].bad ? `新しい物語を始めると、枠${S.slot + 1}の読めない記録を上書きします。ほかの枠は残ります。` : saved ? freeSlot >= 0 ? `新しい物語は「保存記録」の枠${freeSlot + 1}に自動保存します。枠${S.slot + 1}の「${esc(saved.name)}」は残ります。` : `新しい物語を始めると、枠${S.slot + 1}の「${esc(saved.name)}」を上書きします。はじまりの札から題へ戻れば、前の記録は残ります。ほかの枠の記録は残ります。` : `新しい物語は「保存記録」の枠${S.slot + 1}に自動保存します。`}</p><div class="ng-act"><button class="btn" id="ng-back">ひとつ前へ戻る</button><button class="btn primary" id="ng-next">決めて次へ進む</button>${isTouch ? '' : '<span class="hintk">エンターで次へ・エスケープで戻る</span>'}</div>
@@ -1212,7 +1212,7 @@ export function settingsScreen(onChange, onClose) {
 // aim：この戦で上がり得る身分の一言（826）。onBack：城下へ戻る（996。Esc でも）
 // 読み込みの間に読む、戦の一言の史実と見どころ（織田家編。無い戦は出さない）
 const LORE = {
-  inou: ['信長の弟・信勝が背いた。柴田と林の千七百に、信長は七百で向かう', '林軍を追い、柴田の寄せを受け、林美作守を討ち取る'],
+  inou: ['信長の弟・信勝が背いた。柴田と林の千七百に、信長は七百で向かう', 'にげる林の兵を追い、柴田の兵を受け止め、林美作守をたおす'],
   okehazama: ['今川義元、二万五千で尾張へ。信長は二千で本陣を突く', '雨の中の行軍と、本陣の旗本との斬り合い'],
   moribe: ['義龍の死に乗じ、信長は美濃へ攻め入った', '雨の畦で組をそろえ、味方と槍の列を押す'],
   sunomata: ['木下藤吉郎が、長良川の西に一夜で砦を築いたと伝わる', '柵の内から、寄せる斎藤勢を突き落とす'],
@@ -1251,14 +1251,14 @@ export function loadingStory(bt, story, tips, G) {
   el.style.cssText = 'max-width:36em;margin:8px auto;color:var(--washi);text-align:left';
   const talks = scenarioKey() === 'oda' ? battleTalk(G, bt) : [];
   const paragraphs = [...(story.text || []), ...(L ? [`史実：${L[0]}`, `見どころ：${L[1]}`] : [])];
-  el.innerHTML = `<button type="button" class="btn" data-read-open aria-expanded="false" aria-controls="ld-story-body" style="width:100%;min-height:48px;font-size:16px">戦の背景と心得を読む（支度は続きます）</button><div id="ld-story-body" hidden><div style="max-height:45dvh;overflow-y:auto;overscroll-behavior:contain;padding:8px" tabindex="0" aria-label="戦の背景と心得"><b>${esc(story.year)}　${esc(story.title)}</b>${paragraphs.map((t) => `<p style="font-size:max(15px,calc(16px * var(--text-scale,1)));line-height:1.6;color:var(--washi);text-align:left;margin:8px 0;padding:0">${esc(t)}</p>`).join('')}<p style="font-size:16px;line-height:1.6;color:var(--washi)">心得：${esc(tips)}</p>${talks.map((t) => `<p style="font-size:16px;line-height:1.6;color:var(--washi)">${esc(t.place)}（遊びの中の会話）<br>${t.lines.map(([who, line]) => `${esc(who)}「${esc(line)}」`).join('<br>')}</p>`).join('')}</div><button type="button" class="btn" data-read-done style="min-height:48px">読み終えたので閉じる</button><p data-read-ready role="status" hidden style="font-size:15px;color:var(--washi)">支度ができました。読み終えたら閉じてください。</p></div>`;
+  el.innerHTML = `<button type="button" class="btn" data-read-open aria-expanded="false" aria-controls="ld-story-body" style="width:100%;min-height:48px;font-size:16px">戦いの前の話を読む（用意は続きます）</button><div id="ld-story-body" hidden><div style="max-height:45dvh;overflow-y:auto;overscroll-behavior:contain;padding:8px" tabindex="0" aria-label="戦の背景と心得"><b>${esc(story.year)}　${esc(story.title)}</b>${paragraphs.map((t) => `<p style="font-size:max(15px,calc(16px * var(--text-scale,1)));line-height:1.6;color:var(--washi);text-align:left;margin:8px 0;padding:0">${esc(t)}</p>`).join('')}<p style="font-size:16px;line-height:1.6;color:var(--washi)">心得：${esc(tips)}</p>${talks.map((t) => `<p style="font-size:16px;line-height:1.6;color:var(--washi)">${esc(t.place)}（遊びの中の会話）<br>${t.lines.map(([who, line]) => `${esc(who)}「${esc(line)}」`).join('<br>')}</p>`).join('')}</div><button type="button" class="btn" data-read-done style="min-height:48px">読み終えたので閉じる</button><p data-read-ready role="status" hidden style="font-size:15px;color:var(--washi)">支度ができました。読み終えたら閉じてください。</p></div>`;
   const toggle = (on) => {
     reading = on;
     el.classList.toggle('reading', on);
     el.querySelector('#ld-story-body').hidden = !on;
     const button = el.querySelector('[data-read-open]');
     button.setAttribute('aria-expanded', String(on));
-    button.textContent = on ? '戦の背景と心得を閉じる' : '戦の背景と心得を読む（支度は続きます）';
+    button.textContent = on ? '戦いの前の話を閉じる' : '戦いの前の話を読む（用意は続きます）';
     if (!on && release) { const f = release; release = null; f(); }
     (on ? el.querySelector('[tabindex]') : button).focus({ preventScroll: true });
   };

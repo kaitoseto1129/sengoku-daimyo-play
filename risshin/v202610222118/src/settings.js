@@ -242,11 +242,7 @@ const KEY_LABELS = {
 const LETTER_NAMES = ['えー', 'びー', 'しー', 'でぃー', 'いー', 'えふ', 'じー', 'えいち', 'あい', 'じぇー', 'けー', 'える', 'えむ', 'えぬ', 'おー', 'ぴー', 'きゅー', 'あーる', 'えす', 'てぃー', 'ゆー', 'ぶい', 'だぶりゅー', 'えっくす', 'わい', 'ぜっと'];
 // 英字を出さず、鍵盤の文字を日本語の読みで示す。割り当ての変更にも従う。
 for (let i = 0; i < LETTER_NAMES.length; i++) KEY_LABELS['Key' + String.fromCharCode(65 + i)] = LETTER_NAMES[i];
-// 日本語の鍵盤で探せるかなを添える。英字の読みも残し、かなのない鍵盤にも対応。
-Object.assign(KEY_LABELS, {
-  KeyW: 'て（だぶりゅー）', KeyA: 'ち（えー）', KeyS: 'と（えす）',
-  KeyD: 'し（でぃー）', KeyV: 'ひ（ぶい）',
-});
+// かなと英字の読みを混ぜず、かなのない鍵盤でも同じ呼び名にする。
 for (let i = 0; i < 10; i++) { KEY_LABELS['Digit' + i] = String(i); KEY_LABELS['Numpad' + i] = '数字欄の' + i; }
 for (let i = 1; i <= 24; i++) KEY_LABELS['F' + i] = '機能' + i;
 export function keyLabel(code) {

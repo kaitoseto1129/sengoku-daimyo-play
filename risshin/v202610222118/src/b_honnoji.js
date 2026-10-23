@@ -2584,11 +2584,18 @@ const honnoji = {
   dodgeTurnInterval: 24,
   treatmentControlInset: 224, // 携帯横では命の札の横へ置き、上の歩く輪とも重ねない。
   treatmentCrossSign: true, // 傷を止める場所は十字。護衛と退却の矢印と見分ける。
+  namedDestinationLabel(rt, pos) {
+    const F = rt.flags;
+    return !rt.G.lord && F.step < 3 && (F.hp === 2 || F.hp === 3) &&
+      Math.hypot(pos.x - GATES.main.x, pos.z - GATES.main.z) < 8 ? 'ここへ' : '';
+  },
   // 道の先の床ではなく、最初にくぐる開口そのものへ矢印を置く。
   routeSignPoint(rt, goal) {
     if (!rt.G.lord && rt.flags.step < 3 && (rt.flags.hp === 2 || rt.flags.hp === 3)) {
       gateFight(rt);
       if (rt.flags.gateApproach?.alive) goal = rt.flags.gateApproach.pos;
+      // 庭から門へ直に通れるなら、途中の庭でなく表門そのものを示す。
+      else if (rt.flags.entrancePos && patrolClear(rt, rt.flags.entrancePos.x, rt.flags.entrancePos.z)) goal = rt.flags.entrancePos;
     }
     // 戻る入口の近くでは、外の供や縁側でなく堂内へ向ける。
     if (!rt.G.lord && rt.flags.step < 3 && (rt.flags.hp === 4 || rt.flags.hp === 5) &&
@@ -2750,8 +2757,10 @@ const honnoji = {
     // 戸口の枠と旗に添える札は、遠い門の行き先より先に示す。
     if (F.hp === 1) return F.waitReached ? 'ここで待て' : '輪の中へ';
     if (F.hp === 4 || F.hp === 5) {
+      if (F.hp === 4 && Math.hypot(rt.player.u.pos.x - HONDO_IN.x, rt.player.u.pos.z - HONDO_IN.z) < 6)
+        return '戸の内で上様を待つ';
       const door = rt.nearestInteract();
-      return door?.id === 'naka_tobira' && door.label === '戸を開ける' ? '東の戸を開けろ' : '本堂の東の戸へ';
+      return door?.id === 'naka_tobira' && door.label !== '戸を開ける' ? '東の戸を通る' : '東の戸を開ける';
     }
     if (F.routeSign?.door && this.routeGuidePriority(rt)) return 'この戸を通れ';
     if ((F.hp === 2 || F.hp === 3) && F.gateApproach?.alive) return '門へ走れ';
@@ -2874,6 +2883,7 @@ const honnoji = {
   taskTimeLabel(rt) {
     const F = rt.flags;
     if (rt.G.lord || F.step >= 3 || F.ending) return '';
+    if (F.hp === 4) return `あと${Math.max(0, Math.ceil(180 - (rt.t - F.pT)))}秒`;
     if (F.hp === 6) {
       const left = Math.max(0, Math.ceil(Math.min(150 - (rt.t - F.pT), F.farT > 0 ? 60 - F.farT : Infinity)));
       return `あと${left}びょう`;
@@ -3082,6 +3092,7 @@ const honnoji = {
 #hud[data-honnoji] #intro .intro-reading .rule { margin:8px auto; }
 #hud[data-honnoji] #intro .intro-reading { width:100%; min-height:0; flex:1 1 auto; overflow-y:auto; touch-action:pan-y; pointer-events:auto; overscroll-behavior:contain; }
 #hud[data-honnoji] #intro-go { flex-shrink:0; }
+#hud[data-honnoji] #objectives .destination-distance { font-size:20px; line-height:1.4; }
 /* 携帯横でも危険の下知を二行で読める。日付より今の行動を先に見せる。 */
 @media (max-height:500px) {
   html body #hud[data-honnoji] #battle-notices:not(.choosing) #objectives:not(.expand) li.cur :is(.obj-text,.obj-now),
@@ -4194,8 +4205,8 @@ function honnoTick(def, rt, dt) {
     if (F.flank && !F.flankDone && (gone(F.flank) || F.flank.count <= 1)) { F.flankDone = true; rt.objDone('flank'); rt.award((t2) => t2.side.push('宿坊から回り込む明智勢を止めた'), '回り込みを止めた'); }
     const left = Math.max(0, Math.ceil(180 - t));
     rt.objProgress('main', dNb < 10 && Math.hypot(p.x - HONDO_IN.x, p.z - HONDO_IN.z) < 6
-      ? `堂の口へ向いて構えよ。上様の到着を待て（あと${left}秒）`
-      : `印を追い、本堂の東の戸口へ。戸の前で「戸を開ける」（あと${left}秒）`);
+      ? '戸の内で上様を待つ'
+      : '印を追い、東の戸へ');
     if (left <= 20 && !F.hondoLateSaid) { F.hondoLateSaid = true; rt.bark('本堂への合流が遅れておる！　印へ退け。間に合わねば護衛失敗じゃ', true); }
     if (dNb < 10 && Math.hypot(p.x - HONDO_IN.x, p.z - HONDO_IN.z) < 6 && Math.hypot(NB.pos.x - HONDO_IN.x, NB.pos.z - HONDO_IN.z) < 5) def.p5(rt);
     else if (t > 180) def.nbFail(rt, '本堂で合流できず、守りが崩れた');
