@@ -38,7 +38,7 @@ export class HudOverlay {
     if (pin?.arrived) {
       g.strokeStyle = '#fff3ba'; g.lineWidth = 3; g.stroke();
     }
-    g.beginPath(); g.arc(x, y - 33, 8, 0, Math.PI * 2);
+    g.beginPath(); g.arc(x, y - 33, 11, 0, Math.PI * 2);
     g.fillStyle = '#14120f'; g.fill();
     // 実際の到着半径へ入った時だけ、同じピンの内周を閉じる。
     // 地点を踏み直す必要がないことを形で伝え、別の輪や札は足さない。
@@ -48,7 +48,7 @@ export class HudOverlay {
     if (pin?.progress > 0) {
       // ピンの中だけを満たす。待ち時間の札や別の印は増やさない。
       g.beginPath(); g.moveTo(x, y - 33);
-      g.arc(x, y - 33, 10, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, pin.progress));
+      g.arc(x, y - 33, 9, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, pin.progress));
       g.closePath(); g.fillStyle = '#e8c25a'; g.fill();
     }
     g.restore();

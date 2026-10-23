@@ -2669,8 +2669,8 @@ const inabayama = {
   nearAllySolidBody: true,
   nearAllyHorseFade: true,
   nearAllyBodyOnly: true,
-  // 共通の見通し処理で、手前の屋根と壁を抜き、戦場の三分の二を空ける。
-  nearSceneryScreenCut: true,
+  // 屋根や壁を画面の四角で切らず、視点の直近だけ既存の距離の処理で避ける。
+  nearSceneryScreenCut: false,
   nearLongWeaponRadius: 2.8,
   nearHoroRadius: 3.8,
   nearHoroHide: true,
@@ -3735,7 +3735,7 @@ const inabayama = {
     this.nextObj(rt, '旗の人の所へ。さくの中の敵を引きつけよう');
     F.holdArrived = false;
     F.holdPoint = { x: -4, z: SHIKA_Z + 5 };
-    rt.marker('holdFlag', F.holdPoint, 'さくの内', { h: 0, guideAlways: true, guideArea: 'wait', guideWaitRing: true, guideDefend: true, guideFootRing: true, guideRadius: 3 });
+    rt.marker('holdFlag', F.holdPoint, 'さくの内', { h: 0, group: F.kino, guideFlagMesh: () => F.kinoFlag, guideAlways: true, guideArea: 'wait', guideWaitRing: true, guideDefend: true, guideFootRing: true, guideRadius: 3 });
     // 足軽が鹿垣（枝を組んだ低い垣）を一間ずつ結っていく。三か所は打って出る口に空けておく
     for (let i = 0; i < 8; i++) rt.after(2 + i * 1.5, () => {
       if (F.step !== 2 || SHIKA_GAPS.includes(i)) return;

@@ -170,7 +170,7 @@ function campGround(W) {
   W.footprint = function (x, z, hoof, rot) {
     footprint.call(this, x, z, hoof, rot);
     if (this.feet && Math.abs(x) < 32 && z > -2 && z < 48) {
-      this.feet.material.opacity = 0.38;
+      this.feet.material.opacity = 0.22;
       this.stampWear(x, z, 1.5, 18);
     }
   };
@@ -537,6 +537,7 @@ const iwamura = {
   compactRetreatArea: true, compactDodgeGuide: true,
   compactGroundGoalRing: true, // 小さな到着輪と旗で、柵の口の兵と槍先を空ける。
   openingFootSignOnly: true, // 最初の案内も足元の丸だけにし、本人を白い枠で囲まない。
+  playerFootSignOnly: true, // 開幕後も足元の丸だけを残し、具足からずれる黄色い人型線を描かない。
   singleDestinationArrow: true, // 行き先の矢印に、足元からの案内を重ねない。
   avoidAllDestinationNotices: true, // 画面外の口への旗も任務札・台詞・小地図を避ける。
   groundFlagGuides: true, // 実物の幟を囲まず、根元の小さな旗印で示す。

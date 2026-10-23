@@ -107,7 +107,7 @@ function approachUnit(rt) {
   const group = F.chase || F.training >= 0 && F.training < 5 ? F.practice : F.haya1;
   if (!group) return null;
   const previous = F.approachGroup === group && fighting(F.approachUnit) && F.approachUnit.mesh?.visible !== false ? F.approachUnit : null;
-  const reach = rt.player.meleeReach('thrust');
+  const reach = rt.player.meleeReach(rt.player.previewMeleeKind() || 'thrust');
   // 間合いに入った林兵を優先する。遠い一人へのピンで、目前の敵から引き離さない。
   if (previous && Math.hypot(previous.pos.x - rt.player.u.pos.x, previous.pos.z - rt.player.u.pos.z) <= reach) return previous;
   let chosen = null, best = Infinity;
@@ -125,7 +125,7 @@ function pinPoint(rt, pos, radius, hide, unit = null, name = '') {
   const pin = rt.flags.goalPin;
   pin.x = pos.x; pin.z = pos.z; pin.r = radius; pin.hide = hide;
   pin.unit = unit; pin.name = name; pin.enemy = !!unit && unit.team !== rt.player.u.team;
-  pin.approach = false;
+  pin.approach = false; pin.silent = false;
   return pin;
 }
 
@@ -155,7 +155,17 @@ const inou = {
   // 任務は一行。兵と武将を区別し、距離・向き・操作は書かない。
   missions: ['赤い▼の敵を倒せ', '赤い▼の敵を倒せ', '柴田隊に耐えろ', '林美作守を倒せ'],
   missionHeading(rt) {
-    return rt.flags.step === 0 && rt.flags.training === 8 ? '敵の隊長を倒せ' : this.missions[this.missionOf(rt)];
+    const F = rt.flags;
+    if (F.step === 1) {
+      if (F.training === 11 && !F.flankReached) return '右の畦へ進め';
+      if (F.training === 12) return '柴田隊を横から攻めろ';
+      const lead = F.nobuU?.alive ? F.nobuU.pos : NOBU;
+      if (Math.hypot(rt.player.u.pos.x - lead.x, rt.player.u.pos.z - lead.z) >= 20) return '旗まで進め';
+      if (F.training === 11) return 'ここで生きのこれ';
+      return `あと${Math.max(1, Math.ceil((F.training < 11 ? 24 : 112) - (rt.t - F.stepT)))}秒 生きのこれ`;
+    }
+    if (F.step === 2) return '信長について進め';
+    return F.step === 0 && F.training === 8 ? '敵の隊長を倒せ' : this.missions[this.missionOf(rt)];
   },
   // 控えや追跡中の兵も敵の姿として見分けられる。攻撃できるかで▼を消さない。
   foeMarkVisible: () => true,
@@ -191,12 +201,12 @@ const inou = {
     const F = rt.flags;
     if (F.ending) return null;
     if (F.step === 0) {
-      if (F.training < 1) return null;
+      if (F.training < 0) return null;
       const ready = rt.player.inRange && fighting(rt.player.rangeCueTarget);
       const enemy = F.training === 8 ? F.hayaLead : approachUnit(rt);
       if (ready || !fighting(enemy)) return null;
       const me = rt.player.u.pos, dx = me.x - enemy.pos.x, dz = me.z - enemy.pos.z;
-      const distance = Math.hypot(dx, dz), reach = rt.player.meleeReach('thrust') * .8;
+      const distance = Math.hypot(dx, dz), reach = rt.player.meleeReach(rt.player.previewMeleeKind() || 'thrust') * .8;
       if (distance <= reach) return null;
       const pin = pinPoint(rt, enemy.pos, 0, 0, enemy);
       pin.x += dx / distance * reach; pin.z += dz / distance * reach;
@@ -206,7 +216,12 @@ const inou = {
     if (F.step === 1) {
       if (F.training === 11 && !F.flankReached) return pinPoint(rt, FLANK, 8);
       if (F.training === 12 && !gone(F.shiba1)) return pinPoint(rt, F.shiba1.center(), 8, 16);
-      return pinPoint(rt, F.nobuU?.alive ? F.nobuU.pos : NOBU, 20, 22);
+      // 持ち場にいる間は移動の印を消し、右上の残り時間だけを示す。
+      const lead = F.nobuU?.alive ? F.nobuU.pos : NOBU;
+      if (Math.hypot(rt.player.u.pos.x - lead.x, rt.player.u.pos.z - lead.z) < 20) return null;
+      const pin = pinPoint(rt, lead, 20, 20);
+      pin.silent = true;
+      return pin;
     }
     if (F.step === 2) return pinPoint(rt, F.nobuU?.alive ? F.nobuU.pos : NOBU, 10);
     if (F.step === 3) return null;
