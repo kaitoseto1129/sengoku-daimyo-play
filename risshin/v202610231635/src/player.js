@@ -643,14 +643,14 @@ export class Player {
       if (o.team !== u.team && !blocksSelf) return;
       // 自分の脇から行き先を覆う味方も、手前の一人だけ描く間避ける。
       // 人数・当たり・攻撃はそのまま。骨の姿と長柄も一緒に戻す。
-      const goal = this.rt.hud?.outlinedEnemy?.pos || this.rt.guideEnemy?.pos || this.rt.missionGuide?.pos;
+      const goal = this.nearAllyGoal || this.rt.hud?.outlinedEnemy?.pos || this.rt.guideEnemy?.pos || this.rt.missionGuide?.pos;
       let blocksGoal = false;
-      if (o.team === u.team && goal && dx * dx + dz * dz < 16) {
+      if (o.team === u.team && goal && dx * dx + dz * dz < (this.nearAllyGoal ? 100 : 16)) {
         const gx = goal.x - cam.position.x, gz = goal.z - cam.position.z;
         const gl2 = gx * gx + gz * gz;
         const t = gl2 > .01 ? (dx * gx + dz * gz) / gl2 : -1;
         const gy = cam.position.y + ((goal.y ?? u.pos.y) + 1 - cam.position.y) * t;
-        blocksGoal = t > 0 && t < .85 && (dx - gx * t) ** 2 + (dz - gz * t) ** 2 < 1.44 &&
+        blocksGoal = t > 0 && t < (this.nearAllyGoal ? .98 : .85) && (dx - gx * t) ** 2 + (dz - gz * t) ** 2 < 1.44 &&
           gy > o.pos.y + .3 && gy < o.pos.y + (o.mounted ? RIDE.y : 0) + 2.5;
       }
       if (blocksGoal) {
@@ -2839,7 +2839,7 @@ export class Player {
     let hits = army.enemiesInArc(u.pos, heading, reach, half, u.team, over, true, fenceClear, this.lock);
     // 初陣・森部の間合いの変化は、実際の向き直り・踏み込みまで含めて届く本人に付ける。
     // 攻撃と同じ選び方にし、横の敵へ向き直す操作を何度も要求しない。
-    if ((this.rt.def.key === 'inou' || this.rt.def.key === 'moribe') && !hits.length && assist && !this.mounted && kind !== 'butt') {
+    if ((this.rt.def.key === 'inou' || this.rt.def.key === 'moribe' || this.rt.def.key === 'okehazama') && !hits.length && assist && !this.mounted && kind !== 'butt') {
       const target = this.meleeAssistTarget(kind, heading);
       if (target) { this.inRange = true; this.rangeCueTarget = target; }
       return;
@@ -4542,8 +4542,10 @@ export class Player {
     const cp = cam.position;
     if (this.rt.army.forNear) {
       this.nearAllyCam = cam;
+      // 稲生は赤い▼と同じ本人への視線を空ける。相手選びは描く前に一度だけ。
+      this.nearAllyGoal = this.rt.def.key === 'inou' ? this.rt.def.missionSignTarget?.(this.rt)?.pos : null;
       const viewRadius = this.fpK < .5 ? Math.hypot(this.u.pos.x - cp.x, this.u.pos.z - cp.z) + 1 : 0;
-      this.rt.army.forNear(cp.x, cp.z, Math.max(4, this.rt.def.nearAllyFadeRadius || 2.2, viewRadius), this.nearAllyVisit);
+      this.rt.army.forNear(cp.x, cp.z, Math.max(this.nearAllyGoal ? 10 : 4, this.rt.def.nearAllyFadeRadius || 2.2, viewRadius), this.nearAllyVisit);
     }
     if (this.rt.army.forNear) this.rt.army.forNear(cp.x, cp.z, Math.max(1.6, D.nearEnemyFadeRadius || 0), hideCameraEnemy, this);
     // 一人称：近い味方の槍・長物は視界を塞ぐので描く間だけ隠す。軒下などでカメラが自分の体に寄った時は自分の体も隠す

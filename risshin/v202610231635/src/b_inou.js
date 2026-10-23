@@ -56,9 +56,10 @@ function prepareMarch(g) {
 }
 
 // 信勝方は弁柄（赤茶の漆）の具足、信長方は黒漆に紺の威。ネオンにせず、近くでも遠くでも色の系統で分かる（kaito 10/22 稲生 3）。
-const SHIBA = { armor: 0x3a3026, lace: 0x8a6a2a, flag: 'kari' };
-const HAYA = { armor: 0x3c3229, lace: 0x7a6236, flag: 'sujikai' };
-const ODA = { flag: 'oda' };
+// 彩度の低い茶は人の甲冑の色替えで無視されるため、弁柄の赤みを残す。
+const SHIBA = { armor: 0x88432f, lace: 0x96583d, cloth: 0x715044, flag: 'kari' };
+const HAYA = { armor: 0x834031, lace: 0x8b503b, cloth: 0x68483e, flag: 'sujikai' };
+const ODA = { lace: 0x334f70, cloth: 0x293b51, flag: 'oda' };
 const dress = (list, lk) => list.map((s) => ({ ...s, o: { ...lk, ...(s.o || {}) } }));
 const gone = (g) => !g || g.count === 0 || g.routed;
 
@@ -125,7 +126,7 @@ function pinPoint(rt, pos, radius, hide, unit = null, name = '') {
   const pin = rt.flags.goalPin;
   pin.x = pos.x; pin.z = pos.z; pin.r = radius; pin.hide = hide;
   pin.unit = unit; pin.name = name; pin.enemy = !!unit && unit.team !== rt.player.u.team;
-  pin.approach = false; pin.silent = false; pin.arrow = false;
+  pin.approach = false; pin.silent = true; pin.arrow = false;
   return pin;
 }
 
@@ -152,10 +153,19 @@ const inou = {
   nearAllySolidBody: true,
   missionPinCaption: '',
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
-  // 任務は一行。兵と武将を区別し、距離・向き・操作は書かない。
-  missions: ['赤い▼の敵を倒せ', '赤い▼の敵を倒せ', '柴田隊に耐えろ', '林美作守を倒せ'],
+  // 任務は一行。兵と武将を区別し、今の行動と待つ時間を示す。
+  missions: ['この敵をたおせ', 'この敵をたおせ', '生きのこれ', '林美作守を倒せ'],
   missionHeading(rt) {
     const F = rt.flags;
+    if (F.step === 1) {
+      if (F.training === 11 && !F.flankReached) return '印の先へ進め';
+      if (F.training === 12 && !gone(F.shiba1)) return '印の先へ進め';
+      const lead = F.nobuU?.alive ? F.nobuU.pos : NOBU;
+      if (Math.hypot(rt.player.u.pos.x - lead.x, rt.player.u.pos.z - lead.z) >= 20) return '旗まで進め';
+      if (F.training === 11) return `あと${Math.max(1, Math.ceil(26 - (rt.t - F.stepT)))}秒 生きのこれ`;
+      return `あと${Math.max(1, Math.ceil((F.training < 11 ? 24 : 112) - (rt.t - F.stepT)))}秒 生きのこれ`;
+    }
+    if (F.step === 2) return '信長について進め';
     return F.step === 0 && F.training === 8 ? '敵の隊長を倒せ' : this.missions[this.missionOf(rt)];
   },
   // 控えや追跡中の兵も敵の姿として見分けられる。攻撃できるかで▼を消さない。
@@ -187,21 +197,25 @@ const inou = {
     }
     return signs;
   },
-  // 倒す場面は敵の印だけ。側面への移動は成功判定と同じ東側へ導く。
+  // 敵が見える間は頭上の▼だけ。見失った時は同じ本人の足元をピンで示す。
   missionPin: (rt) => {
     const F = rt.flags;
-    if (F.ending || F.step === 0 || F.step === 3) return null;
+    if (F.ending) return null;
+    if (F.step === 0 || F.step === 3) {
+      const u = rt.def.missionSignTarget(rt);
+      return fighting(u) ? pinPoint(rt, u.pos, 0, 0, u) : null;
+    }
     if (F.step === 1) {
       if (F.training === 11 && !F.flankReached) {
-        const pin = pinPoint(rt, FLANK, 8); pin.arrow = true; return pin;
+        return pinPoint(rt, FLANK, 8);
       }
       if (F.training === 12 && !gone(F.shiba1)) {
         const c = F.shiba1.center();
         const pin = pinPoint(rt, c, 2, 2);
-        pin.x += 11; pin.arrow = true;
+        pin.x += 11;
         return pin;
       }
-      // 持ち場にいる間は移動の印を消し、右上の残り時間だけを示す。
+      // 持ち場にいる間は移動の印を消し、任務の一行だけを残す。
       const lead = F.nobuU?.alive ? F.nobuU.pos : NOBU;
       if (Math.hypot(rt.player.u.pos.x - lead.x, rt.player.u.pos.z - lead.z) < 20) return null;
       const pin = pinPoint(rt, lead, 20, 20);
@@ -209,7 +223,6 @@ const inou = {
       return pin;
     }
     if (F.step === 2) return pinPoint(rt, F.nobuU?.alive ? F.nobuU.pos : NOBU, 10);
-    if (F.step === 3) return null;
     return null;
   },
   // 周りの味方が今なにをしているか（左上の進みの札の一行。kaito 10/22 稲生 2）

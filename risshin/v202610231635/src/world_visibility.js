@@ -74,6 +74,7 @@ export class WorldVisibility {
     if (!N) return;
     const pts = new Float32Array(N * 3), radii = new Float32Array(N), A = m0.instanceMatrix.array;
     const centers = this.def?.tightSceneryCull && SETTINGS.quality === 'high' ? new Float32Array(N * 3) : null;
+    const bounds = centers ? new Float32Array(N * 6) : null;
     let radius = 0;
     for (const m of meshes) {
       if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
@@ -105,6 +106,11 @@ export class WorldVisibility {
         }
         // 風の余裕は従来どおり残す。距離段階と影の距離は元の足元で選ぶ。
         const tightRadius = Math.hypot(x1 - x0, y1 - y0, z1 - z0) * .5 + 2;
+        // 細長い板塀や木を球だけで囲むと、見えていない面まで画面の端へ残る。
+        // 風と視点の移動の余裕を保った箱も、設営時に一度だけ保存する。
+        const at = i * 6;
+        bounds[at] = x0 - 2; bounds[at + 1] = y0 - 2; bounds[at + 2] = z0 - 2;
+        bounds[at + 3] = x1 + 2; bounds[at + 4] = y1 + 2; bounds[at + 5] = z1 + 2;
         const tight = tightRadius < radii[i];
         centers[i * 3] = tight ? (x0 + x1) * .5 : pts[i * 3];
         centers[i * 3 + 1] = tight ? (y0 + y1) * .5 : pts[i * 3 + 1];
@@ -134,7 +140,7 @@ export class WorldVisibility {
       cell.box.min.y = Math.min(cell.box.min.y, cy - r); cell.box.max.y = Math.max(cell.box.max.y, cy + r);
       cell.box.min.z = Math.min(cell.box.min.z, cz - r); cell.box.max.z = Math.max(cell.box.max.z, cz + r);
     }
-    L.push({ orig, pts, centers, radii, packed, bands: new Uint8Array(N), cells, cellOf, N, near, far2: far * far, thin: false, keepDensity: !thin, x: 1e9, y: 0, z: 0, fx: 0, fy: 0, fz: 0, projection: 0 });
+    L.push({ orig, pts, centers, bounds, radii, packed, bands: new Uint8Array(N), cells, cellOf, N, near, far2: far * far, thin: false, keepDensity: !thin, x: 1e9, y: 0, z: 0, fx: 0, fy: 0, fz: 0, projection: 0 });
     // カメラは描く時に拾う（毎コマの詰め直しは world.update で）
     const world = this;
     for (const m of meshes) {
@@ -251,7 +257,17 @@ export class WorldVisibility {
           V.sphere.radius = C.radii[i] + (Math.abs(dx) + Math.abs(dz)) * .02;
           // 木の高さと幅・風で揺れる余裕まで含めて、画面の外だけを省く。近くの木は残す。
           if (d2 > nr2 && !V.fr.intersectsSphere(V.sphere)) continue;
-          if (cam.isPerspectiveCamera && this.terrainHidden(px, py, pz, V.sphere)) continue;
+          if (C.bounds) {
+            const at = i * 6, b = C.bounds;
+            V.box.min.set(b[at], b[at + 1], b[at + 2]);
+            V.box.max.set(b[at + 3], b[at + 4], b[at + 5]);
+            V.box.expandByScalar((Math.abs(dx) + Math.abs(dz)) * .02);
+            if (d2 > nr2 && !V.fr.intersectsBox(V.box)) continue;
+            // 山腹の判定も箱の中心から行い、元の足元中心とのずれを持ち込まない。
+            V.box.getCenter(V.sphere.center);
+            V.sphere.radius = V.box.min.distanceTo(V.box.max) * .5;
+          }
+          if (cam.isPerspectiveCamera && this.terrainHidden(px, py, pz, V.sphere, C.bounds ? V.box : null)) continue;
           // 近くの木（near のある物）は、90m より先を二本に一本・160m より先を四本に一本（霞の中で森の塊に見えれば足りる）
           //   高は 120m・200m・280m から（霞の奥の木と草を間引く）
           if (MEM_TIGHT && !C.keepDensity && (C.thin ? nr2 && ((d2 > 8100 && (i & 1)) || (d2 > 25600 && (i & 2)) || (d2 > 57600 && (i & 4))) : (d2 > 14400 && (i & 1)) || (d2 > 40000 && (i & 2)) || (d2 > 78400 && (i & 4)))) continue;

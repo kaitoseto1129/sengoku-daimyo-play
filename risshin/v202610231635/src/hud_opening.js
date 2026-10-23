@@ -79,7 +79,7 @@ export class HudOpening {
       for (const p of reading.querySelectorAll('p')) p.remove();
       reading.insertAdjacentHTML('beforeend', '<p id="intro-wait"><b>今川義元を倒し、味方と帰る</b></p>');
     }
-    else if (battle?.def.key === 'moribe') {
+    else if (battle?.def.key === 'moribe' || battle?.def.key === 'inou') {
       // 最初の一手だけを読む。以後の下知は戦場の任務で一つずつ示す。
       for (const p of el.querySelectorAll('.intro-reading > p:not(#intro-wait)')) p.remove();
     }
@@ -101,33 +101,6 @@ export class HudOpening {
           reading.scrollTop += peopleToggle.getBoundingClientRect().top - reading.getBoundingClientRect().top;
         }
       };
-    }
-    if (battle?.def.key === 'inou') {
-      el.querySelector('#intro-go').insertAdjacentHTML('beforebegin', '<small class="intro-scroll">説明欄は上下に送れます</small>');
-    }
-    if (battle?.def.key === 'inou') {
-      const body = el.querySelector('#intro-people-body');
-      const cards = [...body.children];
-      let page = 0;
-      body.insertAdjacentHTML('afterend', '<div class="intro-pages" hidden><button type="button" class="btn" data-person-prev>前の人物</button><span role="status"></span><button type="button" class="btn" data-person-next>次の人物</button></div>');
-      const pages = el.querySelector('.intro-pages');
-      el.querySelector('#intro-go').before(pages);
-      const showPage = () => {
-        cards.forEach((card, i) => { card.hidden = i !== page; });
-        pages.querySelector('span').textContent = `${page + 1}／${cards.length}`;
-        pages.querySelector('[data-person-prev]').disabled = page === 0;
-        pages.querySelector('[data-person-next]').disabled = page === cards.length - 1;
-      };
-      const toggle = peopleToggle.onclick;
-      peopleToggle.onclick = e => {
-        toggle(e); pages.hidden = body.hidden;
-        el.classList.toggle('people-reading', !body.hidden);
-        if (!body.hidden) { showPage(); el.querySelector('.intro-reading').scrollTop = el.querySelector('.intro-reading').scrollHeight; }
-      };
-      for (const [selector, direction] of [['[data-person-prev]', -1], ['[data-person-next]', 1]]) {
-        pages.querySelector(selector).onclick = e => { e.preventDefault(); e.stopPropagation(); page = Math.max(0, Math.min(cards.length - 1, page + direction)); showPage(); };
-      }
-      showPage();
     }
     decorateTerms(el.querySelector('.intro-reading'));
     el.style.pointerEvents = 'none';

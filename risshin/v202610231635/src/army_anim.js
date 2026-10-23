@@ -129,7 +129,7 @@ export const ArmyAnim = {
     // 中・遠景の細かな姿勢は間引いたまま、軽い脚と腰の歩みだけ毎コマ進める。
     const activeWalk = u.moving > 0.01 && (u.target || u.atk || u.swing || u.bind || u.hit || u.downed ||
       u.climb || u.dodging || u.dragging || u._crouch || u.stagger > 0 || u.woundRest > 0.01 || u.contactBrace > 0.01);
-    if (u.alive && !u.dying && u.qualityTier > 0 && !u.mounted && !activeWalk) {
+    if (u.alive && !u.dying && u.qualityTier > 0 && !u.mounted && !activeWalk && !u.vatWant) {
       u.qualityAnimDt = (u.qualityAnimDt || 0) + dt;
       u.mesh.position.copy(u.pos); u.mesh.rotation.y = u.heading;
       const every = u.qualityTier === 1 ? 1 / 12 : 0.6;
@@ -205,12 +205,13 @@ export const ArmyAnim = {
     if (u.fireT > 0) u.fireT -= dt;
     // 自分（プレイヤー）の振りと崩れの時計（兵は act で進める）
     if (u.isPlayer) { if (u.swing) { u.swing.t += dt; if (u.swing.t > u.swing.dur + 0.3) u.swing = null; } if (u.hit) { u.hit.t += dt; if (u.hit.t > u.hit.dur) u.hit = null; } }
-    if ((!near && !u.jinchu) || u.offscreen || (u.imp && !u.isPlayer)) {
+    // 中景の焼いた動き（crowd_vat.js）で描く兵も、遠い兵と同じく手足と得物の構えを計算しない
+    if ((!near && !u.jinchu) || u.offscreen || (u.imp && !u.isPlayer) || u.vatWant) {
       if (u.wpn && u.wpn.userData.loadPowder) {
         u.wpn.userData.loadPowder.visible = u.wpn.userData.loadBall.visible = false;
       }
       // まとめて描いている遠い兵（体を隠してある）は、体の揺れも得物のしなりも見えないので計算しない
-      if (u.offscreen || u.imp && !u.isPlayer) return;
+      if (u.offscreen || u.imp && !u.isPlayer || u.vatWant) return;
       if (u.wpn) flexSpear(u.wpn, dt, false, 0);
       // 遠くの兵（手足は省く）：体だけ小さく揺らし、ゆっくり見回す（安い動き。一人ずつ時をずらす）
       if (IDLE.on && !u.offscreen && !u.isPlayer && !u.mounted && u.body && u.moving < 0.1) {

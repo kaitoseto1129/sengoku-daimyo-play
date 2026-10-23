@@ -581,6 +581,9 @@ takato.botBrain = (rt, inp, helpers) => {
       }
       if (foe) {
         const walk = p.yaw, moving = inp.k.has('KeyW');
+        // 構え・回避は廃止済み。追手がいる時こそ、調べた退路を駆けて抜ける。
+        // 傷や気力で走りを制限しない本人の操作に合わせる。
+        inp.runHeld = moving;
         const uncovered = p.guardBroken > 0 ||
           Math.cos(Math.atan2(foe.pos.x - p.u.pos.x, foe.pos.z - p.u.pos.z) - p.u.heading) <= .25;
         p.yaw = Math.atan2(foe.pos.x - p.u.pos.x, foe.pos.z - p.u.pos.z);
@@ -603,7 +606,9 @@ takato.botBrain = (rt, inp, helpers) => {
         if ((crossed || uncovered || p.u.hp <= p.u.maxHp * .35) && soonest <= .35 && gap <= (foe.reach || 2.8) + .6 &&
             !p.mounted && !p.u.climb && !(p.knockT > 0) && p.dodgeT <= -.3 &&
             p.sta >= 20 + (p.u.hp <= p.u.maxHp * .35 || p.guardBroken > 0 ? 0 : p.maxSta * .4)) {
-          retreatDodge(rt, inp, moving ? walk : p.yaw + Math.PI, retreatDodgeAllowed);
+          if (retreatDodge(rt, inp, moving ? walk : p.yaw + Math.PI, retreatDodgeAllowed)) {
+            inp.runHeld = true;
+          }
         }
       }
     }
