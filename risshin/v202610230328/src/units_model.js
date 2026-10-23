@@ -480,6 +480,9 @@ function unitFill(strength, focus) {
       reflectedLight.indirectDiffuse += max(material.diffuseColor, vec3(0.065)) * vec3(0.7, 0.76, 0.85) * (0.38 + 0.65 * fillFace + 0.12 * fillRim) * fillNear;
       // 逆光の袖や脚も暗い柱から離して読む。面の色を残し、線の形は増やさない。
       reflectedLight.indirectDiffuse += max(material.diffuseColor, vec3(0.22)) * vec3(0.78, 0.84, 0.95) * smoothstep(0.35, 0.9, fillEdge) * 1.05 * fillNear;
+      // 森の陰でも袖・兜・脚の縁に空の照り返しを残す。追加の形や光源は作らない。
+      // 面の色と霧・遮蔽は保ち、近い兵だけに同じ補光を使う。
+      totalEmissiveRadiance += vec3(0.12, 0.14, 0.17) * smoothstep(0.45, 0.9, fillEdge) * fillNear;
     }
     #include <aomap_fragment>`;
 }

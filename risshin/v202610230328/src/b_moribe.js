@@ -990,7 +990,7 @@ const moribe = {
   // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は「何をするか」だけ（kaito 10/23 49・50）。段の総称で通し、向き・行き先の字は書かない。
-  missions: ['川を渡れ', '仲間を待て', '敵を倒せ', '耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
+  missions: ['浅瀬を歩いて渡れ', '仲間を待て', '敵を倒せ', 'この場を守れ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
   // 頭上の▼一つを大きくして、まず戦う相手を示す。選び直しは四分の一秒に一度。
   missionSignTarget(rt) {
     const F = rt.flags, p = rt.player;
@@ -1092,9 +1092,13 @@ const moribe = {
     if (F.stage === 'contact' && !F.vBroken && !F.squadGuide) return null;
     let pos = null, r = 6, hide = 6;
     if (!F.signal) {
-      if (F.pointDone || F.pointReached || atFordBank(rt.player.u.pos, F.pointInside ? FORD_OUT : FORD_R)) return null;
+      if (F.pointDone) return null;
       // 水中で半径に入っても消さず、実際に岸へ上がったコマで消す。
       pos = POINT2; r = FORD_R; hide = 0;
+      q.waiting = true; q.arrived = !!F.pointInside;
+      // 渡り終えた同じピンが満ちる。仲間の到着見込みに合わせ、逆戻りはさせない。
+      q.progress = q.arrived ? F.fordGatherProgress || 0 :
+        Math.max(0, Math.min(1, (START2.z - rt.player.u.pos.z) / (START2.z - POINT2.z)));
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
     } else if (F.stage === 'assemble') {
@@ -2329,6 +2333,10 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       arrivals.sort((a, b) => a - b);
       const waitSeconds = Math.max(1, Math.ceil(arrivals[Math.ceil(alive * .6) - 1] || 0));
       F.pointReady = alive === 0 || near >= Math.ceil(alive * 0.6);
+      if (F.pointInside) {
+        F.fordWaitMax = Math.max(F.fordWaitMax || 1, waitSeconds);
+        F.fordGatherProgress = F.pointReady ? 1 : Math.max(F.fordGatherProgress || 0, 1 - waitSeconds / F.fordWaitMax);
+      }
       // 実際に六割が岸へ着いたらすぐ合図。集合の後に秒待ちを重ねない。
       // 集結中にも先手は寄せてくる。「待て」だけで無防備に立たせない。
       const approaching = rt.army.nearestEnemy(rt.player.u, 8, (u) => !u.fleeing && !u.woundOut && !u.noTarget);

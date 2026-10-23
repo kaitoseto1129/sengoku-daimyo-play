@@ -623,12 +623,13 @@ export class Player {
     this.nearSpearCache = new WeakMap();
     this.nearAllyMatCache = new WeakMap();
     this.nearAllyCam = null;
+    this.nearSelfFadePart = (part) => this.nearAllyFadePart(part, false, 0);
     this.nearAllyVisit = (o) => {
       const u = this.u, cam = this.nearAllyCam;
-      if (o === u || !o.alive || o.dying || o.team !== u.team || o.isStruct || !o.mesh || !o.mesh.visible) return;
+      if (o === u || !o.alive || o.dying || o.isStruct || !o.mesh || !o.mesh.visible) return;
       const dx = o.pos.x - cam.position.x, dz = o.pos.z - cam.position.z;
       const radius = this.rt.def.nearAllyFadeRadius || 2.2;
-      // 自分の胴へ向かう視線だけを空ける。隊列・当たり・敵の姿は動かさない。
+      // 自分の胴へ向かう視線だけを透かす。隊列・当たり・攻撃は動かさない。
       const sx = u.pos.x - cam.position.x, sz = u.pos.z - cam.position.z;
       const len2 = sx * sx + sz * sz;
       const along = len2 > .01 ? (dx * sx + dz * sz) / len2 : -1;
@@ -637,11 +638,13 @@ export class Player {
       const blocksSelf = this.fpK < .5 && along > 0 && along < 1 &&
         (dx - sx * along) ** 2 + (dz - sz * along) ** 2 < sightWidth * sightWidth &&
         lineY > o.pos.y + .5 && lineY < o.pos.y + (o.mounted ? RIDE.y : 0) + 2.5;
+      // 敵もカメラと自分の間だけ透かす。正面の戦う相手は濃く保つ。
+      if (o.team !== u.team && !blocksSelf) return;
       // 自分の脇から行き先を覆う味方も、手前の一人だけ描く間避ける。
       // 人数・当たり・攻撃はそのまま。骨の姿と長柄も一緒に戻す。
       const goal = this.rt.hud?.outlinedEnemy?.pos || this.rt.guideEnemy?.pos || this.rt.missionGuide?.pos;
       let blocksGoal = false;
-      if (goal && dx * dx + dz * dz < 16) {
+      if (o.team === u.team && goal && dx * dx + dz * dz < 16) {
         const gx = goal.x - cam.position.x, gz = goal.z - cam.position.z;
         const gl2 = gx * gx + gz * gz;
         const t = gl2 > .01 ? (dx * gx + dz * gz) / gl2 : -1;
@@ -650,8 +653,9 @@ export class Player {
           gy > o.pos.y + .3 && gy < o.pos.y + (o.mounted ? RIDE.y : 0) + 2.5;
       }
       if (blocksGoal) {
-        this.hideNearFlag(o.mesh); this.hideNearFlag(o.human?.root);
-        this.hideNearFlag(o.wpn); this.hideNearFlag(o.flag); this.hideNearFlag(o.standardFlag);
+        const body = o.human?.root.visible ? o.human.root : o.mesh;
+        body.traverseVisible(this.nearSelfFadePart);
+        this.fadeNearFlag(o.wpn); this.fadeNearFlag(o.flag); this.fadeNearFlag(o.standardFlag);
         return;
       }
       // 指定のある戦では、騎手の高さから外れた視点も馬の胴の高さで拾う。
@@ -668,8 +672,8 @@ export class Player {
         }
         // 頭・胴・手足は同じ濃さで残し、浮いた首や脚に見せない。
         const body = o.human?.root.visible ? o.human.root : o.mesh;
-        body.traverseVisible(this.nearAllyFadePart);
-        this.hideNearFlag(o.flag); this.hideNearFlag(o.standardFlag);
+        body.traverseVisible(this.nearSelfFadePart);
+        this.fadeNearFlag(o.flag); this.fadeNearFlag(o.standardFlag);
         return;
       }
       // 指定した徒歩の戦では全身を濃く残す。目が体に入る時だけ描く間避ける。

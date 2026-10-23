@@ -502,11 +502,14 @@ export class HudNavigation {
       this.playerFootProjection || (this.playerFootProjection = {}));
     if (at.behind || !Number.isFinite(at.x) || !Number.isFinite(at.y) ||
         at.x < 0 || at.x > VIEW.w || at.y < 0 || at.y > VIEW.h) return false;
+    // 自分は足元の白い角括弧。行き先の黄色い矢印・閉じた輪と形でも分ける。
+    // 人の外周を囲うと上向きの矢印に見えるため、足元だけを示す。
     g.save(); g.beginPath();
-    const width = u.mounted ? 18 : 12;
-    g.moveTo(at.x - width, at.y - 2);
-    g.lineTo(at.x, at.y + 3);
-    g.lineTo(at.x + width, at.y - 2);
+    const width = u.mounted ? 20 : 16;
+    g.moveTo(at.x - width, at.y - 6);
+    g.lineTo(at.x - width, at.y + 4);
+    g.lineTo(at.x + width, at.y + 4);
+    g.lineTo(at.x + width, at.y - 6);
     g.lineCap = 'round'; g.lineJoin = 'round';
     g.strokeStyle = '#14120f'; g.lineWidth = 9; g.stroke();
     g.strokeStyle = '#ffffff'; g.lineWidth = 5; g.stroke();

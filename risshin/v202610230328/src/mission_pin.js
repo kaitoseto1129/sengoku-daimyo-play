@@ -14,12 +14,22 @@ function make() {
   el.innerHTML = '<svg width="80" height="80" viewBox="0 0 80 80" aria-hidden="true"><g class="goal-ground" stroke-linejoin="round"><ellipse cx="40" cy="68" rx="30" ry="9" fill="none" stroke="#14120f" stroke-width="10"/><ellipse cx="40" cy="68" rx="30" ry="9" fill="none" stroke="#fff3ba" stroke-width="5"/><path d="M32 8H48V37H61L40 59L19 37H32Z" fill="#fff3ba" stroke="#14120f" stroke-width="4"/></g><path class="goal-edge" d="M12 31H43V17L69 40L43 63V49H12Z" fill="#fff3ba" stroke="#14120f" stroke-width="4" stroke-linejoin="round" style="display:none;transform-origin:40px 40px"/></svg>';
   el.style.cssText = 'position:absolute;left:0;top:0;width:80px;height:80px;pointer-events:none;z-index:3';
   const style = document.createElement('style');
-  style.textContent = '#hud.photo :is(#mission-goal,#mission-flag-frame),#hud.ending :is(#mission-goal,#mission-flag-frame),#hud:has(#bigmap:not([hidden])) :is(#mission-goal,#mission-flag-frame),#hud:has(#cine.on) :is(#mission-goal,#mission-flag-frame){display:none}';
+  style.textContent = '#hud.photo :is(#mission-goal,#mission-flag-frame),#hud.ending :is(#mission-goal,#mission-flag-frame),#hud:has(#bigmap:not([hidden])) :is(#mission-goal,#mission-flag-frame),#hud:has(#cine.on) :is(#mission-goal,#mission-flag-frame){display:none}' +
+    '#hud.field-clean:has(#mission-goal.fire-action:not([hidden])) #prompt.work-action{display:none!important}' +
+    '#mission-goal .goal-label{touch-action:none;user-select:none;box-sizing:border-box}' +
+    '#mission-goal.fire-action .goal-label:focus-visible{outline:3px solid #fff;outline-offset:3px}' +
+    '#mission-goal .fire-progress{position:absolute;bottom:4px;left:8px;right:8px;height:5px;background:#615745}' +
+    '#mission-goal .fire-progress i{display:block;height:100%;background:#fff3ba;width:var(--fire-progress,0%)}';
   el.appendChild(style);
   const label = document.createElement('button');
   label.type = 'button'; label.className = 'goal-label'; label.tabIndex = -1;
   label.style.cssText = 'position:absolute;top:72px;left:50%;transform:translateX(-50%);white-space:nowrap;background:#14120f;color:#fff3ba;border:0;border-radius:4px;padding:4px 8px;font:bold max(16px, calc(16px * var(--text-scale, 1))) sans-serif;line-height:1.4;pointer-events:none';
   el.appendChild(label); el._label = label;
+  const words = document.createElement('span'); label.appendChild(words); el._words = words;
+  const progress = document.createElement('span'); progress.className = 'fire-progress';
+  progress.setAttribute('role', 'progressbar'); progress.setAttribute('aria-label', '火付けの進み具合');
+  progress.setAttribute('aria-valuemin', '0'); progress.setAttribute('aria-valuemax', '100');
+  progress.innerHTML = '<i></i>'; label.appendChild(progress); el._workProgress = progress;
   const release = () => {
     if (el._hud && el._hud.workHoldId === el._work) el._hud.workHoldId = null;
   };
@@ -60,6 +70,13 @@ function make() {
   flag.setAttribute('stroke-width', '4'); flag.setAttribute('stroke-linejoin', 'round');
   flag.setAttribute('class', 'goal-flag');
   el.querySelector('svg').appendChild(flag);
+  const person = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  person.innerHTML = '<circle cx="40" cy="13" r="8" fill="#fff3ba" stroke="#14120f" stroke-width="3"/><path d="M26 48V34Q26 25 40 25Q54 25 54 34V48Z" fill="#fff3ba" stroke="#14120f" stroke-width="3"/>';
+  el.querySelector('svg').appendChild(person); el._person = person;
+  const shield = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  shield.setAttribute('d', 'M22 7H58V30Q58 45 40 55Q22 45 22 30ZM40 15V41M29 26H51');
+  shield.setAttribute('fill', '#fff3ba'); shield.setAttribute('stroke', '#14120f'); shield.setAttribute('stroke-width', '4');
+  el.querySelector('svg').appendChild(shield); el._shield = shield;
   // 実物の布にも、画面端と同じ旗印を付ける。作るのは一度だけ。
   const badge = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   badge.setAttribute('viewBox', '0 0 80 80');
@@ -73,12 +90,14 @@ function make() {
   hold.style.display = 'none';
   el.querySelector('svg').appendChild(hold);
   el._hold = hold; el._progress = hold.querySelector('.goal-progress');
+  el._checks = hold.querySelectorAll('path:not(.goal-progress)');
+  const area = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  area.setAttribute('fill', 'none'); area.setAttribute('stroke', '#fff3ba');
+  area.setAttribute('stroke-width', '3'); area.setAttribute('stroke-linejoin', 'round');
+  area.style.display = 'none';
+  el.querySelector('svg').prepend(area); el._area = area;
+  el._areaPoints = Array.from({ length: 16 }, () => new THREE.Vector3());
   el.querySelector('svg').style.overflow = 'visible';
-  const foot = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  foot.setAttribute('width', '80'); foot.setAttribute('height', '32');
-  foot.innerHTML = '<ellipse cx="40" cy="16" rx="28" ry="8" fill="none" stroke="#14120f" stroke-width="9"/><ellipse cx="40" cy="16" rx="28" ry="8" fill="none" stroke="#fff3ba" stroke-width="4"/>';
-  foot.style.cssText = 'position:absolute;left:0;top:0;overflow:visible;display:none';
-  el.appendChild(foot); el._personFoot = foot;
   return el;
 }
 
@@ -96,6 +115,8 @@ function target(rt) {
   if (m.guidePerson && (!person?.alive || person.gone)) return null;
   tmp.unit = person || null;
   tmp.fire = m.guideSymbol === 'fire';
+  tmp.defend = m.guideDefend || m.guideArea === 'guard';
+  tmp.defensePoint = m.guideDefensePoint;
   tmp.footRing = !!person && person.team === rt.player.u.team;
   // 火の印は家の戸口へ付ける。歩いて作業する位置とは分ける。
   const pos = tmp.fire ? g.pos : m.guideDestination?.() || g.pos;
@@ -119,7 +140,7 @@ export function updateMissionPin(rt) {
   const want = pinGuideOn(rt) && !rt.over && !rt.choice && !rt.hud.introWaiting && rt.player?.u?.alive ? target(rt) : null;
   const closeEnemy = rt.missionGuide?.closeEnemy;
   // 手の届く敵との戦いを優先し、離れた行き先の矢印を同時に出さない。
-  if (!want || !want.fire && !want.footRing && closeEnemy?.alive && !closeEnemy.gone && !closeEnemy.fleeing &&
+  if (!want || !want.fire && !want.footRing && !want.defend && closeEnemy?.alive && !closeEnemy.gone && !closeEnemy.fleeing &&
       Math.hypot(closeEnemy.pos.x - rt.player.u.pos.x, closeEnemy.pos.z - rt.player.u.pos.z) < 4.5 && !rt.holdPct) {
     if (pin) { if (pin._hud?.workHoldId === pin._work) pin._hud.workHoldId = null; pin.hidden = true; }
     return;
@@ -149,15 +170,16 @@ export function updateMissionPin(rt) {
     U.x = want.x; U.z = want.z; U.y = groundAt(rt.world, U.x, U.z, me.y);
   }
   const d = Math.hypot(want.x - me.x, want.z - me.z);
-  const near = want.fire ? -2 : want.hide ?? (want.r ?? 6);
+  const near = want.fire || want.footRing ? -2 : want.hide ?? (want.r ?? 6);
   const marker = rt.missionGuide?.marker;
   const waiting = want.waiting ?? (!want.unit && !!marker && (marker.waitAction || marker.waitGuide || /^(wait|guard)$/.test(marker.guideArea)));
   // 着いた・離れたの境で毎コマ出たり消えたりしない（チカチカ。kaito 10/23 稲生 27）。消えた後は一歩半離れてから出す。
   pin.hidden = !waiting && d <= near + (pin.hidden ? 1.5 : 0);
   if (pin.hidden) return;
   const W = VIEW.w, H = VIEW.h;
-  // 人を追う時は本人の頭上へ固定し、地面の印を自分の印に見せない。
-  if (want.unit) goalPoint.set(want.x, want.unit.pos.y + (want.unit.mounted ? 3.3 : 2.5), want.z);
+  // 仲間への合流は足元へ固定し、ほかの行き先と同じ旗と輪で示す。
+  if (want.unit && want.footRing) goalPoint.set(want.unit.pos.x, want.unit.pos.y + .08, want.unit.pos.z);
+  else if (want.unit) goalPoint.set(want.x, want.unit.pos.y + (want.unit.mounted ? 3.3 : 2.5), want.z);
   else goalPoint.set(U.x, U.y + (want.fire ? 2.5 : .08), U.z);
   // 柱・襖の向こうへ旗を貼らず、同じ行き先の方向矢印へ切り替える。
   const cp = rt.camera.position;
@@ -219,12 +241,48 @@ export function updateMissionPin(rt) {
     for (const part of pin.querySelectorAll('.goal-ground path,.goal-edge,.goal-flag')) part.setAttribute('fill', enemy ? '#ff634d' : '#fff3ba');
   }
   const arrived = !!want.arrived;
-  pin.querySelector('.goal-ground path').style.display = !arrived && want.dodge ? '' : 'none';
+  // 桶狭間の合流範囲は実寸で地面へ投影する。点と高さは行き先が変わった時だけ作り直す。
+  const showArea = rt.def.key === 'okehazama' && want.area && !arrived && !outside;
+  pin._area.style.display = showArea ? '' : 'none';
+  if (showArea) {
+    if (pin._areaRt !== rt || pin._areaX !== want.x || pin._areaZ !== want.z || pin._areaR !== want.r) {
+      pin._areaRt = rt; pin._areaX = want.x; pin._areaZ = want.z; pin._areaR = want.r;
+      for (let i = 0; i < pin._areaPoints.length; i++) {
+        const a = i * Math.PI * 2 / pin._areaPoints.length;
+        const ax = want.x + Math.cos(a) * want.r, az = want.z + Math.sin(a) * want.r;
+        pin._areaPoints[i].set(ax, groundAt(rt.world, ax, az, me.y) + .08, az);
+      }
+    }
+    let path = '', visible = true;
+    for (let i = 0; i < pin._areaPoints.length; i++) {
+      areaPoint.copy(pin._areaPoints[i]).project(rt.camera);
+      if (areaPoint.z < -1 || areaPoint.z > 1) { visible = false; break; }
+      path += `${i ? 'L' : 'M'}${((areaPoint.x + 1) * W / 2 - x + 40).toFixed(1)} ${((1 - areaPoint.y) * H / 2 - y + 68).toFixed(1)}`;
+    }
+    pin._area.setAttribute('d', visible ? path + 'Z' : '');
+  }
+  pin.querySelector('.goal-ground path').style.display = !arrived && (want.dodge || want.defend) ? '' : 'none';
   const flag = pin.querySelector('.goal-flag');
-  flag.style.display = person || inouEnemy || want.fire || want.dodge || arrived && !person && !outside ? 'none' : '';
-  pin._hold.style.display = arrived && !person && !outside ? '' : 'none';
+  const showHold = arrived && (!person || want.footRing) && !want.defend && !outside;
+  flag.style.display = person || want.defend || inouEnemy || want.fire || want.dodge || showHold ? 'none' : '';
+  pin._person.style.display = person && !enemy && !showHold ? '' : 'none';
+  pin._person.setAttribute('transform', outside ? 'translate(10,-24) scale(.75)' : '');
+  pin._shield.style.display = want.defend ? '' : 'none';
+  pin._shield.setAttribute('transform', outside ? 'translate(10,-24) scale(.75)' : '');
+  // 盾は守る柵、輪と下向きの矢印は立つ床へ。柵の向こう側へ誘わない。
+  if (want.defend && want.defensePoint && !outside) {
+    const post = want.defensePoint;
+    goalPoint.set(post.x, groundAt(rt.world, post.x, post.z, me.y) + 1.5, post.z).project(rt.camera);
+    const sx = (goalPoint.x + 1) * W / 2, sy = (1 - goalPoint.y) * H / 2;
+    if (goalPoint.z < -1 || goalPoint.z > 1 || !goalFree(sx, sy, W, H, rects)) pin._shield.style.display = 'none';
+    else pin._shield.setAttribute('transform', `translate(${(sx - x).toFixed(1)},${(sy - y + 13).toFixed(1)})`);
+  }
+  pin._hold.style.display = showHold ? '' : 'none';
   if (arrived) {
     const progress = Number.isFinite(want.progress) ? Math.max(0, Math.min(1, want.progress)) : 0;
+    // 待っている途中を完了のチェックに見せない。満ちる丸を合図まで見せる。
+    for (const check of pin._checks)
+      check.style.display = rt.def.key === 'okehazama' && Number.isFinite(want.progress) && progress < 1 ? 'none' : '';
     // 満ち切る直前まで扇形。完了は円にして合図の時刻とそろえる。
     const angle = Math.PI * 2 * Math.min(progress, .9999);
     pin._progress.setAttribute('d', progress >= 1
@@ -233,22 +291,11 @@ export function updateMissionPin(rt) {
   }
   // 端では同じ旗を矢印の上へ置き、見えている時は目的の人や床に竿を合わせる。
   flag.setAttribute('transform', outside ? 'translate(0,-24) scale(.75)' : '');
-  // 人の頭上や回避の矢印には輪を重ねず、地面の行き先だけに付ける。
-  const groundRing = !person && !want.dodge;
+  // 合流する仲間は人の印と足元の輪。回避の矢印には重ねない。
+  const groundRing = (!person || want.footRing) && !want.dodge;
   if (pin._groundRing !== groundRing) {
     pin._groundRing = groundRing;
     for (const ring of pin._rings) ring.style.display = groundRing ? '' : 'none';
-  }
-  // 本人の頭と足を同じ現在位置から投影する。旗の位置や群れの中心へ輪をずらさない。
-  const foot = pin._personFoot;
-  foot.style.display = 'none';
-  if (person && want.footRing && !behind && !occluded) {
-    footPoint.set(want.unit.pos.x, want.unit.pos.y + .08, want.unit.pos.z).project(rt.camera);
-    const fx = (footPoint.x + 1) * W / 2, fy = (1 - footPoint.y) * H / 2;
-    if (footPoint.z >= -1 && footPoint.z <= 1 && fx >= 32 && fx <= W - 32 && fy >= 16 && fy <= H - 16 &&
-        !rects.some(r => fx + 32 > r.left && fx - 32 < r.right && fy + 14 > r.top && fy - 14 < r.bottom)) {
-      foot.style.display = ''; foot.style.transform = `translate(${(fx - x).toFixed(1)}px,${(fy - y + (outside ? 24 : 52)).toFixed(1)}px)`;
-    }
   }
   const arrow = pin.querySelector('.goal-edge');
   arrow.style.display = outside ? '' : 'none';
@@ -275,8 +322,15 @@ export function updateMissionPin(rt) {
   const action = want.fire ? rt.nearestInteract() : null;
   const working = !!action?.hold && /火/.test(action.label) && action.id === marker?.id;
   const label = pin._label;
-  const text = rt.def.key === 'inou' ? '' : want.fire ? working ? '火をつける（長押し）' : rt.G.lord ? '足軽が火をつける家' : 'この家で「火をつける」を長押し' : want.footRing ? 'この人のそばへ' : outside ? 'ここへ' : '';
-  if (label.textContent !== text) label.textContent = text;
+  const text = rt.def.key === 'inou' || rt.def.key === 'okehazama' ? '' : want.fire ? working ? '火をつける（長押し）' : rt.G.lord ? '足軽が火をつける家' : '火の家へ' : want.footRing ? 'この人' : want.defend ? 'さくの内へ' : outside ? 'ここへ' : '';
+  if (pin._words.textContent !== text) pin._words.textContent = text;
+  pin.classList.toggle('fire-action', working);
+  const progress = working && rt.holdId === action.id ? Math.round(Math.max(0, Math.min(1, rt.holdPct || 0)) * 100) : 0;
+  pin._workProgress.hidden = !working;
+  if (pin._workProgress.getAttribute('aria-valuenow') !== String(progress)) {
+    pin._workProgress.setAttribute('aria-valuenow', progress);
+    label.style.setProperty('--fire-progress', `${progress}%`);
+  }
   label.hidden = !text;
   // 短い案内を端で切らず、同じ印の幅の中へ収める。
   label.style.maxWidth = '220px'; label.style.whiteSpace = 'normal';
@@ -285,6 +339,9 @@ export function updateMissionPin(rt) {
   label.style.pointerEvents = working ? 'auto' : 'none';
   label.style.minHeight = working ? '44px' : '0';
   label.style.width = working ? '208px' : 'max-content';
+  label.style.border = working ? '2px solid #fff3ba' : '0';
+  label.style.padding = working ? '8px 12px 14px' : '4px 8px';
+  label.style.background = working ? '#29251c' : '#14120f';
   label.tabIndex = working ? 0 : -1;
   if (pin._work && pin._work !== (working ? action.id : null) && hud.workHoldId === pin._work) hud.workHoldId = null;
   pin._work = working ? action.id : null; pin._hud = hud; pin._rt = rt;
@@ -292,7 +349,7 @@ export function updateMissionPin(rt) {
   // 丸めず小数一桁で置き、地面に固定する。
   pin.style.transform = `translate(${(x - 40).toFixed(1)}px,${(y - (outside ? 40 : 68)).toFixed(1)}px)`;
 }
-const footPoint = new THREE.Vector3();
+const areaPoint = new THREE.Vector3();
 const goalPoint = new THREE.Vector3();
 const goalDirection = new THREE.Vector3();
 const pinAt = { x: 0, z: 0, y: 0, ox: 0, oy: 0, at: 0, rt: null };

@@ -32,10 +32,11 @@ export class HudOpening {
     const goal = battle ? openingGoal(battle) : '味方と命令を果たし、生きて戻る';
     this.opening?.dispose();
     this.opening = battle && !battle.def.town && !battle.def.dojo ? new BattleOpening(this, battle) : null;
-    if (battle?.firstBattle || battle?.def.key === 'moribe') {
+    if (battle?.firstBattle || battle?.def.key === 'moribe' || battle?.def.key === 'okehazama') {
       // kaito の導入の結びだけを短く見せ、追加の操作は求めない。
       // 森部は説明を読ませず、川と岸のピンが見える戦場から始める。
-      el.innerHTML = battle.def.key === 'moribe' ? '' : '<div class="card"><p>あなたは信長方の足軽として、林勢を追う。</p></div>';
+      const immediate = battle.def.key === 'moribe' || battle.def.key === 'okehazama';
+      el.innerHTML = immediate ? '' : '<div class="card"><p>あなたは信長方の足軽として、林勢を追う。</p></div>';
       el.style.pointerEvents = 'none';
       clearTimeout(this.introT);
       this.introT = setTimeout(() => {
@@ -49,7 +50,7 @@ export class HudOpening {
         try { localStorage.setItem('risshin-intro-read', '1'); } catch (e) { /* 記録できなくても進む */ }
         this.introWaiting = false; el.hidden = true;
         $('cine').classList.remove('on'); this.onIntroReady?.();
-      }, automatic || battle.def.key === 'moribe' ? 0 : 1800);
+      }, automatic || immediate ? 0 : 1800);
       return;
     }
     const instruction = battle?.def.introText;
@@ -72,7 +73,13 @@ export class HudOpening {
     // 札の外は指を受け取らない。出陣待ちの停止は保つ。
     el.querySelector('.sides').innerHTML = `味方　${esc(openingSide('a'))}<em>対</em>敵　${esc(openingSide('b'))}`;
     // 指定した戦では、下知と勝つ条件を読んでから人物紹介へ送る。
-    if (battle?.def.key === 'moribe') {
+    if (battle?.def.key === 'okehazama') {
+      // 横長の携帯でも一画面で読む。説明の開閉と、送らないと読めない長文は置かない。
+      const reading = el.querySelector('.intro-reading');
+      for (const p of reading.querySelectorAll('p')) p.remove();
+      reading.insertAdjacentHTML('beforeend', '<p id="intro-wait"><b>今川義元を倒し、味方と帰る</b></p>');
+    }
+    else if (battle?.def.key === 'moribe') {
       // 最初の一手だけを読む。以後の下知は戦場の任務で一つずつ示す。
       for (const p of el.querySelectorAll('.intro-reading > p:not(#intro-wait)')) p.remove();
     }
@@ -82,8 +89,6 @@ export class HudOpening {
     const peopleReadLabel = battle?.def.key === 'inou' ? '戦いの前の話を読む' : '人物と戦場の説明を読む';
     if (peopleToggle) {
       peopleToggle.textContent = peopleReadLabel;
-      // 桶狭間の説明釦は本文の外へ。横長の携帯でも途中で切れず、出陣前に開ける。
-      if (battle?.def.key === 'okehazama') el.querySelector('#intro-go').before(peopleToggle);
       for (const name of ['pointerdown', 'pointerup']) peopleToggle.addEventListener(name, e => e.stopPropagation());
       peopleToggle.onclick = e => {
         e.preventDefault(); e.stopPropagation();
@@ -97,7 +102,7 @@ export class HudOpening {
         }
       };
     }
-    if (battle?.def.key === 'inou' || battle?.def.key === 'okehazama') {
+    if (battle?.def.key === 'inou') {
       el.querySelector('#intro-go').insertAdjacentHTML('beforebegin', '<small class="intro-scroll">説明欄は上下に送れます</small>');
     }
     if (battle?.def.key === 'inou') {
@@ -123,18 +128,6 @@ export class HudOpening {
         pages.querySelector(selector).onclick = e => { e.preventDefault(); e.stopPropagation(); page = Math.max(0, Math.min(cards.length - 1, page + direction)); showPage(); };
       }
       showPage();
-    }
-    if (battle?.def.key === 'okehazama') {
-      // 戦場と同じ矢印の形を、最初の下知の横で見せる。
-      el.querySelector('#intro-wait').insertAdjacentHTML('afterbegin', '<svg class="intro-pin" viewBox="0 0 80 80" aria-hidden="true"><ellipse cx="40" cy="68" rx="30" ry="9" fill="none" stroke="#fff3ba" stroke-width="5"/><path d="M32 8H48V37H61L40 59L19 37H32Z" fill="#fff3ba" stroke="#14120f" stroke-width="4"/></svg>');
-      el.querySelector('#intro-people-body').insertAdjacentHTML('beforeend', '<p>義元（よしもと）が倒れると、仲間が帰る場所に旗を立てる。最後は黄色い矢印の旗へ戻ろう。</p>');
-      if (peopleToggle) {
-        const toggle = peopleToggle.onclick;
-        peopleToggle.onclick = e => {
-          toggle(e);
-          if (!el.querySelector('#intro-people-body').hidden) el.querySelector('#intro-people-body').scrollIntoView({ block: 'start' });
-        };
-      }
     }
     decorateTerms(el.querySelector('.intro-reading'));
     el.style.pointerEvents = 'none';

@@ -57,7 +57,7 @@ function build(rt, root) {
   (root || document.body).appendChild(box);
   // 任務でねらう一人だけを的で示す。兵の体を隠さず、文字の札も増やさない。
   const focus = document.createElement('div');
-  focus.style.cssText = 'position:absolute;width:32px;height:32px;pointer-events:none';
+  focus.style.cssText = 'position:absolute;width:48px;height:48px;pointer-events:none';
   focus.innerHTML = '<svg viewBox="0 0 32 32" aria-hidden="true"><g fill="none" stroke="#14120f" stroke-width="7"><circle cx="16" cy="16" r="10"/><path d="M16 1V8M16 24V31M1 16H8M24 16H31"/></g><g fill="none" stroke="#fff3ba" stroke-width="3"><circle cx="16" cy="16" r="10"/><path d="M16 1V8M16 24V31M1 16H8M24 16H31"/></g><circle cx="16" cy="16" r="3" fill="#ff634d"/></svg>';
   focus.hidden = true; box.appendChild(focus);
   // 戦う相手の足元の輪と頭上の刀は出さない。敵は頭上の赤い▼だけ（kaito 10/23「足元の輪」は要らない・見え隠れでちらつく）。
@@ -79,20 +79,21 @@ export function fieldSignsTick(rt, root) {
   const me = rt.player.u, cam = rt.camera, P = cam.position, q = cam.quaternion;
   const photo = root?.classList?.contains('photo') || rt.player.camShot;
   const hide = photo || rt.hud?.introWaiting;
-  // 任務で追う一人の▼を大きくする。形・材質・描画回数は増やさない。
-  const missionEnemy = rt.def.missionSignTarget?.(rt);
+  // 任務の一人に大きな的を付ける。名のない兵も、見えていれば示す。
+  const missionEnemy = rt.def.missionSignTarget?.(rt) ||
+    (rt.guideEnemyShown ? rt.guideEnemy : null);
   const focus = s.focus;
   let focused = false;
-  if (!hide && !rt.over && !rt.choice && missionEnemy?.alive && !missionEnemy.gone &&
+  if (rt.def.key !== 'okehazama' && rt.def.key !== 'moribe' && !hide && !rt.over && !rt.choice && missionEnemy?.alive && !missionEnemy.gone &&
       !missionEnemy.dying && !missionEnemy.woundOut && missionEnemy.team !== me.team &&
-      enemyKnown(rt, missionEnemy) && sightScreenUnit(rt, missionEnemy)) {
+      (!missionEnemy.name || enemyKnown(rt, missionEnemy)) && sightScreenUnit(rt, missionEnemy)) {
     v.set(missionEnemy.pos.x, headY(missionEnemy) + .6, missionEnemy.pos.z).project(cam);
     const x = (v.x + 1) * innerWidth / 2, y = (1 - v.y) * innerHeight / 2;
     const focusRects = rt.hud?.hudRects();
-    if (v.z >= -1 && v.z <= 1 && x >= 20 && x <= innerWidth - 20 && y >= 20 && y <= innerHeight - 20 &&
-        !focusRects?.some(r => x + 18 > r.left && x - 18 < r.right && y + 18 > r.top && y - 18 < r.bottom)) {
+    if (v.z >= -1 && v.z <= 1 && x >= 28 && x <= innerWidth - 28 && y >= 28 && y <= innerHeight - 28 &&
+        !focusRects?.some(r => x + 26 > r.left && x - 26 < r.right && y + 26 > r.top && y - 26 < r.bottom)) {
       focused = true;
-      focus.style.transform = `translate(${(x - 16).toFixed(1)}px,${(y - 16).toFixed(1)}px)`;
+      focus.style.transform = `translate(${(x - 24).toFixed(1)}px,${(y - 24).toFixed(1)}px)`;
     }
   }
   if (focus.hidden === focused) focus.hidden = !focused;
@@ -106,10 +107,11 @@ export function fieldSignsTick(rt, root) {
     const foe = u.team !== me.team;
     if (general(u) && (d2 < GEN_R * GEN_R || d2 < GEN_R * GEN_R * 1.3 && s.bound?.includes(u)) && !u.woundOut) { u._fsD = d2; gens.push(u); }
     // 稲生・森部は敵の赤い▼だけ。味方の丸と重ねて所属を迷わせない。
-    if ((moribe || inou) && !foe) continue;
+    if ((moribe || inou || rt.def.key === 'okehazama') && !foe) continue;
     if (inou && (u.mesh?.visible === false || u.rearWound)) continue;
-    // 森部は渡る前から対岸の先手を示す。境には幅を持たせ、ちらつきを防ぐ。
-    const signRadius = moribe || inou ? (u._fsOn ? 100 : 90) : (u._fsOn ? FOE_OUT : FOE_R);
+    // 森部の一般兵は元の距離に戻し、対岸一面を赤い印で埋めない。
+    // 任務の相手と稲生の案内は残す。境には幅を持たせ、ちらつきを防ぐ。
+    const signRadius = inou || moribe && u === missionEnemy ? (u._fsOn ? 100 : 90) : (u._fsOn ? FOE_OUT : FOE_R);
     u._fsOn = d2 < signRadius * signRadius;
     if ((foe && u.noTarget && !rt.def.foeMarkVisible?.(rt, u)) || !u._fsOn || (foe ? n : a) >= CAP) continue;
     // 敵の三角は味方の丸より大きくし、乱戦でも形を読み取れる幅に保つ。
@@ -130,15 +132,19 @@ export function fieldSignsTick(rt, root) {
     if (v.z >= 0) continue;
     // 届く相手を最優先にし、遠い任務の相手を同時に大きくしない。
     const readyEnemy = inou && rt.player.inRange ? rt.player.rangeCueTarget : null;
-    const pixels = inou ? (u === readyEnemy ? 22 : u === missionEnemy && !readyEnemy ? 17 : 10) :
-      u === missionEnemy ? 17 : moribe ? 8 : foe ? 16 : 10;
+    const pixels = moribe ? (u === missionEnemy ? 17 : d2 < 20 * 20 ? 12 : 9) :
+      inou ? (u === readyEnemy ? 22 : u === missionEnemy && !readyEnemy ? 17 : 10) :
+      u === missionEnemy ? 17 : foe ? 16 : 10;
     // 稲生・森部では命を減らした相手の▼だけを一度大きくし、滑らかに戻す。
     // 頭上の先端は固定し、既存の形・材質・描画の束をそのまま使う。
     const hit = foe && (moribe || inou) ? Math.min(1, Math.max(0, ((inou ? u.inouHitUntil : u.moribeHitUntil) || 0) - rt.t) / .7) : 0;
     const reachable = (moribe || inou) && foe && rt.player.inRange && rt.player.rangeCueTarget === u;
-    const k = Math.min(3, pixels * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) * (1 + (hit > 0 ? 1.2 * hit : reachable && !inou ? .55 : 0));
+    // 森部の命中は同じ赤い▼を大きくして示す。空振りでは変わらない。
+    const width = moribe ? pixels + 10 * hit : pixels;
+    const k = Math.min(moribe ? 1.6 : 3, width * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) *
+      (moribe ? 1 : 1 + (hit > 0 ? 1.2 * hit : reachable && !inou ? .55 : 0));
     dummy.position.copy(headPos);
-    dummy.quaternion.copy(q); dummy.scale.set(k * (1 + .5 * hit + (inou && reachable ? .35 : 0)), k, k); dummy.updateMatrix();
+    dummy.quaternion.copy(q); dummy.scale.set(moribe ? k : k * (1 + .5 * hit + (inou && reachable ? .35 : 0)), k, k); dummy.updateMatrix();
     if (foe) s.marks.setMatrixAt(n++, dummy.matrix);
     else s.allies.setMatrixAt(a++, dummy.matrix);
   }
