@@ -63,7 +63,13 @@ export class Hud {
     entrance.addEventListener('keydown', (e) => { if (e.target.closest('[data-talk]')) e.stopPropagation(); });
     // 作業の札そのものを長押しできる。進み具合の更新でボタンを作り直さない。
     this.workHoldId = null;
-    const releaseWork = () => { this.workHoldId = null; };
+    const releaseWork = () => {
+      const rt = this.rt;
+      if (this.workHoldId === 'bandage' && rt?.holdId === 'bandage' && rt.holdPct > 0 &&
+          !rt.over && !rt.game.paused && rt.player.u.alive)
+        this.flash('手当てはまだ。ボタンを三秒押し続ける', 'dim');
+      this.workHoldId = null;
+    };
     const startWork = (button) => {
       const rt = this.rt;
       const it = button.dataset.work === 'bandage' ? rt?.interacts.find(item => item.id === 'bandage') : rt?.nearestInteract();

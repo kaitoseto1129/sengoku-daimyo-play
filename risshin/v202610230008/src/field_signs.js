@@ -52,15 +52,17 @@ export function fieldSignsTick(rt, root) {
   const me = rt.player.u, cam = rt.camera, P = cam.position, q = cam.quaternion;
   const photo = root?.classList?.contains('photo') || rt.player.camShot;
   const hide = photo || rt.hud?.introWaiting;
+  // 桶狭間の任務の相手だけ、既存の▼を大きくする。形・材質・描画回数は増やさない。
+  const missionEnemy = rt.def.key === 'okehazama' && rt.def.missionSignTarget?.(rt);
   let n = 0, b = 0;
   const gens = s.gens; gens.length = 0;
   if (!hide) for (const u of rt.army.units) {
     if (!u.alive || u.gone || u.isPlayer || u.isStruct || u.civ || u.type === 'dummy' || u.type === 'porter' || u.team > 1) continue;
     const dx = u.pos.x - P.x, dz = u.pos.z - P.z, d2 = dx * dx + dz * dz;
     const foe = u.team !== me.team;
-    if (general(u) && d2 < GEN_R * GEN_R && !u.woundOut) { u._fsD = d2; gens.push(u); }
-    if (!foe || u.noTarget || d2 > FOE_R * FOE_R || n >= CAP) continue;
-    const k = Math.min(1.6, Math.max(1, Math.sqrt(d2) / 26));
+    if (general(u) && (d2 < GEN_R * GEN_R || d2 < GEN_R * GEN_R * 1.3 && s.bound?.includes(u)) && !u.woundOut) { u._fsD = d2; gens.push(u); }
+    if (!foe || (u.noTarget && !rt.def.foeMarkVisible?.(rt, u)) || d2 > FOE_R * FOE_R || n >= CAP) continue;
+    const k = Math.min(1.6, Math.max(1, Math.sqrt(d2) / 26)) * (u === missionEnemy ? 1.6 : 1);
     dummy.position.set(u.pos.x, headY(u) + (general(u) ? 0.05 : 0), u.pos.z);
     dummy.quaternion.copy(q); dummy.scale.set(k, k, k); dummy.updateMatrix();
     s.marks.setMatrixAt(n++, dummy.matrix);
@@ -83,8 +85,15 @@ export function fieldSignsTick(rt, root) {
   s.bars.count = b; s.bars.instanceMatrix.needsUpdate = true; if (s.bars.instanceColor) s.bars.instanceColor.needsUpdate = true;
   // 武将の名（敵は薄い朱、味方は金）。戦が終わっても、戦の画面がある間は出し続ける。
   const W = innerWidth, H = innerHeight;
+  // 名札は一人に一枚を貼り続ける（毎コマ近い順に付け替えると字が入れ替わってちらつく。kaito 10/23「名前もチカチカ」）。
+  const bound = s.bound || (s.bound = new Array(NAMES).fill(null));
+  for (let i = 0; i < NAMES; i++) { const u = bound[i]; if (u && (!u.alive || u.gone || u.woundOut || !gens.includes(u))) bound[i] = null; }
+  for (const u of gens) {
+    if (bound.includes(u)) continue;
+    const free = bound.indexOf(null); if (free < 0) break; bound[free] = u;
+  }
   for (let i = 0; i < NAMES; i++) {
-    const e = s.labels[i], u = gens[i];
+    const e = s.labels[i], u = bound[i];
     if (!u) { if (!e.hidden) e.hidden = true; continue; }
     const k = Math.min(2.2, Math.max(1, Math.sqrt(u._fsD) / 22));
     v.set(u.pos.x, headY(u) + 0.5 * k, u.pos.z).project(cam);

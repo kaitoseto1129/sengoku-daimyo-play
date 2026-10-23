@@ -12,7 +12,6 @@ import { GENERALS, WOUND_FLOOR } from './units.js';
 import { lordGame, lordList } from './lord.js';
 import { depthBot } from './b_depth.js';
 import { botInput as fake } from './bot_input.js';
-import { retreatDodge } from './bot_retreat.js';
 
 const Q = new URLSearchParams(location.search);
 const ONLY = Q.get('only') ? new Set(Q.get('only').split(',')) : null;
@@ -177,12 +176,11 @@ function survive(b, inp) {
     // 長い溜めの間は歩いて息を戻し、指と体の向き直りを見込んで刃を受ける。
     const turnToStrike = attacker ? Math.atan2(attacker.pos.x - u.pos.x, attacker.pos.z - u.pos.z) - u.heading : 0;
     const guardLead = Math.cos(turnToStrike) < 0.5 ? 1.3 : 0.9;
-    inp.runHeld = false; inp.guardHold = !!attacker && impact <= guardLead;
+    inp.runHeld = false;
     if (retreating && foe && (fd < 8 || md > 6)) {
       // 退避中も実際の打ち手を受ける。近いだけの敵へ向くと、横からの一撃が構えを抜ける。
       const face = attacker || pursuer || foe;
       // 狙いを残すと、指で向き直っても更新時に別の敵へ引き戻される。
-      if (p.lock && p.lock !== face) inp.e.add('KeyQ');
       p.yaw = Math.atan2(face.pos.x - u.pos.x, face.pos.z - u.pos.z);
       // 味方へ戻る方向を、敵に向いたまま前後左右の歩みに替える。
       let dx = mate ? mate.pos.x - u.pos.x : u.pos.x - (close ? ex / close : foe.pos.x);
@@ -250,18 +248,10 @@ function survive(b, inp) {
       axis.x = side; axis.y = -fw; inp.axis = axis;
       // 志賀の孤立や三方ヶ原の手負いでは、走れるうちに列へ戻る。
       // 刃が離れた隙だけ走り、次の構えと回避に使う気力は残す。
-      inp.runHeld = !bladeNear && !inp.guardHold && impact > guardLead &&
+      inp.runHeld = !bladeNear && impact > guardLead &&
         u.hp > u.maxHp * 0.4 && p.sta > p.maxSta * 0.45 && Math.hypot(dx, dz) > 0.5;
       // 二方向の刃や、体がまだ向けていない刃には人と同じ回避を使う。
       // 普通の一歩が空いていても、三歩分の途中の切岸・兵・戦ごとの退路を調べる。
-      // その向きが塞がれていれば、退く側の斜めや横の隙間へかわす。
-      // 次の一撃で倒れる深手と構え崩れでは、受ける余力より目前の回避を優先する。
-      // 元気な時は従来どおり四割を残す。回避そのものの消費は二十のまま。
-      if ((crossedStrikes || uncovered || critical) && impact <= 0.35 && Math.hypot(dx, dz) > 0.5 &&
-          !p.mounted && p.dodgeT <= -0.3 && !(p.knockT > 0) && !u.climb &&
-          p.sta >= 20 + (critical || p.guardBroken > 0 ? 0 : p.maxSta * 0.4)) {
-        retreatDodge(b, inp, Math.atan2(dx, dz), b.def.botRetreatStepAllowed);
-      }
       // 深手や包囲から退く時は、振りが途切れても歩みを止めない。
       // 反撃のための半秒の待ちで止まると、次の打ち込みで退避をやり直し続ける。
       // 一人を相手にし、元気か、手当てを終えて味方の列へ戻れた時だけ隙を突く。
@@ -272,30 +262,26 @@ function survive(b, inp) {
           (p.weapon === 'sword' || p.weapon === 'spear')) {
         // 突きの待ち時間に構え直すと、槍を解く半秒を毎回やり直してしまう。
         patientStrike(p, inp, face, faceDist);
-        if (!inp.guardHold) {
-          inp.axis = null;
-          inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
-        }
+        inp.axis = null;
+        inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
       }
       return true;
     }
     if (!foe && mate && md > 6) {
       goTo(p, inp, mate.pos.x, mate.pos.z, 4);
-      inp.guardHold = false; inp.runHeld = false;
+      inp.runHeld = false;
       return true;
     }
     if ((!foe || fd >= 8) && mate && canTreat && hurt && !(b.botTreatNext > b.t)) {
       if (!b.botTreatUntil) b.botTreatUntil = b.t + 12;
       const back = b.def.botTreatmentPoint?.(b);
-      if (p.lock) inp.e.add('KeyQ');
       if (p.treatmentReady) inp.k.add('KeyE');
       else if (back) goTo(p, inp, back.x, back.z, 1);
       else if (md > 4) goTo(p, inp, mate.pos.x, mate.pos.z, 4);
       else {
         // 被弾から六秒、安全に立ち止まり、三秒長押しして縛る。
         // 敵を狙う癖や狙いの固定を残すと、手当て可能にならない。
-        inp.guardHold = false;
-        if (p.lock) inp.e.add('KeyQ');
+       
         if (p.treatmentReady) inp.k.add('KeyE');
       }
       if (b.t < b.botTreatUntil) return true;
@@ -369,7 +355,7 @@ function patientStrike(p, inp, e, d, windupOpening = false) {
   const striking = safe && (opening || p.botStrikeUntil > p.time);
   // 打ち込みがない間は構えを解いて気力を戻す。隙がなくても構え続けると、
   // 突くための気力を失い、次の打ち込みで構えまで崩れてしまう。
-  inp.guardHold = !striking && !!attacking;
+ 
   inp.runHeld = false; inp.chargeHold = false;
   inp.leftPressed = striking && canStrike(p, e) && p.cd <= 0 && !p.pending && p.sta > p.maxSta * 0.35 &&
     (p.weapon === 'sword' || p.weapon === 'spear') &&
@@ -382,7 +368,7 @@ export function brain(b, inp) {
   const game = b.game;
   if (game?.battle === b && openingWait(game)) {
     inp.k.clear(); inp.e.clear(); inp.axis = null;
-    inp.leftPressed = false; inp.guardHold = false; inp.runHeld = false;
+    inp.leftPressed = false; inp.runHeld = false;
     inp.chargeHold = false; inp.quickCmd = null;
     finishDeployment(game);
     enterBattle(game);
@@ -397,7 +383,7 @@ export function brain(b, inp) {
   b.botFollowingTaba = false;
   // 決着後も追手は動く。退却中は操作を止めず、殿の後ろへ離れる。
   if (b.withdrawal && !b.ended && u.alive) {
-    inp.k.clear(); inp.e.clear(); inp.leftPressed = false; inp.guardHold = false;
+    inp.k.clear(); inp.e.clear(); inp.leftPressed = false;
     inp.runHeld = false; inp.chargeHold = false; inp.quickCmd = null;
     const foe = b.army.nearestEnemy(u, 40, (o) => !o.fleeing && !o.noTarget && !o.isStruct);
     if (b.def.botWithdraw) b.def.botWithdraw(b, inp, { goTo });
@@ -428,7 +414,6 @@ export function brain(b, inp) {
     }
     if (face) {
       const walkYaw = p.yaw, walking = inp.k.has('KeyW');
-      if (p.lock && p.lock !== face) inp.e.add('KeyQ');
       p.yaw = Math.atan2(face.pos.x - u.pos.x, face.pos.z - u.pos.z);
       if (walking) {
         inp.k.delete('KeyW');
@@ -437,10 +422,9 @@ export function brain(b, inp) {
         const axis = b._botWithdrawAxis || (b._botWithdrawAxis = { x: 0, y: 0 });
         axis.x = -Math.sin(da); axis.y = -Math.cos(da); inp.axis = axis;
       }
-      inp.guardHold = true;
+     
       inp.runHeld = false;
     } else {
-      if (p.lock) inp.e.add('KeyQ');
       // 追手の刃が届かない間に息を戻し、構えが崩れたまま走り続けない。
       if (p.sta < p.maxSta * 0.35) b.botWithdrawBreath = true;
       else if (p.sta >= p.maxSta * 0.6) b.botWithdrawBreath = false;
@@ -451,7 +435,7 @@ export function brain(b, inp) {
   }
   // 操作できない終戦の演出では、直前の入力を持ち越さない。
   if (b.over || b.ended || b.flags.ending) {
-    inp.k.clear(); inp.e.clear(); inp.leftPressed = false; inp.guardHold = false;
+    inp.k.clear(); inp.e.clear(); inp.leftPressed = false;
     inp.runHeld = false; inp.chargeHold = false; inp.quickCmd = null;
     return;
   }
@@ -459,7 +443,7 @@ export function brain(b, inp) {
   // 手綱を取る一秒ほどは歩く判断を休む。別の頭が持ち場へ歩かせると、
   // 手綱が届かなくなり、乗る前に取り消される。
   if (p.catching) {
-    inp.k.clear(); inp.e.clear(); inp.leftPressed = false; inp.guardHold = false;
+    inp.k.clear(); inp.e.clear(); inp.leftPressed = false;
     inp.runHeld = false; inp.chargeHold = false; inp.quickCmd = null;
     b.botSurviving = false;
     return;
@@ -499,12 +483,12 @@ export function brain(b, inp) {
     if (d > 2.4) inp.k.add('KeyW');
     if (d < 3.2 && Math.random() < 0.5) inp.leftPressed = true;
     // 予兆を見たら構える
-    inp.guardHold = (b.army.threats || []).length > 0 && Math.random() < 0.6;
+   
     // 号令は2秒に一度まで（人が連打しないのと同じ）
     if (b.squad.length && b.squadGroups[0].order !== 'attack' && d < 20 && (b.index !== 1 || b.flags.signal) && !(b.botCmdT > b.t)) { inp.e.add('KeyC'); b.botCmdT = b.t + 2; }
     return;
   }
-  inp.guardHold = false;
+ 
   if (b.squad.length && b.squadGroups[0].order === 'attack' && !(b.botCmdT > b.t)) { inp.e.add('KeyZ'); b.botCmdT = b.t + 2; }
   // 任務の印へ向かう
   // 墨俣では砦を離れすぎない（旗を追って砦を空けない）
@@ -550,7 +534,7 @@ function shitaraPost(b, inp, post) {
 function shitaraBrain(b, inp) {
   const p = b.player, u = p.u, F = b.flags;
   inp.k.delete('KeyW');
-  inp.leftPressed = false; inp.chargeHold = false; inp.guardHold = false;
+  inp.leftPressed = false; inp.chargeHold = false;
   const inside = !F.pursuit;
   const post = F.pendingWave ? F.commandPt : F.wave === 0 ? F.prepPt : F.commandPt;
   const waiting = inside && (!F.close || F.waveRest || F.cur?.doneWave);
@@ -573,7 +557,6 @@ function shitaraBrain(b, inp) {
       p.weapon === 'spear' && Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < reach));
   if (e) {
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
-    if (p.lock && p.lock !== e) inp.e.add('KeyQ');
     p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
     // 受け止める下知の後は、近い敵にも突きの間合いまで寄る。
     // 「近い敵」と見ただけで止まると、敵の槍だけが届く距離で構え続けてしまう。
@@ -581,7 +564,7 @@ function shitaraBrain(b, inp) {
     if (d > reach && (!waiting || e.pos.x < 0) && (!inside || u.pos.x < 12.4)) goTo(p, inp, e.pos.x, e.pos.z, reach * 0.9);
     // 打ち込み中は受け、隙に構えを解いて突く。構えたままの連打は払いになり、気力を失う。
     if (d < reach) patientStrike(p, inp, e, d);
-    else { inp.guardHold = !!attacker; inp.runHeld = false; }
+    else { inp.runHeld = false; }
     return;
   }
   if (inside) {
@@ -705,18 +688,16 @@ function cover(b, inp) {
     const d = Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
     if (d < ad) { face = o; ad = d; }
   }
-  if (p.lock && p.lock !== face) inp.e.add('KeyQ');
   p.yaw = Math.atan2(face.pos.x - u.pos.x, face.pos.z - u.pos.z);
   // 鉄砲を避ける時も、横からの槍には正面を向けて構える。
-  inp.guardHold = face !== s; inp.leftPressed = false; inp.chargeHold = false;
+  inp.leftPressed = false; inp.chargeHold = false;
   inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.k.delete('KeyE');
   const fw = (step.x - u.pos.x) * Math.sin(p.yaw) + (step.z - u.pos.z) * Math.cos(p.yaw);
   const across = -(step.x - u.pos.x) * Math.cos(p.yaw) + (step.z - u.pos.z) * Math.sin(p.yaw);
   // 追手へ向き直っても、八方向へ丸めて調べた線から外れない。
   const axis = b._botCoverAxis || (b._botCoverAxis = { x: 0, y: 0 });
   axis.x = across / 3; axis.y = -fw / 3; inp.axis = axis;
-  inp.runHeld = !inp.guardHold;
-  if (s.type === 'gun' && s.atk && s.atk.t < 0.5 && p.sta >= 20 && p.dodgeT <= -0.3) inp.e.add('Space');
+  inp.runHeld = true;
   b.botCovering = true;
   return true;
 }
@@ -1077,7 +1058,7 @@ export const PERSONAS = {
   },
   act: {
     key: 'act', short: 'アクション好き', name: 'アクション好き', who: 'ソウタ（24歳・アクションゲームと格闘ゲームが好き）',
-    style: '味方と並び、構えて受け流してから突く。囲まれたら下がり、後ろで傷を縛る',
+    style: '味方と並んで突く。囲まれたら下がり、後ろで傷を縛る',
     weights: { 落ちた: 2, 辻褄: 1.5, 使いづらい: 1, 数と文: 0.5 },
     cares: /passive|deadTarget|invuln|named|stuck|dmgNaN/,
     ignore: /tiny|contrast|noshadow|long|choice/,
@@ -1277,7 +1258,7 @@ class TouchPad {
     // 指が届かなかった時に鍵盤で代わりに歩かせない。
     for (const k of ['KeyW', 'KeyS', 'KeyA', 'KeyD']) R.keys.delete(k);
     // 山道の下知や構えて退く歩みを、性格の「走る」で上書きしない。
-    this.stick(stickX, stickY, inp.runHeld || (this.ctx.per.run && !b.def.botOrders && !inp.guardHold && !b.botSurviving && !b.botRest));
+    this.stick(stickX, stickY, inp.runHeld || (this.ctx.per.run && !b.def.botOrders && !b.botSurviving && !b.botRest));
     // 突く（溜めは押し続ける）
     if (inp.chargeHold) this.down('atk', btn('atk'), '突く（溜め）');
     // 「突いた回数」は指を置いた回数（毎コマ）でなく、実の一振りが出た数で数える（player.strike の呼び出しで数える。army_combat.js 下）
@@ -1288,14 +1269,6 @@ class TouchPad {
       const blade = p.weapon === 'spear' || p.weapon === 'sword';
       const facing = Math.abs(adiff(p.yaw, wantYaw)) < 0.3 && Math.abs(adiff(p.u.heading, wantYaw)) < 0.3;
       if (inp.leftPressed && (!blade || facing)) this.tap(btn('atk'), '突く');
-    }
-    // 指の構えは押すたびに構える・解くの切り替え（touch.js）。押し続ける形にすると、二度目の押しで構えが解ける。
-    // 今の構えと欲しい構えが違う時だけ一度押す。押した結果が体に届くまで（0.2秒）は押し直さない。
-    this.up('grd');
-    const guardNow = R && R.touchGuardToggle ? !!p.guardOn : !!p.guard;
-    if (!!inp.guardHold !== guardNow && !(this.guardTapT > b.t - 0.2)) {
-      this.guardTapT = b.t;
-      this.tap(btn('grd'), inp.guardHold ? '構え' : '構えを解く');
     }
     // 取る：押し続ける物（inp.k）は押したまま、一度だけの物（inp.e）は叩く
     const use = btn('use');
@@ -1316,8 +1289,8 @@ class TouchPad {
       else if (sb.n > 6) { this.sub = null; this.ctx.noTouchCmd(sb.id); this.real.quickCmd = sb.id; const c = btn('cmd'); if (c && c.classList.contains('sel')) this.tap(c, '号令（閉じる）'); }
     }
     // そのほかの釦
-    const MAP = { Space: () => btn('dodge'), KeyQ: () => btn('lock'), KeyR: () => btn('mount'), KeyV: () => q('#tc-view'), Enter: () => q('#hud #skiphint') };
-    const NAME = { Space: '回避', KeyQ: '狙い', KeyR: '乗る', KeyV: '視点', Enter: '飛ばす' };
+    const MAP = { KeyR: () => btn('mount'), KeyV: () => q('#tc-view'), Enter: () => q('#hud #skiphint') };
+    const NAME = { KeyR: '乗る', KeyV: '視点', Enter: '飛ばす' };
     // 「…」に畳まれた丸は、前のコマで「…」を開いてから押す（人もそうする）
     const keys = [...(this.pend || []), ...inp.e]; this.pend = null;
     for (const k of keys) {
@@ -1331,9 +1304,8 @@ class TouchPad {
         // 丸が出ていないのが決まりどおりの時は数えない：指の丸が丸ごと出ていない（語り・幕間）、馬上の狙い・鼓舞（手綱と降りるを優先）
         const tc = q('#tc');
         if (!this.shown(tc) || !this.shown(btn('atk'))) continue;
-        if (p.mounted && (k === 'KeyF' || k === 'KeyQ')) continue;
+        if (p.mounted && k === 'KeyF') continue;
         // 敵が近くにいない時は、狙いの丸を隠すのが正しい。気まぐれな一押しを不具合に数えない。
-        if (k === 'KeyQ' && !p.lock && !this.game.hud?.nearFoe) continue;
         this.ctx.noButton(NAME[k]); continue;
       }
       const dg = k.match(/^Digit(\d)$/);
@@ -1416,10 +1388,6 @@ const HABIT = {
     if (c.wander) { p.yaw = c.wander.yaw; inp.k.delete('KeyE'); if (c.wander.walk) inp.k.add('KeyW'); else inp.k.delete('KeyW'); }
     // 連打：敵がいなくても突く
     if (Math.random() < 0.3) inp.leftPressed = true;
-    // 構えない
-    if (Math.random() < 0.8) inp.guardHold = false;
-    // 目についた丸を押してみる
-    if (Math.random() < 0.01) inp.e.add(pick(['Space', 'KeyQ']));
     // 台詞は飛ばす
     if (document.querySelector('#hud #skiphint:not([hidden])')) inp.e.add('Enter');
   },
@@ -1474,10 +1442,10 @@ const HABIT = {
         if (p.catching || (p.takeO && t - (c.mountT || -9) > 4)) {
           if (!p.catching) { inp.e.add('KeyR'); c.mountT = t; c.mountTry = (c.mountTry || 0) + 1; }
           inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.k.delete('KeyE');
-          inp.leftPressed = false; inp.guardHold = false; inp.runHeld = false; inp.chargeHold = false;
+          inp.leftPressed = false; inp.runHeld = false; inp.chargeHold = false;
         } else if (outside && seenHorse) {
           goTo(p, inp, seenHorse.h.position.x, seenHorse.h.position.z, 2.5);
-          inp.k.add('KeyE'); inp.leftPressed = false; inp.guardHold = false; inp.runHeld = false; inp.chargeHold = false;
+          inp.k.add('KeyE'); inp.leftPressed = false; inp.runHeld = false; inp.chargeHold = false;
         }
       }
       return;
@@ -1501,7 +1469,7 @@ const HABIT = {
           !b.army.nearestEnemy(u, 6) && t - (c.mountT || -9) > 4) {
         inp.e.add('KeyR'); c.mountT = t; c.mountTry = (c.mountTry || 0) + 1;
         inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.k.delete('KeyE');
-        inp.guardHold = false; inp.runHeld = false; inp.leftPressed = false; inp.chargeHold = false;
+        inp.runHeld = false; inp.leftPressed = false; inp.chargeHold = false;
       }
       c.charge = 0; return;
     }
@@ -1515,10 +1483,9 @@ const HABIT = {
       if (d < attackDist) { attacker = o; attackDist = d; }
     }
     if (attacker) {
-      if (p.lock && p.lock !== attacker) inp.e.add('KeyQ');
       p.yaw = Math.atan2(attacker.pos.x - u.pos.x, attacker.pos.z - u.pos.z);
       inp.k.delete('KeyW'); inp.k.delete('KeyE');
-      inp.guardHold = true; inp.runHeld = false;
+      inp.runHeld = false;
       const reach = p.weapon === 'sword' ? 1.7 : 2.8;
       // 槍の届く所へ構えて詰める。騎馬の突進は追わずに受ける。
       if (!ordered && !b.def.botOrders && attackDist >= reach && !attacker.charging) goTo(p, inp, attacker.pos.x, attacker.pos.z, reach * 0.9);
@@ -1589,7 +1556,7 @@ const HABIT = {
       inp.k.add(Math.cos(diff) >= 0 ? 'KeyW' : 'KeyS');
       // 右の歩みは（-cos, sin）。敵を向いたまま、退き口の側へ歩く。
       if (Math.abs(Math.sin(diff)) > 0.4) inp.k.add(Math.sin(diff) < 0 ? 'KeyD' : 'KeyA');
-      inp.k.delete('KeyE'); inp.leftPressed = false; inp.chargeHold = false; inp.guardHold = !!foe; inp.runHeld = false;
+      inp.k.delete('KeyE'); inp.leftPressed = false; inp.chargeHold = false; inp.runHeld = false;
       c.fallN = (c.fallN || 0) + 1;
       return;
     }
@@ -1599,14 +1566,12 @@ const HABIT = {
     if (e) {
       const d = dist(e.pos, u.pos);
       // 組から離れすぎたら（8m）、敵へ行かず組の方へ戻る。組が前へ進めば、ついて行く
-      if (mateN >= 2 && d > 3.5 && lag > 8) { goTo(p, inp, cx, cz, 4); inp.k.delete('KeyE'); inp.guardHold = true; return; }
-      if (p.lock && p.lock !== e) inp.e.add('KeyQ');
+      if (mateN >= 2 && d > 3.5 && lag > 8) { goTo(p, inp, cx, cz, 4); inp.k.delete('KeyE'); return; }
       p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
       inp.k.delete('KeyE');
       const reach = p.weapon === 'sword' ? 1.9 : 2.8;
       if (d > reach * 0.85) goTo(p, inp, e.pos.x, e.pos.z, reach * 0.85); else inp.k.delete('KeyW');
       if (e === busho) c.bushoMin = Math.min(c.bushoMin || 1e9, d);
-      if (d < 14 && !p.lock && t - (c.lockT || -9) > 3) { inp.e.add('KeyQ'); c.lockT = t; }
       patientStrike(p, inp, e, d); c.charge = 0;
     } else if (!(b.flags.dp && b.flags.dp.on) && mateN >= 2 && lag > 10 && !inp.k.has('KeyW')) {
       // 段の任務や、先に決めた行き先を守る。
@@ -1663,7 +1628,7 @@ function rangedHabit(b, inp, c) {
     if (!e || d < 6 || t - c.rangeT > 20) { inp.e.add('Digit1'); return; }
     p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
     inp.k.delete('KeyW'); inp.leftPressed = false;
-    inp.guardHold = true;
+   
     if (Math.random() < 0.1) { inp.leftPressed = true; c.shotsFired = (c.shotsFired || 0) + 1; }
   }
 }
@@ -1686,11 +1651,7 @@ function variantHabit(b, inp, c) {
   if (V.habit === 'ren') {
     // 連打：敵がいてもいなくても突く。時々ほかの丸も押す
     if (Math.random() < 0.45) inp.leftPressed = true;
-    if (Math.random() < 0.015) inp.e.add(pick(['Space', 'KeyF', 'KeyQ', 'KeyR']));
-  } else if (V.habit === 'kamae') {
-    // 構え多め：敵が近いと構えてばかり（突くのは時々）
-    const e = b.army.nearestEnemy(u, 7);
-    if (e) { inp.guardHold = Math.random() < 0.7; if (inp.guardHold && Math.random() < 0.6) inp.leftPressed = false; }
+    if (Math.random() < 0.015) inp.e.add(pick(['KeyF', 'KeyR']));
   } else if (V.habit === 'hashiri') {
     inp.runHeld = true;
   } else if (V.habit === 'mayoi') {
@@ -2228,7 +2189,7 @@ async function playPersona(game, spec, aud, c) {
   const td = b.player.takeDamage.bind(b.player);
   b.player.takeDamage = (a, src) => { const d = td(a, src); const k = src ? (src.isStruct ? '柵' : ({ bow: '弓', gun: '鉄砲', cavalry: '騎馬', samurai: '侍', busho: '武将', ashigaru: '足軽' }[src.type] || src.type)) : '?'; hurt[k] = (hurt[k] || 0) + (d || 0); if (src && (src.type === 'bow' || src.type === 'gun') && d > 0) { b.botShotT = b.t; b.botShooter = src; }
     // 倒れた時の読み直しのため、最後の八つの傷を短く残す（時・元・量・残り・構え・向き・囲み・退避中）。
-    if (d > 0) { const h = b.player.lastHit, u = b.player.u; hitLog.push(`${Math.round(b.t)}s${k}${Math.round(d)}→${Math.round(u.hp)}${h?.guard ? '構' : ''}${h?.guardBroken ? '崩' : ''}${h?.exhausted ? '疲' : ''}${!h?.guard && inp.guardHold ? '押' : ''}${h?.back ? '背' : h?.side ? '横' : ''}${u.mobbed ? '囲' : ''}${b.botSurviving ? '退' : ''}${src?.pos ? `距${Math.hypot(src.pos.x - u.pos.x, src.pos.z - u.pos.z).toFixed(1)}見${b._svFd?.toFixed?.(1)}` : ''}`); if (hitLog.length > 8) hitLog.shift(); }
+    if (d > 0) { const h = b.player.lastHit, u = b.player.u; hitLog.push(`${Math.round(b.t)}s${k}${Math.round(d)}→${Math.round(u.hp)}${h?.guard ? '構' : ''}${h?.guardBroken ? '崩' : ''}${h?.exhausted ? '疲' : ''}${h?.back ? '背' : h?.side ? '横' : ''}${u.mobbed ? '囲' : ''}${b.botSurviving ? '退' : ''}${src?.pos ? `距${Math.hypot(src.pos.x - u.pos.x, src.pos.z - u.pos.z).toFixed(1)}見${b._svFd?.toFixed?.(1)}` : ''}`); if (hitLog.length > 8) hitLog.shift(); }
     return d; };
   // 指：本当の input を捕まえる（main の毎コマの b.update は、bot が回すので止める）
   const pad = new TouchPad(game, c);

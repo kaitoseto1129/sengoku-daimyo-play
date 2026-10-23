@@ -270,146 +270,8 @@ export class HudTeamSigns {
   }
 
 
-  // 近い兵は小さな丸とひし形で示し、操作中も所属を見分けられるようにする。
-  drawNearbyTeamSigns(g, rt, candidates) {
-    if (this.teamSignsDrawn) return false;
-    this.teamSignsDrawn = true;
-    // 進軍・接敵・退避でも、近い兵の所属は小さな形で残す。字の札は増やさない。
-    if (rt.def.town || rt.def.dojo || rt.over || rt.choice ||
-        this.openingActive && !this.opening?.el.classList.contains('opening-controls') ||
-        !rt.player.u.alive || rt.player.camShot || this.bigmap || S.reduceGuidance || guidanceEnded(rt)) return false;
-    // 移動中も近い相手だけを選び、遠くの所属は増やさない。
-    const guide = rt.missionGuide;
-    const moving = guide?.marker && guide.distance >= (guide.marker.guideRadius || 8);
-    const travelling = !!rt.dodgeGuide || retreatRequired(rt) || this.retreatGuide?.active ||
-      !!rt.def.routeGuidePriority?.(rt) || moving && !rt.guideEnemyShown;
-    const slots = this.teamSignSlots || (this.teamSignSlots = new Float32Array(24));
-    const rects = this.hudRects(), p = rt.player.u;
-    const enemyRange = rt.def.nearbyEnemySignRange ?? 18;
-    const enemyLimit = Math.min(3, rt.def.nearbyEnemySignLimit ?? 3);
-    // 両軍三人まで。行き先の旗と競わない小さな形にする。
-    const allyLimit = Math.min(3, rt.def.nearbyAllySignLimit ?? 3);
-    const visible = this.teamSignUnits || (this.teamSignUnits = []);
-    // 視線の確認は既存の候補更新と同じ毎秒十回まで。入れ物は使い回す。
-    const signAt = Math.floor(rt.t * 10);
-    if (this.teamSignRt !== rt || this.teamSignAt !== signAt) {
-      this.teamSignRt = rt; this.teamSignAt = signAt; visible.length = 0;
-      let checkedAllies = 0, checkedEnemies = 0;
-      for (const u of candidates) {
-        const enemy = u.team !== p.team;
-        // 描かない敵印の視線・地形は調べない。味方の印と戦闘相手の案内は保つ。
-        if (enemy ? enemyLimit <= 0 : allyLimit <= 0) continue;
-        if (!rt.player.showSquad && (enemy ? checkedEnemies : checkedAllies) >= 4) continue;
-        if (u.isPlayer || u.noTarget || u.civ || u.isStruct || u.type === 'dummy' || u.type === 'porter' ||
-            !u.alive || u.gone || u.offscreen || !u.mesh.visible ||
-            u.group?.hidden || u.fleeing || u.woundOut ||
-            Math.hypot(u.pos.x - p.pos.x, u.pos.z - p.pos.z) > (rt.player.showSquad ? enemy ? enemyRange : 18 : Math.min(12, enemy ? enemyRange : 12)) ||
-            u.team !== p.team && u.isOfficer && !enemyKnown(rt, u)) continue;
-        if (sightScreenUnit(rt, u)) {
-          visible.push(u);
-          if (enemy) checkedEnemies++; else checkedAllies++;
-        }
-      }
-    }
-    let count = 0, enemies = 0, allies = 0;
-    const focus = this.aimGuideEnemy || this.guardThreat || this.attackGuideEnemy || this.approachGuideEnemy || this.defendEnemy || rt.guideEnemy || rt.player.lock;
-    const destinationPerson = guide?.marker?.guidePerson?.();
-    const followAlly = rt.def.missionAlly?.(rt);
-    const guard = rescueTarget(rt) || this.guardAlly || rt.def.guardGuideTarget?.(rt) || rt.def.guardTarget?.(rt);
-    const passageUnits = rt.def.passageGuideUnits?.(rt);
-    // 字の札は増やさず、頭上の小さな印を両軍三人ずつまでに絞る。
-    const budget = 6;
-    const focusFrame = focus?.alive && this.enemyFrameShown ? this.measurePersonFrame(focus, rt, true) : null;
-    const focusTop = focusFrame?.top ?? 0, focusX = focusFrame?.cx ?? 0;
-    const focusBottom = focusFrame?.bottom ?? 0;
-    const focusLeft = focusFrame?.left ?? 0, focusRight = focusFrame?.right ?? 0;
-    this.tmpV.set(p.pos.x, p.pos.y + (p.mounted ? 3.7 : (p.bodyHeight ?? 1.72) + .65), p.pos.z).project(rt.camera);
-    const selfVisible = this.tmpV.z >= -1 && this.tmpV.z <= 1;
-    const selfX = (this.tmpV.x * .5 + .5) * VIEW.w, selfY = (-this.tmpV.y * .5 + .5) * VIEW.h;
-    const selfFoot = this.project(p.pos, p.pos.y + .12, rt,
-      this.teamSelfFootProjection || (this.teamSelfFootProjection = {}));
-    g.save(); g.lineJoin = 'round';
-    for (const u of visible) {
-      if (count >= budget) break;
-      const enemy = u.team !== p.team;
-      // 攻撃の瞬間以外も近くの所属を示す。候補は本人に近い順のまま使う。
-      if (!rt.player.showSquad && Math.hypot(u.pos.x - p.pos.x, u.pos.z - p.pos.z) > 12) continue;
-      if (travelling && Math.hypot(u.pos.x - p.pos.x, u.pos.z - p.pos.z) > 12) continue;
-      if ((enemy ? enemies >= enemyLimit : allies >= allyLimit) || u === focus && this.enemyFrameShown || u === this.battleSignEnemy || u === followAlly || u === guard || u === destinationPerson || passageUnits?.includes(u) ||
-          !u.alive || u.gone || u.offscreen || !u.mesh.visible || u.group?.hidden || u.fleeing || u.woundOut ||
-          Math.hypot(u.pos.x - p.pos.x, u.pos.z - p.pos.z) > (enemy ? enemyRange : 18) ||
-          enemy && u.isOfficer && !enemyKnown(rt, u)) continue;
-      const head = u.human?.root.visible && u.human.bones?.Head;
-      if (head) {
-        head.updateWorldMatrix(true, false); head.getWorldPosition(this.tmpV); this.tmpV.y += .35;
-        if (u.mesh) {
-          this.tmpV.x += u.pos.x - u.mesh.position.x;
-          this.tmpV.y += u.pos.y - u.mesh.position.y;
-          this.tmpV.z += u.pos.z - u.mesh.position.z;
-        }
-      }
-      else this.tmpV.set(u.pos.x, u.pos.y + (u.mounted || u.type === 'cavalry' ? 3.5 : (u.bodyHeight ?? 1.72) + .3), u.pos.z);
-      this.tmpV.project(rt.camera);
-      if (this.tmpV.z < -1 || this.tmpV.z > 1) continue;
-      const x = (this.tmpV.x * .5 + .5) * VIEW.w, y = (-this.tmpV.y * .5 + .5) * VIEW.h;
-      if (x < 24 || x > VIEW.w - 56 || y < 76 || y > VIEW.h - 32) continue;
-      // 混み合う時は小さい印を頭の脇へ寄せ、細い線で本人と結ぶ。
-      let signX = x, signY = y, placed = false;
-      for (let attempt = 0; attempt < 7; attempt++) {
-        signX = x + (attempt ? (attempt % 2 ? -1 : 1) * (attempt < 3 ? 28 : 48) : 0);
-        signY = y - (attempt >= 5 ? 32 : 0);
-        if (signX < 24 || signX > VIEW.w - 24 || signY < 76 || signY > VIEW.h - 32) continue;
-        if (focusFrame && (signX + 14 > focusLeft - 8 && signX - 14 < focusRight + 8 &&
-            signY + 8 > focusTop - 8 && signY - 28 < focusBottom + 8 ||
-            Math.abs(signX - focusX) < 24 && Math.abs(signY - focusTop) < 64)) continue;
-        if (selfVisible && Math.abs(signX - selfX) < 40 && signY + 12 > selfY - 32 &&
-            signY - 28 < (selfFoot.behind ? selfY + 40 : selfFoot.y + 24)) continue;
-        let covered = false;
-        for (const r of rects) if (signX + 16 > r.left && signX - 16 < r.right &&
-            signY + 8 > r.top && signY - 28 < r.bottom) { covered = true; break; }
-        if (covered) continue;
-        for (let i = 0; i < count; i++) if (Math.abs(signX - slots[i * 2]) < 28 &&
-            Math.abs(signY - slots[i * 2 + 1]) < 28) { covered = true; break; }
-        if (!covered) { placed = true; break; }
-      }
-      if (!placed) continue;
-      slots[count * 2] = signX; slots[count * 2 + 1] = signY; count++;
-      if (signX !== x || signY !== y) {
-        g.beginPath(); g.moveTo(x, y + 4); g.lineTo(signX, signY - 4);
-        g.strokeStyle = '#14120f'; g.lineWidth = 4; g.stroke();
-        g.strokeStyle = '#fff3ba'; g.lineWidth = 1.5; g.stroke();
-      }
-      // すぐ近い徒歩の兵は肩の両脇も明るく縁取る。胴を塗らず、投影の入れ物は共用する。
-      if (!u.mounted && Math.hypot(u.pos.x - p.pos.x, u.pos.z - p.pos.z) <= 8) {
-        const foot = this.project(u.pos, u.pos.y + .12, rt,
-          this.nearbyFootProjection || (this.nearbyFootProjection = {}));
-        const height = foot.y - y;
-        if (!foot.behind && height > 24 && foot.y < VIEW.h - 16) {
-          const half = Math.max(6, Math.min(18, height * .17));
-          g.beginPath();
-          g.moveTo(x - half, y + height * .24); g.lineTo(x - half, y + height * .56);
-          g.moveTo(x + half, y + height * .24); g.lineTo(x + half, y + height * .56);
-          g.strokeStyle = '#14120f'; g.lineWidth = 5; g.stroke();
-          g.strokeStyle = enemy ? '#fff0e4' : '#e7f8ff'; g.lineWidth = 2; g.stroke();
-        }
-      }
-      if (enemy) {
-        enemies++;
-        // 敵は任務と同じひし形。味方の丸と形でも分ける。
-        g.save(); g.translate(signX, signY + 10);
-        const scale = rt.def.nearbyTeamSignScale || .5; g.scale(scale, scale);
-        g.beginPath(); g.moveTo(0, -30); g.lineTo(16, -12);
-        g.lineTo(0, 6); g.lineTo(-16, -12); g.closePath();
-        g.strokeStyle = '#14120f'; g.lineWidth = 7; g.stroke();
-        g.fillStyle = '#b52d21'; g.fill(); g.strokeStyle = '#fff3ba'; g.lineWidth = 3; g.stroke(); g.restore();
-        continue;
-      } else {
-        allies++;
-        this.drawAllySign(g, signX, signY); continue;
-      }
-    }
-    g.restore(); return count > 0;
-  }
+  // 兵や部隊に印を重ねない。
+  drawNearbyTeamSigns(g, rt, candidates) { return false; }
 
 
   // 近い体の外側だけを二重線で示す。材質や兵の数は変えない。
@@ -434,14 +296,8 @@ export class HudTeamSigns {
   }
 
 
-  // 味方は小さい丸。追う旗や敵のひし形と形で分ける。
-  drawAllySign(g, x, y, label = false) {
-    g.save(); g.lineJoin = 'round'; g.beginPath();
-    g.arc(x, y - 10, 5, 0, Math.PI * 2);
-    g.strokeStyle = '#14120f'; g.lineWidth = 6; g.stroke();
-    g.strokeStyle = '#e7f8ff'; g.lineWidth = 2; g.stroke(); g.restore();
-    if (label) this.drawTeamWord(g, x + 30, y - 12, 'みかた');
-  }
+  // 兵や部隊に印を重ねない。
+  drawAllySign(g, x, y, label = false) { return false; }
 
 
   // 敵は三角。小さい所属の印と、大きい戦闘相手の印で同じ形を使う。

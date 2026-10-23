@@ -66,8 +66,6 @@ html.touch body #hud.touch-turn-coach #battle-notices #objectives:not(.expand) {
 #tc .action-coach.control-only.sw svg { transform:rotate(-90deg); }
 #tc .action-linked, #tc .coach-now { outline:4px solid #fff3ce; outline-offset:4px; box-shadow:0 0 0 8px #14120f !important; opacity:1 !important; }
 /* 構えは絵で置き換えず、案内と同じ字を押す場所に出す。 */
-#tc [data-b="grd"].shield { background:#14120f; color:#fff3ce; opacity:1; }
-#tc [data-b="grd"].shield .name { font-size:15px; line-height:1.2; letter-spacing:0; max-width:100%; padding:0; white-space:nowrap; }
 /* 戦の操作案内は小さな手と一行。兵を見る場所を空ける。 */
 #tc .action-coach.turn-coach { width:168px; max-width:168px; height:48px; text-align:left; }
 #tc .action-coach.turn-coach span { padding:10px 8px 10px 40px; font-size:16px; line-height:1.4; white-space:normal; }
@@ -413,19 +411,16 @@ html.touch.tc-low body #hud #h-squad:not([hidden]) b { font-size: 12px !importan
 `;
 
 // 親指側から四列・下から三段。追加の丸を開いても主な操作は動かさない
-const TOUCH_EDGES = ['Tab', 'KeyE', 'Space', 'HorseRein', 'KeyQ', 'KeyF', 'KeyR', 'WeaponNext', 'WeaponSpear', 'KeyV'];
-const LABEL_BTNS = ['atk', 'grd', 'dodge', 'lock', 'rally', 'wpn', 'mount', 'more', 'use', 'treat', 'form'];
+const TOUCH_EDGES = ['Tab', 'KeyE', 'KeyF', 'KeyR', 'WeaponNext', 'WeaponSpear', 'KeyV'];
+const LABEL_BTNS = ['atk', 'rally', 'wpn', 'mount', 'more', 'use', 'treat', 'form'];
 const HOLD_RING_BTNS = ['use', 'treat', 'cmd'];
-const TOGGLE_BTNS = ['grd', 'lock', 'cmd', 'more', 'fire'];
+const TOGGLE_BTNS = ['cmd', 'more', 'fire'];
 // 「取る」（使う）は出ている時だけの丸。七つ目以降で「…」に畳まれると、布を巻く・門を閉める等の長押しができない。先に並べる。
-const ORDER_HORSE = ['atk', 'grd', 'dodge', 'use', 'spear', 'cmd', 'mount', 'lock', 'wpn', 'fire', 'rally'];
-const ORDER_RANGED = ['atk', 'grd', 'dodge', 'use', 'spear', 'cmd', 'mount', 'lock', 'wpn', 'fire', 'rally'];
-const ORDER_FOOT = ['atk', 'grd', 'dodge', 'use', 'spear', 'cmd', 'mount', 'lock', 'fire', 'rally', 'wpn'];
+const ORDER_HORSE = ['atk', 'use', 'spear', 'cmd', 'mount', 'wpn', 'fire', 'rally'];
+const ORDER_RANGED = ['atk', 'use', 'spear', 'cmd', 'mount', 'wpn', 'fire', 'rally'];
+const ORDER_FOOT = ['atk', 'use', 'spear', 'cmd', 'mount', 'fire', 'rally', 'wpn'];
 const BTN = [
   { id: 'atk', label: 'つく', sub: '', col: 0, row: 0, d: 96, big: true },
-  { id: 'grd', label: 'かまえる', col: 0, row: 1, d: 64 },
-  { id: 'dodge', label: 'よける', col: 1, row: 0, d: 64 },
-  { id: 'lock', label: 'ねらう', col: 1, row: 1, d: 60 },
   { id: 'cmd', label: '指図', sub: 'えらぶ', col: 2, row: 0, d: 56 },
   { id: 'rally', label: '鼓舞', col: 2, row: 0, d: 56 },   // 回避の場所を空け、後の戦だけに出す
   { id: 'wpn', label: '持替', col: 0, row: 2, d: 48 },
@@ -556,13 +551,8 @@ function setupTouch({ input, game, setPause, toggleBigMap }) {
     switch (id) {
       case 'atk':
         game.hud?.releaseWaitGuard?.();
-        // 一つの親指で構えから攻めへ。弓・鉄砲の狙いは残す。
-        if (input.touchGuardToggle && p.weapon !== 'gun' && p.weapon !== 'bow' && !T.held.has('grd')) p.guardOn = false;
-        T.attackPressedAt = b.t; T.attackPressedBattle = b;
+              T.attackPressedAt = b.t; T.attackPressedBattle = b;
         input.mouseL = true; input.leftPressed = true; break;
-      case 'grd': input.touchGuardToggle = true; input.mouseR = true; input.rightPressed = true; break;
-      case 'dodge': input.edge.add(p.mounted ? 'HorseRein' : 'Space'); break;
-      case 'lock': input.lockPressed = true; break;
       case 'treat': input.keys.add('TreatWound'); break;
       case 'use': input.keys.add('KeyE'); input.edge.add('KeyE'); break;
       case 'mount': input.edge.add('KeyR'); break;
@@ -586,7 +576,6 @@ function setupTouch({ input, game, setPause, toggleBigMap }) {
       case 'atk':
         if (T.attackPressedBattle === game.battle && game.battle.t - T.attackPressedAt >= .15) T.attackLearnedBattle = game.battle;
         T.attackPressedBattle = null; input.mouseL = false; break;
-      case 'grd': input.mouseR = false; break;
       case 'treat': input.keys.delete('TreatWound'); break;
       case 'use': input.keys.delete('KeyE'); break;
       case 'cmd': {
@@ -686,16 +675,15 @@ function setupTouch({ input, game, setPause, toggleBigMap }) {
       if (id0 && T.held.get(id0) !== e.pointerId) return;
       if (o && id0 !== 'cmd' && T.held.get(id0) === e.pointerId) {
         // 鉄砲・弓の「狙う」「射る」は、押したまま指を滑らせて狙いを動かせる（離して撃つ）
-        const pl = game.battle && game.battle.player, aimHold = (id0 === 'atk' || id0 === 'grd') && pl && (pl.weapon === 'gun' || pl.weapon === 'bow');
+        const pl = game.battle && game.battle.player, aimHold = id0 === 'atk' && pl && (pl.weapon === 'gun' || pl.weapon === 'bow');
         if (!o.look && Math.hypot(e.clientX - o.x, e.clientY - o.y) > (aimHold ? 12 : 28)) {
           o.look = true; o.lx = e.clientX; o.ly = e.clientY;
           if (!aimHold) {
             el.classList.remove('on');
             if (id0 === 'atk') { input.leftPressed = false; pl?.cancelAttack(); }
-            if (id0 === 'grd') { input.rightPressed = false; if (pl) pl.guardOn = false; }
             if (id0 === 'dodge') { input.edge.delete('HorseRein'); input.edge.delete('Space'); }
             if (id0 === 'use') input.edge.delete('KeyE');
-            if (id0 === 'atk' || id0 === 'grd' || id0 === 'use') up(id0);
+            if (id0 === 'atk' || id0 === 'use') up(id0);
           }
         }
         if (o.look) { const k = S.touchSens || 1, aimSlow = aimHold ? 0.35 : 1, dx = (e.clientX - o.lx) * 1.7 * k * aimSlow, dy = (e.clientY - o.ly) * 1.5 * k * aimSlow; input.dx += dx; input.dy += dy; input.touchDx += dx; input.touchDy += dy; o.lx = e.clientX; o.ly = e.clientY; }
@@ -719,7 +707,6 @@ function setupTouch({ input, game, setPause, toggleBigMap }) {
       if (e.type === 'pointercancel') {
         const p = game.battle?.player;
         if (id === 'atk') { input.leftPressed = false; p?.cancelAttack(); }
-        if (id === 'grd') { input.rightPressed = false; if (p) p.guardOn = false; }
         if (id === 'dodge') { input.edge.delete('HorseRein'); input.edge.delete('Space'); }
         if (id === 'use') input.edge.delete('KeyE');
       }
@@ -752,7 +739,6 @@ function setupTouch({ input, game, setPause, toggleBigMap }) {
       if (e.type === 'blur') {
         const p = game.battle?.player;
         if (el.dataset.b === 'atk') { input.leftPressed = false; p?.cancelAttack(); }
-        if (el.dataset.b === 'grd') { input.rightPressed = false; if (p) p.guardOn = false; }
         if (el.dataset.b === 'cmd') { T.radialDrag = null; closeRadial(true); }
         if (el.dataset.b === 'use') input.edge.delete('KeyE');
       }
@@ -1002,8 +988,6 @@ export function touchFrame(dt) {
   if (root.hidden !== !on) root.hidden = !on;
   if (!on) { game.hud?.releaseDodgeHold?.(); game.hud?.releaseCoverHold?.(); tog(game.hud?.root, 'attack-button-guide', false); tog(btn.atk, 'holding', false); return; }
   // 命中の震えは本人の strike から送る。兵同士の止めでは震えない。
-  // 初めて狙いを定めた時だけ、相手の替え方を一度出す
-  if (p.lock && !T.lockTip) { T.lockTip = true; T.showHint(S.touchSwap ? '画面の左を左右に払うと、狙う相手を替える' : '画面の右を左右に払うと、狙う相手を替える'); }
   // 右下の丸を並べる（安全な余白の中）
   // 城下（町を歩く）では戦の丸を出さない。「入る」の丸を右の親指の真下（突くの場所）へ
   const town = !!(b.def && b.def.town);
@@ -1022,7 +1006,7 @@ export function touchFrame(dt) {
   }
   if (T.hintWeapon !== p.weapon) {
     T.hintWeapon = p.weapon;
-    T.showHint(p.weapon === 'gun' ? '攻撃の釦を押し続けて狙い、離して撃つ' : p.weapon === 'bow' ? '射るを押したままなぞって狙う。放して射る' : '');
+    T.showHint(p.weapon === 'gun' ? '攻撃の釦を一度押すと撃つ' : p.weapon === 'bow' ? '射るを一度押すと、矢を引いて射る' : '');
   }
   // 歩く棒
   const st = T.stick;
@@ -1130,31 +1114,10 @@ export function touchFrame(dt) {
       }
     }
   }
-  // 丸の出し入れ（その時に使える物だけ）。突く・構え・回避（馬上は手綱）は戦の間いつも出す
+  // 攻撃と、その時に使える操作だけを出す。
   const hasSq = !!b.squad?.some((o) => o.alive);
   const rid = p.mounted;
-  // 基本の丸は突く・構え・回避・狙い。話す・取るは必要な時に出す。
-  hide(btn.atk, town); hide(btn.grd, town || p.weapon !== 'bow'); hide(btn.dodge, town);
-  // 馬上は 突く・構え・手綱・降りる（と号令）だけにし、狙い・鼓舞・持ち替えは隠す（丸が七つ並ばないように）
-  // 狙いの丸は、敵が近い時（35m）か狙いを定めている時だけ（平時の戦場に丸を並べない）
-  const hudR = game.hud, near = !!(hudR && hudR.nearFoe);
-  void near; hide(btn.lock, town || rid);
-  hide(btn.cmd, true);
-  tog(btn.cmd, 'sel', !!p.radial || T.sticky);
-  // 槍衾・鉄砲の列の前では、号令の丸を数秒だけ目立たせる（battle_tactics_cue.js）
-  tog(btn.cmd, 'urge', hasSq && !p.radial && b.cmdUrgeUntil > b.t);
-  const wl = p.weaponList ? p.weaponList() : ['spear'];
-  // 馬上でも弓・鉄砲へは持ち替えられる（騎射）
-  const rangedL = wl.includes('bow') || wl.includes('gun');
-  // 弓・鉄砲からも一度で槍に戻す。「ほか」に畳まず、号令中は陣形に場所を譲る。
-  hide(btn.spear, simpleControls(b) || town || p.weapon === 'spear' || p.radial || T.sticky || p.cmdOpen);
-  hide(btn.wpn, simpleControls(b) || town || wl.length < 2 || (rid && !rangedL));
-  if (!btn.wpn.hidden) {
-    const nx = wl[(wl.indexOf(p.weapon) + 1) % wl.length];
-    hide(btn.wpn, nx === 'spear' && !btn.spear.hidden);
-    setText(btn.wpn.firstChild, { spear: '槍へ', sword: '刀へ', gun: '鉄砲へ', bow: '弓へ' }[nx]);
-  }
-  // 鉄砲の攻撃は長押しで狙い、離して撃つ。弾込めの進みを丸の縁に示す。
+  hide(btn.atk, town);
   const gunW = p.weapon === 'gun', bowW = p.weapon === 'bow';
   // 近接攻撃に長押しの案内を足さない。
   tog(btn.atk, 'hold-guide', false);
@@ -1190,21 +1153,16 @@ export function touchFrame(dt) {
   tog(btn.atk, 'counter-ready', counterReady);
   // 押した時の一撃と、案内に対応する釦の名前を保つ。
   tog(btn.atk, 'holding', !!input.mouseL);
-  const attackLabel = gunW ? '攻撃' : bowW ? '射る' : p.weapon === 'sword' ? 'きる' : 'つく';
+  const attackLabel = gunW ? '撃つ' : bowW ? '射る' : p.weapon === 'sword' ? 'きる' : 'つく';
   setText(btn.atk.firstChild, attackLabel);
   const attackAria = attackLabel;
   if (btn.atk.getAttribute('aria-label') !== attackAria) btn.atk.setAttribute('aria-label', attackAria);
-  setText(btn.grd.firstChild, gunW || bowW ? '狙う' : '構え');
-  tog(btn.grd, 'shield', !gunW && !bowW);
   const sub = btn.atk.querySelector('small');
-  // 弓・鉄砲だけ、離して放つ説明を添える。
+  // 弓・鉄砲も一度押すだけで放つ。
   const blade = !gunW && !bowW;
   // 攻撃の押し方は実物の釦の中にまとめる。
   const teachB = allowCoach;
-  if (sub) setText(sub, blade ? '押す' : !teachB ? (gunW ? p.gunAmmo === 0 ? '弾がない' : p.gunLoaded ? '' : '弾込め中' : p.bowAmmo <= 0 ? '矢がない' : '') : gunW ? (p.gunLoaded ? (p.aiming ? '離して撃つ' : '長押しで狙う') : p.gunAmmo === 0 ? '弾がない' : p.knockT > 0 || p.staggerT > 0 ? '体勢を戻す' : '弾込め中') : p.bowAmmo <= 0 ? '矢がない' : p.draw >= 2 ? (p.bowHold > 3 ? '腕が疲れる' : '離して射る') : p.draw >= 0.6 ? '引き絞る' : p.draw > 0 ? '矢を番える' : '押して引く');
-  // 弓の任意の構えと、近接の構えの案内。鉄砲の構え釦は隠す。
-  { let gs = btn.grd.querySelector('small'); const t = bowW ? (p.guardOn ? 'もう一度で解く' : '押して保つ') : p.guardBroken > 0 ? '体勢を戻す' : p.sta <= 0 ? '気力不足' : p.guardOn ? 'もう一度で解く' : teachB ? '押して保つ' : '';
-    if (t && !gs) { gs = document.createElement('small'); btn.grd.appendChild(gs); } if (gs) setText(gs, teachB ? t : p.guardBroken > 0 ? '体勢を戻す' : p.sta <= 0 ? '気力不足' : ''); }
+  if (sub) setText(sub, blade ? '押す' : !teachB ? (gunW ? p.gunAmmo === 0 ? '弾がない' : p.gunLoaded ? '' : '弾込め中' : p.bowAmmo <= 0 ? '矢がない' : '') : gunW ? (p.gunLoaded ? '押して撃つ' : p.gunAmmo === 0 ? '弾がない' : p.knockT > 0 || p.staggerT > 0 ? '体勢を戻す' : '弾込め中') : p.bowAmmo <= 0 ? '矢がない' : p.draw > 0 ? '引き絞る' : '押して射る');
   tog(btn.atk, 'tech', false);
   tog(btn.atk, 'rl', gunW && !p.gunLoaded);
   tog(btn.atk, 'ready', gunW && p.gunLoaded && (p.aimK || 0) > 0.5);
@@ -1307,20 +1265,13 @@ export function touchFrame(dt) {
   if (!canUse) T.promptText = null;
   // 話す・渡すなど、いま押せる事は金の縁で目立たせる（見落として立ち尽くさないように）
   tog(btn.use, 'ready', canUse && !town);
-  tog(btn.lock, 'sel', !!p.lock);
   // 平時は狙いと鼓舞の丸を薄く（隠すと押したい時に見つからないので、隠さずに控えめに）
   const calm = game.hud && game.hud.root.classList.contains('calm') && !p.lock;
-  tog(btn.lock, 'quiet', calm);
   tog(btn.rally, 'quiet', calm);
   { const v = document.getElementById('tc-view'), fp = S.view === 'first';
     const viewName = fp ? '一人称' : S.camRange === 'near' ? '近い視点' : S.camRange === 'far' ? '遠い視点' : '普通の視点';
     if (v.getAttribute('aria-label') !== `視点を替える（今は${viewName}）`) v.setAttribute('aria-label', `視点を替える（今は${viewName}）`);
     tog(v, 'sel', fp); if (v.getAttribute('aria-pressed') !== String(fp)) v.setAttribute('aria-pressed', String(fp)); }
-  setText(btn.lock.firstChild, p.lock ? 'やめる' : 'ねらう');
-  tog(btn.grd, 'sel', !!p.guard || !!p.aiming);
-  tog(btn.dodge, 'dim', (!p.mounted && p.sta < 20));
-  setText(btn.dodge.firstChild, p.mounted ? '引く' : 'よける');
-  setSub(btn.dodge, p.mounted ? '手綱を緩める' : p.u.climb ? '登っている' : p.knockT > 0 ? '起き上がる' : p.dodgeT > -0.3 ? `あと${Math.max(1, Math.ceil(p.dodgeT + 0.3))}秒` : '');
   const rd = p.rallyCd || 0;
   // 鼓舞・鬨の声は敵が遠くても使える。逃げた組を励ます時にも出し、待ち時間は丸に書く。
   hide(btn.rally, true);   // 鼓舞の丸は無くした（kaito 10/23 稲生 55）
@@ -1350,8 +1301,8 @@ export function touchFrame(dt) {
   // 鉄砲・弓を持てる時は「持替」を鼓舞より先に（鉄砲へ持ち替えるのに「…」を開かなくて済む）
   // 降りた馬がすぐそば（乗れる所）にいる時も「乗る」を先に（畳むと、降りた後にすぐ乗り直せない）
   const L = p.loose, nearHorse = !rid && p.canRide && L && L.mode !== 'fled' && Math.hypot(L.x - p.u.pos.x, L.z - p.u.pos.z) < 3.2;
-  // 狙いは主な操作なので畳まない。残る枠は手綱・持替・組の射撃を状況に合わせて先に
-  const order = rid || p.takeO || nearHorse ? ORDER_HORSE : rangedL ? ORDER_RANGED : ORDER_FOOT;
+  // 持ち替え・乗り降り・組の射撃を状況に合わせて並べる。
+  const order = rid || p.takeO || nearHorse ? ORDER_HORSE : gunW || bowW ? ORDER_RANGED : ORDER_FOOT;
   const want = T.want; want.length = 0;
   for (const id of order) if (!btn[id].hidden) want.push(id);
   // 六つまでは右下に並べても重ならない（七つ目から「…」に畳む）
@@ -1558,7 +1509,7 @@ function actionCoach(b, dt) {
   const lesson = b.tut && !b.tut.ok && hud.notices.visible('tutorial') && b.tut.items.find(it => !it.done)?.id;
   // 道をふさぐ敵への操作は任務札に一行。押す実物には指だけを添える。
   const routeAttack = !!navigationEnemy(b) && !rain && !hud.retreatGuide?.active && !b.nearestInteract();
-  const lessonControl = !linkedAttack && (routeAttack || lesson === 'c_swing') ? T.btn.atk : lesson === 'c_guard' ? T.btn.grd : lesson === 'c_cmd' ? T.btn.cmd : null;
+  const lessonControl = !linkedAttack && (routeAttack || lesson === 'c_swing') ? T.btn.atk : lesson === 'c_cmd' ? T.btn.cmd : null;
   if (lessonControl && !lessonControl.hidden && !b.over && !b.choice && !p.camShot && !p.radial && !p.cmdOpen && !hud.bigmap && !hud.openingActive) {
     tog(el, 'at-button', false); tog(el, 'control-only', true); tog(el, 'sw', !!S.touchSwap);
     lessonControl.classList.add('coach-now'); T.coachButton = lessonControl;
@@ -1687,12 +1638,12 @@ function actionCoach(b, dt) {
   } else T.attackFacing = false;
   T.attackEnemy = enemy;
   const turn = !!enemy && !T.attackFacing;
-  const key = rain ? 'run' : enemy ? 'ally-attack' : move ? 'move' : !p.guardOn && p.weapon !== 'gun' && p.weapon !== 'bow' ? 'guard' : 'attack';
+  const key = rain ? 'run' : enemy ? 'ally-attack' : move ? 'move' : 'attack';
   // 同じ知らせを消して出し直す時は八秒あける。表示中はそのまま保つ。
   if (T.actionKey === key && b.t - (T.coachSeen.get(key) ?? b.t) >= 3) { T.actionKey = ''; return; }
   if (T.actionKey !== key && b.t - (T.coachSeen.get(key) ?? -99) < 8) return;
   if (T.actionKey !== key) { T.actionKey = key; T.coachSeen.set(key, b.t); }
-  const control = move ? null : key === 'guard' ? T.btn.grd : T.btn.atk;
+  const control = move ? null : T.btn.atk;
   if (control?.hidden) return;
   tog(el, 'at-button', !!control); tog(el, 'sw', !!S.touchSwap);
   // 狙う敵は任務札、押す場所と押し方は実物のボタンの脇で示す。
@@ -1710,9 +1661,9 @@ function actionCoach(b, dt) {
     const dir = (Math.round(Math.atan2(right, forward) / (Math.PI / 4)) + 8) % 8;
     runText = RUN_COACH[dir];
   }
-  const attackText = p.weapon === 'gun' ? '押しつづけて うて\nはなすと うつ' :
-    p.weapon === 'bow' ? '押してねらい\nはなして射る' : 'ここを押すと攻撃';
-  setText(el.lastElementChild, enemy ? (turn ? '敵へ向いて\n' : '') + attackText : key === 'run' ? runText : key === 'move' ? '前へ進もう\nここから上へなぞる' : key === 'guard' ? 'おして かまえる' : p.weapon === 'gun' ? '押しつづけて うて\nはなすと うつ' : attackText);
+  const attackText = p.weapon === 'gun' ? 'ここを押すと撃つ' :
+    p.weapon === 'bow' ? 'ここを押すと射る' : 'ここを押すと攻撃';
+  setText(el.lastElementChild, enemy ? (turn ? '敵へ向いて\n' : '') + attackText : key === 'run' ? runText : key === 'move' ? '前へ進もう\nここから上へなぞる' : attackText);
   if (control) { control.classList.add('coach-now'); T.coachButton = control; }
   // 寸法を読む回数を抑え、左右入替・画面回転にも追従する。
   T.actionMeasure = (T.actionMeasure || 0) - dt;
@@ -1827,7 +1778,7 @@ function setZoomLock(on) {
 }
 
 // 手ほどきの段に合わせて、試す丸を光らせる
-const COACH_BTN = { c_swing: 'atk', c_guard: 'grd', c_dodge: 'dodge', c_cmd: 'cmd', thrust: 'atk', combo: 'atk', charged: 'atk', guard: 'grd', sweep: 'grd', parry: 'grd', dodge: 'dodge', radial: 'cmd', cmd_follow: 'cmd', cmd_hold: 'cmd', cmd_retreat: 'cmd', cmd_yari: 'cmd', cmd_fire: 'cmd' };
+const COACH_BTN = { c_swing: 'atk', c_cmd: 'cmd', thrust: 'atk', combo: 'atk', radial: 'cmd', cmd_follow: 'cmd', cmd_hold: 'cmd', cmd_retreat: 'cmd', cmd_yari: 'cmd', cmd_fire: 'cmd' };
 function coachGlow(b) {
   // 初めての戦の手ほどき（auto）と、戦ごとの手ほどき（桶狭間の稽古など）の両方
   const t = b.tut || null;
@@ -1912,7 +1863,7 @@ function layout() {
   const cols = [0, 0, 0, 0], rows = [0, 0, 0];
   for (const d of BTN) {
     if (d.id === 'treat') continue;
-    const s = Math.ceil(Math.max(d.id === 'use' && T.layoutGate ? 48 : d.id === 'atk' ? 96 : d.id === 'grd' || d.id === 'dodge' ? 64 : 44, d.d * k));
+    const s = Math.ceil(Math.max(d.id === 'use' && T.layoutGate ? 48 : d.id === 'atk' ? 96 : 44, d.d * k));
     cols[d.col] = Math.max(cols[d.col], T.layoutGate && d.id === 'use' ? Math.max(120, s) : s);
     rows[d.row] = Math.max(rows[d.row], s);
   }
@@ -1943,14 +1894,13 @@ function layout() {
     const d = T.town && d0.id === 'use' ? { ...d0, col: 0, row: 0, d: 84 } : d0;
     const el = T.btn[d.id];
     if (d.id === 'use') el.classList.toggle('big', !!T.town);
-    const s = Math.ceil(Math.max(d.id === 'use' && T.layoutGate ? 48 : d.id === 'atk' ? 96 : d.id === 'grd' || d.id === 'dodge' ? 64 : 44, d.d * k)); // 押せる所は 44px 以上を必ず確保
+    const s = Math.ceil(Math.max(d.id === 'use' && T.layoutGate ? 48 : d.id === 'atk' ? 96 : 44, d.d * k)); // 押せる所は 44px 以上を必ず確保
     const width = T.layoutGate && d.id === 'use' ? Math.max(120, s) : s;
     el.style.width = width + 'px'; el.style.height = s + 'px';
     // 攻めを頂点に、構えと回避を少し内側へ寄せた親指の弧。
-    const arc = d.id === 'grd' || d.id === 'dodge' ? 12 * k : 0;
-    const x = xs[d.col] + (cols[d.col] - width) / 2 + (d.id === 'grd' ? arc : 0);
+    const x = xs[d.col] + (cols[d.col] - width) / 2;
     el.style.left = (sw ? edge + x : edge - x - width).toFixed(0) + 'px';
-    el.style.top = (bottom - ys[d.row] - (rows[d.row] + s) / 2 - (d.id === 'dodge' ? arc : 0)).toFixed(0) + 'px';
+    el.style.top = (bottom - ys[d.row] - (rows[d.row] + s) / 2).toFixed(0) + 'px';
   }
   // 丸の透け具合（設定）
   T.root.style.opacity = '';

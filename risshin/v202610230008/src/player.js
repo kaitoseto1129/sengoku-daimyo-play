@@ -1151,15 +1151,7 @@ export class Player {
     if (dt > 0) this.surge = (this.surge || 0) + (Math.max(-12, Math.min(8, (this.hspd - hspd0) / dt)) - (this.surge || 0)) * Math.min(1, dt * 6);
     // 駆け出しに嘶く（しばらくは繰り返さない）
     if (hspd0 < 6 && this.hspd >= 6 && target > 9 && !((this.neighT ?? -99) + 14 > rt.t)) { this.neighT = rt.t; sfx('neigh', 0.55); }
-    // 手綱を引く：馬の勢いを落とす。弾や矢をすり抜ける効果はない
-    this.dodgeT -= dt; this.iframe -= dt;
-    if ((input.pressed('Space') || input.pressed('HorseRein')) && !locked && this.dodgeT <= 0) {
-      const hard = Math.abs(this.hspd) > 7;
-      // 手綱は息切れ中も使える。移動の棒からは送らない。
-      this.hspd *= hard ? 0.6 : 0.8; this.iframe = 0; this.dodgeT = 0.35;
-      if (hard) { this.horse.userData.horse.rear = 0.35; sfx('snort', 0.5); }
-      rt.tutMark('dodge');
-    }
+    this.dodgeT = -1; this.iframe = 0;
     // 気力は馬上では並足の分だけ戻る
     this.staDelay -= dt;
     if (this.staDelay <= 0) this.sta = Math.min(this.maxSta, this.sta + (this.guard ? 5 : 18) * dt);
@@ -1870,7 +1862,7 @@ export class Player {
         const hit = this.lastHit;
         const who = hit.name || (hit.mounted ? '騎馬の敵' : hit.type === 'busho' ? '敵の武将' : hit.type === 'samurai' ? '敵の侍' : '敵の兵');
         const why = hit.back ? 'に後ろから打たれた。敵に向き直って構えよ' : hit.side ? 'に横から打たれた。敵に向き直って構えよ' :
-          hit.exhausted || hit.guardBroken ? 'に打たれた。気力を戻すため、味方の後ろへ退け' : 'に打たれた。「構え」で前からの打ち込みを受けよ';
+          hit.exhausted || hit.guardBroken ? 'に打たれた。気力を戻すため、味方の後ろへ退け' : 'に打たれた。味方と肩を並べ、囲まれる前に下がれ';
         rt.bark(who + why, true);
       } else rt.hint('guard');
     }
@@ -1892,6 +1884,8 @@ export class Player {
   update(dt, input) {
     if (this.startGun) { this.startGun = false; if (this.hasGun) this.switchWeapon('gun'); }
     const u = this.u;
+    this.lock = null; this.guardOn = this.guard = u.guard = u.dodging = false;
+    this.dodgeT = -1; this.iframe = 0;
     if (!u.alive) {
       this.cancelAttack(); this.guardOn = this.guard = this.aiming = u.guard = false; this.lock = this.aimed = null;
       if (this.mounted) this.fall();
@@ -1918,11 +1912,8 @@ export class Player {
     this.comboHitT = (this.comboHitT || 0) - dt;
     if (this.comboHitT <= 0) this.hitChain = 0;
     this.updateLook(dt, input);
-    // ホイール：狙い定め中は相手を左右に切り替え、ふだんは視点の距離
-    if (input.wheel && this.lock && !this.radial) {
-      this.wheelAcc = (this.wheelAcc || 0) + input.wheel;
-      if (Math.abs(this.wheelAcc) > 60) { this.switchLock(Math.sign(this.wheelAcc)); this.wheelAcc = 0; }
-    } else if (input.wheel && !this.radial) {
+    // 回し車で視点の距離を変える。
+    if (input.wheel && !this.radial) {
       const before = this.zoom;
       this.zoom = Math.max(-1.6, Math.min(3.5, this.zoom + input.wheel * 0.0025));
       if (before !== this.zoom && (this.zoom === -1.6 || this.zoom === 3.5) && !(this.zoomTipT > rt.t)) {
@@ -1933,25 +1924,7 @@ export class Player {
     // [ ] で視点の感度をその場で変える
     if (!simpleControls(rt) && input.pressed('BracketLeft')) { S.sens = Math.max(0.3, +(S.sens - 0.1).toFixed(2)); rt.hud.flash(`視点の感度 ${S.sens.toFixed(1)}`, 'dim'); }
     if (!simpleControls(rt) && input.pressed('BracketRight')) { S.sens = Math.min(2.5, +(S.sens + 0.1).toFixed(2)); rt.hud.flash(`視点の感度 ${S.sens.toFixed(1)}`, 'dim'); }
-    // ---- 狙い定め（ロックオン） ----
-    if (input.pressed('KeyQ') || input.lockPressed) {
-      if (this.lock) { this.lock = null; this.wheelAcc = 0; sfx('ui'); }
-      else { this.lock = this.aimEnemy(26, false, true); if (this.lock) sfx('ui'); else rt.hud.flash('狙える相手がいない', 'dim'); }
-    }
-    if (this.lock && (!this.lock.alive || this.lock.fleeing || this.lock.woundOut || !weatherSees(rt.world, u.pos, this.lock.pos) || Math.hypot(this.lock.pos.x - u.pos.x, this.lock.pos.z - u.pos.z) > 32)) {
-      const prev = this.lock;
-      if (Math.hypot(prev.pos.x - u.pos.x, prev.pos.z - u.pos.z) > 32 && !(this.lockFarTipT > rt.t)) {
-        this.lockFarTipT = rt.t + 8; rt.hud.flash('敵が遠ざかり、狙いが外れた', 'dim');
-      }
-      this.lock = null; this.wheelAcc = 0;
-      // 討ち取った後は、見えている正面の敵だけを狙う。
-      if (!prev.alive) this.lock = army.nearestEnemy(u, 7, (o) => !o.fleeing && !o.woundOut && !o.noTarget && !o.civ && o.type !== 'dummy' && Math.abs(angleDiff(this.yaw, Math.atan2(o.pos.x - u.pos.x, o.pos.z - u.pos.z))) < 0.7 && this.lockVisible(o));
-    }
-    if (this.lock) {
-      const want = Math.atan2(this.lock.pos.x - u.pos.x, this.lock.pos.z - u.pos.z);
-      this.yaw += angleDiff(this.yaw, want) * Math.min(1, dt * 7);
-      this.pitch += (-0.2 - this.pitch) * Math.min(1, dt * 3);
-    }
+    this.lock = null;
     if (!simpleControls(rt) && input.pressed('KeyT')) { this.shoulder *= -1; sfx('ui'); rt.hud.flash(this.shoulder > 0 ? '右肩から見る' : '左肩から見る', 'dim'); }
     // V：短く押すと視点を回す（三人称の近い・普通・遠い、一人称）。長く押している間は「大将の目」で高くから見渡す（身分が上がるほど高く）
     // 足軽の簡単操作でも視点は切り替えられる。教えの間も押した瞬間に一度だけ切り替える。
@@ -2042,20 +2015,12 @@ export class Player {
     const ml = Math.min(1, mlen);
     if (mlen > 0) { mx /= mlen; mz /= mlen; }
     this.guardBroken -= dt;
-    // 指の構えは押すたびに保つ・解く。一つの親指で狙い、放つ、回避へ移れる。
-    const guardToggle = S.guardToggle || !!input.touchGuardToggle;
-    if (guardToggle && input.rightPressed) this.guardOn = !this.guardOn;
-    const rightHeld = !treating && !u.climb && !(this.knockT > 0) && (guardToggle ? this.guardOn : input.right);
+    // 弓・鉄砲は攻撃一つで放つ。受けと狙いの固定は使わない。
+    this.guardOn = this.guard = u.guard = false;
+    this.guardOffT = -9;
     const ranged = this.weapon === 'gun' || this.weapon === 'bow';
-    // 鉄砲は端末を問わず、攻撃を押して構え、離して放つ。短押しも構え終わるまで保つ。
     const gunHold = this.weapon === 'gun' && this.gunLoaded && (input.left || input.leftPressed || this.gunTrigger || this.gunRelease);
-    this.aiming = !treating && !u.climb && !(this.knockT > 0) && ranged && (rightHeld || gunHold);   // 馬上でも鉄砲・弓（騎射）を構えられる
-    const wantGuard = !ranged && rightHeld && this.sta > 0 && this.guardBroken <= 0;
-    if (wantGuard && !this.guard) { this.guardT = 0; sfx('kozane', 0.45); }   // 構える時の具足の擦れる音
-    if (this.guard && !wantGuard) this.guardOffT = this.time;   // 構えを解いた時（直後の一押しも「構えから」の技に数える）
-    this.guard = wantGuard;
-    if (this.guard) this.guardT += dt;
-    u.guard = this.guard;
+    this.aiming = !treating && !u.climb && !(this.knockT > 0) && ranged && (gunHold || this.weapon === 'bow' && (input.left || this.bowTrigger));
     // 前へ素早く二度押しでも走る（Shift でも走れる。kaito 10/23 稲生 16 で戻した）
     const fwdKey = S.binds?.forward || 'KeyW';
     if (input.pressed(fwdKey)) { if (this.lastW != null && this.time - this.lastW < 0.3) this.dblRun = true; this.lastW = this.time; }
@@ -2085,16 +2050,7 @@ export class Player {
       const speed = mud * (this.guard || this.aiming || this.draw > 0 || this.charging ? 2.0 : canRun ? 5.8 : 3.7) * ml * shot * lowHp * (this.knockT > 0 ? 0.1 : this.staggerT > 0 ? 0.45 : 1);
       this.staDelay -= dt;
 
-      // 回避
-      this.dodgeT -= dt; this.iframe -= dt;
-      if (!treating && input.pressed('Space') && !u.climb && !(this.knockT > 0) && this.dodgeT <= -0.3) {
-        this.sta = Math.max(0, this.sta - 20); this.staDelay = 0.6;
-        this.dodgeT = 0.32; this.iframe = 0.3;
-        if (this.weapon === 'spear') this.cancelAttack();
-        rt.tutMark('dodge');
-        this.dodgeDir = ml > 0 ? { x: mx, z: mz } : { x: -fx, z: -fz };
-        sfx('step', 1.4);
-      } else if (input.pressed('Space') && this.sta < 20) rt.hud.flash('気力が足りない（少し構えを解くと戻る）', 'dim');
+      this.dodgeT = -1; this.iframe = 0;
       let tvx = mx * speed, tvz = mz * speed;
       // 溜め・技の間は足が鈍る。ただし一コマで落とさず、なめらかに緩めて戻す（走りながら突く時に足が止まってはまた走る、のカクつきを無くす）
       const slowTo = this.pending ? 0.55 : u.swing && u.swing.t < Math.min(0.18, u.swing.dur) ? 0.7 : 1;
@@ -2107,7 +2063,6 @@ export class Player {
       this.vel.x += (tvx - this.vel.x) * acc;
       this.vel.z += (tvz - this.vel.z) * acc;
       let vx = this.vel.x, vz = this.vel.z;
-      if (this.dodgeT > 0) { vx = this.dodgeDir.x * 8.5 * mud; vz = this.dodgeDir.z * 8.5 * mud; }
       if (treating) { vx = 0; vz = 0; }
       this.movePlayer(dt, vx, vz);
       vx = u.vel.x; vz = u.vel.z;
@@ -2121,7 +2076,7 @@ export class Player {
       if (this.movedAcc > 6) rt.tutMark('move');
       if (this.guard && this.guardT > 0.4) rt.tutMark('guard');
       u.moving = Math.min(1.4, sp / 3.5);
-      u.dodging = this.dodgeT > 0;
+      u.dodging = false;
       u.u_dodging = this.iframe > 0;
       // 足音と具足の音
       if (sp > 0.8) {
@@ -2315,7 +2270,7 @@ export class Player {
     if (u.hp >= u.maxHp * 0.3) this.lowHpWarned = false;
     if (u.hp < u.maxHp * 0.3 && !this.lowHpWarned && (this.lowHpWarnN || 0) < 2 && !(this.lowHpWarnT > rt.t)) {
       this.lowHpWarned = true; this.lowHpWarnN = (this.lowHpWarnN || 0) + 1; this.lowHpWarnT = rt.t + 30;
-      rt.bark(this.lastHit?.ranged && rt.t - this.lastHit.t < 8 ? '深手だ！　矢玉を避け、塀や屋敷の陰へ退け' : '深手だ！　構えで受け流し、組の者のいる所まで退け', true);
+      rt.bark(this.lastHit?.ranged && rt.t - this.lastHit.t < 8 ? '深手だ！　矢玉を避け、塀や屋敷の陰へ退け' : '深手だ！　組の者のいる所まで退け', true);
     }
     this.pickT = (this.pickT || 0) - dt;
     if (this.pickT <= 0 && !this.mounted) { this.pickT = 0.3; this.findGunPickup(); }
@@ -2376,28 +2331,7 @@ export class Player {
   }
 
   // 狙い定めの相手を左右の隣の相手へ
-  switchLock(dir) {
-    const u = this.u;
-    const cur = this.lock;
-    this.wheelAcc = 0;
-    if (!cur || !cur.alive) return;
-    const baseA = Math.atan2(cur.pos.x - u.pos.x, cur.pos.z - u.pos.z);
-    let best = null, bd = Infinity;
-    for (const o of this.rt.army.units) {
-      if (!o.alive || o === u || (o.team === u.team && !(o.name && o.invuln)) || o === cur || o.woundOut || o.fleeing || o.noTarget || o.civ || o.type === 'dummy') continue;
-      const d = Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
-      if (d < 0.001 || d > 26 || !this.lockVisible(o)) continue;
-      const a = angleDiff(baseA, Math.atan2(o.pos.x - u.pos.x, o.pos.z - u.pos.z));
-      if (Math.sign(-a) !== dir) continue;
-      const score = Math.abs(a) * 10 + d * 0.1;
-      if (score < bd) { bd = score; best = o; }
-    }
-    if (best) { this.lock = best; this.aimT = 0; sfx('ui'); }
-    else if (!(this.lockSwitchTipT > this.rt.t)) {
-      this.lockSwitchTipT = this.rt.t + 8;
-      this.rt.hud.flash(`${dir > 0 ? '右' : '左'}に替えられる相手がいない。二十六歩以内の見える相手を狙う`, 'dim');
-    }
-  }
+
 
   // 中断した押し込みは、指を放した攻撃として出さない。
   cancelAttack() {
@@ -2416,7 +2350,7 @@ export class Player {
     const u = this.u;
     this.cancelAttack();
     this.combo = this.kCombo = this.comboT = 0;
-    this.guardOn = this.guard = this.aiming = u.guard = false; this.guardOffT = -9;
+    this.guardOn = this.guard = this.aiming = u.guard = false; this.guardOffT = -9; this.bowTrigger = this.bowPressed = false;
     this.cd = Math.max(this.cd, w === 'gun' || w === 'bow' ? 0.6 : 0.35);  // 持ち替えの隙
     u.hand.remove(u.wpn);
     u.wpn = { sword: this.swordMesh, gun: this.gunMesh, bow: this.bowMesh }[w] || this.spearMesh;
@@ -2430,8 +2364,8 @@ export class Player {
     sfx(w === 'sword' ? 'saya' : 'kozane', w === 'sword' ? 0.8 : 0.7);
     const teachW = !this.rt.teachOn || this.rt.teachOn();
     if (!teachW) { if (w === 'gun' || w === 'bow') this.rt.hud.flash(w === 'gun' ? '鉄砲に持ち替えた' : '弓に持ち替えた', 'dim'); }
-    else if (w === 'gun') this.rt.hud.flash(isTouch ? '攻撃の釦を押し続けて狙い、離して撃つ' : '左押しを押し続けて狙い、離して撃つ', 'dim');
-    else if (w === 'bow') this.rt.hud.flash(isTouch ? '弓　狙うの丸で構え、射るの丸を押して引き、離して射る' : '弓　右で構え、左を押して引き、離して射る', 'dim');
+    else if (w === 'gun') this.rt.hud.flash(isTouch ? '攻撃の釦を一度押して撃つ' : '左押しを一度押して撃つ', 'dim');
+    else if (w === 'bow') this.rt.hud.flash('弓　攻撃を一度押すと射る', 'dim');
   }
   // 持っている武器の並び（持ち替えの順）
   weaponList() {
@@ -2495,7 +2429,7 @@ export class Player {
   // 飛び道具を手にしていない時：引きかけ・切りかけをやめ、札を隠す（弾込めは火縄銃を手にしている間だけ進む）
   rangedIdle() {
     const u = this.u;
-    this.bowHold = 0;
+    this.bowHold = 0; this.bowTrigger = false;
     this.aimK = 0; this.aimHoldT = 0; this.gunTrigger = false; this.gunRelease = false;
     if (!this.shot?.pan) this.shot = null;
     this.draw = 0;
@@ -2607,18 +2541,20 @@ export class Player {
         sfx('click', 0.55);
       }
     } else {
-      // 弓：左を押している間に引き絞り、離して射る
+      // 弓は押した一回を受け取り、引き絞ったら一本放つ。
+      if ((input.leftPressed || input.left && !this.bowPressed) && this.cd <= 0 && this.bowAmmo > 0) this.bowTrigger = true;
+      this.bowPressed = !!input.left;
       u.relT = Math.max(0, (u.relT || 0) - dt);
       if (input.left && this.bowAmmo <= 0) {
-        this.draw = 0; this.bowHold = 0; u.atk = null;
+        this.draw = 0; this.bowHold = 0; this.bowTrigger = false; u.atk = null;
         if (!(this.noArrowT > rt.t)) { this.noArrowT = rt.t + 8; rt.hud.flash('矢が尽きた。槍に持ち替える', 'dim'); }
-      } else if (input.left && this.cd <= 0) {
+      } else if (this.bowTrigger && this.cd <= 0) {
         this.draw = Math.min(2.2, this.draw + dt);
         this.bowHold = this.draw >= 2 ? (this.bowHold || 0) + dt : 0;
         if (this.draw >= 2) {
           this.sta = Math.max(0, this.sta - (4 + Math.min(8, this.bowHold)) * dt); this.staDelay = 0.4;
           if (this.sta <= 0) {
-            this.draw = 0; this.bowHold = 0; u.atk = null; this.cd = 0.5;
+            this.draw = 0; this.bowHold = 0; this.bowTrigger = false; u.atk = null; this.cd = 0.5;
             if (!(this.bowTiredUntil > rt.t)) { this.bowTiredUntil = rt.t + 8; rt.hud.flash('腕が疲れた。弓を緩めて休む', 'dim'); }
           }
         }
@@ -2626,13 +2562,12 @@ export class Player {
         const e = Math.min(2.2, this.draw);
         if (this.draw > 0) { const a = this.rangedPose; a.bow = true; a.ranged = false; a.t = 10 - e; a.dur = 10; a.target = this.groundTarget(); u.atk = a; }
         this.inCombatT = 3;
-      } else if (!input.left && this.draw > 0) {
-        const full = this.draw >= 2.0;
+      }
+      if (this.bowTrigger && this.draw >= 2) {
+        this.bowTrigger = false;
         this.draw = 0; u.atk = null;
-        if (full) this.looseArrow();
-        this.bowHold = 0;
-        if (!full && !(this.shortDrawTipT > rt.t)) { this.shortDrawTipT = rt.t + 8; rt.hud.flash(rt.teachOn && !rt.teachOn() ? '引きが足りない' : '引きが足りない（長く押して引き絞る）', 'dim'); }
-        this.cd = 0.5;
+        this.looseArrow();
+        this.bowHold = 0; this.cd = 0.5;
       }
     }
     this.updateRangedUi();
@@ -2774,7 +2709,6 @@ export class Player {
     sight.hidden = !(this.weapon === 'gun' && this.aiming && this.fpK > 0.6);
     const st = el._st;
     const fire = isTouch ? '攻撃の釦' : '左押し';
-    const bowFire = isTouch ? '射るの丸' : '左';
     const progress = Math.round((this.weapon === 'gun' ? this.gunReload : Math.min(1, this.draw / 2)) * 100);
     el._bar.hidden = this.weapon === 'gun' ? this.gunLoaded || this.gunAmmo === 0 : this.draw <= 0 || this.bowAmmo <= 0;
     if (el._progress !== progress) { el._fill.style.width = progress + '%'; el._progress = progress; }
@@ -2793,8 +2727,8 @@ export class Player {
       }
       if (this.gunLoaded && this.gunAmmo != null) txt += `（弾 ${this.gunAmmo + 1}）`;
     } else txt = this.bowAmmo <= 0 ? '矢が尽きた。槍に持ち替える' : this.draw > 0
-      ? (this.draw < 0.6 ? '弓　矢を番える' : progress < 100 ? '弓　引き絞る' : this.bowHold > 3 ? `弓　腕が疲れる。${bowFire}を離して射る` : `弓　引き切った。${bowFire}を離して射る`)
-      : (isTouch ? '弓　狙うで構え、射るを押して引く' : '弓　右で構え、左を押して引く');
+      ? (this.draw < 0.6 ? '弓　矢を番える' : progress < 100 ? '弓　引き絞る' : this.bowHold > 3 ? '弓　射る' : '弓　射る')
+      : '弓　攻撃を一度押すと射る';
     if (this.weapon === 'bow' && this.bowAmmo > 0) txt += `（矢 ${this.bowAmmo}）`;
     if (st._t !== txt) {
       el._label.textContent = txt; st._t = txt;
@@ -3750,7 +3684,7 @@ export class Player {
     rt.addInteract('bandage', this.treatmentPoint, `手当て（三秒長押し・あと${this.treatmentLeft}回）`, () => {
       if (!this.treatWounds(0.15, 0.6)) return;
       rt.uninteract('bandage'); this.treatmentReady = false;
-      rt.hud.flash(`血を止めた。矢と骨の傷は宿で手当て（あと${this.treatmentLeft}回）`, 'dim');
+      rt.hud.flash('手当て完了。血を止めた', 'dim');
     }, { r: 1.5, hold: 3 });
   }
 

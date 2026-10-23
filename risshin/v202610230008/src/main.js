@@ -988,8 +988,6 @@ canvas.addEventListener('mousedown', (e) => {
     if (game.battle.def.key !== 'inou' || game.battle.flags.lesson !== 'swing') return;
   }
   if (e.button === 0) { input.mouseL = true; input.leftPressed = true; }
-  if (e.button === 1) { input.lockPressed = true; e.preventDefault(); }
-  if (e.button === 2) { input.mouseR = true; input.rightPressed = true; }
 });
 window.addEventListener('mouseup', (e) => { if (e.button === 0) input.mouseL = false; if (e.button === 2) input.mouseR = false; });
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -1122,7 +1120,7 @@ function photoUi() {
   const ph = game.photo;
   const el = $('photoui');
   el.hidden = !ph;
-  if (ph) el.innerHTML = `<b>写真方式</b>　${K('forward')}${K('left')}${K('back')}${K('right')} 移動・${K('dodge')}／${K('attack')} 上下・手元の操作器 見回す・回し車 画角<br>1〜4 色合い（いま：${FILTER_NAMES[ph.filter]}）・H 自分を隠す・G 構図の線・K 撮る・P 戻る`;
+  if (ph) el.innerHTML = `<b>写真方式</b>　${K('forward')}${K('left')}${K('back')}${K('right')} 移動・空白／${K('attack')} 上下・手元の操作器 見回す・回し車 画角<br>1〜4 色合い（いま：${FILTER_NAMES[ph.filter]}）・H 自分を隠す・G 構図の線・K 撮る・P 戻る`;
 }
 function togglePhoto() {
   if (simpleControls(game.battle)) return;
@@ -1219,16 +1217,13 @@ function pollPad() {
     input.dy += dz(gp.axes[3] || 0) * 11 * S.padSens;
     input.padL = b(7) || b(5);
     if (edge(7) || edge(5)) input.leftPressed = true;
-    input.padR = b(6);
-    if (edge(6)) input.rightPressed = true;
     if (gp.buttons.some((x) => x.pressed) || Math.hypot(input.axis.x, input.axis.y) > 0.3) { game.hud.padMode = true; game.pad = gp; }
-    const map = { 0: 'Space', 2: 'KeyE', 3: 'Tab', 4: 'KeyF' };
+    const map = { 2: 'KeyE', 3: 'Tab', 4: 'KeyF' };
     // Y は押している間も「Tab を押している」ことにする（長押しで号令の輪）
     if (b(3)) input.keys.add('Tab'); else if (padPrev[3]) input.keys.delete('Tab');
     for (const [i, code] of Object.entries(map)) if (edge(+i)) input.edge.add(code);
     const dpad = { 12: 'follow', 14: 'hold', 15: 'attack', 13: 'retreat' };
     for (const [i, id] of Object.entries(dpad)) if (edge(+i)) input.quickCmd = id;
-    if (edge(11)) input.lockPressed = true;
     if (edge(10)) padRun = !padRun;
     if (!input.touchMoving) input.runHeld = padRun && Math.hypot(padAxis.x, padAxis.y) > 0.2;
     if (!input.runHeld && Math.hypot(padAxis.x, padAxis.y) < 0.2) padRun = false;

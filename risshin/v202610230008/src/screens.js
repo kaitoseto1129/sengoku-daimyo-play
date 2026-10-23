@@ -423,12 +423,12 @@ function fbBind(root, id, where) {
 // いまのキー割り当てで操作表を作る
 const KEYS = () => [
   [`${K('forward')} ${K('left')} ${K('back')} ${K('right')}`, '移動'], ['手元で動かす', '視点（画面を押して開始）'],
-  ['左押し', '突く（押すだけ）'], ['右押し', '構え（受ける）'], [K('dodge'), '避ける'], [K('lock'), '狙いを定める'],
+  ['左押し', '突く（押すだけ）'],
   [K('use'), '話す・取る'], [K('run'), '走る'], ['Esc', '一時停止・設定'],
 ];
 const PB = (k) => `<span class="pb pb-${k.toLowerCase()}">${{ A: 'A', B: 'B', X: 'X', Y: 'Y' }[k]}</span>`;
-const PAD = [['左の棒', '移動'], ['右の棒', '視点'], ['右の引き金・右肩', '突く（押すだけ）'], ['左の引き金', '構え（受ける）'], [PB('A'), '避ける・決定'], [PB('X'), '話す・取る'], ['右の棒を押し込む', '狙いを定める'], ['左の棒を押し込む', '走る'], [PB('B'), '戻る'], ['三本線の釦', '一時停止']];
-const TOUCH_KEYS = () => [['画面左下をなぞる', '触れた所に輪が出ます。上へ動かすと前へ歩く'], ['輪の外へ動かす', '指を大きく動かすと走る'], ['画面右側をなぞる', '見る向きを変える'], ['右下の「つく」', 'やりで攻撃する'], ['「かまえる」', S.guardToggle ? '一度押すと防ぐ。もう一度でやめる' : '押している間、敵の攻撃を防ぐ'], ['「よける」', '横へとんで攻撃をよける'], ['「ねらう」', '近くの敵を正面にとらえる'], ['左上の「視点」', '自分の目で見る・後ろから見るを切り替える'], ['左上の「止める」', '戦いを止めて設定を見る']];
+const PAD = [['左の棒', '移動'], ['右の棒', '視点'], ['右の引き金・右肩', '突く（押すだけ）'], [PB('X'), '話す・取る'], ['左の棒を押し込む', '走る'], [PB('B'), '戻る'], ['三本線の釦', '一時停止']];
+const TOUCH_KEYS = () => [['画面左下をなぞる', '触れた所に輪が出ます。上へ動かすと前へ歩く'], ['輪の外へ動かす', '指を大きく動かすと走る'], ['画面右側をなぞる', '見る向きを変える'], ['右下の「つく」', 'やりで攻撃する'], ['左上の「視点」', '自分の目で見る・後ろから見るを切り替える'], ['左上の「止める」', '戦いを止めて設定を見る']];
 export function touchKeysHtml() {
   const list = TOUCH_KEYS().map(([key, text]) => {
     if (key === '輪の外へ動かす' && S.runToggle) text = '一度輪の外へ動かすと、指を放すまで走る';
@@ -603,7 +603,7 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
     const opener = $('b-controls'), dialog = document.createElement('dialog');
     dialog.className = 'title-controls';
     dialog.setAttribute('aria-labelledby', 'title-controls-heading');
-    dialog.innerHTML = `<h2 id="title-controls-heading">操作のしかた</h2><small>説明の続きは、この中を下へ送ると読めます</small><div class="controls-reading" tabindex="0">${isTouch ? touchKeysHtml() : `<p>前：${esc(K('forward'))}　後ろ：${esc(K('back'))}<br>左：${esc(K('left'))}　右：${esc(K('right'))}</p><p>${esc(K('run'))}を押しながら移動すると走ります。</p><p>マウスを動かして見回す。左ボタンで攻撃（やりでつく・刀で切る）。</p><p>右ボタンで敵の攻撃を防ぐ。横へ動きながら${esc(K('dodge'))}でよける。</p>`}<p class="note">稲生（いのう）は最初の実戦。移動から一つずつ覚えます。練習だけなら「練習・ほかの戦い」へ。</p><p class="note">鍵盤・手持ち操作器の割り当ては「設定」で確認できます。</p></div><button type="button" class="btn">操作を閉じて題へ戻る</button>`;
+    dialog.innerHTML = `<h2 id="title-controls-heading">操作のしかた</h2><small>説明の続きは、この中を下へ送ると読めます</small><div class="controls-reading" tabindex="0">${isTouch ? touchKeysHtml() : `<p>前：${esc(K('forward'))}　後ろ：${esc(K('back'))}<br>左：${esc(K('left'))}　右：${esc(K('right'))}</p><p>${esc(K('run'))}を押しながら移動すると走ります。</p><p>マウスを動かして見回す。左ボタンで攻撃（やりでつく・刀で切る）。</p><p>弓・鉄砲も攻撃を一度押すと放ちます。</p>`}<p class="note">稲生（いのう）は最初の実戦。移動から一つずつ覚えます。練習だけなら「練習・ほかの戦い」へ。</p><p class="note">鍵盤・手持ち操作器の割り当ては「設定」で確認できます。</p></div><button type="button" class="btn">操作を閉じて題へ戻る</button>`;
     scr.appendChild(dialog);
     dialog.addEventListener('keydown', (e) => e.stopPropagation());
     dialog.querySelector('button').onclick = () => dialog.close();
@@ -855,7 +855,7 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
 
 // ---------------- 設定 ----------------
 const SET_CAT = {
-  操作: ['st-sens', 'st-psens', 'st-tsens', 'st-tswap', 'st-tsize', 'st-talpha', 'st-rtime', 'st-inv', 'st-smooth', 'st-autocam', 'st-view', 'st-twalk', 'st-run', 'st-guard', 'st-aim', 'st-vib'],
+  操作: ['st-sens', 'st-psens', 'st-tsens', 'st-tswap', 'st-tsize', 'st-talpha', 'st-rtime', 'st-inv', 'st-smooth', 'st-autocam', 'st-view', 'st-twalk', 'st-run', 'st-aim', 'st-vib'],
   // 914：「画面」を「見やすさ」と「HUD」に分ける
   見やすさ: ['st-fov', 'st-shake', 'st-blood', 'st-rm', 'st-guide', 'st-metrics', 'st-ca', 'st-ui', 'st-sub', 'st-subbg', 'st-hints', 'st-font'],
   戦の札: ['st-hudmode', 'st-hc', 'st-fade', 'st-float', 'st-mark', 'st-toast', 'st-cross', 'st-north', 'st-fps', 'st-hudMinimap', 'st-hudCompass', 'st-hudArmy', 'st-hudSquad', 'st-hudBottom', 'st-hudObjectives'],
@@ -888,7 +888,6 @@ const SET_DESC = {
   'st-view': '自分の姿を見る視点と、自分の目で見る視点を選びます',
   'st-hints': '操作の手ほどきを出します。任務の台詞は残ります。見た説明は下の釦で出し直せます',
   'st-run': '釦では押すたびに走りと歩きを替えます。指では一度輪の外まで倒すと、輪へ戻しても指を放すまで走ります',
-  'st-guard': '一度押すと構え、もう一度押すと構えを解きます。指の丸にも効きます',
   'st-tsens': '低くすると、指でなぞった時にゆっくり見回せます',
   'st-tsize': '大きくすると、指で押す丸も広がります。小さくしても押せる広さは保ちます',
   'st-talpha': '薄くすると景色が見えます。押せる場所は変わりません',
@@ -940,7 +939,6 @@ export function settingsHtml() {
     ${row('st-town', '城下の楽の音', chk('st-town', 'townMusic'))}
     ${row('st-twalk', '城下', `<select id="st-twalk"><option value="walk" ${S.townWalk !== 'cards' ? 'selected' : ''}>町を歩く</option><option value="cards" ${S.townWalk === 'cards' ? 'selected' : ''}>札で選ぶ（軽い）</option></select>`)}
     ${row('st-run', '走りを切替式に', chk('st-run', 'runToggle'), '')}
-    ${row('st-guard', '構えを切替式に', chk('st-guard', 'guardToggle'), '')}
     ${row('st-aim', '突きの狙いを助ける', chk('st-aim', 'aimAssist'))}
     ${row('st-shake', '画面の揺れ', chk('st-shake', 'shake'))}
     ${row('st-hudmode', '画面の札の量', `<select id="st-hudmode"><option value="min" ${S.hudMode === 'min' ? 'selected' : ''}>最小（戦場を広く）</option><option value="normal" ${(S.hudMode || 'normal') === 'normal' ? 'selected' : ''}>ふつう</option><option value="full" ${S.hudMode === 'full' ? 'selected' : ''}>全部</option></select>`)}
@@ -1047,7 +1045,6 @@ export function bindSettings(onChange) {
   bind('st-smooth', 'smooth', (e) => e.checked);
   bind('st-autocam', 'autoCam', (e) => e.checked);
   bind('st-view', 'view', (e) => e.value);
-  bind('st-guard', 'guardToggle', (e) => e.checked);
   bind('st-rm', 'reduceMotion', (e) => e.checked);
   bind('st-guide', 'reduceGuidance', (e) => e.checked);
   bind('st-metrics', 'sendMetrics', (e) => e.checked);
@@ -1347,7 +1344,7 @@ export function storyCard({ year, title, text, button = '次の場面へ進む',
     ${who ? `<div class="st-who">${who}</div>` : ''}
     ${aim && !compact ? `<div class="st-who" style="margin-top:-18px"><b>${esc(aim)}</b></div>` : ''}
     ${missionHtml}${body}
-    ${S.hints && !first ? `<details class="st-more"><summary>戦い方を見る</summary><p style="font-size:max(15px, calc(15px * var(--text-scale, 1)));line-height:1.6">${isTouch ? '「構え」を押して敵の打ちに備える。' : '右押しを押して敵の打ちに備える。'}自分の組か、近くの味方の列と肩を並べる。囲まれる前に、来た道から味方の後ろへ退く。矢玉は物陰で避ける。</p></details>` : ''}
+    ${S.hints && !first ? `<details class="st-more"><summary>戦い方を見る</summary><p style="font-size:max(15px, calc(15px * var(--text-scale, 1)));line-height:1.6">自分の組か、近くの味方の列と肩を並べる。囲まれる前に、来た道から味方の後ろへ退く。矢玉は物陰で避ける。</p></details>` : ''}
     ${talks.length ? `<details class="st-more"><summary>組の者との会話を読む</summary>${battleTalkHtml(talks)}</details>` : ''}
     ${compact ? '' : order}${tips && !compact && !short && !first ? `<div class="st-tip"><span>${isTouch ? '左上の「視点」を押す' : K('view') + 'を押す'}と一人称・三人称を替えられます${G && G.lord ? '／地図で軍配の図（全軍を動かす）・使番で近くの備へ命令' : ''}</span></div>` : ''}
     ${isTouch ? '' : `<div class="keyhint">Enterか空白で進む${onBack ? "・Escで城下へ戻る" : ""}</div>`}
@@ -1465,7 +1462,6 @@ function catNotes(c, r, hadSquad) {
     if (as && /上限/.test(as.detail)) lack.push('足軽の討ち取りは上限に達した');
     else if (!bs.length && !sm && !as && !(st.kills > 0)) lack.push('討ち取りの記録なし');
     if (st.kills > 0) good.unshift(`自ら討ち取った数 ${Math.max(0, Math.floor(st.kills))}人`);
-    if (st.parries === 0) lack.push('受け流しの記録なし');
   } else if (c === '任') {
     if (one('任務達成')) good.push('任務を果たした');
     for (const l of L.filter((x) => x.label === '副任務達成')) good.push(`副任務：${l.detail}`);
@@ -1767,7 +1763,7 @@ export function evalScreen(G, r, actions) {
       : (nt.good.slice(0, 1).map((g) => `<p class="g"><em>良し</em><span>${esc(g)}</span></p>`).join('') + nt.lack.slice(0, 1).map((g) => `<p class="l"><em>足りぬ</em><span>${esc(g)}</span></p>`).join('') + nt.neutral.map((g) => `<p class="lk">${esc(g)}</p>`).join('')) || '<p class="lk">この区分の加点・減点なし</p>';
     return `<div class="evc ${cls}" role="group" style="animation-delay:${t1 + i * 0.22}s" aria-label="${c}：${CAT_INFO[c].long}">
       <div class="evc-h"><span class="k">${c}</span><small>${CAT_INFO[c].long}</small><span class="evmk">${({ 上: '大手柄', 中: '手柄', 下: '小さな手柄', 欠: '差し引き', '—': '対象外・加点なし' })[mk]}</span><span class="p">${nt.locked ? '' : sgn(sum.pts)}</span></div>
-      <i class="evc-bar"><b style="width:${w}%"></b>${wm ? `<s style="width:${wm}%"></s>` : ''}</i><small>棒の端は加点・減点それぞれ${ref}点の目安。実際は${sgn(sum.pts)}点。端を超えた点も数えます。</small>${body}${nt.good.length > 1 || nt.lack.length > 1 ? `<details><summary style="min-height:44px;cursor:pointer">ほかの評価${Math.max(0, nt.good.length - 1) + Math.max(0, nt.lack.length - 1)}件を見る</summary>${nt.good.slice(1).map((g) => `<p class="g"><em>良し</em><span>${esc(g)}</span></p>`).join('')}${nt.lack.slice(1).map((g) => `<p class="l"><em>足りぬ</em><span>${esc(g)}</span></p>`).join('')}</details>` : ''}${firstBattle && c === '武' && r.stats?.parries === 0 ? '<details><summary style="min-height:44px;cursor:pointer">受け流しの方法を見る</summary><p>敵の打ち込みの直前に、構えを押します。</p><p>' + (isTouch ? '右の「構え」の丸を押します。' : '右押しで構えます。') + '矢と鉄砲は構えで防げません。</p></details>' : ''}</div>`;
+      <i class="evc-bar"><b style="width:${w}%"></b>${wm ? `<s style="width:${wm}%"></s>` : ''}</i><small>棒の端は加点・減点それぞれ${ref}点の目安。実際は${sgn(sum.pts)}点。端を超えた点も数えます。</small>${body}${nt.good.length > 1 || nt.lack.length > 1 ? `<details><summary style="min-height:44px;cursor:pointer">ほかの評価${Math.max(0, nt.good.length - 1) + Math.max(0, nt.lack.length - 1)}件を見る</summary>${nt.good.slice(1).map((g) => `<p class="g"><em>良し</em><span>${esc(g)}</span></p>`).join('')}${nt.lack.slice(1).map((g) => `<p class="l"><em>足りぬ</em><span>${esc(g)}</span></p>`).join('')}</details>` : ''}/div>`;
   }).join('');
   // 絵巻が開いたら、すぐ戦功を数え上げる（細かな札は「くわしく見る」の中）
   const delay = Math.max(0.9, t1 * 0.5);
@@ -1888,7 +1884,7 @@ export function evalScreen(G, r, actions) {
     ${!r.mainDone && r.bossLine ? `<div class="ev-fail"><b>${r.taishoLost ? '殿を討たれた' : 'しくじり'}</b><p><span>${esc(r.bossLine[0])}</span>「${esc(r.bossLine[1])}」</p></div>` : ''}
     <details class="ek-more"><summary>助言と昇進</summary>
     ${promo}
-    ${(() => { const notes = ['武','任','将','忠'].map((c) => catNotes(c, r, hadSquad)); const good = notes.find((n) => n.good.length)?.good[0]; const lack = notes.find((n) => n.lack.length)?.lack[0]; return `<div class="histnote">${good ? `<p>良かったこと：${esc(good)}</p>` : ''}${lack ? `<p>次の課題：${esc(lack)}</p>` : ''}${firstBattle && r.stats?.parries === 0 ? `<details><summary style="min-height:44px;cursor:pointer">受け流しの方法を見る</summary><p>敵が打ち込む直前に${isTouch ? '右の「構え」の丸を押す' : '右押しで構える'}。矢と鉄砲は物陰で避ける。</p></details>` : ''}</div>`; })()}
+    ${(() => { const notes = ['武','任','将','忠'].map((c) => catNotes(c, r, hadSquad)); const good = notes.find((n) => n.good.length)?.good[0]; const lack = notes.find((n) => n.lack.length)?.lack[0]; return `<div class="histnote">${good ? `<p>良かったこと：${esc(good)}</p>` : ''}${lack ? `<p>次の課題：${esc(lack)}</p>` : ''}/div>`; })()}
     </details>
     ${r.spoilHorse ? `<div class="histnote" style="border-color:var(--kin)"><b>分捕った馬</b><br>${esc(r.spoilHorse.who)}の馬。${spoilReplace ? `持ち帰ると前の馬（${esc(previousSpoil?.name || previousSpoil?.from || '分捕り馬')}）と入れ替わる。持ち帰る釦で決めるまでは前の馬を残す` : '持ち帰って城下の馬屋に並べる'}${ladderStep(G) < 2 ? '（乗れるのは足軽大将から）' : ''}。<div class="row" style="margin:6px 0 0"><button class="btn small" id="ev-spoil" aria-pressed="${spoilReplace}">${spoilReplace ? '持ち帰る' : '置いていく'}</button></div><div id="ev-spoil-confirm"></div></div>` : ''}
     <details class="ek-more" id="ek-more"><summary>手柄・褒美・組の記録</summary>
@@ -3154,7 +3150,7 @@ export function baseScreen(G, town0, lastResult, game, opts = {}) {
       // 馬屋：足軽大将から。馬を選ぶ・買う・手入れする・名を付ける
       const st = ladderStep(G);
       if (st < 2) {
-        body = `<div class="stable-lock"><canvas class="preview3d" id="pv-st" aria-hidden="true"></canvas><div><div class="n" style="font-family:var(--display);font-size:max(12px, calc(22px * var(--text-scale, 1)));letter-spacing:.1em">馬屋は足軽大将から</div><p class="note">足軽大将になると、自分の馬を持ち、馬上で戦える。駆けて突けば重い一撃。${isTouch ? '駆ける・手綱を引くは、画面の釦で。' : `<kbd class="cap">${esc(K('run'))}</kbd> で駆け、<kbd class="cap">${esc(K('dodge'))}</kbd> で手綱を引く。`}</p><p class="note">いまの累計戦功 ${G.merit} ／ 足軽大将まで ${Math.max(0, RANKS[4].min - G.merit)}</p><button class="btn small" id="st-ladder">出世の道で馬上の姿を見る</button></div></div>
+        body = `<div class="stable-lock"><canvas class="preview3d" id="pv-st" aria-hidden="true"></canvas><div><div class="n" style="font-family:var(--display);font-size:max(12px, calc(22px * var(--text-scale, 1)));letter-spacing:.1em">馬屋は足軽大将から</div><p class="note">足軽大将になると、自分の馬を持ち、馬上で戦える。駆けて突けば重い一撃。${isTouch ? '移動の棒を大きく倒すと駆ける。' : `<kbd class="cap">${esc(K('run'))}</kbd> で駆ける。`}</p><p class="note">いまの累計戦功 ${G.merit} ／ 足軽大将まで ${Math.max(0, RANKS[4].min - G.merit)}</p><button class="btn small" id="st-ladder">出世の道で馬上の姿を見る</button></div></div>
           <p class="note" style="margin-top:12px">馬は先に買っておける（乗れるのは足軽大将から）。月影は足軽大将になると賜る。</p>
           <div class="items">${Object.entries(HORSES).filter(([, h]) => !h.spoil).map(([id, h]) => {
             const own = (G.horses || []).includes(id) && id !== 'tsukikage';
@@ -3928,9 +3924,7 @@ export function helpOverlay(on) {
     <div style="height:14px"></div><details><summary class="note" style="cursor:pointer;min-height:44px;display:flex;align-items:center">手持ち操作器の操作を見る</summary><div style="height:8px"></div>${keysHtml(true)}</details>
     <div style="height:22px"></div>
     <div class="eyebrow" style="margin-bottom:8px">戦い方のこつ</div>
-    <p class="note">敵の頭上に「！」が出たら斬りかかってくる合図。その直前に${isTouch ? '構えの丸' : '右押し'}で構えると受け流しになり、次の一撃が「反撃」になる。<br>
-    照準が朱色になったら槍が届く。${isTouch ? '狙いの丸' : K('lock')}で狙い定めると相手を見失わない。一度に斬りかかってくる敵は3人まで。</p>
-    <p class="note">危険の印：赤い画面の縁は、見える弓兵や鉄砲足軽に狙われる合図。左右の暗い縁は、見える敵に囲まれる合図。敵の頭上の「！」は打ち込みの合図です。</p>
+    <p class="note">味方と肩を並べ、囲まれる前に下がる。弓・鉄砲も攻撃を一度押すと放つ。</p>
     <div class="eyebrow" style="margin:16px 0 8px">用語集</div>
     <p class="note">言葉の意味は、用語集で読めます。</p>
     <button class="btn" id="help-words">用語集を開く</button>
@@ -3987,7 +3981,7 @@ export function pauseMenu(el, o) {
     if (box.innerHTML) { box.innerHTML = ''; btn.setAttribute('aria-expanded', 'false'); return; }
     // 一時停止では、音量・字幕・HUD の三つだけを出す（916。全部の設定はタイトルの「設定」から）
     // 戦の途中でも変えたい物（画質・動きを減らす・見回しの感度）も出す（kaito 10/2）
-    const keep = new Set(['st-psens', 'st-inv', 'st-vrate', 'st-fov', 'st-town', 'st-cap', 'st-tswap', 'st-tsize', 'st-talpha', 'st-vib', 'st-guard', 'st-run', 'st-rm', 'st-sens', 'st-tsens', 'st-vol', 'st-vsfx', 'st-vamb', 'st-vmus', 'st-ui', 'st-sub', 'st-subbg', 'st-voice', 'st-hudmode', 'st-fade', 'st-hudMinimap', 'st-hudCompass', 'st-hudArmy', 'st-hudSquad', 'st-hudBottom', 'st-hudObjectives']);
+    const keep = new Set(['st-psens', 'st-inv', 'st-vrate', 'st-fov', 'st-town', 'st-cap', 'st-tswap', 'st-tsize', 'st-talpha', 'st-vib', 'st-run', 'st-rm', 'st-sens', 'st-tsens', 'st-vol', 'st-vsfx', 'st-vamb', 'st-vmus', 'st-ui', 'st-sub', 'st-subbg', 'st-voice', 'st-hudmode', 'st-fade', 'st-hudMinimap', 'st-hudCompass', 'st-hudArmy', 'st-hudSquad', 'st-hudBottom', 'st-hudObjectives']);
     box.innerHTML = settingsHtml();
     box.querySelector('.settings')?.classList.add('show-adv');
     box.querySelector('#st-adv')?.setAttribute('hidden', '');

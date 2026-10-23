@@ -5,13 +5,13 @@ const HINT_KEY = 'sengoku-risshin-hints-v1';
 // 変更できるキー割り当て（操作名 → 既定のキー）
 export const BIND_DEFAULTS = {
   forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD',
-  run: 'ShiftLeft', dodge: 'Space', use: 'KeyE', lock: 'KeyQ',
+  run: 'ShiftLeft', use: 'KeyE',
   rally: 'KeyF', command: 'Tab', map: 'KeyM', log: 'KeyL', skip: 'Enter', photo: 'KeyP', hud: 'KeyU', mapzoom: 'KeyB',
   follow: 'KeyZ', hold: 'KeyX', attack: 'KeyC', retreat: 'KeyN', shoulder: 'KeyT', mount: 'KeyR',
   view: 'KeyV',
 };
 export const BIND_LABELS = {
-  forward: '前へ', back: '後ろへ', left: '左へ', right: '右へ', run: '走る', dodge: '回避・馬の手綱を引く', use: '話す・取る', lock: '狙い定め',
+  forward: '前へ', back: '後ろへ', left: '左へ', right: '右へ', run: '走る', use: '話す・取る',
   rally: '鼓舞', command: '部隊指揮（長押しで号令の輪）', map: '戦場の地図', log: '会話の記録', skip: '行軍・待ちを飛ばす', photo: '写真方式', hud: '画面の表示を消す・出す', mapzoom: '小地図の広さ', follow: '号令：ついて来い', hold: '号令：待て', attack: '号令：突撃', retreat: '号令：退け', shoulder: '肩越しの切替', mount: '馬に乗る・降りる（遠ければ口笛）', view: '視点の切替（三人称・一人称）',
 };
 
@@ -54,7 +54,6 @@ const DEFAULTS = {
   lowMem: false,      // 携帯で重さに落ちた後の軽い作り（近くの本物の兵を減らす。10/19）
   heatFloor: 0,       // 軽く遊ぶ段（0〜3）。熱の段をここから始める。iPhone で落ちた後の札で選ぶ（10/21）
   runToggle: false,   // 走りを切替式にする
-  guardToggle: false, // 構えを切替式にする
   aimAssist: true,    // 照準補助
   shake: true,        // 画面の揺れ
   flagMotion: false,  // 旗・幟・指物のなびき（戻す時は有効にして再読込）
@@ -149,11 +148,11 @@ S.binds = Object.fromEntries(Object.keys(BIND_DEFAULTS).map((act) => [act, saved
 // 戻る・説明の鍵は専用。壊れた割り当てで動けなくなるのを防ぐ。
 export const bindReserved = (code) => ['Escape', 'KeyH', 'F1', 'BracketLeft', 'BracketRight', 'AltLeft', 'AltRight'].includes(code) || /^Digit[0-9]$/.test(code);
 const MOVE_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD'];
-export const validBind = (code, act) => !((act === 'mount' || act === 'dodge') && MOVE_KEYS.includes(code)) && typeof code === 'string' && /^(Key[A-Z]|Digit[0-9]|Arrow(Up|Down|Left|Right)|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Space|Tab|Enter|Backspace|Delete|Insert|Home|End|PageUp|PageDown|BracketLeft|BracketRight|Comma|Period|Slash|Semicolon|Quote|Backquote|Minus|Equal|Numpad([0-9]|Add|Subtract|Multiply|Divide|Decimal|Enter)|F([2-9]|1[0-2])|Meta(Left|Right)|CapsLock|NumLock|ScrollLock|Pause|PrintScreen|ContextMenu|Backslash|IntlBackslash|IntlYen|IntlRo)$/.test(code) && !bindReserved(code);
+export const validBind = (code, act) => !(act === 'mount' && MOVE_KEYS.includes(code)) && typeof code === 'string' && /^(Key[A-Z]|Digit[0-9]|Arrow(Up|Down|Left|Right)|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Space|Tab|Enter|Backspace|Delete|Insert|Home|End|PageUp|PageDown|BracketLeft|BracketRight|Comma|Period|Slash|Semicolon|Quote|Backquote|Minus|Equal|Numpad([0-9]|Add|Subtract|Multiply|Divide|Decimal|Enter)|F([2-9]|1[0-2])|Meta(Left|Right)|CapsLock|NumLock|ScrollLock|Pause|PrintScreen|ContextMenu|Backslash|IntlBackslash|IntlYen|IntlRo)$/.test(code) && !bindReserved(code);
 // 前の保存では「退け」が V だった。V は視点の切替になったので、「退け」を新しい既定へ移す
 if (saved0.binds && !saved0.binds.view && S.binds.retreat === 'KeyV') S.binds.retreat = BIND_DEFAULTS.retreat;
 // 馬の操作と移動を入れ替えた昔の設定は、移動を元へ戻す。
-for (const act of ['mount', 'dodge']) {
+for (const act of ['mount']) {
   if (!MOVE_KEYS.includes(S.binds[act])) continue;
   const move = ['forward', 'back', 'left', 'right'].find((key) => BIND_DEFAULTS[key] === S.binds[act]);
   if (S.binds[move] === BIND_DEFAULTS[act]) S.binds[move] = BIND_DEFAULTS[move];

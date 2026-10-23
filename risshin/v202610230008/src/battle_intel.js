@@ -27,7 +27,9 @@ function concealed(rt, text, group) {
   return !!(group && group.team !== 0 && /本陣|旗本|馬廻/.test(group.name || '') && !I.camp);
 }
 export function intelText(rt, text) {
-  return concealed(rt, String(text || '')) ? '敵のいる方へ進め' : noticeText(rt, text);
+  return concealed(rt, String(text || ''))
+    ? rt.def.key === 'okehazama' ? '仲間と道を守る敵を倒す' : '敵のいる方へ進め'
+    : noticeText(rt, text);
 }
 export function intelMarker(rt, m) {
   const label = String(typeof m.label === 'function' ? m.label() : m.label || '');

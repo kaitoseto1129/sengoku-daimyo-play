@@ -115,7 +115,7 @@ export class HudCards {
     }
   }
 
-  // 森部の敵印。枠は初回に確保し、毎コマは頭の位置だけ更新する。
+  // 敵印。枠は初回に確保し、毎コマは頭の位置だけ更新する。
   enemyTriangleSigns(rt) {
     const me = rt.player.u;
     const on = rt.def.enemyTriangleSigns && me.alive && !rt.over && !rt.choice &&
@@ -134,9 +134,10 @@ export class HudCards {
       this.root.appendChild(box);
     }
     let n = 0;
+    const markedGroup = on ? rt.def.enemyTriangleGroup?.(rt) : null;
     if (on) for (const u of rt.army.units) {
       if (n === this.enemyTriangles.length) break;
-      if (!u.alive || u.gone || u.woundOut || u.noTarget || u.isStruct || u.team === me.team ||
+      if (!u.alive || u.gone || u.woundOut || u.noTarget && !(markedGroup && u.group === markedGroup) || u.isStruct || u.team === me.team ||
           u.mesh?.visible === false || u.camHidden ||
           (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 1600 || !sightUnit(rt, u)) continue;
       this.tmpV.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
@@ -502,7 +503,7 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
   toggleCheat() {
     const el = $('cheat');
     el.hidden = !el.hidden;
-    if (!el.hidden) el.innerHTML = [['移動', `${K('forward')} ${K('left')} ${K('back')} ${K('right')}`], ['視点', '動かして見回す'], ['突く', '左押し（押すだけ）'], ['構え', '右押しで受ける'], ['避ける', K('dodge')], ['狙い', K('lock')], ['話す・取る', K('use')]].map(([a, b]) => `<div><b>${a}</b>${esc(b)}</div>`).join('');
+    if (!el.hidden) el.innerHTML = [['移動', `${K('forward')} ${K('left')} ${K('back')} ${K('right')}`], ['視点', '動かして見回す'], ['突く', '左押し（押すだけ）'], ['話す・取る', K('use')]].map(([a, b]) => `<div><b>${a}</b>${esc(b)}</div>`).join('');
     if (!el.hidden) {
       el.insertAdjacentHTML('afterbegin', '<h5>操作の早見表</h5><button type="button" class="btn" id="cheat-close" style="min-height:44px;margin-bottom:8px">早見表を閉じる</button>');
       $('cheat-close').onclick = (e) => { e.stopPropagation(); this.toggleCheat(); };

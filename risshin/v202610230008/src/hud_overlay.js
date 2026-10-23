@@ -93,6 +93,8 @@ export class HudOverlay {
     const enemy = !retreat && !dodge && !!unit && unit.team !== rt.player.u.team;
     // 討つ相手は名で探す。足元の輪・頭上の印・画面外の矢印も出さない。
     if (enemy) return;
+    // 桶狭間が合流済み・戦闘中として消したピンを、古い任務の場所へ復活させない。
+    if (rt.def.key === 'okehazama' && !retreat && !dodge && !pinTarget) return;
     let pos = retreat || dodge?.pos || (waiting && !attacking ? guide.pos : null) || unit?.pos || pinTarget || guide?.marker && guide.pos || ally?.pos;
     if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.z)) return;
     const holding = !enemy && !retreat && !dodge && /待/.test(taskLabel(rt, currentObjective(rt)?.text || ''));
@@ -195,35 +197,8 @@ export class HudOverlay {
     return true;
   }
 
-  // 待機の囲みは実際の持ち場へ投影する。兵や任務の判定は変えない。
-  drawMissionArea(g, rt) {
-    const guide = rt.missionGuide, marker = guide?.marker;
-    if (!marker || guide.objective !== currentObjective(rt) || !/^(wait|guard)$/.test(marker.guideArea)) return;
-    const pos = guide.pos, radius = marker.guideRadius || 8;
-    if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.z)) return;
-    const screen = this.missionAreaScreen || (this.missionAreaScreen = new Float32Array(49 * 3));
-    for (let i = 0; i <= 48; i++) {
-      const angle = i / 48 * Math.PI * 2;
-      const x = pos.x + Math.cos(angle) * radius, z = pos.z + Math.sin(angle) * radius;
-      this.tmpV.set(x, groundAt(rt.world, x, z, pos.y) + .12, z).project(rt.camera);
-      screen[i * 3] = (this.tmpV.x + 1) * VIEW.w / 2;
-      screen[i * 3 + 1] = (1 - this.tmpV.y) * VIEW.h / 2;
-      screen[i * 3 + 2] = this.tmpV.z >= -1 && this.tmpV.z <= 1 ? 1 : 0;
-    }
-    g.save(); g.beginPath(); g.rect(12, 80, VIEW.w - 24, VIEW.h - 124); g.clip();
-    // 札の下には線を通さない。輪の内側は塗らず、戦場を空ける。
-    g.beginPath(); g.rect(0, 0, VIEW.w, VIEW.h);
-    for (const r of this.rects || []) g.rect(r.left - 4, r.top - 4, r.width + 8, r.height + 8);
-    g.clip('evenodd');
-    g.beginPath();
-    for (let i = 1; i <= 48; i++) {
-      const j = i * 3, k = j - 3;
-      if (!screen[j + 2] || !screen[k + 2]) continue;
-      g.moveTo(screen[k], screen[k + 1]); g.lineTo(screen[j], screen[j + 1]);
-    }
-    g.lineJoin = 'round'; g.strokeStyle = '#14120f'; g.lineWidth = 8; g.stroke();
-    g.strokeStyle = '#fff3ba'; g.lineWidth = 4; g.stroke(); g.restore();
-  }
+  // 兵や部隊に印を重ねない。
+  drawMissionArea(g, rt) { return false; }
 
   missionEnemyVisible(rt, u) {
     const me = rt.player.u;
@@ -233,90 +208,11 @@ export class HudOverlay {
       (!u.name || enemyKnown(rt, u)) && sightScreenUnit(rt, u);
   }
 
-  // 実際に狙っている一人を優先し、任務の敵も一人だけに絞る。
-  drawMissionEnemies(g, rt) {
-    const P = rt.player, enemies = rt.def.objectiveEnemies?.(rt);
-    let focus = this.missionEnemyVisible(rt, P.lock) ? P.lock : this.missionEnemyVisible(rt, P.aimed) ? P.aimed : null;
-    const mission = rt.def.missionSignTarget?.(rt);
-    if (!focus && this.missionEnemyVisible(rt, mission)) focus = mission;
-    if (!focus && enemies) {
-      let distance = Infinity;
-      for (const u of enemies) {
-        if (!this.missionEnemyVisible(rt, u)) continue;
-        const d = Math.hypot(u.pos.x - P.u.pos.x, u.pos.z - P.u.pos.z);
-        if (d < distance) { distance = d; focus = u; }
-      }
-    }
-    this.battleSignEnemy = focus;
-    this.enemyFrameShown = false;
-    if (!focus) return;
-    const f = this.measurePersonFrame(focus, rt);
-    if (!f || f.bottom <= f.top) return;
-    const left = Math.max(12, f.left - 6), right = Math.min(VIEW.w - 12, f.right + 6);
-    const top = Math.max(80, f.top - 6), bottom = Math.min(VIEW.h - 20, f.bottom + 6);
-    if (right <= left || bottom <= top) return;
-    g.save(); g.lineJoin = 'round';
-    // 既存の札の下には枠を重ねない。
-    g.beginPath(); g.rect(0, 0, VIEW.w, VIEW.h);
-    for (const r of this.rectsAll || []) g.rect(r.left - 4, r.top - 4, r.width + 8, r.height + 8);
-    g.clip('evenodd');
-    // 枠の内側は塗らず、重なった兵の姿と刃を残す。
-    g.strokeStyle = '#14120f'; g.lineWidth = 10; g.strokeRect(left, top, right - left, bottom - top);
-    g.strokeStyle = '#fff3ba'; g.lineWidth = 5; g.strokeRect(left, top, right - left, bottom - top);
-    // 命と任務を含む三枠の空きにだけ字を置く。
-    const cards = 1 + (this.notices?.picks.length || 0) + Number(!!this.missionPinLabelShown);
-    if (cards < 3) {
-      const x = Math.max(32, Math.min(VIEW.w - 32, f.cx));
-      const y = top >= 116 ? top - 32 : top + 6;
-      g.font = 'bold 18px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillStyle = '#14120f'; g.fillRect(x - 22, y, 44, 28);
-      g.fillStyle = '#fff3df'; g.fillText('敵', x, y + 14);
-    }
-    g.restore(); this.enemyFrameShown = true;
-  }
+  // 兵や部隊に印を重ねない。
+  drawMissionEnemies(g, rt) { return false; }
 
-  // 追う本人には切れ込み旗。道の向きは実際の床へ投影した矢印一本で示す。
-  drawFollowAlly(g, rt, ally) {
-    if (!ally?.alive || ally.gone || ally.woundOut || ally.fleeing || !ally.mesh?.visible ||
-        !sightScreenUnit(rt, ally)) return;
-    const head = this.project(ally.pos, ally.pos.y + (ally.mounted ? 3.5 : (ally.bodyHeight ?? 1.72) + .5), rt,
-      this.followHeadProjection || (this.followHeadProjection = {}));
-    const rects = this.hudRects();
-    if (!head.behind && head.x > 24 && head.x < VIEW.w - 40 && head.y > 80 && head.y < VIEW.h - 40 &&
-        !rects.some(r => head.x + 24 > r.left && head.x - 6 < r.right && head.y > r.top && head.y - 30 < r.bottom)) {
-      g.save(); g.lineJoin = 'round'; g.beginPath();
-      g.moveTo(head.x, head.y); g.lineTo(head.x, head.y - 28);
-      g.lineTo(head.x + 21, head.y - 28); g.lineTo(head.x + 15, head.y - 19);
-      g.lineTo(head.x + 21, head.y - 10); g.lineTo(head.x, head.y - 10);
-      g.strokeStyle = '#14120f'; g.lineWidth = 6; g.stroke();
-      g.fillStyle = '#fff3ba'; g.fill(); g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke(); g.restore();
-    }
-    const p = rt.player.u.pos, dx = ally.pos.x - p.x, dz = ally.pos.z - p.z, distance = Math.hypot(dx, dz);
-    if (distance < 3 || rt.def.objectiveEnemies?.(rt)?.length) return;
-    const guide = rt.missionGuide;
-    if (!rt.def.missionFollowAlly?.(rt) && distance < (guide?.marker?.guideRadius || 8)) return;
-    const ux = dx / distance, uz = dz / distance, length = Math.min(4.5, distance - .8);
-    const shoulder = length - Math.min(.9, (length - 1.3) * .6);
-    const shape = this.followArrowShape || (this.followArrowShape = [1.3,-.13, 0,-.13, 0,-.5, 0,0, 0,.5, 0,.13, 1.3,.13]);
-    shape[2] = shape[4] = shape[8] = shape[10] = shoulder; shape[6] = length;
-    const points = this.followArrowPoints || (this.followArrowPoints = new Float32Array(14));
-    const floor = this.followArrowFloor || (this.followArrowFloor = {});
-    const at = this.followArrowProjection || (this.followArrowProjection = {});
-    for (let i = 0; i < shape.length; i += 2) {
-      floor.x = p.x + ux * shape[i] - uz * shape[i + 1];
-      floor.z = p.z + uz * shape[i] + ux * shape[i + 1];
-      this.project(floor, groundAt(rt.world, floor.x, floor.z, p.y) + .12, rt, at);
-      if (at.behind || at.x < 16 || at.x > VIEW.w - 16 || at.y < 72 || at.y > VIEW.h - 28 ||
-          rects.some(r => at.x > r.left - 4 && at.x < r.right + 4 && at.y > r.top - 4 && at.y < r.bottom + 4)) return;
-      points[i] = at.x; points[i + 1] = at.y;
-    }
-    g.save(); g.lineJoin = 'round'; g.beginPath();
-    for (let i = 0; i < points.length; i += 2) {
-      if (i) g.lineTo(points[i], points[i + 1]); else g.moveTo(points[i], points[i + 1]);
-    }
-    g.closePath(); g.strokeStyle = '#14120f'; g.lineWidth = 4; g.stroke();
-    g.fillStyle = '#fff3ba'; g.fill(); g.restore();
-  }
+  // 兵や部隊に印を重ねない。
+  drawFollowAlly(g, rt, ally) { return false; }
 
   // 今の任務・会話・狙う相手の名前だけを、暗い下地付きで読む。
   drawBattleNames(rt) {

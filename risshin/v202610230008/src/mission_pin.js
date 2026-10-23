@@ -19,6 +19,7 @@ function make() {
   label.className = 'goal-name'; label.hidden = true;
   label.style.cssText = 'position:absolute;top:80px;left:50%;transform:translateX(-50%);padding:3px 8px;background:#14120f;color:#fff3df;font:bold 16px/1.4 sans-serif;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis';
   el.appendChild(label);
+  el._rings = el.querySelectorAll('.goal-ground ellipse');
   return el;
 }
 
@@ -52,9 +53,9 @@ export function updateMissionPin(rt) {
   const now = performance.now(), U = pinAt;
   const dt = Math.min(0.1, Math.max(0, (now - (U.at || now)) / 1000)); U.at = now;
   const me = rt.player.u.pos, key = rt.missionGuide?.key;
-  const changed = U.rt !== rt || U.key !== key;
+  const changed = U.rt !== rt || U.key !== key || U.unit !== want.unit;
   if (changed || Math.hypot(want.x - U.x, want.z - U.z) > 15) {
-    U.x = want.x; U.z = want.z; U.rt = rt; U.key = key;
+    U.x = want.x; U.z = want.z; U.rt = rt; U.key = key; U.unit = want.unit;
     U.y = groundAt(rt.world, U.x, U.z, me.y); U.ox = 0; U.oy = 0;
     U.out = undefined; U.outAt = 0; pin.hidden = false;
   }
@@ -69,7 +70,10 @@ export function updateMissionPin(rt) {
   pin.hidden = d <= near + (pin.hidden ? 1.5 : 0);
   if (pin.hidden) return;
   const W = VIEW.w, H = VIEW.h;
-  goalPoint.set(U.x, U.y + .08, U.z).project(rt.camera);
+  // 人を追う時は本人の頭上へ固定し、地面の印を自分の印に見せない。
+  if (want.unit) goalPoint.set(want.x, want.unit.pos.y + (want.unit.mounted ? 3.3 : 2.5), want.z);
+  else goalPoint.set(U.x, U.y + .08, U.z);
+  goalPoint.project(rt.camera);
   if (!Number.isFinite(goalPoint.x) || !Number.isFinite(goalPoint.y)) { pin.hidden = true; return; }
   const behind = goalPoint.z < -1 || goalPoint.z > 1;
   let dx = goalPoint.x * (behind ? -1 : 1), dy = -goalPoint.y * (behind ? -1 : 1);
@@ -104,6 +108,11 @@ export function updateMissionPin(rt) {
     if (!found) { pin.hidden = true; return; }
   }
   pin.querySelector('.goal-ground').style.display = outside ? 'none' : '';
+  const person = !!want.unit;
+  if (pin._person !== person) {
+    pin._person = person;
+    for (const ring of pin._rings) ring.style.display = person ? 'none' : '';
+  }
   const arrow = pin.querySelector('.goal-edge');
   arrow.style.display = outside ? '' : 'none';
   arrow.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
@@ -114,9 +123,10 @@ export function updateMissionPin(rt) {
   const direction = Math.abs(dx) > Math.abs(dy) ? dx >= 0 ? '右' : '左' : dy <= 0 ? '前' : '後ろ';
   // 敵・任務・命も含め三枚まで。端の案内を優先し、知らせ側もこの一枠を数える。
   const cards = 1 + (hud.notices?.picks.length || 0);
-  label.hidden = !outside || cards >= 3;
+  // 行き先の名前と向きの字は出さない。ピンだけで示す（kaito 10/23「行き先の名前とか出す必要ある？」）。
+  label.hidden = true; void cards;
   if (!label.hidden) {
-    const text = `${direction}・${String(name).replace(/[A-Za-z]+/g, '').slice(0, 10)}`;
+    const text = `${outside ? direction + '・' : ''}${String(name).replace(/[A-Za-z]+/g, '').slice(0, 10)}`;
     if (label.textContent !== text) label.textContent = text;
     hud.missionPinLabelShown = true;
   }
