@@ -73,6 +73,7 @@ export function missionCaption(rt, title = currentObjective(rt)?.text || '') {
     const reached = missionWaitReached(rt);
     if (reached !== null) heading = reached ? rt.def.waitOrderLabel?.(rt, true) || (/待/.test(heading) ? '輪の中で待とう' : '近づく敵をたおそう') : '旗へ行こう';
   }
+  if (missionWaitReached(rt) === true && /輪.*待とう/.test(heading)) heading = 'ここで待とう';
   heading = heading.replace(/旗にもどれ/g, '旗へもどろう');
   if (missionFollowTarget(rt, heading) || missionFollowTarget(rt)) heading = '味方についていけ';
   else if (/^(つけ|続け)$/.test(heading)) heading = missionWaitReached(rt) === true ? 'そのまま待とう' : '丸まで行け';

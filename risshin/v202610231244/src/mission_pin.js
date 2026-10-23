@@ -331,9 +331,10 @@ export function updateMissionPin(rt) {
   // 人・火付け・旗の目当ては、地面へ固定した小さな二重の輪で示す。
   // 持ち場の判定半径は変えず、足元だけを示す指定では大きな囲みを重ねない。
   const footMark = want.passage || want.fire || want.footRing || marker?.guideFootRing || marker?.guideFlag || marker?.guideFlagMesh;
-  const areaRadius = footMark ? want.fire ? 1.25 : .85 : want.r;
+  const waitArea = waiting && !person && !want.treatment && !want.fire && !want.passage;
+  const areaRadius = waitArea ? want.r ?? 8 : footMark ? want.fire ? 1.25 : .85 : want.r;
   // 集合ピンの根元は、実際に着いたとみなす範囲を囲む。自分を追う輪にはしない。
-  const showArea = (want.passage ? !behind && !occluded : !outside) && (footMark || !want.unit && (want.area || waiting || want.defend) && want.r > 0);
+  const showArea = (waitArea ? !occluded : want.passage ? !behind && !occluded : !outside) && (footMark || !want.unit && (want.area || waiting || want.defend) && want.r > 0);
   pin._area.style.display = pin._areaBack.style.display = showArea ? '' : 'none';
   pin._area.setAttribute('stroke-width', want.passage ? '7' : '5');
   pin._area.setAttribute('stroke-dasharray', '');
@@ -347,16 +348,25 @@ export function updateMissionPin(rt) {
         pin._areaPoints[i].set(ax, groundAt(rt.world, ax, az, me.y) + .08, az);
       }
     }
-    // 手前側が視点の後ろに出ても、見える側の境界まで消さない。
-    let path = '', connected = false, complete = true;
-    for (let i = 0; i <= pin._areaPoints.length; i++) {
-      areaPoint.copy(pin._areaPoints[i % pin._areaPoints.length]).project(rt.camera);
-      if (areaPoint.z < -1 || areaPoint.z > 1) { connected = false; complete = false; continue; }
-      path += `${connected ? 'L' : 'M'}${((areaPoint.x + 1) * W / 2 - x + 40).toFixed(1)} ${((1 - areaPoint.y) * H / 2 - y + (outside ? 40 : 68)).toFixed(1)}`;
-      connected = true;
+    // 判定と同じ外周と、その内側の輪。本人の足元印より大きく、面は塗らない。
+    let path = '';
+    for (let ring = 0; ring < (waitArea ? 2 : 1); ring++) {
+      let connected = false, complete = true;
+      for (let i = 0; i <= pin._areaPoints.length; i++) {
+        areaPoint.copy(pin._areaPoints[i % pin._areaPoints.length]);
+        if (ring) {
+          areaPoint.x = want.x + (areaPoint.x - want.x) * .88;
+          areaPoint.z = want.z + (areaPoint.z - want.z) * .88;
+        }
+        areaPoint.project(rt.camera);
+        if (areaPoint.z < -1 || areaPoint.z > 1) { connected = false; complete = false; continue; }
+        path += `${connected ? 'L' : 'M'}${((areaPoint.x + 1) * W / 2 - x + 40).toFixed(1)} ${((1 - areaPoint.y) * H / 2 - y + (outside ? 40 : 68)).toFixed(1)}`;
+        connected = true;
+      }
+      if (complete) path += 'Z';
     }
-    pin._area.setAttribute('d', path + (complete ? 'Z' : ''));
-    pin._areaBack.setAttribute('d', path + (complete ? 'Z' : ''));
+    pin._area.setAttribute('d', path);
+    pin._areaBack.setAttribute('d', path);
     pin._area.setAttribute('fill', 'none');
   }
   // 桶狭間はピンの先端を到着判定の地面に刺す。兵の頭上を指す矢印に替えない。
@@ -467,8 +477,15 @@ export function updateMissionPin(rt) {
     rt.camera.getWorldDirection(goalDirection);
     const yaw = Math.atan2(goalDirection.x, goalDirection.z);
     const gx = want.x - me.x, gz = want.z - me.z;
-    const ax = -gx * Math.cos(yaw) + gz * Math.sin(yaw);
-    const ay = -(gx * Math.sin(yaw) + gz * Math.cos(yaw));
+    let ax = -gx * Math.cos(yaw) + gz * Math.sin(yaw);
+    let ay = -(gx * Math.sin(yaw) + gz * Math.cos(yaw));
+    if (!outside) {
+      playerPoint.set(me.x, me.y + .1, me.z).project(rt.camera);
+      if (playerPoint.z >= -1 && playerPoint.z <= 1) {
+        ax = x - (playerPoint.x + 1) * W / 2;
+        ay = y - (1 - playerPoint.y) * H / 2;
+      }
+    }
     flag.setAttribute('transform', `rotate(${Math.atan2(ay, ax) * 180 / Math.PI} 40 40)`);
   }
   if (want.passage && !outside) flag.setAttribute('transform', 'translate(-22,0)');
@@ -555,19 +572,39 @@ export function updateMissionPin(rt) {
   // 人物の輪郭は共通の描画面で本人の手足に沿わせる。
   let badgePath = '';
   // 到着前後とも同じ実旗を囲む。兵に遮られても輪と縁は画面の手前に残す。
-  const guardFlag = !oke && !person && !want.fire && !want.gate && !want.treatment && waiting && marker?.guideFlag
+  const guardFlag = !oke && !person && !want.fire && !want.gate && !want.treatment && (marker?.guideFlag || marker?.guideFlagMesh || marker?.guideFlagFrame)
     ? hud.goalFlagBounds(rt, marker, want) : null;
   if (guardFlag) {
-    const fw = Math.max(64, guardFlag.width), fh = Math.max(80, guardFlag.height);
-    const fl = guardFlag.left + (guardFlag.width - fw) / 2;
-    const ft = guardFlag.top + (guardFlag.height - fh) / 2;
-    if (fl >= 8 && fl + fw <= W - 8 && ft >= 40 && ft + fh <= H - 12) {
+    const fullWidth = Math.max(64, guardFlag.width), fullHeight = Math.max(80, guardFlag.height);
+    const rawLeft = guardFlag.left + (guardFlag.width - fullWidth) / 2;
+    const rawTop = guardFlag.top + (guardFlag.height - fullHeight) / 2;
+    // 旗が上端へ少し切れても、見えている布を囲み続ける。
+    const fl = Math.max(8, rawLeft), ft = Math.max(8, rawTop);
+    const fw = Math.min(W - 8, rawLeft + fullWidth) - fl;
+    const fh = Math.min(H - 12, rawTop + fullHeight) - ft;
+    if (fw >= 24 && fh >= 24) {
       outlinePath = `M${fl} ${ft}h${fw}v${fh}h${-fw}Z`;
-      badgePath = 'M22 7H58V30Q58 45 40 55Q22 45 22 30ZM40 15V41M29 26H51';
-      pin._targetBadge.setAttribute('transform', `translate(${fl + fw / 2 - 24},${ft - 34}) scale(.6)`);
       pin._shield.style.display = 'none';
       flag.style.display = 'none';
       hud.missionFlagFrame = guardFlag;
+      hud.missionPinOutside = false;
+      // 床が見切れていても、前方に見える実旗へ矢じりを向ける。
+      // 別方向の移動矢印と歩数札は畳み、任務札一枚と旗の囲みにまとめる。
+      arrow.style.display = 'none';
+      pin.querySelector('.goal-ground path').style.display = 'none';
+      label.hidden = true; hud.missionPinLabelShown = false;
+      if (!arrived) {
+        playerPoint.set(me.x, me.y + .1, me.z).project(rt.camera);
+        const tx = fl + fw / 2, ty = ft + fh / 2;
+        const px = (playerPoint.x + 1) * W / 2, py = (1 - playerPoint.y) * H / 2;
+        const length = Math.hypot(tx - px, ty - py);
+        if (playerPoint.z >= -1 && playerPoint.z <= 1 && length > 1) {
+          const ux = (tx - px) / length, uy = (ty - py) / length;
+          const edge = Math.min(fw / 2 / Math.max(.001, Math.abs(ux)), fh / 2 / Math.max(.001, Math.abs(uy))) + 8;
+          const ax = tx - ux * edge, ay = ty - uy * edge;
+          linkPath = `M${ax - ux * 40} ${ay - uy * 40}L${ax} ${ay}M${ax - ux * 12 - uy * 8} ${ay - uy * 12 + ux * 8}L${ax} ${ay}L${ax - ux * 12 + uy * 8} ${ay - uy * 12 - ux * 8}`;
+        }
+      }
     }
     // 布と同じ旗の足元に輪を固定する。本人の輪とは色と大きさを分ける。
     const foot = hud.goalFlagFoot || want;
@@ -576,23 +613,11 @@ export function updateMissionPin(rt) {
     flagFootPoint.y = groundAt(rt.world, flagFootPoint.x, flagFootPoint.z, me.y) + .08;
     flagFootPoint.project(rt.camera);
     const fx = (flagFootPoint.x + 1) * W / 2, fy = (1 - flagFootPoint.y) * H / 2;
-    if (flagFootPoint.z >= -1 && flagFootPoint.z <= 1 && fx >= 32 && fx <= W - 32 && fy >= 24 && fy <= H - 16) {
+    if (!waitArea && flagFootPoint.z >= -1 && flagFootPoint.z <= 1 && fx >= 32 && fx <= W - 32 && fy >= 24 && fy <= H - 16) {
       outlinePath += `M${fx - 30} ${fy}a30 9 0 1 0 60 0a30 9 0 1 0 -60 0`;
       pin._area.style.display = pin._areaBack.style.display = 'none';
     }
-    // 任務は上端の一枚だけ。中央の大札を作らず、その札から実旗へ細く結ぶ。
-    if (hud.prog && !hud.prog.hidden && fl + fw >= 8 && fl <= W - 8 && ft + fh >= 40 && ft <= H - 12) {
-      if (changed || now >= (pin._orderAt || 0)) {
-        pin._orderAt = now + 250;
-        pin._orderRect = hud.prog.getBoundingClientRect();
-        pin._rootRect = root.getBoundingClientRect();
-      }
-      const order = pin._orderRect, base = pin._rootRect;
-      const tx = Math.max(8, Math.min(W - 8, fl + fw / 2)), ty = Math.max(48, ft);
-      const sx = Math.max(order.left - base.left, Math.min(order.right - base.left, tx));
-      const sy = Math.max(order.top - base.top, Math.min(order.bottom - base.top, ty));
-      linkPath = `M${sx} ${sy}L${tx} ${ty}`;
-    }
+
   }
   pin._targetBadge.setAttribute('d', badgePath);
   for (const path of pin._links) path.setAttribute('d', linkPath);

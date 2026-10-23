@@ -1000,6 +1000,7 @@ const shitaragahara = {
     soldierDetailMiddle: 24, // 二十四メートルに足踏みの余裕を足した先は輪郭の形へ。射撃と押し合いは同じ。
     soldierDetailMargin: 3, // 押し引きは実際の位置で測り、足踏みの余裕を三メートル残す。
     tightSceneryCull: true, // 草木の実寸で囲み、画面外の長い株を余分に送らない。
+    sceneryViewOnly: true, // 動く影を省いた草木は、近い背後の株も画面へ送らない。
     staticFaceNormalStep: 0.0625, // 丸太の向きの余裕を狭め、裏に隠れる面だけ送らない。
     armyViewCull: true, // 押し合いの位置と槍の余裕を含め、画面外の遠景兵だけ送らない。
     naturalArrowRain: true, // 遠矢も実際の細さと朝霞に合わせ、空に太い黒棒を浮かせない。

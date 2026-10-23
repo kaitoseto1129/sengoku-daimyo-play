@@ -94,7 +94,10 @@ export class World {
         if (this.lastFocus) this.updateNearGrass(this.lastFocus, detailFresh);
         this.packNearGrass(cam);
         for (const detail of this.soldierDetails || []) detail(r, sc, cam);
-        this.cullCam = cam; this.cullTick();
+        // 初回と描画なしの早送り直後は、全束を転送前に選ぶ。
+        // 通常の移動中は一コマ一束の巡回を保つ。
+        const cullFresh = this.cullCam !== cam || isNoRender();
+        this.cullCam = cam; this.cullTick(cullFresh);
         // 建物・地形・草木の陰影は既存の頂点色で保ち、動く影を落とさない。
         const shadowFocus = this.lastFocus || this.sun.target.position;
         shadowRange(sc, shadowFocus.x, shadowFocus.z, this.shadowWalk, 0);

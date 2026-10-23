@@ -547,7 +547,9 @@ export const ArmyMove = {
     // 指定した戦だけ、遊び手のそばで味方の肩が重ならない間合いを取る。
     const personal = this.world.def.allyPersonalSpace || 0;
     // 走る馬を避ける 5m の探しは騎馬の一覧だけで行い、升目は押し合い・支えの届く所だけ見る（中身は同じ）。
-    const visit = (o) => {
+    // only：1＝徒歩の者だけ・2＝5m の内の騎馬だけ（探しごとに関数を作らない）
+    const visit = (o, only) => {
+      if (only === 1 ? o.mounted : only === 2 && (!o.mounted || (u.pos.x - o.pos.x) ** 2 + (u.pos.z - o.pos.z) ** 2 > 25)) return;
       if (o === u || !o.alive || Math.abs(u.pos.y - o.pos.y) > 1.8) return;
       const dx = u.pos.x - o.pos.x, dz = u.pos.z - o.pos.z;
       const d2 = dx * dx + dz * dz;
@@ -636,10 +638,8 @@ export const ArmyMove = {
       }
     };
     if (dodge) {
-      this.forNear(u.pos.x, u.pos.z, mounted ? 1.5 : rankLine ? 2.2 : 1.3, (o) => { if (!o.mounted) visit(o); });
-      this.forNear(u.pos.x, u.pos.z, 5, (o) => {
-        if (o.mounted && (u.pos.x - o.pos.x) ** 2 + (u.pos.z - o.pos.z) ** 2 <= 25) visit(o);
-      });
+      this.forNear(u.pos.x, u.pos.z, mounted ? 1.5 : rankLine ? 2.2 : 1.3, visit, 1);
+      this.forNear(u.pos.x, u.pos.z, 5, visit, 2);
     } else this.forNear(u.pos.x, u.pos.z, mounted ? 1.5 : rankLine ? 2.2 : 1.3, visit);
     // 押し返される前列を後列が受ける。力は段ごとに弱まり、無限に増えない。
     if (rankLine) {

@@ -468,33 +468,21 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     const changed = this.progChangeRt !== rt || this.progChangeHeadline !== headline;
     const stopMotion = reduced && this.progChangeAnimation && !this.progChangeReduced;
     if (!changed && !stopMotion && !rt.over) return;
+    if (this.progChangeRt !== rt) this.progChangeTimes = new Map();
     this.progChangeRt = rt; this.progChangeHeadline = headline;
     this.progChangeAnimation?.cancel(); this.progChangeAnimation = null;
     el.classList.remove('pg-changing');
     if (rt.over || !headline) return;
     this.progChangeReduced = reduced;
-    let animation;
-    if (reduced || rt.def.key === 'moribe') {
-      // 森部は渡河直後も敵を隠さず、右上の一行をその場で強調する。
-      animation = el.animate([
-        { boxShadow: '0 0 0 transparent' },
-        { boxShadow: '0 0 18px #e8c25a', offset: .35 },
-        { boxShadow: '0 0 0 transparent' },
-      ], { duration: 800, easing: 'ease-in-out' });
-    } else {
-      el.classList.add('pg-changing');
-      // 寸法を読むのは任務が変わった時だけ。毎コマの計算や要素追加はしない。
-      const bounds = el.getBoundingClientRect(), area = this.root.getBoundingClientRect();
-      const scale = Math.min(1.4, (area.width - 32) / Math.max(1, bounds.width));
-      const x = area.left + area.width / 2 - (bounds.left + bounds.width / 2);
-      const y = area.top + area.height * .28 - (bounds.top + bounds.height / 2);
-      const center = `translate(${x}px, ${y}px) scale(${scale})`;
-      animation = el.animate([
-        { transform: center, offset: 0 },
-        { transform: center, offset: 2000 / 2650, easing: 'ease-in-out' },
-        { transform: 'translate(0, 0) scale(1)', offset: 1 },
-      ], { duration: 2650 });
-    }
+    // 同じ知らせの強調は八秒あけ、札は右上から動かさない。
+    const last = this.progChangeTimes.get(headline) ?? -Infinity;
+    if (rt.t - last < 8) return;
+    this.progChangeTimes.set(headline, rt.t);
+    const animation = el.animate([
+      { boxShadow: '0 0 0 transparent' },
+      { boxShadow: '0 0 0 3px #e8c25a', offset: .35 },
+      { boxShadow: '0 0 0 transparent' },
+    ], { duration: reduced ? 0 : 800, easing: 'ease-in-out' });
     this.progChangeAnimation = animation;
     animation.onfinish = () => {
       if (this.progChangeAnimation !== animation) return;

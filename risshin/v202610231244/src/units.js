@@ -1478,7 +1478,15 @@ export class Army {
       const simDt = dt + (u.detailDt || 0);
       const orderChanged = u.detailOrder !== u.group.order || u.detailSignal !== u.group.signalSerial;
       // 判断・移動・攻撃の時計は毎コマ進める。iPhone の判断間隔は別に保つ。
-      if (interval && !orderChanged && u.detailNextAt > this.time + 1e-6) {
+      // 携帯：画面の外で敵に向かっていない兵（旗持ち・武将・討たれない者など遠景に回せない者や、後ろの味方）は、判断と足取りを
+      //   30m の外は四コマに一度・12m の外は二コマに一度（経過はためて渡す）。位置は下で毎コマ進め、押し合いも毎コマなので歩みは跳ばない。
+      //   画面に入れば次のコマから毎コマ。号令が変われば待たない
+      //   画面の中でも 15m より遠い兵は二コマに一度。向きは休むコマも前の判断の向きへ毎コマ回す（turnTo）
+      const offIdle = MEM_TIGHT && !noGate && (u.offscreen ? dist > 12 : dist > 15) && !orderChanged && !u.target && !u.atk && !u.swing && !u.bind &&
+        !u.hit && !u.charging && !(u.stagger > 0) && !u.fleeing && !u.group.routed && !u.dragging && !u.climb && simDt < 0.25 &&
+        ((this.frameNo + u.id) & (u.offscreen && dist > 30 ? 3 : 1)) !== 0;
+      if (offIdle && u._turnH !== undefined && !u.offscreen) this.turn(u, u._turnH, dt, u._turnR);
+      if (offIdle || interval && !orderChanged && u.detailNextAt > this.time + 1e-6) {
         u.detailDt = simDt;
       } else {
         u.detailDt = 0; u.detailOrder = u.group.order; u.detailSignal = u.group.signalSerial;
