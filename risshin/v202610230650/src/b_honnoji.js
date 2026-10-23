@@ -2879,7 +2879,7 @@ const honnoji = {
     if (rt.G.lord || F.step >= 3 || F.ending) return '';
     const enemy = rt.missionGuide?.closeEnemy;
     if (F.hp >= 2 && enemy?.alive && !enemy.gone && !enemy.woundOut && !enemy.fleeing &&
-        Math.hypot(enemy.pos.x - rt.player.u.pos.x, enemy.pos.z - rt.player.u.pos.z) < 4.5) return '敵をたおす';
+        Math.hypot(enemy.pos.x - rt.player.u.pos.x, enemy.pos.z - rt.player.u.pos.z) < 4.5) return '近くの敵をたおせ';
     if ((F.hp === 4 || F.hp === 5) && this.routeGuidePriority(rt)) return '信長へ進む';
     return this.taskLabel(rt, '');
   },
@@ -2893,6 +2893,11 @@ const honnoji = {
     }
     // 補足が畳まれても、離れたままで失敗するまでの猶予を主の札に残す。
     if (F.escortShown) return 'この人の所へ戻る';
+    const enemy = rt.guideEnemy?.alive ? rt.guideEnemy : rt.missionGuide?.closeEnemy;
+    if (F.hp >= 2 && !this.routeGuidePriority(rt) && !F.heatZone &&
+        enemy?.alive && !enemy.gone && !enemy.woundOut && !enemy.fleeing &&
+        Math.hypot(enemy.pos.x - rt.player.u.pos.x, enemy.pos.z - rt.player.u.pos.z) < 4.5)
+      return '近くの敵をたおせ';
     if (F.hp === 7 && F.heatZone) {
       const p = rt.player.u.pos, Z = F.heatZone;
       return p.x > Z.x0 && p.x < Z.x1 && p.z > Z.z0 && p.z < Z.z1

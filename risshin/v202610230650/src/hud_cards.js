@@ -305,6 +305,8 @@ export class HudCards {
  #hud #h-prog .pg-time { font-size:max(15px, calc(15px * var(--text-scale, 1))); }
 }
 
+/* 共通の行動札は右上に固定し、携帯横でも一行を大きく読む。 */
+#hud.field-clean #h-prog .pg-st span { font-size:max(24px, calc(24px * var(--text-scale, 1))); }
 #hud.ending #h-prog, #hud:has(#cine.on) #h-prog, #hud:has(#bigmap:not([hidden])) #h-prog { visibility:hidden; }
 /* 稲生は任務を右、台詞を左。兵数と方位の帯の下を使う。 */
 html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog {
@@ -370,6 +372,7 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     const yaw = rt.player.yaw + (rt.player.camYawOff || 0), p = rt.player.u.pos;
     const headline = missionCaption(rt, def.missionTaskFirst ? task || title : title || task);
     setText(stEl.lastChild, headline);
+    stEl.lastChild.classList.toggle('foe-task', def.key === 'okehazama' && headline.startsWith('▼'));
     // 戦固有の案内と任務の進みは残す。同じ任務の全文は重ねない。
     const status = def.missionStatus?.(rt, taskLine);
     const sub = def.key === 'inou' || def.missionSingleLine ? '' : def.missionDetail ? def.missionDetail(rt) :

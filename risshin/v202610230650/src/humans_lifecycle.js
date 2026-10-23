@@ -87,7 +87,13 @@ function nearFlagMat(m0) {
     if (ob) ob.call(m0, sh, r);
     sh.uniforms.uGrime = GRIME; sh.uniforms.uWet = WET;
     sh.vertexShader = 'varying vec2 vFq;\nvarying float vFs;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
-      vFq = position.xy; vFs = fract(length(modelMatrix[1].xyz) * 97.0);
+      vFq = position.xy;
+      // 束ねて描く時（army_human_batch.js）は一枚ずつの行列で、旗ごとの破れ方を保つ
+      #ifdef USE_INSTANCING
+      vFs = fract(length((modelMatrix * instanceMatrix)[1].xyz) * 97.0);
+      #else
+      vFs = fract(length(modelMatrix[1].xyz) * 97.0);
+      #endif
       // 布の細かなしわ：大きな波の上を、小さな波が裾へ走る
       transformed.z += sin(position.y * 38.0 + position.x * 21.0 + vFs * 40.0) * 0.004 * clamp(position.x / 0.36, 0.2, 1.0);`);
     sh.fragmentShader = 'uniform float uGrime, uWet;\nvarying vec2 vFq;\nvarying float vFs;\n' + `

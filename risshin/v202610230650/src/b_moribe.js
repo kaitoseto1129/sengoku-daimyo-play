@@ -688,7 +688,7 @@ function moribeNearBodies(rt) {
           const k = Math.max(0, Math.min(1,
             ((qx - butt.x) * sx + (qy - butt.y) * sy + (qz - butt.z) * sz) / (length2 || 1)));
           if ((butt.x + sx * k - qx) ** 2 + (butt.y + sy * k - qy) ** 2
-              + (butt.z + sz * k - qz) ** 2 < 0.49) { this.hideNearFlag(w); break; }
+              + (butt.z + sz * k - qz) ** 2 < 0.81) { this.hideNearFlag(w); break; }
         }
       }
       // 手前の味方の長槍が空まで横切ると、敵の構えが棒の陰に埋もれる。
@@ -721,7 +721,7 @@ function moribeNearBodies(rt) {
       // カメラの近さだけでは、少し先の肩や馬の胴が自分を覆う。
       // 自分までの線分に限り、前線の敵と自分より先の味方は残す。
       const t = len2 > 0.01 ? (dx * vx + dz * vz) / len2 : -1;
-      const width = u.mounted ? 1.9 : 0.85;
+      const width = u.mounted ? 1.9 : 1.1;
       const y = c.y + (p.y + 1.3 - c.y) * t;
       const blocks = ally && this.fpK < 0.5 && t > 0 && t < 1
         && (dx - vx * t) ** 2 + (dz - vz * t) ** 2 < width * width
@@ -2075,7 +2075,15 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       if (src?.isPlayer && t?.team !== src.team && t.hp < hp) {
         t.moribeHitUntil = rt.t + 1.2;
         // 命を減らした本人だけがよろめく。空振りや味方には反応を付けない。
-        if (t.alive) t.stagger = Math.max(t.stagger || 0, .45);
+        if (t.alive) {
+          t.stagger = Math.max(t.stagger || 0, .6);
+          // 当たった体を小さく押し戻し、重なった隣の兵と反応を見分ける。
+          if (t.push && !t.mounted && !t.isStruct) {
+            const dx = t.pos.x - src.pos.x, dz = t.pos.z - src.pos.z;
+            const d = Math.hypot(dx, dz) || 1;
+            t.push.x += dx / d * .7; t.push.z += dz / d * .7;
+          }
+        }
       }
       return result;
     };

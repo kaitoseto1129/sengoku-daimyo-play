@@ -837,6 +837,8 @@ const tano = {
   // 手当ての退き先は床の印と指図で示し、文末へ歩数を継ぎ足さない。
   hideGuideSteps: true,
   compactIntro: true,
+  // 歩き方の大きな手本は六秒で閉じ、谷道・鉄砲待ちの下知を読めるようにする。
+  timedOpening: true,
   introText: '青白・黄旗は味方。赤白旗と赤茶の袖は敵。谷道を進み、前の味方に加われ。',
   // 最期の言葉は作らない。戦いの下知は場面の復元で、史料の引用ではない。
   battleVoices: { lines: {

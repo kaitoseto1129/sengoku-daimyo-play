@@ -20,6 +20,7 @@ import { updateWaterBody, waterMaterial, waterBatchKey, refreshWaterMaterials } 
 import { Group, Unit } from './units_group.js';
 import { FACTION, TYPES, GENERALS, SKIN_TONES } from './units_data.js';
 import { buildModel, modelBuilt, finalLook } from './units_look.js';
+import { batchHumanParts, humanBatchBegin } from './army_human_batch.js';
 import { groundAt } from './floors.js';
 import { palOf } from './unit_pal.js';
 import { horseStyleFor, buildHorse, paint, at, MAT, MAT_I, MAT_P, P, merge, RIDE, seatLegs, rng, EMBER_GEO, dropLazyGeo } from './units_model.js';
@@ -1706,6 +1707,7 @@ export class Army {
     if (!B.partSphere) B.partSphere = new THREE.Sphere();
     if (!B.hiddenRoots) B.hiddenRoots = [];
     const tag = ++B.tag;
+    humanBatchBegin(B);
     for (const bm of B.maps) for (const e of bm.values()) e.n = 0;
     if (BATCH.on && cam) {
       B.pm.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse); B.fr.setFromProjectionMatrix(B.pm);
@@ -1766,6 +1768,8 @@ export class Army {
         // 軽い形にした人の指物（竿の骨に付け替えてあるので上の辿りでは届かない）も束へ。近くの細かな布の旗は元のまま
         const fl = u.flag, h = u.human;
         if (fl && h && h.lodFar && fl.parent && fl.parent === h.flagHolder && fl.visible && !fl.material?.userData?.nearFlag) { W1.children[0] = fl; this.batchWalk(W1, null, tag, B); }
+        // 骨の入った人の髪・目・傷・近くの指物も、形と材質の組ごとの束へ（一人ずつ描かない）
+        if (h) batchHumanParts(this, u, B, tag);
         B.sh = false;
         // 全部品が束へ移った兵は、描く間だけ親から走査を止める。骨・独自の材質は残す。
         // 高でも同じ（描いた後 onAfterRender の restoreBatchRoots で戻す。部品 2,300 個の木を projectObject と影の走査が辿らない。10/21 引き算）

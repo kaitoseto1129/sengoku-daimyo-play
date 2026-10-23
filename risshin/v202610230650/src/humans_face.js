@@ -213,7 +213,7 @@ function addEyesFast(hm, F, tint = null) {
   }
   // まぶたの色を顔の肌の色（材質の色 tint）に合わせる：色の違うまぶたは、顔に貼った目の絵に見える。材質は肌の色ごとに一つ
   const tc = tint ? tint.getHexString() : '-';
-  if (!EYE_FAST_MATS.has(tc)) { const mm = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.22, envMapIntensity: 0.8 }); if (tint) mm.color.copy(tint).multiply(EYE_REF_INV); EYE_FAST_MATS.set(tc, mm); }
+  if (!EYE_FAST_MATS.has(tc)) { const mm = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.22, envMapIntensity: 0.8 }); if (tint) mm.color.copy(tint).multiply(EYE_REF_INV); mm.userData.humanBatch = true; EYE_FAST_MATS.set(tc, mm); }
   const m = new THREE.Mesh(eyeFast.get(key), EYE_FAST_MATS.get(tc));
   m.frustumCulled = false; m.receiveShadow = true;   // 笠の影の中の目は暗く（白目が光って見開いた目に見えないよう）
   hm.add(m);
@@ -230,6 +230,7 @@ function addEyesFast(hm, F, tint = null) {
     eyeFast.set('wet|' + key, mergeGeometries(gs));
   }
   if (!EYE_FAST_MATS.has('wet')) EYE_FAST_MATS.set('wet', new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.06, metalness: 0, envMapIntensity: 1.6, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+  EYE_FAST_MATS.get('wet').userData.humanBatch = true;   // 照りを足すだけの膜は、描く順に関わらない。全員で一つの束に
   const wet = new THREE.Mesh(eyeFast.get('wet|' + key), EYE_FAST_MATS.get('wet'));
   wet.frustumCulled = false; wet.receiveShadow = true;
   hm.add(wet);

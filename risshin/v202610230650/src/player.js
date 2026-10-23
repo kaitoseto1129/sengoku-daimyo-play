@@ -1246,7 +1246,7 @@ export class Player {
     }
     // 手綱で曲がる時は進む先を見る。自分で見回している間は視点を保つ。
     const steering = Math.abs(this.inX || 0) > 0.05;
-    if ((steering || S.autoCam) && !this.lock && !this.aiming && !(this.draw > 0) && !this.radial && this.lookIdle > (steering ? 0.25 : 1) && sp > 1) {
+    if ((steering || S.autoCam) && !this.lock && !this.aiming && !(this.draw > 0) && !this.radial && this.lookIdle > (steering ? 0.25 : 2.5) && sp > 1) {
       if (!reduceMotion()) this.yaw += angleDiff(this.yaw, u.heading) * Math.min(1, dt * (steering ? 4 : 1.5));
     }
   }
@@ -2130,7 +2130,7 @@ export class Player {
         rt.stats.dist += sp * dt;
       }
       // 移動中にしばらく視点を動かさなければ、カメラが背後へ回り込む
-      if (S.autoCam && !reduceMotion() && !this.lock && !(this.inCombatT > 0) && ml > 0 && this.lookIdle > 1 && iz >= 0) this.yaw += angleDiff(this.yaw, u.heading) * Math.min(1, dt * 1.2);
+      if (S.autoCam && !reduceMotion() && !this.lock && !(this.inCombatT > 0) && ml > 0 && this.lookIdle > 2.5 && iz >= 0) this.yaw += angleDiff(this.yaw, u.heading) * Math.min(1, dt * 0.8);
       // 向き：構え・攻撃・狙い定め中はカメラ方向、それ以外は進行方向
       let want = null;
       // 一人称では、体はいつも見ている方を向く（振り向くと自分の背が見える、を防ぐ）
@@ -3005,7 +3005,7 @@ export class Player {
     // 振りの記録（穂先・刃がどこで止まったかを見せる）
     // 薙ぎ（長柄の叩き）は重い柄を振り回すので、突きより長く（0.42 秒）
     const dir = (this.pendDir || 1);
-    if (!impact) u.swing = { kind: swKind, t: 0, dur: kind === 'spin' ? 0.9 : kind === 'hook' ? 0.46 : kind === 'sweep' || kind === 'slam' ? 0.42 : kind === 'kara' ? 0.3 : kind === 'nagi' ? 0.28 : 0.22, at: kind === 'slam' ? 0.67 : 0, dir, rear: kind === 'butt' && hits[0] && ((hits[0].u.pos.x - u.pos.x) * Math.sin(heading) + (hits[0].u.pos.z - u.pos.z) * Math.cos(heading)) < 0,  done: true, res: null, target: hits[0] ? hits[0].u : null, d: hits[0] ? hits[0].d : 0, side: 1 };
+    if (!impact) u.swing = { kind: swKind, t: 0, dur: kind === 'spin' ? 0.9 : kind === 'hook' ? 0.46 : kind === 'sweep' || kind === 'slam' ? 0.42 : kind === 'kara' ? 0.3 : kind === 'nagi' ? 0.28 : kind === 'thrust' ? 0.18 : 0.22, at: kind === 'slam' ? 0.67 : 0, dir, rear: kind === 'butt' && hits[0] && ((hits[0].u.pos.x - u.pos.x) * Math.sin(heading) + (hits[0].u.pos.z - u.pos.z) * Math.cos(heading)) < 0,  done: true, res: null, target: hits[0] ? hits[0].u : null, d: hits[0] ? hits[0].d : 0, side: 1 };
     // 討死の知らせで戦が終わると u.swing は消える。当たった振りの記録は手応えまで保つ。
     const swing = u.swing;
     if (impact) { if (!swing) return; swing.done = true; swing.target = hits[0]?.u || null; swing.d = hits[0]?.d || 0; }
@@ -3107,6 +3107,7 @@ export class Player {
         this.cd += big ? 0.22 : 0.1;
         if (!this.mounted && !(this.lunge && this.lunge.t > 0)) { const st = big ? 0.3 : 0.15; this.lunge = { x: Math.sin(heading) * st, z: Math.cos(heading) * st, t: 0.12 }; }
         if (!reduceMotion() && S.shake) this.recoilPitch(big ? 0.012 : 0.005);
+        sfx('swing', 0.45);   // 空を切る音（当たった時の芯の音と聞き分ける）
       }
     }
     if (hits.length) {
@@ -3121,10 +3122,12 @@ export class Player {
       // 得物ごとの手応え：槍の突きは短く鋭く止まり、刀の斬りは刃が肉を通る分だけ少し長く止まって、斬った向きへ目線が流れる
       // 軽い一撃は短く軽く、重い一撃は長く止まり、鈍い音と時のゆるみ（見切りの反撃がいちばん重い）
       const blade = kind === 'slash' || kind === 'kthrust';
-      const stop = spearFeel ? (blocked ? 0.035 : counter && this.counterPerfect ? 0.07 : kind === 'slam' ? 0.06 : heavy ? 0.05 : kind === 'sweep' ? 0.042 : 0.028) : counter && this.counterPerfect ? 0.16 : heavy ? 0.11 : kind === 'sweep' ? 0.08 : blade ? 0.065 : 0.035;
+      // 当たった瞬間の止まりは 55〜80ms（短すぎると当たったか分からない。テストプレイ 10/23）
+      const stop = spearFeel ? (blocked ? 0.04 : counter && this.counterPerfect ? 0.08 : kind === 'slam' ? 0.075 : heavy ? 0.07 : kind === 'sweep' ? 0.065 : 0.058) : counter && this.counterPerfect ? 0.16 : heavy ? 0.11 : kind === 'sweep' ? 0.08 : blade ? 0.07 : 0.058;
       this.rt.game.hitstop = Math.max(this.rt.game.hitstop || 0, stop);
       if (this.rt.game.haptic) this.rt.game.haptic(heavy ? 'heavy' : 'hit', Math.min(1, 0.45 + stop * 5));
-      if (spearFeel) sfx(blocked ? 'kin' : kind === 'sweep' || kind === 'butt' || kind === 'spin' ? 'wood' : heavy ? 'thud' : swing.res === 'armor' ? 'kin' : 'hit', blocked ? 0.65 : kind === 'slam' ? 0.9 : 0.45);
+      if (spearFeel) sfx(blocked ? 'kin' : kind === 'sweep' || kind === 'butt' || kind === 'spin' ? 'wood' : heavy ? 'thud' : swing.res === 'armor' ? 'kin' : 'hit', blocked ? 0.65 : kind === 'slam' ? 0.9 : 0.8);
+      if (!blocked && swing.res !== 'block') sfx('hit', spearFeel ? 0.55 : 0.7);   // 肉に入った芯の音（どの得物でも当たりが耳で分かる）
       else if (heavy) { sfx('thud', 0.7); if (counter || kind === 'charged') this.rt.game.slowmo = Math.max(this.rt.game.slowmo || 0, counter && this.counterPerfect ? 0.4 : 0.18); }
       if (counter) this.counterPerfect = false;
       if (kind === 'slash') { sfx('slash', 0.6); if (!reduceMotion()) this.yaw += (this.slashN % 2 ? 1 : -1) * 0.012; }
@@ -3136,8 +3139,15 @@ export class Player {
         if (spearFeel && h.res !== 'hit' && h.res !== 'armor') continue;
         h.u.flinchT = Math.max(h.u.flinchT || 0, spearFeel ? (kind === 'slam' ? 0.3 : kind === 'sweep' ? 0.22 : 0.12) : heavy ? 0.32 : 0.18);
         if (!spearFeel && heavy && h.u.alive) h.u.stagger = Math.max(h.u.stagger || 0, 0.9);
+        // 当たった相手は半歩よろけて下がる（当たったのが目で分かる）。小さな血しぶきか土埃
+        if (h.u.alive && !h.u.isStruct) {
+          h.u.flinchT = Math.max(h.u.flinchT || 0, 0.24);
+          h.u.stagger = Math.max(h.u.stagger || 0, 0.28);
+          if (h.u.push) { const dx = h.u.pos.x - u.pos.x, dz = h.u.pos.z - u.pos.z, dl = Math.hypot(dx, dz) || 1; h.u.push.x += dx / dl * 0.9; h.u.push.z += dz / dl * 0.9; }
+        }
+        if (!h.u.isStruct && h.u.pos) { const dx = h.u.pos.x - u.pos.x, dz = h.u.pos.z - u.pos.z, dl = Math.hypot(dx, dz) || 1; army.burst(h.u.pos.x - dx / dl * 0.2, h.u.pos.y + 1.1, h.u.pos.z - dz / dl * 0.2, 4, h.res === 'armor' || !bloodLv() || army.hideBlood ? 'dust' : 'blood', dx / dl, dz / dl, h.u.pos.y); }
       }
-      this.addShake(heavy ? 0.12 : 0.03);
+      this.addShake(heavy ? 0.12 : 0.06);
       // 馬上の一撃は馬の勢いが乗って重い：長めに止まり、低い音、突かれた者は馬の進む向きへ大きく突き飛ばされ、腕に返る衝撃で馬が少し落ちる
       const mh = this.mounted ? Math.min(1, Math.abs(this.hspd) / 10) : 0;
       if (mh > 0.3 && (kind === 'thrust' || kind === 'charged' || kind === 'sweep' || kind === 'slash')) {
@@ -3901,7 +3911,9 @@ export class Player {
     const dx = to.x - from.x, dy = to.y - from.y, dz = to.z - from.z;
     const len2 = dx * dx + dy * dy + dz * dz;
     if (len2 < 1e-8) return nearest;
+    const lowY = this.camLowY;
     for (const c of this.camContact) {
+      if (lowY != null && c.p.y < lowY) continue;
       if (!c.o || c.o.geometry !== c.g || c.g.attributes.position?.version !== c.pos || c.o.instanceMatrix?.version !== c.instance) continue;
       const ax = from.x - c.p.x, ay = from.y - c.p.y, az = from.z - c.p.z;
       const b = ax * dx + ay * dy + az * dz, d = ax * ax + ay * ay + az * az - 0.16;
@@ -3999,10 +4011,11 @@ export class Player {
       camBlockRaycast(o, this.ray, h);
     }
     let nearest = volumeHit === null ? Infinity : volumeHit * len;
-    for (const hit of h) nearest = Math.min(nearest, hit.distance);
+    const lowY = this.camLowY;
+    for (const hit of h) if (lowY == null || hit.point.y >= lowY) nearest = Math.min(nearest, hit.distance);
     // 一番手前の面だけを記憶する。入れ物は固定数を使い回す。
     let contact = null;
-    for (const hit of h) if (!contact || hit.distance < contact.distance) contact = hit;
+    for (const hit of h) if ((lowY == null || hit.point.y >= lowY) && (!contact || hit.distance < contact.distance)) contact = hit;
     if (contact && this.camContact) {
       const c = this.camContact[this.camContactI++ % this.camContact.length];
       c.p.copy(contact.point); c.o = contact.object; c.v = camBlockWorld(contact.object);
@@ -4084,6 +4097,45 @@ export class Player {
     this.lookIdle = Math.abs(input.dx) + Math.abs(input.dy) > 0.5 ? 0 : this.lookIdle + dt;
   }
 
+  // 壁よけで本人まで寄った三人称は、頭上か左右の肩へ逃がす。体の材質は変えない。
+  clearCameraBody(camera) {
+    const u = this.u, rt = this.rt, pos = camera.position;
+    if (!u.alive || this.mounted || this.fpK > .01 || u.naka || NAKA.cur || rt.game?.photo) return;
+    const dx = pos.x - u.pos.x, dz = pos.z - u.pos.z, height = pos.y - u.pos.y;
+    if (dx * dx + dz * dz >= 1.05 * 1.05 || height >= 2.55 || height < .25) return;
+    const from = this._bodyFrom || (this._bodyFrom = new THREE.Vector3());
+    const candidate = this._bodyCandidate || (this._bodyCandidate = new THREE.Vector3());
+    const dir = this._bodyDir || (this._bodyDir = new THREE.Vector3());
+    const ray = this._bodyRay || (this._bodyRay = new THREE.Raycaster());
+    const hits = this._bodyHits || (this._bodyHits = []);
+    from.copy(u.pos); from.y += 1.4;
+    const yaw = this.yaw + (this.camYawOff || 0), sx = Math.cos(yaw), sz = -Math.sin(yaw);
+    // 頭上なら背後の陣幕へ近づかない。軒下では空いている肩を使う（最大三本）。
+    for (let i = 0; i < 3; i++) {
+      const side = i === 0 ? 0 : i === 1 ? 1.2 : -1.2;
+      candidate.set(u.pos.x + sx * side, u.pos.y + (i === 0 ? 2.7 : 2.05), u.pos.z + sz * side);
+      rt.def.clampCamera?.(rt, candidate);
+      const x = candidate.x - u.pos.x, z = candidate.z - u.pos.z;
+      if (x * x + z * z < 1.05 * 1.05 && candidate.y < u.pos.y + 2.55 ||
+          candidate.y < cameraGroundAt(rt.world, candidate.x, candidate.z) + .65 ||
+          rt.def.cameraBodyClear?.(rt, candidate) === false || cameraWallBlocked(rt, from, candidate) ||
+          (rt.world.cameraBlockFraction?.(from, candidate) ?? null) !== null) continue;
+      dir.copy(candidate).sub(from);
+      const length = dir.length();
+      ray.camera = camera; ray.set(from, dir.multiplyScalar(1 / length)); ray.far = length + .2;
+      hits.length = 0;
+      if (this.blockers) for (const o of this.blockers) {
+        if (!camBlockVisible(o, rt.scene)) continue;
+        camBlockWorld(o); camBlockRaycast(o, ray, hits);
+        if (hits.length) break;
+      }
+      if (hits.length) continue;
+      pos.copy(candidate);
+      this.camPos.copy(pos);
+      return;
+    }
+  }
+
   // 戦ごとの補正と地面の持ち上げの後に、実際の屋根・壁を両面で調べる。
   clearDrawBuildings(camera) {
     if (this.fpK > .5 || this.u.naka || !this.u.alive || !this.blockers?.length) return;
@@ -4092,7 +4144,7 @@ export class Player {
     from.copy(this.u.pos); from.y += this.mounted ? 2.8 : 1.4;
     dir.copy(camera.position).sub(from);
     const length = dir.length();
-    if (length < .45) return;
+    if (length < .45) { this.clearCameraBody(camera); camera.updateMatrixWorld(); return; }
     const ray = this._drawRay || (this._drawRay = new THREE.Raycaster());
     ray.camera = camera; ray.set(from, dir.multiplyScalar(1 / length)); ray.far = length + .35;
     const hits = this._drawHits || (this._drawHits = []); hits.length = 0;
@@ -4107,6 +4159,8 @@ export class Player {
       this.camPos.copy(camera.position);
       camera.updateMatrixWorld();
     }
+    this.clearCameraBody(camera);
+    camera.updateMatrixWorld();
   }
 
   // 描く直前（on）と後：一人称の時だけ、自分の頭（兜・陣笠・顔）と背の指物・馬印を隠す。腕・手・武器・胴・脚は見せる
@@ -4703,7 +4757,11 @@ export class Player {
     // 馬上は目の高さが上がり、少し遠くから見る
     const bodySc = (u.mesh && u.mesh.scale.y) || 1;
     // 徒歩は肩の少し下を狙い、低めの肩越しに（地に足が着いた目線。馬上は高く）
-    const target = _cT.set(u.pos.x, u.pos.y + (this.mounted ? 1.7 + RIDE.y : 1.58) * bodySc, u.pos.z);
+    // 足もとの段差・小石で目の高さが跳ねないよう、カメラの見る高さだけなめらかに追う（上りは速く、下りは少しゆっくり）
+    const tyRaw = u.pos.y + (this.mounted ? 1.7 + RIDE.y : 1.58) * bodySc;
+    if (this.camTY == null || Math.abs(tyRaw - this.camTY) > 3 || dt >= 0.5) this.camTY = tyRaw;
+    else this.camTY += (tyRaw - this.camTY) * Math.min(1, dt * (tyRaw > this.camTY ? 14 : 8));
+    const target = _cT.set(u.pos.x, this.camTY, u.pos.z);
     const running = Math.hypot(u.vel.x, u.vel.z) > 5;
     const fight = this.inCombatT > 0 || this.lock;
     const hsp = Math.abs(this.hspd || 0), gallop = this.mounted && hsp > 9;
@@ -4742,7 +4800,7 @@ export class Player {
       (this.lookIdle || 0) > .7 && !this.rt.army.wallBetween(u.pos, u.team, guardPerson.pos);
     this.guardFrameK = (this.guardFrameK || 0) + ((guardFrame ? 1 : 0) - (this.guardFrameK || 0)) * Math.min(1, dt * (reduceMotion() ? 30 : 3));
     let offWant = 0;
-    if (S.autoCam && this.foeYaw != null && !this.lock && !this.aiming && !this.mounted && !this.cine && !reduceMotion() && (this.lookIdle || 0) > 0.7 && this.fpK < 0.5) {
+    if (S.autoCam && this.foeYaw != null && !this.lock && !this.aiming && !this.mounted && !this.cine && !reduceMotion() && (this.lookIdle || 0) > 2 && this.fpK < 0.5) {
       const a = angleDiff(this.yaw, this.foeYaw);
       // 正面から 0.35 ほどまでは回さない（いつも動く画面にしない）。回すのは最大 0.4 ほど
       if (Math.abs(a) > 0.35) offWant = Math.max(-0.4, Math.min(0.4, (Math.abs(a) - 0.35) * Math.sign(a) * 0.6));
@@ -4771,7 +4829,7 @@ export class Player {
       (followAlly || flagTravel || this.rt.def.routeGuidePriority?.(this.rt) || route.marker.entrance || route.marker.guideArea === 'move')) &&
       !this.lock && !this.aiming && !this.cine && !this.camShot && !this.overHold &&
       !this.rt.over && !this.rt.choice && !this.rt.game?.photo && !this.fpWanted() &&
-      (this.lookIdle || 0) > 1.2 && (escape || !closeFightFrame && (!fight || this.foeYaw == null)) && !guardFrame;
+      (this.lookIdle || 0) > 2.5 && (escape || !closeFightFrame && (!fight || this.foeYaw == null)) && !guardFrame;
     const routeGoal = escape || route?.pos;
     let routePoint = routeFrame ? this.rt.def.routeSignPoint?.(this.rt, routeGoal) ||
       this.rt.world.def.guideWay?.(u, routeGoal) || routeGoal : null;
@@ -4805,7 +4863,7 @@ export class Player {
       offWant = angleDiff(this.yaw, Math.atan2(routePoint.x - u.pos.x, routePoint.z - u.pos.z));
     }
     // 狙う・狙い定め・一人称では狙いと画面がずれないよう、すぐ戻す
-    this.camYawOff = (this.camYawOff || 0) + angleDiff(this.camYawOff || 0, offWant) * Math.min(1, dt * (this.lookIdle < 0.7 || this.aiming || this.lock || this.fpK > 0.3 ? 12 : 2.4));
+    this.camYawOff = (this.camYawOff || 0) + angleDiff(this.camYawOff || 0, offWant) * Math.min(1, dt * (this.lookIdle < 0.7 || this.aiming || this.lock || this.fpK > 0.3 ? 12 : 1.4));
     const cyaw = this.yaw + this.camYawOff;
     this.frameK = (this.frameK || 0) + (((this.foeNear || 99) < 4.5 && !this.mounted && !reduceMotion() ? 1 : 0) - (this.frameK || 0)) * Math.min(1, dt * 2);
     const cp = Math.cos(this.pitch - this.frameK * 0.06);
@@ -4893,14 +4951,21 @@ export class Player {
       Math.hypot(closeEnemy.pos.x - u.pos.x, closeEnemy.pos.z - u.pos.z) < 14;
     const landscapePull = !inRoom && !this.aiming && !rt0.def.town && !rt0.def.dojo && VIEW.h <= 500 && VIEW.w > VIEW.h ? closeBattle ? .6 : 1.2 : 0;
     const fieldDistance = (this.mounted ? 7 : 4.4) + landscapePull;
-    const guardPull = guardFrame ? Math.min(12, guardDistance + 4) : 0;
+    // 護衛中は二人の間を見る。肩越しの距離上限で守る人が切れないよう、
+    // 視野に収まる距離までだけ引く。兵の位置や当たり判定は変えない。
+    const guardK = this.guardFrameK || 0;
+    if (guardPerson?.alive && guardK > .001) {
+      target.x += (guardPerson.pos.x - u.pos.x) * .4 * guardK;
+      target.z += (guardPerson.pos.z - u.pos.z) * .4 * guardK;
+    }
+    const guardPull = guardFrame ? Math.min(12, 4.8 + guardDistance * .65) : 0;
     const routeNear = routeFrame && (this.rt.def.routeDestinationSight || this.rt.def.singlePassageArrow || route?.marker?.entrance && Math.hypot(route.pos.x - u.pos.x, route.pos.z - u.pos.z) < 8);
     const desiredDist = inRoom ? Math.min(dist, 2.3) : routeNear || closeFightFrame ? Math.max(4.2, Math.min(dist, 5.2)) : Math.max(dist, dist + (fieldDistance - dist) * viewK, guardPull);
     // 肩越しの本人を大きく保つ。馬上は首と鞍を越す距離を残す。
     // 遠さの設定と戦ごとの引きを、肩越しの上限にも反映する。
     // 壁・柱の検査はこの後で行い、狭い所を突き抜けない。
     const footLimit = S.camRange === 'near' ? 4.2 : S.camRange === 'far' ? 5.2 : 4.8;
-    const distR = Math.min(desiredDist + (routeNear ? 0 : landscapePull), (this.mounted ? 6 : footLimit) + landscapePull);
+    const distR = Math.min(desiredDist + (routeNear ? 0 : landscapePull), Math.max(this.mounted ? 6 : footLimit, guardPull) + landscapePull);
     this.camDist = this.camDist ? this.camDist + (distR - this.camDist) * Math.min(1, dt * (inRoom ? 5 : 3)) : distR;
     this.sideK = (this.sideK ?? 0.85) + ((routeNear || closeFightFrame ? .2 : fight || this.guard ? 0.95 : 0.85) - (this.sideK ?? 0.85)) * Math.min(1, dt * 3);
     // 狭い所（門・塀の内）：肩の側が壁に近ければ、空いている逆の肩へカメラだけ回す（決めた肩の設定は変えない）
@@ -4927,6 +4992,8 @@ export class Player {
     if (inRoom) want.y = Math.max(want.y, u.pos.y + 0.5);
     // 建物・柵・櫓がカメラと自分の間にあれば、その手前まで寄せる
     // 足場・櫓のような格子の物は、真ん中の一本の線だけだと隙間を抜けてしまうので、カメラの四隅寄りにも線を引いて一番手前で止める（隅は 3 コマに一度）
+    // 腰より低い柵・横木・石垣の縁は当たりにしない（細い物で寄ったり離れたりしない）。部屋の中は全部を当たりにする
+    this.camLowY = inRoom ? null : u.pos.y + 1.15;
     let hit = this.camBlockHit(target, want, true);
     const movedView = Math.abs(angleDiff(this.camCornYaw ?? this.yaw, this.yaw)) > 0.12 || Math.abs((this.camCornPitch ?? this.pitch) - this.pitch) > 0.12;
     this.camCornT = movedView ? 0 : ((this.camCornT || 0) + 1) % 3;
@@ -4948,7 +5015,7 @@ export class Player {
       const h2 = this.camBlockHit(target, low);
       if (h2 === null || h2 > hit + 0.3) { want.copy(low); hit = h2; }
     }
-    if (hit !== null) { const k = Math.max(0, Math.min(hit, hit - 0.02, Math.max(0.3, hit - 0.06))), y0 = want.y; want.lerpVectors(target, want, k); want.y = Math.min(want.y, y0 - (1 - k) * 0.5); }
+    let occRaw = hit !== null ? Math.max(0, Math.min(hit, hit - 0.02, Math.max(0.3, hit - 0.06))) : 1;
     // 木の幹：カメラと自分の間に幹があれば、その手前まで寄せる（近くの幹は 0.5 秒おきに拾い直す）
     {
       const W = this.rt.world;
@@ -4970,9 +5037,26 @@ export class Player {
             const cx = ax + bx * Math.min(1, t) - q[0], cz = az + bz * Math.min(1, t) - q[1];
             if (cx * cx + cz * cz < 0.7 * 0.7) tMin = Math.min(tMin, t - 0.75 / L);
           }
-          if (tMin < 1) want.lerpVectors(target, want, Math.max(0.15, tMin));
+          if (tMin < 1) occRaw = Math.min(occRaw, Math.max(0.15, tMin));
         }
       }
+    }
+    // 当たりの距離をなめらかに：寄る時は速く（一瞬だけの当たりは無視）、戻る時はゆっくり。
+    // 当たりの出入りが続いても毎コマ近づいたり離れたりして震えない（テストプレイ 10/23「柵・家でアングルが乱れる」）
+    if (this.occK == null || dt >= 0.5 || inRoom) { this.occK = occRaw; this.occInT = 0; }
+    else if (occRaw < this.occK - 0.005) {
+      this.occInT = (this.occInT || 0) + dt;
+      if (this.occInT > 0.07 || occRaw < 0.35) this.occK += (occRaw - this.occK) * Math.min(1, dt * 16);
+    } else {
+      this.occInT = Math.max(0, (this.occInT || 0) - dt * 0.35);
+      if (this.occInT <= 0) this.occK = Math.min(occRaw, this.occK + dt * 0.45);
+    }
+    if (this.occK < 0.999) { const k = this.occK, y0 = want.y; want.lerpVectors(target, want, k); want.y = Math.min(want.y, y0 - (1 - k) * 0.5); }
+    // 地面の高さで跳ねない：カメラの高さは上りは速く、下りはゆっくり追う
+    if (!inRoom) {
+      if (this.camWY == null || Math.abs(want.y - this.camWY) > 4 || dt >= 0.5) this.camWY = want.y;
+      else this.camWY += (want.y - this.camWY) * Math.min(1, dt * (want.y > this.camWY ? 12 : 4));
+      want.y = this.camWY;
     }
     if (inRoom) nakaCamClamp(want, this.fpK < 0.5);   // 部屋の壁・天井に埋もれない
     if (!this.camInit) { this.camPos.copy(want); this.camInit = true; }
@@ -4983,7 +5067,9 @@ export class Player {
       avoidCameraBodies(this.rt.army.units, u, target, this.camPos);
     }
     if (inRoom) nakaCamClamp(this.camPos, this.fpK < 0.5);
-    { const h = this.camBlockHit(target, this.camPos); if (h !== null) this.camPos.lerpVectors(target, this.camPos, Math.max(0, h - 0.03)); }
+    // 壁へ深くめり込んだ時だけ、その場で手前へ（浅い当たりは上のなめらかな寄せに任せ、毎コマ跳ねさせない）
+    { const h = this.camBlockHit(target, this.camPos); if (h !== null && (inRoom || h < this.occK * 0.6)) this.camPos.lerpVectors(target, this.camPos, Math.max(0, h - 0.03)); }
+    this.camLowY = null;
     // 追従の遅れで、曲がり角の斜面や高い地面へ戻らないよう、そのコマの位置も直す。
     if (!inRoom && terrainCameraClamp(this.rt.world, target, this.camPos)) terrainBlocked = true;
     let look = _cLk.copy(target).addScaledVector(dir, 12 + ok * overH * 1.5).addScaledVector(right, side);
@@ -5224,6 +5310,7 @@ export class Player {
     } else { this.routeNearK = 0; this.routeObscured = false; this.routeSightAt = -1; }
     this.rt.def.frameCamera?.(this.rt, camera.position, look);
     this.clearWallView(camera.position, look);
+    this.clearCameraBody(camera);
     camera.lookAt(look);
     // 合戦では視点補正の後にも本人の足を画面内へ戻し、下端に余白を残す。
     // 位置は動かさず見下ろす角度だけ補い、壁の内側へカメラを押し出さない。
