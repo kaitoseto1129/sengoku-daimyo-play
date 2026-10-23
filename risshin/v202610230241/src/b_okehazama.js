@@ -640,9 +640,9 @@ const okehazama = {
   // 戦の段だけで番号を進める。包囲や到着で指示が替わっても別の任務にしない。
   // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
-  // 右上の一行は「何をするか」だけ（kaito 10/23 49・50）。向き・行き先の字は書かない。
+  // 右上の一行は、今する動きを短くやさしく伝える。
   missionSingleLine: true,
-  missions: ['たいちょうと合流せよ', '今川の本陣へ忍び寄れ', '奇襲の合図を待て', '今川勢を倒せ', '今川義元を倒せ', '逃げる今川勢を追え', '勝ちどきに集まれ'],
+  missions: ['たいちょうのそばへ', 'てきに見つからず進もう', '合図を待とう', 'てきをたおそう', '今川義元をたおそう', 'にげるてきを追おう', '仲間のそばへ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -650,8 +650,8 @@ const okehazama = {
     return rt.phase === 'assault' ? 3 : rt.phase === 'wait' ? 2 : rt.phase === 'march' ? 1 : 0;
   },
   missionHeading(rt) {
-    if ((rt.phase === 'march' || rt.phase === 'wait') && rt.flags.scoutFighting) return '今川勢を倒せ';
-    if (rt.phase === 'march' && rt.flags.scoutAtFlag) return '奇襲の合図を待て';
+    if ((rt.phase === 'march' || rt.phase === 'wait') && rt.flags.scoutFighting) return 'てきをたおそう';
+    if (rt.phase === 'march' && rt.flags.scoutAtFlag) return '合図を待とう';
     return this.missions[this.missionOf(rt)];
   },
   // 今の行き先と同じ旗持ちを示す。兵は増やさない。
@@ -848,15 +848,15 @@ const okehazama = {
     const reached = !!F.scoutAtFlag;
     const retreat = this.retreatTaskLabel(rt, rt.hud.retreatGuide);
     if (retreat) return retreat;
-    if (rt.phase === 'brief') return F.briefed ? '合流できた、丸が満ちたら出発' : '黄色い矢印の味方の隊長に近づく';
-    if (fighting && this.squadFlagDistance(rt) > 12) return '追いすぎた、黄色い矢印の旗へ戻る';
+    if (rt.phase === 'brief') return F.briefed ? 'たいちょうのそばで待とう' : 'たいちょうのそばへ';
+    if (fighting && this.squadFlagDistance(rt) > 12) return '仲間の旗へ戻ろう';
     if (fighting) return this.enemyOrder(rt, F.scoutEnemy);
     if (rt.phase === 'march') {
-      if (this.squadFlagDistance(rt) > 12) return '矢印の旗持ちに近づく';
-      return rt.hostGroup?.arrived ? '谷の出口で仲間を待つ' : '黄色いピンの旗持ちについていく';
+      if (this.squadFlagDistance(rt) > 12) return '仲間の旗のそばへ';
+      return rt.hostGroup?.arrived ? '仲間を待とう' : 'てきに見つからず進もう';
     }
     if (F.kakare) return 'かかれ！　赤い矢印の敵を仲間と倒す';
-    if (!reached) return '黄色い矢印の旗へ近づく';
+    if (!reached) return '仲間の旗のそばへ';
     if (F.clear) return '旗のそばで待つ、丸が満ちたら「かかれ」';
     return '旗のそばで雨やみを待つ';
   },

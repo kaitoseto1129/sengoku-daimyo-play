@@ -491,7 +491,7 @@ export class HudNavigation {
   }
 
 
-  // 本人の足元だけを白い太線で示す。重なった兵にも隠れない画面上の輪。
+  // 本人は短い足元の線。行き先の大きな輪とは形で分ける。
   drawPlayerSign(g, rt) {
     const u = rt.player.u;
     if (!u.alive || rt.over || rt.choice || this.introWaiting || this.bigmap ||
@@ -501,7 +501,11 @@ export class HudNavigation {
     if (at.behind || !Number.isFinite(at.x) || !Number.isFinite(at.y) ||
         at.x < 0 || at.x > VIEW.w || at.y < 0 || at.y > VIEW.h) return false;
     g.save(); g.beginPath();
-    g.ellipse(at.x, at.y, u.mounted ? 29 : 22, u.mounted ? 10 : 8, 0, 0, Math.PI * 2);
+    const width = u.mounted ? 18 : 12;
+    g.moveTo(at.x - width, at.y - 2);
+    g.lineTo(at.x, at.y + 3);
+    g.lineTo(at.x + width, at.y - 2);
+    g.lineCap = 'round'; g.lineJoin = 'round';
     g.strokeStyle = '#14120f'; g.lineWidth = 9; g.stroke();
     g.strokeStyle = '#ffffff'; g.lineWidth = 5; g.stroke();
     g.restore();

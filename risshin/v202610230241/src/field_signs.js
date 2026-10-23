@@ -77,6 +77,7 @@ export function fieldSignsTick(rt, root) {
   // 任務で追う一人の▼を大きくする。形・材質・描画回数は増やさない。
   const missionEnemy = rt.def.missionSignTarget?.(rt);
   const moribe = rt.def.key === 'moribe';
+  const inou = rt.def.key === 'inou';
   let n = 0, a = 0, b = 0;
   const gens = s.gens; gens.length = 0;
   if (!hide) for (const u of rt.army.units) {
@@ -84,16 +85,18 @@ export function fieldSignsTick(rt, root) {
     const dx = u.pos.x - P.x, dz = u.pos.z - P.z, d2 = dx * dx + dz * dz;
     const foe = u.team !== me.team;
     if (general(u) && (d2 < GEN_R * GEN_R || d2 < GEN_R * GEN_R * 1.3 && s.bound?.includes(u)) && !u.woundOut) { u._fsD = d2; gens.push(u); }
-    // 森部は敵の赤い▼だけ。味方の丸と重ねて所属を迷わせない。
-    if (moribe && !foe) continue;
-    // 境で出たり消えたりしないよう、出す時は 55m・消す時は 62m と幅を持たせる（kaito 10/23「チカチカがほんとにやだ」）。
-    u._fsOn = d2 < (u._fsOn ? FOE_OUT * FOE_OUT : FOE_R * FOE_R);
+    // 稲生・森部は敵の赤い▼だけ。味方の丸と重ねて所属を迷わせない。
+    if ((moribe || inou) && !foe) continue;
+    if (inou && (u.mesh?.visible === false || u.rearWound)) continue;
+    // 森部は渡る前から対岸の先手を示す。境には幅を持たせ、ちらつきを防ぐ。
+    const signRadius = moribe ? (u._fsOn ? 100 : 90) : (u._fsOn ? FOE_OUT : FOE_R);
+    u._fsOn = d2 < signRadius * signRadius;
     if ((foe && u.noTarget && !rt.def.foeMarkVisible?.(rt, u)) || !u._fsOn || (foe ? n : a) >= CAP) continue;
     // 投影後の幅を最大十画素に収める。近距離でも三角を兵の顔より大きくしない。
     // 笠や肩が重なる近接戦でも、▼の先端を笠より上に保つ。
     headPos.set(u.pos.x, headY(u) + .12, u.pos.z);
     // 近接中は実際の頭へ付ける。遠景の骨は更新せず、携帯の負荷を抑える。
-    const head = moribe && d2 < 20 * 20 && u.human?.root.visible && u.human.bones?.Head;
+    const head = (moribe || inou) && d2 < 20 * 20 && u.human?.root.visible && u.human.bones?.Head;
     if (head) {
       head.updateWorldMatrix(true, false);
       head.getWorldPosition(headPos); headPos.y += .38;
@@ -105,11 +108,11 @@ export function fieldSignsTick(rt, root) {
     }
     v.copy(headPos).applyMatrix4(cam.matrixWorldInverse);
     if (v.z >= 0) continue;
-    const pixels = u === missionEnemy ? (rt.def.key === 'inou' ? 14 : 10) : 10;
+    const pixels = u === missionEnemy ? (moribe ? 17 : rt.def.key === 'inou' ? 14 : 10) : moribe ? 8 : 10;
     // 森部では命を減らした相手の▼だけを一度大きくし、滑らかに戻す。
     // 頭上の先端は固定し、既存の形・材質・描画の束をそのまま使う。
-    const hit = foe && moribe ? Math.max(0, (u.moribeHitUntil || 0) - rt.t) / .65 : 0;
-    const reachable = moribe && foe && rt.player.inRange && rt.player.rangeCueTarget === u;
+    const hit = foe && moribe ? Math.min(1, Math.max(0, (u.moribeHitUntil || 0) - rt.t) / .7) : 0;
+    const reachable = (moribe || inou) && foe && rt.player.inRange && rt.player.rangeCueTarget === u;
     const k = Math.min(3, pixels * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) * (1 + (hit > 0 ? 1.2 * hit : reachable ? .55 : 0));
     dummy.position.copy(headPos);
     dummy.quaternion.copy(q); dummy.scale.set(k * (1 + .5 * hit), k, k); dummy.updateMatrix();

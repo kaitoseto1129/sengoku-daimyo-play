@@ -39,9 +39,23 @@ export function currentObjective(rt) {
   return order && (!main || order.progress || (order.t ?? 0) >= (main.t ?? 0)) ? order : main || order || other;
 }
 
+// 待機の札と地面の印は、現在の持ち場と同じ到着判定を使う。
+export function missionWaitReached(rt) {
+  const g = rt.missionGuide, m = g?.marker;
+  if (!m || g.objective !== currentObjective(rt) || m.guidePerson ||
+      !(m.waitAction || m.waitGuide || /^(wait|guard)$/.test(m.guideArea))) return null;
+  const pos = m.guideDestination?.() || g.pos, p = rt.player.u.pos;
+  return m.waitArrived?.() ?? Math.hypot(pos.x - p.x, pos.z - p.z) < (m.guideRadius ?? 8);
+}
+
 // 任務は右上の一行だけ。接敵や操作の状態で目当てを書き換えない。
 export function missionCaption(rt, title = currentObjective(rt)?.text || '') {
-  return noOps(goalText(rt, rt.def.missionHeading?.(rt) || title))
+  let heading = rt.def.missionHeading?.(rt) || title;
+  if (/^(旗にもどれ|ここで待て)$/.test(heading)) {
+    const reached = missionWaitReached(rt);
+    if (reached !== null) heading = reached ? 'ここで待て' : '旗にもどれ';
+  }
+  return noOps(goalText(rt, heading))
     .split(/[。！？\n]/)
     .map(line => line.trim().replace(/討ち取る$|討ち取れ$|たおそう$|たおす$/, '倒せ'))
     .find(line => line && !/構え|かまえ|かまえる|ふせ[ぐげ]|防いで|押し|なぞ/.test(line)) || '';

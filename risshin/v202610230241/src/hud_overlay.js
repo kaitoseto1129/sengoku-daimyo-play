@@ -16,17 +16,18 @@ const off = () => false;
 
 export class HudOverlay {
 
-  // 森部は地面と画面の端を同じ小旗で示し、兵の頭上の印と分ける。
+  // 森部は先端が地面に刺さるピンで、到着する地点を示す。
   drawBattleGoalSign(g, rt, x, y, landmark) {
     if (landmark) return this.drawGateSign(g, x, y);
     if (rt.def.key !== 'moribe') return this.drawDestinationPin(g, x, y);
     g.save(); g.lineJoin = 'round';
-    g.beginPath(); g.moveTo(x, y); g.lineTo(x, y - 38);
-    g.lineTo(x + 24, y - 38); g.lineTo(x + 18, y - 28);
-    g.lineTo(x + 24, y - 18); g.lineTo(x, y - 18);
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x - 13, y - 25);
+    g.bezierCurveTo(x - 26, y - 53, x + 26, y - 53, x + 13, y - 25);
+    g.closePath();
     g.strokeStyle = '#14120f'; g.lineWidth = 7; g.stroke();
     g.fillStyle = '#fff3ba'; g.fill();
-    g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke(); g.restore();
+    g.beginPath(); g.arc(x, y - 33, 5, 0, Math.PI * 2);
+    g.fillStyle = '#14120f'; g.fill(); g.restore();
   }
 
   // 文と矢印は同じ行き先・視点から向きを取る。入れ物は使い回す。
@@ -214,43 +215,6 @@ export class HudOverlay {
   // 兵や部隊に印を重ねない。
   drawFollowAlly(g, rt, ally) { return false; }
 
-  // ピンの足元に実際の到着範囲を描く。草に隠さず、入ると面が満ちる。
-  drawOkehazamaPeople(g, rt) {
-    if (rt.def.key !== 'okehazama' || rt.over || rt.choice || this.introWaiting ||
-        this.bigmap || rt.player.camShot || !rt.player.u.alive) return false;
-    const pin = rt.def.missionPin(rt);
-    if (!pin?.area || pin.enemy) return false;
-    const points = this.okeArrivalPoints || (this.okeArrivalPoints = Array.from({ length: 33 },
-      () => ({ x: 0, y: 0, z: 0, screen: {} })));
-    // 地形を読むのは五分の一秒に一度。投影用の点と形は使い回す。
-    if (this.okeArrivalRt !== rt || this.okeArrivalRadius !== pin.r || rt.t >= (this.okeArrivalAt || 0) ||
-        Math.hypot(pin.x - this.okeArrivalX, pin.z - this.okeArrivalZ) > .2) {
-      this.okeArrivalRt = rt; this.okeArrivalAt = rt.t + .2;
-      this.okeArrivalX = pin.x; this.okeArrivalZ = pin.z; this.okeArrivalRadius = pin.r;
-      for (let i = 0; i < points.length; i++) {
-        const q = points[i], angle = i / 32 * Math.PI * 2;
-        q.x = pin.x + Math.cos(angle) * pin.r; q.z = pin.z + Math.sin(angle) * pin.r;
-        q.y = groundAt(rt.world, q.x, q.z, rt.player.u.pos.y) + .08;
-      }
-    }
-    g.save(); g.beginPath();
-    let joined = false, complete = true;
-    for (const q of points) {
-      const at = this.project(q, q.y, rt, q.screen);
-      if (at.behind || Math.abs(at.x) > VIEW.w * 4 || Math.abs(at.y) > VIEW.h * 4) {
-        joined = false; complete = false; continue;
-      }
-      if (joined) g.lineTo(at.x, at.y); else g.moveTo(at.x, at.y);
-      joined = true;
-    }
-    if (complete) {
-      g.closePath(); g.fillStyle = pin.arrived ? 'rgba(255,243,186,.24)' : 'rgba(255,243,186,.06)'; g.fill();
-    }
-    g.lineJoin = 'round'; g.strokeStyle = '#14120f'; g.lineWidth = 7; g.stroke();
-    g.strokeStyle = '#fff3ba'; g.lineWidth = pin.arrived ? 4 : 3; g.stroke();
-    g.restore(); return true;
-  }
-
   // 今の任務・会話・狙う相手の名前だけを、暗い下地付きで読む。
   drawBattleNames(rt) {
     const cv = $('overlay'), W = VIEW.w, H = VIEW.h;
@@ -262,7 +226,6 @@ export class HudOverlay {
     this.drawRainDrops(g, W, H, rt); this.drawBrim(g, W, H, rt);
     // 雨粒も笠の縁も無いコマは、次のコマで消す仕事を省く。
     this.ovBlank = !(this.drops && this.drops.length) && !((rt.player.fpK || 0) > 0.7);
-    if (this.drawOkehazamaPeople(g, rt)) this.ovBlank = false;
     // 本人の足元は兵が重なっても見える白い輪。行き先の旗とは形を分ける。
     if (this.drawPlayerSign(g, rt)) this.ovBlank = false;
     // 行き先は共通のピンに任せ、持ち場の輪や味方の旗を重ねて描かない。

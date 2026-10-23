@@ -104,22 +104,26 @@ function practiceLeft(rt) {
 // 追う一人を保ち、札・ピン・到着判定で共有する。群れの中心を毎コマ作らない。
 function approachUnit(rt) {
   const F = rt.flags;
-  const group = F.training < 5 ? F.practice : F.haya1;
+  const group = F.training > 0 && F.training < 5 ? F.practice : F.haya1;
   if (!group) return null;
-  if (F.approachGroup === group && fighting(F.approachUnit)) return F.approachUnit;
+  const previous = F.approachGroup === group && fighting(F.approachUnit) && F.approachUnit.mesh?.visible !== false ? F.approachUnit : null;
+  const reach = rt.player.meleeReach('thrust');
+  // 間合いに入った林兵を優先する。遠い一人へのピンで、目前の敵から引き離さない。
+  if (previous && Math.hypot(previous.pos.x - rt.player.u.pos.x, previous.pos.z - rt.player.u.pos.z) <= reach) return previous;
   let chosen = null, best = Infinity;
   for (const u of group.units) {
-    if (!fighting(u)) continue;
+    if (!fighting(u) || u.mesh?.visible === false) continue;
     const d = Math.hypot(u.pos.x - rt.player.u.pos.x, u.pos.z - rt.player.u.pos.z);
     if (d < best) { chosen = u; best = d; }
   }
+  if (previous && best > reach) chosen = previous;
   F.approachGroup = group; F.approachUnit = chosen;
   return chosen;
 }
 function pinPoint(rt, pos, radius, hide, unit = null, name = '') {
   const pin = rt.flags.goalPin;
   pin.x = pos.x; pin.z = pos.z; pin.r = radius; pin.hide = hide;
-  pin.unit = unit; pin.name = name;
+  pin.unit = unit; pin.name = name; pin.enemy = !!unit && unit.team !== rt.player.u.team;
   return pin;
 }
 
@@ -147,8 +151,9 @@ const inou = {
   // 任務は一行。距離・向き・操作は書かず、同じ兵をピンで追う。
   missions: ['林の兵を倒せ', '林の部隊を崩せ', '柴田隊に耐えろ', '林美作守を倒せ'],
   missionHeading(rt) { return this.missions[this.missionOf(rt)]; },
-  foeMarkVisible: (rt, u) => rt.flags.chase && u.group === rt.flags.practice,
-  missionSignTarget: (rt) => rt.flags.step === 0 && rt.flags.training >= 1 && rt.flags.training <= 8 ?
+  // 控えや追跡中の兵も敵の姿として見分けられる。攻撃できるかで▼を消さない。
+  foeMarkVisible: () => true,
+  missionSignTarget: (rt) => rt.flags.step === 0 && rt.flags.training >= 0 && rt.flags.training <= 8 ?
     rt.flags.training === 8 ? rt.flags.hayaLead : approachUnit(rt) : null,
   missionOf: (rt) => { const F = rt.flags; return F.step === 0 ? (F.training <= 1 && !F.caught ? 0 : 1) : F.step === 1 ? 2 : 3; },
   minutes: 9,
@@ -179,7 +184,7 @@ const inou = {
     const F = rt.flags;
     if (F.ending) return null;
     if (F.step === 0) {
-      if (F.training >= 1 && F.training <= 8) {
+      if (F.training >= 0 && F.training <= 8) {
         const u = F.training === 8 ? F.hayaLead : approachUnit(rt);
         if (!fighting(u)) return null;
         const radius = F.chase ? 7 : rt.player.meleeReach('thrust');
@@ -379,23 +384,29 @@ const inou = {
     if (F.lesson) lessonEnd(rt, F.lesson);
     F.training = phase; F.trainT = rt.t;
     F.blocks0 = rt.stats.blocks + rt.stats.parries;
-    if (phase === 0) { rt.after(3, () => { if (F.training === 0) { F.trainT = rt.t; lesson(rt, 'move'); } }); return; }
-    if (phase === 1) {
-      // 林兵三人と味方二人の小さな群れ。自分の前で、ゆっくり北へ退く。追いつくと味方は抜け、林兵だけが残る。
-      rt.setPhase('march');
-      rt.obj('main', '林の兵を倒せ', 'main');
+    if (phase === 0) {
+      // 初めから追う林兵を見せる。練習が終わっても同じ三人を使い、印の先を替えない。
       const p = rt.player.u.pos;
       const at = { x: p.x + 2, z: p.z - 14 };
-      const g = enemyGroup(rt, { faction: 'nobukatsu', name: '林の遅れ兵', anchor: { ...at }, facing: Math.PI, width: 3, aggro: 0, noAI: true, noRout: true, order: 'move', dmgMult: 0.25, focus: rt.player.u },
+      const g = enemyGroup(rt, { faction: 'nobukatsu', name: '林の遅れ兵', anchor: { ...at }, facing: Math.PI, width: 3, aggro: 0, noAI: true, noRout: true, order: 'hold', dmgMult: 0.25, focus: rt.player.u },
         dress([{ type: 'ashigaru', n: 3 }], HAYA));
-      g.dest = { x: at.x, z: at.z - 60 }; g.speed = 0.8;
+      g.speed = 0.8;
       for (const u of g.units) { u.hp = u.maxHp = Math.max(30, rt.player.u.dmg * 2.2); u.cdBase *= 1.8; u.noTarget = true; }
-      const a = allyGroup(rt, { name: '追う味方', anchor: { x: at.x + 4, z: at.z + 2 }, facing: Math.PI, width: 2, aggro: 0, noAI: true, noRout: true, order: 'move' },
+      const a = allyGroup(rt, { name: '追う味方', anchor: { x: at.x + 4, z: at.z + 2 }, facing: Math.PI, width: 2, aggro: 0, noAI: true, noRout: true, order: 'hold' },
         dress([{ type: 'ashigaru', n: 2 }], ODA));
-      a.dest = { x: at.x + 4, z: at.z - 58 }; a.speed = 0.8;
+      a.speed = 0.8;
       prepareMarch(g); prepareMarch(a);
       F.practice = g; F.chaseA = a; F.chase = true;
       rt.marker('chase', () => approachUnit(rt)?.pos || g.anchor, '林の遅れ兵', { red: true, guideRadius: 7 });
+      rt.after(3, () => { if (F.training === 0) { F.trainT = rt.t; lesson(rt, 'move'); } });
+      return;
+    }
+    if (phase === 1) {
+      rt.setPhase('march');
+      rt.obj('main', '林の兵を倒せ', 'main');
+      for (const g of [F.practice, F.chaseA]) {
+        g.order = 'move'; g.dest = { x: g.anchor.x, z: g.anchor.z - 60 };
+      }
       lesson(rt, 'chase'); return;
     }
     if (phase >= 2 && phase <= 4) {

@@ -247,8 +247,8 @@ export class HudUpdate {
       hpEl.appendChild(this.hpRemaining);
     }
     // 名前と数字を残し、色や棒だけに頼らず残量を伝える。
-    setText(this.hpRemaining, fieldBars ? '' : `体力 ${hpShown}％`);
-    setHidden(this.hpRemaining, fieldBars);
+    setText(this.hpRemaining, fieldBars ? `♥ 体力${hpPct < 30 ? ' ！' : ''}` : `♥ 体力 ${hpShown}％`);
+    setHidden(this.hpRemaining, false);
     setAttr(this.hpRemaining, 'aria-label', `命 あと${hpShown}％`);
     const hpTrack = hpEl.querySelector('i');
     setAttr(hpTrack, 'role', 'progressbar');
