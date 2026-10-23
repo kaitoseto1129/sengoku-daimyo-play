@@ -113,6 +113,7 @@ function ldBegin(keys, battle = '') {
   const bar = document.querySelector('#loading .ldbar i');
   if (bar) { bar.style.transition = 'none'; bar.style.transform = 'scaleX(0)'; }
   $('loading').style.setProperty('--ld-progress', '0%');
+  $('loading').style.setProperty('--ld-stages', String(keys.length));
   clearInterval(ldIv); ldIv = setInterval(ldTick, 250);
   const actions = document.querySelector('#loading .ld-cancel');
   if (actions) actions.remove();
@@ -134,10 +135,13 @@ function ldTick() {
   // 見込みを超えても丸を止めず、現在の段の終わりへゆっくり近づける。
   // 次の段を先取りせず、満ち切るのは実際に支度が終わった時だけ。
   const fraction = into <= P.est[i] ? into / P.est[i] * .8 : .8 + .18 * (1 - Math.exp(-(into - P.est[i]) / P.est[i]));
-  P.progress = Math.max(P.progress || 0, Math.min(.99, (completed + P.est[i] * fraction) / total));
+  const firstBattle = $('loading').classList.contains('first-battle');
+  // 初陣は一工程を一区画にする。空の区画が残る工程で、済んだ区画は戻さない。
+  const progress = firstBattle ? (i + fraction) / P.keys.length : (completed + P.est[i] * fraction) / total;
+  P.progress = Math.max(P.progress || 0, Math.min(.99, progress));
   $('loading').style.setProperty('--ld-progress', `${(P.progress * 100).toFixed(1)}%`);
-  // 初陣は棒一本にそろえる。見込みを超えても次の工程を先取りしない。
-  if ($('loading').classList.contains('first-battle')) {
+  // 見込みを超えても次の区画を先取りせず、実際の完了でだけ満たす。
+  if (firstBattle) {
     const bar = document.querySelector('#loading .ldbar i');
     if (bar) {
       bar.style.transition = RMm() ? 'none' : 'transform 250ms linear';
@@ -158,6 +162,7 @@ function ldStep(key) {
   const P = ldPlan; if (!P) return;
   const i = P.keys.indexOf(key); if (i < 0 || i === P.cur) return;
   P.cur = i; P.t = performance.now();
+  if ($('loading').classList.contains('first-battle')) { ldTick(); return; }
   const sum = P.est.reduce((a, v) => a + v, 0) || 1;
   let a = 0; for (let k = 0; k < i; k++) a += P.est[k];
   const end = (a + P.est[i] * 0.92) / sum;
@@ -198,12 +203,21 @@ const stage = (t, key) => {
   el.firstChild.textContent = i >= 0 ? `${t}（${i + 1}／${ldPlan.keys.length}）` : t;
   if (key) ldStep(key);
 };
-const stageError = (retry) => { game.loadingReader?.dispose(); game.loadingReader = null; const failedStage = ldName; document.querySelector('#loading .ld-cancel')?.remove(); $('loading').hidden = false; clearInterval(ldIv); ldIv = 0; ldPlan = null; stage(''); const el = $('ld-stage'); el.textContent = `！ ${failedStage}の途中で止まりました。題へ戻っても城下の記録は残ります。もう一度お試しください。`; el.insertAdjacentHTML('beforeend', '<div class="ld-actions"><button class="btn small" id="ld-title">題の画面へ戻る</button><button class="btn small" id="ld-retry">もう一度支度する</button></div>'); el.setAttribute('role', 'alert'); $('ld-retry').onclick = () => { $('ld-retry').disabled = true; $('ld-title').disabled = true; el.setAttribute('role', 'status'); sfx('ui'); Promise.resolve().then(retry).catch(() => stageError(retry)); }; $('ld-title').onclick = () => { hideLoading(); game.title(); }; $('ld-title').focus({ preventScroll: true }); };
+const stageError = (retry) => { game.loadingReader?.dispose(); game.loadingReader = null; const failedStage = ldName; document.querySelector('#loading .ld-cancel')?.remove(); $('loading').hidden = false; clearInterval(ldIv); ldIv = 0; ldPlan = null; stage(''); const el = $('ld-stage'); el.textContent = `！ ${failedStage}の途中で止まりました。題へ戻っても城下の記録は残ります。もう一度お試しください。`; el.insertAdjacentHTML('beforeend', '<div class="ld-actions"><button class="btn small" id="ld-title">題の画面へ戻る</button><button class="btn small" id="ld-retry">もう一度支度する</button></div>'); el.setAttribute('role', 'alert'); $('ld-retry').onclick = () => { $('ld-retry').disabled = true; $('ld-title').disabled = true; el.setAttribute('role', 'status'); sfx('ui'); if (freshRetry()) return; Promise.resolve().then(retry).catch(() => stageError(retry)); }; $('ld-title').onclick = () => { hideLoading(); game.title(); }; $('ld-title').focus({ preventScroll: true }); };
+// 「もう一度支度する」は頁を読み込み直して同じ所から始める（10/24 Lancers：Windows の Chrome で稲生の後の支度が何度押しても止まった）。
+// 同じ頁のままだと、一度失敗した部品の読み込み（import の失敗・公開の版の入れ替えで消えた古い版）をブラウザが覚えていて、何度押しても同じ所で止まる
+const freshRetry = () => { const ls = game.lastStart; return !!ls && !isNorender() && !/[?&]bot/.test(location.search) && resumeReload(game, ls.fn, ls.args); };
+// 部品の読み込み（import）の失敗は、押してもらう前に一度だけ自分で読み込み直す（5分に一度まで）
+const importFailed = (e) => /dynamically imported module|Importing a module script failed|error loading dynamically imported|Failed to fetch|素材を読めませんでした/i.test(String(e && e.message || e));
+const autoFreshRetry = () => {
+  try { const at = +sessionStorage.getItem('risshin-autoretry') || 0; if (Date.now() - at < 5 * 60 * 1000) return false; sessionStorage.setItem('risshin-autoretry', String(Date.now())); } catch (e) { return false; }
+  return freshRetry();
+};
 // 裏の読み込みや組み立てで例外が出ても、「読み込み中」の札で固まらないように：失敗の札を出してやり直せるようにする
 const guarded = (fn, retry) => { const seq = game.startSeq; return async () => {
   if (seq !== game.startSeq) return;
   try { return await fn(); }
-  catch (e) { if (seq !== game.startSeq) return; preparationError('guarded', e.message || e, e.stack); console.error(e); game.lastError = `${e.message}\n${(e.stack || '').split('\n')[1] || ''}\n読み込みの失敗`; stageError(retry); }
+  catch (e) { if (seq !== game.startSeq) return; preparationError('guarded', e.message || e, e.stack); console.error(e); game.lastError = `${e.message}\n${(e.stack || '').split('\n')[1] || ''}\n読み込みの失敗`; if (importFailed(e) && autoFreshRetry()) return; stageError(retry); }
 }; };
 // 画面に出ない失敗（開けない図鑑や地図など）は、知らせを出して題へ戻れるようにする
 const loadFail = (what) => (e) => { console.error(e); game.lastError = `${e && e.message}\n${what}を開けなかった`; hideLoading(); notice(`${what}を開けませんでした。通信を確かめて、もう一度開いてください`); };
@@ -272,7 +286,10 @@ function memReloadGate(g, fn, args) {
   if (!MEM_TIGHT || isNorender() || /[?&]bot/.test(location.search) || window.__noMemReload) return false;
   if (!g.memDirty && !g.battle) return false;
   // app（iOS）は WKWebView ごと作り直す（GPU process に前の戦の分が残る。10/20）。その時は sessionStorage が消えるので localStorage に置く
-  const recreate = !!window.__iosRecreate;
+  return resumeReload(g, fn, args, !!window.__iosRecreate);
+}
+// 遊びを保存して頁を読み込み直し、読み込み後に同じ所（fn(args)）から続ける。続きの印を置けない時は false（読み込み直さない）
+function resumeReload(g, fn, args, recreate = false) {
   try {
     const rec = JSON.stringify({ fn, args, G: g.G || null, mapSnap: g.mapSnap || null, mapFrom: g.mapFrom || null, scn: scenarioKey(), t: Date.now(), boot: window.__bootId || null });
     const st = recreate ? localStorage : sessionStorage;
@@ -1762,6 +1779,7 @@ const game = {
 
   startBattle(i) {
     if (memReloadGate(this, 'startBattle', [i])) return;
+    this.lastStart = { fn: 'startBattle', args: [i] };
     this.lastError = null; this.battleFault = null;
     markInBattle(true);   // 戦の途中で頁が読み直されたら、次から記憶の少ない作りに（device_tier.js）
     try { localStorage.setItem('risshin-lastbattle', BATTLES[i]?.id || String(i)); localStorage.setItem('risshin-lastbattle-at', String(Date.now())); } catch (e) { /* 保存できなければ記さない */ }
@@ -2321,6 +2339,7 @@ const game = {
   townWalkOn() { return S.townWalk !== 'cards' && !isNorender() && !/[?&]bot/.test(location.search) && !window.__cardTown; },
   startTown() {
     if (memReloadGate(this, 'startTown', [])) return;
+    this.lastStart = { fn: 'startTown', args: [] };
     this.bg = null;
     this.freeTitle();
     this.inTown = true;
@@ -2460,6 +2479,7 @@ const game = {
   // step を渡すと、出世の道のその段の姿（馬・甲冑）で試す
   startDojo(step = null) {
     if (memReloadGate(this, 'startDojo', [step])) return;
+    this.lastStart = { fn: 'startDojo', args: [step] };
     const saved = readProgress(S.slot).game;
     const G = saved ? JSON.parse(JSON.stringify(saved)) : newGame('稽古人');
     G.practice = true; G.injured = false;
@@ -2535,6 +2555,7 @@ const game = {
   // 地図から出陣する城攻め（BATTLES の並びには入れない。戦功・昇進・戦の進みは変えない）
   startMapBattle(info, again = false) {
     if (memReloadGate(this, 'startMapBattle', [info, again])) return;
+    this.lastStart = { fn: 'startMapBattle', args: [info, again] };
     if (!CBm) { const seq = this.startSeq; import('./b_castle.js').then((m) => { CBm = m; if (seq === this.startSeq) this.startMapBattle(info, again); }).catch(loadFail('城攻め')); return; }
     this.bg = null;
     this.freeTitle();

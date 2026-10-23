@@ -510,7 +510,8 @@ export class Army {
       hachi: o.hachi,   // 鉢巻の色（手ごとに変えて、味方の手を見分ける）
       sode: o.sode ?? (loanArmor ? fac.sode ?? false : u.type === 'samurai' || u.type === 'cavalry' || u.type === 'busho'),
       kote: o.kote ?? (tier >= 1 ? 3 : undefined),
-      haori: o.haori ?? gen.haori ?? (u.type === 'busho' || o.name && o.horse ? (fac.haori ?? (g.team === 0 ? 0x6b1f18 : 0x5a4a22)) : detail85 && privateArmor && vi === 1 ? (fac.haori ?? fac.cloth?.[vi] ?? 0x34342e) : 0),
+      // 陣羽織はマントに見えるので誰にも着せない（kaito 10/24「マントやめて」）。
+      haori: 0,
       // 旗は数を減らし、大きさを揃える（kaito 10/23 稲生 48）。足軽の指物は三人に一人。隊旗の旗持ちだけ少し大きい。
       pole: o.flag !== null && u.type !== 'porter' && !(u.type === 'ashigaru' && !o.name && !o.flagScale && !o.standard && vi % 3 !== 0),
       flag: o.flag === null || u.type === 'porter' || (u.type === 'ashigaru' && !o.name && !o.flagScale && !o.standard && vi % 3 !== 0) ? null : (o.flag || gen.flag || fac.flag),

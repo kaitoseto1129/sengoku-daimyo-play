@@ -233,7 +233,10 @@ export const ArmyGroups = {
     if (g.roadColumn && g.order === 'path' && g.pathIdx > 0 && g.formation === 'column') {
       g._routeCols = 0; g._slotFit = null; return;
     }
-    g._fitAt = this.time + 0.5;
+    // 初回はすぐ調べ、以後は半秒を八つに分けた隊ごとの時刻へ散らす。
+    // 遅いコマや増援の後も同じ時刻へ戻し、全隊が再び同時に調べないようにする。
+    const phase = ((g.id || 0) % 8) / 8;
+    g._fitAt = (Math.floor(this.time * 2 - phase) + 1 + phase) * 0.5;
     const q = g._fitProbe || (g._fitProbe = { x: 0, y: 0, z: 0 });
     const fit = g._slotFit || (g._slotFit = []);
     g._fittingSlots = true;
