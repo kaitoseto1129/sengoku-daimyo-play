@@ -30,7 +30,8 @@ function liteMat(opts) {
 }
 
 // ---------------- 置き物の当たり ----------------
-// 建物・陣幕・置き物の足もとの形（人と馬が通り抜けないように）。戦の始めに battle.js が空にして army.solids に渡し、
+// 小物（杭・薪・俵・鍋・荷など）は登録せず、自分も兵も踏み越えられる。
+// 建物・陣幕など大きな物の足もとの形（人と馬が通り抜けないように）。戦の始めに battle.js が空にして army.solids に渡し、
 // units.js の collide が押し戻す（柵・門のような「壊せる・戦の筋に関わる」物は army.addStruct のまま。こちらは押し戻すだけ）
 // 形は三つ：'r' 回した四角（x, z が真ん中、hw・hd が半分の幅と奥行き、rot）、'c' 円、's' 太さのある線分
 export const SOLIDS = [];
@@ -1924,7 +1925,6 @@ export function lumber(world, x, z, rot = 0) {
   m.userData.camBlock = true; m.castShadow = true; m.receiveShadow = true;
   m.position.set(x, world.heightAt(x, z), z);
   m.rotation.y = rot;
-  solidRect(x, z, 4.1, 1.4, rot);
   return m;
 }
 
@@ -2597,7 +2597,6 @@ export function koshisaku(world, seg, o = {}) {
 
 let CAMPFIRE_GEO = null;
 export function campfire(world, x, z) {
-  solidCircle(x, z, 0.55);
   if (!CAMPFIRE_GEO) {
     const parts = [];
     const ash = new THREE.SphereGeometry(1, 10, 4);
@@ -2925,7 +2924,6 @@ export function tobira(world, x, z, w, rot = 0, o = {}) {
 
 // 俵（兵糧）：藁の俵を積み、縄で縛る
 export function tawara(world, x, z, rot = 0, n = 6) {
-  solidRect(x, z, 1.1, n > 3 ? 1.8 : 1.3, rot);
   const parts = [];
   let k = 0;
   for (let row = 0; row < 3 && k < n; row++) {
@@ -3192,7 +3190,6 @@ function hatazaoGeometry(n, kind, coarse) {
   return geometry;
 }
 export function hatazao(world, x, z, rot = 0, n = 7, kind = 'tokugawa') {
-  solidRect(x, z, 2.6, 1.2, rot);
   const lod = new THREE.LOD();
   lod.userData.noMerge = true;   // 距離で切り替える二つの形を静止物の束へ吸い込ませない。
   for (const coarse of [false, true]) {
@@ -3207,7 +3204,6 @@ export function hatazao(world, x, z, rot = 0, n = 7, kind = 'tokugawa') {
 // 馬を繋ぐ杭：杭を並べて縄を張る（len m の長さ、向き rot）
 export function umatsunagi(world, x, z, rot = 0, len = 8) {
   const parts = [];
-  solidSeg(x - len / 2 * Math.cos(rot), z + len / 2 * Math.sin(rot), x + len / 2 * Math.cos(rot), z - len / 2 * Math.sin(rot), 0.15);
   const n = Math.max(2, Math.round(len / 2.2));
   const c = Math.cos(rot), s = Math.sin(rot);
   for (let i = 0; i <= n; i++) {
@@ -3240,7 +3236,6 @@ export function umatsunagi(world, x, z, rot = 0, len = 8) {
 // 炊事の鍋：三本の木を組んで鉄鍋を吊り、下で薪が燃え、湯気と煙が昇る
 // 返す物の userData.fire は world.removeFire に渡せる
 export function nabe(world, x, z, o = {}) {
-  solidCircle(x, z, 0.7);
   const y = world.heightAt(x, z);
   const parts = [];
   for (let i = 0; i < 3; i++) {
@@ -3278,7 +3273,7 @@ export function hyoro(world, x, z, rot = 0) {
   // 後から読み込む荷や木箱には合わせず、三つの俵山だけを支えにする。
   const coverPiles = world.def.fitSupplyCover ? grp.children.slice() : null;
   // 素材の荷（読めたら足す）：藁の叺の山と木箱
-  { const at = (lx, lz, o = {}) => ({ x: x + lx * c + lz * s, z: z - lx * s + lz * c, rot: rot + (o.r || 0), dy: o.dy || 0 }); solidRect(at(-1.5, 0.9).x, at(-1.5, 0.9).z, 0.9, 1.5, rot);
+  { const at = (lx, lz, o = {}) => ({ x: x + lx * c + lz * s, z: z - lx * s + lz * c, rot: rot + (o.r || 0), dy: o.dy || 0 });
     extScatter(grp, 'sack', [at(-1.5, 0.5, { r: 1.57 }), at(-1.5, 1.25, { r: 1.5 }), at(-1.5, 0.9, { r: 1.6, dy: 0.57 })], world);
     extScatter(grp, 'box_b', [at(-1.4, 2.3, { r: 0.2 })], world); }
   // 筵：藁で編んだ敷物を俵の山に掛ける
@@ -3547,7 +3542,6 @@ export function village(world, x, z, o = {}) {
     } else if (k < 0.75) {
       // 荷車：二つの車輪と荷台。逃げた後に置き去りにされ、荷が崩れている
       const [cx, cz] = W(lx + 5, lz - 3); const cy = world.heightAt(cx, cz), cr = ry0(i);
-      solidRect(cx, cz, 1.8, 2.6, cr);
       const bed = new THREE.BoxGeometry(1.2, 0.12, 2.4); bed.rotateX(0.18); bed.rotateY(cr); bed.translate(cx, cy + 0.55, cz); walls.push(paint(bed, 0x5a4630));
       for (const sd of [-1, 1]) { const wh = new THREE.CylinderGeometry(0.5, 0.5, 0.1, 10); wh.rotateZ(Math.PI / 2); wh.rotateY(cr); wh.translate(cx + Math.cos(cr) * sd * 0.7, cy + 0.5, cz - Math.sin(cr) * sd * 0.7); walls.push(paint(wh, 0x3a2c1e)); }
       for (let q = 0; q < 3; q++) { const b = new THREE.BoxGeometry(0.5, 0.35, 0.4); b.rotateY(q); b.translate(cx + (q - 1) * 0.6 + 0.9, cy + 0.18, cz + (q % 2) * 0.5); walls.push(paint(b, vary(0x8a7650, q))); }
@@ -3701,7 +3695,6 @@ export function village(world, x, z, o = {}) {
     const base = new THREE.BoxGeometry(0.8, 0.18, 0.8); base.translate(dx, dy + 0.09, dz); crops.push(paint(base, vary(0x6a675e, 2)));
     const rf = new THREE.ConeGeometry(0.62, 0.35, 4); rf.rotateY(Math.PI / 4 + rot); rf.translate(dx, dy + 1.05, dz); crops.push(paint(rf, vary(0x4a3a2a, 3)));
     for (const sx of [-0.4, 0.4]) { const po = new THREE.BoxGeometry(0.06, 0.95, 0.06); po.translate(dx + sx * c, dy + 0.48, dz - sx * sn); crops.push(paint(po, vary(0x4a3a2a, 4))); }
-    solidCircle(dx, dz, 0.5);
   }
   if (crops.length) grp.add(new THREE.Mesh(mergeGeometries(crops), new THREE.MeshLambertMaterial({ vertexColors: true, side: o.riceClumps ? THREE.DoubleSide : THREE.FrontSide })));
   // 炊事の煙：いくつかの家の棟の端から昇る
@@ -4059,7 +4052,6 @@ export function hasa(world, x, z, rot = 0, len = 8) {
 // 塗輿（ぬりごし）：黒漆に金の金具の輿。二本の長柄で担ぐ。前は +z
 export function koshi(world, x, z, rot = 0, o = {}) {
   const parts = [];
-  if (!o.moving) solidRect(x, z, 1.4, 1.6, rot);
   const tilt = o.dropped ? 0.12 : 0;
   const body = new THREE.BoxGeometry(1.0, 1.05, 1.3); body.translate(0, 0.95, 0); parts.push(paint(body, 0x141210));
   const roof = new THREE.BoxGeometry(1.25, 0.14, 1.55); roof.translate(0, 1.55, 0); parts.push(paint(roof, 0x1a1816));
@@ -4079,7 +4071,6 @@ export function koshi(world, x, z, rot = 0, o = {}) {
 // 陣太鼓：胴の太い太鼓を木の台に斜めに据える（号令の太鼓）
 export function jindaiko(world, x, z, rot = 0) {
   const parts = [];
-  solidCircle(x, z, 0.6);
   const body = new THREE.CylinderGeometry(0.42, 0.42, 0.5, 14, 1, true); body.rotateZ(Math.PI / 2); body.scale(1, 1.08, 1.08); body.translate(0, 1.05, 0); parts.push(paint(body, 0x5a2a1a));
   for (const sx of [-0.26, 0.26]) { const hd = new THREE.CircleGeometry(0.45, 14); hd.rotateY(sx > 0 ? Math.PI / 2 : -Math.PI / 2); hd.translate(sx, 1.05, 0); parts.push(paint(hd, 0xc8b690)); }
   for (const sx of [-0.25, 0.25]) for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2; const nb = new THREE.SphereGeometry(0.025, 4, 3); nb.translate(sx, 1.05 + Math.sin(a) * 0.44, Math.cos(a) * 0.44); parts.push(paint(nb, 0x1a1816)); }
@@ -5349,12 +5340,11 @@ export function kuruwa(world, cx, cz, w, d, o = {}) {
   { const L = (lx, lz, r = 0, n = 'barrel') => { const [x, z] = P(lx, lz); return { n, x, z, rot: rot + r }; };
     const add = (n, l) => extScatter(grp, n, l.filter((e) => e.n === n), world);
     const l = [L(w / 2 - 7.2, d / 2 - 3), L(w / 2 - 7.8, d / 2 - 2.3, 1), L(w / 2 - 7.4, d / 2 - 5.2, 0.4, 'crate'), L(-w / 2 + 9.5, d / 2 - 5.5, 1.2, 'cart')];
-    for (const n of ['barrel', 'crate', 'cart']) add(n, l); for (const e of l) solidCircle(e.x, e.z, e.n === 'cart' ? 1.0 : 0.4); }
+    for (const n of ['barrel', 'crate', 'cart']) add(n, l); }
   for (const q of [-1, 1]) {
     const [x, z] = P(q * 3.2, d / 2 - 2), y = world.heightAt(x, z), L = kit();
     kbox(L.nozura, 0x8a857a, x, y + 0.3, z, 0.7, 0.6, 0.7, rot, 1.4); kbox(L.nozura, 0x8a857a, x, y + 0.9, z, 0.3, 0.6, 0.3, rot, 1.4);
     kbox(L.uchikomi, 0x9a958a, x, y + 1.45, z, 0.6, 0.5, 0.6, rot, 1.4); const cap = new THREE.ConeGeometry(0.62, 0.4, 4); cap.rotateY(Math.PI / 4 + rot); cap.translate(x, y + 1.9, z); L.uchikomi.push(paint(cap, 0x8e897d));
-    solidCircle(x, z, 0.45);
     grp.add(kitMesh(L));
   }
   return grp;
@@ -5800,7 +5790,6 @@ export function kagaribiBatch(world, points) {
     const [x, z] = points[i];
     matrix.makeTranslation(x, world.heightAt(x, z), z);
     iron.setMatrixAt(i, matrix); wood.setMatrixAt(i, matrix);
-    solidCircle(x, z, 0.35);
   }
   iron.receiveShadow = wood.receiveShadow = true;
   iron.computeBoundingSphere(); wood.computeBoundingSphere();
@@ -5815,7 +5804,6 @@ export function kagaribi(world, x, z) {
   a.castShadow = a.receiveShadow = b.receiveShadow = true; grp.add(a, b);
   grp.position.set(x, world.heightAt(x, z), z);
   kagaPool(world).list.push({ group: grp, fire: null, x, y: grp.position.y, z, phase: x * 0.7 + z * 0.3, active: false, distance: Infinity });
-  solidCircle(x, z, 0.35);
   return grp;
 }
 

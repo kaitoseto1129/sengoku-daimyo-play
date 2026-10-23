@@ -846,7 +846,6 @@ function mitsukuriStores(W, x, z) {
     mesh.castShadow = !coarse; mesh.receiveShadow = true; mesh.computeBoundingSphere();
     lod.addLevel(mesh, coarse ? 55 : 0);
   }
-  solidRect(x, z, 2.8, 1.3);
   return lod;
 }
 

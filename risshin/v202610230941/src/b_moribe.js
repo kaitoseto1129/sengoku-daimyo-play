@@ -508,9 +508,12 @@ function moribeFord(rt) {
       float fordBand = 1.0 - smoothstep(4.5, 6.0, fordEdge);
       float fordGrain = texture2D(tMacro, vWPw.xz * 0.9).r;
       float fordRipple = smoothstep(0.86, 0.98, sin(vWPw.z * 6.0 + fordGrain * 2.0 - uTime * 1.4));
-      vec3 fordSand = mix(vec3(0.25, 0.36, 0.34), vec3(0.46, 0.55, 0.48), fordGrain);
-      diffuseColor.rgb = mix(diffuseColor.rgb, fordSand, fordBand * 0.6);
-      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.76, 0.85, 0.82), fordRipple * fordBand * 0.45);
+      vec3 fordSand = mix(vec3(0.12, 0.27, 0.28), vec3(0.26, 0.43, 0.42), fordGrain);
+      diffuseColor.rgb = mix(diffuseColor.rgb, fordSand, fordBand * 0.85);
+      // 浅瀬も水の色を保つ。両岸の細い白波を既存の川面へ描き、終点を土と分ける。
+      float fordShore = smoothstep(7.5, 8.6, abs(vWPw.z - ${NIREMATA2.toFixed(1)}));
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.76, 0.85, 0.82),
+        max(fordRipple * 0.3, fordShore * (0.4 + fordGrain * 0.35)) * fordBand);
       #include <lights_fragment_begin>
     `);
   };
@@ -1070,7 +1073,7 @@ const moribe = {
   missionHeading(rt) {
     const F = rt.flags, p = rt.player.u.pos;
     // 渡河済みのコマから待機へ替える。集合判定の更新を待たせない。
-    if (!F.signal && (F.pointInside || atFordBank(p))) return F.fordThreat ? '敵を倒せ' : '仲間を待て';
+    if (!F.signal && (F.pointInside || atFordBank(p, rt.world))) return F.fordThreat ? '敵を倒せ' : '仲間を待て';
     // 集まる間と、その場で耐える間を同じ一行で区別する。向き・距離は書かない。
     if (F.stage === 'assemble') {
       if (F.gatherUnit || Math.hypot(p.x - F.asm.x, p.z - F.asm.z) >= 12) return '仲間と集まれ';
@@ -1147,15 +1150,28 @@ const moribe = {
     const F = rt.flags, q = F.moribePin;
     if (!q || F.ending || rt.over) return null;
     // 人を追う印と地面の小旗を区別し、段が変わったら追う相手を消す。
-    q.unit = null;
+    q.unit = null; q.enemy = false;
     // 着いた後の足元や画面端へ、移動を促す印を残さない。
     q.waiting = false; q.arrived = false; q.progress = 0;
-    if (F.stage === 'contact' && !F.vBroken && !F.squadGuide) return null;
+    if (F.stage === 'contact' && !F.vBroken && !F.squadGuide) {
+      // 先手が脇へ外れた時だけ同じ敵へピンを置く。視点は遊び手に任せ、向いたら▼だけに戻す。
+      const p = rt.player, me = p.u.pos;
+      let target = null, best = Infinity;
+      for (const u of F.V.units) if (moribeFoeReady(u, p)) {
+        const d = (u.pos.x - me.x) ** 2 + (u.pos.z - me.z) ** 2;
+        if (d < best) { best = d; target = u; }
+      }
+      if (!target) return null;
+      const yaw = p.yaw + (p.camYawOff || 0);
+      if ((target.pos.x - me.x) * Math.sin(yaw) + (target.pos.z - me.z) * Math.cos(yaw) >= Math.sqrt(best) * .75) return null;
+      q.x = target.pos.x; q.z = target.pos.z; q.unit = target; q.enemy = true; q.r = q.hide = 0;
+      return q;
+    }
     let pos = null, r = 6, hide = 6;
     if (!F.signal) {
       if (F.pointDone) return null;
       // 岸に上がるまで一本だけ示し、渡った瞬間に消す。足元へ戻らせない。
-      if (F.pointInside || atFordBank(rt.player.u.pos)) return null;
+      if (F.pointInside || atFordBank(rt.player.u.pos, rt.world)) return null;
       pos = POINT2; r = FORD_R; hide = 0;
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;

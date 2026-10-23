@@ -574,7 +574,8 @@ const okehazama = {
       if (readyUnit(F.nearSignEnemy)) return F.nearSignEnemy;
     }
     return this.objectiveEnemies(rt)[0] ||
-      ((rt.phase === 'march' || rt.phase === 'wait') && rt.flags.scoutFighting && rt.flags.scoutEnemy && readyUnit(rt.flags.scoutEnemy) ? rt.flags.scoutEnemy : null);
+      (F.entered && !F.victory && !F.yoshiDown && readyUnit(F.yoshimoto) ? F.yoshimoto : null) ||
+      (F.scoutFighting && readyUnit(F.scoutEnemy) ? F.scoutEnemy : null);
   },
   noDodgeCard: true, // 矢の雨で「〜をむこう」「にげる」の札を出さない（kaito 10/23 稲生 4）。
   // 出発・追撃・帰りの旗で待つ間は、秒の字でなく満ちていく丸で。
@@ -713,6 +714,7 @@ const okehazama = {
     if (rt.phase === 'assault' && !F.victory) {
       const entrance = !F.entered && F.roadStep >= F.road.length ||
         F.guardOpened && !F.mouthReached && !F.koshiLeft;
+      // 戦う相手は頭上の赤い▼だけ。集合用の黄ピンを人へ付けない。
       if (!entrance) return null;
       const pos = F.honjinPin || (F.honjinPin = fieldPoint(18, -100));
       pin.x = pos.x; pin.z = pos.z; pin.r = 0; pin.hide = 0;

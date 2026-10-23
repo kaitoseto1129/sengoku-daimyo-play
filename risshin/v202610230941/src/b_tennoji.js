@@ -638,7 +638,6 @@ function fortHouses(rt) {
       for (const yy of [.14, .42]) {
         const ring = hoop.clone(); ring.translate(x, y + yy, z); trim.push(ring);
       }
-      solidCircle(x, z, .3);
     }
     tub.dispose(); hoop.dispose(); stone.dispose();
     // 東長屋の脇に予備の槍を預ける架台。常設の武器庫にせず、普請材の足と横木で組む。
@@ -668,7 +667,6 @@ function fortHouses(rt) {
         rz + .25 - (length + .135) * Math.sin(lean)); stones.push(head);
     }
     shaft.dispose(); blade.dispose();
-    solidRect(rx, rz, 2.9, .95, 0);
   }
   unitBox.dispose();
   // 木部は既存の四材質へ結合。高画質の陣屋の土壁だけ一材質を共用する。

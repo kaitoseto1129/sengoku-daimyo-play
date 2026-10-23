@@ -448,7 +448,6 @@ function fortYardDetails(rt) {
     put(0, x - .45, y + .76, z - .18, .32, .16, .14, 0x928062);
     put(0, x + .5, y + .71, z + .05, .055, .055, .72, 0x8c7857);
     put(0, x + .56, y + .75, z - .24, .18, .11, .2, 0x4e4b43);
-    solidRect(x, z, 2.5, 1.4); solidRect(lx, z, .9, 3);
   }
   const shaft = new THREE.CylinderGeometry(.045, .07, 1, 5); shaft.translate(0, .5, 0);
   const tip = new THREE.ConeGeometry(.045, .22, 5); tip.translate(.015, 1.11, 0);

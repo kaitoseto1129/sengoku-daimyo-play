@@ -1118,6 +1118,9 @@ export class HudUpdate {
     if (edgeGoalDetail === shownTaskLabel || routePriority) edgeGoalDetail = '';
     // 移動の歩数を畳む時も、合流に間に合うまでの残り時間は別行に残す。
     if (routePriority && taskTimeLabel) edgeGoalDetail = taskTimeLabel;
+    // 共通の旗の囲みへ、守備中の短い下知だけを渡す。
+    this.missionFlagLabel = /^(この旗を守ろう|ここを守ろう|ここで守ろう)$/.test(shownTaskLabel) ? shownTaskLabel : '';
+    this.missionFlagObjective = goalObjective;
     setClass($('objectives'), 'enemy-move-help', enemyMoveHelp && !dismountFirst(rt));
     // 操作の文と同じ一人を描画へ渡し、別の兵の印を先に出さない。
     this.moveGuideEnemy = enemyMoveHelp && !routePriority && !careSequence ? meleeTarget : null;

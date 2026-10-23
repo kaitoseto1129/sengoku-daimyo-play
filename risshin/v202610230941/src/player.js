@@ -2941,11 +2941,14 @@ export class Player {
       if (!army.enemiesInArc(u.pos, u.heading, reach, half, u.team, over, true, clear, this.lock).length) {
         const stepMax = isTouch ? 0.9 : 0.35;
         const wide = isTouch || this.rt.firstFights || this.rt.world.def.closeCombatAssist ? Math.PI : half + this.D.aim;
-        const target = this.assistPick(army.enemiesInArc(u.pos, u.heading, reach + stepMax, wide, u.team, over, true, clear, this.lock));
+        let target = this.assistPick(army.enemiesInArc(u.pos, u.heading, reach + stepMax, wide, u.team, over, true, clear, this.lock));
+        // 届く距離より一歩先（＋1m）でも、前の60度にいる敵へは体と槍を向け直して半歩踏み込む（空振りを減らす）
+        let stepTo = stepMax;
+        if (!target) { target = this.assistPick(army.enemiesInArc(u.pos, u.heading, reach + 1, 0.52, u.team, over, true, clear, this.lock)); if (target) stepTo = 1; }
         if (target) {
           const dx = target.pos.x - u.pos.x, dz = target.pos.z - u.pos.z, d = Math.hypot(dx, dz) || 1, h = Math.atan2(dx, dz);
           this.assist = { h, t: 0.65 };
-          const step = Math.max(0, Math.min(stepMax, d - (reach - 0.2)));
+          const step = Math.max(0, Math.min(stepTo, d - (reach - 0.2)));
           if (step > 0) this.lunge = { x: dx / d * step, z: dz / d * step, t: 0.12 };
           this.assistImpact = { kind, third, h, t: 0.12 }; this.cd = Math.max(this.cd, 0.2);
           return;
@@ -3142,6 +3145,12 @@ export class Player {
         h.u.flinchT = Math.max(h.u.flinchT || 0, spearFeel ? (kind === 'slam' ? 0.3 : kind === 'sweep' ? 0.22 : 0.12) : heavy ? 0.32 : 0.18);
         if (!spearFeel && heavy && h.u.alive) h.u.stagger = Math.max(h.u.stagger || 0, 0.9);
         // 当たった相手は半歩よろけて下がる（当たったのが目で分かる）。小さな血しぶきか土埃
+        // 当たった相手の体が一瞬（約0.12秒）白く光る。▼の広がりと同じ本人（field_signs.js が描く）
+        if (!h.u.isStruct && h.res !== 'block') {
+          h.u.hurtGlowUntil = this.rt.t + 0.12;
+          const list = this.rt.hurtGlow || (this.rt.hurtGlow = []);
+          if (!list.includes(h.u)) { if (list.length >= 8) list.shift(); list.push(h.u); }
+        }
         if (h.u.alive && !h.u.isStruct) {
           h.u.flinchT = Math.max(h.u.flinchT || 0, 0.24);
           h.u.stagger = Math.max(h.u.stagger || 0, 0.28);

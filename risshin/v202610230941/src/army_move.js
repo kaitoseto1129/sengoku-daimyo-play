@@ -779,25 +779,7 @@ export const ArmyMove = {
       const k = (min - d) * share * (1 - Math.exp(-60 * dt));
       tx += nx * k; tz += nz * k;
     });
-    // 亡骸は寝た体の長さで避ける。桶狭間では徒歩の兵も上限のある一覧を使う。
-    // 行列の縦軸は倒れた向き。足から胸まで三点で見て、体の上へ立たない。
-    if ((u.isPlayer || this.world.def.avoidFallenBodies && !mounted) && this.dead) for (const o of this.dead) {
-      if (o.gone || o.mounted || !o.mesh || (o.deadT || 0) < 1 || o.death?.aid || Math.abs(u.pos.y - o.pos.y) > 0.6) continue;
-      if ((u.pos.x - o.pos.x) ** 2 + (u.pos.z - o.pos.z) ** 2 > 9) continue;
-      const e = o.mesh.matrix.elements;
-      let best = 1e9, bx = 0, bz = 0;
-      for (let j = 0; j < 3; j++) {
-        const h = 0.25 + j * 0.5;
-        const dx = u.pos.x - o.pos.x - e[4] * h, dz = u.pos.z - o.pos.z - e[6] * h;
-        const d2 = dx * dx + dz * dz;
-        if (d2 < best) { best = d2; bx = dx; bz = dz; }
-      }
-      const rr = mounted ? 0.85 : 0.65;
-      if (best >= rr * rr) continue;
-      const d = Math.sqrt(best), k = (rr - d) * (1 - Math.exp(-12 * dt));
-      const nx = d > 1e-4 ? bx / d : Math.cos(o.heading), nz = d > 1e-4 ? bz / d : -Math.sin(o.heading);
-      tx += nx * k; tz += nz * k;
-    }
+    // 亡骸は踏み越えられる。自分も兵も押し戻さない。
     const tl = Math.hypot(tx, tz), cap = 6 * dt;
     if (tl > cap) { tx = tx / tl * cap; tz = tz / tl * cap; }
     u.pos.x += tx; u.pos.z += tz;

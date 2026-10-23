@@ -195,7 +195,6 @@ function teraLantern(G, x, z) {
   const rec = { id: 'toro', kind: 'toro', hist: 'GAME_C', dist: 'near', ranges: [], state: 0, noBurn: true, x, z, w: 1, d: 1 };
   const g = TERA_LANTERN.clone(); g.translate(x, G.W.heightAt(x, z), z);
   G._push(rec, 'plain', g); G.recs.push(rec);
-  solidCircle(x, z, 0.25);
 }
 // 漆喰の壁の箱：絵は一枚を実寸で貼る（横は3mで一回り、縦は v0 から h/3）。上の小壁は v0=0.72（軒下の煤）、胸の高さは 0.3
 const wb = (w, h, d, x, y, z, hex, v0 = 0.3) => {

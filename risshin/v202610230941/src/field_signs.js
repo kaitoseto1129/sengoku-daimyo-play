@@ -7,7 +7,8 @@ import { sightScreenUnit, inouSignVisible, cameraWallBlocked } from './battle_si
 import { enemyKnown } from './battle_intel.js';
 import { reduceMotion } from './settings.js';
 
-const CAP = 360, BARS = 12, NAMES = 1;
+const CAP = 360, BARS = 12, NAMES = 1, GLOW = 8, HOT = 16;
+const hotM = Array.from({ length: HOT }, () => new THREE.Matrix4()), hotLife = new Float32Array(HOT);
 const FOE_R = 55, FOE_OUT = 62, GEN_R = 60, NEAR_R = 18, NEAR_OUT = 22;
 const BAR_FOE = new THREE.Color(0xe8452c), BAR_ALLY = new THREE.Color(0xe8c25a), BAR_BG = new THREE.Color(0x14120f);
 const STATE = new WeakMap();
@@ -35,10 +36,15 @@ function build(rt, root) {
   triMat.depthTest = false;
   if (rt.def.key === 'inou' || rt.def.key === 'okehazama' || rt.def.key === 'moribe') {
     tri.setAttribute('signLife', new THREE.InstancedBufferAttribute(new Float32Array(CAP).fill(1), 1));
+    // signTone：0＝遠い敵（薄い）、1＝ふつう、2＝槍の届く敵（同じ赤い▼のまま、縁を白・中を濃い赤に。別の印に見せない）
+    tri.setAttribute('signTone', new THREE.InstancedBufferAttribute(new Float32Array(CAP).fill(1), 1));
+    triMat.transparent = true;
     triMat.onBeforeCompile = shader => {
-      shader.vertexShader = 'attribute float signLife;\n' + shader.vertexShader;
+      shader.vertexShader = 'attribute float signLife;\nattribute float signTone;\nvarying float vSignA;\n' + shader.vertexShader;
       shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>',
-        '#include <begin_vertex>\nif (position.z > 0.0) { transformed.xy = vec2(0.0, 0.065) + (position.xy - vec2(0.0, 0.065)) * signLife; }');
+        '#include <begin_vertex>\nif (position.z > 0.0) { transformed.xy = vec2(0.0, 0.065) + (position.xy - vec2(0.0, 0.065)) * signLife; }')
+        .replace('#include <color_vertex>', '#include <color_vertex>\nvSignA = signTone < 0.5 ? 0.55 : 1.0;\nif (signTone > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(1.0);');
+      shader.fragmentShader = 'varying float vSignA;\n' + shader.fragmentShader.replace('vec4 diffuseColor = vec4( diffuse, opacity );', 'vec4 diffuseColor = vec4( diffuse, opacity * vSignA );');
     };
   }
   const marks = new THREE.InstancedMesh(tri, triMat, CAP);
@@ -59,7 +65,12 @@ function build(rt, root) {
   const bars = new THREE.InstancedMesh(bar, barMat, BARS * 2);
   bars.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(BARS * 2 * 3), 3);
   bars.count = 0; bars.frustumCulled = false; bars.renderOrder = 6;
-  rt.scene.add(marks, allies, bars);
+  // 当たった敵の体を一瞬だけ白く光らせる薄い殻（加算・最大八人。形と材質は一度だけ作る）
+  const glowGeo = new THREE.CapsuleGeometry(.28, 1.1, 3, 8);
+  const glowMat = new THREE.MeshBasicMaterial({ color: 0xffc8b0, transparent: true, opacity: .38, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+  const glow = new THREE.InstancedMesh(glowGeo, glowMat, GLOW);
+  glow.count = 0; glow.frustumCulled = false; glow.renderOrder = 4;
+  rt.scene.add(marks, allies, bars, glow);
   const box = document.createElement('div');
   box.className = 'field-names'; box.setAttribute('aria-hidden', 'true');
   box.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:hidden';
@@ -71,9 +82,10 @@ function build(rt, root) {
     e.hidden = true; box.appendChild(e); labels.push(e);
   }
   (root || document.body).appendChild(box);
-  const s = { marks, allies, bars, box, labels, gens: [], at: -1, nearby: [], nearbyAt: -1 };
+  const s = { marks, allies, bars, glow, box, labels, gens: [], at: -1, nearby: [], nearbyAt: -1 };
   const clean = () => {
-    rt.scene.remove(marks, allies, bars);
+    rt.scene.remove(marks, allies, bars, glow);
+    glowGeo.dispose(); glowMat.dispose(); glow.dispose?.();
     tri.dispose(); triMat.dispose(); bar.dispose(); barMat.dispose();
     circle.dispose(); allyMat.dispose(); allies.dispose?.();
     marks.dispose?.(); bars.dispose?.(); box.remove();
@@ -135,7 +147,10 @@ export function fieldSignsTick(rt, root) {
     }
   }
   const still = reduceMotion();
-  let n = 0, a = 0, b = 0;
+  const special = moribe || inou || oke, pl = rt.player;
+  // 槍（今の武器）の届く距離。攻撃を押せば向き直って届く所まで（player.js の strike と揃える）
+  const reachHot = special && pl.weapon !== 'gun' && pl.weapon !== 'bow' && pl.meleeReach ? pl.meleeReach(pl.weapon === 'sword' ? 'slash' : 'thrust') + .35 : 0;
+  let n = 0, a = 0, b = 0, hotN = 0;
   const gens = s.gens; gens.length = 0;
   if (!hide) for (const u of rt.army.units) {
     // 自分が討った時だけ、同じ▼を短く縮めて消す。空振りや味方の討ち取りでは出さない。
@@ -143,6 +158,8 @@ export function fieldSignsTick(rt, root) {
     if ((!u.alive || u.dying || u.woundOut || u.rearWound || u.downed) && !defeated || u.gone || u.isPlayer || u.isStruct || u.civ || u.type === 'dummy' || u.type === 'porter' || u.team > 1) continue;
     const dx = u.pos.x - P.x, dz = u.pos.z - P.z, d2 = dx * dx + dz * dz;
     const foe = u.team !== me.team;
+    const meD2 = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
+    const hot = foe && reachHot > 0 && u.alive && meD2 <= reachHot * reachHot;
     // 近い敵は人数・重なり・体の描画省略で消さない。距離は本人から測り、境に幅を持たせる。
     const nearRadius = u._fsNearOn ? NEAR_OUT : NEAR_R;
     const near = foe && (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 < nearRadius * nearRadius;
@@ -171,8 +188,8 @@ export function fieldSignsTick(rt, root) {
     // 見通しの上限と揃え、武将だけ印が残る距離の違いをなくす。
     const signRadius = moribe ? 170 : u === commander ? (u._fsOn ? 180 : 170) : oke && u === missionEnemy ? (u._fsOn ? 100 : 90) : (u._fsOn ? FOE_OUT : FOE_R);
     u._fsOn = near || inou || d2 < signRadius * signRadius;
-    if ((foe && u.noTarget && !moribe && !rt.def.foeMarkVisible?.(rt, u)) || !u._fsOn || (foe ? n : a) >= CAP) continue;
-    if (moribe && !near) {
+    if ((foe && u.noTarget && !moribe && !oke && !rt.def.foeMarkVisible?.(rt, u)) || !u._fsOn || (foe ? n : a) >= CAP) continue;
+    if ((moribe || oke) && !near) {
       if (u.mesh?.visible === false || u.camHidden) continue;
       // 見通しは半秒ごと。判定も入れ物も兵ごとに使い回す。
       if (u._moribeSignAt == null || rt.t < u._moribeSignAt - .5 || rt.t >= u._moribeSignAt) {
@@ -187,7 +204,7 @@ export function fieldSignsTick(rt, root) {
     // 稲生は笠を含めた高さより上へ固定する。頭の動きは追わない。
     if ((moribe || inou || oke) && !u.mounted) headPos.y = u.pos.y + Math.max(2.1, (u.bodyHeight || 1.72) + .35) + .12;
     // 森部は笠のすぐ上へ寄せる。遠い印と手前の別人が重なって見える隙間を減らす。
-    if (moribe && !u.mounted) headPos.y = u.pos.y + Math.max(2, (u.bodyHeight || 1.72) + .2);
+    if ((moribe || oke) && !u.mounted) headPos.y = u.pos.y + Math.max(2, (u.bodyHeight || 1.72) + .2);
     // 稲生・森部・桶狭間とも立ち位置の上へ固定し、構えや突きの頭の揺れを追わない。
     v.copy(headPos).applyMatrix4(cam.matrixWorldInverse);
     if (v.z >= 0) continue;
@@ -198,19 +215,28 @@ export function fieldSignsTick(rt, root) {
     // 森部は届く一人を大きくし、命中時は縦横に広げて少し保つ。
     // 討つ武将は別の大きさを保ち、任務の相手を見失わせない。
     // 稲生は追う一人を少し大きくし、届く時には幅も広げる。
-    const pixels = moribe ? ((u.moribeHitUntil || 0) > rt.t ? 32 : u === readyEnemy ? 32 : u === commander ? 26 : 16) :
-      inou ? (u === readyEnemy ? 32 : u === missionEnemy ? 24 + 2 * approach : d2 < 20 * 20 ? 16 : 12) :
+    // 自分へ振りかぶる本人だけ縦長にする。届く時の横幅、命中時の拡大とは形を分ける。
+    const threatening = moribe && foe && u.alive && !u.fleeing && !(u.stagger > 0) &&
+      (u.atk?.target === me && !u.atk.bow && !u.atk.gun || u.swing?.target === me && !u.swing.done);
+    const pixels = moribe ? ((u.moribeHitUntil || 0) > rt.t ? 26 : u === readyEnemy ? 26 : u === commander ? 26 : threatening ? 22 : near ? 16 : 11) :
+      // 稲生は25m より遠い敵を小さく薄く、届く敵は少し大きく明るく（重なっても近い本人が分かる）
+      inou ? (u === missionEnemy ? 24 + 2 * approach : meD2 < 25 * 25 ? 16 : 9) * (hot ? 1.3 : 1) :
       oke ? (u === readyEnemy ? 34 : u === missionEnemy ? 26 + 6 * approach :
         (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 < 12 * 12 ? 18 : 10) :
       foe ? (u === readyEnemy ? 28 : u === focusEnemy ? 22 : 12) : 8;
     // 稲生・森部・桶狭間では命を減らした相手の▼だけを一度大きくし、滑らかに戻す。
     // 頭上の先端は固定し、既存の形・材質・描画の束をそのまま使う。
     // 稲生は命中の形を少し保ってから戻す。連打の合間にも当たった本人が分かる。
-    const hit = foe && (moribe || inou || oke) ? Math.min(1, Math.max(0, ((oke ? u.okeHitUntil : inou ? u.inouHitUntil : u.moribeHitUntil) || 0) - rt.t) / 1.2) : 0;
-    const reachable = foe && u === readyEnemy;
+    const hitLeft = ((oke ? u.okeHitUntil : inou ? u.inouHitUntil : u.moribeHitUntil) || 0) - rt.t;
+    // 森部は一撃ごとに短く広がり、その後は小さく残す。続けて当てても拡大を読み取れる。
+    const hit = foe && (moribe || inou || oke) ? moribe
+      ? Math.max(Math.min(1, Math.max(0, (hitLeft - 2.05) / .35)), .3 * Math.min(1, Math.max(0, hitLeft / .6)))
+      : Math.min(1, Math.max(0, hitLeft) / 1.2) : 0;
+    const reachable = !inou && foe && u === readyEnemy;
     // 森部の命中は同じ赤い▼を大きくして示す。空振りでは変わらない。
     // 稲生は「届く＝幅広い▼」「命中＝一度だけ広がる▼」。残りの命は中の赤の面積で示す。
     const pulse = still ? (moribe || inou) && hit > 0 ? 1 : 0 : hit;
+    // 桶狭間は画面外の▼を端へ寄せない。実際の兵の頭上だけに置く。
     if (foe && !moribe && !oke) {
       // 前にいる敵の印は、近すぎても端でも画面内へ収める。印同士は重なっても残す。
       const depth = Math.max(-v.z, cam.near * 2);
@@ -238,17 +264,46 @@ export function fieldSignsTick(rt, root) {
     const okeScale = oke ? Math.min(u === missionEnemy ? 8 : 3, pixels * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) : k;
     dummy.scale.set(oke ? okeScale * (reachable ? 1.6 : 1) : moribe || inou ? k * (reachable ? 1.6 : 1) : k * (1 + .5 * pulse),
       oke || moribe || inou ? (oke ? okeScale : k) * (1 + pulse) : k, oke ? okeScale : k);
+    if (threatening && !hit) { dummy.scale.x *= .8; dummy.scale.y *= 1.8; }
     if (defeated) dummy.scale.multiplyScalar(Math.max(0, Math.min(1, (u.moribeHitUntil - rt.t - 1.2) / 1.2)));
     dummy.updateMatrix();
     if (foe) {
       // 瀕死でも所属の赤は残す。黒い外枠だけになって敵の印を見失わない。
-      if (moribe || inou || oke) s.marks.geometry.attributes.signLife.setX(n, Math.sqrt(Math.max(moribe ? .09 : oke ? .36 : .16, Math.min(1, u.hp / (u.maxHp || 1)))));
-      s.marks.setMatrixAt(n++, dummy.matrix);
+      const life = Math.sqrt(Math.max(moribe ? .09 : oke ? .36 : .16, Math.min(1, u.hp / (u.maxHp || 1))));
+      // 届く敵の▼は最後に描き、重なった所でも上に出す。
+      if (special && hot && hotN < HOT) { hotM[hotN].copy(dummy.matrix); hotLife[hotN++] = life; }
+      else {
+        if (special) {
+          s.marks.geometry.attributes.signLife.setX(n, life);
+          s.marks.geometry.attributes.signTone.setX(n, inou && u !== missionEnemy && meD2 > 25 * 25 ? 0 : 1);
+        }
+        s.marks.setMatrixAt(n++, dummy.matrix);
+      }
     }
     else s.allies.setMatrixAt(a++, dummy.matrix);
   }
+  for (let i = 0; i < hotN && n < CAP; i++, n++) {
+    s.marks.setMatrixAt(n, hotM[i]);
+    s.marks.geometry.attributes.signLife.setX(n, hotLife[i]);
+    s.marks.geometry.attributes.signTone.setX(n, 2);
+  }
   s.marks.count = n; s.marks.instanceMatrix.needsUpdate = true;
-  if (moribe || inou || oke) s.marks.geometry.attributes.signLife.needsUpdate = true;
+  if (special) { s.marks.geometry.attributes.signLife.needsUpdate = true; s.marks.geometry.attributes.signTone.needsUpdate = true; }
+  // 当たった敵の体の光（約0.12秒・一度だけ。点滅はしない）
+  let g = 0;
+  const hurt = rt.hurtGlow;
+  if (hurt?.length) {
+    for (let i = hurt.length - 1; i >= 0; i--) {
+      const u = hurt[i];
+      if (u.gone || !((u.hurtGlowUntil || 0) > rt.t)) { hurt.splice(i, 1); continue; }
+      if (hide || g >= GLOW) continue;
+      const sc = (u.bodyHeight || 1.72) / 1.72;
+      dummy.position.set(u.pos.x, u.pos.y + (u.mounted ? 2.3 : .9 * sc), u.pos.z);
+      dummy.quaternion.identity(); dummy.scale.setScalar(sc);
+      dummy.updateMatrix(); s.glow.setMatrixAt(g++, dummy.matrix);
+    }
+  }
+  s.glow.count = g; if (g) s.glow.instanceMatrix.needsUpdate = true;
   s.allies.count = a; s.allies.instanceMatrix.needsUpdate = true;
   if (gens.length > 1) gens.sort((a, c) => a._fsD - c._fsD);
   // 武将の体力の棒（黒い下地と色の棒）

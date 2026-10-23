@@ -1061,13 +1061,17 @@ window.addEventListener('unhandledrejection', (e) => {
   console.error(r);
   reportBug(String((r && r.message) || r), ((r && r.stack) || '').split('\n')[1] || '待ちの失敗');
 });
+let escAt = -1e9;
+window.addEventListener('keydown', (e) => { if (e.code === 'Escape') escAt = performance.now(); }, true);
 document.addEventListener('pointerlockchange', () => {
   const wasLocked = locked;
   locked = document.pointerLockElement === canvas;
   if (locked) { autoTry = false; lockHint(false); game.noLock = false; edgeX = null; }
   // 軍議の間（城を回して見る・始めの寄せ）は、マウスを放しても捕まえても一時停止の札を出し入れしない
   if (game.gungiOn || game.deployment || game.hud.introWaiting) return;
-  if (wasLocked && !locked && !game.noLock && game.battle && !game.battle.over && !game.helpOpen && !game.mapOpen && !game.townShop) setPause(true);
+  // マウスの捕まえが外れただけでは止めない（Windows の Chrome で勝手に外れ、すぐ「一時中断」になって遊べなかった。Lancers 10/24）。
+  // 自分で Esc を押して外した時だけ止める。外れた後は、画面をクリックすればまた捕まえる。
+  if (wasLocked && !locked && performance.now() - escAt < 400 && !game.noLock && game.battle && !game.battle.over && !game.helpOpen && !game.mapOpen && !game.townShop) setPause(true);
   if (locked) setPause(false);
 });
 document.addEventListener('pointerlockerror', () => { if (autoTry) { autoTry = false; if (game.battle) lockHint(true); return; } game.noLock = true; setPause(false); });
