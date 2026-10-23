@@ -62,8 +62,8 @@ export function fieldSignsTick(rt, root) {
   const me = rt.player.u, cam = rt.camera, P = cam.position, q = cam.quaternion;
   const photo = root?.classList?.contains('photo') || rt.player.camShot;
   const hide = photo || rt.hud?.introWaiting;
-  // 桶狭間の任務の相手だけ、既存の▼を大きくする。形・材質・描画回数は増やさない。
-  const missionEnemy = rt.def.key === 'okehazama' && rt.def.missionSignTarget?.(rt);
+  // 任務で追う一人の▼を大きくする。形・材質・描画回数は増やさない。
+  const missionEnemy = rt.def.missionSignTarget?.(rt);
   let n = 0, a = 0, b = 0;
   const gens = s.gens; gens.length = 0;
   if (!hide) for (const u of rt.army.units) {
@@ -77,8 +77,11 @@ export function fieldSignsTick(rt, root) {
     // 投影後の幅を最大十画素に収める。近距離でも三角を兵の顔より大きくしない。
     v.set(u.pos.x, headY(u) + .12, u.pos.z).applyMatrix4(cam.matrixWorldInverse);
     if (v.z >= 0) continue;
-    const pixels = u === missionEnemy ? 10 : 8;
-    const k = Math.min(1.6, pixels * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34));
+    const pixels = u === missionEnemy ? (rt.def.key === 'inou' ? 14 : 10) : 8;
+    // 森部では命を減らした相手の▼だけを一度大きくし、滑らかに戻す。
+    // 頭上の先端は固定し、既存の形・材質・描画の束をそのまま使う。
+    const hit = foe && rt.def.key === 'moribe' ? Math.max(0, (u.moribeHitUntil || 0) - rt.t) / .65 : 0;
+    const k = Math.min(1.6, pixels * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) * (1 + .6 * hit);
     dummy.position.set(u.pos.x, headY(u) + .12, u.pos.z);
     dummy.quaternion.copy(q); dummy.scale.set(k, k, k); dummy.updateMatrix();
     if (foe) s.marks.setMatrixAt(n++, dummy.matrix);

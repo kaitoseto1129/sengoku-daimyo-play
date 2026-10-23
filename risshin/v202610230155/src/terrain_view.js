@@ -37,29 +37,49 @@ export function terrainPatches(position, source, width, height, size = 8) {
 }
 
 // 区画の全ての面の法線と平面の範囲。細かな形と遠景の形を両方含める。
-// 開戦時だけ調べ、視点が動いた時は区画ごとの七つの上限値だけを使う。
+// 開戦時だけ法線を保存。区画全体の裏面を先に外し、混在する区画だけ面を選ぶ。
 function terrainFaceBounds(cell, position) {
   const x = (cell.box.min.x + cell.box.max.x) / 2;
   const y = (cell.box.min.y + cell.box.max.y) / 2;
   const z = (cell.box.min.z + cell.box.max.z) / 2;
   const bounds = { x, y, z, min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity], offset: -Infinity };
-  for (const indices of [cell.indices, cell.coarse || []]) for (let i = 0; i < indices.length; i += 3) {
-    const a = indices[i], b = indices[i + 1], c = indices[i + 2];
-    const ax = position.getX(a), ay = position.getY(a), az = position.getZ(a);
-    const bx = position.getX(b) - ax, by = position.getY(b) - ay, bz = position.getZ(b) - az;
-    const cx = position.getX(c) - ax, cy = position.getY(c) - ay, cz = position.getZ(c) - az;
-    let nx = by * cz - bz * cy, ny = bz * cx - bx * cz, nz = bx * cy - by * cx;
-    const length = Math.hypot(nx, ny, nz);
-    if (!length) continue;
-    nx /= length; ny /= length; nz /= length;
-    const normal = [nx, ny, nz];
-    for (let k = 0; k < 3; k++) {
-      bounds.min[k] = Math.min(bounds.min[k], normal[k]);
-      bounds.max[k] = Math.max(bounds.max[k], normal[k]);
+  cell.facePlanes = [];
+  for (const indices of [cell.indices, cell.coarse || []]) {
+    const planes = new Float64Array(indices.length / 3 * 4);
+    cell.facePlanes.push(planes);
+    for (let i = 0; i < indices.length; i += 3) {
+      const a = indices[i], b = indices[i + 1], c = indices[i + 2];
+      const ax = position.getX(a), ay = position.getY(a), az = position.getZ(a);
+      const bx = position.getX(b) - ax, by = position.getY(b) - ay, bz = position.getZ(b) - az;
+      const cx = position.getX(c) - ax, cy = position.getY(c) - ay, cz = position.getZ(c) - az;
+      let nx = by * cz - bz * cy, ny = bz * cx - bx * cz, nz = bx * cy - by * cx;
+      const length = Math.hypot(nx, ny, nz);
+      if (!length) continue;
+      nx /= length; ny /= length; nz /= length;
+      const at = i / 3 * 4;
+      planes[at] = nx; planes[at + 1] = ny; planes[at + 2] = nz;
+      planes[at + 3] = -(nx * ax + ny * ay + nz * az);
+      const normal = [nx, ny, nz];
+      for (let k = 0; k < 3; k++) {
+        bounds.min[k] = Math.min(bounds.min[k], normal[k]);
+        bounds.max[k] = Math.max(bounds.max[k], normal[k]);
+      }
+      bounds.offset = Math.max(bounds.offset, nx * (x - ax) + ny * (y - ay) + nz * (z - az));
     }
-    bounds.offset = Math.max(bounds.offset, nx * (x - ax) + ny * (y - ay) + nz * (z - az));
   }
   cell.faceBounds = bounds;
+}
+
+// 見える面が混じった区画でも裏面だけを外す。法線は設営時の配列を使い回す。
+function terrainPackFaces(cell, target, count, point, cull) {
+  const indices = cell.far ? cell.coarse : cell.indices;
+  if (!cull) { target.set(indices, count); return count + indices.length; }
+  const planes = cell.facePlanes[cell.far ? 1 : 0];
+  for (let i = 0, p = 0; i < indices.length; i += 3, p += 4) {
+    if (planes[p] * point.x + planes[p + 1] * point.y + planes[p + 2] * point.z + planes[p + 3] < -0.01) continue;
+    target[count++] = indices[i]; target[count++] = indices[i + 1]; target[count++] = indices[i + 2];
+  }
+  return count;
 }
 
 function terrainFacesHidden(cell, point) {
@@ -148,6 +168,9 @@ export function terrainView(mesh, cellSize = 64, scene = null, clipSize = 0, bac
     // 影・地図・両面材質は従来どおり。地形の裏面だけを描画の前に省く。
     const cullFaces = backfaceCull && camera.isPerspectiveCamera && this.material.side === THREE.FrontSide
       && this.matrixWorld.determinant() > 0;
+    // 区画の出入りが同じでも、視点の移動で区画内の面の表裏は変わる。
+    if (cullFaces || this.userData.terrainFaceCull !== cullFaces) changed = true;
+    this.userData.terrainFaceCull = cullFaces;
     for (const cell of cells) {
       box.copy(cell.box).expandByScalar(0.1);
       cell.box.clampPoint(cameraPoint, nearest);
@@ -181,13 +204,11 @@ export function terrainView(mesh, cellSize = 64, scene = null, clipSize = 0, bac
     for (const cell of cells) if (cell.on) {
       if (!cell.far && cell.children && !cell.whole) {
         for (const child of cell.children) if (child.on) {
-          const indices = child.far ? child.coarse : child.indices;
-          packed.array.set(indices, count); count += indices.length;
+          count = terrainPackFaces(child, packed.array, count, cameraPoint, cullFaces);
         }
         continue;
       }
-      const indices = cell.far ? cell.coarse : cell.indices;
-      packed.array.set(indices, count); count += indices.length;
+      count = terrainPackFaces(cell, packed.array, count, cameraPoint, cullFaces);
     }
     packed.needsUpdate = true;
     geometry.setDrawRange(0, count);

@@ -14,10 +14,17 @@ function make() {
   el.innerHTML = '<svg width="80" height="80" viewBox="0 0 80 80" aria-hidden="true"><g class="goal-ground" stroke-linejoin="round"><ellipse cx="40" cy="68" rx="30" ry="9" fill="none" stroke="#14120f" stroke-width="10"/><ellipse cx="40" cy="68" rx="30" ry="9" fill="none" stroke="#fff3ba" stroke-width="5"/><path d="M32 8H48V37H61L40 59L19 37H32Z" fill="#fff3ba" stroke="#14120f" stroke-width="4"/></g><path class="goal-edge" d="M12 31H43V17L69 40L43 63V49H12Z" fill="#fff3ba" stroke="#14120f" stroke-width="4" stroke-linejoin="round" style="display:none;transform-origin:40px 40px"/></svg>';
   el.style.cssText = 'position:absolute;left:0;top:0;width:80px;height:80px;pointer-events:none;z-index:3';
   const style = document.createElement('style');
-  style.textContent = '#hud.photo #mission-goal,#hud.ending #mission-goal,#hud:has(#bigmap:not([hidden])) #mission-goal,#hud:has(#cine.on) #mission-goal{display:none}';
+  style.textContent = '#hud.photo :is(#mission-goal,#mission-flag-frame),#hud.ending :is(#mission-goal,#mission-flag-frame),#hud:has(#bigmap:not([hidden])) :is(#mission-goal,#mission-flag-frame),#hud:has(#cine.on) :is(#mission-goal,#mission-flag-frame){display:none}';
   el.appendChild(style);
   el._rings = el.querySelectorAll('.goal-ground ellipse');
-  for (const ring of el._rings) { ring.setAttribute('rx', '40'); ring.setAttribute('ry', '13'); }
+  for (const ring of el._rings) { ring.setAttribute('rx', '36'); ring.setAttribute('ry', '12'); }
+  el._rings[1].setAttribute('stroke', '#ffffff');
+  // 目的の旗の布だけを囲む。枠は一つを使い回し、背景の旗には付けない。
+  el._frame = document.createElement('div');
+  el._frame.id = 'mission-flag-frame';
+  el._frame.setAttribute('aria-hidden', 'true');
+  el._frame.style.cssText = 'position:absolute;left:0;top:0;box-sizing:border-box;border:4px solid #fff;outline:3px solid #14120f;border-radius:3px;pointer-events:none;z-index:3';
+  el._frame.hidden = true;
   const flag = document.createElementNS('http://www.w3.org/2000/svg', 'path');
   flag.setAttribute('d', 'M32 65V5H65L56 18L65 31H32');
   flag.setAttribute('fill', '#fff3ba'); flag.setAttribute('stroke', '#14120f');
@@ -48,11 +55,13 @@ export function updateMissionPin(rt) {
   // 行き先の矢印は一本。画面外では方向と名前を同じ印に添える。
   rt.hud.missionPinLabelShown = false;
   rt.hud.missionPinOutside = false;
+  if (pin) pin._frame.hidden = true;
   const want = pinGuideOn(rt) && !rt.over && !rt.choice && !rt.hud.introWaiting && rt.player?.u?.alive ? target(rt) : null;
   if (!want) { if (pin) pin.hidden = true; return; }
   if (!pin) pin = make();
   const hud = rt.hud, root = hud.root;
   if (pin.parentNode !== root) root.appendChild(pin);
+  if (pin._frame.parentNode !== root) root.appendChild(pin._frame);
   // 行き先が群れの真ん中だと毎コマ少しずつ動き、印が震える（kaito 10/23「グラグラ揺れる」）。
   //   遠くへ跳んだ時だけすぐ移し、ふだんは一メートル足らずの揺れを無視して、ゆっくり追わせる。地面の高さも同じ点で取る。
   const now = performance.now(), U = pinAt;
@@ -70,9 +79,9 @@ export function updateMissionPin(rt) {
     U.y += (groundAt(rt.world, U.x, U.z, me.y) - U.y) * k;
   }
   const d = Math.hypot(want.x - me.x, want.z - me.z);
-  const near = want.hide ?? (want.r || 6);
+  const near = want.hide ?? (want.r ?? 6);
   const marker = rt.missionGuide?.marker;
-  const waiting = !want.unit && !!marker && (marker.waitAction || marker.waitGuide || /^(wait|guard)$/.test(marker.guideArea));
+  const waiting = want.waiting ?? (!want.unit && !!marker && (marker.waitAction || marker.waitGuide || /^(wait|guard)$/.test(marker.guideArea)));
   // 着いた・離れたの境で毎コマ出たり消えたりしない（チカチカ。kaito 10/23 稲生 27）。消えた後は一歩半離れてから出す。
   pin.hidden = !waiting && d <= near + (pin.hidden ? 1.5 : 0);
   if (pin.hidden) return;
@@ -87,6 +96,9 @@ export function updateMissionPin(rt) {
     U.occluded = cameraWallBlocked(rt, cp, goalPoint);
   }
   const occluded = U.occluded;
+  const flagBounds = !want.unit && !want.dodge && marker?.guideFlag && !occluded &&
+    Math.hypot(want.x - rt.missionGuide.pos.x, want.z - rt.missionGuide.pos.z) < 1
+    ? hud.goalFlagBounds(rt, marker, rt.missionGuide.pos) : null;
   goalPoint.project(rt.camera);
   if (!Number.isFinite(goalPoint.x) || !Number.isFinite(goalPoint.y)) { pin.hidden = true; return; }
   const behind = goalPoint.z < -1 || goalPoint.z > 1;
@@ -124,9 +136,13 @@ export function updateMissionPin(rt) {
   }
   pin.querySelector('.goal-ground').style.display = outside ? 'none' : '';
   const person = !!want.unit;
-  pin.querySelector('.goal-ground path').style.display = person ? '' : 'none';
+  if (pin._enemy !== !!want.enemy) {
+    pin._enemy = !!want.enemy;
+    for (const part of pin.querySelectorAll('.goal-ground path,.goal-edge')) part.setAttribute('fill', want.enemy ? '#ff634d' : '#fff3ba');
+  }
+  pin.querySelector('.goal-ground path').style.display = person || want.dodge ? '' : 'none';
   const flag = pin.querySelector('.goal-flag');
-  flag.style.display = person ? 'none' : '';
+  flag.style.display = person || want.dodge ? 'none' : '';
   // 端では旗を矢印の上へ置き、見えている時は輪の中心に竿を立てる。
   flag.setAttribute('transform', outside ? 'translate(0,-24) scale(.75)' : '');
   if (pin._person !== person) {
@@ -137,6 +153,16 @@ export function updateMissionPin(rt) {
   arrow.style.display = outside ? '' : 'none';
   arrow.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
   hud.missionPinOutside = outside;
+  if (!outside && flagBounds && flagBounds.left >= 8 && flagBounds.top >= 8 &&
+      flagBounds.left + flagBounds.width <= W - 8 && flagBounds.top + flagBounds.height <= H - 8 &&
+      !rects.some(r => flagBounds.left < r.right && flagBounds.left + flagBounds.width > r.left &&
+        flagBounds.top < r.bottom && flagBounds.top + flagBounds.height > r.top)) {
+    const frame = pin._frame;
+    frame.hidden = false;
+    frame.style.width = `${flagBounds.width.toFixed(1)}px`;
+    frame.style.height = `${flagBounds.height.toFixed(1)}px`;
+    frame.style.transform = `translate(${flagBounds.left.toFixed(1)}px,${flagBounds.top.toFixed(1)}px)`;
+  }
   // 行き先の名前と向きの字は出さない。ピンだけで示す（kaito 10/23「行き先の名前とか出す必要ある？」）。
   // 丸めず小数一桁で置き、地面に固定する。
   pin.style.transform = `translate(${(x - 40).toFixed(1)}px,${(y - (outside ? 40 : 68)).toFixed(1)}px)`;
