@@ -395,6 +395,8 @@ const okawachi = {
     return reached ? '味方の後ろで息を整えよ' : '城兵をよけ、道沿いに下がれ';
   },
   keepGuardTaskLabel: true, // 城兵への構え方で、守る場所の下知を置き換えない。
+  // 向きは既存の矢印で示す。移動中も任務札と足元の札に退く先・守る所を残す。
+  travelGuideLabel: (rt) => okawachi.taskLabel(rt, rt.missionGuide?.objective?.text || '組のそばで次の下知を待て'),
   immediatePhaseTasks: true, // 止まれ・退けの切り替わりを十秒待たせない。
   // 四方の兵の減少と、いま守る柵の崩れを混同しない。
   missionDangerText: (rt) => rt.flags.step === 4 ? '南の柵で番の組と合流し、道を守れ' :

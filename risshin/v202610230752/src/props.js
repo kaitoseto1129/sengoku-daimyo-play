@@ -1057,7 +1057,12 @@ function nearNoboriMaterial(base) {
     compile.call(base, sh, renderer);
     sh.vertexShader = 'varying float vNearNobori;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
       vec4 nearRoot = modelMatrix * vec4(0.0, 0.0, 0.0, 1.0);
-      vNearNobori = mix(0.12, 1.0, smoothstep(2.0, 10.0, length(nearRoot.xz - cameraPosition.xz)));`);
+      vec4 nearView = viewMatrix * nearRoot;
+      // 手前の大旗も、中央の進路を塞ぐ間は薄くする。遠い軍勢の旗は残す。
+      vec2 nearScreen = abs(nearView.xy * vec2(projectionMatrix[0][0], projectionMatrix[1][1]) / max(0.1, -nearView.z));
+      float nearCenter = 1.0 - smoothstep(0.85, 1.2, nearScreen.x);
+      float nearDistance = smoothstep(7.0, 18.0, length(nearRoot.xz - cameraPosition.xz));
+      vNearNobori = mix(0.1, 1.0, mix(smoothstep(2.0, 10.0, length(nearRoot.xz - cameraPosition.xz)), nearDistance, nearCenter));`);
     // 画面上の点を間引くと、視点移動や縮小描画で砂嵐になる。布と竿を滑らかに透かす。
     sh.fragmentShader = 'varying float vNearNobori;\n' + sh.fragmentShader.replace('#include <alphatest_fragment>', `#include <alphatest_fragment>
       diffuseColor.a *= vNearNobori;`);

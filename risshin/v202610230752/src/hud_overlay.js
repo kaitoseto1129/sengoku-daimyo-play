@@ -104,9 +104,7 @@ export class HudOverlay {
     const pinTarget = rt.def.missionPin?.(rt);
     // 森部は任務が返したピン一本。敵や味方の位置で上書きしない。
     if (moribe && !pinTarget) return;
-    // 到着後の時計は任務の一行内に置く。画面上の固定座標へ重ねない。
-    // 渡河直後だけは仲間の集合先を残す。守備の時計と移動のピンは重ねない。
-    if (moribe && rt.flags.signal && pinTarget.waiting && pinTarget.arrived) return false;
+    // 到着後も同じピンの中を満たし、守備や集合が進んでいることを形で伝える。
     const guide = rt.missionGuide;
     const retreat = !inou && !moribe && this.retreatGuide?.active && this.retreatGuide.valid ? this.retreatGuide : null;
     const dodge = !moribe && rt.dodgeGuide?.valid ? rt.dodgeGuide : null;
@@ -272,6 +270,14 @@ export class HudOverlay {
     }
     // 本人の足元は兵が重なっても見える白い輪。行き先の旗とは形を分ける。
     if (this.drawPlayerSign(g, rt)) this.ovBlank = false;
+    // 合流する本人だけ、武器や旗を含めず手足の輪郭を囲む。既存の形と配列を使い回す。
+    const marker = rt.missionGuide?.objective === currentObjective(rt) && rt.missionGuide.marker;
+    const person = typeof marker?.guidePerson === 'function' ? marker.guidePerson() : marker?.guidePerson;
+    if (person?.alive && !person.gone && person.team === rt.player.u.team && !rt.over && !rt.choice &&
+        !this.introWaiting && !rt.player.camShot && !this.bigmap && sightScreenUnit(rt, person)) {
+      const frame = this.measurePersonFrame(person, rt, true);
+      if (frame) { this.drawEnemyContour(g, rt, person, frame, true); this.ovBlank = false; }
+    }
     // 行き先は共通のピンに任せ、持ち場の輪や味方の旗を重ねて描かない。
     // 敵は頭上の赤い▼、武将の名と体力は field_signs.js。
     this.battleSignEnemy = null; this.enemyFrameShown = false;
