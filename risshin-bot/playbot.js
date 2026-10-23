@@ -1937,7 +1937,7 @@ async function gunbaiTry(game, b, pad, c, aud, name, rep) {
   aud.scanDom(`${name}・軍配の図`);
   if (!c.gbShot) { c.gbShot = true; const f = await shot(game, `${name}・軍配の図`); if (f) rep.shots.push({ label: '軍配の図', file: f }); }
   const tx = gb.innerText || '';
-  const kb = tx.match(/(右クリック|Esc|Shift|Ctrl)/);
+  const kb = tx.match(/(右押し|Esc|Shift|Ctrl)/);
   if (kb) c.add(`gunbai-kbd:${kb[1]}`, '軍配の図に、指の端末では使えない操作の案内がある', `「${tx.slice(Math.max(0, tx.indexOf(kb[1]) - 14), tx.indexOf(kb[1]) + 10).replace(/\s+/g, ' ')}」`, 1, { fix: 'isTouch の時は「長押し」「もう一度押す」などの言い方に' });
   const all = gb.querySelector('#gb-all');
   if (all) { pad.cache.delete('軍配：全部選ぶ'); pad.tap(all, '軍配：全部選ぶ'); await wait(250); }
