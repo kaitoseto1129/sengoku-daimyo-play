@@ -74,7 +74,15 @@ function moribeLoad() {
   }).catch((error) => { moribePromise = null; throw error; });
   return moribePromise;
 }
-const battleDefinition = i => BATTLES[i]?.id === 'moribe' ? moribeDefinition : BTm?.BATTLE_DEFS[i];
+let inouDefinition = null, inouPromise = null;
+function inouLoad() {
+  if (!inouPromise) inouPromise = import('./b_inou.js').then((m) => {
+    m.inou.key = 'inou';
+    inouDefinition = m.inou;
+  }).catch((error) => { inouPromise = null; throw error; });
+  return inouPromise;
+}
+const battleDefinition = i => BATTLES[i]?.id === 'inou' ? inouDefinition : BATTLES[i]?.id === 'moribe' ? moribeDefinition : BTm?.BATTLE_DEFS[i];
 // 保存済みの設定や自動測定でも、画質は高を保つ。
 S.quality = 'high';
 // 戦の仕組み（battle.js。units・army・ai・siege など、題には要らない重い物を連れてくる）も、出陣する時に読む
@@ -102,6 +110,7 @@ function ldBegin(keys, battle = '') {
   ldPlan = { keys, battle, est: keys.map((k) => L[k] ?? LD_DEF[k] * mul), cur: -1, t: performance.now(), t0: performance.now(), hidden: document.hidden };
   const bar = document.querySelector('#loading .ldbar i');
   if (bar) { bar.style.transition = 'none'; bar.style.transform = 'scaleX(0)'; }
+  $('loading').style.setProperty('--ld-progress', '0%');
   clearInterval(ldIv); ldIv = setInterval(ldTick, 250);
   const actions = document.querySelector('#loading .ld-cancel');
   if (actions) actions.remove();
@@ -118,6 +127,10 @@ function ldTick() {
   if (!el || document.hidden) return;
   const P = ldPlan, i = Math.max(0, P.cur);
   const into = performance.now() - P.t;
+  const total = P.est.reduce((sum, ms) => sum + ms, 0) || 1;
+  const completed = P.est.slice(0, i).reduce((sum, ms) => sum + ms, 0);
+  P.progress = Math.max(P.progress || 0, Math.min(.97, (completed + Math.min(into, P.est[i] * .92)) / total));
+  $('loading').style.setProperty('--ld-progress', `${(P.progress * 100).toFixed(1)}%`);
   let left = Math.max(0, P.est[i] - into);
   for (let k = i + 1; k < P.keys.length; k++) left += P.est[k];
   // 見込みを超えても残り秒を消さず、残る段と現在の超過分から目安を直す。
@@ -152,6 +165,7 @@ function ldLearn(LT) {
   } catch (e) { /* 覚えられなくてもよい */ }
 }
 const stage = (t, key) => {
+  if (!t) $('loading').classList.remove('first-battle');
   const LT = window.__loadTimes;
   if (LT && ldPlan?.battle === LT.battle) {
     LT.step = t;
@@ -190,11 +204,11 @@ function reportBug(message, where) {
 // 失敗したら（通信が不安定な端末など）次に押した時にまた読めるよう promise を捨て、字とやり直しボタンを出す
 async function readyBattleCode(retry, withWeapons = true, id = '') {
   const seq = game.startSeq;
-  const definitionsReady = id === 'town' || (id === 'moribe' ? !!moribeDefinition : !!BTm);
+  const definitionsReady = id === 'town' || (id === 'inou' ? !!inouDefinition : id === 'moribe' ? !!moribeDefinition : !!BTm);
   if (definitionsReady && BM) return true;
   stage('戦の支度を読み込んでいます', 'defs');
   // 武器素材は下の素材支度で読む。ここで待つと、携帯の待ち時間の上限も自動用の省略も効かない。
-  try { await Promise.all([id === 'town' ? Promise.resolve() : id === 'moribe' ? moribeLoad() : btLoad(), bmLoad(), withWeapons && !isNorender() ? loadWeapons() : Promise.resolve()]); try { sessionStorage.removeItem('risshin-reloaded'); } catch (e2) { /* なし */ } return seq === game.startSeq; }
+  try { await Promise.all([id === 'town' ? Promise.resolve() : id === 'inou' ? inouLoad() : id === 'moribe' ? moribeLoad() : btLoad(), bmLoad(), withWeapons && !isNorender() ? loadWeapons() : Promise.resolve()]); try { sessionStorage.removeItem('risshin-reloaded'); } catch (e2) { /* なし */ } return seq === game.startSeq; }
   catch (e) {
     if (seq !== game.startSeq) return false;
     console.error(e);
@@ -1616,8 +1630,9 @@ const game = {
     townMusic(false);
     playMusic('title');
     // 題の 3D は一度だけ作って使い回す（戻るたびに木・草・兵を作り直さない。890）
-    this.bg = this.titleBg || (this.titleBg = titleScene());
     const saved = readProgress(S.slot).game;
+    const firstVisit = [0, 1, 2].every(slot => { const r = readProgress(slot); return !r.game && !r.bad; });
+    this.bg = firstVisit ? null : this.titleBg || (this.titleBg = titleScene());
     usePre(saved);
     if (saved) setScenario(saved.scenario || 'okehazama');
     titleScreen(saved,
@@ -1662,7 +1677,7 @@ const game = {
     // やり直しでも、前の戦の一時停止札を出陣札の上へ残さない。
     $('pause').hidden = true;
     this.paused = true;
-    // 必須の札：初陣は題・名・開戦の三押し（前は物語を足して四押し）。
+    // 初陣は題の旗を一度押すだけ。名と開戦の確認を挟まない。
     // 初陣の背景は支度中に読める。組の支度が要らなければ、そのまま戦へ。
     // 稲生は札の説明の画面を出さず、すぐ戦へ（kaito 10/23 稲生 15）。
     if (BATTLES[i]?.id === 'inou' || !this.G.lord && !RANKS[this.G.rank].squad) return this.startBattle(i);
@@ -1689,6 +1704,8 @@ const game = {
     if (memReloadGate(this, 'startBattle', [i])) return;
     try { localStorage.setItem('risshin-lastbattle', BATTLES[i]?.id || String(i)); localStorage.setItem('risshin-lastbattle-at', String(Date.now())); } catch (e) { /* 保存できなければ記さない */ }
     if (isLocked(i)) return showPaywall(() => this.startBattle(i), () => this.base());
+    const firstBattle = BATTLES[i]?.id === 'inou' && !this.G.practice && !this.G.lord && !this.G.history?.some(Boolean);
+    $('loading').classList.toggle('first-battle', firstBattle);
     this.bg = null;
     this.freeTitle();
     this.inTown = false;
@@ -1717,7 +1734,7 @@ const game = {
     const keys = ['defs', 'assets', 'build', 'warm', 'compile', 'first'].filter((k) => (k !== 'defs' || !battleDefinition(i) || !BM) && (tool || isNorender() ? k === 'build' || k === 'first' || k === 'defs' : true));
     ldBegin(keys, BATTLES[i].id);
     const readingStory = LB ? { year: LB.year, title: LB.name, text: LB.goal ? [...LB.text, `任務：${LB.goal}`] : LB.text } : storyOf(i)(this.G);
-    const reader = this.loadingReader = loadingStory(BATTLES[i], readingStory, LB ? LB.tip : tipOf(i), this.G);
+    const reader = this.loadingReader = firstBattle ? { wait: () => Promise.resolve(), dispose() {} } : loadingStory(BATTLES[i], readingStory, LB ? LB.tip : tipOf(i), this.G);
     stage('戦の支度を読み込んでいます', keys[0]);
     // 開戦の確かめは、この戻り値を待ってから判定する。読み込み中に次の戦を予約すると、前の支度は取り消される。
     return new Promise((resolve) => setTimeout(() => guarded(async () => {
@@ -1739,8 +1756,8 @@ const game = {
         if (my !== this.startSeq) return;
       }
       if (!(await prepareBattleAssets(BATTLES[i].id, () => my === this.startSeq))) return;
-      // 森部は専用の定義で支度済み。全戦用の読み口はほかの戦だけで使う。
-      if (BATTLES[i].id !== 'moribe') {
+      // 稲生と森部は専用の定義で支度済み。全戦用の読み口はほかの戦だけで使う。
+      if (BATTLES[i].id !== 'moribe' && BATTLES[i].id !== 'inou') {
         await BTm.loadBattleDefinition(BATTLES[i].id);
         if (my !== this.startSeq) return;
         if (!(await prepareBattleAssets(BATTLES[i].id, () => my === this.startSeq))) return;
@@ -1760,6 +1777,8 @@ const game = {
         };
         // 展開中の文字列・画像・形を重ねない。一種類ずつ終え、画面へ戻してから次を読む。
         for (const [key, name, load] of [['人', 'mhbody', loadHumans], ['具足', 'domaru', loadDomaru], ['武器', 'weapons', loadWeapons], ['城', 'cgt', loadCgt], ['兜', 'kabuto', loadKabuto], ['弓', 'yumi', loadYumi], ['馬', 'horse', loadHorse], ['道具', 'props_ext', loadPropsExt], ['建物', 'bldg', loadBldg], ['模様', 'tex_people', loadPeopleDetail], ['声', 'voice', loadWarSpeech]]) {
+          // 初陣は人・具足・武器だけ。城や模様などは必要な戦で読む。
+          if (firstBattle && !['mhbody', 'domaru', 'weapons', 'kabuto'].includes(name)) continue;
           if (!assetsForBattle(BATTLES[i].id).includes(name)) continue;
           if (my !== this.startSeq) return;
           await timed(key, load);
@@ -1777,6 +1796,7 @@ const game = {
       LT.build = LT.buildOnly = Math.round(performance.now() - tB);
       applyLord(b);
       b.startAutomatic = tool;
+      b.firstBattle = firstBattle;
       // 馬の読み込みは支度中に済ませる。開戦六秒後に形・動き・絵の仕組みをまとめて作らない。
       b.horseLoadPending = !tool && !isNorender();
       // 見渡しは今は停止中。出陣後へ映画の引き・見せ場を残さず、本人の視点で支度する。
@@ -1791,12 +1811,12 @@ const game = {
         await preparationFrame();
         const tH = performance.now(), cap = 400;
         const warmCurrent = () => my === this.startSeq && performance.now() - tH < 30000;
-        await primeHorses(b, warmCurrent);
+        if (!firstBattle) await primeHorses(b, warmCurrent);
         if (my !== this.startSeq) { b.dispose(); return; }
-        b.horseLoadPending = false;
+        b.horseLoadPending = firstBattle;
         // 携帯は顔の支度と同じ24人まで。残りは開戦後の小分け作成へ回す。
         // 戦中は updateHumans が制限を外すので、兵の人数・密度・画質は変えない。
-        b.humanPreparationCap = MEM_TIGHT ? 16 : 24;   // iPhone：開戦の支度で作る人は 16（骨入りの枠 40 の内。10/21）
+        b.humanPreparationCap = firstBattle ? 4 : MEM_TIGHT ? 16 : 24;
         // 前の戦の人を片付け、初戦の primed 待ちを支度の中で解く。
         updateHumans(b, 0);
         if (HUMd.ready) await primeHumans(b, renderer, camera, b.humanPreparationCap, 1, warmCurrent).catch((error) => { LT.humanPrimeError = String(error?.message || error); });
@@ -1809,7 +1829,7 @@ const game = {
           await preparationFrame();
         }
         // 指の端末：近くの兵の形だけは前もって作る（開戦後の一人ずつの形づくりを軽く。材質は作らないので固まらない）
-        if (HUMd.ready && warmCurrent()) await prefetchHumanShapes(b, camera, 700, warmCurrent);
+        if (!firstBattle && HUMd.ready && warmCurrent()) await prefetchHumanShapes(b, camera, 700, warmCurrent);
         // まだ見えない兵の顔は、近づいた時に作る。全員分を開戦前に描かない。
         HUMd.primed = true;
         LT.warm = LT.humansWarm = Math.round(performance.now() - tH);
@@ -1827,16 +1847,23 @@ const game = {
           renderer.initTexture(b.army.flashTex);
           renderer.initTexture(b.army.smokeTex);
           if (b.army._rain) renderer.initTexture(b.army._rain.dots.material.map);
-          const { prepareBattlePrograms } = await import('./battle_programs.js');
-          // 時間切れで戦中へ残さない。姿をまとめて組み立て、完了を一度だけ待つ。
-          const current = () => my === this.startSeq;
-          LT.programs = await prepareBattlePrograms(renderer, b, camera, current, {
-            offscreen: useFinish(),
-            uploadTextures: async (scene, materials) => {
-              singlePassLow(scene);
-              return paceTextureUploads(scene, current, materials);
-            },
-          });
+          if (firstBattle) {
+            // 初めに使う戦場の描き方だけ。傷・倒れ・遠い姿の総当たりを待たない。
+            singlePassLow(b.scene);
+            if (renderer.compileAsync) await renderer.compileAsync(b.scene, camera);
+            else renderer.compile(b.scene, camera);
+          } else {
+            const { prepareBattlePrograms } = await import('./battle_programs.js');
+            // 時間切れで戦中へ残さない。姿をまとめて組み立て、完了を一度だけ待つ。
+            const current = () => my === this.startSeq;
+            LT.programs = await prepareBattlePrograms(renderer, b, camera, current, {
+              offscreen: useFinish(),
+              uploadTextures: async (scene, materials) => {
+                singlePassLow(scene);
+                return paceTextureUploads(scene, current, materials);
+              },
+            });
+          }
         }
       } catch (e) {
         // 絵の支度に失敗しても戦を始める。止まった同じ支度をもう一度待たない。
@@ -1899,6 +1926,8 @@ const game = {
         sfx('horagai', 0.6);
       };
       sfx('taiko', 0.8);
+      // 馬の形は動けるようになってから、既存の小分け更新に任せる。
+      if (firstBattle) b.defer(12000, () => { if (this.battle === b && my === this.startSeq) b.horseLoadPending = false; });
       // 砦の戦（def.gungi のある戦）だけ、開戦の前に軍議の画面を一度だけ挟む（ほかの戦・画面の流れは変えない）
       // 全軍の攻め口と布陣は総大将が決める。足軽大将も預かった一手の下知に従う。
       const canGungi = !!this.G.lord;
@@ -2685,6 +2714,7 @@ game.hud.onIntroReady = () => {
   if (b) {
     b.player.introT = 0; b.player.camShot = null; b.player.cine = null; b.player.shotZoom = 0;
     b.player.updateCamera(1, camera);
+    window.dispatchEvent(new Event('risshin-battle-ready'));
   }
   if (!isTouch) requestLock();
 };

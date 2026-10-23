@@ -1553,11 +1553,11 @@ function anegawaGuardLabel(rt, reached) {
   if (F.hqThreat || F.hqDefend) return reached ? anegawaHqWatchText(rt) : anegawaHqReturnText(rt);
   if (!reached) return anegawaHoldRoute(rt);
   if (rt.phase === 'brief') return '岸でまつ';
-  if (F.nearEnemies > 0) return '敵を食い止めよう';
+  if (F.nearEnemies > 0) return 'この敵を止めよう';
   if (F.inabaT) return 'ここで残る敵を見張ろう';
   if (F.westReported) return '横から来る味方を待とう';
   if (F.holdAt.z > POST.z + 4) return '味方と槍を揃えて待とう';
-  return '川から来る敵を待とう';
+  return 'ここで待とう';
 }
 const anegawa = {
   // 共通の見物・避難を使い、軍の周りへの自動配置は止める。民は兵の名簿に入らない。
@@ -1647,6 +1647,13 @@ const anegawa = {
   },
   namedGuideMarkers: true,
   // 見張る相手と槍の印をそろえる。周囲の敵は既存の見張りで集める。
+  // 表示だけで使う相手。持ち場を離れる下知の間は敵の印を出さない。
+  missionSignTarget(rt) {
+    const F = rt.flags;
+    if (rt.phase === 'brief' || F.taskHurt || F.retreatGuiding || rt.withdrawal || F.step !== 1 ||
+        F.pushGuiding || F.flankPick === 0 && !F.flankDone || anegawaReturning(rt) || !F.atHold && !F.atHq) return null;
+    return F.hqThreat || F.hqDefend ? F.hqEnemy : F.nearEnemies > 0 ? F.aimEnemy || F.watchEnemy : null;
+  },
   aimGuideTarget(rt) {
     return rt.flags.hqThreat || rt.flags.hqDefend ? rt.flags.hqEnemy : rt.flags.aimEnemy || rt.flags.watchEnemy;
   },
@@ -1748,7 +1755,7 @@ const anegawa = {
     if (F.step === 2) return '逃げる敵を追おう';
     if (F.pushGuiding || F.inabaT) return '敵を押し返そう';
     if (F.flankPick === 0 && !F.flankDone) return '東の岸で敵を止めよう';
-    return '敵を食い止めよう';
+    return 'この敵を止めよう';
   },
   defenseLine(rt) {
     const F = rt.flags;

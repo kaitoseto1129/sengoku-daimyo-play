@@ -1644,7 +1644,10 @@ function honnoFingers(g, mesh) {
     parts.push(extra);
   }
   // 手指を足せない形でも、小袖を残して戦を続ける。
-  return parts.length > 1 ? (mergeGeometries(parts) || g) : g;
+  const result = parts.length > 1 ? (mergeGeometries(parts) || g) : g;
+  // 結合は形の付記を引き継がない。骨番号の並びを残し、胴まで再変換しない。
+  if (result !== g) result.userData = { ...g.userData };
+  return result;
 }
 
 // 門の陰でも板目と貫を残す。寺と御所だけの材質を設営時に共有する。

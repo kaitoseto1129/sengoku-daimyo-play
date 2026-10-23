@@ -39,6 +39,14 @@ export function currentObjective(rt) {
   return order && (!main || order.progress || (order.t ?? 0) >= (main.t ?? 0)) ? order : main || order || other;
 }
 
+// 任務は右上の一行だけ。接敵や操作の状態で目当てを書き換えない。
+export function missionCaption(rt, title = currentObjective(rt)?.text || '') {
+  return noOps(goalText(rt, title))
+    .split(/[。！？\n]/)
+    .map(line => line.trim().replace(/討ち取る$|討ち取れ$|たおそう$|たおす$/, '倒せ'))
+    .find(line => line && !/構え|かまえ|かまえる|ふせ[ぐげ]|防いで|押し|なぞ/.test(line)) || '';
+}
+
 // 案内の札と声では英字の操作説明を畳む。任務の原文は変えない。
 export function goalText(rt, text) {
   const plain = intelText(rt, text);

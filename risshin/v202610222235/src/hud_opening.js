@@ -32,6 +32,25 @@ export class HudOpening {
     const goal = battle ? openingGoal(battle) : '味方と命令を果たし、生きて戻る';
     this.opening?.dispose();
     this.opening = battle && !battle.def.town && !battle.def.dojo ? new BattleOpening(this, battle) : null;
+    if (battle?.firstBattle) {
+      // kaito の導入の結びだけを短く見せ、追加の操作は求めない。
+      el.innerHTML = '<div class="card"><p>あなたは信長方の足軽として、林勢を追う。</p></div>';
+      el.style.pointerEvents = 'none';
+      clearTimeout(this.introT);
+      this.introT = setTimeout(() => {
+        if (window.__game?.battle !== battle || !this.introWaiting || el.hidden) return;
+        if (timing) {
+          timing.introMs = Math.round(performance.now() - began);
+          timing.ready = true; timing.battleSecondsAtReady = battle.t;
+          timing.totalMs = timing.loadingMs + (timing.readingMs || 0) + timing.deploymentMs + timing.introMs;
+        }
+        this.introRead = true;
+        try { localStorage.setItem('risshin-intro-read', '1'); } catch (e) { /* 記録できなくても進む */ }
+        this.introWaiting = false; el.hidden = true;
+        $('cine').classList.remove('on'); this.onIntroReady?.();
+      }, automatic ? 0 : 1800);
+      return;
+    }
     const instruction = battle?.def.introText;
     el.dataset.battle = battle?.def.key || '';
     el.classList.toggle('compact-intro', !!battle?.def.compactIntro);
@@ -55,7 +74,9 @@ export class HudOpening {
     if (battle?.def.introTaskFirst) el.querySelector('.intro-reading').insertAdjacentHTML('beforeend', welcome);
     else el.querySelector('.sides').insertAdjacentHTML('afterend', welcome);
     const peopleToggle = el.querySelector('#intro-people-toggle');
+    const peopleReadLabel = battle?.def.key === 'inou' ? '戦いの前の話を読む' : '人物と戦場の説明を読む';
     if (peopleToggle) {
+      peopleToggle.textContent = peopleReadLabel;
       // 桶狭間の説明釦は本文の外へ。横長の携帯でも途中で切れず、出陣前に開ける。
       if (battle?.def.key === 'okehazama') el.querySelector('#intro-go').before(peopleToggle);
       for (const name of ['pointerdown', 'pointerup']) peopleToggle.addEventListener(name, e => e.stopPropagation());
@@ -64,15 +85,39 @@ export class HudOpening {
         const body = el.querySelector('#intro-people-body'), open = body.hidden;
         body.hidden = !open;
         peopleToggle.setAttribute('aria-expanded', String(open));
-        peopleToggle.textContent = open ? '人物と戦場の説明を閉じる' : '人物と戦場の説明を読む';
+        peopleToggle.textContent = open ? '人物と戦場の説明を閉じる' : peopleReadLabel;
         if (open) {
           const reading = el.querySelector('.intro-reading');
           reading.scrollTop += peopleToggle.getBoundingClientRect().top - reading.getBoundingClientRect().top;
         }
       };
     }
+    if (battle?.def.key === 'inou' || battle?.def.key === 'moribe') {
+      el.querySelector('#intro-go').insertAdjacentHTML('beforebegin', '<small class="intro-scroll">説明欄は上下に送れます</small>');
+    }
     if (battle?.def.key === 'inou') {
-      el.querySelector('#intro-go').insertAdjacentHTML('beforebegin', '<small class="intro-scroll">説明欄を上下に送ると、人物の説明も読めます</small>');
+      const body = el.querySelector('#intro-people-body');
+      const cards = [...body.children];
+      let page = 0;
+      body.insertAdjacentHTML('afterend', '<div class="intro-pages" hidden><button type="button" class="btn" data-person-prev>前の人物</button><span role="status"></span><button type="button" class="btn" data-person-next>次の人物</button></div>');
+      const pages = el.querySelector('.intro-pages');
+      el.querySelector('#intro-go').before(pages);
+      const showPage = () => {
+        cards.forEach((card, i) => { card.hidden = i !== page; });
+        pages.querySelector('span').textContent = `${page + 1}／${cards.length}`;
+        pages.querySelector('[data-person-prev]').disabled = page === 0;
+        pages.querySelector('[data-person-next]').disabled = page === cards.length - 1;
+      };
+      const toggle = peopleToggle.onclick;
+      peopleToggle.onclick = e => {
+        toggle(e); pages.hidden = body.hidden;
+        el.classList.toggle('people-reading', !body.hidden);
+        if (!body.hidden) { showPage(); el.querySelector('.intro-reading').scrollTop = el.querySelector('.intro-reading').scrollHeight; }
+      };
+      for (const [selector, direction] of [['[data-person-prev]', -1], ['[data-person-next]', 1]]) {
+        pages.querySelector(selector).onclick = e => { e.preventDefault(); e.stopPropagation(); page = Math.max(0, Math.min(cards.length - 1, page + direction)); showPage(); };
+      }
+      showPage();
     }
     decorateTerms(el.querySelector('.intro-reading'));
     el.style.pointerEvents = 'none';
@@ -98,13 +143,15 @@ export class HudOpening {
       e.stopPropagation();
       if (e.key === 'Tab') {
         e.preventDefault();
-        const targets = [reading, ...reading.querySelectorAll('button, summary'), go];
+        const targets = [reading, ...el.querySelectorAll('button:not([hidden]), summary')].filter(target => target.getClientRects().length);
         const at = targets.indexOf(document.activeElement);
         targets[(at + (e.shiftKey ? -1 : 1) + targets.length) % targets.length].focus({ preventScroll:true });
       }
       if ((e.key === 'Enter' || e.key === ' ') && e.repeat) e.preventDefault();
     };
     go.onkeydown = reading.onkeydown = introKeys;
+    const pages = el.querySelector('.intro-pages');
+    if (pages) pages.onkeydown = introKeys;
     go.focus({ preventScroll:true });
     // 自動の試走だけは、操作待ちを省く。
     if (automatic) this.introT = setTimeout(() => { if (this.introWaiting && window.__game?.battle === battle) go.click(); }, 0);

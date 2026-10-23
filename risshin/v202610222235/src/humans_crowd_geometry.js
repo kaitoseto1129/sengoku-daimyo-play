@@ -50,7 +50,9 @@ function humanGeometryMap(indices) {
   const cache = new WeakMap(), unchanged = indices.every((at, i) => at === i);
   const remap = (geo) => {
     if (unchanged) return geo;
-    if (humanMappedGeos.has(geo)) return geo;
+    // 袖の仕立て直しで複製された形も、骨番号は既に共通の並び。
+    // 形そのものの印だけでは複製のたびに再変換し、胴や腕が別の骨へ飛ぶ。
+    if (humanMappedGeos.has(geo) || geo.userData.humanBoneOrder === key) return geo;
     if (cache.has(geo)) return cache.get(geo);
     // 位置・法線・絵の座標は元の形と共有し、骨番号だけを作る（一度だけ）。
     const g = new THREE.BufferGeometry();
@@ -58,7 +60,7 @@ function humanGeometryMap(indices) {
     g.morphAttributes = geo.morphAttributes; g.morphTargetsRelative = geo.morphTargetsRelative;
     g.groups = geo.groups; g.drawRange = geo.drawRange;
     g.boundingBox = geo.boundingBox; g.boundingSphere = geo.boundingSphere;
-    g.userData = { ...geo.userData };
+    g.userData = { ...geo.userData, humanBoneOrder: key };
     const src = geo.attributes.skinIndex, a = new Uint16Array(src.count * 4);
     for (let i = 0; i < src.count; i++) for (let k = 0; k < 4; k++) a[i * 4 + k] = indices[gc(src, i, k)];
     g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(a, 4));

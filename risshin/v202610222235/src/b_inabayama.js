@@ -1175,8 +1175,9 @@ function buildKaraRoadWorks(rt) {
     o.scale.set(q.len, q.len * (0.8 + Math.sin(q.rot) * 0.15), q.len * (0.75 + Math.cos(q.rot) * 0.15)); o.updateMatrix();
     let buried = o.position.y;
     for (let i = 0; i < rockP.count; i++) {
-      if (rockP.getY(i) > 0.05) continue;
       stoneVertex.fromBufferAttribute(rockP, i).applyMatrix4(o.matrix);
+      // 回転前に上側だった縁も、谷側へ下がれば地面で受ける。
+      if (rockP.getY(i) > 0.05 && stoneVertex.y > o.position.y + 0.05) continue;
       const ground = drawGroundAt(W, stoneVertex.x, stoneVertex.z);
       if (Number.isFinite(ground)) buried = Math.min(buried, ground - (stoneVertex.y - o.position.y) - 0.06);
     }
@@ -1519,7 +1520,8 @@ function buildInabaMountain(rt) {
   // 山肌が抜ける時に、共通の土の細工へさらに描画処理を継ぎ足さない。
   // この戦の地面だけ軽い材質へ。足場・索引・陰・霧は同じものを使う。
   const previousGround = W.terrain.material;
-  const mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+  // 夏の裸地を白い雪面に見せない。照り返しを抑えた材質にも灰褐色の下地を残す。
+  const mat = new THREE.MeshLambertMaterial({ color: 0xb9aa8d });
   mat.extensions.derivatives = true;
   mat.userData.camNearSolid = true;
   mat.customProgramCacheKey = () => 'inaba-ground-soil-rock-trail';
@@ -1594,8 +1596,8 @@ function buildInabaMountain(rt) {
           // 斜面へ回した岩の下縁を、描く地面へ埋める。設営時だけ測る。
           let buried = dummy.position.y;
           for (let v = 0; v < rp.count; v++) {
-            if (rp.getY(v) > 0.05) continue;
             vertex.fromBufferAttribute(rp, v).applyMatrix4(dummy.matrix);
+            if (rp.getY(v) > 0.05 && vertex.y > dummy.position.y + 0.05) continue;
             buried = Math.min(buried, drawGroundAt(W, vertex.x, vertex.z) - (vertex.y - dummy.position.y) - 0.08);
           }
           dummy.position.y = buried; dummy.updateMatrix(); rocks.setMatrixAt(nr, dummy.matrix);
@@ -2528,7 +2530,7 @@ const inabayama = {
     const F = rt.flags, it = rt.nearestInteract();
     text = text.replace(/藤吉郎の旗/g, '旗の人').replace(/鹿垣/g, 'さく').replace(/城兵/g, '城の敵').replace(/下知/g, '話');
     if (F.ending || F.retreatMarked || F.regroup && F.step !== 3) return text;
-    if (F.step === 0) return it && !it.hold && /話す|話を聞く/.test(it.label) ? '話す' : 'この人へ 近づく';
+    if (F.step === 0) return it && !it.hold && /話す|話を聞く/.test(it.label) ? '話す' : '藤吉郎へ 近づく';
     if (!rt.G.lord && (F.step === 1 && F.lit < NEED || F.step === 4 && F.sig)) {
       const fire = it && (F.step === 1 ? /^h[0-9]+$/.test(it.id) : it.id === 'sig');
       return fire ? `「${it.label}」を長押し` : '戸口へ いこう';
@@ -2732,6 +2734,9 @@ const inabayama = {
     rockBuriedRim: true,
     // 岩を坂へ傾けた後の腹も埋め、元の下半分だけを測って隙間を残さない。
     rockSlopeContact: true,
+    // 斜面を向いた腹だけでなく、回転後の下縁も埋める。
+    // 谷側へ張り出した岩の下に空間を残さない。この戦だけの指定。
+    rockLowerRimContact: true,
     slopeRockFaces: true,
     // 粗い格子の補間で岩や根草を浮かせず、実際に描く面へ据える。
     rockDrawGround: true,

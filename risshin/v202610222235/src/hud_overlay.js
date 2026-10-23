@@ -16,6 +16,19 @@ const off = () => false;
 
 export class HudOverlay {
 
+  // 森部は地面と画面の端を同じ小旗で示し、兵の頭上の印と分ける。
+  drawBattleGoalSign(g, rt, x, y, landmark) {
+    if (landmark) return this.drawGateSign(g, x, y);
+    if (rt.def.key !== 'moribe') return this.drawDestinationPin(g, x, y);
+    g.save(); g.lineJoin = 'round';
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x, y - 38);
+    g.lineTo(x + 24, y - 38); g.lineTo(x + 18, y - 28);
+    g.lineTo(x + 24, y - 18); g.lineTo(x, y - 18);
+    g.strokeStyle = '#14120f'; g.lineWidth = 7; g.stroke();
+    g.fillStyle = '#fff3ba'; g.fill();
+    g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke(); g.restore();
+  }
+
   // 文と矢印は同じ行き先・視点から向きを取る。入れ物は使い回す。
   battleMoveCue(rt, pos) {
     rt.camera.getWorldDirection(this.tmpV);
@@ -78,6 +91,8 @@ export class HudOverlay {
     const waiting = guide?.marker && /^(wait|guard)$/.test(guide.marker.guideArea);
     if (waiting && !attacking) unit = null;
     const enemy = !retreat && !dodge && !!unit && unit.team !== rt.player.u.team;
+    // 討つ相手は名で探す。足元の輪・頭上の印・画面外の矢印も出さない。
+    if (enemy) return;
     let pos = retreat || dodge?.pos || (waiting && !attacking ? guide.pos : null) || unit?.pos || pinTarget || guide?.marker && guide.pos || ally?.pos;
     if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.z)) return;
     const holding = !enemy && !retreat && !dodge && /待/.test(taskLabel(rt, currentObjective(rt)?.text || ''));
@@ -140,14 +155,15 @@ export class HudOverlay {
     const spot = this.avoidRects(x, sy + 34, W, H, on ? '' : 'v', null, 52, 94, true);
     g.save(); g.lineJoin = 'round';
     if (on) {
-      g.beginPath(); g.ellipse(at.x, at.y, enemy ? 29 : 38, enemy ? 12 : 16, 0, 0, Math.PI * 2);
-      g.strokeStyle = '#14120f'; g.lineWidth = 10; g.stroke();
-      g.shadowColor = enemy ? 'transparent' : '#ffe28a'; g.shadowBlur = enemy ? 0 : 10;
-      g.strokeStyle = enemy ? '#ffccb5' : '#fff3ba'; g.lineWidth = 5; g.stroke();
-      g.shadowBlur = 0;
-      if (!enemy) {
-        if (landmark) this.drawGateSign(g, at.x, at.y);
-        else this.drawDestinationPin(g, at.x, at.y);
+      if (rt.def.key === 'moribe' && !enemy && !landmark) {
+        this.drawBattleGoalSign(g, rt, at.x, at.y, landmark);
+      } else {
+        g.beginPath(); g.ellipse(at.x, at.y, enemy ? 29 : 38, enemy ? 12 : 16, 0, 0, Math.PI * 2);
+        g.strokeStyle = '#14120f'; g.lineWidth = 10; g.stroke();
+        g.shadowColor = enemy ? 'transparent' : '#ffe28a'; g.shadowBlur = enemy ? 0 : 10;
+        g.strokeStyle = enemy ? '#ffccb5' : '#fff3ba'; g.lineWidth = 5; g.stroke();
+        g.shadowBlur = 0;
+        if (!enemy) this.drawBattleGoalSign(g, rt, at.x, at.y, landmark);
       }
     }
     if (spot) {
@@ -155,8 +171,7 @@ export class HudOverlay {
       if (!on) {
         // 床と同じ形に矢印を添え、目的地と進む向きを結ぶ。
         if (!enemy) {
-          if (landmark) this.drawGateSign(g, x, sy - 16);
-          else this.drawDestinationPin(g, x, sy - 16);
+          this.drawBattleGoalSign(g, rt, x, sy - 16, landmark);
         }
         g.save(); g.translate(x, sy); g.rotate(angle); g.beginPath();
         g.moveTo(-22, -9); g.lineTo(5, -9); g.lineTo(5, -21); g.lineTo(33, 0);
@@ -180,7 +195,65 @@ export class HudOverlay {
     return true;
   }
 
-  // 全戦で頭上に描くのは武将の小さな名前だけ。候補と重なりの入れ物を使い回す。
+  // 待機の囲みは実際の持ち場へ投影する。兵や任務の判定は変えない。
+  drawMissionArea(g, rt) {
+    const guide = rt.missionGuide, marker = guide?.marker;
+    if (!marker || guide.objective !== currentObjective(rt) || !/^(wait|guard)$/.test(marker.guideArea)) return;
+    const pos = guide.pos, radius = marker.guideRadius || 8;
+    if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.z)) return;
+    const screen = this.missionAreaScreen || (this.missionAreaScreen = new Float32Array(49 * 3));
+    for (let i = 0; i <= 48; i++) {
+      const angle = i / 48 * Math.PI * 2;
+      const x = pos.x + Math.cos(angle) * radius, z = pos.z + Math.sin(angle) * radius;
+      this.tmpV.set(x, groundAt(rt.world, x, z, pos.y) + .12, z).project(rt.camera);
+      screen[i * 3] = (this.tmpV.x + 1) * VIEW.w / 2;
+      screen[i * 3 + 1] = (1 - this.tmpV.y) * VIEW.h / 2;
+      screen[i * 3 + 2] = this.tmpV.z >= -1 && this.tmpV.z <= 1 ? 1 : 0;
+    }
+    g.save(); g.beginPath(); g.rect(12, 80, VIEW.w - 24, VIEW.h - 124); g.clip();
+    // 札の下には線を通さない。輪の内側は塗らず、戦場を空ける。
+    g.beginPath(); g.rect(0, 0, VIEW.w, VIEW.h);
+    for (const r of this.rects || []) g.rect(r.left - 4, r.top - 4, r.width + 8, r.height + 8);
+    g.clip('evenodd');
+    g.beginPath();
+    for (let i = 1; i <= 48; i++) {
+      const j = i * 3, k = j - 3;
+      if (!screen[j + 2] || !screen[k + 2]) continue;
+      g.moveTo(screen[k], screen[k + 1]); g.lineTo(screen[j], screen[j + 1]);
+    }
+    g.lineJoin = 'round'; g.strokeStyle = '#14120f'; g.lineWidth = 8; g.stroke();
+    g.strokeStyle = '#fff3ba'; g.lineWidth = 4; g.stroke(); g.restore();
+  }
+
+  // 任務の敵だけに同じ菱形を付ける。隊の入れ物を使い、見えている六人まで。
+  drawMissionEnemies(g, rt) {
+    const enemies = rt.def.objectiveEnemies?.(rt);
+    const focus = rt.def.missionSignTarget ? rt.def.missionSignTarget(rt) : enemies?.find(u => u.alive && !u.fleeing);
+    this.battleSignEnemy = focus || null;
+    if (!focus?.alive) return;
+    const units = enemies || focus.group?.units;
+    const one = this.missionEnemyOne || (this.missionEnemyOne = []); one[0] = focus;
+    let count = 0;
+    g.save(); g.lineJoin = 'round';
+    for (const u of units || one) {
+      if (count >= 6) break;
+      if (!u.alive || u.gone || u.fleeing || u.woundOut || u.downed || u.noTarget || u.team === rt.player.u.team ||
+          !u.mesh?.visible || Math.hypot(u.pos.x - rt.player.u.pos.x, u.pos.z - rt.player.u.pos.z) > 32 ||
+          u.name && !enemyKnown(rt, u) || !sightScreenUnit(rt, u)) continue;
+      const at = this.project(u.pos, u.pos.y + (u.mounted ? 3.5 : 2.65), rt,
+        this.missionEnemyProjection || (this.missionEnemyProjection = {}));
+      if (at.behind || at.x < 18 || at.x > VIEW.w - 18 || at.y < 88 || at.y > VIEW.h - 44 ||
+          (this.rects || []).some(r => at.x + 15 > r.left && at.x - 15 < r.right && at.y + 15 > r.top && at.y - 15 < r.bottom)) continue;
+      g.beginPath(); g.moveTo(at.x, at.y - 12); g.lineTo(at.x + 10, at.y);
+      g.lineTo(at.x, at.y + 12); g.lineTo(at.x - 10, at.y); g.closePath();
+      g.strokeStyle = '#14120f'; g.lineWidth = 7; g.stroke();
+      g.fillStyle = '#b52d21'; g.fill(); g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
+      count++;
+    }
+    g.restore();
+  }
+
+  // 今の任務・会話・狙う相手の名前だけを、暗い下地付きで読む。
   drawBattleNames(rt) {
     const cv = $('overlay'), W = VIEW.w, H = VIEW.h;
     if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
@@ -192,30 +265,45 @@ export class HudOverlay {
     this.ovBlank = false;
     if (rt.over || rt.choice || this.introWaiting || rt.player.camShot || this.bigmap) return;
     this.hudRects();
+    this.drawMissionArea(g, rt); this.drawMissionEnemies(g, rt);
+    const marker = rt.missionGuide?.marker, P = rt.player;
+    const person = typeof marker?.guidePerson === 'function' ? marker.guidePerson() : marker?.guidePerson;
+    const ally = rt.def.missionAlly?.(rt) || rt.def.guardGuideTarget?.(rt) || rt.def.guardTarget?.(rt);
+    this.drawPlayerSign(g, rt);
     const names = this.battleNameCandidates || (this.battleNameCandidates = []);
     if (this.battleNameRt !== rt || rt.t < this.battleNameAt || rt.t - this.battleNameAt >= .1) {
       this.battleNameRt = rt; this.battleNameAt = rt.t; names.length = 0;
-      for (const u of rt.army.units) if (u.name && !u.isSub && (u.type === 'busho' || u.type === 'samurai')) names.push(u);
+      for (const u of rt.army.units) if (u.name && !u.isSub && !u.isPlayer) names.push(u);
     }
     const placed = this.battleNameSpots || (this.battleNameSpots = []); placed.length = 0;
+    const slots = Math.min(2, Math.max(0, 3 - (this.notices?.picks.length || 0) -
+      Number(!$('boss').hidden) - Number(!$('target').hidden && !$('target').classList.contains('notice-muted'))));
     const cam = rt.camera.position;
-    g.save(); g.font = '12px "Shippori Mincho B1", serif'; g.textAlign = 'center';
+    const fontSize = Math.max(16, Math.round(16 * (S.textScale || 1)));
+    const height = fontSize + 12;
+    g.save(); g.font = `bold ${fontSize}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
     for (const u of names) {
+      if (placed.length / 3 >= slots) break;
+      if (!(u === P.lock || u === P.aimed || u === person || u === ally || u === this.battleSignEnemy ||
+          marker?.person === u || marker?.group && marker.group === u.group && u.type === 'busho')) continue;
       if (!u.alive || u.gone || u.offscreen || u.fleeing || u.woundOut || !u.mesh?.visible ||
           Math.hypot(u.pos.x - cam.x, u.pos.z - cam.z) >= 40) continue;
-      if (u.team !== rt.player.u.team && !enemyKnown(rt, u)) continue;
+      if (u.team !== P.u.team && !enemyKnown(rt, u)) continue;
       if (!sightScreenUnit(rt, u)) continue;
       const at = this.project(u.pos, u.pos.y + (u.mounted ? 3.3 : 2.35), rt,
         this.battleNameProjection || (this.battleNameProjection = {}));
-      if (at.behind || at.x < 0 || at.x > W || at.y < 18 || at.y > H) continue;
-      const width = g.measureText(u.name).width;
-      if ((this.rectsAll || []).some(r => at.x + width / 2 + 4 > r.left && at.x - width / 2 - 4 < r.right && at.y > r.top && at.y - 18 < r.bottom)) continue;
+      const width = g.measureText(u.name).width + 16;
+      const y = at.y - (u === this.battleSignEnemy ? 44 : 24);
+      if (at.behind || at.x - width / 2 < 12 || at.x + width / 2 > W - 12 || y < 80 || y > H - 44) continue;
+      if ((this.rectsAll || []).some(r => at.x + width / 2 + 4 > r.left && at.x - width / 2 - 4 < r.right && y > r.top && y - height < r.bottom)) continue;
       let overlap = false;
-      for (let i = 0; i < placed.length; i += 3) if (Math.abs(placed[i] - at.x) < (placed[i + 2] + width) / 2 + 12 && Math.abs(placed[i + 1] - at.y) < 18) { overlap = true; break; }
+      for (let i = 0; i < placed.length; i += 3) if (Math.abs(placed[i] - at.x) < (placed[i + 2] + width) / 2 + 12 && Math.abs(placed[i + 1] - y) < height) { overlap = true; break; }
       if (overlap) continue;
-      placed.push(at.x, at.y, width);
-      g.fillStyle = 'rgba(0,0,0,.8)'; g.fillText(u.name, at.x + 1, at.y - 2);
-      g.fillStyle = '#f3e6c4'; g.fillText(u.name, at.x, at.y - 3);
+      placed.push(at.x, y, width);
+      g.fillStyle = '#14120f'; g.fillRect(at.x - width / 2, y - height, width, height);
+      g.fillStyle = '#fff3df'; g.fillText(u.name, at.x, y - height / 2);
+      g.beginPath(); g.moveTo(at.x, y); g.lineTo(at.x, at.y - 4);
+      g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
     }
     g.restore();
   }
@@ -785,7 +873,7 @@ export class HudOverlay {
         g.fillRect(x - 1, y - 1, w + 2, hh + 2);
         g.fillStyle = col;
         g.fillRect(x, y, w * (u.hp < u.maxHp * 0.35 ? 0.25 : 0.6), hh);
-        if (u.team !== 0 && !named && !civil) { const cx = x + w / 2, ty = y - 3; g.beginPath(); g.moveTo(cx - 4, ty - 5); g.lineTo(cx + 4, ty - 5); g.lineTo(cx, ty); g.closePath(); g.fill(); }
+
         // 乱戦で敵味方が入り混じる時のため：本人に斬りかかっている敵だけ、足元に薄い赤の輪（色だけでなく形でも、いつでも出す）
         if (u.team !== 0 && !civil && fighting) {
           const fp = this.project(u.pos, u.pos.y + 0.05, rt);

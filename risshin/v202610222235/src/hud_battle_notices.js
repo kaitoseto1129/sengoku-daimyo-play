@@ -85,6 +85,16 @@ html:root body #hud #battle-notices #objectives#objectives .destination-distance
  line-height:1.4; color:#fff3ba; margin-top:4px;
 }
 `;
+    // 戦中は右上のミッション一行だけ。武将の名と残り人数は残す。
+    style.textContent += `
+html:root body #hud.mission-only :is(#objectives,#boss,#target,#tutorial,#bark,#subtitle,#skiphint,#h-bottom,#wait-guard,.battle-action,.victory-condition,.destination-distance) {
+ display:none !important;
+}
+html:root body #hud.mission-only #h-prog > :not(.pg-st) { display:none !important; }
+html:root body #hud.mission-only #h-prog .pg-st span {
+ display:block !important; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+`;
     document.head.appendChild(style);
   }
   // 長い台詞を高さだけで消さない。収まらない時は欄全体を送って読む。

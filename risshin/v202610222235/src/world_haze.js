@@ -227,7 +227,7 @@ export class WorldHaze {
       transparent: true, depthWrite: false,
       uniforms: { map: { value: tex }, color: { value: new THREE.Color(color) }, fogC: { value: new THREE.Color(0xaaaaaa) }, sunDir: this.skyMat.uniforms.sunDir, sunCol: this.skyMat.uniforms.sunCol },
       // dat.x ＝ 大きさ、dat.y ＝ 濃さ、dat.z ＝ 年（0 生まれたて〜1 消える）
-      vertexShader: `attribute vec3 ctr; attribute vec3 dat; uniform vec3 sunDir, sunCol, color, fogC; varying vec2 vUv; varying float vA; varying vec3 vC;
+      vertexShader: `attribute vec3 ctr; attribute vec3 dat; uniform vec3 sunDir, sunCol, color, fogC; varying vec2 vUv; varying float vA; varying vec3 vC, vView;
         void main(){
           // 粒の年齢と発生位置で渦をずらす。同じ煙の絵が一斉に膨らむ印象を消す。
           float turn = dat.z * 0.65 + ctr.x * 0.017 + ctr.z * 0.013;
@@ -235,6 +235,7 @@ export class WorldHaze {
           vUv = mat2(cs, -sn, sn, cs) * (uv - 0.5) * 0.78 + 0.5;
           vec4 mv = modelViewMatrix * vec4(ctr, 1.0);
           mv.xy += position.xy * vec2(dat.x * 1.6, dat.x * ${flat.toFixed(2)});
+          vView = mv.xyz;
           // カメラのすぐ前では薄く（板が顔を横切らないように）
           vA = dat.y * smoothstep(${near[0].toFixed(1)}, ${near[1].toFixed(1)}, -mv.z);
           // 日の光：日の方を見ると光を通して明るく、日を背にすると陰の灰
@@ -246,7 +247,18 @@ export class WorldHaze {
           vC = (c * (0.78 + fw * 0.25) + sunCol * fw * 0.035) * amb;
           gl_Position = projectionMatrix * mv;
         }`,
-      fragmentShader: 'uniform sampler2D map; varying vec2 vUv; varying float vA; varying vec3 vC; void main(){ vec2 dd = (vUv - 0.5) * 2.0; float a = texture2D(map, vUv).a * (0.45 + 0.55 * texture2D(map, vUv.yx * 0.7 + 0.15).a) * vA * (1.0 - smoothstep(0.15, 1.0, length(dd))); a = min(a, 0.42); if (a < 0.003) discard; gl_FragColor = vec4(vC, a); }',
+      // 手前の中央下側だけ薄くし、自分から戸口へ続く足場を残す。
+      // 煙の数・広がり・風・敵の視認判定は変えない。血の霧には適用しない。
+      fragmentShader: `uniform sampler2D map; varying vec2 vUv; varying float vA; varying vec3 vC, vView;
+        void main(){
+          vec2 dd = (vUv - 0.5) * 2.0;
+          float a = texture2D(map, vUv).a * (0.45 + 0.55 * texture2D(map, vUv.yx * 0.7 + 0.15).a) * vA * (1.0 - smoothstep(0.15, 1.0, length(dd)));
+          ${near[0] > 1 ? `float depth = max(1.0, -vView.z);
+          float lane = (1.0 - smoothstep(0.12, 0.32, abs(vView.x) / depth)) * (1.0 - smoothstep(0.12, 0.38, vView.y / depth));
+          a *= 1.0 - 0.75 * lane * (1.0 - smoothstep(10.0, 28.0, depth));` : ''}
+          a = min(a, 0.42); if (a < 0.003) discard;
+          gl_FragColor = vec4(vC, a);
+        }`,
     });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.frustumCulled = false;

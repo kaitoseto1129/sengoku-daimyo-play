@@ -23,6 +23,8 @@ export class HudUpdate {
     if (window.__apx && window.__apx.nohud) return;   // 実機の試し：札を書かない（外の時間が DOM の配置かを見る）
     this.rt = rt;
     setClass(this.root, 'field-clean', pinGuideOn(rt));
+    const missionOnly = !rt.def.town && !rt.def.dojo;
+    setClass(this.root, 'mission-only', missionOnly);
     setClass(this.root, 'honnoji', rt.def.key === 'honnoji');
     setClass(this.root, 'iwamura', rt.def.key === 'iwamura');
     setClass(this.root, 'takato', rt.def.key === 'takato');
@@ -489,7 +491,7 @@ export class HudUpdate {
     if (bu && !rt.def.routeGuidePriority?.(rt) && !rt.guideEnemyShown && !rt.dodgeGuide && !retreatRequired(rt) && !this.retreatGuide?.active && rt.missionGuide?.marker?.guideArea !== 'retreat') {
       // 傷は見えた手応えだけを言葉にする。残り体力や退く下限は知らせない。
       const stance = duel && bu === duel.foe ? rt.army.time < duel.naT ? '敵が名乗った' : duel.bind ? '敵と押し合い' : duel.openT > rt.army.time ? '敵にすきあり' : bu.atk && bu.atk.heavy ? '敵が強く打つ' : bu.guarding > 0 ? '敵がかまえた' : rt.def.duelStanceText || '敵と一騎打ち' : '';
-      setHidden(boss, false);
+      setHidden(boss, missionOnly);
       setClass(boss, 'field-boss', true);
       const at = this.project(bu.pos, bu.pos.y + (bu.mounted ? 3.3 : 2.35), rt);
       const off = at.behind || at.x < 80 || at.x > VIEW.w - 80 || at.y < 90 || at.y > VIEW.h - 64;

@@ -142,11 +142,11 @@ const inou = {
   introTaskFirst: true,
   introPeopleFolded: true,
   // 導入は筋書きとして読める文に（意見帳 10/22・kaito の決め）。勝家は討てない・林美作守は討死、の史実に合わせる。
-  introText: () => '信長の弟・信勝（のぶかつ）を家の主にしようと、柴田勝家（しばたかついえ）と林秀貞（はやしひでさだ）らが兵を集めた。林美作守（はやしみまさかのかみ）は秀貞の弟で、信勝方の武将。あなたは信長方の足軽（あしがる）＝歩いて戦う兵として、林の兵を追う。',
+  introText: () => '信長の弟・信勝（のぶかつ）を家の主にしようと、柴田勝家（しばたかついえ）と林秀貞（はやしひでさだ）らが兵を集めた。林美作守（はやしみまさかのかみ）は秀貞の弟で、信勝方の武将。今は林勢が退き始め、信長方が追う場面。あなたは信長方の足軽（あしがる）＝歩いて戦う兵として、まず歩く・視点・槍を試してから林の兵を追う。',
   introPeople: [
     { id: '信長', name: '織田信長', note: '家督を継いだ兄。佐久間勢や前田利家らと戦う。' },
     { id: '信勝', name: '織田信勝と柴田勝家', note: '信勝は信長の弟。勝家は信勝を支え、この戦では敵となる。' },
-    { id: '林', name: '林秀貞と林美作守', note: '織田家の家臣の兄弟。弟の美作守はこの戦で討死する。兄の秀貞とは別人。' },
+    { id: '林', name: '林秀貞と林美作守', note: '織田家の家臣の兄弟。弟の美作守は通具とも伝わる。この戦で討死し、兄の秀貞は退く。' },
     { id: '史実', name: '史実と遊びの範囲', note: '『信長公記』などをもとに再現。兵数には諸説あり、配置・旗印・足軽の働きや操作の練習は遊びのための推定。' },
   ],
   rearAdviceText: () => usesTouchControls() ? '右の画面をなぞって振り向き、「かまえる」を押す' : `手元の操作器を横へ動かして振り向き、${SETTINGS.guardToggle ? '右押しで構える' : '右押しを押し続ける'}`,
@@ -160,8 +160,19 @@ const inou = {
   missions: ['林の兵を追う', '林の部隊を崩す', '柴田隊を受け止める', '林美作守を討ち取る'],
   missionOf: (rt) => { const F = rt.flags; return F.step === 0 ? (F.training <= 1 && !F.caught ? 0 : 1) : F.step === 1 ? 2 : 3; },
   minutes: 9,
+  // 初陣の操作は日本語のキー名が長くても省かない。見出しに距離、次の一行に操作を出す。
+  missionStatusMaxLength: 40,
   taskLabel: (rt) => {
     const F = rt.flags;
+    if (F.step === 0 && F.training === 0 && F.lesson === 'move') {
+      const left = Math.max(0, Math.ceil((2 - (rt.player.movedAcc - F.move0)) * 10) / 10);
+      return `前へ あと${left}メートル`;
+    }
+    if (F.step === 0 && F.chase && F.practice) {
+      const c = F.practice.center(), p = rt.player.u.pos;
+      const left = Math.max(0, Math.ceil(Math.hypot(c.x - p.x, c.z - p.z) - 7));
+      return `金の印へ あと${left}メートル`;
+    }
     if (F.step === 0 && F.training === 0) return F.lesson === 'swing' && F.viewSuccess ? 'やりで攻撃してみよう' : F.lesson ? LESSONS[F.lesson][1] : '前へ二メートル歩く';
     return null;
   },
@@ -169,18 +180,16 @@ const inou = {
   missionStatus: (rt) => {
     const F = rt.flags;
     if (F.step === 0 && F.training === 0 && F.lesson === 'move') {
-      const left = Math.max(0, Math.ceil((2 - (rt.player.movedAcc - F.move0)) * 10) / 10);
-      return `${usesTouchControls() ? touchLesson('move') : `「${K('forward')}」を押し続ける`}（あと${left}メートル）`;
+      return usesTouchControls() ? touchLesson('move') : `「${K('forward')}」を押し続ける`;
     }
     if (F.step === 0 && F.training === 0) return F.lesson ? (usesTouchControls() ? touchLesson(F.lesson) : LESSONS[F.lesson][2]()) : usesTouchControls() ? touchLesson('move') : `「${K('forward')}」のキーを押し続ける`;
     if (F.step === 0 && F.chase && F.practice) {
       const c = F.practice.center(), p = rt.player.u.pos;
-      const left = Math.max(0, Math.ceil(Math.hypot(c.x - p.x, c.z - p.z) - 7));
-      const dx = c.x - p.x, dz = c.z - p.z, yaw = rt.player.yaw;
+      const dx = c.x - p.x, dz = c.z - p.z, yaw = rt.player.yaw + (rt.player.camYawOff || 0);
       const right = -dx * Math.cos(yaw) + dz * Math.sin(yaw), forward = dx * Math.sin(yaw) + dz * Math.cos(yaw);
       const dir = Math.abs(right) > Math.abs(forward) ? right > 0 ? 'right' : 'left' : forward > 0 ? 'forward' : 'back';
       const word = dir === 'right' ? '右' : dir === 'left' ? '左' : dir === 'forward' ? '前' : '後ろ';
-      return `${usesTouchControls() ? `画面${SETTINGS.touchSwap ? '右下' : '左下'}を金の矢印の方へ大きくなぞる` : `「${K('run')}」と「${K(dir)}」で${word}へ`}。あと約${left}メートル`;
+      return usesTouchControls() ? `画面${SETTINGS.touchSwap ? '右下' : '左下'}を金の矢印の方へ大きくなぞる` : `走る：「${K('run')}」と「${K(dir)}」で${word}へ`;
     }
     if (F.step === 0 && F.caught && F.training === 1) return usesTouchControls() ? touchLesson('swing') : LESSONS.swing[2]();
     return '';

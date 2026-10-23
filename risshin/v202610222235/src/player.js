@@ -344,10 +344,9 @@ function terrainCameraClamp(W, from, to, lift = false) {
   return false;
 }
 
-// 味方を透かす材質：なめらかな半透明を共有し、全身の形では腰から下を濃く残す。
+// 味方を透かす材質：なめらかな半透明を共有する。
 const DITHER_A = [0.3, 0.5, 0.72];
 const ditherCache = new WeakMap();
-const ALLY_UPPER_PARTS = ['hat', 'kabuto', 'face', 'pface', 'menpo', 'torso', 'haori', 'back', 'sodeP', 'sodeN', 'upperP', 'upperN', 'sleeveP', 'sleeveN', 'foreP', 'foreN', 'handP', 'handN'];
 function ditherMat(m, lv, cut = null) {
   if (m.userData.dither != null) return m;
   let a = ditherCache.get(m);
@@ -667,9 +666,9 @@ export class Player {
           this.hideNearFlag(o.flag); this.hideNearFlag(o.standardFlag);
           return;
         }
-        // 目の前の味方は上半身を透かし、足元には軍勢の密度を残す。
+        // 頭・胴・手足は同じ濃さで残し、浮いた首や脚に見せない。
         const body = o.human?.root.visible ? o.human.root : o.mesh;
-        body.traverseVisible(this.nearAllySelfFadePart);
+        body.traverseVisible(this.nearAllyFadePart);
         this.hideNearFlag(o.flag); this.hideNearFlag(o.standardFlag);
         return;
       }
@@ -695,20 +694,9 @@ export class Player {
         else o.mesh.traverseVisible(this.nearAllyFadePart);
         return;
       }
-      if (h?.root.visible) {
-        this.nearAllyFadePart(h.body, true);
-        this.nearAllyFadePart(h.parts?.armor, true);
-        this.nearAllyFadePart(h.parts?.domaru, true);
-        for (const key of ALLY_UPPER_PARTS) {
-          const part = h.parts?.[key];
-          if (part?.visible) part.traverse(this.nearAllyFadePart);
-        }
-      } else {
-        this.nearAllyFadePart(o.body, true);
-        if (o.head?.visible) o.head.traverse(this.nearAllyFadePart);
-      }
+      const body = h?.root.visible ? h.root : o.mesh;
+      body.traverseVisible(this.nearAllyFadePart);
     };
-    this.nearAllySelfFadePart = (part) => this.nearAllyFadePart(part, true, 1);
     this.nearAllyFadePart = (part, upperOnly = false, fadeLevel = null) => {
       if (!part?.isMesh || !part.material || !part.visible) return;
       let entry = this.nearAllyMatCache.get(part);
@@ -4170,7 +4158,7 @@ export class Player {
     if (CAM_NEAR_FADE.value) CAM_NEAR_PROJECTION.value.set(cam.projectionMatrix.elements[0], cam.projectionMatrix.elements[5]);
     if (!on) {
       if (this.hid) { for (const o of this.hid) o.visible = true; this.hid = null; }
-      if (this.hidHead) { this.hidHead.scale.setScalar(1); this.hidHead = null; }
+      if (this.hidHead) { this.hidHead.scale.setScalar(1); this.hidHead.updateMatrix(); this.hidHead.updateMatrixWorld(true); this.hidHead = null; }
       if (this.mirOn) { const m = this.mirOn; this.mirOn = null; m.scale.x = -m.scale.x; m.updateMatrixWorld(true); }
       setFpCut(null); setFpArm(false);
       this.allyFade(null);
@@ -4232,6 +4220,8 @@ export class Player {
       // 頭の骨を小さく縮めると、頭に付いた物（兜・顔・胴丸の兜）がまとめて消える
       const hb = h.bones.Head;
       hb.scale.setScalar(0.001);
+      // 骨は行列の自動更新を止めてある。縮尺だけ変えても笠と顔が残り、視界を覆ってしまう。
+      hb.updateMatrix();
       hb.updateMatrixWorld(true);
       this.hidHead = hb;
     } else {
