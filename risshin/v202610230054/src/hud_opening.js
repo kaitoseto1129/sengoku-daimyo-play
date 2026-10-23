@@ -71,7 +71,11 @@ export class HudOpening {
     // 札の外は指を受け取らない。出陣待ちの停止は保つ。
     el.querySelector('.sides').innerHTML = `味方　${esc(openingSide('a'))}<em>対</em>敵　${esc(openingSide('b'))}`;
     // 指定した戦では、下知と勝つ条件を読んでから人物紹介へ送る。
-    if (battle?.def.introTaskFirst) el.querySelector('.intro-reading').insertAdjacentHTML('beforeend', welcome);
+    if (battle?.def.key === 'moribe') {
+      // 最初の一手だけを読む。以後の下知は戦場の任務で一つずつ示す。
+      for (const p of el.querySelectorAll('.intro-reading > p:not(#intro-wait)')) p.remove();
+    }
+    else if (battle?.def.introTaskFirst) el.querySelector('.intro-reading').insertAdjacentHTML('beforeend', welcome);
     else el.querySelector('.sides').insertAdjacentHTML('afterend', welcome);
     const peopleToggle = el.querySelector('#intro-people-toggle');
     const peopleReadLabel = battle?.def.key === 'inou' ? '戦いの前の話を読む' : '人物と戦場の説明を読む';
@@ -92,7 +96,7 @@ export class HudOpening {
         }
       };
     }
-    if (battle?.def.key === 'inou' || battle?.def.key === 'moribe' || battle?.def.key === 'okehazama') {
+    if (battle?.def.key === 'inou' || battle?.def.key === 'okehazama') {
       el.querySelector('#intro-go').insertAdjacentHTML('beforebegin', '<small class="intro-scroll">説明欄は上下に送れます</small>');
     }
     if (battle?.def.key === 'inou') {
@@ -122,7 +126,7 @@ export class HudOpening {
     if (battle?.def.key === 'okehazama') {
       // 戦場と同じ矢印の形を、最初の下知の横で見せる。
       el.querySelector('#intro-wait').insertAdjacentHTML('afterbegin', '<svg class="intro-pin" viewBox="0 0 80 80" aria-hidden="true"><ellipse cx="40" cy="68" rx="30" ry="9" fill="none" stroke="#fff3ba" stroke-width="5"/><path d="M32 8H48V37H61L40 59L19 37H32Z" fill="#fff3ba" stroke="#14120f" stroke-width="4"/></svg>');
-      el.querySelector('#intro-people-body').insertAdjacentHTML('beforeend', '<p>帰りの旗は、義元が倒れた後に仲間が立てる。帰る時も黄色い矢印が旗を示す。</p>');
+      el.querySelector('#intro-people-body').insertAdjacentHTML('beforeend', '<p>義元（よしもと）が倒れると、仲間が帰る場所に旗を立てる。最後は黄色い矢印の旗へ戻ろう。</p>');
       if (peopleToggle) {
         const toggle = peopleToggle.onclick;
         peopleToggle.onclick = e => {
@@ -136,7 +140,7 @@ export class HudOpening {
     $('cine').classList.toggle('on', !reduceMotion());
     clearTimeout(this.introT);
     const go = $('intro-go'), reading = el.querySelector('.intro-reading');
-    go.textContent = '戦いを始める';
+    go.textContent = battle?.def.key === 'moribe' ? '川を渡りに出る' : '戦いを始める';
     go.title = 'この札を閉じ、戦場で動き始める。移動釦でも始められます。';
     go.onclick = (e) => {
       e.stopPropagation();

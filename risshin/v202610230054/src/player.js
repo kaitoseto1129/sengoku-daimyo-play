@@ -3716,6 +3716,7 @@ export class Player {
     const r = this.wallViewRight || (this.wallViewRight = new THREE.Vector3());
     const up = this.wallViewUp || (this.wallViewUp = new THREE.Vector3());
     const end = this.wallViewEnd || (this.wallViewEnd = new THREE.Vector3());
+    const near = this.wallViewNear || (this.wallViewNear = new THREE.Vector3());
     f.copy(look).sub(pos).normalize();
     r.set(f.z, 0, -f.x).normalize(); up.crossVectors(r, f).normalize();
     const top = Math.tan(camera.fov * Math.PI / 360) / camera.zoom, side = top * camera.aspect;
@@ -3727,7 +3728,14 @@ export class Player {
       // 束ねた門・開いた扉も、指定した戦では壁と同じく視界の遮りに数える。
       // 既存の箱を使い、画面の中央を外れた柱や戸板も肩位置の選び直しへ渡す。
       if (cameraWallBlocked(rt, pos, end) || rt.def.cameraVolumeView &&
-          (rt.world.cameraBlockFraction?.(pos, end) ?? null) !== null) blocked++;
+          (rt.world.cameraBlockFraction?.(pos, end) ?? null) !== null) {
+        // 細い柱一本でも、目の前の中央を塞ぐ時は肩位置を選び直す。
+        // 遠い壁は従来どおり画面全体の占有率で判断する。
+        near.copy(pos).lerp(end, .375);
+        const central = row === 0 && col === 0 && (cameraWallBlocked(rt, pos, near) ||
+          rt.def.cameraVolumeView && (rt.world.cameraBlockFraction?.(pos, near) ?? null) !== null);
+        blocked += central ? 6 : 1;
+      }
     }
     return blocked;
   }

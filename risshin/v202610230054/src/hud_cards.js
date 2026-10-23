@@ -137,7 +137,7 @@ export class HudCards {
     const markedGroup = on ? rt.def.enemyTriangleGroup?.(rt) : null;
     if (on) for (const u of rt.army.units) {
       if (n === this.enemyTriangles.length) break;
-      if (!u.alive || u.gone || u.woundOut || u.noTarget && !(markedGroup && u.group === markedGroup) || u.isStruct || u.team === me.team ||
+      if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget && !(markedGroup && u.group === markedGroup) || u.isStruct || u.team === me.team ||
           u.mesh?.visible === false || u.camHidden ||
           (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 1600 || !sightUnit(rt, u)) continue;
       this.tmpV.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
@@ -274,6 +274,8 @@ export class HudCards {
 #hud #h-prog { position:absolute; right:calc(16px + env(safe-area-inset-right, 0px)); top:calc(14px + env(safe-area-inset-top, 0px)); box-sizing:border-box; width:max-content; max-width:calc(100% - 32px); padding:8px 12px; background:#14120f; border-right:3px solid var(--kin); color:#fff3df; font-size:max(20px, calc(20px * var(--text-scale, 1))); line-height:1.4; text-align:right; pointer-events:none; }
 #hud #h-prog .pg-st b { display:none; }
 #hud #h-prog .pg-st span { font-weight:700; }
+#hud #h-prog .pg-view { min-height:44px; padding:8px 12px; border:2px solid #c2a25a; background:#47391f; color:#fff3df; font:inherit; font-weight:700; cursor:pointer; pointer-events:auto; }
+#hud #h-prog .pg-view:focus-visible { outline:3px solid #fff3df; outline-offset:3px; }
 #hud #h-prog .pg-next { margin-top:1px; font-size:max(12px, calc(13px * var(--text-scale, 1))); color:#e6dcc6; }
 #hud #h-prog .pg-context { font-size:12px; color:#e6dcc6; }
 #hud #h-prog .pg-dots { margin-top:2px; letter-spacing:.2em; color:var(--kin); font-size:12px; }
@@ -308,6 +310,10 @@ html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog {
 }
 html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog :is(.pg-st span,.pg-next) {
  white-space:normal; overflow:visible; text-overflow:clip; overflow-wrap:anywhere;
+}
+/* 稲生の今の操作は任務の二行目に残す。共通の一行表示で隠さない。 */
+html:root body #hud.mission-only #h-prog[data-battle="inou"] > .pg-next:not([hidden]) {
+ display:block !important;
 }
 html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog .pg-context { display:block; }
 html:root body #hud.prog-on:has(#h-prog[data-battle="inou"]) #battle-notices:not(.choosing):not(.pg-x) {
@@ -355,7 +361,29 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     // 「左へ下がる」のような向きの字は出さない（kaito 10/23）。
     const yaw = rt.player.yaw + (rt.player.camYawOff || 0), p = rt.player.u.pos;
     const headline = missionCaption(rt, def.missionTaskFirst ? task || title : title || task);
-    setText(stEl.lastChild, headline);
+    const viewLesson = def.key === 'inou' && rt.flags.step === 0 && rt.flags.training === 0 && rt.flags.lesson === 'view';
+    if (viewLesson) {
+      // 読んだ札をそのまま押せる。釦は使い回し、斬る操作へ押下を流さない。
+      if (!this.viewLessonButton) {
+        const button = this.viewLessonButton = document.createElement('button');
+        button.type = 'button'; button.className = 'pg-view';
+        for (const name of ['pointerdown', 'pointerup', 'keydown', 'keyup']) button.addEventListener(name, e => e.stopPropagation());
+        button.addEventListener('click', e => {
+          e.preventDefault(); e.stopPropagation();
+          const battle = this.rt;
+          if (!battle || battle.def.key !== 'inou' || battle.over || battle.choice || battle.game.paused || !battle.player.u.alive ||
+              battle.flags.step !== 0 || battle.flags.training !== 0 || battle.flags.lesson !== 'view' || button.disabled) return;
+          button.disabled = true;
+          battle.player.toggleView();
+        });
+      }
+      const button = this.viewLessonButton;
+      if (button.parentElement !== stEl.lastChild) { setText(stEl.lastChild, ''); stEl.lastChild.replaceChildren(button); button.disabled = false; }
+      setText(button, headline);
+    } else {
+      if (this.viewLessonButton?.parentElement === stEl.lastChild) stEl.lastChild.replaceChildren();
+      setText(stEl.lastChild, headline);
+    }
     // 戦固有の案内と任務の進みは残す。同じ任務の全文は重ねない。
     const status = def.missionStatus?.(rt, taskLine);
     const sub = def.missionDetail ? def.missionDetail(rt) :

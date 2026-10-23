@@ -1,10 +1,11 @@
-// 行き先は太い輪と下向き矢印。画面外では端の方向矢印に替える。
+// 行き先は太い輪と旗。画面外では端の方向矢印に旗を添える。
 //   戦の定義の missionPin(rt) が { x, z, r } を返す間だけ立てる（r＝着いたとみなす半径。定義の判定と同じ値を返す）。
-//   着いたら消す。印と投影用の点は一つを使い回す。
+//   待つ場所は着いても残す。印と投影用の点は一つを使い回す。
 import * as THREE from 'three';
 import { VIEW } from './viewport.js';
-import { currentObjective, markerName } from './mission_guide.js';
+import { currentObjective } from './mission_guide.js';
 import { groundAt } from './floors.js';
+import { cameraWallBlocked } from './battle_sight.js';
 
 let pin = null;
 function make() {
@@ -20,6 +21,14 @@ function make() {
   label.style.cssText = 'position:absolute;top:80px;left:50%;transform:translateX(-50%);padding:3px 8px;background:#14120f;color:#fff3df;font:bold 16px/1.4 sans-serif;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis';
   el.appendChild(label);
   el._rings = el.querySelectorAll('.goal-ground ellipse');
+  for (const ring of el._rings) { ring.setAttribute('rx', '40'); ring.setAttribute('ry', '13'); }
+  const flag = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  flag.setAttribute('d', 'M32 65V5H65L56 18L65 31H32');
+  flag.setAttribute('fill', '#fff3ba'); flag.setAttribute('stroke', '#14120f');
+  flag.setAttribute('stroke-width', '4'); flag.setAttribute('stroke-linejoin', 'round');
+  flag.setAttribute('class', 'goal-flag');
+  el.querySelector('svg').appendChild(flag);
+  el.querySelector('svg').style.overflow = 'visible';
   return el;
 }
 
@@ -43,7 +52,7 @@ export function updateMissionPin(rt) {
   // 行き先の矢印は一本。画面外では方向と名前を同じ印に添える。
   rt.hud.missionPinLabelShown = false;
   rt.hud.missionPinOutside = false;
-  const want = pinGuideOn(rt) && !rt.over && !rt.choice && rt.player?.u?.alive ? target(rt) : null;
+  const want = pinGuideOn(rt) && !rt.over && !rt.choice && !rt.hud.introWaiting && rt.player?.u?.alive ? target(rt) : null;
   if (!want) { if (pin) pin.hidden = true; return; }
   if (!pin) pin = make();
   const hud = rt.hud, root = hud.root;
@@ -66,13 +75,22 @@ export function updateMissionPin(rt) {
   }
   const d = Math.hypot(want.x - me.x, want.z - me.z);
   const near = want.hide ?? (want.r || 6);
+  const marker = rt.missionGuide?.marker;
+  const waiting = !want.unit && !!marker && (marker.waitAction || marker.waitGuide || /^(wait|guard)$/.test(marker.guideArea));
   // 着いた・離れたの境で毎コマ出たり消えたりしない（チカチカ。kaito 10/23 稲生 27）。消えた後は一歩半離れてから出す。
-  pin.hidden = d <= near + (pin.hidden ? 1.5 : 0);
+  pin.hidden = !waiting && d <= near + (pin.hidden ? 1.5 : 0);
   if (pin.hidden) return;
   const W = VIEW.w, H = VIEW.h;
   // 人を追う時は本人の頭上へ固定し、地面の印を自分の印に見せない。
   if (want.unit) goalPoint.set(want.x, want.unit.pos.y + (want.unit.mounted ? 3.3 : 2.5), want.z);
   else goalPoint.set(U.x, U.y + .08, U.z);
+  // 柱・襖の向こうへ旗を貼らず、同じ行き先の方向矢印へ切り替える。
+  const cp = rt.camera.position;
+  if (changed || now >= (U.sightAt || 0) || Math.hypot(cp.x - U.cx, cp.y - U.cy, cp.z - U.cz) > .4) {
+    U.sightAt = now + 200; U.cx = cp.x; U.cy = cp.y; U.cz = cp.z;
+    U.occluded = cameraWallBlocked(rt, cp, goalPoint);
+  }
+  const occluded = U.occluded;
   goalPoint.project(rt.camera);
   if (!Number.isFinite(goalPoint.x) || !Number.isFinite(goalPoint.y)) { pin.hidden = true; return; }
   const behind = goalPoint.z < -1 || goalPoint.z > 1;
@@ -81,8 +99,8 @@ export function updateMissionPin(rt) {
   let x = (dx + 1) * W / 2, y = (dy + 1) * H / 2;
   // 足元を別の場所へずらさず、札に隠れる時も端の矢印へ切り替える。
   //   画面の端・札の縁でも、前のコマと同じ形を少しの間は保つ（地面の旗と端の矢印が入れ替わり続けない）。
-  let outside = behind || !goalFree(x, y, W, H, rects);
-  if (!behind && U.out !== undefined && outside !== U.out && now - (U.outAt || 0) < 400) outside = U.out;
+  let outside = behind || occluded || !goalFree(x, y, W, H, rects);
+  if (!behind && !occluded && U.out !== undefined && outside !== U.out && now - (U.outAt || 0) < 400) outside = U.out;
   else if (outside !== U.out) { U.out = outside; U.outAt = now; }
   if (outside) {
     // 足元の投影は画面の下に出る。進む方向は地面上の向きから求め、前の目標へ下向きの矢印を出さない。
@@ -109,6 +127,11 @@ export function updateMissionPin(rt) {
   }
   pin.querySelector('.goal-ground').style.display = outside ? 'none' : '';
   const person = !!want.unit;
+  pin.querySelector('.goal-ground path').style.display = person ? '' : 'none';
+  const flag = pin.querySelector('.goal-flag');
+  flag.style.display = person ? 'none' : '';
+  // 端では旗を矢印の上へ置き、見えている時は輪の中心に竿を立てる。
+  flag.setAttribute('transform', outside ? 'translate(0,-24) scale(.75)' : '');
   if (pin._person !== person) {
     pin._person = person;
     for (const ring of pin._rings) ring.style.display = person ? 'none' : '';
@@ -118,15 +141,16 @@ export function updateMissionPin(rt) {
   arrow.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
   hud.missionPinOutside = outside;
   const label = pin.querySelector('.goal-name');
-  const marker = rt.missionGuide?.marker;
-  const name = rt.def.destinationName?.(rt) || want.name || (marker ? markerName(marker) : '') || '行き先';
-  const direction = Math.abs(dx) > Math.abs(dy) ? dx >= 0 ? '右' : '左' : dy <= 0 ? '前' : '後ろ';
   // 敵・任務・命も含め三枚まで。端の案内を優先し、知らせ側もこの一枠を数える。
-  const cards = 1 + (hud.notices?.picks.length || 0);
-  // 行き先の名前と向きの字は出さない。ピンだけで示す（kaito 10/23「行き先の名前とか出す必要ある？」）。
-  label.hidden = true; void cards;
+  let cards = 1 + (hud.notices?.picks.length || 0);
+  for (const id of ['boss', 'target', 'prompt', 'wait-guard']) {
+    const el = document.getElementById(id);
+    if (el && !el.hidden && el.offsetParent && !el.classList.contains('notice-muted') && !el.classList.contains('symbol-only')) cards++;
+  }
+  // 待つ場所だけ短い一枚を添える。任務と命を含め三枚以内に収める。
+  label.hidden = !waiting || outside || rt.guideEnemyShown || cards >= 3;
   if (!label.hidden) {
-    const text = `${outside ? direction + '・' : ''}${String(name).replace(/[A-Za-z]+/g, '').slice(0, 10)}`;
+    const text = 'ここで待つ';
     if (label.textContent !== text) label.textContent = text;
     hud.missionPinLabelShown = true;
   }
@@ -137,8 +161,9 @@ const goalPoint = new THREE.Vector3();
 const goalDirection = new THREE.Vector3();
 const pinAt = { x: 0, z: 0, y: 0, ox: 0, oy: 0, at: 0, rt: null };
 function goalFree(x, y, W, H, rects) {
-  if (x < 92 || x > W - 92 || y < 88 || y > H - 76) return false;
-  for (const r of rects) if (x + 88 >= r.left && x - 88 <= r.right && y + 72 >= r.top && y - 72 <= r.bottom) return false;
+  // 輪と旗は八十画素。実寸と余白だけを避け、携帯横でも案内を畳まない。
+  if (x < 52 || x > W - 52 || y < 80 || y > H - 52) return false;
+  for (const r of rects) if (x + 48 >= r.left && x - 48 <= r.right && y + 48 >= r.top && y - 76 <= r.bottom) return false;
   return true;
 }
 

@@ -115,7 +115,7 @@ function ldBegin(keys, battle = '') {
   const actions = document.querySelector('#loading .ld-cancel');
   if (actions) actions.remove();
   const cancel = document.createElement('button');
-  cancel.type = 'button'; cancel.className = 'btn small ld-cancel'; cancel.textContent = '支度をやめて題へ戻る';
+  cancel.type = 'button'; cancel.className = 'btn small ld-cancel'; cancel.textContent = '始める画面に戻る';
   cancel.style.cssText = 'min-height:44px;margin-top:16px';
   cancel.onclick = () => { game.startSeq = (game.startSeq || 0) + 1; hideLoading(); game.title(); };
   document.querySelector('#loading .ldbar').parentElement.appendChild(cancel);

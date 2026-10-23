@@ -311,8 +311,9 @@ export class HudUpdate {
     const mor = rt.squadGroups.length ? moraleSum / rt.squadGroups.length : rt.hostGroup ? Math.max(0, rt.hostGroup.morale) : 100;
     const morEl = $('h-mor');
     setWidth(morEl.querySelector('b'), mor);
-    setText(morEl.querySelector('span'), (rt.def.key === 'okehazama' || rt.def.key === 'moribe') ? 'やる気' : '士気');
-    setText(morEl.querySelector('em'), (rt.def.key === 'okehazama' || rt.def.key === 'moribe') ? mor >= 75 ? 'やる気十分' : mor >= 50 ? '落ち着いている' : mor >= 30 ? 'こわがっている' : '逃げ出しそう' : moraleWord(mor));
+    const plainMorale = rt.def.key === 'inou' || rt.def.key === 'okehazama' || rt.def.key === 'moribe';
+    setText(morEl.querySelector('span'), plainMorale ? 'やる気' : '士気');
+    setText(morEl.querySelector('em'), plainMorale ? mor >= 75 ? 'やる気十分' : mor >= 50 ? '落ち着いている' : mor >= 30 ? 'こわがっている' : '逃げ出しそう' : moraleWord(mor));
     setClass(morEl, 'low', mor < 40);
     if (mor < 40 && !this.moraleHelp && !rt.over) { this.moraleHelp = true; this.notices.push('組が動揺している。号令が届いても動きが鈍ることがある', 85, 5); }
     // 馬の体力と息（馬に乗れる身分から）
