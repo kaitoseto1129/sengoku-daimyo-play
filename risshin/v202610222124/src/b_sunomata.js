@@ -2112,6 +2112,8 @@ const sunomata = {
     return touch ? `画面を${side}へなぞって見回す` : `手元の操作器を${side}へ動かして見回す`;
   },
   dodgeMoveLabel: (rt, side) => `${side}へなぞってよける`,
+  // 携帯の細い札でも、動作の途中で一文字だけ次の行へ送らない。
+  dodgeActionText: '長押しでよける',
   // 回避の札は dodgeLabel と別に描かれる。守備中に共通の「にげる」を戻さない。
   dodgeGuideLabel(rt, reached, rain) {
     return reached ? 'ここで敵へ槍を向ける' : rain ? sunomata.rainDodgeGuideLabel(rt, false) : '印までよけ、槍を構える';
@@ -2196,7 +2198,9 @@ const sunomata = {
     // 空中の白い柱は、地面ではなく視点に追従する光の板。墨俣では出さない。
     noShafts: true,
     // 湿った川辺の土煙で砦全体を白く隠さず、数歩先の兵と柵を見せる。
-    smokeFogFloor: 65,
+    smokeFogFloor: 110,
+    // 南門外の人足と林の口を、近場の霞で消さない。遠景の兵は増やさない。
+    battleViewDistance: 140,
     // 少ない弓衆から数十本を増やさず、遠い矢も自然な太さと霧で描く。
     naturalArrowRain: true, arrowRainPerBow: 1,
     // 現代の白黒の区画帯で普請場を覆わない。矢・落下の影・退き先の案内は残す。
@@ -2235,6 +2239,9 @@ const sunomata = {
     softEarthCrust: true, sparseEarthCrust: true,
     subtleMudRelief: true, stableSlopeGrain: true,
     muddy: 0.45,     // 川辺の砦は湿っている
+    // 乾いた肩と湿った窪みを土色で分ける。既存の踏み跡だけを使い、
+    // 普請砦の小道に荷車の轍を足さず、道と草の境をなだらかにつなぐ。
+    wetFieldRuts: 'wear', softPathSoil: true,
     paths: SUNOMATA_PATHS,
     water: { x: 62, x2: 112, level: -0.7 },
     riverCross: true, // 舟以外は深みを歩いて渡れない。   // 長良川：向こう岸は 112 から
@@ -2314,7 +2321,8 @@ const sunomata = {
       return steer(u, dt, want, speed, face);
     };
     // 川辺の裸地を敷物の升目や同じ足形の列にしない。墨俣の地面だけ
-    // 高画質でも足形入りの写真へ戻さず、既存の細かな土粒を使う。
+    // 高画質でも足形入りの写真へ戻さず、継ぎ目のない細かな土粒と泥を使う。
+    // 材質・地形・共通の絵は書き換えない。
     W.groundU.tDirt.value = W.groundU.tBank.value = dirtTex(true, true);
     W.groundU.tMud.value = mudTex(true);
     W.terrain.material.color.setHex(0xc7b495);

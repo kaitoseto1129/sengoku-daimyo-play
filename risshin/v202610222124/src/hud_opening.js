@@ -42,7 +42,7 @@ export class HudOpening {
     const openingSide = (side) => sideName(battle?.def.introSides?.[side] || sides[side].name);
     const people = battle?.def.introPeople || battlePeople(battle), castle = castleWelcome(battle);
     const peopleText = people.map((p) => `<div class="intro-person"><b>${esc(p.name)}</b><span>${esc(p.note)}</span></div>`).join('') + (castle ? `<p class="intro-castle">${esc(castle)}</p>` : '');
-    const welcome = battle?.def.key === 'moribe'
+    const welcome = battle?.def.key === 'moribe' || battle?.def.key === 'okehazama'
       ? `<div class="intro-people"><button type="button" class="btn" id="intro-people-toggle" aria-expanded="false" aria-controls="intro-people-body" style="min-height:44px;pointer-events:auto">人物と戦場の説明を読む</button><div id="intro-people-body" hidden>${peopleText}</div></div>`
       : battle?.def.introPeopleFolded && peopleText
         ? `<details class="intro-people"><summary>人物と戦場の説明を読む</summary>${peopleText}</details>` : peopleText;
@@ -56,6 +56,8 @@ export class HudOpening {
     else el.querySelector('.sides').insertAdjacentHTML('afterend', welcome);
     const peopleToggle = el.querySelector('#intro-people-toggle');
     if (peopleToggle) {
+      // 桶狭間の説明釦は本文の外へ。横長の携帯でも途中で切れず、出陣前に開ける。
+      if (battle?.def.key === 'okehazama') el.querySelector('#intro-go').before(peopleToggle);
       for (const name of ['pointerdown', 'pointerup']) peopleToggle.addEventListener(name, e => e.stopPropagation());
       peopleToggle.onclick = e => {
         e.preventDefault(); e.stopPropagation();
@@ -63,7 +65,7 @@ export class HudOpening {
         body.hidden = !open;
         peopleToggle.setAttribute('aria-expanded', String(open));
         peopleToggle.textContent = open ? '人物と戦場の説明を閉じる' : '人物と戦場の説明を読む';
-        if (open) el.querySelector('.intro-reading').scrollTop = peopleToggle.parentElement.offsetTop - el.querySelector('.intro-reading').offsetTop;
+        if (open) el.querySelector('.intro-reading').scrollTop = body.parentElement.offsetTop - el.querySelector('.intro-reading').offsetTop;
       };
     }
     if (battle?.def.key === 'inou') {

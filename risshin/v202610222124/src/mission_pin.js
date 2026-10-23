@@ -3,6 +3,7 @@
 //   着いたら消す。印と投影用の点は一つを使い回す。
 import * as THREE from 'three';
 import { VIEW } from './viewport.js';
+import { S } from './settings.js';
 import { currentObjective } from './mission_guide.js';
 
 let pin = null;
@@ -11,7 +12,7 @@ function make() {
   el.id = 'mission-goal';
   el.innerHTML = '<b>ここへ</b><svg width="40" height="28" viewBox="0 0 40 28" aria-hidden="true"><g stroke="#14120f" stroke-width="5" stroke-linejoin="round"><ellipse cx="20" cy="24" rx="16" ry="3" fill="none"/><path d="M18 24V2H33L29 8L33 13H18" fill="#fff3ba"/></g><g stroke="#fff3ba" stroke-width="2" stroke-linejoin="round"><ellipse cx="20" cy="24" rx="16" ry="3" fill="none"/><path d="M18 24V2H33L29 8L33 13H18" fill="#fff3ba"/></g></svg><i hidden>➜</i>';
   el.style.cssText = 'position:absolute;left:0;top:0;width:56px;height:52px;text-align:center;pointer-events:none;z-index:3;color:#fff3ba;font-size:13px;line-height:18px';
-  el.firstChild.style.cssText = 'display:block;background:#14120f;border-radius:3px';
+  el.firstChild.style.cssText = 'display:none'; // 字は出さない（kaito 10/23）。小旗と矢印だけ
   el.lastChild.style.cssText = 'position:absolute;left:18px;top:22px;font-size:26px;font-style:normal;text-shadow:0 2px 2px #14120f,2px 0 2px #14120f';
   const style = document.createElement('style');
   style.textContent = '#hud.photo #mission-goal,#hud.ending #mission-goal,#hud:has(#bigmap:not([hidden])) #mission-goal,#hud:has(#cine.on) #mission-goal{display:none}';
@@ -43,20 +44,34 @@ export function updateMissionPin(rt) {
   if (pin.firstChild.style.display !== captionDisplay) pin.firstChild.style.display = captionDisplay;
   const hud = rt.hud, root = hud.root;
   if (pin.parentNode !== root) root.appendChild(pin);
+  // 行き先が群れの真ん中だと毎コマ少しずつ動き、印が震える（kaito 10/23「グラグラ揺れる」）。
+  //   遠くへ跳んだ時だけすぐ移し、ふだんは一メートル足らずの揺れを無視して、ゆっくり追わせる。地面の高さも同じ点で取る。
+  const now = performance.now(), U = pinAt;
+  const dt = Math.min(0.1, Math.max(0, (now - (U.at || now)) / 1000)); U.at = now;
+  if (U.rt !== rt || Math.hypot(want.x - U.x, want.z - U.z) > 15) { U.x = want.x; U.z = want.z; U.rt = rt; U.y = rt.world.heightAt(U.x, U.z); U.ox = 0; U.oy = 0; }
+  else if (Math.hypot(want.x - U.x, want.z - U.z) > 0.8) {
+    const k = 1 - Math.exp(-dt * 1.5);
+    U.x += (want.x - U.x) * k; U.z += (want.z - U.z) * k;
+    U.y += (rt.world.heightAt(U.x, U.z) - U.y) * k;
+  }
   const me = rt.player.u.pos;
   const d = Math.hypot(want.x - me.x, want.z - me.z);
   const near = want.hide ?? (want.r || 6);
-  pin.hidden = d <= near;
+  // 着いた・離れたの境で毎コマ出たり消えたりしない（チカチカ。kaito 10/23 稲生 27）。消えた後は一歩半離れてから出す。
+  pin.hidden = d <= near + (pin.hidden ? 1.5 : 0);
   if (pin.hidden) return;
   const W = VIEW.w, H = VIEW.h;
-  goalPoint.set(want.x, rt.world.heightAt(want.x, want.z) + .08, want.z).project(rt.camera);
+  goalPoint.set(U.x, U.y + .08, U.z).project(rt.camera);
   if (!Number.isFinite(goalPoint.x) || !Number.isFinite(goalPoint.y)) { pin.hidden = true; return; }
   const behind = goalPoint.z < -1 || goalPoint.z > 1;
   let dx = goalPoint.x * (behind ? -1 : 1), dy = -goalPoint.y * (behind ? -1 : 1);
   const rects = hud.hudRects();
   let x = (dx + 1) * W / 2, y = (dy + 1) * H / 2;
   // 足元を別の場所へずらさず、札に隠れる時も端の矢印へ切り替える。
-  const outside = behind || !goalFree(x, y, W, H, rects);
+  //   画面の端・札の縁でも、前のコマと同じ形を少しの間は保つ（地面の旗と端の矢印が入れ替わり続けない）。
+  let outside = behind || !goalFree(x, y, W, H, rects);
+  if (!behind && outside !== U.out && now - (U.outAt || 0) < 400) outside = U.out;
+  else if (outside !== U.out) { U.out = outside; U.outAt = now; }
   if (outside) {
     // 足元の投影は画面の下に出る。進む方向は地面上の向きから求め、前の目標へ下向きの矢印を出さない。
     const yaw = rt.player.yaw + (rt.player.camYawOff || 0);
@@ -67,12 +82,15 @@ export function updateMissionPin(rt) {
     x = W / 2 + dx * scale; y = H / 2 + dy * scale;
   }
   // 右上の札や操作面を避ける。空きが無ければ重ねず畳む。
-  if (!goalFree(x, y, W, H, rects)) {
+  //   前のコマのずらしがまだ空いていれば、それを使い続ける（毎コマ選び直すと跳ねる）。
+  if (!goalFree(x, y, W, H, rects) && (U.ox || U.oy) && goalFree(x + U.ox, y + U.oy, W, H, rects)) { x += U.ox; y += U.oy; }
+  else if (goalFree(x, y, W, H, rects)) { U.ox = 0; U.oy = 0; }
+  else {
     let found = false;
     for (let k = 1; k <= 30; k++) {
       const offset = Math.ceil(k / 2) * 18 * (k % 2 ? 1 : -1);
-      if (goalFree(x, y + offset, W, H, rects)) { y += offset; found = true; break; }
-      if (goalFree(x + offset, y, W, H, rects)) { x += offset; found = true; break; }
+      if (goalFree(x, y + offset, W, H, rects)) { y += offset; U.ox = 0; U.oy = offset; found = true; break; }
+      if (goalFree(x + offset, y, W, H, rects)) { x += offset; U.ox = offset; U.oy = 0; found = true; break; }
     }
     if (!found) { pin.hidden = true; return; }
   }
@@ -82,9 +100,11 @@ export function updateMissionPin(rt) {
   pin.children[1].style.transform = outside ? 'translateX(-12px) scale(.7)' : '';
   arrow.style.left = '34px';
   if (outside) arrow.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
-  pin.style.transform = `translate(${Math.round(x - 28)}px,${Math.round(y - 46)}px)`;
+  // 丸めずに少数一桁で置く（一画素ずつ跳ねない）。上下はゆっくり穏やかに。
+  pin.style.transform = `translate(${(x - 28).toFixed(1)}px,${(y - 46 + (S.reduceMotion ? 0 : 2 * Math.sin(now / 700))).toFixed(1)}px)`;
 }
 const goalPoint = new THREE.Vector3();
+const pinAt = { x: 0, z: 0, y: 0, ox: 0, oy: 0, at: 0, rt: null };
 function goalFree(x, y, W, H, rects) {
   if (x < 36 || x > W - 36 || y < 60 || y > H - 14) return false;
   for (const r of rects) if (x + 36 >= r.left && x - 36 <= r.right && y + 6 >= r.top && y - 52 <= r.bottom) return false;
@@ -104,7 +124,8 @@ export function updateAimDot(rt, root) {
     dot.style.cssText = 'position:absolute;left:0;top:0;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;background:#f3e2b8;box-shadow:0 0 0 1.5px #14120f;pointer-events:none;z-index:2;display:none';
   }
   if (dot.parentNode !== root) root.appendChild(dot);
-  if (!on) { dot.style.display = 'none'; return; }
+  // 敵の胴の赤い点は出さない（kaito 10/23「点の印は使わない」）。狙いの点は使わない。
+  if (!on || true) { dot.style.display = 'none'; return; }
   const t = p.aimed?.alive && !p.aimed.fleeing ? p.aimed : p.lock?.alive ? p.lock : null;
   if (t && Math.hypot(t.pos.x - u.pos.x, t.pos.z - u.pos.z) < 6) v.set(t.pos.x, t.pos.y + (t.mounted ? 2.2 : 1.15), t.pos.z);
   else {

@@ -6,6 +6,7 @@ import { isTouch, touchInput } from "./touch.js";
 import { clearFoot } from "./cover_guide.js";
 import { visibleRainEscape } from "./arrow_rain.js";
 import { localClear } from "./army_local_way.js";
+import { pinGuideOn } from "./mission_pin.js";
 
 export class HudDodge {
 
@@ -259,6 +260,17 @@ export class HudDodge {
     if (rt.bowRing) rt.bowRing.visible = false;
     if (rt.moveRing) rt.moveRing.visible = false;
     for (const group of rt.squadGroups) { if (group.orderRing) group.orderRing.visible = false; if (group.selRing) group.selRing.visible = false; }
+    // 共通案内では任務一枚と矢印一本へ渡す。安全地点の選び方は同じ。
+    if (pinGuideOn(rt)) {
+      if (this.dodgeEl) { this.dodgeEl.hidden = true; setStyle(this.dodgeEl, 'display', 'none'); }
+      if (this.dodgeHeldBattle) this.releaseDodgeHold();
+      if (rt.turnPractice?.active) { rt.turnPractice.active = false; rt.turnPractice.done = true; }
+      setClass(this.root, 'dodge-active', false);
+      setClass(this.root, 'dodge-turn-coach', false);
+      cue.gestureShown = false;
+      rt.dodgeGuide = cue;
+      return cue;
+    }
     // 落下範囲のふちと模様は残し、安全な行き先と同時に見せる。
     let el = this.dodgeEl;
     if (!el) {

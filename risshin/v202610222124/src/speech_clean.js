@@ -61,6 +61,7 @@ const MITSUHIDE = new Map([
 export function cleanBattleSpeech(rt, text) {
   let t = String(text ?? '').trim();
   if (!t || /^[0０]+$/.test(t)) return '';
+  if (rt.def.key === 'okehazama' && rt.def.speechAllowed?.(rt, '', t) === false) return '';
   if (rt.def.key === 'okehazama') t = t
     .replace('囲まれるぞ。味方の方へ退け', '囲まれるぞ。目印の仲間へ戻れ')
     .replace('囲まれるぞ。来た道へ退け', '囲まれるぞ。来た道へ戻れ');

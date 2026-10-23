@@ -1973,7 +1973,7 @@ export class Player {
       } else { this.vHeld = 0; this.vStartedAt = performance.now(); }
     }
     if (this.vHeld != null) {
-      if (input.key('KeyV')) { this.vHeld = Math.max(0, (performance.now() - this.vStartedAt) / 1000); this.overHold = this.vHeld > 0.35; }
+      if (input.key('KeyV')) { this.vHeld = Math.max(0, (performance.now() - this.vStartedAt) / 1000); this.overHold = this.vHeld > 0.35 && !simpleControls(rt); }
       else { if (this.vHeld <= 0.35) this.toggleView(); this.vHeld = null; this.overHold = false; }
     }
     this.showSquad = input.key('AltLeft') || input.key('AltRight');
@@ -4075,10 +4075,10 @@ export class Player {
 
   toggleView() {
     const r = S.camRange || 'mid';
-    if (S.view === 'first') { S.view = 'third'; S.camRange = 'near'; }
-    else if (r === 'mid') S.camRange = 'far';
-    else if (r === 'far') S.view = 'first';
-    else S.camRange = 'mid';
+    // 押すたびに一人称と三人称を行き来する（三人称は近い・普通・遠いの三段を回してから一人称へ行くと、押しても変わらないように見えた）。
+    if (S.view === 'first') S.view = 'third';
+    else S.view = 'first';
+    void r;
     saveSettings();
     sfx('ui');
     const nm = { near: '近い', mid: '普通', far: '遠い' }[S.camRange || 'mid'];

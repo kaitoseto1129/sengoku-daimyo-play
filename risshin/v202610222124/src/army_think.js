@@ -599,6 +599,9 @@ export const ArmyThink = {
       case 'assault': engage = 4.5; break;
       default: engage = g.aggro;
     }
+    // 近い敵とは、隊の号令（待て・構え・段の待ち＝aggro 0 など）に関わらず、前の列から必ず打ち合う（kaito 10/23「向かい合ってるだけ」）。
+    //   退く・道を進む・逃げる者と、門・塀の向こうは除く（後ろの段は下の列の決まりが短くする）。
+    if (g.order !== 'retreat' && g.order !== 'path' && g.order !== 'flee' && !g.marching && !u.fleeing && (u.sidearm || u.type !== 'bow' && u.type !== 'gun')) engage = Math.max(engage, 10);
     if (!u.sidearm && (u.type === 'bow' || u.type === 'gun') && g.fire !== false && g.order !== 'retreat') engage = Math.max(engage, u.range * (u.type === 'bow' ? 1 - 0.35 * (this.rain || 0) : 1));
     if (!u.sidearm && (u.type === 'bow' || u.type === 'gun') && g.fire === false) engage = Math.min(engage, 3);
     // 持ち場を守る弓は、届く間合いの外（60m まで）の敵へも遠矢を射かける（開戦の矢合わせ）

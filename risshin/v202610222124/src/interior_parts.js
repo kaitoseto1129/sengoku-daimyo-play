@@ -111,8 +111,11 @@ export function koshi(w = .9, h = 1.8) {
   frame(g, w, h, 0x1e140e); return g;
 }
 export function tatami(w = .9, d = 1.8) {
-  const kit = bought('tatami_floor_modular_a', w, .06, d); if (kit) return kit;
-  const g = new THREE.Group(); box(g, w, .06, d, 0, .03, 0, 0xffffff, 'tatami');
+  const kit = bought('tatami_floor_modular_a', w, .06, d);
+  const g = new THREE.Group();
+  // 素材に穴や切り欠きがあっても、下の暗い基壇を床のすき間として見せない。
+  box(g, w, kit ? .045 : .06, d, 0, kit ? .0225 : .03, 0, 0xffffff, 'tatami');
+  if (kit) { g.add(kit); return g; }
   // 畳縁（黒の麻）：長い辺だけに付ける
   for (const x of [-w / 2 + .022, w / 2 - .022]) box(g, .044, .066, d, x, .033, 0, 0x1d1c18); return g;
 }
@@ -214,15 +217,21 @@ export function furnishTemple(rt, H, y) {
     const put = (part, x, z, rot = 0, yy = .08) => place(g, part, x - cx, z - cz, rot, yy);
     const putLamp = (x, z) => {
       const lamp = tomyo(), bottom = new THREE.Box3().setFromObject(lamp).min.y;
-      put(lamp, x, z, 0, .04 - bottom); put(lightPool(), x, z, 0, .08);
+      put(lamp, x, z, 0, .14 - bottom); put(lightPool(), x, z, 0, .15);
     };
     const KT = cgtOn() && cgtHas('Floor_Tatami') && !cgtHas('tatami_floor_modular_a'), kbT = KT ? new KitBatch() : null;
     for (const [a, b, c, d, kind] of H.floors) if (kind === 'tatami' && KT) {
+      box(g, c - a, .04, d - b, (a + c) / 2 - cx, .06, (b + d) / 2 - cz, 0xffffff, 'tatami');
       const nx = Math.max(1, Math.round((c - a) / 2)), nz = Math.max(1, Math.round((d - b) / 2)), cw = (c - a) / nx, cd = (d - b) / nz;
-      for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) kbT.add((i + j) % 2 ? 'Floor_Tatami_X' : 'Floor_Tatami', a - cx + i * cw, 0.04, d - cz - j * cd, 0, cw / 2, 0.12, cd / 2);
+      for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) {
+        const x = a + (i + .5) * cw, z = b + (j + .5) * cd;
+        if (!fitInteriorPart(kbT, (i + j) % 2 ? 'Floor_Tatami_X' : 'Floor_Tatami', x - cx, .08, z - cz, cw - .008, .06, cd - .008))
+          put(tatami(cw - .008, cd - .008), x, z, 0, .08);
+      }
     } else if (kind === 'tatami') {
+      box(g, c - a, .04, d - b, (a + c) / 2 - cx, .06, (b + d) / 2 - cz, 0xffffff, 'tatami');
       // 京間（六尺三寸×三尺一寸五分）を半畳ずらしに敷く
-      for (const [tx, tz, w, depth] of tatamiTiles(a, c, b, d, .955, 1.91)) put(tatami(w - .015, depth - .015), tx, tz, 0, .035);
+      for (const [tx, tz, w, depth] of tatamiTiles(a, c, b, d, .955, 1.91)) put(tatami(w - .008, depth - .008), tx, tz, 0, .08);
     }
     if (H.id === 'goten') {
       put(tokonoma(3), -72.5, 91.9, Math.PI / 2); put(byobu(6), -69.7, 94);

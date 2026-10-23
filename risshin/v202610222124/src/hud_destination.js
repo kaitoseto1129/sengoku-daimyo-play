@@ -157,6 +157,7 @@ export class HudDestination {
   drawNamedDestination(g, rt, pos, doorwayFrame = null) {
     if (this.namedGoalDrawn) return true;
     if (this.releaseMoveActive || this.releaseGestureDrawn) return true;
+    const destinationLabel = rt.def.namedDestinationLabel?.(rt, pos) || '';
     const point = this.project(pos, groundAt(rt.world, pos.x, pos.z, pos.y ?? rt.player.u.pos.y) + .15,
       rt, this.namedGoalPoint || (this.namedGoalPoint = {}));
     // 携帯でも入口の実際の四隅を残す。床の旗だけで枠を省かない。
@@ -214,13 +215,14 @@ export class HudDestination {
       this.destinationDistanceLabel.className = 'destination-distance';
       order.appendChild(this.destinationDistanceLabel);
     }
-    this.destinationDistanceLabel.hidden = edgeAngle === null;
+    this.destinationDistanceLabel.hidden = edgeAngle === null && !destinationLabel;
+    if (edgeAngle === null && destinationLabel) setText(this.destinationDistanceLabel, destinationLabel);
     if (edgeAngle !== null) {
       const p = rt.player.u.pos;
       const steps = Math.max(1, Math.ceil(Math.hypot(pos.x - p.x, pos.z - p.z) / .75));
       const direction = Math.sin(edgeAngle) > .5 ? '後ろへ' : Math.cos(edgeAngle) > .5 ? '右へ' :
         Math.cos(edgeAngle) < -.5 ? '左へ' : '前へ';
-      setText(this.destinationDistanceLabel, `${direction}・あと${steps}歩`);
+      setText(this.destinationDistanceLabel, destinationLabel ? `${destinationLabel}・${direction}` : `${direction}・あと${steps}歩`);
     }
     const openingControls = isTouch && this.openingActive && this.opening?.el.classList.contains('opening-controls');
     const attached = !this.openingActive && this.notices.sources[1].selected && !order.classList.contains('expand');
@@ -243,8 +245,9 @@ export class HudDestination {
     }
     if (edgeAngle === null) {
       if (!framed && !rt.def.destinationPin) this.drawGoalArrivalRing(g, point.x, point.y);
+      if (destinationLabel) this.drawNavigationArrow(g, x, y - 32, Math.PI / 2, 1.1, true);
       if (rt.def.destinationPin) this.drawDestinationPin(g, x, y);
-      else if (openingControls) {
+      else if (openingControls || destinationLabel && !attached) {
         // 操作面からの点線を残し、着地点の札は人物と輪を避ける。
         const size = 20 * Math.max(1, S.textScale || 1);
         g.save(); g.font = `bold ${size}px serif`;
@@ -260,7 +263,7 @@ export class HudDestination {
       } else if (!attached) this.drawFlagDestinationSign(g, x + 9, y - 17);
     } else {
       // 画面外は向きだけ。端に着地点の旗や輪を作らない。
-      this.drawNavigationArrow(g, x, y, edgeAngle, .65, true, false, true);
+      this.drawNavigationArrow(g, x, y, edgeAngle, destinationLabel ? 1.1 : .65, true, false, true);
     }
     this.namedGoalDrawn = true; this.goalFlagDrawn = true;
     // 指の手本とは離し、次に踏める床へ短い矢印を寝かせる。

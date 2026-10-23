@@ -81,11 +81,11 @@ const LESSONS = {
   move: ['move', '前へ二メートル歩く', () => `「${K('forward')}」のキーを押し続ける`, '左の親指で前へなぞり続ける'],
   view: ['view', '視点を一度変えよう', () => `「${K('view')}」のキーを一度押す`, '左上の「視点」を一度押す'],
   swing: ['swing', '攻撃', () => '左押しで槍を突く', '「つく」を押す'],
-  chase: ['chase', '林軍を追いかけろ', () => `地面に立つ金の印へ。${K('run')}で走る`, '金の印の方へ大きくなぞる'],
+  chase: ['chase', 'にげる林の兵を追いかけよう', () => `赤い▼の兵へ。${K('run')}で走る`, '赤い▼の方へ大きくなぞる'],
   kill: ['kill', '倒せ', () => '近づいて左押し', '近づいて「つく」を押す'],
   look: ['look', '見回す', () => '手元の操作器を動かす', '画面の右をなぞる'],
   run: ['run', '走る', () => `${K('run')}を押して歩く`, '左の親指を大きくなぞる'],
-  follow: ['follow', '味方についていく', () => '組頭の印へ進む', '組頭の印へ進む'],
+  follow: ['follow', '味方についていく', () => '隊長の印へ進む', '隊長の印へ進む'],
   thrust: ['thrust', '突く', () => '左押し', '「つく」を押す'],
   block: ['block', '防御して攻撃を受ける', () => SETTINGS.guardToggle ? '右押しで構える' : '右押しを押し続ける', '「かまえる」を押し続ける'],
   counter: ['counter', '防御した後に反撃', () => '構えを解いて左押し', '構えを解いて「つく」を押す'],
@@ -215,7 +215,7 @@ const inou = {
   // 周りの味方が今なにをしているか（左上の進みの札の一行。kaito 10/22 稲生 2）
   allyDoing: (rt) => {
     const F = rt.flags;
-    if (F.step === 0) return F.training <= 1 ? '退く林の手を追って前へ走っている' : F.training <= 4 ? '先で林の手と向き合っている' : '林の先手と槍を合わせている';
+    if (F.step === 0) return F.training <= 1 ? 'にげる林の兵を追って前へ走っている' : F.training <= 4 ? '先で林の兵と向き合っている' : '林の兵と槍で戦っている';
     if (F.step === 1) return F.centerBack ? '中央も下がり、列を立て直している' : F.leftBack ? '左が崩れ、中央の脇が空いている' : F.training === 11 || F.training === 12 ? '正面を押さえ、右の畦から回っている' : '柴田隊の寄せを受け止めている';
     if (F.step === 2) return '信長について前へ出ている';
     if (F.step === 3) return '林美作守の備を攻めている';
@@ -223,6 +223,9 @@ const inou = {
     return '深追いせず、柴田隊の退きを見ている';
   },
   noWinCrane: true,
+  // 倒す相手の頭上に赤い▼（字なし。味方には出さない。kaito 10/23「ビジュアルで」）。
+  foeMarks: true,
+  foeMarkRange: 30,
   learningFight: true,   // 新しく始めた人の初陣。傷を軽くする
   noTaisho: true,        // 殿（信長）と大将の流れは、この定義が持つ
   noReserve: true,
@@ -269,7 +272,7 @@ const inou = {
     const lord = !!rt.G.lord;
     F.step = 0; F.ek = 0; F.ak = 0;
     F.goalPin = { x: 0, z: 0, r: 7, hide: 7 };
-    F.fieldSigns = [{ label: '◇ 味方・信長方', unit: null }, { label: '▼ 林の兵', unit: null }];
+    F.fieldSigns = [{ label: '', unit: null }, { label: '', unit: null }]; // 味方は印なし・追う相手は字なしの赤い▼（kaito 10/23）
     // ---- 信長方：直属の槍隊・少ない家臣団・若い前田利家・佐久間勢 ----
     F.hata = allyGroup(rt, { name: '信長の旗本', anchor: { ...NOBU }, facing: Math.PI, width: 14, aggro: 6, noRout: true, formation: 'yari', fullStrength: true },
       dress([{ type: 'samurai', n: 1, o: { name: '組頭 源八', invuln: true } }, { type: 'ashigaru', n: 11 }], ODA));
@@ -305,7 +308,7 @@ const inou = {
     F.shiba1 = enemyGroup(rt, { faction: 'nobukatsu', name: '柴田の長槍隊', anchor: { ...SHIBA0 }, facing: 0, fleeDir: { x: 0, z: -1 }, width: 12, noRout: true, formation: 'yari', dmgMult: 0.85, defMult: 1.2, morale: 95 },
       dress([{ type: 'ashigaru', n: 30, o: { spear: 'nagae' } }], SHIBA));
     F.shibaG = enemyGroup(rt, { faction: 'nobukatsu', name: '柴田勝家の徒歩武者', anchor: { x: 0, z: SHIBA0.z - 9 }, facing: 0, fleeDir: { x: 0, z: -1 }, width: 10, noRout: true, formation: 'line', dmgMult: 0.85, defMult: 1.2, morale: 98 },
-      dress([{ type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true, keep: true } }, { type: 'samurai', n: 4 }, { type: 'samurai', n: 1, o: { name: '宮井勘兵衛', invuln: true } }, { type: 'ashigaru', n: 19 }], SHIBA));
+      dress([{ type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true, keep: true } }, { type: 'samurai', n: 4 }, { type: 'samurai', n: 1, o: { name: '宮井勘兵衛' } }, { type: 'ashigaru', n: 19 }], SHIBA));
     F.shibaU = F.shibaG.units.find((u) => u.type === 'busho');
     F.shibaU.maxHp *= 1.4; F.shibaU.hp = F.shibaU.maxHp;
     // 勝家を殴り続けても、共通の深手による単独離脱を起こさない。
@@ -410,20 +413,20 @@ const inou = {
       F.practice = g;
       prepareMarch(g);
       for (const u of g.units) { u.hp = u.maxHp = Math.max(30, rt.player.u.dmg * 2.2); u.cdBase *= 1.8; }
-      rt.obj('main', phase === 2 ? '近づいた敵を槍で突こう' : phase === 3 ? '林の兵を倒そう' : '林の武者を倒そう', 'main');
+      rt.obj('main', phase === 2 ? '赤い▼の林の兵を槍で突こう' : phase === 3 ? '林の兵をたおそう' : '林の強い兵をたおそう', 'main');
       // 構える・避けるは教えない（自分で判断できる。kaito 10/23 稲生 4）。
       if (phase === 2) lesson(rt, 'thrust'); return;
     }
     if (phase === 5) {
       rt.setPhase('hayashiSkirmish');
-      rt.obj('main', '味方と並び、畦道の林勢を押し返そう', 'main');
-      rt.say('組頭 源八', '林美作守の先手じゃ。味方と一緒に槍を合わせよ！', 4);
+      rt.obj('main', '味方とならんで、林の兵をおし返そう', 'main');
+      rt.say('組頭 源八', '林の兵が来たぞ。味方と一緒に戦え！', 4);
       F.hata.aggro = 8; F.hata.order = 'attack'; F.hata.seekRange = 24;
       F.haya1.aggro = 6; F.haya1.fire = true;
       for (const u of F.haya1.units) u.noTarget = u === F.hayaLead;
       F.haya1.order = 'move'; F.haya1.dest = { x: 0, z: 14 }; F.haya1.speed = 1.5;
       F.hata.order = 'hold';
-      rt.after(4, () => rt.say('足軽', '林の手が向き直った！　組頭の所で槍を合わせておる', 4));
+      rt.after(4, () => rt.say('足軽', '林の兵がこっちを向いた！　隊長の所で戦っておる', 4));
       F.haya1.onArrive = (g) => { g.order = 'attack'; g.seekRange = 20; };
       lesson(rt, 'together'); return;
     }
@@ -434,8 +437,8 @@ const inou = {
     }
     if (phase === 8) {
       F.hayaLead.noTarget = false;
-      rt.obj('main', '味方と林の小隊長を倒し、敵の退きを見よう', 'main');
-      rt.say('組頭 源八', 'あの小隊長が兵を支えておる。味方と押せ！', 4);
+      rt.obj('main', '味方と林の隊長をたおそう', 'main');
+      rt.say('組頭 源八', 'あの隊長をたおせば林の兵はにげる。味方と押せ！', 4);
       lesson(rt, 'morale');
     }
   },

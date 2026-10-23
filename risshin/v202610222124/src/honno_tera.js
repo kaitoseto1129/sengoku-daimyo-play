@@ -510,7 +510,8 @@ function buildHall(rt, G, H, T) {
   const hall = { id: H.id, name: H.name, H, rec, doors: [], panels: [], x0: H.x0, x1: H.x1, z0: H.z0, z1: H.z1 };
   // 基壇（石）と床（畳・板）
   put('wood', pb(H.x1 - H.x0 + 0.5, 0.3, H.z1 - H.z0 + 0.5, cx, y - 0.1, cz, 0x7e7a70));
-  for (const [a, b, c, d, k] of H.floors) if (k === 'ita') put('ita', pb(c - a - 0.04, 0.05, d - b - 0.04, (a + c) / 2, y + 0.07, (b + d) / 2, 0xa48b68));
+  // 下地と板の上面を離し、戸口まで切れ目のない板間にする。
+  for (const [a, b, c, d, k] of H.floors) if (k === 'ita') put('ita', pb(c - a, 0.08, d - b, (a + c) / 2, y + 0.10, (b + d) / 2, 0xa48b68));
   // 畳は共通部品で一枚ずつ敷く（下の furnishTemple）。
   // 壁・襖・障子
   for (const [ax, az, bx, bz, kind, doors] of H.walls) {

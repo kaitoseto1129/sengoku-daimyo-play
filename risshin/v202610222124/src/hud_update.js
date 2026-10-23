@@ -9,7 +9,7 @@ import { battleSpeechAllowed, noOps } from "./speech_clean.js";
 import { isTouch, touchInput, touchMoveLearned } from "./touch.js";
 import { rankLabel } from "./state.js";
 import { woundText } from "./wounds.js";
-import { updateMissionPin, updateAimDot } from "./mission_pin.js";
+import { updateMissionPin, updateAimDot, pinGuideOn } from "./mission_pin.js";
 import { currentObjective, destinationText, taskText, navigationEnemy, goalText } from "./mission_guide.js";
 import { rainDanger } from "./arrow_rain.js";
 import { groundAt } from "./floors.js";
@@ -831,7 +831,8 @@ export class HudUpdate {
     if (waitFacing) {
       const dx = waitFacing.x - u.pos.x, dz = waitFacing.z - u.pos.z;
       const yaw = rt.player.yaw + (rt.player.camYawOff || 0);
-      const alignment = (Math.sin(yaw) * dx + Math.cos(yaw) * dz) / Math.max(.001, Math.hypot(dx, dz));
+      // 槍を向けた本人の向きで判定する。見回す視点だけでは合格にしない。
+      const alignment = (Math.sin(p.yaw) * dx + Math.cos(p.yaw) * dz) / Math.max(.001, Math.hypot(dx, dz));
       this.waitFacingReady = alignment >= (this.waitFacingReady ? .82 : .87);
       const side = -dx * Math.cos(yaw) + dz * Math.sin(yaw) >= 0 ? '右' : '左';
       waitFacingSide = side;
@@ -1192,6 +1193,22 @@ export class HudUpdate {
       shownTaskLabel = `今${attackOperation(rt)}`;
       aimHelp = ''; waitFacingHelp = ''; edgeGoalDetail = '';
     }
+    // 共通の印と同じ行き先から、最後に一つだけ下知を選ぶ。
+    if (pinGuideOn(rt) && !careSequence && !recovering(rt)) {
+      const dodge = rt.dodgeGuide?.valid ? rt.dodgeGuide : null;
+      const withdrawing = retreatMoving && !this.retreatGuide.treatment;
+      const retreatOrder = guide?.marker && /下が|さが|退[くきけ]|退却/.test(shownTaskLabel) &&
+        guide.distance >= (guide.marker.guideRadius || 8);
+      const pos = dodge?.pos || (withdrawing ? this.retreatGuide : retreatOrder ? guide.pos : null);
+      if (pos) {
+        shownTaskLabel = dodge?.arrived ? 'ここで かまえよう' : `${this.battleMoveCue(rt, pos).direction}へ さがろう`;
+        aimHelp = ''; waitFacingHelp = ''; edgeGoalDetail = ''; this.destinationMoveDirection = '';
+      } else if (waitFacing && !retreatMoving) {
+        shownTaskLabel = this.waitFacingReady ? 'そのまま 待とう' : rt.def.waitFacingLabel?.(rt, false) || '矢印へ 向こう';
+        aimHelp = ''; waitFacingHelp = ''; edgeGoalDetail = ''; this.destinationMoveDirection = '';
+      }
+    }
+    // 救助中は共通の向き案内より、守る本人への下知を優先する。
     if (rescue && rt.def.guardGuideAllowed?.(rt) !== false && !careSequence &&
         !retreatRequired(rt) && !this.retreatGuide?.active && !rt.dodgeGuide) {
       shownTaskLabel = rescueNear ? 'そばで 敵からまもる' : 'この人に 近づこう';
@@ -1201,6 +1218,8 @@ export class HudUpdate {
     }
     // 同じ操作を見出しと補足に二度出さない。
     if (edgeGoalDetail === shownTaskLabel || routePriority) edgeGoalDetail = '';
+    // 移動の歩数を畳む時も、合流に間に合うまでの残り時間は別行に残す。
+    if (routePriority && taskTimeLabel) edgeGoalDetail = taskTimeLabel;
     setClass($('objectives'), 'enemy-move-help', enemyMoveHelp && !dismountFirst(rt));
     // 操作の文と同じ一人を描画へ渡し、別の兵の印を先に出さない。
     this.moveGuideEnemy = enemyMoveHelp && !routePriority && !careSequence ? meleeTarget : null;
@@ -1236,7 +1255,7 @@ export class HudUpdate {
         if (o.state === 'done') this.doneSet.add(o.id + o.text);
         const pr = intelText(rt, o.text) === o.text && o.progress && o.state !== 'done' && o.state !== 'fail' ? progressRatio(o.progress) : null;
         const title = o === cur ? shownTaskLabel : (rt.teachOn && !rt.teachOn() ? noOps(o.text) : o.text);
-        const facingHelp = o === cur && (waitFacing && !this.waitFacingReady || aimTurning);
+        const facingHelp = !pinGuideOn(rt) && o === cur && (waitFacing && !this.waitFacingReady || aimTurning);
         const place = facingHelp ? aimHelp || waitFacingHelp || ' ' : !fighting && !treatmentWaiting && !recovering(rt) && o === cur && guide?.marker && !waitingOrder && !flagTravel && !unifiedDestination && !retreatMoving ? (timedWait ? '敵が来たら 防いでつく' : destinationDistance(rt, guide.distance, true)) + (guide.floorHint ? '・' + guide.floorHint : '') : '';
         // 指定した戦だけ、現在の案内に合う補足へ言い換える。任務の進みや判定は変えない。
         let progress = o === cur ? rt.def.taskDetail?.(rt, title, o.progress || '') ?? (o.progress || '') : o.progress || '';
@@ -1271,7 +1290,8 @@ export class HudUpdate {
     }
     // 組の状態
     const sq = $('h-squad');
-    if (!simpleControls(rt) && rt.squadGroups.some((g) => g.count > 0)) {
+    // 自分の組の人数・士気・陣形・号令の字の札は出さない。組の兵の頭上の小さな菱形で見せる（kaito 10/23「テキストで出さない、ビジュアルで」）。
+    if (rt.def.squadCard && !simpleControls(rt) && rt.squadGroups.some((g) => g.count > 0)) {
       setHidden(sq, false);
       setClass(sq, 'urge', rt.cmdUrgeUntil > rt.t);
       // 自分の組の人数・士気・下知は、後ろにいても知っている。
