@@ -1759,7 +1759,7 @@ const game = {
     const keys = ['defs', 'assets', 'build', 'warm', 'compile', 'first'].filter((k) => (k !== 'defs' || !battleDefinition(i) || !BM) && (tool || isNorender() ? k === 'build' || k === 'first' || k === 'defs' : true));
     ldBegin(keys, BATTLES[i].id);
     const readingStory = LB ? { year: LB.year, title: LB.name, text: LB.goal ? [...LB.text, `任務：${LB.goal}`] : LB.text } : storyOf(i)(this.G);
-    const reader = this.loadingReader = firstBattle ? { wait: () => Promise.resolve(), dispose() {} } : loadingStory(BATTLES[i], readingStory, LB ? LB.tip : tipOf(i), this.G);
+    const reader = this.loadingReader = loadingStory(BATTLES[i], readingStory, LB ? LB.tip : tipOf(i), this.G, firstBattle);
     stage('戦の支度を読み込んでいます', keys[0]);
     // 開戦の確かめは、この戻り値を待ってから判定する。読み込み中に次の戦を予約すると、前の支度は取り消される。
     return new Promise((resolve) => setTimeout(() => guarded(async () => {
