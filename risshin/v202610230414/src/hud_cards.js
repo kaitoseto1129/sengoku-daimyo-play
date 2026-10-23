@@ -1,6 +1,6 @@
 import { pinGuideOn, missionTarget } from './mission_pin.js';
 import { setText, setWidth, coachCss, $, esc, keyCaps, shortTask, singleBattleGuide, rescueTarget, retreatRequired } from "./hud_common.js";
-import { currentObjective, taskText, missionCaption } from "./mission_guide.js";
+import { currentObjective, taskText, missionCaption, missionFollowTarget } from "./mission_guide.js";
 import { isTouch } from "./touch.js";
 import { K } from "./settings.js";
 import { sightUnit } from './battle_sight.js';
@@ -355,7 +355,14 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
       if (taskLine && this.progSeen[this.progSeen.length - 1] !== taskLine) this.progSeen.push(taskLine);
       i = Math.max(0, this.progSeen.length - 1); n = 0; title = this.progSeen[i] || '';
     }
-    setText(stEl.firstChild, '');
+    const following = !!missionFollowTarget(rt);
+    setText(stEl.firstChild, following ? '◆' : '');
+    stEl.firstChild.style.display = following ? 'inline-block' : 'none';
+    stEl.firstChild.style.fontSize = following ? '20px' : '';
+    stEl.firstChild.style.color = '#fff3ba';
+    stEl.firstChild.style.marginRight = following ? '6px' : '0';
+    stEl.style.flexDirection = following ? 'row' : '';
+    stEl.style.alignItems = following ? 'center' : '';
     // 「左へ下がる」のような向きの字は出さない（kaito 10/23）。
     const yaw = rt.player.yaw + (rt.player.camYawOff || 0), p = rt.player.u.pos;
     const headline = missionCaption(rt, def.missionTaskFirst ? task || title : title || task);

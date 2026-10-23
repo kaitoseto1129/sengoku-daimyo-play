@@ -307,7 +307,7 @@ const inou = {
     rt.army.damage = function (t, amount, src, ...rest) {
       const hp = t?.hp;
       const result = damage.call(this, t, amount, src, ...rest);
-      if (t && src?.isPlayer && t.team !== src.team && t.hp < hp) t.inouHitUntil = rt.t + .7;
+      if (t && src?.isPlayer && t.team !== src.team && t.hp < hp) t.inouHitUntil = rt.t + 1.2;
       return result;
     };
     F.training = -1;

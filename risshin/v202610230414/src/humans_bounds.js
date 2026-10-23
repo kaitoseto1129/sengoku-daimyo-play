@@ -60,7 +60,9 @@ function bindHumanBounds(h, root = h.root) {
     // 後から付く顔・目・歯・采配・指物にも、追加した時だけ設定する。
     o.add = humanBoundAdd;
     if (!o.isMesh) return;
-    o.frustumCulled = !h.u.isPlayer;
+    // 骨の皮は立ち姿の範囲で部品ごとに落とさない。兵全体の選別は軍勢側で行う。
+    // 斬る・屈む姿で胴だけ消え、別描画の顔や得物が浮くのを防ぐ。
+    o.frustumCulled = !h.u.isPlayer && !o.isSkinnedMesh;
     if (h.u.isPlayer) return;
     humanCullParts.set(o, { h, sphere: new THREE.Sphere(), world: new THREE.Matrix4(), root: new THREE.Matrix4(), radius: -1, geo: null });
     Object.defineProperty(o, 'boundingSphere', { configurable: true, get: humanPartSphere });

@@ -397,6 +397,13 @@ function crowdFace(h, on) {
 function setFar(h, far) {
   if (!h.geoFar || !h.parts.armor || !!h.lodFar === far) return;
   if (far) crowdFace(h, false);
+  // 全身の形への交換と中の体の表示は同時に行う。
+  // 描く直前まで交換を待つと、視野判定や影には胴を除いた古い形が渡る。
+  const armor = h.parts.armor;
+  if (far) {
+    h.nearArmorGeometry = armor.geometry;
+    armor.geometry = h.geoFar;
+  } else if (h.nearArmorGeometry) armor.geometry = h.nearArmorGeometry;
   h.lodFar = far;
   h.skelDirty = true;
   carryFlag(h, true);

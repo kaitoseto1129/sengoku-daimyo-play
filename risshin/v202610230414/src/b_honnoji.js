@@ -2202,8 +2202,8 @@ const honnoji = {
     return undefined;
   },
   keepWoundRetreatReason: true, // 負傷時も、置いていない旗でなく足元の退避先を示す。
-  nearHatFadeRadius: 4.5,
-  nearSpearFade: true,
+  nearHatFadeRadius: 0, // 笠と顔を別々に透かさず、全身の視点よけを使う。
+  nearSpearFade: false, // 長柄を一律に縮めず、構えと間合いを読める姿で残す。
   keepPlayerWeapon: true, // 自分の槍は構えと間合いの目印。味方の長柄だけ視線を避ける。
   camLift: 0.6,
   camPull: .7,
@@ -2869,6 +2869,19 @@ const honnoji = {
     if (!rt.G.lord && rt.flags.hp === 2) return '';
     return '';
   },
+  namedGuideTarget(rt) {
+    const F = rt.flags;
+    return !rt.G.lord && F.step < 3 && !F.ending && F.nb?.alive ? F.nb : null;
+  },
+  missionHeading(rt) {
+    const F = rt.flags;
+    if (rt.G.lord || F.step >= 3 || F.ending) return '';
+    const enemy = rt.missionGuide?.closeEnemy;
+    if (F.hp >= 2 && enemy?.alive && !enemy.gone && !enemy.woundOut && !enemy.fleeing &&
+        Math.hypot(enemy.pos.x - rt.player.u.pos.x, enemy.pos.z - rt.player.u.pos.z) < 4.5) return '敵をたおす';
+    if ((F.hp === 4 || F.hp === 5) && this.routeGuidePriority(rt)) return '信長へ進む';
+    return this.taskLabel(rt, '');
+  },
   taskLabel(rt, text) {
     const F = rt.flags;
     if (rt.G.lord || F.step >= 3) return text;
@@ -3356,7 +3369,7 @@ const honnoji = {
     patrolGuide(rt);
     rt.player.yaw = rt.player.u.heading = Math.PI / 2;
     // 待つ輪と上様の位置を用意し、今の行き先は共通の仕組みで一つだけ出す。
-    rt.marker('nb',unitPos(F.nb), () => `上様${F.nb.hp < F.nb.maxHp * 0.5 ? '（手負い）' : ''}`, { h: 2.3, person: true });
+    rt.marker('nb', unitPos(F.nb), '信長', { h: 2.3, person: true, guidePerson: () => F.nb, guideName: '信長' });
     // 門へ着けば異変が起きる。見回りが遅れても襲撃を一分以上待たせない。
   },
   // P2 異変：鬨の声と鉄砲。信長が起き出す
