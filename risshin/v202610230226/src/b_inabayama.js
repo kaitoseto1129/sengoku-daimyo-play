@@ -532,11 +532,13 @@ const SHIKA_Z = 33, SHIKA_X0 = -34, SHIKA_W = 8.5, SHIKA_GAPS = [1, 3, 5];
 // 鹿垣は丸太に竹と柴を結う。形・材質を共用し、一間を四つのまとめ描画で返す。
 const SHIKA_GEO = new THREE.CylinderGeometry(1, 1, 1, 6);
 const SHIKA_ROPE_GEO = new THREE.TorusGeometry(0.17, 0.025, 4, 8);
+const SHIKA_EDGE_DARK = new THREE.MeshBasicMaterial({ color: 0x14120f });
+const SHIKA_EDGE_GOLD = new THREE.MeshBasicMaterial({ color: 0xffedb0 });
 const SHIKA_MAT = new THREE.MeshStandardMaterial({ color: 0x786047, map: barkTex('pine'), roughness: 1 });
 function shikaWall(W, seg) {
   const [ax, az, bx, bz] = seg, len = Math.hypot(bx - ax, bz - az);
   const tx = (bx - ax) / len, tz = (bz - az) / len, nx = -tz, nz = tx;
-  const g = new THREE.Group(), logs = [], canes = [], ties = [], knots = [];
+  const g = new THREE.Group(), logs = [], canes = [], ties = [], knots = [], edgeDark = [], edgeGold = [];
   const point = (u, h, off = 0) => {
     const x = ax + tx * u + nx * off, z = az + tz * u + nz * off;
     return new THREE.Vector3(x, W.heightAt(x, z) + h, z);
@@ -547,6 +549,11 @@ function shikaWall(W, seg) {
     o.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize());
     o.scale.set(r, d.length(), r); o.updateMatrix(); list.push(o.matrix);
   };
+  // 守るさくの上辺と両端だけを二重の太い縁で囲む。出入口はふさがない。
+  for (const [list, radius] of [[edgeDark, .12], [edgeGold, .065]]) {
+    beam(list, point(0, 1.65), point(len, 1.65), radius);
+    for (const u of [0, len]) beam(list, point(u, .08), point(u, 1.65), radius);
+  }
   const n = Math.ceil(len / 1.7);
   for (let i = 0; i <= n; i++) {
     const u = len * i / n;
@@ -571,11 +578,15 @@ function shikaWall(W, seg) {
       beam(logs, point(mid, h, -0.12), point(Math.max(0, Math.min(len, mid - side * 0.4)), h + 0.3, -0.16), 0.022);
     }
   }
-  for (const [list, geo, mat] of [[logs, SHIKA_GEO, SHIKA_MAT], [canes, SHIKA_GEO, TAKE_MAT.cane], [ties, SHIKA_ROPE_GEO, TAKE_MAT.rope], [knots, SHIKA_GEO, TAKE_MAT.rope]]) {
+  for (const [list, geo, mat] of [[logs, SHIKA_GEO, SHIKA_MAT], [canes, SHIKA_GEO, TAKE_MAT.cane], [ties, SHIKA_ROPE_GEO, TAKE_MAT.rope], [knots, SHIKA_GEO, TAKE_MAT.rope], [edgeDark, SHIKA_GEO, SHIKA_EDGE_DARK], [edgeGold, SHIKA_GEO, SHIKA_EDGE_GOLD]]) {
     const m = new THREE.InstancedMesh(geo, mat, list.length);
     for (let i = 0; i < list.length; i++) m.setMatrixAt(i, list[i]);
-    m.castShadow = m.receiveShadow = true; m.userData.camBlock = true; g.add(m);
+    m.castShadow = m.receiveShadow = true; m.userData.camBlock = true;
+    if (mat === SHIKA_EDGE_GOLD) { m.position.x += nx * .085; m.position.z += nz * .085; }
+    g.add(m);
   }
+  const flag = nobori(W, (ax + bx) / 2, (az + bz) / 2, 'oda', 3.4);
+  g.add(flag);
   return g;
 }
 // 搦手へ移る時は、実際に歩く最初の道の内へ二列で置く。
@@ -2539,7 +2550,7 @@ const inabayama = {
   // ミッション（kaito 10/23 1・49・50）。右上の一行は「何をするか」だけ。向き・行き先の字は書かない。
   lendBow: true, // 美濃攻めは弓を覚える戦（kaito の役割分担）。問屋で買っていなくても弓を貸す。
   noSiegeCards: true, // 右の曲輪の札（未見・様子不明）は出さない。字は右上の一行だけ（kaito 10/23）。
-  missions: ['藤吉郎の組に加わる', '井口の町に火を放つ', '鹿垣を守り抜く', '搦手の山道を攻め上る', '斎藤龍興の馬廻を討つ', '本丸に合図の火を放つ'],
+  missions: ['旗の人のそばへ', '井口の町に火を放つ', 'さくを守れ', '搦手の山道を攻め上る', '斎藤龍興の馬廻を討つ', '本丸に合図の火を放つ'],
   missionOf(rt) {
     const F = rt.flags, ph = rt.phase;
     if (ph === 'end') return 5;
@@ -3449,7 +3460,7 @@ const inabayama = {
     rt.say(officer(rt), `${nm(rt)}、来たか。今日は風が強い。城下の井口の町に火をかける`, 4.5);
     rt.say(officer(rt), '城下を焼き、囲みの支度をする。……松明を用意せい', 4);
     // 話を聞くまでは旗を動かさず、町の敵の手前で下知を渡す。
-    rt.marker('kino', () => F.kinoU.alive ? F.kinoU.pos : null, '藤吉郎', { group: F.kino, guideAlways: true, guidePerson: () => F.kinoU, guideName: 'とうきちろうへ', guideTalk: false, guideVisibleOnly: true, guideCompact: true });
+    rt.marker('kino', () => F.kinoU.alive ? F.kinoU.pos : null, '藤吉郎', { group: F.kino, guideAlways: true, guidePerson: () => F.kinoU, guideFootRing: true, guideRadius: 5, guideName: 'とうきちろうへ', guideTalk: false, guideVisibleOnly: true, guideCompact: true });
     rt.addInteract('talk', () => F.kinoU.alive ? F.kinoU.pos : null, '藤吉郎（とうきちろう）の話を聞く', () => {
       if (F.joinedKino) return;
       F.joinedKino = true; rt.uninteract('talk');

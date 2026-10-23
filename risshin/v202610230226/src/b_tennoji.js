@@ -1652,7 +1652,8 @@ const tennoji = {
       // 門徒の後ろまで背旗を敷き詰めず、既存の人数を少し広い持ち場へ散らす。
       ...(plan.team === 1 ? { host: false, kind: s.kind || 'spear', w: (s.w || 14) * 1.6, d: (s.d || 10) * 1.7 } : {}),
     })) })));
-    // 遠すぎて省いた備には、描く兵も動きの値もない。砂埃と幟は実体のある備だけに付ける。
+    // 遠すぎて形を省いた備には、描く兵も歩調や列の幅もない。
+    // 名簿の備は残し、砂埃と幟は実体のある備だけに付ける。
     F.hostE = Object.values(hosts[1]).filter((host) => host.army.n > 0);
     this.scatterHosts(rt);
     rt.scene.add(dou(W, HONGAN.x, HONGAN.z, 16, 10, 0.3, { h: 4.2 }), hut(W, HONGAN.x - 26, HONGAN.z + 12, 10, 7, 0.3, { h: 3.8, wall: 0x7a5a3c, roof: 0x3a3430 }));   // 本願寺の御影堂（瓦の大屋根）と庫裏

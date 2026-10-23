@@ -1364,7 +1364,7 @@ const mitsukuri = {
   introTaskFirst: true, // 人物紹介より先に、最初の行き先と勝つ条件を読む。
   introPeopleFolded: true, // 下知の下で人物名が半分だけ切れないよう、説明は開いて読む。
   introSides: { a: '織田勢', b: '六角勢' },
-  introText: '旗に続いて柵の口へ。三の郭で「味方を呼ぶ」を使い、六人で守ろう。',
+  introText: 'ひょうたんの旗に続き、正面の柵の口へ。「味方を呼ぶ」で仲間を集め、柵の奥の三の郭を味方六人で守ろう。',
   keepOpeningTaskLabel: true, // 携帯でも、指の動かし方だけでなく最初の攻め口を伝える。
   pauseTurnPractice: false, // 矢の回避中に見回す操作を待って、兵と任務の時計を止めない。
   dodgeTurnDuration: 0, // 大きな手の説明を重ねず、回避の方向と足元の印は残す。

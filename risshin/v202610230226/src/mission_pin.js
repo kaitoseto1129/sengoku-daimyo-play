@@ -1,9 +1,9 @@
-// 行き先は太い輪と旗。画面外では端の方向矢印に旗を添える。
+// 行き先は旗。画面外では端の方向矢印に同じ旗を添える。
 //   戦の定義の missionPin(rt) が { x, z, r } を返す間だけ立てる（r＝着いたとみなす半径。定義の判定と同じ値を返す）。
 //   待つ場所は着いても残す。印と投影用の点は一つを使い回す。
 import * as THREE from 'three';
 import { VIEW } from './viewport.js';
-import { currentObjective } from './mission_guide.js';
+import { currentObjective, missionWaitReached } from './mission_guide.js';
 import { groundAt } from './floors.js';
 import { cameraWallBlocked } from './battle_sight.js';
 
@@ -17,8 +17,8 @@ function make() {
   style.textContent = '#hud.photo :is(#mission-goal,#mission-flag-frame),#hud.ending :is(#mission-goal,#mission-flag-frame),#hud:has(#bigmap:not([hidden])) :is(#mission-goal,#mission-flag-frame),#hud:has(#cine.on) :is(#mission-goal,#mission-flag-frame){display:none}';
   el.appendChild(style);
   el._rings = el.querySelectorAll('.goal-ground ellipse');
+  // 行き先は旗つきの大きな輪。自分の短い足元印とは形を分ける。
   for (const ring of el._rings) { ring.setAttribute('rx', '36'); ring.setAttribute('ry', '12'); }
-  el._rings[1].setAttribute('stroke', '#ffffff');
   // 目的の旗の布だけを囲む。枠は一つを使い回し、背景の旗には付けない。
   el._frame = document.createElement('div');
   el._frame.id = 'mission-flag-frame';
@@ -31,7 +31,19 @@ function make() {
   flag.setAttribute('stroke-width', '4'); flag.setAttribute('stroke-linejoin', 'round');
   flag.setAttribute('class', 'goal-flag');
   el.querySelector('svg').appendChild(flag);
+  // 到着したピンは旗を確認の形へ替え、同じ場所の丸が満ちるまで残す。
+  // 形は初回だけ作り、待ち時間の更新では属性だけ替える。
+  const hold = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  hold.innerHTML = '<circle cx="40" cy="28" r="22" fill="#14120f" stroke="#fff3ba" stroke-width="3"/><path class="goal-progress" fill="#e8c25a"/><path d="M27 28L36 37L53 19" fill="none" stroke="#14120f" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M27 28L36 37L53 19" fill="none" stroke="#fff3ba" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>';
+  hold.style.display = 'none';
+  el.querySelector('svg').appendChild(hold);
+  el._hold = hold; el._progress = hold.querySelector('.goal-progress');
   el.querySelector('svg').style.overflow = 'visible';
+  const foot = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  foot.setAttribute('width', '80'); foot.setAttribute('height', '32');
+  foot.innerHTML = '<ellipse cx="40" cy="16" rx="28" ry="8" fill="none" stroke="#14120f" stroke-width="9"/><ellipse cx="40" cy="16" rx="28" ry="8" fill="none" stroke="#fff3ba" stroke-width="4"/>';
+  foot.style.cssText = 'position:absolute;left:0;top:0;overflow:visible;display:none';
+  el.appendChild(foot); el._personFoot = foot;
   return el;
 }
 
@@ -45,9 +57,18 @@ function target(rt) {
   // 定義の無い戦は、任務の手引きが選んだ行き先（今の任務と同じ印・同じ半径）へ立てる。
   const g = rt.missionGuide, m = g?.marker;
   if (!m || !g.objective || g.objective.id === '_wait' || g.objective !== currentObjective(rt)) return null;
-  tmp.x = g.pos.x; tmp.z = g.pos.z;
+  const person = typeof m.guidePerson === 'function' ? m.guidePerson() : m.guidePerson;
+  if (m.guidePerson && (!person?.alive || person.gone)) return null;
+  tmp.unit = person || null;
+  tmp.footRing = !!m.guideFootRing;
+  const pos = m.guideDestination?.() || g.pos;
+  tmp.x = person ? person.pos.x : pos.x; tmp.z = person ? person.pos.z : pos.z;
+  const reached = missionWaitReached(rt);
+  tmp.waiting = reached !== null && !person;
+  tmp.arrived = tmp.waiting && reached;
+  tmp.area = false;
   // 戸口や曲がり角は六歩手前で印を消さず、すぐそばまで案内する。
-  tmp.r = m.guideRadius ?? (m.entrance || m.id === 'next' ? 1 : 6);
+  tmp.r = m.guideRadius ?? (tmp.waiting ? 8 : m.entrance || m.id === 'next' ? 1 : 6);
   return tmp;
 }
 
@@ -78,6 +99,10 @@ export function updateMissionPin(rt) {
     U.x += (want.x - U.x) * k; U.z += (want.z - U.z) * k;
     U.y += (groundAt(rt.world, U.x, U.z, me.y) - U.y) * k;
   }
+  // 到着範囲のあるピンは判定地点と一致させ、補間で古い場所へ誘わない。
+  if (want.area || want.waiting) {
+    U.x = want.x; U.z = want.z; U.y = groundAt(rt.world, U.x, U.z, me.y);
+  }
   const d = Math.hypot(want.x - me.x, want.z - me.z);
   const near = want.hide ?? (want.r ?? 6);
   const marker = rt.missionGuide?.marker;
@@ -96,7 +121,7 @@ export function updateMissionPin(rt) {
     U.occluded = cameraWallBlocked(rt, cp, goalPoint);
   }
   const occluded = U.occluded;
-  const flagBounds = !want.unit && !want.dodge && marker?.guideFlag && !occluded &&
+  const flagBounds = !want.area && !want.unit && !want.dodge && marker?.guideFlag && !occluded &&
     Math.hypot(want.x - rt.missionGuide.pos.x, want.z - rt.missionGuide.pos.z) < 1
     ? hud.goalFlagBounds(rt, marker, rt.missionGuide.pos) : null;
   goalPoint.project(rt.camera);
@@ -140,17 +165,40 @@ export function updateMissionPin(rt) {
     pin._enemy = !!want.enemy;
     for (const part of pin.querySelectorAll('.goal-ground path,.goal-edge')) part.setAttribute('fill', want.enemy ? '#ff634d' : '#fff3ba');
   }
-  pin.querySelector('.goal-ground path').style.display = person || want.dodge ? '' : 'none';
+  const arrived = !!want.arrived;
+  pin.querySelector('.goal-ground path').style.display = !arrived && want.dodge ? '' : 'none';
   const flag = pin.querySelector('.goal-flag');
-  flag.style.display = person || want.dodge ? 'none' : '';
-  // 端では旗を矢印の上へ置き、見えている時は輪の中心に竿を立てる。
+  flag.style.display = want.dodge || arrived && !person ? 'none' : '';
+  pin._hold.style.display = arrived && !person ? '' : 'none';
+  if (arrived) {
+    const progress = Number.isFinite(want.progress) ? Math.max(0, Math.min(1, want.progress)) : 0;
+    // 満ち切る直前まで扇形。完了は円にして合図の時刻とそろえる。
+    const angle = Math.PI * 2 * Math.min(progress, .9999);
+    pin._progress.setAttribute('d', progress >= 1
+      ? 'M40 8A20 20 0 1 1 40 48A20 20 0 1 1 40 8'
+      : progress > 0 ? `M40 28L40 8A20 20 0 ${progress > .5 ? 1 : 0} 1 ${40 + Math.sin(angle) * 20} ${28 - Math.cos(angle) * 20}Z` : '');
+  }
+  // 端では同じ旗を矢印の上へ置き、見えている時は目的の人や床に竿を合わせる。
   flag.setAttribute('transform', outside ? 'translate(0,-24) scale(.75)' : '');
-  if (pin._person !== person) {
-    pin._person = person;
-    for (const ring of pin._rings) ring.style.display = person ? 'none' : '';
+  // 人の頭上や回避の矢印には輪を重ねず、地面の行き先だけに付ける。
+  const groundRing = !person && !want.dodge;
+  if (pin._groundRing !== groundRing) {
+    pin._groundRing = groundRing;
+    for (const ring of pin._rings) ring.style.display = groundRing ? '' : 'none';
+  }
+  // 本人の頭と足を同じ現在位置から投影する。旗の位置や群れの中心へ輪をずらさない。
+  const foot = pin._personFoot;
+  foot.style.display = 'none';
+  if (person && want.footRing && !outside) {
+    footPoint.set(want.unit.pos.x, want.unit.pos.y + .08, want.unit.pos.z).project(rt.camera);
+    const fx = (footPoint.x + 1) * W / 2, fy = (1 - footPoint.y) * H / 2;
+    if (footPoint.z >= -1 && footPoint.z <= 1 && fx >= 32 && fx <= W - 32 && fy >= 16 && fy <= H - 16 &&
+        !rects.some(r => fx + 32 > r.left && fx - 32 < r.right && fy + 14 > r.top && fy - 14 < r.bottom)) {
+      foot.style.display = ''; foot.style.transform = `translate(${(fx - x).toFixed(1)}px,${(fy - y + 52).toFixed(1)}px)`;
+    }
   }
   const arrow = pin.querySelector('.goal-edge');
-  arrow.style.display = outside ? '' : 'none';
+  arrow.style.display = outside && !arrived ? '' : 'none';
   arrow.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
   hud.missionPinOutside = outside;
   if (!outside && flagBounds && flagBounds.left >= 8 && flagBounds.top >= 8 &&
@@ -167,6 +215,7 @@ export function updateMissionPin(rt) {
   // 丸めず小数一桁で置き、地面に固定する。
   pin.style.transform = `translate(${(x - 40).toFixed(1)}px,${(y - (outside ? 40 : 68)).toFixed(1)}px)`;
 }
+const footPoint = new THREE.Vector3();
 const goalPoint = new THREE.Vector3();
 const goalDirection = new THREE.Vector3();
 const pinAt = { x: 0, z: 0, y: 0, ox: 0, oy: 0, at: 0, rt: null };
