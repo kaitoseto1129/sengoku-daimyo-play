@@ -77,7 +77,8 @@ function survive(b, inp) {
   // 砦の道順は戦専用の頭に任せる。深手の時は共通の退避を優先する。
   if (b.def.botDefendsFort && u.hp > u.maxHp * 0.3) { b.botSurviveUntil = 0; return false; }
   let foe = null, fd = 10, attacker = null, ad = 10, impact = Infinity, mate = null, md = 64, close = 0, support = 0, ex = 0, ez = 0;
-  let firstStrikeAngle = null, crossedStrikes = false, approaching = false, bladeNear = false;
+  let firstStrikeAngle = null, leftStrikeAngle = 0, rightStrikeAngle = 0;
+  let crossedStrikes = false, approaching = false, bladeNear = false;
   let pursuer = null, pd = 10;
   for (const o of army.units) {
     if (o === u || !o.alive || o.fleeing || o.group?.routed || o.group?.hidden || o.downed || o.isStruct || o.type === 'dummy' || o.noTarget) continue;
@@ -102,7 +103,12 @@ function survive(b, inp) {
         if (soon <= 1 && d <= (o.reach || 2.8) + 1) {
           const angle = Math.atan2(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
           if (firstStrikeAngle === null) firstStrikeAngle = angle;
-          else if (Math.cos(angle - firstStrikeAngle) < 0.5) crossedStrikes = true;
+          else {
+            // 正面の一本との比較だけでは、左右から挟む二本を見落とす。
+            const turn = Math.atan2(Math.sin(angle - firstStrikeAngle), Math.cos(angle - firstStrikeAngle));
+            leftStrikeAngle = Math.min(leftStrikeAngle, turn); rightStrikeAngle = Math.max(rightStrikeAngle, turn);
+            if (rightStrikeAngle - leftStrikeAngle > Math.PI / 3) crossedStrikes = true;
+          }
         }
       }
       if (o.sidearm || o.type !== 'gun' && o.type !== 'bow') {
@@ -116,7 +122,12 @@ function survive(b, inp) {
           // 正面で味方と並んで打ち合う間は保ち、横や背を挟まれた時だけ退く。
           const angle = Math.atan2(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
           if (firstStrikeAngle === null) firstStrikeAngle = angle;
-          else if (Math.cos(angle - firstStrikeAngle) < 0.5) crossedStrikes = true;
+          else {
+            // 振りの切れ目も同じ幅で見て、交互に来る横槍の前に退く。
+            const turn = Math.atan2(Math.sin(angle - firstStrikeAngle), Math.cos(angle - firstStrikeAngle));
+            leftStrikeAngle = Math.min(leftStrikeAngle, turn); rightStrikeAngle = Math.max(rightStrikeAngle, turn);
+            if (rightStrikeAngle - leftStrikeAngle > Math.PI / 3) crossedStrikes = true;
+          }
         }
         if (d < 8) approaching = true;
         if (d < 5) { close++; ex += o.pos.x; ez += o.pos.z; }

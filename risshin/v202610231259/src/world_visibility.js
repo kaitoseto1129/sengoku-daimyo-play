@@ -218,7 +218,9 @@ export class WorldVisibility {
       C.shadowRange2 = shadowRange2;
       C.x = px; C.y = py; C.z = pz; C.fx = fx; C.fy = fy; C.fz = fz; C.projection = projection;
       C.sx = sx; C.sz = sz;
-      const P = C.pts, nr2 = C.near * C.near;
+      // 景物の動く影を使わない戦では、影のためだけに背後の木や塀を残さない。
+      // 遠近の形を替える距離・画面端の揺れの余裕・本数はそのまま。
+      const P = C.pts, nr2 = this.def.sceneryViewOnly ? 0 : C.near * C.near;
       for (const cell of C.cells) {
         const dx = Math.max(cell.x0 - px, 0, px - cell.x1), dz = Math.max(cell.z0 - pz, 0, pz - cell.z1);
         const margin = (Math.max(Math.abs(cell.x0 - px), Math.abs(cell.x1 - px)) + Math.max(Math.abs(cell.z0 - pz), Math.abs(cell.z1 - pz))) * .02;

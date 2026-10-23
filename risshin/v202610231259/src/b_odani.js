@@ -1313,6 +1313,7 @@ const odani = {
     lowHumanDetail: 12, // 兵数と骨の動きは保ち、離れた兵の細部だけ軽い形へ。
     armyHeightLOD: true, // 上の曲輪の兵は高低差も含めて遠さを測る。
     tightSceneryCull: true, // 草木と板塀の実寸で囲み、画面外の細長い部品を余分に送らない。
+    sceneryViewOnly: true, // 景物は頂点色の陰影を使うため、近くても画面外の木・塀を送らない。
     armyViewCull: true, // 遠景の兵は人数を保ち、画面外の分だけ送らない。
     armyTerrainCull: true, // 山腹に完全に隠れる遠景兵だけ送らない。近景と影は保つ。
     singleSoldierLOD: true, // 遠近の境の兵を二重に送らず、一人につき一つの形で描く。
