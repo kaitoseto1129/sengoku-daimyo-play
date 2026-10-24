@@ -758,10 +758,8 @@ const okehazama = {
         pin.x = pos.x; pin.z = pos.z;
         pin.area = true; pin.hide = 0; pin.r = 8;
         pin.arrived = this.squadFlagReached(rt); pin.waiting = pin.arrived;
-        // 同じ穴が道の残りに合わせて満ちる。到着後は雨待ちの丸へ切り替える。
-        const left = Math.max(0, this.squadFlagDistance(rt) - pin.r);
-        pin.progress = pin.arrived ? 1 : Math.min(.98, Math.max(0,
-          1 - left / Math.max(.01, F.marchStartDistance)));
+        // 穴が満ちるのは待ち時間だけ。歩いている間と待機を同じ時計にしない。
+        pin.progress = pin.arrived ? 1 : null;
         return pin;
       }
       const pos = this.squadFlagPosition(rt);

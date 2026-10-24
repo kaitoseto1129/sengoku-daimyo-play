@@ -44,8 +44,9 @@ const POINT2 = { x: 40, z: 76.5 };
 const FORD_R = 4;
 // ピンと同じ岸まで進み、水から上がれば渡河済み。横へそれても小旗へ戻らせない。
 // 足の上下動で到着を遅らせず、岸そのものの高さで水深を調べる。
+// 歩く高さと描く土の補間差があっても、ピンが刺さる見えている岸で完了する。
 const atFordBank = (p, world) => p.z <= Math.min(nireZ(p.x) - NIRE_WIDTH2, POINT2.z + .75) &&
-  world.waterFootDepthAt(p.x, p.z, world.heightAt(p.x, p.z)) <= .12;
+  (world.waterFootDepthAt(p.x, p.z, world.heightAt(p.x, p.z)) <= .12 || drawGroundAt(world, p.x, p.z) >= .14);
 const FRONT2 = { x: 4, z: 20 };
 const ASSEMBLY2 = { x: 14, z: 10 };
 const RETREAT2 = { x: 24, z: 48 };

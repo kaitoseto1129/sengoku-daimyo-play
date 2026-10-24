@@ -23,14 +23,16 @@ export class HudCards {
     const dock = this.prog?.querySelector('.pg-st');
     if (dock && !this.controlsHelp) {
       const el = document.createElement('small');
+      el.className = 'opening-controls-help';
       el.style.cssText = 'max-width:100%;font:600 15px/1.4 sans-serif;white-space:pre-line;color:#fff3df;margin-top:4px';
       el.hidden = true; dock.insertBefore(el, dock.lastChild); this.controlsHelp = el;
     }
     if (!this.controlsHelp) return;
     this.controlsHelp.hidden = !active || this.controlsElapsed > 12 || S.reduceGuidance;
     if (!this.controlsHelp.hidden) {
-      const action = rt.player.weapon === 'gun' ? '撃つ' : rt.player.weapon === 'bow' ? '射る' : rt.player.weapon === 'sword' ? 'きる' : 'つく';
-      setText(this.controlsHelp, `${S.touchSwap ? '右' : '左'}をなぞって動く\n「${action}」を押して攻める`);
+      const weapon = rt.player.weapon;
+      const action = weapon === 'gun' ? '「撃つ」を押す' : weapon === 'bow' ? '「射る」を押す' : weapon === 'sword' ? '「きる」で刀をふる' : '「つく」で槍をつく';
+      setText(this.controlsHelp, `${S.touchSwap ? '右' : '左'}をなぞって動く\n${S.touchSwap ? '左' : '右'}の${action}`);
     }
   }
 
@@ -318,6 +320,8 @@ export class HudCards {
 /* 大きな行動一行と、小さい進み・時間を同じ札へまとめる。 */
 #hud #h-prog { width:max-content; max-width:calc(100vw - 112px); background:#14120f; }
 #hud #h-prog .pg-st { display:flex; flex-direction:column-reverse; align-items:flex-end; }
+html:root body #hud #h-prog .opening-controls-help:not([hidden]) { display:block !important; }
+html:root body #hud #h-prog .opening-controls-help[hidden] { display:none !important; }
 #hud #h-prog .pg-st span { font-size:max(20px, calc(20px * var(--text-scale, 1))); line-height:1.4; white-space:nowrap; }
 #hud #h-prog .pg-st b { margin:2px 0 0; font-size:12px; }
 #hud #h-prog .pg-next { max-width:320px; font-size:max(16px, calc(16px * var(--text-scale, 1))); line-height:1.4; }
@@ -339,10 +343,10 @@ html:root body #hud #h-prog.pg-changing .pg-st span { white-space:nowrap; }
 #hud.ending #h-prog, #hud:has(#bigmap:not([hidden])) #h-prog { visibility:hidden; }
 /* 稲生は任務を右、台詞を左。兵数と方位の帯の下を使う。 */
 html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog {
- top:calc(72px + env(safe-area-inset-top, 0px)); width:max-content; max-width:calc(100% - 32px);
+ top:calc(72px + env(safe-area-inset-top, 0px)); width:max-content; max-width:min(300px, 34vw);
 }
 html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog :is(.pg-st span,.pg-next) {
- white-space:nowrap; overflow:visible; text-overflow:clip;
+ white-space:pre-line !important; overflow:visible; text-overflow:clip; overflow-wrap:anywhere;
 }
 /* 稲生の今の操作は任務の二行目に残す。共通の一行表示で隠さない。 */
 html:root body #hud.mission-only #h-prog[data-battle="inou"] > .pg-next:not([hidden]) {
