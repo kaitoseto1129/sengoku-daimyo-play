@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202610241442 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202610241458 として写した） -->
 <title>戦国立身3D　足軽から天下へ、戦国の合戦アクション</title>
 <meta name="description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。">
 <link rel="canonical" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/">
@@ -69,7 +69,7 @@
 })();
 </script>
 <!-- /Meta Pixel -->
-<link rel="icon" type="image/png" sizes="32x32" href="./v202610241442/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610241442/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610241442/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610241442/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202610241458/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610241458/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610241458/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610241458/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
 :root {
@@ -810,16 +810,22 @@ body:has(#hud.photo) #overlay { display: none; }
 #loading .ld-wait { display: none; color: var(--washi); font-size: 16px; }
 #loading.first-battle .ld-wait { display: block; }
 /* 終点の見える棒で残る支度を示す。組み立て中も合成側で伸び、満ちてから閉じる。 */
-#loading.first-battle .ldbar { width: min(320px, 70vw); height: 14px; border: 1px solid var(--kin); border-radius: 3px; background: #14120f; }
+#loading.first-battle .ldbar { display: none; }
 #loading.first-battle .ldbar i { display: block; }
-/* 空の区切りは残る工程、金色は終わった工程。現在の工程は半分だけ満たす。 */
+/* 初陣は一本にまとめる。空きが残る支度、金色が完了。区切りの幅は所要時間の目安。 */
 #ld-steps { display:flex; gap:6px; width:min(320px, 70vw); margin:8px auto 0; }
 #ld-steps i { flex:1; height:6px; border:1px solid var(--kin); background:#14120f; }
 #ld-steps i.done { background:var(--kin); }
 #ld-steps i.current { background:linear-gradient(90deg,var(--kin) 50%,#14120f 50%); }
+#loading.first-battle #ld-steps { margin-top:16px; gap:4px; }
+#loading.first-battle #ld-steps i { position:relative; height:16px; min-width:10px; overflow:hidden; border-radius:2px; }
+#loading.first-battle #ld-steps i.current { background:#14120f; }
+#loading.first-battle #ld-steps i.current::before { content:''; position:absolute; inset:0; background:var(--kin); transform-origin:left; animation:ld-stage-fill var(--ld-duration) linear forwards; }
+@keyframes ld-stage-fill { from { transform:scaleX(.08); } to { transform:scaleX(.92); } }
+@media (prefers-reduced-motion:reduce) { #loading.first-battle #ld-steps i.current::before { animation:none; transform:scaleX(.5); } }
 
-/* 細かな作業名を読ませない。失敗時は通常表示へ戻る。 */
-#loading.first-battle #ld-stage > [role="status"] { display: none; }
+/* 現在の工程と残りの目安を、初陣でも隠さない。 */
+#loading.first-battle #ld-stage > [role="status"] { display: block; }
 @keyframes spin { to { transform: rotate(360deg); } }
 #ld-lore { max-width: 30em; margin: 20px auto 0; display: grid; gap: 8px; text-align: left; }
 #ld-lore p { margin: 0; font-family: var(--display); font-size: max(12px, calc(16px * var(--text-scale, 1))); line-height: 1.6; color: var(--washi); display: grid; grid-template-columns: 5em 1fr; gap: 10px; align-items: baseline; }
@@ -1816,7 +1822,7 @@ dialog.battle-retry .btn { box-sizing: border-box; width: 100%; min-width: 0; mi
 #hud #cheat { box-sizing:border-box; pointer-events:auto; max-width:calc(100vw - 32px); max-height:calc(100dvh - 96px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y; }
 #hud #cheat-close { position:sticky; top:0; background:var(--sumi-2); }
 </style>
-<link rel="stylesheet" href="./v202610241442/screens.css">
+<link rel="stylesheet" href="./v202610241458/screens.css">
 
 <canvas id="view"></canvas>
 <div id="lens" aria-hidden="true"></div>
@@ -1962,5 +1968,5 @@ dialog.battle-retry .btn { box-sizing: border-box; width: 100%; min-width: 0; mi
 } }
 </script>
 <script type="module">
-import('./v202610241442/src/main.js').catch(() => window.__bootFail());
+import('./v202610241458/src/main.js').catch(() => window.__bootFail());
 </script>
