@@ -1,4 +1,5 @@
 import { fieldSignsTick } from "./field_signs.js";
+import { fieldMapTick } from "./field_map.js";
 import { setClass, brushImage, esc, setHidden, setStyle, leanHud, guidanceEnded, setText, setHtml, subtitlePage, setAttr, setCssVar, retreatRequired, setWidth, moraleWord, tensionCss, singleBattleGuide, shortTask, fieldLabel, taskLabel, guardPostDistance, attackOperation, treatmentGuideText, retreatGuideText, rescueTarget, groundFlag, recovering, woundRetreat, combatTask, travelSignPriority, dismountFirst, treatmentRequired, defenseRadius, progressRatio, destinationDistance, taskDetail, RESCUE_SIGN, ENEMY_SIGN, setListRows, shortcutKey } from "./hud_common.js";
 import { terrainHints, isRtsOn } from "./rts.js";
 import { sightUnit, woundHint, sightScreenUnit, groupSeen, numberHint } from "./battle_sight.js";
@@ -222,6 +223,7 @@ export class Hud {
     this.rt = rt;
     this.openingControls(dt, rt);
     fieldSignsTick(rt, this.root);   // 敵の▼・武将の名と体力の棒（全戦）
+    fieldMapTick(rt, this.root, dt); // 隅の小さな全体地図（十分の一秒ごと）
     setClass(this.root, 'field-clean', pinGuideOn(rt));
     const missionOnly = !rt.def.town && !rt.def.dojo;
     setClass(this.root, 'mission-only', missionOnly);

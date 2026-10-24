@@ -146,7 +146,7 @@ export class BattleEnvironment {
     this.callT -= dt;
     if (this.callT <= 0) {
       this.callT = 28 + Math.random() * 30;
-      if (this.camp && !rt.over && !rt.aftermath) this.play(Math.random() < 0.6 ? 'drum' : 'horn', this.camp, 0.12, rain);
+      if (this.camp && !rt.over && !rt.aftermath) this.play('drum', this.camp, 0.12, rain); // 遠くの合成の法螺は鳴らさない（10/24）
     }
   }
 

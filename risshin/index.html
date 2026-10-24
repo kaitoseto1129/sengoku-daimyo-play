@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202610241039 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202610241310 として写した） -->
 <title>戦国立身3D　足軽から天下へ、戦国の合戦アクション</title>
 <meta name="description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。">
 <link rel="canonical" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/">
@@ -69,7 +69,7 @@
 })();
 </script>
 <!-- /Meta Pixel -->
-<link rel="icon" type="image/png" sizes="32x32" href="./v202610241039/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610241039/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610241039/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610241039/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202610241310/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610241310/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610241310/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610241310/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
 :root {
@@ -810,6 +810,12 @@ body:has(#hud.photo) #overlay { display: none; }
 /* 終点の見える棒で残る支度を示す。組み立て中も合成側で伸び、満ちてから閉じる。 */
 #loading.first-battle .ldbar { width: min(320px, 70vw); height: 14px; border: 1px solid var(--kin); border-radius: 3px; background: #14120f; }
 #loading.first-battle .ldbar i { display: block; }
+/* 空の区切りは残る工程、金色は終わった工程。現在の工程は半分だけ満たす。 */
+#ld-steps { display:flex; gap:6px; width:min(320px, 70vw); margin:8px auto 0; }
+#ld-steps i { flex:1; height:6px; border:1px solid var(--kin); background:#14120f; }
+#ld-steps i.done { background:var(--kin); }
+#ld-steps i.current { background:linear-gradient(90deg,var(--kin) 50%,#14120f 50%); }
+
 /* 細かな作業名を読ませない。失敗時は通常表示へ戻る。 */
 #loading.first-battle #ld-stage > [role="status"] { display: none; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -1808,7 +1814,7 @@ dialog.battle-retry .btn { box-sizing: border-box; width: 100%; min-width: 0; mi
 #hud #cheat { box-sizing:border-box; pointer-events:auto; max-width:calc(100vw - 32px); max-height:calc(100dvh - 96px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y; }
 #hud #cheat-close { position:sticky; top:0; background:var(--sumi-2); }
 </style>
-<link rel="stylesheet" href="./v202610241039/screens.css">
+<link rel="stylesheet" href="./v202610241310/screens.css">
 
 <canvas id="view"></canvas>
 <div id="lens" aria-hidden="true"></div>
@@ -1954,5 +1960,5 @@ dialog.battle-retry .btn { box-sizing: border-box; width: 100%; min-width: 0; mi
 } }
 </script>
 <script type="module">
-import('./v202610241039/src/main.js').catch(() => window.__bootFail());
+import('./v202610241310/src/main.js').catch(() => window.__bootFail());
 </script>

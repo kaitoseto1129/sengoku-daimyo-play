@@ -200,6 +200,15 @@ export function markedEnemy(rt) {
 }
 
 export function updateMissionPin(rt) {
+  drawMissionPin(rt);
+  // 稲生：行き先の印は常に一つ。地面のピン（画面外なら端の向き）が出ている間は、別の敵を指す端の▼を出さない（テストプレイの声 10/24）。
+  //   ピンが敵を指す時は、頭上の大きな▼も同じ相手の時だけ残す（別々の所を指さない）。
+  if (rt.def.key === 'inou' && pin && !pin.hidden && enemyTarget && !enemyTarget.hidden &&
+      (enemyTarget._direction.style.display !== 'none' || (pinAt.unit && pinAt.unit !== rt.army.missionMarkedEnemy))) {
+    enemyTarget.hidden = true; rt.hud.missionEnemyShown = false;
+  }
+}
+function drawMissionPin(rt) {
   // 行き先の矢印は一本。画面外では方向と名前を同じ印に添える。
   updatePlayerFoot(rt);
   const enemyMarked = updateEnemyTarget(rt);
@@ -718,7 +727,7 @@ function updateEnemyTarget(rt) {
   const hud = rt.hud, me = rt.player?.u;
   hud.missionEnemyShown = false;
   // 近い敵は頭上の▼と、画面外の同じ印で追う。
-  const active = rt.def.key !== 'okehazama' && rt.def.key !== 'moribe' && pinGuideOn(rt) && me?.alive && !rt.over && !rt.choice && !hud.introWaiting &&
+  const active = rt.def.key !== 'inou' && rt.def.key !== 'okehazama' && rt.def.key !== 'moribe' && pinGuideOn(rt) && me?.alive && !rt.over && !rt.choice && !hud.introWaiting &&
     !rt.player.camShot && !hud.bigmap && !hud.root.classList.contains('photo') &&
     !hud.root.classList.contains('ending') && !hud.root.querySelector('#cine.on');
   // 目前の一人を優先する。僅かな距離の差で印を付け替えず、見通しは四分の一秒ごとに調べる。
@@ -856,7 +865,8 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
       if (x < 92 || x > W - 92 || y < 104 || y > H - 68 || !inouPinFree(x, y, rects)) continue;
       found = true; break;
     }
-    if (!found) { el.hidden = true; return; }
+    // 札で空きが無くても、端の向きの印は必ず出す（行き先が分からなくならない）。
+    if (!found) { x = Math.max(92, Math.min(W - 92, W / 2 + dx * scale)); y = Math.max(104, Math.min(H - 68, cy + dy * scale)); }
   }
   // 画面内は行き先、画面外は進む方角を指す。
   route.setAttribute('transform', outside ? `rotate(${angle})` : '');
