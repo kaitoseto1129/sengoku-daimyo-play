@@ -149,9 +149,9 @@ function spawnShiba(rt) {
   // ---- 信勝方：集落の南に密集する柴田勢 ----
   // 前列の長槍、中央の徒歩武者、後列の弓。勝家も徒歩で中央の前寄り。
   F.shiba1 = enemyGroup(rt, { faction: 'nobukatsu', name: '柴田の長槍隊', anchor: { ...S0 }, facing: 0, fleeDir: { x: 0, z: -1 }, width: 12, noRout: true, formation: 'yari', dmgMult: 0.85, defMult: 1.2, morale: 95 },
-    dress([{ type: 'ashigaru', n: 30, o: { spear: 'nagae' } }], SHIBA));
+    dress([{ type: 'ashigaru', n: 22, o: { spear: 'nagae' } }], SHIBA));   // 湧く数を抑える（iPhone 12 で耐える段に落ちた。テストプレイの声 10/24）。前列の密度は保つ
   F.shibaG = enemyGroup(rt, { faction: 'nobukatsu', name: '柴田勝家の徒歩武者', anchor: { x: 0, z: S0.z - 9 }, facing: 0, fleeDir: { x: 0, z: -1 }, width: 10, noRout: true, formation: 'line', dmgMult: 0.85, defMult: 1.2, morale: 98 },
-    dress([{ type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true, keep: true } }, { type: 'samurai', n: 1, o: { name: '宮井勘兵衛' } }, { type: 'ashigaru', n: 26 }], SHIBA));
+    dress([{ type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true, keep: true } }, { type: 'samurai', n: 1, o: { name: '宮井勘兵衛' } }, { type: 'ashigaru', n: 18 }], SHIBA));
   F.shibaU = F.shibaG.units.find((u) => u.type === 'busho');
   F.shibaU.maxHp *= 1.4; F.shibaU.hp = F.shibaU.maxHp;
   // 勝家を殴り続けても、共通の深手による単独離脱を起こさない。
@@ -162,7 +162,7 @@ function spawnShiba(rt) {
   F.shibaU.pos.y = W.heightAt(F.shibaU.pos.x, F.shibaU.pos.z);
   F.shibaU.mesh.position.copy(F.shibaU.pos);
   F.shibaBow = enemyGroup(rt, { faction: 'nobukatsu', name: '柴田の後ろ弓', anchor: { x: 0, z: S0.z - 20 }, facing: 0, fleeDir: { x: 0, z: -1 }, width: 12, noRout: true, formation: 'line', dmgMult: 0.65, morale: 92 },
-    dress([{ type: 'bow', n: 10 }], SHIBA));
+    dress([{ type: 'bow', n: 6 }], SHIBA));
   F.shiba = [F.shiba1, F.shibaG, F.shibaBow];
   for (const g of F.shiba) park(g);
   // 後列の六人は追いを止める控え。前半に全員を討たせず、既存の兵を使う。
@@ -210,13 +210,15 @@ const inou = {
   missionHeading(rt) {
     const F = rt.flags;
     if (F.step === 1) {
-      if (F.training === 11 && !F.flankReached) return '右の畦へ進め';
+      if (F.training === 11 && !F.flankReached) return '▼の柴田の兵を倒せ';
       if (F.training === 12 && !gone(F.shiba1)) return '▼の柴田の兵を倒せ';
-      // 最初は二十四秒で側面への命令、後半は百十二秒で信長の前進へ移る。
-      const until = F.training < 11 ? 24 : 112;
-      return `信長の旗のそばで あと${Math.max(0, Math.ceil(until - (rt.t - F.stepT)))}秒 耐えろ`;
+      return '信長の旗のそばで耐えろ';
     }
-    if (F.step === 2) return '▼の敵をたおせ';
+    if (F.step === 2) {
+      // ピンは信長の旗。遠い間は行き先の名で言う。
+      const lead = F.nobuU?.alive ? F.nobuU.pos : NOBU, me = rt.player.u.pos;
+      return Math.hypot(me.x - lead.x, me.z - lead.z) > 10 ? '信長の旗のそばで耐えろ' : '▼の敵をたおせ';
+    }
     return F.step === 0 && F.training === 8 ? '▼の隊長をたおせ' : this.missions[this.missionOf(rt)];
   },
   commanderTarget: (rt) => rt.flags.step === 0 && rt.flags.training === 8 ? rt.flags.hayaLead :
@@ -225,7 +227,7 @@ const inou = {
   foeMarkVisible: () => true,
   missionSignTarget: (rt) => rt.flags.step === 0 && rt.flags.training >= 0 && rt.flags.training <= 8 ?
     rt.flags.training === 8 ? rt.flags.hayaLead :
-      rt.player.inRange && fighting(rt.player.rangeCueTarget) ? rt.player.rangeCueTarget : approachUnit(rt) :
+      approachUnit(rt) :
         rt.flags.step === 1 && rt.flags.training === 12 && !gone(rt.flags.shiba1) ? approachUnit(rt) :
           rt.flags.step === 3 ? rt.flags.hayaU : null,
   missionEnemyLabel: (rt) => rt.flags.step === 3 ? '林美作守' : rt.flags.step === 1 ? '柴田の兵' :
@@ -254,35 +256,19 @@ const inou = {
     }
     return signs;
   },
-  // 相手は頭上の赤い▼、移動先は届く足場の地面のピン。間合いに入ったら▼だけにする。
+  // 討つ相手は頭上の▼だけ。足場の黄色い印を別の兵に重ねない。
   missionPin: (rt) => {
     const F = rt.flags;
-    if (F.ending) return null;
-    if (F.step === 0 || F.step === 3) {
-      const u = rt.def.missionSignTarget(rt);
-      if (!fighting(u)) return null;
-      const P = rt.player, me = P.u.pos;
-      if (P.inRange && fighting(P.rangeCueTarget) && P.rangeCueTarget.team !== P.u.team) return null;
-      const dx = me.x - u.pos.x, dz = me.z - u.pos.z, distance = Math.hypot(dx, dz);
-      const stand = P.meleeReach(P.previewMeleeKind() || 'thrust') * .8;
-      // 既に足場へ着いた時は、自分の足元を行き先として示さない。
-      if (distance <= stand) return null;
-      const pin = pinPoint(rt, u.pos, 0, 0, u);
-      pin.x += dx / distance * stand; pin.z += dz / distance * stand;
-      pin.approach = true;
-      return pin;
-    }
+    if (F.ending || F.step === 0 || F.step === 3) return null;
     if (F.step === 1) {
       if (F.training === 11 && !F.flankReached) {
         return pinPoint(rt, FLANK, 8, undefined, null, '右の畦');
       }
-      if (F.training === 12 && !gone(F.shiba1)) {
-        // 敵本人へ案内し、近接戦では共通処理でピンを消して▼だけにする。
-        const u = rt.def.missionSignTarget(rt);
-        return fighting(u) ? pinPoint(rt, u.pos, 0, 0, u) : null;
-      }
-      // 耐える間も信長の旗にピンを立て続ける。画面の外なら端に向きの印（テストプレイの声 10/24「耐えろの場所が分からない」）。
-      const lead = F.nobuU?.alive ? F.nobuU.pos : NOBU;
+      if (F.training === 12 && !gone(F.shiba1)) return null;
+      let lead = F.nobuU?.alive ? F.nobuU.pos : NOBU;
+      // 自分が遠く離れた時は、信長の方へ十歩の所を行き先にする（信長と旗本も寄って来る）。敵中を長く戻らせない。
+      const me = rt.player.u.pos, far = Math.hypot(lead.x - me.x, lead.z - me.z);
+      if (far > 22) { const k = 10 / far; F.holdNear = F.holdNear || { x: 0, z: 0 }; F.holdNear.x = me.x + (lead.x - me.x) * k; F.holdNear.z = me.z + (lead.z - me.z) * k; lead = F.holdNear; }
       const pin = pinPoint(rt, lead, 20, 20);
       pin.always = true;
       return pin;
@@ -594,8 +580,8 @@ const inou = {
     rt.marker('shiba', centerOf(F.shiba1), () => '柴田の長槍隊', { red: true, group: F.shiba1 });
     // 軽い隊だけを中央の会戦へ寄せる。近くで戦う兵は増やさず、前列を横一線に当てる。はじめから組み合う。
     F.front = clash(rt, { x: 26, z: 18, facing: Math.PI, w: 22, gap0: 0, seed: 1556, noRout: true, killRate: 0.25, noReserve: true, noWake: true, host: false,
-      A: { flag: 'oda', armor: KIT.ARMOR.oda, count: 48, kind: 'spear', team: 0, faction: 'oda', flagRate: 0.15 },
-      B: { flag: 'kari', armor: SHIBA.armor, count: 72, kind: 'spear', team: 1, faction: 'nobukatsu', flagRate: 0.15 } });
+      A: { flag: 'oda', armor: KIT.ARMOR.oda, count: 36, kind: 'spear', team: 0, faction: 'oda', flagRate: 0.15 },
+      B: { flag: 'kari', armor: SHIBA.armor, count: 54, kind: 'spear', team: 1, faction: 'nobukatsu', flagRate: 0.15 } });
     F.front.go();
   },
 
@@ -888,6 +874,22 @@ const inou = {
       F.strayT = d > 52 ? (F.strayT || 0) + dt : 0;
       if (F.strayT > 10) { F.strayed = true; rt.violation('味方を離れたため、手柄が減った', ['組頭 源八', '味方と並べ。まだ負けではないぞ']); rt.objFail('stay'); }
     } else F.strayT = 0;
+    // 耐える段で自分が信長から遠く離れたら、信長と旗本が自分のそばへ来る。戻る道で敵中に取り残さない（テストプレイの声 10/24）。
+    if (!rt.G.lord && F.step === 1 && !(F.followAt > rt.t) && F.nobuU?.alive &&
+        !(F.training === 11 && !F.flankReached) && !(F.training === 12 && !gone(F.shiba1))) {
+      F.followAt = rt.t + 1;
+      const d = Math.hypot(p.x - F.nobuU.pos.x, p.z - F.nobuU.pos.z);
+      if (d > 22) {
+        const tx = p.x * 0.75 + F.nobuU.pos.x * 0.25, tz = p.z + 5;
+        for (const g of F.centerBack ? [F.nobuGroup] : [F.nobuGroup, F.hata]) {
+          if (gone(g) || g.dest && Math.hypot(g.dest.x - tx, g.dest.z - tz) < 6 && g.order === 'move') continue;
+          // 寄る間は足を止めて斬り合わない。着いたら戦う。
+          g.order = 'move'; g.speed = 4.2; g.aggro = 0; g.dest = { x: tx + (g === F.hata ? 4 : 0), z: tz };
+          for (const u of g.units) { u.target = null; u.moveTo = null; u.settled = false; }
+          g.onArrive = (q) => { q.order = 'attack'; q.aggro = 8; q.seekRange = 28; };
+        }
+      }
+    }
     if (F.step === 1) {
       const elapsed = rt.t - F.stepT;
       if (elapsed > 6 && F.training < 10) F.training = 10;

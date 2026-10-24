@@ -1914,7 +1914,8 @@ export class Player {
     if (this.staggerT > 0) this.staggerT -= dt;
     if (this.knockT > 0) this.knockT -= dt;
     if (this.gunHurtT > 0) this.gunHurtT -= dt;
-    if (this.twist) { const k = Math.min(1, dt * 9); this.yaw += this.twist * k * 0.5; this.twist *= (1 - k); if (Math.abs(this.twist) < 0.002) this.twist = 0; }
+    if (this.twist) { const k = Math.min(1, dt * 9); // 打たれても視点は回さない（kaito 10/24）
+      this.twist *= (1 - k); if (Math.abs(this.twist) < 0.002) this.twist = 0; }
     const rt = this.rt;
     const army = rt.army;
     const treating = this.treating;
@@ -2143,7 +2144,7 @@ export class Player {
       if (this.assist && this.assist.t > 0) {
         this.assist.t -= dt;
         want = this.assist.h;
-        this.yaw += angleDiff(this.yaw, want) * Math.min(1, dt * (this.fpK > 0.5 ? 9 : 2.5));
+        // 体だけ相手へ向け、視点は動かさない（勝手に視点を変えない。kaito 10/24）
         u.heading += angleDiff(u.heading, want) * Math.min(1, dt * 22);
       } else if (want !== null) u.heading += angleDiff(u.heading, want) * Math.min(1, dt * 16 * tf.turn);
       // 踏み込み（照準補助で半歩先の敵へ）：一コマで跳ばず、0.12 秒かけて滑るように寄る
@@ -5039,7 +5040,7 @@ export class Player {
     if (this.crowdT <= 0) { this.crowdT = 0.3; this.crowd = 0; this.rt.army.forNear(u.pos.x, u.pos.z, 4, countCameraAlly, this); }
     // 持ち上げは小さく（見下ろしの絵にしない。前の味方は allyFade で透かす）。馬上は馬の首を越えて前が見える高さに
     // 騎乗中は囲まれるほど、さらに高く引く（自分の馬のたてがみ・鞍で前が塞がらないように）
-    this.crowdLift = (this.crowdLift || 0) + ((this.crowd > 5 ? (this.mounted ? 0.55 : 0.3) : 0) - (this.crowdLift || 0)) * Math.min(1, dt * 2);
+    this.crowdLift = (this.crowdLift || 0) + ((this.crowd > 5 && this.mounted ? 0.55 : 0) - (this.crowdLift || 0)) * Math.min(1, dt * 2);
     want.y += landscapePull * .4 + (this.rt.squad.length ? 0.35 : 0.15) - pull * 0.7 + this.crowdLift + (this.mounted ? 1.3 - rc * 2 : 0) + viewK * 0.25 + this.marchK * 1.0 * (1 - rc * 0.85) + wk * 6 + this.cineK * 1.2 + ok * overH + (this.rt.def.camLift || 0) + defeatLift;
     // 横持ちでは味方の肩越しへ上げ、視線も上げて前方の敵を残す。
     if (landscapeFrame && !this.mounted) want.y = Math.max(want.y, u.pos.y + 2.8);

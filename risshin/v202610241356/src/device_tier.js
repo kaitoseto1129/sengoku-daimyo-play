@@ -1,7 +1,7 @@
 // 記憶の少ない端末（iPhone 11 ＝ A13 以前・RAM 3〜4GB）を見分ける（10/23 Lancers：iPhone 11 の Safari で四つの戦とも落ちた）。
 //   iPhone の Safari と WKWebView は GPU の名を「Apple GPU」としか返さないので、画面の大きさと画素の倍率で当てる。
 //   ・倍率 2 の iPhone（XR・11・SE 2/3・8 以前）・短辺 375 以下（X・XS・11 Pro・12/13 mini）・414×896 の倍率 3（XS Max・11 Pro Max）は弱い。
-//   ・390×844（12〜14・16e）・393×852・402×874・428×926・430×932・440×956 は強い（今のまま）。
+//   ・393×852・402×874・428×926・430×932・440×956 は強い（今のまま）。
 //   ・iPad は 768×1024 の倍率 2（無印 5〜9 世代・mini 4/5・Air 2）を弱いとする。
 //   ・Android は deviceMemory が 8GB 以下、ほかの機械は 4GB 以下なら弱い。
 //   ・GPU が Mali・Adreno 6xx 以下と 700〜729（Xperia 10 VII の 710 など中の下）・PowerVR、Windows の Intel UHD/Iris も弱い。
@@ -19,6 +19,8 @@ function detect() {
     if (r <= 2) return 'iphone-2x';
     if (s <= 375) return 'iphone-small';
     if (s === 414 && l === 896) return 'iphone-xsmax';
+    // 390×844 は iPhone 12・13（RAM 4GB）を含む。12 で稲生の耐える段に落ちた（Lancers 10/24）。14・16e も同じ画面なので弱い作りに入る。
+    if (s === 390 && l === 844) return 'iphone-390';
     return '';
   }
   const iPad = /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);

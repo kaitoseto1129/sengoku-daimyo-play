@@ -115,6 +115,15 @@ function ldBegin(keys, battle = '') {
   if (bar) { bar.style.transition = 'none'; bar.style.transform = 'scaleX(0)'; }
   $('loading').style.setProperty('--ld-progress', '0%');
   $('loading').style.setProperty('--ld-stages', String(keys.length));
+  // 見込みの棒とは別に、実際に終わった工程を字のない区切りで残す。
+  let steps = $('ld-steps');
+  if (!steps) {
+    steps = document.createElement('div'); steps.id = 'ld-steps';
+    steps.setAttribute('aria-hidden', 'true');
+    document.querySelector('#loading .ldbar').after(steps);
+  }
+  steps.replaceChildren(...keys.map(() => document.createElement('i')));
+
   clearInterval(ldIv); ldIv = setInterval(ldTick, 250);
   const actions = document.querySelector('#loading .ld-cancel');
   if (actions) actions.remove();
@@ -154,6 +163,11 @@ function ldStep(key) {
   const P = ldPlan; if (!P) return;
   const i = P.keys.indexOf(key); if (i < 0 || i === P.cur) return;
   P.cur = i; P.t = performance.now();
+  const steps = $('ld-steps');
+  if (steps) for (let k = 0; k < steps.children.length; k++) {
+    steps.children[k].className = k < i ? 'done' : k === i ? 'current' : '';
+  }
+
   // 初陣も合成側で棒を伸ばす。兵を組み立てる間に処理が詰まっても止めない。
   const sum = P.est.reduce((a, v) => a + v, 0) || 1;
   let a = 0; for (let k = 0; k < i; k++) a += P.est[k];
@@ -2002,6 +2016,7 @@ const game = {
       console.info('読み込みの時間（千分の一歩秒）', JSON.stringify(LT));
       if (!tool && !isNorender()) ldLearn({ defs: LT.defs, assets: LT.assets, build: LT.buildOnly, warm: LT.humansWarm, compile: LT.compile, first: LT.first });
       stage('戦の支度ができました');
+      if ($('ld-steps')) for (const step of $('ld-steps').children) step.className = 'done';
       clearInterval(ldIv); ldIv = 0;
       $('loading').style.setProperty('--ld-progress', '100%');
       { const bar = document.querySelector('#loading .ldbar i'); if (bar) { bar.style.transition = 'transform .3s linear'; bar.style.transform = 'scaleX(1)'; } await new Promise((r) => setTimeout(r, 350)); }   // 残りを急に消さず、満ちてから閉じる（kaito 10/23 稲生 37）

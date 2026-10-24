@@ -200,6 +200,15 @@ export function markedEnemy(rt) {
 }
 
 export function updateMissionPin(rt) {
+  drawMissionPin(rt);
+  // 稲生：行き先の印は常に一つ。地面のピン（画面外なら端の向き）が出ている間は、別の敵を指す端の▼を出さない（テストプレイの声 10/24）。
+  //   ピンが敵を指す時は、頭上の大きな▼も同じ相手の時だけ残す（別々の所を指さない）。
+  if (rt.def.key === 'inou' && pin && !pin.hidden && enemyTarget && !enemyTarget.hidden &&
+      (enemyTarget._direction.style.display !== 'none' || (pinAt.unit && pinAt.unit !== rt.army.missionMarkedEnemy))) {
+    enemyTarget.hidden = true; rt.hud.missionEnemyShown = false;
+  }
+}
+function drawMissionPin(rt) {
   // 行き先の矢印は一本。画面外では方向と名前を同じ印に添える。
   updatePlayerFoot(rt);
   const enemyMarked = updateEnemyTarget(rt);
@@ -429,17 +438,15 @@ export function updateMissionPin(rt) {
     pin._waitArrived = arrived;
     pin._groundPin = groundPin; pin._wideHole = oke; pin._flagDestination = flagDestination; pin._passage = want.passage;
     flag.setAttribute('d', groundPin && (oke || !flagDestination) ? oke
-      ? arrived
-        // 到着後は先端を畳む。同じ印が満ち、移動先を指し続けない。
-        ? 'M40 -22A30 30 0 1 1 40 38A30 30 0 1 1 40 -22Z M40 -12A20 20 0 1 0 40 28A20 20 0 1 0 40 -12Z'
-        : 'M40 68L15 25A30 30 0 1 1 65 25Z M40 -12A20 20 0 1 0 40 28A20 20 0 1 0 40 -12Z'
+      // 到着しても地面の先端と穴の位置を保ち、同じピンの中で待つ進みを示す。
+      ? 'M40 68L15 25A30 30 0 1 1 65 25Z M40 -12A20 20 0 1 0 40 28A20 20 0 1 0 40 -12Z'
       : 'M40 68L25 38C5 9 75 9 55 38Z M40 20A6 6 0 1 0 40 32A6 6 0 1 0 40 20Z' : 'M32 65V5H65L56 18L65 31H32');
     flag.setAttribute('fill-rule', 'evenodd');
   }
   // 合図の時刻は範囲を出ても進む。同じピンの円も途切れさせない。
   const showProgress = oke && Number.isFinite(want.progress);
   // 丸が満ちるのは待機中だけ。行軍中は空の穴を保つ。
-  const showArrival = oke && arrived;
+  const showArrival = oke && (arrived || Number.isFinite(want.arrivalProgress));
   const showHold = oke ? showProgress || showArrival : arrived && (!person || want.footRing) && !want.defend && !outside && !flagDestination;
   flag.style.display = destinationArrow || (person && !groundPerson) || want.defend || inouEnemy || want.fire || want.gate || want.dodge || showHold && !oke ? 'none' : '';
   if (flagDestination && !oke) flag.style.display = '';
@@ -469,7 +476,12 @@ export function updateMissionPin(rt) {
   // 待ち時間の扇形は隠さず、待ち終わった時だけ穴いっぱいのチェックへ替える。
   pin._arrivedMark.style.display = oke && arrived ? '' : 'none';
   pin._arrivedMark.setAttribute('transform', oke && !(want.progress >= 1) ? 'translate(16,48) scale(.6)' : '');
-  pin._arrival.style.display = oke && arrived ? '' : 'none';
+  pin._arrival.style.display = showArrival ? '' : 'none';
+  // 集合へ近づく間は穴の縁が閉じ、着いたら中の扇形が待ち時間を刻む。
+  // 別の丸へ替えず、同じ地面に刺さるピンの中だけで示す。
+  const arrivalProgress = arrived ? 1 : Math.max(0, Math.min(1, want.arrivalProgress || 0));
+  pin._arrival.setAttribute('stroke-dasharray', '113.1');
+  pin._arrival.setAttribute('stroke-dashoffset', String(113.1 * (1 - arrivalProgress)));
   // 桶狭間は到着しても同じピンを残し、その穴の中だけで待ちの進みを示す。
   // 別の時計へ替えず、待つ場所と満ち切る合図を一つにする。
   if (pin._holdOke !== oke) {
@@ -503,8 +515,7 @@ export function updateMissionPin(rt) {
   }
   flag.setAttribute('transform', outside ? edgeFlag ? 'translate(14,-34) scale(.65)' :
     groundPin ? 'translate(0,-24) scale(.75)' : 'translate(0,-24)' : groundPin ? '' : 'translate(16,19.25) scale(.75)');
-  // 到着で縮めない。雨待ちの小さな進みも同じ大きさの穴で読めるようにする。
-  if (oke && !outside && arrived) flag.setAttribute('transform', 'translate(0,30)');
+  // 到着しても先端と穴を動かさず、別の行き先に切り替わったように見せない。
   pin._hold.setAttribute('transform', oke ? `${flag.getAttribute('transform')} translate(4,-17.2) scale(.9)` : '');
   // 方向は端の旗一本へまとめ、自分の足元には輪だけを残す。
   // 行き先の輪は足さず、自分の水色の足元印と役割を分ける。
@@ -540,16 +551,13 @@ export function updateMissionPin(rt) {
   if (want.passage && !outside) flag.setAttribute('transform', 'translate(-22,0)');
   // 到着で本体が明るくなる。同じピンの穴が満ちるまで、その場で待てる。
   if (oke) {
-    // 到着も待ちも同じピン。穴のチェックで合流、扇形で残る待ちを示す。
-    // 画面外で到着した時も形を戻し、進む矢じりを残さない。
-    if (arrived) {
-      flag.setAttribute('d', 'M40 -22A30 30 0 1 1 40 38A30 30 0 1 1 40 -22Z M40 -12A20 20 0 1 0 40 28A20 20 0 1 0 40 -12Z');
-      // 画面外でも到着後の丸を回さない。自分を指すピンに見せない。
-      if (outside) {
-        flag.setAttribute('transform', 'translate(0,32)');
-        pin._hold.setAttribute('transform', 'translate(0,32) translate(4,-17.2) scale(.9)');
-      }
-    } else if (!outside) flag.setAttribute('d', 'M40 68L15 25A30 30 0 1 1 65 25Z M40 -12A20 20 0 1 0 40 28A20 20 0 1 0 40 -12Z');
+    if (!outside || arrived) flag.setAttribute('d', 'M40 68L15 25A30 30 0 1 1 65 25Z M40 -12A20 20 0 1 0 40 28A20 20 0 1 0 40 -12Z');
+    // 到着後も同じ地面に刺したまま。穴の扇形が満ちると味方が出発する。
+    if (arrived && outside) {
+      // 待つ間は画面の端でも向きを回さず、移動の催促にしない。
+      flag.setAttribute('transform', 'translate(0,-24) scale(.75)');
+      pin._hold.setAttribute('transform', 'translate(0,-24) scale(.75) translate(4,-17.2) scale(.9)');
+    }
     flag.setAttribute('fill', arrived ? '#e4f2cb' : '#fff3ba');
     flag.setAttribute('stroke', '#14120f');
   }
@@ -718,7 +726,7 @@ function updateEnemyTarget(rt) {
   const hud = rt.hud, me = rt.player?.u;
   hud.missionEnemyShown = false;
   // 近い敵は頭上の▼と、画面外の同じ印で追う。
-  const active = rt.def.key !== 'okehazama' && rt.def.key !== 'moribe' && pinGuideOn(rt) && me?.alive && !rt.over && !rt.choice && !hud.introWaiting &&
+  const active = rt.def.key !== 'inou' && rt.def.key !== 'okehazama' && rt.def.key !== 'moribe' && pinGuideOn(rt) && me?.alive && !rt.over && !rt.choice && !hud.introWaiting &&
     !rt.player.camShot && !hud.bigmap && !hud.root.classList.contains('photo') &&
     !hud.root.classList.contains('ending') && !hud.root.querySelector('#cine.on');
   // 目前の一人を優先する。僅かな距離の差で印を付け替えず、見通しは四分の一秒ごとに調べる。
@@ -856,7 +864,8 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
       if (x < 92 || x > W - 92 || y < 104 || y > H - 68 || !inouPinFree(x, y, rects)) continue;
       found = true; break;
     }
-    if (!found) { el.hidden = true; return; }
+    // 札で空きが無くても、端の向きの印は必ず出す（行き先が分からなくならない）。
+    if (!found) { x = Math.max(92, Math.min(W - 92, W / 2 + dx * scale)); y = Math.max(104, Math.min(H - 68, cy + dy * scale)); }
   }
   // 画面内は行き先、画面外は進む方角を指す。
   route.setAttribute('transform', outside ? `rotate(${angle})` : '');

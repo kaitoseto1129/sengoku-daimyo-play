@@ -43,7 +43,8 @@ function enemyGroup(rt, options, list) {
 
 const P1 = [[0, 172], [-4, 150], [-4, 144], [4, 140], [6, 118], [-8, 90], [-24, 60], [-30, 30], [-22, 0], [-12, -30], [-8, -46]];
 const HONJIN = { x: 18, z: -116 };
-const JOIN_RADIUS = 3.5;
+// ピンの根元へ歩けば合流する。出発前も行軍後も同じ間合いにそろえる。
+const JOIN_RADIUS = 2.5;
 const readyUnit = (u) => !!u && u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget;
 const readyGroup = (g) => g && !g.routed && g.units.some(readyUnit);
 
@@ -723,7 +724,7 @@ const okehazama = {
     // 雨待ちの丸が満ちたことを一息見せてから、戦う相手の印へ切り替える。
     if (F.waitPinCompleteUntil > rt.t && F.waitPinCompletePos) {
       const pos = F.waitPinCompletePos;
-      pin.x = pos.x; pin.z = pos.z; pin.r = 8; pin.hide = 0;
+      pin.x = pos.x; pin.z = pos.z; pin.r = JOIN_RADIUS; pin.hide = 0;
       pin.key = 'wait'; pin.always = true; pin.area = true;
       pin.waiting = true; pin.arrived = true; pin.progress = 1;
       return pin;
@@ -733,19 +734,7 @@ const okehazama = {
       const entrance = !F.entered && F.roadStep >= F.road.length ||
         F.guardOpened && !F.mouthReached && !F.koshiLeft;
       // 戦う相手は頭上の赤い▼だけ。集合用の黄ピンを人へ付けない。
-      if (!entrance) {
-        const P = rt.player, enemy = this.missionSignTarget(rt);
-        if (!readyUnit(enemy) || P.inRange && readyUnit(P.rangeCueTarget)) return null;
-        const me = P.u.pos, dx = me.x - enemy.pos.x, dz = me.z - enemy.pos.z;
-        const distance = Math.hypot(dx, dz);
-        const stand = P.meleeReach(P.previewMeleeKind() || 'thrust') * .8;
-        if (distance <= stand || P.weapon === 'gun' || P.weapon === 'bow') return null;
-        // 赤い▼は本人、ピンは一撃が届く手前の足場。同じ位置まで歩けば斬れる。
-        pin.x = enemy.pos.x + dx / distance * stand;
-        pin.z = enemy.pos.z + dz / distance * stand;
-        pin.r = 0; pin.hide = .4; pin.approach = true;
-        return pin;
-      }
+      if (!entrance) return null;
       const pos = F.honjinPin || (F.honjinPin = fieldPoint(18, -100));
       pin.x = pos.x; pin.z = pos.z; pin.r = 0; pin.hide = 0;
       return pin;
@@ -754,7 +743,7 @@ const okehazama = {
     if (rt.phase === 'wait') {
       const pos = F.marchPinPos || this.squadFlagPosition(rt);
       if (!pos) return null;
-      pin.x = pos.x; pin.z = pos.z; pin.r = 8; pin.hide = 0;
+      pin.x = pos.x; pin.z = pos.z; pin.r = JOIN_RADIUS; pin.hide = 0;
       pin.area = true; pin.waiting = true; pin.arrived = true;
       pin.progress = this.missionWaitProgress(rt);
       return pin;
@@ -768,18 +757,20 @@ const okehazama = {
         const pos = F.marchPinPos || this.squadFlagPosition(rt);
         if (!pos) return null;
         pin.x = pos.x; pin.z = pos.z;
-        pin.area = false; pin.hide = 0; pin.r = 8;
+        pin.area = false; pin.hide = 0; pin.r = JOIN_RADIUS;
         pin.arrived = this.squadFlagReached(rt); pin.waiting = pin.arrived;
+        pin.arrivalProgress = Math.max(0, Math.min(1, 1 - (this.squadFlagDistance(rt) - pin.r) / 10));
         // 穴が満ちるのは待ち時間だけ。到着はチェックで示し、雨待ちの時計を先に満たさない。
         return pin;
       }
       const pos = this.squadFlagPosition(rt);
       if (!pos) return null;
       pin.x = pos.x; pin.z = pos.z;
-      pin.r = rt.phase === 'brief' ? JOIN_RADIUS : 8;
+      pin.r = JOIN_RADIUS;
       // ピンは到着判定と同じ地面の一点へ。人物への話しかけの印にしない。
       pin.hide = 0; pin.waiting = false; pin.area = false;
       pin.arrived = rt.phase === 'brief' && F.briefed || this.squadFlagReached(rt);
+      pin.arrivalProgress = Math.max(0, Math.min(1, 1 - (this.squadFlagDistance(rt) - pin.r) / 10));
       // 出発前も同じピンの穴が満ちる。別の時計や人物の印へ切り替えない。
       if (pin.arrived) {
         pin.waiting = true;
@@ -934,7 +925,7 @@ const okehazama = {
   // 合流・行軍の完了とピンの消灯を同じ位置・半径・壁の判定でそろえる。
   squadFlagReached(rt) {
     const at = this.squadFlagPosition(rt), p = rt.player.u.pos;
-    return !!at && Math.hypot(at.x - p.x, at.z - p.z) <= (rt.phase === 'brief' ? JOIN_RADIUS : 8) &&
+    return !!at && Math.hypot(at.x - p.x, at.z - p.z) <= JOIN_RADIUS &&
       !rt.army.wallBetween(p, -1, at);
   },
   // 下知は一度に一つ。合流・追従・待機を、今の目印とそろえる。
@@ -2103,7 +2094,7 @@ const okehazama = {
     rt.flags.marchPinPos = { x, y: rt.world.heightAt(x, z), z };
     rt.flags.marchGoal = rt.flags.marchPinPos;
     rt.obj('col', '目印の仲間に ついて進もう', 'main');
-    rt.marker('genpachi', rt.flags.marchGoal, '組の集合場所', { guideFlag: true, group: rt.hostGroup, guideRadius: 8 });
+    rt.marker('genpachi', rt.flags.marchGoal, '組の集合場所', { guideFlag: true, group: rt.hostGroup, guideRadius: JOIN_RADIUS });
   },
   update(rt, dt) {
     const F = rt.flags;
@@ -2305,7 +2296,7 @@ const okehazama = {
       // 下知を待つ場所だけを固定して示す。隊や兵の動きには触れない。
       F.waitPos = F.marchPinPos || F.marchGoal;
       F.waitReadyAt = rt.t + 17;
-      rt.marker('wait', F.waitPos, '組の旗で待つ場所', { guideArea: 'wait', guideFlag: true, group: host, guideRadius: 8, guidePriority: 200,
+      rt.marker('wait', F.waitPos, '組の旗で待つ場所', { guideArea: 'wait', guideFlag: true, group: host, guideRadius: JOIN_RADIUS, guidePriority: 200,
         waitUntil: () => rt.phase === 'wait' ? F.waitReadyAt : null, waitDuration: 17 });
       localSay(rt, rt.hostGroup, '組頭', '合図を待て', 3);
     }
@@ -2726,6 +2717,8 @@ const okehazama = {
     rt.finish({ scriptedEnd: true }, 7);
   },
   onKill(rt, v, k) {
+    // 討った相手の▼を、その本人の最後の頭上で閉じてから消す。
+    if (v.team !== rt.player.u.team && k?.isPlayer) v.okeDefeatUntil = rt.t + .8;
     // 討った本人だけを覚える。味方の働きを自分の手柄にはしない。
     if (v.team === 1 && k?.isPlayer && !rt.flags.victory &&
         (rt.flags.road.includes(v.group) || (v.group === rt.flags.hatamoto && v !== rt.flags.yoshimoto)))
