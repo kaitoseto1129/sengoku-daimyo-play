@@ -8,10 +8,30 @@ import { sightUnit } from './battle_sight.js';
 export class HudCards {
 
 
-  // 操作は絵で示し、開戦時の字の案内は出さない。
-  openingControls() {
+  // 最初の操作は任務と同じ札へ収め、命・敵の印と合わせて三枚にする。
+  openingControls(dt, rt) {
     this.openingControlsActive = false;
     if (this.controlsEl) this.controlsEl.hidden = true;
+    if (this.controlsBattle !== rt) {
+      this.controlsBattle = rt;
+      this.controlsElapsed = 0;
+    }
+    const active = isTouch && !rt.def.town && !rt.def.dojo && rt.player.u.alive && !rt.over && !rt.choice &&
+      !this.introWaiting && !this.openingActive && !this.bigmap && !rt.game?.paused &&
+      !rt.game?.deployment && !rt.game?.photo && !rt.player.camShot;
+    if (active) this.controlsElapsed += dt;
+    const dock = this.prog?.querySelector('.pg-st');
+    if (dock && !this.controlsHelp) {
+      const el = document.createElement('small');
+      el.style.cssText = 'max-width:100%;font:600 15px/1.4 sans-serif;white-space:pre-line;color:#fff3df;margin-top:4px';
+      el.hidden = true; dock.insertBefore(el, dock.lastChild); this.controlsHelp = el;
+    }
+    if (!this.controlsHelp) return;
+    this.controlsHelp.hidden = !active || this.controlsElapsed > 12 || S.reduceGuidance;
+    if (!this.controlsHelp.hidden) {
+      const action = rt.player.weapon === 'gun' ? '撃つ' : rt.player.weapon === 'bow' ? '射る' : rt.player.weapon === 'sword' ? 'きる' : 'つく';
+      setText(this.controlsHelp, `${S.touchSwap ? '右' : '左'}をなぞって動く\n「${action}」を押して攻める`);
+    }
   }
 
   // 手ほどき：いまの段だけを札に出す
@@ -453,7 +473,10 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     if (el._waitFill !== waitFill) {
       el._waitFill = waitFill;
       stEl.style.backgroundImage = waitFill < 0 ? '' :
-        `linear-gradient(to right, rgba(232,194,90,.28) ${waitFill}%, transparent ${waitFill}%)`;
+        `linear-gradient(to right, #ffe28a ${waitFill}%, #615745 ${waitFill}%)`;
+      stEl.style.backgroundSize = waitFill < 0 ? '' : '100% 5px';
+      stEl.style.backgroundPosition = waitFill < 0 ? '' : 'left bottom';
+      stEl.style.backgroundRepeat = waitFill < 0 ? '' : 'no-repeat';
     }
     // 桶狭間の null は「今は待ちではない」。接敵中に共通の時計を戻さない。
     const pie = timeEl.firstChild, waiting = def.key === 'okehazama' ? Number.isFinite(progress) :

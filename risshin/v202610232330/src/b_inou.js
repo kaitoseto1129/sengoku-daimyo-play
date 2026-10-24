@@ -196,6 +196,7 @@ const inou = {
   immediateTaskChanges: true,
   nearAllyWholeOcclusion: true,
   nearAllySolidBody: true,
+  nearSpearFade: false, // 槍だけを縮めて透かさず、持ち主と同じ形を保つ。
   missionPinCaption: '',
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
   // 任務は一行。兵と武将を区別し、距離や向きは字にしない。
@@ -203,11 +204,11 @@ const inou = {
   missionHeading(rt) {
     const F = rt.flags;
     if (F.step === 1) {
-      if (F.training === 11 && !F.flankReached) return '右の畦へ回れ';
-      if (F.training === 12 && !gone(F.shiba1)) return '柴田の兵をたおせ';
+      if (F.training === 11 && !F.flankReached) return '赤い印の兵を倒せ';
+      if (F.training === 12 && !gone(F.shiba1)) return '赤い印の兵を倒せ';
       return '耐えろ';
     }
-    if (F.step === 2) return '信長について進め';
+    if (F.step === 2) return '信勝の兵を倒せ';
     return F.step === 0 && F.training === 8 ? '林の隊長を倒せ' : this.missions[this.missionOf(rt)];
   },
   commanderTarget: (rt) => rt.flags.step === 0 && rt.flags.training === 8 ? rt.flags.hayaLead :
@@ -245,7 +246,7 @@ const inou = {
     }
     return signs;
   },
-  // 届く足場まで地面のピン一本で誘い、間合いに入ったら本人の頭上の▼へ引き継ぐ。
+  // 相手は頭上の赤い▼、移動先は届く足場の地面のピン。間合いに入ったら▼だけにする。
   missionPin: (rt) => {
     const F = rt.flags;
     if (F.ending) return null;
