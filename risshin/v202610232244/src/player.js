@@ -657,6 +657,7 @@ export class Player {
         // 全身を避ける戦では、行き先を塞ぐ味方にも半透明の残像を作らない。
         if (this.rt.def.nearAllyWholeOcclusion !== false) {
           this.hideNearFlag(o.mesh); this.hideNearFlag(o.human?.root); this.hideNearFlag(o.wpn);
+          if (this.rt.def.key === 'inou') this.hideNearFlag(o.horse);
           this.hideNearFlag(o.flag); this.hideNearFlag(o.standardFlag);
           return;
         }
@@ -674,6 +675,7 @@ export class Player {
         // 指定のある戦では、味方を部位ごとに透かさず、視線を塞ぐ間だけ全身を避ける。
         if (this.rt.def.nearAllyWholeOcclusion !== false) {
           this.hideNearFlag(o.mesh); this.hideNearFlag(o.human?.root); this.hideNearFlag(o.wpn);
+          if (this.rt.def.key === 'inou') this.hideNearFlag(o.horse);
           this.hideNearFlag(o.flag); this.hideNearFlag(o.standardFlag);
           return;
         }
@@ -689,6 +691,7 @@ export class Player {
         const rideHeight = this.rt.def.nearAllyWholeOcclusion && o.mounted ? RIDE.y : 0;
         if (cam.position.y >= o.pos.y - 0.2 && cam.position.y <= o.pos.y + rideHeight + 2.4) {
           this.hideNearFlag(o.mesh); this.hideNearFlag(o.human?.root); this.hideNearFlag(o.wpn);
+          if (this.rt.def.key === 'inou') this.hideNearFlag(o.horse);
           this.hideNearFlag(o.flag); this.hideNearFlag(o.standardFlag);
         }
         return;
@@ -4497,10 +4500,10 @@ export class Player {
         part.updateMatrixWorld(true);
         part.traverse(this.nearAllyFadePart);
       }
-      const goal = this.rt.missionGuide?.pos;
+      const goal = D.key === 'inou' ? focus?.pos : this.rt.missionGuide?.pos;
       // 行き先の前を横切る手前の味方の長柄も避ける。敵の攻撃の見え方は保つ。
       let blocksGoal = false;
-      if (closeSpear && goal) {
+      if ((closeSpear || D.key === 'inou' && o !== this.u && o.team === this.u.team && o.wpn?.visible && (o.wpnKind || o.lookWeapon) === 'spear') && goal) {
         _fpS.set(goal.x, goal.y ?? this.rt.world.heightAt(goal.x, goal.z), goal.z);
         blocksGoal = flagMeshBlocksView(o.wpn, cam.position, _fpS, .35);
       }
@@ -4815,7 +4818,12 @@ export class Player {
       (this.lookIdle || 0) > .7 && !this.rt.army.wallBetween(u.pos, u.team, guardPerson.pos);
     this.guardFrameK = (this.guardFrameK || 0) + ((guardFrame ? 1 : 0) - (this.guardFrameK || 0)) * Math.min(1, dt * (reduceMotion() ? 30 : 3));
     let offWant = 0;
-    // 敵の数や背後の敵で視点を自動回転させない。
+    // 手で見回していない時は、近い相手を肩越しの中央へ穏やかに収める。
+    if (selfFrame && S.autoCam && !reduceMotion() && this.closeFoeYaw != null &&
+        !this.lock && !this.aiming && !this.rt.choice && (this.lookIdle || 0) > .8) {
+      const turn = angleDiff(this.yaw, this.closeFoeYaw);
+      if (Math.abs(turn) < 1.35) offWant = Math.max(-.65, Math.min(.65, turn));
+    }
     if (guardFrame && guardDistance > .8) offWant = angleDiff(this.yaw, Math.atan2(guardPerson.pos.x - u.pos.x, guardPerson.pos.z - u.pos.z));
     // 戸口のある狭い戦場では、壁越しの集団の平均でなく通れる側の一人を中央へ収める。
     const closeFightFrame = S.autoCam && this.rt.def.routeDestinationSight && this.closeFoeYaw != null &&
@@ -4871,8 +4879,11 @@ export class Player {
     this.camYawOff = (this.camYawOff || 0) + angleDiff(this.camYawOff || 0, offWant) * Math.min(1, dt * (this.lookIdle < 0.7 || this.aiming || this.lock || this.fpK > 0.3 ? 12 : 1.4));
     const cyaw = this.yaw + this.camYawOff;
     this.frameK = (this.frameK || 0) + (((this.foeNear || 99) < 4.5 && !this.mounted && !reduceMotion() ? 1 : 0) - (this.frameK || 0)) * Math.min(1, dt * 2);
-    const cp = Math.cos(this.pitch);
-    const dir = _cD.set(Math.sin(cyaw) * cp, Math.sin(this.pitch), Math.cos(cyaw) * cp);
+    // 横持ちの肩越しだけ見下ろしを抑え、地面で画面が埋まるのを防ぐ。
+    const landscapeFrame = selfFrame && VIEW.h <= 500 && VIEW.w > VIEW.h;
+    const viewPitch = landscapeFrame ? Math.max(-.28, Math.min(.25, this.pitch)) : this.pitch;
+    const cp = Math.cos(viewPitch);
+    const dir = _cD.set(Math.sin(cyaw) * cp, Math.sin(viewPitch), Math.cos(cyaw) * cp);
     const right = _cR.set(-Math.cos(cyaw), 0, Math.sin(cyaw));
     // 止まっている時間を覚える。視点の距離は変えない。
     const still = Math.hypot(u.vel.x, u.vel.z) < 0.3 && !fight && !this.mounted;
@@ -4970,7 +4981,7 @@ export class Player {
     // 遠さの設定と戦ごとの引きを、肩越しの上限にも反映する。
     // 壁・柱の検査はこの後で行い、狭い所を突き抜けない。
     const footLimit = S.camRange === 'near' ? 4.2 : S.camRange === 'far' ? 5.2 : 4.8;
-    const distR = selfFrame ? Math.max(2.2, (this.mounted ? 6 : S.camRange === 'near' ? 3.8 : S.camRange === 'far' ? 4.8 : 4.4) + this.zoom) : Math.min(desiredDist + (routeNear ? 0 : landscapePull), Math.max(this.mounted ? 6 : footLimit, guardPull) + landscapePull);
+    const distR = selfFrame ? Math.max(2.2, (this.mounted ? 6 : S.camRange === 'near' ? 3.8 : S.camRange === 'far' ? 4.8 : 4.4) + this.zoom + (landscapeFrame ? 1.2 : 0)) : Math.min(desiredDist + (routeNear ? 0 : landscapePull), Math.max(this.mounted ? 6 : footLimit, guardPull) + landscapePull);
     this.camDist = this.camDist ? this.camDist + (distR - this.camDist) * Math.min(1, dt * (inRoom ? 5 : 3)) : distR;
     this.sideK = (this.sideK ?? 0.85) + ((routeNear || closeFightFrame ? .2 : fight || this.guard ? 0.95 : 0.85) - (this.sideK ?? 0.85)) * Math.min(1, dt * 3);
     // 狭い所（門・塀の内）：肩の側が壁に近ければ、空いている逆の肩へカメラだけ回す（決めた肩の設定は変えない）
