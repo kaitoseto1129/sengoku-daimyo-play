@@ -32,7 +32,7 @@ export class HudOverlay {
     g.beginPath(); g.ellipse(x, y + 1, 11, 3, 0, 0, Math.PI * 2);
     g.fillStyle = 'rgba(20,18,15,.65)'; g.fill();
     // 場所のピンは軸を長くし、兵の頭上の印と見分けられるよう地面までつなぐ。
-    const stem = pin?.unit || pin?.crossing ? 13 : bankPin ? 26 : 43;
+    const stem = pin?.unit || pin?.crossing ? 13 : bankPin ? 26 : pin?.arrived ? 13 : 43;
     g.beginPath(); g.moveTo(x, y); g.lineTo(x, y - stem);
     g.strokeStyle = '#14120f'; g.lineWidth = 6; g.stroke();
     g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
@@ -64,6 +64,11 @@ export class HudOverlay {
       g.beginPath(); g.moveTo(x, y - 33);
       g.arc(x, y - 33, 12, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, pin.progress));
       g.closePath(); g.fillStyle = '#ffe28a'; g.fill();
+    }
+    // 渡り切った瞬間は満ちた穴に切れ目のないチェックを残す。同じピンだけで完了を伝える。
+    if (pin?.arrived && !pin.waiting && pin.progress >= 1) {
+      g.beginPath(); g.moveTo(-7, -33); g.lineTo(-2, -28); g.lineTo(8, -39);
+      g.strokeStyle = '#14120f'; g.lineWidth = 3; g.stroke();
     }
     g.restore();
   }
@@ -189,6 +194,8 @@ export class HudOverlay {
     const floor = this.battleGoalFloor || (this.battleGoalFloor = { x:0, y:0, z:0 });
     floor.x = pos.x; floor.y = y; floor.z = pos.z;
     const on = seen && (moribe || enemy || this.floorGoalVisible(rt, floor)) && !at.behind && at.x > 48 && at.x < W - 48 && at.y > 96 && at.y < H - 48;
+    // 渡り終えた岸が画面外なら完了のピンも消す。背後へ戻る印に替えない。
+    if (moribe && pinTarget.arrived && !pinTarget.waiting && !on) return false;
     // 到着後も地面の同じ地点で満たす。右上へ移して別の行き先に見せない。
     // 地面の行き先と画面外の向きは、この一つの印で示す。
     let x = at.x, sy = at.y - 54, angle = Math.PI / 2;

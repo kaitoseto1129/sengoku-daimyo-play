@@ -212,8 +212,8 @@ export function updateMissionPin(rt) {
   const want = pinGuideOn(rt) && !rt.over && !rt.choice && !rt.hud.introWaiting && rt.player?.u?.alive ? target(rt) : null;
   const closeEnemy = rt.missionGuide?.closeEnemy;
   const inouEnemy = rt.def.key === 'inou' && want?.unit && want.unit.team !== rt.player.u.team;
-  // 稲生の敵は距離によらず頭上の赤い▼に統一する。黄色い移動ピンは行き先だけ。
-  if (inouEnemy) {
+  // 敵本人は赤い▼。届く足場へ向かう間だけ、地面の行き先ピンを残す。
+  if (inouEnemy && !want.approach) {
     if (pin) pin.hidden = true;
     return;
   }
@@ -257,7 +257,7 @@ export function updateMissionPin(rt) {
   const arrived = want.treatment ? d <= (want.r ?? 3) : waiting ? (want.arrived ?? missionWaitReached(rt)) === true : !!want.arrived;
   // 着いた・離れたの境で毎コマ出たり消えたりしない（チカチカ。kaito 10/23 稲生 27）。消えた後は一歩半離れてから出す。
   // 近接戦では頭上の▼に任せ、自分の体に行き先のピンを重ねない。
-  pin.hidden = inouEnemy ? d <= 4.5 + (pin.hidden ? 1 : 0) : !want.always && !waiting && d <= near + (pin.hidden ? 1.5 : 0);
+  pin.hidden = inouEnemy ? d <= .4 + (pin.hidden ? .3 : 0) : !want.always && !waiting && d <= near + (pin.hidden ? 1.5 : 0);
   if (pin.hidden) return;
   const W = VIEW.w, H = VIEW.h;
   const rects = hud.hudRects();
