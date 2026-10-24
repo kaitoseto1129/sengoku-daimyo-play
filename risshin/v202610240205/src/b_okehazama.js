@@ -658,7 +658,7 @@ const okehazama = {
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は、今する動きを短くやさしく伝える。
   missionSingleLine: true,
-  missions: ['仲間と集まれ', '仲間と進め', '雨がやむまで待て', '敵を倒せ', 'いまがわよしもとを倒せ', 'にげる敵を追え', '仲間と集まれ'],
+  missions: ['仲間と集まれ', '仲間と集まれ', '雨がやむまで待て', '敵を倒せ', 'いまがわよしもとを倒せ', 'にげる敵を追え', '仲間と集まれ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -717,7 +717,7 @@ const okehazama = {
     if (F.scoutFighting && rt.phase !== 'assault' && !timedWait && !(F.waitPinCompleteUntil > rt.t)) return null;
     const pin = F.missionPinTarget || (F.missionPinTarget = { x: 0, z: 0, r: 8, hide: 8 });
     pin.enemy = false; pin.dodge = false; pin.unit = null; pin.waiting = undefined; pin.always = false;
-    pin.area = false; pin.arrived = false; pin.progress = null; pin.arrivalProgress = null; pin.footRing = false; pin.follow = false;
+    pin.area = false; pin.arrived = false; pin.progress = null; pin.arrivalProgress = null; pin.footRing = false; pin.follow = false; pin.approach = false;
     // 任務札の更新で、同じ集合ピンの到着表示を初期化しない。
     pin.key = rt.phase;
     // 雨待ちの丸が満ちたことを一息見せてから、戦う相手の印へ切り替える。
@@ -733,7 +733,19 @@ const okehazama = {
       const entrance = !F.entered && F.roadStep >= F.road.length ||
         F.guardOpened && !F.mouthReached && !F.koshiLeft;
       // 戦う相手は頭上の赤い▼だけ。集合用の黄ピンを人へ付けない。
-      if (!entrance) return null;
+      if (!entrance) {
+        const P = rt.player, enemy = this.missionSignTarget(rt);
+        if (!readyUnit(enemy) || P.inRange && readyUnit(P.rangeCueTarget)) return null;
+        const me = P.u.pos, dx = me.x - enemy.pos.x, dz = me.z - enemy.pos.z;
+        const distance = Math.hypot(dx, dz);
+        const stand = P.meleeReach(P.previewMeleeKind() || 'thrust') * .8;
+        if (distance <= stand || P.weapon === 'gun' || P.weapon === 'bow') return null;
+        // 赤い▼は本人、ピンは一撃が届く手前の足場。同じ位置まで歩けば斬れる。
+        pin.x = enemy.pos.x + dx / distance * stand;
+        pin.z = enemy.pos.z + dz / distance * stand;
+        pin.r = 0; pin.hide = .4; pin.approach = true;
+        return pin;
+      }
       const pos = F.honjinPin || (F.honjinPin = fieldPoint(18, -100));
       pin.x = pos.x; pin.z = pos.z; pin.r = 0; pin.hide = 0;
       return pin;
@@ -1174,6 +1186,8 @@ const okehazama = {
   readableLogEntry: true,
   // 横の大旗を避ける。体や当たりは動かさず、既存の描画処理だけを使う。
   nearFlagFadeRadius: 6,
+  fadeCloseStandards: true,
+  fadeCloseStandardFrame: true, // 手前の味方の隊旗は布・横木・竿を一緒に透かす。
   // 顔・笠・胴を別々に透かさず、目が体に入る時だけ兵を描く間避ける。
   // 肩越しの近景でも顔や騎手が画面の脇を覆う前に、描く間だけ全身を避ける。
   nearAllyFadeRadius: 2.8,
@@ -2387,7 +2401,10 @@ const okehazama = {
     // 馬廻も道から歩いて寄せる。信長を最前列へ単独で放り込まない。
     F.nob.order = 'attack'; F.nob.formation = 'yari';
     F.nob.noRout = true;
-    for (const g of F.road) g.aggro = 10;
+    // 雨上がりでも見張りの寄せる範囲を縮めない。次の守りも歩いて迎え撃つ。
+    for (const g of F.road) {
+      g.order = 'attack'; g.aggro = 24; g.seekRange = 32;
+    }
     for (const C of F.wings || []) { C.go(); C.push('A', 0.25); }
     this.pushRoad(rt);
     // 公記：かかる勢いを見て、前の備えは水をまくように崩れ、弓・槍・旗を捨てた。

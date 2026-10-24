@@ -298,8 +298,8 @@ export class HudOverlay {
         rt.def.drawMissionMarks?.(g, rt, this)) this.ovBlank = false;
     // 共通の頭上印と同じ一人だけ、具足の外周を太く縁取る。
     const enemy = !rt.over && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap &&
-      rt.player.u.alive && markedEnemy(rt);
-    if (rt.def.key !== 'inou' && rt.def.key !== 'moribe' && rt.def.key !== 'okehazama' && enemy && sightScreenUnit(rt, enemy)) {
+      rt.player.u.alive && (rt.army.missionMarkedEnemy || markedEnemy(rt));
+    if (rt.def.key !== 'moribe' && rt.def.key !== 'okehazama' && enemy && sightScreenUnit(rt, enemy)) {
       const frame = this.measurePersonFrame(enemy, rt);
       if (frame) { this.drawEnemyContour(g, rt, enemy, frame); this.ovBlank = false; }
     }
