@@ -294,6 +294,8 @@ export function fieldSignsTick(rt, root) {
     if ((moribe || inou || oke) && !u.mounted) headPos.y = u.pos.y + Math.max(2, (u.bodyHeight || 1.72) + .2);
     // 三つの戦とも小柄な足軽の背丈に合わせ、笠と▼の空白を狭める。
     if ((oke || moribe || inou) && !u.mounted) headPos.y = u.pos.y + (u.bodyHeight || 1.72) + .15;
+    // 稲生では笠の縁と白い外枠が重ならない小さな隙間を残す。
+    if (inou && !u.mounted) headPos.y += .12;
     if (inou || oke || moribe) {
       if (defeated) headPos.set(u._inouSignX, u._inouSignY, u._inouSignZ);
       else { u._inouSignX = headPos.x; u._inouSignY = headPos.y; u._inouSignZ = headPos.z; }
@@ -318,7 +320,8 @@ export function fieldSignsTick(rt, root) {
     // 森部で探しているだけの敵を、刃が届く敵と同じ大きさにしない。
     // 命中後も大きさを別の時間で保たず、下の一度だけの拡大にそろえる。
     // 森部の間合いで高さを変えない。幅は届く一人、高さの変化は命中だけ。
-    const pixels = !inou && marked && u !== marked && foe ? 9 : moribe ? (u === commander ? 32 : near ? 26 : 14) :
+    // 森部は接近だけで急に大きくしない。横幅が急に変わるのは実際に届く一人だけ。
+    const pixels = !inou && marked && u !== marked && foe ? 9 : moribe ? (u === commander ? 32 : 14 + 12 * Math.max(0, 1 - Math.sqrt(meD2) / NEAR_OUT)) :
       // 稲生は高さを一定に保ち、間合いは横幅、命中は縦の伸びで示す。
       inou ? (u === commander ? 28 : 22) :
       // 目当てと近い敵の読みやすさを保ち、近づくほど同じ▼を滑らかに大きくする。
@@ -366,14 +369,19 @@ export function fieldSignsTick(rt, root) {
     // 命中の直後に敵がよろけて間合いを出ても、届いた時より小さくしない。
     // 同じ本人の幅を保ち、縦の伸びと赤の減りを読める時間を残す。
     const okePixels = Math.max(pixels, 34 * pulse);
-    const okeScale = oke ? Math.min(u === missionEnemy ? 8 : 3, okePixels * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) : k;
+    // 遠い▼は頭ほどの実寸に収め、近くでは読み取りやすい大きさを保つ。
+    // 二十五歩以内は大きな上限、四十歩以遠は小さな上限にし、間は滑らかにつなぐ。
+    const okeNear = Math.max(0, Math.min(1, (40 - Math.sqrt(meD2)) / 15));
+    const okeLimit = u === commander ? 1.5 + 1.5 * okeNear : 1.2 + .8 * okeNear;
+    const okeScale = oke ? Math.min(okeLimit, okePixels * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) : k;
     // 防がれた接触は縦に潰す。傷を与えた時の縦の伸び・赤の減りとは分ける。
     const blocked = special && !(hit > 0) && (inou ? u.inouBlockUntil : oke ? u.okeBlockUntil : u.moribeBlockUntil) > rt.t;
     // 届くまでは細い▼が徐々に開き、届く本人だけ幅広くなる。
     const inouWidth = inou ? hot ? 2.2 : .65 + .55 * Math.max(0, 1 - Math.sqrt(meD2) / 20) : 1;
     // 稲生は届く一人の幅をはっきり広げる。命中後も幅を保ち、縦の伸びを見せる。
     // 森部の横幅は届く本人だけ強調する。敵の振りかぶりと混同させない。
-    dummy.scale.set(oke ? okeScale * Math.max(reachable ? 1.6 : 1, 1 + .6 * pulse) : moribe ? k * Math.max(width / pixels, reachable ? 2.2 : 1, 1 + .6 * pulse) : inou ? k * Math.max(inouWidth, 2.2 * pulse) : k * (1 + .5 * pulse),
+    // 命中で押し戻された直後も、届いた時の横幅を保つ。縦の伸びと赤の減りを見せる。
+    dummy.scale.set(oke ? okeScale * Math.max(reachable ? 2.2 : 1, 1 + 1.2 * pulse) : moribe ? k * Math.max(width / pixels, reachable ? 2.2 : 1, 1 + 1.2 * pulse) : inou ? k * Math.max(inouWidth, 2.2 * pulse) : k * (1 + .5 * pulse),
       oke || moribe || inou ? (oke ? okeScale : k) * (blocked ? .55 : moribe && danger > 0 && !pulse ? 1 + .8 * danger : 1 + (moribe ? 1.2 : 1) * pulse) : k, oke ? okeScale : k);
     // 自分へ振り下ろす本人の▼だけ、先端を笠へ近づける。命中の拡大とは逆の動き。
     if (moribe && danger > 0 && !still && !pulse && !defeated)
@@ -385,6 +393,10 @@ export function fieldSignsTick(rt, root) {
       if (inou) {
         dummy.scale.y *= still ? 1 : closing;
         dummy.scale.x *= still ? 1 : .65 + .35 * closing;
+      } else if (moribe) {
+        // 撃破は横幅を残して縦に閉じる。命中後に小さく戻る動きと区別する。
+        dummy.scale.x = k * 2.2;
+        dummy.scale.y = k * (still ? 1 : closing);
       } else dummy.scale.multiplyScalar(still ? 1 : closing);
     }
     if (!inou && marked && foe && u !== marked) dummy.scale.multiplyScalar(.55);

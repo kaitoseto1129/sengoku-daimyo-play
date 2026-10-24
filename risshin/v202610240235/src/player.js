@@ -4854,8 +4854,11 @@ export class Player {
     // 手で見回していない時は、近い相手を肩越しの中央へ穏やかに収める。
     if (selfFrame && S.autoCam && !reduceMotion() && this.closeFoeYaw != null &&
         !this.lock && !this.aiming && !this.rt.choice && (this.lookIdle || 0) > .8) {
-      const turn = angleDiff(this.yaw, this.closeFoeYaw);
-      if (Math.abs(turn) < 1.35) offWant = Math.max(-.65, Math.min(.65, turn));
+      const focus = this.rt.army.missionMarkedEnemy;
+      const focusNear = focus?.alive && Math.hypot(focus.pos.x - u.pos.x, focus.pos.z - u.pos.z) < 7;
+      const foeYaw = focusNear ? Math.atan2(focus.pos.x - u.pos.x, focus.pos.z - u.pos.z) : this.closeFoeYaw;
+      const turn = angleDiff(this.yaw, foeYaw);
+      offWant = focusNear ? turn : Math.max(-.65, Math.min(.65, turn));
     }
     if (guardFrame && guardDistance > .8) offWant = angleDiff(this.yaw, Math.atan2(guardPerson.pos.x - u.pos.x, guardPerson.pos.z - u.pos.z));
     // 戸口のある狭い戦場では、壁越しの集団の平均でなく通れる側の一人を中央へ収める。
@@ -4914,7 +4917,7 @@ export class Player {
     this.frameK = (this.frameK || 0) + (((this.foeNear || 99) < 4.5 && !this.mounted && !reduceMotion() ? 1 : 0) - (this.frameK || 0)) * Math.min(1, dt * 2);
     // 横持ちの肩越しだけ見下ろしを抑え、地面で画面が埋まるのを防ぐ。
     const landscapeFrame = selfFrame && VIEW.h <= 500 && VIEW.w > VIEW.h;
-    const viewPitch = landscapeFrame ? Math.max(-.28, Math.min(.25, this.pitch)) : this.pitch;
+    const viewPitch = landscapeFrame ? Math.max(-.08, Math.min(.25, this.pitch)) : this.pitch;
     const cp = Math.cos(viewPitch);
     const dir = _cD.set(Math.sin(cyaw) * cp, Math.sin(viewPitch), Math.cos(cyaw) * cp);
     const right = _cR.set(-Math.cos(cyaw), 0, Math.sin(cyaw));
@@ -5035,6 +5038,8 @@ export class Player {
     // 騎乗中は囲まれるほど、さらに高く引く（自分の馬のたてがみ・鞍で前が塞がらないように）
     this.crowdLift = (this.crowdLift || 0) + ((this.crowd > 5 ? (this.mounted ? 0.55 : 0.3) : 0) - (this.crowdLift || 0)) * Math.min(1, dt * 2);
     want.y += landscapePull * .4 + (this.rt.squad.length ? 0.35 : 0.15) - pull * 0.7 + this.crowdLift + (this.mounted ? 1.3 - rc * 2 : 0) + viewK * 0.25 + this.marchK * 1.0 * (1 - rc * 0.85) + wk * 6 + this.cineK * 1.2 + ok * overH + (this.rt.def.camLift || 0) + defeatLift;
+    // 横持ちでは味方の肩越しへ上げ、視線も上げて前方の敵を残す。
+    if (landscapeFrame && !this.mounted) want.y = Math.max(want.y, u.pos.y + 2.8);
     // 廊下では野戦用の持ち上げで鴨居や白壁を正面に映さない。
     if (routeNear || closeFightFrame) want.y = Math.min(want.y, u.pos.y + 1.8);
     let terrainBlocked = !inRoom && terrainCameraClamp(this.rt.world, target, want, true);
@@ -5358,6 +5363,10 @@ export class Player {
       look.lerp(_cTmp, this.routeLookK);
     } else { this.routeNearK = 0; this.routeObscured = false; this.routeSightAt = -1; }
     this.rt.def.frameCamera?.(this.rt, camera.position, look);
+    if (landscapeFrame && !inRoom && e < .5) {
+      const span = Math.hypot(look.x - camera.position.x, look.z - camera.position.z);
+      look.y = Math.max(look.y, camera.position.y - span * .16);
+    }
     this.clearWallView(camera.position, look);
     this.clearCameraBody(camera);
     camera.lookAt(look);

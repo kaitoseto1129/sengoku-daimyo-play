@@ -22,6 +22,9 @@ export class HudOverlay {
     if (landmark || rt.def.routeGuidePriority?.(rt))
       return this.drawDestinationPin(g, x, y);
     if (rt.def.key !== 'moribe') return this.drawDestinationPin(g, x, y);
+    // 渡河中は黒い穴や進みの丸を出さず、先端が対岸に刺さる一本にする。
+    // 待つ場所の円と形を分け、着くまでは同じ大きさ・同じ接地点を保つ。
+    if (pin?.crossing && !pin.arrived) return this.drawDestinationPin(g, x, y);
     g.save(); g.lineJoin = 'round';
     // 渡河のピンは岸を隠さない大きさに固定し、近づいても伸び縮みさせない。
     // 進みを表す中身とは別に、地面の先端まで見て到着点を追えるようにする。
@@ -298,8 +301,8 @@ export class HudOverlay {
         rt.def.drawMissionMarks?.(g, rt, this)) this.ovBlank = false;
     // 共通の頭上印と同じ一人だけ、具足の外周を太く縁取る。
     const enemy = !rt.over && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap &&
-      rt.player.u.alive && markedEnemy(rt);
-    if (rt.def.key !== 'inou' && rt.def.key !== 'moribe' && rt.def.key !== 'okehazama' && enemy && sightScreenUnit(rt, enemy)) {
+      rt.player.u.alive && (rt.army.missionMarkedEnemy || markedEnemy(rt));
+    if (rt.def.key !== 'moribe' && rt.def.key !== 'okehazama' && enemy && sightScreenUnit(rt, enemy)) {
       const frame = this.measurePersonFrame(enemy, rt);
       if (frame) { this.drawEnemyContour(g, rt, enemy, frame); this.ovBlank = false; }
     }
