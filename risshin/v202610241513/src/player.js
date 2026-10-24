@@ -650,7 +650,8 @@ export class Player {
         const gl2 = gx * gx + gz * gz;
         const t = gl2 > .01 ? (dx * gx + dz * gz) / gl2 : -1;
         const gy = cam.position.y + ((goal.y ?? u.pos.y) + 1 - cam.position.y) * t;
-        blocksGoal = t > 0 && t < (this.nearAllyGoal ? .98 : .85) && (dx - gx * t) ** 2 + (dz - gz * t) ** 2 < 1.44 &&
+        const goalWidth = this.rt.def.key === 'inou' && o.mounted ? 1.8 : 1.2;
+        blocksGoal = t > 0 && t < (this.nearAllyGoal ? .98 : .85) && (dx - gx * t) ** 2 + (dz - gz * t) ** 2 < goalWidth * goalWidth &&
           gy > o.pos.y + .3 && gy < o.pos.y + (o.mounted ? RIDE.y : 0) + 2.5;
       }
       if (blocksGoal) {
@@ -4432,7 +4433,9 @@ export class Player {
     const flagRadius = this.rt.def.nearFlagFadeRadius ?? 4.5;
     // カメラと自分の間を塞げない遠い兵は調べない（旗・竿の行列を全兵ぶん辿らない）。竿と旗の長さの分（10m）は余して見る
     const cpF = cam.position, D = this.rt.def;
-    const focus = (D.key === 'inou' || D.key === 'okehazama' ? D.missionSignTarget?.(this.rt) : null) ||
+    // 今届く相手が任務の追跡先と違っても、その本人への視線を空ける。
+    const focus = (D.key === 'inou' && this.inRange ? this.rangeCueTarget : null) ||
+      (D.key === 'inou' || D.key === 'okehazama' ? D.missionSignTarget?.(this.rt) : null) ||
       this.rt.hud?.outlinedEnemy || this.rt.guideEnemy || this.lock;
     this.nearFlagEnemy = focus;
     const focusX = focus?.alive ? focus.pos.x - cpF.x : 0;
@@ -4454,9 +4457,10 @@ export class Player {
         if (o.look?.standard && this.flagObstructs(o.standardFlag, cam, flagRadius)) this.fadeNearFlag(o.wpn);
         continue;
       }
-      // 桶狭間の長柄と母衣は、描く間だけ避ける。敵の体と当たりは保つ。
+      // 肩越しを横切る長柄を描く間だけ避ける。稲生の戦う敵の得物は残し、構えを読めるようにする。
       const longRadius = this.rt.def.nearLongWeaponRadius || 0;
-      const closeLong = longRadius && o !== this.u && o.pos.distanceToSquared(cam.position) < longRadius * longRadius;
+      const closeLong = longRadius && o !== this.u && o.pos.distanceToSquared(cam.position) < longRadius * longRadius
+        && (D.key !== 'inou' || o.team === this.u.team || !o.alive || o.dying || o.downed || o.woundOut || o.rearWound);
       if (closeLong) {
         if ((o.wpnKind || o.lookWeapon) === 'spear' || o.look?.standard) this.hideNearFlag(o.wpn);
         if ((o.wpnKind || o.lookWeapon) === 'spear') this.hideNearFlag(o.dropped);

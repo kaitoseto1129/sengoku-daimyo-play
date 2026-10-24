@@ -122,7 +122,13 @@ function ldBegin(keys, battle = '') {
     steps.setAttribute('aria-hidden', 'true');
     document.querySelector('#loading .ldbar').after(steps);
   }
-  steps.replaceChildren(...keys.map(() => document.createElement('i')));
+  steps.replaceChildren(...keys.map((key, i) => {
+    const step = document.createElement('i');
+    step.style.flexGrow = String(ldPlan.est[i]);
+    step.style.setProperty('--ld-duration', `${Math.round(ldPlan.est[i])}ms`);
+    if (RMm()) step.style.setProperty('--ld-duration', '0ms');
+    return step;
+  }));
 
   clearInterval(ldIv); ldIv = setInterval(ldTick, 250);
   const actions = document.querySelector('#loading .ld-cancel');
@@ -163,9 +169,11 @@ function ldStep(key) {
   const P = ldPlan; if (!P) return;
   const i = P.keys.indexOf(key); if (i < 0 || i === P.cur) return;
   P.cur = i; P.t = performance.now();
+  // 終わった区切りを残し、今の工程だけを伸ばす。
   const steps = $('ld-steps');
   if (steps) for (let k = 0; k < steps.children.length; k++) {
-    steps.children[k].className = k < i ? 'done' : k === i ? 'current' : '';
+    steps.children[k].classList.toggle('done', k < i);
+    steps.children[k].classList.toggle('current', k === i);
   }
 
   // 初陣も合成側で棒を伸ばす。兵を組み立てる間に処理が詰まっても止めない。
@@ -202,9 +210,12 @@ const stage = (t, key) => {
   }
   if (t) ldName = ({ defs: '戦の仕組み', assets: '人とよろい', build: '地形と兵', warm: '人の姿', compile: '絵', first: '最初の画面' })[key] || t;
   let el = $('ld-stage');
-  if (!el) { el = document.createElement('div'); el.id = 'ld-stage'; el.style.cssText = 'margin-top:10px;font-size:15px;color:var(--washi);text-align:center'; el.innerHTML = '<span role="status" aria-live="polite" aria-atomic="true"></span><span aria-live="off" id="ld-left" hidden style="display:none"></span>'; document.querySelector('#loading .ldbar').after(el); }
+  if (!el) { el = document.createElement('div'); el.id = 'ld-stage'; el.style.cssText = 'margin-top:10px;font-size:15px;color:var(--washi);text-align:center'; el.innerHTML = '<span role="status" aria-live="polite" aria-atomic="true"></span><span aria-live="off" id="ld-left" style="display:block;margin-top:6px"></span>'; document.querySelector('#loading .ldbar').after(el); }
   el.setAttribute('role', 'region');
-  if (!$('ld-left')) el.innerHTML = '<span role="status" aria-live="polite" aria-atomic="true"></span><span aria-live="off" id="ld-left" hidden style="display:none"></span>';
+  if (!$('ld-left')) el.innerHTML = '<span role="status" aria-live="polite" aria-atomic="true"></span><span aria-live="off" id="ld-left" style="display:block;margin-top:6px"></span>';
+  // 初陣でも待つ目安を残す。工程名を畳む表示とは分ける。
+  const left = $('ld-left');
+  left.hidden = !t; left.style.display = t ? 'block' : 'none';
   const i = ldPlan && key ? ldPlan.keys.indexOf(key) : -1;
   el.firstChild.textContent = i >= 0 ? `${t}（${i + 1}／${ldPlan.keys.length}）` : t;
   if (key) ldStep(key);
@@ -2016,9 +2027,10 @@ const game = {
       console.info('読み込みの時間（千分の一歩秒）', JSON.stringify(LT));
       if (!tool && !isNorender()) ldLearn({ defs: LT.defs, assets: LT.assets, build: LT.buildOnly, warm: LT.humansWarm, compile: LT.compile, first: LT.first });
       stage('戦の支度ができました');
-      if ($('ld-steps')) for (const step of $('ld-steps').children) step.className = 'done';
       clearInterval(ldIv); ldIv = 0;
       $('loading').style.setProperty('--ld-progress', '100%');
+      const steps = $('ld-steps');
+      if (steps) for (const step of steps.children) { step.classList.remove('current'); step.classList.add('done'); }
       { const bar = document.querySelector('#loading .ldbar i'); if (bar) { bar.style.transition = 'transform .3s linear'; bar.style.transform = 'scaleX(1)'; } await new Promise((r) => setTimeout(r, 350)); }   // 残りを急に消さず、満ちてから閉じる（kaito 10/23 稲生 37）
       const readingBegan = performance.now();
       await reader.wait();

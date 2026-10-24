@@ -652,7 +652,7 @@ function moribeNearBodies(rt) {
     const c = cam.position, p = this.u.pos;
     const vx = p.x - c.x, vz = p.z - c.z, len2 = vx * vx + vz * vz;
     // 斬り合う本人までの狭い視線も空ける。横の味方と敵の武器は残す。
-    const target = this.rangeCueTarget?.alive ? this.rangeCueTarget : rt.flags.signTarget;
+    const target = this.inRange && this.rangeCueTarget?.alive ? this.rangeCueTarget : rt.def.missionSignTarget(rt);
     const focus = target?.alive && target.team !== this.u.team &&
       (target.pos.x - p.x) ** 2 + (target.pos.z - p.z) ** 2 < 100 ? target : null;
     const fx = focus ? focus.pos.x - c.x : 0, fz = focus ? focus.pos.z - c.z : 0;
@@ -711,6 +711,16 @@ function moribeNearBodies(rt) {
             ((qx - butt.x) * sx + (qy - butt.y) * sy + (qz - butt.z) * sz) / (length2 || 1)));
           if ((butt.x + sx * k - qx) ** 2 + (butt.y + sy * k - qy) ** 2
               + (butt.z + sz * k - qz) ** 2 < 0.81) { this.hideNearFlag(w); break; }
+        }
+        // 届く相手の胸まで横切る味方の柄も避け、命中と振りかぶりを見せる。
+        // 肩までの判定だけでは残る、少し先の味方の長槍に限る。
+        if (focus && w.visible) for (let i = 1; i <= 5; i++) {
+          const t = i / 5, qx = c.x + fx * t, qz = c.z + fz * t;
+          const qy = c.y + (focus.pos.y + (focus.mounted ? 2.2 : 1.3) - c.y) * t;
+          const k = Math.max(0, Math.min(1,
+            ((qx - butt.x) * sx + (qy - butt.y) * sy + (qz - butt.z) * sz) / (length2 || 1)));
+          if ((butt.x + sx * k - qx) ** 2 + (butt.y + sy * k - qy) ** 2
+              + (butt.z + sz * k - qz) ** 2 < .36) { this.hideNearFlag(w); break; }
         }
       }
       // 手前の味方の長槍が空まで横切ると、敵の構えが棒の陰に埋もれる。
@@ -1187,12 +1197,6 @@ const moribe = {
     q.unit = null; q.enemy = false;
     // 着いた後の足元や画面端へ、移動を促す印を残さない。
     q.waiting = false; q.arrived = false; q.crossing = false; q.progress = 0;
-    // 渡河の完了は待つ間だけ。戦闘が始まったら岸へ戻すピンを残さない。
-    if (!F.signal && F.fordArrivedAt !== undefined && rt.t - F.fordArrivedAt < 2.4) {
-      q.x = POINT2.x; q.z = POINT2.z; q.y = POINT2.y; q.r = FORD_R; q.hide = 0;
-      q.arrived = true; q.progress = 1;
-      return q;
-    }
     if (F.stage === 'contact' && !F.vBroken && !F.squadGuide) {
       // 敵は赤い▼だけ。視点を回しても黄色い行き先のピンへ替えない。
       return null;
@@ -1203,9 +1207,9 @@ const moribe = {
       // 岸に上がるまで一本だけ示し、渡った瞬間に消す。足元へ戻らせない。
       if (F.pointReached || F.pointInside || atFordBank(rt.player.u.pos, rt.world)) return null;
       pos = POINT2; r = FORD_R; hide = 0;
-      // 渡河中は岸に刺さる行き先だけを示す。途中までの進みを到着と混同させない。
+      // 岸に刺さる一本の中を、実際に岸へ近づいた分だけ満たす。
       q.crossing = true;
-      // 移動中は穴の空いた行き先。時計の中身は到着後の待機だけに使う。
+      q.progress = Math.max(0, Math.min(.98, (START2.z - rt.player.u.pos.z) / (START2.z - POINT2.z)));
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
     } else if (F.stage === 'assemble') {
@@ -1996,7 +2000,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       if (battle === rt) {
         const pin = rt.def.missionPin(rt);
         // 先手が視野の外へ回った時は、missionPin が選んだ行き先だけを残す。
-        // 渡り切った時も同じ岸で満杯のピンを短く見せてから消す。
+        // 渡り切った岸の印は残さず、本人や味方を指す印と混同させない。
         if (!pin) return false;
       }
       return hudBattleGoal.call(this, g, battle);
