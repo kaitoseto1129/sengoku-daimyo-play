@@ -1039,7 +1039,7 @@ const moribe = {
   // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は「何をするか」だけ（kaito 10/23 49・50）。段の総称で通し、向き・行き先の字は書かない。
-  missions: ['川を渡れ', '仲間を待て', '斎藤勢を倒せ', '敵を迎え撃って耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
+  missions: ['川を渡れ', '仲間を待て', '敵を倒せ', '敵を迎え撃って耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
   // ピン・▼・名前は同じ本人へ。描画の間引きで相手を替えない。
   commanderTarget(rt) {
     const F = rt.flags;
@@ -1098,7 +1098,7 @@ const moribe = {
   missionHeading(rt) {
     const F = rt.flags, p = rt.player.u.pos;
     // 渡河済みのコマから待機へ替える。集合判定の更新を待たせない。
-    if (!F.signal && (F.pointReached || F.pointInside || atFordBank(p, rt.world))) return F.fordThreat ? '斎藤勢を倒せ' : '仲間を待て';
+    if (!F.signal && (F.pointReached || F.pointInside || atFordBank(p, rt.world))) return F.fordThreat ? '敵を倒せ' : '仲間を待て';
     // 集まる間と、その場で耐える間を同じ一行で区別する。向き・距離は書かない。
     if (F.stage === 'assemble') {
       if (F.gatherUnit || Math.hypot(p.x - F.asm.x, p.z - F.asm.z) >= 12) return '仲間と集まれ';
@@ -1187,12 +1187,6 @@ const moribe = {
     q.unit = null; q.enemy = false;
     // 着いた後の足元や画面端へ、移動を促す印を残さない。
     q.waiting = false; q.arrived = false; q.crossing = false; q.progress = 0;
-    // 渡河の完了は待つ間だけ。戦闘が始まったら岸へ戻すピンを残さない。
-    if (!F.signal && F.fordArrivedAt !== undefined && rt.t - F.fordArrivedAt < 2.4) {
-      q.x = POINT2.x; q.z = POINT2.z; q.y = POINT2.y; q.r = FORD_R; q.hide = 0;
-      q.arrived = true; q.progress = 1;
-      return q;
-    }
     if (F.stage === 'contact' && !F.vBroken && !F.squadGuide) {
       // 敵は赤い▼だけ。視点を回しても黄色い行き先のピンへ替えない。
       return null;
@@ -1996,7 +1990,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       if (battle === rt) {
         const pin = rt.def.missionPin(rt);
         // 先手が視野の外へ回った時は、missionPin が選んだ行き先だけを残す。
-        // 渡り切った時も同じ岸で満杯のピンを短く見せてから消す。
+        // 渡り切った岸の印は残さず、本人や味方を指す印と混同させない。
         if (!pin) return false;
       }
       return hudBattleGoal.call(this, g, battle);
@@ -2154,8 +2148,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         src.moribeThreatUntil = rt.t + .9;
       if (src?.isPlayer && t?.team !== src.team && t.hp < hp) {
         // 命中後は少し形を保ってから戻す。乱戦でも一瞬の変化で終わらせない。
-        t.moribeHitUntil = rt.t + 2.4;
-        if (!t.alive || t.dying || t.downed || t.woundOut || t.rearWound) t.moribeDefeatUntil = rt.t + 1.2;
+        t.moribeHitUntil = rt.t + 3;
+        if (!t.alive || t.dying || t.downed || t.woundOut || t.rearWound) t.moribeDefeatUntil = rt.t + 1.8;
         // 命を減らした本人だけがよろめく。空振りや味方には反応を付けない。
         if (t.alive) {
           t.stagger = Math.max(t.stagger || 0, .6);

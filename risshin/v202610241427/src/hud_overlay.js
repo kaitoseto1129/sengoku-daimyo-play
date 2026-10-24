@@ -18,18 +18,15 @@ export class HudOverlay {
 
   // 森部は先端が地面に刺さるピンで、到着する地点を示す。
   drawBattleGoalSign(g, rt, x, y, landmark, pin = null) {
-    // 通る場所も待つ場所と同じ太い矢印で示す。
+    // 森部以外の行き先は共通の形に任せる。
     if (landmark || rt.def.routeGuidePriority?.(rt))
       return this.drawDestinationPin(g, x, y);
     if (rt.def.key !== 'moribe') return this.drawDestinationPin(g, x, y);
-    // 渡河中は黒い穴や進みの丸を出さず、先端が対岸に刺さる一本にする。
-    // 待つ場所の円と形を分け、着くまでは同じ大きさ・同じ接地点を保つ。
-    if (pin?.crossing && !pin.arrived) return this.drawDestinationPin(g, x, y);
+    // 渡河中も岸に刺さる短いピン。人を指す大きな下矢印へ替えない。
     g.save(); g.lineJoin = 'round';
     // 渡河のピンは岸を隠さない大きさに固定し、近づいても伸び縮みさせない。
-    // 進みを表す中身とは別に、地面の先端まで見て到着点を追えるようにする。
-    const bankPin = pin?.crossing || pin?.arrived && !pin?.waiting;
-    if (bankPin) {
+    // 兵を指す矢印にせず、穴の空いたピンの先端を対岸へ固定する。
+    if (pin?.crossing) {
       // 岸そのものへ刺す短いピン。兵の頭まで軸を伸ばさず、足元と行き先を結ぶ。
       g.translate(x, y);
       g.beginPath(); g.ellipse(0, 1, 10, 3, 0, 0, Math.PI * 2);
@@ -40,17 +37,9 @@ export class HudOverlay {
       g.fillStyle = '#fff3ba'; g.fill();
       g.beginPath(); g.arc(0, -24, 10, 0, Math.PI * 2);
       g.fillStyle = '#14120f'; g.fill();
-      if (pin.arrived) {
-        g.beginPath(); g.moveTo(-6, -24); g.lineTo(-1, -19); g.lineTo(7, -30);
-        g.strokeStyle = '#ffe28a'; g.lineWidth = 3; g.stroke();
-      } else if (pin.progress > 0) {
-        g.beginPath(); g.moveTo(0, -24);
-        g.arc(0, -24, 8, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, pin.progress));
-        g.closePath(); g.fillStyle = '#ffe28a'; g.fill();
-      }
       g.restore(); return;
     }
-    const pinScale = bankPin || pin?.waiting ? .95 : 1.3;
+    const pinScale = pin?.waiting ? .95 : 1.3;
     g.translate(x, y); g.scale(pinScale, pinScale); x = 0; y = 0;
     // 大きさが変わってもピンの接地点は岸から動かさない。
     g.beginPath(); g.ellipse(x, y + 1, 11, 3, 0, 0, Math.PI * 2);
