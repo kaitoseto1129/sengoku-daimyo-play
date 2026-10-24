@@ -1331,7 +1331,7 @@ export function touchFrame(dt) {
   if (btn.more.title !== '武器の持ち替え・馬の追加操作を開く') btn.more.title = '武器の持ち替え・馬の追加操作を開く';
   if (T.more && !T.held.size && !root.querySelector('.on') && (T.moreT = (T.moreT || 0) + dt) > 6) T.more = false;
   // 戦の画面の丸は 攻撃・武器を替える だけ（動かす棒は別）。構え・よける・狙う・鼓舞・取る・乗る などは出さない（kaito 10/23「狙う避けるはもうないよね」）。
-  if (!town && !b.def.dojo) for (const id in btn) if (id !== 'atk' && id !== 'wpn' && id !== 'spear') hide(btn[id], true);
+  if (!town && !b.def.dojo) for (const id in btn) if (id !== 'atk') hide(btn[id], true);   // 10/25 kaito「持ち替えいらない」：攻撃の丸だけ
   for (const id of LABEL_BTNS) {
     const el = btn[id], label = el.firstChild.textContent + (el.querySelector('small')?.textContent ? '、' + el.querySelector('small').textContent : '');
     if (el.getAttribute('aria-label') !== label) el.setAttribute('aria-label', label);

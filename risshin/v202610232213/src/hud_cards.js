@@ -434,7 +434,7 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
         if (Math.hypot(gx, gz) > (goal.r || 6)) {
           const r = -gx * Math.cos(yaw) + gz * Math.sin(yaw), f = gx * Math.sin(yaw) + gz * Math.cos(yaw);
           const deg = Math.round(Math.atan2(r, f) * 180 / Math.PI / 15) * 15;
-          arrow = `<i class="pg-dir" aria-hidden="true" style="transform:rotate(${deg}deg)">↑</i>`;
+          arrow = '';   // 10/25 kaito「矢印二つだるい」：向きはピン（画面の端の印）だけで示す
         }
       }
       const html = `<b>${i + 1}／${n}</b><span class="pg-pct">${pct}%</span>${arrow}`;
@@ -447,6 +447,14 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     // 待つ間（陣を敷く・寄せを待つ）の残りは、秒の字でなく満ちていく丸で（kaito 10/23 稲生 14）。
     const gm = rt.missionGuide?.marker, wu = gm?.waitUntil?.();
     const progress = def.missionWaitProgress?.(rt);
+    // 森部は一行の下地だけを満たす。待ち場所のピンや秒数を増やさない。
+    const waitFill = def.key === 'moribe' && Number.isFinite(progress)
+      ? Math.round(Math.max(0, Math.min(1, progress)) * 100) : -1;
+    if (el._waitFill !== waitFill) {
+      el._waitFill = waitFill;
+      stEl.style.backgroundImage = waitFill < 0 ? '' :
+        `linear-gradient(to right, rgba(232,194,90,.28) ${waitFill}%, transparent ${waitFill}%)`;
+    }
     // 桶狭間の null は「今は待ちではない」。接敵中に共通の時計を戻さない。
     const pie = timeEl.firstChild, waiting = def.key === 'okehazama' ? Number.isFinite(progress) :
       Number.isFinite(progress) || Number.isFinite(wu) && wu > rt.t && gm.waitDuration > 0;

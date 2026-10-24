@@ -1096,9 +1096,9 @@ export class Hud {
         rt.guideEnemyShown && rt.guideEnemy?.alive && !this.aimGuideEnemy &&
         (!this.defendEnemy || this.attackGuideEnemy || this.approachGuideEnemy) &&
         !retreatMoving && !retreatRequired(rt) && !this.retreatGuide?.active && !rt.dodgeGuide)
-      shownTaskLabel = 'この敵をたおす';
+      void 0;   // 10/25 kaito「ここへ進むとかチカチカしてる」：右上の一行を敵や行き先で付け替えない（段の名のまま）
     if (singleBattleGuide(rt) && /^(この旗へ|旗へ進もう)$/.test(shownTaskLabel))
-      shownTaskLabel = 'ここへ進む';
+      void 0;
     setClass($('objectives'), 'flag-task', !!guide?.marker && /^(旗へもどろう|ここを守ろう|この中を守れ)$/.test(shownTaskLabel));
     setClass($('objectives'), 'rescue-order', /^(この人に 近づこう|そばで 敵からまもる)$/.test(shownTaskLabel));
     // 歩数と人数の更新だけでは札を開き直さない。任務・進軍段階・下知の変化で八秒間読む。
@@ -1505,7 +1505,7 @@ export class Hud {
     // 戦闘中の常設五枚は畳む。開戦直後と号令を開いた時にだけ見せ、近くの行動札は保つ。
     // 下の札は武器の持ち替えだけ（突く・狙い・話すは出さない。kaito 10/23 稲生 39）。持ち替える物が無ければ出さない。
     const weapons = p.weaponList ? p.weaponList() : [p.weapon];
-    setHidden($('h-bottom'), weapons.length < 2 || !!rt.over || !u.alive);
+    setHidden($('h-bottom'), true || weapons.length < 2 || !!rt.over || !u.alive);   // 10/25 持ち替えの札は出さない
     const pad = this.padMode;
     const bottomKey = `${pad}|${p.weapon}|${weapons.join()}`;
     if (this.bottomKey !== bottomKey) {

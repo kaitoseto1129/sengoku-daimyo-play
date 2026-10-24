@@ -46,7 +46,7 @@ export class HudDestination {
     const label = rt.def.travelGuideLabel?.(rt);
     if (this.openingActive && isTouch && !label) return '輪の中へ';
     if (label) return label;
-    return rt.def.routeWaymarkLabel || 'ここへ進む';
+    return '';   // 行き先の字は出さない（10/25）
   }
 
 

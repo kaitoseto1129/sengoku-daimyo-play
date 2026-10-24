@@ -245,13 +245,23 @@ const inou = {
     }
     return signs;
   },
-  // 倒す相手は本人の頭上の剣、移動先は地面の目印に分ける。
+  // 届く足場まで地面のピン一本で誘い、間合いに入ったら本人の頭上の▼へ引き継ぐ。
   missionPin: (rt) => {
     const F = rt.flags;
     if (F.ending) return null;
     if (F.step === 0 || F.step === 3) {
       const u = rt.def.missionSignTarget(rt);
-      return fighting(u) ? pinPoint(rt, u.pos, 0, 0, u) : null;
+      if (!fighting(u)) return null;
+      const P = rt.player, me = P.u.pos;
+      if (P.inRange && fighting(P.rangeCueTarget) && P.rangeCueTarget.team !== P.u.team) return null;
+      const dx = me.x - u.pos.x, dz = me.z - u.pos.z, distance = Math.hypot(dx, dz);
+      const stand = P.meleeReach(P.previewMeleeKind() || 'thrust') * .8;
+      // 既に足場へ着いた時は、自分の足元を行き先として示さない。
+      if (distance <= stand) return null;
+      const pin = pinPoint(rt, u.pos, 0, 0, u);
+      pin.x += dx / distance * stand; pin.z += dz / distance * stand;
+      pin.approach = true;
+      return pin;
     }
     if (F.step === 1) {
       if (F.training === 11 && !F.flankReached) {

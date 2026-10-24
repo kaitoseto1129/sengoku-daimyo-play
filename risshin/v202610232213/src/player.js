@@ -749,6 +749,8 @@ export class Player {
     };
     this.nearFlagFadePart = (part) => {
       if (!part.isMesh || !part.visible) return;
+      // 桶狭間は透けた旗の四角も斬る相手を隠す。遮る間だけ避け、描画後に戻す。
+      if (this.rt.def.key === 'okehazama') { this.hideNearFlag(part); return; }
       // 大写しの布は透かしても四角い面が残る。描く間だけ避ける。
       if (this.flagCoversScreen(part, this.rt.camera)) this.hideNearFlag(part);
       else this.nearAllyFadePart(part, false, 0);
@@ -4386,13 +4388,16 @@ export class Player {
       for (const o of this.nearAllyHid) o.visible = true;
       this.nearAllyHid.length = 0;
       this.nearAllyCam = null;
+      this.nearFlagEnemy = null;
       return;
     }
     // 体は残し、視線を塞ぐ旗・馬印・竿だけを描く間避ける。入れ物は使い回す。
     const flagRadius = this.rt.def.nearFlagFadeRadius ?? 4.5;
     // カメラと自分の間を塞げない遠い兵は調べない（旗・竿の行列を全兵ぶん辿らない）。竿と旗の長さの分（10m）は余して見る
     const cpF = cam.position, D = this.rt.def;
-    const focus = this.rt.hud?.outlinedEnemy || this.rt.guideEnemy || this.lock;
+    const focus = (D.key === 'inou' || D.key === 'okehazama' ? D.missionSignTarget?.(this.rt) : null) ||
+      this.rt.hud?.outlinedEnemy || this.rt.guideEnemy || this.lock;
+    this.nearFlagEnemy = focus;
     const focusX = focus?.alive ? focus.pos.x - cpF.x : 0;
     const focusZ = focus?.alive ? focus.pos.z - cpF.z : 0;
     const focusLength2 = focusX * focusX + focusZ * focusZ;
@@ -4539,8 +4544,9 @@ export class Player {
     const cp = cam.position;
     if (this.rt.army.forNear) {
       this.nearAllyCam = cam;
-      // 稲生は赤い▼と同じ本人への視線を空ける。相手選びは描く前に一度だけ。
-      this.nearAllyGoal = this.rt.def.key === 'inou' ? this.rt.def.missionSignTarget?.(this.rt)?.pos : null;
+      // 赤い▼と同じ本人への視線を空ける。相手選びは描く前に一度だけ。
+      this.nearAllyGoal = this.rt.def.key === 'inou' || this.rt.def.key === 'okehazama'
+        ? focus?.pos : null;
       const viewRadius = this.fpK < .5 ? Math.hypot(this.u.pos.x - cp.x, this.u.pos.z - cp.z) + 1 : 0;
       this.rt.army.forNear(cp.x, cp.z, Math.max(this.nearAllyGoal ? 10 : 4, this.rt.def.nearAllyFadeRadius || 2.2, viewRadius), this.nearAllyVisit);
     }
@@ -4566,7 +4572,7 @@ export class Player {
   flagObstructs(flag, cam, radius) {
     if (flagMeshBlocksView(flag, cam.position, this.u.pos, radius)) return true;
     // 任務の地点だけでなく、矢印の先の敵の胸までの視線も空ける。
-    const enemy = this.rt.hud?.outlinedEnemy || this.rt.guideEnemy || this.lock;
+    const enemy = this.nearFlagEnemy || this.rt.hud?.outlinedEnemy || this.rt.guideEnemy || this.lock;
     if (enemy?.alive) {
       _fpS.set(enemy.pos.x, enemy.pos.y + (enemy.mounted ? 1.2 : 0), enemy.pos.z);
       if (flagMeshBlocksView(flag, cam.position, _fpS, .35)) return true;
