@@ -210,16 +210,14 @@ const inou = {
   missionHeading(rt) {
     const F = rt.flags;
     if (F.step === 1) {
-      if (F.training === 11 && !F.flankReached) return '右の畦へ進め';
+      if (F.training === 11 && !F.flankReached) return '▼の柴田の兵を倒せ';
       if (F.training === 12 && !gone(F.shiba1)) return '▼の柴田の兵を倒せ';
-      // 最初は二十四秒で側面への命令、後半は百十二秒で信長の前進へ移る。
-      const until = F.training < 11 ? 24 : 112;
-      return `信長の旗のそばで あと${Math.max(0, Math.ceil(until - (rt.t - F.stepT)))}秒 耐えろ`;
+      return '信長の旗のそばで耐えろ';
     }
     if (F.step === 2) {
       // ピンは信長の旗。遠い間は行き先の名で言う。
       const lead = F.nobuU?.alive ? F.nobuU.pos : NOBU, me = rt.player.u.pos;
-      return Math.hypot(me.x - lead.x, me.z - lead.z) > 10 ? '信長の旗へ' : '▼の敵をたおせ';
+      return Math.hypot(me.x - lead.x, me.z - lead.z) > 10 ? '信長の旗のそばで耐えろ' : '▼の敵をたおせ';
     }
     return F.step === 0 && F.training === 8 ? '▼の隊長をたおせ' : this.missions[this.missionOf(rt)];
   },
@@ -229,7 +227,7 @@ const inou = {
   foeMarkVisible: () => true,
   missionSignTarget: (rt) => rt.flags.step === 0 && rt.flags.training >= 0 && rt.flags.training <= 8 ?
     rt.flags.training === 8 ? rt.flags.hayaLead :
-      rt.player.inRange && fighting(rt.player.rangeCueTarget) ? rt.player.rangeCueTarget : approachUnit(rt) :
+      approachUnit(rt) :
         rt.flags.step === 1 && rt.flags.training === 12 && !gone(rt.flags.shiba1) ? approachUnit(rt) :
           rt.flags.step === 3 ? rt.flags.hayaU : null,
   missionEnemyLabel: (rt) => rt.flags.step === 3 ? '林美作守' : rt.flags.step === 1 ? '柴田の兵' :
@@ -258,37 +256,15 @@ const inou = {
     }
     return signs;
   },
-  // 相手は頭上の赤い▼、移動先は届く足場の地面のピン。間合いに入ったら▼だけにする。
+  // 討つ相手は頭上の▼だけ。足場の黄色い印を別の兵に重ねない。
   missionPin: (rt) => {
     const F = rt.flags;
-    if (F.ending) return null;
-    if (F.step === 0 || F.step === 3) {
-      const u = rt.def.missionSignTarget(rt);
-      if (!fighting(u)) return null;
-      const P = rt.player, me = P.u.pos;
-      if (P.inRange && fighting(P.rangeCueTarget) && P.rangeCueTarget.team !== P.u.team) return null;
-      const dx = me.x - u.pos.x, dz = me.z - u.pos.z, distance = Math.hypot(dx, dz);
-      const stand = P.meleeReach(P.previewMeleeKind() || 'thrust') * .8;
-      // 既に足場へ着いた時は、自分の足元を行き先として示さない。
-      if (distance <= stand) return null;
-      const pin = pinPoint(rt, u.pos, 0, 0, u);
-      pin.x += dx / distance * stand; pin.z += dz / distance * stand;
-      pin.approach = true;
-      return pin;
-    }
+    if (F.ending || F.step === 0 || F.step === 3) return null;
     if (F.step === 1) {
       if (F.training === 11 && !F.flankReached) {
         return pinPoint(rt, FLANK, 8, undefined, null, '右の畦');
       }
-      if (F.training === 12 && !gone(F.shiba1)) {
-        // 敵本人へ案内し、近接戦では共通処理でピンを消して▼だけにする。
-        const u = rt.def.missionSignTarget(rt);
-        if (!fighting(u)) return null;
-        // 遠い間も地面のピン（画面外なら端の向き）で示す。印を一つにそろえる。
-        const pin = pinPoint(rt, u.pos, 0, 0, u); pin.approach = true;
-        return pin;
-      }
-      // 耐える間も信長の旗にピンを立て続ける。画面の外なら端に向きの印（テストプレイの声 10/24「耐えろの場所が分からない」）。
+      if (F.training === 12 && !gone(F.shiba1)) return null;
       let lead = F.nobuU?.alive ? F.nobuU.pos : NOBU;
       // 自分が遠く離れた時は、信長の方へ十歩の所を行き先にする（信長と旗本も寄って来る）。敵中を長く戻らせない。
       const me = rt.player.u.pos, far = Math.hypot(lead.x - me.x, lead.z - me.z);

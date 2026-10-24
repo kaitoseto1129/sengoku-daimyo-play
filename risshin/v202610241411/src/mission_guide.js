@@ -60,6 +60,7 @@ export function missionFollowTarget(rt, heading = rt.def.missionHeading?.(rt) ||
 // 任務は右上の一行。待機と火付けは実際の判定に合わせる。
 export function missionCaption(rt, title = currentObjective(rt)?.text || '') {
   let heading = (rt.def.missionHeading?.(rt) || title).replace(/赤い印の(?:兵|敵)を(?:倒せ|たおせ)/g, '▼の敵をたおせ');
+  if (rt.def.key === 'inou') return heading;
   // 討つ任務も、届くまでは移動の印と同じ一行にする。
   if (!rt.def.town && !rt.def.dojo && /▼.*(?:たおせ|倒せ)/.test(heading)) {
     const p = rt.player, enemy = rt.army.missionMarkedEnemy || rt.def.missionSignTarget?.(rt);

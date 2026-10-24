@@ -22,13 +22,32 @@ export class HudOverlay {
     if (landmark || rt.def.routeGuidePriority?.(rt))
       return this.drawDestinationPin(g, x, y);
     if (rt.def.key !== 'moribe') return this.drawDestinationPin(g, x, y);
-    // 渡河中は黒い穴や進みの丸を出さず、先端が対岸に刺さる一本にする。
-    // 待つ場所の円と形を分け、着くまでは同じ大きさ・同じ接地点を保つ。
-    if (pin?.crossing && !pin.arrived) return this.drawDestinationPin(g, x, y);
+    // 渡河中も岸に刺さる短いピン。人を指す大きな下矢印へ替えない。
     g.save(); g.lineJoin = 'round';
     // 渡河のピンは岸を隠さない大きさに固定し、近づいても伸び縮みさせない。
     // 進みを表す中身とは別に、地面の先端まで見て到着点を追えるようにする。
     const bankPin = pin?.crossing || pin?.arrived && !pin?.waiting;
+    if (bankPin) {
+      // 岸そのものへ刺す短いピン。兵の頭まで軸を伸ばさず、足元と行き先を結ぶ。
+      g.translate(x, y);
+      g.beginPath(); g.ellipse(0, 1, 10, 3, 0, 0, Math.PI * 2);
+      g.fillStyle = 'rgba(20,18,15,.65)'; g.fill();
+      g.beginPath(); g.moveTo(0, 0); g.lineTo(-11, -16);
+      g.bezierCurveTo(-22, -40, 22, -40, 11, -16); g.closePath();
+      g.strokeStyle = '#14120f'; g.lineWidth = 6; g.stroke();
+      g.fillStyle = '#fff3ba'; g.fill();
+      g.beginPath(); g.arc(0, -24, 10, 0, Math.PI * 2);
+      g.fillStyle = '#14120f'; g.fill();
+      if (pin.arrived) {
+        g.beginPath(); g.moveTo(-6, -24); g.lineTo(-1, -19); g.lineTo(7, -30);
+        g.strokeStyle = '#ffe28a'; g.lineWidth = 3; g.stroke();
+      } else if (pin.progress > 0) {
+        g.beginPath(); g.moveTo(0, -24);
+        g.arc(0, -24, 8, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, pin.progress));
+        g.closePath(); g.fillStyle = '#ffe28a'; g.fill();
+      }
+      g.restore(); return;
+    }
     const pinScale = bankPin || pin?.waiting ? .95 : 1.3;
     g.translate(x, y); g.scale(pinScale, pinScale); x = 0; y = 0;
     // 大きさが変わってもピンの接地点は岸から動かさない。
@@ -51,7 +70,7 @@ export class HudOverlay {
     if (pin?.arrived) {
       g.strokeStyle = '#fff3ba'; g.lineWidth = 3; g.stroke();
     }
-    // 移動先は常に穴の空いたピン。渡河と待機の進みも同じ中に示す。
+    // 移動先は常に穴の空いたピン。待機の進みも同じ中に示す。
     g.beginPath(); g.arc(x, y - 33, 14, 0, Math.PI * 2);
     g.fillStyle = '#14120f'; g.fill();
     // 実際の到着半径へ入った時だけ、同じピンの内周を閉じる。
@@ -59,11 +78,7 @@ export class HudOverlay {
     if (pin?.arrived) {
       g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
     }
-    if (bankPin && pin?.arrived) {
-      // 渡り切った時だけ同じピンの中を丸から完了の形へ替える。
-      g.beginPath(); g.moveTo(x - 8, y - 33); g.lineTo(x - 2, y - 27); g.lineTo(x + 9, y - 40);
-      g.strokeStyle = '#ffe28a'; g.lineWidth = 4; g.stroke();
-    } else if (pin?.progress > 0) {
+    if (pin?.progress > 0) {
       // ピンの中だけを満たす。待ち時間の札や別の印は増やさない。
       g.beginPath(); g.moveTo(x, y - 33);
       g.arc(x, y - 33, 12, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, pin.progress));
