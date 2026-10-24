@@ -42,9 +42,9 @@ const START2 = { x: 40, z: 98 };
 // 向こう岸の水際。実際の水面を整えた後、最初に足が着く土へ合わせる。
 const POINT2 = { x: 40, z: 76.5 };
 const FORD_R = 4;
-// 向こう岸へ上がれば渡河済み。浅瀬から横へそれても、小旗へ戻らせない。
+// ピンと同じ岸まで進み、水から上がれば渡河済み。横へそれても小旗へ戻らせない。
 // 足の上下動で到着を遅らせず、岸そのものの高さで水深を調べる。
-const atFordBank = (p, world) => p.z <= nireZ(p.x) - NIRE_WIDTH2 &&
+const atFordBank = (p, world) => p.z <= Math.min(nireZ(p.x) - NIRE_WIDTH2, POINT2.z + .75) &&
   world.waterFootDepthAt(p.x, p.z, world.heightAt(p.x, p.z)) <= .12;
 const FRONT2 = { x: 4, z: 20 };
 const ASSEMBLY2 = { x: 14, z: 10 };
@@ -1155,6 +1155,11 @@ const moribe = {
   // 右上はミッションの一行だけ。距離・向き・操作の字を見出しに出さない（kaito 10/23 49・50）。
   autoTreatment: true, // 味方に守られて足を止めると、三秒かけて布を巻く。
   meleeHitFeedback: false, // 命中は本人の赤い▼とよろめきで示し、照準の印を重ねない。
+  // 防がれた接触も同じ本人の▼で返す。空振りでは印を変えない。
+  meleeResult(rt, enemy, result) {
+    if (result === 'block' && enemy?.alive && enemy.team !== rt.player.u.team)
+      enemy.moribeBlockUntil = rt.t + .7;
+  },
   missionStatus() { return ''; }, // 行き先は黄色い矢印と輪だけで示す。
   tacticsCommandText: '', // 横へ回る助言に、操作のない「配下に命じて押せ」を足さない。
   missionWaitProgress(rt) {
@@ -1181,7 +1186,7 @@ const moribe = {
     // 着いた後の足元や画面端へ、移動を促す印を残さない。
     q.waiting = false; q.arrived = false; q.crossing = false; q.progress = 0;
     // 集合や接敵へ切り替わるコマでも、渡河の完了を短く見届けられるようにする。
-    if (F.fordArrivedAt !== undefined && rt.t - F.fordArrivedAt < .9) {
+    if (F.fordArrivedAt !== undefined && rt.t - F.fordArrivedAt < 2.4) {
       q.x = POINT2.x; q.z = POINT2.z; q.y = POINT2.y; q.r = FORD_R; q.hide = 0;
       q.arrived = true; q.progress = 1;
       return q;
@@ -2136,7 +2141,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       if (src?.isPlayer && t?.team !== src.team && t.hp < hp) {
         // 命中後は少し形を保ってから戻す。乱戦でも一瞬の変化で終わらせない。
         t.moribeHitUntil = rt.t + 2.4;
-        if (!t.alive || t.dying || t.woundOut || t.rearWound) t.moribeDefeatUntil = rt.t + .6;
+        if (!t.alive || t.dying || t.downed || t.woundOut || t.rearWound) t.moribeDefeatUntil = rt.t + 1.2;
         // 命を減らした本人だけがよろめく。空振りや味方には反応を付けない。
         if (t.alive) {
           t.stagger = Math.max(t.stagger || 0, .6);

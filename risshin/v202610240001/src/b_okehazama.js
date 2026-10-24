@@ -2084,13 +2084,14 @@ const okehazama = {
   },
   marchFlag(rt) {
     const end = rt.hostGroup.path[rt.hostGroup.path.length - 1];
-    rt.flags.marchGoal = { x: end[0], y: rt.world.heightAt(end[0], end[1]), z: end[1] };
-    // 到着範囲の内側、手前の空き地へ一本だけ刺す。兵の中心へ潜り込ませない。
+    // 隊の手前の空き地を、ピンと到着判定の共通の中心にする。
     // 出発時に固定し、歩く本人や兵に合わせて動かさない。
     const p = rt.player.u.pos, dx = p.x - end[0], dz = p.z - end[1];
     const d = Math.hypot(dx, dz), offset = Math.min(6, d);
     const x = end[0] + (d ? dx / d * offset : 0), z = end[1] + (d ? dz / d * offset : 0);
     rt.flags.marchPinPos = { x, y: rt.world.heightAt(x, z), z };
+    rt.flags.marchGoal = rt.flags.marchPinPos;
+    rt.flags.marchGuideProgress = 0;
     rt.flags.marchStartDistance = Math.max(.01, d - 8);
     rt.obj('col', '目印の仲間に ついて進もう', 'main');
     rt.marker('genpachi', rt.flags.marchGoal, '組の集合場所', { guideFlag: true, group: rt.hostGroup, guideRadius: 8 });
