@@ -225,14 +225,26 @@ const inou = {
   nearAllySolidBody: true,
   nearAllySightWidth: 1.1,
   nearAllyHorseFade: true,
-  nearLongWeaponRadius: 4.5, // 肩越しの自分と行き先を覆う、カメラ近くの長柄だけ避ける。
+  nearLongWeaponRadius: 10, // 後列から肩越しへ伸びる長槍・旗竿も、描く間だけ避ける。
+  nearSpearBatchRadius: 10, // 避けた持ち主の槍を、遠景の束へ残さない。
+  nearGroundSpearRadius: 10, // 討ち取り後に視線を横切る落ち槍も既存の視線判定で避ける。
   nearSpearFade: false, // 槍だけを縮めて透かさず、持ち主と同じ形を保つ。
   missionPinCaption: '',
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
   // 任務は一行。兵と武将を区別し、相手の印・待つ場所と残り時間を示す。
-  missions: ['林の兵を倒せ', '林の兵を倒せ', '信長の旗のそばで耐えろ', '林美作守を倒せ'],
+  missions: ['赤い▼の林の兵を倒せ', '赤い▼の林の兵を倒せ', '信長の旗のそばで耐えろ', '▼の林美作守を倒せ'],
   missionHeading(rt) {
     const F = rt.flags;
+    if (F.step === 0 && F.training <= 8) {
+      const enemy = this.missionSignTarget(rt), P = rt.player;
+      if (!fighting(enemy)) return '味方と一緒に進め';
+      // 攻撃判定が届く本人と札をそろえる。空振りを続けさせない。
+      const ready = P.inRange && fighting(P.rangeCueTarget) &&
+        (P.rangeCueTarget === enemy || F.training !== 8 && P.rangeCueTarget.group === enemy.group);
+      if (!ready) return F.training === 8 ? '赤い▼の隊長へ近づけ' : '頭上の赤い▼へ近づけ';
+      const left = F.training <= 4 ? practiceLeft(rt) : 0;
+      return F.training === 8 ? '赤い▼の隊長を倒せ' : left ? `赤い▼を倒せ（残り${left}人）` : '赤い▼の敵を倒せ';
+    }
     if (F.step === 1) {
       if (F.training === 11 && !F.flankReached) return '柴田の兵を倒せ';
       if (F.training === 12 && !gone(F.shiba1)) return inouEnemyOrder(rt, '柴田の兵を倒せ');
@@ -280,10 +292,19 @@ const inou = {
     }
     return signs;
   },
-  // 討つ相手は頭上の▼だけ。足場の黄色い印を別の兵に重ねない。
-  missionPin: (rt) => {
+  // 届くまでは同じ本人の足元へ案内し、届いたら頭上の▼に任せる。
+  missionPin(rt) {
     const F = rt.flags;
-    if (F.ending || F.step === 0 || F.step === 3) return null;
+    if (F.ending || F.step === 3) return null;
+    if (F.step === 0) {
+      if (F.training < 0 || F.training > 8) return null;
+      const enemy = this.missionSignTarget(rt);
+      if (!fighting(enemy)) return null;
+      if (rt.player.inRange && rt.player.rangeCueTarget === enemy) return null;
+      const pin = pinPoint(rt, enemy.pos, .2, .2, enemy);
+      pin.approach = true;
+      return pin;
+    }
     if (F.step === 1) {
       if (F.training === 11 && !F.flankReached) {
         return pinPoint(rt, FLANK, 8, undefined, null, '右の畦');
@@ -423,9 +444,12 @@ const inou = {
       const result = damage.call(this, t, amount, src, ...rest);
       if (t && src?.isPlayer && t.team !== src.team) {
         if (rest[0]?.out?.res === 'block' && t.alive) {
+          F.attackFeedback = '防がれた'; F.attackFeedbackUntil = rt.t + 1.2;
           t.inouBlockUntil = rt.t + .7;
           t.inouHitUntil = 0;
         } else if (t.hp < hp) {
+          F.attackFeedback = !t.alive || t.dying || t.hp <= 0 || t.downed || t.woundOut || t.rearWound ? '一人倒した' : '命中した';
+          F.attackFeedbackUntil = rt.t + 1.5;
           t.inouHitUntil = rt.t + 2.4;
           t.inouBlockUntil = 0;
           F.combatResult = '命中。もう一度突け'; F.combatResultUntil = rt.t + 1.2;
@@ -836,7 +860,7 @@ const inou = {
           g.order = 'attack'; g.aggro = 12; g.seekRange = 30; g.speed = 1.6;
           for (const u of g.units) u.noTarget = false;
           rt.obj('main', '林美作守の兵を倒せ', 'main');
-          rt.say('組頭 源八', '追いついたぞ。倒せ！', 3);
+          rt.say('組頭 源八', '頭の上の赤い▼が敵だ。槍が届くまで近づけ！', 4);
           lesson(rt, 'kill');
         }
         if (F.caught && !F.firstHitAt && F.strikeN > F.strikeCaught) F.firstHitAt = rt.t;
