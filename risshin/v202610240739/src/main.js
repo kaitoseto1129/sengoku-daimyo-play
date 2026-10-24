@@ -2828,6 +2828,7 @@ game.hud.onIntroReady = () => {
   if (!isTouch) requestLock();
 };
 initTouch({ input, game, setPause, toggleBigMap });
+game.toggleBigMap = toggleBigMap; // 隅の小さな地図（field_map.js）を押した時も同じ道で開く
 loop();
 // 自動計測の鍵は出陣の再開より先に用意する。後で解くと、読み直した四戦目以降が購入案内で止まる。
 const autoplayRequest = window.__autoplay || new URLSearchParams(location.search).get('autoplay');
