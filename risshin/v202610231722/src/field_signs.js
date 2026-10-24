@@ -172,7 +172,7 @@ export function fieldSignsTick(rt, root) {
   const reachableTarget = rt.player.inRange && rt.player.rangeCueTarget?.alive ? rt.player.rangeCueTarget : null;
   // 稲生も共通の頭上印を保ち、大きな札への置き換えや周囲の縮小をしない。
   const marked = rt.def.key === 'inou' || rt.def.key === 'moribe' || rt.def.key === 'okehazama' ? null : markedEnemy(rt);
-  const missionEnemy = marked || (rt.def.key === 'inou' || rt.def.key === 'okehazama' ? rt.def.missionSignTarget?.(rt) : null) || reachableTarget ||
+  const missionEnemy = marked || (rt.def.key === 'inou' || rt.def.key === 'okehazama' || rt.def.key === 'moribe' ? rt.def.missionSignTarget?.(rt) : null) || reachableTarget ||
     rt.hud.approachGuideEnemy || rt.hud.attackGuideEnemy || rt.hud.aimGuideEnemy ||
     (rt.player.lock?.alive ? rt.player.lock : null) || rt.missionGuide?.closeEnemy ||
     (rt.guideEnemyShown ? rt.guideEnemy : null);
@@ -222,9 +222,10 @@ export function fieldSignsTick(rt, root) {
   let n = 0, a = 0, b = 0, hotN = 0;
   const gens = s.gens; gens.length = 0;
   if (!hide) for (const u of rt.army.units) {
-    // 自分が討った時だけ、同じ▼を短く縮めて消す。空振りや味方の討ち取りでは出さない。
+    // 稲生は倒れ始めた瞬間に▼を消す。地面近くの印を立っている別人と取り違えさせない。
+    // ほかの戦は、自分が討った時だけ同じ▼を短く縮めて消す。
     const defeatUntil = oke ? u.okeHitUntil : inou ? u.inouHitUntil : u.moribeHitUntil;
-    const defeated = special && (!u.alive || u.dying || u.downed || u.woundOut || u.rearWound) && (defeatUntil || 0) - rt.t > 1.2;
+    const defeated = special && !inou && (!u.alive || u.dying || u.downed || u.woundOut || u.rearWound) && (defeatUntil || 0) - rt.t > 1.2;
     if ((!u.alive || u.dying || u.woundOut || u.rearWound || u.downed) && !defeated || u.gone || u.isPlayer || u.isStruct || u.civ || u.type === 'dummy' || u.type === 'porter' || u.team > 1) continue;
     const dx = u.pos.x - P.x, dz = u.pos.z - P.z, d2 = dx * dx + dz * dz;
     const foe = u.team !== me.team;
@@ -253,8 +254,8 @@ export function fieldSignsTick(rt, root) {
       }
       if (!u._focusSignSeen) continue;
     }
-    // 稲生は共通の▼を本人の頭上に残す。札や囲みへの置き換えはしない。
-    if (u === marked && !oke && !inou) continue;
+    // 狙う本人のひし形が出ている間は、同じ頭上に通常の印を重ねない。
+    if (u === focusEnemy && rt.hud.missionEnemyShown || u === marked && !oke && !inou) continue;
     if (inou && (u.mesh?.visible === false || u.camHidden) && !defeated) continue;
     // 稲生・森部は敵の赤い▼だけ。味方の丸と重ねて所属を迷わせない。
     if ((moribe || inou || rt.def.key === 'okehazama') && !foe) continue;
@@ -288,18 +289,19 @@ export function fieldSignsTick(rt, root) {
     // 任務の相手とは別でも、実際に今の攻撃が届く一人の▼を横に広げる。
     const readyEnemy = reachableTarget;
     // 追う一人の▼は近づくほど大きくする。足場のピンと同じ本人を示す。
-    const approach = (oke || inou) && u === missionEnemy ? Math.max(0, 1 - Math.hypot(u.pos.x - me.pos.x, u.pos.z - me.pos.z) / 30) : 0;
+    const approach = special && u === missionEnemy ? Math.max(0, 1 - Math.hypot(u.pos.x - me.pos.x, u.pos.z - me.pos.z) / 30) : 0;
     // 届く一人を大きくし、命中時は縦横に広げて少し保つ。
     // 討つ武将は別の大きさを保ち、任務の相手を見失わせない。
     // 稲生は追う一人を少し大きくし、届く時には幅も広げる。
     // 森部の縦の拡大は命中だけに使い、敵の振りかぶりと混ぜない。
     // 森部で探しているだけの敵を、刃が届く敵と同じ大きさにしない。
     // 命中後も大きさを別の時間で保たず、下の一度だけの拡大にそろえる。
-    const pixels = !inou && marked && u !== marked && foe ? 9 : moribe ? (u === readyEnemy || u === commander ? 26 : near ? 16 : 11) :
-      // 稲生は近づく変化を大きくし、届く本人はさらに幅広い▼へ切り替える。
-      inou ? (hot ? 32 : u === missionEnemy ? 14 + 12 * approach : meD2 < 25 * 25 ? 18 : 9) :
-      oke ? (u === readyEnemy ? 34 : u === missionEnemy ? 26 + 6 * approach :
-        (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 < 12 * 12 ? 18 : 10) :
+    const pixels = !inou && marked && u !== marked && foe ? 9 : moribe ? (u === readyEnemy || u === commander ? 26 : u === missionEnemy ? 16 + 8 * approach : near ? 16 : 11) :
+      // 稲生は届くまで同じ大きさ。届いた瞬間だけ白縁の幅広い▼へ切り替える。
+      inou ? (hot ? 32 : u === missionEnemy ? 22 : meD2 < 25 * 25 ? 18 : 9) :
+      // 届く前は一定の大きさ。実際に届いた瞬間だけ白縁・幅広へ替える。
+      oke ? (hot ? 34 : u === missionEnemy ? 22 :
+        meD2 < 25 * 25 ? 18 : 10) :
       foe ? (u === readyEnemy ? 24 : u === focusEnemy ? 22 : 18) : 14;
     // 稲生・森部・桶狭間では命を減らした相手の▼だけを一度大きくし、滑らかに戻す。
     // 頭上の先端は固定し、既存の形・材質・描画の束をそのまま使う。
@@ -394,6 +396,8 @@ export function fieldSignsTick(rt, root) {
   // 武将の体力の棒（黒い下地と色の棒）
   for (let i = 0; i < gens.length && b < BARS * 2; i++) {
     const u = gens[i];
+    // 森部の一般兵は▼の赤で命を示す。別人の黄色い棒を乱戦の上へ残さない。
+    if (moribe && u !== commander) continue;
     if (quietSigns && (u !== s.nameUnit && u !== focusEnemy || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 18 * 18)) continue;
     // 敵味方とも頭ほどの幅。遠方でも棒を拡大しすぎない。
     const k = Math.min(1.2, Math.max(1, Math.sqrt(u._fsD) / 22)), w = 0.45 * k;

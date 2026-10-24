@@ -2416,7 +2416,7 @@ const tottori = {
           if (retreat || outside || boat || F.burnt >= 2) main.cue = '';
         }
         rt.objProgress('main', retreat ? `焼いた舟 ${F.burnt}／2。味方の後ろで身を守れ`
-          : outside ? beyondBankFence(p.x, p.z) ? '柵の切れ目を回って舟の岸へ' : `焼いた舟 ${F.burnt}／2。岸の道を通って舟へ`
+          : outside ? beyondBankFence(p.x, p.z) ? `焼いた舟 ${F.burnt}／2。柵の切れ目から岸へ` : `焼いた舟 ${F.burnt}／2。岸の道を通って舟へ`
           : blocked ? `焼いた舟 ${F.burnt}／2。敵と間をあけてから岸道へ`
           : boat ? around ? `焼いた舟 ${F.burnt}／2。岸の印をたどって舟へ`
             : rt.distTo(boat) > 4 ? `焼いた舟 ${F.burnt}／2。舟へ進め`

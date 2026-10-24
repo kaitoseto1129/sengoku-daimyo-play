@@ -549,15 +549,9 @@ const okehazama = {
   minutes: 7,
   nearbyAllySignLimit: 0, // 近い味方は丸、追う本人は切れ込み旗で分ける。
   // 右上はミッションの一行だけ。距離・向き・操作の字を見出しに出さない（kaito 10/23 49・50）。
-  // 距離は実際の武器の届く範囲で判定し、攻める相手と札をそろえる。
+  // 間合いと命中は頭上の▼で示し、別の距離案内は出さない。
   enemyOrder(rt, enemy) {
-    if (!enemy) return '仲間と赤い▼の敵を迎え撃つ';
-    const p = rt.player, d = Math.hypot(enemy.pos.x - p.u.pos.x, enemy.pos.z - p.u.pos.z);
-    const reach = p.meleeReach(p.weapon === 'sword' ? 'slash' : 'thrust');
-    if (d > reach) return `赤い矢印の敵へ、あと${Math.ceil(d - reach)}メートルで届く`;
-    const angle = Math.atan2(enemy.pos.x - p.u.pos.x, enemy.pos.z - p.u.pos.z) - p.u.heading;
-    return Math.abs(Math.atan2(Math.sin(angle), Math.cos(angle))) > p.meleeHalf(p.weapon === 'sword' ? 'slash' : 'thrust')
-      ? '届く距離、赤い矢印の敵へ向き直る' : '攻撃が届く、赤い矢印の敵を倒す';
+    return '今川の兵を倒せ';
   },
   missionSignTarget(rt) {
     const F = rt.flags, p = rt.player;
@@ -588,7 +582,7 @@ const okehazama = {
     if (rt.phase === 'brief' && F.briefed) return Math.max(0, Math.min(1, 1 - (F.briefReadyAt - rt.t) / 3));
     if (rt.phase === 'wait' && Number.isFinite(F.waitReadyAt))
       // 満ち切った丸を一息見せてから攻め始める。最後の一欠けで消さない。
-      return Math.max(0, Math.min(1, (rt.t - (F.waitReadyAt - 17)) / 16.2));
+      return Math.max(0, Math.min(1, (rt.t - (F.waitReadyAt - 17)) / 17));
     if (F.pursuitDone && F.returnGatherT > 0) return Math.min(1, F.returnGatherT / 10);
     return null;
   },
@@ -661,7 +655,7 @@ const okehazama = {
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は、今する動きを短くやさしく伝える。
   missionSingleLine: true,
-  missions: ['織田隊と集まれ', '織田隊と集まれ', '雨がやむまで待て', '▼ 今川の兵を倒せ', '▼ いまがわよしもとを倒せ', 'にげる敵を追え', '織田隊と集まれ'],
+  missions: ['織田隊と集まれ', '織田隊と集まれ', '雨がやむまで待て', '今川の兵を倒せ', 'いまがわよしもとを倒せ', 'にげる敵を追え', '織田隊と集まれ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -669,8 +663,8 @@ const okehazama = {
     return rt.phase === 'assault' ? 3 : rt.phase === 'wait' ? 2 : rt.phase === 'march' ? 1 : 0;
   },
   missionHeading(rt) {
-    if ((rt.phase === 'march' || rt.phase === 'wait') && rt.flags.scoutFighting) return '▼ 今川の兵を倒せ';
-    if (rt.phase === 'assault' && rt.flags.entered && !rt.flags.victory && this.objectiveEnemies(rt).length) return '▼ 今川の旗本を倒せ';
+    if ((rt.phase === 'march' || rt.phase === 'wait') && rt.flags.scoutFighting) return '今川の兵を倒せ';
+    if (rt.phase === 'assault' && rt.flags.entered && !rt.flags.victory && this.objectiveEnemies(rt).length) return '今川の旗本を倒せ';
     if (rt.phase === 'wait') return '雨がやむまで待て';
     if (rt.phase === 'brief' && rt.flags.briefed) return '出発を待て';
     if (rt.phase === 'march' && this.squadFlagReached(rt)) return '仲間を待て';
@@ -718,7 +712,7 @@ const okehazama = {
     if (F.scoutFighting && rt.phase !== 'assault' && !(F.waitPinCompleteUntil > rt.t)) return null;
     const pin = F.missionPinTarget || (F.missionPinTarget = { x: 0, z: 0, r: 8, hide: 8 });
     pin.enemy = false; pin.dodge = false; pin.unit = null; pin.waiting = undefined;
-    pin.area = false; pin.arrived = false; pin.progress = null; pin.footRing = false; pin.follow = false;
+    pin.area = false; pin.arrived = false; pin.progress = null; pin.arrivalProgress = null; pin.footRing = false; pin.follow = false;
     // 任務札の更新で、同じ集合ピンの到着表示を初期化しない。
     pin.key = rt.phase;
     // 満ちた瞬間に消さず、一拍保って出発・総攻めへの切り替わりを見せる。
@@ -767,6 +761,12 @@ const okehazama = {
       // ピンは到着判定と同じ地面の一点へ。人物への話しかけの印にしない。
       pin.hide = 0; pin.waiting = false; pin.area = true;
       pin.arrived = rt.phase === 'brief' && F.briefed || this.squadFlagReached(rt);
+      if (rt.phase === 'brief') {
+        // 出発位置から合流の境までを基準に保つ。中心まで踏み込む必要はない。
+        const start = this.spawn;
+        F.joinGuideLength ??= Math.max(1, Math.hypot(start.x - pos.x, start.z - pos.z) - JOIN_RADIUS);
+        pin.arrivalProgress = Math.max(0, Math.min(1, 1 - (this.squadFlagDistance(rt) - JOIN_RADIUS) / F.joinGuideLength));
+      }
       // 出発前も同じピンの穴が満ちる。別の時計や人物の印へ切り替えない。
       if (pin.arrived) {
         pin.waiting = true;
@@ -2336,6 +2336,9 @@ const okehazama = {
       rt.after(4, () => { if (rt.phase === 'wait') { sfx('thunder', 1); rt.bark('石や氷を投げつけるような雨が、今川の陣へ吹きつけている'); } });
     }
     rt.objProgress('wait', '');
+    // 後半は雨脚そのものも弱め、ピンの丸と同じ終わりへ向かわせる。
+    const rainLeft = Math.max(0, Math.min(1, (F.waitReadyAt - rt.t) / 8));
+    rt.world.setRainTarget(rainLeft);
     // 丸が満ちる時に雨がやみ、同じ時刻に味方が攻め始める。見えない号令だけで待たせない。
     if (rt.t >= F.waitReadyAt && !F.clear) {
       F.clear = true; rt.world.setRainTarget(0); rt.world.setTime('after'); rt.world.addPuddles(30);

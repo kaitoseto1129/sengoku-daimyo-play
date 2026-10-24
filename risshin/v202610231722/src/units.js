@@ -24,7 +24,7 @@ import { batchHumanParts, humanBatchBegin } from './army_human_batch.js';
 import { groundAt } from './floors.js';
 import { palOf } from './unit_pal.js';
 import { horseStyleFor, buildHorse, paint, at, MAT, MAT_I, MAT_P, P, merge, RIDE, seatLegs, rng, EMBER_GEO, dropLazyGeo } from './units_model.js';
-import { numberedFlag, FLAG_T, FLAG_W, flagBlocksView, fadedWeapon, IMP, BATCH, LOD } from './units_flags.js';
+import { numberedFlag, FLAG_T, FLAG_W, flagBlocksView, fadedWeapon, fadeViewFlag, IMP, BATCH, LOD } from './units_flags.js';
 import { ArmyCombat } from './army_combat.js';
 import { ArmyFx } from './army_fx.js';
 import { ArmyRanged } from './army_ranged.js';
@@ -1400,13 +1400,16 @@ export class Army {
           if (wfade !== !!u.wpnFaded) { u.wpnFaded = wfade; u.wpn.material = wfade ? fadedWeapon(u.wpnMat) : u.wpnMat; }
         }
       }
-      // 指物と手持ちの幟は、視線を塞ぐ布だけ隠す。半透明の板は残さない。
+      // 自分と狙う一人への視線を塞ぐ手前の旗だけ薄くする。
       if (draw && cam && u.alive && (u.flag || u.standardFlag)) {
         for (let i = 0; i < 2; i++) {
           const f = i === 0 ? u.flag : u.standardFlag;
           if (!f) continue;
-          f.visible = dist < 110 && !u.group?.hideFlags
-            && !(u.camD < 9 && flagBlocksView(f, cam, this.playerUnit?.pos));
+          f.visible = dist < 110 && !u.group?.hideFlags;
+          const target = this.missionMarkedEnemy;
+          const fade = f.visible && (u.camD < 9 && flagBlocksView(f, cam, this.playerUnit?.pos) ||
+            target?.alive && u !== target && u.camD < 28 && flagBlocksView(f, cam, target.pos, 0));
+          fadeViewFlag(f, !!fade);
         }
       }
       // 救助中は既にいる仲間を使い、判断・攻撃を止める。移動は負傷兵の側で一度だけ進める。

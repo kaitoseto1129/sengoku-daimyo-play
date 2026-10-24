@@ -208,13 +208,13 @@ export function updateMissionPin(rt) {
   const closeEnemy = rt.missionGuide?.closeEnemy;
   const inouEnemy = rt.def.key === 'inou' && want?.unit && want.unit.team !== rt.player.u.team;
   // 倒す相手の札がある時は移動の印を重ねない。側面への命令は地面の矢印を優先する。
-  if (!want || enemyMarked && want.enemy || !want.always && !want.arrow && !inouEnemy && !rt.def.routeGuidePriority?.(rt) && !want.area && !want.waiting && !want.fire && !want.gate && !want.footRing && !want.defend && closeEnemy?.alive && !closeEnemy.gone && !closeEnemy.fleeing &&
+  if (!want || enemyMarked && (want.enemy || want.unit?.team !== undefined && want.unit.team !== rt.player.u.team) || !want.always && !want.arrow && !inouEnemy && !rt.def.routeGuidePriority?.(rt) && !want.area && !want.waiting && !want.fire && !want.gate && !want.footRing && !want.defend && closeEnemy?.alive && !closeEnemy.gone && !closeEnemy.fleeing &&
       Math.hypot(closeEnemy.pos.x - rt.player.u.pos.x, closeEnemy.pos.z - rt.player.u.pos.z) < 4.5 && !rt.holdPct) {
     if (pin) { if (pin._hud?.workHoldId === pin._work) pin._hud.workHoldId = null; pin.hidden = true; }
     return;
   }
   if (!pin) pin = make();
-  const simplePin = rt.def.key === 'inou' || !want.unit && !want.area && !want.waiting && !want.fire && !want.gate && !want.footRing && !want.defend && !want.treatment && !want.passage && !want.marker?.waitAction && !want.marker?.waitGuide && !rt.missionGuide?.marker?.waitAction && !rt.missionGuide?.marker?.waitGuide;
+  const simplePin = rt.def.key === 'inou' || rt.def.key !== 'okehazama' && !want.unit && !want.area && !want.waiting && !want.fire && !want.gate && !want.footRing && !want.defend && !want.treatment && !want.passage && !want.marker?.waitAction && !want.marker?.waitGuide && !rt.missionGuide?.marker?.waitAction && !rt.missionGuide?.marker?.waitGuide;
   pin.querySelector('svg').style.display = simplePin ? 'none' : '';
   if (pin._simplePin) pin._simplePin.style.display = simplePin ? '' : 'none';
   const hud = rt.hud, root = hud.root;
@@ -416,8 +416,9 @@ export function updateMissionPin(rt) {
   }
   // 合図の時刻は範囲を出ても進む。同じピンの円も途切れさせない。
   const showProgress = oke && waiting && Number.isFinite(want.progress);
-  // 桶狭間の丸は到着後の待ち時間だけ。集合へ歩く間には満ちる丸を出さない。
-  const showHold = oke ? showProgress : arrived && (!person || want.footRing) && !want.defend && !outside && !flagDestination;
+  // 集合は穴の内周が閉じ、到着後の待機は穴の中が満ちる。同じピンで形を分ける。
+  const showArrival = oke && want.area && !waiting && Number.isFinite(want.arrivalProgress);
+  const showHold = oke ? showProgress || showArrival : arrived && (!person || want.footRing) && !want.defend && !outside && !flagDestination;
   flag.style.display = destinationArrow || (person && !groundPerson) || want.defend || inouEnemy || want.fire || want.gate || want.dodge || showHold && !oke ? 'none' : '';
   if (flagDestination && !oke) flag.style.display = '';
   if (flagDestination) pin.querySelector('.goal-ground path').style.display = 'none';
@@ -455,8 +456,9 @@ export function updateMissionPin(rt) {
     pin._arrival.style.filter = 'drop-shadow(0 0 2px #14120f)';
   }
   if (oke) {
-    // 集合中は空の穴、待機中だけ円周と扇形。同じ穴に歩いた量を描かない。
-    pin._arrival.setAttribute('stroke-dasharray', '');
+    const arrival = showArrival ? Math.min(.97, Math.max(0, want.arrivalProgress)) : 1;
+    pin._arrival.setAttribute('pathLength', '100');
+    pin._arrival.setAttribute('stroke-dasharray', showArrival ? `${arrival * 100} 100` : '');
   }
   if (!arrived && !showProgress) pin._progress.setAttribute('d', '');
   if (arrived || showProgress) {
@@ -518,6 +520,9 @@ export function updateMissionPin(rt) {
   if (want.passage && !outside) flag.setAttribute('transform', 'translate(-22,0)');
   // 到着で本体が明るくなる。同じピンの穴が満ちるまで、その場で待てる。
   if (oke) {
+    // 到着後は先端を畳む。満ちる穴だけを残し、さらに歩く行き先に見せない。
+    if (arrived) flag.setAttribute('d', 'M40 -22A30 30 0 1 1 40 38A30 30 0 1 1 40 -22Z M40 -12A20 20 0 1 0 40 28A20 20 0 1 0 40 -12Z');
+    else if (!outside) flag.setAttribute('d', 'M40 68L15 25A30 30 0 1 1 65 25Z M40 -12A20 20 0 1 0 40 28A20 20 0 1 0 40 -12Z');
     flag.setAttribute('fill', arrived ? '#e4f2cb' : '#fff3ba');
     flag.setAttribute('stroke', '#14120f');
   }
@@ -673,71 +678,74 @@ let enemyTarget = null;
 function updateEnemyTarget(rt) {
   const hud = rt.hud, me = rt.player?.u;
   hud.missionEnemyShown = false;
-  // 稲生・桶狭間・森部は実際の頭上に固定した共通の▼だけを使う。
-  // 画面端へ移す「敵」の札と二重にせず、見えている兵との対応を保つ。
-  if (rt.def.key === 'inou' || rt.def.key === 'okehazama' || rt.def.key === 'moribe') {
-    if (enemyTarget) enemyTarget.hidden = true;
-    return false;
-  }
-  const active = pinGuideOn(rt) && me?.alive && !rt.over && !rt.choice && !hud.introWaiting &&
+  // 桶狭間は共通の頭上の赤い▼だけ。別の札・囲み・画面端の矢印を重ねない。
+  const active = rt.def.key !== 'okehazama' && pinGuideOn(rt) && me?.alive && !rt.over && !rt.choice && !hud.introWaiting &&
     !rt.player.camShot && !hud.bigmap && !hud.root.classList.contains('photo') &&
     !hud.root.classList.contains('ending') && !hud.root.querySelector('#cine.on');
   const u = active ? markedEnemy(rt) : null;
+  // 兵の描画側も同じ一人への視線を空ける。戦や任務が変われば解除する。
+  rt.army.missionMarkedEnemy = u;
   if (enemyTarget) enemyTarget.hidden = true;
-  if (!u?.alive || u.team === me.team || u.gone || u.dying || u.downed || u.woundOut || u.rearWound || u.fleeing) return false;
+  if (!u) return false;
   if (!enemyTarget) {
     enemyTarget = document.createElement('div');
     enemyTarget.id = 'mission-enemy-target';
-    enemyTarget.style.cssText = 'position:absolute;left:0;top:0;width:56px;text-align:center;pointer-events:none;z-index:4;transform-origin:center';
-    enemyTarget.innerHTML = '<span style="display:block;height:64px"><svg width="56" height="64" viewBox="0 0 56 64" aria-hidden="true"><path d="M28 6L50 32L28 58L6 32Z" fill="#a33124" stroke="#14120f" stroke-width="10" stroke-linejoin="round"/><path d="M28 6L50 32L28 58L6 32Z" fill="none" stroke="#fff3df" stroke-width="4" stroke-linejoin="round"/><path d="M17 26H39L28 42Z" fill="#fff3df" stroke="#14120f" stroke-width="2"/></svg></span><b style="position:absolute;left:0;top:18px;width:56px;background:#14120f;color:#fff3df;font:bold 28px/32px sans-serif"></b>';
-    enemyTarget.setAttribute('aria-label', 'この敵をたおせ');
-    enemyTarget._direction = enemyTarget.lastChild;
-  }
-  if (!enemyTarget._frame) {
-    const frame = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    frame.style.cssText = 'position:absolute;overflow:visible;left:28px;top:64px;width:1px;height:1px';
-    frame.innerHTML = '<path fill="none" stroke="#14120f" stroke-width="10" stroke-linejoin="round"/><path fill="none" stroke="#fff3df" stroke-width="5" stroke-linejoin="round"/>';
-    enemyTarget.appendChild(frame); enemyTarget._frame = frame;
+    enemyTarget.style.cssText = 'position:absolute;left:0;top:0;width:112px;text-align:center;pointer-events:none;z-index:4';
+    enemyTarget.innerHTML = '<svg width="40" height="48" viewBox="0 0 56 64" aria-hidden="true" style="display:block;margin:auto"><path d="M28 6L50 32L28 58L6 32Z" fill="#a33124" stroke="#14120f" stroke-width="10" stroke-linejoin="round"/><path d="M28 6L50 32L28 58L6 32Z" fill="none" stroke="#fff3df" stroke-width="4" stroke-linejoin="round"/><path d="M17 26H39L28 42Z" fill="#fff3df" stroke="#14120f" stroke-width="2"/></svg><svg width="48" height="48" viewBox="0 0 48 48" aria-hidden="true" style="position:absolute;left:60px;top:0"><path d="M8 19H25V10L40 24L25 38V29H8Z" fill="#fff3df" stroke="#14120f" stroke-width="4" stroke-linejoin="round"/></svg><b style="position:absolute;left:50%;top:48px;transform:translateX(-50%);white-space:nowrap;background:#14120f;color:#fff3df;padding:2px 6px;font:bold 18px/24px sans-serif"></b>';
+    enemyTarget._symbol = enemyTarget.firstChild;
+    enemyTarget._direction = enemyTarget.children[1];
+    enemyTarget._caption = enemyTarget.lastChild;
   }
   if (enemyTarget.parentNode !== hud.root) hud.root.appendChild(enemyTarget);
   const W = VIEW.w, H = VIEW.h, rects = hud.hudRects();
   const head = u.mounted ? 3.05 : Math.max(2.1, (u.bodyHeight || 1.72) + .35);
-  goalPoint.set(u.pos.x, u.pos.y + head + .12, u.pos.z).project(rt.camera);
+  goalPoint.set(u.pos.x, u.pos.y + head, u.pos.z).project(rt.camera);
   let x = (goalPoint.x + 1) * W / 2, y = (1 - goalPoint.y) * H / 2;
-  const visible = goalPoint.z >= -1 && goalPoint.z <= 1 && x >= 32 && x <= W - 32 && y >= 72 && y <= H - 24 &&
-    !rects.some(r => x + 28 > r.left && x - 28 < r.right && y > r.top && y - 64 < r.bottom) &&
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+  // 印の先を頭上へ固定する。札を避けて別の兵の上へ動かさない。
+  const visible = goalPoint.z >= -1 && goalPoint.z <= 1 && x >= 24 && x <= W - 24 && y >= 56 && y <= H - 12 &&
     !cameraWallBlocked(rt, rt.camera.position, u.pos);
-  let mark = '▼';
+  let caption = '';
   if (!visible) {
     rt.camera.getWorldDirection(goalDirection);
     const yaw = Math.atan2(goalDirection.x, goalDirection.z);
     const gx = u.pos.x - me.pos.x, gz = u.pos.z - me.pos.z;
     const right = -gx * Math.cos(yaw) + gz * Math.sin(yaw);
     const forward = gx * Math.sin(yaw) + gz * Math.cos(yaw);
-    x = right >= 0 ? W - 42 : 42;
-    y = H * (forward < 0 ? .67 : .45);
-    mark = forward < 0 ? right >= 0 ? '↘' : '↙' : right >= 0 ? '→' : '←';
-    // 端の任務や人数の札も避ける。頭上の印の位置はずらさない。
-    for (let i = 0; i < 8 && rects.some(r => x + 28 > r.left && x - 28 < r.right && y > r.top && y - 64 < r.bottom); i++)
-      y = 104 + i * Math.max(16, (H - 176) / 7);
-  }
-  enemyTarget._direction.hidden = visible;
-  if (enemyTarget._direction.textContent !== mark) enemyTarget._direction.textContent = mark;
-  enemyTarget.style.transform = `translate(${(x - 28).toFixed(1)}px,${(y - 64).toFixed(1)}px)`;
-  // 囲みは実際の頭と足へ固定し、端の方向札では消す。
-  let outline = '';
-  if (visible) {
-    playerPoint.set(u.pos.x, u.pos.y + .08, u.pos.z).project(rt.camera);
-    const fx = (playerPoint.x + 1) * W / 2 - x, fy = (1 - playerPoint.y) * H / 2 - y;
-    if (playerPoint.z >= -1 && playerPoint.z <= 1 && fy > 0) {
-      const half = Math.max(16, Math.min(48, fy * .28));
-      outline = `M${-half} 4L${half} 4L${fx + half} ${fy + 4}L${fx - half} ${fy + 4}Z`;
+    const direction = forward < -Math.abs(right) ? '後ろ' : Math.abs(right) > Math.abs(forward) ? right >= 0 ? '右' : '左' : '前';
+    caption = `${direction}へ あと${Math.max(1, Math.ceil(Math.hypot(gx, gz)))}歩`;
+    enemyTarget._direction.style.transform = `rotate(${Math.atan2(-forward, right)}rad)`;
+    // 印・矢印・文を一組で収める。任務や体力と重ならない端の余白を探す。
+    x = right >= 0 ? W - 104 : 104;
+    const top = 64, bottom = H - 88;
+    const preferred = Math.max(top, Math.min(bottom, H * (forward < 0 ? .6 : .4) - 48));
+    let best = Infinity, found = false;
+    for (let i = 0; i <= 16; i++) {
+      const cy = i === 0 ? preferred : top + (bottom - top) * (i - 1) / 15;
+      if (rects.some(r => x + 96 > r.left && x - 96 < r.right && cy + 80 > r.top && cy - 4 < r.bottom)) continue;
+      const distance = Math.abs(cy - preferred);
+      if (distance < best) { best = distance; y = cy + 48; found = true; }
     }
+    if (!found) return false;
   }
-  for (const path of enemyTarget._frame.children) path.setAttribute('d', outline);
+  enemyTarget._symbol.style.transform = visible ? '' : 'translateX(-20px)';
+  enemyTarget._direction.style.display = visible ? 'none' : '';
+  enemyTarget._caption.style.display = !visible && goalLabelRoom(hud) ? '' : 'none';
+  if (enemyTarget._caption.textContent !== caption) enemyTarget._caption.textContent = caption;
+  enemyTarget.setAttribute('aria-label', visible ? 'この敵をたおせ' : caption);
+  enemyTarget.style.transform = `translate(${(x - 56).toFixed(1)}px,${(y - 48).toFixed(1)}px)`;
   enemyTarget.hidden = false;
   hud.missionEnemyShown = true;
   return true;
+}
+
+function goalLabelRoom(hud) {
+  let cards = 1; // 体力の一枚。
+  if (hud.prog && !hud.prog.hidden && hud.prog.offsetParent) cards++;
+  for (const item of hud.notices.picks) {
+    if (!item.el.hidden && item.el.offsetParent && getComputedStyle(item.el).visibility !== 'hidden') cards++;
+  }
+  return cards < 3;
 }
 
 function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
@@ -746,27 +754,15 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     svg.setAttribute('width', '80'); svg.setAttribute('height', '80');
     svg.setAttribute('viewBox', '0 0 80 80'); svg.setAttribute('aria-hidden', 'true');
     svg.style.overflow = 'visible';
-    svg.innerHTML = '<g class="ground-step" fill="#fff3ba" stroke="#14120f" stroke-width="3" stroke-linejoin="round"><path d="M-16-10C-25-16-24-29-17-30C-9-31-8-16-16-10ZM-20-6L-12-6L-11 5L-20 5ZM10 8C1 2 2-11 9-12C17-13 18 2 10 8ZM6 12L14 12L15 23L6 23Z"/></g><path class="ground-route" fill="#fff3ba" stroke="#14120f" stroke-width="5" stroke-linejoin="round"/>';
-    const caption = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    caption.textContent = 'こっちへ';
-    caption.setAttribute('text-anchor', 'middle');
-    caption.style.cssText = 'font:bold 16px sans-serif;fill:#fff3df;stroke:#14120f;stroke-width:6px;paint-order:stroke;stroke-linejoin:round';
-    svg.appendChild(caption); el._routeCaption = caption;
+    svg.innerHTML = '<g class="ground-step" fill="#fff3ba" stroke="#14120f" stroke-width="3" stroke-linejoin="round"><g class="ground-arrival" fill="none"><ellipse cx="0" cy="0" rx="40" ry="13" stroke-width="10"/><ellipse cx="0" cy="0" rx="40" ry="13" stroke="#fff3ba" stroke-width="5"/></g><path d="M-12 0V-66H24L15-52L24-38H-12M-26 0H4"/><path class="ground-arrival" d="M8-34H20V-20H30L14-4L-2-20H8Z" stroke-width="4"/></g><path class="ground-route" fill="#fff3ba" stroke="#14120f" stroke-width="5" stroke-linejoin="round"/>';
     el.appendChild(svg); el._simplePin = svg;
   }
   el._label.hidden = true; el._work = null; el.classList.remove('fire-action');
   const W = VIEW.w, H = VIEW.h;
-  // 矢印の頂点を地形に投影する。兵の数や戦闘の判定には触れない。
+  // 地面と画面端で同じ旗を使い、方向だけ矢印で添える。
   const route = el._simplePin.querySelector('.ground-route'), step = el._simplePin.firstChild;
-  const caption = el._routeCaption;
-  caption.style.display = 'none';
-  if (want.arrow && drawGroundArrow(rt, route, want, caption)) {
-    step.style.display = 'none'; route.style.display = '';
-    el.style.transform = 'translate(0px,0px)'; el.hidden = false;
-    return;
-  }
   step.style.display = ''; route.style.display = 'none';
-  const outside = hidden || x < 24 || x > W - 24 || y < 80 || y > H - 24 || !inouPinFree(x, y, rects, false);
+  const outside = hidden || x < 92 || x > W - 92 || y < 80 || y > H - 68 || !inouPinFree(x, y, rects);
   let angle = 0;
   if (outside) {
     rt.camera.getWorldDirection(goalDirection);
@@ -783,62 +779,33 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     for (let i = 0; i < 8; i++) {
       const k = scale * (1 - i / 12);
       x = W / 2 + dx * k; y = cy + dy * k;
-      if (!inouPinFree(x, y, rects, true)) continue;
+      if (x < 92 || x > W - 92 || y < 80 || y > H - 68 || !inouPinFree(x, y, rects)) continue;
       found = true; break;
     }
     if (!found) { el.hidden = true; return; }
   }
   if (outside) {
-    step.style.display = 'none'; route.style.display = '';
-    route.setAttribute('d', 'M-26-8H4V-22L30 0L4 22V8H-26Z');
+    step.setAttribute('transform', 'translate(0,-30) scale(.65)'); route.style.display = '';
+    route.setAttribute('d', 'M-18-5H3V-14L20 0L3 14V5H-18Z');
     route.setAttribute('transform', `rotate(${angle + 90})`);
-    caption.setAttribute('x', '0'); caption.setAttribute('y', '-34'); caption.style.display = '';
-    rt.hud.missionPinLabelShown = true;
-  } else step.setAttribute('transform', 'scale(1,.55)');
+  } else step.removeAttribute('transform');
+  // 地面に見える時だけ根元を囲む。画面端に偽の到着地点を作らない。
+  for (const part of step.querySelectorAll('.ground-arrival')) part.style.display = outside ? 'none' : '';
+  // 「旗まで進め」は任務の一行にまとめ、旗に説明札を重ねない。
+  rt.hud.missionPinLabelShown = false;
   el.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`;
   el.hidden = false;
   rt.hud.missionPinOutside = outside;
 }
-const arrowShape = [[-.65,0],[.65,0],[.65,.58],[1.6,.58],[0,1],[-1.6,.58],[-.65,.58]];
-function drawGroundArrow(rt, path, want, caption) {
-  const me = rt.player.u.pos, dx = want.x - me.x, dz = want.z - me.z;
-  const d = Math.hypot(dx, dz);
-  if (d < .1) return false;
-  const ux = dx / d, uz = dz / d, start = Math.min(3, d * .2), length = Math.min(6, d - start);
-  let shape = '';
-  for (let i = 0; i < arrowShape.length; i++) {
-    const point = arrowShape[i], along = start + length * point[1];
-    const x = me.x + ux * along + uz * point[0], z = me.z + uz * along - ux * point[0];
-    goalPoint.set(x, groundAt(rt.world, x, z, me.y) + .12, z).project(rt.camera);
-    if (goalPoint.z < -1 || goalPoint.z > 1) return false;
-    const sx = (goalPoint.x + 1) * VIEW.w / 2, sy = (1 - goalPoint.y) * VIEW.h / 2;
-    if (sx < 8 || sx > VIEW.w - 8 || sy < 8 || sy > VIEW.h - 8) return false;
-    shape += `${i ? 'L' : 'M'}${sx.toFixed(1)} ${sy.toFixed(1)}`;
-  }
-  path.setAttribute('d', shape + 'Z'); path.removeAttribute('transform');
-  // 字も矢印と同じ地面の位置から求め、画面の下へ切れないようにする。
-  goalPoint.set(me.x + ux * start, groundAt(rt.world, me.x + ux * start, me.z + uz * start, me.y) + .12, me.z + uz * start).project(rt.camera);
-  const labelX = Math.max(44, Math.min(VIEW.w - 44, (goalPoint.x + 1) * VIEW.w / 2));
-  let labelY = Math.max(24, Math.min(VIEW.h - 16, (1 - goalPoint.y) * VIEW.h / 2 + 24));
-  for (const rect of rt.hud.hudRects()) {
-    if (labelX + 40 > rect.left && labelX - 40 < rect.right && labelY + 6 > rect.top && labelY - 22 < rect.bottom)
-      labelY = rect.top >= 40 ? rect.top - 10 : rect.bottom + 26;
-  }
-  caption.setAttribute('x', labelX.toFixed(1));
-  caption.setAttribute('y', labelY.toFixed(1));
-  caption.style.display = '';
-  rt.hud.missionPinLabelShown = true;
-  return true;
-}
-function inouPinFree(x, y, rects, edge) {
-  const side = edge ? 44 : 20, bottom = edge ? 44 : 8;
-  for (const r of rects) if (x + side > r.left && x - side < r.right && y + bottom > r.top && y - 44 < r.bottom) return false;
+function inouPinFree(x, y, rects) {
+  const side = 46, bottom = 24;
+  for (const r of rects) if (x + side > r.left && x - side < r.right && y + bottom > r.top && y - 72 < r.bottom) return false;
   return true;
 }
 // 自分の印は足元の水色の輪一つ。行き先の小旗と形でも見分ける。
 let playerFoot = null;
 function updatePlayerFoot(rt) {
-  const active = pinGuideOn(rt) && !rt.over && !rt.choice && !rt.hud.introWaiting &&
+  const active = rt.def.key !== 'okehazama' && pinGuideOn(rt) && !rt.over && !rt.choice && !rt.hud.introWaiting &&
     rt.player?.u?.alive && !rt.player.camShot && !rt.hud.bigmap;
   if (!active) {
     if (playerFoot) playerFoot.hidden = true;

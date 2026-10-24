@@ -2423,7 +2423,7 @@ const kanegasaki = {
     if (F.step !== 2 || F.ending) return;
     F.step = 3; F.stepT = rt.t;
     rt.setPhase('l2');
-    if (!rt.G.lord) rt.obj('stay', '二の備を守れ。橋へ槍を向けよ', 'order');
+    if (!rt.G.lord) rt.obj('stay', '二の備で橋へ槍を向けよ', 'order');
     if (!rt.G.lord) rt.obj('main', '笙の川の南で騎馬の追手を止めよ', 'main');
     pursuitSignal(rt, { x: 4, z: -70 });
     rt.banner('追い討ち', '朝倉の騎馬が追ってくる');

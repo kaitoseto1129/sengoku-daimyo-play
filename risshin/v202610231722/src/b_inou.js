@@ -56,9 +56,10 @@ function prepareMarch(g) {
 }
 
 // 信勝方は弁柄（赤茶の漆）の具足、信長方は黒漆に紺の威。ネオンにせず、近くでも遠くでも色の系統で分かる（kaito 10/22 稲生 3）。
-const SHIBA = { armor: 0x3a3026, lace: 0x8a6a2a, flag: 'kari' };
-const HAYA = { armor: 0x3c3229, lace: 0x7a6236, flag: 'sujikai' };
-const ODA = { flag: 'oda' };
+// 彩度の低い茶は人の甲冑の色替えで無視されるため、弁柄の赤みを残す。
+const SHIBA = { armor: 0x88432f, lace: 0x96583d, cloth: 0x715044, flag: 'kari' };
+const HAYA = { armor: 0x834031, lace: 0x8b503b, cloth: 0x68483e, flag: 'sujikai' };
+const ODA = { lace: 0x334f70, cloth: 0x293b51, flag: 'oda' };
 const dress = (list, lk) => list.map((s) => ({ ...s, o: { ...lk, ...(s.o || {}) } }));
 const gone = (g) => !g || g.count === 0 || g.routed;
 

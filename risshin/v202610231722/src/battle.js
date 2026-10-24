@@ -1488,6 +1488,8 @@ export class Battle {
       const q = typeof it.pos === 'function' ? it.pos() : it.pos;
       if (!q) continue;
       const d = Math.hypot(q.x - p.x, q.z - p.z);
+      // 押している作業は届く間だけ保つ。近くの落とし物で札と進みを切り替えない。
+      if (d < it.r && it.hold && this.hud.workHoldId === it.id) return it;
       // 柵に向かって歩けない時は、足元の品より柵を使う札を優先する。
       const priority = it.id === 'fence' && (this.player.blockedWalkT >= 0.7 || this.holdId === 'fence') ? 10 : it.prio || 0;
       if (d < it.r && d - priority < bd) { bd = d - priority; best = it; }

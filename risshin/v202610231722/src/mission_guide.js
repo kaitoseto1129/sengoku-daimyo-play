@@ -60,8 +60,8 @@ export function missionFollowTarget(rt, heading = rt.def.missionHeading?.(rt) ||
 // 任務は右上の一行。待機と火付けは実際の判定に合わせる。
 export function missionCaption(rt, title = currentObjective(rt)?.text || '') {
   let heading = rt.def.missionHeading?.(rt) || title;
-  // 稲生は戦の目的だけ。旗の到着判定で向きや移動の説明に置き換えない。
-  if (rt.def.key === 'inou') return heading;
+  // 稲生・桶狭間は戦の目的だけ。旗の到着判定で向きや移動の説明に置き換えない。
+  if (rt.def.key === 'inou' || rt.def.key === 'okehazama') return heading;
   if (/^(敵をたおす|ここで待つ|火をつける)$/.test(heading)) return heading;
   const fireMarker = rt.missionGuide?.marker;
   if (fireMarker?.guideSymbol === 'fire') {

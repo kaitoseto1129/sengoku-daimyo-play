@@ -1078,7 +1078,7 @@ const moribe = {
   missionHeading(rt) {
     const F = rt.flags, p = rt.player.u.pos;
     // 渡河済みのコマから待機へ替える。集合判定の更新を待たせない。
-    if (!F.signal && (F.pointInside || atFordBank(p, rt.world))) return F.fordThreat ? '斎藤勢を倒せ' : '仲間を待て';
+    if (!F.signal && (F.pointReached || F.pointInside || atFordBank(p, rt.world))) return F.fordThreat ? '斎藤勢を倒せ' : '仲間を待て';
     // 集まる間と、その場で耐える間を同じ一行で区別する。向き・距離は書かない。
     if (F.stage === 'assemble') {
       if (F.gatherUnit || Math.hypot(p.x - F.asm.x, p.z - F.asm.z) >= 12) return '仲間と集まれ';
@@ -1177,7 +1177,7 @@ const moribe = {
     if (!F.signal) {
       if (F.pointDone) return null;
       // 岸に上がるまで一本だけ示し、渡った瞬間に消す。足元へ戻らせない。
-      if (F.pointInside || atFordBank(rt.player.u.pos, rt.world)) return null;
+      if (F.pointReached || F.pointInside || atFordBank(rt.player.u.pos, rt.world)) return null;
       pos = POINT2; r = FORD_R; hide = 0;
       // 移動中は岸に刺さるピンだけ。待機の進みと混ぜず、乾いた岸へ着いた瞬間に消す。
     } else if (F.squadGuide) {
@@ -2331,7 +2331,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     // 渡河の到着だけはピンと同じコマで反映する。隊の見直しの一秒を待たせない。
     if (!F.signal) {
       // 一度渡った後は北岸全体を到着済みとする。小旗を通り越しても戻らせない。
-      F.pointInside = atFordBank(p, rt.world);
+      F.pointInside = F.pointReached || atFordBank(p, rt.world);
       if (F.pointInside) F.pointReached = true;
     }
     // 迎撃中は少し敵へ踏み込んでも集合へ戻さない。戻りの印は合流まで保つ。

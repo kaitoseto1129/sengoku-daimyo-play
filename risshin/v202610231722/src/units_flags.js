@@ -70,6 +70,19 @@ export function fadedWeapon(m) {
   if (!fadedWpnCache.has(m)) { const f = cloneWaterMaterial(m); f.transparent = true; f.opacity = 0.3; f.depthWrite = false; f.forceSinglePass = true; f.userData.faded = true; f.onBeforeCompile = m.onBeforeCompile; f.customProgramCacheKey = m.customProgramCacheKey; fadedWpnCache.set(m, f); }
   return fadedWpnCache.get(m);
 }
+// 視線を横切る旗だけ薄くする。材質は槍と同じ写しを共有し、離れたら戻す。
+export function fadeViewFlag(f, fade) {
+  if (f.material && !Array.isArray(f.material)) {
+    if (fade && !f.material.userData.faded) {
+      f.userData.viewFlagMaterial = f.material;
+      f.material = fadedWeapon(f.material);
+    } else if (!fade && f.userData.viewFlagMaterial) {
+      if (f.material.userData.faded) f.material = f.userData.viewFlagMaterial;
+      f.userData.viewFlagMaterial = null;
+    }
+  }
+  for (const child of f.children) fadeViewFlag(child, fade);
+}
 // 倒れた者の指物：土に落ちて汚れた色（元の材質ごとに一つ）
 const muddyCache = new Map();
 function muddyFlag(m) {
