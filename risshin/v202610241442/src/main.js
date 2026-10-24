@@ -202,9 +202,12 @@ const stage = (t, key) => {
   }
   if (t) ldName = ({ defs: '戦の仕組み', assets: '人とよろい', build: '地形と兵', warm: '人の姿', compile: '絵', first: '最初の画面' })[key] || t;
   let el = $('ld-stage');
-  if (!el) { el = document.createElement('div'); el.id = 'ld-stage'; el.style.cssText = 'margin-top:10px;font-size:15px;color:var(--washi);text-align:center'; el.innerHTML = '<span role="status" aria-live="polite" aria-atomic="true"></span><span aria-live="off" id="ld-left" hidden style="display:none"></span>'; document.querySelector('#loading .ldbar').after(el); }
+  if (!el) { el = document.createElement('div'); el.id = 'ld-stage'; el.style.cssText = 'margin-top:10px;font-size:15px;color:var(--washi);text-align:center'; el.innerHTML = '<span role="status" aria-live="polite" aria-atomic="true"></span><span aria-live="off" id="ld-left" style="display:block;margin-top:6px"></span>'; document.querySelector('#loading .ldbar').after(el); }
   el.setAttribute('role', 'region');
-  if (!$('ld-left')) el.innerHTML = '<span role="status" aria-live="polite" aria-atomic="true"></span><span aria-live="off" id="ld-left" hidden style="display:none"></span>';
+  if (!$('ld-left')) el.innerHTML = '<span role="status" aria-live="polite" aria-atomic="true"></span><span aria-live="off" id="ld-left" style="display:block;margin-top:6px"></span>';
+  // 初陣でも待つ目安を残す。工程名を畳む表示とは分ける。
+  const left = $('ld-left');
+  left.hidden = !t; left.style.display = t ? 'block' : 'none';
   const i = ldPlan && key ? ldPlan.keys.indexOf(key) : -1;
   el.firstChild.textContent = i >= 0 ? `${t}（${i + 1}／${ldPlan.keys.length}）` : t;
   if (key) ldStep(key);

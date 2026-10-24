@@ -446,7 +446,7 @@ function drawMissionPin(rt) {
   // 合図の時刻は範囲を出ても進む。同じピンの円も途切れさせない。
   const showProgress = oke && Number.isFinite(want.progress);
   // 丸が満ちるのは待機中だけ。行軍中は空の穴を保つ。
-  const showArrival = oke && arrived;
+  const showArrival = oke && (arrived || Number.isFinite(want.arrivalProgress));
   const showHold = oke ? showProgress || showArrival : arrived && (!person || want.footRing) && !want.defend && !outside && !flagDestination;
   flag.style.display = destinationArrow || (person && !groundPerson) || want.defend || inouEnemy || want.fire || want.gate || want.dodge || showHold && !oke ? 'none' : '';
   if (flagDestination && !oke) flag.style.display = '';
@@ -476,7 +476,12 @@ function drawMissionPin(rt) {
   // 待ち時間の扇形は隠さず、待ち終わった時だけ穴いっぱいのチェックへ替える。
   pin._arrivedMark.style.display = oke && arrived ? '' : 'none';
   pin._arrivedMark.setAttribute('transform', oke && !(want.progress >= 1) ? 'translate(16,48) scale(.6)' : '');
-  pin._arrival.style.display = oke && arrived ? '' : 'none';
+  pin._arrival.style.display = showArrival ? '' : 'none';
+  // 集合へ近づく間は穴の縁が閉じ、着いたら中の扇形が待ち時間を刻む。
+  // 別の丸へ替えず、同じ地面に刺さるピンの中だけで示す。
+  const arrivalProgress = arrived ? 1 : Math.max(0, Math.min(1, want.arrivalProgress || 0));
+  pin._arrival.setAttribute('stroke-dasharray', '113.1');
+  pin._arrival.setAttribute('stroke-dashoffset', String(113.1 * (1 - arrivalProgress)));
   // 桶狭間は到着しても同じピンを残し、その穴の中だけで待ちの進みを示す。
   // 別の時計へ替えず、待つ場所と満ち切る合図を一つにする。
   if (pin._holdOke !== oke) {
@@ -510,6 +515,7 @@ function drawMissionPin(rt) {
   }
   flag.setAttribute('transform', outside ? edgeFlag ? 'translate(14,-34) scale(.65)' :
     groundPin ? 'translate(0,-24) scale(.75)' : 'translate(0,-24)' : groundPin ? '' : 'translate(16,19.25) scale(.75)');
+  // 到着しても先端と穴を動かさず、別の行き先に切り替わったように見せない。
   pin._hold.setAttribute('transform', oke ? `${flag.getAttribute('transform')} translate(4,-17.2) scale(.9)` : '');
   // 方向は端の旗一本へまとめ、自分の足元には輪だけを残す。
   // 行き先の輪は足さず、自分の水色の足元印と役割を分ける。
@@ -545,6 +551,7 @@ function drawMissionPin(rt) {
   if (want.passage && !outside) flag.setAttribute('transform', 'translate(-22,0)');
   // 到着で本体が明るくなる。同じピンの穴が満ちるまで、その場で待てる。
   if (oke) {
+    if (!outside || arrived) flag.setAttribute('d', 'M40 68L15 25A30 30 0 1 1 65 25Z M40 -12A20 20 0 1 0 40 28A20 20 0 1 0 40 -12Z');
     // 到着後も同じ地面に刺したまま。穴の扇形が満ちると味方が出発する。
     if (arrived && outside) {
       // 待つ間は画面の端でも向きを回さず、移動の催促にしない。
@@ -719,11 +726,17 @@ function updateEnemyTarget(rt) {
   const hud = rt.hud, me = rt.player?.u;
   hud.missionEnemyShown = false;
   // 近い敵は頭上の▼と、画面外の同じ印で追う。
-  const active = rt.def.key !== 'inou' && rt.def.key !== 'okehazama' && rt.def.key !== 'moribe' && pinGuideOn(rt) && me?.alive && !rt.over && !rt.choice && !hud.introWaiting &&
+  const inou = rt.def.key === 'inou';
+  const active = rt.def.key !== 'okehazama' && rt.def.key !== 'moribe' && pinGuideOn(rt) && me?.alive && !rt.over && !rt.choice && !hud.introWaiting &&
     !rt.player.camShot && !hud.bigmap && !hud.root.classList.contains('photo') &&
     !hud.root.classList.contains('ending') && !hud.root.querySelector('#cine.on');
   // 目前の一人を優先する。僅かな距離の差で印を付け替えず、見通しは四分の一秒ごとに調べる。
-  if (active && (hud.enemySignRt !== rt || hud.enemySignAt == null || rt.t >= hud.enemySignAt || rt.t < hud.enemySignAt - .25)) {
+  if (active && inou) {
+    // 稲生は任務が選んだ本人だけ。近くの別の兵へ印を移さない。
+    const assigned = markedEnemy(rt);
+    hud.enemySignUnit = assigned && inouSignVisible(rt, assigned) ? assigned : null;
+  }
+  if (active && !inou && (hud.enemySignRt !== rt || hud.enemySignAt == null || rt.t >= hud.enemySignAt || rt.t < hud.enemySignAt - .25)) {
     if (hud.enemySignRt !== rt) hud.enemySignUnit = null;
     hud.enemySignRt = rt;
     hud.enemySignAt = rt.t + .25;
@@ -768,7 +781,7 @@ function updateEnemyTarget(rt) {
   const visible = goalPoint.z >= -1 && goalPoint.z <= 1 && x >= 64 && x <= W - 64 && y >= 80 && y <= H - 12 &&
     !cameraWallBlocked(rt, rt.camera.position, u.pos) &&
     !rects.some(r => x + 60 > r.left && x - 60 < r.right && y > r.top && y - 76 < r.bottom);
-  const name = '敵';
+  const name = inou ? rt.def.missionEnemyLabel?.(rt) || '林の兵' : '敵';
   const labelRoom = goalLabelRoom(hud);
   let caption = name;
   if (!visible) {
@@ -777,7 +790,7 @@ function updateEnemyTarget(rt) {
     const gx = u.pos.x - me.pos.x, gz = u.pos.z - me.pos.z;
     const right = -gx * Math.cos(yaw) + gz * Math.sin(yaw);
     const forward = gx * Math.sin(yaw) + gz * Math.cos(yaw);
-    caption = '敵';
+    caption = inou ? `${name}・${forward < 0 ? '後ろ' : 'この先'}` : '敵';
     enemyTarget._direction.style.transform = `rotate(${Math.atan2(-forward, right)}rad)`;
     // 印・矢印・文を一組で収める。任務や体力と重ならない端の余白を探す。
     x = right >= 0 ? W - 104 : 104;
@@ -796,7 +809,7 @@ function updateEnemyTarget(rt) {
   enemyTarget._direction.style.display = visible ? 'none' : '';
   enemyTarget._symbol.setAttribute('width', commander ? '48' : '40');
   enemyTarget._caption.style.top = visible ? '-24px' : '48px';
-  enemyTarget._caption.style.display = 'none';
+  enemyTarget._caption.style.display = inou ? '' : 'none';
   if (enemyTarget._caption.textContent !== caption) enemyTarget._caption.textContent = caption;
   enemyTarget.setAttribute('aria-label', visible ? name + 'をたおせ' : caption);
   enemyTarget.style.transform = `translate(${(x - 56).toFixed(1)}px,${(y - 48).toFixed(1)}px)`;

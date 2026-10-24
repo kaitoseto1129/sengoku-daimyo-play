@@ -659,7 +659,7 @@ const okehazama = {
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は、今する動きを短くやさしく伝える。
   missionSingleLine: true,
-  missions: ['仲間と集まれ', '仲間と集まれ', '雨がやむまで待て', '敵を倒せ', 'いまがわよしもとを倒せ', 'にげる敵を追え', '仲間と集まれ'],
+  missions: ['仲間と集まれ', '仲間と進め', '雨がやむまで待て', '今川勢を倒せ', 'いまがわよしもとを倒せ', 'にげる敵を追え', '仲間と集まれ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -670,8 +670,8 @@ const okehazama = {
     // 合流済みの待ちは敵が寄っても続く。同じ丸と一行を雨上がりまで保つ。
     if (rt.phase === 'wait') return '雨がやむまで待て';
     if (rt.phase === 'brief' && rt.flags.briefed) return '出発を待て';
-    if (rt.phase === 'march' && rt.flags.scoutFighting) return '敵を倒せ';
-    if (rt.phase === 'assault' && rt.flags.entered && !rt.flags.victory && this.objectiveEnemies(rt).length) return '敵を倒せ';
+    if (rt.phase === 'march' && rt.flags.scoutFighting) return '今川勢を倒せ';
+    if (rt.phase === 'assault' && rt.flags.entered && !rt.flags.victory && this.objectiveEnemies(rt).length) return '今川勢を倒せ';
     if (rt.phase === 'march' && this.squadFlagReached(rt)) return '仲間を待て';
     return this.missions[this.missionOf(rt)];
   },
@@ -733,7 +733,7 @@ const okehazama = {
     if (rt.phase === 'assault' && !F.victory) {
       const entrance = !F.entered && F.roadStep >= F.road.length ||
         F.guardOpened && !F.mouthReached && !F.koshiLeft;
-      // 戦う相手は頭上の赤い▼だけ。集合用の黄ピンを人へ付けない。
+      // 敵の位置は本人の頭上の赤い▼だけ。集合用の黄ピンを人や敵の手前に重ねない。
       if (!entrance) return null;
       const pos = F.honjinPin || (F.honjinPin = fieldPoint(18, -100));
       pin.x = pos.x; pin.z = pos.z; pin.r = 0; pin.hide = 0;
@@ -759,6 +759,7 @@ const okehazama = {
         pin.x = pos.x; pin.z = pos.z;
         pin.area = false; pin.hide = 0; pin.r = JOIN_RADIUS;
         pin.arrived = this.squadFlagReached(rt); pin.waiting = pin.arrived;
+        pin.arrivalProgress = Math.max(0, Math.min(1, 1 - (this.squadFlagDistance(rt) - pin.r) / 10));
         // 穴が満ちるのは待ち時間だけ。到着はチェックで示し、雨待ちの時計を先に満たさない。
         return pin;
       }
@@ -769,6 +770,7 @@ const okehazama = {
       // ピンは到着判定と同じ地面の一点へ。人物への話しかけの印にしない。
       pin.hide = 0; pin.waiting = false; pin.area = false;
       pin.arrived = rt.phase === 'brief' && F.briefed || this.squadFlagReached(rt);
+      pin.arrivalProgress = Math.max(0, Math.min(1, 1 - (this.squadFlagDistance(rt) - pin.r) / 10));
       // 出発前も同じピンの穴が満ちる。別の時計や人物の印へ切り替えない。
       if (pin.arrived) {
         pin.waiting = true;
@@ -2715,6 +2717,8 @@ const okehazama = {
     rt.finish({ scriptedEnd: true }, 7);
   },
   onKill(rt, v, k) {
+    // 討った相手の▼を、その本人の最後の頭上で閉じてから消す。
+    if (v.team !== rt.player.u.team && k?.isPlayer) v.okeDefeatUntil = rt.t + .8;
     // 討った本人だけを覚える。味方の働きを自分の手柄にはしない。
     if (v.team === 1 && k?.isPlayer && !rt.flags.victory &&
         (rt.flags.road.includes(v.group) || (v.group === rt.flags.hatamoto && v !== rt.flags.yoshimoto)))
