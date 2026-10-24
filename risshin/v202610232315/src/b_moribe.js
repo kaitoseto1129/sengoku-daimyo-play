@@ -42,9 +42,10 @@ const START2 = { x: 40, z: 98 };
 // 向こう岸の水際。実際の水面を整えた後、最初に足が着く土へ合わせる。
 const POINT2 = { x: 40, z: 76.5 };
 const FORD_R = 4;
-// 向こう岸へ上がれば渡河済み。浅瀬から横へそれても、小旗へ戻らせない。
-const atFordBank = (p, world) => p.z <= nireZ(p.x) - NIRE_WIDTH2 &&
-  world.waterFootDepthAt(p.x, p.z, p.y) <= .12;
+// ピンと同じ岸まで進み、水から上がれば渡河済み。横へそれても小旗へ戻らせない。
+// 足の上下動で到着を遅らせず、岸そのものの高さで水深を調べる。
+const atFordBank = (p, world) => p.z <= Math.min(nireZ(p.x) - NIRE_WIDTH2, POINT2.z + .75) &&
+  world.waterFootDepthAt(p.x, p.z, world.heightAt(p.x, p.z)) <= .12;
 const FRONT2 = { x: 4, z: 20 };
 const ASSEMBLY2 = { x: 14, z: 10 };
 const RETREAT2 = { x: 24, z: 48 };
@@ -1036,7 +1037,7 @@ const moribe = {
   // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は「何をするか」だけ（kaito 10/23 49・50）。段の総称で通し、向き・行き先の字は書かない。
-  missions: ['川を渡れ', '仲間を待て', '敵を倒せ', '仲間と耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
+  missions: ['川を渡れ', '仲間を待て', '斎藤勢を倒せ', '仲間と耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
   // ピン・▼・名前は同じ本人へ。描画の間引きで相手を替えない。
   commanderTarget(rt) {
     const F = rt.flags;
@@ -1095,7 +1096,7 @@ const moribe = {
   missionHeading(rt) {
     const F = rt.flags, p = rt.player.u.pos;
     // 渡河済みのコマから待機へ替える。集合判定の更新を待たせない。
-    if (!F.signal && (F.pointReached || F.pointInside || atFordBank(p, rt.world))) return F.fordThreat ? '敵を倒せ' : '仲間を待て';
+    if (!F.signal && (F.pointReached || F.pointInside || atFordBank(p, rt.world))) return F.fordThreat ? '斎藤勢を倒せ' : '仲間を待て';
     // 集まる間と、その場で耐える間を同じ一行で区別する。向き・距離は書かない。
     if (F.stage === 'assemble') {
       if (F.gatherUnit || Math.hypot(p.x - F.asm.x, p.z - F.asm.z) >= 12) return '仲間と集まれ';
@@ -1181,7 +1182,7 @@ const moribe = {
     q.waiting = false; q.arrived = false; q.crossing = false; q.progress = 0;
     // 集合や接敵へ切り替わるコマでも、渡河の完了を短く見届けられるようにする。
     if (F.fordArrivedAt !== undefined && rt.t - F.fordArrivedAt < .9) {
-      q.x = POINT2.x; q.z = POINT2.z; q.r = FORD_R; q.hide = 0;
+      q.x = POINT2.x; q.z = POINT2.z; q.y = POINT2.y; q.r = FORD_R; q.hide = 0;
       q.arrived = true; q.progress = 1;
       return q;
     }
@@ -1195,11 +1196,12 @@ const moribe = {
       // 岸に上がるまで一本だけ示し、渡った瞬間に消す。足元へ戻らせない。
       if (F.pointReached || F.pointInside || atFordBank(rt.player.u.pos, rt.world)) return null;
       pos = POINT2; r = FORD_R; hide = 0;
-      // 岸に固定した一本の中だけを満たす。乾いた岸へ上がるまでは満杯にしない。
+      // 渡河中は岸に刺さる行き先だけを示す。途中までの進みを到着と混同させない。
       q.crossing = true;
-      // 浅瀬の横幅の中で寄り道しても、対岸へ進んだ分がそのまま満ちる。
-      q.progress = Math.max(0, Math.min(.95,
-        (START2.z - rt.player.u.pos.z) / Math.max(.5, START2.z - POINT2.z)));
+      // 対岸へ進んだ分を示す。横に避けても、満ちた分を巻き戻さない。
+      F.fordCrossProgress = Math.max(F.fordCrossProgress || 0, Math.min(.95,
+        Math.max(0, (START2.z - rt.player.u.pos.z) / Math.max(.5, START2.z - POINT2.z))));
+      q.progress = F.fordCrossProgress;
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
     } else if (F.stage === 'assemble') {
@@ -1227,8 +1229,9 @@ const moribe = {
       r = hide = 10;
     }
     if (!pos) return null;
-    q.x = pos.x; q.z = pos.z; q.y = pos === POINT2 ? POINT2.y : undefined;
-    q.r = r; q.hide = hide;
+    q.x = pos.x; q.z = pos.z; q.r = r; q.hide = hide;
+    // 対岸は確定済みの高さ、ほかの地点も見えている土に先端を置く。
+    q.y = pos === POINT2 ? POINT2.y : drawGroundAt(rt.world, pos.x, pos.z);
     return q;
   },
   keepCombatTaskHeading: true,   // 敵一人への押し方で、組を率いる任務の見出しを消さない。
@@ -1974,7 +1977,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       if (battle === rt) {
         const pin = rt.def.missionPin(rt);
         // 先手が視野の外へ回った時は、missionPin が選んだ行き先だけを残す。
-        if (!pin || pin.arrived && !pin.waiting) return false;
+        // 渡り切った時も同じ岸で満杯のピンを短く見せてから消す。
+        if (!pin) return false;
       }
       return hudBattleGoal.call(this, g, battle);
     };
@@ -2123,13 +2127,16 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       if (t && t.team === 0 && !t.isPlayer && !t.group?.isPlayerSquad && src?.team === 1) amount *= 0.7;
       const hp = t?.hp;
       const result = damage.call(this, t, amount, src, ...rest);
+      // 傷のない受け止めも本人の▼だけで示し、空振りと区別する。
+      if (src?.isPlayer && t && t.team !== src.team && t.hp === hp && rest[0]?.out?.res === 'block')
+        t.moribeBlockUntil = rt.t + .65;
       // 実際に自分を傷つけた本人の▼だけ、振りかぶりの強調を短く保つ。
       if (t?.isPlayer && src?.team !== t.team && src && t.hp < hp)
         src.moribeThreatUntil = rt.t + .9;
       if (src?.isPlayer && t?.team !== src.team && t.hp < hp) {
         // 命中後は少し形を保ってから戻す。乱戦でも一瞬の変化で終わらせない。
         t.moribeHitUntil = rt.t + 2.4;
-        if (!t.alive || t.dying || t.woundOut || t.rearWound) t.moribeDefeatUntil = rt.t + .6;
+        if (!t.alive || t.dying || t.downed || t.woundOut || t.rearWound) t.moribeDefeatUntil = rt.t + 1.2;
         // 命を減らした本人だけがよろめく。空振りや味方には反応を付けない。
         if (t.alive) {
           t.stagger = Math.max(t.stagger || 0, .6);
