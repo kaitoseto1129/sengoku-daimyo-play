@@ -475,7 +475,8 @@ const inou = {
       const g = enemyGroup(rt, { faction: 'nobukatsu', name: '林の遅れ兵', anchor: { ...at }, facing: Math.PI, width: 3, aggro: 0, noAI: true, noRout: true, order: 'hold', dmgMult: 0.25, focus: rt.player.u },
         dress([{ type: 'ashigaru', n: 3 }], HAYA));
       g.speed = 0.8;
-      for (const u of g.units) { u.hp = u.maxHp = Math.max(30, rt.player.u.dmg * 2.2); u.cdBase *= 1.8; u.noTarget = true; }
+      // 赤い▼の兵には初めから攻撃が当たる。教えの待ち時間を無敵の敵にしない。
+      for (const u of g.units) { u.hp = u.maxHp = Math.max(30, rt.player.u.dmg * 2.2); u.cdBase *= 1.8; }
       const a = allyGroup(rt, { name: '追う味方', anchor: { x: at.x + 4, z: at.z + 2 }, facing: Math.PI, width: 2, aggro: 0, noAI: true, noRout: true, order: 'hold' },
         dress([{ type: 'ashigaru', n: 2 }], ODA));
       a.speed = 0.8;
@@ -486,10 +487,16 @@ const inou = {
       return;
     }
     if (phase === 1) {
+      // 操作を試す間に討った兵を、追う相手として待ち続けない。
+      if (!practiceLeft(rt)) {
+        F.chase = false; rt.unmark('chase');
+        vanish(rt, F.chaseA);
+        this.trainingPhase(rt, 3); return;
+      }
       rt.setPhase('march');
       rt.obj('main', '林美作守の兵を倒せ', 'main');
       for (const g of [F.practice, F.chaseA]) {
-        g.order = 'move'; g.dest = { x: g.anchor.x, z: g.anchor.z - 60 };
+        g.order = 'move'; g.dest = { x: g.anchor.x, z: g.anchor.z - 8 };
       }
       lesson(rt, 'chase'); return;
     }
@@ -753,6 +760,8 @@ const inou = {
     rt.army.guideWayAt = rt.army.time;
     // 札の成功は今の段だけを見る。先に押した操作で後の段を済ませない。
     const P = rt.player;
+    // 移動・視点を試す間も敵は斬れるが、初めの三人からは打ち込まれない。
+    if (F.step === 0 && F.training === 0) rt.army.playerCounterUntil = rt.army.time + 0.3;
     if (F.lesson === 'look') {
       F.look += Math.abs(((P.yaw - F.yaw0 + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
       F.yaw0 = P.yaw;

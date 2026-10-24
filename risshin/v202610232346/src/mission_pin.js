@@ -306,7 +306,7 @@ export function updateMissionPin(rt) {
   // 足元を別の場所へずらさず、札に隠れる時も端の矢印へ切り替える。
   //   画面の端・札の縁でも、前のコマと同じ形を少しの間は保つ（地面の旗と端の矢印が入れ替わり続けない）。
   // 人と戸口の印は実物へ固定する。札避けで別の人や空き地へ動かさない。
-  const inFrame = x >= 32 && x <= W - 32 && y >= 76 && y <= H - (want.fire ? 68 : 24);
+  const inFrame = x >= 32 && x <= W - 32 && y >= (rt.def.key === 'okehazama' ? 104 : 76) && y <= H - (want.fire ? 68 : 24);
   // 本人や入口の位置をずらさず、札に隠れる時は端の方向案内へ替える。
   const covered = rects.some(r => x + 28 >= r.left && x - 28 <= r.right && y + (want.fire ? 60 : 4) >= r.top && y - 68 <= r.bottom);
   // 火付けの足場が画面内なら、その地面を示し続ける。軒や柱との重なりで上端へ飛ばさない。
@@ -367,9 +367,9 @@ export function updateMissionPin(rt) {
   const areaRadius = want.area ? want.r : waitArea ? want.r ?? 8 : footMark ? want.fire ? 1.25 : .85 : want.r;
   // 集合ピンの根元は、実際に着いたとみなす範囲を囲む。自分を追う輪にはしない。
   // 桶狭間は集合ピンの根元に、到着判定そのものの外周を一本だけ描く。
-  // 到着後は穴の中の時計へ切り替え、待機中の別の場所へ輪を出さない。
+  // 到着後も同じ外周を保ち、許される間隔を兵との距離に頼らず示す。
   const showArea = rt.def.key === 'okehazama'
-    ? want.area && !arrived && !outside && want.r > 0
+    ? want.area && !outside && want.r > 0
     : (waitArea ? !occluded : want.passage ? !behind && !occluded : !outside) && (footMark || !want.unit && (want.area || waiting || want.defend) && want.r > 0);
   pin._area.style.display = pin._areaBack.style.display = showArea ? '' : 'none';
   pin._area.setAttribute('stroke-width', want.passage ? '7' : '5');
@@ -429,9 +429,10 @@ export function updateMissionPin(rt) {
     flag.setAttribute('fill-rule', 'evenodd');
   }
   // 合図の時刻は範囲を出ても進む。同じピンの円も途切れさせない。
-  const showProgress = oke && waiting && Number.isFinite(want.progress);
-  // 中が満ちるのは到着後の待ち時間だけ。歩いた量と混ぜない。
-  const showHold = oke ? showProgress : arrived && (!person || want.footRing) && !want.defend && !outside && !flagDestination;
+  const showProgress = oke && Number.isFinite(want.progress);
+  // 行軍は道の進み、待機は待ち時間を示し、到着直後も同じ穴の表示を保つ。
+  const showArrival = oke && arrived;
+  const showHold = oke ? showProgress || showArrival : arrived && (!person || want.footRing) && !want.defend && !outside && !flagDestination;
   flag.style.display = destinationArrow || (person && !groundPerson) || want.defend || inouEnemy || want.fire || want.gate || want.dodge || showHold && !oke ? 'none' : '';
   if (flagDestination && !oke) flag.style.display = '';
   if (flagDestination) pin.querySelector('.goal-ground path').style.display = 'none';
@@ -455,7 +456,8 @@ export function updateMissionPin(rt) {
   // 盾の下端を実物の上辺に合わせる。空き地への下向き矢印は重ねない。
   if (want.defend && want.defensePoint && !outside) pin._shield.setAttribute('transform', 'translate(0,13)');
   pin._hold.style.display = showHold ? '' : 'none';
-  pin._arrivedMark.style.display = oke && arrived ? '' : 'none';
+  // 到着の色と完了のチェックを分け、到着だけで待ち時間の扇形を隠さない。
+  pin._arrivedMark.style.display = oke && arrived && want.progress >= 1 ? '' : 'none';
   // 桶狭間は到着しても同じピンを残し、その穴の中だけで待ちの進みを示す。
   // 別の時計へ替えず、待つ場所と満ち切る合図を一つにする。
   if (pin._holdOke !== oke) {
@@ -489,11 +491,10 @@ export function updateMissionPin(rt) {
   }
   flag.setAttribute('transform', outside ? edgeFlag ? 'translate(14,-34) scale(.65)' :
     groundPin ? 'translate(0,-24) scale(.75)' : 'translate(0,-24)' : groundPin ? '' : 'translate(16,19.25) scale(.75)');
-  // 大きさを変えず、先端は到着地点に固定する。広い穴で待ちの進みを見せる。
+  // 到着したピンは地面の先端を保ったまま縮め、人物に重なる面積を減らす。
   if (oke && !outside && want.area) {
-    flag.setAttribute('transform', '');
+    flag.setAttribute('transform', arrived ? 'translate(10,17) scale(.75)' : '');
   }
-  if (oke && outside && arrived) flag.setAttribute('transform', 'translate(0,-28)');
   pin._hold.setAttribute('transform', oke ? `${flag.getAttribute('transform')} translate(4,-17.2) scale(.9)` : '');
   // 方向は端の旗一本へまとめ、自分の足元には輪だけを残す。
   // 行き先の輪は足さず、自分の水色の足元印と役割を分ける。
@@ -520,7 +521,7 @@ export function updateMissionPin(rt) {
   }
   arrow.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
   // 画面外も同じピンの先端で示す。大きな矢印とピンを二つ並べない。
-  if (groundPin && outside && !edgeFlag && (!oke || !arrived)) {
+  if (groundPin && outside && !edgeFlag) {
     if (want.passage) flag.setAttribute('d', 'M10 29H43V12L72 40L43 68V51H10Z');
     flag.setAttribute('transform', `translate(40,40) rotate(${Math.atan2(dy, dx) * 180 / Math.PI - 90}) ${oke ? 'scale(.8) translate(-40,-8)' : 'translate(-40,-40)'}`);
     pin._hold.setAttribute('transform', `${flag.getAttribute('transform')} ${oke ? 'translate(4,-17.2) scale(.9)' : 'translate(22,13.4) scale(.45)'}`);

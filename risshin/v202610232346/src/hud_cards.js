@@ -473,7 +473,10 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     if (el._waitFill !== waitFill) {
       el._waitFill = waitFill;
       stEl.style.backgroundImage = waitFill < 0 ? '' :
-        `linear-gradient(to right, rgba(232,194,90,.28) ${waitFill}%, transparent ${waitFill}%)`;
+        `linear-gradient(to right, #ffe28a ${waitFill}%, #615745 ${waitFill}%)`;
+      stEl.style.backgroundSize = waitFill < 0 ? '' : '100% 5px';
+      stEl.style.backgroundPosition = waitFill < 0 ? '' : 'left bottom';
+      stEl.style.backgroundRepeat = waitFill < 0 ? '' : 'no-repeat';
     }
     // 桶狭間の null は「今は待ちではない」。接敵中に共通の時計を戻さない。
     const pie = timeEl.firstChild, waiting = def.key === 'okehazama' ? Number.isFinite(progress) :
