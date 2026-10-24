@@ -8,7 +8,7 @@ import { rainDanger } from "./arrow_rain.js";
 import { groundAt } from "./floors.js";
 import { enemyKnown } from "./battle_intel.js";
 import { GENERALS, FACTION } from "./units.js";
-import { pinGuideOn } from "./mission_pin.js";
+import { pinGuideOn, markedEnemy } from "./mission_pin.js";
 
 // 共通の目標の輪・端の矢印・所属の形を使い、以前の案内を重ねない。
 const PIN_OFF = "AdvanceStep ApproachRoute CornerArrow DefendedFlag DefendedLocation DefenseArea DefenseBoundary DefenseLine DefenseOverview DefensePattern DestinationArea DestinationPointer DestinationSign DestinationStep DirectionChain DoorFloorGoal EdgeDestination EscortFlag FlagDestinationSign FlagGuide FlagLink FloorGoal FloorWaymark FootDirection FootRoute GoalArrivalRing GoalArrow GoalFlagFrame GroundGuide GuardPost GuardPostFrame GuideLink MarkedGoalFlag MoveFootprints MoveGoal MoveOrigin NamedDestination NamedGoal NavigationArrow OffscreenDirection PassageGuides PlaceFrame PlayerSign RaisedGoalFlag RetreatDestination RetreatRoute ReturnDestination RouteBend RouteFootsteps RoutePath RouteTurn SelectedGoalFlag SingleDestination SmallGoalFlag SmallGoalFlagPath SwipeArrow TargetFootRing TaskDestinationSign TravelGuide WaitFootprints WaitFrame TargetPointer FocusDiamond EnemyOutline EnemyContour TeamWord EnemySign SpearSign UnitContrast EnemyDirection CoverDirection CoverSign MoveGesture ReleaseGesture EnemyMoveGesture".split(" ").map((n) => "draw" + n);
@@ -23,13 +23,18 @@ export class HudOverlay {
       return this.drawDestinationPin(g, x, y);
     if (rt.def.key !== 'moribe') return this.drawDestinationPin(g, x, y);
     g.save(); g.lineJoin = 'round';
-    if (pin?.arrived) { g.translate(x, y); g.scale(1.3, 1.3); x = 0; y = 0; }
+    // 横持ちでも中の残りを読める大きさ。渡河中は近づくほど同じピンが育つ。
+    const pinScale = pin?.arrived ? 1.6 : 1 + .6 * Math.max(0, Math.min(1, pin?.progress || 0));
+    g.translate(x, y); g.scale(pinScale, pinScale); x = 0; y = 0;
     // 地面の接点と短い軸を持たせ、人物の頭上の印と形を分ける。
     g.beginPath(); g.ellipse(x, y + 1, 11, 3, 0, 0, Math.PI * 2);
     g.fillStyle = 'rgba(20,18,15,.65)'; g.fill();
-    g.beginPath(); g.moveTo(x, y); g.lineTo(x, y - 13);
+    // 場所のピンは軸を長くし、兵の頭上の印と見分けられるよう地面までつなぐ。
+    const stem = pin?.unit ? 13 : 43;
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x, y - stem);
     g.strokeStyle = '#14120f'; g.lineWidth = 6; g.stroke();
     g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
+    g.translate(0, 13 - stem);
     g.beginPath(); g.moveTo(x, y - 10); g.lineTo(x - 10, y - 26);
     g.bezierCurveTo(x - 21, y - 48, x + 21, y - 48, x + 10, y - 26);
     g.closePath();
@@ -38,8 +43,11 @@ export class HudOverlay {
     if (pin?.arrived) {
       g.strokeStyle = '#fff3ba'; g.lineWidth = 3; g.stroke();
     }
-    g.beginPath(); g.arc(x, y - 33, 11, 0, Math.PI * 2);
-    g.fillStyle = '#14120f'; g.fill();
+    // 移動先は塗りつぶしたピン。中の円は到着後に待つ時だけ使う。
+    if (pin?.waiting || pin?.arrived) {
+      g.beginPath(); g.arc(x, y - 33, 11, 0, Math.PI * 2);
+      g.fillStyle = '#14120f'; g.fill();
+    }
     // 実際の到着半径へ入った時だけ、同じピンの内周を閉じる。
     // 地点を踏み直す必要がないことを形で伝え、別の輪や札は足さない。
     if (pin?.arrived) {
@@ -161,10 +169,10 @@ export class HudOverlay {
     const floor = this.battleGoalFloor || (this.battleGoalFloor = { x:0, y:0, z:0 });
     floor.x = pos.x; floor.y = y; floor.z = pos.z;
     const on = seen && (moribe || enemy || this.floorGoalVisible(rt, floor)) && !at.behind && at.x > 48 && at.x < W - 48 && at.y > 96 && at.y < H - 48;
-    // 到着後は同じピンを手前に保つ。持ち場が背後でも進み具合を見失わせない。
-    // 向きを付けず、戻るよう促さない。新しい時計や札は作らない。
-    if (moribe && pinTarget.arrived && !on) {
-      this.drawBattleGoalSign(g, rt, W / 2, H - 64, false, pinTarget);
+    // 到着したピンは任務の下へ収める。足元の死体や槍・自分の体と重ねず、
+    // 持ち場を見直しても同じ場所で満ちる。別の時計や札は作らない。
+    if (moribe && pinTarget.arrived) {
+      this.drawBattleGoalSign(g, rt, W - 54, 152, false, pinTarget);
       return true;
     }
     // 地面の行き先と画面外の向きは、この一つの印で示す。
@@ -275,6 +283,13 @@ export class HudOverlay {
     }
     if (!rt.over && !rt.choice && !this.introWaiting && rt.player.u.alive && !rt.player.camShot && !this.bigmap &&
         rt.def.drawMissionMarks?.(g, rt, this)) this.ovBlank = false;
+    // 共通の頭上印と同じ一人だけ、具足の外周を太く縁取る。
+    const enemy = !rt.over && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap &&
+      rt.player.u.alive && markedEnemy(rt);
+    if (enemy && sightScreenUnit(rt, enemy)) {
+      const frame = this.measurePersonFrame(enemy, rt);
+      if (frame) { this.drawEnemyContour(g, rt, enemy, frame); this.ovBlank = false; }
+    }
     // 本人の足元は兵が重なっても見える白い輪。行き先の旗とは形を分ける。
     if (this.drawPlayerSign(g, rt)) this.ovBlank = false;
     // 案内役は共通ピンの頭上の人型一つ。体の輪郭を別の人型に見せない。

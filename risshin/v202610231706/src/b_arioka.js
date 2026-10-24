@@ -788,6 +788,20 @@ function height(x, z) {
   return h;
 }
 
+// 土橋の芯と法面は土の塊。床の端を外れた兵も、見えている土の上に立つ。
+// 元の堀底を読む関数を残し、水面・土橋の形を作り終えてから歩く高さへ重ねる。
+function ariBridgeHeight(ground, x, z, bridgeY) {
+  const base = ground(x, z);
+  if (x < SOTO_BRIDGE.a[0] || x > SOTO_BRIDGE.b[0]) return base;
+  const across = Math.abs(z - GATE.z) - SOTO_BRIDGE.w / 2;
+  if (across <= 0) return Math.max(base, bridgeY);
+  const width = 2.2 + .12 * Math.sin(x * 2);
+  if (across >= width) return base;
+  const side = z < GATE.z ? -1 : 1;
+  const bank = Math.min(bridgeY - .12, ground(x, GATE.z + side * (SOTO_BRIDGE.w / 2 + width)) + .01);
+  return Math.max(base, bridgeY + (bank - bridgeY) * across / width);
+}
+
 // 大きな地面の格子は増やさず、堀・主郭・内応口のある升だけを準備時に細かくする。
 // 元の升を外して差し替えるため、粗い地面で堀が埋まらない。歩く高さも同じ式へ結ぶ。
 function refineAriTerrain(rt) {
@@ -1480,7 +1494,7 @@ const arioka = {
     }
     // 土橋は東西。床の長い向きも東西へそろえ、七メートル幅を丸ごと歩ける。
     const bridgeY = Math.max(W.heightAt(...SOTO_BRIDGE.a), W.heightAt(...SOTO_BRIDGE.b));
-    addDeck({ x0: SOTO_BRIDGE.a[0], x1: SOTO_BRIDGE.b[0], z0: GATE.z - SOTO_BRIDGE.w / 2, z1: GATE.z + SOTO_BRIDGE.w / 2, y: bridgeY, name: '惣構えの土橋' });
+    addDeck({ x0: SOTO_BRIDGE.a[0], x1: SOTO_BRIDGE.b[0], z0: GATE.z - SOTO_BRIDGE.w / 2, z1: GATE.z + SOTO_BRIDGE.w / 2, y: bridgeY, pad: 0, name: '惣構えの土橋' });
     const reflections = [];
     // 篝の三脚は堀底ではなく、木戸脇の内岸に置く。歩く口は空ける。
     for (const [x, z] of [[GATE.x + 1.5, GATE.z - 6], [GATE.x + 1.5, GATE.z + 6]]) {
@@ -1971,6 +1985,10 @@ const arioka = {
     W.sky.updateMatrixWorld(true); W.mountains.updateMatrixWorld(true);
     W.updateEnv();
     ariStreetDress(rt);
+    // 飾りの斜面を作った後で歩行・接地・視点にも同じ盛土を渡す。
+    // 有岡だけの上書きとし、ほかの戦の床や堀の判定は変えない。
+    const moatGround = W.heightAt.bind(W);
+    W.heightAt = (x, z) => ariBridgeHeight(moatGround, x, z, bridgeY);
     rt.setPhase('brief');
     rt.banner('一年の囲み。今、木戸が開く', '味方は織田。城の町へ入り、帰り道を守れ');
     rt.obj('main', HI(rt) ? '組をそろえ、開門を待て' : '先手の後ろで開門を待て', 'main', true);
