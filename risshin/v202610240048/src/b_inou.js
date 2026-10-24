@@ -196,20 +196,25 @@ const inou = {
   immediateTaskChanges: true,
   nearAllyWholeOcclusion: true,
   nearAllySolidBody: true,
+  nearAllySightWidth: 1.1,
+  nearAllyHorseFade: true,
+  nearLongWeaponRadius: 4.5, // 肩越しの自分と行き先を覆う、カメラ近くの長柄だけ避ける。
   nearSpearFade: false, // 槍だけを縮めて透かさず、持ち主と同じ形を保つ。
   missionPinCaption: '',
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
-  // 任務は一行。兵と武将を区別し、距離や向きは字にしない。
-  missions: ['赤い印の兵を倒せ', '赤い印の兵を倒せ', '耐えろ', '林美作守を倒せ'],
+  // 任務は短く、相手は印の形、待つ任務は場所と残り時間で示す。
+  missions: ['▼の敵をたおせ', '▼の敵をたおせ', '信長の旗のそばで生きのこれ', '▼の林美作守をたおせ'],
   missionHeading(rt) {
     const F = rt.flags;
     if (F.step === 1) {
-      if (F.training === 11 && !F.flankReached) return '赤い印の兵を倒せ';
+      if (F.training === 11 && !F.flankReached) return '右の畦へ進め';
       if (F.training === 12 && !gone(F.shiba1)) return '赤い印の兵を倒せ';
-      return '耐えろ';
+      // 最初は二十四秒で側面への命令、後半は百十二秒で信長の前進へ移る。
+      const until = F.training < 11 ? 24 : 112;
+      return `信長の旗のそばで\nあと${Math.max(0, Math.ceil(until - (rt.t - F.stepT)))}秒 耐えろ`;
     }
-    if (F.step === 2) return '信勝の兵を倒せ';
-    return F.step === 0 && F.training === 8 ? '林の隊長を倒せ' : this.missions[this.missionOf(rt)];
+    if (F.step === 2) return '▼の敵をたおせ';
+    return F.step === 0 && F.training === 8 ? '▼の隊長をたおせ' : this.missions[this.missionOf(rt)];
   },
   commanderTarget: (rt) => rt.flags.step === 0 && rt.flags.training === 8 ? rt.flags.hayaLead :
     rt.flags.step === 3 ? rt.flags.hayaU : null,

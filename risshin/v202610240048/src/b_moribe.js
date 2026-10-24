@@ -44,8 +44,9 @@ const POINT2 = { x: 40, z: 76.5 };
 const FORD_R = 4;
 // ピンと同じ岸まで進み、水から上がれば渡河済み。横へそれても小旗へ戻らせない。
 // 足の上下動で到着を遅らせず、岸そのものの高さで水深を調べる。
+// 歩く高さと描く土の補間差があっても、ピンが刺さる見えている岸で完了する。
 const atFordBank = (p, world) => p.z <= Math.min(nireZ(p.x) - NIRE_WIDTH2, POINT2.z + .75) &&
-  world.waterFootDepthAt(p.x, p.z, world.heightAt(p.x, p.z)) <= .12;
+  (world.waterFootDepthAt(p.x, p.z, world.heightAt(p.x, p.z)) <= .12 || drawGroundAt(world, p.x, p.z) >= .14);
 const FRONT2 = { x: 4, z: 20 };
 const ASSEMBLY2 = { x: 14, z: 10 };
 const RETREAT2 = { x: 24, z: 48 };
@@ -1037,7 +1038,7 @@ const moribe = {
   // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は「何をするか」だけ（kaito 10/23 49・50）。段の総称で通し、向き・行き先の字は書かない。
-  missions: ['川を渡れ', '仲間を待て', '斎藤勢を倒せ', '仲間と耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
+  missions: ['川を渡れ', '仲間を待て', '斎藤勢を倒せ', '敵を迎え撃って耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
   // ピン・▼・名前は同じ本人へ。描画の間引きで相手を替えない。
   commanderTarget(rt) {
     const F = rt.flags;
@@ -1107,7 +1108,7 @@ const moribe = {
         (F.stage === 'hold' || F.stage === 'contact' && F.vBroken) && F.lineReturning)
       return '仲間と集まれ';
     // 守備の終了に撃破人数の条件はない。倒す人数を探させない。
-    if (F.stage === 'hold') return '仲間と耐えろ';
+    if (F.stage === 'hold') return '敵を迎え撃って耐えろ';
     // 討つ相手の名前は許された任務一行に収め、頭上に別の札を足さない。
     const commander = this.commanderTarget(rt);
     if (commander?.name) return `${commander.name}を倒せ`;
@@ -1640,7 +1641,16 @@ const moribe = {
     noticeStyle.textContent = `
 /* 次の一手と号令を右の任務札にまとめる。横持ちでも二行を切らない。 */
 #hud #h-prog[data-battle="moribe"] { width:min(320px, 38vw); }
-/* 耐える間の進み具合は、守る地点のピンの中だけを満たす。 */
+/* 残りは任務と同じ一行の時計で示す。針と満ちる円だけで、秒の字は足さない。 */
+#hud #h-prog[data-battle="moribe"] .pg-st.moribe-wait {
+ flex-direction:row; align-items:center; justify-content:flex-end; gap:10px;
+}
+#hud #h-prog[data-battle="moribe"] .pg-st.moribe-wait::before {
+ content:""; display:block; flex:none; width:22px; height:22px; border-radius:50%;
+ box-shadow:0 0 0 2px #c9b27a;
+ background:linear-gradient(#fff3df,#fff3df) center 3px / 2px 8px no-repeat,
+ conic-gradient(#e8c25a calc(var(--wait-progress,0) * 1%), #373326 0);
+}
 /* 共通の一行省略より優先し、今することを最後まで読めるようにする。 */
 html:root body #hud.mission-only #h-prog[data-battle="moribe"] .pg-st span {
  max-width:100% !important; white-space:normal !important; overflow:visible !important;

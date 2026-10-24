@@ -194,6 +194,8 @@ export class HudOverlay {
     const floor = this.battleGoalFloor || (this.battleGoalFloor = { x:0, y:0, z:0 });
     floor.x = pos.x; floor.y = y; floor.z = pos.z;
     const on = seen && (moribe || enemy || this.floorGoalVisible(rt, floor)) && !at.behind && at.x > 48 && at.x < W - 48 && at.y > 96 && at.y < H - 48;
+    // 渡り終えた岸が画面外なら完了のピンも消す。背後へ戻る印に替えない。
+    if (moribe && pinTarget.arrived && !pinTarget.waiting && !on) return false;
     // 到着後も地面の同じ地点で満たす。右上へ移して別の行き先に見せない。
     // 地面の行き先と画面外の向きは、この一つの印で示す。
     let x = at.x, sy = at.y - 54, angle = Math.PI / 2;

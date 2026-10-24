@@ -3876,9 +3876,60 @@ export class Player {
     this.camRayCount = 0;
   }
 
+  // 初回は支度中に用意し、以後の全場面巡回は一コマ五百十二手・約一ミリ秒へ分ける。
+  // 完成まで前の一覧を保つ。深さ分の入れ物と二つの一覧を交互に使い回す。
+  refreshCameraBlocks(nowS) {
+    const rt = this.rt, first = !this.blockAll;
+    let scan = this.camAllScan;
+    if (!scan) scan = this.camAllScan = { nodes: [], indices: [], all: [], active: false };
+    if (!scan.active) {
+      if (!first && nowS - this.camAllT < 10 &&
+          (this.camSceneCount === rt.scene.children.length || nowS - this.camAllT < 1)) return;
+      scan.active = true; scan.phase = 0; scan.at = 0; scan.all.length = 0;
+      scan.nodes.push(rt.scene); scan.indices.push(-1);
+      this.camAllT = nowS; this.camSceneCount = rt.scene.children.length;
+    }
+    const nodes = scan.nodes, indices = scan.indices, start = performance.now();
+    let steps = 0;
+    while (scan.active) {
+      if (nodes.length) {
+        const top = nodes.length - 1, o = nodes[top];
+        if (indices[top] === -1) {
+          if (scan.phase === 0 && o.geometry) {
+            if ((o.userData.camBlock || o.userData.camNear) && o !== rt.world.terrain) scan.all.push(o);
+            if (o.userData.camBlock || o.userData.camNear || o.userData.ext) camNearMesh(o);
+          } else if (scan.phase === 1 && o.isMesh) camNearMesh(o);
+          indices[top] = 0;
+        }
+        if (indices[top] < o.children.length) {
+          nodes.push(o.children[indices[top]++]); indices.push(-1);
+        } else { nodes.pop(); indices.pop(); }
+      } else if (scan.phase === 0) { scan.phase = 1; scan.at = 0; }
+      else if (scan.phase === 1) {
+        // 室内の梁・柱も、木も、終わりにまとめて調べない。
+        if (scan.at < NAKA.list.length) {
+          const root = NAKA.list[scan.at++].mesh;
+          if (root) { nodes.push(root); indices.push(-1); }
+        } else { scan.phase = 2; scan.at = 0; }
+      } else if (scan.phase === 2) {
+        const trees = rt.world.treeMeshes;
+        if (trees && scan.at < trees.length) camNearMesh(trees[scan.at++]);
+        else scan.phase = 3;
+      } else {
+        if (rt.world.terrain) camNearMesh(rt.world.terrain);
+        const old = this.blockAll;
+        this.blockAll = scan.all; scan.all = old || [];
+        this.camNearT = -Infinity; this.camScanI = null;
+        scan.active = false;
+      }
+      if (!first && (++steps >= 512 || steps % 16 === 0 && performance.now() - start >= 1)) break;
+    }
+  }
+
   // 中央の線に一本を残し、前のコマで頼まれた隅・正面の線を順番に一本ずつ調べる。
   cameraRayFrame() {
     if (!this.camRayQueue) this.prepareCameraBlocks();
+    this.refreshCameraBlocks(performance.now() / 1000);
     this.camRayCount = 0; this.camRaySlot = 0;
     const queue = this.camRayQueue;
     for (let n = 0; n < queue.length; n++) {
@@ -3925,27 +3976,9 @@ export class Player {
     dir.copy(to).sub(from);
     const len = dir.length();
     if (len < 0.0001) return null;
-    // 建物・柵の一覧は 10 秒おきに場面全体から作り直し、近くの物は 0.5 秒おきにその一覧から拾う（毎回場面を回らない。コマ数でなく時間で数える）
     const nowS = performance.now() / 1000;
-    //   乱戦では人・粒が場面の根に出入りして children の数が毎秒変わる。数が変わった時の作り直しも 1 秒に一度まで（毎コマ 1.3 万の物を回っていた。10/20）
-    if (!this.blockAll || (this.camSceneCount !== rt.scene.children.length && nowS - (this.camAllT || 0) >= 1) || nowS - (this.camAllT || 0) >= 10) {
-      this.camAllT = nowS;
-      this.camSceneCount = rt.scene.children.length;
-      const all = this.blockAll || []; all.length = 0;
-      rt.scene.traverse((o) => {
-        if (!o.geometry) return;
-        // 近くで透かしていた物（陣幕・柵・塀）も、透かさずにカメラを手前へ寄せる相手にする（kaito 10/23 稲生 22）。
-        if ((o.userData.camBlock || o.userData.camNear) && o !== rt.world.terrain) all.push(o);
-        if (o.userData.camBlock || o.userData.camNear || o.userData.ext) camNearMesh(o);
-      });
-      // 室内の梁・柱は壁の判定とは別。束ねた面も近い部分だけ抜く。
-      for (const room of NAKA.list) if (room.mesh) room.mesh.traverse((o) => { if (o.isMesh) camNearMesh(o); });
-      for (const o of rt.world.treeMeshes || []) camNearMesh(o);
-      // 崖も近い面だけ透かす。地形全体を壁の線判定へ入れない。
-      if (rt.world.terrain) camNearMesh(rt.world.terrain);
-      this.blockAll = all;
-      this.camNearT = -Infinity; this.camScanI = null;
-    }
+    // 初回以外は cameraRayFrame で一コマに一度だけ巡回する。
+    if (!this.blockAll) this.refreshCameraBlocks(nowS);
     const nearFrom = this.camNearFrom || (this.camNearFrom = new THREE.Vector3());
     // 近くの物の拾い直しは数コマに分ける（一コマに全部を回すと、0.5 秒ごとに一コマだけ重くなる）。
     // 拾い直しの間も前の一覧で当たりを見る。初めて・大きく跳んだ・線が届かない時だけ、その場で全部を回す。

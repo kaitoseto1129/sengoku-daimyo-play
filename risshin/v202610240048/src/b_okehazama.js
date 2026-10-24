@@ -690,7 +690,7 @@ const okehazama = {
   missionAllyEdge: true,
   missionAllyNamed: false,
   missionAllyLabel: (rt) => rt.phase === 'brief' ? 'たいちょう' : '◆ 組の旗持ち',
-  // 案内はピンと足元の合流範囲で示し、距離・残り秒・敵の説明は重ねない。
+  // 行き先はピン一本。待つ時だけ、その穴で時間の進みを示す。
   missionDetail: () => '',
   missionTimeText: () => '',
   missionStatusMaxLength: 30,
@@ -756,12 +756,9 @@ const okehazama = {
         const pos = F.marchPinPos || this.squadFlagPosition(rt);
         if (!pos) return null;
         pin.x = pos.x; pin.z = pos.z;
-        pin.area = true; pin.hide = 0; pin.r = 8;
+        pin.area = false; pin.hide = 0; pin.r = 8;
         pin.arrived = this.squadFlagReached(rt); pin.waiting = pin.arrived;
-        // 同じ穴が道の残りに合わせて満ちる。到着後は雨待ちの丸へ切り替える。
-        const left = Math.max(0, this.squadFlagDistance(rt) - pin.r);
-        pin.progress = pin.arrived ? 1 : Math.min(.98, Math.max(0,
-          1 - left / Math.max(.01, F.marchStartDistance)));
+        // 穴が満ちるのは待ち時間だけ。到着はチェックで示し、雨待ちの時計を先に満たさない。
         return pin;
       }
       const pos = this.squadFlagPosition(rt);
@@ -769,7 +766,7 @@ const okehazama = {
       pin.x = pos.x; pin.z = pos.z;
       pin.r = rt.phase === 'brief' ? JOIN_RADIUS : 8;
       // ピンは到着判定と同じ地面の一点へ。人物への話しかけの印にしない。
-      pin.hide = 0; pin.waiting = false; pin.area = true;
+      pin.hide = 0; pin.waiting = false; pin.area = false;
       pin.arrived = rt.phase === 'brief' && F.briefed || this.squadFlagReached(rt);
       // 出発前も同じピンの穴が満ちる。別の時計や人物の印へ切り替えない。
       if (pin.arrived) {
@@ -2091,8 +2088,6 @@ const okehazama = {
     const x = end[0] + (d ? dx / d * offset : 0), z = end[1] + (d ? dz / d * offset : 0);
     rt.flags.marchPinPos = { x, y: rt.world.heightAt(x, z), z };
     rt.flags.marchGoal = rt.flags.marchPinPos;
-    rt.flags.marchGuideProgress = 0;
-    rt.flags.marchStartDistance = Math.max(.01, d - 8);
     rt.obj('col', '目印の仲間に ついて進もう', 'main');
     rt.marker('genpachi', rt.flags.marchGoal, '組の集合場所', { guideFlag: true, group: rt.hostGroup, guideRadius: 8 });
   },
