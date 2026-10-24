@@ -134,7 +134,7 @@ function ldBegin(keys, battle = '') {
   const actions = document.querySelector('#loading .ld-cancel');
   if (actions) actions.remove();
   const cancel = document.createElement('button');
-  cancel.type = 'button'; cancel.className = 'btn small ld-cancel'; cancel.textContent = '始める画面に戻る';
+  cancel.type = 'button'; cancel.className = 'btn small ld-cancel'; cancel.textContent = '準備をやめて題へ戻る';
   cancel.style.cssText = 'min-height:44px;margin-top:16px';
   cancel.onclick = () => { game.startSeq = (game.startSeq || 0) + 1; hideLoading(); game.title(); };
   document.querySelector('#loading .ldbar').parentElement.appendChild(cancel);
@@ -161,7 +161,7 @@ function ldTick() {
   // 見込みを超えても残り秒を消さず、残る段と現在の超過分から目安を直す。
   if (into >= P.est[i]) left += Math.max(1000, P.est[i] * .2);
   const seconds = Math.floor((performance.now() - P.t0) / 1000);
-  const text = `動けるまで あと約${Math.max(1, Math.ceil(left / 1000))}秒（目安）・${seconds}秒経過`;
+  const text = `あと約${Math.max(1, Math.ceil(left / 1000))}秒（目安）・${seconds}秒経過`;
   if (el.textContent !== text) el.textContent = text;
 }
 // 段に入る：棒をこの段の終わりの手前まで、見込みの時間で伸ばす
@@ -217,8 +217,12 @@ const stage = (t, key) => {
   const left = $('ld-left');
   left.hidden = !t; left.style.display = t ? 'block' : 'none';
   const i = ldPlan && key ? ldPlan.keys.indexOf(key) : -1;
-  el.firstChild.textContent = i >= 0 ? `${t}（${i + 1}／${ldPlan.keys.length}）` : t;
+  el.firstChild.textContent = i >= 0 ? `${ldName}を用意中（${i + 1}／${ldPlan.keys.length}）` : t;
   if (key) ldStep(key);
+  const remaining = $('ld-left');
+  remaining.hidden = !t;
+  remaining.style.display = t ? 'block' : 'none';
+  if (t && (!ldIv || t === '戦の支度ができました')) remaining.textContent = 'まもなく始まります';
 };
 const stageError = (retry) => { game.loadingReader?.dispose(); game.loadingReader = null; const failedStage = ldName; document.querySelector('#loading .ld-cancel')?.remove(); $('loading').hidden = false; clearInterval(ldIv); ldIv = 0; ldPlan = null; stage(''); const el = $('ld-stage'); el.textContent = `！ ${failedStage}の途中で止まりました。題へ戻っても城下の記録は残ります。もう一度お試しください。`; el.insertAdjacentHTML('beforeend', '<div class="ld-actions"><button class="btn small" id="ld-title">題の画面へ戻る</button><button class="btn small" id="ld-retry">もう一度支度する</button></div>'); el.setAttribute('role', 'alert'); $('ld-retry').onclick = () => { $('ld-retry').disabled = true; $('ld-title').disabled = true; el.setAttribute('role', 'status'); sfx('ui'); if (freshRetry()) return; Promise.resolve().then(retry).catch(() => stageError(retry)); }; $('ld-title').onclick = () => { hideLoading(); game.title(); }; $('ld-title').focus({ preventScroll: true }); };
 // 「もう一度支度する」は頁を読み込み直して同じ所から始める（10/24 Lancers：Windows の Chrome で稲生の後の支度が何度押しても止まった）。

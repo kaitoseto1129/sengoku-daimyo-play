@@ -338,7 +338,7 @@ export function fieldSignsTick(rt, root) {
     // 森部は命中を二秒以上保ち、最後にゆっくり戻す。
     // 一瞬の振りやよろめきを見落としても、当たった本人の赤の減りと縦の伸びが残る。
     const hit = foe && special
-      ? Math.min(1, Math.max(0, moribe ? hitLeft / .6 : (hitLeft - (inou ? .6 : 1.2)) / .5))
+      ? Math.min(1, Math.max(0, moribe || inou ? hitLeft / .6 : (hitLeft - 1.2) / .5))
       : 0;
     const reachable = foe && u === readyEnemy;
     // 森部の命中は同じ赤い▼を大きくして示す。空振りでは変わらない。
@@ -364,8 +364,9 @@ export function fieldSignsTick(rt, root) {
     // 稲生の▼は実物の大きさをそろえる。近づけば兵と一緒に大きくなり、距離の縮まりが見える。
     // 森部も頭ほどの幅に収め、間合いと命中の拡大は下で一度だけ掛ける。
     // 稲生の追う一人は遠くても読める幅を保つ。ほかの兵は実寸に収める。
+    // 近くの兵も読みやすい大きさを残し、目前の相手を見失わせない。
     const inouFocus = inou && (u === missionEnemy || hit > 0 || defeated);
-    const k = Math.min(moribe ? (u === commander ? 2 : 1.2 + .4 * Math.max(0, 1 - Math.sqrt(meD2) / 22)) : inou ? (inouFocus ? 8 : u === commander ? 1.5 : 1.2) : u === commander ? 32 : oke && u === missionEnemy ? 8 : 3, (inou ? inouFocus ? 24 : 18 : moribe ? pixels : width) * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) *
+    const k = Math.min(moribe ? (u === commander ? 2 : 1.2 + .4 * Math.max(0, 1 - Math.sqrt(meD2) / 22)) : inou ? (inouFocus ? 8 : near ? 2 : u === commander ? 1.5 : 1.2) : u === commander ? 32 : oke && u === missionEnemy ? 8 : 3, (inou ? inouFocus ? 24 : near ? 28 : 18 : moribe ? pixels : width) * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) *
       (moribe || inou ? 1 : 1 + (pulse > 0 ? 1.2 * pulse : reachable && !oke ? .55 : 0));
     dummy.position.copy(headPos);
     dummy.quaternion.copy(q);
@@ -406,9 +407,9 @@ export function fieldSignsTick(rt, root) {
       } else dummy.scale.multiplyScalar(still ? 1 : closing);
     }
     if (!inou && marked && foe && u !== marked) dummy.scale.multiplyScalar(.55);
-    // 任務の武将の強調を残し、届く本人・命中した本人も小さくしない。
+    // 他の敵は縮めず、任務の武将・届く本人・命中した本人・防がれた本人を強調する。
     if (inou && foe && !defeated) dummy.scale.multiplyScalar(Math.max(
-      u === missionEnemy || hot || pulse > 0 ? 1.3 : 1,
+      u === missionEnemy || hot || hit > 0 || blocked ? 1.3 : 1,
       u === commander ? 1.15 : 1));
     dummy.updateMatrix();
     if (foe) {
@@ -418,9 +419,9 @@ export function fieldSignsTick(rt, root) {
       // 森部は赤い▼の幅で間合い、縦の伸びと中身の減りで命中を示す。
       // 森部は白い別の印にせず、間合いも命中も赤い▼のまま保つ。
       const justHit = special && hitLeft > (oke ? 1.7 : inou ? 1.95 : 1.7);
-      // 稲生の白縁は任務で狙う一人に固定。間合いと命中は既存の形で示す。
+      // 稲生も赤い▼と暗い縁に統一し、白い線を探させない。
       // 森部・桶狭間は同じ赤い▼を保つ。間合いは横幅、命中は縦の伸びと赤の減り。
-      const tone = inou ? u === missionEnemy && !defeated ? 2 : 1 : moribe || oke ? 1 : justHit ? 3 : hot ? 2 : 1;
+      const tone = inou || moribe || oke ? 1 : justHit ? 3 : hot ? 2 : 1;
       if (special) {
         const c = s.signPool[s.signCandidates.length];
         c.u = u; c.matrix.copy(dummy.matrix); c.life = life;
