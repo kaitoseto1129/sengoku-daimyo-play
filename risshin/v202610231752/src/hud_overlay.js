@@ -8,7 +8,7 @@ import { rainDanger } from "./arrow_rain.js";
 import { groundAt } from "./floors.js";
 import { enemyKnown } from "./battle_intel.js";
 import { GENERALS, FACTION } from "./units.js";
-import { pinGuideOn } from "./mission_pin.js";
+import { pinGuideOn, markedEnemy } from "./mission_pin.js";
 
 // 共通の目標の輪・端の矢印・所属の形を使い、以前の案内を重ねない。
 const PIN_OFF = "AdvanceStep ApproachRoute CornerArrow DefendedFlag DefendedLocation DefenseArea DefenseBoundary DefenseLine DefenseOverview DefensePattern DestinationArea DestinationPointer DestinationSign DestinationStep DirectionChain DoorFloorGoal EdgeDestination EscortFlag FlagDestinationSign FlagGuide FlagLink FloorGoal FloorWaymark FootDirection FootRoute GoalArrivalRing GoalArrow GoalFlagFrame GroundGuide GuardPost GuardPostFrame GuideLink MarkedGoalFlag MoveFootprints MoveGoal MoveOrigin NamedDestination NamedGoal NavigationArrow OffscreenDirection PassageGuides PlaceFrame PlayerSign RaisedGoalFlag RetreatDestination RetreatRoute ReturnDestination RouteBend RouteFootsteps RoutePath RouteTurn SelectedGoalFlag SingleDestination SmallGoalFlag SmallGoalFlagPath SwipeArrow TargetFootRing TaskDestinationSign TravelGuide WaitFootprints WaitFrame TargetPointer FocusDiamond EnemyOutline EnemyContour TeamWord EnemySign SpearSign UnitContrast EnemyDirection CoverDirection CoverSign MoveGesture ReleaseGesture EnemyMoveGesture".split(" ").map((n) => "draw" + n);
@@ -283,6 +283,13 @@ export class HudOverlay {
     }
     if (!rt.over && !rt.choice && !this.introWaiting && rt.player.u.alive && !rt.player.camShot && !this.bigmap &&
         rt.def.drawMissionMarks?.(g, rt, this)) this.ovBlank = false;
+    // 共通の頭上印と同じ一人だけ、具足の外周を太く縁取る。
+    const enemy = !rt.over && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap &&
+      rt.player.u.alive && markedEnemy(rt);
+    if (rt.def.key !== 'inou' && enemy && sightScreenUnit(rt, enemy)) {
+      const frame = this.measurePersonFrame(enemy, rt);
+      if (frame) { this.drawEnemyContour(g, rt, enemy, frame); this.ovBlank = false; }
+    }
     // 本人の足元は兵が重なっても見える白い輪。行き先の旗とは形を分ける。
     if (this.drawPlayerSign(g, rt)) this.ovBlank = false;
     // 案内役は共通ピンの頭上の人型一つ。体の輪郭を別の人型に見せない。

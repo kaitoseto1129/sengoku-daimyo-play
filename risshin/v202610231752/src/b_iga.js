@@ -1273,6 +1273,7 @@ const iga = {
     });
     igaSlopeCamera(rt);
     igaHoroDetail(rt);
+    // 刺さった矢の実寸は共通の行列更新で保つ。描画前に全矢を調べ直す必要はない。
     igaRaidGrace(rt);
     // 矢を避ける印にも山道の足場検査を渡す。候補と途中の点は既存の入れ物を使う。
     rt.army.hooks.rainEscapePointAllowed = (point) => igaRetreatPointAllowed(rt, point);

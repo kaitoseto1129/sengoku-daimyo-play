@@ -3646,7 +3646,8 @@ export class Player {
     for (const o of rt.army.units) {
       if (!o.alive || o.team === u.team || o.fleeing || o.civ || o.noTarget || o.isStruct || o.type === 'dummy' || o.type === 'porter') continue;
       const dx = o.pos.x - pos.x, dz = o.pos.z - pos.z, d = dx * dx + dz * dz;
-      if (Math.abs(o.pos.y - pos.y) > 3 || rt.army.wallBetween(pos, -1, o.pos)) continue;
+      // 判定を変え得る敵だけ壁を調べる。遠い兵まで毎回調べない。
+      if (d >= nearest || Math.abs(o.pos.y - pos.y) > 3 || rt.army.wallBetween(pos, -1, o.pos)) continue;
       if (d < 8 * 8) return false;
       if (d < nearest) { nearest = d; foe = o; }
     }

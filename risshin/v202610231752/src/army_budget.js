@@ -1,10 +1,18 @@
 import { qualityThink } from './army_quality.js';
 
-// 門や塀は pos ではなく線分を持つ。攻城中も判断を進め、兵と同じ座標を読まない。
+// 門と柵は兵の pos を持たない。長い塀は中央でなく、最も近い板までを測る。
 function closeThinkingTarget(u) {
-  const target = u.target;
-  return !!(target?.alive && (target.isStruct || target.pos &&
-    Math.hypot(u.pos.x - target.pos.x, u.pos.z - target.pos.z) < Math.max(14, (u.reach || 0) + 8)));
+  const t = u.target;
+  if (!t?.alive) return false;
+  let distance;
+  if (t.isStruct) {
+    if (t.seg) {
+      const s = t.seg, dx = s[2] - s[0], dz = s[3] - s[1];
+      const k = Math.max(0, Math.min(1, ((u.pos.x - s[0]) * dx + (u.pos.z - s[1]) * dz) / (dx * dx + dz * dz || 1)));
+      distance = Math.hypot(u.pos.x - s[0] - dx * k, u.pos.z - s[1] - dz * k) - .2;
+    } else distance = Math.hypot(u.pos.x - t.x, u.pos.z - t.z) - (t.r || 1);
+  } else if (t.pos) distance = Math.hypot(u.pos.x - t.pos.x, u.pos.z - t.pos.z);
+  return distance < Math.max(14, (u.reach || 0) + 8);
 }
 
 // 判断だけを予算内で進める。足・攻撃・描画の時計は呼び出し側で毎コマ進める。

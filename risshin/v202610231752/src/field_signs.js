@@ -254,8 +254,8 @@ export function fieldSignsTick(rt, root) {
       }
       if (!u._focusSignSeen) continue;
     }
-    // 稲生は共通の▼を本人の頭上に残す。札や囲みへの置き換えはしない。
-    if (u === marked && !oke && !inou) continue;
+    // 狙う本人のひし形が出ている間は、同じ頭上に通常の印を重ねない。
+    if (u === focusEnemy && rt.hud.missionEnemyShown || u === marked && !oke && !inou) continue;
     if (inou && (u.mesh?.visible === false || u.camHidden) && !defeated) continue;
     // 稲生・森部は敵の赤い▼だけ。味方の丸と重ねて所属を迷わせない。
     if ((moribe || inou || rt.def.key === 'okehazama') && !foe) continue;
@@ -299,8 +299,9 @@ export function fieldSignsTick(rt, root) {
     const pixels = !inou && marked && u !== marked && foe ? 9 : moribe ? (u === readyEnemy || u === commander ? 26 : u === missionEnemy ? 16 + 8 * approach : near ? 16 : 11) :
       // 稲生は届くまで同じ大きさ。届いた瞬間だけ白縁の幅広い▼へ切り替える。
       inou ? (hot ? 32 : u === missionEnemy ? 22 : meD2 < 25 * 25 ? 18 : 9) :
-      oke ? (u === readyEnemy ? 34 : u === missionEnemy ? 26 + 6 * approach :
-        (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 < 12 * 12 ? 18 : 10) :
+      // 届く前は一定の大きさ。実際に届いた瞬間だけ白縁・幅広へ替える。
+      oke ? (hot ? 34 : u === missionEnemy ? 22 :
+        meD2 < 25 * 25 ? 18 : 10) :
       foe ? (u === readyEnemy ? 24 : u === focusEnemy ? 22 : 18) : 14;
     // 稲生・森部・桶狭間では命を減らした相手の▼だけを一度大きくし、滑らかに戻す。
     // 頭上の先端は固定し、既存の形・材質・描画の束をそのまま使う。

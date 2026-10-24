@@ -455,7 +455,8 @@ takato.smallFlagAvoidNotices = true;
 takato.guidePlaceName = '印';
 takato.edgeDestinationLabel = () => '印へ';
 takato.namedGuideMarkers = true;
-takato.travelGuideLabel = () => '印へ進もう';
+takato.travelGuideLabel = (rt) => takato.guideMarker(rt) === 'oteRoad'
+  ? rt.flags.roadGuide.returning ? '道の印へ戻ろう' : '道の印へ進もう' : '印へ進もう';
 // 肩越しで構えた本人の槍を、視界を遮る味方の槍として消さない。
 takato.keepPlayerWeapon = true;
 takato.compactCombatGuides = true;

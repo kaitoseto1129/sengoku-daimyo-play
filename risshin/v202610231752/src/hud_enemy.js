@@ -102,8 +102,8 @@ export class HudEnemy {
       const y = cache.points[index + 1] + cache.edge[i + 2] * width;
       if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
     }
-    g.closePath(); g.strokeStyle = '#14120f'; g.lineWidth = u.isPlayer ? 4 : 8; g.stroke();
-    g.strokeStyle = talk ? '#fff3ba' : '#fff'; g.lineWidth = u.isPlayer ? 2 : 4; g.stroke(); g.restore();
+    g.closePath(); g.strokeStyle = '#14120f'; g.lineWidth = u.isPlayer ? 4 : 12; g.stroke();
+    g.strokeStyle = talk ? '#fff3ba' : '#fff'; g.lineWidth = u.isPlayer ? 2 : 6; g.stroke(); g.restore();
   }
 
 

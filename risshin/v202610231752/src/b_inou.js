@@ -97,6 +97,13 @@ function park(g) {
 
 // 深手で倒れた兵は生存中でも、追う相手・倒す残り人数には含めない。
 const fighting = (u) => !!u?.alive && !u.gone && !u.dying && !u.downed && !u.woundOut && !u.rearWound && !u.fleeing;
+const advanceEnemy = (u) => fighting(u) && !u.noTarget && !u.isStruct && !u.civ && u.mesh?.visible !== false;
+function advanceOnArrival(g) {
+  g.order = 'attack'; g.focus = null; g.fire = true; g.seekRange = 80;
+  g.inouAdvance = true;
+  // 到着後の待ちは置かず、その回の判断から近い敵へ向かわせる。
+  for (const u of g.units) { u.aiT = 0; u.settled = false; }
+}
 function practiceLeft(rt) {
   let n = 0;
   for (const u of rt.flags.practice?.units || []) if (fighting(u)) n++;
@@ -153,17 +160,13 @@ const inou = {
   nearAllySolidBody: true,
   missionPinCaption: '',
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
-  // 任務は一行。兵と武将を区別し、今の行動と待つ時間を示す。
-  missions: ['この敵をたおせ', 'この敵をたおせ', '生きのこれ', '林美作守を倒せ'],
+  // 任務は一行。兵と武将を区別し、距離や向きは字にしない。
+  missions: ['林の兵を倒せ', '林の兵を倒せ', '耐えろ', '林美作守を倒せ'],
   missionHeading(rt) {
     const F = rt.flags;
     if (F.step === 1) {
-      if (F.training === 11 && !F.flankReached) return '印の先へ進め';
-      if (F.training === 12 && !gone(F.shiba1)) return '印の先へ進め';
-      const lead = F.nobuU?.alive ? F.nobuU.pos : NOBU;
-      if (Math.hypot(rt.player.u.pos.x - lead.x, rt.player.u.pos.z - lead.z) >= 20) return '旗まで進め';
-      if (F.training === 11) return `あと${Math.max(1, Math.ceil(26 - (rt.t - F.stepT)))}秒 生きのこれ`;
-      return `あと${Math.max(1, Math.ceil((F.training < 11 ? 24 : 112) - (rt.t - F.stepT)))}秒 生きのこれ`;
+      if (F.training === 11 && !F.flankReached || F.training === 12 && !gone(F.shiba1)) return '柴田隊を崩せ';
+      return '耐えろ';
     }
     if (F.step === 2) return '信長について進め';
     return F.step === 0 && F.training === 8 ? '敵の隊長を倒せ' : this.missions[this.missionOf(rt)];
@@ -290,6 +293,23 @@ const inou = {
     const W = rt.world;
     const F = rt.flags;
     const lord = !!rt.G.lord;
+    const thinkNow = rt.army.thinkNow;
+    rt.army.thinkNow = function (u) {
+      thinkNow.call(this, u);
+      const g = u.group;
+      // 先に着いた兵を、隊の六割がそろうまで待たせない。
+      if (!F.ending && !g.routed && g.onArrive === advanceOnArrival && g.dest &&
+          Math.hypot(g.dest.x - g.anchor.x, g.dest.z - g.anchor.z) < 0.3 &&
+          advanceEnemy(u) && u.moveTo && Math.hypot(u.moveTo.x - u.pos.x, u.moveTo.z - u.pos.z) < 1.6) {
+        g.onArrive = null;
+        advanceOnArrival(g);
+      }
+      if (F.ending || !g.inouAdvance || g.order !== 'attack' || !advanceEnemy(u) ||
+          u.isPlayer || u.target || u.atk || u.swing || u.bind || u.escort || u.dragging ||
+          u.stdPickup || u.climb || u.perch || u.pinT > this.time || u.stagger > 0 || g.routed) return;
+      const enemy = this.nearestEnemy(u, 640, advanceEnemy);
+      if (enemy) { u.target = enemy; u.watch = null; u.moveTo = null; u.settled = false; }
+    };
     F.step = 0; F.ek = 0; F.ak = 0;
     F.goalPin = { x: 0, z: 0, r: 7, hide: 7 };
     F.fieldSigns = [{ label: '', unit: null }, { label: '', unit: null }]; // 味方は印なし・追う相手は字なしの赤い▼（kaito 10/23）
@@ -303,7 +323,7 @@ const inou = {
     F.nobuU = lord ? rt.player.u : F.nobuGroup.units[0];
     F.genU = F.hata.units.find((u) => u.name === '組頭 源八');
     F.mori = allyGroup(rt, { name: '森可成の手', anchor: { x: NOBU.x - 22, z: NOBU.z - 8 }, facing: Math.PI, width: 14, aggro: 8, noRout: true, formation: 'yari' },
-      dress([{ type: 'samurai', n: 1, o: { name: '森可成', invuln: true, hat: 'kabuto_s' } }, { type: 'ashigaru', n: 12 }, { type: 'bow', n: 2 }], ODA));
+      dress([{ type: 'samurai', n: 1, o: { name: '森可成', invuln: true, hat: 'kabuto_s' } }, { type: 'ashigaru', n: 12 }], ODA));
     F.sassa = allyGroup(rt, { name: '佐々孫介の手', anchor: { x: NOBU.x + 22, z: NOBU.z - 8 }, facing: Math.PI, width: 14, aggro: 8, noRout: true, formation: 'yari' },
       dress([{ type: 'samurai', n: 1, o: { name: '佐々孫介', invuln: true } }, { type: 'ashigaru', n: 12 }, { type: 'bow', n: 2 }], ODA));
     F.sassaU = F.sassa.units.find((u) => u.name === '佐々孫介');
@@ -401,10 +421,10 @@ const inou = {
     for (const g of F.friends) {
       g.order = 'move'; g.speed = 3.2; g.aggro = 0;
       g.dest = { x: g.anchor.x, z: g === F.hata ? 6 : 10 };
-      g.onArrive = (q) => { q.order = 'hold'; };
+      g.onArrive = advanceOnArrival;
     }
     F.haya1.order = 'move'; F.haya1.speed = 2.2; F.haya1.dest = { x: 0, z: -4 };
-    F.haya1.onArrive = (q) => { q.order = 'hold'; };
+    F.haya1.onArrive = advanceOnArrival;
     rt.after(6, () => rt.say('足軽', '柴田様まで向こうについたらしいぞ', 4));
     this.trainingPhase(rt, 0);
   },
@@ -464,7 +484,7 @@ const inou = {
       F.haya1.order = 'move'; F.haya1.dest = { x: 0, z: 14 }; F.haya1.speed = 1.5;
       F.hata.order = 'hold';
       rt.after(4, () => rt.say('足軽', '林の兵がこっちを向いた！　隊長の所で戦っておる', 4));
-      F.haya1.onArrive = (g) => { g.order = 'attack'; g.seekRange = 20; };
+      F.haya1.onArrive = advanceOnArrival;
       lesson(rt, 'together'); return;
     }
     if (phase === 6) { lesson(rt, 'identify'); return; }
@@ -501,8 +521,8 @@ const inou = {
     F.miyaiU.noTarget = true;
     F.shibaG.order = 'move'; F.shibaG.dest = { x: 0, z: 30 };
     F.shibaBow.order = 'move'; F.shibaBow.dest = { x: 0, z: 14 };
-    F.shibaBow.onArrive = (g) => { g.order = 'hold'; g.aggro = 8; };
-    F.shibaG.onArrive = (g) => { g.order = 'attack'; g.seekRange = 80; };
+    F.shibaBow.onArrive = advanceOnArrival;
+    F.shibaG.onArrive = advanceOnArrival;
     rt.marker('shiba', centerOf(F.shiba1), () => '柴田の長槍隊', { red: true, group: F.shiba1 });
     F.front.go();
   },
@@ -527,7 +547,7 @@ const inou = {
     for (const g of F.haya) {
       prepareMarch(g);
       g.order = 'move'; g.dest = { x: g.anchor.x, z: 24 }; g.speed = 1.6;
-      g.onArrive = (q) => { q.order = 'hold'; };
+      g.onArrive = advanceOnArrival;
     }
     F.kuroda = allyGroup(rt, { name: '黒田半平', anchor: { x: -18, z: 46 }, facing: Math.PI, width: 6, aggro: 8, noAI: true, noRout: true, order: 'hold' },
       dress([{ type: 'samurai', n: 1, o: { name: '黒田半平', invuln: true, keep: true } }, { type: 'ashigaru', n: 3 }], ODA));
@@ -546,7 +566,7 @@ const inou = {
     if (!rt.G.lord) {
       F.nobuGroup.order = 'move'; F.nobuGroup.aggro = 2; F.nobuGroup.speed = 3;
       F.nobuGroup.dest = { x: -12, z: 30 };
-      F.nobuGroup.onArrive = (g) => { g.order = 'hold'; };
+      F.nobuGroup.onArrive = advanceOnArrival;
     }
     sfx('horagai', 1);
     rt.banner('信長、自ら中央の前へ', '若い主の大声に、味方が踏みとどまる');
@@ -557,7 +577,7 @@ const inou = {
       g.morale = Math.min(100, g.morale + 25);
       if (g === F.inu && !F.miyaiFell) continue;
       g.order = 'move'; g.dest = { x: g === F.inu ? 12 : g.anchor.x, z: 36 };
-      g.onArrive = (q) => { q.order = 'hold'; q.aggro = 6; };
+      g.onArrive = advanceOnArrival;
     }
     F.front.push('A', 0);
     rt.obj('main', '信長と列を立て直し、林の備を崩そう', 'main');
@@ -593,7 +613,7 @@ const inou = {
     // 共通の討死処理にも士気低下があるため、直前の値から四十だけ下げる。
     F.hayaG.morale = Math.max(0, F.hayaMorale - 40);
     F.hayaG.order = 'retreat'; F.hayaG.dest = { x: -32, z: -72 };
-    F.hayaG.onArrive = (g) => { g.order = 'hold'; }; F.hayaG.speed = 1.8;
+    F.hayaG.onArrive = advanceOnArrival; F.hayaG.speed = 1.8;
     F.hayaG.aggro = 1; F.hayaG.fire = false;
     lesson(rt, 'chain');
     rt.after(9, () => {
@@ -601,11 +621,11 @@ const inou = {
       const g = F.hayaCenter;
       g.morale = Math.max(0, g.morale - 30); g.aggro = 1; g.fire = false;
       g.order = 'retreat'; g.dest = { x: -8, z: -80 }; g.speed = 1.8;
-      g.onArrive = (q) => { q.order = 'hold'; };
+      g.onArrive = advanceOnArrival;
       rt.say('組頭 源八', '林の備が下がった！中央の脇が開いたぞ。味方と前へ！', 4);
       for (const q of [F.hata, F.mori, F.sassa, F.nazuka]) if (!gone(q)) {
         q.focus = null; q.order = 'move'; q.dest = { x: q.anchor.x, z: 4 };
-        q.onArrive = (h) => { h.order = 'hold'; h.aggro = 5; };
+        q.onArrive = advanceOnArrival;
       }
       F.kuroda.focus = null; F.kuroda.order = 'hold';
       F.nobuGroup.focus = null; F.nobuGroup.order = 'hold';
@@ -762,7 +782,7 @@ const inou = {
           F.smallRout = rt.t;
           F.haya1.noRout = false; F.haya1.morale = Math.max(0, F.haya1.morale - 40);
           F.haya1.order = 'retreat'; F.haya1.dest = { x: -24, z: 8 };
-          F.haya1.onArrive = (g) => { g.order = 'hold'; g.aggro = 2; };
+          F.haya1.onArrive = advanceOnArrival;
           for (const u of F.haya1.units) u.cdBase *= 1.5;
           rt.say('組頭 源八', '侍大将を失った部隊は士気が下がる。敵が下がったぞ', 4);
           rt.tutMark('morale');
@@ -797,7 +817,7 @@ const inou = {
         rt.marker('flank', FLANK, '右の畦道', { guideRadius: 8 });
         rt.obj('main', '味方が正面を押さえる間に、右の畦へ回ろう', 'main');
         rt.say('組頭 源八', '右へ回れ！横から崩せ！', 4);
-        F.inu.order = 'move'; F.inu.dest = { ...FLANK }; F.inu.onArrive = (g) => { g.order = 'hold'; };
+        F.inu.order = 'move'; F.inu.dest = { ...FLANK }; F.inu.onArrive = advanceOnArrival;
       }
       // ピン（右の畦）に着いたら、時を待たずに横からの攻めへ進む（行き先と判定を合わせる）。
       if (F.training === 11 && !F.flankReached && Math.hypot(p.x - FLANK.x, p.z - FLANK.z) < 8) F.flankReached = true;
@@ -813,7 +833,7 @@ const inou = {
           F.flankSuccess = true;
           g.morale = Math.max(25, g.morale - 18); g.facing = Math.atan2(p.x - c.x, p.z - c.z);
           g.order = 'retreat'; g.dest = { x: c.x - 3, z: c.z - 5 };
-          g.onArrive = (q) => { q.order = 'hold'; };
+          g.onArrive = advanceOnArrival;
           rt.tutMark('flank');
           rt.award((t) => { t.side.push('味方と側面から柴田の槍を崩した'); }, '側面攻撃 成功');
         }
@@ -829,7 +849,7 @@ const inou = {
         F.leftBack = true;
         F.mori.morale = Math.max(25, F.mori.morale - 30);
         F.mori.order = 'retreat'; F.mori.dest = { x: -24, z: 52 };
-        F.mori.onArrive = (g) => { g.order = 'hold'; };
+        F.mori.onArrive = advanceOnArrival;
         F.front.push('A', 0.5);
         rt.say('足軽', '左が崩れた！中央の脇が空くぞ！', 4);
       }
@@ -837,7 +857,7 @@ const inou = {
         F.centerBack = true;
         F.hata.morale = Math.max(30, F.hata.morale - 20);
         F.hata.order = 'retreat'; F.hata.dest = { x: 0, z: 56 };
-        F.hata.onArrive = (g) => { g.order = 'hold'; };
+        F.hata.onArrive = advanceOnArrival;
         rt.say('組頭 源八', '中央も下がる！列を切らすな！', 4);
       }
       if (elapsed > 112) this.daionjo(rt);
@@ -911,7 +931,7 @@ const inou = {
 
 inou.taisho = { a: null, b: null };
 inou.rts = true;
-inou.sides = { a: { name: '味方・信長', mon: 'oda' }, b: { name: '敵・信勝', mon: 'kari' } };
+inou.sides = { a: { name: '信長方', mon: 'oda' }, b: { name: '信勝方', mon: 'kari' } };
 inou.introSides = { a: '信長方 約七百', b: '信勝方 約千七百' };
 // 信長公記の数：信長方 七百足らず、信勝方 柴田勝家 千・林美作守 七百
 inou.force = (rt) => {
