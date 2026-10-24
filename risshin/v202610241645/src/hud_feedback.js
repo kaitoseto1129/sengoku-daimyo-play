@@ -235,7 +235,7 @@ export class HudFeedback {
 
   hitMarker(blocked = false) {
     // 桶狭間の命中は当たった本人の赤い▼で返す。字と中央の印を増やさない。
-    if (this.rt?.def.key === 'okehazama' || this.rt?.def.key === 'moribe') return;
+    if (this.rt?.def.key === 'inou' || this.rt?.def.key === 'okehazama' || this.rt?.def.key === 'moribe') return;
     const c = $('crosshair');
     c.classList.toggle('blocked-hit', blocked);
     c.setAttribute('aria-label', blocked ? '防がれた一撃' : '当たった一撃');

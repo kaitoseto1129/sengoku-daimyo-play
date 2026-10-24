@@ -165,10 +165,12 @@ export class HudArmy {
       if (!f || !rt.def.sides) return;
       tb = this.tugEl = document.createElement('div');
       tb.id = 'tugbar'; tb.setAttribute('aria-hidden', 'true');
-      tb.innerHTML = '<small class="na"></small><div class="bar"><i class="a"></i><i class="b"></i><s></s></div><small class="nb"></small>';
+      tb.innerHTML = '<canvas class="mon a" width="44" height="44" hidden></canvas><small class="na"></small><div class="bar"><i class="a"></i><i class="b"></i><s></s></div><small class="nb"></small><canvas class="mon b" width="44" height="44" hidden></canvas>';
       const st = document.createElement('style');
       st.textContent = `#tugbar{position:absolute;left:50%;top:calc(6px + env(safe-area-inset-top,0px));transform:translateX(-50%);width:min(340px,36vw);display:flex;align-items:center;gap:6px;pointer-events:none;z-index:6}
 #tugbar[hidden]{display:none}
+#tugbar .mon{width:24px;height:24px;flex:none;background:#f2d27a;border:2px solid #14120f;border-radius:50%}
+#tugbar .mon[hidden]{display:none}#tugbar .mon.b{border:3px solid #e14d36}
 #tugbar .bar{position:relative;flex:1;height:12px;border-radius:6px;overflow:hidden;background:#14120f;box-shadow:0 0 0 2px #14120f,0 1px 4px rgba(0,0,0,.6)}
 #tugbar .bar i{position:absolute;top:0;bottom:0}
 #tugbar .bar i.a{left:0;background:linear-gradient(#f2d27a,#c99a2e)}
@@ -185,9 +187,26 @@ export class HudArmy {
     const off = !f || this.introWaiting || !!rt.choice || !!rt.def.town || !!rt.def.dojo;
     tb.hidden = off;
     if (off) return;
-    const ra = Math.max(0, f.a) / Math.max(1, f.a0 || f.a), rb = Math.max(0, f.b) / Math.max(1, f.b0 || f.b);
+    // 稲生は七百対千七百の兵力差を、そのまま棒の長さにする。
+    const ra = Math.max(0, f.a) / (rt.def.key === 'inou' ? 1 : Math.max(1, f.a0 || f.a)), rb = Math.max(0, f.b) / (rt.def.key === 'inou' ? 1 : Math.max(1, f.b0 || f.b));
     const share = ra + rb > 0 ? ra / (ra + rb) * 100 : 50;
     const oke = rt.def.key === 'okehazama';
+    // 戦場の旗と同じ紋を、既存の兵力の棒の両端に描く。字の軍名や総兵数は足さない。
+    // 紋は戦が替わった時だけ描き、毎コマ描き直さない。
+    if (this.tugMonBattle !== rt.def) {
+      this.tugMonBattle = rt.def;
+      for (const side of ['a', 'b']) {
+        const canvas = tb.querySelector(`canvas.${side}`);
+        canvas.hidden = !oke;
+        if (oke) {
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, 44, 44);
+          ctx.save(); ctx.translate(0, -8);
+          drawMon(ctx, rt.def.sides[side].mon, 44, 88);
+          ctx.restore();
+        }
+      }
+    }
     const key = `${rt.def.key}|${share.toFixed(1)}|${Math.round(f.a)}|${Math.round(f.b)}|${f.a0}|${f.b0}`;
     if (key === this.tugKey) return;
     this.tugKey = key;
