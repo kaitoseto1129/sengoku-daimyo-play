@@ -471,11 +471,13 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     // 待つ間（陣を敷く・寄せを待つ）の残りは、秒の字でなく満ちていく丸で（kaito 10/23 稲生 14）。
     const gm = rt.missionGuide?.marker, wu = gm?.waitUntil?.();
     const progress = def.missionWaitProgress?.(rt);
-    // 森部は一行の下地だけを満たす。待ち場所のピンや秒数を増やさない。
+    // 森部は任務の一行の中で時計を満たす。別の札や秒数を増やさない。
     const waitFill = def.key === 'moribe' && Number.isFinite(progress)
       ? Math.round(Math.max(0, Math.min(1, progress)) * 100) : -1;
     if (el._waitFill !== waitFill) {
       el._waitFill = waitFill;
+      stEl.classList.toggle('moribe-wait', waitFill >= 0);
+      stEl.style.setProperty('--wait-progress', String(Math.max(0, waitFill)));
       stEl.style.backgroundImage = waitFill < 0 ? '' :
         `linear-gradient(to right, #ffe28a ${waitFill}%, #615745 ${waitFill}%)`;
       stEl.style.backgroundSize = waitFill < 0 ? '' : '100% 5px';
