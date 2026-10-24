@@ -61,11 +61,13 @@ export function missionFollowTarget(rt, heading = rt.def.missionHeading?.(rt) ||
 export function missionCaption(rt, title = currentObjective(rt)?.text || '') {
   let heading = (rt.def.missionHeading?.(rt) || title).replace(/赤い印の(?:兵|敵)を(?:倒せ|たおせ)/g, '▼の敵をたおせ');
   if (rt.def.key === 'inou') {
-    if (!/▼.*(?:たおせ|倒せ)/.test(heading)) return heading;
     const F = rt.flags, p = rt.player;
+    const attackObjective = /▼.*(?:たおせ|倒せ)/.test(heading);
     // 命中と討ち取りは一行を短く置き換え、次の一手と同時に説明しない。
-    if (F.attackFeedbackUntil > rt.t) return F.attackFeedback;
+    if (attackObjective && F.attackFeedbackUntil > rt.t) return F.attackFeedback;
+    // 次の下知へ替わった直後も、直前の討ち取りを短く残す。
     if (F.combatResultUntil > rt.t) return F.combatResult;
+    if (!attackObjective) return heading;
     const enemy = rt.def.commanderTarget?.(rt) || rt.def.missionSignTarget?.(rt);
     if (!enemy?.alive || enemy.gone || enemy.dying || enemy.downed || enemy.woundOut || enemy.rearWound || enemy.fleeing) return heading;
     if (p.inRange && p.rangeCueTarget === enemy) return '白ふちの▼を突け';

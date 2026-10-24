@@ -652,7 +652,7 @@ function moribeNearBodies(rt) {
     const c = cam.position, p = this.u.pos;
     const vx = p.x - c.x, vz = p.z - c.z, len2 = vx * vx + vz * vz;
     // 斬り合う本人までの狭い視線も空ける。横の味方と敵の武器は残す。
-    const target = this.rangeCueTarget?.alive ? this.rangeCueTarget : rt.flags.signTarget;
+    const target = this.inRange && this.rangeCueTarget?.alive ? this.rangeCueTarget : rt.def.missionSignTarget(rt);
     const focus = target?.alive && target.team !== this.u.team &&
       (target.pos.x - p.x) ** 2 + (target.pos.z - p.z) ** 2 < 100 ? target : null;
     const fx = focus ? focus.pos.x - c.x : 0, fz = focus ? focus.pos.z - c.z : 0;
@@ -711,6 +711,16 @@ function moribeNearBodies(rt) {
             ((qx - butt.x) * sx + (qy - butt.y) * sy + (qz - butt.z) * sz) / (length2 || 1)));
           if ((butt.x + sx * k - qx) ** 2 + (butt.y + sy * k - qy) ** 2
               + (butt.z + sz * k - qz) ** 2 < 0.81) { this.hideNearFlag(w); break; }
+        }
+        // 届く相手の胸まで横切る味方の柄も避け、命中と振りかぶりを見せる。
+        // 肩までの判定だけでは残る、少し先の味方の長槍に限る。
+        if (focus && w.visible) for (let i = 1; i <= 5; i++) {
+          const t = i / 5, qx = c.x + fx * t, qz = c.z + fz * t;
+          const qy = c.y + (focus.pos.y + (focus.mounted ? 2.2 : 1.3) - c.y) * t;
+          const k = Math.max(0, Math.min(1,
+            ((qx - butt.x) * sx + (qy - butt.y) * sy + (qz - butt.z) * sz) / (length2 || 1)));
+          if ((butt.x + sx * k - qx) ** 2 + (butt.y + sy * k - qy) ** 2
+              + (butt.z + sz * k - qz) ** 2 < .36) { this.hideNearFlag(w); break; }
         }
       }
       // 手前の味方の長槍が空まで横切ると、敵の構えが棒の陰に埋もれる。

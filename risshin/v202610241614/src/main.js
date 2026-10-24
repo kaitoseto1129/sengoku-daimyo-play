@@ -161,7 +161,7 @@ function ldTick() {
   // 見込みを超えても残り秒を消さず、残る段と現在の超過分から目安を直す。
   if (into >= P.est[i]) left += Math.max(1000, P.est[i] * .2);
   const seconds = Math.floor((performance.now() - P.t0) / 1000);
-  const text = `動けるまで あと約${Math.max(1, Math.ceil(left / 1000))}秒（目安）・${seconds}秒経過`;
+  const text = `あと約${Math.max(1, Math.ceil(left / 1000))}秒（目安）・${seconds}秒経過`;
   if (el.textContent !== text) el.textContent = text;
 }
 // 段に入る：棒をこの段の終わりの手前まで、見込みの時間で伸ばす
@@ -169,9 +169,11 @@ function ldStep(key) {
   const P = ldPlan; if (!P) return;
   const i = P.keys.indexOf(key); if (i < 0 || i === P.cur) return;
   P.cur = i; P.t = performance.now();
+  // 終わった区切りを残し、今の工程だけを伸ばす。
   const steps = $('ld-steps');
   if (steps) for (let k = 0; k < steps.children.length; k++) {
-    steps.children[k].className = k < i ? 'done' : k === i ? 'current' : '';
+    steps.children[k].classList.toggle('done', k < i);
+    steps.children[k].classList.toggle('current', k === i);
   }
 
   // 初陣も合成側で棒を伸ばす。兵を組み立てる間に処理が詰まっても止めない。
@@ -217,6 +219,10 @@ const stage = (t, key) => {
   const i = ldPlan && key ? ldPlan.keys.indexOf(key) : -1;
   el.firstChild.textContent = i >= 0 ? `${t}（${i + 1}／${ldPlan.keys.length}）` : t;
   if (key) ldStep(key);
+  const remaining = $('ld-left');
+  remaining.hidden = !t;
+  remaining.style.display = t ? 'block' : 'none';
+  if (t && (!ldIv || t === '戦の支度ができました')) remaining.textContent = 'まもなく始まります';
 };
 const stageError = (retry) => { game.loadingReader?.dispose(); game.loadingReader = null; const failedStage = ldName; document.querySelector('#loading .ld-cancel')?.remove(); $('loading').hidden = false; clearInterval(ldIv); ldIv = 0; ldPlan = null; stage(''); const el = $('ld-stage'); el.textContent = `！ ${failedStage}の途中で止まりました。題へ戻っても城下の記録は残ります。もう一度お試しください。`; el.insertAdjacentHTML('beforeend', '<div class="ld-actions"><button class="btn small" id="ld-title">題の画面へ戻る</button><button class="btn small" id="ld-retry">もう一度支度する</button></div>'); el.setAttribute('role', 'alert'); $('ld-retry').onclick = () => { $('ld-retry').disabled = true; $('ld-title').disabled = true; el.setAttribute('role', 'status'); sfx('ui'); if (freshRetry()) return; Promise.resolve().then(retry).catch(() => stageError(retry)); }; $('ld-title').onclick = () => { hideLoading(); game.title(); }; $('ld-title').focus({ preventScroll: true }); };
 // 「もう一度支度する」は頁を読み込み直して同じ所から始める（10/24 Lancers：Windows の Chrome で稲生の後の支度が何度押しても止まった）。
@@ -2025,9 +2031,10 @@ const game = {
       console.info('読み込みの時間（千分の一歩秒）', JSON.stringify(LT));
       if (!tool && !isNorender()) ldLearn({ defs: LT.defs, assets: LT.assets, build: LT.buildOnly, warm: LT.humansWarm, compile: LT.compile, first: LT.first });
       stage('戦の支度ができました');
-      if ($('ld-steps')) for (const step of $('ld-steps').children) step.className = 'done';
       clearInterval(ldIv); ldIv = 0;
       $('loading').style.setProperty('--ld-progress', '100%');
+      const steps = $('ld-steps');
+      if (steps) for (const step of steps.children) { step.classList.remove('current'); step.classList.add('done'); }
       { const bar = document.querySelector('#loading .ldbar i'); if (bar) { bar.style.transition = 'transform .3s linear'; bar.style.transform = 'scaleX(1)'; } await new Promise((r) => setTimeout(r, 350)); }   // 残りを急に消さず、満ちてから閉じる（kaito 10/23 稲生 37）
       const readingBegan = performance.now();
       await reader.wait();

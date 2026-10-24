@@ -296,8 +296,8 @@ export function fieldSignsTick(rt, root) {
     if ((oke || moribe || inou) && !u.mounted) headPos.y = u.pos.y + (u.bodyHeight || 1.72) + .15;
     // 森部の▼を笠の中へ埋めない。姿勢や頭の揺れは追わず本人の背丈へ固定する。
     if ((moribe || oke) && !u.mounted) headPos.y = u.pos.y + (u.bodyHeight || 1.72) + .38;
-    // 稲生では笠の縁と白い外枠が重ならない小さな隙間を残す。
-    if (inou && !u.mounted) headPos.y += .32;
+    // 笠に埋めず、白い外枠との隙間も残す。頭の揺れは追わない。
+    if (inou && !u.mounted) headPos.y = u.pos.y + (u.bodyHeight || 1.72) + .15 + .32;
     if (inou || oke || moribe) {
       if (defeated) headPos.set(u._inouSignX, u._inouSignY, u._inouSignZ);
       else { u._inouSignX = headPos.x; u._inouSignY = headPos.y; u._inouSignZ = headPos.z; }
@@ -338,7 +338,7 @@ export function fieldSignsTick(rt, root) {
     // 森部は命中を二秒以上保ち、最後にゆっくり戻す。
     // 一瞬の振りやよろめきを見落としても、当たった本人の赤の減りと縦の伸びが残る。
     const hit = foe && special
-      ? Math.min(1, Math.max(0, moribe ? hitLeft / .6 : (hitLeft - (inou ? .6 : 1.2)) / .5))
+      ? Math.min(1, Math.max(0, moribe || inou ? hitLeft / .6 : (hitLeft - 1.2) / .5))
       : 0;
     const reachable = foe && u === readyEnemy;
     // 森部の命中は同じ赤い▼を大きくして示す。空振りでは変わらない。
@@ -364,8 +364,9 @@ export function fieldSignsTick(rt, root) {
     // 稲生の▼は実物の大きさをそろえる。近づけば兵と一緒に大きくなり、距離の縮まりが見える。
     // 森部も頭ほどの幅に収め、間合いと命中の拡大は下で一度だけ掛ける。
     // 稲生の追う一人は遠くても読める幅を保つ。ほかの兵は実寸に収める。
+    // 近くの兵も読みやすい大きさを残し、目前の相手を見失わせない。
     const inouFocus = inou && (u === missionEnemy || hit > 0 || defeated);
-    const k = Math.min(moribe ? (u === commander ? 2 : 1.2 + .4 * Math.max(0, 1 - Math.sqrt(meD2) / 22)) : inou ? (inouFocus ? 8 : u === commander ? 1.5 : 1.2) : u === commander ? 32 : oke && u === missionEnemy ? 8 : 3, (inou ? inouFocus ? 24 : 18 : moribe ? pixels : width) * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) *
+    const k = Math.min(moribe ? (u === commander ? 2 : 1.2 + .4 * Math.max(0, 1 - Math.sqrt(meD2) / 22)) : inou ? (inouFocus ? 8 : near ? 2 : u === commander ? 1.5 : 1.2) : u === commander ? 32 : oke && u === missionEnemy ? 8 : 3, (inou ? inouFocus ? 24 : near ? 28 : 18 : moribe ? pixels : width) * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) *
       (moribe || inou ? 1 : 1 + (pulse > 0 ? 1.2 * pulse : reachable && !oke ? .55 : 0));
     dummy.position.copy(headPos);
     dummy.quaternion.copy(q);
@@ -406,8 +407,10 @@ export function fieldSignsTick(rt, root) {
       } else dummy.scale.multiplyScalar(still ? 1 : closing);
     }
     if (!inou && marked && foe && u !== marked) dummy.scale.multiplyScalar(.55);
-    // 任務の一人だけ同じ▼を大きく保つ。届く幅・命中の伸び・残りの赤はそのまま重ねる。
-    if (inou && foe && !defeated && u === commander) dummy.scale.multiplyScalar(1.15);
+    // 任務の武将の強調を残し、届く本人・命中した本人・防がれた本人も小さくしない。
+    if (inou && foe && !defeated) dummy.scale.multiplyScalar(Math.max(
+      u === missionEnemy || hot || hit > 0 || blocked ? 1.3 : 1,
+      u === commander ? 1.15 : 1));
     dummy.updateMatrix();
     if (foe) {
       // 森部も赤の高さを命の残りにそろえ、一撃ごとの減りを隠さない。

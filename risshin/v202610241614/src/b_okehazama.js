@@ -44,7 +44,7 @@ function enemyGroup(rt, options, list) {
 const P1 = [[0, 172], [-4, 150], [-4, 144], [4, 140], [6, 118], [-8, 90], [-24, 60], [-30, 30], [-22, 0], [-12, -30], [-8, -46]];
 const HONJIN = { x: 18, z: -116 };
 // ピンの根元へ歩けば合流する。出発前も行軍後も同じ間合いにそろえる。
-const JOIN_RADIUS = 2.5;
+const JOIN_RADIUS = 3.5;
 const readyUnit = (u) => !!u && u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget;
 const readyGroup = (g) => g && !g.routed && g.units.some(readyUnit);
 
@@ -757,7 +757,7 @@ const okehazama = {
         const pos = F.marchPinPos || this.squadFlagPosition(rt);
         if (!pos) return null;
         pin.x = pos.x; pin.z = pos.z;
-        pin.area = false; pin.hide = 0; pin.r = JOIN_RADIUS;
+        pin.area = true; pin.hide = 0; pin.r = JOIN_RADIUS;
         pin.arrived = this.squadFlagReached(rt); pin.waiting = pin.arrived;
         // 実際に到着するまでは縁を閉じ切らず、壁越しの到着に見せない。
         pin.arrivalProgress = Math.max(0, Math.min(.98, 1 - (this.squadFlagDistance(rt) - pin.r) / 10));
@@ -769,7 +769,7 @@ const okehazama = {
       pin.x = pos.x; pin.z = pos.z;
       pin.r = JOIN_RADIUS;
       // ピンは到着判定と同じ地面の一点へ。人物への話しかけの印にしない。
-      pin.hide = 0; pin.waiting = false; pin.area = false;
+      pin.hide = 0; pin.waiting = false; pin.area = true;
       pin.arrived = rt.phase === 'brief' && F.briefed || this.squadFlagReached(rt);
       // 実際に到着するまでは縁を閉じ切らず、壁越しの到着に見せない。
       pin.arrivalProgress = Math.max(0, Math.min(.98, 1 - (this.squadFlagDistance(rt) - pin.r) / 10));
