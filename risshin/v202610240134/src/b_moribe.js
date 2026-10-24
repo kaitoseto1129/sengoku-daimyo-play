@@ -1038,7 +1038,7 @@ const moribe = {
   // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は「何をするか」だけ（kaito 10/23 49・50）。段の総称で通し、向き・行き先の字は書かない。
-  missions: ['川を渡れ', '仲間を待て', '斎藤勢を倒せ', '仲間と耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
+  missions: ['川を渡れ', '仲間を待て', '斎藤勢を倒せ', '敵を迎え撃って耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
   // ピン・▼・名前は同じ本人へ。描画の間引きで相手を替えない。
   commanderTarget(rt) {
     const F = rt.flags;
@@ -1108,7 +1108,7 @@ const moribe = {
         (F.stage === 'hold' || F.stage === 'contact' && F.vBroken) && F.lineReturning)
       return '仲間と集まれ';
     // 守備の終了に撃破人数の条件はない。倒す人数を探させない。
-    if (F.stage === 'hold') return '仲間と耐えろ';
+    if (F.stage === 'hold') return '敵を迎え撃って耐えろ';
     // 討つ相手の名前は許された任務一行に収め、頭上に別の札を足さない。
     const commander = this.commanderTarget(rt);
     if (commander?.name) return `${commander.name}を倒せ`;
@@ -1204,10 +1204,7 @@ const moribe = {
       pos = POINT2; r = FORD_R; hide = 0;
       // 渡河中は岸に刺さる行き先だけを示す。途中までの進みを到着と混同させない。
       q.crossing = true;
-      // 対岸へ進んだ分を示す。横に避けても、満ちた分を巻き戻さない。
-      F.fordCrossProgress = Math.max(F.fordCrossProgress || 0, Math.min(.95,
-        Math.max(0, (START2.z - rt.player.u.pos.z) / Math.max(.5, START2.z - POINT2.z))));
-      q.progress = F.fordCrossProgress;
+      // 移動中は穴の空いた行き先。時計の中身は到着後の待機だけに使う。
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
     } else if (F.stage === 'assemble') {
@@ -1222,11 +1219,17 @@ const moribe = {
     } else if (F.stage === 'press') {
       return null; // 討つ武将も頭上の赤い▼にそろえる。
     } else if (F.stage === 'hold' || F.vBroken) {
-      // 守る列にいる間は移動先を示さない。進みは右上の同じ一行の下地で伝える。
-      if (!F.lineReturning) return null;
-      // 列を離れた時だけ、守備を始めた固定地点へ戻す。
-      pos = F.linePoint;
-      r = hide = 18;
+      if (!F.lineReturning && F.stage === 'hold') {
+        // 同じ持ち場のピンを時計に替える。列にいれば待つだけでも進む。
+        q.waiting = true; q.arrived = true;
+        q.progress = this.missionWaitProgress(rt);
+        pos = F.linePoint; r = 24; hide = 0;
+      } else {
+        if (!F.lineReturning) return null;
+        // 列を離れた時だけ、守備を始めた固定地点へ戻す。
+        pos = F.linePoint;
+        r = hide = 18;
+      }
     } else if (!gone(F.V)) {
       // 「斎藤の先手を崩す」の間は、その先手の真ん中へ。味方の旗を指すと、どれが先手か分からない（初めての人の迷い）。
       pos = fightingCenter(F.V); r = 6; hide = 8;
@@ -1641,7 +1644,16 @@ const moribe = {
     noticeStyle.textContent = `
 /* 次の一手と号令を右の任務札にまとめる。横持ちでも二行を切らない。 */
 #hud #h-prog[data-battle="moribe"] { width:min(320px, 38vw); }
-/* 耐える間の進み具合は、守る地点のピンの中だけを満たす。 */
+/* 残りは任務と同じ一行の時計で示す。針と満ちる円だけで、秒の字は足さない。 */
+#hud #h-prog[data-battle="moribe"] .pg-st.moribe-wait {
+ flex-direction:row; align-items:center; justify-content:flex-end; gap:10px;
+}
+#hud #h-prog[data-battle="moribe"] .pg-st.moribe-wait::before {
+ content:""; display:block; flex:none; width:22px; height:22px; border-radius:50%;
+ box-shadow:0 0 0 2px #c9b27a;
+ background:linear-gradient(#fff3df,#fff3df) center 3px / 2px 8px no-repeat,
+ conic-gradient(#e8c25a calc(var(--wait-progress,0) * 1%), #373326 0);
+}
 /* 共通の一行省略より優先し、今することを最後まで読めるようにする。 */
 html:root body #hud.mission-only #h-prog[data-battle="moribe"] .pg-st span {
  max-width:100% !important; white-space:normal !important; overflow:visible !important;

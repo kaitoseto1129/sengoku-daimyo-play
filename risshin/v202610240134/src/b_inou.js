@@ -57,9 +57,11 @@ function prepareMarch(g) {
 
 // 信勝方は弁柄（赤茶の漆）の具足、信長方は黒漆に紺の威。ネオンにせず、近くでも遠くでも色の系統で分かる（kaito 10/22 稲生 3）。
 // 彩度の低い茶は人の甲冑の色替えで無視されるため、弁柄の赤みを残す。
-const SHIBA = { armor: 0x88432f, lace: 0x96583d, cloth: 0x715044, flag: 'kari' };
-const HAYA = { armor: 0x834031, lace: 0x8b503b, cloth: 0x68483e, flag: 'sujikai' };
-const ODA = { lace: 0x334f70, cloth: 0x293b51, flag: 'oda' };
+// 笠にも同じ漆色を通す。旗を読めない近さでも、黒漆の味方と弁柄の敵を見分ける。
+// 指物は敵が縦長、味方が横広。旗の本数や材質を増やさず形でも区別する。
+const SHIBA = { armor: 0x88432f, hatColor: 0x88432f, lace: 0x96583d, cloth: 0x715044, flag: 'kari', flagShape: 1 };
+const HAYA = { armor: 0x834031, hatColor: 0x834031, lace: 0x8b503b, cloth: 0x68483e, flag: 'sujikai', flagShape: 1 };
+const ODA = { hatColor: 0x121110, lace: 0x334f70, cloth: 0x293b51, flag: 'oda', flagShape: 2 };
 const dress = (list, lk) => list.map((s) => ({ ...s, o: { ...lk, ...(s.o || {}) } }));
 const gone = (g) => !g || g.count === 0 || g.routed;
 // 退き切った隊は、その場に立たせず戦場から消す（kaito 10/24「動かない味方と敵は一切排除」）。
@@ -202,16 +204,16 @@ const inou = {
   nearSpearFade: false, // 槍だけを縮めて透かさず、持ち主と同じ形を保つ。
   missionPinCaption: '',
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
-  // 任務は短く、相手は印の形、待つ任務は場所と残り時間で示す。
-  missions: ['▼の敵をたおせ', '▼の敵をたおせ', '信長の旗のそばで生きのこれ', '▼の林美作守をたおせ'],
+  // 任務は一行。兵と武将を区別し、相手の印・待つ場所と残り時間を示す。
+  missions: ['▼の林の兵を倒せ', '▼の林の兵を倒せ', '信長の旗のそばで耐えろ', '▼の林美作守を倒せ'],
   missionHeading(rt) {
     const F = rt.flags;
     if (F.step === 1) {
       if (F.training === 11 && !F.flankReached) return '右の畦へ進め';
-      if (F.training === 12 && !gone(F.shiba1)) return '赤い印の兵を倒せ';
+      if (F.training === 12 && !gone(F.shiba1)) return '▼の柴田の兵を倒せ';
       // 最初は二十四秒で側面への命令、後半は百十二秒で信長の前進へ移る。
       const until = F.training < 11 ? 24 : 112;
-      return `信長の旗のそばで\nあと${Math.max(0, Math.ceil(until - (rt.t - F.stepT)))}秒 耐えろ`;
+      return `信長の旗のそばで あと${Math.max(0, Math.ceil(until - (rt.t - F.stepT)))}秒 耐えろ`;
     }
     if (F.step === 2) return '▼の敵をたおせ';
     return F.step === 0 && F.training === 8 ? '▼の隊長をたおせ' : this.missions[this.missionOf(rt)];
@@ -402,12 +404,23 @@ const inou = {
       if (!a[2] && !a[3] && (P.u.swing !== swing || P.assistImpact && P.assistImpact !== assist)) F.strikeN++;
       return result;
     };
-    // 命を減らした本人の印だけで命中を返す。空振り・味方への攻撃では反応しない。
+    // 命中・受け止め・討ち取りを本人の▼だけで返す。空振りと味方には反応しない。
     const damage = rt.army.damage;
     rt.army.damage = function (t, amount, src, ...rest) {
       const hp = t?.hp;
       const result = damage.call(this, t, amount, src, ...rest);
-      if (t && src?.isPlayer && t.team !== src.team && t.hp < hp) t.inouHitUntil = rt.t + 2.4;
+      if (t && src?.isPlayer && t.team !== src.team) {
+        if (rest[0]?.out?.res === 'block' && t.alive) {
+          t.inouBlockUntil = rt.t + .7;
+          t.inouHitUntil = 0;
+        } else if (t.hp < hp) {
+          t.inouHitUntil = rt.t + 2.4;
+          t.inouBlockUntil = 0;
+        }
+        // 最後の命中からの経過に依存させず、倒れた時から印を閉じる。
+        if (t.hp < hp && (!t.alive || t.dying || t.hp <= 0 || t.downed || t.woundOut || t.rearWound))
+          t.inouDefeatUntil = rt.t + 1.2;
+      }
       return result;
     };
     F.training = -1;
