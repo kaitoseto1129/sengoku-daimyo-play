@@ -1,8 +1,8 @@
 import { simpleControls } from './simple_controls.js';
 import { restWounds } from './wounds.js';
-import { validProgress, validExtra, readProgress } from './save_guard.js';
+import { validProgress, validExtra, readProgress, safeSave as save } from './save_guard.js';
 import { isTouch } from './touch.js';
-import { TOMO, RANK_CEIL, GRADE_CUT, RANKS, BATTLES, SCENARIOS, SCENARIO_ORDER, SCENARIO_PICK, zeni, scenarioKey, scenarioReady, ITEMS, TITLES, LADDER, HORSES, myHorse, ladderStep, rankLabel, save, equipDef, migrate, relOf, lineOf } from './state.js';
+import { TOMO, RANK_CEIL, GRADE_CUT, RANKS, BATTLES, SCENARIOS, SCENARIO_ORDER, SCENARIO_PICK, zeni, scenarioKey, scenarioReady, ITEMS, TITLES, LADDER, HORSES, myHorse, ladderStep, rankLabel, equipDef, migrate, relOf, lineOf } from './state.js';
 import { drawMon } from './textures.js';
 import { sfx, initAudio } from './audio.js';
 import { S, reduceMotion, motionPreference, saveSettings, resetHints, resetSettings, BIND_DEFAULTS, bindReserved, validBind, BIND_LABELS, keyLabel, DIFFICULTY, K, hintSeen } from './settings.js';

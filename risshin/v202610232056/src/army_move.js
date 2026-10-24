@@ -13,6 +13,8 @@ import { bodiesWorkerPush } from './army_bodies_worker.js';
 const BW_OUT = { x: 0, z: 0 };
 
 // 敵までの道筋は兵全員で共用し、一コマに一度だけ長さを求める。
+// 味方の徒歩どうしの間（m）：押し合いで寄せる柔らかい輪と、体が重ならない固い輪（army_bodies_worker.js も同じ）。
+export const ALLY_SPACE_SOFT = 1.4, ALLY_SPACE_HARD = 1.15;
 function guideWay(army) {
   const way = army._guideWay || (army._guideWay = { at: -1 });
   if (way.at === army.time) return way;
@@ -532,6 +534,8 @@ export const ArmyMove = {
     let px = 0, pz = 0, sx = 0, sz = 0, block = 1;
     const queue = !u.target || u.terrain === 'water';   // 隊列で歩くときだけ、前の者に合わせて詰まる（敵へ向かうときは押し合う）
     const r0 = mounted ? 1.25 : Math.max(0.85, this.world.def.meleeBodySpace || 0);
+    // 味方の徒歩どうしは肩の間を空ける（kaito 10/24「ひしめき合うのはダメ」：人と人の間 1.2〜1.5m）。敵との間合いは今のまま。
+    const r0Ally = mounted ? r0 : Math.max(ALLY_SPACE_SOFT, r0);
     // 槍衾と遊び手は持ち場を保つ。ほかの徒歩の兵は、走る馬の進路から接触前に横へ避ける。
     const dodge = !mounted && !u.isPlayer && !(u.stagger > 0) && !(u.planted > this.time) &&
       !(g && g.formation === 'yari' && (g.order === 'yari' || g.order === 'hold'));
@@ -607,7 +611,7 @@ export const ArmyMove = {
       const d = Math.sqrt(d2);
       const rr = o.mounted ? 1.25 : personal && o.team === u.team &&
         (o.isPlayer || (!u.isPlayer && this.playerUnit &&
-          (u.pos.x - this.playerUnit.pos.x) ** 2 + (u.pos.z - this.playerUnit.pos.z) ** 2 < 36)) ? personal : r0;
+          (u.pos.x - this.playerUnit.pos.x) ** 2 + (u.pos.z - this.playerUnit.pos.z) ** 2 < 36)) ? personal : o.team === u.team && !o.isPlayer && !u.isPlayer ? r0Ally : r0;
       if (d < rr) {
         const k = o.isPlayer ? 5 : o.mounted && !mounted ? 5.5 : mounted && !o.mounted ? 1.1 : 3.2;
         // 駆ける馬に当たった徒歩の者は、突き飛ばされて膝をつき、蹄にかかって傷を負うことがある
@@ -637,10 +641,14 @@ export const ArmyMove = {
         }
       }
     };
+    // 升目に写した位置で、押し合い・支えの届く所（2.2m か 1.5m）より遠い兵を開かずに落とす。
+    const keep = rankLine ? 2.2 : 1.5;
     if (dodge) {
-      this.forNear(u.pos.x, u.pos.z, mounted ? 1.5 : rankLine ? 2.2 : 1.3, visit, 1);
-      this.forNear(u.pos.x, u.pos.z, 5, visit, 2);
-    } else this.forNear(u.pos.x, u.pos.z, mounted ? 1.5 : rankLine ? 2.2 : 1.3, visit);
+      this.forNearIn(u.pos.x, u.pos.z, mounted ? 1.5 : rankLine ? 2.2 : 1.3, keep, visit, 1);
+      // 走る馬を避ける 5m は騎馬の一覧だけをたどる（升目の 5m を全部開かない）。
+      const ml = this.mountedList;
+      for (let i = 0; i < ml.length; i++) visit(ml[i], 2);
+    } else this.forNearIn(u.pos.x, u.pos.z, mounted ? 1.5 : rankLine ? 2.2 : 1.3, keep, visit);
     // 押し返される前列を後列が受ける。力は段ごとに弱まり、無限に増えない。
     if (rankLine) {
       const back = Math.max(0, -(px * rfx + pz * rfz));
@@ -750,7 +758,7 @@ export const ArmyMove = {
     else this.forNear(u.pos.x, u.pos.z, u.mounted ? 2.4 : 1.8, (o) => {
       if (o === u || !o.alive || o.downed || o.woundOut || o.isStruct || o.type === 'dummy' || o.fall || Math.abs(u.pos.y - o.pos.y) > 1.8) return;   // 倒れた者の上は歩ける（10/24）
       const om = !!o.mounted, min = !mounted && !om && !u.isPlayer && !o.isPlayer
-        ? Math.max(ra + .4, this.world.def.meleeBodySpace || 0) : ra + (om ? .55 : .4);
+        ? Math.max(o.team === u.team ? ALLY_SPACE_HARD : ra + .4, this.world.def.meleeBodySpace || 0) : ra + (om ? .55 : .4);
       const ofx = om ? Math.sin(o.heading) : 0, ofz = om ? Math.cos(o.heading) : 0;
       let bx = 0, bz = 0, best2 = min * min, found = false;
       // 馬の前後二点も数だけで比べ、重なる相手ごとの配列を作らない。

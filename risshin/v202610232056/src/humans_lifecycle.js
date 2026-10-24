@@ -5,6 +5,7 @@ import { syncArmorWear } from './armor_wear.js';
 import { ARMY, WORLD } from './humans_context.js';
 import { unbindHumanBounds, releaseHumanBounds } from './humans_bounds.js';
 import { MEM_TIGHT } from './settings.js';
+import { boneHolder, refreshSocks } from './humans_bones.js';
 import { humanPool, pinHumanGeometries, crowdGeos, SRC, HEAD, crowdShapes, HUM, memTight, isNamed } from './humans_shared.js';
 import { headMats, headTexs, MH_PORES } from './humans_face_materials.js';
 import { headGeos, scalpGeos, hairGeos, hatMats, EYE_MH, MOUTH_MH, HAIR_MATS } from './humans_face_geometry.js';
@@ -42,7 +43,7 @@ function dropHuman(u) {
   if (u.body) u.body.visible = true;
   if (u.legL) { u.legL.visible = true; u.legR.visible = true; }
   syncArmorWear(u, ARMY?.hideBlood);
-  if (u.armorWear && u.armorWear.root.parent !== h.bones?.Spine1) unbindHumanBounds(u.armorWear.root);
+  if (u.armorWear && u.armorWear.root.parent !== boneHolder(h.bones?.Spine1)) unbindHumanBounds(u.armorWear.root);
   if (MEM_TIGHT && humanPool.has(h)) {
     pinHumanGeometries(h);
     releaseHumanBounds(h);
@@ -222,7 +223,7 @@ function skipHiddenMW(force) {
     if (_mwT.equals(h.mw0)) {
       this.matrixWorldNeedsUpdate = false;
       // 止めている間も、握り（gripPose の updateWorldMatrix）で手の骨だけが新しくなる事がある。指を手に合わせ直す（手の皮が帯のように伸びないよう）
-      if (!h.poseHidden && (!h.lodFar || WORLD?.def.fullTipMatrices) && h.bones) { h.bones.LeftHand?.updateMatrixWorld(true); h.bones.RightHand?.updateMatrixWorld(true); }
+      if (!h.poseHidden && (!h.lodFar || WORLD?.def.fullTipMatrices) && h.bones) { h.bones.LeftHand?.updateMatrixWorld(true); h.bones.RightHand?.updateMatrixWorld(true); refreshSocks(h); }
       return;
     }
   }

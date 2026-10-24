@@ -6,20 +6,39 @@ import * as THREE from 'three';
 import { MEM_TIGHT } from './settings.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
-function scanFace0(h, key, L, F, full) {
-  const hd = SRC.rest.Head;
+// 兵の顔の形は、顔の型（12）ごとにさらに三通りへ散らす（幅・えら・顎・鼻・頬骨を少しずつ。隣に同じ顔が並ばないよう）。絵は型ごとに同じ
+const FACE_J = [[-0.03, 0.08, 0.06, 0, 0.1], [0, -0.07, -0.05, 0.08, -0.05], [0.035, 0, 0, -0.07, 0]];
+function faceShapeKey(key, L, F, full, v) {
   F = faceStyle(full ? key : 'c' + ((L.face | 0) % 12), F);
   let gk = full ? key : 'c' + ((L.face | 0) % 12);
-  // 兵の顔の形は、顔の型（12）ごとにさらに三通りへ散らす（幅・えら・顎・鼻・頬骨を少しずつ。隣に同じ顔が並ばないよう）。絵は型ごとに同じ
   if (!full) {
-    const v = Math.floor(((h.seed || 0) * 13.7) % 1 * 3);
-    const J = [[-0.03, 0.08, 0.06, 0, 0.1], [0, -0.07, -0.05, 0.08, -0.05], [0.035, 0, 0, -0.07, 0]][v];
+    const J = FACE_J[v];
     F = { ...F, w: (F.w || 1) * (1 + J[0]), jaw: (F.jaw || 1) * (1 + J[1]), chin: (F.chin || 1) * (1 + J[2]), nose: (F.nose ?? 1) * (1 + J[3]), cheek: (F.cheek ?? 1) * (1 + J[4]) };
     gk += '|v' + v;
   }
+  return [F, gk];
+}
+const faceAo = (hat) => hat.startsWith('jingasa') ? 0.78 : hat.startsWith('kabuto') ? 0.8 : 0;
+// 戦の支度の間に、顔の絵・材質・形・髪・目・口を前もって作る（戦の中で一枚ずつ描いて固まらないよう）。作った物は scanFace0 が使い回す
+function warmFace(key, L, F0, full) {
+  const hat = L.hat || '', ao = faceAo(hat);
+  for (let v = 0; v < (full ? 1 : 3); v++) {
+    const [F, gk] = faceShapeKey(key, L, F0, full, v);
+    const base = headMaterial(key, L, F), hg = headGeo(gk, F);
+    for (let fv = 0; fv < (full ? 1 : 4); fv++) hatFaceMat(base, ao, fv);
+    const hm = new THREE.Mesh(hg, base);
+    if (!hat.startsWith('kabuto') && !L.monk && (!L.sohei || L.kosode)) addHair(hm, hg, F, !full);
+    if (HEAD.mh) addEyesMH(hm, gk, F);
+    if (HEAD.mh && HEAD.exMorph) addMouthMH(hm, gk, F);
+  }
+}
+function scanFace0(h, key, L, F, full) {
+  const hd = SRC.rest.Head;
+  let gk;
+  [F, gk] = faceShapeKey(key, L, F, full, Math.floor(((h.seed || 0) * 13.7) % 1 * 3));
   const hat = L.hat || '';
   // 笠の遮光を残しつつ、目鼻と頬へ空からの回り込みを残す。
-  const ao = hat.startsWith('jingasa') ? 0.78 : hat.startsWith('kabuto') ? 0.8 : 0;
+  const ao = faceAo(hat);
   // スキャンの兜をかぶる武将：兜に隠れる頭（眉より上と、耳の後ろ）は描かない（鉢の内から頭の肌が覗かないよう）
   const hg = h.helmScan ? clipScalp(headGeo(gk, F)) : headGeo(gk, F);
   // 兵は一人ずつ汚れ・汗・日焼けを変える（絵は型ごとに同じで、材質の値だけ四通り）
@@ -236,4 +255,4 @@ function addEyesFast(hm, F, tint = null) {
   hm.add(wet);
 }
 
-export { scanFace0, menpoGeos, MENPO_TEX, menpoMats, scanMenpo, eyeFast, EYE_FAST_MATS };
+export { scanFace0, warmFace, menpoGeos, MENPO_TEX, menpoMats, scanMenpo, eyeFast, EYE_FAST_MATS };

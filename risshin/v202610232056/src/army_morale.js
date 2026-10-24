@@ -83,7 +83,8 @@ export function moraleThink(army, u) {
   commanderAdvance(army, u);
   const sense = army.moraleSense;
   sense.army = army; sense.u = u; sense.horse = sense.runner = null; sense.horseD = 100; sense.runners = 0; sense.friends = sense.foes = 0;
-  army.forNear(u.pos.x, u.pos.z, 9, senseNearby, sense);
+  // 気持ちに響くのは 6m・迫る騎馬は 10m まで。升目の写しで遠い兵を先に落とす。
+  army.forNearIn(u.pos.x, u.pos.z, 9, 10, senseNearby, sense);
   const horse = sense.horse, runner = sense.runner, runners = sense.runners;
   sense.u = sense.horse = sense.runner = null;
   const brace = !u.dropped && !u.downed && !(u.pinT > now) && !(u.stagger > 0.3) && !u.woundOut && (u.wpnKind || u.lookWeapon) === 'spear' && g.formation === 'yari' && (g.order === 'yari' || g.order === 'hold') && g.morale >= 45;

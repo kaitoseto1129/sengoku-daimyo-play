@@ -15,6 +15,7 @@ const spearShoulder = new THREE.Vector3();
 const spearElbow = new THREE.Vector3();
 const spearWrist = new THREE.Vector3();
 const spearGrip = new THREE.Vector3();
+const _headP = new THREE.Vector3();
 function armsPose(h, B, dt, time, w) {
   const u = h.u;
   const hd = u.hand;
@@ -204,8 +205,13 @@ function armsPose(h, B, dt, time, w) {
   if (h.far) return;   // 遠い人は左手を省く（録った動きのまま）
   // 槍をしごく：突き出す間、前の左手は柄の上を滑ってその場に残り、後ろの右手だけが前へ押し出す（両手が一緒に動く棒突きにしない）
   if (w === 'spear' && h.atkB && h.atkB.L > 0.01 && (!closeSpear || u.swing?.kind === 'thrust' || u.swing?.kind === 'charge')) k = Math.max(closeSpear ? 0.18 : 0.1, k - 0.5 * h.atkB.L);
+  // 立ち気味の槍で、柄の先へ添える左手が頭より上へ行かないよう、柄の上の握り所を手元へ寄せる（両手を頭上へ上げた崩れた姿にしない）
+  if (w === 'spear' && !fpg && !(u.cheer > 0) && dir.y > 0.5 && B.Head) {
+    const top = B.Head.getWorldPosition(_headP).y - 0.12 - _tgt.y;
+    if (dir.y * k > top) k = Math.max(0.12, top / dir.y);
+  }
   _tgt2.copy(_tgt).addScaledVector(dir, k).addScaledVector(_right, -0.05).addScaledVector(_up, lift);
-  const calm = !u.atk && !u.target && !(u.strikeT > 0) && (u.moving || 0) < 0.3 && !aimGun && !u.isPlayer;
+  const calm =!u.atk && !u.target && !(u.strikeT > 0) && (u.moving || 0) < 0.3 && !aimGun && !u.isPlayer;
   // 火縄を袖で庇う：待つ鉄砲足軽は、時々左の袖で火皿と火縄を覆う（風が強いほど、雨の時ほど多く）
   if (w === 'gun') {
     const C = h.cover || (h.cover = { t: 2 + h.seed * 8, on: 0, k: 0 });

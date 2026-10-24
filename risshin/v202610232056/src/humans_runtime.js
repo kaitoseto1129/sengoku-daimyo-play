@@ -15,6 +15,8 @@ import { DOMARU, wantsDomaru, KABUTO, dressDomaru, dressKabuto, crowdDomaru, mon
 import { namedKacchu } from './named_kacchu.js';
 import { coveredBodyGeo, bodyLod, BSPH, lodGeo } from './humans_lod.js';
 import { humanMotionBones, bindHumanBounds, releaseHumanBounds } from './humans_bounds.js';
+import { detachBones } from './humans_bones.js';
+const BONE_TREE = (() => { try { return /[?&]bonetree=1/.test(location.search); } catch (e) { return false; } })();
 import { restInverse, gripPose, humans, humanWanted, humanCandidates, humanNear, humanUnitRefs, humanUnitStates, humanCandidatePool, humanNearPool, resetCrowdSweep, sweepCrowdGeos, humanQualityValues, humanQuality } from './humans_combat.js';
 import { nanbanMaterial } from './units_model.js';
 import { scanMenpo, scanFace0 } from './humans_face.js';
@@ -255,6 +257,8 @@ function* buildHuman(u, look0) {
   h.acc = 0;
   h.wearFit = restInverse('Spine1').clone().multiply(SRC.fitT);
   root.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 1, 0), (u.mounted ? 2.2 : 1.3) + 0.3);
+  // 骨を場面の木から外す（描く側と行列の更新が骨を辿らない。humans_bones.js）。?bonetree=1 で元の木のまま（比べ用）
+  if (!BONE_TREE && !window.__apx?.bonetree) detachBones(h, bindHumanBounds);
   bindHumanBounds(h);
   cacheHumanSkeleton(h);
   h.skelDirty = true;
@@ -431,6 +435,7 @@ function efudaPose(h, mode, phase) {
   finally { Object.assign(u, sv); }
 }
 let madeFaces = 0;
+let liveFrame = false;
 let preTick = 0;
 // 実写の顔を頭の骨に付ける（full：本人と武将。兵は軽い目）
 function scanFace(h, key, L, F, full) {
@@ -439,10 +444,13 @@ function scanFace(h, key, L, F, full) {
     if (full && !h.facePending) h.facePending = { key, L, F, full };
     return null;
   }
-  if (!headMats.has(key)) madeFaces++;
+  const fresh = !headMats.has(key);
+  if (fresh) madeFaces++;
   h.facePending = null;
   const a0 = performance.now();
   const r = scanFace0(h, key, L, F, full);
+  // 戦の中で新しく描いた顔（支度で作り漏れた物）を数える（iphone-perf の「人作り」live）
+  if (fresh && liveFrame) { HSTAT.liveFace = (HSTAT.liveFace || 0) + 1; HSTAT.liveFaceMs = (HSTAT.liveFaceMs || 0) + performance.now() - a0; }
   if (r) h.skelDirty = true;
   const TX = HSTAT.tx || (HSTAT.tx = {}); TX.scan = +((TX.scan || 0) + performance.now() - a0).toFixed(1);
   return r;
@@ -503,7 +511,7 @@ function useHuman(u, force = false) {
     }
     const took = force ? performance.now() - t0 : u._humanBuildMs;
     u._humanBuildMs = 0;
-    HSTAT.makeMs += took; HSTAT.makeN++; HSTAT.makeMax = Math.max(HSTAT.makeMax, took);
+    HSTAT.makeMs += took; HSTAT.makeN++; HSTAT.makeMax = Math.max(HSTAT.makeMax, took); if (liveFrame) { HSTAT.liveMake = (HSTAT.liveMake || 0) + 1; HSTAT.liveMakeMs = (HSTAT.liveMakeMs || 0) + took; HSTAT.liveMakeMax = Math.max(HSTAT.liveMakeMax || 0, took); }
     if (!force) makeCool = Math.min(20, Math.floor(took / (rush > 0 ? 30 : 12)));
     if (!u.human) return false;
     u.mesh.add(u.human.root);
@@ -623,6 +631,7 @@ let farSpScene = null;function farSpears(rt) {
   for (const e of farSp.values()) { e.im.count = e.n; e.im.instanceMatrix.needsUpdate = true; e.im.visible = e.n > 0; }
 }
 function updateHumans(rt, dt) {
+  liveFrame = dt > 0;
   madeThisFrame = 0; madeFaces = 0; frameT0 = performance.now(); frameNo++; if (makeCool > 0) makeCool--;
   sweepCrowdGeos(frameT0);
   // 支度の後も必要な人は、一コマ一人ずつ作る。開戦直後も作成量を増やさない。

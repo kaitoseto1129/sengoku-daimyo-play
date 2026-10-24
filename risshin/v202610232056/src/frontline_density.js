@@ -120,12 +120,14 @@ function meleeTick(rt, F, elapsed, strength) {
   const area = F.meleeArea || (F.meleeArea = { x0: 0, x1: 0, z0: 0, z1: 0 });
   area.x0 = area.z0 = Infinity; area.x1 = area.z1 = -Infinity;
   // 寄せる相手の升は一度だけ拾う。更新途中で動いた兵も、登録済みの升で探す。
-  for (const cell of A.gridActive) {
+  for (let a = 0, cq = 0; a < A.gW; a++) for (let b = 0; b < A.gH; b++, cq++) {
     let found = false;
-    for (const o of cell) if (soldier(o) && !o.isPlayer && !o.invuln &&
-        Math.hypot(o.pos.x - P.x, o.pos.z - P.z) <= 28) { found = true; break; }
+    for (let k = A.gStart[cq], end = A.gStart[cq + 1]; k < end; k++) {
+      const o = A.gList[k];
+      if (soldier(o) && !o.isPlayer && !o.invuln && Math.hypot(o.pos.x - P.x, o.pos.z - P.z) <= 28) { found = true; break; }
+    }
     if (!found) continue;
-    const x = Math.floor(cell.gridKey / 40000) - 20000, z = cell.gridKey % 40000 - 20000;
+    const x = a + A.gridX0, z = b + A.gridZ0;
     area.x0 = Math.min(area.x0, x); area.x1 = Math.max(area.x1, x);
     area.z0 = Math.min(area.z0, z); area.z1 = Math.max(area.z1, z);
   }

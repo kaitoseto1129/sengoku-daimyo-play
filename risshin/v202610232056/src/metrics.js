@@ -227,6 +227,14 @@ function perfEnd() { if (pf) { cancelAnimationFrame(pf.raf); pf = null; } }
 
 // ③ crash_prev：前回の落ち（main.js が risshin-crashes に [時刻, 戦の id, 画質, 秒?, 熱?, 軽さ?] を残す）。まだ送っていない物だけ、二件まで
 function crashPrev() {
+  // 記録が読めなかった事（save_guard.js が risshin-save-bad に、どの欄が崩れていたかを残す）。一度だけ送る
+  try {
+    const sb = JSON.parse(localStorage.getItem('risshin-save-bad') || 'null');
+    if (sb && Number(sb.at) > (Number(localStorage.getItem(MARK + 'savebad-sent')) || 0) && S.sendMetrics !== false) {
+      metric('save_bad', { why: String(sb.why || '?').replace(/[^a-zA-Z0-9_,]/g, '').slice(0, 80), dev: deviceClass() });
+      localStorage.setItem(MARK + 'savebad-sent', String(sb.at));
+    }
+  } catch (e) { /* noop */ }
   try {
     const log = JSON.parse(localStorage.getItem('risshin-crashes') || '[]');
     if (!Array.isArray(log) || !log.length) return;

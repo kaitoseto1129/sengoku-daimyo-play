@@ -112,7 +112,7 @@ function practiceLeft(rt) {
 // 追う一人を保ち、札・ピン・到着判定で共有する。群れの中心を毎コマ作らない。
 function approachUnit(rt) {
   const F = rt.flags;
-  const group = F.chase || F.training >= 0 && F.training < 5 ? F.practice : F.haya1;
+  const group = F.step === 1 ? F.shiba1 : F.chase || F.training >= 0 && F.training < 5 ? F.practice : F.haya1;
   if (!group) return null;
   const previous = F.approachGroup === group && fighting(F.approachUnit) && F.approachUnit.mesh?.visible !== false ? F.approachUnit : null;
   const reach = rt.player.meleeReach(rt.player.previewMeleeKind() || 'thrust');
@@ -165,7 +165,8 @@ const inou = {
   missionHeading(rt) {
     const F = rt.flags;
     if (F.step === 1) {
-      if (F.training === 11 && !F.flankReached || F.training === 12 && !gone(F.shiba1)) return '柴田隊を崩せ';
+      if (F.training === 11 && !F.flankReached) return '右の畦へ回れ';
+      if (F.training === 12 && !gone(F.shiba1)) return '柴田の兵をたおせ';
       return '耐えろ';
     }
     if (F.step === 2) return '信長について進め';
@@ -177,7 +178,11 @@ const inou = {
   foeMarkVisible: () => true,
   missionSignTarget: (rt) => rt.flags.step === 0 && rt.flags.training >= 0 && rt.flags.training <= 8 ?
     rt.flags.training === 8 ? rt.flags.hayaLead :
-      rt.player.inRange && fighting(rt.player.rangeCueTarget) ? rt.player.rangeCueTarget : approachUnit(rt) : rt.flags.step === 3 ? rt.flags.hayaU : null,
+      rt.player.inRange && fighting(rt.player.rangeCueTarget) ? rt.player.rangeCueTarget : approachUnit(rt) :
+        rt.flags.step === 1 && rt.flags.training === 12 && !gone(rt.flags.shiba1) ? approachUnit(rt) :
+          rt.flags.step === 3 ? rt.flags.hayaU : null,
+  missionEnemyLabel: (rt) => rt.flags.step === 3 ? '林美作守' : rt.flags.step === 1 ? '柴田の兵' :
+    rt.flags.training === 8 ? '林の隊長' : '林の兵',
   missionOf: (rt) => { const F = rt.flags; return F.step === 0 ? (F.training <= 4 ? 0 : 1) : F.step === 1 ? 2 : 3; },
   minutes: 9,
   // 初陣の見分けだけ二枚。追う兵と味方を、色のほかに字と形で示す。
@@ -202,7 +207,7 @@ const inou = {
     }
     return signs;
   },
-  // 敵が見える間は頭上の▼だけ。見失った時は同じ本人の足元をピンで示す。
+  // 倒す相手は本人の頭上の剣、移動先は地面の目印に分ける。
   missionPin: (rt) => {
     const F = rt.flags;
     if (F.ending) return null;
@@ -212,13 +217,11 @@ const inou = {
     }
     if (F.step === 1) {
       if (F.training === 11 && !F.flankReached) {
-        return pinPoint(rt, FLANK, 8);
+        return pinPoint(rt, FLANK, 8, undefined, null, '右の畦');
       }
       if (F.training === 12 && !gone(F.shiba1)) {
-        const c = F.shiba1.center();
-        const pin = pinPoint(rt, c, 2, 2);
-        pin.x += 11;
-        return pin;
+        const u = rt.def.missionSignTarget(rt);
+        return fighting(u) ? pinPoint(rt, u.pos, 0, 0, u) : null;
       }
       // 持ち場にいる間は移動の印を消し、任務の一行だけを残す。
       const lead = F.nobuU?.alive ? F.nobuU.pos : NOBU;

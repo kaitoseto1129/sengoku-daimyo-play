@@ -51,11 +51,12 @@ function scanSpearLane(army, u, center, half, width) {
   const x1 = Math.min(army.gridX1, Math.floor((x + rx) / cell));
   const z0 = Math.max(army.gridZ0, Math.floor((z - rz) / cell));
   const z1 = Math.min(army.gridZ1, Math.floor((z + rz) / cell));
+  const L = army.gList, start = army.gStart;
   for (let i = x0; i <= x1; i++) for (let j = z0; j <= z1; j++) {
-    const units = army.grid.get((i + 20000) * 40000 + j + 20000);
-    if (!units) continue;
-    for (let k = 0; k < units.length; k++) {
-      spearLaneVisit(units[k], u);
+    const q = army.gridCell(i, j);
+    if (q < 0) continue;
+    for (let k = start[q], end = start[q + 1]; k < end; k++) {
+      spearLaneVisit(L[k], u);
       if (lane.obstacles >= 2 && lane.rearBlocked) return;
     }
   }

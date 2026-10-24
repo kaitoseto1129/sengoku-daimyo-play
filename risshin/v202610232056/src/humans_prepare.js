@@ -1,5 +1,5 @@
 // 人の処理：支度。外部向けの入口は humans.js。
-import { HUM, SRC, HSTAT, HUM_Q, preparationFrame, SKIN_MAX, shapesReady, qualityKeeper, borrowHuman, humanPool, humanBuilding, HEAD } from './humans_shared.js';
+import { HUM, SRC, HSTAT, HUM_Q, preparationFrame, SKIN_MAX, shapesReady, qualityKeeper, borrowHuman, humanPool, humanBuilding, HEAD, isNamed } from './humans_shared.js';
 import { _pv, _fr } from './humans_lifecycle.js';
 import { preparationUnits, preStep } from './humans_crowd_geometry.js';
 import { prefetchLook, showHuman, buildHuman } from './humans_runtime.js';
@@ -13,6 +13,9 @@ import { EYE_MH, MOUTH_MH } from './humans_face_geometry.js';
 import { HR } from './humans_horse_model.js';
 import { TACK_GLOSS, TACK_MATTE, TACK_SILK, ROPE } from './humans_horse_tack.js';
 import { gripPose, humans } from './humans_combat.js';
+import { warmFace } from './humans_face.js';
+import { faceOf } from './units_flags.js';
+import { GENERALS, SKIN_TONES } from './units_data.js';
 import { driveHuman } from './humans_animate.js';
 
 // 支度の札を見せている間に、カメラの近くの兵の形（部品・束ねた形）を前もって作る（指の端末用。材質と絵の下ごしらえはしない＝固まらない）。
@@ -114,6 +117,43 @@ async function primeHumans(rt, renderer, camera, cap = Infinity, chunk = 1, curr
   if (current()) { rt.humansPrimed = true; HUM.primed = true; }
   return made;
 }
+// 戦の支度の間に、この戦で出る兵の顔（絵・材質・形・髪・目・口）を全部作っておく（10/24）。
+//   戦の中で近づいた兵に顔を一枚ずつ描くと、一枚ごとに重いコマが立つ（稲生で計 3 秒余り）。
+//   兵の顔は顔の型（12）×肌（SKIN_TONES と今いる兵の肌）×僧の有無で決まるので、後から出る兵（援軍）の分も含めて作れる。
+//   名のある武将は今いる者と、後から出る武将（def.famous）の分を作る。
+function faceJobs(rt) {
+  const jobs = new Map();
+  const add = (key, L, full) => { if (!jobs.has(key)) jobs.set(key, [key, L, full]); };
+  const skins = new Set(SKIN_TONES), monks = new Set([false]);
+  for (const u of rt.army.units) {
+    const L = u.look;
+    if (!L || u.type === 'dummy') continue;
+    const named = isNamed(L);
+    if (L.hero) add('player', L, true);
+    else if (named) add(L.face, L, true);
+    else if (L.officer) add(L.face, L, false);
+    if (!named && !L.hero) { skins.add(L.skin || 0); monks.add(!!L.monk); }
+  }
+  for (const e of rt.def?.famous || []) {
+    const nm = String(e.name || '').replace(/^.* /, ''), gen = GENERALS[nm];
+    if (gen && gen.face) add('g:' + nm, { face: 'g:' + nm, skin: gen.skin || SKIN_TONES[0], hat: gen.hat || 'kabuto_b' }, true);
+  }
+  for (const m of monks) for (const s of skins) for (let n = 0; n < 12; n++)
+    add('c' + n + '|' + s + (m ? '|m' : ''), { face: n, skin: s, monk: m, hat: 'jingasa' }, false);
+  return [...jobs.values()];
+}
+async function warmBattleFaces(rt, current = () => true) {
+  if (!HUM.on || !HUM.ready || !HEAD || !rt?.army) return 0;
+  let n = 0, slice = performance.now();
+  for (const [key, L, full] of faceJobs(rt)) {
+    if (!current()) break;
+    if (headMats.has(key)) continue;
+    try { warmFace(key, L, faceOf(L), full); n++; } catch (e) { /* 一つ作れなくても続ける（戦の中で作り直す） */ }
+    if (performance.now() - slice >= 3) { await preparationFrame(); slice = performance.now(); }
+  }
+  await finishFaceCopies(current);
+  return n;
+}
 // 隠れた材質と、支度で作った馬も本番と同じ属性の形で渡す。
 function humanProgramSamples(rt) {
   const samples = [];
@@ -147,4 +187,4 @@ function stepHuman(u, dt) { if (u.human) { gripPose(u.human, dt); driveHuman(u.h
 function humanCount() { return humans.size; }
 function restOf(nm) { return SRC && SRC.rest[nm]; }
 
-export { prefetchHumanShapes, warmLooks, primeHumans, humanProgramSamples, stepHuman, humanCount, restOf };
+export { prefetchHumanShapes, warmLooks, primeHumans, warmBattleFaces, humanProgramSamples, stepHuman, humanCount, restOf };

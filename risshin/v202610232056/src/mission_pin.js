@@ -681,7 +681,7 @@ export function updateMissionPin(rt) {
   pin.style.transform = `translate(${(x - 40).toFixed(1)}px,${(y - (outside ? 40 : 68)).toFixed(1)}px)`;
 }
 
-// 目当ての一人は距離で縮まないひし形と太い二重の縁。画面外でも同じ形を保つ。
+// 目当ての一人は頭上の剣。画面外でも同じ相手の方向を示す。
 let enemyTarget = null;
 function updateEnemyTarget(rt) {
   const hud = rt.hud, me = rt.player?.u;
@@ -694,16 +694,14 @@ function updateEnemyTarget(rt) {
   // 兵の描画側も同じ一人への視線を空ける。戦や任務が変われば解除する。
   rt.army.missionMarkedEnemy = u;
   if (enemyTarget) enemyTarget.hidden = true;
-  // 稲生の一般兵と森部は共通の赤い▼だけ。命中で広がる印をひし形で隠さない。
-  // 稲生で任務に指定された隊長だけは大きな専用印にする。
+  // 一般兵も隊長も同じ剣で示し、札の枠が埋まっても印は残す。
   const commander = u && u === rt.def.commanderTarget?.(rt);
-  if (rt.def.key === 'moribe' || rt.def.key === 'inou' && !commander) return false;
-  if (!u || commander && !goalLabelRoom(hud)) return false;
+  if (!u) return false;
   if (!enemyTarget) {
     enemyTarget = document.createElement('div');
     enemyTarget.id = 'mission-enemy-target';
     enemyTarget.style.cssText = 'position:absolute;left:0;top:0;width:112px;text-align:center;pointer-events:none;z-index:4';
-    enemyTarget.innerHTML = '<svg width="40" height="48" viewBox="0 0 56 64" aria-hidden="true" style="display:block;margin:auto"><path d="M28 6L50 32L28 58L6 32Z" fill="#a33124" stroke="#14120f" stroke-width="10" stroke-linejoin="round"/><path d="M28 6L50 32L28 58L6 32Z" fill="none" stroke="#fff3df" stroke-width="4" stroke-linejoin="round"/><path d="M17 26H39L28 42Z" fill="#fff3df" stroke="#14120f" stroke-width="2"/></svg><svg width="48" height="48" viewBox="0 0 48 48" aria-hidden="true" style="position:absolute;left:60px;top:0"><path d="M8 19H25V10L40 24L25 38V29H8Z" fill="#fff3df" stroke="#14120f" stroke-width="4" stroke-linejoin="round"/></svg><b style="position:absolute;left:50%;top:48px;transform:translateX(-50%);white-space:nowrap;background:#14120f;color:#fff3df;padding:2px 6px;font:bold 18px/24px sans-serif"></b>';
+    enemyTarget.innerHTML = '<svg width="40" height="48" viewBox="0 0 56 64" aria-hidden="true" style="display:block;margin:auto"><path d="M28 4L37 15V37H46V45H33V59H23V45H10V37H19V15Z" fill="#fff3df" stroke="#14120f" stroke-width="4" stroke-linejoin="round"/><path d="M28 13V36" stroke="#a33124" stroke-width="4"/></svg><svg width="48" height="48" viewBox="0 0 48 48" aria-hidden="true" style="position:absolute;left:60px;top:0"><path d="M8 19H25V10L40 24L25 38V29H8Z" fill="#fff3df" stroke="#14120f" stroke-width="4" stroke-linejoin="round"/></svg><b style="position:absolute;left:50%;top:48px;transform:translateX(-50%);white-space:nowrap;background:#14120f;color:#fff3df;padding:2px 6px;font:bold 18px/24px sans-serif"></b>';
     enemyTarget._symbol = enemyTarget.firstChild;
     enemyTarget._direction = enemyTarget.children[1];
     enemyTarget._caption = enemyTarget.lastChild;
@@ -715,18 +713,19 @@ function updateEnemyTarget(rt) {
   let x = (goalPoint.x + 1) * W / 2, y = (1 - goalPoint.y) * H / 2;
   if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
   // 印の先を頭上へ固定する。札を避けて別の兵の上へ動かさない。
-  const visible = goalPoint.z >= -1 && goalPoint.z <= 1 && x >= 24 && x <= W - 24 && y >= (commander ? 100 : 56) && y <= H - 12 &&
+  const visible = goalPoint.z >= -1 && goalPoint.z <= 1 && x >= 64 && x <= W - 64 && y >= 80 && y <= H - 12 &&
     !cameraWallBlocked(rt, rt.camera.position, u.pos) &&
-    (!commander || !rects.some(r => x + 32 > r.left && x - 32 < r.right && y > r.top && y - 76 < r.bottom));
-  let caption = commander ? '隊長' : '';
+    !rects.some(r => x + 60 > r.left && x - 60 < r.right && y > r.top && y - 76 < r.bottom);
+  const name = rt.def.missionEnemyLabel?.(rt, u) || u.name || '敵の兵';
+  const labelRoom = goalLabelRoom(hud);
+  let caption = name;
   if (!visible) {
     rt.camera.getWorldDirection(goalDirection);
     const yaw = Math.atan2(goalDirection.x, goalDirection.z);
     const gx = u.pos.x - me.pos.x, gz = u.pos.z - me.pos.z;
     const right = -gx * Math.cos(yaw) + gz * Math.sin(yaw);
     const forward = gx * Math.sin(yaw) + gz * Math.cos(yaw);
-    const direction = forward < -Math.abs(right) ? '後ろ' : Math.abs(right) > Math.abs(forward) ? right >= 0 ? '右' : '左' : '前';
-    caption = commander ? '隊長' : `${direction}へ あと${Math.max(1, Math.ceil(Math.hypot(gx, gz)))}歩`;
+    caption = '敵はあちら';
     enemyTarget._direction.style.transform = `rotate(${Math.atan2(-forward, right)}rad)`;
     // 印・矢印・文を一組で収める。任務や体力と重ならない端の余白を探す。
     x = right >= 0 ? W - 104 : 104;
@@ -735,7 +734,7 @@ function updateEnemyTarget(rt) {
     let best = Infinity, found = false;
     for (let i = 0; i <= 16; i++) {
       const cy = i === 0 ? preferred : top + (bottom - top) * (i - 1) / 15;
-      if (rects.some(r => x + 96 > r.left && x - 96 < r.right && cy + 80 > r.top && cy - (commander ? 28 : 4) < r.bottom)) continue;
+      if (rects.some(r => x + 60 > r.left && x - 60 < r.right && cy + (labelRoom ? 76 : 48) > r.top && cy - 4 < r.bottom)) continue;
       const distance = Math.abs(cy - preferred);
       if (distance < best) { best = distance; y = cy + 48; found = true; }
     }
@@ -744,10 +743,10 @@ function updateEnemyTarget(rt) {
   enemyTarget._symbol.style.transform = visible ? '' : 'translateX(-20px)';
   enemyTarget._direction.style.display = visible ? 'none' : '';
   enemyTarget._symbol.setAttribute('width', commander ? '48' : '40');
-  enemyTarget._caption.style.top = commander ? '-24px' : '48px';
-  enemyTarget._caption.style.display = commander || !visible && goalLabelRoom(hud) ? '' : 'none';
+  enemyTarget._caption.style.top = visible ? '-24px' : '48px';
+  enemyTarget._caption.style.display = labelRoom ? '' : 'none';
   if (enemyTarget._caption.textContent !== caption) enemyTarget._caption.textContent = caption;
-  enemyTarget.setAttribute('aria-label', commander ? '隊長を倒せ' : visible ? 'この敵をたおせ' : caption);
+  enemyTarget.setAttribute('aria-label', visible ? name + 'をたおせ' : caption);
   enemyTarget.style.transform = `translate(${(x - 56).toFixed(1)}px,${(y - 48).toFixed(1)}px)`;
   enemyTarget.hidden = false;
   hud.missionEnemyShown = true;
@@ -769,27 +768,29 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     svg.setAttribute('width', '80'); svg.setAttribute('height', '80');
     svg.setAttribute('viewBox', '0 0 80 80'); svg.setAttribute('aria-hidden', 'true');
     svg.style.overflow = 'visible';
-    svg.innerHTML = '<g class="ground-step"/><path class="ground-route" d="M-9-58H9V-28H23L0 0L-23-28H-9Z" fill="#fff3ba" stroke="#14120f" stroke-width="4" stroke-linejoin="round"/>';
+    svg.innerHTML = '<g class="ground-step" fill="none"><ellipse rx="29" ry="9" stroke="#14120f" stroke-width="9"/><ellipse rx="29" ry="9" stroke="#fff3ba" stroke-width="4"/></g><path class="ground-route" d="M-9-58H9V-28H23L0 0L-23-28H-9Z" fill="#fff3ba" stroke="#14120f" stroke-width="4" stroke-linejoin="round"/>';
     el.appendChild(svg); el._simplePin = svg;
   }
   const inou = rt.def.key === 'inou';
   el._label.hidden = inou || !goalLabelRoom(rt.hud);
   el._label.style.top = '-90px';
   el._label.style.left = '0';
-  const caption = inou ? '' : 'ここへ';
-  if (el._words.textContent !== caption) el._words.textContent = caption;
   el._work = null; el.classList.remove('fire-action');
   const W = VIEW.w, H = VIEW.h;
   // 行き先と画面端を同じ一本の矢印で示す。
   const route = el._simplePin.querySelector('.ground-route'), step = el._simplePin.firstChild;
-  // 稲生は行き先のピン一本。旗と下矢印や案内の字を重ねない。
-  if (el._simpleInou !== inou) {
-    el._simpleInou = inou;
-    route.setAttribute('d', inou ? 'M0 0L-20-32A25 25 0 1 1 20-32Z M0-57A8 8 0 1 0 0-41A8 8 0 1 0 0-57Z' : 'M-9-58H9V-28H23L0 0L-23-28H-9Z');
+  const outside = hidden || x < 92 || x > W - 92 || y < 104 || y > H - 68 || !inouPinFree(x, y, rects);
+  // 稲生は行き先のピン一本。見切れた時だけ、同じ印を方向の矢印に替える。
+  const groundPin = inou && !outside;
+  if (el._simpleInou !== groundPin) {
+    el._simpleInou = groundPin;
+    route.setAttribute('d', groundPin ? 'M0 0L-20-32A25 25 0 1 1 20-32Z M0-57A8 8 0 1 0 0-41A8 8 0 1 0 0-57Z' : 'M-9-58H9V-28H23L0 0L-23-28H-9Z');
     route.setAttribute('fill-rule', 'evenodd');
   }
-  step.style.display = 'none'; route.style.display = '';
-  const outside = hidden || x < 92 || x > W - 92 || y < 104 || y > H - 68 || !inouPinFree(x, y, rects);
+  route.style.display = '';
+  step.style.display = inou || outside ? 'none' : '';
+  const caption = inou ? '' : outside ? 'この方向へ' : want.name || 'ここへ進む';
+  if (el._words.textContent !== caption) el._words.textContent = caption;
   let angle = 0;
   if (outside) {
     rt.camera.getWorldDirection(goalDirection);
@@ -811,7 +812,7 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     }
     if (!found) { el.hidden = true; return; }
   }
-  // 同じ一本の矢印で、画面内は行き先の足場、画面外は進む方角を指す。
+  // 画面内は行き先、画面外は進む方角を指す。
   route.setAttribute('transform', outside ? `rotate(${angle})` : '');
   rt.hud.missionPinLabelShown = !el._label.hidden;
   el.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`;
@@ -823,10 +824,10 @@ function inouPinFree(x, y, rects) {
   for (const r of rects) if (x + side > r.left && x - side < r.right && y + bottom > r.top && y - 100 < r.bottom) return false;
   return true;
 }
-// 自分の印は足元の水色の輪一つ。行き先の小旗と形でも見分ける。
+// 自分の白い輪は画面の手前に描き、重なる兵や馬に隠さない。
 let playerFoot = null;
 function updatePlayerFoot(rt) {
-  const active = rt.def.key !== 'inou' && rt.def.key !== 'okehazama' && rt.def.key !== 'moribe' && pinGuideOn(rt) && !rt.over && !rt.choice && !rt.hud.introWaiting &&
+  const active = rt.def.key !== 'okehazama' && rt.def.key !== 'moribe' && pinGuideOn(rt) && !rt.over && !rt.choice && !rt.hud.introWaiting &&
     rt.player?.u?.alive && !rt.player.camShot && !rt.hud.bigmap;
   if (!active) {
     if (playerFoot) playerFoot.hidden = true;
@@ -837,7 +838,7 @@ function updatePlayerFoot(rt) {
     playerFoot.id = 'mission-player-foot';
     playerFoot.setAttribute('aria-hidden', 'true');
     playerFoot.style.cssText = 'position:absolute;width:48px;height:24px;pointer-events:none;z-index:4';
-    playerFoot.innerHTML = '<svg width="48" height="24" viewBox="0 0 48 24"><ellipse cx="24" cy="12" rx="19" ry="7" fill="none" stroke="#14120f" stroke-width="8"/><ellipse cx="24" cy="12" rx="19" ry="7" fill="none" stroke="#bdefff" stroke-width="4"/></svg>';
+    playerFoot.innerHTML = '<svg width="48" height="24" viewBox="0 0 48 24"><ellipse cx="24" cy="12" rx="19" ry="7" fill="none" stroke="#14120f" stroke-width="8"/><ellipse cx="24" cy="12" rx="19" ry="7" fill="none" stroke="#ffffff" stroke-width="4"/></svg>';
   }
   if (playerFoot.parentNode !== rt.hud.root) rt.hud.root.appendChild(playerFoot);
   const u = rt.player.u, p = u.pos;

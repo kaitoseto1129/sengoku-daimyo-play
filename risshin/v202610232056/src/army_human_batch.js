@@ -5,6 +5,7 @@
 //   束ねてよい材質だけ（userData.humanBatch・unitBatch・nearFlag）。人ごとに値の違う材質（顔の表情）・形の変わる物（歯）・骨の入った物は元のまま。
 import * as THREE from 'three';
 import { hasMultiDraw } from './world.js';
+import { boneHolder } from './humans_bones.js';
 
 // HB.on = false で元の一つずつの描き方に戻す（測り・見比べ用）。multi = false で BatchedMesh を使わない
 export const HB = { on: true, multi: true };
@@ -157,7 +158,7 @@ export function batchHumanParts(army, u, B, tag) {
   // 束ねる部品の付く所だけを辿る（骨六十本の全部は辿らない）：顔（髪・目）・胴の傷の入れ物・指物の持ち手
   const W = B.hW || (B.hW = { children: [null, null, null] }), w = u.armorWear;
   W.children[0] = h.parts.face || null;
-  W.children[1] = w && w.root.parent === h.bones.Spine1 ? w.root : null;
+  W.children[1] = w && w.root.parent === boneHolder(h.bones.Spine1) ? w.root : null;
   W.children[2] = h.flagHolder || null;
   walk(army, W, B, tag);
 }

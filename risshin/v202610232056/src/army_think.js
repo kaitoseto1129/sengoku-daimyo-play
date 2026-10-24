@@ -328,9 +328,12 @@ export const ArmyThink = {
       const cur = u.target;
       const curD = cur && cur.alive && !cur.fleeing && !cur.isStruct ? Math.hypot(cur.pos.x - u.pos.x, cur.pos.z - u.pos.z) : Infinity;
       if (curD > 4.5) {
-        const close = this.nearestEnemy(u, u.type === 'busho' ? 3.2 : 5, (o) => !o.fleeing && !o.civ && !o.isStruct &&
-          Math.abs(o.pos.y - u.pos.y) < 2 && !this.wallBetween(u.pos, u.team, o.pos));
-        if (close) { u.target = close; u.watch = null; u.moveTo = null; return; }
+        const near = (o) => !o.fleeing && !o.civ && !o.isStruct &&
+          Math.abs(o.pos.y - u.pos.y) < 2 && !this.wallBetween(u.pos, u.team, o.pos);
+        // 一人の敵に群がらない（kaito 10/24）：もう三人が向かう敵は避けて別の敵へ。ほかに誰もいなければ、その敵と打ち合う。
+        const r = u.type === 'busho' ? 3.2 : 5;
+        const close = this.nearestEnemy(u, r, (o) => near(o) && this.crowdOk(u, o)) || this.nearestEnemy(u, r, (o) => near(o) && !(u.crowdSkip === o && u.crowdSkipT > this.time));
+        if (close) { if (close !== u.target) close._tgtN = (close._tgtN || 0) + 1; u.target = close; u.watch = null; u.moveTo = null; return; }
       }
       // 全員ぶつかり合う（kaito 10/23 稲生 43・17・28・32）。
       //   ① 本人が斬り合っている時、近く（25m）の味方は組の者でなくても、本人のまわり（7m）の敵へ加勢する。
@@ -339,12 +342,16 @@ export const ArmyThink = {
         const ok = (o) => !o.fleeing && !o.civ && !o.isStruct && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 2 && !this.wallBetween(u.pos, u.team, o.pos);
         const P = this.playerUnit;
         if (P?.alive && P.team === u.team && P !== u && Math.hypot(P.pos.x - u.pos.x, P.pos.z - u.pos.z) < 25) {
-          const foe = this.nearestEnemy(u, 30, (o) => ok(o) && Math.hypot(o.pos.x - P.pos.x, o.pos.z - P.pos.z) < 7);
-          if (foe) { u.target = foe; u.watch = null; u.moveTo = null; return; }
+          // 本人の 7m の内の敵だけが候補なので、本人のまわりの升だけを調べる（30m の升を全部開かない。候補と順は同じ）。
+          const c = this.cell, area = this._playerFoeArea || (this._playerFoeArea = { x0: 0, x1: 0, z0: 0, z1: 0 });
+          area.x0 = Math.floor((P.pos.x - 7) / c); area.x1 = Math.floor((P.pos.x + 7) / c);
+          area.z0 = Math.floor((P.pos.z - 7) / c); area.z1 = Math.floor((P.pos.z + 7) / c);
+          const foe = this.nearestEnemy(u, 30, (o) => ok(o) && Math.hypot(o.pos.x - P.pos.x, o.pos.z - P.pos.z) < 7 && this.crowdOk(u, o), area);
+          if (foe) { if (foe !== u.target) foe._tgtN = (foe._tgtN || 0) + 1; u.target = foe; u.watch = null; u.moveTo = null; return; }
         }
         if (curD > 6 && !g.guardOn && !g.stay && !g.march && !g.marching && !(g.regroupT > 0) && !u.name && u.type !== 'busho' && !u.mounted && !u.isPlayer) {
-          const foe = this.nearestEnemy(u, 22, (o) => ok(o) && !o.isPlayer);
-          if (foe) { u.target = foe; u.watch = null; u.moveTo = null; return; }
+          const foe = this.nearestEnemy(u, 22, (o) => ok(o) && !o.isPlayer && this.crowdOk(u, o));
+          if (foe) { if (foe !== u.target) foe._tgtN = (foe._tgtN || 0) + 1; u.target = foe; u.watch = null; u.moveTo = null; return; }
         }
       }
     }
@@ -841,6 +848,8 @@ export const ArmyThink = {
 
   crowdOk(u, o) {
     if (o.isStruct || o.isPlayer || u.target === o || u.type === 'cavalry' || u.mounted) return true;
+    // 寄せて行く途中の者も数える（units.js が毎コマ数える _tgtN）。一人の敵に向かうのは三人まで（kaito 10/24）。
+    if ((o._tgtN || 0) >= 3 || u.crowdSkip === o && u.crowdSkipT > this.time) return false;
     const n = nearCount(this, u, 'attackers', o, 6);
     return n < 3;
   },

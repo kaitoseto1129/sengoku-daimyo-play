@@ -53,7 +53,7 @@ function workerMain() {
           const c = j * F;
           if (A[c + 7] < 0 || Math.abs(y - A[c + 1]) > 1.8) continue;
           const om = A[c + 4] > 0, oPlayer = A[c + 5] > 0, oTeam = A[c + 6], porter = A[c + 7] === 1;
-          const min = !mounted && !om && !oPlayer ? Math.max(ra + .4, space) : ra + (om ? .55 : .4);
+          const min = !mounted && !om && !oPlayer ? Math.max(oTeam === team ? 1.15 : ra + .4, space) : ra + (om ? .55 : .4);   // 味方の徒歩どうしは 1.15m（army_move.js の ALLY_SPACE_HARD）
           const ofx = om ? Math.sin(A[c + 3]) : 0, ofz = om ? Math.cos(A[c + 3]) : 0;
           let bx = 0, bz = 0, best2 = min * min, found = false;
           for (let ii = 0; ii < (mounted ? 2 : 1); ii++) {

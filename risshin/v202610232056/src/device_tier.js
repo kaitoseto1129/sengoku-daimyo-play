@@ -4,7 +4,7 @@
 //   ・390×844（12〜14・16e）・393×852・402×874・428×926・430×932・440×956 は強い（今のまま）。
 //   ・iPad は 768×1024 の倍率 2（無印 5〜9 世代・mini 4/5・Air 2）を弱いとする。
 //   ・Android は deviceMemory が 8GB 以下、ほかの機械は 4GB 以下なら弱い。
-//   ・GPU が Mali・Adreno 6xx 以下・PowerVR、Windows の Intel UHD/Iris も弱い。
+//   ・GPU が Mali・Adreno 6xx 以下と 700〜729（Xperia 10 VII の 710 など中の下）・PowerVR、Windows の Intel UHD/Iris も弱い。
 //   ・戦の途中で頁が読み直された（落ちた）機械も、次から弱いとする（risshin-weak）。
 //   試し：?weak=1 で弱い作り・?weak=0 で強い作りに決める。
 const q = typeof location !== 'undefined' ? location.search : '';
@@ -35,7 +35,7 @@ export function noteGL(gl) {
     const ext = gl.getExtension('WEBGL_debug_renderer_info');
     const name = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : '');
     const windowsIntel = typeof navigator !== 'undefined' && /Windows/i.test(navigator.userAgent || '') && /Intel.*(?:UHD|Iris)/i.test(name);
-    if (/Adreno\s*(?:\(TM\)\s*)?[0-6]\d\d\b|Mali|PowerVR/i.test(name) || windowsIntel || gl.getParameter(gl.MAX_TEXTURE_SIZE) < 8192) { TIER.weak = true; TIER.why = 'gpu:' + name.slice(0, 40); }
+    if (/Adreno\s*(?:\(TM\)\s*)?(?:[0-6]\d\d|7[0-2]\d)\b|Mali|PowerVR/i.test(name) || windowsIntel || gl.getParameter(gl.MAX_TEXTURE_SIZE) < 8192) { TIER.weak = true; TIER.why = 'gpu:' + name.slice(0, 40); }
   } catch (e) { /* 判らなければ強いまま */ }
 }
 // 戦の途中の印。戦の外へ出る前に頁が読み直されたら、落ちたと見なして次から弱い作りに。

@@ -55,6 +55,7 @@ export const WOUND_FLOOR = 0.35;
 export const DEATH_END = 2.2;
 // 本物の兵（CPU で動かす者）の上限。姉川のように大軍がぶつかる戦でも、重さが兵の数に引きずられないように
 const REALCAP = { low: 120, mid: 180, high: 250 };
+const byCrowdTarget = (a, b) => a.target.id - b.target.id || a._crowdD - b._crowdD;
 const byCameraDistance = (a, b) => (a.camD || 0) - (b.camD || 0);
 // 遠い行軍・待機だけを間引く。接敵の確認は既存の升目と同じ関数を使い回す。
 function countPlayerCrowd(o, army) {
@@ -109,7 +110,7 @@ function detailInterval(army, u, dist) {
   const farIdle = distantIdle(u, dist);
   if (!(u.detailSenseAt > army.time)) {
     u.detailEnemy = false;
-    army.forNear(u.pos.x, u.pos.z, 14, senseDetailEnemy, u);
+    army.forNearIn(u.pos.x, u.pos.z, 14, 14, senseDetailEnemy, u);
     u.detailSenseAt = army.time + (farIdle ? 0.4 : 0.2 + (u.id % 5) * 0.02);
   }
   return u.detailEnemy ? 0 : farIdle ? 0.25 : dist > 100 || u.offscreen ? 0.1 : 0.05;
@@ -133,7 +134,7 @@ function motionStep(army, u, dt, dist, interval) {
   if (!motionUrgent(u, dist, interval) && u.motionFrame < every) {
     // 味方との押し合いも待たせない。当たりの計算より先に、接触だけ安く調べる。
     u.motionContact = false; u.motionBodySpace = army.world.def.meleeBodySpace || 0;
-    army.forNear(u.pos.x, u.pos.z, Math.max(2.4, u.motionBodySpace), senseMotionContact, u);
+    army.forNearIn(u.pos.x, u.pos.z, Math.max(2.4, u.motionBodySpace), Math.max(2.4, u.motionBodySpace), senseMotionContact, u);
     if (!u.motionContact) return 0;
   }
   const elapsed = u.motionDt;
@@ -442,13 +443,9 @@ export class Army {
     this._lazySweepAt = 0;
     this.thinkWork = new ThinkBudget();
     this.bulletCandidates = [];
-    this.grid = new Map();
-    this.gridActive = [];
-    this.gridNext = [];
     this.gridX0 = this.gridZ0 = Infinity;
     this.gridX1 = this.gridZ1 = -Infinity;
-    // 約250人の移動前後の升を支度中に用意し、戦の途中で配列をまとめて作らない。
-    this.gridFree = Array.from({ length: 512 }, () => []);
+    this.gW = this.gH = this.gridN = 0;
     this.mountedList = [];
     this.playerShotAimers = [];
     this.cell = 6;
@@ -839,49 +836,75 @@ export class Army {
   // ---------------- 空間検索 ----------------
   // 近くの兵を探す升目：鍵は数（文字列を毎コマ作らない）、升の入れ物は使い回す
   rebuildGrid() {
-    const previous = this.gridActive, active = this.gridNext, free = this.gridFree;
-    for (const a of previous) a.length = 0;
-    active.length = 0;
-    // 列ごとの升の端も使い回す。離れた隊を囲む大きな四角の空白を索敵しない。
-    const rows = this.gridRows || (this.gridRows = new Map());
-    for (const row of rows.values()) { row.min = Infinity; row.max = -Infinity; }
-    const c = this.cell;
+    // 近くの兵を探す升目（10/24 型付き配列）：生きている兵を升の順に一列へ並べ（数え分け）、升ごとの始まりの番だけを持つ。
+    //   升の中の順は兵の並び順のまま（従来の Map の升と同じ順で調べる）。位置と側は Float32Array に写し、
+    //   forNearIn・nearestEnemy は物を開く前に写しの距離で候補を落とす。
+    const c = this.cell, units = this.units, n = units.length;
+    if (!this.gX || this.gX.length < n) {
+      const cap = Math.max(256, n * 2);
+      this.gX = new Float32Array(cap); this.gZ = new Float32Array(cap); this.gTeam = new Int32Array(cap);
+      this.gCX = new Int32Array(cap); this.gCZ = new Int32Array(cap); this.gTmp = new Array(cap);
+      this.gList = new Array(cap);
+    }
+    const CX = this.gCX, CZ = this.gCZ, tmp = this.gTmp;
     let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
     this.maxBodyRadius = 0.6;
     const ml = this.mountedList;
     ml.length = 0;
-    let gridOrder = 0;
-    for (const u of this.units) {
+    let m = 0;
+    for (let k = 0; k < n; k++) {
+      const u = units[k];
       if (!u.alive) continue;
-      u.gridOrder = gridOrder++;
+      u.gridOrder = m;
       if (u.mounted) ml.push(u);
-      this.maxBodyRadius = Math.max(this.maxBodyRadius, u.bodyRadius || 0.3);
+      const br = u.bodyRadius || 0.3;
+      if (br > this.maxBodyRadius) this.maxBodyRadius = br;
       const x = Math.floor(u.pos.x / c), z = Math.floor(u.pos.z / c);
-      let row = rows.get(x);
-      if (!row) { row = { min: z, max: z }; rows.set(x, row); }
-      if (z < row.min) row.min = z;
-      if (z > row.max) row.max = z;
       if (x < x0) x0 = x;
       if (x > x1) x1 = x;
       if (z < z0) z0 = z;
       if (z > z1) z1 = z;
-      const k = (x + 20000) * 40000 + z + 20000;
-      let a = this.grid.get(k);
-      if (!a) { a = free.pop() || []; a.gridKey = k; this.grid.set(k, a); }
-      if (!a.length) active.push(a);
-      a.push(u);
+      CX[m] = x; CZ[m] = z; tmp[m] = u; m++;
     }
-    // 空いた升だけをそのコマで返す。通った場所を蓄積して4000升ごとに全消去しない。
-    for (const a of previous) if (!a.length) {
-      this.grid.delete(a.gridKey);
-      free.push(a);
-    }
-    previous.length = 0;
-    this.gridActive = active;
-    this.gridNext = previous;
-    // 登録時の升の端を記録し、更新途中に兵が動いても候補と調べる順を保つ。
+    this.gridN = m;
+    this.gridSerial = (this.gridSerial | 0) + 1;
     this.gridX0 = x0; this.gridX1 = x1;
     this.gridZ0 = z0; this.gridZ1 = z1;
+    const W = m ? x1 - x0 + 1 : 0, H = m ? z1 - z0 + 1 : 0, cells = W * H;
+    this.gW = W; this.gH = H;
+    if (!this.gStart || this.gStart.length < cells + 1) {
+      const cap = Math.max(1024, cells * 2 + 1);
+      this.gStart = new Int32Array(cap); this.gCur = new Int32Array(cap);
+      this.gT0 = new Int32Array(cap); this.gT1 = new Int32Array(cap);
+    }
+    if (!this.gRowMin || this.gRowMin.length < W) { this.gRowMin = new Int32Array(Math.max(64, W * 2)); this.gRowMax = new Int32Array(Math.max(64, W * 2)); }
+    const start = this.gStart, cur = this.gCur, rmin = this.gRowMin, rmax = this.gRowMax, t0 = this.gT0, t1 = this.gT1;
+    start.fill(0, 0, cells + 1); t0.fill(0, 0, cells); t1.fill(0, 0, cells);
+    for (let i = 0; i < W; i++) { rmin[i] = 0x3fffffff; rmax[i] = -0x3fffffff; }
+    for (let k = 0; k < m; k++) {
+      const i = CX[k] - x0, j = CZ[k];
+      start[i * H + (j - z0) + 1]++;
+      if (j < rmin[i]) rmin[i] = j;
+      if (j > rmax[i]) rmax[i] = j;
+    }
+    for (let q = 0; q < cells; q++) { start[q + 1] += start[q]; cur[q] = start[q]; }
+    const L = this.gList, X = this.gX, Z = this.gZ, T = this.gTeam;
+    for (let k = 0; k < m; k++) {
+      const q = cur[(CX[k] - x0) * H + (CZ[k] - z0)]++, u = tmp[k];
+      L[q] = u; X[q] = u.pos.x; Z[q] = u.pos.z; T[q] = u.team;
+      // 升ごとの側の数：敵のいない升は nearestEnemy が中を開かない。
+      if (u.team === 0) t0[(CX[k] - x0) * H + (CZ[k] - z0)]++;
+      else if (u.team === 1) t1[(CX[k] - x0) * H + (CZ[k] - z0)]++;
+      tmp[k] = null;
+    }
+  }
+
+  // 升 (i, j) の番（兵のいない升・升目の外は -1）。中身は gList[gStart[番] .. gStart[番 + 1])。
+  gridCell(i, j) {
+    const a = i - this.gridX0, b = j - this.gridZ0;
+    if (a < 0 || b < 0 || a >= this.gW || b >= this.gH) return -1;
+    const q = a * this.gH + b;
+    return this.gStart[q] === this.gStart[q + 1] ? -1 : q;
   }
 
   forNear(x, z, r, fn, context) {
@@ -889,18 +912,76 @@ export class Army {
     // 兵が一人もいない外側の升は調べない。候補の順・数・当たりの範囲は保つ。
     const x0 = Math.max(this.gridX0, Math.floor((x - r) / c)), x1 = Math.min(this.gridX1, Math.floor((x + r) / c));
     const z0 = Math.max(this.gridZ0, Math.floor((z - r) / c)), z1 = Math.min(this.gridZ1, Math.floor((z + r) / c));
+    if (x0 > x1 || z0 > z1) return;
+    const H = this.gH, gx = this.gridX0, gz = this.gridZ0, start = this.gStart, L = this.gList, rmin = this.gRowMin, rmax = this.gRowMax;
     for (let i = x0; i <= x1; i++) {
-      const row = this.gridRows.get(i);
-      if (!row) continue;
-      for (let j = Math.max(z0, row.min), end = Math.min(z1, row.max); j <= end; j++) {
-        const a = this.grid.get((i + 20000) * 40000 + j + 20000);
-        if (a) for (let q = 0; q < a.length; q++) fn(a[q], context);
+      const col = i - gx, j0 = Math.max(z0, rmin[col]), j1 = Math.min(z1, rmax[col]);
+      if (j0 > j1) continue;
+      const base = col * H - gz;
+      for (let q = start[base + j0], end = start[base + j1 + 1]; q < end; q++) fn(L[q], context);
+    }
+  }
+
+  // forNear と同じ升・同じ順で、升目に写した位置が (x, z) から keep より遠い兵を開かずに落とす。
+  //   keep は呼び出し側の距離の判定より 1m 広く取る（同じコマの中で先に動いた兵を取りこぼさない）。
+  forNearIn(x, z, r, keep, fn, context) {
+    const c = this.cell;
+    const x0 = Math.max(this.gridX0, Math.floor((x - r) / c)), x1 = Math.min(this.gridX1, Math.floor((x + r) / c));
+    const z0 = Math.max(this.gridZ0, Math.floor((z - r) / c)), z1 = Math.min(this.gridZ1, Math.floor((z + r) / c));
+    if (x0 > x1 || z0 > z1) return;
+    const k2 = (keep + 1) * (keep + 1);
+    const H = this.gH, gx = this.gridX0, gz = this.gridZ0, start = this.gStart, L = this.gList, X = this.gX, Z = this.gZ, rmin = this.gRowMin, rmax = this.gRowMax;
+    for (let i = x0; i <= x1; i++) {
+      const col = i - gx, j0 = Math.max(z0, rmin[col]), j1 = Math.min(z1, rmax[col]);
+      if (j0 > j1) continue;
+      const base = col * H - gz;
+      const ex = Math.max(0, i * c - x, x - (i + 1) * c);
+      if (ex * ex > k2) continue;
+      for (let q = start[base + j0], end = start[base + j1 + 1]; q < end; q++) {
+        const dx = X[q] - x, dz = Z[q] - z;
+        if (dx * dx + dz * dz <= k2) fn(L[q], context);
       }
     }
   }
 
+  // 隊ごとに一度（升目を作るたび）：隊の兵を囲む四角から一番近い敵（升目の写し）までの距離。
+  //   広い索敵（8m より遠く）は、この距離より 2m 以上遠くまで敵がいなければ升を開かずに「いない」と決める（組の判断を兵で使い回す）。
+  groupClear(g) {
+    if (g._clearSerial === this.gridSerial) return g._clear;
+    g._clearSerial = this.gridSerial;
+    let bx0 = Infinity, bx1 = -Infinity, bz0 = Infinity, bz1 = -Infinity, team = null, mixed = false;
+    for (const o of g.units) {
+      if (!o.alive) continue;
+      if (team === null) team = o.team; else if (o.team !== team) mixed = true;
+      const x = o.pos.x, z = o.pos.z;
+      if (x < bx0) bx0 = x;
+      if (x > bx1) bx1 = x;
+      if (z < bz0) bz0 = z;
+      if (z > bz1) bz1 = z;
+    }
+    const box = g._clearBox || (g._clearBox = { x0: 0, x1: 0, z0: 0, z1: 0, team: 0 });
+    box.x0 = bx0 - 0.5; box.x1 = bx1 + 0.5; box.z0 = bz0 - 0.5; box.z1 = bz1 + 0.5; box.team = team;
+    let best = Infinity;
+    if (team !== null && !mixed) {
+      const X = this.gX, Z = this.gZ, T = this.gTeam;
+      for (let q = 0, n = this.gridN; q < n; q++) {
+        if (T[q] === team) continue;
+        const ex = Math.max(0, box.x0 - X[q], X[q] - box.x1), ez = Math.max(0, box.z0 - Z[q], Z[q] - box.z1), d2 = ex * ex + ez * ez;
+        if (d2 < best) { best = d2; if (d2 === 0) break; }
+      }
+    } else best = 0;
+    g._clear = Math.sqrt(best);
+    return g._clear;
+  }
+
   nearestEnemy(u, r, filter, area = null) {
     r = Math.min(r, weatherSight(this.world));
+    // 組の判断：隊のまわりに敵がいなければ、兵ごとの広い索敵をしない（結果は同じ「いない」）。
+    const g = u.group;
+    if (g && g.units && r > 8 && this.gridN) {
+      const clear = this.groupClear(g), box = g._clearBox;
+      if (clear > r + 2 && box.team === u.team && u.pos.x >= box.x0 && u.pos.x <= box.x1 && u.pos.z >= box.z0 && u.pos.z <= box.z1) return null;
+    }
     let best = null, bd = Infinity;
     const r2 = r * r;
     // 攻めかかる隊は、10m より遠くの逃げる敵を後回しにする（深追いしない）
@@ -916,14 +997,27 @@ export class Army {
     }
     const spear = (u.wpnKind || u.lookWeapon || u.weapon) === 'spear';
     // 升目の候補を直接たどり、検索ごとの関数を作らない。同距離の順も保つ。
+    //   写した側と位置（1m の余裕）で、物を開く前に味方と遠い兵を落とす。
+    if (x0 > x1 || z0 > z1) return null;
+    const keep2 = (r + 1) * (r + 1), team = u.team, own = team === 0 ? this.gT0 : team === 1 ? this.gT1 : null;
+    const H = this.gH, gx = this.gridX0, gz = this.gridZ0, start = this.gStart, L = this.gList, X = this.gX, Z = this.gZ, T = this.gTeam, rmin = this.gRowMin, rmax = this.gRowMax;
     for (let i = x0; i <= x1; i++) {
-      const row = this.gridRows.get(i);
-      if (!row) continue;
-      for (let j = Math.max(z0, row.min), end = Math.min(z1, row.max); j <= end; j++) {
-        const cell = this.grid.get((i + 20000) * 40000 + j + 20000);
-        if (!cell) continue;
-        for (let q = 0; q < cell.length; q++) {
-          const o = cell[q];
+      const col = i - gx, j0 = Math.max(z0, rmin[col]), j1 = Math.min(z1, rmax[col]);
+      if (j0 > j1) continue;
+      const base = col * H - gz;
+      // 円から外れる隅の升は開かない（升の一番近い点が keep より遠い）。
+      const ex = Math.max(0, i * c - x, x - (i + 1) * c), ex2 = ex * ex;
+      if (ex2 > keep2) continue;
+      for (let j = j0; j <= j1; j++) {
+        const cq = base + j, s0 = start[cq], s1 = start[cq + 1];
+        if (s0 === s1 || s1 - s0 === (own ? own[cq] : -1)) continue;
+        const ez = Math.max(0, j * c - z, z - (j + 1) * c);
+        if (ex2 + ez * ez > keep2) continue;
+        for (let q = s0; q < s1; q++) {
+          if (T[q] === team) continue;
+          const sx = X[q] - x, sz = Z[q] - z;
+          if (sx * sx + sz * sz > keep2) continue;
+          const o = L[q];
           if (o.team === u.team || !o.alive || (o.invuln && !o.allyOk) || o.noTarget) continue;
           if (o.soloFor && o.soloFor !== u && o.soloFor.alive) continue;
           const dx = o.pos.x - x, dz = o.pos.z - z, d = dx * dx + dz * dz;
@@ -1006,7 +1100,7 @@ export class Army {
   enemiesInArc(pos, heading, reach, halfAngle, team, over = false, allyMounted = false, fenceClear = 2.2, lockRef = null) {
     const out = [];
     const fx = Math.sin(heading), fz = Math.cos(heading);
-    this.forNear(pos.x, pos.z, reach + 1, (o) => {
+    this.forNearIn(pos.x, pos.z, reach + 1, reach + 0.95, (o) => {
       // 討たれない武将も、手傷を負って退くまでは突ける（damage で下限に止める）
       const sameSide = o.team === team;
       // 討たれない武将（殿など invuln）は、味方の馬の的からは外す（うっかり主君を落馬させない）。狙ってもいない味方へは当たらない（lockRef と同じ時だけ）
@@ -1189,11 +1283,38 @@ export class Army {
     this.playerShotAimers.length = 0;
     this.playerAttackers = 0;
     // 支度から振り切るまでを数える。射撃は近接の二人枠を塞がない。全員をたどるのは一度だけ。
+    // 一人の敵へ向かう徒歩の数（_tgtN）も数える：群がらないよう crowdOk が見る（kaito 10/24）。
+    for (const u of this.units) u._tgtN = 0;
     for (const u of this.units) {
       if (!u.alive) continue;
+      const tg = u.target;
+      if (tg && !tg.isStruct && !u.mounted && (u.sidearm || u.type !== 'gun' && u.type !== 'bow')) tg._tgtN++;
       if ((u.atk?.ranged || u.atk?.bow) && u.atk.target.isPlayer) this.playerShotAimers.push(u);
       if ((u.atk && u.atk.target.isPlayer && !u.atk.bow) || (u.swing && !u.swing.done && u.swing.target && u.swing.target.isPlayer) || (u.charging && u.cv === 'in' && u.target && u.target.isPlayer && Math.hypot(u.pos.x - u.target.pos.x, u.pos.z - u.target.pos.z) < 10)) this.threats.push(u);
       if (!u.fleeing && !u.group?.routed && (u.playerMeleeUntil > this.time || u.atk && u.atk.target.isPlayer && !u.atk.ranged && !u.atk.bow || u.swing && u.swing.target?.isPlayer)) this.playerAttackers++;
+    }
+    // 一人の敵に向かう徒歩は三人まで（kaito 10/24「ひしめき合うのはダメ」）。近い三人と打ち合い中の者は残し、
+    //   寄せて行く途中の残りは狙いを外して判断し直させる（crowdOk がその敵を一秒半は選ばせない）。
+    {
+      const crowded = this._crowdList || (this._crowdList = []);
+      crowded.length = 0;
+      for (const u of this.units) {
+        const tg = u.target;
+        if (!u.alive || !tg || !(tg._tgtN > 3) || tg.isPlayer || tg.isStruct || u.mounted || u.isPlayer || !(u.sidearm || u.type !== 'gun' && u.type !== 'bow')) continue;
+        u._crowdD = (u.pos.x - tg.pos.x) ** 2 + (u.pos.z - tg.pos.z) ** 2;
+        crowded.push(u);
+      }
+      if (crowded.length) {
+        crowded.sort(byCrowdTarget);
+        let last = null, k = 0;
+        for (const u of crowded) {
+          const tg = u.target;
+          if (tg !== last) { last = tg; k = 0; }
+          if (++k <= 3 || u.atk || u.swing || u.bind || u._crowdD < 4.84) continue;
+          u.target = null; u.aiT = 0; u.crowdSkip = tg; u.crowdSkipT = this.time + 1.5; tg._tgtN--;
+        }
+        crowded.length = 0;
+      }
     }
     if (!this._rideChk) this.rideCheck();
     // 囲まれ具合を四分の一秒ごとに調べる。敵は槍の届く辺り、支えはすぐそばだけ。

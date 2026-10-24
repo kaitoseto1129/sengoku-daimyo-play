@@ -8,13 +8,13 @@ import { assetsForBattle, prepareBattleAssets, releaseBattleAssets } from './ass
 import { cancelAssetReads } from './asset_reader.js';
 import { rememberWounds } from './wounds.js';
 import { recoverBattle } from './battle_retry.js';
-import { readProgress, progressStored, deleteProgress } from './save_guard.js';
+import { readProgress, progressStored, deleteProgress, safeSave as save } from './save_guard.js';
 import * as THREE from 'three';
 import { installCanvasAstc } from './astc_rt.js';
 import { GPU_GC } from './gpu_gc.js';
 import { noboriCull } from './props.js';
 import './hidden_skip.js';
-import { newGame, save, settle, BATTLES, RANKS, RANK_CEIL, TITLES, fillRoster, clearSave, setScenario, scenarioKey, SCENARIOS, ladderStep, markReady, usePre } from './state.js';
+import { newGame, settle, BATTLES, RANKS, RANK_CEIL, TITLES, fillRoster, clearSave, setScenario, scenarioKey, SCENARIOS, ladderStep, markReady, usePre } from './state.js';
 import { kumiHtml, kumiBind } from './kumi.js';
 import { recordBattle } from './kiroku.js';
 import { ronkoDeeds } from './ronko.js';
@@ -262,7 +262,7 @@ import { odaTown } from './oda_town.js';
 let townModule = null;
 const townLoad = () => import('./town3d.js').then((m) => (townModule = m));
 import { initTouch, touchFrame, isTouch } from './touch.js';
-import { loadHumans, loadHorse, primeHorses, preparationFrame, loadDomaru, loadKabuto, primeHumans, prefetchHumanShapes, updateHumans, setHumanCompiler, humanShadowLod, DOMARU as DOMd, HUM as HUMd } from './humans.js';
+import { loadHumans, loadHorse, primeHorses, preparationFrame, loadDomaru, loadKabuto, primeHumans, warmBattleFaces, prefetchHumanShapes, updateHumans, setHumanCompiler, humanShadowLod, DOMARU as DOMd, HUM as HUMd } from './humans.js';
 import { loadCgt, cgtOn } from './cgt.js';   // 買った素材（城の部品）。低・描かない時は読まない
 import { lordGame, lordDef, lordOf, applyLord, lordFrame, LORD_BATTLES, lordList } from './lord.js';
 import { toggleGunbai, gunbaiFrame, isGunbaiOpen, setGunbaiHooks } from './gunbai.js';
@@ -358,6 +358,23 @@ try {
   try { window.__bootDone && window.__bootDone(); } catch (e2) { /* noop */ }
   throw e;
 }
+// 描く力（WebGL）を失った時（Android の記憶不足で GPU が落ちる。10/24 Lancers Xperia：画面の物が消えて止まった）。
+// 弱い端末は兵の形の CPU の写しを手放している（gpuOnly）ので、three の復帰では元に戻らない。
+// 記録を守り、戦の始めの記録（snapshot）に戻して、同じ戦（城下なら城下）から頁を読み直して続ける。2 分に一度まで。
+canvas.addEventListener('webglcontextlost', () => {
+  try {
+    if (isNorender() || /[?&]bot/.test(location.search) || window.__memReloading) return;
+    markCrashed();
+    const at = +sessionStorage.getItem('risshin-gl-lost') || 0;
+    if (Date.now() - at < 2 * 60 * 1000) return;   // 続けて失う時は読み直しを繰り返さない（題へは遊ぶ人が戻れる）
+    sessionStorage.setItem('risshin-gl-lost', String(Date.now()));
+    const ls = game.lastStart;
+    if (game.battle && game.snapshot && ls && /^start(Map)?Battle$/.test(ls.fn)) { try { game.G = JSON.parse(game.snapshot); } catch (e) { /* 今の記録のまま */ } }
+    if (ls && (game.battle || game.inTown) && resumeReload(game, ls.fn, ls.args)) return;
+    if (game.G && !game.battle) save(game.G);
+    setTimeout(() => location.reload(), 80);
+  } catch (e) { /* 読み直せなければ three の復帰に任せる */ }
+});
 // iPhone：canvas に描いた絵は GPU へ送る時に ASTC へ圧縮する（astc_rt.js。?astc=1 でほかの機械でも試せる）
 try { if (!/x_noastc/.test(String(window.__autoplay || ''))) installCanvasAstc(renderer, /[?&]astc=1/.test(location.search)); } catch (e) { /* 無ければそのまま */ }   // x_noastc：実機の記憶の切り分け（10/22）
 // 一つも描く物が無い InstancedMesh（count 0）は、描く呼びかけごと省く（材質の準備だけで一回分の重さ。影の描きでも同じ）
@@ -1905,6 +1922,8 @@ const game = {
         // 前の戦の人を片付け、初戦の primed 待ちを支度の中で解く。
         updateHumans(b, 0);
         if (HUMd.ready) await primeHumans(b, renderer, camera, b.humanPreparationCap, 1, warmCurrent).catch((error) => { LT.humanPrimeError = String(error?.message || error); });
+        // この戦で出る兵（後から出る援軍・武将も）の顔を、支度の間に全部作る。戦の中では作らずに使い回す（10/24）
+        if (!window.__nofw && HUMd.ready && warmCurrent()) { const tF = performance.now(); LT.faces = await warmBattleFaces(b, warmCurrent).catch(() => -1); LT.facesMs = Math.round(performance.now() - tF); }
         if (my !== this.startSeq) { b.dispose(); return; }
         const tNear = performance.now();
         // 携帯でも心得を読んだり支度を取り消したりできるよう、一人ごとに画面へ戻す。

@@ -190,7 +190,10 @@ function gripSet(h, u, hd, w, dt) {
     const g0 = h.grip0 || (h.grip0 = { x: hd.position.x, y: hd.position.y });
     const wp = u.wpn;
     // 待つ・歩く（構えていない）時は槍を立てる
-    const calm = !(u.spearSupport > 0.01) && !(u.contactBrace > 0.1) && !u.poseTarget?.alive && ((h.spd || 0) < 2.6 || u.spearRear) && (!u.target || u.spearRear) && !u.atk && !u.pAtk && !u.isPlayer && !u.swing && !(u.cheer > 0) && !(u.guard || u.guardFlash > 0 || u.guarding > 0) && !(u.sweepT > 0) && hd.rotation.x < -0.4;
+    const still = !(u.spearSupport > 0.01) && !(u.contactBrace > 0.1) && !u.atk && !u.pAtk && !u.isPlayer && !u.swing && !(u.strikeT > 0) && !(u.cheer > 0) && !(u.guard || u.guardFlash > 0 || u.guarding > 0) && !(u.sweepT > 0);
+    // units.js が槍を立てたまま（駆ける・的を見ている）なら、構えの握り（右手を胸の高さへ振り上げ、左手を柄の先へ）にしない。
+    //   立てた柄の先へ左手を伸ばすと、両手が頭の上へ上がった崩れた姿になる（稲生の味方の長柄。10/24）
+    const calm = still && hd.rotation.x < -0.4 && (hd.rotation.x < -1.05 || !u.poseTarget?.alive && ((h.spd || 0) < 2.6 || u.spearRear) && (!u.target || u.spearRear));
     h.upK = (h.upK ?? (calm ? 1 : 0)) + ((calm ? 1 : 0) - (h.upK ?? 0)) * Math.min(1, dt * 5);
     const k = h.upK, s = h.seed;
     // 構え：右手は右の腰（体の少し後ろ）、槍は units.js の向きのまま。叩きで振り上げる時は手も上がる

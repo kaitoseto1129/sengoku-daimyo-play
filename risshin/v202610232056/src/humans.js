@@ -5,7 +5,7 @@ export { setFpArm, setFpCut } from './humans_materials.js';
 export { setHumanCompiler } from './humans_face_materials.js';
 export { prefetchFaces, makeHuman, efudaPose, disposeBattleHumans, updateHumans, showHuman } from './humans_runtime.js';
 export { quantizeAttr } from './humans_crowd_geometry.js';
-export { prefetchHumanShapes, warmLooks, primeHumans, humanProgramSamples, stepHuman, humanCount, restOf } from './humans_prepare.js';
+export { prefetchHumanShapes, warmLooks, primeHumans, warmBattleFaces, humanProgramSamples, stepHuman, humanCount, restOf } from './humans_prepare.js';
 export { humanShadowLod, TECH_NAMES, startTech, techDur } from './humans_combat.js';
 export { sharedHumanResources, humanCaches } from './humans_lifecycle.js';
 export { HORSE } from './humans_horse_model.js';

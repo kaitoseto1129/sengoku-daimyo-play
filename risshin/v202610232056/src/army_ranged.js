@@ -970,9 +970,10 @@ export const ArmyRanged = {
       const alongCell = cx * fx + cz * fz;
       // 外れ弾も百メートルまで調べるが、射線から離れた升は読まない。
       if (alongCell < -half || alongCell > L + half || Math.abs(cx * fz - cz * fx) > margin + half) continue;
-      const cell = this.grid.get((i + 20000) * 40000 + j + 20000);
-      if (!cell) continue;
-      for (const o of cell) {
+      const cq = this.gridCell(i, j);
+      if (cq < 0) continue;
+      for (let k = this.gStart[cq], end = this.gStart[cq + 1]; k < end; k++) {
+        const o = this.gList[k];
         if (o === u || !o.alive || o.team !== u.team) continue;
         const ox = o.pos.x - u.pos.x, oz = o.pos.z - u.pos.z;
         const along = ox * fx + oz * fz;
