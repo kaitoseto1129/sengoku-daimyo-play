@@ -42,6 +42,10 @@ class Gunsei {
     this._pending = [];       // 知らせ待ち：{ key, delta, applied:Set, t0 }
     this._flankLogged = new Set();
     this._pushCap = new Map();
+    this._pushFrom = new Map();
+    this._pushRunners = [];
+    // 両軍の半秒ごとの判断を同じコマに重ねない。
+    this._tickT = ((rt.gunsei?.length || 0) % 8) * TICK / 8;
     this._nearT = 0;
     // 束5
     this._gotsume = undefined;    // 後詰の備（探す前は undefined、無ければ false）
@@ -159,14 +163,18 @@ class Gunsei {
   // ---- 敗走兵の押し（62 章）：逃げる兵が味方の備の 4m 内を通ると 1 秒足止め・士気 -1/人（一つの潰走で上限 -10） ----
   _routPush() {
     const rt = this.rt;
+    // 逃げる味方だけ先に拾う。備ごとの全兵走査と入れ物の作り直しを避ける。
+    const runners = this._pushRunners, byFrom = this._pushFrom;
+    runners.length = 0;
+    for (const u of rt.army.units) if (u.alive && u.fleeing && !u.isPlayer && u.team === this.team) runners.push(u);
     for (const S of this.sonae) {
       const g = S.b.real;
       if (g && g._pushHalt != null && (rt.t || 0) >= g._pushHalt) { g.speed = g._origSpeed ?? g.speed; g._pushHalt = null; }
       if (S.state === '敗走' || S.b.aliveNominal() <= 0) continue;
+      if (!runners.length) continue;
       const c = g && g.count ? g.center() : S.b.pos;
-      const byFrom = new Map();
-      for (const u of rt.army.units) {
-        if (!u.alive || !u.fleeing || u.isPlayer || u.team !== this.team) continue;
+      byFrom.clear();
+      for (const u of runners) {
         if (Math.hypot(u.pos.x - c.x, u.pos.z - c.z) >= 4) continue;
         const fromS = u.group && u.group.butai && u.group.butai.sonae;
         const key = fromS ? fromS.id : '?';
@@ -186,6 +194,8 @@ class Gunsei {
       }
       if (total > 0) S.addMorale(-total);
     }
+    runners.length = 0;
+    byFrom.clear();
   }
 
   // ---- 総大将が近い：+3/10 秒（本陣の場所を基準に） ----
@@ -383,8 +393,11 @@ export function gunseiOf(rt, team) { return (rt.gunsei || []).find((g) => g.team
 // 毎コマ（戦の定義の update から呼ぶ）。中は 0.5 秒ごとに回す
 export function gunseiTick(rt, dt) {
   if (!rt.gunsei || !rt.gunsei.length) return;
-  rt._gunseiT = (rt._gunseiT || 0) - dt;
-  if (rt._gunseiT > 0) return;
-  rt._gunseiT = TICK;
-  for (const G of rt.gunsei) G.tick();
+  for (const G of rt.gunsei) {
+    G._tickT -= dt;
+    if (G._tickT > 1e-8) continue;
+    // コマの端数を保つ。長い停止から戻っても一コマに一回まで。
+    G._tickT = Math.max(0, G._tickT + TICK);
+    G.tick();
+  }
 }

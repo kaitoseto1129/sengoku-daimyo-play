@@ -227,12 +227,21 @@ function installNodaNotices(rt) {
   const say = rt.say, bark = rt.bark, obj = rt.obj, dispose = rt.dispose;
   rt.hud.root.classList.add('nodafukushima');
   const hudUpdate = rt.hud.update;
+  const drawTarget = new THREE.Vector3();
   // 描く直前と同じ視点を先に確定する。近い視点で足の輪だけが前の場所へ残らない。
   // 堤の地面を避けて視点が上がる場合も、札と兵に同じ補正を使う。
   const nodaHudUpdate = function (dt, battle) {
-    if (battle === rt && !rt.game?.photo && !rt.game?.deployment) {
+    if (battle === rt && rt.player?.u && !rt.game?.photo && !rt.game?.deployment) {
       const measure = rt.flags.drawView || (rt.flags.drawView = { groundGap: 0, waterGap: 0, interpolationGap: 0, lift: 0 });
-      guardDrawCamera(rt.world, rt.camera, measure);
+      // 土手を避けて目線だけ上がっても、もとの注視点を保つ。
+      // 本人と足元の印が画面の下へ押し出されないよう、同じ入れ物を使う。
+      const camera = rt.camera, p = rt.player.u.pos;
+      camera.getWorldDirection(drawTarget);
+      drawTarget.multiplyScalar(Math.max(1, Math.hypot(camera.position.x - p.x, camera.position.z - p.z))).add(camera.position);
+      if (guardDrawCamera(rt.world, camera, measure) > 0) {
+        camera.lookAt(drawTarget);
+        camera.updateMatrixWorld();
+      }
     }
     return hudUpdate.call(this, dt, battle);
   };
@@ -1640,6 +1649,8 @@ const nodafukushima = {
   smallRetreatAreas: true, // 強調する退避の範囲も小さくし、白い大輪へ戻さない。
   taskAreaFootRing: true, // 近い視点では描画の大きさに上限のある足元の輪を使う。
   compactDestinationSign: true, // 退避先の旗と矢印を既存の小さい形へ。手前の兵を覆わない。
+  compactFlagEmphasis: true, // 退く列の旗を大きな黒札へ拡大せず、近い兵と陣幕を見せる。
+  hideEdgeGoalDistance: true, // 歩数は行き先の案内へまとめ、下知の下へ同じ距離を重ねない。
   groundFlagGuides: true, // 待機中も実物の隊旗を大きく囲まず、足元の小さい印で持ち場を示す。
   footFlagGuides: true, // 頭上へ持ち上げた旗で寄せ手を隠さず、実際の行き先の足元に小さく示す。
   subtleTargetFrames: true, // 目印の枠を控え、任務の文字を読めるままにする。
@@ -1809,6 +1820,8 @@ const nodafukushima = {
     // 秋の河口の土を雪のような白にしない。既存の土・草・泥の絵へ土色を掛ける。
     // この戦の材質だけを変え、地形・歩行・描画の数は保つ。
     W.terrain.material.color.setHex(0xb5a080);
+    // 空の白い照りも抑え、共通の地肌の絵と昼夜の照明を残す。
+    W.terrain.material.envMapIntensity = 0.18;
     installNodaNotices(rt);
     installNodaGroundFx(rt);
     installNodaFallenHats(rt);

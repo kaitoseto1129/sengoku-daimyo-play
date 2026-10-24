@@ -576,9 +576,9 @@ takato.botBrain = (rt, inp, helpers) => {
       if (Math.hypot(p.u.pos.x - q.x, p.u.pos.z - q.z) >= 1.5) inp.k.add('KeyW');
       retreatThroughGap(rt, inp, retreatGapAllowed);
       if (!foe) {
-        if (p.sta < p.maxSta * .35) rt.takatoCatchBreath = true;
-        else if (p.sta >= p.maxSta * .6) rt.takatoCatchBreath = false;
-        inp.runHeld = inp.k.has('KeyW') && !rt.takatoCatchBreath;
+        // 傷や気力で駆け足は制限されない。追手が離れた隙に印まで走る。
+        // 息と手当ては、退く印へ着いて足を止めてから整える。
+        inp.runHeld = inp.k.has('KeyW');
       }
       if (foe) {
         const walk = p.yaw, moving = inp.k.has('KeyW');

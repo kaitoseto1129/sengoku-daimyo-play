@@ -518,8 +518,13 @@ function moribeFord(rt) {
   waterMat.needsUpdate = true;
   st.mesh.userData.waterSurfaceReady = true;
   // 川面を直した後の水深で出口を決める。岸より奥まで歩かせない。
-  POINT2.z = nireZ(START2.x) - st.w + .5;
-  for (let i = 0; i < 12 && W.waterFootDepthAt(POINT2.x, POINT2.z, W.heightAt(POINT2.x, POINT2.z)) > .12; i++) POINT2.z -= .5;
+  POINT2.z = nireZ(POINT2.x) - NIRE_WIDTH2 + .5;
+  const bank = { x: POINT2.x, z: POINT2.z, y: W.heightAt(POINT2.x, POINT2.z) };
+  // ピンの先端を踏んだ場所で、遊び手と同じ渡河判定が通る岸へ置く。
+  for (let i = 0; i < 12 && !atFordBank(bank, W); i++) {
+    bank.z -= .5; bank.y = W.heightAt(bank.x, bank.z);
+  }
+  POINT2.z = bank.z;
   st.mesh.geometry.computeVertexNormals();
   st.mesh.geometry.computeBoundingSphere();
   // 岸と浅瀬の石、渡る帯の杭。出陣時だけ作り、形と材質を使い回す。
@@ -1019,7 +1024,7 @@ const moribe = {
   // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は「何をするか」だけ（kaito 10/23 49・50）。段の総称で通し、向き・行き先の字は書かない。
-  missions: ['川を渡れ', '仲間を待て', '斎藤勢を倒せ', '耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
+  missions: ['川を渡れ', '仲間を待て', '敵を倒せ', 'たえろ', '大将を倒せ', '大将を倒せ', '逃げる敵を追え', '仲間と集まれ'],
   // ピン・▼・名前は同じ本人へ。描画の間引きで相手を替えない。
   commanderTarget(rt) {
     const F = rt.flags;
@@ -1078,7 +1083,7 @@ const moribe = {
   missionHeading(rt) {
     const F = rt.flags, p = rt.player.u.pos;
     // 渡河済みのコマから待機へ替える。集合判定の更新を待たせない。
-    if (!F.signal && (F.pointReached || F.pointInside || atFordBank(p, rt.world))) return F.fordThreat ? '斎藤勢を倒せ' : '仲間を待て';
+    if (!F.signal && (F.pointReached || F.pointInside || atFordBank(p, rt.world))) return F.fordThreat ? '敵を倒せ' : '仲間を待て';
     // 集まる間と、その場で耐える間を同じ一行で区別する。向き・距離は書かない。
     if (F.stage === 'assemble') {
       if (F.gatherUnit || Math.hypot(p.x - F.asm.x, p.z - F.asm.z) >= 12) return '仲間と集まれ';
@@ -1089,7 +1094,7 @@ const moribe = {
         (F.stage === 'hold' || F.stage === 'contact' && F.vBroken) && F.lineReturning)
       return '仲間と集まれ';
     // 守備の終了に撃破人数の条件はない。倒す人数を探させない。
-    if (F.stage === 'hold') return '耐えろ';
+    if (F.stage === 'hold') return 'たえろ';
     return this.missions[this.missionOf(rt)];
   },
   minutes: 7,
@@ -1158,20 +1163,10 @@ const moribe = {
     // 人を追う印と地面の小旗を区別し、段が変わったら追う相手を消す。
     q.unit = null; q.enemy = false;
     // 着いた後の足元や画面端へ、移動を促す印を残さない。
-    q.waiting = false; q.arrived = false; q.progress = 0;
+    q.waiting = false; q.arrived = false; q.crossing = false; q.progress = 0;
     if (F.stage === 'contact' && !F.vBroken && !F.squadGuide) {
-      // 先手が脇へ外れた時だけ同じ敵へピンを置く。視点は遊び手に任せ、向いたら▼だけに戻す。
-      const p = rt.player, me = p.u.pos;
-      let target = null, best = Infinity;
-      for (const u of F.V.units) if (moribeFoeReady(u, p)) {
-        const d = (u.pos.x - me.x) ** 2 + (u.pos.z - me.z) ** 2;
-        if (d < best) { best = d; target = u; }
-      }
-      if (!target) return null;
-      const yaw = p.yaw + (p.camYawOff || 0);
-      if ((target.pos.x - me.x) * Math.sin(yaw) + (target.pos.z - me.z) * Math.cos(yaw) >= Math.sqrt(best) * .75) return null;
-      q.x = target.pos.x; q.z = target.pos.z; q.unit = target; q.enemy = true; q.r = q.hide = 0;
-      return q;
+      // 敵は赤い▼だけ。視点を回しても黄色い行き先のピンへ替えない。
+      return null;
     }
     let pos = null, r = 6, hide = 6;
     if (!F.signal) {
@@ -1179,7 +1174,10 @@ const moribe = {
       // 岸に上がるまで一本だけ示し、渡った瞬間に消す。足元へ戻らせない。
       if (F.pointReached || F.pointInside || atFordBank(rt.player.u.pos, rt.world)) return null;
       pos = POINT2; r = FORD_R; hide = 0;
-      // 移動中は岸に刺さるピンだけ。待機の進みと混ぜず、乾いた岸へ着いた瞬間に消す。
+      // 岸に固定した一本の中だけを満たす。乾いた岸へ上がるまでは満杯にしない。
+      q.crossing = true;
+      q.progress = Math.max(0, Math.min(.95, 1 - Math.hypot(rt.player.u.pos.x - POINT2.x,
+        rt.player.u.pos.z - POINT2.z) / (START2.z - POINT2.z)));
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
     } else if (F.stage === 'assemble') {
@@ -1192,15 +1190,14 @@ const moribe = {
     } else if (F.stage === 'press' && F.pursuing) {
       return null; // 敵を追う段は赤い▼だけ。地面の行き先と混ぜない。
     } else if (F.stage === 'press') {
-      const boss = this.commanderTarget(rt);
-      if (!boss) return null;
-      q.unit = boss; pos = boss.pos; r = hide = 6;
+      return null; // 討つ武将も頭上の赤い▼にそろえる。
     } else if (F.stage === 'hold' || F.vBroken) {
       // 守備を始めた地点に固定し、隊が動いても守る場所を動かさない。
       pos = F.linePoint;
       r = hide = 18;
       q.waiting = true;
-      q.arrived = !!pos && Math.hypot(rt.player.u.pos.x - pos.x, rt.player.u.pos.z - pos.z) < r;
+      // 守備の有効範囲と同じ判定。列の中で動いても、到着済みの印を移動案内へ戻さない。
+      q.arrived = !!pos && !F.lineReturning;
       // 迎撃中のピンをその場の進み具合へ替え、余計な矢印を残さない。
       q.progress = this.missionWaitProgress(rt) || 0;
     } else if (!gone(F.V)) {
