@@ -199,7 +199,7 @@ const inou = {
   missionPinCaption: '',
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
   // 任務は一行。兵と武将を区別し、距離や向きは字にしない。
-  missions: ['信勝の兵を倒せ', '信勝の兵を倒せ', '耐えろ', '林美作守を倒せ'],
+  missions: ['赤い印の兵を倒せ', '赤い印の兵を倒せ', '耐えろ', '林美作守を倒せ'],
   missionHeading(rt) {
     const F = rt.flags;
     if (F.step === 1) {
@@ -245,13 +245,23 @@ const inou = {
     }
     return signs;
   },
-  // 倒す相手は本人の頭上の剣、移動先は地面の目印に分ける。
+  // 届く足場まで地面のピン一本で誘い、間合いに入ったら本人の頭上の▼へ引き継ぐ。
   missionPin: (rt) => {
     const F = rt.flags;
     if (F.ending) return null;
     if (F.step === 0 || F.step === 3) {
       const u = rt.def.missionSignTarget(rt);
-      return fighting(u) ? pinPoint(rt, u.pos, 0, 0, u) : null;
+      if (!fighting(u)) return null;
+      const P = rt.player, me = P.u.pos;
+      if (P.inRange && fighting(P.rangeCueTarget) && P.rangeCueTarget.team !== P.u.team) return null;
+      const dx = me.x - u.pos.x, dz = me.z - u.pos.z, distance = Math.hypot(dx, dz);
+      const stand = P.meleeReach(P.previewMeleeKind() || 'thrust') * .8;
+      // 既に足場へ着いた時は、自分の足元を行き先として示さない。
+      if (distance <= stand) return null;
+      const pin = pinPoint(rt, u.pos, 0, 0, u);
+      pin.x += dx / distance * stand; pin.z += dz / distance * stand;
+      pin.approach = true;
+      return pin;
     }
     if (F.step === 1) {
       if (F.training === 11 && !F.flankReached) {
@@ -737,6 +747,9 @@ const inou = {
     const p = rt.player.u.pos;
     if (F.ending) return;
     KIT.backTick(rt);
+    // 赤い▼の本人への道を、既存の道譲りと共有する。囲みの札は要らない。
+    rt.army.guideWayEnemy = this.missionSignTarget(rt);
+    rt.army.guideWayAt = rt.army.time;
     // 札の成功は今の段だけを見る。先に押した操作で後の段を済ませない。
     const P = rt.player;
     if (F.lesson === 'look') {
