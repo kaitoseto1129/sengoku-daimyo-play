@@ -1701,6 +1701,8 @@ const shitaragahara = {
     F.smokeBands = F.guns.map((g) => {
       const mat = new THREE.MeshBasicMaterial({ map: smokeTex, color: 0xeeeae2, transparent: true,
         opacity: 0, depthWrite: false, side: THREE.DoubleSide });
+      // 厚みのない硝煙の板は、表裏を別々に送らず一回で両面を描く。
+      mat.forceSinglePass = true;
       const mesh = new THREE.Mesh(smokeGeo, mat);
       mesh.rotation.y = Math.PI / 2;
       mesh.position.set(g.anchor.x + 2, W.heightAt(g.anchor.x + 2, g.anchor.z) + 2.4, g.anchor.z);

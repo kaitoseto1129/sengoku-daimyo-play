@@ -196,6 +196,9 @@ const inou = {
   immediateTaskChanges: true,
   nearAllyWholeOcclusion: true,
   nearAllySolidBody: true,
+  nearAllySightWidth: 1.1,
+  nearAllyHorseFade: true,
+  nearLongWeaponRadius: 4.5, // 肩越しの自分と行き先を覆う、カメラ近くの長柄だけ避ける。
   nearSpearFade: false, // 槍だけを縮めて透かさず、持ち主と同じ形を保つ。
   missionPinCaption: '',
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
@@ -404,7 +407,10 @@ const inou = {
     rt.army.damage = function (t, amount, src, ...rest) {
       const hp = t?.hp;
       const result = damage.call(this, t, amount, src, ...rest);
-      if (t && src?.isPlayer && t.team !== src.team && t.hp < hp) t.inouHitUntil = rt.t + 2.4;
+      if (t && src?.isPlayer && t.team !== src.team) {
+        if (t.hp < hp) { t.inouHitUntil = rt.t + 2.4; t.inouBlockUntil = 0; }
+        else if (rest[0]?.out?.res === 'block') { t.inouBlockUntil = rt.t + .7; t.inouHitUntil = 0; }
+      }
       return result;
     };
     F.training = -1;

@@ -106,7 +106,7 @@ function make() {
   arrival.setAttribute('stroke-width', '3'); arrival.setAttribute('stroke-linecap', 'round');
   arrival.setAttribute('stroke-linejoin', 'round'); arrival.style.display = 'none';
   hold.appendChild(arrival); el._arrival = arrival;
-  // 到着は同じピンの穴のチェックで示す。背後の扇形は待ち時間だけを表す。
+  // 到着はピンの軸のチェックで示す。穴の扇形は待ち時間だけを表す。
   const arrivedMark = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   arrivedMark.innerHTML = '<path d="M29 28L37 36L51 20" fill="none" stroke="#14120f" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M29 28L37 36L51 20" fill="none" stroke="#fff3ba" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>';
   arrivedMark.style.display = 'none'; hold.appendChild(arrivedMark); el._arrivedMark = arrivedMark;
@@ -212,8 +212,8 @@ export function updateMissionPin(rt) {
   const want = pinGuideOn(rt) && !rt.over && !rt.choice && !rt.hud.introWaiting && rt.player?.u?.alive ? target(rt) : null;
   const closeEnemy = rt.missionGuide?.closeEnemy;
   const inouEnemy = rt.def.key === 'inou' && want?.unit && want.unit.team !== rt.player.u.team;
-  // 稲生の敵は距離によらず頭上の赤い▼に統一する。黄色い移動ピンは行き先だけ。
-  if (inouEnemy) {
+  // 敵本人は赤い▼。届く足場へ向かう間だけ、地面の行き先ピンを残す。
+  if (inouEnemy && !want.approach) {
     if (pin) pin.hidden = true;
     return;
   }
@@ -257,7 +257,7 @@ export function updateMissionPin(rt) {
   const arrived = want.treatment ? d <= (want.r ?? 3) : waiting ? (want.arrived ?? missionWaitReached(rt)) === true : !!want.arrived;
   // 着いた・離れたの境で毎コマ出たり消えたりしない（チカチカ。kaito 10/23 稲生 27）。消えた後は一歩半離れてから出す。
   // 近接戦では頭上の▼に任せ、自分の体に行き先のピンを重ねない。
-  pin.hidden = inouEnemy ? d <= 4.5 + (pin.hidden ? 1 : 0) : !want.always && !waiting && d <= near + (pin.hidden ? 1.5 : 0);
+  pin.hidden = inouEnemy ? d <= .4 + (pin.hidden ? .3 : 0) : !want.always && !waiting && d <= near + (pin.hidden ? 1.5 : 0);
   if (pin.hidden) return;
   const W = VIEW.w, H = VIEW.h;
   const rects = hud.hudRects();
@@ -420,17 +420,21 @@ export function updateMissionPin(rt) {
   // 集合地点のピンを保ち、普通の行き先は旗の形で区別する。
   const groundPin = oke || inouEnemy || flagDestination;
   // 普通の行き先は切れ込みのある旗。画面内外で同じ形を保つ。
-  if (pin._groundPin !== groundPin || pin._wideHole !== oke || pin._flagDestination !== flagDestination || pin._passage !== want.passage || pin._outsideFlag !== outside) {
+  if (pin._groundPin !== groundPin || pin._wideHole !== oke || pin._flagDestination !== flagDestination || pin._passage !== want.passage || pin._outsideFlag !== outside || pin._waitArrived !== arrived) {
     pin._outsideFlag = outside;
+    pin._waitArrived = arrived;
     pin._groundPin = groundPin; pin._wideHole = oke; pin._flagDestination = flagDestination; pin._passage = want.passage;
     flag.setAttribute('d', groundPin && (oke || !flagDestination) ? oke
-      ? 'M40 68L15 25A30 30 0 1 1 65 25Z M40 -12A20 20 0 1 0 40 28A20 20 0 1 0 40 -12Z'
+      ? arrived
+        // 到着後は先端を畳む。同じ印が満ち、移動先を指し続けない。
+        ? 'M40 -22A30 30 0 1 1 40 38A30 30 0 1 1 40 -22Z M40 -12A20 20 0 1 0 40 28A20 20 0 1 0 40 -12Z'
+        : 'M40 68L15 25A30 30 0 1 1 65 25Z M40 -12A20 20 0 1 0 40 28A20 20 0 1 0 40 -12Z'
       : 'M40 68L25 38C5 9 75 9 55 38Z M40 20A6 6 0 1 0 40 32A6 6 0 1 0 40 20Z' : 'M32 65V5H65L56 18L65 31H32');
     flag.setAttribute('fill-rule', 'evenodd');
   }
   // 合図の時刻は範囲を出ても進む。同じピンの円も途切れさせない。
   const showProgress = oke && Number.isFinite(want.progress);
-  // 行軍は道の進み、待機は待ち時間を示し、到着直後も同じ穴の表示を保つ。
+  // 丸が満ちるのは待機中だけ。行軍中は空の穴を保つ。
   const showArrival = oke && arrived;
   const showHold = oke ? showProgress || showArrival : arrived && (!person || want.footRing) && !want.defend && !outside && !flagDestination;
   flag.style.display = destinationArrow || (person && !groundPerson) || want.defend || inouEnemy || want.fire || want.gate || want.dodge || showHold && !oke ? 'none' : '';
@@ -456,8 +460,11 @@ export function updateMissionPin(rt) {
   // 盾の下端を実物の上辺に合わせる。空き地への下向き矢印は重ねない。
   if (want.defend && want.defensePoint && !outside) pin._shield.setAttribute('transform', 'translate(0,13)');
   pin._hold.style.display = showHold ? '' : 'none';
-  // 到着の色と完了のチェックを分け、到着だけで待ち時間の扇形を隠さない。
-  pin._arrivedMark.style.display = oke && arrived && want.progress >= 1 ? '' : 'none';
+  // 着いた瞬間から軸に小さなチェックを残す。時計の穴は空けておく。
+  // 到着だけでは待ち時間の扇形を隠さず、待ち終わった時だけ穴いっぱいのチェックへ替える。
+  pin._arrivedMark.style.display = oke && arrived ? '' : 'none';
+  pin._arrivedMark.setAttribute('transform', oke && !(want.progress >= 1) ? 'translate(16,48) scale(.6)' : '');
+  pin._arrival.style.display = oke && arrived ? '' : 'none';
   // 桶狭間は到着しても同じピンを残し、その穴の中だけで待ちの進みを示す。
   // 別の時計へ替えず、待つ場所と満ち切る合図を一つにする。
   if (pin._holdOke !== oke) {
@@ -491,10 +498,8 @@ export function updateMissionPin(rt) {
   }
   flag.setAttribute('transform', outside ? edgeFlag ? 'translate(14,-34) scale(.65)' :
     groundPin ? 'translate(0,-24) scale(.75)' : 'translate(0,-24)' : groundPin ? '' : 'translate(16,19.25) scale(.75)');
-  // 到着したピンは地面の先端を保ったまま縮め、人物に重なる面積を減らす。
-  if (oke && !outside && want.area) {
-    flag.setAttribute('transform', arrived ? 'translate(10,17) scale(.75)' : '');
-  }
+  // 到着で縮めない。雨待ちの小さな進みも同じ大きさの穴で読めるようにする。
+  if (oke && !outside && want.area) flag.setAttribute('transform', '');
   pin._hold.setAttribute('transform', oke ? `${flag.getAttribute('transform')} translate(4,-17.2) scale(.9)` : '');
   // 方向は端の旗一本へまとめ、自分の足元には輪だけを残す。
   // 行き先の輪は足さず、自分の水色の足元印と役割を分ける。

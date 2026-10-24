@@ -363,6 +363,11 @@ export function buildOdaniUpper(rt, ramps) {
     lp.setXYZ(i, x * f, y * f, z * f);
     leafColor.setScalar(0.75 + Math.max(0, y) * 0.25).toArray(leafColors, i * 3);
   }
+  // 輪郭と頂点色はそのまま、中心へ集めた八面を六面へ張り直す。
+  // 枚数・配置・近景の形を減らさず、凹んだ輪郭も三角分割に任せる。
+  const leafOutline = [];
+  for (let i = 1; i <= 8; i++) leafOutline.push(new THREE.Vector2(lp.getX(i), -lp.getZ(i)));
+  leafGeo.setIndex(THREE.ShapeUtils.triangulateShape(leafOutline, []).flat().map((i) => i + 1));
   leafGeo.setAttribute('color', new THREE.BufferAttribute(leafColors, 3));
   leafGeo.computeVertexNormals();
   for (const [list, geo, color] of [

@@ -78,7 +78,7 @@ function survive(b, inp) {
   if (b.def.botDefendsFort && u.hp > u.maxHp * 0.3) { b.botSurviveUntil = 0; return false; }
   let foe = null, fd = 10, attacker = null, ad = 10, impact = Infinity, mate = null, md = 64, close = 0, support = 0, ex = 0, ez = 0;
   let firstStrikeAngle = null, leftStrikeAngle = 0, rightStrikeAngle = 0;
-  let crossedStrikes = false, approaching = false, bladeNear = false;
+  let crossedStrikes = false, approaching = false;
   let pursuer = null, pd = 10;
   for (const o of army.units) {
     if (o === u || !o.alive || o.fleeing || o.group?.routed || o.group?.hidden || o.downed || o.isStruct || o.type === 'dummy' || o.noTarget) continue;
@@ -112,8 +112,6 @@ function survive(b, inp) {
         }
       }
       if (o.sidearm || o.type !== 'gun' && o.type !== 'bow') {
-        // 順番待ちも次の打ち手になれる。槍の長さと一歩分の余裕を見て、走る隙を選ぶ。
-        if (d <= (o.reach || 2.8) + 1.5) bladeNear = true;
         // 振りの切れ目も、本人を狙う追手は次の一撃へ近づいている。
         // 順番待ちの近い兵へ向き直らず、迫る追手への構えを保つ。
         if (o.target === u && !o.playerQueue && !o.woundOut && !o.rearWound && d <= (o.reach || 2.8) + 1.5) {
@@ -262,10 +260,6 @@ function survive(b, inp) {
       // 調べた一歩と実際の歩みがずれると、横の追手へ戻ってしまう。
       const axis = b._botEscapeAxis || (b._botEscapeAxis = { x: 0, y: 0 });
       axis.x = side; axis.y = -fw; inp.axis = axis;
-      // 志賀の孤立や三方ヶ原の手負いでは、走れるうちに列へ戻る。
-      // 刃が離れた隙だけ走り、次の構えと回避に使う気力は残す。
-      inp.runHeld = !bladeNear && impact > guardLead &&
-        u.hp > u.maxHp * 0.4 && p.sta > p.maxSta * 0.45 && Math.hypot(dx, dz) > 0.5;
       // 二方向の刃や、体がまだ向けていない刃には人と同じ回避を使う。
       // 普通の一歩が空いていても、三歩分の途中の切岸・兵・戦ごとの退路を調べる。
       if ((crossedStrikes || uncovered || critical) && impact <= 0.35 && !p.mounted &&
@@ -274,6 +268,10 @@ function survive(b, inp) {
         retreatDodge(b, inp, Math.hypot(dx, dz) > 0.5 ? Math.atan2(dx, dz) : p.yaw + Math.PI,
           b.def.botRetreatStepAllowed);
       }
+      // 本人の構え・回避は廃止済みで、傷や気力でも駆け足は制限されない。
+      // 志賀の孤立・三方ヶ原の連続突きでは、調べた退路をすぐ走って離れる。
+      // 回避用の向きへ替えた時も駆け足を保ち、退路が無い時だけ止める。
+      inp.runHeld = Math.hypot(inp.axis.x, inp.axis.y) > 0.5;
       // 深手や包囲から退く時は、振りが途切れても歩みを止めない。
       // 反撃のための半秒の待ちで止まると、次の打ち込みで退避をやり直し続ける。
       // 一人を相手にし、元気か、手当てを終えて味方の列へ戻れた時だけ隙を突く。
