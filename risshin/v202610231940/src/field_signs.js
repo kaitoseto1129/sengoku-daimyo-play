@@ -180,7 +180,7 @@ export function fieldSignsTick(rt, root) {
   const focusEnemy = missionEnemy;
   rt.hud.outlinedEnemy = null;
   const moribe = rt.def.key === 'moribe';
-  const commander = moribe ? rt.def.commanderTarget?.(rt) : null;
+  const commander = rt.def.commanderTarget?.(rt) || null;
   const inou = rt.def.key === 'inou';
   const oke = rt.def.key === 'okehazama';
   s.signCandidates.length = 0;
@@ -225,7 +225,7 @@ export function fieldSignsTick(rt, root) {
     // 稲生は倒れ始めた瞬間に▼を消す。地面近くの印を立っている別人と取り違えさせない。
     // ほかの戦は、自分が討った時だけ同じ▼を短く縮めて消す。
     const defeatUntil = oke ? u.okeHitUntil : inou ? u.inouHitUntil : u.moribeHitUntil;
-    const defeated = special && !inou && (!u.alive || u.dying || u.downed || u.woundOut || u.rearWound) && (defeatUntil || 0) - rt.t > 1.2;
+    const defeated = special && !inou && !moribe && (!u.alive || u.dying || u.downed || u.woundOut || u.rearWound) && (defeatUntil || 0) - rt.t > 1.2;
     if ((!u.alive || u.dying || u.woundOut || u.rearWound || u.downed) && !defeated || u.gone || u.isPlayer || u.isStruct || u.civ || u.type === 'dummy' || u.type === 'porter' || u.team > 1) continue;
     const dx = u.pos.x - P.x, dz = u.pos.z - P.z, d2 = dx * dx + dz * dz;
     const foe = u.team !== me.team;
@@ -246,6 +246,7 @@ export function fieldSignsTick(rt, root) {
     }
     // 体力の横棒だけを遠くに残さず、同じ本人の▼と揃える。
     if (inou && !near && (foe || general(u)) && !inouSignVisible(rt, u)) continue;
+    if (u === commander && rt.hud.missionEnemyShown) continue;
     if (general(u) && (u === commander && d2 < 180 * 180 || d2 < GEN_R * GEN_R || d2 < GEN_R * GEN_R * 1.3 && s.bound?.includes(u)) && !u.woundOut) { u._fsD = d2; gens.push(u); }
     if (quietSigns && (!s.nearby.includes(u) || !u._nearSignOn || meD2 > (foe ? 100 : 36) || u.fleeing || u.group?.routed || u.mesh?.visible === false || u.camHidden)) continue;
     if (quietSigns && !near && u === focusEnemy) {
@@ -270,7 +271,7 @@ export function fieldSignsTick(rt, root) {
       // 見通しは半秒ごと。判定も入れ物も兵ごとに使い回す。
       if (u._moribeSignAt == null || rt.t < u._moribeSignAt - .5 || rt.t >= u._moribeSignAt) {
         // 桶狭間は見える兵に必ず▼を残す。霧・槍・旗で所属の印だけ消さない。
-        u._moribeSignSeen = oke ? !cameraWallBlocked(rt, P, u.pos, P.y, headY(u)) : sightScreenUnit(rt, u);
+        u._moribeSignSeen = !cameraWallBlocked(rt, P, u.pos, P.y, headY(u));
         u._moribeSignAt = rt.t + .5;
       }
       if (!u._moribeSignSeen) continue;
@@ -296,7 +297,7 @@ export function fieldSignsTick(rt, root) {
     // 森部の縦の拡大は命中だけに使い、敵の振りかぶりと混ぜない。
     // 森部で探しているだけの敵を、刃が届く敵と同じ大きさにしない。
     // 命中後も大きさを別の時間で保たず、下の一度だけの拡大にそろえる。
-    const pixels = !inou && marked && u !== marked && foe ? 9 : moribe ? (u === readyEnemy || u === commander ? 26 : u === missionEnemy ? 16 + 8 * approach : near ? 16 : 11) :
+    const pixels = !inou && marked && u !== marked && foe ? 9 : moribe ? (u === commander ? 26 : hot ? 20 : near ? 14 : 9) :
       // 稲生は全員同じ赤い▼。届く時は幅だけを広げ、高さは命中に残す。
       inou ? (meD2 < 25 * 25 ? 20 : 12) :
       // 届く前は一定の大きさ。実際に届いた瞬間だけ白縁・幅広へ替える。
@@ -326,7 +327,8 @@ export function fieldSignsTick(rt, root) {
     // 手前の味方の印に見えてしまう。投影後の画面端で自然に切れるようにする。
     // 森部は届く一人だけ横に広げ、命中した時だけ縦にも広げる。
     // 間合いに入っただけの変化と、実際に命を減らした変化を分ける。
-    const width = oke ? pixels + 14 * pulse : moribe ? pixels * (1 + .45 * pulse) : pixels;
+    // 森部は命中後によろめいて間合いを出ても、当たった本人の印を縮めない。
+    const width = oke ? pixels + 14 * pulse : moribe ? Math.max(pixels, 20 * pulse) : pixels;
     const k = Math.min(u === commander ? 32 : moribe ? 5 : (inou || oke) && u === missionEnemy ? 8 : 3, width * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) *
       (moribe || inou ? 1 : 1 + (pulse > 0 ? 1.2 * pulse : reachable && !oke ? .55 : 0));
     dummy.position.copy(headPos);
@@ -337,7 +339,7 @@ export function fieldSignsTick(rt, root) {
     // 同じ本人の幅を保ち、縦の伸びと赤の減りを読める時間を残す。
     const okePixels = Math.max(pixels, 34 * pulse);
     const okeScale = oke ? Math.min(u === missionEnemy ? 8 : 3, okePixels * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) : k;
-    dummy.scale.set(oke ? okeScale * Math.max(reachable ? 1.6 : 1, 1 + .6 * pulse) : moribe || inou ? k * (reachable ? 1.6 : 1) : k * (1 + .5 * pulse),
+    dummy.scale.set(oke ? okeScale * Math.max(reachable ? 1.6 : 1, 1 + .6 * pulse) : moribe ? k * Math.max(reachable ? 1.4 : 1, 1 + .4 * pulse) : inou ? k * (reachable ? 1.6 : 1) : k * (1 + .5 * pulse),
       oke || moribe || inou ? (oke ? okeScale : k) * (1 + pulse) : k, oke ? okeScale : k);
     if (defeated) dummy.scale.multiplyScalar(Math.max(0, Math.min(1, (defeatUntil - rt.t - 1.2) / 1.2)));
     if (!inou && marked && foe && u !== marked) dummy.scale.multiplyScalar(.55);
@@ -400,8 +402,8 @@ export function fieldSignsTick(rt, root) {
   // 武将の体力の棒（黒い下地と色の棒）
   for (let i = 0; i < gens.length && b < BARS * 2; i++) {
     const u = gens[i];
-    // 森部の一般兵は▼の赤で命を示す。別人の黄色い棒を乱戦の上へ残さない。
-    if (moribe && u !== commander) continue;
+    // 森部は武将も▼の赤で命を示し、別の棒を重ねない。
+    if (moribe) continue;
     if (quietSigns && (u !== s.nameUnit && u !== focusEnemy || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 18 * 18)) continue;
     // 敵味方とも頭ほどの幅。遠方でも棒を拡大しすぎない。
     const k = Math.min(1.2, Math.max(1, Math.sqrt(u._fsD) / 22)), w = 0.45 * k;
@@ -416,6 +418,11 @@ export function fieldSignsTick(rt, root) {
     }
   }
   s.bars.count = b; s.bars.instanceMatrix.needsUpdate = true; if (s.bars.instanceColor) s.bars.instanceColor.needsUpdate = true;
+  // 森部の討つ名は右上の一行だけ。頭上には赤い▼を残す。
+  if (moribe) {
+    for (const e of s.labels) if (!e.hidden) e.hidden = true;
+    return;
+  }
   // 武将の名は今の相手・合流する隊だけ。命と任務を先に数え、残る一枠を使う。
   const W = innerWidth, H = innerHeight;
   const hud = rt.hud, marker = rt.missionGuide?.marker;

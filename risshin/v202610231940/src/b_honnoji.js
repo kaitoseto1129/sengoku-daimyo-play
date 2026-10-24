@@ -4807,12 +4807,10 @@ honnoji.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     }
     inp.leftPressed = false; inp.chargeHold = false; inp.runHeld = false; inp.guardHold = false;
     if (p.lock) inp.e.add('KeyQ');
-    // 長い退き道を常に歩くだけでは後続に追いつかれる。刃の無い間は
-    // 道の点へ走り、受ける気力が減ったら歩いて戻す。
+    // 傷や気力で駆け足は制限されない。追手が離れても出口まで走る。
+    // 息を戻すのは退路の途中ではなく、安全な待ち場に着いてから。
     if (!face) {
-      if (p.sta < p.maxSta * .35) b.honnoCatchBreath = true;
-      else if (p.sta >= p.maxSta * .6) b.honnoCatchBreath = false;
-      inp.runHeld = moving && !b.honnoCatchBreath;
+      inp.runHeld = moving;
       return;
     }
     // 構え・回避は廃止済み。追手を待ち受けず、戸口まで調べた道を駆ける。
@@ -4977,7 +4975,6 @@ honnoji.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     else if (hp === 7) goVia(F.guardGuide.x, F.guardGuide.z, 0.3);
     else follow(h8Key, HONNO_BOT_PATHS[h8Key]);
     guardMove();
-    inp.runHeld = !inp.guardHold;
     return;
   }
   // 二人に同時に打ち込まれたら、構えたまま味方の側へ下がる（共通の退き方を二秒使う）。

@@ -161,7 +161,7 @@ const inou = {
   missionPinCaption: '',
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
   // 任務は一行。兵と武将を区別し、距離や向きは字にしない。
-  missions: ['▼の兵を倒せ', '▼の兵を倒せ', '耐えろ', '林美作守を倒せ'],
+  missions: ['信勝の兵を倒せ', '信勝の兵を倒せ', '耐えろ', '林美作守を倒せ'],
   missionHeading(rt) {
     const F = rt.flags;
     if (F.step === 1) {
@@ -169,8 +169,10 @@ const inou = {
       return '耐えろ';
     }
     if (F.step === 2) return '信長について進め';
-    return F.step === 0 && F.training === 8 ? '敵の隊長を倒せ' : this.missions[this.missionOf(rt)];
+    return F.step === 0 && F.training === 8 ? '林の隊長を倒せ' : this.missions[this.missionOf(rt)];
   },
+  commanderTarget: (rt) => rt.flags.step === 0 && rt.flags.training === 8 ? rt.flags.hayaLead :
+    rt.flags.step === 3 ? rt.flags.hayaU : null,
   // 控えや追跡中の兵も敵の姿として見分けられる。攻撃できるかで▼を消さない。
   foeMarkVisible: () => true,
   missionSignTarget: (rt) => rt.flags.step === 0 && rt.flags.training >= 0 && rt.flags.training <= 8 ?

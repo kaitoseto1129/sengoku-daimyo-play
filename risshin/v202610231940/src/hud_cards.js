@@ -1,5 +1,5 @@
 import { pinGuideOn, missionTarget } from './mission_pin.js';
-import { setText, setHtml, setWidth, coachCss, $, esc, keyCaps, shortTask, singleBattleGuide, rescueTarget, retreatRequired, attackOperation } from "./hud_common.js";
+import { setText, setWidth, coachCss, $, esc, keyCaps, shortTask, singleBattleGuide, rescueTarget, retreatRequired, attackOperation } from "./hud_common.js";
 import { currentObjective, taskText, missionCaption } from "./mission_guide.js";
 import { isTouch } from "./touch.js";
 import { K, S } from "./settings.js";
@@ -384,10 +384,8 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
       if (enemy?.alive && enemy.team !== player.u.team && sightUnit(rt, enemy))
         headline = player.inRange ? `印の敵へ ${attackOperation(rt)}` : '印の敵へ近づこう';
     }
-    // 任務の一行にも頭上と同じ赤い▼を使い、林という所属名を探させない。
-    if (def.key === 'inou' && headline.startsWith('▼'))
-      setHtml(stEl.lastChild, `<span style="color:#ff342e" aria-hidden="true">▼</span>${esc(headline.slice(1))}`);
-    else setText(stEl.lastChild, headline);
+    // 相手の名前から一続きの一行にする。赤い▼は敵の頭上だけに置く。
+    setText(stEl.lastChild, headline);
     stEl.lastChild.classList.toggle('foe-task', def.key === 'okehazama' && headline.startsWith('▼'));
     // 戦固有の案内と任務の進みは残す。同じ任務の全文は重ねない。
     const status = def.missionStatus?.(rt, taskLine);

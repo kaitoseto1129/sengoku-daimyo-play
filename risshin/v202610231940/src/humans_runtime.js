@@ -15,6 +15,8 @@ import { DOMARU, wantsDomaru, KABUTO, dressDomaru, dressKabuto, crowdDomaru, mon
 import { namedKacchu } from './named_kacchu.js';
 import { coveredBodyGeo, bodyLod, BSPH, lodGeo } from './humans_lod.js';
 import { humanMotionBones, bindHumanBounds, releaseHumanBounds } from './humans_bounds.js';
+import { detachBones } from './humans_bones.js';
+const BONE_TREE = (() => { try { return /[?&]bonetree=1/.test(location.search); } catch (e) { return false; } })();
 import { restInverse, gripPose, humans, humanWanted, humanCandidates, humanNear, humanUnitRefs, humanUnitStates, humanCandidatePool, humanNearPool, resetCrowdSweep, sweepCrowdGeos, humanQualityValues, humanQuality } from './humans_combat.js';
 import { nanbanMaterial } from './units_model.js';
 import { scanMenpo, scanFace0 } from './humans_face.js';
@@ -255,6 +257,8 @@ function* buildHuman(u, look0) {
   h.acc = 0;
   h.wearFit = restInverse('Spine1').clone().multiply(SRC.fitT);
   root.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 1, 0), (u.mounted ? 2.2 : 1.3) + 0.3);
+  // 骨を場面の木から外す（描く側と行列の更新が骨を辿らない。humans_bones.js）。?bonetree=1 で元の木のまま（比べ用）
+  if (!BONE_TREE && !window.__apx?.bonetree) detachBones(h, bindHumanBounds);
   bindHumanBounds(h);
   cacheHumanSkeleton(h);
   h.skelDirty = true;

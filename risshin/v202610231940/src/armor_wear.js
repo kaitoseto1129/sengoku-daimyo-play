@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { S } from './settings.js';
+import { boneHolder } from './humans_bones.js';
 
 // 戦の傷は一人三枚まで。絵・形・材質は全員で共有し、当たる時だけ部品を足す。
 let shared = null;
@@ -78,7 +79,7 @@ export function syncArmorWear(u, hideBlood = false) {
   const h = u.human, human = h?.root.visible && h.wearFit && h.bones.Spine1;
   const parent = human || u.body;
   if (!parent) return;
-  if (w.root.parent !== parent) {
+  if (w.root.parent !== (human ? boneHolder(human) : parent)) {
     parent.add(w.root);
     if (human) w.root.matrix.copy(h.wearFit); else w.root.matrix.identity();
     w.root.matrixWorldNeedsUpdate = true;

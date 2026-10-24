@@ -10,6 +10,7 @@ import { groundAt } from './floors.js';
 import { cutReaction } from './army_anim.js';
 import { reduceMotion } from './settings.js';
 import { setFaceMorph } from './humans_face_geometry.js';
+import { syncBones } from './humans_bones.js';
 
 
 // ---- 名のある武将の立ち姿：戦っていない時は刀を納め、右手に采配。胸を張り、采配を上げる・前を指す・振る ----
@@ -531,7 +532,7 @@ function footPlant(h, B, dt) {
   h.model.position.y -= h.fpSettle / scaleY;
   if (!planted && Math.abs(left) + Math.abs(right) < 0.012 && h.fpDrop < 0.005) return;
   h.model.position.y -= h.fpDrop;
-  h.model.updateMatrixWorld(true);
+  syncBones(h);
   for (let i = 0; i < 2; i++) {
     const a = i ? B.RightUpLeg : B.LeftUpLeg, b = i ? B.RightLeg : B.LeftLeg, c = i ? B.RightFoot : B.LeftFoot;
     c.getWorldPosition(_fp[i]);
