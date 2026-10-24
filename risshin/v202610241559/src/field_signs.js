@@ -81,7 +81,7 @@ function build(rt, root) {
           'if (signTone > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(1.0);');
         shader.fragmentShader = 'varying vec3 vSignLevel;\n' + shader.fragmentShader.replace('#include <color_fragment>',
           '#include <color_fragment>\nif (vSignLevel.x > 0.5 && vSignLevel.y > mix(0.065, 0.245, vSignLevel.z)) diffuseColor.rgb = vec3(0.007, 0.006, 0.005);');
-        if (rt.def.key === 'moribe' || rt.def.key === 'inou' || rt.def.key === 'okehazama') {
+        if (rt.def.key === 'inou' || rt.def.key === 'okehazama') {
           // 傷で赤が減っても敵の印は赤のまま。黒い▼を味方と取り違えさせない。
           shader.fragmentShader = shader.fragmentShader.replace(
             'diffuseColor.rgb = vec3(0.007, 0.006, 0.005);',
@@ -174,7 +174,7 @@ export function fieldSignsTick(rt, root) {
   const reachableTarget = rt.player.inRange && rt.player.rangeCueTarget?.alive ? rt.player.rangeCueTarget : null;
   // 稲生も共通の頭上印を保ち、大きな札への置き換えや周囲の縮小をしない。
   const marked = rt.def.key === 'inou' || rt.def.key === 'moribe' || rt.def.key === 'okehazama' ? null : markedEnemy(rt);
-  const missionEnemy = marked || (rt.def.key === 'inou' || rt.def.key === 'okehazama' || rt.def.key === 'moribe' ? rt.def.missionSignTarget?.(rt) : null) || reachableTarget ||
+  const missionEnemy = (rt.def.key === 'inou' ? reachableTarget : null) || marked || (rt.def.key === 'inou' || rt.def.key === 'okehazama' || rt.def.key === 'moribe' ? rt.def.missionSignTarget?.(rt) : null) || reachableTarget ||
     rt.hud.approachGuideEnemy || rt.hud.attackGuideEnemy || rt.hud.aimGuideEnemy ||
     (rt.player.lock?.alive ? rt.player.lock : null) || rt.missionGuide?.closeEnemy ||
     (rt.guideEnemyShown ? rt.guideEnemy : null);
@@ -296,8 +296,8 @@ export function fieldSignsTick(rt, root) {
     if ((oke || moribe || inou) && !u.mounted) headPos.y = u.pos.y + (u.bodyHeight || 1.72) + .15;
     // 森部の▼を笠の中へ埋めない。姿勢や頭の揺れは追わず本人の背丈へ固定する。
     if ((moribe || oke) && !u.mounted) headPos.y = u.pos.y + (u.bodyHeight || 1.72) + .38;
-    // 稲生では笠の縁と白い外枠が重ならない小さな隙間を残す。
-    if (inou && !u.mounted) headPos.y += .12;
+    // 笠に埋めず、白い外枠との隙間も残す。頭の揺れは追わない。
+    if (inou && !u.mounted) headPos.y = u.pos.y + (u.bodyHeight || 1.72) + .15 + .32;
     if (inou || oke || moribe) {
       if (defeated) headPos.set(u._inouSignX, u._inouSignY, u._inouSignZ);
       else { u._inouSignX = headPos.x; u._inouSignY = headPos.y; u._inouSignZ = headPos.z; }
@@ -328,7 +328,7 @@ export function fieldSignsTick(rt, root) {
       inou ? (u === commander || u === missionEnemy ? 32 : 22) :
       // 目当てと近い敵の読みやすさを保ち、近づくほど同じ▼を滑らかに大きくする。
       // 実際に届いた一人だけ、さらに白縁・幅広へ替える。
-      oke ? (hot ? 34 : Math.max(u === missionEnemy || meD2 < 25 * 25 ? 22 : 15,
+      oke ? (Math.max(u === missionEnemy || meD2 < 25 * 25 ? 22 : 15,
         15 + 13 * Math.max(0, 1 - Math.sqrt(meD2) / 40))) :
       foe ? (u === readyEnemy ? 24 : u === focusEnemy ? 22 : 18) : 14;
     // 稲生・森部・桶狭間では命を減らした相手の▼だけを一度大きくし、滑らかに戻す。
@@ -338,7 +338,7 @@ export function fieldSignsTick(rt, root) {
     // 森部は命中を二秒以上保ち、最後にゆっくり戻す。
     // 一瞬の振りやよろめきを見落としても、当たった本人の赤の減りと縦の伸びが残る。
     const hit = foe && special
-      ? Math.min(1, Math.max(0, moribe ? hitLeft / .6 : (hitLeft - (inou ? .6 : 1.2)) / .5))
+      ? Math.min(1, Math.max(0, moribe || inou ? hitLeft / .6 : (hitLeft - 1.2) / .5))
       : 0;
     const reachable = foe && u === readyEnemy;
     // 森部の命中は同じ赤い▼を大きくして示す。空振りでは変わらない。
@@ -363,7 +363,10 @@ export function fieldSignsTick(rt, root) {
     // 基準の高さは間合いで変えず、横幅と命中の縦の伸びは下で別々に反映する。
     // 稲生の▼は実物の大きさをそろえる。近づけば兵と一緒に大きくなり、距離の縮まりが見える。
     // 森部も頭ほどの幅に収め、間合いと命中の拡大は下で一度だけ掛ける。
-    const k = Math.min(moribe ? (u === commander ? 2 : 1.2 + .4 * Math.max(0, 1 - Math.sqrt(meD2) / 22)) : inou ? (u === commander ? 1.5 : 1.2) : u === commander ? 32 : oke && u === missionEnemy ? 8 : 3, (inou ? 28 : moribe ? pixels : width) * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) *
+    // 稲生の追う一人は遠くても読める幅を保つ。ほかの兵は実寸に収める。
+    // 近くの兵も読みやすい大きさを残し、目前の相手を見失わせない。
+    const inouFocus = inou && (u === missionEnemy || hit > 0 || defeated);
+    const k = Math.min(moribe ? (u === commander ? 2 : 1.2 + .4 * Math.max(0, 1 - Math.sqrt(meD2) / 22)) : inou ? (inouFocus ? 8 : near ? 2 : u === commander ? 1.5 : 1.2) : u === commander ? 32 : oke && u === missionEnemy ? 8 : 3, (inou ? inouFocus ? 24 : near ? 28 : 18 : moribe ? pixels : width) * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) *
       (moribe || inou ? 1 : 1 + (pulse > 0 ? 1.2 * pulse : reachable && !oke ? .55 : 0));
     dummy.position.copy(headPos);
     dummy.quaternion.copy(q);
@@ -380,12 +383,14 @@ export function fieldSignsTick(rt, root) {
     // 防がれた接触は縦に潰す。傷を与えた時の縦の伸び・赤の減りとは分ける。
     const blocked = special && !(hit > 0) && (inou ? u.inouBlockUntil : oke ? u.okeBlockUntil : u.moribeBlockUntil) > rt.t;
     // 届くまでは細い▼が徐々に開き、届く本人だけ幅広くなる。
-    const inouWidth = inou ? hot ? 2.2 : .65 + .55 * Math.max(0, 1 - Math.sqrt(meD2) / 20) : 1;
+    const inouWidth = inou && hot ? 2.2 : 1;
     // 稲生は届く一人の幅をはっきり広げる。命中後も幅を保ち、縦の伸びを見せる。
     // 森部の横幅は届く本人だけ強調する。敵の振りかぶりと混同させない。
     // 命中で押し戻された直後も、届いた時の横幅を保つ。縦の伸びと赤の減りを見せる。
+    // 森部は届く予告を控えめにし、実際に命中した時だけ大きく開く。
+    // 敵の振りかぶりでは印を伸ばさず、頭上の先端を動かさない。
     // 森部の縦の伸びは命中だけ。敵の振りかぶりを命中の反応と取り違えさせない。
-    dummy.scale.set(oke ? okeScale * Math.max(reachable ? 2.2 : 1, 1 + 1.2 * pulse) : moribe ? k * Math.max(width / pixels, reachable ? 2.2 : 1, 1 + 1.2 * pulse) : inou ? k * Math.max(inouWidth, 2.2 * pulse) : k * (1 + .5 * pulse),
+    dummy.scale.set(oke ? okeScale * Math.max(reachable ? 2.2 : 1, 1 + 1.2 * pulse) : moribe ? k * Math.max(width / pixels, reachable ? 1.35 : 1, 1 + 1.2 * pulse) : inou ? k * Math.max(inouWidth, 2.2 * pulse) : k * (1 + .5 * pulse),
       oke || moribe || inou ? (oke ? okeScale : k) * (blocked ? .55 : 1 + (moribe ? 1.2 : 1) * pulse) : k, oke ? okeScale : k);
     // 森部の討ち取りと稲生の討ち取りは、それぞれの時間で同じ本人の印を閉じる。
     if (defeated) {
@@ -402,8 +407,10 @@ export function fieldSignsTick(rt, root) {
       } else dummy.scale.multiplyScalar(still ? 1 : closing);
     }
     if (!inou && marked && foe && u !== marked) dummy.scale.multiplyScalar(.55);
-    // 任務の一人だけ同じ▼を大きく保つ。届く幅・命中の伸び・残りの赤はそのまま重ねる。
-    if (inou && foe && !defeated) dummy.scale.multiplyScalar(u === missionEnemy ? 1.3 : .75);
+    // 任務の武将の強調を残し、届く本人・命中した本人・防がれた本人も小さくしない。
+    if (inou && foe && !defeated) dummy.scale.multiplyScalar(Math.max(
+      u === missionEnemy || hot || hit > 0 || blocked ? 1.3 : 1,
+      u === commander ? 1.15 : 1));
     dummy.updateMatrix();
     if (foe) {
       // 森部も赤の高さを命の残りにそろえ、一撃ごとの減りを隠さない。

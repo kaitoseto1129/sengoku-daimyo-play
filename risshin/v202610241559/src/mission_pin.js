@@ -105,6 +105,7 @@ function make() {
   arrival.setAttribute('fill', 'none'); arrival.setAttribute('stroke', '#e4f2cb');
   arrival.setAttribute('stroke-width', '3'); arrival.setAttribute('stroke-linecap', 'round');
   arrival.setAttribute('stroke-linejoin', 'round'); arrival.style.display = 'none';
+  arrival.setAttribute('pathLength', '1');
   hold.appendChild(arrival); el._arrival = arrival;
   // 到着はピンの軸のチェックで示す。穴の扇形は待ち時間だけを表す。
   const arrivedMark = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -379,10 +380,10 @@ function drawMissionPin(rt) {
   // 出発前・行軍中・合図待ちで根元の大きさを変えない。
   const areaRadius = want.area ? want.r : waitArea ? want.r ?? 8 : footMark ? want.fire ? 1.25 : .85 : want.r;
   // 集合ピンの根元は、実際に着いたとみなす範囲を囲む。自分を追う輪にはしない。
-  // 桶狭間はピン一本にまとめる。大きな囲みを、止まって待つ場所に見せない。
-  // 到着判定はそのまま、着いたことと待ちの進みはピンの中で示す。
+  // 桶狭間は近づいた時だけ、ピンの根元を実際の集合範囲まで広げる。
+  // 到着後は囲みを消し、移動先ではなく待つ時間を同じ印で示す。
   const showArea = rt.def.key === 'okehazama'
-    ? false
+    ? want.area && !arrived && d <= 12 && !outside && !occluded
     : (waitArea ? !occluded : want.passage ? !behind && !occluded : !outside) && (footMark || !want.unit && (want.area || waiting || want.defend) && want.r > 0);
   pin._area.style.display = pin._areaBack.style.display = showArea ? '' : 'none';
   pin._area.setAttribute('stroke-width', want.passage ? '7' : '5');
@@ -474,14 +475,16 @@ function drawMissionPin(rt) {
   // 到着のチェックはピン本体に大きく残す。穴の扇形とは重ねない。
   // 到着後は穴の縁も閉じ、色だけで到着を見分けさせない。
   // 待ち時間の扇形は隠さず、待ち終わった時だけ穴いっぱいのチェックへ替える。
-  pin._arrivedMark.style.display = oke && arrived ? '' : 'none';
+  // 待ちの途中ではチェックを畳み、満ちていく丸を遮らない。到着直後と完了時だけ残す。
+  pin._arrivedMark.style.display = oke && arrived && (!showProgress || want.progress >= 1 || rt.t - U.arrivalAt < .8) ? '' : 'none';
   pin._arrivedMark.setAttribute('transform', oke && !(want.progress >= 1) ? 'translate(16,48) scale(.6)' : '');
   pin._arrival.style.display = showArrival ? '' : 'none';
   // 集合へ近づく間は穴の縁が閉じ、着いたら中の扇形が待ち時間を刻む。
   // 別の丸へ替えず、同じ地面に刺さるピンの中だけで示す。
   const arrivalProgress = arrived ? 1 : Math.max(0, Math.min(1, want.arrivalProgress || 0));
-  pin._arrival.setAttribute('stroke-dasharray', '113.1');
-  pin._arrival.setAttribute('stroke-dashoffset', String(113.1 * (1 - arrivalProgress)));
+  // 作成時の一周を１とする指定に合わせ、縁の進みを正規化する。
+  pin._arrival.setAttribute('stroke-dasharray', '1');
+  pin._arrival.setAttribute('stroke-dashoffset', String(1 - arrivalProgress));
   // 桶狭間は到着しても同じピンを残し、その穴の中だけで待ちの進みを示す。
   // 別の時計へ替えず、待つ場所と満ち切る合図を一つにする。
   if (pin._holdOke !== oke) {
@@ -495,6 +498,7 @@ function drawMissionPin(rt) {
     // 到着の内周と、満ちていく扇形だけで待つ進みを示す。
     pin._arrival.style.filter = 'drop-shadow(0 0 2px #14120f)';
   }
+  if (oke) pin._hold.children[0].setAttribute('stroke', arrived ? '#fff3ba' : 'none');
   if (!arrived && !showProgress) pin._progress.setAttribute('d', '');
   if (arrived || showProgress) {
     const progress = Number.isFinite(want.progress) ? Math.max(0, Math.min(1, want.progress)) : 0;
@@ -549,10 +553,11 @@ function drawMissionPin(rt) {
   }
   // 旗の形を回さず、向きは添えた矢印で示す。
   if (want.passage && !outside) flag.setAttribute('transform', 'translate(-22,0)');
-  // 到着で本体が明るくなる。同じピンの穴が満ちるまで、その場で待てる。
+  // 到着後は先端を消す。同じ場所の丸が満ちるまで、その場で待てる。
   if (oke) {
+    if (arrived) flag.style.display = 'none';
     if (!outside || arrived) flag.setAttribute('d', 'M40 68L15 25A30 30 0 1 1 65 25Z M40 -12A20 20 0 1 0 40 28A20 20 0 1 0 40 -12Z');
-    // 到着後も同じ地面に刺したまま。穴の扇形が満ちると味方が出発する。
+    // 待機の丸は地面の同じ位置に保つ。
     if (arrived && outside) {
       // 待つ間は画面の端でも向きを回さず、移動の催促にしない。
       flag.setAttribute('transform', 'translate(0,-24) scale(.75)');
@@ -778,12 +783,13 @@ function updateEnemyTarget(rt) {
   let x = (goalPoint.x + 1) * W / 2, y = (1 - goalPoint.y) * H / 2;
   if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
   // 印の先を頭上へ固定する。札を避けて別の兵の上へ動かさない。
-  const visible = goalPoint.z >= -1 && goalPoint.z <= 1 && x >= 64 && x <= W - 64 && y >= 80 && y <= H - 12 &&
+  const halfWidth = inou ? 84 : 60;
+  const visible = goalPoint.z >= -1 && goalPoint.z <= 1 && x >= halfWidth + 4 && x <= W - halfWidth - 4 && y >= 80 && y <= H - 12 &&
     !cameraWallBlocked(rt, rt.camera.position, u.pos) &&
-    !rects.some(r => x + 60 > r.left && x - 60 < r.right && y > r.top && y - 76 < r.bottom);
+    !rects.some(r => x + halfWidth > r.left && x - halfWidth < r.right && y > r.top && y - 76 < r.bottom);
   const name = inou ? rt.def.missionEnemyLabel?.(rt) || '林の兵' : '敵';
   const labelRoom = goalLabelRoom(hud);
-  let caption = name;
+  let caption = inou ? `${name} あと${Math.ceil(Math.hypot(u.pos.x - me.pos.x, u.pos.z - me.pos.z))}歩` : name;
   if (!visible) {
     rt.camera.getWorldDirection(goalDirection);
     const yaw = Math.atan2(goalDirection.x, goalDirection.z);
@@ -799,7 +805,7 @@ function updateEnemyTarget(rt) {
     let best = Infinity, found = false;
     for (let i = 0; i <= 16; i++) {
       const cy = i === 0 ? preferred : top + (bottom - top) * (i - 1) / 15;
-      if (rects.some(r => x + 60 > r.left && x - 60 < r.right && cy + (labelRoom ? 76 : 48) > r.top && cy - 4 < r.bottom)) continue;
+      if (rects.some(r => x + halfWidth > r.left && x - halfWidth < r.right && cy + (inou || labelRoom ? 76 : 48) > r.top && cy - 4 < r.bottom)) continue;
       const distance = Math.abs(cy - preferred);
       if (distance < best) { best = distance; y = cy + 48; found = true; }
     }
@@ -810,6 +816,7 @@ function updateEnemyTarget(rt) {
   enemyTarget._symbol.setAttribute('width', commander ? '48' : '40');
   enemyTarget._caption.style.top = visible ? '-24px' : '48px';
   enemyTarget._caption.style.display = inou ? '' : 'none';
+  enemyTarget._caption.style.fontSize = inou ? '14px' : '18px';
   if (enemyTarget._caption.textContent !== caption) enemyTarget._caption.textContent = caption;
   enemyTarget.setAttribute('aria-label', visible ? name + 'をたおせ' : caption);
   enemyTarget.style.transform = `translate(${(x - 56).toFixed(1)}px,${(y - 48).toFixed(1)}px)`;

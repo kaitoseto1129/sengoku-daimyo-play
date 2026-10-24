@@ -185,7 +185,8 @@ export class HudArmy {
     const off = !f || this.introWaiting || !!rt.choice || !!rt.def.town || !!rt.def.dojo;
     tb.hidden = off;
     if (off) return;
-    const ra = Math.max(0, f.a) / Math.max(1, f.a0 || f.a), rb = Math.max(0, f.b) / Math.max(1, f.b0 || f.b);
+    // 稲生は七百対千七百の兵力差を、そのまま棒の長さにする。
+    const ra = Math.max(0, f.a) / (rt.def.key === 'inou' ? 1 : Math.max(1, f.a0 || f.a)), rb = Math.max(0, f.b) / (rt.def.key === 'inou' ? 1 : Math.max(1, f.b0 || f.b));
     const share = ra + rb > 0 ? ra / (ra + rb) * 100 : 50;
     const oke = rt.def.key === 'okehazama';
     const key = `${rt.def.key}|${share.toFixed(1)}|${Math.round(f.a)}|${Math.round(f.b)}|${f.a0}|${f.b0}`;

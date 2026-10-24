@@ -45,6 +45,7 @@ export class HudCards {
   // 近い敵の頭上に小さな印（▼と「敵」）。四人まで・十四メートルまで。印は使い回し、毎コマ作らない（kaito 10/22 稲生 3）。
   foeMarks(rt) {
     this.enemyTriangleSigns(rt);
+    this.inouMissionMark(rt);
     if (pinGuideOn(rt)) {
       for (const el of this.missionAllyEls || []) el.hidden = true;
       return; // 全戦で兵・隊・旗の頭上の札と印を作らない。
@@ -141,6 +142,48 @@ export class HudCards {
       setText(e.firstChild, name); e.firstChild.hidden = !name;
       e.style.transform = `translate(${Math.round((this.tmpV.x + 1) / 2 * W)}px,${Math.round((1 - this.tmpV.y) / 2 * H)}px) translate(-50%,-100%)`;
     }
+  }
+
+  // 稲生の任務の相手一人。任務と同じ名を頭上に置き、画面外なら向きを示す。
+  // 札と投影用の点は使い回し、倒れたら次の生きた相手に替える。
+  inouMissionMark(rt) {
+    const active = rt.def.key === 'inou' && rt.player.u.alive && !rt.flags.ending && !rt.over && !rt.choice &&
+      !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
+    const u = active ? rt.def.missionSignTarget?.(rt) : null;
+    let el = this.inouTargetMark;
+    if (!u?.alive || u.gone || u.dying || u.woundOut || u.team === rt.player.u.team) {
+      if (el) el.hidden = true;
+      return;
+    }
+    if (!el) {
+      el = document.createElement('div');
+      el.style.cssText = 'position:absolute;left:0;top:0;pointer-events:none;z-index:4;text-align:center;font:bold 16px/1.4 sans-serif;white-space:nowrap;color:#fff3df;text-shadow:0 1px 2px #000';
+      el.innerHTML = '<b style="display:block;background:#17140f;padding:3px 7px;border:1px solid #ff634d"></b><span style="display:block;color:#fff3df;font-size:22px;line-height:1;text-shadow:0 1px 2px #000">↓</span>';
+      this.root.appendChild(el); this.inouTargetMark = el;
+    }
+    const name = rt.def.missionEnemyLabel(rt);
+    const W = innerWidth, H = innerHeight, margin = Math.min(W / 2 - 8, name.length * 8 + 66);
+    this.tmpV.set(u.pos.x, u.pos.y + (u.mounted ? 3.5 : 2.55), u.pos.z).project(rt.camera);
+    let x = (this.tmpV.x + 1) * W / 2, y = (1 - this.tmpV.y) * H / 2;
+    const onScreen = this.tmpV.z >= -1 && this.tmpV.z <= 1 && x > margin && x < W - margin &&
+      y > 100 && y < H - 80 && u.mesh?.visible !== false && sightUnit(rt, u);
+    let label = name;
+    if (!onScreen) {
+      rt.camera.getWorldDirection(this.tmpV);
+      const me = rt.player.u.pos, dx = u.pos.x - me.x, dz = u.pos.z - me.z;
+      const yaw = Math.atan2(this.tmpV.x, this.tmpV.z);
+      const right = -dx * Math.cos(yaw) + dz * Math.sin(yaw);
+      const forward = dx * Math.sin(yaw) + dz * Math.cos(yaw);
+      const sideways = Math.abs(right) > Math.abs(forward);
+      x = sideways ? right >= 0 ? W - margin : margin : W / 2;
+      y = sideways ? H * (forward >= 0 ? .45 : .65) : forward >= 0 ? 128 : H - 84;
+      const arrow = sideways ? right >= 0 ? '→' : '←' : forward >= 0 ? '↑' : '↓';
+      label = `${arrow} ${name}${forward < 0 ? '・後ろ' : ''}`;
+    }
+    setText(el.firstChild, label);
+    el.lastChild.hidden = !onScreen;
+    el.hidden = false;
+    el.style.transform = `translate(${Math.round(x)}px,${Math.round(y)}px) translate(-50%,-100%)`;
   }
 
   // 敵印。枠は初回に確保し、毎コマは頭の位置だけ更新する。
@@ -399,6 +442,15 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     // 「左へ下がる」のような向きの字は出さない（kaito 10/23）。
     const yaw = rt.player.yaw + (rt.player.camYawOff || 0), p = rt.player.u.pos;
     let headline = missionCaption(rt, def.missionTaskFirst ? task || title : title || task) || '味方の旗へ進め';
+    // 初陣は任務で選んだ一人と同じ白ふちの印を案内する。
+    if (def.key === 'inou' && /▼.*(?:たおせ|倒せ)/.test(headline)) {
+      const enemy = def.commanderTarget?.(rt) || def.missionSignTarget?.(rt), player = rt.player;
+      if (enemy?.alive && !enemy.gone && !enemy.fleeing) {
+        const distance = Math.hypot(enemy.pos.x - player.u.pos.x, enemy.pos.z - player.u.pos.z);
+        headline = player.inRange && player.rangeCueTarget === enemy ? `白ふちの印へ ${attackOperation(rt)}` :
+          distance > player.meleeReach(player.previewMeleeKind() || 'thrust') ? '白ふちの印へ近づけ' : '白ふちの印の兵の方を向け';
+      }
+    }
     // 任務の一行へ実際の攻撃操作を収める。別の札や知らせは増やさない。
     if (!def.missionSignTarget && def.key !== 'moribe' && /^(?:近くの|この)?敵を\s*(?:たおせ|倒せ)$/.test(headline)) {
       const player = rt.player;

@@ -28,7 +28,7 @@ export class HudOverlay {
     // 兵を指す矢印にせず、穴の空いたピンの先端を対岸へ固定する。
     if (pin?.crossing) {
       // 岸そのものへ刺す短いピン。兵の頭まで軸を伸ばさず、足元と行き先を結ぶ。
-      g.translate(x, y);
+      g.translate(x, y); g.scale(1.35, 1.35);
       g.beginPath(); g.ellipse(0, 1, 10, 3, 0, 0, Math.PI * 2);
       g.fillStyle = 'rgba(20,18,15,.65)'; g.fill();
       g.beginPath(); g.moveTo(0, 0); g.lineTo(-11, -16);
@@ -137,6 +137,12 @@ export class HudOverlay {
     const pinTarget = rt.def.missionPin?.(rt);
     // 森部は任務が返したピン一本。敵や味方の位置で上書きしない。
     if (moribe && !pinTarget) return;
+    // 到着後は同じピンを任務の下で満たす。足元や背後へ隠れて、終わりが見えなくなるのを防ぐ。
+    // 移動する時だけ地面へ戻し、時計と行き先を同時に二本出さない。
+    if (moribe && pinTarget.waiting && pinTarget.arrived) {
+      this.drawBattleGoalSign(g, rt, VIEW.w - 44, 168, false, pinTarget);
+      return true;
+    }
     // 到着後も同じピンの中を満たし、守備や集合が進んでいることを形で伝える。
     const guide = rt.missionGuide;
     const retreat = !inou && !moribe && this.retreatGuide?.active && this.retreatGuide.valid ? this.retreatGuide : null;
