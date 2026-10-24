@@ -686,7 +686,7 @@ let enemyTarget = null;
 function updateEnemyTarget(rt) {
   const hud = rt.hud, me = rt.player?.u;
   hud.missionEnemyShown = false;
-  // 桶狭間は共通の頭上の赤い▼だけ。別の札・囲み・画面端の矢印を重ねない。
+  // 森部と桶狭間は共通の頭上の赤い▼だけ。命中反応を隠す札・囲み・画面端の矢印を重ねない。
   const active = rt.def.key !== 'okehazama' && rt.def.key !== 'moribe' && pinGuideOn(rt) && me?.alive && !rt.over && !rt.choice && !hud.introWaiting &&
     !rt.player.camShot && !hud.bigmap && !hud.root.classList.contains('photo') &&
     !hud.root.classList.contains('ending') && !hud.root.querySelector('#cine.on');
@@ -772,14 +772,22 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     svg.innerHTML = '<g class="ground-step"/><path class="ground-route" d="M-9-58H9V-28H23L0 0L-23-28H-9Z" fill="#fff3ba" stroke="#14120f" stroke-width="4" stroke-linejoin="round"/>';
     el.appendChild(svg); el._simplePin = svg;
   }
-  el._label.hidden = !goalLabelRoom(rt.hud);
+  const inou = rt.def.key === 'inou';
+  el._label.hidden = inou || !goalLabelRoom(rt.hud);
   el._label.style.top = '-90px';
   el._label.style.left = '0';
-  if (el._words.textContent !== 'ここへ') el._words.textContent = 'ここへ';
+  const caption = inou ? '' : 'ここへ';
+  if (el._words.textContent !== caption) el._words.textContent = caption;
   el._work = null; el.classList.remove('fire-action');
   const W = VIEW.w, H = VIEW.h;
   // 行き先と画面端を同じ一本の矢印で示す。
   const route = el._simplePin.querySelector('.ground-route'), step = el._simplePin.firstChild;
+  // 稲生は行き先のピン一本。旗と下矢印や案内の字を重ねない。
+  if (el._simpleInou !== inou) {
+    el._simpleInou = inou;
+    route.setAttribute('d', inou ? 'M0 0L-20-32A25 25 0 1 1 20-32Z M0-57A8 8 0 1 0 0-41A8 8 0 1 0 0-57Z' : 'M-9-58H9V-28H23L0 0L-23-28H-9Z');
+    route.setAttribute('fill-rule', 'evenodd');
+  }
   step.style.display = 'none'; route.style.display = '';
   const outside = hidden || x < 92 || x > W - 92 || y < 104 || y > H - 68 || !inouPinFree(x, y, rects);
   let angle = 0;

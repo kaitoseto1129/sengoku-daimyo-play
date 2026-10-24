@@ -8,6 +8,7 @@ import { RIDE } from './units.js';
 import { vitals, lowerBody, gaitWeight, idleLife, deathBody, hitReact, plantFeet, footPlant, lookAround, faceExpr, cmdPose, cmdOff, groundLimbs } from './humans_motion.js';
 import { rideHuman, attackBody, guardBody, GOU_TECH, TECH_OF, startTech, TECH, techBody, sway } from './humans_combat.js';
 import { armsPose, reinPose, straightWrist } from './humans_arms.js';
+import { syncBones } from './humans_bones.js';
 
 
 // ---------------- 動かす ----------------
@@ -151,7 +152,7 @@ function driveHuman0(h, dt, fine = true, arms = true) {
   }
   // 根元の向き（人は兵の根元の子）。倒れる途中は根元がコマごとに大きく回るので、先に今のコマの行列にしておく（前のコマの向きで骨を回すと、体がねじれて跳ねる）
   if (!u.mounted) u.mesh.updateWorldMatrix(false, false);
-  h.root.updateMatrixWorld(true);
+  syncBones(h);
   const m = u.mesh.matrixWorld.elements;
   _right.set(m[0], m[1], m[2]).normalize(); _fwd.set(m[8], m[9], m[10]).normalize();
   const w = u.wpnKind || u.lookWeapon;
