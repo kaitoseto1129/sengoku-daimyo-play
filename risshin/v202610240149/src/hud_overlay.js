@@ -26,13 +26,13 @@ export class HudOverlay {
     // 渡河のピンは岸を隠さない大きさに固定し、近づいても伸び縮みさせない。
     // 進みを表す中身とは別に、地面の先端まで見て到着点を追えるようにする。
     const bankPin = pin?.crossing || pin?.arrived && !pin?.waiting;
-    const pinScale = bankPin ? .95 : pin?.arrived ? 1.65 : 1.3;
+    const pinScale = bankPin || pin?.waiting ? .95 : 1.3;
     g.translate(x, y); g.scale(pinScale, pinScale); x = 0; y = 0;
     // 大きさが変わってもピンの接地点は岸から動かさない。
     g.beginPath(); g.ellipse(x, y + 1, 11, 3, 0, 0, Math.PI * 2);
     g.fillStyle = 'rgba(20,18,15,.65)'; g.fill();
     // 場所のピンは軸を長くし、兵の頭上の印と見分けられるよう地面までつなぐ。
-    const stem = pin?.unit || pin?.crossing ? 13 : bankPin ? 26 : pin?.arrived ? 13 : 43;
+    const stem = pin?.unit ? 13 : 43;
     g.beginPath(); g.moveTo(x, y); g.lineTo(x, y - stem);
     g.strokeStyle = '#14120f'; g.lineWidth = 6; g.stroke();
     g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
@@ -65,10 +65,13 @@ export class HudOverlay {
       g.arc(x, y - 33, 12, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, pin.progress));
       g.closePath(); g.fillStyle = '#ffe28a'; g.fill();
     }
-    // 渡り切った瞬間は満ちた穴に切れ目のないチェックを残す。同じピンだけで完了を伝える。
-    if (pin?.arrived && !pin.waiting && pin.progress >= 1) {
-      g.beginPath(); g.moveTo(-7, -33); g.lineTo(-2, -28); g.lineTo(8, -39);
-      g.strokeStyle = '#14120f'; g.lineWidth = 3; g.stroke();
+    // 待機中だけ時計の針を回す。移動先と待ち時間を同じ一本で伝える。
+    if (pin?.waiting && pin.arrived) {
+      const angle = -Math.PI / 2 + Math.PI * 2 * Math.min(1, pin.progress || 0);
+      g.beginPath(); g.moveTo(-5, -36); g.lineTo(0, -33);
+      g.lineTo(Math.cos(angle) * 10, -33 + Math.sin(angle) * 10);
+      g.strokeStyle = '#14120f'; g.lineWidth = 5; g.stroke();
+      g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
     }
     g.restore();
   }
@@ -177,20 +180,7 @@ export class HudOverlay {
     const y = enemy ? pos.y ?? rt.world.heightAt(pos.x, pos.z) : moribe && Number.isFinite(pos.y) ? pos.y : groundAt(rt.world, pos.x, pos.z, rt.player.u.pos.y);
     const at = this.project(pos, y + (moribe ? 0 : .2), rt, this.battleGoalProjection || (this.battleGoalProjection = {}));
     const W = VIEW.w, H = VIEW.h;
-    // 持ち場に着いた後は移動を促さず、一本のピンを任務の下で満たす。
-    // 視点を回しても残りの守備を見失わず、画面端で帰路を指さない。
-    if (moribe && pinTarget.waiting && pinTarget.arrived) {
-      // 任務欄の測定は四分の一秒ごと。描くたびに画面の配置を測り直さない。
-      if (this.holdPinMeasureAt == null || rt.t >= this.holdPinMeasureAt || rt.t < this.holdPinMeasureAt - .25) {
-        this.holdPinMissionRect = this.prog && !this.prog.hidden ? this.prog.getBoundingClientRect() : null;
-        this.holdPinMeasureAt = rt.t + .25;
-      }
-      const mission = this.holdPinMissionRect;
-      const x = Math.min(W - 48, mission ? (mission.left + mission.right) / 2 : W - 64);
-      const y = Math.min(H - 48, mission ? mission.bottom + 128 : 190);
-      this.drawBattleGoalSign(g, rt, x, y, false, pinTarget);
-      return true;
-    }
+    // 待機の時計も同じ持ち場に刺す。到着後に任務欄へ飛ばさない。
     const floor = this.battleGoalFloor || (this.battleGoalFloor = { x:0, y:0, z:0 });
     floor.x = pos.x; floor.y = y; floor.z = pos.z;
     const on = seen && (moribe || enemy || this.floorGoalVisible(rt, floor)) && !at.behind && at.x > 48 && at.x < W - 48 && at.y > 96 && at.y < H - 48;
@@ -308,8 +298,8 @@ export class HudOverlay {
         rt.def.drawMissionMarks?.(g, rt, this)) this.ovBlank = false;
     // 共通の頭上印と同じ一人だけ、具足の外周を太く縁取る。
     const enemy = !rt.over && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap &&
-      rt.player.u.alive && markedEnemy(rt);
-    if (rt.def.key !== 'inou' && rt.def.key !== 'moribe' && rt.def.key !== 'okehazama' && enemy && sightScreenUnit(rt, enemy)) {
+      rt.player.u.alive && (rt.army.missionMarkedEnemy || markedEnemy(rt));
+    if (rt.def.key !== 'moribe' && rt.def.key !== 'okehazama' && enemy && sightScreenUnit(rt, enemy)) {
       const frame = this.measurePersonFrame(enemy, rt);
       if (frame) { this.drawEnemyContour(g, rt, enemy, frame); this.ovBlank = false; }
     }

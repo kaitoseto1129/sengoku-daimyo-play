@@ -1204,10 +1204,7 @@ const moribe = {
       pos = POINT2; r = FORD_R; hide = 0;
       // 渡河中は岸に刺さる行き先だけを示す。途中までの進みを到着と混同させない。
       q.crossing = true;
-      // 対岸へ進んだ分を示す。横に避けても、満ちた分を巻き戻さない。
-      F.fordCrossProgress = Math.max(F.fordCrossProgress || 0, Math.min(.95,
-        Math.max(0, (START2.z - rt.player.u.pos.z) / Math.max(.5, START2.z - POINT2.z))));
-      q.progress = F.fordCrossProgress;
+      // 移動中は穴の空いた行き先。時計の中身は到着後の待機だけに使う。
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
     } else if (F.stage === 'assemble') {
@@ -1222,11 +1219,17 @@ const moribe = {
     } else if (F.stage === 'press') {
       return null; // 討つ武将も頭上の赤い▼にそろえる。
     } else if (F.stage === 'hold' || F.vBroken) {
-      // 守る列にいる間は移動先を示さない。進みは右上の同じ一行の下地で伝える。
-      if (!F.lineReturning) return null;
-      // 列を離れた時だけ、守備を始めた固定地点へ戻す。
-      pos = F.linePoint;
-      r = hide = 18;
+      if (!F.lineReturning && F.stage === 'hold') {
+        // 同じ持ち場のピンを時計に替える。列にいれば待つだけでも進む。
+        q.waiting = true; q.arrived = true;
+        q.progress = this.missionWaitProgress(rt);
+        pos = F.linePoint; r = 24; hide = 0;
+      } else {
+        if (!F.lineReturning) return null;
+        // 列を離れた時だけ、守備を始めた固定地点へ戻す。
+        pos = F.linePoint;
+        r = hide = 18;
+      }
     } else if (!gone(F.V)) {
       // 「斎藤の先手を崩す」の間は、その先手の真ん中へ。味方の旗を指すと、どれが先手か分からない（初めての人の迷い）。
       pos = fightingCenter(F.V); r = 6; hide = 8;
