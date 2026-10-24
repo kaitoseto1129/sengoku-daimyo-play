@@ -1458,7 +1458,8 @@ export class Army {
         // 消すのは味方だけ（自分のすぐ横で斬り合っている者は除く）。敵は、カメラが体の中に入るほど近い時（0.6m）だけ消す
         //   （斬り合う相手・打ちかかってくる敵が、カメラの近くで透けて見えなくならないように）
         const P = this.playerUnit;
-        const lim = u.team !== (P ? P.team : 0) ? 0.6 : (u.target && u.target.alive && !u.target.isStruct && P && Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 1.6 ? 0.6 : 2.2);
+        // 敵は近くても消さない（乱戦で敵が急に消えた。テストプレイの声 10/24）
+        const lim = u.team !== (P ? P.team : 0) ? 0 : (u.target && u.target.alive && !u.target.isStruct && P && Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 1.6 ? 0.6 : 2.2);
         let hide = cd < lim && Math.abs(u.pos.y + 1.2 - cam.y) < 2;
         // 味方がカメラと自分の間の細い道（幅 1.1m）に立って前の敵を隠す時も消す（B012。6m まで）
         if (!hide && cd < 6 && P && u.team === P.team && Math.abs(u.pos.y + 1.2 - cam.y) < 2.4) {

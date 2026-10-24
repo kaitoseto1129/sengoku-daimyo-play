@@ -1768,6 +1768,8 @@ export class Player {
     const learning = rt.def.learningFight && rt.D === DIFFICULTY.normal && !rt.G.lord && (rt.G.rank || 0) <= 1;
     const weight = rt.def.dojo || novice ? 0.72 : rt.firstBattle ? 0.95 : learning ? 1 : (1.65 + stage * 0.55) * (1 + 0.2 * (rt.army.tier || 0));
     let taken = amount * mult * (1 - this.def) * this.D.taken * (rt.def.foeHit || 1) * weight;
+    // def.playerTaken：その戦だけ自分の受ける傷を軽く（稲生は六割。テストプレイの声 10/24「序盤で厳しい」）
+    if (rt.def.playerTaken) taken *= rt.def.playerTaken;
     // 一秒内の四本目以降だけ少し緩める。記録の入れ物を毎回作り直さない。
     const hits = this.recentHits, now = rt.t;
     while (hits.length && now - hits[0] >= 1) hits.shift();
@@ -1912,7 +1914,8 @@ export class Player {
     if (this.staggerT > 0) this.staggerT -= dt;
     if (this.knockT > 0) this.knockT -= dt;
     if (this.gunHurtT > 0) this.gunHurtT -= dt;
-    if (this.twist) { const k = Math.min(1, dt * 9); this.yaw += this.twist * k * 0.5; this.twist *= (1 - k); if (Math.abs(this.twist) < 0.002) this.twist = 0; }
+    if (this.twist) { const k = Math.min(1, dt * 9); // 打たれても視点は回さない（kaito 10/24）
+      this.twist *= (1 - k); if (Math.abs(this.twist) < 0.002) this.twist = 0; }
     const rt = this.rt;
     const army = rt.army;
     const treating = this.treating;
@@ -2141,7 +2144,7 @@ export class Player {
       if (this.assist && this.assist.t > 0) {
         this.assist.t -= dt;
         want = this.assist.h;
-        this.yaw += angleDiff(this.yaw, want) * Math.min(1, dt * (this.fpK > 0.5 ? 9 : 2.5));
+        // 体だけ相手へ向け、視点は動かさない（勝手に視点を変えない。kaito 10/24）
         u.heading += angleDiff(u.heading, want) * Math.min(1, dt * 22);
       } else if (want !== null) u.heading += angleDiff(u.heading, want) * Math.min(1, dt * 16 * tf.turn);
       // 踏み込み（照準補助で半歩先の敵へ）：一コマで跳ばず、0.12 秒かけて滑るように寄る
@@ -3124,12 +3127,7 @@ export class Player {
         h.u.flinchT = Math.max(h.u.flinchT || 0, spearFeel ? (kind === 'slam' ? 0.3 : kind === 'sweep' ? 0.22 : 0.12) : heavy ? 0.32 : 0.18);
         if (!spearFeel && heavy && h.u.alive) h.u.stagger = Math.max(h.u.stagger || 0, 0.9);
         // 当たった相手は半歩よろけて下がる（当たったのが目で分かる）。小さな血しぶきか土埃
-        // 当たった相手の体が一瞬（実時間で0.08秒）薄く白く光る。▼の広がりと同じ本人（field_signs.js が描く）
-        if (!h.u.isStruct && h.res !== 'block') {
-          h.u.hurtGlowUntil = performance.now() / 1000 + 0.08;
-          const list = this.rt.hurtGlow || (this.rt.hurtGlow = []);
-          if (!list.includes(h.u)) { if (list.length >= 8) list.shift(); list.push(h.u); }
-        }
+        // 当たった相手を白く光らせない（テストプレイの声 10/24「白く囲む表示に違和感」）。よろけ・音・血しぶきで分かる。
         if (h.u.alive && !h.u.isStruct) {
           h.u.flinchT = Math.max(h.u.flinchT || 0, 0.24);
           h.u.stagger = Math.max(h.u.stagger || 0, 0.28);
@@ -3683,6 +3681,9 @@ export class Player {
     const rt = this.rt, u = this.u;
     this.treating = this.treatmentReady = false;
     if (!u.alive || rt.over || rt.def.town || rt.def.dojo) { this.treatmentNearFlag = false; return; }
+    // def.playerRegen：戦っていない間（四秒当たらず、自分も打っていない）はゆっくり戻る（稲生。1秒に最大の命のこの割合）
+    if (rt.def.playerRegen && u.lastHitT > 4 && !(this.inCombatT > 0) && u.hp < u.maxHp)
+      u.hp = Math.min(u.maxHp, u.hp + u.maxHp * rt.def.playerRegen * dt);
     this.treatmentCheckT -= dt;
     if (this.treatmentCheckT <= 0) {
       this.treatmentCheckT = 0.2;
@@ -4917,6 +4918,9 @@ export class Player {
     this.frameK = (this.frameK || 0) + (((this.foeNear || 99) < 4.5 && !this.mounted && !reduceMotion() ? 1 : 0) - (this.frameK || 0)) * Math.min(1, dt * 2);
     // 横持ちの肩越しだけ見下ろしを抑え、地面で画面が埋まるのを防ぐ。
     const landscapeFrame = selfFrame && VIEW.h <= 500 && VIEW.w > VIEW.h;
+    // 勝った後は空を見上げない。自分と味方を肩越しに映す（テストプレイの声 10/24「空を見上げて終わった」）。
+    const winView = this.rt.over && this.rt.tracker?.main === true || this.rt.vicHoldUntil > this.rt.t;
+    if (winView && !this.camShot && !this.cine) { this.pitch = Math.max(-.3, Math.min(.06, this.pitch)); this.camYawOff *= 1 - Math.min(1, dt * 3); }
     const viewPitch = landscapeFrame ? Math.max(-.08, Math.min(.25, this.pitch)) : this.pitch;
     const cp = Math.cos(viewPitch);
     const dir = _cD.set(Math.sin(cyaw) * cp, Math.sin(viewPitch), Math.cos(cyaw) * cp);
@@ -5036,7 +5040,7 @@ export class Player {
     if (this.crowdT <= 0) { this.crowdT = 0.3; this.crowd = 0; this.rt.army.forNear(u.pos.x, u.pos.z, 4, countCameraAlly, this); }
     // 持ち上げは小さく（見下ろしの絵にしない。前の味方は allyFade で透かす）。馬上は馬の首を越えて前が見える高さに
     // 騎乗中は囲まれるほど、さらに高く引く（自分の馬のたてがみ・鞍で前が塞がらないように）
-    this.crowdLift = (this.crowdLift || 0) + ((this.crowd > 5 ? (this.mounted ? 0.55 : 0.3) : 0) - (this.crowdLift || 0)) * Math.min(1, dt * 2);
+    this.crowdLift = (this.crowdLift || 0) + ((this.crowd > 5 && this.mounted ? 0.55 : 0) - (this.crowdLift || 0)) * Math.min(1, dt * 2);
     want.y += landscapePull * .4 + (this.rt.squad.length ? 0.35 : 0.15) - pull * 0.7 + this.crowdLift + (this.mounted ? 1.3 - rc * 2 : 0) + viewK * 0.25 + this.marchK * 1.0 * (1 - rc * 0.85) + wk * 6 + this.cineK * 1.2 + ok * overH + (this.rt.def.camLift || 0) + defeatLift;
     // 横持ちでは味方の肩越しへ上げ、視線も上げて前方の敵を残す。
     if (landscapeFrame && !this.mounted) want.y = Math.max(want.y, u.pos.y + 2.8);

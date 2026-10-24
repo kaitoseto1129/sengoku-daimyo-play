@@ -45,7 +45,8 @@ const FORD_R = 4;
 // ピンと同じ岸まで進み、水から上がれば渡河済み。横へそれても小旗へ戻らせない。
 // 足の上下動で到着を遅らせず、岸そのものの高さで水深を調べる。
 // 歩く高さと描く土の補間差があっても、ピンが刺さる見えている岸で完了する。
-const atFordBank = (p, world) => p.z <= Math.min(nireZ(p.x) - NIRE_WIDTH2, POINT2.z + .75) &&
+// 横へそれた岸もその場の水際で判定し、ピンの奥行きまで歩き直させない。
+const atFordBank = (p, world) => p.z <= nireZ(p.x) - NIRE_WIDTH2 &&
   (world.waterFootDepthAt(p.x, p.z, world.heightAt(p.x, p.z)) <= .12 || drawGroundAt(world, p.x, p.z) >= .14);
 const FRONT2 = { x: 4, z: 20 };
 const ASSEMBLY2 = { x: 14, z: 10 };
@@ -1186,8 +1187,8 @@ const moribe = {
     q.unit = null; q.enemy = false;
     // 着いた後の足元や画面端へ、移動を促す印を残さない。
     q.waiting = false; q.arrived = false; q.crossing = false; q.progress = 0;
-    // 集合や接敵へ切り替わるコマでも、渡河の完了を短く見届けられるようにする。
-    if (F.fordArrivedAt !== undefined && rt.t - F.fordArrivedAt < 2.4) {
+    // 渡河の完了は待つ間だけ。戦闘が始まったら岸へ戻すピンを残さない。
+    if (!F.signal && F.fordArrivedAt !== undefined && rt.t - F.fordArrivedAt < 2.4) {
       q.x = POINT2.x; q.z = POINT2.z; q.y = POINT2.y; q.r = FORD_R; q.hide = 0;
       q.arrived = true; q.progress = 1;
       return q;
