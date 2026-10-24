@@ -22,6 +22,9 @@ export class HudOverlay {
     if (landmark || rt.def.routeGuidePriority?.(rt))
       return this.drawDestinationPin(g, x, y);
     if (rt.def.key !== 'moribe') return this.drawDestinationPin(g, x, y);
+    // 渡河中は黒い穴や進みの丸を出さず、先端が対岸に刺さる一本にする。
+    // 待つ場所の円と形を分け、着くまでは同じ大きさ・同じ接地点を保つ。
+    if (pin?.crossing && !pin.arrived) return this.drawDestinationPin(g, x, y);
     g.save(); g.lineJoin = 'round';
     // 渡河のピンは岸を隠さない大きさに固定し、近づいても伸び縮みさせない。
     // 進みを表す中身とは別に、地面の先端まで見て到着点を追えるようにする。
@@ -33,9 +36,10 @@ export class HudOverlay {
     g.fillStyle = 'rgba(20,18,15,.65)'; g.fill();
     // 場所のピンは軸を長くし、兵の頭上の印と見分けられるよう地面までつなぐ。
     const stem = pin?.unit ? 13 : 43;
-    g.beginPath(); g.moveTo(x, y); g.lineTo(x, y - stem);
-    g.strokeStyle = '#14120f'; g.lineWidth = 6; g.stroke();
-    g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x - 4, y - stem);
+    g.lineTo(x + 4, y - stem); g.closePath();
+    g.strokeStyle = '#14120f'; g.lineWidth = 4; g.stroke();
+    g.fillStyle = '#fff3ba'; g.fill();
     g.translate(0, 13 - stem);
     // 中の進みを大きくしても外形からはみ出さず、先端は同じ地面に固定する。
     g.translate(0, -33); g.scale(1.2, 1.2); g.translate(0, 33);
@@ -296,13 +300,7 @@ export class HudOverlay {
     }
     if (!rt.over && !rt.choice && !this.introWaiting && rt.player.u.alive && !rt.player.camShot && !this.bigmap &&
         rt.def.drawMissionMarks?.(g, rt, this)) this.ovBlank = false;
-    // 共通の頭上印と同じ一人だけ、具足の外周を太く縁取る。
-    const enemy = !rt.over && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap &&
-      rt.player.u.alive && (rt.army.missionMarkedEnemy || markedEnemy(rt));
-    if (rt.def.key !== 'moribe' && rt.def.key !== 'okehazama' && enemy && sightScreenUnit(rt, enemy)) {
-      const frame = this.measurePersonFrame(enemy, rt);
-      if (frame) { this.drawEnemyContour(g, rt, enemy, frame); this.ovBlank = false; }
-    }
+    // 人を白い線で囲まない（テストプレイの声 10/24「白く囲む表示に違和感」）。相手は頭上の▼だけで示す。
     // 本人の足元は兵が重なっても見える白い輪。行き先の旗とは形を分ける。
     if (this.drawPlayerSign(g, rt)) this.ovBlank = false;
     // 案内役は共通ピンの頭上の人型一つ。体の輪郭を別の人型に見せない。

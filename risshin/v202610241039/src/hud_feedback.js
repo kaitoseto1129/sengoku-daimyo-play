@@ -187,7 +187,8 @@ export class HudFeedback {
     // 行き先や文が続けて変わっても、点灯と音は十秒以上あける。
     if (rt.t - (this.goalSignalAt ?? -99) >= 10) {
       this.goalSignalAt = rt.t; this.goalFlashUntil = rt.t + 1.6;
-      sfx('obj', 0.55);
+      // 目的が変わる合図は陣太鼓の一打ち（電子音・法螺貝は緊張を削ぐ。テストプレイの声 10/24）。
+      sfx('taiko', 0.5);
     }
     const line = rt.def.taskText ? text : guide.floorHint ? `${guide.label}は${guide.floorHint}。${text}` :
       guide.marker ? `${text}。${guide.label}の印を見よ。` : text;

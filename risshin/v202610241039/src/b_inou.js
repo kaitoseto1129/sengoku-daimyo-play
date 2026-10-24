@@ -10,6 +10,7 @@ import { useTerrain } from './asset_manifest.js';
 // ======================================================================
 import { nobori, jinCamp, hut, tawara, kagaribi, umatsunagi, umajirushi, hatazao } from './props.js';
 import { sfx } from './audio.js';
+import { victoryMoment, brushWord } from './victory_moment.js';
 import { gauss, enemyGroup, allyGroup, nm, centerOf, unitPos } from './bhelp.js';
 import { KIT } from './b_nagashinojo.js';
 import { clash } from './b_sekigahara.js';
@@ -137,7 +138,7 @@ function pinPoint(rt, pos, radius, hide, unit = null, name = '') {
   const pin = rt.flags.goalPin;
   pin.x = pos.x; pin.z = pos.z; pin.r = radius; pin.hide = hide;
   pin.unit = unit; pin.name = name; pin.enemy = !!unit && unit.team !== rt.player.u.team;
-  pin.approach = false; pin.silent = true; pin.arrow = false;
+  pin.approach = false; pin.silent = true; pin.arrow = false; pin.always = false;
   return pin;
 }
 
@@ -148,9 +149,9 @@ function spawnShiba(rt) {
   // ---- 信勝方：集落の南に密集する柴田勢 ----
   // 前列の長槍、中央の徒歩武者、後列の弓。勝家も徒歩で中央の前寄り。
   F.shiba1 = enemyGroup(rt, { faction: 'nobukatsu', name: '柴田の長槍隊', anchor: { ...S0 }, facing: 0, fleeDir: { x: 0, z: -1 }, width: 12, noRout: true, formation: 'yari', dmgMult: 0.85, defMult: 1.2, morale: 95 },
-    dress([{ type: 'ashigaru', n: 30, o: { spear: 'nagae' } }], SHIBA));
+    dress([{ type: 'ashigaru', n: 22, o: { spear: 'nagae' } }], SHIBA));   // 湧く数を抑える（iPhone 12 で耐える段に落ちた。テストプレイの声 10/24）。前列の密度は保つ
   F.shibaG = enemyGroup(rt, { faction: 'nobukatsu', name: '柴田勝家の徒歩武者', anchor: { x: 0, z: S0.z - 9 }, facing: 0, fleeDir: { x: 0, z: -1 }, width: 10, noRout: true, formation: 'line', dmgMult: 0.85, defMult: 1.2, morale: 98 },
-    dress([{ type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true, keep: true } }, { type: 'samurai', n: 1, o: { name: '宮井勘兵衛' } }, { type: 'ashigaru', n: 26 }], SHIBA));
+    dress([{ type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true, keep: true } }, { type: 'samurai', n: 1, o: { name: '宮井勘兵衛' } }, { type: 'ashigaru', n: 18 }], SHIBA));
   F.shibaU = F.shibaG.units.find((u) => u.type === 'busho');
   F.shibaU.maxHp *= 1.4; F.shibaU.hp = F.shibaU.maxHp;
   // 勝家を殴り続けても、共通の深手による単独離脱を起こさない。
@@ -161,7 +162,7 @@ function spawnShiba(rt) {
   F.shibaU.pos.y = W.heightAt(F.shibaU.pos.x, F.shibaU.pos.z);
   F.shibaU.mesh.position.copy(F.shibaU.pos);
   F.shibaBow = enemyGroup(rt, { faction: 'nobukatsu', name: '柴田の後ろ弓', anchor: { x: 0, z: S0.z - 20 }, facing: 0, fleeDir: { x: 0, z: -1 }, width: 12, noRout: true, formation: 'line', dmgMult: 0.65, morale: 92 },
-    dress([{ type: 'bow', n: 10 }], SHIBA));
+    dress([{ type: 'bow', n: 6 }], SHIBA));
   F.shiba = [F.shiba1, F.shibaG, F.shibaBow];
   for (const g of F.shiba) park(g);
   // 後列の六人は追いを止める控え。前半に全員を討たせず、既存の兵を使う。
@@ -215,7 +216,11 @@ const inou = {
       const until = F.training < 11 ? 24 : 112;
       return `信長の旗のそばで あと${Math.max(0, Math.ceil(until - (rt.t - F.stepT)))}秒 耐えろ`;
     }
-    if (F.step === 2) return '▼の敵をたおせ';
+    if (F.step === 2) {
+      // ピンは信長の旗。遠い間は行き先の名で言う。
+      const lead = F.nobuU?.alive ? F.nobuU.pos : NOBU, me = rt.player.u.pos;
+      return Math.hypot(me.x - lead.x, me.z - lead.z) > 10 ? '信長の旗へ' : '▼の敵をたおせ';
+    }
     return F.step === 0 && F.training === 8 ? '▼の隊長をたおせ' : this.missions[this.missionOf(rt)];
   },
   commanderTarget: (rt) => rt.flags.step === 0 && rt.flags.training === 8 ? rt.flags.hayaLead :
@@ -278,13 +283,18 @@ const inou = {
       if (F.training === 12 && !gone(F.shiba1)) {
         // 敵本人へ案内し、近接戦では共通処理でピンを消して▼だけにする。
         const u = rt.def.missionSignTarget(rt);
-        return fighting(u) ? pinPoint(rt, u.pos, 0, 0, u) : null;
+        if (!fighting(u)) return null;
+        // 遠い間も地面のピン（画面外なら端の向き）で示す。印を一つにそろえる。
+        const pin = pinPoint(rt, u.pos, 0, 0, u); pin.approach = true;
+        return pin;
       }
-      // 持ち場にいる間は移動の印を消し、任務の一行だけを残す。
-      const lead = F.nobuU?.alive ? F.nobuU.pos : NOBU;
-      if (Math.hypot(rt.player.u.pos.x - lead.x, rt.player.u.pos.z - lead.z) < 20) return null;
+      // 耐える間も信長の旗にピンを立て続ける。画面の外なら端に向きの印（テストプレイの声 10/24「耐えろの場所が分からない」）。
+      let lead = F.nobuU?.alive ? F.nobuU.pos : NOBU;
+      // 自分が遠く離れた時は、信長の方へ十歩の所を行き先にする（信長と旗本も寄って来る）。敵中を長く戻らせない。
+      const me = rt.player.u.pos, far = Math.hypot(lead.x - me.x, lead.z - me.z);
+      if (far > 22) { const k = 10 / far; F.holdNear = F.holdNear || { x: 0, z: 0 }; F.holdNear.x = me.x + (lead.x - me.x) * k; F.holdNear.z = me.z + (lead.z - me.z) * k; lead = F.holdNear; }
       const pin = pinPoint(rt, lead, 20, 20);
-      pin.silent = true;
+      pin.always = true;
       return pin;
     }
     if (F.step === 2) return pinPoint(rt, F.nobuU?.alive ? F.nobuU.pos : NOBU, 10);
@@ -308,6 +318,8 @@ const inou = {
   enemyTriangleGroup: (rt) => rt.flags.chase ? rt.flags.practice : null,
   foeMarkRange: 30,
   learningFight: true,   // 新しく始めた人の初陣。傷を軽くする
+  playerTaken: 0.6,      // 最初の戦は受ける傷を六割に（テストプレイの声 10/24）
+  playerRegen: 0.02,     // 戦っていない時は一秒に命の二分ずつ戻る
   noTaisho: true,        // 殿（信長）と大将の流れは、この定義が持つ
   noReserve: true,
   pacingWait: () => true, // 教えと勝家の退きを、共通の八分打ち切りで飛ばさない。
@@ -566,7 +578,8 @@ const inou = {
     spawnShiba(rt); spawnNazuka(rt);
     rt.unmark('genpachi');
     rt.setPhase('shibata');
-    sfx('taiko', 1); rt.after(0.5, () => sfx('horagai', 0.9));
+    // 合成の法螺貝は間抜けに聞こえる（テストプレイの声 10/24）。陣太鼓の短い二つ打ちだけ。
+    sfx('taiko', 1); rt.after(0.45, () => sfx('taiko', 0.85));
     rt.banner('柴田勝家隊が動く', '長槍の列、徒歩の武者、後ろの弓。味方と並んで受け止めよう');
     rt.obj('main', '信長の旗で、来た敵を止めよう', 'main');
     rt.say('足軽', '柴田様だ……本当にあの方と戦うのか', 4);
@@ -591,8 +604,8 @@ const inou = {
     rt.marker('shiba', centerOf(F.shiba1), () => '柴田の長槍隊', { red: true, group: F.shiba1 });
     // 軽い隊だけを中央の会戦へ寄せる。近くで戦う兵は増やさず、前列を横一線に当てる。はじめから組み合う。
     F.front = clash(rt, { x: 26, z: 18, facing: Math.PI, w: 22, gap0: 0, seed: 1556, noRout: true, killRate: 0.25, noReserve: true, noWake: true, host: false,
-      A: { flag: 'oda', armor: KIT.ARMOR.oda, count: 48, kind: 'spear', team: 0, faction: 'oda', flagRate: 0.15 },
-      B: { flag: 'kari', armor: SHIBA.armor, count: 72, kind: 'spear', team: 1, faction: 'nobukatsu', flagRate: 0.15 } });
+      A: { flag: 'oda', armor: KIT.ARMOR.oda, count: 36, kind: 'spear', team: 0, faction: 'oda', flagRate: 0.15 },
+      B: { flag: 'kari', armor: SHIBA.armor, count: 54, kind: 'spear', team: 1, faction: 'nobukatsu', flagRate: 0.15 } });
     F.front.go();
   },
 
@@ -638,7 +651,7 @@ const inou = {
       F.nobuGroup.dest = { x: -12, z: 30 };
       F.nobuGroup.onArrive = advanceOnArrival;
     }
-    sfx('horagai', 1);
+    sfx('taiko', 1); rt.after(0.4, () => sfx('taiko', 0.9));
     rt.banner('信長、自ら中央の前へ', '若い主の大声に、味方が踏みとどまる');
     if (F.nobuU?.alive) { rt.army.play('eshout', F.nobuU.pos, 2); F.nobuU.cheer = 2; }
     rt.say('織田信長', '押せ！ここで退けば終わりぞ！', 4);
@@ -680,6 +693,8 @@ const inou = {
     rt.setPhase('hayafell');
     rt.unmark('hayaU');
     rt.banner('林美作守、討死', '大将を失った備が下がり、中央の脇が開く');
+    brushWord(rt, '林美作守 討ち取ったり', { hold: 2.2 });
+    sfx('taiko', 1); rt.after(0.3, () => sfx('taiko', 0.9));
     // 共通の討死処理にも士気低下があるため、直前の値から四十だけ下げる。
     F.hayaG.morale = Math.max(0, F.hayaMorale - 40);
     F.hayaG.order = 'retreat'; F.hayaG.dest = { x: -32, z: -72 };
@@ -756,16 +771,12 @@ const inou = {
     rt.objDone('main');
     rt.tracker.main = true;
     if (!F.strayed) rt.objDone('stay');
-    sfx('horagai', 0.8);
-    // 急に勝ちの札を出さない。先に隊長の声で「退く→勝った」を分からせ、自分の目線のまま余韻を見せる（kaito 10/22 稲生 18）。
-    rt.say('組頭 源八', '柴田隊が退くぞ！　林美作守は討たれた。勝ったぞ！', 4);
-    rt.after(3, () => rt.banner('勝利　稲生原で敵主力を破った', '信勝・勝家・林秀貞は末森へ退く。この野での戦は終わった'));
-    rt.after(6, () => rt.say('組頭 源八', '追いすぎるな！末森城へは攻め込まぬ。負傷した者を助けよ', 4));
-    rt.after(11, () => rt.say('組頭 源八', `${nm(rt)}、味方と戦い、備を崩した働きが戦功となる。よう生き残った`, 4));
+    // 勝った瞬間：鬨の声と太鼓・短い止まり・味方の勝ち鬨・筆文字の「勝」。自分と味方を映したまま三秒で結果へ（テストプレイの声 10/24）。
     rt.player.u.invuln = true;
-    // 逃げる兵、倒れた兵、息を整える味方を八秒見せてから結果へ。
-    for (const g of F.friends) { g.order = 'attack'; g.aggro = 6; g.seekRange = 40; g.focus = null; }
-    rt.finish({ scriptedEnd: true }, 14);
+    for (const g of F.friends) { g.order = 'hold'; g.focus = null; }
+    victoryMoment(rt, '勝');
+    rt.say('組頭 源八', '勝ったぞ！　勝ち鬨をあげよ！', 3);
+    rt.finish({ scriptedEnd: true }, 3.2);
   },
 
   update(rt, dt) {
@@ -887,6 +898,22 @@ const inou = {
       F.strayT = d > 52 ? (F.strayT || 0) + dt : 0;
       if (F.strayT > 10) { F.strayed = true; rt.violation('味方を離れたため、手柄が減った', ['組頭 源八', '味方と並べ。まだ負けではないぞ']); rt.objFail('stay'); }
     } else F.strayT = 0;
+    // 耐える段で自分が信長から遠く離れたら、信長と旗本が自分のそばへ来る。戻る道で敵中に取り残さない（テストプレイの声 10/24）。
+    if (!rt.G.lord && F.step === 1 && !(F.followAt > rt.t) && F.nobuU?.alive &&
+        !(F.training === 11 && !F.flankReached) && !(F.training === 12 && !gone(F.shiba1))) {
+      F.followAt = rt.t + 1;
+      const d = Math.hypot(p.x - F.nobuU.pos.x, p.z - F.nobuU.pos.z);
+      if (d > 22) {
+        const tx = p.x * 0.75 + F.nobuU.pos.x * 0.25, tz = p.z + 5;
+        for (const g of F.centerBack ? [F.nobuGroup] : [F.nobuGroup, F.hata]) {
+          if (gone(g) || g.dest && Math.hypot(g.dest.x - tx, g.dest.z - tz) < 6 && g.order === 'move') continue;
+          // 寄る間は足を止めて斬り合わない。着いたら戦う。
+          g.order = 'move'; g.speed = 4.2; g.aggro = 0; g.dest = { x: tx + (g === F.hata ? 4 : 0), z: tz };
+          for (const u of g.units) { u.target = null; u.moveTo = null; u.settled = false; }
+          g.onArrive = (q) => { q.order = 'attack'; q.aggro = 8; q.seekRange = 28; };
+        }
+      }
+    }
     if (F.step === 1) {
       const elapsed = rt.t - F.stepT;
       if (elapsed > 6 && F.training < 10) F.training = 10;
@@ -1014,7 +1041,8 @@ inou.introSides = { a: '信長方 約七百', b: '信勝方 約千七百' };
 // 信長公記の数：信長方 七百足らず、信勝方 柴田勝家 千・林美作守 七百
 inou.force = (rt) => {
   const F = rt.flags;
-  return { a: Math.max(0, 700 - (F.ak || 0) * 4), a0: 700, b: Math.max(0, 1700 - (F.ek || 0) * 6 - (F.centerOpen ? 350 : 0) - (F.mainBroken ? 350 : 0) - (F.commanderRetired ? 500 : 0)), b0: 1700 };
+  // 左・中央が崩れた時は味方の棒が押し戻される（押されているのが上の棒で見える）。
+  return { a: Math.max(0, 700 - (F.ak || 0) * 4 - (F.leftBack ? 90 : 0) - (F.centerBack ? 90 : 0)), a0: 700, b: Math.max(0, 1700 - (F.ek || 0) * 6 - (F.centerOpen ? 350 : 0) - (F.mainBroken ? 350 : 0) - (F.commanderRetired ? 500 : 0)), b0: 1700 };
 };
 inou.canSkip = () => ''; // 説明を隠しても戦の段取りは飛ばさない
 inou.skip = () => {};

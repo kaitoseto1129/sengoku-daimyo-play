@@ -982,3 +982,11 @@ html body #hud #intro[data-battle="inou"]:has(#intro-go) > .card.card {
 #loading #ld-story > [data-read-open] { background:#f2d17a; color:#17130d; border:2px solid #fff3ce; font-weight:700; }
 #hud #h-prog[data-battle="inou"] .pg-next { font-size:15px; }
 #hud #h-prog .pg-lesson[hidden] { display:none !important; }
+
+/* 10/24 テストプレイの声「横向きだと設定が見えない」：低い横画面（Safari の帯・枠の中）では設定の高さを決めず、画面ごと送る。決めて戻るは一番下、戻るは左上に残る。 */
+@media (max-height: 520px) {
+  html body #screen .st-screen { height: auto; padding-bottom: 0; }
+  html body #screen .st-screen .settings { flex: none; }
+  html body #screen .st-screen #st-panel { flex: none; overflow: visible; }
+  html body #screen .st-screen .st-act { position: static; padding: 8px 0 calc(8px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); }
+}

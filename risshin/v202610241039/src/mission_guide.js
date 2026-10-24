@@ -65,7 +65,8 @@ export function missionCaption(rt, title = currentObjective(rt)?.text || '') {
     const p = rt.player, enemy = rt.army.missionMarkedEnemy || rt.def.missionSignTarget?.(rt);
     if (p.inRange && p.rangeCueTarget?.alive && p.rangeCueTarget.team !== p.u.team) return '▼の敵をたおせ';
     if (enemy?.alive && Math.hypot(enemy.pos.x - p.u.pos.x, enemy.pos.z - p.u.pos.z) < 7) return '▼の敵へ近づけ';
-    return '矢印へ進め';
+    // 遠い間も相手の名で言う。画面に無い「矢印」という字は使わない（テストプレイの声 10/24）。
+    return heading;
   }
   if (rt.def.key === 'inou' || rt.def.key === 'okehazama') return heading;
   if (/^(敵をたおす|ここで待つ|火をつける)$/.test(heading)) return heading;

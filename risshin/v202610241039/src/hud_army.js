@@ -155,9 +155,54 @@ export class HudArmy {
   }
 
 
+  // 画面の上の一本の綱引きの棒（テストプレイの声 10/24「優勢か劣勢か分からない」）。
+  //   味方の色が左から、敵の色が右から。初めの人数に対する残りの割合で押し合い、数字は両端に小さく。
+  //   接敵中も携帯でも消さない（#armybar は携帯では隠れる）。
+  updateTug(rt) {
+    let tb = this.tugEl;
+    const f = rt.def.force?.(rt);
+    if (!tb) {
+      if (!f || !rt.def.sides) return;
+      tb = this.tugEl = document.createElement('div');
+      tb.id = 'tugbar'; tb.setAttribute('aria-hidden', 'true');
+      tb.innerHTML = '<small class="na"></small><div class="bar"><i class="a"></i><i class="b"></i><s></s></div><small class="nb"></small>';
+      const st = document.createElement('style');
+      st.textContent = `#tugbar{position:absolute;left:50%;top:calc(6px + env(safe-area-inset-top,0px));transform:translateX(-50%);width:min(340px,36vw);display:flex;align-items:center;gap:6px;pointer-events:none;z-index:6}
+#tugbar[hidden]{display:none}
+#tugbar .bar{position:relative;flex:1;height:12px;border-radius:6px;overflow:hidden;background:#14120f;box-shadow:0 0 0 2px #14120f,0 1px 4px rgba(0,0,0,.6)}
+#tugbar .bar i{position:absolute;top:0;bottom:0}
+#tugbar .bar i.a{left:0;background:linear-gradient(#f2d27a,#c99a2e)}
+#tugbar .bar i.b{right:0;background:linear-gradient(#ff6a50,#b8281a)}
+#tugbar .bar s{position:absolute;top:-2px;bottom:-2px;width:3px;margin-left:-1.5px;background:#fff8e6;box-shadow:0 0 0 1px #14120f}
+#tugbar:not(.still) .bar i,#tugbar:not(.still) .bar s{transition:width .8s ease-out,left .8s ease-out}
+#tugbar small{font-size:12px;line-height:1;font-weight:700;color:#fff8e6;text-shadow:0 1px 2px #000,0 0 3px #000;min-width:28px;font-variant-numeric:tabular-nums}
+#tugbar small.na{text-align:right;color:#f6dc8e}#tugbar small.nb{color:#ffb4a2}
+#hud.photo #tugbar,#hud.ending #tugbar,body:has(#pause:not([hidden])) #tugbar,#hud:has(#bigmap:not([hidden])) #tugbar{display:none}`;
+      tb.appendChild(st);
+      (this.root || document.body).appendChild(tb);
+      this.tugKey = '';
+    }
+    const off = !f || this.introWaiting || !!rt.choice || !!rt.def.town || !!rt.def.dojo;
+    tb.hidden = off;
+    if (off) return;
+    const ra = Math.max(0, f.a) / Math.max(1, f.a0 || f.a), rb = Math.max(0, f.b) / Math.max(1, f.b0 || f.b);
+    const share = ra + rb > 0 ? ra / (ra + rb) * 100 : 50;
+    const key = `${share.toFixed(1)}|${Math.round(f.a)}|${Math.round(f.b)}`;
+    if (key === this.tugKey) return;
+    this.tugKey = key;
+    tb.classList.toggle('still', !!S.reduceMotion);
+    tb.querySelector('i.a').style.width = share.toFixed(1) + '%';
+    tb.querySelector('i.b').style.width = (100 - share).toFixed(1) + '%';
+    tb.querySelector('s').style.left = share.toFixed(1) + '%';
+    tb.querySelector('.na').textContent = Math.max(0, Math.round(f.a)).toLocaleString('ja-JP');
+    tb.querySelector('.nb').textContent = Math.max(0, Math.round(f.b)).toLocaleString('ja-JP');
+  }
+
+
   updateArmy(rt) {
     const sides = rt.def.sides;
     const ab = $('armybar');
+    this.updateTug(rt);
     if (!sides || rt.def.hideArmyPeek) { ab.hidden = true; this.armyScan = null; this._armyT = 0.5; return; }
     // 数えかけの値は表示しない。入れ物は次の集計でも使い回す。
     let work = this.armyScan;

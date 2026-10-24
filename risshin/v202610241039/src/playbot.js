@@ -1687,6 +1687,7 @@ function variantHabit(b, inp, c) {
 
 // 人ごとの目（毎コマ。重い所は1秒ごと）
 function watchStep(b, dt, c) {
+  if (!b.player) return; // 勝った後の短い終幕で、同じコマのうちに戦が片付いた時
   const per = c.per, p = b.player, u = p.u, t = b.t;
   c.acc = (c.acc || 0) + dt;
   const sec = c.acc >= 1; if (sec) c.acc = 0;
@@ -2371,7 +2372,7 @@ async function playPersona(game, spec, aud, c) {
     if (rep.hits > 10 && !c.feel) c.add('act-nofeel', '当たった手応え（止め・揺れ）が感じられない', `${rep.hits}回当てて、ヒットストップが一度も無い`, 2, { cat: '使いづらい', fix: 'battle.js の onPlayerLanded の hitstop を確かめる' });
     if (c.mountTry && !c.rode) c.add(`act-mountfail:${spec.id}`, '馬に乗ろうとしても乗れなかった', `${c.mountTry}回試した`, 2, { cat: '使いづらい', fix: '乗れない時は理由を字幕で' });
     // 乗れない身分や、船上・寺の中の戦では、空馬を足す必要はない。
-    if (b.player.canRide && !b.def.noHorse && !c.mountTry && !c.rode && !c.looseSeen) c.add('act-nohorse', '馬に乗れる場面がなかった', name, 1, { cat: '使いづらい', fix: '空馬（主を失った馬）をもう少し置く' });
+    if (b.player?.canRide && !b.def.noHorse && !c.mountTry && !c.rode && !c.looseSeen) c.add('act-nohorse', '馬に乗れる場面がなかった', name, 1, { cat: '使いづらい', fix: '空馬（主を失った馬）をもう少し置く' });
     if (c.invulnHit) c.add(`act-invuln:${c.invulnHit}`, '武将に斬りかかっても、傷がつかない（不死身）', c.invulnHit, 2, { cat: '辻褄', fix: '討てない武将なら、斬りかかれない理由を見せる' });
     if (rep.time > 180 && rep.kills < rep.time / 60) c.add(`act-dull:${spec.id}`, '斬り合う相手が少なくて退屈', `${Math.round(rep.time / 60)}分で${rep.kills}人`, 1, { cat: '使いづらい' });
     c.feel = 0; c.invulnHit = null; c.mountTry = 0; c.rode = false; c.looseSeen = false; c.bushoMin = 0;
