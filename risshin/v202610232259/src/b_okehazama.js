@@ -551,7 +551,7 @@ const okehazama = {
   // 右上はミッションの一行だけ。距離・向き・操作の字を見出しに出さない（kaito 10/23 49・50）。
   // 間合いと命中は頭上の▼で示し、別の距離案内は出さない。
   enemyOrder(rt, enemy) {
-    return '今川の兵を倒せ';
+    return '敵を倒せ';
   },
   missionSignTarget(rt) {
     const F = rt.flags, p = rt.player;
@@ -658,7 +658,7 @@ const okehazama = {
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は、今する動きを短くやさしく伝える。
   missionSingleLine: true,
-  missions: ['織田隊と集まれ', '織田隊と進め', '雨がやむまで待て', '赤い▼の敵を倒せ', 'いまがわよしもとを倒せ', 'にげる敵を追え', '織田隊と集まれ'],
+  missions: ['仲間と集まれ', '仲間と進め', '雨がやむまで待て', '敵を倒せ', 'いまがわよしもとを倒せ', 'にげる敵を追え', '仲間と集まれ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -669,8 +669,8 @@ const okehazama = {
     // 合流済みの待ちは敵が寄っても続く。同じ丸と一行を雨上がりまで保つ。
     if (rt.phase === 'wait') return '雨がやむまで待て';
     if (rt.phase === 'brief' && rt.flags.briefed) return '出発を待て';
-    if (rt.phase === 'march' && rt.flags.scoutFighting) return '赤い▼の敵を倒せ';
-    if (rt.phase === 'assault' && rt.flags.entered && !rt.flags.victory && this.objectiveEnemies(rt).length) return '赤い▼の敵を倒せ';
+    if (rt.phase === 'march' && rt.flags.scoutFighting) return '敵を倒せ';
+    if (rt.phase === 'assault' && rt.flags.entered && !rt.flags.victory && this.objectiveEnemies(rt).length) return '敵を倒せ';
     if (rt.phase === 'march' && this.squadFlagReached(rt)) return '仲間を待て';
     return this.missions[this.missionOf(rt)];
   },
@@ -678,7 +678,7 @@ const okehazama = {
   missionAlly(rt) {
     // 行軍は固定の集合ピン一つ。歩く兵を別の行き先に見せない。
     if (rt.phase === 'march' || rt.phase === 'wait') return null;
-    if (rt.phase === 'brief') return rt.flags.genpachi && readyUnit(rt.flags.genpachi) ? rt.flags.genpachi : null;
+    if (rt.phase === 'brief') return null; // 集合先の地面のピン一本にそろえる。
     if (rt.phase === 'assault' && !rt.flags.victory &&
         (rt.flags.entered || this.objectiveEnemies(rt).length || this.guideMarker(rt) !== 'genpachi')) return null;
     // 歩く旗持ちは合流後も見失わない。待機中は到着で印を消す。
@@ -716,14 +716,16 @@ const okehazama = {
     const timedWait = rt.phase === 'wait' || rt.phase === 'brief' && F.briefed;
     if (F.scoutFighting && rt.phase !== 'assault' && !timedWait && !(F.waitPinCompleteUntil > rt.t)) return null;
     const pin = F.missionPinTarget || (F.missionPinTarget = { x: 0, z: 0, r: 8, hide: 8 });
-    pin.enemy = false; pin.dodge = false; pin.unit = null; pin.waiting = undefined;
-    pin.area = false; pin.arrived = false; pin.progress = null; pin.footRing = false; pin.follow = false;
+    pin.enemy = false; pin.dodge = false; pin.unit = null; pin.waiting = undefined; pin.always = false;
+    pin.area = false; pin.arrived = false; pin.progress = null; pin.arrivalProgress = null; pin.footRing = false; pin.follow = false;
     // 任務札の更新で、同じ集合ピンの到着表示を初期化しない。
     pin.key = rt.phase;
-    // 満ちた瞬間に消さず、一拍保って出発・総攻めへの切り替わりを見せる。
+    // 雨待ちの丸が満ちたことを一息見せてから、戦う相手の印へ切り替える。
     if (F.waitPinCompleteUntil > rt.t && F.waitPinCompletePos) {
-      pin.x = F.waitPinCompletePos.x; pin.z = F.waitPinCompletePos.z;
-      pin.hide = 0; pin.area = true; pin.waiting = true; pin.arrived = true; pin.progress = 1;
+      const pos = F.waitPinCompletePos;
+      pin.x = pos.x; pin.z = pos.z; pin.r = 8; pin.hide = 0;
+      pin.key = 'wait'; pin.always = true; pin.area = true;
+      pin.waiting = true; pin.arrived = true; pin.progress = 1;
       return pin;
     }
     // 戦う相手は頭上の赤い▼だけ。ピンは通れる幕の口だけに残す。
@@ -745,7 +747,9 @@ const okehazama = {
       pin.progress = this.missionWaitProgress(rt);
       return pin;
     }
-    if (rt.phase === 'brief' || rt.phase === 'march' || rt.phase === 'wait') {
+    if (rt.phase === 'brief' || rt.phase === 'march') {
+      // 消灯は壁も含めた到着判定で決め、共通描画の距離判定で先に消さない。
+      pin.always = true;
       if (F.scoutFighting && !timedWait) return null;
       // 歩く旗持ちではなく、実際に到着すると次の段へ進む集合地点へ刺す。
       if (rt.phase === 'march') {
@@ -754,7 +758,10 @@ const okehazama = {
         pin.x = pos.x; pin.z = pos.z;
         pin.area = true; pin.hide = 0; pin.r = 8;
         pin.arrived = this.squadFlagReached(rt); pin.waiting = pin.arrived;
-        // 移動中は空のピン。丸が満ちるのは到着後の待機だけ。
+        // 同じ穴が道の残りに合わせて満ちる。到着後は雨待ちの丸へ切り替える。
+        const left = Math.max(0, this.squadFlagDistance(rt) - pin.r);
+        pin.progress = pin.arrived ? 1 : Math.min(.98, Math.max(0,
+          1 - left / Math.max(.01, F.marchStartDistance)));
         return pin;
       }
       const pos = this.squadFlagPosition(rt);
@@ -902,7 +909,7 @@ const okehazama = {
       }
       return F.joinPos;
     }
-    if (rt.phase === 'march') return rt.flags.marchGoal;
+    if (rt.phase === 'march') return rt.flags.marchPinPos || rt.flags.marchGoal;
     if (rt.phase === 'wait') {
       const marker = rt.markers.find((m) => m.id === 'wait');
       return typeof marker?.pos === 'function' ? marker.pos() : marker?.pos;
@@ -2084,7 +2091,7 @@ const okehazama = {
     const d = Math.hypot(dx, dz), offset = Math.min(6, d);
     const x = end[0] + (d ? dx / d * offset : 0), z = end[1] + (d ? dz / d * offset : 0);
     rt.flags.marchPinPos = { x, y: rt.world.heightAt(x, z), z };
-    rt.flags.marchGuideProgress = 0;
+    rt.flags.marchStartDistance = Math.max(.01, d - 8);
     rt.obj('col', '目印の仲間に ついて進もう', 'main');
     rt.marker('genpachi', rt.flags.marchGoal, '組の集合場所', { guideFlag: true, group: rt.hostGroup, guideRadius: 8 });
   },
@@ -2286,7 +2293,7 @@ const okehazama = {
       rt.setPhase('wait'); rt.objRemove('col');
       rt.obj('wait', '合図を待て', 'main');
       // 下知を待つ場所だけを固定して示す。隊や兵の動きには触れない。
-      F.waitPos = F.marchGoal;
+      F.waitPos = F.marchPinPos || F.marchGoal;
       F.waitReadyAt = rt.t + 17;
       rt.marker('wait', F.waitPos, '組の旗で待つ場所', { guideArea: 'wait', guideFlag: true, group: host, guideRadius: 8, guidePriority: 200,
         waitUntil: () => rt.phase === 'wait' ? F.waitReadyAt : null, waitDuration: 17 });
@@ -2343,8 +2350,8 @@ const okehazama = {
       rt.after(4, () => { if (rt.phase === 'wait') { sfx('thunder', 1); rt.bark('石や氷を投げつけるような雨が、今川の陣へ吹きつけている'); } });
     }
     rt.objProgress('wait', '');
-    // 後半は雨脚そのものも弱め、ピンの丸と同じ終わりへ向かわせる。
-    const rainLeft = Math.max(0, Math.min(1, (F.waitReadyAt - rt.t) / 8));
+    // 待ち始めから雨脚を弱め、満ちるピンと雨上がりを同じ進みにする。
+    const rainLeft = 1 - this.missionWaitProgress(rt);
     rt.world.setRainTarget(rainLeft);
     // 丸が満ちる時に雨がやみ、同じ時刻に味方が攻め始める。見えない号令だけで待たせない。
     if (rt.t >= F.waitReadyAt && !F.clear) {
