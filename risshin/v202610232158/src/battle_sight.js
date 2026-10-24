@@ -234,7 +234,8 @@ const inouSignCache = new WeakMap();
 export function inouSignVisible(rt, u) {
   if (!u?.alive || u.gone || u.dying || u.woundOut || u.rearWound || u.camHidden || u.mesh?.visible === false) return false;
   const p = u.pos, cam = rt.camera.position, fog = rt.scene.fog;
-  const range = Math.min(55, fog ? fog.near + (fog.far - fog.near) * .65 : 55);
+  // 兵の姿を描く距離まで所属の印を残す。印だけ先に消して味方に見せない。
+  const range = Math.min(170, rt.world.vis ?? 170, fog?.far ?? 170);
   let c = inouSignCache.get(u);
   const radius = range + (c?.rt === rt && c.on ? 3 : 0);
   if ((p.x - cam.x) ** 2 + (p.z - cam.z) ** 2 >= radius * radius) {

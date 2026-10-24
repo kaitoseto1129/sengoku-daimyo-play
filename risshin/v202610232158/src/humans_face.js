@@ -5,7 +5,9 @@ import { clipScalp, headGeo, hatFaceMat, addHair, addEyesMH, addEyes, addMouthMH
 import * as THREE from 'three';
 import { MEM_TIGHT } from './settings.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { lighterGeo } from './qem_index.js';
 
+const FACE_LO = { d: 6, tri: 4300 };
 // 兵の顔の形は、顔の型（12）ごとにさらに三通りへ散らす（幅・えら・顎・鼻・頬骨を少しずつ。隣に同じ顔が並ばないよう）。絵は型ごとに同じ
 const FACE_J = [[-0.03, 0.08, 0.06, 0, 0.1], [0, -0.07, -0.05, 0.08, -0.05], [0.035, 0, 0, -0.07, 0]];
 function faceShapeKey(key, L, F, full, v) {
@@ -62,7 +64,20 @@ function scanFace0(h, key, L, F, full) {
   if (HEAD.mh) addEyesMH(hm, gk, F); else if (full) addEyes(hm, F); else addEyesFast(hm, F, soldierTint(L.skin || 0xb58c68));
   if (HEAD.mh && HEAD.exMorph) { h.faceM = hm; addMouthMH(hm, gk, F); }
   const M = new THREE.Matrix4().copy(restMatrix('Head')).invert().multiply(fitF);
-  hm.matrixAutoUpdate = false; hm.matrix.copy(M); hm.frustumCulled = !full;
+  // 10/24：本人のほかは画面の外の顔を描かず、6m より先は面を半分に減らした顔（形は同じ頂点・表情の形も共有。出来るまでは元の顔）
+  hm.matrixAutoUpdate = false; hm.matrix.copy(M); hm.frustumCulled = !full || !h.u?.isPlayer;
+  if (!h.u?.isPlayer) {
+    let lo = false;
+    hm.onBeforeRender = (r, s, cam) => {
+      if (cam.isOrthographicCamera) return;
+      const e = hm.matrixWorld.elements, c = cam.matrixWorld.elements;
+      const d2 = (e[12] - c[12]) ** 2 + (e[13] - c[13]) ** 2 + (e[14] - c[14]) ** 2, far = FACE_LO.d + (lo ? 0 : 0.5);
+      const g = d2 > far * far ? lighterGeo(hg, FACE_LO.tri, THREE) : null;
+      lo = !!g;
+      const want = g || hg;
+      if (hm.geometry !== want) hm.geometry = want;
+    };
+  }
   h.bones.Head.add(hm);
   // 遅れて作った顔も、最初に描く前に頭の位置と縮尺へそろえる。
   // 静止中の骨の更新を省いたコマに、原寸の顔だけ原点へ残さない。
@@ -255,4 +270,4 @@ function addEyesFast(hm, F, tint = null) {
   hm.add(wet);
 }
 
-export { scanFace0, warmFace, menpoGeos, MENPO_TEX, menpoMats, scanMenpo, eyeFast, EYE_FAST_MATS };
+export { scanFace0, warmFace, menpoGeos, MENPO_TEX, menpoMats, scanMenpo, eyeFast, EYE_FAST_MATS, FACE_LO };

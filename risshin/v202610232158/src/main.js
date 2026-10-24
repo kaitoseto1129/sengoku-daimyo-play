@@ -1,3 +1,4 @@
+import './has_shim.js';   // CSS の :has() をクラスの付け外しへ（一番先に読む。10/24）
 import { simpleControls } from './simple_controls.js';
 import { tinyCull } from './tiny_cull.js';
 import { loadYumi } from './yumi.js';
@@ -135,19 +136,10 @@ function ldTick() {
   // 見込みを超えても丸を止めず、現在の段の終わりへゆっくり近づける。
   // 次の段を先取りせず、満ち切るのは実際に支度が終わった時だけ。
   const fraction = into <= P.est[i] ? into / P.est[i] * .8 : .8 + .18 * (1 - Math.exp(-(into - P.est[i]) / P.est[i]));
-  const firstBattle = $('loading').classList.contains('first-battle');
-  // 初陣は一工程を一区画にする。空の区画が残る工程で、済んだ区画は戻さない。
-  const progress = firstBattle ? (i + fraction) / P.keys.length : (completed + P.est[i] * fraction) / total;
+  // 初陣も工程数ではなく、覚えた所要時間の割合で残る支度を示す。
+  const progress = (completed + P.est[i] * fraction) / total;
   P.progress = Math.max(P.progress || 0, Math.min(.99, progress));
   $('loading').style.setProperty('--ld-progress', `${(P.progress * 100).toFixed(1)}%`);
-  // 見込みを超えても次の区画を先取りせず、実際の完了でだけ満たす。
-  if (firstBattle) {
-    const bar = document.querySelector('#loading .ldbar i');
-    if (bar) {
-      bar.style.transition = RMm() ? 'none' : 'transform 250ms linear';
-      bar.style.transform = `scaleX(${P.progress})`;
-    }
-  }
   if (!el) return;
   let left = Math.max(0, P.est[i] - into);
   for (let k = i + 1; k < P.keys.length; k++) left += P.est[k];
@@ -162,7 +154,7 @@ function ldStep(key) {
   const P = ldPlan; if (!P) return;
   const i = P.keys.indexOf(key); if (i < 0 || i === P.cur) return;
   P.cur = i; P.t = performance.now();
-  if ($('loading').classList.contains('first-battle')) { ldTick(); return; }
+  // 初陣も合成側で棒を伸ばす。兵を組み立てる間に処理が詰まっても止めない。
   const sum = P.est.reduce((a, v) => a + v, 0) || 1;
   let a = 0; for (let k = 0; k < i; k++) a += P.est[k];
   const end = (a + P.est[i] * 0.92) / sum;

@@ -17,12 +17,13 @@ import { dropHuman } from './humans_lifecycle.js';
 import { EFUDA } from './efuda.js';
 import { isNoRender } from './world.js';
 import { COMPILE_ASYNC } from './humans_face_materials.js';
+import { simplifyAsync, geoArrays } from './qem_index.js';
 
 const qs = typeof location !== 'undefined' ? location.search : '';
 export const VAT = {
   on: !/[?&]vat=0/.test(qs) && !(typeof window !== 'undefined' && /x_novat/.test(String(window.__autoplay || ''))),
   near: 8, hyst: 0.8, fps: 20, nearShape: !MEM_TIGHT && !/[?&]vatnear=0/.test(qs),   // 携帯は遠い部品の全身だけ（形づくりの山を減らす）
-  nearD: 15,
+  nearD: 15, triFar: 0, triNear: 0,   // 中景の一人の三角の上限（0＝減らさない）。10/24 に 700・900 を試したが、QEM で陣笠が消え体が欠けたので止めた（部品ごとに減らす作りが要る）
   hooks: { build: null },   // humans_runtime.js が buildHuman を渡す（循環の import を避ける）
   stat: { units: 0, drawn: 0, rigs: 0, rows: 0, looks: 0, shapes: 0, bakeMs: 0, selMs: 0, drawMs: 0, fails: 0 },
 };
@@ -129,13 +130,28 @@ function growBatch(b, need) {
   b.mesh = mesh; b.vat = vat; b.cap = cap;
   scene?.add(mesh);
 }
+// 中景の形を軽くする（10/24）：一人の三角を VAT.triFar（15m より先）・VAT.triNear（8〜15m）までに減らす。
+//   頂点はそのまま、面の並びだけを替える（色・骨の重み・絵の座標はそのまま）。主の糸を止めないよう、別の糸（qem_index.js の simplifyAsync）で作る。
+//   出来るまでは元の形で描く。別の糸が使えない時は元の形のまま
+function lighten(S, target, key) {
+  const ix = S.geo.index, pos = S.geo.attributes.position;
+  if (!target || !ix || ix.count / 3 <= target * 1.15) return;
+  const { P, U, I } = geoArrays(S.geo);
+  simplifyAsync(P, U, I, target).then((J) => {
+    if (!J || shapes.get(key) !== S) return;
+    const attr = new THREE.BufferAttribute(pos.count > 65535 ? J : Uint16Array.from(J), 1);
+    S.fullIndex = S.geo.index; S.geo.setIndex(attr);   // fullIndex：前と比べる写真の時だけ使う
+    if (S.mesh) S.mesh.geometry.setIndex(attr);
+    VAT.stat.lightened = (VAT.stat.lightened || 0) + 1;
+  });
+}
 // 0〜1 の正規化した色を 8 bit の整数三つから一つの浮動小数へ
 const pack3 = (a, i) => {
   const r = Math.round(Math.min(1, Math.max(0, a.getX(i))) * 255), g = Math.round(Math.min(1, Math.max(0, a.getY(i))) * 255), b = Math.round(Math.min(1, Math.max(0, a.getZ(i))) * 255);
   return r * 65536 + g * 256 + b;
 };
 // 束の形 g を、形の束（形ごとに一つ）と色の置き場（姿ごと）へ入れる
-function addShape(g) {
+function addShape(g, near = false) {
   if (!g || !g.index || !g.attributes.position.count || !g.attributes.skinIndex || !g.attributes.color) return null;
   const sk = g.userData.shapeKey || g.uuid;
   let S = shapes.get(sk);
@@ -149,6 +165,7 @@ function addShape(g) {
     geo.setIndex(new THREE.BufferAttribute(g.index.array.slice(), 1));
     S = newBatch(geo, MAT_BODY);
     shapes.set(sk, S); VAT.stat.shapes++;
+    lighten(S, near ? VAT.triNear : VAT.triFar, sk);
   }
   const n = g.attributes.position.count;
   if (colUsed + n > colRows * CW) {
@@ -175,7 +192,7 @@ function nearStep() {
   if (!rec) return;
   try {
     const P = nearArmorParts(lookParts(rec.look)); P.look.sohei = false;
-    const near = addShape(crowdGeometry(P, P.look, null, true, true));
+    const near = addShape(crowdGeometry(P, P.look, null, true, true), true);
     if (near) { rec.nS = near.S; rec.nB = near.base; rec.ngen = near.gen; }
   } catch (e) { VAT.stat.fails++; VAT.stat.err = String(e.message || e).slice(0, 80); }
 }
@@ -661,4 +678,4 @@ export function vatReset(army, sc) {
   if (army) army.vatDraw = (cam) => vatDraw(army, cam);
 }
 // 試し用：中の数
-if (typeof window !== 'undefined') window.__vat = VAT;
+if (typeof window !== 'undefined') { window.__vat = VAT; VAT._shapes = shapes; }

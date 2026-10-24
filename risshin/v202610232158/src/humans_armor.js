@@ -12,6 +12,7 @@ function armorMaterial(opts) {
 }
 import { prepHand } from './humans_hands.js';
 import { bodyLoGeo, BSPH } from './humans_lod.js';
+import { lighterGeo } from './qem_index.js';
 import { GENERALS, haoriFold } from './units.js';
 import { namedKacchu, namedCrestGeometry } from './named_kacchu.js';
 import { unitContour } from './units_model.js';
@@ -71,7 +72,7 @@ function loadHumans() {
 // ・人形は腕を下ろして立っているので、骨をその姿に合わせた「着せる時の立ち姿」を作り、そこからの動きで甲冑を動かす
 // crowd：侍・騎馬武者・武将（兵）にも着せる（人形の兜と顔は描かず、兵ごとの兜と顔を付ける）
 // hiCap：細かい形（胴丸hi 約2.8万面・兜hi 約1.6万面）を同時に出す人数の上限（カメラに近い順。名のある武将と本人は数えず必ず細かい形）
-const DOMARU = { on: true, ready: false, failed: false, near: 17, crowd: true, hiCap: 40 };
+const DOMARU = { on: true, ready: false, failed: false, near: 17, crowd: true, hiCap: 40, hiNear: 3.5, midNear: 8, loanNear: 3, kbNear: 4 };
 let DM = null;
 let dmLoading = null;
 function loadDomaru() {
@@ -454,11 +455,14 @@ function dressKabuto(h) {
   m.userData.surfaceBase = m.material;
   m.userData.surfaceFine = kabutoMat(st, !!monMat, true);
   m.frustumCulled = true;
+  let kbHi = false;
   m.onBeforeRender = (r, s, cam) => {
     const e = m.matrixWorld.elements, c = cam.matrixWorld.elements;
     const d2 = (e[12] - c[12]) ** 2 + (e[13] - c[13]) ** 2 + (e[14] - c[14]) ** 2;
-    const near = false && !h.u.isPlayer ? 9 : DOMARU.near;
-    const want = !cam.isOrthographicCamera && (qualityKeeper(h.u) || d2 < near * near && m.userData.hiOK !== false) ? G[0] : G[1];
+    // 10/24：本人のほかは 4m の内だけ細かい兜（1万6千。その先は3千。以前は武将は何m先でも細かい・兵は 17m まで）
+    const near = DOMARU.kbNear + (kbHi ? 0.5 : 0);
+    const want = !cam.isOrthographicCamera && (h.u.isPlayer || d2 < near * near && (qualityKeeper(h.u) || m.userData.hiOK !== false)) ? G[0] : G[1];
+    if (!cam.isOrthographicCamera) kbHi = want === G[0];
     if (m.geometry !== want) m.geometry = want;
   };
   const add = (geo, mat, mx) => { const c = new THREE.Mesh(geo, mat); c.matrixAutoUpdate = false; c.matrix.copy(mx); c.castShadow = true; m.add(c); return c; };
@@ -772,18 +776,21 @@ function dressDomaru(h, noHead = false) {
   m.castShadow = !h.loanedDomaru; m.receiveShadow = true;
   m.frustumCulled = true; m.boundingSphere = BSPH;
   // 遠くは軽い形（影を描く時も軽い形）
+  let lv = 0;   // 今の段（2 細かい・1 借りた中の形）。境目で行き来しないよう
   m.onBeforeRender = (r, s, cam) => {
     const e = m.matrixWorld.elements, c = cam.matrixWorld.elements;
     const d2 = (e[12] - c[12]) ** 2 + (e[13] - c[13]) ** 2 + (e[14] - c[14]) ** 2;
-    const near = DOMARU.near;
-    // 十五メートル以内は全員、中精細以上のスキャン。遠景と影は軽い段。
-    // 遠景の形も読み込み時に共用で作り、描くたびに形の置き場を検索しない。
-    const close = !cam.isOrthographicCamera && d2 < near * near;
+    // 10/24 面の数を半分に（iPhone の頂点の重さ）：本人は細かいまま。ほかは 3.5m の内だけ細かい形（2万8千）、8m までは中（1万6千）、
+    //   35m までは軽い形（8千）、その先は軽い形をさらに三割に減らした形。借りた胴丸の兵は 3m の内が中の形、その先は軽い形
+    //   （以前は武将は何m先でも細かい形・兵は 17m まで中の形）。境目は 0.5m の幅
+    const ortho = cam.isOrthographicCamera, keepHi = DOMARU.hiNear + (lv === 2 ? 0.5 : 0), keepMid = (h.loanedDomaru ? DOMARU.loanNear : DOMARU.midNear) + (lv === 1 ? 0.5 : 0);
+    const far = !ortho && d2 > 35 * 35 && !HUM.lodOff;
     const want = h.loanedDomaru
-      ? close ? DM.loanMid : DM.loanLo
-      : !cam.isOrthographicCamera && (qualityKeeper(h.u) || close && m.userData.hiOK !== false) ? DM.hi
-        : !cam.isOrthographicCamera && d2 < 35 * 35 ? DM.mid
-          : !cam.isOrthographicCamera && d2 > 35 * 35 && !HUM.lodOff ? DM.far : DM.lo;
+      ? !ortho && d2 < keepMid * keepMid ? DM.loanMid : far && lighterGeo(DM.loanLo, 2000, THREE) || DM.loanLo
+      : !ortho && (h.u.isPlayer || d2 < keepHi * keepHi && (qualityKeeper(h.u) || m.userData.hiOK !== false)) ? DM.hi
+        : !ortho && d2 < keepMid * keepMid ? DM.mid
+          : far ? lighterGeo(DM.lo, 2400, THREE) || DM.far : DM.lo;
+    if (!ortho) lv = want === DM.hi ? 2 : want === DM.mid || want === DM.loanMid ? 1 : 0;
     if (m.geometry !== want) m.geometry = want;
   };
   h.root.add(m);

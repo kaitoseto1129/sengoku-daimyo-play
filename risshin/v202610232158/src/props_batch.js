@@ -149,8 +149,9 @@ function staticFaceGroups(indices, position, grid, cellSize = 0, normalStep = 0)
     group.indices.push(indices[i], indices[i + 1], indices[i + 2]);
   }
   for (const group of groups.values()) {
-    // 視点の再利用幅と、遠景の頂点を格子へ寄せる幅を含む。
-    group.box.expandByScalar(grid * 1.74 + 0.6);
+    // 小区画は格子へ寄せた後の頂点を囲み、視点の行列が変わるたびに選び直す。
+    // 移動・格子の余裕を重ねると、画面外の城壁や柵まで残る。丸め誤差だけ残す。
+    group.box.expandByScalar(cellSize ? 0.002 : grid * 1.74 + 0.6);
     // 材質全体の囲みでは、長い城壁の裏面まで近景として残る。
     // 面の束自身の囲みを一度だけ作り、柵と城の見えない面を判定する。
     group.sphere = group.box.getBoundingSphere(new THREE.Sphere());

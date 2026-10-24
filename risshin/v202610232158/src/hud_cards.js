@@ -434,7 +434,7 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
         if (Math.hypot(gx, gz) > (goal.r || 6)) {
           const r = -gx * Math.cos(yaw) + gz * Math.sin(yaw), f = gx * Math.sin(yaw) + gz * Math.cos(yaw);
           const deg = Math.round(Math.atan2(r, f) * 180 / Math.PI / 15) * 15;
-          arrow = `<i class="pg-dir" aria-hidden="true" style="transform:rotate(${deg}deg)">↑</i>`;
+          arrow = '';   // 10/25 kaito「矢印二つだるい」：向きはピン（画面の端の印）だけで示す
         }
       }
       const html = `<b>${i + 1}／${n}</b><span class="pg-pct">${pct}%</span>${arrow}`;

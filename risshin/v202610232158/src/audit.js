@@ -155,7 +155,8 @@ export class Auditor {
   // ---------------- 二．辻褄（毎コマ呼ぶ。重い所は1秒ごと） ----------------
   tick(dt) {
     const b = this.b;
-    if (!b) return;
+    // 同じコマで戦が片付くと、兵・遊び手・戦場は null になる。
+    if (!b || b.disposed || !b.army || !b.player?.u || !b.world) return;
     this.where = `${this.label}・${Math.round(b.t)}秒・${b.phase || ''}`;
     const army = b.army;
     // 一息で飛ぶ兵（毎コマ）
@@ -368,6 +369,7 @@ export class Auditor {
 
   // 戦の終わりに一度だけ（playbot が呼ぶ）。名のある武将・門・柵の最後の姿を見る
   endCheck(b, timedOut) {
+    if (!b || b.disposed || !b.army || !b.player?.u) return [];
     const P = b.player.u;
     this.where = `${this.label}・終わり（${Math.round(b.t)}秒）`;
     const out = [];

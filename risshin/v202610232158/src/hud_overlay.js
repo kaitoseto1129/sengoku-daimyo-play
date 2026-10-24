@@ -35,8 +35,10 @@ export class HudOverlay {
     g.strokeStyle = '#14120f'; g.lineWidth = 6; g.stroke();
     g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
     g.translate(0, 13 - stem);
-    g.beginPath(); g.moveTo(x, y - 10); g.lineTo(x - 10, y - 26);
-    g.bezierCurveTo(x - 21, y - 48, x + 21, y - 48, x + 10, y - 26);
+    // 中の進みを大きくしても外形からはみ出さず、先端は同じ地面に固定する。
+    g.translate(0, -33); g.scale(1.2, 1.2); g.translate(0, 33);
+    g.beginPath(); g.moveTo(x, y - 10); g.lineTo(x - 13, y - 26);
+    g.bezierCurveTo(x - 27, y - 54, x + 27, y - 54, x + 13, y - 26);
     g.closePath();
     g.strokeStyle = '#14120f'; g.lineWidth = 7; g.stroke();
     g.fillStyle = pin?.arrived ? '#14120f' : '#fff3ba'; g.fill();
@@ -45,7 +47,7 @@ export class HudOverlay {
     }
     // 渡河も守備も同じ一本の中を満たし、別の時計や字は足さない。
     if (pin?.crossing || pin?.waiting || pin?.arrived) {
-      g.beginPath(); g.arc(x, y - 33, 11, 0, Math.PI * 2);
+      g.beginPath(); g.arc(x, y - 33, 14, 0, Math.PI * 2);
       g.fillStyle = '#14120f'; g.fill();
     }
     // 実際の到着半径へ入った時だけ、同じピンの内周を閉じる。
@@ -56,8 +58,8 @@ export class HudOverlay {
     if (pin?.progress > 0) {
       // ピンの中だけを満たす。待ち時間の札や別の印は増やさない。
       g.beginPath(); g.moveTo(x, y - 33);
-      g.arc(x, y - 33, 9, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, pin.progress));
-      g.closePath(); g.fillStyle = '#e8c25a'; g.fill();
+      g.arc(x, y - 33, 12, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, pin.progress));
+      g.closePath(); g.fillStyle = '#ffe28a'; g.fill();
     }
     g.restore();
   }

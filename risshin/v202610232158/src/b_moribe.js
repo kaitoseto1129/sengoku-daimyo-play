@@ -1094,7 +1094,7 @@ const moribe = {
         (F.stage === 'hold' || F.stage === 'contact' && F.vBroken) && F.lineReturning)
       return '仲間と集まれ';
     // 守備の終了に撃破人数の条件はない。倒す人数を探させない。
-    if (F.stage === 'hold') return 'たえろ';
+    if (F.stage === 'hold') return '敵の攻めに耐えろ';
     return this.missions[this.missionOf(rt)];
   },
   minutes: 7,
@@ -1176,8 +1176,9 @@ const moribe = {
       pos = POINT2; r = FORD_R; hide = 0;
       // 岸に固定した一本の中だけを満たす。乾いた岸へ上がるまでは満杯にしない。
       q.crossing = true;
-      q.progress = Math.max(0, Math.min(.95, 1 - Math.hypot(rt.player.u.pos.x - POINT2.x,
-        rt.player.u.pos.z - POINT2.z) / (START2.z - POINT2.z)));
+      // 浅瀬の横幅の中で寄り道しても、対岸へ進んだ分がそのまま満ちる。
+      q.progress = Math.max(0, Math.min(.95,
+        (START2.z - rt.player.u.pos.z) / Math.max(.5, START2.z - POINT2.z)));
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
     } else if (F.stage === 'assemble') {
