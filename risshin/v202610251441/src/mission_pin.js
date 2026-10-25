@@ -377,7 +377,7 @@ function drawMissionPin(rt) {
   // 画面外や札の下へ隠れた時はすぐ移し、移動の矢印を付けない。
   const dockedWait = rt.def.key === 'okehazama' && waiting && arrived && (outside || covered || rt.t - U.arrivalAt >= ARRIVAL_CUE_SECONDS);
   if (dockedWait) {
-    // 待つ円を任務のすぐ下へ。地面の行き先とは分け、携帯でも一緒に見える位置に保つ。
+    // 待つ円を任務のすぐ下へ。携帯でも任務と一緒に見える位置に保つ。
     x = W - 52;
     y = Math.min(H - 80, (hud.guideOrderRect?.bottom ?? 56) + 72);
     outside = false;
@@ -466,7 +466,8 @@ function drawMissionPin(rt) {
     pin._area.setAttribute('d', path);
     pin._areaBack.setAttribute('d', path);
     // 輪の内側全体が集合範囲。視点の後ろへ欠けた外周は閉じて塗らない。
-    pin._area.setAttribute('fill', rt.def.key === 'okehazama' && areaComplete ? arrived ? '#e4f2cb' : '#fff3ba' : 'none');
+    // 集合前は境界だけ。囲まれた兵を選ぶ印に見せず、到着した時だけ面を返す。
+    pin._area.setAttribute('fill', rt.def.key === 'okehazama' && areaComplete && arrived ? '#e4f2cb' : 'none');
     pin._area.setAttribute('fill-opacity', '.12');
   }
   // 桶狭間はピンの先端を到着判定の地面に刺す。兵の頭上を指す矢印に替えない。
@@ -537,7 +538,8 @@ function drawMissionPin(rt) {
   pin._hold.style.display = showHold ? '' : 'none';
   // 到着の一拍は穴いっぱいのチェック。その後、同じ穴で待ち時間を満たす。
   // 軸の小さな印を探させず、未到着と到着を形で区別する。
-  const arrivalCue = oke && arrived && (rt.t - U.arrivalAt < ARRIVAL_CUE_SECONDS || want.progress >= 1);
+  // 待つ進みがある時は最初から時計を動かし、到着だけの合図は見届けられる長さを保つ。
+  const arrivalCue = oke && arrived && (!showProgress && rt.t - U.arrivalAt < ARRIVAL_CUE_SECONDS || want.progress >= 1);
   pin._arrivedMark.style.display = arrivalCue ? '' : 'none';
   pin._arrivedMark.setAttribute('transform', '');
   pin._arrival.style.display = showArrival ? '' : 'none';
@@ -661,16 +663,17 @@ function drawMissionPin(rt) {
     const holdTransform = `${transform} translate(4,-17.2) scale(.9)`;
     if (flag.getAttribute('transform') !== transform) flag.setAttribute('transform', transform);
     if (pin._hold.getAttribute('transform') !== holdTransform) pin._hold.setAttribute('transform', holdTransform);
-    // 集合範囲は実寸の囲みだけで示し、固定の小さな輪は重ねない。
+    // 集合はピン一本で示し、足元の輪は重ねない。
     // 到着後も輪を出さず、画面端の丸を次の集合場所に見せない。
     for (const ring of pin._rings) {
       ring.style.display = 'none';
     }
     if (waiting && arrived) {
       flag.style.display = 'none';
-      // 到着直後のチェックと待つ扇形を同じ位置へ。途中で地面側へ落とさない。
-      pin._hold.setAttribute('transform', 'translate(0,12)');
+      // 到着のチェックと待つ扇形を同じ中心へそろえ、中心を保って読みやすく広げる。
+      pin._hold.setAttribute('transform', 'translate(-8,6.4) scale(1.2)');
       pin._hold.children[0].setAttribute('stroke', '#e4f2cb');
+      // 着いた瞬間のチェックを一拍見せてから、同じ穴で待ち時間を満たす。
       pin._arrivedMark.style.display = arrivalCue ? '' : 'none';
       pin._arrivedMark.removeAttribute('transform');
     }

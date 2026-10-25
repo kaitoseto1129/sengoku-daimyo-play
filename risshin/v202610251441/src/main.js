@@ -756,6 +756,10 @@ function draw(scene, fresh = false) {
   try { probeDraw(scene, game.battle, APX); return drawScene(scene, fresh); } finally { restoreProbeDraw(); }
 }
 function drawScene(scene, fresh = false) {
+  // 支度の一画素・前の戦の描画先と切り抜きを、全ての戦で持ち越さない。
+  renderer.setRenderTarget(null);
+  renderer.setScissorTest(false);
+  renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
   if (APX.nodraw) return;   // 実機の試し：描かずに輪だけ回す（外の時間が描きの待ちかを見る）
   if (fresh) scene.userData.singlePassFresh = true;
   singlePassLow(scene);
@@ -2105,6 +2109,10 @@ const game = {
     }
     releaseBattleAssets();
     if (disposeFinish()) this.battleReleasePending = true;
+    this.renderer.setRenderTarget(null);
+    this.renderer.setScissorTest(false);
+    this.renderer.shadowMap.autoUpdate = true;
+    this.renderer.shadowMap.needsUpdate = true;
     this.renderer.renderLists.dispose();
     clearEdgeDark();   // 深手・疲れで暗くなった四隅を、評価・城下の画面に持ち越さない
     lockHint(false);

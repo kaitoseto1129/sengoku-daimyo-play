@@ -546,15 +546,21 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     // 森部の待機は同じピンの丸だけを満たす。棒と時計を二重に出さない。
     const waitFill = def.key === 'okehazama' && Number.isFinite(progress)
       ? Math.round(Math.max(0, Math.min(1, progress)) * 100) : -1;
-    if (el._waitFill !== waitFill) {
-      el._waitFill = waitFill;
+    const combatProgress = def.missionCombatProgress?.(rt);
+    const combatFill = Number.isFinite(combatProgress)
+      ? Math.round(Math.max(0, Math.min(1, combatProgress)) * 100) : -1;
+    if (el._waitFill !== waitFill || el._combatFill !== combatFill) {
+      el._waitFill = waitFill; el._combatFill = combatFill;
       stEl.classList.toggle('moribe-wait', waitFill >= 0);
+      stEl.classList.toggle('mission-combat', combatFill >= 0);
       stEl.style.setProperty('--wait-progress', String(Math.max(0, waitFill)));
-      stEl.style.backgroundImage = waitFill < 0 ? '' :
-        `linear-gradient(to right, #edc65e ${waitFill}%, #393328 ${waitFill}%)`;
-      stEl.style.backgroundSize = waitFill < 0 ? '' : '100% 5px';
-      stEl.style.backgroundPosition = waitFill < 0 ? '' : 'left bottom';
-      stEl.style.backgroundRepeat = waitFill < 0 ? '' : 'no-repeat';
+      // 撃破の進みは同じ任務の下辺。待つ丸と使い分け、文字や札を増やさない。
+      const fill = combatFill >= 0 ? combatFill : waitFill;
+      stEl.style.backgroundImage = fill < 0 ? '' :
+        `linear-gradient(to right, #edc65e ${fill}%, #393328 ${fill}%)`;
+      stEl.style.backgroundSize = fill < 0 ? '' : '100% 6px';
+      stEl.style.backgroundPosition = fill < 0 ? '' : 'left bottom';
+      stEl.style.backgroundRepeat = fill < 0 ? '' : 'no-repeat';
     }
     // 桶狭間の null は「今は待ちではない」。接敵中に共通の時計を戻さない。
     const pie = timeEl.firstChild, waiting = def.key === 'okehazama' ? Number.isFinite(progress) :
