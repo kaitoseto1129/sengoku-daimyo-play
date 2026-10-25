@@ -576,10 +576,12 @@ const okehazama = {
       // 遠い任務の兵より、今いる場所から戦える一人を優先する。探索は半秒ごと。
       if (!(F.nearSignAt > rt.t) || F.nearSignEnemy && !readyUnit(F.nearSignEnemy)) {
         F.nearSignAt = rt.t + .5;
-        const near = rt.army.nearestEnemy(p.u, 14, readyUnit);
+        const filter = F.nearSignFilter || (F.nearSignFilter = (u) => readyUnit(u) &&
+          Math.abs(u.pos.y - p.u.pos.y) < 3 && !rt.army.wallBetween(p.u.pos, p.u.team, u.pos));
+        const near = rt.army.nearestEnemy(p.u, 14, filter);
         const old = F.nearSignEnemy;
         const distance = (u) => Math.hypot(u.pos.x - p.u.pos.x, u.pos.z - p.u.pos.z);
-        F.nearSignEnemy = readyUnit(old) && distance(old) < 16 && (!near || distance(old) <= distance(near) + 2) ? old : near;
+        F.nearSignEnemy = filter(old) && distance(old) < 16 && (!near || distance(old) <= distance(near) + 2) ? old : near;
       }
       if (readyUnit(F.nearSignEnemy)) return F.nearSignEnemy;
     }
