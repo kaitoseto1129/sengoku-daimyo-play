@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>戦国立身 YouTube 投稿ツール</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top"><span class="name">戦国立身 YouTube 投稿ツール</span><nav><a href="./">ホーム / Home</a><a href="privacy.html">プライバシーポリシー / Privacy Policy</a><a href="terms.html">利用規約 / Terms</a></nav></header>
+<main>
+<h1>戦国立身 YouTube 投稿ツール</h1>
+<p class="en">Sengoku Risshin YouTube Uploader</p>
+<p><a class="yt" href="https://www.youtube.com/channel/UCcZFyuYWSyrMkPWvfAXVsRA" rel="noopener"><span class="play" aria-hidden="true"></span>YouTube</a>
+ &nbsp;このツールは YouTube API Services を使っています。 / This tool uses YouTube API Services.</p>
+
+<div class="card">
+<p><b>プライバシーポリシー / Privacy Policy：</b><a href="privacy.html">privacy.html</a><br>
+<b>利用規約 / Terms of Service：</b><a href="terms.html">terms.html</a><br>
+<b>YouTube 利用規約 / YouTube Terms of Service：</b><a href="https://www.youtube.com/t/terms">https://www.youtube.com/t/terms</a><br>
+<b>Google プライバシーポリシー / Google Privacy Policy：</b><a href="https://policies.google.com/privacy">https://policies.google.com/privacy</a></p>
+</div>
+
+<h2>このツールについて / About</h2>
+<p>個人の開発者・瀬戸海斗が、自分で作ったゲーム『戦国立身』の合戦解説ショート動画を、自分の YouTube チャンネルだけに予約投稿するための、手元（自分のパソコン）で動く道具です。公開のサービスではなく、ほかの人は使いません。</p>
+<p class="en">This is a private, self-hosted tool run on the developer's own computer. Kaito Seto, an individual developer, uses it only to schedule uploads of his own original short videos (Sengoku-era battle explanations from his game "Sengoku Risshin") to his own YouTube channel. It is not a public service and no other users sign in to it.</p>
+
+<h2>できる事 / What it does</h2>
+<table>
+<tr><th>働き / Function</th><th>使う API / API method</th></tr>
+<tr><td>自作の動画を予約投稿する / Upload own videos with a scheduled publish time</td><td>videos.insert</td></tr>
+<tr><td>題・説明・タグを直す / Update title, description, tags</td><td>videos.update</td></tr>
+<tr><td>サムネイルを差し替える / Set custom thumbnails</td><td>thumbnails.set</td></tr>
+<tr><td>再生リストに入れる / Add videos to own playlists</td><td>playlists.list・playlistItems.list / insert</td></tr>
+<tr><td>自分の動画の再生数などを見る / Read stats of own videos</td><td>videos.list・channels.list</td></tr>
+<tr><td>自分の動画へのコメントを読み、返事をする / Read and reply to comments on own videos</td><td>commentThreads.list・comments.insert</td></tr>
+</table>
+
+<h2>許しの取り消し / Revoking access</h2>
+<p>このツールへの許可は、いつでも <a href="https://security.google.com/settings/security/permissions">https://security.google.com/settings/security/permissions</a>（Google アカウントの「サードパーティ製のアプリとサービス」）から取り消せます。</p>
+<p class="en">You can revoke this tool's access at any time from your Google Account permissions page: <a href="https://security.google.com/settings/security/permissions">https://security.google.com/settings/security/permissions</a>.</p>
+</main>
+<footer><a href="./">ホーム / Home</a><a href="privacy.html">プライバシーポリシー / Privacy Policy</a><a href="terms.html">利用規約 / Terms of Service</a><a href="https://www.youtube.com/t/terms">YouTube 利用規約 / YouTube Terms of Service</a><a href="https://policies.google.com/privacy">Google プライバシーポリシー / Google Privacy Policy</a><br>運営：瀬戸海斗（個人） / Operator: Kaito Seto (individual) ・ 連絡先 / Contact: kaitoseto1129@gmail.com ・ 最終更新 / Last updated: 2026-10-24</footer>
+</body></html>

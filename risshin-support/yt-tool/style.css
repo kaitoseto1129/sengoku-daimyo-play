@@ -1,0 +1,21 @@
+:root { --ink:#231f1a; --paper:#f4efe4; --sub:#5e554a; --line:#d8cfbf; --accent:#9b2c1f; --card:#fffaf0; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.8 "Hiragino Sans","Yu Gothic",system-ui,sans-serif; }
+header.top { background:#1d1a16; color:#f4efe4; padding:14px 20px; display:flex; flex-wrap:wrap; gap:8px 20px; align-items:center; }
+header.top .name { font-weight:700; font-size:18px; }
+header.top nav a { color:#f4efe4; margin-right:16px; }
+main { max-width:760px; margin:0 auto; padding:32px 20px 64px; }
+h1 { font-size:26px; margin:0 0 8px; line-height:1.4; }
+h2 { font-size:19px; border-bottom:1px solid var(--line); padding-bottom:6px; margin:36px 0 10px; }
+h3 { font-size:16px; margin:20px 0 6px; }
+a { color:var(--accent); }
+.en { color:var(--sub); }
+.card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin:16px 0; }
+.yt { display:inline-flex; align-items:center; gap:8px; font-weight:700; color:#0f0f0f; text-decoration:none; background:#fff; border:1px solid #ddd; border-radius:8px; padding:8px 14px; }
+.yt .play { width:28px; height:20px; background:#ff0000; border-radius:5px; position:relative; }
+.yt .play::after { content:""; position:absolute; left:11px; top:5px; border-left:8px solid #fff; border-top:5px solid transparent; border-bottom:5px solid transparent; }
+table { border-collapse:collapse; width:100%; font-size:14px; }
+td, th { border:1px solid var(--line); padding:6px 8px; text-align:left; vertical-align:top; }
+code { font-size:13px; background:#ebe3d3; padding:1px 4px; border-radius:4px; word-break:break-all; }
+footer { border-top:1px solid var(--line); margin-top:48px; padding-top:16px; font-size:14px; color:var(--sub); }
+footer a { margin-right:14px; }
