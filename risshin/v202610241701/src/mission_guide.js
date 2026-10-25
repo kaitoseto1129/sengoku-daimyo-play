@@ -61,17 +61,14 @@ export function missionFollowTarget(rt, heading = rt.def.missionHeading?.(rt) ||
 export function missionCaption(rt, title = currentObjective(rt)?.text || '') {
   let heading = (rt.def.missionHeading?.(rt) || title).replace(/赤い印の(?:兵|敵)を(?:倒せ|たおせ)/g, '▼の敵をたおせ');
   if (rt.def.key === 'inou') {
-    if (!/▼.*(?:たおせ|倒せ)/.test(heading)) return heading;
-    const F = rt.flags, p = rt.player;
+    const F = rt.flags;
+    const attackObjective = /▼.*(?:たおせ|倒せ)/.test(heading);
     // 命中と討ち取りは一行を短く置き換え、次の一手と同時に説明しない。
-    if (F.attackFeedbackUntil > rt.t) return F.attackFeedback;
+    if (attackObjective && F.attackFeedbackUntil > rt.t) return F.attackFeedback;
+    // 次の下知へ替わった直後も、直前の討ち取りを短く残す。
     if (F.combatResultUntil > rt.t) return F.combatResult;
-    const enemy = rt.def.commanderTarget?.(rt) || rt.def.missionSignTarget?.(rt);
-    if (!enemy?.alive || enemy.gone || enemy.dying || enemy.downed || enemy.woundOut || enemy.rearWound || enemy.fleeing) return heading;
-    if (p.inRange && p.rangeCueTarget === enemy) return '白ふちの▼を突け';
-    const distance = Math.hypot(enemy.pos.x - p.u.pos.x, enemy.pos.z - p.u.pos.z);
-    if (distance <= p.meleeReach(p.previewMeleeKind() || 'thrust')) return '白ふちの▼へ槍を向けろ';
-    return `白ふちの▼へ あと${Math.max(1, Math.ceil(distance / .75))}歩`;
+    // 間合いは戦固有の判定と頭上の▼に任せ、歩数や向きで任務を上書きしない。
+    return heading;
   }
   // 討つ任務も、届くまでは移動の印と同じ一行にする。
   if (!rt.def.town && !rt.def.dojo && /▼.*(?:たおせ|倒せ)/.test(heading)) {

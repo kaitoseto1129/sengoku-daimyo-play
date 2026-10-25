@@ -1167,11 +1167,6 @@ const moribe = {
   // 右上はミッションの一行だけ。距離・向き・操作の字を見出しに出さない（kaito 10/23 49・50）。
   autoTreatment: true, // 味方に守られて足を止めると、三秒かけて布を巻く。
   meleeHitFeedback: false, // 命中は本人の赤い▼とよろめきで示し、照準の印を重ねない。
-  // 防がれた接触も同じ本人の▼で返す。空振りでは印を変えない。
-  meleeResult(rt, enemy, result) {
-    if (result === 'block' && enemy?.alive && enemy.team !== rt.player.u.team)
-      enemy.moribeBlockUntil = rt.t + .7;
-  },
   missionStatus() { return ''; }, // 行き先は黄色い矢印と輪だけで示す。
   tacticsCommandText: '', // 横へ回る助言に、操作のない「配下に命じて押せ」を足さない。
   missionWaitProgress(rt) {
@@ -2151,14 +2146,18 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       const hp = t?.hp;
       const result = damage.call(this, t, amount, src, ...rest);
       // 傷のない受け止めも本人の▼だけで示し、空振りと区別する。
-      if (src?.isPlayer && t && t.team !== src.team && t.hp === hp && rest[0]?.out?.res === 'block')
+      if (src?.isPlayer && t && t.team !== src.team && t.hp === hp && rest[0]?.out?.res === 'block') {
         t.moribeBlockUntil = rt.t + .65;
+        // 直前の命中を残すと、次の一撃が防がれても縦に伸びたままになる。
+        t.moribeHitUntil = 0;
+      }
       // 実際に自分を傷つけた本人の▼だけ、振りかぶりの強調を短く保つ。
       if (t?.isPlayer && src?.team !== t.team && src && t.hp < hp)
         src.moribeThreatUntil = rt.t + .9;
       if (src?.isPlayer && t?.team !== src.team && t.hp < hp) {
-        // 命中後は少し形を保ってから戻す。乱戦でも一瞬の変化で終わらせない。
+        // 一撃ごとに伸び直す。小さな伸びは残し、連打でも当たった本人を追える。
         t.moribeHitUntil = rt.t + 3;
+        t.moribeBlockUntil = 0;
         if (!t.alive || t.dying || t.downed || t.woundOut || t.rearWound) t.moribeDefeatUntil = rt.t + 1.8;
         // 命を減らした本人だけがよろめく。空振りや味方には反応を付けない。
         if (t.alive) {
