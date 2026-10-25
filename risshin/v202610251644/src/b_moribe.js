@@ -502,7 +502,9 @@ function moribeFord(rt) {
   const waterKey = waterMat.customProgramCacheKey();
   waterMat.onBeforeCompile = function (sh, renderer) {
     waterCompile.call(this, sh, renderer);
-    sh.fragmentShader = sh.fragmentShader.replace('#include <lights_fragment_begin>', `
+    // 照明用の材質へ色が渡る前に浅瀬を描く。照明の直前では砂底の色が反映されない。
+    sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', `
+      #include <color_fragment>
       float fordEdge = abs(vWPw.x - ${START2.x.toFixed(1)}) + sin(vWPw.z * 1.7) * 0.22;
       float fordBand = 1.0 - smoothstep(4.5, 6.0, fordEdge);
       float fordGrain = texture2D(tMacro, vWPw.xz * 0.9).r;
@@ -521,7 +523,6 @@ function moribeFord(rt) {
       float fordShore = smoothstep(7.5, 8.6, abs(vWPw.z - ${NIREMATA2.toFixed(1)}));
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.76, 0.85, 0.82),
         max(fordRipple * 0.5, fordShore * (0.4 + fordGrain * 0.35)) * fordBand);
-      #include <lights_fragment_begin>
     `);
   };
   waterMat.customProgramCacheKey = () => waterKey + '|森部の浅瀬';

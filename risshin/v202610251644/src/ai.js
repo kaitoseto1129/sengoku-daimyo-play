@@ -54,7 +54,8 @@ export class Commander {
     this.army = rt.army;
     this.world = rt.world;
     this.S = new Map();
-    this.tally = new Map();
+    this.tally = new Array(this.army.groups.length);
+    this.tallySerial = 0;
     this.siege = new Map();
     this.scanStates = new WeakMap();
     this.stepTime = 0;
@@ -176,7 +177,7 @@ export class Commander {
   scanState(key) {
     let s = this.scanStates.get(key);
     if (!s) {
-      s = { c: { x: 0, z: 0 }, f: { x: 0, z: 0 }, fightPoint: { x: 0, z: 0 }, by: [] };
+      s = { c: { x: 0, z: 0 }, f: { x: 0, z: 0 }, fightPoint: { x: 0, z: 0 }, by: [], tallySerial: 0, tallyCount: 0 };
       s.stepLast = this.stepTime;
       this.scanStates.set(key, s);
     }
@@ -191,7 +192,10 @@ export class Commander {
     this.siege.clear();   // 柵・門ごとに、取り付いている敵の数。入れ物は一戦の間使い回す。
     for (const g of this.army.groups) {
       let n = 0, x = 0, z = 0, str = 0, eng = 0, fx = 0, fz = 0, fn = 0, fleeT = 0, cav = 0, gun = 0, bow = 0, spear = 0, lord = 0;
-      tally.clear();
+      // 半秒ごとに隊数分の表を消して作り直さず、支度済みの隊の入れ物へ票を置く。
+      // 最初に接触した順も残し、同票の時の狙い先を変えない。
+      let tallyCount = 0;
+      const serial = ++this.tallySerial;
       for (const u of g.units) {
         if (!u.alive || u.type === 'dummy' || u.noTarget) continue;
         n++; x += u.pos.x; z += u.pos.z;
@@ -211,13 +215,23 @@ export class Commander {
             eng++;
             if (t.fleeing) fleeT++;
             else { fx += u.pos.x; fz += u.pos.z; fn++; }
-            if (t.group) tally.set(t.group, (tally.get(t.group) || 0) + 1);
+            if (t.group) {
+              const vote = this.scanState(t.group);
+              if (vote.tallySerial !== serial) {
+                vote.tallySerial = serial; vote.tallyCount = 0;
+                tally[tallyCount++] = t.group;
+              }
+              vote.tallyCount++;
+            }
           }
         }
       }
       if (!n) continue;
       let foe = null, fc = 0;
-      for (const [k, v] of tally) if (v > fc) { fc = v; foe = k; }
+      for (let i = 0; i < tallyCount; i++) {
+        const k = tally[i], v = this.scanStates.get(k).tallyCount;
+        if (v > fc) { fc = v; foe = k; }
+      }
       const kind = cav >= n * 0.5 ? 'cav' : gun >= n * 0.5 ? 'gun' : bow >= n * 0.5 ? 'bow' : 'melee';
       const h = g._face ?? g.facing;
       const s = this.scanState(g);

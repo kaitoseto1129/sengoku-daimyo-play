@@ -310,7 +310,7 @@ export function fieldSignsTick(rt, root) {
     // 笠や肩が重なる近接戦でも、▼の先端を笠より上に保つ。
     headPos.set(u.pos.x, headY(u) + .12, u.pos.z);
     // 本人の背丈へ固定し、桶狭間は笠との空白を狭める。姿勢や頭の揺れは追わない。
-    if (oke && !u.mounted) headPos.y = u.pos.y + (u.bodyHeight || 1.72) + .3;
+    if (oke && !u.mounted) headPos.y = u.pos.y + (u.bodyHeight || 1.72) + .18;
     // 森部は密集しても笠に埋まらない高さを保つ。
     if (moribe && !u.mounted) headPos.y = u.pos.y + (u.bodyHeight || 1.72) + .55;
     // 稲生は共通の見通しとピンの投影に高さをそろえる。
@@ -349,9 +349,8 @@ export function fieldSignsTick(rt, root) {
       // 目当てと近い敵の読みやすさを保ち、近づくほど同じ▼を滑らかに大きくする。
       // 実際に届いた一人だけ、さらに白縁・幅広へ替える。
       // 遠方の読みやすさと任務の一人の大きさを保ち、近くでは接近に応じた拡大も残す。
-      oke ? Math.max(u === missionEnemy ? 30 :
-        13 + 11 * Math.max(0, 1 - Math.sqrt(meD2) / 40),
-        10 + 18 * Math.max(0, 1 - Math.sqrt(meD2) / 40)) :
+      oke ? Math.max(u === missionEnemy ? 24 : 0,
+        14 + 10 * Math.max(0, 1 - Math.sqrt(meD2) / 40)) :
       foe ? (u === readyEnemy ? 24 : u === focusEnemy ? 22 : 18) : 14;
     // 稲生・森部・桶狭間では命を減らした相手の▼だけを一度大きくし、滑らかに戻す。
     // 頭上の先端は固定し、既存の形・材質・描画の束をそのまま使う。
@@ -417,14 +416,16 @@ export function fieldSignsTick(rt, root) {
     // 次に戦う一人だけ大きく残す。奥の一団は頭ほどの赤い▼で所属を示す。
     // 刃の間合いまで滑らかに広げ、目前でも隣の頭を覆わない大きさに収める。
     const okeClosing = oke ? Math.max(0, Math.min(1, (30 - Math.sqrt(meD2)) / Math.max(1, 30 - reachHot))) : 0;
-    const okeLimit = u === missionEnemy ? 1.2 + .8 * okeClosing : u === commander ? 1.5 + .5 * okeNear : .7 + .4 * okeNear;
+    // 奥の▼を手前の笠より大きくしない。本人と一緒に育つ大きさで接近を示す。
+    // 近づいた一人の強調と、実際に届く時の白縁・横幅は保つ。
+    const okeLimit = u === missionEnemy ? .65 + 1.35 * okeClosing : u === commander ? .8 + 1.2 * okeNear : .45 + .65 * okeNear;
     const okeScale = oke ? Math.min(okeLimit, okePixels * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) : k;
     // 防がれた接触は縦に潰す。傷を与えた時の縦の伸び・赤の減りとは分ける。
     // 森部も、受け止められた本人の▼だけを短く潰す。空振りとは区別する。
     const blocked = special && !(hit > 0) && (moribe ? u.moribeBlockUntil : inou ? u.inouBlockUntil : u.okeBlockUntil) > rt.t;
     // 届くまでの十二歩で細い▼が通常幅へ開き、選ばれただけでは拡大しない。
-    // 実際に届く本人だけ幅広くする。白縁も実際の攻撃判定に合わせる。
-    const inouWidth = inou && hot ? 2.2 : inou && u === missionEnemy
+    // 命中・防がれた直後も本人の幅を保つ。白縁は小戦の所属と実際の間合いで示す。
+    const inouWidth = inou && (reachable || blocked || hit > 0) ? 2.2 : inou && u === missionEnemy
       ? .7 + .3 * Math.max(0, Math.min(1, 1 - (Math.sqrt(meD2) - reachHot) / 12)) : 1;
     // 桶狭間は遠くで細く、接近するほど開く。刃の間合いへの接近も同じ幅へ反映する。
     // 実際に攻撃が届く本人だけ最大の幅にし、位置・高さは動かさない。
