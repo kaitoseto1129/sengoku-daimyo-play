@@ -74,9 +74,9 @@ function build(rt, root) {
         shader.vertexShader = shader.vertexShader.replace(
           'if (position.z > 0.0) { transformed.xy = vec2(0.0, 0.065) + (position.xy - vec2(0.0, 0.065)) * signLife; }',
           'vSignLevel = vec3(position.z > 0.0 ? 1.0 : 0.0, position.y, signLife);');
-        // 森部は暗い縁を保ち、自分へ振りかぶる本人の中の赤だけを明るくする。
+        // 森部は通常の暗い縁を保ち、間合い・振りかぶり・命中を縁と中の赤で示す。
         shader.vertexShader = shader.vertexShader.replace('if (signTone > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(1.0);',
-          rt.def.key === 'moribe' ? 'if (position.z > 0.0) { if (signTone > 3.5) vColor = vec3(1.0, 0.45, 0.25); else if (signTone > 2.5) vColor = vec3(1.0, 0.22, 0.12); else if (signTone > 1.5) vColor = vec3(1.0, 0.06, 0.02); }' :
+          rt.def.key === 'moribe' ? 'if (position.z > 0.0) { if (signTone > 3.5) vColor = vec3(1.0, 0.45, 0.25); else if (signTone > 2.5) vColor = vec3(1.0, 0.22, 0.12); else if (signTone > 1.5) vColor = vec3(1.0, 0.06, 0.02); } else if (signTone > 1.5) vColor = signTone > 2.5 && signTone < 3.5 ? vec3(1.0, 0.72, 0.18) : vec3(1.0);' :
           rt.def.key === 'inou' ? 'if (signTone > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(1.0);' :
           'if (signTone > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(1.0);');
         shader.fragmentShader = 'varying vec3 vSignLevel;\n' + shader.fragmentShader.replace('#include <color_fragment>',
@@ -352,7 +352,7 @@ export function fieldSignsTick(rt, root) {
     const hit = foe && special
       ? moribe ? Math.min(1, Math.max(0, hitLeft / .6)) *
         (.15 + .85 * Math.min(1, Math.max(0, (hitLeft - 1.65) / .45)))
-        : Math.min(1, Math.max(0, inou ? hitLeft / .6 : (hitLeft - 1.2) / .5))
+        : Math.min(1, Math.max(0, inou ? hitLeft / .6 * (.15 + .85 * Math.min(1, Math.max(0, (hitLeft - 1.95) / .4))) : (hitLeft - 1.2) / .5))
       : 0;
     const reachable = foe && u === readyEnemy;
     // 森部の命中は同じ赤い▼を大きくして示す。空振りでは変わらない。
@@ -404,9 +404,8 @@ export function fieldSignsTick(rt, root) {
     // 防がれた接触は縦に潰す。傷を与えた時の縦の伸び・赤の減りとは分ける。
     // 森部も、受け止められた本人の▼だけを短く潰す。空振りとは区別する。
     const blocked = special && !(hit > 0) && (moribe ? u.moribeBlockUntil : inou ? u.inouBlockUntil : u.okeBlockUntil) > rt.t;
-    // 届くまでは細い▼が徐々に開き、届く本人だけ幅広くなる。
-    const inouWidth = inou && hot ? 2.2 : inou && u === missionEnemy
-      ? 1 + .6 * Math.max(0, 1 - Math.sqrt(meD2) / Math.max(.1, reachHot * 3)) : 1;
+    // 白縁は追う一人に固定し、槍が届く時だけ少し横に開く。
+    const inouWidth = inou && u === missionEnemy && hot ? 1.45 : 1;
     // 桶狭間は遠くで細く、接近するほど開く。刃の間合いへの接近も同じ幅へ反映する。
     // 実際に攻撃が届く本人だけ最大の幅にし、位置・高さは動かさない。
     const okeWidth = oke ? reachable ? 2.2 : Math.max(
@@ -422,9 +421,9 @@ export function fieldSignsTick(rt, root) {
     // 追う相手の▼だけ、残る間合いに合わせて横に開く。届いた瞬間はさらに広げる。
     const okeApproach = oke && u === missionEnemy ? Math.max(okeWidth, 1 + .6 * Math.max(0, Math.min(1, 1 - (Math.sqrt(meD2) - okeReach) / 12))) : okeWidth;
     // 森部は届く一人だけ横へ開き、命中の縦の伸びは控えめにして隣の頭を覆わない。
-    // 防がれた直後も横幅を保ち、縦に潰れる形を命中の伸びと区別する。
-    dummy.scale.set(oke ? okeScale * Math.max(reachable ? 2.2 : okeApproach, pulse > 0 ? 1 + 1.2 * pulse : 0) : moribe ? k * Math.max(reachable || blocked ? 1.7 : 1, 1 + .7 * pulse) : inou ? k * Math.max(inouWidth, 2.2 * pulse) : k * (1 + .5 * pulse),
-      oke || moribe || inou ? (oke ? okeScale : k) * (blocked ? .55 : 1 + (moribe ? .55 : 1) * pulse) : k, oke ? okeScale : k);
+    // 命中・防がれた直後も横幅を保ち、縦に潰れる形を命中の伸びと区別する。
+    dummy.scale.set(oke ? okeScale * Math.max(reachable ? 2.2 : okeApproach, pulse > 0 ? 1 + 1.2 * pulse : 0) : moribe ? k * Math.max(reachable || blocked || pulse > 0 ? 1.7 : 1, 1 + .7 * pulse) : inou ? k * Math.max(inouWidth, 1 + .3 * pulse) : k * (1 + .5 * pulse),
+      oke || moribe || inou ? (oke ? okeScale : k) * (blocked ? .55 : 1 + (inou ? .3 : moribe ? .55 : 1) * pulse) : k, oke ? okeScale : k);
     // 森部の討ち取りと稲生の討ち取りは、それぞれの時間で同じ本人の印を閉じる。
     if (defeated) {
       const closing = Math.max(0, Math.min(1, (defeatUntil - rt.t) / (inou ? .45 : .8)));
@@ -440,10 +439,7 @@ export function fieldSignsTick(rt, root) {
       } else dummy.scale.multiplyScalar(still ? 1 : closing);
     }
     if (!inou && !moribe && marked && foe && u !== marked) dummy.scale.multiplyScalar(.55);
-    // 他の敵は縮めず、任務の武将・届く本人・命中した本人・防がれた本人を強調する。
-    if (inou && foe && !defeated) dummy.scale.multiplyScalar(Math.max(
-      u === missionEnemy || hot || hit > 0 || blocked ? 1.3 : 1,
-      u === commander ? 1.15 : 1));
+    // 拡大を重ねず、印の先端を本人の頭上に保つ。
     dummy.updateMatrix();
     if (foe) {
       // 森部も赤の高さを命の残りにそろえ、一撃ごとの減りを隠さない。
@@ -452,16 +448,17 @@ export function fieldSignsTick(rt, root) {
       // 森部は赤い▼の幅で間合い、縦の伸びと中身の減りで命中を示す。
       // 森部の届く本人は横幅、命中した本人は赤い中身の減りと縦の伸びで分ける。
       const justHit = special && hitLeft > (oke ? 1.7 : inou ? 1.95 : 1.7);
-      // 稲生の白縁と幅広は実際に届く一人だけ。命中は縦の伸びと赤の減りで示す。
+      // 稲生は追う本人の白縁を保ち、間合いは横幅、命中は小さな伸びと赤の減りで示す。
       // 森部は中の赤で振りかぶりと命中を分け、命中の余韻中も次の振りかぶりを示す。
+      // 振りかぶりは金縁、届く本人と命中は白縁にし、通常の暗い縁と区別する。
       // 桶狭間は実際に届く本人だけ白縁にし、接近は横幅、命中は縦の伸びと赤の減りで示す。
-      const tone = inou ? hot && !defeated ? 2 : 1 : moribe ? defeated ? 1 : danger > 0 ? 3 : hit > 0 ? 4 : reachable || blocked ? 2 : 1 : oke ? reachable && !defeated ? 2 : 1 : justHit ? 3 : hot ? 2 : 1;
+      const tone = inou ? u === missionEnemy && !defeated ? 2 : 1 : moribe ? defeated ? 1 : danger > 0 ? 3 : hit > 0 ? 4 : reachable || blocked ? 2 : 1 : oke ? reachable && !defeated ? 2 : 1 : justHit ? 3 : hot ? 2 : 1;
       if (special) {
         const c = s.signPool[s.signCandidates.length];
         c.u = u; c.matrix.copy(dummy.matrix); c.life = life;
         // 届く本人・命中直後・桶狭間で追う本人を、遠い兵の印で覆わせない。
         // 桶狭間は命中した本人を最優先にし、遠い任務の敵より今いる場所の敵を上に描く。
-        c.hot = moribe ? hit > .3 || defeated ? 5 : danger > 0 ? 4 : hot || blocked ? 3 : hit > 0 ? 2 : u === missionEnemy ? 1 : 0 : inou ? hit > 0 || defeated ? 5 : hot || blocked ? 4 : 0 : oke ? hit > 0 || defeated ? 5 : hot ? 4 : justHit ? 3 : meD2 < 25 * 25 ? u === missionEnemy ? 2 : 1 : 0 : hot;
+        c.hot = moribe ? hit > .3 || defeated ? 5 : danger > 0 ? 4 : hot || blocked ? 3 : hit > 0 ? 2 : u === missionEnemy ? 1 : 0 : inou ? hit > 0 || defeated ? 5 : hot || blocked ? 4 : u === missionEnemy ? 3 : 0 : oke ? hit > 0 || defeated ? 5 : hot ? 4 : justHit ? 3 : meD2 < 25 * 25 ? u === missionEnemy ? 2 : 1 : 0 : hot;
         c.distance = Math.sqrt(meD2); c.tone = tone;
         v.copy(headPos).project(cam);
         // 画面外の兵は端へ寄せず、選択枠も使わない。

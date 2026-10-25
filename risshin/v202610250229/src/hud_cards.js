@@ -537,8 +537,8 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
       stEl.classList.toggle('moribe-wait', waitFill >= 0);
       stEl.style.setProperty('--wait-progress', String(Math.max(0, waitFill)));
       stEl.style.backgroundImage = waitFill < 0 ? '' :
-        `linear-gradient(to right, #655126 ${waitFill}%, #17150f ${waitFill}%)`;
-      stEl.style.backgroundSize = waitFill < 0 ? '' : '100% 100%';
+        `linear-gradient(to right, #edc65e ${waitFill}%, #393328 ${waitFill}%)`;
+      stEl.style.backgroundSize = waitFill < 0 ? '' : '100% 5px';
       stEl.style.backgroundPosition = waitFill < 0 ? '' : 'left bottom';
       stEl.style.backgroundRepeat = waitFill < 0 ? '' : 'no-repeat';
     }

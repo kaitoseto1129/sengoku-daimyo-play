@@ -200,8 +200,8 @@ export class HudArmy {
       this.tugMonBattle = rt.def;
       for (const side of ['a', 'b']) {
         const canvas = tb.querySelector(`canvas.${side}`);
-        canvas.hidden = !oke;
-        if (oke) {
+        canvas.hidden = !separateForces;
+        if (separateForces) {
           const ctx = canvas.getContext('2d');
           ctx.clearRect(0, 0, 44, 44);
           ctx.save(); ctx.translate(0, -8);

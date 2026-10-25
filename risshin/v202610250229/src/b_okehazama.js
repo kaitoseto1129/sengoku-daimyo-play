@@ -671,7 +671,7 @@ const okehazama = {
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は、今する動きを短くやさしく伝える。
   missionSingleLine: true,
-  missions: ['ピンに集まれ', '仲間と進め', '雨がやむまで待て', '赤い三角の敵を倒せ', 'いまがわよしもとを倒せ', 'にげる敵を追え', '仲間と集まれ'],
+  missions: ['信長の組のピンに集まれ', '仲間と進め', '雨がやむまで待て', '赤い三角の敵を倒せ', 'いまがわよしもとを倒せ', 'にげる敵を追え', '仲間と集まれ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -730,7 +730,7 @@ const okehazama = {
     if (F.scoutFighting && rt.phase !== 'assault' && !timedWait && !(F.waitPinCompleteUntil > rt.t)) return null;
     const pin = F.missionPinTarget || (F.missionPinTarget = { x: 0, z: 0, r: 8, hide: 8 });
     pin.enemy = false; pin.dodge = false; pin.unit = null; pin.waiting = undefined; pin.always = false;
-    pin.waitDuration = rt.phase === 'brief' ? 3 : 17;
+    pin.waitDuration = rt.phase === 'brief' ? DEPART_WAIT : RAIN_WAIT;
     pin.area = false; pin.arrived = false; pin.progress = null; pin.arrivalProgress = null; pin.footRing = false; pin.follow = false; pin.approach = false;
     // 任務札の更新で、同じ集合ピンの到着表示を初期化しない。
     pin.key = rt.phase;
@@ -773,8 +773,6 @@ const okehazama = {
         // 集合先を地面へ固定する。札避けで近くの兵や別の場所を指さない。
         pin.area = true; pin.hide = 0; pin.r = JOIN_RADIUS;
         pin.arrived = this.squadFlagReached(rt); pin.waiting = pin.arrived;
-        // 実際に到着するまでは縁を閉じ切らず、壁越しの到着に見せない。
-        pin.arrivalProgress = Math.max(0, Math.min(.98, 1 - (this.squadFlagDistance(rt) - pin.r) / Math.max(.1, (F.marchStartDistance ?? 10 + pin.r) - pin.r)));
         // 穴が満ちるのは待ち時間だけ。到着はチェックで示し、雨待ちの時計を先に満たさない。
         return pin;
       }
@@ -1864,7 +1862,8 @@ const okehazama = {
       g.leader = g.units[0];
       g.path = [[sx, sz + 16], [sx, sz]].map(fieldPathPoint); g.pathIdx = 0;
       if (i === 2) {
-        // 列を細くし、背中と槍が正面に重なりにくくする。
+        // 自分の組だけ列の間を空け、背中と槍で集合ピンを隠しにくくする。
+        g.spacing = 1.9;
         g.colW = 3;
         rt.flags.genpachi = g.units[0];
         // この組頭は遊びの補い。実在の武将と紛らわしい仮の名札は出さない。
@@ -2107,7 +2106,6 @@ const okehazama = {
     const x = end[0] + (d ? dx / d * offset : 0), z = end[1] + (d ? dz / d * offset : 0);
     rt.flags.marchPinPos = { x, y: rt.world.heightAt(x, z), z };
     rt.flags.marchGoal = rt.flags.marchPinPos;
-    rt.flags.marchStartDistance = Math.hypot(x - p.x, z - p.z);
     rt.obj('col', 'ピンに集まれ', 'main');
     rt.marker('genpachi', rt.flags.marchGoal, '組の集合場所', { guideFlag: true, group: rt.hostGroup, guideRadius: JOIN_RADIUS });
   },
@@ -2358,7 +2356,7 @@ const okehazama = {
     const F = rt.flags;
     this.scout(rt);
     // 信長公記：中島での言葉 → 石氷を投げ打つような雨が今川の顔へ → 空が晴れ、鑓を取って「かかれ」。
-    // 殿の声は遠いので、組頭が伝える。短い雨待ちを、雨脚の変化で見せる。
+    // 殿の声は遠いので、組頭が伝える。雨脚とピンの円を同じ待ち時間で進める。
     if (!F.waitSpeech) {
       F.waitSpeech = true;
       sfx('thunder', 0.9);
@@ -2456,6 +2454,18 @@ const okehazama = {
       }
       if (block) rt.marker('road', () => this.objectiveEnemies(rt)[0]?.pos || block.center(), '道を守る敵', { red: true, group: block });
       else rt.marker('honjin', fieldPoint(18, -100), '本陣の入口', { guidePriority: 200 });
+    }
+    // 本人が先行したら守りも歩いて迎える。遠い味方の中心だけを追わせない。
+    if (block) {
+      const from = block.center(), p = rt.player.u.pos;
+      const ally = readyGroup(rt.hostGroup) ? rt.hostGroup.center() : p;
+      const distance = Math.hypot(from.x - p.x, from.z - p.z);
+      if (distance > 7 && distance < 32 &&
+          distance < Math.hypot(from.x - ally.x, from.z - ally.z) &&
+          !rt.army.wallBetween(from, -1, p) && !rt.army.terrainBlocks(from, p)) {
+        block.anchor.x = (from.x + p.x) * .5;
+        block.anchor.z = (from.z + p.z) * .5;
+      }
     }
     // 行き先と探す広さは毎秒かけ直す。隊の頭の仕組みが狭い探索へ戻すと、二十歩先の小隊の前で立ち止まった（10/7）。
     for (let i = 0; i < F.attackers.length; i++) {
