@@ -364,8 +364,8 @@ export function fieldSignsTick(rt, root) {
     const hit = foe && special
       ? moribe ? Math.min(1, Math.max(0, hitLeft / .6)) *
         (.65 + .35 * Math.min(1, Math.max(0, (hitLeft - 1.65) / .45)))
-        : inou ? Math.min(1, Math.max(0, hitLeft / .4)) *
-          (.1 + .9 * Math.min(1, Math.max(0, (hitLeft - 1.45) / .4)))
+        : inou ? Math.min(1, Math.max(0, hitLeft / .6)) *
+          (.2 + .8 * Math.min(1, Math.max(0, (hitLeft - 2) / .4)))
         : Math.min(1, Math.max(0, (hitLeft - 1.2) / .5))
       : 0;
     const reachable = foe && u === readyEnemy;
@@ -393,13 +393,13 @@ export function fieldSignsTick(rt, root) {
     // 森部も頭ほどの幅に収め、間合いと命中の拡大は下で一度だけ掛ける。
     // 稲生の追う一人も頭ほどの実寸に収め、奥の印が手前の兵に重なるのを防ぐ。
     // 近くの兵も読みやすい大きさを残し、目前の相手を見失わせない。
-    const inouFocus = inou && (practiceEnemy || u === missionEnemy || hot || hit > 0 || defeated);
+    const inouFocus = inou && (practiceEnemy || u === missionEnemy || hot || hit > 0 || u.inouBlockUntil > rt.t || defeated);
     // 稲生の目当ては距離に応じて滑らかに大きくし、近さの境目で急に変えない。
     // 目当ての読みやすい幅は残し、実寸の上限で遠い印の膨らみを抑える。
     const inouLimit = inouFocus ? 2 + Math.max(0, 1 - Math.sqrt(meD2) / 18) : near ? 2 : u === commander ? 1.5 : 1.2;
     // 桶狭間の遠い印は頭ほどに収め、森部・稲生の間合いと命中の調整も保つ。
     // 森部の一般兵は頭ほどの幅を保ち、討つ武将の上限と間合い・命中の拡大を残す。
-    const k = Math.min(moribe ? (u === commander ? 8 : u === missionEnemy ? 3 : .65 + 1.15 * Math.max(0, Math.min(1, (36 - Math.sqrt(meD2)) / 26))) : inou ? inouLimit : oke ? (u === missionEnemy || u === commander ? 1.6 : 1.1) : u === commander ? 32 : 3, (inou ? practiceEnemy ? 28 : inouFocus ? pixels : practiceGroup ? 14 : near ? 28 : 18 : moribe ? pixels : width) * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) *
+    const k = Math.min(moribe ? (u === commander ? 8 : u === missionEnemy ? 3 : .65 + 1.15 * Math.max(0, Math.min(1, (36 - Math.sqrt(meD2)) / 26))) : inou ? inouLimit : oke ? (u === missionEnemy || u === commander ? 1.6 : 1.1) : u === commander ? 32 : 3, (inou ? practiceEnemy ? 28 : inouFocus ? 30 : practiceGroup ? 14 : near ? 28 : 18 : moribe ? pixels : width) * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) *
       (moribe || inou ? 1 : 1 + (pulse > 0 ? 1.2 * pulse : reachable && !oke ? .55 : 0));
     dummy.position.copy(headPos);
     dummy.quaternion.copy(q);

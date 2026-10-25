@@ -121,7 +121,6 @@ function approachUnit(rt) {
   if (!group) return null;
   // 間合いの内外で同じ兵を追い、札・ピン・頭上の▼をそろえる。近くの別人へ毎コマ渡さない。
   const previous = F.approachGroup === group && advanceEnemy(F.approachUnit) ? F.approachUnit : null;
-  if (previous) return previous;
   const reachable = rt.player.inRange && rt.player.rangeCueTarget;
   if (advanceEnemy(reachable) && group.units.includes(reachable)) {
     F.approachGroup = group; F.approachUnit = reachable;
@@ -138,6 +137,12 @@ function approachUnit(rt) {
     if (!advanceEnemy(u)) continue;
     const d = Math.hypot(u.pos.x - rt.player.u.pos.x, u.pos.z - rt.player.u.pos.z);
     if (d < best) { chosen = u; best = d; }
+  }
+  // 少しの前後では替えず、別の兵が十分近い時だけ追う相手を渡す。
+  // 遠ざかる一人を追い続け、目の前の林兵を通り過ぎるのを防ぐ。
+  if (previous) {
+    const distance = Math.hypot(previous.pos.x - rt.player.u.pos.x, previous.pos.z - rt.player.u.pos.z);
+    if (best + 3 >= distance) chosen = previous;
   }
   F.approachGroup = group; F.approachUnit = chosen;
   return chosen;
@@ -253,8 +258,9 @@ const inou = {
   missionHeading(rt) {
     const F = rt.flags;
     if (F.step === 0) {
-      // 兵と武将を呼び分ける。増援のたびに戻る残り人数は出さない。
-      return F.training === 8 ? '林の小隊長を倒せ' : '林の兵を倒せ';
+      // 兵と小隊長を呼び分け、赤い▼と信勝方の所属をそろえる。増援で戻る人数は出さない。
+      const name = F.training === 8 ? '▼の林の小隊長' : '赤い▼の林の兵（信勝方）';
+      return `${name}を倒せ`;
     }
     if (F.step === 1) {
       if (F.training === 11 && !F.flankReached) return '柴田の兵を倒せ';

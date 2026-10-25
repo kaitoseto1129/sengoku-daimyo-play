@@ -14,6 +14,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { flagTexture, drawMon } from './textures.js';
 import { sfx, withPan } from './audio.js';
 import { S, MEM_TIGHT } from './settings.js';
+import { TIER } from './device_tier.js';
 import { WIND_STATE, isNoRender, hasMultiDraw } from './world.js';
 import { updateWaterBody, waterMaterial, waterBatchKey, refreshWaterMaterials } from './water_body.js';
 // 役目ごとに分けたファイル
@@ -1738,6 +1739,12 @@ export class Army {
       if (!far) { if (u.imp) { u.imp = false; if (u.mesh && !u.gone) u.mesh.visible = !u.camHidden; } continue; }
       u.imp = true;
       u.mesh.visible = false;
+      // 見えない遠景も元の形を隠すが、束には送らない。
+      if (TIER.weak && this._viewFrustum) {
+        this.tmpSphere.center.set(u.pos.x, u.pos.y + 1, u.pos.z);
+        this.tmpSphere.radius = Math.max(3.4, (u.wpn?.userData.spec?.L || 0) + 1);
+        if (!this._viewFrustum.intersectsSphere(this.tmpSphere)) continue;
+      }
       // 一つの束（160 人）があふれたら、同じ甲冑と旗の二つ目・三つ目の束へ（あふれた兵を一人ずつ描かない）
       // 束の名（甲冑と旗）は兵ごとに一度だけ作る（毎コマ字をつながない）
       if (u.impLook !== u.look) { u.impLook = u.look; u.impKey = u.look.armor + '|' + (u.look.flag || ''); }
@@ -1846,7 +1853,7 @@ export class Army {
     if (!B.maps || B.maps.length < 5) B.maps = [B.map, B.mapC, B.mapF, B.mapM, B.mapS];
     // 戦の指定距離まで細かい形を保つ（units_flags.js も同じ値を見る）。指定のない高画質は16m。
     //   骨の入った人を作り終えるまでの間に目の前へ出る形なので、低でも 9m で粗い形に落とさない（10/7 本能寺の御殿）
-    const low = false;
+    const low = TIER.weak;
     LOD.near = low ? this.world.def.lowUnitNear ?? (this.world.def.denseFront || this.world.def.lowArmyDetail ? 10 : 16) : this.world.def.highUnitNear ?? 16;
     B.sh = false; B.low = low;   // 低は影を描かないので、画面の外の兵の影の部品を束ねない
     B.cameraMask = cam ? cam.layers.mask : 1;

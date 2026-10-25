@@ -8,9 +8,9 @@ import { UNIT_MAT, soheiLook } from './units.js';
 // 記憶の少ない機械：iPhone（WebContent が 2048MB で切られる）。パソコンは保存済みの軽量設定で落とさない。
 const memTight = () => MEM_TIGHT;
 // 携帯だけ、骨入りの貸出枠と中景の細かな形の枠を分ける。
-// 記憶の少ない端末（iPhone 11 など。device_tier.js）は骨入りの貸出枠と中景の枠を 6 割に（近くの乱戦 15m の内は残る）
-const SKIN_MAX = TIER.weak ? 24 : 40;
-const MIDDLE_MAX = TIER.weak ? 48 : 80;
+// 弱い端末は密集しても骨入りを十二人まで。他の兵は共有する全身の形で残す。
+const SKIN_MAX = TIER.weak ? 12 : 40;
+const MIDDLE_MAX = TIER.weak ? 24 : 80;
 const SKIN_IN = 15;
 const SKIN_OUT = 17;
 const humanPool = new Set();
