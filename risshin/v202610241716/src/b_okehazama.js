@@ -552,7 +552,7 @@ const okehazama = {
   // 右上はミッションの一行だけ。距離・向き・操作の字を見出しに出さない（kaito 10/23 49・50）。
   // 間合いと命中は頭上の▼で示し、別の距離案内は出さない。
   enemyOrder(rt, enemy) {
-    return '敵を倒せ';
+    return '赤い三角の敵を倒せ';
   },
   missionSignTarget(rt) {
     const F = rt.flags, p = rt.player;
@@ -659,7 +659,7 @@ const okehazama = {
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は、今する動きを短くやさしく伝える。
   missionSingleLine: true,
-  missions: ['仲間と集まれ', '仲間と進め', '雨がやむまで待て', '今川勢を倒せ', 'いまがわよしもとを倒せ', 'にげる敵を追え', '仲間と集まれ'],
+  missions: ['ピンに集まれ', 'ピンに集まれ', '雨がやむまで待て', '赤い三角の敵を倒せ', 'いまがわよしもとを倒せ', 'にげる敵を追え', '仲間と集まれ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -670,8 +670,8 @@ const okehazama = {
     // 合流済みの待ちは敵が寄っても続く。同じ丸と一行を雨上がりまで保つ。
     if (rt.phase === 'wait') return '雨がやむまで待て';
     if (rt.phase === 'brief' && rt.flags.briefed) return '出発を待て';
-    if (rt.phase === 'march' && rt.flags.scoutFighting) return '今川勢を倒せ';
-    if (rt.phase === 'assault' && rt.flags.entered && !rt.flags.victory && this.objectiveEnemies(rt).length) return '今川勢を倒せ';
+    if (rt.phase === 'march' && rt.flags.scoutFighting) return '赤い三角の敵を倒せ';
+    if (rt.phase === 'assault' && rt.flags.entered && !rt.flags.victory && this.objectiveEnemies(rt).length) return '赤い三角の敵を倒せ';
     if (rt.phase === 'march' && this.squadFlagReached(rt)) return '仲間を待て';
     return this.missions[this.missionOf(rt)];
   },
@@ -2422,6 +2422,14 @@ const okehazama = {
         rt.award((t) => t.side.push('道の守りを崩し、味方の前進を助けた'), '道を開いた。味方が本陣へ進む');
       }
       F.roadStep = step;
+      // 守りも味方との間へ歩いて迎え撃つ。密集した味方の奥まで本人だけを歩かせない。
+      // 兵の現在地は動かさず、両軍が寄せる地点だけを一度決める。
+      if (block) {
+        const from = block.center(), ally = readyGroup(rt.hostGroup) ? rt.hostGroup.center() : rt.player.u.pos;
+        block.guard = false;
+        block.anchor.x = (from.x + ally.x) * .5;
+        block.anchor.z = (from.z + ally.z) * .5;
+      }
       rt.unmark('road');
       // 同じ札を出し直さない（札の揺れと、組頭の読み上げの重なりを防ぐ）。
       const text = block ? '味方と 道の敵をたおす' : '味方と 本陣の入口へ進め';

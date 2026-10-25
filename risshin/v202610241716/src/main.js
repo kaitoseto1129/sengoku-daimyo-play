@@ -134,7 +134,7 @@ function ldBegin(keys, battle = '') {
   const actions = document.querySelector('#loading .ld-cancel');
   if (actions) actions.remove();
   const cancel = document.createElement('button');
-  cancel.type = 'button'; cancel.className = 'btn small ld-cancel'; cancel.textContent = '始める画面に戻る';
+  cancel.type = 'button'; cancel.className = 'btn small ld-cancel'; cancel.textContent = '準備をやめて題へ戻る';
   cancel.style.cssText = 'min-height:44px;margin-top:16px';
   cancel.onclick = () => { game.startSeq = (game.startSeq || 0) + 1; hideLoading(); game.title(); };
   document.querySelector('#loading .ldbar').parentElement.appendChild(cancel);
@@ -217,7 +217,7 @@ const stage = (t, key) => {
   const left = $('ld-left');
   left.hidden = !t; left.style.display = t ? 'block' : 'none';
   const i = ldPlan && key ? ldPlan.keys.indexOf(key) : -1;
-  el.firstChild.textContent = i >= 0 ? `${t}（${i + 1}／${ldPlan.keys.length}）` : t;
+  el.firstChild.textContent = i >= 0 ? `${ldName}を用意中（${i + 1}／${ldPlan.keys.length}）` : t;
   if (key) ldStep(key);
   const remaining = $('ld-left');
   remaining.hidden = !t;
