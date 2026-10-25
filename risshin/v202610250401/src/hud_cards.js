@@ -183,7 +183,7 @@ export class HudCards {
       const yaw = Math.atan2(this.tmpV.x, this.tmpV.z);
       const right = -dx * Math.cos(yaw) + dz * Math.sin(yaw);
       const forward = dx * Math.sin(yaw) + dz * Math.cos(yaw);
-      // 後方は左右へ振り向かせる。下向きの矢印を後退の指示に見せない。
+      // 後ろの目標も横の端で示し、左右へ振り向かせる。下向きの矢印を後退の指示に見せない。
       const sideways = forward < 0 || Math.abs(right) > Math.abs(forward);
       x = sideways ? right >= 0 ? W - margin : margin : W / 2;
       y = sideways ? H * (forward >= 0 ? .45 : .65) : 128;
@@ -529,7 +529,7 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     // 待つ間（陣を敷く・寄せを待つ）の残りは、秒の字でなく満ちていく丸で（kaito 10/23 稲生 14）。
     const gm = rt.missionGuide?.marker, wu = gm?.waitUntil?.();
     const progress = def.missionWaitProgress?.(rt);
-    // 待機中は任務一行の下地を満たす。集合ピンが視界を外れても進みを見失わない。
+    // 森部は任務一行の丸、桶狭間は下地を満たす。秒数や別の札を増やさない。
     const waitFill = (def.key === 'moribe' || def.key === 'okehazama') && Number.isFinite(progress)
       ? Math.round(Math.max(0, Math.min(1, progress)) * 100) : -1;
     if (el._waitFill !== waitFill) {

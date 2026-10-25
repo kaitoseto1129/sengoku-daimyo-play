@@ -577,7 +577,8 @@ const okehazama = {
       if (!(F.nearSignAt > rt.t) || F.nearSignEnemy && !readyUnit(F.nearSignEnemy)) {
         F.nearSignAt = rt.t + .5;
         const filter = F.nearSignFilter || (F.nearSignFilter = (u) => readyUnit(u) &&
-          Math.abs(u.pos.y - p.u.pos.y) < 3 && !rt.army.wallBetween(p.u.pos, p.u.team, u.pos));
+          Math.abs(u.pos.y - p.u.pos.y) < 3 && !rt.army.wallBetween(p.u.pos, p.u.team, u.pos) &&
+          !rt.army.terrainBlocks(p.u.pos, u.pos));
         const near = rt.army.nearestEnemy(p.u, 14, filter);
         const old = F.nearSignEnemy;
         const distance = (u) => Math.hypot(u.pos.x - p.u.pos.x, u.pos.z - p.u.pos.z);

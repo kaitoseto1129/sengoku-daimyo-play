@@ -121,7 +121,9 @@ export class WorldLod {
   // 輪（本物の兵に替わる 44m）の内に多くの兵が入った隊：見える兵（輪の外の兵）だけを写した束で描き、元の束は描かない。
   //   輪の内の兵はシェーダーが消すのに、三角と頂点の計算は全員の分かかっていた。消える・見えるの判定はシェーダーのまま（写しは余裕を持って多めに）
   lodCompact(m, L, RR) {
-    const on = RR >= 30 && m.isInstancedMesh && !L.allHidden && m.count >= 48 && !L.splitOn && !L.sashi && !m.userData.maskByBody;
+    const all = !!this.def.armyCompactAll;
+    // 小隊も兵ごとに選ぶ戦では、四十八人未満の控え・旗持ちも対象にする。
+    const on = RR >= 30 && m.isInstancedMesh && !L.allHidden && m.count >= (all ? 1 : 48) && !L.splitOn && !L.sashi && !m.userData.maskByBody;
     if (!on) {
       if (L.cmp) { L.cmp.count = 0; L.cmp.visible = false; }
       if (L.cmpFar) { L.cmpFar.count = 0; L.cmpFar.visible = false; }
@@ -154,8 +156,9 @@ export class WorldLod {
       if (d2 + dy * dy > far2 && realD2 > far2) W[W.length - 1 - distant++] = i;
       else W[keep++] = i;
     }
-    // 消える兵も遠い形へ移す兵も少ない時は、元の束をそのまま描く。
-    if (!distant && keep > m.count * 0.88) {
+    // 指定した戦は少数の見えない兵も送らない。全員が同じ形で見える時だけ元へ戻す。
+    // ほかの戦は従来どおり、詰め直しの効果が小さければ元の束を使う。
+    if (!distant && (all ? keep === m.count : keep > m.count * 0.88)) {
       if (L.cmp) { L.cmp.count = 0; L.cmp.visible = false; }
       if (L.cmpFar) { L.cmpFar.count = 0; L.cmpFar.visible = false; }
       L.cmpOn = false; return;

@@ -119,7 +119,7 @@ function approachUnit(rt) {
   const F = rt.flags;
   const group = F.step === 1 ? F.shiba1 : F.chase || F.training >= 0 && F.training < 5 ? F.practice : F.haya1;
   if (!group) return null;
-  // 接近中は一人を保つ。近くの別人へ毎コマ目印を渡さない。
+  // 間合いの内外で同じ兵を追い、札・ピン・頭上の▼をそろえる。近くの別人へ毎コマ渡さない。
   const previous = F.approachGroup === group && advanceEnemy(F.approachUnit) ? F.approachUnit : null;
   if (previous) return previous;
   const reachable = rt.player.inRange && rt.player.rangeCueTarget;
@@ -226,7 +226,7 @@ const inou = {
   missionPinCaption: '',
   hideArmyPeek: true, // 初陣は行き先・敵の▼・任務一行に絞る。
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
-  // 任務は一行。頭上の▼と呼び方をそろえ、距離や向きで文を切り替えない。
+  // 任務は一行。兵・隊長・待つ場所を区別し、頭上の▼と呼び方をそろえる。距離や向きで文を切り替えない。
   missions: ['赤い▼の林美作守の兵（信勝方）を倒せ', '赤い▼の林美作守の兵（信勝方）を倒せ', '信長の旗のそばで耐えろ', '▼の林美作守を倒せ'],
   missionHeading(rt) {
     const F = rt.flags;
@@ -548,7 +548,7 @@ const inou = {
     if (phase === 0) {
       // 初めから追う林兵を見せる。練習が終わっても同じ三人を使い、印の先を替えない。
       const p = rt.player.u.pos;
-      const at = { x: p.x + 2, z: p.z - 14 };
+      const at = { x: p.x + 2, z: p.z - 10 };
       const g = enemyGroup(rt, { faction: 'nobukatsu', name: '林の遅れ兵', anchor: { ...at }, facing: Math.PI, width: 3, aggro: 0, noAI: true, noRout: true, order: 'hold', dmgMult: 0.25, focus: rt.player.u },
         dress([{ type: 'ashigaru', n: 3 }], HAYA));
       g.speed = 0.8;

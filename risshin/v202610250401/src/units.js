@@ -443,6 +443,7 @@ export class Army {
     this._lazySweepAt = 0;
     this.thinkWork = new ThinkBudget();
     this.bulletCandidates = [];
+    this.prepareBullets();
     this.gridX0 = this.gridZ0 = Infinity;
     this.gridX1 = this.gridZ1 = -Infinity;
     this.gW = this.gH = this.gridN = 0;

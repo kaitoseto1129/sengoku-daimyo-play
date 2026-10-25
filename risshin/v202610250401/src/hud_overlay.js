@@ -62,6 +62,11 @@ export class HudOverlay {
     if (pin?.arrived) {
       g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
     }
+    // 待つ間は空の部分と満ちた部分の境を残す。終わりまでの進みをピンの穴だけで示す。
+    if (pin?.waiting && pin.arrived) {
+      g.beginPath(); g.arc(x, y - 33, 12, 0, Math.PI * 2);
+      g.fillStyle = '#655126'; g.fill();
+    }
     if (pin?.crossing) {
       // 渡河の到着は同じ穴を下から満たす。待機の時計の扇形と区別する。
       g.save(); g.beginPath(); g.arc(x, y - 33, 12, 0, Math.PI * 2); g.clip();
@@ -77,9 +82,11 @@ export class HudOverlay {
     // 待機中だけ時計の針を回す。移動先と待ち時間を同じ一本で伝える。
     if (pin?.waiting && pin.arrived) {
       const angle = -Math.PI / 2 + Math.PI * 2 * Math.min(1, pin.progress || 0);
-      // 十二時を起点にした扇形の境界。斜めの二本針を完了の印に見せない。
-      g.beginPath(); g.moveTo(0, -44); g.lineTo(0, -33);
-      g.lineTo(Math.cos(angle) * 10, -33 + Math.sin(angle) * 10);
+      // 十二時の目盛りと一本の針を離し、折れた完了の印に見せない。
+      g.beginPath(); g.moveTo(0, -47); g.lineTo(0, -43);
+      g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
+      g.beginPath(); g.moveTo(0, -33);
+      g.lineTo(Math.cos(angle) * 12, -33 + Math.sin(angle) * 12);
       g.strokeStyle = '#14120f'; g.lineWidth = 5; g.stroke();
       g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
     }
