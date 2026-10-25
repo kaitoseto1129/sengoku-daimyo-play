@@ -68,7 +68,7 @@ export class Hud {
       }
       html:root body #hud.field-clean.field-clean .bl #h-hp.hp.deep { outline:2px solid #fff3df; }
       html:root body #hud.field-clean.field-clean .bl #h-hp.hp.deep i strong {
-        background:repeating-linear-gradient(135deg,#fff3df 0 4px,#a33124 4px 8px);
+        background:#a33124;
       }`;
       // ↑ 戦の画面は動きを減らす設定が無くても点滅させない（命の棒・狙われた時の縁・囲まれた時の縁・丸の光り。kaito 10/23「チカチカがほんとにやだ」）。
       document.head.appendChild(css);
@@ -468,40 +468,20 @@ export class Hud {
     // 数字と塗りは同じ残量。枠内の塗りは、親の配置や高さの割合に依存させない。
     setCssVar(hpTrack, '--hp-ratio', hpPct / 100);
     setAttr(hpTrack, 'aria-valuetext', fallen ? '倒れた' : `残り${hpShown}％`);
-    const tcLow = isTouch && document.documentElement.classList.contains('tc-low');
     const emEl = hpEl.querySelector('em');
-    // 軽いけがも命の表示へまとめ、同じ知らせは八秒あける。
-    if (this.injuryRt !== rt) { this.injuryUntil = 0; this.injuryNextAt = 0; }
-    if (this.injuryRt === rt && u.alive && !rt.over && u.hp < this.injuryHp - .1 && rt.t >= this.injuryNextAt) {
-      this.injuryUntil = rt.t + 1.2; this.injuryNextAt = rt.t + 8;
-    }
-    this.injuryRt = rt; this.injuryHp = u.hp;
-    const recentInjury = u.alive && !rt.over && rt.t < this.injuryUntil;
     const bloodLoss = !fallen && u.wounds?.bleed > 0.0001;
     const deep = u.hp < u.maxHp * 0.3;
     const woundEffectMin = rt.def.woundEffectMin ?? 0;
     const slowWound = u.woundSlow > woundEffectMin;
     const wound = woundText(u).replace('胴', '体').replace('腿', 'もも').replace('の骨の傷', 'の骨に けが').replace('に傷', 'に けが');
     const wounded = fallen || bloodLoss || deep || slowWound || u.armWound > woundEffectMin || !!wound;
-    const injury = fallen ? '倒れた' : bloodLoss ? '血が出てる' : deep ? '命が少ない' : wound;
-    const woundEffect = !fallen && (slowWound || u.armWound > woundEffectMin)
-      ? rt.def.woundEffectText?.(rt, slowWound) ?? (slowWound ? '足のけが' : '腕のけが') : '';
-    const footSign = '<svg viewBox="0 0 32 36" aria-hidden="true"><path d="M13 3H24L21 22L29 27V33H7V25L11 19Z" fill="currentColor"/><path d="M10 14L23 18M9 19L22 23" stroke="#14120f" stroke-width="3"/></svg>';
-    const effect = woundEffect ? `${slowWound ? footSign : ''}${esc(woundEffect)}` : '';
-    const injurySign = bloodLoss ? '<svg viewBox="0 0 32 36" aria-hidden="true"><path d="M16 2C13 9 4 17 4 24A12 12 0 0 0 28 24C28 17 19 9 16 2Z" fill="currentColor"/></svg>' : deep ? '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 4L28 28M10 2L30 22M2 10L22 30" fill="none" stroke="currentColor" stroke-width="4"/></svg>' : '';
-    // 命の札には状態だけを書き、退く操作は案内一枚に任せる。
-    const shortInjury = fallen ? injury : deep ? '命が少ない' : bloodLoss ? '血が出てる' : '';
-    const flee = !fallen && !rt.over && retreatRequired(rt) && !p.treatmentReady &&
-      !(this.retreatGuide?.active && this.retreatGuide.valid &&
-        Math.hypot(this.retreatGuide.x - u.pos.x, this.retreatGuide.z - u.pos.z) < this.retreatGuide.radius);
-    // 傷は命の札へ、退く指示は行き先に結ぶ任務札へ置く。
-    setHtml(emEl, !fallen && deep ? 'あと少し！' : VIEW.h <= 500 ? esc(shortInjury) : fallen ? esc(injury) : deep || bloodLoss ? injurySign + esc(injury) + (effect ? `<small>${effect}</small>` : '') : recentInjury ? esc(shortInjury) : effect || esc(injury));
+    // 命の状態は棒と縁で示し、傷や危険の文字は出さない。
+    setHtml(emEl, '');
     setClass(hpEl, 'healthy', hpPct >= 100 && !wounded);
     setClass(hpEl, 'blood-loss', bloodLoss);
     // 危険は同じ体力の札へ常時添える。繰り返す一時の知らせは作らない。
-    setHidden(emEl, !fallen && !deep);
-    if (tcLow) setStyle(emEl, "fontWeight", '800');
-    // 深手（三割を切る）は言葉でも示す。
+    setHidden(emEl, true);
+    // 深手（三割を切る）は棒の色と画面の縁で示す。
     setClass(hpEl, 'deep', deep);
     setClass(hpEl, 'bleeding', u.alive && !rt.over && u.hp < 40 && u.wounds?.bleed > 0.0001 && !S.reduceMotion);
     this.deepWas = deep;

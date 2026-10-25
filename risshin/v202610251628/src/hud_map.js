@@ -394,6 +394,17 @@ export class HudMap {
         g.fillRect(a - r0 / 2, b - r0 / 2, r0, r0);
       }
     }
+    const missionEnemy = rt.def.key === 'inou' ? markedEnemy(rt) : null;
+    // 名のある敵将は小さな地図でも菱形。点と同じ見通し判定で、文字は添えない。
+    for (const u of rt.army.units) {
+      if (u === missionEnemy || u.team === 0 || !u.name || !u.alive || u.gone || u.dying || u.woundOut || u.type === 'dummy') continue;
+      if (far(u.pos.x, u.pos.z) || !sightUnit(rt, u)) continue;
+      const [a, b] = tr(u.pos.x, u.pos.z), r = 6 * px;
+      g.beginPath(); g.moveTo(a, b - r); g.lineTo(a + r, b); g.lineTo(a, b + r); g.lineTo(a - r, b); g.closePath();
+      g.strokeStyle = C.ink; g.lineWidth = 4 * px; g.stroke();
+      g.strokeStyle = C.paper; g.lineWidth = 2 * px; g.stroke();
+      g.fillStyle = C.enemy; g.fill();
+    }
     // ---- 自分の組：組の者を囲む輪（墨の縁に金茶） ----
     for (const grp of rt.squadGroups || []) {
       if (!grp.count) continue;
@@ -521,8 +532,7 @@ export class HudMap {
         if (lbl) drawName(lbl, a + r0 * 4.6, b - 4);
       }
     }
-    // 稲生の行き先は戦場と同じ白ふちの赤い▼。白い矢印は自分だけ。
-    const missionEnemy = rt.def.key === 'inou' ? markedEnemy(rt) : null;
+    // 稲生の行き先：兵は▼、名のある敵将は菱形。白い矢印は自分だけ。
     if (missionEnemy && inouSignVisible(rt, missionEnemy)) {
       let [a, b] = tr(missionEnemy.pos.x, missionEnemy.pos.z);
       const dx = a - Sz / 2, dy = b - Sz / 2, distance = Math.hypot(dx, dy);
@@ -538,8 +548,14 @@ export class HudMap {
         g.strokeStyle = C.ink; g.lineWidth = 2 * px;
         g.beginPath(); g.moveTo(x, y); g.lineTo(a, b); g.stroke();
       }
-      const r = 6 * px;
-      g.beginPath(); g.moveTo(a - r, b - r); g.lineTo(a + r, b - r); g.lineTo(a, b + r); g.closePath();
+      const r = (missionEnemy.name ? 8 : 6) * px;
+      g.beginPath();
+      if (missionEnemy.name) {
+        g.moveTo(a, b - r); g.lineTo(a + r, b); g.lineTo(a, b + r); g.lineTo(a - r, b);
+      } else {
+        g.moveTo(a - r, b - r); g.lineTo(a + r, b - r); g.lineTo(a, b + r);
+      }
+      g.closePath();
       g.lineJoin = 'round'; g.strokeStyle = C.ink; g.lineWidth = 5 * px; g.stroke();
       g.strokeStyle = '#fff'; g.lineWidth = 2.5 * px; g.stroke();
       g.fillStyle = '#a33124'; g.fill();
