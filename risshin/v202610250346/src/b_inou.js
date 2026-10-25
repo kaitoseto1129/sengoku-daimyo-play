@@ -119,13 +119,19 @@ function approachUnit(rt) {
   const F = rt.flags;
   const group = F.step === 1 ? F.shiba1 : F.chase || F.training >= 0 && F.training < 5 ? F.practice : F.haya1;
   if (!group) return null;
-  // 接近中は一人を保つ。近くの別人へ毎コマ目印を渡さない。
+  // 間合いの内外で同じ兵を追い、札・ピン・頭上の▼をそろえる。近くの別人へ毎コマ渡さない。
   const previous = F.approachGroup === group && advanceEnemy(F.approachUnit) ? F.approachUnit : null;
   if (previous) return previous;
   const reachable = rt.player.inRange && rt.player.rangeCueTarget;
   if (advanceEnemy(reachable) && group.units.includes(reachable)) {
     F.approachGroup = group; F.approachUnit = reachable;
     return reachable;
+  }
+  // 命中した本人がまだ近ければ追い続け、知らせと次の目印をそろえる。
+  if (F.approachGroup === group && advanceEnemy(F.hitUnit) && group.units.includes(F.hitUnit) &&
+      Math.hypot(F.hitUnit.pos.x - rt.player.u.pos.x, F.hitUnit.pos.z - rt.player.u.pos.z) <= rt.player.meleeReach(rt.player.previewMeleeKind() || 'thrust') + 2) {
+    F.approachUnit = F.hitUnit;
+    return F.hitUnit;
   }
   let chosen = null, best = Infinity;
   for (const u of group.units) {
@@ -220,7 +226,7 @@ const inou = {
   missionPinCaption: '',
   hideArmyPeek: true, // 初陣は行き先・敵の▼・任務一行に絞る。
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
-  // 任務は一行。頭上の▼と呼び方をそろえ、距離や向きで文を切り替えない。
+  // 任務は一行。兵・隊長・待つ場所を区別し、頭上の▼と呼び方をそろえる。距離や向きで文を切り替えない。
   missions: ['赤い▼の林美作守の兵（信勝方）を倒せ', '赤い▼の林美作守の兵（信勝方）を倒せ', '信長の旗のそばで耐えろ', '▼の林美作守を倒せ'],
   missionHeading(rt) {
     const F = rt.flags;
@@ -228,11 +234,11 @@ const inou = {
       const name = F.training === 8 ? '▼の林美作守の小隊長' : '赤い▼の林美作守の兵（信勝方）';
       if (F.training <= 8) {
         const enemy = this.missionSignTarget(rt), P = rt.player;
-        if (!fighting(enemy)) return 'その場で次の敵を待て';
+        if (!fighting(enemy)) return `${name}を倒せ`;
         // 攻撃判定が届く本人と札をそろえる。空振りを続けさせない。
         const ready = P.inRange && fighting(P.rangeCueTarget) &&
           (P.rangeCueTarget === enemy || F.training !== 8 && P.rangeCueTarget.group === enemy.group);
-        if (!ready) return `${name}へ近づけ`;
+        if (!ready) return inouEnemyOrder(rt, `${name}を倒せ`, name);
       }
       const left = F.training <= 4 ? practiceLeft(rt) : 0;
       return left ? `${name}を倒せ（残り${left}人）` : `${name}を倒せ`;
@@ -262,6 +268,7 @@ const inou = {
   missionEnemySteps: enemySteps,
   meleeResult(rt, target, result) {
     const F = rt.flags;
+    if (target && target.team !== rt.player.u.team && result !== 'miss') F.hitUnit = target;
     // 命中・討ち取りは実際に命が減った時の知らせを保つ。
     if (result === 'miss' && rt.t >= (F.missNoticeNext || 0)) {
       const enemy = rt.def.missionSignTarget(rt), p = rt.player;
@@ -304,7 +311,7 @@ const inou = {
     return signs;
   },
   // 札・ピン・頭上の▼は同じ一人を使い、ピンは本人の足元へ固定する。
-  // 間合いへ十分近づくか、実際に槍が届いたら頭上の▼に任せる。
+  // 実際に槍が届いたら頭上の▼に任せる。
   missionPin(rt) {
     const F = rt.flags;
     // 林兵への案内は頭上の札一本。地面へ別の矢印を重ねない。
@@ -312,10 +319,8 @@ const inou = {
     const enemy = this.missionSignTarget(rt);
     // 描画を省いた兵にも案内を残す。見えない間は同じ相手への方向矢印になる。
     if (fighting(enemy)) {
-      const p = rt.player, me = p.u.pos;
-      const d = Math.hypot(me.x - enemy.pos.x, me.z - enemy.pos.z);
-      const reach = p.meleeReach(p.previewMeleeKind() || 'thrust') * .8;
-      if (d <= reach || p.inRange && p.rangeCueTarget === enemy) return null;
+      const p = rt.player;
+      if (p.inRange && p.rangeCueTarget === enemy) return null;
       const pin = pinPoint(rt, enemy.pos, .2, .2, enemy);
       // 足場を手前へずらさず、▼と同じ本人の足元に刺す。
       pin.approach = true;

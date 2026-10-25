@@ -177,6 +177,8 @@ export class HudArmy {
 #tugbar .bar i{position:absolute;top:0;bottom:0}
 #tugbar .bar i.a{left:0;background:linear-gradient(#f2d27a,#c99a2e)}
 #tugbar .bar i.b{right:0;background:linear-gradient(#ff6a50,#b8281a)}
+#tugbar.forces .bar{height:18px}
+#tugbar.forces .bar i:after{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='18' viewBox='0 0 12 18'%3E%3Cpath fill='%2314120f' d='M2 6L5 2L8 6ZM3 7H7V10H8V14H6V17H5V14H4V17H3V11H2V8H3Z'/%3E%3Cpath stroke='%2314120f' d='M10 1V17'/%3E%3C/svg%3E") repeat-x center}
 #tugbar .bar s{position:absolute;top:-2px;bottom:-2px;width:3px;margin-left:-1.5px;background:#fff8e6;box-shadow:0 0 0 1px #14120f}
 #tugbar:not(.still) .bar i,#tugbar:not(.still) .bar s{transition:width .8s ease-out,left .8s ease-out}
 #tugbar small{font-size:12px;line-height:1;font-weight:700;color:#fff8e6;text-shadow:0 1px 2px #000,0 0 3px #000;min-width:28px;font-variant-numeric:tabular-nums}
@@ -192,8 +194,11 @@ export class HudArmy {
     // 稲生は七百対千七百の兵力差を、そのまま棒の長さにする。
     const ra = Math.max(0, f.a) / (rt.def.key === 'inou' ? 1 : Math.max(1, f.a0 || f.a)), rb = Math.max(0, f.b) / (rt.def.key === 'inou' ? 1 : Math.max(1, f.b0 || f.b));
     const share = ra + rb > 0 ? ra / (ra + rb) * 100 : 50;
-    const oke = rt.def.key === 'okehazama';
-    const separateForces = oke || rt.def.key === 'moribe';
+    const oke = rt.def.key === 'okehazama', inou = rt.def.key === 'inou';
+    const picture = oke || inou;
+    const separateForces = picture || rt.def.key === 'moribe';
+    // 既存の帯の中だけに兵を並べ、命や時間の棒と見分けられるようにする。
+    tb.classList.toggle('forces', picture);
     // 戦場の旗と同じ紋を、既存の兵力の棒の両端に描く。字の軍名や総兵数は足さない。
     // 紋は戦が替わった時だけ描き、毎コマ描き直さない。
     if (this.tugMonBattle !== rt.def) {
@@ -207,6 +212,12 @@ export class HudArmy {
           ctx.save(); ctx.translate(0, -8);
           drawMon(ctx, rt.def.sides[side].mon, 44, 88);
           ctx.restore();
+          // 敵の棒と頭上の印を、同じ赤い▼で結び付ける。
+          if (inou && side === 'b') {
+            ctx.beginPath(); ctx.moveTo(12, 31); ctx.lineTo(32, 31); ctx.lineTo(22, 42); ctx.closePath();
+            ctx.fillStyle = '#ff634d'; ctx.strokeStyle = '#32140d'; ctx.lineWidth = 2;
+            ctx.fill(); ctx.stroke();
+          }
         }
       }
     }
@@ -214,7 +225,7 @@ export class HudArmy {
     if (key === this.tugKey) return;
     this.tugKey = key;
     tb.classList.toggle('still', !!S.reduceMotion);
-    // 桶狭間・森部は初めの大きい軍を基準に、両軍の残りを別々に減らす。
+    // 稲生・桶狭間・森部は初めの大きい軍を基準に、両軍の残りを別々に減らす。
     // 同じ割合だけ減った時も棒が縮み、史実の全軍と紛らわしい裸の数字は出さない。
     const full = Math.max(1, f.a0 || f.a, f.b0 || f.b);
     tb.querySelector('i.a').style.width = (separateForces ? Math.max(0, Math.min(1, f.a / full)) * 48 : share).toFixed(1) + '%';
