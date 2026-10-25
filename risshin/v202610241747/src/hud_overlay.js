@@ -22,30 +22,16 @@ export class HudOverlay {
     if (landmark || rt.def.routeGuidePriority?.(rt))
       return this.drawDestinationPin(g, x, y);
     if (rt.def.key !== 'moribe') return this.drawDestinationPin(g, x, y);
-    // 渡河中も岸に刺さる短いピン。人を指す大きな下矢印へ替えない。
+    // 渡河中も丸頭と軸で岸に刺さるピン。人を指す下向き矢印にしない。
     g.save(); g.lineJoin = 'round';
-    // 渡河のピンは岸を隠さない大きさに固定し、近づいても伸び縮みさせない。
-    // 兵を指す矢印にせず、穴の空いたピンの先端を対岸へ固定する。
-    if (pin?.crossing) {
-      // 岸そのものへ刺す短いピン。兵の頭まで軸を伸ばさず、足元と行き先を結ぶ。
-      g.translate(x, y); g.scale(1.35, 1.35);
-      g.beginPath(); g.ellipse(0, 1, 10, 3, 0, 0, Math.PI * 2);
-      g.fillStyle = 'rgba(20,18,15,.65)'; g.fill();
-      g.beginPath(); g.moveTo(0, 0); g.lineTo(-11, -16);
-      g.bezierCurveTo(-22, -40, 22, -40, 11, -16); g.closePath();
-      g.strokeStyle = '#14120f'; g.lineWidth = 6; g.stroke();
-      g.fillStyle = '#fff3ba'; g.fill();
-      g.beginPath(); g.arc(0, -24, 10, 0, Math.PI * 2);
-      g.fillStyle = '#14120f'; g.fill();
-      g.restore(); return;
-    }
-    const pinScale = pin?.waiting ? .95 : 1.3;
+    // 渡河も長い軸で岸へ刺す。兵の頭上の▼と形を分け、接地点は動かさない。
+    const pinScale = pin?.waiting ? .95 : pin?.crossing ? 1.1 : 1.3;
     g.translate(x, y); g.scale(pinScale, pinScale); x = 0; y = 0;
     // 大きさが変わってもピンの接地点は岸から動かさない。
     g.beginPath(); g.ellipse(x, y + 1, 11, 3, 0, 0, Math.PI * 2);
     g.fillStyle = 'rgba(20,18,15,.65)'; g.fill();
     // 場所のピンは軸を長くし、兵の頭上の印と見分けられるよう地面までつなぐ。
-    const stem = pin?.unit ? 13 : 43;
+    const stem = pin?.unit ? 13 : pin?.crossing ? 60 : 43;
     g.beginPath(); g.moveTo(x, y); g.lineTo(x - 4, y - stem);
     g.lineTo(x + 4, y - stem); g.closePath();
     g.strokeStyle = '#14120f'; g.lineWidth = 4; g.stroke();
