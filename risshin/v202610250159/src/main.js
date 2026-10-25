@@ -139,7 +139,7 @@ function ldBegin(keys, battle = '') {
   cancel.onclick = () => { game.startSeq = (game.startSeq || 0) + 1; hideLoading(); game.title(); };
   document.querySelector('#loading .ldbar').parentElement.appendChild(cancel);
   // 最初の描画から残りの目安を出す。次の工程を待って空欄にしない。
-  stage('戦の支度を読み込んでいます', keys[0]);
+  stage('戦いの準備をしています', keys[0]);
 }
 function ldTick() {
   const el = $('ld-left');
@@ -259,7 +259,7 @@ async function readyBattleCode(retry, withWeapons = true, id = '') {
   const seq = game.startSeq;
   const definitionsReady = id === 'town' || (id === 'inou' ? !!inouDefinition : id === 'moribe' ? !!moribeDefinition : !!BTm);
   if (definitionsReady && BM) return true;
-  stage('戦の支度を読み込んでいます', 'defs');
+  stage('戦いの準備をしています', 'defs');
   // 武器素材は下の素材支度で読む。ここで待つと、携帯の待ち時間の上限も自動用の省略も効かない。
   try { await Promise.all([id === 'town' ? Promise.resolve() : id === 'inou' ? inouLoad() : id === 'moribe' ? moribeLoad() : btLoad(), bmLoad(), withWeapons && !isNorender() ? loadWeapons() : Promise.resolve()]); try { sessionStorage.removeItem('risshin-reloaded'); } catch (e2) { /* なし */ } return seq === game.startSeq; }
   catch (e) {
@@ -2548,7 +2548,7 @@ const game = {
     autoLock();
     $('loading').hidden = false;
     $('tip').textContent = '押し寄せる寄せ手を、倒れるまで何人討てるか。陣と陣の合間に少し回復します。';
-    ldBegin(['defs', 'build']); stage('戦の支度を読み込んでいます', 'defs');
+    ldBegin(['defs', 'build']); stage('戦いの準備をしています', 'defs');
     const my = this.startSeq;
     setTimeout(guarded(async () => {
       if (my !== this.startSeq) return;
@@ -2623,7 +2623,7 @@ const game = {
     const tomoN = (G.tomo || []).filter((t) => t.alive).length;
     $('tip').innerHTML = `${tomoN ? 'この城攻めには供を連れて行けない（城下で待たせる）。<br>' : ''}${VIEW_TIP()}<br>${info.defend ? `この戦の心得：塀に掛かった梯子は ${EK()}で突き落とす。門の内で${EK()}すれば石を落とせる。本丸の門を破られたら落城` : `この戦の心得：竹束を押して寄り、門に寄って ${EK()}で掛矢を振るえ。塀の内の射手と、搦手からの出撃に気をつけよ`}<br><span style="opacity:.7">${TIPS[Math.floor(Math.random() * TIPS.length)]}</span>`;
     $('loading').hidden = false;
-    ldBegin(['defs', 'build']); stage('戦の支度を読み込んでいます', 'defs');
+    ldBegin(['defs', 'build']); stage('戦いの準備をしています', 'defs');
     hideScreen();
     this.stopBattle();
     autoLock();

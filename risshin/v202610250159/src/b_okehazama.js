@@ -560,7 +560,7 @@ function quietOtherFlags(rt, keep) {
 const okehazama = {
   jinkei: OKEHAZAMA_JIN,
   minutes: 7,
-  nearbyAllySignLimit: 0, // 近い味方は丸、追う本人は切れ込み旗で分ける。
+  nearbyAllySignLimit: 0,
   // 右上はミッションの一行だけ。距離・向き・操作の字を見出しに出さない（kaito 10/23 49・50）。
   // 間合いと命中は頭上の▼で示し、別の距離案内は出さない。
   enemyOrder(rt, enemy) {
@@ -671,7 +671,7 @@ const okehazama = {
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は、今する動きを短くやさしく伝える。
   missionSingleLine: true,
-  missions: ['ピンに集まれ', '仲間と進め', '雨がやむまで待て', '赤い三角の敵を倒せ', 'いまがわよしもとを倒せ', 'にげる敵を追え', '仲間と集まれ'],
+  missions: ['信長の組のピンに集まれ', '仲間と進め', '雨がやむまで待て', '赤い三角の敵を倒せ', 'いまがわよしもとを倒せ', 'にげる敵を追え', '仲間と集まれ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -684,7 +684,7 @@ const okehazama = {
     if (rt.phase === 'brief' && rt.flags.briefed) return '出発を待て';
     if (rt.phase === 'march' && rt.flags.scoutFighting) return '赤い三角の敵を倒せ';
     if (rt.phase === 'assault' && rt.flags.entered && !rt.flags.victory && this.objectiveEnemies(rt).length) return '赤い三角の敵を倒せ';
-    if (rt.phase === 'march' && this.squadFlagReached(rt)) return '仲間を待て';
+    if (rt.phase === 'march') return this.squadFlagReached(rt) ? '仲間を待て' : '仲間と進め';
     return this.missions[this.missionOf(rt)];
   },
   // 今の行き先と同じ旗持ちを示す。兵は増やさない。
@@ -1202,6 +1202,7 @@ const okehazama = {
   // 自分を塞ぐ人馬は描く間だけ全身を避け、透けた武者を重ねない。
   nearAllyWholeOcclusion: true,
   world: {
+    allyPersonalSpace: 1.5, // 自分の肩の周りを空け、同じ姿の味方に埋もれない。
     // 既存の近景十八人の足合わせと、間引いた槍の肩避けを使う。
     // 攻撃・移動・当たりの時計はそのまま、腰の踏み込みを足裏で受ける。
     meleeGroundedFeet: true,
@@ -1863,7 +1864,8 @@ const okehazama = {
       g.leader = g.units[0];
       g.path = [[sx, sz + 16], [sx, sz]].map(fieldPathPoint); g.pathIdx = 0;
       if (i === 2) {
-        // 列を細くし、背中と槍が正面に重なりにくくする。
+        // 自分の組だけ列の間を空け、背中と槍で集合ピンを隠しにくくする。
+        g.spacing = 1.9;
         g.colW = 3;
         rt.flags.genpachi = g.units[0];
         // この組頭は遊びの補い。実在の武将と紛らわしい仮の名札は出さない。
@@ -2121,6 +2123,9 @@ const okehazama = {
     }
     if (F.uma) F.uma.update(dt);
     if (rt.over || F.ending || !rt.player.u.alive) return;
+    // 描く時の囲み案内に頼らず、赤い▼の相手への道を味方が歩いて空ける。
+    rt.army.guideWayEnemy = this.missionSignTarget(rt);
+    rt.army.guideWayAt = rt.army.time;
     this.horoDetail(rt);
     if (rt.phase === 'brief' && !F.briefed && F.genpachi && readyUnit(F.genpachi) &&
         this.squadFlagReached(rt)) this.brief(rt);

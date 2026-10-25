@@ -507,9 +507,13 @@ function moribeFord(rt) {
       float fordEdge = abs(vWPw.x - ${START2.x.toFixed(1)}) + sin(vWPw.z * 1.7) * 0.22;
       float fordBand = 1.0 - smoothstep(4.5, 6.0, fordEdge);
       float fordGrain = texture2D(tMacro, vWPw.xz * 0.9).r;
+      // 川底の小石は地面に固定。流れる白波と分け、浅さと歩いた分を絵で見せる。
+      vec2 fordCell = fract(vWPw.xz * 1.4 + vec2(fordGrain * 0.25, 0.0)) - 0.5;
+      float fordPebble = 1.0 - smoothstep(0.16, 0.29, length(fordCell * vec2(1.0, 1.4)));
       float fordRipple = smoothstep(0.86, 0.98, sin(vWPw.z * 6.0 + fordGrain * 2.0 - uTime * 1.4));
       // 青い流れの中に砂底の帯を通し、入口から出口まで歩ける浅さを見せる。
       vec3 fordSand = mix(vec3(0.52, 0.43, 0.27), vec3(0.78, 0.70, 0.48), fordGrain);
+      fordSand = mix(fordSand, vec3(0.25, 0.32, 0.29), fordPebble * 0.65);
       diffuseColor.rgb = mix(diffuseColor.rgb, fordSand, fordBand * 0.95);
       // 浅瀬も水の色を保つ。両岸の細い白波を既存の川面へ描き、終点を土と分ける。
       float fordShore = smoothstep(7.5, 8.6, abs(vWPw.z - ${NIREMATA2.toFixed(1)}));
@@ -1206,8 +1210,10 @@ const moribe = {
       q.arrived = !!(F.pointReached || F.pointInside || atFordBank(rt.player.u.pos, rt.world));
       q.waiting = q.arrived && rt.t - (F.fordArrivedAt ?? rt.t) >= .8;
       q.crossing = !q.waiting;
-      // 接近だけでは満たさず、到着の満杯を一拍残してから待機の進みに替える。
-      q.progress = q.arrived ? q.waiting ? this.missionWaitProgress(rt) || 0 : 1 : 0;
+      // 渡った分を示し、到着の満杯を一拍残してから待機の進みに替える。
+      q.progress = q.arrived ? q.waiting ? this.missionWaitProgress(rt) || 0 : 1 :
+        // 横へずれても岸へ渡った分を示す。到着前は満杯にしない。
+        Math.max(0, Math.min(.98, (START2.z - rt.player.u.pos.z) / (START2.z - POINT2.z)));
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
     } else if (F.stage === 'assemble') {

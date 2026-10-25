@@ -74,9 +74,9 @@ function build(rt, root) {
         shader.vertexShader = shader.vertexShader.replace(
           'if (position.z > 0.0) { transformed.xy = vec2(0.0, 0.065) + (position.xy - vec2(0.0, 0.065)) * signLife; }',
           'vSignLevel = vec3(position.z > 0.0 ? 1.0 : 0.0, position.y, signLife);');
-        // 森部は暗い縁を保ち、自分へ振りかぶる本人の中の赤だけを明るくする。
+        // 森部は通常の暗い縁を保ち、間合い・振りかぶり・命中を縁と中の赤で示す。
         shader.vertexShader = shader.vertexShader.replace('if (signTone > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(1.0);',
-          rt.def.key === 'moribe' ? 'if (position.z > 0.0) { if (signTone > 3.5) vColor = vec3(1.0, 0.45, 0.25); else if (signTone > 2.5) vColor = vec3(1.0, 0.22, 0.12); else if (signTone > 1.5) vColor = vec3(1.0, 0.06, 0.02); }' :
+          rt.def.key === 'moribe' ? 'if (position.z > 0.0) { if (signTone > 3.5) vColor = vec3(1.0, 0.45, 0.25); else if (signTone > 2.5) vColor = vec3(1.0, 0.22, 0.12); else if (signTone > 1.5) vColor = vec3(1.0, 0.06, 0.02); } else if (signTone > 1.5) vColor = signTone > 2.5 && signTone < 3.5 ? vec3(1.0, 0.72, 0.18) : vec3(1.0);' :
           rt.def.key === 'inou' ? 'if (signTone > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(1.0);' :
           'if (signTone > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(1.0);');
         shader.fragmentShader = 'varying vec3 vSignLevel;\n' + shader.fragmentShader.replace('#include <color_fragment>',
@@ -422,8 +422,8 @@ export function fieldSignsTick(rt, root) {
     // 追う相手の▼だけ、残る間合いに合わせて横に開く。届いた瞬間はさらに広げる。
     const okeApproach = oke && u === missionEnemy ? Math.max(okeWidth, 1 + .6 * Math.max(0, Math.min(1, 1 - (Math.sqrt(meD2) - okeReach) / 12))) : okeWidth;
     // 森部は届く一人だけ横へ開き、命中の縦の伸びは控えめにして隣の頭を覆わない。
-    // 防がれた直後も横幅を保ち、縦に潰れる形を命中の伸びと区別する。
-    dummy.scale.set(oke ? okeScale * Math.max(reachable ? 2.2 : okeApproach, pulse > 0 ? 1 + 1.2 * pulse : 0) : moribe ? k * Math.max(reachable || blocked ? 1.7 : 1, 1 + .7 * pulse) : inou ? k * Math.max(inouWidth, 2.2 * pulse) : k * (1 + .5 * pulse),
+    // 命中・防がれた直後も横幅を保ち、縦に潰れる形を命中の伸びと区別する。
+    dummy.scale.set(oke ? okeScale * Math.max(reachable ? 2.2 : okeApproach, pulse > 0 ? 1 + 1.2 * pulse : 0) : moribe ? k * Math.max(reachable || blocked || pulse > 0 ? 1.7 : 1, 1 + .7 * pulse) : inou ? k * Math.max(inouWidth, 2.2 * pulse) : k * (1 + .5 * pulse),
       oke || moribe || inou ? (oke ? okeScale : k) * (blocked ? .55 : 1 + (moribe ? .55 : 1) * pulse) : k, oke ? okeScale : k);
     // 森部の討ち取りと稲生の討ち取りは、それぞれの時間で同じ本人の印を閉じる。
     if (defeated) {
@@ -453,9 +453,10 @@ export function fieldSignsTick(rt, root) {
       // 森部の届く本人は横幅、命中した本人は赤い中身の減りと縦の伸びで分ける。
       const justHit = special && hitLeft > (oke ? 1.7 : inou ? 1.95 : 1.7);
       // 稲生の白縁と幅広は実際に届く一人だけ。命中は縦の伸びと赤の減りで示す。
-      // 森部・桶狭間は暗い縁の赤い▼を保ち、間合いは横幅、命中は縦の伸びで示す。
-      // 森部は中の赤で振りかぶりと命中も分け、命中の余韻中でも次の振りかぶりを隠さない。
-      const tone = inou ? hot && !defeated ? 2 : 1 : moribe ? defeated ? 1 : danger > 0 ? 3 : hit > 0 ? 4 : reachable || blocked ? 2 : 1 : oke ? 1 : justHit ? 3 : hot ? 2 : 1;
+      // 森部は中の赤で振りかぶりと命中を分け、命中の余韻中も次の振りかぶりを示す。
+      // 振りかぶりは金縁、届く本人と命中は白縁にし、通常の暗い縁と区別する。
+      // 桶狭間は実際に届く本人だけ白縁にし、接近は横幅、命中は縦の伸びと赤の減りで示す。
+      const tone = inou ? hot && !defeated ? 2 : 1 : moribe ? defeated ? 1 : danger > 0 ? 3 : hit > 0 ? 4 : reachable || blocked ? 2 : 1 : oke ? reachable && !defeated ? 2 : 1 : justHit ? 3 : hot ? 2 : 1;
       if (special) {
         const c = s.signPool[s.signCandidates.length];
         c.u = u; c.matrix.copy(dummy.matrix); c.life = life;

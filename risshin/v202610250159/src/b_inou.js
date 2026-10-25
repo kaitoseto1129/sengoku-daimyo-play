@@ -147,7 +147,7 @@ function inouEnemyOrder(rt, fallback, name = rt.def.missionEnemyLabel(rt)) {
   const target = `${name}（白い縁の赤い▼）`;
   if (p.inRange && p.rangeCueTarget === enemy) return touch
     ? `${target}へ「${p.weapon === 'sword' ? 'きる' : 'つく'}」を押して離せ`
-    : `${target}を左クリックで${p.weapon === 'sword' ? '斬れ' : '突け'}`;
+    : `${target}を左クリックで攻撃`;
   const dx = enemy.pos.x - p.u.pos.x, dz = enemy.pos.z - p.u.pos.z;
   // 前進と同じ視点の向きで案内する。画面の右の兵へ前進し続けさせない。
   const yaw = p.yaw + (p.camYawOff || 0);
@@ -599,7 +599,7 @@ const inou = {
     if (phase === 5) {
       rt.setPhase('hayashiSkirmish');
       rt.obj('main', '赤い▼の林美作守の兵を倒せ', 'main');
-      rt.say('組頭 源八', '赤い▼が敵だ。味方と戦い、白い縁の印の兵をねらえ！', 4);
+      rt.say('組頭 源八', '赤い▼が敵だ。味方と一緒に、赤い▼の兵をねらえ！', 4);
       F.hata.aggro = 8; F.hata.order = 'attack'; F.hata.seekRange = 24;
       F.haya1.aggro = 6; F.haya1.fire = true;
       for (const u of F.haya1.units) u.noTarget = u === F.hayaLead;
@@ -886,7 +886,7 @@ const inou = {
           g.order = 'attack'; g.aggro = 12; g.seekRange = 30; g.speed = 1.6;
           for (const u of g.units) u.noTarget = false;
           rt.obj('main', '赤い▼の林美作守の兵を倒せ', 'main');
-          rt.say('組頭 源八', usesTouchControls() ? '白ふちの赤い▼が追う兵だ。槍が届くまで近づき、「つく」を押して離せ！' : '白ふちの赤い▼が追う兵だ。槍が届くまで近づき、左押しで攻撃だ！', 4);
+          rt.say('組頭 源八', usesTouchControls() ? '赤い▼が追う兵だ。槍が届くまで近づき、「つく」を押して離せ！' : '赤い▼が追う兵だ。槍が届くまで近づき、左押しで攻撃だ！', 4);
           lesson(rt, 'kill');
         }
         if (F.caught && !F.firstHitAt && F.strikeN > F.strikeCaught) F.firstHitAt = rt.t;
