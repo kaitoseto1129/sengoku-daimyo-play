@@ -44,7 +44,7 @@ const POINT2 = { x: 40, z: 76.5 };
 const FORD_R = 4;
 // ピンと同じ岸まで進み、水から上がれば渡河済み。横へそれても小旗へ戻らせない。
 // 足の上下動で到着を遅らせず、岸そのものの高さで水深を調べる。
-// 描いた土の上に水が残っていなければ完了。川幅の線まで余分に歩かせない。
+// 水深だけで完了にしない。浅い川底でも、描いた川面の北端を越えるまでピンを残す。
 // 横へそれた岸もその場の水際で判定し、ピンの奥行きまで歩き直させない。
 const atFordBank = (p, world) => p.z < nireZ(p.x) &&
   distToPolyline(p.x, p.z, world.def.streams[1].pts) >= NIRE_WIDTH2 + .8 &&
@@ -1049,7 +1049,7 @@ const moribe = {
   nearbyAllySignLimit: 0, // 味方の頭上に白い小旗を出さない。追う旗はピン一本、敵は赤い印で分ける。
   noDodgeCard: true, // 矢の雨で「〜をむこう」「にげる」の札を出さない（kaito 10/23 稲生 4）。
   hideMissionDots: true, // 任務の段数は見出しにある。仲間の人数と紛れる五つの丸は出さない。
-  missionSingleLine: true, // 右上は任務一行だけ。耐える進みは同じ一行の下地で示す。
+  missionSingleLine: true, // 右上は任務一行だけ。耐える進みは同じ一行の丸で示す。
   // 仲間の名札は一人だけ。密集しても五人分の文字を重ねない。
   missionAllyLabel: 'ついてくる仲間',
   missionContext: '永禄四年（一五六一）・森部（もりべ）の戦い',
@@ -1658,15 +1658,15 @@ const moribe = {
 #hud.moribe-notices #armybar { display:none !important; }
 /* 次の一手と号令を右の任務札にまとめる。横持ちでも二行を切らない。 */
 #hud #h-prog[data-battle="moribe"] { width:min(320px, 38vw); }
-/* 戦況の棒を残り時間と取り違えさせない。待つ進みは同じピンの中だけ。 */
-#hud.moribe-notices #tugbar, #hud.moribe-notices #armybar { display:none !important; }
 #hud #h-prog[data-battle="moribe"] .pg-st { background-image:none !important; }
-/* 任務一行の形は待機中も変えない。 */
+/* 耐える進みは任務一行の中で満ちる丸にする。秒の字や別の札は足さない。 */
 #hud #h-prog[data-battle="moribe"] .pg-st.moribe-wait {
  flex-direction:row; align-items:center; justify-content:flex-end; gap:10px;
 }
 #hud #h-prog[data-battle="moribe"] .pg-st.moribe-wait::before {
- content:none;
+ content:""; display:block; flex:none; width:28px; height:28px; border-radius:50%;
+ background:conic-gradient(#ffe28a calc(var(--wait-progress,0) * 1%), #494338 0);
+ box-shadow:0 0 0 2px #c9b27a;
 }
 /* 共通の一行省略より優先し、今することを最後まで読めるようにする。 */
 html:root body #hud.mission-only #h-prog[data-battle="moribe"] .pg-st span {

@@ -537,6 +537,8 @@ export class Player {
     const army = rt.army;
     this.group = army.addGroup({ team: 0, faction: scenario().faction, noRout: true, order: 'hold', name: 'player' });
     const look = playerLook(G);
+    // 桶狭間では本人の袖と威糸を生成りにする。足元の輪や札を足さず、具足の形は使い回す。
+    if (rt.def.key === 'okehazama') { look.cloth = 0xc8b99c; look.lace = 0xc8b99c; }
     this.sightHat = look.hat;
     this.u = army.addUnit(this.group, { type: 'player', x: spawn.x, z: spawn.z, heading: spawn.heading || 0, ...look });
     this.u.isPlayer = true;

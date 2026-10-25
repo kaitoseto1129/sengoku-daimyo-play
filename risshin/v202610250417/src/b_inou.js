@@ -226,22 +226,22 @@ const inou = {
   missionPinCaption: '',
   hideArmyPeek: true, // 初陣は行き先・敵の▼・任務一行に絞る。
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
-  // 任務は一行。兵・隊長・待つ場所を区別し、頭上の▼と呼び方をそろえる。距離や向きで文を切り替えない。
-  missions: ['赤い▼の林美作守の兵（信勝方）を倒せ', '赤い▼の林美作守の兵（信勝方）を倒せ', '信長の旗のそばで耐えろ', '▼の林美作守を倒せ'],
+  // 任務は短い一行。兵・隊長・待つ場所を区別し、頭上の▼と呼び方をそろえる。
+  missions: ['▼の兵をたおせ', '▼の兵をたおせ', '耐えろ', '林美作守をたおせ'],
   missionHeading(rt) {
     const F = rt.flags;
     if (F.step === 0) {
-      const name = F.training === 8 ? '▼の林美作守の小隊長' : '赤い▼の林美作守の兵（信勝方）';
+      const name = F.training === 8 ? '▼の隊長' : '▼の兵';
       if (F.training <= 8) {
         const enemy = this.missionSignTarget(rt), P = rt.player;
-        if (!fighting(enemy)) return `${name}を倒せ`;
+        if (!fighting(enemy)) return `${name}をたおせ`;
         // 攻撃判定が届く本人と札をそろえる。空振りを続けさせない。
         const ready = P.inRange && fighting(P.rangeCueTarget) &&
           (P.rangeCueTarget === enemy || F.training !== 8 && P.rangeCueTarget.group === enemy.group);
-        if (!ready) return inouEnemyOrder(rt, `${name}を倒せ`, name);
+        if (!ready) return inouEnemyOrder(rt, `${name}をたおせ`, name);
       }
       const left = F.training <= 4 ? practiceLeft(rt) : 0;
-      return left ? `${name}を倒せ（残り${left}人）` : `${name}を倒せ`;
+      return left ? `${name}をたおせ（残り${left}人）` : `${name}をたおせ`;
     }
     if (F.step === 1) {
       if (F.training === 11 && !F.flankReached) return '柴田の兵を倒せ';
@@ -548,7 +548,7 @@ const inou = {
     if (phase === 0) {
       // 初めから追う林兵を見せる。練習が終わっても同じ三人を使い、印の先を替えない。
       const p = rt.player.u.pos;
-      const at = { x: p.x + 2, z: p.z - 14 };
+      const at = { x: p.x + 2, z: p.z - 10 };
       const g = enemyGroup(rt, { faction: 'nobukatsu', name: '林の遅れ兵', anchor: { ...at }, facing: Math.PI, width: 3, aggro: 0, noAI: true, noRout: true, order: 'hold', dmgMult: 0.25, focus: rt.player.u },
         dress([{ type: 'ashigaru', n: 3 }], HAYA));
       g.speed = 0.8;
