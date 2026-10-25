@@ -15,7 +15,7 @@ import { gauss, enemyGroup, allyGroup, nm, centerOf, unitPos } from './bhelp.js'
 import { KIT } from './b_nagashinojo.js';
 import { clash } from './b_sekigahara.js';
 import { demSample } from './dem.js';
-import { S as SETTINGS, K } from './settings.js';
+import { S as SETTINGS } from './settings.js';
 import { usesTouchControls } from './touch.js';
 
 // 六百四十メートル四方。会戦は中央の百五十メートルほどへ詰める（配置は設計の復元）。
@@ -119,12 +119,13 @@ function approachUnit(rt) {
   const F = rt.flags;
   const group = F.step === 1 ? F.shiba1 : F.chase || F.training >= 0 && F.training < 5 ? F.practice : F.haya1;
   if (!group) return null;
-  // 任務の隊へ実際に届く一人を、札と白縁の印でも共通に使う。
+  // 任務の隊へ実際に届く一人を、ピンと頭上の▼でも共通に使う。
   const reachable = rt.player.inRange && rt.player.rangeCueTarget;
   if (fighting(reachable) && group.units.includes(reachable)) {
     F.approachGroup = group; F.approachUnit = reachable;
     return reachable;
   }
+  // 接近中は同じ兵を追う。攻撃が届く別の兵か、倒れた時だけ選び直す。
   const previous = F.approachGroup === group && fighting(F.approachUnit) && F.approachUnit.mesh?.visible !== false ? F.approachUnit : null;
   // 生きている同じ一人を追う。歩くたびに林・杖・旗へ目印を渡さない。
   if (previous) return previous;
@@ -142,21 +143,6 @@ function enemySteps(rt, enemy) {
   const p = rt.player;
   const distance = Math.hypot(enemy.pos.x - p.u.pos.x, enemy.pos.z - p.u.pos.z);
   return Math.max(0, Math.ceil((distance - p.meleeReach(p.previewMeleeKind() || 'thrust')) / .75));
-}
-// 赤い▼は一人だけ。距離と実際の攻撃判定から、次の行動を一つだけ伝える。
-function inouEnemyOrder(rt, fallback) {
-  const enemy = rt.def.missionSignTarget(rt), p = rt.player;
-  // 命中の合図を次の相手への指示で即座に消さない。
-  if (rt.flags.attackFeedbackUntil > rt.t) return rt.flags.attackFeedback;
-  if (!fighting(enemy)) return fallback;
-  const name = rt.def.missionEnemyLabel(rt);
-  const target = '赤い▼の敵';
-  if (p.inRange && p.rangeCueTarget === enemy) return usesTouchControls() ? '「攻撃」を押せ' : `${target}を${p.weapon === 'sword' ? '斬れ' : '突け'}`;
-  const dx = enemy.pos.x - p.u.pos.x, dz = enemy.pos.z - p.u.pos.z;
-  const angle = Math.atan2(dx, dz) - (p.yaw + (p.camYawOff || 0));
-  if (Math.cos(angle) < .85) return `${name}へ ${Math.sin(angle) < 0 ? '右' : '左'}に向き直ろう`;
-  const steps = enemySteps(rt, enemy);
-  return steps ? `${name}の▼へ あと${steps}歩` : `${name}の▼へ向こう`;
 }
 function pinPoint(rt, pos, radius, hide, unit = null, name = '') {
   const pin = rt.flags.goalPin;
@@ -231,37 +217,18 @@ const inou = {
   nearSpearFade: false, // 槍だけを縮めて透かさず、持ち主と同じ形を保つ。
   missionPinCaption: '',
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
-  // 任務は一行。兵と武将・待つ場所を区別し、頭上の▼と呼び方をそろえる。
-  missions: ['赤い▼の林の兵（信勝方）を倒せ', '赤い▼の林の兵（信勝方）を倒せ', '信長の旗のそばで耐えろ', '▼の林美作守を倒せ'],
+  // 目的だけを一行にし、相手と待つ場所を区別する。接近・間合いはピンと頭上の赤い▼で伝える。
+  missions: ['赤い▼の林の兵（信勝方）を倒せ', '赤い▼の林の兵（信勝方）を倒せ', '信長の旗のそばで耐えろ', '赤い▼の林美作守を倒せ'],
   missionHeading(rt) {
     const F = rt.flags;
-    if (F.step === 0 && F.training <= 8) {
-      const touch = usesTouchControls();
-      if (F.training === 0) {
-        if (F.lesson === 'view') return touch ? '右の画面をなぞって見回そう' : `「${K('view')}」で視点を切り替えよう`;
-        if (F.lesson === 'swing') return touch ? '右下の「攻撃」で槍を試そう' : '左クリックで槍を試そう';
-        return touch ? '左の画面をなぞって歩こう' : `「${K('forward')}」で前へ歩こう`;
-      }
-      const enemy = this.missionSignTarget(rt), name = this.missionEnemyLabel(rt), P = rt.player;
-      if (!fighting(enemy)) return '味方と一緒に進め';
-      // 攻撃判定が届く本人と札をそろえる。空振りを続けさせない。
-      const ready = P.inRange && fighting(P.rangeCueTarget) &&
-        (P.rangeCueTarget === enemy || F.training !== 8 && P.rangeCueTarget.group === enemy.group);
-      if (!ready) return inouEnemyOrder(rt, `${name}の赤い▼へ近づけ`);
-      if (F.attackFeedbackUntil > rt.t) return F.attackFeedback;
-      if (F.training === 8) return `赤い▼の${name}を倒せ`;
-      const left = F.training <= 4 ? practiceLeft(rt) : 0;
-      const action = touch ? '「攻撃」を押せ' : `赤い▼の${name}を左クリックで突こう`;
-      return left ? `${action}（残り${left}人）` : action;
-    }
-    if (F.step === 1) {
-      if (F.training === 11 && !F.flankReached || F.training === 12 && !gone(F.shiba1)) return '▼の柴田の兵を倒せ';
-      return '信長の旗のそばで耐えろ';
-    }
+    if (F.step === 0) return F.training === 8 ? '赤い▼の林の隊長を倒せ' : this.missions[this.missionOf(rt)];
+    if (F.step === 1) return (F.training === 11 && !F.flankReached || F.training === 12 && !gone(F.shiba1)) ? '赤い▼の柴田の兵を倒せ' : '信長の旗のそばで耐えろ';
     if (F.step === 2) {
-      return '▼の敵を倒せ';
+      // ピンは信長の旗。遠い間は行き先の名で言う。
+      const lead = F.nobuU?.alive ? F.nobuU.pos : NOBU, me = rt.player.u.pos;
+      return Math.hypot(me.x - lead.x, me.z - lead.z) > 10 ? '信長の旗のそばで耐えろ' : '赤い▼の敵を倒せ';
     }
-    return inouEnemyOrder(rt, F.step === 0 && F.training === 8 ? '▼の林の隊長を倒せ' : this.missions[this.missionOf(rt)]);
+    return this.missions[this.missionOf(rt)];
   },
   commanderTarget: (rt) => rt.flags.step === 0 && rt.flags.training === 8 ? rt.flags.hayaLead :
     rt.flags.step === 3 ? rt.flags.hayaU : null,
@@ -332,7 +299,7 @@ const inou = {
     if (F.step === 0 || F.step === 3) return null;
     if (F.step === 1) {
       if (F.training === 11 && !F.flankReached) {
-        return pinPoint(rt, FLANK, 8, undefined, null, '右の畦');
+        return pinPoint(rt, FLANK, 8);
       }
       if (F.training === 12 && !gone(F.shiba1)) return null;
       let lead = F.nobuU?.alive ? F.nobuU.pos : NOBU;

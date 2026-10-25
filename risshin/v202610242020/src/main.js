@@ -211,7 +211,7 @@ const stage = (t, key) => {
     }
     window.dispatchEvent(new Event('risshin-preparation-progress'));
   }
-  if (t) ldName = ({ defs: '戦の仕組み', assets: '人とよろい', build: '地形と兵', warm: '人の姿', compile: '絵', first: '最初の画面' })[key] || t;
+  if (t) ldName = ({ defs: '戦の仕組み', assets: '人とよろい', build: '戦いの用意', warm: '人の姿', compile: '絵', first: '最初の画面' })[key] || t;
   let el = $('ld-stage');
   if (!el) { el = document.createElement('div'); el.id = 'ld-stage'; el.style.cssText = 'margin-top:10px;font-size:15px;color:var(--washi);text-align:center'; el.innerHTML = '<span role="status" aria-live="polite" aria-atomic="true"></span><span aria-live="off" id="ld-left" style="display:block;margin-top:8px"></span>'; document.querySelector('#loading .ldbar').after(el); }
   el.setAttribute('role', 'region');
@@ -1912,7 +1912,7 @@ const game = {
         LT.assets = Math.round(performance.now() - tw);
         if (my !== this.startSeq) return;
       }
-      stage('地形と兵をそろえています', 'build');
+      stage('戦いの用意をしています', 'build');
       if (!isNorender()) await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));   // 字を描いてから組み立てる
       if (my !== this.startSeq) return;
       const tB = performance.now();
@@ -2632,7 +2632,7 @@ const game = {
       if (my !== this.startSeq) return;
       if (!BM) { if (!(await readyBattleCode(() => this.startMapBattle(info, again)))) return; }
       if (my !== this.startSeq) return;
-      stage('地形と兵をそろえています', 'build');
+      stage('戦いの用意をしています', 'build');
       this.battle = new BM.Battle(this, 0, def);
       applyLord(this.battle);
       this.hud.show(true);

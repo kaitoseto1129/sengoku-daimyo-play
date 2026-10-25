@@ -107,6 +107,15 @@ function make() {
   arrival.setAttribute('stroke-linejoin', 'round'); arrival.style.display = 'none';
   arrival.setAttribute('pathLength', '1');
   hold.appendChild(arrival); el._arrival = arrival;
+  // 秒の字を足さず、穴の目盛り一つを一秒にする。形は最初に作って使い回す。
+  const ticks = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  ticks.setAttribute('fill', 'none'); ticks.setAttribute('stroke', '#fff3ba');
+  ticks.setAttribute('stroke-width', '1.5'); ticks.style.display = 'none';
+  hold.appendChild(ticks); el._waitTicks = ticks;
+  const hand = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  hand.setAttribute('d', 'M40 28V15'); hand.setAttribute('stroke', '#14120f');
+  hand.setAttribute('stroke-width', '3'); hand.style.display = 'none';
+  hold.appendChild(hand); el._waitHand = hand;
   // 到着はピンの軸のチェックで示す。穴の扇形は待ち時間だけを表す。
   const arrivedMark = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   arrivedMark.innerHTML = '<path d="M29 28L37 36L51 20" fill="none" stroke="#14120f" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M29 28L37 36L51 20" fill="none" stroke="#fff3ba" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>';
@@ -333,8 +342,11 @@ function drawMissionPin(rt) {
   let outside = behind || occluded && !want.fire || (anchored
     ? !inFrame || rt.def.key !== 'okehazama' && (covered || inouEnemy && !goalFree(x, y, W, H, rects))
     : !goalFree(x, y, W, H, rects));
-  // 到着後も同じ地面へ刺す。画面中央の時計へ飛ばすと、待つ丸が新しい行き先に見える。
-  // 画面外では同じ端の処理を使い、到着済みの丸には進む矢じりを付けない。
+  // 待つピンが足元・兵・画面外へ隠れないよう、到着後は任務の下へ一本だけ置く。
+  // 移動の矢印を付けず、次の行き先への踏み直しを促さない。
+  if (rt.def.key === 'okehazama' && waiting && arrived) {
+    x = W - 52; y = Math.min(H - 80, 210); outside = false;
+  }
   if (!want.unit && !want.gate && !waiting && !want.footRing && !want.fire && !want.defensePoint && !behind && !occluded && U.out !== undefined && outside !== U.out && now - (U.outAt || 0) < 400) outside = U.out;
   else if (outside !== U.out) { U.out = outside; U.outAt = now; }
   if (outside) {
@@ -481,12 +493,12 @@ function drawMissionPin(rt) {
   // 盾の下端を実物の上辺に合わせる。空き地への下向き矢印は重ねない。
   if (want.defend && want.defensePoint && !outside) pin._shield.setAttribute('transform', 'translate(0,13)');
   pin._hold.style.display = showHold ? '' : 'none';
-  // 到着直後のチェックはピンの軸へ小さく出し、待つ扇形とは重ねない。
-  // 待ちの途中はチェックを消し、満ち切ってから穴いっぱいの完了印へ替える。
-  // 到着後は縁を閉じ、空の円と満ちた扇形を比べられるようにする。
-  pin._arrivedMark.style.display = oke && arrived && (!showProgress || want.progress >= 1 || rt.t - U.arrivalAt < .8) ? '' : 'none';
+  // 到着後は縁を閉じ、軸の小さなチェックを待ちの途中も残す。
+  // 穴の扇形と重ねず、満ち切ったら穴いっぱいの完了印へ替える。
+  pin._arrivedMark.style.display = oke && arrived ? '' : 'none';
   pin._arrivedMark.setAttribute('transform', oke && !(want.progress >= 1) ? 'translate(16,48) scale(.6)' : '');
   pin._arrival.style.display = showArrival ? '' : 'none';
+  pin._arrival.setAttribute('stroke', arrived ? '#e4f2cb' : '#fff3ba');
   // 集合へ近づく間は穴の縁が閉じ、着いたら中の扇形が待ち時間を刻む。
   // 別の丸へ替えず、同じ地面に刺さるピンの中だけで示す。
   const arrivalProgress = arrived ? 1 : Math.max(0, Math.min(1, want.arrivalProgress || 0));
@@ -516,6 +528,22 @@ function drawMissionPin(rt) {
     pin._progress.setAttribute('d', progress >= 1
       ? 'M40 8A20 20 0 1 1 40 48A20 20 0 1 1 40 8'
       : progress > 0 ? `M40 28L40 8A20 20 0 ${progress > .5 ? 1 : 0} 1 ${40 + Math.sin(angle) * 20} ${28 - Math.cos(angle) * 20}Z` : '');
+  }
+  const clock = oke && arrived && showProgress;
+  pin._waitTicks.style.display = pin._waitHand.style.display = clock ? '' : 'none';
+  if (clock) {
+    const duration = want.waitDuration || 17;
+    if (pin._tickDuration !== duration) {
+      pin._tickDuration = duration;
+      let path = '';
+      for (let i = 0; i < duration; i++) {
+        const angle = i * Math.PI * 2 / duration;
+        const sx = Math.sin(angle), sy = -Math.cos(angle);
+        path += `M${40 + sx * 16} ${28 + sy * 16}L${40 + sx * 19} ${28 + sy * 19}`;
+      }
+      pin._waitTicks.setAttribute('d', path);
+    }
+    pin._waitHand.setAttribute('transform', `rotate(${Math.min(1, Math.max(0, want.progress)) * 360} 40 28)`);
   }
   // 端では同じ旗を矢印の上へ置き、見えている時は目的の人や床に竿を合わせる。
   const edgeFlag = outside && !person && !oke && !arrived && !enemy && !want.fire && !want.gate && !want.dodge && !want.treatment;
@@ -758,11 +786,12 @@ function updateEnemyTarget(rt) {
     !rt.player.camShot && !hud.bigmap && !hud.root.classList.contains('photo') &&
     !hud.root.classList.contains('ending') && !hud.root.querySelector('#cine.on');
   // 目前の一人を優先する。僅かな距離の差で印を付け替えず、見通しは四分の一秒ごとに調べる。
-  if (active && inou) {
-    // 稲生は任務が選んだ本人だけ。近くの別の兵へ印を移さない。
-    const assigned = markedEnemy(rt);
-    // 霧や遮蔽物で頭上の印を出せない時も、同じ相手への端の矢印を残す。
-    hud.enemySignUnit = assigned;
+  if (inou) {
+    // 稲生は描画の束にある本人の▼だけを使う。札で命中・間合いの変化を覆わない。
+    hud.enemySignUnit = null;
+    rt.army.missionMarkedEnemy = active ? markedEnemy(rt) : null;
+    if (enemyTarget) enemyTarget.hidden = true;
+    return false;
   }
   if (active && !inou && (hud.enemySignRt !== rt || hud.enemySignAt == null || rt.t >= hud.enemySignAt || rt.t < hud.enemySignAt - .25)) {
     if (hud.enemySignRt !== rt) hud.enemySignUnit = null;
@@ -792,7 +821,7 @@ function updateEnemyTarget(rt) {
   // 兵の描画側も同じ一人への視線を空ける。戦や任務が変われば解除する。
   rt.army.missionMarkedEnemy = u;
   if (enemyTarget) enemyTarget.hidden = true;
-  // 稲生は描画面の赤い▼に統一する。別の札・方向の字・端の▼は重ねない。
+  // 稲生は描画面の赤い▼と行き先のピンに統一する。別の札・方向の字・端の▼は重ねない。
   if (inou) return false;
   const commander = u && u === rt.def.commanderTarget?.(rt);
   // 稲生は実物の頭上の▼だけ。札と別描画の三角を重ねない。
