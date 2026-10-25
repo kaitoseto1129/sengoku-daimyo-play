@@ -9,6 +9,7 @@ import { preStep, preparationUnits, DM_KEEP, shareHumanSkeleton, cacheHumanSkele
 import { UNIT_MAT, lookParts, GENERALS, DEATH_END } from './units.js';
 import { headMats, headMaterial, faceStyle, finishFaceCopies, COMPILE, faceStyles, faceRenderer } from './humans_face_materials.js';
 import { S, MEM_TIGHT } from './settings.js';
+import { TIER } from './device_tier.js';
 import { nearArmorParts, naginata, layParts, splitKusazuri, CREST_OFF, crestOnly, NAMED_KEEP } from './humans_dress.js';
 import { clone as skClone } from 'three/addons/utils/SkeletonUtils.js';
 import { DOMARU, wantsDomaru, KABUTO, dressDomaru, dressKabuto, crowdDomaru, monDecal, KB, dressMenpo, loading, loadHumans, dmLoading, loadDomaru, kbLoading, loadKabuto } from './humans_armor.js';
@@ -719,7 +720,7 @@ function humansStep(rt, dt, army, cam) {
     Q = humanQuality;
   }
   const cx = cam.position.x, cz = cam.position.z;
-  const detailNear = MEM_TIGHT ? SKIN_OUT : false ? 14 : true ? rt.world.def.highHumanDetail ?? 15 : rt.world.def.lowHumanDetail ?? Infinity;
+  const detailNear = TIER.weak ? 8 : MEM_TIGHT ? SKIN_OUT : false ? 14 : true ? rt.world.def.highHumanDetail ?? 15 : rt.world.def.lowHumanDetail ?? Infinity;
   // 高の戦別指定は、甲冑を一体にまとめる距離にもそろえる。人数・骨・攻撃は元のまま。
   const player = rt.player && rt.player.u;
   const want = humanWanted, pick = humanSelection, cp = cam.position, cq = cam.quaternion;
@@ -764,6 +765,8 @@ function humansStep(rt, dt, army, cam) {
       if (!required && !u.alive && d >= HUM.dead && !(u.human && humans.has(u.human) && (u.human.deadAge || 0) < 40)) continue;
       _sph.center.set(u.pos.x, u.pos.y + 1.2, u.pos.z);
       const vis = u.isPlayer || _fr.intersectsSphere(_sph);
+      // 見えない一般兵へ骨の貸出枠を渡さず、目の前の兵に使う。
+      if (TIER.weak && !vis && !qualityKeeper(u)) continue;
       // 画面の中を先に。今もう人の者は少し優先（境目で入れ替わりが続かないように）
       // 画面の真ん中に近い者ほど先に（大軍に近づいた時、目の前の最前列から本物に替わる）。横の端の者は後回し
       let cen = 0;
@@ -896,7 +899,7 @@ function humansStep(rt, dt, army, cam) {
     }
     // 遠い人は軽い形（本人・名のある武将は替えない）。小谷・設楽原の八メートル指定も反映する。
     // 指定のない戦は従来どおり十五メートルまで細部を保つ。人数・骨・攻撃は変えない。
-    if (h.geoFar && !qualityKeeper(u) && !named) setFar(h, c.dist > Math.min(15, detailNear) && (u.qualityTier != null ? u.qualityTier > 0 : c.dist > detailNear - (h.lodFar ? 1 : 0) && c.dist > Math.min(HUM.lod, detailNear)));
+    if (h.geoFar && !qualityKeeper(u) && !named) setFar(h, c.dist > Math.min(15, detailNear) && (TIER.weak || (u.qualityTier != null ? u.qualityTier > 0 : c.dist > detailNear - (h.lodFar ? 1 : 0) && c.dist > Math.min(HUM.lod, detailNear))));
     if (!qualityKeeper(u)) {
       const detailed = c.surfaceDetail && !h.lodFar;
       if (h.parts.armor) h.parts.armor.material = detailed ? nearCrowdMat(Math.floor(((h.seed || 0) * 11.3) % 1 * 4)) : UNIT_MAT;
@@ -923,7 +926,7 @@ function humansStep(rt, dt, army, cam) {
     // 固まった亡骸には握りや指の計算も行わない。
     if ((!u.alive || u.dying) && h.still) { h.acc = 0; continue; }
     // 近い人の握りは毎コマ。外は骨を動かす時だけ、経過分を渡す。
-    const d = c.dist, nearPose = named || u.isPlayer || d <= 15 || (u.qualityTier != null ? u.qualityTier === 0 : d < HUM.fine);
+    const d = c.dist, nearPose = named || u.isPlayer || (TIER.weak ? d <= detailNear : d <= 15 || (u.qualityTier != null ? u.qualityTier === 0 : d < HUM.fine));
     if (nearPose) gripPose(h, dt);
     // 倒れ切った人は動かさない（最後の姿勢のまま固める。人に作り直した時は、倒れ切った姿勢で一度だけ動かす）
     // 本流の距離別の時計を保ち、携帯の中景・遠景だけ番号でコマを分散する。パソコンは毎コマ。

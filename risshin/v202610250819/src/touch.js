@@ -722,8 +722,9 @@ function setupTouch({ input, game, setPause, toggleBigMap }) {
       }
       if (id && T.held.get(id) === e.pointerId) { T.held.delete(id); up(id); }
     };
-    el.addEventListener('pointerup', end);
-    el.addEventListener('pointercancel', end);
+    // 捕捉が外れ、指が釦の外で離れた場合も解除する。
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
     el.addEventListener('lostpointercapture', (e) => { if (el._o?.id === e.pointerId) end({ type: 'pointercancel', pointerId: e.pointerId }); });
     el.addEventListener('keydown', (e) => {
       const id = el.dataset.b;
@@ -872,8 +873,8 @@ function setupTouch({ input, game, setPause, toggleBigMap }) {
     }
     if (T.move === null) T.runLatch = false;
   };
-  canvas.addEventListener('pointerup', cEnd);
-  canvas.addEventListener('pointercancel', cEnd);
+  window.addEventListener('pointerup', cEnd);
+  window.addEventListener('pointercancel', cEnd);
   canvas.addEventListener('lostpointercapture', (e) => cEnd({ type: 'pointercancel', pointerId: e.pointerId }));
 
   // HUD の札を叩く：選択肢・飛ばす・取る・小地図
@@ -899,6 +900,32 @@ function setupTouch({ input, game, setPause, toggleBigMap }) {
   document.addEventListener('pointercancel', unitsUp, true);
   window.addEventListener('blur', () => { bmP.clear(); bmD = 0; unitsUp(); reset(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) { bmP.clear(); bmD = 0; unitsUp(); reset(); } });
+  window.addEventListener('pagehide', () => { bmP.clear(); bmD = 0; unitsUp(); reset(); });
+  // Safari の指の一覧でも照合する。指が無ければ、遅れた解除を待たず停止する。
+  const releaseTouches = (e) => {
+    if (e.type === 'touchcancel') { bmP.clear(); bmD = 0; unitsUp(); reset(); return; }
+    const move = T.move;
+    if (move) {
+      let present = false;
+      for (const finger of e.touches) {
+        if (move.touchId == null && Math.hypot(finger.clientX - move.x, finger.clientY - move.y) < 2) move.touchId = finger.identifier;
+        if (finger.identifier === move.touchId) present = true;
+      }
+      if (!e.touches.length || move.touchId != null && !present) cEnd({ type: 'pointercancel', pointerId: move.id });
+    }
+    if (e.touches.length) return;
+    bmP.clear(); bmD = 0; unitsUp();
+    for (const id of T.looks.keys()) cEnd({ type: 'pointercancel', pointerId: id });
+    // 普通に放した時は短い押下の予約を残す。全解除すると攻撃や持ち替えが消える。
+    for (const id of T.held.keys()) {
+      const el = btn[id];
+      if (el) { el.classList.remove('on'); el._o = null; }
+      T.held.delete(id); up(id);
+    }
+  };
+  for (const name of ['touchstart', 'touchmove', 'touchend', 'touchcancel']) {
+    document.addEventListener(name, releaseTouches, { capture: true, passive: true });
+  }
   // 長押しの後の「押した」は、号令先の切り替えにしない
   document.addEventListener('click', (e) => { if (T.eatClick && e.target.closest && e.target.closest('#h-units')) { e.stopPropagation(); e.preventDefault(); T.eatClick = false; } }, true);
 
@@ -951,6 +978,10 @@ function setupTouch({ input, game, setPause, toggleBigMap }) {
 // 毎フレーム（pollPad の後）呼ぶ：棒の向きを input へ入れ、丸の出し方を決める
 export function touchFrame(dt) {
   if (!T) return;
+  // 長く詰まった後は古い移動を再開しない。止まっている指も一度離して押し直す。
+  const now = performance.now();
+  if (T.inputAt != null && now - T.inputAt > 500) reset();
+  T.inputAt = now;
   const { input, game, root, btn } = T;
   const b = game.battle, p = b && b.player;
   const allowCoach = coachAllowed(b);

@@ -316,7 +316,7 @@ export function fieldSignsTick(rt, root) {
     // 笠のすぐ上へ固定し、密集しても埋めずに本人との隙間を一定にする。
     if (moribe && !u.mounted) headPos.y = u.pos.y + (u.bodyHeight || 1.72) + .38;
     // 笠に埋めず、白い外枠との隙間も残す。頭の揺れは追わない。
-    if (inou && !u.mounted) headPos.y = u.pos.y + (u.bodyHeight || 1.72) + .15 + .32;
+    if (inou && !u.mounted) headPos.y = u.pos.y + Math.max(2.35, (u.bodyHeight || 1.72) + .47);
     if (inou || oke || moribe) {
       if (defeated) headPos.set(u._inouSignX, u._inouSignY, u._inouSignZ);
       else { u._inouSignX = headPos.x; u._inouSignY = headPos.y; u._inouSignZ = headPos.z; }
@@ -346,8 +346,8 @@ export function fieldSignsTick(rt, root) {
     // 森部の一般兵は距離に合わせて滑らかに拡大し、接近だけでは命中の伸びを起こさない。
     // 任務の一人は読みやすい大きさを保ち、討つ武将は新しい上限で示す。
     const pixels = moribe ? (u === commander ? 42 : u === missionEnemy ? 28 : 8 + 12 * Math.max(0, Math.min(1, (36 - Math.sqrt(meD2)) / 26))) : !inou && !oke && marked && u !== marked && foe ? 9 :
-      // 任務の一人は常に大きい▼。頭上の位置と既存の描画の束は保つ。
-      inou ? (u === commander || u === missionEnemy ? 32 : 22) :
+      // 稲生の一般兵は同じ▼。討つ小隊長・武将だけ大きくする。
+      inou ? (u === commander ? 32 : 22) :
       // 目当てと近い敵の読みやすさを保ち、近づくほど同じ▼を滑らかに大きくする。
       // 実際に届いた一人だけ、さらに白縁・幅広へ替える。
       // 遠方の読みやすさと任務の一人の大きさを保ち、近くでは接近に応じた拡大も残す。
@@ -364,8 +364,8 @@ export function fieldSignsTick(rt, root) {
     const hit = foe && special
       ? moribe ? Math.min(1, Math.max(0, hitLeft / .6)) *
         (.65 + .35 * Math.min(1, Math.max(0, (hitLeft - 1.65) / .45)))
-        : inou ? Math.min(1, Math.max(0, hitLeft / .4)) *
-          (.1 + .9 * Math.min(1, Math.max(0, (hitLeft - 1.45) / .4)))
+        : inou ? Math.min(1, Math.max(0, hitLeft / .6)) *
+          (.2 + .8 * Math.min(1, Math.max(0, (hitLeft - 2) / .4)))
         : Math.min(1, Math.max(0, (hitLeft - 1.2) / .5))
       : 0;
     const reachable = foe && u === readyEnemy;
@@ -393,13 +393,13 @@ export function fieldSignsTick(rt, root) {
     // 森部も頭ほどの幅に収め、間合いと命中の拡大は下で一度だけ掛ける。
     // 稲生の追う一人も頭ほどの実寸に収め、奥の印が手前の兵に重なるのを防ぐ。
     // 近くの兵も読みやすい大きさを残し、目前の相手を見失わせない。
-    const inouFocus = inou && (practiceEnemy || u === missionEnemy || hit > 0 || defeated);
+    const inouFocus = inou && (practiceEnemy || u === missionEnemy || hot || hit > 0 || u.inouBlockUntil > rt.t || defeated);
     // 稲生の目当ては距離に応じて滑らかに大きくし、近さの境目で急に変えない。
     // 目当ての読みやすい幅は残し、実寸の上限で遠い印の膨らみを抑える。
     const inouLimit = inouFocus ? 2 + Math.max(0, 1 - Math.sqrt(meD2) / 18) : near ? 2 : u === commander ? 1.5 : 1.2;
     // 桶狭間の遠い印は頭ほどに収め、森部・稲生の間合いと命中の調整も保つ。
     // 森部の一般兵は頭ほどの幅を保ち、討つ武将の上限と間合い・命中の拡大を残す。
-    const k = Math.min(moribe ? (u === commander ? 8 : u === missionEnemy ? 3 : .65 + 1.15 * Math.max(0, Math.min(1, (36 - Math.sqrt(meD2)) / 26))) : inou ? inouLimit : oke ? (u === missionEnemy || u === commander ? 1.6 : 1.1) : u === commander ? 32 : 3, (inou ? practiceEnemy ? 28 : inouFocus ? pixels : practiceGroup ? 14 : near ? 28 : 18 : moribe ? pixels : width) * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) *
+    const k = Math.min(moribe ? (u === commander ? 8 : u === missionEnemy ? 3 : .65 + 1.15 * Math.max(0, Math.min(1, (36 - Math.sqrt(meD2)) / 26))) : inou ? inouLimit : oke ? (u === missionEnemy || u === commander ? 1.6 : 1.1) : u === commander ? 32 : 3, (inou ? practiceEnemy ? 28 : inouFocus ? 30 : practiceGroup ? 14 : near ? 28 : 18 : moribe ? pixels : width) * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) *
       (moribe || inou ? 1 : 1 + (pulse > 0 ? 1.2 * pulse : reachable && !oke ? .55 : 0));
     dummy.position.copy(headPos);
     dummy.quaternion.copy(q);
@@ -419,10 +419,8 @@ export function fieldSignsTick(rt, root) {
     // 防がれた接触は縦に潰す。傷を与えた時の縦の伸び・赤の減りとは分ける。
     // 森部も、受け止められた本人の▼だけを短く潰す。空振りとは区別する。
     const blocked = special && !(hit > 0) && (moribe ? u.moribeBlockUntil : inou ? u.inouBlockUntil : u.okeBlockUntil) > rt.t;
-    // 届くまでは細い▼が徐々に開き、届く本人だけ幅広くなる。
-    // 届くまでの十二歩で徐々に開く。届く白縁は実際の攻撃判定だけで出す。
-    const inouWidth = inou && hot ? 2.2 : inou && u === missionEnemy
-      ? .75 + .85 * Math.max(0, Math.min(1, 1 - (Math.sqrt(meD2) - reachHot) / 12)) : 1;
+    // 選ばれただけでは拡大しない。実際に届く一人だけ横へ開く。
+    const inouWidth = inou && hot ? 2.2 : 1;
     // 桶狭間は遠くで細く、接近するほど開く。刃の間合いへの接近も同じ幅へ反映する。
     // 実際に攻撃が届く本人だけ最大の幅にし、位置・高さは動かさない。
     const okeWidth = oke ? reachable ? 2.2 : Math.max(
