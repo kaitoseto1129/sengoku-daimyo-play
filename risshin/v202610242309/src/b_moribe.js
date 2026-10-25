@@ -1221,10 +1221,8 @@ const moribe = {
       return null; // 討つ武将も頭上の赤い▼にそろえる。
     } else if (F.stage === 'hold' || F.vBroken) {
       if (!F.lineReturning && F.stage === 'hold') {
-        // 同じ持ち場のピンを時計に替える。列にいれば待つだけでも進む。
-        q.waiting = true; q.arrived = true;
-        q.progress = this.missionWaitProgress(rt);
-        pos = F.linePoint; r = 24; hide = 0;
+        // 持ち場にいる間は右上の時計だけ。別の行き先へ歩かせない。
+        return null;
       } else {
         if (!F.lineReturning) return null;
         // 列を離れた時だけ、守備を始めた固定地点へ戻す。
@@ -1643,6 +1641,9 @@ const moribe = {
     rt.hud.root.classList.add('moribe-notices');
     const noticeStyle = document.createElement('style');
     noticeStyle.textContent = `
+/* 説明のない総兵数や綱引きは出さず、行き先のピンと敵の▼で判断する。 */
+#hud.moribe-notices #tugbar,
+#hud.moribe-notices #armybar { display:none !important; }
 /* 次の一手と号令を右の任務札にまとめる。横持ちでも二行を切らない。 */
 #hud #h-prog[data-battle="moribe"] { width:min(320px, 38vw); }
 /* 耐える進みは任務の下地で示す。別の時計や秒の字は足さない。 */

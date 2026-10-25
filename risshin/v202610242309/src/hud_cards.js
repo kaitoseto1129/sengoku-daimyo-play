@@ -153,39 +153,49 @@ export class HudCards {
     }
     const active = rt.def.key === 'inou' && rt.player.u.alive && !rt.flags.ending && !rt.over && !rt.choice &&
       !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
-    const u = active ? rt.def.missionSignTarget?.(rt) : null;
+    const enemy = active ? rt.def.missionSignTarget?.(rt) : null;
+    const following = active && !enemy && rt.flags.step === 0 && rt.flags.training >= 0 && rt.flags.training <= 8;
+    const u = enemy || (following ? rt.flags.genU : null);
     let el = this.inouTargetMark;
-    if (!u?.alive || u.gone || u.dying || u.woundOut || u.team === rt.player.u.team) {
+    if (!u?.alive || u.gone || u.dying || u.downed || u.woundOut || u.rearWound || u.fleeing || u.team === rt.player.u.team) {
       if (el) el.hidden = true;
       return;
     }
     if (!el) {
       el = document.createElement('div');
-      el.style.cssText = 'position:absolute;left:0;top:0;pointer-events:none;z-index:4;text-align:center;font:bold 16px/1.4 sans-serif;white-space:nowrap;color:#fff3df;text-shadow:0 1px 2px #000';
-      el.innerHTML = '<b style="display:block;background:#17140f;padding:3px 7px;border:2px solid #ffe393"></b><span style="display:block;color:#ffe393;font-size:44px;line-height:1;-webkit-text-stroke:1px #17140f">↓</span>';
+      el.style.cssText = 'position:absolute;left:0;top:0;pointer-events:none;z-index:4;text-align:center;font:bold 16px/1.4 sans-serif;white-space:pre;color:#fff3df;text-shadow:0 1px 2px #000';
+      el.innerHTML = '<b style="display:block;background:#17140f;padding:3px 7px;border:2px solid #ff634d"></b><span style="display:block;color:#ff4a2e;font-size:44px;line-height:1;-webkit-text-stroke:2px #fff3df;paint-order:stroke fill;text-shadow:0 1px 3px #000">▼</span>';
       this.root.appendChild(el); this.inouTargetMark = el;
     }
     const name = rt.def.missionEnemyLabel(rt);
-    const W = innerWidth, H = innerHeight, margin = Math.min(W / 2 - 8, name.length * 8 + 66);
+    const W = innerWidth, H = innerHeight, margin = Math.min(W / 2 - 8, name.length * 8 + 104);
     this.tmpV.set(u.pos.x, u.pos.y + (u.mounted ? 3.5 : 2.55), u.pos.z).project(rt.camera);
     let x = (this.tmpV.x + 1) * W / 2, y = (1 - this.tmpV.y) * H / 2;
     const onScreen = this.tmpV.z >= -1 && this.tmpV.z <= 1 && x > margin && x < W - margin &&
       y > 100 && y < H - 80 && u.mesh?.visible !== false && sightUnit(rt, u);
-    let label = name;
+    const me = rt.player.u.pos;
+    const distance = Math.ceil(Math.hypot(u.pos.x - me.x, u.pos.z - me.z));
+    const steps = rt.def.missionEnemySteps(rt, u);
+    let label = `目標：${name}\nあと${distance}メートル・槍まで${steps}歩`;
     if (!onScreen) {
       rt.camera.getWorldDirection(this.tmpV);
-      const me = rt.player.u.pos, dx = u.pos.x - me.x, dz = u.pos.z - me.z;
+      const dx = u.pos.x - me.x, dz = u.pos.z - me.z;
       const yaw = Math.atan2(this.tmpV.x, this.tmpV.z);
       const right = -dx * Math.cos(yaw) + dz * Math.sin(yaw);
       const forward = dx * Math.sin(yaw) + dz * Math.cos(yaw);
-      const sideways = Math.abs(right) > Math.abs(forward);
+      // 後方は左右へ振り向かせる。下向きの矢印を後退の指示に見せない。
+      const sideways = forward < 0 || Math.abs(right) > Math.abs(forward);
       x = sideways ? right >= 0 ? W - margin : margin : W / 2;
-      y = sideways ? H * (forward >= 0 ? .45 : .65) : forward >= 0 ? 128 : H - 84;
-      const arrow = sideways ? right >= 0 ? '→' : '←' : forward >= 0 ? '↑' : '↓';
-      // 「兵の後ろへ回れ」と読ませず、画面外の相手へ向く行動を示す。
-      label = forward < 0 ? `${right >= 0 ? '↷ 右' : '↶ 左'}へ振り向く` : `${arrow} ${name}`;
+      y = sideways ? H * (forward >= 0 ? .45 : .65) : 128;
+      const arrow = sideways ? right >= 0 ? '→' : '←' : '↑';
+      // 後方も左右へ振り向かせ、同じ目標の名を残す。
+      const turn = sideways ? `${right >= 0 ? '右' : '左'}へ${forward < 0 ? '振り向け' : '向け'}` : 'この先へ進め';
+      label = `${arrow} 目標：${name}\n${turn}`;
     }
     setText(el.firstChild, label);
+    setText(el.lastChild, following ? '↓' : '▼');
+    el.lastChild.style.color = following ? '#fff3df' : '#ff634d';
+    el.lastChild.style.webkitTextStroke = following ? '' : '1px #fff3df';
     el.lastChild.hidden = !onScreen;
     el.hidden = false;
     el.style.transform = `translate(${Math.round(x)}px,${Math.round(y)}px) translate(-50%,-100%)`;
