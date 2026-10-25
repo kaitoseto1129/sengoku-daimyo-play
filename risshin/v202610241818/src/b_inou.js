@@ -126,25 +126,27 @@ function approachUnit(rt) {
     return reachable;
   }
   const previous = F.approachGroup === group && fighting(F.approachUnit) && F.approachUnit.mesh?.visible !== false ? F.approachUnit : null;
-  // 実際に突ける同じ隊の兵を、任務と頭上の印でも選ぶ。
-  const ready = rt.player.inRange && rt.player.rangeCueTarget;
-  if (ready && group.units.includes(ready) && advanceEnemy(ready)) {
-    F.approachGroup = group; F.approachUnit = ready;
-    return ready;
-  }
-  const reach = rt.player.meleeReach(rt.player.previewMeleeKind() || 'thrust');
-  // 間合いに入った林兵を優先する。遠い一人へのピンで、目前の敵から引き離さない。
-  if (previous && Math.hypot(previous.pos.x - rt.player.u.pos.x, previous.pos.z - rt.player.u.pos.z) <= reach) return previous;
+  // 生きている同じ一人を追う。歩くたびに林・杖・旗へ目印を渡さない。
+  if (previous) return previous;
   let chosen = null, best = Infinity;
   for (const u of group.units) {
     if (!fighting(u) || u.mesh?.visible === false) continue;
     const d = Math.hypot(u.pos.x - rt.player.u.pos.x, u.pos.z - rt.player.u.pos.z);
     if (d < best) { chosen = u; best = d; }
   }
-  // 二歩以上近い兵が現れたら追う相手を替える。僅差では同じ一人を保つ。
-  if (previous && best > reach && Math.hypot(previous.pos.x - rt.player.u.pos.x, previous.pos.z - rt.player.u.pos.z) <= best + 2) chosen = previous;
   F.approachGroup = group; F.approachUnit = chosen;
   return chosen;
+}
+// 白縁は一人だけ。距離と実際の攻撃判定から、次の行動を一つだけ伝える。
+function inouEnemyOrder(rt, fallback) {
+  const enemy = rt.def.missionSignTarget(rt), p = rt.player;
+  if (!fighting(enemy)) return fallback;
+  const target = '白ふちの▼';
+  if (p.inRange && p.rangeCueTarget === enemy) return `${target}を${p.weapon === 'sword' ? '斬れ' : '突け'}`;
+  const dx = enemy.pos.x - p.u.pos.x, dz = enemy.pos.z - p.u.pos.z;
+  if (Math.hypot(dx, dz) > p.meleeReach(p.previewMeleeKind() || 'thrust')) return `${target}へ近づけ`;
+  if (Math.cos(Math.atan2(dx, dz) - p.u.heading) < .9) return `${target}へ向け`;
+  return `${target}へ近づけ`;
 }
 function pinPoint(rt, pos, radius, hide, unit = null, name = '') {
   const pin = rt.flags.goalPin;
@@ -219,7 +221,7 @@ const inou = {
   nearSpearFade: false, // 槍だけを縮めて透かさず、持ち主と同じ形を保つ。
   missionPinCaption: '',
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
-  // 任務は一行。兵と武将・待つ場所を区別し、距離や向きで文を切り替えない。
+  // 任務は一行。兵と武将・待つ場所を区別し、頭上の▼と呼び方をそろえる。
   missions: ['赤い▼の林の兵（信勝方）を倒せ', '赤い▼の林の兵（信勝方）を倒せ', '信長の旗のそばで耐えろ', '▼の林美作守を倒せ'],
   missionHeading(rt) {
     const F = rt.flags;
@@ -234,13 +236,13 @@ const inou = {
       return left ? `赤い▼の${name}を倒せ（残り${left}人）` : `赤い▼の${name}を倒せ`;
     }
     if (F.step === 1) {
-      if (F.training === 11 && !F.flankReached || F.training === 12 && !gone(F.shiba1)) return '▼の敵を倒せ';
-      return '耐えろ';
+      if (F.training === 11 && !F.flankReached || F.training === 12 && !gone(F.shiba1)) return '▼の柴田の兵を倒せ';
+      return '信長の旗のそばで耐えろ';
     }
     if (F.step === 2) {
       return '▼の敵を倒せ';
     }
-    return F.step === 0 && F.training === 8 ? '▼の隊長を倒せ' : this.missions[this.missionOf(rt)];
+    return F.step === 0 && F.training === 8 ? '▼の林の隊長を倒せ' : this.missions[this.missionOf(rt)];
   },
   commanderTarget: (rt) => rt.flags.step === 0 && rt.flags.training === 8 ? rt.flags.hayaLead :
     rt.flags.step === 3 ? rt.flags.hayaU : null,
@@ -252,7 +254,7 @@ const inou = {
         rt.flags.step === 1 && rt.flags.training === 12 && !gone(rt.flags.shiba1) ? approachUnit(rt) :
           rt.flags.step === 3 ? rt.flags.hayaU : null,
   missionEnemyLabel: (rt) => rt.flags.step === 3 ? '林美作守' : rt.flags.step === 1 ? '柴田の兵' :
-    rt.flags.training === 8 ? '林の隊長' : '林の兵',
+    rt.flags.training === 8 ? '林美作守の小隊長' : '林美作守の兵',
   meleeResult(rt, target, result) {
     const F = rt.flags;
     // 命中・討ち取りは実際に命が減った時の知らせを保つ。

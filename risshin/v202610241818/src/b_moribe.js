@@ -1042,7 +1042,7 @@ const moribe = {
   nearbyAllySignLimit: 0, // 味方の頭上に白い小旗を出さない。追う旗はピン一本、敵は赤い印で分ける。
   noDodgeCard: true, // 矢の雨で「〜をむこう」「にげる」の札を出さない（kaito 10/23 稲生 4）。
   hideMissionDots: true, // 任務の段数は見出しにある。仲間の人数と紛れる五つの丸は出さない。
-  missionSingleLine: true, // 右上は任務一行と、文字のない待ち時間の丸だけ。
+  missionSingleLine: true, // 右上は任務一行だけ。耐える進みは同じ一行の下地で示す。
   // 仲間の名札は一人だけ。密集しても五人分の文字を重ねない。
   missionAllyLabel: 'ついてくる仲間',
   missionContext: '永禄四年（一五六一）・森部（もりべ）の戦い',
@@ -1644,15 +1644,12 @@ const moribe = {
     noticeStyle.textContent = `
 /* 次の一手と号令を右の任務札にまとめる。横持ちでも二行を切らない。 */
 #hud #h-prog[data-battle="moribe"] { width:min(320px, 38vw); }
-/* 残りは任務と同じ一行の時計で示す。針と満ちる円だけで、秒の字は足さない。 */
+/* 耐える進みは任務の下地で示す。別の時計や秒の字は足さない。 */
 #hud #h-prog[data-battle="moribe"] .pg-st.moribe-wait {
  flex-direction:row; align-items:center; justify-content:flex-end; gap:10px;
 }
 #hud #h-prog[data-battle="moribe"] .pg-st.moribe-wait::before {
- content:""; display:block; flex:none; width:22px; height:22px; border-radius:50%;
- box-shadow:0 0 0 2px #c9b27a;
- background:linear-gradient(#fff3df,#fff3df) center 3px / 2px 8px no-repeat,
- conic-gradient(#e8c25a calc(var(--wait-progress,0) * 1%), #373326 0);
+ content:none;
 }
 /* 共通の一行省略より優先し、今することを最後まで読めるようにする。 */
 html:root body #hud.mission-only #h-prog[data-battle="moribe"] .pg-st span {
@@ -2178,7 +2175,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     rt.makeSquad({ x: START2.x + 8, z: START2.z + 3 }, Math.PI, [{ kind: 'spear', n }]);   // 先に渡る前備と重ねず、組はすぐ後ろから続く
     // 三手は楡俣川の南岸に並び、遊び手と同じ流れを渡る。柴田・本備・森の備は勝ち戦の芯なので、
     // 兵は討たれても隊ごとの総崩れはしない（右手の小勢は崩れうる）。
-    rt.flags.A = allyGroup(rt, { name: '柴田の前備', fixed: true, anchor: { x: 40, z: 91 }, facing: Math.PI, aggro: 12, morale: 100, noRout: true, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 16 }, { type: 'samurai', n: 1, o: { name: '源八', invuln: true } }, { type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true } }]);
+    rt.flags.A = allyGroup(rt, { name: '柴田の前備', fixed: true, anchor: { x: 28, z: 91 }, facing: Math.PI, aggro: 12, morale: 100, noRout: true, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 16 }, { type: 'samurai', n: 1, o: { name: '源八', invuln: true } }, { type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true } }]);
     rt.flags.B = allyGroup(rt, { name: '本備', fixed: true, anchor: { x: -22, z: 116 }, facing: Math.PI, aggro: 12, morale: 100, noRout: true, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 24 }, { type: 'bow', n: 2 }, { type: 'samurai', n: 2 }]);
     // 上役の源八は戦の後に城下で昇進を告げる。この戦では討たれない。
     rt.flags.moribeOfficer = rt.flags.A.units.find((u) => u.name === '源八');
@@ -2360,8 +2357,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       g.spacing = Math.max(g.spacing, 1.9);
     }
     for (const g of rt.squadGroups) { g.formation = 'yari'; g.yariRanks = 2; }
-    // 前備は目の前の浅瀬を歩いて渡る。仲間の足取りで水へ入れることを示す。
-    for (const [g, x, z] of [[F.A, 40, 70], [F.B, -22, 70], [F.Y, -40, 60], [F.R3, 64, 66]]) {
+    // 前備は浅瀬の脇を渡る。自分から対岸のピンまでの帯を兵の背中で塞がない。
+    for (const [g, x, z] of [[F.A, 28, 70], [F.B, -22, 70], [F.Y, -40, 60], [F.R3, 64, 66]]) {
       g.leader = g.units.find((u) => u.type === 'busho') || g.units.find((u) => u.type === 'samurai');
       g.order = 'move'; g.dest = { x, z }; g.speed = 2;
       g.onArrive = (u) => { u.order = 'hold'; };
