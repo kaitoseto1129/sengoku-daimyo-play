@@ -313,8 +313,18 @@ function materialShape(mesh, world, entries, parts) {
           // 平行光の影だけ、深度材質が元々描かない向きの面を送らない。
           // 法線の広がりと余裕を残すため、斜面の影や輪郭は削らない。
           const facing = -group.normal.dot(shadowDirection);
+          // 小谷の石と設楽原の丸太は、影でも実際の法線の上下限を使う。
+          // 円錐の余裕だけでは、光と平行に近い裏面まで一緒に送っていた。
+          // 束を増やさず、全ての面が影の材質の裏にある時だけ外す。
+          const sx = -shadowDirection.x, sy = -shadowDirection.y, sz = -shadowDirection.z;
+          const shadowMin = sx * (sx >= 0 ? group.normalMin[0] : group.normalMax[0])
+            + sy * (sy >= 0 ? group.normalMin[1] : group.normalMax[1])
+            + sz * (sz >= 0 ? group.normalMin[2] : group.normalMax[2]);
+          const shadowMax = sx * (sx >= 0 ? group.normalMax[0] : group.normalMin[0])
+            + sy * (sy >= 0 ? group.normalMax[1] : group.normalMin[1])
+            + sz * (sz >= 0 ? group.normalMax[2] : group.normalMin[2]);
           const shadow = onS[j] && (!faceCell || shadowFrustum.intersectsBox(group.box)) && (!parallelShadow || shadowSide === THREE.DoubleSide ||
-            (shadowSide === THREE.BackSide ? facing <= group.coneSine + 0.02 : facing >= -group.coneSine - 0.02));
+            (shadowSide === THREE.BackSide ? facing <= group.coneSine + 0.02 && shadowMin <= 0.02 : facing >= -group.coneSine - 0.02 && shadowMax >= -0.02));
           group.drawPass = main ? (shadow ? 1 : 0) : shadow ? 2 : -1;
         }
         if (group.drawPass === pass) write(group.indices);

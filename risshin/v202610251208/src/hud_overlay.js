@@ -36,7 +36,7 @@ export class HudOverlay {
     }
     // 場所のピンは軸を長くし、兵の頭上の印と見分けられるよう地面までつなぐ。
     // 到着したピンは軸を畳む。任務のそばで満ちる頭だけを残し、別の移動先に見せない。
-    const stem = pin?.waiting && pin.arrived ? 8 : pin?.unit ? 13 : pin?.crossing ? 60 : 43;
+    const stem = pin?.waiting && pin.arrived ? 8 : 43;
     if (!pin?.waiting || !pin.arrived) {
       g.beginPath(); g.moveTo(x, y); g.lineTo(x - 4, y - stem);
       g.lineTo(x + 4, y - stem); g.closePath();
@@ -44,8 +44,8 @@ export class HudOverlay {
       g.fillStyle = '#fff3ba'; g.fill();
     }
     g.translate(0, 13 - stem);
-    // 中の進みを大きくしても外形からはみ出さず、先端は同じ地面に固定する。
-    g.translate(0, -33); g.scale(1.2, 1.2); g.translate(0, 33);
+    // 丸頭だけを拡大し、先端を同じ岸に保ったまま満ちた量を読みやすくする。
+    g.translate(0, -33); g.scale(1.5, 1.5); g.translate(0, 33);
     g.beginPath(); g.moveTo(x, y - 10); g.lineTo(x - 13, y - 26);
     g.bezierCurveTo(x - 27, y - 54, x + 27, y - 54, x + 13, y - 26);
     g.closePath();

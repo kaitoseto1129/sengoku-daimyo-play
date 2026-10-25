@@ -32,6 +32,9 @@ export class Hud {
       const css = document.createElement('style'); css.id = 'field-clean-css';
       css.textContent = `html body #hud.field-clean :is(#markers,#foe-marks,#squad-marks,#field-signs,#battle-opening,#floats,#threats,#boss,#target,#objectives,#prompt,#staring,#tutorial,#hint,#skiphint,#compass,.destination-distance,.battle-action,.victory-condition,.combat-cue-label,#crosshair,.hold-cover,.cover-guide,.dodge-guide) { display:none !important; }
       html body #hud.field-clean :is(.bar,.bar *,#aimwarn), html body:has(#hud.field-clean:not([hidden])) :is(#mobfx,#tc *) { animation:none !important; }
+      /* 任務・体力に加える札は、小地図か必要時の兵力のどちらか一つ。 */
+      html body #hud.field-clean.army-off #armybar { display:none !important; }
+      html body #hud.field-clean:not(.army-off) :is(#minimap,#maphint) { display:none !important; }
       /* 体力の名前と危険を同じ札に置き、太い一本の棒で残量を示す。 */
       html:root body #hud.field-clean.field-clean .bl #h-hp.hp {
         display:grid !important; grid-template-columns:auto auto !important;
@@ -351,9 +354,9 @@ export class Hud {
     setClass(this.root, 'ending', !!guidanceEnded(rt));
     // 必要な時だけ出す札：両軍の兵力の帯と日付は、開戦・形勢が変わった時・号令や地図を開いている間だけ（HUD の三つの層の「要る時」）
     this.armyPeekT = (this.armyPeekT || 0) - dt;
-    const peek = !S.hudAutoFade || rt.t < 8 || this.armyPeekT > 0 || p.cmdOpen || p.radial || this.bigmap || rt.ended;
-    // 兵力の帯は戦の間ずっと出す（平時は薄くするだけ。peek は号令・地図の間に濃くするのに使う）
-    setClass(this.root, 'army-off', false);
+    const peek = rt.t < 8 || this.armyPeekT > 0 || p.cmdOpen || p.radial || this.bigmap || rt.ended;
+    // 常時の札を増やさず、兵力は開戦・形勢の変化・号令・地図の時だけ。
+    setClass(this.root, 'army-off', !peek);
     setClass(this.root, 'army-peek', peek);
     // 初めての戦の手ほどきの間は、方角の帯と小地図を出さない（札は戦功・任務・体力・手ほどきだけで始める）
     setClass(this.root, 'novice', !!(rt.tut?.auto || rt.tutPause?.t.auto) && !this.bigmap);
@@ -547,8 +550,8 @@ export class Hud {
     for (const g of rt.squadGroups) if (g.count > 0) groupCount++;
     this.manyGroups = groupCount > 1;
     setText($('h-merit'), rt.over ? '戦の終わり' : '戦の最中');
-    this.progress(rt);
     updateMissionPin(rt);
+    this.progress(rt);
     // 戦の画面では、打たれた向きの「！」・狙われた時と囲まれた時の縁の脈を出さない（出たり消えたりする。kaito 10/23）。
     const quietEdges = pinGuideOn(rt);
     this.foeMarks(rt);
@@ -1700,8 +1703,8 @@ export class Hud {
     setClass(this.root, 'flag-guide', flagShown);
     // ミニマップ
     // 小地図は見えている時だけ描く（設定で消した・手ほどきの間は描かない）
-    const mapGuidance = isTouch && VIEW.h <= 500 && singleBattleGuide(rt) &&
-      (this.openingActive || !!rt.missionGuide?.marker || !!this.defendEnemy?.alive ||
+    const mapGuidance = pinGuideOn(rt) &&
+      (this.openingActive || !!rt.missionGuide?.marker || this.missionEnemyShown || !!this.tugEl && !this.tugEl.hidden || !!this.defendEnemy?.alive ||
        !!rt.dodgeGuide || !!this.retreatGuide?.active || !!rt.touchCoachActive);
     setClass(this.root, 'map-guidance', !!mapGuidance);
     const mmOn = S.hudMinimap !== false && !this.root.classList.contains('novice') && !mapGuidance;

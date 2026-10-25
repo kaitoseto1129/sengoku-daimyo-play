@@ -1,4 +1,4 @@
-import { pinGuideOn, missionTarget } from './mission_pin.js';
+import { pinGuideOn, missionTarget, TALK_SIGN } from './mission_pin.js';
 import { setText, setWidth, coachCss, $, esc, keyCaps, shortTask, singleBattleGuide, rescueTarget, retreatRequired, attackOperation } from "./hud_common.js";
 import { currentObjective, taskText, missionCaption } from "./mission_guide.js";
 import { isTouch } from "./touch.js";
@@ -451,12 +451,10 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
       if (taskLine && this.progSeen[this.progSeen.length - 1] !== taskLine) this.progSeen.push(taskLine);
       i = Math.max(0, this.progSeen.length - 1); n = 0; title = this.progSeen[i] || '';
     }
-    // 案内役の印は本人の頭上だけ。任務札に別の形を添えない。
-    setText(stEl.firstChild, '');
-    stEl.firstChild.style.display = 'none';
+    // 印は下で任務の内容と一緒に更新する。
     // 「左へ下がる」のような向きの字は出さない（kaito 10/23）。
     const yaw = rt.player.yaw + (rt.player.camYawOff || 0), p = rt.player.u.pos;
-    let headline = missionCaption(rt, def.missionTaskFirst ? task || title : title || task) || '味方の旗へ進め';
+    let headline = def.missionHeading?.(rt) || missionCaption(rt, def.missionTaskFirst ? task || title : title || task) || '味方の旗へ進め';
     // 任務の一行へ実際の攻撃操作を収める。別の札や知らせは増やさない。
     if (!def.missionSignTarget && def.key !== 'moribe' && /^(?:近くの|この)?敵を\s*(?:たおせ|倒せ)$/.test(headline)) {
       const player = rt.player;
@@ -466,6 +464,15 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
       if (enemy?.alive && enemy.team !== player.u.team && sightUnit(rt, enemy))
         headline = player.inRange ? `印の敵へ ${attackOperation(rt)}` : '印の敵へ近づこう';
     }
+    // 話す任務と相手の頭上を、同じ吹き出しで結ぶ。札は増やさない。
+    const talkSign = headline === 'この人と話そう';
+    if (stEl.firstChild._talkSign !== talkSign) {
+      stEl.firstChild._talkSign = talkSign;
+      stEl.firstChild.innerHTML = talkSign ? `<svg width="28" height="28" viewBox="0 0 80 68" aria-hidden="true">${TALK_SIGN}</svg>` : '';
+    }
+    stEl.firstChild.style.cssText = talkSign ? 'display:inline-block!important;vertical-align:middle;margin-right:4px' : 'display:none';
+    stEl.style.flexDirection = talkSign ? 'row' : '';
+    stEl.style.alignItems = talkSign ? 'center' : '';
     // 相手の名前から一続きの一行にする。赤い▼は敵の頭上だけに置く。
     setText(stEl.lastChild, headline);
     stEl.lastChild.classList.toggle('foe-task', def.key === 'okehazama' && headline.startsWith('▼'));
@@ -476,6 +483,13 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
         currentObjective(rt)?.progress || (status && status !== headline ? status : '');
     // 稲生は任務の一行だけ。操作や距離の説明を重ねない。
     setText(nextEl, sub); nextEl.hidden = !(sub && (def.key === 'inou' || sub.length <= (def.missionStatusMaxLength ?? 14)) && (rt.teachOn?.() || !!def.missionDetail));
+    // 歩数は行き先の横に札を増やさず、任務の同じ札で読む。
+    const destination = missionTarget(rt), me = rt.player.u.pos;
+    const steps = destination && !destination.enemy && !destination.unit && !destination.fire
+      ? Math.ceil(Math.max(0, Math.hypot(destination.x - me.x, destination.z - me.z) - (destination.r ?? 6)) / .75) : 0;
+    const routeSteps = steps > 0 && !this.missionEnemyShown && !def.hideGuideSteps;
+    nextEl.classList.toggle('route-steps', routeSteps);
+    if (routeSteps) { setText(nextEl, `あと${steps}歩`); nextEl.hidden = false; }
     // 必要な号令だけ、今の任務の直下で一度押せるようにする。
     if (def.missionAction && !this.missionActionButton) {
       const button = this.missionActionButton = document.createElement('button');
@@ -529,8 +543,8 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     // 待つ間（陣を敷く・寄せを待つ）の残りは、秒の字でなく満ちていく丸で（kaito 10/23 稲生 14）。
     const gm = rt.missionGuide?.marker, wu = gm?.waitUntil?.();
     const progress = def.missionWaitProgress?.(rt);
-    // 森部は任務一行の丸、桶狭間は下地を満たす。秒数や別の札を増やさない。
-    const waitFill = (def.key === 'moribe' || def.key === 'okehazama') && Number.isFinite(progress)
+    // 森部の待機は同じピンの丸だけを満たす。棒と時計を二重に出さない。
+    const waitFill = def.key === 'okehazama' && Number.isFinite(progress)
       ? Math.round(Math.max(0, Math.min(1, progress)) * 100) : -1;
     if (el._waitFill !== waitFill) {
       el._waitFill = waitFill;

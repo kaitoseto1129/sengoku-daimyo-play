@@ -485,12 +485,13 @@ const INK_CSS = `<style>
 </style>`;
 function inkTitle() { return `${INK_DEFS}<div class="ink-title">${INK_STROKE}<h1 class="title">戦国<span>立身</span></h1><i class="seal" aria-hidden="true">立<br>身</i></div>`; }
 let titleKotoOnce = null;
+let returnedFromBattle = false;
 export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSlot, onChapter, onDojo, onRecords, onLadder, onJapan, onSamurai, onLord, reopen = '') {
   const readings = [0, 1, 2].map(readProgress);
   const slots = readings.map((r) => r.game);
   saved = slots[S.slot];
   // 初めての入口は、旗と開始の字を見せ、一度押すかエンターで出陣。
-  if (readings.every(r => !r.game && !r.bad)) {
+  if (!returnedFromBattle && readings.every(r => !r.game && !r.bad)) {
     show(`<div style="min-height:70dvh;display:grid;place-items:center;align-content:center;gap:16px"><p style="margin:0;text-align:center;font-size:16px">稲生（いのう）は、今の名古屋にある戦場。<br>あなたは信長の兵。味方と一緒に林の兵を追おう。<br>${isTouch ? '左の画面をなぞって歩く' : `「${K('forward')}」で前へ歩く`}</p><button type="button" class="btn primary" id="b-new" data-first-depart style="min-height:64px;padding:16px 24px;font-size:max(20px, calc(20px * var(--text-scale, 1)));letter-spacing:0;display:flex;align-items:center;gap:12px"><svg viewBox="0 0 64 64" width="40" height="40" aria-hidden="true"><path d="M18 56V8m2 2h28l-7 13 7 13H20" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/><path d="M28 44l8 7-8 7" fill="none" stroke="currentColor" stroke-width="3"/></svg><span>稲生（いのう）の戦いを始める</span></button></div>`, false, (e) => {
       if (e.key === 'Enter') { e.preventDefault(); $('b-new')?.click(); }
     });
@@ -4008,9 +4009,11 @@ export function pauseMenu(el, o) {
     confirmBox(box, o.town ? '町に入り直します。' : 'この戦を最初からやり直します。', o.town ? '町に入り直す' : 'やり直す', o.retry, { sub: o.town ? '城下までの記録は残ります。' : 'この戦で得た戦功は消えます。城下までの記録は残ります。' });
   };
   el.querySelector('#pm-title').onclick = () => {
-    if (o.error) { o.title2(); return; }
+    const returnToTitle = () => { returnedFromBattle = true; o.title2(); };
+    // 森部を終える意思はこの釦で受け取る。城下の記録を保って題へ戻る。
+    if (o.error || o.battle?.def.key === 'moribe') { returnToTitle(); return; }
     el.querySelector('#pm-title').after(box);
-    confirmBox(box, '題の画面へ戻ります。', '題の画面へ戻る', o.title2, { sub: 'この戦の進み具合は消えます。城下までの記録は残ります。' });
+    confirmBox(box, '題の画面へ戻ります。', '題の画面へ戻る', returnToTitle, { sub: 'この戦の進み具合は消えます。城下までの記録は残ります。' });
   };
   el.querySelector('#pm-resume').focus({ preventScroll: true });
   // 戦の中のキー（Tab・Enter・Space）は戦の操作に取られるので、一時停止の札の中ではボタンの操作に戻す
