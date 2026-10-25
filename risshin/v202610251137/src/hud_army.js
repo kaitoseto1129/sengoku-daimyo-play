@@ -157,7 +157,7 @@ export class HudArmy {
 
   // 画面の上の一本の綱引きの棒（テストプレイの声 10/24「優勢か劣勢か分からない」）。
   //   味方の色が左から、敵の色が右から。初めの人数に対する残りの割合で押し合い、数字は両端に小さく。
-  //   接敵中も携帯でも消さない（#armybar は携帯では隠れる）。
+  //   任務や接敵の案内中は畳み、開戦直後と戦況の危険時だけ補う。
   updateTug(rt) {
     let tb = this.tugEl;
     // 稲生は所属の分からない裸の数字を出さず、戦場の兵と敵の▼で見せる。
@@ -188,7 +188,9 @@ export class HudArmy {
       (this.root || document.body).appendChild(tb);
       this.tugKey = '';
     }
-    const off = !f || this.introWaiting || !!rt.choice || !!rt.def.town || !!rt.def.dojo;
+    const guided = !!rt.missionGuide?.marker || this.missionEnemyShown;
+    const needed = rt.t < 4 || rt.t < (rt.missionDangerUntil || 0);
+    const off = !f || guided || !needed || this.introWaiting || !!rt.choice || !!rt.def.town || !!rt.def.dojo;
     tb.hidden = off;
     if (off) return;
     // 稲生は七百対千七百の兵力差を、そのまま棒の長さにする。
@@ -293,7 +295,7 @@ export class HudArmy {
     setText($('ab-a'), ''); setText($('ab-b'), '');
     $('ab-a').parentElement.setAttribute('aria-label', f ? `${sides.a.name} 残り${fmt(f.a)}` : sides.a.name);
     $('ab-b').parentElement.setAttribute('aria-label', f ? `${sides.b.name} 残り${fmt(f.b)}` : sides.b.name);
-    const pa = a ? 50 : 0, pb = b ? 50 : 0;
+    const pa = f ? ga : a ? 50 : 0, pb = f ? gb : b ? 50 : 0;
     $('ab-ga').parentElement.hidden = !f;
     $('ab-gb').parentElement.hidden = !f;
     if (f) { $('ab-ga').style.width = ga.toFixed(1) + '%'; $('ab-gb').style.width = gb.toFixed(1) + '%'; }

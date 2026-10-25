@@ -91,8 +91,9 @@ html:root body #hud.mission-only :is(#objectives,#boss,#target,#tutorial,#bark,#
  display:none !important;
 }
 html:root body #hud.mission-only #h-prog > :not(.pg-st) { display:none !important; }
+html:root body #hud.mission-only #h-prog > .pg-next.route-steps:not([hidden]) { display:block !important; }
 html:root body #hud.mission-only #h-prog .pg-st span {
- display:block !important; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+ display:block !important; max-width:100%; white-space:normal; overflow:visible; text-overflow:clip; overflow-wrap:anywhere;
 }
 `;
     document.head.appendChild(style);

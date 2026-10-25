@@ -1888,6 +1888,19 @@ const SUNOMATA_JIN = [
 
 const sunomata = {
   jinkei: SUNOMATA_JIN,
+  // 任務の判定文は保ち、画面では今することを短く読む。
+  missionHeading(rt) {
+    const marker = rt.missionGuide?.marker;
+    if (marker && /^(post0|post3|gateGuard)$/.test(marker.id) && !rainDanger(rt.army) && !sunoNeedsRetreat(rt)) {
+      const post = typeof marker.pos === 'function' ? marker.pos() : marker.pos;
+      const me = rt.player.u.pos;
+      if (post && Math.hypot(post.x - me.x, post.z - me.z) >= (marker.guideRadius || 8)) return '柵の中の印へ進もう';
+      return rt.flags.wave ? 'ここから槍でつく' : '柵の中で敵を待とう';
+    }
+    return sunomata.taskText(rt, rt.missionGuide?.objective?.text || rt.objectives.find(o => !o.state && o.kind === 'main')?.text || '柵の中で敵をつけ')
+      .replace(/人足/g, '仲間').replace(/寄せ手/g, '敵').replace(/柵の内/g, '柵の中')
+      .replace(/南門/g, '南の門').replace(/迎える/g, 'むかえよう');
+  },
   // 砦にいる本人を使う。名の確かでない敵将や、台本外の寄せは増やさない。
   taisho: { a: { name: '木下藤吉郎', use: true }, b: null },
   noTaishoRaid: true,

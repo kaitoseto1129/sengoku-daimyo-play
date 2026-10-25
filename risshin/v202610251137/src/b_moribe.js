@@ -513,6 +513,7 @@ function moribeFord(rt) {
       float fordPebble = 1.0 - smoothstep(0.16, 0.29, length(fordCell * vec2(1.0, 1.4)));
       float fordRipple = smoothstep(0.86, 0.98, sin(vWPw.z * 6.0 + fordGrain * 2.0 - uTime * 1.4));
       // 青い流れの中に砂底の帯を通し、入口から出口まで歩ける浅さを見せる。
+      // 隣の流れは元の川色のまま。新しい形や描画は増やさない。
       vec3 fordSand = mix(vec3(0.52, 0.43, 0.27), vec3(0.78, 0.70, 0.48), fordGrain);
       fordSand = mix(fordSand, vec3(0.25, 0.32, 0.29), fordPebble * 0.65);
       diffuseColor.rgb = mix(diffuseColor.rgb, fordSand, fordBand * 0.85);
@@ -1049,7 +1050,7 @@ const moribe = {
   // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は「何をするか」だけ（kaito 10/23 49・50）。段の総称で通し、向き・行き先の字は書かない。
-  missions: ['川を渡れ', '仲間を待て', '敵を倒せ', '耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
+  missions: ['川を渡れ', '仲間を待て', '▼の敵を倒せ', '耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
   // ピン・▼・名前は同じ本人へ。描画の間引きで相手を替えない。
   commanderTarget(rt) {
     const F = rt.flags;
@@ -1109,7 +1110,7 @@ const moribe = {
   missionHeading(rt) {
     const F = rt.flags, p = rt.player.u.pos;
     // 渡河済みのコマから待機へ替える。集合判定の更新を待たせない。
-    if (!F.signal && (F.pointReached || F.pointInside || atFordBank(p, rt.world))) return F.fordThreat ? '敵を倒せ' : '仲間を待て';
+    if (!F.signal && (F.pointReached || F.pointInside || atFordBank(p, rt.world))) return F.fordThreat ? '▼の敵を倒せ' : '仲間を待て';
     // 集まる間と、その場で耐える間を同じ一行で区別する。向き・距離は書かない。
     if (F.stage === 'assemble') {
       if (F.gatherUnit || Math.hypot(p.x - F.asm.x, p.z - F.asm.z) >= 12) return '仲間と集まれ';
@@ -2431,7 +2432,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     // 迎撃中は少し敵へ踏み込んでも集合へ戻さない。戻りの印は合流まで保つ。
     if (F.stage === 'hold' || F.stage === 'contact' && F.vBroken) {
       const d = Math.hypot(p.x - F.linePoint.x, p.z - F.linePoint.z);
-      F.lineReturning = d >= (F.lineReturning ? 18 : 36);
+      // 守備の範囲と戻る判定をそろえる。範囲外で待ち時計だけを見せない。
+      F.lineReturning = d >= (F.lineReturning ? 18 : 24);
     }
     // 任務と隊の見直しは一秒ごと。毎コマ配列や行き先を作らない。
     F.taskTick -= dt;
@@ -2579,6 +2581,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         rt.objRemove('support'); rt.unmark('support');
         moribeHoldPoint(rt);
         F.stage = 'hold'; F.holdStart = rt.t; F.lineT = 0;
+        // 守備に切り替わる瞬間から、離れていれば時計より持ち場のピンを出す。
+        F.lineReturning = Math.hypot(p.x - F.linePoint.x, p.z - F.linePoint.z) >= 24;
         rt.setPhase('hold'); rt.banner('槍を打ち合わせる', '雨の中、両軍が押し合う');
         rt.obj('line', '印へ仲間と集まれ', 'main');
         rt.marker('line', () => F.linePoint, () => F.lineT >= 25 ? '本備の横・列を支えた。控えに備えよ' : '守る印・仲間と守れ', { hideNear: 24, hideOnArrival: true }); rt.zone('line', F.linePoint.x, F.linePoint.z, 24);
