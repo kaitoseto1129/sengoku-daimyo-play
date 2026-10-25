@@ -75,9 +75,17 @@ export class HudOverlay {
       g.restore();
     } else if (pin?.progress > 0) {
       // ピンの中だけを満たす。待ち時間の札や別の印は増やさない。
-      g.beginPath(); g.moveTo(x, y - 33);
-      g.arc(x, y - 33, 12, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, pin.progress));
-      g.closePath(); g.fillStyle = '#ffe28a'; g.fill();
+      g.beginPath();
+      if (pin.crossing) {
+        // 渡河は下から満ちる形、待機は時計。同じピンの中で区別する。
+        g.arc(x, y - 33, 12, 0, Math.PI * 2); g.clip();
+        const height = 24 * Math.min(1, pin.progress);
+        g.fillStyle = '#ffe28a'; g.fillRect(x - 12, y - 21 - height, 24, height);
+      } else {
+        g.moveTo(x, y - 33);
+        g.arc(x, y - 33, 12, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, pin.progress));
+        g.closePath(); g.fillStyle = '#ffe28a'; g.fill();
+      }
     }
     // 待機中だけ時計の針を回す。移動先と待ち時間を同じ一本で伝える。
     if (pin?.waiting && pin.arrived) {
