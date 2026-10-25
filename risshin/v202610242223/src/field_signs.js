@@ -334,8 +334,8 @@ export function fieldSignsTick(rt, root) {
       inou ? (u === commander || u === missionEnemy ? 32 : 22) :
       // 目当てと近い敵の読みやすさを保ち、近づくほど同じ▼を滑らかに大きくする。
       // 実際に届いた一人だけ、さらに白縁・幅広へ替える。
-      oke ? (Math.max(u === missionEnemy || meD2 < 25 * 25 ? 22 : 15,
-        15 + 13 * Math.max(0, 1 - Math.sqrt(meD2) / 40))) :
+      oke ? (u === missionEnemy ? 30 :
+        13 + 11 * Math.max(0, 1 - Math.sqrt(meD2) / 40)) :
       foe ? (u === readyEnemy ? 24 : u === focusEnemy ? 22 : 18) : 14;
     // 稲生・森部・桶狭間では命を減らした相手の▼だけを一度大きくし、滑らかに戻す。
     // 頭上の先端は固定し、既存の形・材質・描画の束をそのまま使う。
@@ -387,13 +387,17 @@ export function fieldSignsTick(rt, root) {
     // 遠い▼は頭ほどの実寸に収め、近くでは読み取りやすい大きさを保つ。
     // 二十五歩以内は大きな上限、四十歩以遠は小さな上限にし、間は滑らかにつなぐ。
     const okeNear = Math.max(0, Math.min(1, (40 - Math.sqrt(meD2)) / 15));
-    const okeLimit = u === commander ? 1.5 + 1.5 * okeNear : 1.2 + .8 * okeNear;
+    // 次に戦う一人だけ大きく残す。奥の一団は頭ほどの赤い▼で所属を示す。
+    const okeLimit = u === missionEnemy ? 2.2 + .8 * okeNear : u === commander ? 1.5 + 1.5 * okeNear : .7 + .7 * okeNear;
     const okeScale = oke ? Math.min(okeLimit, okePixels * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) : k;
     // 防がれた接触は縦に潰す。傷を与えた時の縦の伸び・赤の減りとは分ける。
     const blocked = special && !moribe && !(hit > 0) && (inou ? u.inouBlockUntil : u.okeBlockUntil) > rt.t;
     // 届くまでは細い▼が徐々に開き、届く本人だけ幅広くなる。
     const inouWidth = inou && hot ? 2.2 : inou && u === missionEnemy
       ? 1 + .6 * Math.max(0, 1 - Math.sqrt(meD2) / Math.max(.1, reachHot * 3)) : 1;
+    // 桶狭間は遠くで細く、接近するほど開く。同じ頭上の▼だけで接近を返す。
+    // 実際に攻撃が届く本人は、さらに幅広くする。位置・高さは動かさない。
+    const okeWidth = oke ? .85 + .65 * Math.max(0, 1 - Math.sqrt(meD2) / 30) : 1;
     // 稲生は届く一人の幅をはっきり広げる。命中後も幅を保ち、縦の伸びを見せる。
     // 森部の横幅は届く本人だけ強調する。敵の振りかぶりと混同させない。
     // 命中で押し戻された直後も、届いた時の横幅を保つ。縦の伸びと赤の減りを見せる。
@@ -401,9 +405,9 @@ export function fieldSignsTick(rt, root) {
     // 敵の振りかぶりでは印を伸ばさず、頭上の先端を動かさない。
     // 森部の縦の伸びは命中だけ。敵の振りかぶりを命中の反応と取り違えさせない。
     // 追う相手の▼だけ、残る間合いに合わせて横に開く。届いた瞬間はさらに広げる。
-    const okeApproach = oke && u === missionEnemy ? 1 + .6 * Math.max(0, Math.min(1, 1 - (Math.sqrt(meD2) - okeReach) / 12)) : 1;
+    const okeApproach = oke && u === missionEnemy ? Math.max(okeWidth, 1 + .6 * Math.max(0, Math.min(1, 1 - (Math.sqrt(meD2) - okeReach) / 12))) : okeWidth;
     // 森部は届く一人だけ横へ開き、命中の縦の伸びは控えめにして隣の頭を覆わない。
-    dummy.scale.set(oke ? okeScale * Math.max(reachable ? 2.2 : okeApproach, 1 + 1.2 * pulse) : moribe ? k * Math.max(reachable ? 1.7 : 1, 1 + .7 * pulse) : inou ? k * Math.max(inouWidth, 2.2 * pulse) : k * (1 + .5 * pulse),
+    dummy.scale.set(oke ? okeScale * Math.max(reachable ? 2.2 : okeApproach, pulse > 0 ? 1 + 1.2 * pulse : 0) : moribe ? k * Math.max(reachable ? 1.7 : 1, 1 + .7 * pulse) : inou ? k * Math.max(inouWidth, 2.2 * pulse) : k * (1 + .5 * pulse),
       oke || moribe || inou ? (oke ? okeScale : k) * (blocked ? .55 : 1 + (moribe ? .55 : 1) * pulse) : k, oke ? okeScale : k);
     // 森部の討ち取りと稲生の討ち取りは、それぞれの時間で同じ本人の印を閉じる。
     if (defeated) {

@@ -45,7 +45,6 @@ export class HudCards {
   // 近い敵の頭上に小さな印（▼と「敵」）。四人まで・十四メートルまで。印は使い回し、毎コマ作らない（kaito 10/22 稲生 3）。
   foeMarks(rt) {
     this.enemyTriangleSigns(rt);
-    this.inouMissionMark(rt);
     if (pinGuideOn(rt)) {
       for (const el of this.missionAllyEls || []) el.hidden = true;
       return; // 全戦で兵・隊・旗の頭上の札と印を作らない。
@@ -163,7 +162,7 @@ export class HudCards {
     if (!el) {
       el = document.createElement('div');
       el.style.cssText = 'position:absolute;left:0;top:0;pointer-events:none;z-index:4;text-align:center;font:bold 16px/1.4 sans-serif;white-space:nowrap;color:#fff3df;text-shadow:0 1px 2px #000';
-      el.innerHTML = '<b style="display:block;background:#17140f;padding:3px 7px;border:1px solid #ff634d"></b><span style="display:block;color:#fff3df;font-size:22px;line-height:1;text-shadow:0 1px 2px #000">↓</span>';
+      el.innerHTML = '<b style="display:block;background:#17140f;padding:3px 7px;border:2px solid #ffe393"></b><span style="display:block;color:#ffe393;font-size:44px;line-height:1;-webkit-text-stroke:1px #17140f">↓</span>';
       this.root.appendChild(el); this.inouTargetMark = el;
     }
     const name = rt.def.missionEnemyLabel(rt);
@@ -183,7 +182,8 @@ export class HudCards {
       x = sideways ? right >= 0 ? W - margin : margin : W / 2;
       y = sideways ? H * (forward >= 0 ? .45 : .65) : forward >= 0 ? 128 : H - 84;
       const arrow = sideways ? right >= 0 ? '→' : '←' : forward >= 0 ? '↑' : '↓';
-      label = `${arrow} ${name}${forward < 0 ? '・後ろ' : ''}`;
+      // 「兵の後ろへ回れ」と読ませず、画面外の相手へ向く行動を示す。
+      label = forward < 0 ? `${right >= 0 ? '↷ 右' : '↶ 左'}へ振り向く` : `${arrow} ${name}`;
     }
     setText(el.firstChild, label);
     el.lastChild.hidden = !onScreen;
@@ -391,10 +391,10 @@ html:root body #hud #h-prog.pg-changing .pg-st span { white-space:nowrap; }
 #hud.ending #h-prog, #hud:has(#bigmap:not([hidden])) #h-prog { visibility:hidden; }
 /* 稲生は任務を右、台詞を左。兵数と方位の帯の下を使う。 */
 html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog {
- top:calc(72px + env(safe-area-inset-top, 0px)); width:max-content; max-width:min(300px, 34vw);
+ top:calc(72px + env(safe-area-inset-top, 0px)); width:max-content; max-width:min(440px, 54vw);
 }
 html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog :is(.pg-st span,.pg-next) {
- white-space:pre-line !important; overflow:visible; text-overflow:clip; overflow-wrap:anywhere;
+ white-space:pre-line !important; overflow:visible; text-overflow:clip; overflow-wrap:normal; word-break:keep-all;
 }
 /* 稲生の今の操作は任務の二行目に残す。共通の一行表示で隠さない。 */
 html:root body #hud.mission-only #h-prog[data-battle="inou"] > .pg-next:not([hidden]) {

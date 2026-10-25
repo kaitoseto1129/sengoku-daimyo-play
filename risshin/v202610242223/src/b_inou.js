@@ -150,11 +150,17 @@ function inouEnemyOrder(rt, fallback, name = rt.def.missionEnemyLabel(rt)) {
     : `${target}を左クリックで${p.weapon === 'sword' ? '斬れ' : '突け'}`;
   const dx = enemy.pos.x - p.u.pos.x, dz = enemy.pos.z - p.u.pos.z;
   // 前進と同じ視点の向きで案内する。画面の右の兵へ前進し続けさせない。
-  const angle = Math.atan2(Math.sin(Math.atan2(dx, dz) - p.yaw), Math.cos(Math.atan2(dx, dz) - p.yaw));
-  if (Math.abs(angle) > 2.4) return '▼は後ろ・振り向け';
-  if (Math.abs(angle) > .35) return angle < 0 ? '▼へ右を向け' : '▼へ左を向け';
-  if (Math.hypot(dx, dz) <= p.meleeReach(p.previewMeleeKind() || 'thrust')) return '白ふちの▼へ槍を向けろ';
-  return touch ? '左の画面を前へなぞり続けろ' : '前進キーを押し続けろ';
+  const yaw = p.yaw + (p.camYawOff || 0);
+  const angle = Math.atan2(Math.sin(Math.atan2(dx, dz) - yaw), Math.cos(Math.atan2(dx, dz) - yaw));
+  if (Math.abs(angle) > 2.4) return '白ふちの▼は後ろ・振り向け';
+  if (Math.abs(angle) > .35) return angle < 0 ? '白ふちの▼へ右を向け' : '白ふちの▼へ左を向け';
+  if (Math.hypot(dx, dz) <= p.meleeReach(p.previewMeleeKind() || 'thrust')) {
+    if (Math.cos(Math.atan2(dx, dz) - p.u.heading) < .9) return '白ふちの▼へ向け';
+    return '白ふちの▼へ もう一歩';
+  }
+  // 前の直しの歩数も同じ一人の間合いから求め、進む操作と一行で伝える。
+  const move = touch ? '左の画面を前へなぞり続けろ' : '前進キーを押し続けろ';
+  return `白ふちの▼へ${move}（あと${enemySteps(rt, enemy)}歩）`;
 }
 // 兵本人ではなく頭上の▼を案内する。距離は槍が届く所までの歩数。
 function enemySteps(rt, enemy) {
@@ -235,31 +241,19 @@ const inou = {
   nearSpearFade: false, // 槍だけを縮めて透かさず、持ち主と同じ形を保つ。
   missionPinCaption: '',
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
-  // 目的だけを一行にし、相手と待つ場所を区別する。接近・間合いはピンと頭上の赤い▼で伝える。
-  missions: ['赤い▼の林の兵（信勝方）を倒せ', '赤い▼の林の兵（信勝方）を倒せ', '信長の旗のそばで耐えろ', '赤い▼の林美作守を倒せ'],
+  // 任務は一行。兵と武将・待つ場所を区別し、距離や向きで文を切り替えない。
+  missions: ['林の兵を倒せ', '林の兵を倒せ', '耐えろ', '林美作守を倒せ'],
   missionHeading(rt) {
     const F = rt.flags;
     if (F.step === 0 && F.training <= 8) {
-      const enemy = this.missionSignTarget(rt), name = F.training === 8 ? '林の隊長' : this.missionEnemyLabel(rt), P = rt.player;
-      if (!fighting(enemy)) return '味方と一緒に進め';
-      // 攻撃判定が届く本人と札をそろえる。空振りを続けさせない。
-      const ready = P.inRange && fighting(P.rangeCueTarget) &&
-        (P.rangeCueTarget === enemy || F.training !== 8 && P.rangeCueTarget.group === enemy.group);
-      if (!ready) return `${name}の赤い▼へ近づけ`;
-      const left = F.training <= 4 ? practiceLeft(rt) : 0;
-      const action = P.weapon === 'sword' ? '斬れ' : '突け';
-      const order = P.rangeCueTarget === enemy ? inouEnemyOrder(rt, '', name) : `赤い▼の${name}を${action}`;
-      return `${order}${left ? `（残り${left}人）` : ''}`;
+      return F.training === 8 ? '林の隊長を倒せ' : '林の兵を倒せ';
     }
     if (F.step === 1) {
-      if (F.training === 11 && !F.flankReached) return '赤い▼の柴田の兵を倒せ';
-      if (F.training === 12 && !gone(F.shiba1)) return inouEnemyOrder(rt, '赤い▼の柴田の兵を倒せ');
-      return '信長の旗のそばで耐えろ';
+      if (F.training === 11 && !F.flankReached || F.training === 12 && !gone(F.shiba1)) return '柴田の兵を倒せ';
+      return '耐えろ';
     }
     if (F.step === 2) {
-      // ピンは信長の旗。遠い間は行き先の名で言う。
-      const lead = F.nobuU?.alive ? F.nobuU.pos : NOBU, me = rt.player.u.pos;
-      return Math.hypot(me.x - lead.x, me.z - lead.z) > 10 ? '信長の旗のそばで耐えろ' : '赤い▼の敵を倒せ';
+      return '柴田の兵を倒せ';
     }
     return this.missions[this.missionOf(rt)];
   },
@@ -274,7 +268,7 @@ const inou = {
         rt.flags.step === 1 && rt.flags.training === 12 && !gone(rt.flags.shiba1) ? approachUnit(rt) :
           rt.flags.step === 3 ? rt.flags.hayaU : null,
   missionEnemyLabel: (rt) => rt.flags.step === 3 ? '林美作守' : rt.flags.step === 1 ? '柴田の兵' :
-    rt.flags.training === 8 ? '林美作守の小隊長' : '林美作守の兵',
+    rt.flags.training === 8 ? '林の隊長' : '林の兵',
   missionEnemySteps: enemySteps,
   meleeResult(rt, target, result) {
     const F = rt.flags;
@@ -282,7 +276,7 @@ const inou = {
     if (result === 'miss' && rt.t >= (F.missNoticeNext || 0)) {
       const enemy = rt.def.missionSignTarget(rt), p = rt.player;
       const near = fighting(enemy) && Math.hypot(enemy.pos.x - p.u.pos.x, enemy.pos.z - p.u.pos.z) <= p.meleeReach(p.previewMeleeKind() || 'thrust');
-      F.combatResult = near ? '空振り。赤い三角の兵へ向け' : '空振り。赤い三角へ近づけ';
+      F.combatResult = near ? '空振り。矢印の兵へ向け' : '空振り。矢印の兵へ近づけ';
       F.combatResultUntil = rt.t + 2;
       F.missNoticeNext = rt.t + 8;
     } else if (target && target.team !== rt.player.u.team && (result === 'block' || result === 'armor')) {
@@ -314,7 +308,7 @@ const inou = {
     }
     return signs;
   },
-  // 討つ相手と同じ一人へ案内し、槍が届く足場に着けば頭上の▼に任せる。
+  // 討つ本人の位置へ案内する。本人が見えれば頭上の▼に任せる。
   missionPin(rt) {
     const F = rt.flags;
     if (F.ending) return null;
@@ -326,7 +320,6 @@ const inou = {
       const reach = p.meleeReach(p.previewMeleeKind() || 'thrust') * .8;
       if (d <= reach || p.inRange && p.rangeCueTarget === enemy) return null;
       const pin = pinPoint(rt, enemy.pos, .2, .2, enemy);
-      pin.x += dx / d * reach; pin.z += dz / d * reach;
       pin.approach = true;
       return pin;
     }
@@ -470,20 +463,15 @@ const inou = {
       const result = damage.call(this, t, amount, src, ...rest);
       if (t && src?.isPlayer && t.team !== src.team) {
         if (rest[0]?.out?.res === 'block' && t.alive) {
-          F.attackFeedback = '防がれた'; F.attackFeedbackUntil = rt.t + 1.2;
           t.inouBlockUntil = rt.t + .7;
           t.inouHitUntil = 0;
         } else if (t.hp < hp) {
-          F.attackFeedback = !t.alive || t.dying || t.hp <= 0 || t.downed || t.woundOut || t.rearWound ? '一人倒した' : '命中した';
-          F.attackFeedbackUntil = rt.t + 1.5;
           t.inouHitUntil = rt.t + 2.4;
           t.inouBlockUntil = 0;
-          F.combatResult = '命中。もう一度攻めろ'; F.combatResultUntil = rt.t + 2;
         }
         // 最後の命中からの経過に依存させず、倒れた時から印を閉じる。
         if (t.hp < hp && (!t.alive || t.dying || t.hp <= 0 || t.downed || t.woundOut || t.rearWound)) {
           t.inouDefeatUntil = rt.t + 1.2;
-          F.combatResult = '一人倒した。次の赤い三角へ'; F.combatResultUntil = rt.t + 2;
         }
       }
       return result;
@@ -565,7 +553,7 @@ const inou = {
       a.speed = 0.8;
       prepareMarch(g); prepareMarch(a);
       F.practice = g; F.chaseA = a; F.chase = true;
-      rt.say('組頭 源八', '赤い三角が林の兵だ。大きな三角の一人を追え！', 4);
+      rt.say('組頭 源八', '赤い▼は敵だ。白ふちの一人を追え！', 4);
       rt.marker('chase', () => approachUnit(rt)?.pos || g.anchor, '林の遅れ兵', { red: true, guideRadius: 7 });
       rt.after(3, () => { if (F.training === 0) { F.trainT = rt.t; lesson(rt, 'move'); } });
       return;
