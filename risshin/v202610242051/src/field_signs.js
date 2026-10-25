@@ -185,6 +185,7 @@ export function fieldSignsTick(rt, root) {
   const commander = rt.def.commanderTarget?.(rt) || null;
   const inou = rt.def.key === 'inou';
   const oke = rt.def.key === 'okehazama';
+  const okeReach = oke ? rt.player.meleeReach(rt.player.weapon === 'sword' ? 'slash' : 'thrust') : 0;
   s.signCandidates.length = 0;
   // 共通の印は近い敵八人・味方四人まで。遠い剣を並べず、行き先の印を優先する。
   // 候補と見通しは五分の一秒ごとに更新し、兵・戦闘の判断には触れない。
@@ -394,8 +395,10 @@ export function fieldSignsTick(rt, root) {
     // 森部は届く本人の幅をはっきり広げ、命中した時だけ縦にも伸ばす。
     // 敵の振りかぶりでは印を伸ばさず、頭上の先端を動かさない。
     // 森部の縦の伸びは命中だけ。敵の振りかぶりを命中の反応と取り違えさせない。
+    // 追う相手の▼だけ、残る間合いに合わせて横に開く。届いた瞬間はさらに広げる。
+    const okeApproach = oke && u === missionEnemy ? 1 + .6 * Math.max(0, Math.min(1, 1 - (Math.sqrt(meD2) - okeReach) / 12)) : 1;
     // 森部は届く一人だけ横へ開く。命中は縦へ伸ばし、大きな▼で隣の頭を覆わない。
-    dummy.scale.set(oke ? okeScale * Math.max(reachable ? 2.2 : 1, 1 + 1.2 * pulse) : moribe ? k * Math.max(reachable ? 1.7 : 1, 1 + .7 * pulse) : inou ? k * Math.max(inouWidth, 2.2 * pulse) : k * (1 + .5 * pulse),
+    dummy.scale.set(oke ? okeScale * Math.max(reachable ? 2.2 : okeApproach, 1 + 1.2 * pulse) : moribe ? k * Math.max(reachable ? 1.7 : 1, 1 + .7 * pulse) : inou ? k * Math.max(inouWidth, 2.2 * pulse) : k * (1 + .5 * pulse),
       oke || moribe || inou ? (oke ? okeScale : k) * (blocked ? .55 : 1 + (moribe ? 1.2 : 1) * pulse) : k, oke ? okeScale : k);
     // 森部の討ち取りと稲生の討ち取りは、それぞれの時間で同じ本人の印を閉じる。
     if (defeated) {

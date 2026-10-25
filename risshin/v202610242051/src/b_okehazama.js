@@ -718,6 +718,7 @@ const okehazama = {
     if (F.scoutFighting && rt.phase !== 'assault' && !timedWait && !(F.waitPinCompleteUntil > rt.t)) return null;
     const pin = F.missionPinTarget || (F.missionPinTarget = { x: 0, z: 0, r: 8, hide: 8 });
     pin.enemy = false; pin.dodge = false; pin.unit = null; pin.waiting = undefined; pin.always = false;
+    pin.waitDuration = rt.phase === 'brief' ? 3 : 17;
     pin.area = false; pin.arrived = false; pin.progress = null; pin.arrivalProgress = null; pin.footRing = false; pin.follow = false; pin.approach = false;
     // 任務札の更新で、同じ集合ピンの到着表示を初期化しない。
     pin.key = rt.phase;
@@ -757,10 +758,11 @@ const okehazama = {
         const pos = F.marchPinPos || this.squadFlagPosition(rt);
         if (!pos) return null;
         pin.x = pos.x; pin.z = pos.z;
+        // 集合先を地面へ固定する。札避けで近くの兵や別の場所を指さない。
         pin.area = true; pin.hide = 0; pin.r = JOIN_RADIUS;
         pin.arrived = this.squadFlagReached(rt); pin.waiting = pin.arrived;
         // 実際に到着するまでは縁を閉じ切らず、壁越しの到着に見せない。
-        pin.arrivalProgress = Math.max(0, Math.min(.98, 1 - (this.squadFlagDistance(rt) - pin.r) / 10));
+        pin.arrivalProgress = Math.max(0, Math.min(.98, 1 - (this.squadFlagDistance(rt) - pin.r) / Math.max(.1, (F.marchStartDistance ?? 10 + pin.r) - pin.r)));
         // 穴が満ちるのは待ち時間だけ。到着はチェックで示し、雨待ちの時計を先に満たさない。
         return pin;
       }
@@ -2095,7 +2097,8 @@ const okehazama = {
     const x = end[0] + (d ? dx / d * offset : 0), z = end[1] + (d ? dz / d * offset : 0);
     rt.flags.marchPinPos = { x, y: rt.world.heightAt(x, z), z };
     rt.flags.marchGoal = rt.flags.marchPinPos;
-    rt.obj('col', '目印の仲間に ついて進もう', 'main');
+    rt.flags.marchStartDistance = Math.hypot(x - p.x, z - p.z);
+    rt.obj('col', 'ピンに集まれ', 'main');
     rt.marker('genpachi', rt.flags.marchGoal, '組の集合場所', { guideFlag: true, group: rt.hostGroup, guideRadius: JOIN_RADIUS });
   },
   update(rt, dt) {
