@@ -1199,12 +1199,13 @@ const moribe = {
     let pos = null, r = 6, hide = 6;
     if (!F.signal) {
       if (F.pointDone) return null;
-      // 岸に上がるまで一本だけ示し、渡った瞬間に消す。足元へ戻らせない。
-      if (F.pointReached || F.pointInside || atFordBank(rt.player.u.pos, rt.world)) return null;
       pos = POINT2; r = FORD_R; hide = 0;
-      // 岸に刺さる一本の中を、実際に岸へ近づいた分だけ満たす。
-      q.crossing = true;
-      q.progress = Math.max(0, Math.min(.98, (START2.z - rt.player.u.pos.z) / (START2.z - POINT2.z)));
+      // 岸へ着いたら足元の行き先を消し、同じピンを任務の下の待ち時計に替える。
+      q.arrived = !!(F.pointReached || F.pointInside || atFordBank(rt.player.u.pos, rt.world));
+      q.waiting = q.arrived;
+      q.crossing = !q.arrived;
+      q.progress = q.arrived ? this.missionWaitProgress(rt) || 0 :
+        Math.max(0, Math.min(.98, 1 - Math.hypot(rt.player.u.pos.x - POINT2.x, rt.player.u.pos.z - POINT2.z) / (START2.z - POINT2.z)));
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
     } else if (F.stage === 'assemble') {

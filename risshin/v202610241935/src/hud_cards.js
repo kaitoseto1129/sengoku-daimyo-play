@@ -442,15 +442,6 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     // 「左へ下がる」のような向きの字は出さない（kaito 10/23）。
     const yaw = rt.player.yaw + (rt.player.camYawOff || 0), p = rt.player.u.pos;
     let headline = missionCaption(rt, def.missionTaskFirst ? task || title : title || task) || '味方の旗へ進め';
-    // 初陣は任務で選んだ一人と同じ白ふちの印を案内する。
-    if (def.key === 'inou' && /▼.*(?:たおせ|倒せ)/.test(headline)) {
-      const enemy = def.commanderTarget?.(rt) || def.missionSignTarget?.(rt), player = rt.player;
-      if (enemy?.alive && !enemy.gone && !enemy.fleeing) {
-        const distance = Math.hypot(enemy.pos.x - player.u.pos.x, enemy.pos.z - player.u.pos.z);
-        headline = player.inRange && player.rangeCueTarget === enemy ? `白ふちの印へ ${attackOperation(rt)}` :
-          distance > player.meleeReach(player.previewMeleeKind() || 'thrust') ? '白ふちの印へ近づけ' : '白ふちの印の兵の方を向け';
-      }
-    }
     // 任務の一行へ実際の攻撃操作を収める。別の札や知らせは増やさない。
     if (!def.missionSignTarget && def.key !== 'moribe' && /^(?:近くの|この)?敵を\s*(?:たおせ|倒せ)$/.test(headline)) {
       const player = rt.player;
