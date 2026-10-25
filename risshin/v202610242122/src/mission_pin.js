@@ -498,7 +498,6 @@ function drawMissionPin(rt) {
   pin._arrivedMark.style.display = oke && arrived ? '' : 'none';
   pin._arrivedMark.setAttribute('transform', oke && !(want.progress >= 1) ? 'translate(16,48) scale(.6)' : '');
   pin._arrival.style.display = showArrival ? '' : 'none';
-  pin._arrival.setAttribute('stroke', arrived ? '#e4f2cb' : '#fff3ba');
   // 集合へ近づく間は穴の縁が閉じ、着いたら中の扇形が待ち時間を刻む。
   // 別の丸へ替えず、同じ地面に刺さるピンの中だけで示す。
   const arrivalProgress = arrived ? 1 : Math.max(0, Math.min(1, want.arrivalProgress || 0));
@@ -512,7 +511,7 @@ function drawMissionPin(rt) {
     pin._hold.children[2].style.display = oke ? 'none' : '';
     pin._hold.children[3].style.display = oke ? 'none' : '';
     pin._hold.children[0].setAttribute('stroke', oke ? 'none' : '#fff3ba');
-    pin._progress.setAttribute('fill', oke ? '#e4f2cb' : '#e8c25a');
+    pin._progress.setAttribute('fill', oke ? '#fff3ba' : '#e8c25a');
     pin._progress.setAttribute('stroke', 'none');
     pin._progress.setAttribute('stroke-width', '0');
     // 到着の内周と、満ちていく扇形だけで待つ進みを示す。
@@ -589,9 +588,9 @@ function drawMissionPin(rt) {
   }
   // 旗の形を回さず、向きは添えた矢印で示す。
   if (want.passage && !outside) flag.setAttribute('transform', 'translate(-22,0)');
-  // 到着後は先端を消す。同じ場所の丸が満ちるまで、その場で待てる。
+  // 到着後も先端を残す。集合で見たピンの穴が満ち、別の丸へ変わらない。
   if (oke) {
-    if (arrived) flag.style.display = 'none';
+    if (arrived) flag.style.display = '';
     // 細い軸を地面まで伸ばし、兵本人に付く印と区別する。
     if (!outside || arrived) flag.setAttribute('d', 'M40 68L34 58V37A30 30 0 1 1 46 37V58Z M40 -12A20 20 0 1 0 40 28A20 20 0 1 0 40 -12Z');
     // 待機の丸は地面の同じ位置に保つ。
@@ -874,7 +873,7 @@ function updateEnemyTarget(rt) {
     // 稲生の端の矢印は視点を回す向き。後ろの敵へ前進を続けさせない。
     enemyTarget._direction.style.transform = `rotate(${inou ? right >= 0 ? 0 : Math.PI : Math.atan2(-forward, right)}rad)`;
     // 印・矢印・文を一組で収める。任務や体力と重ならない端の余白を探す。
-    x = right >= 0 ? W - 104 : 104;
+    x = right >= 0 ? W - halfWidth - 8 : halfWidth + 8;
     const top = 64, bottom = H - 88;
     const preferred = Math.max(top, Math.min(bottom, H * (forward < 0 ? .6 : .4) - 48));
     let best = Infinity, found = false;
@@ -884,7 +883,11 @@ function updateEnemyTarget(rt) {
       const distance = Math.abs(cy - preferred);
       if (distance < best) { best = distance; y = cy + 48; found = true; }
     }
-    if (!found) return false;
+    if (!found) {
+      if (!inou) return false;
+      // 携帯横で札が多い時も消さず、上の人数帯の下に収める。
+      x = W / 2; y = 100;
+    }
   }
   enemyTarget._symbol.style.transform = visible ? '' : 'translateX(-20px)';
   enemyTarget._direction.style.display = visible ? 'none' : '';

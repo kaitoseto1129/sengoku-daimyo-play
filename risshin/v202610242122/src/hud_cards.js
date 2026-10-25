@@ -147,6 +147,11 @@ export class HudCards {
   // 稲生の任務の相手一人。任務と同じ名を頭上に置き、画面外なら向きを示す。
   // 札と投影用の点は使い回し、倒れたら次の生きた相手に替える。
   inouMissionMark(rt) {
+    // 共通の名札・▼・方向矢印と二重に出さない。
+    if (pinGuideOn(rt)) {
+      if (this.inouTargetMark) this.inouTargetMark.hidden = true;
+      return;
+    }
     const active = rt.def.key === 'inou' && rt.player.u.alive && !rt.flags.ending && !rt.over && !rt.choice &&
       !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
     const u = active ? rt.def.missionSignTarget?.(rt) : null;
