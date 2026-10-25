@@ -1042,7 +1042,7 @@ const moribe = {
   nearbyAllySignLimit: 0, // 味方の頭上に白い小旗を出さない。追う旗はピン一本、敵は赤い印で分ける。
   noDodgeCard: true, // 矢の雨で「〜をむこう」「にげる」の札を出さない（kaito 10/23 稲生 4）。
   hideMissionDots: true, // 任務の段数は見出しにある。仲間の人数と紛れる五つの丸は出さない。
-  missionSingleLine: true, // 右上は任務一行と、文字のない待ち時間の丸だけ。
+  missionSingleLine: true, // 右上は任務一行だけ。耐える進みは同じ一行の下地で示す。
   // 仲間の名札は一人だけ。密集しても五人分の文字を重ねない。
   missionAllyLabel: 'ついてくる仲間',
   missionContext: '永禄四年（一五六一）・森部（もりべ）の戦い',
@@ -1199,12 +1199,13 @@ const moribe = {
     let pos = null, r = 6, hide = 6;
     if (!F.signal) {
       if (F.pointDone) return null;
-      // 岸に上がるまで一本だけ示し、渡った瞬間に消す。足元へ戻らせない。
-      if (F.pointReached || F.pointInside || atFordBank(rt.player.u.pos, rt.world)) return null;
       pos = POINT2; r = FORD_R; hide = 0;
-      // 岸に刺さる一本の中を、実際に岸へ近づいた分だけ満たす。
-      q.crossing = true;
-      q.progress = Math.max(0, Math.min(.98, (START2.z - rt.player.u.pos.z) / (START2.z - POINT2.z)));
+      // 岸へ着いたら足元の行き先を消し、同じピンを任務の下の待ち時計に替える。
+      q.arrived = !!(F.pointReached || F.pointInside || atFordBank(rt.player.u.pos, rt.world));
+      q.waiting = q.arrived;
+      q.crossing = !q.arrived;
+      q.progress = q.arrived ? this.missionWaitProgress(rt) || 0 :
+        Math.max(0, Math.min(.98, 1 - Math.hypot(rt.player.u.pos.x - POINT2.x, rt.player.u.pos.z - POINT2.z) / (START2.z - POINT2.z)));
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
     } else if (F.stage === 'assemble') {
@@ -1644,15 +1645,12 @@ const moribe = {
     noticeStyle.textContent = `
 /* 次の一手と号令を右の任務札にまとめる。横持ちでも二行を切らない。 */
 #hud #h-prog[data-battle="moribe"] { width:min(320px, 38vw); }
-/* 残りは任務と同じ一行の時計で示す。針と満ちる円だけで、秒の字は足さない。 */
+/* 耐える進みは任務の下地で示す。別の時計や秒の字は足さない。 */
 #hud #h-prog[data-battle="moribe"] .pg-st.moribe-wait {
  flex-direction:row; align-items:center; justify-content:flex-end; gap:10px;
 }
 #hud #h-prog[data-battle="moribe"] .pg-st.moribe-wait::before {
- content:""; display:block; flex:none; width:22px; height:22px; border-radius:50%;
- box-shadow:0 0 0 2px #c9b27a;
- background:linear-gradient(#fff3df,#fff3df) center 3px / 2px 8px no-repeat,
- conic-gradient(#e8c25a calc(var(--wait-progress,0) * 1%), #373326 0);
+ content:none;
 }
 /* 共通の一行省略より優先し、今することを最後まで読めるようにする。 */
 html:root body #hud.mission-only #h-prog[data-battle="moribe"] .pg-st span {

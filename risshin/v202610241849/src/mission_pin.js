@@ -222,6 +222,11 @@ function drawMissionPin(rt) {
   const want = pinGuideOn(rt) && !rt.over && !rt.choice && !rt.hud.introWaiting && rt.player?.u?.alive ? target(rt) : null;
   const closeEnemy = rt.missionGuide?.closeEnemy;
   const inouEnemy = rt.def.key === 'inou' && want?.unit && want.unit.team !== rt.player.u.team;
+  // 同じ相手への頭上の▼（画面外では向きの矢印）に一本化する。
+  if (inouEnemy && enemyMarked) {
+    if (pin) pin.hidden = true;
+    return;
+  }
   // 稲生の敵本人は頭上の赤い▼。届く足場へ向かう間だけ、地面の行き先ピンを残す。
   if (inouEnemy && !want.approach) {
     if (pin) pin.hidden = true;
@@ -270,7 +275,7 @@ function drawMissionPin(rt) {
   // 足場のすぐそばまで案内し、出し直す距離も三十五センチ以内に収めて点滅を防ぐ。
   // 接近中でも実際に攻撃が届けば頭上の▼へ任せる。
   pin.hidden = inouEnemy
-    ? want.approach && rt.player.inRange && !!rt.player.rangeCueTarget?.alive || d <= .2 + (pin.hidden ? .15 : 0)
+    ? want.approach && rt.player.inRange && rt.player.rangeCueTarget === want.unit || d <= .2 + (pin.hidden ? .15 : 0)
     : !want.always && !waiting && d <= near + (pin.hidden ? 1.5 : 0);
   if (pin.hidden) return;
   const W = VIEW.w, H = VIEW.h;
@@ -779,16 +784,19 @@ function updateEnemyTarget(rt) {
     hud.enemySignUnit = signEnemyAlive(reachable, me) && signEnemySeen(rt, reachable, me) ? reachable :
       distance > 7 && signEnemyAlive(assigned, me) && signEnemySeen(rt, assigned, me) ? assigned : nearest;
   }
+  // 稲生は任務の林兵だけを指す。近くにいる別の隊の敵へ付け替えない。
+  const candidate = hud.enemySignUnit;
   // 追いつくまで攻撃対象外の林兵にも、追うための印は残す。
-  const assignedChase = active && inou && rt.flags.chase && hud.enemySignUnit === markedEnemy(rt);
-  const u = active && (signEnemyAlive(hud.enemySignUnit, me) || assignedChase && hud.enemySignUnit) ? hud.enemySignUnit : null;
+  const assignedChase = active && inou && rt.flags.chase && candidate === markedEnemy(rt);
+  const u = active && (signEnemyAlive(candidate, me) || assignedChase && candidate) ? candidate : null;
   // 兵の描画側も同じ一人への視線を空ける。戦や任務が変われば解除する。
   rt.army.missionMarkedEnemy = u;
   if (enemyTarget) enemyTarget.hidden = true;
   // 稲生は描画面の赤い▼に統一する。別の札・方向の字・端の▼は重ねない。
   if (inou) return false;
   const commander = u && u === rt.def.commanderTarget?.(rt);
-  if (!u) return false;
+  // 稲生は実物の頭上の▼だけ。札と別描画の三角を重ねない。
+  if (!u || inou) return false;
   if (!enemyTarget) {
     enemyTarget = document.createElement('div');
     enemyTarget.id = 'mission-enemy-target';
@@ -817,17 +825,25 @@ function updateEnemyTarget(rt) {
   const visible = (!inou || inouSignVisible(rt, u)) && goalPoint.z >= -1 && goalPoint.z <= 1 && x >= halfWidth + 4 && x <= W - halfWidth - 4 && y >= (inou ? 96 : 80) && y <= H - 12 &&
     !cameraWallBlocked(rt, rt.camera.position, u.pos) &&
     !rects.some(r => x + halfWidth > r.left && x - halfWidth < r.right && y > r.top && y - 76 < r.bottom);
-  const name = inou ? rt.def.missionEnemyLabel?.(rt) || '林の兵' : '敵';
+  const name = inou ? rt.def.missionEnemyLabel?.(rt) || 'はやしの兵' : '敵';
   const labelRoom = goalLabelRoom(hud);
-  let caption = inou ? `${name} あと${Math.ceil(Math.hypot(u.pos.x - me.pos.x, u.pos.z - me.pos.z))}歩` : name;
+  const steps = inou ? rt.def.missionEnemySteps(rt, u) : 0;
+  const distanceText = steps ? `あと${steps}歩` : '間合い内';
+  // 遠くでは距離を、槍の届く所では残る体力を示して命中を確かめられるようにする。
+  const distance = Math.hypot(u.pos.x - me.pos.x, u.pos.z - me.pos.z);
+  const close = inou && distance <= rt.player.meleeReach(rt.player.previewMeleeKind() || 'thrust');
+  let caption = inou ? close
+    ? `${name}・体力 ${Math.max(0, Math.ceil(u.hp))}／${Math.ceil(u.maxHp || 1)}`
+    : `${name}・${distanceText}` : name;
   if (!visible) {
     rt.camera.getWorldDirection(goalDirection);
     const yaw = Math.atan2(goalDirection.x, goalDirection.z);
     const gx = u.pos.x - me.pos.x, gz = u.pos.z - me.pos.z;
     const right = -gx * Math.cos(yaw) + gz * Math.sin(yaw);
     const forward = gx * Math.sin(yaw) + gz * Math.cos(yaw);
-    caption = inou ? `${name}・${forward < 0 ? '後ろ' : 'この先'}` : '敵';
-    enemyTarget._direction.style.transform = `rotate(${Math.atan2(-forward, right)}rad)`;
+    caption = inou ? `${name}・${distanceText}\n${right >= 0 ? '右' : '左'}へ視点を回す` : '敵';
+    // 稲生の端の矢印は視点を回す向き。後ろの敵へ前進を続けさせない。
+    enemyTarget._direction.style.transform = `rotate(${inou ? right >= 0 ? 0 : Math.PI : Math.atan2(-forward, right)}rad)`;
     // 印・矢印・文を一組で収める。任務や体力と重ならない端の余白を探す。
     x = right >= 0 ? W - 104 : 104;
     const top = 64, bottom = H - 88;
@@ -835,7 +851,7 @@ function updateEnemyTarget(rt) {
     let best = Infinity, found = false;
     for (let i = 0; i <= 16; i++) {
       const cy = i === 0 ? preferred : top + (bottom - top) * (i - 1) / 15;
-      if (rects.some(r => x + halfWidth > r.left && x - halfWidth < r.right && cy + (inou || labelRoom ? 76 : 48) > r.top && cy - 4 < r.bottom)) continue;
+      if (rects.some(r => x + halfWidth > r.left && x - halfWidth < r.right && cy + (inou ? 100 : labelRoom ? 76 : 48) > r.top && cy - 4 < r.bottom)) continue;
       const distance = Math.abs(cy - preferred);
       if (distance < best) { best = distance; y = cy + 48; found = true; }
     }
@@ -857,6 +873,7 @@ function updateEnemyTarget(rt) {
     }
   }
   enemyTarget._caption.style.fontSize = inou ? '14px' : '18px';
+  enemyTarget._caption.style.whiteSpace = inou ? 'pre' : 'nowrap';
   if (enemyTarget._caption.textContent !== caption) enemyTarget._caption.textContent = caption;
   enemyTarget.setAttribute('aria-label', visible ? name + 'をたおせ' : caption);
   enemyTarget.style.transform = `translate(${(x - 56).toFixed(1)}px,${(y - 48).toFixed(1)}px)`;
@@ -895,6 +912,11 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
   const outside = hidden || x < 92 || x > W - 92 || y < 104 || y > H - 68 || !inouPinFree(x, y, rects);
   // 画面内も端も同じ太い矢印。敵の▼とは色と形を分ける。
   route.style.display = '';
+  // 稲生の到着点は穴のあるピン。画面端だけ同じ一本を矢印へ替える。
+  route.setAttribute('d', inou && !outside
+    ? 'M0 0L-18-30A23 23 0 1 1 18-30ZM-8-45A8 8 0 1 0 8-45A8 8 0 1 0-8-45Z'
+    : 'M-9-58H9V-28H23L0 0L-23-28H-9Z');
+  route.setAttribute('fill-rule', 'evenodd');
   step.style.display = inou || outside ? 'none' : '';
   const caption = '';   // 行き先の字は出さない（ピンだけ。10/25 チカチカ）
   if (el._words.textContent !== caption) el._words.textContent = caption;

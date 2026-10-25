@@ -230,7 +230,10 @@ function survive(b, inp) {
           if (o === u || !o.alive || o.gone || o.downed || o.group?.hidden || o.isStruct || o.noTarget ||
               Math.abs(o.pos.y - u.pos.y) > 1.8) continue;
           const ox = o.pos.x - u.pos.x, oz = o.pos.z - u.pos.z;
-          if (Math.abs(ox) > 6 || Math.abs(oz) > 6) continue;
+          // 三方ヶ原の長槍は四歩の外から届く。退く一歩の長さも含めて拾う。
+          const reach = Math.max(4, (o.reach || 2.8) + 0.8);
+          const radius = Math.max(6, reach + 1.5);
+          if (Math.abs(ox) > radius || Math.abs(oz) > radius) continue;
           const gap = Math.hypot(o.pos.x - step.x, o.pos.z - step.z);
           // 味方も体で道をふさぐ。終点が空いていても、途中の肩を突き抜けない。
           // 既に触れた兵から離れる足は残し、列の隙間へ向かう。
@@ -239,11 +242,15 @@ function survive(b, inp) {
           // 終点が遠くなるだけでは離れた事にならない。目の前の肩を
           // 通り抜ける足もあるため、初めから遠ざかる向きだけ終点で測る。
           const clearance = forward <= 0 ? gap : Math.hypot(ox - sx * along, oz - sz * along);
-          if (clearance < 1.4) danger += (1.4 - clearance) * 6;
+          // 志賀の塀の向こうの兵は、こちらの退き口を体で塞がない。
+          if (clearance < 1.4 && !army.wallBetween(u.pos, -1, o.pos)) danger += (1.4 - clearance) * 6;
           if (o.team === u.team || o.fleeing || o.group?.routed) continue;
           // 順番待ちと打ち手は分け、刃の届く一歩にはさらに余裕を取る。
-          if (o.playerQueue) { if (gap < 2) danger += (2 - gap) * 6; }
-          else if (gap < 4) danger += (4 - gap) * (o.target === u ? 2 : 1);
+          if (o.playerQueue) {
+            if (gap < 2 && !army.wallBetween(u.pos, -1, o.pos)) danger += (2 - gap) * 6;
+          } else if (gap < reach && !army.wallBetween(o.pos, -1, step, (o.wpnKind || o.lookWeapon) === 'spear')) {
+            danger += (reach - gap) * (o.target === u ? 2 : 1);
+          }
         }
         const value = Math.cos(turn) * 2 - danger;
         if (value > best) { best = value; bx = sx; bz = sz; }
