@@ -231,6 +231,8 @@ export function sightScreenUnit(rt, u) {
 // 稲生の印とピンは同じ見通しを使う。薄い霧や土埃で姿の見える敵の印だけを消さない。
 // 壁は透かさず、見通しは兵ごとに五分の一秒だけ覚える。
 const inouSignCache = new WeakMap();
+// 先端は本人の笠のすぐ上。頭上の印・見通し・ピンで同じ高さを使う。
+export const inouSignHeight = (u) => u.mounted ? 3.17 : Math.max(2.35, (u.bodyHeight || 1.72) + .38);
 export function inouSignVisible(rt, u) {
   if (!u?.alive || u.gone || u.dying || u.woundOut || u.rearWound || u.camHidden || u.mesh?.visible === false) return false;
   const p = u.pos, cam = rt.camera.position, fog = rt.scene.fog;
@@ -247,7 +249,7 @@ export function inouSignVisible(rt, u) {
       (cam.x - c.x) ** 2 + (cam.y - c.y) ** 2 + (cam.z - c.z) ** 2 > .25 ||
       (p.x - c.ux) ** 2 + (p.z - c.uz) ** 2 > .25) {
     c.rt = rt; c.t = rt.t; c.x = cam.x; c.y = cam.y; c.z = cam.z; c.ux = p.x; c.uz = p.z;
-    c.seen = !cameraWallBlocked(rt, cam, p, cam.y, p.y + (u.mounted ? 3.05 : 2.1));
+    c.seen = !cameraWallBlocked(rt, cam, p, cam.y, p.y + inouSignHeight(u));
   }
   c.on = c.seen;
   return c.seen;
