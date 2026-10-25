@@ -56,6 +56,8 @@ function poolKey(B, c, cast) {
 }
 function poolOf(army, B, c, cast, k) {
   if (k.pool) return k.pool;
+  if (B.hMade >= 1 || B.hWorkMs >= 1) return null;
+  const started = performance.now();
   const g = c.geometry, nv = g.attributes.position.count, ni = g.index ? g.index.count : 0;
   const bm = new THREE.BatchedMesh(SLOTS, Math.ceil(nv * 1.1) * SLOTS, ni ? Math.ceil(ni * 1.1) * SLOTS : 3, variantOf(c.material, 'b'));
   bm.name = 'humanBatch'; bm.matrixAutoUpdate = false; bm.frustumCulled = false; bm.perObjectFrustumCulled = false; bm.sortObjects = false;
@@ -63,30 +65,36 @@ function poolOf(army, B, c, cast, k) {
   army.scene.add(bm);
   k.pool = { bm, owner: [], geo: [], last: [], used: [], vMax: Math.ceil(nv * 1.1) * SLOTS, iMax: ni ? Math.ceil(ni * 1.1) * SLOTS : 0, v: 0, i: 0 };
   B.hPools.push(k.pool);
+  B.hMade++; B.hWorkMs += performance.now() - started;
   return k.pool;
 }
 // 部品 c の場所（id）。前と同じなら使い回し、無ければ 2 秒見えない人の場所へ上書きするか、新しく足す。入らなければ -1
-function slotOf(pool, c, frame) {
+function slotOf(pool, c, frame, B) {
   const s = c.userData.hbSlot;
   if (s && s.pool === pool && pool.owner[s.id] === c && pool.geo[s.id] === c.geometry) return s.id;
-  const g = c.geometry, nv = g.attributes.position.count, ni = g.index ? g.index.count : 0, R = pool.bm._reservedRanges;
-  let id = -1;
-  for (let k = 0; k < R.length; k++) {
-    if (pool.owner[k] && frame - pool.last[k] < 120) continue;
-    if (R[k].vertexCount < nv || ni && R[k].indexCount < ni) continue;
-    try { if (pool.geo[k] !== g) pool.bm.setGeometryAt(k, g); } catch (e) { continue; }
-    id = k; break;
-  }
-  if (id < 0) {
-    if (R.length >= SLOTS || pool.v + nv > pool.vMax || ni && pool.i + ni > pool.iMax) return -1;
-    try { id = pool.bm.addGeometry(g); } catch (e) { return -1; }
-    pool.v += nv; pool.i += ni;
-  }
-  const prev = pool.owner[id];
-  if (prev && prev !== c && prev.userData.hbSlot && prev.userData.hbSlot.pool === pool) prev.userData.hbSlot = null;
-  pool.owner[id] = c; pool.geo[id] = g;
-  c.userData.hbSlot = { pool, id };
-  return id;
+  if (B.hCopied >= 4 || B.hWorkMs >= 1) return -1;
+  const started = performance.now();
+  B.hCopied++;
+  try {
+    const g = c.geometry, nv = g.attributes.position.count, ni = g.index ? g.index.count : 0, R = pool.bm._reservedRanges;
+    let id = -1;
+    for (let k = 0; k < R.length; k++) {
+      if (pool.owner[k] && frame - pool.last[k] < 120) continue;
+      if (R[k].vertexCount < nv || ni && R[k].indexCount < ni) continue;
+      try { if (pool.geo[k] !== g) pool.bm.setGeometryAt(k, g); } catch (e) { continue; }
+      id = k; break;
+    }
+    if (id < 0) {
+      if (R.length >= SLOTS || pool.v + nv > pool.vMax || ni && pool.i + ni > pool.iMax) return -1;
+      try { id = pool.bm.addGeometry(g); } catch (e) { return -1; }
+      pool.v += nv; pool.i += ni;
+    }
+    const prev = pool.owner[id];
+    if (prev && prev !== c && prev.userData.hbSlot && prev.userData.hbSlot.pool === pool) prev.userData.hbSlot = null;
+    pool.owner[id] = c; pool.geo[id] = g;
+    c.userData.hbSlot = { pool, id };
+    return id;
+  } finally { B.hWorkMs += performance.now() - started; }
 }
 
 // 束へ入れたら true（元の部品を描きから外す）。一人だけの束になる物は false（元のまま描く）
@@ -96,7 +104,8 @@ function put(army, B, c, cast) {
     if (k) {
       if (!counted(B, k)) return false;
       const pool = poolOf(army, B, c, cast, k);
-      const id = slotOf(pool, c, B.hFrame);
+      if (!pool) return false;
+      const id = slotOf(pool, c, B.hFrame, B);
       if (id >= 0) {
         pool.bm.setMatrixAt(id, c.matrixWorld);
         pool.bm.setVisibleAt(id, true);
@@ -113,7 +122,10 @@ function put(army, B, c, cast) {
   if (!counted(B, key)) return false;
   let e = B.mapH.get(key);
   if (!e || e.n >= e.cap) {
+    if (B.hMade >= 1 || B.hWorkMs >= 1) return false;
+    const started = performance.now();
     e = army.batchGrow(c.geometry, e, B.mapH, cast, variantOf(c.material, 'i'), key);
+    B.hMade++; B.hWorkMs += performance.now() - started;
     e.im.receiveShadow = true;
     e.im.name = 'humanBatch';
   }
@@ -141,6 +153,9 @@ function walk(army, o, B, tag) {
 export function humanBatchBegin(B) {
   if (!B.mapH) { B.mapH = new Map(); B.hKeys = new WeakMap(); B.maps.push(B.mapH); B.hPools = []; B.hPK = new WeakMap(); B.hSig = new WeakMap(); B.hSeen = []; B.hFrame = 0; }
   B.hFrame++;
+  // 装いの切替で顔・髪・傷の束を一斉に作らない。未完成の部品は元の形で描く。
+  // 既存の場所の行列は全員更新し、新しい入れ物は一つ・形の転送は四つ・実作業一ミリ秒まで。
+  B.hMade = 0; B.hCopied = 0; B.hWorkMs = 0;
   for (const k of B.hSeen) { k.prev = k.cur; k.cur = 0; }
   B.hSeen.length = 0;
   B.multi = HB.multi && hasMultiDraw();

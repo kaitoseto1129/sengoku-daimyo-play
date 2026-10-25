@@ -283,10 +283,9 @@ function drawMissionPin(rt) {
   if (changed || U.arrived !== arrived) { U.arrivalAt = arrived ? rt.t : undefined; U.arrived = arrived; }
   // 着いた・離れたの境で毎コマ出たり消えたりしない（チカチカ。kaito 10/23 稲生 27）。消えた後は一歩半離れてから出す。
   // 近接戦では頭上の▼に任せ、自分の体に行き先のピンを重ねない。
-  // 足場のすぐそばまで案内し、出し直す距離も三十五センチ以内に収めて点滅を防ぐ。
-  // 接近中でも実際に攻撃が届けば頭上の▼へ任せる。
+  // 敵へのピンは本人の足元。距離だけで消さず、実際に攻撃が届けば頭上の▼へ任せる。
   pin.hidden = inouEnemy
-    ? want.approach && rt.player.inRange && rt.player.rangeCueTarget === want.unit || d <= .2 + (pin.hidden ? .15 : 0)
+    ? rt.player.inRange && rt.player.rangeCueTarget === want.unit
     : !want.always && !waiting && d <= near + (pin.hidden ? 1.5 : 0);
   if (pin.hidden) return;
   const W = VIEW.w, H = VIEW.h;
@@ -399,6 +398,7 @@ function drawMissionPin(rt) {
   // 地面に刺すピンは一本。固定の大きな輪ではなく、実際に着いたとみなす地面の範囲を囲む。
   // 桶狭間は近づいた時だけ、ピンの根元を実際の集合範囲まで広げる。
   // 到着した瞬間は同じ囲みを緑と閉じた縁で示し、一拍置いて畳む。
+  // 囲みは自分を追わず、畳んだ後は同じピンのチェックと穴の満ち具合で示す。
   const showArea = rt.def.key === 'okehazama'
     ? want.area && (!arrived || rt.t - U.arrivalAt < .8) && d <= 18 && !outside && !occluded
     : (waitArea ? !occluded : want.passage ? !behind && !occluded : !outside) && (footMark || !want.unit && (want.area || waiting || want.defend) && want.r > 0);
@@ -611,11 +611,9 @@ function drawMissionPin(rt) {
       flag.setAttribute('transform', 'translate(6,10.2) scale(.85)');
       pin._hold.setAttribute('transform', 'translate(6,10.2) scale(.85) translate(4,-17.2) scale(.9)');
     }
-    // 到着範囲とは違う固定の小さな輪を重ねない。接点はピンの先端で示す。
+    // 実際の集合範囲だけを囲み、紛らわしい固定の小さな輪は重ねない。
     for (const ring of pin._rings) {
-      // 集合範囲には実寸の外周だけを使い、着けない小さな輪を重ねない。
-      ring.style.display = outside || arrived || want.area ? 'none' : '';
-      ring.setAttribute('transform', 'translate(24,40.8) scale(.4)');
+      ring.style.display = 'none';
     }
   }
   hud.missionPinOutside = outside;
@@ -962,6 +960,9 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     ? 'M0 0L-18-30A23 23 0 1 1 18-30ZM-8-45A8 8 0 1 0 8-45A8 8 0 1 0-8-45Z'
     : 'M-9-58H9V-28H23L0 0L-23-28H-9Z');
   route.setAttribute('fill-rule', 'evenodd');
+  // 敵へ向かうピンは小さくし、足元から胴や自分の頭まで覆わない。
+  el._simplePin.style.transform = inou && want.approach && !outside ? 'scale(.55)' : '';
+  el._simplePin.style.transformOrigin = '0 0';
   step.style.display = inou || outside ? 'none' : '';
   const caption = '';   // 行き先の字は出さない（ピンだけ。10/25 チカチカ）
   if (el._words.textContent !== caption) el._words.textContent = caption;
