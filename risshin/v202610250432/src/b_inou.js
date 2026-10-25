@@ -144,7 +144,29 @@ function approachUnit(rt) {
 }
 // 目的は戦いの間ずっと保ち、間合いと命中は同じ本人の▼で示す。
 function inouEnemyOrder(rt, fallback, name = rt.def.missionEnemyLabel(rt)) {
-  return fighting(rt.def.missionSignTarget(rt)) ? `${name}を倒せ` : fallback;
+  const enemy = rt.def.missionSignTarget(rt), p = rt.player;
+  if (!fighting(enemy)) return fallback;
+  // 倒す目的を保ったまま、同じ本人への向き・歩数・操作を添える。
+  const order = `${name}を倒せ`;
+  const touch = usesTouchControls();
+  // 武将の名と白い縁の印をそろえ、同じ一人へ案内する。
+  const target = `${order}・白ふちの▼`;
+  if (p.inRange && p.rangeCueTarget === enemy) return touch
+    ? `${target}へ「${p.weapon === 'sword' ? 'きる' : 'つく'}」を押して離せ`
+    : `${target}をマウスの左ボタンで${p.weapon === 'sword' ? '斬れ' : '突け'}`;
+  const dx = enemy.pos.x - p.u.pos.x, dz = enemy.pos.z - p.u.pos.z;
+  // 前進と同じ視点の向きで案内する。画面の右の兵へ前進し続けさせない。
+  const yaw = p.yaw + (p.camYawOff || 0);
+  const angle = Math.atan2(Math.sin(Math.atan2(dx, dz) - yaw), Math.cos(Math.atan2(dx, dz) - yaw));
+  if (Math.abs(angle) > 2.4) return `${order}・白ふちの▼は後ろ・振り向け`;
+  if (Math.abs(angle) > .35) return `${order}・白ふちの▼へ${angle < 0 ? '右' : '左'}を向け`;
+  if (Math.hypot(dx, dz) <= p.meleeReach(p.previewMeleeKind() || 'thrust')) {
+    if (Math.cos(Math.atan2(dx, dz) - p.u.heading) < .9) return `${order}・白ふちの▼へ向け`;
+    return `${order}・白ふちの▼へ もう一歩`;
+  }
+  // 前の直しの歩数も同じ一人の間合いから求め、進む操作と一行で伝える。
+  const move = touch ? '左の画面を前へなぞり続けろ' : '前進キーを押し続けろ';
+  return `${order}・白ふちの▼へ${move}（あと${enemySteps(rt, enemy)}歩）`;
 }
 // 兵本人ではなく頭上の▼を案内する。距離は槍が届く所までの歩数。
 function enemySteps(rt, enemy) {
@@ -226,22 +248,22 @@ const inou = {
   missionPinCaption: '',
   hideArmyPeek: true, // 初陣は行き先・敵の▼・任務一行に絞る。
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
-  // 任務は一行。兵・隊長・待つ場所を区別し、頭上の▼と呼び方をそろえる。距離や向きで文を切り替えない。
-  missions: ['赤い▼の林美作守の兵（信勝方）を倒せ', '赤い▼の林美作守の兵（信勝方）を倒せ', '信長の旗のそばで耐えろ', '▼の林美作守を倒せ'],
+  // 任務は短い一行。兵・隊長・待つ場所を区別し、頭上の▼と呼び方をそろえる。
+  missions: ['▼の兵をたおせ', '▼の兵をたおせ', '耐えろ', '林美作守をたおせ'],
   missionHeading(rt) {
     const F = rt.flags;
     if (F.step === 0) {
-      const name = F.training === 8 ? '▼の林美作守の小隊長' : '赤い▼の林美作守の兵（信勝方）';
+      const name = F.training === 8 ? '▼の隊長' : '▼の兵';
       if (F.training <= 8) {
         const enemy = this.missionSignTarget(rt), P = rt.player;
-        if (!fighting(enemy)) return `${name}を倒せ`;
+        if (!fighting(enemy)) return `${name}をたおせ`;
         // 攻撃判定が届く本人と札をそろえる。空振りを続けさせない。
         const ready = P.inRange && fighting(P.rangeCueTarget) &&
           (P.rangeCueTarget === enemy || F.training !== 8 && P.rangeCueTarget.group === enemy.group);
-        if (!ready) return inouEnemyOrder(rt, `${name}を倒せ`, name);
+        if (!ready) return inouEnemyOrder(rt, `${name}をたおせ`, name);
       }
       const left = F.training <= 4 ? practiceLeft(rt) : 0;
-      return left ? `${name}を倒せ（残り${left}人）` : `${name}を倒せ`;
+      return left ? `${name}をたおせ（残り${left}人）` : `${name}をたおせ`;
     }
     if (F.step === 1) {
       if (F.training === 11 && !F.flankReached) return '柴田の兵を倒せ';
@@ -314,8 +336,8 @@ const inou = {
   // 実際に槍が届いたら頭上の▼に任せる。
   missionPin(rt) {
     const F = rt.flags;
-    // 林兵への案内は頭上の札一本。地面へ別の矢印を重ねない。
-    if (F.ending || F.step === 0) return null;
+    // 同じ一人の頭上の▼へ案内し、見えない間だけ方向を示す。
+    if (F.ending) return null;
     const enemy = this.missionSignTarget(rt);
     // 描画を省いた兵にも案内を残す。見えない間は同じ相手への方向矢印になる。
     if (fighting(enemy)) {
@@ -548,7 +570,7 @@ const inou = {
     if (phase === 0) {
       // 初めから追う林兵を見せる。練習が終わっても同じ三人を使い、印の先を替えない。
       const p = rt.player.u.pos;
-      const at = { x: p.x + 2, z: p.z - 14 };
+      const at = { x: p.x + 2, z: p.z - 10 };
       const g = enemyGroup(rt, { faction: 'nobukatsu', name: '林の遅れ兵', anchor: { ...at }, facing: Math.PI, width: 3, aggro: 0, noAI: true, noRout: true, order: 'hold', dmgMult: 0.25, focus: rt.player.u },
         dress([{ type: 'ashigaru', n: 3 }], HAYA));
       g.speed = 0.8;
@@ -882,7 +904,7 @@ const inou = {
           g.order = 'attack'; g.aggro = 12; g.seekRange = 30; g.speed = 1.6;
           for (const u of g.units) u.noTarget = false;
           rt.obj('main', '赤い▼の林美作守の兵を倒せ', 'main');
-          rt.say('組頭 源八', usesTouchControls() ? '赤い▼が追う兵だ。槍が届くまで近づき、「つく」を押して離せ！' : '赤い▼が追う兵だ。槍が届くまで近づき、左押しで攻撃だ！', 4);
+          rt.say('組頭 源八', usesTouchControls() ? '白ふちの赤い▼が追う兵だ。槍が届くまで近づき、「つく」を押して離せ！' : '白ふちの赤い▼が追う兵だ。槍が届くまで近づき、マウスの左ボタンで突け！', 4);
           lesson(rt, 'kill');
         }
         if (F.caught && !F.firstHitAt && F.strikeN > F.strikeCaught) F.firstHitAt = rt.t;

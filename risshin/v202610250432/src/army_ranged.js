@@ -152,6 +152,15 @@ void main(){ vec4 t = texture2D(map, vUv); gl_FragColor = vec4(vCol.rgb * t.rgb,
 
 export const ArmyRanged = {
 
+  // 初弾でまとめて作らず、開戦前に弾と命中結果の入れ物を支度する。
+  prepareBullets() {
+    if (this.bullets) return;
+    this.bullets = Array.from({ length: 256 }, () => {
+      const rec = { res: null }, incoming = { x: 0, z: 0 };
+      return { live: false, result: { u: null, t: null, victim: null, res: null, armor: false, blocked: false }, opts: { kind: 'gun', d: 0, y: 0, incoming, out: rec } };
+    });
+  },
+
   // ---------------- 鉄砲 ----------------
   // 引き金を落とす直前：火皿の口薬が燃え、小さな煙が上がる
   panFlash(u, near) {
@@ -229,10 +238,6 @@ export const ArmyRanged = {
     const bx = targetPos.x + dz / hd * lateral, bz = targetPos.z - dx / hd * lateral;
     const by = targetPos.y + (t.mounted ? RIDE.y : 0) + 1.2 + heightBias + radius * Math.sin(theta);
     // 弾は見える筋を描かず、有限の入れ物で飛ばす。全員に同じ落下を通す。
-    if (!this.bullets) this.bullets = Array.from({ length: 256 }, () => {
-      const rec = { res: null }, incoming = { x: 0, z: 0 };
-      return { live: false, result: { u: null, t: null, victim: null, res: null, armor: false, blocked: false }, opts: { kind: 'gun', d: 0, y: 0, incoming, out: rec } };
-    });
     const ball = this.bullets.find(b => !b.live);
     if (!ball) return true; // 戦う兵の上限を越える追加射撃は描画も当たりも増やさない。
     const vy = by - my + (launch ? 0 : 4.9 * (hd / 160) ** 2);
@@ -262,8 +267,7 @@ export const ArmyRanged = {
         candidates.length = 0;
         this.forNear(b.x + dx * 0.5, b.z + dz * 0.5,
           Math.hypot(dx, dz) * 0.5 + this.maxBodyRadius, collectBulletCandidate, candidates);
-        // 同じ位置で重なる相手への優先順は元の兵の並びを保つ。
-        candidates.sort(bulletCandidateOrder);
+        // 並べ替えずに最初の体を選ぶ。同じ位置だけ、元の兵の並びの後ろを優先する。
         for (const o of candidates) {
           if (o === b.u || !o.alive || o.gone || o.isStruct) continue;
           // 体の円へ入る点を求める。中心を通る点だけでは壁の直前の体を見落とす。
@@ -280,6 +284,7 @@ export const ArmyRanged = {
             entry = Math.max(entry, Math.min(qa, qb)); exit = Math.min(exit, Math.max(qa, qb));
           }
           if (exit < 0 || entry > exit || entry > first) continue;
+          if (entry === first && victim && o.gridOrder < victim.gridOrder) continue;
           const y = b.y + dy * entry;
           victim = o; first = entry; hitY = y;
         }
@@ -1121,4 +1126,3 @@ export const ArmyRanged = {
 };
 
 function collectBulletCandidate(u, list) { list.push(u); }
-const bulletCandidateOrder = (a, b) => a.gridOrder - b.gridOrder;

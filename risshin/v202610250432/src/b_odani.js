@@ -1317,6 +1317,7 @@ const odani = {
     armyViewCull: true, // 遠景の兵は人数を保ち、画面外の分だけ送らない。
     armyTerrainCull: true, // 山腹に完全に隠れる遠景兵だけ送らない。近景と影は保つ。
     singleSoldierLOD: true, // 遠近の境の兵を二重に送らず、一人につき一つの形で描く。
+    armyCompactAll: true, // 少人数の控えも見えない兵を送らず、遠い兵だけ軽い形へ。兵数と動きは保つ。
     routedSoldierLOD: true, // 敗走先も移動の余裕を含めて細部を選び、遠い兵を全員近景の形へ戻さない。
     armyFarDetail: 36, // 三十六メートルに足踏みの余裕を足した先は輪郭の形へ。人数・隊列・動きは同じ。
     highClashDetail: true, // 遠い斬り合いは輪郭の形へ。人数・位置・動きは保つ。

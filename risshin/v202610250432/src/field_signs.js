@@ -303,7 +303,7 @@ export function fieldSignsTick(rt, root) {
     // 森部の▼を笠の中へ埋めない。姿勢や頭の揺れは追わず本人の背丈へ固定する。
     if ((moribe || oke) && !u.mounted) headPos.y = u.pos.y + (u.bodyHeight || 1.72) + (oke ? .55 : .38);
     // 密集しても笠に埋まらない高さへ固定し、敵本人との隙間を一定にする。
-    if (moribe && !u.mounted) headPos.y = u.pos.y + Math.max(2.35, (u.bodyHeight || 1.72) + .38);
+    if (moribe && !u.mounted) headPos.y = u.pos.y + (u.bodyHeight || 1.72) + .38;
     // 笠に埋めず、白い外枠との隙間も残す。頭の揺れは追わない。
     if (inou && !u.mounted) headPos.y = u.pos.y + (u.bodyHeight || 1.72) + .15 + .32;
     if (inou || oke || moribe) {
@@ -348,11 +348,11 @@ export function fieldSignsTick(rt, root) {
     // 頭上の先端は固定し、既存の形・材質・描画の束をそのまま使う。
     // 稲生は命中の形を少し保ってから戻す。連打の合間にも当たった本人が分かる。
     const hitLeft = ((oke ? u.okeHitUntil : inou ? u.inouHitUntil : u.moribeHitUntil) || 0) - rt.t;
-    // 森部は命中の伸びを一秒ほど保つ。次の一撃で再び伸びる。
-    // 赤の減りと小さな伸びは三秒残し、乱戦でも当たった本人を追える。
+    // 森部は命中直後の伸びを一秒ほど保ち、その後も二秒ほどは読める高さを残す。
+    // 赤の減りと伸びは三秒残し、次の一撃で再び伸びる。
     const hit = foe && special
       ? moribe ? Math.min(1, Math.max(0, hitLeft / .6)) *
-        (.15 + .85 * Math.min(1, Math.max(0, (hitLeft - 1.65) / .45)))
+        (.65 + .35 * Math.min(1, Math.max(0, (hitLeft - 1.65) / .45)))
         : inou ? Math.min(1, Math.max(0, hitLeft / .4)) *
           (.1 + .9 * Math.min(1, Math.max(0, (hitLeft - 1.45) / .4)))
         : Math.min(1, Math.max(0, (hitLeft - 1.2) / .5))
@@ -403,7 +403,7 @@ export function fieldSignsTick(rt, root) {
     // 二十五歩以内は大きな上限、四十歩以遠は小さな上限にし、間は滑らかにつなぐ。
     const okeNear = Math.max(0, Math.min(1, (40 - Math.sqrt(meD2)) / 15));
     // 次に戦う一人だけ大きく残す。奥の一団は頭ほどの赤い▼で所属を示す。
-    const okeLimit = u === missionEnemy ? 2.2 + .8 * okeNear : u === commander ? 1.5 + 1.5 * okeNear : .7 + .7 * okeNear;
+    const okeLimit = u === missionEnemy ? 1.2 + 1.8 * okeNear : u === commander ? 1.5 + 1.5 * okeNear : .7 + .7 * okeNear;
     const okeScale = oke ? Math.min(okeLimit, okePixels * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) : k;
     // 防がれた接触は縦に潰す。傷を与えた時の縦の伸び・赤の減りとは分ける。
     // 森部も、受け止められた本人の▼だけを短く潰す。空振りとは区別する。

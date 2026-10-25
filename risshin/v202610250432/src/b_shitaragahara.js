@@ -995,6 +995,7 @@ const shitaragahara = {
     highClashFarDetail: 24, // 二十四メートル先は輪郭の形を共有し、袖と草摺の細部だけを省く。
     clashSoldierLOD: true, // 乱戦の細部は、隊の端でなく兵ごとの距離で選ぶ。
     singleSoldierLOD: true, // 遠近の境でも同じ兵を重ねて送らず、一人一束で描く。
+    armyCompactAll: true, // 小隊の遠い列も兵ごとに選び、見えない兵の面だけを省く。射撃と人数は同じ。
     routedSoldierLOD: true, // 敗走先も移動の余裕を含めて細部を選び、兵数と走る動きは保つ。
     armyFarDetail: 36, // 三十六メートルに足踏みの余裕を足した先は輪郭の形へ。人数・隊列・動きは同じ。
     soldierDetailNear: 12, // 十二メートルに移動の余裕を足すまで細かい形を保ち、その先も全員を描く。

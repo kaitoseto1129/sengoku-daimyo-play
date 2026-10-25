@@ -480,11 +480,11 @@ function drawMissionPin(rt) {
     pin._waitWaiting = waiting;
     pin._groundPin = groundPin; pin._wideHole = oke; pin._flagDestination = flagDestination; pin._passage = want.passage;
     flag.setAttribute('d', groundPin && (oke || !flagDestination) ? oke
-      // 到着しても地面の先端と穴の位置を保ち、同じピンの中で待つ進みを示す。
+      // 到着しても穴の位置を保ち、同じ丸の中で待つ進みを示す。
       ? arrived && waiting
         // 到着後は同じ丸の時計だけ。地面へ刺す軸を畳み、再び向かう場所に見せない。
-        ? 'M40 -22A30 30 0 1 1 40 38A30 30 0 1 1 40 -22Z M40 -12A20 20 0 1 0 40 28A20 20 0 1 0 40 -12Z'
-        : 'M40 68L34 58V37A30 30 0 1 1 46 37V58Z M40 -12A20 20 0 1 0 40 28A20 20 0 1 0 40 -12Z'
+        ? 'M40 -2A30 30 0 1 1 40 58A30 30 0 1 1 40 -2Z M40 8A20 20 0 1 0 40 48A20 20 0 1 0 40 8Z'
+        : 'M40 68L34 58V57.4A30 30 0 1 1 46 57.4V58Z M40 8A20 20 0 1 0 40 48A20 20 0 1 0 40 8Z'
       : 'M40 68L25 38C5 9 75 9 55 38Z M40 20A6 6 0 1 0 40 32A6 6 0 1 0 40 20Z' : 'M32 65V5H65L56 18L65 31H32');
     flag.setAttribute('fill-rule', 'evenodd');
   }
@@ -581,7 +581,7 @@ function drawMissionPin(rt) {
   }
   if (!oke) flag.setAttribute('transform', outside ? edgeFlag ? 'translate(14,-34) scale(.65)' :
     groundPin ? 'translate(0,-24) scale(.75)' : 'translate(0,-24)' : groundPin ? '' : 'translate(16,19.25) scale(.75)');
-  // 到着しても先端と穴を動かさず、別の行き先に切り替わったように見せない。
+  // 到着しても穴を動かさず、別の行き先に切り替わったように見せない。
   if (!oke) pin._hold.setAttribute('transform', '');
   // 方向は端の旗一本へまとめ、自分の足元には輪だけを残す。
   // 行き先の輪は足さず、自分の水色の足元印と役割を分ける。
@@ -669,7 +669,7 @@ function drawMissionPin(rt) {
   // 守備の案内は右上の任務札へまとめる。
   const personName = typeof marker?.label === 'function' ? marker.label() : marker?.label;
   const distanceLabel = !oke && !person && !want.fire && !want.gate && !want.dodge && !want.turn && !arrived;
-  // 稲生は行き先のピン一本だけ。名前・距離・向きの札を添えない。
+  // 稲生は字のないピン一本。相手は同じ本人の頭上の赤い▼で示す。
   const text = rt.def.key === 'inou' ? '' : (working ? action.hold ? '火をつける（長押し）' : '火をつける' : friendlyPerson ? '' : want.fire ? '' : want.silent ? '' :
     want.treatment && arrived ? '止まって手当' : distanceLabel ? `${want.treatment ? '手当まで ' : 'あと'}${Math.ceil(Math.max(0, d - (want.r ?? 6)) / .75)}歩` :
     friendlyPerson ? personName || 'この人' : '');
@@ -987,22 +987,15 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
   // 森部は先端が土に刺さるピン一本。川の途中の兵の頭上印に見せない。
   const routeShape = rt.def.key === 'moribe'
     ? 'M0 0L-5-12V-35A17 17 0 1 1 5-35V-12Z M0-63A10 10 0 1 0 0-43A10 10 0 1 0 0-63Z'
+    : inou
+    ? 'M0 0C-5-11-18-26-18-39A18 18 0 1 1 18-39C18-26 5-11 0 0ZM0-47A8 8 0 1 0 0-31A8 8 0 1 0 0-47Z'
     : 'M-9-58H9V-28H23L0 0L-23-28H-9Z';
   if (route.getAttribute('d') !== routeShape) {
     route.setAttribute('d', routeShape); route.setAttribute('fill-rule', 'evenodd');
   }
   const outside = hidden || x < 92 || x > W - 92 || y < 104 || y > H - 68 || !inouPinFree(x, y, rects);
-  // 稲生は穴のあるピン一本。地面と画面端で同じ形を保つ。
-  route.setAttribute('d', inou
-    ? 'M0 0C-5-11-18-26-18-39A18 18 0 1 1 18-39C18-26 5-11 0 0ZM0-47A8 8 0 1 0 0-31A8 8 0 1 0 0-47Z'
-    : 'M-9-58H9V-28H23L0 0L-23-28H-9Z');
-  route.setAttribute('fill-rule', 'evenodd');
-  route.style.display = '';
   // 稲生は画面内も画面端も同じ穴のあるピン。横向きの操作矢印と取り違えさせない。
-  route.setAttribute('d', inou
-    ? 'M0 0L-18-30A23 23 0 1 1 18-30ZM-8-45A8 8 0 1 0 8-45A8 8 0 1 0-8-45Z'
-    : 'M-9-58H9V-28H23L0 0L-23-28H-9Z');
-  route.setAttribute('fill-rule', 'evenodd');
+  route.style.display = '';
   // 敵へ向かうピンは小さくし、足元から胴や自分の頭まで覆わない。
   el._simplePin.style.transform = inou && want.approach && !outside ? 'scale(.55)' : '';
   el._simplePin.style.transformOrigin = '0 0';
