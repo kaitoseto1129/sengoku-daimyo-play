@@ -70,6 +70,7 @@ export function missionCaption(rt, title = currentObjective(rt)?.text || '') {
     // 間合いは戦固有の判定と頭上の▼に任せ、歩数や向きで任務を上書きしない。
     return heading;
   }
+  if (rt.def.key === 'moribe') return heading;
   // 討つ任務も、届くまでは移動の印と同じ一行にする。
   if (!rt.def.town && !rt.def.dojo && /▼.*(?:たおせ|倒せ)/.test(heading)) {
     const p = rt.player, enemy = rt.army.missionMarkedEnemy || rt.def.missionSignTarget?.(rt);

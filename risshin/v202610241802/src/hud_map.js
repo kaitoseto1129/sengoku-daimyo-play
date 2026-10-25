@@ -8,6 +8,8 @@ import { CAPTURE, GATE_STATE } from "./nawabari.js";
 import { currentObjective } from "./mission_guide.js";
 import { campKnown, enemyKnown } from "./battle_intel.js";
 import { GROUP_NAME } from "./player.js";
+import { markedEnemy } from "./mission_pin.js";
+import { inouSignVisible } from "./battle_sight.js";
 
 export class HudMap {
 
@@ -500,6 +502,19 @@ export class HudMap {
         if (report) g.font = `${Math.ceil(12 * px)}px sans-serif`;
         if (lbl) { g.lineWidth = 3; g.strokeStyle = C.paper; g.strokeText(lbl, a + r0 * 4.6, b - 4); g.fillText(lbl, a + r0 * 4.6, b - 4); }
       }
+    }
+    // 稲生の行き先は戦場と同じ白ふちの赤い▼。白い矢印は自分だけ。
+    const missionEnemy = rt.def.key === 'inou' ? markedEnemy(rt) : null;
+    if (missionEnemy && inouSignVisible(rt, missionEnemy)) {
+      let [a, b] = tr(missionEnemy.pos.x, missionEnemy.pos.z);
+      const dx = a - Sz / 2, dy = b - Sz / 2, distance = Math.hypot(dx, dy);
+      const rim = Sz / 2 - 10 * px;
+      if (rotate && distance > rim) { a = Sz / 2 + dx / distance * rim; b = Sz / 2 + dy / distance * rim; }
+      const r = 6 * px;
+      g.beginPath(); g.moveTo(a - r, b - r); g.lineTo(a + r, b - r); g.lineTo(a, b + r); g.closePath();
+      g.lineJoin = 'round'; g.strokeStyle = C.ink; g.lineWidth = 5 * px; g.stroke();
+      g.strokeStyle = '#fff'; g.lineWidth = 2.5 * px; g.stroke();
+      g.fillStyle = '#a33124'; g.fill();
     }
     // 自分：墨の矢印に和紙の縁
     const [pa, pb] = tr(p.pos.x, p.pos.z);

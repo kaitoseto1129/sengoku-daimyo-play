@@ -603,9 +603,11 @@ function drawMissionPin(rt) {
   // 守備の案内は右上の任務札へまとめる。
   const personName = typeof marker?.label === 'function' ? marker.label() : marker?.label;
   const distanceLabel = !oke && !person && !want.fire && !want.gate && !want.dodge && !want.turn && !arrived;
-  const text = working ? action.hold ? '火をつける（長押し）' : '火をつける' : friendlyPerson ? '' : want.fire ? '' : want.silent ? '' :
+  // 相手が見えない間は、方向のピンにも同じ隊名を添える。頭上の札が見えたらそちらへ渡す。
+  const enemyName = inouEnemy && (!enemyMarked || enemyTarget._direction.style.display !== 'none') ? rt.def.missionEnemyLabel?.(rt) || '' : '';
+  const text = enemyName || (working ? action.hold ? '火をつける（長押し）' : '火をつける' : friendlyPerson ? '' : want.fire ? '' : want.silent ? '' :
     want.treatment && arrived ? '止まって手当' : distanceLabel ? `${want.treatment ? '手当まで ' : 'あと'}${Math.ceil(Math.max(0, d - (want.r ?? 6)) / .75)}歩` :
-    friendlyPerson ? personName || 'この人' : '';
+    friendlyPerson ? personName || 'この人' : '');
   if (pin._words.textContent !== text) pin._words.textContent = text;
   pin.classList.toggle('fire-action', working);
   const progress = working && rt.holdId === action.id ? Math.round(Math.max(0, Math.min(1, rt.holdPct || 0)) * 100) : 0;
@@ -754,7 +756,8 @@ function updateEnemyTarget(rt) {
   if (active && inou) {
     // 稲生は任務が選んだ本人だけ。近くの別の兵へ印を移さない。
     const assigned = markedEnemy(rt);
-    hud.enemySignUnit = assigned && inouSignVisible(rt, assigned) ? assigned : null;
+    // 霧や遮蔽物で頭上の印を出せない時も、同じ相手への端の矢印を残す。
+    hud.enemySignUnit = assigned;
   }
   if (active && !inou && (hud.enemySignRt !== rt || hud.enemySignAt == null || rt.t >= hud.enemySignAt || rt.t < hud.enemySignAt - .25)) {
     if (hud.enemySignRt !== rt) hud.enemySignUnit = null;
@@ -776,7 +779,9 @@ function updateEnemyTarget(rt) {
     hud.enemySignUnit = signEnemyAlive(reachable, me) && signEnemySeen(rt, reachable, me) ? reachable :
       distance > 7 && signEnemyAlive(assigned, me) && signEnemySeen(rt, assigned, me) ? assigned : nearest;
   }
-  const u = active && signEnemyAlive(hud.enemySignUnit, me) ? hud.enemySignUnit : null;
+  // 追いつくまで攻撃対象外の林兵にも、追うための印は残す。
+  const assignedChase = active && inou && rt.flags.chase && hud.enemySignUnit === markedEnemy(rt);
+  const u = active && (signEnemyAlive(hud.enemySignUnit, me) || assignedChase && hud.enemySignUnit) ? hud.enemySignUnit : null;
   // 兵の描画側も同じ一人への視線を空ける。戦や任務が変われば解除する。
   rt.army.missionMarkedEnemy = u;
   if (enemyTarget) enemyTarget.hidden = true;
@@ -792,6 +797,14 @@ function updateEnemyTarget(rt) {
     enemyTarget._symbol = enemyTarget.firstChild;
     enemyTarget._direction = enemyTarget.children[1];
     enemyTarget._caption = enemyTarget.lastChild;
+    const health = document.createElement('span');
+    health.style.cssText = 'position:absolute;left:28px;top:-34px;width:56px;height:6px;background:#14120f;border:1px solid #fff3df';
+    health.setAttribute('role', 'meter');
+    health.setAttribute('aria-label', '目標の体力');
+    health.setAttribute('aria-valuemin', '0'); health.setAttribute('aria-valuemax', '100');
+    health.innerHTML = '<i style="display:block;height:100%;background:#d9573b;transform-origin:left"></i>';
+    enemyTarget.appendChild(health); enemyTarget._health = health;
+    enemyTarget._healthFill = health.firstChild;
   }
   if (enemyTarget.parentNode !== hud.root) hud.root.appendChild(enemyTarget);
   const W = VIEW.w, H = VIEW.h, rects = hud.hudRects();
@@ -801,7 +814,7 @@ function updateEnemyTarget(rt) {
   if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
   // 印の先を頭上へ固定する。札を避けて別の兵の上へ動かさない。
   const halfWidth = inou ? 84 : 60;
-  const visible = goalPoint.z >= -1 && goalPoint.z <= 1 && x >= halfWidth + 4 && x <= W - halfWidth - 4 && y >= 80 && y <= H - 12 &&
+  const visible = (!inou || inouSignVisible(rt, u)) && goalPoint.z >= -1 && goalPoint.z <= 1 && x >= halfWidth + 4 && x <= W - halfWidth - 4 && y >= (inou ? 96 : 80) && y <= H - 12 &&
     !cameraWallBlocked(rt, rt.camera.position, u.pos) &&
     !rects.some(r => x + halfWidth > r.left && x - halfWidth < r.right && y > r.top && y - 76 < r.bottom);
   const name = inou ? rt.def.missionEnemyLabel?.(rt) || '林の兵' : '敵';
@@ -833,6 +846,16 @@ function updateEnemyTarget(rt) {
   enemyTarget._symbol.setAttribute('width', commander ? '48' : '40');
   enemyTarget._caption.style.top = visible ? '-24px' : '48px';
   enemyTarget._caption.style.display = inou ? '' : 'none';
+  // 初陣の目当て一人だけ。命の棒の減りで、突きが届いたことを見せる。
+  enemyTarget._health.hidden = !inou || !visible;
+  if (inou && visible) {
+    const health = Math.round(Math.max(0, Math.min(1, u.hp / (u.maxHp || 1))) * 100);
+    if (enemyTarget._healthValue !== health) {
+      enemyTarget._healthValue = health;
+      enemyTarget._healthFill.style.transform = `scaleX(${health / 100})`;
+      enemyTarget._health.setAttribute('aria-valuenow', String(health));
+    }
+  }
   enemyTarget._caption.style.fontSize = inou ? '14px' : '18px';
   if (enemyTarget._caption.textContent !== caption) enemyTarget._caption.textContent = caption;
   enemyTarget.setAttribute('aria-label', visible ? name + 'をたおせ' : caption);
