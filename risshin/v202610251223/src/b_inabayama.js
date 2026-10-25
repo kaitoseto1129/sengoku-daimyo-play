@@ -2592,7 +2592,7 @@ const inabayama = {
   // ミッション（kaito 10/23 1・49・50）。右上の一行は「何をするか」だけ。向き・行き先の字は書かない。
   lendBow: true, // 美濃攻めは弓を覚える戦（kaito の役割分担）。問屋で買っていなくても弓を貸す。
   noSiegeCards: true, // 右の曲輪の札（未見・様子不明）は出さない。字は右上の一行だけ（kaito 10/23）。
-  missions: ['この人について', '火の印へ', 'さくを守れ', '山道をのぼれ', '斎藤龍興の馬廻を討つ', '本丸に合図の火を放つ'],
+  missions: ['この人と話そう', '火の印へ', 'さくを守れ', '山道をのぼれ', '斎藤龍興の馬廻を討つ', '本丸に合図の火を放つ'],
   missionHeading(rt) {
     const stage = this.missionOf(rt), F = rt.flags;
     if (stage === 1 || stage === 2) {
@@ -2840,7 +2840,7 @@ const inabayama = {
     const F = rt.flags, it = rt.nearestInteract();
     text = text.replace(/藤吉郎の旗/g, '旗の人').replace(/鹿垣/g, 'さく').replace(/城兵/g, '城の敵').replace(/下知/g, '話');
     if (F.ending || F.retreatMarked || F.regroup && F.step !== 3) return text;
-    if (F.step === 0) return it && !it.hold && /話す|話を聞く/.test(it.label) ? '話す' : '藤吉郎へ 近づく';
+    if (F.step === 0) return 'この人と話そう';
     if (!rt.G.lord && (F.step === 1 && F.lit < NEED || F.step === 4 && F.sig)) {
       const fire = it && (F.step === 1 ? /^h[0-9]+$/.test(it.id) : it.id === 'sig');
       return fire ? `「${it.label}」を長押し` : '戸口へ いこう';
@@ -3565,7 +3565,7 @@ const inabayama = {
     rt.say(officer(rt), `${nm(rt)}、来たか。今日は風が強い。城下の井口の町に火をかける`, 4.5);
     rt.say(officer(rt), '城下を焼き、囲みの支度をする。……松明を用意せい', 4);
     // 話を聞くまでは旗を動かさず、町の敵の手前で下知を渡す。
-    rt.marker('kino', () => F.kinoU.alive ? F.kinoU.pos : null, 'とうきちろう', { group: F.kino, guideAlways: true, guidePerson: () => F.kinoU, guideFootRing: true, guideRadius: 8, guideName: 'とうきちろうへ', guideTalk: false, guideVisibleOnly: true, guideCompact: true });
+    rt.marker('kino', () => F.kinoU.alive ? F.kinoU.pos : null, 'とうきちろう', { group: F.kino, guideAlways: true, guidePerson: () => F.kinoU, guideFootRing: true, guideRadius: 8, guideName: 'この人と話そう', guideTalk: true, guideVisibleOnly: true, guideCompact: true });
     buildBattleJin(rt);
   },
 
