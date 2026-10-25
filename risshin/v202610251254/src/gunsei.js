@@ -41,6 +41,10 @@ class Gunsei {
     this._logIdx = 0;
     this._pending = [];       // 知らせ待ち：{ key, delta, applied:Set, t0 }
     this._flankLogged = new Set();
+    // 半秒ごとの崩れ調べは、支度中に作った備ごとの入れ物へ上書きする。
+    this._flankOpen = new Map();
+    this._flankActive = [];
+    for (const s of this.sonae) this._flankOpen.set(s.id, { id: s.id, bits: 0, tags: [] });
     this._pushCap = new Map();
     this._pushFrom = new Map();
     this._pushRunners = [];
@@ -128,29 +132,38 @@ class Gunsei {
   }
 
   // ---- 連鎖崩壊（15 章）：隣が後退・潰走した側は「露出」。40m 内に敵がいれば士気を削る。後ろの線も対象に ----
+  _markFlank(S, tag, bit) {
+    if (!S) return;
+    let entry = this._flankOpen.get(S.id);
+    // 開戦後に増えた備だけ、初めて調べる時に用意する。
+    if (!entry) { entry = { id: S.id, bits: 0, tags: [] }; this._flankOpen.set(S.id, entry); }
+    if (!entry.bits) this._flankActive.push(entry);
+    if (!(entry.bits & bit)) { entry.bits |= bit; entry.tags.push(tag); }
+  }
   _chainCollapse() {
-    const broke = new Map();   // id -> Set('flankL'|'flankR'|'rear')
-    const mark = (S, tag) => { if (!S) return; const s = broke.get(S.id) || new Set(); s.add(tag); broke.set(S.id, s); };
+    const broke = this._flankOpen, active = this._flankActive;
+    for (const entry of active) { entry.bits = 0; entry.tags.length = 0; }
+    active.length = 0;
     for (const S of this.sonae) {
       if (S.state !== '敗走') continue;   // 15 章：中央備「敗走」で穴ができる（後退中はまだ持ちこたえている）
-      mark(S.left(), 'flankR');    // 自分の左にいた備が崩れた → その備の右側が露出
-      mark(S.right(), 'flankL');   // 右の備が崩れた → その備の左側が露出
-      mark(S.behind(), 'rear');    // 前が崩れた→その後ろの線（後詰・本陣）も露出
+      this._markFlank(S.left(), 'flankR', 2);    // 自分の左にいた備が崩れた → その備の右側が露出
+      this._markFlank(S.right(), 'flankL', 1);   // 右の備が崩れた → その備の左側が露出
+      this._markFlank(S.behind(), 'rear', 4);    // 前が崩れた→その後ろの線（後詰・本陣）も露出
     }
-    for (const [id, tags] of broke) {
+    for (const { id, bits, tags } of active) {
       const S = this.sonae.find((s) => s.id === id);
       if (!S || S.b.aliveNominal() <= 0 || S.state === '敗走') continue;
       // 穴ができただけでは奥の本陣まで崩さない。敵が間近へ寄せて初めて削る。
       if (!this._enemyWithin(S.b.pos, 18)) { this._flankLogged.delete(id); continue; }
       let rate = 0;
-      if (tags.has('flankL')) rate += 0.6;
-      if (tags.has('flankR')) rate += 0.6;
-      if (tags.has('rear')) rate += 1.2;
-      if (tags.has('flankL') && tags.has('flankR')) rate += 1.2;   // 囲まれた
+      if (bits & 1) rate += 0.6;
+      if (bits & 2) rate += 0.6;
+      if (bits & 4) rate += 1.2;
+      if ((bits & 3) === 3) rate += 1.2;   // 囲まれた
       S.addMorale(-rate * TICK);
-      if (!this._flankLogged.has(id)) { this._flankLogged.add(id); logEvent(this.rt, 'flankOpen', { team: this.team, who: id, v: [...tags].join(',') }); }
+      if (!this._flankLogged.has(id)) { this._flankLogged.add(id); logEvent(this.rt, 'flankOpen', { team: this.team, who: id, v: tags.join(',') }); }
     }
-    for (const id of [...this._flankLogged]) if (!broke.has(id)) this._flankLogged.delete(id);
+    for (const id of this._flankLogged) if (!broke.get(id)?.bits) this._flankLogged.delete(id);
   }
   _enemyWithin(p, r) {
     for (const S of this.rt.sonae || []) {
@@ -316,9 +329,13 @@ class Gunsei {
   // ---- 追撃（16 章）：敵の備の過半が潰走したら追う。60m を越えて追うと伏兵・反撃のくじ。40 秒で止めて集める ----
   _pursuit() {
     const rt = this.rt, enemyTeam = this.team === 0 ? 1 : 0;
-    const line = (rt.sonae || []).filter((s) => s.team === enemyTeam && s.line !== 'honjin' && s.line !== 'gotsume');
-    const routedN = line.filter((s) => s.state === '敗走').length;
-    const majorRouted = line.length > 0 && routedN / line.length >= PURSUIT_FRAC;
+    let lineN = 0, routedN = 0;
+    for (const s of rt.sonae || []) {
+      if (s.team !== enemyTeam || s.line === 'honjin' || s.line === 'gotsume') continue;
+      lineN++;
+      if (s.state === '敗走') routedN++;
+    }
+    const majorRouted = lineN > 0 && routedN / lineN >= PURSUIT_FRAC;
     for (const S of this.sonae) {
       if (S.line === 'honjin' || S.b.aliveNominal() <= 0 || S.state === '敗走' || S.state === '混乱') continue;
       if (majorRouted && !this._pursuing.has(S.id)) {
@@ -372,10 +389,14 @@ class Gunsei {
 
   // ---- 負け（14 章）：備の 6 割が潰走、または本陣が崩れたら「戦えない」 ----
   _checkBroken() {
-    const line = this.sonae.filter((s) => s.line !== 'honjin');
-    const routedN = line.filter((s) => s.state === '敗走').length;
+    let lineN = 0, routedN = 0;
+    for (const s of this.sonae) {
+      if (s.line === 'honjin') continue;
+      lineN++;
+      if (s.state === '敗走') routedN++;
+    }
     const honjinBroken = this.honjin && (this.honjin.state === '敗走' || this.honjin.b.aliveNominal() <= 0);
-    if ((line.length && routedN / line.length >= ROUTED_FRAC) || honjinBroken) {
+    if ((lineN && routedN / lineN >= ROUTED_FRAC) || honjinBroken) {
       this.broken = true;
       logEvent(this.rt, 'armyBroken', { team: this.team });
     }

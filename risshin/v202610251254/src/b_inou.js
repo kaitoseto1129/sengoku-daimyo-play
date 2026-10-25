@@ -268,7 +268,7 @@ const inou = {
       return '信長の旗のそばで耐えろ';
     }
     if (F.step === 2) {
-      return '柴田の兵を倒せ';
+      return '▼の兵を倒せ';
     }
     return this.missions[this.missionOf(rt)];
   },
