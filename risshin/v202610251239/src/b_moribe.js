@@ -517,6 +517,8 @@ function moribeFord(rt) {
       vec3 fordSand = mix(vec3(0.52, 0.43, 0.27), vec3(0.78, 0.70, 0.48), fordGrain);
       fordSand = mix(fordSand, vec3(0.25, 0.32, 0.29), fordPebble * 0.65);
       diffuseColor.rgb = mix(diffuseColor.rgb, fordSand, fordBand * 0.85);
+      // 濡れた砂底の明るさを保ち、暗い流れの中に渡れる帯を残す。
+      totalEmissiveRadiance += fordSand * fordBand * 0.22;
       // 浅瀬も水の色を保つ。両岸の細い白波を既存の川面へ描き、終点を土と分ける。
       float fordShore = smoothstep(7.5, 8.6, abs(vWPw.z - ${NIREMATA2.toFixed(1)}));
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.76, 0.85, 0.82),
@@ -1245,8 +1247,10 @@ const moribe = {
       return null; // 討つ武将も頭上の赤い▼にそろえる。
     } else if (F.stage === 'hold' || F.vBroken) {
       if (!F.lineReturning && F.stage === 'hold') {
-        // 守備の間も同じピンの丸を満たす。残りを字で足さない。
-        pos = F.linePoint; q.waiting = q.arrived = true;
+        // 守備中も同じピンを満ちる時計にする。行き先の軸は畳み、任務のそばへ置く。
+        pos = F.linePoint;
+        r = hide = 18;
+        q.waiting = true; q.arrived = true;
         q.progress = this.missionWaitProgress(rt) || 0;
       } else {
         if (!F.lineReturning) return null;
@@ -1262,6 +1266,16 @@ const moribe = {
       r = hide = 10;
     }
     if (!pos) return null;
+    // 川と集合で同じ穴を満たす。中心ではなく実際の合流半径までを残りとする。
+    if (F.signal && !q.arrived) {
+      const key = F.squadGuide || F.gatherUnit || pos;
+      const remaining = Math.max(0, Math.hypot(rt.player.u.pos.x - pos.x, rt.player.u.pos.z - pos.z) - r);
+      if (F.pinApproachKey !== key) {
+        F.pinApproachKey = key; F.pinApproachStart = Math.max(1, remaining);
+      }
+      q.crossing = true;
+      q.progress = Math.min(.98, Math.max(0, 1 - remaining / F.pinApproachStart));
+    }
     q.x = pos.x; q.z = pos.z; q.r = r; q.hide = hide;
     // 対岸は確定済みの高さ、ほかの地点も見えている土に先端を置く。
     q.y = q.unit ? q.unit.pos.y + (q.unit.mounted ? 3.2 : 2.4) : pos === POINT2 ? POINT2.y : drawGroundAt(rt.world, pos.x, pos.z);
@@ -2732,7 +2746,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     const flag = rt.squadGroups.find((g) => !gone(g));
     const cFlag = flag ? fightingCenter(flag) : rt.player.u.pos;
     const p = rt.player.u.pos;
-    const aim = Math.hypot(cFlag.x - p.x, cFlag.z - p.z) <= 24 ? p : cFlag;
+    // 迎撃の下知中は遊び手の持ち場へ来る。離れた組を追って通り過ぎない。
+    const aim = F.stage === 'hold' || Math.hypot(cFlag.x - p.x, cFlag.z - p.z) <= 24 ? p : cFlag;
     for (const g of F.opposition) {
       if (gone(g) || g.hatamoto || (g === F.reserves[0] && !F.wave1) || (g === F.reserves[1] && !F.wave2)) continue;
       if (g.units.some((u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget &&
@@ -2740,13 +2755,14 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
           !u.target.fleeing && !u.target.woundOut && !u.target.noTarget &&
           Math.hypot(u.pos.x - u.target.pos.x, u.pos.z - u.target.pos.z) < 8)) continue;
       const c = fightingCenter(g);
-      if (Math.hypot(c.x - aim.x, c.z - aim.z) <= 8) {
+      if (Math.hypot(c.x - aim.x, c.z - aim.z) <= 3) {
         // 前列は着いている。後列の到着待ちで「移動」の探索六歩に閉じ込めない。
         g.order = 'attack'; g.seekRange = 35; g.onArrive = null;
         continue;
       }
       const dest = g._moribePushDest || (g._moribePushDest = { x: 0, z: 0 });
-      dest.x = aim.x + (g === F.N || g === F.reserves[0] ? -6 : 6); dest.z = aim.z - 6;
+      // 八歩手前で止めず、槍が届く位置まで既存の隊を進める。
+      dest.x = aim.x + (g === F.N || g === F.reserves[0] ? -1.8 : 1.8); dest.z = aim.z - 1.8;
       g.order = 'move'; g.dest = dest;
       g.onArrive = g._moribePushArrive || (g._moribePushArrive = (arrived) => { arrived.order = 'attack'; arrived.seekRange = 35; });
     }

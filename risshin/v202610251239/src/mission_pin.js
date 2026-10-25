@@ -572,10 +572,15 @@ function drawMissionPin(rt) {
       : progress > 0 ? `M40 28L40 8A20 20 0 ${progress > .5 ? 1 : 0} 1 ${40 + Math.sin(angle) * 20} ${28 - Math.cos(angle) * 20}Z` : '');
   }
   pin._progress.style.display = arrivalCue ? 'none' : '';
-  const clock = oke && arrived && showProgress && !arrivalCue;
+  // 森部も到着済みの同じピンで時間を刻む。砂時計で扇形を覆わない。
+  const moribeClock = rt.def.key === 'moribe' && arrived && Number.isFinite(want.progress);
+  if (rt.def.key === 'moribe') {
+    pin._hold.children[2].style.display = pin._hold.children[3].style.display = moribeClock ? 'none' : '';
+  }
+  const clock = oke && arrived && showProgress && !arrivalCue || moribeClock;
   pin._waitTicks.style.display = pin._waitHand.style.display = clock ? '' : 'none';
   if (clock) {
-    const duration = want.waitDuration || 17;
+    const duration = moribeClock ? 12 : want.waitDuration || 17;
     if (pin._tickDuration !== duration) {
       pin._tickDuration = duration;
       let path = '';
@@ -1024,7 +1029,7 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
   const caption = '';   // 行き先の字は出さない（ピンだけ。10/25 チカチカ）
   if (el._words.textContent !== caption) el._words.textContent = caption;
   let angle = 0;
-  if (outside) {
+  if (outside && (!inou || hidden)) {
     rt.camera.getWorldDirection(goalDirection);
     const yaw = Math.atan2(goalDirection.x, goalDirection.z), me = rt.player.u.pos;
     const gx = want.x - me.x, gz = want.z - me.z;
@@ -1045,6 +1050,11 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     }
     if (!found) { el.hidden = true; return; }
     el._routeEdge.setAttribute('transform', `translate(48,-32) rotate(${Math.atan2(dy, dx) * 180 / Math.PI})`);
+  }
+  // 見えている敵の足元は横へずらさず、画面の縁で留める。
+  if (inou) {
+    x = Math.max(48, Math.min(W - 48, x));
+    y = Math.max(104, Math.min(H - 68, y));
   }
   // 行き先の形は回さず、端に添えた小さな矢印だけを回す。
   route.setAttribute('transform', '');
