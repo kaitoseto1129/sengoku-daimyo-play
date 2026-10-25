@@ -147,6 +147,11 @@ export class HudCards {
   // 稲生の任務の相手一人。任務と同じ名を頭上に置き、画面外なら向きを示す。
   // 札と投影用の点は使い回し、倒れたら次の生きた相手に替える。
   inouMissionMark(rt) {
+    // 共通の名札・▼・方向矢印と二重に出さない。
+    if (pinGuideOn(rt)) {
+      if (this.inouTargetMark) this.inouTargetMark.hidden = true;
+      return;
+    }
     const active = rt.def.key === 'inou' && rt.player.u.alive && !rt.flags.ending && !rt.over && !rt.choice &&
       !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
     const u = active ? rt.def.missionSignTarget?.(rt) : null;
@@ -442,6 +447,10 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     // 「左へ下がる」のような向きの字は出さない（kaito 10/23）。
     const yaw = rt.player.yaw + (rt.player.camYawOff || 0), p = rt.player.u.pos;
     let headline = missionCaption(rt, def.missionTaskFirst ? task || title : title || task) || '味方の旗へ進め';
+    // 初陣の目当てと歩数は戦の案内にそろえ、視点と攻撃操作の案内を保つ。
+    if (def.key === 'inou' && /▼.*(?:たおせ|倒せ)/.test(headline)) {
+      headline = def.enemyOrder(rt, headline);
+    }
     // 任務の一行へ実際の攻撃操作を収める。別の札や知らせは増やさない。
     if (!def.missionSignTarget && def.key !== 'moribe' && /^(?:近くの|この)?敵を\s*(?:たおせ|倒せ)$/.test(headline)) {
       const player = rt.player;

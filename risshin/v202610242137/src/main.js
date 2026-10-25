@@ -135,7 +135,7 @@ function ldBegin(keys, battle = '') {
   if (actions) actions.remove();
   const cancel = document.createElement('button');
   cancel.type = 'button'; cancel.className = 'btn small ld-cancel'; cancel.textContent = '準備をやめて題へ戻る';
-  cancel.style.cssText = 'min-height:44px;margin-top:16px';
+  cancel.style.cssText = 'display:block;min-height:44px;margin:16px auto 0';
   cancel.onclick = () => { game.startSeq = (game.startSeq || 0) + 1; hideLoading(); game.title(); };
   document.querySelector('#loading .ldbar').parentElement.appendChild(cancel);
   // 最初の描画から残りの目安を出す。次の工程を待って空欄にしない。

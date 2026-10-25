@@ -44,10 +44,10 @@ const POINT2 = { x: 40, z: 76.5 };
 const FORD_R = 4;
 // ピンと同じ岸まで進み、水から上がれば渡河済み。横へそれても小旗へ戻らせない。
 // 足の上下動で到着を遅らせず、岸そのものの高さで水深を調べる。
-// 歩く高さと描く土の補間差があっても、ピンが刺さる見えている岸で完了する。
+// 描いた土の上に水が残っていなければ完了。川幅の線まで余分に歩かせない。
 // 横へそれた岸もその場の水際で判定し、ピンの奥行きまで歩き直させない。
-const atFordBank = (p, world) => p.z <= nireZ(p.x) - NIRE_WIDTH2 &&
-  (world.waterFootDepthAt(p.x, p.z, world.heightAt(p.x, p.z)) <= .12 || drawGroundAt(world, p.x, p.z) >= .14);
+const atFordBank = (p, world) => p.z < nireZ(p.x) &&
+  world.waterFootDepthAt(p.x, p.z, drawGroundAt(world, p.x, p.z)) <= .12;
 const FRONT2 = { x: 4, z: 20 };
 const ASSEMBLY2 = { x: 14, z: 10 };
 const RETREAT2 = { x: 24, z: 48 };
@@ -521,11 +521,11 @@ function moribeFord(rt) {
   waterMat.needsUpdate = true;
   st.mesh.userData.waterSurfaceReady = true;
   // 川面を直した後の水深で出口を決める。岸より奥まで歩かせない。
-  POINT2.z = nireZ(POINT2.x) - NIRE_WIDTH2 - .5;
+  POINT2.z = nireZ(POINT2.x) - .5;
   const bank = { x: POINT2.x, z: POINT2.z, y: W.heightAt(POINT2.x, POINT2.z) };
   // 歩ける高さだけでなく、実際に描く土も川面より上にある岸へ刺す。
   // 粗い地形の補間差で、水の中に見えるピンへ誘わない。
-  for (let i = 0; i < 24 && (!atFordBank(bank, W) || drawGroundAt(W, bank.x, bank.z) < .14); i++) {
+  for (let i = 0; i < 48 && !atFordBank(bank, W); i++) {
     bank.z -= .5; bank.y = W.heightAt(bank.x, bank.z);
   }
   POINT2.z = bank.z; POINT2.y = drawGroundAt(W, bank.x, bank.z);

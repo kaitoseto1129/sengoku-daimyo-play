@@ -191,6 +191,7 @@ export class HudArmy {
     const ra = Math.max(0, f.a) / (rt.def.key === 'inou' ? 1 : Math.max(1, f.a0 || f.a)), rb = Math.max(0, f.b) / (rt.def.key === 'inou' ? 1 : Math.max(1, f.b0 || f.b));
     const share = ra + rb > 0 ? ra / (ra + rb) * 100 : 50;
     const oke = rt.def.key === 'okehazama';
+    const separateForces = oke || rt.def.key === 'moribe';
     // 戦場の旗と同じ紋を、既存の兵力の棒の両端に描く。字の軍名や総兵数は足さない。
     // 紋は戦が替わった時だけ描き、毎コマ描き直さない。
     if (this.tugMonBattle !== rt.def) {
@@ -211,16 +212,16 @@ export class HudArmy {
     if (key === this.tugKey) return;
     this.tugKey = key;
     tb.classList.toggle('still', !!S.reduceMotion);
-    // 桶狭間は初めの大きい軍を基準に、両軍の残りを別々に減らす。
+    // 桶狭間・森部は初めの大きい軍を基準に、両軍の残りを別々に減らす。
     // 同じ割合だけ減った時も棒が縮み、史実の全軍と紛らわしい裸の数字は出さない。
     const full = Math.max(1, f.a0 || f.a, f.b0 || f.b);
-    tb.querySelector('i.a').style.width = (oke ? Math.max(0, Math.min(1, f.a / full)) * 48 : share).toFixed(1) + '%';
-    tb.querySelector('i.b').style.width = (oke ? Math.max(0, Math.min(1, f.b / full)) * 48 : 100 - share).toFixed(1) + '%';
-    tb.querySelector('s').hidden = oke;
+    tb.querySelector('i.a').style.width = (separateForces ? Math.max(0, Math.min(1, f.a / full)) * 48 : share).toFixed(1) + '%';
+    tb.querySelector('i.b').style.width = (separateForces ? Math.max(0, Math.min(1, f.b / full)) * 48 : 100 - share).toFixed(1) + '%';
+    tb.querySelector('s').hidden = separateForces;
     tb.querySelector('s').style.left = share.toFixed(1) + '%';
-    tb.querySelector('.na').hidden = tb.querySelector('.nb').hidden = oke;
-    tb.querySelector('.na').textContent = oke ? '' : Math.max(0, Math.round(f.a)).toLocaleString('ja-JP');
-    tb.querySelector('.nb').textContent = oke ? '' : Math.max(0, Math.round(f.b)).toLocaleString('ja-JP');
+    tb.querySelector('.na').hidden = tb.querySelector('.nb').hidden = separateForces;
+    tb.querySelector('.na').textContent = separateForces ? '' : Math.max(0, Math.round(f.a)).toLocaleString('ja-JP');
+    tb.querySelector('.nb').textContent = separateForces ? '' : Math.max(0, Math.round(f.b)).toLocaleString('ja-JP');
   }
 
 

@@ -85,7 +85,9 @@ function build(rt, root) {
           // 傷で赤が減っても敵の印は赤のまま。黒い▼を味方と取り違えさせない。
           shader.fragmentShader = shader.fragmentShader.replace(
             'diffuseColor.rgb = vec3(0.007, 0.006, 0.005);',
-            'diffuseColor.rgb = vec3(0.32, 0.012, 0.006);');
+            rt.def.key === 'moribe'
+              ? 'diffuseColor.rgb = vSignLevel.z > 0.0 ? vec3(0.32, 0.012, 0.006) : vec3(0.007, 0.006, 0.005);'
+              : 'diffuseColor.rgb = vec3(0.32, 0.012, 0.006);');
           // 遠い敵も同じ赤で示す。距離の違いは印の大きさだけで伝える。
           shader.vertexShader = shader.vertexShader.replace(
             'vSignA = (signTone < 0.5 ? 0.55 : 1.0) * signFade;',
@@ -324,8 +326,10 @@ export function fieldSignsTick(rt, root) {
     // 命中後も大きさを別の時間で保たず、下の一度だけの拡大にそろえる。
     // 森部の間合いで高さを変えない。幅は届く一人、高さの変化は命中だけ。
     // 森部は接近だけで急に大きくしない。横幅が急に変わるのは実際に届く一人だけ。
+    // 桶狭間は目当てを選んでも、周りの敵の所属を示す▼を小さくしない。
     // 森部の一般兵は距離に合わせて滑らかに拡大し、接近だけでは命中の伸びを起こさない。
-    const pixels = moribe ? (u === commander ? 32 : 24) : !inou && marked && u !== marked && foe ? 9 :
+    // 任務の一人は読みやすい大きさを保ち、討つ武将は新しい上限で示す。
+    const pixels = moribe ? (u === commander || u === missionEnemy ? 32 : 14 + 12 * Math.max(0, Math.min(1, (40 - Math.sqrt(meD2)) / 22))) : !inou && !oke && marked && u !== marked && foe ? 9 :
       // 任務の一人は常に大きい▼。頭上の位置と既存の描画の束は保つ。
       inou ? (u === commander || u === missionEnemy ? 32 : 22) :
       // 目当てと近い敵の読みやすさを保ち、近づくほど同じ▼を滑らかに大きくする。
@@ -370,7 +374,8 @@ export function fieldSignsTick(rt, root) {
     // 稲生の追う一人は遠くても読める幅を保つ。ほかの兵は実寸に収める。
     // 近くの兵も読みやすい大きさを残し、目前の相手を見失わせない。
     const inouFocus = inou && (u === missionEnemy || hit > 0 || defeated);
-    const k = Math.min(moribe ? (u === commander ? 2 : 1.2 + .4 * Math.max(0, 1 - Math.sqrt(meD2) / 22)) : inou ? (inouFocus ? 8 : near ? 2 : u === commander ? 1.5 : 1.2) : u === commander ? 32 : oke && u === missionEnemy ? 8 : 3, (inou ? inouFocus ? 24 : near ? 28 : 18 : moribe ? pixels : width) * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) *
+    // 森部は近い敵と討つ武将の上限を広げ、頭上の▼と命中の伸びを携帯でも読める幅に保つ。
+    const k = Math.min(moribe ? (u === commander ? 8 : u === missionEnemy ? 3 : 1.2 + 1.8 * Math.max(0, Math.min(1, (40 - Math.sqrt(meD2)) / 22))) : inou ? (inouFocus ? 8 : near ? 2 : u === commander ? 1.5 : 1.2) : u === commander ? 32 : oke && u === missionEnemy ? 8 : 3, (inou ? inouFocus ? 24 : near ? 28 : 18 : moribe ? pixels : width) * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) *
       (moribe || inou ? 1 : 1 + (pulse > 0 ? 1.2 * pulse : reachable && !oke ? .55 : 0));
     dummy.position.copy(headPos);
     dummy.quaternion.copy(q);
@@ -397,9 +402,9 @@ export function fieldSignsTick(rt, root) {
     // 森部の縦の伸びは命中だけ。敵の振りかぶりを命中の反応と取り違えさせない。
     // 追う相手の▼だけ、残る間合いに合わせて横に開く。届いた瞬間はさらに広げる。
     const okeApproach = oke && u === missionEnemy ? 1 + .6 * Math.max(0, Math.min(1, 1 - (Math.sqrt(meD2) - okeReach) / 12)) : 1;
-    // 森部は届く一人だけ横へ開く。命中は縦へ伸ばし、大きな▼で隣の頭を覆わない。
+    // 森部は届く一人だけ横へ開き、命中の縦の伸びは控えめにして隣の頭を覆わない。
     dummy.scale.set(oke ? okeScale * Math.max(reachable ? 2.2 : okeApproach, 1 + 1.2 * pulse) : moribe ? k * Math.max(reachable ? 1.7 : 1, 1 + .7 * pulse) : inou ? k * Math.max(inouWidth, 2.2 * pulse) : k * (1 + .5 * pulse),
-      oke || moribe || inou ? (oke ? okeScale : k) * (blocked ? .55 : 1 + (moribe ? 1.2 : 1) * pulse) : k, oke ? okeScale : k);
+      oke || moribe || inou ? (oke ? okeScale : k) * (blocked ? .55 : 1 + (moribe ? .55 : 1) * pulse) : k, oke ? okeScale : k);
     // 森部の討ち取りと稲生の討ち取りは、それぞれの時間で同じ本人の印を閉じる。
     if (defeated) {
       const closing = Math.max(0, Math.min(1, (defeatUntil - rt.t) / .8));
@@ -428,9 +433,9 @@ export function fieldSignsTick(rt, root) {
       // 森部は白い別の印にせず、間合いも命中も赤い▼のまま保つ。
       const justHit = special && hitLeft > (oke ? 1.7 : inou ? 1.95 : 1.7);
       // 稲生の白縁と幅広は実際に届く一人だけ。命中は縦の伸びと赤の減りで示す。
-      // 森部は赤い中身を保ち、自分への振りかぶりは金縁、届く一人は白縁で区別する。
+      // 森部は赤い中身を保ち、命中した本人と自分への振りかぶりは金縁、届く一人は白縁で区別する。
       // 桶狭間は暗い縁の赤い▼を保ち、間合いは横幅、命中は縦の伸びと赤の減りで示す。
-      const tone = inou ? hot && !defeated ? 2 : 1 : moribe ? hit > 0 || defeated ? 1 : danger > 0 ? 3 : reachable ? 2 : 1 : oke ? 1 : justHit ? 3 : hot ? 2 : 1;
+      const tone = inou ? hot && !defeated ? 2 : 1 : moribe ? hit > 0 || defeated || danger > 0 ? 3 : reachable ? 2 : 1 : oke ? 1 : justHit ? 3 : hot ? 2 : 1;
       if (special) {
         const c = s.signPool[s.signCandidates.length];
         c.u = u; c.matrix.copy(dummy.matrix); c.life = life;
