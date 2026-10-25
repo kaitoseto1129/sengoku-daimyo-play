@@ -45,7 +45,6 @@ export class HudCards {
   // 近い敵の頭上に小さな印（▼と「敵」）。四人まで・十四メートルまで。印は使い回し、毎コマ作らない（kaito 10/22 稲生 3）。
   foeMarks(rt) {
     this.enemyTriangleSigns(rt);
-    this.inouMissionMark(rt);
     if (pinGuideOn(rt)) {
       for (const el of this.missionAllyEls || []) el.hidden = true;
       return; // 全戦で兵・隊・旗の頭上の札と印を作らない。

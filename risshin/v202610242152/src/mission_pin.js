@@ -237,7 +237,7 @@ function drawMissionPin(rt) {
     return;
   }
   // 稲生の敵本人は頭上の赤い▼。届く足場へ向かう間だけ、地面の行き先ピンを残す。
-  if (inouEnemy && !want.approach) {
+  if (inouEnemy && (enemyMarked || !want.approach)) {
     if (pin) pin.hidden = true;
     return;
   }
@@ -298,8 +298,8 @@ function drawMissionPin(rt) {
     const sx = (goalPoint.x + 1) * W / 2, sy = (1 - goalPoint.y) * H / 2;
     enemyVisible = goalPoint.z >= -1 && goalPoint.z <= 1 && sx >= 0 && sx <= W && sy >= 0 && sy <= H;
   }
-  // 接近中は届く足場を示す。敵の▼が見えても、届くまではピンを消さない。
-  if (enemyVisible && !want.approach) { pin.hidden = true; return; }
+  // 本人の▼が見えたらピンを畳む。離れた二つの印で別の兵へ誘わない。
+  if (enemyVisible) { pin.hidden = true; return; }
   // 案内役は頭上の人型と下矢印、自分は足元の輪。離れても同じ形で追えるようにする。
   const groundPerson = rt.def.key === 'okehazama' && want.unit && (want.footRing || want.follow);
   // 集合ピンは到着の前後とも同じ地面へ固定する。自分の印に見える追従をしない。
@@ -511,7 +511,7 @@ function drawMissionPin(rt) {
     pin._hold.children[2].style.display = oke ? 'none' : '';
     pin._hold.children[3].style.display = oke ? 'none' : '';
     pin._hold.children[0].setAttribute('stroke', oke ? 'none' : '#fff3ba');
-    pin._progress.setAttribute('fill', oke ? '#e4f2cb' : '#e8c25a');
+    pin._progress.setAttribute('fill', oke ? '#fff3ba' : '#e8c25a');
     pin._progress.setAttribute('stroke', 'none');
     pin._progress.setAttribute('stroke-width', '0');
     // 到着の内周と、満ちていく扇形だけで待つ進みを示す。
@@ -588,9 +588,9 @@ function drawMissionPin(rt) {
   }
   // 旗の形を回さず、向きは添えた矢印で示す。
   if (want.passage && !outside) flag.setAttribute('transform', 'translate(-22,0)');
-  // 到着後は先端を消す。同じ場所の丸が満ちるまで、その場で待てる。
+  // 到着後も先端を残す。集合で見たピンの穴が満ち、別の丸へ変わらない。
   if (oke) {
-    if (arrived) flag.style.display = 'none';
+    if (arrived) flag.style.display = '';
     // 細い軸を地面まで伸ばし、兵本人に付く印と区別する。
     if (!outside || arrived) flag.setAttribute('d', 'M40 68L34 58V37A30 30 0 1 1 46 37V58Z M40 -12A20 20 0 1 0 40 28A20 20 0 1 0 40 -12Z');
     // 待機の丸は地面の同じ位置に保つ。
@@ -869,7 +869,9 @@ function updateEnemyTarget(rt) {
     const gx = u.pos.x - me.pos.x, gz = u.pos.z - me.pos.z;
     const right = -gx * Math.cos(yaw) + gz * Math.sin(yaw);
     const forward = gx * Math.sin(yaw) + gz * Math.cos(yaw);
-    caption = inou ? `${name}・${distanceText}\n${right >= 0 ? '右' : '左'}へ視点を回す` : '敵';
+    // 相手の背後ではなく、自分から見た方向と視点を回す操作を伝える。
+    const direction = `自分の${Math.abs(right) > Math.abs(forward) * .35 ? right >= 0 ? '右' : '左' : ''}${forward < 0 ? '後ろ' : '前'}`;
+    caption = inou ? `${name}・${distanceText}\n${direction}・${right >= 0 ? '右' : '左'}へ視点を回す` : '敵';
     // 稲生の端の矢印は視点を回す向き。後ろの敵へ前進を続けさせない。
     enemyTarget._direction.style.transform = `rotate(${inou ? right >= 0 ? 0 : Math.PI : Math.atan2(-forward, right)}rad)`;
     // 印・矢印・文を一組で収める。任務や体力と重ならない端の余白を探す。
