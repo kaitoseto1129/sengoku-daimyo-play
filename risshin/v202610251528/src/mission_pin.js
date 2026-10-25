@@ -663,7 +663,7 @@ function drawMissionPin(rt) {
     const holdTransform = `${transform} translate(4,-17.2) scale(.9)`;
     if (flag.getAttribute('transform') !== transform) flag.setAttribute('transform', transform);
     if (pin._hold.getAttribute('transform') !== holdTransform) pin._hold.setAttribute('transform', holdTransform);
-    // 集合範囲は実寸の囲みだけで示し、固定の小さな輪は重ねない。
+    // 集合はピン一本で示し、足元の輪は重ねない。
     // 到着後も輪を出さず、画面端の丸を次の集合場所に見せない。
     for (const ring of pin._rings) {
       ring.style.display = 'none';
@@ -673,6 +673,7 @@ function drawMissionPin(rt) {
       // 到着のチェックと待つ扇形を同じ中心へそろえ、中心を保って読みやすく広げる。
       pin._hold.setAttribute('transform', 'translate(-8,6.4) scale(1.2)');
       pin._hold.children[0].setAttribute('stroke', '#e4f2cb');
+      // 着いた瞬間のチェックを一拍見せてから、同じ穴で待ち時間を満たす。
       pin._arrivedMark.style.display = arrivalCue ? '' : 'none';
       pin._arrivedMark.removeAttribute('transform');
     }

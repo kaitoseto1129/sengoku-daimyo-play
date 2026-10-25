@@ -347,7 +347,7 @@ export class HudCards {
   progress(rt) {
     const def = rt.def, root = this.root;
     if (def.town || def.dojo) {
-      this.progChangeAnimation?.cancel(); this.progChangeAnimation = null;
+      this.progChangeUntil = 0;
       if (this.prog) { this.prog.hidden = true; this.prog.classList.remove('pg-changing'); root.classList.remove('prog-on'); }
       return;
     }
@@ -395,9 +395,8 @@ html:root body #hud #h-prog .opening-controls-help[hidden] { display:none !impor
 
 /* 共通の行動札は右上に固定し、携帯横でも一行を大きく読む。 */
 #hud.field-clean #h-prog .pg-st span { font-size:max(24px, calc(24px * var(--text-scale, 1))); }
-/* 同じ任務の一行だけを中央へ運ぶ。札や字を複製しない。 */
-html:root body #hud #h-prog.pg-changing > :not(.pg-st) { display:none !important; }
-html:root body #hud #h-prog.pg-changing .pg-st span { white-space:nowrap; }
+/* 任務が替わった時だけ縁を強調する。動きの物や待ちの処理は作らない。 */
+#hud #h-prog.pg-changing { box-shadow:0 0 0 3px #e8c25a; }
 #hud.ending #h-prog, #hud:has(#bigmap:not([hidden])) #h-prog { visibility:hidden; }
 /* 稲生は右上に短い任務を一行だけ置く。 */
 html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog {
@@ -577,29 +576,19 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
   missionChange(rt, headline) {
     const el = this.prog, reduced = S.reduceMotion;
     const changed = this.progChangeRt !== rt || this.progChangeHeadline !== headline;
-    const stopMotion = reduced && this.progChangeAnimation && !this.progChangeReduced;
-    if (!changed && !stopMotion && !rt.over) return;
+    if (reduced || rt.over || rt.t >= (this.progChangeUntil || 0)) el.classList.remove('pg-changing');
+    if (!changed && !rt.over) return;
     if (this.progChangeRt !== rt) this.progChangeTimes = new Map();
     this.progChangeRt = rt; this.progChangeHeadline = headline;
-    this.progChangeAnimation?.cancel(); this.progChangeAnimation = null;
+    this.progChangeUntil = 0;
     el.classList.remove('pg-changing');
-    if (rt.over || !headline) return;
-    this.progChangeReduced = reduced;
+    if (rt.over || !headline || reduced) return;
     // 同じ知らせの強調は八秒あけ、札は右上から動かさない。
     const last = this.progChangeTimes.get(headline) ?? -Infinity;
     if (rt.t - last < 8) return;
     this.progChangeTimes.set(headline, rt.t);
-    const animation = el.animate([
-      { boxShadow: '0 0 0 transparent' },
-      { boxShadow: '0 0 0 3px #e8c25a', offset: .35 },
-      { boxShadow: '0 0 0 transparent' },
-    ], { duration: reduced ? 0 : 800, easing: 'ease-in-out' });
-    this.progChangeAnimation = animation;
-    animation.onfinish = () => {
-      if (this.progChangeAnimation !== animation) return;
-      this.progChangeAnimation = null;
-      el.classList.remove('pg-changing');
-    };
+    this.progChangeUntil = rt.t + .8;
+    el.classList.add('pg-changing');
   }
 
 
