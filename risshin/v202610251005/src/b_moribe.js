@@ -512,8 +512,8 @@ function moribeFord(rt) {
       vec2 fordCell = fract(vWPw.xz * 1.4 + vec2(fordGrain * 0.25, 0.0)) - 0.5;
       float fordPebble = 1.0 - smoothstep(0.16, 0.29, length(fordCell * vec2(1.0, 1.4)));
       float fordRipple = smoothstep(0.86, 0.98, sin(vWPw.z * 6.0 + fordGrain * 2.0 - uTime * 1.4));
-      // 水の青緑を残した砂底と、地面に固定した小石で浅さを見せる。
-      vec3 fordSand = mix(vec3(0.43, 0.47, 0.32), vec3(0.67, 0.66, 0.46), fordGrain);
+      // 青い流れの中に砂底の帯を通し、入口から出口まで歩ける浅さを見せる。
+      vec3 fordSand = mix(vec3(0.52, 0.43, 0.27), vec3(0.78, 0.70, 0.48), fordGrain);
       fordSand = mix(fordSand, vec3(0.25, 0.32, 0.29), fordPebble * 0.65);
       diffuseColor.rgb = mix(diffuseColor.rgb, fordSand, fordBand * 0.85);
       // 浅瀬も水の色を保つ。両岸の細い白波を既存の川面へ描き、終点を土と分ける。
@@ -527,8 +527,8 @@ function moribeFord(rt) {
   waterMat.needsUpdate = true;
   st.mesh.userData.waterSurfaceReady = true;
   // 川面を直した後の水深で出口を決める。岸より奥まで歩かせない。
-  // 水際から探し、川面の全幅を抜けた最初の乾いた土へ刺す。
-  POINT2.z = nireZ(POINT2.x) - NIRE_WIDTH2 - .5;
+  // 川面の全幅を抜けた土へ刺す。浅い水中を岸と取り違えない。
+  POINT2.z = nireZ(POINT2.x) - NIRE_WIDTH2 - 2;
   const bank = { x: POINT2.x, z: POINT2.z, y: W.heightAt(POINT2.x, POINT2.z) };
   // 歩ける高さだけでなく、実際に描く土も川面より上にある岸へ刺す。
   // 粗い地形の補間差で、水の中に見えるピンへ誘わない。
@@ -755,7 +755,6 @@ function moribeNearBodies(rt) {
       const t = len2 > 0.01 ? (dx * vx + dz * vz) / len2 : -1;
       const width = u.mounted ? 1.9 : 1.1;
       const y = c.y + (p.y + 1.3 - c.y) * t;
-      // 自分までの線分を遮る体を避ける。自分より先の敵は隠さない。
       const blocks = this.fpK < 0.5 && t > 0 && t < 1
         && (dx - vx * t) ** 2 + (dz - vz * t) ** 2 < width * width
         && y >= u.pos.y && y <= u.pos.y + (u.mounted ? 4.4 : 2.5);
@@ -1121,7 +1120,7 @@ const moribe = {
         (F.stage === 'hold' || F.stage === 'contact' && F.vBroken) && F.lineReturning)
       return '仲間と集まれ';
     // 守備の終了に撃破人数の条件はない。倒す人数を探させない。
-    if (F.stage === 'hold') return '耐えろ';
+    if (F.stage === 'hold') return '敵を迎え撃って耐えろ';
     // 討つ相手の名前は許された任務一行に収め、頭上に別の札を足さない。
     const commander = this.commanderTarget(rt);
     if (commander?.name) return `${commander.name}を倒せ`;
@@ -1173,7 +1172,12 @@ const moribe = {
   tacticsCommandText: '', // 横へ回る助言に、操作のない「配下に命じて押せ」を足さない。
   missionWaitProgress(rt) {
     const F = rt.flags;
-    if (!F.signal && F.pointInside && !F.pointDone) return F.pointReady ? 1 : F.fordGatherProgress || 0;
+    if (!F.signal && F.pointInside && !F.pointDone) {
+      const arrivedAt = F.fordArrivedAt ?? rt.t;
+      // 仲間が足止めされても、開戦までの待ちの上限に合わせて丸を満たす。
+      return F.pointReady ? 1 : Math.min(.99, Math.max(F.fordGatherProgress || 0,
+        (rt.t - arrivedAt) / Math.max(1, 45 - arrivedAt)));
+    }
     if (F.stage === 'assemble' && !F.gatherUnit && Math.hypot(rt.player.u.pos.x - F.asm.x, rt.player.u.pos.z - F.asm.z) < 12)
       return Math.min(1, (F.assembleT || 0) / 8);
     if (F.stage === 'hold') {
@@ -1210,6 +1214,21 @@ const moribe = {
       q.progress = q.arrived ? q.waiting ? this.missionWaitProgress(rt) || 0 : 1 :
         // 横へずれても岸へ渡った分を示す。到着前は満杯にしない。
         Math.max(0, Math.min(.98, (START2.z - rt.player.u.pos.z) / (START2.z - POINT2.z)));
+      // 待っている本人へ同じピンを付ける。仲間が動いても別人へ毎コマ移さない。
+      if (q.waiting && !F.pointReady) {
+        let ally = F.fordWaitUnit;
+        if (!ally?.alive || ally.gone || ally.fleeing || ally.woundOut || ally.noTarget || ally.group?.routed || atFordBank(ally.pos, rt.world)) {
+          ally = null;
+          let best = Infinity;
+          for (const u of rt.squad) {
+            if (!u.alive || u.gone || u.fleeing || u.woundOut || u.noTarget || u.group?.routed || atFordBank(u.pos, rt.world)) continue;
+            const d = (u.pos.x - POINT2.x) ** 2 + (u.pos.z - POINT2.z) ** 2;
+            if (d < best) { best = d; ally = u; }
+          }
+          F.fordWaitUnit = ally;
+        }
+        if (ally) { q.unit = ally; pos = ally.pos; }
+      }
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
     } else if (F.stage === 'assemble') {
@@ -1225,9 +1244,8 @@ const moribe = {
       return null; // 討つ武将も頭上の赤い▼にそろえる。
     } else if (F.stage === 'hold' || F.vBroken) {
       if (!F.lineReturning && F.stage === 'hold') {
-        // 守備中も到着済みの同じピンを時計にする。満杯で反撃へ替わる。
-        pos = F.linePoint; r = hide = 18;
-        q.waiting = true; q.arrived = true;
+        // 守備の間も同じピンの丸を満たす。残りを字で足さない。
+        pos = F.linePoint; q.waiting = q.arrived = true;
         q.progress = this.missionWaitProgress(rt) || 0;
       } else {
         if (!F.lineReturning) return null;
@@ -1245,7 +1263,7 @@ const moribe = {
     if (!pos) return null;
     q.x = pos.x; q.z = pos.z; q.r = r; q.hide = hide;
     // 対岸は確定済みの高さ、ほかの地点も見えている土に先端を置く。
-    q.y = pos === POINT2 ? POINT2.y : drawGroundAt(rt.world, pos.x, pos.z);
+    q.y = q.unit ? q.unit.pos.y + (q.unit.mounted ? 3.2 : 2.4) : pos === POINT2 ? POINT2.y : drawGroundAt(rt.world, pos.x, pos.z);
     return q;
   },
   keepCombatTaskHeading: true,   // 敵一人への押し方で、組を率いる任務の見出しを消さない。

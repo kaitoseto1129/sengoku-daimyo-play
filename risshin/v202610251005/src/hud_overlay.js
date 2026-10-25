@@ -27,7 +27,7 @@ export class HudOverlay {
     // 渡河の大きさと接地点は固定し、穴が満ちた時に岸への到着を示す。
     // 渡河も長い軸で岸へ刺す。兵の頭上の▼と形を分け、接地点は動かさない。
     // 待つ間は丸の面積を広げ、携帯でも満ちた分と残った分を見分けられる大きさにする。
-    const pinScale = pin?.waiting && pin.arrived ? 1.7 : pin?.waiting ? .95 : pin?.crossing ? 1.1 : 1.3;
+    const pinScale = pin?.unit ? .95 : pin?.waiting && pin.arrived ? 1.7 : pin?.waiting ? .95 : pin?.crossing ? 1.1 : 1.3;
     g.translate(x, y); g.scale(pinScale, pinScale); x = 0; y = 0;
     // 大きさが変わってもピンの接地点は岸から動かさない。
     if (!pin?.waiting || !pin.arrived) {
@@ -75,9 +75,17 @@ export class HudOverlay {
       g.restore();
     } else if (pin?.progress > 0) {
       // ピンの中だけを満たす。待ち時間の札や別の印は増やさない。
-      g.beginPath(); g.moveTo(x, y - 33);
-      g.arc(x, y - 33, 12, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, pin.progress));
-      g.closePath(); g.fillStyle = '#ffe28a'; g.fill();
+      g.beginPath();
+      if (pin.crossing) {
+        // 渡河は下から満ちる形、待機は時計。同じピンの中で区別する。
+        g.arc(x, y - 33, 12, 0, Math.PI * 2); g.clip();
+        const height = 24 * Math.min(1, pin.progress);
+        g.fillStyle = '#ffe28a'; g.fillRect(x - 12, y - 21 - height, 24, height);
+      } else {
+        g.moveTo(x, y - 33);
+        g.arc(x, y - 33, 12, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, pin.progress));
+        g.closePath(); g.fillStyle = '#ffe28a'; g.fill();
+      }
     }
     // 待機中だけ時計の針を回す。移動先と待ち時間を同じ一本で伝える。
     if (pin?.waiting && pin.arrived) {
@@ -146,7 +154,7 @@ export class HudOverlay {
     if (moribe && !pinTarget) return;
     // 到着後は同じピンを任務の下で満たす。足元や背後へ隠れて、終わりが見えなくなるのを防ぐ。
     // 移動する時だけ地面へ戻し、時計と行き先を同時に二本出さない。
-    if (moribe && pinTarget.waiting && pinTarget.arrived) {
+    if (moribe && pinTarget.waiting && pinTarget.arrived && !pinTarget.unit) {
       this.drawBattleGoalSign(g, rt, VIEW.w - 52, 220, false, pinTarget);
       return true;
     }
