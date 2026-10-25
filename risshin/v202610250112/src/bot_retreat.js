@@ -1,18 +1,18 @@
 // 退く道を兵の体や追手の刃が塞ぐ時、道の内側の隙間へ一歩ずれる。
 // 兵を動かしたり消したりせず、遊び手の歩く向きだけを選ぶ。
-export function retreatThroughGap(b, inp, allowed, distance = 1.5) {
+export function retreatThroughGap(b, inp, allowed, distance = 1.5, avoidBlades = false) {
   if (!inp.k.has('KeyW')) return;
   const p = b.player, u = p.u;
   const q = b._botRetreatGap || (b._botRetreatGap = { at: -1, yaw: 0, goal: 0, x: 0, z: 0, open: false, step: { x: 0, z: 0 } });
   const goal = p.yaw, stride = Math.max(.3, Math.min(1.5, distance));
   // 走って角へ着いた時は、四分の一秒を待たず今の足場から調べ直す。
-  if (q.at > b.t && Math.abs(stride - q.stride) < .05 && Math.cos(goal - q.goal) > 0.95 &&
+  if (q.at > b.t && q.avoidBlades === avoidBlades && Math.abs(stride - q.stride) < .05 && Math.cos(goal - q.goal) > 0.95 &&
       Math.hypot(u.pos.x - q.x, u.pos.z - q.z) < .35) {
     p.yaw = q.yaw;
     if (!q.open) inp.k.delete('KeyW');
     return;
   }
-  q.at = b.t + 0.25; q.goal = goal; q.yaw = goal; q.x = u.pos.x; q.z = u.pos.z; q.stride = stride;
+  q.at = b.t + 0.25; q.goal = goal; q.yaw = goal; q.x = u.pos.x; q.z = u.pos.z; q.stride = stride; q.avoidBlades = avoidBlades;
   let best = -Infinity;
   // 前と横が詰まった時は、斜め後ろへ一歩離れてから道へ戻る余地も探す。
   for (let i = 0; i < 8; i++) {
@@ -22,7 +22,7 @@ export function retreatThroughGap(b, inp, allowed, distance = 1.5) {
     step.x = u.pos.x + sx * stride; step.z = u.pos.z + sz * stride;
     if (b.army.wallBetween(u.pos, -1, step) || !b.world.walkable(step.x, step.z, u.pos.y) ||
         Math.abs(b.world.heightAt(step.x, step.z) - u.pos.y) > 1.5 || allowed && !allowed(b, step)) continue;
-    let crowd = 0;
+    let crowd = 0, unsafe = false;
     for (const o of b.army.units) {
       if (o === u || !o.alive || o.gone || o.downed || o.noTarget || o.isStruct || o.group?.hidden ||
           Math.abs(o.pos.y - u.pos.y) > 2) continue;
@@ -34,11 +34,20 @@ export function retreatThroughGap(b, inp, allowed, distance = 1.5) {
       const end = Math.hypot(o.pos.x - step.x, o.pos.z - step.z);
       // 初めから離れる歩みだけ通す。終点が遠くても、途中で兵の体を横切る足は塞がる。
       const clearance = dx * sx + dz * sz <= 0 ? end : gap;
+      if (avoidBlades && clearance < 1.4 && clearance + .01 < Math.hypot(dx, dz) &&
+          !b.army.wallBetween(u.pos, -1, o.pos)) { unsafe = true; break; }
       // 塀の向こうの密集は、こちらの戸口や曲輪の足場を塞がない。
       if (clearance < 1.4 && !b.army.wallBetween(u.pos, -1, o.pos)) crowd += (1.4 - clearance) * 6;
       // 肩が空いていても、本人を狙う槍の前へ退けば次の突きを受ける。
       // 順番待ちは体だけ数え、実際の追手から刃の外へ離れる向きを選ぶ。
       const pursuing = o.target === u || o.atk?.target === u || o.swing && !o.swing.done && o.swing.target === u;
+      // 待ち場から離れる一歩では、着地点だけでなく振り出された横槍の途中も除く。
+      const striking = o.atk?.target === u && !o.atk.ranged && !o.atk.bow ||
+        o.swing?.target === u && !o.swing.done;
+      if (avoidBlades && o.team !== u.team && !o.fleeing && !o.woundOut &&
+          (striking || pursuing && !o.playerQueue && (o.sidearm || o.type !== 'gun' && o.type !== 'bow')) &&
+          gap < (o.reach || 2.8) + .6 && gap + .01 < Math.hypot(dx, dz) &&
+          !b.army.wallBetween(u.pos, -1, o.pos)) { unsafe = true; break; }
       if (o.team !== u.team && pursuing && !o.playerQueue && !o.fleeing && !o.group?.routed &&
           !o.woundOut && !o.rearWound && (o.sidearm || o.type !== 'gun' && o.type !== 'bow')) {
         const reach = (o.reach || 2.8) + 0.8;
@@ -47,6 +56,7 @@ export function retreatThroughGap(b, inp, allowed, distance = 1.5) {
         }
       }
     }
+    if (unsafe) continue;
     const score = Math.cos(turn) * 2 - crowd;
     if (score > best) { best = score; q.yaw = yaw; }
   }
@@ -54,6 +64,32 @@ export function retreatThroughGap(b, inp, allowed, distance = 1.5) {
   q.open = best > -Infinity;
   if (!q.open) inp.k.delete('KeyW');
   p.yaw = q.yaw;
+}
+
+// 待ち場へ刃が届いたら、廃止された回避ではなく普段の駆け足で一歩離れる。
+// 向きは打ち手へ残す。気力を条件にせず、壁・火・切岸と兵の隙間を調べる。
+export function retreatRunFromBlade(b, inp, allowed) {
+  const p = b.player, u = p.u, face = p.yaw;
+  if (p.mounted || u.climb || p.knockT > 0) return false;
+  p.yaw = face + Math.PI;
+  inp.k.add('KeyW');
+  retreatThroughGap(b, inp, allowed, 1.5, true);
+  const walk = p.yaw, moving = inp.k.has('KeyW');
+  inp.k.delete('KeyW'); p.yaw = face;
+  if (!moving || Math.cos(walk - face) > .01) return false;
+  // 終点だけが平らでも、途中の切岸や火を横切らない。
+  const step = b._botRetreatRunPoint || (b._botRetreatRunPoint = { x: 0, y: 0, z: 0 });
+  for (let i = 1; i <= 3; i++) {
+    step.x = u.pos.x + Math.sin(walk) * i * .5;
+    step.z = u.pos.z + Math.cos(walk) * i * .5; step.y = u.pos.y;
+    if (!b.world.walkable(step.x, step.z, u.pos.y) ||
+        Math.abs(b.world.heightAt(step.x, step.z) - u.pos.y) > 1.5 ||
+        allowed && !allowed(b, step)) return false;
+  }
+  const axis = b._botRetreatRunAxis || (b._botRetreatRunAxis = { x: 0, y: 0 });
+  axis.x = Math.sin(face - walk); axis.y = -Math.cos(walk - face);
+  inp.axis = axis; inp.runHeld = true;
+  return true;
 }
 
 // 戸口や手当ての印で止まっていても、目前の刃には退路の側へかわす。

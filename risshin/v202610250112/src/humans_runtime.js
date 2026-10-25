@@ -894,8 +894,9 @@ function humansStep(rt, dt, army, cam) {
         else scanMenpo(h.parts.face, p.key, p.L.menpoScan);
       }
     }
-    // 遠い人は軽い形（本人・名のある武将は替えない）。境目で行き来しないよう 1m の幅を持たせる
-    if (h.geoFar && !qualityKeeper(u) && !named) setFar(h, c.dist > 15 && (u.qualityTier != null ? u.qualityTier > 0 : c.dist > detailNear - (h.lodFar ? 1 : 0) && c.dist > Math.min(HUM.lod, detailNear)));
+    // 遠い人は軽い形（本人・名のある武将は替えない）。小谷・設楽原の八メートル指定も反映する。
+    // 指定のない戦は従来どおり十五メートルまで細部を保つ。人数・骨・攻撃は変えない。
+    if (h.geoFar && !qualityKeeper(u) && !named) setFar(h, c.dist > Math.min(15, detailNear) && (u.qualityTier != null ? u.qualityTier > 0 : c.dist > detailNear - (h.lodFar ? 1 : 0) && c.dist > Math.min(HUM.lod, detailNear)));
     if (!qualityKeeper(u)) {
       const detailed = c.surfaceDetail && !h.lodFar;
       if (h.parts.armor) h.parts.armor.material = detailed ? nearCrowdMat(Math.floor(((h.seed || 0) * 11.3) % 1 * 4)) : UNIT_MAT;

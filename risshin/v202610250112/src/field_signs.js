@@ -76,7 +76,7 @@ function build(rt, root) {
           'vSignLevel = vec3(position.z > 0.0 ? 1.0 : 0.0, position.y, signLife);');
         // 森部は暗い縁を保ち、自分へ振りかぶる本人の中の赤だけを明るくする。
         shader.vertexShader = shader.vertexShader.replace('if (signTone > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(1.0);',
-          rt.def.key === 'moribe' ? 'if (signTone > 1.5 && position.z > 0.0) vColor = vec3(1.0, 0.22, 0.12);' :
+          rt.def.key === 'moribe' ? 'if (position.z > 0.0) { if (signTone > 3.5) vColor = vec3(1.0, 0.45, 0.25); else if (signTone > 2.5) vColor = vec3(1.0, 0.22, 0.12); else if (signTone > 1.5) vColor = vec3(1.0, 0.06, 0.02); }' :
           rt.def.key === 'inou' ? 'if (signTone > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(1.0);' :
           'if (signTone > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(1.0);');
         shader.fragmentShader = 'varying vec3 vSignLevel;\n' + shader.fragmentShader.replace('#include <color_fragment>',
@@ -176,7 +176,7 @@ export function fieldSignsTick(rt, root) {
   const reachableTarget = rt.player.inRange && rt.player.rangeCueTarget?.alive ? rt.player.rangeCueTarget : null;
   // 稲生も共通の頭上印を保ち、大きな札への置き換えや周囲の縮小をしない。
   const marked = rt.def.key === 'inou' || rt.def.key === 'moribe' || rt.def.key === 'okehazama' ? null : markedEnemy(rt);
-  const missionEnemy = (rt.def.key === 'inou' ? rt.def.missionSignTarget?.(rt) : null) || marked || (rt.def.key === 'inou' || rt.def.key === 'okehazama' || rt.def.key === 'moribe' ? rt.def.missionSignTarget?.(rt) : null) || reachableTarget ||
+  const missionEnemy = marked || (rt.def.key === 'inou' || rt.def.key === 'okehazama' || rt.def.key === 'moribe' ? rt.def.missionSignTarget?.(rt) : null) || reachableTarget ||
     rt.hud.approachGuideEnemy || rt.hud.attackGuideEnemy || rt.hud.aimGuideEnemy ||
     (rt.player.lock?.alive ? rt.player.lock : null) || rt.missionGuide?.closeEnemy ||
     (rt.guideEnemyShown ? rt.guideEnemy : null);
@@ -234,6 +234,8 @@ export function fieldSignsTick(rt, root) {
     if ((!u.alive || u.dying || u.woundOut || u.rearWound || u.downed) && !defeated || u.gone || u.isPlayer || u.isStruct || u.civ || u.type === 'dummy' || u.type === 'porter' || u.team > 1) continue;
     const dx = u.pos.x - P.x, dz = u.pos.z - P.z, d2 = dx * dx + dz * dz;
     const foe = u.team !== me.team;
+    // 稲生は追う一人だけ。周囲の▼と目標を取り違えさせない。
+    if (inou && foe && u !== missionEnemy) continue;
     const meD2 = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
     // 届く予告は実際に攻撃できる一人だけ。横や背後の敵まで同時に強調しない。
     const hot = foe && reachHot > 0 && u.alive && ((moribe || inou || oke) ? u === reachableTarget : meD2 <= reachHot * reachHot);
@@ -378,12 +380,16 @@ export function fieldSignsTick(rt, root) {
     // 稲生の追う一人も頭ほどの実寸に収め、奥の印が手前の兵に重なるのを防ぐ。
     // 近くの兵も読みやすい大きさを残し、目前の相手を見失わせない。
     const inouFocus = inou && (u === missionEnemy || hit > 0 || defeated);
+    // 稲生の目当ては距離に応じて滑らかに大きくし、近さの境目で急に変えない。
+    const inouLimit = inouFocus ? 2 + Math.max(0, 1 - Math.sqrt(meD2) / 18) : near ? 2 : u === commander ? 1.5 : 1.2;
     // 桶狭間の遠い印は頭ほどに収め、森部・稲生の間合いと命中の調整も保つ。
     // 森部は近い敵と討つ武将の上限を広げ、頭上の▼と命中の伸びを携帯でも読める幅に保つ。
-    const k = Math.min(moribe ? (u === commander ? 8 : u === missionEnemy ? 3 : 1.2 + 1.8 * Math.max(0, Math.min(1, (40 - Math.sqrt(meD2)) / 22))) : inou ? (inouFocus ? (near ? 2.5 : 1.5) : near ? 2 : u === commander ? 1.5 : 1.2) : oke ? (u === missionEnemy || u === commander ? 1.6 : 1.1) : u === commander ? 32 : 3, (inou ? inouFocus ? 24 : near ? 28 : 18 : moribe ? pixels : width) * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) *
+    const k = Math.min(moribe ? (u === commander ? 8 : u === missionEnemy ? 3 : 1.2 + 1.8 * Math.max(0, Math.min(1, (40 - Math.sqrt(meD2)) / 22))) : inou ? inouLimit : oke ? (u === missionEnemy || u === commander ? 1.6 : 1.1) : u === commander ? 32 : 3, (inou ? inouFocus ? 24 : near ? 28 : 18 : moribe ? pixels : width) * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) *
       (moribe || inou ? 1 : 1 + (pulse > 0 ? 1.2 * pulse : reachable && !oke ? .55 : 0));
     dummy.position.copy(headPos);
     dummy.quaternion.copy(q);
+    // 自分へ打ち込む本人だけ中の赤を明るくして傾ける。先端は頭上に固定し、点滅させない。
+    if (moribe && danger > 0 && !defeated) dummy.rotateZ(.3);
     // 桶狭間も、届く相手は横幅、命中は縦の伸びで区別する。先端は頭上に固定。
     // 桶狭間は届く時は幅だけ、命中時は高さだけを変え、空振りと区別する。
     // 命中の直後に敵がよろけて間合いを出ても、届いた時より小さくしない。
@@ -446,16 +452,16 @@ export function fieldSignsTick(rt, root) {
       // 森部は赤い▼の幅で間合い、縦の伸びと中身の減りで命中を示す。
       // 森部の届く本人は横幅、命中した本人は赤い中身の減りと縦の伸びで分ける。
       const justHit = special && hitLeft > (oke ? 1.7 : inou ? 1.95 : 1.7);
-      // 稲生の白縁は実際に届く一人だけ。命中は縦の伸びと赤の減りで示す。
-      // 森部・桶狭間は暗い縁の赤い▼を保ち、間合いは横幅、命中は縦の伸びで示す。
-      // 森部で自分へ振りかぶる敵だけ中の赤を明るくし、白い縁や点滅は足さない。
-      const tone = inou ? hot && !defeated ? 2 : 1 : moribe ? danger > 0 ? 2 : 1 : oke ? 1 : justHit ? 3 : hot ? 2 : 1;
+      // 稲生の白縁と幅広は実際に届く一人だけ。命中は縦の伸びと赤の減りで示す。
+      // 森部は中の赤で振りかぶりと命中を分け、命中の余韻中も次の振りかぶりを示す。
+      // 桶狭間は実際に届く本人だけ白縁にし、接近は横幅、命中は縦の伸びと赤の減りで示す。
+      const tone = inou ? hot && !defeated ? 2 : 1 : moribe ? defeated ? 1 : danger > 0 ? 3 : hit > 0 ? 4 : reachable || blocked ? 2 : 1 : oke ? reachable && !defeated ? 2 : 1 : justHit ? 3 : hot ? 2 : 1;
       if (special) {
         const c = s.signPool[s.signCandidates.length];
         c.u = u; c.matrix.copy(dummy.matrix); c.life = life;
         // 届く本人・命中直後・桶狭間で追う本人を、遠い兵の印で覆わせない。
         // 桶狭間は命中した本人を最優先にし、遠い任務の敵より今いる場所の敵を上に描く。
-        c.hot = moribe ? hit > 0 || defeated ? 4 : hot || blocked ? 3 : danger > 0 ? 2 : u === missionEnemy ? 1 : 0 : inou ? hit > 0 || defeated ? 5 : hot || blocked ? 4 : 0 : oke ? hit > 0 || defeated ? 5 : hot ? 4 : justHit ? 3 : meD2 < 25 * 25 ? u === missionEnemy ? 2 : 1 : 0 : hot;
+        c.hot = moribe ? hit > .3 || defeated ? 5 : danger > 0 ? 4 : hot || blocked ? 3 : hit > 0 ? 2 : u === missionEnemy ? 1 : 0 : inou ? hit > 0 || defeated ? 5 : hot || blocked ? 4 : 0 : oke ? hit > 0 || defeated ? 5 : hot ? 4 : justHit ? 3 : meD2 < 25 * 25 ? u === missionEnemy ? 2 : 1 : 0 : hot;
         c.distance = Math.sqrt(meD2); c.tone = tone;
         v.copy(headPos).project(cam);
         // 画面外の兵は端へ寄せず、選択枠も使わない。
