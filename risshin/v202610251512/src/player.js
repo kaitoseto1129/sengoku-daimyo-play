@@ -2215,7 +2215,7 @@ export class Player {
           this.cd = (kind === 'sweep' ? 0.52 : this.combo === 2 ? 0.32 : 0.42) * this.spearCd;
           if (third) this.combo = 0;
           this.comboT = this.cd + 0.65;
-          sfx(kind === 'sweep' ? 'swing' : 'thrust');
+          if (rt.def.key !== 'inou') sfx(kind === 'sweep' ? 'swing' : 'thrust');
         } else rt.hud.flash('気力が足りない（少し構えを解くと戻る）', 'dim');
       } else if (this.sta >= 5) {
         this.sta -= 5; this.staDelay = 0.4;
@@ -3036,8 +3036,10 @@ export class Player {
       const wk = { thrust: 'thrust', charged: 'thrust', sweep: 'sweep', spin: 'sweep', slam: 'slam', butt: 'butt', hook: 'thrust', kthrust: 'tsuki', kara: 'slam', nagi: 'yoko' }[kind] || swKind;
       const result = h === hits[0] ? swing : _meleeResult;
       result.res = null;
+      const hpBefore = t.hp;
       army.damage(t, dmg * m, u, { kind: wk, out: result, selectedAlly: this.lock === t && t.team === u.team, pierce: kind === 'sweep' || kind === 'hook' || kind === 'charged' || kind === 'kara' || kind === 'butt' || kind === 'spin' || counter || facing < -0.2, guardBreak: kind === 'slam' || kind === 'kara' || kind === 'hook' });
       h.res = result.res;
+      h.hurt = t.hp < hpBefore;
       // 突きは後ろへ小さく、払いは横へ、叩きは足を止める。大きなよろけの連続は避ける
       if (spearKind && (!this.mounted || kind === 'sweep') && t.alive && !t.isStruct && !t.isPlayer && !t.mounted && t.team !== u.team && (h.res === 'hit' || h.res === 'armor' || (kind === 'slam' && h.res === 'block'))) {
         const sweepSoldier = kind === 'sweep' && t.type !== 'busho' && !t.isOfficer && !t.isTaisho && !t.name && !t.invuln;
@@ -3096,10 +3098,10 @@ export class Player {
         this.cd += big ? 0.22 : 0.1;
         if (!this.mounted && !(this.lunge && this.lunge.t > 0)) { const st = big ? 0.3 : 0.15; this.lunge = { x: Math.sin(heading) * st, z: Math.cos(heading) * st, t: 0.12 }; }
         if (!reduceMotion() && S.shake) this.recoilPitch(big ? 0.012 : 0.005);
-        sfx('swing', 0.45);   // 空を切る音（当たった時の芯の音と聞き分ける）
+        if (this.rt.def.key !== 'inou') sfx('swing', 0.45);   // 空を切る音（当たった時の芯の音と聞き分ける）
       }
     }
-    if (hits.length) {
+    if (hits.some(h => h.res === 'hit' || h.res === 'armor' || h.res === 'block')) {
       // 槍は技ごとの短い止めと音。受けられた突きを命中のよろけに混ぜない
       const heavy = kind === 'charged' || kind === 'slam' || kind === 'hook' || (kind === 'thrust' && third) || (kind === 'slash' && third) || counter;
       const spearFeel = spearKind && !this.mounted;
@@ -3126,7 +3128,7 @@ export class Player {
       if (hits.some((h) => h.u.type === 'samurai' || h.u.type === 'busho' || h.u.type === 'cavalry')) sfx('clank', heavy ? 1.3 : 0.9);
       let burstBudget = 12;
       for (const h of hits) {
-        if (spearFeel && h.res !== 'hit' && h.res !== 'armor') continue;
+        if (spearFeel && !h.hurt) continue;
         h.u.flinchT = Math.max(h.u.flinchT || 0, spearFeel ? (kind === 'slam' ? 0.3 : kind === 'sweep' ? 0.22 : 0.12) : heavy ? 0.32 : 0.18);
         if (!spearFeel && heavy && h.u.alive) h.u.stagger = Math.max(h.u.stagger || 0, 0.9);
         // 当たった相手は半歩よろけて下がる（当たったのが目で分かる）。小さな血しぶきか土埃
@@ -3136,7 +3138,7 @@ export class Player {
           h.u.stagger = Math.max(h.u.stagger || 0, 0.28);
           if (h.u.push) { const dx = h.u.pos.x - u.pos.x, dz = h.u.pos.z - u.pos.z, dl = Math.hypot(dx, dz) || 1; h.u.push.x += dx / dl * 0.9; h.u.push.z += dz / dl * 0.9; }
         }
-        if (burstBudget > 0 && !h.u.isStruct && h.u.pos) { burstBudget -= 4; const dx = h.u.pos.x - u.pos.x, dz = h.u.pos.z - u.pos.z, dl = Math.hypot(dx, dz) || 1; army.burst(h.u.pos.x - dx / dl * 0.2, h.u.pos.y + 1.1, h.u.pos.z - dz / dl * 0.2, 4, h.res === 'armor' || !bloodLv() || army.hideBlood ? 'dust' : 'blood', dx / dl, dz / dl, h.u.pos.y); }
+        if (burstBudget > 0 && !h.u.isStruct && h.u.pos) { burstBudget -= 4; const dx = h.u.pos.x - u.pos.x, dz = h.u.pos.z - u.pos.z, dl = Math.hypot(dx, dz) || 1; army.burst(h.u.pos.x - dx / dl * 0.2, h.u.pos.y + 1.1, h.u.pos.z - dz / dl * 0.2, 4, !bloodLv() || army.hideBlood ? 'dust' : 'blood', dx / dl, dz / dl, h.u.pos.y); }
       }
       this.addShake(heavy ? 0.12 : 0.06);
       // 馬上の一撃は馬の勢いが乗って重い：長めに止まり、低い音、突かれた者は馬の進む向きへ大きく突き飛ばされ、腕に返る衝撃で馬が少し落ちる
