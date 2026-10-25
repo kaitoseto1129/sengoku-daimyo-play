@@ -43,12 +43,10 @@ const START2 = { x: 40, z: 98 };
 const POINT2 = { x: 40, z: 76.5 };
 const FORD_R = 4;
 // ピンと同じ岸まで進み、水から上がれば渡河済み。横へそれても小旗へ戻らせない。
-// 足の上下動で到着を遅らせず、岸そのものの高さで水深を調べる。
-// 水深だけで完了にしない。浅い川底でも、描いた川面の北端を越えるまでピンを残す。
+// 足の上下動や雨で濡れた土の水深に左右されず、描いた川面の北端を越えた瞬間に完了。
 // 横へそれた岸もその場の水際で判定し、ピンの奥行きまで歩き直させない。
 const atFordBank = (p, world) => p.z < nireZ(p.x) &&
-  distToPolyline(p.x, p.z, world.def.streams[1].pts) >= NIRE_WIDTH2 + .8 &&
-  world.waterFootDepthAt(p.x, p.z, drawGroundAt(world, p.x, p.z)) <= .02;
+  distToPolyline(p.x, p.z, world.def.streams[1].pts) >= world.def.streams[1].w;
 const FRONT2 = { x: 4, z: 20 };
 const ASSEMBLY2 = { x: 14, z: 10 };
 const RETREAT2 = { x: 24, z: 48 };
@@ -529,12 +527,9 @@ function moribeFord(rt) {
   waterMat.customProgramCacheKey = () => waterKey + '|森部の浅瀬';
   waterMat.needsUpdate = true;
   st.mesh.userData.waterSurfaceReady = true;
-  // 川面を直した後の水深で出口を決める。岸より奥まで歩かせない。
-  // 川面の全幅を抜けた土へ刺す。浅い水中を岸と取り違えない。
-  POINT2.z = nireZ(POINT2.x) - NIRE_WIDTH2 - 2;
+  // 川面の全幅を抜けた最初の岸へ刺す。浅い水中や岸の奥を出口にしない。
+  POINT2.z = nireZ(POINT2.x) - NIRE_WIDTH2;
   const bank = { x: POINT2.x, z: POINT2.z, y: W.heightAt(POINT2.x, POINT2.z) };
-  // 歩ける高さだけでなく、実際に描く土も川面より上にある岸へ刺す。
-  // 粗い地形の補間差で、水の中に見えるピンへ誘わない。
   // 完了判定と同じ条件で最初の岸へ刺す。印だけを岸の奥へ進めない。
   for (let i = 0; i < 96 && !atFordBank(bank, W); i++) {
     bank.z -= .25; bank.y = W.heightAt(bank.x, bank.z);
@@ -1122,8 +1117,8 @@ const moribe = {
         !F.signal && F.pointReached && !F.pointInside ||
         (F.stage === 'hold' || F.stage === 'contact' && F.vBroken) && F.lineReturning)
       return '仲間と集まれ';
-    // 守備の終了に撃破人数の条件はない。倒す人数を探させない。
-    if (F.stage === 'hold') return '敵を迎え撃って耐えろ';
+    // やさしい言葉で戦う任務を伝える。守備の終了に撃破人数の条件はない。
+    if (F.stage === 'hold') return '敵と戦って耐えろ';
     // 討つ相手の名前は許された任務一行に収め、頭上に別の札を足さない。
     const commander = this.commanderTarget(rt);
     if (commander?.name) return `${commander.name}を倒せ`;
@@ -1173,6 +1168,18 @@ const moribe = {
   meleeHitFeedback: false, // 命中は本人の赤い▼とよろめきで示し、照準の印を重ねない。
   missionStatus() { return ''; }, // 行き先は黄色い矢印と輪だけで示す。
   tacticsCommandText: '', // 横へ回る助言に、操作のない「配下に命じて押せ」を足さない。
+  missionCombatProgress(rt) {
+    const F = rt.flags;
+    if (!F.signal || F.stage !== 'contact' || F.vBroken || !F.V) return null;
+    // 先手への傷と退きを任務の下地へまとめる。全滅の人数条件は足さない。
+    let remaining = 0;
+    for (const u of F.V.units)
+      if (u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget)
+        remaining += Math.max(0, u.hp);
+    F.contactProgress = Math.max(F.contactProgress || 0,
+      Math.min(.99, 1 - remaining / (F.vanguardHealth || 1)));
+    return F.contactProgress;
+  },
   missionWaitProgress(rt) {
     const F = rt.flags;
     if (!F.signal && F.pointInside && !F.pointDone) {
@@ -1185,11 +1192,9 @@ const moribe = {
       return Math.min(1, (F.assembleT || 0) / 8);
     if (F.stage === 'hold') {
       const elapsed = Math.max(0, rt.t - F.holdStart);
-      const reservesReady = (F.wave1 || gone(F.reserves[0])) && (F.wave2 || gone(F.reserves[1]));
-      // 任務の切り替え前には満杯にしない。最後まで満ちたまま待つ誤解を防ぐ。
-      F.holdProgress = Math.max(F.holdProgress || 0, Math.min(.99, Math.max(elapsed / 100,
-        Math.min(F.lineT / 25, elapsed / 45, reservesReady ? 1 : .85))));
-      return F.holdProgress;
+      // 必ず終わる百秒の時計。働きの割合を混ぜて途中で止まる見せ方にしない。
+      // 反撃が早まった場合は段の切り替えで完了する。
+      return Math.min(.99, elapsed / 100);
     }
     return null;
   },
@@ -1247,7 +1252,7 @@ const moribe = {
       return null; // 討つ武将も頭上の赤い▼にそろえる。
     } else if (F.stage === 'hold' || F.vBroken) {
       if (!F.lineReturning && F.stage === 'hold') {
-        // 守備中も同じピンを満ちる時計にする。行き先の軸は畳み、任務のそばへ置く。
+        // 着いたピンを待ち時計に替え、攻撃中も終了までの進みを残す。行き先の軸は畳み、任務のそばへ置く。
         pos = F.linePoint;
         r = hide = 18;
         q.waiting = true; q.arrived = true;
@@ -1568,6 +1573,8 @@ const moribe = {
     crumpledFlags: true,   // 落ちた指物は縮んだ布として泥の上へ伏せる。
     ordinaryFlagStride: 4,   // 無名の長柄足軽は四人に一本。組の旗・隊旗・武将の旗は残す（割合は復元）。
     waterSlow: true,
+    // 杭の間の徒歩だけは流れに足を取られすぎない。馬と深い川の減速は保つ。
+    fordWalkSpeed: (x, z) => Math.abs(x - START2.x) <= 6 && Math.abs(z - nireZ(x)) <= 12 ? .82 : 0,
     riverCross: true,   // 深い長良川を徒歩で素通りしない。南の楡俣川は腿ほどの深さで渡る。
     paths: [ROAD2, ...PEOPLE_PATHS2],
     height(x, z) {
@@ -1701,15 +1708,13 @@ html:root body #hud.moribe-notices.field-clean.field-clean .bl #h-hp.hp i {
 }
 /* 次の一手と号令を右の任務札にまとめる。横持ちでも二行を切らない。 */
 #hud #h-prog[data-battle="moribe"] { width:min(320px, 38vw); }
-#hud #h-prog[data-battle="moribe"] .pg-st { background-image:none !important; }
-/* 耐える進みは任務一行の中で満ちる丸にする。秒の字や別の札は足さない。 */
+#hud #h-prog[data-battle="moribe"] .pg-st:not(.mission-combat) { background-image:none !important; }
+/* 耐える進みは任務の背景に残す。待つ進みは一本のピンにまとめる。 */
 #hud #h-prog[data-battle="moribe"] .pg-st.moribe-wait {
  flex-direction:row; align-items:center; justify-content:flex-end; gap:10px;
 }
 #hud #h-prog[data-battle="moribe"] .pg-st.moribe-wait::before {
- content:""; display:block; flex:none; width:28px; height:28px; border-radius:50%;
- background:conic-gradient(#ffe28a calc(var(--wait-progress,0) * 1%), #494338 0);
- box-shadow:0 0 0 2px #c9b27a;
+ content:none;
 }
 /* 共通の一行省略より優先し、今することを最後まで読めるようにする。 */
 html:root body #hud.mission-only #h-prog[data-battle="moribe"] .pg-st span {
@@ -2208,9 +2213,6 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         // 直前の命中を残すと、次の一撃が防がれても縦に伸びたままになる。
         t.moribeHitUntil = 0;
       }
-      // 実際に自分を傷つけた本人の▼だけ、振りかぶりの強調を短く保つ。
-      if (t?.isPlayer && src?.team !== t.team && src && t.hp < hp)
-        src.moribeThreatUntil = rt.t + .9;
       if (src?.isPlayer && t?.team !== src.team && t.hp < hp) {
         // 一撃ごとに伸び直す。小さな伸びは残し、連打でも当たった本人を追える。
         t.moribeHitUntil = rt.t + 3;
@@ -2218,9 +2220,10 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         if (!t.alive || t.dying || t.downed || t.woundOut || t.rearWound) t.moribeDefeatUntil = rt.t + 1.8;
         // 命を減らした本人だけがよろめく。空振りや味方には反応を付けない。
         if (t.alive) {
-          t.stagger = Math.max(t.stagger || 0, .6);
+          // 共通の膝を崩す動きは残り .7 秒超で始まる。構えを止めるだけにしない。
+          t.stagger = Math.max(t.stagger || 0, 1.1);
           // 突きの途中の姿を残さず、命中した本人のよろめきを見せる。
-          t.atk = null; t.swing = null; t.cd = Math.max(t.cd || 0, .6);
+          t.atk = null; t.swing = null; t.cd = Math.max(t.cd || 0, 1.1);
           // 当たった体を小さく押し戻し、重なった隣の兵と反応を見分ける。
           if (t.push && !t.mounted && !t.isStruct) {
             const dx = t.pos.x - src.pos.x, dz = t.pos.z - src.pos.z;
@@ -2244,6 +2247,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     rt.flags.Y = allyGroup(rt, { name: '森の横備え', fixed: true, anchor: { x: -48, z: 108 }, facing: Math.PI, aggro: 10, morale: 100, noRout: true, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 14 }, { type: 'samurai', n: 1, o: { name: '前田利家', invuln: true } }, { type: 'busho', n: 1, o: { name: '森可成', invuln: true } }]);
     // 斎藤の先手は北岸の畦へ寄せ、渡る織田勢へ矢を射かけてから槍で受ける（弓の数は復元）。
     rt.flags.V = enemyGroup(rt, { faction: 'saito', name: '斎藤の先手', fixed: true, anchor: { x: 30, z: 48 }, facing: 0, fleeDir: { x: -0.2, z: -1 }, speed: 2.1, aggro: 5, noRout: false, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 26 }, { type: 'bow', n: 4 }, { type: 'samurai', n: 2 }]);
+    rt.flags.vanguardHealth = rt.flags.V.units.reduce((sum, u) => sum + u.hp, 0);
     // 日比野下野守の備え（足立六兵衛を含む）
     rt.flags.M = enemyGroup(rt, { faction: 'saito', name: '日比野の備', fixed: true, anchor: { x: -14, z: -30 }, facing: 0, fleeDir: { x: 0, z: -1 }, aggro: 8, width: 8, noRout: false, formation: 'yari', yariRanks: 3 },
       [{ type: 'ashigaru', n: 18 }, { type: 'samurai', n: 2 }, { type: 'samurai', n: 1, o: { name: '足立六兵衛' } }, { type: 'bow', n: 3 }]);

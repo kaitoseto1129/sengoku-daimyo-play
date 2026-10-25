@@ -149,29 +149,7 @@ function approachUnit(rt) {
 }
 // 目的は戦いの間ずっと保ち、間合いと命中は同じ本人の▼で示す。
 function inouEnemyOrder(rt, fallback, name = rt.def.missionEnemyLabel(rt)) {
-  const enemy = rt.def.missionSignTarget(rt), p = rt.player;
-  if (!fighting(enemy)) return fallback;
-  // 倒す目的を保ったまま、同じ本人への向き・歩数・操作を添える。
-  const order = `${name}を倒せ`;
-  const touch = usesTouchControls();
-  // 武将の名と白い縁の印をそろえ、同じ一人へ案内する。
-  const target = `${order}・白ふちの▼`;
-  if (p.inRange && p.rangeCueTarget === enemy) return touch
-    ? `${target}へ「${p.weapon === 'sword' ? 'きる' : 'つく'}」を押して離せ`
-    : `${target}をマウスの左ボタンで${p.weapon === 'sword' ? '斬れ' : '突け'}`;
-  const dx = enemy.pos.x - p.u.pos.x, dz = enemy.pos.z - p.u.pos.z;
-  // 前進と同じ視点の向きで案内する。画面の右の兵へ前進し続けさせない。
-  const yaw = p.yaw + (p.camYawOff || 0);
-  const angle = Math.atan2(Math.sin(Math.atan2(dx, dz) - yaw), Math.cos(Math.atan2(dx, dz) - yaw));
-  if (Math.abs(angle) > 2.4) return `${order}・白ふちの▼は後ろ・振り向け`;
-  if (Math.abs(angle) > .35) return `${order}・白ふちの▼へ${angle < 0 ? '右' : '左'}を向け`;
-  if (Math.hypot(dx, dz) <= p.meleeReach(p.previewMeleeKind() || 'thrust')) {
-    if (Math.cos(Math.atan2(dx, dz) - p.u.heading) < .9) return `${order}・白ふちの▼へ向け`;
-    return `${order}・白ふちの▼へ もう一歩`;
-  }
-  // 前の直しの歩数も同じ一人の間合いから求め、進む操作と一行で伝える。
-  const move = touch ? '左の画面を前へなぞり続けろ' : '前進キーを押し続けろ';
-  return `${order}・白ふちの▼へ${move}（あと${enemySteps(rt, enemy)}歩）`;
+  return fighting(rt.def.missionSignTarget(rt)) ? `${name}を倒せ` : fallback;
 }
 // 兵本人ではなく頭上の▼を案内する。距離は槍が届く所までの歩数。
 function enemySteps(rt, enemy) {
