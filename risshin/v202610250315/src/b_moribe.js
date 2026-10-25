@@ -47,7 +47,8 @@ const FORD_R = 4;
 // 描いた土の上に水が残っていなければ完了。川幅の線まで余分に歩かせない。
 // 横へそれた岸もその場の水際で判定し、ピンの奥行きまで歩き直させない。
 const atFordBank = (p, world) => p.z < nireZ(p.x) &&
-  world.waterFootDepthAt(p.x, p.z, drawGroundAt(world, p.x, p.z)) <= .12;
+  distToPolyline(p.x, p.z, world.def.streams[1].pts) >= NIRE_WIDTH2 + .8 &&
+  world.waterFootDepthAt(p.x, p.z, drawGroundAt(world, p.x, p.z)) <= .02;
 const FRONT2 = { x: 4, z: 20 };
 const ASSEMBLY2 = { x: 14, z: 10 };
 const RETREAT2 = { x: 24, z: 48 };
@@ -507,9 +508,13 @@ function moribeFord(rt) {
       float fordEdge = abs(vWPw.x - ${START2.x.toFixed(1)}) + sin(vWPw.z * 1.7) * 0.22;
       float fordBand = 1.0 - smoothstep(4.5, 6.0, fordEdge);
       float fordGrain = texture2D(tMacro, vWPw.xz * 0.9).r;
+      // 川底の小石は地面に固定。流れる白波と分け、浅さと歩いた分を絵で見せる。
+      vec2 fordCell = fract(vWPw.xz * 1.4 + vec2(fordGrain * 0.25, 0.0)) - 0.5;
+      float fordPebble = 1.0 - smoothstep(0.16, 0.29, length(fordCell * vec2(1.0, 1.4)));
       float fordRipple = smoothstep(0.86, 0.98, sin(vWPw.z * 6.0 + fordGrain * 2.0 - uTime * 1.4));
       // 青い流れの中に砂底の帯を通し、入口から出口まで歩ける浅さを見せる。
       vec3 fordSand = mix(vec3(0.52, 0.43, 0.27), vec3(0.78, 0.70, 0.48), fordGrain);
+      fordSand = mix(fordSand, vec3(0.25, 0.32, 0.29), fordPebble * 0.65);
       diffuseColor.rgb = mix(diffuseColor.rgb, fordSand, fordBand * 0.95);
       // 浅瀬も水の色を保つ。両岸の細い白波を既存の川面へ描き、終点を土と分ける。
       float fordShore = smoothstep(7.5, 8.6, abs(vWPw.z - ${NIREMATA2.toFixed(1)}));
@@ -566,11 +571,11 @@ function moribeFord(rt) {
       const x = -100 + i * 2, center = nireZ(x);
       // 川面の幅より内側へ岸を描かない。浅瀬の川底が高くても川の中央に土手を作らない。
       let edge = st.w;
-      while (edge < 20 && W.heightAt(x, center + side * edge) < .14) edge += .25;
+      while (edge < 20 && drawGroundAt(W, x, center + side * edge) < .14) edge += .25;
       for (let j = 0; j < 4; j++) {
         const offset = edge + j * (1.05 + .2 * Math.sin(x * .23));
         const z = center + side * offset;
-        bankPos.push(x, W.heightAt(x, z) + .018, z);
+        bankPos.push(x, drawGroundAt(W, x, z) + .018, z);
         bankUV.push(x * .45, z * .45);
         const k = j / 3, grain = .95 + .05 * Math.sin(x * 2.7 + j);
         bankColor.setRGB((.24 + k * .12) * grain, (.22 + k * .1) * grain, (.16 + k * .05) * grain);
@@ -1068,19 +1073,20 @@ const moribe = {
   // 頭上の▼一つを大きくして、まず戦う相手を示す。選び直しは四分の一秒に一度。
   missionSignTarget(rt) {
     const F = rt.flags, p = rt.player;
-    if (!F.signal || F.ending || F.stage === 'assemble') return null;
+    if (F.ending || F.stage === 'assemble') return null;
     // 討ち取りの段では、離れた一般兵へ印を乗り換えない。
     if (F.stage === 'press' && !F.pursuing) {
       const u = this.commanderTarget(rt);
       if (u) { F.signTarget = u; return u; }
     }
-    const vanguard = F.stage === 'contact' && !F.vBroken ? F.V : null;
+    // 渡る前から対岸の先手にも同じ赤い▼を残し、味方と見分けられるようにする。
+    const vanguard = !F.signal || F.stage === 'contact' && !F.vBroken ? F.V : null;
     if (p.inRange && moribeFoeReady(p.rangeCueTarget, p) &&
         (!vanguard || p.rangeCueTarget.group === vanguard)) return p.rangeCueTarget;
     if (rt.t < F.signTargetAt && F.signStage === F.stage && moribeFoeReady(F.signTarget, p) &&
         (!vanguard || F.signTarget.group === vanguard)) return F.signTarget;
     F.signTargetAt = rt.t + .25; F.signStage = F.stage;
-    let target = null, best = 48 * 48;
+    let target = null, best = F.signal ? 48 * 48 : 80 * 80;
     for (const u of vanguard ? vanguard.units : rt.army.units) {
       if (!moribeFoeReady(u, p)) continue;
       // 最初の任務は川岸へ来た隊。奥の控えへ大きな▼を移さない。
@@ -1206,8 +1212,10 @@ const moribe = {
       q.arrived = !!(F.pointReached || F.pointInside || atFordBank(rt.player.u.pos, rt.world));
       q.waiting = q.arrived && rt.t - (F.fordArrivedAt ?? rt.t) >= .8;
       q.crossing = !q.waiting;
-      // 接近だけでは満たさず、到着の満杯を一拍残してから待機の進みに替える。
-      q.progress = q.arrived ? q.waiting ? this.missionWaitProgress(rt) || 0 : 1 : 0;
+      // 渡った分を示し、到着の満杯を一拍残してから待機の進みに替える。
+      q.progress = q.arrived ? q.waiting ? this.missionWaitProgress(rt) || 0 : 1 :
+        // 横へずれても岸へ渡った分を示す。到着前は満杯にしない。
+        Math.max(0, Math.min(.98, (START2.z - rt.player.u.pos.z) / (START2.z - POINT2.z)));
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
     } else if (F.stage === 'assemble') {
@@ -1568,7 +1576,9 @@ const moribe = {
     },
     // 長良川は東の約五百メートル先。川幅・曲がり・楡俣川の浅瀬は復元。
     streams: [{ pts: [[NAGARA2 + 20, -FIELD2], [NAGARA2, -450], [NAGARA2 - 10, -100], [NAGARA2 + 20, 300], [NAGARA2 + 50, FIELD2]], w: 60, depth: 1.4 },
-      { pts: [[-FIELD2, NIREMATA2 + 2], [-70, NIREMATA2], [46, NIREMATA2], [NAGARA2, NIREMATA2 + 6]], w: NIRE_WIDTH2, depth: 0.7 },   // 楡俣川：川幅十八メートル・腿までの流れ（川幅は復元。w は片側の幅）
+      // 杭の間は色だけでなく川床も浅くする。中央十二メートルと両脇のなだらかな斜面（位置・幅は復元）。
+      { pts: [[-FIELD2, NIREMATA2 + 2], [-70, NIREMATA2], [46, NIREMATA2], [NAGARA2, NIREMATA2 + 6]], w: NIRE_WIDTH2, depth: 0.7,
+        fords: [{ x: START2.x, w: 10 }] },   // 楡俣川：川幅十八メートル（w は片側の幅）
       { pts: [[-70, -FIELD2], [-66, -40], [-74, 60], [-70, FIELD2]], w: 1.2, depth: 0.7 }],
     mist: false,   // 雨は公記にあるが、濃い霧は確定できない。
     fogFar: 360,   // 雨は残し、川向こうと両将の槍列の輪郭まで読めるようにする。
@@ -1648,7 +1658,10 @@ const moribe = {
 #hud.moribe-notices #armybar { display:none !important; }
 /* 次の一手と号令を右の任務札にまとめる。横持ちでも二行を切らない。 */
 #hud #h-prog[data-battle="moribe"] { width:min(320px, 38vw); }
-/* 耐える進みは任務の下地で示す。別の時計や秒の字は足さない。 */
+/* 戦況の棒を残り時間と取り違えさせない。待つ進みは同じピンの中だけ。 */
+#hud.moribe-notices #tugbar, #hud.moribe-notices #armybar { display:none !important; }
+#hud #h-prog[data-battle="moribe"] .pg-st { background-image:none !important; }
+/* 任務一行の形は待機中も変えない。 */
 #hud #h-prog[data-battle="moribe"] .pg-st.moribe-wait {
  flex-direction:row; align-items:center; justify-content:flex-end; gap:10px;
 }
@@ -2179,7 +2192,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     rt.makeSquad({ x: START2.x + 8, z: START2.z + 3 }, Math.PI, [{ kind: 'spear', n }]);   // 先に渡る前備と重ねず、組はすぐ後ろから続く
     // 三手は楡俣川の南岸に並び、遊び手と同じ流れを渡る。柴田・本備・森の備は勝ち戦の芯なので、
     // 兵は討たれても隊ごとの総崩れはしない（右手の小勢は崩れうる）。
-    rt.flags.A = allyGroup(rt, { name: '柴田の前備', fixed: true, anchor: { x: 28, z: 91 }, facing: Math.PI, aggro: 12, morale: 100, noRout: true, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 16 }, { type: 'samurai', n: 1, o: { name: '源八', invuln: true } }, { type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true } }]);
+    rt.flags.A = allyGroup(rt, { name: '柴田の前備', fixed: true, anchor: { x: 34, z: 94 }, facing: Math.PI, aggro: 12, morale: 100, noRout: true, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 16 }, { type: 'samurai', n: 1, o: { name: '源八', invuln: true } }, { type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true } }]);
     rt.flags.B = allyGroup(rt, { name: '本備', fixed: true, anchor: { x: -22, z: 116 }, facing: Math.PI, aggro: 12, morale: 100, noRout: true, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 24 }, { type: 'bow', n: 2 }, { type: 'samurai', n: 2 }]);
     // 上役の源八は戦の後に城下で昇進を告げる。この戦では討たれない。
     rt.flags.moribeOfficer = rt.flags.A.units.find((u) => u.name === '源八');
@@ -2361,8 +2374,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       g.spacing = Math.max(g.spacing, 1.9);
     }
     for (const g of rt.squadGroups) { g.formation = 'yari'; g.yariRanks = 2; }
-    // 前備は浅瀬の脇を渡る。自分から対岸のピンまでの帯を兵の背中で塞がない。
-    for (const [g, x, z] of [[F.A, 28, 70], [F.B, -22, 70], [F.Y, -40, 60], [F.R3, 64, 66]]) {
+    // 前備が目の前の浅瀬の脇を歩いて渡る。跳ばずに進めることを動きで見せる。
+    for (const [g, x, z] of [[F.A, 34, 70], [F.B, -22, 70], [F.Y, -40, 60], [F.R3, 64, 66]]) {
       g.leader = g.units.find((u) => u.type === 'busho') || g.units.find((u) => u.type === 'samurai');
       g.order = 'move'; g.dest = { x, z }; g.speed = 2;
       g.onArrive = (u) => { u.order = 'hold'; };
