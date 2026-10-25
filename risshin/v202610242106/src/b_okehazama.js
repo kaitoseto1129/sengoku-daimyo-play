@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { SOLIDS } from './props.js';
 import { UNIT_MAT } from './units.js';
-import { gauss, allyGroup, enemyGroup as commonEnemyGroup, unitPos, nm, guardRecover, jpNum } from './bhelp.js';
+import { gauss, allyGroup as commonAllyGroup, enemyGroup as commonEnemyGroup, unitPos, nm, guardRecover, jpNum } from './bhelp.js';
 import { distToPolyline } from './world.js';
 import { tuftClumpAt } from './world_common.js';
 import { palisade, hut, dou, yagura, nobori, tawara, campfire, koshi, umaFollow } from './props.js';
@@ -26,6 +26,15 @@ import { localPoint } from './army_local_way.js';
 // ======================================================================
 // 第1戦　桶狭間
 // ======================================================================
+// 紋を読まなくても、味方の黒と藍・横広の指物を敵の赤茶・縦長と見分ける。
+// 装束は生成時だけ指定し、名のある武将の私物は保つ。
+function allyGroup(rt, options, list) {
+  return commonAllyGroup(rt, options, list.map((spec) => spec.o?.name ? spec : {
+    ...spec, o: { armor: 0x202734, hatColor: 0x181d27, lace: 0x334f70,
+      cloth: 0x293b51, flag: 'oda', ...spec.o, flagShape: 2 },
+  }));
+}
+
 // 今川の貸し具足は赤茶の胴に朱・萌黄の威。名のある武将の私物は保つ。
 // 旗本の増援にも同じ仕立てを使い、人数・能力・進行条件は変えない。
 function enemyGroup(rt, options, list) {
@@ -36,7 +45,7 @@ function enemyGroup(rt, options, list) {
       o: { armor: i % 2 ? 0x493a28 : 0x542e25, lace: i % 2 ? 0x79934b : 0xad4932,
         hatColor: i % 3 ? 0x493a28 : 0x302c28,
         ...(spec.type === 'ashigaru' ? { hat: i % 6 === 0 ? 'kabuto' : i % 3 === 0 ? 'jingasa_n' : 'jingasa' } : {}),
-        flag: 'imagawa', mon: 'imagawa', ...spec.o } });
+        flag: 'imagawa', mon: 'imagawa', ...spec.o, flagShape: 1 } });
   }
   return commonEnemyGroup(rt, options, dressed);
 }

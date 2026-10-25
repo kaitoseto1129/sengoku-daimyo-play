@@ -24,6 +24,7 @@ export class HudOverlay {
     if (rt.def.key !== 'moribe') return this.drawDestinationPin(g, x, y);
     // 渡河中も丸頭と軸で岸に刺さるピン。人を指す下向き矢印にしない。
     g.save(); g.lineJoin = 'round';
+    // 渡河の大きさと接地点は固定し、穴の中の進みで岸への接近を示す。
     // 渡河も長い軸で岸へ刺す。兵の頭上の▼と形を分け、接地点は動かさない。
     const pinScale = pin?.waiting ? .95 : pin?.crossing ? 1.1 : 1.3;
     g.translate(x, y); g.scale(pinScale, pinScale); x = 0; y = 0;
