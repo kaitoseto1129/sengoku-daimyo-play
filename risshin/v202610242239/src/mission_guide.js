@@ -63,12 +63,7 @@ export function missionCaption(rt, title = currentObjective(rt)?.text || '') {
   // 桶狭間は目的の一行を保つ。接近や間合いは頭上の▼の形だけで示す。
   if (rt.def.key === 'okehazama') return heading;
   if (rt.def.key === 'inou') {
-    const F = rt.flags;
-    // 命中と討ち取りは一行を短く置き換え、次の一手と同時に説明しない。
-    // 新しい接近の任務文へ切り替わった直後も、実際に当たった結果を返す。
-    if (F.attackFeedbackUntil > rt.t) return F.attackFeedback;
-    if (F.combatResultUntil > rt.t) return F.combatResult;
-    // 間合いは戦固有の判定と頭上の▼に任せ、歩数や向きで任務を上書きしない。
+    // 間合い・命中・討ち取りは本人の▼で返し、任務の一行は保つ。
     return heading;
   }
   if (rt.def.key === 'moribe') return heading;
