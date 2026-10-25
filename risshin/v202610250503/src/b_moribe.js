@@ -44,7 +44,7 @@ const POINT2 = { x: 40, z: 76.5 };
 const FORD_R = 4;
 // ピンと同じ岸まで進み、水から上がれば渡河済み。横へそれても小旗へ戻らせない。
 // 足の上下動で到着を遅らせず、岸そのものの高さで水深を調べる。
-// 描いた土の上に水が残っていなければ完了。川幅の線まで余分に歩かせない。
+// 水深だけで完了にしない。浅い川底でも、描いた川面の北端を越えるまでピンを残す。
 // 横へそれた岸もその場の水際で判定し、ピンの奥行きまで歩き直させない。
 const atFordBank = (p, world) => p.z < nireZ(p.x) &&
   distToPolyline(p.x, p.z, world.def.streams[1].pts) >= NIRE_WIDTH2 + .8 &&
@@ -489,7 +489,7 @@ function moribeFord(rt) {
     pa.setY(i / 3 * 2, y); pa.setY(i / 3 * 2 + 1, y);
   }
   pa.needsUpdate = true;
-  // 杭の間は明るい青緑の浅瀬。乾いた岸と色を分け、既存の川面だけを使う。
+  // 渡れる帯は明るい青緑の浅瀬。乾いた岸と色を分け、既存の川面だけを使う。
   const colors = st.mesh.geometry.attributes.color;
   const sand = new THREE.Color(0x648481);
   for (let i = 0; i < pa.count; i++) {
@@ -499,7 +499,7 @@ function moribeFord(rt) {
       colors.getZ(i) + (sand.b - colors.getZ(i)) * k);
   }
   colors.needsUpdate = true;
-  // 水の色を残した明るい川底と細かい白波で、杭の間を岸から岸へつなぐ。
+  // 水の色を残した明るい川底と細かい白波で、浅瀬を岸から岸へつなぐ。
   const waterMat = st.mesh.material, waterCompile = waterMat.onBeforeCompile;
   const waterKey = waterMat.customProgramCacheKey();
   waterMat.onBeforeCompile = function (sh, renderer) {
@@ -515,7 +515,7 @@ function moribeFord(rt) {
       // 青い流れの中に砂底の帯を通し、入口から出口まで歩ける浅さを見せる。
       vec3 fordSand = mix(vec3(0.52, 0.43, 0.27), vec3(0.78, 0.70, 0.48), fordGrain);
       fordSand = mix(fordSand, vec3(0.25, 0.32, 0.29), fordPebble * 0.65);
-      diffuseColor.rgb = mix(diffuseColor.rgb, fordSand, fordBand * 0.95);
+      diffuseColor.rgb = mix(diffuseColor.rgb, fordSand, fordBand * 0.85);
       // 浅瀬も水の色を保つ。両岸の細い白波を既存の川面へ描き、終点を土と分ける。
       float fordShore = smoothstep(7.5, 8.6, abs(vWPw.z - ${NIREMATA2.toFixed(1)}));
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.76, 0.85, 0.82),
@@ -527,7 +527,8 @@ function moribeFord(rt) {
   waterMat.needsUpdate = true;
   st.mesh.userData.waterSurfaceReady = true;
   // 川面を直した後の水深で出口を決める。岸より奥まで歩かせない。
-  POINT2.z = nireZ(POINT2.x) - .5;
+  // 川面の全幅を抜けた土へ刺す。浅い水中を岸と取り違えない。
+  POINT2.z = nireZ(POINT2.x) - NIRE_WIDTH2 - 2;
   const bank = { x: POINT2.x, z: POINT2.z, y: W.heightAt(POINT2.x, POINT2.z) };
   // 歩ける高さだけでなく、実際に描く土も川面より上にある岸へ刺す。
   // 粗い地形の補間差で、水の中に見えるピンへ誘わない。
@@ -538,13 +539,11 @@ function moribeFord(rt) {
   POINT2.z = bank.z; POINT2.y = drawGroundAt(W, bank.x, bank.z);
   st.mesh.geometry.computeVertexNormals();
   st.mesh.geometry.computeBoundingSphere();
-  // 岸と浅瀬の石、渡る帯の杭。出陣時だけ作り、形と材質を使い回す。
+  // 両岸の石。出陣時だけ作り、形と材質を使い回す。
   const stoneGeo = new THREE.SphereGeometry(1, 7, 5);
   const stoneMat = new THREE.MeshStandardMaterial({ color: 0x827b69, roughness: 1 });
   const stones = new THREE.InstancedMesh(stoneGeo, stoneMat, 12);
-  const pegGeo = new THREE.CylinderGeometry(0.045, 0.065, 1.2, 5);
-  const pegMat = new THREE.MeshStandardMaterial({ color: 0xe8cd81, roughness: 1 });
-  const pegs = new THREE.InstancedMesh(pegGeo, pegMat, 4), at = new THREE.Object3D();
+  const at = new THREE.Object3D();
   for (let i = 0; i < 12; i++) {
     // 石は両岸だけに散らす。流れの中へ飛び石に見える列を作らない。
     const x = START2.x + (i % 2 ? 1 : -1) * (5.5 + Math.sin(i * 2) * .45);
@@ -553,14 +552,8 @@ function moribeFord(rt) {
     at.scale.set(0.45 + i % 3 * 0.12, 0.22, 0.36); at.rotation.y = i * 1.7;
     at.updateMatrix(); stones.setMatrixAt(i, at.matrix);
   }
-  at.scale.set(1, 1, 1); at.rotation.set(0, 0, 0);
-  for (let i = 0; i < 4; i++) {
-    const x = i % 2 ? 46 : 34, z = i < 2 ? POINT2.z : START2.z;
-    // 杭は入口と出口の一対ずつ。水の中の通り道は白波と川底で見せる。
-    at.position.set(x, Math.max(W.heightAt(x, z), .12) + 0.55, z);
-    at.updateMatrix(); pegs.setMatrixAt(i, at.matrix);
-  }
-  W.scene.add(stones, pegs);
+  // 黄色い杭は別の行き先に見えるため置かない。浅瀬の川底と白波で渡れる帯を示す。
+  W.scene.add(stones);
   // 粗い地形の面に沿う濡れた岸。細分した色の帯で流れと土手をつなぐ。
   // 高さ・水深・移動判定は保ち、地表から浮く石の列を岸の代わりにしない。
   const bankPos = [], bankColors = [], bankUV = [], bankIndices = [];
@@ -622,7 +615,7 @@ function moribeFord(rt) {
   reeds.computeBoundingSphere(); W.scene.add(reeds);
   const dispose = rt.dispose;
   rt.dispose = function () {
-    stoneGeo.dispose(); stoneMat.dispose(); pegGeo.dispose(); pegMat.dispose();
+    stoneGeo.dispose(); stoneMat.dispose();
     bankGeo.dispose(); bankMat.dispose(); reedGeo.dispose(); reedMat.dispose();
     return dispose.call(this);
   };
@@ -758,11 +751,11 @@ function moribeNearBodies(rt) {
         insideHorse = side * side / 0.81 + along * along / 4.84 < 1;
       }
       // カメラの近さだけでは、少し先の肩や馬の胴が自分を覆う。
-      // 自分までの線分に限り、前線の敵と自分より先の味方は残す。
+      // 自分までの線分に限り敵味方の体を避け、刀を振る自分を見せる。自分より先の兵は残す。
       const t = len2 > 0.01 ? (dx * vx + dz * vz) / len2 : -1;
       const width = u.mounted ? 1.9 : 1.1;
       const y = c.y + (p.y + 1.3 - c.y) * t;
-      const blocks = ally && this.fpK < 0.5 && t > 0 && t < 1
+      const blocks = this.fpK < 0.5 && t > 0 && t < 1
         && (dx - vx * t) ** 2 + (dz - vz * t) ** 2 < width * width
         && y >= u.pos.y && y <= u.pos.y + (u.mounted ? 4.4 : 2.5);
       // 寄った視点では自分までの線分が短くなり、少し先の騎手の胴を拾えない。
@@ -1038,7 +1031,7 @@ const moribe = {
   introTaskFirst: true,
   introPeopleFolded: true,   // 横持ちでは下知を先に読み、人物紹介は自分で開く。
   // 操作は稲生で覚える。ここでは行き先と勝つための流れを伝える。
-  introText: '黄色い杭の間の浅瀬を渡り、向こう岸の小旗へ。',
+  introText: '浅瀬を渡り、向こう岸へ。',
   introSides: { a: '織田軍', b: '斎藤軍' },
   introPeople: [
     { id: 'moribe-oda', name: '織田信長（おだ のぶなが）', note: '味方の大将。大将は、兵たちをまとめる人。味方と一緒に戦おう。' },
@@ -1049,7 +1042,7 @@ const moribe = {
   nearbyAllySignLimit: 0, // 味方の頭上に白い小旗を出さない。追う旗はピン一本、敵は赤い印で分ける。
   noDodgeCard: true, // 矢の雨で「〜をむこう」「にげる」の札を出さない（kaito 10/23 稲生 4）。
   hideMissionDots: true, // 任務の段数は見出しにある。仲間の人数と紛れる五つの丸は出さない。
-  missionSingleLine: true, // 右上は任務一行だけ。耐える進みは同じ一行の下地で示す。
+  missionSingleLine: true, // 右上は任務一行だけ。耐える進みは同じ一行の丸で示す。
   // 仲間の名札は一人だけ。密集しても五人分の文字を重ねない。
   missionAllyLabel: 'ついてくる仲間',
   missionContext: '永禄四年（一五六一）・森部（もりべ）の戦い',
@@ -1656,17 +1649,31 @@ const moribe = {
 /* 説明のない総兵数や綱引きは出さず、行き先のピンと敵の▼で判断する。 */
 #hud.moribe-notices #tugbar,
 #hud.moribe-notices #armybar { display:none !important; }
+/* 横持ちの足元を空ける。命は同じ場所の短い棒だけで示す。 */
+html:root body #hud.moribe-notices.field-clean.field-clean .bl {
+ width:max-content !important; min-width:0 !important; padding:0 !important;
+ background:none !important; border:0 !important; box-shadow:none !important;
+}
+html:root body #hud.moribe-notices.field-clean.field-clean .bl #h-hp.hp {
+ display:block !important; width:140px; padding:4px; max-width:24vw;
+}
+html:root body #hud.moribe-notices.field-clean.field-clean .bl #h-hp.hp :is(.hp-remaining,em) {
+ display:none !important;
+}
+html:root body #hud.moribe-notices.field-clean.field-clean .bl #h-hp.hp i {
+ display:block !important; height:10px !important;
+}
 /* 次の一手と号令を右の任務札にまとめる。横持ちでも二行を切らない。 */
 #hud #h-prog[data-battle="moribe"] { width:min(320px, 38vw); }
-/* 戦況の棒を残り時間と取り違えさせない。待つ進みは同じピンの中だけ。 */
-#hud.moribe-notices #tugbar, #hud.moribe-notices #armybar { display:none !important; }
 #hud #h-prog[data-battle="moribe"] .pg-st { background-image:none !important; }
-/* 任務一行の形は待機中も変えない。 */
+/* 耐える進みは任務一行の中で満ちる丸にする。秒の字や別の札は足さない。 */
 #hud #h-prog[data-battle="moribe"] .pg-st.moribe-wait {
  flex-direction:row; align-items:center; justify-content:flex-end; gap:10px;
 }
 #hud #h-prog[data-battle="moribe"] .pg-st.moribe-wait::before {
- content:none;
+ content:""; display:block; flex:none; width:28px; height:28px; border-radius:50%;
+ background:conic-gradient(#ffe28a calc(var(--wait-progress,0) * 1%), #494338 0);
+ box-shadow:0 0 0 2px #c9b27a;
 }
 /* 共通の一行省略より優先し、今することを最後まで読めるようにする。 */
 html:root body #hud.mission-only #h-prog[data-battle="moribe"] .pg-st span {
@@ -2534,7 +2541,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         F.pointDone = true; rt.objDone('point'); rt.objRemove('point'); rt.unmark('point'); rt.unzone('point');
         rt.award((t) => { t.c.point = 1; }, '渡河して組をそろえた');
       }
-      if (!F.fordNudge && rt.t > 20 && !F.pointReached) { F.fordNudge = true; orderSpeech(rt, '黄色い杭の間を通り、向こう岸の印まで進め', 4); }
+      if (!F.fordNudge && rt.t > 20 && !F.pointReached) { F.fordNudge = true; orderSpeech(rt, '浅瀬を渡り、向こう岸まで進め', 4); }
       if (F.pointDone || (F.pointInside && F.fordThreat) || F.pointReached && rt.t >= 45) this.signal(rt);
       return;
     }

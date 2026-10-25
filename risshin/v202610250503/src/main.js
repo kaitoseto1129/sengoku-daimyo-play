@@ -134,7 +134,7 @@ function ldBegin(keys, battle = '') {
   const actions = document.querySelector('#loading .ld-cancel');
   if (actions) actions.remove();
   const cancel = document.createElement('button');
-  cancel.type = 'button'; cancel.className = 'btn small ld-cancel'; cancel.textContent = '準備をやめて題へ戻る';
+  cancel.type = 'button'; cancel.className = 'btn small ld-cancel'; cancel.textContent = '準備をやめて最初の画面へ戻る';
   cancel.style.cssText = 'display:block;min-height:44px;margin:16px auto 0';
   cancel.onclick = () => { game.startSeq = (game.startSeq || 0) + 1; hideLoading(); game.title(); };
   document.querySelector('#loading .ldbar').parentElement.appendChild(cancel);
@@ -208,7 +208,7 @@ const stage = (t, key) => {
     }
     window.dispatchEvent(new Event('risshin-preparation-progress'));
   }
-  if (t) ldName = ({ defs: '戦の仕組み', assets: '人とよろい', build: '戦場', warm: '人の姿', compile: '絵', first: '最初の画面' })[key] || t;
+  if (t) ldName = ({ defs: '戦の仕組み（兵の動きと槍の当たり判定）', assets: '人とよろい', build: '戦場（地形と兵）', warm: '人の姿', compile: '絵', first: '最初の画面' })[key] || t;
   let el = $('ld-stage');
   if (!el) { el = document.createElement('div'); el.id = 'ld-stage'; el.style.cssText = 'margin-top:10px;font-size:15px;color:var(--washi);text-align:center'; el.innerHTML = '<span role="status" aria-live="polite" aria-atomic="true"></span><span aria-live="off" id="ld-left" style="display:block;margin-top:8px"></span>'; document.querySelector('#loading .ldbar').after(el); }
   el.setAttribute('role', 'region');
