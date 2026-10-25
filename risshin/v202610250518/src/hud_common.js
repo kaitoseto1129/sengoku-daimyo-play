@@ -69,8 +69,8 @@ function defenseRadius(rt, marker) {
 // 攻撃釦に書かれた名前と同じ言葉で、押す場所を案内する。
 function attackOperation(rt) {
   const p = rt.player;
-  if (p.weapon === 'gun' || p.weapon === 'bow') return isTouch ? `「${p.weapon === 'bow' ? '射る' : '攻撃'}」を押して狙い、離して放つ` : '左押しを押して狙い、離して放つ';
-  return isTouch ? `「${p.weapon === 'sword' ? 'きる' : 'つく'}」を押す` : '左押しで突く';
+  if (p.weapon === 'gun' || p.weapon === 'bow') return isTouch ? `「${p.weapon === 'bow' ? '射る' : '攻撃'}」を押して狙い、離して放つ` : 'マウスの左ボタンで狙い、離して放つ';
+  return isTouch ? `「${p.weapon === 'sword' ? 'きる' : 'つく'}」を押す` : `左クリックで${p.weapon === 'sword' ? '斬る' : '突く'}`;
 }
 
 function byAllyDistance(a, b) { return a.d - b.d; }

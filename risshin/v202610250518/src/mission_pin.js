@@ -669,7 +669,7 @@ function drawMissionPin(rt) {
   // 守備の案内は右上の任務札へまとめる。
   const personName = typeof marker?.label === 'function' ? marker.label() : marker?.label;
   const distanceLabel = !oke && !person && !want.fire && !want.gate && !want.dodge && !want.turn && !arrived;
-  // 稲生は行き先のピン一本だけ。名前・距離・向きの札を添えない。
+  // 稲生は字のないピン一本。相手は同じ本人の頭上の赤い▼で示す。
   const text = rt.def.key === 'inou' ? '' : (working ? action.hold ? '火をつける（長押し）' : '火をつける' : friendlyPerson ? '' : want.fire ? '' : want.silent ? '' :
     want.treatment && arrived ? '止まって手当' : distanceLabel ? `${want.treatment ? '手当まで ' : 'あと'}${Math.ceil(Math.max(0, d - (want.r ?? 6)) / .75)}歩` :
     friendlyPerson ? personName || 'この人' : '');
@@ -987,22 +987,15 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
   // 森部は先端が土に刺さるピン一本。川の途中の兵の頭上印に見せない。
   const routeShape = rt.def.key === 'moribe'
     ? 'M0 0L-5-12V-35A17 17 0 1 1 5-35V-12Z M0-63A10 10 0 1 0 0-43A10 10 0 1 0 0-63Z'
+    : inou
+    ? 'M0 0C-5-11-18-26-18-39A18 18 0 1 1 18-39C18-26 5-11 0 0ZM0-47A8 8 0 1 0 0-31A8 8 0 1 0 0-47Z'
     : 'M-9-58H9V-28H23L0 0L-23-28H-9Z';
   if (route.getAttribute('d') !== routeShape) {
     route.setAttribute('d', routeShape); route.setAttribute('fill-rule', 'evenodd');
   }
   const outside = hidden || x < 92 || x > W - 92 || y < 104 || y > H - 68 || !inouPinFree(x, y, rects);
-  // 稲生は穴のあるピン一本。地面と画面端で同じ形を保つ。
-  route.setAttribute('d', inou
-    ? 'M0 0C-5-11-18-26-18-39A18 18 0 1 1 18-39C18-26 5-11 0 0ZM0-47A8 8 0 1 0 0-31A8 8 0 1 0 0-47Z'
-    : 'M-9-58H9V-28H23L0 0L-23-28H-9Z');
-  route.setAttribute('fill-rule', 'evenodd');
-  route.style.display = '';
   // 稲生は画面内も画面端も同じ穴のあるピン。横向きの操作矢印と取り違えさせない。
-  route.setAttribute('d', inou
-    ? 'M0 0L-18-30A23 23 0 1 1 18-30ZM-8-45A8 8 0 1 0 8-45A8 8 0 1 0-8-45Z'
-    : 'M-9-58H9V-28H23L0 0L-23-28H-9Z');
-  route.setAttribute('fill-rule', 'evenodd');
+  route.style.display = '';
   // 敵へ向かうピンは小さくし、足元から胴や自分の頭まで覆わない。
   el._simplePin.style.transform = inou && want.approach && !outside ? 'scale(.55)' : '';
   el._simplePin.style.transformOrigin = '0 0';
