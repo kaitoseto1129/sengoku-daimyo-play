@@ -1221,10 +1221,8 @@ const moribe = {
       return null; // 討つ武将も頭上の赤い▼にそろえる。
     } else if (F.stage === 'hold' || F.vBroken) {
       if (!F.lineReturning && F.stage === 'hold') {
-        // 同じ持ち場のピンを時計に替える。列にいれば待つだけでも進む。
-        q.waiting = true; q.arrived = true;
-        q.progress = this.missionWaitProgress(rt);
-        pos = F.linePoint; r = 24; hide = 0;
+        // 持ち場にいる間は右上の時計だけ。別の行き先へ歩かせない。
+        return null;
       } else {
         if (!F.lineReturning) return null;
         // 列を離れた時だけ、守備を始めた固定地点へ戻す。

@@ -246,7 +246,9 @@ const inou = {
   missionHeading(rt) {
     const F = rt.flags;
     if (F.step === 0 && F.training <= 8) {
-      return F.training === 8 ? '林の隊長を倒せ' : '林の兵を倒せ';
+      const name = F.training === 8 ? '林の隊長' : '林の兵';
+      const left = F.training <= 4 ? practiceLeft(rt) : 0;
+      return left ? `${name}を倒せ（残り${left}人）` : `${name}を倒せ`;
     }
     if (F.step === 1) {
       if (F.training === 11 && !F.flankReached || F.training === 12 && !gone(F.shiba1)) return '柴田の兵を倒せ';
@@ -276,7 +278,7 @@ const inou = {
     if (result === 'miss' && rt.t >= (F.missNoticeNext || 0)) {
       const enemy = rt.def.missionSignTarget(rt), p = rt.player;
       const near = fighting(enemy) && Math.hypot(enemy.pos.x - p.u.pos.x, enemy.pos.z - p.u.pos.z) <= p.meleeReach(p.previewMeleeKind() || 'thrust');
-      F.combatResult = near ? '空振り。赤い三角の兵へ向け' : '空振り。赤い三角へ近づけ';
+      F.combatResult = near ? '空振り。白縁の▼へ向け' : '空振り。白縁の▼へ近づけ';
       F.combatResultUntil = rt.t + 2;
       F.missNoticeNext = rt.t + 8;
     } else if (target && target.team !== rt.player.u.team && (result === 'block' || result === 'armor')) {
@@ -308,13 +310,14 @@ const inou = {
     }
     return signs;
   },
-  // 討つ本人の位置へ案内する。本人が見えれば頭上の▼に任せる。
+  // 討つ本人へ案内する。札・ピン・頭上の▼は同じ一人を使う。
   missionPin(rt) {
     const F = rt.flags;
-    if (F.ending) return null;
-    if (F.step === 0 && (F.training < 0 || F.training > 8)) return null;
+    // 林兵への案内は頭上の札一本。地面へ別の矢印を重ねない。
+    if (F.ending || F.step === 0) return null;
     const enemy = this.missionSignTarget(rt);
-    if (advanceEnemy(enemy)) {
+    // 描画を省いた兵にも案内を残す。見えない間は同じ相手への方向矢印になる。
+    if (fighting(enemy)) {
       const p = rt.player, me = p.u.pos;
       const dx = me.x - enemy.pos.x, dz = me.z - enemy.pos.z, d = Math.hypot(dx, dz);
       const reach = p.meleeReach(p.previewMeleeKind() || 'thrust') * .8;
@@ -323,7 +326,7 @@ const inou = {
       pin.approach = true;
       return pin;
     }
-    if (F.step === 0 || F.step === 3) return null;
+    if (F.step === 3) return null;
     if (F.step === 1) {
       if (F.training === 11 && !F.flankReached) {
         return pinPoint(rt, FLANK, 8);
@@ -472,6 +475,7 @@ const inou = {
         // 最後の命中からの経過に依存させず、倒れた時から印を閉じる。
         if (t.hp < hp && (!t.alive || t.dying || t.hp <= 0 || t.downed || t.woundOut || t.rearWound)) {
           t.inouDefeatUntil = rt.t + 1.2;
+          F.combatResult = '一人倒した。次の白縁の▼へ'; F.combatResultUntil = rt.t + 2;
         }
       }
       return result;
