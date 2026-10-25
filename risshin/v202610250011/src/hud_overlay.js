@@ -26,7 +26,8 @@ export class HudOverlay {
     g.save(); g.lineJoin = 'round';
     // 渡河の大きさと接地点は固定し、穴の中の進みで岸への接近を示す。
     // 渡河も長い軸で岸へ刺す。兵の頭上の▼と形を分け、接地点は動かさない。
-    const pinScale = pin?.waiting ? .95 : pin?.crossing ? 1.1 : 1.3;
+    // 待つ間は丸の面積を広げ、携帯でも満ちた分と残った分を見分けられる大きさにする。
+    const pinScale = pin?.waiting && pin.arrived ? 1.7 : pin?.waiting ? .95 : pin?.crossing ? 1.1 : 1.3;
     g.translate(x, y); g.scale(pinScale, pinScale); x = 0; y = 0;
     // 大きさが変わってもピンの接地点は岸から動かさない。
     g.beginPath(); g.ellipse(x, y + 1, 11, 3, 0, 0, Math.PI * 2);
@@ -56,7 +57,13 @@ export class HudOverlay {
     if (pin?.arrived) {
       g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
     }
-    if (pin?.progress > 0) {
+    if (pin?.crossing) {
+      // 渡河は残りの道のり。時計と区別し、同じ穴を下から満たす。
+      g.save(); g.beginPath(); g.arc(x, y - 33, 12, 0, Math.PI * 2); g.clip();
+      const level = Math.max(0, Math.min(1, pin.progress || 0));
+      g.fillStyle = '#ffe28a'; g.fillRect(x - 12, y - 21 - 24 * level, 24, 24 * level);
+      g.restore();
+    } else if (pin?.progress > 0) {
       // ピンの中だけを満たす。待ち時間の札や別の印は増やさない。
       g.beginPath(); g.moveTo(x, y - 33);
       g.arc(x, y - 33, 12, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, pin.progress));
@@ -65,7 +72,8 @@ export class HudOverlay {
     // 待機中だけ時計の針を回す。移動先と待ち時間を同じ一本で伝える。
     if (pin?.waiting && pin.arrived) {
       const angle = -Math.PI / 2 + Math.PI * 2 * Math.min(1, pin.progress || 0);
-      g.beginPath(); g.moveTo(-5, -36); g.lineTo(0, -33);
+      // 十二時を起点にした扇形の境界。斜めの二本針を完了の印に見せない。
+      g.beginPath(); g.moveTo(0, -44); g.lineTo(0, -33);
       g.lineTo(Math.cos(angle) * 10, -33 + Math.sin(angle) * 10);
       g.strokeStyle = '#14120f'; g.lineWidth = 5; g.stroke();
       g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
@@ -127,7 +135,7 @@ export class HudOverlay {
     // 到着後は同じピンを任務の下で満たす。足元や背後へ隠れて、終わりが見えなくなるのを防ぐ。
     // 移動する時だけ地面へ戻し、時計と行き先を同時に二本出さない。
     if (moribe && pinTarget.waiting && pinTarget.arrived) {
-      this.drawBattleGoalSign(g, rt, VIEW.w - 44, 168, false, pinTarget);
+      this.drawBattleGoalSign(g, rt, VIEW.w - 52, 220, false, pinTarget);
       return true;
     }
     // 到着後も同じピンの中を満たし、守備や集合が進んでいることを形で伝える。

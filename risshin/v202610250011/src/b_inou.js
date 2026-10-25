@@ -240,13 +240,14 @@ const inou = {
   nearGroundSpearRadius: 10, // 討ち取り後に視線を横切る落ち槍も既存の視線判定で避ける。
   nearSpearFade: false, // 槍だけを縮めて透かさず、持ち主と同じ形を保つ。
   missionPinCaption: '',
+  hideArmyPeek: true, // 初陣は行き先・敵の▼・任務一行に絞る。
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
-  // 任務は一行。兵と武将・待つ場所を区別し、距離や向きで文を切り替えない。
-  missions: ['林美作守の兵を倒せ', '林美作守の兵を倒せ', '耐えろ', '林美作守を倒せ'],
+  // 任務は一行。頭上の▼と呼び方をそろえ、距離や向きで文を切り替えない。
+  missions: ['赤い▼の林美作守の兵（信勝方）を倒せ', '赤い▼の林美作守の兵（信勝方）を倒せ', '耐えろ', '▼の林美作守を倒せ'],
   missionHeading(rt) {
     const F = rt.flags;
     if (F.step === 0) {
-      const name = F.training === 8 ? '林美作守の小隊長' : '林美作守の兵';
+      const name = F.training === 8 ? '▼の林美作守の小隊長' : '赤い▼の林美作守の兵（信勝方）';
       const left = F.training <= 4 ? practiceLeft(rt) : 0;
       return left ? `${name}を倒せ（残り${left}人）` : `${name}を倒せ`;
     }
