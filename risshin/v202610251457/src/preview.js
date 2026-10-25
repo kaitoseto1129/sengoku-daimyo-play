@@ -4,6 +4,12 @@ import { World } from './world.js';
 import { playerLook, horseStyle } from './player.js';
 import { myHorse } from './state.js';
 import { S } from './settings.js';
+import { battleResources } from './battle_resources.js';
+import { sharedUnitResources } from './units_model.js';
+import { sharedHumanResources } from './humans.js';
+import { sharedNatureResources } from './nature.js';
+import { sharedFlagResources } from './textures.js';
+import { sharedArmorResources } from './armor_wear.js';
 
 // 武具屋で自分の姿を回して見るための小さな描画
 export class Preview {
@@ -119,7 +125,7 @@ export function titleScene() {
       if (u.flag) flags.push(u.flag);
     }
   }
-  let time = 0;
+  let time = 0, disposed = false;
   const focus = new THREE.Vector3(0, 0, -4);
   return {
     scene,
@@ -134,18 +140,17 @@ export function titleScene() {
     },
     // 題の 3D を手放す（戦・城下へ入る時。iPhone は WebContent が 2GB で落ちるので、題の木・草・兵を戦の間まで持ち越さない）
     dispose() {
-      try { world.dispose(); } catch (e) { /* 手放せなくてもよい */ }
-      const seen = new Set();
-      scene.traverse((o) => {
-        if (o.geometry && !seen.has(o.geometry)) { seen.add(o.geometry); o.geometry.dispose(); }
-        for (const m of [].concat(o.material || [])) {
-          if (!m || seen.has(m)) continue;
-          seen.add(m);
-          for (const k in m) { const v = m[k]; if (v && v.isTexture && !seen.has(v)) { seen.add(v); v.dispose(); } }
-          m.dispose();
-        }
-      });
+      if (disposed) return;
+      disposed = true;
+      // 地面の絵・兵・旗は次の戦も使う。画像本体を手放した共用画像を返すと、
+      // 入り直しで再転送できず地面が黒くなる。戦と同じ所有権で共用品を守る。
+      const resources = battleResources([sharedUnitResources(), sharedHumanResources(), sharedNatureResources(), sharedFlagResources(), sharedArmorResources()]);
+      resources.add(scene); resources.add({ ...world });
+      try { world.dispose(); } catch (e) { /* 残りは下で返す */ }
+      resources.dispose();
       scene.clear();
+      scene.background = scene.environment = null;
+      scene.onBeforeRender = scene.onAfterRender = () => {};
     },
   };
 }

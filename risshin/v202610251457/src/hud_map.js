@@ -72,6 +72,24 @@ export class HudMap {
     const Sz = cv.width;
     g.clearRect(0, 0, Sz, Sz);
     const p = rt.player.u;
+    const inou = rt.def.key === 'inou';
+    const ownGroup = inou ? rt.flags.hata : rt.hostGroup;
+    // 名前は自分の組と大将だけ。同じ場所の札を重ねない。
+    const names = this._mapNameRects || (this._mapNameRects = []);
+    let nameCount = 0;
+    const drawName = (label, x, y) => {
+      if (!label) return;
+      const width = g.measureText(label).width, height = Math.ceil(12 * px);
+      x = Math.max(4 * px, Math.min(Sz - width - 4 * px, x));
+      y = Math.max(height + 4 * px, Math.min(Sz - 4 * px, y));
+      for (let i = 0; i < nameCount; i++) {
+        const r = names[i];
+        if (x < r[2] + 5 * px && x + width > r[0] - 5 * px && y - height < r[3] + 5 * px && y > r[1] - 5 * px) return;
+      }
+      const r = names[nameCount] || (names[nameCount] = [0, 0, 0, 0]); nameCount++;
+      r[0] = x; r[1] = y - height; r[2] = x + width; r[3] = y;
+      g.lineWidth = 3 * px; g.strokeStyle = C.paper; g.strokeText(label, x, y); g.fillText(label, x, y);
+    };
     const cx = rotate ? p.pos.x : (this.bigC ? this.bigC.x : 0), cz = rotate ? p.pos.z : (this.bigC ? this.bigC.z : 0);
     const sc = Sz / 2 / range;
     const northUp = rotate && S.mapNorth;
@@ -403,7 +421,7 @@ export class HudMap {
     }
     // 味方の武将：台詞・隊の札と同じ番号。地図の外なら縁の四角に番号を置く。
     // 小さい丸は一隊だけ、ほかは三隊まで。字は画面上で十二画素以上。
-    if (rotate) {
+    if (rotate && !inou) {
       let drawn = 0;
       g.font = `${Math.ceil(12 * px)}px sans-serif`;
       const rim = Sz / 2 - 10 * px;
@@ -455,7 +473,7 @@ export class HudMap {
       g.strokeStyle = C.ink; g.lineWidth = 6; g.strokeRect(-r0 * 1.4, -r0 * 1.4, r0 * 2.8, r0 * 2.8);
       g.strokeStyle = col; g.lineWidth = 3; g.strokeRect(-r0 * 1.4, -r0 * 1.4, r0 * 2.8, r0 * 2.8);
       g.restore();
-      if (!rotate) {
+      if (!rotate && !inou) {
         g.font = `${Math.max(Math.ceil(12 * px), Math.round(Sz / 50))}px sans-serif`;
         const t = typeof m.label === 'function' ? m.label() : m.label;
         g.lineWidth = 3; g.strokeStyle = C.paper; g.strokeText(t, a + r0 * 2, b + 4);
@@ -498,9 +516,9 @@ export class HudMap {
         g.fillStyle = col;
         // 字は要る時だけ：自分の組は隊の名、敵は乱れた時だけ（意気盛ん・平常は書かない）
         const report = grp.team === 0 && rt.allyOrders && rt.allyOrders.find((r) => r.g === grp && r.active);
-        const lbl = grp.isPlayerSquad ? ((rt.squadGroups.length > 1 ? GROUP_NAME[grp.kind] : '') || '自分の組') + (grp.morale < 50 ? ` ${moraleWord(grp.morale)}` : '') : grp.team !== 0 ? (grp.routed ? '潰走' : grp.morale < 50 ? moraleWord(grp.morale) : '') : report ? `${report.number} ${report.name}・${report.action}` : '';
+        const lbl = inou ? grp === ownGroup ? '自分の組' : grp === rt.flags.nobuGroup ? '織田信長' : '' : grp.isPlayerSquad ? ((rt.squadGroups.length > 1 ? GROUP_NAME[grp.kind] : '') || '自分の組') + (grp.morale < 50 ? ` ${moraleWord(grp.morale)}` : '') : grp.team !== 0 ? (grp.routed ? '潰走' : grp.morale < 50 ? moraleWord(grp.morale) : '') : report ? `${report.number} ${report.name}・${report.action}` : '';
         if (report) g.font = `${Math.ceil(12 * px)}px sans-serif`;
-        if (lbl) { g.lineWidth = 3; g.strokeStyle = C.paper; g.strokeText(lbl, a + r0 * 4.6, b - 4); g.fillText(lbl, a + r0 * 4.6, b - 4); }
+        if (lbl) drawName(lbl, a + r0 * 4.6, b - 4);
       }
     }
     // 稲生の行き先は戦場と同じ白ふちの赤い▼。白い矢印は自分だけ。

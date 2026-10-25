@@ -753,6 +753,7 @@ function moribeNearBodies(rt) {
       const t = len2 > 0.01 ? (dx * vx + dz * vz) / len2 : -1;
       const width = u.mounted ? 1.9 : 1.1;
       const y = c.y + (p.y + 1.3 - c.y) * t;
+      // 自分までの線分を遮る体を避ける。自分より先の敵は隠さない。
       const blocks = this.fpK < 0.5 && t > 0 && t < 1
         && (dx - vx * t) ** 2 + (dz - vz * t) ** 2 < width * width
         && y >= u.pos.y && y <= u.pos.y + (u.mounted ? 4.4 : 2.5);
@@ -1113,12 +1114,12 @@ const moribe = {
       if (F.gatherUnit || Math.hypot(p.x - F.asm.x, p.z - F.asm.z) >= 12) return '仲間と集まれ';
       return '仲間を待て';
     }
+    // 守備は撃破人数を求めず、迎え撃ちながら耐える任務と伝える。
+    if (F.stage === 'hold') return F.lineReturning ? '仲間と集まれ' : '敵と戦って耐えろ';
     if (F.squadGuide && Math.hypot(p.x - F.squadGuide.pos.x, p.z - F.squadGuide.pos.z) >= 16 ||
         !F.signal && F.pointReached && !F.pointInside ||
         (F.stage === 'hold' || F.stage === 'contact' && F.vBroken) && F.lineReturning)
       return '仲間と集まれ';
-    // やさしい言葉で戦う任務を伝える。守備の終了に撃破人数の条件はない。
-    if (F.stage === 'hold') return '敵と戦って耐えろ';
     // 討つ相手の名前は許された任務一行に収め、頭上に別の札を足さない。
     const commander = this.commanderTarget(rt);
     if (commander?.name) return `${commander.name}を倒せ`;
@@ -1237,6 +1238,11 @@ const moribe = {
         }
         if (ally) { q.unit = ally; pos = ally.pos; }
       }
+    } else if (F.stage === 'hold') {
+      // 守備は動く仲間を追わせず、到着判定と同じ固定地点一本へ集める。
+      pos = F.linePoint; r = hide = 18;
+      q.waiting = true; q.arrived = !F.lineReturning;
+      q.progress = this.missionWaitProgress(rt) || 0;
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
     } else if (F.stage === 'assemble') {
@@ -1250,19 +1256,10 @@ const moribe = {
       return null; // 敵を追う段は赤い▼だけ。地面の行き先と混ぜない。
     } else if (F.stage === 'press') {
       return null; // 討つ武将も頭上の赤い▼にそろえる。
-    } else if (F.stage === 'hold' || F.vBroken) {
-      if (!F.lineReturning && F.stage === 'hold') {
-        // 着いたピンを待ち時計に替え、攻撃中も終了までの進みを残す。行き先の軸は畳み、任務のそばへ置く。
-        pos = F.linePoint;
-        r = hide = 18;
-        q.waiting = true; q.arrived = true;
-        q.progress = this.missionWaitProgress(rt) || 0;
-      } else {
-        if (!F.lineReturning) return null;
-        // 列を離れた時だけ、守備を始めた固定地点へ戻す。
-        pos = F.linePoint;
-        r = hide = 18;
-      }
+    } else if (F.vBroken) {
+      if (!F.lineReturning) return null;
+      pos = F.linePoint;
+      r = hide = 18;
     } else if (!gone(F.V)) {
       // 「斎藤の先手を崩す」の間は、その先手の真ん中へ。味方の旗を指すと、どれが先手か分からない（初めての人の迷い）。
       pos = fightingCenter(F.V); r = 6; hide = 8;
@@ -2208,18 +2205,18 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       const hp = t?.hp;
       const result = damage.call(this, t, amount, src, ...rest);
       // 傷のない受け止めも本人の▼だけで示し、空振りと区別する。
-      if (src?.isPlayer && t && t.team !== src.team && t.hp === hp && rest[0]?.out?.res === 'block') {
+      const blocked = src?.isPlayer && t && t.team !== src.team && rest[0]?.out?.res === 'block';
+      if (blocked) {
         t.moribeBlockUntil = rt.t + .65;
         // 直前の命中を残すと、次の一撃が防がれても縦に伸びたままになる。
         t.moribeHitUntil = 0;
       }
       if (src?.isPlayer && t?.team !== src.team && t.hp < hp) {
         // 一撃ごとに伸び直す。小さな伸びは残し、連打でも当たった本人を追える。
-        t.moribeHitUntil = rt.t + 3;
-        t.moribeBlockUntil = 0;
+        if (!blocked) { t.moribeHitUntil = rt.t + 3; t.moribeBlockUntil = 0; }
         if (!t.alive || t.dying || t.downed || t.woundOut || t.rearWound) t.moribeDefeatUntil = rt.t + 1.8;
         // 命を減らした本人だけがよろめく。空振りや味方には反応を付けない。
-        if (t.alive) {
+        if (t.alive && !blocked) {
           // 共通の膝を崩す動きは残り .7 秒超で始まる。構えを止めるだけにしない。
           t.stagger = Math.max(t.stagger || 0, 1.1);
           // 突きの途中の姿を残さず、命中した本人のよろめきを見せる。
@@ -2316,12 +2313,12 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     W.setTime('storm'); W.setRainTarget(0.65);
     W.rainLevel = W.wetness = 0.65;
     rt.setPhase('brief');
-    rt.banner('雨の森部（もりべ）、敵は川の向こう', '黄色い杭の間を歩いて渡れ');
-    rt.obj('point', '黄色い杭の間を歩いて渡れ', 'main');
+    rt.banner('雨の森部（もりべ）、敵は川の向こう', '砂色の浅瀬を歩いて渡れ');
+    rt.obj('point', '砂色の浅瀬を歩いて渡れ', 'main');
     rt.marker('point', POINT2, () => rt.flags.pointInside ? 'ここで仲間を待つ' : '向こう岸の矢印の輪へ',
       { guideArea: 'wait', guideRadius: FORD_R });
     rt.zone('point', POINT2.x, POINT2.z, FORD_R);
-    rt.say('隊長 源八（げんぱち）', '黄色い杭の間が浅瀬だ。向こう岸の印まで歩いて渡れ', 5);
+    rt.say('隊長 源八（げんぱち）', '砂色の浅瀬は歩いて渡れる。向こう岸の印まで進め', 5);
     // 公記：勘当の身の前田利家が、許しなく森部に加わり首を挙げた。
     rt.after(17, () => { if (!rt.flags.ending && !rt.over) rt.bark('仲間「勘当の前田利家殿まで、槍を持って駆けつけたぞ」'); });
     rt.flags.point = POINT2;
@@ -2450,8 +2447,9 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     // 迎撃中は少し敵へ踏み込んでも集合へ戻さない。戻りの印は合流まで保つ。
     if (F.stage === 'hold' || F.stage === 'contact' && F.vBroken) {
       const d = Math.hypot(p.x - F.linePoint.x, p.z - F.linePoint.z);
-      // 守備の範囲と戻る判定をそろえる。範囲外で待ち時計だけを見せない。
-      F.lineReturning = d >= (F.lineReturning ? 18 : 24);
+      if (d < 18) F.lineReached = true;
+      // 初回は印まで集め、到着後は守備範囲を離れた時だけ戻す。
+      F.lineReturning = d >= (F.lineReturning || !F.lineReached ? 18 : 24);
     }
     // 任務と隊の見直しは一秒ごと。毎コマ配列や行き先を作らない。
     F.taskTick -= dt;
@@ -2599,8 +2597,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         rt.objRemove('support'); rt.unmark('support');
         moribeHoldPoint(rt);
         F.stage = 'hold'; F.holdStart = rt.t; F.lineT = 0;
-        // 守備に切り替わる瞬間から、離れていれば時計より持ち場のピンを出す。
-        F.lineReturning = Math.hypot(p.x - F.linePoint.x, p.z - F.linePoint.z) >= 24;
+        F.lineReached = Math.hypot(p.x - F.linePoint.x, p.z - F.linePoint.z) < 18;
+        F.lineReturning = !F.lineReached;
         rt.setPhase('hold'); rt.banner('槍を打ち合わせる', '雨の中、両軍が押し合う');
         rt.obj('line', '印へ仲間と集まれ', 'main');
         rt.marker('line', () => F.linePoint, () => F.lineT >= 25 ? '本備の横・列を支えた。控えに備えよ' : '守る印・仲間と守れ', { hideNear: 24, hideOnArrival: true }); rt.zone('line', F.linePoint.x, F.linePoint.z, 24);
@@ -2750,8 +2748,9 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     const flag = rt.squadGroups.find((g) => !gone(g));
     const cFlag = flag ? fightingCenter(flag) : rt.player.u.pos;
     const p = rt.player.u.pos;
-    // 迎撃の下知中は遊び手の持ち場へ来る。離れた組を追って通り過ぎない。
-    const aim = F.stage === 'hold' || Math.hypot(cFlag.x - p.x, cFlag.z - p.z) <= 24 ? p : cFlag;
+    // 迎撃の敵は守備地点へ来る。離れた組を追って持ち場から遠ざからない。
+    const aim = F.stage === 'hold' ? F.lineReturning ? F.linePoint : p :
+      Math.hypot(cFlag.x - p.x, cFlag.z - p.z) <= 24 ? p : cFlag;
     for (const g of F.opposition) {
       if (gone(g) || g.hatamoto || (g === F.reserves[0] && !F.wave1) || (g === F.reserves[1] && !F.wave2)) continue;
       if (g.units.some((u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget &&

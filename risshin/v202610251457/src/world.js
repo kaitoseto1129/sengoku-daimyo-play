@@ -24,7 +24,7 @@ import { S as SETTINGS } from './settings.js';
 import { isNoRender, HALF, SEG, distToPolyline, fordLift, FIRE_FILL, roadTag, tuftClumpAt } from './world_common.js';
 import { _shC, shadowRange } from './world_shadow.js';
 import { fieldState } from './world_fields.js';
-import { WIND_STATE, WIND_DIR, WIND, GUST, MOOD_BY_SEED } from './world_weather.js';
+import { WIND_STATE, WIND_DIR, WIND, GUST, WEAR, WEAR_HALF, WET, MOOD_BY_SEED } from './world_weather.js';
 import { castlePlan, castleInside, castleHeight } from './world_castle.js';
 import { BattleTime } from './battle_time.js';
 import { POST } from './post.js';
@@ -52,6 +52,10 @@ export class World {
     {
       const before = scene.onBeforeRender;
       scene.onBeforeRender = (r, sc, cam, target) => {
+        // 題と戦の支度は交互に描く。共有の参照は、今描く世界の画像へ戻す。
+        WEAR.value = this.wearTex; WEAR_HALF.value = this.half;
+        WET.value = this.wetness || 0;
+        FIRE_FILL.map.value = this.fireFill.tex;
         this.armyBatch.restore();
         if (cam?.isPerspectiveCamera && cam.far > 150) { cam.far = 150; cam.updateProjectionMatrix(); }
         // 写真用の直接描画でも斜面の内側へ入らない。地面の面を選ぶ前に視点を補正する。
@@ -287,6 +291,7 @@ export class World {
       delete this.def.blockedEscape;
     }
     this.waterBlockedEscapeGetter = null;
+    if (WEAR.value === this.wearTex) WEAR.value = null;
     if (this.fireFill) {
       this.fireFill.tex.dispose();
       // 取り消した古い支度から、次の戦の照明画像は外さない。
