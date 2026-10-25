@@ -163,8 +163,8 @@ function ldTick() {
   if (into >= P.est[i]) left += Math.max(1000, P.est[i] * .2);
   const seconds = Math.floor((performance.now() - P.t0) / 1000);
   const text = into > P.est[i] * 1.5
-    ? `目安より時間がかかっています・動けるまで あと約${Math.max(1, Math.ceil(left / 1000))}秒（目安）・${seconds}秒経過`
-    : `動けるまで あと約${Math.max(1, Math.ceil(left / 1000))}秒（目安）・${seconds}秒経過`;
+    ? `目安より時間がかかっています・あと${Math.max(1, Math.ceil(left / 1000))}秒くらいで始まります・${seconds}秒経過`
+    : `あと${Math.max(1, Math.ceil(left / 1000))}秒くらいで始まります・${seconds}秒経過`;
   if (el.textContent !== text) el.textContent = text;
 }
 // 段に入る：棒をこの段の終わりの手前まで、見込みの時間で伸ばす
@@ -211,11 +211,11 @@ const stage = (t, key) => {
     }
     window.dispatchEvent(new Event('risshin-preparation-progress'));
   }
-  if (t) ldName = ({ defs: '戦の仕組み', assets: '人とよろい', build: '地形と兵', warm: '人の姿', compile: '絵', first: '最初の画面' })[key] || t;
+  if (t) ldName = ({ defs: '戦の仕組み', assets: '人とよろい', build: '戦いの用意', warm: '人の姿', compile: '絵', first: '最初の画面' })[key] || t;
   let el = $('ld-stage');
-  if (!el) { el = document.createElement('div'); el.id = 'ld-stage'; el.style.cssText = 'margin-top:10px;font-size:15px;color:var(--washi);text-align:center'; el.innerHTML = '<span role="status" aria-live="polite" aria-atomic="true"></span><span aria-live="off" id="ld-left" style="display:block;margin-top:6px"></span>'; document.querySelector('#loading .ldbar').after(el); }
+  if (!el) { el = document.createElement('div'); el.id = 'ld-stage'; el.style.cssText = 'margin-top:10px;font-size:15px;color:var(--washi);text-align:center'; el.innerHTML = '<span role="status" aria-live="polite" aria-atomic="true"></span><span aria-live="off" id="ld-left" style="display:block;margin-top:8px"></span>'; document.querySelector('#loading .ldbar').after(el); }
   el.setAttribute('role', 'region');
-  if (!$('ld-left')) el.innerHTML = '<span role="status" aria-live="polite" aria-atomic="true"></span><span aria-live="off" id="ld-left" style="display:block;margin-top:6px"></span>';
+  if (!$('ld-left')) el.innerHTML = '<span role="status" aria-live="polite" aria-atomic="true"></span><span aria-live="off" id="ld-left" style="display:block;margin-top:8px"></span>';
   // 初陣でも待つ目安を残す。工程名を畳む表示とは分ける。
   const left = $('ld-left');
   left.hidden = !t; left.style.display = t ? 'block' : 'none';
@@ -1912,7 +1912,7 @@ const game = {
         LT.assets = Math.round(performance.now() - tw);
         if (my !== this.startSeq) return;
       }
-      stage('地形と兵をそろえています', 'build');
+      stage('戦いの用意をしています', 'build');
       if (!isNorender()) await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));   // 字を描いてから組み立てる
       if (my !== this.startSeq) return;
       const tB = performance.now();
@@ -2632,7 +2632,7 @@ const game = {
       if (my !== this.startSeq) return;
       if (!BM) { if (!(await readyBattleCode(() => this.startMapBattle(info, again)))) return; }
       if (my !== this.startSeq) return;
-      stage('地形と兵をそろえています', 'build');
+      stage('戦いの用意をしています', 'build');
       this.battle = new BM.Battle(this, 0, def);
       applyLord(this.battle);
       this.hud.show(true);

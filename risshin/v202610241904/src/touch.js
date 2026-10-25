@@ -1161,7 +1161,7 @@ export function touchFrame(dt) {
   tog(btn.atk, 'counter-ready', counterReady);
   // 押した時の一撃と、案内に対応する釦の名前を保つ。
   tog(btn.atk, 'holding', !!input.mouseL);
-  const attackLabel = gunW ? '撃つ' : bowW ? '射る' : p.weapon === 'sword' ? 'きる' : 'つく';
+  const attackLabel = gunW ? '撃つ' : bowW ? '射る' : b.def.key === 'inou' ? '攻撃' : p.weapon === 'sword' ? 'きる' : 'つく';
   setText(btn.atk.firstChild, attackLabel);
   const attackAria = attackLabel;
   if (btn.atk.getAttribute('aria-label') !== attackAria) btn.atk.setAttribute('aria-label', attackAria);

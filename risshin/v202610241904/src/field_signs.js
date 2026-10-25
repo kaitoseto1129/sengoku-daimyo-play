@@ -76,7 +76,7 @@ function build(rt, root) {
           'vSignLevel = vec3(position.z > 0.0 ? 1.0 : 0.0, position.y, signLife);');
         // 森部は赤い▼を保ち、幅と高さで間合い・命中を分ける。
         shader.vertexShader = shader.vertexShader.replace('if (signTone > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(1.0);',
-          rt.def.key === 'moribe' ? 'if (signTone > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : (signTone > 2.5 ? vec3(1.0, 0.78, 0.36) : vec3(1.0));' :
+          rt.def.key === 'moribe' ? '' :
           rt.def.key === 'inou' ? 'if (signTone > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(1.0);' :
           'if (signTone > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(1.0);');
         shader.fragmentShader = 'varying vec3 vSignLevel;\n' + shader.fragmentShader.replace('#include <color_fragment>',
@@ -174,7 +174,7 @@ export function fieldSignsTick(rt, root) {
   const reachableTarget = rt.player.inRange && rt.player.rangeCueTarget?.alive ? rt.player.rangeCueTarget : null;
   // 稲生も共通の頭上印を保ち、大きな札への置き換えや周囲の縮小をしない。
   const marked = rt.def.key === 'inou' || rt.def.key === 'moribe' || rt.def.key === 'okehazama' ? null : markedEnemy(rt);
-  const missionEnemy = (rt.def.key === 'inou' ? reachableTarget : null) || marked || (rt.def.key === 'inou' || rt.def.key === 'okehazama' || rt.def.key === 'moribe' ? rt.def.missionSignTarget?.(rt) : null) || reachableTarget ||
+  const missionEnemy = (rt.def.key === 'inou' ? rt.def.missionSignTarget?.(rt) : null) || marked || (rt.def.key === 'inou' || rt.def.key === 'okehazama' || rt.def.key === 'moribe' ? rt.def.missionSignTarget?.(rt) : null) || reachableTarget ||
     rt.hud.approachGuideEnemy || rt.hud.attackGuideEnemy || rt.hud.aimGuideEnemy ||
     (rt.player.lock?.alive ? rt.player.lock : null) || rt.missionGuide?.closeEnemy ||
     (rt.guideEnemyShown ? rt.guideEnemy : null);
@@ -386,7 +386,8 @@ export function fieldSignsTick(rt, root) {
     // 防がれた接触は縦に潰す。傷を与えた時の縦の伸び・赤の減りとは分ける。
     const blocked = special && !moribe && !(hit > 0) && (inou ? u.inouBlockUntil : u.okeBlockUntil) > rt.t;
     // 届くまでは細い▼が徐々に開き、届く本人だけ幅広くなる。
-    const inouWidth = inou && hot ? 2.2 : 1;
+    const inouWidth = inou && hot ? 2.2 : inou && u === missionEnemy
+      ? 1 + .6 * Math.max(0, 1 - Math.sqrt(meD2) / Math.max(.1, reachHot * 3)) : 1;
     // 稲生は届く一人の幅をはっきり広げる。命中後も幅を保ち、縦の伸びを見せる。
     // 森部の横幅は届く本人だけ強調する。敵の振りかぶりと混同させない。
     // 命中で押し戻された直後も、届いた時の横幅を保つ。縦の伸びと赤の減りを見せる。
@@ -423,11 +424,10 @@ export function fieldSignsTick(rt, root) {
       // 森部は赤い▼の幅で間合い、縦の伸びと中身の減りで命中を示す。
       // 森部は白い別の印にせず、間合いも命中も赤い▼のまま保つ。
       const justHit = special && hitLeft > (oke ? 1.7 : inou ? 1.95 : 1.7);
-      // 稲生も赤い▼と暗い縁に統一し、白い線を探させない。
-      // 森部・桶狭間は同じ赤い▼を保つ。間合いは横幅、命中は縦の伸びと赤の減り。
+      // 稲生の白縁と幅広は実際に届く一人だけ。命中は縦の伸びと赤の減りで示す。
       // 森部は赤い中身を保ち、自分への振りかぶりは金縁、届く一人は白縁で区別する。
-      // 稲生・桶狭間は暗い縁の赤い▼にそろえる。
-      const tone = moribe ? hit > 0 || defeated ? 1 : danger > 0 ? 3 : reachable ? 2 : 1 : inou || oke ? 1 : justHit ? 3 : hot ? 2 : 1;
+      // 桶狭間は暗い縁の赤い▼を保ち、間合いは横幅、命中は縦の伸びと赤の減りで示す。
+      const tone = inou ? hot && !defeated ? 2 : 1 : moribe ? hit > 0 || defeated ? 1 : danger > 0 ? 3 : reachable ? 2 : 1 : oke ? 1 : justHit ? 3 : hot ? 2 : 1;
       if (special) {
         const c = s.signPool[s.signCandidates.length];
         c.u = u; c.matrix.copy(dummy.matrix); c.life = life;
