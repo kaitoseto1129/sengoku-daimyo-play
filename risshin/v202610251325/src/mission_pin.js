@@ -11,6 +11,8 @@ import { weatherSight, weatherSees } from './weather_gameplay.js';
 // 任務札と話し相手の頭上で同じ吹き出しを使う。
 export const TALK_SIGN = '<path d="M14 5H66V43H43L27 59V43H14Z" fill="#fff3ba" stroke="#14120f" stroke-width="5" stroke-linejoin="round"/><path d="M25 18H55M25 29H48" stroke="#14120f" stroke-width="4"/>';
 let pin = null;
+// 一歩進む操作の合間にも、輪へ入った結果を見届けられる長さ。
+const ARRIVAL_CUE_SECONDS = 2.4;
 function make() {
   const el = document.createElement('div');
   el.id = 'mission-goal';
@@ -373,9 +375,12 @@ function drawMissionPin(rt) {
     : !goalFree(x, y, W, H, rects));
   // 到着時は同じ地面で色を替え、一拍後は待つ円を任務の下へ一本だけ置く。
   // 画面外や札の下へ隠れた時はすぐ移し、移動の矢印を付けない。
-  const dockedWait = rt.def.key === 'okehazama' && waiting && arrived && (outside || covered || rt.t - U.arrivalAt >= .8);
+  const dockedWait = rt.def.key === 'okehazama' && waiting && arrived && (outside || covered || rt.t - U.arrivalAt >= ARRIVAL_CUE_SECONDS);
   if (dockedWait) {
-    x = W - 52; y = Math.min(H - 80, 210); outside = false;
+    // 待つ円を任務のすぐ下へ。地面の行き先とは分け、携帯でも一緒に見える位置に保つ。
+    x = W - 52;
+    y = Math.min(H - 80, (hud.guideOrderRect?.bottom ?? 56) + 72);
+    outside = false;
   }
   if (!want.unit && !want.gate && !waiting && !want.footRing && !want.fire && !want.defensePoint && !behind && !occluded && U.out !== undefined && outside !== U.out && now - (U.outAt || 0) < 400) outside = U.out;
   else if (outside !== U.out) { U.out = outside; U.outAt = now; }
@@ -424,13 +429,8 @@ function drawMissionPin(rt) {
   // 集合地点は旗の小さな足元印より、実際の到着範囲を優先する。
   // 出発前・行軍中・合図待ちで根元の大きさを変えない。
   const areaRadius = want.area ? want.r : waitArea ? want.r ?? 8 : footMark ? want.fire ? 1.25 : .85 : want.r;
-  // 地面に刺すピンは一本。固定の大きな輪ではなく、実際に着いたとみなす地面の範囲を囲む。
-  // 桶狭間は近づいた時だけ、ピンの根元を実際の集合範囲まで広げる。
-  // 到着した瞬間は同じ囲みを緑と閉じた縁で示し、一拍置いて畳む。
-  // 囲みは自分を追わず、畳んだ後は同じピンのチェックと穴の満ち具合で示す。
-  const showArea = rt.def.key === 'okehazama'
-    ? want.area && !dockedWait && (!arrived || rt.t - U.arrivalAt < .8) && d <= 18 && !outside && !occluded
-    : false;
+  // 行き先はピン一本。桶狭間もほかの戦も、大きな囲みを兵の上へ重ねない。
+  const showArea = false;
   pin._area.style.display = pin._areaBack.style.display = showArea ? '' : 'none';
   pin._area.setAttribute('stroke-width', want.passage ? '7' : '5');
   pin._area.setAttribute('stroke-dasharray', '');
@@ -507,9 +507,10 @@ function drawMissionPin(rt) {
   }
   // 合図の時刻は範囲を出ても進む。同じピンの円も途切れさせない。
   const showProgress = oke && Number.isFinite(want.progress);
-  // 接近中は空の穴。輪へ入ってから縁を閉じ、待つ進みを示す。
-  // 丸が満ちる意味は待ち時間だけ。接近中に別の円弧を満たさない。
-  const showArrival = oke && arrived;
+  // 接近中は穴の中を空ける。中の扇形が満ちるのは待ち時間だけ。
+  // 接近は外周が閉じ、到着後の待ちは内側が満ちる。同じピンで区別する。
+  const approaching = oke && want.area && !arrived && !waiting && !outside;
+  const showArrival = oke && (arrived || approaching);
   const showHold = oke ? showProgress || showArrival : arrived && (!person || want.footRing) && !want.defend && !outside && !flagDestination;
   flag.style.display = destinationArrow || (person && !groundPerson) || want.defend || inouEnemy || want.fire || want.gate || want.dodge || showHold && !oke ? 'none' : '';
   if (flagDestination && !oke) flag.style.display = '';
@@ -536,14 +537,15 @@ function drawMissionPin(rt) {
   pin._hold.style.display = showHold ? '' : 'none';
   // 到着の一拍は穴いっぱいのチェック。その後、同じ穴で待ち時間を満たす。
   // 軸の小さな印を探させず、未到着と到着を形で区別する。
-  const arrivalCue = oke && arrived && (rt.t - U.arrivalAt < .8 || want.progress >= 1);
+  const arrivalCue = oke && arrived && (rt.t - U.arrivalAt < ARRIVAL_CUE_SECONDS || want.progress >= 1);
   pin._arrivedMark.style.display = arrivalCue ? '' : 'none';
   pin._arrivedMark.setAttribute('transform', '');
   pin._arrival.style.display = showArrival ? '' : 'none';
   pin._arrival.setAttribute('stroke', arrived ? '#e4f2cb' : '#fff3ba');
-  // 集合した時だけ穴の縁が閉じ、中の扇形が待ち時間を刻む。
-  // 別の丸へ替えず、同じ地面に刺さるピンの中だけで示す。
-  const arrivalProgress = arrived ? 1 : 0;
+  // 判定の外側の十二歩で縁が閉じる。満ち切る位置は実際の到着範囲と同じ。
+  // 中の扇形は待つ時間だけに使い、接近中は空けておく。
+  const arrivalProgress = arrived ? 1 : approaching
+    ? Math.max(0, Math.min(.98, 1 - Math.max(0, d - want.r) / 12)) : 0;
   // 作成時の一周を１とする指定に合わせ、縁の進みを正規化する。
   pin._arrival.setAttribute('stroke-dasharray', '1');
   pin._arrival.setAttribute('stroke-dashoffset', String(1 - arrivalProgress));
@@ -572,12 +574,13 @@ function drawMissionPin(rt) {
       : progress > 0 ? `M40 28L40 8A20 20 0 ${progress > .5 ? 1 : 0} 1 ${40 + Math.sin(angle) * 20} ${28 - Math.cos(angle) * 20}Z` : '');
   }
   pin._progress.style.display = arrivalCue ? 'none' : '';
-  // 森部も到着済みの同じピンで時間を刻む。砂時計で扇形を覆わない。
+  // 桶狭間は針と目盛りで扇形を覆わず、空から満ち切る円だけで残る待ちを示す。
+  // 森部は到着済みの同じピンで時間を刻む。砂時計で扇形を覆わない。
   const moribeClock = rt.def.key === 'moribe' && arrived && Number.isFinite(want.progress);
   if (rt.def.key === 'moribe') {
     pin._hold.children[2].style.display = pin._hold.children[3].style.display = moribeClock ? 'none' : '';
   }
-  const clock = oke && arrived && showProgress && !arrivalCue || moribeClock;
+  const clock = moribeClock;
   pin._waitTicks.style.display = pin._waitHand.style.display = clock ? '' : 'none';
   if (clock) {
     const duration = moribeClock ? 12 : want.waitDuration || 17;
@@ -605,9 +608,9 @@ function drawMissionPin(rt) {
     groundPin ? 'translate(0,-24) scale(.75)' : 'translate(0,-24)' : groundPin ? '' : 'translate(16,19.25) scale(.75)');
   // 到着しても穴を動かさず、別の行き先に切り替わったように見せない。
   if (!oke) pin._hold.setAttribute('transform', '');
-  // 待機中は同じ一本だけを拡大し、携帯でも残る扇形と針を読めるようにする。
+  // 待機中は同じ一本だけを拡大し、携帯でも残る扇形を読めるようにする。
   pin.firstElementChild.style.transformOrigin = '40px 68px';
-  pin.firstElementChild.style.transform = oke && clock ? 'scale(1.35)' : '';
+  pin.firstElementChild.style.transform = oke && arrived && showProgress && !arrivalCue ? 'scale(1.35)' : '';
   // 方向は端の旗一本へまとめ、自分の足元には輪だけを残す。
   // 行き先の輪は足さず、自分の水色の足元印と役割を分ける。
   const groundRing = false;
@@ -665,10 +668,10 @@ function drawMissionPin(rt) {
     }
     if (waiting && arrived) {
       flag.style.display = 'none';
-      pin._hold.setAttribute('transform', 'translate(0,40)');
+      // 到着直後のチェックと待つ扇形を同じ位置へ。途中で地面側へ落とさない。
+      pin._hold.setAttribute('transform', 'translate(0,12)');
       pin._hold.children[0].setAttribute('stroke', '#e4f2cb');
-      // 集合した印は丸が満ち切った時にだけ出す。途中の扇形を覆わない。
-      pin._arrivedMark.style.display = want.progress >= 1 ? '' : 'none';
+      pin._arrivedMark.style.display = arrivalCue ? '' : 'none';
       pin._arrivedMark.removeAttribute('transform');
     }
   }

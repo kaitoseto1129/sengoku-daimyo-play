@@ -44,11 +44,10 @@ const POINT2 = { x: 40, z: 76.5 };
 const FORD_R = 4;
 // ピンと同じ岸まで進み、水から上がれば渡河済み。横へそれても小旗へ戻らせない。
 // 足の上下動で到着を遅らせず、岸そのものの高さで水深を調べる。
-// 水深だけで完了にしない。浅い川底でも、描いた川面の北端を越えるまでピンを残す。
+// 描いた川面の北端が終点。岸の余白や雨で濡れた土の水深は条件にしない。
 // 横へそれた岸もその場の水際で判定し、ピンの奥行きまで歩き直させない。
 const atFordBank = (p, world) => p.z < nireZ(p.x) &&
-  distToPolyline(p.x, p.z, world.def.streams[1].pts) >= NIRE_WIDTH2 + .8 &&
-  world.waterFootDepthAt(p.x, p.z, drawGroundAt(world, p.x, p.z)) <= .02;
+  distToPolyline(p.x, p.z, world.def.streams[1].pts) >= world.def.streams[1].w;
 const FRONT2 = { x: 4, z: 20 };
 const ASSEMBLY2 = { x: 14, z: 10 };
 const RETREAT2 = { x: 24, z: 48 };
@@ -1185,11 +1184,9 @@ const moribe = {
       return Math.min(1, (F.assembleT || 0) / 8);
     if (F.stage === 'hold') {
       const elapsed = Math.max(0, rt.t - F.holdStart);
-      const reservesReady = (F.wave1 || gone(F.reserves[0])) && (F.wave2 || gone(F.reserves[1]));
-      // 任務の切り替え前には満杯にしない。最後まで満ちたまま待つ誤解を防ぐ。
-      F.holdProgress = Math.max(F.holdProgress || 0, Math.min(.99, Math.max(elapsed / 100,
-        Math.min(F.lineT / 25, elapsed / 45, reservesReady ? 1 : .85))));
-      return F.holdProgress;
+      // 必ず終わる百秒の時計。働きの割合を混ぜて途中で止まる見せ方にしない。
+      // 反撃が早まった場合は段の切り替えで完了する。
+      return Math.min(.99, elapsed / 100);
     }
     return null;
   },
@@ -1247,7 +1244,7 @@ const moribe = {
       return null; // 討つ武将も頭上の赤い▼にそろえる。
     } else if (F.stage === 'hold' || F.vBroken) {
       if (!F.lineReturning && F.stage === 'hold') {
-        // 守備中も同じピンを満ちる時計にする。行き先の軸は畳み、任務のそばへ置く。
+        // 着いたピンを待ち時計に替え、攻撃中も終了までの進みを残す。行き先の軸は畳み、任務のそばへ置く。
         pos = F.linePoint;
         r = hide = 18;
         q.waiting = true; q.arrived = true;
@@ -1568,6 +1565,8 @@ const moribe = {
     crumpledFlags: true,   // 落ちた指物は縮んだ布として泥の上へ伏せる。
     ordinaryFlagStride: 4,   // 無名の長柄足軽は四人に一本。組の旗・隊旗・武将の旗は残す（割合は復元）。
     waterSlow: true,
+    // 杭の間の徒歩だけは流れに足を取られすぎない。馬と深い川の減速は保つ。
+    fordWalkSpeed: (x, z) => Math.abs(x - START2.x) <= 6 && Math.abs(z - nireZ(x)) <= 12 ? .82 : 0,
     riverCross: true,   // 深い長良川を徒歩で素通りしない。南の楡俣川は腿ほどの深さで渡る。
     paths: [ROAD2, ...PEOPLE_PATHS2],
     height(x, z) {
@@ -1702,14 +1701,12 @@ html:root body #hud.moribe-notices.field-clean.field-clean .bl #h-hp.hp i {
 /* 次の一手と号令を右の任務札にまとめる。横持ちでも二行を切らない。 */
 #hud #h-prog[data-battle="moribe"] { width:min(320px, 38vw); }
 #hud #h-prog[data-battle="moribe"] .pg-st { background-image:none !important; }
-/* 耐える進みは任務一行の中で満ちる丸にする。秒の字や別の札は足さない。 */
+/* 待つ進みは一本のピンにまとめ、任務の横へ二つ目の時計を出さない。 */
 #hud #h-prog[data-battle="moribe"] .pg-st.moribe-wait {
  flex-direction:row; align-items:center; justify-content:flex-end; gap:10px;
 }
 #hud #h-prog[data-battle="moribe"] .pg-st.moribe-wait::before {
- content:""; display:block; flex:none; width:28px; height:28px; border-radius:50%;
- background:conic-gradient(#ffe28a calc(var(--wait-progress,0) * 1%), #494338 0);
- box-shadow:0 0 0 2px #c9b27a;
+ content:none;
 }
 /* 共通の一行省略より優先し、今することを最後まで読めるようにする。 */
 html:root body #hud.mission-only #h-prog[data-battle="moribe"] .pg-st span {
@@ -2208,9 +2205,6 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         // 直前の命中を残すと、次の一撃が防がれても縦に伸びたままになる。
         t.moribeHitUntil = 0;
       }
-      // 実際に自分を傷つけた本人の▼だけ、振りかぶりの強調を短く保つ。
-      if (t?.isPlayer && src?.team !== t.team && src && t.hp < hp)
-        src.moribeThreatUntil = rt.t + .9;
       if (src?.isPlayer && t?.team !== src.team && t.hp < hp) {
         // 一撃ごとに伸び直す。小さな伸びは残し、連打でも当たった本人を追える。
         t.moribeHitUntil = rt.t + 3;
