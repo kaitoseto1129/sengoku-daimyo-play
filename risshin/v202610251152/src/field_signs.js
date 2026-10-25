@@ -361,7 +361,8 @@ export function fieldSignsTick(rt, root) {
     // 稲生は命中の形を少し保ってから戻す。連打の合間にも当たった本人が分かる。
     const hitLeft = ((oke ? u.okeHitUntil : inou ? u.inouHitUntil : u.moribeHitUntil) || 0) - rt.t;
     // 森部は命中直後の伸びを一秒ほど保ち、その後も二秒ほどは読める高さを残す。
-    // 赤の減りと伸びは三秒残し、次の一撃で再び伸びる。
+    // 赤の減りと伸びは三秒残し、乱戦でも当たった本人を追える。次の一撃で再び伸びる。
+    // 命中直後の形を保ち、間合いの横広がりと区別できる。
     const hit = foe && special
       ? moribe ? Math.min(1, Math.max(0, hitLeft / .6)) *
         (.65 + .35 * Math.min(1, Math.max(0, (hitLeft - 1.65) / .45)))
@@ -415,7 +416,9 @@ export function fieldSignsTick(rt, root) {
     // 二十五歩以内は大きな上限、四十歩以遠は小さな上限にし、間は滑らかにつなぐ。
     const okeNear = Math.max(0, Math.min(1, (40 - Math.sqrt(meD2)) / 15));
     // 次に戦う一人だけ大きく残す。奥の一団は頭ほどの赤い▼で所属を示す。
-    const okeLimit = u === missionEnemy ? 1.2 + 1.8 * okeNear : u === commander ? 1.5 + 1.5 * okeNear : .7 + .7 * okeNear;
+    // 遠い目標だけが手前の兵より大きく見えないよう、刃の間合いまで連続して大きくする。
+    const okeClosing = oke ? Math.max(0, Math.min(1, (30 - Math.sqrt(meD2)) / Math.max(1, 30 - reachHot))) : 0;
+    const okeLimit = u === missionEnemy ? 1.2 + 1.8 * okeClosing : u === commander ? 1.5 + 1.5 * okeNear : .7 + .7 * okeNear;
     const okeScale = oke ? Math.min(okeLimit, okePixels * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) : k;
     // 防がれた接触は縦に潰す。傷を与えた時の縦の伸び・赤の減りとは分ける。
     // 森部も、受け止められた本人の▼だけを短く潰す。空振りとは区別する。
@@ -441,7 +444,7 @@ export function fieldSignsTick(rt, root) {
       ? .8 + .4 * Math.max(0, Math.min(1, 1 - (Math.sqrt(meD2) - reachHot) / 12)) : 1;
     // 森部は届く一人だけ横へ開き、命中の縦の伸びは控えめにして隣の頭を覆わない。
     // 命中・防がれた直後も横幅を保ち、縦に潰れる形を命中の伸びと区別する。
-    dummy.scale.set(oke ? okeScale * Math.max(reachable ? 2.2 : okeApproach, pulse > 0 ? 1 + 1.2 * pulse : 0) : moribe ? k * Math.max(reachable || blocked || pulse > 0 ? 1.7 : moribeApproach, 1 + .7 * pulse) : inou ? k * Math.max(inouWidth, 1 + .3 * pulse) : k * (1 + .5 * pulse),
+    dummy.scale.set(oke ? okeScale * Math.max(reachable ? 2.8 : okeApproach, pulse > 0 ? 1 + 1.8 * pulse : 0) : moribe ? k * Math.max(reachable || blocked || pulse > 0 ? 1.7 : moribeApproach, 1 + .7 * pulse) : inou ? k * Math.max(inouWidth, 1 + .3 * pulse) : k * (1 + .5 * pulse),
       oke || moribe || inou ? (oke ? okeScale : k) * (blocked ? .55 : 1 + (inou ? .3 : moribe ? .55 : 1) * pulse) : k, oke ? okeScale : k);
     // 森部の討ち取りと稲生の討ち取りは、それぞれの時間で同じ本人の印を閉じる。
     if (defeated) {

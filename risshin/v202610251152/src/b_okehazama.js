@@ -672,7 +672,7 @@ const okehazama = {
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は、今する動きを短くやさしく伝える。
   missionSingleLine: true,
-  missions: ['織田信長の組のピンに集まれ', '仲間と進め', '雨がやむまで待て', '赤い三角の今川の兵を倒せ', 'いまがわよしもとを倒せ', 'にげる敵を追え', '仲間と集まれ'],
+  missions: ['織田信長の組のピンに集まれ', '組のピンに集まれ', '雨がやむまで待て', '赤い三角の今川の兵を倒せ', 'いまがわよしもとを倒せ', 'にげる敵を追え', '仲間と集まれ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -685,7 +685,7 @@ const okehazama = {
     if (rt.phase === 'brief' && rt.flags.briefed) return '仲間の出発を待て';
     if (rt.phase === 'march' && rt.flags.scoutFighting) return '赤い三角の今川の兵を倒せ';
     if (rt.phase === 'assault' && rt.flags.entered && !rt.flags.victory && this.objectiveEnemies(rt).length) return '赤い三角の今川の兵を倒せ';
-    if (rt.phase === 'march') return this.squadFlagReached(rt) ? '仲間を待て' : '仲間と進め';
+    if (rt.phase === 'march') return this.squadFlagReached(rt) ? '仲間を待て' : '組のピンに集まれ';
     return this.missions[this.missionOf(rt)];
   },
   // 今の行き先と同じ旗持ちを示す。兵は増やさない。
