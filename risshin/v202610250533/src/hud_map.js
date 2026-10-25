@@ -510,6 +510,16 @@ export class HudMap {
       const dx = a - Sz / 2, dy = b - Sz / 2, distance = Math.hypot(dx, dy);
       const rim = Sz / 2 - 10 * px;
       if (rotate && distance > rim) { a = Sz / 2 + dx / distance * rim; b = Sz / 2 + dy / distance * rim; }
+      // 自分と目標が近くても印を重ねず、線の先で実際の位置を示す。
+      const [selfX, selfY] = tr(p.pos.x, p.pos.z);
+      const ex = a - selfX, ey = b - selfY, gap = Math.hypot(ex, ey), space = 18 * px;
+      if (gap < space) {
+        const x = a, y = b;
+        a = selfX + (gap > .01 ? ex / gap : 0) * space;
+        b = selfY + (gap > .01 ? ey / gap : -1) * space;
+        g.strokeStyle = C.ink; g.lineWidth = 2 * px;
+        g.beginPath(); g.moveTo(x, y); g.lineTo(a, b); g.stroke();
+      }
       const r = 6 * px;
       g.beginPath(); g.moveTo(a - r, b - r); g.lineTo(a + r, b - r); g.lineTo(a, b + r); g.closePath();
       g.lineJoin = 'round'; g.strokeStyle = C.ink; g.lineWidth = 5 * px; g.stroke();

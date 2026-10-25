@@ -208,7 +208,7 @@ const stage = (t, key) => {
     }
     window.dispatchEvent(new Event('risshin-preparation-progress'));
   }
-  if (t) ldName = ({ defs: '戦の仕組み', assets: '人とよろい', build: '戦場', warm: '人の姿', compile: '絵', first: '最初の画面' })[key] || t;
+  if (t) ldName = ({ defs: '戦の仕組み（兵の動きと槍の当たり判定）', assets: '人とよろい', build: '戦場（地形と兵）', warm: '人の姿', compile: '絵', first: '最初の画面' })[key] || t;
   let el = $('ld-stage');
   if (!el) { el = document.createElement('div'); el.id = 'ld-stage'; el.style.cssText = 'margin-top:10px;font-size:15px;color:var(--washi);text-align:center'; el.innerHTML = '<span role="status" aria-live="polite" aria-atomic="true"></span><span aria-live="off" id="ld-left" style="display:block;margin-top:8px"></span>'; document.querySelector('#loading .ldbar').after(el); }
   el.setAttribute('role', 'region');
