@@ -161,10 +161,7 @@ function ldTick() {
   for (let k = i + 1; k < P.keys.length; k++) left += P.est[k];
   // 見込みを超えても残り秒を消さず、残る段と現在の超過分から目安を直す。
   if (into >= P.est[i]) left += Math.max(1000, P.est[i] * .2);
-  const seconds = Math.floor((performance.now() - P.t0) / 1000);
-  const text = into > P.est[i] * 1.5
-    ? `目安より時間がかかっています・あと${Math.max(1, Math.ceil(left / 1000))}秒くらいで始まります・${seconds}秒経過`
-    : `あと${Math.max(1, Math.ceil(left / 1000))}秒くらいで始まります・${seconds}秒経過`;
+  const text = `あと約${Math.max(1, Math.ceil(left / 1000))}秒で自動で始まります`;
   if (el.textContent !== text) el.textContent = text;
 }
 // 段に入る：棒をこの段の終わりの手前まで、見込みの時間で伸ばす
@@ -211,7 +208,7 @@ const stage = (t, key) => {
     }
     window.dispatchEvent(new Event('risshin-preparation-progress'));
   }
-  if (t) ldName = ({ defs: '戦の仕組み', assets: '人とよろい', build: '戦いの用意', warm: '人の姿', compile: '絵', first: '最初の画面' })[key] || t;
+  if (t) ldName = ({ defs: '戦の仕組み', assets: '人とよろい', build: '戦場', warm: '人の姿', compile: '絵', first: '最初の画面' })[key] || t;
   let el = $('ld-stage');
   if (!el) { el = document.createElement('div'); el.id = 'ld-stage'; el.style.cssText = 'margin-top:10px;font-size:15px;color:var(--washi);text-align:center'; el.innerHTML = '<span role="status" aria-live="polite" aria-atomic="true"></span><span aria-live="off" id="ld-left" style="display:block;margin-top:8px"></span>'; document.querySelector('#loading .ldbar').after(el); }
   el.setAttribute('role', 'region');
@@ -220,7 +217,7 @@ const stage = (t, key) => {
   const left = $('ld-left');
   left.hidden = !t; left.style.display = t ? 'block' : 'none';
   const i = ldPlan && key ? ldPlan.keys.indexOf(key) : -1;
-  el.firstChild.textContent = i >= 0 ? `${ldName}を用意中（${i + 1}／${ldPlan.keys.length}）` : t;
+  el.firstChild.textContent = i >= 0 ? `${ldName}（${i + 1}／${ldPlan.keys.length}）` : t;
   if (key) ldStep(key);
   const remaining = $('ld-left');
   remaining.hidden = !t;

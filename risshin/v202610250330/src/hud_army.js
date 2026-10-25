@@ -192,8 +192,9 @@ export class HudArmy {
     // 稲生は七百対千七百の兵力差を、そのまま棒の長さにする。
     const ra = Math.max(0, f.a) / (rt.def.key === 'inou' ? 1 : Math.max(1, f.a0 || f.a)), rb = Math.max(0, f.b) / (rt.def.key === 'inou' ? 1 : Math.max(1, f.b0 || f.b));
     const share = ra + rb > 0 ? ra / (ra + rb) * 100 : 50;
-    const oke = rt.def.key === 'okehazama';
-    const separateForces = oke || rt.def.key === 'moribe';
+    const oke = rt.def.key === 'okehazama', inou = rt.def.key === 'inou';
+    const picture = oke || inou;
+    const separateForces = picture || rt.def.key === 'moribe';
     // 戦場の旗と同じ紋を、既存の兵力の棒の両端に描く。字の軍名や総兵数は足さない。
     // 紋は戦が替わった時だけ描き、毎コマ描き直さない。
     if (this.tugMonBattle !== rt.def) {
@@ -207,6 +208,12 @@ export class HudArmy {
           ctx.save(); ctx.translate(0, -8);
           drawMon(ctx, rt.def.sides[side].mon, 44, 88);
           ctx.restore();
+          // 敵の棒と頭上の印を、同じ赤い▼で結び付ける。
+          if (inou && side === 'b') {
+            ctx.beginPath(); ctx.moveTo(12, 31); ctx.lineTo(32, 31); ctx.lineTo(22, 42); ctx.closePath();
+            ctx.fillStyle = '#ff634d'; ctx.strokeStyle = '#32140d'; ctx.lineWidth = 2;
+            ctx.fill(); ctx.stroke();
+          }
         }
       }
     }
@@ -214,7 +221,7 @@ export class HudArmy {
     if (key === this.tugKey) return;
     this.tugKey = key;
     tb.classList.toggle('still', !!S.reduceMotion);
-    // 桶狭間・森部は初めの大きい軍を基準に、両軍の残りを別々に減らす。
+    // 稲生・桶狭間・森部は初めの大きい軍を基準に、両軍の残りを別々に減らす。
     // 同じ割合だけ減った時も棒が縮み、史実の全軍と紛らわしい裸の数字は出さない。
     const full = Math.max(1, f.a0 || f.a, f.b0 || f.b);
     tb.querySelector('i.a').style.width = (separateForces ? Math.max(0, Math.min(1, f.a / full)) * 48 : share).toFixed(1) + '%';

@@ -537,6 +537,8 @@ export class Player {
     const army = rt.army;
     this.group = army.addGroup({ team: 0, faction: scenario().faction, noRout: true, order: 'hold', name: 'player' });
     const look = playerLook(G);
+    // 桶狭間では本人の袖と威糸を生成りにする。足元の輪や札を足さず、具足の形は使い回す。
+    if (rt.def.key === 'okehazama') { look.cloth = 0xc8b99c; look.lace = 0xc8b99c; }
     this.sightHat = look.hat;
     this.u = army.addUnit(this.group, { type: 'player', x: spawn.x, z: spawn.z, heading: spawn.heading || 0, ...look });
     this.u.isPlayer = true;
@@ -650,7 +652,7 @@ export class Player {
         const gl2 = gx * gx + gz * gz;
         const t = gl2 > .01 ? (dx * gx + dz * gz) / gl2 : -1;
         const gy = cam.position.y + ((goal.y ?? u.pos.y) + 1 - cam.position.y) * t;
-        const goalWidth = this.rt.def.key === 'inou' && o.mounted ? 1.8 : 1.2;
+        const goalWidth = (this.rt.def.key === 'inou' || this.rt.def.key === 'okehazama') && o.mounted ? 1.8 : 1.2;
         blocksGoal = t > 0 && t < (this.nearAllyGoal ? .98 : .85) && (dx - gx * t) ** 2 + (dz - gz * t) ** 2 < goalWidth * goalWidth &&
           gy > o.pos.y + .3 && gy < o.pos.y + (o.mounted ? RIDE.y : 0) + 2.5;
       }
@@ -658,7 +660,7 @@ export class Player {
         // 全身を避ける戦では、行き先を塞ぐ味方にも半透明の残像を作らない。
         if (this.rt.def.nearAllyWholeOcclusion !== false) {
           this.hideNearFlag(o.mesh); this.hideNearFlag(o.human?.root); this.hideNearFlag(o.wpn);
-          if (this.rt.def.key === 'inou') this.hideNearFlag(o.horse);
+          if (this.rt.def.key === 'inou' || this.rt.def.key === 'okehazama') this.hideNearFlag(o.horse);
           this.hideNearFlag(o.flag); this.hideNearFlag(o.standardFlag);
           return;
         }
