@@ -1172,7 +1172,12 @@ const moribe = {
   tacticsCommandText: '', // 横へ回る助言に、操作のない「配下に命じて押せ」を足さない。
   missionWaitProgress(rt) {
     const F = rt.flags;
-    if (!F.signal && F.pointInside && !F.pointDone) return F.pointReady ? 1 : F.fordGatherProgress || 0;
+    if (!F.signal && F.pointInside && !F.pointDone) {
+      const arrivedAt = F.fordArrivedAt ?? rt.t;
+      // 仲間が足止めされても、開戦までの待ちの上限に合わせて丸を満たす。
+      return F.pointReady ? 1 : Math.min(.99, Math.max(F.fordGatherProgress || 0,
+        (rt.t - arrivedAt) / Math.max(1, 45 - arrivedAt)));
+    }
     if (F.stage === 'assemble' && !F.gatherUnit && Math.hypot(rt.player.u.pos.x - F.asm.x, rt.player.u.pos.z - F.asm.z) < 12)
       return Math.min(1, (F.assembleT || 0) / 8);
     if (F.stage === 'hold') {
@@ -1209,6 +1214,21 @@ const moribe = {
       q.progress = q.arrived ? q.waiting ? this.missionWaitProgress(rt) || 0 : 1 :
         // 横へずれても岸へ渡った分を示す。到着前は満杯にしない。
         Math.max(0, Math.min(.98, (START2.z - rt.player.u.pos.z) / (START2.z - POINT2.z)));
+      // 待っている本人へ同じピンを付ける。仲間が動いても別人へ毎コマ移さない。
+      if (q.waiting && !F.pointReady) {
+        let ally = F.fordWaitUnit;
+        if (!ally?.alive || ally.gone || ally.fleeing || ally.woundOut || ally.noTarget || ally.group?.routed || atFordBank(ally.pos, rt.world)) {
+          ally = null;
+          let best = Infinity;
+          for (const u of rt.squad) {
+            if (!u.alive || u.gone || u.fleeing || u.woundOut || u.noTarget || u.group?.routed || atFordBank(u.pos, rt.world)) continue;
+            const d = (u.pos.x - POINT2.x) ** 2 + (u.pos.z - POINT2.z) ** 2;
+            if (d < best) { best = d; ally = u; }
+          }
+          F.fordWaitUnit = ally;
+        }
+        if (ally) { q.unit = ally; pos = ally.pos; }
+      }
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
     } else if (F.stage === 'assemble') {
@@ -1224,8 +1244,9 @@ const moribe = {
       return null; // 討つ武将も頭上の赤い▼にそろえる。
     } else if (F.stage === 'hold' || F.vBroken) {
       if (!F.lineReturning && F.stage === 'hold') {
-        // 持ち場にいる間は右上の時計だけ。別の行き先へ歩かせない。
-        return null;
+        // 守備の間も同じピンの丸を満たす。残りを字で足さない。
+        pos = F.linePoint; q.waiting = q.arrived = true;
+        q.progress = this.missionWaitProgress(rt) || 0;
       } else {
         if (!F.lineReturning) return null;
         // 列を離れた時だけ、守備を始めた固定地点へ戻す。
@@ -1242,7 +1263,7 @@ const moribe = {
     if (!pos) return null;
     q.x = pos.x; q.z = pos.z; q.r = r; q.hide = hide;
     // 対岸は確定済みの高さ、ほかの地点も見えている土に先端を置く。
-    q.y = pos === POINT2 ? POINT2.y : drawGroundAt(rt.world, pos.x, pos.z);
+    q.y = q.unit ? q.unit.pos.y + (q.unit.mounted ? 3.2 : 2.4) : pos === POINT2 ? POINT2.y : drawGroundAt(rt.world, pos.x, pos.z);
     return q;
   },
   keepCombatTaskHeading: true,   // 敵一人への押し方で、組を率いる任務の見出しを消さない。

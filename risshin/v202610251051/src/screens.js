@@ -1235,14 +1235,15 @@ const LORE = {
 };
 // 支度の間は、その戦の絵を後ろでゆっくり流す（字は無し。kaito 10/23 稲生 37）。
 //   戦ごとの写真（assets/slides/<id>-N.jpg）が無い戦は、屏風の絵（illust.js）で埋める。四秒ごとに入れ替え、動きを減らす設定では切り替えだけ。
-const SLIDES = { inou: 2 };
+// 稲生の一枚目は討死後の写真。開戦前は支度中の兵が立っている写真だけを使う。
+const SLIDES = { inou: [2] };
 const SLIDE_FILL = ['okehazama', 'moribe', 'anegawa', 'shitaragahara', 'sunomata', 'sekigahara'];
 function loadingSlides(bt) {
   const box = document.createElement('div');
   box.id = 'ld-slides'; box.setAttribute('aria-hidden', 'true');
   box.style.cssText = 'position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;background:var(--sumi)';
-  const n = SLIDES[bt?.id] || 0, urls = [];
-  for (let k = 1; k <= n; k++) urls.push(Promise.resolve(new URL(`../assets/slides/${bt.id}-${k}.jpg`, import.meta.url).href));   // 公開の Web は版の下に絵がある
+  const slides = SLIDES[bt?.id] || [], urls = [];
+  for (const k of slides) urls.push(Promise.resolve(new URL(`../assets/slides/${bt.id}-${k}.jpg`, import.meta.url).href));   // 公開の Web は版の下に絵がある
   if (!urls.length) for (const key of [illustKey(bt?.id), ...SLIDE_FILL].filter((k, i, a) => k && a.indexOf(k) === i).slice(0, 3)) urls.push(illustURL(key));
   const imgs = [0, 1].map(() => {
     const im = document.createElement('img'); im.alt = ''; im.decoding = 'async';

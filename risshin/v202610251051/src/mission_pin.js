@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { VIEW } from './viewport.js';
 import { currentObjective, missionWaitReached, missionFollowTarget } from './mission_guide.js';
 import { groundAt } from './floors.js';
-import { cameraWallBlocked, inouSignVisible } from './battle_sight.js';
+import { cameraWallBlocked, inouSignVisible, inouSignHeight } from './battle_sight.js';
 import { weatherSight, weatherSees } from './weather_gameplay.js';
 
 let pin = null;
@@ -305,10 +305,13 @@ function drawMissionPin(rt) {
   if (inouEnemy && inouSignVisible(rt, want.unit)) {
     const u = want.unit;
     // 実際の▼と同じ頭上を投影する。任務に重なっても地面へ別の案内を出さない。
-    const head = u.mounted ? 3.17 : (u.bodyHeight || 1.72) + .47;
+    const head = u.mounted ? inouSignHeight(u) : Math.max(inouSignHeight(u), (u.bodyHeight || 1.72) + .47);
     goalPoint.set(u.pos.x, u.pos.y + head, u.pos.z).project(rt.camera);
     const sx = (goalPoint.x + 1) * W / 2, sy = (1 - goalPoint.y) * H / 2;
-    enemyVisible = goalPoint.z >= -1 && goalPoint.z <= 1 && sx >= 0 && sx <= W && sy >= 0 && sy <= H;
+    // 遠くの小さな▼や任務に隠れた▼だけでピンを消さない。
+    enemyVisible = d <= 40 && goalPoint.z >= -1 && goalPoint.z <= 1 &&
+      sx >= 24 && sx <= W - 24 && sy >= 32 && sy <= H - 24 &&
+      !rects.some(r => sx + 20 >= r.left && sx - 20 <= r.right && sy >= r.top && sy - 32 <= r.bottom);
   }
   // 同じ本人の▼が見えたらピンを畳む。別々の目印で別の兵へ誘わない。
   if (enemyVisible) { pin.hidden = true; return; }

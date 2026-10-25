@@ -333,10 +333,10 @@ const inou = {
   // 実際に槍が届いたら頭上の▼に任せる。
   missionPin(rt) {
     const F = rt.flags;
-    // 同じ一人の頭上の▼へ案内し、見えない間だけ方向を示す。
+    // 最初の林兵も同じ本人の頭上の▼へ案内し、見失った間だけピンで方向を示す。
     if (F.ending) return null;
     const enemy = this.missionSignTarget(rt);
-    // 描画を省いた兵にも案内を残す。見えない間は同じ相手への方向矢印になる。
+    // 見えない間も同じ相手へピンを向ける。
     if (fighting(enemy)) {
       const p = rt.player;
       if (p.inRange && p.rangeCueTarget === enemy) return null;
@@ -345,7 +345,7 @@ const inou = {
       pin.approach = true;
       return pin;
     }
-    if (F.step === 3) return null;
+    if (F.step === 0 || F.step === 3) return null;
     if (F.step === 1) {
       if (F.training === 11 && !F.flankReached) {
         return pinPoint(rt, FLANK, 8);
@@ -495,7 +495,7 @@ const inou = {
         }
         // 最後の命中からの経過に依存させず、倒れた時から印を閉じる。
         if (t.hp < hp && (!t.alive || t.dying || t.hp <= 0 || t.downed || t.woundOut || t.rearWound)) {
-          t.inouDefeatUntil = rt.t + .45;
+          t.inouDefeatUntil = rt.t + 1;
           F.combatResult = '一人倒した。次の白縁の▼へ'; F.combatResultUntil = rt.t + 2;
         }
       }

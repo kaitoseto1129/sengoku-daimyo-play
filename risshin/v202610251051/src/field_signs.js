@@ -3,7 +3,7 @@
 //   武将：今の行動に関係する一人の名と体力の棒
 //   形と材質は戦ごとに一度だけ作り、毎コマ new しない。
 import * as THREE from 'three';
-import { sightScreenUnit, inouSignVisible, cameraWallBlocked } from './battle_sight.js';
+import { sightScreenUnit, inouSignVisible, inouSignHeight, cameraWallBlocked } from './battle_sight.js';
 import { markedEnemy } from './mission_pin.js';
 import { enemyKnown } from './battle_intel.js';
 import { reduceMotion } from './settings.js';
@@ -243,8 +243,8 @@ export function fieldSignsTick(rt, root) {
     if ((!u.alive || u.dying || u.woundOut || u.rearWound || u.downed) && !defeated || u.gone || u.isPlayer || u.isStruct || u.civ || u.type === 'dummy' || u.type === 'porter' || u.team > 1) continue;
     const dx = u.pos.x - P.x, dz = u.pos.z - P.z, d2 = dx * dx + dz * dz;
     const foe = u.team !== me.team;
-    // 稲生の小戦は残り人数の兵も示し、ほかの場面は追う一人だけにする。
-    if (inou && foe && !practiceGroup && u !== missionEnemy) continue;
+    // 稲生も見える敵全員に▼を付け、追う本人と小戦の相手は大きさと白縁で区別する。
+    // 追う相手が替わっても、命中した本人の▼を残す。
     const meD2 = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
     // 右上の残り人数と同じ兵だけ白縁にする。ほかの敵にも所属の赤い▼は残す。
     const practiceEnemy = practiceGroup && u.group === practiceGroup && u.hp > 0 &&
@@ -265,7 +265,7 @@ export function fieldSignsTick(rt, root) {
     if (near) {
       // 壁だけを五分の一秒ごとに調べる。画面端や霧による出入りを混ぜない。
       if (u._fsNearAt == null || rt.t < u._fsNearAt - .2 || rt.t >= u._fsNearAt) {
-        u._fsNearSeen = !cameraWallBlocked(rt, P, u.pos, P.y, headY(u));
+        u._fsNearSeen = !cameraWallBlocked(rt, P, u.pos, P.y, inou ? u.pos.y + inouSignHeight(u) : headY(u));
         u._fsNearAt = rt.t + .2;
       }
       if (!u._fsNearSeen) continue;
@@ -313,10 +313,11 @@ export function fieldSignsTick(rt, root) {
     if ((oke || moribe || inou) && !u.mounted) headPos.y = u.pos.y + (u.bodyHeight || 1.72) + .15;
     // 森部の▼を笠の中へ埋めない。姿勢や頭の揺れは追わず本人の背丈へ固定する。
     if ((moribe || oke) && !u.mounted) headPos.y = u.pos.y + (u.bodyHeight || 1.72) + (oke ? .55 : .38);
-    // 笠のすぐ上へ固定し、密集しても埋めずに本人との隙間を一定にする。
+    // 森部は笠のすぐ上へ固定し、本人との隙間を一定にする。
     if (moribe && !u.mounted) headPos.y = u.pos.y + (u.bodyHeight || 1.72) + .38;
-    // 笠に埋めず、白い外枠との隙間も残す。頭の揺れは追わない。
-    if (inou && !u.mounted) headPos.y = u.pos.y + Math.max(2.35, (u.bodyHeight || 1.72) + .47);
+    // 稲生は共通の見通しの高さを保ち、背の高い兵も笠と白枠の間を空ける。
+    // ピンも同じ高さを投影し、本人の印が見えている時に別方向へ誘わない。
+    if (inou) headPos.y = u.pos.y + (u.mounted ? inouSignHeight(u) : Math.max(inouSignHeight(u), (u.bodyHeight || 1.72) + .47));
     if (inou || oke || moribe) {
       if (defeated) headPos.set(u._inouSignX, u._inouSignY, u._inouSignZ);
       else { u._inouSignX = headPos.x; u._inouSignY = headPos.y; u._inouSignZ = headPos.z; }
@@ -437,15 +438,15 @@ export function fieldSignsTick(rt, root) {
     const okeApproach = oke && u === missionEnemy ? Math.max(okeWidth, 1 + .6 * Math.max(0, Math.min(1, 1 - (Math.sqrt(meD2) - reachHot) / 12))) : okeWidth;
     // 選んだ敵の▼が接近に合わせて開き、実際に届いた本人だけ白縁と幅で知らせる。
     const moribeApproach = moribe && u === missionEnemy
-      ? 1 + .6 * Math.max(0, Math.min(1, 1 - (Math.sqrt(meD2) - reachHot) / 12)) : 1;
+      ? .8 + .4 * Math.max(0, Math.min(1, 1 - (Math.sqrt(meD2) - reachHot) / 12)) : 1;
     // 森部は届く一人だけ横へ開き、命中の縦の伸びは控えめにして隣の頭を覆わない。
     // 命中・防がれた直後も横幅を保ち、縦に潰れる形を命中の伸びと区別する。
     dummy.scale.set(oke ? okeScale * Math.max(reachable ? 2.2 : okeApproach, pulse > 0 ? 1 + 1.2 * pulse : 0) : moribe ? k * Math.max(reachable || blocked || pulse > 0 ? 1.7 : moribeApproach, 1 + .7 * pulse) : inou ? k * Math.max(inouWidth, 1 + .3 * pulse) : k * (1 + .5 * pulse),
       oke || moribe || inou ? (oke ? okeScale : k) * (blocked ? .55 : 1 + (inou ? .3 : moribe ? .55 : 1) * pulse) : k, oke ? okeScale : k);
     // 森部の討ち取りと稲生の討ち取りは、それぞれの時間で同じ本人の印を閉じる。
     if (defeated) {
-      const closing = Math.max(0, Math.min(1, (defeatUntil - rt.t) / (inou ? .45 : .8)));
-      // 稲生は空の▼を半秒以内に閉じ、倒れた兵に次の行き先を残さない。
+      const closing = Math.max(0, Math.min(1, (defeatUntil - rt.t) / (inou ? 1 : .8)));
+      // 稲生は倒れ始めた本人の空の▼を一秒で閉じ、討ち取りを見届けられるようにする。
       if (inou) {
         dummy.scale.y *= still ? 1 : closing;
         dummy.scale.x *= still ? 1 : .65 + .35 * closing;
