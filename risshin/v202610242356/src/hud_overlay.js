@@ -56,7 +56,13 @@ export class HudOverlay {
     if (pin?.arrived) {
       g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
     }
-    if (pin?.progress > 0) {
+    if (pin?.crossing) {
+      // 渡河は残りの道のり。時計と区別し、同じ穴を下から満たす。
+      g.save(); g.beginPath(); g.arc(x, y - 33, 12, 0, Math.PI * 2); g.clip();
+      const level = Math.max(0, Math.min(1, pin.progress || 0));
+      g.fillStyle = '#ffe28a'; g.fillRect(x - 12, y - 21 - 24 * level, 24, 24 * level);
+      g.restore();
+    } else if (pin?.progress > 0) {
       // ピンの中だけを満たす。待ち時間の札や別の印は増やさない。
       g.beginPath(); g.moveTo(x, y - 33);
       g.arc(x, y - 33, 12, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, pin.progress));

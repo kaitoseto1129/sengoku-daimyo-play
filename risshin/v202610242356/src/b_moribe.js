@@ -525,8 +525,9 @@ function moribeFord(rt) {
   const bank = { x: POINT2.x, z: POINT2.z, y: W.heightAt(POINT2.x, POINT2.z) };
   // 歩ける高さだけでなく、実際に描く土も川面より上にある岸へ刺す。
   // 粗い地形の補間差で、水の中に見えるピンへ誘わない。
-  for (let i = 0; i < 48 && !atFordBank(bank, W); i++) {
-    bank.z -= .5; bank.y = W.heightAt(bank.x, bank.z);
+  // 完了判定と同じ条件で最初の岸へ刺す。印だけを岸の奥へ進めない。
+  for (let i = 0; i < 96 && !atFordBank(bank, W); i++) {
+    bank.z -= .25; bank.y = W.heightAt(bank.x, bank.z);
   }
   POINT2.z = bank.z; POINT2.y = drawGroundAt(W, bank.x, bank.z);
   st.mesh.geometry.computeVertexNormals();
@@ -1119,7 +1120,7 @@ const moribe = {
         (F.stage === 'hold' || F.stage === 'contact' && F.vBroken) && F.lineReturning)
       return '仲間と集まれ';
     // 守備の終了に撃破人数の条件はない。倒す人数を探させない。
-    if (F.stage === 'hold') return '耐えろ';
+    if (F.stage === 'hold') return '敵を迎え撃って耐えろ';
     // 討つ相手の名前は許された任務一行に収め、頭上に別の札を足さない。
     const commander = this.commanderTarget(rt);
     if (commander?.name) return `${commander.name}を倒せ`;
@@ -1200,11 +1201,11 @@ const moribe = {
     if (!F.signal) {
       if (F.pointDone) return null;
       pos = POINT2; r = FORD_R; hide = 0;
-      // 岸へ着いたら足元の行き先を消し、同じピンを任務の下の待ち時計に替える。
+      // 渡り終えた満杯のピンを一拍残してから、仲間を待つ時計へ替える。
       q.arrived = !!(F.pointReached || F.pointInside || atFordBank(rt.player.u.pos, rt.world));
-      q.waiting = q.arrived;
-      q.crossing = !q.arrived;
-      q.progress = q.arrived ? this.missionWaitProgress(rt) || 0 :
+      q.waiting = q.arrived && rt.t - (F.fordArrivedAt ?? rt.t) >= .8;
+      q.crossing = !q.waiting;
+      q.progress = q.arrived ? q.waiting ? this.missionWaitProgress(rt) || 0 : 1 :
         Math.max(0, Math.min(.98, 1 - Math.hypot(rt.player.u.pos.x - POINT2.x, rt.player.u.pos.z - POINT2.z) / (START2.z - POINT2.z)));
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
@@ -1641,6 +1642,9 @@ const moribe = {
     rt.hud.root.classList.add('moribe-notices');
     const noticeStyle = document.createElement('style');
     noticeStyle.textContent = `
+/* 説明のない総兵数や綱引きは出さず、行き先のピンと敵の▼で判断する。 */
+#hud.moribe-notices #tugbar,
+#hud.moribe-notices #armybar { display:none !important; }
 /* 次の一手と号令を右の任務札にまとめる。横持ちでも二行を切らない。 */
 #hud #h-prog[data-battle="moribe"] { width:min(320px, 38vw); }
 /* 耐える進みは任務の下地で示す。別の時計や秒の字は足さない。 */
