@@ -1170,7 +1170,7 @@ export function touchFrame(dt) {
   const blade = !gunW && !bowW;
   // 攻撃の押し方は実物の釦の中にまとめる。
   const teachB = allowCoach;
-  if (sub) setText(sub, blade ? '押す' : !teachB ? (gunW ? p.gunAmmo === 0 ? '弾がない' : p.gunLoaded ? '' : '弾込め中' : p.bowAmmo <= 0 ? '矢がない' : '') : gunW ? (p.gunLoaded ? '押して撃つ' : p.gunAmmo === 0 ? '弾がない' : p.knockT > 0 || p.staggerT > 0 ? '体勢を戻す' : '弾込め中') : p.bowAmmo <= 0 ? '矢がない' : p.draw > 0 ? '引き絞る' : '押して射る');
+  if (sub) setText(sub, blade ? b.def.key === 'inou' ? '攻撃' : '押す' : !teachB ? (gunW ? p.gunAmmo === 0 ? '弾がない' : p.gunLoaded ? '' : '弾込め中' : p.bowAmmo <= 0 ? '矢がない' : '') : gunW ? (p.gunLoaded ? '押して撃つ' : p.gunAmmo === 0 ? '弾がない' : p.knockT > 0 || p.staggerT > 0 ? '体勢を戻す' : '弾込め中') : p.bowAmmo <= 0 ? '矢がない' : p.draw > 0 ? '引き絞る' : '押して射る');
   tog(btn.atk, 'tech', false);
   tog(btn.atk, 'rl', gunW && !p.gunLoaded);
   tog(btn.atk, 'ready', gunW && p.gunLoaded && (p.aimK || 0) > 0.5);

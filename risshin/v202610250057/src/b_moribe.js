@@ -508,12 +508,13 @@ function moribeFord(rt) {
       float fordBand = 1.0 - smoothstep(4.5, 6.0, fordEdge);
       float fordGrain = texture2D(tMacro, vWPw.xz * 0.9).r;
       float fordRipple = smoothstep(0.86, 0.98, sin(vWPw.z * 6.0 + fordGrain * 2.0 - uTime * 1.4));
-      vec3 fordSand = mix(vec3(0.30, 0.39, 0.30), vec3(0.52, 0.60, 0.46), fordGrain);
-      diffuseColor.rgb = mix(diffuseColor.rgb, fordSand, fordBand * 0.85);
+      // 青い流れの中に砂底の帯を通し、入口から出口まで歩ける浅さを見せる。
+      vec3 fordSand = mix(vec3(0.52, 0.43, 0.27), vec3(0.78, 0.70, 0.48), fordGrain);
+      diffuseColor.rgb = mix(diffuseColor.rgb, fordSand, fordBand * 0.95);
       // 浅瀬も水の色を保つ。両岸の細い白波を既存の川面へ描き、終点を土と分ける。
       float fordShore = smoothstep(7.5, 8.6, abs(vWPw.z - ${NIREMATA2.toFixed(1)}));
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.76, 0.85, 0.82),
-        max(fordRipple * 0.3, fordShore * (0.4 + fordGrain * 0.35)) * fordBand);
+        max(fordRipple * 0.5, fordShore * (0.4 + fordGrain * 0.35)) * fordBand);
       #include <lights_fragment_begin>
     `);
   };
@@ -525,8 +526,9 @@ function moribeFord(rt) {
   const bank = { x: POINT2.x, z: POINT2.z, y: W.heightAt(POINT2.x, POINT2.z) };
   // 歩ける高さだけでなく、実際に描く土も川面より上にある岸へ刺す。
   // 粗い地形の補間差で、水の中に見えるピンへ誘わない。
-  for (let i = 0; i < 48 && !atFordBank(bank, W); i++) {
-    bank.z -= .5; bank.y = W.heightAt(bank.x, bank.z);
+  // 完了判定と同じ条件で最初の岸へ刺す。印だけを岸の奥へ進めない。
+  for (let i = 0; i < 96 && !atFordBank(bank, W); i++) {
+    bank.z -= .25; bank.y = W.heightAt(bank.x, bank.z);
   }
   POINT2.z = bank.z; POINT2.y = drawGroundAt(W, bank.x, bank.z);
   st.mesh.geometry.computeVertexNormals();
@@ -1119,7 +1121,7 @@ const moribe = {
         (F.stage === 'hold' || F.stage === 'contact' && F.vBroken) && F.lineReturning)
       return '仲間と集まれ';
     // 守備の終了に撃破人数の条件はない。倒す人数を探させない。
-    if (F.stage === 'hold') return '耐えろ';
+    if (F.stage === 'hold') return '敵を迎え撃って耐えろ';
     // 討つ相手の名前は許された任務一行に収め、頭上に別の札を足さない。
     const commander = this.commanderTarget(rt);
     if (commander?.name) return `${commander.name}を倒せ`;
@@ -1177,8 +1179,8 @@ const moribe = {
     if (F.stage === 'hold') {
       const elapsed = Math.max(0, rt.t - F.holdStart);
       const reservesReady = (F.wave1 || gone(F.reserves[0])) && (F.wave2 || gone(F.reserves[1]));
-      // 列を支える働き・控えの到着・反撃の時刻を、実際の終了条件とそろえる。
-      F.holdProgress = Math.max(F.holdProgress || 0, Math.min(1, Math.max(elapsed / 100,
+      // 任務の切り替え前には満杯にしない。最後まで満ちたまま待つ誤解を防ぐ。
+      F.holdProgress = Math.max(F.holdProgress || 0, Math.min(.99, Math.max(elapsed / 100,
         Math.min(F.lineT / 25, elapsed / 45, reservesReady ? 1 : .85))));
       return F.holdProgress;
     }
@@ -1200,12 +1202,12 @@ const moribe = {
     if (!F.signal) {
       if (F.pointDone) return null;
       pos = POINT2; r = FORD_R; hide = 0;
-      // 岸へ着いたら足元の行き先を消し、同じピンを任務の下の待ち時計に替える。
+      // 渡り終えた満杯のピンを一拍残してから、仲間を待つ時計へ替える。
       q.arrived = !!(F.pointReached || F.pointInside || atFordBank(rt.player.u.pos, rt.world));
-      q.waiting = q.arrived;
-      q.crossing = !q.arrived;
-      q.progress = q.arrived ? this.missionWaitProgress(rt) || 0 :
-        Math.max(0, Math.min(.98, 1 - Math.hypot(rt.player.u.pos.x - POINT2.x, rt.player.u.pos.z - POINT2.z) / (START2.z - POINT2.z)));
+      q.waiting = q.arrived && rt.t - (F.fordArrivedAt ?? rt.t) >= .8;
+      q.crossing = !q.waiting;
+      // 接近だけでは満たさず、到着の満杯を一拍残してから待機の進みに替える。
+      q.progress = q.arrived ? q.waiting ? this.missionWaitProgress(rt) || 0 : 1 : 0;
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
     } else if (F.stage === 'assemble') {
