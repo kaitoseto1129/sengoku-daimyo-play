@@ -282,7 +282,7 @@ async function readyBattleCode(retry, withWeapons = true, id = '') {
 import { odaTown } from './oda_town.js';
 let townModule = null;
 const townLoad = () => import('./town3d.js').then((m) => (townModule = m));
-import { initTouch, touchFrame, isTouch } from './touch.js';
+import { initTouch, touchFrame, isTouch, usesTouchControls } from './touch.js';
 import { loadHumans, loadHorse, primeHorses, preparationFrame, loadDomaru, loadKabuto, primeHumans, warmBattleFaces, prefetchHumanShapes, updateHumans, setHumanCompiler, humanShadowLod, DOMARU as DOMd, HUM as HUMd } from './humans.js';
 import { loadCgt, cgtOn } from './cgt.js';   // 買った素材（城の部品）。低・描かない時は読まない
 import { lordGame, lordDef, lordOf, applyLord, lordFrame, LORD_BATTLES, lordList } from './lord.js';
@@ -1015,15 +1015,15 @@ let locked = false;
 let edgeX = null;   // ポインタロックが無い時のカーソルの横位置（端で回り続けるため）
 function requestLock(force) {
   // 軍議の間は捕まえない（城を回す・札を押すのにマウスが要る）。攻め始めの釦だけは force で捕まえる
-  if (game.hud.introWaiting || game.noLock || (game.gungiOn && !force) || !canvas.requestPointerLock) return;
+  if (usesTouchControls() || game.hud.introWaiting || game.noLock || (game.gungiOn && !force) || !canvas.requestPointerLock) return;
   autoTry = false;
-  try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => { game.noLock = true; setPause(false); }); } catch (err) { game.noLock = true; }
+  try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => { game.noLock = true; }); } catch (err) { game.noLock = true; }
 }
 // 出陣の釦を押した時（その押した勢いのうちに）マウスを捕まえる。だめでも noLock にはせず、下に小さな案内を出すだけ
 // （しくじりは Promise と pointerlockerror の両方で届くことがあるので、次に自分で捕まえに行くまで「自動の試み」の印を残す）
 let autoTry = false;
 function autoLock() {
-  if (game.hud.introWaiting || game.noLock || locked || !canvas.requestPointerLock) return;
+  if (usesTouchControls() || game.hud.introWaiting || game.noLock || locked || !canvas.requestPointerLock) return;
   autoTry = true;
   try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => { if (game.battle) lockHint(true); }); } catch (err) { /* 案内を出すだけ */ }
 }
@@ -1074,6 +1074,8 @@ function lockHint(on) {
   if (el) el.hidden = !on;
 }
 canvas.addEventListener('mousedown', (e) => {
+  // 指から届く互換のマウス通知で捕捉や二重の攻撃を始めない。
+  if (e.sourceCapabilities?.firesTouchEvents || usesTouchControls()) return;
   if (!game.battle || game.paused) return;
   if (isRtsOn(game.battle)) return;
   initAudio();
@@ -1136,10 +1138,10 @@ document.addEventListener('pointerlockchange', () => {
   if (game.gungiOn || game.deployment || game.hud.introWaiting) return;
   // マウスの捕まえが外れただけでは止めない（Windows の Chrome で勝手に外れ、すぐ「一時中断」になって遊べなかった。Lancers 10/24）。
   // 自分で Esc を押して外した時だけ止める。外れた後は、画面をクリックすればまた捕まえる。
-  if (wasLocked && !locked && performance.now() - escAt < 400 && !game.noLock && game.battle && !game.battle.over && !game.helpOpen && !game.mapOpen && !game.townShop) setPause(true);
-  if (locked) setPause(false);
+  if (!usesTouchControls() && wasLocked && !locked && performance.now() - escAt < 400 && !game.noLock && game.battle && !game.battle.over && !game.helpOpen && !game.mapOpen && !game.townShop) setPause(true);
+  if (locked && !game.battleFault) setPause(false);
 });
-document.addEventListener('pointerlockerror', () => { if (autoTry) { autoTry = false; if (game.battle) lockHint(true); return; } game.noLock = true; setPause(false); });
+document.addEventListener('pointerlockerror', () => { if (autoTry) { autoTry = false; if (game.battle) lockHint(true); return; } game.noLock = true; });
 // 別のタブに移ったら止める
 document.addEventListener('visibilitychange', () => {
   if (ldPlan && document.hidden) ldPlan.hidden = true;
@@ -1348,13 +1350,16 @@ window.addEventListener('gamepadconnected', () => notice('手持ち操作器を�
 function resumePlay() {
   const b = game.battle;
   if (b && game.battleFault === b) {
-    game.battleFault = null;
-    if (!recoverBattle(b)) {
-      // 写しをまだ作れていない開戦直後だけ、既存の出陣処理で立て直す。
+    let recovered = false;
+    try { recovered = recoverBattle(b); }
+    catch (e) { console.error(e); }
+    // 復元自身が失敗しても、閉じられない札と壊れた戦を残さない。
+    if (!recovered) {
       game.G = JSON.parse(game.snapshot || 'null') || game.G;
       game.startBattle(b.index);
       return;
     }
+    game.battleFault = null;
     game.lastError = null;
   }
   game.starting = false;

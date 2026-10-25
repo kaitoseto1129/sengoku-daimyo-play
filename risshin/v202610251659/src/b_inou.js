@@ -114,12 +114,12 @@ function practiceLeft(rt) {
   for (const u of rt.flags.practice?.units || []) if (fighting(u)) n++;
   return n;
 }
-// 追う一人を保ち、札・ピン・到着判定で共有する。群れの中心を毎コマ作らない。
+// 最寄りの残敵を札・ピン・到着判定で共有する。群れの中心を毎コマ作らない。
 function approachUnit(rt) {
   const F = rt.flags;
   const group = F.step === 1 ? F.shiba1 : F.chase || F.training >= 0 && F.training < 5 ? F.practice : F.haya1;
   if (!group) return null;
-  // 間合いの内外で同じ兵を追い、札・ピン・頭上の▼をそろえる。近くの別人へ毎コマ渡さない。
+  // 残り人数に数える隊の中から、間合いの相手・当てた相手を優先し、無ければ最寄りの兵を選ぶ。札とピンは同じ相手を使う。
   const previous = F.approachGroup === group && advanceEnemy(F.approachUnit) ? F.approachUnit : null;
   const reachable = rt.player.inRange && rt.player.rangeCueTarget;
   if (advanceEnemy(reachable) && group.units.includes(reachable)) {

@@ -131,11 +131,22 @@ function sightPointNow(rt, p, limit, distant, targetHeight) {
 const solidGrids = new WeakMap();
 export const SIGHT_DBG = { full: false };   // 確かめ用：true で升を使わず全部の壁を見る
 const SG_CELL = 24;
-function solidGrid(solids) {
+let solidStamp = 0;
+function solidGrid(solids, frame) {
   let G = solidGrids.get(solids);
-  if (G && G.n === solids.length) return G;
-  G = { n: solids.length, map: new Map(), rest: [], stamp: 0 };
-  for (const w of solids) {
+  if (!G || solids.length < G.length) {
+    G = { n: 0, length: solids.length, map: new Map(), rest: [], frame: null };
+    solidGrids.set(solids, G);
+  }
+  G.length = solids.length;
+  if (G.n === solids.length || G.frame === frame) return G;
+  G.frame = frame;
+  // 増えた壁だけ登録する。同じコマに何本の視線を調べても三十二個・半ミリ秒まで。
+  // 未登録の壁も呼び出し側で直接調べ、途中の升で壁を透視させない。
+  const end = Math.min(solids.length, G.n + 32), started = performance.now();
+  while (G.n < end) {
+    if (G.n % 4 === 0 && performance.now() - started >= 0.5) break;
+    const w = solids[G.n++];
     if (w.x0 == null || w.x1 == null || w.z0 == null || w.z1 == null) { G.rest.push(w); continue; }
     const cx0 = Math.floor(w.x0 / SG_CELL), cx1 = Math.floor(w.x1 / SG_CELL), cz0 = Math.floor(w.z0 / SG_CELL), cz1 = Math.floor(w.z1 / SG_CELL);
     if ((cx1 - cx0 + 1) * (cz1 - cz0 + 1) > 64) { G.rest.push(w); continue; }   // 広い物は常に調べる
@@ -144,7 +155,6 @@ function solidGrid(solids) {
       let a = G.map.get(k); if (!a) G.map.set(k, a = []); a.push(w);
     }
   }
-  solidGrids.set(solids, G);
   return G;
 }
 function wallCuts(w, a, p, ay, by) {
@@ -166,12 +176,13 @@ export function cameraWallBlocked(rt, a, p, ay = a.y, by = p.y, custom = true) {
   if (custom && rt.def?.sightBlocked?.(rt, a, p, ay, by)) return true;
   const solids = rt.army.solids;
   if (!solids || !solids.length) return false;
-  const G = solidGrid(solids);
+  const G = solidGrid(solids, rt.t);
   const x0 = Math.floor(Math.min(a.x, p.x) / SG_CELL), x1 = Math.floor(Math.max(a.x, p.x) / SG_CELL);
   const z0 = Math.floor(Math.min(a.z, p.z) / SG_CELL), z1 = Math.floor(Math.max(a.z, p.z) / SG_CELL);
   if (!SIGHT_DBG.full && (x1 - x0 + 1) * (z1 - z0 + 1) <= 36) {
+    for (let i = G.n; i < solids.length; i++) if (wallCuts(solids[i], a, p, ay, by)) return true;
     for (const w of G.rest) if (wallCuts(w, a, p, ay, by)) return true;
-    const stamp = ++G.stamp;
+    const stamp = ++solidStamp;
     for (let i = x0; i <= x1; i++) for (let j = z0; j <= z1; j++) {
       const list = G.map.get(i * 65536 + j);
       if (!list) continue;

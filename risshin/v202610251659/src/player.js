@@ -537,8 +537,8 @@ export class Player {
     const army = rt.army;
     this.group = army.addGroup({ team: 0, faction: scenario().faction, noRout: true, order: 'hold', name: 'player' });
     const look = playerLook(G);
-    // 桶狭間では本人の袖と威糸を生成りにする。足元の輪や札を足さず、具足の形は使い回す。
-    if (rt.def.key === 'okehazama') { look.cloth = 0xc8b99c; look.lace = 0xc8b99c; }
+    // 桶狭間・森部では本人の袖と威糸を生成りにする。足元の輪や札を足さず、具足の形は使い回す。
+    if (rt.def.key === 'okehazama' || rt.def.key === 'moribe') { look.cloth = 0xc8b99c; look.lace = 0xc8b99c; }
     this.sightHat = look.hat;
     this.u = army.addUnit(this.group, { type: 'player', x: spawn.x, z: spawn.z, heading: spawn.heading || 0, ...look });
     this.u.isPlayer = true;
@@ -647,7 +647,7 @@ export class Player {
       // 人数・当たり・攻撃はそのまま。骨の姿と長柄も一緒に戻す。
       const goal = this.nearAllyGoal || this.rt.hud?.outlinedEnemy?.pos || this.rt.guideEnemy?.pos || this.rt.missionGuide?.pos;
       let blocksGoal = false;
-      if (o.team === u.team && goal && dx * dx + dz * dz < (this.nearAllyGoal ? 100 : 16)) {
+      if (o.team === u.team && goal && dx * dx + dz * dz < (this.nearAllyGoal ? this.rt.def.key === 'okehazama' ? 324 : 100 : 16)) {
         const gx = goal.x - cam.position.x, gz = goal.z - cam.position.z;
         const gl2 = gx * gx + gz * gz;
         const t = gl2 > .01 ? (dx * gx + dz * gz) / gl2 : -1;
@@ -4542,14 +4542,14 @@ export class Player {
         part.updateMatrixWorld(true);
         part.traverse(this.nearAllyFadePart);
       }
-      const goal = D.key === 'inou' ? focus?.pos : this.rt.missionGuide?.pos;
+      const goal = D.key === 'inou' || D.key === 'okehazama' ? focus?.pos : this.rt.missionGuide?.pos;
       // 行き先の前を横切る手前の味方の長柄も避ける。敵の攻撃の見え方は保つ。
       let blocksGoal = false;
-      if ((closeSpear || D.key === 'inou' && o !== this.u && o.team === this.u.team && o.wpn?.visible && (o.wpnKind || o.lookWeapon) === 'spear') && goal) {
+      if ((closeSpear || (D.key === 'inou' || D.key === 'okehazama') && o !== this.u && o.team === this.u.team && o.wpn?.visible && (o.wpnKind || o.lookWeapon) === 'spear') && goal) {
         _fpS.set(goal.x, goal.y ?? this.rt.world.heightAt(goal.x, goal.z), goal.z);
         blocksGoal = flagMeshBlocksView(o.wpn, cam.position, _fpS, .35);
       }
-      if ((!closeSpear || (D.hideBlockingCloseSpears ?? true)) && !(o === this.u && this.rt.def.keepPlayerWeapon) && (o.wpnKind || o.lookWeapon) === 'spear' && o.wpn?.visible
+      if (!(D.key === 'okehazama' && o.team !== this.u.team && o.alive && !o.dying) && (!closeSpear || (D.hideBlockingCloseSpears ?? true)) && !(o === this.u && this.rt.def.keepPlayerWeapon) && (o.wpnKind || o.lookWeapon) === 'spear' && o.wpn?.visible
         && (flagMeshBlocksView(o.wpn, cam.position, this.u.pos)
           || (o.wpn.userData.flex?.on && (flagMeshBlocksView(o.wpn.userData.flex.a, cam.position, this.u.pos)
             || flagMeshBlocksView(o.wpn.userData.flex.b, cam.position, this.u.pos))) || blocksGoal)) this.hideNearFlag(o.wpn);
@@ -4593,7 +4593,8 @@ export class Player {
       this.nearAllyGoal = this.rt.def.key === 'inou' || this.rt.def.key === 'okehazama'
         ? focus?.pos : null;
       const viewRadius = this.fpK < .5 ? Math.hypot(this.u.pos.x - cp.x, this.u.pos.z - cp.z) + 1 : 0;
-      this.rt.army.forNear(cp.x, cp.z, Math.max(this.nearAllyGoal ? 10 : 4, this.rt.def.nearAllyFadeRadius || 2.2, viewRadius), this.nearAllyVisit);
+      // 桶狭間は近い敵を選ぶ十四歩とカメラの後退分まで、遮る味方だけを避ける。
+      this.rt.army.forNear(cp.x, cp.z, Math.max(this.nearAllyGoal ? D.key === 'okehazama' ? 18 : 10 : 4, this.rt.def.nearAllyFadeRadius || 2.2, viewRadius), this.nearAllyVisit);
     }
     if (this.rt.army.forNear) this.rt.army.forNear(cp.x, cp.z, Math.max(1.6, D.nearEnemyFadeRadius || 0), hideCameraEnemy, this);
     // 一人称：近い味方の槍・長物は視界を塞ぐので描く間だけ隠す。軒下などでカメラが自分の体に寄った時は自分の体も隠す
@@ -5029,8 +5030,8 @@ export class Player {
     // 遠さの設定と戦ごとの引きを、肩越しの上限にも反映する。
     // 壁・柱の検査はこの後で行い、狭い所を突き抜けない。
     const footLimit = S.camRange === 'near' ? 4.2 : S.camRange === 'far' ? 5.2 : 4.8;
-    // 桶狭間の横持ちは本人を小さく引き離さず、生成りの袖と刀の動きを見せる。
-    const selfLandscapePull = landscapeFrame ? rt0.def.key === 'okehazama' && !this.mounted ? 0 : 1.2 : 0;
+    // 桶狭間・森部の横持ちは本人を引き離さず、生成りの袖と武器の動きを見せる。
+    const selfLandscapePull = landscapeFrame ? (rt0.def.key === 'okehazama' || rt0.def.key === 'moribe') && !this.mounted ? 0 : 1.2 : 0;
     const distR = selfFrame ? Math.max(2.2, (this.mounted ? 6 : S.camRange === 'near' ? 3.8 : S.camRange === 'far' ? 4.8 : 4.4) + this.zoom + selfLandscapePull) : Math.min(desiredDist + (routeNear ? 0 : landscapePull), Math.max(this.mounted ? 6 : footLimit, guardPull) + landscapePull);
     this.camDist = this.camDist ? this.camDist + (distR - this.camDist) * Math.min(1, dt * (inRoom ? 5 : 3)) : distR;
     this.sideK = (this.sideK ?? 0.85) + ((routeNear || closeFightFrame ? .2 : fight || this.guard ? 0.95 : 0.85) - (this.sideK ?? 0.85)) * Math.min(1, dt * 3);
