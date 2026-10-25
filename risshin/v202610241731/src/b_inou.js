@@ -146,6 +146,17 @@ function approachUnit(rt) {
   F.approachGroup = group; F.approachUnit = chosen;
   return chosen;
 }
+// 白縁は一人だけ。距離と実際の攻撃判定から、次の行動を一つだけ伝える。
+function inouEnemyOrder(rt, fallback) {
+  const enemy = rt.def.missionSignTarget(rt), p = rt.player;
+  if (!fighting(enemy)) return fallback;
+  const target = '白ふちの▼';
+  if (p.inRange && p.rangeCueTarget === enemy) return `${target}を${p.weapon === 'sword' ? '斬れ' : '突け'}`;
+  const dx = enemy.pos.x - p.u.pos.x, dz = enemy.pos.z - p.u.pos.z;
+  if (Math.hypot(dx, dz) > p.meleeReach(p.previewMeleeKind() || 'thrust')) return `${target}へ近づけ`;
+  if (Math.cos(Math.atan2(dx, dz) - p.u.heading) < .9) return `${target}へ向け`;
+  return `${target}へ近づけ`;
+}
 function pinPoint(rt, pos, radius, hide, unit = null, name = '') {
   const pin = rt.flags.goalPin;
   pin.x = pos.x; pin.z = pos.z; pin.r = radius; pin.hide = hide;
@@ -252,7 +263,7 @@ const inou = {
         rt.flags.step === 1 && rt.flags.training === 12 && !gone(rt.flags.shiba1) ? approachUnit(rt) :
           rt.flags.step === 3 ? rt.flags.hayaU : null,
   missionEnemyLabel: (rt) => rt.flags.step === 3 ? '林美作守' : rt.flags.step === 1 ? '柴田の兵' :
-    rt.flags.training === 8 ? '林の隊長' : '林の兵',
+    rt.flags.training === 8 ? '林美作守の小隊長' : '林美作守の兵',
   meleeResult(rt, target, result) {
     const F = rt.flags;
     // 命中・討ち取りは実際に命が減った時の知らせを保つ。

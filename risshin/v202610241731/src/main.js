@@ -138,7 +138,8 @@ function ldBegin(keys, battle = '') {
   cancel.style.cssText = 'min-height:44px;margin-top:16px';
   cancel.onclick = () => { game.startSeq = (game.startSeq || 0) + 1; hideLoading(); game.title(); };
   document.querySelector('#loading .ldbar').parentElement.appendChild(cancel);
-  ldTick();
+  // 最初の描画から残りの目安を出す。次の工程を待って空欄にしない。
+  stage('戦の支度を読み込んでいます', keys[0]);
 }
 function ldTick() {
   const el = $('ld-left');
@@ -161,7 +162,9 @@ function ldTick() {
   // 見込みを超えても残り秒を消さず、残る段と現在の超過分から目安を直す。
   if (into >= P.est[i]) left += Math.max(1000, P.est[i] * .2);
   const seconds = Math.floor((performance.now() - P.t0) / 1000);
-  const text = `あと約${Math.max(1, Math.ceil(left / 1000))}秒（目安）・${seconds}秒経過`;
+  const text = into > P.est[i] * 1.5
+    ? `目安より時間がかかっています・動けるまで あと約${Math.max(1, Math.ceil(left / 1000))}秒（目安）・${seconds}秒経過`
+    : `動けるまで あと約${Math.max(1, Math.ceil(left / 1000))}秒（目安）・${seconds}秒経過`;
   if (el.textContent !== text) el.textContent = text;
 }
 // 段に入る：棒をこの段の終わりの手前まで、見込みの時間で伸ばす
@@ -1858,7 +1861,6 @@ const game = {
     ldBegin(keys, BATTLES[i].id);
     const readingStory = LB ? { year: LB.year, title: LB.name, text: LB.goal ? [...LB.text, `任務：${LB.goal}`] : LB.text } : storyOf(i)(this.G);
     const reader = this.loadingReader = loadingStory(BATTLES[i], readingStory, LB ? LB.tip : tipOf(i), this.G, firstBattle);
-    stage('戦の支度を読み込んでいます', keys[0]);
     // 開戦の確かめは、この戻り値を待ってから判定する。読み込み中に次の戦を予約すると、前の支度は取り消される。
     return new Promise((resolve) => setTimeout(() => guarded(async () => {
       if (my !== this.startSeq) return;

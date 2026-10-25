@@ -265,7 +265,7 @@ export function fieldSignsTick(rt, root) {
       if (!u._focusSignSeen) continue;
     }
     // 狙う本人のひし形が出ている間は、同じ頭上に通常の印を重ねない。
-    if (!moribe && u === focusEnemy && rt.hud.missionEnemyShown || u === marked && !oke && !inou) continue;
+    if (!moribe && u === focusEnemy && rt.hud.missionEnemyShown || u === marked && !oke && !inou && !moribe) continue;
     if (inou && (u.mesh?.visible === false || u.camHidden)) continue;
     // 稲生・森部は敵の赤い▼だけ。味方の丸と重ねて所属を迷わせない。
     if ((moribe || inou || rt.def.key === 'okehazama') && !foe) continue;
@@ -323,7 +323,8 @@ export function fieldSignsTick(rt, root) {
     // 命中後も大きさを別の時間で保たず、下の一度だけの拡大にそろえる。
     // 森部の間合いで高さを変えない。幅は届く一人、高さの変化は命中だけ。
     // 森部は接近だけで急に大きくしない。横幅が急に変わるのは実際に届く一人だけ。
-    const pixels = !inou && marked && u !== marked && foe ? 9 : moribe ? (u === commander ? 32 : 14 + 12 * Math.max(0, 1 - Math.sqrt(meD2) / NEAR_OUT)) :
+    // 森部の一般兵は距離に合わせて滑らかに拡大し、接近だけでは命中の伸びを起こさない。
+    const pixels = moribe ? (u === commander ? 32 : 24) : !inou && marked && u !== marked && foe ? 9 :
       // 任務の一人は常に大きい▼。頭上の位置と既存の描画の束は保つ。
       inou ? (u === commander || u === missionEnemy ? 32 : 22) :
       // 目当てと近い敵の読みやすさを保ち、近づくほど同じ▼を滑らかに大きくする。
@@ -335,10 +336,12 @@ export function fieldSignsTick(rt, root) {
     // 頭上の先端は固定し、既存の形・材質・描画の束をそのまま使う。
     // 稲生は命中の形を少し保ってから戻す。連打の合間にも当たった本人が分かる。
     const hitLeft = ((oke ? u.okeHitUntil : inou ? u.inouHitUntil : u.moribeHitUntil) || 0) - rt.t;
-    // 森部は命中を二秒以上保ち、最後にゆっくり戻す。
-    // 一瞬の振りやよろめきを見落としても、当たった本人の赤の減りと縦の伸びが残る。
+    // 森部は命中直後に伸び、半秒ほどで小さな伸びへ戻す。次の一撃で再び伸びる。
+    // 赤の減りと小さな伸びは三秒残し、乱戦でも当たった本人を追える。
     const hit = foe && special
-      ? Math.min(1, Math.max(0, moribe || inou ? hitLeft / .6 : (hitLeft - 1.2) / .5))
+      ? moribe ? Math.min(1, Math.max(0, hitLeft / .6)) *
+        (.15 + .85 * Math.min(1, Math.max(0, (hitLeft - 2.45) / .4)))
+        : Math.min(1, Math.max(0, inou ? hitLeft / .6 : (hitLeft - 1.2) / .5))
       : 0;
     const reachable = foe && u === readyEnemy;
     // 森部の命中は同じ赤い▼を大きくして示す。空振りでは変わらない。
@@ -381,7 +384,7 @@ export function fieldSignsTick(rt, root) {
     const okeLimit = u === commander ? 1.5 + 1.5 * okeNear : 1.2 + .8 * okeNear;
     const okeScale = oke ? Math.min(okeLimit, okePixels * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) : k;
     // 防がれた接触は縦に潰す。傷を与えた時の縦の伸び・赤の減りとは分ける。
-    const blocked = special && !(hit > 0) && (inou ? u.inouBlockUntil : oke ? u.okeBlockUntil : u.moribeBlockUntil) > rt.t;
+    const blocked = special && !moribe && !(hit > 0) && (inou ? u.inouBlockUntil : u.okeBlockUntil) > rt.t;
     // 届くまでは細い▼が徐々に開き、届く本人だけ幅広くなる。
     const inouWidth = inou && hot ? 2.2 : 1;
     // 稲生は届く一人の幅をはっきり広げる。命中後も幅を保ち、縦の伸びを見せる。
@@ -406,7 +409,7 @@ export function fieldSignsTick(rt, root) {
         dummy.scale.y = moribe ? k * (still ? .25 : Math.min(1, (defeatUntil - rt.t) / 1)) : okeScale * (still ? 1 : closing);
       } else dummy.scale.multiplyScalar(still ? 1 : closing);
     }
-    if (!inou && marked && foe && u !== marked) dummy.scale.multiplyScalar(.55);
+    if (!inou && !moribe && marked && foe && u !== marked) dummy.scale.multiplyScalar(.55);
     // 他の敵は縮めず、任務の武将・届く本人・命中した本人・防がれた本人を強調する。
     if (inou && foe && !defeated) dummy.scale.multiplyScalar(Math.max(
       u === missionEnemy || hot || hit > 0 || blocked ? 1.3 : 1,

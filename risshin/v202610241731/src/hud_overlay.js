@@ -22,7 +22,7 @@ export class HudOverlay {
     if (landmark || rt.def.routeGuidePriority?.(rt))
       return this.drawDestinationPin(g, x, y);
     if (rt.def.key !== 'moribe') return this.drawDestinationPin(g, x, y);
-    // 渡河中も岸に刺さる短いピン。人を指す大きな下矢印へ替えない。
+    // 渡河中も岸に刺さる短い丸頭のピン。人を指す下向き矢印にしない。
     g.save(); g.lineJoin = 'round';
     // 渡河のピンは岸を隠さない大きさに固定し、近づいても伸び縮みさせない。
     // 兵を指す矢印にせず、穴の空いたピンの先端を対岸へ固定する。
