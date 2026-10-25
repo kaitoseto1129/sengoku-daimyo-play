@@ -682,7 +682,7 @@ const okehazama = {
   missionHeading(rt) {
     // 合流済みの待ちは敵が寄っても続く。同じ丸と一行を雨上がりまで保つ。
     if (rt.phase === 'wait') return '雨がやむまで待て';
-    if (rt.phase === 'brief' && rt.flags.briefed) return '仲間の出発を待て';
+    if (rt.phase === 'brief' && rt.flags.briefed) return '組の出発を待て';
     if (rt.phase === 'march' && rt.flags.scoutFighting) return '赤い三角の今川の兵を倒せ';
     if (rt.phase === 'assault' && rt.flags.entered && !rt.flags.victory && this.objectiveEnemies(rt).length) return '赤い三角の今川の兵を倒せ';
     if (rt.phase === 'march') return this.squadFlagReached(rt) ? '仲間を待て' : '組のピンに集まれ';
@@ -1194,7 +1194,7 @@ const okehazama = {
   // 顔・笠・胴を別々に透かさず、目が体に入る時だけ兵を描く間避ける。
   // 肩越しの近景でも顔や騎手が画面の脇を覆う前に、描く間だけ全身を避ける。
   nearAllyFadeRadius: 2.8,
-  nearAllySightWidth: 1.15, // 乱戦でも笠と肩を隠す兵を既存の視線よけで避ける。
+  nearAllySightWidth: 1.4, // 自分の笠と両肩まで、既存の視線よけで空ける。
   nearAllyHorseFade: true,
   nearAllySolidBody: true,
   // 自分を塞ぐ人馬は描く間だけ全身を避け、透けた武者を重ねない。
@@ -2102,7 +2102,8 @@ const okehazama = {
     // 隊の手前の空き地を、ピンと到着判定の共通の中心にする。
     // 出発時に固定し、歩く本人や兵に合わせて動かさない。
     const p = rt.player.u.pos, dx = p.x - end[0], dz = p.z - end[1];
-    const d = Math.hypot(dx, dz), offset = Math.min(6, d);
+    // 集合の輪を隊の中へ重ねず、列へ着く手前で合流できるようにする。
+    const d = Math.hypot(dx, dz), offset = Math.min(10, d);
     const x = end[0] + (d ? dx / d * offset : 0), z = end[1] + (d ? dz / d * offset : 0);
     rt.flags.marchPinPos = { x, y: rt.world.heightAt(x, z), z };
     rt.flags.marchGoal = rt.flags.marchPinPos;

@@ -5027,7 +5027,9 @@ export class Player {
     // 遠さの設定と戦ごとの引きを、肩越しの上限にも反映する。
     // 壁・柱の検査はこの後で行い、狭い所を突き抜けない。
     const footLimit = S.camRange === 'near' ? 4.2 : S.camRange === 'far' ? 5.2 : 4.8;
-    const distR = selfFrame ? Math.max(2.2, (this.mounted ? 6 : S.camRange === 'near' ? 3.8 : S.camRange === 'far' ? 4.8 : 4.4) + this.zoom + (landscapeFrame ? 1.2 : 0)) : Math.min(desiredDist + (routeNear ? 0 : landscapePull), Math.max(this.mounted ? 6 : footLimit, guardPull) + landscapePull);
+    // 桶狭間の横持ちは本人を小さく引き離さず、生成りの袖と刀の動きを見せる。
+    const selfLandscapePull = landscapeFrame ? rt0.def.key === 'okehazama' && !this.mounted ? 0 : 1.2 : 0;
+    const distR = selfFrame ? Math.max(2.2, (this.mounted ? 6 : S.camRange === 'near' ? 3.8 : S.camRange === 'far' ? 4.8 : 4.4) + this.zoom + selfLandscapePull) : Math.min(desiredDist + (routeNear ? 0 : landscapePull), Math.max(this.mounted ? 6 : footLimit, guardPull) + landscapePull);
     this.camDist = this.camDist ? this.camDist + (distR - this.camDist) * Math.min(1, dt * (inRoom ? 5 : 3)) : distR;
     this.sideK = (this.sideK ?? 0.85) + ((routeNear || closeFightFrame ? .2 : fight || this.guard ? 0.95 : 0.85) - (this.sideK ?? 0.85)) * Math.min(1, dt * 3);
     // 狭い所（門・塀の内）：肩の側が壁に近ければ、空いている逆の肩へカメラだけ回す（決めた肩の設定は変えない）

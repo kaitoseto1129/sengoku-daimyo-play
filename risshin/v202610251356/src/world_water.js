@@ -195,7 +195,8 @@ export class WorldWater {
     const depth = this.waterFootDepthAt(x, z, y);
     if (depth <= 0.02) return 1;
     const d = Math.min(0.85, depth);
-    return mounted ? Math.max(0.3, 0.6 - d * 0.35) : Math.max(0.5, 0.85 - d * 0.4);
+    return mounted ? Math.max(0.3, 0.6 - d * 0.35) : Math.max(0.5, 0.85 - d * 0.4,
+      depth <= .85 ? this.def.fordWalkSpeed?.(x, z) || 0 : 0);
   }
 
 
