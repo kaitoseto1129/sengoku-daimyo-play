@@ -112,9 +112,10 @@ function make() {
   ticks.setAttribute('fill', 'none'); ticks.setAttribute('stroke', '#fff3ba');
   ticks.setAttribute('stroke-width', '1.5'); ticks.style.display = 'none';
   hold.appendChild(ticks); el._waitTicks = ticks;
-  const hand = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  hand.setAttribute('d', 'M40 28V15'); hand.setAttribute('stroke', '#14120f');
-  hand.setAttribute('stroke-width', '3'); hand.style.display = 'none';
+  const hand = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  // 空の穴でも満ちた扇形でも針を読めるよう、明暗の二本を使い回す。
+  hand.innerHTML = '<path d="M40 28V15" stroke="#14120f" stroke-width="5"/><path d="M40 28V15" stroke="#fff3ba" stroke-width="2"/>';
+  hand.style.display = 'none';
   hold.appendChild(hand); el._waitHand = hand;
   // 到着はピンの軸のチェックで示す。穴の扇形は待ち時間だけを表す。
   const arrivedMark = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -299,7 +300,7 @@ function drawMissionPin(rt) {
     const sx = (goalPoint.x + 1) * W / 2, sy = (1 - goalPoint.y) * H / 2;
     enemyVisible = goalPoint.z >= -1 && goalPoint.z <= 1 && sx >= 0 && sx <= W && sy >= 0 && sy <= H;
   }
-  // 本人の▼が見えたらピンを畳む。離れた二つの印で別の兵へ誘わない。
+  // 同じ本人の▼が見えたらピンを畳む。別々の目印で別の兵へ誘わない。
   if (enemyVisible) { pin.hidden = true; return; }
   // 案内役は頭上の人型と下矢印、自分は足元の輪。離れても同じ形で追えるようにする。
   const groundPerson = rt.def.key === 'okehazama' && want.unit && (want.footRing || want.follow);
@@ -503,6 +504,7 @@ function drawMissionPin(rt) {
   pin._arrivedMark.style.display = oke && arrived ? '' : 'none';
   pin._arrivedMark.setAttribute('transform', oke && !(want.progress >= 1) ? 'translate(16,48) scale(.6)' : '');
   pin._arrival.style.display = showArrival ? '' : 'none';
+  pin._arrival.setAttribute('stroke', arrived ? '#e4f2cb' : '#fff3ba');
   // 到着してから中の扇形が待ち時間を刻む。
   // 別の丸へ替えず、同じ地面に刺さるピンの中だけで示す。
   const arrivalProgress = arrived ? 1 : Math.max(0, Math.min(1, want.arrivalProgress || 0));
@@ -611,7 +613,8 @@ function drawMissionPin(rt) {
       flag.setAttribute('transform', 'translate(6,10.2) scale(.85)');
       pin._hold.setAttribute('transform', 'translate(6,10.2) scale(.85) translate(4,-17.2) scale(.9)');
     }
-    // 実際の集合範囲だけを囲み、紛らわしい固定の小さな輪は重ねない。
+    // 集合範囲は実寸の囲みだけで示し、固定の小さな輪は重ねない。
+    // 到着後も輪を出さず、画面端の丸を次の集合場所に見せない。
     for (const ring of pin._rings) {
       ring.style.display = 'none';
     }
