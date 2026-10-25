@@ -24,7 +24,7 @@ export class HudOverlay {
     if (rt.def.key !== 'moribe') return this.drawDestinationPin(g, x, y);
     // 渡河中も丸頭と軸で岸に刺さるピン。人を指す下向き矢印にしない。
     g.save(); g.lineJoin = 'round';
-    // 渡河の大きさと接地点は固定し、穴の中の進みで岸への接近を示す。
+    // 渡河の大きさと接地点は固定し、穴が満ちた時に岸への到着を示す。
     // 渡河も長い軸で岸へ刺す。兵の頭上の▼と形を分け、接地点は動かさない。
     // 待つ間は丸の面積を広げ、携帯でも満ちた分と残った分を見分けられる大きさにする。
     const pinScale = pin?.waiting && pin.arrived ? 1.7 : pin?.waiting ? .95 : pin?.crossing ? 1.1 : 1.3;
@@ -33,7 +33,8 @@ export class HudOverlay {
     g.beginPath(); g.ellipse(x, y + 1, 11, 3, 0, 0, Math.PI * 2);
     g.fillStyle = 'rgba(20,18,15,.65)'; g.fill();
     // 場所のピンは軸を長くし、兵の頭上の印と見分けられるよう地面までつなぐ。
-    const stem = pin?.unit ? 13 : pin?.crossing ? 60 : 43;
+    // 待機の時計は短い軸にし、右上の任務のすぐ下で大きく満ちる。
+    const stem = pin?.unit || pin?.waiting && pin.arrived ? 13 : pin?.crossing ? 60 : 43;
     g.beginPath(); g.moveTo(x, y); g.lineTo(x - 4, y - stem);
     g.lineTo(x + 4, y - stem); g.closePath();
     g.strokeStyle = '#14120f'; g.lineWidth = 4; g.stroke();
@@ -58,7 +59,7 @@ export class HudOverlay {
       g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
     }
     if (pin?.crossing) {
-      // 渡河は残りの道のり。時計と区別し、同じ穴を下から満たす。
+      // 渡河の到着は同じ穴を下から満たす。待機の時計の扇形と区別する。
       g.save(); g.beginPath(); g.arc(x, y - 33, 12, 0, Math.PI * 2); g.clip();
       const level = Math.max(0, Math.min(1, pin.progress || 0));
       g.fillStyle = '#ffe28a'; g.fillRect(x - 12, y - 21 - 24 * level, 24, 24 * level);

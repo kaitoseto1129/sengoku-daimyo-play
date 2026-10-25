@@ -112,9 +112,10 @@ function make() {
   ticks.setAttribute('fill', 'none'); ticks.setAttribute('stroke', '#fff3ba');
   ticks.setAttribute('stroke-width', '1.5'); ticks.style.display = 'none';
   hold.appendChild(ticks); el._waitTicks = ticks;
-  const hand = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  hand.setAttribute('d', 'M40 28V15'); hand.setAttribute('stroke', '#14120f');
-  hand.setAttribute('stroke-width', '3'); hand.style.display = 'none';
+  const hand = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  // 空の穴でも満ちた扇形でも針を読めるよう、明暗の二本を使い回す。
+  hand.innerHTML = '<path d="M40 28V15" stroke="#14120f" stroke-width="5"/><path d="M40 28V15" stroke="#fff3ba" stroke-width="2"/>';
+  hand.style.display = 'none';
   hold.appendChild(hand); el._waitHand = hand;
   // 到着はピンの軸のチェックで示す。穴の扇形は待ち時間だけを表す。
   const arrivedMark = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -283,10 +284,9 @@ function drawMissionPin(rt) {
   if (changed || U.arrived !== arrived) { U.arrivalAt = arrived ? rt.t : undefined; U.arrived = arrived; }
   // 着いた・離れたの境で毎コマ出たり消えたりしない（チカチカ。kaito 10/23 稲生 27）。消えた後は一歩半離れてから出す。
   // 近接戦では頭上の▼に任せ、自分の体に行き先のピンを重ねない。
-  // 足場のすぐそばまで案内し、出し直す距離も三十五センチ以内に収めて点滅を防ぐ。
-  // 接近中でも実際に攻撃が届けば頭上の▼へ任せる。
+  // 敵へのピンは本人の足元。距離だけで消さず、実際に攻撃が届けば頭上の▼へ任せる。
   pin.hidden = inouEnemy
-    ? want.approach && rt.player.inRange && rt.player.rangeCueTarget === want.unit || d <= .2 + (pin.hidden ? .15 : 0)
+    ? rt.player.inRange && rt.player.rangeCueTarget === want.unit
     : !want.always && !waiting && d <= near + (pin.hidden ? 1.5 : 0);
   if (pin.hidden) return;
   const W = VIEW.w, H = VIEW.h;
@@ -300,7 +300,7 @@ function drawMissionPin(rt) {
     const sx = (goalPoint.x + 1) * W / 2, sy = (1 - goalPoint.y) * H / 2;
     enemyVisible = goalPoint.z >= -1 && goalPoint.z <= 1 && sx >= 0 && sx <= W && sy >= 0 && sy <= H;
   }
-  // 本人の▼が見えたらピンを畳む。離れた二つの印で別の兵へ誘わない。
+  // 同じ本人の▼が見えたらピンを畳む。別々の目印で別の兵へ誘わない。
   if (enemyVisible) { pin.hidden = true; return; }
   // 案内役は頭上の人型と下矢印、自分は足元の輪。離れても同じ形で追えるようにする。
   const groundPerson = rt.def.key === 'okehazama' && want.unit && (want.footRing || want.follow);
@@ -612,7 +612,8 @@ function drawMissionPin(rt) {
       flag.setAttribute('transform', 'translate(6,10.2) scale(.85)');
       pin._hold.setAttribute('transform', 'translate(6,10.2) scale(.85) translate(4,-17.2) scale(.9)');
     }
-    // 実際の集合範囲だけを囲み、紛らわしい固定の小さな輪は重ねない。
+    // 集合範囲は実寸の囲みだけで示し、固定の小さな輪は重ねない。
+    // 到着後も輪を出さず、画面端の丸を次の集合場所に見せない。
     for (const ring of pin._rings) {
       ring.style.display = 'none';
     }
@@ -961,6 +962,9 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     ? 'M0 0L-18-30A23 23 0 1 1 18-30ZM-8-45A8 8 0 1 0 8-45A8 8 0 1 0-8-45Z'
     : 'M-9-58H9V-28H23L0 0L-23-28H-9Z');
   route.setAttribute('fill-rule', 'evenodd');
+  // 敵へ向かうピンは小さくし、足元から胴や自分の頭まで覆わない。
+  el._simplePin.style.transform = inou && want.approach && !outside ? 'scale(.55)' : '';
+  el._simplePin.style.transformOrigin = '0 0';
   step.style.display = inou || outside ? 'none' : '';
   const caption = '';   // 行き先の字は出さない（ピンだけ。10/25 チカチカ）
   if (el._words.textContent !== caption) el._words.textContent = caption;
