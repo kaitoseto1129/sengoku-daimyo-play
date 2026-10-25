@@ -28,7 +28,7 @@ export class HudCards {
       el.hidden = true; dock.insertBefore(el, dock.lastChild); this.controlsHelp = el;
     }
     if (!this.controlsHelp) return;
-    this.controlsHelp.hidden = !active || this.controlsElapsed > 12 || S.reduceGuidance;
+    this.controlsHelp.hidden = !active || this.controlsElapsed > 12 || S.reduceGuidance || rt.def.key === 'inou';
     if (!this.controlsHelp.hidden) {
       const weapon = rt.player.weapon;
       const action = weapon === 'gun' ? '「撃つ」を押す' : weapon === 'bow' ? '「射る」を押す' : weapon === 'sword' ? '「きる」で刀をふる' : '「つく」で槍をつく';
@@ -399,7 +399,7 @@ html:root body #hud #h-prog .opening-controls-help[hidden] { display:none !impor
 html:root body #hud #h-prog.pg-changing > :not(.pg-st) { display:none !important; }
 html:root body #hud #h-prog.pg-changing .pg-st span { white-space:nowrap; }
 #hud.ending #h-prog, #hud:has(#bigmap:not([hidden])) #h-prog { visibility:hidden; }
-/* 稲生は任務を右、台詞を左。兵数と方位の帯の下を使う。 */
+/* 稲生は右上に短い任務を一行だけ置く。 */
 html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog {
  top:calc(72px + env(safe-area-inset-top, 0px)); width:max-content; max-width:min(440px, 54vw);
 }
@@ -537,8 +537,8 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
       stEl.classList.toggle('moribe-wait', waitFill >= 0);
       stEl.style.setProperty('--wait-progress', String(Math.max(0, waitFill)));
       stEl.style.backgroundImage = waitFill < 0 ? '' :
-        `linear-gradient(to right, #655126 ${waitFill}%, #17150f ${waitFill}%)`;
-      stEl.style.backgroundSize = waitFill < 0 ? '' : '100% 100%';
+        `linear-gradient(to right, #edc65e ${waitFill}%, #393328 ${waitFill}%)`;
+      stEl.style.backgroundSize = waitFill < 0 ? '' : '100% 5px';
       stEl.style.backgroundPosition = waitFill < 0 ? '' : 'left bottom';
       stEl.style.backgroundRepeat = waitFill < 0 ? '' : 'no-repeat';
     }

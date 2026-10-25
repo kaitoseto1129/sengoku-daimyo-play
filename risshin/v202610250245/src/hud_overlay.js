@@ -30,15 +30,19 @@ export class HudOverlay {
     const pinScale = pin?.waiting && pin.arrived ? 1.7 : pin?.waiting ? .95 : pin?.crossing ? 1.1 : 1.3;
     g.translate(x, y); g.scale(pinScale, pinScale); x = 0; y = 0;
     // 大きさが変わってもピンの接地点は岸から動かさない。
-    g.beginPath(); g.ellipse(x, y + 1, 11, 3, 0, 0, Math.PI * 2);
-    g.fillStyle = 'rgba(20,18,15,.65)'; g.fill();
+    if (!pin?.waiting || !pin.arrived) {
+      g.beginPath(); g.ellipse(x, y + 1, 11, 3, 0, 0, Math.PI * 2);
+      g.fillStyle = 'rgba(20,18,15,.65)'; g.fill();
+    }
     // 場所のピンは軸を長くし、兵の頭上の印と見分けられるよう地面までつなぐ。
-    // 待機の時計は短い軸にし、右上の任務のすぐ下で大きく満ちる。
-    const stem = pin?.unit || pin?.waiting && pin.arrived ? 13 : pin?.crossing ? 60 : 43;
-    g.beginPath(); g.moveTo(x, y); g.lineTo(x - 4, y - stem);
-    g.lineTo(x + 4, y - stem); g.closePath();
-    g.strokeStyle = '#14120f'; g.lineWidth = 4; g.stroke();
-    g.fillStyle = '#fff3ba'; g.fill();
+    // 到着したピンは軸を畳む。任務のそばで満ちる頭だけを残し、別の移動先に見せない。
+    const stem = pin?.waiting && pin.arrived ? 8 : pin?.unit ? 13 : pin?.crossing ? 60 : 43;
+    if (!pin?.waiting || !pin.arrived) {
+      g.beginPath(); g.moveTo(x, y); g.lineTo(x - 4, y - stem);
+      g.lineTo(x + 4, y - stem); g.closePath();
+      g.strokeStyle = '#14120f'; g.lineWidth = 4; g.stroke();
+      g.fillStyle = '#fff3ba'; g.fill();
+    }
     g.translate(0, 13 - stem);
     // 中の進みを大きくしても外形からはみ出さず、先端は同じ地面に固定する。
     g.translate(0, -33); g.scale(1.2, 1.2); g.translate(0, 33);
