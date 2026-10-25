@@ -4831,9 +4831,11 @@ honnoji.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
       axis.x = Math.sin(p.yaw - walk); axis.y = -Math.cos(walk - p.yaw);
       inp.axis = axis;
     }
-    // 戸口で待っていても、迫る刃には実際に歩ける一歩で離れる。
-    // 回避の入力は本人には効かないため、気力切れでも退く足を出す。
-    if (!moving && imminent && retreatRunFromBlade(b, inp, honnoRetreatDodgeAllowed)) return;
+    // 戸口で止まっても、追手が次の突きへ入る前に空いた側へ離れる。
+    // 振りの切れ目を安全とみなさず、順番待ちの兵では待ち場を離れない。
+    const closing = face.target === u && !face.playerQueue &&
+      Math.hypot(face.pos.x - u.pos.x, face.pos.z - u.pos.z) <= (face.reach || 2.8) + 1;
+    if (!moving && (imminent || closing) && retreatRunFromBlade(b, inp, honnoRetreatDodgeAllowed)) return;
     // 二方向の刃や、振り向く前に届く刃は構えだけでは防げない。
     // 深手では正面の一撃も致命傷になる。安全に退ける時は構えだけに頼らない。
     // 道の向きへ普通の回避を使う。柱・壁・炎へ跳び込む時と気力不足の時は使わない。

@@ -682,7 +682,7 @@ const okehazama = {
   missionHeading(rt) {
     // 合流済みの待ちは敵が寄っても続く。同じ丸と一行を雨上がりまで保つ。
     if (rt.phase === 'wait') return '雨がやむまで待て';
-    if (rt.phase === 'brief' && rt.flags.briefed) return '仲間の出発を待て';
+    if (rt.phase === 'brief' && rt.flags.briefed) return '組の出発を待て';
     if (rt.phase === 'march' && rt.flags.scoutFighting) return '赤い三角の今川の兵を倒せ';
     if (rt.phase === 'assault' && rt.flags.entered && !rt.flags.victory && this.objectiveEnemies(rt).length) return '赤い三角の今川の兵を倒せ';
     if (rt.phase === 'march') return this.squadFlagReached(rt) ? '仲間を待て' : '組のピンに集まれ';

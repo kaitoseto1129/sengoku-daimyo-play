@@ -601,8 +601,10 @@ takato.botBrain = (rt, inp, helpers) => {
           axis.x = Math.sin(p.yaw - walk); axis.y = -Math.cos(walk - p.yaw);
           inp.axis = axis;
         }
-        // 印へ着いても追手の刃が迫れば、気力を待たず普通の駆け足で離れる。
-        if (!moving && imminent && retreatRunFromBlade(rt, inp, retreatDodgeAllowed)) return;
+        // 印へ着いても追手が次の突きへ入る前に、気力を待たず駆けて離れる。
+        // 遠い敵や順番待ちの兵だけなら、その場で手当てを待つ。
+        const closing = foe.target === p.u && !foe.playerQueue && gap <= (foe.reach || 2.8) + 1;
+        if (!moving && (imminent || closing) && retreatRunFromBlade(rt, inp, retreatDodgeAllowed)) return;
         // 構えで受けきれない刃は、印へ退く向きに回避する。気力を使い切らず、
         // 土橋の外・空堀・城兵の列を横切る先へは跳ばない。
         // 深手では正面の刃にも回避を使い、構えを抜かれる一撃を待たない。
