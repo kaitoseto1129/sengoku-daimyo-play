@@ -256,6 +256,7 @@ export class WorldLod {
     let n0 = 0, n1 = 0, nf = 0, nd = 0, farDistance2 = Infinity, routing = false;
     for (let i = 0, k = 0; i < m.count; i++, k += 16) {
       let x = A[k + 12], y = A[k + 13], z = A[k + 14];
+      let routeError = 0, routed = false;
       if (L.clashSplit) {
         // 斬り合いの押し引きと、倒れた列の前詰めは描く式と同じ位置で判定する。
         // 槍の振りと足踏みの七メートルの余裕は従来どおり残す。
@@ -267,7 +268,7 @@ export class WorldLod {
           // 敗走する兵は描く式で遠くまで走るため、元の位置では省かない。
           // 近景と遠景の両方へ渡し、実際の位置で描く式が片方だけを選ぶ。
           // 一部の塊の敗走で、戦い続ける全隊の細部選びまで止めない。
-          if (block.w > 0) {
+          if (block.w > 0 && !(single && this.def.routedSoldierLOD)) {
             routing = true;
             this.lodPut(m, t0, n0++, i);
             if (!single && two) this.lodPut(m, t1, n1++, i);
@@ -277,9 +278,27 @@ export class WorldLod {
           const row = C[i * 4 + 2], kc = block.z / Math.max(1, more.z), fr = Math.floor(kc), sd = info[i * 4];
           const mix = block.y * (1 - THREE.MathUtils.smoothstep(row, fr + 1.5, fr + 2.6));
           const disorder = more.x * (1 - THREE.MathUtils.smoothstep(row, fr + 2, fr + 5));
-          const ox = mix * 1.1 * ((sd * 3.77 % 1) - 0.5) * 2 + disorder * ((sd * 19.73 % 1) - 0.5) * 0.62;
-          const oz = U.uSide.value * block.x + (row <= fr + 0.5 ? fr : kc) * CLASH_ROW + U.uApp.value + mix * (0.8 + 2.2 * (sd * 7.31 % 1))
+          let ox = mix * 1.1 * ((sd * 3.77 % 1) - 0.5) * 2 + disorder * ((sd * 19.73 % 1) - 0.5) * 0.62;
+          let oz = U.uSide.value * block.x + (row <= fr + 0.5 ? fr : kc) * CLASH_ROW + U.uApp.value + mix * (0.8 + 2.2 * (sd * 7.31 % 1))
             + disorder * (Math.min(0.55, Math.max(0, row - fr) * 0.22) + ((sd * 31.17 % 1) - 0.5) * 0.74);
+          if (block.w > 0) {
+            // 敗走先の距離で細部だけ選ぶ。足踏み・見回しを含む誤差の輪を
+            // 手前へ引き、輪の一部でも近景に入る兵は細かな形を残す。
+            routed = routing = true;
+            const s2 = L.hi.attributes.aInfo2.array[i * 2 + 1];
+            const rt = Math.max(0, block.w - sd * 1.6);
+            if (rt < 0.001) { this.lodPut(m, t0, n0++, i); continue; }
+            const travel = (s2 <= 0.1 ? Math.min(rt, 1.2 + s2 * 50) : rt) * (3 + sd * 2.2) * (info[i * 4 + 1] === 5 ? 2 : 1);
+            const yaw = (U.uTurn?.value ?? 0) * 3.14159 + 3.14159 + (s2 - 0.5) * 1.7;
+            ox += Math.sin(yaw) * travel; oz += Math.cos(yaw) * travel;
+            // 走行中の見回し角は最大約0.22。回転・拡大後も誤差を覆う。
+            const scale = Math.hypot(
+              e[0] * A[k] + e[4] * A[k + 1] + e[8] * A[k + 2],
+              e[2] * A[k] + e[6] * A[k + 1] + e[10] * A[k + 2],
+              e[0] * A[k + 8] + e[4] * A[k + 9] + e[8] * A[k + 10],
+              e[2] * A[k + 8] + e[6] * A[k + 9] + e[10] * A[k + 10]);
+            routeError = (travel * 0.3 + 3) * scale;
+          }
           x += A[k] * ox + A[k + 8] * oz;
           y += A[k + 1] * ox + A[k + 9] * oz;
           z += A[k + 2] * ox + A[k + 10] * oz;
@@ -288,10 +307,11 @@ export class WorldLod {
       const wx = e[0] * x + e[4] * y + e[8] * z + e[12], wz = e[2] * x + e[6] * y + e[10] * z + e[14];
       const dx = wx - cx, dz = wz - cz, rdx = wx - rx, rdz = wz - rz;
       const horizontal2 = dx * dx + dz * dz;
-      if (horizontal2 < (hosts?.[i] > 0 ? hostHidden2 : cameraHidden2) || rdx * rdx + rdz * rdz < hidden2) continue;
-      if (!this.armyInstanceVisible(m, k, wx, wz, Math.sqrt(horizontal2))) continue;
+      if (!routed && (horizontal2 < (hosts?.[i] > 0 ? hostHidden2 : cameraHidden2) || rdx * rdx + rdz * rdz < hidden2)) continue;
+      if (!routed && !this.armyInstanceVisible(m, k, wx, wz, Math.sqrt(horizontal2))) continue;
       const dy = heightLOD ? e[1] * x + e[5] * y + e[9] * z + e[13] - cy : 0;
-      const d2 = horizontal2 + dy * dy;
+      // 敗走先の足場の高さは頂点側が読むため、遠近の選択には安全な水平距離だけ使う。
+      const d2 = routed ? Math.max(0, Math.sqrt(horizontal2) - routeError) ** 2 : horizontal2 + dy * dy;
       // 重なる帯でも一人一束。境は従来の細かい側の外端に置き、
       // 足踏み・押し合い・更新間隔の余裕を保ったまま、消える写しだけを省く。
       if (d2 < M02) this.lodPut(m, t0, n0++, i);

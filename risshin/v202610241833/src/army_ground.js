@@ -411,25 +411,28 @@ export const ArmyGround = {
     const cap = 40, view = this._groundView || this.playerUnit?.pos;
     const frustum = this._viewFrustum;
     // 見える体は数合わせで消さない。視野が分からない間も残す。
-    if (this.dead.length <= cap || !view || !frustum) return;
+    if (!this.dead.length || !view || !frustum) return false;
     const sphere = this._corpseSphere || (this._corpseSphere = new THREE.Sphere(new THREE.Vector3(), 3));
     const player = this.playerUnit?.pos || view;
-    while (this.dead.length > cap) {
-      let index = -1, oldest = Infinity;
-      for (let i = 0; i < this.dead.length; i++) {
-        const u = this.dead[i];
-        if (u.isPlayer || u.death?.aid) continue;
-        if (u.mounted ? u.deadT < 4 : u.death ? u.death.t < DEATH_END : u.deadT < 1) continue;
-        if ((u.pos.x - view.x) ** 2 + (u.pos.z - view.z) ** 2 < 225 ||   // 10/24：画面の外なら 15m より先から片付ける
-            (u.pos.x - player.x) ** 2 + (u.pos.z - player.z) ** 2 < 225) continue;
-        // 頭や足、馬まで含む余白を取り、画面の外の古い体から片付ける。
-        sphere.center.copy(u.pos); sphere.center.y += 0.5;
-        if (frustum.intersectsSphere(sphere)) continue;
-        if (u.killedAt < oldest) { oldest = u.killedAt; index = i; }
-      }
-      if (index < 0) break;
-      this.clearCorpse(index);
+    let index = -1, oldest = Infinity;
+    for (let i = 0; i < this.dead.length; i++) {
+      const u = this.dead[i];
+      if (u.isPlayer || u.death?.aid) continue;
+      if (u.mounted ? u.deadT < 4 : u.death ? u.death.t < DEATH_END : u.deadT < 1) continue;
+      if ((u.pos.x - view.x) ** 2 + (u.pos.z - view.z) ** 2 < 225 ||   // 10/24：画面の外なら 15m より先から片付ける
+          (u.pos.x - player.x) ** 2 + (u.pos.z - player.z) ** 2 < 225) continue;
+      const far = this.time - u.killedAt >= 12 &&
+        (u.pos.x - view.x) ** 2 + (u.pos.z - view.z) ** 2 > 85 ** 2 &&
+        (u.pos.x - player.x) ** 2 + (u.pos.z - player.z) ** 2 > 85 ** 2;
+      if (this.dead.length <= cap && !far) continue;
+      // 頭や足、馬まで含む余白を取り、画面の外の古い体から片付ける。
+      sphere.center.copy(u.pos); sphere.center.y += 0.5;
+      if (!far && frustum.intersectsSphere(sphere)) continue;
+      if (u.killedAt < oldest) { oldest = u.killedAt; index = i; }
     }
+    if (index < 0) return false;
+    this.clearCorpse(index);
+    return true;
   },
 
   groundTick(dt, focus, cam) {
@@ -495,8 +498,11 @@ export const ArmyGround = {
     // 布の垂れの形づくり・落とし物の接地は一コマ一人まで。
     // 一斉射撃で倒れた兵の四秒後に、全員分の複製と法線計算を重ねない。
     // 生きた兵の動きと当たりは待たせず、亡骸の元の姿も作業中は残す。
+    // 上限超過と霧の外の片付けも一コマ一人。片付けは fallenKit を呼ぶので、形づくりと同じ枠を使う。
+    this._groundView = cam || focus || this.playerUnit?.pos;
+    const retired = this.trimCorpses();
     const deadCount = this.dead.length;
-    for (let checked = 0; checked < deadCount; checked++) {
+    for (let checked = 0; !retired && checked < deadCount; checked++) {
       const i = (this.groundKitNext || 0) % deadCount;
       this.groundKitNext = i + 1;
       const u = this.dead[i];
@@ -508,21 +514,14 @@ export const ArmyGround = {
     this.groundT = (this.groundT || 0) - dt;
     if (this.groundT > 0) return;
     this.groundT = 0.5;
-    this._groundView = cam || focus || this.playerUnit?.pos;
-    this.trimCorpses();
     const low = false, far = low ? 45 : 70;
     // 半秒ごとに描く部品を数える。影も含め、この跡に使う回数を抑える。
     let budget = low ? 140 : 300;
     const view = this._groundView;
     for (let i = this.dead.length - 1; i >= 0; i--) {
-      const u = this.dead[i], age = this.time - u.killedAt;
+      const u = this.dead[i];
       if (u.isPlayer) continue;
       const d = view ? (u.pos.x - view.x) ** 2 + (u.pos.z - view.z) ** 2 : 0;
-      const near = focus || this.playerUnit?.pos || view;
-      const playerD = near ? (u.pos.x - near.x) ** 2 + (u.pos.z - near.z) ** 2 : 0;
-      // 倒れる動きが終わり、本人とカメラの両方から十分遠ければ先に片付ける。
-      // 倒れた者は戦の間は残す。片付けは本人とカメラの両方から遠い所（霧の外）だけ（kaito 10/23 稲生 54「兵が突然消える」）。
-      if (!u.death?.aid && age >= 12 && d > (far + 15) ** 2 && playerD > (far + 15) ** 2) { this.clearCorpse(i); continue; }
       const cost = drawCost(u.mesh, true);
       // 亡骸は片付けるまで不透明に保つ。輪や透けた体を床の上へ残さない。
       // 近い亡骸（35m）は数の枠に関わらず描く。枠で近くの者をふっと消さない。
