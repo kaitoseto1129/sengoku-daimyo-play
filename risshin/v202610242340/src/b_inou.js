@@ -101,7 +101,7 @@ function park(g) {
 }
 
 // 深手で倒れた兵は生存中でも、追う相手・倒す残り人数には含めない。
-const fighting = (u) => !!u?.alive && !u.gone && !u.dying && !u.downed && !u.woundOut && !u.rearWound && !u.fleeing;
+const fighting = (u) => !!u?.alive && u.hp > 0 && !u.gone && !u.dying && !u.downed && !u.woundOut && !u.rearWound && !u.fleeing;
 const advanceEnemy = (u) => fighting(u) && !u.noTarget && !u.isStruct && !u.civ && u.mesh?.visible !== false;
 function advanceOnArrival(g) {
   g.order = 'attack'; g.focus = null; g.fire = true; g.seekRange = 80;
@@ -240,13 +240,14 @@ const inou = {
   nearGroundSpearRadius: 10, // 討ち取り後に視線を横切る落ち槍も既存の視線判定で避ける。
   nearSpearFade: false, // 槍だけを縮めて透かさず、持ち主と同じ形を保つ。
   missionPinCaption: '',
+  hideArmyPeek: true, // 初陣は行き先・敵の▼・任務一行に絞る。
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
-  // 任務は一行。兵と武将・待つ場所を区別し、距離や向きで文を切り替えない。
-  missions: ['林の兵を倒せ', '林の兵を倒せ', '耐えろ', '林美作守を倒せ'],
+  // 任務は一行。頭上の▼と呼び方をそろえ、距離や向きで文を切り替えない。
+  missions: ['赤い▼の林美作守の兵（信勝方）を倒せ', '赤い▼の林美作守の兵（信勝方）を倒せ', '耐えろ', '▼の林美作守を倒せ'],
   missionHeading(rt) {
     const F = rt.flags;
-    if (F.step === 0 && F.training <= 8) {
-      const name = F.training === 8 ? '林の隊長' : '林の兵';
+    if (F.step === 0) {
+      const name = F.training === 8 ? '▼の林美作守の小隊長' : '赤い▼の林美作守の兵（信勝方）';
       const left = F.training <= 4 ? practiceLeft(rt) : 0;
       return left ? `${name}を倒せ（残り${left}人）` : `${name}を倒せ`;
     }
@@ -282,6 +283,11 @@ const inou = {
       F.combatResultUntil = rt.t + 2;
       F.missNoticeNext = rt.t + 8;
     } else if (target && target.team !== rt.player.u.team && (result === 'block' || result === 'armor')) {
+      // 防がれた本人の▼を潰し、任務の一行は保つ。
+      if (fighting(target)) {
+        target.inouBlockUntil = rt.t + .7;
+        target.inouHitUntil = 0;
+      }
       F.combatResult = result === 'block' ? '防がれた。敵の横へ回れ' : '鎧に当たった。もう一度突け';
       F.combatResultUntil = rt.t + 2;
     }
@@ -316,7 +322,8 @@ const inou = {
     // 林兵への案内は頭上の札一本。地面へ別の矢印を重ねない。
     if (F.ending || F.step === 0) return null;
     const enemy = this.missionSignTarget(rt);
-    if (advanceEnemy(enemy)) {
+    // 描画を省いた兵にも案内を残す。見えない間は同じ相手への方向矢印になる。
+    if (fighting(enemy)) {
       const p = rt.player, me = p.u.pos;
       const dx = me.x - enemy.pos.x, dz = me.z - enemy.pos.z, d = Math.hypot(dx, dz);
       const reach = p.meleeReach(p.previewMeleeKind() || 'thrust') * .8;
@@ -473,7 +480,7 @@ const inou = {
         }
         // 最後の命中からの経過に依存させず、倒れた時から印を閉じる。
         if (t.hp < hp && (!t.alive || t.dying || t.hp <= 0 || t.downed || t.woundOut || t.rearWound)) {
-          t.inouDefeatUntil = rt.t + 1.2;
+          t.inouDefeatUntil = rt.t + .45;
           F.combatResult = '一人倒した。次の白縁の▼へ'; F.combatResultUntil = rt.t + 2;
         }
       }

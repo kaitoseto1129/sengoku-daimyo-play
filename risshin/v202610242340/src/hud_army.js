@@ -160,6 +160,8 @@ export class HudArmy {
   //   接敵中も携帯でも消さない（#armybar は携帯では隠れる）。
   updateTug(rt) {
     let tb = this.tugEl;
+    // 稲生は所属の分からない裸の数字を出さず、戦場の兵と敵の▼で見せる。
+    if (rt.def.key === 'inou') { if (tb) tb.hidden = true; return; }
     const f = rt.def.force?.(rt);
     if (!tb) {
       if (!f || !rt.def.sides) return;

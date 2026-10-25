@@ -271,7 +271,7 @@ function drawMissionPin(rt) {
     U.y += (groundAt(rt.world, U.x, U.z, me.y) - U.y) * k;
   }
   // 稲生と到着範囲のあるピンは判定地点と一致させ、古い場所へ誘わない。
-  if (rt.def.key === 'inou' || rt.def.key === 'okehazama' || want.approach || want.unit || want.area || want.waiting || want.fire || want.gate || rt.def.routeGuidePriority?.(rt)) {
+  if (rt.def.key === 'inou' || rt.def.key === 'okehazama' || rt.def.key === 'moribe' || want.approach || want.unit || want.area || want.waiting || want.fire || want.gate || rt.def.routeGuidePriority?.(rt)) {
     U.x = want.x; U.z = want.z; U.y = want.y ?? groundAt(rt.world, U.x, U.z, me.y);
   }
   const d = Math.hypot(want.x - me.x, want.z - me.z);
@@ -399,6 +399,7 @@ function drawMissionPin(rt) {
   // 地面に刺すピンは一本。固定の大きな輪ではなく、実際に着いたとみなす地面の範囲を囲む。
   // 桶狭間は近づいた時だけ、ピンの根元を実際の集合範囲まで広げる。
   // 到着した瞬間は同じ囲みを緑と閉じた縁で示し、一拍置いて畳む。
+  // 囲みは自分を追わず、畳んだ後は同じピンのチェックと穴の満ち具合で示す。
   const showArea = rt.def.key === 'okehazama'
     ? want.area && (!arrived || rt.t - U.arrivalAt < .8) && d <= 18 && !outside && !occluded
     : (waitArea ? !occluded : want.passage ? !behind && !occluded : !outside) && (footMark || !want.unit && (want.area || waiting || want.defend) && want.r > 0);
@@ -415,8 +416,9 @@ function drawMissionPin(rt) {
         pin._areaPoints[i].set(ax, groundAt(rt.world, ax, az, me.y) + .08, az);
       }
     }
-    // 判定と同じ外周を投影する。桶狭間の内側は薄く塗り、立てる範囲を示す。
+    // 判定と同じ外周を投影し、中心を踏まず範囲へ入ればよいと示す。
     let path = '';
+    let areaComplete = true;
     for (let ring = 0; ring < (waitArea && rt.def.key !== 'okehazama' ? 2 : 1); ring++) {
       let connected = false, complete = true;
       for (let i = 0; i <= pin._areaPoints.length; i++) {
@@ -431,11 +433,12 @@ function drawMissionPin(rt) {
         connected = true;
       }
       if (complete) path += 'Z';
+      else areaComplete = false;
     }
     pin._area.setAttribute('d', path);
     pin._areaBack.setAttribute('d', path);
-    // 輪の内側全体が集合範囲。中心だけを目指させず、境を越えれば着くと示す。
-    pin._area.setAttribute('fill', rt.def.key === 'okehazama' ? '#fff3ba' : 'none');
+    // 輪の内側全体が集合範囲。視点の後ろへ欠けた外周は閉じて塗らない。
+    pin._area.setAttribute('fill', rt.def.key === 'okehazama' && areaComplete ? '#fff3ba' : 'none');
     pin._area.setAttribute('fill-opacity', '.12');
   }
   // 桶狭間はピンの先端を到着判定の地面に刺す。兵の頭上を指す矢印に替えない。
@@ -609,11 +612,9 @@ function drawMissionPin(rt) {
       flag.setAttribute('transform', 'translate(6,10.2) scale(.85)');
       pin._hold.setAttribute('transform', 'translate(6,10.2) scale(.85) translate(4,-17.2) scale(.9)');
     }
-    // 到着範囲とは違う固定の小さな輪を重ねない。接点はピンの先端で示す。
+    // 実際の集合範囲だけを囲み、紛らわしい固定の小さな輪は重ねない。
     for (const ring of pin._rings) {
-      // 集合範囲には実寸の外周だけを使い、着けない小さな輪を重ねない。
-      ring.style.display = outside || arrived || want.area ? 'none' : '';
-      ring.setAttribute('transform', 'translate(24,40.8) scale(.4)');
+      ring.style.display = 'none';
     }
   }
   hud.missionPinOutside = outside;
@@ -638,9 +639,8 @@ function drawMissionPin(rt) {
   // 守備の案内は右上の任務札へまとめる。
   const personName = typeof marker?.label === 'function' ? marker.label() : marker?.label;
   const distanceLabel = !oke && !person && !want.fire && !want.gate && !want.dodge && !want.turn && !arrived;
-  // 相手が見えない間は、方向のピンにも同じ隊名を添える。頭上の札が見えたらそちらへ渡す。
-  const enemyName = inouEnemy && (!enemyMarked || enemyTarget._direction.style.display !== 'none') ? rt.def.missionEnemyLabel?.(rt) || '' : '';
-  const text = enemyName || (working ? action.hold ? '火をつける（長押し）' : '火をつける' : friendlyPerson ? '' : want.fire ? '' : want.silent ? '' :
+  // 稲生は行き先のピン一本だけ。名前・距離・向きの札を添えない。
+  const text = rt.def.key === 'inou' ? '' : (working ? action.hold ? '火をつける（長押し）' : '火をつける' : friendlyPerson ? '' : want.fire ? '' : want.silent ? '' :
     want.treatment && arrived ? '止まって手当' : distanceLabel ? `${want.treatment ? '手当まで ' : 'あと'}${Math.ceil(Math.max(0, d - (want.r ?? 6)) / .75)}歩` :
     friendlyPerson ? personName || 'この人' : '');
   if (pin._words.textContent !== text) pin._words.textContent = text;
@@ -826,8 +826,8 @@ function updateEnemyTarget(rt) {
   // 稲生は描画面の赤い▼と行き先のピンに統一する。別の札・方向の字・端の▼は重ねない。
   if (inou) return false;
   const commander = u && u === rt.def.commanderTarget?.(rt);
-  // 稲生は実物の頭上の▼だけ。札と別描画の三角を重ねない。
-  if (!u || inou) return false;
+  // 稲生は上で頭上の▼にまとめ、ほかの戦も相手がいなければ札を出さない。
+  if (!u) return false;
   if (!enemyTarget) {
     enemyTarget = document.createElement('div');
     enemyTarget.id = 'mission-enemy-target';
@@ -939,13 +939,20 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     el.appendChild(svg); el._simplePin = svg;
   }
   const inou = rt.def.key === 'inou';
-  el._label.hidden = inou || !goalLabelRoom(rt.hud);
+  el._label.hidden = inou || want.silent || rt.def.key === 'moribe' || !goalLabelRoom(rt.hud);
   el._label.style.top = '-90px';
   el._label.style.left = '0';
   el._work = null; el.classList.remove('fire-action');
   const W = VIEW.w, H = VIEW.h;
   // 行き先と画面端を同じ一本の矢印で示す。
   const route = el._simplePin.querySelector('.ground-route'), step = el._simplePin.firstChild;
+  // 森部は先端が土に刺さるピン一本。川の途中の兵の頭上印に見せない。
+  const routeShape = rt.def.key === 'moribe'
+    ? 'M0 0L-5-12V-35A17 17 0 1 1 5-35V-12Z M0-63A10 10 0 1 0 0-43A10 10 0 1 0 0-63Z'
+    : 'M-9-58H9V-28H23L0 0L-23-28H-9Z';
+  if (route.getAttribute('d') !== routeShape) {
+    route.setAttribute('d', routeShape); route.setAttribute('fill-rule', 'evenodd');
+  }
   const outside = hidden || x < 92 || x > W - 92 || y < 104 || y > H - 68 || !inouPinFree(x, y, rects);
   // 画面内も端も同じ太い矢印。敵の▼とは色と形を分ける。
   route.style.display = '';

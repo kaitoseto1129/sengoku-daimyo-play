@@ -153,7 +153,9 @@ export class HudCards {
     }
     const active = rt.def.key === 'inou' && rt.player.u.alive && !rt.flags.ending && !rt.over && !rt.choice &&
       !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
-    const u = active ? rt.def.missionSignTarget?.(rt) : null;
+    const enemy = active ? rt.def.missionSignTarget?.(rt) : null;
+    const following = active && !enemy && rt.flags.step === 0 && rt.flags.training >= 0 && rt.flags.training <= 8;
+    const u = enemy || (following ? rt.flags.genU : null);
     let el = this.inouTargetMark;
     if (!u?.alive || u.gone || u.dying || u.downed || u.woundOut || u.rearWound || u.fleeing || u.team === rt.player.u.team) {
       if (el) el.hidden = true;
@@ -191,6 +193,9 @@ export class HudCards {
       label = `${arrow} 目標：${name}\n${turn}`;
     }
     setText(el.firstChild, label);
+    setText(el.lastChild, following ? '↓' : '▼');
+    el.lastChild.style.color = following ? '#fff3df' : '#ff634d';
+    el.lastChild.style.webkitTextStroke = following ? '' : '1px #fff3df';
     el.lastChild.hidden = !onScreen;
     el.hidden = false;
     el.style.transform = `translate(${Math.round(x)}px,${Math.round(y)}px) translate(-50%,-100%)`;
@@ -524,8 +529,8 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     // 待つ間（陣を敷く・寄せを待つ）の残りは、秒の字でなく満ちていく丸で（kaito 10/23 稲生 14）。
     const gm = rt.missionGuide?.marker, wu = gm?.waitUntil?.();
     const progress = def.missionWaitProgress?.(rt);
-    // 森部は任務一行の下地を満たす。別の印・札・秒数を増やさない。
-    const waitFill = def.key === 'moribe' && Number.isFinite(progress)
+    // 待機中は任務一行の下地を満たす。集合ピンが視界を外れても進みを見失わない。
+    const waitFill = (def.key === 'moribe' || def.key === 'okehazama') && Number.isFinite(progress)
       ? Math.round(Math.max(0, Math.min(1, progress)) * 100) : -1;
     if (el._waitFill !== waitFill) {
       el._waitFill = waitFill;
