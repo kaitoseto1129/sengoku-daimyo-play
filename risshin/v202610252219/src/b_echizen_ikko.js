@@ -54,7 +54,7 @@ const SHORO_POS = { x: 17, z: -45 };  // 外堂の鐘楼（警報の鐘）
 const hi = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
 // 白山信仰の寺を本願寺の旗で表さない。丸の旗は遊び用の目印。
 const IKKO = { armor: 0x2a2622, flag: 'maru' };
-const ODA = { armor: 0x2b3140, flag: 'takigawa' };
+const ODA = { armor: 0x211c18, flag: 'takigawa' };
 const ROAD_HOLD = 90;
 // 外壁は残し、堂内にいる間だけ目の直前の格子や梁を避ける。
 const templeSolid = { value: 0 }, templeHallMaterials = new WeakMap();
@@ -1441,8 +1441,10 @@ function tickGateWorkers(rt, dt) {
 // 寺の守り：衆徒は既存の目窓付き裹頭と袈裟。生成りと茶で袖・手・襟の輪郭を残す。
 function mkB(rt, o) {
   const monk = /衆徒|薙刀|衆|僧/.test(o.name || '') && o.kind !== 'bow' && o.kind !== 'gun';
-  const look = monk ? { sohei: 1, soheiV: 2, monk: 1, tier: 0, hat: 'kato', kato: 0xbab3a2, kesa: 0x93734d, cloth: 0x756d5c, skin: 0xc49a77, dirt: .25, kote: 0, sode: false, haori: 0, horo: 0, menpo: 0, tenugui: false, saya: false, trim: 0, left: null, haramaki: false } : { hat: 'hachimaki', lace: 0x5a5040, cloth: 0x4a4236 };
-  const b = makeButai(rt, { real: Math.min(14, o.nominal), maxReal: 14, nearReal: 14, farReal: 14, lightWidth: 10, lightDepth: Math.max(8, Math.ceil(o.nominal / 5) * 1.6), look: { ...(o.faction === 'ikko' ? look : {}), horse: false }, ...o });
+  // 本の陣笠・雑兵の図に合わせ、僧以外は漆塗りの円錐笠と紺の小袖。
+  // 裹頭の僧は保ち、形・材質は既存の貸し具足を使う。
+  const look = monk ? { sohei: 1, soheiV: 2, monk: 1, tier: 0, hat: 'kato', kato: 0xbab3a2, kesa: 0x93734d, cloth: 0x756d5c, skin: 0xc49a77, dirt: .25, kote: 0, sode: false, haori: 0, horo: 0, menpo: 0, tenugui: false, saya: false, trim: 0, left: null, haramaki: false } : { hat: 'jingasa', hatColor: o.faction === 'ikko' ? 0x70372b : 0x191613, lace: 0x5a5040, cloth: 0x29343d, doStyle: 'okegawa', haori: 0, horo: 0 };
+  const b = makeButai(rt, { real: Math.min(14, o.nominal), maxReal: 14, nearReal: 14, farReal: 14, lightWidth: 10, lightDepth: Math.max(8, Math.ceil(o.nominal / 5) * 1.6), look: { ...look, horse: false }, ...o });
   if (b.light) { b.light.army.team = o.team; b.light.army.noWake = true; b.light.army.keepNear = false; }
   mountainColumn(b);
   const grow = b.growReal;
@@ -1465,6 +1467,8 @@ function mkB(rt, o) {
   };
   if (b.real) { b.real.width = 5; b.real.spacing = 1.6; b.real.noGuard = true; }
   if (b.taishoU) b.taishoU.isLord = true;
+  // 不明な将の紋を作らず、既存の丸の指物を大きくする。
+  if (b.taishoU && o.general === '寺の指揮役' && b.taishoU.flag) b.taishoU.flag.scale.multiplyScalar(1.6);
   if (b.taishoU && o.general === '滝川一益') {
     b.taishoU.mustLive = true; b.taishoU.invuln = true;
     // 山道へ持ち込まず、麓の陣所に馬印を据える。兵数・戦う役目はそのまま。
@@ -1860,6 +1864,91 @@ function templeCameraGround(W, camera) {
 }
 
 const echizen_ikko = {
+  // 稲生の型。進軍・敵・持ち場を同じ一行とピンで示す。
+  missionSingleLine: true,
+  hideMissionDots: true,
+  hideGuideSteps: true,
+  enemyTriangleSigns: true,
+  nearbyAllySignLimit: 0,
+  noDodgeCard: true,
+  noSiegeCards: true,
+  noPlayerFoot: true,
+  quietMiss: true,
+  missionPinCaption: '',
+  missionDetail: () => '',
+  missionStatus: () => '',
+  bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|破られ|落ちた/.test(text),
+  missions: ['味方と進め', '惣門を破れ', '山門を破れ', '▼の敵をたおせ', 'ここを守れ', '奥山道へ進め'],
+  missionOf(rt) {
+    const F = rt.flags;
+    if (F.mode === 'defend') return 4;
+    if (!F.step) return 0;
+    const gate = F.step === 1 ? F.gateSomon : F.step === 2 ? F.gateSanmon : null;
+    if (gate?.struct.alive) return this.missionSignTarget(rt) ? 3 : F.step;
+    if (F.step === 4) return 5;
+    if (F.step <= 3) {
+      const zone = F.SZ?.byId[TEMPLE_HALL_IDS[F.step - 1]];
+      const p = rt.player.u.pos;
+      if (!zone?.test(p.x, p.z)) return 0;
+      if (this.missionSignTarget(rt)) return 3;
+    }
+    return 4;
+  },
+  missionHeading(rt) { return this.missions[this.missionOf(rt)]; },
+  // 討った本人を次の描画へ残さず、今の持ち場の最寄りを選ぶ。
+  missionSignTarget(rt) {
+    const F = rt.flags, p = rt.player.u.pos;
+    if (F.ending || rt.over || !F.step && F.mode !== 'defend') return null;
+    const zone = F.SZ?.byId[F.mode === 'defend' ? 'hondo' : TEMPLE_HALL_IDS[F.step - 1]];
+    const gate = F.step === 1 ? F.gateSomon : F.step === 2 ? F.gateSanmon : null;
+    if (F.mode === 'attack' && F.step === 4) return null;
+    if (F.mode === 'attack' && zone && !gate?.struct.alive && !zone.test(p.x, p.z)) return null;
+    let best = null, distance = Infinity;
+    for (const u of rt.army.units) {
+      if (u.team === rt.player.u.team || !siegeFighter(u) || u.hp <= 0 || u.dying || u.rearWound) continue;
+      if (F.mode === 'defend' ? !zone?.test(u.pos.x, u.pos.z)
+        : gate?.struct.alive ? !templeGateRoadFoe(F, u)
+          : F.step === 5 ? Math.hypot(u.pos.x - OKUYAMA.x, u.pos.z - OKUYAMA.z) >= 18
+            : !zone?.test(u.pos.x, u.pos.z)) continue;
+      const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z);
+      if (gate?.struct.alive && d > 12) continue;
+      if (d < distance) { distance = d; best = u; }
+    }
+    return best;
+  },
+  commanderTarget(rt) {
+    const F = rt.flags;
+    const u = (F.mode === 'defend' ? F.reserve : F.ikkoHondoMain)?.taishoU;
+    return u && this.missionSignTarget(rt) === u ? u : null;
+  },
+  namedGuideTarget(rt) { return this.commanderTarget(rt); },
+  missionPin(rt) {
+    const F = rt.flags, p = rt.player.u.pos;
+    if (F.ending || rt.over || !rt.player.u.alive) return null;
+    const pin = F.standardPin || (F.standardPin = { x: 0, z: 0 });
+    const enemy = this.missionSignTarget(rt);
+    const zone = F.SZ?.byId[F.mode === 'defend' ? 'hondo' : TEMPLE_HALL_IDS[F.step - 1]];
+    const gate = F.step === 1 ? F.gateSomon : F.step === 2 ? F.gateSanmon : null;
+    const defend = F.mode === 'defend' || F.step === 5 || !!zone && !gate?.struct.alive && !enemy && zone.test(p.x, p.z);
+    let goal;
+    if (F.mode === 'defend') goal = zone?.pos || INNER_POS;
+    else if (F.step >= 4) goal = OKUYAMA;
+    else if (enemy) goal = enemy.pos;
+    else if (gate?.struct.alive) goal = templeTaskPoint(rt);
+    else if (zone) goal = templeEntry(rt, zone) || zone.pos;
+    else goal = F.localPoint || F.scout?.pos;
+    if (!goal) return null;
+    const way = templeWay(rt.army, rt.player.u, goal);
+    const route = Math.hypot(way.x - goal.x, way.z - goal.z) > .5;
+    pin.x = way.x; pin.z = way.z;
+    pin.unit = enemy && !route && !defend ? enemy : null;
+    pin.enemy = !!pin.unit; pin.route = route;
+    pin.r = pin.hide = route ? .5 : defend ? F.step === 5 ? 18 : 6 : enemy ? 3 : 4;
+    pin.waiting = pin.defend = defend && !route;
+    pin.arrived = pin.waiting && Math.hypot(p.x - goal.x, p.z - goal.z) < pin.r;
+    pin.silent = true; pin.name = ''; pin.approach = false; pin.arrow = false;
+    return pin;
+  },
   get battleVoices() { return mode() === 'defend' ? DEFEND_VOICES : ATTACK_VOICES; },
   // 攻め・守りの両方で共通の軽い民を使う。兵の名簿・総勢・戦功には加えない。
   civilianCrowd: { bounds: { minX: -220, maxX: 220, minZ: -222, maxZ: 220 }, bands: PEOPLE_BANDS },
@@ -1937,7 +2026,7 @@ const echizen_ikko = {
   introSides: { a: '滝川一益の手', b: '大滝寺の守り' },
   introText: (rt) => rt.flags.mode === 'defend'
     ? '本堂の持ち場へ進もう。寄せてくる織田勢を押し返し、寺を守ろう。'
-    : '竹束は竹を束ねた盾。後ろについて味方と進もう。門の前では木づちの札を長押し。外堂・本堂・奥の院を順に押さえ、奥山道を味方三人と九十秒守ろう。夜と霧は遊びの補いです。',
+    : '竹束は竹を束ねた盾。後ろについて味方と進もう。門の前では木づちの札を長押し。外堂・本堂・奥の院を順に押さえ、奥山道を味方三人と守ろう。夜と霧は遊びの補いです。',
   spacedCombatCues: true, // 戸口の振り向き札は照準の上へ寄せる。
   reserveCombatCues: true, // 道の印を間合いの札と重ねない。
   clearTravelGuide: true, // 携帯でも道の矢印と到着の輪を案内札で隠さない。
@@ -3055,12 +3144,14 @@ const echizen_ikko = {
     } else if (step === 5) {
       rt.setPhase('roadHold');
       F.holdT = 0;
+      // 早く登り切っても、開戦から四分になるまで山道を守る。敵と味方の条件は省かない。
+      F.roadHoldSeconds = Math.max(ROAD_HOLD, Math.ceil(240 - rt.t));
       F.roadWaveNext = 1; F.roadWaveAt = rt.t + 30;
-      rt.obj('main', '味方三人と道を九十秒守れ。反撃も退けよ', 'main', true);
+      rt.obj('main', '味方三人と道を守れ', 'main', true);
       rt.objProgress('main', '敵が来たら押し返せ。守った時間は残る');
       rt.marker('path', () => templeWay(rt.army, rt.player.u, OKUYAMA), '奥山道を守る');
       rt.banner('山道を押さえる', '山から戻る敵を止める');
-      templeSay(rt, '組頭', '道を九十秒守れ。敵が来たら押し返せ', 4);
+      templeSay(rt, '組頭', '道を守れ。敵が来たら押し返せ', 4);
       for (const b of [F.mainSpear, F.mainGun]) {
         setRoute(b, [[OKUYAMA.x + (b === F.mainGun ? 5 : -3), OKUYAMA.z - (b === F.mainGun ? 7 : 3)]], true);
       }
@@ -3219,6 +3310,16 @@ const echizen_ikko = {
     }
     if (F.SZ) F.SZ.tick(dt);
     if (F.ending) return;
+    // 合流・到着は一秒ごとの知らせを待たず、その場で次の段へ渡す。
+    if (F.mode === 'attack' && F.step >= 1 && F.step <= 4) {
+      const p = rt.player.u.pos;
+      const zone = F.SZ.byId[TEMPLE_HALL_IDS[F.step - 1]];
+      const gate = F.step === 1 ? F.gateSomon : F.step === 2 ? F.gateSanmon : null;
+      if (F.step === 4 ? Math.hypot(p.x - OKUYAMA.x, p.z - OKUYAMA.z) < 14
+        : !gate?.struct.alive && zone.owner === ZONE_STATE.FRIEND && zone.test(p.x, p.z) && !this.missionSignTarget(rt)) {
+        this.nextAttack(rt, F.step + 1);
+      }
+    }
     if (F.AMB) F.AMB.tick(dt);
     if (F.MD) F.MD.tick(dt);
     if (F.DA) F.DA.tick(dt);
@@ -3398,7 +3499,7 @@ const echizen_ikko = {
         // 止まった理由を任務の見出しに出す。札を増やさず、印も同じ持ち場を指す。
         if (rt.t >= (F.roadGuideAt || 0)) {
           F.roadGuideAt = rt.t + 1;
-          const remaining = Math.max(0, Math.ceil(ROAD_HOLD - F.holdT));
+          const remaining = Math.max(0, Math.ceil(F.roadHoldSeconds - F.holdT));
           const text = Math.hypot(P.x - OKUYAMA.x, P.z - OKUYAMA.z) >= 18 ? '奥山道の印へ戻れ。味方と守れ'
               : F.roadContested ? '道の敵を押し返せ。守った時間は残る'
                 : F.roadHall ? `道を守れ。${TEMPLE_HALL_NAMES[F.roadHall.id]}は別手が押さえる`
@@ -3412,7 +3513,7 @@ const echizen_ikko = {
       }
       if (F.step === 5 && F.hallsHeld && F.roadSupported && !F.roadContested && Math.hypot(P.x - OKUYAMA.x, P.z - OKUYAMA.z) < 18) {
         F.holdT += dt;
-        if (F.holdT >= ROAD_HOLD && F.SZ.byId.gezan.owner === ZONE_STATE.FRIEND && F.SZ.byId.hondo.owner === ZONE_STATE.FRIEND && F.SZ.byId.oku.owner === ZONE_STATE.FRIEND && F.counterRepelled) this.win(rt);
+        if (F.holdT >= F.roadHoldSeconds && F.SZ.byId.gezan.owner === ZONE_STATE.FRIEND && F.SZ.byId.hondo.owner === ZONE_STATE.FRIEND && F.SZ.byId.oku.owner === ZONE_STATE.FRIEND && F.counterRepelled) this.win(rt);
       }
       else if (F.step === 5 && (!F.hallsHeld || F.roadContested || !F.roadSupported || Math.hypot(P.x - OKUYAMA.x, P.z - OKUYAMA.z) >= 18)) {
         // 反撃中は時計を止める。押し返せば、それまで守った時間から再開する。
@@ -3435,11 +3536,11 @@ const echizen_ikko = {
           : zone.enemies > 0 ? '堂に敵が残る。味方と押し返せ' : '堂の守りが手薄じゃ。組を呼び寄せよ', 4, true);
       }
       // 同じ段で動けなくなった時は退き陣。時の経過だけで寺を落とした扱いにはしない。
-      if (F.step >= 1 && (rt.t - F.stepT >= 240 || rt.t - F.assaultT >= 360) && !F.retreatWarned) {
+      if (F.step >= 1 && (rt.t - F.stepT >= 240 || rt.t >= 360) && !F.retreatWarned) {
         F.retreatWarned = true;
         templeSay(rt, '組頭', 'このままでは退き陣じゃ。組を揃え、今一度寄せよ', 4);
       }
-      if (F.step >= 1 && (rt.t - F.stepT > 300 || rt.t - F.assaultT > 420)) {
+      if (F.step >= 1 && (rt.t - F.stepT > 300 || rt.t >= 420)) {
         const gate = F.step === 1 ? F.gateSomon : F.step === 2 ? F.gateSanmon : null;
         const zone = F.SZ.byId[F.step === 1 ? 'gezan' : F.step === 2 ? 'hondo' : 'oku'];
         this.lose(rt, gate?.struct.alive ? `${gate.struct.name}を破れず、麓へ退く` : F.step >= 4 ? F.roadContested ? '山道の敵を払えず、堂へ退く' : !F.roadSupported ? '山道を守る味方がそろわず退く' : '山道と堂の守りを保てず退く' : zone.enemies > 0 ? `${zone.name}の敵を押し返せず退く` : zone.friends < zone.need ? `${zone.name}を守る味方が足りず退く` : `${zone.name}を保ち、先手と合流できず退く`);

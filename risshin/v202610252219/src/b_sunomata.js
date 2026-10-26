@@ -29,6 +29,7 @@ import { addTaba, tickTabas, patchGunCover } from './taketaba.js';
 import { addFieldFence } from './yasen_obstacles.js';
 import { flagBlocksView } from './units_flags.js';
 import { rainDanger } from './arrow_rain.js';
+import { localClear } from './army_local_way.js';
 import { FORT, ROAD3, ROAD3N, YOSE, SIDE_WORD, HORI, SUNOMATA_PLAN, SUNOMATA_PATHS, SHEDS as PLAN_SHEDS, sunomataGround } from './castles/sunomata.js';
 
 // ======================================================================
@@ -1928,7 +1929,7 @@ const sunomata = {
   missionDetail: () => '',
   missionStatus: () => '',
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || !!rt.flags.won || /討ち取|討死|勝|崩れ|守りきった|砦を残した/.test(t),
-  missions: ['ここを守れ', '▼の敵をたおせ', '寄せ大将をたおせ'],
+  missions: ['ここを守れ', 'この敵をたおせ', '敵の大将をたおせ'],
   // 毎回いまの戦場から決める。討った・退けた瞬間に次の一行へ替わり、古い字を残さない。
   missionOf(rt) {
     if (sunomata.commanderTarget(rt)) return 2;
@@ -1942,7 +1943,7 @@ const sunomata = {
     if (F.wave !== 3 || F.won || F.ending || rt.over || !u?.alive || u.gone || u.fleeing || u.dying || u.woundOut) return null;
     return Math.hypot(u.pos.x, u.pos.z) < FORT + 30 ? u : null;
   },
-  missionSignTarget(rt) { return sunomata.commanderTarget(rt); },
+  missionSignTarget(rt) { return sunomata.commanderTarget(rt) || (sunomata.missionOf(rt) === 1 ? sunoNearestFoe(rt) : null); },
   namedGuideTarget(rt) { return sunomata.commanderTarget(rt); },
   // 守る段は持ち場の柵へ（着いても残し、味方がそこへ集まる）。戦う段は一番近い残りの敵へ。
   missionPin(rt) {
@@ -1950,7 +1951,7 @@ const sunomata = {
     if (F.won || F.ending || rt.over || !rt.player.u.alive) return null;
     const q = F.sunoPin || (F.sunoPin = { x: 0, z: 0, r: 5, hide: 5 });
     const me = rt.player.u.pos, stage = sunomata.missionOf(rt);
-    q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false;
+    q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false; q.route = false;
     if (stage === 0) {
       const p = sunoPostPoint(rt);
       q.x = p.x; q.z = p.z; q.r = q.hide = 5;
@@ -1958,11 +1959,36 @@ const sunomata = {
       return q;
     }
     const u = stage === 2 ? sunomata.commanderTarget(rt) : sunoNearestFoe(rt);
-    // 槍の届く近さでは頭上の▼に任せ、足元にピンを重ねない。
-    if (!u || Math.hypot(u.pos.x - me.x, u.pos.z - me.z) < 12) return null;
-    q.x = u.pos.x; q.z = u.pos.z; q.r = q.hide = 8;
+    if (!u) return null;
+    // 届く敵は頭上の印だけ。柵や小屋が間にある時は、近くても通れる口へ回す。
+    if (rt.player.inRange && rt.player.rangeCueTarget === u) return null;
+    const route = F.sunoRoute || (F.sunoRoute = {
+      x: 0, y: 0, z: 0, at: -1,
+      capture: (_p, _inp, x, z) => {
+        F.sunoRoute.x = x; F.sunoRoute.z = z; F.sunoRoute.y = rt.world.heightAt(x, z);
+      },
+    });
+    if (rt.t >= route.at || route.unit !== u || Math.hypot(me.x - route.px, me.z - route.pz) > 1) {
+      route.at = rt.t + .5; route.unit = u; route.px = me.x; route.pz = me.z;
+      route.blocked = !localClear(rt.army, me, u.pos);
+      route.x = u.pos.x; route.z = u.pos.z; route.y = u.pos.y;
+      if (route.blocked) {
+        sunomataWay(rt, null, route.capture, u.pos.x, u.pos.z, .5);
+        // 南門までの途中にも小屋がある。まず選んだ口までの道をもう一段読む。
+        if (!localClear(rt.army, me, route)) sunomataWay(rt, null, route.capture, route.x, route.z, .5);
+        // 門を出た後も、北や反対側の敵へ柵を斜めに横切らず外周を回る。
+        if ((Math.abs(me.x) >= FORT || Math.abs(me.z) >= FORT) &&
+            (Math.abs(u.pos.x) >= FORT || Math.abs(u.pos.z) >= FORT) && !localClear(rt.army, me, route))
+          sunoOuterGuide(rt, u.pos, route);
+      }
+      route.y = rt.world.heightAt(route.x, route.z);
+    }
+    q.x = route.blocked ? route.x : u.pos.x; q.z = route.blocked ? route.z : u.pos.z;
+    q.r = q.hide = route.blocked ? .5 : 8;
+    q.route = route.blocked; q.enemy = !route.blocked; q.unit = route.blocked ? null : u;
     return q;
   },
+  routeFootsteps: true,
   // 砦にいる本人を使う。名の確かでない敵将や、台本外の寄せは増やさない。
   taisho: { a: { name: '木下藤吉郎', use: true }, b: null },
   noTaishoRaid: true,
@@ -3837,6 +3863,12 @@ function sunomataWalk(b, inp, goTo, x, z, r) {
     if (Math.hypot(u.pos.x - wd.x, u.pos.z - wd.z) < 0.12 && Math.hypot(x - u.pos.x, z - u.pos.z) > r + 1.2) { wd.until = b.t + 0.9; wd.dir = -wd.dir; }
     wd.x = u.pos.x; wd.z = u.pos.z; wd.t = b.t;
   }
+  return sunomataWay(b, inp, goTo, x, z, r);
+}
+
+// 人が遊ぶ時の足あとも、既存の門・破れ目・小屋を回る道を使う。兵の動きは変えない。
+function sunomataWay(b, inp, goTo, x, z, r) {
+  const p = b.player, u = p.u, F = b.flags;
   const me = Math.abs(u.pos.x) < FORT - 0.3 && Math.abs(u.pos.z) < FORT - 0.3;
   const to = Math.abs(x) < FORT - 0.3 && Math.abs(z) < FORT - 0.3;
   if (!me && !to && Math.abs(u.pos.x) < FORT + 3.5 && u.pos.z > FORT - 1 && z < FORT + 2) {
@@ -3920,6 +3952,25 @@ function sunomataWalk(b, inp, goTo, x, z, r) {
     }
   }
   return goTo(p, inp, x, z, r);
+}
+
+// 外周の四隅だけを調べる。歩ける道を選び、地点は戦ごとに作って使い回す。
+function sunoOuterGuide(rt, goal, out) {
+  const p = rt.player.u.pos, edge = FORT + 4;
+  const corners = rt.flags.sunoGuideCorners || (rt.flags.sunoGuideCorners = [
+    { x:-edge, z:-edge }, { x:edge, z:-edge }, { x:edge, z:edge }, { x:-edge, z:edge },
+  ]);
+  for (const c of corners) c.y = rt.world.heightAt(c.x, c.z);
+  let best = Infinity;
+  for (const a of corners) {
+    const first = Math.hypot(a.x - p.x, a.z - p.z);
+    if (first < .8 || !localClear(rt.army, p, a)) continue;
+    for (const b of corners) {
+      const distance = first + Math.hypot(a.x - b.x, a.z - b.z) + Math.hypot(goal.x - b.x, goal.z - b.z);
+      if (distance >= best || !localClear(rt.army, b, goal) || a !== b && !localClear(rt.army, a, b)) continue;
+      best = distance; out.x = a.x; out.z = a.z;
+    }
+  }
 }
 
 // 殿を狙う別働隊も、閉じた柵へ直進せず南門へ回る。出撃時だけ道を作る。

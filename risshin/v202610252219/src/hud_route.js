@@ -245,7 +245,7 @@ export class HudRoute {
       at: -1, points: Array.from({ length:32 }, () => ({ x:0, y:0, z:0, valid:false })), dirX:0, dirZ:0,
     });
     if (trail.rt !== rt || rt.t >= trail.at || rt.t < trail.at - .25 ||
-        trail.gx !== goal.x || trail.gz !== goal.z || Math.hypot(p.x - trail.px, p.z - trail.pz) > .5) {
+        Math.hypot(goal.x - trail.gx, goal.z - trail.gz) > .5 || Math.hypot(p.x - trail.px, p.z - trail.pz) > .5) {
       trail.rt = rt; trail.at = rt.t + .25; trail.gx = goal.x; trail.gz = goal.z;
       trail.px = p.x; trail.pz = p.z;
       const dx = goal.x - p.x, dz = goal.z - p.z, length = Math.hypot(dx, dz);
@@ -270,6 +270,7 @@ export class HudRoute {
       this.routeEndProjection || (this.routeEndProjection = {}));
     const rects = this.hudRects();
     let lastX = -1000, lastY = -1000, arrowX = -1000, arrowY = -1000;
+    const arrowGap = rt.def.groundRouteGuide ? 48 : 80;
     const projection = this.footstepProjection || (this.footstepProjection = {});
     // 道の途中に一つだけ矢印を入れる。向きは足あとと同じ実際の床に沿わせる。
     for (let i = Math.floor(trail.points.length / 2); i >= 0; i--) {
@@ -278,8 +279,8 @@ export class HudRoute {
       this.project(point, point.y + .1, rt, projection);
       if (projection.behind || projection.x < 48 || projection.x > VIEW.w - 48 ||
           projection.y < 96 || projection.y > VIEW.h - 48 ||
-          !self.behind && Math.hypot(projection.x - self.x, projection.y - self.y) < 80 ||
-          !end.behind && Math.hypot(projection.x - end.x, projection.y - end.y) < 80 ||
+          !self.behind && Math.hypot(projection.x - self.x, projection.y - self.y) < arrowGap ||
+          !end.behind && Math.hypot(projection.x - end.x, projection.y - end.y) < arrowGap ||
           rects.some(r => r !== this.guideOrderRect && projection.x + 32 > r.left &&
             projection.x - 32 < r.right && projection.y + 32 > r.top && projection.y - 32 < r.bottom)) continue;
       if (this.drawFloorWaymark(g, rt, point, false, trail)) {

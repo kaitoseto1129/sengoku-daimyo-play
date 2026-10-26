@@ -582,10 +582,11 @@ export class Army {
     look.flag = fieldLook.armyFlagKinds?.[look.flag] || look.flag;
     look.standard = fieldLook.armyFlagKinds?.[look.standard] || look.standard;
     // 全戦の武将は、背に垂れる母衣を外して袖なしの陣羽織を着る。
-    if ((u.type === 'busho' || gen.armor) && !look.kosode && !look.sohei) {
+    if ((u.type === 'busho' || gen.armor) && !look.kosode && !look.sohei && !fieldLook.noHaori) {
       look.haori = look.haori || look.horo || gen.haori || fac.haori || 0x34342e;
       look.horo = 0; look.longHoro = false;
     }
+    if (fieldLook.noHaori) { look.haori = 0; look.horo = 0; look.longHoro = false; }
     // 全戦共通：背の受筒から一本だけ立てる。母衣衆と幟持ちは背の旗を重ねない。
     look.straightFlag = true;
     if (look.standard || look.horo) { look.flag = null; look.pole = false; }

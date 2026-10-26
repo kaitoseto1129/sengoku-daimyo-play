@@ -47,8 +47,8 @@ const FORD_R = 4;
 // 横へそれた岸もその場の水際で判定し、ピンの奥行きまで歩き直させない。
 const atFordBank = (p, world) => p.z < nireZ(p.x) &&
   distToPolyline(p.x, p.z, world.def.streams[1].pts) >= world.def.streams[1].w;
-// 自分の到着は、岸のピンの上に立った時も含める（ピンの丸と判定をそろえる。稲生と同じ）。
-const playerAtFord = (p, world) => atFordBank(p, world) || Math.hypot(p.x - POINT2.x, p.z - POINT2.z) < 3;
+// ピンへ近づいただけでは水中で終えない。ピンのある対岸へ足が着いた瞬間にそろえる。
+const playerAtFord = (p, world) => atFordBank(p, world);
 const FRONT2 = { x: 4, z: 20 };
 const ASSEMBLY2 = { x: 14, z: 10 };
 const RETREAT2 = { x: 24, z: 48 };
@@ -512,19 +512,19 @@ function moribeFord(rt) {
       float fordGrain = texture2D(tMacro, vWPw.xz * 0.9).r;
       // 川底の小石は地面に固定。流れる白波と分け、浅さと歩いた分を絵で見せる。
       vec2 fordCell = fract(vWPw.xz * 1.4 + vec2(fordGrain * 0.25, 0.0)) - 0.5;
-      float fordPebble = 1.0 - smoothstep(0.16, 0.29, length(fordCell * vec2(1.0, 1.4)));
+      float fordPebble = 1.0 - smoothstep(0.22, 0.36, length(fordCell * vec2(1.0, 1.4)));
       float fordRipple = smoothstep(0.86, 0.98, sin(vWPw.z * 6.0 + fordGrain * 2.0 - uTime * 1.4));
       // 青い流れの中に砂底の帯を通し、入口から出口まで歩ける浅さを見せる。
       // 隣の流れは元の川色のまま。新しい形や描画は増やさない。
       vec3 fordSand = mix(vec3(0.52, 0.43, 0.27), vec3(0.78, 0.70, 0.48), fordGrain);
       fordSand = mix(fordSand, vec3(0.25, 0.32, 0.29), fordPebble * 0.65);
-      diffuseColor.rgb = mix(diffuseColor.rgb, fordSand, fordBand * 0.85);
+      diffuseColor.rgb = mix(diffuseColor.rgb, fordSand, fordBand * 0.95);
       // 濡れた砂底の明るさを保ち、暗い流れの中に渡れる帯を残す。
       totalEmissiveRadiance += fordSand * fordBand * 0.22;
       // 浅瀬も水の色を保つ。両岸の細い白波を既存の川面へ描き、終点を土と分ける。
       float fordShore = smoothstep(7.5, 8.6, abs(vWPw.z - ${NIREMATA2.toFixed(1)}));
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.76, 0.85, 0.82),
-        max(fordRipple * 0.5, fordShore * (0.4 + fordGrain * 0.35)) * fordBand);
+        max(fordRipple * 0.18, fordShore * (0.2 + fordGrain * 0.15)) * fordBand);
     `);
   };
   waterMat.customProgramCacheKey = () => waterKey + '|森部の浅瀬';
@@ -1258,24 +1258,10 @@ const moribe = {
       q.progress = q.arrived ? q.waiting ? this.missionWaitProgress(rt) || 0 : 1 :
         // 横へずれても岸へ渡った分を示す。到着前は満杯にしない。
         Math.max(0, Math.min(.98, (START2.z - rt.player.u.pos.z) / (START2.z - POINT2.z)));
-      // 待っている本人へ同じピンを付ける。仲間が動いても別人へ毎コマ移さない。
-      if (q.waiting && !F.pointReady) {
-        let ally = F.fordWaitUnit;
-        if (!ally?.alive || ally.gone || ally.fleeing || ally.woundOut || ally.noTarget || ally.group?.routed || atFordBank(ally.pos, rt.world)) {
-          ally = null;
-          let best = Infinity;
-          for (const u of rt.squad) {
-            if (!u.alive || u.gone || u.fleeing || u.woundOut || u.noTarget || u.group?.routed || atFordBank(u.pos, rt.world)) continue;
-            const d = (u.pos.x - POINT2.x) ** 2 + (u.pos.z - POINT2.z) ** 2;
-            if (d < best) { best = d; ally = u; }
-          }
-          F.fordWaitUnit = ally;
-        }
-        if (ally) { q.unit = ally; pos = ally.pos; }
-      }
+      // 渡河後も対岸の同じ地点。仲間の頭へ移して敵の▼と混同させず、後続の兵を追って川へ戻らせない。
     } else if (F.stage === 'hold') {
       // 守備は動く仲間を追わせず、到着判定と同じ固定地点一本へ集める。
-      pos = F.linePoint; r = hide = F.lineReturning ? 18 : 24;
+      pos = F.linePoint; r = hide = F.lineReturning || !F.lineReached ? 18 : 24;
       q.guardArea = true;
       q.waiting = true; q.arrived = !F.lineReturning;
       q.progress = this.missionWaitProgress(rt) || 0;

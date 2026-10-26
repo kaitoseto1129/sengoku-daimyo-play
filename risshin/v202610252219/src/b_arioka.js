@@ -1101,7 +1101,76 @@ const PEOPLE_BANDS = [
     route: [{ x: SOKAKU_X + 65, z: 20 }, { x: SOKAKU_X + 65, z: 80 }] },
 ];
 
+// 任務中の兵だけを拾う。主郭の城将や未出動の控えへ誘わない。
+function ariNearestFoe(rt) {
+  const F = rt.flags, C = F.dpOn && F.dp?.cur;
+  if (F.ending || rt.over || F.step !== 1 || C && C.s.kind !== 'hold') return null;
+  const p = rt.player.u.pos;
+  let nearest = null, best = Infinity;
+  for (const u of rt.army.units) {
+    const g = u.group;
+    if (!g || (C ? !C.groups.includes(g) : g !== F.g1) || !g.count || g.routed) continue;
+    if (!u.alive || u.gone || u.dying || u.fleeing || u.woundOut || u.rearWound || u.noTarget || u.invuln) continue;
+    if (C?.rangedEnemy && (u.type !== 'gun' && u.type !== 'bow' || u.sidearm)) continue;
+    const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
+    if (d < best) { best = d; nearest = u; }
+  }
+  return nearest;
+}
+
 const arioka = {
+  missionSingleLine: true,
+  hideMissionDots: true,
+  enemyTriangleSigns: true,
+  nearbyAllySignLimit: 0,
+  noDodgeCard: true,
+  noSiegeCards: true,
+  noPlayerFoot: true,
+  quietMiss: true,
+  missionPinCaption: '',
+  missionDetail: () => '',
+  missionStatus: () => '',
+  bannerAllowed: (rt) => !!rt.over || !!rt.flags.ending,
+  missions: ['開門を待て', '辻へ進め', 'この敵をたおせ', 'ここを守れ', '木戸へ戻れ', '味方を待て', '木戸を守り抜いた', '木戸の外へ退け'],
+  missionOf(rt) {
+    const F = rt.flags, C = F.dpOn && F.dp?.cur;
+    if (F.ending || rt.over) return rt.tracker.main ? 6 : 7;
+    if (F.step === 0) return 0;
+    if (C?.s.kind === 'move') return rt.distTo(C.at) <= 13 && rt.player.u.pos.x < GATE.x - 1 ? 5 : 4;
+    if (C?.s.kind === 'hold') {
+      if (!C.defending && rt.distTo(C.at) > C.botRadius) return 1;
+      // 守備中は印から離れない。射手が確保を妨げる間だけ相手を示す。
+      return C.rangedEnemy && ariNearestFoe(rt) ? 2 : 3;
+    }
+    if (!C && !gone(F.g1) && ariNearestFoe(rt)) return 2;
+    return C?.at && rt.distTo(C.at) <= 16 ? 3 : 1;
+  },
+  missionHeading(rt) { return this.missions[this.missionOf(rt)]; },
+  missionSignTarget(rt) { return this.missionOf(rt) === 2 ? ariNearestFoe(rt) : null; },
+  // 久左衛門は主郭に残る城将。討取りの行き先と分け、既存の本人に印を付ける。
+  commanderSignTarget(rt) {
+    const u = rt.flags.ehon?.general;
+    return !rt.flags.ending && !rt.over && u?.alive && !u.gone && !u.dying && !u.woundOut ? u : null;
+  },
+  namedGuideTarget(rt) { return this.commanderSignTarget(rt); },
+  missionPin(rt) {
+    const F = rt.flags, C = F.dpOn && F.dp?.cur;
+    if (F.ending || rt.over || !rt.player.u.alive) return null;
+    const pin = F.ariMissionPin || (F.ariMissionPin = { x: 0, z: 0, r: 3, hide: 3 });
+    const stage = this.missionOf(rt), enemy = stage === 2 ? ariNearestFoe(rt) : null;
+    if (enemy && rt.player.inRange && rt.player.rangeCueTarget === enemy) return null;
+    const post = F.ariMissionPost || (F.ariMissionPost = { x: 0, z: 0 });
+    post.x = stage === 0 ? GATE.x - 30 : C?.at?.x ?? TOWN_X - 2;
+    post.z = stage === 0 ? GATE.z : C?.at?.z ?? -14;
+    const goal = enemy ? enemy.pos : post;
+    const way = gateWay(rt.army, rt.player.u, goal);
+    pin.x = way.x; pin.z = way.z;
+    pin.route = way !== goal; pin.unit = enemy && !pin.route ? enemy : null;
+    pin.enemy = !!pin.unit; pin.waiting = !enemy && !pin.route && (stage === 0 || stage === 3 || stage === 5);
+    pin.r = pin.hide = pin.route ? .5 : enemy ? .2 : stage === 3 ? C.botRadius || 16 : 3;
+    pin.arrived = pin.waiting && Math.hypot(rt.player.u.pos.x - pin.x, rt.player.u.pos.z - pin.z) <= pin.r;
+    return pin;
+  },
   waitForIntro: true,
   compactIntro: true, introTaskFirst: true,
   introText: '木戸が開くまで味方の後ろで待とう。開いたら組と辻へ進み、十二秒守ろう。戻れの合図で木戸の外へ戻り、敵を防ごう。',
@@ -2121,6 +2190,8 @@ const arioka = {
     retreatGateTick(rt);
     if (F.K) F.K.tick(dt);
     if (F.ending || rt.over || !rt.player.u.alive) return;
+    // 木戸・辻・帰還を含む局地戦は、七分までに決着させる。
+    if (rt.t >= 410) { this.lose(rt, '攻めの時が尽きた。木戸の外へ退け'); return; }
     if (!F.coverTaught && (rt.aimedT || 0) > 0) {
       F.coverTaught = true; F.coverUntil = rt.t + 8; F.gunResumeAt = rt.t + 6;
       const p = rt.player.u.pos;
@@ -2292,7 +2363,7 @@ function ariStage(o, defending) {
   const orders = defending ? o.waves : [{ t: 0, foes: o.foes }, ...o.later];
   return {
     // 辻も木戸も持ち場を守る段。試し役が遠い射手を追って印から離れない。
-    kind: 'hold', max: defending ? o.dur + 60 : o.max,
+    kind: 'hold', max: defending ? 410 : o.max,
     ariOrders: orders,
     start(rt, C) {
       C.at = o.at; C.goal = o.at; C.defending = defending;
@@ -2316,7 +2387,7 @@ function ariStage(o, defending) {
     tick(rt, C, m, ctx, el, dt) {
       if (rt.flags.ending) return false;
       // 時間切れや木戸の陥落は、この段で理由を示して終える。
-      if (el > (defending ? o.dur + 60 : o.max)) { C.timeout = true; return true; }
+      if (el > (defending ? Math.max(o.dur + 60, 252 - C.t0) : o.max)) { C.timeout = true; return true; }
       while (C.orders.length) {
         const order = C.orders[0];
         // 最初の寄せには予告の間を残す。前の寄せを崩した時だけ次を早める。
@@ -2421,7 +2492,9 @@ function ariStage(o, defending) {
       C.lostT = enemy > friend ? C.lostT + dt : 0;
       // 敵が上回る状態が続いた時だけ、木戸を失ったとする。
       if (C.lostT >= 24) { C.failed = true; return true; }
-      if (rt.t < (C.guideAt || 0)) return (lastRepelled || el >= o.dur) && C.inT >= 12;
+      // 最後の寄せを早く退けても帰り道を四分まで守る。兵や新手は増やさない。
+      const held = rt.t >= 240 && (lastRepelled || el >= o.dur) && C.inT >= 12;
+      if (rt.t < (C.guideAt || 0)) return held;
       C.guideAt = rt.t + 0.5;
       const instruction = !present ? '組と木戸の口へ戻れ'
         : C.lostT > 0 ? `木戸を奪われる。あと${Math.max(0, Math.ceil(24 - C.lostT))}秒で押し返せ`
@@ -2438,7 +2511,7 @@ function ariStage(o, defending) {
       // 本文の秒数は、確保か寄せの目安のどちらか一つだけにする。
       const approaching = C.groups.reduce((n, g) => n + (!ariSpent(g) && !g.ariEngaged ? 1 : 0), 0);
       rt.objProgress('dp', `味方${friend}人・持ち場の敵${enemy}人${C.rangedEnemy ? `・射手${C.rangedEnemy}人` : ''}\n${approaching ? `町から${approaching}組が移動中／` : C.orders.length ? `新手あと${C.orders.length}組／` : ''}期限あと${Math.max(0, Math.ceil(o.dur + 60 - el))}秒`);
-      return (lastRepelled || el >= o.dur) && C.inT >= 12;
+      return held;
     },
     end(rt, C, m) {
       const won = !C.timeout && !C.failed && !rt.flags.ending;
