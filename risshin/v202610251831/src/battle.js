@@ -529,7 +529,7 @@ const VICTORY_TASKS = {
   inou: '林美作守を討ち取り、敵を崩す',
   okehazama: '義元の討ち取り後、組と帰る',
   moribe: '敵を崩し、組をまとめて戻る',
-  sunomata: '材木を届け、人足と砦を守る',
+  sunomata: '三度の寄せから柵を守り抜く',
   shitaragahara: '柵を守り、追い討ちを終える',
   anegawa: '浅井の寄せを退ける',
 };
@@ -2784,7 +2784,7 @@ export class Battle {
       inou: '稲生原で敵主力が崩れ、柴田勝家が退いた',
       okehazama: '義元討取りの大手柄を挙げた',
       moribe: '敵の備を崩し、斎藤勢を退けた',
-      sunomata: '材木を届け、人足と砦を守った',
+      sunomata: '三度の寄せから柵を守り抜いた',
       shitaragahara: '柵を守り、武田勢を退けた',
       anegawa: '浅井の寄せを退けた',
     };
