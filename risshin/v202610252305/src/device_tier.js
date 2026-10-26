@@ -3,7 +3,7 @@
 //   ・倍率 2 の iPhone（XR・11・SE 2/3・8 以前）・短辺 375 以下（X・XS・11 Pro・12/13 mini）・414×896 の倍率 3（XS Max・11 Pro Max）は弱い。
 //   ・393×852・402×874・428×926・430×932・440×956 は強い（今のまま）。
 //   ・iPad は 768×1024 の倍率 2（無印 5〜9 世代・mini 4/5・Air 2）を弱いとする。
-//   ・Android は deviceMemory が 8GB 以下、ほかの機械は 4GB 以下なら弱い。
+//   ・deviceMemory が 4GB 以下なら弱い（Chrome の 8GB は上限値なので高性能端末も含む）。
 //   ・GPU が Mali・Adreno 6xx 以下と 700〜729（Xperia 10 VII の 710 など中の下）・PowerVR、Windows の Intel UHD/Iris も弱い。
 //   ・戦の途中で頁が読み直された（落ちた）機械も、次から弱いとする（risshin-weak）。
 //   試し：?weak=1 で弱い作り・?weak=0 で強い作りに決める。
@@ -25,7 +25,7 @@ function detect() {
   }
   const iPad = /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
   if (iPad) return s <= 768 && l <= 1024 ? 'ipad-old' : '';
-  if (navigator.deviceMemory && navigator.deviceMemory <= (/Android/i.test(ua) ? 8 : 4)) return 'mem' + navigator.deviceMemory;
+  if (navigator.deviceMemory && navigator.deviceMemory <= 4) return 'mem' + navigator.deviceMemory;
   return '';
 }
 const why = detect();
@@ -37,7 +37,8 @@ export function noteGL(gl) {
     const ext = gl.getExtension('WEBGL_debug_renderer_info');
     const name = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : '');
     const windowsIntel = typeof navigator !== 'undefined' && /Windows/i.test(navigator.userAgent || '') && /Intel.*(?:UHD|Iris)/i.test(name);
-    if (/Adreno\s*(?:\(TM\)\s*)?(?:[0-6]\d\d|7[0-2]\d)\b|Mali|PowerVR/i.test(name) || windowsIntel || gl.getParameter(gl.MAX_TEXTURE_SIZE) < 8192) { TIER.weak = true; TIER.why = 'gpu:' + name.slice(0, 40); }
+    const modernMali = /(?:Mali.*G(?:7[12]\d|9\d\d)|Immortalis)/i.test(name);
+    if (/Adreno\s*(?:\(TM\)\s*)?(?:[0-6]\d\d|7[0-2]\d)\b|PowerVR/i.test(name) || /Mali/i.test(name) && !modernMali || windowsIntel || gl.getParameter(gl.MAX_TEXTURE_SIZE) < 8192) { TIER.weak = true; TIER.why = 'gpu:' + name.slice(0, 40); }
   } catch (e) { /* 判らなければ強いまま */ }
 }
 // 戦の途中の印。戦の外へ出る前に頁が読み直されたら、落ちたと見なして次から弱い作りに。
@@ -52,3 +53,10 @@ export function markInBattle(on) {
 export function markCrashed() { TIER.weak = true; TIER.why ||= 'crashed'; try { localStorage.setItem('risshin-weak', '1'); } catch (e) { /* 保存できなければ今回だけ */ } }
 // 弱い端末の絵の一辺の上限（2048 の絵を 1024 へ。three が送る時に縮める）
 export const WEAK_TEX_MAX = 1024;
+
+// 倍率だけでなく面積と長辺も制限する。端末の画素倍率を掛け直さない。
+export function battleDrawRatio(w, h, tight, heat) {
+  const base = tight ? (heat >= 1 ? .75 : .85) : 1;
+  const android = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent || '');
+  return android ? Math.min(base, .85, 1280 / Math.max(w, h), Math.sqrt(576000 / (w * h))) : base;
+}

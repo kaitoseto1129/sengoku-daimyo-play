@@ -395,8 +395,11 @@ html:root body #hud #h-prog .opening-controls-help[hidden] { display:none !impor
 
 /* 共通の行動札は右上に固定し、携帯横でも一行を大きく読む。 */
 #hud.field-clean #h-prog .pg-st span { font-size:max(24px, calc(24px * var(--text-scale, 1))); }
-/* 任務が替わった時だけ縁を強調する。動きの物や待ちの処理は作らない。 */
-#hud #h-prog.pg-changing { box-shadow:0 0 0 3px #e8c25a; }
+/* 切り替えの一度だけ、同じ一行を光らせる。 */
+@keyframes mission-change { 0%,100% { transform:scale(1); background:#14120f; } 35% { transform:scale(1.08); background:#675224; } }
+#hud #h-prog.pg-changing { transform-origin:top right; animation:mission-change .8s ease-out 1; }
+body.rm #hud #h-prog.pg-changing { animation:none; }
+@media (prefers-reduced-motion:reduce) { #hud #h-prog.pg-changing { animation:none; } }
 #hud.ending #h-prog, #hud:has(#bigmap:not([hidden])) #h-prog { visibility:hidden; }
 /* 稲生は右上に短い任務を一行だけ置く。 */
 html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog {

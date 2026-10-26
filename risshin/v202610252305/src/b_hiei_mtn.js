@@ -40,9 +40,11 @@ const LAY = { flag: null, hat: 'hachimaki', armor: 0x4a4034, lace: 0xb19a65, clo
 const REM = { flag: null, armor: 0x4c4538, lace: 0x9e7757 };
 // 本坂の寄せ手は明智の手。水色桔梗は伝わる旗印を用いた復元で、当日の実物は未確認。
 // 福知山市の紹介資料：https://www.city.fukuchiyama.lg.jp/uploaded/attachment/13053.pdf
-const ODA = { flag: 'akechi', lace: 0xb18760, mon: 'akechi' };
-// 名のある将の威糸・陣羽織の紋は、兵の揃いで上書きせず本人の具足の表に任せる。
-const dress = (list, lk) => list.map((s) => ({ ...s, o: { ...(s.o?.name ? { flag: lk.flag } : lk), ...(s.o || {}) } }));
+// 本の足軽写真：黒茶の漆胴・紺の小袖・生成りの威糸。形と材質は共通の物を使う。
+const ODA = { flag: 'akechi', armor: 0x302723, cloth: 0x202f39, lace: 0xc7bea6, mon: 'akechi', haori: null };
+// 足軽の低い陣笠を使い、将も陣羽織を重ねない。兵数・形の数は増やさない。
+const dress = (list, lk) => list.map((s) => ({ ...s, o: { ...(s.o?.name ? { flag: lk.flag } : lk),
+  ...(lk === ODA && s.type === 'ashigaru' ? { hat: 'jingasa_n' } : {}), ...(s.o || {}), haori: null } }));
 
 // 坂本の通り・日吉社の参道から本坂と文殊楼まで約一メートルの格子へ。
 // 開戦直後の石段や里坊脇も、幅三メートルの道を粗い面で潰さない。
@@ -684,7 +686,7 @@ function walk(g, path, speed, onArrive, turnBack = false, freshRoute = false) {
       q.join = [...road.slice(0, bi + 1).reverse(), [146, 4], ...join];
     }
   }
-  g.order = 'path'; g.path = path; g.pathIdx = 0; g.speed = speed || 2.4; g.formation = 'column'; g.colW = 1;
+  g.order = 'path'; g.path = path; g.pathIdx = 0; g.speed = g.team === 0 ? Math.max(2.8, speed || 2.4) : speed || 2.4; g.formation = 'column'; g.colW = 1;
   const [x, z] = path[path.length - 1];
   g.onArrive = onArrive || ((q) => { q.order = 'hold'; q.anchor = { x, z }; q.formation = 'column'; });
   if (g._command && !turnBack) walk(g._command, path, g.speed * 0.94, undefined, false, freshRoute);
@@ -1471,7 +1473,103 @@ const PEOPLE_BANDS = [
   { x: -80, z: -224, mode: 'inside', kinds: ['monk', 'merchant', 'woman', 'child'], route: peopleRoute('iimurodani') },
 ];
 
+// 行き先・任務・残敵を、同じ持ち場から決める。道を外れた時は既存の帰路を優先する。
+function hieiPost(rt) {
+  const F = rt.flags;
+  if (F.step <= 1) return F.hiyoDone ? P.trailhead : F.hiyoshiG?.anchor || P.trailhead;
+  if (F.step === 2) return P.stairsFoot;
+  if (F.step === 3) return P.monjuro;
+  if (F.step === 4) return F.bell2 ? P.westGate : P.court;
+  return F.step === 5 ? P.saito : P.yokawa;
+}
+function hieiPostRadius(F) {
+  if (F.step <= 1) return F.hiyoDone ? 16 : 10;
+  if (F.step === 3) return 6;
+  return F.step === 2 || F.step === 4 && !F.bell2 ? 9 : 12;
+}
+function hieiReady(u) {
+  return u?.alive && !u.gone && !u.dying && !u.woundOut && !u.fleeing && !u.noTarget && !u.group?.routed;
+}
+function hieiNearest(rt) {
+  const F = rt.flags, me = rt.player.u.pos, post = hieiPost(rt);
+  let best = null, distance = Infinity;
+  for (const g of F.foes || []) {
+    if (gone(g) || g.civ) continue;
+    for (const u of g.units) {
+      if (!hieiReady(u)) continue;
+      const d = (u.pos.x - me.x) ** 2 + (u.pos.z - me.z) ** 2;
+      // 奥の別の区域へ飛ばさず、今の道の敵と持ち場をふさぐ残敵から選ぶ。
+      if (d > 18 * 18 && Math.hypot(u.pos.x - post.x, u.pos.z - post.z) >= 10) continue;
+      if (d < distance) { distance = d; best = u; }
+    }
+  }
+  return best;
+}
+
 const hiei_mtn = {
+  missionSingleLine: true,
+  hideMissionDots: true,
+  hideGuideSteps: true,
+  noPlayerFoot: true,
+  quietMiss: true,
+  enemyTriangleSigns: true,
+  nearbyAllySignLimit: 0,
+  noDodgeCard: true,
+  noCouriers: true,
+  compactMapAllies: true,
+  missionPinCaption: '',
+  missionDetail: () => '',
+  missionStatus: () => '',
+  missionTimeText: () => '',
+  missions: ['ピンへ進め', '▼の敵をたおせ', 'ここを守れ', '味方と集まれ', '味方へ下がれ'],
+  missionOf(rt) {
+    const F = rt.flags;
+    if (F.ending) return 3;
+    if (F.dangerAt !== undefined || F.woundTask) return 4;
+    if (F.exitMarked || F._gHold || F.guideReturn?.active) return 0;
+    if (hieiNearest(rt)) return 1;
+    return near(rt.player.u, hieiPost(rt), hieiPostRadius(F)) ? 2 : 0;
+  },
+  missionHeading(rt) { return this.missions[this.missionOf(rt)]; },
+  // 総大将は足さず、声を担当する既存の僧兵頭を示す。退いた瞬間に印を外す。
+  commanderSignTarget(rt) {
+    const F = rt.flags;
+    if (F.ending) return null;
+    const g = F.step <= 1 ? F.hiyoshiG : F.step === 2 ? F.midG : F.step === 3 ? F.monjuG
+      : F.step === 4 ? F.bell2 ? F.saitoG : F.chudoG : F.step === 5 ? F.shakadoG : F.yokawaG;
+    return !gone(g) && hieiReady(g?._hieiLead) ? g._hieiLead : null;
+  },
+  commanderTarget(rt) {
+    const u = this.commanderSignTarget(rt);
+    return u && this.missionOf(rt) === 1 && hieiNearest(rt) === u ? u : null;
+  },
+  namedGuideTarget(rt) { return this.commanderSignTarget(rt); },
+  missionSignTarget(rt) { return this.missionOf(rt) === 1 ? hieiNearest(rt) : null; },
+  missionPin(rt) {
+    const F = rt.flags;
+    if (F.ending || rt.over || !rt.player.u.alive) return null;
+    const q = F.standardPin || (F.standardPin = { x: 0, z: 0 });
+    const stage = this.missionOf(rt), post = hieiPost(rt), me = rt.player.u.pos;
+    // 開戦の下知中も、本人の足元へピンを重ねず参道の入口を示す。
+    let at = F.step === 0 ? pathById('hiyoshi').pts[0] : F._gp || post;
+    if (Array.isArray(at)) { q.x = at[0]; q.z = at[1]; at = q; }
+    q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false; q.route = true;
+    q.r = q.hide = .8;
+    if (stage === 4 && F.retreatPoint) at = F.retreatPoint;
+    if (stage === 2) {
+      at = post; q.waiting = true; q.arrived = true; q.route = false; q.r = q.hide = hieiPostRadius(F);
+    } else if (stage === 1) {
+      const u = hieiNearest(rt);
+      // 本坂の折れや堂を横切らず、通れる時だけ残敵本人へピンを移す。
+      if (u && Math.abs(u.pos.y - me.y) < 2 && rt.world.onRoad(u.pos.x, u.pos.z)
+        && !nakaRoomAt(u.pos.x, u.pos.z, u.pos.y) && roadClear(rt.army, rt.player.u, me, u.pos)) {
+        at = u.pos; q.unit = u; q.enemy = true; q.route = false; q.r = q.hide = 2;
+      }
+    }
+    q.x = at.x; q.z = at.z;
+    return q;
+  },
+  bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|鐘|火/.test(text),
   noHorse: true, // 組の編成と名のある将も徒歩にそろえ、細い本坂へ騎馬を足さない。
   // 逃げる者は追わない下知と、組を保って退く終幕に追撃の声を混ぜない。
   battleVoices: { enemy: 'tendai', lines: { ally: { rout: [
@@ -1732,68 +1830,8 @@ const hiei_mtn = {
   keepTaskWithGuard: true, // 構えている間も、鳥居や登り口へ進む下知を残す。
   keepGuardTaskLabel: true, // 狙う一人へ任務札を動かさず、道の行き先を保つ。
   arrivalLabel: '印のそば',
-  distanceText(rt, distance) {
-    const F = rt.flags;
-    if (!F.ending && F.lossInitial > 0 && F.lossAlive * 3 <= F.lossInitial * 2) return `戦える組 ${F.lossAlive}／${F.lossInitial}人`;
-    if (F._gHold) return '来た道へ';
-    // 敵が道をふさいでいる間は、後続の人数より戦う場所への距離を示す。
-    const waiting = F.step === 1 && F.hiyoDone && !F.trailReady && near(rt.player.u, P.trailhead, 16)
-      && guardedRoad(rt, P.trailhead)
-      || F.step === 2 && !F.stairsReady && near(rt.player.u, P.stairsFoot, 9)
-      && guardedRoad(rt, P.stairsFoot)
-      || F.step === 3 && near(rt.player.u, P.monjuro, 6) && !arrived(F.akechi, P.monjuro, 10)
-      && guardedRoad(rt, P.monjuro)
-      || F.step === 4 && !F.courtDone && near(rt.player.u, P.court, 9) && !arrived(F.akechi, P.court, 10)
-      && guardedRoad(rt, P.court)
-      || F.step === 4 && F.bell2 && near(rt.player.u, P.westGate, 12) && !arrived(F.akechi, P.westGate, 12)
-      && guardedRoad(rt, P.westGate)
-      || F.step === 5 && near(rt.player.u, P.saito, 12) && !arrived(F.akechi, P.saito, 12)
-      && guardedRoad(rt, P.saito)
-      || F.step === 6 && near(rt.player.u, P.yokawa, 12) && !arrived(F.akechi, P.yokawa, 12)
-      && guardedRoad(rt, P.yokawa);
-    if (waiting && !F.ending && !F.exitMarked && !F.guideReturn?.active && F.akechi._hillAlive) {
-      const g = F.akechi, need = Math.min(3, g._hillAlive);
-      return g._hillFront < need ? `前列 ${g._hillFront}人／${need}人` : `後続 ${g._hillNear}人／${Math.ceil(g._hillAlive * .6)}人`;
-    }
-    return distance < .5 ? '印のそば' : `${Math.round(distance)}歩`;
-  },
-  taskLabel(rt, text) {
-    if (rt.flags.ending) return text;
-    const F = rt.flags;
-    // 本人の命が多くても、組の半数割れで退く。復帰の案内で損害を隠さない。
-    if (F.dangerAt !== undefined) return `組は${F.lossAlive}人。来た道へ退け。あと${Math.max(0, Math.ceil(10 - (rt.t - F.dangerAt)))}秒`;
-    // 半数を割る前は損害の声だけで知らせ、戸口・本道・合流先の下知を残す。
-    if (/退く|深手/.test(text)) return text;
-    if (F.exitMarked) return hieiReturnTask(rt, '戸口から道へ戻れ', '戸口へ戻れ');
-    if (F._gHold) return F.trailActive ? hieiReturnTask(rt, '道の印へ戻れ', '道の印へ戻れ') : '来た道へ引き返せ';
-    if (F.guideReturn?.active) {
-      // 鳥居前で横へ寄せる時は、遠い鳥居と直近の復帰先を一度に示さない。
-      if (F.step === 1) return hieiReturnTask(rt, '道の印へ戻れ', '道の印へ戻れ');
-      if (F.step === 2) return hieiReturnTask(rt, '本坂の道へ戻れ', '本坂へ戻れ');
-      if (F.step === 3) return hieiReturnTask(rt, '石段へ戻り、門へ', '石段へ戻れ');
-      return F.step === 4 ? hieiReturnTask(rt, '参道へ戻り、組に続け', '参道へ戻れ')
-        : hieiReturnTask(rt, '山道へ戻り、組に続け', '山道へ戻れ');
-    }
-    // 携帯の主札も、印と同じく敵・合流待ちを先に示す。
-    if (F.step === 1) return F.hiyoDone
-      ? rallyGuideLabel(rt, P.trailhead, 16, '登り口', '本坂の登り口へ進め', 10)
-      : shrineGuideLabel(rt);
-    if (F.step === 2) return stairsGuideLabel(rt);
-    if (F.step === 3) return rallyGuideLabel(rt, P.monjuro, 6, '門の前', '石段を登り、門へ進め');
-    if (F.step === 4) {
-      if (F.bell2) {
-        // 戦う場所と合流待ちを優先し、その手前では堂を回る道を残す。
-        const p = rt.player.u.pos;
-        const onward = p.x < -24 && p.z > -13 ? '中門を戻り、大講堂の道へ'
-          : p.z > -18 && p.x > -29 ? '門の脇から大講堂の道へ' : '大講堂の脇から西塔へ';
-        return rallyGuideLabel(rt, P.westGate, 12, '西の道の入口', onward);
-      }
-      return rallyGuideLabel(rt, P.court, 9, '中堂の前', '根本中堂の前へ進め');
-    }
-    if (F.step === 5) return rallyGuideLabel(rt, P.saito, 12, '釈迦堂の前', '山道をたどり、釈迦堂へ');
-    if (F.step === 6) return rallyGuideLabel(rt, P.yokawa, 12, '横川中堂の前', '北の山道から横川へ');
-    return text;
-  },
+  distanceText: () => '',
+  taskLabel(rt) { return this.missionHeading(rt); },
   rangeCueClearCenter: true, // 兵に届く札は、照準と気力の輪の下へ避ける。
   spacedCombatCues: true, // 気力と間合いの札を照準から離し、狙う兵の顔を空ける。
   reserveCombatCues: true, // 道の印も、照準や間合いの札を避けて置く。
@@ -2232,6 +2270,11 @@ const hiei_mtn = {
     // 振り直すと坂本では湖際、東塔では根本中堂の当たりの中に出てしまう。
     const g = enemyGroup(rt, { faction: 'enryakuji', order: 'hold', dmgMult: 1, seekRange: 16, formation: list.every((q) => q.type === 'bow' || q.type === 'gun') ? 'line' : 'column', colW: 2, ...o, fixed: true }, list);
     rt.flags.foes.push(g);
+    const lead = g.units.find((u) => u.type === 'samurai');
+    if (lead) {
+      g._hieiLead = lead;
+      lead.name = o.name.replace(/(?:の神人と僧兵|の前の僧兵|の僧兵|の衆)$/, '') + 'の僧兵頭';
+    }
     return g;
   },
   // ===== P1 山麓：坂本の里に火がかかる。日吉社の前を抜け、本坂の登り口へ =====
@@ -2511,11 +2554,6 @@ const hiei_mtn = {
       && rt.player.u.pos.x < P.spawn.x - 2) this.p1(rt);
     if (F.ending || F.step < 1 || !rt.player.u.alive) { rt.unmark('hiei-exit'); return; }
     hieiRetreatGuide(rt);
-    // 共通の打ち切りはそのまま。台詞の待ち列に埋もれない短い合図を一度だけ出す。
-    if (rt.t >= 440 && rt.t < 480 && !rt.pacingWarned) {
-      rt.pacingWarned = true;
-      rt.bark(`あと${Math.ceil(480 - rt.t)}秒で退く。味方の旗と任務の印へ急げ`, true);
-    }
     if (!F.lossReady) {
       F.lossReady = true;
       if (rt.squad.length) F.lossUnits = rt.squad.slice();

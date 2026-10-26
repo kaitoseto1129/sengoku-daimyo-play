@@ -2230,7 +2230,10 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         t.moribeHitUntil = 0;
       }
       if (src?.isPlayer && t?.team !== src.team && t.hp < hp) {
-        // 一撃ごとに伸び直す。小さな伸びは残し、連打でも当たった本人を追える。
+        // ▼の中で今回削った分だけを残し、続く一撃でも減りを見届けられるようにする。
+        t.moribeHitHp = hp;
+        t.moribeDamageUntil = rt.t + .9;
+        // 一撃ごとに伸び直す。本人の選択は残し、伸びだけ次の一撃までに戻す。
         if (!blocked) { t.moribeHitUntil = rt.t + 3; t.moribeBlockUntil = 0; }
         if (!t.alive || t.dying || t.downed || t.woundOut || t.rearWound) t.moribeDefeatUntil = rt.t + 1.8;
         // 命を減らした本人だけがよろめく。空振りや味方には反応を付けない。

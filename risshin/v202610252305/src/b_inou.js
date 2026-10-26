@@ -161,7 +161,7 @@ function pinPoint(rt, pos, radius, hide, unit = null, name = '') {
   const pin = rt.flags.goalPin;
   pin.x = pos.x; pin.z = pos.z; pin.r = radius; pin.hide = hide;
   pin.unit = unit; pin.name = name; pin.enemy = !!unit && unit.team !== rt.player.u.team;
-  pin.defend = false; pin.waiting = false;
+  pin.defend = false; pin.waiting = false; pin.marker = null;
   pin.approach = false; pin.silent = true; pin.arrow = false; pin.always = false;
   return pin;
 }
@@ -324,6 +324,13 @@ const inou = {
       if (F.training === 12 && !gone(F.shiba1)) return null;
       const pin = pinPoint(rt, F.holdPoint || NOBU, 20, 0);
       pin.always = true; pin.defend = true; pin.waiting = true;
+      return pin;
+    }
+    if (F.step === 4) {
+      const group = F.advanceGuide?.group;
+      if (!group || gone(group)) return null;
+      const pin = pinPoint(rt, group.order === 'move' && group.dest ? group.dest : group.anchor, 3, 0);
+      pin.always = true; pin.marker = F.advanceGuide;
       return pin;
     }
     if (F.step === 2) return pinPoint(rt, F.nobuU?.alive ? F.nobuU.pos : NOBU, 10);
@@ -731,6 +738,9 @@ const inou = {
     const F = rt.flags;
     if (F.step !== 3 || F.hayaU.alive) return;
     F.step = 4; F.stepT = rt.t;
+    // 同じ一組の旗と、その組が実際に進む先を示す。
+    const group = [F.hata, F.mori, F.sassa, F.nazuka].find(g => !gone(g));
+    F.advanceGuide = group ? { group, guideFlag: true } : null;
     rt.obj('main', '味方と進め', 'main');
     rt.setPhase('hayafell');
     rt.unmark('hayaU');

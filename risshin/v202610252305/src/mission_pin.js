@@ -158,7 +158,7 @@ export const pinGuideOn = (rt) => !!rt && !rt.def.town && !rt.def.dojo;
 const tmp = { x: 0, z: 0, r: 6 };
 export function missionTarget(rt) { return target(rt); }
 function target(rt) {
-  if (rt.def.missionPin) return rt.def.missionPin(rt);
+  if (rt.def.missionPin) { const own = rt.def.missionPin(rt); if (own !== undefined || !rt.def.missionPinFallback) return own; }
   const follow = missionFollowTarget(rt);
   if (follow) {
     tmp.unit = follow; tmp.x = follow.pos.x; tmp.z = follow.pos.z;
@@ -237,9 +237,9 @@ function drawMissionPin(rt) {
   if (rt.def.key === 'moribe') { if (pin) pin.hidden = true; return; }
   const want = pinGuideOn(rt) && !rt.over && !rt.choice && !rt.hud.introWaiting && rt.player?.u?.alive ? target(rt) : null;
   const closeEnemy = rt.missionGuide?.closeEnemy;
-  // 敵は頭上の▼と端の矢印だけ。見通せない時も足元のピンへ戻さない。
+  // 稲生は同じ本人の▼を見失った間だけ、既存の行き先のピンへ戻す。
   const inouEnemy = !!want?.unit && want.unit.team !== rt.player.u.team;
-  if (want?.enemy || inouEnemy) {
+  if (rt.def.key !== 'inou' && (want?.enemy || inouEnemy)) {
     if (pin) pin.hidden = true;
     return;
   }
@@ -840,8 +840,9 @@ function updateEnemyTarget(rt, allowed = true) {
     !rt.player.camShot && !hud.bigmap && !hud.root.classList.contains('photo') &&
     !hud.root.classList.contains('ending') && !hud.root.querySelector('#cine.on');
   if (!active) { rt.army.missionMarkedEnemy = null; return false; }
-  // 森部は描画側の本人の▼だけ。別の高さの▼と人物枠を重ねない。
-  if (rt.def.key === 'moribe') {
+  // 稲生・森部・桶狭間は描画側の本人の▼だけ。人物枠や画面端の矢印で別の兵を指さない。
+  // 見失った稲生の相手は行き先のピンで示す。
+  if (rt.def.key === 'inou' || rt.def.key === 'moribe' || rt.def.key === 'okehazama') {
     rt.army.missionMarkedEnemy = markedEnemy(rt);
     return false;
   }
@@ -970,10 +971,22 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     x = W - 52;
     y = Math.min(H - 68, (rt.hud.guideOrderRect?.bottom ?? 56) + 84);
   }
+  // 守る輪は視線の高さへ持ち上げ、細い軸で本来の守備地点につなぐ。
+  const defend = rt.def.key === 'inou' && want.defend;
+  let stem = '';
+  if (defend && !outside) {
+    const footY = y;
+    y = Math.max(H * .35, Math.min(H * .58, y - 72));
+    stem = `M${x} ${y}V${footY}`;
+  }
+  el._groundRing.setAttribute('transform', defend ? 'scale(1.6 2.4)' : '');
+  el._routeEdge.style.scale = defend ? '1.6' : '';
   // 行き先は地面に寝かせた輪だけ。画面外では方向矢印へ切り替える。
   el._groundRing.style.display = outside && !docked ? 'none' : '';
   el._routeEdge.style.display = outside && !docked ? '' : 'none';
   el._groundRing.lastChild.setAttribute('stroke', want.arrived ? '#e4f2cb' : '#fff3ba');
+  // 待機は任務の下で円に起こす。地面の薄い輪と区別し、残る時間を読める大きさにする。
+  el._groundRing.setAttribute('transform', docked ? 'scale(1 3.2)' : '');
   // 同じ輪の内側で接近・集合・待つ進みを示す。図形は作り直さない。
   if (oke && !el._joinCue) {
     const cue = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -982,10 +995,11 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
   }
   if (el._joinCue) {
     const cue = el._joinCue, me = rt.player.u.pos;
+    cue.setAttribute('transform', docked ? 'scale(1 3.2)' : '');
     const approach = Math.max(0, Math.min(.98, 1 - Math.max(0, Math.hypot(want.x - me.x, want.z - me.z) - want.r) / 12));
     cue.style.display = oke && want.area && (!outside || docked) ? '' : 'none';
     cue.firstChild.style.display = joined && !waiting ? 'none' : '';
-    cue.children[1].style.display = joined && (!waiting || rt.t - pinAt.arrivalAt < .8) ? '' : 'none';
+    cue.children[1].style.display = joined && (!waiting || want.progress >= 1 || rt.t - pinAt.arrivalAt < .8) ? '' : 'none';
     cue.firstChild.setAttribute('stroke-dasharray', '1');
     cue.firstChild.setAttribute('stroke-dashoffset', String(waiting ? 0 : 1 - approach));
     const progress = waiting ? Math.max(0, Math.min(1, want.progress)) : 0;
@@ -993,7 +1007,7 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     cue.lastChild.setAttribute('d', progress >= 1
       ? 'M0-22A22 22 0 1 1 0 22A22 22 0 1 1 0-22'
       : progress > 0 ? `M0 0L0-22A22 22 0 ${progress > .5 ? 1 : 0} 1 ${Math.sin(angle) * 22} ${-Math.cos(angle) * 22}Z` : '');
-    cue.lastChild.style.display = waiting && rt.t - pinAt.arrivalAt >= .8 ? '' : 'none';
+    cue.lastChild.style.display = waiting && want.progress < 1 && rt.t - pinAt.arrivalAt >= .8 ? '' : 'none';
   }
   if (outside && !docked) {
     rt.camera.getWorldDirection(goalDirection);
@@ -1004,7 +1018,7 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     if (Math.hypot(dx, dy) < .001) { el.hidden = true; return; }
     const side = Math.abs(dx) / Math.max(1, W / 2 - 92) >= Math.abs(dy) / Math.max(1, H / 2 - 86);
     const baseX = side ? dx >= 0 ? W - 92 : 92 : W / 2;
-    const baseY = side ? H / 2 : dy >= 0 ? H - 68 : 104;
+    const baseY = defend ? H * .5 : side ? H / 2 : dy >= 0 ? H - 68 : 104;
     let found = false;
     for (let i = 0; i <= 40; i++) {
       const offset = Math.ceil(i / 2) * 18 * (i % 2 ? 1 : -1);
@@ -1015,6 +1029,24 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     if (!found) { el.hidden = true; return; }
     el._routeEdge.setAttribute('transform', `rotate(${Math.atan2(dy, dx) * 180 / Math.PI})`);
   }
+  // ついて行く組の旗は一つだけ囲む。行き先の輪は実際の移動先に残す。
+  let outline = '';
+  if (rt.def.key === 'inou' && want.marker?.group) {
+    const group = want.marker.group;
+    const flag = rt.hud.goalFlagBounds(rt, want.marker, group.anchor);
+    if (flag) {
+      const l = Math.max(8, flag.left), t = Math.max(8, flag.top);
+      const r = Math.min(W - 8, flag.left + flag.width), b = Math.min(H - 8, flag.top + flag.height);
+      if (r - l >= 24 && b - t >= 24) {
+        outline = `M${l} ${t}H${r}V${b}H${l}Z`;
+        rt.hud.missionFlagFrame = flag;
+      }
+    }
+  }
+  for (const path of el._links) path.setAttribute('d', stem);
+  for (const path of el._outlines) path.setAttribute('d', outline);
+  el._targetBadge.setAttribute('d', '');
+  el._lines.style.display = stem || outline ? '' : 'none';
   rt.hud.missionPinLabelShown = false;
   el.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`;
   el.hidden = false;

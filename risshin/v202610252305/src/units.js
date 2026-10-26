@@ -586,6 +586,7 @@ export class Army {
       look.haori = look.haori || look.horo || gen.haori || fac.haori || 0x34342e;
       look.horo = 0; look.longHoro = false;
     }
+    if (fieldLook.noHaori) { look.haori = 0; look.horo = 0; look.longHoro = false; }
     // 全戦共通：背の受筒から一本だけ立てる。母衣衆と幟持ちは背の旗を重ねない。
     look.straightFlag = true;
     if (look.standard || look.horo) { look.flag = null; look.pole = false; }

@@ -74,7 +74,7 @@ export class HudMap {
     const p = rt.player.u;
     // 桶狭間も稲生と同じ小さな地図：名は自分の組と信長だけ、行き先は▼と大将の菱形。
     const oke = rt.def.key === 'okehazama';
-    const inou = rt.def.key === 'inou' || oke;
+    const inou = rt.def.key === 'inou' || oke || !!rt.def.missionSingleLine;
     const ownGroup = rt.def.key === 'inou' ? rt.flags.hata : rt.hostGroup;
     // 名前は自分の組と大将だけ。同じ場所の札を重ねない。
     const names = this._mapNameRects || (this._mapNameRects = []);

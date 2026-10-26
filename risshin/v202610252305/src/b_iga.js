@@ -1043,7 +1043,27 @@ function igaNight(rt) {
   W.moon?.position.copy(W.sunOffset).multiplyScalar(3.5);
   W.updateEnv(); W.lookDark = true;
 }
-const IGA = { armor: 0x343a42, lace: 0x8a9098, cloth: 0x3a4048, hat: 'hachimaki', flag: null };   // 闇でも見分けがつくよう、鈍い青灰と薄い金属の光（B091）
+// 本の足軽の写真：赤茶の漆胴、紺の小袖、低い円錐の陣笠と首布。形・材質は既存の物を共用する。
+const IGA = { armor: 0x51362d, lace: 0xb5aa8c, cloth: 0x26343b, hat: 'jingasa', hatColor: 0x57372c, doStyle: 'okegawa', flag: null };
+
+// 守備の範囲へ来た敵だけを案内し、林の待機兵や退く兵を追わせない。
+function igaMissionEnemy(rt, leader = false) {
+  const F = rt.flags, C = F.dp?.on ? F.dp.cur : null, p = rt.player.u.pos;
+  const post = F.step === 2 ? F.bridge : C?.s.kind === 'hold' ? C.at : CAMP;
+  if (!post) return null;
+  const postY = rt.world.heightAt(post.x, post.z), radius = F.step === 2 ? 24 : 34;
+  let best = null, distance = Infinity;
+  for (const u of rt.army.units) {
+    const g = u.group;
+    if (u.team !== 1 || !igaReady(u) || u.gone || u.dying || u.isStruct || !g ||
+        g.ambush || g.retreatOnly || g.civ || leader && u !== F.igaBoss) continue;
+    if (Math.hypot(u.pos.x - post.x, u.pos.z - post.z) > radius ||
+        Math.abs(u.pos.y - postY) >= 3) continue;
+    const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z);
+    if (d < distance) { best = u; distance = d; }
+  }
+  return best;
+}
 
 // 地山（曲輪の段・堀切は heightOf が castles/hijiyama.js の縄張りから被せる）。長田丸・朝屋丸は丘の上
 function baseTerrain(x, z) {
@@ -1108,6 +1128,81 @@ function heightRaw(x, z) {
 }
 
 const iga = {
+  missionSingleLine: true,
+  hideMissionDots: true, hideGuideSteps: true,
+  enemyTriangleSigns: true, nearbyAllySignLimit: 0,
+  noDodgeCard: true, noPlayerFoot: true, quietMiss: true,
+  missionPinCaption: '', missionDetail: () => '', missionStatus: () => '',
+  speechAllowed: (rt) => rt.over || !!rt.flags.ending,
+  bannerAllowed: (rt) => rt.over || !!rt.flags.ending,
+  missions: ['ここを守れ', '火を消せ', '土橋へ進め', '土橋を守れ', '麓の陣へ戻れ', '曲輪を調べよ', '▼の敵を倒せ', '伊賀の組頭を倒せ'],
+  missionOf(rt) {
+    const F = rt.flags;
+    if (F.step === 3.5) return 5;
+    if (F.step === 2.5 && F.dp?.cur?.s.kind === 'move') return 4;
+    if (F.step === 2) return F.bridgeStarted == null ? 2 : 3;
+    if (F.step === 1 && igaNeedsDousing(rt) && F.doused < 3) return 1;
+    const C = F.dp?.on ? F.dp.cur : null;
+    if (C?.s.kind === 'hold' && !C.waves.length && igaMissionEnemy(rt))
+      return this.commanderTarget(rt) ? 7 : 6;
+    return 0;
+  },
+  missionHeading(rt) {
+    if (rt.flags.ending) return rt.tracker.main ? '比自山城を押さえた' : '戦を終える';
+    const C = rt.flags.dp?.on ? rt.flags.dp.cur : null;
+    if (rt.flags.step === 3.5 && C?.s.kind === 'move')
+      return C.at === SHU ? '主郭を調べよ' : '北の曲輪へ進め';
+    return this.missions[this.missionOf(rt)];
+  },
+  commanderTarget(rt) {
+    if (rt.over || rt.flags.ending) return null;
+    return igaMissionEnemy(rt, true);
+  },
+  commanderSignTarget(rt) { return this.commanderTarget(rt); },
+  namedGuideTarget(rt) { return this.commanderTarget(rt); },
+  missionSignTarget(rt) {
+    if (rt.over || rt.flags.ending || rt.flags.step >= 3) return null;
+    return this.commanderTarget(rt) || igaMissionEnemy(rt);
+  },
+  missionPin(rt) {
+    const F = rt.flags, p = rt.player.u.pos, stage = this.missionOf(rt);
+    if (F.ending || rt.over || !rt.player.u.alive) return null;
+    const q = F.igaPin || (F.igaPin = { always: true, silent: true, arrow: false });
+    q.unit = null; q.marker = null; q.enemy = q.fire = q.treatment = q.route = false;
+    q.follow = q.defend = q.waiting = q.arrived = q.footRing = false;
+    q.r = 3; q.hide = 1;
+    let id = '', at = CAMP;
+    if (igaNeedsTreatment(rt)) id = 'raidRecovery';
+    else if (stage === 1) {
+      let distance = Infinity;
+      for (const m of rt.markers) if (/^f[0-2]$/.test(m.id) && F.fires[+m.id[1]]) {
+        const v = typeof m.pos === 'function' ? m.pos() : m.pos;
+        const d = v ? Math.hypot(p.x - v.x, p.z - v.z) : Infinity;
+        if (d < distance) { distance = d; id = m.id; }
+      }
+    } else if (stage === 2) id = F.bridgeWayActive ? 'bridgeWay' : 'bridge';
+    else if (stage === 4 || stage === 5) id = 'dp';
+    else if (stage === 6 || stage === 7) {
+      const u = stage === 7 ? this.commanderTarget(rt) : igaMissionEnemy(rt);
+      if (u) {
+        if (rt.player.inRange && rt.player.rangeCueTarget === u) return null;
+        q.unit = u; q.enemy = q.follow = true; at = u.pos; q.r = q.hide = .2;
+      }
+    } else {
+      at = stage === 3 ? F.bridge : F.dp?.on && F.dp.cur?.s.kind === 'hold' ? F.dp.cur.at : CAMP;
+      q.defend = q.waiting = true; q.r = 8;
+      q.arrived = Math.hypot(p.x - at.x, p.z - at.z) < q.r;
+    }
+    if (id) {
+      const m = rt.markers.find((m) => m.id === id);
+      if (!m) return null;
+      at = m.guideDestination?.() || (typeof m.pos === 'function' ? m.pos() : m.pos);
+      if (!at) return null;
+      q.marker = m; q.fire = /^f[0-2]$/.test(id); q.treatment = id === 'raidRecovery';
+    }
+    q.key = id || (q.enemy ? 'foe' : 'post'); q.x = at.x; q.z = at.z;
+    return q;
+  },
   meleeGrace: { rate: 0.008, burst: 0.35, interval: 1.6 },
   teamSignsOnly: true,
   noUnitContrast: true, // 本人の具足にも白い人型を重ねず、足元の印と敵味方の印を残す。
@@ -1421,6 +1516,8 @@ const iga = {
     F.raiders = [igaEnemy(rt, 6, 28, 3, '陣の口から寄せる伊賀衆'), igaEnemy(rt, 48, 50, 5, '東から忍び寄る伊賀衆'), igaEnemy(rt, -30, 95, 5, '裏へ回る伊賀衆')];
     F.waveA = [igaEnemy(rt, 48, 25, 9, '東の林の伊賀衆'), igaEnemy(rt, -48, 50, 9, '西の林の伊賀衆'), igaEnemy(rt, 0, 96, 8, '陣の裏の伊賀衆')];
     F.waveB = [igaEnemy(rt, ...APPROACH[3], 10, '城から出る伊賀衆'), igaEnemy(rt, ...APPROACH[2], 10, '林を回る伊賀衆')];
+    // 最後の夜討ちの組を率いる既存の一人。史料に無い将名は作らない。
+    F.igaBoss = F.waveB[1].units.find((u) => u.type === 'samurai') || null;
     F.sally = igaEnemy(rt, 55, -46, 12, '林の伊賀衆');
     F.wallBow = igaEnemy(rt, FORT.x, F.gz - 5, 8, '土塁の伊賀衆', [{ type: 'bow', n: 6 }, { type: 'gun', n: 2 }]);
     F.wallBow.ambush = false; F.wallBow.aggro = 34; F.wallBow.facing = 0;
@@ -1967,7 +2064,7 @@ const iga = {
       for (let i = 1; i < L.length; i++) {
         // 手当ての下知と新手の寄せを重ねない。準備済みの兵は林で待つ。
         if (igaNeedsTreatment(rt)) break;
-        if (rt.t - F.stepT < (i === 2 ? 55 : 38)) break;
+        if (rt.t - F.stepT < (i === 2 ? 42 : 26)) break;
         if (L[i].igaSent || !L[i - 1].igaSent || !gone(L[i - 1])) continue;
         if (F.nextRaidAt == null) F.nextRaidAt = rt.t + 8;
         if (rt.t < F.nextRaidAt) break;
@@ -2000,7 +2097,7 @@ const iga = {
         this.lose(rt, '陣を守る味方が崩れ、陣を退く'); return;
       }
       // 消火と陣の保持が役目。林や切岸に残る一人の全滅を求め、消火済みでも時間で負けにしない。
-      if (F.doused >= 3 && (foes || w >= 150)) {
+      if (F.doused >= 3 && (foes || w >= 90 && L.every((g) => g.igaSent))) {
         if (!foes) rt.say('丹羽の組頭', '火は消え、陣は持ちこたえた。敵が退くぞ。追うな', 4);
         this.midA(rt); return;
       }
@@ -2065,7 +2162,7 @@ const iga = {
       }
       if (!F.ram.count && !F.ramLost) { F.ramLost = true; rt.say('丹羽の組頭', '木戸の組が崩れた！　その方は土橋を保ち、味方が退く道を空けよ', 4); }
       if (F.sally && F.sally.count < 4 && !gone(F.sally)) { F.sally.noRout = false; F.sally.morale = Math.min(F.sally.morale, 20); }
-      if (elapsed >= 75 || (elapsed >= (F.bridgeHeld ? 30 : 45) && gone(F.sally) && friends > 0 && atBridge)) this.midB(rt);
+      if (elapsed >= 55 || (elapsed >= (F.bridgeHeld ? 30 : 40) && gone(F.sally) && friends > 0 && atBridge)) this.midB(rt);
     }
   },
 
@@ -2237,7 +2334,8 @@ function igaEnemy(rt, x, z, n, name, list = null) {
   for (const u of rt.army.units) if (u.alive) live++;
   let room = Math.max(0, 240 - live);
   const troops = [];
-  for (const q of list || [uS(1), uA(n - 1)]) {
+  for (const q of list || [{ type: 'samurai', n: 1, o: name === '林を回る伊賀衆'
+    ? { name: '伊賀の組頭', hat: 'kabuto_m', flag: 'maru' } : { hat: 'kabuto_m' } }, uA(n - 1)]) {
     const count = Math.min(room, q.n); room -= count;
     if (count) troops.push({ ...q, n: count });
   }
@@ -2341,8 +2439,8 @@ function igaHold(o) {
       C.raidGone = (g) => gone(g) || C.repulsed.has(g);
       rt.objRemove('main');
       rt.banner(o.title, o.sub); rt.obj('dp', o.obj, 'main');
-      // 守る輪に入ったら行き先の矢印を下げる。振り向く印を敵の居場所と取り違えない。
-      rt.marker('dp', C.at, () => rt.distTo(C.at) > o.r ? o.label + 'へ戻る' : '', { h: 3 });
+      // 到着後も持ち場の印を残し、集まる味方と同じ所を示す。
+      rt.marker('dp', C.at, o.label, { h: 3, guideAlways: true, guideDefend: true });
       rt.zone('dp', C.at.x, C.at.z, o.r);
       // 消火後も手当ての行き先を残す。陣口の印と敵の方向の印は別の役目。
       rt.marker('raidRecovery', rt.flags.raidRest, () => igaNeedsTreatment(rt) ? '味方の後ろで手当て' : '',
@@ -2659,11 +2757,11 @@ function igaCtx(rt) {
 function igaA(rt) {
   return [
     rest({ dur: 8, say: [['丹羽の組頭', '火は消えた。槍をそろえて陣の口を固めよ。林へ追うな', 4]] }),
-    igaHold({ at: CAMP, dur: 80, r: 16, title: '陣の口を守れ', sub: '山から下りた伊賀衆が、左右の林へ回る', label: '陣の口', obj: '陣の口で左右の敵を防げ',
+    igaHold({ at: CAMP, dur: 55, r: 16, title: '陣の口を守れ', sub: '山から下りた伊賀衆が、左右の林へ回る', label: '陣の口', obj: '陣の口で左右の敵を防げ',
       waves: [
         { t: 5, group: rt.flags.waveA[0], say: ['足軽', '右の林だがね！　槍をこっちへ！'] },
-        { t: 30, group: rt.flags.waveA[1], say: ['足軽', '左にもおる！　追ったらいかん！'] },
-        { t: 52, group: rt.flags.waveA[2], say: ['丹羽の組頭', '後ろの道にも槍を向けよ。陣の口を空けるな'] },
+        { t: 22, group: rt.flags.waveA[1], say: ['足軽', '左にもおる！　追ったらいかん！'] },
+        { t: 40, group: rt.flags.waveA[2], say: ['丹羽の組頭', '後ろの道にも槍を向けよ。陣の口を空けるな'] },
       ], reward: '陣の口で夜討ちを退けた', onEnd: (rt) => retireRaid(rt, rt.flags.dp.cur.groups) }),
   ];
 }
@@ -2679,11 +2777,11 @@ function igaB(rt) {
       battleEvent(rt, EVENT_MESSENGER, CAMP, null, 0, true, '蒲生・堀・筒井の手が山の麓を囲んだ');
       for (const c of rt.flags.lines) c.push('A', 0.25);
     } }),
-    igaHold({ at: CAMP, dur: 80, r: 16, title: '包囲の夜', sub: '城から出た伊賀衆が、麓の陣へ切り込む', label: '陣の口', obj: '陣の口で城から出る敵を防げ',
+    igaHold({ at: CAMP, dur: 55, r: 16, title: '包囲の夜', sub: '城から出た伊賀衆が、麓の陣へ切り込む', label: '陣の口', obj: '陣の口で城から出る敵を防げ',
       say: [['丹羽長秀', '包囲を続け、また夜になった。陣の口で敵を防げ。追うな', 4]],
       waves: [
         { t: 8, group: rt.flags.waveB[0], say: ['足軽', '城の道から下りてきよる！'] },
-        { t: 36, group: rt.flags.waveB[1], say: ['足軽', '西へ回りよった！　陣の脇が危ねえ！'] },
+        { t: 28, group: rt.flags.waveB[1], say: ['足軽', '西へ回りよった！　陣の脇が危ねえ！'] },
       ], reward: '包囲の陣を夜討ちから守った', onEnd: (rt) => {
         retireRaid(rt, rt.flags.dp.cur.groups);
         battleEvent(rt, EVENT_UNIT_BREAK, CAMP, null, 1, true, '夜討ちの隊が、山へ退いた');
