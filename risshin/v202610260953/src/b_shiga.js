@@ -2537,11 +2537,8 @@ function retreatWithGuard(b, inp, goTo, x, z, r) {
   }
   goTo(p, inp, x, z, r);
   retreatThroughGap(b, inp, retreatOnShigaRoad);
-  // 長い坂で気力を使い切ると、追手へ向き直っても構えが崩れる。
-  // 歩いて受ける余力を戻し、半分以上戻ってから走り直す。
-  if (p.sta < p.maxSta * 0.35) b.flags.shigaCatchBreath = true;
-  else if (p.sta >= p.maxSta * 0.6) b.flags.shigaCatchBreath = false;
-  inp.runHeld = !b.flags.shigaCatchBreath && inp.k.has('KeyW');
+  // 本人は気力切れでも走れる。追手から離れる坂では歩きに戻さない。
+  inp.runHeld = inp.k.has('KeyW');
   inp.guardHold = false; inp.leftPressed = false; inp.chargeHold = false;
   let attacker = null, nearest = Infinity, impact = Infinity;
   let strikeAngle = null, crossed = false;
@@ -2595,7 +2592,10 @@ function retreatWithGuard(b, inp, goTo, x, z, r) {
   // 指と体が横・背へ向き直る間も見込み、正面の受けより早く構える。
   const guardLead = Math.cos(toward - u.heading) < 0.5 ? 1.3 : 0.9;
   inp.guardHold = impact <= guardLead;
-  inp.runHeld = false; inp.leftPressed = false; inp.chargeHold = false;
+  // 構えと回避は本人には使われない。向き直った後も、調べた隙間へ走る。
+  // 木戸で待つ時や、通れる足場が無い時には足を出さない。
+  inp.runHeld = !!inp.axis && Math.hypot(inp.axis.x, inp.axis.y) > .5;
+  inp.leftPressed = false; inp.chargeHold = false;
 }
 
 // 素直な遊び手：町口で朝倉と戦い、城へ退き、木戸に取り付く寄せ手を討つ

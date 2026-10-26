@@ -1195,6 +1195,13 @@ function admitSound(name, vol) {
   const now = observerClock ? observerClock() : ctx ? ctx.currentTime : performance.now() / 1000;
   // 足並みの音は1.2秒の間引きを受けない。ただし速回し（描かない流し）では音を作らず、同じ音は0.12秒あける（流しが音の節で埋まって止まった。10/7）
   if (FOOT_SOUNDS.has(name)) { if (window.__norender || (requestTimes[name] ?? -Infinity) > now - 0.12) return false; requestTimes[name] = now; if (soundObserver) soundObserver(name, vol); return true; }
+  // 遊び手の命中音は一打ごとに返す。連続命中でも三回で消さず、既存の同時発音上限は守る。
+  if (name === 'playerCut' || name === 'playerArmor') {
+    if ((requestTimes[name] ?? -Infinity) > now - 0.12) return false;
+    requestTimes[name] = now;
+    if (soundObserver) soundObserver(name, vol);
+    return true;
+  }
   const last = requestTimes[name] ?? -Infinity;
   if (now >= last && now - last < 1.2) { dropped++; return false; }
   if (!soundRunOk(name, observerClock ? now : soundClock)) { dropped++; return false; }
@@ -1289,6 +1296,7 @@ function emitSfx(name, vol) {
     case 'playerCut':
       if (!play('hit', 0.62 * vol, { wet: 0.025, jit: 0.1 })) { noise(0.07, 'lowpass', 1600, 0.8, 0.45 * vol); tone('sine', 170, 65, 0.11, 0.3 * vol); }
       noise(0.045, 'bandpass', 1800 + Math.random() * 300, 0.8, 0.1 * vol);
+      tone('sine', 125, 48, 0.1, 0.22 * vol); // 芯に当たる短い低音
       break;
     case 'playerArmor': if (!play('yoroi', 0.3 * vol, { wet: 0.04, jit: 0.1 })) { noise(0.04, 'bandpass', 2600, 2, 0.25 * vol); tone('triangle', 1350, 1000, 0.12, 0.08 * vol); } break;
     // 足もとへ崩れる重み。落城の合図の fall とは分ける。

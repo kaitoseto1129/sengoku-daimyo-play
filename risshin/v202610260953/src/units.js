@@ -683,13 +683,14 @@ export class Army {
     u.tatake = m;
   }
 
-  // 影を落とすのは本人だけ（10/24 kaito：ほかの兵・馬・物の影は影の地図に入れない）。変わった兵だけ部品を直す。
+  // 動く影は近くの兵・馬だけ。固定物の影は支度中に地面へ焼いてある。
   selectShadows(focus) {
     if (this.shadowNext > this.time) return;
     this.shadowNext = this.time + 1;
     for (const u of this.units) {
-      u.shadowSelected = !!u.isPlayer;
-      const on = !!u.isPlayer && u.qualityTier !== 2 && this.shadows !== false && u.alive && !u.dying && !u.gone;
+      const distance2 = focus ? (u.mesh.position.x - focus.x) ** 2 + (u.mesh.position.z - focus.z) ** 2 : Infinity;
+      u.shadowSelected = !!u.isPlayer || distance2 < this.shadowDist * this.shadowDist;
+      const on = u.shadowSelected && u.qualityTier !== 2 && this.shadows !== false && u.alive && !u.dying && !u.gone;
       if (u.shSet && u.shOn === on && !on) continue;
       u.shOn = on; u.shSet = true;
       u.mesh.traverse(o => {

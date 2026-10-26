@@ -156,7 +156,8 @@ export class WorldWeather {
     const shadowMap = 1024;   // 影は本人だけ（10/24）なので小さい的で足りる   // 記憶の少ない端末は影の的を 1/4 に（device_tier.js）
     this.sun.shadow.mapSize.set(shadowMap, shadowMap);
     const s = this.sun.shadow.camera;
-    s.left = -10; s.right = 10; s.top = 10; s.bottom = -10;   // 10/24：本人だけの影 s.near = 1; s.far = 300;   // 影は本人の回り 20m（兵の影16m・人の影11mを覆い、近くの影を細かく保つ）
+    s.left = -24; s.right = 24; s.top = 24; s.bottom = -24;
+    s.near = 1; s.far = 300;   // 近くの兵・馬・幟が落とす影の範囲
     this.sun.shadow.bias = -0.0008;
     this.sun.shadow.normalBias = 0.025;
     this.scene.add(this.sun);

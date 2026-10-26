@@ -344,7 +344,7 @@ export class HudArmy {
     const clashes = rt.world.clashes;
     while (work.i < (clashes?.length || 0) * 2) {
       const i = work.i % 2, C = clashes[Math.floor(work.i / 2)], D = i ? C.B : C.A;
-      if (C.blocks && C.mesh?.visible && D?.alive && !D.P.hidden) {
+      if (C.blocks && C.mesh?.visible && D?.alive && D.P && D.meshes && !D.P.hidden) {   // 形を後で作る乱戦（P・meshes が未だ無い）は数えない
         if (!this.countArmyParts(rt, work, D.meshes.bodyN, D.meshes.bodyF, D.host?.g.children[0], D.meshes.banners, D.host?.g.children[2], D.U, true, D.host?.U)) return false;
         if ((D.P.team ?? i) === 0) work.a += work.n; else work.b += work.n;
       }

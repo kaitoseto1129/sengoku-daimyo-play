@@ -93,8 +93,8 @@ function shadowRange(scene, x, z, walk, range = 24) {
     for (let i = 0; i < scene.children.length; i++) {
       const root = scene.children[i];
       walk.roots[i] = root; walk.frozen[i] = !!root._sf; versions[i] = root._sfVersion;
-      const scenery = root._sf || root.userData?.staticMerged || root.isMesh &&
-        !root.isSkinnedMesh && !root.material?.userData?.armyU && !root.userData?.armyBatch && root.name !== 'unitBatch';
+      const scenery = !root._armyUnit && !root.userData?.flag && !root.userData?.unitShadowBatch && (root._sf || root.userData?.staticMerged || root.isMesh &&
+        !root.isSkinnedMesh && !root.material?.userData?.armyU && !root.userData?.armyBatch && root.name !== 'unitBatch');
       // 解凍中は候補から外れる。再凍結時に同じ版でも必ず印を確かめ直す。
       if (!scenery) { walk.cache.delete(root); continue; }
       let cached = walk.cache.get(root);

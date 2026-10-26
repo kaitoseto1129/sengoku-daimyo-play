@@ -559,9 +559,10 @@ export const ArmyFx = {
   },
 
   // 粒：blood 血（暗い赤）・dust 土・cloth 布の埃。nx, nz の向きへ飛ぶ。gy は地面の高さ（そこで止める）
-  burst(x, y, z, n, type = 'dust', nx = 0, nz = 0, gy = null) {
+  burst(x, y, z, n, type = 'dust', nx = 0, nz = 0, gy = null, impact = false) {
     this.fxStats.burstCalls++;
-    if (type === 'dust' || type === 'blood') return;   // 10/24：土埃・血の粒は作らない（全戦）
+    if ((type === 'dust' || type === 'blood') && !impact) return; // 命中した所の小さな粒だけ許す
+    if (type === 'blood' && (!bloodLv() || this.hideBlood)) return;
     if (!this.fxVisible(x, y, z)) return;
     n = Math.min(this.pN, S.reduceMotion ? Math.ceil(n / 2) : Math.ceil(n));
     if (n <= 0) return;
@@ -580,7 +581,7 @@ export const ArmyFx = {
       this.pVel[i * 3 + 2] = nz * sp + (Math.random() - 0.5) * 1.2;
       const j = (0.85 + Math.random() * 0.3) * (mud ? 0.48 : 1);
       this.pCol[i * 3] = C[0] * j; this.pCol[i * 3 + 1] = C[1] * j; this.pCol[i * 3 + 2] = C[2] * j;
-      this.pLife[i] = mud ? 0.22 + Math.random() * 0.15 : 0.5 + Math.random() * 0.4;
+      this.pLife[i] = impact ? 0.18 + Math.random() * 0.14 : mud ? 0.22 + Math.random() * 0.15 : 0.5 + Math.random() * 0.4;
       this.pGround[i] = gy;
     }
     this.points.geometry.attributes.color.needsUpdate = true;

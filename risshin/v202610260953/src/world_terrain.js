@@ -859,6 +859,7 @@ export class WorldTerrain {
           outgoingLight = mix(outgoingLight, min(outgoingLight, soilLightLimit), (1.0 - wat) * 0.96);
           ` : ''}
           #include <opaque_fragment>`);
+      this.staticLight.compile(sh);
     };
     const mesh = new THREE.Mesh(geo, mat);
     mesh.receiveShadow = true;

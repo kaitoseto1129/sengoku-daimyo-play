@@ -59,18 +59,62 @@ const SPOTS = [{ x: 0, z: BANK_Z - 1 }, { x: -26, z: BANK_Z }, { x: 26, z: BANK_
 const BUILD_HOLD = 8;                      // 人足と並行して補修する
 const WATCH_HOLD = 8;                      // 近い岸で水路を見張る
 const HELP_HOLD = 4;                       // 人足と手分けし、本人は横木の縄を締める
-const SALLY_HOLD = 120;                    // 後の舟まで受け、岸が静まってから囲みへ移る
+const SALLY_HOLD = 160;                    // 約四〜七分：後続舟まで受け、同じ兵のまま守備時間を確保する
 const SHORE_DELAY = 25;                    // 最初の十人に続き、同じ舟の残る門徒も上陸する
-const SALLY_LIMIT = 220;                   // 残る敵は東の柵で受ける
+const SALLY_LIMIT = 180;                   // 残る敵は東の柵で受ける
 const PUSH_HOLD = 20;                      // 四人以上が背後へ押し込み続けた時間
-const FINAL_LIMIT = 100;                   // 三か所の確認と見張りに使える時間
-const FINAL_MOVE_LIMIT = 45;               // 深手で歩く移動にも猶予を取り、立ち止まり続けても期限は始める
+const FINAL_LIMIT = 80;                   // 三か所の確認と見張りに使える時間
+const FINAL_MOVE_LIMIT = 25;               // 深手で歩く移動にも猶予を取り、立ち止まり続けても期限は始める
 const FINAL_HOLD = 24;                     // 敵が散った後は、味方と包囲の口を見張る
 const CHECK_HOLD = 4;                      // 縄と横木の確認。戦いの合間に一か所ずつ確かめる
 const CHECK_SPOTS = [20, 26, 32].map(x => ({ x, z: BANK_Z + 2 }));
 const CHECK_NAMES = ['東の柵の縄（一つ目）', '東の柵の縄（二つ目）', '東の柵の縄（三つ目）'];
-const ODA = { flag: 'oda' };
-const IKKO = { armor: 0x3a342c, lace: 0x5a5040, cloth: 0x4a4236, hat: 'hachimaki', flag: 'namu' };
+// 本の足軽：弁柄の陣笠と黒漆の胴、紺の小袖。既存の具足の色だけを替える。
+const ODA = { flag: 'oda', armor: 0x28231f, hatColor: 0x713d30, lace: 0x645545, cloth: 0x293b45, haori: 0 };
+const IKKO = { armor: 0x3a342c, lace: 0x5a5040, cloth: 0x4a4236, hat: 'hachimaki', hatColor: 0x713d30, flag: 'namu', haori: 0 };
+
+// 上陸した同じ門徒だけを追う。舟・対岸の守兵へ持ち場を離れさせない。
+function bankFoeReady(u) {
+  return !!u?.alive && u.hp > 0 && !u.gone && !u.dying && !u.downed &&
+    !u.fleeing && !u.woundOut && !u.rearWound && !u.noTarget &&
+    !u.group?.routed && !u.boatSeat?.aboard && u.pos.z >= BANK_Z - 3;
+}
+function bankNearestFoe(rt) {
+  const F = rt.flags, p = rt.player.u.pos;
+  if (F.step !== 3 && F.step !== 3.5 || F.ending) return null;
+  if (F.bankFoeStep === F.step && rt.t < F.bankFoeAt && bankFoeReady(F.bankFoe)) return F.bankFoe;
+  F.bankFoeStep = F.step;
+  F.bankFoeAt = rt.t + .25;
+  let foe = null, best = Infinity;
+  for (const g of F.last || []) for (const u of g.units) {
+    if (!bankFoeReady(u)) continue;
+    if (F.step === 3.5 && Math.hypot(u.pos.x - 24, u.pos.z - (BANK_Z + 6)) >= 14) continue;
+    const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
+    if (d < best) { best = d; foe = u; }
+  }
+  F.bankFoe = foe;
+  return foe;
+}
+function bankCheckThreat(rt) {
+  const p = rt.player.u;
+  for (const g of rt.flags.last || []) for (const u of g.units) {
+    if (!bankFoeReady(u)) continue;
+    const d = Math.hypot(u.pos.x - p.pos.x, u.pos.z - p.pos.z);
+    if ((d < 2.8 || d < 6 && (u.target === p || u.atk?.target === p ||
+        u.swing && !u.swing.done && u.swing.target === p)) && !rt.army.wallBetween(p.pos, -1, u.pos)) return true;
+  }
+  return false;
+}
+function bankWorkSpot(rt) {
+  const F = rt.flags, p = rt.player.u.pos;
+  let spot = null, best = Infinity;
+  for (let i = 0; i < SPOTS.length; i++) {
+    if (F.raised?.[i]) continue;
+    const q = SPOTS[i], d = (q.x - p.x) ** 2 + (q.z - p.z) ** 2;
+    if (d < best) { best = d; spot = q; }
+  }
+  return spot;
+}
 
 // 見張りは体ではなく視線で判定する。肩越しを回した時も、下知と達成をそろえる。
 function watchingRiver(rt) {
@@ -771,8 +815,9 @@ function retreatBoats(rt) {
       order: 'hold', aggro: 0, seekRange: 0, morale: 60, noRout: true, fire: false, historicalOrders: true,
       fleeDir: { x: k === 0 ? -1 : 1, z: 0.4 } },
       // 刀で斬り込む強さは保つが、鎧のない門徒の体力は足軽と同じにする。
-      dress(Array.from({ length: 15 }, (_, i) => ({ type: 'samurai', n: 1, o: { hp: 30, maxHp: 30, kosode: i % 5 < 3 ? 1 : 0, kosodeCol: [0x34332e, 0x484339, 0x292c2b][i % 3], cloth: 0x34332e, hat: i % 5 === 3 ? 'jingasa' : 'hachimaki', flag: i % 5 === 4 ? 'namu' : null, weapon: i % 5 === 2 ? 'sword' : 'spear', spear: 'su', horse: false, sode: false, kote: 0, menpo: 0 } })), IKKO));
+      dress(Array.from({ length: 15 }, (_, i) => ({ type: 'samurai', n: 1, o: { hp: 30, maxHp: 30, ...(k === 2 && i === 0 ? { name: '門徒の指揮役', flagScale: 1.8 } : {}), kosode: i % 5 < 3 ? 1 : 0, kosodeCol: [0x34332e, 0x484339, 0x292c2b][i % 3], cloth: 0x34332e, hat: i % 5 === 3 ? 'jingasa' : 'hachimaki', flag: k === 2 && i === 0 || i % 5 === 4 ? 'namu' : null, weapon: i % 5 === 2 ? 'sword' : 'spear', spear: 'su', horse: false, sode: false, kote: 0, menpo: 0 } })), IKKO));
     F.last.push(g);
+    if (k === 2) { F.sallyBoss = g.units[0]; g.leader = F.sallyBoss; }
     dressMonTo(g);
     for (let j = 0; j < 3; j++) {
       const x = frontX + (j - 1) * 4, z = -42;
@@ -1172,6 +1217,83 @@ const TOWN_STREAMS = [...RIVER_STREAMS,
 ];
 
 const nagashima = {
+  // 稲生と同じ共通表示へ。段の丸・補足・空振り音・自分の足元の輪を省く。
+  missionSingleLine: true,
+  hideMissionDots: true,
+  enemyTriangleSigns: true,
+  nearbyAllySignLimit: 0,
+  noDodgeCard: true,
+  noPlayerFoot: true,
+  quietMiss: true,
+  missionPinCaption: '',
+  missionDetail: () => '',
+  missionStatus: () => '',
+  bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|降伏|火/.test(text),
+  missions: ['横木を直せ', '舟を見張れ', 'ここを守れ', 'この敵をたおせ', '東の柵を確かめよ', '対岸を見よ'],
+  missionOf(rt) {
+    const F = rt.flags;
+    if (F.ending) return 5;
+    if (F.step <= 1) return !rt.G.lord && !F.participated && !F.helped && bankWorkSpot(rt) ? 0 : 1;
+    if (F.step < 3) return F.step === 2 ? 2 : 1;
+    const foe = bankNearestFoe(rt);
+    if (dangerProgress(rt) || F.broken && F.step === 3) return 2;
+    if (F.step === 3.5) {
+      // 遠い敵は味方が受ける。本人を攻める敵がなければ次の縄を先に案内する。
+      if ((F.finalChecked || 0) < 3 && !bankCheckThreat(rt)) return 4;
+      return foe ? 3 : 1;
+    }
+    return foe ? 3 : 2;
+  },
+  missionHeading(rt) {
+    const F = rt.flags, stage = this.missionOf(rt), p = rt.player.u.pos;
+    if (F.ending) return F.failureReason ? '持ち場を守れなかった' : '対岸を見よ';
+    if (dangerProgress(rt)) return '味方の後ろへ下がれ';
+    if (stage === 0) {
+      const q = bankWorkSpot(rt);
+      return q && Math.hypot(p.x - q.x, p.z - q.z) >= 3 ? '横木の印へ' : '縄を締めよ';
+    }
+    if (stage === 4) {
+      const q = CHECK_SPOTS[F.finalChecks.indexOf(false)];
+      return q && Math.hypot(p.x - q.x, p.z - q.z) >= 3 ? '東の柵の印へ' : '縄を確かめよ';
+    }
+    if (stage === 1) return watchingRiver(rt) ? '舟を見張れ' : '川を向いて見張れ';
+    if (stage === 3 && this.commanderTarget(rt)) return '門徒の指揮役をたおせ';
+    return this.missions[stage];
+  },
+  missionSignTarget(rt) { return this.missionOf(rt) === 3 ? bankNearestFoe(rt) : null; },
+  // 指揮官の実名は不明。後続の既存の一人を指揮役とする遊び上の復元。
+  commanderSignTarget(rt) {
+    const u = rt.flags.sallyBoss;
+    return !rt.flags.ending && bankFoeReady(u) ? u : null;
+  },
+  commanderTarget(rt) {
+    const u = this.commanderSignTarget(rt);
+    return u && this.missionOf(rt) === 3 && bankNearestFoe(rt) === u ? u : null;
+  },
+  namedGuideTarget(rt) { return this.commanderTarget(rt); },
+  missionPin(rt) {
+    const F = rt.flags, p = rt.player.u.pos;
+    if (F.ending || rt.over || !rt.player.u.alive) return null;
+    const q = F.bankPin || (F.bankPin = { x: 0, z: 0, r: 5, hide: 5 });
+    q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false;
+    q.always = true; q.silent = true; q.defend = false;
+    const stage = this.missionOf(rt);
+    let spot = null;
+    if (dangerProgress(rt)) { q.x = 24; q.z = BANK_Z + 16; q.r = q.hide = 3; return q; }
+    if (stage === 3) {
+      const u = bankNearestFoe(rt);
+      if (!u || rt.player.inRange && rt.player.rangeCueTarget === u) return null;
+      q.x = u.pos.x; q.z = u.pos.z; q.unit = u; q.enemy = true; q.r = q.hide = 2;
+      return q;
+    }
+    if (stage === 0) spot = bankWorkSpot(rt);
+    else if (stage === 4) spot = CHECK_SPOTS[F.finalChecks.indexOf(false)];
+    if (spot) { q.x = spot.x; q.z = spot.z; q.r = q.hide = 3; return q; }
+    q.x = F.step === 3.5 || F.broken ? 24 : F.step === 1.25 ? SPOTS[nearestBankSpot(p)].x : 0;
+    q.z = BANK_Z + (F.step === 3.5 ? 6 : 5); q.r = q.hide = 5;
+    q.waiting = true; q.arrived = Math.hypot(p.x - q.x, p.z - q.z) < q.r;
+    return q;
+  },
   introTaskFirst: true, // 低い横画面でも、人物紹介より先に最初の仕事を見せる。
   introKeepControls: true, // 四秒長押しの説明を、開戦前の言い換えで落とさない。
   introPeopleFolded: true, // 人物紹介で下知を押し出さず、読みたい時に開く。
@@ -1198,10 +1320,10 @@ const nagashima = {
     }
     return false;
   },
-  taskDetails: true, // 携帯でも、守る残り時間と柵の確認数を任務の下に残す。
+  taskDetails: false, // 任務の補足は畳み、右上を一行に保つ。
   keepCombatTask: true, // 構えの案内中も、持ち場と残り時間を隠さない。
   keepCombatTaskHeading: true,
-  keepCombatTaskDetail: true, // 斬り合いの案内でも、守る残り時間・縄の確認数・退く理由を残す。
+  keepCombatTaskDetail: false,
   // 構える足元の輪を、守る柵の範囲と取り違えさせない。操作は釦で伝える。
   combatTaskLabel(rt) {
     const F = rt.flags;
@@ -1410,6 +1532,7 @@ const nagashima = {
   spawn: { x: 3, z: BANK_Z + 7, heading: Math.PI },
   world: {
     seed: 1574,
+    noHaori: true, // 本の足軽姿を保ち、武将も陣羽織・マントを着せない。
     time: 'day',
     drawTimeUnitParts: true, // 骨と具足の逆行列を描く時にそろえ、移動後の手・笠・槍を取り残さない。
     keepPinnedArrowSize: true, // 胴や骨の倍率で刺さった矢を長槍ほどに伸ばさず、飛来時の実寸を保つ。
@@ -1512,101 +1635,7 @@ const nagashima = {
     document.body.appendChild(F.hurtEdge);
     F.localStyle = document.createElement('style');
     F.localStyle.textContent = '#vignette.hurt,#vignette.dying,body.rm #vignette.dying{animation:none!important;box-shadow:inset 0 0 48px rgba(110,34,24,.25)!important;background-color:transparent!important}#brinkfx{opacity:.25!important}';
-    // この岸だけ、低い横画面でも下知と傷の知らせを最後まで読める高さを取る。
     rt.hud.root.classList.add('nagashima-bank');
-    F.localStyle.textContent += `
-/* 長島の任務と声は同じ欄で積む。警告が先に来ても札の高さを保つ。 */
-html body #hud.nagashima-bank #battle-notices:not(.choosing) > :is(#objectives,#battle-message,#tutorial,#banner,#situation,#skiphint) {
-  position:relative !important; inset:auto !important; transform:none !important;
-  width:100% !important; height:auto !important; flex:0 0 auto; min-width:0;
-  max-width:100% !important; box-sizing:border-box;
-  max-height:none !important; white-space:normal; overflow-wrap:anywhere;
-}
-/* 共通の台詞の表示指定より強く畳む。消えた台詞を空の黒い札として残さない。 */
-html body #hud.nagashima-bank #battle-notices #battle-message > #subtitle:is([hidden],.notice-muted),
-html body #hud.nagashima-bank #battle-notices #battle-message > .battle-notice[hidden] {
-  display:none !important;
-}
-html body #hud.nagashima-bank #battle-notices #objectives:not(.expand) :is(li.cur,.obj-text,.obj-now) {
-  white-space:normal !important; overflow-wrap:anywhere;
-  height:auto !important; max-height:none !important; overflow:visible; line-height:1.4 !important;
-}
-/* 種別の札を隠すと、本文が二列組みの細い一列目へ入る。今の任務は一列で積む。 */
-html body #hud.nagashima-bank #battle-notices #objectives:not(.expand) li.cur {
-  display:block !important; min-width:0;
-}
-html body #hud.nagashima-bank #battle-notices #objectives:not(.expand) li.cur :is(.obj-text,.obj-now,small) {
-  width:100%; min-width:0; box-sizing:border-box;
-}
-/* 接敵中の共通の省略でも、長島は舟・守備時間・縄の進みを一行目の下へ残す。 */
-html body #hud.nagashima-bank #battle-notices:not(.choosing) #objectives.task-details:not(.expand) #obj-list li.cur > small:not(.goal-place):not(.obj-cue) {
-  display:block !important; font-size:max(13px, calc(13px * var(--text-scale, 1))) !important;
-  line-height:1.4 !important; white-space:pre-line !important; overflow:visible !important;
-}
-@media (min-height:501px) {
-  /* 右上の小地図と、中央の敵味方の帯から離す。 */
-  html:not(.touch) body #hud.nagashima-bank #battle-notices:not(.choosing):not(:has(#objectives.expand)) {
-    left:16px !important; right:auto !important; top:104px !important;
-    width:min(320px, 30vw) !important; gap:8px;
-    max-height:calc(100% - 304px) !important;
-  }
-}
-@media (orientation:landscape) and (max-height:500px) {
-  html body #hud.nagashima-bank #intro > .card.card {
-    width:min(560px, calc(100vw - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
-    height:calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-    max-height:calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
-    padding:8px 16px;
-  }
-  #hud.nagashima-bank #intro .intro-reading { width:100%; padding-bottom:16px; scroll-padding-bottom:16px; }
-  #hud.nagashima-bank #intro > .card::after {
-    content:'下知の続きは、上下になぞって読めます';
-    order:1; flex:0 0 auto; font-size:13px; line-height:1.4; color:#ece4d2;
-  }
-  #hud.nagashima-bank #intro-go { order:2; }
-  html.touch #hud.nagashima-bank #intro .intro-person b {
-    font-size:max(20px, calc(20px * var(--text-scale, 1)));
-  }
-  html.touch #hud.nagashima-bank #intro .intro-reading p {
-    margin:4px 0;
-  }
-  html.touch body #hud.nagashima-bank #battle-notices:not(.choosing),
-  html.touch.tc-low body #hud.nagashima-bank #battle-notices:not(.choosing) {
-    width:min(320px, calc(50vw - 104px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))) !important;
-    max-height:min(38vh, calc(100% - var(--notice-top, 60px) - env(safe-area-inset-top, 0px) - max(104px, var(--notice-floor, 104px)))) !important;
-  }
-  /* 行き先と距離は印で伝える。進みと操作は残し、任務を開けば全文を読める。 */
-  html.touch body #hud.nagashima-bank #battle-notices:not(.choosing) #objectives:not(.expand) #obj-list li.cur small.goal-place {
-    display:none !important;
-  }
-  /* 間合いの札を任務・打ち込みの声から離し、目の前の敵の顔を空ける。 */
-  html.touch #hud.nagashima-bank #crosshair .range-cue {
-    top:24px; bottom:auto;
-  }
-  /* 傷の次の行を一息で読ませ、「下がる」だけが三行目へ落ちるのを防ぐ。 */
-  html.touch body #hud.nagashima-bank .bl #h-hp.hp em small {
-    font-size:max(16px, calc(16px * var(--text-scale, 1))) !important;
-    white-space:nowrap; overflow-wrap:normal; line-height:1.4;
-  }
-  html.touch body #hud.nagashima-bank .bl #h-hp.hp em small svg {
-    width:calc(18px * var(--text-scale, 1)); height:calc(22px * var(--text-scale, 1));
-  }
-  /* 親指で押せる高さを保ち、岸の敵と舟を覆う札の幅を減らす。 */
-  html.touch #hud.nagashima-bank #wait-guard {
-    left:auto !important; right:calc(16px + env(safe-area-inset-right, 0px)) !important;
-    top:calc(104px + env(safe-area-inset-top, 0px)) !important; bottom:auto !important;
-    width:216px; min-height:64px; padding:6px; border-width:2px;
-    grid-template-columns:28px minmax(0, 1fr) 20px; column-gap:6px; row-gap:2px;
-  }
-  html.touch.tc-sw #hud.nagashima-bank #wait-guard {
-    left:calc(16px + env(safe-area-inset-left, 0px)) !important; right:auto !important;
-  }
-  html.touch #hud.nagashima-bank #wait-guard svg:first-child { width:28px; height:36px; }
-  html.touch #hud.nagashima-bank #wait-guard svg + svg { width:20px; height:28px; }
-  html.touch #hud.nagashima-bank #wait-guard :is(span,small) {
-    font-size:max(16px, calc(16px * var(--text-scale, 1))); line-height:1.4;
-  }
-}`;
     document.head.appendChild(F.localStyle);
     // この戦の槍の説明は、短い一文だけにする。
     const flash = rt.hud.flash;
@@ -1913,7 +1942,7 @@ html body #hud.nagashima-bank #battle-notices:not(.choosing) #objectives.task-de
     F.takigawaShip = F.ships[1].m;
     // ---- 柴田勝家の手（自分の持ち場）と、柵を結う者 ----
     F.shiba = allyGroup(rt, { name: '柴田勝家の手', fixed: true, anchor: { x: 0, z: BANK_Z + 8 }, facing: Math.PI, width: 8, aggro: 10, formation: 'yari', yariRanks: 3 },
-      dress([{ type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true, horse: false, hat: 'kabuto_m', haori: 0x3a2a1a } }, { type: 'ashigaru', n: 16 }, { type: 'bow', n: 4 }], ODA));
+      dress([{ type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true, horse: false, hat: 'kabuto_m', haori: 0 } }, { type: 'ashigaru', n: 16 }, { type: 'bow', n: 4 }], ODA));
     F.shibaU = F.shiba.units[0];
     F.teppo = allyGroup(rt, { name: '織田の鉄砲衆', fixed: true, anchor: { x: 34, z: BANK_Z + 6 }, facing: Math.PI, width: 6, formation: 'line', ranks: 2, aggro: 36, fire: false },
       dress([{ type: 'busho', n: 1, o: { name: '鉄砲組頭', invuln: true, horse: false } }, { type: 'gun', n: 12 }], ODA));
