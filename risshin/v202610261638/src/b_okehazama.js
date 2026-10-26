@@ -26,7 +26,7 @@ import { localPoint } from './army_local_way.js';
 // ======================================================================
 // 第1戦　桶狭間
 // ======================================================================
-// 紋を読まなくても、味方の黒と藍・横広の指物を敵の赤茶・縦長と見分ける。
+// 味方は横広の指物、敵は縦長の指物と頭上の赤い▼で見分ける。
 // 装束は生成時だけ指定し、名のある武将の私物は保つ。
 function allyGroup(rt, options, list) {
   return commonAllyGroup(rt, options, list.map((spec) => spec.o?.name ? spec : {
@@ -35,15 +35,15 @@ function allyGroup(rt, options, list) {
   }));
 }
 
-// 今川の貸し具足は赤茶の胴に朱・萌黄の威。名のある武将の私物は保つ。
+// 貸し具足を赤く塗り分けず、敵の所属は頭上の▼で示す。武将の私物は保つ。
 // 旗本の増援にも同じ仕立てを使い、人数・能力・進行条件は変えない。
 function enemyGroup(rt, options, list) {
   const dressed = [];
   for (const spec of list) {
     if (spec.o?.name) { dressed.push({ ...spec, o: { flag: 'imagawa', ...spec.o } }); continue; }
     for (let i = 0; i < spec.n; i++) dressed.push({ ...spec, n: 1,
-      o: { armor: i % 2 ? 0x493a28 : 0x542e25, lace: i % 2 ? 0x79934b : 0xad4932,
-        hatColor: i % 3 ? 0x493a28 : 0x302c28,
+      o: { armor: i % 2 ? 0x38372f : 0x302e2a, lace: i % 2 ? 0x62694b : 0x685b43,
+        hatColor: i % 3 ? 0x38372f : 0x302c28,
         ...(spec.type === 'ashigaru' ? { hat: i % 6 === 0 ? 'kabuto' : i % 3 === 0 ? 'jingasa_n' : 'jingasa' } : {}),
         flag: 'imagawa', mon: 'imagawa', ...spec.o, flagShape: 1 } });
   }
@@ -450,13 +450,116 @@ useTerrain('dem_okehazama', (data) => { okeDem = data; });
 const OKE_DEM_OPTIONS = { scale: 1, xyScale: 1 };
 const okeHeight = (dem, x, z, b) => dem ? demBlend(dem, x, z, b, OKE_DEM_OPTIONS, b - 5) : b;
 
+// 雨覆いの位置は一か所で管理し、木組み・荷物を布の下へ収める。
+const OKE_COVERS = [[2, -112, 0.12], [34, -119, -0.16],
+  [-24, -112, 0.2], [-30, -126, -0.12], [53, -114, -0.2], [58, -130, 0.1]];
+
+// 写真の丸太の貫・板盾・縄掛けを、休息陣の設営道具として推定復元。
+// 荷置き場だけ三束にまとめる。動く部品・新しい当たり・光源は足さない。
+function okeCampTools(scenery) {
+  const W = scenery.world, batches = [[], [], []];
+  const shapes = [new THREE.BoxGeometry(1, 1, 1), new THREE.CylinderGeometry(1, 1, 1, 6),
+    new THREE.TorusGeometry(1, 0.045, 3, 8),
+    new THREE.LatheGeometry([new THREE.Vector2(0, 0), new THREE.Vector2(0.27, 0),
+      new THREE.Vector2(0.43, 0.18), new THREE.Vector2(0.4, 0.43),
+      new THREE.Vector2(0.35, 0.43), new THREE.Vector2(0.36, 0.2),
+      new THREE.Vector2(0.23, 0.06), new THREE.Vector2(0, 0.06)], 10)];
+  const templates = shapes.map((g) => { const flat = g.toNonIndexed(); g.dispose(); return flat; });
+  const matrix = new THREE.Matrix4(), orientation = new THREE.Quaternion(), scale = new THREE.Vector3();
+  const position = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), direction = new THREE.Vector3();
+  const identity = new THREE.Quaternion();
+  const color = new THREE.Color();
+  const piece = (parts, type, x, y, z, sx, sy, sz, tone, rotation = null, fine = false) => {
+    position.set(x, y, z); scale.set(sx, sy, sz);
+    matrix.compose(position, rotation || identity, scale);
+    const geo = templates[type].clone(); geo.applyMatrix4(matrix);
+    const P = geo.attributes.position, colors = new Float32Array(P.count * 3);
+    color.setHex(tone);
+    for (let i = 0; i < P.count; i++) {
+      // 木の削り口・竹節・泥の濃淡は頂点へ焼き、絵の読み込みを増やさない。
+      const k = 0.9 + 0.1 * Math.sin(P.getX(i) * 29 + P.getY(i) * 17 + P.getZ(i) * 11);
+      colors[i * 3] = color.r * k; colors[i * 3 + 1] = color.g * k; colors[i * 3 + 2] = color.b * k;
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    // 複製元の userData を共有しない。竹節だけを遠景から省く指定を保つ。
+    geo.userData = { okeFine: fine }; parts.push(geo);
+  };
+  const rod = (parts, ax, ay, az, bx, by, bz, radius, tone, fine = false) => {
+    direction.set(bx - ax, by - ay, bz - az);
+    const length = direction.length(); orientation.setFromUnitVectors(up, direction.normalize());
+    piece(parts, 1, (ax + bx) / 2, (ay + by) / 2, (az + bz) / 2,
+      radius, length, radius, tone, orientation, fine);
+  };
+  const ringTurn = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+  for (const [i, [x, z, turn]] of OKE_COVERS.entries()) {
+    const parts = [];
+    rod(parts, 0, 2.45, -2.05, 0, 2.45, 2.05, 0.075, 0x776045);
+    for (const end of [-1, 1]) {
+      // 三角の妻の横木と縛り。地面の杭は布の直下に収める。
+      rod(parts, -2.3, 1.65, end * 1.9, 2.3, 1.65, end * 1.9, 0.055, 0x6c563d);
+      rod(parts, 0, 2.44, end * 1.9, 0, 0.12, end * 2.15, 0.012, 0x9b8964);
+      for (const px of [-2.3, 0, 2.3]) for (let j = 0; j < 3; j++)
+        piece(parts, 2, px, (px === 0 ? 2.4 : 1.61) + j * 0.025, end * 1.9,
+          0.072, 0.072, 0.072, 0xb1a17a, ringTurn, true);
+    }
+    // 七本を縄で束ねた青竹。雨覆いの後ろ半分だけを使う。
+    for (let j = 0; j < 7; j++) {
+      const px = -1.4 + (j % 4) * 0.19, py = 0.15 + Math.floor(j / 4) * 0.18;
+      rod(parts, px, py, -1.45, px, py, 0.9, 0.085, j % 2 ? 0x666944 : 0x82805a);
+      for (let n = 0; n < 5; n++) rod(parts, px, py, -1.4 + n * 0.55,
+        px, py, -1.37 + n * 0.55, 0.094, 0xa39b69, true);
+    }
+    for (const pz of [-0.95, 0.45]) {
+      rod(parts, -1.54, 0.12, pz, -1.54, 0.46, pz, 0.018, 0xb4a17a);
+      rod(parts, -1.54, 0.46, pz, -0.65, 0.46, pz, 0.018, 0xb4a17a);
+      rod(parts, -0.65, 0.46, pz, -0.65, 0.12, pz, 0.018, 0xb4a17a);
+    }
+    // 濡れた板の手盾と伏せた板を重ね、裏の横桟と足を見せる。
+    const lean = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -0.2);
+    for (let j = 0; j < 5; j++) piece(parts, 0, 1.2 + j * 0.19, 0.72, -0.8,
+      0.18, 1.32, 0.095, j % 2 ? 0x817050 : 0x94805a, lean);
+    for (const y of [0.3, 1.12]) rod(parts, 1.02, y, -0.7, 2.14, y, -0.7, 0.045, 0x544735);
+    rod(parts, 1.6, 0.85, -0.68, 1.6, 0.08, 0.1, 0.045, 0x544735);
+    piece(parts, 0, 1.55, 0.09, 0.1, 0.94, 0.08, 1.4, 0x6e5c43);
+    const local = new THREE.Matrix4().makeRotationY(-turn);
+    local.setPosition(x, W.heightAt(x, z), z);
+    for (const geo of parts) { geo.applyMatrix4(local); batches[Math.floor(i / 2)].push(geo); }
+  }
+  // 既存の焚火の脇に、消えかけの炊事の釜と三脚。雨後なので土埃は増やさない。
+  for (const [x, z] of [[-32, -118], [50, -92]]) {
+    const parts = batches[x < 0 ? 1 : 2], h = W.heightAt(x, z);
+    piece(parts, 3, x, h + 0.35, z, 1, 1, 1, 0x35342e);
+    for (let j = 0; j < 3; j++) {
+      const a = j * Math.PI * 2 / 3;
+      rod(parts, x + Math.cos(a) * 0.68, h, z + Math.sin(a) * 0.68,
+        x, h + 1.55, z, 0.035, 0x66553e);
+    }
+    rod(parts, x, h + 0.78, z, x, h + 1.52, z, 0.012, 0x41392b);
+  }
+  const material = new THREE.MeshLambertMaterial({ vertexColors: true });
+  for (const parts of batches) {
+    const hi = mergeGeometries(parts), lo = mergeGeometries(parts.filter((g) => !g.userData.okeFine));
+    hi.computeBoundingSphere();
+    const center = hi.boundingSphere.center.clone(), lod = new THREE.LOD();
+    // 遠くでは竹節と縄巻きを省く。三地点だけの距離判定にし、更新用の配列は作らない。
+    lod.position.copy(center);
+    for (const [geo, distance] of [[hi, 0], [lo, 38]]) {
+      geo.translate(-center.x, -center.y, -center.z); geo.computeBoundingSphere();
+      const mesh = new THREE.Mesh(geo, material); mesh.receiveShadow = true;
+      lod.addLevel(mesh, distance, 0.12);
+    }
+    scenery.scene.add(lod);
+    for (const geo of parts) geo.dispose();
+  }
+  for (const geo of templates) geo.dispose();
+}
+
 // 既存の兵糧の上だけへ雨覆いを張る。支柱と布は二つの描画束にまとめる。
 // 道・幕の口・兵の場所には置かず、当たりや通り道を増やさない。
 function okeSupplyCovers(scenery) {
   const world = scenery.world, cloth = [], poles = [];
   // 左右の兵糧場まで同じ雨覆いを続け、本陣を幕一枚だけの場所にしない。
-  for (const [x, z, turn] of [[2, -112, 0.12], [34, -119, -0.16],
-    [-24, -112, 0.2], [-30, -126, -0.12], [53, -114, -0.2], [58, -130, 0.1]]) {
+  for (const [x, z, turn] of OKE_COVERS) {
     const c = Math.cos(turn), s = Math.sin(turn);
     const geo = new THREE.PlaneGeometry(4.6, 3.8, 6, 4);
     geo.rotateX(-Math.PI / 2);
@@ -565,7 +668,7 @@ const okehazama = {
   // 右上はミッションの一行だけ。距離・向き・操作の字を見出しに出さない（kaito 10/23 49・50）。
   // 間合いと命中は頭上の▼で示し、別の距離案内は出さない。
   enemyOrder(rt, enemy) {
-    return enemy && enemy === rt.flags.yoshimoto ? '今川義元をたおせ' : '今川の兵を倒せ';
+    return enemy && enemy === rt.flags.yoshimoto ? '今川義元をたおせ' : '▼の敵をたおせ';
   },
   // 大将の印：義元を討つ段だけ、地図と戦場で大将の印を大きくする（稲生の型）。
   commanderTarget(rt) {
@@ -680,7 +783,7 @@ const okehazama = {
   missionSingleLine: true,
   hideGuideSteps: true,
   // 稲生の型：短い一行。兵は頭上の▼、大将は名で呼び、討った瞬間に次の一行へ替える。
-  missions: ['ピンに集まれ', 'ピンに集まれ', '雨がやむまで待て', '今川の兵を倒せ', '今川義元をたおせ', 'にげる敵を追え', '味方と集まれ'],
+  missions: ['ピンに集まれ', 'ピンに集まれ', '雨がやむまで待て', '▼の敵をたおせ', '今川義元をたおせ', 'にげる敵を追え', '味方と集まれ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -1812,6 +1915,7 @@ const okehazama = {
     // 本陣の脇に兵糧の俵
     scenery.scene.add(tawara(W, HONJIN.x - 16, HONJIN.z + 4, 0.3, 6), tawara(W, HONJIN.x + 16, HONJIN.z - 3, -0.5, 5));
     const supplyCloth = okeSupplyCovers(scenery);
+    okeCampTools(scenery);
     for (const [x, z] of [[6, -106], [30, -106]]) scenery.scene.add(nobori(W, x, z, 'imagawa', 5.5));
     // 今川の赤鳥の幟：白地に朱の赤鳥（櫛の形）。本陣の奥に混ぜる
     customFlag('akadori', (g) => {
@@ -2127,8 +2231,8 @@ const okehazama = {
     rt.army.guideWayEnemy = this.missionSignTarget(rt);
     rt.army.guideWayAt = rt.army.time;
     this.horoDetail(rt);
-    if (rt.phase === 'brief' && !F.briefed && F.genpachi && readyUnit(F.genpachi) &&
-        this.squadFlagReached(rt)) this.brief(rt);
+    // 集合の輪へ入ったら到着。隊長の負傷や戦闘状態を隠れた追加条件にしない。
+    if (rt.phase === 'brief' && !F.briefed && this.squadFlagReached(rt)) this.brief(rt);
     nagashinojo.kit.backTick(rt);
     this.guideBack(rt);
     this.moveFar(rt, dt);

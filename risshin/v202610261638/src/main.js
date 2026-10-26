@@ -111,7 +111,7 @@ function isTouchLd() { return document.documentElement.classList.contains('touch
 // 段の並びを決めて、棒を 0 から始める。keys：この読み込みで通る段
 function ldBegin(keys, battle = '') {
   const L = { ...ldLearned(), ...ldLearned(battle) }, mul = isTouchLd() ? 1.6 : 1;
-  ldPlan = { keys, battle, est: keys.map((k) => L[k] ?? LD_DEF[k] * mul), cur: -1, t: performance.now(), t0: performance.now(), hidden: document.hidden, progress: 0 };
+  ldPlan = { keys, battle, est: keys.map((k) => L[k] ?? LD_DEF[k] * mul), cur: -1, part: 0, t: performance.now(), t0: performance.now(), hidden: document.hidden, progress: 0 };
   const bar = document.querySelector('#loading .ldbar i');
   if (bar) { bar.style.transition = 'none'; bar.style.transform = 'scaleX(0)'; }
   $('loading').style.setProperty('--ld-progress', '0%');
@@ -129,7 +129,7 @@ function ldBegin(keys, battle = '') {
   stage('戦いの準備をしています', keys[0]);
   ldIv = setInterval(ldTick, 150);
 }
-// 工程内は見込みの九割まで進め、次の工程に入って初めて残りを確定する。
+// 工程内は見込みの九割まで進め、実際に終わった分が多ければそちらを使う。
 // 遅い端末でも後戻りせず、完了前に満ち切らない。戦が始まったら更新は止める。
 function ldTick() {
   const P = ldPlan;
@@ -141,7 +141,7 @@ function ldTick() {
   }
   const current = P.est[P.cur] || 0;
   const elapsed = Math.max(0, performance.now() - P.t);
-  const within = current ? .9 * elapsed / (elapsed + current) : 0;
+  const within = Math.max(P.part, current ? .9 * elapsed / (elapsed + current) : 0);
   P.progress = Math.max(P.progress, Math.min(.98, (done + current * within) / Math.max(1, total)));
   $('loading').style.setProperty('--ld-progress', `${P.progress * 100}%`);
   const left = $('ld-left');
@@ -150,7 +150,14 @@ function ldTick() {
 function ldStep(key) {
   const P = ldPlan; if (!P) return;
   const i = P.keys.indexOf(key); if (i < 0 || i === P.cur) return;
-  P.cur = i; P.t = performance.now();
+  P.cur = i; P.part = 0; P.t = performance.now();
+  ldTick();
+}
+// 素材や姿の支度も、実際に終わった分だけ同じ円へ足す。
+function ldPart(key, done, total) {
+  const P = ldPlan;
+  if (!P || P.keys[P.cur] !== key || total <= 0) return;
+  P.part = Math.max(P.part, Math.min(1, Math.max(0, done / total)));
   ldTick();
 }
 // 読み終わり：段ごとにかかった時間を覚える（次の見込みに使う。前の値と半々にならす）
@@ -1886,12 +1893,14 @@ const game = {
             LT.assetsDetail[key] = { ms: Math.round(performance.now() - began), ok: true }; }).catch((error) => { LT.assetsDetail[key] = { ms: Math.round(performance.now() - began), ok: false, reason: String(error?.message || error) }; if (my === this.startSeq && !LT.assetNoticed) { LT.assetNoticed = true; console.warn('素材の一部を読めず、軽い形で続けます', key, error); /* 遊ぶ人には知らせない（kaito 10/22） */ } });
         };
         // 展開中の文字列・画像・形を重ねない。一種類ずつ終え、画面へ戻してから次を読む。
-        for (const [key, name, load] of [['人', 'mhbody', loadHumans], ['具足', 'domaru', loadDomaru], ['武器', 'weapons', loadWeapons], ['城', 'cgt', loadCgt], ['兜', 'kabuto', loadKabuto], ['弓', 'yumi', loadYumi], ['馬', 'horse', loadHorse], ['道具', 'props_ext', loadPropsExt], ['建物', 'bldg', loadBldg], ['模様', 'tex_people', loadPeopleDetail], ['声', 'voice', loadWarSpeech]]) {
-          // 初陣は人・具足・武器だけ。城や模様などは必要な戦で読む。
-          if (firstBattle && !['mhbody', 'domaru', 'weapons', 'kabuto'].includes(name)) continue;
-          if (!assetsForBattle(BATTLES[i].id).includes(name)) continue;
+        const assetJobs = [['人', 'mhbody', loadHumans], ['具足', 'domaru', loadDomaru], ['武器', 'weapons', loadWeapons], ['城', 'cgt', loadCgt], ['兜', 'kabuto', loadKabuto], ['弓', 'yumi', loadYumi], ['馬', 'horse', loadHorse], ['道具', 'props_ext', loadPropsExt], ['建物', 'bldg', loadBldg], ['模様', 'tex_people', loadPeopleDetail], ['声', 'voice', loadWarSpeech]]
+          .filter(([, name]) => (!firstBattle || ['mhbody', 'domaru', 'weapons', 'kabuto'].includes(name)) && assetsForBattle(BATTLES[i].id).includes(name));
+        let assetsDone = 0;
+        for (const [key, , load] of assetJobs) {
           if (my !== this.startSeq) return;
           await timed(key, load);
+          if (my !== this.startSeq) return;
+          ldPart('assets', ++assetsDone, assetJobs.length);
           await preparationFrame();
         }
         LT.assets = Math.round(performance.now() - tw);
@@ -1924,6 +1933,7 @@ const game = {
         const warmCurrent = () => my === this.startSeq && performance.now() - tH < 30000;
         if (!firstBattle) await primeHorses(b, warmCurrent);
         if (my !== this.startSeq) { b.dispose(); return; }
+        ldPart('warm', 1, 4);
         b.horseLoadPending = firstBattle;
         // 携帯は顔の支度と同じ24人まで。残りは開戦後の小分け作成へ回す。
         // 戦中は updateHumans が制限を外すので、兵の人数・密度・画質は変えない。
@@ -1931,9 +1941,12 @@ const game = {
         // 前の戦の人を片付け、初戦の primed 待ちを支度の中で解く。
         updateHumans(b, 0);
         if (HUMd.ready) await primeHumans(b, renderer, camera, b.humanPreparationCap, 1, warmCurrent).catch((error) => { LT.humanPrimeError = String(error?.message || error); });
+        if (my !== this.startSeq) { b.dispose(); return; }
+        ldPart('warm', 2, 4);
         // この戦で出る兵（後から出る援軍・武将も）の顔を、支度の間に全部作る。戦の中では作らずに使い回す（10/24）
         if (!window.__nofw && HUMd.ready && warmCurrent()) { const tF = performance.now(); LT.faces = await warmBattleFaces(b, warmCurrent).catch(() => -1); LT.facesMs = Math.round(performance.now() - tF); }
         if (my !== this.startSeq) { b.dispose(); return; }
+        ldPart('warm', 3, 4);
         const tNear = performance.now();
         // 携帯でも心得を読んだり支度を取り消したりできるよう、一人ごとに画面へ戻す。
         for (let n = 0; n < 200 && performance.now() - tNear < cap; n++) {
@@ -1943,8 +1956,10 @@ const game = {
         }
         // 指の端末：近くの兵の形だけは前もって作る（開戦後の一人ずつの形づくりを軽く。材質は作らないので固まらない）
         if (!firstBattle && HUMd.ready && warmCurrent()) await prefetchHumanShapes(b, camera, 700, warmCurrent);
+        if (my !== this.startSeq) { b.dispose(); return; }
         // まだ見えない兵の顔は、近づいた時に作る。全員分を開戦前に描かない。
         HUMd.primed = true;
+        ldPart('warm', 4, 4);
         LT.warm = LT.humansWarm = Math.round(performance.now() - tH);
         if (my !== this.startSeq) { b.dispose(); return; }
       }

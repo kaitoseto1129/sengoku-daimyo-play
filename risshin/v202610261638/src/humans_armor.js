@@ -8,6 +8,11 @@ import { S as SETTINGS } from './settings.js';
 function armorMaterial(opts) {
   if (!SETTINGS.simpleMaterials) return new THREE.MeshStandardMaterial(opts);
   const { roughness, metalness, envMapIntensity, normalMap, normalScale, ...rest } = opts;
+  // 金物（前立の鍍金）：軽い光でも色の付いた強い照りを出し、地の色は沈める。灰色の照りのままだと黄土の板に見える
+  if ((metalness ?? 0) >= 0.85 && rest.color != null) {
+    const c = new THREE.Color(rest.color);
+    return new THREE.MeshPhongMaterial({ ...rest, color: c.clone().multiplyScalar(0.6), shininess: 60, specular: c.multiplyScalar(1.1) });
+  }
   return new THREE.MeshPhongMaterial({ ...rest, shininess: 18, specular: 0x333333 });
 }
 import { prepHand } from './humans_hands.js';
@@ -368,7 +373,8 @@ function crestMats() {
   if (!CREST_MAT) {
     const S = THREE.DoubleSide;
     CREST_MAT = {
-      gold: armorMaterial({ color: 0xc29a48, metalness: 0.85, roughness: 0.3, side: S }),
+      // 本の写真の前立は鍍金の真鍮：明るい金で艶が強い（くすんだ黄土の板に見せない）
+      gold: armorMaterial({ color: 0xd9b45a, metalness: 0.92, roughness: 0.2, envMapIntensity: 1.4, side: S }),
       black: armorMaterial({ color: 0x14110f, metalness: 0.1, roughness: 0.3, side: S }),
       red: armorMaterial({ color: 0x8e2416, metalness: 0.05, roughness: 0.35, side: S }),
     };
@@ -382,7 +388,8 @@ function crestGeo(kind) {
   const named = namedCrestGeometry(kind);
   if (named) return [named];
   if (CREST_GEO.has(kind)) return CREST_GEO.get(kind);
-  const flat = (pts, d = 0.004) => { const g = new THREE.ExtrudeGeometry(new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x, y))), { depth: d, bevelEnabled: false, curveSegments: 4 }); g.translate(0, 0, -d / 2); return g; };
+  // 縁に細い面取り：板の縁で光が切り替わり、打ち出した金物の厚みに見える（形は種類ごとに一つだけ作って使い回す）
+  const flat = (pts, d = 0.004) => { const g = new THREE.ExtrudeGeometry(new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x, y))), { depth: d, bevelEnabled: true, bevelThickness: 0.0016, bevelSize: 0.0014, bevelSegments: 1, curveSegments: 4 }); g.translate(0, 0, -d / 2); return g; };
   // 刃：二次の曲線を芯に、幅 w0→w1 で細る板（sd で左右）
   const blade = (sd, p1, p2, w0, w1) => {
     const L = [], R = [];
@@ -441,7 +448,12 @@ function crestGeo(kind) {
   }
   // 材質ごとに一つの形にまとめる
   const by = {};
-  for (const [g, k] of parts) { for (const a of Object.keys(g.attributes)) if (a !== 'position' && a !== 'normal') g.deleteAttribute(a); (by[k] = by[k] || []).push(g); }
+  for (const [g, k] of parts) {
+    for (const a of Object.keys(g.attributes)) if (a !== 'position' && a !== 'normal') g.deleteAttribute(a);
+    // 金の板は鉢の丸みに沿って左右へ少し反らせる：平らな一枚だと一色の黄土に見え、本の鍍金の照り返しが出ない（点の数は同じ）
+    if (k !== 'black') { const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i); p.setZ(i, p.getZ(i) - 1.1 * x * x); } }
+    (by[k] = by[k] || []).push(g);
+  }
   const out = Object.entries(by).map(([k, gs]) => { const g = mergeGeometries(gs); g.computeVertexNormals(); g.computeBoundingSphere(); return [g, k]; });
   CREST_GEO.set(kind, out);
   return out;

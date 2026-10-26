@@ -849,6 +849,99 @@ function mitsukuriStores(W, x, z) {
   return lod;
 }
 
+// 写真の竹束・木楯と、夕刻の陣の支度。配置・小屋の用途は推定。
+// 攻め口の両脇と麓の端だけに置く。兵・道・曲輪・共有の城の形には手を加えない。
+function mitsukuriCampDetail(rt) {
+  const W = rt.world, { geo, mat } = mitsukuriWoodParts();
+  const round = new THREE.CylinderGeometry(1, 1, 1, 6);
+  const dummy = new THREE.Object3D(), color = new THREE.Color();
+  const up = new THREE.Vector3(0, 1, 0), dir = new THREE.Vector3();
+  const ground = (x, z) => {
+    const y = drawGroundAt(W, x, z);
+    return Number.isFinite(y) ? y : W.heightAt(x, z);
+  };
+  const build = (cx, cz, shelter) => {
+    const base = ground(cx, cz), lod = new THREE.LOD();
+    lod.position.set(cx, base, cz);
+    for (const coarse of [false, true]) {
+      const boxes = [], rounds = [], group = new THREE.Group();
+      const part = (list, x, y, z, w, h, d, hex, tilt = 0) => {
+        dummy.position.set(x, y, z); dummy.rotation.set(tilt, 0, 0); dummy.scale.set(w, h, d);
+        dummy.updateMatrix(); list.push({ matrix: dummy.matrix.clone(), hex });
+      };
+      // 丸太の両端を別々に接地させ、坂でも支えを浮かせない。
+      const beam = (ax, ay, az, bx, by, bz, radius, hex) => {
+        dir.set(bx - ax, by - ay, bz - az);
+        const length = dir.length();
+        dummy.position.set((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2);
+        dummy.quaternion.setFromUnitVectors(up, dir.normalize()); dummy.scale.set(radius, length, radius);
+        dummy.updateMatrix(); rounds.push({ matrix: dummy.matrix.clone(), hex });
+      };
+      const floor = (x, z) => ground(cx + x, cz + z) - base;
+      if (shelter) {
+        // 三間弱の片流れの陣小屋。入口は北、薪と飯櫃は奥へ寄せる。
+        const top = Math.max(floor(-2, -1.5), floor(2, -1.5), floor(-2, 1.5), floor(2, 1.5)) + 2.3;
+        for (const x of [-2, 2]) for (const z of [-1.5, 1.5])
+          beam(x, floor(x, z) - .12, z, x, top - z * .18, z, .085, 0x64533e);
+        for (const x of [-2, 0, 2]) beam(x, top + .38, -1.85, x, top - .38, 1.85, .07, 0x776248);
+        const n = coarse ? 3 : 17;
+        for (let i = 0; i < n; i++) part(boxes, -2.2 + (i + .5) * 4.4 / n, top, 0,
+          4.4 / n - .014, .07, 3.8, [0x88765d, 0x71634f, 0x958068][i % 3], .2);
+        // 背面だけ葦簀で風を切る。横と正面は開けて足元が見える。
+        const reeds = coarse ? 4 : 24;
+        for (let i = 0; i < reeds; i++) {
+          const x = -2 + (i + .5) * 4 / reeds, y = floor(x, 1.5);
+          part(boxes, x, y + .8, 1.5, 4 / reeds - .015, 1.6, .045,
+            i % 3 ? 0x8f8057 : 0x796f4d);
+        }
+        for (const y of [.4, 1.2]) part(boxes, 0, floor(0, 1.5) + y, 1.54, 4.1, .035, .04, 0x554b33);
+        for (let i = 0; i < (coarse ? 3 : 9); i++) {
+          const x = -1.3 + (i % 3) * .18, y = floor(x, .7) + .1 + Math.floor(i / 3) * .15;
+          beam(x, y, .1, x, y, 1.25, .08, i % 2 ? 0x66513a : 0x847054);
+        }
+        // 木の飯櫃と蓋、箍。遠くでは一塊にする。
+        const y = floor(1.1, .65);
+        part(rounds, 1.1, y + .35, .65, .36, .65, .36, 0x8a7352);
+        part(rounds, 1.1, y + .71, .65, .39, .06, .39, 0xa38a60);
+        if (!coarse) for (const h of [.12, .54])
+          part(rounds, 1.1, y + h, .65, .37, .045, .37, 0x514837);
+      } else {
+        // 野戦写真の縦竹と三段の縄。竹束は一面の壁にせず二束だけ。
+        for (const x of [-.55, .55]) {
+          const y = floor(x, 0), n = coarse ? 5 : 17;
+          for (let i = 0; i < n; i++) {
+            const a = i * 2.39996, r = coarse ? .2 : .25 * Math.sqrt((i + .5) / n);
+            part(rounds, x + Math.cos(a) * r, y + 1.05, Math.sin(a) * r,
+              coarse ? .12 : .065, 2.05 + Math.sin(i * 3.1) * .09,
+              coarse ? .12 : .065, [0x74734a, 0x96905a, 0x626746][i % 3]);
+          }
+          for (const h of [.3, 1.05, 1.8])
+            part(rounds, x, y + h, 0, .34, .065, .34, 0x9c8357);
+          beam(x, y + 1.6, .15, x, floor(x, 1.05) + .03, 1.05, .065, 0x6c593d);
+        }
+        // 傍らに立て掛けた板楯。背の横桟と控え脚まで同じ束へ入れる。
+        const x = 1.7, y = floor(x, .1);
+        for (let i = 0; i < (coarse ? 1 : 3); i++)
+          part(boxes, x + (coarse ? 0 : (i - 1) * .26), y + .87, .1,
+            coarse ? .79 : .25, 1.7, .065, i % 2 ? 0x9b855f : 0x897652, -.12);
+        for (const h of [.35, 1.35]) part(boxes, x, y + h, .25, .88, .08, .09, 0x5f5039);
+        beam(x, y + 1.3, .25, x, floor(x, 1) + .03, 1, .055, 0x6a573c);
+      }
+      for (const [shape, list] of [[geo, boxes], [round, rounds]]) {
+        if (!list.length) continue;
+        const mesh = new THREE.InstancedMesh(shape, mat, list.length);
+        list.forEach((entry, i) => { mesh.setMatrixAt(i, entry.matrix); mesh.setColorAt(i, color.setHex(entry.hex)); });
+        mesh.receiveShadow = true; mesh.computeBoundingSphere(); group.add(mesh);
+      }
+      lod.addLevel(group, coarse ? 38 : 0);
+    }
+    // 細い竹・縄は遠景に残さない。更新処理・動く障害物は増やさない。
+    lod.addLevel(new THREE.Group(), 110); rt.scene.add(lod);
+  };
+  for (const x of [-15, 14]) build(x, -39, false);
+  for (const x of [CAMP.x - 28, CAMP.x + 28]) build(x, CAMP.z + 29, true);
+}
+
 // 攻め口の山肌。岩・根・草と丸太・土は開戦時にまとめ、毎コマ追加しない。
 function approachDetail(rt) {
   // 凹凸を加えた描画面へ岩・根・草を据える。足場の高さには手を加えない。
@@ -2501,6 +2594,7 @@ const mitsukuri = {
       facing: Math.PI, width: 5, formation: 'column', aggro: 2 }, dress([{ type: 'ashigaru', n: 10 }], ODA));
     rt.scene.add(tawara(W, CAMP.x - 14, CAMP.z + 16, 0.3, 6));
     rt.scene.add(mitsukuriStores(W, CAMP.x - 19, CAMP.z + 18));
+    mitsukuriCampDetail(rt);
     for (const [x, z, k] of [[CAMP.x - 8, CAMP.z + 14, 'oda'], [CAMP.x + 8, CAMP.z + 14, 'eiraku'], [CAMP.x - 26, CAMP.z + 4, 'oda'], [CAMP.x + 28, CAMP.z + 4, 'oda']]) rt.scene.add(nobori(W, x, z, k, 6));
     for (const [x, z] of [[CAMP.x - 16, CAMP.z + 2], [CAMP.x + 18, CAMP.z + 6]]) { rt.scene.add(campfire(W, x, z)); W.addFire(x, z); }
     // 三本脚は中心の高さだけでは切岸の下側へ届かない。箕作の篝火だけ、

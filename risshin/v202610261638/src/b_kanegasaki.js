@@ -314,6 +314,117 @@ function retreatGroundDetail(rt) {
   resources.push(mat,stoneGeo,reedGeo,stones,reeds);
 }
 
+// 本の野戦兵器の丸太・縄組みと清洲の板囲いを、小さな撤収跡へ縮める。
+// 昼の退き口なので大将の座や燃える篝火は据えず、幕を外しかけた荷置場にする。
+// 配置は復元。道・三つの備・避難道の外だけ。兵と当たり判定は増やさない。
+function retreatWayside(rt) {
+  const W = rt.world, resources = rt.flags.sceneryResources;
+  const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, side: THREE.DoubleSide });
+  const box = new THREE.BoxGeometry(1, 1, 1);
+  const pole = new THREE.CylinderGeometry(1, 1, 1, 6);
+  const bowl = new THREE.CylinderGeometry(1, .65, 1, 8, 1, true);
+  const ring = new THREE.TorusGeometry(1, .075, 3, 10);
+  const place = new THREE.Object3D();
+  resources.push(material);
+  const cluster = (cx, cz, camp) => {
+    const baseY = W.heightAt(cx, cz), coarse = [], fine = [];
+    const ground = (x, z) => W.heightAt(cx + x, cz + z) - baseY;
+    const part = (shape, x, y, z, w, h, d, hex, near = false, rx = 0, ry = 0, rz = 0) => {
+      place.position.set(x, ground(x, z) + y, z);
+      place.rotation.set(rx, ry, rz); place.scale.set(w, h, d); place.updateMatrix();
+      const geo = shape.index ? shape.toNonIndexed() : shape.clone();
+      retreatSurface(geo, hex); geo.applyMatrix4(place.matrix);
+      (near ? fine : coarse).push(geo);
+    };
+    const wood = 0x65513a, cut = 0x978063, rope = 0x8d7a50;
+    if (camp) {
+      // 片側の幕は外して巻き、開いた荷置場の背だけを残す。
+      for (const x of [-3, 0, 3]) {
+        part(pole,x,1.15,-2,.075,2.45,.075,wood);
+        for (const y of [1.7,2.05]) part(ring,x,y,-2,.105,.105,.105,rope,true,Math.PI/2);
+      }
+      for (const x of [-1.5,1.5]) {
+        const cloth = new THREE.PlaneGeometry(2.9,1.45,10,4);
+        const p = cloth.attributes.position;
+        for (let i=0;i<p.count;i++) {
+          const u=(p.getX(i)+1.45)/2.9, v=(p.getY(i)+.725)/1.45;
+          p.setZ(i,Math.sin(u*Math.PI)*(.12+Math.sin(u*25)*.045)*(1-v));
+          // 裾は中央が少したるむ。字・新たな紋は描かない。
+          p.setY(i,p.getY(i)-Math.sin(u*Math.PI)*.12);
+        }
+        cloth.computeVertexNormals();
+        part(cloth,x,1.22,-2,1,1,1,0xb5ab8e);
+        cloth.dispose();
+      }
+      part(pole,-1.7,.2,.9,.19,2.5,.19,0xa39778,false,0,0,Math.PI/2);
+      // 板盾を寝かせ、丸太二本へ預ける。写真の井楼のように貫が柱から出る。
+      for (const x of [1.2,2.9]) part(pole,x,.18,1,.14,2.1,.14,wood,false,Math.PI/2);
+      for(let j=0;j<5;j++) part(box,1.1+j*.4,.48,1,.38,.09,1.65,j%2?wood:cut,false,0,.04,.03);
+      part(box,1.9,.56,.45,2.5,.08,.13,wood,true);
+      part(box,1.9,.56,1.55,2.5,.08,.13,wood,true);
+      // 竹束は置き去りの資材。道を塞ぐ防壁にはせず、七本を縄二か所で束ねる。
+      for (let j=0;j<7;j++) {
+        const x=-2.4+(j%3)*.19, z=2+Math.floor(j/3)*.17;
+        part(pole,x,.22,z,.085,2.5,.085,j%2?0x7a7848:0x94905a,false,0,0,Math.PI/2);
+        for(const dx of [-.8,0,.8]) part(ring,x+dx,.22,z,.09,.09,.09,cut,true,0,Math.PI/2);
+      }
+      for (const x of [-3.1,-1.5]) part(ring,x,.3,2.16,.4,.4,.4,rope,true,0,Math.PI/2);
+      // 火を落とした炊事場。煤けた鍋、灰、割薪。昼の撤退に灯りや煙幕を足さない。
+      part(pole,4.9,.025,1, .75,.04,.65,0x494638);
+      for(let j=0;j<7;j++) {
+        const a=j*Math.PI*2/7;
+        part(box,4.9+Math.cos(a)*.72,.11,1+Math.sin(a)*.6,.28,.22,.23,0x706b59,false,.08,a,.1);
+      }
+      part(bowl,4.9,.37,1,.43,.48,.43,0x302f2a);
+      part(ring,4.9,.62,1,.43,.43,.43,0x454238,true,Math.PI/2);
+      for(let j=0;j<4;j++) part(box,6+j*.15,.1,1.5,.12,.13,.9,cut,true,0,-.3+j*.12);
+      part(bowl,4,.12,2,.2,.18,.2,0x826344,true);
+    } else {
+      // 春の畑：収穫前の稲田にはせず、褐色の畝と疎らな若葉。
+      // 一枚ずつ地形へ沿わせるので、斜面に水平な板を浮かせない。
+      for(let row=0;row<5;row++) {
+        const x=(row-2)*1.2;
+        if (W.slopeTan(cx+x,cz)>.45 || W.inWaterAt(cx+x,cz)) continue;
+        const bed = new THREE.PlaneGeometry(.8,9,2,18);
+        bed.rotateX(-Math.PI/2);
+        const p=bed.attributes.position;
+        for(let i=0;i<p.count;i++) {
+          const px=p.getX(i)+x, pz=p.getZ(i);
+          p.setXYZ(i,px,ground(px,pz)+.035+.065*Math.cos(p.getX(i)/.8*Math.PI),pz);
+        }
+        bed.computeVertexNormals();
+        const bedShape = bed.toNonIndexed(); bed.dispose();
+        retreatSurface(bedShape,row%2?0x62533c:0x766045); coarse.push(bedShape);
+        for(let j=0;j<9;j++) for(const side of [-1,1]) {
+          part(box,x,.12,-4+j,.035,.25,.16,j%3?0x606443:0x777346,true,0,j*.7,side*.45);
+        }
+      }
+      // 庭柵の続きに低い粗朶囲い。南側は畑へ入る口を空ける。
+      for(let j=0;j<6;j++) part(pole,-3.5,.55,-4.5+j*1.8,.055,1.2,.055,wood);
+      for(const y of [.4,.8]) for(let j=0;j<9;j++) {
+        part(pole,-3.5,y,-4+j,.025,1.2,.025,cut,true,Math.PI/2,0,.04*Math.sin(j));
+      }
+    }
+    const meshOf = parts => {
+      const geo = mergeGeometries(parts);
+      for(const p of parts) p.dispose();
+      geo.computeBoundingSphere(); resources.push(geo);
+      const mesh = new THREE.Mesh(geo,material); mesh.receiveShadow=true;
+      return mesh;
+    };
+    const lod = new THREE.LOD(), near = new THREE.Group();
+    const base = meshOf(coarse), detail = meshOf(fine);
+    // 同じ粗形状を使い回す。近くの縄・竹の節・葉だけを四十五歩で省く。
+    const far = new THREE.Mesh(base.geometry,material); far.receiveShadow=true;
+    near.add(base,detail); lod.addLevel(near,0); lod.addLevel(far,34,.15);
+    lod.addLevel(new THREE.Group(),110,.1); lod.position.set(cx,baseY,cz); rt.scene.add(lod);
+  };
+  cluster(34,-7,true);
+  cluster(47,61,false);
+  cluster(-57,57,false);
+  for(const geo of [box,pole,bowl,ring]) geo.dispose();
+}
+
 // 主郭の長屋の庇。写真の板屋根と独立柱を、金ヶ崎の小さな詰所に合わせて縮める。
 // 形・材質は一組、全て静止した一束。室内と登城道には張り出さない。
 function retreatLonghouseEave(rt, x, z) {
@@ -2265,6 +2376,7 @@ const kanegasaki = {
     hut(W, 24, -100, 4, 3, 0, { ita:true, minka:false, wall:0x66513b, roof:0x5a4c38,
       groundedHome:true, ...({boardRoof:true,boardRoofColors:KG_ROOF_COLORS,weatheredBoards:true}), batch:homes });
     finalizeSimpleBatch(rt, homes);
+    retreatWayside(rt);
     // 退く道の乱れ：崩れた俵、倒れた旗、捨てた荷
     for (const [x, z, r, n2] of [[2, 40, 0.8, 2], [-14, 78, -0.6, 3], [-30, 116, 1.2, 2], [-44, 138, 0.3, 1]]) addSacks(x + 3, z, r, n2);
     for (const [x, z, r] of [[-4, 52, 0.4], [-20, 92, -1.1], [-36, 124, 2.2]]) retreatDroppedFlag(rt, x, z, r);

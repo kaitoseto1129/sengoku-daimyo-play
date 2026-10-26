@@ -1106,6 +1106,101 @@ function sunoWorkyard(rt) {
   // 持ち場は既存の札で示す。地面に現代の区画線を描かない。
 }
 
+// 南の街道脇の支度。砦の推定縄張りを変えず、補給路・寄せ口の外だけに置く。
+// 写真の板囲い・木組みに倣った仮設の陣で、墨俣の遺構の再現ではない。
+function sunoSupplyScenery(rt) {
+  const W = rt.world;
+  sunoYardMat ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
+  const camp = new THREE.LOD();
+  for (const coarse of [false, true]) {
+    const parts = [];
+    const put = (geo, col) => {
+      const g = geo.index ? geo.toNonIndexed() : geo;
+      if (g !== geo) geo.dispose();
+      const c = new THREE.Color(col), a = new Float32Array(g.attributes.position.count * 3);
+      for (let i = 0; i < a.length; i += 3) { a[i] = c.r; a[i + 1] = c.g; a[i + 2] = c.b; }
+      g.setAttribute('color', new THREE.BufferAttribute(a, 3)); parts.push(g);
+    };
+    const ground = (x, z) => W.heightAt(x - 29, z + 77);
+    const box = (x, y, z, w, h, d, col, tilt = 0) => {
+      const g = new THREE.BoxGeometry(w, h, d);
+      g.rotateX(tilt); g.translate(x, ground(x, z) + y, z); put(g, col);
+    };
+    // 風除けの麻布。下端を浮かせた三つの幕、出入りと街道側は大きく開ける。
+    for (let k = 0; k < 3; k++) {
+      const x = -5 + k * 3.1;
+      box(x, 1.12, -3, .1, 2.4, .1, 0x69553d);
+      const cloth = new THREE.PlaneGeometry(3, 1.35, coarse ? 1 : 6, coarse ? 1 : 3);
+      const a = cloth.attributes.position;
+      for (let i = 0; i < a.count; i++) {
+        const u = (a.getX(i) + 1.5) / 3;
+        a.setXYZ(i, a.getX(i) + x + 1.5,
+          a.getY(i) + ground(x + 1.5, -3) + 1.35 - Math.sin(u * Math.PI) * .16,
+          -3 + Math.sin(u * Math.PI) * .16);
+      }
+      cloth.computeVertexNormals();
+      // 表裏を同じ束へ入れ、専用の両面材や透過描画を増やさない。
+      const back = cloth.clone(), idx = back.index;
+      for (let i = 0; i < idx.count; i += 3) { const a = idx.getX(i); idx.setX(i, idx.getX(i + 2)); idx.setX(i + 2, a); }
+      back.computeVertexNormals(); put(cloth, 0xb6a581); put(back, 0xa69779);
+      if (!coarse) for (const dx of [.07, 2.93]) for (const y of [.78, 1.85]) {
+        box(x + dx, y, -3, .12, .045, .18, 0x887454);
+      }
+    }
+    box(4.3, 1.12, -3, .1, 2.4, .1, 0x69553d);
+    // 片流れの葦葺き。板小屋と区別し、煮炊きの側と街道側は壁を作らない。
+    for (const x of [-4.7, -.7]) for (const z of [-1.9, .8]) box(x, 1, z, .13, 2.15, .13, 0x68553d);
+    for (const z of [-1.9, .8]) box(-2.7, 2.08 - (z + .55) * .19, z, 4.5, .14, .14, 0x584733);
+    box(-2.7, 2.18, -.55, 4.7, .18, 3.4, 0x837752, .19);
+    if (!coarse) {
+      for (let k = 0; k < 18; k++) box(-4.93 + k * .26, 2.29, -.55, .055, .065, 3.4, k % 3 ? 0xa19469 : 0x655e42, .19);
+      for (const z of [-1.7, -.4, .8]) box(-2.7, 2.35 - (z + .55) * .19, z, 4.7, .08, .09, 0x594d34);
+      // 俵の傍らの水桶と、石を据えた竈。煙は既存の仕組み一筋だけ。
+      for (const [x, z] of [[-3.8, 0], [-2.9, .1], [2.8, -.8]]) {
+        const bucket = new THREE.CylinderGeometry(.3, .24, .5, 10, 1, true);
+        bucket.translate(x, ground(x, z) + .25, z); put(bucket, 0x877351);
+        for (const yy of [.09, .4]) {
+          const hoop = new THREE.TorusGeometry(.27, .025, 3, 10);
+          hoop.rotateX(Math.PI / 2); hoop.translate(x, ground(x, z) + yy, z); put(hoop, 0x504b38);
+        }
+      }
+      for (let k = 0; k < 7; k++) {
+        const a = k * Math.PI * 2 / 7, x = 1.4 + Math.cos(a) * .55, z = .8 + Math.sin(a) * .55;
+        const stone = new THREE.DodecahedronGeometry(.23, 0);
+        stone.scale(1.1, .8, 1); stone.translate(x, ground(x, z) + .15, z); put(stone, 0x615c4e);
+      }
+    }
+    const pot = new THREE.SphereGeometry(.39, 8, 5, 0, Math.PI * 2, .35, Math.PI - .7);
+    pot.scale(1, .85, 1); pot.translate(1.4, ground(1.4, .8) + .48, .8); put(pot, 0x39362f);
+    const mesh = new THREE.Mesh(mergeGeometries(parts), sunoYardMat);
+    for (const g of parts) g.dispose();
+    mesh.receiveShadow = true;
+    camp.addLevel(mesh, coarse ? 65 : 0);
+  }
+  camp.addLevel(new THREE.Group(), 180);
+  camp.position.set(-29, 0, 77); rt.scene.add(camp);
+  W.addSmokeColumn(-27.6, W.heightAt(-27.6, 77.8) + .65, 77.8, { size: .35 });
+  // 南東の小さな刈田。畦の高さは足首以下、兵が通る中央や街道に物を立てない。
+  const parts = [];
+  const fieldBox = (x, z, w, d, h, col) => {
+    const g = paint(new THREE.BoxGeometry(w, h, d), col);
+    g.translate(x, W.heightAt(x, z) + h / 2, z); parts.push(g);
+  };
+  for (const [x, z] of [[18, 55], [37, 61]]) {
+    for (const dx of [-7, 7]) for (let k = 0; k < 10; k++) fieldBox(x + dx, z - 9 + k * 2, .38, 2.05, .14, 0x746c4a);
+    for (const dz of [-10, 10]) for (let k = 0; k < 7; k++) fieldBox(x - 6 + k * 2, z + dz, 2.05, .38, .14, 0x746c4a);
+    for (let k = 0; k < 120; k++) {
+      const px = x - 6 + h01s(k, x) * 12, pz = z - 9 + h01s(k, z) * 18;
+      fieldBox(px, pz, .07, .12, .12 + h01s(k, 71) * .1, k % 3 ? 0x948454 : 0x6c6644);
+    }
+  }
+  const fields = new THREE.LOD(), mesh = new THREE.Mesh(mergeGeometries(parts), sunoYardMat);
+  for (const g of parts) g.dispose();
+  mesh.receiveShadow = true; fields.position.set(28, 0, 58);
+  mesh.geometry.translate(-28, 0, -58);
+  fields.addLevel(mesh, 0); fields.addLevel(new THREE.Group(), 110); rt.scene.add(fields);
+}
+
 // 急ごしらえの板屋。戦場を見失わないよう戸を閉じる。設営時だけ組み、材質は使い回す。
 let shedMat;
 const PLANK = [0x7a6e5c, 0x6b604f, 0x857865, 0x726552];
@@ -2625,6 +2720,7 @@ const sunomata = {
     F.jinSupply = DA(-64, 112, 34, 14, 170, Math.PI, KT.ARMOR.oda, 'oda', 21, 'spear');
     DA(34, 104, 28, 6, 130, Math.PI, KT.ARMOR.oda, 'oda', 22, 'gun');
     DA(-128, 90, 20, 14, 110, 2.0, KT.ARMOR.oda, 'oda', 23, 'cavalry');
+    sunoSupplyScenery(rt);
     // 遠景の村（南西の在所。秋の柿）
     KT.farVillage(rt, -100, 150, { rot: Math.PI, n: 6, fields: 8, seed: 5, autumn: true });
     // 九月の刈田：畦に稲架を立て、刈った稲を干す

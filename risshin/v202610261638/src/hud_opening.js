@@ -164,6 +164,9 @@ export class HudOpening {
 
 
   reset() {
+    // 操作案内の控えからも終了した戦を外し、次の支度へ持ち越さない。
+    this.controlsBattle = null; this.controlsTime = 0; this.openingControlsActive = false;
+    if (this.controlsEl) this.controlsEl.hidden = true;
     this.releaseDodgeHold?.();
     this.releaseCoverHold?.();
     this.counterGuideEnemy = null; this.counterPromptHit = null; this.counterPromptUntil = 0; this.counterPromptAt = -Infinity;

@@ -211,6 +211,108 @@ function okPeopleHomes(rt) {
   rt.scene.add(dou(W, -74, 116, 6, 4));
 }
 
+// 南の陣の道具と刈田。写真の板楯・丸太組みを、攻城塔ではなく陣脇の用具へ使う。
+// 全て推定の生活景。戦う坂・退路・中央の広場には置かず、兵と当たりは増やさない。
+function okSiegeLife(rt) {
+  const W = rt.world, transform = new THREE.Object3D(), color = new THREE.Color();
+  const wood = new THREE.MeshLambertMaterial({ color: 0xffffff });
+  const unitBox = new THREE.BoxGeometry(1, 1, 1);
+  const unitPole = new THREE.CylinderGeometry(1, 1, 1, 5);
+  const boards = new THREE.InstancedMesh(unitBox, wood, 42);
+  const poles = new THREE.InstancedMesh(unitPole, wood, 68);
+  const clothGeo = new THREE.PlaneGeometry(1, 1, 8, 2);
+  const cp = clothGeo.attributes.position;
+  for (let i = 0; i < cp.count; i++) {
+    const x = cp.getX(i), y = cp.getY(i);
+    cp.setZ(i, Math.sin((x + .5) * Math.PI) * (.1 + .07 * Math.cos(x * 22)) * (1 - y));
+    cp.setY(i, y - .06 * Math.sin((x + .5) * Math.PI));
+  }
+  clothGeo.computeVertexNormals();
+  const cloth = new THREE.InstancedMesh(clothGeo,
+    new THREE.MeshLambertMaterial({ color: 0xaaa18b, side: THREE.DoubleSide }), 4);
+  let bi = 0, pi = 0, ci = 0;
+  const put = (mesh, i, x, y, z, sx, sy, sz, rx, ry, rz, tint) => {
+    transform.position.set(x, y, z); transform.scale.set(sx, sy, sz);
+    transform.rotation.set(rx, ry, rz); transform.updateMatrix(); mesh.setMatrixAt(i, transform.matrix);
+    if (tint !== undefined) mesh.setColorAt(i, color.setHex(tint));
+  };
+  const box = (x, y, z, w, h, d, rot, tint) => put(boards, bi++, x, y, z, w, h, d, 0, rot, 0, tint);
+  const pole = (x, y, z, r, len, rx, rz, tint) => put(poles, pi++, x, y, z, r, len, r, rx, 0, rz, tint);
+  // 待機の旗の外側に低い無地の陣幕。使番・帰陣の道へ幕を横切らせない。
+  for (const [cx, cz, facing] of [[-29, 77, -.15], [29, 86, .2]]) {
+    const c = Math.cos(facing), sn = Math.sin(facing);
+    const at = (u, v) => [cx + u * c + v * sn, cz - u * sn + v * c];
+    const curtainBase = Math.max(...[-3, 0, 3].map(u => {
+      const [x, z] = at(u, 0); return drawGroundAt(W, x, z);
+    }));
+    for (let i = 0; i < 3; i++) {
+      const [x, z] = at((i - 1) * 3, 0), h = drawGroundAt(W, x, z);
+      const len = curtainBase + 2.2 - h;
+      pole(x, h + len / 2 - .08, z, .055, len + .16, 0, 0, 0x69543b);
+    }
+    for (let i = 0; i < 2; i++) {
+      const [x, z] = at(i ? 1.5 : -1.5, 0);
+      // 竿と同じ高さへそろえ、布の下端を泥へ埋めない。
+      const y = curtainBase + 1.05;
+      put(cloth, ci++, x, y, z, 2.95, 1.45, 1, 0, facing, 0);
+    }
+    // 五枚板の矢楯三枚。横桟と後ろの控え脚を付け、材木の壁にしない。
+    for (let shield = 0; shield < 3; shield++) {
+      const u = (shield - 1) * 1.1, v = 2.8 + shield * .16;
+      const [x, z] = at(u, v), y = W.heightAt(x, z);
+      for (let plank = 0; plank < 5; plank++) {
+        const [px, pz] = at(u + (plank - 2) * .17, v);
+        box(px, y + .9, pz, .16, 1.75 - (plank % 2) * .04, .065, facing,
+          plank % 2 ? 0x817154 : 0x6c5a40);
+      }
+      for (const h of [.4, 1.35]) box(x, y + h, z + .065, .87, .09, .1, facing, 0x493b2b);
+      const [lx, lz] = at(u, v + .5);
+      pole(lx, y + .6, lz, .045, 1.4, -.65, 0, 0x65543d);
+    }
+    // 横置きの青竹と縄の結束。節・縄は同じ低面数の円柱を使い回す。
+    for (let i = 0; i < 7; i++) {
+      const [x, z] = at(-2.5 + (i % 4) * .13, 4.6);
+      const y = W.heightAt(x, z) + .12 + Math.floor(i / 4) * .12;
+      pole(x, y, z, .065, 2.8, Math.PI / 2, 0, i % 2 ? 0x646343 : 0x76734b);
+      for (const dz of [-.8, 0, .8]) pole(x, y, z + dz, .073, .04, Math.PI / 2, 0, 0x8b8058);
+    }
+  }
+  for (const [mesh, count] of [[boards, bi], [poles, pi], [cloth, ci]]) {
+    mesh.count = count; mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    mesh.receiveShadow = true; mesh.computeBoundingSphere(); rt.scene.add(mesh);
+  }
+  // 家並みの外の刈田二枚。畦は短い土塊に分け、起伏をまたいで空中へ浮かせない。
+  // 水面・透過・光源を増やさず、遠方では刈株を描かない。
+  const detail = new THREE.Group();
+  const stubble = new THREE.InstancedMesh(unitPole, wood, 192);
+  const banks = new THREE.InstancedMesh(unitBox, wood, 56);
+  let si = 0, ei = 0;
+  for (const [cx, cz] of [[-29, 132], [31, 148]]) {
+    for (let row = 0; row < 8; row++) for (let col = 0; col < 12; col++) {
+      const x = cx + (col - 5.5) * .7, z = cz + (row - 3.5) * .85;
+      put(stubble, si++, x, drawGroundAt(W, x, z) + .09, z, .07, .22, .07,
+        (col % 3 - 1) * .15, 0, (row % 3 - 1) * .1, (row + col) % 2 ? 0x84764b : 0x696044);
+    }
+    for (let side = 0; side < 4; side++) for (let i = 0; i < 7; i++) {
+      const x = cx + (side < 2 ? (i - 3) * 1.4 : (side === 2 ? -5 : 5));
+      const z = cz + (side < 2 ? (side ? -4 : 4) : (i - 3) * 1.15);
+      put(banks, ei++, x, drawGroundAt(W, x, z) - .08, z,
+        side < 2 ? 1.48 : .55, .34, side < 2 ? .55 : 1.23, 0, 0, 0, 0x56513a);
+    }
+  }
+  stubble.instanceMatrix.needsUpdate = banks.instanceMatrix.needsUpdate = true;
+  stubble.instanceColor.needsUpdate = banks.instanceColor.needsUpdate = true;
+  stubble.computeBoundingSphere(); banks.computeBoundingSphere();
+  banks.receiveShadow = true; rt.scene.add(banks); detail.add(stubble);
+  // 距離判定は既存の仕組みへ任せ、毎コマの割り当てや独自の更新を持たない。
+  const lod = new THREE.LOD(); lod.userData.noFreeze = true;
+  lod.addLevel(detail, 0); lod.addLevel(new THREE.Group(), 85);
+  // 距離の基点を刈田の中央へ置き、頂点の世界座標は保つ。
+  lod.position.set(1, 0, 140); detail.position.set(-1, 0, -140);
+  rt.scene.add(lod);
+}
+
 // 囲みの後方の板葺き陣小屋と補給場。陣の正面・使番の道・控えの中央は空ける。
 // 小屋は既存の束、薪と木箱は基本形二つの使い回し。生成時だけ組み、更新処理は持たない。
 function okSiegeStores(rt) {
@@ -624,6 +726,7 @@ const okawachi = {
     okLandscape(W);
     okSlopeDetail(W);
     okPeopleHomes(rt);
+    okSiegeLife(rt);
     // 矢の警告も既存の三枠へ。別の札と強制見上げで、坂の案内をふさがない。
     rt.army.hooks.onArrowRain = (volley, under) => {
       if (!under || rt.t < 5 || rt.over || rt.ended || F.failed || F.ending) return;

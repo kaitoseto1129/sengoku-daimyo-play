@@ -8,7 +8,9 @@ import { useTerrain } from './asset_manifest.js';
 // 向き：x が東（+x）、z が南（+z）。北に信勝・林、集落、柴田。南に信長、その脇に佐久間と遊び手。
 // 地形は国土地理院の標高（asset_dem_inou.js）。今の堤は高すぎるので、高さを丸めて昔の平らな野に寄せる。
 // ======================================================================
-import { nobori, jinCamp, hut, tawara, kagaribi, umatsunagi, umajirushi, hatazao } from './props.js';
+import * as THREE from 'three';
+import { nobori, jinCamp, hut, tawara, kagaribi, umatsunagi, umajirushi, hatazao, takataba, dou, nabe } from './props.js';
+import { woodTex, thatchTex } from './nature.js';
 import { sfx, musicAccent } from './audio.js';
 import { victoryMoment, brushWord } from './victory_moment.js';
 import { gauss, enemyGroup, allyGroup, nm, centerOf, unitPos } from './bhelp.js';
@@ -80,6 +82,148 @@ function height(x, z) {
   h += 0.25 * gauss(x, z, NAZUKA.x, NAZUKA.z, 160);
   if (dem) h += (Math.min(9.5, demSample(dem, x, z)) - 7) * 0.12;
   return h;
+}
+
+// 写真の粗い木組み・縄・筵を陣の背後と集落の庭へ。中央の会戦帯には置かない。
+// 二つの区画ごとに同じ形と材質を束ねる。縄や屋根の押さえは近景だけ描く。
+function fieldLife(rt) {
+  const W = rt.world;
+  const box = new THREE.BoxGeometry(1, 1, 1);
+  const pole = new THREE.CylinderGeometry(1, 1, 1, 5);
+  const sheaf = new THREE.CylinderGeometry(.55, 1, 1, 6);
+  const wood = new THREE.MeshStandardMaterial({ map: woodTex(), color: 0x81715a, roughness: 1 });
+  const straw = new THREE.MeshStandardMaterial({ map: thatchTex(), color: 0x9a8860, roughness: 1 });
+  const rope = new THREE.MeshStandardMaterial({ color: 0x73654b, roughness: 1 });
+  const pose = new THREE.Object3D(), up = new THREE.Vector3(0, 1, 0), dir = new THREE.Vector3();
+  for (const [cx, cz, camp] of [[-26, 78, true], [28, -82, false]]) {
+    const buckets = [[], [], [], [], []];
+    const mats = [wood, wood, straw, rope, straw], geos = [box, pole, box, pole, sheaf];
+    const put = (k, x, y, z, sx, sy, sz, rot = 0, tilt = 0) => {
+      pose.position.set(x, W.heightAt(x, z) + y, z);
+      pose.rotation.set(tilt, rot, 0); pose.scale.set(sx, sy, sz); pose.updateMatrix();
+      buckets[k].push(pose.matrix.clone());
+    };
+    const beam = (k, ax, ay, az, bx, by, bz, r) => {
+      ay += W.heightAt(ax, az); by += W.heightAt(bx, bz);
+      pose.position.set((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2);
+      dir.set(bx - ax, by - ay, bz - az);
+      pose.quaternion.setFromUnitVectors(up, dir.clone().normalize());
+      pose.scale.set(r, dir.length(), r); pose.updateMatrix(); buckets[k].push(pose.matrix.clone());
+    };
+    // 筵を掛けた陣小屋／農家の作業棚。丸太の柱と貫が屋根から突き出す。
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      put(1, cx + sx * 2.1, 1.15, cz + sz * 1.5, .095, 2.3, .095);
+      for (const y of [1.85, 2.02]) put(3, cx + sx * 2.1, y, cz + sz * 1.5, .115, .055, .115);
+    }
+    for (const sx of [-1, 1]) beam(1, cx + sx * 2.1, 2.12, cz - 1.8, cx + sx * 2.1, 1.85, cz + 1.8, .085);
+    for (const sz of [-1, 1]) beam(1, cx - 2.5, sz < 0 ? 2.12 : 1.85, cz + sz * 1.5, cx + 2.5, sz < 0 ? 2.12 : 1.85, cz + sz * 1.5, .08);
+    for (let i = 0; i < 6; i++) {
+      const x = cx - 2 + i * .8;
+      beam(0, x, 2.16, cz - 1.9, x, 1.87, cz + 1.9, .06);
+      put(2, x, 2.03, cz, .77, .09, 3.9, 0, .075);
+    }
+    // 薪束、荷の木箱、敷き筵。歩く道に出さず、屋根の内側にまとめる。
+    put(2, cx, .035, cz, 3.7, .045, 2.4);
+    for (let i = 0; i < 9; i++) beam(1, cx - 1.6 + (i % 3) * .16, .15 + Math.floor(i / 3) * .13, cz - .5,
+      cx - 1.6 + (i % 3) * .16, .15 + Math.floor(i / 3) * .13, cz + .5, .07);
+    put(0, cx + 1.1, .3, cz - .5, .9, .6, .65);
+    for (const dx of [-.22, .22]) {
+      beam(3, cx + 1.1 + dx, .62, cz - .85, cx + 1.1 + dx, .62, cz - .15, .018);
+      for (const dz of [-.85, -.15]) beam(3, cx + 1.1 + dx, .03, cz + dz, cx + 1.1 + dx, .62, cz + dz, .018);
+    }
+    // 写真の細い横木の柵。囲い切らず、街道と畦への出入口を残す。
+    const fenceZ = cz + 4.5;
+    for (let i = 0; i < 5; i++) {
+      const x = cx - 5 + i * 2;
+      put(1, x, .65, fenceZ, .065, 1.4 + (i % 2) * .1, .065);
+      for (const y of [.48, 1.05]) {
+        put(3, x, y, fenceZ, .085, .055, .085);
+        if (i < 4) beam(1, x, y, fenceZ, x + 2, y + .04, fenceZ, .045);
+      }
+    }
+    // 秋の田の稲架。稲は刈り終えた庭先だけに掛け、実り田は残す。
+    if (!camp) {
+      for (const sx of [-1, 1]) {
+        beam(1, cx + sx * 4, 0, cz - 6, cx + sx * 4, 2.15, cz - 5, .065);
+        beam(1, cx + sx * 4, 0, cz - 4, cx + sx * 4, 2.15, cz - 5, .065);
+      }
+      beam(1, cx - 4.4, 1.85, cz - 5, cx + 4.4, 1.85, cz - 5, .08);
+      for (let i = 0; i < 12; i++) for (const side of [-1, 1]) {
+        const x = cx - 3.6 + i * .65, z = cz - 5 + side * .18;
+        put(4, x, 1.35, z, .23, .95, .22, (i % 3 - 1) * .12, side * .15);
+        put(3, x, 1.73, z, .16, .04, .16);
+      }
+    }
+    const root = new THREE.Group();
+    const near = new THREE.LOD(), ties = new THREE.Group();
+    near.position.set(cx, W.heightAt(cx, cz), cz);
+    ties.position.copy(near.position).multiplyScalar(-1);
+    for (let k = 0; k < buckets.length; k++) {
+      const list = buckets[k];
+      if (!list.length) continue;
+      const mesh = new THREE.InstancedMesh(geos[k], mats[k], list.length);
+      for (let i = 0; i < list.length; i++) mesh.setMatrixAt(i, list[i]);
+      mesh.instanceMatrix.needsUpdate = true; mesh.computeBoundingSphere();
+      mesh.receiveShadow = true;
+      if (k === 3) ties.add(mesh); else root.add(mesh);
+    }
+    near.addLevel(ties, 0); near.addLevel(new THREE.Group(), 65);
+    root.add(near); rt.scene.add(root);
+  }
+  for (const [x, z, r] of [[-34, 68, -.25], [-32, 68, .12], [-26, 91, .3], [-24, 91, -.1]])
+    rt.scene.add(takataba(W, x, z, r, { fieldBundle: true, fieldTrestle: true }));
+  // 由緒や伽藍を断定せず、田の外の小堂と鎮守林として遠景に一つだけ。
+  rt.scene.add(dou(W, 96, -108, 5, 4, -.2));
+  rt.scene.add(nabe(W, -32, 79, { fire: false }));
+  W.addSmokeColumn(-32, W.heightAt(-32, 79) + .85, 79, { size: .35 });
+  W.addSmokeColumn(-12, W.heightAt(-12, -66) + 3.4, -66, { size: .3 });
+  // 土埃は目の前で打ち合う足元の八粒だけ。入れ物を使い回し、兵も光源も増やさない。
+  const positions = new Float32Array(8 * 3), phase = new Float32Array(8);
+  for (let i = 0; i < 8; i++) phase[i] = i * .618;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute('phase', new THREE.BufferAttribute(phase, 1));
+  geo.setDrawRange(0, 0);
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { clock: { value: 0 } }, transparent: true, depthWrite: false,
+    vertexShader: `attribute float phase; uniform float clock; varying float fade;
+      void main() {
+        float age = fract(clock * .45 + phase);
+        vec3 p = position + vec3(age * .65, .12 + age * .55, age * .2);
+        vec4 eye = modelViewMatrix * vec4(p, 1.0);
+        gl_Position = projectionMatrix * eye;
+        gl_PointSize = clamp((45.0 + age * 100.0) / max(1.0, -eye.z), 1.0, 32.0);
+        fade = sin(age * 3.14159) * .12;
+      }`,
+    fragmentShader: `varying float fade;
+      void main() {
+        float r = length(gl_PointCoord - vec2(.5)) * 2.0;
+        gl_FragColor = vec4(.53, .46, .34, (1.0 - smoothstep(.1, 1.0, r)) * fade);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`,
+  });
+  const dust = new THREE.Points(geo, mat);
+  dust.frustumCulled = false; dust.renderOrder = 1; rt.scene.add(dust);
+  rt.flags.fieldDust = { mesh: dust, next: 0 };
+}
+
+function fieldDustTick(rt) {
+  const D = rt.flags.fieldDust;
+  if (!D) return;
+  D.mesh.visible = !SETTINGS.reduceMotion;
+  D.mesh.material.uniforms.clock.value = rt.t;
+  if (!D.mesh.visible || rt.t < D.next) return;
+  D.next = rt.t + .6;
+  const geo = D.mesh.geometry, pos = geo.attributes.position, p = rt.player.u.pos;
+  let n = 0;
+  for (const u of rt.army.units) {
+    if (n === 8) break;
+    if (!fighting(u) || !u.target || !u.mesh?.visible || Math.abs(u.pos.x - p.x) > 32 || Math.abs(u.pos.z - p.z) > 32) continue;
+    if (Math.hypot(u.pos.x - u.target.pos.x, u.pos.z - u.target.pos.z) > 4) continue;
+    pos.setXYZ(n++, u.pos.x, rt.world.heightAt(u.pos.x, u.pos.z), u.pos.z);
+  }
+  pos.needsUpdate = true; geo.setDrawRange(0, n);
 }
 
 // 教えの順と成功判定は保ち、操作の札は出さない。
@@ -501,7 +645,7 @@ const inou = {
           // 実際に突いた兵を引き続き示し、残る赤の量を読めるようにする。
           if (t.group === F.approachGroup) F.approachUnit = t;
           t.inouHitHp = hp;
-          t.inouDamageUntil = rt.t + 1.6;
+          t.inouDamageUntil = rt.t + 2.4;
           t.inouHitUntil = rt.t + 2.4;
           t.inouBlockUntil = 0;
         }
@@ -518,6 +662,7 @@ const inou = {
     for (const g of [...F.friends, F.nobuGroup]) park(g);
 
     // ---- 陣と旗 ----
+    fieldLife(rt);
     // 信長方の本陣：幕だけで空にしない。奥に床几と軍配、地図の机と使いの者（jinCamp と camp_life）、篝火、馬つなぎ、馬印と旗竿（kaito 10/22 稲生 8）。
     rt.scene.add(jinCamp(W, NOBU.x - 16, NOBU.z, { w: 12, d: 9, gap: 4, mon: 'oda', people: false }));
     for (const [x, z] of [[NOBU.x - 21, NOBU.z + 6], [NOBU.x - 11, NOBU.z + 6]]) rt.scene.add(kagaribi(W, x, z));
@@ -875,6 +1020,7 @@ const inou = {
     const F = rt.flags;
     const p = rt.player.u.pos;
     if (F.ending) return;
+    fieldDustTick(rt);
     KIT.backTick(rt);
     // 赤い▼の本人への道を、既存の道譲りと共有する。囲みの札は要らない。
     rt.army.guideWayEnemy = this.missionSignTarget(rt);

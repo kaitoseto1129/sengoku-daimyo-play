@@ -926,6 +926,110 @@ function buildTownGround(rt) {
   rt.scene.add(stones, ridges);
 }
 
+// 本の野戦兵器の丸太・縄結いと清洲の板囲いを、山麓の小さな補給場へ。
+// 配置は復元の補い。攻城塔を山へ持ち込まず、通りと乱戦の外側だけを使う。
+function buildInabaFieldLife(rt) {
+  const W = rt.world, unit = new THREE.BoxGeometry(1, 1, 1);
+  const cane = new THREE.CylinderGeometry(1, 1, 1, 5);
+  const ring = new THREE.TorusGeometry(.29, .025, 3, 8);
+  const wood = new THREE.MeshLambertMaterial({ vertexColors: true, map: barkTex('pine') });
+  const cloth = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+  const stem = new THREE.MeshLambertMaterial({ vertexColors: true });
+  // 三つの材質・基本形を全置き場で共用。区画ごとに結合し、画面外は丸ごと省く。
+  const blocked = (x, z, pad) => inabaPathDistance(x, z) < pad + 3
+    || SOLIDS.some((s) => x > s.x0 - pad && x < s.x1 + pad && z > s.z0 - pad && z < s.z1 + pad);
+  const finish = (parts, mat, parent = rt.scene) => {
+    if (!parts.length) return;
+    const geo = mergeGeometries(parts); parts.forEach((g) => g.dispose());
+    const mesh = new THREE.Mesh(geo, mat); mesh.receiveShadow = true;
+    parent.add(mesh);
+  };
+  // 一つ八歩四方、南向きの口は開放。山の本陣は斜面なら無理に建てない。
+  for (const [x, z] of [[76, 118], [94, 88], [ZUI.x + 25, ZUI.z + 2]]) {
+    if (blocked(x, z, 5)) continue;
+    const y = drawGroundAt(W, x, z), timber = [], fabric = [];
+    let low = y, high = y;
+    for (const dx of [-4, 0, 4]) for (const dz of [-3, 0, 3]) {
+      const h = drawGroundAt(W, x + dx, z + dz); low = Math.min(low, h); high = Math.max(high, h);
+    }
+    if (high - low > .9) continue;
+    const box = (list, dx, dy, dz, sx, sy, sz, color, tilt = 0) => {
+      const g = unit.clone(); g.scale(sx, sy, sz); g.rotateZ(tilt);
+      g.translate(x + dx, y + dy, z + dz); list.push(paintGeo(g, color));
+    };
+    const post = (dx, dz, top) => {
+      const bottom = drawGroundAt(W, x + dx, z + dz) - .12;
+      const g = cane.clone(); g.scale(.075, y + top - bottom, .075);
+      g.translate(x + dx, (bottom + y + top) / 2, z + dz); timber.push(paintGeo(g, 0x6b5941));
+    };
+    // 強風に垂れた麻の陣幕。継ぎ目ごとに高さを落とし、白い板にしない。
+    for (let i = 0; i <= 4; i++) post(-4 + i * 2, -2.6, 2.25);
+    for (let i = 0; i < 24; i++) {
+      const dx = -4 + (i + .5) / 3, sag = .16 * Math.sin((i % 6 + .5) / 6 * Math.PI);
+      box(fabric, dx, 1.37 - sag, -2.6 + .09 * Math.sin(i * .8), .35, 1.55, .025,
+        i % 6 === 0 ? 0x9b927c : 0xc0b59a);
+    }
+    solidSeg(x - 4, z - 2.6, x + 4, z - 2.6, .12);
+    // 陣小屋は開いた片流れの板庇。柱は各々の足場まで下ろす。
+    for (const dx of [-3.5, -.5]) for (const dz of [-1.8, .6]) post(dx, dz, dx < -2 ? 2.5 : 1.95);
+    for (let i = 0; i < 9; i++) box(timber, -2, 2.35, -1.8 + i * .3, 3.5, .07, .34, i % 3 ? 0x78684f : 0x95815e, -.18);
+    for (const dz of [-1.7, .5]) box(timber, -2, 2.43, dz, 3.5, .11, .1, 0x514631, -.18);
+    // 兵糧と薪は庇の奥。既存の俵の形を使い、戦う兵を増やさない。
+    rt.scene.add(tawara(W, x - 2, z - 1, 0, 6));
+    for (let i = 0; i < 9; i++) box(timber, -3 + i % 3 * .23, .17 + Math.floor(i / 3) * .13, .35, .16, .12, .85, 0x67553d);
+    // 結束済みの竹束を仕寄りへ運ぶ前の置き場。個々の竹と二本の縄を残す。
+    for (let b = 0; b < 3; b++) {
+      const bx = x + 1.2 + b * .85, bz = z - 1.5, baseY = drawGroundAt(W, bx, bz);
+      for (let i = 0; i < 7; i++) {
+        const a = i * Math.PI / 3, dx = i === 6 ? 0 : Math.cos(a) * .19, dz = i === 6 ? 0 : Math.sin(a) * .19;
+        const g = cane.clone(); g.scale(.067, 1.65 + i % 3 * .09, .067);
+        g.translate(bx + dx, baseY + .85, bz + dz); timber.push(paintGeo(g, i % 2 ? 0x8b945e : 0xaaa477));
+      }
+      for (const h of [.4, 1.2]) {
+        const g = ring.clone(); g.rotateX(Math.PI / 2); g.translate(bx, baseY + h, bz);
+        timber.push(paintGeo(g, 0x736044));
+      }
+    }
+    W.stampWear(x, z + 1, 4.3, 100);
+    finish(timber, wood); finish(fabric, cloth);
+  }
+  // 八月の青田は刈り束にせず、畦の内に青い株と出穂前後の穂先。
+  // 長良川側の低地だけ。水の大きな平面を斜面へ重ねず、各株を地面へ据える。
+  for (const [x, z] of [[-65, 87], [-66, 105]]) {
+    if (blocked(x, z, 7)) continue;
+    const plants = [], banks = [], farPlants = [];
+    for (let row = 0; row < 12; row++) for (let col = 0; col < 10; col++) {
+      const px = x - 4.5 + col, pz = z - 5.5 + row, y = drawGroundAt(W, px, pz);
+      for (const side of [-1, 1]) {
+        const g = unit.clone(); g.scale(.045, .67 + .1 * Math.sin(row + col), .11); g.rotateZ(side * .24);
+        g.translate(px + side * .11, y + .34, pz); plants.push(paintGeo(g, col % 3 ? 0x657641 : 0x839052));
+      }
+      if ((row + col) % 3 === 0) {
+        const g = unit.clone(); g.scale(.05, .15, .07); g.rotateZ(.3);
+        g.translate(px + .12, y + .67, pz); plants.push(paintGeo(g, 0x969453));
+      }
+      // 遠景は二十の小区画へまとめ、地面の起伏にも追随させる。
+      if (row % 3 === 0 && col % 2 === 0) {
+        const g = unit.clone(); g.scale(1.8, .4, 2.5);
+        g.translate(px + .5, drawGroundAt(W, px + .5, pz + 1) + .2, pz + 1);
+        farPlants.push(paintGeo(g, col % 3 ? 0x657641 : 0x79884b));
+      }
+    }
+    for (let i = 0; i < 12; i++) for (const side of [-1, 1]) {
+      const px = x + side * 5.3, pz = z - 5.5 + i, y = drawGroundAt(W, px, pz);
+      const g = unit.clone(); g.scale(.65, .22, 1.04); g.translate(px, y + .04, pz); banks.push(paintGeo(g, 0x706348));
+    }
+    const lod = new THREE.LOD(), near = new THREE.Group(), far = new THREE.Group();
+    // 形の座標は区画の中心へ戻し、距離による切り替えの中心も田へ合わせる。
+    const y = drawGroundAt(W, x, z);
+    for (const parts of [plants, farPlants]) for (const g of parts) g.translate(-x, -y, -z);
+    finish(plants, stem, near); finish(farPlants, stem, far);
+    lod.addLevel(near, 0); lod.addLevel(far, 65, .12); lod.position.set(x, y, z); rt.scene.add(lod);
+    finish(banks, wood);
+  }
+  unit.dispose(); cane.dispose(); ring.dispose();
+}
+
 // 町の焼け跡は、箱を傾けず黒い柱と落ちた梁で示す。形と材質は十軒で共用する。
 const CHAR_GEO = new THREE.BoxGeometry(1, 1, 1);
 const TOWN_RUBBLE_GEO = new THREE.IcosahedronGeometry(1, 0);
@@ -3685,6 +3789,7 @@ const inabayama = {
       return v;
     });
     for (const v of F.farTown) rt.scene.add(v);
+    buildInabaFieldLife(rt);
     // 寺・町の戸口と村の脇道を、民が実際に逃げる道へつなぐ。
     // 圧縮地形に合わせた推定の生活道。既存の踏み跡へ設営時だけ描き、面と材質は増やさない。
     // 共通の南の道は一度だけ踏む。重なる退き道だけが濃い大通りになるのを避ける。

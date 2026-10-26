@@ -4,8 +4,11 @@ import { GRIME } from './humans_materials.js';
 import { WET } from './world.js';
 import { S } from './settings.js';
 
-const copies = new WeakMap();
+// 場面から外れた写しも、戦の片付けで集めて返す。
+export const nearSurfaceCopies = new Map();
+const copies = nearSurfaceCopies;
 let soil = null;
+export function sharedNearSurfaceResources() { return soil; }
 const blood = { value: 1 };
 export function nearSurfaceBlood(hide) {
   blood.value = hide || S.blood === 'off' ? 0 : S.blood === 'low' ? 0.45 : 1;
@@ -38,10 +41,12 @@ export function nearSurfaceMaterial(base, kind = 'unit') {
   // 表情・笠の陰・一人称の腕などの共有値を写し直さない。
   m.userData = { ...base.userData };
   m.nearSurfaceBase = base;
+  // 色の仕上げが原本を包む順番で、同じ表面の鍵と処理が変わらないよう固定する。
+  const before = base.onBeforeCompile, key = base.customProgramCacheKey();
   const armor = kind !== 'face' && kind !== 'eye';
   if (armor) m.userData.nearSoil = { value: soilTexture() };
   m.onBeforeCompile = (sh, renderer) => {
-    base.onBeforeCompile.call(base, sh, renderer);
+    before.call(base, sh, renderer);
     sh.fragmentShader = 'float nearAmount;\n' + sh.fragmentShader;
     sh.fragmentShader = sh.fragmentShader.replace('#include <alphatest_fragment>', `#include <alphatest_fragment>
       nearAmount = 1.0 - smoothstep(100.0, 144.0, dot(vViewPosition, vViewPosition));`);
@@ -103,7 +108,7 @@ export function nearSurfaceMaterial(base, kind = 'unit') {
         }`);
     }
   };
-  m.customProgramCacheKey = () => base.customProgramCacheKey() + '|near-surface-1|' + kind;
+  m.customProgramCacheKey = () => key + '|near-surface-1|' + kind;
   variants.set(kind, m);
   return m;
 }
