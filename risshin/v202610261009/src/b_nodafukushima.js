@@ -82,13 +82,14 @@ function villageGround(x, z) {
 }
 // 高だけの寺の囲いと裏通り。屋根を木が突き抜けず、内側を草原にしない。
 const templeTownGround = (x, z) => x > 133 && x < 208 && z > 133 && z < 210;
-const ODA = { flag: 'oda' };
+// 本の足軽装束：煤けた鉄・革の胴と藍の小袖。所属は既存の旗で示す。
+const ODA = { flag: 'oda', armor: 0x302720, lace: 0x615342, cloth: 0x26333a, haori: 0 };
 // 三好は共通の装束表にないため、旗だけ渡すと織田の藍の威へ戻ってしまう。
 // 遠景の三好勢と同じ煤けた具足へ。色は推定で、所属は三階菱の旗でも示す。
-const MIYOSHI = { flag: 'miyoshi', armor: 0x35382c, lace: 0x6b6250, cloth: 0x3a342c };
+const MIYOSHI = { flag: 'miyoshi', armor: 0x35382c, lace: 0x6b6250, cloth: 0x3a342c, haori: 0 };
 const NO_GROUPS = [];
-const RETREAT_WAIT = 120;
-const canJoin = (u) => u.alive && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget && !u.gone;
+const RETREAT_WAIT = 90;
+const canJoin = (u) => u?.alive && !u.fleeing && !u.dying && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget && !u.gone;
 // 生き残りが別の場所で戦っていても、無人の詰め陣へ案内しない。
 // 到着の判定と同じ十歩以内で、実際に迎えられる守兵だけを数える。
 function campJoinAvailable(rt) {
@@ -358,8 +359,6 @@ html body #hud.nodafukushima #battle-notices:not(.choosing) #objectives.keep-com
  line-height:1.45!important; font-weight:normal!important; color:#b9b09c;
 }
 @media(min-width:901px) and (min-height:621px) {
- /* 中央の休息・退避の下知に両軍名を重ねない。所属は開戦札と旗で示す。 */
- html body #hud.nodafukushima.mission-visible #armybar { display:none!important; }
  html body #hud.nodafukushima #battle-notices:not(.choosing),
  html body #hud.nodafukushima.mission-visible #battle-notices:not(.choosing):not(:has(#objectives.expand)) {
   left:auto!important; right:calc(208px + env(safe-area-inset-right,0px))!important; top:104px!important; width:min(300px,26vw)!important; max-height:32vh!important;
@@ -1514,6 +1513,106 @@ function installNodaWater(rt) {
 }
 
 const nodafukushima = {
+  // 稲生の型。兵数・寄せの五組は変えず、任務と行き先だけを一つにする。
+  missionSingleLine: true,
+  hideMissionDots: true,
+  hideGuideSteps: true,
+  enemyTriangleSigns: true,
+  nearbyAllySignLimit: 0,
+  noDodgeCard: true,
+  noPlayerFoot: true,
+  quietMiss: true,
+  missionPinCaption: '',
+  missionDetail: () => '',
+  missionStatus: () => '',
+  missionTimeText: () => '',
+  bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討ち取|討死|崩れ|撤退|退き口を失|間に合わなかった/.test(text),
+  missions: ['味方と集まれ', '竹束を押せ', '▼の敵を倒せ', '砦前に集まれ', 'ここを守れ', '味方の列へ退け', '味方と合流した'],
+  missionOf(rt) {
+    const F = rt.flags;
+    if (F.ending) return 6;
+    if (F.retreating) return 5;
+    if (F.step === 3) return 4;
+    if (F.step === 2.5 || F.step === 2 && gone(F.sally)) return 3;
+    return F.step === 2 ? 2 : F.step === 1 ? 1 : 0;
+  },
+  missionHeading(rt) {
+    const F = rt.flags, stage = this.missionOf(rt);
+    if (stage === 6 && !rt.tracker.main) return '戦を終える';
+    if (stage === 1) {
+      if (!F.tabaReady) return '竹束の置き場を選べ';
+      if (rt.G.lord || F.tabaDone?.[F.pickIndex]) return 'ここを守れ';
+      return F.carry ? '竹束を印へ押せ' : '竹束を押せ';
+    }
+    // 生存状態から読むので、討ち取り・到着のコマに古い下知を残さない。
+    if (stage === 2 && !this.missionSignTarget(rt)) return Math.hypot(rt.player.u.pos.x, rt.player.u.pos.z + 37) < 18 ? '味方を待て' : '砦前に集まれ';
+    if (stage === 3 && Math.hypot(rt.player.u.pos.x, rt.player.u.pos.z + 37) < 18) return '味方を待て';
+    if (stage === 5) {
+      const to = F.retreatAlt ? retreatPoint(rt) : ODA_JOIN;
+      if (to && Math.hypot(rt.player.u.pos.x - to.x, rt.player.u.pos.z - to.z) < (F.retreatAlt ? 6 : 10)) return '味方と合流せよ';
+    }
+    return this.missions[stage];
+  },
+  // 落城させない戦なので、砦の大将の印と、浅瀬で倒す相手を分ける。
+  commanderSignTarget(rt) {
+    const u = rt.flags.campB?.general;
+    return !rt.flags.ending && !rt.over && u && canJoin(u) ? u : null;
+  },
+  commanderTarget(rt) {
+    const F = rt.flags, u = F.sally?.units[0];
+    return F.step === 2 && !F.retreating && !F.ending && !gone(F.sally) && u && canJoin(u) && this.missionSignTarget(rt) === u ? u : null;
+  },
+  namedGuideTarget(rt) { return this.commanderTarget(rt); },
+  missionSignTarget(rt) {
+    const F = rt.flags;
+    if (F.step !== 2 || F.retreating || F.ending || gone(F.sally)) return null;
+    if (rt.t < (F.foePinAt || 0) && canJoin(F.foePinUnit)) return F.foePinUnit;
+    F.foePinAt = rt.t + .25;
+    const p = rt.player.u.pos;
+    let best = Infinity, target = null;
+    for (const u of F.sally.units) {
+      if (!canJoin(u) || u.isStruct || u.civ) continue;
+      const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
+      if (d < best) { best = d; target = u; }
+    }
+    F.foePinUnit = target;
+    return target;
+  },
+  missionPin(rt) {
+    const F = rt.flags, stage = this.missionOf(rt);
+    if (F.ending || rt.over || !rt.player.u.alive) return null;
+    // 運搬は既存の折れ曲がる道順と作業の印を使う。
+    const carryGuard = stage === 1 && F.tabaReady && (rt.G.lord || F.tabaDone?.[F.pickIndex]);
+    if (stage < 2 && !carryGuard) return undefined;
+    const q = F.nodaPin || (F.nodaPin = { x: 0, z: 0 });
+    q.unit = null; q.enemy = false; q.approach = false;
+    q.waiting = false; q.arrived = false; q.always = false; q.defend = false;
+    q.progress = null; q.r = q.hide = 0;
+    let to;
+    if (stage === 2) {
+      const u = this.missionSignTarget(rt);
+      if (u) {
+        if (rt.player.inRange && rt.player.rangeCueTarget === u) return null;
+        to = u.pos; q.unit = u; q.enemy = true; q.approach = true; q.r = q.hide = .2;
+      }
+    }
+    if (!to && (stage === 2 || stage === 3)) {
+      to = F.fortPin || (F.fortPin = { x: 0, z: -37 });
+      q.r = 18; q.waiting = true;
+    } else if (stage === 4 || carryGuard) {
+      to = F.holdPin || (F.holdPin = { x: 8, z: LEVEE_Z + 4 });
+      q.r = 12; q.waiting = true; q.always = true; q.defend = true;
+      q.progress = Math.min(1, (rt.t - F.stepT) / (carryGuard ? CARRY_WAIT : F.holdMerit ? 168 : 185));
+    } else if (stage === 5) {
+      to = F.retreatAlt ? retreatPoint(rt) : ODA_JOIN;
+      q.r = F.retreatAlt ? 6 : 10;
+    }
+    if (!to) return null;
+    q.x = to.x; q.z = to.z;
+    q.arrived = !q.enemy && Math.hypot(rt.player.u.pos.x - to.x, rt.player.u.pos.z - to.z) < q.r;
+    return q;
+  },
+  missionPinFallback: true,
   // 兵の名簿に加えず、共通の軽い民を使う。薪火も危険として避ける。
   civilianCrowd: { bands: PEOPLE_BANDS, fireSize: 1 },
   distanceUnit: 'steps', // 初めてでも残りの距離が分かるよう、間ではなく歩数で示す。
@@ -1716,6 +1815,7 @@ const nodafukushima = {
     return F.retreating ? 'retreat' : F.step === 0 ? 'maeda' : F.step === 1 ? (F.carry ? 'tabaWay' : 'pile') : F.step === 2 || F.step === 2.5 ? 'assault' : F.step === 3 ? 'leveeHold' : null;
   },
   world: {
+    noHaori: true, // 本の足軽主体の装束。既存の指定で陣羽織を出さない。
     namedKacchu: NODAFUKUSHIMA_KACCHU,
     seed: 1570,
     wind: [0.9, -0.3],   // 西の海から。風向きは復元
@@ -1920,9 +2020,9 @@ const nodafukushima = {
     F.noda = buildFort(NODA_PLAN);
     F.fuku = buildFort(FUKU_PLAN);
     if (true) {
-      // 奥の隅にも井楼を続ける。既存の遠距離用の粗い形と、三好の紋を使う。
-      monomi(rt, -10, -90, { team: 1, mon: 'miyoshi', boarded: true, name: '野田砦の奥の井楼' }).mesh.userData.noMerge = true;
-      monomi(rt, -144, -79, { team: 1, mon: 'miyoshi', boarded: false, name: '福島砦の川際の井楼' }).mesh.userData.noMerge = true;
+      // 本の井楼に合わせ、樹皮の通し柱と木口を出す井桁へ。既存の形と遠近切替を共用する。
+      monomi(rt, -10, -90, { team: 1, mon: 'miyoshi', logFrame: true, fieldFrame: true, barkPosts: true, boarded: true, name: '野田砦の奥の井楼' }).mesh.userData.noMerge = true;
+      monomi(rt, -144, -79, { team: 1, mon: 'miyoshi', logFrame: true, fieldFrame: true, barkPosts: true, boarded: false, name: '福島砦の川際の井楼' }).mesh.userData.noMerge = true;
     }
     F.noda.height = F.fuku.height = height;
     F.nodaGate = makeGate(rt, F.noda.gateObjs.mon, { name: NODA_GATE.name, guardTeam: 1 });
@@ -2091,12 +2191,14 @@ const nodafukushima = {
     }
     // 野田砦の奥（本陣の曲輪）の三好の本陣：三好長逸と旗本（控えは軽い兵）。旗本は整った陣形で待つ
     // 幅十六の陣幕は左右の詰所・長屋の中を横切る。幕と荷を中央の八歩へ収める。
-    F.campB = camp(rt, { x: 0, z: -84, w: 8, compact: true, tate: false, facing: 0, team: 1, faction: 'miyoshi', mon: 'miyoshi', armor: 0x35382c, general: { name: '三好長逸', hat: 'kabuto_m', haori: 0x3a3a2a }, guard: 15, reserve: 0, runTo: { x: 10, z: FORT_Z - 6 } });
+    F.campB = camp(rt, { x: 0, z: -84, w: 8, compact: true, tate: false, facing: 0, team: 1, faction: 'miyoshi', mon: 'miyoshi', armor: 0x35382c, general: { name: '三好長逸', hat: 'kabuto_m', haori: 0, flag: 'miyoshi', flagScale: 2.2 }, guard: 15, reserve: 0, runTo: { x: 10, z: FORT_Z - 6 } });
+    // 共通の本陣は旗の倍率を渡さないため、既存の大将の旗だけ一度拡大する。
+    if (F.campB.general?.flag) F.campB.general.flag.scale.multiplyScalar(2.2);
     for (const u of F.campA.guard.units) { u.pos.z -= 27; u.pos.y = W.heightAt(u.pos.x, u.pos.z); u.mesh.position.copy(u.pos); }
     F.campA.guard.anchor.z = ODA_JOIN.z; // 南向きの幕の北側で退く兵を迎える。共通の camp は南側に置くため補正
     for (const c of [F.campA, F.campB]) if (c && c.guard) { c.guard.stay = true; c.guard.formation = 'yari'; if (c.general) c.general.allyOk = true; }
     F.sally = enemyGroup(rt, { faction: 'miyoshi', name: '砦の前の三好勢', anchor: { x: -4, z: -37 }, facing: 0, width: 12, aggro: 5, seekRange: 12, morale: 90, fleeDir: { x: 0, z: -1 }, formation: 'yari' },
-      dress([{ type: 'busho', n: 1, o: { name: '岩成友通', horse: false, invuln: true, allyOk: true } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 14 }], MIYOSHI));
+      dress([{ type: 'busho', n: 1, o: { name: '岩成友通', horse: false, invuln: true, allyOk: true, flagScale: 2.2 } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 14 }], MIYOSHI));
     // 本願寺の先陣は早鐘の後に畦道から出す。昼の浅瀬の斬り合いには加わらない。
     F.waves = []; F.waveJoined = []; F.wavePaid = []; F.heldWaves = 0;
     // ---- 持ち場の区域（siege_zones.js）：堤の上・織田の詰め陣（味方）、野田砦・福島砦（三好） ----
@@ -2817,17 +2919,17 @@ const nodafukushima = {
         rear ? atRest ? bind ? '血を止める札が出たら三秒押せ' : '印で止まり、構えを解いて息を整えよ' : '印までは構えて下がれ。着いたら止まって休め' : bind ? '味方の後ろで止まり、血を止める札を待て' : '味方の後ろで止まり、構えを解く。敵が近ければ下がれ' :
         gone(F.sally) ? '浅瀬を渡り、砦前の印へ' : '味方の槍の列と進め。一人で前へ出るな');
       if (gone(F.sally) && !F.nightAt) {
-        F.nightAt = rt.t + 3;
+        F.nightAt = rt.t;
         // 渡った後の札を「浅瀬の先」のままにせず、次に並ぶ所と揃える。
         rt.marker('assault', { x: 0, z: -37 }, '砦前・味方と並ぶ', { h: 2, guideAlways: true, alwaysDistance: true });
         rt.say('前田利家', '敵は退いたぞ！　浅瀬を越え、砦の口へ詰めよ！', 3.5);
       }
       // 攻めが膠着したら対陣へ移る。敵を倒した手柄にはしない。
-      if (!F.nightAt && rt.t - F.stepT > 100 && Math.hypot(rt.player.u.pos.x, rt.player.u.pos.z + 37) < 18) {
+      if (!F.nightAt && rt.t - F.stepT > 85 && Math.hypot(rt.player.u.pos.x, rt.player.u.pos.z + 37) < 18) {
         F.sally.onArrive = null; F.sally.focus = null; F.sally.order = 'retreat';
         this.midA(rt, true);
       }
-      if (F.nightAt && rt.t > F.nightAt && Math.hypot(rt.player.u.pos.x, rt.player.u.pos.z + 37) < 18) this.midA(rt);
+      if (F.nightAt && rt.t >= F.nightAt && Math.hypot(rt.player.u.pos.x, rt.player.u.pos.z + 37) < 18) this.midA(rt);
 
     }
     if (F.step === 2.5) {
@@ -2918,7 +3020,7 @@ const nodafukushima = {
       rt.objProgress('main', safe ? '敵へ向いたまま、味方の後ろへ下がれ' : bind || rest ? rear ? !atRest ? '印までは構えて下がれ。着いたら止まって休め' : bind ? '血を止める札が出たら三秒押せ' : '印で止まり、構えを解いて息を整えよ' : '敵が近い。味方と構えて下がれ' : !held ? '味方と堤を奪い返せ' : F.kyotoNews ? (F.holdMerit ? '退き口は保てた。味方と下知を待て' : '堤で退き口を守り、下知を待て') : F.waveNear || F.holdThreat ? '堤の味方と敵を防げ。追わず、列を守れ' : F.wavesCleared ? '寄せを退けた。追わず、堤で下知を待て' : F.waveApproaching ? '敵が近づいている。堤の味方と迎えよ' : '敵が離れた。追わず、堤で構えを解け');
       // 京を守る撤退命令は、局地の奪い返しや本人の帰着を待たない。
       // 堤を失っても退き口へ向かわせ、安全に味方へ合流できた時だけ成功にする。
-      if (rt.t - F.stepT > (F.holdMerit ? 168 : 185) && F.kyotoNews) this.midB(rt);
+      if (rt.t >= 240 && rt.t - F.stepT > (F.holdMerit ? 168 : 185) && F.kyotoNews) this.midB(rt);
     }
   },
 

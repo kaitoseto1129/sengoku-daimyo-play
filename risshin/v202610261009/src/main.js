@@ -35,7 +35,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { AdaptPass, FinishPass, clearEdgeDark } from './post.js';
 import { initAudio, silence, sfx, setVolume, duck, townMusic, playMusic, stopMusic } from './audio.js';
 import { titleScreen, storyCard, loadingStory, inkBand, evalScreen, spoilHorseInfo, aijirushiScreen, baseScreen, finalScreen, hideScreen, helpOverlay, settingsScreen, pauseMenu, notice, deathScreen, promoScreen, ronkoScreen, recordsScreen, dojoResult, epilogueScreen, ladderScreen } from './screens.js';
-import { S, QUALITY, saveSettings, canonical, K, reduceMotion, MEM_TIGHT, MEM_TIGHT_TEST } from './settings.js';
+import { S, QUALITY, saveSettings, canonical, K, reduceMotion, MEM_TIGHT, MEM_TIGHT_TEST, CPU_LEAN } from './settings.js';
 import { TIER, noteGL, markInBattle, markCrashed, WEAK_TEX_MAX, battleDrawRatio } from './device_tier.js';
 // 自動計測専用：x_pr75（倍率0.75。x_pr70も可）・x_noshadow・x_noai（兵の判断と当たりを停止）・x_noskin（骨を停止）・x_nosmoke（煙・炎・土埃なし）・x_simplemat（照明なし）。通常の高画質には適用しない。
 // 既存の札：x_nopost・x_nobloom・x_sm1024・x_noao・x_nodof・x_norays・x_sec180・x_shfull・x_bloomblend。
@@ -490,20 +490,22 @@ if (MEM_TIGHT) {
   }
 }
 renderer.shadowMap.enabled = false;
+renderer.shadowMap.autoUpdate = false;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 // 影は形の転送前に軽くし、影を描き終えたら画面用へ戻す（影では onBeforeRender が呼ばれない）。
 {
   const shadowHeld = [], shadowHidden = [];
-  const limitUnitShadow = (o, unit) => {
+  const limitUnitShadow = (o, unit, flag = false) => {
     // 隠れた枝は影にも出ない。所属する兵は子へ渡し、部品ごとに親を探し直さない。
     if (!o.visible) return;
     unit = o._armyUnit || unit;
+    flag = flag || !!o.userData.flag;
     if (o.castShadow && !o.isLight && !o.userData.unitShadowBatch &&
-        (!unit?.shOn || !unit.alive || unit.dying || unit.gone)) {
+        !(flag && !unit) && (!unit?.shOn || !unit.alive || unit.dying || unit.gone)) {
       shadowHeld.push(o); o.castShadow = false;
     }
     const children = o.children;
-    for (let i = 0; i < children.length; i++) limitUnitShadow(children[i], unit);
+    for (let i = 0; i < children.length; i++) limitUnitShadow(children[i], unit, flag);
   };
   const shadowRender = renderer.shadowMap.render;
   renderer.shadowMap.render = function (lights, scene, camera) {
@@ -511,22 +513,24 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     if (!this.enabled || !this.autoUpdate && !this.needsUpdate || lights.length === 0) {
       return shadowRender.call(this, lights, scene, camera);
     }
-    // 影は本人だけ（10/24 kaito）：本人の入れ物のほかは、影の描き込みの間だけ隠して辿らせもしない。
-    const hero = window.__game?.battle?.player?.u?.mesh;
-    if (scene.userData.limitedUnitShadows) {
-      const ch = scene.children;
-      for (let i = 0; i < ch.length; i++) { const c = ch[i]; if (c !== hero && c.visible && !c.isLight) { c.visible = false; shadowHidden.push(c); } }
-    }
     try {
       // 景物・遠景・新しく追加された小道具も、動く影の描き込みへ入れない。
-      if (scene.userData.limitedUnitShadows) limitUnitShadow(scene, null);
+      if (scene.userData.limitedUnitShadows) {
+        // 焼いた固定物は枝ごと外し、影の更新ではその子の行列や形も辿らない。
+        for (const root of scene.children) {
+          if (root.visible && (root.userData.bakedShadowRoot || root._sf || root.userData.staticMerged)) {
+            root.visible = false; shadowHidden.push(root);
+          }
+        }
+        limitUnitShadow(scene, null);
+      }
       humanShadowLod(scene, true);
       return shadowRender.call(this, lights, scene, camera);
     } finally {
       humanShadowLod(scene, false);
       for (const o of shadowHeld) o.castShadow = true;
       shadowHeld.length = 0;
-      for (const o of shadowHidden) o.visible = true;
+      for (const root of shadowHidden) root.visible = true;
       shadowHidden.length = 0;
     }
   };
@@ -766,10 +770,12 @@ function drawScene(scene, fresh = false) {
   if (game.battle && game.battle.scene === scene) noboriCull(camera, scene);
   // 設定を直接切り替えた場合も、低で前の画質の影を描き続けない。熱 3 は影を描かない
   heatStep();
-  renderer.shadowMap.enabled = false;
-  // 熱 1 以上は影の描き直しを二コマに一度（影の的 2048² の描き込みが毎コマの GPU の仕事の大きな分）
-  if (heatLevel >= 1 && renderer.shadowMap.enabled) { renderer.shadowMap.autoUpdate = false; renderer.shadowMap.needsUpdate = (++heatFrame & 1) === 0; }
-  else if (!renderer.shadowMap.autoUpdate) { renderer.shadowMap.autoUpdate = true; renderer.shadowMap.needsUpdate = true; }
+  const shadowWorld = game.battle?.scene === scene ? game.battle.world : null;
+  if (shadowWorld) shadowWorld.staticLight.update(renderer, game.battle.army.structs);
+  renderer.shadowMap.enabled = !!shadowWorld && S.quality !== 'low' && heatLevel < 3 && !APX.noshadow;
+  // 固定物の絵は更新しない。動く影だけ、熱が上がった時は二コマに一度描き直す。
+  renderer.shadowMap.autoUpdate = false;
+  renderer.shadowMap.needsUpdate = renderer.shadowMap.enabled && (heatLevel < 1 || (++heatFrame & 1) === 0);
   // 戦の側が光を直接変えた後にも、全画質で同じ夜の散乱光を当てる。
   const nightWorld = game.battle && game.battle.world;
   let drawMeasure = null;
@@ -1926,6 +1932,7 @@ const game = {
       const b = new BM.Battle(this, i, this.G.lord ? lordDef(battleDefinition(i), BATTLES[i].id) : battleDefinition(i));
       LT.build = LT.buildOnly = Math.round(performance.now() - tB);
       applyLord(b);
+      if (!isNorender()) b.world.staticLight.update(renderer, b.army.structs);
       b.startAutomatic = tool;
       b.firstBattle = firstBattle;
       // 馬の読み込みは支度中に済ませる。開戦六秒後に形・動き・絵の仕組みをまとめて作らない。
@@ -2772,16 +2779,18 @@ function loop() {
   if (document.hidden || (b && game.townShop)) { input.endFrame(); return; }
   if (b) {
     // 攻撃が当たった瞬間のわずかな溜め（ヒットストップ）。「動きを減らす」では使わない
-    if (game.hitstop > 0) {
-      const stopped = Math.min(real, game.hitstop, 0.06);
-      game.hitstop = Math.max(0, Math.min(game.hitstop, 0.06) - real);
-      if (!RMm()) dt -= stopped * 0.65;
+    let stopped = 0;
+    if (RMm()) game.hitstop = 0;
+    else if (game.hitstop > 0) {
+      stopped = Math.min(real, game.hitstop, 0.07);
+      game.hitstop = Math.max(0, Math.min(game.hitstop, 0.07) - real);
+      dt -= stopped;
     }
     // 受け流し・武将討ちの瞬間はゆっくり
     const momentSpeed = decisiveCameraSpeed(b);
     if (game.slowmo > 0) { game.slowmo -= real; if (!RMm()) dt *= Math.min(0.35, momentSpeed); }
     else dt *= momentSpeed;
-    b.army.hitReactionScale = dt > 0 ? real / dt : 1;
+    b.army.hitReactionScale = dt > 0 ? (real - stopped) / dt : 1;
     // 軍配の図を開いている間は、時がゆっくり流れる
     if (game.cmdMap && isGunbaiOpen()) dt *= 0.15;
     b.world.distMul = S.drawDist;
@@ -2792,7 +2801,7 @@ function loop() {
       if (!document.hidden) game.deployment.update(real);   // 窓に焦点が無いだけ（裏の Chrome・別の窓を触った）で止めない
     }
     else if (game.photo && !game.paused) updatePhoto(real);
-    else if (!game.paused && !game.hud.introWaiting) {
+    else if (!game.paused && !game.hud.introWaiting && dt > 0) {
       // 毎コマ requestAnimationFrame(loop) を先に積んでから中身を進めるので、ここで一度でも投げると
       // 「次のコマでまた同じ所で投げる」が延々続き、画面は止まって見えるのに輪は回り続ける＝固まる（9/30・軍議を経た戦で見つかった）。
       // 一度つかまえたら、その場で一時停止へ落として、Esc の「この戦をやり直す」が確かに効くようにする
@@ -2803,9 +2812,12 @@ function loop() {
         const slice = Math.min(dt / steps, 1 / 15);
         const tS0 = performance.now();
         for (let tick = 0; tick < steps; tick++) {
-          for (let si = 0; si < spd && !b.disposed && game.battle === b; si++) b.update(slice, input);
+          for (let si = 0; si < spd && !b.disposed && game.battle === b; si++) {
+            b.update(slice, input);
+            if (!RMm() && game.hitstop > 0) break;
+          }
           if (steps > 1) input.endFrame();
-          if (b.disposed || b.over || game.paused || game.hud.introWaiting || game.deployment || game.battle !== b) break;
+          if (b.disposed || b.over || game.paused || game.hud.introWaiting || game.deployment || game.battle !== b || (!RMm() && game.hitstop > 0)) break;
         }
         stepMs = (performance.now() - tS0) / steps;
       } catch (e) {
@@ -2830,7 +2842,7 @@ function loop() {
     // 10/24 kaito（熱）：止めた画面・大きな地図・戦の後の札の間は 3D を描かない（前の絵がそのまま残る）
     const still3d = (game.paused && !game.photo && !game.deployment) || (game.mapOpen && !game.cmdMap) || (b.over && !$('screen').hidden);
     if (!still3d || sizeDirty || wake) {
-      if (MEM_TIGHT) tinyCull(b.scene, camera, renderer);
+      if (CPU_LEAN) tinyCull(b.scene, camera, renderer);
       draw(b.scene); sizeDirty = false;
     }
     if (MEM_TIGHT && !iosThermalSeen && !still3d) webHeatWatch(real);

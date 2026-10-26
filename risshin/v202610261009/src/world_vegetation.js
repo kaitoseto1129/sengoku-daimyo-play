@@ -633,7 +633,7 @@ export class WorldVegetation {
           // 木の影の配列と囲みは設営中に用意し、最初の描画へまとめて持ち込まない。
           if (SETTINGS.quality === 'high') {
             m.updateWorldMatrix(true, false);
-            m.castShadow = false;
+            m._sceneryCastShadow = true; m.castShadow = false;
           }
         }
         const foliage = cm || lm;

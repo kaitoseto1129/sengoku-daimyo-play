@@ -2216,7 +2216,6 @@ export class Player {
           this.cd = (kind === 'spin' ? 0.82 : kind === 'slam' ? 0.6 : kind === 'sweep' ? 0.48 : 0.42) * this.spearCd;
           if (third || kind === 'spin') this.combo = 0;
           this.comboT = this.cd + 0.65;
-          if (rt.def.key !== 'inou' && rt.def.key !== 'okehazama' && rt.def.key !== 'moribe' && !rt.def.quietMiss && !rt.def.inouFeel) sfx(kind === 'sweep' ? 'swing' : 'thrust');
         } else rt.hud.flash('気力が足りない（少し構えを解くと戻る）', 'dim');
       } else if (this.sta >= 5) {
         this.sta -= 5; this.staDelay = 0.4;
@@ -2229,7 +2228,6 @@ export class Player {
           this.pending = { t: third ? 0.16 : 0.1, kind: 'slash', third };
           this.cd = third ? 0.62 : this.kCombo === 2 ? 0.26 : 0.4;
           this.comboT = 0.7;
-          sfx('slash', third ? 1.2 : 1);
         }
       } else rt.hud.flash('気力が足りない（少し構えを解くと戻る）', 'dim');
       // 息が上がると腕が重い：気力が三割を切ると、振りの出も戻りも遅くなる（いちばん切れた時で 1.35 倍）
@@ -3062,6 +3060,7 @@ export class Player {
       army.damage(t, dmg * m, u, { kind: wk, out: result, selectedAlly: this.lock === t && t.team === u.team, pierce: kind === 'sweep' || kind === 'hook' || kind === 'charged' || kind === 'kara' || kind === 'butt' || kind === 'spin' || counter || facing < -0.2, guardBreak: kind === 'slam' || kind === 'kara' || kind === 'hook' });
       h.res = result.res;
       h.hurt = t.hp < hpBefore;
+      h.killed = hpBefore > 0 && !t.alive;
       // 突きは後ろへ小さく、払いは横へ、叩きは足を止める。大きなよろけの連続は避ける
       if (spearKind && (!this.mounted || kind === 'sweep') && t.alive && !t.isStruct && !t.isPlayer && !t.mounted && t.team !== u.team && (h.res === 'hit' || h.res === 'armor' || (kind === 'slam' && h.res === 'block'))) {
         const sweepSoldier = kind === 'sweep' && t.type !== 'busho' && !t.isOfficer && !t.isTaisho && !t.name && !t.invuln;
@@ -3110,7 +3109,7 @@ export class Player {
         const y = this.rt.world.heightAt(best.px, best.pz) + 1.0;
         army.burst(best.px, y, best.pz, thick ? 3 : 7, 'wood', -fx * 0.6, -fz * 0.6);
         sfx(thick ? 'thud' : 'crack', thick ? 0.9 : 1.1); sfx('wood', 0.7);
-        this.rt.game.hitstop = Math.min(0.06, Math.max(this.rt.game.hitstop || 0, thick ? 0.06 : 0.05));
+        if (!reduceMotion()) this.rt.game.hitstop = Math.min(0.07, Math.max(this.rt.game.hitstop || 0, thick ? 0.06 : 0.05));
         this.addShake(thick ? 0.08 : 0.05);
         if (thick && !this.thickHint) { this.thickHint = true; this.rt.hud.flash(`太い門や塀は、${this.weapon === 'sword' ? '刀' : '槍'}では少ししか傷まない`, 'dim'); }
       } else if (kind !== 'spin' && kind !== 'butt') {
@@ -3120,27 +3119,24 @@ export class Player {
         this.cd += big ? 0.22 : 0.1;
         if (!this.mounted && !(this.lunge && this.lunge.t > 0)) { const st = big ? 0.3 : 0.15; this.lunge = { x: Math.sin(heading) * st, z: Math.cos(heading) * st, t: 0.12 }; }
         if (!reduceMotion() && S.shake) this.recoilPitch(big ? 0.012 : 0.005);
-        if (this.rt.def.key !== 'inou' && this.rt.def.key !== 'okehazama' && this.rt.def.key !== 'moribe' && !this.rt.def.quietMiss && !this.rt.def.inouFeel) sfx('swing', 0.45);   // 空を切る音（当たった時の芯の音と聞き分ける）
       }
     }
     if (hits.some(h => h.res === 'hit' || h.res === 'armor' || h.res === 'block')) {
       // 槍は技ごとの短い止めと音。受けられた突きを命中のよろけに混ぜない
-      const heavy = kind === 'charged' || kind === 'slam' || kind === 'hook' || (kind === 'thrust' && third) || (kind === 'slash' && third) || counter;
+      const heavy = kind === 'charged' || kind === 'slam' || kind === 'kara' || kind === 'hook' || (kind === 'thrust' && third) || (kind === 'slash' && third) || counter;
       const spearFeel = spearKind && !this.mounted;
-      const blocked = swing.res === 'block' && kind !== 'slam' && kind !== 'kara' && kind !== 'hook';
+      const blocked = !hits.some(h => h.hurt) && swing.res === 'block' && kind !== 'slam' && kind !== 'kara' && kind !== 'hook';
       if (this.rt.def.meleeHitFeedback && (swing.res === 'block' || swing.res === 'hit' || swing.res === 'armor'))
         this.rt.hud.hitMarker(swing.res === 'block');
-      // 石突き：当たった者を突き放す。振り回し：当たった者はみなよろめく
-      if (kind === 'butt' || kind === 'spin') for (const h of hits) if (h.u.alive) { h.u.stagger = Math.max(h.u.stagger || 0, kind === 'butt' ? 0.8 : 0.5); if (h.u.push) { const dx = h.u.pos.x - u.pos.x, dz = h.u.pos.z - u.pos.z, dl = Math.hypot(dx, dz) || 1; h.u.push.x += dx / dl * (kind === 'butt' ? 2.4 : 1.4); h.u.push.z += dz / dl * (kind === 'butt' ? 2.4 : 1.4); } }
-      // 得物ごとの手応え：槍の突きは短く鋭く止まり、刀の斬りは刃が肉を通る分だけ少し長く止まって、斬った向きへ目線が流れる
-      // 軽い一撃は短く軽く、重い一撃は長く止まり、鈍い音と時のゆるみ（見切りの反撃がいちばん重い）
+      const killed = hits.some(h => h.killed);
+      const wide = kind === 'sweep' || kind === 'spin';
       const blade = kind === 'slash' || kind === 'kthrust';
-      // 当たった瞬間の止まりは、どの得物でも最大60ミリ秒。
-      const stop = spearFeel ? (blocked ? 0.04 : counter && this.counterPerfect ? 0.08 : kind === 'slam' ? 0.075 : heavy ? 0.07 : kind === 'sweep' ? 0.065 : 0.058) : counter && this.counterPerfect ? 0.16 : heavy ? 0.11 : kind === 'sweep' ? 0.08 : blade ? 0.07 : 0.058;
-      this.rt.game.hitstop = Math.min(0.06, Math.max(this.rt.game.hitstop || 0, stop));
-      if (this.rt.game.haptic) this.rt.game.haptic(heavy ? 'heavy' : 'hit', Math.min(1, 0.45 + stop * 5));
+      // 普通の当たり四十ミリ秒、払い五十、重い一撃六十、討ち取りだけ七十。
+      const stop = killed ? 0.07 : blocked ? 0.04 : heavy ? 0.06 : wide ? 0.05 : 0.04;
+      if (!reduceMotion()) this.rt.game.hitstop = Math.min(0.07, Math.max(this.rt.game.hitstop || 0, stop));
+      if (this.rt.game.haptic) this.rt.game.haptic(killed || heavy ? 'heavy' : 'hit', Math.min(1, 0.45 + stop * 5));
       if (spearFeel) sfx(blocked ? 'kin' : kind === 'sweep' || kind === 'butt' || kind === 'spin' ? 'wood' : heavy ? 'thud' : swing.res === 'armor' ? 'kin' : 'hit', blocked ? 0.65 : kind === 'slam' ? 0.9 : 0.8);
-      if (!blocked && swing.res !== 'block') sfx('hit', spearFeel ? 0.55 : 0.7);   // 肉に入った芯の音（どの得物でも当たりが耳で分かる）
+      if (hits.some(h => h.hurt)) sfx('playerCut', killed ? 1.1 : heavy ? 1 : 0.85);
       else if (heavy) { sfx('thud', 0.7); if (counter || kind === 'charged') this.rt.game.slowmo = Math.max(this.rt.game.slowmo || 0, counter && this.counterPerfect ? 0.4 : 0.18); }
       if (counter) this.counterPerfect = false;
       if (kind === 'slash') { sfx('slash', 0.6); if (!reduceMotion()) this.yaw += (this.slashN % 2 ? 1 : -1) * 0.012; }
@@ -3148,37 +3144,47 @@ export class Player {
       // 薙ぎが当たると、重い柄が体に食い込む手応え：少し長い止めと、下へ沈む揺れ
       if (kind === 'sweep') { this.addShake(0.08); if (!reduceMotion()) this.recoilPitch(0.015); }
       if (hits.some((h) => h.u.type === 'samurai' || h.u.type === 'busho' || h.u.type === 'cavalry')) sfx('clank', heavy ? 1.3 : 0.9);
-      let burstBudget = 12;
+      // 一打につき最大十八粒。既存の形・材質・配列の枠を使い回す。
+      let burstBudget = 18;
+      let hurtCount = 0;
       for (const h of hits) {
-        if (spearFeel && !h.hurt) continue;
-        h.u.flinchT = Math.max(h.u.flinchT || 0, spearFeel ? (kind === 'slam' ? 0.3 : kind === 'sweep' ? 0.22 : 0.12) : heavy ? 0.32 : 0.18);
-        if (!spearFeel && heavy && h.u.alive) h.u.stagger = Math.max(h.u.stagger || 0, 0.9);
-        // 当たった相手は半歩よろけて下がる（当たったのが目で分かる）。小さな血しぶきか土埃
-        // 当たった相手を白く光らせない（テストプレイの声 10/24「白く囲む表示に違和感」）。よろけ・音・血しぶきで分かる。
-        if (h.u.alive && !h.u.isStruct) {
-          h.u.flinchT = Math.max(h.u.flinchT || 0, 0.24);
-          h.u.stagger = Math.max(h.u.stagger || 0, 0.28);
-          if (h.u.push) { const dx = h.u.pos.x - u.pos.x, dz = h.u.pos.z - u.pos.z, dl = Math.hypot(dx, dz) || 1; h.u.push.x += dx / dl * 0.9; h.u.push.z += dz / dl * 0.9; }
+        if (h.res !== 'hit' && h.res !== 'armor' && h.res !== 'block') continue;
+        const t = h.u;
+        if (t.isStruct || !t.pos) continue;
+        const dx = t.pos.x - u.pos.x, dz = t.pos.z - u.pos.z, dl = Math.hypot(dx, dz) || 1;
+        const nx = dx / dl, nz = dz / dl, x = t.pos.x - nx * 0.2, z = t.pos.z - nz * 0.2;
+        if (h.hurt) {
+          hurtCount++;
+          if (t.alive && !t.isPlayer && !t.mounted) {
+            t.flinchT = Math.max(t.flinchT || 0, heavy || wide ? 0.3 : 0.24);
+            t.stagger = Math.max(t.stagger || 0, wide ? 0.55 : heavy ? 0.65 : 0.28);
+            const force = wide ? 3.2 : kind === 'butt' ? 2.4 : heavy ? 1.8 : 1.1;
+            if (t.push) { t.push.x += nx * force; t.push.z += nz * force; }
+            // 足の踏み直しも既存の傷の記録へ入れ、柵・崖への押し出しを防ぐ。
+            if (t.hit && (wide || heavy)) {
+              t.hit.stepX = nx * (wide ? 0.65 : 0.35);
+              t.hit.stepZ = nz * (wide ? 0.65 : 0.35);
+              t.hit.step = 0;
+            }
+          }
         }
-        if (burstBudget > 0 && !h.u.isStruct && h.u.pos) { burstBudget -= 4; const dx = h.u.pos.x - u.pos.x, dz = h.u.pos.z - u.pos.z, dl = Math.hypot(dx, dz) || 1; army.burst(h.u.pos.x - dx / dl * 0.2, h.u.pos.y + 1.1, h.u.pos.z - dz / dl * 0.2, 4, !bloodLv() || army.hideBlood ? 'dust' : 'blood', dx / dl, dz / dl, h.u.pos.y); }
-      }
-      this.addShake(heavy ? 0.12 : 0.06);
-      // まとめて当たった手応え：当たった数だけ芯の音が少しずつずれて重なり、相手は外へのけぞり、画面が小さく揺れる（揺れは「動きを減らす」で止まる）
-      const many = spearFeel ? hits.filter((h) => h.hurt && !h.u.isStruct) : null;
-      if (many && many.length >= 2) {
-        const n = Math.min(many.length, 5);
-        for (let i = 1; i < Math.min(n, 4); i++) setTimeout(() => sfx(i % 2 ? 'thud' : 'hit', 0.5 - i * 0.08), i * 45);
-        for (const h of many) if (h.u.alive && h.u.push) {
-          const dx = h.u.pos.x - u.pos.x, dz = h.u.pos.z - u.pos.z, dl = Math.hypot(dx, dz) || 1, f = kind === 'spin' ? 1.0 : 0.7;
-          h.u.push.x += dx / dl * f; h.u.push.z += dz / dl * f;
-          h.u.flinchT = Math.max(h.u.flinchT || 0, 0.32);
+        if (burstBudget < 6) continue;
+        burstBudget -= 6;
+        const y = army.partY(t, t.hit?.part || t.lastHit?.part || 'body');
+        // 刃先の小さな火花と、傷口の血、足元の土。血を消す設定や稽古では土だけ。
+        army.spark(x, y, z, 2, nx * 0.15, nz * 0.15);
+        if (h.hurt) {
+          const blood = bloodLv() && !army.hideBlood && t.type !== 'dummy' && t.maxHp <= 9000;
+          army.burst(x, y, z, blood ? bloodLv() : 2, blood ? 'blood' : 'dust', nx, nz, t.pos.y, true);
+          army.burst(t.pos.x, t.pos.y + 0.08, t.pos.z, 2, 'dust', nx, nz, t.pos.y, true);
         }
-        this.addShake(0.03 * n);
       }
+      this.addShake(killed ? 0.16 : heavy ? 0.12 : wide ? 0.09 : 0.06);
+      if (hurtCount >= 2) this.addShake(Math.min(0.06, hurtCount * 0.015));
       // 馬上の一撃は馬の勢いが乗って重い：長めに止まり、低い音、突かれた者は馬の進む向きへ大きく突き飛ばされ、腕に返る衝撃で馬が少し落ちる
       const mh = this.mounted ? Math.min(1, Math.abs(this.hspd) / 10) : 0;
       if (mh > 0.3 && (kind === 'thrust' || kind === 'charged' || kind === 'sweep' || kind === 'slash')) {
-        this.rt.game.hitstop = Math.min(0.06, Math.max(this.rt.game.hitstop || 0, 0.07 + 0.06 * mh));
+        if (!reduceMotion()) this.rt.game.hitstop = Math.min(0.07, Math.max(this.rt.game.hitstop || 0, 0.06));
         sfx('thud', 0.5 + 0.5 * mh);
         this.addShake(0.06 + 0.08 * mh);
         if (!reduceMotion()) { this.fovKick = Math.min(this.fovKick || 0, -1.5 * mh); this.pitch -= 0.012 * mh; }
@@ -3189,7 +3195,7 @@ export class Player {
       // 構えの上から受けられた：得物が弾かれて腕が浮き、半歩押し戻されて次の一手が遅れる（崩す技は別）
       if (blocked) {
         this.cd += 0.18;
-        this.rt.game.hitstop = Math.min(0.06, Math.max(this.rt.game.hitstop || 0, spearFeel ? 0.035 : 0.07));
+        if (!reduceMotion()) this.rt.game.hitstop = Math.min(0.07, Math.max(this.rt.game.hitstop || 0, 0.04));
         if (!this.mounted) this.lunge = { x: -Math.sin(heading) * 0.22, z: -Math.cos(heading) * 0.22, t: 0.12 };
         this.addShake(0.05);
       }

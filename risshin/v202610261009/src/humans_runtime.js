@@ -8,7 +8,7 @@ import { _sph, _fr, COARSE, skipHiddenMW, tipMW, noopChange, carryFlag, dropHuma
 import { preStep, preparationUnits, DM_KEEP, shareHumanSkeleton, cacheHumanSkeleton, crowdGeometry, humanGeoMaps } from './humans_crowd_geometry.js';
 import { UNIT_MAT, lookParts, GENERALS, DEATH_END } from './units.js';
 import { headMats, headMaterial, faceStyle, finishFaceCopies, COMPILE, faceStyles, faceRenderer } from './humans_face_materials.js';
-import { S, MEM_TIGHT } from './settings.js';
+import { S, MEM_TIGHT, CPU_LEAN } from './settings.js';
 import { TIER } from './device_tier.js';
 import { nearArmorParts, naginata, layParts, splitKusazuri, CREST_OFF, crestOnly, NAMED_KEEP } from './humans_dress.js';
 import { clone as skClone } from 'three/addons/utils/SkeletonUtils.js';
@@ -932,9 +932,9 @@ function humansStep(rt, dt, army, cam) {
     // 本流の距離別の時計を保ち、携帯の中景・遠景だけ番号でコマを分散する。パソコンは毎コマ。
     // 近景・武将・斬り合い・倒れる途中は待たせない。経過分は h.acc に残す。
     const protectedPose = nearPose || combatThinking(u, Infinity);
-    if (MEM_TIGHT && !protectedPose && u.alive && !u.dying && h.drove &&
+    if (CPU_LEAN && !protectedPose && u.alive && !u.dying && h.drove &&
         !thinkingPhase(u, d, army.frameNo) && !window.__apx?.nogate) continue;
-    const every = !MEM_TIGHT || nearPose || !u.alive || u.dying || u.mounted && u.charging && u.qualityTier !== 2 ||
+    const every = !CPU_LEAN || nearPose || !u.alive || u.dying || u.mounted && u.charging && u.qualityTier !== 2 ||
       protectedPose ? 0 : u.qualityTier === 2 ? 0.6 : 1 / 12;
     if (every > 0) {
       // 同時に動き始めた兵の骨を同じコマでまとめて進めない（どの画質でも。揃うと一コマに何十人分の骨が重なる）。

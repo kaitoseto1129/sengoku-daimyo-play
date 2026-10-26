@@ -447,8 +447,11 @@ function roadWay(army, u, want) {
   if (ROAD_PLAYERS.has(u) && !roadClear(army, u, u.pos, q)) { q.x = u.pos.x; q.z = u.pos.z; }
   return q;
 }
-const ODA = { flag: 'oda' };
-const AZAI = { flag: 'azai' };
+// 添付の足軽の写真：黒漆の胴と草摺に薄い威。陣羽織を重ねない。
+const FOOT_LOOK = { armor: 0x2a2622, lace: 0xb5aa8a, haori: 0, doStyle: 'sugake' };
+const ODA = { ...FOOT_LOOK, flag: 'oda' };
+const AZAI = { ...FOOT_LOOK, flag: 'azai' };
+const ODANI_LOOK = Object.fromEntries(Object.entries(ODANI_KACCHU).map(([name, look]) => [name, { ...look, haori: 0 }]));
 const AZ_ARMOR = 0x2e2a26, ODA_ARMOR = 0x2b3140;
 // 足軽大将ほどの身分（信長で遊ぶ時は除く）：羽柴の先手の一隊を預かる
 const hi = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
@@ -459,6 +462,31 @@ const nextObj = (rt, text) => { if (!rt.flags.ending) rt.obj('main', text, 'main
 // 旧暦八月末（初秋）の夜。空からの光を抑え、土と草の色と篝火の明暗を残す。
 const PREDAWN = { time: 'night', sky: 0x18212f, fog: 0x252c36, sun: 0xb6c3d9, sunI: 0.55, hs: 0x8a96ac, hg: 0x514638, hI: 0.55, top: 0x101722, glow: 0.03, dir: [0.6, 0.55, -0.3], mount: 0x141820 };
 const battleReady = (u) => u.alive && !u.fleeing && !u.gone && !u.woundOut && !u.noTarget && !u.campProtected;
+// 制圧と同じ持ち場から選ぶ。上の櫓や居所の大将、退いた兵へ誘わない。
+function odaniNearestFoe(rt) {
+  const F = rt.flags, p = rt.player.u.pos;
+  if (F.ending || rt.over || F.retreatOn || F.guideReturning) return null;
+  if (F.foeScanAt === rt.t && F.foeScanStep === F.step && F.foeScanOno === F.onoDone && F.foeScanKoma === F.komaAttack &&
+      (!F.nearestFoe || battleReady(F.nearestFoe) && !F.nearestFoe.dying && !F.nearestFoe.downed)) return F.nearestFoe;
+  let target = null, best = Infinity;
+  for (const u of rt.army.units) {
+    if (u.team !== 1 || !battleReady(u) || u.isStruct || u.dying || u.downed || inKyoLookout(rt, u)) continue;
+    let eligible = false;
+    if (F.step === 1) eligible = F.yakataOn && u.group === F.yakata || F.watchOn && u.group === F.watch || F.patrolOn && u.group === F.patrol;
+    else if (F.step === 2 && !F.onoDone) eligible = (u.group === F.ono || F.reliefOn && u.group === F.relief) &&
+      (F.onoInGarden || Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 12);
+    else if (F.step === 2 || F.step === 3 && !F.komaAttack) eligible =
+      F.C.kuruwa.kyogoku.test(p.x, p.z) && F.C.kuruwa.kyogoku.test(u.pos.x, u.pos.z);
+    else if (F.step === 3 && F.komaAttack) eligible =
+      F.C.kuruwa.koma.test(p.x, p.z) && F.C.kuruwa.koma.test(u.pos.x, u.pos.z);
+    if (!eligible) continue;
+    const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2 + (u.pos.y - p.y) ** 2 * 4;
+    if (F.step === 1 && d > 24 * 24) continue;
+    if (d < best) { target = u; best = d; }
+  }
+  F.foeScanAt = rt.t; F.foeScanStep = F.step; F.foeScanOno = F.onoDone; F.foeScanKoma = F.komaAttack;
+  return (F.nearestFoe = target);
+}
 // 京極丸の守備は、攻め込んだ組を口から押し返す任務。遠い弓兵の全滅までは求めない。
 // 一度も来ていない組は待つ。実兵が曲輪へ入った事と、口の近くに敵がいない事を確かめる。
 function counterRepelled(rt, g, mouthZ) {
@@ -1184,6 +1212,95 @@ function odaniDownCamera(rt, camera) {
 }
 
 const odani = {
+  // 稲生と同じ共通の札・ピン・印。道順と兵数、史実の終幕はこの戦のまま。
+  missionSingleLine: true,
+  hideMissionDots: true,
+  hideGuideSteps: true,
+  enemyTriangleSigns: true,
+  nearbyAllySignLimit: 0,
+  noDodgeCard: true,
+  noSiegeCards: true,
+  noPlayerFoot: true,
+  quietMiss: true,
+  missionPinCaption: '',
+  missionDetail: () => '',
+  missionStatus: () => '',
+  bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討死|討ち取|二つに切れる/.test(text),
+  missions: ['秀吉と集まれ', '谷道を登れ', '敵を倒せ', '屋敷へ進め', '西木戸を破れ', '京極丸へ進め', '京極丸を守れ', '小丸へ進め', '小丸を守れ', '仲間を待て', '味方と集まれ'],
+  missionOf(rt) {
+    const F = rt.flags, p = rt.player.u.pos;
+    if (F.ending || rt.over) return 10;
+    if (F.step === 0) return 0;
+    if (F.step === 3 && !F.komaAttack) return 6;
+    if (odaniNearestFoe(rt)) return 2;
+    if (F.step === 1) return F.climbWaiting ? 9 : 1;
+    if (F.step === 2) {
+      if (!F.onoDone && (!gone(F.ono) || !gone(F.relief))) return 3;
+      const gate = F.westGate?.struct;
+      if (gate && !gate.opened && gate.hp > 0) return 4;
+      return F.C.kuruwa.kyogoku.test(p.x, p.z) ? 6 : 5;
+    }
+    return F.C.kuruwa.koma.test(p.x, p.z) ? 8 : 7;
+  },
+  missionHeading(rt) {
+    if (rt.flags.retreatOn) return '味方へ下がれ';
+    if (rt.flags.guideReturning || rt.flags.guideBlocked) return '道の印へ戻れ';
+    return this.missions[this.missionOf(rt)];
+  },
+  missionSignTarget: odaniNearestFoe,
+  // 長政の居所を示すだけ。無敵・攻撃対象外の指定を保ち、討取りのピンにはしない。
+  commanderSignTarget(rt) {
+    const u = rt.flags.nagamasa?.units[0];
+    return !rt.over && !rt.flags.ending && u?.alive && !u.gone && !u.dying ? u : null;
+  },
+  namedGuideTarget(rt) { return this.commanderSignTarget(rt); },
+  foeMarkVisible(rt, u) { return u === this.commanderSignTarget(rt) && u.mesh?.visible !== false && !u.camHidden && sightPoint(rt, u.pos); },
+  missionPin(rt) {
+    const F = rt.flags, p = rt.player.u.pos;
+    if (F.ending || rt.over || !rt.player.u.alive) return null;
+    const pin = F.odaniPin || (F.odaniPin = { always: true, silent: true });
+    pin.unit = null; pin.enemy = pin.defend = pin.waiting = pin.arrived = pin.follow = pin.gate = pin.route = false;
+    pin.marker = null; pin.footRing = false; pin.r = .5; pin.hide = 0;
+    let pos;
+    const defending = F.step === 3 && !F.komaAttack || F.step === 2 && F.onoDone &&
+      F.C.kuruwa.kyogoku.test(p.x, p.z) && !odaniNearestFoe(rt);
+    if (F.retreatOn) pos = F.retreatPoint;
+    else if (F.guideReturning || F.guideBlocked) pos = F.trailPoint;
+    else if (defending) {
+      pos = KC; pin.defend = pin.waiting = true; pin.r = 5;
+    } else {
+      const enemy = odaniNearestFoe(rt);
+      if (enemy) {
+        if (rt.player.inRange && rt.player.rangeCueTarget === enemy) return null;
+        const route = F.foeRoute || (F.foeRoute = { x: 0, z: 0, at: -1 });
+        // 壁・段差の探索は半秒ごと。討った時と移動した時はすぐ選び直す。
+        if (route.at <= rt.t || route.unit !== enemy || Math.hypot(p.x - route.px, p.z - route.pz) > 1) {
+          route.unit = enemy; route.at = rt.t + .5; route.px = p.x; route.pz = p.z;
+          route.direct = Math.abs(enemy.pos.y - p.y) < 2.4 && roadClear(rt.army, rt.player.u, p, enemy.pos);
+          const q = route.direct ? enemy.pos : roadWay(rt.army, rt.player.u, enemy.pos);
+          route.x = q.x; route.z = q.z;
+        }
+        pos = route.direct ? enemy.pos : route;
+        pin.unit = route.direct ? enemy : null; pin.enemy = route.direct; pin.route = !route.direct;
+        pin.r = .2;
+      } else if (F.step === 0) {
+        pos = F.hideU.pos; pin.unit = F.hideU; pin.follow = true; pin.waiting = true; pin.r = 6;
+      } else if (F.step === 3 && F.komaAttack && F.C.kuruwa.koma.test(p.x, p.z)) {
+        pos = KOMC; pin.defend = pin.waiting = true; pin.r = 5;
+      } else {
+        pos = F.trailPoint; pin.route = true;
+        if (F.step === 1 && F.climbWaiting) { pos = BELOW; pin.waiting = true; pin.r = 5; }
+        const gate = F.westGate?.struct;
+        pin.gate = F.step === 2 && F.onoDone && gate && !gate.opened && gate.hp > 0 &&
+          Math.hypot(p.x - WEST_FACE.x, p.z - WEST_FACE.z) < 6;
+      }
+    }
+    if (!pos) return null;
+    pin.x = pos.x; pin.z = pos.z;
+    pin.arrived = pin.waiting && Math.hypot(p.x - pos.x, p.z - pos.z) <= pin.r;
+    pin.key = F.retreatOn ? 'retreat' : defending ? 'defend' : pin.enemy ? 'foe' : 'trail';
+    return pin;
+  },
   // 小谷の常設井楼だけ、通し柱を垂直にして横木の木口を交互に出す。
   lookoutLogFrame: true,
   // 共通の民の仕組みで描く。兵の名簿・兵数・戦功には加えない。
@@ -1297,6 +1414,7 @@ const odani = {
   spawn: { x: MOUTH.x - 4, z: MOUTH.z + 6, heading: Math.PI - 0.2 },   // 谷道の内で秀吉の二列の脇に立つ。列の後ろと屋敷の軒を避ける
   world: {
     seed: 1573,
+    noHaori: true, // 足軽主体の夜攻め。名将にも陣羽織・母衣を重ねない。
     softEarthCrust: true, // 土塊の升の境に陰を並べず、谷道を敷石模様にしない。
     unitNightScale: .5, // 黒い具足の面と縁を読み、月の反射は控えめに残す。
     livingSpearHedge: true,
@@ -1307,7 +1425,7 @@ const odani = {
     nightFill: .4,
     roundedFire: true, // 篝火を三角の板にせず、既存の丸い火の舌を使い回す。
     smoothGroundFire: true, // 坂の火明かりを画素ごとに測り、地面の三角形へ橙色を引き伸ばさない。
-    namedKacchu: ODANI_KACCHU, // 兵の組み立ては世界の指定を読む。小谷当夜の復元を近景・遠景へ渡す。
+    namedKacchu: ODANI_LOOK, // この戦だけ陣羽織を外す。近景・遠景に同じ具足を渡す。
     ordinaryFlagStride: 3, // 無名の長柄足軽は三人に一本。隊旗・旗持ち・本人の組は残す（割合は復元）。
     renderDetailBeforeDraw: true,
     lowHumanDetail: 12, // 兵数と骨の動きは保ち、離れた兵の細部だけ軽い形へ。
@@ -1610,7 +1728,11 @@ html body #hud[data-odani] #battle-notices:not(.choosing) #objectives.ground-ord
  html.touch #hud[data-odani] #battle-notices #objectives li.cur small.goal-place { white-space:normal; overflow-wrap:anywhere; overflow-x:visible; }
 html.touch.tc-low body #hud[data-odani] #battle-notices #objectives:not(.expand) #obj-list li.cur > small:not(.goal-place):not(.obj-cue) { display:block !important; font-size:max(15px, calc(15px * var(--text-scale, 1))) !important; line-height:1.4 !important; margin-top:4px; }
  html.touch #hud[data-odani] > #battle-log-entry::before { content:'記録'; display:block; font-size:12px; }
-}`;
+}
+/* 下知の字幕と古い補足は出さず、右上の任務一行と共通のピンへ揃える。 */
+html body #hud[data-odani].field-clean #battle-notices:not(.choosing) > #objectives:not(.expand),
+html body #hud[data-odani].field-clean:not(.ending) :is(#subtitle,#battle-message,#situation) { display:none !important; }
+`;
     document.head.appendChild(endStyle);
     const dispose = rt.dispose;
     rt.dispose = function (...args) {
@@ -2078,7 +2200,7 @@ html.touch.tc-low body #hud[data-odani] #battle-notices #objectives:not(.expand)
         { type: 'ashigaru', n: 16 }, { type: 'gun', n: 3 }], ODA));
     F.hideU = F.hide.units[0];
     F.hachi = allyGroup(rt, { name: '羽柴の先手', fixed: true, formation: 'column', colW: 2, spacing: 1.2, anchor: { x: MOUTH.x + 8, z: MOUTH.z + 4 }, facing: Math.PI, width: 10, aggro: 10 },
-      dress([{ type: 'samurai', n: 1, o: { name: '先手組頭', invuln: true, hat: 'kabuto_m', haori: 0x3a2a1a } }, { type: 'samurai', n: 1 }, { type: 'ashigaru', n: 14 }], ODA));
+      dress([{ type: 'samurai', n: 1, o: { name: '先手組頭', invuln: true, hat: 'kabuto_m', haori: 0 } }, { type: 'samurai', n: 1 }, { type: 'ashigaru', n: 14 }], ODA));
     F.oda = [F.hide, F.hachi];
     const n = RANKS[rt.G.rank].squad;
     if (n) rt.makeSquad({ x: MOUTH.x + 4, z: MOUTH.z + 10 }, Math.PI, [{ kind: 'spear', n }]);
@@ -2948,6 +3070,9 @@ html.touch.tc-low body #hud[data-odani] #battle-notices #objectives:not(.expand)
   onKill(rt, v) {
     const F = rt.flags;
     if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
+    F.foeScanAt = -1; F.objectiveAt = 0;
+    if (F.foeRoute) F.foeRoute.at = -1;
+    if (!F.ending && F.step === 2 && !F.onoDone && gone(F.ono) && gone(F.relief)) this.onoFall(rt);
   },
   onRout() {},
 };
@@ -3070,7 +3195,8 @@ odani.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   if (F.step === 3) {
     // 小丸へ直進すると北の木戸の塀に当たる。任務と同じ折れ点を順に通る。
     const inside = F.komaAttack && F.C.kuruwa.koma.test(u.pos.x, u.pos.z);
-    const target = F.komaAttack ? inside ? KOMC : F.trailPoint : KC;
+    // 小丸へ着いた後は中心で待たず、人に示す最寄りの残敵へ詰める。
+    const target = F.komaAttack ? inside ? odaniNearestFoe(b)?.pos || KOMC : F.trailPoint : KC;
     const q = roadWay(b.army, u, target);
     goTo(p, inp, q.x, q.z, F.komaAttack && !inside ? .3 : 3);
   }

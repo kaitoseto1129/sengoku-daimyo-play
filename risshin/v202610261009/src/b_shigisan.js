@@ -39,9 +39,11 @@ useTerrain('dem_shigisan', (data) => { sgDem = data; ROAD_SEGMENTS = null; ROOM_
 // 足軽大将候補より上（信長で遊ぶ時は除く）：任務の文を「一手を預かる」者の役目に
 const HI = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
 
-const ODA = { flag: 'oda' };
-const TSUTSUI = { flag: 'igeta', hachi: 0x3f7a52 };   // 筒井の手：井筒の旗・緑の鉢巻。背旗は通常の寸法。
-const MATSU = { flag: 'todo' };            // 松永の蔦（藤堂蔦の紋で代える）
+// 本の足軽写真：黒漆の貸し胴・赤茶の陣笠・藍の着物。既存の形と材質を共用する。
+const LOAN_LOOK = { armor: 0x302824, hatColor: 0x63372e, cloth: 0x253740, doStyle: 'okegawa', kasaDrape: true };
+const ODA = { ...LOAN_LOOK, flag: 'oda' };
+const TSUTSUI = { ...LOAN_LOOK, flag: 'igeta', hachi: 0x3f7a52 };   // 筒井の手：井筒の旗・緑の鉢巻。背旗は通常の寸法。
+const MATSU = { ...LOAN_LOOK, flag: 'todo' };            // 松永の蔦（藤堂蔦の紋で代える）
 // 陣幕は南にしか口がない。登城道・遊び手・組の出発地点を囲わぬよう、道の東へ置く。
 const TSUTSUI_CAMP = { x: 26, z: 104 };
 // 門内で西の櫓の足元を斜めに横切らず、奥まで抜けてから西へ折れる。
@@ -1410,7 +1412,89 @@ const CAMP_CLEARINGS = JIN[0].sonae.map((s) => ({
   x: JIN[0].honjin.x - s.at.right, z: JIN[0].honjin.z - s.at.front,
   hw: (s.w || 32) / 2 + 8, hd: (s.d || 32) / 2 + 8,
 }));
+// 今の攻め口の残敵だけを選ぶ。道案内と共用し、別の曲輪や屋内の久秀へ突進させない。
+function shigisanFoe(rt) {
+  const F = rt.flags, me = rt.player.u, p = me.pos;
+  if (F.ending || rt.over || !me.alive) return null;
+  if (F.foePickT === rt.t && F.foePickStep === F.step && (!F.foePick ||
+      F.foePick.alive && F.foePick.hp > 0 && !F.foePick.dying && !F.foePick.downed &&
+      !F.foePick.gone && !F.foePick.fleeing && !F.foePick.woundOut && !F.foePick.noTarget)) return F.foePick;
+  F.foePickStep = F.step;
+  F.foePickT = rt.t;
+  const zone = F.step >= 3.5 ? F.SZ?.byId[F.step === 4 ? 'shu' : 'ridge1'] : null;
+  let best = null, distance = Infinity;
+  for (const u of rt.army.units) {
+    if (!u.alive || u.hp <= 0 || u.team === me.team || u.isStruct || u.civ || u.group?.civ ||
+        u.gone || u.dying || u.downed || u.woundOut || u.fleeing || u.noTarget || u.invuln ||
+        u.group?.noAI || u.group?.ambush || u.group?.retreatOnly || u.group?.routed) continue;
+    if (F.step === 1 ? u.group !== F.amb : !zone || !zone.test(u.pos.x, u.pos.z)) continue;
+    if (zone && (!zone.test(p.x, p.z) || !F.castleGuideArrived)) continue;
+    if (Math.abs(u.pos.y - p.y) > 3) continue;
+    const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
+    if (d < distance && guideClear(rt, p, u.pos)) { best = u; distance = d; }
+  }
+  return (F.foePick = best);
+}
+
 const shigisan = {
+  missionSingleLine: true,
+  hideMissionDots: true,
+  enemyTriangleSigns: true,
+  nearbyAllySignLimit: 0,
+  noDodgeCard: true,
+  quietMiss: true,
+  noPlayerFoot: true,
+  missionPinCaption: '',
+  missionDetail: () => '',
+  missionStatus: () => '',
+  speechAllowed: (rt) => rt.over || !!rt.flags.ending,
+  bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討死|討ち取|崩れ/.test(text),
+  missions: ['味方と進め', '▼の敵を倒せ', 'ここを守れ', '門を打ち破れ', '曲輪へ進め', '本丸へ進め', '味方と集まれ'],
+  missionOf(rt) {
+    const F = rt.flags;
+    if (F.ending || rt.over) return 6;
+    if (F.step === 2) return 2;
+    if (F.step === 3) return F.gate?.alive ? 3 : 4;
+    if (shigisanFoe(rt)) return 1;
+    if (F.step >= 3.5) return F.castleGuideArrived && !F.castleGuideLeaving ? 2 : F.step === 4 ? 5 : 4;
+    return F.gateWaitT != null ? 2 : 0;
+  },
+  missionHeading(rt) { return this.missions[this.missionOf(rt)]; },
+  missionSignTarget: shigisanFoe,
+  foeMarkVisible(rt, u) { return u === this.commanderSignTarget(rt); },
+  // 久秀は屋内で自害する大将。討取りの対象にせず、地図と戦場の大将印だけを出す。
+  commanderSignTarget(rt) {
+    const u = rt.flags.ehon?.lord;
+    return !rt.flags.ending && !rt.over && u?.alive && !u.gone && !u.dying ? u : null;
+  },
+  missionPin(rt) {
+    const F = rt.flags, p = rt.player;
+    if (F.ending || rt.over || !p.u.alive) return null;
+    const q = F.missionPin || (F.missionPin = { always: true, silent: true, arrow: false });
+    const enemy = shigisanFoe(rt);
+    q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false;
+    q.defend = false; q.route = false; q.gate = false; q.marker = null;
+    q.r = q.hide = .5; q.y = undefined;
+    if (enemy) {
+      if (p.inRange && p.rangeCueTarget === enemy) return null;
+      q.key = 'foe'; q.unit = enemy; q.enemy = true;
+      q.x = enemy.pos.x; q.z = enemy.pos.z;
+      return q;
+    }
+    const id = this.guideMarker(rt);
+    const marker = rt.markers.find((m) => m.id === id);
+    let pos = marker && (typeof marker.pos === 'function' ? marker.pos() : marker.pos);
+    const defending = this.missionOf(rt) === 2;
+    // 着いた後も持ち場のピンを残す。敵が消えた同じコマで守りへ替える。
+    if (defending) pos = F.step === 2 ? F.approachByRoad ? F.approachGuide : TOWER_POST
+      : F.step === 1 ? F.gateGather : F.castleGuidePoint;
+    if (!pos) return null;
+    q.key = id; q.marker = marker; q.x = pos.x; q.z = pos.z; q.y = pos.y;
+    q.waiting = q.defend = defending; q.route = !defending;
+    q.gate = F.step === 3; q.r = q.hide = defending ? 3.2 : .5;
+    q.arrived = defending && Math.hypot(p.u.pos.x - q.x, p.u.pos.z - q.z) < q.r;
+    return q;
+  },
   introText: '味方の旗に続いて、尾根道を登ろう。門に着いたら、木づちで門を打つ味方を守ろう。兵数と攻め口は推定です。',
   compactIntro: true,
   introTaskFirst: true, // 城の紹介より先に、最初の下知と勝つ条件を読む。
@@ -1476,58 +1560,8 @@ const shigisan = {
   hideGuideSteps: true, // 尾根の敵と戦う札へ、遠い旗の直線距離を差し込まない。行き先は道の印で示す。
   immediateTaskChanges: true,
   distanceUnit: 'steps',
-  distanceText(rt, distance) {
-    // 尾根の敵と戦う間に、次の曲がり角までの歩数を命令と並べない。
-    // 門前の待機や道へ戻る下知では、従来どおり距離を示す。
-    if (this.taskLabel(rt, '') === '先手と尾根の敵を退けよ') return '';
-    // この距離は本丸までではなく、道案内が選んだ次の印まで。
-    // 長い回り道の途中で「すぐ近く」とだけ出し、到着したと誤解させない。
-    const F = rt.flags;
-    if (F.step >= 3.5 && !F.ending && !F.castleGuideArrived)
-      return distance < 3 ? '次の印はすぐ近く' : `次の印まで${Math.ceil(distance / 0.75)}歩`;
-    return distance < 3 ? 'すぐ近く' : `あと${Math.ceil(distance / 0.75)}歩`;
-  },
-  taskDetail(rt, title, progress) {
-    // 矢から退く案内中は、目前の敵への反撃を同時に促さない。
-    if (rt.army.rainEscape || rt.dodgeGuide) return '';
-    // 退く指図と進軍の補足を同時に出さず、立て直した後の役目として伝える。
-    const cue = rt.hud.retreatGuide;
-    if (!rt.flags.ending && cue?.active && cue.valid)
-      return `立て直したら、${this.taskLabel(rt, '先手の旗に続け')}`;
-    const F = rt.flags;
-    if (F.castleGuideBlocked) return '来た道を戻り、柵の口を探せ';
-    if (F.castleGuideLeaving) return rt.player.u.nakaLevel > 0 ? '下り階段の印へ。下の階から戸口へ戻れ' : '戸口を出て、道の印へ';
-    if (F.castleGuideDetouring) return '壁や柵の端まで回って進め';
-    if (F.castleGuideReturning || F.step < 3.5 && F.climbReturning && (F.step === 1 || F.approachByRoad)) {
-      const q = F.step >= 3.5 ? F.castleGuidePoint : F.step === 1 ? F.guidePoint : F.approachGuide;
-      return q ? `崖を登らず、矢印へ${Math.ceil(Math.hypot(q.x - rt.player.u.pos.x, q.z - rt.player.u.pos.z) / 0.75)}歩`
-        : '崖を登らず、道の印へ戻れ';
-    }
-    // 急がせる知らせでも、詰まった場所から出る一手は消さない。
-    if (!F.ending && rt.t >= 420) {
-      if (F.step === 4) return F.castleGuideArrived
-        ? this.castleFightNeeded(rt) ? '別口の味方も迫る。先手と敵を退けよ' : '別口の味方も迫る。ここで南口を守れ'
-        : '別口の味方が迫る。道の印から南口へ';
-      return F.step === 3.5 ? '別口の味方が迫る。まず曲輪の入口へ'
-        : F.step === 3 ? '別口の味方が迫る。掛矢で門を開け'
-        : F.step === 2 ? '別口の味方が迫る。門脇で打ち手を守れ'
-        : '別口の味方が迫る。先手と門前へ';
-    }
-    // 門への接近中も、使う道具と行き先を短く示す。
-    if (F.step === 3) return '門の正面の印へ。「掛矢で門を打つ」の操作を押し続ける';
-    if (F.step === 2) return '門の右脇の印へ。味方を襲う敵を防げ';
-    if (this.castleFightNeeded(rt)) return '敵の打ち終わりに、槍で突き返せ';
-    if (!F.ending && F.castleGuideArrived && (F.step === 3.5 || F.step === 4))
-      return F.step === 4 ? '南口で先手と構え、寄せる敵を防げ' : '入口で先手と構え、曲輪を押さえよ';
-    if (F.step >= 3.5 && !F.castleGuideArrived && !F.ending) {
-      const p = rt.player.u.pos, q = F.castleGuidePoint;
-      return `${this.distanceText(rt, Math.hypot(q.x - p.x, q.z - p.z))}。角ごとに印をたどれ`;
-    }
-    // 「敵を退けよ」の繰り返しを、初めて槍を使う人への短い手掛かりに替える。
-    if (title === '先手と尾根の敵を退けよ') return '敵の打ち終わりに、槍で突き返せ';
-    if (F.step === 1 && F.gateWaitT == null) return '道の印をたどり、先手に続け';
-    return progress;
-  },
+  distanceText: () => '',
+  taskDetail: () => '',
   keepRetreatReason: true, // 「わを見て」へ縮めず、仲間の後ろへ下がる指図を保つ。
   // 止血した浅い傷は任務へ戻す。傷そのものと歩み・槍への影響は残す。
   // 表示と道案内が別の退避判定を持つと、命が十分でも終戦まで下がれと出続ける。
@@ -1617,12 +1651,7 @@ const shigisan = {
     if (F.castleGuideArrived) return F.step === 4 ? '先手と本丸の南口を守れ' : '先手と曲輪を取れ';
     return F.step === 4 ? '西の尾根道から、本丸の南口へ' : '門を抜け、西の道から曲輪へ';
   },
-  waitOrderLabel(rt) {
-    const F = rt.flags;
-    return F.step === 1 && F.gateWaitT != null
-      ? `門前で先手を待て。あと${Math.max(0, Math.ceil(12 - (rt.t - F.gateWaitT)))}秒`
-      : 'ここで待て';
-  },
+  waitOrderLabel(rt) { return this.missionHeading(rt); },
   compactFieldGuides: true, // 兵や退き道を太い輪で覆わず、小さな印で示す。
   compactCombatGuides: true, // 敵へ向く矢印を短くし、近い兵の胴や槍を隠さない。
   compactDodgeGuide: true, // 回避先の旗・輪・矢印を小さくそろえ、足元を空ける。
@@ -1711,6 +1740,7 @@ const shigisan = {
     stableCliffGrain: true, // 切岸の苔も連続した座標で読み、面の曲がり目で細い筋にしない。
     // 兵数・間隔・移動速度・技の時計は保ち、山道の歩調と槍衾の息だけをずらす。
     variedMarch: true, livingSpearHedge: true,
+    noHaori: true, // 足軽を主にし、武将にも陣羽織と母衣を足さない。
     variedInfantry: true, // 貸し具足の仕立て・使い込みに既存の差を付ける。
     ordinaryFlagStride: 3, // 無名の長柄足軽の指物は三人に一本。先手の幟と本人の組は残す。
     strideLimit: 1.25, // 敗走でも腿を頭まで振り上げず、足の踏み替えで駆ける。
@@ -1765,160 +1795,9 @@ const shigisan = {
     };
     // 谷側の空き地へ誘わず、尾根道から歩いて届く場所だけを矢の退き先にする。
     rt.army.hooks.rainEscapePointAllowed = (point) => this.dodgePointAllowed(rt, point);
-    // 独立した中央の警告は、横画面で任務と道の印に重なる。
-    // 既存の知らせ欄へ束ね、暗い地面の影を探さなくても退き方が分かる文にする。
-    rt.army.hooks.onArrowRain = (volley, under) => {
-      if (!under || rt.t < 5 || rt.over || rt.ended || !rt.player.u.alive) return;
-      rt.hud.notices.push('矢が来る。足を止めるな', 110,
-        Math.max(3, volley.T + 0.4), 'warn', () => !rt.over && !rt.ended && rt.player.u.alive);
-    };
-    // この戦の横画面だけ、出陣前の下知を読める高さへ。終戦時に元へ戻す。
-    rt.hud.root.classList.add('shigisan-notices');
-    const noticeStyle = document.createElement('style');
-    noticeStyle.textContent = `
-/* 出発の下知は任務欄で読む。六秒だけ重なる同文の帯を省き、道を示す印は残す。 */
-html body #hud.shigisan-notices #battle-opening > span { display:none !important; }
-/* 現在の下知を両軍の補助帯で覆わない。門の耐久や操作の札は残す。 */
-html body #hud.shigisan-notices.mission-visible #armybar { display:none !important; }
-/* 卓上端末でも次の角と歩数を読む。危険を避ける間は退く操作を優先する。 */
-html body #hud.shigisan-notices:not(.dodge-active):not(.rain-danger):not(.cover-guidance) #battle-notices #objectives:not(.expand) li.cur > small:not(.obj-cue) {
- display:block !important; font-size:max(13px, calc(13px * var(--text-scale, 1))) !important;
- line-height:1.5 !important;
-}
-/* 題の一字落ちを防ぎ、下知は釦の上で最後まで送って読めるようにする。 */
-#hud.shigisan-notices #intro .intro-reading {
- width:100%; overflow-y:auto; touch-action:pan-y; pointer-events:auto;
- overscroll-behavior:contain; padding-bottom:16px; scroll-padding-bottom:16px;
-}
-@media (min-height:501px) {
- html body #hud.shigisan-notices #intro:has(#intro-go) > .card.card {
-  height:auto; max-height:min(600px, 72dvh);
- }
- html body #hud.shigisan-notices #intro:has(#intro-go) .intro-reading {
-  flex:0 1 auto;
- }
- /* 上端右の常時任務は小地図と重なる。戦功札の下へ、知らせごとまとめる。 */
- html body #hud.shigisan-notices #battle-notices:not(.choosing):not(:has(#objectives.expand)),
- html body #hud.shigisan-notices #battle-notices:not(.choosing) {
-  top:calc(104px + env(safe-area-inset-top, 0px)) !important;
-  left:calc(16px + env(safe-area-inset-left, 0px)) !important; right:auto !important;
-  bottom:auto !important; width:min(320px, 30vw) !important;
-  max-height:min(360px, calc(100% - 304px)) !important;
- }
- html body #hud.shigisan-notices #battle-notices:not(.choosing) #objectives li.cur {
-  font-size:max(16px, calc(16px * var(--text-scale, 1))) !important;
- }
-}
-/* 行き先の札を地面の印へ寄せた後も、台詞との間を八つ分空ける。 */
-html body #hud.shigisan-notices #battle-notices:not(.choosing) {
- display:flex !important; flex-direction:column !important; align-items:flex-start;
- gap:8px !important;
-}
-/* 指図と進み具合を縦に積む。長い補足が本文の幅を一文字分まで押し縮めない。 */
-html body #hud.shigisan-notices #battle-notices:not(.choosing) > :is(#objectives,#battle-message),
-html body #hud.shigisan-notices #battle-notices:not(.choosing) #objectives.ground-order:not(.expand) {
- position:relative !important; inset:auto !important; transform:none !important;
- width:100% !important; min-width:0 !important; max-width:100% !important;
- box-sizing:border-box; flex:0 0 auto !important; margin:0 !important;
-}
-html body #hud.shigisan-notices #battle-notices #objectives:not(.expand) li.cur {
- display:block !important; height:auto !important; max-height:none !important; overflow:visible !important;
-}
-html body #hud.shigisan-notices #battle-notices #objectives:not(.expand) li.cur :is(.obj-text,.obj-now,small),
-html body #hud.shigisan-notices #battle-notices #objectives:not(.expand) .battle-action {
- min-width:0 !important; max-width:100% !important; height:auto !important;
- white-space:normal !important; overflow-wrap:anywhere !important; word-break:normal !important;
- overflow:visible !important; text-overflow:clip; line-height:1.6 !important;
-}
-html body #hud.shigisan-notices #battle-notices #objectives:not(.expand) li.cur .obj-text {
- display:block !important; width:100% !important;
-}
-html body #hud.shigisan-notices #battle-notices #objectives:not(.expand) li.cur .obj-now {
- font-size:max(16px, calc(16px * var(--text-scale, 1))) !important;
-}
-/* 任務欄を省いた設定でも、この戦の現在の下知は残す。空の黒札にしない。 */
-html body #hud.shigisan-notices.mission-visible.no-objectives #objectives #obj-list {
- display:block !important;
-}
-/* 接敵・構え・道の印の共通指定で、下知の親や本文を消さない。
-   現在の任務だけを残し、過去の任務や操作札の表示条件は保つ。 */
-html body #hud.shigisan-notices.mission-visible #battle-notices:not(.choosing) #objectives:not(.expand),
-html body #hud.shigisan-notices.mission-visible #battle-notices:not(.choosing) #objectives:not(.expand) > #obj-list,
-html body #hud.shigisan-notices.mission-visible #battle-notices:not(.choosing) #objectives:not(.expand) #obj-list li.cur .obj-text,
-html body #hud.shigisan-notices.mission-visible #battle-notices:not(.choosing) #objectives:not(.expand) #obj-list li.cur .obj-now {
- display:block !important; visibility:visible !important;
-}
-/* よける間も下知を一行分残す。危険の操作・過去の任務・詳しい補足は重ねない。 */
-html body #hud.shigisan-notices:is(.dodge-active,.rain-danger) #battle-notices #objectives:not(.expand) #obj-list,
-html body #hud.shigisan-notices:is(.dodge-active,.rain-danger) #battle-notices #objectives:not(.expand) li.cur .obj-text {
- display:block !important;
-}
-html body #hud.shigisan-notices:is(.dodge-active,.rain-danger) #battle-notices #objectives:not(.expand) li:not(.cur),
-html body #hud.shigisan-notices:is(.dodge-active,.rain-danger) #battle-notices #objectives:not(.expand) li.cur small {
- display:none !important;
-}
-/* 物かげへの一時退避でも、戻った後に果たす下知を一行残す。 */
-html body #hud.shigisan-notices.cover-guidance #battle-notices #objectives:not(.expand),
-html body #hud.shigisan-notices.cover-guidance #battle-notices #objectives:not(.expand) #obj-list,
-html body #hud.shigisan-notices.cover-guidance #battle-notices #objectives:not(.expand) li.cur .obj-text {
- display:block !important;
-}
-html body #hud.shigisan-notices.cover-guidance #battle-notices #objectives:not(.expand) li:not(.cur),
-html body #hud.shigisan-notices.cover-guidance #battle-notices #objectives:not(.expand) li.cur small {
- display:none !important;
-}
-@media (orientation:landscape) and (max-height:500px) {
- html.touch #hud.shigisan-notices #intro:has(#intro-go) > .card {
-  max-height:calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
-  height:320px; padding:8px 16px 16px;
- }
- #hud.shigisan-notices #intro .intro-reading { padding-bottom:16px; scroll-padding-bottom:16px; }
- /* 門では出発時の台詞より、打ち手を守る現在の任務を先に読む。 */
- html body #hud.shigisan-notices:has(#boss:not([hidden]):not(.field-boss)) #battle-notices #subtitle {
-  display:none !important;
- }
- /* 門の進み具合の札は上端にある。任務をその下へ置き、黒札と字を重ねない。 */
- html body #hud.shigisan-notices #boss:not(.field-boss) {
-  top:calc(12px + env(safe-area-inset-top, 0px)) !important; bottom:auto !important;
- }
-
- html body #hud.shigisan-notices:has(#boss:not([hidden]):not(.field-boss)) #battle-notices:not(.choosing):not(:has(#objectives.expand)) {
-  --notice-top:80px;
-  top:calc(80px + env(safe-area-inset-top, 0px)) !important;
- }
- /* 長い道の名で末尾の一字だけを落とさず、現在の行動を一枚に収める。 */
- html body #hud.shigisan-notices #battle-notices:not(.choosing) #objectives:not(.expand) :is(.obj-text,.battle-action) {
-  font-size:max(18px, calc(18px * var(--text-scale, 1))) !important;
-  line-height:1.4 !important; overflow-wrap:normal !important; line-break:strict;
- }
- /* 任務・操作・台詞を読み切れる高さにする。下の操作帯は空ける。 */
- html.touch #hud.shigisan-notices #battle-notices:not(.choosing),
- html.touch.tc-low #hud.shigisan-notices #battle-notices:not(.choosing) {
-  max-height:min(33vh, calc(100% - var(--notice-top) - env(safe-area-inset-top, 0px) - max(96px, var(--notice-floor, calc(96px + env(safe-area-inset-bottom, 0px)))))) !important;
- }
- /* 矢の警告を長い台詞より先に置き、欄の下で切らない。 */
- html body #hud.shigisan-notices #battle-notices:not(.choosing) #battle-message {
-  display:flex; flex-direction:column;
- }
- html body #hud.shigisan-notices #battle-notices:not(.choosing) #battle-message:has(.battle-notice.warn:not([hidden]):not(.notice-muted)),
- html body #hud.shigisan-notices #battle-notices #battle-message .battle-notice.warn {
-  order:-2 !important;
- }
- html body #hud.shigisan-notices #battle-notices #battle-message .battle-notice.warn {
-  font-size:max(16px, calc(16px * var(--text-scale, 1))) !important;
-  line-height:1.5 !important;
- }
- /* 操作の札が出ても、門や曲輪へ戻る下知を消さない。 */
- html body #hud.shigisan-notices:not(.dodge-active):not(.rain-danger):not(.cover-guidance) #battle-notices #objectives.has-action:not(.expand) li.cur .obj-text {
-  display:block !important;
- }
-}
-`;
-    document.head.appendChild(noticeStyle);
     const dispose = rt.dispose;
     rt.dispose = function () {
       this.hud.drawWaitFrame = waitFrame;
-      noticeStyle.remove(); this.hud.root.classList.remove('shigisan-notices');
       return dispose.call(this);
     };
     // 内部の史実札（HIST_A=根拠強い／HIST_B=推定復元／GAME_C=ゲーム補完。表には出さない）
@@ -2047,7 +1926,7 @@ html body #hud.shigisan-notices.cover-guidance #battle-notices #objectives:not(.
     well(rt, YASHIKI.x - 11, YASHIKI.z - 5);
     F.rooms = BUILDINGS.map((q) => boardRoom(rt, q));
     for (const room of F.rooms) room.naka.guards = []; // 入れる建物に兵を増やさない。寺は戦の外。
-    for (const [x, z] of [[-6, GATE.z - 4], [6, GATE.z - 4], [TOP.x - 16, TOP.z + 6], [TOP.x + 14, TOP.z + 10]]) rt.scene.add(nobori(W, x, z, 'todo', 6));
+    for (const [x, z] of [[-6, GATE.z - 4], [6, GATE.z - 4], [TOP.x - 16, TOP.z + 6], [TOP.x + 14, TOP.z + 10]]) rt.scene.add(nobori(W, x, z, 'todo', z < TOP.z + 12 ? 8 : 6));
     // 五段の土塁と柵は共通の縄張りからまとめて描く。口だけ開いた木戸。
     F.monomi = SHIGISAN_PLAN.yagura.filter((y) => y.id !== 'monomi_gate').map((y) => monomi(rt, y.at[0], y.at[1], { ...towerOpt, height: 8.8, team: 1, name: '物見櫓' }));
     for (const c of [RIDGE1, RIDGE2, RIDGE3, RIDGE4, YASHIKI]) rt.scene.add(boardGate(W, c.x, c.z + c.r, 7, 0, c === YASHIKI));
@@ -2078,7 +1957,7 @@ html body #hud.shigisan-notices.cover-guidance #battle-notices #objectives:not(.
     }
     finalizeSimpleBatch(rt, huts);
     ridgeEquipment(rt);
-    for (const [x, z] of [[RIDGE1.x + 7, RIDGE1.z - 1], [RIDGE2.x - 6, RIDGE2.z + 1]]) rt.scene.add(nobori(W, x, z, 'todo', 6));
+    for (const [x, z] of [[RIDGE1.x + 7, RIDGE1.z - 1], [RIDGE2.x - 6, RIDGE2.z + 1]]) rt.scene.add(nobori(W, x, z, 'todo', z < TOP.z + 12 ? 8 : 6));
     // ---- 松永屋敷（北尾根のさらに奥の郭。主殿・家臣の詰所・倉。暮らしと政治の区域。通り抜けを塞がぬよう、壁は装飾の低い塀だけ） ----
     rt.scene.add(tawara(W, YASHIKI.x + 8, YASHIKI.z + 1, 0.2, 5));
     rt.scene.add(nobori(W, YASHIKI.x - YASHIKI.r + 1, YASHIKI.z, 'todo', 6));
@@ -2304,10 +2183,16 @@ html body #hud.shigisan-notices.cover-guidance #battle-notices #objectives:not(.
     rt.zone('tower', P.x, P.z, 3.2);
     // 打ち手は登城道の最後まで進める。門脇へ下げると、空堀と壊せない柵へ向かってしまう。
     F.ram.onArrive = (q) => { q.order = 'hold'; q.formation = 'column'; q.facing = Math.PI; };
+    const cover = F.oda[0];
+    if (!gone(cover)) {
+      const approach = cover.order === 'path' && cover.path ? cover.path.slice(cover.pathIdx) : [];
+      march(cover, approach.concat(TOWER_APPROACH));
+      cover.onArrive = (q) => { q.order = 'hold'; q.formation = 'column'; q.facing = Math.PI; };
+    }
     // 遅れた先手も折り返しを通る。鉄砲組は道の後ろに止め、斜面への近道をさせない。
     for (let i = 0; i < 2; i++) {
       const g = F.oda[i];
-      if (gone(g)) continue;
+      if (gone(g) || g === cover) continue;
       if (g.order === 'path' && g.path) {
         let stop = 0, best = Infinity;
         for (let j = 0; j < g.path.length; j++) {
@@ -2642,11 +2527,12 @@ html body #hud.shigisan-notices.cover-guidance #battle-notices #objectives:not(.
       u.playerOpeningBlocked = rt.t < 12 || (!F.firstFightDone ? u !== F.firstFoe : !ranged && (F.sgRest || !F.sgFront.includes(u)));
     }
     if (F.ending || rt.over || !rt.player.u.alive) return;
-    // 八分で諸口の夜攻めが決着する。本人の本丸取りの戦功は実際に取った時だけ。
+    // 六分半で諸口の夜攻めが決着する。内通八秒と終幕十五秒を含めても七分以内。
+    // 本人の本丸取りの戦功は実際に取った時だけ。
     // 内通の段と、久秀による放火・父子の最期の知らせを順に伝えて終える。
-    if (rt.t >= 480) { this.win(rt, true); return; }
+    if (rt.t >= 390) { this.win(rt, true); return; }
     // 別口による落城を、戦後に初めて知らされないよう一度だけ伝える。
-    if (rt.t >= 420 && !F.otherFrontSaid) {
+    if (rt.t >= 330 && !F.otherFrontSaid) {
       F.otherFrontSaid = true;
       rt.say('使番', F.step >= 3.5
         ? '別の攻め口の味方が本丸へ迫る！　こちらも先手と本丸の南口へ！'
@@ -2947,8 +2833,8 @@ html body #hud.shigisan-notices.cover-guidance #battle-notices #objectives:not(.
         const z = s.ridge1;
         if (z.enemies < F.lowerBest || z.holdT > (F.lowerHold || 0)) F.lowerStallAt = rt.t;
         F.lowerBest = Math.min(F.lowerBest, z.enemies); F.lowerHold = z.holdT;
-        // 二分間進まなければ別の先手が道を開く。本人の曲輪取りの戦功は与えない。
-        if (rt.t - F.lowerStallAt >= 120) {
+        // 一分間進まなければ別の先手が道を開く。本人の曲輪取りの戦功は与えない。
+        if (rt.t - F.lowerStallAt >= 60) {
           F.innerDone = true; F.innerRoute = 'ridge2'; F.lowerBypass = true;
           rt.unmark('rg1'); rt.unmark('gather');
           rt.say('組頭', '別の先手が道を開いた！　下の曲輪は味方に任せ、本丸へ続け！', 5);
@@ -2958,7 +2844,7 @@ html body #hud.shigisan-notices.cover-guidance #battle-notices #objectives:not(.
       if (F.step === 4 && (F.lowerTaken || F.lowerBypass) && s.shu.owner === ZONE_STATE.FRIEND && s.shu.test(rt.player.u.pos.x, rt.player.u.pos.z) && F.last.every((g) => gone(g) || !g.units.some((u) => u.alive && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - TOP.x, u.pos.z - TOP.z) < TOP.r + 12))) this.win(rt);
     }
     if (F.ending || rt.over) return;
-    // 十五秒ごとに距離と戦果を比べる。四十五秒の停滞には先手の援護を出す。
+    // 十五秒ごとに距離と戦果を比べる。三十秒の停滞には先手の援護を出す。
     if (!F.ending && F.step >= 1 && rt.t >= (F.stallCheckT || 0)) {
       F.stallCheckT = rt.t + 15;
       this.assistAdvance(rt);
@@ -2982,7 +2868,7 @@ html body #hud.shigisan-notices.cover-guidance #battle-notices #objectives:not(.
 
   },
 
-  // 四十五秒間、距離も戦果も変わらなければ、同じ兵を道に沿って押し出す。
+  // 三十秒間、距離も戦果も変わらなければ、同じ兵を道に沿って押し出す。
   // 兵の追加・瞬間移動・時間だけの勝利は行わない。
   assistAdvance(rt) {
     const F = rt.flags, p = rt.player.u.pos;
@@ -2996,7 +2882,7 @@ html body #hud.shigisan-notices.cover-guidance #battle-notices #objectives:not(.
     if (F.advanceId !== id || distance < F.advanceDistance - 3 || F.advanceKills !== F.ek || F.advanceGateHp !== hp) {
       F.advanceId = id; F.advanceDistance = distance; F.advanceKills = F.ek; F.advanceGateHp = hp; F.advanceT = rt.t;
     }
-    if (rt.t - F.advanceT < 45) return;
+    if (rt.t - F.advanceT < 30) return;
     F.advanceT = rt.t; rt.unmark('gather');
     if (F.step === 2) {
       // 近くの先手が打ち手の守りを引き継ぐ。

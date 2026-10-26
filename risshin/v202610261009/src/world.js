@@ -23,6 +23,7 @@ import { guardDrawCamera } from './render_camera.js';
 import { S as SETTINGS } from './settings.js';
 import { isNoRender, HALF, SEG, distToPolyline, fordLift, FIRE_FILL, roadTag, tuftClumpAt } from './world_common.js';
 import { _shC, shadowRange } from './world_shadow.js';
+import { StaticLight } from './static_light.js';
 import { fieldState } from './world_fields.js';
 import { WIND_STATE, WIND_DIR, WIND, GUST, WEAR, WEAR_HALF, WET, MOOD_BY_SEED } from './world_weather.js';
 import { castlePlan, castleInside, castleHeight } from './world_castle.js';
@@ -102,7 +103,7 @@ export class World {
         // 通常の移動中は一コマ一束の巡回を保つ。
         const cullFresh = this.cullCam !== cam || isNoRender();
         this.cullCam = cam; this.cullTick(cullFresh);
-        // 建物・地形・草木の陰影は既存の頂点色で保ち、動く影を落とさない。
+        // 固定物は焼いた地面の影で保ち、動く影の描き込みへ入れない。
         const shadowFocus = this.lastFocus || this.sun.target.position;
         shadowRange(sc, shadowFocus.x, shadowFocus.z, this.shadowWalk, 0);
         this.armyBatch.draw(r, cam, this.armies, this.clashes);
@@ -136,6 +137,7 @@ export class World {
     }
     // 広い山城も地面の頂点数は増やさない。
     this.half = def.groundHalf || HALF;
+    this.staticLight = new StaticLight(this);
     // 戦ごとの風の向き（def.wind：[x, z]。無ければ雨の向き、それも無ければ南西の風）。旗・煙・草・雨がみな同じ向きに流れる
     { const wd = def.wind || def.rainDir || [0.565, 0.825], l = Math.hypot(wd[0], wd[1]) || 1; WIND_STATE.dirX = wd[0] / l; WIND_STATE.dirZ = wd[1] / l;
       WIND_DIR.value.set(WIND_STATE.dirX, WIND_STATE.dirZ);
@@ -281,6 +283,7 @@ export class World {
   //   disposeしないと戦をまたいで GPU の持ち物が溜まり続け、重い戦の始まり（brief）で固まって見える一因になる
   //   （材質の map（家紋・旗の絵）は flagTexture のキャッシュを使い回すので、ここでは形と材質だけ dispose する）
   dispose() {
+    this.staticLight.dispose();
     if (this.groundShades) {
       for (const mesh of this.groundShades) { this.scene.remove(mesh); mesh.geometry.dispose(); }
       this.groundShadeMat.dispose(); this.groundShades.length = 0;

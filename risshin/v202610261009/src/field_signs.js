@@ -303,7 +303,7 @@ export function fieldSignsTick(rt, root) {
     if (inou && !defeated && !near && (foe || general(u)) && !inouSignVisible(rt, u)) continue;
     if (!moribe && !inou && u === commander && u === rt.army.missionMarkedEnemy && rt.hud.missionEnemyShown) continue;
     if (general(u) && (u === commander && d2 < 180 * 180 || d2 < GEN_R * GEN_R || d2 < GEN_R * GEN_R * 1.3 && s.bound?.includes(u)) && !u.woundOut) { u._fsD = d2; gens.push(u); }
-    if (quietSigns && (!s.nearby.includes(u) || !u._nearSignOn || meD2 > (foe ? 100 : 36) || u.fleeing || u.group?.routed || u.mesh?.visible === false || u.camHidden)) continue;
+    if (quietSigns && !(u === commander && rt.def.foeMarkVisible?.(rt, u)) && (!s.nearby.includes(u) || !u._nearSignOn || meD2 > (foe ? 100 : 36) || u.fleeing || u.group?.routed || u.mesh?.visible === false || u.camHidden)) continue;
     if (quietSigns && !near && u === focusEnemy) {
       if (u._focusSignAt == null || rt.t >= u._focusSignAt || rt.t < u._focusSignAt - .2) {
         u._focusSignSeen = sightScreenUnit(rt, u); u._focusSignAt = rt.t + .2;

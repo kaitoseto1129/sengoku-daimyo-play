@@ -2019,10 +2019,8 @@ mikatagahara.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     F.dpBack = false;
     // 追手は次々に来る。近くの敵を倒すまで待つと、いつまでも城へ退けない。
     inp.leftPressed = false; inp.guardHold = false; inp.chargeHold = false;
-    // 一撃を受ける気力を残す。歩いて半分まで戻してから走り直す。
-    if (p.sta < p.maxSta * 0.35) F.mkCatchBreath = true;
-    else if (p.sta >= p.maxSta * 0.6) F.mkCatchBreath = false;
-    inp.runHeld = !F.mkCatchBreath;
+    // 本人は気力切れでも走れる。連続した突きから退く足を遅くしない。
+    inp.runHeld = false;
     const next = toCover ? F.dp.cur?.at || (F.dp.i < 2 ? SOUTH_SLOPE : REARGUARD_POST) : F.retreatPoint || HAMA;
     const radius = toCover && F.dp.i >= 2 ? 4 : !toCover && F.retreatIdx === RETREAT_ROAD.length - 1 ? 3 : 1.8;
     // 追手への狙いを残すと、道へ向けた体が更新時に引き戻される。
@@ -2031,7 +2029,7 @@ mikatagahara.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     retreatThroughGap(b, inp);
     const walkYaw = p.yaw, walking = inp.k.has('KeyW');
     const atPost = Math.hypot(next.x - u.pos.x, next.z - u.pos.z) < radius;
-    if (atPost) inp.runHeld = false;
+    inp.runHeld = !atPost && walking;
     // 並び順の最初の敵へ毎回振り向かず、本人へ迫る打ち込みを選ぶ。
     // 射手へ構えても弾は防げない。刃が来ない間は構えを解いて先へ進む。
     let threat = null, soonest = Infinity;
@@ -2071,7 +2069,6 @@ mikatagahara.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
       // 指と体が横・背へ向き直る間も、追手の次の突きに備える。
       const guardLead = Math.cos(toward - u.heading) < 0.5 ? 1.3 : 0.9;
       inp.guardHold = soonest <= guardLead;
-      if (inp.guardHold) inp.runHeld = false;
       inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
       if (!atPost && walking) {
         const fw = Math.cos(walkYaw - p.yaw);
@@ -2092,6 +2089,8 @@ mikatagahara.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
         // 殿の印で止まっても避ける。終点だけでなく三歩の途中の切岸と兵を調べる。
         retreatDodge(b, inp, !atPost && walking ? walkYaw : toward + Math.PI);
       }
+      // 使われない構え・回避入力だけに頼らず、確かめた退路への駆け足を保つ。
+      inp.runHeld = !!inp.axis && Math.hypot(inp.axis.x, inp.axis.y) > .5;
     }
     return;
   }

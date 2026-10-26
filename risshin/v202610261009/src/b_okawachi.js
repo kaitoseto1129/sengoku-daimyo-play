@@ -48,8 +48,8 @@ const OPEN_PT = ROAD_KARAMETE[5];
 const NIGHT_WAIT = 12; // 日を送る紹介の後、夕暮れから雨の夜へ移す秒数。太鼓も同じ長さだけ待つ。
 const HONJIN = { x: 88, z: -12 }; // 信長公記：信長の本陣は東の山。南の帰陣先とは別。
 // 胴の漆と威糸を分ける。倒れた後も同じ具足の色が残る。
-const ODA = { flag: 'oda', armor: 0x49443b, lace: 0x9b805a };
-const KITABATAKE = { flag: 'kitabatake', armor: 0x59433b, lace: 0xa08b62 };        // 北畠の笹竜胆。旗色は軍を見分ける遊び用。
+const ODA = { flag: 'oda', armor: 0x352d26, lace: 0x9b805a };
+const KITABATAKE = { flag: 'kitabatake', armor: 0x493028, lace: 0xa08b62 };        // 北畠の笹竜胆。旗色は軍を見分ける遊び用。
 
 // 写真の古い葺き板は灰褐色。全棟に明るい茶の縞を繰り返さず、差し替え板だけ少し明るくする。
 // 形と材質は既存の束のまま、建築時に渡す頂点色だけを変える。
@@ -62,11 +62,13 @@ const OK_ROOF_COLORS = [
 // 兵は手ごとの具足、名のある将は固有の具足。生成時だけ整え、兵数や能力は変えない。
 function okDress(list, colors) {
   return dress(list, colors).map((spec) => {
+    // 本の足軽：茶褐色の漆胴と頂の立つ陣笠。形・材質は既存の物を使う。
     const armor = KACCHU[spec.o.name];
-    if (!armor) return spec;
-    return { ...spec, o: { ...spec.o, armor: armor.armor, lace: armor.lace,
-      hat: armor.hat, haori: armor.haori, mon: armor.mon,
-      flag: armor.mon === 'none' ? colors.flag : armor.mon } };
+    const foot = ['ashigaru', 'bow', 'gun'].includes(spec.type);
+    return { ...spec, o: { ...spec.o,
+      ...(armor ? { armor: armor.armor, lace: armor.lace, hat: armor.hat, mon: armor.mon,
+        flag: armor.mon === 'none' ? colors.flag : armor.mon } : {}),
+      ...(foot ? { hat: 'jingasa', hatColor: 0x49251d } : {}), haori: null } };
   });
 }
 
@@ -322,7 +324,86 @@ function okHouseYards(rt) {
   finalizeSimpleBatch(rt, batch);
 }
 
+function okNearestFoe(rt) {
+  const F = rt.flags, p = rt.player.u.pos;
+  let nearest = null, best = Infinity;
+  for (const g of F.push || []) {
+    if (sortieBroken(g) || g._okReturning) continue;
+    for (const u of g.units) {
+      if (!u.alive || u.dying || u.gone || u.fleeing || u.woundOut || u.noTarget || u.isStruct) continue;
+      const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
+      if (d < best) { nearest = u; best = d; }
+    }
+  }
+  return nearest;
+}
+
 const okawachi = {
+  // 稲生の型。守りと退きの筋は保ち、字は今の任務一行にそろえる。
+  missionSingleLine: true,
+  hideMissionDots: true,
+  enemyTriangleSigns: true,
+  nearbyAllySignLimit: 0,
+  noDodgeCard: true,
+  noPlayerFoot: true,
+  quietMiss: true,
+  missionPinCaption: '',
+  missionDetail: () => '',
+  missionStatus: () => '',
+  bannerAllowed: (rt) => rt.over || !!rt.flags.ending,
+  missions: ['ここで太鼓を待て', '味方と進め', '▼の城兵を倒せ', 'ここを守れ', '陣へ戻れ', '柵を守れ'],
+  missionOf(rt) {
+    const F = rt.flags;
+    return F.step === 4 ? 5 : F.step === 3 ? 4 : F.step === 2.5 ? 3 :
+      F.step === 2 ? (okNearestFoe(rt) ? 2 : 3) : F.step === 1 && F.assaultMoving ? 1 : 0;
+  },
+  missionHeading(rt) {
+    if (rt.flags.ending) return rt.flags.failed ? '味方と退け' : '味方と集まれ';
+    if ((rt.flags.step === 0 || rt.flags.step === 1 && !rt.flags.assaultMoving) && !okAtWaitCover(rt)) return '竹束の陰へ';
+    if (rt.flags.step === 3 && Math.hypot(rt.player.u.pos.x - CAMP_LINE.x, rt.player.u.pos.z - CAMP_LINE.z) <= 8) return '柵へ進め';
+    if (rt.flags.step === 4 && !okAtSouthLine(rt)) return '柵へ進め';
+    return this.missions[this.missionOf(rt)];
+  },
+  enemyOrder: (rt) => okawachi.missionHeading(rt),
+  // 城内の大将へ討ち取りを誘わず、地図の印と本丸の大旗で居所を示す。
+  mapCommanderAlways: true,
+  commanderSignTarget: (rt) => !rt.flags.ending && rt.flags.keep?.lord?.alive ? rt.flags.keep.lord : null,
+  commanderTarget(rt) { return rt.flags.keep?.reached ? this.commanderSignTarget(rt) : null; },
+  missionSignTarget: (rt) => rt.flags.step === 2 ? okNearestFoe(rt) : null,
+  missionPin(rt) {
+    const F = rt.flags;
+    if (rt.over || F.ending) return null;
+    const q = F.okPin || (F.okPin = { x: 0, z: 0 });
+    q.unit = null; q.enemy = false; q.approach = false; q.defend = false;
+    q.waiting = false; q.arrived = false; q.route = false; q.always = true; q.silent = true;
+    q.r = 6; q.hide = 0;
+    let at;
+    if (F.step === 2 && (q.unit = okNearestFoe(rt))) {
+      at = q.unit.pos; q.enemy = true; q.approach = true; q.r = q.hide = .2;
+    } else if (F.step === 3) at = CAMP_LINE;
+    else if (F.step === 4) { at = SOUTH_BLOCK; q.r = 18; q.defend = q.waiting = true; }
+    else if (F.step >= 2) { at = FRONT; q.r = 18; q.defend = q.waiting = true; }
+    else {
+      q.waiting = F.step === 0 || !F.assaultMoving;
+      at = q.waiting ? F.waitCover || okAdvanceGoal(rt) : okAdvanceGoal(rt);
+      q.r = q.waiting ? .3 : 3;
+    }
+    // 切岸越しに直進させず、既存の歩ける道と同じ角へ案内する。
+    const next = karameteWay(rt.army, rt.player.u, at);
+    q.route = next !== at;
+    const pos = q.route ? next : at;
+    q.x = pos.x; q.z = pos.z;
+    if (q.route) { q.unit = null; q.enemy = false; q.defend = q.waiting = false; q.r = .5; }
+    q.arrived = !q.route && (F.step <= 1 && q.waiting ? okAtWaitCover(rt) :
+      Math.hypot(rt.player.u.pos.x - at.x, rt.player.u.pos.z - at.z) <= q.r);
+    // 敵本人の印は missionSignTarget の▼。行き先は同じ地点への道のピンにする。
+    // 間合いに入ったら▼だけを残し、近い敵に移動のピンを重ねない。
+    if (q.enemy) {
+      if (rt.player.inRange && rt.player.rangeCueTarget === q.unit) return null;
+      q.unit = null; q.enemy = false; q.route = true;
+    }
+    return q;
+  },
   civilianCrowd: { bands: PEOPLE_BANDS },
   compactIntro: true,
   introTaskFirst: true,
@@ -364,10 +445,10 @@ const okawachi = {
   compactFloorGuides: true, // 曲がり角の印を細め、退く兵や人馬を太い輪で覆わない。
   routeGoalRadius: 0.55, // 道順と到着の判定は保ち、描く目印だけを小さくする。
   // 道の角は移動用の小旗一つで示す。本人の足から長い線を結ばない。
-  taskDetails: true, // 携帯でも合流人数と守る残り時間を、任務の札に出す。
+  taskDetails: false, // 携帯でも合流人数と守る残り時間を、任務の札に出す。
   keepCombatTask: true,
   keepCombatTaskHeading: true, // 城兵が近くても、槍の操作で坂・陣・柵の下知を消さない。
-  keepCombatTaskDetail: true, // 斬り合い中も、合流人数と列が破れるまでの猶予を省かない。
+  keepCombatTaskDetail: false, // 斬り合い中も、合流人数と列が破れるまでの猶予を省かない。
   keepTaskLabel: true,
   keepDestinationTask: true, // 坂の守り・南の陣・柵の封鎖を「この旗へ」だけにしない。
   keepFlagTravelTask: true,
@@ -402,37 +483,8 @@ const okawachi = {
   missionDangerText: (rt) => rt.flags.step === 4 ? '南の柵で番の組と合流し、道を守れ' :
     rt.flags.step === 3 ? '追っ手を防ぎ、道の印から南の陣へ退け' : '組が討ち減らされている。坂の旗で味方と槍をそろえよ',
   // 足元へ置き直す印までの六歩を、陣や柵までの残り距離として出さない。
-  distanceText: (rt, d) => rt.missionGuide?.marker?.id === 'sakamichi' ? '' : `${Math.round(d)}歩`,
-  taskLabel(rt, text) {
-    if (!rt.flags.ending) {
-      if (rt.flags.step === 0) return okAtWaitCover(rt) ? '竹束の陰で太鼓を待て' : '手前の竹束の後ろへ戻れ';
-      if (rt.flags.step === 1) return rt.flags.assaultMoving ? '丹羽の竹束の後ろを進め' :
-        okAtWaitCover(rt) ? '竹束の陰で太鼓を待て' : '手前の竹束の後ろへ戻れ';
-      if (rt.flags.step === 3) return rt.flags.roadGuideMarked ? '道の印から南の陣へ退け' : '南の陣へ退け';
-      if (rt.flags.step === 2.5) return '坂の旗を守れ';
-      if (rt.flags.step === 2) return '坂の旗で城兵を止めよ';
-    }
-    if (rt.flags.step !== 4 || rt.flags.ending) return text;
-    // 破られる猶予は道案内より先に出す。残り秒数を「南の柵へ」で隠さない。
-    if (rt.flags.dp?.cur?.dangerT) return `あと${Math.max(0, Math.ceil(10 - rt.flags.dp.cur.dangerT))}秒で列が崩れる。柵の味方へ戻れ`;
-    // 残り秒数は補足に一度だけ出し、見出しには実際に取れる手を残す。
-    if (rt.flags.dp?.cur?.shortLineThreat) return okShortLineOrder(rt, rt.flags.dp.cur);
-    const left = Math.max(0, Math.ceil(240 - (rt.t - rt.flags.stepT)));
-    if (okAtSouthLine(rt)) {
-      const C = rt.flags.dp?.cur;
-      // 旗の範囲に入っただけでは、槍の列に合流したことにはしない。
-      if (!C || C.lineCount < 3) {
-        return C ? okShortLineOrder(rt, C) : '柵の旗で番の組を待て';
-      }
-      if (!C.holding) return '南の柵の味方へ寄り、列を守れ';
-      if (C.repelling) return '城兵を追わず、柵の列を守れ';
-      if (!C.engaged) return '柵の旗で道を守れ。列を離れるな';
-      return C.holdLeft > 0 ? `柵であと${C.holdLeft}秒。城兵を止めよ` : '柵の列を守り、城兵を押し返せ';
-    }
-    if (left <= 45) return `交代まで${left}秒。南の柵の旗へ進め`;
-    if (rt.flags.roadGuideMarked) return '道の印で南の柵へ進め';
-    return '南の柵の旗で、番の組と合流せよ';
-  },
+  distanceText: () => '',
+  taskLabel: (rt) => okawachi.missionHeading(rt),
   terrainLookWeight: 1, // 切岸で視点が寄った時は本人へ向け、前方の土壁だけを映さない。
   nearSpearFade: true, // 肩越しに重なる味方の長柄は既存の透かしで道を空ける。
   hideBlockingCloseSpears: true, // 細めた味方の槍も、本人への視線を横切る間だけ避ける。
@@ -703,8 +755,10 @@ const okawachi = {
     // 総大将・北畠具教は本丸の館の中（天守の無い城）。旗本が縁側の上がり口を守り、踏み込むまで討てない
     F.keep = makeLordKeep(rt, {
       name: '北畠具教', spot: { x: HON_C.x, z: HON_C.z - 7 }, mouth: { x: HON_C.x, z: HON_C.z - 1 }, facing: 0, guardN: 6,
-      faction: 'kitabatake', armor: KACCHU['北畠具教'].armor, flag: KITABATAKE.flag,
+      faction: 'kitabatake', armor: KACCHU['北畠具教'].armor, flag: KITABATAKE.flag, haori: null,
     });
+    // 本丸の笹竜胆を大旗に。写真の井楼と同じ木造の城に収め、兵は増やさない。
+    rt.scene.add(nobori(W, HON_C.x + 5, HON_C.z - 4, KITABATAKE.flag, 6.5));
     if (F.keep.lord) { F.keep.lord.noTarget = true; F.keep.lord.invuln = true; }
     F.tomofusa = enemyGroup(rt, { fixed: true, faction: 'kitabatake', name: '北畠具房の居所', anchor: { x: F.keep.spot.x + 2, z: F.keep.spot.z }, facing: 0, width: 1, aggro: 0, noRout: true },
       KB([{ type: 'busho', n: 1, o: { name: '北畠具房', horse: false, invuln: true } }]));
@@ -1062,7 +1116,7 @@ const okawachi = {
     }
     rt.say(okSpeaker(rt), '先の組を退かせる。坂の旗で追っ手を止めよ！', 4);
     rt.objRemove('main');
-    depthStart(rt, okCtx(rt), [okHold({ at: FRONT, dur: 60, limit: 90, r: 18, title: '坂の旗', obj: '坂の旗で、先に退く組を守れ', groups: F.push, reward: '坂の退路を保った' })], () => this.retreat(rt));
+    depthStart(rt, okCtx(rt), [okHold({ at: FRONT, dur: 45, limit: 60, r: 18, title: '坂の旗', obj: '坂の旗で、先に退く組を守れ', groups: F.push, reward: '坂の退路を保った' })], () => this.retreat(rt));
   },
 
   // ③ 退く（搦手の前を保ちきれなかった時の、史実どおりの筋）
@@ -1195,8 +1249,8 @@ const okawachi = {
     { const g = F.gateDef && F.gateDef.real; if (g && !g._rain) { g._rain = true; g._okBaseDmg = g.dmgMult || 1; }
       if (g) g.dmgMult = g._okBaseDmg * nightAccuracyMult(rt.world); }
     if (F.ending || rt.over) return;
-    // 退きは帰陣で終える。帰陣が遅くても、次の封鎖には持ち場の時間を残す。
-    if (F.step !== 3 && F.step !== 2.5 && (F.step === 4 ? rt.t - F.stepT >= 240 : rt.t >= 470)) {
+    // 七分以内に決着。成功は四分以後、最後の和睦十三秒を含める。
+    if (rt.t >= 407) {
       const C = F.dp?.cur;
       const reason = F.step !== 4 ? '持ち場を保てず、交代の下知が出た' :
         !C?.joinedLine ? '南の柵で番の組と合流できず、交代の下知が出た' :
@@ -1257,7 +1311,7 @@ const okawachi = {
       for (const g of L) if (!sortieBroken(g)) active++;
       okRoadGuide(rt, FRONT, '坂道を通って、城兵を止める旗へ');
       rt.objProgress('main', d > 18 ? '道の印をたどり、坂の旗へ戻れ' : active ? `城兵はあと${active}組。旗で止め、城内へ追うな` : '城兵は退いた。旗で退きの下知を待て');
-      if ((rt.t - F.stepT >= 12 && L.length >= 2 && L.every(sortieBroken)) || rt.t - F.stepT > 90) this.midA(rt);
+      if ((rt.t - F.stepT >= 12 && L.length >= 2 && L.every(sortieBroken)) || rt.t - F.stepT > 60) this.midA(rt);
     }
     if (F.step === 3) {
       const d = Math.hypot(p.x - CAMP_LINE.x, p.z - CAMP_LINE.z);
@@ -1275,8 +1329,8 @@ const okawachi = {
       okRoadGuide(rt, CAMP_LINE, '陣へ下る角');
       // 本人が旗に入れば帰陣。遅れた組の割合で足止めしない。
       if (d <= 8 && rt.player.u.alive) this.siegeDays(rt);
-      // 四分後の場面転換でも、帰陣した本人を陣へ置く。坂の途中のまま翌朝にしない。
-      else if (rt.t - F.stepT >= 240 && rt.player.u.alive) {
+      // 帰陣が遅れた時の場面転換でも、本人を陣へ置いて翌朝につなぐ。
+      else if (rt.t - F.stepT >= 70 && rt.player.u.alive) {
         const u = rt.player.u;
         u.pos.set(CAMP_LINE.x, rt.world.heightAt(CAMP_LINE.x, CAMP_LINE.z), CAMP_LINE.z);
         u.vel.x = u.vel.z = 0;
@@ -1419,119 +1473,12 @@ function okLineDanger(rt, C, at, radius, id, dt, place) {
   return false;
 }
 
-// この戦だけ横持ちの下知を広げ、旗の白枠と二重の見出しを控える。
+// 紹介札だけを整える。戦場の任務は共通の右上の一行を使う。
 // 戦を離れる時に札の指定を外し、次の戦へ残さない。
 function okScreen(rt) {
   const root = rt.hud.root, style = document.createElement('style');
   root.dataset.okawachi = '';
   style.textContent = `
-    @media (min-height:501px) and (min-width:901px) {
-      html body #hud[data-okawachi] #battle-notices:not(.choosing):not(:has(#objectives.expand)) {
-        left:16px !important; right:auto !important; top:104px !important;
-        width:min(344px, 30vw) !important; max-height:calc(100% - 304px) !important;
-        display:flex !important; flex-direction:column; gap:8px; overflow-y:auto;
-      }
-    }
-    /* 携帯も同じ欄に積む。絶対位置の補足を札の外へ残さない。 */
-    html body #hud[data-okawachi] #battle-notices:not(.choosing) > :is(#objectives,#battle-message,#tutorial,#banner,#situation,#skiphint) {
-      position:relative !important; inset:auto !important; transform:none !important;
-      box-sizing:border-box; min-width:0 !important; width:100% !important; max-width:100% !important; flex:0 0 auto;
-    }
-    @media (orientation:landscape) and (max-height:500px) {
-      html body #hud[data-okawachi] #battle-notices:not(.choosing):not(:has(#objectives.expand)) {
-        left:auto !important; right:calc(92px + env(safe-area-inset-right, 0px)) !important;
-        top:calc(16px + env(safe-area-inset-top, 0px)) !important;
-        width:min(320px, 38vw) !important; max-height:33vh !important;
-        display:flex !important; flex-direction:column; gap:8px; overflow-y:auto;
-      }
-    }
-    /* 共通の短い案内札より優先し、残り時間と合流人数を任務の欄へ戻す。 */
-    html:root body #hud[data-okawachi].single-guide #battle-notices:not(.choosing) #objectives#objectives.route-summary:not(.expand) {
-      position:relative !important; inset:auto !important; transform:none !important;
-      width:100% !important; max-width:100% !important;
-    }
-    html:root body #hud[data-okawachi].single-guide #battle-notices:not(.choosing) #objectives#objectives.route-summary:not(.expand) #obj-list li.cur > small:first-of-type {
-      display:block !important;
-    }
-    html body #hud[data-okawachi] #battle-notices #battle-message,
-    html body #hud[data-okawachi] #battle-notices #battle-message > :is(#subtitle,.battle-notice) {
-      position:relative !important; inset:auto !important; transform:none !important;
-      box-sizing:border-box; width:100% !important; min-width:0 !important; max-width:100% !important;
-      margin:0 !important; white-space:normal !important; overflow-wrap:anywhere;
-    }
-    html body #hud[data-okawachi] #battle-notices #objectives:not(.expand),
-    html body #hud[data-okawachi] #battle-notices:not(.choosing) #objectives.ground-order:not(.expand) {
-      box-sizing:border-box; width:100% !important;
-      max-width:100% !important;
-      height:auto !important; max-height:none !important; overflow:visible !important;
-      min-height:44px !important; padding:6px 10px !important;
-      background:#14120f !important; color:#ece4d2;
-      border-left:2px solid #c2a25a;
-    }
-    html body #hud[data-okawachi] #battle-notices #objectives:not(.expand) li.cur :is(.obj-text,.obj-now),
-    html body #hud[data-okawachi] #battle-notices:not(.choosing) #objectives.ground-order:not(.expand) li.cur :is(.obj-text,.obj-now) {
-      min-width:0; max-width:100%; flex:1 1 auto !important;
-      white-space:normal !important; overflow-wrap:anywhere !important; word-break:normal !important;
-      line-height:1.4; text-overflow:clip;
-    }
-    html body #hud[data-okawachi] #battle-notices #objectives:not(.expand) #obj-list li.cur :is(.obj-text,.obj-now) {
-      font-size:max(16px, calc(16px * var(--text-scale, 1))) !important;
-    }
-    /* 字ごとの黒帯を外し、折り返した一文を一枚の札で読ませる。 */
-    html body #hud[data-okawachi] #battle-notices #objectives:not(.expand) #obj-list li.cur :is(.obj-text,.obj-now,small) {
-      background:transparent !important; box-shadow:none !important;
-      padding:0 !important; color:#ece4d2 !important;
-    }
-    /* 人数・合図・距離も札の幅で折る。補足だけ画面の右端まで伸ばさない。 */
-    html body #hud[data-okawachi] #battle-notices #objectives:not(.expand) #obj-list,
-    html body #hud[data-okawachi] #battle-notices #objectives:not(.expand) #obj-list li.cur,
-    html body #hud[data-okawachi] #battle-notices #objectives:not(.expand) #obj-list li.cur small {
-      box-sizing:border-box; min-width:0 !important; width:100% !important; max-width:100% !important;
-      white-space:normal !important; overflow-wrap:anywhere !important; word-break:normal !important;
-    }
-    html body #hud[data-okawachi] #battle-notices:not(.choosing) #objectives:not(.expand) #obj-list li.cur {
-      display:block !important; height:auto !important; max-height:none !important;
-    }
-    html body #hud[data-okawachi] #battle-notices:not(.choosing) #objectives:not(.expand) #obj-list li.cur :is(.obj-text,.obj-now,small) {
-      position:static !important; inset:auto !important; transform:none !important;
-      display:block !important; float:none !important; flex:none !important;
-      width:100% !important; min-width:0 !important; max-width:100% !important;
-      height:auto !important; max-height:none !important; overflow:visible !important;
-      white-space:normal !important; overflow-wrap:anywhere !important;
-      -webkit-line-clamp:unset; line-clamp:unset;
-    }
-    html body #hud[data-okawachi] #battle-notices #objectives:not(.expand) #obj-list li.cur small {
-      position:static !important; inset:auto !important; transform:none !important;
-      display:block !important; flex:0 0 100% !important;
-      margin:2px 0 0 !important;
-      font-size:max(13px, calc(13px * var(--text-scale, 1))) !important; line-height:1.4 !important;
-    }
-    /* 共通の回避札による非表示より強く指定し、守る場所を見失わせない。 */
-    html body #hud[data-okawachi]:is(.rain-danger,.dodge-active) #battle-notices #objectives:not(.expand) {
-      display:block !important; visibility:visible !important;
-    }
-    html body #hud[data-okawachi]:is(.rain-danger,.dodge-active) #battle-notices #objectives:not(.expand) #obj-list {
-      display:block !important;
-    }
-    html body #hud[data-okawachi]:is(.rain-danger,.dodge-active) #battle-notices #objectives:not(.expand) li.cur small:not(:first-of-type) {
-      display:none !important;
-    }
-    html body #hud[data-okawachi] #markers .mk.main.flag-goal.flag-framed:not(.edge) { background:transparent; }
-    #hud[data-okawachi] .flag-goal.flag-framed:not(.edge) > b { visibility:hidden; }
-    #hud[data-okawachi] .goal-flag-frame { display:none; }
-    /* 回避の行き先と声は残し、任務の旗に似た太い額縁だけを外す。 */
-    #hud[data-okawachi] .dodge-guide .escape-destination rect { display:none; }
-    #hud[data-okawachi] .dodge-guide .escape-label { font-size:18px; }
-    #hud[data-okawachi] .dodge-guide .escape-gesture > * { scale:.65; }
-    html body #hud[data-okawachi] #intro > .card.card {
-      width:min(620px, calc(100vw - 32px)); height:min(620px, calc(100dvh - 48px)) !important;
-      max-height:calc(100dvh - 48px) !important;
-    }
-    html body #hud[data-okawachi] #intro .intro-reading {
-      flex:1 1 0; min-height:0; max-height:none !important; overflow-y:auto; padding-bottom:16px;
-      scroll-padding-block:16px; scrollbar-gutter:stable;
-      touch-action:pan-y; overscroll-behavior:contain;
-    }
     #hud[data-okawachi] #intro .intro-person b {
       font-size:max(20px, calc(20px * var(--text-scale, 1))); line-height:1.4;
     }
@@ -2367,7 +2314,7 @@ function okShortLineOrder(rt, C) {
   if (okReliefComing(C) || okReliefComing(C, rt.flags.lineGroups)) return '援けの組が向かう。柵の旗で待て';
   if (okReliefGroup(C.reliefGroups)) return '援けを呼ぶ。柵の旗で待て';
   if (C.shortLineThreat) return '援けは来ない。柵で城兵を押し返せ';
-  return `柵で交代を待て。あと${Math.max(0, Math.ceil(240 - (rt.t - rt.flags.stepT)))}秒`;
+  return `柵で交代を待て。あと${Math.max(0, Math.ceil(407 - rt.t))}秒`;
 }
 // 判定の縁を一瞬出ても、破られかけた守りは元に戻らない。
 // 槍が三人そろうか敵を押し返して、二秒保った時だけ猶予を戻す。
@@ -2554,7 +2501,7 @@ function okHold(o) {
       C.holding = held;
       if (held) C.inT += dt;
       // 兵糧攻めは道を保つ任務。敵が来ないだけで守り手を敗北させない。
-      // 交代の直前まで待ち、最後の七十五秒も実際に列を保った時だけ完了する。
+      // 二分二十秒まで待ち、七十五秒は実際に列を保った時だけ完了する。
       // 近くへ来た出撃兵がいる間は、従来の迎撃と帰城の判定を使う。
       let approaching = false;
       if (o.sortie && !C.engaged) for (const g of o.groups) for (const u of g.units) {
@@ -2599,7 +2546,7 @@ function okHold(o) {
       // 札の残り時間も、下の完了判定と同じ条件で数える。
       const holdTime = o.sortie && C.engaged && clear ? 35 : o.dur;
       C.holdLeft = Math.max(0, Math.ceil(holdTime - C.inT), o.sortie && !clear ? Math.ceil(35 - C.engagedHoldT) : 0);
-      const deadline = o.sortie ? Math.max(0, Math.ceil(240 - (rt.t - rt.flags.stepT))) : Infinity;
+      const deadline = o.sortie ? Math.max(0, Math.ceil(407 - rt.t)) : Infinity;
       const deadlineText = deadline <= 45 ? `。交代まで${deadline}秒` : '';
       const place = o.sortie ? '南の柵の口の列' : '坂の退き口の列';
       // 退路守りで列が崩れたら退きへ移る。帰陣前に戦を失敗で閉じない。
@@ -2662,11 +2609,11 @@ function okHold(o) {
         return C.dangerT >= 10 || el >= o.limit || C.secured;
       }
       // 実際に城兵を止め、列を固めたら封鎖完了。新手が来ていない間は早送りしない。
-      if (o.sortie && el >= 235 && C.quietHoldT >= o.dur) {
+      if (o.sortie && rt.t >= 227 && el >= 140 && C.quietHoldT >= o.dur) {
         rt.say('組頭', '交代じゃ。道は守り通した。囲みを続けよ', 4);
         return true;
       }
-      return held && (C.repelling ? repelled : clear) && (!o.sortie || C.sortieReleased && C.engaged) && C.inT >= holdTime;
+      return (!o.sortie || rt.t >= 227) && held && (C.repelling ? repelled : clear) && (!o.sortie || C.sortieReleased && C.engaged) && C.inT >= holdTime;
     },
     end(rt, C) {
       const earned = o.sortie || C.secured;

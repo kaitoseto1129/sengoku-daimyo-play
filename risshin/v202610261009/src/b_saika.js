@@ -41,7 +41,8 @@ function riverCenter(z) {
 const BANK = -44;
 const STAKES = [{ x: -19, z: 18 }, { x: -20, z: 0 }, { x: -21, z: -18 }];
 const ODA = { flag: 'oda' };
-const SAIKA = { armor: 0x2a2622, lace: 0x4a3a2a, hat: 'jingasa', flag: 'yatagarasu' };
+// 本の足軽の赤茶の陣笠と黒漆の胴。色だけを替え、形と材質は共有する。
+const SAIKA = { armor: 0x2a2622, lace: 0x4a3a2a, hat: 'jingasa', hatColor: 0x713a30, flag: 'yatagarasu' };
 // 急坂は x=-36 付近。待つ印を法面に掛けず、川を渡った先の低い足場へ置く。
 const SHORE = { x: -31, z: 0 }, BACK = { x: 12, z: 0 };
 const EAST_MOUTH = { x: -16, z: 0 }, WEST_MOUTH = { x: -30, z: 0 };
@@ -50,265 +51,6 @@ const COVER = { x: 9, z: 3 };
 const REPORT_FROM = { x: 120, z: 32 };
 const SIGNAL_FROM = { x: 72, z: 0 };
 const NO_HOSTS = [];
-// 雑賀の任務・手ほどき・声を一つの縦の欄へ収める。
-// 元の右上の座標を持ち越さず、小地図と川岸の行き先を空ける。
-function installSaikaNotices(rt) {
-  const root = rt.hud.root, dispose = rt.dispose;
-  // 待機専用の描画は smallTaskAreas を通らない。雑賀だけ足元の小印へそろえる。
-  // 守りの広さと到着判定はそのままにし、応戦中も白い大輪へ戻さない。
-  const waitFrame = rt.hud.drawWaitFrame;
-  const smallWaitFrame = function (g, battle, pos, radius) {
-    return battle === rt ? this.drawTargetFootRing(g, battle, pos, .65)
-      : waitFrame.call(this, g, battle, pos, radius);
-  };
-  rt.hud.drawWaitFrame = smallWaitFrame;
-  const style = document.createElement('style');
-  style.textContent = `
-/* 長押しの釦が出ても、場所・残り時間・護衛の下知を消さない。 */
-html body #hud.saika-notices.working #battle-notices:not(.choosing) #objectives.keep-combat-task:not(.expand):not([hidden]):not(.notice-muted) {
- display:block !important; order:-2;
-}
-html body #hud.saika-notices.working #prompt button[data-work]::after {
- content:'この札を押し続ける'; grid-column:1 / -1;
- font-size:max(13px, calc(13px * var(--text-scale, 1))); line-height:1.5;
-}
-/* 操作札を先頭に保つ。長い護衛の説明で押す所が欄の外へ追い出されない。 */
-html body #hud.saika-notices.working #prompt.work-action:not([hidden]) {
- order:-3; top:0 !important;
-}
-/* 長押し中は操作札に名前と割合が出る。任務は護衛の下知と補足を残す。 */
-html:root body #hud.saika-notices.working #battle-notices #objectives#objectives:not(.expand) #obj-list li.cur .obj-now {
- font-size:max(16px, calc(16px * var(--text-scale, 1))) !important;
-}
-/* 向きを変える手ほどきの間も、戻る目的と杭抜きの進みは残す。
-   親欄の声や手ほどきは隠したまま、選ばれた任務だけを見せる。 */
-html body #hud.saika-notices:is(.touch-turn-coach,.dodge-turn-coach,.wait-guard-active,.dodge-active,.cover-guidance,.rain-danger) #battle-notices:not(.choosing) #objectives.keep-combat-task:not(.expand):not([hidden]):not(.notice-muted) {
- display:block !important; visibility:visible !important; pointer-events:auto;
-}
-/* 回避中は共通側が本文も畳む。任務の見出しと進みだけを戻す。 */
-html body #hud.saika-notices:is(.dodge-active,.rain-danger) #battle-notices:not(.choosing) #objectives.keep-combat-task:not(.expand):not([hidden]):not(.notice-muted) #obj-list {
- display:block !important;
-}
-/* 物陰へ向かう札の末尾を枠内で折り返す。釦の押せる広さは保つ。 */
-html body #hud.saika-notices button.cover-guide.hold-cover span {
- white-space:normal; overflow-wrap:anywhere; word-break:normal;
-}
-/* 補足と本文を横取り合いにしない。細い本文欄へ一文字ずつ折れるのを防ぐ。 */
-html body #hud.saika-notices #battle-notices #objectives:not(.expand) li.cur,
-html body #hud.saika-notices #battle-notices #objectives:not(.expand) li.cur :is(.obj-text,.obj-now) {
- display:block !important; width:100% !important; max-width:100% !important;
- min-width:0 !important; box-sizing:border-box;
- white-space:normal !important; overflow-wrap:anywhere !important; word-break:normal !important;
-}
-html body #hud.saika-notices #battle-notices #objectives:not(.expand) li.cur small {
- display:block !important; width:100%; margin:4px 0 0;
- font-size:max(13px, calc(13px * var(--text-scale, 1))) !important; line-height:1.5 !important;
-}
-/* 応戦の操作が出ても、小旗へ戻る任務と本数・進み・距離を残す。 */
-html body #hud.saika-notices #battle-notices:not(.choosing) #objectives.keep-combat-task.has-action:not(.expand):has(.battle-action:not([hidden])) > #obj-list {
- display:block !important;
-}
-html body #hud.saika-notices #battle-notices:not(.choosing) #objectives.keep-combat-task:not(.expand) #obj-list li.cur > small:not(.obj-cue):not(.goal-place) {
- display:block !important;
-}
-html body #hud.saika-notices #battle-notices #objectives.keep-combat-task.has-action:not(.expand):has(.battle-action:not([hidden])) li.cur .obj-text {
- display:block !important;
-}
-html body #hud.saika-notices #battle-notices #objectives.keep-combat-task.has-action:not(.expand) li.cur .obj-now {
- font-size:max(16px, calc(16px * var(--text-scale, 1))) !important;
-}
-/* 接敵中の共通の二行制限でも、護衛の指図と作業の進みを切らない。
-   携帯にも効かせ、操作札と補足を別々の行へ収める。 */
-html body #hud.saika-notices #battle-notices:not(.choosing) #objectives.keep-combat-task:not(.expand) #obj-list li.cur .obj-now,
-html body #hud.saika-notices #battle-notices:not(.choosing) #objectives.keep-combat-task:not(.expand) .battle-action:not([hidden]) {
- display:block !important; width:100% !important; max-width:100% !important;
- min-width:0 !important; box-sizing:border-box;
- height:auto !important; max-height:none !important; overflow:visible !important;
- white-space:normal !important; overflow-wrap:anywhere !important;
- -webkit-line-clamp:unset !important; line-clamp:unset !important; line-height:1.5 !important;
-}
-@media (min-height:501px) {
- /* 縦に広い画面は入力方法によらず左へ。指で操作対応の卓上端末も小地図を空ける。 */
- html:root body #hud.saika-notices #battle-notices:not(.choosing),
- html:root body #hud.saika-notices.mission-visible #battle-notices:not(.choosing):not(:has(#objectives.expand)) {
-  left:16px !important; right:auto !important; top:104px !important; bottom:auto !important;
-  width:min(320px, 30vw) !important; height:auto !important;
-  max-height:calc(100% - 104px - var(--name-floor, 184px)) !important;
-  display:flex; flex-direction:column; gap:8px; overflow-y:auto;
- }
- html:root body #hud.saika-notices #battle-notices > :is(#objectives,#banner,#tutorial,#situation,#skiphint,#battle-message),
- html:root body #hud.saika-notices #battle-notices #battle-message > :is(#subtitle,.battle-notice) {
-  position:relative !important; inset:auto !important; transform:none !important;
-  width:100% !important; max-width:100% !important; min-width:0;
-  height:auto !important; max-height:none !important; margin:0 !important;
-  box-sizing:border-box; flex:0 0 auto;
- }
- html:root body #hud.saika-notices #battle-notices #objectives:not(.expand) :is(li.cur,.obj-text,.obj-now,.battle-action,small.goal-place),
- html:root body #hud.saika-notices #battle-notices #tutorial :is(.what,.how) {
-  white-space:normal !important; overflow-wrap:anywhere !important; word-break:normal !important;
-  height:auto !important; max-height:none !important; overflow:visible !important; line-height:1.5 !important;
-  text-overflow:clip; -webkit-line-clamp:unset !important;
- }
- /* 地面へ移す任務もこの欄へ戻す。手ほどきの固定高と大見出しを持ち越さない。 */
- html:root body #hud.saika-notices #battle-notices:not(.choosing) #objectives.ground-order:not(.expand) {
-  position:relative !important; inset:auto !important; width:100% !important; max-width:100% !important;
- }
- html:root body #hud.saika-notices #battle-notices #tutorial.coach {
-  height:auto !important; min-height:44px !important; max-height:none !important; overflow:visible !important;
- }
- html:root body #hud.saika-notices #battle-notices #objectives:not(.expand) :is(li.cur,.obj-now,.battle-action) {
-  font-size:max(20px, calc(20px * var(--text-scale, 1))) !important;
- }
- html:root body #hud.saika-notices #battle-notices #tutorial :is(.what,.how) {
-  font-size:max(15px, calc(15px * var(--text-scale, 1))) !important;
- }
- /* 進み・距離・合図も補足の大きさを保つ。 */
- html:root body #hud.saika-notices #battle-notices #objectives:not(.expand) #obj-list li.cur small {
-  font-size:max(15px, calc(15px * var(--text-scale, 1))) !important;
- }
-}
-/* 卓上端末でも最初の下知を読める高さを取り、開始の釦は本文と分ける。 */
-html body #hud #intro[data-battle="saika"] > .card.card {
- width:min(560px, calc(100vw - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
- height:min(620px, 72dvh); display:flex; flex-direction:column; gap:8px;
-}
-html body #hud #intro[data-battle="saika"] .intro-reading {
- flex:1 1 auto; min-height:0; overflow-y:auto; touch-action:pan-y; pointer-events:auto;
- padding-bottom:8px; scroll-padding-bottom:8px; overscroll-behavior:contain;
-}
-html body #hud #intro[data-battle="saika"] #intro-wait {
- white-space:pre-line; text-align:left;
-}
-html body #hud #intro[data-battle="saika"] #intro-go { flex-shrink:0; }
-@media (max-height:500px) {
- /* 開戦前も横幅を使い、下知の末尾と開始の釦を別々に収める。 */
- html body #hud #intro[data-battle="saika"] > .card.card {
-  width:min(620px, calc(100vw - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
-  height:calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-  max-height:calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
-  display:flex; flex-direction:column; gap:8px; padding:12px 16px;
- }
- html body #hud #intro[data-battle="saika"] .intro-reading {
-  min-height:0; overflow-y:auto; touch-action:pan-y; pointer-events:auto;
-  padding-bottom:8px; scroll-padding-bottom:8px;
- }
- html body #hud #intro[data-battle="saika"] #intro-go { flex-shrink:0; }
- /* 長い傷の文で格子の最小幅を広げず、命の棒と数字を墨の札に収める。 */
- html.touch.tc-low body #hud.saika-notices .bl {
-  width:min(264px, calc(40vw - 24px)) !important; max-width:calc(100vw - 32px);
-  box-sizing:border-box;
- }
- html body #hud.saika-notices .bl #h-hp.hp {
-  width:100%; min-width:0; box-sizing:border-box; grid-template-columns:minmax(0, 1fr) auto !important;
-  gap:4px 8px;
- }
- html body #hud.saika-notices .bl #h-hp > :is(span,.hp-remaining) {
-  min-width:0; font-size:max(16px, calc(16px * var(--text-scale, 1))) !important;
- }
- html body #hud.saika-notices .bl #h-hp.hp i { min-width:0; width:100%; height:14px !important; }
- html body #hud.saika-notices .bl #h-hp em {
-  min-width:0; max-width:100%; overflow-wrap:anywhere;
-  font-size:max(15px, calc(15px * var(--text-scale, 1))) !important; line-height:1.4;
- }
- html body #hud.saika-notices .bl #h-hp em small { font-size:inherit; white-space:normal; }
- html body #hud.saika-notices .bl #h-hp em svg { width:16px; height:18px; }
- /* 共通の携帯用二十五％制限より強く指定し、三行の案内を切らない。 */
- html body #hud.saika-notices #battle-notices:not(.choosing):has(#objectives),
- html body #hud.saika-notices.mission-visible #battle-notices:not(.choosing):not(:has(#objectives.expand)) {
-  left:auto !important; right:calc(88px + env(safe-area-inset-right, 0px)) !important;
-  top:calc(8px + env(safe-area-inset-top, 0px)) !important; bottom:auto !important;
-  width:min(320px, calc(50vw - 104px - env(safe-area-inset-right, 0px))) !important;
-  max-height:min(44vh, calc(100% - 152px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))) !important; height:auto !important;
-  display:flex; flex-direction:column; gap:8px; overflow-y:auto; pointer-events:auto;
- }
- /* 退避の大見出しと空の添え行で、仕事の進みを札の下へ押し出さない。 */
- html body #hud.saika-notices.retreat-priority #battle-notices #objectives:not(.expand) .obj-now {
-  font-size:max(20px, calc(20px * var(--text-scale, 1))) !important;
- }
- html body #hud.saika-notices #battle-notices #objectives:not(.expand) .retreat-caption:empty {
-  display:none !important;
- }
- html body #hud.saika-notices #battle-notices #objectives:not(.expand) {
-  min-width:0 !important;
- }
- html body #hud.saika-notices #battle-notices:not(.choosing) > :is(#objectives,#banner,#tutorial,#situation,#skiphint,#battle-message),
- html body #hud.saika-notices #battle-notices:not(.choosing) #objectives.ground-order:not(.expand) {
-  position:relative !important; inset:auto !important; transform:none !important;
-  width:100% !important; max-width:100% !important; margin:0 !important; box-sizing:border-box;
-  height:auto !important; max-height:none !important; flex:0 0 auto;
- }
- html body #hud.saika-notices #battle-notices #objectives:not(.expand) :is(li.cur,.obj-text,.obj-now,small) {
-  white-space:normal !important; overflow-wrap:anywhere; line-height:1.4 !important;
-  height:auto !important; max-height:none !important; overflow:visible !important;
-  text-overflow:clip; -webkit-line-clamp:unset !important;
- }
- html body #hud.saika-notices #battle-notices #objectives:not(.expand) .battle-action {
-  font-size:max(20px, calc(20px * var(--text-scale, 1))) !important; line-height:1.4 !important;
- }
- html body #hud.saika-notices #battle-notices:not(.choosing) #objectives:not(.expand) #obj-list li.cur small.goal-place {
-  font-size:max(13px, calc(13px * var(--text-scale, 1))) !important;
- }
-}
-
-/* 作業の割合と、今することを別の行へ。長押しが届く場所も文で伝える。 */
-html body #hud.saika-notices #battle-notices:not(.choosing) #objectives:not(.expand) #obj-list li.cur small:not(.obj-cue):not(.goal-place) {
- white-space:pre-line !important;
- height:auto !important; max-height:none !important; overflow:visible !important;
- text-overflow:clip !important; -webkit-line-clamp:unset !important; line-clamp:unset !important;
-}
-/* 反撃の札でも任務を先に読む。共通の中央寄せと一行幅を持ち越さない。 */
-html:root body #hud.saika-notices #battle-notices:not(.choosing) {
- transform:none !important;
-}
-html:root body #hud.saika-notices #battle-notices:not(.choosing) #objectives.keep-combat-task.has-action:not(.expand) {
- display:flex !important; flex-direction:column;
-}
-html:root body #hud.saika-notices #battle-notices:not(.choosing) #objectives.keep-combat-task.has-action:not(.expand) #obj-list {
- display:block !important; order:-1; margin:0 0 4px !important;
-}
-html:root body #hud.saika-notices #battle-notices:not(.choosing) #objectives.keep-combat-task.has-action:not(.expand) #obj-list li.cur :is(.obj-text,.obj-now) {
- display:block !important;
-}
-html:root body #hud.saika-notices #battle-notices:not(.choosing) #objectives.keep-combat-task.has-action:not(.expand) .battle-action.attack-action:not([hidden]) {
- width:100% !important; max-width:100% !important; white-space:normal !important;
- overflow-wrap:anywhere !important; word-break:normal !important;
- font-size:max(16px, calc(16px * var(--text-scale, 1))) !important;
-}
-/* 共通の地面札より優先し、退避中も任務を定位置へ戻す。
-   旗の印と矢印は地面に残し、兵の胸元を説明札で覆わない。 */
-html:root body #hud.saika-notices.single-guide #battle-notices:not(.choosing) #objectives.ground-order:not(.expand) {
- position:relative !important; inset:auto !important; transform:none !important;
- width:100% !important; max-width:100% !important; min-width:0 !important;
-}
-/* 短い道案内も知らせ欄に収める。共通の中央固定は軍勢の札と重なる。
-   共通側の二重の識別子に合わせ、杭の進みと守る秒数も隠さない。 */
-html:root body #hud.saika-notices.single-guide #battle-notices:not(.choosing) #objectives#objectives.route-summary:not(.expand) {
- position:relative !important; inset:auto !important; transform:none !important;
- width:100% !important; max-width:100% !important; min-width:0 !important;
-}
-html:root body #hud.saika-notices.single-guide #battle-notices #objectives#objectives.route-summary:not(.expand) li.cur > small:not(.obj-cue):not(.goal-place) {
- display:block !important;
-}
-@media (max-height:500px) {
- html:root body #hud.saika-notices.single-guide #battle-notices:not(.choosing) #objectives:not(.expand) #obj-list li.cur .obj-now {
-  display:block !important; font-size:max(18px, calc(18px * var(--text-scale, 1))) !important;
-  line-height:1.4 !important; padding:0 !important;
- }
- html:root body #hud.saika-notices #battle-notices:not(.choosing) #objectives:not(.expand) .retreat-caption:empty {
-  display:none !important;
- }
-}
-
-`;
-  root.classList.add('saika-notices'); document.head.appendChild(style);
-  rt.dispose = function () {
-    if (rt.hud.drawWaitFrame === smallWaitFrame) rt.hud.drawWaitFrame = waitFrame;
-    root.classList.remove('saika-notices'); style.remove(); this.dispose = dispose;
-    return dispose.call(this);
-  };
-}
-// 隊旗と据えた幟に、竿と上辺を残した布のたわみを付ける。元の共有形は変えない。
-// 兵が増える時だけ整え、同じ布形を使い回す。風と近接時の透かしは従来のまま。
 function installSaikaCloth(rt) {
   const shapes = new Map(), flags = [], seen = new Set(), army = rt.army;
   const addUnit = army.addUnit, dispose = rt.dispose;
@@ -1461,15 +1203,101 @@ const JIN = [
 ];
 // 備え表でも、紀州へ出た総勢と、この局地へ割り当てた人数を区別する。
 for (const plan of JIN) plan.numbers = 'この川岸の持ち場ごとの目安。史料の総兵数ではない';
+// 東岸に寄せている残敵だけを案内する。西岸の射手や待機中の控えは追わせない。
+const saikaFoe = (u) => !!u?.alive && !u.gone && !u.dying && !u.fleeing && !u.woundOut &&
+  !u.noTarget && !u.isStruct && !u.civ && !u.downed && !u.rearWound && !u.group?.routed;
+function saikaNearestFoe(rt) {
+  const F = rt.flags, p = rt.player.u.pos;
+  if (F.ending || F.step !== 5) return null;
+  if (F.foePickT === rt.t && (F.nearestFoe === null || saikaFoe(F.nearestFoe))) return F.nearestFoe;
+  F.foePickT = rt.t;
+  let best = null, distance = Infinity;
+  for (const g of F.raiders || NO_HOSTS) {
+    if (g.noAI || g.routed) continue;
+    for (const u of g.units) {
+      if (!saikaFoe(u) || Math.hypot(u.pos.x - BACK.x, u.pos.z - BACK.z) >= 24) continue;
+      const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
+      if (d < distance) { distance = d; best = u; }
+    }
+  }
+  F.nearestFoe = best;
+  return best;
+}
 const saika = {
   jinkei: JIN,
+  // 稲生の型。右上の任務一行・ピン・敵の▼・大将の印だけを使う。
+  missionSingleLine: true, hideMissionDots: true, hideGuideSteps: true,
+  enemyTriangleSigns: true, nearbyAllySignLimit: 0, noDodgeCard: true,
+  quietMiss: true, noPlayerFoot: true,
+  missionPinCaption: '', missionDetail: () => '', missionStatus: () => '',
+  bannerAllowed: (rt) => rt.over || !!rt.flags.ending,
+  missions: ['杭抜き組を守れ', '川を渡れ', '退く合図を待て', '東岸へ戻れ', '列を整えよ', 'ここを守れ', 'この敵を倒せ', '後陣へ戻れ'],
+  missionOf(rt) {
+    const F = rt.flags, p = rt.player.u.pos;
+    if (F.ending) return 7;
+    if (F.step <= 1) return F.pulled === 3 ? 1 : 0;
+    if (F.step === 2) return F.reached || p.x < -28 && p.x > BANK && Math.hypot(p.x - SHORE.x, p.z - SHORE.z) < 7 ? 2 : 1;
+    if (F.step === 3) return 3;
+    if (F.step === 4) return F.cover ? 5 : 4;
+    return saikaNearestFoe(rt) ? 6 : 5;
+  },
+  missionHeading(rt) {
+    const F = rt.flags;
+    if (F.ending) return rt.tracker.main ? '東岸を守った' : this.missions[7];
+    if (F.step === 3 && Math.hypot(rt.player.u.pos.x - BACK.x, rt.player.u.pos.z - BACK.z) < 16) return '仲間を待て';
+    return this.missions[this.missionOf(rt)];
+  },
+  // 名の不明なこの局地の組頭を使う。討取りを勝利条件にはしない。
+  commanderSignTarget(rt) {
+    return !rt.flags.ending && saikaFoe(rt.flags.saikaBoss) ? rt.flags.saikaBoss : null;
+  },
+  commanderTarget(rt) {
+    const u = this.commanderSignTarget(rt);
+    return u && saikaNearestFoe(rt) === u ? u : null;
+  },
+  namedGuideTarget(rt) { return this.commanderSignTarget(rt); },
+  missionSignTarget(rt) { return saikaNearestFoe(rt); },
+  missionPin(rt) {
+    const F = rt.flags, p = rt.player.u.pos;
+    if (rt.over || !rt.player.u.alive || F.ending && rt.tracker.main) return null;
+    const q = F.saikaPin || (F.saikaPin = { x: 0, z: 0, r: 5, hide: 5 });
+    q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false; q.progress = 0; q.route = false;
+    let at = BACK, r = 16;
+    const foe = saikaNearestFoe(rt);
+    if (foe) {
+      if (rt.player.inRange && rt.player.rangeCueTarget === foe) return null;
+      at = foe.pos; r = 2; q.unit = foe; q.enemy = true;
+    } else if (F.ending) {
+      const m = rt.markers.find((m) => m.id === 'goal');
+      at = m ? typeof m.pos === 'function' ? m.pos() : m.pos : REAR;
+      r = 5;
+    } else if (F.step <= 1) {
+      const a = F.stakes.find((a) => !a.pulled);
+      at = a ? a.workAt : SHORE; r = a ? 8 : 7;
+      q.waiting = !!a; q.progress = a ? (a.workT || 0) / 12 : 0;
+    } else if (F.step === 2 || F.step === 3) {
+      const turn = rt.markers.find((m) => m.id === 'riverTurn');
+      at = turn ? typeof turn.pos === 'function' ? turn.pos() : turn.pos : F.step === 2 ? SHORE : BACK;
+      r = turn ? 2 : F.step === 2 ? 7 : 16;
+      q.route = !!turn;
+      q.waiting = !turn && (F.step === 3 || !!F.reached);
+      q.progress = F.step === 3 ? Math.min(1, F.inT / 5) : 0;
+    } else if (F.step === 4 && !F.cover) {
+      at = COVER; r = 3.2; q.waiting = true; q.progress = (F.coverWorkT || 0) / 6;
+    } else {
+      q.waiting = true; r = 35; q.progress = Math.min(1, F.inT / 20);
+    }
+    q.x = at.x; q.z = at.z; q.r = q.hide = r;
+    q.arrived = q.waiting && Math.hypot(p.x - at.x, p.z - at.z) < r;
+    return q;
+  },
   // 東岸の農耕地と西岸の雑賀荘は市の地理図を手掛かりにする。渡河地点の実測ではない。
   // https://www.city.wakayama.wakayama.jp/_res/projects/default_project/_page_/001/034/752/saikapdf.pdf
   introPlace: '小雑賀川の東岸（渡河地点は復元）',
   // 史実と操作を同じ案内へまとめる。重複した指定で史実の説明を上書きしない。
   // 公記巻十の山手・浜手の区別。詳しい諸将・分進の日付は戦後の史実に残す。
   // https://ja.wikisource.org/wiki/信長公記
-  introText: 'まず川べりの黄旗へ。杭抜き組を守り、手が空いたら「杭を外す」を長押し。三か所が済んだら中央の口から渡り、退けの合図で東の元の岸へ戻ろう。戻ったら「竹束を確かめる」を長押しし、味方の旗を守ろう。\n\nここは山手勢の堀秀政の先手が渡る小雑賀川。浜手の中野城攻めとは別の戦場です。山手勢の案内は根来寺の杉之坊と、雑賀の内の三緘衆。雑賀の全てが敵ではありません。敵は西の高岸と柵を鉄砲で守ります。信長公記では、馬も上がれない岸に阻まれ、堀勢は引きます。\n\n川底の仕掛けと杭抜き、東岸の竹束は遊びの補完です。信長公記の渡河記事には両軍の兵数がなく、表示はこの川岸に描く兵の目安です。渡河の日・時刻・天気も不明で、昼の明るさと湿った岸、地形の寸法や東西の向きは復元です。',
+  introText: 'まず川べりの黄旗へ。杭抜き組を守り、手が空いたら「杭を外す」を長押し。三か所が済んだら中央の口から渡り、退けの合図で東の元の岸へ戻ろう。戻ったら「列を整える」を長押しし、味方の旗を守ろう。\n\nここは山手勢の堀秀政の先手が渡る小雑賀川。浜手の中野城攻めとは別の戦場です。山手勢の案内は根来寺の杉之坊と、雑賀の内の三緘衆。雑賀の全てが敵ではありません。敵は西の高岸と柵を鉄砲で守ります。信長公記では、馬も上がれない岸に阻まれ、堀勢は引きます。\n\n川底の仕掛けと杭抜き、東岸の竹束は遊びの補完です。信長公記の渡河記事には両軍の兵数がなく、表示はこの川岸に描く兵の目安です。渡河の日・時刻・天気も不明で、昼の明るさと湿った岸、地形の寸法や東西の向きは復元です。',
   noTaisho: true, // 信長・孫一をこの局地へ自動配置し、討取り・本陣襲撃で決着させない。
   // 公記は高岸・柵・鉄砲による渡河阻止を記し、この局地の兵力比は記さない。
   // 共通の開戦演出は正面百五十歩先を仮の大軍として映すため、
@@ -1692,7 +1520,7 @@ const saika = {
     // 既存の袖・顔のある中距離の形を使う。控えも腕を省いた黒い胴にしない。
     // 兵数と実兵への置換は増やさない。
     clashMiddleDetail: 40, lowArmyDetail: true, middleInfantryArms: true,
-    longHoro: 'round', // 母衣は既存の竹籠と布の丸い形へ。背から細長い板を垂らさない。
+    noHaori: true, // 本の足軽の具足姿へそろえ、組頭にも陣羽織・母衣を着せない。
     // 各鉄砲小組の弓は一人。実際に放つ矢だけを飛ばし、数十本の追加矢を降らせない。
     noArrowRain: true,
     // 岸の石と根元の葉を立体にし、近い三角の黒い塊を作らない。
@@ -1949,7 +1777,6 @@ const saika = {
       }
       W.buildMountainDetails();
     }
-    installSaikaNotices(rt);
     // 川岸は網目に抜かない。既存の視点補正で描く地面の上へ保つ。
     W.terrain.material.userData.camNearSolid = true;
     saikaFieldSurface(W);
@@ -1962,43 +1789,17 @@ const saika = {
       return say.call(this, sp, text, dur);
     };
     const hud = rt.hud;
-    // 外から包み直されても自分へ戻らないよう、包む前の関数と呼び先を保つ。
-    const hudSay = hud.say, hudBark = hud.bark;
-    // 共通の前進の掛け声も、今の下知へ合わせる。敵の掛け声には触れない。
-    const shoreOrder = (text, speaker = '') => {
-      if (/雑賀/.test(speaker || text)) return text;
-      const order = F.ending || F.step === 3 ? '東岸の列へ退け' :
-        F.step >= 4 ? '追わず、この岸を守れ' : F.step === 2 && F.reached ? '坂を登らず構えよ' : '';
-      return order ? text.replace(/前へ進め|旗に続け|固まって進め/g, order) : text;
-    };
-    const limitedSay = (sp, text, ...args) => {
-      if (F.oldCrossWord(text)) return false;
-      text = shoreOrder(text, sp);
-      const messenger = /使番|伝令/.test(sp || '');
-      if (messenger && rt.t < (F.messengerAt ?? -Infinity)) return false;
-      const shown = hudSay.call(hud, sp, text, ...args);
-      if (messenger && shown) F.messengerAt = rt.t + 8;
-      return shown;
-    };
-    const limitedBark = (text, warn) => {
-      text = shoreOrder(text);
-      // 川岸へ寄る味方の知らせに、敵が来た時と同じ警告の札を使わない。
-      if (/(?:[左右]手|後ろ|前)から味方が来るぞ/.test(text)) {
-        text = text.replace('味方が来るぞ', '味方の加勢じゃ');
-        warn = false;
-      }
-      const surrounded = /囲まれ|囲まれつつ|四方から敵|後ろにも敵|取り籠め/.test(text);
-      const messenger = /使番|伝令/.test(text);
-      if (F.oldCrossWord(text) || surrounded && rt.t < (F.surroundedAt ?? -Infinity) || messenger && rt.t < (F.messengerAt ?? -Infinity)) return;
-      if (surrounded) F.surroundedAt = rt.t + 8;
-      if (messenger) F.messengerAt = rt.t + 8;
-      // 横長の携帯で下がる先が切れないよう、包囲の知らせを短くする。
-      return hudBark.call(hud, surrounded ? '囲まれた！　味方へ下がれ' : text, warn);
-    };
-    // 共用の画面係は書き換えず、この戦が持つ参照だけを包む。
+    // 指図の字幕・掛け声の札は出さず、任務一行と合図の音にそろえる。
+    // 共用の画面係は触らず、この戦の参照だけを包み、退出時に戻す。
+    const quietSay = () => false, quietBark = () => {};
     rt.hud = new Proxy(hud, { get(target, key, receiver) {
-      return key === 'say' ? limitedSay : key === 'bark' ? limitedBark : Reflect.get(target, key, receiver);
+      return key === 'say' ? quietSay : key === 'bark' ? quietBark : Reflect.get(target, key, receiver);
     } });
+    const disposeNotices = rt.dispose;
+    rt.dispose = function () {
+      this.hud = hud; this.say = say; this.dispose = disposeNotices;
+      return disposeNotices.call(this);
+    };
     // 不透明な水面の裏は描かない。川底から見た暗い面で地面や兵を覆わせない。
     // 上向きの面と水深の判定は残し、杭抜き・渡河の足場を変えない。
     for (const st of W.def.streams) {
@@ -2377,10 +2178,10 @@ const saika = {
     }
     if (true) {
       saikaSettlement(rt);
-      // 本の井楼に合わせ、下部を板で覆う一基と横木が見える一基を並べる。烏の紋を明示。
+      // 本の野戦井楼に合わせ、足元まで横木の井桁を見せ、板囲いは上の射撃床に限る。
       for (const z of [-30, 30]) {
         const tower = yagura(W, -50, z,
-          { rot: EAST, height: 8.8, boarded: z > 0, logFrame: true, mon: 'yatagarasu' });
+          { rot: EAST, height: 8.8, boarded: false, logFrame: true, mon: 'yatagarasu' });
         // 二基の外観は元の描き方を保つ。静物の束は描画より先に表示を写すため、
         // 描画時に遠近の形が替わる井楼は束から外し、守兵と外観の表示をそろえる。
         // 形・材質・床・守兵は既存のまま。ほかの戦の束ね方は変えない。
@@ -2391,7 +2192,7 @@ const saika = {
       rt.scene.add(hut(W, -60, 20, 7, 5, WEST), hut(W, -64, -14, 7, 5, WEST));
       // 携帯でも本にある横木組みと板囲いを残す。既存の軽い形を二基で使う。
       for (const z of [-30, 30]) rt.scene.add(yagura(W, -48, z,
-        { rot: EAST, height: 8.8, boarded: z > 0, logFrame: true, mon: 'yatagarasu' }));
+        { rot: EAST, height: 8.8, boarded: false, logFrame: true, mon: 'yatagarasu' }));
       rt.scene.add(village(W, -56, 150, { n: 6, r: 18, rot: WEST, seed: 15741, smoke: 0 }));
       rt.scene.add(village(W, -70, -150, { n: 5, r: 16, rot: WEST, seed: 15742, smoke: 0 }));
     }
@@ -2422,7 +2223,7 @@ const saika = {
     ruinTimbers.instanceMatrix.needsUpdate = true;
     ruinTimbers.castShadow = true; ruinTimbers.receiveShadow = true; rt.scene.add(ruinTimbers);
     F.hori = allyGroup(rt, { name: '堀秀政の先手', fixed: true, fullStrength: true, fleeDir: { x: 1, z: 0 }, guard: true, guardSight: 20, guardLeash: 6, anchor: { x: 26, z: 0 }, facing: WEST, width: 14, aggro: 10, formation: 'yari' },
-      dress([{ type: 'ashigaru', n: 16 }, { type: 'samurai', n: 2 }, { type: 'busho', n: 1, o: { name: '堀秀政', invuln: true, hat: 'kabuto_m', haori: 0x2e3a4a } }], ODA));
+      dress([{ type: 'ashigaru', n: 16 }, { type: 'samurai', n: 2 }, { type: 'busho', n: 1, o: { name: '堀秀政', invuln: true, hat: 'kabuto_m', haori: 0 } }], ODA));
     F.workers = allyGroup(rt, { noAI: true, noGuard: true, noFrontline: true, name: '杭を外す先手の組', fixed: true, fullStrength: true, anchor: { x: 20, z: 0 }, facing: WEST, width: 4, formation: 'column', colW: 2, aggro: 2, fleeDir: { x: 1, z: 0 } }, dress([{ type: 'ashigaru', n: 6 }], ODA));
     F.workParties = [F.workers];
     for (const a of F.stakes) {
@@ -2438,7 +2239,8 @@ const saika = {
       return g;
     });
     F.reserve = enemyGroup(rt, { faction: 'saika', fixed: true, name: '柵を守る雑賀衆', anchor: { x: -57, z: 0 }, facing: EAST, formation: 'yari', width: 10,
-      order: 'hold', guard: true, guardSight: 20, guardLeash: 5, aggro: 10, fleeDir: { x: -1, z: 0 } }, dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 18 }], SAIKA));
+      order: 'hold', guard: true, guardSight: 20, guardLeash: 5, aggro: 10, fleeDir: { x: -1, z: 0 } }, dress([{ type: 'samurai', n: 1, o: { name: '雑賀の組頭', flagScale: 2.2, haori: 0 } }, { type: 'samurai', n: 1 }, { type: 'ashigaru', n: 18 }], SAIKA));
+    F.saikaBoss = F.reserve.units[0];
     // 地元の小組は、川上・川下を渡った東岸の道に初めからいる。開始後に兵を足さない。
     F.skirmish = enemyGroup(rt, { faction: 'saika', fixed: true, name: '川べりの雑賀衆', anchor: { x: -9, z: 32 }, facing: Math.PI,
       formation: 'yari', order: 'hold', aggro: 10, fleeDir: { x: 0, z: 1 } }, dress([{ type: 'ashigaru', n: 8 }], SAIKA));
@@ -2623,6 +2425,10 @@ const saika = {
         Math.hypot(rt.player.u.pos.x - BACK.x, rt.player.u.pos.z - BACK.z) < 35),
     });
     rt.banner('川を限って対陣', '旗へ来る敵を払え。西岸へ追うな');
+    for (let i = 0; i < F.escorts.length; i++) {
+      const g = F.escorts[i];
+      moveGroup(g, { x: BACK.x + 4, z: i % 2 ? -10 : 10 }, WEST);
+    }
     F.flanks[2].bankReleaseAt = rt.t + 8;
     // 早く渡河を済ませても終わり際に山場が来る。待機兵を二手に分けて寄せる。
     F.flanks[3].bankReleaseAt = Math.max(rt.t + 38, 190);
@@ -2679,7 +2485,7 @@ const saika = {
     reinforceBank(rt, dt);
     const el = rt.t - F.stepT, p = rt.player.u.pos;
     // 生きて任務を続けられる時間を確保する。七分以内に後陣へ引いて閉じる。
-    if (rt.t >= 408) {
+    if (rt.t >= 400) {
       F.holdFailure = F.step === 1 ? '杭を外しきれず、渡る道を通せなかった' : F.step === 2 ? '西岸の足場へ届かなかった' : F.step === 3 ? '東岸の旗へ戻れなかった' : F.step === 4 ? '東岸の竹束の陰で列を整えられなかった' : '東岸の敵を払い、旗のそばで守りを保てなかった';
       return this.win(rt, false);
     }

@@ -25,7 +25,7 @@ const args = process.argv.slice(2);
 // --row=番号：1000人の表（players-table.mjs）のその人として遊ぶ（性格・戦の数・画面・変わり目を表から足す）
 { const ra = args.find((a) => a.startsWith('--row=')); if (ra) { const m = await import('./players-table.mjs'); args.push(...m.argsOf(m.ROWS[+ra.slice(6) % m.TOTAL])); } }
 const N = +(args.find((a) => /^\d+$/.test(a)) || 3);
-const RENDER = args.includes('--render') && !args.includes('--norender');
+const RENDER = args.includes('--render') && !args.includes('--norender') && !process.env.NORENDER;
 const SPEED = Math.min(8, Math.max(1, Math.round(+((args.find((a) => a.startsWith('--speed=')) || '').slice(8) || 1)) || 1));
 const ONLY = (args.find((a) => a.startsWith('--only=')) || '').slice(7);
 const BRIEF = args.includes('--brief');
@@ -209,7 +209,8 @@ async function playOnce() {
     const W = PC ? SIZE : [PHONE.width, PHONE.height];
     c = await openChrome({ width: W[0], height: W[1] });
     if (!PC) await toPhone(c);
-    await c.goto(`http://localhost:${PORT}/?bot&persona=${PERSONA}&shots=${loadavg()[0] > 110 ? 0 : 1}&maxshots=${MAXSHOTS}&budget=${budget}${NBAT ? '&n=' + NBAT : ''}${ONLY ? '&only=' + ONLY : ''}${args.includes('--norender') ? '&norender' + (SPEED > 1 ? '&speed=' + SPEED : '') : ''}${VQ ? '&' + VQ : ''}&r=${Date.now()}`, OUT ? 6000 : 3000);
+    // 性格付きも通常の bot と同じ描画指定に従う。描かない時は写真を待たない。
+    await c.goto(`http://localhost:${PORT}/?bot&persona=${PERSONA}&shots=${!RENDER || loadavg()[0] > 110 ? 0 : 1}&maxshots=${MAXSHOTS}&budget=${budget}${NBAT ? '&n=' + NBAT : ''}${ONLY ? '&only=' + ONLY : ''}${RENDER ? '' : '&norender' + (SPEED > 1 ? '&speed=' + SPEED : '')}${VQ ? '&' + VQ : ''}&r=${Date.now()}`, OUT ? 6000 : 3000);
     await c.ev('Storage.prototype.setItem = function () {}; return 1;');
     let last = '', lastT = 0, keep = null, keepT = 0, slow = 0, frozeAt = '';
     while (!data) {

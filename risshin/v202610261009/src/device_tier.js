@@ -54,9 +54,14 @@ export function markCrashed() { TIER.weak = true; TIER.why ||= 'crashed'; try { 
 // 弱い端末の絵の一辺の上限（2048 の絵を 1024 へ。three が送る時に縮める）
 export const WEAK_TEX_MAX = 1024;
 
+// Android（携帯・タブレット）。大きなタブレットの Chrome は既定で「パソコン版サイト」を開き、名乗りが Linux のパソコンになる
+//   （10/26 Lancers：Xiaomi Pad 8 がパソコンの作りで描いて、乱戦がずっとカクカク）。Linux でも指で触る画面なら Android とみなす。
+//   試し：?android=0 で前の見分け（名乗りだけ）に戻す。
+export const ANDROID = typeof navigator !== 'undefined' && !/[?&]android=0/.test(q) && (/Android/i.test(navigator.userAgent || '') ||
+  /Linux/.test(navigator.userAgent || '') && !/CrOS/.test(navigator.userAgent || '') && navigator.maxTouchPoints > 0 &&
+  typeof matchMedia !== 'undefined' && matchMedia('(any-pointer: coarse)').matches);
 // 倍率だけでなく面積と長辺も制限する。端末の画素倍率を掛け直さない。
 export function battleDrawRatio(w, h, tight, heat) {
   const base = tight ? (heat >= 1 ? .75 : .85) : 1;
-  const android = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent || '');
-  return android ? Math.min(base, .85, 1280 / Math.max(w, h), Math.sqrt(576000 / (w * h))) : base;
+  return ANDROID ? Math.min(base, .85, 1280 / Math.max(w, h), Math.sqrt(576000 / (w * h))) : base;
 }

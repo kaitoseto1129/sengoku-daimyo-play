@@ -1,4 +1,4 @@
-import { TIER } from './device_tier.js';
+import { TIER, ANDROID } from './device_tier.js';
 // 設定（このブラウザに保存）
 const KEY = 'sengoku-risshin-settings-v1';
 const HINT_KEY = 'sengoku-risshin-hints-v1';
@@ -138,6 +138,13 @@ for (const k of ['skyMotion', 'skyBirds']) Object.defineProperty(S, k, { get: ()
 //   実機の確かめで iPad に同じ作りをさせる時は -autoplay tight,戦,… か ?tight=1（10/20）
 export const MEM_TIGHT = typeof navigator !== 'undefined' && (/iPhone/.test(navigator.userAgent) || TIER.weak
   || (typeof window !== 'undefined' && (/\btight\b/.test(String(window.__autoplay || '')) || /[?&]tight=1/.test(location.search))));
+// 計算の軽い作り：iPhone と Android。Android の高性能タブレット（Xiaomi Pad 8 など）は記憶は足りるが、JS の速さはパソコンの半分ほどで
+//   乱戦がずっとカクカクした（Lancers 10/26）。記憶の作り（骨の人数・束・兵の密度）は変えず、iPhone と同じ「考えと骨と小さな置き物のコマ分け」だけを使う。
+//   ?lean=0 で切って比べる（Android だけ。iPhone は MEM_TIGHT のまま）。
+export let CPU_LEAN = MEM_TIGHT || (ANDROID &&
+  !(typeof location !== 'undefined' && /[?&]lean=0/.test(location.search)));
+// 測りの道具だけが使う（同じ戦の同じ場面で、軽い作りの有り無しを切り替えて比べる）
+export function setCpuLeanForTest(on) { CPU_LEAN = !!on || MEM_TIGHT; }
 // 試しの印で iPhone の作りにした大きな画面（iPad）：描く画素も iPhone（874×402 の 1.25 倍＝約 55 万画素）に合わせる（的の大きさを同じにして測る）
 export const MEM_TIGHT_TEST = MEM_TIGHT && !/iPhone/.test(navigator.userAgent);
 // 古い保存の使い放題は引き継がない。開発時だけ ?freeMoney=1、または S.freeMoney = true で試す。

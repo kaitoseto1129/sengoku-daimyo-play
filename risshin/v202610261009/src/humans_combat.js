@@ -64,7 +64,7 @@ function humanShadowLod(scene, shadow) {
   for (const h of humans) {
     const m = h.body;
     if (shadow) {
-      if (!h.root.visible || !h.u?.isPlayer) continue;   // 影は本人だけ（10/24）
+      if (!h.root.visible || !h.u?.shOn) continue;   // 選ばれた近くの兵だけ、影の形を軽くする
       if (m.castShadow) { h.bodyScreenGeometry = m.geometry; m.onBeforeRender(null, scene, BODY_SHADOW_CAMERA); }
       // 具足・胴丸も影では升でまとめた軽い形（影の画素 2cm に合わせた 3〜4cm の升。輪郭は同じ）。画面用の形は描き終えたら戻す
       //   （影では onBeforeRender が呼ばれず、画面で選んだ細かい形（具足 1 万・胴丸 4 万の三角）をそのまま影にも描いていた。10/21 熱）

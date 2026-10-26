@@ -329,8 +329,9 @@ function boardingApproachTask(rt, post) {
     return u.pos.z > 4.1 ? '屋形の脇から前へ回れ' : `屋形の前から${post}の乗り口へ`;
   return HI(rt) ? `組を${post}の乗り口へ寄せ、守れ` : `${post}の乗り口で敵を迎えよ`;
 }
-const ODA = { flag: 'oda' };
-const MORI = { flag: 'mori' };
+// 本の足軽装束：黒・茶の漆胴、渋い赤茶の陣笠、紺の小袖。陣羽織は着せない。
+const ODA = { flag: 'oda', armor: 0x302923, hatColor: 0x613a2d, lace: 0x9a8b70, cloth: 0x263b43, doStyle: 'okegawa', kasaDrape: true, haori: 0 };
+const MORI = { flag: 'mori', armor: 0x382c25, hatColor: 0x654032, lace: 0x95836a, cloth: 0x303d49, doStyle: 'okegawa', kasaDrape: true, haori: 0 };
 // この戦の知らせだけを間引く。手柄の加算は止めない。
 function noticeReady(rt, text) {
   const times = rt.flags.noticeTimes;
@@ -360,6 +361,22 @@ function deckEnemy(u) {
   return u.alive && u.team === 1 && !u.fleeing && !u.woundOut &&
     !u.shipBoat && !u.shipTransit?.active && u.pos.y >= DECK.y - 0.4 &&
     u.pos.x >= DECK.x0 && u.pos.x <= DECK.x1 && u.pos.z >= DECK.z0 && u.pos.z <= DECK.z1;
+}
+
+// 甲板に残る敵だけを探す。屋形の裏も拾い、案内側で通れる角へ回す。
+function nearestDeckObjective(rt) {
+  const F = rt.flags;
+  if (F.objectiveScan === rt.t && F.objectiveEnemy?.alive && !F.objectiveEnemy.gone &&
+      !F.objectiveEnemy.dying && !F.objectiveEnemy.fleeing && !F.objectiveEnemy.woundOut) return F.objectiveEnemy;
+  let best = null, distance = Infinity;
+  const me = rt.player.u.pos;
+  for (const u of rt.army.units) {
+    if (!deckEnemy(u) || u.gone || u.dying || u.noTarget || u.invuln) continue;
+    const d = (u.pos.x - me.x) ** 2 + (u.pos.z - me.z) ** 2;
+    if (d < distance) { best = u; distance = d; }
+  }
+  F.objectiveScan = rt.t; F.objectiveEnemy = best;
+  return best;
 }
 
 // 案内と構えの声は同じ敵を見る。弓・鉄砲の兵も間近なら守りを優先する。
@@ -1752,7 +1769,7 @@ const boardingAxis = new THREE.Vector3(0, 0, 1), boardingDirection = new THREE.V
 // 近い舟の乗員は準備時か出撃時に本物へ替える。同じ兵が舟と甲板を往復する。
 function shipCrew(rt, b, team, count, wide = false, ranged = false) {
   const make = team ? enemyGroup : allyGroup;
-  const list = ranged ? [{ type: 'gun', n: count / 4 }, { type: 'bow', n: count / 4 }, { type: 'ashigaru', n: count / 2, o: { spear: 'su' } }]
+  const list = ranged ? [...(b.big ? [{ type: 'samurai', n: 1, o: { name: '毛利方の将', horse: false, hat: 'kabuto_m', flagScale: 1.8 } }] : []), { type: 'gun', n: count / 4 - (b.big ? 1 : 0) }, { type: 'bow', n: count / 4 }, { type: 'ashigaru', n: count / 2, o: { spear: 'su' } }]
     : [{ type: 'ashigaru', n: count, o: { spear: 'su' } }];
   const g = make(rt, { name: team ? '舟の毛利勢' : '供船の兵', faction: team ? 'mori' : 'oda', fixed: true,
     fullStrength: true, noGuard: true, anchor: { x: b.x, z: b.z }, order: 'hold', width: 2, spacing: 0.8,
@@ -2124,20 +2141,86 @@ const JIN = [
   ], '信長公記巻十一の六百余艘。各手の船数・兵数・将・家紋は不明、毛利の旗で代表する'),
 ];
 const kizugawa = {
+  // 稲生の型。兵数と海戦の仕組みを保ち、任務と印だけをそろえる。
+  missionSingleLine: true,
+  hideMissionDots: true,
+  enemyTriangleSigns: true,
+  nearbyAllySignLimit: 0,
+  noDodgeCard: true,
+  noPlayerFoot: true,
+  quietMiss: true,
+  missionPinCaption: '',
+  missionDetail: () => '',
+  missionStatus: () => '',
+  bannerAllowed: (rt) => rt.over || !!rt.flags.ending,
+  missions: ['大筒へ', '敵船を撃て', 'ここを守れ', '水桶を取れ', '火を消せ', '▼の敵を倒せ', '大将船を撃て', '敵船を待て'],
+  missionOf(rt) {
+    const F = rt.flags;
+    if (F.ending || rt.over) return 2;
+    if (F.step === 2) return F.doused >= 3 ? 2 : F.water ? 4 : 3;
+    const enemy = nearestDeckObjective(rt);
+    const distance = enemy ? Math.hypot(enemy.pos.x - rt.player.u.pos.x, enemy.pos.z - rt.player.u.pos.z) : Infinity;
+    if (enemy && (F.step === 3 || F.step === 5 || F.bigSunk || distance < (F.step === 4 ? 4.5 : 8) || F.kukiDanger)) return 5;
+    if (F.kukiDanger || F.step === 3 || F.step === 5 || F.bigSunk) return 2;
+    const c = F.cannonPost || F.guns?.[1];
+    if (!c) return 0;
+    if (rt.t < c.cd) return 2;
+    if (deckRouteDistance(rt.player.u, c.post) > 2.6) return 0;
+    const boat = cannonTarget(F, c);
+    if (!boat || !cannonFacing(boat, c) || Math.hypot(boat.x - c.x, boat.z - c.z) > 55) return 7;
+    return F.step === 4 ? 6 : 1;
+  },
+  missionHeading(rt) { return this.missions[this.missionOf(rt)]; },
+  // 主の実名は伝わらない。大将船の既存の乗員を使い、兵は増やさない。
+  commanderSignTarget(rt) {
+    const F = rt.flags, u = F.bigCommander;
+    return F.step === 4 && !F.bigSunk && !F.ending && !rt.over && u?.alive &&
+      !u.gone && !u.dying && !u.fleeing && !u.woundOut ? u : null;
+  },
+  commanderTarget(rt) { return this.missionOf(rt) === 6 ? this.commanderSignTarget(rt) : null; },
+  namedGuideTarget(rt) { return this.commanderSignTarget(rt); },
+  missionSignTarget(rt) { return this.missionOf(rt) === 5 ? nearestDeckObjective(rt) : null; },
+  missionPin(rt) {
+    const F = rt.flags;
+    if (F.ending || rt.over || !rt.player.u.alive) return null;
+    const stage = this.missionOf(rt), me = rt.player.u;
+    const q = F.deckPin || (F.deckPin = { x: 0, y: DECK.y, z: 0 });
+    q.unit = null; q.enemy = false; q.waiting = false; q.defend = false; q.arrived = false;
+    q.route = false; q.fire = false; q.marker = null; q.always = true; q.silent = true;
+    q.arrow = false; q.approach = false; q.r = 2; q.hide = 0; q.y = DECK.y;
+    let goal = null;
+    if (stage === 3 || stage === 4) {
+      let distance = Infinity;
+      for (const it of rt.interacts) {
+        if (!(stage === 3 ? /^water[0-3]$/.test(it.id) : /^f[0-2]$/.test(it.id)) || it.r <= 0) continue;
+        const d = deckRouteDistance(me, it.pos);
+        if (d < distance) { distance = d; goal = it.pos; q.r = it.r; }
+      }
+    } else if (stage === 5) {
+      const enemy = nearestDeckObjective(rt);
+      if (!enemy) return null;
+      goal = enemy.pos; q.unit = enemy; q.enemy = true; q.approach = true; q.r = q.hide = .2;
+      q.y = enemy.pos.y;
+    } else if (stage === 2 && (F.kukiDanger || F.step === 3 || F.step === 5 || F.bigSunk)) {
+      goal = F.kukiDanger ? F.roofDanger ? F.roofPost : F.kukiU.pos : F.guardPost;
+      q.defend = q.waiting = true;
+    } else {
+      goal = (F.cannonPost || F.guns?.[1])?.post;
+      q.r = 2.6; q.waiting = stage !== 0; q.defend = stage === 2;
+    }
+    if (!goal) return null;
+    const way = me.pos.y > DECK.y + .5 ? goal : deckWay(me, goal);
+    q.route = Math.hypot(way.x - goal.x, way.z - goal.z) > .1;
+    q.x = way.x; q.z = way.z;
+    if (q.route) { q.unit = null; q.enemy = false; q.waiting = q.defend = false; q.r = .5; q.y = DECK.y; }
+    q.arrived = Math.hypot(me.pos.x - goal.x, me.pos.z - goal.z) <= q.r && !q.route;
+    return q;
+  },
   // 「敵を退け」を自軍の撤退命令と取り違えない。海戦固有の声と合図は保つ。
   armySignals: false,
   arrivalLabel: '持ち場に着いた',
   // 敵船の射程と、甲板を歩く距離を同じ数字だけで並べない。
-  distanceText(rt, distance) {
-    const id = rt.missionGuide?.marker?.id || '';
-    if (/^g[0-2]$/.test(id)) {
-      // 案内の更新を待つ半秒も、守備中の札へ大筒の到着文を添えない。
-      if (rt.missionGuide.marker.noGuide) return '';
-      return distance < 2.6 ? '大筒の持ち場に着いた' : `大筒まで約${Math.round(distance)}歩`;
-    }
-    if (id === 'guard') return distance < 3 ? 'ここで敵船を迎えよ' : `乗り口まで約${Math.round(distance)}歩`;
-    return distance < 1 ? '印のそばに着いた' : `印まで約${Math.round(distance)}歩`;
-  },
+  distanceText: () => '',
   // 守備への切り替えを携帯にもすぐ示す。共通の十秒の表示待ちを使わない。
   immediateTaskChanges: true,
   // 船を守る任務を、近い一人の討取り札で上書きしない。
@@ -2795,8 +2878,10 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     });
     // ---- 九鬼嘉隆の手（自分の持ち場）と、鉄砲衆 ----
     F.kuki = allyGroup(rt, { name: '九鬼嘉隆の手', fixed: true, fullStrength: true, anchor: { x: 1, z: 4 }, facing: Math.PI, formation: 'ring', spacing: 1, aggro: 4 },
-      dress([{ type: 'samurai', n: 1, o: { name: '九鬼嘉隆', invuln: true, keepInvuln: true, horse: false, hat: 'kabuto_m', haori: 0x2a2a3a } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6 }], ODA));
+      dress([{ type: 'samurai', n: 1, o: { name: '九鬼嘉隆', invuln: true, keepInvuln: true, horse: false, hat: 'kabuto_m', haori: 0 } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6 }], ODA));
     F.kukiU = F.kuki.units[0];
+    F.postGuards = F.kuki.units.filter((u) => u.type === 'ashigaru').slice(0, 3);
+    for (const u of F.postGuards) u.shipPost = { x: u.pos.x, y: DECK.y, z: u.pos.z };
     F.teppo = allyGroup(rt, { name: '船の鉄砲衆', fixed: true, fullStrength: true, anchor: { x: -4, z: -1 }, facing: -Math.PI / 2, formation: 'line', ranks: 1, width: 15, spacing: 1.1, aggro: 16 },
       dress([{ type: 'samurai', n: 1 }, { type: 'gun', n: 14 }], ODA));
     F.teppo.ranks = 1;
@@ -2932,7 +3017,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       noGuide: true, guidePriority: 250, guideAlways: true,
       routeDistance: () => deckRouteDistance(rt.player.u, F.roofDanger ? F.roofPost : F.kukiU.pos),
     });
-    rt.after(9, () => this.cannons(rt));
+    rt.after(9, () => { if (F.step === 0) this.cannons(rt); });
   },
 
   // 小早を一艘出す（南西から、甲板の西と南の縁へ向かう）
@@ -3123,7 +3208,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     if (F.doused < 3) fireTask(rt);
     rt.award((t) => { if (!t.side.includes('焙烙の火を消した')) t.side.push('焙烙の火を消した'); }, '火を消した');
     rt.objProgress('main', F.doused < 3 ? '水桶を取り、残る火へ掛けよ' : '火は消えた。南の船べりを守れ');
-    if (F.doused >= 3) { rt.obj('main', '南の船べりで敵を防げ', 'main'); rt.marker('guard', { x: SOUTH_X, z: 10 }, '南の持ち場'); }
+    if (F.doused >= 3) this.board(rt);
   },
 
   // 大将の船と思われる大船（主と細かな姿は特定しない）
@@ -3138,7 +3223,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     const b = { m, x: s.x, z: s.z, t, alive: true, landed: false, from: 'w', big: true, deckY: 1.3 };
     F.boats.push(b);
     shipCrew(rt, b, 1, 8, false, true); F.seaShips.push(b);
-    F.big = b;
+    F.big = b; F.bigCommander = b.group.units[0];
     return b;
   },
 
@@ -3170,7 +3255,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
   // 史実の決め手。大将の船と思われる一艘を近くへ寄せる。
   decisive(rt) {
     const F = rt.flags;
-    F.step = 4; F.stepT = rt.t;
+    F.step = 4; F.stepT = rt.t; F.cannonPost = F.guns[1];
     rt.setPhase('flagship'); rt.objProgress('main', ''); rt.objDone('main'); rt.unmark('guard');
     for (let k = 1; k <= 4; k++) rt.unmark('b' + k);
     if (!this.launchBig(rt)) { this.lose(rt, '敵の大船を見失った。持ち場を立て直せ！'); return; }
@@ -3548,6 +3633,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       syncShipCrew(rt, b);
     }
     if (F.bigSunk) { F.distantFleet.position.x += dt * 2; F.distantFleet.position.z -= dt; }
+    if (F.step === 0 && deckRouteDistance(rt.player.u, F.guns[1].post) <= 2.6) { this.cannons(rt); return; }
     const elapsed = rt.t - F.stepT;
     if (rt.t >= F.noticeAt) {
       F.noticeAt = rt.t + 1;
@@ -3673,6 +3759,17 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
           F.step === 4 ? '大船に命中。深追いせず、船を守れ' : '深追いせず、船べりで構えよ');
       }
     }
+    if ((F.step === 3 || F.step === 5 || F.bigSunk) && rt.t >= (F.postGuardAt || 0)) {
+      F.postGuardAt = rt.t + 1;
+      for (let i = 0; i < F.postGuards.length; i++) {
+        const u = F.postGuards[i];
+        if (!u.alive) continue;
+        u.shipPost.x = F.guardPost.x;
+        u.shipPost.z = Math.max(-11.8, Math.min(11.8, F.guardPost.z - i * .9));
+      }
+    }
+    // 迎撃・消火・乗り口防衛・一斉射を四〜七分へ。人数と新手は減らさない。
+    if (!F.ending && !rt.over && rt.t >= 420) { this.lose(rt, '船の守りを立て直せ。船を離せ！'); return; }
     if (F.step === 1) {
       if (elapsed >= 90 && F.cannonHits >= 1) { this.fires(rt); return; }
       if (elapsed >= 180) { this.lose(rt, '寄せる船を打ち払えぬ。船を離せ！'); return; }
@@ -3702,9 +3799,10 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     if (F.step === 3) {
       // 迎撃と消火の間に退けた敵も守りの働きに数える。
       // 早く守り切って新手が尽きても、架空の四人を待たせない。
+      // 決め手は開始二百二十秒以降。崩壊八秒と退き十二秒を含め四分以上。
       let contested = false;
       for (const u of rt.army.units) if (deckEnemy(u)) { contested = true; break; }
-      if (elapsed >= 75 && F.deckRepelled >= 4 && (F.deckRepelled - F.boardRepelledStart >= 4 || !contested)) {
+      if (elapsed >= 105 && rt.t >= 220 && F.deckRepelled >= 4 && (F.deckRepelled - F.boardRepelledStart >= 4 || !contested)) {
         rt.award((t) => { if (!t.side.includes('甲板へ乗り込む敵を退けた')) t.side.push('甲板へ乗り込む敵を退けた'); }, '甲板の持ち場を守った');
         this.decisive(rt); return;
       }

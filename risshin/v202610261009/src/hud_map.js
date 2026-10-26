@@ -535,7 +535,7 @@ export class HudMap {
       }
     }
     // 稲生・森部の行き先：兵は▼、名のある敵将は菱形。白い矢印は自分だけ。
-    if (missionEnemy && inouSignVisible(rt, missionEnemy)) {
+    if (missionEnemy && (rt.def.mapCommanderAlways || inouSignVisible(rt, missionEnemy))) {
       let [a, b] = tr(missionEnemy.pos.x, missionEnemy.pos.z);
       const dx = a - Sz / 2, dy = b - Sz / 2, distance = Math.hypot(dx, dy);
       const rim = Sz / 2 - 10 * px;

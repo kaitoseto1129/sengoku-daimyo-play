@@ -293,7 +293,8 @@ const CIVILIAN_BANDS = [
 // 草木を避難路から離すための折れ線は支度前に一度だけ作る。
 const CIVILIAN_PATHS = CIVILIAN_BANDS.map(b => [[b.x, b.z], ...b.route.map(p => [p.x, p.z])]);
 const USA = { x: HON_C.x, z: HON_C.z, r: 10 };   // 宇佐山城の本丸（縄張りは castles/usayama.js）
-const ODA = { flag: 'oda' };
+// 本の足軽装束：黒漆の貸し胴に生成りの威糸、藍の小袖。金色の一枚胴にはしない。
+const ODA = { flag: 'oda', armor: 0x302a25, lace: 0x9b8d70, cloth: 0x283746 };
 // 黒漆・鉄錆の範囲で寄せ手を見分ける。色の割り振りは遊びのための補完。
 const ASA = { flag: 'asakura', armor: 0x302a25, lace: 0x98764b, cloth: 0x76624a };
 const AZA = { flag: 'azai', armor: 0x292c25, lace: 0x7b8960, cloth: 0x626b52 };
@@ -302,7 +303,7 @@ const AID = (rt) => (rt.G.lord ? '摂津の本隊が着くまで' : '上様の�
 // 足軽大将ほどの身分で出た時は、城兵の一手を預かる
 const HI = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
 // 登城後の静かな待ちを短くする。寄せ手の出発・後詰の移動・本丸の守備条件は保つ。
-const HON_HOLD_SECONDS = 100;
+const HON_HOLD_SECONDS = 70;
 const AID_WAIT_SECONDS = 30;
 
 function oldTownSpeech(step, line) {
@@ -1240,7 +1241,7 @@ const shiga = {
     return [[c.x, c.z], [q.x, q.z], ...ROAD.slice(0, Math.ceil(q.s)).reverse()];
   },
   botOrders: true, // 道・木戸・供・退き口は、この戦の下知に従う。
-  // 長い登りの後に百秒＋五十秒の守りがある。共通の八分で途中を切らない。
+  // 長い登りの後に七十秒＋五十秒の守りがある。共通の八分で途中を切らない。
   // 城内を移る猶予も含め五分まで。期限は段が変わっても延ばさず、未達なら共通の敗北へ。
   pacingWait: (rt) => !rt.flags.ending && (rt.flags.step === 3 || rt.flags.step === 3.5) && rt.t < rt.flags.siegeDeadline,
   botEvacuating: (rt) => rt.flags.step === 2 ||
@@ -1248,6 +1249,76 @@ const shiga = {
     (rt.flags.backedNi && !rt.flags.C.kuruwa.ni.test(rt.player.u.pos.x, rt.player.u.pos.z) && !rt.flags.C.kuruwa.hon.test(rt.player.u.pos.x, rt.player.u.pos.z)),
   taisho: { a: null, b: { def: true } }, // 城の守りと後詰まで、戦の定義で終わりを決める。
   noWake: true,
+  // 稲生の型。退却の道と守兵の動きは、この戦の下知をそのまま使う。
+  missionSingleLine: true,
+  hideMissionDots: true,
+  enemyTriangleSigns: true,
+  nearbyAllySignLimit: 0,
+  noDodgeCard: true,
+  noSiegeCards: true,
+  noPlayerFoot: true,
+  quietMiss: true,
+  missionPinCaption: '',
+  missionDetail: () => '',
+  missionStatus: () => '',
+  bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討死|討ち取|守り通す/.test(text),
+  missions: ['森隊に集まれ', '町口を守れ', '▼の敵を倒せ', '道の印をたどれ', '木戸を守れ', '味方と集まれ'],
+  missionOf(rt) {
+    const F = rt.flags;
+    if (F.ending || rt.over) return 5;
+    if (!F.step) return rt.distTo(TOWN_POST) > 5 ? 0 : 1;
+    if (F.step === 2) return F.C.kuruwa.san.test(rt.player.u.pos.x, rt.player.u.pos.z) ? 4 : 3;
+    if (this.missionSignTarget(rt)) return 2;
+    return F.step < 2 ? 1 : 4;
+  },
+  missionHeading(rt) { return this.missions[this.missionOf(rt)]; },
+  // 大将は本陣の朝倉義景。守城の任務を無敵の本陣襲撃へ替えず、地図と戦場の印だけ付ける。
+  commanderSignTarget(rt) {
+    const u = rt.flags.campA?.general;
+    return !rt.flags.ending && !rt.over && u?.alive && !u.gone && !u.dying ? u : null;
+  },
+  namedGuideTarget(rt) { return this.commanderSignTarget(rt); },
+  missionSignTarget(rt) {
+    const F = rt.flags, me = rt.player.u;
+    if (F.ending || rt.over || F.step !== 1 && F.step !== 3 && F.step !== 3.5 || this.botEvacuating(rt)) return null;
+    const previous = F.shigaEnemy;
+    // 複数の印が同じ相手を使う。討死・潰走は待たずに拾い、見通しの検査だけ五分の一秒ごと。
+    if (F.shigaEnemyStep === F.step && rt.t < F.shigaEnemyAt && (!previous ||
+        previous.alive && !previous.gone && !previous.dying && !previous.woundOut && !previous.rearWound &&
+        !previous.fleeing && !previous.noTarget && !previous.group?.routed)) return previous;
+    let target = null, distance = 28 * 28;
+    for (const u of rt.army.units) {
+      if (u.team === me.team || !u.alive || u.gone || u.dying || u.woundOut || u.rearWound || u.fleeing ||
+          u.noTarget || u.invuln || u.isStruct || u.farSim || u.group?.routed || u.group?.civ ||
+          F.step === 1 && u.group !== F.w1 && u.group !== F.w1b || Math.abs(u.pos.y - me.pos.y) > 3.5) continue;
+      const d = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
+      if (d >= distance || rt.army.wallBetween(me.pos, me.team, u.pos, false)) continue;
+      target = u; distance = d;
+    }
+    F.shigaEnemy = target; F.shigaEnemyStep = F.step; F.shigaEnemyAt = rt.t + .2;
+    return target;
+  },
+  missionPin(rt) {
+    const F = rt.flags, me = rt.player.u;
+    if (F.ending || rt.over || !me.alive) return null;
+    const pin = F.shigaPin || (F.shigaPin = { x: 0, z: 0, r: 3, hide: 3, always: true, silent: true });
+    pin.unit = null; pin.enemy = false; pin.waiting = false; pin.arrived = false; pin.defend = false;
+    const enemy = this.missionSignTarget(rt);
+    let point;
+    if (F.step === 2) {
+      point = F.slopeAlly?.alive ? F.slopeAlly.pos : F.retreatPoint;
+      pin.waiting = pin.defend = F.C.kuruwa.san.test(me.pos.x, me.pos.z);
+    }
+    else if (enemy) { point = enemy.pos; pin.unit = enemy; pin.enemy = true; }
+    else {
+      point = F.step < 2 ? TOWN_POST : F.backed ? F.hida.anchor : F.keep.anchor;
+      pin.waiting = true; pin.defend = true;
+    }
+    if (!point) return null;
+    pin.x = point.x; pin.z = point.z; pin.r = pin.hide = enemy ? .2 : F.step === 2 ? 1.8 : 3;
+    pin.arrived = pin.waiting && Math.hypot(me.pos.x - pin.x, me.pos.z - pin.z) < pin.r;
+    return pin;
+  },
   attackWarningDelay: 1, // 姿が隠れた敵も、傷の前に迫る向きを知らせる。
   rearThreatFrame: true, // 振り向いた時も、画面から見た敵の方角を知らせる。
   meleeThreatRange: 7, // 遠い追手を出し続けず、槍が迫る手前で知らせる。
@@ -1260,6 +1331,9 @@ const shiga = {
   noCouriers: true,
   spawn: { x: TOWN.x + 4, z: TOWN.z + 8, heading: Math.PI },
   world: {
+    noHaori: true,
+    variedInfantry: true,
+    variedLoanArmor: true,
     seed: 15709,
     maxWalkDrop: 1.2, // 路肩から横へ退く一歩で、切岸の下へ落ちない。
     gateRoofBacking: true, // 葺き板の下を野地板で閉じ、木戸の屋根越しに空を見せない。
@@ -1507,11 +1581,11 @@ const shiga = {
     dressShigaTown(rt);
     for (const [x, z] of [[-15, 76], [-32, 103], [-21, 136], [-5, 88]]) rt.scene.add(nobori(W, x, z, 'oda', 6));
     // ---- 森可成の手（自分の持ち場）と、織田信治の手 ----
-    // 森家の鶴丸で指物・隊旗・備の旗を揃える。具足と陣羽織、十文字槍と豪傑の型は本人の表を使う。
+    // 森家の鶴丸で指物・隊旗・備の旗を揃える。可成の具足と十文字槍は本人の表を使う。
     // 鶴丸の根拠：可児市「可成寺」。この戦での旗の配り方は復元。
     // https://www.city.kani.lg.jp/24538.htm
     F.mori = allyGroup(rt, { name: '森可成の手', fixed: true, anchor: { x: TOWN.x, z: TOWN.z - 6 }, facing: Math.PI, width: 5, aggro: 10, formation: 'yari' },
-      dress([{ type: 'busho', n: 1, o: { name: '森可成', invuln: true } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 16 }], { flag: 'tsuru' }));
+      dress([{ type: 'busho', n: 1, o: { name: '森可成', invuln: true } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 16 }], { ...ODA, flag: 'tsuru' }));
     F.moriU = F.mori.units[0];
     F.nobuharu = allyGroup(rt, { name: '織田信治の手', fixed: true, anchor: { ...NOBUHARU_POST }, facing: Math.PI, yariRanks: 3, aggro: 10, formation: 'yari' },
       dress([{ type: 'samurai', n: 1, o: { name: '織田信治', invuln: true, hat: 'kabuto_m', haori: 0x6a1a14 } }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 3 }], ODA));
@@ -2111,7 +2185,7 @@ const shiga = {
       rt.objProgress('main', '槍の列を離れず、先手を受けよ');
       if (F.w1 && F.w1.count < 5 && !gone(F.w1)) F.w1.morale = Math.min(F.w1.morale, 20);
       if (F.w1b && F.w1b.count < 5 && !gone(F.w1b)) F.w1b.morale = Math.min(F.w1b.morale, 20);
-      if ((F.w1b && gone(F.w1) && gone(F.w1b) && rt.t - F.stepT > 35) || rt.t - F.stepT > 65) this.midA(rt);
+      if ((F.w1b && gone(F.w1) && gone(F.w1b)) || rt.t - F.stepT > 55) this.midA(rt);
     }
     if (F.step === 1.5) {
       rt.objProgress('main', '町口を守れ。味方の退き口を保て');
@@ -2132,7 +2206,7 @@ const shiga = {
         ], F.rescuePick, 20);
       }
       // 深手や包囲を待たず退き口を開く。守将の討死と城の守りは元の筋へつなぐ。
-      if (rt.t - F.stepT >= 55 || rt.t - F.stepT >= 12 && (u.hp < u.maxHp * 0.7 || F.nearFoes >= 3)) this.fall(rt);
+      if (rt.t - F.stepT >= 35 || rt.t - F.stepT >= 12 && (u.hp < u.maxHp * 0.7 || F.nearFoes >= 3)) this.fall(rt);
     }
     if (F.step === 3.5) {
       const hon = F.SZ.byId.hon;
@@ -2537,11 +2611,8 @@ function retreatWithGuard(b, inp, goTo, x, z, r) {
   }
   goTo(p, inp, x, z, r);
   retreatThroughGap(b, inp, retreatOnShigaRoad);
-  // 長い坂で気力を使い切ると、追手へ向き直っても構えが崩れる。
-  // 歩いて受ける余力を戻し、半分以上戻ってから走り直す。
-  if (p.sta < p.maxSta * 0.35) b.flags.shigaCatchBreath = true;
-  else if (p.sta >= p.maxSta * 0.6) b.flags.shigaCatchBreath = false;
-  inp.runHeld = !b.flags.shigaCatchBreath && inp.k.has('KeyW');
+  // 本人は気力切れでも走れる。追手から離れる坂では歩きに戻さない。
+  inp.runHeld = inp.k.has('KeyW');
   inp.guardHold = false; inp.leftPressed = false; inp.chargeHold = false;
   let attacker = null, nearest = Infinity, impact = Infinity;
   let strikeAngle = null, crossed = false;
@@ -2595,7 +2666,10 @@ function retreatWithGuard(b, inp, goTo, x, z, r) {
   // 指と体が横・背へ向き直る間も見込み、正面の受けより早く構える。
   const guardLead = Math.cos(toward - u.heading) < 0.5 ? 1.3 : 0.9;
   inp.guardHold = impact <= guardLead;
-  inp.runHeld = false; inp.leftPressed = false; inp.chargeHold = false;
+  // 構えと回避は本人には使われない。向き直った後も、調べた隙間へ走る。
+  // 木戸で待つ時や、通れる足場が無い時には足を出さない。
+  inp.runHeld = !!inp.axis && Math.hypot(inp.axis.x, inp.axis.y) > .5;
+  inp.leftPressed = false; inp.chargeHold = false;
 }
 
 // 素直な遊び手：町口で朝倉と戦い、城へ退き、木戸に取り付く寄せ手を討つ
@@ -3154,6 +3228,11 @@ html body #hud.shiga #battle-notices #objectives.has-action:not(.expand) li.cur 
  html.touch body #hud.shiga.guard-button-help #battle-notices:not(.choosing) {
   max-height:min(46dvh, calc(100dvh - 192px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))) !important;
  }
+}
+/* 稲生の一行を使う間は、旧来の守備・回避の指図札を重ねない。一覧と相談は開ける。 */
+html:root body #hud.shiga.prog-on.mission-only #battle-notices:not(.choosing) > #objectives:not(.expand),
+html:root body #hud.shiga.prog-on.mission-only #battle-notices > :is(#battle-message,#tutorial,#situation,#skiphint) {
+ display:none !important;
 }
 `;
   document.head.appendChild(taskStyle);

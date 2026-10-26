@@ -622,7 +622,7 @@ export class Battle {
       onFlankHit: (g) => this.onFlankHit(g),
       onRout: (g) => this.onRout(g),
       onFlee: (u) => this.onFlee(u),
-      onPlayerLanded: () => { this.hud.hitMarker(); this.game.hitstop = Math.min(0.06, Math.max(this.game.hitstop || 0, 0.045)); },
+      onPlayerLanded: () => { this.hud.hitMarker(); if (!S.reduceMotion) this.game.hitstop = Math.max(this.game.hitstop || 0, 0.04); },
       onWaver: (g) => {
         generalSituation(this, g.team === this.player.u.team ? 'breaking' : 'pushing', g.anchor);
         const extraB = g.team === 0 ? null : (foeTongue(this, 'waver') || []).concat([pickLine(this, 'breaking', 'enemy', monOf(this))].filter(Boolean));
@@ -1855,13 +1855,13 @@ export class Battle {
     if (k && k.isPlayer && v.team !== 0) {
       this.stats.kills++;
       if (this.index === 0 && !this.G.lord && this.stats.kills === 1) {
-        this.game.hitstop = Math.min(0.06, Math.max(this.game.hitstop || 0, 0.16));
+        if (!S.reduceMotion) this.game.hitstop = Math.max(this.game.hitstop || 0, 0.07);
         this.hud.flash('初めての討ち取り　１人', 'gold');
         this.say('組頭', 'よし、一人討った！　その調子じゃ', 3);
       }
 
       // 討ち取った一撃は、時が一瞬止まり（名のある者ほど長く）、視野がわずかにすぼまる
-      this.game.hitstop = Math.min(0.06, Math.max(this.game.hitstop || 0, v.name || v.type === 'busho' ? 0.16 : 0.1));
+      if (!S.reduceMotion) this.game.hitstop = Math.max(this.game.hitstop || 0, 0.07);
       if (!S.reduceMotion) this.player.fovKick = Math.min(this.player.fovKick || 0, -1.8);
       sfx('kill', 0.8);
       // 少し遅れて、相手の体が地に崩れる音（倒した事が耳で分かる）

@@ -13,7 +13,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { flagTexture, drawMon } from './textures.js';
 import { sfx, withPan } from './audio.js';
-import { S, MEM_TIGHT } from './settings.js';
+import { S, MEM_TIGHT, CPU_LEAN } from './settings.js';
 import { TIER } from './device_tier.js';
 import { WIND_STATE, isNoRender, hasMultiDraw } from './world.js';
 import { updateWaterBody, waterMaterial, waterBatchKey, refreshWaterMaterials } from './water_body.js';
@@ -683,13 +683,14 @@ export class Army {
     u.tatake = m;
   }
 
-  // 影を落とすのは本人だけ（10/24 kaito：ほかの兵・馬・物の影は影の地図に入れない）。変わった兵だけ部品を直す。
+  // 動く影は近くの兵・馬だけ。固定物の影は支度中に地面へ焼いてある。
   selectShadows(focus) {
     if (this.shadowNext > this.time) return;
     this.shadowNext = this.time + 1;
     for (const u of this.units) {
-      u.shadowSelected = !!u.isPlayer;
-      const on = !!u.isPlayer && u.qualityTier !== 2 && this.shadows !== false && u.alive && !u.dying && !u.gone;
+      const distance2 = focus ? (u.mesh.position.x - focus.x) ** 2 + (u.mesh.position.z - focus.z) ** 2 : Infinity;
+      u.shadowSelected = !!u.isPlayer || distance2 < this.shadowDist * this.shadowDist;
+      const on = u.shadowSelected && u.qualityTier !== 2 && this.shadows !== false && u.alive && !u.dying && !u.gone;
       if (u.shSet && u.shOn === on && !on) continue;
       u.shOn = on; u.shSet = true;
       u.mesh.traverse(o => {
@@ -1544,7 +1545,7 @@ export class Army {
       }
       if (!u.alive || u.isPlayer || u.type === 'dummy') { u.detailDt = 0; u.detailNextAt = 0; u.motionDt = 0; u.motionFrame = 0; this.animate(u, dt, near); continue; }
       if (u.guarding > 0) u.guarding = Math.max(0, u.guarding - dt);
-      const detailRate = !MEM_TIGHT || u.farSim || u.qualityAbstract || detailWake ? 0 : detailInterval(this, u, dist);
+      const detailRate = !CPU_LEAN || u.farSim || u.qualityAbstract || detailWake ? 0 : detailInterval(this, u, dist);
       if (u.farSim || u.qualityAbstract) {
         // 遠景は行き先だけ部隊の時計で選び、足は毎コマ進める。
         u.target = null; u.atk = null; u.swing = null; u.bind = null;
@@ -1610,7 +1611,7 @@ export class Army {
       // 遠い非交戦兵は毎秒20回・さらに遠ければ10回、画面外の遠い待機兵は4回。時計をためる。
       // 号令の変更は待たずに受け取る。体と絵には別の時計を使う。
       // 携帯では行動・攻撃・弾込めの時計をまとめない。索敵を含む判断だけに別の間隔を使う。
-      const interval = MEM_TIGHT ? 0 : detailRate;
+      const interval = CPU_LEAN ? 0 : detailRate;
       // 接敵や接近で遠距離の条件を外れたら、長く取った判断の待ち時間も持ち越さない。
       if (u.detailSlow && interval !== 0.25) { u.detailNextAt = 0; u.aiT = 0; }
       u.detailSlow = interval === 0.25;
@@ -1621,7 +1622,7 @@ export class Army {
       //   30m の外は四コマに一度・12m の外は二コマに一度（経過はためて渡す）。位置は下で毎コマ進め、押し合いも毎コマなので歩みは跳ばない。
       //   画面に入れば次のコマから毎コマ。号令が変われば待たない
       //   画面の中でも 15m より遠い兵は二コマに一度。向きは休むコマも前の判断の向きへ毎コマ回す（turnTo）
-      const offIdle = MEM_TIGHT && !noGate && (u.offscreen ? dist > 12 : dist > 15) && !orderChanged && !u.target && !u.atk && !u.swing && !u.bind &&
+      const offIdle = CPU_LEAN && !noGate && (u.offscreen ? dist > 12 : dist > 15) && !orderChanged && !u.target && !u.atk && !u.swing && !u.bind &&
         !u.hit && !u.charging && !(u.stagger > 0) && !u.fleeing && !u.group.routed && !u.dragging && !u.climb && simDt < 0.25 &&
         ((this.frameNo + u.id) & (u.offscreen && dist > 30 ? 3 : 1)) !== 0;
       if (offIdle && u._turnH !== undefined && !u.offscreen) this.turn(u, u._turnH, dt, u._turnR);
