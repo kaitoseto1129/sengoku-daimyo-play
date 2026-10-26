@@ -1170,18 +1170,8 @@ const moribe = {
   meleeHitFeedback: false, // 命中は本人の赤い▼とよろめきで示し、照準の印を重ねない。
   missionStatus() { return ''; }, // 行き先は黄色い矢印と輪だけで示す。
   tacticsCommandText: '', // 横へ回る助言に、操作のない「配下に命じて押せ」を足さない。
-  missionCombatProgress(rt) {
-    const F = rt.flags;
-    if (!F.signal || F.stage !== 'contact' || F.vBroken || !F.V) return null;
-    // 先手への傷と退きを任務の下地へまとめる。全滅の人数条件は足さない。
-    let remaining = 0;
-    for (const u of F.V.units)
-      if (u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget)
-        remaining += Math.max(0, u.hp);
-    F.contactProgress = Math.max(F.contactProgress || 0,
-      Math.min(.99, 1 - remaining / (F.vanguardHealth || 1)));
-    return F.contactProgress;
-  },
+  // 傷と討ち取りは本人の▼で示し、意味の重なる黄色い棒を出さない。
+  missionCombatProgress() { return null; },
   missionWaitProgress(rt) {
     const F = rt.flags;
     if (!F.signal && F.pointInside && !F.pointDone) {

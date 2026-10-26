@@ -28,7 +28,7 @@ export class HudCards {
       el.hidden = true; dock.insertBefore(el, dock.lastChild); this.controlsHelp = el;
     }
     if (!this.controlsHelp) return;
-    this.controlsHelp.hidden = !active || this.controlsElapsed > 12 || S.reduceGuidance || rt.def.key === 'inou';
+    this.controlsHelp.hidden = !active || this.controlsElapsed > 12 || S.reduceGuidance || rt.def.key === 'inou' || rt.def.key === 'okehazama';
     if (!this.controlsHelp.hidden) {
       const weapon = rt.player.weapon;
       const action = weapon === 'gun' ? '「撃つ」を押す' : weapon === 'bow' ? '「射る」を押す' : weapon === 'sword' ? '「きる」で刀をふる' : '「つく」で槍をつく';

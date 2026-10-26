@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-// 候補の木は場面の構成が変わった時だけ辿る。普段は候補の距離と影の印だけを更新する。
+// 動く影は無効。景物の追加・結合・解凍の時だけ影の印を止める。
 const SH_OFF = new WeakSet(), _shC = new THREE.Vector3();
 // 同じ網で植えた木は、影の時だけ指定範囲の行列へ差し替える。画面の並びと色は触らない。
 function sceneryInstanceShadow(mesh, x, z, walk, range) {
@@ -83,42 +83,27 @@ function shadowRange(scene, x, z, walk, range = 24) {
     if (walk.roots[i] !== root || walk.frozen[i] !== !!root._sf || versions[i] !== root._sfVersion) changed = true;
   }
   if (changed) {
-    const groups = walk.groups || (walk.groups = []);
     if (!walk.collect) walk.collect = o => {
       if (o.isMesh && !o.isSkinnedMesh && (o.castShadow || SH_OFF.has(o))) {
-        o._sceneryCastShadow = true; walk.collectTargets.push(o);
+        // 結合時に使う元の印は残す。全景物の候補表を作り直さず、この場で止める。
+        o._sceneryCastShadow = true; o.castShadow = false; SH_OFF.add(o);
       }
     };
-    let count = 0, rebuild = false;
     walk.roots.length = walk.frozen.length = versions.length = scene.children.length;
     for (let i = 0; i < scene.children.length; i++) {
       const root = scene.children[i];
       walk.roots[i] = root; walk.frozen[i] = !!root._sf; versions[i] = root._sfVersion;
       const scenery = root._sf || root.userData?.staticMerged || root.isMesh &&
         !root.isSkinnedMesh && !root.material?.userData?.armyU && !root.userData?.armyBatch && root.name !== 'unitBatch';
-      if (!scenery) continue;
+      // 解凍中は候補から外れる。再凍結時に同じ版でも必ず印を確かめ直す。
+      if (!scenery) { walk.cache.delete(root); continue; }
       let cached = walk.cache.get(root);
       if (!cached || cached.frozen !== !!root._sf || cached.version !== root._sfVersion || cached.children !== root.children.length) {
-        if (!cached) { cached = { targets: [] }; walk.cache.set(root, cached); }
+        if (!cached) { cached = {}; walk.cache.set(root, cached); }
         cached.frozen = !!root._sf; cached.version = root._sfVersion; cached.children = root.children.length;
-        cached.targets.length = 0; walk.collectTargets = cached.targets;
         root.traverse(walk.collect);
-        rebuild = true;
       }
-      if (groups[count] !== cached) { groups[count] = cached; rebuild = true; }
-      count++;
     }
-    walk.collectTargets = null;
-    if (groups.length !== count) { groups.length = count; rebuild = true; }
-    // 距離制限は追加したコマから適用する。旧候補の完成待ちで遠方の影を増やさない。
-    if (rebuild) {
-      walk.targets.length = 0;
-      for (const group of groups) for (const o of group.targets) walk.targets.push(o);
-    }
-  }
-  for (const o of walk.targets) {
-    o.castShadow = false;
-    SH_OFF.add(o);
   }
 }
 

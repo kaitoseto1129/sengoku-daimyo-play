@@ -1061,7 +1061,7 @@ function beginPlay(afterView = false) {
 // 画面の上寄りの小さな案内「クリックすると、マウスで見回せます」（下に出すと最初の台詞の字幕に重なる。大きな一時停止の画面にはしない）
 function lockHint(on) {
   // 初陣はピンと敵印だけで案内する。指の画面にもマウスの説明を重ねない。
-  if (game.battle?.def.key === 'inou' || isTouch) on = false;
+  if (game.battle?.def.key === 'inou' || game.battle?.def.key === 'okehazama' || isTouch) on = false;
   let el = document.getElementById('lockhint');
   if (on && !el) {
     el = document.createElement('div');
