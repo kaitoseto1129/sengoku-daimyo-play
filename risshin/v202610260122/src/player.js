@@ -2209,11 +2209,12 @@ export class Player {
         if (this.sta >= 6) {
           this.combo = this.comboT > 0 ? this.combo + 1 : 1;
           const third = this.combo >= 3;
-          this.sta -= kind === 'sweep' ? Math.min(this.sta, 12) : 6;
+          this.sta -= kind === 'spin' ? Math.min(this.sta, 12) : kind === 'sweep' || kind === 'slam' ? Math.min(this.sta, 9) : 6;
           this.staDelay = 0.5;
-          this.pending = { t: kind === 'sweep' ? 0.08 : 0.12, kind, third, dir: 1 };
-          this.cd = (kind === 'sweep' ? 0.52 : this.combo === 2 ? 0.32 : 0.42) * this.spearCd;
-          if (third) this.combo = 0;
+          // 回しは振りかぶりが長く、戻りも長い（周り全員へ当たる分の間）
+          this.pending = { t: kind === 'spin' ? 0.2 : kind === 'sweep' ? 0.08 : 0.12, kind, third: third || kind === 'slam', dir: 1 };
+          this.cd = (kind === 'spin' ? 0.82 : kind === 'slam' ? 0.6 : kind === 'sweep' ? 0.48 : 0.42) * this.spearCd;
+          if (third || kind === 'spin') this.combo = 0;
           this.comboT = this.cd + 0.65;
           if (rt.def.key !== 'inou' && rt.def.key !== 'okehazama' && rt.def.key !== 'moribe' && !rt.def.quietMiss && !rt.def.inouFeel) sfx(kind === 'sweep' ? 'swing' : 'thrust');
         } else rt.hud.flash('気力が足りない（少し構えを解くと戻る）', 'dim');
@@ -2821,11 +2822,32 @@ export class Player {
     if (this.swingImpact) return this.swingImpact.kind;
     return this.autoMeleeKind();
   }
-  // 周囲の全兵を調べず、連撃の段だけで予告と実際の技をそろえる。
+  // ボタンは一つ。状況と連打の段で技が替わる（kaito 10/26）：
+  //   周りに三人以上 → 頭上で回す。連打の三段目 → 叩きつけ。二段目か前の扇に二人以上 → 横の払い。ほかは突き。
+  //   近くの兵だけを十分の一秒ごとに数える（予告と実際の技をそろえる）。
   autoMeleeKind() {
     if (this.weapon === 'sword') return this.sta >= 5 ? 'slash' : '';
     if (this.sta < 6) return '';
-    return this.comboT > 0 && this.combo >= 2 ? 'sweep' : 'thrust';
+    const stage = this.comboT > 0 ? this.combo + 1 : 1;
+    if (this.mounted || this.jumonji) return stage >= 3 ? 'sweep' : 'thrust';
+    const c = this.crowdCount();
+    if (c.around >= 3) return 'spin';
+    if (stage >= 3) return 'slam';
+    if (stage === 2 || c.front >= 2) return 'sweep';
+    return 'thrust';
+  }
+  crowdCount() {
+    const C = this._crowdC || (this._crowdC = { at: -9, front: 0, around: 0 });
+    const rt = this.rt, u = this.u;
+    if (C.at > rt.t - 0.1 && C.at <= rt.t) return C;
+    C.at = rt.t; C.around = 0;
+    const r = this.meleeReach('spin');
+    rt.army.forNear(u.pos.x, u.pos.z, r + 0.4, (o) => {
+      if (o.team === u.team || !o.alive || o.gone || o.isStruct || o.noTarget || o.fleeing) return;
+      if (Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) <= r + 0.4) C.around++;
+    });
+    C.front = C.around >= 2 ? rt.army.enemiesInArc(u.pos, u.heading, this.meleeReach('sweep'), this.meleeHalf('sweep'), u.team, true, false, this.meleeFenceClear(this.meleeReach('sweep'))).length : C.around;
+    return C;
   }
 
   updateRangeCue(kind) {
@@ -2919,11 +2941,11 @@ export class Player {
     return target;
   }
   strike(kind, third, impact = false, assisted = false) {
-    if (kind === 'spin') kind = 'charged';
+    // 頭上で回す一撃（spin）は、周りに三人以上いる時だけ autoMeleeKind が選ぶ。
     const u = this.u;
     const army = this.rt.army;
     if (this.assistImpact && !assisted) return;
-    if (!impact && !assisted && kind !== 'butt' && !this.mounted && (S.aimAssist || isTouch)) {
+    if (!impact && !assisted && kind !== 'butt' && kind !== 'spin' && !this.mounted && (S.aimAssist || isTouch)) {
       const reach = this.meleeReach(kind), half = this.meleeHalf(kind), clear = this.meleeFenceClear(reach), over = this.weapon === 'spear';
       if (!army.enemiesInArc(u.pos, u.heading, reach, half, u.team, over, true, clear, this.lock).length) {
         const target = this.meleeAssistTarget(kind, u.heading), stepTo = this.meleeAssistStep;
@@ -2961,9 +2983,9 @@ export class Player {
       // 馬の首の実寸と穂先までの長さで測る。技の届く長さを超えて柵を抜けない。
       const fenceClear = this.meleeFenceClear(reach);
       // 味方の騎馬も、的を絞って（this.lock）選んだ時だけ混ぜる（自分の馬・味方の馬も討てるように。kaito 10/1）
-      const sweep = this.weapon === 'spear' && kind === 'sweep';
+      const sweep = this.weapon === 'spear' && (kind === 'sweep' || kind === 'spin');
       const h = army.enemiesInArc(u.pos, heading, reach, half, u.team, over, !sweep, fenceClear, this.lock);
-      return sweep ? h : h.slice(0, 1); // 横払いは扇の中の敵全員へ一度ずつ当てる。
+      return sweep ? h.slice(0, n) : h.slice(0, 1); // 横払い・回しは扇（回しは周り）の中の敵へ一度ずつ当てる。
     };
     let hits, dmg;
     if (kind === 'thrust') { hits = arc(2.9 + reachExtra + ride, 0.62, this.mounted && this.hspd > 8 ? 2 : 1); dmg = this.spearDmg() * (third ? 1.3 : 1) * rush; }
@@ -2971,11 +2993,11 @@ export class Player {
     else if (kind === 'kthrust') { hits = arc(2.3, 0.5, 1); dmg = 17 * (1 + 0.06 * (this.G.stats.spear - 1)); }
     // 十文字槍の薙ぎ：鎌刃が横へ張り出す分、深く斬る
     else if (kind === 'sweep' && this.jumonji) { hits = arc(2.8 + reachExtra + ride, 1.0, 2); dmg = this.spearDmg() * 1.0 * rush; }
-    else if (kind === 'sweep') { hits = arc(2.6 + ride, 1.1, this.mounted ? 5 : 4); dmg = this.spearDmg() * 0.7 * rush; }
+    else if (kind === 'sweep') { hits = arc(2.6 + ride, 1.1, this.mounted ? 5 : 6); dmg = this.spearDmg() * 0.62 * rush; }
     // 十文字槍の引き倒し：突き出して鎌刃を相手の首・膝裏へ掛け、手前へ引く。傷は浅いが、相手は倒れてしばらく起きられない
     else if (kind === 'hook') { hits = arc(3.0 + reachExtra + ride, 0.55, 1); dmg = this.spearDmg() * 0.55; }
     // 叩き下ろし：柄のしなりで上から打つ。狭く重く、兜の上から効く
-    else if (kind === 'slam') { hits = arc(3.0 + reachExtra + ride, 0.4, 1); dmg = this.spearDmg() * 1.6 * rush; }
+    else if (kind === 'slam') { hits = arc(3.0 + reachExtra + ride, 0.4, 1); dmg = this.spearDmg() * 1.35 * rush; }
     // 石突き：懐に入った敵を柄の尻で突き放す（軽いが、相手を押し退けてよろめかせる）
     // 後ろへ柄を突き出すので、背後に寄った敵も打つ
     else if (kind === 'butt') {
@@ -2988,7 +3010,7 @@ export class Player {
     // 刀の真っ向斬り：上段から頭へまっすぐ。狭く重い
     else if (kind === 'kara') { hits = arc(2.2, 0.45, 1); dmg = 34 * (1 + 0.06 * (this.G.stats.spear - 1)); }
     // 振り回し：頭上で槍を回し、ぐるりと四方の敵を払う
-    else if (kind === 'spin') { hits = arc(2.9 + ride, Math.PI, 6); dmg = this.spearDmg() * 0.8 * rush; }
+    else if (kind === 'spin') { hits = arc(2.9 + ride, Math.PI, 8); dmg = this.spearDmg() * 0.55 * rush; }
     else { hits = arc(2.0, 0.8, 2); dmg = 19 * (1 + 0.06 * (this.G.stats.spear - 1)) * (third ? 1.45 : 1); }
     // 振りの記録（穂先・刃がどこで止まったかを見せる）
     // 薙ぎ（長柄の叩き）は重い柄を振り回すので、突きより長く（0.42 秒）
@@ -3020,8 +3042,8 @@ export class Player {
         this.rt.hint('tooClose');
       }
       this.rt.onPlayerHit(t);
-      if (third && kind === 'thrust') { this.rt.stats.thirds++; this.rt.tutMark('combo'); }
-      if (kind === 'thrust') this.rt.tutMark('thrust');
+      if (third && (kind === 'thrust' || kind === 'slam') && h === hits[0]) { this.rt.stats.thirds++; this.rt.tutMark('combo'); }
+      if (kind === 'thrust' || kind === 'sweep' || kind === 'slam' || kind === 'spin') this.rt.tutMark('thrust');
       if (kind === 'charged') this.rt.tutMark('charged');
       if (kind === 'sweep') this.rt.tutMark('sweep');
       // 技と敵の構えのかみ合い：
@@ -3141,6 +3163,18 @@ export class Player {
         if (burstBudget > 0 && !h.u.isStruct && h.u.pos) { burstBudget -= 4; const dx = h.u.pos.x - u.pos.x, dz = h.u.pos.z - u.pos.z, dl = Math.hypot(dx, dz) || 1; army.burst(h.u.pos.x - dx / dl * 0.2, h.u.pos.y + 1.1, h.u.pos.z - dz / dl * 0.2, 4, !bloodLv() || army.hideBlood ? 'dust' : 'blood', dx / dl, dz / dl, h.u.pos.y); }
       }
       this.addShake(heavy ? 0.12 : 0.06);
+      // まとめて当たった手応え：当たった数だけ芯の音が少しずつずれて重なり、相手は外へのけぞり、画面が小さく揺れる（揺れは「動きを減らす」で止まる）
+      const many = spearFeel ? hits.filter((h) => h.hurt && !h.u.isStruct) : null;
+      if (many && many.length >= 2) {
+        const n = Math.min(many.length, 5);
+        for (let i = 1; i < Math.min(n, 4); i++) setTimeout(() => sfx(i % 2 ? 'thud' : 'hit', 0.5 - i * 0.08), i * 45);
+        for (const h of many) if (h.u.alive && h.u.push) {
+          const dx = h.u.pos.x - u.pos.x, dz = h.u.pos.z - u.pos.z, dl = Math.hypot(dx, dz) || 1, f = kind === 'spin' ? 1.0 : 0.7;
+          h.u.push.x += dx / dl * f; h.u.push.z += dz / dl * f;
+          h.u.flinchT = Math.max(h.u.flinchT || 0, 0.32);
+        }
+        this.addShake(0.03 * n);
+      }
       // 馬上の一撃は馬の勢いが乗って重い：長めに止まり、低い音、突かれた者は馬の進む向きへ大きく突き飛ばされ、腕に返る衝撃で馬が少し落ちる
       const mh = this.mounted ? Math.min(1, Math.abs(this.hspd) / 10) : 0;
       if (mh > 0.3 && (kind === 'thrust' || kind === 'charged' || kind === 'sweep' || kind === 'slash')) {
@@ -5436,6 +5470,21 @@ export class Player {
     camera.lookAt(_cTmp);
     camera.rotateX(Math.atan(.18 * Math.tan(camera.fov * Math.PI / 360) / camera.zoom));
     camera.updateMatrixWorld();
+    // 壁を避けて視点が寄った時も、頭と足に余白が残る画角まで広げる。
+    // 視点の位置は保ち、地形や建物を突き抜けない。作業用の点は使い回す。
+    let fit = 0;
+    for (let i = 0; i < 2; i++) {
+      const height = i ? (this.mounted ? 3.6 : (u.bodyHeight || 1.72) + .35) * scale : 0;
+      _cQ.set(u.pos.x, u.pos.y + height, u.pos.z).applyMatrix4(camera.matrixWorldInverse);
+      if (_cQ.z >= -.1) continue;
+      fit = Math.max(fit, Math.abs(_cQ.y) / (-_cQ.z * (i ? .78 : .62)),
+        (Math.abs(_cQ.x) + .45 * scale) / (-_cQ.z * camera.aspect * .86));
+    }
+    const framedFov = Math.min(100, Math.atan(fit * camera.zoom) * 360 / Math.PI);
+    if (framedFov > camera.fov) {
+      camera.fov = framedFov;
+      camera.updateProjectionMatrix();
+    }
   }
 
   // 川・浅瀬の中にいるか（足音と蹄の音を水の音に替える）

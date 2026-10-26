@@ -678,7 +678,120 @@ function shSoilSeed(x, z) {
   return ((n ^ (n >>> 16)) >>> 0) / 4294967295;
 }
 
+// ---- 稲生の水準（reports/inou-standard.md 10/25）：任務の一行・ピン一本・敵は▼・大将は印 ----
+const shFoeOK = (u, me) => !!u?.alive && u.hp > 0 && !u.gone && !u.dying && !u.downed && !u.fleeing && !u.woundOut &&
+  !u.rearWound && !u.noTarget && !u.isStruct && !u.civ && !u.invuln && u.team !== me.team && u.group && !u.group.routed && u.type !== 'dummy';
+// 一番近い残りの敵（柵の守りでは柵のそば、追撃では殿の兵だけ）。半秒ごとに選び直し、毎コマ全員を見ない。
+function shNearestFoe(rt) {
+  const F = rt.flags, me = rt.player.u;
+  if (rt.t < (F.shFoeAt || 0) && (F.shFoe === null || shFoeOK(F.shFoe, me))) return F.shFoe;
+  F.shFoeAt = rt.t + .5;
+  let best = null, bd = Infinity;
+  const list = F.pursuit ? F.rear?.units || [] : rt.army.units;
+  for (const u of list) {
+    if (!shFoeOK(u, me)) continue;
+    // 柵の守りでは、柵を越えて来る敵だけを数える（川向こうの控えへ誘わない）。
+    if (!F.pursuit && (u.pos.x > SB.x0 + 14 || u.pos.x < -80)) continue;
+    const d = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
+    if (!F.pursuit && d > 45 * 45) continue;
+    if (d < bd) { bd = d; best = u; }
+  }
+  F.shFoe = best;
+  return best;
+}
+// 名のある敵将：守りでは寄せの大将（柵へ寄った時だけ）、追撃では馬場信春。
+function shCommander(rt) {
+  const F = rt.flags, me = rt.player.u;
+  if (F.ending || rt.over || F.chaseOrdered && !F.pursuit) return null;
+  if (F.pursuit) {
+    if (F.tsuigeki?.stage !== 3) return null;
+    const u = F.rear?.units.find((x) => x.name === '馬場信春');
+    return shFoeOK(u, me) ? u : null;
+  }
+  const g = F.cur;
+  if (!g || g.doneWave) return null;
+  for (const u of g.units) {
+    if (u.type !== 'busho' || !shFoeOK(u, me) || u.pos.x > SB.x0 + 14) continue;
+    if (Math.hypot(u.pos.x - me.pos.x, u.pos.z - me.pos.z) < 40) return u;
+  }
+  return null;
+}
+// 守る持ち場（ピンと味方の集まる所）。今の案内の印の位置。
+function shPostPoint(rt) {
+  const id = shitaragahara.guideMarker(rt);
+  const m = id && rt.markers.find((x) => x.id === id);
+  const pt = m && (typeof m.pos === 'function' ? m.pos() : m.pos);
+  return pt || rt.flags.commandPt || rt.flags.prepPt;
+}
+
 const shitaragahara = {
+  // 稲生の水準：右上は任務の一行だけ。段の丸・小旗・避ける札・足元の白い輪・空振りの音は出さない。
+  missionSingleLine: true,
+  hideMissionDots: true,
+  nearbyAllySignLimit: 0,
+  noDodgeCard: true,
+  noPlayerFoot: true,
+  quietMiss: true,
+  inouFeel: true,
+  missionPinCaption: '',
+  missionDetail: () => '',
+  missionStatus: () => '',
+  // 大きな見出しは決着の時だけ。段の替わりは任務の一行とピンで伝える。
+  bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /退却|討ち取|勝/.test(t),
+  missions: ['持ち場へ', '柵を守れ', '▼の敵をたおせ', '大将をたおせ', '合図を待て', '馬場隊を追え', '組と帰れ'],
+  // 毎回いまの戦場から決める。討った・着いた瞬間に次の一行へ替わり、古い字を残さない。
+  missionOf(rt) {
+    const F = rt.flags;
+    if (F.ending) return 6;
+    if (shCommander(rt)) return 3;
+    if (F.chaseOrdered && !F.pursuit) return 4;
+    if (F.pursuit) {
+      const u = shNearestFoe(rt), me = rt.player.u.pos;
+      return u && Math.hypot(u.pos.x - me.x, u.pos.z - me.z) < 30 ? 2 : 5;
+    }
+    if (shNearestFoe(rt)) return 2;
+    const pt = shPostPoint(rt), me = rt.player.u.pos;
+    return pt && Math.hypot(pt.x - me.x, pt.z - me.z) > 7 ? 0 : 1;
+  },
+  missionHeading(rt) {
+    const i = shitaragahara.missionOf(rt);
+    if (i === 3) return `${shCommander(rt).name}をたおせ`;
+    return shitaragahara.missions[i];
+  },
+  commanderTarget: (rt) => shCommander(rt),
+  missionSignTarget(rt) {
+    const i = shitaragahara.missionOf(rt);
+    return i === 3 ? shCommander(rt) : i === 2 ? shNearestFoe(rt) : null;
+  },
+  namedGuideTarget: (rt) => shCommander(rt),
+  // 守る段は持ち場に刺したまま（味方もそこへ集まる）。倒す段は一番近い残りの敵へ。追撃は殿の旗へ。
+  missionPin(rt) {
+    const F = rt.flags;
+    if (F.ending || rt.over || !rt.player.u.alive) return null;
+    const q = F.shPin || (F.shPin = { x: 0, z: 0, r: 5, hide: 5 });
+    const me = rt.player.u.pos, i = shitaragahara.missionOf(rt);
+    q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false; q.defend = false;
+    q.follow = false; q.fire = false; q.gate = false; q.footRing = false; q.area = false; q.passage = false;
+    if (i === 2 || i === 3) {
+      const u = i === 3 ? shCommander(rt) : shNearestFoe(rt);
+      // 槍の届く近さでは頭上の▼に任せ、足元にピンを重ねない。
+      if (!u || Math.hypot(u.pos.x - me.x, u.pos.z - me.z) < 12) return null;
+      q.x = u.pos.x; q.z = u.pos.z; q.r = q.hide = 8;
+      return q;
+    }
+    if (i === 5) {
+      const id = shitaragahara.guideMarker(rt), m = rt.markers.find((x) => x.id === id);
+      const pt = m && (typeof m.pos === 'function' ? m.pos() : m.pos);
+      if (!pt) return null;
+      q.x = pt.x; q.z = pt.z; q.r = q.hide = F.tsuigeki?.stage < 3 ? 3 : 7;
+      return q;
+    }
+    const pt = shPostPoint(rt);
+    if (!pt) return null;
+    q.x = pt.x; q.z = pt.z; q.r = q.hide = 5;
+    q.waiting = q.defend = true; q.arrived = Math.hypot(me.x - pt.x, me.z - pt.z) < 7;
+    return q;
+  },
   // 民は war_people の共有する形で描く。兵の名簿・人数・当たり・戦功へ加えない。
   civilianCrowd: { bounds: { minX: -740, maxX: 740, minZ: -740, maxZ: 740 }, bands: PEOPLE_BANDS },
   singlePassageArrow: true, // 次に通る柵のすき間を、一つの矢印で示す。
@@ -876,9 +989,7 @@ const shitaragahara = {
     return frame;
   },
   introTaskFirst: true, // 横画面でも、人物紹介より先に柵を守る下知を見せる。
-  introText: () => isTouch
-    ? '柵のうしろで仲間と守る。画面下の札を長押しして槍を構え、敵のすきに「つく」。追い討ちの合図まで柵を出ない。'
-    : '柵のうしろで仲間と守る。右押しを押し続けて槍を構え、敵のすきに左押しで突く。追い討ちの合図まで柵を出ない。',
+  introText: '武田の騎馬が柵へ寄せてくる。ピンの柵の内で敵を突き、合図のあと馬場隊を追え。',
   taskText(rt, text) {
     const F = rt.flags;
     if (F.ending) return text;
@@ -1130,7 +1241,7 @@ const shitaragahara = {
     // この戦の軍勢だけを包み、共有の形・矢の当たり・寿命は変えない。
     const batchDraw = rt.army.batchDraw;
     rt.army.batchDraw = function (camera) {
-      this.syncPinnedArrowScales();
+      this.syncPinnedArrowScales?.();   // 共有の側で外された時も描くのを止めない
       return batchDraw.call(this, camera);
     };
     // 坂を壁と同じ処理で抜くと、足元に白い遠景が三角形に露出する。
@@ -1456,6 +1567,11 @@ const shitaragahara = {
       if (smallGuard) o = { ...o, near: true, detailPerSoldier: true,
         detailMiddle: o.detailMiddle ?? 48 };
       const h = addDistantArmy(o);
+      // 視野の外で形を作らなかった空の軍勢（emptyDistantArmy）。下の書き込みで支度を止めない。
+      if (!h.army?.body) {
+        if (h.army && !h.army.U) h.army.U = { uNear: { value: 0 }, uRealNear: { value: 0 }, uSplitR: { value: new THREE.Vector3() } };
+        return h;
+      }
       if (smallGuard) {
         h.army.U.uSplitR.value.x = 28;
         h.army.body.userData.soldierDetailNear = 28;
@@ -2654,7 +2770,6 @@ const shitaragahara = {
       flag.rotation.z = Math.min(1.1, F.overrunT / OVERRUN_LIMIT * 1.1);
       if (F.overrunT >= 2 && !(F.overrunWarnAt > rt.t)) {
         F.overrunWarnAt = rt.t + 8;
-        rt.bark('奥の柵が危ない！　組と戻り、敵を押し返せ！', true);
       }
       if (F.overrunT >= 2) {
         if (!F.overrunShown) rt.marker('overrun', { x: -21, z: F.cur.def.z }, '押し返す奥の柵', SH_HOLD_GUIDE);
@@ -2771,7 +2886,7 @@ const shitaragahara = {
     }
     // 柵の外へ出たか（打って出る下知の間は咎めない）
     if (!F.pursuit && p.x > SH_FRONT && !rt.G.lord) {
-      if (!(F.outT > 0) && rt.t >= (F.outCallT || 0)) { F.outCallT = rt.t + 8; rt.bark('下知なく柵の外へ出るな！　持ち場へ戻れ！', true); }
+      if (!(F.outT > 0) && rt.t >= (F.outCallT || 0)) F.outCallT = rt.t + 8;
       F.outT = (F.outT || 0) + dt;
       if (F.outT > 3 && !F.outWarned) {
         F.outWarned = true;
@@ -3081,10 +3196,7 @@ const shitaragahara = {
       rt.marker('breach', { x: F.noticePt.x, z: F.noticePt.z }, '破れた柵 ◆', { h: 4, noGuide: true });
       // 柵破りの下知は fallBack にまとめる。南北の破れ目は印で示す。
     }
-    // 足軽大将以上（鉄砲の一手を預かる・侍大将）には、区画の柵の残り（細いゲージ）と突破口の広さを知らせる（60〜62 章）
-    if (s.row === 0 && s.zone && (rt.G.lord || rt.G.rank >= 4) && Math.abs(rt.player.u.pos.z - (s.seg[1] + s.seg[3]) / 2) < 40) {
-      if (sightPoint(rt, F.noticePt, 55)) rt.bark('柵が破られた。槍で破れ目を塞げ！');
-    }
+    // 破れ目は印で示す。字の知らせは出さない（稲生の水準）。
     sfx('wood', 1);
   },
   onStructHit(rt, s) {
@@ -3094,9 +3206,7 @@ const shitaragahara = {
     F.noticePt.x = (s.seg[0] + s.seg[2]) / 2; F.noticePt.z = (s.seg[1] + s.seg[3]) / 2;
     if (!sightPoint(rt, F.noticePt, 55)) return;
     F.hitWarn = rt.t;
-    const z = (s.seg[1] + s.seg[3]) / 2;
-    const who = '敵の兵';
-    rt.bark(`${z < -30 ? '北' : z > 30 ? '南' : '正面'}の柵に${who}が取り付いた！`, true);
+    // 取り付いた敵は頭上の▼とピンで示す。字の知らせは出さない（稲生の水準）。
   },
 };
 // 総勢は歴史欄だけに置く。個々の討死から全軍の損害へ倍率を掛けない。

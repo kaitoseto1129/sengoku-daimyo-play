@@ -1,5 +1,5 @@
 // 戦場の頭上の印（全戦。kaito 10/23 稲生 40・41・46）
-//   共通の敵は剣、味方は旗。頭の上に固定し、近くの兵を覆わない。
+//   共通の敵は剣、味方は丸。頭の上に固定し、近くの兵を覆わない。
 //   武将：今の行動に関係する一人の名と体力の棒
 //   形と材質は戦ごとに一度だけ作り、毎コマ new しない。
 import * as THREE from 'three';
@@ -122,17 +122,15 @@ function build(rt, root) {
   }
   const marks = new THREE.InstancedMesh(tri, triMat, CAP);
   marks.count = 0; marks.frustumCulled = false; marks.renderOrder = 5;
-  const circle = compact ? outlinedSign([[-.14,0],[-.14,.44],[.17,.44],[.10,.32],[.17,.20],[-.07,.20],[-.07,0]], 0xffedb0) : new THREE.RingGeometry(.065, .17, 16, 3);
+  const circle = new THREE.RingGeometry(.065, .17, 16, 3);
   const ringColors = [];
   for (let i = 0; i < 4; i++) {
     const c = new THREE.Color(i === 0 || i === 3 ? 0x14120f : 0xffedb0);
     for (let j = 0; j <= 16; j++) ringColors.push(c.r, c.g, c.b);
   }
-  if (!compact) {
-    circle.setAttribute('color', new THREE.Float32BufferAttribute(ringColors, 3));
-    circle.translate(0, .13, 0);
-  }
-  const allyMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, fog: false, depthWrite: false, depthTest: !compact });
+  circle.setAttribute('color', new THREE.Float32BufferAttribute(ringColors, 3));
+  circle.translate(0, .13, 0);
+  const allyMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, fog: false, depthWrite: false, depthTest: false });
   const allies = new THREE.InstancedMesh(circle, allyMat, CAP);
   allies.count = 0; allies.frustumCulled = false; allies.renderOrder = 5;
   const bar = new THREE.PlaneGeometry(1, 0.045); bar.translate(0.5, 0, 0);
@@ -214,6 +212,7 @@ export function fieldSignsTick(rt, root) {
   const moribe = rt.def.key === 'moribe';
   const commander = rt.def.commanderSignTarget?.(rt) || rt.def.commanderTarget?.(rt) || null;
   const inou = rt.def.key === 'inou';
+  // 白縁は実際に届く本人だけに使う。追う相手の選択だけでは変えない。
   const practiceGroup = inou ? rt.def.enemyTriangleGroup?.(rt) : null;
   const oke = rt.def.key === 'okehazama';
   s.signCandidates.length = 0;
@@ -255,10 +254,11 @@ export function fieldSignsTick(rt, root) {
   let n = 0, a = 0, b = 0, hotN = 0;
   const gens = s.gens; gens.length = 0;
   if (!hide) for (const u of rt.army.units) {
-    // 討った本人の最後の頭上で印を閉じる。隣の立った兵へ乗り換えない。
+    // 稲生は倒れ始めたら即座に消す。倒れた兵を攻撃対象に見せない。
     const defeatUntil = inou ? u.inouDefeatUntil : moribe ? u.moribeDefeatUntil : oke ? u.okeDefeatUntil : 0;
-    const defeated = special && (!u.alive || u.dying || u.downed || u.woundOut || u.rearWound) &&
+    const defeated = special && !inou && (!u.alive || u.dying || u.downed || u.woundOut || u.rearWound) &&
       (defeatUntil || 0) > rt.t && u._inouSignY != null;
+    if (inou && (u.hp <= 0 || u.fleeing || u.mesh?.visible === false || u.camHidden)) continue;
     if ((!u.alive || u.dying || u.woundOut || u.rearWound || u.downed) && !defeated || u.gone || u.isPlayer || u.isStruct || u.civ || u.type === 'dummy' || u.type === 'porter' || u.team > 1) continue;
     const dx = u.pos.x - P.x, dz = u.pos.z - P.z, d2 = dx * dx + dz * dz;
     const foe = u.team !== me.team;
@@ -266,6 +266,21 @@ export function fieldSignsTick(rt, root) {
     // 追う本人は大きさ、攻撃が届く本人は白縁で区別する。
     // 追う相手が替わっても、命中した本人の▼を残す。
     const meD2 = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
+    // 近くの味方は丸。既存の描画の束と行列を使い、人数や戦い方は変えない。
+    if (special && !foe) {
+      if (a >= 8 || meD2 > 36 || u.fleeing || u.mesh?.visible === false || u.camHidden) continue;
+      v.set(u.pos.x, headY(u) + .12, u.pos.z).applyMatrix4(cam.matrixWorldInverse);
+      if (v.z >= 0) continue;
+      if (u._allySignAt == null || rt.t >= u._allySignAt || rt.t < u._allySignAt - .2) {
+        u._allySignSeen = sightScreenUnit(rt, u); u._allySignAt = rt.t + .2;
+      }
+      if (!u._allySignSeen) continue;
+      const size = 14 * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34);
+      dummy.position.set(u.pos.x, headY(u) + .12, u.pos.z);
+      dummy.quaternion.copy(q); dummy.scale.setScalar(Math.min(1.2, size)); dummy.updateMatrix();
+      s.allies.setMatrixAt(a++, dummy.matrix);
+      continue;
+    }
     // 小戦の対象を覚える。所属の赤い▼は周囲の敵にも残す。
     const practiceEnemy = practiceGroup && u.group === practiceGroup && u.hp > 0 &&
       !u.fleeing && !u.downed && !u.woundOut && !u.rearWound && !u.dying;
@@ -295,10 +310,10 @@ export function fieldSignsTick(rt, root) {
       }
       if (!u._focusSignSeen) continue;
     }
-    // 狙う本人のひし形が出ている間は、同じ頭上に通常の印を重ねない。
-    if (!moribe && !inou && u === focusEnemy && rt.hud.missionEnemyShown || u === marked && !oke && !inou && !moribe) continue;
+    // 大きな目標の▼が出ている間は、同じ頭上に通常の印を重ねない。
+    if (u === rt.army.missionMarkedEnemy && rt.hud.missionEnemyShown || u === marked && !oke && !inou && !moribe) continue;
     if (inou && !defeated && !near && (u.mesh?.visible === false || u.camHidden)) continue;
-    // 稲生・森部は敵の赤い▼だけ。味方の丸と重ねて所属を迷わせない。
+    // 近い味方の丸は上で描いたので、遠い味方へ印を増やさない。
     if ((moribe || inou || rt.def.key === 'okehazama') && !foe) continue;
     // 森部は見える敵全員へ同じ▼を付ける。控えや対岸の兵も所属を変えない。
     // 見通しの上限と揃え、武将だけ印が残る距離の違いをなくす。

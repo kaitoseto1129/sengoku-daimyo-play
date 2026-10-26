@@ -559,13 +559,94 @@ const TOKUGAWA_JIN = {
   })),
 };
 
+// ---- 稲生の型（inou-standard）：守る持ち場・最寄りの残敵・赤備えの大将・退く道を、毎回いまの戦場から決める ----
+const PIKE_POST = { x: 14, z: LINE_Z - 2 };
+// 今の段が守る所（null は退く段）。
+function mikataPost(rt) {
+  const F = rt.flags;
+  if (!rt.player || F.ending || F.step >= 3) return null;
+  if (F.dpOn && F.dpB) return F.dp?.cur?.s.kind === 'hold' ? F.dp.cur.at : null;
+  if (F.dpOn) return HIRATE_POST;
+  return F.step === 2 && !F.mkFlank ? PIKE_POST : F.step === 2 ? { x: 46, z: -44 } : HIRATE_POST;
+}
+// 持ち場へ寄せる一番近い残りの敵。半秒ごとに選び直し、毎コマ全員を見ない。
+const mikataFoeOk = (u, team) => u?.alive && !u.gone && !u.dying && !u.fleeing && !u.woundOut && !u.downed && !u.noTarget &&
+  !u.isStruct && !u.civ && u.team !== team && u.team <= 1 && u.group && !u.group.routed && !u.group.noAI && u.type !== 'dummy';
+function mikataNearestFoe(rt) {
+  const F = rt.flags, me = rt.player.u, post = mikataPost(rt);
+  if (!post) return null;
+  if (rt.t < (F.mkFoeAt || 0) && (F.mkFoe === null || mikataFoeOk(F.mkFoe, me.team))) return F.mkFoe;
+  F.mkFoeAt = rt.t + .5;
+  let best = null, bd = Infinity;
+  for (const u of rt.army.units) {
+    if (!mikataFoeOk(u, me.team) || Math.hypot(u.pos.x - post.x, u.pos.z - post.z) > 34) continue;
+    const d = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
+    if (d < bd) { bd = d; best = u; }
+  }
+  return (F.mkFoe = best);
+}
+// 赤備えを率いる山県昌景。寄せてきた間だけ名・命の棒・大きな▼を付ける。
+function mikataCommander(rt) {
+  const F = rt.flags, u = F.yamaU;
+  if (!rt.player || F.step !== 2 || F.dpOn || F.ending || rt.over || !mikataFoeOk(u, rt.player.u.team)) return null;
+  return Math.hypot(u.pos.x - rt.player.u.pos.x, u.pos.z - rt.player.u.pos.z) < 45 ? u : null;
+}
+
 const mikatagahara = {
+  // ---- 稲生の型：右上は任務の一行・行き先はピン一本・敵は頭上の▼・大将は印 ----
+  missionSingleLine: true,
+  hideMissionDots: true,
+  enemyTriangleSigns: true,
+  nearbyAllySignLimit: 0,
+  noDodgeCard: true,
+  noPlayerFoot: true,
+  quietMiss: true, // 外れは音なし。当たりの音・よろけ・血しぶきだけで手応えを示す。
+  missionPinCaption: '',
+  missionDetail: () => '',
+  missionStatus: () => '',
+  bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|討ち死|帰着|取り残/.test(t),
+  missions: ['ここを守れ', '▼の敵をたおせ', '山県昌景を退けよ', '浜松城へ退け'],
+  // 討った・着いた瞬間に次の一行へ替わり、古い字を残さない。
+  missionOf(rt) {
+    if (!mikataPost(rt)) return 3;
+    if (mikataCommander(rt)) return 2;
+    return mikataNearestFoe(rt) ? 1 : 0;
+  },
+  missionHeading(rt) { return mikatagahara.missions[mikatagahara.missionOf(rt)]; },
+  commanderTarget: (rt) => mikataCommander(rt),
+  missionSignTarget: (rt) => mikataCommander(rt),
+  namedGuideTarget: (rt) => mikataCommander(rt),
+  // 守る段は持ち場へ（着いても残し、味方がそこへ集まる）。戦う段は一番近い残りの敵へ。退く段は道の印へ。
+  missionPin(rt) {
+    const F = rt.flags;
+    if (F.ending || rt.over || !rt.player?.u.alive) return null;
+    const q = F.mkPin || (F.mkPin = { x: 0, z: 0, r: 5, hide: 5 });
+    const me = rt.player.u.pos, stage = mikatagahara.missionOf(rt);
+    q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false;
+    if (stage === 3) {
+      const p = F.step >= 3 ? F.retreatPoint : F.dp?.cur?.at || (F.dp?.i < 2 ? SOUTH_SLOPE : REARGUARD_POST);
+      if (!p) return null;
+      q.x = p.x; q.z = p.z; q.r = q.hide = 5;
+      return q;
+    }
+    if (stage === 0) {
+      const p = mikataPost(rt);
+      q.x = p.x; q.z = p.z; q.r = q.hide = 5;
+      q.waiting = true; q.arrived = Math.hypot(me.x - p.x, me.z - p.z) < 5;
+      return q;
+    }
+    const u = stage === 2 ? mikataCommander(rt) : mikataNearestFoe(rt);
+    // 槍の届く近さでは頭上の▼に任せ、足元にピンを重ねない。
+    if (!u || Math.hypot(u.pos.x - me.x, u.pos.z - me.z) < 12) return null;
+    q.x = u.pos.x; q.z = u.pos.z; q.r = q.hide = 8;
+    return q;
+  },
   compactIntro: true,
   footFrameMinDistance: 2.5, // 篝火や陣幕で肩へ寄った時、足を映す補正で真下を向かない。
   introTaskFirst: true, // 人物紹介より先に、旗へ進む下知と生還の条件を読めるようにする。
   // war_people の共有形と近景の使い回しを使う。兵の名簿・人数へは足さない。
   civilianCrowd: { bands: PEOPLE_BANDS },
-  introText: `目の前の印が平手の槍の持ち場。印へ進み、敵へ槍を向けて${isTouch ? '「ふせぐ」を押し続けよう' : '右押しを押し続けよう'}。退けの声がしたら、構えを解こう。道の印を追って浜松城へ戻ろう。`,
+  introText: '武田の大軍が三方ヶ原に寄せる。ピンの持ち場で寄せを支え、退けの声で浜松城へ退け。',
   nobiki: true, // 負け戦の退き口：法螺貝と退き太鼓で退けを知らせる（battle.js の signalCue）
   noticeOnce: true,
   noticeLimit: 2,
@@ -1197,8 +1278,6 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     rt.army.hooks.onArrowRain = (volley, under) => {
       if (!under || volley.team === rt.player.u.team || rt.t < 5 || rt.over || rt.ended || F.ending) return;
       F.rainNoticeUntil = Math.max(F.rainNoticeUntil, rt.t + volley.T + 0.4);
-      rt.hud.notices.push('▲ 敵の矢が降る。その場を離れよ', 110, Math.max(3, volley.T + 0.4), 'warn',
-        () => !rt.over && !rt.ended && !F.ending && rt.player.u.alive && rt.t < F.rainNoticeUntil);
     };
     const bark = rt.bark;
     rt.bark = function (text, ...args) {
@@ -1521,9 +1600,10 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     takedaMove(rt, 'crash');
     fadeMikataLook(rt, TWILIGHT);   // 夕刻→薄暮→（退き口で）夜
     F.aka = enemyGroup(rt, { fixed: true, faction: 'akazonae', name: '山県の赤備え', anchor: { x: 300 / 16, z: TAKEDA_HQ_Z + TAKEDA_SECOND + 34 }, facing: -Math.PI * 0.8, order: 'hold', seekRange: 140, aggro: 10, width: 14, morale: 100, noRout: true, fleeDir: { x: 1, z: -1 }, dmgMult: 1 },
-      depthLook(rt, [{ type: 'samurai', n: 1, o: { horse: true } }, { type: 'cavalry', n: 9 + more(rt, 0.2) }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 10 }], AKA));
+      depthLook(rt, [{ type: 'samurai', n: 1, o: { horse: true, name: '山県昌景', hat: 'kabuto_m' } }, { type: 'cavalry', n: 9 + more(rt, 0.2) }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 10 }], AKA));
     // 備えの主将は遠景からの実体化だけで置き、突撃隊に複製しない。
     F.aka0 = F.aka.count;
+    F.yamaU = F.aka.units.find((u) => u.name === '山県昌景') || null;
     // 判断：赤備えをどう受けるか（時間切れは槍衾。受け方で傷と手柄が変わる）。赤備えは森の際で馬を揃えてから駆け出す
     const go = () => {
       if (F.ending || F.step !== 2 || F.dpOn || gone(F.aka) || F.aka.order !== 'hold') return;
@@ -1549,7 +1629,7 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     rt.after(17, go);
     rt.after(1, () => {
       if (F.step !== 2 || F.ending) return;
-      if (!HI(rt)) {
+      if (!HI(rt) || mikatagahara.missionSingleLine) {
         F.mkFlank = false;
         rt.marker('pike', { x: 14, z: LINE_Z - 2 }, '味方と馬を受ける持ち場', { h: 2, guideAlways: true });
         rt.say('組頭', '右へ向け！　隣の槍と隙間を空けるな！', 3);
@@ -1722,7 +1802,7 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     }
     // 手ほどきは一度きりなので、深手になる前に原因と退き方を字幕でも知らせる。
     const hit = rt.player.lastHit;
-    if (F.step > 0 && rt.player.u.hp < rt.player.u.maxHp * 0.65 && hit && rt.t - hit.t < 8 && !(F.woundWarnT > rt.t)) {
+    if (!mikatagahara.missionSingleLine && F.step > 0 && rt.player.u.hp < rt.player.u.maxHp * 0.65 && hit && rt.t - hit.t < 8 && !(F.woundWarnT > rt.t)) {
       F.woundWarnT = rt.t + 32;
       const cause = hit.ranged ? (hit.type === 'bow' ? '矢が当たった！' : '鉄砲で撃たれた！') : hit.back ? '背中を突かれた！' : hit.side ? '横から打たれた！' : '正面から打たれた！';
       const withdrawing = F.step === 3 || F.dpOn && F.dpB;
@@ -1748,7 +1828,7 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
         const yaw = rt.player.yaw, front = dx * Math.sin(yaw) + dz * Math.cos(yaw);
         const side = -dx * Math.cos(yaw) + dz * Math.sin(yaw);
         const dir = front < 0 ? '背後' : side > 8 ? '右前' : side < -8 ? '左前' : '正面';
-        rt.bark(`${dir}に武田の鉄砲！　筒先から横へ外れよ`, true);
+        if (!mikatagahara.missionSingleLine) rt.bark(`${dir}に武田の鉄砲！　筒先から横へ外れよ`, true);
       }
     }
     // 備えの足元が接した所で押し合う。離れた備えに損害を与えない。
@@ -1791,7 +1871,7 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
       if (F.w1.count < 6 && !gone(F.w1)) F.w1.morale = Math.min(F.w1.morale, 25);
       // 武田の奥へ出たことを記録する。別の勝ち筋にはしない。
       if (!F.overchase && p.z < -85) F.overchase = true;
-      if ((gone(F.w1) && rt.t - F.stepT > 18) || rt.t - F.stepT > 55) this.deep(rt, 'A');
+      if ((gone(F.w1) && (gone(F.scout) || rt.t - F.stepT > 18)) || rt.t - F.stepT > 55) this.deep(rt, 'A');
     }
     if (F.step === 2) {
       if (!F.akaEngaged) for (const q of F.aka.units) {
@@ -1805,7 +1885,14 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
         for (const q of rt.squad) if (q.alive && !q.fleeing && !q.woundOut && q.atk && q.target?.group === F.aka && Math.hypot(q.pos.x - 46, q.pos.z + 44) < 18) F.mkFlankFought = true;
       }
       if (!F.dpOn) rt.objProgress('main', F.mkFlank ? (F.mkFlankArrived ? '味方と赤備えの横腹へ当たれ' : '森の陰へ進め。味方から離れるな') : '右へ槍を向け、味方と列を保て');
-      if (rt.t - F.stepT > 45 || ((F.flankBroken || F.aka.count < 8) && rt.t - F.stepT > 28)) {
+      const yama = F.yamaU;
+      if (yama && !F.yamaOut && (!yama.alive || yama.hp < yama.maxHp * 0.5)) {
+        // 史実でここでは討たれぬ大将は、手負いで退く。赤備えもその場で崩れる。
+        F.yamaOut = true; yama.invuln = true;
+        F.aka.noRout = false; F.aka.morale = 0;
+        rt.say('足軽', '山県が退いたがや！　赤備えが崩れたで！', 3);
+      }
+      if (rt.t - F.stepT > 45 || F.yamaOut || gone(F.aka) || ((F.flankBroken || F.aka.count < 8) && rt.t - F.stepT > 28)) {
         rt.unmark('pike');
         if (rt.player.u.alive && !F.akaPaid) {
           F.akaPaid = true;
@@ -2171,7 +2258,9 @@ function withstand(o) {
     rt.objProgress('main', !inPost ? returnHint : o.cover
       ? `${coverState}。${coverHint}。${left}秒以内に退けの声`
       : `敵へ槍を向け、${isTouch ? '長押しでふせぐ' : '右押しを押し続けてふせぐ'}。${left}秒以内に次の下知`);
-    return C.waves.length === 0 && (el >= o.dur || o.cover && C.inT >= 20 && C.coverPassed > 0 && el >= 26);
+    // 寄せの組が尽きたら刻限を待たずに次へ（倒した瞬間に一行が替わる）。
+    const cleared = C.waves.length === 0 && el >= 8 && C.groups.every((g) => gone(g));
+    return C.waves.length === 0 && (el >= o.dur || cleared || o.cover && C.inT >= 20 && C.coverPassed > 0 && el >= 26);
   };
   s.end = (rt, C, m) => {
     rt.unmark('dp'); rt.unzone('dp');
@@ -2219,7 +2308,7 @@ function withdraw(o) {
     rt.objProgress('main', C.arr ? '北の追手へ構え、味方を先に通せ'
       : `追手を深追いせず、南の坂の道印へ。あと${distance}歩`);
     // 坂では次の段で味方を守る。ここで待ち伏せを二十五秒受け続けない。
-    return done || C.arr && el - C.arrT >= 4;
+    return done || C.arr;
   };
   s.end = (rt, C) => {
     rt.unmark('dp'); rt.unzone('dp');
