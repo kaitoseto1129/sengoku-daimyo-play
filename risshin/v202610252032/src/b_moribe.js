@@ -15,7 +15,7 @@ import { addInterior } from './naka.js';
 import { sendOrder } from './denrei.js';
 import { nagashinojo } from './b_nagashinojo.js';
 import { sfx } from './audio.js';
-import { sightPoint } from './battle_sight.js';
+import { sightPoint, sightScreenUnit } from './battle_sight.js';
 import { revealName } from './battle_intel.js';
 import { gone as groupGone, seasonOf } from './b_shared.js';
 import { camp } from './b_mid.js';
@@ -47,6 +47,8 @@ const FORD_R = 4;
 // 横へそれた岸もその場の水際で判定し、ピンの奥行きまで歩き直させない。
 const atFordBank = (p, world) => p.z < nireZ(p.x) &&
   distToPolyline(p.x, p.z, world.def.streams[1].pts) >= world.def.streams[1].w;
+// 自分の到着は、岸のピンの上に立った時も含める（ピンの丸と判定をそろえる。稲生と同じ）。
+const playerAtFord = (p, world) => atFordBank(p, world) || Math.hypot(p.x - POINT2.x, p.z - POINT2.z) < 3;
 const FRONT2 = { x: 4, z: 20 };
 const ASSEMBLY2 = { x: 14, z: 10 };
 const RETREAT2 = { x: 24, z: 48 };
@@ -1024,9 +1026,40 @@ function quietOtherFlags(rt, keep) {
 const F_autoAt = (rt) => rt.flags.autoOrderAt || 0;
 const moribeFoeReady = (u, p) => u?.alive && !u.gone && !u.dying && !u.fleeing && !u.woundOut &&
   !u.noTarget && !u.isStruct && !u.civ && u.team !== p.u.team && u.mesh?.visible !== false;
+// 前に見える敵が無い時は、残り人数に数える隊の最寄りの一人（稲生の approachUnit と同じ考え）。
+//   向き・見通しで外さず、ピンが画面の端からその方向を示す。選び直しは四分の一秒に一度。
+const moribeRemainFoe = (u) => u?.alive && !u.gone && !u.dying && !u.fleeing && !u.woundOut && !u.noTarget && !u.isStruct && !u.civ;
+function moribeNearestFoe(rt) {
+  const F = rt.flags, p = rt.player.u.pos;
+  if (rt.t < (F.remainAt || 0) && F.remainStage === F.stage && moribeRemainFoe(F.remainFoe)) return F.remainFoe;
+  F.remainAt = rt.t + .25; F.remainStage = F.stage;
+  let chosen = null, best = Infinity;
+  const pick = (g) => {
+    if (!g || gone(g)) return;
+    for (const u of g.units) {
+      if (!moribeRemainFoe(u)) continue;
+      const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
+      if (d < best) { best = d; chosen = u; }
+    }
+  };
+  if (F.stage === 'contact' && !F.vBroken) pick(F.V);
+  else for (const g of F.opposition || []) {
+    if ((g === F.reserves?.[0] && !F.wave1) || (g === F.reserves?.[1] && !F.wave2) || (g.hatamoto && F.stage !== 'press')) continue;
+    pick(g);
+  }
+  // 少しの前後では替えず、追う相手を保つ。
+  const prev = F.remainFoe;
+  if (chosen && prev !== chosen && moribeRemainFoe(prev) && (F.stage !== 'contact' || F.vBroken || prev.group === F.V)) {
+    const dp = (prev.pos.x - p.x) ** 2 + (prev.pos.z - p.z) ** 2;
+    if (Math.sqrt(best) + 3 >= Math.sqrt(dp)) chosen = prev;
+  }
+  F.remainFoe = chosen;
+  return chosen;
+}
 
 const moribe = {
   compactIntro: true,
+  noCouriers: true,  // 戦に加わらない伝令の騎馬は置かない（稲生と同じ。kaito 10/24「動かない味方と敵は一切排除」）。馬の分の記憶も空く。
   introName: '森部（もりべ）の戦い',
   introTaskFirst: true,
   introPeopleFolded: true,   // 横持ちでは下知を先に読み、人物紹介は自分で開く。
@@ -1076,7 +1109,7 @@ const moribe = {
     const vanguard = !F.signal || F.stage === 'contact' && !F.vBroken ? F.V : null;
     if (p.inRange && moribeFoeReady(p.rangeCueTarget, p) &&
         (!vanguard || p.rangeCueTarget.group === vanguard)) return p.rangeCueTarget;
-    if (rt.t < F.signTargetAt && F.signStage === F.stage && moribeFoeReady(F.signTarget, p) &&
+    if (rt.t < F.signTargetAt && F.signStage === F.stage && (moribeFoeReady(F.signTarget, p) || F.signTarget === F.remainFoe && moribeRemainFoe(F.signTarget)) &&
         (!vanguard || F.signTarget.group === vanguard)) return F.signTarget;
     F.signTargetAt = rt.t + .25; F.signStage = F.stage;
     let target = null, best = F.signal ? 48 * 48 : 80 * 80;
@@ -1091,6 +1124,8 @@ const moribe = {
       if (d >= best || !sightPoint(rt, u.pos)) continue;
       best = d; target = u;
     }
+    // 前に見える敵が無ければ、残りの最寄りの一人へ。▼は見えた時に出て、見えない間はピンが向きを示す。
+    if (!target && (F.stage === 'contact' || F.stage === 'press')) target = moribeNearestFoe(rt);
     F.signTarget = target;
     return target;
   },
@@ -1109,14 +1144,14 @@ const moribe = {
   missionHeading(rt) {
     const F = rt.flags, p = rt.player.u.pos;
     // 渡河済みのコマから待機へ替える。集合判定の更新を待たせない。
-    if (!F.signal && (F.pointReached || F.pointInside || atFordBank(p, rt.world))) return F.fordThreat ? '▼の敵を倒せ' : '仲間を待て';
+    if (!F.signal && (F.pointReached || F.pointInside || playerAtFord(p, rt.world))) return F.fordThreat ? '▼の敵を倒せ' : '仲間を待て';
     // 集まる間と、その場で耐える間を同じ一行で区別する。向き・距離は書かない。
     if (F.stage === 'assemble') {
       if (F.gatherUnit || Math.hypot(p.x - F.asm.x, p.z - F.asm.z) >= 12) return '仲間と集まれ';
       return '仲間を待て';
     }
-    // 守備は撃破人数を求めず、迎え撃ちながら耐える任務と伝える。
-    if (F.stage === 'hold') return F.lineReturning ? '仲間と集まれ' : '敵と戦って耐えろ';
+    // 守る段は稲生と同じ一行。守る所はピン、味方はその左右へ寄る。
+    if (F.stage === 'hold') return F.lineReturning ? '仲間と集まれ' : '耐えろ';
     if (F.squadGuide && Math.hypot(p.x - F.squadGuide.pos.x, p.z - F.squadGuide.pos.z) >= 16 ||
         !F.signal && F.pointReached && !F.pointInside ||
         (F.stage === 'hold' || F.stage === 'contact' && F.vBroken) && F.lineReturning)
@@ -1197,17 +1232,26 @@ const moribe = {
     // 人を追う印と地面の小旗を区別し、段が変わったら追う相手を消す。
     q.unit = null; q.enemy = false;
     // 着いた後の足元や画面端へ、移動を促す印を残さない。
-    q.waiting = false; q.arrived = false; q.crossing = false; q.progress = 0;
-    if (F.stage === 'contact' && !F.vBroken && !F.squadGuide) {
-      // 敵は赤い▼だけ。視点を回しても黄色い行き先のピンへ替えない。
-      return null;
-    }
+    q.waiting = false; q.arrived = false; q.crossing = false; q.progress = 0; q.guardArea = false;
     let pos = null, r = 6, hide = 6;
-    if (!F.signal) {
+    // 戦う段：敵は頭上の赤い▼。▼が見えない間だけ、残りの最寄りの敵へピンを向ける（稲生と同じ）。
+    if ((F.stage === 'contact' && !F.vBroken || F.stage === 'press') && !F.squadGuide) {
+      const foe = this.missionSignTarget(rt), pl = rt.player;
+      if (!moribeRemainFoe(foe) || pl.inRange && pl.rangeCueTarget === foe) return null;
+      if (rt.t >= (F.foeSeenAt || 0) || F.foeSeenUnit !== foe) {
+        F.foeSeenAt = rt.t + .25; F.foeSeenUnit = foe;
+        F.foeSeen = foe.mesh?.visible !== false && !foe.camHidden && sightScreenUnit(rt, foe);
+      }
+      if (F.foeSeen) return null;
+      pos = foe.pos; r = hide = 3;
+    }
+    if (pos) {
+      // 見えない敵の方向（上で決めた）。
+    } else if (!F.signal) {
       if (F.pointDone) return null;
       pos = POINT2; r = FORD_R; hide = 0;
       // 渡り終えた満杯のピンを一拍残してから、仲間を待つ時計へ替える。
-      q.arrived = !!(F.pointReached || F.pointInside || atFordBank(rt.player.u.pos, rt.world));
+      q.arrived = !!(F.pointReached || F.pointInside || playerAtFord(rt.player.u.pos, rt.world));
       q.waiting = q.arrived && rt.t - (F.fordArrivedAt ?? rt.t) >= .8;
       q.crossing = !q.waiting;
       // 渡った分を示し、到着の満杯を一拍残してから待機の進みに替える。
@@ -1231,7 +1275,8 @@ const moribe = {
       }
     } else if (F.stage === 'hold') {
       // 守備は動く仲間を追わせず、到着判定と同じ固定地点一本へ集める。
-      pos = F.linePoint; r = hide = 18;
+      pos = F.linePoint; r = hide = F.lineReturning ? 18 : 24;
+      q.guardArea = true;
       q.waiting = true; q.arrived = !F.lineReturning;
       q.progress = this.missionWaitProgress(rt) || 0;
     } else if (F.squadGuide) {
@@ -1243,10 +1288,6 @@ const moribe = {
       q.waiting = !F.gatherUnit;
       q.arrived = q.waiting && Math.hypot(rt.player.u.pos.x - pos.x, rt.player.u.pos.z - pos.z) < r;
       q.progress = q.arrived ? Math.min(1, (F.assembleT || 0) / 8) : 0;
-    } else if (F.stage === 'press' && F.pursuing) {
-      return null; // 敵を追う段は赤い▼だけ。地面の行き先と混ぜない。
-    } else if (F.stage === 'press') {
-      return null; // 討つ武将も頭上の赤い▼にそろえる。
     } else if (F.vBroken) {
       if (!F.lineReturning) return null;
       pos = F.linePoint;
@@ -1781,9 +1822,9 @@ html body #hud.moribe-notices .bl #h-hp.hp em {
  font-size:max(15px, calc(15px * var(--text-scale, 1))) !important; line-height:1.5;
 }
 html body #hud.moribe-notices .bl #h-hp.hp em svg { width:18px; height:22px; }
-/* 手前の槍や旗を地図の道と取り違えないよう、和紙の裏まで不透明にする。 */
+/* 行き先はピン、敵は頭上の赤い▼。同じ意味の小地図の印を重ねない。 */
 html body #hud.moribe-notices #minimap,
-html body #hud.moribe-notices.lean.calm #minimap { background:#e8ddc2; opacity:1 !important; }
+html body #hud.moribe-notices.lean.calm #minimap { display:none !important; }
 html body #hud.moribe-notices #battle-notices #objectives.travel-retreat:not(.expand) li.cur .obj-now {
  font-size:max(18px, calc(18px * var(--text-scale, 1))) !important;
  line-height:1.4; white-space:normal !important; overflow-wrap:anywhere !important; word-break:normal !important;
@@ -2208,10 +2249,11 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         if (!t.alive || t.dying || t.downed || t.woundOut || t.rearWound) t.moribeDefeatUntil = rt.t + 1.8;
         // 命を減らした本人だけがよろめく。空振りや味方には反応を付けない。
         if (t.alive && !blocked) {
-          // 共通の膝を崩す動きは残り .7 秒超で始まる。構えを止めるだけにしない。
-          t.stagger = Math.max(t.stagger || 0, 1.1);
+          // 生きている敵は上体をのけぞらせて戻す。膝を落として討死に見せない。
+          t.flinchT = .32;
+          t.stagger = Math.max(t.stagger || 0, .65);
           // 突きの途中の姿を残さず、命中した本人のよろめきを見せる。
-          t.atk = null; t.swing = null; t.cd = Math.max(t.cd || 0, 1.1);
+          t.atk = null; t.swing = null; t.cd = Math.max(t.cd || 0, .65);
           // 当たった体を小さく押し戻し、重なった隣の兵と反応を見分ける。
           if (t.push && !t.mounted && !t.isStruct) {
             const dx = t.pos.x - src.pos.x, dz = t.pos.z - src.pos.z;
@@ -2245,9 +2287,9 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     // 両将は備の後ろで旗本の侍に囲まれて控え、槍の押し合いの後に自ら前へ出る（位置と人数は復元）。
     // 大将の生きている間は旗本が踏みとどまる。両将の首が勝ち戦の山場（公記：両将を含む百七十余人討死）。
     rt.flags.HM = enemyGroup(rt, { faction: 'saito', name: '日比野下野守の旗本', fixed: true, anchor: { x: -8, z: -54 }, facing: 0, fleeDir: { x: 0, z: -1 }, aggro: 3, morale: 100, noRout: true, formation: 'yari', yariRanks: 2 },
-      [{ type: 'busho', n: 1, o: { name: '日比野下野守' } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }]);
+      [{ type: 'busho', n: 1, o: { name: '日比野下野守', flagScale: 2.2 } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }]);
     rt.flags.HN = enemyGroup(rt, { faction: 'saito', name: '長井甲斐守の旗本', fixed: true, anchor: { x: -36, z: -58 }, facing: 0, fleeDir: { x: -0.2, z: -1 }, aggro: 3, morale: 100, noRout: true, formation: 'yari', yariRanks: 2 },
-      [{ type: 'busho', n: 1, o: { name: '長井甲斐守' } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }]);
+      [{ type: 'busho', n: 1, o: { name: '長井甲斐守', flagScale: 2.2 } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }]);
     rt.flags.HM.hatamoto = rt.flags.HN.hatamoto = true;
     // 畦道沿いの持ち場で迎え撃つ。広い野へ味方を追い続けさせない。
     for (const g of [rt.flags.HM, rt.flags.HN]) {
@@ -2430,7 +2472,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     // 渡河の到着だけはピンと同じコマで反映する。隊の見直しの一秒を待たせない。
     if (!F.signal) {
       // 一度渡った後は北岸全体を到着済みとする。小旗を通り越しても戻らせない。
-      F.pointInside = F.pointReached || atFordBank(p, rt.world);
+      F.pointInside = F.pointReached || playerAtFord(p, rt.world);
       if (F.pointInside && !F.pointReached) {
         F.pointReached = true; F.fordArrivedAt = rt.t;
       }
@@ -2459,7 +2501,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       if (Math.hypot(u.pos.x - POINT2.x, u.pos.z - POINT2.z) < 16) squadAcross++;
       if (distance > trailDist) { trailDist = distance; trailing = u; }
     }
-    const atPoint = atFordBank(p, rt.world);
+    const atPoint = playerAtFord(p, rt.world);
     F.squadContext = !F.signal
       ? atPoint ? `自分は到着・仲間 ${squadAcross}／${squadAlive}人が到着` : `仲間 ${squadNear}／${squadAlive}人がついてくる`
       : `仲間：そばに${squadNear}／${squadAlive}人`;
@@ -2638,25 +2680,29 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
             g.order = 'hold'; g.dest = null; g.onArrive = null;
             for (const u of g.units) if (u.type === 'busho' && u.alive) u.hp = Math.min(u.hp, u.maxHp * 0.5);
             // 大将の後ろに控えていた後備が雨の中から続き、大将の周りが入り乱れる（見える兵は250まで）。
-            const live = rt.army.units.reduce((n, u) => n + (u.alive ? 1 : 0), 0);
-            if (live < 210) {
+            //   段の切り替えの一コマに兵を作り重ねない（稲生と同じく、出る兵は少しずつ時をずらす）。
+            rt.after(g === F.HM ? .4 : .8, () => {
+              if (F.ending || rt.over || gone(g)) return;
+              const live = rt.army.units.reduce((n, u) => n + (u.alive ? 1 : 0), 0);
+              if (live >= 210) return;
               const c = g.center();
               g.rear = enemyGroup(rt, { faction: 'saito', name: g === F.HM ? '日比野の後備' : '長井の後備', fixed: true,
                 anchor: { x: c.x + (g === F.HM ? 8 : -8), z: c.z - 26 }, facing: 0, fleeDir: { x: 0, z: -1 }, aggro: 8, morale: 90, noRout: true, formation: 'yari', yariRanks: 2 },
               [{ type: 'ashigaru', n: 14 }, { type: 'samurai', n: 2 }]);
               g.rear.speed = 2.3;
               F.opposition.push(g.rear);
-            }
+            });
           }
           battleEvent(rt, EVENT_COMMANDER_ADVANCE, F.HM.anchor, F.HM, 1, true, '長井甲斐守・日比野下野守が、旗本を率いて自ら前へ出た');
           // 柴田の二の備が後ろから追いつき、自分の左右で大将の旗本へ槍を入れる。
-          if (rt.army.units.reduce((n, u) => n + (u.alive ? 1 : 0), 0) < 215) {
+          rt.after(1.2, () => {
+            if (F.ending || rt.over || rt.army.units.reduce((n, u) => n + (u.alive ? 1 : 0), 0) >= 215) return;
             const p = rt.player.u.pos;
             const g2 = allyGroup(rt, { name: '柴田の二の備', fixed: true, anchor: { x: p.x + 6, z: p.z + 22 }, facing: Math.PI, aggro: 12, morale: 100, noRout: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 2 },
               [{ type: 'ashigaru', n: 16 }, { type: 'samurai', n: 2 }]);
             g2.order = 'attack'; g2.seekRange = 45; g2.speed = 2.4;
             F.friends.push(g2);
-          }
+          });
         }
         for (const g of F.friends) if (!gone(g)) { g.calm = false; g.order = 'attack'; g.seekRange = 35; }
       }
@@ -2772,6 +2818,25 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
           u.target?.alive && !u.target.fleeing && !u.target.woundOut && !u.target.noTarget &&
           Math.hypot(u.target.pos.x - u.pos.x, u.target.pos.z - u.pos.z) < 8)) continue;
       const c = fightingCenter(g);
+      // 守る段は、近い備を守る印の左右へ寄せる（稲生と同じく、味方が集まる絵で持ち場を示す）。
+      //   集まるのは守る段の初めの二十秒だけ。その後は寄せる敵へ当たり、印のそばで立ち尽くさない。
+      if (F.stage === 'hold' && F.linePoint && rt.t - F.holdStart < 20) {
+        const lx = F.linePoint.x, lz = F.linePoint.z;
+        if (Math.hypot(c.x - lx, c.z - lz) < 60) {
+          // 印のそばで敵へ向かっている備は引き戻さない（綱引きにしない）。
+          if (g.order === 'attack' && g.units.some((u) => u.alive && u.target?.alive && !u.target.fleeing)) continue;
+          const side = c.x < lx ? -1 : 1, off = Math.max(7, Math.min(16, Math.abs(c.x - lx)));
+          const dest = g._moribeHoldDest || (g._moribeHoldDest = { x: 0, z: 0 });
+          dest.x = lx + side * off; dest.z = lz - 4;
+          // 着いた備は印のそばから寄せる敵へ当たる。立ち尽くさせず、遠くの印へ引き戻し続けもしない。
+          if (Math.hypot(c.x - dest.x, c.z - dest.z) < 6) { g.order = 'attack'; g.seekRange = 45; g.onArrive = null; }
+          else {
+            g.order = 'move'; g.dest = dest;
+            g.onArrive = g._moribeHoldArrive || (g._moribeHoldArrive = (arrived) => { arrived.order = 'attack'; arrived.seekRange = 45; });
+          }
+          continue;
+        }
+      }
       const escort = g === F.B && Math.hypot(p.x - FRONT2.x, p.z - FRONT2.z) < 65 &&
         Math.hypot(p.x - c.x, p.z - c.z) > 18;
       let nearest = null, distance = Infinity;
@@ -3006,7 +3071,8 @@ moribe.botBrain = (b, inp, { goTo, patientStrike }) => {
       return;
     }
   }
-  if (gathering && !attacker) { const q = F.stage === 'assemble' ? (F.gatherUnit?.pos || F.asm || ASSEMBLY2) : POINT2; goTo(p, inp, q.x, q.z, 5); return; }
+  // 岸の印は水際にある。五歩手前の川の中で止まらず、水から上がるまで歩く。
+  if (gathering && !attacker) { const q = F.stage === 'assemble' ? (F.gatherUnit?.pos || F.asm || ASSEMBLY2) : POINT2; goTo(p, inp, q.x, q.z, F.stage === 'assemble' ? 5 : 1.2); return; }
   if (F.breathUntil > b.t) {
     if (p.lock) inp.e.add('KeyQ');
     goTo(p, inp, RETREAT2.x, RETREAT2.z, 5);

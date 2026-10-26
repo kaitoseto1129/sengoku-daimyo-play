@@ -300,6 +300,32 @@ function sunoEnemySignal(rt, group) {
   });
 }
 // 舟や日暮れの寄せで任務が変わる時は、選んだ持ち場の印も同じ柵へ移す。
+// 稲生の型：守る柵の内の一点（ピンと味方の集まる所）。三の手は選んだ持ち場。
+function sunoPostPoint(rt) {
+  const F = rt.flags, side = F.wave === 3 ? F.post3 || F.guardSide || 'n' : F.guardSide || 'n';
+  const p = F.sunoPostAt || (F.sunoPostAt = { x: 0, z: 0, side: '' });
+  if (p.side !== side) {
+    p.side = side;
+    if (side === 'e') { p.x = FORT - 3; p.z = 0; } else if (side === 'w') { p.x = -FORT + 3; p.z = 0; } else { p.x = 4; p.z = -FORT + 3; }
+  }
+  return p;
+}
+// 一番近い残りの敵（控えで動かない組・退く者は数えない）。半秒ごとに選び直し、毎コマ全員を見ない。
+function sunoNearestFoe(rt) {
+  const F = rt.flags, me = rt.player.u;
+  const ok = (u) => u?.alive && !u.gone && !u.dying && !u.fleeing && !u.woundOut && !u.noTarget && !u.isStruct &&
+    u.team !== me.team && u.group && !u.group.routed && !u.group.noAI;
+  if (rt.t < (F.sunoFoeAt || 0) && (F.sunoFoe === null || ok(F.sunoFoe))) return F.sunoFoe;
+  F.sunoFoeAt = rt.t + .5;
+  let best = null, bd = Infinity;
+  if (F.wave) for (const u of rt.army.units) {
+    if (!ok(u)) continue;
+    const d = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
+    if (d < bd) { bd = d; best = u; }
+  }
+  F.sunoFoe = best;
+  return best;
+}
 function sunoPost(rt, text, side) {
   rt.unmark('post0');
   rt.flags.guardSide = side;
@@ -733,7 +759,7 @@ function sunoChoiceLayout(rt) {
     intro.apply(this, args);
     const reading = this.root.querySelector('#intro .intro-reading');
     const goal = reading.querySelector('p b');
-    if (goal) goal.textContent = '勝つには：材木を一度届け、人足を守り、日暮れまでに柵の修理と点検を終える';
+    if (goal) goal.textContent = '勝つには：三度の寄せから柵を守り抜く';
     const people = reading.querySelectorAll('.intro-person, .intro-castle');
     if (!people.length) return;
     const toggle = document.createElement('button'), panel = document.createElement('div');
@@ -1888,18 +1914,54 @@ const SUNOMATA_JIN = [
 
 const sunomata = {
   jinkei: SUNOMATA_JIN,
-  // 任務の判定文は保ち、画面では今することを短く読む。
-  missionHeading(rt) {
-    const marker = rt.missionGuide?.marker;
-    if (marker && /^(post0|post3|gateGuard)$/.test(marker.id) && !rainDanger(rt.army) && !sunoNeedsRetreat(rt)) {
-      const post = typeof marker.pos === 'function' ? marker.pos() : marker.pos;
-      const me = rt.player.u.pos;
-      if (post && Math.hypot(post.x - me.x, post.z - me.z) >= (marker.guideRadius || 8)) return '柵の中の印へ進もう';
-      return rt.flags.wave ? 'ここから槍でつく' : '柵の中で敵を待とう';
+  // ---- 稲生の型（inou-standard）：右上は任務の一行・行き先はピン一本・敵は頭上の▼・大将は印 ----
+  // 材木・手当て・人足を迎える寄り道と、その字の札は出さない。三度の寄せを柵の内で受ければ勝ち。
+  missionSingleLine: true,
+  hideMissionDots: true,
+  enemyTriangleSigns: true,
+  nearbyAllySignLimit: 0,
+  noDodgeCard: true,
+  hideGuideSteps: true, // 右上は一行だけ。「あと何歩」を足さない。
+  noPlayerFoot: true, // 自分の足元の白い輪は出さない（稲生と同じ。ちらつきの元）。
+  quietMiss: true, // 外れは音なし。当たりの音・よろけ・血しぶきだけで手応えを示す。
+  missionPinCaption: '',
+  missionDetail: () => '',
+  missionStatus: () => '',
+  bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || !!rt.flags.won || /討ち取|討死|勝|崩れ|守りきった|砦を残した/.test(t),
+  missions: ['ここを守れ', '▼の敵をたおせ', '寄せ大将をたおせ'],
+  // 毎回いまの戦場から決める。討った・退けた瞬間に次の一行へ替わり、古い字を残さない。
+  missionOf(rt) {
+    if (sunomata.commanderTarget(rt)) return 2;
+    const u = sunoNearestFoe(rt);
+    return u && Math.hypot(u.pos.x, u.pos.z) < FORT + 35 ? 1 : 0;
+  },
+  missionHeading(rt) { return sunomata.missions[sunomata.missionOf(rt)]; },
+  // 最後の寄せの大将が柵へ寄った時だけ、名と命の棒と大きな▼をその人へ。
+  commanderTarget(rt) {
+    const F = rt.flags, u = F.yoseBoss;
+    if (F.wave !== 3 || F.won || F.ending || rt.over || !u?.alive || u.gone || u.fleeing || u.dying || u.woundOut) return null;
+    return Math.hypot(u.pos.x, u.pos.z) < FORT + 30 ? u : null;
+  },
+  missionSignTarget(rt) { return sunomata.commanderTarget(rt); },
+  namedGuideTarget(rt) { return sunomata.commanderTarget(rt); },
+  // 守る段は持ち場の柵へ（着いても残し、味方がそこへ集まる）。戦う段は一番近い残りの敵へ。
+  missionPin(rt) {
+    const F = rt.flags;
+    if (F.won || F.ending || rt.over || !rt.player.u.alive) return null;
+    const q = F.sunoPin || (F.sunoPin = { x: 0, z: 0, r: 5, hide: 5 });
+    const me = rt.player.u.pos, stage = sunomata.missionOf(rt);
+    q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false;
+    if (stage === 0) {
+      const p = sunoPostPoint(rt);
+      q.x = p.x; q.z = p.z; q.r = q.hide = 5;
+      q.waiting = true; q.arrived = Math.hypot(me.x - p.x, me.z - p.z) < 5;
+      return q;
     }
-    return sunomata.taskText(rt, rt.missionGuide?.objective?.text || rt.objectives.find(o => !o.state && o.kind === 'main')?.text || '柵の中で敵をつけ')
-      .replace(/人足/g, '仲間').replace(/寄せ手/g, '敵').replace(/柵の内/g, '柵の中')
-      .replace(/南門/g, '南の門').replace(/迎える/g, 'むかえよう');
+    const u = stage === 2 ? sunomata.commanderTarget(rt) : sunoNearestFoe(rt);
+    // 槍の届く近さでは頭上の▼に任せ、足元にピンを重ねない。
+    if (!u || Math.hypot(u.pos.x - me.x, u.pos.z - me.z) < 12) return null;
+    q.x = u.pos.x; q.z = u.pos.z; q.r = q.hide = 8;
+    return q;
   },
   // 砦にいる本人を使う。名の確かでない敵将や、台本外の寄せは増やさない。
   taisho: { a: { name: '木下藤吉郎', use: true }, b: null },
@@ -2308,7 +2370,7 @@ const sunomata = {
   prelude: false, // この戦の使番と下知で開戦を伝え、共通の待ちを重ねない。
   compactIntro: true,
   introTaskFirst: true,
-  introText: 'まず北の柵の内で敵を待て。近づいた敵を槍で突き、外へ追うな。勝つには材木を一度届ける必要がある。敵が退いたら小屋の南西で材木を担ぎ、印の人足へ渡せ。',
+  introText: '組みかけの墨俣の砦へ、斎藤勢が三度寄せてくる。ピンの柵の内で敵を突き、柵を守り抜け。',
   setup(rt) {
     const W = rt.world;
     const F = rt.flags;
@@ -2781,6 +2843,9 @@ const sunomata = {
       for (const mesh of u.mesh.children) if (mesh.geometry === sunoLoad) mesh.material = sunoNearMaterial(mesh.material, true);
     }
     tk.formation = 'ring';
+    // 稲生の型：担ぐ・手当ての札と印は出さない。材木は届いた扱い。
+    F.woodDelivered = true; F.healUsed = true;
+    for (const id of ['woodPick', 'woodDrop', 'heal']) { rt.uninteract(id); rt.unmark(id); }
     F.botBrain = makeSunomataBrain(rt);
   },
 
@@ -2836,6 +2901,7 @@ const sunomata = {
     F.reserveB3a = yoseButai(rt, F.reserveW3a, { name: '北の控えの備', at: F.reserveW3a.anchor, dir: { x: 0.4, z: 0.92 }, back: 130 });
     F.reserveB3b = yoseButai(rt, F.reserveW3b, { name: '西の控えの備', at: F.reserveW3b.anchor, dir: { x: 0.93, z: 0.36 }, back: 130 });
     F.flagbearer = F.reserveW3a.units[0];
+    F.yoseBoss = F.reserveW3b.units.find((u) => u.name === '斎藤方の寄せ大将') || null;
     this.boats(rt, null);
   },
 
@@ -2900,7 +2966,7 @@ const sunomata = {
     rt.banner('二の手', `${w}より`);
     rt.say('木下藤吉郎', `敵の法螺と早打ち、${w}の旗が動いた！　柵を守れ。南西の材木も迎えるぞ`, 4);
     rt.marker('w', centerOf(F.W2), '敵の寄せ', { red: true, group: F.W2 });
-    sunoObj(rt, 'defend', `柵を守り、南の門から材木を迎えよ（二の手・${w}）`, 'main');
+    sunoObj(rt, 'defend', `${w}の柵の内から二の手を止めよ`, 'main');
     sunoEnemySignal(rt, F.W2);
     // 西の柵の内に味方の鉄砲（まだ数は少ない）。二の手が柵へ寄せた所で一斉に放つ
     F.gunW = F.gunReserve;
@@ -2913,33 +2979,8 @@ const sunomata = {
       if (rt.over || F.ending || F.won || F.wave !== 2) return;
       rt.say('蜂須賀正勝', `${w}へ鉄砲を回した。竹束の陰から出た敵を撃つぞ`, 3.5);
     });
-    // 荷駄
-    const ND = F.supplyReserve;
-    ND.order = 'path'; ND.path = [[-112, 104], [-90, 86], [-36, 44], [0, 26], [0, 8]];
-    ND.onArrive = (g) => { g.order = 'hold'; };
-    F.K = ND;
-    F.saved = 0;
-    sunoObj(rt, 'nida', '人足を南門へ迎える', 'side');
-    rt.marker('gate', { x: 0, z: FORT + 1 }, '南の門（打って出られる）', { h: 2.5 });
-    // 荷駄を迎え終わるまで南門の印を残し、遠い人足へは街道沿いに案内する。
-    F.supplyGuidePoint = { x: 0, z: FORT + 5 }; F.supplyGuideI = 0; F.supplyGuideAt = 0;
-    rt.marker('nida', () => supplyGuidePoint(rt), () => F.supplyGuideAt === 0 ? '人足を迎える南門'
-      : F.supplyGuideAt < SUPPLY_GUIDE.length ? '人足へ向かう道の曲がり角' : '材木を運ぶ人足', { group: ND, guideAlways: true });
-    // 荷駄を狙う斎藤の組は、少し遅れて西の林から出る（砦から駆けつければ間に合う間をおく）
-    rt.after(4, () => rt.say('木下藤吉郎', '柵は前野の手に任せよ。お主の組は南門から人足を迎えよ。西の林に気をつけよ', 4.5));
-    F.KE = null; F.KEwait = true;
-    rt.after(18, () => {
-      F.KEwait = false;
-      if (rt.over || F.ending || F.won || F.wave !== 2 || F.nidaDone || F.woodsClear) return;
-      const KE = F.supplyEnemy;
-      if (!KE.count || KE.routed) return;
-      KE.order = 'attack'; KE.seekRange = 90;
-      KE.focus = ND.units.find((u) => u.alive && u.type === 'porter') || null;
-      F.KE = KE;
-
-      rt.say('足軽', '西の林から斎藤の者が出たぞ！　荷駄を狙っておる！', 3);
-      rt.marker('ke', centerOf(KE), '荷駄を狙う敵', { red: true, group: KE });
-    });
+    // 荷駄を迎える寄り道は無い（稲生の型）。材木は届いた扱いで、林の組は最後の寄せに加わる。
+    F.nidaDone = true; F.saved = 2; F.KEwait = false;
   },
 
   wave3(rt) {
@@ -3164,6 +3205,11 @@ const sunomata = {
       this.holdWin(rt);
       if (F.won) return;
     }
+    // 稲生の型：日暮れまで小屋と人足を守り抜けば、残りの寄せは退いて勝ち（守り抜けの一行と同じ物差し）。
+    if (rt.t >= deadline && F.wave === 3 && F.hut.alive && F.wk.count >= 2 && !F.wk.routed) {
+      for (const g of rt.army.groups) if (g.team !== rt.player.u.team && !g.routed && g.count) { g.noRout = false; g.morale = 0; }
+      this.holdWin(rt, true); return;
+    }
     if (rt.t >= deadline || (rt.canFailMission() && (F.wk.count < 2 || F.wk.routed))) {
       F.ending = true; rt.tracker.main = false; sunoFail(rt, 'defend');
       for (const id of ['gate', 'nida', 'porters', 'scout', 'post', 'flag', 'perfect']) {
@@ -3257,6 +3303,17 @@ const sunomata = {
         g.facing = Math.atan2(dx, dz);
         g.aggro = 12;
       } else if (g._sunoHome) { g.anchor = g._sunoHome; g._sunoHome = null; g.facing = g._sunoHomeFacing; g.aggro = 5; }
+    }
+    // 稲生の型：守る段は藤吉郎の手と自分の組がピンの柵の内へ集まる（守る所に味方が集まる絵）。
+    if (!F.insideDanger && sunomata.missionOf(rt) === 0) {
+      const p = sunoPostPoint(rt);
+      const fac = p.side === 'n' ? Math.PI : p.side === 'e' ? Math.PI / 2 : -Math.PI / 2;
+      for (const g of [F.tk, ...(rt.squadGroups || [])]) {
+        if (!g?.count || g.routed || g._sunoHome || g.order !== 'hold') continue;
+        const at = g._sunoGather || (g._sunoGather = { x: 0, z: 0 });
+        at.x = p.x + (p.side === 'e' ? -3 : p.side === 'w' ? 3 : 0); at.z = p.z + (p.side === 'n' ? 3 : 0);
+        g.anchor = at; g.facing = fac;
+      }
     }
     for (const g of rt.squadGroups || []) if (g.count) { const c = g.center(); g.defMult = Math.abs(c.x) < FORT && Math.abs(c.z) < FORT ? 1.3 : 1; }
     // 控えの寄せ手は、自分の番が来るまで共通の頭で打って出ない（三の手の控えが一の手の間に砦へ入っていた）。
@@ -3502,6 +3559,7 @@ const sunomata = {
         rt.bark(`日暮れまで${left}秒！　砦の敵を退け、柵を仕上げよ`, true);
       }
       if (F.duskNext === F.duskWaves.length && F.duskWaves.every((q) => gone(q.group)) && F.landed && F.W3d && gone(F.W3a) && gone(F.W3b) && F.boatWaves.every(gone) && gone(F.W3d) && gone(F.lastPush) && fortSafe(rt)) {
+        this.holdWin(rt); if (F.won) return;
         if (!F.w3Clear) {
           sunoRemove(rt, 'post');
           sunoObj(rt, 'defend', F.woodDelivered ? '柵の修理と仕上げをする人足を守れ' : '材木を運び、柵の修理と仕上げを助けよ', 'main');
@@ -3541,9 +3599,10 @@ const sunomata = {
   },
 
   // 守りきった（三の手を退け、砦の内の安全と普請の仕上げを確かめた）。
-  holdWin(rt) {
+  holdWin(rt, force = false) {
     const F = rt.flags;
-    if (F.won || F.ending || rt.over || !F.hut.alive || !fortSafe(rt) || F.wk.count < 2 || !F.woodDelivered) return;
+    // 稲生の型：寄せを退けた瞬間（寄せ大将を討てばその場）で勝つ。修理と点検の待ちは置かない。
+    if (F.won || F.ending || rt.over || !F.hut.alive || !force && !fortSafe(rt)) return;
     {
       const warning = document.getElementById('rain-mark');
       if (warning) warning.hidden = true;
@@ -3605,32 +3664,11 @@ const sunomata = {
     const F = rt.flags;
     if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
     nagashinojo.kit.carrion(rt, v);
-    if (!F.ending && !F.won && !rt.over && v === F.flagbearer && k && (k.isPlayer || k.isSub)) {
-      rt.unmark('flag');
-      const pos = { x: v.pos.x, z: v.pos.z };
-      rt.marker('flagdrop', pos, '敵の旗', { red: true });
-      F.flagOffered = true; sunoObj(rt, 'flag', '落ちた敵の旗を拾え', 'side');
-      rt.addInteract('flag', pos, '敵の旗を奪う', () => {
-        rt.uninteract('flag'); rt.unmark('flagdrop');
-        F.flagTaken = true;
-        // 士気の共通処理へ渡す。近い寄せだけがひるみ、旗一本で全軍は消えない。
-        for (const g of [F.W3a, F.W3b, F.W3c, F.W3d]) {
-          if (!g || !g.count || g.routed) continue;
-          const c = g.center();
-          if (Math.hypot(c.x - pos.x, c.z - pos.z) < 55) g.morale = Math.max(0, g.morale - 18);
-        }
-        rt.bark('敵の旗が失われ、近くの寄せ手がひるんだ');
-        sunoDone(rt, 'flag');
-        rt.award((t) => t.c.flag++, '斎藤の旗を奪った');
-        rt.say('木下藤吉郎', '斎藤の旗を奪ったか！　あっぱれじゃ！', 3);
-      }, { r: 3, ttl: 30, hold: 1.0 });
-      rt.after(30, () => {
-        if (F.flagTaken || F.won || F.ending || rt.over) return;
-        sunoFail(rt, 'flag'); rt.unmark('flagdrop'); rt.uninteract('flag');
-      });
-    } else if (v === F.flagbearer) {
-      rt.unmark('flag');
-      if (F.flagOffered) sunoFail(rt, 'flag');
+    if (v === F.flagbearer) rt.unmark('flag');
+    // 寄せ大将を討てば、最後の寄せはその場で崩れて勝ち（稲生の型：敵将を討てば勝ち）。
+    if (v === F.yoseBoss && !F.won && !F.ending && !rt.over) {
+      for (const g of rt.army.groups) if (g.team !== rt.player.u.team && !g.routed && g.count) { g.noRout = false; g.morale = 0; }
+      rt.after(2, () => this.holdWin(rt, true));
     }
   },
 

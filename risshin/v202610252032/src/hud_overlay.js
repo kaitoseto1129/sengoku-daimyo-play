@@ -87,6 +87,31 @@ export class HudOverlay {
   }
 
 
+  // 守備ピンの足元を、実際に守れる範囲まで広げる。地形と入れ物は使い回す。
+  drawBattleGuardPinBase(g, rt, pin) {
+    const base = this.guardPinBase || (this.guardPinBase = {
+      points: Array.from({ length: 33 }, () => ({ x: 0, y: 0, z: 0 })), projection: {},
+    });
+    if (base.world !== rt.world || base.x !== pin.x || base.z !== pin.z || base.r !== pin.r) {
+      base.world = rt.world; base.x = pin.x; base.z = pin.z; base.r = pin.r;
+      for (let i = 0; i <= 32; i++) {
+        const p = base.points[i], angle = i / 32 * Math.PI * 2;
+        p.x = pin.x + Math.cos(angle) * pin.r; p.z = pin.z + Math.sin(angle) * pin.r;
+        p.y = groundAt(rt.world, p.x, p.z, pin.y) + .08;
+      }
+    }
+    g.save(); g.beginPath();
+    let connected = false;
+    for (const p of base.points) {
+      const at = this.project(p, p.y, rt, base.projection);
+      if (at.behind) { connected = false; continue; }
+      if (connected) g.lineTo(at.x, at.y); else g.moveTo(at.x, at.y);
+      connected = true;
+    }
+    g.strokeStyle = '#14120f'; g.lineWidth = 5; g.stroke();
+    g.strokeStyle = '#ffe28a'; g.lineWidth = 2; g.stroke(); g.restore();
+  }
+
   // 全戦の今の目標を一つだけ示す。輪は実物に固定し、札だけ空いた所へ逃がす。
   drawBattleGoal(g, rt) {
     // 行き先はこの印一つ。合流済みの半径では消し、別の輪を重ねない。
@@ -105,6 +130,7 @@ export class HudOverlay {
     const pinTarget = rt.def.missionPin?.(rt);
     // 森部は任務が返したピン一本。敵や味方の位置で上書きしない。
     if (moribe && !pinTarget) return;
+    if (moribe && pinTarget.guardArea) this.drawBattleGuardPinBase(g, rt, pinTarget);
     // 到着後は同じピンを任務の下で満たす。足元や背後へ隠れて、終わりが見えなくなるのを防ぐ。
     // 移動する時だけ地面へ戻し、時計と行き先を同時に二本出さない。
     if (moribe && pinTarget.waiting && pinTarget.arrived && !pinTarget.unit) {

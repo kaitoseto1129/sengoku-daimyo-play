@@ -396,7 +396,7 @@ export class HudMap {
         g.fillRect(a - r0 / 2, b - r0 / 2, r0, r0);
       }
     }
-    const missionEnemy = inou ? markedEnemy(rt) : null;
+    const missionEnemy = inou || rt.def.key === 'moribe' ? markedEnemy(rt) : null;
     // 名のある敵将は小さな地図でも菱形。点と同じ見通し判定で、文字は添えない。
     for (const u of rt.army.units) {
       if (u === missionEnemy || u.team === 0 || !u.name || !u.alive || u.gone || u.dying || u.woundOut || u.type === 'dummy') continue;
@@ -534,7 +534,7 @@ export class HudMap {
         if (lbl) drawName(lbl, a + r0 * 4.6, b - 4);
       }
     }
-    // 稲生の行き先：兵は▼、名のある敵将は菱形。白い矢印は自分だけ。
+    // 稲生・森部の行き先：兵は▼、名のある敵将は菱形。白い矢印は自分だけ。
     if (missionEnemy && inouSignVisible(rt, missionEnemy)) {
       let [a, b] = tr(missionEnemy.pos.x, missionEnemy.pos.z);
       const dx = a - Sz / 2, dy = b - Sz / 2, distance = Math.hypot(dx, dy);
