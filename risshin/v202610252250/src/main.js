@@ -36,7 +36,7 @@ import { AdaptPass, FinishPass, clearEdgeDark } from './post.js';
 import { initAudio, silence, sfx, setVolume, duck, townMusic, playMusic, stopMusic } from './audio.js';
 import { titleScreen, storyCard, loadingStory, inkBand, evalScreen, spoilHorseInfo, aijirushiScreen, baseScreen, finalScreen, hideScreen, helpOverlay, settingsScreen, pauseMenu, notice, deathScreen, promoScreen, ronkoScreen, recordsScreen, dojoResult, epilogueScreen, ladderScreen } from './screens.js';
 import { S, QUALITY, saveSettings, canonical, K, reduceMotion, MEM_TIGHT, MEM_TIGHT_TEST } from './settings.js';
-import { TIER, noteGL, markInBattle, markCrashed, WEAK_TEX_MAX } from './device_tier.js';
+import { TIER, noteGL, markInBattle, markCrashed, WEAK_TEX_MAX, battleDrawRatio } from './device_tier.js';
 // 自動計測専用：x_pr75（倍率0.75。x_pr70も可）・x_noshadow・x_noai（兵の判断と当たりを停止）・x_noskin（骨を停止）・x_nosmoke（煙・炎・土埃なし）・x_simplemat（照明なし）。通常の高画質には適用しない。
 // 既存の札：x_nopost・x_nobloom・x_sm1024・x_noao・x_nodof・x_norays・x_sec180・x_shfull・x_bloomblend。
 const APX = (() => {
@@ -896,8 +896,8 @@ function drawScene(scene, fresh = false) {
 let sizeDirty = false;   // キャンバスの大きさを変えて、まだ描き直していない（setSize は絵を消す）
 function resize() {
   const w = Math.max(1, window.innerWidth), h = Math.max(1, window.innerHeight);
-  // 10/24 kaito：携帯は描く細かさ 0.85、熱い時（熱の段 1 以上）は 0.75。パソコンは 1 のまま
-  const ratio = MEM_TIGHT ? (heatLevel >= 1 ? 0.75 : 0.85) : 1;
+  // 大きな Android 画面でも仕上げを含め同じ画素数に収める。
+  const ratio = battleDrawRatio(w, h, MEM_TIGHT, heatLevel);
   renderer.getSize(_drawSize);
   // 倍率だけの変更も一度で済ませる。setPixelRatio の中でも setSize が呼ばれるため、
   // 両方呼ぶと同じコマでキャンバスと仕上げの寸法更新が重複していた。

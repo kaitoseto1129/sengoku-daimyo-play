@@ -158,7 +158,7 @@ export const pinGuideOn = (rt) => !!rt && !rt.def.town && !rt.def.dojo;
 const tmp = { x: 0, z: 0, r: 6 };
 export function missionTarget(rt) { return target(rt); }
 function target(rt) {
-  if (rt.def.missionPin) return rt.def.missionPin(rt);
+  if (rt.def.missionPin) { const own = rt.def.missionPin(rt); if (own !== undefined || !rt.def.missionPinFallback) return own; }
   const follow = missionFollowTarget(rt);
   if (follow) {
     tmp.unit = follow; tmp.x = follow.pos.x; tmp.z = follow.pos.z;
@@ -840,8 +840,8 @@ function updateEnemyTarget(rt, allowed = true) {
     !rt.player.camShot && !hud.bigmap && !hud.root.classList.contains('photo') &&
     !hud.root.classList.contains('ending') && !hud.root.querySelector('#cine.on');
   if (!active) { rt.army.missionMarkedEnemy = null; return false; }
-  // 森部は描画側の本人の▼だけ。別の高さの▼と人物枠を重ねない。
-  if (rt.def.key === 'moribe') {
+  // 稲生・森部は描画側の本人の▼だけ。人物枠や画面端の矢印で別の兵を指さない。
+  if (rt.def.key === 'inou' || rt.def.key === 'moribe') {
     rt.army.missionMarkedEnemy = markedEnemy(rt);
     return false;
   }
@@ -865,11 +865,22 @@ function updateEnemyTarget(rt, allowed = true) {
   }
   const u = assigned || (!rt.def.missionSignTarget && hud.enemySignUnit);
   rt.army.missionMarkedEnemy = u || null;
-  const head = u?.mounted ? 3.05 : Math.max(2.1, (u?.bodyHeight || 1.72) + .35);
+  const inou = rt.def.key === 'inou';
+  if (inou && !inouSignVisible(rt, u)) return false;
+  const head = inou && u ? inouSignHeight(u) : u?.mounted ? 3.05 : Math.max(2.1, (u?.bodyHeight || 1.72) + .35);
   // 霧や壁の向こうの敵は新たに明かさない。戦闘や難しさの判定は変えない。
   if (!u || !u.alive || Math.hypot(u.pos.x - me.pos.x, u.pos.z - me.pos.z) > Math.min(weatherSight(rt.world), rt.world.vis ?? 680) ||
       !weatherSees(rt.world, me.pos, u.pos) ||
       cameraWallBlocked(rt, me.pos, u.pos, me.pos.y + 1.6, u.pos.y + head)) return false;
+  const W = VIEW.w, H = VIEW.h, rects = hud.hudRects();
+  goalPoint.set(u.pos.x, u.pos.y + head, u.pos.z).project(rt.camera);
+  let x = (goalPoint.x + 1) * W / 2, y = (1 - goalPoint.y) * H / 2;
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+  const onScreen = goalPoint.z >= -1 && goalPoint.z <= 1 && x >= 24 && x <= W - 24 && y >= 48 && y <= H - 24;
+  const visible = onScreen && !cameraWallBlocked(rt, rt.camera.position, u.pos, rt.camera.position.y, u.pos.y + head) &&
+    !rects.some(r => x + 20 > r.left && x - 20 < r.right && y > r.top && y - 40 < r.bottom);
+  // 稲生の頭上は命中・命の減りが出る同じ▼だけ。固定の別印や人物枠で覆わない。
+  if (inou && visible) return false;
   if (!enemyTarget) {
     enemyTarget = document.createElement('div');
     enemyTarget.id = 'mission-enemy-target';
@@ -881,16 +892,9 @@ function updateEnemyTarget(rt, allowed = true) {
     enemyTarget._frame = enemyTarget.children[2];
   }
   if (enemyTarget.parentNode !== hud.root) hud.root.appendChild(enemyTarget);
-  const W = VIEW.w, H = VIEW.h, rects = hud.hudRects();
-  goalPoint.set(u.pos.x, u.pos.y + head, u.pos.z).project(rt.camera);
-  let x = (goalPoint.x + 1) * W / 2, y = (1 - goalPoint.y) * H / 2;
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
-  const onScreen = goalPoint.z >= -1 && goalPoint.z <= 1 && x >= 24 && x <= W - 24 && y >= 48 && y <= H - 24;
-  const visible = onScreen && !cameraWallBlocked(rt, rt.camera.position, u.pos, rt.camera.position.y, u.pos.y + head) &&
-    !rects.some(r => x + 20 > r.left && x - 20 < r.right && y > r.top && y - 40 < r.bottom);
   const distance = Math.hypot(u.pos.x - me.pos.x, u.pos.z - me.pos.z);
   enemyTarget._frame.hidden = true;
-  if (visible && distance <= 18) {
+  if (!inou && visible && distance <= 18) {
     goalPoint.set(u.pos.x, u.pos.y + .08, u.pos.z).project(rt.camera);
     const feet = (1 - goalPoint.y) * H / 2;
     const height = feet - y, width = Math.max(28, Math.min(80, height * .5));
@@ -907,7 +911,9 @@ function updateEnemyTarget(rt, allowed = true) {
     if (target(rt)?.route) return false;
     rt.camera.getWorldDirection(goalDirection);
     const yaw = Math.atan2(goalDirection.x, goalDirection.z);
-    const gx = u.pos.x - me.pos.x, gz = u.pos.z - me.pos.z;
+    // 稲生の振り向きは画面の視点から測り、目前でも矢印と見える位置をそろえる。
+    const origin = inou ? rt.camera.position : me.pos;
+    const gx = u.pos.x - origin.x, gz = u.pos.z - origin.z;
     const right = -gx * Math.cos(yaw) + gz * Math.sin(yaw);
     const forward = gx * Math.sin(yaw) + gz * Math.cos(yaw);
     enemyTarget._direction.style.transform = `rotate(${Math.atan2(-forward, right)}rad)`;
@@ -964,6 +970,16 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     x = W - 52;
     y = Math.min(H - 68, (rt.hud.guideOrderRect?.bottom ?? 56) + 84);
   }
+  // 守る輪は視線の高さへ持ち上げ、細い軸で本来の守備地点につなぐ。
+  const defend = rt.def.key === 'inou' && want.defend;
+  let stem = '';
+  if (defend && !outside) {
+    const footY = y;
+    y = Math.max(H * .35, Math.min(H * .58, y - 72));
+    stem = `M${x} ${y}V${footY}`;
+  }
+  el._groundRing.setAttribute('transform', defend ? 'scale(1.6 2.4)' : '');
+  el._routeEdge.style.scale = defend ? '1.6' : '';
   // 行き先は地面に寝かせた輪だけ。画面外では方向矢印へ切り替える。
   el._groundRing.style.display = outside && !docked ? 'none' : '';
   el._routeEdge.style.display = outside && !docked ? '' : 'none';
@@ -998,7 +1014,7 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     if (Math.hypot(dx, dy) < .001) { el.hidden = true; return; }
     const side = Math.abs(dx) / Math.max(1, W / 2 - 92) >= Math.abs(dy) / Math.max(1, H / 2 - 86);
     const baseX = side ? dx >= 0 ? W - 92 : 92 : W / 2;
-    const baseY = side ? H / 2 : dy >= 0 ? H - 68 : 104;
+    const baseY = defend ? H * .5 : side ? H / 2 : dy >= 0 ? H - 68 : 104;
     let found = false;
     for (let i = 0; i <= 40; i++) {
       const offset = Math.ceil(i / 2) * 18 * (i % 2 ? 1 : -1);
@@ -1009,6 +1025,24 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     if (!found) { el.hidden = true; return; }
     el._routeEdge.setAttribute('transform', `rotate(${Math.atan2(dy, dx) * 180 / Math.PI})`);
   }
+  // ついて行く組の旗は一つだけ囲む。行き先の輪は実際の移動先に残す。
+  let outline = '';
+  if (rt.def.key === 'inou' && want.marker?.group) {
+    const group = want.marker.group;
+    const flag = rt.hud.goalFlagBounds(rt, want.marker, group.anchor);
+    if (flag) {
+      const l = Math.max(8, flag.left), t = Math.max(8, flag.top);
+      const r = Math.min(W - 8, flag.left + flag.width), b = Math.min(H - 8, flag.top + flag.height);
+      if (r - l >= 24 && b - t >= 24) {
+        outline = `M${l} ${t}H${r}V${b}H${l}Z`;
+        rt.hud.missionFlagFrame = flag;
+      }
+    }
+  }
+  for (const path of el._links) path.setAttribute('d', stem);
+  for (const path of el._outlines) path.setAttribute('d', outline);
+  el._targetBadge.setAttribute('d', '');
+  el._lines.style.display = stem || outline ? '' : 'none';
   rt.hud.missionPinLabelShown = false;
   el.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`;
   el.hidden = false;

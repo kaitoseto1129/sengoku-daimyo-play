@@ -74,7 +74,118 @@ function passGroundView(W, target, eye) {
   return true;
 }
 
+// 任務・ピン・頭上の印は同じ残敵を読む。退いた兵や建物は追わせない。
+const passFighter = u => !!u?.alive && !u.gone && !u.dying && !u.downed && !u.woundOut &&
+  !u.fleeing && !u.noTarget && !u.isStruct && !u.civ && !u.group?.routed && u.group?.order !== 'flee';
+function passZone(rt) {
+  const F = rt.flags;
+  return F.SZ?.byId[!F.kannonFell ? 'kannon' : !F.souFell ? 'kinome_sou'
+    : F.SZ.byId.kinome_fuku.owner !== 'friend' ? 'kinome_fuku' : 'kinome_hon'];
+}
+function passGate(rt) {
+  const F = rt.flags;
+  return !F.kannonFell ? F.gateKannon : !F.souFell ? F.gateKinome : null;
+}
+function passNearestFoe(rt) {
+  const F = rt.flags, me = rt.player.u, zone = passZone(rt);
+  const opening = !F.step;
+  if (!opening && (!zone?.test(me.pos.x, me.pos.z) || passGate(rt)?.struct.alive)) return null;
+  // 四分の一秒ごとに探索し、討った瞬間は間引きを待たず選び直す。
+  const previous = F.passFoe;
+  const previousReady = passFighter(previous) && (opening
+    ? previous.group === F.roadGuards?.[0]?.real : zone.test(previous.pos.x, previous.pos.z));
+  if (rt.t < F.passFoeAt && F.passFoeZone === zone && F.passFoeOpening === opening &&
+      (previous === null || previousReady)) return previous;
+  F.passFoeAt = rt.t + .25; F.passFoeZone = zone; F.passFoeOpening = opening;
+  let best = Infinity, chosen = null;
+  const openingGroup = F.roadGuards?.[0]?.real;
+  for (const u of rt.army.units) {
+    if (!passFighter(u) || u.team === me.team || u.invuln ||
+        (opening ? u.group !== openingGroup : !zone.test(u.pos.x, u.pos.z))) continue;
+    const d = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
+    if (d < best) { best = d; chosen = u; }
+  }
+  // 並んだ二人の前後が少し入れ替わっても、印をちらつかせない。
+  if (chosen && previousReady && F.passFoeZone === zone &&
+      Math.sqrt(best) + 2 >= Math.hypot(previous.pos.x - me.pos.x, previous.pos.z - me.pos.z)) chosen = previous;
+  F.passFoe = chosen;
+  return chosen;
+}
+
 const echizen = Object.defineProperties({}, Object.getOwnPropertyDescriptors(kinome));
+// 稲生と同じ共有の仕組みを使い、任務以外の指図・歩数・白い輪を出さない。
+Object.assign(echizen, {
+  missionSingleLine: true, hideMissionDots: true, hideGuideSteps: true,
+  noPlayerFoot: true, quietMiss: true, noSiegeCards: true, noDodgeCard: true,
+  nearbyAllySignLimit: 0, enemyTriangleSigns: true, mapMissionEnemy: true,
+  missionPinCaption: '', missionDetail: () => '', missionStatus: () => '',
+  missions: ['ここを守れ', '味方と進め', '木戸を破れ', '中へ進め', '守兵を倒せ', '味方を集めよ'],
+  missionOf(rt) {
+    if (!rt.flags.step) return 0;
+    const gate = passGate(rt)?.struct, me = rt.player.u.pos, zone = passZone(rt);
+    if (gate?.alive) {
+      const hand = rt.interacts.find(it => it.id === '_gram');
+      const at = hand && (typeof hand.pos === 'function' ? hand.pos() : hand.pos);
+      return at && Math.hypot(at.x - me.x, at.z - me.z) < hand.r ? 2 : 1;
+    }
+    if (!zone?.test(me.x, me.z)) return 3;
+    if (passNearestFoe(rt)) return 4;
+    return zone.friends < zone.need ? 5 : 0;
+  },
+  missionHeading(rt) {
+    if (rt.flags.ending || rt.over) return rt.tracker.main ? '峠を押さえた' : '味方と退け';
+    const foe = this.missionSignTarget(rt);
+    return foe?.name ? `${foe.name}を倒せ` : this.missions[this.missionOf(rt)];
+  },
+  // 阿波賀三郎は鉢伏の守将。本道の任務を遠い別の城へ向けない。
+  commanderTarget(rt) {
+    const u = rt.flags.d?.hachibuseHon?.taishoU, p = rt.player.u.pos;
+    return !rt.over && !rt.flags.ending && passFighter(u) &&
+      Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 35 ? u : null;
+  },
+  missionSignTarget(rt) { return this.commanderTarget(rt) || passNearestFoe(rt); },
+  namedGuideTarget(rt) { return this.commanderTarget(rt); },
+  missionPin(rt) {
+    const F = rt.flags, me = rt.player.u.pos;
+    if (rt.over || F.ending || !rt.player.u.alive) return null;
+    const q = F.passPin || (F.passPin = { x: 0, z: 0, r: 3, hide: 3 });
+    const zone = passZone(rt), gate = passGate(rt)?.struct, stage = this.missionOf(rt);
+    const enemy = F.step ? this.missionSignTarget(rt) : null;
+    q.unit = null; q.enemy = false; q.route = false; q.waiting = false; q.arrived = false;
+    q.defend = false; q.always = false; q.approach = false; q.silent = true;
+    q.r = q.hide = 3;
+    let pos;
+    if (!F.step) {
+      // 開始時の味方の隊列と同じ持ち場を保ち、敵を受ける間も消さない。
+      pos = F.passOpeningPost; q.waiting = q.defend = true; q.r = q.hide = 8;
+    } else if (enemy) {
+      if (rt.player.inRange && rt.player.rangeCueTarget === enemy) return null;
+      pos = enemy.pos;
+      q.unit = enemy; q.enemy = true; q.approach = true; q.r = q.hide = .2;
+    } else if (gate?.alive) {
+      const hand = rt.interacts.find(it => it.id === '_gram');
+      pos = stage === 2 && hand ? (typeof hand.pos === 'function' ? hand.pos() : hand.pos) : F.roadPoint;
+      q.r = q.hide = .5;
+    } else if (!F.souFell && !zone.test(me.x, me.z)) {
+      pos = F.echizenCourtPoint(); q.r = q.hide = .5; q.route = true;
+    } else {
+      // 味方の列が目指す郭の中を、集合・守備とも同じ固定のピンで示す。
+      pos = zone.pos;
+      q.r = q.hide = 8;
+      q.waiting = q.defend = stage === 0 || stage === 5;
+    }
+    if (!pos) return null;
+    q.x = pos.x; q.z = pos.z;
+    // 柵・小郭を挟む時は既存の通れる道を使う。敵本人へ直進する印にしない。
+    if (!q.waiting && !q.route && rt.army.wallBetween(rt.player.u.pos, -1, pos, false)) {
+      const way = rt.world.def.runnerWay(rt.army, rt.player.u, pos);
+      q.x = way.x; q.z = way.z; q.unit = null; q.enemy = false; q.route = true; q.r = q.hide = .5;
+    }
+    q.arrived = q.waiting && Math.hypot(q.x - me.x, q.z - me.z) < q.r;
+    return q;
+  },
+  bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討ち取|討死|落城/.test(text),
+});
 // 『信長公記』巻八：十五日は風雨。光秀・秀吉は海側、信長は敦賀。
 // https://ja.wikisource.org/wiki/信長公記#巻八（七）越前御進発賀越両国被仰付之事
 // 峠口の各備を特定の将に割り振る根拠はないので、共通の織田の旗にする。
@@ -441,6 +552,7 @@ echizen.world = {
   clear: (x, z) => kinome.world.clear(x, z) || peoplePathDistance(x, z) < 4,
   compactScenery: true,
   infantryWeight: true,
+  noHaori: true,
   variedInfantry: true,
   variedLoanArmor: true,
   variedHeadgear: true,
@@ -566,6 +678,19 @@ echizen.world = {
 };
 
 echizen.setup = function (rt) {
+  // 資料本の足軽：黒褐色の貸し胴と草摺、赤茶の漆の陣笠。金色の総具足にはしない。
+  // 既存の陣笠・桶側胴・素懸威を共用し、兵・形・材質の種類を増やさない。
+  const addUnit = rt.army.addUnit;
+  const armors = [0x302820, 0x3d2a23, 0x272522], hats = [0x602d24, 0x422c24, 0x292522];
+  rt.army.addUnit = function (group, options) {
+    if (['ashigaru', 'bow', 'gun'].includes(options.type) && !options.sohei && !options.name) {
+      const v = group.initial % 3;
+      options = { ...options, armor: armors[v], hat: 'jingasa', hatColor: hats[v],
+        doStyle: v === 1 ? 'sugake' : 'okegawa', kote: 3, sode: false };
+    }
+    if (options.name === '阿波賀三郎') options = { ...options, flagScale: 2.2 };
+    return addUnit.call(this, group, options);
+  };
   // 長い戦名の最後の一文字だけが次の行へ落ちないよう、越前の札だけ整える。
   const layout = document.createElement('style');
   layout.textContent = `
@@ -774,14 +899,9 @@ echizen.setup = function (rt) {
     if (id === 'road') options = { ...options, guideAlways: true };
     return marker.call(this, id, pos, label, options);
   };
-  // 次の折れ目の距離は行き先の札にある。任務には山道全体の距離だけを残す。
+  // 旧任務の距離・人数の補足を蓄えず、一行とピンに任せる。
   const progress = rt.objProgress;
-  rt.objProgress = function (id, text) {
-    if (id === 'main') text = text.replace(
-      /^(観音丸|木ノ芽峠城)の木戸まで あと(\d+)メートル。次の道の印まで\d+メートル$/,
-      (_, name, meters) => `${name === '観音丸' ? '最初の木戸' : '次の木戸'}まで、山道をあと${meters}歩`);
-    return progress.call(this, id, text);
-  };
+  rt.objProgress = function (id) { return progress.call(this, id, ''); };
   // 携帯横の二行で読み切れる長さにする。台詞の枠は増やさない。
   const say = rt.say;
   rt.say = function (speaker, text, ...args) {
@@ -808,7 +928,7 @@ echizen.setup = function (rt) {
       text = '退き太鼓じゃ。組を集め、来た本道を退け！';
       rt.obj('echizen-retreat', '退き太鼓。組を集め、来た本道を退け', 'order', true);
     }
-    return say.call(this, speaker, text, ...args);
+    if (rt.over || rt.flags.ending) return say.call(this, speaker, text, ...args);
   };
   const objective = rt.obj;
   rt.obj = function (id, text, ...args) {
@@ -830,6 +950,14 @@ echizen.setup = function (rt) {
   };
   try { kinome.setup.call(this, rt); } finally { rt.after = after; }
 
+  const opening = rt.flags.ake.pos;
+  rt.flags.passOpeningPost = { x: opening.x, z: opening.z };
+  // 下知の音は従来どおり鳴らし、指図の字幕だけを抑える。終幕の史実は残す。
+  const shortBark = rt.bark;
+  rt.bark = function (...args) {
+    if (rt.over || rt.flags.ending) return shortBark.apply(this, args);
+  };
+
   // 動く備えの注記は元の物を借りる。道・川の注記は準備時に一度だけ足す。
   // 共通定義が更新する mapNotes へ入れると、部隊の下知と取り違えるため別に持つ。
   rt.flags.echizenMapNotes = [...rt.flags.mapNotes,
@@ -837,13 +965,8 @@ echizen.setup = function (rt) {
     { pos: { x: -156, z: -950 }, text: '麓の谷川（流路は推定）' },
   ];
 
-  // 矢の独立札を既存の三枠へまとめ、行き先の札と重ならせない。
-  // 「影」は落下範囲の印と物陰を取り違えやすいので、退く場所を伝える。
-  rt.army.hooks.onArrowRain = function (volley, under) {
-    if (!under || volley.team === rt.player.u.team || rt.t < 5 || rt.over || rt.ended || !rt.player.u.alive) return;
-    rt.hud.notices.push('▲ 矢が降る。竹束の後ろへ退け', 110,
-      Math.max(3, volley.T + .4), 'warn', () => !rt.over && !rt.ended && rt.player.u.alive);
-  };
+  // 矢そのものと竹束で伝え、独立した指図の字幕を増やさない。
+  rt.army.hooks.onArrowRain = () => {};
 
   // 郭の外へ出たら、近い口へ本道を逆にたどる。制圧前に先の曲がり角へ送らない。
   // 目印と自動操作は同じ点を使い、二つの案内が食い違わないようにする。
@@ -1354,9 +1477,13 @@ echizen.update = function (rt, dt) {
     if (!rt.over && !rt.flags.ending && !rt.retryOpen) rt.playerDown();
     return;
   }
+  const openingGuard = rt.flags.roadGuards?.[0];
+  if (!rt.flags.step && openingGuard && openingGuard.aliveNominal() <= 0) this.assault(rt);
   kinome.update.call(this, rt, dt);
   const F = rt.flags, u = rt.player.u;
   if (rt.over || F.ending || !u.alive) return;
+  // 長い山道の列待ちを詰める。敵・味方の人数と斬り合いの速さは保つ。
+  for (const b of F.attackers) if (b._route && b.real?.order === 'move') b.real.speed = 3.6;
   // 遠くでは寄る場所を伝え、実際に掛矢を使える範囲だけ操作を案内する。
   // 札の時刻を更新せず、同じ案内を声や知らせへ繰り返し流さない。
   F.gateGuideT = (F.gateGuideT || 0) - dt;
