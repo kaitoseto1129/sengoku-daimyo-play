@@ -59,7 +59,7 @@ export function missionFollowTarget(rt, heading = rt.def.missionHeading?.(rt) ||
 
 // 任務は右上の一行。待機と火付けは実際の判定に合わせる。
 export function missionCaption(rt, title = currentObjective(rt)?.text || '') {
-  let heading = (rt.def.missionHeading?.(rt) || title).replace(/赤い印の(?:兵|敵)を(?:倒せ|たおせ)/g, '▼の敵をたおせ');
+  let heading = (rt.def.missionHeading?.(rt) || title).replace(/(?:赤い印|▼)の(?:兵|敵)を(?:倒せ|たおせ)/g, 'この敵をたおせ');
   // 桶狭間は目的の一行を保つ。接近や間合いは頭上の▼の形だけで示す。
   if (rt.def.key === 'okehazama') return heading;
   if (rt.def.key === 'inou') {
@@ -112,7 +112,7 @@ export function missionCaption(rt, title = currentObjective(rt)?.text || '') {
 export function goalText(rt, text) {
   const plain = intelText(rt, text);
   const label = (fieldGuide(rt) ? fieldText(plain) : plain)
-    .replace(/赤い印の(?:兵|敵)を(?:倒せ|たおせ)/g, '▼の敵をたおせ')
+    .replace(/(?:赤い印|▼)の(?:兵|敵)を(?:倒せ|たおせ)/g, 'この敵をたおせ')
     .replace(/法螺貝/g, 'ほらの音').replace(/陣太鼓の早打ち＝総懸かり/g, '早い太鼓で、いっせいに進め').replace(/ほらの音と退き太鼓＝退け/g, '低い音で、もどれ')
     .replace(/「突く」/g, '「つく」')
     .replace(/この人と話す/g, '近づいて話す')

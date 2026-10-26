@@ -174,6 +174,11 @@ export class Group {
       r += Math.sin(T * 0.55 + i * 1.7) * 0.2 * wb + this.slotJit(i, 4) * rough * 0.9;
       b += Math.sin(T * 0.4 + i * 2.3) * (this.cav ? 0.7 : 0.4) * wb + this.slotJit(i, 5) * rough * 1.3;
     }
+    // 行軍と追従の列だけ中央を空け、接触中は従来の密度へ戻す。
+    if (this.roadCenterGap > 0 && f === 'column' && !this.routed &&
+        !(this._meleeUntil > (this._t ?? 0))) {
+      r = (col % 2 ? 1 : -1) * Math.max(this.roadCenterGap, Math.abs(r));
+    }
     // 並びは、ゆっくり向きを変える隊の向き（_face）に合わせる
     // 山道の縦隊は、後列を道の曲がりに沿って置く。一直線に伸ばすと切岸へ出てしまう。
     if (this.roadColumn && this.order === 'path' && this.pathIdx > 0 && f === 'column' && this.path?.length > 1) {

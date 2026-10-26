@@ -1514,9 +1514,9 @@ export class Hud {
     const talkPerson = talkMarker?.guideTalk && talkMarker.guidePerson?.();
     const talkPos = talkAction && (typeof it.pos === 'function' ? it.pos() : it.pos);
     const talkFrame = talkPerson?.alive && (!talkMarker.guideVisibleOnly || this.talkPersonVisible(rt, talkPerson)) && talkPos && Math.hypot(talkPos.x - talkPerson.pos.x, talkPos.z - talkPerson.pos.z) < 1 ? this.measurePersonFrame(talkPerson, rt, true) : null;
-    const talkWidth = 224;
-    const talkHeight = 76;
-    const talkTarget = !!talkFrame && talkFrame.top > talkHeight + 76 && talkFrame.top < VIEW.h - 24 &&
+    const talkWidth = 128;
+    const talkHeight = 52;
+    const talkTarget = !!talkFrame && talkFrame.top > talkHeight + 24 && talkFrame.top < VIEW.h - 24 &&
       talkFrame.cx > 28 && talkFrame.cx < VIEW.w - 28;
     setClass(pr, 'talk-target', talkTarget);
     setClass(this.root, 'talk-ready', talkAction);
@@ -1524,7 +1524,7 @@ export class Hud {
       const left = Math.max(8, Math.min(VIEW.w - talkWidth - 8, talkFrame.cx - talkWidth / 2));
       setCssVar(pr, '--talk-x', Math.round(left) + 'px');
       setCssVar(pr, '--talk-tip-x', Math.round(talkFrame.cx - left) + 'px');
-      setCssVar(pr, '--talk-y', Math.round(talkFrame.top - talkHeight - 72) + 'px');
+      setCssVar(pr, '--talk-y', Math.round(talkFrame.top - talkHeight - 16) + 'px');
       setCssVar(pr, '--talk-w', Math.round(talkWidth) + 'px');
       setCssVar(pr, '--talk-h', Math.round(talkHeight) + 'px');
 
@@ -1574,7 +1574,7 @@ export class Hud {
         if (bar.getAttribute('aria-valuenow') !== String(progress)) bar.setAttribute('aria-valuenow', progress);
         setClass(pr.querySelector('[data-work]'), 'holding', hp > 0);
         setText(pr.querySelector('small'), fire ? '' : hp > 0 ? `${progress}％` : '長押し');
-      } else { this.workPromptKey = ''; setHtml(pr, talkAction ? talkTarget ? `<button type="button" data-talk aria-label="話す"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M4 3H44V31H29L21 44L18 31H4Z" fill="#fff3ba" stroke="#14120f" stroke-width="4"/><path d="M12 12H36M12 22H30" stroke="#14120f" stroke-width="3"/></svg><span class="talk-label">話す<strong>ここをおす</strong></span></button>` : '<button type="button" data-talk><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M4 3H44V31H29L21 44L18 31H4Z" fill="#fff3ba" stroke="#14120f" stroke-width="4"/><path d="M12 12H36M12 22H30" stroke="#14120f" stroke-width="3"/></svg>話す</button>' : entry ? `<button type="button" data-entry="${esc(it.id)}">${text}</button>` : text); }
+      } else { this.workPromptKey = ''; setHtml(pr, talkAction ? talkTarget ? `<button type="button" data-talk aria-label="話す"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M4 3H44V31H29L21 44L18 31H4Z" fill="#fff3ba" stroke="#14120f" stroke-width="4"/><path d="M12 12H36M12 22H30" stroke="#14120f" stroke-width="3"/></svg><span class="talk-label">話す</span></button>` : '<button type="button" data-talk><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M4 3H44V31H29L21 44L18 31H4Z" fill="#fff3ba" stroke="#14120f" stroke-width="4"/><path d="M12 12H36M12 22H30" stroke="#14120f" stroke-width="3"/></svg>話す</button>' : entry ? `<button type="button" data-entry="${esc(it.id)}">${text}</button>` : text); }
     } else { this.workPromptKey = ''; setHidden(pr, true); }
     if (doorWork && this.workHoldId !== it.id && rt.holdId !== it.id) {
       // 実際の戸口の脇に押せる札を置き、押している間は位置を保つ。
