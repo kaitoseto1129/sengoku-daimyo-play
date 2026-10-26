@@ -13,7 +13,8 @@ import { paintGeo, hipGeo, hipEaveGeo, TILE_MAT, WOOD_MAT, THATCH_MAT, ITA_MAT, 
 import { WIND_STATE } from './world.js';
 import { sfx } from './audio.js';
 import { addInterior, facePanels } from './naka.js';
-import { FL } from './floors.js';
+import { interiorLayout } from './interior_layouts.js';
+import { FL, addDeck } from './floors.js';
 
 const paint = (g, hex) => paintGeo(g, hex);
 const KEEP = new Set(['position', 'normal', 'uv', 'color']);
@@ -318,7 +319,8 @@ function templeGroundHeight(world, b) {
   // 設営時だけ測り、外観・室内の床・石段・燃え落ちる原点を同じ高さにそろえる。
   const step = world.step, half = world.half;
   const c = Math.cos(b.rot || 0), s = Math.sin(b.rot || 0);
-  const hw = b.w / 2 + .45, hd = b.d / 2 + .45;
+  const margin = b.profile === 'hieizan' && b.kind === 'chudo' ? 1.5 : .45;
+  const hw = b.w / 2 + margin, hd = b.d / 2 + margin;
   const rx = hw * Math.abs(c) + hd * Math.abs(s), rz = hw * Math.abs(s) + hd * Math.abs(c);
   let y = world.heightAt(b.x, b.z);
   for (let z = Math.floor((b.z - rz + half) / step) * step - half; z <= b.z + rz + step; z += step) {
@@ -362,36 +364,153 @@ function buildOpenTemple(G, r) {
   const grand = r.kind === 'chudo', hall = grand || ['hondo', 'kodo', 'do', 'rurido'].includes(r.kind);
   const y = grand ? 1.5 : r.kind === 'kuri' ? .15 : .4;
   const h = grand ? (r.h || 6.2) : r.h || (hall ? 3.4 : 2.5), door = Math.min(2.8, w * .45);
+  // 比叡山の僧坊は座敷の建具と同じ内法高。外壁・当たり・動く障子で共有する。
+  const doorH = r.profile === 'hieizan' && r.kind === 'sobo' ? Math.min(2, h - .5) : 2.2;
   // 同じ窓の寸法を外壁と室内の当たりへ渡す。外に壁がある所を窓として通さない。
   const windows = [
     { face: 'z', s: -1, t: 0, w: Math.min(1.8, w * .3), y0: 1.0, y1: 1.8 },
     { face: 'x', s: -1, t: 0, w: Math.min(1.5, d * .3), y0: 1.0, y1: 1.8 },
     { face: 'x', s: 1, t: 0, w: Math.min(1.5, d * .3), y0: 1.0, y1: 1.8 },
   ];
+  if (r.profile === 'hieizan' && hall) {
+    // 本尊・光背の真裏に窓を開けず、須弥壇を受ける背面の壁を残す。
+    // 焼失前の窓割は断定せず、左右の明かり取りで補う。
+    // この寸法を外壁・室内の格子・当たりで共有する。
+    windows.length = 0;
+    // 側窓を外陣だけへ寄せず、内陣にも明かり取りを設ける。
+    // 各室の中央は繋梁を受ける柱筋なので、奥側の四分の一へ窓を寄せる。
+    // 窓枠も間仕切り・隅柱・中央の柱から離す。細かな窓割は推定。
+    const rooms = interiorLayout(grand ? 'chudo' : 'hondo', w, d, { profile: r.profile }).rooms;
+    for (const room of rooms) {
+      const depth = room.z1 - room.z0;
+      const width = Math.min(.9, depth / 2 - .5);
+      if (width < .5) continue;
+      for (const side of [-1, 1]) windows.push({
+        face: 'x', s: side, t: room.z0 + depth / 4,
+        w: width, y0: 1.0, y1: 1.8,
+      });
+    }
+    for (const side of [-1, 1]) windows.push({
+      face: 'z', s: -1, t: side * w * .3, w: Math.min(.9, w * .12), y0: 1.0, y1: 1.8,
+    });
+  }
+  // 僧坊の明かり取りは紙障子。堂の格子窓とは分け、射手の持ち場にしない。
+  const paperWindows = r.profile === 'hieizan' && r.kind === 'sobo';
+  if (paperWindows) {
+    // 側窓を建物の中央へ置くと、奥と控えの座敷を分ける柱・襖と重なる。
+    // 両座敷の間取りから窓を割り付け、控えにも開閉できる明かり障子を設ける。
+    // 開いた障子と二倍長の溝を部屋の内側へ収め、戸口脇の柱から離す。
+    // 焼失前の窓割は推定。外壁・窓枠・動く戸・当たりへ同じ寸法を渡す。
+    const rooms = interiorLayout('sobo', w, d, { profile: r.profile }).rooms;
+    windows.length = 1; // 背面の障子は残し、側窓は座敷ごとに組み直す。
+    windows[0].shoji = true;
+    for (const room of rooms) {
+      if (room.floor !== 'tatami') continue;
+      const width = Math.min(1.5, d * .3, (room.z1 - room.z0 - .4) / 2);
+      if (width < .5) continue;
+      for (const side of [-1, 1]) windows.push({
+        face: 'x', s: side, t: (room.z0 + room.z1) / 2,
+        w: width, y0: 1.0, y1: 1.8, shoji: true,
+      });
+    }
+  }
+  // 中堂の縁は壁から一・五メートル張り出す。階段を基壇の外から縁へつなぐ。
+  // 内外の床・描く石段・通行の坂は、同じ踊り場の長さを使う。
+  const entryPad = grand && r.profile === 'hieizan' ? 1.5 : .25;
   const si = SOLIDS.length, di = FL.decks.length, ri = FL.ramps.length;
   r.naka = addInterior(G.W, { name: r.name || (r.kind === 'kuri' ? '庫裏' : '僧坊'), kind: r.interiorKind || (hall ? (grand ? 'chudo' : 'hondo') : r.kind),
-    profile: r.profile || 'hiei', x: r.x, z: r.z, rot: r.rot || 0, levels: [{ w, d, h, y: r.y0 + y + .06 }], door: { w: door, h: 2.2 }, wins: () => windows, approach: { pad: .25, len: grand ? 3.2 : 1.8 } });
-  r.innerSolids = SOLIDS.slice(si); r.innerDecks = FL.decks.slice(di); r.innerRamps = FL.ramps.slice(ri);
+    profile: r.profile || 'hiei', x: r.x, z: r.z, rot: r.rot || 0, levels: [{ w, d, h, y: r.y0 + y + .06 }], door: { w: door, h: doorH }, wins: () => windows, approach: { pad: entryPad, len: grand ? 3.2 : 1.8 } });
+  // 外壁と同じ開口に紙と桟を張り、室内の白壁で障子を覆わない。
+  r.naka.templePaper = paperWindows;
+  // 比叡山の室内床は基壇の床板より六センチ高い。外壁・隅柱も
+  // 同じ天井下面まで伸ばし、軒下から堂内へ外光が漏れる隙間を残さない。
+  // 戸口と窓の高さは従来のまま、設営時のまとめ描きだけで揃える。
+  const wallHeight = r.profile === 'hieizan' ? r.naka.levels[0].y - r.y0 - y + h : h;
   const P = [];
   P.push(box(w, y + 2, d, 0, (y - 2) / 2, 0, 0x756e60));
   P.push(box(w, .12, d, 0, y, 0, 0x5a4230));
   for (const face of ['x', 'z']) for (const side of [-1, 1]) {
     const len = face === 'z' ? w : d;
     const holes = windows.filter((v) => v.face === face && v.s === side).map((v) => ({ t0: v.t - v.w / 2, t1: v.t + v.w / 2, y0: v.y0 + .06, y1: v.y1 + .06 }));
-    if (face === 'z' && side === 1) holes.push({ t0: -door / 2, t1: door / 2, y0: 0, y1: Math.min(h, 2.26) });
-    for (const [t0, t1, y0, y1] of facePanels(len, h, holes)) {
+    if (face === 'z' && side === 1) holes.push({ t0: -door / 2, t1: door / 2, y0: 0, y1: Math.min(h, doorH + .06) });
+    for (const [t0, t1, y0, y1] of facePanels(len, wallHeight, holes)) {
       const mid = (t0 + t1) / 2, cy = y + (y0 + y1) / 2;
       P.push(face === 'z' ? box(t1 - t0, y1 - y0, .12, mid, cy, side * hd, 0x6e5840) : box(.12, y1 - y0, t1 - t0, side * hw, cy, mid, 0x6e5840));
     }
   }
-  for (const x of [-hw, hw]) for (const z of [-hd, hd]) P.push(box(.22, h, .22, x, y + h / 2, z, 0x4a3020));
+  for (const x of [-hw, hw]) for (const z of [-hd, hd]) P.push(box(.22, wallHeight, .22, x, y + wallHeight / 2, z, 0x4a3020));
   if (grand) {
     // 九間の柱列と深い軒。中央の戸口だけを開け、江戸期の現存堂は写さない。
     const ox = hw + 1.2, oz = hd + 1.2;
-    for (let i = 0; i <= 9; i++) for (const sd of [-1, 1]) P.push(post(.3, h + .5, -ox + i * ox * 2 / 9, y, sd * oz, 0x5a3e2a));
+    for (let i = 0; i <= 9; i++) for (const sd of [-1, 1]) {
+      let x = -ox + i * ox * 2 / 9;
+      // 比叡山の正面は、柱の太さも含めて戸口と同じ幅を空ける。
+      if (r.profile === 'hieizan' && sd === 1 && Math.abs(x) < door / 2 + .3) x = Math.sign(x) * (door / 2 + .35);
+      // 比叡山の縁柱は板床へ埋めず、基壇に据えた礎石の上で受ける。
+      // 礎石は既存の柱の当たり半径に収め、正面の出入り幅を保つ。
+      const footRise = r.profile === 'hieizan' ? .18 : 0;
+      P.push(post(.3, h + .5 - footRise, x, y + footRise, sd * oz, 0x5a3e2a));
+      if (r.profile === 'hieizan') {
+        G.verandaFootShape ||= new THREE.CylinderGeometry(.3, .3, .28, 8);
+        const foot = G.verandaFootShape.clone();
+        foot.translate(x, y + .04, sd * oz);
+        G.add(r, 'stone', paint(foot, 0x827b6d)); foot.dispose();
+        const [px, pz] = r.naka.P(x, sd * oz);
+        Object.assign(solidCircle(px, pz, .3), { yBot: r.y0 + y, yTop: r.y0 + y + h + .5 });
+      }
+    }
+    if (r.profile === 'hieizan') {
+      // 外周の柱を支える縁と基壇。室内・戸口の踊り場と床の高さを揃える。
+      // 四つの帯で外周を囲み、堂の中の床や石段を重ねて塞がない。
+      const ex = hw + 1.5, ez = hd + 1.5;
+      // 縁を一枚の塊にせず、框の内側へ踏板を納める。板割は推定。
+      // 薄い下地で目地を閉じ、共通の箱から作って既存の木部へまとめる。
+      G.verandaBoardShape ||= new THREE.BoxGeometry(1, 1, 1);
+      const timber = (w, h, d, x, cy, z, color) => {
+        const g = G.verandaBoardShape.clone().scale(w, h, d);
+        // 縁板と框の木目を材の長手へ通す。単位箱の絵を引き延ばさず、
+        // 堂内の角材と同じ幅四十五センチ・長さ二・四メートルで繰り返す。
+        // 下地も同じ形を使い、設営時のまとめ描きへ納める。
+        const p = g.attributes.position, n = g.attributes.normal, uv = g.attributes.uv;
+        const alongX = w >= d, offset = (x * .37 + cy * .19 + z * .53) % 1;
+        for (let i = 0; i < p.count; i++) {
+          const along = alongX ? p.getX(i) : p.getZ(i);
+          const across = alongX ? p.getZ(i) : p.getX(i);
+          const end = Math.abs(alongX ? n.getX(i) : n.getZ(i)) > .5;
+          const cross = Math.abs(n.getY(i)) > .5 ? across : p.getY(i);
+          uv.setXY(i, (end ? across : cross) / .45 + offset,
+            end ? p.getY(i) / .45 : along / 2.4);
+        }
+        g.translate(x, cy, z); P.push(paint(g, color));
+      };
+      for (const [x0, x1, z0, z1] of [[-ex, ex, hd, ez], [-ex, ex, -ez, -hd], [-ex, -hw, -hd, hd], [hw, ex, -hd, hd]]) {
+        const x = (x0 + x1) / 2, z = (z0 + z1) / 2;
+        const width = x1 - x0, depth = z1 - z0, rim = .08;
+        P.push(box(x1 - x0, y + 1.94, z1 - z0, x, (y - 2.06) / 2, z, 0x756e60));
+        for (const side of [-1, 1]) {
+          timber(rim, .12, depth, x + side * (width - rim) / 2, y, z, 0x5a4230);
+          timber(width - rim * 2, .12, rim, x, y, z + side * (depth - rim) / 2, 0x5a4230);
+        }
+        timber(width - rim * 2, .10, depth - rim * 2, x, y - .01, z, 0x4e3c2a);
+        const front = depth < width;
+        const span = (front ? width : depth) - rim * 2;
+        const count = Math.max(1, Math.round(span / .3)), pitch = span / count;
+        for (let i = 0; i < count; i++) {
+          const offset = -span / 2 + (i + .5) * pitch;
+          timber(front ? pitch - .003 : width - rim * 2, .02,
+            front ? depth - rim * 2 : pitch - .003,
+            x + (front ? offset : 0), y + .05, z + (front ? 0 : offset),
+            i % 2 ? 0x695039 : 0x72573d);
+        }
+        const [cx, cz] = r.naka.P(x, z);
+        addDeck({ cx, cz, rot: r.rot || 0, x0: -(x1 - x0) / 2, x1: (x1 - x0) / 2, z0: -(z1 - z0) / 2, z1: (z1 - z0) / 2, y: r.y0 + y + .06, name: '根本中堂の縁側', pad: 0 });
+      }
+    }
     P.push(box(w + .6, .5, d + .6, 0, y + h + .25, 0, 0x3a2a1c));
     P.push(box(w, .65, .14, 0, y + h - .325, hd, 0xd2c9b2));
   }
+  // 縁側と柱も焼失時に室内と一緒に片付ける。
+  r.innerSolids = SOLIDS.slice(si); r.innerDecks = FL.decks.slice(di); r.innerRamps = FL.ramps.slice(ri);
   G.add(r, 'wood', P);
   // 開いた戸口・窓を保った外壁そのものを、カメラの当たりにも使う。
   r.openCamera = new THREE.Mesh(mergeGeometries(P), G.proxyMat);

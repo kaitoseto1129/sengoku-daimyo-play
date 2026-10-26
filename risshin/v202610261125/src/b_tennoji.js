@@ -87,7 +87,8 @@ function gateDirection(rt, at = T_GATE) {
 }
 const HONGAN = { x: 30, z: FORT.z - 2500 }; // 石山本願寺。約二・五キロの隔たりを保つ。方角と細かな位置は推定。
 const SHITEN = { x: 52, z: 6 };             // 四天王寺（戦国期の伽藍。東大門は石山合戦で焼けた、の設定で門は置かない）
-const ODA = { flag: 'oda' };
+// 写真の足軽の胴は渋い赤漆、袖と下着は紺。既存の具足の形・材質を使う。
+const ODA = { flag: 'oda', armor: 0x55302a, lace: 0x75634b, cloth: 0x26383e };
 const IKKO = { armor: 0x3a342c, lace: 0x5a5040, cloth: 0x4a4236, hat: 'hachimaki', flag: 'namu' };
 const SAIKA = { armor: 0x2a2622, lace: 0x4a3a2a, hat: 'jingasa', flag: 'sagarifuji' };
 const KIDO = { x: 12, z: HONGAN.z + 62 };   // 大坂の城戸口（石山の外の木戸。この戦で本願寺の中へは入らない）
@@ -730,7 +731,7 @@ function templeTown(rt) {
   // 井楼の横木と屋根は共有済みの形。遠くは既存の粗い形へ切り替わる。
   for (const [x, dz, boarded, height, rot] of [[67, -47, false, 7.2, Math.PI / 2], [105, -114, true, 9.6, 0]])
     rt.scene.add(yagura(W, x, KIDO.z + dz, { height: detailed ? height : 8.8,
-      rot: detailed ? rot : 0, boarded, team: 1, mon: 'sagarifuji' }));
+      rot: detailed ? rot : 0, boarded: false, logFrame: true, team: 1, mon: 'sagarifuji' }));
   for (const [x, dz] of [[68, -76], [104, -86]]) rt.scene.add(nobori(W, x, KIDO.z + dz, 'sagarifuji', 5));
   // 木橋で堂側と町、二つの街区をつなぐ。板床を実際の通れる床として登録。
   const pieces = [], supports = [], unit = new THREE.BoxGeometry(1, 1, 1);
@@ -1284,7 +1285,88 @@ const JIN = [
     ['flank', '東の脇備え', '下間頼廉の配下（名は不明）', 1500, 84, -40, 'namu', 'sagarifuji', 220, { w: 16, d: 18, facing: -1.1 }],
   ], '信長公記巻九、野戦・城の参照表の天王寺。囲みの細かな配置は補完'),
 ];
+// 段の対象だけから最寄りを選ぶ。討死・深手・敗走はその場で外す。
+function tennojiEnemy(rt) {
+  const F = rt.flags, me = rt.player.u;
+  if (F.ending || rt.over || !me.alive) return null;
+  const groups = F.step === 3 ? F.last : F.step === 4 && F.kidoCut ? F.foes : null;
+  if (!groups) return null;
+  let nearest = null, distance = Infinity;
+  for (const g of groups) for (const u of g.units) {
+    if (!u.alive || u.gone || u.dying || u.woundOut || u.fleeing || u.noTarget || u.invuln || g.routed) continue;
+    if (F.step === 4 && Math.hypot(u.pos.x - F.kz.x, u.pos.z - F.kz.z) >= 18) continue;
+    const d = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
+    if (d < distance) { distance = d; nearest = u; }
+  }
+  return nearest;
+}
+
 const tennoji = {
+  // 稲生の型。任務は一行、持ち場と残敵はピン一本で示す。
+  minutes: 7,
+  missionSingleLine: true, hideMissionDots: true,
+  enemyTriangleSigns: true, nearbyAllySignLimit: 0,
+  noDodgeCard: true, noPlayerFoot: true, quietMiss: true, inouFeel: true,
+  missionPinCaption: '', missionDetail: () => '', missionStatus: () => '',
+  bannerAllowed: (rt) => rt.over || !!rt.flags.ending,
+  missions: ['南の門を守れ', '味方と門へ進め', '味方と集まれ', '出撃を待て', '味方と進め', '▼の敵を倒せ', '城戸口まで追え', 'ここを守れ'],
+  missionOf(rt) {
+    const F = rt.flags, p = rt.player.u.pos;
+    if (F.step < 2 && F.step !== 2.5) return rt.G.lord ? 1 : 0;
+    if (F.step === 2.5) return rt.G.lord ? 3 : 0;
+    if (F.step === 2 || F.step === 2.75)
+      return F.gz && Math.hypot(p.x - F.gz.x, p.z - F.gz.z) < 10 && inPoly(SOTO_POLY, p.x, p.z) ? 3 : 2;
+    if (F.step === 3) return sortieWaypoint(rt) ? 4 : tennojiEnemy(rt) ? 5 : 6;
+    if (F.step === 4) {
+      if (!F.kidoCut) return 6;
+      if (tennojiEnemy(rt)) return 5;
+      return Math.hypot(p.x - F.kz.x, p.z - F.kz.z) < 10 ? 7 : 2;
+    }
+    return 7;
+  },
+  missionHeading(rt) {
+    const F = rt.flags;
+    if (F.ending || rt.over) return rt.tracker.main ? '追撃を止めよ' : '味方へ退け';
+    if (F.shelterShown) return F.shelterArrived ? 'ここで手当てせよ' : '味方の後ろへ';
+    return this.missions[this.missionOf(rt)];
+  },
+  // 頼廉は城戸口の後方で退く史実の役。討取り対象にせず、大将の印だけを出す。
+  commanderSignTarget(rt) {
+    const F = rt.flags, u = F.ehon?.general;
+    return F.step === 4 && !F.ending && !rt.over && u?.alive && !u.gone && !u.dying && !u.woundOut && !u.fleeing ? u : null;
+  },
+  commanderTarget(rt) { return this.commanderSignTarget(rt); },
+  namedGuideTarget(rt) { return this.commanderSignTarget(rt); },
+  missionSignTarget(rt) { return tennojiEnemy(rt); },
+  missionPin(rt) {
+    const F = rt.flags, me = rt.player.u;
+    if (F.ending || rt.over || !me.alive) return null;
+    const pin = F.missionPin || (F.missionPin = { x: 0, z: 0, always: true, silent: true });
+    pin.unit = null; pin.enemy = false; pin.route = false; pin.waiting = false; pin.arrived = false;
+    pin.r = pin.hide = 3;
+    let at = null;
+    if (F.shelterShown) at = F.step >= 3 ? F.fieldRest : SHELTER;
+    else if (F.step === 2 || F.step === 2.75) at = F.gz;
+    else if (F.step < 3) at = rt.G.lord ? F.step === 1 ? T_GATE : F.nobuU.pos : GATE_REAR;
+    else {
+      at = !F.kidoCut ? sortieWaypoint(rt) : null;
+      if (!at) {
+        const enemy = tennojiEnemy(rt);
+        if (enemy) {
+          if (rt.player.inRange && rt.player.rangeCueTarget === enemy) return null;
+          at = enemy.pos; pin.unit = enemy; pin.enemy = true; pin.r = pin.hide = .2;
+        } else at = F.step === 4 ? chaseWaypoint(rt) || F.kz : SORTIE_NORTH;
+      }
+    }
+    if (!at) return null;
+    const way = fortMoveWay(rt.army, me, at);
+    pin.route = way.x !== at.x || way.z !== at.z;
+    if (pin.route) { pin.unit = null; pin.enemy = false; pin.r = pin.hide = .6; }
+    pin.x = way.x; pin.z = way.z;
+    pin.waiting = !pin.enemy && !pin.route;
+    pin.arrived = pin.waiting && Math.hypot(me.pos.x - at.x, me.pos.z - at.z) < pin.r;
+    return pin;
+  },
   introTaskFirst: true, // 横持ちでは守る場所と勝つ条件を、人物紹介より先に読む。
   introPeopleFolded: true, // 人物の名前を半行で切らず、読みたい時に説明を開く。
   keepOpeningTaskLabel: true, // 最初も南の門内を示し、移動の手ほどきで下知を消さない。
@@ -1331,7 +1413,7 @@ const tennoji = {
     : '南の門を出ず、敵を向いて「構え」を押し、信長の救援を待とう。敵に門内を二十秒押さえられると負け。深い傷は砦の奥で手当てしよう。',
   phaseBanners: true,
   noticeLimit: 3,
-  taskDetails: true, // 携帯でも門の持ち場・占拠の猶予を任務の下に出す。
+  taskDetails: false, // 補足の字は出さず、持ち場はピンで示す。
   treatmentTaskGuidance: true,
   separateTreatmentRetreat: true, // 止血の場所を、囲みから下がるだけの印で上書きしない。
   treatmentGuideNeeded(rt) {
@@ -1383,40 +1465,7 @@ const tennoji = {
   keepTaskLabel: true, // 近い敵の印で、門を守る下知を討取りへ替えない。
   hideGuideSteps: true, // 門内の持ち場を遠い旗への歩数で迷わせず、退避の見出しも短く保つ。
   keepDestinationTask: true, // 出撃を「もんへすすめ」に替えず、門を出た後の曲がり先も残す。
-  taskLabel(rt, text) {
-    if (rt.flags.pressure > 0 && rt.flags.step < 3 &&
-        !rt.flags.shelterShown && !rt.over && !rt.flags.ending &&
-        rt.objectives.some((o) => o.id === 'main' && !o.state && o.text === text))
-      // 補足が構え・退避の案内に替わっても、陥落までの猶予は見出しに残す。
-      return `門を奪われるまで あと${Math.max(0, Math.ceil(GATE_HOLD_SECONDS - rt.flags.pressure))}秒`;
-    // 入城を塞ぐ敵がいる間は、出迎えるだけの下知に見せない。
-    if (rt.flags.step === 1 && !rt.G.lord && !rt.flags.shelterShown && !rt.over && !rt.flags.ending &&
-        rt.objectives.some((o) => o.id === 'main' && !o.state && o.text === text))
-      return rt.flags.entryThreat > 0 ? '門内で敵を押し返せ' : '門内を守り、救援を待て';
-    // 判定用の任務文は保ち、横持ちの見出しだけ一つの行動へ絞る。
-    if (text === '南の門内の脇で、信長の入城を迎えよ' || text === '南の門内で、信長の入城を迎えよ') {
-      const at = rt.flags.gz;
-      // 門を見失っても、集合の判定と同じ場所へ戻す。着いた人には移動を促さない。
-      if (at && (rt.distTo(at) >= 10 || !inPoly(SOTO_POLY, rt.player.u.pos.x, rt.player.u.pos.z)))
-        return `${gateDirection(rt, at)} 門内の脇の印へ戻れ`;
-      return '門内の脇で信長を迎えよ';
-    }
-    if (text === '南の門内で組をそろえ、下知を待て') return '門内の脇で出撃を待て';
-    if (text === '城戸口の手前で、味方と八秒守れ') {
-      // 到着前に待機を命じず、「八秒」を改行で切らない。秒数は到着後の補足へ出す。
-      const at = rt.flags.kz;
-      return at && rt.distTo(at) >= 10 ? '木戸の手前の印へ進め' : '木戸の手前で味方と守れ';
-    }
-    const chasing = /^(?:組を率い、退く敵を城戸口まで追え|退く敵を大坂の城戸口まで追え)$/.test(text);
-    if (/^(?:組を率い、砦の東を回って北の敵を崩せ|南門を出て、砦の東を北へ進め)$/.test(text) || chasing && !rt.flags.kidoCut) {
-      const way = sortieWaypoint(rt);
-      // 方角をまだ覚えていない人にも、今の視点から曲がる向きを示す。
-      const label = way === SORTIE_EXIT ? '南門を出て土橋を渡れ' : way === SORTIE_NORTH ? '堀の外を北へ進め' : '東へ回り、北へ進め';
-      return way ? `${gateDirection(rt, way)} ${label}` : chasing ? '城戸口まで敵を追え' : '北の敵を味方と崩せ';
-    }
-    if (chasing) return '城戸口まで敵を追え';
-    return text;
-  },
+  taskLabel(rt) { return this.missionHeading(rt); },
   keepCombatTask: true, // 構えの操作中も、持ち場と救援の進み具合を残す。
   keepTaskWithGuard: true, // 構えの釦を押す間も、城戸口で止まる下知を残す。
   keepCombatTaskHeading: true, // 「つく」の手ほどきだけにならず、出撃の道順を残す。
@@ -1607,7 +1656,7 @@ const tennoji = {
     // 砦に籠もる明智・佐久間信栄の手
     F.ake = allyGroup(rt, { fixed: true, fullStrength: true, formation: 'yari', guard: true, guardLeash: 6, name: '明智光秀の手', anchor: { x: 0, z: -54 }, facing: 0, width: 12, aggro: 10, noRout: false },
       // 門口を受ける槍を厚くする。総数は変えず、鉄砲は後ろの別隊と合わせる。
-      dress([{ type: 'busho', n: 1, o: { name: '明智光秀', invuln: true, horse: false } }, { type: 'samurai', n: 1, o: { name: '佐久間信栄', invuln: true, horse: false, hat: 'hachimaki', haori: 0x4a3a2a } }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 2 }], ODA));
+      dress([{ type: 'busho', n: 1, o: { name: '明智光秀', invuln: true, horse: false } }, { type: 'samurai', n: 1, o: { name: '佐久間信栄', invuln: true, horse: false, hat: 'hachimaki' } }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 2 }], ODA));
     // ---- 三段の後詰。東の若江道から住吉口へ。信長本人は先手の足軽に交じる ----
     F.nobu = allyGroup(rt, { fixed: true, fullStrength: true, formation: 'yari', guard: true, guardLeash: 6, name: '先手に交じる信長の手', anchor: { x: 80, z: 20 }, order: 'hold', facing: -Math.PI / 2, width: 14, aggro: 12, noRout: false },
       // 信長公記の先手の足軽に交じる姿。狭い門でも徒歩の道を使う。
@@ -1622,9 +1671,9 @@ const tennoji = {
     };
     F.saku = allyGroup(rt, { fixed: true, fullStrength: true, formation: 'yari', guard: true, guardLeash: 6, name: '一段目・佐久間と若江衆', anchor: { x: 72, z: 26 }, order: 'hold', facing: -Math.PI / 2, width: 12, aggro: 10, noRout: false },
       // 門へ突入する局地は徒歩で表す。馬が柱と槍の間で竿立ちを繰り返さない。
-      dress([{ type: 'samurai', n: 1, o: { name: '佐久間信盛', invuln: true, horse: false, hat: 'kabuto_m', haori: 0x4a3a2a } }, { type: 'samurai', n: 1, o: { name: '松永久秀', invuln: true } }, { type: 'samurai', n: 1, o: { name: '細川藤孝', invuln: true } }, { type: 'ashigaru', n: 8 }], ODA));
+      dress([{ type: 'samurai', n: 1, o: { name: '佐久間信盛', invuln: true, horse: false, hat: 'kabuto_m' } }, { type: 'samurai', n: 1, o: { name: '松永久秀', invuln: true } }, { type: 'samurai', n: 1, o: { name: '細川藤孝', invuln: true } }, { type: 'ashigaru', n: 8 }], ODA));
     F.taki = allyGroup(rt, { fixed: true, fullStrength: true, formation: 'yari', guard: true, guardLeash: 6, name: '二段目・滝川らの手', anchor: { x: 98, z: 32 }, order: 'hold', facing: -Math.PI / 2, width: 12, aggro: 10, noRout: false },
-      dress([{ type: 'samurai', n: 1, o: { name: '滝川一益', invuln: true, horse: false, hat: 'kabuto_w', haori: 0x2a2a3a } }, { type: 'samurai', n: 1, o: { name: '羽柴秀吉', invuln: true } }, { type: 'samurai', n: 1, o: { name: '丹羽長秀', invuln: true } }, { type: 'samurai', n: 1, o: { name: '蜂屋頼隆', invuln: true } }, { type: 'samurai', n: 1, o: { name: '稲葉良通', invuln: true } }, { type: 'samurai', n: 1, o: { name: '氏家直通', invuln: true } }, { type: 'samurai', n: 1, o: { name: '伊賀伊賀守', invuln: true } }, { type: 'ashigaru', n: 6 }, { type: 'gun', n: 2 }], ODA));
+      dress([{ type: 'samurai', n: 1, o: { name: '滝川一益', invuln: true, horse: false, hat: 'kabuto_w' } }, { type: 'samurai', n: 1, o: { name: '羽柴秀吉', invuln: true } }, { type: 'samurai', n: 1, o: { name: '丹羽長秀', invuln: true } }, { type: 'samurai', n: 1, o: { name: '蜂屋頼隆', invuln: true } }, { type: 'samurai', n: 1, o: { name: '稲葉良通', invuln: true } }, { type: 'samurai', n: 1, o: { name: '氏家直通', invuln: true } }, { type: 'samurai', n: 1, o: { name: '伊賀伊賀守', invuln: true } }, { type: 'ashigaru', n: 6 }, { type: 'gun', n: 2 }], ODA));
     F.oda = [F.nobu, F.saku, F.taki, F.ake];
     // 将も実際の傷で退く。味方だけの威力・守りの上乗せはしない。
     for (const g of F.oda) {
@@ -1663,7 +1712,7 @@ const tennoji = {
     F.honjin.guard.guard = true; F.honjin.guard.guardLeash = 6;
     march(F.honjin.guard, [[126, 36]], 'hold', -Math.PI / 2);
     // 本願寺勢の総大将・下間頼廉の本陣：城戸口の後ろ（前の斬り合いには出ない。顕如は石山の内にいて戦場へは出ない）
-    F.ehon = camp(rt, { x: SHIMO.x, z: SHIMO.z, facing: 0, team: 1, faction: 'honganji', mon: 'sagarifuji', armor: 0x3a342c, general: { name: '下間頼廉', hat: 'kabuto_m', haori: 0x4a4236 }, guard: 15, reserve: 0, runTo: { x: KIDO.x, z: KIDO.z + 30 } });
+    F.ehon = camp(rt, { x: SHIMO.x, z: SHIMO.z, facing: 0, team: 1, faction: 'honganji', mon: 'sagarifuji', armor: 0x3a342c, general: { name: '下間頼廉', hat: 'kabuto_m' }, guard: 15, reserve: 0, runTo: { x: KIDO.x, z: KIDO.z + 30 } });
     F.ehon.guard.name = '下間頼廉の旗本';
     F.ehon.general.keepInvuln = true;
     F.ehon.general.noTarget = true;
@@ -1739,7 +1788,7 @@ const tennoji = {
     const original = { say: hud.say, bark: hud.bark, update: hud.update, updateLogEntry: hud.updateLogEntry, reset: hud.reset };
     // 横持ちの細い札でも、入城・道順・敗走の警告を最後まで読ませる。
     const taskStyle = document.createElement('style');
-    taskStyle.textContent = `
+    taskStyle.textContent = tennoji.missionSingleLine ? '' : `
 /* 共通の道案内は識別子を二重にして固定配置するため、この戦の欄内配置を優先する。 */
 html body #hud.tennoji-tasks #battle-notices:not(.choosing) #objectives#objectives#objectives.keep-combat-task:not(.expand) {
   position:relative !important; inset:auto !important; transform:none !important;
@@ -1825,6 +1874,7 @@ html body #hud.tennoji-tasks #battle-notices:not(.choosing) #objectives.keep-com
     const safety = (text) => rt.player.u.alive && !rt.player.u.woundOut && !rt.over &&
       /構え|矢玉|鉄砲|物陰|傷を縛|傷が深|囲まれ/.test(text);
     hud.say = function (speaker, text, dur, urgent, detail) {
+      if (tennoji.missionSingleLine) return false;
       if (silent() && !safety(text)) return false;
       const accepted = original.say.call(this, speakerFor(speaker), words(speaker, text), dur, urgent, detail);
       // 字幕で待たせるのは三件まで。あふれた声も会話の記録には残す。
@@ -1832,6 +1882,7 @@ html body #hud.tennoji-tasks #battle-notices:not(.choosing) #objectives.keep-com
       return accepted;
     };
     hud.bark = function (text, warn) {
+      if (tennoji.missionSingleLine) return;
       // 一隊の敗走を追撃の下知にせず、籠城・救援・入城の間は門の持ち場を保つ。
       if (!F.ending && !rt.over && !rt.G.lord && F.step < 3 &&
           /敵が背を見せた！.*追え|敵が崩れた！.*押せ|弾込め.*詰めよ|撃ち終えた.*寄せよ/.test(text))

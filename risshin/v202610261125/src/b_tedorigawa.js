@@ -74,6 +74,7 @@ const FLOW = RIVER.slice(1).map((b, i) => {
   return { ax: a[0], az: a[1], dx, dz, len2: len * len, x: -dx / len, z: -dz / len };
 });
 const FORD = { x: 0, z: -26 };              // 北の岸の渡り口
+const NORTH_POST = { x: FORD.x, z: FORD.z - 10 };
 const SOUTH = { x: 4, z: 34 };              // 南の岸（退く先）
 const RIVER_TINT = { r: 0.42, g: 0.42, b: 0.36 };
 const ODA = { flag: 'oda' };
@@ -506,9 +507,10 @@ function riverRecoveryText(rt) {
 function riverSoldiers(rt) {
   const A = rt.army, W = rt.world;
   const skins = [0xb58c68, 0xa87f5c, 0xc49a76], faces = [1, 5, 9];
-  const hats = [0x24221e, 0x393027, 0x171919], lengths = [0.8, 1.2, 1.6];
+  // 添付の着装写真：黒漆に交じる赤褐色の陣笠。形は共通の浅い円錐を使う。
+  const hats = [0x24221e, 0x71352c, 0x171919], lengths = [0.8, 1.2, 1.6];
   // 低画質でも小袖と漆の胴を一色にそろえない。既存の三組で形を共有する。
-  const cloths = [0x26354b, 0x59402e, 0x555348], armors = [0x191b1b, 0x30251f, 0x232629];
+  const cloths = [0x26354b, 0x59402e, 0x555348], armors = [0x191b1b, 0x493129, 0x232629];
   const addUnit = A.addUnit, addGroup = A.addGroup;
   // 遠い槍組までほぼ全員が指物を背負うと、竿と布が一枚の壁になる。
   // この川原の控えだけ旗持ちを間引く。人数・槍・本物へ替える控えは保つ。
@@ -964,6 +966,67 @@ function riverDangerText(rt) {
 }
 
 const tedorigawa = {
+  // 稲生と同じ一行・ピン一本。退き口なので謙信の討取りを任務にはしない。
+  missionSingleLine: true,
+  hideMissionDots: true,
+  hideGuideSteps: true,
+  enemyTriangleSigns: true,
+  nearbyAllySignLimit: 0,
+  noDodgeCard: true,
+  noPlayerFoot: true,
+  quietMiss: true,
+  missionPinCaption: '',
+  missionDetail: () => '',
+  missionStatus: () => '',
+  missionTimeText: () => '',
+  bannerAllowed: (rt) => rt.over || !!rt.flags.ending,
+  missions: ['柴田勝家の旗へ', '北岸の火へ退け', 'ここを守れ', '浅瀬を渡れ', 'ここを守れ', 'この敵をたおせ', '退く下知を待て'],
+  missionOf(rt) {
+    const F = rt.flags;
+    if (F.step === 0 && F.shibaU && Math.hypot(rt.player.u.pos.x - F.shibaU.pos.x, rt.player.u.pos.z - F.shibaU.pos.z) < 8) return 6;
+    if (F.step === 1 && Math.hypot(rt.player.u.pos.x - FORD.x, rt.player.u.pos.z - (FORD.z - 10)) < 7) return 2;
+    if (F.step === 3 && Math.hypot(rt.player.u.pos.x - SOUTH.x, rt.player.u.pos.z - SOUTH.z) < 8 && !rt.world.inWaterAt(rt.player.u.pos.x, rt.player.u.pos.z)) return 4;
+    return F.step === 2 && this.missionSignTarget(rt) ? 5 : Math.min(F.step || 0, 4);
+  },
+  missionHeading(rt) { return this.missions[this.missionOf(rt)]; },
+  // 地図と戦場の大将印だけに使う。無敵の本陣へ討取りのピンを向けない。
+  commanderSignTarget(rt) {
+    const u = rt.flags.ehon?.general;
+    return !rt.over && !rt.flags.ending && u?.alive && !u.gone && !u.dying && !u.fleeing && !u.woundOut ? u : null;
+  },
+  missionSignTarget(rt) {
+    const F = rt.flags, C = F.dp?.cur;
+    if (rt.over || F.ending || !F.dp?.on || !C?.s.tedoPush) return null;
+    // 殿の列を離れて追わせない。持ち場に来た追手だけから最寄りを選ぶ。
+    let nearest = null, best = Infinity;
+    const p = rt.player.u.pos;
+    for (const g of C.groups) {
+      if (g.routed || g.tedoBow) continue;
+      for (const u of g.units) {
+        if (!u.alive || u.gone || u.dying || u.fleeing || u.woundOut || u.noTarget || u.isStruct || u.team === rt.player.u.team ||
+            Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) >= C.botRadius) continue;
+        const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
+        if (d < best) { nearest = u; best = d; }
+      }
+    }
+    return nearest;
+  },
+  missionPin(rt) {
+    const F = rt.flags, C = F.dp?.cur;
+    if (rt.over || F.ending || !rt.player.u.alive) return null;
+    const q = F.tedoPin || (F.tedoPin = { x: 0, z: 0, r: 7, hide: 7 });
+    const u = this.missionSignTarget(rt), p = rt.player.u.pos;
+    const at = F.step === 3 ? crossingTarget(rt) : F.dp?.on && C?.at ? C.at :
+      F.step === 0 ? F.shibaU?.pos : F.step === 1 ? NORTH_POST : SOUTH;
+    if (!at) return null;
+    const hold = F.step !== 3;
+    q.unit = u; q.enemy = !!u; q.defend = hold && !u;
+    q.waiting = hold && !u; q.always = hold && !u; q.silent = true;
+    q.x = u ? u.pos.x : at.x; q.z = u ? u.pos.z : at.z;
+    q.r = q.hide = u ? 2 : F.dp?.on && C ? C.botRadius : F.step === 3 ? .75 : F.step === 0 ? 8 : 7;
+    q.arrived = !u && hold && Math.hypot(p.x - at.x, p.z - at.z) < q.r;
+    return u && rt.player.inRange && rt.player.rangeCueTarget === u ? null : q;
+  },
   introTaskFirst: true,
   introPeopleFolded: true, // 退き方を先に読み、人物の説明は開いて最後まで読めるようにする。
   compactIntro: true,
@@ -989,20 +1052,10 @@ const tedorigawa = {
   },
   keepGuardTaskLabel: true, // 接敵しても、一人へ近づく案内で殿の下知を置き換えない。
   keepCombatTask: true, // 構えている間も、守る進み具合を読めるようにする。
-  keepCombatTaskDetail: true, // 接敵しても、右ボタンの押し方と守る残り時間を消さない。
+  keepCombatTaskDetail: false, // 任務の一行に操作や残り秒数を重ねない。
   hideEdgeGoalDistance: true, // 火の中心への直線歩数を、持ち場へ着いた後の下知に重ねない。
   guidanceDistanceFirst: true,
-  distanceText(rt, distance) {
-    const marker = rt.missionGuide?.marker;
-    if (!marker) return '';
-    // 働きを数える持ち場の端までを示す。中心まで歩き直させない。
-    const remaining = distance - (marker.guideRadius || 8);
-    const F = rt.flags;
-    const place = F.step === 0 ? '集合の旗まで' : F.step === 1 ? '北岸の火まで' :
-      F.step === 3 ? F.crossViaBank || F.crossEntering ? '浅瀬の入口まで' : '南岸の火まで' :
-        F.step === 4 ? '南岸の持ち場まで' : '持ち場まで';
-    return remaining < 0 ? '' : `${place} あと${Math.max(1, Math.ceil(remaining / .75))}歩`;
-  },
+  distanceText: () => '',
   routeGuidePriority(rt) {
     const F = rt.flags;
     // 南岸では軽い出血のうちから手当てへ案内する。深手になるまで任務で隠さない。
@@ -1183,7 +1236,7 @@ const tedorigawa = {
   fadeCloseStandardFrame: true, // 手前の味方の大旗は竿と横木も薄め、追手を見る窓を空ける。
   noDespair: true, // 開幕は肩越しに川と味方の旗を見る。遠い敵への共通の見せ場で退き道を隠さない。
   noticeLimit: 2, // 任務と台詞を先に出し、操作の札で退き道を塞がない。
-  taskDetails: true, // 一撃・受け止め・持ち場へ戻るなど、いまの働きも携帯に残す。
+  taskDetails: false, // 下知は右上の短い一行へまとめる。
   immediateTaskChanges: true, // 同じ任務の札でも、退く下知に替わったらすぐ見せる。
   noDistantBattle: true, // 備えにない軍勢を自動で追加しない。
   civilianCrowd: { bands: PEOPLE_BANDS }, // 民は兵の名簿・戦功・渡河人数に入れない。
@@ -1192,6 +1245,7 @@ const tedorigawa = {
   // 初めの集合先は北の柴田の旗。旗を正面にして、背後を探させない。
   spawn: { x: 6, z: -48, heading: Math.PI },
   world: {
+    noHaori: true, // 添付の着装写真・図に合わせ、袖と胴を陣羽織で覆わない。
     namedKacchu: TEDORIGAWA_KACCHU,
     seed: 15777,
     moveLim: 230,   // 置いた兵が 176 の端に貼り付いていた（見回り 10/2）
@@ -1291,35 +1345,10 @@ const tedorigawa = {
       mountain.geometry.computeVertexNormals();
       mountain.geometry.computeBoundingSphere();
     }
-    // 手取川だけ、任務の本文と補足を縦に積む。補足の幅で本文を一文字幅へ押し込まない。
+    // 出陣前の説明だけ読みやすく保ち、戦中は共通の右上の一行を使う。
     const style = document.createElement('style');
     style.textContent = `
-      /* 回避・構えの間も下知を一行残す。操作の札と同じ補足は畳む。 */
-      html body #hud.tedo-notices:is(.dodge-active,.rain-danger,.wait-guard-active) #battle-notices #objectives:not(.expand):not([hidden]):not(.notice-muted),
-      html body #hud.tedo-notices:is(.dodge-active,.rain-danger,.wait-guard-active) #battle-notices #objectives:not(.expand) :is(#obj-list,li.cur .obj-text,li.cur .obj-now) {
-        display:block !important;
-      }
-      html body #hud.tedo-notices:is(.dodge-active,.rain-danger,.wait-guard-active) #battle-notices #objectives:not(.expand) li.cur small {
-        display:none !important;
-      }
-      html body #hud.tedo-notices #battle-notices #objectives:not(.expand) li.cur {
-        display:block !important; min-width:0; width:auto; height:auto; max-height:none;
-      }
-      html body #hud.tedo-notices #battle-notices #objectives:not(.expand) li.cur :is(.obj-text,.obj-now,small) {
-        display:block; min-width:0; width:auto; max-width:100%;
-        white-space:normal !important; overflow-wrap:anywhere; line-height:1.5 !important;
-      }
-      html body #hud.tedo-notices #battle-notices #objectives:not(.expand) li.cur::before { display:none; }
       @media (min-height:501px) {
-        html body #hud.tedo-notices.mission-visible #battle-notices:not(.choosing):not(:has(#objectives.expand)),
-        html body #hud.tedo-notices #battle-notices:not(.choosing) {
-          left:16px !important; right:auto !important; top:104px !important;
-          width:min(320px, 30vw) !important; max-height:calc(100% - 304px) !important;
-        }
-        html body #hud.tedo-notices #battle-notices:not(.choosing) > :is(#objectives,#battle-message) {
-          position:relative !important; inset:auto !important; transform:none !important;
-          width:100% !important; min-width:0; max-width:100%; box-sizing:border-box; flex:0 0 auto;
-        }
         html body #hud.tedo-notices #intro[data-battle="tedorigawa"] > .card.card {
           width:min(560px, calc(100vw - 32px)); height:min(680px, 80dvh);
           max-height:80dvh !important;
@@ -1341,33 +1370,8 @@ const tedorigawa = {
       }
       html body #hud.tedo-notices #intro[data-battle="tedorigawa"] #intro-go { flex-shrink:0; }
       @media (max-height:500px) {
-      html body #hud.tedo-notices #intro[data-battle="tedorigawa"] .intro-reading p { margin:6px 0; }
-      html body #hud.tedo-notices #battle-notices #objectives#objectives:not(.expand) #obj-list li.cur .obj-now {
-        font-size:max(20px, calc(20px * var(--text-scale, 1))) !important;
-      }
-      /* 任務表示中の共通の高さ制限にも勝たせ、本文・補足・距離を途中で切らない。 */
-      html body #hud.tedo-notices.mission-visible #battle-notices:not(.choosing):not(:has(#objectives.expand)),
-      html body #hud.tedo-notices #battle-notices:not(.choosing):not(:has(#objectives.expand)) {
-        left:max(12px, env(safe-area-inset-left, 0px)) !important; right:auto !important;
-        top:max(12px, env(safe-area-inset-top, 0px)) !important;
-        width:min(304px, 36vw) !important; transform:none !important;
-        max-height:min(40vh, calc(100% - 12px - env(safe-area-inset-top, 0px) - max(104px, var(--notice-floor, 104px)))) !important;
-      }
-      html body #hud.tedo-notices #battle-notices:not(.choosing):not(:has(#objectives.expand)) > :is(#objectives,#battle-message) {
-        position:relative !important; inset:auto !important; transform:none !important;
-        width:100% !important; min-width:0; max-width:100%; box-sizing:border-box; flex:0 0 auto;
-      }
-      /* 地面の印用・片手案内用の共通指定より優先し、殿の下知を左上の幅で読む。 */
-      html:root body #hud.tedo-notices #battle-notices:not(.choosing) #objectives#objectives:not(.expand) {
-        position:relative !important; inset:auto !important; transform:none !important;
-        width:100% !important; max-width:100% !important; height:auto !important;
-        max-height:none !important; box-sizing:border-box;
-      }
-      html:root body #hud.tedo-notices #battle-notices #objectives#objectives:not(.expand) #obj-list li.cur :is(.obj-text,.obj-now) {
-        width:100% !important; max-width:100% !important; box-sizing:border-box;
-        word-break:normal !important; line-break:strict;
-      }
-    }`;
+        html body #hud.tedo-notices #intro[data-battle="tedorigawa"] .intro-reading p { margin:6px 0; }
+      }`;
     document.head.appendChild(style); rt.hud.root.classList.add('tedo-notices');
     const dispose = rt.dispose;
     rt.dispose = function () {

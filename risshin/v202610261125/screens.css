@@ -106,6 +106,8 @@ html #screen .ev2:has(.ek[aria-label="鳥取城の戦いの戦功"]) .ev-actbar 
 }
 @keyframes ld-working { from { transform: translateX(-100%); } to { transform: translateX(420%); } }
 #loading.first-battle .ldbar::after { display: none; }
+/* 初陣の待ちは工程の印だけで示し、保証できない残り秒を出さない。 */
+#loading.first-battle #ld-left { display: none !important; }
 body.rm #loading .ldbar::after { animation: none; display: none; }
 @media (prefers-reduced-motion: reduce) { #loading .ldbar::after { animation: none; display: none; } }
 #screen :is(button, select, textarea, input:not([type=radio]):not([type=checkbox])) {
@@ -138,6 +140,10 @@ body.rm #loading .ldbar::after { animation: none; display: none; }
 #screen #tt-home details + details { margin-top: 8px; }
 #screen #tt-home .slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 #screen #tt-home .slotcard { min-width: 0; overflow-wrap: anywhere; }
+/* 戦を選ぶ間は一覧だけを使い、題の固定帯を重ねない。 */
+#screen #tt-home.tt-picking > :not(#samurai-pick) { display: none; }
+#screen #tt-home.tt-picking .lord-pick { max-height: none; overflow: visible; margin-top: 0; }
+#screen #tt-home.tt-picking .lord-pick > .row { position: static; justify-content: space-between; }
 #screen #ng .field { gap: 8px; }
 #screen #ng-next { margin-left: auto; min-height: 48px; }
 #screen :is(#tt-home, #ng) .btn.primary:hover { background: var(--shu-deep); color: #fff5ea; }

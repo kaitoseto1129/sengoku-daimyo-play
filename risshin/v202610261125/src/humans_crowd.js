@@ -42,6 +42,7 @@ float crowdNoise(vec3 p) {
 const CROWD_DETAIL_MAX = 120;
 const CROWD_DETAIL_NEAR = 17;
 function nearCrowdMat(v) {
+  // 軽い材質には粗さ・金属度の変数が無い。元の描き方を共用し、専用の表面処理は足さない。
   // 細部の上乗せは兵の材質が MeshStandard（光を細かく計算する作り）の時だけ組める（mkA・vObjP・roughnessFactor を使う）。
   //   既定の「光を軽く」（simpleMaterials＝Phong）では上乗せの絵の作りが組めず、近くの兵の具足が描かれなかった（10/26）。その時は兵の材質のまま
   if (!UNIT_MAT.isMeshStandardMaterial) return UNIT_MAT;

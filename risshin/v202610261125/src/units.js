@@ -91,8 +91,8 @@ function unitThinkInterval(army, u, dist) {
   if (dist <= 30 || u.detailEnemy || u.atk || u.swing || u.bind || u.charging ||
       u.hit || u.stagger > 0 || u.fleeing || u.group.routed ||
       u.target && army.distTo(u, u.target) < Math.max(14, u.reach + 8)) return 1 / 20;
-  // 10/24：端末が熱い時（main.js の熱の段 1 以上）は遠い兵の考えをさらに間引く
-  return (window.__heatLevel || 0) >= 1 ? 1 / 4 : 1 / 8;
+  // 熱の兆しから遠い兵の判断だけを間引く。近くの斬り合いの時計は保つ。
+  return (window.__heatBackgroundLevel || window.__heatLevel || 0) >= 1 ? 1 / 4 : 1 / 8;
 }
 function unitThinkDelay(time, id, interval) {
   // 番号から決まる位相を使う。処理落ちしても、同時に期限を迎えた兵の時計が固まらない。

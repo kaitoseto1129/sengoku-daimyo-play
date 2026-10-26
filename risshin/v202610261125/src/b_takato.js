@@ -10,9 +10,10 @@ import { ROAD_OTE } from './castles/takato.js';
 import { clearFoot } from './cover_guide.js';
 import { localClear } from './army_local_way.js';
 import { dirtTex } from './nature.js';
+import { nobori } from './props.js';
 import { NAKA, nakaFind, nakaRoomAt } from './naka.js';
 import { interiorWaypoint } from './interior_layouts.js';
-import { retreatThroughGap, retreatDodge, retreatRunFromBlade } from './bot_retreat.js';
+import { retreatThroughGap, retreatRunFromBlade } from './bot_retreat.js';
 
 const baseSetup = takato.setup;
 const baseUpdate = takato.update;
@@ -20,6 +21,108 @@ const baseTint = takato.world.tint;
 const baseGuide = takato.guideMarker;
 const baseBot = takato.botBrain;
 const baseClampCamera = takato.clampCamera;
+// 稲生と同じ表示の指定。攻城の道順・兵数・打ち合いは既存のまま使う。
+Object.assign(takato, {
+  missionSingleLine: true, hideMissionDots: true, hideGuideSteps: true,
+  quietMiss: true, inouFeel: true, noPlayerFoot: true, noDodgeCard: true,
+  noSiegeCards: true, enemyTriangleSigns: true, nearbyAllySignLimit: 0,
+  missionPinCaption: '', missionDetail: () => '', missionStatus: () => '',
+  speechAllowed: (rt) => rt.over || !!rt.flags.ending,
+  bannerAllowed: (rt) => rt.over || !!rt.flags.ending,
+  missions: ['味方と進め', 'ここを守れ', '▼の敵を倒せ', '門を破れ', '本丸へ進め', '主殿へ進め'],
+  missionOf(rt) {
+    const F = rt.flags;
+    if (F.retreatTo || roomExit(rt)) return 0;
+    if (F.honFell && F.C.kuruwa.hon.test(rt.player.u.pos.x, rt.player.u.pos.z)) {
+      if (F.keep.down || F.lordDying) return 1;
+      return takatoNearestFoe(rt) ? 2 : 5;
+    }
+    if (F.sallyOut || F.sallyUntil || F.step < 1) return 1;
+    const guide = baseGuide(rt);
+    if (guide === '_gate') return 3;
+    // 塀の外では道順を守り、中へ入ったら残る守兵を探す。
+    const zone = F.niFell ? 'hon' : F.sanFell ? 'ni' : 'san';
+    if (F.C.kuruwa[zone].test(rt.player.u.pos.x, rt.player.u.pos.z) && takatoNearestFoe(rt)) return 2;
+    return F.honFell ? 4 : 0;
+  },
+  missionHeading(rt) {
+    if (rt.over || rt.flags.ending) return rt.tracker.main ? '本丸を守り抜いた' : '味方と退け';
+    if (roomExit(rt)) return '戸口へ戻れ';
+    if (rt.flags.retreatTo) return '味方の後ろへ';
+    return this.missions[this.missionOf(rt)];
+  },
+  commanderTarget(rt) {
+    const u = this.commanderSignTarget(rt);
+    return u && !u.noTarget && !u.invuln ? u : null;
+  },
+  // 盛信は主殿で最期を迎える。攻撃できない城将を『倒せ』の相手にはしない。
+  commanderSignTarget(rt) {
+    const F = rt.flags, u = F.keep?.lord;
+    return !rt.over && !F.ending && !F.keep?.down && takatoFighter(u) ? u : null;
+  },
+  namedGuideTarget(rt) { return this.commanderSignTarget(rt); },
+  foeMarkVisible: (rt, u) => u === rt.flags.keep?.lord,
+  missionSignTarget(rt) { return this.missionOf(rt) === 2 ? takatoNearestFoe(rt) : null; },
+  missionEnemyLabel: () => '城の守兵',
+  missionPin(rt) {
+    const F = rt.flags, me = rt.player.u;
+    if (rt.over || F.ending || !me.alive) return null;
+    const q = F.standardPin;
+    if (!q) return null;
+    q.unit = null; q.enemy = false; q.marker = null; q.key = '';
+    q.defend = q.waiting = q.approach = q.follow = q.gate = false;
+    q.arrived = false; q.r = q.hide = 2;
+    const stage = this.missionOf(rt);
+    if (stage === 2 && !F.retreatTo && !roomExit(rt)) {
+      const enemy = takatoNearestFoe(rt);
+      if (!enemy || rt.player.inRange && rt.player.rangeCueTarget === enemy) return null;
+      q.x = enemy.pos.x; q.z = enemy.pos.z; q.unit = enemy;
+      q.enemy = q.approach = q.follow = true; q.r = q.hide = .2;
+      return q;
+    }
+    let point = null;
+    if (stage === 1) {
+      if (F.honFell) point = F.honPost;
+      else {
+        // 出撃する城兵を受ける場所は、既存の味方の槍の列に合わせる。
+        const marker = rt.markers.find(m => m.id === 'sally');
+        point = marker && (typeof marker.pos === 'function' ? marker.pos() : marker.pos);
+        if (!point) point = F.oteSpear?.real?.pos || F.oteSpear?.pos;
+      }
+      q.defend = q.waiting = true; q.r = q.hide = F.honFell ? 14 : 6;
+    } else if (stage === 5) point = F.keep.guide();
+    else {
+      const id = this.guideMarker(rt), marker = rt.markers.find(m => m.id === id);
+      point = marker && (typeof marker.pos === 'function' ? marker.pos() : marker.pos);
+      q.marker = marker || null; q.key = id; q.gate = id === '_gate' || !!point?.gate;
+    }
+    if (!point) return null;
+    q.x = point.x; q.z = point.z;
+    q.arrived = q.waiting && Math.hypot(me.pos.x - q.x, me.pos.z - q.z) < q.r;
+    return q;
+  },
+});
+const takatoFighter = (u) => !!u?.alive && u.hp > 0 && !u.gone && !u.dying &&
+  !u.downed && !u.woundOut && !u.rearWound && !u.fleeing;
+// 門の向こうや別の曲輪へ直進させず、現在の持ち場で最寄りの残敵を示す。
+function takatoNearestFoe(rt) {
+  const F = rt.flags, me = rt.player.u;
+  const zone = F.niFell ? 'hon' : F.sanFell ? 'ni' : 'san';
+  if (F.standardFoeZone === zone && F.standardFoeAt <= rt.t && rt.t < F.standardFoeAt + .25 &&
+      (F.standardFoe === null || takatoFighter(F.standardFoe) && !F.standardFoe.noTarget)) return F.standardFoe;
+  F.standardFoeAt = rt.t;
+  F.standardFoeZone = zone;
+  let closest = null, best = Infinity;
+  for (const u of rt.army.units) {
+    if (u.team === me.team || !takatoFighter(u) || u.noTarget || u.isStruct || u.civ ||
+        u.group?.hidden || u.group?.routed || u.type === 'dummy' || u.type === 'porter' ||
+        !F.C.kuruwa[zone].test(u.pos.x, u.pos.z) || Math.abs(u.pos.y - me.pos.y) > 3) continue;
+    const d = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
+    if (d < best && !rt.army.wallBetween(me.pos, -1, u.pos)) { closest = u; best = d; }
+  }
+  F.standardFoe = closest;
+  return closest;
+}
 // 曲輪を取るまでは、番所の中を休む場所にしない。迷い込んだら家具を避けて戸口へ戻る。
 // 本丸を取った後の城将探しと、上の階の戦いには割り込まない。
 function roomExit(rt) {
@@ -605,15 +708,11 @@ takato.botBrain = (rt, inp, helpers) => {
         // 遠い敵や順番待ちの兵だけなら、その場で手当てを待つ。
         const closing = foe.target === p.u && !foe.playerQueue && gap <= (foe.reach || 2.8) + 1;
         if (!moving && (imminent || closing) && retreatRunFromBlade(rt, inp, retreatDodgeAllowed)) return;
-        // 構えで受けきれない刃は、印へ退く向きに回避する。気力を使い切らず、
-        // 土橋の外・空堀・城兵の列を横切る先へは跳ばない。
-        // 深手では正面の刃にも回避を使い、構えを抜かれる一撃を待たない。
+        // 深手や挟み撃ちでは、印へ退く道の側で刃を避ける隙間を探す。
+        // 廃止された回避の気力を待たず、土橋・空堀・城兵を避けて駆ける。
         if ((crossed || uncovered || p.u.hp <= p.u.maxHp * .35) && soonest <= .35 && gap <= (foe.reach || 2.8) + .6 &&
-            !p.mounted && !p.u.climb && !(p.knockT > 0) && p.dodgeT <= -.3 &&
-            p.sta >= 20 + (p.u.hp <= p.u.maxHp * .35 || p.guardBroken > 0 ? 0 : p.maxSta * .4)) {
-          if (retreatDodge(rt, inp, moving ? walk : p.yaw + Math.PI, retreatDodgeAllowed)) {
-            inp.runHeld = true;
-          }
+            !p.mounted && !p.u.climb && !(p.knockT > 0)) {
+          retreatRunFromBlade(rt, inp, retreatDodgeAllowed, moving ? walk : null);
         }
       }
     }
@@ -783,6 +882,16 @@ function takatoAssaultVoice(rt, text) {
 }
 
 takato.setup = function (rt) {
+  // 本の足軽：弁柄の陣笠・漆の胴・紺の小袖。形を増やさず既存の装備を使う。
+  const originalAddUnit = rt.army.addUnit;
+  rt.army.addUnit = function (g, o) {
+    if (o.type === 'ashigaru' || o.type === 'gun' || o.type === 'bow') o = {
+      ...o, armor: g.team === 1 ? 0x59352b : 0x17191c,
+      hat: 'jingasa', hatColor: g.team === 1 ? 0x793d30 : 0x191817,
+      cloth: 0x293c50, lace: g.team === 1 ? 0x775c43 : 0x354a62, sode: false,
+    };
+    return originalAddUnit.call(this, g, o);
+  };
   const bark = rt.bark;
   rt.bark = function (text, warn) { return bark.call(this, takatoAssaultVoice(this, text), warn); };
   baseSetup.call(this, rt);
@@ -807,6 +916,12 @@ takato.setup = function (rt) {
   farColor.needsUpdate = true;
   land.material.needsUpdate = true;
   const F = rt.flags;
+  // 主殿の戸口に武田の大幟一本。形と材質は既存の幟で共用する。
+  const seatDoor = F.keep.naka?.doorOut || F.keep.spot;
+  F.commanderStandard = nobori(rt.world, seatDoor.x + 1.5, seatDoor.z, 'takeda', 6);
+  rt.scene.add(F.commanderStandard);
+  F.standardPin = { x: 0, z: 0, r: 2, hide: 2, silent: true, arrow: false, always: true };
+  F.standardFoe = null; F.standardFoeAt = -1;
   F.closeFoe = null;
   F.meleePressure = false;
   F.cameraHead = new THREE.Vector3();
@@ -1100,6 +1215,8 @@ html:root body #hud #battle-notices #tutorial :is(.what,.how,.lbl) {
   html.touch #hud #intro-go { flex:0 0 auto; }
 }
 
+/* 任務は共通の右上の一行だけ。高遠の旧い指図と歩数の札は重ねない。 */
+html:root body #hud.prog-on #battle-notices:not(.choosing) :is(#objectives:not(.expand),#tutorial,#subtitle,#situation,#skiphint,.battle-notice) { display:none !important; }
 `;
   document.head.appendChild(style);
   const dispose = rt.dispose;
@@ -1107,7 +1224,7 @@ html:root body #hud #battle-notices #tutorial :is(.what,.how,.lbl) {
     style.remove();
     rt.player.allyFade(null);
     rt.player.allyFade = fadeBodies;
-    rt.army.addUnit = addUnit;
+    rt.army.addUnit = originalAddUnit;
     for (const g of clothShapes.values()) g.dispose();
     for (const m of clothMats.values()) m.dispose();
     rings.dispose();
@@ -1206,6 +1323,7 @@ takato.update = function (rt, dt) {
     F.meleePressure = attackers > 0 && nearby >= 2;
   }
   baseUpdate.call(this, rt, dt);
+  F.commanderStandard.visible = !!this.commanderSignTarget(rt);
   for (const item of F.openFlags) item.flag.visible = item.gate.opened;
   // 息切れも援護の合図にする。無傷でも構えが続かない時は近い味方が受け持つ。
   // 一秒ごとの既存の探索を使い、壁越しや離れた味方には割り込ませない。

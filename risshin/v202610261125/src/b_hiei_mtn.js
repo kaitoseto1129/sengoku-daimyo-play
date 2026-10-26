@@ -15,7 +15,7 @@ import { battleJin, installBattleJinkei } from './b_jinkei_layout.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { lookParts } from './units.js';
-import { sakamogi, paintGeo, jinmaku, stoneStepGeo } from './props.js';
+import { sakamogi, paintGeo, jinmaku, stoneStepGeo, solidCircle } from './props.js';
 import { flagTexture } from './textures.js';
 import { RANKS } from './state.js';
 import { sfx } from './audio.js';
@@ -26,7 +26,7 @@ import { enemyGroup, allyGroup, nm, unitPos } from './bhelp.js';
 import { gone } from './b_inabayama.js';
 import { Garan, makeTempleFire, ringBell } from './temple1571.js';
 import { P, PATHS, BUILDINGS, VALLEYS, pathById, pathPoint, height, onFlat } from './castles/hiei1571.js';
-import { hieiSpeech, hieiGaranLook, hieiGroundFoot } from './b_hieizan.js';
+import { hieiSpeech, hieiGaranLook, hieiGroundFoot, hieiTimberGrain, hieiRoomMaterial } from './b_hieizan.js';
 import { nakaRoomAt } from './naka.js';
 import { interiorWaypoint } from './interior_layouts.js';
 import { addDeck, addRamp, groundAt } from './floors.js';
@@ -346,7 +346,8 @@ class HieiHallGaran extends Garan {
     super.bake(rec, group);
   }
   build(b) {
-    const r = super.build(b);
+    // 現在の比叡山にも、堂の内陣・僧坊の座敷と動く建具を適用する。
+    const r = super.build({ ...b, profile: 'hieizan' });
     if (r.kind === 'chumon' && r.cameraParts?.[0]) {
       // 中門の軒は柱より左右に二・二、前後に一・六メートル張り出す。
       // 小さい共通の箱の外へ出た軒裏に、視点が入り込むのを防ぐ。
@@ -363,8 +364,192 @@ class HieiHallGaran extends Garan {
       roof.position.set(0, (low + r.top) / 2, 0).applyMatrix4(r.M);
       roof.updateMatrix();
     }
+    if (!r.naka || !['chudo', 'hondo'].includes(r.naka.kind)) return r;
+    // 大講堂などの入れる堂にも、格天井と天蓋を受ける架構を設ける。
+    // 焼失前の柱割は推定。内陣の須弥壇と左右の脇口、正面の参拝路を空ける。
+    const lv = r.naka.levels[0], base = lv.y - r.y0, ceiling = base + lv.h - .11;
+    // 梁・長押・吊り受けの木目は、材の長手へ同じ縮尺で通す。
+    // 設営時に貼り方だけ変え、既存の木材とまとめ描きを使い回す。
+    const timber = (w, h, d, x, y, z) => {
+      const g = this.proxyGeo.clone();
+      g.scale(w, h, d);
+      const axis = h >= w && h >= d ? 1 : w >= d ? 0 : 2;
+      hieiTimberGrain(g, axis, (x * .37 + y * .19 + z * .53) % 1);
+      g.translate(x, y, z);
+      super.add(r, 'wood', paintGeo(g, 0x4a3020)); g.dispose();
+    };
+    // 低い小堂は鴨居と天井の間に斗栱の高さを取れないため、柱列を増やさない。
+    // 天蓋の吊り受けだけを壁際へ渡し、開いた格子戸の上を狭めない。
+    if (lv.h <= 3) {
+      lv.layout.altarSuspensionDrop = .16;
+      // 吊り受けの横梁の端を白壁へ突き付けず、側柱を結ぶ桁の上へ掛ける。
+      // 桁の上面は横梁の下面と揃え、両端は隅柱へ三センチ掛ける。
+      // 低い堂の窓上枠・長押より上に納め、格天井と吊り棒は動かさない。
+      // 焼失前の仕口は推定。既存の箱・木材の束へ設営時だけ加える。
+      if (lv.layout.props.some(p => p.part === 'altar')) {
+        for (const side of [-1, 1]) {
+          timber(.16, .1, b.d - .16, side * (b.w / 2 - .08),
+            base + lv.h - .21, 0);
+        }
+      }
+      for (const altar of lv.layout.props) {
+        if (altar.part !== 'altar') continue;
+        for (const z of [-.32, .16]) {
+          timber(b.w - .16, .1, .1, altar.x,
+            base + lv.h - .11, altar.z + z * altar.d);
+        }
+      }
+      return r;
+    }
+    // 繋梁の端を定間隔の柱の間へ落とさず、側壁にも同じ柱筋を通す。
+    // 内陣境の梁も含め、窓を避けた内外共通の柱割にする。焼失前の柱割は推定。
+    // 室内側は既存の柱をこの割付へ置き換え、柱を二重に増やさない。
+    const bearings = lv.layout.rooms.map(room => (room.z0 + room.z1) / 2);
+    const innerRoom = lv.layout.rooms.find(room => room.name === '内陣');
+    if (innerRoom) bearings.push(innerRoom.z1 - .18);
+    lv.wallPosts = [];
+    for (const side of [-1, 1]) {
+      const windows = (lv.windows || []).filter(v => v.face === 'x' && v.s === side);
+      const positions = new Set([-b.d / 2, b.d / 2]);
+      const clear = z => !windows.some(v => Math.abs(z - v.t) < v.w / 2 + .24);
+      for (const z of bearings) if (clear(z)) positions.add(z);
+      const count = Math.max(2, Math.round(b.d / 1.9));
+      for (let i = 1; i < count; i++) {
+        const z = -b.d / 2 + i * b.d / count;
+        if (clear(z) && ![...positions].some(t => Math.abs(t - z) < .32)) positions.add(z);
+      }
+      for (const v of windows) for (const edge of [-1, 1]) positions.add(v.t + edge * (v.w / 2 + .08));
+      lv.wallPosts.push({ face: 'x', side, positions: [...positions] });
+      for (const z of positions) {
+        // 隅柱は伽藍側にある。窓脇と梁受けの柱だけを既存の木部へまとめる。
+        if (Math.abs(z) >= b.d / 2 - .2) continue;
+        timber(.16, lv.h, .16, side * b.w / 2, base + lv.h / 2, z);
+      }
+    }
+    const nageshi = base + 2.72;
+    // 柱を梁まで貫通させず、柱頭の斗・肘木を順に積んで梁下面を受ける。
+    // 低い堂でも長押の上端を柱で受けられる高さを残す。細かな仕口は推定。
+    const postTop = Math.max(ceiling - .6, nageshi + .08);
+    const bracketH = (ceiling - .3 - postTop) / 3;
+    this.hallPostShape ||= new THREE.CylinderGeometry(.18, .18, 1, 8);
+    // 堂内の丸柱も内陣境の角柱と同じく、足元を薄い根巻で保護する。
+    // 焼失前の金具の細部は推定。八角の柱面へ沿わせ、床上二十四センチに納める。
+    // 底を開けた筒を共用し、柱の上へ円盤を重ねず、焼失する木部の束へ含める。
+    this.hallRootShape ||= new THREE.CylinderGeometry(.184, .184, .24, 8, 1, true);
+    const rootWrap = (x, z, radius) => {
+      const g = this.hallRootShape.clone();
+      g.scale(radius / .18, 1, radius / .18); g.translate(x, base + .12, z);
+      super.add(r, 'wood', paintGeo(g, 0x34312b)); g.dispose();
+    };
+    // 長押を留める釘頭は八角の釘隠しで覆う。焼失前の意匠は推定。
+    // 柱際だけに納め、同じ形と木材のまとめ描きを使う。
+    this.hallNailShape ||= new THREE.CylinderGeometry(.036, .036, .008, 8).rotateX(Math.PI / 2);
+    const nail = (x, z, rot = 0) => {
+      const g = this.hallNailShape.clone();
+      g.rotateY(rot); g.translate(x, nageshi, z);
+      super.add(r, 'wood', paintGeo(g, 0x34312b)); g.dispose();
+    };
+    const beamZ = [];
+    for (const room of lv.layout.rooms) {
+      const z = (room.z0 + room.z1) / 2;
+      beamZ.push(z);
+      const postX = b.w * (room.name === '内陣' ? .2 : .32);
+      for (const x of [-postX, postX]) {
+        const g = this.hallPostShape.clone();
+        g.scale(1, postTop - base, 1);
+        // 丸柱は周長と高さを別々に割り、縦木目を引き伸ばさない。
+        hieiTimberGrain(g, 1, (x * .37 + z * .53) % 1, true, .36);
+        g.translate(x, (base + postTop) / 2, z);
+        super.add(r, 'wood', paintGeo(g, 0x634832)); g.dispose();
+        rootWrap(x, z, .18);
+        // 柱と柱頭の組物を同じ当たりで扱い、焼失時も堂と一緒に片付ける。
+        const [wx, wz] = r.naka.P(x, z);
+        const solid = solidCircle(wx, wz, .18);
+        solid.yBot = lv.y; solid.yTop = r.y0 + ceiling;
+        r.innerSolids.push(solid);
+        // 斗と肘木で横梁を受け、細い格縁へ梁を吊った形にしない。
+        timber(.36, bracketH, .36, x, postTop + bracketH * .5, z);
+        timber(.64, bracketH, .22, x, postTop + bracketH * 1.5, z);
+        timber(.22, bracketH, .64, x, postTop + bracketH * 2.5, z);
+      }
+      // 繋梁は側柱まで渡し、長押は柱を前後から抱く二枚にする。
+      timber(b.w - .16, .3, .24, 0, ceiling - .15, z);
+      for (const side of [-1, 1]) {
+        timber(postX * 2 + .36, .12, .07, 0, nageshi, z + side * .19);
+      }
+      // 柱列の長押を前後の壁・間仕切りまでつなぐ。柱筋の違う内外陣は別々に納める。
+      // 横の長押の側面で止め、格子戸のある内陣境では二本溝より奥に置く。
+      // 正面は持ち出した戸柱、背面は壁際の長押の内面に合わせる。細部は推定。
+      const front = room.z0 + .11;
+      const back = room.z1 >= b.d / 2 - .01 ? room.z1 - .27 : room.z1 - .11;
+      for (const x of [-postX, postX]) for (const side of [-1, 1]) {
+        // 横の長押の内側にも短い材を納め、柱の両脇で縦の長押を途切れさせない。
+        // 横材の内面（十五・五センチ）で止め、交差する上面を重ねない。
+        // 頭上の既存の幅に収め、格子戸の引き込みと内陣への脇口は保つ。
+        for (const [a, c] of [[front, z - .225], [z - .155, z + .155], [z + .225, back]]) {
+          if (c > a) timber(.07, .12, c - a, x + side * .19, nageshi, (a + c) / 2);
+        }
+        nail(x, z + side * .229);
+        nail(x + side * .229, z, Math.PI / 2);
+      }
+    }
+    // 内陣境も細い格縁だけで小壁を受けず、背面の柱と横梁で支える。
+    // 焼失前の仕口は推定。中央の固定格子の裏に納め、左右の引き戸を空ける。
+    // 礼盤の手前に残した余白へ張り出さず、柱の絵と当たりを同じ寸法にする。
+    const naijin = lv.layout.rooms.find(room => room.name === '内陣');
+    if (naijin) {
+      const z = naijin.z1 - .18, radius = .12;
+      const post = this.hallPostShape.clone();
+      post.scale(radius / .18, postTop - base, radius / .18);
+      hieiTimberGrain(post, 1, z * .53 % 1, true, radius * 2);
+      post.translate(0, (base + postTop) / 2, z);
+      super.add(r, 'wood', paintGeo(post, 0x634832)); post.dispose();
+      rootWrap(0, z, radius);
+      const [wx, wz] = r.naka.P(0, z), solid = solidCircle(wx, wz, radius);
+      solid.yBot = lv.y; solid.yTop = r.y0 + ceiling;
+      r.innerSolids.push(solid);
+      // 斗・肘木は鴨居より上へ収め、内陣境の梁を受ける。
+      timber(.24, bracketH, .24, 0, postTop + bracketH * .5, z);
+      timber(.52, bracketH, .18, 0, postTop + bracketH * 1.5, z);
+      timber(.18, bracketH, .4, 0, postTop + bracketH * 2.5, z);
+      timber(b.w - .16, .3, .24, 0, ceiling - .15, z);
+      // 下の桁もこの梁の側面で継ぎ、交差する下面を重ねない。
+      beamZ.push(z);
+    }
+    // 横梁の木口は側柱の内面で止まるため、柱へ突き付けるだけでは受けがない。
+    // 柱頭から内側へ持ち送りを出し、梁端の下面を支える推定の納まりにする。
+    // 内陣境の梁も同じ寸法で受け、窓・格子戸より上の既存の木材へまとめる。
+    // 側柱は壁芯の内外へ各八センチ。受けはその内面から梁下へ張り出す。
+    for (const z of beamZ) for (const side of [-1, 1]) {
+      timber(.32, .12, .3, side * (b.w / 2 - .08), ceiling - .36, z);
+    }
+    // 内外陣の横梁を桁でつなぎ、四周の側柱まで天井の荷を渡す。
+    // 桁の木口は横梁の側面へ納め、同じ高さで二本の材を貫通させない。
+    beamZ.sort((a, c) => a - c);
+    for (const x of [-b.w * .2, b.w * .2]) {
+      let start = -b.d / 2 + .08;
+      for (const z of beamZ) {
+        if (z - .12 > start) timber(.18, .24, z - .12 - start,
+          x, ceiling - .12, (start + z - .12) / 2);
+        start = z + .12;
+      }
+      const end = b.d / 2 - .08;
+      if (end > start) timber(.18, .24, end - start, x, ceiling - .12, (start + end) / 2);
+    }
+    // 天蓋と灯籠は薄い格天井板から直接吊らず、二本の桁に掛けた受け材から吊る。
+    // 共通の内装が作る吊り棒の上端と、受け材の下面を同じ高さへ揃える。
+    // 焼失前の仕口は推定。須弥壇の上だけに納め、内陣の脇口へ柱を増やさない。
+    lv.layout.altarSuspensionDrop = .47;
+    for (const altar of lv.layout.props) {
+      if (altar.part !== 'altar') continue;
+      for (const z of [-.32, .16]) timber(b.w * .4 + .18, .12, .1,
+        altar.x, base + lv.h - .41, altar.z + z * altar.d);
+    }
+    // 九間の正面建具は根本中堂だけ。ほかの堂の戸口・窓割は共通のまま使う。
     if (b.id !== 'konponchudo_1571') return r;
     const h = b.h || 6.2, y = 1.5, bw = b.w / 9, z = b.d / 2 + .13;
+    // 横桟の下面まで戸口より上へ納め、開けた格子戸の上端に重ねない。
+    const entryTop = r.naka.levels[0].y - r.y0 + r.naka.door.h;
     const parts = [];
     const bar = (x, cy, w, height) => {
       const g = new THREE.BoxGeometry(w, height, .14);
@@ -372,7 +557,7 @@ class HieiHallGaran extends Garan {
     };
     // 九間の蔀戸。中央の戸口は塞がず、敷居・鴨居と縦横の桟を付ける。
     for (let i = 0; i < 9; i++) {
-      const x = -b.w / 2 + bw * (i + .5), low = i === 4 ? 2.3 : .08, top = h - .75;
+      const x = -b.w / 2 + bw * (i + .5), low = i === 4 ? entryTop - y + .08 : .08, top = h - .75;
       for (const side of [-1, 1]) bar(x + side * (bw / 2 - .08), y + (low + top) / 2, .12, top - low);
       for (const height of [low, top]) bar(x, y + height, bw - .04, .12);
       for (let k = 1; k < 5; k++) bar(x - bw / 2 + k * bw / 5, y + (low + top) / 2, .055, top - low);
@@ -861,7 +1046,7 @@ function hieiExitWay(rt) {
     }
     F.exitInterior = null;
   }
-  if (!room || room.I.profile !== 'hiei') return null;
+  if (!room || !['hiei', 'hieizan'].includes(room.I.profile)) return null;
   const I = room.I, out = F.exitWay, local = F.exitLocal;
   const dx = p.x - I.x, dz = p.z - I.z;
   const ix = I.doorIn.x - I.x, iz = I.doorIn.z - I.z;
@@ -1841,6 +2026,8 @@ const hiei_mtn = {
   // 低い踏石は近くで透かす。段ごとのカメラ押し上げ・毎コマの全段検査は要らない。
   world: {
     seed: 15710,
+    // 現在の比叡山でも畳・襖・須弥壇を堂内の光へ揃える。材質は全棟で共有する。
+    interiorMaterial: hieiRoomMaterial,
     moveLim: 280,           // この戦だけ：横川六谷の奥（z≈-268）まで。本道の掃討条件は変えない。
     time: 'day',
     mist: false,           // 当日の霧は不明。煙は建物の火から生じる。山の上は森と霞に隠れて見えない（P1）

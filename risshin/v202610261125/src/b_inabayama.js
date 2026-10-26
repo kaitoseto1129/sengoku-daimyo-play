@@ -1741,6 +1741,9 @@ function buildInabaMountain(rt) {
   const mat = S.quality === 'high'
     ? new THREE.MeshStandardMaterial({ color: 0xb9aa8d, roughness: 0.98, metalness: 0, envMapIntensity: 0.45 })
     : new THREE.MeshLambertMaterial({ color: 0xb9aa8d });
+  // 斜面の法線に必要な拡張設定を、どちらの材質にも用意する。
+  mat.extensions ||= {};
+  mat.extensions.derivatives = true;
   mat.userData.camNearSolid = true;
   mat.customProgramCacheKey = () => 'inaba-ground-soil-rock-trail-relief';
   mat.onBeforeCompile = (sh) => {

@@ -8,8 +8,10 @@
 // ======================================================================
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { nobori, jinmaku, hut, romon, dou, stumps, hashigo, tsuiji, tobiraLeaf } from './props.js';
+import { nobori, jinmaku, hut, romon, dou, stumps, hashigo, tsuiji, tobiraLeaf, solidCircle } from './props.js';
 import { Garan, makeTempleFire } from './temple1571.js';
+import { hieiNageshiHeight } from './interior_parts.js';
+import { HIEI_NAIJIN_POST_SETBACK } from './interior_layouts.js';
 import { dressSlope } from './terrain_slope.js';
 import { flagTexture } from './textures.js';
 import { RANKS } from './state.js';
@@ -30,6 +32,26 @@ const SAKA = { x: 96, z: 6 };              // 坂本（湖のほとり）
 const CHUDO = { x: -50, z: -4 };           // 根本中堂の前
 const INSIDE = { x: -18, z: 0 };          // 門内で味方と並ぶ場所
 const RESCUE = { x: -17, z: -22 };         // 救出の下知から同じ縁へ案内する
+
+// 畳・紙の建具・須弥壇にも、柱や天井と同じ堂内の光を当てる。
+// 共通の室内部品は変えず、この戦の材質だけを一度作って全棟で使い回す。
+const HIEI_ROOM_MATERIALS = new WeakMap();
+export function hieiRoomMaterial(source) {
+  // 光だまり・障子の透け・油皿の火先は、元の明るさと透け方を保つ。
+  if (!source.isMeshBasicMaterial || source.transparent || !source.colorWrite
+    || source.color.getHex() === 0xffd08b) return source;
+  if (!HIEI_ROOM_MATERIALS.has(source)) {
+    const material = new THREE.MeshStandardMaterial({
+      color: source.color, map: source.map, vertexColors: source.vertexColors,
+      alphaMap: source.alphaMap, alphaTest: source.alphaTest, side: source.side,
+      depthTest: source.depthTest, depthWrite: source.depthWrite,
+      fog: source.fog, toneMapped: source.toneMapped,
+      roughness: 1, metalness: 0, emissive: 0x514c41, emissiveIntensity: .16,
+    });
+    HIEI_ROOM_MATERIALS.set(source, material);
+  }
+  return HIEI_ROOM_MATERIALS.get(source);
+}
 
 // この戦だけの言葉。共通の台詞の元や、ほかの戦には手を加えない。
 export function hieiSpeech(rt) {
@@ -133,6 +155,24 @@ function hieiPaint(g, hex) {
   q.setAttribute('color', new THREE.BufferAttribute(a, 3));
   for (const k of Object.keys(q.attributes)) if (!['position', 'normal', 'uv', 'color'].includes(k)) q.deleteAttribute(k);
   return q;
+}
+// 縮尺を合わせた材へ貼る。木目を長手へ通し、丸柱も高さで引き伸ばさない。
+// 外周の角材と同じ幅四十五センチ・長さ二・四メートル。設営時だけ使う。
+export function hieiTimberGrain(g, axis, offset = 0, round = false, diameter = .28) {
+  const p = g.attributes.position, n = g.attributes.normal, uv = g.attributes.uv;
+  const cross = axis === 0 ? [1, 2] : axis === 1 ? [0, 2] : [0, 1];
+  const component = (a, i, k) => k === 0 ? a.getX(i) : k === 1 ? a.getY(i) : a.getZ(i);
+  for (let i = 0; i < p.count; i++) {
+    const end = Math.abs(component(n, i, axis)) > .5;
+    if (round && !end) {
+      // 継ぎ目の両側を同じ周方向へ並べ、八角の柱面でも木目を途切れさせない。
+      uv.setXY(i, uv.getX(i) * (diameter * Math.PI / .45) + offset, p.getY(i) / 2.4);
+      continue;
+    }
+    const side = end || Math.abs(component(n, i, cross[0])) > .5 ? cross[1] : cross[0];
+    uv.setXY(i, component(p, i, side) / .45 + offset,
+      end ? component(p, i, cross[0]) / .45 : component(p, i, axis) / 2.4);
+  }
 }
 function hieiHead(look) {
   const v = (look.face | 0) % 12;
@@ -292,26 +332,1021 @@ class HieiGaran extends Garan {
     super.bake(rec, group);
   }
   build(b) {
-    const rec = super.build(b), grand = b.kind === 'chudo';
-    // この戦の調度だけを指定。室内の生成・戸の当たり・燃える時の片付けは共通の仕組みを使う。
-    if (rec.naka) {
-      rec.naka.profile = 'hieizan';
-      for (const lv of rec.naka.levels) lv.layout.profile = 'hieizan';
+    // 間取り・調度の当たりを作る前に、この戦の型を渡す。
+    // 出入り・引き戸・燃える時の片付けは共通の仕組みを使う。
+    const rec = super.build({ ...b, profile: 'hieizan' }), grand = b.kind === 'chudo';
+    const lv = rec.naka.levels[0], floor = lv.y - rec.y0 - .06;
+    const y = floor + lv.h + (grand ? .5 : 0);
+    const half = b.w / 2 + (grand ? 1.2 : 0);
+    // 白壁の外側も柱と長押で受ける。焼失前の柱割は推定。
+    // 内側と同じ窓割を使い、明かり取りと正面の引き戸を柱で塞がない。
+    this.hallBeamShape ||= new THREE.BoxGeometry(1, 1, 1);
+    const wallBase = lv.y - rec.y0, wallTop = wallBase + lv.h;
+    const wallTimber = (w, h, d, x, cy, z, color = 0x634832) => {
+      const g = this.hallBeamShape.clone();
+      g.scale(w, h, d);
+      const plaster = color === 0xd8d0bb;
+      // 単位箱の絵を梁全体へ伸ばさず、木目を材の長手へ通す。
+      // 門の角材と同じ幅四十五センチ・長さ二・四メートルで繰り返す。
+      // 設営時に貼り方だけ変え、共通の形・木材のまとめ描きは保つ。
+      const axis = h >= w && h >= d ? 1 : w >= d ? 0 : 2;
+      const offset = (x * .37 + cy * .19 + z * .53) % 1;
+      if (!plaster) hieiTimberGrain(g, axis, offset);
+      g.translate(x, cy, z);
+      // 小壁は木材と分け、既存の塗り壁材質でまとめる。白壁へ木目を付けない。
+      super.add(rec, plaster ? 'plaster' : 'wood', hieiPaint(g, color)); g.dispose();
+    };
+    // 僧坊・小堂の入口の踏板を、持ち出した根太と束・束石で受ける。
+    // 細かな納まりは推定。共通の入口と同じ寸法を使い、石段の手前へ束を納める。
+    // 木部・石は棟の既存の束へまとめ、焼失時も踏板の支えを残さない。
+    if (!grand && ['sobo', 'hondo'].includes(rec.naka.kind) && rec.naka.approach) {
+      const { pad } = rec.naka.approach, side = rec.naka.door.side;
+      const width = rec.naka.door.w + .4, depth = pad + .4;
+      const center = b.d / 2 + pad / 2 - .1;
+      const top = wallBase - .12, beamH = .1;
+      for (const sign of [-1, 1]) {
+        const x = rec.naka.door.lx + sign * (width / 2 - .06);
+        const z = side * (b.d / 2 + .1), [wx, wz] = rec.naka.P(x, z);
+        const ground = this.W.heightAt(wx, wz) - rec.y0;
+        const footTop = ground + .08, postTop = top - beamH;
+        // 地面が高い所では束を逆さに作らず、石も板の下面より上へ出さない。
+        if (postTop <= footTop) continue;
+        const foot = this.hallBeamShape.clone().scale(.16, .08, .16)
+          .translate(x, ground + .04, z);
+        super.add(rec, 'stone', hieiPaint(foot, 0x827b6d)); foot.dispose();
+        wallTimber(.1, postTop - footTop, .1, x, (footTop + postTop) / 2, z);
+        wallTimber(.12, beamH, depth, x, top - beamH / 2, side * center);
+      }
     }
-    const y = (grand ? 1.5 : .4) + (grand ? 6.2 : b.kind === 'do' ? 3.2 : 2.5);
+    // 四周に軒を出す堂は、隅の垂木も斜めの隅木で下から受ける。
+    // 焼失前の断面・仕口は推定。垂木下面へ上端を合わせ、天井板を貫かない。
+    // 壁の隅から軒先まで通し、共通の箱と既存の木材のまとめ描きへ納める。
+    const eaveHips = (eave, rafterBottom) => {
+      const reach = eave - .05, length = Math.hypot(reach, reach);
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+        const g = this.hallBeamShape.clone();
+        g.scale(length, .16, .18);
+        hieiTimberGrain(g, 0, (sx * .37 + sz * .53) % 1);
+        g.rotateY(-Math.atan2(sz, sx));
+        g.translate(sx * (b.w / 2 + reach / 2), rafterBottom - .08,
+          sz * (b.d / 2 + reach / 2));
+        super.add(rec, 'wood', hieiPaint(g, 0x4a3020)); g.dispose();
+      }
+    };
+    // 回り縁は共通の伽藍側で框・下地・縁板と歩く床を一組として作る。
+    // 別方向の薄板を上張りすると、下の板の目地を覆い、
+    // 歩く床より板面も高くなるため、ここでは重ねない。
+    // 室内も同じ柱割を使う。内外で別々に間引くと、窓脇や戸脇の柱筋がずれる。
+    lv.wallPosts = [];
+    for (const face of ['x', 'z']) for (const side of [-1, 1]) {
+      const len = face === 'z' ? b.w : b.d, off = (face === 'z' ? b.d : b.w) / 2;
+      const openings = (lv.windows || []).filter(v => v.face === face && v.s === side)
+        .map(v => ({ t: v.t, w: v.w }));
+      if (face === 'z' && side === rec.naka.door.side) openings.push({ t: rec.naka.door.lx, w: rec.naka.door.w });
+      const posts = new Set(), n = Math.max(2, Math.round(len / 1.9));
+      // 堂内の繋梁と内陣境の梁、僧坊の座敷境の梁を側壁の柱で受ける。
+      // 等間隔だけの柱割では梁端が白壁の途中に掛かっていた。
+      // 内外で同じ柱筋を使い、近くの定間隔の柱は省いて重ねない。
+      if (face === 'x' && ['chudo', 'hondo', 'sobo'].includes(rec.naka.kind)) {
+        const bearings = new Set();
+        if (rec.naka.kind === 'sobo') {
+          // 襖・障子の間仕切りと天井の横梁に柱筋を合わせる。
+          // 外周の隅柱は既にあるため、部屋の境だけを拾う。細かな柱割は推定。
+          for (const room of lv.layout.rooms) for (const z of [room.z0, room.z1]) {
+            if (z > -b.d / 2 + .2 && z < b.d / 2 - .2) bearings.add(z);
+          }
+        } else {
+          for (const room of lv.layout.rooms) bearings.add((room.z0 + room.z1) / 2);
+          const naijin = lv.layout.rooms.find(room => room.name === '内陣');
+          // 内陣境の丸柱・横梁と同じ柱芯で側柱を立てる。
+          // 古い十五センチの寄せ方では、梁の受けから柱筋が五センチずれていた。
+          if (naijin) bearings.add(naijin.z1 - HIEI_NAIJIN_POST_SETBACK);
+        }
+        for (const t of bearings) {
+          if (!openings.some(v => Math.abs(t - v.t) < v.w / 2 + .22)) posts.add(t);
+        }
+      }
+      for (let q = 1; q < n; q++) {
+        const t = -len / 2 + q * len / n;
+        if (!openings.some(v => Math.abs(t - v.t) < v.w / 2 + .22)
+          && ![...posts].some(p => Math.abs(t - p) < .32)) posts.add(t);
+      }
+      for (const v of openings) for (const edge of [-1, 1]) posts.add(v.t + edge * (v.w / 2 + .08));
+      const innerPosts = [-len / 2, len / 2];
+      for (const t of posts) {
+        if (Math.abs(t) > len / 2 - .2) continue;
+        innerPosts.push(t);
+        if (face === 'z') wallTimber(.16, lv.h, .16, t, (wallBase + wallTop) / 2, side * off);
+        else wallTimber(.16, lv.h, .16, side * off, (wallBase + wallTop) / 2, t);
+      }
+      lv.wallPosts.push({ face, side, positions: innerPosts });
+      // 明かり取りの外側にも窓台と上枠を渡し、左右の柱へ掛ける。
+      // 内側だけに枠があると、外からは壁を切った穴で終わっていた。
+      // 開口の上下へ納め、障子の二本溝・格子・通行の当たりには出さない。
+      // 焼失前の細かな断面は推定。共通の箱と木材のまとめ描きを使う。
+      for (const v of lv.windows || []) {
+        if (v.face !== face || v.s !== side) continue;
+        for (const height of [v.y0 - .05, v.y1 + .05]) {
+          const cy = wallBase + height;
+          if (face === 'z') wallTimber(v.w + .16, .1, .14,
+            v.t, cy, side * (off + .06));
+          else wallTimber(.14, .1, v.w + .16,
+            side * (off + .06), cy, v.t);
+          // 外の窓枠の内面は壁芯から一センチ内、室内の枠の外面は九センチ内。
+          // その間を見込み材で閉じ、開口を斜めから見ても壁の中が透けないようにする。
+          // 窓台・上枠の高さだけにつなぎ、格子・障子・引き戸の溝は塞がない。
+          // 既存の箱と木材のまとめ描きを使い、焼失時も同じ棟として片付ける。
+          if (face === 'z') wallTimber(v.w, .1, .08,
+            v.t, cy, side * (off - .05));
+          else wallTimber(.08, .1, v.w,
+            side * (off - .05), cy, v.t);
+        }
+        // 窓脇も内外の柱をつなぎ、見込みを四周で閉じる。
+        // 外柱の内面は壁芯から八センチ、内柱の外面は九センチ内。
+        // 残る一センチだけを埋め、柱の面を重ねず、開口と障子の溝を保つ。
+        const revealH = v.y1 - v.y0, revealY = wallBase + (v.y0 + v.y1) / 2;
+        for (const edge of [-1, 1]) {
+          const t = v.t + edge * (v.w / 2 + .08);
+          if (face === 'z') wallTimber(.16, revealH, .01,
+            t, revealY, side * (off - .085));
+          else wallTimber(.01, revealH, .16,
+            side * (off - .085), revealY, t);
+        }
+      }
+      // 窓・入口より上で四周を結ぶ。正面戸の溝は室内側にあるため干渉しない。
+      const cy = wallBase + hieiNageshiHeight(rec.naka.kind, lv.h);
+      // 左右の通し長押の内面（壁から五センチ外）まで延ばし、隅の隙間を閉じる。
+      if (face === 'z') wallTimber(len + .1, .12, .08, 0, cy, side * (off + .09));
+      else wallTimber(.08, .12, len + .26, side * (off + .09), cy, 0);
+      // 外周の長押も柱筋で留め、内外の釘頭を堂内と同じ八角の釘隠しで覆う。
+      // 焼失前の金具は推定。内側は室内の長押、外側は上の長押の表面へ納める。
+      // 共通の形を使って既存のまとめ描きへ加え、戸の溝や通行の当たりは広げない。
+      this.nageshiNailShape ||= new THREE.CylinderGeometry(.036, .036, .008, 8).rotateX(Math.PI / 2);
+      // 室内の正面長押は、引き戸を避けた戸柱と同じ面へ寄せる。
+      // 室内壁は外壁から十センチ内側。長押の見付け面へ金具の背面を接する。
+      // 正面はさらに二十二センチ、ほかは六センチ寄せた長押の厚み五センチを足す。
+      const innerNail = -( .1 + (face === 'z' && side === rec.naka.door.side ? .22 : .06) + .05 + .004);
+      for (const t of innerPosts) for (const surface of [innerNail, .135]) {
+        // 隅柱の芯は長押の木口より外。室内側に下地のない金具を浮かせない。
+        if (surface === innerNail && Math.abs(t) > len / 2 - .21) continue;
+        const g = this.nageshiNailShape.clone();
+        if (face === 'x') g.rotateY(Math.PI / 2);
+        g.translate(face === 'z' ? t : side * (off + surface), cy,
+          face === 'z' ? side * (off + surface) : t);
+        super.add(rec, 'wood', hieiPaint(g, 0x34312b)); g.dispose();
+      }
+      // 柱脚と窓下も地覆・腰貫でつなぐ。柱の間を白壁だけで終わらせない。
+      // 焼失前の仕口は推定。正面の戸口は床際から空け、内側の引き戸の溝へ出さない。
+      // 側面を通し材とし、正背面はその内面で止める。
+      // 厚さ十センチ・壁から三・五センチ外の材なので、内面は柱芯から一・五センチ内。
+      // 四隅で上面を重ねず、側面の木口は正背面の外面まで延ばして閉じる。
+      const tieEnd = len / 2 + (face === 'z' ? -.015 : .085);
+      const spans = face === 'z' && side === rec.naka.door.side
+        ? [[-tieEnd, rec.naka.door.lx - rec.naka.door.w / 2],
+          [rec.naka.door.lx + rec.naka.door.w / 2, tieEnd]]
+        : [[-tieEnd, tieEnd]];
+      for (const [a, c] of spans) {
+        if (c - a < .02) continue;
+        for (const [height, thick] of [[.12, .16], [.72, .1]]) {
+          if (face === 'z') wallTimber(c - a, thick, .1, (a + c) / 2, wallBase + height, side * (off + .035));
+          else wallTimber(.1, thick, c - a, side * (off + .035), wallBase + height, (a + c) / 2);
+        }
+      }
+      // 室内の地覆・腰貫は naka.js に揃える。僧坊だけ別の高さ・奥行きへ重ねない。
+    }
+    // 正面の戸柱と壁をつなぐ見込み板は naka.js の室内側で一度だけ作る。
+    // 同じ位置へ戸の高さまで重ねると、堂と僧坊の戸口の表裏がちらつく。
+    // 共通の通し材に揃え、引き戸の二本溝と開口の寸法を保つ。
+    if (['chudo', 'hondo'].includes(rec.naka.kind)) {
+      // 板敷きの端を地覆へ納め、内側の柱脚を四周で結ぶ。
+      // 外側の腰貫は室内の壁面に隠れるため、内側にも床際の木を回す。
+      // 焼失前の断面は推定。正面の敷居・動く格子戸の溝は空ける。
+      const floorBase = lv.y - rec.y0, edge = .13, frameWidth = .12;
+      // 左右の框を通し、正背面の木口はその内面で止める。
+      // 柱芯まで双方を伸ばすと隅の上面が重なり、床際がちらつく。
+      // 焼失前の仕口は推定。正面の戸口・敷居・当たりの幅は保つ。
+      const frameEnd = b.w / 2 - edge - frameWidth / 2;
+      for (const side of [-1, 1]) {
+        wallTimber(frameWidth, .1, b.d - edge * 2 + frameWidth,
+          side * (b.w / 2 - edge), floorBase + .05, 0);
+        const spans = side === rec.naka.door.side
+          ? [[-frameEnd, rec.naka.door.lx - rec.naka.door.w / 2],
+            [rec.naka.door.lx + rec.naka.door.w / 2, frameEnd]]
+          : [[-frameEnd, frameEnd]];
+        for (const [a, c] of spans) if (c > a) wallTimber(c - a, .1, frameWidth,
+          (a + c) / 2, floorBase + .05, side * (b.d / 2 - edge));
+      }
+      // 焼失前の柱割は断定せず、内陣・外陣の天井を受ける柱と梁を補う。
+      // 中央の参拝路と、内陣の脇口・引き戸の引き込み先には置かない。
+      const base = lv.y - rec.y0, top = base + lv.h - .11;
+      // 壁際だけで途切れていた内法長押を、堂内の柱列にも通す。
+      // 室内の鴨居・外周の長押と高さを揃え、天井の梁とは分ける。
+      const nageshiY = base + hieiNageshiHeight(rec.naka.kind, lv.h);
+      this.hallPostShape ||= new THREE.CylinderGeometry(.14, .14, 1, 8);
+      // 堂内の丸柱を八角の棒のままにせず、上端を少し絞った丸い材にする。
+      // 焼失前の断面の復元とは断定しない。柱脚の根巻は従来の八角を保つ。
+      // 最大半径は既存の当たり以内。全堂で形を共有し、木材の束へまとめる。
+      this.hallShaftShape ||= new THREE.CylinderGeometry(.13, .14, 1, 16);
+      this.hallBeamShape ||= new THREE.BoxGeometry(1, 1, 1);
+      // 堂内の横梁は下面を反らせた虹梁にする。焼失前の意匠の復元とは断定しない。
+      // 上端は水平に保ち、中央でも従来の梁せいを残して桁とつなぐ。
+      // 堂ごとに作り直さず、共通の形を設営時のまとめ描きへ使う。
+      if (!this.hallRainbowShape) {
+        const shape = new THREE.BoxGeometry(1, 1, 1, 12, 1, 1);
+        const p = shape.attributes.position;
+        for (let i = 0; i < p.count; i++) {
+          const t = p.getX(i) * 2;
+          p.setY(i, p.getY(i) > 0 ? 0 : -.28 - .12 * t * t);
+        }
+        shape.computeVertexNormals();
+        this.hallRainbowShape = shape;
+      }
+      // 虹梁端の木鼻を二つの角箱で終えず、下面を反らせ、先を絞る。
+      // 意匠は推定。従来の張り出し・高さの内側に納め、全堂で同じ形を使う。
+      if (!this.hallKibanaShape) {
+        const shape = new THREE.BoxGeometry(.30, .18, .22, 6, 1, 1);
+        const p = shape.attributes.position;
+        for (let i = 0; i < p.count; i++) {
+          const t = (p.getX(i) + .15) / .30, curve = t * t;
+          p.setXYZ(i, .11 + t * .30,
+            p.getY(i) > 0 ? -.22 - .015 * curve : -.40 + .08 * curve,
+            p.getZ(i) * (1 - .25 * curve));
+        }
+        shape.computeVertexNormals();
+        hieiTimberGrain(shape, 0);
+        this.hallKibanaShape = shape;
+      }
+      // 柱脚の根巻を薄く回し、床際の木口を保護する納まりにする。
+      // 焼失前の金具の意匠は断定せず、柱と同じ八角の形を使う。
+      // 張り出しは既存の柱の当たりの内側に収める。
+      const postFoot = (x, z) => {
+        for (const [cy, h, scale] of [[base + .11, .22, .99], [base + .025, .025, 1], [base + .2075, .025, 1]]) {
+          const g = this.hallPostShape.clone();
+          g.scale(scale, h, scale); g.translate(x, cy, z);
+          super.add(rec, 'wood', hieiPaint(g, 0x34312b)); g.dispose();
+        }
+      };
+      // 長押を柱へ留める釘頭を、素朴な八角の釘隠しで覆う。
+      // 焼失前の金具の意匠は推定。共通の形を使い、長押の表面だけに納める。
+      this.nageshiNailShape ||= new THREE.CylinderGeometry(.036, .036, .008, 8).rotateX(Math.PI / 2);
+      const nageshiNail = (x, z) => {
+        for (const side of [-1, 1]) {
+          const g = this.nageshiNailShape.clone();
+          g.translate(x, nageshiY, z + side * .184);
+          super.add(rec, 'wood', hieiPaint(g, 0x34312b)); g.dispose();
+        }
+      };
+      // 斗を角箱のままにせず、下半分に斗繰りを付け、上の平らな面で肘木を受ける。
+      // 焼失前の断面は推定。上面の幅・高さは保ち、梁との接点を動かさない。
+      // 全堂で一つの形を使い、既存の木材のまとめ描きと燃焼の片付けに含める。
+      if (!this.hallMasuShape) {
+        const shape = new THREE.BoxGeometry(1, 1, 1, 1, 2, 1);
+        const p = shape.attributes.position;
+        for (let i = 0; i < p.count; i++) {
+          const scale = p.getY(i) < 0 ? .72 : 1;
+          p.setXYZ(i, p.getX(i) * scale, p.getY(i), p.getZ(i) * scale);
+        }
+        shape.computeVertexNormals();
+        this.hallMasuShape = shape;
+      }
+      const masu = (w, h, d, x, cy, z) => {
+        const g = this.hallMasuShape.clone();
+        g.scale(w, h, d);
+        hieiTimberGrain(g, w >= d ? 0 : 2, (x * .37 + z * .53) % 1);
+        g.translate(x, cy, z);
+        super.add(rec, 'wood', hieiPaint(g, 0x634832)); g.dispose();
+      };
+      // 内陣境の中央柱も、堂内の柱列と同じ斗・肘木で横梁を受ける。
+      // 梁の下面で止め、格天井と建具の通路へ張り出させない。
+      // 共通の斗と箱形を木材のまとめ描きへ含め、設営時だけ作る。
+      const postHead = (x, z, drop = 0) => {
+        for (let tier = 0; tier < 3; tier++) {
+          const cy = top - .61 + tier * .12 - drop, size = .28 + tier * .06;
+          masu(size, .06, size, x, cy, z);
+          const armY = cy + .06, reach = .52 + tier * .16;
+          wallTimber(.18, .06, reach, x, armY, z);
+          for (const side of [-1, 1]) {
+            wallTimber((reach - .18) / 2, .06, .18,
+              x + side * (reach + .18) / 4, armY, z);
+          }
+        }
+      };
+      // 側柱に差した梁の端にも斗・肘木を添え、壁面だけで受けた形にしない。
+      // 室内側の柱芯から持ち送りを出し、上の斗を梁下面へ接する。
+      // 焼失前の細部は推定。窓・長押より上に納め、共通の箱とまとめ描きを使う。
+      const wallBeamSeat = (z, beamDepth) => {
+        const bottom = top - beamDepth;
+        for (const side of [-1, 1]) {
+          masu(.22, .08, .24, side * (b.w / 2 - .16),
+            bottom - .20, z);
+          wallTimber(.5, .08, .18, side * (b.w / 2 - .30),
+            bottom - .12, z, 0x4a3020);
+          masu(.18, .08, .24, side * (b.w / 2 - .42),
+            bottom - .04, z);
+        }
+      };
+      const frameZ = [];
+      for (const room of lv.layout.rooms) {
+        // 内陣は須弥壇の左右へ寄せ、中央の本尊と脇口への通路を空ける。
+        const inner = room.name === '内陣';
+        const z = (room.z0 + room.z1) / 2, span = b.w * (inner ? .4 : .64);
+        frameZ.push(z);
+        for (const x of [-span / 2, span / 2]) {
+          const g = this.hallShaftShape.clone();
+          g.scale(1, top - base - .22, 1);
+          hieiTimberGrain(g, 1, (x * .37 + z * .53) % 1, true);
+          g.translate(x, (base + .22 + top) / 2, z);
+          super.add(rec, 'wood', hieiPaint(g, 0x634832)); g.dispose();
+          postFoot(x, z);
+          const [wx, wz] = rec.naka.P(x, z), solid = solidCircle(wx, wz, .14);
+          solid.yBot = lv.y; solid.yTop = rec.y0 + top;
+          rec.innerSolids.push(solid);
+          // 虹梁は柱際ほど下面が下がる。平梁と同じ高さの斗栱では、
+          // 上段の肘木が梁へ十センチほど埋まるため、柱芯の下面で受ける。
+          // 梁の形と同じ放物線を使い、内陣境の平梁の斗栱は元の高さに保つ。
+          const beamT = span / (span + .28);
+          postHead(x, z, .12 * beamT * beamT);
+        }
+        // 格縁の下面へ梁の上端を合わせ、格天井を突き抜けない。
+        const beam = this.hallRainbowShape.clone();
+        beam.scale(span + .28, 1, .24);
+        hieiTimberGrain(beam, 0, z * .53 % 1);
+        beam.translate(0, top, z);
+        super.add(rec, 'wood', hieiPaint(beam, 0x4a3020)); beam.dispose();
+        // 虹梁の木口を柱面で切り落とさず、柱の外へ短い木鼻を出す。
+        // 梁端を留める楔も柱の両面へ納め、接合部を一枚の棒で終えない。
+        // 焼失前の仕口は推定。共通の箱を使い、既存の木材のまとめ描きに含める。
+        // 柱頭だけに置くため、内陣の脇口・格子戸・参拝路の当たりは広げない。
+        for (const side of [-1, 1]) {
+          const x = side * span / 2;
+          const nose = this.hallKibanaShape.clone();
+          if (side < 0) nose.rotateY(Math.PI);
+          nose.translate(x, top, z);
+          super.add(rec, 'wood', hieiPaint(nose, 0x634832)); nose.dispose();
+          for (const face of [-1, 1]) {
+            wallTimber(.055, .14, .055, x, top - .19,
+              z + face * .1475, 0x95704a);
+          }
+        }
+        // 中央の虹梁だけで終えず、側柱まで繋梁を渡して脇の格天井を受ける。
+        // 柱頭の上へ掛け、格子戸・窓・須弥壇の高さには下げない。
+        const wallX = b.w / 2 - .08, postX = span / 2;
+        wallBeamSeat(z, .22);
+        for (const side of [-1, 1]) {
+          wallTimber(wallX - postX + .14, .22, .2,
+            side * (wallX + postX) / 2, top - .11, z, 0x4a3020);
+          // 繋梁の両端も込栓で留め、柱へ棒を突き合わせただけの見た目にしない。
+          // 焼失前の仕口の細部は推定。柱際の梁の中へ納め、栓の木口だけを両面へ出す。
+          // 虹梁側・側柱側で共通の箱を使い、既存のまとめ描きと燃焼に含める。
+          for (const x of [postX + .12, wallX - .12]) {
+            for (const face of [-1, 1]) wallTimber(.045, .065, .012,
+              side * x, top - .11, z + face * .106, 0x95704a);
+          }
+        }
+        // 柱の前後に挟み、柱面へ掛ける。頭上に納めて参拝路を空ける。
+        // 既存の形と材質のまとめ描きを使い、焼失時も柱と一緒に片付ける。
+        for (const side of [-1, 1]) {
+          wallTimber(span + .36, .12, .07, 0, nageshiY,
+            z + side * .145, 0x4a3020);
+        }
+        for (const x of [-span / 2, span / 2]) nageshiNail(x, z);
+        // 横の長押だけでは柱列の前後が途切れるため、外壁と内陣境の長押へつなぐ。
+        // 内陣と外陣では柱筋が違う。境の横木で受け、斜めにつながない。
+        // 柱を両側から抱き、格子戸の鴨居より上へ納める。細部は推定。
+        // 横の長押を通し、縦の長押はその側面で止める。同じ高さで交差させない。
+        // 内陣境は中央柱の前後の長押、外周は室内側の長押の内面へ合わせる。
+        // 正面の戸柱側だけ壁から二十二センチ寄る。共通の室内と寸法を揃える。
+        const front = room.z0 <= -b.d / 2 + .01
+          ? -b.d / 2 + (rec.naka.door.side < 0 ? .27 : .11) : room.z0 - HIEI_NAIJIN_POST_SETBACK + .18;
+        const back = room.z1 >= b.d / 2 - .01
+          ? b.d / 2 - (rec.naka.door.side > 0 ? .27 : .11) : room.z1 - HIEI_NAIJIN_POST_SETBACK - .18;
+        const runs = [[front, z - .18], [z - .11, z + .11], [z + .18, back]];
+        for (const x of [-span / 2, span / 2]) for (const side of [-1, 1]) {
+          for (const [a, c] of runs) {
+            const start = Math.max(front, a), end = Math.min(back, c);
+            if (end > start) wallTimber(.07, .12, end - start, x + side * .145,
+              nageshiY, (start + end) / 2, 0x4a3020);
+          }
+          const nail = this.nageshiNailShape.clone();
+          nail.rotateY(Math.PI / 2);
+          nail.translate(x + side * .184, nageshiY, z);
+          super.add(rec, 'wood', hieiPaint(nail, 0x34312b)); nail.dispose();
+        }
+      }
+      // 内陣境の高い小壁も柱と梁で受ける。焼失前の細かな柱割は推定。
+      // 中央の固定格子の背面へ柱を寄せ、左右の脇口と戸の引き込み先を空ける。
+      const naijin = lv.layout.rooms.find(room => room.name === '内陣');
+      if (naijin) {
+        // 格子脇の角柱の背面へ丸柱の前面を合わせ、三本の柱を食い込ませない。
+        // 柱頭・梁・長押・当たりも同じ柱芯で揃え、左右の脇戸は保つ。
+        const z = naijin.z1, postZ = z - HIEI_NAIJIN_POST_SETBACK;
+        const post = this.hallShaftShape.clone();
+        post.scale(1, top - base - .22, 1);
+        hieiTimberGrain(post, 1, postZ * .53 % 1, true);
+        post.translate(0, (base + .22 + top) / 2, postZ);
+        super.add(rec, 'wood', hieiPaint(post, 0x634832)); post.dispose();
+        postFoot(0, postZ);
+        postHead(0, postZ);
+        const [wx, wz] = rec.naka.P(0, postZ), solid = solidCircle(wx, wz, .14);
+        solid.yBot = lv.y; solid.yTop = rec.y0 + top;
+        rec.innerSolids.push(solid);
+        // 天井直下の梁を外周まで渡し、中央柱と両端の壁柱で支える。
+        wallTimber(b.w - .16, .28, .24, 0, top - .14, postZ, 0x4a3020);
+        wallBeamSeat(postZ, .28);
+        // 鴨居の上の長押も柱面でつなぎ、格子戸が滑る手前の溝には出さない。
+        for (const side of [-1, 1]) {
+          wallTimber(b.w - .16, .12, .07, 0, nageshiY, postZ + side * .145, 0x4a3020);
+        }
+        nageshiNail(0, postZ);
+        // 小壁の束・貫と、その間へ納める塗り壁は室内の共通部品で作る。
+        // ここでも別の柱割を重ねると、束が塗り壁を貫き、横貫が二段になる。
+        // 中央の通し柱・長押・天井直下の梁だけをこの棟の架構として残す。
+      }
+      // 四周の側柱を頭貫で結び、繋梁と桁の端を受ける。細かな仕口は推定。
+      // 天井の細い回縁とは分け、既存の柱頭の高さへ納める。
+      for (const side of [-1, 1]) {
+        // 側面を通し材とし、正背面の木口をその内面で止める。
+        // 四隅で同じ下面を重ねず、柱頭を囲む頭貫としてつなぐ。
+        wallTimber(b.w - .36, .32, .2, 0, top - .16, side * (b.d / 2 - .08), 0x4a3020);
+        wallTimber(.2, .32, b.d + .04, side * (b.w / 2 - .08), top - .16, 0, 0x4a3020);
+      }
+      // 内陣と外陣の架構を桁でつなぐ。狭い方の柱筋で両方の横梁に掛ける。
+      // 前後も側柱の頭貫まで延ばし、部屋の中央だけで桁を途切れさせない。
+      // 桁と虹梁の上端を揃えて交差部を組み、側柱の頭貫にも十分に掛ける。
+      // 桁を虹梁の下へ吊るさず、格天井の格縁の下面で止める。
+      if (frameZ.length > 1) {
+        // 桁を虹梁・繋梁・内陣境の梁へ貫通させず、各梁の側面で継ぐ。
+        // 前後も頭貫の内面で止め、同じ高さの下面が重ならないようにする。
+        // 仕口の細部は推定。部材は従来のまとめ描きだけに含める。
+        const a = -b.d / 2 + .18, c = b.d / 2 - .18;
+        const joints = [...frameZ];
+        if (naijin) joints.push(naijin.z1 - HIEI_NAIJIN_POST_SETBACK);
+        joints.sort((left, right) => left - right);
+        for (const x of [-b.w * .2, b.w * .2]) {
+          let start = a;
+          for (const z of joints) {
+            const end = Math.min(c, z - .12);
+            if (end > start) wallTimber(.18, .22, end - start,
+              x, top - .11, (start + end) / 2, 0x4a3020);
+            start = Math.max(start, z + .12);
+          }
+          if (c > start) wallTimber(.18, .22, c - start,
+            x, top - .11, (start + c) / 2, 0x4a3020);
+          // 桁の木口を横梁へ突き合わせるだけにせず、細い枘を梁内へ通し、
+          // 前後の込栓で留める。焼失前の仕口の細部は推定。
+          // 栓の木口だけを梁面の外へ出し、格縁・柱頭の金具とは重ねない。
+          // 共通の箱と木材のまとめ描きを使い、通路の当たりは増やさない。
+          for (const z of joints) {
+            wallTimber(.10, .10, .28, x, top - .08, z, 0x4a3020);
+            for (const face of [-1, 1]) wallTimber(.035, .035, .012,
+              x, top - .08, z + face * .126, 0x95704a);
+          }
+        }
+      }
+      // 天蓋の吊り棒を薄い天井板だけで受けず、前後の吊り受け材から桁へ荷重を渡す。
+      // 焼失前の仕口は推定。二本の桁の下面へ掛け、格天井の下に納める。
+      // 吊り棒の上端は interior_parts.js と同じ天井下四十五センチに揃える。
+      lv.layout.altarSuspensionDrop = .45;
+      for (const altar of lv.layout.props) {
+        if (altar.part !== 'altar') continue;
+        for (const offset of [-.32, .16]) {
+          const z = altar.z + offset * altar.d;
+          wallTimber(b.w * .4 + .18, .12, .1,
+            0, base + lv.h - .39, z, 0x4a3020);
+          // 天蓋の吊り棒を受け材の下面へ突き当てるだけにせず、
+          // 四隅を鉄の帯で抱き、横栓で棒を留める推定の納まりにする。
+          // 棒の位置は室内部品と揃え、帯は受け材の表裏と上面へ回す。
+          // 共通の箱と既存のまとめ描きに含め、光源・当たり・更新は足さない。
+          for (const side of [-1, 1]) {
+            const x = altar.x + side * .6 * altar.w / 2.1;
+            const cy = base + lv.h - .39;
+            for (const face of [-1, 1]) {
+              wallTimber(.06, .15, .012, x, cy - .005,
+                z + face * .056, 0x34312b);
+              wallTimber(.022, .022, .008, x, cy - .07,
+                z + face * .066, 0x514b40);
+            }
+            wallTimber(.06, .012, .124, x, cy + .066, z, 0x34312b);
+            // 横栓は吊り棒の上端二センチを貫き、帯の両面へ通す。
+            wallTimber(.018, .018, .124, x, cy - .07, z, 0x34312b);
+          }
+          // 吊り受け材を桁の下面へ当てるだけにせず、枘を桁へ差して込栓で留める。
+          // 焼失前の仕口は推定。枘は桁内、栓の木口だけを桁の側面へ出す。
+          // 天蓋・吊り棒の位置と通路は保ち、共通の箱と木材のまとめ描きを使う。
+          for (const side of [-1, 1]) {
+            const x = side * b.w * .2;
+            wallTimber(.08, .16, .06, x, base + lv.h - .27, z, 0x4a3020);
+            for (const face of [-1, 1]) wallTimber(.012, .035, .035,
+              x + face * .096, base + lv.h - .25, z, 0x95704a);
+          }
+        }
+      }
+    }
+    // 木の踏板を持つ僧坊と小堂は、同じ床下の支えを使う。
+    // 中堂の張り出した縁には専用の支えがあるため、ここでは重ねない。
+    if (['sobo', 'hondo'].includes(rec.naka.kind)) {
+      // 木の上がり口の踏板を、地面からの束と桁で受ける。細部は推定。
+      // naka.js の踊り場と同じ外寸を使い、戸の溝より外・石段の両脇へ納める。
+      // 材質別のまとめ描きと焼失時の片付けを使い、更新処理は増やさない。
+      const landingWidth = rec.naka.door.w + .4;
+      const landingZ = rec.naka.door.side * (b.d / 2 + rec.naka.approach.pad - .04);
+      const landingTop = lv.y - rec.y0 - .12;
+      wallTimber(landingWidth, .1, .08, rec.naka.door.lx,
+        landingTop - .05, landingZ, 0x4a3020);
+      this.footStoneShape ||= new THREE.BoxGeometry(1, 1, 1);
+      for (const side of [-1, 1]) {
+        const x = rec.naka.door.lx + side * (landingWidth / 2 - .05);
+        const [wx, wz] = rec.naka.P(x, landingZ);
+        const ground = this.W.heightAt(wx, wz) - rec.y0;
+        const bottom = Math.min(ground + .06, landingTop - .12);
+        const top = landingTop - .1;
+        wallTimber(.08, top - bottom, .08, x, (bottom + top) / 2, landingZ);
+        const stoneBottom = Math.min(ground - .1, bottom - .08);
+        const foot = this.footStoneShape.clone();
+        foot.scale(.14, bottom - stoneBottom, .14);
+        foot.translate(x, (bottom + stoneBottom) / 2, landingZ);
+        super.add(rec, 'stone', hieiPaint(foot, 0x827b6d)); foot.dispose();
+        const solid = solidCircle(wx, wz, .07);
+        solid.yBot = rec.y0 + stoneBottom; solid.yTop = rec.y0 + top;
+        rec.innerSolids.push(solid);
+      }
+    }
+    if (rec.naka.kind === 'sobo') {
+      // 紙障子の明かり取りは、外へ張り出す板の小庇で雨を切る。
+      // 焼失前の窓庇の細部は推定。共通の窓割を使い、戸の溝より外へ納める。
+      // 開口上端より高い所だけに置き、室内の引き戸・通路の当たりは増やさない。
+      for (const win of lv.windows) {
+        if (!win.shoji) continue;
+        const across = win.face === 'z', side = win.s;
+        const wall = (across ? b.d : b.w) / 2;
+        const width = win.w + .24, reach = .4, fall = .12;
+        const head = lv.y - rec.y0 + win.y1;
+        const slope = Math.atan2(fall, reach), length = Math.hypot(reach, fall);
+        // 室内の水平な窓台だけで終えず、外側へ下がる水切り板を続ける。
+        // 焼失前の断面は推定。根元を窓台へ差し、先端は白壁から離して雨を落とす。
+        // 障子の二本溝より外・開口より下へ納め、既存の木材の束へまとめる。
+        const sill = lv.y - rec.y0 + win.y0;
+        const sillReach = .24, sillFall = .04, sillThickness = .045;
+        const sillSlope = Math.atan2(sillFall, sillReach);
+        const sillBoard = this.hallBeamShape.clone();
+        sillBoard.scale(across ? width : Math.hypot(sillReach, sillFall), sillThickness,
+          across ? Math.hypot(sillReach, sillFall) : width);
+        hieiTimberGrain(sillBoard, across ? 0 : 2, win.t * .53 % 1);
+        if (across) sillBoard.rotateX(side * sillSlope);
+        else sillBoard.rotateZ(-side * sillSlope);
+        const sillOut = side * (wall + .10);
+        sillBoard.translate(across ? win.t : sillOut,
+          sill - .01 - sillFall / 2 - sillThickness / (2 * Math.cos(sillSlope)),
+          across ? sillOut : win.t);
+        super.add(rec, 'wood', hieiPaint(sillBoard, 0x634832)); sillBoard.dispose();
+        // 三枚の横板を勾配に沿わせ、板端の合わせ目も左右の受け桟へ載せる。
+        for (let q = 0; q < 3; q++) {
+          const along = (q - 1) * length / 3;
+          const g = this.hallBeamShape.clone();
+          g.scale(across ? width : length / 3 - .002, .035,
+            across ? length / 3 - .002 : width);
+          hieiTimberGrain(g, across ? 0 : 2, q * .17);
+          if (across) g.rotateX(side * slope);
+          else g.rotateZ(-side * slope);
+          const out = side * (wall + .18 + along * Math.cos(slope));
+          g.translate(across ? win.t : out, head + .22 - along * Math.sin(slope),
+            across ? out : win.t);
+          super.add(rec, 'wood', hieiPaint(g, q % 2 ? 0x80694c : 0x7a6348));
+          g.dispose();
+        }
+        for (const offset of [-win.w / 2 - .06, win.w / 2 + .06]) {
+          const t = win.t + offset;
+          // 桟も同じ勾配にし、全長で板の下面へ接する。根元は窓脇へ差し込む。
+          const g = this.hallBeamShape.clone(), drop = (.035 + .06) / 2;
+          g.scale(across ? .06 : length, .06, across ? length : .06);
+          hieiTimberGrain(g, across ? 2 : 0, offset);
+          if (across) g.rotateX(side * slope);
+          else g.rotateZ(-side * slope);
+          const out = side * (wall + .18 - Math.sin(slope) * drop);
+          g.translate(across ? t : out, head + .22 - Math.cos(slope) * drop,
+            across ? out : t);
+          super.add(rec, 'wood', hieiPaint(g, 0x4a3020)); g.dispose();
+          // 小庇の受け桟を窓脇の柱から方杖で支える。細かな納まりは推定。
+          // 開口の両脇・外壁の外へ納め、室内を滑る障子と窓の見通しを空ける。
+          // 桟の下面へ先端を合わせ、既存の箱・木材のまとめ描きだけを使う。
+          const braceReach = .3, braceStart = .02;
+          const braceTop = head + .22 - (braceStart + braceReach - .18) * fall / reach
+            - .035 / (2 * Math.cos(slope)) - .06 / Math.cos(slope);
+          const braceBottom = head - .12, braceRise = braceTop - braceBottom;
+          const braceLength = Math.hypot(braceReach, braceRise);
+          const braceAngle = Math.atan2(braceRise, braceReach);
+          const brace = this.hallBeamShape.clone();
+          brace.scale(across ? .055 : braceLength, .055, across ? braceLength : .055);
+          hieiTimberGrain(brace, across ? 2 : 0, offset);
+          if (across) brace.rotateX(-side * braceAngle);
+          else brace.rotateZ(side * braceAngle);
+          const braceOut = side * (wall + braceStart + braceReach / 2);
+          brace.translate(across ? t : braceOut, (braceBottom + braceTop) / 2,
+            across ? braceOut : t);
+          super.add(rec, 'wood', hieiPaint(brace, 0x634832)); brace.dispose();
+        }
+      }
+      // 僧坊の座敷境・板間境の天井梁を、壁際と戸口脇の柱の肘木で受ける。
+      // 竿縁の下面へ梁だけが浮かないよう、柱頭から梁の下面まで束を立てる。
+      // 細かな仕口は推定。襖・障子の鴨居より上、長押の裏側へ納める。
+      // 室内の梁は天井板の下面で受ける。束・枘・楔も同じ梁下へ揃える。
+      const base = lv.y - rec.y0, beamBottom = base + lv.h - .022 - .14;
+      const bearingY = base + Math.min(2, lv.h - .5) + .12;
+      // 座敷境の横梁の端を細い天井回縁だけで受けず、四周の柱を頭貫で結ぶ。
+      // 梁の下面へ上端を合わせ、外周の柱筋に掛ける。焼失前の仕口は推定。
+      // 窓・建具より上、壁の厚みの内側へ納め、既存の箱とまとめ描きを使う。
+      const tieHeight = .12, tieY = beamBottom - tieHeight / 2;
+      for (const side of [-1, 1]) {
+        // 僧坊も側面を通し、隅の下面を二重にしない。
+        wallTimber(b.w - .32, tieHeight, .16, 0, tieY,
+          side * (b.d / 2 - .08), 0x4a3020);
+        wallTimber(.16, tieHeight, b.d, side * (b.w / 2 - .08),
+          tieY, 0, 0x4a3020);
+      }
+      // 頭貫を柱へ通すだけで終えず、柱際の楔で抜けを止める納まりを見せる。
+      // 焼失前の仕口は推定。窓の上の柱筋だけに置き、障子の溝へは下げない。
+      // 柱を貫く木と楔を既存の箱・木材のまとめ描きへ納める。
+      for (const row of lv.wallPosts) {
+        const across = row.face === 'z', off = (across ? b.d : b.w) / 2 - .08;
+        for (const t of row.positions) {
+          // 隅は二方向の頭貫が交差するため、途中の柱だけを対象にする。
+          if (Math.abs(t) >= (across ? b.w : b.d) / 2 - .2) continue;
+          for (const edge of [-1, 1]) {
+            const along = t + edge * .115;
+            wallTimber(across ? .035 : .2, .17, across ? .2 : .035,
+              across ? along : row.side * off, tieY,
+              across ? row.side * off : along, 0x95704a);
+          }
+        }
+      }
+      // 座敷境の横梁の両端を側柱の持ち送りで受ける。
+      // 頭貫だけへ突き合わせず、柱面から短い肘木と束を出して梁下へつなぐ。
+      // 焼失前の仕口は推定。側窓のない間仕切りの柱筋だけに納め、
+      // 障子・襖の溝より上で止める。形・材質は既存のまとめ描きを使う。
+      const wallBearings = new Set();
+      for (const room of lv.layout.rooms) for (const z of [room.z0, room.z1]) {
+        if (z > -b.d / 2 + .2 && z < b.d / 2 - .2) wallBearings.add(z);
+      }
+      for (const z of wallBearings) for (const side of [-1, 1]) {
+        const post = lv.wallPosts.find(p => p.face === 'x' && p.side === side);
+        if (!post?.positions.some(t => Math.abs(t - z) < .01)) continue;
+        // 横梁は壁から十センチまで、室内柱の内面は二十三センチ。
+        // 持ち送りは柱に掛け、束の上端を梁下面へ合わせる。
+        wallTimber(.38, .08, .18, side * (b.w / 2 - .27),
+          beamBottom - .2, z, 0x4a3020);
+        wallTimber(.12, .16, .14, side * (b.w / 2 - .36),
+          beamBottom - .08, z, 0x634832);
+        // 側柱側の束も横梁へ枘差しし、両面の込栓で抜けを止める納まりにする。
+        // 焼失前の仕口は推定。枘は梁の中へ隠し、栓の木口だけを梁幅十八センチの外へ出す。
+        // 共通の箱と木材のまとめ描きを使い、天井板・建具の溝・通路へは張り出させない。
+        const jointX = side * (b.w / 2 - .36);
+        wallTimber(.07, .1, .1, jointX, beamBottom + .05, z, 0x634832);
+        for (const face of [-1, 1]) wallTimber(.045, .045, .012,
+          jointX, beamBottom + .065, z + face * .096, 0x95704a);
+      }
+      // 間仕切りの釘隠しは共通の室内部品で柱の両面へ取り付ける。
+      // 同じ位置へ重ねて描かず、長押と金具のちらつきを防ぐ。
+      // 長押の上は梁下まで十八ミリしか残らない。小壁は室内部品に任せ、
+      // 塗り壁を貫く横木を重ねない。梁を受ける戸口脇の束・肘木は残す。
+      const ends = new Set();
+      for (const v of lv.layout.walls) {
+        if (!v.paper || v.guideOnly || Math.abs(v.az - v.bz) > .01) continue;
+        const a = Math.min(v.ax, v.bx), c = Math.max(v.ax, v.bx);
+        for (const [x, inward] of [[a + .06, 1], [c - .06, -1]]) {
+          // 戸口脇も既存の柱筋から束を立て、長い梁を壁際だけで支えない。
+          // 肘木は間仕切り側へ向け、鴨居より上・動く戸の溝より奥に納める。
+          const key = x.toFixed(3) + ':' + v.az.toFixed(3);
+          if (ends.has(key) || beamBottom <= bearingY + .08) continue;
+          ends.add(key);
+          const width = Math.min(.4, c - a), cx = x + inward * (width / 2 - .06);
+          wallTimber(width, .08, .18, cx, bearingY + .04, v.az, 0x4a3020);
+          wallTimber(.12, beamBottom - bearingY - .08, .14, x,
+            (bearingY + .08 + beamBottom) / 2, v.az, 0x634832);
+          // 束の上端を梁の下面で切るだけにせず、梁を貫く枘と両面の楔で留める。
+          // 焼失前の仕口は推定。座敷境・入口境で同じ納まりを使い、
+          // 鴨居・欄間より上に収める。既存の箱と木材のまとめ描きへ加える。
+          wallTimber(.07, .12, .24, x, beamBottom + .07, v.az, 0x634832);
+          for (const side of [-1, 1]) {
+            wallTimber(.12, .035, .045, x, beamBottom + .07,
+              v.az + side * .1175, 0x95704a);
+          }
+        }
+      }
+    }
     // 軒を受ける斗栱と柱列。火で潰れる範囲にも同じ建物として登録する。
-    for (const sd of [-1, 1]) for (let x = -b.w/2; x <= b.w/2 + .01; x += b.w/4) {
-      for (let j = 0; j < 3; j++) {
-        const g = new THREE.BoxGeometry(.34 + j*.22, .13, .38 + j*.32);
-        g.translate(x, y + j*.16, sd*(b.d/2 + .15)); super.add(rec, 'wood', hieiPaint(g, 0x72553a)); g.dispose();
-      }
-      if (!grand) {
-        const z = sd * (b.d / 2 + .08), c = Math.cos(b.rot || 0), s = Math.sin(b.rot || 0);
-        const bottom = Math.min(.4, this.W.heightAt(b.x + x * c + z * s, b.z - x * s + z * c) - rec.y0 - .15);
-        const g = new THREE.BoxGeometry(.18, y - bottom, .18);
-        g.translate(x, (y + bottom) / 2, z); super.add(rec, 'wood', hieiPaint(g, 0x634832)); g.dispose();
+    // 僧坊の低い軒裏に堂と同じ三段を入れると、上段が天井板を突き抜ける。
+    // 二段目を化粧垂木へ掛け、堂だけ三段にする。柱筋・戸口・当たりは共通。
+    const bracketTiers = ['chudo', 'hondo'].includes(rec.naka.kind) ? 3 : 2;
+    for (const sd of [-1, 1]) {
+      const door = rec.naka.door;
+      // 僧坊・山の堂は室内と同じ窓割で軒柱を立てる。
+      // 等間隔の別の柱列を重ねると、背面障子の中央を柱が塞ぐ。
+      // 中堂の縁柱は既存の九間を保ち、戸口の幅だけ空ける。
+      const posts = grand ? Array.from({ length: 10 }, (_, q) => {
+        const x = -half + q * half * 2 / 9;
+        return sd === door.side && Math.abs(x) < door.w / 2 + .3
+          ? Math.sign(x) * (door.w / 2 + .35) : x;
+      }) : lv.wallPosts.find(row => row.face === 'z' && row.side === sd).positions;
+      const z = sd * (b.d / 2 + (grand ? 1.2 : .08));
+      for (let px of posts) {
+        // 礎石まで戸口へ出さず、戸脇の柱には斗栱も追従させる。
+        if (!grand && sd === door.side && Math.abs(px - door.lx) < door.w / 2 + .14) {
+          px = door.lx + Math.sign(px - door.lx) * (door.w / 2 + .14);
+        }
+        for (let j = 0; j < bracketTiers; j++) wallTimber(.34 + j*.22, .13, .38 + j*.32,
+          px, y + j*.16, z, 0x72553a);
+        if (!grand) {
+          const [wx, wz] = rec.naka.P(px, z);
+          // 軒柱を土へ直接差さず、地面に据えた礎石で受ける。柱筋と戸口の幅は保つ。
+          const ground = this.W.heightAt(wx, wz) - rec.y0;
+          const stoneBottom = Math.min(floor - .18, ground - .15), bottom = Math.min(floor, ground + .12);
+          this.footStoneShape ||= new THREE.BoxGeometry(1, 1, 1);
+          const foot = this.footStoneShape.clone();
+          foot.scale(.26, bottom - stoneBottom, .26); foot.translate(px, (stoneBottom + bottom) / 2, z);
+          super.add(rec, 'stone', hieiPaint(foot, 0x827b6d)); foot.dispose();
+          const g = this.footStoneShape.clone();
+          g.scale(.18, y - bottom, .18);
+          // 戸口の角柱も室内の柱・長押と同じ縮尺の縦木目にする。
+          // 単位箱のままでは数メートルの柱全体へ木肌が引き伸ばされる。
+          hieiTimberGrain(g, 1, (px * .37 + z * .53) % 1);
+          g.translate(px, (y + bottom) / 2, z); super.add(rec, 'wood', hieiPaint(g, 0x634832)); g.dispose();
+          // 描いた柱と同じ位置・高さの当たり。焼失時は既存の片付けに含める。
+          const solid = solidCircle(wx, wz, .09);
+          solid.yBot = rec.y0 + bottom; solid.yTop = rec.y0 + y;
+          rec.innerSolids.push(solid);
+          const footSolid = solidCircle(wx, wz, .13);
+          footSolid.yBot = rec.y0 + stoneBottom; footSolid.yTop = rec.y0 + bottom;
+          rec.innerSolids.push(footSolid);
+        }
       }
     }
+    if (!grand) {
+      // 入れる僧坊・山の堂は壁上端と屋根の間が開いていた。
+      // 屋根の立ち上がりから床の厚み六センチを引いた小壁で小屋裏を閉じ、
+      // その上端を桁で受ける。焼失前の断面は推定。室内の天井より上に納める。
+      // 既存の箱とまとめ描きを使い、窓・引き戸・通行の当たりは増やさない。
+      const rise = (rec.naka.kind === 'hondo' ? .4 : .15) - .06;
+      for (const side of [-1, 1]) {
+        // 正背面を通し、側面の木口へ合わせる。柱芯の幅で止めると隅に穴が残る。
+        wallTimber(b.w + .12, rise, .12, 0, wallTop + rise / 2,
+          side * b.d / 2, 0xd8d0bb);
+        wallTimber(.12, rise, b.d - .12, side * b.w / 2,
+          wallTop + rise / 2, 0, 0xd8d0bb);
+        wallTimber(b.w + .18, .08, .18, 0, wallTop + rise - .04,
+          side * b.d / 2, 0x4a3020);
+        wallTimber(.18, .08, b.d - .18, side * b.w / 2,
+          wallTop + rise - .04, 0, 0x4a3020);
+      }
+      if (rec.naka.kind === 'sobo') {
+        // 切妻の両端を軒高の小壁だけで終えず、小屋裏まで妻壁で閉じる。
+        // 屋根の曲面の下面を使い、直線の三角壁が屋根を貫いたり隙間を残したりしない。
+        // 曲面屋根の粗い分割との差は、厚さ二十センチの屋根内へ四センチ差して閉じる。
+        // 焼失前の細部は推定。天井より上だけに納め、建具と通路は保つ。
+        const bottom = wallTop + rise, roofDepth = b.d / 2 + .8;
+        const roofRise = roofDepth * .65;
+        const roofBottom = (x, z) => {
+          const t = 1 - Math.abs(z) / roofDepth;
+          return bottom + roofRise * (.5 * t + .5 * t * t)
+            + .22 * Math.pow(Math.abs(x) / (b.w / 2 + .6), 3) * (1 - t) * (1 - t) - .2;
+        };
+        this.gableWallShape ||= new THREE.BoxGeometry(1, 1, 1, 1, 1, 16);
+        for (const side of [-1, 1]) {
+          const wall = this.gableWallShape.clone(), p = wall.attributes.position;
+          for (let i = 0; i < p.count; i++) {
+            const x = side * b.w / 2 + p.getX(i) * .12, z = p.getZ(i) * b.d;
+            p.setXYZ(i, x, p.getY(i) > 0 ? roofBottom(x, z) + .04 : bottom, z);
+          }
+          wall.computeVertexNormals();
+          // 妻壁も小壁と同じ塗り壁。登り梁・束は木材の束へ残す。
+          super.add(rec, 'plaster', hieiPaint(wall, 0xd8d0bb)); wall.dispose();
+          // 妻壁を棟束・脇束と登り梁で受ける。曲面は壁と同じ割付で追う。
+          // 共通の箱と木材のまとめ描きを使い、焼失時も同じ棟として片付ける。
+          const x = side * (b.w / 2 - .13);
+          for (const z of [-b.d / 4, 0, b.d / 4]) {
+            const top = roofBottom(x, z) - .14;
+            wallTimber(.14, top - bottom, .14, x, (bottom + top) / 2, z);
+          }
+          for (let q = 0; q < 16; q++) {
+            const a = -b.d / 2 + b.d * q / 16, c = -b.d / 2 + b.d * (q + 1) / 16;
+            const ya = roofBottom(x, a) - .07, yc = roofBottom(x, c) - .07;
+            const beam = this.hallBeamShape.clone();
+            beam.scale(.14, .14, Math.hypot(c - a, yc - ya));
+            hieiTimberGrain(beam, 2, a * .53 % 1);
+            beam.rotateX(-Math.atan2(yc - ya, c - a));
+            beam.translate(x, (ya + yc) / 2, (a + c) / 2);
+            super.add(rec, 'wood', hieiPaint(beam, 0x634832)); beam.dispose();
+          }
+        }
+      }
+      // 僧坊・山の堂も、独立していた軒柱を四周の桁で結ぶ。
+      // 柱頭と斗栱の下に納め、正面の障子・格子戸の上を空ける。
+      // 既存の木材のまとめ描きと焼失範囲へ加え、更新時の処理は増やさない。
+      const depth = b.d / 2 + .08;
+      // 側面を通し材とし、正背面の桁の木口をその内面で止める。
+      // 隅で下面を重ねず、柱の上で四周をつなぐ。焼失前の仕口は推定。
+      // 柱・長押と同じ作り口を使い、木目も桁の長手へ通す。
+      for (const side of [-1, 1]) {
+        wallTimber(half * 2 - .2, .18, .2, 0, y - .09, side * depth, 0x4a3020);
+        wallTimber(.2, .18, depth * 2 + .2, side * half, y - .09, 0, 0x4a3020);
+      }
+      // 脇の軒桁も柱と礎石で受ける。室内と同じ柱筋を使い、窓の前には立てない。
+      // 隅は正背面の既存の柱で受ける。柱割・仕口は焼失前の復元とは断定しない。
+      for (const row of lv.wallPosts) {
+        if (row.face !== 'x') continue;
+        const x = row.side * half;
+        const windows = (lv.windows || []).filter(v => v.face === 'x' && v.s === row.side);
+        for (const z of row.positions) {
+          if (Math.abs(z) > b.d / 2 - .2 || windows.some(v => Math.abs(z - v.t) < v.w / 2 + .09)) continue;
+          const [wx, wz] = rec.naka.P(x, z);
+          const ground = this.W.heightAt(wx, wz) - rec.y0;
+          const stoneBottom = Math.min(floor - .18, ground - .15);
+          const bottom = Math.min(floor, ground + .12);
+          wallTimber(.18, y - bottom, .18, x, (y + bottom) / 2, z);
+          const foot = this.footStoneShape.clone();
+          foot.scale(.26, bottom - stoneBottom, .26);
+          foot.translate(x, (stoneBottom + bottom) / 2, z);
+          super.add(rec, 'stone', hieiPaint(foot, 0x827b6d)); foot.dispose();
+          // 礎石を含む実際の幅で当たりを付け、焼失時も建物と一緒に除く。
+          for (const [radius, low, high] of [[.09, bottom, y], [.13, stoneBottom, bottom]]) {
+            const solid = solidCircle(wx, wz, radius);
+            solid.yBot = rec.y0 + low; solid.yTop = rec.y0 + high;
+            rec.innerSolids.push(solid);
+          }
+          // 柱頭から側面の軒裏へ向けて肘木を掛ける。
+          for (let j = 0; j < bracketTiers; j++) wallTimber(.38 + j * .32, .13, .34 + j * .22,
+            x, y + j * .16, z, 0x72553a);
+        }
+      }
+      // 中堂以外にも軒裏を張る。堂は四周、切妻の僧坊は正背面の軒へ納める。
+      // 焼失前の細部は推定。屋根の出に合わせ、室内の天井と戸口には重ねない。
+      const hall = rec.naka.kind === 'hondo';
+      const eave = hall ? 1.5 : .8, ex = b.w / 2 + (hall ? 1.5 : .6);
+      const ceilingY = y + (hall ? .48 : .30), rafterY = ceilingY - .07;
+      if (hall) eaveHips(eave, rafterY - .045);
+      const frontBays = Math.ceil(ex * 2 / .45), flankBays = Math.ceil(b.d / .45);
+      // 長い一枚板にはせず、四本おきの垂木上で継ぐ。隣の列は二本ずらす。
+      const ceilingBoards = (a, c, origin, spacing, offset, width, across, row, color) => {
+        let start = a, joint = origin + (row % 2 ? 2 : 4) * spacing;
+        while (start < c - .003) {
+          const end = Math.min(c, joint), mid = (start + end) / 2;
+          wallTimber(across ? end - start - .004 : width, .05,
+            across ? width : end - start - .004,
+            across ? mid : offset, ceilingY, across ? offset : mid, color);
+          start = end;
+          joint += spacing * 4;
+        }
+      };
+      for (const side of [-1, 1]) {
+        // 軒天を幅三十センチほどの板に割り、目地に厚みを持たせる。
+        // 正背面を通し、側面はその木口で止める。板割は推定。
+        // 中堂と同じ箱・木材のまとめ描きを使い、毎コマの処理は足さない。
+        const rows = Math.max(1, Math.round(eave / .3)), pitch = eave / rows;
+        for (let q = 0; q < rows; q++) {
+          const offset = (q + .5) * pitch, width = pitch - .004;
+          const color = q % 2 ? 0x80694c : 0x7a6348;
+          ceilingBoards(-ex, ex, -ex + .06, (ex * 2 - .12) / frontBays,
+            side * (b.d / 2 + offset), width, true, q, color);
+          if (hall) ceilingBoards(-b.d / 2, b.d / 2, -b.d / 2, b.d / flankBays,
+            side * (b.w / 2 + offset), width, false, q, color);
+        }
+        const bays = frontBays;
+        for (let q = 0; q <= bays; q++) {
+          const x = -ex + .06 + q * (ex * 2 - .12) / bays;
+          wallTimber(.065, .09, eave, x, rafterY, side * (b.d / 2 + eave / 2));
+        }
+        wallTimber(ex * 2, .14, .1, 0, ceilingY - .045, side * (b.d / 2 + eave - .05));
+        if (hall) {
+          const bays = flankBays;
+          for (let q = 1; q < bays; q++) wallTimber(eave, .09, .065, side * (b.w / 2 + eave / 2), rafterY, -b.d / 2 + q * b.d / bays);
+          wallTimber(.1, .14, b.d, side * (b.w / 2 + eave - .05), ceilingY - .045, 0);
+        }
+      }
+    }
+    if (grand) {
+      // 中堂の側面は一組の柱割で統一し、柱・礎石・斗栱・桁・当たりを重複させない。
+      // 焼失前の柱割は推定。隅柱は正背面の既存の柱を使い、縁の通路を空ける。
+      const depth = b.d / 2 + 1.2, sideBays = Math.max(2, Math.round(depth * 2 / 2.6));
+      this.verandaPostShape ||= new THREE.CylinderGeometry(.276, .3, 1, 6, 1, true);
+      const timber = (w, h, d, x, cy, z, color = 0x4a3020) => {
+        // 回縁の桁・長押・軒裏も室内の材と同じ縮尺で木目を通す。
+        // 単位箱の絵を長い材へ引き伸ばさず、既存のまとめ描きを使う。
+        wallTimber(w, h, d, x, cy, z, color);
+      };
+      // 縁板と框は上で組んだ実際の板張りを使う。旧い線だけの目地を重ねない。
+      // 屋根の出は三・八メートル。縁の幅一・五メートルで軒裏を切ると、
+      // その外側は瓦の裏がむき出しになり、垂木も途中で終わっていた。
+      // buildOpenTemple の屋根寸法へ揃え、縁板・柱・出入りの幅はそのまま使う。
+      const eave = 3.8, ex = b.w / 2 + eave, ez = b.d / 2 + eave;
+      // 縁側の頭上も板天井と化粧垂木で閉じる。焼失前の細かな軒裏は推定。
+      // 四周の帯を板に割って身舎を囲み、室内の格天井には重ねない。
+      // 垂木の下面を斗栱の上段へ掛け、板はその上に納める。
+      // 共通の箱を使い、既存の木材のまとめ描き・焼失範囲へ含める。
+      const ceilingY = y + .48, rafterY = y + .41;
+      eaveHips(eave, rafterY - .045);
+      const frontBays = Math.ceil(ex * 2 / .45), flankBays = Math.ceil(b.d / .45);
+      const frontPitch = (ex * 2 - .12) / frontBays, flankPitch = b.d / flankBays;
+      // 中堂も二十メートルを越す一枚板にせず、四本おきの垂木上で板を継ぐ。
+      // 隣の板列は二本ずらす。板割は推定とし、継ぎ目を支えのない所へ置かない。
+      const eaveBoards = (a, c, origin, spacing, offset, width, across, row, color) => {
+        let start = a, joint = origin + (row % 2 ? 2 : 4) * spacing;
+        while (start < c - .003) {
+          const end = Math.min(c, joint), mid = (start + end) / 2;
+          timber(across ? end - start - .004 : width, .05,
+            across ? width : end - start - .004,
+            across ? mid : offset, ceilingY, across ? offset : mid, color);
+          start = end;
+          joint += spacing * 4;
+        }
+      };
+      for (const side of [-1, 1]) {
+        // 板幅を等分して細い目地を残す。正背面を通し、側面はその木口で止める。
+        // 一本の幅広い板へ黒線だけを重ねず、共通の箱から軒天の板を取る。
+        const rows = Math.max(1, Math.round(eave / .3)), pitch = eave / rows;
+        for (let q = 0; q < rows; q++) {
+          const offset = (q + .5) * pitch, width = pitch - .004;
+          const color = q % 2 ? 0x80694c : 0x7a6348;
+          eaveBoards(-ex, ex, -ex + .06, frontPitch,
+            side * (b.d / 2 + offset), width, true, q, color);
+          eaveBoards(-b.d / 2, b.d / 2, -b.d / 2, flankPitch,
+            side * (b.w / 2 + offset), width, false, q, color);
+        }
+        for (let q = 0; q <= frontBays; q++) {
+          const x = -ex + .06 + q * frontPitch;
+          timber(.065, .09, eave, x, rafterY, side * (b.d / 2 + eave / 2));
+        }
+        for (let q = 1; q < flankBays; q++) {
+          const z = -b.d / 2 + q * flankPitch;
+          timber(eave, .09, .065, side * (b.w / 2 + eave / 2), rafterY, z);
+        }
+        // 軒先の横木で垂木の木口と天井板の端を受ける。
+        timber(ex * 2, .14, .1, 0, y + .435, side * (ez - .05));
+        timber(.1, .14, b.d, side * (ex - .05), y + .435, 0);
+      }
+      for (const side of [-1, 1]) for (let q = 1; q < sideBays; q++) {
+        const x = side * half, z = -depth + q * depth * 2 / sideBays;
+        // 側面の縁柱も正背面と同じ礎石で受け、柱脚を板床へ埋めない。
+        // 既存の柱の当たりの内側に収め、縁側の通路には張り出さない。
+        this.verandaFootShape ||= new THREE.CylinderGeometry(.3, .3, .28, 8);
+        const foot = this.verandaFootShape.clone();
+        foot.translate(x, floor + .04, z);
+        super.add(rec, 'stone', hieiPaint(foot, 0x827b6d)); foot.dispose();
+        const g = this.verandaPostShape.clone();
+        g.scale(1, y - floor - .18, 1);
+        // 縁柱は室内柱より太い。直径六十センチの周長で貼り、縦の木目を揃える。
+        hieiTimberGrain(g, 1, (x * .37 + z * .53) % 1, true, .6);
+        g.translate(x, (floor + .18 + y) / 2, z);
+        super.add(rec, 'wood', hieiPaint(g, 0x634832)); g.dispose();
+        const [wx, wz] = rec.naka.P(x, z), solid = solidCircle(wx, wz, .3);
+        solid.yBot = rec.y0 + floor; solid.yTop = rec.y0 + y;
+        rec.innerSolids.push(solid);
+        // 側面の斗栱は正面から九十度回した寸法で、軒へ向ける。
+        for (let j = 0; j < 3; j++) timber(.38 + j * .32, .13, .34 + j * .22, x, y + j * .16, z, 0x72553a);
+      }
+      // 四周の柱頭を桁で結び、その下に内法長押を回す。
+      // 長押の下面は正面戸より上。既存の横滑り戸と入室の幅を保つ。
+      const nageshiY = lv.y - rec.y0 + rec.naka.door.h + .42;
+      // 回り縁も柱筋で長押を留め、堂内と同じ八角の釘隠しで釘頭を覆う。
+      // 金具の細部は推定。柱を抱く二枚の長押の見付け面へ背を接する。
+      // 共通の形を既存のまとめ描きへ加え、戸・通路の当たりは増やさない。
+      const verandaNail = (x, z, across) => {
+        for (const face of [-1, 1]) {
+          const nail = this.nageshiNailShape.clone();
+          if (!across) nail.rotateY(Math.PI / 2);
+          nail.translate(x + (across ? 0 : face * .339), nageshiY,
+            z + (across ? face * .339 : 0));
+          super.add(rec, 'wood', hieiPaint(nail, 0x34312b)); nail.dispose();
+        }
+      };
+      for (const side of [-1, 1]) {
+        // 縁の桁も側面を通し材にし、正背面の桁の木口をその内面へ納める。
+        // 隅の下面を二枚重ねず、斗栱の上の高さと柱筋は保つ。
+        timber(half * 2 - .28, .24, .28, 0, y - .12, side * depth);
+        // 側面も桁幅の半分だけ柱芯から出し、正背面の外面と木口を揃える。
+        timber(.28, .24, depth * 2 + .28, side * half, y - .12, 0);
+        for (const face of [-1, 1]) {
+          // 柱を抱く内外の長押を、それぞれ同じ面で四周へ回す。
+          // 正背面の端は側面の通し材の内面で止め、隅で木口を突き出さない。
+          // 焼失前の仕口は推定。重なる面をなくし、既存のまとめ描きへ納める。
+          const hx = half + face * .3, hz = depth + face * .3, thick = .07;
+          timber(hx * 2 - thick, .12, thick, 0, nageshiY, side * hz);
+          timber(thick, .12, hz * 2 + thick, side * hx, nageshiY, 0);
+        }
+        // 正背面は伽藍側の九間の柱割。正面中央だけ戸口を空けた柱位置へ揃える。
+        for (let q = 1; q < 9; q++) {
+          let x = -half + q * half * 2 / 9;
+          if (side === rec.naka.door.side && Math.abs(x) < rec.naka.door.w / 2 + .3) {
+            x = Math.sign(x) * (rec.naka.door.w / 2 + .35);
+          }
+          verandaNail(x, side * depth, true);
+        }
+        // 隅は長押の木口を継ぐ所なので避け、途中の柱の見付け面だけへ納める。
+        for (let q = 1; q < sideBays; q++) {
+          verandaNail(side * half, -depth + q * depth * 2 / sideBays, false);
+        }
+      }
+    }
+    // 戸の操作でも実際の柱を避ける。設営時に一度だけ拾い、描画・通行と同じ当たりを借りる。
+    rec.naka.doorPosts = rec.innerSolids.filter(solid => solid.k === 'c');
     return rec;
   }
 }
@@ -511,6 +1546,7 @@ const hieizan = {
     livingSpearHedge: true,
     roundedFire: true,
     dayFireFill: 0.42, // 昼の焼き討ちにも、共有する光の升で人と軒へ照り返す。
+    interiorMaterial: hieiRoomMaterial,
     muddy: 0.2,
     water: { x: 124, level: -2.4 },
     paths: [ROAD],
@@ -520,7 +1556,7 @@ const hieizan = {
     blockedHint(rt) {
       const F = rt.flags;
       if (F.retreatWarning) return '列の横を通り、光秀の旗へ退け';
-      if (F.rescueHelp) return '堂の中へは入れない。外の救出の印へ回れ';
+      if (F.rescueHelp) return '救出の印は堂の外。僧坊の縁へ回れ';
       if (F.deep) return '堂と塀を回り、今の持ち場の印へ寄れ';
       if (F.step >= 3) return rt.player.u.pos.x > GATE.x
         ? '山門の開いた口を通り、門内の印へ寄れ'
@@ -593,6 +1629,32 @@ const hieizan = {
       }
     });
     const frame = [];
+    // 山門の通路も屋根の裏面だけで済ませず、柱・貫に掛かる梁で板天井を受ける。
+    // 焼失前の細かな架構は推定。扉の上端（三・一メートル）より上へ納める。
+    // 共通の箱を設営時だけ伸縮し、既存の木部と一束で描く。
+    const gateTimberShape = new THREE.BoxGeometry(1, 1, 1);
+    const gateTimber = (w, h, d, x, y, z, color = 0x4e3624) => {
+      const g = gateTimberShape.clone();
+      g.scale(w, h, d);
+      hieiTimberGrain(g, w >= d ? 0 : 2, (x * .37 + z * .53) % 1);
+      g.translate(x, y, z);
+      frame.push(hieiPaint(g, color)); g.dispose();
+    };
+    // 正背面の貫は楼門の元の形を使う。中央梁を側柱へ掛け、
+    // 縦の受け材は横梁の側面で止めて下面を重ねない。
+    gateTimber(7.6, .26, .24, 0, 3.6, 0);
+    for (const x of [-3.5, 0, 3.5]) for (const side of [-1, 1]) {
+      gateTimber(.2, .26, 1.36, x, 3.6, side * .8);
+    }
+    // 板の継ぎ目は中央の受け材上、両端は側柱上に揃える。
+    // 板目と厚みを持たせ、隙間の奥は腰屋根で閉じる。通路の幅は保つ。
+    const ceilingRows = 12, ceilingPitch = 3.44 / ceilingRows;
+    for (let row = 0; row < ceilingRows; row++) for (const side of [-1, 1]) {
+      gateTimber(3.6 - .003, .06, ceilingPitch - .003,
+        side * 1.8, 3.76, -1.72 + (row + .5) * ceilingPitch,
+        row % 2 ? 0x80694c : 0x7a6348);
+    }
+    gateTimberShape.dispose();
     for (const sd of [-1,1]) for (const x of [-3.2,-1.6,0,1.6,3.2]) {
       const p = new THREE.BoxGeometry(.17,2,.17); p.translate(x,5.5,sd*1.75); frame.push(hieiPaint(p,0x634832)); p.dispose();
       for (let j=0;j<3;j++) { const g = new THREE.BoxGeometry(.3+j*.2,.12,.4+j*.3); g.translate(x,6.2+j*.15,sd*1.8); frame.push(hieiPaint(g,0x72553a)); g.dispose(); }

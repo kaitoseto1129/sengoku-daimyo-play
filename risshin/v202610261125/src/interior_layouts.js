@@ -1,3 +1,6 @@
+// 内陣境の角柱（奥行き十二センチ）と丸柱（半径十四センチ）を重ねない柱芯。
+export const HIEI_NAIJIN_POST_SETBACK = .20;
+
 // 外壁の内寸から間取りを作る。局所の＋奥行きが戸口。設営時だけ呼ぶ。
 export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null, entryX = 0 } = {}) {
   const hw = w / 2, hd = d / 2;
@@ -8,8 +11,15 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
   const rooms = [], walls = [], props = [], portals = [];
   const room = (name, x0, x1, z0, z1, floor = 'tatami') => rooms.push({ name, x0, x1, z0, z1, floor });
   const cross = (z, x0, x1, door, paper = true) => {
-    const gap = Math.min(profile === 'council' ? 2.1 : 1.05, (x1 - x0) * .25);
-    door = Math.max(x0 + gap, Math.min(x1 - gap, door));
+    const hieiSliding = profile === 'hieizan' && ['chudo', 'hondo', 'sobo'].includes(kind);
+    // 小堂の脇戸・僧坊の襖と障子は、左右へ滑る戸と戸当たりまで柱間へ納める。
+    // 狭い僧坊でも敷居・鴨居を側壁へ突き込まず、偏った戸口は引き込み幅を残して寄せる。
+    // 二枚建ての全開幅と、敷居・鴨居の端（各五センチ）を含めて割る。
+    // 間取りの段階で揃え、描く溝・動く戸・当たりへ同じ開口を渡す。
+    const gap = Math.min(profile === 'council' ? 2.1 : 1.05,
+      hieiSliding ? (x1 - x0 - .2) / 4 : (x1 - x0) * .25);
+    const pocket = hieiSliding ? gap * 2 + .05 : gap;
+    door = Math.max(x0 + pocket, Math.min(x1 - pocket, door));
     portals.push({ x: door, z, axis: 'z' });
     if (door - gap > x0) walls.push({ ax: x0, az: z, bx: door - gap, bz: z, paper });
     if (door + gap < x1) walls.push({ ax: door + gap, az: z, bx: x1, bz: z, paper });
@@ -60,23 +70,46 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
     room('外陣', -hw, hw, cut, hd, 'boards');
     cross(cut, -hw + .1, hw - .1, 0);
     prop('altar', 0, -hd + .8);
-  } else if (profile === 'echizen_ikko' && kind === 'sobo') {
+  } else if (['echizen_ikko', 'hieizan'].includes(profile) && kind === 'sobo') {
     // 個別の室内図は不明。僧坊は畳の座敷と板敷きの入口を持つ推定の間取り。
-    const entry = hd - Math.min(1, d * .22);
+    // 比叡山は正面戸と座敷の障子の間に、人が立てる板間を残す。
+    const entry = hd - (profile === 'hieizan' ? Math.min(1.5, d * .3) : Math.min(1, d * .22));
     if (d >= 4.5) {
       const cut = -hd + d * .42;
       room('僧の奥の座敷', -hw, hw, -hd, cut);
       room('僧の控えの座敷', -hw, hw, cut, entry);
       cross(cut, -hw + .1, hw - .1, entryX);
-      portals[portals.length - 1].kind = 'fusuma';
+      portals[portals.length - 1].kind = profile === 'hieizan' ? 'fusumaPlain' : 'fusuma';
     } else room('僧の座敷', -hw, hw, -hd, entry);
     room('板敷きの入口', -hw, hw, entry, hd, 'boards');
     const first = walls.length;
     cross(entry, -hw + .1, hw - .1, entryX);
     portals[portals.length - 1].kind = 'shoji';
     for (let i = first; i < walls.length; i++) walls[i].kind = 'shoji';
-    props.push({ part: 'desk', x: -hw + .8, z: -hd + .7, w: 1, d: .6, h: .4 });
-    props.push({ part: 'storage', x: hw - .65, z: -hd + .7, w: .7, d: .6, h: .65 });
+    // 比叡山の明かり障子は壁の内側三十六センチの二本溝を滑る。
+    // 机・経巻棚の背と側面を壁から六十センチ以上離し、開いた戸が
+    // 天板や棚を貫かないようにする。間仕切りの脇口は従来どおり空ける。
+    // 調度の位置をここで直し、描画と当たりに同じ寸法を渡す。
+    const setback = profile === 'hieizan' ? .3 : 0;
+    props.push({ part: 'desk', x: -hw + .8 + setback, z: -hd + .7 + setback, w: 1, d: .6, h: .4 });
+    props.push({ part: 'storage', x: hw - .65 - setback, z: -hd + .7 + setback, w: .7, d: .6, h: .65 });
+    // 畳の厚み六センチの上へ机と経巻棚を載せ、脚を板床まで沈めない。
+    if (profile === 'hieizan') for (const p of props) p.y = .06;
+    // 閉めた襖の奥でも経巻を扱えるよう、文机の脇に置き灯明を据える。
+    // 配置は推定。机から八センチ離し、座る手前・明かり障子の溝を空ける。
+    // 畳上の高さと台の当たりを共有し、入口と同じ形・材質を使い回す。
+    if (profile === 'hieizan') {
+      const desk = props.find(p => p.part === 'desk'), room = rooms[0];
+      const x = desk.x + desk.w / 2 + .08 + .16, z = desk.z;
+      if (x + .16 < room.x1 - .6 && z - .16 > room.z0 + .6 && z + .16 < room.z1 - .3) {
+        props.push({ part: 'tomyo', x, z, y: .06, w: .32, d: .32, h: .97 });
+      }
+    }
+    // 入口の置き灯明も調度として登録し、木の台を人がすり抜けないようにする。
+    // 板間へ据え、戸口と障子の引き込み先を空ける。油皿・火先まで同じ外寸で扱う。
+    if (profile === 'hieizan') for (const x of [-hw + .5, hw - .5]) {
+      props.push({ part: 'tomyo', x, z: hd - .75, w: .32, d: .32, h: .97 });
+    }
   } else if (profile === 'echizen_ikko' && kind === 'bansho') {
     // 番所には寝具でなく、板間の控えと戸で区切った入口、矢の箱を置く。
     const cut = hd - Math.min(1, d * .25);
@@ -150,8 +183,32 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
     const cut = -hd + d * .38;
     room('内陣', -hw, hw, -hd, cut, 'boards');
     room('外陣', -hw, hw, cut, hd, 'boards');
-    cross(cut, -hw + .1, hw - .1, hw * .5);
+    if (profile === 'hieizan') {
+      // 中央は本尊に向き合う格子の間仕切り。左右の脇口から内陣へ入れる。
+      cross(cut, -hw + .1, 0, -hw * .55);
+      cross(cut, 0, hw - .1, hw * .55);
+    } else cross(cut, -hw + .1, hw - .1, hw * .5);
     prop('altar', 0, -hd + .85);
+    if (profile === 'hieizan') {
+      // 個別の荘厳は断定せず、須弥壇の手前に供物を供える前卓を置く。
+      // 脇口からの通路は空け、寸法を描画と調度の当たりで共有する。
+      props.push({ part: 'offering', x: 0, z: -hd + 1.65, w: 1.2, d: .45, h: .55 });
+      // 本尊へ向かう僧の礼盤。前卓と内陣境の柱の間に納め、左右の脇口を空ける。
+      // 焼失前の配置の復元とは断定せず、収まる奥行きの堂だけに置く。
+      // 中央柱の実際の柱芯・半径から、礼盤の前に五センチの余白を残す。
+      const pillarBack = cut - HIEI_NAIJIN_POST_SETBACK - .14, raibanDepth = .65, clearance = .05;
+      if (-hd + 2.3 + raibanDepth / 2 + clearance <= pillarBack) {
+        // 奥行きのある堂は礼盤の前に経机を納める。前卓との間と左右の脇口を空ける。
+        // 個別の配置は推定。狭い堂へ無理に足さず、描画と当たりに同じ寸法を渡す。
+        // 固定の礼盤位置では、この戦の中堂にも経机が一つも置かれなかった。
+        // 前卓から五センチ、経机と礼盤も五センチ離し、柱前の余白を保って納める。
+        const deskDepth = .4, deskZ = -hd + 1.65 + .45 / 2 + .05 + deskDepth / 2;
+        const seatZ = deskZ + deskDepth / 2 + .05 + raibanDepth / 2;
+        const readingDesk = seatZ + raibanDepth / 2 + clearance <= pillarBack;
+        props.push({ part: 'raiban', x: 0, z: readingDesk ? seatZ : -hd + 2.3, w: .8, d: raibanDepth, h: .28 });
+        if (readingDesk) props.push({ part: 'kyozukue', x: 0, z: deskZ, w: .8, d: deskDepth, h: .5 });
+      }
+    }
   } else if (kind === 'kuri') {
     const hx = hw - Math.min(2.6, w * .38);
     room('炊事の土間', -hw, hx, -hd, hd, 'earth');
@@ -159,6 +216,15 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
     if (d > 4) walls.push({ ax: hx, az: -hd + 1.5, bx: hx, bz: hd - 1.5, paper: false });
     prop('stove', -hw + .8, -hd + .85);
     prop('storage', hw - .65, -hd + .7);
+    // 比叡山の庫裏の収納は食事の間の畳上へ載せる。土間の竈は上げない。
+    // 描画と調度の当たりで同じ床高を使う。
+    if (profile === 'hieizan') {
+      props[props.length - 1].y = .06;
+      // 灯明を床高・当たりと共有し、畳側の台を六センチ沈めない。
+      for (const x of [-hw + .5, hw - .5]) props.push({
+        part: 'tomyo', x, z: hd - .75, y: x > hx ? .06 : 0, w: .32, d: .32, h: .97,
+      });
+    }
   } else if (kind === 'sobo') {
     const cut = hd - Math.min(1.8, d * .3);
     room('僧の座敷', -hw, hw, -hd, cut);
@@ -262,9 +328,20 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
   }
   // 調度の寸法は見た目・当たり・通路の判断で共有する。
   for (const p of props) {
+    // 比叡山の須弥壇は天蓋までを当たりに含める。描く時もこの高さへ揃える。
+    if (profile === 'hieizan' && p.part === 'altar') p.h ??= 2.27;
     p.w ??= p.part === 'alcove' ? 2.3 : p.part === 'altar' ? 2.1 : p.part === 'desk' ? 1.2 : p.part === 'counter' ? 1.1 : .85;
     p.d ??= p.part === 'alcove' ? .85 : p.part === 'altar' ? 1 : .7;
     p.h ??= p.part === 'alcove' ? 2.5 : p.part === 'altar' ? 1.5 : p.part === 'desk' ? .46 : p.part === 'stove' ? .9 : p.part === 'storage' ? .8 : p.part === 'chest' ? .7 : .55;
+    if (profile === 'hieizan' && p.part === 'altar') {
+      // 瑠璃堂・恵心堂は幅六メートル。共通幅の壇では脇口の立ち所へ
+      // 張り出し、下の通路整理で本尊ごと消えていた。左右各五センチの
+      // 余白を残す幅へ納め、描く壇・天蓋・当たりにも同じ寸法を渡す。
+      for (const v of portals) {
+        if (Math.abs(p.z - v.z) >= p.d / 2 + 1.05) continue;
+        p.w = Math.min(p.w, Math.max(.1, (Math.abs(p.x - v.x) - .5) * 2));
+      }
+    }
     // 狭い建物でも家具の外側を壁の中へ収める。寸法は絵と当たりの両方へ渡す。
     p.w = Math.min(p.w, Math.max(.1, w - .4));
     p.d = Math.min(p.d, Math.max(.1, d - .4));

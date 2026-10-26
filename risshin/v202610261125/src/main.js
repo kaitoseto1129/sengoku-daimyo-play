@@ -37,6 +37,7 @@ import { initAudio, silence, sfx, setVolume, duck, townMusic, playMusic, stopMus
 import { titleScreen, storyCard, loadingStory, inkBand, evalScreen, spoilHorseInfo, aijirushiScreen, baseScreen, finalScreen, hideScreen, helpOverlay, settingsScreen, pauseMenu, notice, deathScreen, promoScreen, ronkoScreen, recordsScreen, dojoResult, epilogueScreen, ladderScreen } from './screens.js';
 import { S, QUALITY, saveSettings, canonical, K, reduceMotion, MEM_TIGHT, MEM_TIGHT_TEST, CPU_LEAN } from './settings.js';
 import { TIER, noteGL, markInBattle, markCrashed, WEAK_TEX_MAX, battleDrawRatio } from './device_tier.js';
+import { HeatWatch } from './heat_watch.js';
 // 自動計測専用：x_pr75（倍率0.75。x_pr70も可）・x_noshadow・x_noai（兵の判断と当たりを停止）・x_noskin（骨を停止）・x_nosmoke（煙・炎・土埃なし）・x_simplemat（照明なし）。通常の高画質には適用しない。
 // 既存の札：x_nopost・x_nobloom・x_sm1024・x_noao・x_nodof・x_norays・x_sec180・x_shfull・x_bloomblend。
 const APX = (() => {
@@ -92,8 +93,7 @@ S.quality = 'high';
 let BM = null, bmPromise = null;
 const bmLoad = () => { if (!bmPromise) bmPromise = import('./battle.js').then((m) => (BM = m)).catch((e) => { bmPromise = null; throw e; }); return bmPromise; };
 // 戦を始める前の「支度中……」の一行（#tip の下）。失敗したら字とやり直しボタンに変える
-// 読み込みの進み（10/2）：段ごとの見込みの時間（前に測った時間を覚える）から、進みの棒と「あと約○秒」を出す。
-//   棒は transform の移り変わりで動かす（組み立ての重い間も、画面の合成の側で動き続ける）。動きを減らす設定では段ごとに跳ぶだけ
+// 読み込みの進みは完了した工程の割合。所要時間は画面へ出さず、計測だけ残す。
 const LD_KEY = 'risshin-ld-ms';
 const LD_DEF = { defs: 600, assets: 800, build: 1500, warm: 500, compile: 900, first: 400 };
 let ldPlan = null, ldIv = 0, ldName = '戦の支度';
@@ -115,22 +115,8 @@ function ldBegin(keys, battle = '') {
   if (bar) { bar.style.transition = 'none'; bar.style.transform = 'scaleX(0)'; }
   $('loading').style.setProperty('--ld-progress', '0%');
   $('loading').style.setProperty('--ld-stages', String(keys.length));
-  // 見込みの棒とは別に、実際に終わった工程を字のない区切りで残す。
-  let steps = $('ld-steps');
-  if (!steps) {
-    steps = document.createElement('div'); steps.id = 'ld-steps';
-    steps.setAttribute('aria-hidden', 'true');
-    document.querySelector('#loading .ldbar').after(steps);
-  }
-  steps.replaceChildren(...keys.map((key, i) => {
-    const step = document.createElement('i');
-    step.style.flexGrow = String(ldPlan.est[i]);
-    step.style.setProperty('--ld-duration', `${Math.round(ldPlan.est[i])}ms`);
-    if (RMm()) step.style.setProperty('--ld-duration', '0ms');
-    return step;
-  }));
-
-  clearInterval(ldIv); ldIv = setInterval(ldTick, 250);
+  $('loading').classList.remove('failed');
+  clearInterval(ldIv); ldIv = 0;
   const actions = document.querySelector('#loading .ld-cancel');
   if (actions) actions.remove();
   const cancel = document.createElement('button');
@@ -138,53 +124,21 @@ function ldBegin(keys, battle = '') {
   cancel.style.cssText = 'display:block;min-height:44px;margin:16px auto 0';
   cancel.onclick = () => { game.startSeq = (game.startSeq || 0) + 1; hideLoading(); game.title(); };
   document.querySelector('#loading .ldbar').parentElement.appendChild(cancel);
-  // 最初の描画から残りの目安を出す。次の工程を待って空欄にしない。
+  // 最初の工程へ入り、完了前の円を空で示す。
   stage('戦いの準備をしています', keys[0]);
 }
+// 完了した工程だけを円に反映する。経過時間で先へ進めず、秒数を約束しない。
 function ldTick() {
-  const el = $('ld-left');
-  if ($('loading').hidden || !ldPlan) { clearInterval(ldIv); ldPlan = null; return; }
-  if (document.hidden) return;
-  const P = ldPlan, i = Math.max(0, P.cur);
-  const into = performance.now() - P.t;
-  const total = P.est.reduce((sum, ms) => sum + ms, 0) || 1;
-  const completed = P.est.slice(0, i).reduce((sum, ms) => sum + ms, 0);
-  // 見込みを超えても丸を止めず、現在の段の終わりへゆっくり近づける。
-  // 次の段を先取りせず、満ち切るのは実際に支度が終わった時だけ。
-  const fraction = into <= P.est[i] ? into / P.est[i] * .8 : .8 + .18 * (1 - Math.exp(-(into - P.est[i]) / P.est[i]));
-  // 初陣も工程数ではなく、覚えた所要時間の割合で残る支度を示す。
-  const progress = (completed + P.est[i] * fraction) / total;
-  P.progress = Math.max(P.progress || 0, Math.min(.99, progress));
-  $('loading').style.setProperty('--ld-progress', `${(P.progress * 100).toFixed(1)}%`);
-  if (!el) return;
-  let left = Math.max(0, P.est[i] - into);
-  for (let k = i + 1; k < P.keys.length; k++) left += P.est[k];
-  // 見込みを超えても残り秒を消さず、残る段と現在の超過分から目安を直す。
-  if (into >= P.est[i]) left += Math.max(1000, P.est[i] * .2);
-  const text = `あと約${Math.max(1, Math.ceil(left / 1000))}秒で自動で始まります`;
-  if (el.textContent !== text) el.textContent = text;
+  if (!ldPlan || $('loading').hidden) return;
+  const progress = Math.max(0, ldPlan.cur) / ldPlan.keys.length;
+  $('loading').style.setProperty('--ld-progress', `${progress * 100}%`);
+  const left = $('ld-left');
+  if (left) left.textContent = '';
 }
-// 段に入る：棒をこの段の終わりの手前まで、見込みの時間で伸ばす
 function ldStep(key) {
   const P = ldPlan; if (!P) return;
   const i = P.keys.indexOf(key); if (i < 0 || i === P.cur) return;
   P.cur = i; P.t = performance.now();
-  // 終わった区切りを残し、今の工程だけを伸ばす。
-  const steps = $('ld-steps');
-  if (steps) for (let k = 0; k < steps.children.length; k++) {
-    steps.children[k].classList.toggle('done', k < i);
-    steps.children[k].classList.toggle('current', k === i);
-  }
-
-  // 初陣も合成側で棒を伸ばす。兵を組み立てる間に処理が詰まっても止めない。
-  const sum = P.est.reduce((a, v) => a + v, 0) || 1;
-  let a = 0; for (let k = 0; k < i; k++) a += P.est[k];
-  const end = (a + P.est[i] * 0.92) / sum;
-  const bar = document.querySelector('#loading .ldbar i');
-  if (bar) {
-    if (RMm()) { bar.style.transition = 'none'; bar.style.transform = `scaleX(${(a / sum).toFixed(3)})`; }
-    else { bar.style.transition = `transform ${Math.round(P.est[i])}ms linear`; bar.style.transform = `scaleX(${end.toFixed(3)})`; }
-  }
   ldTick();
 }
 // 読み終わり：段ごとにかかった時間を覚える（次の見込みに使う。前の値と半々にならす）
@@ -224,7 +178,7 @@ const stage = (t, key) => {
   remaining.style.display = t ? 'block' : 'none';
   if (t && (!ldIv || t === '戦の支度ができました')) remaining.textContent = 'まもなく始まります';
 };
-const stageError = (retry) => { game.loadingReader?.dispose(); game.loadingReader = null; const failedStage = ldName; document.querySelector('#loading .ld-cancel')?.remove(); $('loading').hidden = false; clearInterval(ldIv); ldIv = 0; ldPlan = null; stage(''); const el = $('ld-stage'); el.textContent = `！ ${failedStage}の途中で止まりました。題へ戻っても城下の記録は残ります。もう一度お試しください。`; el.insertAdjacentHTML('beforeend', '<div class="ld-actions"><button class="btn small" id="ld-title">題の画面へ戻る</button><button class="btn small" id="ld-retry">もう一度支度する</button></div>'); el.setAttribute('role', 'alert'); $('ld-retry').onclick = () => { $('ld-retry').disabled = true; $('ld-title').disabled = true; el.setAttribute('role', 'status'); sfx('ui'); if (freshRetry()) return; Promise.resolve().then(retry).catch(() => stageError(retry)); }; $('ld-title').onclick = () => { hideLoading(); game.title(); }; $('ld-title').focus({ preventScroll: true }); };
+const stageError = (retry) => { game.loadingReader?.dispose(); game.loadingReader = null; const failedStage = ldName; $('loading').classList.add('failed'); lockHint(false); document.querySelector('#loading .ld-cancel')?.remove(); $('loading').hidden = false; clearInterval(ldIv); ldIv = 0; ldPlan = null; stage(''); const el = $('ld-stage'); el.textContent = `！ ${failedStage}の途中で止まりました。題へ戻っても城下の記録は残ります。もう一度お試しください。`; el.insertAdjacentHTML('beforeend', '<div class="ld-actions"><button class="btn small" id="ld-title">題の画面へ戻る</button><button class="btn small" id="ld-retry">もう一度支度する</button></div>'); el.setAttribute('role', 'alert'); $('ld-retry').onclick = () => { $('ld-retry').disabled = true; $('ld-title').disabled = true; el.setAttribute('role', 'status'); sfx('ui'); if (freshRetry()) return; Promise.resolve().then(retry).catch(() => stageError(retry)); }; $('ld-title').onclick = () => { hideLoading(); game.title(); }; $('ld-title').focus({ preventScroll: true }); };
 // 「もう一度支度する」は頁を読み込み直して同じ所から始める（10/24 Lancers：Windows の Chrome で稲生の後の支度が何度押しても止まった）。
 // 同じ頁のままだと、一度失敗した部品の読み込み（import の失敗・公開の版の入れ替えで消えた古い版）をブラウザが覚えていて、何度押しても同じ所で止まる
 const freshRetry = () => { const ls = game.lastStart; return !!ls && !isNorender() && !/[?&]bot/.test(location.search) && resumeReload(game, ls.fn, ls.args); };
@@ -576,6 +530,12 @@ initRtsInput(canvas, () => game.battle, () => camera);
 const HEAT_SCALE = [1.25, 1.0, 0.9, 0.75];   // iPhone の熱の段ごとの描画倍率の上限
 let powerScale = MEM_TIGHT ? HEAT_SCALE[0] : 1;   // iPhone は上限、ほかの端末は従来の倍率（__iosPower が動かす）
 let powerCap = 0, powerTold = false, heatLevel = 0, heatTarget = 0, heatChangedAt = 0, heatFrame = 0;   // 熱の段（heatStep）
+const heatWatch = new HeatWatch();
+let backgroundHeat = 0;
+function syncBackgroundHeat() {
+  backgroundHeat = Math.max(heatLevel, iosHeat, heatWatch.level);
+  window.__heatBackgroundLevel = backgroundHeat;
+}
 const resScale = 1;   // 描く画素の倍率は熱の段（powerScale）だけ。画質の自動（measureQuality・dynRes）は一度も走らない作りだったので消した（10/21 引き算）
 // 描く回数の上限：設定の値と、端末が熱い時の 30（__iosPower）の小さい方
 // iPhone は試しの指定や設定によらず毎秒三十枚まで。ほかの端末の試しの指定は従来どおり。
@@ -775,7 +735,7 @@ function drawScene(scene, fresh = false) {
   renderer.shadowMap.enabled = !!shadowWorld && S.quality !== 'low' && heatLevel < 3 && !APX.noshadow;
   // 固定物の絵は更新しない。動く影だけ、熱が上がった時は二コマに一度描き直す。
   renderer.shadowMap.autoUpdate = false;
-  renderer.shadowMap.needsUpdate = renderer.shadowMap.enabled && (heatLevel < 1 || (++heatFrame & 1) === 0);
+  renderer.shadowMap.needsUpdate = renderer.shadowMap.enabled && (backgroundHeat < 1 || (++heatFrame & 1) === 0);
   // 戦の側が光を直接変えた後にも、全画質で同じ夜の散乱光を当てる。
   const nightWorld = game.battle && game.battle.world;
   let drawMeasure = null;
@@ -1067,7 +1027,7 @@ function beginPlay(afterView = false) {
 // 画面の上寄りの小さな案内「クリックすると、マウスで見回せます」（下に出すと最初の台詞の字幕に重なる。大きな一時停止の画面にはしない）
 function lockHint(on) {
   // 初陣はピンと敵印だけで案内する。指の画面にもマウスの説明を重ねない。
-  if (game.battle?.def.key === 'inou' || game.battle?.def.key === 'okehazama' || isTouch) on = false;
+  if (game.paused || game.helpOpen || !$('loading').hidden || game.battle?.def.key === 'inou' || game.battle?.def.key === 'okehazama' || isTouch) on = false;
   let el = document.getElementById('lockhint');
   if (on && !el) {
     el = document.createElement('div');
@@ -1167,10 +1127,11 @@ window.__iosActive = (on) => {
   if (b && b.def.town && game.G) { try { save(game.G); } catch (e) { /* 書けなくても続ける */ } }
 };
 // 端末が熱い（thermal 1＝少し・2＝かなり・3＝とても）・低電力モード：段階的に軽くする（兵の数と密度は変えない。設定には書かない）。
-//   iPhone の描画倍率の上限は平常 1.25・少し熱い 1.0・かなり熱い 0.9・とても熱い 0.75。仕上げは常に切る。
-//   1：影の描き直しを二コマに一度。2：描く回数 30 まで。3：影も切る。ほかの端末の倍率は従来どおり。
+//   少し熱い時と中央値の上がりは、遠い判断・煙・影の更新だけを軽くする。
+//   iPhone の描画倍率は平常 1.25・かなり熱い 0.9・とても熱い 0.75。仕上げと影は既存の設定で切ったまま。
 //   上がる時はすぐ、下がる時は一段ずつ（30 秒おき）。熱 3 のまま森部の乱戦を描くと GPU process ごと切られていた（10/20）
-window.__heat = () => ({ level: heatLevel, target: heatTarget });   // 確かめ用
+window.__heat = () => ({ level: heatLevel, target: heatTarget, background: backgroundHeat,
+  beforeMs: heatWatch.before * 1000, recentMs: heatWatch.after * 1000, rise: heatWatch.rise });   // 確かめ用
 function heatStep() {
   if (!MEM_TIGHT) return;   // 保存された軽量設定でも、パソコンの解像度・光・影は下げない。
   const now = performance.now();
@@ -1179,6 +1140,7 @@ function heatStep() {
   else if (heatTarget < lv && now - heatChangedAt > 30000) lv -= 1;
   if (lv === heatLevel) return;
   heatLevel = lv; heatChangedAt = now; window.__heatLevel = lv;
+  syncBackgroundHeat();
   powerCap = lv >= 2 ? 30 : 0;
   if (lv < 2) { if (composer && !useFinish()) { /* 仕上げは次の draw が作り直す */ } }
   else disposeFinish();   // 仕上げの的（半精度・MSAA 4・約 25MB）も返す
@@ -1188,24 +1150,19 @@ function heatStep() {
   if (lv < 2) powerTold = false;
 }
 window.__iosPower = (o) => {
-  iosThermalSeen = true;
-  const t = (o && o.thermal) || 0, low = !!(o && o.lowPower);
+  const t = Number.isInteger(o?.thermal) && o.thermal >= 0 && o.thermal <= 3 ? o.thermal : null;
+  const low = !!o?.lowPower;
   window.__iosPowerState = { thermal: t, lowPower: low };   // 自動計測より先に届いた実機の熱も引き継ぐ
-  iosHeat = Math.max(t, low ? 2 : 0);
-  heatTarget = Math.max(iosHeat, S.heatFloor || 0);
+  if (t !== null) { iosThermal = t; if (t === 0) heatWatch.reset(); }
+  iosHeat = Math.max(iosThermal, low ? 2 : 0);
+  // 少し熱い段は裏の仕事だけを減らす。近くの兵・甲冑・描画倍率は保つ。
+  heatTarget = Math.max(iosHeat >= 2 ? iosHeat : 0, S.heatFloor || 0);
   heatStep();
+  syncBackgroundHeat();
 };
-let iosHeat = 0, iosThermalSeen = false;
-// 10/24：Web 版（アプリの熱の知らせが無い時）は、コマの長い時が続いたら熱の段 1 を入れ、戻れば外す
-let webHeatSlow = 0, webHeatFast = 0;
-function webHeatWatch(real) {
-  if (real <= 0) return;
-  if (real > 0.045) { webHeatSlow += real; webHeatFast = 0; } else { webHeatFast += real; if (webHeatFast > 5) webHeatSlow = 0; }
-  const want = webHeatSlow > 8 ? 1 : webHeatFast > 60 ? 0 : heatTarget;
-  if (want !== heatTarget && (S.heatFloor || 0) <= want) { heatTarget = want; heatStep(); }
-}
+let iosHeat = 0, iosThermal = 0;
 // 軽く遊ぶ段（設定の「軽く遊ぶ」・落ちた後の札）：熱の段をこの段から始める
-function applyHeatFloor() { heatTarget = Math.max(iosHeat, Math.min(3, S.heatFloor || 0)); heatChangedAt = -1e9; heatStep(); }
+function applyHeatFloor() { heatTarget = Math.max(iosHeat >= 2 ? iosHeat : 0, Math.min(3, S.heatFloor || 0)); heatChangedAt = -1e9; heatStep(); }
 
 // 戦術マップ：開いている間はマウスを放し、クリックで組を向かわせる
 function toggleBigMap() {
@@ -1357,7 +1314,7 @@ function resumePlay() {
   const b = game.battle;
   if (b && game.battleFault === b) {
     let recovered = false;
-    try { recovered = recoverBattle(b); }
+    try { recovered = b.resumeFault !== game.lastError?.split('\n戦：')[0] && recoverBattle(b); }
     catch (e) { console.error(e); }
     // 復元自身が失敗しても、閉じられない札と壊れた戦を残さない。
     if (!recovered) {
@@ -1365,6 +1322,7 @@ function resumePlay() {
       game.startBattle(b.index);
       return;
     }
+    b.resumeFault = game.lastError?.split('\n戦：')[0];
     game.battleFault = null;
     game.lastError = null;
   }
@@ -1378,6 +1336,7 @@ function setPause(on) {
   if (game.deployment) { input.clear(); return; }
   // 軍議（gungi.js）の間は、札を閉じても時は止めたまま（軍議の下で戦が動き出し、カメラが自分の目へ戻るのを防ぐ）
   game.paused = on || !!game.gungiOn;
+  if (on) lockHint(false);
   if (on && window.speechSynthesis) speechSynthesis.cancel();
   if (!on && game.pendingIntro && game.battle) { const f = game.pendingIntro; game.pendingIntro = null; f(); }
   const el = $('pause');
@@ -1417,6 +1376,7 @@ function toggleHelp() {
   helpOverlay(game.helpOpen);
   input.clear();
   if (game.helpOpen) {
+    lockHint(false);
     game.paused = true;
     $('pause').hidden = true;
     if (document.exitPointerLock && locked) document.exitPointerLock();
@@ -2770,6 +2730,9 @@ function loop() {
   const elapsed = cap ? capAcc : clock.getDelta();
   const real = document.hidden ? 0 : Math.min(0.25, elapsed);
   capAcc = 0;
+  if (wake || waiting || !b || game.deployment || game.photo || game.mapOpen || b.over) heatWatch.reset();
+  else heatWatch.sample(elapsed);
+  syncBackgroundHeat();
   let dt = real;
   b?.environmentSound?.sync(!game.paused && !game.photo && !game.townShop && !document.hidden && document.hasFocus());
   // 人の作り置きと絵の下ごしらえは支度中だけ。操作の輪では始めない。
@@ -2845,7 +2808,6 @@ function loop() {
       if (CPU_LEAN) tinyCull(b.scene, camera, renderer);
       draw(b.scene); sizeDirty = false;
     }
-    if (MEM_TIGHT && !iosThermalSeen && !still3d) webHeatWatch(real);
     if (measuring) {
       const t_d1 = performance.now(), total = t_d1 - t_u0;
       if (total > 24) window.__startFrames.push({ t: +b.t.toFixed(2), upd: +(t_u1 - t_u0).toFixed(1), draw: +(t_d1 - t_u1).toFixed(1), total: +total.toFixed(1) });

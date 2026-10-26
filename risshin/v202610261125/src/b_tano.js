@@ -103,7 +103,8 @@ const TANO_DEFEND = sonaePlan('谷道と平屋敷の守り', 1, { x: 138, z: -6 
 
 // 徒歩で狭い谷を守る姿。母衣は付けず、指物は肩幅ほどに収める。
 // 袖と威糸を墨色の胴から分け、肘・手首・握る手の輪郭を読めるようにする。
-const TANO_KIT = { horse: false, horo: 0, flagScale: 0.64, cloth: 0x716757, lace: 0x8a765c };
+// 本の足軽の姿に合わせ、陣羽織を付けず、藍の小袖と黒漆・赤茶の陣笠を使う。
+const TANO_KIT = { horse: false, horo: 0, haori: 0, flagScale: 0.64, cloth: 0x263c45, lace: 0x8a765c };
 const ODA = { ...TANO_KIT, flag: 'oda' };
 const TAKEDA = { ...TANO_KIT, flag: 'takeda', cloth: 0x665344, lace: 0x9a5740 };
 // 開戦の配置より先に兵の定義を用意する。
@@ -127,8 +128,8 @@ function tanoAllyDress(list, kit) {
       variants.push({ ...s, n, o: { ...kit, ...s.o, flag: i === 0 ? kit.flag : null,
         flagScale: (kit.flagScale || 0.64) * (1 - i * 0.08),
         armor: [0x343b3d, 0x3b352d, 0x303936][i],
-        cloth: [kit.cloth, 0x655e52, 0x69716a][i], lace: [kit.lace, 0x85715a, 0x76827b][i],
-        hatColor: [0x292823, 0x3c352a, 0x343938][i] } });
+        cloth: [kit.cloth, 0x293940, 0x34474a][i], lace: [kit.lace, 0x85715a, 0x76827b][i],
+        hatColor: [0x292823, 0x63392e, 0x34302b][i] } });
     }
     return variants;
   });
@@ -620,8 +621,79 @@ export function horseHost(rt, x, z, w, d, count, facing, seed) {
   return rt.world.addDistantArmy({ x, z, w, d, count, facing, armor: 0x3a2622, flagTex: flagTexture('takeda'), mon: 'takeda', seed, kind: 'cavalry' });
 }
 
+const tanoFighter = (u) => !!u && u.alive && !u.gone && !u.dying &&
+  !u.fleeing && !u.woundOut && !u.noTarget && !u.isStruct && !u.group?.civ;
+function tanoNearestFoe(rt) {
+  const F = rt.flags, C = F.dp?.cur, p = rt.player.u.pos;
+  if (F.ending || rt.over || !C || C.s.kind === 'move') return null;
+  if (rt.t < C.foeAt && (!C.foe || tanoFighter(C.foe))) return C.foe;
+  C.foeAt = rt.t + .25;
+  let target = null, best = Infinity;
+  for (const g of C.s.phase === 'tano' ? F.defenders : C.groups) {
+    for (const u of g.units) {
+      if (!tanoFighter(u)) continue;
+      const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
+      if (d < best) { best = d; target = u; }
+    }
+  }
+  C.foe = target;
+  return target;
+}
+
 // 敵の武士は全段を通じて四十一人。段の間に控えを増やさない。
 const tano = {
+  // 稲生の水準：右上の一行・通れる道のピン一本・大将の印。
+  missionSingleLine: true, hideMissionDots: true,
+  noPlayerFoot: true, quietMiss: true, noDodgeCard: true,
+  enemyTriangleSigns: true, nearbyAllySignLimit: 0,
+  missionPinCaption: '', missionDetail: () => '', missionStatus: () => '',
+  minutes: 6,
+  bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ/.test(text),
+  missions: ['味方と集まれ', '▼の敵を倒せ', 'ここを守れ', '柵の口へ進め', '屋敷の奥へ進め'],
+  missionOf(rt) {
+    const F = rt.flags, C = F.dp?.cur;
+    if (F.ending || !C || C.s.kind === 'move') return 0;
+    if (C.s.phase === 'narrow' && !F.volley && !F.narrowPush &&
+        fighting(F.tgun) && fighting(F.defenders[2])) return 2;
+    if (this.missionSignTarget(rt)) return 1;
+    return C.s.phase === 'fence' ? 3 : C.s.phase === 'tano' ? 4 : 0;
+  },
+  missionHeading(rt) {
+    if (rt.flags.ending || rt.over) return rt.tracker.main ? '味方と集まれ' : '味方と退け';
+    return this.missions[this.missionOf(rt)];
+  },
+  // 勝頼は自害する大将。印だけを付け、討ち取りの的へ変えない。
+  commanderSignTarget(rt) {
+    const u = rt.flags.principals?.units[0];
+    return !rt.flags.principalsDead && u?.alive && !u.gone && !u.dying ? u : null;
+  },
+  mapCommanderAlways: true,
+  foeMarkVisible: (rt, u) => u === rt.def.commanderSignTarget(rt),
+  commanderTarget(rt) {
+    const u = tanoNearestFoe(rt);
+    return u?.name === '土屋昌恒' ? u : null;
+  },
+  namedGuideTarget(rt) { return this.commanderTarget(rt); },
+  missionSignTarget(rt) { return tanoNearestFoe(rt); },
+  missionPin(rt) {
+    const F = rt.flags, C = F.dp?.cur, p = rt.player.u.pos;
+    if (F.ending || rt.over || !rt.player.u.alive) return null;
+    const q = F.tanoPin || (F.tanoPin = { x: 0, z: 0 });
+    const waiting = this.missionOf(rt) === 2;
+    const enemy = !waiting && C?.s.kind !== 'move' ? this.missionSignTarget(rt) : null;
+    const destination = waiting ? C.waitAt : enemy ? enemy.pos : C?.at || FIRST_JOIN;
+    const route = valleyWay(rt.army, rt.player.u, destination);
+    const turn = route !== destination && Math.hypot(route.x - p.x, route.z - p.z) > .6;
+    if (!turn && enemy && rt.player.inRange && rt.player.rangeCueTarget === enemy) return null;
+    const pos = turn ? route : destination;
+    q.x = pos.x; q.z = pos.z;
+    q.unit = !turn ? enemy : null; q.enemy = !!q.unit; q.route = turn;
+    q.waiting = q.defend = waiting && !turn;
+    q.always = true; q.silent = true; q.approach = !!enemy;
+    q.r = q.hide = turn ? .5 : enemy ? 3 : waiting ? 4 : C?.s.kind === 'move' ? 8 : 12;
+    q.arrived = !turn && Math.hypot(p.x - pos.x, p.z - pos.z) < q.r;
+    return q;
+  },
   jinkei: [TANO_ATTACK, TANO_DEFEND],
   noWake: true, noDistantBattle: true, noTaishoRaid: true, noHorse: true, noCouriers: true, botOrders: true,
   noRevive: true, strictHits: true, armySignals: false,
@@ -1007,128 +1079,6 @@ const tano = {
     // 本人と兵で同じ切岸の判定を使う。押し合いで外れた兵は既存の足場復帰で戻る。
     // この戦にだけ加え、既存の通行止めも残す。関数は設営時に一度だけ作る。
     (W.noClimb || (W.noClimb = [])).push((x, z) => tanoCliffBlocked(W, x, z));
-    // 専用の札の決まりを有効にする。共通の画面は戦の名前を自動では付けない。
-    rt.hud.root.classList.add('tano');
-    // 傷の長い文で格子が札の外へ広がらないよう、田野だけ幅内で折り返す。
-    const layout = document.createElement('style');
-    layout.textContent = `
-      /* まだ下知のない開戦直後も、隠した報せの釦の枠だけを出さない。 */
-      html body #hud.tano #battle-log-entry[hidden] { display:none !important; }
-      /* 左端へ寄せた欄に、中央配置用のずらしを残さない。 */
-      html body #hud.tano #battle-notices:not(.choosing) {
-        transform:none !important;
-      }
-      html body #hud.tano #battle-notices:not(.choosing) #objectives:not(.expand) .battle-action:not([hidden]) {
-        position:static !important; transform:none !important;
-        width:auto !important; min-width:0 !important; max-width:100% !important;
-        white-space:normal !important; overflow-wrap:anywhere !important;
-        box-sizing:border-box;
-      }
-      html body #hud.tano .bl #h-hp.hp {
-        grid-template-columns:max-content minmax(0,1fr) !important;
-        min-width:0; max-width:calc(100vw - 40px);
-      }
-      html body #hud.tano .bl #h-hp.hp > :is(i,em) {
-        min-width:0; max-width:100%; box-sizing:border-box;
-      }
-      html body #hud.tano .bl #h-hp.hp em {
-        justify-self:stretch; font-size:max(16px,calc(16px * var(--text-scale,1))) !important;
-        white-space:normal !important; word-break:normal !important; overflow-wrap:anywhere !important;
-      }
-      html body #hud.tano .bl #h-hp.hp em small {
-        white-space:normal; word-break:normal; overflow-wrap:anywhere;
-      }
-      html body #hud.tano .bl #h-hp.hp em svg { width:18px; height:20px; }
-      /* 防御の札は端に固定し、敵の顔と槍先を空ける。指を置いたまま動かさない。 */
-      html.touch body #hud.tano #wait-guard {
-        left:auto !important; right:calc(16px + env(safe-area-inset-right,0px)) !important;
-        top:auto !important; bottom:calc(16px + env(safe-area-inset-bottom,0px));
-        width:248px; max-width:calc(100vw - 32px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px));
-        min-height:64px; height:auto; border-width:3px; border-radius:8px;
-        grid-template-columns:20px minmax(0,1fr) 20px; column-gap:8px; row-gap:2px;
-      }
-      html.touch.tc-sw body #hud.tano #wait-guard {
-        left:calc(16px + env(safe-area-inset-left,0px)) !important; right:auto !important;
-        bottom:calc(120px + env(safe-area-inset-bottom,0px));
-      }
-      html.touch body #hud.tano #wait-guard svg:first-child { width:20px; height:32px; }
-      html.touch body #hud.tano #wait-guard svg + svg { width:20px; height:28px; }
-      html.touch body #hud.tano #wait-guard :is(span,small) {
-        min-width:0; width:auto; font-size:max(16px,calc(16px * var(--text-scale,1)));
-        line-height:1.4; white-space:normal; overflow-wrap:anywhere;
-      }
-      /* 操作は端の釦にまとめ、上には谷道・崖道・柵の任務を残す。 */
-      html.touch body #hud.tano.wait-guard-active #battle-notices:not(.choosing) #objectives:not(.expand) .battle-action:has(.guard-caption) {
-        display:none !important;
-      }
-      /* 共通の「操作中は本文を畳む」指定より、田野の持ち場の下知を優先する。
-         防御釦の出入りで、本文も隠れて空の墨の帯になるのを防ぐ。 */
-      html body #hud.tano #battle-notices:not(.choosing) #objectives.keep-guard-task:not(.expand) #obj-list,
-      html body #hud.tano #battle-notices:not(.choosing) #objectives.keep-guard-task:not(.expand) #obj-list li.cur .obj-text,
-      html body #hud.tano #battle-notices:not(.choosing) #objectives.keep-guard-task:not(.expand) #obj-list li.cur .obj-now {
-        display:block !important;
-      }
-      html body #hud.tano #battle-notices:not(.choosing) #objectives.keep-guard-task:not(.expand) #obj-list li.cur .obj-now {
-        font-size:max(18px,calc(18px * var(--text-scale,1))) !important;
-        line-height:1.4 !important; white-space:normal !important;
-      }
-      /* 横の携帯は左上の欄へ。退く札も中央の敵と槍先に重ねない。 */
-      @media (max-height:500px) {
-        /* 開戦前は読む高さを取り、勝つ条件と出陣の釦を切らない。本文は送れる。 */
-        html body #hud.tano #intro > .card {
-          width:min(480px,calc(100vw - 32px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px))) !important;
-          max-height:calc(100dvh - 32px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px)) !important;
-          box-sizing:border-box;
-        }
-        html body #hud.tano #battle-notices:not(.choosing):not(:has(#objectives.expand)),
-        html body #hud.tano.mission-visible #battle-notices:not(.choosing):not(:has(#objectives.expand)) {
-          left:calc(16px + env(safe-area-inset-left,0px)) !important;
-          right:auto !important; top:calc(16px + env(safe-area-inset-top,0px)) !important;
-          width:min(280px,40vw) !important; gap:8px;
-          max-height:calc(100% - 160px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px)) !important;
-        }
-        /* 共通の道案内は重ねた識別子で中央上へ固定する。田野でも同じ強さで戻す。 */
-        html:root body #hud.tano.single-guide #battle-notices:not(.choosing) #objectives#objectives.route-summary:not(.expand),
-        html body #hud.tano #battle-notices:not(.choosing) #objectives:not(.expand),
-        html body #hud.tano.combat-instruction #battle-notices:not(.choosing) #objectives:not(.expand) {
-          position:relative !important; inset:auto !important; transform:none !important;
-          width:100% !important; min-width:0 !important; max-width:100% !important;
-          height:auto !important; box-sizing:border-box;
-        }
-        html body #hud.tano #battle-notices #objectives:not(.expand) li.cur :is(.obj-text,.obj-now) {
-          font-size:max(18px,calc(18px * var(--text-scale,1))) !important;
-          line-height:1.4 !important;
-        }
-      }
-      /* 縦に余裕のある卓上端末では、任務と声を左に積み、右の地図を空ける。 */
-      @media (min-height:501px) {
-        html:not(.touch) body #hud.tano #battle-notices:not(.choosing),
-        html:not(.touch) body #hud.tano.mission-visible #battle-notices:not(.choosing):not(:has(#objectives.expand)) {
-          left:calc(16px + env(safe-area-inset-left,0px)) !important;
-          right:auto !important; top:calc(104px + env(safe-area-inset-top,0px)) !important;
-          width:min(320px,30vw) !important; gap:8px;
-          max-height:calc(100% - 304px) !important;
-        }
-        /* 射撃待ち・集合でも、軍勢と方角の帯に任務を重ねない。 */
-        html:root:not(.touch) body #hud.tano.single-guide #battle-notices:not(.choosing) #objectives#objectives.route-summary:not(.expand),
-        html:not(.touch) body #hud.tano #battle-notices:not(.choosing) > :is(#objectives,#battle-message),
-        html:not(.touch) body #hud.tano.combat-instruction #battle-notices:not(.choosing) #objectives:not(.expand) {
-          position:relative !important; inset:auto !important; transform:none !important;
-          width:100% !important; max-width:100% !important; min-width:0;
-          height:auto !important; flex:0 0 auto;
-        }
-        html:not(.touch) body #hud.tano #battle-notices #objectives:not(.expand) :is(li.cur,.obj-text,.obj-now) {
-          white-space:normal !important; overflow-wrap:anywhere;
-          height:auto !important; max-height:none !important; overflow:visible;
-        }
-      }
-    `;
-    rt.hud.root.appendChild(layout);
-    const dispose = rt.dispose;
-    rt.dispose = function (...args) {
-      layout.remove(); rt.hud.root.classList.remove('tano');
-      return dispose.apply(this, args);
-    };
     F.ek = 0; F.ak = 0;
     // 午前の光を谷の向きに合わせる。＋横は東北東、＋奥行きは南南東。
     // 日付は旧暦三月十一日。日の高さ・天気は推定で、史実の確定値ではない。
@@ -1320,7 +1270,7 @@ const tano = {
     for (const u of F.defenders[4].units) { u.noTarget = true; u.invuln = true; }
     // 父子二人も四十一人に含める。屋敷の奥に近習を置き、討ち取りの的にしない。
     F.principals = enemyGroup(rt, { fixed: true, noAI: true, faction: 'takeda', name: '武田父子の居所', anchor: { x: 138, z: -6 }, facing: -Math.PI / 2, aggro: 0, noRout: true, stay: true, formation: 'column', civ: true },
-      tanoGuardDress([{ type: 'busho', n: 1, o: { name: '武田勝頼', horse: false, noTarget: true, invuln: true } }, { type: 'samurai', n: 1, o: { name: '武田信勝', horse: false, noTarget: true, invuln: true } }]));
+      tanoGuardDress([{ type: 'busho', n: 1, o: { name: '武田勝頼', horse: false, flagScale: 1.4, noTarget: true, invuln: true } }, { type: 'samurai', n: 1, o: { name: '武田信勝', horse: false, noTarget: true, invuln: true } }]));
     // 無名の侍の呼び名は仮名。本人と同じ名を避け、実名の土屋は保つ。
     const names = ['源六', '平八', '彦七', '新八', '又六', '弥三郎', '喜助'];
     for (const g of F.defenders) for (const u of g.units) {
@@ -1451,7 +1401,7 @@ const tano = {
         } });
     }
     F.flowScan = (F.flowScan || 0) - dt;
-    if (F.flowScan > 0) return;
+    if (F.flowScan > 0 && C.groups.some(fighting)) return;
     F.flowScan = 0.4;
     // 射手の損耗や味方の割り込みで撃てなくても、槍の寄せへ切り替える。
     // 撃っていない鉄砲の音・煙・手柄は作らない。
@@ -1528,15 +1478,9 @@ const tano = {
         if (d < C.enemyDistance) { C.enemyDistance = d; C.enemyUnit = u; }
       }
     }
-    // 混戦で隣の侍へ印が飛び、柵の内外の下知が往復するのを抑える。
-    // 今の相手が戦える間は保ち、四歩以上近い相手が現れた時だけ替える。
-    const previous = C.guideEnemy;
-    if (previous?.alive && !previous.fleeing && !previous.woundOut && !previous.noTarget &&
-        (C.s.phase === 'tano' ? F.defenders : C.groups).includes(previous.group)) {
-      const d = Math.hypot(previous.pos.x - p.x, previous.pos.z - p.z);
-      if (d <= C.enemyDistance + 4) { C.enemyUnit = previous; C.enemyDistance = d; }
-    }
-    C.guideEnemy = C.enemyCount ? C.enemyUnit : null;
+    // 自動操作と画面のピンで同じ最寄りの残敵を追う。
+    C.guideEnemy = tanoNearestFoe(rt);
+    if (C.guideEnemy) C.enemyDistance = Math.hypot(C.guideEnemy.pos.x - p.x, C.guideEnemy.pos.z - p.z);
     if (C.guideEnemy) { C.enemyAt.x = C.guideEnemy.pos.x; C.enemyAt.z = C.guideEnemy.pos.z; }
     // 隊の平均は空いた道や次の持ち場に出る。今の任務に残る最寄りの兵を示す。
     if (C.enemyCount) { C.goal.x = C.enemyAt.x; C.goal.z = C.enemyAt.z; }
@@ -1549,9 +1493,9 @@ const tano = {
       C.spearAt = rt.t + 4;
       for (const g of F.oda) {
         if (g !== F.front && g !== F.kawa) continue;
-        // 先手が健在でも、崖道の寄せが三十秒続いたら後詰が列の穴を支える。
+        // 先手が健在でも、崖道の寄せが二十秒続いたら後詰が列の穴を支える。
         // 射撃待ちには入らず、指揮所と射手の持ち場は保つ。
-        if (g === F.kawa && fighting(F.front) && F.front.count >= F.front.initial / 2 && rt.t - C.t0 < 30) continue;
+        if (g === F.kawa && fighting(F.front) && F.front.count >= F.front.initial / 2 && rt.t - C.t0 < 20) continue;
         if (!fighting(g) || g.order !== 'hold') continue;
         let touching = false, target = null, distance = Infinity;
         for (const u of g.units) {
@@ -1581,24 +1525,6 @@ const tano = {
     C.engaged = inside && C.enemyDistance < 25 && !clear;
     C.seeking = !clear && (ready || C.enemyDistance <= 12);
     C.waiting = !ready && !C.seeking;
-    // 射撃開始と同じく先着の二人を基準にする。遅れた一人まで谷道を戻らせない。
-    // 行軍中の射手を追って谷の入口まで戻らず、槍の待機線で到着を待つ。
-    // 射手が追いついたら先着二人の後ろ四歩へ寄せ、射線を空ける。
-    // 既存の印の座標だけを更新し、射撃・寄せ・段の完了条件は保つ。
-    if (C.waiting) {
-      let first = -Infinity, second = -Infinity, firstZ = C.s.at.z, secondZ = C.s.at.z;
-      for (const u of F.tgun.units) {
-        if (!u.alive || u.fleeing || u.woundOut || u.noTarget) continue;
-        if (u.pos.x > first) {
-          second = first; secondZ = firstZ; first = u.pos.x; firstZ = u.pos.z;
-        } else if (u.pos.x > second) { second = u.pos.x; secondZ = u.pos.z; }
-      }
-      if (Number.isFinite(first)) {
-        const gunX = (Number.isFinite(second) ? second : first) - 4;
-        C.waitAt.x = Math.max(C.s.at.x - 20, gunX);
-        C.waitAt.z = gunX < C.s.at.x - 20 ? C.s.at.z : Number.isFinite(second) ? secondZ : firstZ;
-      }
-    }
     // 残敵を追う時も柵の口・谷道の曲がりを通す。柵越しの敵へ直進させない。
     // 行き先の印と同時に敵の印を出さず、通り口を抜けたら敵へ戻す。
     const destination = C.seeking ? C.enemyAt : C.waiting ? C.waitAt : C.at;
@@ -1614,77 +1540,11 @@ const tano = {
     } else rt.unmark('turn');
     // 敵が残る間に先手の近くで支えた事を数える。到着後の待ちだけでは手柄にしない。
     if (!clear && inside && distance < 25 && Math.hypot(p.x - C.goal.x, p.z - C.goal.z) < 25) C.support += elapsed;
-    if (!clear || !ready) { C.settled = 0; C.outT = 0; }
-    else if (near) { C.settled += elapsed; C.outT = 0; }
-    else {
-      C.outT += elapsed;
-      // 短い押し出しの間は確認を止める。三秒以上離れたら持ち場を放棄した扱い。
-      if (C.outT >= 3 || distance >= 20) C.settled = 0;
-    }
-    // 自分か配下が道を開いた時は、長い足踏みを挟まず次の寄せにつなぐ。
-    const settleTime = C.s.kind === 'move' ? 0.4 : C.playerKills ? 3 : 5;
-    if (clear && ready && !C.clearSaid && C.s.kind !== 'move') {
-      C.clearSaid = true;
-      // 次の下知までは集合。台詞で次の持ち場へ先走らせない。
-      const cleared = C.s.phase === 'valley' ? '谷道が開いた。'
-        : C.s.phase === 'narrow' ? '崖道が開いた。'
-          : C.s.phase === 'fence' ? '柵の口を押さえた。' : '奥の敵も退けた。';
-      rt.say('滝川の組頭', cleared + (near ? 'その場で組をそろえよ' : '印で組をそろえよ'), 3);
-    }
-    if (clear && ready && C.s.kind !== 'move') {
-      const place = C.s.phase === 'valley' ? '谷道' : C.s.phase === 'narrow' ? '崖道'
-        : C.s.phase === 'fence' ? '柵の口' : '屋敷の奥';
-      const task = near ? `${place}を押さえた。あと${Math.max(0, Math.ceil(settleTime - C.settled))}秒、組をそろえよ`
-        : !inside ? '敵は退いた。柵の口から中へ' : `${place}の集合の印へ進め`;
-      if (rt.objectives.find((o) => o.id === 'main')?.text !== task) rt.obj('main', task, 'main');
-    }
-    // 体の背後と画面の奥を混同させず、「敵へ体を向けよ」と伝える。
-    const behind = (C.enemyAt.x - p.x) * Math.sin(rt.player.u.heading) + (C.enemyAt.z - p.z) * Math.cos(rt.player.u.heading) < 0;
-    // 間合いの境と真横で札を往復させない。向き直る下知は八秒間隔にする。
-    if (!C.enemyCount || C.enemyDistance > 14) { C.closeFight = false; C.turnBack = false; }
-    else if (C.enemyDistance <= 10) C.closeFight = true;
-    const facing = ((C.enemyAt.x - p.x) * Math.sin(rt.player.u.heading) +
-      (C.enemyAt.z - p.z) * Math.cos(rt.player.u.heading)) / Math.max(0.01, C.enemyDistance);
-    if (C.closeFight) {
-      if (C.turnBack && facing > 0.3) C.turnBack = false;
-      else if (!C.turnBack && facing < -0.3 && rt.t >= (C.turnTaskAt || 0)) {
-        C.turnBack = true; C.turnTaskAt = rt.t + 8;
-      }
-    }
-    // 携帯では任務の補足が畳まれる。近い敵への応戦を主の一文でも伝える。
-    // 持ち場を主文に残す。同じ押し合いでも谷道・崖道・柵の段を見失わせない。
-    // 射撃待ちは接敵しても残す。「退け」を退却と取り違えさせない。
-    if (!clear && C.s.kind !== 'move') {
-      const task = C.seeking && C.routeTurn ? C.houseTurn ? '屋敷の脇の印へ進め' : C.yardTurn
-        ? '柵の口の印へ進め'
-        : '谷道の印へ進め'
-        : C.s.phase === 'narrow' && ready && C.enemyAt.x > 70 ? '崖道を離れた敵へ、味方と進め'
-        : C.s.phase === 'narrow' && !ready && C.closeFight ? '敵へ構えよ。射手の後ろを守れ'
-        : C.closeFight && C.turnBack ? C.s.phase === 'valley' ? '谷道で敵へ体を向けよ'
-          : C.s.phase === 'narrow' ? '崖道で敵へ体を向けよ'
-            : C.s.phase === 'fence' ? '柵の口で敵へ体を向けよ' : '屋敷の奥で敵へ体を向けよ'
-        : C.closeFight ? C.s.phase === 'valley' ? '谷道で敵へ構え、味方と押せ'
-          : C.s.phase === 'narrow' ? '崖道で敵へ構え、味方と押せ'
-            : C.s.phase === 'fence' ? '柵の口で敵へ構え、味方と押せ'
-              : '屋敷の奥で敵へ構え、味方と押せ'
-          : !inside ? '柵の口から屋敷へ入れ'
-          : C.s.phase !== 'narrow' ? C.s.text
-        : F.volley ? '鉄砲が鳴った。陣太鼓に従い崖道を押せ'
-          : F.narrowPush ? '鉄砲を待たず、槍の組と崖道を押せ'
-            // 射手の到着前後で、本文も補足と同じ待機位置を案内する。
-            : C.waiting ? tanoWaitText(rt) : C.s.text;
-      if (rt.objectives.find((o) => o.id === 'main')?.text !== task) rt.obj('main', task, 'main');
-    }
-    rt.objProgress('main', !inside ? '柵の口から中へ進め'
-      : C.waiting ? tanoWaitText(rt)
-      : C.engaged ? behind ? '敵へ体を向けよ。味方と構えよ'
-        : C.s.phase === 'narrow' && !ready ? '射手の後ろで構えよ。前を空けよ' : '味方の列と敵を押せ'
-      : C.seeking ? `${behind ? '敵へ体を向けよ。' : ''}敵の旗と赤茶の袖を見て、味方と進め`
-      : !near ? `${C.s.label}へ。あと約${Math.max(1, Math.round(distance / 1.82))}間`
-        : C.s.phase === 'narrow' && !ready ? '射手の後ろで待て。前を空けよ'
-        : !clear ? `敵は${C.goal.x < C.at.x ? '谷道の手前' : '谷道の奥'}におる。${C.s.phase === 'fence' || C.s.phase === 'tano' ? (C.s.phase === 'tano' ? '屋敷の脇から' : '柵の口から') : '川へ下りず'}組と進み、敵を退けよ`
-          : C.s.kind === 'move' ? '先手に加わった' : `敵を退けた。組をそろえよ。あと${Math.max(0, Math.ceil(settleTime - C.settled))}秒`);
-    if (near && clear && ready && C.settled >= settleTime) {
+    // 討った・着いた更新で次へ。空の持ち場で三〜五秒待たせない。
+    const task = this.missionHeading(rt);
+    if (rt.objectives.find((o) => o.id === 'main')?.text !== task) rt.obj('main', task, 'main');
+    rt.objProgress('main', '');
+    if ((near || C.s.phase === 'valley' || C.s.phase === 'narrow') && clear && ready) {
       // 間に合わなかった段は手柄を付けず、敵を退けた先手に続く。
       if (C.s.kind !== 'move' && (C.support >= 3 || C.playerKills)) {
         const label = C.s.phase === 'valley' ? '谷道の先手を支えた' : C.s.phase === 'narrow' ? '土屋昌恒の守る崖道を開いた' : C.s.phase === 'fence' ? '田野の柵の口を押さえた' : '屋敷の奥への道を押さえた';
@@ -1761,6 +1621,10 @@ const tano = {
       rt.flags.ek++;
       const C = rt.flags.dp?.cur;
       if (C && rt.flags.dp.on && C.groups.includes(v.group) && (k?.isPlayer || k?.isSub)) C.playerKills = (C.playerKills || 0) + 1;
+      if (C && rt.flags.dp.on) {
+        C.foeAt = 0; rt.flags.flowScan = 0;
+        this.flowTick(rt, 0);
+      }
     } else rt.flags.ak++;
   },
   onRout(rt, g) {

@@ -694,7 +694,10 @@ const SHIYORI = [[-8, -88], [8, -80], [-2, -68], [16, -60], [8, -50]];
 const SHIYORI_CUT = horiboriHeight(SHIYORI, { depth: .65, width: 4 });
 const ROADS = [LANE, CASTLE_ROAD, SALLY_PATH, HIRATA_PATH, ASSEMBLY_PATH, ...INNER_ROADS, ...FORT_ROADS, HONJIN_PATH, HONJIN_ROOM, [[-80, -54], [-85, -58], [-85, -65]], SHIYORI, ...SERVICE_ROADS];
 const DITCHES = MIKI_HORI.map(pts => horiboriHeight(pts.map(([x, z]) => [x + MIKI.x, z + MIKI.z]), { depth: 2.4, width: 5 }));
-const ODA = { flag: 'oda' }, BESSHO = { flag: 'maru', armor: 0x35382c, lace: 0x6b6a4a }, MORI = { flag: 'mori' };
+// 本の足軽装束：黒漆の胴に紺の着物、弁柄の陣笠。形と材質の数は増やさない。
+const ODA = { flag: 'oda', armor: 0x242322, hatColor: 0x713b30, lace: 0x67604c, cloth: 0x293d4a, haori: 0 },
+  BESSHO = { flag: 'maru', armor: 0x352b25, hatColor: 0x743c30, lace: 0x79664b, cloth: 0x303e46, haori: 0 },
+  MORI = { flag: 'mori', armor: 0x302a26, hatColor: 0x6e392f, lace: 0x75624b, cloth: 0x313d48, haori: 0 };
 // 原点を移したため、旧原点の標高素材を混ぜない。古図との照合は調査表に残す。
 const HARVEST_FIELDS = [[-158, -90, 36, 28], [-48, -110, 32, 28], [-122, -122, 28, 24]];
 function fieldEdge(x, z) {
@@ -927,8 +930,89 @@ function mikiGuidePointAllowed(rt, point) {
   const depth = W.waterDepthAt(point.x, point.z);
   return depth <= .02 || depth < W.waterDepthAt(p.x, p.z);
 }
+function mikiFighting(u) {
+  return !!u?.alive && u.hp > 0 && !u.gone && !u.dying && !u.downed && !u.fleeing &&
+    !u.woundOut && !u.rearWound && !u.noTarget && !u.isStruct && !u.civ;
+}
+// 今の段に出ている実兵だけ。城内の長治や、まだ川を渡らない控えへは走らせない。
+function mikiNearestFoe(rt) {
+  const F = rt.flags, p = rt.player.u.pos;
+  const mode = F.step >= 2 ? 2 : F.dropped || gone(F.escort) ? 1 : 0;
+  if (F.mikiFoeMode === mode && rt.t >= F.mikiFoeAt && rt.t < F.mikiFoeAt + .25 &&
+      mikiFighting(F.mikiFoe) && !gone(F.mikiFoe.group)) return F.mikiFoe;
+  F.mikiFoeAt = rt.t; F.mikiFoeMode = mode;
+  let nearest = null, best = Infinity;
+  for (const g of F.foes || []) {
+    if (gone(g)) continue;
+    if (mode === 1 && !g.sortieStarted && g !== F.reserve) continue;
+    if (mode === 0 && g !== F.escort && g !== F.egun) continue;
+    if (F.step < 2 && g === F.reserve && !g.sortieStarted && g.order !== 'attack' && g.order !== 'path') continue;
+    for (const u of g.units) {
+      if (!mikiFighting(u)) continue;
+      const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
+      if (d < best) { nearest = u; best = d; }
+    }
+  }
+  F.mikiFoe = nearest;
+  return nearest;
+}
 const miki = {
   jinkei: JIN, noWake: true, noTaishoRaid: true, noDistantBattle: true,
+  // 稲生と同じ共通表示。古い任務の本文や歩数を重ねない。
+  missionSingleLine: true, hideMissionDots: true, enemyTriangleSigns: true,
+  nearbyAllySignLimit: 0, noDodgeCard: true, hideGuideSteps: true,
+  noPlayerFoot: true, quietMiss: true, missionPinCaption: '',
+  missionDetail: () => '', missionStatus: () => '',
+  bannerAllowed: (rt) => rt.over || !!rt.flags.ending,
+  missions: ['味方と集まれ', '荷の護衛を倒せ', '平田の口を守れ', '大村へ進め', '残る敵を倒せ', '大村で集まれ'],
+  missionOf(rt) {
+    const F = rt.flags;
+    if (!F.step) return 0;
+    // 半秒ごとの進行更新を待たず、討ち取ったそのコマで次の一行へ。
+    if (F.step === 1 && !F.dropped && !gone(F.escort)) return 1;
+    if (F.step === 1 && !F.sallies.every(gone)) return 2;
+    if (F.foes.every(gone)) return 5;
+    if (F.step < 2 || Math.hypot(rt.player.u.pos.x - OMURA.x, rt.player.u.pos.z - OMURA.z) >= OMURA.r) return 3;
+    return 4;
+  },
+  missionHeading(rt) { return this.missions[this.missionOf(rt)]; },
+  // 城内にいる敵の大将は印だけ。荷の道を守る任務を城主討ちへ替えない。
+  commanderSignTarget(rt) {
+    const u = rt.flags.ehon?.general;
+    return !rt.over && !rt.flags.ending && mikiFighting(u) ? u : null;
+  },
+  commanderTarget(rt) {
+    const u = mikiNearestFoe(rt);
+    return u?.name && Math.hypot(u.pos.x - rt.player.u.pos.x, u.pos.z - rt.player.u.pos.z) < 24 ? u : null;
+  },
+  namedGuideTarget(rt) { return this.commanderTarget(rt); },
+  missionSignTarget(rt) {
+    if (rt.over || rt.flags.ending || !rt.flags.step) return null;
+    return mikiNearestFoe(rt);
+  },
+  missionPin(rt) {
+    const F = rt.flags, me = rt.player.u.pos;
+    if (rt.over || F.ending || !rt.player.u.alive) return null;
+    const q = F.mikiPin || (F.mikiPin = { x: 0, z: 0, r: 5, hide: 5 });
+    const stage = this.missionOf(rt);
+    let at = stage === 0 ? this.spawn : stage === 2 ? GATE : OMURA;
+    q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false; q.route = false;
+    // 守る間は着いても持ち場のピンを残す。同じ槍組がここへ歩いて集まる。
+    if (stage === 1 || stage === 4) {
+      const u = mikiNearestFoe(rt);
+      if (!u) return null;
+      at = u.pos; q.unit = u; q.enemy = true;
+    } else q.waiting = stage !== 3;
+    // 柵を挟む時は既存の曲がり角を使い、残敵へ直進して壁で止まらない。
+    if (F.routeAt && (stage === 3 || rt.army.wallBetween(me, -1, at))) {
+      at = F.routeAt; q.route = true; q.waiting = false; q.unit = null; q.enemy = false;
+    } else if (stage === 1 && F.roadTurn >= 0 && rt.army.wallBetween(me, -1, at)) {
+      at = ASSEMBLY_TURNS[F.roadTurn]; q.route = true; q.unit = null; q.enemy = false;
+    }
+    q.x = at.x; q.z = at.z; q.r = q.hide = q.route ? 3 : q.enemy ? 2.5 : stage === 5 ? OMURA.r : 5;
+    q.arrived = q.waiting && Math.hypot(me.x - q.x, me.z - q.z) < q.r;
+    return q;
+  },
   introTaskFirst: true, compactIntro: true, compactRescueGuide: true, compactGuardGuide: true,
   introPeopleFolded: true, // 人物と砦の説明は、下知を読んでから開ける。
   compactCombatGuides: true, // 敵へ向ける矢印を細く短くし、槍と胴を覆わない。
@@ -1293,163 +1377,8 @@ const miki = {
       }
       html body #hud[data-miki] .bl #h-hp.hp em small { font-size:inherit; white-space:normal; }
       html body #hud[data-miki] .bl #h-hp.hp em svg { width:18px; height:22px; }
-      /* 共通の台詞表示より非表示を優先し、消えた声の黒い空欄を畳む。 */
-      html body #hud[data-miki] #battle-notices #battle-message > div#subtitle:is([hidden],.notice-muted,:empty) { display:none !important; }
-      /* 旗や退避の案内で本文だけ消し、墨の空札を残さない。 */
-      html body #hud[data-miki]:is(.flag-guide,.guard-guide,.person-guide,.cover-guidance) #battle-notices #objectives:not(.expand):not([hidden]):not(.notice-muted) { display:block !important; visibility:visible !important; }
-      html body #hud[data-miki]:is(.flag-guide,.guard-guide,.person-guide,.cover-guidance) #battle-notices #objectives:not(.expand) #obj-list { display:block !important; }
-      /* 防ぐ釦を押す間も、守る持ち場と味方の人数を読めるようにする。 */
-      html body #hud[data-miki].wait-guard-active #battle-notices #objectives:not(.expand),
-      html body #hud[data-miki].wait-guard-active #battle-notices #objectives:not(.expand) #obj-list { display:block !important; }
-      html body #hud[data-miki].wait-guard-active #objectives:not(.expand) .battle-action { display:none !important; }
-      /* 共通の旗・人物案内が本文を隠しても、三木の持ち場と人数は残す。 */
-      html body #hud[data-miki]:is(.flag-guide,.guard-guide,.person-guide,.cover-guidance,.wait-guard-active) #battle-notices #objectives:not(.expand) #obj-list li.cur :is(.obj-text,.obj-now) {
-        display:block !important; visibility:visible !important;
-      }
-      /* 携帯・卓上端末とも、道案内や防御中に持ち場と人数を消さない。
-         共通の短い道案内より優先し、選ばれた任務一枚だけに限る。 */
-      html:root body #hud[data-miki] #battle-notices:not(.choosing) #objectives#objectives:not(.expand):not([hidden]):not(.notice-muted),
-      html:root body #hud[data-miki] #battle-notices:not(.choosing) #objectives#objectives:not(.expand):not([hidden]):not(.notice-muted) :is(#obj-list,li.cur,.obj-text,.obj-now) {
-        display:block !important; visibility:visible !important;
-      }
-      html:root body #hud[data-miki] #battle-notices:not(.choosing) #objectives#objectives:not(.expand):not([hidden]):not(.notice-muted) li.cur > small:not(.obj-cue):not(.goal-place) {
-        display:block !important; white-space:pre-line !important; max-height:none !important;
-      }
-      /* 矢をよける間も持ち場の衰えを見失わせない。危険の案内と同じ札の列へ残す。 */
-      html body #hud[data-miki]:is(.rain-danger,.dodge-active) #battle-notices #objectives:not(.expand):not([hidden]):not(.notice-muted),
-      html body #hud[data-miki]:is(.rain-danger,.dodge-active) #battle-notices #objectives:not(.expand):not([hidden]):not(.notice-muted) #obj-list { display:block !important; }
-      /* 共通の「持ち場を残す」指定より強くし、古い合図で任務を押し出さない。 */
-      html body #hud[data-miki].compact-battle #battle-notices:not(.choosing) #objectives.keep-combat-task:not(.expand) li.cur small.obj-cue { display:none !important; }
-      /* 残る味方と退くまでの猶予は、今の下知の下へ残す。 */
-      html body #hud[data-miki].compact-battle #battle-notices:not(.choosing) #objectives:not(.expand) li.cur small:not(.obj-cue):not(.goal-place) {
-        display:block !important; white-space:pre-line !important; max-height:none !important;
-        font-size:max(13px, calc(13px * var(--text-scale, 1))) !important; line-height:1.4;
-      }
-      /* 操作札と道案内の共通指定が人数ごと任務の行を隠す場合にも残す。
-         人数の文は objProgress の同じ値を使い、知らせの枚数は増やさない。 */
-      html:root body #hud[data-miki].single-guide #battle-notices:not(.choosing) #objectives#objectives:not(.expand):not(.notice-muted) #obj-list,
-      html:root body #hud[data-miki].single-guide #battle-notices:not(.choosing) #objectives#objectives:not(.expand) #obj-list li.cur > small:not(.obj-cue):not(.goal-place) {
-        display:block !important; visibility:visible !important;
-        white-space:pre-line !important; max-height:none !important;
-        font-size:max(13px,calc(13px * var(--text-scale,1))) !important; line-height:1.4;
-      }
-      @media (min-height:501px) {
-        html:root body #hud[data-miki].single-guide #battle-notices:not(.choosing) #objectives#objectives.route-summary:not(.expand) {
-          position:relative !important; inset:auto !important; transform:none !important;
-          width:100% !important; max-width:100% !important;
-        }
-      }
-      html body #hud[data-miki].compact-battle #battle-notices #objectives:not(.expand) li.cur .obj-now { font-size:max(16px, calc(16px * var(--text-scale, 1))) !important; line-height:1.4 !important; }
-      html body #hud[data-miki] #battle-notices #objectives:not(.expand) li.cur,
-      html body #hud[data-miki] #battle-notices #objectives:not(.expand) li.cur :is(.obj-text,.obj-now),
-      html body #hud[data-miki] #battle-notices #objectives:not(.expand) .battle-action {
-        height:auto !important; max-height:none !important; white-space:normal !important;
-        overflow:visible !important; overflow-wrap:anywhere !important; text-overflow:clip;
-      }
-      /* 本文の横へ補足を詰めない。一字幅の縦列を作らず、札の幅で順に読む。 */
-      html body #hud[data-miki] #battle-notices #objectives:not(.expand) li.cur {
-        display:block !important; width:100% !important; min-width:0; box-sizing:border-box;
-      }
-      html body #hud[data-miki] #battle-notices #objectives:not(.expand) li.cur :is(.obj-text,.obj-now) {
-        display:block !important; width:100% !important; min-width:0; max-width:100%; box-sizing:border-box;
-      }
-      html body #hud[data-miki] #battle-notices #objectives:not(.expand) li.cur::before { content:none !important; }
-      /* 行ごとの共通の墨を外し、指図・人数・距離を一枚の札で読めるようにする。 */
-      html body #hud[data-miki]:not(.hc) #battle-notices:not(.choosing) #objectives:not(.expand) {
-        background:rgba(12,10,8,.88) !important; padding:6px 8px !important;
-        border:0 !important; border-inline-start:2px solid var(--kin) !important;
-      }
-      html body #hud[data-miki]:not(.hc) #battle-notices:not(.choosing) #objectives:not(.expand) #obj-list li.cur :is(.obj-text,.obj-now,small),
-      html body #hud[data-miki]:not(.hc) #battle-notices:not(.choosing) #objectives:not(.expand) .battle-action:not([hidden]) {
-        background:none !important; padding:0 !important; box-shadow:none !important;
-      }
-      html body #hud[data-miki]:not(.hc) #battle-notices:not(.choosing) #objectives:not(.expand) #obj-list li.cur .obj-now {
-        display:block !important; line-height:1.4 !important;
-      }
-      /* 縦に余裕のある画面は左で知らせを積み、右の小地図を空ける。 */
-      @media (min-height:501px) {
-        /* 地面の札は歩数を含めて読める幅と字にし、末尾一字だけの行を減らす。 */
-        html body #hud[data-miki].compact-battle #battle-notices:not(.choosing) #objectives.ground-order:not(.expand) {
-          width:320px !important; max-width:min(360px,40vw) !important;
-        }
-        html body #hud[data-miki].compact-battle.single-guide #battle-notices:not(.choosing) #objectives.ground-order:not(.expand) #obj-list li.cur .obj-now {
-          font-size:max(16px,calc(16px * var(--text-scale,1))) !important; line-height:1.4 !important;
-        }
-        html body #hud[data-miki] #battle-notices:not(.choosing),
-        html body #hud[data-miki].mission-visible #battle-notices:not(.choosing):not(:has(#objectives.expand)) {
-          left:16px !important; right:auto !important; top:88px !important;
-          width:min(320px, 30vw) !important; max-height:calc(100% - 320px) !important;
-        }
-        /* 任務中の共通指定にも勝たせ、台詞を含めて左の札の中で積む。 */
-        html body #hud[data-miki] #battle-notices:not(.choosing) > :is(#objectives,#battle-message,#tutorial,#banner,#situation,#skiphint) {
-          position:relative !important; inset:auto !important; transform:none !important;
-          width:100% !important; height:auto !important; min-height:0 !important; min-width:0; flex:0 0 auto;
-          max-height:none !important; white-space:normal; overflow-wrap:anywhere;
-        }
-        /* 地面の下知も左の知らせへ収め、方位の帯へ戻る共通指定を上書きする。 */
-        html:root body #hud[data-miki] #battle-notices:not(.choosing) #objectives#objectives.ground-order:not(.expand) {
-          position:relative !important; inset:auto !important; transform:none !important;
-          width:100% !important; max-width:100% !important;
-        }
-      }
+      /* 任務の一行・ピンは稲生と同じ共通配置へ任せる。 */
       @media (orientation:landscape) and (max-height:500px) {
-        /* 防ぐ釦は右下の操作の上へ収め、目線の高さの敵と旗を空ける。 */
-        html.touch body #hud[data-miki] #wait-guard {
-          /* 足元を追う共通処理の直書きより優先し、押す間も同じ端へ固定する。 */
-          top:auto !important; left:auto !important;
-          right:calc(16px + env(safe-area-inset-right, 0px)) !important;
-          bottom:calc(112px + env(safe-area-inset-bottom, 0px));
-          width:208px; min-height:72px; padding:6px; border-width:2px; border-radius:10px;
-          grid-template-columns:28px minmax(0, 1fr); column-gap:6px; row-gap:2px;
-        }
-        /* 三列目の盾が暗黙の列を作り、本文を一字幅へ押し込むのを防ぐ。 */
-        html.touch body #hud[data-miki] #wait-guard svg + svg { display:none; }
-        html.touch body #hud[data-miki] #wait-guard svg:first-child { width:28px; height:40px; }
-        html.touch body #hud[data-miki] #wait-guard span { font-size:max(18px, calc(18px * var(--text-scale, 1))); }
-        html.touch body #hud[data-miki] #wait-guard small { font-size:max(13px, calc(13px * var(--text-scale, 1))); }
-        html.tc-sw body #hud[data-miki] #wait-guard {
-          left:calc(16px + env(safe-area-inset-left, 0px)) !important; right:auto !important;
-        }
-        /* 敵と道の印が見える中央を空け、下知は左上の同じ場所で読む。 */
-        html body #hud[data-miki] #battle-notices:not(.choosing):not(:has(#objectives.expand)) {
-          left:calc(16px + env(safe-area-inset-left, 0px)) !important; right:auto !important;
-          top:calc(16px + env(safe-area-inset-top, 0px)) !important; transform:none !important;
-          width:min(340px, 40vw) !important; max-width:none !important;
-          max-height:calc(100dvh - 160px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
-        }
-        /* 接敵時の声も任務も同じ列へ積む。共通の中央配置を残すと札同士が重なる。 */
-        html body #hud[data-miki] #battle-notices:not(.choosing):not(:has(#objectives.expand)) > :is(#objectives,#battle-message,#tutorial,#banner,#situation,#skiphint) {
-          position:relative !important; inset:auto !important; transform:none !important;
-          width:100% !important; height:auto !important; min-height:0 !important; min-width:0;
-          max-width:100% !important; max-height:none !important; flex:0 0 auto;
-          white-space:normal; overflow-wrap:anywhere; box-sizing:border-box;
-        }
-        html:root body #hud[data-miki] #battle-notices:not(.choosing) #objectives#objectives.ground-order:not(.expand) {
-          position:relative !important; inset:auto !important; transform:none !important;
-        }
-        /* 撤退の共通指定にも人数を隠させず、下知と同じ左上の札へ残す。 */
-        html:root body #hud[data-miki].compact-battle #battle-notices:not(.choosing) #objectives#objectives:not(.expand) li.cur > small:not(.obj-cue):not(.goal-place) {
-          display:block !important; white-space:pre-line !important; max-height:none !important;
-          font-size:max(13px, calc(13px * var(--text-scale, 1))) !important; line-height:1.4;
-        }
-        html body #hud[data-miki] #battle-notices:not(.choosing) #objectives:not(.expand) li.cur :is(.obj-text,.obj-now) {
-          word-break:normal !important; overflow-wrap:anywhere !important; text-wrap:pretty;
-        }
-        /* 下知と歩数を別の行へ置き、「・あ」だけが前の行に残るのを防ぐ。 */
-        html body #hud[data-miki] #battle-notices:not(.choosing) #objectives:not(.expand) li.cur .obj-now {
-          white-space:pre-line !important;
-        }
-        html:root body #hud[data-miki] #battle-notices:not(.choosing) #objectives#objectives:not(.expand) #obj-list li.cur .obj-now {
-          font-size:max(16px, calc(16px * var(--text-scale, 1))) !important;
-          line-height:1.4 !important; text-wrap:balance;
-        }
-        /* 退く下知の二行と人数・距離を、共通の短い札の高さで切らない。 */
-        html:root body #hud[data-miki] #battle-notices:not(.choosing) #objectives#objectives:not(.expand),
-        html:root body #hud[data-miki] #battle-notices:not(.choosing) #objectives#objectives:not(.expand) #obj-list {
-          height:auto !important; max-height:none !important; overflow:visible !important;
-          min-height:0 !important; flex:0 0 auto !important; box-sizing:border-box;
-          width:100% !important; max-width:100% !important;
-        }
         html body #hud[data-miki] #intro:has(#intro-go) > .card.card {
           display:flex; flex-direction:column; align-items:stretch; gap:8px;
           width:min(680px, calc(100vw - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
@@ -1518,13 +1447,7 @@ const miki = {
       }
       return say.call(this, who, text, ...args);
     };
-    // 夜は矢の落ちる影が見えない。今いる坂でできる避け方を、既存の三枠へ入れる。
-    rt.army.hooks.onArrowRain = (volley, under) => {
-      if (!under || volley.team === rt.player.u.team || rt.t < 5 || rt.over || rt.ended || !rt.player.u.alive) return;
-      const until = rt.t + volley.T + .4;
-      rt.hud.notices.push('▲ 矢が降る！ 川へ出ず、味方の列の後ろへ退け', 110,
-        Math.max(3, volley.T + .4), 'warn', () => !rt.over && !rt.ended && rt.player.u.alive && rt.t < until);
-    };
+    // 矢の危険も共通の印へ任せ、任務と別の指図の字幕を足さない。
     // 今の道しるべだけを遠くにも出す。ほかの名札は二十四歩以内で見せる。
     const marker = rt.marker;
     rt.marker = function (...args) {

@@ -511,14 +511,14 @@ const TOTTORI_MARUYAMA = sonaePlan('丸山城の守り', 1, { x: -28, z: -222 },
   ['honjin', '本陣', '奈佐日本之介', null, -28, -222, 0, 'mori', 'mori'], // 城兵数は不明。鳥取城の千四百と別に扱う。
 ]);
 
-// 資料本四十七頁：映画の足軽に多い白い首布を、この戦の陣笠には付けない。
-const ODA = { flag: 'oda', armor: 0x292c30, lace: 0x9b8059, cloth: 0x667b8e, kasaDrape: false };
+// 添付の甲冑本：低い弁柄の陣笠と黒・茶の漆胴、紺の小袖へ。白い首布は付けない。
+const ODA = { flag: 'oda', armor: 0x292520, hatColor: 0x38251f, lace: 0x4b5360, cloth: 0x293b48, kasaDrape: false };
 const KUMIGASHIRA = { flagScale: 1.25 }; // 大きな指物で川岸と柵の組頭を見つけられる。
 // 前線の侍は金の三日月と、頬・眉・鼻の彫りがある素顔。名のある城将の具足は保つ。
 const BANK_SAMURAI = { hat: 'kabuto_f', menpo: 0, skin: 0xaa805e,
   face: { w: 0.97, jaw: 1.1, chin: 1.0, cheek: 1.3, gaunt: 0.8, brow: 1.35, nose: 1.2, nw: 1.0, eye: 1.1, t: 3 } };
-const KIKKAWA = { flag: 'mori', kasaDrape: false };
-const HUNGRY = { flag: 'mori', armor: 0x4a463c, lace: 0x5a5444, cloth: 0x8a806a, kasaDrape: false };   // 飢えた城兵：色の褪せた、ぼろの具足（B098）           // 吉川は毛利の一門（毛利の紋で）
+const KIKKAWA = { flag: 'mori', armor: 0x49332b, hatColor: 0x63372c, lace: 0x756651, cloth: 0x343d3d, kasaDrape: false };
+const HUNGRY = { flag: 'mori', armor: 0x4a463c, hatColor: 0x553b30, lace: 0x5a5444, cloth: 0x8a806a, kasaDrape: false };   // 飢えた城兵：色の褪せた、ぼろの具足（B098）           // 吉川は毛利の一門（毛利の紋で）
 // 飢えは傷と分ける。背丈と槍の長さを保ち、既存の体を細くして歩幅を抑える。
 function hungryLook(g) {
   for (const u of g.units) {
@@ -1281,140 +1281,88 @@ function tottoriSignal(rt, objective, sound, cue, at, vol = 0.8) {
   rt.army.play(sound, at, vol);
 }
 
-// 携帯の退避・構えの札にも、舟の数と次の役目を一緒に残す。
-// 共通画面の「操作中は補足を隠す」指定を、この戦の現在の任務だけで戻す。
-function installTottoriNotices(rt) {
-  const root = rt.hud.root, dispose = rt.dispose;
-  const style = document.createElement('style');
-  style.textContent = `
-/* 使いの実物を見ながら歩ける大きさにする。矢印・人物の輪は既存の案内を使う。 */
-html body #hud.tottori-notices #markers .mk.main.person-goal b {
- font-size:max(20px, calc(20px * var(--text-scale, 1))) !important;
- padding:4px 8px;
+// 今の任務で戦える最寄りの一人。討たれた相手は待たずに選び直す。
+const tottoriFighting = (u) => !!u?.alive && u.hp > 0 && !u.gone && !u.dying &&
+  !u.downed && !u.fleeing && !u.woundOut && !u.rearWound && !u.noTarget && !u.invuln;
+function tottoriFoeAllowed(rt, u) {
+  const F = rt.flags;
+  return tottoriFighting(u) && (F.step === 1
+    ? (u.group === F.guard || u.group === F.guard2) && atBank(u.pos.x, u.pos.z) && bankRouteThreat(rt, u)
+    : u.group?.ttOut && !u.group.ttRetreat && u.pos.z >= FENCE_Z && atTottoriPost(u.pos));
 }
-/* 人物の輪と矢印は画面に描く案内一つに任せ、同じ侍を二重に囲まない。 */
-html body #hud.tottori-notices #markers .mk.main.person-goal:not(.edge) > svg,
-html body #hud.tottori-notices #markers .mk.main.person-goal:not(.edge) .goal-flag-frame {
- display:none !important;
-}
-/* 台詞の末尾だけを次の行へ追い出さず、句のまとまりで読ませる。 */
-html body #hud.tottori-notices #battle-notices #battle-message > div#subtitle {
- text-wrap:pretty; line-break:strict; overflow-wrap:normal;
-}
-/* 傷の状態だけを短く示す。退く下知は任務札へ任せる。 */
-html body #hud.tottori.tottori-notices .bl #h-hp.hp em {
- font-size:max(18px, calc(18px * var(--text-scale, 1))) !important;
- text-wrap:balance; line-break:strict; overflow-wrap:normal; word-break:keep-all;
-}
-html body #hud.tottori.tottori-notices .bl #h-hp.hp em svg {
- width:20px; height:24px;
-}
-html body #hud.tottori-notices #battle-notices:not(.choosing) #objectives.keep-combat-task.has-action:not(.expand):has(.battle-action:not([hidden])) > #obj-list {
- display:block !important;
-}
-html body #hud.tottori-notices #battle-notices:not(.choosing) #objectives.keep-combat-task:not(.expand) #obj-list li.cur {
- display:block !important; width:100%; min-width:0; box-sizing:border-box;
- height:auto !important; max-height:none !important; overflow:visible !important;
-}
-html body #hud.tottori-notices #battle-notices:not(.choosing) > #objectives.keep-combat-task:not(.expand) {
- width:100% !important; max-width:100% !important; box-sizing:border-box;
- height:auto !important; max-height:none !important; overflow:visible !important;
-}
-html body #hud.tottori-notices #battle-notices:not(.choosing) #objectives.keep-combat-task:not(.expand) #obj-list li.cur > small:not(.obj-cue):not(.goal-place) {
- display:block !important; margin:2px 0 0; white-space:normal !important;
- width:100% !important; max-width:100% !important; box-sizing:border-box;
- height:auto !important; max-height:none !important; overflow:visible !important;
- text-overflow:clip !important; overflow-wrap:anywhere !important;
- -webkit-line-clamp:unset !important; line-clamp:unset !important;
- font-size:max(13px, calc(13px * var(--text-scale, 1))) !important; line-height:1.4 !important;
-}
-html body #hud.tottori-notices #battle-notices:not(.choosing) #objectives.keep-combat-task.has-action:not(.expand):has(.battle-action:not([hidden])) #obj-list li.cur .obj-text {
- display:block !important; white-space:normal !important;
- font-size:max(15px, calc(15px * var(--text-scale, 1))) !important; line-height:1.3 !important;
-}
-/* 操作・退避でも同じ字幅を使い、末尾一文字だけの折り返しを減らす。 */
-html body #hud.tottori.tottori-notices #battle-notices:not(.choosing) #objectives:not(.expand) #obj-list li.cur :is(.obj-text,.obj-now),
-html body #hud.tottori.tottori-notices #battle-notices:not(.choosing) #objectives:not(.expand) .battle-action {
- font-size:max(16px, calc(16px * var(--text-scale, 1))) !important;
- line-height:1.4 !important; text-wrap:pretty; line-break:strict;
-}
-html body #hud.tottori.tottori-notices #battle-notices:not(.choosing) #objectives:not(.expand) #obj-list li.cur .obj-now {
- white-space:pre-line !important;
-}
-@media (max-height:500px) {
- /* 戦い方が替わっても任務は上中央で読む。選択肢の位置は共通側へ任せる。 */
- html.touch body #hud.tottori.tottori-notices #battle-notices:not(.choosing):not(:has(#objectives.expand)) {
-  left:50% !important; right:auto !important;
-  top:calc(16px + env(safe-area-inset-top, 0px)) !important; bottom:auto !important;
-  width:min(320px, calc(100vw - 32px)) !important;
-  transform:translateX(-50%) !important; translate:none !important;
- }
- /* 舟と柵の斬り合いを空け、守る釦は親指の届く端に固定する。 */
- html.touch body #hud.tottori-notices #wait-guard {
-  left:auto !important; right:calc(16px + env(safe-area-inset-right, 0px)) !important;
-  top:auto !important; bottom:calc(16px + env(safe-area-inset-bottom, 0px));
-  width:208px; height:auto; min-height:64px; padding:6px; border-width:2px; border-radius:8px;
-  grid-template-columns:24px minmax(0, 1fr); column-gap:8px; row-gap:2px;
- }
- html.touch.tc-sw body #hud.tottori-notices #wait-guard {
-  left:calc(16px + env(safe-area-inset-left, 0px)) !important; right:auto !important;
-  bottom:calc(128px + env(safe-area-inset-bottom, 0px));
- }
- html.touch body #hud.tottori-notices #wait-guard svg:first-child { width:24px; height:36px; }
- html.touch body #hud.tottori-notices #wait-guard svg + svg { display:none; }
- html.touch body #hud.tottori-notices #wait-guard span { font-size:max(16px, calc(16px * var(--text-scale, 1))); }
- html.touch body #hud.tottori-notices #wait-guard small { font-size:max(13px, calc(13px * var(--text-scale, 1))); }
- /* 操作は端の釦、上の札は現在の役目。舟の数と城兵を止める下知を残す。 */
- html.touch body #hud.tottori-notices.wait-guard-active #battle-notices:not(.choosing) #objectives:not(.expand) .battle-action:has(.guard-caption) {
-  display:none !important;
- }
- html.touch body #hud.tottori-notices.wait-guard-active #battle-notices:not(.choosing) #objectives.keep-combat-task.has-action:not(.expand):has(.guard-caption) #obj-list li.cur .obj-text {
-  display:block !important;
- }
- html body #hud.tottori-notices.mission-visible #battle-notices:not(.choosing):not(:has(#objectives.expand)) {
-  max-height:33vh !important;
- }
-}
-@media (min-height:501px) {
- /* 任務を表示した時の共通指定にも勝たせ、小地図の左へ戻らないようにする。 */
- html body #hud.tottori.tottori-notices.mission-visible #battle-notices:not(.choosing):not(:has(#objectives.expand)),
- html body #hud.tottori.tottori-notices #battle-notices:not(.choosing) {
-  left:calc(16px + env(safe-area-inset-left, 0px)) !important;
-  right:auto !important; top:104px !important; width:min(320px, 30vw) !important;
-  transform:none !important; translate:none !important;
- }
- /* 道案内・退避の札自体に付く画面固定も戻す。親の位置だけでは軍勢札と重なる。 */
- html:root body #hud.tottori.tottori-notices #battle-notices:not(.choosing) #objectives#objectives:not(.expand) {
-  position:relative !important; inset:auto !important;
-  transform:none !important; translate:none !important;
-  width:100% !important; max-width:100% !important; min-width:0 !important;
-  margin:0 !important; box-sizing:border-box;
- }
-}
-/* 人物・旗を指す共通指定でも、選ばれた現在の任務の本文は残す。 */
-html:root body #hud.tottori.tottori-notices #battle-notices:not(.choosing) #objectives#objectives:not(.expand):not(.notice-muted):not([hidden]) {
- position:relative !important; inset:auto !important; transform:none !important; translate:none !important;
- width:100% !important; max-width:100% !important;
-}
-html:root body #hud.tottori.tottori-notices #battle-notices:not(.choosing) #objectives#objectives:not(.expand):not(.notice-muted):not([hidden]) :is(#obj-list,li.cur,.obj-text,.obj-now) {
- display:block !important; visibility:visible !important;
-}
-/* 小さな道案内の共通指定より、現在の任務の読みやすさを優先する。 */
-html:root body #hud.tottori.tottori-notices #battle-notices:not(.choosing) #objectives#objectives:not(.expand):not(.notice-muted):not([hidden]) li.cur .obj-text {
- font-size:max(16px, calc(16px * var(--text-scale, 1))) !important;
- line-height:1.4 !important; white-space:normal !important;
- height:auto !important; max-height:none !important; overflow:visible !important;
-}
-/* 補足は舟の数と今の下知。本文は読みやすく保ち、移動中の補足も隠さない。 */
-`;
-  root.classList.add('tottori-notices'); document.head.appendChild(style);
-  rt.dispose = function () {
-    root.classList.remove('tottori-notices'); style.remove(); this.dispose = dispose;
-    return dispose.call(this);
-  };
+function tottoriNearestFoe(rt) {
+  const F = rt.flags, p = rt.player.u.pos;
+  if (F.ending || rt.over || F.step !== 1 && F.step !== 2) return null;
+  if (F.step === 1 && (F.burnt >= 2 || bankNeedsReturn(rt))) return null;
+  if (F.foeAt > rt.t && F.foeAt <= rt.t + .25 && tottoriFoeAllowed(rt, F.foeNear)) return F.foeNear;
+  F.foeAt = rt.t + .25;
+  let nearest = null, distance = Infinity;
+  const groups = F.step === 1 ? F.bankGroups : F.sallies;
+  for (const g of groups) for (const u of g.units) {
+    if (!tottoriFoeAllowed(rt, u)) continue;
+    const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
+    if (d < distance) { distance = d; nearest = u; }
+  }
+  F.foeNear = nearest;
+  return nearest;
 }
 
 const tottori = {
+  // 稲生の共通表示へそろえる。道順・放火・開城の判定と兵数はこの戦のものを使う。
+  missionSingleLine: true, hideMissionDots: true, hideGuideSteps: true,
+  enemyTriangleSigns: true, nearbyAllySignLimit: 0, noDodgeCard: true, noSiegeCards: true,
+  noPlayerFoot: true, quietMiss: true,
+  missionPinCaption: '', missionDetail: () => '', missionStatus: () => '',
+  speechAllowed: (rt) => !!rt.flags.ending || rt.over,
+  bannerAllowed: (rt) => !!rt.flags.ending || rt.over,
+  compactMapAllies: true, mapCommanderAlways: true,
+  missions: ['味方と集まれ', '舟を焼け', '▼の敵を倒せ', '岸を守れ', '柵へ戻れ', '柵を守れ', '使いに続け', '木戸へ進め'],
+  missionOf(rt) {
+    const F = rt.flags;
+    if (F.step === 0) return 0;
+    if (F.step === 1) return F.burnt >= 2 ? 3 : tottoriNearestFoe(rt) ? 2 : 1;
+    if (F.step === 1.5) return 4;
+    if (F.step === 2) return F.breachT > 0 && tottoriNearestFoe(rt) ? 2 : 5;
+    if (F.step === 2.5) return 5;
+    return F.envArrived ? 7 : 6;
+  },
+  missionHeading(rt) {
+    if (rt.flags.ending || rt.over) return rt.tracker.main ? '鳥取城、開く' : '味方と退け';
+    if (rt.flags.step === 1 && bankNeedsReturn(rt)) return '岸へ戻れ';
+    return this.missions[this.missionOf(rt)];
+  },
+  missionSignTarget: tottoriNearestFoe,
+  // 経家は城内の大将として示す。討ち取りの目標にはせず、開城の史実を保つ。
+  commanderSignTarget(rt) {
+    const u = rt.flags.ehon?.general;
+    return !rt.flags.ending && !rt.over && u?.alive && !u.gone && !u.dying ? u : null;
+  },
+  namedGuideTarget(rt) { return this.commanderSignTarget(rt); },
+  missionPin(rt) {
+    const F = rt.flags, me = rt.player.u.pos;
+    if (F.ending || rt.over || !rt.player.u.alive) return null;
+    const q = F.goalPin;
+    q.unit = q.marker = null; q.enemy = q.approach = q.defend = q.waiting = q.arrived = q.route = false;
+    q.always = q.silent = true; q.r = 3; q.hide = 0;
+    let at;
+    if (F.step === 0) at = F.hide.anchor;
+    else if (F.step === 1 && bankNeedsReturn(rt)) at = bankEntry(rt);
+    else if (this.missionOf(rt) === 2 && (q.unit = tottoriNearestFoe(rt))) {
+      at = q.unit.pos; q.enemy = q.approach = true; q.r = q.hide = .2;
+      if (rt.player.inRange && rt.player.rangeCueTarget === q.unit) return null;
+    } else if (F.step === 1) {
+      const boat = nextBankBoat(rt);
+      at = boat ? boatApproach(rt, boat) : F.bankPost;
+      q.r = 2; q.defend = q.waiting = F.burnt >= 2;
+    } else if (F.step === 1.5) at = returnWay(rt);
+    else if (F.step === 2 || F.step === 2.5) {
+      at = F.guardPost; q.r = 8; q.defend = q.waiting = true;
+    } else if (F.step === 3) at = F.envArrived ? F.gatePost : escortGuide(rt);
+    if (!at) return null;
+    q.x = at.x; q.z = at.z;
+    q.arrived = !q.enemy && Math.hypot(me.x - q.x, me.z - q.z) <= q.r;
+    return q;
+  },
   nearAllySolidBody: true, // 肩越しの視点を近い兵の外へ置き、胴を透かし続けない。
   positionPersonGuide: true, bodyHeightGuides: true, // 頭の描画時の骨と足元を混ぜず、同じ立ち位置から印を測る。
   compactCombatGuides: true, compactEnemyFrame: true, // 胴を覆う六角形を四隅の細い印へ替える。
@@ -1513,14 +1461,7 @@ const tottori = {
   retreatDestinationLabel: (rt) => rt.flags.step === 1 ? '岸の味方の後ろへ' : '味方の後ろへ',
   namedGuideMarkers: true,
   // 供の位置までの距離を「木戸まで」と誤読させない。残りの城道は任務の補足へ。
-  distanceText(rt, distance) {
-    const F = rt.flags, p = rt.player.u.pos;
-    // 守りの範囲に入ったら、中心の一点まで歩き続けるように見せない。
-    // 持ち場を外れた時には、戻る道の歩数を再び出す。
-    if (F.step === 3 || (F.step === 2 || F.step === 2.5) &&
-        p.z >= FENCE_Z && atTottoriPost(p)) return '';
-    return distance < 3 ? 'すぐ近く' : `あと ${Math.ceil(distance / 0.75)}歩`;
-  },
+  distanceText: () => '',
   retreatPointAllowed: tottoriRetreatAllowed,
   botRetreatStepAllowed: tottoriRetreatAllowed,
   dodgeLabel: (_rt, direction, rain) => direction ? direction.replace('にげる', 'よける') : rain ? '矢をよけよ' : '敵から離れ、構えよ',
@@ -1608,6 +1549,7 @@ const tottori = {
   noTaisho: true, // 両本陣はこの戦で置く。架空の大将襲撃隊は送らない。
   spawn: { x: -30, z: 10, heading: -Math.PI / 2 },
   world: {
+    noHaori: true, // 本の足軽姿にそろえ、名のある将も陣羽織・母衣を付けない。
     seed: 15810, moveLim: 250, groundHalf: 250,
     climbTan: 0.7, // 道のない切岸は登らず、城道と階段から木戸へ向かう。
     maxWalkDrop: 1.2, // 山道の外へ踏み出して崖下へ落ちない。設営した階段は既存の足場判定で通す。
@@ -1697,7 +1639,6 @@ const tottori = {
   setup(rt) {
     const W = rt.world;
     const F = rt.flags;
-    installTottoriNotices(rt);
     // 谷の霞の中で星だけが雪粒のように白く浮かない明るさへ。この戦の空だけを調整。
     if (W.stars) { W.stars.material.opacity = 0.35; W.stars.material.size = 1; }
     // 共通の判断が的を選び直しても、実際の一歩で持ち場を守る。この戦の世界だけに結ぶ。
@@ -1790,6 +1731,9 @@ const tottori = {
     F.hist = { starving: 'HIST_A', taikogahira: 'HIST_A', kikkawaTsunee: 'HIST_A', kaboBoats: 'HIST_B', marsh: 'HIST_B', townsfolk: 'GAME_C', sallies: 'GAME_C' };
     // 城内に逃げ込んだ民：木戸の内の曲輪に、座り込んだ者・立つ者・子ども（的にならない飾り）
     townsfolk(rt, [[4, -102, 's'], [8, -106, 's'], [14, -100, 'c'], [18, -108, 's'], [0, -112, 'c'], [12, -114, 's'], [22, -104, 'p'], [-4, -98, 's'], [6, -118, 'p'], [16, -120, 'c'], [26, -112, 's'], [-2, -122, 's']]);
+    F.goalPin = { x: 0, z: 0 };
+    F.bankPost = { x: -42, z: -8 }; F.guardPost = { x: GATE.x, z: FENCE_Z + 8 };
+    F.gatePost = { x: GATE.x, z: GATE.z + 6 };
     F.step = 0; F.stepT = rt.t; F.ek = 0; F.ak = 0; F.burnt = 0; F.day = 0;
     // ---- 城を囲む柵（木戸の前は開けてある） ----
     const noT = (segs) => { for (const s of segs) { s.noTarget = true; s.wall = true; } return segs; };
@@ -1899,7 +1843,7 @@ const tottori = {
     if (n) rt.makeSquad({ x: -26, z: 22 }, -Math.PI / 2, [{ kind: 'spear', n }]);
     // ---- 太閤ヶ平の本陣と大軍（軽い作り） ----
     // 秀吉は東の陣城に置き、経家は山上に置く。近い組への命令は組頭・伝令が伝える。
-    F.honjin = camp(rt, { x: TAIKO.x, z: TAIKO.z, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', general: { name: '羽柴秀吉', hat: 'kabuto_bari', haori: 0x6a4a1c }, guard: 15, reserve: 16, runTo: { x: -20, z: 20 } });
+    F.honjin = camp(rt, { x: TAIKO.x, z: TAIKO.z, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', general: { name: '羽柴秀吉', hat: 'kabuto_bari' }, guard: 15, reserve: 16, runTo: { x: -20, z: 20 } });
     // 太閤ヶ平は攻めの本陣だけでなく、毛利の後詰が来た時の大きな野戦にも備える堅い陣城。内郭を大きな土塁で囲む
     // 南大手・東搦手を開け、北には口を作らない。
     const west = TAIKO.x - TX - TB, east = TAIKO.x + TX + TB;
@@ -1940,7 +1884,9 @@ const tottori = {
       noT(wallLine(rt, [[TAIKO.x - TX - TAIKO.bankW - 12, TAIKO.z + off], [70, CASTLE.z + off]], { team: 0, hp: 1e9, name: '竪土塁', segLen: 10 }));
       // 土塁の形は高さの関数にある。柵の下に模型を重ねて二重に盛らない。
     }
-    F.ehon = camp(rt, { x: CASTLE.x, z: CASTLE.z, facing: 0, team: 1, faction: 'mori', mon: 'mori', general: { name: '吉川経家', hat: 'kabuto_m', haori: 0x3a2a2a }, guard: 15, reserve: 10, runTo: { x: GATE.x, z: GATE.z - 8 } });
+    F.ehon = camp(rt, { x: CASTLE.x, z: CASTLE.z, facing: 0, team: 1, faction: 'mori', mon: 'mori', general: { name: '吉川経家', hat: 'kabuto_m' }, guard: 15, reserve: 10, runTo: { x: GATE.x, z: GATE.z - 8 } });
+    // 本の城図にある高い登り旗で城将の居所を示す。既存の材質を使い、支度時だけ置く。
+    rt.scene.add(nobori(W, CASTLE.x + 3, CASTLE.z + 3, 'mori', 9));
     // 丸山方面の秀長は西の付城から城へ向く。既存の旗本・控えを移し、兵は増やさない。
     F.hidenaga = camp(rt, { x: -132, z: -210, compact: true, facing: Math.PI / 2, team: 0, faction: 'oda', mon: 'oda', general: { name: '羽柴秀長' }, guard: 15, reserve: 10, runTo: { x: -132, z: -180 } });
     // 番所の戸口と襖に旗竿の束を重ねず、幕の外を通れる陣にする。
@@ -1966,6 +1912,7 @@ const tottori = {
     F.guard.fire = false;
     F.guard2 = enemyGroup(rt, { fixed: true, historicalOrders: true, faction: 'mori', name: '川上の舟の番', anchor: { x: -54, z: -58 }, facing: Math.PI / 2, width: 4, formation: 'line', aggro: 6, morale: 85, fleeDir: { x: 0, z: -1 } },
       dress([{ type: 'samurai', n: 1, o: BANK_SAMURAI }, { type: 'ashigaru', n: 7 }], KIKKAWA));
+    F.bankGroups = [F.guard, F.guard2];
     // 城兵は初めから木戸の内に待つ。新手はこの控えが道を通って出る。
     // 柵の実兵は共通設定で減るため、城兵も三組計二十一人に絞る。
     // 飢えた兵の打つ間を長くし、足軽大将が味方と二〜三分持ちこたえられる余地を作る。
@@ -2424,9 +2371,8 @@ const tottori = {
             : F.burnt < 2 ? `焼いた舟 ${F.burnt}／2。味方と番を退けよ`
               : '二艘は燃えた。味方の列で岸を守れ');
       }
-      // 番兵を退けたら待たせず戻す。まだ戦える番兵がいる間は川岸を守る。
-      // 二艘が燃えれば荷は止まった。残る番兵は散り散りになるので、長く追い回させない。
-      if (F.burnt >= 2 && (gone(F.guard) && gone(F.guard2) || rt.t - F.burntT >= 15)) this.midA(rt);
+      // 二艘を焼いた瞬間に帰還へ。残る番兵を追う待ち時間は置かない。
+      if (F.burnt >= 2) this.midA(rt);
     }
     if (F.step === 1.5) {
       const d = Math.hypot(p.x - 10, p.z - FENCE_Z - 8);
@@ -2491,11 +2437,12 @@ const tottori = {
       if (inside >= 4 || p.z < FENCE_Z || Math.hypot(p.x - GATE.x, p.z - FENCE_Z) >= 24) F.holdT = 0;
       else if (contact) F.holdT += dt;
       for (const g of L) {
+        // 四〜七分の戦を目安に、三組が口で戦う刻を確保する。兵数と列の密度は保つ。
         // 討ち減らすだけでなく、本人が口を守り続けても飢えた寄せは退く。
         // 接触前の行軍や、持ち場を離れた待機では進めない。帰路も同じ城道を使う。
         if (F.defended && g.ttOut && !g.ttRetreat && !g.routed && g.ttContactT != null &&
-            ((g.ttFighting <= g.initial * 0.75 && rt.t - g.ttContactT > 30) ||
-              (F.holdT >= 25 && rt.t - g.ttContactT > 45) || rt.t - g.ttContactT > 75)) {
+            ((g.ttFighting <= g.initial * 0.75 && rt.t - g.ttContactT > 60) ||
+              (F.holdT >= 75 && rt.t - g.ttContactT > 95) || rt.t - g.ttContactT > 120)) {
           g.ttRetreat = true; g.formation = 'column'; g.march = false; g.marching = false; g.focus = null;
           // 退却中の近接戦で足を止めず、同じ城道を歩いて木戸へ戻す。
           g.retreatOnly = true;

@@ -241,6 +241,12 @@ function materialShape(mesh, world, entries, parts) {
   const lastMainMatrix = new THREE.Matrix4();
   let shadowSide = THREE.DoubleSide, parallelShadow = false;
   let mainN = 0, shStart = 0, shN = 0, dirty = true, shFirst = true;
+  // 小谷と設楽原は場面の転送前に全束を準備するため、隠した束も次の視点で戻せる。
+  // 面数ゼロの描画も一回に数えられるので、画面にも影にも不要な束は送らない。
+  const drawVisibility = () => {
+    // 影の範囲はこの後に決まるため、影を落とす束は空でも残す。
+    if (beforeDraw) mesh.visible = mainN > 0 || mesh.castShadow;
+  };
   // 壊れた一区画だけ元の形へ戻す。残る城の区画の省略と遠景の形は保つ。
   mesh.userData.refreshMaterialPart = (id) => {
     const r = ranges[id], first = r.vertex * 3, end = first + r.vertices * 3;
@@ -374,7 +380,7 @@ function materialShape(mesh, world, entries, parts) {
     pm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     const sameView = faceCell ? pm.equals(lastMainMatrix) : cameraPos.distanceToSquared(lastPos) < 0.25
       && direction.dot(lastDir) > 0.99995 && projection === lastProjection;
-    if (lastCamera === camera && sameView) { if (dirty) pack(); packed.setDrawRange(0, mainN); return; }
+    if (lastCamera === camera && sameView) { if (dirty) pack(); packed.setDrawRange(0, mainN); drawVisibility(); return; }
     lastCamera = camera; lastPos.copy(cameraPos); lastDir.copy(direction); lastProjection = projection;
     lastMainMatrix.copy(pm);
     if (faceCull) dirty = true;
@@ -396,6 +402,7 @@ function materialShape(mesh, world, entries, parts) {
     }
     if (dirty) pack();
     packed.setDrawRange(0, mainN);
+    drawVisibility();
     if (moved) P.needsUpdate = true;
   };
   if (beforeDraw) {

@@ -16,7 +16,7 @@ import { nobori, noboriClothLite, hut, kabukimon, tobira, tsuiji, kagaribi, cast
 import { buildRoom, tomyo } from './interior_parts.js';
 import { allyCover } from './ally_cover.js';
 import { coverGuide } from './cover_guide.js';
-import { retreatThroughGap, retreatDodge, retreatRunFromBlade } from './bot_retreat.js';
+import { retreatThroughGap, retreatRunFromBlade } from './bot_retreat.js';
 import { buildTera, teraTick, breakNear, hallAt, TERA, inTera, GATES, CLIMB, PT } from './honno_tera.js';
 import { flagTexture } from './textures.js';
 import { RANKS } from './state.js';
@@ -4908,17 +4908,12 @@ honnoji.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     const closing = face.target === u && !face.playerQueue &&
       Math.hypot(face.pos.x - u.pos.x, face.pos.z - u.pos.z) <= (face.reach || 2.8) + 1;
     if (!moving && (imminent || closing) && retreatRunFromBlade(b, inp, honnoRetreatDodgeAllowed)) return;
-    // 二方向の刃や、振り向く前に届く刃は構えだけでは防げない。
-    // 深手では正面の一撃も致命傷になる。安全に退ける時は構えだけに頼らない。
-    // 道の向きへ普通の回避を使う。柱・壁・炎へ跳び込む時と気力不足の時は使わない。
+    // 二方向の刃や深手の一撃には、道の側で刃と兵を避ける隙間を探す。
+    // 回避とその気力制限は廃止済み。通常の駆け足で、柱・壁・炎を避けて離れる。
     if ((crossed || uncovered || u.hp <= u.maxHp * .35) && soonest <= .35 &&
         Math.hypot(face.pos.x - u.pos.x, face.pos.z - u.pos.z) <= (face.reach || 2.8) + .6 &&
-        !p.mounted && !u.climb &&
-        !(p.knockT > 0) && p.dodgeT <= -.3 &&
-        p.sta >= 20 + (u.hp <= u.maxHp * .35 || p.guardBroken > 0 ? 0 : p.maxSta * .15)) {
-      if (retreatDodge(b, inp, moving ? walk : p.yaw + Math.PI, honnoRetreatDodgeAllowed)) {
-        inp.runHeld = true;
-      }
+        !p.mounted && !u.climb && !(p.knockT > 0)) {
+      retreatRunFromBlade(b, inp, honnoRetreatDodgeAllowed, moving ? walk : null);
     }
   };
   const fight = (r, post = null) => {

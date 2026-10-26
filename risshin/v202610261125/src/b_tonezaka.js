@@ -293,22 +293,20 @@ function toneGuardEnemy(rt) {
 // 印の座標は使い回し、道の途中を敵の居場所として表示しない。
 function toneGuide(rt, fallback) {
   const F = rt.flags, p = rt.player.u.pos;
-  let next = null, distance = Infinity, visible = null, visibleDistance = VISIBLE_REAR;
+  let next = null, distance = Infinity;
   for (const g of F.stageDefenders[F.step] || []) {
     if (!fighting(g)) continue;
     for (const u of g.units) {
       if (!fighter(u) || u.rearWound || u.downed) continue;
       const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z);
       if (d < distance) { distance = d; next = u; }
-      // 肩越しで映る兵は、主人公の目から坂に隠れる兵より先に案内する。
-      if (d < visibleDistance && sightScreenUnit(rt, u)) { visibleDistance = d; visible = u; }
     }
     // 今の任務の二つの備から近い兵を選ぶ。先の任務の備へは飛ばさない。
   }
-  if (visible) next = visible;
+  // 最寄りの残敵を保つ。見えるかどうかは印の描画側で判定する。
   // 目の前で槍を向ける兵を、先の備や曲がりの印より優先する。
   const close = F.nearEnemy;
-  if (close && fighter(close) && !close.rearWound && !close.downed &&
+  if (!next && close && fighter(close) && !close.rearWound && !close.downed &&
       near(p, close.pos, CLOSE_REAR) && sightScreenUnit(rt, close)) next = close;
   const enemyAt = next ? next.pos : fallback;
   const closeSeen = next && near(p, enemyAt, CLOSE_REAR) && sightScreenUnit(rt, next);
@@ -786,7 +784,98 @@ function withdrawStage(rt) {
   }
 }
 
+// 討った瞬間にも古い段を指さない。次の備の最寄りへ同じコマで替える。
+function toneMissionStep(rt) {
+  let step = rt.flags.step;
+  while (step >= 1 && step <= 3 && !rt.flags.stageDefenders[step].some(fighting)) step++;
+  return step;
+}
+function toneMissionEnemy(rt) {
+  const F = rt.flags, step = toneMissionStep(rt), p = rt.player.u.pos;
+  if (F.ending || rt.over) return null;
+  const old = F.missionEnemy;
+  if (F.missionEnemyStep === step && F.missionEnemyAt > rt.t && old && fighter(old) && !old.downed && !old.rearWound) return old;
+  F.missionEnemyAt = rt.t + .2; F.missionEnemyStep = step;
+  let best = null, distance = Infinity;
+  for (const g of F.stageDefenders[step] || []) {
+    if (!fighting(g)) continue;
+    for (const u of g.units) {
+      if (!fighter(u) || u.downed || u.rearWound) continue;
+      const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
+      if (d < distance) { best = u; distance = d; }
+    }
+  }
+  return (F.missionEnemy = best);
+}
+
 const tonezaka = {
+  // 稲生の水準：任務一行・ピン・敵の▼だけで現在の一手を示す。
+  missionSingleLine: true,
+  hideMissionDots: true,
+  hideGuideSteps: true,
+  noPlayerFoot: true,
+  quietMiss: true,
+  noDodgeCard: true,
+  enemyTriangleSigns: true,
+  nearbyAllySignLimit: 0,
+  missionPinCaption: '',
+  missionDetail: () => '',
+  missionStatus: () => '',
+  bannerAllowed: (rt, title) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|一乗谷の火/.test(title),
+  missions: ['味方と集まれ', '▼の敵を倒せ', '味方と進め', 'ここを守れ'],
+  missionOf(rt) {
+    const F = rt.flags, step = toneMissionStep(rt);
+    if (F.ending) return 3;
+    if (step === 0 || toneShelter(rt) || step === F.step && F.guideJoin && step < 4) return 0;
+    if (step === 6) return near(rt.player.u.pos, INNER, 12) ? 3 : 2;
+    if (step === 5 && !fighting(F.townG)) return near(rt.player.u.pos, TOWN, 14) ? 3 : 2;
+    return toneMissionEnemy(rt) ? 1 : 2;
+  },
+  missionHeading(rt) { return toneShelter(rt) ? '味方へ下がれ' : this.missions[this.missionOf(rt)]; },
+  missionSignTarget(rt) { return this.missionOf(rt) === 1 ? toneMissionEnemy(rt) : null; },
+  // 総大将は退く義景本人。討ち取りの任務や勝ちの条件は足さない。
+  commanderSignTarget(rt) {
+    const F = rt.flags, u = F.yoshikageU;
+    return !rt.over && !F.ending && F.step < 4 && u?.alive && !u.gone && !u.dying && !u.woundOut ? u : null;
+  },
+  namedGuideTarget(rt) { return this.commanderSignTarget(rt); },
+  commanderTarget(rt) {
+    const u = this.missionSignTarget(rt);
+    return u?.type === 'busho' ? u : null;
+  },
+  missionPin(rt) {
+    const F = rt.flags, step = toneMissionStep(rt);
+    if (F.ending || rt.over || F.step === 4 || !rt.player.u.alive) return null;
+    const pin = F.missionPin || (F.missionPin = { x: 0, z: 0, r: 0, hide: 0, silent: true, always: true });
+    pin.unit = null; pin.enemy = false; pin.waiting = false; pin.defend = false;
+    pin.arrived = false; pin.route = false; pin.approach = false;
+    const shelter = toneShelter(rt);
+    if (shelter) {
+      const way = chaseWay(rt.army, rt.player.u, shelter);
+      pin.x = way.x; pin.z = way.z; pin.r = 3; pin.hide = 0;
+      pin.route = way !== shelter;
+      pin.arrived = near(rt.player.u.pos, shelter, 3);
+      return pin;
+    }
+    if (step === 4) return null;
+    const enemy = this.missionSignTarget(rt);
+    if (enemy) {
+      if (rt.player.inRange && rt.player.rangeCueTarget === enemy) return null;
+      const way = chaseWay(rt.army, rt.player.u, enemy.pos);
+      pin.x = way.x; pin.z = way.z; pin.r = pin.hide = .2;
+      pin.route = way !== enemy.pos; pin.unit = pin.route ? null : enemy;
+      pin.enemy = !pin.route; pin.approach = true;
+      return pin;
+    }
+    // 守り場に着いてもピンを残す。勝家の兵も同じ持ち場へ進む。
+    const post = step === 6 ? INNER : step === 5 ? TOWN : F.roadGuide;
+    const reached = step >= 5 && near(rt.player.u.pos, post, step === 6 ? 12 : 14);
+    const way = reached ? post : chaseWay(rt.army, rt.player.u, step === 0 ? F.nobuU.pos : post);
+    pin.x = way.x; pin.z = way.z; pin.r = reached ? (step === 6 ? 12 : 14) : 3;
+    pin.hide = 0; pin.route = !reached; pin.waiting = pin.defend = step >= 5;
+    pin.arrived = reached;
+    return pin;
+  },
   compactIntro: true,
   introKeepControls: true, // 初めての追撃でも、進むキーと槍の操作を開始前に読める。
   introTaskFirst: true, // 横持ちでも人物紹介より先に、進み方と勝つ条件を読めるようにする。
@@ -810,7 +899,7 @@ const tonezaka = {
   singleDestinationArrow: true, // 道の先と足元に矢印を重ねず、次の行き先一つへ導く。
   routeGuideArrowOnly: true, // 道の曲がりは矢印だけ。そこに実物の旗があるように見せない。
   directionalDestinationArrow: true, // 道の先を指す印も進む向きにそろえ、下がる操作と取り違えさせない。
-  hideEdgeGoalDistance: true, // 歩数は道の印までの一行だけ。「旗まで」の重複を足さない。
+  hideEdgeGoalDistance: true, // 歩数の字を足さず、行き先はピンで示す。
   avoidDestinationNotices: true, // 上の軍勢札や右の任務札に印が隠れる時は、空いた側へ向きを示す。
   compactDestinationSign: true, // 近い兵や槍を覆わず、携帯でも読める大きさの案内にする。
   hidePlayerSign: true, // 自分は姿と視点で分かる。肩越しで体から離れて見える輪を重ねない。
@@ -822,83 +911,21 @@ const tonezaka = {
   keepTaskLabel: true,
   keepDestinationTask: true, // 「次の曲がりへ。道の印へ」と重ねず、今の下知をそのまま読む。
   keepRetreatReason: true, // 命が多くても、息切れ・包囲・手傷のどれで退くかを残す。
-  retreatStepsNewLine: true, // 横持ちの札でも「あと十一歩」を途中で割らず、次の行にまとめる。
   keepWoundRetreatReason: true,
   woundRetreatNeeded: toneWoundRetreat, // 任務と地面の印で同じ負傷の判定を使う。
   keepTaskPanel: true, // 接敵しても札を敵の胴へ移さず、左上の同じ欄で読む。
-  combatTaskLabel(rt) {
-    const F = rt.flags, H = rt.hud, u = H.defendEnemy;
-    if (F.ending || F.step === 0 || F.step === 4 || !u || !fighter(u) ||
-        !near(rt.player.u.pos, u.pos, CLOSE_REAR)) return '';
-    // 共通の大きな指の札を増やさず、任務の一行で今の操作を教える。
-    if (H.approachGuideEnemy === u) return '印の敵へ、味方と近づけ';
-    if (!H.guardFacing) return '印の敵へ向き、構えよ';
-    if (H.attackGuideEnemy === u) {
-      const attack = rt.player.weapon === 'sword' ? '斬れ' : '突け';
-      return isTouch ? `「${rt.player.weapon === 'sword' ? 'きる' : '突く'}」を長押し、離して${attack}`
-        : `左押しを長押し、離して${attack}`;
-    }
-    return '敵へ構え、味方と押せ';
-  },
-  keepCombatTask: true, // 曲がりの印と敵の居場所の違いを、任務の補足にも残す。
-  keepCombatTaskHeading: true, // 接敵しても「刀の印へ」だけに変えず、味方と進む下知を保つ。
-  keepTaskWithGuard: true, // 構える釦が出ても、左上の任務を消さない。
-  keepCombatTaskDetail: true, // 接敵の短い案内中も、味方と押す目的を札に残す。
-  meleeApproachLabel: () => '味方と敵へ近づけ',
-  meleeApproachText: '印の敵へ、味方と近づけ',
-  // 距離は矢印の着く所まで。曲がりの四歩を、敵までの距離と取り違えない。
-  distanceText(rt, distance) {
-    const F = rt.flags;
-    if (F.step === 5 && F.waitingTown && !retreatRequired(rt)) return 'ここで味方の到着を待つ';
-    // 退く案内に、元の前進先の曲がりまでの距離を添えない。
-    if (retreatRequired(rt)) {
-      if (!toneShelter(rt)) return '敵を見て、味方の後ろへ';
-      return distance < 3 ? '退き先まですぐ近く' : `退き先まであと${Math.ceil(distance / 0.75)}歩`;
-    }
-    const place = F.step === 0 ? '信長公まで' : F.guideBend ? F.guideJoin ? '合流する道の曲がりまで' : '曲がりまで'
-      : F.guideJoin ? '味方まで' : F.guideVisible ? '敵の列まで' : '道の印まで';
-    return distance < 3 ? `${place}すぐ近く` : `${place}あと${Math.ceil(distance / 0.75)}歩`;
-  },
-  // どの画面でも札には今の一手だけ残す。詳しい下知は任務を開いて読める。
-  taskDetail(rt, title, progress) {
-    const F = rt.flags;
-    if (F.ending || F.step === 0 || F.step === 4) return progress;
-    if (retreatRequired(rt)) return toneShelter(rt)
-      ? toneGuardEnemy(rt) ? '印は味方の後ろ。敵を見ながら下がれ' : '印の所で止まり、息を整えよ'
-      : toneGuardEnemy(rt) ? '敵を見ながら、味方の後ろへ' : '近くの味方に寄り、息を整えよ';
-    if (F.step === 5 && F.waitingTown) return 'ここで止まり、勝家の兵を待て';
-    if (F.step === 6) return F.guideJoin ? F.guideBend ? '印は勝家の手へ続く道。道なりに進め' : '印は勝家の兵。そばに寄れ'
-      : !near(rt.player.u.pos, INNER, 12) ? '道の印へ進み、味方と合流せよ' : progress;
-    if (F.guideJoin) return toneGuardEnemy(rt) ? '印は味方。敵を見て戻れ'
-      : F.guideBend ? '印は味方へ戻る道。道なりに進め' : '印は味方。そばへ寄れ';
-    if (toneGuardEnemy(rt)) return rt.player.guard ? '味方と並び、槍を向ける敵を押せ'
-      : isTouch ? '敵へ向き「構える」を押せ' : '敵へ向き、右押しで構えよ';
-    if (F.guideVisible && F.guideEnemy && near(rt.player.u.pos, F.guideEnemy.pos, CLOSE_REAR)) return F.guideBend
-      ? '印は道の曲がり。その先の敵へ味方と進め' : '印は道を塞ぐ敵。味方と近づけ';
-    if (F.guideBend) return F.guideVisible ? '印は曲がり。その先の敵へ味方と進め' : '印は道の曲がり。道なりに進め';
-    return F.guideVisible ? '印の敵へ、味方と近づけ' : '印は道。味方の旗に続け';
-  },
-  retreatGuideLabel(rt, reached) {
-    if (reached) return '味方の後ろで息を整えよ';
-    // 携帯では気力の帯が隠れる。いのちが残っていても退く理由を示す。
-    if (rt.player.u.hp < rt.player.u.maxHp * 0.3) return '傷が深い。味方へ下がれ';
-    if (rt.player.u.wounds?.bleed > 0.0001) return '血が出ている。味方の後ろへ';
-    if (toneWoundRetreat(rt)) return '手足の傷が重い。味方の後ろへ';
-    if (rt.player.u.mobbed) return '囲まれた。味方へ退け';
-    if (rt.player.sta < 20) return '息が切れた。味方へ下がれ';
-    if (rt.t < (rt.retreatUntil || 0)) return '傷を受けた。味方へ下がれ';
-    return '味方の後ろへ下がれ';
-  },
-  travelGuideLabel(rt) {
-    const F = rt.flags;
-    if (F.step === 5 && F.waitingTown) return '到着を待つ味方';
-    return F.guideJoin ? '味方へ' : F.guideBend ? F.guideVisible ? '道をたどり敵の列へ' : '道なりに進む' : F.guideVisible ? '敵の列へ' : '道の先へ';
-  },
+  combatTaskLabel: () => '',
+  keepCombatTaskHeading: true,
+  keepTaskWithGuard: true,
+  distanceText: () => '',
+  taskDetail: () => '',
+  retreatGuideLabel: () => '',
+  travelGuideLabel: () => '',
   nobiki: true, // 追い手が崩れた時は、鉦だけでなく法螺貝と退き太鼓で退く。
   civilianCrowd: { bands: PEOPLE_BANDS },
   spawn: { ...at(roadX(86) + 3, 86), heading: Math.PI + TURN },
   introText: isTouch ? `${SETTINGS.touchSwap ? '右' : '左'}側を上へなぞって進もう。馬に乗った信長公と供の兵に続こう。敵へ向いて「構える」を押そう。「突く」を長く押し、離して突こう。`
-    : `W の釦で前へ進もう。馬に乗った信長公と供の兵に続こう。敵へ向いて右押し${SETTINGS.guardToggle ? 'で槍を構えよう。もう一度押すと構えを解く。' : 'を押し続け、槍を構えよう。'}左押しを長く押し、離して突こう。`,
+    : `馬に乗った信長公と供の兵に続こう。敵へ向いて右押し${SETTINGS.guardToggle ? 'で槍を構えよう。もう一度押すと構えを解く。' : 'を押し続け、槍を構えよう。'}左押しを長く押し、離して突こう。`,
   softOpen: 90, // 最初の追撃は本人の傷を半分にし、構えと退き方を覚える間を残す。
   // 任務の言葉との部分一致に頼らず、既に置いた道と味方の印を選ぶ。
   guideMarker(rt) {
@@ -940,6 +967,7 @@ const tonezaka = {
     muddy: 0.95,
     softEarthCrust: true, // 土塊の境だけを残し、道に升目の陰を並べない。
     erodedSlopes: true,
+    noHaori: true, // 足軽を主に、武将にも陣羽織・母衣を着せない。
     variedInfantry: true, variedLoanArmor: true, variedHeadgear: true,
     completeCrowdLegs: true, // 遠目で中の体を隠す時も、草摺から臑当まで袴と布を残す。
     kasaDrape: false, // 資料本四十七頁は首布付きの陣笠を江戸期と区別。天正の兵へ一律に足さない。
@@ -1458,7 +1486,9 @@ const tonezaka = {
     F.shelter = { x: 0, y: 0, z: 0, scanAt: 0, valid: false, ally: null, point: { x: 0, y: 0, z: 0 } };
     F.chaseWait = { t: 0, step: 0, enemies: 0, joined: false, umaX: 0, umaZ: 0, lateX: 0, lateZ: 0, umaStopped: false, lateStopped: false, rearX: 0, rearZ: 0 };
     const chief = (name, survives = false, horse = false) => ({ type: 'busho', n: 1, o: { name, horse, invuln: survives } });
-    const A = (n) => ({ type: 'ashigaru', n }), S = (n) => ({ type: 'samurai', n });
+    // 本の足軽の図と着装写真：黒漆の胴、赤茶の陣笠、紺の小袖。既存の形と材質を使う。
+    const A = (n) => ({ type: 'ashigaru', n, o: { armor: 0x25211c, hat: 'jingasa', hatColor: 0x61332b, lace: 0x9c927b, cloth: 0x242e39, doStyle: 'okegawa', sode: false } });
+    const S = (n) => ({ type: 'samurai', n });
     const foe = (name, at, list, width = 5) => enemyGroup(rt, {
       fixed: true, noAI: true, faction: 'asakura', name, anchor: at, facing: TURN,
       order: 'hold', formation: 'yari', yariRanks: toneYariRanks(list.reduce((n, part) => n + part.n, 0)), width, aggro: 8, morale: 78, guardOn: true,
@@ -1540,6 +1570,7 @@ const tonezaka = {
     F.yoshikage = enemyGroup(rt, { fixed: true, noAI: true, faction: 'asakura', name: '朝倉義景と旗本', anchor: at(-4, -200), facing: Math.PI + TURN,
       order: 'hold', formation: 'column', colW: 2, aggro: 2, morale: 60, noRout: true, arriveNoncombat: true, fleeDir: { ...NORTHWEST } },
       dress([S(3), chief('朝倉義景', true, true), S(3), A(3)], ASA));
+    F.yoshikageU = F.yoshikage.units.find((u) => u.name === '朝倉義景');
     // 峠の殿が持ちこたえる間は、供と先の曲がりで待つ。開戦直後の逃亡札を出さない。
     for (const u of F.yoshikage.units) u.noTarget = true;
     march(F.yoshikage, [xz(-4, -216)], (g) => { g.order = 'hold'; });
@@ -2083,7 +2114,8 @@ const tonezaka = {
     else if (F.step === 6) {
       if (near(p, INNER, 12) && toneSecureSupport(rt) && !fighting(F.townG)) F.secureT += elapsed;
       else F.secureT = 0;
-      if (F.secureT >= 8 || rt.t - F.stepT >= 45) this.win(rt);
+      // 早く崩した場合は味方と持ち場を守る。各段の上限と合わせ四〜七分に収める。
+      if (rt.t >= 240 && (F.secureT >= 8 || rt.t - F.stepT >= 45)) this.win(rt);
     }
   },
   onKill(rt, v, k) {

@@ -557,7 +557,7 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
     ${!saved && slots.some(Boolean) ? '<p class="note">この枠は空きです。別の枠に記録があります。「保存記録」から続きの枠を選べます。</p>' : ''}
     <div class="title-act">${saved ? `<button class="btn primary" id="b-cont" aria-describedby="tt-save-note">続きから</button><button class="btn" id="b-new">新しく始める</button><small class="note" id="tt-save-note">城下までの記録です。戦の途中は保存されません。</small>` : '<button class="btn primary" id="b-new" style="min-height:56px;min-width:280px;font-size:20px">稲生（いのう）の戦いを始める</button>'}
       ${fullPurchaseButton(true)}<span class="tt-sub" role="group" aria-label="ほかの操作"><button type="button" class="btn small" id="b-controls">操作を見る</button>${mapOn ? '<button class="btn small" id="b-japan">天下の地図へ</button>' : ''}<button class="btn small" id="b-alt" aria-expanded="false" aria-controls="tt-alt">練習・ほかの戦い</button><button class="btn small" id="b-data" aria-expanded="false" aria-controls="tt-data">保存記録</button><button class="btn small" id="b-set">設定</button></span>${isTouch ? '' : `<span class="hintk" id="tt-key-hint" aria-live="polite"></span>`}</div>
-    <section class="tt-panel" id="tt-alt" hidden aria-labelledby="tt-alt-h"><h3 class="tt-ph" id="tt-alt-h">練習・ほかの戦い</h3><div class="row"><button class="btn small" id="b-words">用語集を開く</button></div><p class="note">本編とは別に遊べます。戦功・身分・物語の進みには反映しません。会った武将は共通の図鑑に残ります。稽古場の最高と、稽古場で得た実績も全保存記録共通です。</p><div class="row">${onSamurai ? '<button class="btn small" id="b-samurai">侍大将で出陣</button>' : ''}<button class="btn small" id="b-dojo">練習する</button>${onJapan && !mapOn ? '<button class="btn small" id="b-japan">日本地図を試す</button>' : ''}${location.hash === '#mvp' ? '<button class="btn small" id="b-rojotest">籠城の試し（開発用）</button>' : ''}</div>${onJapan && !mapOn ? '<p class="note">日本地図は、本編で足軽大将になるか、筋書きを終えると、城下から本編の続きとして進められます。</p>' : ''}</section>
+    <section class="tt-panel" id="tt-alt" hidden aria-labelledby="tt-alt-h"><h3 class="tt-ph" id="tt-alt-h">練習・ほかの戦い</h3><div class="row"><button class="btn small" id="b-words">用語集を開く</button></div><p class="note">本編とは別に遊べます。戦功・身分・物語の進みには反映しません。会った武将は共通の図鑑に残ります。稽古場の最高と、稽古場で得た実績も全保存記録共通です。</p><div class="row">${onSamurai ? '<button class="btn small" id="b-samurai">戦を選ぶ</button>' : ''}<button class="btn small" id="b-dojo">稽古場</button>${onJapan && !mapOn ? '<button class="btn small" id="b-japan">日本地図を試す</button>' : ''}${location.hash === '#mvp' ? '<button class="btn small" id="b-rojotest">籠城の試し（開発用）</button>' : ''}</div>${onJapan && !mapOn ? '<p class="note">日本地図は、本編で足軽大将になるか、筋書きを終えると、城下から本編の続きとして進められます。</p>' : ''}</section>
     <div id="samurai-pick"></div>
     <section class="tt-panel" id="tt-data" hidden aria-labelledby="tt-data-h"><h3 class="tt-ph" id="tt-data-h">保存記録</h3><p class="note">空き枠を押してから、出陣の釦で始めます。<br>保存はこの閲覧画面だけに残ります。別の端末や閲覧画面へは保存文字列か保存保存文書で移します。<br>城下で自動保存します。保存文字列は城下で保存した時の控えです。進行・図鑑・実績・稽古の記録が入ります。端末の設定と戦の途中の状態は含みません。</p>
     <div class="field" style="max-width:none"><label id="lb-slot">保存の枠</label><div class="slots" role="group" aria-labelledby="lb-slot">${slots.map((g, i) => `<button class="slotcard ${i === S.slot ? 'on' : ''}" data-slot="${i}" aria-pressed="${i === S.slot}"><b>枠 ${i + 1}</b><small>${readings[i].bad ? '！ 読めない記録。保存文字列から再開してください' : g ? `${esc(g.name)}・${esc(RANKS[g.rank].name)}<br>${esc(nextOf(g))}<br>累計戦功 ${g.merit || 0}` : '空き'}</small>${g && (g.grades || []).some(Boolean) ? `<span class="sl-g" aria-label="戦ごとの評定">${lineOf(g).map((b, j) => (g.grades[j] ? `<i class="g-${esc(g.grades[j])}" title="${esc(b.name)}">${esc(g.grades[j])}</i>` : '')).join('')}</span>` : ''}</button>`).join('')}</div></div>
@@ -771,7 +771,9 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
     sfx('ui');
     const open = $(pid).hidden;
     ['tt-alt', 'tt-data'].forEach((k) => { $(k).hidden = true; }); $('b-alt').setAttribute('aria-expanded', 'false'); $('b-data').setAttribute('aria-expanded', 'false');
-    if (!open) { $('samurai-pick').innerHTML = ''; return; }
+    $('tt-home').classList.remove('tt-picking');
+    $('samurai-pick').innerHTML = '';
+    if (!open) return;
     $(pid).hidden = false; $(bid).setAttribute('aria-expanded', 'true'); scrollIn($(pid), 'start');
   }; };
   panel('b-alt', 'tt-alt'); panel('b-data', 'tt-data');
@@ -807,6 +809,7 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
   const openPick = (mode0) => {
     sfx('ui');
     const box = $('samurai-pick');
+    $('tt-home').classList.add('tt-picking');
     const fp = S.view === 'first';
     const list = (onLord && onLord.list ? onLord.list : []).filter((L) => SCENARIOS[L.scn] && SCENARIOS[L.scn].battles.some((b) => b.id === L.id));
     const groups = [];
@@ -818,13 +821,13 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
       if (g) g.items.splice(g.items.findIndex((it) => it.id === L.under) + 1, 0, L);
       else { let g2 = groups.find((q) => q.k === 'ほかの一戦'); if (!g2) groups.push(g2 = { k: 'ほかの一戦', items: [] }); g2.items.push(L); }
     }
-    box.innerHTML = `<div class="confirm-row lord-pick" style="display:block" role="region" aria-labelledby="lp-h"><b id="lp-h">侍大将で、どの戦に出るか</b>
+    box.innerHTML = `<div class="confirm-row lord-pick" style="display:block" role="region" aria-labelledby="lp-h"><div class="row"><b id="lp-h">侍大将で、どの戦に出るか</b><button class="btn small" id="lp-no">選ぶのをやめる</button></div>
       <div class="field" style="max-width:none;margin-top:10px"><label id="lp-view">視点</label><div class="diffs" role="radiogroup" aria-labelledby="lp-view" style="display:flex;gap:8px;flex-wrap:wrap">
         <label><span><input type="radio" name="lp-view" value="third" ${fp ? '' : 'checked'}> 三人称</span><small>背中から見る</small></label>
         <label><span><input type="radio" name="lp-view" value="first" ${fp ? 'checked' : ''}> 一人称</span><small>自分の目で見る（戦の中で視点の釦で切り替え）</small></label></div></div>
       ${groups.map((g) => `<div class="eyebrow" style="margin-top:12px">${esc(g.k)}</div>
       <div class="lp-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-top:6px">${g.items.map((L) => `<button class="btn small lp-card" data-lord="${L.id}" data-scn="${L.scn}" style="min-height:64px;text-align:left;display:block;padding:8px 12px"><b style="display:block;font-size:max(12px, calc(15px * var(--text-scale, 1)))">${esc(L.name)}</b><small style="display:block;opacity:.8;margin-top:2px">${esc(L.year.split('　')[0])}</small>${offerFull() && isBattleLocked(L.scn, L.id) ? '<small style="display:block;color:var(--kin);margin-top:4px">完全版で遊べる</small>' : ''}</button>`).join('')}</div>`).join('')}
-      <div class="row" style="margin-top:12px"><button class="btn small" id="lp-no">選ぶのをやめる</button></div></div>`;
+      </div>`;
     const view = () => (box.querySelector('input[name=lp-view]:checked') || {}).value || 'third';
     const who = () => 'sam';   // 織田信長で遊ぶのはやめた（kaito 10/1）。侍大将だけ
     box.querySelectorAll('[data-lord]').forEach((b) => b.onclick = () => {
@@ -836,9 +839,9 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
       else go();
     });
     box.querySelectorAll('[data-lordmap]').forEach((b) => b.onclick = () => onLord.onMap(b.dataset.lordmap));
-    $('lp-no').onclick = () => { box.innerHTML = ''; const back = $(mode0 === 'sam' ? 'b-samurai' : 'b-nobunaga'); if (back) back.focus({ preventScroll: true }); };
-    scrollIn(box, 'center');
+    $('lp-no').onclick = () => { $('tt-home').classList.remove('tt-picking'); box.innerHTML = ''; const back = $(mode0 === 'sam' ? 'b-samurai' : 'b-nobunaga'); if (back) { scrollIn(back); back.focus({ preventScroll: true }); } };
     const first = box.querySelector('[data-lord]'); if (first) first.focus({ preventScroll: true });
+    scrollIn(first || box, 'start');
   };
   if (onSamurai) $('b-samurai').onclick = () => openPick('sam');
 

@@ -1558,7 +1558,8 @@ export class Hud {
       setHidden(pr, false);
       const hp = rt.holdId === it.id ? Math.max(0, Math.min(1, rt.holdPct || 0)) : 0;
       const entry = it.id.startsWith('naka_');
-      const text = `${fenceBlocked ? '<strong>柵を倒して通る</strong>' : ''}${isTouch ? entry ? '' : '「使う」' : `<kbd>${pad ? 'X' : K('use')}</kbd>`}${esc(it.label)}${it.hold ? `<small>（${fenceBlocked ? `長押し・あと${Math.max(1, Math.ceil(it.hold * (1 - hp)))}秒` : '長押し'}）</small><i class="holdbar"><b style="width:${Math.round(hp * 100)}%"></b></i>` : ''}`;
+      const hieiEntry = entry && rt.def.key === 'hieizan';
+      const text = `${fenceBlocked ? '<strong>柵を倒して通る</strong>' : ''}${hieiEntry ? '' : isTouch ? entry ? '' : '「使う」' : `<kbd>${pad ? 'X' : K('use')}</kbd>`}${esc(it.label)}${it.hold ? `<small>（${fenceBlocked ? `長押し・あと${Math.max(1, Math.ceil(it.hold * (1 - hp)))}秒` : '長押し'}）</small><i class="holdbar"><b style="width:${Math.round(hp * 100)}%"></b></i>` : ''}`;
       if (workAction) {
         const fire = fireWork;
         const label = fire ? 'ここを長押しで火をつける' : it.label.replace(/（[^）]*）/g, '');

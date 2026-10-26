@@ -27,13 +27,13 @@ export class WorldSmoke {
     if (!this.puffTex) this.makePuffTex();
     const mat = new THREE.ShaderMaterial({
       transparent: true, depthWrite: false,
-      uniforms: { map: { value: this.puffTex }, uBlend: { value: 0 }, color: { value: new THREE.Color(0x9a958c) }, scale: { value: 420 }, wind: { value: new THREE.Vector2(WIND_STATE.dirX, WIND_STATE.dirZ) } },
-      vertexShader: `attribute vec2 seed; attribute float soot, lane; attribute vec4 drift, lastDrift; uniform float uBlend, scale; uniform vec2 wind; varying float vA; varying float vSoot;
+      uniforms: { map: { value: this.puffTex }, uBlend: { value: 0 }, farStart: { value: 14400 }, color: { value: new THREE.Color(0x9a958c) }, scale: { value: 420 }, wind: { value: new THREE.Vector2(WIND_STATE.dirX, WIND_STATE.dirZ) } },
+      vertexShader: `attribute vec2 seed; attribute float soot, lane; attribute vec4 drift, lastDrift; uniform float uBlend, scale, farStart; uniform vec2 wind; varying float vA; varying float vSoot;
         void main(){
           vSoot = soot;
           vec3 delta = position - cameraPosition;
           float distanceSq = dot(delta, delta);
-          if(distanceSq >= 14400.0 || (distanceSq >= 2025.0 && mod(lane, 3.0) > 0.5)) {
+          if(distanceSq >= farStart || (distanceSq >= 2025.0 && mod(lane, 3.0) > 0.5)) {
             vA = 0.0; gl_PointSize = 1.0; gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return;
           }
           // 粒が根元へ戻る時は、柱を横切る線を補間しない。
@@ -115,6 +115,9 @@ export class WorldSmoke {
   updateSmokeColumns(dt) {
     const S = this.smokeCol, camera = this.camRef, tick = 1 / 15;
     if (!S.n) return;
+    // 熱の兆しがあれば中景の六粒を一枚へ。四十五歩以内の煙と兵の見た目は保つ。
+    const farStart = (window.__heatBackgroundLevel || window.__heatLevel || 0) >= 1 ? 2025 : 14400;
+    S.pts.material.uniforms.farStart.value = farStart;
     S.acc += dt;
     const steps = Math.floor(S.acc / tick);
     S.acc -= steps * tick;
@@ -125,7 +128,7 @@ export class WorldSmoke {
       const i = id * S.PER, j = i * 3, sp = S.far.list[id];
       const active = S.pos[j + 1] > -9000;
       const d2 = camera ? (S.pos[j] - camera.position.x) ** 2 + (S.pos[j + 1] - camera.position.y) ** 2 + (S.pos[j + 2] - camera.position.z) ** 2 : 0;
-      const level = !active || d2 >= 14400 ? 2 : d2 >= 2025 ? 1 : 0;
+      const level = !active || d2 >= farStart ? 2 : d2 >= 2025 ? 1 : 0;
       const switched = level !== S.levels[id]; S.levels[id] = level;
       // 描かない遠景の十六粒は動かさず、中景も残す六粒だけを計算する。
       if (level < 2 && (steps || switched)) {

@@ -286,7 +286,8 @@ const mainPaths = PATHS;
 const passThrough = new Set(['romon', 'chumon', 'kairo', 'roka', 'torii', 'haka']);
 for (const b of BUILDINGS) {
   if (!b.enterable) continue;
-  const reach = b.d / 2 + (b.kind === 'chudo' ? 4.25 : 2.85);
+  // 中堂は張り出した縁と石段の先まで結ぶ（踊り場一・五＋石段三・二＋余白〇・八）。
+  const reach = b.d / 2 + (b.kind === 'chudo' ? 5.5 : 2.85);
   const front = [b.x + Math.sin(b.rot || 0) * reach, b.z + Math.cos(b.rot || 0) * reach];
   let best = null, distance = Infinity;
   for (const p of mainPaths) for (let i = 1; i < p.pts.length; i++) {
