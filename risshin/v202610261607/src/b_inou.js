@@ -501,7 +501,7 @@ const inou = {
           // 実際に突いた兵を引き続き示し、残る赤の量を読めるようにする。
           if (t.group === F.approachGroup) F.approachUnit = t;
           t.inouHitHp = hp;
-          t.inouDamageUntil = rt.t + 1.6;
+          t.inouDamageUntil = rt.t + 2.4;
           t.inouHitUntil = rt.t + 2.4;
           t.inouBlockUntil = 0;
         }

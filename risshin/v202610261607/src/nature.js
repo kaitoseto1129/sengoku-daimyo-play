@@ -98,6 +98,7 @@ function groundPhoto(kind) {
       const grain = (b - 0.5) * 32;
       return kind === 'grass'
         ? [47 + a * 38 + grain, 58 + a * 40 + grain, 25 + a * 22 + grain * 0.5]
+        : kind === 'mud' ? [54 + a * 24 + grain * 0.5, 44 + a * 20 + grain * 0.5, 34 + a * 14 + grain * 0.4]
         : [87 + a * 68 + grain, 65 + a * 57 + grain, 40 + a * 40 + grain * 0.6];
     });
     const tex = toTex(c);
@@ -254,6 +255,8 @@ export function bankTex() {
 
 // 泥：濡れて暗い土。水の溜まった所は光る（粗さは別に下げる）
 export function mudTex(plain = false) {
+  // 画質「高」は田・ぬかるみに CC0 の泥の写真（Poly Haven brown_mud_02・512角）
+  if (SETTINGS.quality === 'high') return groundPhoto('mud');
   return once(`mud-${plain}`, () => {
     const { c, g } = paintField(512, 31, (a, b) => {
       let col = lerp3([54, 44, 34], [78, 64, 48], a);

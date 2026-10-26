@@ -172,7 +172,7 @@ export class WorldHaze {
           vec3 v = vW - cameraPosition; float dist = max(length(v), 0.001);
           float fwd = pow(max(dot(v / dist, normalize(sunDir)), 0.0), 3.0);
           float a = amt * ac * al * st * vEdge * (0.12 + 1.3 * fwd) * smoothstep(5.0, 22.0, dist) * 0.09;
-          gl_FragColor = vec4(mix(sunCol, fogC, 0.35), a);
+          gl_FragColor = vec4(mix(sunCol, fogC, 0.35) * a, a);
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
         }`,

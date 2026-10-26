@@ -59,13 +59,19 @@ export class StaticLight {
     let complete = false;
     try {
       // 視点による株の詰め替え・遠景の葉への交換を焼いた影へ持ち込まない。
-      for (const group of w.cullList || []) for (const source of group.orig) originals.set(source.m, source.mat);
-      w.scene.updateMatrixWorld(true);
+      for (const group of w.cullList || []) for (const source of group.orig) {
+        yield;
+        originals.set(source.m, source.mat);
+      }
+      // 全景の行列を一括更新すると、兵の骨まで最初の一コマへ集中する。
+      // 親から順に、影へ使う節だけ巡回の予算内で更新する。
+      w.scene.updateWorldMatrix(true, false);
       const visit = o => {
         const d = o.userData;
         if (!o.visible && !originals.has(o)) return true;
         if (o._armyUnit || o.isSkinnedMesh || o.isBone || d?.flag || d?.armyBatch || d?.unitShadowBatch ||
             o.name === 'unitBatch' || o.material?.userData?.armyU || o.isPoints || o.isSprite) return true;
+        o.updateWorldMatrix(false, false);
         if (o.isMesh && (o.castShadow || o._sceneryCastShadow) && o !== w.terrain) {
           const original = originals.get(o);
           const count = original ? original.length / 16 : o.count;

@@ -25,6 +25,7 @@ import { RIDE } from './units.js';
 import * as THREE from 'three';
 import { battleResources } from './battle_resources.js';
 import { crowdMats } from './humans_crowd.js';
+import { nearSurfaceCopies, sharedNearSurfaceResources } from './humans_near_surface.js';
 
 const humanSelection = { army: null, quality: null, count: -1, x: 0, y: 0, z: 0, qx: 0, qy: 0, qz: 0, qw: 1 };
 const humanTurn = Math.cos(Math.PI / 180);
@@ -62,7 +63,7 @@ function sharedHumanResources() {
   return [SRC, HEAD, DM, KB, YR, HR && { ...HR, pool: [], mats: null, tack: null }, MHHAND,
     CREST_GEO, CREST_MAT, MON_GEO, HAIR_MATS, EYE_MH.mat, MOUTH_MH.teethM,
     MENPO_TEX, SOHEI_HEAD, NAGINATA, SAIHAI, ROD_GEO, ROD_MAT,
-    STIRRUP, TASSEL, ROPE, cordMap, redWhiteCord, ropeMats, MH_PORES, fpArmM];
+    STIRRUP, TASSEL, ROPE, cordMap, redWhiteCord, ropeMats, MH_PORES, fpArmM, sharedNearSurfaceResources()];
 }
 // 戦の終わり・支度の取り消しでは、取り外す前に固有の素材も拾う。
 // 人の形・材質の表（戦の片付けで空にする。gpu_gc.js はここにある形を手放さない）
@@ -70,7 +71,7 @@ function humanCaches() {
   return [humanPool, headMats, headTexs, headGeos, scalpGeos, hairGeos,
     bodyMats, dmMats, hatMats, nearArmorGeos, kzSplit, crestGeos, monMats,
     crowdGeos, crowdShapes, coveredBodyGeos, bodyLoGeos, menpoGeos, menpoMats, eyeFast, EYE_FAST_MATS,
-    yokeGeos, sleeveGeos, soheiCache, nearFlagMats, EYE_MH.geos, MOUTH_MH.geos, CREST_GEO];
+    yokeGeos, sleeveGeos, soheiCache, nearFlagMats, EYE_MH.geos, MOUTH_MH.geos, CREST_GEO, nearSurfaceCopies];
 }
 // 背の指物を背骨に付ける（走る・屈む・馬の上で揺れる体について行く）。外す時は元の所へ
 // 近くで背負う指物の布：元の旗の材質（はためき・家紋）に、布の目・細かなしわの波・裾と縁の擦り切れと破れ・泥と日焼けを足す

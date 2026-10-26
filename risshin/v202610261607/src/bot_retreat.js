@@ -83,6 +83,9 @@ export function retreatThroughGap(b, inp, allowed, distance = 1.5, avoidBlades =
 export function retreatRunFromBlade(b, inp, allowed, direction = null) {
   const p = b.player, u = p.u, face = p.yaw;
   if (p.mounted || u.climb || p.knockT > 0) return false;
+  // 印へ向かう棒を先に取り消す。退ける隙間が無い時や途中の足場が悪い時に、
+  // 直前の歩みだけが残って、危険と判定した刃へ走り続けないようにする。
+  inp.axis = null; inp.runHeld = false;
   // 道を移る途中は、その退路を優先する。待ち場では追手の反対側を探す。
   p.yaw = direction ?? face + Math.PI;
   inp.k.add('KeyW');

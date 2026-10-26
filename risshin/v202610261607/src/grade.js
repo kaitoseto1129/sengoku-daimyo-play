@@ -49,18 +49,22 @@ THREE.ShaderChunk.tonemapping_fragment = `#if defined(TONE_MAPPING)
 
 export function installGrade(renderer) {
   const installed = new WeakSet();
+  const hooks = new WeakSet();
   function materialGrade(material) {
     if (!material || installed.has(material)) return;
     installed.add(material);
     const before = material.onBeforeCompile;
+    // 束用の写しは処理と鍵を引き継ぐ。同じ仕上げを重ねて別の描き方にしない。
+    if (hooks.has(before)) return;
     const cache = material.customProgramCacheKey;
     // 元の識別子を保ち、人・草木などの独自の描き方を混ぜない。
     const key = cache.call(material);
-    material.customProgramCacheKey = () => key + ':grade';
+    material.customProgramCacheKey = () => key;
     material.onBeforeCompile = function (shader, r) {
       before.call(this, shader, r);
       Object.assign(shader.uniforms, uniforms);
     };
+    hooks.add(material.onBeforeCompile);
     material.needsUpdate = true;
   }
   function prepare(object) {
