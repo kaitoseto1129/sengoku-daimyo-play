@@ -270,7 +270,7 @@ function routeBurning(T, pts) {
   return false;
 }
 const MOVES = {
-  watari: { name: '渡り廊下を行く', note: '近い。ただ火が本堂から移りやすい', burn: ['watari'], pts: [[-55, 47], [-56, 49], [-56.9, 49.3], [-57.4, 50.6], [-61.5, 50.6], [-62.4, 47.2], [-63.8, 46], [-66, 47], [-68, 51], [-68, 70], [-68, 79], [-68, 80.6], [-68, 82.2], [-67, 82.2], [-67, 85], [-67, 89], [-61, 89]] },
+  watari: { name: '渡り廊下を行く', note: '近い。ただ火が本堂から移りやすい', burn: ['watari'], pts: [[-55, 47], [-56, 49], [-56.9, 49.3], [-57.4, 50.6], [-61.5, 50.6], [-62.35, 50.2], [-62.4, 47.2], [-63.8, 46], [-66, 47], [-68, 51], [-68, 70], [-68, 79], [-68, 80.6], [-68, 82.2], [-67, 82.2], [-67, 85], [-67, 89], [-61, 89]] },
   niwa: { name: '中庭を突っ切る', note: '開けていて速い。ただ鉄砲に撃たれやすい', burn: ['kairo2'], pts: [[-50, 49], [-50, 51], [-50, 54], [-51, 66], [-52, 75], [-52, 80], [-52, 82.2], [-54, 82.2], [-54, 85], [-54, 89], [-61, 89]] },
   // 裏手：本堂の南の築地（z=40）は柱の間の口からしか抜けられない。まっすぐ南へ下ると塀に当たって立ち止まる。
   urate: { name: '裏手を回る', note: '遠回り。細い道で、少しずつしか来られない', burn: [], pts: [[-52, 44], [-56, 43], [-56, 38.5], [-62, 37], [-70, 38], [-70.5, 50], [-70.5, 70], [-70.5, 79], [-71, 80.6], [-71, 82.2], [-70.6, 82.2], [-70.6, 86.6], [-68, 86.6], [-67, 89], [-61, 89]] },
@@ -2091,6 +2091,34 @@ function honnoReturnLabel(rt) {
   }
 }
 
+// ---- 稲生の水準（reports/inou-standard.md 10/25）：右上は任務の一行・行き先はピン一本・敵は頭上の▼・寄せの頭は大きな▼ ----
+// 守る段（表門・本堂・御殿・二条の西の門）は、近い敵がいれば一番近い一人へピンと▼。いなければ持ち場へピン。
+// 退く段（本堂へ・御殿へ・裏門へ・北の口へ）は、今まで通りの道の印（戸口と曲がり角）を使う。
+// 二条の守り：持ち場で支える秒と、退く下知までの秒（戦全体を四〜七分に収める）。
+const HOLD_NEED = 40, HOLD_END = 70;
+const HON_DEFEND = new Set([2, 3, 5, 7]);
+const honDefending = (rt) => !rt.G.lord && !rt.flags.ending && !rt.over && (rt.flags.step === 4 || rt.flags.step < 3 && HON_DEFEND.has(rt.flags.hp));
+const honFoeOk = (u) => !!u?.alive && !u.gone && !u.dying && !u.downed && !u.woundOut && !u.fleeing && !u.noTarget && !u.isStruct && !u.civ;
+// 一番近い残りの敵（同じ床・壁の向こうでない者）。四分の一秒に一度だけ選び直す。
+function honFoe(rt) {
+  const F = rt.flags;
+  if (!honDefending(rt)) return (F.honFoe = null);
+  if (rt.t < (F.honFoeAt || 0) && (F.honFoe === null || honFoeOk(F.honFoe))) return F.honFoe;
+  F.honFoeAt = rt.t + .25;
+  const me = rt.player.u;
+  const reach = rt.player.inRange && rt.player.rangeCueTarget;
+  if (honFoeOk(reach) && reach.team !== me.team) return (F.honFoe = reach);
+  return (F.honFoe = rt.army.nearestEnemy(me, 14, (u) => honFoeOk(u) && Math.abs(u.pos.y - me.pos.y) < 3 &&
+    !rt.army.wallBetween(me.pos, me.team, u.pos)) || null);
+}
+// 守る段の持ち場（ピンを刺したまま、味方がそこに集まる所）。道の途中なら道の印に任せる。
+function honPost(rt) {
+  const F = rt.flags;
+  if (F.step === 4) return F.nPost || null;
+  if (F.hp === 3 && !(F.patrolDistance > 10)) return PT.gateIn;
+  return null;
+}
+
 const honnoji = {
   sightBlocked(rt, a, p, ay, by, postMargin = 0) {
     const T = rt.flags.T, posts = T?.sightPosts;
@@ -2875,14 +2903,61 @@ const honnoji = {
     const F = rt.flags;
     return !rt.G.lord && F.step < 3 && !F.ending && F.nb?.alive ? F.nb : null;
   },
+  // ---- 稲生の水準（10/25）。信長で遊ぶ時は今まで通り ----
+  missionSingleLine: true,
+  hideMissionDots: true,
+  enemyTriangleSigns: true,
+  nearbyAllySignLimit: 0,
+  noDodgeCard: true,
+  noPlayerFoot: true, // 足元の白い輪は出さない（ちらつきの元）。
+  quietMiss: true, // 外れは音なし。当たりの音・よろけ・血しぶきだけで手応えを示す。
+  mapMissionEnemy: true, // 小さな地図にも、狙う敵と寄せの頭の印を出す。
+  missionPinFallback: true, // 退く段は今まで通りの道の印（戸口・曲がり角）へ任せる。
+  missionPinCaption: '',
+  missionDetail: () => '',
+  missionStatus: () => '',
+  // 段ごとの一行。討った・着いた瞬間に、いまの戦場から決め直す。
   missionHeading(rt) {
     const F = rt.flags;
-    if (rt.G.lord || F.step >= 3 || F.ending) return '';
-    const enemy = rt.missionGuide?.closeEnemy;
-    if (F.hp >= 2 && enemy?.alive && !enemy.gone && !enemy.woundOut && !enemy.fleeing &&
-        Math.hypot(enemy.pos.x - rt.player.u.pos.x, enemy.pos.z - rt.player.u.pos.z) < 4.5) return '近くの敵をたおせ';
-    if ((F.hp === 4 || F.hp === 5) && this.routeGuidePriority(rt)) return '信長へ進む';
-    return this.taskLabel(rt, '');
+    if (rt.G.lord || F.ending || rt.over) return '';
+    if (honFoe(rt)) return '▼の敵をたおせ';
+    if (F.step === 4) return '西の門を守れ';
+    if (F.step === 5) return '北の口へ逃げろ';
+    if (F.step >= 3 || F.hp >= 9) return '二条御所へ';
+    return ({ 1: 'ここで待て', 2: F.gMain ? '門を守れ' : '門をしめろ', 3: '門を守れ', 4: '信長の所へ', 5: '信長を守れ',
+      6: '信長と奥へ退け', 7: '信長を守れ', 8: '裏門へ逃げろ' })[F.hp] || '';
+  },
+  // 寄せの頭（侍）が近い時は、その人へ大きな▼。
+  commanderTarget(rt) {
+    const u = honFoe(rt);
+    if (!u?.group) return null;
+    if (u.type === 'samurai' || u.type === 'busho') return u;
+    const me = rt.player.u.pos;
+    for (const o of u.group.units) if (honFoeOk(o) && (o.type === 'samurai' || o.type === 'busho') &&
+      Math.hypot(o.pos.x - me.x, o.pos.z - me.z) < 10) return o;
+    return null;
+  },
+  missionSignTarget(rt) { return honFoe(rt); },
+  // 守る段：近い敵がいれば一番近い一人へ、いなければ持ち場へ刺したまま。退く段は道の印へ任せる（undefined）。
+  missionPin(rt) {
+    const F = rt.flags;
+    if (!honDefending(rt) || !rt.player.u.alive) return undefined;
+    const me = rt.player.u.pos, q = F.honPin || (F.honPin = { x: 0, z: 0, r: 5, hide: 5 });
+    q.follow = q.fire = q.gate = q.footRing = q.treatment = q.area = q.turn = q.passage = false;
+    q.doorFrame = null; q.y = undefined; q.defensePoint = null; q.unit = null; q.enemy = false; q.defend = false;
+    q.waiting = false; q.arrived = false;
+    const u = honFoe(rt);
+    if (u) {
+      // 槍の届く近さでは頭上の▼に任せ、足元にピンを重ねない。
+      if (Math.hypot(u.pos.x - me.x, u.pos.z - me.z) < 5) return null;
+      q.unit = u; q.enemy = true; q.x = u.pos.x; q.z = u.pos.z; q.r = q.hide = 3;
+      return q;
+    }
+    const post = honPost(rt);
+    if (!post) return undefined;
+    q.x = post.x; q.z = post.z; q.r = q.hide = 5; q.defend = true;
+    q.waiting = true; q.arrived = Math.hypot(me.x - post.x, me.z - post.z) < 5;
+    return q;
   },
   taskLabel(rt, text) {
     const F = rt.flags;
@@ -2916,17 +2991,7 @@ const honnoji = {
     return ({ 1: F.waitReached ? 'ここで待て' : '矢印へ進め', 3: '信長を守れ', 4: this.travelGuideLabel(rt, true), 5: !F.hondoDirect || F.hondoDistance >= 6 ? this.travelGuideLabel(rt, true) : '信長を守れ',
       6: this.travelGuideLabel(rt, true), 7: '信長を守れ', 8: this.escapeGuideLabel(rt) })[F.hp] || text;
   },
-  // 残り時間は同じ任務札に大きく示す。失敗までの猶予は変えない。
-  taskTimeLabel(rt) {
-    const F = rt.flags;
-    if (rt.G.lord || F.step >= 3 || F.ending) return '';
-    if (F.hp === 4) return `あと${Math.max(0, Math.ceil(180 - (rt.t - F.pT)))}秒`;
-    if (F.hp === 6) {
-      const left = Math.max(0, Math.ceil(Math.min(150 - (rt.t - F.pT), F.farT > 0 ? 60 - F.farT : Infinity)));
-      return `あと${left}びょう`;
-    }
-    return F.escortShown && F.farT > 0 ? `あと${Math.max(0, Math.ceil(60 - F.farT))}びょう` : '';
-  },
+  taskTimeLabel: () => '', // 稲生の水準：残り秒の字は出さない（失敗までの猶予は変えない）。
   retryAdvice(rt, info) {
     // 傷で倒れた時は共通の手当ての助言を残す。護衛失敗では実際の役目を示す。
     if (info.down || rt.G.lord) return '';
@@ -2945,7 +3010,7 @@ const honnoji = {
     // 本堂の入口も道の旗で示す。同じ下知の札と大枠を重ねない。
     return null;
   },
-  // 二条は守備の百二十五秒と退却の九十秒で締める。
+  // 二条は守備の七十秒と退却の九十秒で締める。
   // 寺からの移動が遅れても、共通の八分制限で守備の下知を打ち切らない。
   pacingWait: (rt) => !!rt.flags.ending || (!rt.G.lord && (rt.flags.hp === 9 || rt.flags.step >= 3)),
   missionDangerText(rt) {
@@ -3175,6 +3240,13 @@ const honnoji = {
     rt.say = (who, text, ...args) => {
       if (who === '組頭' && /^味方が(?:もう持たぬ！|討ち減らされておる。)/.test(text)) text = this.missionDangerText(rt);
       return say(who, text, ...args);
+    };
+    // 稲生の水準：指図の知らせ（〜へ退け・印を追え・長押し）は字で出さない。行き先はピン、敵は▼で示す。
+    // 火・討死・寄せ手の出来事を伝える知らせは残す。
+    const bark = rt.bark.bind(rt);
+    rt.bark = (text, ...args) => {
+      if (!rt.G.lord && /退け|進め|寄れ|払え|守れ|下がれ|離れろ|しよう|印|長押し|急げ|通すな|押し返せ|斬り合わず/.test(String(text ?? ''))) return;
+      return bark(text, ...args);
     };
     rt.flags.rescued = true; rt.firstBattle = false;
     rt.flags.patrolProbe = { x: 0, y: 0, z: 0 };
@@ -3795,7 +3867,7 @@ const honnoji = {
     F.roof.fire = false; rt.after(30, () => { if (!F.ending && !rt.over && F.step === 4) { F.roof.fire = true; rt.bark('西隣の近衛屋敷の屋根から鉄砲じゃ！　門の脇の塀へ寄れ', true); } });
     rt.marker('ng', { x: NIJO_GATE.x + 3, z: NIJO_GATE.z }, '味方と守る門の内側', { h: 2.5 });
     F.nHold = 0; rt.zone('ng', NIJO_GATE.x, NIJO_GATE.z, 18);
-    F.nWaves = [4, 28, 54, 82, 108];
+    F.nWaves = [4, 17, 30, 43, 56]; // 四〜七分に収める（兵の数は同じ五波・五十人。間を詰める）
     F.nHost = rt.world.addDistantArmy({ x: 26, z: -57, w: 10, d: 40, count: 90, facing: Math.PI / 2, team: 1, mon: 'akechi', flag: 'akechi', kind: 'mixed' });
     F.nHost.army.noWake = true;
     F.nNorth = enemyGroup(rt, { fixed: true, name: '北の口の明智勢', faction: 'akechi', anchor: { x: NIJO_BACK.x, z: NIJO_BACK.z - 16 }, facing: 0, width: 6, order: 'hold', aggro: 9 }, dress([uS(2), uA(6)], AKECHI));
@@ -3960,19 +4032,19 @@ const honnoji = {
         F.foes.push(g);
       }
       // 携帯では補足が省かれる。持ち場と必要な守備時間は任務そのものへ出す。
-      const holdLeft = Math.max(0, Math.ceil(70 - F.nHold));
+      const holdLeft = Math.max(0, Math.ceil(HOLD_NEED - F.nHold));
       const task = !atPost ? '西の門の内へ戻れ。味方と口を支えよ'
         : friend < 2 ? '門の内の味方へ寄れ。一緒に口を支えよ'
         : holdLeft > 0 ? `西の門の内で、あと${holdLeft}秒守れ`
-        : `門を支えた。あと${Math.max(0, Math.ceil(125 - t))}秒防げ`;
+        : `門を支えた。あと${Math.max(0, Math.ceil(HOLD_END - t))}秒防げ`;
       if (F.nTask !== task) { F.nTask = task; rt.obj('main', task, 'main', true); }
-      rt.objProgress('main', F.nHold >= 70
-        ? `門を支えた。あと${Math.max(0, Math.ceil(125 - t))}秒、寄せ手を防げ`
+      rt.objProgress('main', F.nHold >= HOLD_NEED
+        ? `門を支えた。あと${Math.max(0, Math.ceil(HOLD_END - t))}秒、寄せ手を防げ`
         : !atPost
         ? '御所の門へ戻り、味方と口を支えよ'
         : friend < 2 ? '門の内の味方へ寄れ。一人では守りを支えられぬ'
-        : `門の内で味方と支えよ。守りの務めはあと${Math.max(0, Math.ceil(70 - F.nHold))}秒`);
-      if (t > 125) { if (F.nHold >= 70) this.escape(rt); else { this.nbFail(rt, '門を支えた時間が足りず、御所の守りが崩れた'); return; } }
+        : `門の内で味方と支えよ。守りの務めはあと${Math.max(0, Math.ceil(HOLD_NEED - F.nHold))}秒`);
+      if (t > HOLD_END) { if (F.nHold >= HOLD_NEED) this.escape(rt); else { this.nbFail(rt, '門を支えた時間が足りず、御所の守りが崩れた'); return; } }
 
     }
     if (F.step === 5) {
@@ -4178,7 +4250,7 @@ function honnoTick(def, rt, dt) {
       F.waitRing.material.opacity = F.waitReached ? SETTINGS.reduceMotion ? .9 : .8 + Math.sin(rt.t * 3) * .12 : .65;
     }
     rt.objProgress('main', t < 4.4 ? '明け方。上様は奥の居室でお休みじゃ' : '供のそばで構えよ。下知が出たら表門へ走れ');
-    if (t >= 14) { rt.hud.notices.push('待ち終わり。表門へ', 90, 4); def.p2(rt); } // 門へ先に走っても、謀反の知らせと下知は最後まで聞かせる。
+    if (t >= 14) def.p2(rt); // 門へ先に走っても、謀反の知らせと下知は最後まで聞かせる。
   } else if (F.hp === 2) {
     if (F.patrolScan === 0.5 && !F.gMain) {
       const blocker = gateBlocker(rt);
@@ -4267,7 +4339,7 @@ function honnoTick(def, rt, dt) {
     // 延焼が早ければ、堂内で熱を受け始める二十二秒より前に退く下知を出す。
     const hondo = T.G.byId.hondo;
     const burningHondo = hondo.state === 1 && hondo.burnT >= 8;
-    if (burningHondo || (F.standMerit?.[2] && gone(F.stand) && t > 30) || (t > 42 && (gone(F.stand) || t > 52))) { if (F.flank && !F.flankDone) { F.flankDone = true; rt.objFail('flank'); } def.p6(rt); }
+    if (burningHondo || (F.standMerit?.[2] && gone(F.stand) && t > 28) || (t > 30 && (gone(F.stand) || t > 40))) { if (F.flank && !F.flankDone) { F.flankDone = true; rt.objFail('flank'); } def.p6(rt); }
   } else if (F.hp === 6) {
     if (F.mv && F.nbGoal) {
       // 遠い御殿だけを指すと本堂の壁へ直進してしまう。道の曲がり角を順に示す。
@@ -4294,7 +4366,7 @@ function honnoTick(def, rt, dt) {
       ? '道の印で上様へ戻れ。退く下知が出ておる'
       : F.standMerit?.[3] ? '侍を払った。上様の前で、奥へ退く支度を守れ'
       : '廊下の侍を斬り払え。上様が奥へ退く間を作れ');
-    if (dNb < 12 && ((F.standMerit?.[3] && gone(F.stand) && t > 32 && F.lastHold >= 12) || (t > 42 && (gone(F.stand) || t > 52)))) def.p8(rt);
+    if (dNb < 12 && ((F.standMerit?.[3] && gone(F.stand) && t > 28 && F.lastHold >= 12) || (t > 30 && (gone(F.stand) || t > 40)))) def.p8(rt);
     else if (t > 135) def.nbFail(rt, '最後の間へ戻れず、守りを失った');
   } else if (F.hp === 8) {
     // 小姓衆が口をこじ開ける：落ちる自分のそばに二人より多く寄れば、五秒に一度、斬り込んで押し返す（兵は減らさない）。

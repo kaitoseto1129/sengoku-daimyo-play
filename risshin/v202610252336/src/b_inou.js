@@ -102,7 +102,8 @@ function park(g) {
 
 // 深手で倒れた兵は生存中でも、追う相手・倒す残り人数には含めない。
 const fighting = (u) => !!u?.alive && u.hp > 0 && !u.gone && !u.dying && !u.downed && !u.woundOut && !u.rearWound && !u.fleeing;
-const advanceEnemy = (u) => fighting(u) && !u.noTarget && !u.isStruct && !u.civ && u.mesh?.visible !== false;
+// 画面外や遠くで軽い形（imp）・カメラ前の透かしに替わった兵も、残りの敵として追う（形を隠しただけで相手を失わない。テスター 10/25）。
+const advanceEnemy = (u) => fighting(u) && !u.noTarget && !u.isStruct && !u.civ && (u.mesh?.visible !== false || u.imp || u.camHidden || u.humanPending);
 function advanceOnArrival(g) {
   g.order = 'attack'; g.focus = null; g.fire = true; g.seekRange = 80;
   g.inouAdvance = true;
@@ -147,9 +148,26 @@ function approachUnit(rt) {
   F.approachGroup = group; F.approachUnit = chosen;
   return chosen;
 }
+// 「倒せ」の間に任務の相手がいない時の、最寄りの戦える敵（ピンの行き先。テスター 10/25「残りの敵の場所が分からない」）。
+//   四分の一秒ごとに選び直し、少しの前後では替えない。
+function nearestFoe(rt) {
+  const F = rt.flags, me = rt.player.u;
+  if (F.foeAt != null && rt.t >= F.foeAt && rt.t < F.foeAt + .25 && advanceEnemy(F.foeNear)) return F.foeNear;
+  F.foeAt = rt.t;
+  let chosen = null, best = Infinity;
+  for (const u of rt.army.units) {
+    if (u.team === me.team || !advanceEnemy(u)) continue;
+    const d = Math.hypot(u.pos.x - me.pos.x, u.pos.z - me.pos.z);
+    if (d < best) { chosen = u; best = d; }
+  }
+  const prev = F.foeNear;
+  if (advanceEnemy(prev) && Math.hypot(prev.pos.x - me.pos.x, prev.pos.z - me.pos.z) <= best + 3) chosen = prev;
+  F.foeNear = chosen;
+  return chosen;
+}
 // 目的は戦いの間ずっと保ち、間合いと命中は同じ本人の▼で示す。
 function inouEnemyOrder(rt, fallback) {
-  return fighting(rt.def.missionSignTarget(rt)) ? '▼の てきを たおせ' : fallback;
+  return fighting(rt.def.missionSignTarget(rt)) ? `${rt.def.missionEnemyLabel(rt)}を たおせ` : fallback;
 }
 // 兵本人ではなく頭上の▼を案内する。距離は槍が届く所までの歩数。
 function enemySteps(rt, enemy) {
@@ -236,10 +254,10 @@ const inou = {
   missions: ['▼の てきを たおせ', '▼の てきを たおせ', 'ここを まもれ', '▼の てきを たおせ', '味方と すすめ', 'おいすぎるな'],
   missionHeading(rt) {
     const F = rt.flags;
-    if (F.step === 0 || F.step === 2 || F.step === 3) return '▼の てきを たおせ';
+    if (F.step === 0 || F.step === 2 || F.step === 3) return '▽の敵を たおせ';
     if (F.step === 1) {
       if (F.training === 11 && !F.flankReached) return '輪へ すすめ';
-      if (F.training === 12 && !gone(F.shiba1)) return '▼の てきを たおせ';
+      if (F.training === 12 && !gone(F.shiba1)) return '▽の敵を たおせ';
       return 'ここを まもれ';
     }
     return this.missions[this.missionOf(rt)];
@@ -254,8 +272,8 @@ const inou = {
       approachUnit(rt) :
         rt.flags.step === 1 && rt.flags.training === 12 && !gone(rt.flags.shiba1) ? approachUnit(rt) :
           rt.flags.step === 3 ? rt.flags.hayaU : null,
-  missionEnemyLabel: (rt) => rt.flags.step === 3 ? '林美作守' : rt.flags.step === 1 ? '柴田の兵' :
-    rt.flags.training === 8 ? '林の隊長' : '林の兵',
+  missionEnemyLabel: (rt) => rt.flags.step === 3 ? 'はやしの大将' : rt.flags.step === 1 || rt.flags.step === 2 ? 'しばたの兵' :
+    rt.flags.training === 8 ? 'はやしの隊長' : 'はやしの兵',
   missionEnemySteps: enemySteps,
   meleeResult(rt, target, result) {
     const F = rt.flags;
@@ -306,9 +324,14 @@ const inou = {
     const F = rt.flags;
     // 最初の林兵も同じ本人の頭上の▼へ案内し、見失った間だけピンで方向を示す。
     if (F.ending) return null;
-    const enemy = this.missionSignTarget(rt);
+    let enemy = this.missionSignTarget(rt);
+    // 「倒せ」が出ている間に任務の相手が見つからなければ、最寄りの残りの敵へ向ける（▼が画面外でも行き先を失わない）。
+    if (!fighting(enemy) && /倒せ|たおせ/.test(this.missionHeading(rt)) && !(F.step === 1 && F.training === 11 && !F.flankReached)) {
+      // 戦える敵が一人もいない間（大将が深手で退く途中など）は、任務の本人を指し続ける。
+      enemy = nearestFoe(rt) || (enemy?.alive && !enemy.gone && enemy.team !== rt.player.u.team ? enemy : null);
+    }
     // 見えない間も同じ相手へピンを向ける。
-    if (fighting(enemy)) {
+    if (enemy?.alive && !enemy.gone && enemy.team !== rt.player.u.team) {
       const p = rt.player;
       if (p.inRange && p.rangeCueTarget === enemy) return null;
       const pin = pinPoint(rt, enemy.pos, .2, .2, enemy);
@@ -424,20 +447,20 @@ const inou = {
     F.goalPin = { x: 0, z: 0, r: 7, hide: 7 };
     F.fieldSigns = [{ label: '', unit: null }, { label: '', unit: null }]; // 味方は印なし・追う相手は字なしの赤い▼（kaito 10/23）
     // ---- 信長方：直属の槍隊・少ない家臣団・若い前田利家・佐久間勢 ----
-    F.hata = allyGroup(rt, { name: '信長の旗本', anchor: { ...NOBU }, facing: Math.PI, width: 14, aggro: 6, noRout: true, formation: 'yari', fullStrength: true },
+    F.hata = allyGroup(rt, { name: '信長の旗本', anchor: { x: NOBU.x - 8, z: NOBU.z }, facing: Math.PI, width: 14, aggro: 6, noRout: true, formation: 'yari', fullStrength: true },
       dress([{ type: 'samurai', n: 1, o: { name: '組頭 源八', invuln: true } }, { type: 'ashigaru', n: 11 }], ODA));
     // 本陣には信長と旗本（馬廻の騎馬・槍・旗持ち）を置く（kaito 10/23 稲生 19）。ほとんどは足軽。
     const HATAMOTO = [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 10 }];   // 10/24 kaito「足軽ばかりに」。本陣で並ぶだけの兵は置かず、信長と共に前へ出る
-    F.nobuGroup = allyGroup(rt, { name: '信長の本旗', anchor: { x: NOBU.x - 6, z: NOBU.z - 8 }, facing: Math.PI, width: 10, aggro: 0, noRout: true, fullStrength: true, formation: 'yari' },
+    F.nobuGroup = allyGroup(rt, { name: '信長の本旗', anchor: { x: NOBU.x - 20, z: NOBU.z - 8 }, facing: Math.PI, width: 10, aggro: 0, noRout: true, fullStrength: true, formation: 'yari' },
       dress(lord ? HATAMOTO : [{ type: 'busho', n: 1, o: { name: '織田信長', invuln: true } }, ...HATAMOTO], ODA));
     F.nobuU = lord ? rt.player.u : F.nobuGroup.units[0];
     F.genU = F.hata.units.find((u) => u.name === '組頭 源八');
-    F.mori = allyGroup(rt, { name: '森可成の手', anchor: { x: NOBU.x - 22, z: NOBU.z - 8 }, facing: Math.PI, width: 14, aggro: 8, noRout: true, formation: 'yari' },
+    F.mori = allyGroup(rt, { name: '森可成の手', anchor: { x: NOBU.x - 38, z: NOBU.z - 8 }, facing: Math.PI, width: 14, aggro: 8, noRout: true, formation: 'yari' },
       dress([{ type: 'samurai', n: 1, o: { name: '森可成', invuln: true, hat: 'kabuto_s' } }, { type: 'ashigaru', n: 12 }], ODA));
     F.sassa = allyGroup(rt, { name: '佐々孫介の手', anchor: { x: NOBU.x + 22, z: NOBU.z - 8 }, facing: Math.PI, width: 14, aggro: 8, noRout: true, formation: 'yari' },
       dress([{ type: 'samurai', n: 1, o: { name: '佐々孫介', invuln: true } }, { type: 'ashigaru', n: 12 }, { type: 'bow', n: 2 }], ODA));
     F.sassaU = F.sassa.units.find((u) => u.name === '佐々孫介');
-    F.inu = allyGroup(rt, { name: '前田利家', anchor: { x: NOBU.x + 10, z: NOBU.z + 8 }, facing: Math.PI, width: 6, aggro: 10, noRout: true },
+    F.inu = allyGroup(rt, { name: '前田利家', anchor: { x: NOBU.x + 18, z: NOBU.z + 8 }, facing: Math.PI, width: 6, aggro: 10, noRout: true },
       dress([{ type: 'samurai', n: 1, o: { name: '前田利家', invuln: true, keep: true } }, { type: 'ashigaru', n: 2 }], ODA));
     F.friends = [F.hata, F.mori, F.sassa, F.inu];
     for (const g of F.friends) { g.defMult = 1.15; }
@@ -485,7 +508,7 @@ const inou = {
     rt.scene.add(umatsunagi(W, NOBU.x - 16, NOBU.z + 11, 0, 7));
     rt.scene.add(umajirushi(W, NOBU.x - 9, NOBU.z - 3, 0));
     rt.scene.add(hatazao(W, NOBU.x - 23, NOBU.z - 2, Math.PI / 2, 5, 'oda'));
-    for (const [x, z, k] of [[NOBU.x - 4, NOBU.z - 6, 'oda'], [NOBU.x - 4, NOBU.z + 6, 'oda'], [NOBU.x + 10, NOBU.z - 24, 'tsuru'], [NAZUKA.x, NAZUKA.z - 4, 'oda']]) rt.scene.add(nobori(W, x, z, k, 5));
+    for (const [x, z, k] of [[NOBU.x - 12, NOBU.z - 6, 'oda'], [NOBU.x - 12, NOBU.z + 6, 'oda'], [NOBU.x + 10, NOBU.z - 24, 'tsuru'], [NAZUKA.x, NAZUKA.z - 4, 'oda']]) rt.scene.add(nobori(W, x, z, k, 5));
     // 小集落は北の本隊と柴田勢の間。大きな砦や城は置かない。
     for (const [x, z, r] of VILLAGE) rt.scene.add(hut(W, x, z, 7, 5, r, { roof: 0x6a5c44 }));
     for (const [x, z] of [[-18, -60], [22, -80]]) rt.scene.add(tawara(W, x, z, 0, 3));
@@ -507,7 +530,8 @@ const inou = {
     rt.say('組頭 源八', '前へ二メートル歩いてみよ。できたら次の操作だ。', 5);
     for (const g of [...F.friends, F.nobuGroup]) {
       g.order = 'move'; g.speed = 3.2; g.aggro = 0;
-      g.dest = { x: g === F.nobuGroup ? -10 : g.anchor.x, z: g === F.hata ? 6 : g === F.nobuGroup ? 14 : 10 };
+      // 始まりだけ左右へ広げ、交戦地点と乱戦の密度は元のまま保つ。
+      g.dest = { x: g === F.nobuGroup ? -10 : g === F.hata ? NOBU.x : g === F.mori ? NOBU.x - 22 : g === F.inu ? NOBU.x + 10 : g.anchor.x, z: g === F.hata ? 6 : g === F.nobuGroup ? 14 : 10 };
       g.onArrive = advanceOnArrival;
     }
     rt.after(6, () => rt.say('足軽', '柴田様まで向こうについたらしいぞ', 4));
@@ -530,7 +554,7 @@ const inou = {
       g.speed = 0.8;
       // 赤い▼の兵には初めから攻撃が当たる。教えの待ち時間を無敵の敵にしない。
       for (const u of g.units) { u.hp = u.maxHp = Math.max(30, rt.player.u.dmg * 2.2); u.cdBase *= 1.8; }
-      const a = allyGroup(rt, { name: '追う味方', anchor: { x: at.x + 4, z: at.z + 2 }, facing: Math.PI, width: 2, aggro: 0, noAI: true, noRout: true, order: 'hold' },
+      const a = allyGroup(rt, { name: '追う味方', anchor: { x: at.x + 7, z: at.z + 2 }, facing: Math.PI, width: 2, aggro: 0, noAI: true, noRout: true, order: 'hold' },
         dress([{ type: 'ashigaru', n: 2 }], ODA));
       a.speed = 0.8;
       prepareMarch(g); prepareMarch(a);
