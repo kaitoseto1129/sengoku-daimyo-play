@@ -1,110 +1,85 @@
 {
- "made": "2026-10-25T23:23:09.193Z",
+ "made": "2026-10-26T01:51:57.210Z",
  "runs": 10000,
  "live": [
   {
    "key": "aud:使いづらい|HUD の札どうしが重なって読めない",
    "title": "HUD の札どうしが重なって読めない",
    "cat": "使いづらい",
-   "people": 4646,
+   "people": 4657,
    "who": [
-    "sek",
-    "act",
     "sen",
-    "chu"
+    "act",
+    "chu",
+    "sek"
    ],
    "sev": 3,
-   "times": 807584,
-   "lean": "iPhone3413人",
+   "times": 807627,
+   "lean": "iPhone3424人",
    "battles": [
-    "刀根坂の戦い",
-    "森部の戦い（信長で出陣）",
-    "箕作城の戦い（信長で出陣）",
-    "志賀の陣"
+    "鳶ヶ巣山砦夜襲（信長で出陣）",
+    "比叡山攻め",
+    "田野の戦い",
+    "姉川の戦い"
    ],
    "fix": "置き場所をずらすか、片方を出している間はもう片方を隠す",
-   "what": ".bl.hz-has-73 と .field-names（1280×720）／#h-prog と .field-names（1280×720）",
+   "what": "#prompt と #fieldmap（844×390）",
    "shot": "shots/2610251212_p3837_アクション好き_2.jpg"
   },
   {
    "key": "aud:使いづらい|戦場が札に食われている（画面の#分の#超）",
    "title": "戦場が札に食われている（画面の3分の1超）",
    "cat": "使いづらい",
-   "people": 4119,
+   "people": 4085,
    "who": [
-    "sek",
+    "act",
     "sen",
     "chu",
-    "act"
+    "sek"
    ],
    "sev": 3,
-   "times": 189962,
-   "lean": "iPhone3120人",
+   "times": 189854,
+   "lean": "iPhone3098人",
    "battles": [
-    "刀根坂の戦い",
-    "箕作城の戦い（信長で出陣）",
-    "志賀の陣",
-    "岩村城の戦い"
+    "比叡山攻め",
+    "田野の戦い",
+    "姉川の戦い",
+    "有岡城の戦い"
    ],
    "fix": "札を小さくするか、平時は薄く・畳む",
-   "what": "1280×720 で 100%",
+   "what": "874×402 で 100%",
    "shot": "shots/2610251212_p3837_アクション好き_2.jpg"
   },
   {
    "key": "aud:辻褄|行き先があるのに#秒動かない兵",
    "title": "行き先があるのに20秒動かない兵",
    "cat": "辻褄",
-   "people": 3168,
+   "people": 3179,
    "who": [
-    "reki",
+    "act",
     "sen",
     "sek",
-    "act",
+    "reki",
     "chu"
    ],
    "sev": 3,
-   "times": 31298,
-   "lean": "iPhone2593人",
+   "times": 31511,
+   "lean": "iPhone2614人",
    "battles": [
-    "箕作城の戦い（信長で出陣）",
-    "稲葉山城の戦い（信長で出陣）",
-    "有岡城の戦い（信長で出陣）",
-    "野田"
+    "越前",
+    "鳶ヶ巣山砦夜襲（信長で出陣）",
+    "姉川の戦い",
+    "有岡城の戦い"
    ],
    "fix": "道が塞がれていないか、行き先に着いたと見なせているかを見る",
-   "what": "味方の丹羽長秀：味方の丹羽長秀（号令：path・丹羽長秀の手・頭：無/―・近い敵20m）at (-30,-60)／味方の丹羽長秀：味方の丹羽長秀（号令：path・丹羽長秀の手・頭：無/―・近い敵29m）at (-30,-60)",
-   "shot": "shots/2610242008_p3027_アクション好き_2.jpg"
-  },
-  {
-   "key": "aud:使いづらい|字が枠から切れている",
-   "title": "字が枠から切れている",
-   "cat": "使いづらい",
-   "people": 1898,
-   "who": [
-    "reki",
-    "sen",
-    "sek",
-    "chu",
-    "act"
-   ],
-   "sev": 3,
-   "times": 71309,
-   "lean": "パソコン1212人",
-   "battles": [
-    "箕作城の戦い（信長で出陣）",
-    "稲葉山城の戦い（信長で出陣）",
-    "野田",
-    "三木城"
-   ],
-   "fix": "枠を広げるか、字を折り返す",
-   "what": ".main.cur > .obj-text > .obj-now「渡り口の火へ下がり、列を保て」",
+   "what": "敵の足軽：敵の足軽（号令：attack・物見の足軽・頭：full/engage・近い敵11m）at (12,-69)／敵の足軽：敵の足軽（号令：attack・物見の足軽・頭：full/engage・近い敵15m）at (10,-71)",
    "shot": "shots/2610242008_p3027_アクション好き_2.jpg"
   },
   {
    "key": "aud:落ちた|console.error：THREE.Object#D.add: object not an instance of THREE.Object#D.",
    "title": "console.error：THREE.Object3D.add: object not an instance of THREE.Object3D.",
    "cat": "落ちた",
-   "people": 1768,
+   "people": 1866,
    "who": [
     "reki",
     "sen",
@@ -113,8 +88,8 @@
     "act"
    ],
    "sev": 2,
-   "times": 12012,
-   "lean": "iPhone1336人",
+   "times": 12674,
+   "lean": "iPhone1408人",
    "battles": [
     "志賀の陣",
     "姉川の戦い（信長で出陣）",
@@ -129,32 +104,32 @@
    "key": "cmd-none:form",
    "title": "号令「陣形」が、指の号令の輪から出せない",
    "cat": "使いづらい",
-   "people": 1405,
+   "people": 1401,
    "who": [
     "sen",
-    "chu",
     "sek",
     "act",
-    "reki"
+    "reki",
+    "chu"
    ],
    "sev": 3,
-   "times": 6551,
-   "lean": "iPhone1074人",
+   "times": 6600,
+   "lean": "iPhone1076人",
    "battles": [
-    "稲葉山城の戦い（信長で出陣）",
-    "諏訪原城攻め（信長で出陣）",
-    "箕作城の戦い（信長で出陣）",
-    "三木城・大村の合戦"
+    "鳶ヶ巣山砦夜襲（信長で出陣）",
+    "田野の戦い・天目山（信長で出陣）",
+    "姉川の戦い",
+    "越前・大滝寺の夜討ち"
    ],
    "fix": "号令の輪に足すか、短く押した時の指揮の札（数字の号令）を指で押せるようにする",
-   "what": "号令の輪（RADIAL）に無い、または身分が足りず選べない（長島一向一揆（信長で出陣）・2秒・brief）",
+   "what": "号令の輪（RADIAL）に無い、または身分が足りず選べない（刀根坂の戦い・1秒・brief）",
    "shot": "shots/2610231054_p1508_戦略家_2.jpg"
   },
   {
    "key": "cmd-none:follow",
    "title": "号令「follow」が、指の号令の輪から出せない",
    "cat": "使いづらい",
-   "people": 1060,
+   "people": 1105,
    "who": [
     "sen",
     "act",
@@ -163,8 +138,8 @@
     "reki"
    ],
    "sev": 3,
-   "times": 18167,
-   "lean": "iPhone793人",
+   "times": 18866,
+   "lean": "iPhone830人",
    "battles": [
     "小谷城の戦い",
     "越前・大滝寺の夜討ち（信長で出陣）",
@@ -172,14 +147,14 @@
     "岩村城の戦い・水晶山"
    ],
    "fix": "号令の輪に足すか、短く押した時の指揮の札（数字の号令）を指で押せるようにする",
-   "what": "号令の輪（RADIAL）に無い、または身分が足りず選べない（刀根坂の戦い・248秒・town）",
+   "what": "号令の輪（RADIAL）に無い、または身分が足りず選べない（刀根坂の戦い・1秒・brief）",
    "shot": "shots/2610241749_p2821_歴史好き_2.jpg"
   },
   {
    "key": "cmd-none:attack",
    "title": "号令「attack」が、指の号令の輪から出せない",
    "cat": "使いづらい",
-   "people": 1059,
+   "people": 1105,
    "who": [
     "act",
     "sen",
@@ -188,8 +163,8 @@
     "chu"
    ],
    "sev": 3,
-   "times": 12157,
-   "lean": "iPhone813人",
+   "times": 12646,
+   "lean": "iPhone851人",
    "battles": [
     "三木城・大村の合戦",
     "小谷城の戦い",
@@ -197,164 +172,164 @@
     "姉川の戦い"
    ],
    "fix": "号令の輪に足すか、短く押した時の指揮の札（数字の号令）を指で押せるようにする",
-   "what": "号令の輪（RADIAL）に無い、または身分が足りず選べない（長島一向一揆（信長で出陣）・177秒・sally）",
+   "what": "号令の輪（RADIAL）に無い、または身分が足りず選べない（刀根坂の戦い・19秒・chase）",
    "shot": "shots/2610240757_p2496_歴史好き_2.jpg"
   },
   {
    "key": "touch-none:Digit#",
    "title": "指の端末では「火縄銃に持ち替え（鍵盤の 3）」ができない（押す丸が無い）",
    "cat": "使いづらい",
-   "people": 1032,
+   "people": 1061,
    "who": [
-    "reki",
     "sen",
+    "reki",
     "act",
     "sek",
     "chu"
    ],
    "sev": 2,
-   "times": 4299,
-   "lean": "iPhone789人・信長で出陣1011人",
+   "times": 4370,
+   "lean": "iPhone810人・信長で出陣1038人",
    "battles": [
-    "有岡城の戦い（信長で出陣）",
-    "鳶ヶ巣山砦夜襲（信長で出陣）",
-    "桶狭間の戦い（信長で出陣）",
-    "天正伊賀の乱・比自山城（信長で出陣）"
+    "田野の戦い・天目山（信長で出陣）",
+    "本能寺の変（信長で出陣）",
+    "天正伊賀の乱・比自山城（信長で出陣）",
+    "比叡山攻め（信長で出陣）"
    ],
    "fix": "touch.js に釦を足すか、戦の方で要らなくする",
-   "what": "bot の頭が Digit1 を押したがった（森部の戦い（信長で出陣）・0秒・brief）",
+   "what": "bot の頭が Digit1 を押したがった（志賀の陣・宇佐山城（信長で出陣）・275秒・siege）",
    "shot": "shots/2610251212_p3837_アクション好き_2.jpg"
   },
   {
    "key": "cmd-slow:attack",
    "title": "号令「突撃」から3秒たっても、組の7割が動かない",
    "cat": "辻褄",
-   "people": 933,
+   "people": 928,
    "who": [
     "sen",
     "sek",
+    "act",
     "reki",
-    "chu",
-    "act"
+    "chu"
    ],
    "sev": 2,
-   "times": 2362,
-   "lean": "iPhone709人",
+   "times": 2344,
+   "lean": "iPhone705人",
    "battles": [
-    "野田・福島の戦い",
-    "雑賀攻め・小雑賀川",
     "鳶ヶ巣山砦夜襲（信長で出陣）",
-    "鳥取城の戦い"
+    "田野の戦い・天目山（信長で出陣）",
+    "姉川の戦い",
+    "有岡城の戦い"
    ],
    "fix": "号令を受けた兵がすぐ向きを変えて動き出すようにする（行き先・狙いの付け直し）",
-   "what": "100人のうち動いたのは17人（長島一向一揆（信長で出陣）・27秒・build）",
+   "what": "18人のうち動いたのは0人（刀根坂の戦い・168秒・second）",
    "shot": "shots/2610221620_p0628_戦略家_2.jpg"
   },
   {
    "key": "aud:辻褄|兵が一息で飛んだ（#m 超）",
    "title": "兵が一息で飛んだ（6m 超）",
    "cat": "辻褄",
-   "people": 832,
+   "people": 837,
    "who": [
     "reki",
     "act",
     "sen"
    ],
    "sev": 3,
-   "times": 33595,
-   "lean": "iPhone658人",
+   "times": 33555,
+   "lean": "iPhone663人",
    "battles": [
+    "刀根坂の戦い",
     "設楽原の決戦",
-    "小谷城の戦い",
-    "長島一向一揆（信長で出陣）",
-    "稲葉山城の戦い"
+    "設楽原の決戦（信長で出陣）",
+    "小谷城の戦い"
    ],
    "fix": "位置を直接書き換えている所を探す（出し直し・押し出し）",
-   "what": "味方の騎馬：味方の騎馬：(-8,-42) → (-2,-25)",
+   "what": "味方の足軽：味方の足軽：(-10,-76) → (38,-156)／味方の足軽：味方の足軽：(-3,-68) → (37,-154)",
    "shot": "shots/2610241749_p2821_歴史好き_2.jpg"
   },
   {
    "key": "load-slow",
    "title": "戦が始まるまでの読み込みが長い",
    "cat": "使いづらい",
-   "people": 763,
+   "people": 792,
    "who": [
     "sek"
    ],
    "sev": 3,
-   "times": 765,
-   "lean": "iPhone579人",
+   "times": 794,
+   "lean": "iPhone598人",
    "battles": [
-    "三木城・大村の合戦",
-    "桶狭間の戦い",
     "金ヶ崎の退き口（信長で出陣）",
-    "金ヶ崎の退き口"
+    "桶狭間の戦い",
+    "金ヶ崎の退き口",
+    "小谷城の戦い"
    ],
    "fix": "読み込みの間に、戦の心得を読ませる／重い物を後から足す",
-   "what": "森部の戦い（信長で出陣）：押してから 8.8秒（機械が混んでいる時の値）",
+   "what": "天正伊賀の乱・比自山城：押してから 12.7秒（機械が混んでいる時の値）",
    "shot": "shots/2610240757_p2439_せっかち_2.jpg"
   },
   {
    "key": "tap-blocked:親指の棒（歩く）|objectives",
    "title": "「親指の棒（歩く）」を押そうとしたら、別の物に当たった",
    "cat": "使いづらい",
-   "people": 615,
+   "people": 611,
    "who": [
     "reki",
-    "chu",
     "act",
-    "sen",
-    "sek"
+    "chu",
+    "sek",
+    "sen"
    ],
    "sev": 2,
-   "times": 615,
-   "lean": "iPhone612人",
+   "times": 611,
+   "lean": "iPhone608人",
    "battles": [
-    "有岡城の戦い（信長で出陣）",
+    "箕作城の戦い（信長で出陣）",
+    "有岡城の戦い",
     "天王寺の戦い（信長で出陣）",
-    "箕作城の戦い",
-    "三木城・大村の合戦"
+    "大河内城の戦い"
    ],
    "fix": "重ねている札の置き場所をずらすか、pointer-events:none にする",
-   "what": "指の下にあったのは #hud.hz-has-23.battle-active > #battle-notices > #objectives.keep-guard-task.route-summary「任務の一覧を開く。残り 2件・済 0件・失敗 0件」",
+   "what": "指の下にあったのは #hud.hz-has-23.battle-active > #battle-notices.hz-has-70 > #objectives.task-details.keep-combat-task「任務の一覧を開く。残り 1件・済 1件・失敗 0件」",
    "shot": "shots/2610221620_p0628_戦略家_2.jpg"
   },
   {
    "key": "cmd-slow:follow",
    "title": "号令「続け」から3秒たっても、組の7割が動かない",
    "cat": "辻褄",
-   "people": 604,
+   "people": 606,
    "who": [
     "sen",
+    "reki",
     "act",
     "sek",
-    "reki",
     "chu"
    ],
    "sev": 2,
-   "times": 1134,
-   "lean": "iPhone469人",
+   "times": 1154,
+   "lean": "iPhone471人",
    "battles": [
-    "三木城・大村の合戦",
-    "野田・福島の戦い",
-    "越前一向一揆・木ノ芽峠",
-    "野田・福島の戦い（信長で出陣）"
+    "田野の戦い・天目山（信長で出陣）",
+    "長島一向一揆",
+    "天王寺の戦い（信長で出陣）",
+    "鳥取城の戦い（信長で出陣）"
    ],
    "fix": "号令を受けた兵がすぐ向きを変えて動き出すようにする（行き先・狙いの付け直し）",
-   "what": "98人のうち動いたのは13人（長島一向一揆（信長で出陣）・242秒・enclose）",
+   "what": "12人のうち動いたのは2人（鳥取城の戦い（信長で出陣）・81秒・boats）",
    "shot": "shots/2610221620_p0628_戦略家_3.jpg"
   },
   {
    "key": "cmd-none:focus",
    "title": "号令「focus」が、指の号令の輪から出せない",
    "cat": "使いづらい",
-   "people": 560,
+   "people": 584,
    "who": [
     "sen"
    ],
    "sev": 3,
-   "times": 5727,
-   "lean": "iPhone441人",
+   "times": 5946,
+   "lean": "iPhone462人",
    "battles": [
     "小谷城の戦い",
     "姉川の戦い",
@@ -362,39 +337,14 @@
     "三木城・大村の合戦"
    ],
    "fix": "号令の輪に足すか、短く押した時の指揮の札（数字の号令）を指で押せるようにする",
-   "what": "号令の輪（RADIAL）に無い、または身分が足りず選べない（長島一向一揆（信長で出陣）・282秒・enclose）",
+   "what": "号令の輪（RADIAL）に無い、または身分が足りず選べない（刀根坂の戦い・39秒・chase）",
    "shot": "shots/2610231054_p1508_戦略家_2.jpg"
-  },
-  {
-   "key": "aud:落ちた|console.error：THREE.WebGLProgram: Shader Error # - VALIDATE_STATUS false\n\nProgr",
-   "title": "console.error：THREE.WebGLProgram: Shader Error 1282 - VALIDATE_STATUS false\n\nPro",
-   "cat": "落ちた",
-   "people": 495,
-   "who": [
-    "sek",
-    "sen",
-    "act",
-    "chu",
-    "reki"
-   ],
-   "sev": 2,
-   "times": 2162,
-   "lean": "iPhone338人",
-   "battles": [
-    "信貴山城の戦い",
-    "天正伊賀の乱",
-    "設楽原の決戦",
-    "信貴山城の戦い（信長で出陣）"
-   ],
-   "fix": "出どころを突き止める",
-   "what": "",
-   "shot": "shots/2610240757_p2405_中学生_2.jpg"
   },
   {
    "key": "touch-none:Space",
    "title": "指の端末では「Space」ができない（押す丸が無い）",
    "cat": "使いづらい",
-   "people": 464,
+   "people": 498,
    "who": [
     "reki",
     "act",
@@ -403,8 +353,8 @@
     "chu"
    ],
    "sev": 2,
-   "times": 11008,
-   "lean": "iPhone384人",
+   "times": 11375,
+   "lean": "iPhone411人",
    "battles": [
     "高遠城の戦い",
     "本能寺の変",
@@ -412,38 +362,63 @@
     "姉川の戦い"
    ],
    "fix": "touch.js に釦を足すか、戦の方で要らなくする",
-   "what": "bot の頭が Space を押したがった（野田・福島の戦い・40秒・assault）",
+   "what": "bot の頭が Space を押したがった（有岡城の戦い（信長で出陣）・98秒・open）",
    "shot": "shots/2610240215_p2224_せっかち_2.jpg"
+  },
+  {
+   "key": "aud:落ちた|console.error：THREE.WebGLProgram: Shader Error # - VALIDATE_STATUS false\n\nProgr",
+   "title": "console.error：THREE.WebGLProgram: Shader Error 1282 - VALIDATE_STATUS false\n\nPro",
+   "cat": "落ちた",
+   "people": 487,
+   "who": [
+    "sen",
+    "chu",
+    "sek",
+    "act",
+    "reki"
+   ],
+   "sev": 2,
+   "times": 2097,
+   "lean": "iPhone338人",
+   "battles": [
+    "天正伊賀の乱",
+    "信貴山城の戦い（信長で出陣）",
+    "設楽原の決戦",
+    "信貴山城の戦い"
+   ],
+   "fix": "出どころを突き止める",
+   "what": "",
+   "shot": "shots/2610240757_p2405_中学生_2.jpg"
   },
   {
    "key": "aud:使いづらい|押せる所が画面の外にある",
    "title": "押せる所が画面の外にある",
    "cat": "使いづらい",
-   "people": 414,
+   "people": 426,
    "who": [
-    "sek",
     "sen",
     "act",
-    "chu"
+    "chu",
+    "sek"
    ],
    "sev": 3,
-   "times": 3372,
-   "lean": "iPhone383人・新しく始める通し324人",
+   "times": 3475,
+   "lean": "iPhone395人・新しく始める通し336人",
    "battles": [
     "小谷城の戦いの前",
-    "高遠城の戦いの前",
     "三木城",
-    "信貴山城の戦いの前"
+    "信貴山城の戦いの前",
+    "刀根坂の戦いの前"
    ],
    "fix": "画面の内に収めるか、スクロールできるようにする",
-   "what": ".tabs.tw-tabg > .grp > #tw-tab-train「稽古稽」 at 759,134／.tabs.tw-tabg > .grp > #tw-tab-inn「宿傷」 at 867,134",
+   "what": ".tabs.tw-tabg > .grp > #tw-tab-train「稽古稽」 at 759,134／.tabs.tw-tabg > .grp > #tw-tab-inn「宿」 at 867,134",
    "shot": "shots/2610171802_p5235_中学生_1.jpg"
   },
   {
    "key": "err:TypeError: Cannot read properties of null (reading",
    "title": "遊んでいる途中でゲームが落ちた（例外）",
    "cat": "落ちた",
-   "people": 410,
+   "people": 415,
    "who": [
     "sen",
     "chu",
@@ -452,8 +427,8 @@
     "reki"
    ],
    "sev": 3,
-   "times": 433,
-   "lean": "iPhone312人",
+   "times": 438,
+   "lean": "iPhone316人",
    "battles": [
     "三木城・大村の合戦",
     "三木城・大村の合戦（信長で出陣）",
@@ -461,35 +436,35 @@
     "金ヶ崎の退き口（信長で出陣）"
    ],
    "fix": "この行の前提（値が無い・死んだ兵など）を確かめる",
-   "what": "TypeError: Cannot read properties of null (reading 'nearestEnemy')     at playPersona (http://localhost:8765/v202610251528/src/playbot.js:2326:50)     at async ",
+   "what": "TypeError: Cannot read properties of null (reading 'nearestEnemy')     at playPersona (http://localhost:8765/v202610251745/src/playbot.js:2337:50)     at async ",
    "shot": "shots/2610241324_p2631_歴史好き_2.jpg"
   },
   {
    "key": "cmd-none:fire",
    "title": "号令「射撃／停止」が、指の号令の輪から出せない",
    "cat": "使いづらい",
-   "people": 312,
+   "people": 314,
    "who": [
     "sen"
    ],
    "sev": 3,
-   "times": 312,
-   "lean": "iPhone235人・信長で出陣227人",
+   "times": 314,
+   "lean": "iPhone240人・信長で出陣232人",
    "battles": [
+    "姉川の戦い",
     "天正伊賀の乱・比自山城（信長で出陣）",
-    "金ヶ崎の退き口",
-    "野田・福島の戦い",
-    "志賀の陣・宇佐山城"
+    "比叡山攻め（信長で出陣）",
+    "桶狭間の戦い（信長で出陣）"
    ],
    "fix": "号令の輪に足すか、短く押した時の指揮の札（数字の号令）を指で押せるようにする",
-   "what": "号令の輪（RADIAL）に無い、または身分が足りず選べない（長島一向一揆（信長で出陣）・168秒・sally）",
+   "what": "号令の輪（RADIAL）に無い、または身分が足りず選べない（有岡城の戦い（信長で出陣）・32秒・open）",
    "shot": "shots/2610231054_p1508_戦略家_2.jpg"
   },
   {
    "key": "aud:辻褄|任務札が長く変わらないのに、何も起きない",
    "title": "任務札が長く変わらないのに、何も起きない",
    "cat": "辻褄",
-   "people": 256,
+   "people": 265,
    "who": [
     "act",
     "sek",
@@ -498,8 +473,8 @@
     "sen"
    ],
    "sev": 3,
-   "times": 709,
-   "lean": "iPhone206人",
+   "times": 736,
+   "lean": "iPhone215人",
    "battles": [
     "信貴山城の戦い",
     "桶狭間の戦い",
@@ -507,29 +482,33 @@
     "田野の戦い"
    ],
    "fix": "この段で待たせるなら、飛ばせる（canSkip）か、進み具合（objProgress）や台詞で先を見せる",
-   "what": "325秒「川を渡れ」のまま、45秒なにも起きない（段：brief）／90秒「川を渡れ」のまま、56秒なにも起きない（段：brief）",
+   "what": "169秒「来た道の印へ戻れ」のまま、46秒なにも起きない（段：climb）／90秒「来た道の印へ戻れ」のまま、136秒なにも起きない（段：climb）",
    "shot": "shots/2610232016_p1809_せっかち_2.jpg"
   },
   {
-   "key": "aud:使いづらい|字と背景の明暗の比が低い（# 未満）",
-   "title": "字と背景の明暗の比が低い（3 未満）",
+   "key": "cmd-none:yari",
+   "title": "号令「槍衾」が、指の号令の輪から出せない",
    "cat": "使いづらい",
-   "people": 254,
+   "people": 250,
    "who": [
+    "sek",
+    "reki",
+    "act",
+    "sen",
     "chu"
    ],
    "sev": 3,
-   "times": 861,
-   "lean": "iPhone204人・織田家編の戦を一つ138人",
+   "times": 686,
+   "lean": "iPhone190人",
    "battles": [
-    "長島一向一揆",
+    "天王寺の戦い（信長で出陣）",
+    "手取川の戦い（信長で出陣）",
     "設楽原の決戦",
-    "大河内城の戦い",
-    "稲葉山城の戦い"
+    "三方ヶ原の戦い（信長で出陣）"
    ],
-   "fix": "字を明るく、または背景を暗く",
-   "what": ".ek-c > table > caption：1.0「組の人数」／tbody > tr > th：1.0「戦の終わり」",
-   "shot": "shots/2610240757_p2405_中学生_2.jpg"
+   "fix": "号令の輪に足すか、短く押した時の指揮の札（数字の号令）を指で押せるようにする",
+   "what": "号令の輪（RADIAL）に無い、または身分が足りず選べない（天王寺の戦い・2秒・brief）",
+   "shot": "shots/2610221054_p0421_歴史好き_2.jpg"
   },
   {
    "key": "tap-blocked:右側のなぞり（見回す）|DIV",
@@ -537,19 +516,19 @@
    "cat": "使いづらい",
    "people": 245,
    "who": [
-    "sen",
     "chu",
     "act",
     "sek",
-    "reki"
+    "reki",
+    "sen"
    ],
    "sev": 2,
    "times": 245,
    "lean": "iPhone180人",
    "battles": [
+    "刀根坂の戦い",
     "野田・福島の戦い",
     "野田・福島の戦い（信長で出陣）",
-    "刀根坂の戦い",
     "比叡山攻め"
    ],
    "fix": "重ねている札の置き場所をずらすか、pointer-events:none にする",
@@ -557,44 +536,19 @@
    "shot": "shots/2610241324_p2631_歴史好き_3.jpg"
   },
   {
-   "key": "cmd-none:yari",
-   "title": "号令「槍衾」が、指の号令の輪から出せない",
-   "cat": "使いづらい",
-   "people": 242,
-   "who": [
-    "sen",
-    "sek",
-    "reki",
-    "act",
-    "chu"
-   ],
-   "sev": 3,
-   "times": 673,
-   "lean": "iPhone184人",
-   "battles": [
-    "鳶ヶ巣山砦夜襲（信長で出陣）",
-    "天王寺の戦い（信長で出陣）",
-    "手取川の戦い（信長で出陣）",
-    "設楽原の決戦"
-   ],
-   "fix": "号令の輪に足すか、短く押した時の指揮の札（数字の号令）を指で押せるようにする",
-   "what": "号令の輪（RADIAL）に無い、または身分が足りず選べない（手取川の戦い・75秒・rear）",
-   "shot": "shots/2610221054_p0421_歴史好き_2.jpg"
-  },
-  {
    "key": "stick-none",
    "title": "親指で歩こうとしても、置く所がふさがっている",
    "cat": "使いづらい",
    "people": 187,
    "who": [
-    "sen",
     "sek",
     "act",
+    "sen",
     "reki",
     "chu"
    ],
    "sev": 3,
-   "times": 27030,
+   "times": 27130,
    "lean": "iPhone142人",
    "battles": [
     "野田・福島の戦い",
@@ -607,34 +561,10 @@
    "shot": "shots/2610241324_p2631_歴史好き_2.jpg"
   },
   {
-   "key": "aud:辻褄|自分のすぐそばの敵が#秒以上なにもしない",
-   "title": "自分のすぐそばの敵が6秒以上なにもしない",
-   "cat": "辻褄",
-   "people": 158,
-   "who": [
-    "reki",
-    "act",
-    "sen",
-    "sek"
-   ],
-   "sev": 3,
-   "times": 260,
-   "lean": "iPhone117人",
-   "battles": [
-    "鳥取城の戦い",
-    "鳥取城の戦い（信長で出陣）",
-    "手取川の戦い（信長で出陣）",
-    "岩村城の戦い"
-   ],
-   "fix": "近くの敵（遊び手）を狙いに入れる",
-   "what": "敵の足軽：敵の足軽",
-   "shot": "shots/2610241749_p2821_歴史好き_2.jpg"
-  },
-  {
    "key": "aud:落ちた|console.error：THREE.BufferGeometry.computeBoundingSphere(): Computed radius is NaN",
    "title": "console.error：THREE.BufferGeometry.computeBoundingSphere(): Computed radius is N",
    "cat": "落ちた",
-   "people": 155,
+   "people": 166,
    "who": [
     "sek",
     "chu",
@@ -643,8 +573,8 @@
     "act"
    ],
    "sev": 2,
-   "times": 659,
-   "lean": "iPhone155人",
+   "times": 693,
+   "lean": "iPhone166人",
    "battles": [
     "三木城",
     "大河内城の戦い",
@@ -656,33 +586,10 @@
    "shot": "shots/2610242008_p3027_アクション好き_2.jpg"
   },
   {
-   "key": "down:mikatagahara",
-   "title": "倒れて戦が終わった",
-   "cat": "使いづらい",
-   "people": 150,
-   "who": [
-    "act",
-    "sek",
-    "chu",
-    "reki",
-    "sen"
-   ],
-   "sev": 3,
-   "times": 150,
-   "lean": "iPhone127人",
-   "battles": [
-    "三方ヶ原の戦い",
-    "三方ヶ原の戦い（信長で出陣）"
-   ],
-   "fix": "初めの戦は受ける傷を減らす・危ない時に字幕で構えを教える",
-   "what": "265秒で倒れた（受けた傷：足軽 19｜段 crash・最後の傷 221s足軽6→120囲距2.2見4.5 224s足軽4→112囲距2.5見4.5 230s足軽6→107囲距2.5見4.5 231s足軽3→105囲距1.3見4.5｜跡 224:2:5,7,8:112:slam 227:2:5,7,8:107:thru",
-   "shot": "shots/2610240757_p2404_せっかち_2.jpg"
-  },
-  {
    "key": "aud:落ちた|console.error：THREE.BufferGeometry.computeBoundingBox(): Computed min/max have NaN",
    "title": "console.error：THREE.BufferGeometry.computeBoundingBox(): Computed min/max have N",
    "cat": "落ちた",
-   "people": 138,
+   "people": 149,
    "who": [
     "sek",
     "chu",
@@ -691,8 +598,8 @@
     "act"
    ],
    "sev": 2,
-   "times": 587,
-   "lean": "iPhone138人",
+   "times": 621,
+   "lean": "iPhone149人",
    "battles": [
     "三木城",
     "大河内城の戦い",
@@ -704,33 +611,33 @@
    "shot": "shots/2610242008_p3027_アクション好き_2.jpg"
   },
   {
-   "key": "stuck:tedorigawa:#,-#",
-   "title": "前へ進もうとしても進めない所があった",
-   "cat": "辻褄",
-   "people": 135,
+   "key": "down:mikatagahara",
+   "title": "すぐに倒れてしまった",
+   "cat": "使いづらい",
+   "people": 147,
    "who": [
     "chu",
-    "sek",
-    "reki",
     "act",
-    "sen"
+    "reki",
+    "sen",
+    "sek"
    ],
-   "sev": 2,
-   "times": 318,
-   "lean": "iPhone93人",
+   "sev": 3,
+   "times": 147,
+   "lean": "iPhone124人",
    "battles": [
-    "手取川の戦い（信長で出陣）",
-    "手取川の戦い"
+    "三方ヶ原の戦い",
+    "三方ヶ原の戦い（信長で出陣）"
    ],
-   "fix": "当たり（柵・建物・地形）と道のつながりを見直す",
-   "what": "(7, -38)・段 rear",
-   "shot": "shots/2610171802_p5235_中学生_1.jpg"
+   "fix": "初めの戦は受ける傷を減らす・危ない時に字幕で構えを教える",
+   "what": "211秒で倒れた（受けた傷：足軽 103・侍 24｜段 crash・最後の傷 156s足軽14→91囲退距1.6見1.2 189s足軽11→72退距3.2見1.5 193s足軽10→57退距3.5見1.5 196s侍24→47囲退距1.6見1.6 199s足軽10→42囲退距3.1見1.6 201s足軽13→32退距3",
+   "shot": "shots/2610240757_p2404_せっかち_2.jpg"
   },
   {
    "key": "btn-none:乗る",
    "title": "「乗る」をしたいのに、押す丸が出ていない",
    "cat": "使いづらい",
-   "people": 135,
+   "people": 137,
    "who": [
     "sek",
     "act",
@@ -739,8 +646,8 @@
     "chu"
    ],
    "sev": 1,
-   "times": 9083,
-   "lean": "iPhone118人・連打89人・新しく始める通し71人",
+   "times": 9188,
+   "lean": "iPhone120人・連打92人・新しく始める通し73人",
    "battles": [
     "森部の戦い",
     "設楽原の決戦",
@@ -748,24 +655,69 @@
     "稲生の戦い"
    ],
    "fix": "その時に使える釦は出す（touchFrame の出し入れ）",
-   "what": "欲しかった時：稲生の戦い・2秒・brief",
+   "what": "欲しかった時：稲生の戦い（信長で出陣）・10秒・brief",
    "shot": "shots/2610251212_p3837_アクション好き_2.jpg"
+  },
+  {
+   "key": "stuck:tedorigawa:#,-#",
+   "title": "前へ進もうとしても進めない所があった",
+   "cat": "辻褄",
+   "people": 133,
+   "who": [
+    "sek",
+    "chu",
+    "reki",
+    "act",
+    "sen"
+   ],
+   "sev": 2,
+   "times": 320,
+   "lean": "iPhone93人",
+   "battles": [
+    "手取川の戦い",
+    "手取川の戦い（信長で出陣）"
+   ],
+   "fix": "当たり（柵・建物・地形）と道のつながりを見直す",
+   "what": "(9, -45)・段 rear",
+   "shot": "shots/2610171802_p5235_中学生_1.jpg"
+  },
+  {
+   "key": "camp-buyfail",
+   "title": "問屋で「買う」を押しても、銭が減らない（買えていない？）",
+   "cat": "辻褄",
+   "people": 130,
+   "who": [
+    "sen",
+    "act",
+    "chu",
+    "reki",
+    "sek"
+   ],
+   "sev": 2,
+   "times": 134,
+   "lean": "iPhone111人・新しく始める通し130人",
+   "battles": [
+    "城下"
+   ],
+   "fix": "買えない時は釦を押せない見た目にし、理由を書く",
+   "what": "押した物：上質な槍槍12貫（銭 15.163貫のまま）",
+   "shot": "shots/2610240757_p2496_歴史好き_2.jpg"
   },
   {
    "key": "tap-blocked:親指の棒（歩く）|DIV",
    "title": "「親指の棒（歩く）」を押そうとしたら、別の物に当たった",
    "cat": "使いづらい",
-   "people": 121,
+   "people": 122,
    "who": [
-    "sen",
     "sek",
+    "sen",
     "act",
     "reki",
     "chu"
    ],
    "sev": 2,
-   "times": 121,
-   "lean": "iPhone80人",
+   "times": 122,
+   "lean": "iPhone81人",
    "battles": [
     "野田・福島の戦い",
     "野田・福島の戦い（信長で出陣）",
@@ -776,32 +728,10 @@
    "shot": "shots/2610241324_p2631_歴史好き_2.jpg"
   },
   {
-   "key": "camp-buyfail",
-   "title": "問屋で「買う」を押しても、銭が減らない（買えていない？）",
-   "cat": "辻褄",
-   "people": 120,
-   "who": [
-    "sen",
-    "act",
-    "chu",
-    "reki",
-    "sek"
-   ],
-   "sev": 2,
-   "times": 124,
-   "lean": "iPhone102人・新しく始める通し120人",
-   "battles": [
-    "城下"
-   ],
-   "fix": "買えない時は釦を押せない見た目にし、理由を書く",
-   "what": "押した物：鉄砲足軽雇い賃 12貫（銭 16.363貫のまま）",
-   "shot": "shots/2610240757_p2496_歴史好き_2.jpg"
-  },
-  {
    "key": "camp-notown",
    "title": "戦のあと、城下へ進めなかった",
    "cat": "使いづらい",
-   "people": 108,
+   "people": 112,
    "who": [
     "reki",
     "act",
@@ -810,68 +740,45 @@
     "sek"
    ],
    "sev": 3,
-   "times": 108,
-   "lean": "iPhone90人・新しく始める通し108人",
+   "times": 112,
+   "lean": "iPhone93人・新しく始める通し112人",
    "battles": [
     "城下"
    ],
    "fix": "戦のあとの画面に、はっきりした「次へ（城下へ）」を置く",
-   "what": "戦のあとの画面で釦を押し続けても、城下の札が出ない（画面なし）",
-   "shot": "shots/2610252323_p4421_歴史好き_1.jpg"
-  },
-  {
-   "key": "down:tonezaka",
-   "title": "倒れて戦が終わった",
-   "cat": "使いづらい",
-   "people": 100,
-   "who": [
-    "sek",
-    "act",
-    "chu",
-    "sen",
-    "reki"
-   ],
-   "sev": 3,
-   "times": 100,
-   "lean": "iPhone67人",
-   "battles": [
-    "刀根坂の戦い",
-    "刀根坂の戦い（信長で出陣）"
-   ],
-   "fix": "初めの戦は受ける傷を減らす・危ない時に字幕で構えを教える",
-   "what": "46秒で倒れた（受けた傷：足軽 112｜段 chase・最後の傷 31s足軽6→54囲退距2.5見2.5 33s足軽7→46退距2.6見2.5 34s足軽7→37退距2.7見2.6 36s足軽7→28退距2.8見2.7 36s足軽7→19退距2.7見2.7 40s足軽6→11退距3.0見2.5 45s足軽6→10退距2",
-   "shot": "shots/2610252323_p4366_歴史好き_2.jpg"
+   "what": "戦のあとの画面で釦を押し続けても、城下の札が出ない（高遠城の戦い\n安土へ戻る\n直近の操作の結果を見る\n！ 城下の記録を保存できません）",
+   "shot": "shots/2610260151_p4591_歴史好き_3.jpg"
   },
   {
    "key": "cmd-unfit:follow",
-   "title": "号令「ついて来い」を出したが、組の多くが戦列を離れている",
+   "title": "号令「続け」を出したが、組の多くが戦列を離れている",
    "cat": "辻褄",
-   "people": 97,
+   "people": 99,
    "who": [
-    "sen",
     "sek",
     "reki",
+    "sen",
     "chu",
     "act"
    ],
    "sev": 1,
-   "times": 151,
-   "lean": "iPhone62人",
+   "times": 154,
+   "lean": "iPhone64人",
    "battles": [
-    "野田・福島の戦い",
-    "森部の戦い（信長で出陣）",
     "天王寺の戦い（信長で出陣）",
-    "越前一向一揆・木ノ芽峠"
+    "森部の戦い（信長で出陣）",
+    "越前一向一揆・木ノ芽峠",
+    "岩村城の戦い・水晶山"
    ],
    "fix": "組が崩れた理由を確かめ、旗のそばで退避と立て直しを行う",
-   "what": "15人のうち逃亡・負傷で動けない兵は11人（森部の戦い（信長で出陣）・167秒・press）",
-   "shot": "shots/2610252323_p4462_アクション好き_2.jpg"
+   "what": "9人のうち逃亡・負傷で動けない兵は9人（三方ヶ原の戦い・268秒・end）",
+   "shot": "shots/2610260151_p4718_戦略家_3.jpg"
   },
   {
    "key": "err:Uncaught TypeError: Cannot read properties of null",
    "title": "遊んでいる途中でゲームが落ちた（例外）",
    "cat": "落ちた",
-   "people": 94,
+   "people": 98,
    "who": [
     "reki",
     "sek",
@@ -880,8 +787,8 @@
     "chu"
    ],
    "sev": 3,
-   "times": 94,
-   "lean": "iPhone64人",
+   "times": 98,
+   "lean": "iPhone67人",
    "battles": [
     "信貴山城の戦い",
     "第二次木津川口の戦い",
@@ -893,33 +800,56 @@
    "shot": ""
   },
   {
-   "key": "stuck:miki:-#,-#",
-   "title": "前へ進もうとしても進めない所があった",
-   "cat": "辻褄",
-   "people": 94,
+   "key": "down:tonezaka",
+   "title": "倒れて戦が終わった",
+   "cat": "使いづらい",
+   "people": 97,
    "who": [
     "sen",
     "chu",
+    "sek",
     "act",
-    "reki",
-    "sek"
+    "reki"
    ],
    "sev": 2,
-   "times": 305,
-   "lean": "iPhone78人",
+   "times": 97,
+   "lean": "iPhone65人",
+   "battles": [
+    "刀根坂の戦い",
+    "刀根坂の戦い（信長で出陣）"
+   ],
+   "fix": "初めの戦は受ける傷を減らす・危ない時に字幕で構えを教える",
+   "what": "54秒で倒れた（受けた傷：足軽 123｜段 chase・最後の傷 41s足軽6→41退距2.6見2.4 43s足軽7→33退距2.5見2.5 44s足軽7→31退距2.6見2.6 46s足軽7→22横退距2.6見2.5 47s足軽8→13横退距2.0見2.0 50s足軽7→12退距2.9見2.6 52s足軽6→12退距",
+   "shot": "shots/2610260151_p4696_歴史好き_2.jpg"
+  },
+  {
+   "key": "stuck:miki:-#,-#",
+   "title": "前へ進もうとしても進めない所があった",
+   "cat": "辻褄",
+   "people": 95,
+   "who": [
+    "chu",
+    "sen",
+    "reki",
+    "sek",
+    "act"
+   ],
+   "sev": 2,
+   "times": 295,
+   "lean": "iPhone76人",
    "battles": [
     "三木城・大村の合戦",
     "三木城・大村の合戦（信長で出陣）"
    ],
    "fix": "当たり（柵・建物・地形）と道のつながりを見直す",
-   "what": "(-76, -64)・段 convoy",
-   "shot": ""
+   "what": "(-75, -54)・段 convoy",
+   "shot": "shots/2610260151_p4610_中学生_3.jpg"
   },
   {
    "key": "aud:辻褄|門・柵を破れと言うのに、#秒だれも傷つけていない",
    "title": "門・柵を破れと言うのに、90秒だれも傷つけていない",
    "cat": "辻褄",
-   "people": 89,
+   "people": 90,
    "who": [
     "sek",
     "sen",
@@ -927,8 +857,8 @@
     "act"
    ],
    "sev": 2,
-   "times": 214,
-   "lean": "iPhone66人・信長で出陣67人",
+   "times": 217,
+   "lean": "iPhone66人・信長で出陣68人",
    "battles": [
     "高遠城の戦い（信長で出陣）",
     "諏訪原城攻め（信長で出陣）",
@@ -937,7 +867,7 @@
    ],
    "fix": "門を打つ組（g.assault）が門まで行けているか、遊び手が E で打てる所に印があるかを見る",
    "what": "「大手門を破れ」（assault）",
-   "shot": "shots/2610252323_p4497_アクション好き_2.jpg"
+   "shot": "shots/2610260151_p4567_アクション好き_3.jpg"
   },
   {
    "key": "down:arioka",
@@ -945,37 +875,37 @@
    "cat": "使いづらい",
    "people": 84,
    "who": [
-    "sek",
     "reki",
+    "sek",
     "sen",
     "act",
     "chu"
    ],
    "sev": 3,
    "times": 84,
-   "lean": "iPhone65人",
+   "lean": "iPhone66人",
    "battles": [
-    "有岡城の戦い",
-    "有岡城の戦い（信長で出陣）"
+    "有岡城の戦い（信長で出陣）",
+    "有岡城の戦い"
    ],
    "fix": "初めの戦は受ける傷を減らす・危ない時に字幕で構えを教える",
-   "what": "80秒で倒れた（受けた傷：足軽 66・侍 20｜段 open・最後の傷 37s足軽11→110囲退距3.4見1.7 49s足軽8→95距1.4見1.4 71s足軽19→83囲退距3.4見3.3 71s足軽14→59横囲退距3.5見3.3 74s足軽14→55囲退距2.6見2.6 80s侍20→37退距1.8見1.7｜跡",
+   "what": "124秒で倒れた（受けた傷：侍 80・足軽 54｜段 open・最後の傷 69s足軽12→84横囲退距1.8見1.9 97s侍19→81囲退距1.2見1.2 98s侍14→77囲退距1.6見1.3 100s侍18→58囲退距1.6見1.4 101s侍14→41囲退距1.4見1.4 122s侍14→19疲退距1.5見1.",
    "shot": "shots/2610240757_p2496_歴史好き_2.jpg"
   },
   {
    "key": "aud:辻褄|当主（信長）の任務が、家来の下につく形になっている",
    "title": "当主（信長）の任務が、家来の下につく形になっている",
    "cat": "辻褄",
-   "people": 78,
+   "people": 77,
    "who": [
-    "act",
     "sen",
     "reki",
+    "act",
     "sek"
    ],
    "sev": 2,
-   "times": 334,
-   "lean": "iPhone61人・信長で出陣78人",
+   "times": 330,
+   "lean": "iPhone61人・信長で出陣77人",
    "battles": [
     "刀根坂の戦い（信長で出陣）"
    ],
@@ -995,7 +925,7 @@
    ],
    "sev": 2,
    "times": 74,
-   "lean": "iPhone55人・信長で出陣37人",
+   "lean": "iPhone55人・信長で出陣38人",
    "battles": [
     "刀根坂の戦い",
     "刀根坂の戦い（信長で出陣）",
@@ -1003,31 +933,8 @@
     "野田・福島の戦い"
    ],
    "fix": "重ねている札の置き場所をずらすか、pointer-events:none にする",
-   "what": "指の下にあったのは div「越前への追撃　数日の道のり八」",
-   "shot": "shots/2610252323_p4435_中学生_3.jpg"
-  },
-  {
-   "key": "stuck:tottori:-#,-#",
-   "title": "前へ進もうとしても進めない所があった",
-   "cat": "辻褄",
-   "people": 73,
-   "who": [
-    "reki",
-    "chu",
-    "sek",
-    "sen",
-    "act"
-   ],
-   "sev": 2,
-   "times": 194,
-   "lean": "iPhone49人",
-   "battles": [
-    "鳥取城の戦い（信長で出陣）",
-    "鳥取城の戦い"
-   ],
-   "fix": "当たり（柵・建物・地形）と道のつながりを見直す",
-   "what": "(-59, -6)・段 boats",
-   "shot": ""
+   "what": "指の下にあったのは div「九月14日・一日が過ぎた九月」",
+   "shot": "shots/2610260151_p4641_歴史好き_3.jpg"
   },
   {
    "key": "stuck:arioka:-#,-#",
@@ -1035,28 +942,28 @@
    "cat": "辻褄",
    "people": 72,
    "who": [
-    "chu",
     "act",
     "reki",
+    "chu",
     "sek",
     "sen"
    ],
    "sev": 2,
-   "times": 145,
-   "lean": "iPhone56人",
+   "times": 142,
+   "lean": "iPhone57人",
    "battles": [
     "有岡城の戦い",
     "有岡城の戦い（信長で出陣）"
    ],
    "fix": "当たり（柵・建物・地形）と道のつながりを見直す",
-   "what": "(-339, -59)・段 open",
-   "shot": "shots/2610252323_p4518_戦略家_3.jpg"
+   "what": "(-338, -59)・段 open",
+   "shot": "shots/2610260151_p4575_中学生_3.jpg"
   },
   {
    "key": "touch-none:KeyF",
    "title": "指の端末では「KeyF」ができない（押す丸が無い）",
    "cat": "使いづらい",
-   "people": 65,
+   "people": 68,
    "who": [
     "sen",
     "chu",
@@ -1065,75 +972,96 @@
     "sek"
    ],
    "sev": 2,
-   "times": 2795,
-   "lean": "iPhone65人・連打65人・新しく始める通し43人",
+   "times": 2898,
+   "lean": "iPhone68人・連打68人・新しく始める通し45人",
    "battles": [
     "長篠城籠城（信長で出陣）",
     "稲生の戦い",
     "稲生の戦い（信長で出陣）"
    ],
    "fix": "touch.js に釦を足すか、戦の方で要らなくする",
-   "what": "bot の頭が KeyF を押したがった（稲生の戦い・0秒・brief）",
+   "what": "bot の頭が KeyF を押したがった（稲生の戦い（信長で出陣）・0秒・brief）",
    "shot": "shots/2610251212_p3837_アクション好き_2.jpg"
   },
   {
-   "key": "cmd-unfit:attack",
-   "title": "号令「突撃」を出したが、組の多くが戦列を離れている",
-   "cat": "辻褄",
+   "key": "tap-blocked:出陣（確かめ）|base tod-#",
+   "title": "「出陣（確かめ）」を押そうとしたら、別の物に当たった",
+   "cat": "使いづらい",
+   "people": 68,
+   "who": [
+    "act",
+    "reki",
+    "sek",
+    "chu",
+    "sen"
+   ],
+   "sev": 2,
+   "times": 68,
+   "lean": "iPhone68人・新しく始める通し68人",
+   "battles": [
+    "城下"
+   ],
+   "fix": "重ねている札の置き場所をずらすか、pointer-events:none にする",
+   "what": "指の下にあったのは #screen.has-back > .base.tod-2「朝\n      弥五郎\n  」",
+   "shot": "shots/2610260151_p4638_戦略家_2.jpg"
+  },
+  {
+   "key": "down:honnoji",
+   "title": "倒れて戦が終わった",
+   "cat": "使いづらい",
    "people": 65,
    "who": [
+    "reki",
     "act",
     "sen",
     "sek",
-    "reki"
+    "chu"
    ],
-   "sev": 1,
-   "times": 72,
-   "lean": "iPhone48人",
+   "sev": 2,
+   "times": 65,
+   "lean": "iPhone51人",
    "battles": [
-    "森部の戦い（信長で出陣）",
-    "野田・福島の戦い",
-    "姉川の戦い",
-    "手取川の戦い"
+    "本能寺の変（信長で出陣）",
+    "本能寺の変"
    ],
-   "fix": "組が崩れた理由を確かめ、旗のそばで退避と立て直しを行う",
-   "what": "12人のうち逃亡・負傷で動けない兵は10人（高遠城の戦い・54秒・assault）",
-   "shot": ""
+   "fix": "初めの戦は受ける傷を減らす・危ない時に字幕で構えを教える",
+   "what": "251秒で倒れた（受けた傷：侍 38｜段 move・最後の傷 177s侍38→102距1.3見-1.0｜跡 215:6:-59,51,-0:67:tsuki|N-62,51Dwatari 218:6:-60,51,-0:67:tsuki|N-62,51Dwatari 221:6:-59,51,-0:67:tsuki|N",
+   "shot": "shots/2610260151_p4568_戦略家_2.jpg"
   },
   {
    "key": "noface:林美作守",
    "title": "名のある武将なのに、顔も装束も並の侍と同じ",
    "cat": "辻褄",
-   "people": 64,
+   "people": 65,
    "who": [
     "reki"
    ],
    "sev": 1,
-   "times": 913,
-   "lean": "iPhone54人・新しく始める通し57人",
+   "times": 928,
+   "lean": "iPhone55人・新しく始める通し58人",
    "battles": [
     "稲生の戦い",
     "稲生の戦い（信長で出陣）"
    ],
    "fix": "units.js の GENERALS に顔・甲冑・兜を足す",
    "what": "林美作守（敵）",
-   "shot": "shots/2610252323_p4381_歴史好き_2.jpg"
+   "shot": "shots/2610260151_p4631_歴史好き_3.jpg"
   },
   {
    "key": "camp-nogo",
    "title": "城下から出陣できなかった",
    "cat": "使いづらい",
-   "people": 63,
+   "people": 59,
    "who": [
-    "sek",
-    "reki",
     "sen",
     "act",
-    "chu"
+    "chu",
+    "sek",
+    "reki"
    ],
    "sev": 3,
-   "times": 63,
-   "lean": "iPhone63人・新しく始める通し63人",
+   "times": 59,
+   "lean": "iPhone59人・新しく始める通し59人",
    "battles": [
     "城下"
    ],
@@ -1145,17 +1073,17 @@
    "key": "tap-blocked:任務を受けて出陣|screen-notices",
    "title": "「任務を受けて出陣」を押そうとしたら、別の物に当たった",
    "cat": "使いづらい",
-   "people": 63,
+   "people": 59,
    "who": [
-    "sek",
-    "reki",
     "sen",
     "act",
-    "chu"
+    "chu",
+    "sek",
+    "reki"
    ],
    "sev": 2,
-   "times": 63,
-   "lean": "iPhone63人・新しく始める通し63人",
+   "times": 59,
+   "lean": "iPhone59人・新しく始める通し59人",
    "battles": [
     "城下"
    ],
@@ -1164,136 +1092,146 @@
    "shot": "shots/2610171802_p5235_中学生_1.jpg"
   },
   {
-   "key": "down:honnoji",
-   "title": "倒れて戦が終わった",
-   "cat": "使いづらい",
-   "people": 62,
-   "who": [
-    "sen",
-    "reki",
-    "act",
-    "sek",
-    "chu"
-   ],
-   "sev": 2,
-   "times": 62,
-   "lean": "iPhone49人",
-   "battles": [
-    "本能寺の変（信長で出陣）",
-    "本能寺の変"
-   ],
-   "fix": "初めの戦は受ける傷を減らす・危ない時に字幕で構えを教える",
-   "what": "174秒で倒れた（受けた傷：―）",
-   "shot": "shots/2610252323_p4507_アクション好き_2.jpg"
-  },
-  {
-   "key": "tap-blocked:出陣（確かめ）|base tod-#",
-   "title": "「出陣（確かめ）」を押そうとしたら、別の物に当たった",
-   "cat": "使いづらい",
-   "people": 60,
-   "who": [
-    "act",
-    "reki",
-    "sek",
-    "chu",
-    "sen"
-   ],
-   "sev": 2,
-   "times": 60,
-   "lean": "iPhone60人・新しく始める通し60人",
-   "battles": [
-    "城下"
-   ],
-   "fix": "重ねている札の置き場所をずらすか、pointer-events:none にする",
-   "what": "指の下にあったのは #screen.has-back > .base.tod-2「朝\n      藤吉\n   」",
-   "shot": "shots/2610252323_p4435_中学生_2.jpg"
-  },
-  {
    "key": "stuck:takato:#,-#",
    "title": "前へ進もうとしても進めない所があった",
    "cat": "辻褄",
    "people": 58,
    "who": [
-    "chu",
     "sek",
     "reki",
     "act",
+    "chu",
     "sen"
    ],
    "sev": 2,
-   "times": 228,
-   "lean": "iPhone42人・信長で出陣56人",
+   "times": 226,
+   "lean": "iPhone41人・信長で出陣56人",
    "battles": [
     "高遠城の戦い（信長で出陣）",
     "高遠城の戦い"
    ],
    "fix": "当たり（柵・建物・地形）と道のつながりを見直す",
-   "what": "(80, -88)・段 assault",
-   "shot": "shots/2610252323_p4481_歴史好き_1.jpg"
+   "what": "(78, -89)・段 assault",
+   "shot": "shots/2610260151_p4567_アクション好き_2.jpg"
+  },
+  {
+   "key": "sen-nosquad:inou",
+   "title": "この戦では号令できる組が無い（指揮する所が無い）",
+   "cat": "使いづらい",
+   "people": 56,
+   "who": [
+    "sen"
+   ],
+   "sev": 1,
+   "times": 56,
+   "lean": "iPhone45人・新しく始める通し39人",
+   "battles": [
+    "稲生の戦い",
+    "稲生の戦い（信長で出陣）"
+   ],
+   "fix": "",
+   "what": "稲生の戦い",
+   "shot": "shots/2610260151_p4603_戦略家_2.jpg"
   },
   {
    "key": "stuck:inabayama:#,-#",
    "title": "前へ進もうとしても進めない所があった",
    "cat": "辻褄",
-   "people": 56,
+   "people": 55,
    "who": [
-    "sen",
     "reki",
     "sek",
     "act",
+    "sen",
     "chu"
    ],
    "sev": 2,
-   "times": 206,
-   "lean": "iPhone44人・信長で出陣56人",
+   "times": 198,
+   "lean": "iPhone43人・信長で出陣55人",
    "battles": [
     "稲葉山城の戦い（信長で出陣）"
    ],
    "fix": "当たり（柵・建物・地形）と道のつながりを見直す",
-   "what": "(109, -14)・段 brief",
-   "shot": "shots/2610252323_p4451_歴史好き_2.jpg"
-  },
-  {
-   "key": "aud:辻褄|戦う兵が遠景の大軍（影の兵）の中に埋もれている",
-   "title": "戦う兵が遠景の大軍（影の兵）の中に埋もれている",
-   "cat": "辻褄",
-   "people": 55,
-   "who": [
-    "reki",
-    "sen",
-    "act"
-   ],
-   "sev": 2,
-   "times": 68,
-   "lean": "iPhone40人",
-   "battles": [
-    "小谷城の戦い",
-    "三方ヶ原の戦い",
-    "信貴山城の戦い",
-    "手取川の戦い（信長で出陣）"
-   ],
-   "fix": "遠景の大軍を戦う場所から離す（addDistantArmy の x,z,w,d を見直す）か、兵の行き先を大軍の外にする",
-   "what": "敵の兵 4人が、遠景の大軍 #9（中心 -16,-82・151人）の中（-12, -87）",
-   "shot": "shots/2610252323_p4496_歴史好き_3.jpg"
+   "what": "(98, -8)・段 brief",
+   "shot": "shots/2610260151_p4605_中学生_3.jpg"
   },
   {
    "key": "act-dull:shiga",
    "title": "斬り合う相手が少なくて退屈",
    "cat": "使いづらい",
-   "people": 55,
+   "people": 54,
    "who": [
     "act"
    ],
    "sev": 1,
-   "times": 55,
-   "lean": "iPhone39人",
+   "times": 54,
+   "lean": "iPhone38人",
    "battles": [
-    "志賀の陣・宇佐山城（信長で出陣）",
-    "志賀の陣・宇佐山城"
+    "志賀の陣・宇佐山城",
+    "志賀の陣・宇佐山城（信長で出陣）"
    ],
    "fix": "",
    "what": "6分で3人",
-   "shot": "shots/2610252323_p4452_アクション好き_2.jpg"
+   "shot": ""
+  },
+  {
+   "key": "wait:稲生の戦い:shibataRetreat",
+   "title": "何もする事が無いまま待たされた",
+   "cat": "使いづらい",
+   "people": 50,
+   "who": [
+    "sek"
+   ],
+   "sev": 2,
+   "times": 50,
+   "lean": "iPhone41人・新しく始める通し46人",
+   "battles": [
+    "稲生の戦い"
+   ],
+   "fix": "飛ばせる（canSkip）ようにするか、待つ間にする事を置く",
+   "what": "60秒、任務札が変わらず敵もいない（段 shibataRetreat）",
+   "shot": "shots/2610260151_p4684_せっかち_3.jpg"
+  },
+  {
+   "key": "aud:落ちた|console.error：TypeError: Cannot read properties of null (reading 'image')",
+   "title": "console.error：TypeError: Cannot read properties of null (reading 'image')",
+   "cat": "落ちた",
+   "people": 50,
+   "who": [
+    "chu",
+    "act",
+    "sen",
+    "sek"
+   ],
+   "sev": 1,
+   "times": 100,
+   "lean": "iPhone37人・織田家編の戦を一つ30人",
+   "battles": [
+    "金ヶ崎の退き口",
+    "金ヶ崎の退き口（信長で出陣）"
+   ],
+   "fix": "出どころを突き止める",
+   "what": "",
+   "shot": "shots/2610260151_p4704_せっかち_1.jpg"
+  },
+  {
+   "key": "act-dull:anegawa",
+   "title": "斬り合う相手が少なくて退屈",
+   "cat": "使いづらい",
+   "people": 50,
+   "who": [
+    "act"
+   ],
+   "sev": 1,
+   "times": 50,
+   "lean": "iPhone42人・信長で出陣26人",
+   "battles": [
+    "姉川の戦い（信長で出陣）",
+    "姉川の戦い"
+   ],
+   "fix": "",
+   "what": "5分で1人",
+   "shot": "shots/2610260151_p4737_アクション好き_2.jpg"
   },
   {
    "key": "down:tedorigawa",
@@ -1309,215 +1247,269 @@
    ],
    "sev": 3,
    "times": 49,
-   "lean": "iPhone33人",
+   "lean": "iPhone32人",
    "battles": [
-    "手取川の戦い（信長で出陣）",
-    "手取川の戦い"
+    "手取川の戦い",
+    "手取川の戦い（信長で出陣）"
    ],
    "fix": "初めの戦は受ける傷を減らす・危ない時に字幕で構えを教える",
-   "what": "168秒で倒れた（受けた傷：足軽 78・騎馬 50｜段 cross・最後の傷 95s騎馬25→110距3.0見3.5 96s騎馬25→77距2.4見3.5 155s足軽13→62囲距1.8見3.5 155s足軽14→45囲距3.4見3.5 158s足軽13→41囲距3.4見3.5 160s足軽12→24囲距4.0見3.",
+   "what": "331秒で倒れた（受けた傷：足軽 61・騎馬 17｜段 cross・最後の傷 289s足軽4→90距3.6見-1.0 292s足軽4→84距3.6見-1.0 294s足軽3→79距3.7見-1.0 305s足軽6→74囲距1.6見-1.0 307s足軽6→66囲距3.5見-1.0 319s足軽6→64囲距3.7見-1.",
    "shot": "shots/2610242008_p3027_アクション好き_2.jpg"
   },
   {
-   "key": "wait:稲生の戦い:shibataRetreat",
-   "title": "何もする事が無いまま待たされた",
+   "key": "tap-blocked:右側のなぞり（見回す）|CANVAS",
+   "title": "「右側のなぞり（見回す）」を押そうとしたら、別の物に当たった",
    "cat": "使いづらい",
-   "people": 49,
+   "people": 47,
    "who": [
+    "chu",
+    "reki",
+    "sen",
+    "act",
     "sek"
    ],
    "sev": 2,
-   "times": 49,
-   "lean": "iPhone40人・新しく始める通し45人",
+   "times": 47,
+   "lean": "iPhone37人",
+   "battles": [
+    "刀根坂の戦い（信長で出陣）",
+    "刀根坂の戦い"
+   ],
+   "fix": "重ねている札の置き場所をずらすか、pointer-events:none にする",
+   "what": "指の下にあったのは div > canvas「刀根坂から敦賀、木の芽峠、府中を経て一乗谷へ向かう略図」",
+   "shot": "shots/2610240757_p2405_中学生_2.jpg"
+  },
+  {
+   "key": "bou:稲生の戦い:shibata",
+   "title": "敵が近いのに、まわりの兵の多くが棒立ち",
+   "cat": "辻褄",
+   "people": 46,
+   "who": [
+    "reki"
+   ],
+   "sev": 2,
+   "times": 117,
+   "lean": "iPhone43人・新しく始める通し44人",
    "battles": [
     "稲生の戦い"
    ],
-   "fix": "飛ばせる（canSkip）ようにするか、待つ間にする事を置く",
-   "what": "60秒、任務札が変わらず敵もいない（段 shibataRetreat）",
-   "shot": "shots/2610252323_p4374_せっかち_3.jpg"
+   "fix": "敵が30m内に入ったら、構える・にじり寄る・槍を揃えるなど体を動かす",
+   "what": "125秒：まわり35mの78人のうち43人が止まったまま（段 shibata）",
+   "shot": "shots/2610260151_p4631_歴史好き_3.jpg"
   },
   {
-   "key": "aud:落ちた|console.error：TypeError: Cannot read properties of null (reading 'image')",
-   "title": "console.error：TypeError: Cannot read properties of null (reading 'image')",
-   "cat": "落ちた",
-   "people": 49,
+   "key": "stuck:nagashinojo:#,-#",
+   "title": "前へ進もうとしても進めない所があった",
+   "cat": "辻褄",
+   "people": 46,
    "who": [
-    "chu",
     "act",
+    "chu",
     "sen",
+    "reki",
     "sek"
    ],
-   "sev": 1,
-   "times": 98,
-   "lean": "iPhone36人・織田家編の戦を一つ29人",
+   "sev": 2,
+   "times": 67,
+   "lean": "iPhone33人・信長で出陣46人",
    "battles": [
-    "金ヶ崎の退き口",
-    "金ヶ崎の退き口（信長で出陣）"
+    "長篠城籠城（信長で出陣）"
    ],
-   "fix": "出どころを突き止める",
-   "what": "",
-   "shot": "shots/2610252323_p4390_中学生_1.jpg"
+   "fix": "当たり（柵・建物・地形）と道のつながりを見直す",
+   "what": "(11, -7)・段 w1",
+   "shot": "shots/2610260151_p4709_せっかち_2.jpg"
   },
   {
-   "key": "act-dull:anegawa",
-   "title": "斬り合う相手が少なくて退屈",
-   "cat": "使いづらい",
-   "people": 49,
+   "key": "aud:辻褄|崩れた部隊が、また戦っている",
+   "title": "崩れた部隊が、また戦っている",
+   "cat": "辻褄",
+   "people": 44,
    "who": [
+    "sen",
+    "reki",
+    "sek",
     "act"
    ],
-   "sev": 1,
-   "times": 49,
-   "lean": "iPhone41人・信長で出陣26人",
+   "sev": 3,
+   "times": 343,
+   "lean": "iPhone29人",
    "battles": [
+    "信貴山城の戦い",
     "姉川の戦い（信長で出陣）",
-    "姉川の戦い"
+    "天正伊賀の乱",
+    "信貴山城の戦い（信長で出陣）"
    ],
-   "fix": "",
-   "what": "5分で0人",
-   "shot": "shots/2610252323_p4532_アクション好き_2.jpg"
+   "fix": "崩れた部隊の号令を上書きしない",
+   "what": "尾根の松永勢（号令：flee）",
+   "shot": ""
   },
   {
-   "key": "sen-nosquad:inou",
-   "title": "この戦では号令できる組が無い（指揮する所が無い）",
-   "cat": "使いづらい",
-   "people": 49,
+   "key": "stuck:nagashima:#,#",
+   "title": "前へ進もうとしても進めない所があった",
+   "cat": "辻褄",
+   "people": 43,
    "who": [
-    "sen"
+    "chu",
+    "sek",
+    "sen",
+    "reki",
+    "act"
    ],
-   "sev": 1,
-   "times": 49,
-   "lean": "iPhone39人・新しく始める通し34人",
+   "sev": 2,
+   "times": 158,
+   "lean": "iPhone32人・信長で出陣43人",
    "battles": [
-    "稲生の戦い",
-    "稲生の戦い（信長で出陣）"
+    "長島一向一揆（信長で出陣）"
    ],
-   "fix": "",
-   "what": "稲生の戦い（信長で出陣）",
-   "shot": "shots/2610252323_p4423_戦略家_2.jpg"
+   "fix": "当たり（柵・建物・地形）と道のつながりを見直す",
+   "what": "(3, 55)・段 sally",
+   "shot": ""
+  },
+  {
+   "key": "down:echizen",
+   "title": "倒れて戦が終わった",
+   "cat": "使いづらい",
+   "people": 43,
+   "who": [
+    "sen",
+    "sek",
+    "act",
+    "reki",
+    "chu"
+   ],
+   "sev": 2,
+   "times": 43,
+   "lean": "iPhone35人",
+   "battles": [
+    "越前一向一揆・木ノ芽峠（信長で出陣）",
+    "越前一向一揆・木ノ芽峠"
+   ],
+   "fix": "初めの戦は受ける傷を減らす・危ない時に字幕で構えを教える",
+   "what": "326秒で倒れた（受けた傷：侍 167・足軽 29｜段 kannon・最後の傷 294s侍13→70囲退距1.5見1.4 294s侍16→57横囲退距1.4見1.4 300s侍15→53退距1.4見1.4 304s侍16→32退距1.2見1.0 307s侍14→11退距1.8見1.6 310s侍19→10囲退距1.5見",
+   "shot": "shots/2610260151_p4734_せっかち_2.jpg"
   }
  ],
- "liveN": 399,
+ "liveN": 396,
  "gone": [
   {
-   "title": "押せる所が小さい（28px 未満）",
-   "why": "最後に出たあと、同じ戦を200人が遊んで出ていない"
+   "title": "字が枠から切れている",
+   "why": "最後に出たあと、同じ戦を97人が遊んで出ていない"
   },
   {
-   "title": "門が壊れないまま戦が終わった（任務は落とした）",
-   "why": "最後に出たあと、同じ戦を25人が遊んで出ていない"
+   "title": "字と背景の明暗の比が低い（3 未満）",
+   "why": "最後に出たあと、同じ戦を54人が遊んで出ていない"
   },
   {
-   "title": "倒れて戦が終わった",
-   "why": "最後に出たあと、同じ戦を22人が遊んで出ていない"
+   "title": "自分のすぐそばの敵が6秒以上なにもしない",
+   "why": "最後に出たあと、同じ戦を97人が遊んで出ていない"
   },
   {
-   "title": "一つの戦が長い（7分を超えた）",
-   "why": "最後に出たあと、同じ戦を33人が遊んで出ていない"
+   "title": "戦う兵が遠景の大軍（影の兵）の中に埋もれている",
+   "why": "最後に出たあと、同じ戦を88人が遊んで出ていない"
   },
   {
-   "title": "斬り合う相手が少なくて退屈",
-   "why": "最後に出たあと、同じ戦を26人が遊んで出ていない"
+   "title": "号令「退け」から3秒たっても、組の7割が動かない",
+   "why": "最後に出たあと、同じ戦を157人が遊んで出ていない"
+  },
+  {
+   "title": "号令「突撃」を出したが、組の多くが戦列を離れている",
+   "why": "最後に出たあと、同じ戦を126人が遊んで出ていない"
   },
   {
    "title": "何もする事が無いまま待たされた",
-   "why": "最後に出たあと、同じ戦を20人が遊んで出ていない"
+   "why": "最後に出たあと、同じ戦を37人が遊んで出ていない"
   },
   {
-   "title": "倒れて戦が終わった",
-   "why": "最後に出たあと、同じ戦を40人が遊んで出ていない"
+   "title": "号令「retreat」が、指の号令の輪から出せない",
+   "why": "最後に出たあと、同じ戦を177人が遊んで出ていない"
   },
   {
-   "title": "倒れて戦が終わった",
-   "why": "最後に出たあと、同じ戦を141人が遊んで出ていない"
+   "title": "押せる所が小さい（28px 未満）",
+   "why": "最後に出たあと、同じ戦を313人が遊んで出ていない"
+  },
+  {
+   "title": "敵が近いのに、まわりの兵の多くが棒立ち",
+   "why": "最後に出たあと、同じ戦を32人が遊んで出ていない"
+  },
+  {
+   "title": "敵が近いのに、まわりの兵の多くが棒立ち",
+   "why": "最後に出たあと、同じ戦を65人が遊んで出ていない"
+  },
+  {
+   "title": "門が壊れないまま戦が終わった（任務は落とした）",
+   "why": "最後に出たあと、同じ戦を37人が遊んで出ていない"
   },
   {
    "title": "前へ進もうとしても進めない所があった",
-   "why": "最後に出たあと、同じ戦を36人が遊んで出ていない"
-  },
-  {
-   "title": "敵が近いのに、まわりの兵の多くが棒立ち",
-   "why": "最後に出たあと、同じ戦を28人が遊んで出ていない"
-  },
-  {
-   "title": "敵が近いのに、まわりの兵の多くが棒立ち",
-   "why": "最後に出たあと、同じ戦を109人が遊んで出ていない"
+   "why": "最後に出たあと、同じ戦を23人が遊んで出ていない"
   },
   {
    "title": "倒れて戦が終わった",
    "why": "最後に出たあと、同じ戦を27人が遊んで出ていない"
   },
   {
+   "title": "斬り合う相手が少なくて退屈",
+   "why": "最後に出たあと、同じ戦を20人が遊んで出ていない"
+  },
+  {
+   "title": "何もする事が無いまま待たされた",
+   "why": "最後に出たあと、同じ戦を24人が遊んで出ていない"
+  },
+  {
+   "title": "倒れて戦が終わった",
+   "why": "最後に出たあと、同じ戦を46人が遊んで出ていない"
+  },
+  {
+   "title": "倒れて戦が終わった",
+   "why": "最後に出たあと、同じ戦を161人が遊んで出ていない"
+  },
+  {
    "title": "前へ進もうとしても進めない所があった",
    "why": "最後に出たあと、同じ戦を41人が遊んで出ていない"
   },
   {
-   "title": "前へ進もうとしても進めない所があった",
-   "why": "最後に出たあと、同じ戦を45人が遊んで出ていない"
+   "title": "敵が近いのに、まわりの兵の多くが棒立ち",
+   "why": "最後に出たあと、同じ戦を32人が遊んで出ていない"
+  },
+  {
+   "title": "敵が近いのに、まわりの兵の多くが棒立ち",
+   "why": "最後に出たあと、同じ戦を126人が遊んで出ていない"
   },
   {
    "title": "前へ進もうとしても進めない所があった",
-   "why": "最後に出たあと、同じ戦を42人が遊んで出ていない"
-  },
-  {
-   "title": "倒れて戦が終わった",
-   "why": "最後に出たあと、同じ戦を43人が遊んで出ていない"
-  },
-  {
-   "title": "前へ進もうとしても進めない所があった",
-   "why": "最後に出たあと、同じ戦を49人が遊んで出ていない"
-  },
-  {
-   "title": "次に何をすればいいか分からない時間が続いた",
-   "why": "最後に出たあと、同じ戦を30人が遊んで出ていない"
-  },
-  {
-   "title": "この戦のあいだ、迷っていた時間が長い",
    "why": "最後に出たあと、同じ戦を47人が遊んで出ていない"
   },
   {
    "title": "前へ進もうとしても進めない所があった",
-   "why": "最後に出たあと、同じ戦を50人が遊んで出ていない"
+   "why": "最後に出たあと、同じ戦を47人が遊んで出ていない"
   },
   {
    "title": "前へ進もうとしても進めない所があった",
-   "why": "最後に出たあと、同じ戦を35人が遊んで出ていない"
-  },
-  {
-   "title": "敵が近いのに、まわりの兵の多くが棒立ち",
-   "why": "最後に出たあと、同じ戦を38人が遊んで出ていない"
-  },
-  {
-   "title": "敵が近いのに、まわりの兵の多くが棒立ち",
-   "why": "最後に出たあと、同じ戦を24人が遊んで出ていない"
-  },
-  {
-   "title": "遊んでいる途中でゲームが落ちた（例外）",
-   "why": "最後に出たあと、同じ戦を138人が遊んで出ていない"
-  },
-  {
-   "title": "何もする事が無いまま待たされた",
-   "why": "最後に出たあと、同じ戦を208人が遊んで出ていない"
-  },
-  {
-   "title": "敵が近いのに、まわりの兵の多くが棒立ち",
-   "why": "最後に出たあと、同じ戦を43人が遊んで出ていない"
-  },
-  {
-   "title": "前へ進もうとしても進めない所があった",
-   "why": "最後に出たあと、同じ戦を76人が遊んで出ていない"
-  },
-  {
-   "title": "「槍へ」を押そうとしたら、別の物に当たった",
-   "why": "最後に出たあと、同じ戦を23人が遊んで出ていない"
-  },
-  {
-   "title": "敵が近いのに、まわりの兵の多くが棒立ち",
    "why": "最後に出たあと、同じ戦を51人が遊んで出ていない"
   },
   {
+   "title": "倒れて戦が終わった",
+   "why": "最後に出たあと、同じ戦を45人が遊んで出ていない"
+  },
+  {
+   "title": "次に何をすればいいか分からない時間が続いた",
+   "why": "最後に出たあと、同じ戦を32人が遊んで出ていない"
+  },
+  {
    "title": "前へ進もうとしても進めない所があった",
-   "why": "最後に出たあと、同じ戦を47人が遊んで出ていない"
+   "why": "最後に出たあと、同じ戦を55人が遊んで出ていない"
+  },
+  {
+   "title": "前へ進もうとしても進めない所があった",
+   "why": "最後に出たあと、同じ戦を39人が遊んで出ていない"
+  },
+  {
+   "title": "敵が近いのに、まわりの兵の多くが棒立ち",
+   "why": "最後に出たあと、同じ戦を42人が遊んで出ていない"
+  },
+  {
+   "title": "敵が近いのに、まわりの兵の多くが棒立ち",
+   "why": "最後に出たあと、同じ戦を25人が遊んで出ていない"
   }
  ]
 }
