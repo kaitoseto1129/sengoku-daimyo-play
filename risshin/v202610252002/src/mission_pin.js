@@ -22,7 +22,7 @@ function make() {
   style.textContent = '#hud.photo :is(#mission-goal,#mission-flag-frame,#mission-target-lines),#hud.ending :is(#mission-goal,#mission-flag-frame,#mission-target-lines),#hud:has(#bigmap:not([hidden])) :is(#mission-goal,#mission-flag-frame,#mission-target-lines),#hud:has(#cine.on) :is(#mission-goal,#mission-flag-frame,#mission-target-lines){display:none}' +
     '#hud.field-clean:has(#mission-goal.fire-action:not([hidden])) #prompt{display:none!important}' +
     '#mission-goal .goal-label{touch-action:none;user-select:none;box-sizing:border-box}' +
-    '#mission-goal.fire-action .goal-label:focus-visible{outline:3px solid #fff;outline-offset:3px}' +
+    '#mission-goal .goal-label:focus-visible{outline:3px solid #fff;outline-offset:3px}' +
     '#mission-goal .fire-progress{position:absolute;bottom:4px;left:8px;right:8px;height:5px;background:#615745}' +
     '#mission-goal .fire-progress i{display:block;height:100%;background:#fff3ba;width:var(--fire-progress,0%)}';
   el.appendChild(style);
@@ -272,7 +272,9 @@ function drawMissionPin(rt) {
     return;
   }
   if (!pin) pin = make();
-  const simplePin = rt.def.key === 'inou' || rt.def.key === 'okehazama' || inouEnemy || !want.unit && !want.area && !want.waiting && !want.fire && !want.gate && !want.footRing && !want.defend && !want.treatment && !want.passage && !want.marker?.waitAction && !want.marker?.waitGuide && !rt.missionGuide?.marker?.waitAction && !rt.missionGuide?.marker?.waitGuide;
+  const marker = want.marker || rt.missionGuide?.marker;
+  const talk = !!want.unit && !!marker?.guideTalk;
+  const simplePin = !talk && (rt.def.key === 'inou' || rt.def.key === 'okehazama' || inouEnemy || !want.unit && !want.area && !want.waiting && !want.fire && !want.gate && !want.footRing && !want.defend && !want.treatment && !want.passage && !want.marker?.waitAction && !want.marker?.waitGuide && !rt.missionGuide?.marker?.waitAction && !rt.missionGuide?.marker?.waitGuide);
   pin.querySelector('svg').style.display = simplePin ? 'none' : '';
   if (pin._simplePin) pin._simplePin.style.display = simplePin ? '' : 'none';
   const hud = rt.hud, root = hud.root;
@@ -299,9 +301,8 @@ function drawMissionPin(rt) {
     U.x = want.x; U.z = want.z; U.y = want.y ?? groundAt(rt.world, U.x, U.z, me.y);
   }
   const d = Math.hypot(want.x - me.x, want.z - me.z);
-  const near = want.arrow || want.fire || want.gate || want.footRing || want.turn || want.doorFrame ? -2 : want.hide ?? (want.r ?? 6);
-  const marker = want.marker || rt.missionGuide?.marker;
-  const talk = !!want.unit && !!marker?.guideTalk;
+  // 話せる距離でも吹き出しを残し、押せる釦へつなぐ。
+  const near = talk || want.arrow || want.fire || want.gate || want.footRing || want.turn || want.doorFrame ? -2 : want.hide ?? (want.r ?? 6);
   if (pin._talk !== talk) {
     pin._talk = talk; pin._person.innerHTML = talk ? TALK_SIGN : pin._personShape;
   }
@@ -372,7 +373,7 @@ function drawMissionPin(rt) {
   // 火付けの足場が画面内なら、その地面を示し続ける。軒や柱との重なりで上端へ飛ばさない。
   const anchored = !!(rt.def.key === 'okehazama' || want.unit || want.fire || want.gate || want.passage || want.defensePoint || want.area || waiting);
   let outside = behind || occluded && !want.fire || (anchored
-    ? !inFrame || rt.def.key !== 'okehazama' && (covered || inouEnemy && !goalFree(x, y, W, H, rects))
+    ? !inFrame || rt.def.key !== 'okehazama' && (!want.fire && !talk && covered || inouEnemy && !goalFree(x, y, W, H, rects))
     : !goalFree(x, y, W, H, rects));
   // 到着時は同じ地面で色を替え、一拍後は待つ円を任務の下へ一本だけ置く。
   // 画面外や札の下へ隠れた時はすぐ移し、移動の矢印を付けない。
@@ -404,7 +405,7 @@ function drawMissionPin(rt) {
   else {
     const side = Math.abs(dx) / Math.max(.001, W / 2 - 96) >= Math.abs(dy) / Math.max(.001, H / 2 - 80);
     x = side ? dx >= 0 ? W - 96 : 96 : Math.max(96, Math.min(W - 96, x));
-    y = side ? Math.max(80, Math.min(H - 68, y)) : dy >= 0 ? H - 68 : 80;
+    y = side ? Math.max(104, Math.min(H - 68, y)) : dy >= 0 ? H - 68 : 104;
     const baseX = x, baseY = y;
     let found = goalFree(x, y, W, H, rects);
     for (let k = 1; k <= 40 && !found; k++) {
@@ -686,24 +687,28 @@ function drawMissionPin(rt) {
     pin._hold.style.display = 'none';
   }
   pin._fire.style.display = want.fire ? '' : 'none';
-  if (want.fire && !outside) pin.querySelector('.goal-ground path').style.display = '';
+  // 炎そのものを行き先に固定し、下向きの矢印を重ねない。
+  if (want.fire) pin.querySelector('.goal-ground path').style.display = 'none';
   if (flagDestination && !oke && !outside) {
     flag.setAttribute('d', 'M32 65V5H65L56 18L65 31H32');
     flag.setAttribute('transform', 'translate(-6,-5)');
     pin.querySelector('.goal-ground path').style.display = '';
   }
   // 炎の下端を輪より上へ離し、立つ足場を隠さない。
-  pin._fire.setAttribute('transform', outside ? 'translate(8,-32) scale(.8)' : 'translate(8,4) scale(.8)');
-  const action = want.fire ? rt.nearestInteract() : null;
-  const working = !!action && /火/.test(action.label) && action.id === marker?.id;
+  pin._fire.setAttribute('transform', outside ? 'translate(14,-34) scale(.65)' : 'translate(14,23) scale(.65)');
+  const action = want.fire || talk ? rt.nearestInteract() : null;
+  const actionPos = talk && action && (typeof action.pos === 'function' ? action.pos() : action.pos);
+  const talking = talk && !!actionPos && !action.hold && /話す|話を聞く/.test(action.label) &&
+    Math.hypot(actionPos.x - want.unit.pos.x, actionPos.z - want.unit.pos.z) < 1;
+  const working = !!action && (talking || want.fire && /火/.test(action.label) && action.id === marker?.id);
   const label = pin._label;
   label.style.top = '72px'; label.style.left = '50%';
   pin._guardSign.style.display = 'none';
   // 距離と守備の案内は右上の任務札へまとめ、ここは押せる火付けだけ。
   // 稲生は字のないピン一本。相手は同じ本人の頭上の赤い▼で示す。
-  const text = rt.def.key !== 'inou' && working ? action.hold ? '火をつける（長押し）' : '火をつける' : '';
+  const text = talking ? '話す' : rt.def.key !== 'inou' && working ? action.hold ? '火をつける（長押し）' : '火をつける' : '';
   if (pin._words.textContent !== text) pin._words.textContent = text;
-  pin.classList.toggle('fire-action', working);
+  pin.classList.toggle('fire-action', working && !talking);
   const progress = working && rt.holdId === action.id ? Math.round(Math.max(0, Math.min(1, rt.holdPct || 0)) * 100) : 0;
   pin._workProgress.hidden = !working || !action.hold;
   if (pin._workProgress.getAttribute('aria-valuenow') !== String(progress)) {
@@ -717,7 +722,7 @@ function drawMissionPin(rt) {
   // 人名は本人の頭より上。札を避けて別人の上へ動かさない。
   label.style.top = outside ? '72px' : friendlyPerson ? '-44px' : '88px';
   if (friendlyPerson && !outside) label.style.left = '40px';
-  // 火付け釦は画面内の同じ場所へ置く。戸口が画面外でも押せる。
+  // 会話と火付けの釦は画面下の同じ位置へ。一つの釦を使い回す。
   if (working) {
     label.style.left = `${W / 2 - x + 40}px`;
     label.style.top = `${H - 80 - y + (outside ? 40 : 68)}px`;
@@ -1025,6 +1030,23 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     route.setAttribute('d', routeShape); route.setAttribute('fill-rule', 'evenodd');
   }
   const outside = hidden || x < 92 || x > W - 92 || y < 104 || y > H - 68 || !inouPinFree(x, y, rects);
+  // 集合の手応えはピンの穴だけで示す。図形は一度作り、兵や輪を増やさない。
+  if (oke && !el._joinCue) {
+    const cue = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    cue.innerHTML = '<circle cy="-62" r="9" fill="none" stroke="#fff3ba" stroke-width="3" pathLength="1" transform="rotate(-90 0 -62)"/><path d="M-7-62L-2-57L8-67" fill="none" stroke="#e4f2cb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>';
+    el._simplePin.appendChild(cue); el._joinCue = cue;
+  }
+  const joined = oke && want.area && want.arrived;
+  if (el._joinCue) {
+    const cue = el._joinCue, me = rt.player.u.pos;
+    const approach = Math.max(0, Math.min(.98, 1 - Math.max(0, Math.hypot(want.x - me.x, want.z - me.z) - want.r) / 12));
+    cue.style.display = oke && want.area ? '' : 'none';
+    cue.firstChild.style.display = joined ? 'none' : '';
+    cue.lastChild.style.display = joined ? '' : 'none';
+    cue.firstChild.setAttribute('stroke-dasharray', '1');
+    cue.firstChild.setAttribute('stroke-dashoffset', String(1 - approach));
+  }
+  route.setAttribute('fill', joined ? '#e4f2cb' : '#fff3ba');
   // 稲生は画面内も画面端も同じ穴のあるピン。横向きの操作矢印と取り違えさせない。
   route.style.display = '';
   // 敵へ向かうピンは小さくし、足元から胴や自分の頭まで覆わない。
@@ -1042,7 +1064,12 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
   const caption = '';   // 行き先の字は出さない（ピンだけ。10/25 チカチカ）
   if (el._words.textContent !== caption) el._words.textContent = caption;
   let angle = 0;
-  if (outside && (!pinOnly || hidden || oke)) {
+  // 到着したピンが足元で見切れたら、任務の下で一拍だけ見せる。向きは示さない。
+  if (joined && outside) {
+    x = W - 52;
+    y = Math.min(H - 68, (rt.hud.guideOrderRect?.bottom ?? 56) + 84);
+  }
+  if (!joined && outside && (!pinOnly || hidden || oke)) {
     rt.camera.getWorldDirection(goalDirection);
     const yaw = Math.atan2(goalDirection.x, goalDirection.z), me = rt.player.u.pos;
     const gx = want.x - me.x, gz = want.z - me.z;
@@ -1071,7 +1098,8 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     y = Math.max(104, Math.min(H - 68, y));
   }
   // 行き先の形は回さず、端に添えた小さな矢印だけを回す。
-  if (!oke || !outside) route.setAttribute('transform', '');
+  if (!oke || !outside || joined) route.setAttribute('transform', '');
+  if (el._joinCue) el._joinCue.setAttribute('transform', route.getAttribute('transform') || '');
   rt.hud.missionPinLabelShown = !el._label.hidden;
   el.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`;
   el.hidden = false;
@@ -1085,7 +1113,7 @@ function inouPinFree(x, y, rects) {
 // 自分の白い輪は画面の手前に描き、重なる兵や馬に隠さない。
 let playerFoot = null;
 function updatePlayerFoot(rt) {
-  const active = rt.def.key !== 'inou' && rt.def.key !== 'okehazama' && rt.def.key !== 'moribe' && pinGuideOn(rt) && !rt.over && !rt.choice && !rt.hud.introWaiting &&
+  const active = rt.def.key !== 'inou' && rt.def.key !== 'okehazama' && rt.def.key !== 'moribe' && !rt.def.noPlayerFoot && pinGuideOn(rt) && !rt.over && !rt.choice && !rt.hud.introWaiting &&
     rt.player?.u?.alive && !rt.player.camShot && !rt.hud.bigmap;
   if (!active) {
     if (playerFoot) playerFoot.hidden = true;

@@ -734,12 +734,12 @@ const okehazama = {
   missionPin(rt) {
     const F = rt.flags;
     if (F.ending || rt.hud.retreatGuide?.active && rt.hud.retreatGuide.valid) return null;
-    // 到着後は任務の一行だけ。待つ丸を新しい行き先や自分の印に見せない。
-    if (rt.phase === 'wait' || rt.phase === 'brief' && F.briefed ||
-        (rt.phase === 'brief' || rt.phase === 'march') && this.squadFlagReached(rt)) return null;
-    // 未合流の接敵中も赤い▼だけ。
-    if (F.scoutFighting && rt.phase !== 'assault') return null;
     const timedWait = rt.phase === 'wait' || rt.phase === 'brief' && F.briefed;
+    // 集合直後だけ同じピンに到着の形を残す。待つ時計や新しい行き先は足さない。
+    const joinedAt = rt.phase === 'wait' ? F.waitReadyAt - RAIN_WAIT : F.briefReadyAt - DEPART_WAIT;
+    if (timedWait && !(rt.t - joinedAt < 1.8)) return null;
+    // 未合流の接敵中も赤い▼だけ。集合直後の合図は消さない。
+    if (F.scoutFighting && rt.phase !== 'assault' && !timedWait) return null;
     const pin = F.missionPinTarget || (F.missionPinTarget = { x: 0, z: 0, r: 8, hide: 8 });
     // 稲生の型：戦う相手が画面に無い時は、最寄りの残りの敵の足元へピンを刺す（見えている間は頭上の▼だけ）。
     const enemyPin = (enemy) => {
@@ -767,8 +767,17 @@ const okehazama = {
       pin.x = pos.x; pin.z = pos.z; pin.r = 0; pin.hide = 0;
       return pin;
     }
+    if (timedWait) {
+      const pos = rt.phase === 'wait' ? F.waitPos : this.squadFlagPosition(rt);
+      if (!pos) return null;
+      pin.x = pos.x; pin.z = pos.z; pin.r = JOIN_RADIUS; pin.hide = 0;
+      pin.area = true; pin.arrived = true; pin.waiting = false; pin.always = true;
+      return pin;
+    }
     if (rt.phase === 'brief' || rt.phase === 'march') {
-      // 輪に入った時の到着判定を使い、共通描画の距離判定で先に消さない。
+      // 実際の集合判定をピンにも返し、中心を踏むまで歩かせない。
+      pin.arrived = this.squadFlagReached(rt);
+      pin.waiting = false;
       pin.always = true;
       // 歩く旗持ちではなく、実際に到着すると次の段へ進む集合地点へ刺す。
       if (rt.phase === 'march') {
@@ -777,7 +786,7 @@ const okehazama = {
         pin.x = pos.x; pin.z = pos.z;
         // 集合先を地面へ固定する。札避けで近くの兵や別の場所を指さない。
         pin.area = true; pin.hide = 0; pin.r = JOIN_RADIUS;
-        // 到着したら次の更新で消える。時計やチェックへ形を替えない。
+        // 到着時は同じピンの中で形を替え、集合できたことを返す。
         return pin;
       }
       const pos = this.squadFlagPosition(rt);

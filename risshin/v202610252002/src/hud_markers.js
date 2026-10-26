@@ -30,7 +30,7 @@ export class HudMarkers {
     this.workPromptRect = null;
     this.guideOrderRect = null; this.guardButtonRect = null;
     let squadRect = null;
-    for (const sel of ['.hold-cover', '#wait-guard', '#wait-guard span', '#wait-guard small', '#sonae-cards', '#battle-notices', '#battle-log-entry', '#objectives', '#minimap', '#maphint', '.bl', '.tl .plaque', '.tl .next', '#h-prog', '#toasts', '#armybar', '#compass', '#h-bottom', '#h-squad', '#tutorial', '#h-units', '#skiphint', '#boss', '#target', '#subtitle', '#bark', '#choice', '#banner.show', '#prompt']) {
+    for (const sel of ['.hold-cover', '#wait-guard', '#wait-guard span', '#wait-guard small', '#sonae-cards', '#battle-notices', '#battle-log-entry', '#objectives', '#fieldmap', '#minimap', '#maphint', '.bl', '.tl .plaque', '.tl .next', '#h-prog', '#toasts', '#armybar', '#compass', '#h-bottom', '#h-squad', '#tutorial', '#h-units', '#skiphint', '#boss', '#target', '#subtitle', '#bark', '#choice', '#banner.show', '#prompt']) {
       const el = sel === '#sonae-cards' ? document.getElementById('sonae-cards') : this.root.querySelector(sel);
       if (!el || el.hidden || !el.offsetParent) continue;
       // 今は消している札（平時の兵力の帯など）は避けなくてよい

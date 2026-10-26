@@ -252,7 +252,7 @@ export class ArmyBatch {
   selection(source, flagOnly) {
     const attributes = source.geometry.attributes, clash = attributes.aClash;
     const flags = flagOnly && attributes.aInfo2;
-    if (!flags && !clash) return null;
+    const matrices = source.instanceMatrix;
     const U = source.material.userData.armyU;
     let blocks;
     if (clash) {
@@ -280,11 +280,18 @@ export class ArmyBatch {
     }
     const count = source.count;
     if (selection.count === count && selection.flags === flags && selection.flagVersion === flags?.version &&
+      selection.matrices === matrices && selection.matrixVersion === matrices.version &&
       selection.clash === clash && selection.clashVersion === clash?.version &&
       selection.blocks === blocks && selection.blockVersion === blocks?.version) return selection;
     if (!selection.indices || selection.indices.length < count) selection.indices = new Uint32Array(source.instanceMatrix.count);
     let kept = 0, changed = false;
     for (let i = 0; i < count; i++) {
+      // 本物へ替えた兵は take・yield が行列の大きさをゼロにして隠す。
+      // 槍・幟・馬も含め、見えない枠を送らない。薄い形や極小の形は残す。
+      const m = matrices.array, k = i * 16;
+      if (m[k] === 0 && m[k + 1] === 0 && m[k + 2] === 0 &&
+        m[k + 4] === 0 && m[k + 5] === 0 && m[k + 6] === 0 &&
+        m[k + 8] === 0 && m[k + 9] === 0 && m[k + 10] === 0) continue;
       if (flags && flags.array[i * 2] === 0) continue;
       if (clash && clash.array[i * 4 + 3] <= 0.5) {
         const j = Math.floor(clash.array[i * 4] + 0.5) * 2;
@@ -295,6 +302,7 @@ export class ArmyBatch {
     }
     if (selection.kept !== kept || changed) selection.version++;
     selection.kept = kept; selection.count = count; selection.flags = flags; selection.flagVersion = flags?.version;
+    selection.matrices = matrices; selection.matrixVersion = matrices.version;
     selection.clash = clash; selection.clashVersion = clash?.version;
     selection.blocks = blocks; selection.blockVersion = blocks?.version;
     return selection;

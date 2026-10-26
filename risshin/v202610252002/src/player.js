@@ -2215,7 +2215,7 @@ export class Player {
           this.cd = (kind === 'sweep' ? 0.52 : this.combo === 2 ? 0.32 : 0.42) * this.spearCd;
           if (third) this.combo = 0;
           this.comboT = this.cd + 0.65;
-          if (rt.def.key !== 'inou' && rt.def.key !== 'okehazama') sfx(kind === 'sweep' ? 'swing' : 'thrust');
+          if (rt.def.key !== 'inou' && rt.def.key !== 'okehazama' && rt.def.key !== 'moribe' && !rt.def.quietMiss) sfx(kind === 'sweep' ? 'swing' : 'thrust');
         } else rt.hud.flash('気力が足りない（少し構えを解くと戻る）', 'dim');
       } else if (this.sta >= 5) {
         this.sta -= 5; this.staDelay = 0.4;
@@ -3098,7 +3098,7 @@ export class Player {
         this.cd += big ? 0.22 : 0.1;
         if (!this.mounted && !(this.lunge && this.lunge.t > 0)) { const st = big ? 0.3 : 0.15; this.lunge = { x: Math.sin(heading) * st, z: Math.cos(heading) * st, t: 0.12 }; }
         if (!reduceMotion() && S.shake) this.recoilPitch(big ? 0.012 : 0.005);
-        if (this.rt.def.key !== 'inou' && this.rt.def.key !== 'okehazama') sfx('swing', 0.45);   // 空を切る音（当たった時の芯の音と聞き分ける）
+        if (this.rt.def.key !== 'inou' && this.rt.def.key !== 'okehazama' && this.rt.def.key !== 'moribe' && !this.rt.def.quietMiss) sfx('swing', 0.45);   // 空を切る音（当たった時の芯の音と聞き分ける）
       }
     }
     if (hits.some(h => h.res === 'hit' || h.res === 'armor' || h.res === 'block')) {
