@@ -1938,6 +1938,9 @@ const game = {
       // 887：絵の下ごしらえを、読み込みの札を見せている間に進める（compileAsync は並べて作れる端末では並べて作る）
       if (!tool && !isNorender()) stage('絵を整えています', 'compile');
       const t1 = performance.now();
+      // 戦の中と同じ影の有無で組む（題の画面は影を切っているので、そのまま組むと戦の最初の数十秒で全部の材質が影つきで組み直され、
+      //   一つ 100〜200ms 止まっていた。10/26 測り：稲生で戦の途中に 70 余り）
+      const battleShadow = () => { renderer.shadowMap.enabled = S.quality !== 'low' && heatLevel < 3 && !APX.noshadow; };
       // 道具（自動の遊び・撮影）は、すぐ戦が要るので待たない・下ごしらえの遅れも気にしない
       if (tool || isNorender()) HUMd.primed = true;
       try {
@@ -1947,6 +1950,7 @@ const game = {
           renderer.initTexture(b.army.flashTex);
           renderer.initTexture(b.army.smokeTex);
           if (b.army._rain) renderer.initTexture(b.army._rain.dots.material.map);
+          battleShadow();
           if (firstBattle) {
             // 初めに使う戦場の描き方だけ。傷・倒れ・遠い姿の総当たりを待たない。
             singlePassLow(b.scene);
@@ -1957,7 +1961,7 @@ const game = {
             // 時間切れで戦中へ残さない。姿をまとめて組み立て、完了を一度だけ待つ。
             const current = () => my === this.startSeq;
             LT.programs = await prepareBattlePrograms(renderer, b, camera, current, {
-              offscreen: useFinish(),
+              offscreen: useFinish(), shadow: battleShadow,
               uploadTextures: async (scene, materials) => {
                 singlePassLow(scene);
                 return paceTextureUploads(scene, current, materials);
@@ -2012,7 +2016,21 @@ const game = {
       if (steps) for (const step of steps.children) { step.classList.remove('current'); step.classList.add('done'); }
       { const bar = document.querySelector('#loading .ldbar i'); if (bar) { bar.style.transition = 'transform .3s linear'; bar.style.transform = 'scaleX(1)'; } await new Promise((r) => setTimeout(r, 350)); }   // 残りを急に消さず、満ちてから閉じる（kaito 10/23 稲生 37）
       const readingBegan = performance.now();
+      // 初めての戦は札を早く出すため支度を省いている。心得を読んでいる間（3D は描かない）に、馬・倒れ・具足・束の描き方を組んでおく。
+      //   乱戦の途中で 40 余りが組まれ、そのたびに止まっていた（10/26）。長くても 6 秒で打ち切り、残りは戦の中で組む。
+      let latePrep = null;
+      if (firstBattle && !tool && !isNorender()) {
+        const deadline = performance.now() + 6000;
+        const late = () => my === this.startSeq && this.battle === b && performance.now() < deadline;
+        latePrep = (async () => {
+          await Promise.race([loadHorse(), new Promise((r) => setTimeout(r, 3000))]).catch(() => {});
+          if (!late()) return;
+          const { prepareBattlePrograms } = await import('./battle_programs.js');
+          LT.programsLate = await prepareBattlePrograms(renderer, b, camera, late, { offscreen: useFinish(), shadow: battleShadow });
+        })().catch((e) => { LT.programsLateError = String(e?.message || e); });
+      }
       await reader.wait();
+      if (latePrep) await latePrep;
       b.startTiming.readingMs = Math.round(performance.now() - readingBegan);
       reader.dispose();
       if (this.loadingReader === reader) this.loadingReader = null;
@@ -2773,10 +2791,11 @@ function loop() {
         const steps = Math.min(maxSteps, Math.max(1, Math.ceil(dt / 0.05)));
         // 一刻みは 1/15 秒まで（当たり・歩みの刻みを粗くしすぎない。余った分は戦の時がその分ゆっくり進む）
         const slice = Math.min(dt / steps, 1 / 15);
+        // 走る足とカメラは実際の経過を受け取り、乱戦の計算時間に引きずられない。
         const tS0 = performance.now();
         for (let tick = 0; tick < steps; tick++) {
           for (let si = 0; si < spd && !b.disposed && game.battle === b; si++) {
-            b.update(slice, input);
+            b.update(slice, input, dt / steps);
             if (!RMm() && game.hitstop > 0) break;
           }
           if (steps > 1) input.endFrame();

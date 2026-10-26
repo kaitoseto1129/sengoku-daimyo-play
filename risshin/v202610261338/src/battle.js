@@ -1,3 +1,4 @@
+import { encounterTick, encounterDispose } from './battle_encounter.js';
 import { simpleControls } from './simple_controls.js';
 import { retryTick, offerRetry, disposeRetry } from './battle_retry.js';
 import { noteHeard, relayNotice, roughPeople } from './notice_source.js';
@@ -2243,7 +2244,7 @@ export class Battle {
     this.bark(`${best.name || '味方の隊'}から ${take.length} 人が組に加わった`);
   }
 
-  update(dt, input) {
+  update(dt, input, controlDt = dt) {
     if (this.ended) return;
     // 出陣札を読む間は兵と任務を止める。有岡は直接刻む試走でも開戦札を待つ。
     if (this.hud.introWaiting && (this.game.battle === this || (this.def.waitForIntro && !this.over))) return;
@@ -2421,7 +2422,8 @@ export class Battle {
     }
     this.tutPauseTick(dt);
     this.coachTick(dt, input);
-    if (this.player.u.alive) this.player.update(dt, input);
+    if (this.player.u.alive) this.player.update(dt, input, controlDt);
+    this.army.playerRunning = this.player.running && Math.hypot(this.player.u.vel.x, this.player.u.vel.z) > 3;
     // 後に回したヒントを、手ほどきが済んでから一つずつ
     // 古くなったヒント（60秒より前の事）は捨てる
     if (this.hintQ.length && !this.tut && !this.tutPause && !this.hud.hintBusy() && (this.hintGapT = (this.hintGapT || 0) + dt) > 3) {
@@ -2615,7 +2617,8 @@ export class Battle {
       flap: this.environmentSound.ctx && !this.environmentSound.dead ? 0 : (this.flagNear ? Math.max(0, WIND_STATE.gust - 0.6) : 0),
       summer: this.isSummer ?? (this.isSummer = /夏/.test(this.def.date ? this.def.date(this) : '')), after: this.world.timeKey === 'after',
       pant: u.alive && !this.player.mounted ? Math.max(0, 1 - this.player.sta / (this.player.maxSta * 0.45), u.hp < u.maxHp * 0.3 ? 0.45 + lowK * 0.5 : 0) : 0 }, this.world, u.pos, WIND_STATE.gust);
-    this.player.updateCamera(dt, this.camera);
+    encounterTick(this, dt);
+    this.player.updateCamera(controlDt, this.camera);
     updateHumans(this, dt);   // 近くの兵を骨の入った人で描く（humans.js）
     staticBatchTick(this);   // 動かない物を材質ごとの束で描く（static_batch.js）
     missionGuideTick(this, dt);
@@ -2835,7 +2838,7 @@ export class Battle {
     this.timers.length = 0;
     clean(() => { disposeRetry(this); });
     clean(() => { disposeMerit(this); });
-    clean(() => { missionGuideDispose(this); });
+    clean(() => { missionGuideDispose(this); encounterDispose(this); });
     clean(() => { if (this.dodgeRing) {
       this.scene.remove(this.dodgeRing); this.dodgeRing.geometry.dispose(); this.dodgeRing.material.dispose(); this.dodgeRing = null;
     } });

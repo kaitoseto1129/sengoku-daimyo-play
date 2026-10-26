@@ -561,6 +561,7 @@ const okehazama = {
   jinkei: OKEHAZAMA_JIN,
   minutes: 7,
   nearbyAllySignLimit: 0,
+  noPlayerFoot: true, // 集合先のピンと紛らわしい白い足元の輪を出さない。
   // 右上はミッションの一行だけ。距離・向き・操作の字を見出しに出さない（kaito 10/23 49・50）。
   // 間合いと命中は頭上の▼で示し、別の距離案内は出さない。
   enemyOrder(rt, enemy) {
@@ -2390,7 +2391,7 @@ const okehazama = {
     const F = rt.flags;
     if (rt.over || F.ending || rt.phase !== 'wait') return;
     F.waitPinCompletePos = F.marchPinPos || this.squadFlagPosition(rt);
-    F.waitPinCompleteUntil = rt.t + .8;
+    F.waitPinCompleteUntil = rt.t + 2.4;
     rt.setPhase('assault'); rt.objRemove('col'); rt.objRemove('wait'); rt.objRemove('honjin0');
     rt.unmark('wait');
     F.quiet = false;

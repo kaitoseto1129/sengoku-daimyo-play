@@ -88,6 +88,8 @@ function distantIdle(u, dist) {
 }
 // 判断だけの時計。近くの斬り合いは毎秒20回、遠い非交戦兵は8回。移動と攻撃の時計は保つ。
 function unitThinkInterval(army, u, dist) {
+  // 走る本人の近くと攻撃中の兵を優先し、周囲の索敵を一斉に行わない。
+  if (army.playerRunning && dist > 8 && !u.atk && !u.swing && !u.bind && !u.charging && !u.hit && !(u.stagger > 0)) return dist < 30 ? 1 / 10 : 1 / 4;
   if (dist <= 30 || u.detailEnemy || u.atk || u.swing || u.bind || u.charging ||
       u.hit || u.stagger > 0 || u.fleeing || u.group.routed ||
       u.target && army.distTo(u, u.target) < Math.max(14, u.reach + 8)) return 1 / 20;
@@ -578,7 +580,11 @@ export class Army {
     look.longHoro = fieldLook.longHoro === 'round' ? 'round' : !!fieldLook.longHoro;
     look.shoulderMark = u.team === 0 ? fieldLook.allyShoulderMark || 0 : 0;
     look.flagBoost = u.team === 0 ? fieldLook.allyFlagBoost || 0 : 0;
-    // 敵の布を朱へ寄せるのはやめた（kaito 10/23 稲生 41）。敵は頭上の赤い▼（foe_marks.js）で見分ける。
+    // 稲生の敵味方は具足の色でも示す。形・武器・強さはそのまま。
+    if (fieldLook.battleKey === 'inou' && !look.kosode && !look.sohei && u.type !== 'porter' && u.type !== 'dummy') {
+      look.sideArmor = u.team === 0 ? u.type === 'player' || u.type === 'busho' ? 0x1766d4 : 0x526b85 : u.type === 'busho' && u.name ? 0xd52e35 : 0xb87979;
+      look.armor = look.helm = look.hatColor = look.sideArmor;
+    }
     look.flag = fieldLook.armyFlagKinds?.[look.flag] || look.flag;
     look.standard = fieldLook.armyFlagKinds?.[look.standard] || look.standard;
     // 全戦の武将は、背に垂れる母衣を外して袖なしの陣羽織を着る。

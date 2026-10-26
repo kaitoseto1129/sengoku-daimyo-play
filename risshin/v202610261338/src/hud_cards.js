@@ -408,11 +408,8 @@ html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog {
 html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog :is(.pg-st span,.pg-next) {
  white-space:nowrap !important; overflow:visible; text-overflow:clip; overflow-wrap:normal; word-break:keep-all;
 }
-/* 稲生の今の操作は任務の二行目に残す。共通の一行表示で隠さない。 */
-html:root body #hud.mission-only #h-prog[data-battle="inou"] > .pg-next:not([hidden]) {
- display:block !important;
-}
-html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog .pg-context { display:block; }
+/* 稲生は小地図と任務の補足を出さず、本人の▼と一行の任務に絞る。 */
+html:root body #hud:has(#h-prog[data-battle="inou"]) :is(#minimap,#maphint,.pg-next,.pg-context) { display:none !important; }
 html:root body #hud.prog-on:has(#h-prog[data-battle="inou"]) #battle-notices:not(.choosing):not(.pg-x) {
  left:calc(16px + env(safe-area-inset-left, 0px)) !important; right:auto !important;
  top:calc(104px + env(safe-area-inset-top, 0px)) !important; bottom:auto !important;
@@ -484,7 +481,7 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
       this.nextEnemyLabel = enemyLabel;
       if (enemy) this.nextEnemyUnit = enemy;
       // 森部の一般兵は誰を攻撃してもよい。一人ずつ指定された任務に見せない。
-      if (def.key !== 'moribe' && rt.t < this.nextEnemyUntil) headline = 'つぎの敵を たおせ';
+      if (def.key !== 'moribe' && def.key !== 'inou' && rt.t < this.nextEnemyUntil) headline = 'つぎの敵を たおせ';
     }
     // 話す任務と相手の頭上を、同じ吹き出しで結ぶ。札は増やさない。
     const talkSign = headline === 'この人と話そう';
@@ -500,10 +497,10 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     stEl.lastChild.classList.toggle('foe-task', def.key === 'okehazama' && headline.startsWith('▼'));
     // 戦固有の案内と任務の進みは残す。同じ任務の全文は重ねない。
     const status = def.missionStatus?.(rt, taskLine);
-    const sub = def.key === 'inou' ? (attacking ? enemyLabel : '') : def.missionSingleLine ? '' : def.missionDetail ? def.missionDetail(rt) :
+    const sub = def.missionSingleLine ? '' : def.missionDetail ? def.missionDetail(rt) :
       (typeof def.missionStatusFirst === 'function' ? def.missionStatusFirst(rt) : def.missionStatusFirst) ? status || '' :
         currentObjective(rt)?.progress || (status && status !== headline ? status : '');
-    // 稲生は同じ任務札に、やさしい相手の名だけを添える。
+    // 稲生は相手の名を任務一行に収め、二行目を重ねない。
     setText(nextEl, sub); nextEl.hidden = !(sub && (def.key === 'inou' || sub.length <= (def.missionStatusMaxLength ?? 14)) && (def.key === 'inou' || rt.teachOn?.() || !!def.missionDetail));
     // 歩数は行き先の横に札を増やさず、任務の同じ札で読む。
     const destination = missionTarget(rt), me = rt.player.u.pos;

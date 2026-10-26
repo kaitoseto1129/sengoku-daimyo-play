@@ -1,5 +1,6 @@
 // 任務の手引き。印・形・材質は使い回し、行き先と進みは半秒ごとに読む。
 import { S } from './settings.js';
+import * as THREE from 'three';
 import { intelText } from './battle_intel.js';
 import { deckAt } from './floors.js';
 import { sightScreenUnit } from './battle_sight.js';
@@ -237,9 +238,38 @@ function select(rt, g) {
   rt.hud.say(rt.G.lord ? '近習' : '組頭', text, 4, false, { task: true, goalKey: key });
 }
 
+function travelArrow(rt, g) {
+  if (rt.def.key !== 'inou') return;
+  const pin = rt.def.missionPin?.(rt), p = rt.player.u.pos;
+  const visible = pin && !pin.enemy && !pin.approach && !pin.unit &&
+    !/たおせ|倒せ/.test(rt.def.missionHeading?.(rt) || '') &&
+    !rt.over && !rt.flags.ending && rt.player.u.alive && !rt.choice &&
+    !(rt.prelude && rt.prelude !== 'done') &&
+    Math.hypot(pin.x - p.x, pin.z - p.z) > (pin.r ?? 8);
+  if (!g.arrow && visible) {
+    // 長さ三メートルの平たい矢印。一戦に一つだけ作り、足元で向きを替える。
+    const shape = new THREE.Shape();
+    shape.moveTo(-0.32, 0.5); shape.lineTo(0.32, 0.5); shape.lineTo(0.32, 1.9);
+    shape.lineTo(0.95, 1.9); shape.lineTo(0, 3.2); shape.lineTo(-0.95, 1.9);
+    shape.lineTo(-0.32, 1.9); shape.closePath();
+    const geo = new THREE.ShapeGeometry(shape); geo.rotateX(Math.PI / 2);
+    g.arrow = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xe33940, side: THREE.DoubleSide,
+      depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+    g.arrow.renderOrder = 2; g.arrow.frustumCulled = false;
+    rt.scene.add(g.arrow);
+  }
+  if (!g.arrow) return;
+  g.arrow.visible = !!visible;
+  if (visible) {
+    g.arrow.position.set(p.x, p.y + 0.12, p.z);
+    g.arrow.rotation.y = Math.atan2(pin.x - p.x, pin.z - p.z);
+  }
+}
+
 export function missionGuideTick(rt, dt) {
   let g = rt.missionGuide;
   if (!g) g = init(rt);
+  travelArrow(rt, g);
   if ((g.scan -= dt) <= 0) { g.scan = 0.5; select(rt, g); }
   const active = !rt.over && rt.player.u.alive && !rt.choice && !rt.player.camShot &&
     rt.phase !== 'wait' && !(rt.prelude && rt.prelude !== 'done');
@@ -253,5 +283,7 @@ export function missionGuideTick(rt, dt) {
 }
 
 export function missionGuideDispose(rt) {
+  const arrow = rt.missionGuide?.arrow;
+  if (arrow) { arrow.removeFromParent(); arrow.geometry.dispose(); arrow.material.dispose(); }
   rt.missionGuide = null;
 }

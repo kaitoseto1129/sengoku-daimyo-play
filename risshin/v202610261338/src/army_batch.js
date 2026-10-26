@@ -185,7 +185,9 @@ export class ArmyBatch {
       });
       material.onBeforeCompile = (shader, renderer) => { original.onBeforeCompile(shader, renderer); table.shader(shader); };
       material.onBeforeRender = original.onBeforeRender;
-      material.customProgramCacheKey = () => '全軍の束:' + key;
+      // 描き方は色・絵の中身・濃さでは変わらない。絵ごとに別の program を組まない（乱戦で新しい隊が出るたびに組まれていた。10/26）
+      const programKey = [table.width, !!original.map, original.customProgramCacheKey(), original.vertexColors].join('|');
+      material.customProgramCacheKey = () => '全軍の束:' + programKey;
       this.materials.set(key, material);
     }
     return material;

@@ -248,16 +248,20 @@ const inou = {
   nearGroundSpearRadius: 10, // 討ち取り後に視線を横切る落ち槍も既存の視線判定で避ける。
   nearSpearFade: false, // 槍だけを縮めて透かさず、持ち主と同じ形を保つ。
   missionPinCaption: '',
+  noPlayerFoot: true, // 自分の白い輪を敵の目印と取り違えさせない。
+  noFieldMap: true, // 行き先のピンと敵本人の▼に絞る。
+  hideGuideSteps: true,
+  missionSingleLine: true,
   hideArmyPeek: true, // 初陣は行き先・敵の▼・任務一行に絞る。
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
   // 任務は短い一行。兵・隊長・待つ場所を区別し、頭上の▼と呼び方をそろえる。
   missions: ['▼の てきを たおせ', '▼の てきを たおせ', 'ここを まもれ', '▼の てきを たおせ', '味方と すすめ', 'おいすぎるな'],
   missionHeading(rt) {
     const F = rt.flags;
-    if (F.step === 0 || F.step === 2 || F.step === 3) return '▽の敵を たおせ';
+    if (F.step === 0 || F.step === 2 || F.step === 3) return `${this.missionEnemyLabel(rt)}を倒せ`;
     if (F.step === 1) {
-      if (F.training === 11 && !F.flankReached) return '輪へ すすめ';
-      if (F.training === 12 && !gone(F.shiba1)) return '▽の敵を たおせ';
+      if (F.training === 11 && !F.flankReached) return '柴田隊を崩せ';
+      if (F.training === 12 && !gone(F.shiba1)) return `${this.missionEnemyLabel(rt)}を倒せ`;
       return 'ここを まもれ';
     }
     return this.missions[this.missionOf(rt)];
@@ -272,8 +276,8 @@ const inou = {
       approachUnit(rt) :
         rt.flags.step === 1 && rt.flags.training === 12 && !gone(rt.flags.shiba1) ? approachUnit(rt) :
           rt.flags.step === 3 ? rt.flags.hayaU : null,
-  missionEnemyLabel: (rt) => rt.flags.step === 3 ? 'はやしの大将' : rt.flags.step === 1 || rt.flags.step === 2 ? 'しばたの兵' :
-    rt.flags.training === 8 ? 'はやしの隊長' : 'はやしの兵',
+  missionEnemyLabel: (rt) => rt.flags.step === 3 ? '林美作守' : rt.flags.step === 1 || rt.flags.step === 2 ? '柴田隊の兵' :
+    rt.flags.training === 8 ? '林美作守隊の隊長' : '林美作守の兵',
   missionEnemySteps: enemySteps,
   meleeResult(rt, target, result) {
     const F = rt.flags;

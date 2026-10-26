@@ -13,7 +13,7 @@ export function namedArmorLook(look) {
   const st = namedKacchu(look);
   if (!st) return look;
   // 面を実写の顔へ付ける段では、喉の垂だけにした指定を保つ。
-  return { ...look, ...st, menpoStyle: look.menpoScan ? 'tare' : st.menpoStyle, vi: 1 };
+  return { ...look, ...st, ...(look.sideArmor ? { armor: look.sideArmor, helm: look.sideArmor, hatColor: look.sideArmor } : {}), menpoStyle: look.menpoScan ? 'tare' : st.menpoStyle, vi: 1 };
 }
 const crests = new Map();
 export function namedCrestGeometry(kind, hi = true) {

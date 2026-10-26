@@ -1902,7 +1902,7 @@ export class Player {
     return `${from}から${weapon}を受けた。${horse}${h.blocked ? '構えで受けたが、傷が重なった。' : !h.ranged && (h.guardBroken || h.exhausted) ? '気力が足りず、構えで受けられなかった。' : ''}${h.mobbed ? '敵に囲まれていた。' : ''}`;
   }
 
-  update(dt, input) {
+  update(dt, input, controlDt = dt) {
     if (this.startGun) { this.startGun = false; if (this.hasGun) this.switchWeapon('gun'); }
     const u = this.u;
     this.lock = null; this.guardOn = this.guard = u.guard = u.dodging = false;
@@ -1933,7 +1933,7 @@ export class Player {
     this.time = (this.time || 0) + dt;
     this.comboHitT = (this.comboHitT || 0) - dt;
     if (this.comboHitT <= 0) this.hitChain = 0;
-    this.updateLook(dt, input);
+    this.updateLook(controlDt, input);
     // 回し車で視点の距離を変える。
     if (input.wheel && !this.radial) {
       const before = this.zoom;
@@ -2053,7 +2053,7 @@ export class Player {
       if (input.axis) this.running = !!input.runHeld;
       if (ml === 0) this.running = false;
     } else this.running = shift;
-    if (this.mounted) this.rideMove(dt, input, iz, mx, mz, ml);
+    if (this.mounted) this.rideMove(this.running ? controlDt : dt, input, iz, mx, mz, ml);
     else {
       // 技の出始めだけ駆け足を控える。打ち終わってから三秒も歩かせない。
       // 息切れ後は三割まで歩いて戻す。走る・歩くを毎コマ繰り返さない。
@@ -2062,6 +2062,7 @@ export class Player {
       const canRun = this.running && ml > 0 && !this.guard && !this.aiming && !(this.draw > 0) && !this.pending && !this.assistImpact && !(u.swing && u.swing.t < Math.min(0.18, u.swing.dur));
       // よろめいている間は足が思うように出ない（騎馬に倒された時はほとんど動けない）
       // 撃たれた後しばらくは足が重い（走れても遅い。gunHurtT が減るにつれ戻る）
+      const moveDt = controlDt;
       const shot = 1;
       // 深手（体力が三割を切る）は足が重い：歩みも走りも鈍る（傷の深さに応じて）
       const wound = !TOFF ? Math.max(0, 1 - u.hp / (u.maxHp * 0.5)) : 0;
@@ -2081,12 +2082,13 @@ export class Player {
       // 最も重い具足でも、平地の出足は〇・三秒で七割。止まりは短く、重みは少し残す。
       const heavy = Math.max(0, Math.min(0.5, this.def || 0));
       const tsp = Math.hypot(tvx, tvz), csp = Math.hypot(this.vel.x, this.vel.z);
-      const acc = 1 - Math.exp(-dt * (ml > 0 ? (tsp > csp + 1 && tsp > 5 ? 6 : 12) - heavy * 3 : 16 - heavy * 4));
+      const acc = 1 - Math.exp(-moveDt * (ml > 0 ? (tsp > csp + 1 && tsp > 5 ? 6 : 12) - heavy * 3 : 16 - heavy * 4));
       this.vel.x += (tvx - this.vel.x) * acc;
       this.vel.z += (tvz - this.vel.z) * acc;
       let vx = this.vel.x, vz = this.vel.z;
       if (treating) { vx = 0; vz = 0; }
-      this.movePlayer(dt, vx, vz);
+      // 重いコマでも走行時間を捨てない。当たりの小刻みな確認は movePlayer が行う。
+      this.movePlayer(moveDt, vx, vz);
       vx = u.vel.x; vz = u.vel.z;
       this.vel.x = vx; this.vel.z = vz;
       const sp = Math.hypot(vx, vz);
@@ -4801,8 +4803,9 @@ export class Player {
   updateCamera(dt, camera) {
     this.camCameraFrame = (this.camCameraFrame || 0) + 1;
     this.cameraRayFrame();
-    // 自動の見せ場と開戦の寄りを使わず、手動で選んだ距離を保つ。
-    this.cine = null; this.camShot = null; this.shotZoom = 0; this.introT = 0;
+    // 接敵した武将への一瞬の振り向きだけ残し、手動で選んだ距離を保つ。
+    if (!this.cine?.encounter) this.cine = null;
+    this.camShot = null; this.shotZoom = 0; this.introT = 0;
     decisiveCameraReset(this.rt, camera);
     const u = this.u;
     if (!u.alive && this.rt.result?.down) { this.updateDownCamera(dt, camera); return; }
@@ -5010,7 +5013,7 @@ export class Player {
     const pull = selfFrame ? 0 : pr * pr * (3 - 2 * pr);
     // 大事な場面では、その方へ視点を向ける
     if (reduceMotion()) { this.cine = null; this.camShot = null; this.shotZoom = 0; this.camPush = null; this.camLean = null; }
-    if (this.cine && (this.lookIdle < 0.2 || this.aiming || this.lock || this.inCombatT > 0)) this.cine = null;
+    if (this.cine && (this.lookIdle < 0.2 || this.aiming || this.lock || this.inCombatT > 0 && !this.cine.encounter)) this.cine = null;
     if (this.cine) {
       this.cine.t -= dt;
       const want = Math.atan2(this.cine.x - u.pos.x, this.cine.z - u.pos.z);

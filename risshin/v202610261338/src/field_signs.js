@@ -202,7 +202,8 @@ export function fieldSignsTick(rt, root) {
   const reachableTarget = rt.player.inRange && rt.player.rangeCueTarget?.alive ? rt.player.rangeCueTarget : null;
   // 稲生も共通の頭上印を保ち、大きな札への置き換えや周囲の縮小をしない。
   const marked = rt.def.key === 'inou' || rt.def.key === 'moribe' || rt.def.key === 'okehazama' ? null : markedEnemy(rt);
-  const missionEnemy = marked || (rt.def.key === 'moribe' ? reachableTarget : null) || (rt.def.key === 'inou' || rt.def.key === 'okehazama' || rt.def.key === 'moribe' ? rt.def.missionSignTarget?.(rt) : null) || reachableTarget ||
+  const crossing = rt.def.key === 'moribe' && !rt.flags.signal && !rt.flags.fordThreat;
+  const missionEnemy = crossing ? null : marked || (rt.def.key === 'moribe' ? reachableTarget : null) || (rt.def.key === 'inou' || rt.def.key === 'okehazama' || rt.def.key === 'moribe' ? rt.def.missionSignTarget?.(rt) : null) || reachableTarget ||
     rt.hud.approachGuideEnemy || rt.hud.attackGuideEnemy || rt.hud.aimGuideEnemy ||
     (rt.player.lock?.alive ? rt.player.lock : null) || rt.missionGuide?.closeEnemy ||
     (rt.guideEnemyShown ? rt.guideEnemy : null);
@@ -268,9 +269,10 @@ export function fieldSignsTick(rt, root) {
     const meD2 = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
     // 近くの味方は丸。既存の描画の束と行列を使い、人数や戦い方は変えない。
     if (special && !foe) {
-      // 桶狭間は集合先のピンと紛らわしい味方の丸を出さない。
-      if (oke) continue;
-      if (a >= 8 || meD2 > 36 || u.fleeing || u.mesh?.visible === false || u.camHidden) continue;
+      // 稲生・桶狭間は集合先のピンと紛らわしい味方の丸を出さない。
+      // 敵だけに赤い▼を付け、味方には重ねない。
+      if (oke || inou) continue;
+      if (a >= (moribe ? rt.def.nearbyAllySignLimit ?? 8 : 8) || meD2 > 36 || u.fleeing || u.mesh?.visible === false || u.camHidden) continue;
       v.set(u.pos.x, headY(u) + .12, u.pos.z).applyMatrix4(cam.matrixWorldInverse);
       if (v.z >= 0) continue;
       if (u._allySignAt == null || rt.t >= u._allySignAt || rt.t < u._allySignAt - .2) {
@@ -384,10 +386,10 @@ export function fieldSignsTick(rt, root) {
     // 頭上の先端は固定し、既存の形・材質・描画の束をそのまま使う。
     // 稲生は命中の形を少し保ってから戻す。連打の合間にも当たった本人が分かる。
     const hitLeft = ((oke ? u.okeHitUntil : inou ? u.inouHitUntil : u.moribeHitUntil) || 0) - rt.t;
-    // 森部は次の一撃までに伸びを戻す。減った分の余韻は▼の中へ残す。
+    // 森部は命中した形を三秒残す。操作の合間にも、当たった本人と減った赤を見届けられる。
     // 稲生・桶狭間は命中直後の形を保ち、間合いの横広がりと区別できる。
     const hit = foe && special
-      ? moribe ? Math.min(1, Math.max(0, (hitLeft - 2.35) / .45))
+      ? moribe ? Math.min(1, Math.max(0, hitLeft / .6))
         : inou ? Math.min(1, Math.max(0, hitLeft / .6)) *
           (.55 + .45 * Math.min(1, Math.max(0, (hitLeft - 1.8) / .6)))
         : Math.min(1, Math.max(0, hitLeft / .4)) *
@@ -469,7 +471,7 @@ export function fieldSignsTick(rt, root) {
     // 追う相手の▼だけ、残る間合いに合わせて横に開く。届いた瞬間はさらに広げる。
     // 周りの敵と共通の接近による広がりも保ち、目当てだけ細く戻さない。
     const okeApproach = oke && !reachable && u === missionEnemy
-      ? Math.max(okeWidth, 1 + .25 * Math.max(0, Math.min(1, 1 - (Math.sqrt(meD2) - reachHot) / 12))) : okeWidth;
+      ? .5 + .9 * Math.max(0, Math.min(1, 1 - (Math.sqrt(meD2) - reachHot) / 24)) : okeWidth;
     // 選んだ敵の赤い▼が接近に合わせて開き、実際に届いた本人だけ幅で知らせる。
     const moribeApproach = moribe && u === commander
       ? .8 + .4 * Math.max(0, Math.min(1, 1 - (Math.sqrt(meD2) - reachHot) / 12)) : 1;
