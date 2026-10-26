@@ -24,14 +24,14 @@ function guideWay(army) {
       !(army.time - army.guideWayAt < 0.3)) return way;
   const dx = enemy.pos.x - p.pos.x, dz = enemy.pos.z - p.pos.z;
   const d2 = dx * dx + dz * dz;
-  // 桶狭間は▼が見える遠さから道を譲る。動かす範囲は下の八歩に限る。
+  // 目当ての敵が見える遠さから、目前の控えだけ道を譲る。
   // 敵が遠い間だけ目前の味方が道を塞ぎ続ける境を作らない。
-  const reach = army.world.def.battleKey === 'okehazama' ? 170 : 10;
+  const reach = 170;
   if (d2 <= 1 || d2 >= reach * reach) return way;
   const distance = Math.sqrt(d2);
-  // 桶狭間は遠い敵を追う途中から、手前の味方が道を譲る。
+  // 遠い敵を追う途中も、手前の味方だけが道を譲る。
   // 一度に動かすのは自分から八歩まで。軍全体を左右へ割らない。
-  way.length = Math.min(distance, army.world.def.battleKey === 'okehazama' ? 8 : distance);
+  way.length = Math.min(distance, 8);
   way.fx = dx / distance; way.fz = dz / distance;
   way.x = p.pos.x; way.z = p.pos.z; way.active = true;
   return way;

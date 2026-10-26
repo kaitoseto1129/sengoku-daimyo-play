@@ -254,10 +254,10 @@ const inou = {
   missions: ['▼の てきを たおせ', '▼の てきを たおせ', 'ここを まもれ', '▼の てきを たおせ', '味方と すすめ', 'おいすぎるな'],
   missionHeading(rt) {
     const F = rt.flags;
-    if (F.step === 0 || F.step === 2 || F.step === 3) return `${this.missionEnemyLabel(rt)}を たおせ`;
+    if (F.step === 0 || F.step === 2 || F.step === 3) return '▽の敵を たおせ';
     if (F.step === 1) {
       if (F.training === 11 && !F.flankReached) return '輪へ すすめ';
-      if (F.training === 12 && !gone(F.shiba1)) return '柴田の兵を たおせ';
+      if (F.training === 12 && !gone(F.shiba1)) return '▽の敵を たおせ';
       return 'ここを まもれ';
     }
     return this.missions[this.missionOf(rt)];
@@ -272,8 +272,8 @@ const inou = {
       approachUnit(rt) :
         rt.flags.step === 1 && rt.flags.training === 12 && !gone(rt.flags.shiba1) ? approachUnit(rt) :
           rt.flags.step === 3 ? rt.flags.hayaU : null,
-  missionEnemyLabel: (rt) => rt.flags.step === 3 ? '林美作守' : rt.flags.step === 1 || rt.flags.step === 2 ? '柴田の兵' :
-    rt.flags.training === 8 ? '林の隊長' : '林美作守の兵',
+  missionEnemyLabel: (rt) => rt.flags.step === 3 ? 'はやしの大将' : rt.flags.step === 1 || rt.flags.step === 2 ? 'しばたの兵' :
+    rt.flags.training === 8 ? 'はやしの隊長' : 'はやしの兵',
   missionEnemySteps: enemySteps,
   meleeResult(rt, target, result) {
     const F = rt.flags;
@@ -447,20 +447,20 @@ const inou = {
     F.goalPin = { x: 0, z: 0, r: 7, hide: 7 };
     F.fieldSigns = [{ label: '', unit: null }, { label: '', unit: null }]; // 味方は印なし・追う相手は字なしの赤い▼（kaito 10/23）
     // ---- 信長方：直属の槍隊・少ない家臣団・若い前田利家・佐久間勢 ----
-    F.hata = allyGroup(rt, { name: '信長の旗本', anchor: { ...NOBU }, facing: Math.PI, width: 14, aggro: 6, noRout: true, formation: 'yari', fullStrength: true },
+    F.hata = allyGroup(rt, { name: '信長の旗本', anchor: { x: NOBU.x - 8, z: NOBU.z }, facing: Math.PI, width: 14, aggro: 6, noRout: true, formation: 'yari', fullStrength: true },
       dress([{ type: 'samurai', n: 1, o: { name: '組頭 源八', invuln: true } }, { type: 'ashigaru', n: 11 }], ODA));
     // 本陣には信長と旗本（馬廻の騎馬・槍・旗持ち）を置く（kaito 10/23 稲生 19）。ほとんどは足軽。
     const HATAMOTO = [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 10 }];   // 10/24 kaito「足軽ばかりに」。本陣で並ぶだけの兵は置かず、信長と共に前へ出る
-    F.nobuGroup = allyGroup(rt, { name: '信長の本旗', anchor: { x: NOBU.x - 6, z: NOBU.z - 8 }, facing: Math.PI, width: 10, aggro: 0, noRout: true, fullStrength: true, formation: 'yari' },
+    F.nobuGroup = allyGroup(rt, { name: '信長の本旗', anchor: { x: NOBU.x - 20, z: NOBU.z - 8 }, facing: Math.PI, width: 10, aggro: 0, noRout: true, fullStrength: true, formation: 'yari' },
       dress(lord ? HATAMOTO : [{ type: 'busho', n: 1, o: { name: '織田信長', invuln: true } }, ...HATAMOTO], ODA));
     F.nobuU = lord ? rt.player.u : F.nobuGroup.units[0];
     F.genU = F.hata.units.find((u) => u.name === '組頭 源八');
-    F.mori = allyGroup(rt, { name: '森可成の手', anchor: { x: NOBU.x - 22, z: NOBU.z - 8 }, facing: Math.PI, width: 14, aggro: 8, noRout: true, formation: 'yari' },
+    F.mori = allyGroup(rt, { name: '森可成の手', anchor: { x: NOBU.x - 38, z: NOBU.z - 8 }, facing: Math.PI, width: 14, aggro: 8, noRout: true, formation: 'yari' },
       dress([{ type: 'samurai', n: 1, o: { name: '森可成', invuln: true, hat: 'kabuto_s' } }, { type: 'ashigaru', n: 12 }], ODA));
     F.sassa = allyGroup(rt, { name: '佐々孫介の手', anchor: { x: NOBU.x + 22, z: NOBU.z - 8 }, facing: Math.PI, width: 14, aggro: 8, noRout: true, formation: 'yari' },
       dress([{ type: 'samurai', n: 1, o: { name: '佐々孫介', invuln: true } }, { type: 'ashigaru', n: 12 }, { type: 'bow', n: 2 }], ODA));
     F.sassaU = F.sassa.units.find((u) => u.name === '佐々孫介');
-    F.inu = allyGroup(rt, { name: '前田利家', anchor: { x: NOBU.x + 10, z: NOBU.z + 8 }, facing: Math.PI, width: 6, aggro: 10, noRout: true },
+    F.inu = allyGroup(rt, { name: '前田利家', anchor: { x: NOBU.x + 18, z: NOBU.z + 8 }, facing: Math.PI, width: 6, aggro: 10, noRout: true },
       dress([{ type: 'samurai', n: 1, o: { name: '前田利家', invuln: true, keep: true } }, { type: 'ashigaru', n: 2 }], ODA));
     F.friends = [F.hata, F.mori, F.sassa, F.inu];
     for (const g of F.friends) { g.defMult = 1.15; }
@@ -508,7 +508,7 @@ const inou = {
     rt.scene.add(umatsunagi(W, NOBU.x - 16, NOBU.z + 11, 0, 7));
     rt.scene.add(umajirushi(W, NOBU.x - 9, NOBU.z - 3, 0));
     rt.scene.add(hatazao(W, NOBU.x - 23, NOBU.z - 2, Math.PI / 2, 5, 'oda'));
-    for (const [x, z, k] of [[NOBU.x - 4, NOBU.z - 6, 'oda'], [NOBU.x - 4, NOBU.z + 6, 'oda'], [NOBU.x + 10, NOBU.z - 24, 'tsuru'], [NAZUKA.x, NAZUKA.z - 4, 'oda']]) rt.scene.add(nobori(W, x, z, k, 5));
+    for (const [x, z, k] of [[NOBU.x - 12, NOBU.z - 6, 'oda'], [NOBU.x - 12, NOBU.z + 6, 'oda'], [NOBU.x + 10, NOBU.z - 24, 'tsuru'], [NAZUKA.x, NAZUKA.z - 4, 'oda']]) rt.scene.add(nobori(W, x, z, k, 5));
     // 小集落は北の本隊と柴田勢の間。大きな砦や城は置かない。
     for (const [x, z, r] of VILLAGE) rt.scene.add(hut(W, x, z, 7, 5, r, { roof: 0x6a5c44 }));
     for (const [x, z] of [[-18, -60], [22, -80]]) rt.scene.add(tawara(W, x, z, 0, 3));
@@ -530,7 +530,8 @@ const inou = {
     rt.say('組頭 源八', '前へ二メートル歩いてみよ。できたら次の操作だ。', 5);
     for (const g of [...F.friends, F.nobuGroup]) {
       g.order = 'move'; g.speed = 3.2; g.aggro = 0;
-      g.dest = { x: g === F.nobuGroup ? -10 : g.anchor.x, z: g === F.hata ? 6 : g === F.nobuGroup ? 14 : 10 };
+      // 始まりだけ左右へ広げ、交戦地点と乱戦の密度は元のまま保つ。
+      g.dest = { x: g === F.nobuGroup ? -10 : g === F.hata ? NOBU.x : g === F.mori ? NOBU.x - 22 : g === F.inu ? NOBU.x + 10 : g.anchor.x, z: g === F.hata ? 6 : g === F.nobuGroup ? 14 : 10 };
       g.onArrive = advanceOnArrival;
     }
     rt.after(6, () => rt.say('足軽', '柴田様まで向こうについたらしいぞ', 4));
@@ -553,7 +554,7 @@ const inou = {
       g.speed = 0.8;
       // 赤い▼の兵には初めから攻撃が当たる。教えの待ち時間を無敵の敵にしない。
       for (const u of g.units) { u.hp = u.maxHp = Math.max(30, rt.player.u.dmg * 2.2); u.cdBase *= 1.8; }
-      const a = allyGroup(rt, { name: '追う味方', anchor: { x: at.x + 4, z: at.z + 2 }, facing: Math.PI, width: 2, aggro: 0, noAI: true, noRout: true, order: 'hold' },
+      const a = allyGroup(rt, { name: '追う味方', anchor: { x: at.x + 7, z: at.z + 2 }, facing: Math.PI, width: 2, aggro: 0, noAI: true, noRout: true, order: 'hold' },
         dress([{ type: 'ashigaru', n: 2 }], ODA));
       a.speed = 0.8;
       prepareMarch(g); prepareMarch(a);

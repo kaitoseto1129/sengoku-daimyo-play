@@ -251,8 +251,8 @@ function drawMissionPin(rt) {
       return;
     }
   }
-  // 稲生・桶狭間以外は、敵を指すピンを出さない（▼に一本化）。
-  if (rt.def.key !== 'inou' && rt.def.key !== 'okehazama' && (want?.enemy || (want?.unit && want.unit.team !== rt.player.u.team))) {
+  // 全戦で敵を指す白いピンを出さず、頭上と画面端の赤い▼にそろえる。
+  if (want?.enemy || (want?.unit && want.unit.team !== rt.player.u.team)) {
     if (pin) pin.hidden = true;
     return;
   }
@@ -853,12 +853,6 @@ function updateEnemyTarget(rt, allowed = true) {
     !rt.player.camShot && !hud.bigmap && !hud.root.classList.contains('photo') &&
     !hud.root.classList.contains('ending') && !hud.root.querySelector('#cine.on');
   if (!active) { rt.army.missionMarkedEnemy = null; return false; }
-  // 稲生・森部・桶狭間は描画側の本人の▼だけ。人物枠や画面端の矢印で別の兵を指さない。
-  // 見失った稲生の相手は行き先のピンで示す。
-  if (rt.def.key === 'inou' || rt.def.key === 'moribe' || rt.def.key === 'okehazama') {
-    rt.army.missionMarkedEnemy = markedEnemy(rt);
-    return false;
-  }
   // 任務が選んだ本人を先にする。敵の選び直しと見通しは四分の一秒ごと。
   const assigned = markedEnemy(rt);
   if (hud.enemySignRt !== rt || hud.enemySignAt == null || rt.t >= hud.enemySignAt || rt.t < hud.enemySignAt - .25) {
@@ -890,45 +884,31 @@ function updateEnemyTarget(rt, allowed = true) {
   goalPoint.set(u.pos.x, u.pos.y + head, u.pos.z).project(rt.camera);
   let x = (goalPoint.x + 1) * W / 2, y = (1 - goalPoint.y) * H / 2;
   if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
-  const onScreen = goalPoint.z >= -1 && goalPoint.z <= 1 && x >= 24 && x <= W - 24 && y >= 48 && y <= H - 24;
+  const onScreen = goalPoint.z >= -1 && goalPoint.z <= 1 && x >= 32 && x <= W - 32 && y >= 80 && y <= H - 24;
   const visible = onScreen && !cameraWallBlocked(rt, rt.camera.position, u.pos, rt.camera.position.y, u.pos.y + head) &&
-    !rects.some(r => x + 20 > r.left && x - 20 < r.right && y > r.top && y - 40 < r.bottom);
-  // 稲生の頭上は命中・命の減りが出る同じ▼だけ。固定の別印や人物枠で覆わない。
-  if (inou && visible) return false;
+    !rects.some(r => x + 32 > r.left && x - 32 < r.right && y + 8 > r.top && y - 72 < r.bottom);
   if (!enemyTarget) {
     enemyTarget = document.createElement('div');
     enemyTarget.id = 'mission-enemy-target';
     enemyTarget.setAttribute('aria-label', 'この敵をたおせ');
     enemyTarget.style.cssText = 'position:absolute;left:0;top:0;width:56px;height:48px;pointer-events:none;z-index:4';
-    enemyTarget.innerHTML = '<svg width="44" height="48" viewBox="0 0 56 64" aria-hidden="true" style="position:absolute;left:6px;top:7px"><path d="M7 27H49L28 55Z" fill="#ff342e" stroke="#14120f" stroke-width="14" stroke-linejoin="round"/><path d="M7 27H49L28 55Z" fill="#ff342e" stroke="#fff3df" stroke-width="6" stroke-linejoin="round"/></svg><svg width="44" height="44" viewBox="0 0 48 48" aria-hidden="true" style="position:absolute;left:6px;top:0"><path d="M8 19H25V10L40 24L25 38V29H8Z" fill="#fff3df" stroke="#14120f" stroke-width="4" stroke-linejoin="round"/></svg><i aria-hidden="true" style="position:absolute;box-sizing:border-box;border:4px solid #fff3df;outline:3px solid #14120f;border-radius:8px;box-shadow:inset 0 0 0 2px #14120f"></i>';
+    enemyTarget.innerHTML = '<svg width="56" height="64" viewBox="0 0 56 64" aria-hidden="true" style="position:absolute;left:0;top:-7px"><path d="M7 27H49L28 55Z" fill="#ff342e" stroke="#14120f" stroke-width="14" stroke-linejoin="round"/><path d="M7 27H49L28 55Z" fill="#24120f" stroke="#fff3df" stroke-width="6" stroke-linejoin="round"/><defs><clipPath id="mission-enemy-life"><rect x="0" y="27" width="56" height="28"/></clipPath></defs><path d="M11 30H45L28 51Z" fill="#ff342e" clip-path="url(#mission-enemy-life)"/></svg><svg width="24" height="24" viewBox="0 0 48 48" aria-hidden="true" style="position:absolute;left:16px;top:-28px"><path d="M8 19H25V10L40 24L25 38V29H8Z" fill="#ff342e" stroke="#14120f" stroke-width="4" stroke-linejoin="round"/></svg><i aria-hidden="true" style="position:absolute;box-sizing:border-box;border:4px solid #fff3df;outline:3px solid #14120f;border-radius:8px;box-shadow:inset 0 0 0 2px #14120f"></i>';
     enemyTarget._symbol = enemyTarget.children[0];
     enemyTarget._direction = enemyTarget.children[1];
     enemyTarget._frame = enemyTarget.children[2];
-  }
-  // 稲生は画面外への案内も行き先のピン。頭上の赤い▼と同じ印にしない。
-  if (enemyTarget._inouPin !== inou) {
-    enemyTarget._inouPin = inou;
-    const shape = enemyTarget._direction.firstChild;
-    shape.setAttribute('d', inou
-      ? 'M42 24L23 11A15 15 0 1 0 23 37ZM12 19A5 5 0 1 1 12 29A5 5 0 1 1 12 19Z'
-      : 'M8 19H25V10L40 24L25 38V29H8Z');
-    shape.setAttribute('fill-rule', 'evenodd');
+    enemyTarget._life = enemyTarget.querySelector('clipPath rect');
+    const label = document.createElement('b');
+    label.textContent = '敵';
+    label.style.cssText = 'position:absolute;left:50%;top:-24px;transform:translateX(-50%);padding:1px 6px;background:#14120f;color:#fff3df;font:bold 16px/1.4 sans-serif;white-space:nowrap';
+    enemyTarget.appendChild(label);
   }
   if (enemyTarget.parentNode !== hud.root) hud.root.appendChild(enemyTarget);
-  const distance = Math.hypot(u.pos.x - me.pos.x, u.pos.z - me.pos.z);
+  // 残る命は同じ▼の赤い面積で示し、棒や札を足さない。
+  const life = Math.max(0, Math.min(1, u.hp / (u.maxHp || 1)));
+  enemyTarget._life.setAttribute('y', String(55 - 28 * life));
+  enemyTarget._life.setAttribute('height', String(28 * life));
+  // 人物を囲まず、頭上も画面端も同じ大きな▼を一つだけ出す。
   enemyTarget._frame.hidden = true;
-  if (!inou && visible && distance <= 18) {
-    goalPoint.set(u.pos.x, u.pos.y + .08, u.pos.z).project(rt.camera);
-    const feet = (1 - goalPoint.y) * H / 2;
-    const height = feet - y, width = Math.max(28, Math.min(80, height * .5));
-    // 本人の頭から足まで囲み、札や操作部に重なる枠は畳む。
-    if (goalPoint.z >= -1 && goalPoint.z <= 1 && height >= 16 && height <= H * .55 && feet <= H - 8 &&
-        !rects.some(r => x + width / 2 > r.left && x - width / 2 < r.right && feet > r.top && y < r.bottom)) {
-      const frame = enemyTarget._frame;
-      frame.style.left = `${28 - width / 2}px`; frame.style.top = '48px';
-      frame.style.width = `${width}px`; frame.style.height = `${height}px`; frame.hidden = false;
-    }
-  }
   if (!visible) {
     // 回り道の案内中は、壁越しの相手への直線矢印を重ねない。
     if (target(rt)?.route) return false;
@@ -940,19 +920,21 @@ function updateEnemyTarget(rt, allowed = true) {
     const right = -gx * Math.cos(yaw) + gz * Math.sin(yaw);
     const forward = gx * Math.sin(yaw) + gz * Math.cos(yaw);
     enemyTarget._direction.style.transform = `rotate(${Math.atan2(-forward, right)}rad)`;
-    x = right >= 0 ? W - 40 : 40;
-    const top = 76, bottom = H - 76, preferred = H * (forward < 0 ? .65 : .4);
+    x = right >= 0 ? W - 48 : 48;
+    const top = 96, bottom = H - 64, preferred = H * (forward < 0 ? .65 : .4);
     let best = Infinity, found = false;
     for (let i = 0; i <= 16; i++) {
       const cy = i === 0 ? preferred : top + (bottom - top) * (i - 1) / 15;
-      if (rects.some(r => x + 24 > r.left && x - 24 < r.right && cy + 24 > r.top && cy - 24 < r.bottom)) continue;
+      if (rects.some(r => x + 32 > r.left && x - 32 < r.right && cy + 40 > r.top && cy - 64 < r.bottom)) continue;
       const delta = Math.abs(cy - preferred);
-      if (delta < best) { best = delta; y = cy + 24; found = true; }
+      if (delta < best) { best = delta; y = cy + 38; found = true; }
     }
     if (!found) return false;
   }
-  enemyTarget._symbol.style.display = visible ? '' : 'none';
+  enemyTarget._symbol.style.display = '';
   enemyTarget._direction.style.display = visible ? 'none' : '';
+  // 画面外の方向矢印と『敵』を重ねない。
+  enemyTarget.lastChild.style.top = visible ? '-24px' : '-54px';
   enemyTarget.style.transform = `translate(${(x - 28).toFixed(1)}px,${(y - 48).toFixed(1)}px)`;
   enemyTarget.hidden = false;
   hud.missionEnemyShown = true;
@@ -1087,7 +1069,7 @@ function inouPinFree(x, y, rects) {
 // 自分の白い輪は画面の手前に描き、重なる兵や馬に隠さない。
 let playerFoot = null;
 function updatePlayerFoot(rt) {
-  const active = rt.def.key !== 'inou' && rt.def.key !== 'okehazama' && rt.def.key !== 'moribe' && !rt.def.noPlayerFoot && pinGuideOn(rt) && !rt.over && !rt.choice && !rt.hud.introWaiting &&
+  const active = !rt.def.noPlayerFoot && pinGuideOn(rt) && !rt.over && !rt.choice && !rt.hud.introWaiting &&
     rt.player?.u?.alive && !rt.player.camShot && !rt.hud.bigmap;
   if (!active) {
     if (playerFoot) playerFoot.hidden = true;
