@@ -23,24 +23,32 @@ export class HudOverlay {
       return this.drawDestinationPin(g, x, y);
     if (rt.def.key !== 'moribe') return this.drawDestinationPin(g, x, y);
     // 先端は判定地点へ固定。丸頭を脇へ寄せ、自分の頭上の印に見せない。
+    // 到着後の時計も同じ形を保ち、到着のチェックと待つ進みを区別する。
     const waiting = pin?.waiting && pin.arrived;
-    const radius = waiting ? 22 : 18;
-    const cx = x - (waiting ? 0 : 28), cy = y - (waiting ? 30 : 64);
+    const radius = 18;
+    const cx = x - 28, cy = y - 64;
     const progress = Math.max(0, Math.min(1, pin?.progress || 0));
     g.save(); g.lineJoin = 'round';
+    // 移動中は地面の根元も描き、兵の頭上の印と区別する。
     if (!waiting) {
-      g.beginPath(); g.moveTo(x, y); g.lineTo(cx - 5, cy + radius - 2);
-      g.lineTo(cx + 5, cy + radius - 2); g.closePath();
-      g.strokeStyle = '#14120f'; g.lineWidth = 4; g.stroke();
-      g.fillStyle = '#fff3ba'; g.fill();
+      g.beginPath(); g.ellipse(x, y, 12, 4, 0, 0, Math.PI * 2);
+      g.strokeStyle = '#14120f'; g.lineWidth = 6; g.stroke();
+      g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
     }
+    g.beginPath(); g.moveTo(x, y); g.lineTo(cx - 5, cy + radius - 2);
+    g.lineTo(cx + 5, cy + radius - 2); g.closePath();
+    g.strokeStyle = '#14120f'; g.lineWidth = 4; g.stroke();
+    g.fillStyle = '#fff3ba'; g.fill();
     g.beginPath(); g.arc(cx, cy, radius + 3, 0, Math.PI * 2);
     g.strokeStyle = '#14120f'; g.lineWidth = 6; g.stroke();
     g.fillStyle = '#fff3ba'; g.fill();
     g.beginPath(); g.arc(cx, cy, radius - 3, 0, Math.PI * 2);
     g.fillStyle = '#14120f'; g.fill();
-    // 移動は下から、待機は時計回りに満たす。針や別の時計は足さない。
-    if (pin?.crossing) {
+    // 到着の一拍は同じ穴のチェック。移動の満ち方や待つ扇形と区別する。
+    if (pin?.arrived && !waiting) {
+      g.beginPath(); g.moveTo(cx - 9, cy); g.lineTo(cx - 2, cy + 7); g.lineTo(cx + 10, cy - 8);
+      g.strokeStyle = '#fff3ba'; g.lineWidth = 4; g.stroke();
+    } else if (pin?.crossing) {
       g.save(); g.beginPath(); g.arc(cx, cy, radius - 5, 0, Math.PI * 2); g.clip();
       const diameter = (radius - 5) * 2;
       g.fillStyle = '#ffe28a';
@@ -133,7 +141,7 @@ export class HudOverlay {
     if (moribe && pinTarget.guardArea) this.drawBattleGuardPinBase(g, rt, pinTarget);
     // 到着後は同じピンを任務の下で満たす。足元や背後へ隠れて、終わりが見えなくなるのを防ぐ。
     // 移動する時だけ地面へ戻し、時計と行き先を同時に二本出さない。
-    if (moribe && pinTarget.waiting && pinTarget.arrived && !pinTarget.unit) {
+    if (moribe && pinTarget.arrived && !pinTarget.unit) {
       this.drawBattleGoalSign(g, rt, VIEW.w - 52, 132, false, pinTarget);
       return true;
     }
@@ -190,13 +198,13 @@ export class HudOverlay {
     const y = enemy ? pos.y ?? rt.world.heightAt(pos.x, pos.z) : moribe && Number.isFinite(pos.y) ? pos.y : groundAt(rt.world, pos.x, pos.z, rt.player.u.pos.y);
     const at = this.project(pos, y + (moribe ? 0 : .2), rt, this.battleGoalProjection || (this.battleGoalProjection = {}));
     const W = VIEW.w, H = VIEW.h;
-    // 待機の時計も同じ持ち場に刺す。到着後に任務欄へ飛ばさない。
+    // 移動中のピンは持ち場に刺す。到着後の待機は上で任務の下に一つだけ示す。
     const floor = this.battleGoalFloor || (this.battleGoalFloor = { x:0, y:0, z:0 });
     floor.x = pos.x; floor.y = y; floor.z = pos.z;
     const on = seen && (moribe || enemy || this.floorGoalVisible(rt, floor)) && !at.behind && at.x > 48 && at.x < W - 48 && at.y > 96 && at.y < H - 48;
     // 渡り終えた岸が画面外なら完了のピンも消す。背後へ戻る印に替えない。
     if (moribe && pinTarget.arrived && !pinTarget.waiting && !on) return false;
-    // 到着後も地面の同じ地点で満たす。右上へ移して別の行き先に見せない。
+    // 到着直後の満杯は地面に残し、待機へ替わったら上の任務の下で示す。
     // 地面の行き先と画面外の向きは、この一つの印で示す。
     let x = at.x, sy = at.y - 54, angle = Math.PI / 2;
     if (!on) {
@@ -308,6 +316,16 @@ export class HudOverlay {
         point.x = goal.x; point.z = goal.z;
         point.y = groundAt(rt.world, point.x, point.z, rt.player.u.pos.y);
         this.drawRouteFootsteps(g, rt, point); this.ovBlank = false;
+      }
+    }
+    // 共通ピンの経路でも、戦が選んだ次の足場へ足あとと向きの印を残す。
+    if (rt.def.groundRouteGuide && !rt.over && !rt.choice && !this.introWaiting &&
+        rt.player.u.alive && !rt.player.camShot && !this.bigmap) {
+      const goal = missionTarget(rt);
+      const path = goal && rt.def.guidePath?.(rt, goal.marker);
+      if (path?.length > 1) {
+        this.drawRouteFootsteps(g, rt, path[path.length - 1]);
+        this.ovBlank = false;
       }
     }
     // 森部のピンはこの描画経路で一本だけ出す。通常の案内描画には進まない。

@@ -74,7 +74,7 @@ export class HudMap {
     const p = rt.player.u;
     // 桶狭間も稲生と同じ小さな地図：名は自分の組と信長だけ、行き先は▼と大将の菱形。
     const oke = rt.def.key === 'okehazama';
-    const inou = rt.def.key === 'inou' || oke;
+    const inou = rt.def.key === 'inou' || oke || !!rt.def.missionSingleLine;
     const ownGroup = rt.def.key === 'inou' ? rt.flags.hata : rt.hostGroup;
     // 名前は自分の組と大将だけ。同じ場所の札を重ねない。
     const names = this._mapNameRects || (this._mapNameRects = []);
@@ -396,7 +396,7 @@ export class HudMap {
         g.fillRect(a - r0 / 2, b - r0 / 2, r0, r0);
       }
     }
-    const missionEnemy = inou || rt.def.key === 'moribe' ? markedEnemy(rt) : null;
+    const missionEnemy = rt.def.commanderSignTarget?.(rt) || (inou || rt.def.key === 'moribe' || rt.def.missionSingleLine || rt.def.mapMissionEnemy ? markedEnemy(rt) : null);
     // 名のある敵将は小さな地図でも菱形。点と同じ見通し判定で、文字は添えない。
     for (const u of rt.army.units) {
       if (u === missionEnemy || u.team === 0 || !u.name || !u.alive || u.gone || u.dying || u.woundOut || u.type === 'dummy') continue;

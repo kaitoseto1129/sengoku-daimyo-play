@@ -21,6 +21,7 @@ import { sightPoint, sightScreenUnit } from './battle_sight.js';
 import { revealName } from './battle_intel.js';
 import { makeTownWay } from './inabayama_town_way.js';
 import { VIEW } from './viewport.js';
+import { TIER } from './device_tier.js';
 import { gauss, enemyGroup, allyGroup, nm, centerOf, wallLine } from './bhelp.js';
 import { camp } from './b_mid.js';
 import { placeGroup, placePlayer } from './b_opening.js';
@@ -605,18 +606,39 @@ function shikaWall(W, seg) {
 }
 // 搦手へ移る時は、実際に歩く最初の道の内へ二列で置く。
 // 町と同じ横並びで西へずらすと、十歩先の仲間が四十歩も高い切岸へ出る。
-const KARA_FOOT = { x: KARA_TRAIL[0][0], z: KARA_TRAIL[0][1] };
+// 登りは下の二つの折り返し（約二百八十歩）を暗転の間に済ませ、腰曲輪の下の折れ（KARA_TRAIL[9]）から始める。
+// 戦全体を四〜七分に収める（kaito の決まり）。道・曲輪は変えず、物見と見回りの組は始まりの先の直線へ移す。
+const KARA_START = 9;
+// 物見と見回りの組を置く所（始まりの次の直線の途中）。登り始めてすぐ列の頭とぶつかる。
+const KARA_SCOUT = { x: KARA_TRAIL[KARA_START][0] + (KARA_TRAIL[KARA_START + 1][0] - KARA_TRAIL[KARA_START][0]) * .45, z: KARA_TRAIL[KARA_START][1] + (KARA_TRAIL[KARA_START + 1][1] - KARA_TRAIL[KARA_START][1]) * .45 };
+const KARA_PATROL = { x: KARA_TRAIL[KARA_START][0] + (KARA_TRAIL[KARA_START + 1][0] - KARA_TRAIL[KARA_START][0]) * .8, z: KARA_TRAIL[KARA_START][1] + (KARA_TRAIL[KARA_START + 1][1] - KARA_TRAIL[KARA_START][1]) * .8 };
+const KARA_FOOT = { x: KARA_TRAIL[KARA_START][0], z: KARA_TRAIL[KARA_START][1] };
+// 始まりの折れへ来る一つ手前の直線（後ろ向き）。列はこの直線の上に二人ずつ並べる。
+const KARA_BACK = (() => {
+  const a = KARA_TRAIL[KARA_START - 1], b = KARA_TRAIL[KARA_START], len = Math.hypot(a[0] - b[0], a[1] - b[1]);
+  return { x: (a[0] - b[0]) / len, z: (a[1] - b[1]) / len, len, heading: Math.atan2(b[0] - a[0], b[1] - a[1]) };
+})();
+// 始まりの直線の上、折れから back 歩後ろ・横へ side 歩の所。
+function karaSpot(back, side = 0) {
+  const B = KARA_BACK, d = Math.max(1, Math.min(B.len - 1, back));
+  return { x: KARA_FOOT.x + B.x * d - B.z * side, z: KARA_FOOT.z + B.z * d + B.x * side };
+}
 function placeKaraGroup(rt, g, front) {
-  g.formation = 'column'; g.colW = 2; g.facing = 0; g._face = 0;
-  placeGroup(rt, g, KARA_FOOT.x, KARA_FOOT.z + front);
+  const B = KARA_BACK, c = karaSpot(front);
+  g.formation = 'column'; g.colW = 2; g.facing = B.heading; g._face = B.heading;
+  g.roadCenterGap = 1.8;
+  placeGroup(rt, g, c.x, c.z);
   for (const u of g.units) {
     if (!u.alive || u.gone || u.fleeing || u.woundOut || u.rearWound) continue;
     // 山の細道は徒歩の二人列。町の騎馬を持ち込み、馬腹で道を塞がない。
     if (u.mounted) rt.army.setMounted(u, false);
-    u.pos.x = Math.max(KARA_FOOT.x - 1.6, Math.min(KARA_FOOT.x + 1.6, u.pos.x));
-    u.pos.z = Math.max(KARA_FOOT.z + 1, Math.min(KARA_TRAIL[1][1] - 1, u.pos.z));
+    // 道の向きに沿って二列を置き、中央の通り道を空ける。
+    const dx = u.pos.x - KARA_FOOT.x, dz = u.pos.z - KARA_FOOT.z;
+    const along = dx * B.x + dz * B.z;
+    const q = karaSpot(along, u.slot % 2 ? -g.roadCenterGap : g.roadCenterGap);
+    u.pos.x = q.x; u.pos.z = q.z;
     u.pos.y = rt.world.heightAt(u.pos.x, u.pos.z);
-    u.heading = 0; u.mesh.position.copy(u.pos); u.mesh.rotation.y = 0;
+    u.heading = B.heading; u.mesh.position.copy(u.pos); u.mesh.rotation.y = B.heading;
   }
 }
 // 短い暗転（場面の移り。動きを減らす設定では、すぐ切り替える）
@@ -629,8 +651,15 @@ function blackCut(rt, mid, text) {
   d.setAttribute('role', 'status');
   document.body.appendChild(d);
   requestAnimationFrame(() => { d.style.opacity = '1'; });
-  setTimeout(() => d.remove(), 6000);   // 戦が先に終わっても黒い幕を残さない
-  rt.after(still ? 0.1 : 0.8, () => { mid(); d.style.opacity = '0'; rt.after(1.2, () => d.remove()); });
+  // 戦を出た時は幕をすぐ外す。次の戦や町に黒い幕を残さない（稲生 7）。
+  const drop = () => d.remove();
+  rt.cleanupTasks?.add(drop);
+  setTimeout(drop, 6000);
+  // 場面替えの中で例外が出ても、幕を上げて戦を続ける（段の切り替えで止めない。稲生 1）。
+  rt.after(still ? 0.1 : 0.8, () => {
+    try { mid(); } catch (e) { console.error(e); }
+    d.style.opacity = '0'; rt.after(1.2, drop);
+  });
 }
 
 const ODA = { flag: 'oda' };
@@ -1889,6 +1918,16 @@ function inabaPacingWait(rt) {
   if (F.step === 3 && F.karaNext > (F.pacingCorner || 0)) {
     F.pacingCorner = F.karaNext; F.pacingClimbT = rt.t;
   }
+  // 道の中心から少し外れて歩いても、搦手の木戸へ近づいていれば寄せは続く（立ち止まった時だけ打ち切る）。
+  if (F.step === 3) {
+    const p = rt.player.u.pos, dg = Math.hypot(p.x + 30, p.z + 118) + Math.abs(p.y - rt.world.heightAt(-30, -118)) * .5;
+    if (F.pacingGate == null) F.pacingGate = dg;   // 初めの一回は基準だけ。
+    else if (dg < F.pacingGate - 2) { F.pacingGate = dg; F.pacingClimbT = rt.t; }
+  }
+  // 角で列を待つ間も、藤吉郎の列が登っていれば寄せは続く。
+  if (F.step === 3 && F.kino?.order === 'path' && F.kino.pathIdx > (F.pacingKino || 0)) {
+    F.pacingKino = F.kino.pathIdx; F.pacingClimbT = rt.t;
+  }
   const climbEnd = Math.min(F.stepT + 480, Math.max(F.stepT + 300, (F.pacingClimbT || F.stepT) + 90));
   // 守りを退けた直後に時計を切らず、本人が小屋へ歩いて火をつける時間を残す。
   // 放置では延びず、本丸へ入ってからの上限も残す。
@@ -1918,7 +1957,6 @@ function inabaClimbClash(rt) {
   const F = rt.flags;
   if (rt.t < (F.climbClashAt || 0)) return;
   F.climbClashAt = rt.t + 1;
-  let broke = false;
   for (const g of F.climbSkirmishes || []) {
     // 腰曲輪で待ち構える守兵も、実際に槍を交えている間は押し合いを数える。
     if (gone(g) || g.morale <= 0 || g.noAI || g.hidden || g.order !== 'attack' && g.order !== 'hold') continue;
@@ -1949,9 +1987,8 @@ function inabaClimbClash(rt) {
       F.pacingClimbT = rt.t; break;
     }
     if (g.inabaClashFor < 25) continue;
-    g.noRout = false; g.morale = 0; broke = true;
+    g.noRout = false; g.morale = 0;
   }
-  if (broke) rt.bark('道の守りを押し返した。列に続いて登れ', true);
 }
 
 function inabaMeleeContact(rt, u, t) {
@@ -2069,7 +2106,6 @@ function inabaRetreatTick(rt) {
     if (F.retreatMarked) { rt.unmark('retreat'); rt.objRemove('retreat'); F.retreatMarked = false; }
     if (!F.retreatNoWayAdvice) {
       F.retreatNoWayAdvice = true;
-      rt.bark('敵が寄ってくる。来た道から味方の後ろへ下がれ', true);
     }
     return;
   }
@@ -2096,13 +2132,11 @@ function inabaRetreatTick(rt) {
       F.retreatSignalAt = rt.t;
       rt.army.playFar('sig_nobiki', best.pos, 0.7);
       rt.objProgress('retreat', '合図：法螺貝と退き太鼓。味方の後ろへ下がり、離れたら元の任務へ');
-      rt.bark('法螺貝と退き太鼓じゃ！　囲まれる前に、退き口の印へ下がれ', true);
       F.retreatAdvice = true;
     }
   }
   if (!F.retreatAdvice) {
     F.retreatAdvice = true;
-    rt.bark('敵が寄ってくる。囲まれる前に、退き口の印へ下がれ', true);
   }
 }
 
@@ -2268,7 +2302,7 @@ function installInabaPresentation(rt) {
     const thirdPerson = player.fpK < 0.5 && player.u.alive;
     camera.updateMatrixWorld();
     viewProbe.copy(body).project(camera);
-    const bodyVisible = !thirdPerson || Math.abs(player.pitch) > 0.3 || (Math.abs(viewProbe.x) < 0.8 && Math.abs(viewProbe.y) < 0.75
+    const bodyVisible = !thirdPerson || (Math.abs(viewProbe.x) < 0.8 && Math.abs(viewProbe.y) < 0.75
       && viewProbe.z > -1 && viewProbe.z < 1 && camera.position.distanceToSquared(body) > 1);
     // 胸が見えていても、すぐ前の山肌で画面が埋まる向きは選び直す。
     camera.getWorldDirection(forward);
@@ -2304,6 +2338,7 @@ function installInabaPresentation(rt) {
     look.copy(camera.position).add(forward); camera.up.set(0, 1, 0); camera.lookAt(look); camera.updateMatrixWorld();
     guardDrawCamera(W, camera, cameraMeasure);
     look.copy(camera.position).add(forward); camera.lookAt(look); camera.updateMatrixWorld();
+    if (thirdPerson) player.framePlayerCamera(camera);
   };
   // 倒れた体を上から見る。歩行用の補間だけでなく、描く山肌と建物も避ける。
   F.downCamera = () => {
@@ -2467,6 +2502,9 @@ function installInabaPresentation(rt) {
       camera.getWorldDirection(forward);
       this.camPos.copy(camera.position);
     }
+    // 山肌・軒・兵を避けた最終位置から、本人へ視線を合わせ直す。
+    this.framePlayerCamera(camera);
+    camera.getWorldDirection(forward);
     safe.copy(camera.position); look.copy(safe).add(forward);
   };
   rt.dispose = function () {
@@ -2583,6 +2621,50 @@ function buildKaraTrail(rt) {
   };
 }
 
+// 稲生の水準（10/25）：倒す相手は、残りに数える組の中で一番近い一人。札・ピン・▼で同じ本人を使う。
+// 深手・逃げる兵・建物は数えない。選び直しは一コマに一度だけ。
+const inabaFoe = (u) => !!u?.alive && u.hp > 0 && !u.gone && !u.dying && !u.downed && !u.woundOut && !u.fleeing &&
+  !u.noTarget && !u.isStruct && !u.civ && u.mesh?.visible !== false;
+function honTargetGroup(rt) {
+  const F = rt.flags;
+  if (F.step !== 4 || F.sig || F.ending) return null;
+  for (const g of F.honGuards || []) if (!gone(g) && g.units.some(inabaFoe)) return g;
+  return null;
+}
+function nearestFoeOf(rt, group) {
+  const F = rt.flags;
+  if (F.foePickT === rt.t && F.foePickG === group) return F.foePick;
+  F.foePickT = rt.t; F.foePickG = group;
+  if (!group) return (F.foePick = null);
+  const list = Array.isArray(group) ? group : [group];
+  const has = (u) => list.includes(u.group);
+  const p = rt.player, me = p.u.pos, reach = p.inRange && p.rangeCueTarget;
+  if (inabaFoe(reach) && has(reach)) return (F.foePick = reach);
+  let best = null, bd = Infinity;
+  for (const g of list) {
+    if (gone(g) || g.sent === false) continue;
+    for (const u of g.units) {
+      if (!inabaFoe(u)) continue;
+      const d = Math.hypot(u.pos.x - me.x, u.pos.z - me.z);
+      if (d < bd) { bd = d; best = u; }
+    }
+  }
+  // 少しの前後では替えず、別の兵が三歩以上近い時だけ渡す。
+  const prev = F.foePrev;
+  if (best && best !== prev && inabaFoe(prev) && has(prev) && bd + 3 >= Math.hypot(prev.pos.x - me.x, prev.pos.z - me.z)) best = prev;
+  F.foePrev = best;
+  return (F.foePick = best);
+}
+// 本丸の柵の外から中の守りへ直進させない。柵の口→口の内→相手の順にピンを進める（城の中で迷わない）。
+const HON_INNER = { x: KARA[5][0], z: KARA[5][1] };
+function honGateStep(rt, enemy) {
+  const p = rt.player.u.pos;
+  // 壁の見通しは相手ごとに四分の一秒に一度だけ調べる。
+  if (enemy._inaGateAt > rt.t && enemy._inaGateAt - rt.t <= .25) return enemy._inaGate;
+  enemy._inaGateAt = rt.t + .25;
+  if (!rt.army.wallBetween(p, -1, enemy.pos, false)) return (enemy._inaGate = null);
+  return (enemy._inaGate = p.x < HON_GATE_OUT.x + 1.5 ? HON_GATE_OUT : HON_INNER);
+}
 const inabayama = {
   // 壁や屋根を切り抜かず、共通の衝突回避で視点を建物の手前へ寄せる。
   nearFade: false,
@@ -2592,9 +2674,24 @@ const inabayama = {
   // ミッション（kaito 10/23 1・49・50）。右上の一行は「何をするか」だけ。向き・行き先の字は書かない。
   lendBow: true, // 美濃攻めは弓を覚える戦（kaito の役割分担）。問屋で買っていなくても弓を貸す。
   noSiegeCards: true, // 右の曲輪の札（未見・様子不明）は出さない。字は右上の一行だけ（kaito 10/23）。
-  missions: ['この人と話そう', '火の印へ', 'さくを守れ', '山道をのぼれ', '斎藤龍興の馬廻を討つ', '本丸に合図の火を放つ'],
+  // 稲生の水準（reports/inou-standard.md 10/25）：右上は任務の一行だけ。段の丸・味方の小旗・避ける札は出さない。
+  missionSingleLine: true,
+  hideMissionDots: true,
+  nearbyAllySignLimit: 0,
+  noDodgeCard: true,
+  inouFeel: true, // 当たりは音・よろけ・血で返し、空振りは鳴らさない（player.js）。
+  missions: ['この人と話そう', '火の印へ', 'さくを守れ', '山の上へ', '斎藤龍興の馬廻を討つ', '本丸に合図の火を放つ'],
   missionHeading(rt) {
     const stage = this.missionOf(rt), F = rt.flags;
+    // 本丸では、今倒す守りの名をそのまま一行に。討った瞬間に次の組へ替える（稲生 2）。
+    if (stage === 4) {
+      const g = honTargetGroup(rt);
+      if (g) return `${g.name}を倒せ`;
+    }
+    if (stage === 3) {
+      if (F.guardOn && !gone(F.kguard) && inabaAtWoodGate(rt)) return `${F.kguard.name}を倒せ`;
+      if (inabaClimbGuideEnemy(rt)) return '▼の敵を倒せ';
+    }
     if (stage === 1 || stage === 2) {
       const enemy = rt.player.inRange && rt.player.rangeCueTarget?.alive ? rt.player.rangeCueTarget : rt.missionGuide?.closeEnemy;
       const valid = enemy?.alive && enemy.team !== rt.player.u.team && !enemy.gone && !enemy.fleeing && !enemy.downed && !enemy.woundOut;
@@ -2605,7 +2702,8 @@ const inabayama = {
       if (F.actionEnemy) return '敵をたおす';
     }
     if (stage === 1) {
-      if (F.lit >= NEED) return '町の出口へ';
+      // 出口に着いたら、残る町の敵を倒す一行へすぐ替える（古い「出口へ」を残さない）。
+      if (F.lit >= NEED) return F.exitArrived ? (nearestFoeOf(rt, F.townGuards) ? '▼の敵を倒せ' : '仲間と集まれ') : '町の出口へ';
       if (rt.G.lord) return '足軽の火付けを守れ';
     }
     return this.missions[stage];
@@ -2797,8 +2895,10 @@ const inabayama = {
   // 遠い角が画面外でも、今歩く道の上に短い案内を残す。
   // 角を回る順序は従来の案内と共有し、到着や兵の移動の判定は変えない。
   guidePath(rt, marker) {
-    const F = rt.flags, goal = F.karaGuide;
-    if (F.step !== 3 || marker?.id !== 'karaGuide' || !goal) return null;
+    const F = rt.flags;
+    const fire = F.step === 1 && marker?.guideSymbol === 'fire';
+    const goal = fire ? marker.guideDestination?.() : F.step === 3 && marker?.id === 'karaGuide' ? F.karaGuide : null;
+    if (!goal) return null;
     const p = rt.player.u.pos, dx = goal.x - p.x, dz = goal.z - p.z;
     const distance = Math.hypot(dx, dz);
     if (distance < 0.6) return null;
@@ -2917,10 +3017,51 @@ const inabayama = {
     if (best) marks[0] = best;
     return marks;
   },
+  // 稲生の水準：倒す段の相手（頭上の▼・ピン・小さな地図で同じ一人）。
+  missionSignTarget(rt) {
+    const F = rt.flags;
+    if (F.ending || F.retreatMarked) return null;
+    if (F.step === 4) {
+      // 柵の向こうの相手は、口を通るまで▼で指さない（ピンが口を指す）。
+      const u = nearestFoeOf(rt, honTargetGroup(rt));
+      return u && !honGateStep(rt, u) ? u : null;
+    }
+    if (F.step === 3 && F.guardOn && !gone(F.kguard) && inabaAtWoodGate(rt)) return nearestFoeOf(rt, F.kguard);
+    if (F.step === 3) return inabaClimbGuideEnemy(rt);
+    if (F.step === 2) return this.objectiveEnemies(rt)[0] || null;
+    if (F.step === 1 && F.exitArrived) return nearestFoeOf(rt, F.townGuards);
+    return null;
+  },
+  // 名のある守り（龍興の馬廻）の頭は、▼を大きくして目立たせる（稲生 5）。
+  commanderTarget(rt) {
+    const g = honTargetGroup(rt);
+    if (!g || g !== rt.flags.tatsu) return null;
+    for (const u of g.units) if (inabaFoe(u) && (u.type === 'samurai' || u.type === 'busho')) return honGateStep(rt, u) ? null : u;
+    return null;
+  },
   // 戦いの最中も次の行き先を保ち、敵の近さでピンを消さない。
   missionPin(rt) {
     const F = rt.flags;
     if (F.ending) return null;
+    // 倒す段は、ピンを一番近い残りの敵の足元へ（稲生 4）。柵の向こうなら口を先に指す。
+    // 槍が届いたら頭上の▼に任せ、ピンは消す。
+    if (!F.retreatMarked && !F.regroup && (F.step === 4 && !F.sig || F.step === 1 && F.exitArrived ||
+        F.step === 3 && F.guardOn && !gone(F.kguard) && inabaAtWoodGate(rt))) {
+      const enemy = F.step === 4 ? nearestFoeOf(rt, honTargetGroup(rt)) : this.missionSignTarget(rt);
+      if (enemy) {
+        const p = rt.player;
+        if (p.inRange && p.rangeCueTarget === enemy) return null;
+        const pin = F.foePin || (F.foePin = { r: .2, hide: .2, always: true, silent: true, arrow: false });
+        const gate = F.step === 4 ? honGateStep(rt, enemy) : null;
+        pin.marker = null; pin.key = gate ? 'honGate' : 'foe';
+        pin.unit = gate ? null : enemy; pin.enemy = !gate; pin.approach = true;
+        pin.follow = !gate; pin.footRing = false; pin.fire = false; pin.gate = !!gate;
+        pin.defend = false; pin.waiting = false;
+        pin.x = gate ? gate.x : enemy.pos.x; pin.z = gate ? gate.z : enemy.pos.z;
+        pin.r = gate ? 2 : .2; pin.hide = gate ? 1 : .2;
+        return pin;
+      }
+    }
     let id = this.guideMarker(rt);
     // 追う先と敵の▼を分ける。木戸で戦う間も藤吉郎を見失わせない。
     if (id === 'kguard' || id === 'town' || id === 'town2' || id === 'honGuard') id = 'kino';
@@ -2935,6 +3076,8 @@ const inabayama = {
     pin.fire = marker.guideSymbol === 'fire';
     pin.gate = marker.guideSymbol === 'gate';
     pin.x = pin.unit ? pin.unit.pos.x : pos.x; pin.z = pin.unit ? pin.unit.pos.z : pos.z;
+    // 「さくを守れ」の段は、守る所に刺したまま。味方はその旗の下へ集まる（稲生 3）。
+    pin.defend = pin.waiting = id === 'holdFlag';
     // 最初は登り口、その後は今まで通りの曲がり角。案内だけを切り替える。
     if (id === 'karaGuide' && F.karaNext === 1 && !F.karaEntryShown) {
       if (Math.hypot(rt.player.u.pos.x - KARA_FOOT.x, rt.player.u.pos.z - KARA_FOOT.z) <= 3) F.karaEntryShown = true;
@@ -3214,7 +3357,6 @@ const inabayama = {
     buildTownGround(rt);
     rt.scene.add(dou(W, TERA.x, TERA.z, 8, 6, 0));
     rt.scene.add(tawara(W, 12, 72, 0.3, 5), tawara(W, -2, 52, -0.4, 4));
-    rt.after(8, () => { if (!rt.over) rt.bark('七曲りは緩い。百曲りは急じゃ', true); });   // A056
     // 裏道の切岸は細分した地面そのもので表す。重ねた土の帯は
     // 折れの内外で別の高さを拾い、山腹へ浮く庇のように張り出す。
     // 写真の幟は屋根と井楼より低い。高画質では主殿・蔵・通路を避けて縁へ分散する。
@@ -3603,8 +3745,9 @@ const inabayama = {
       x, z, w, facing: Math.PI, seed: 156780 + i, gap: 2.8,
       noWake: true, noRout: true, host: false, nearHide: 24, realNear: 24,
       measuredMelee: true, killRate: 0.025, maxDrift: 0.6, corpses: 16,
-      A: { flag: 'oda', armor: 0x3d4248, count: w * 6, team: 0, faction: 'oda', flagRate: 0.35 },
-      B: { flag: 'saito', armor: 0x454957, count: w * 6, team: 1, faction: 'saito', flagRate: 0.4 },
+      // 町の奥の軽い乱戦。弱い端末では六割にする（遠景の数だけ。本物の兵は変えない）。
+      A: { flag: 'oda', armor: 0x3d4248, count: Math.round(w * (TIER.weak ? 3.6 : 6)), team: 0, faction: 'oda', flagRate: 0.35 },
+      B: { flag: 'saito', armor: 0x454957, count: Math.round(w * (TIER.weak ? 3.6 : 6)), team: 1, faction: 'saito', flagRate: 0.4 },
       play: (k, p, v) => rt.army.play(k, p, v * 0.65),
     }));
     // 火の手を見た町の番の兵が、松明の組へ斬りかかってくる
@@ -3767,7 +3910,7 @@ const inabayama = {
       let row = 0;
       for (const q of rt.squadGroups || []) placeGroup(rt, q, 4 + row++ * 3, SHIKA_Z + 12);
       rt.banner('翌日、城を囲む', '仲間とさくの中で敵を引きつける');
-    }, '翌日、城を囲む\n仲間と、ふもとのさくの内へ');
+    }, '翌日');
     sfx('taiko', 1);
     // 一夜明けて、町は焼け跡。火は落ち、煙だけが残る
     for (const h of F.houses) charHouse(rt, h);
@@ -3810,7 +3953,8 @@ const inabayama = {
     // 竹束の後ろへ視点が入り込むと横画面を塞ぐ。この戦の束だけ既存の視点避けへ渡す。
     for (const tb of F.tabas || []) tb.m.userData.camBlock = true;
     // 麓の左右でも、囲みの手と打って出た城兵がぶつかる（軽い大軍の合戦。兵力には数えない）
-    const side = (flag, armor, count, team, faction) => ({ flagTex: flagTexture(flag), armor, count, team, faction });
+    // 麓の左右の軽い合戦。弱い端末では数を六割に（遠景だけ）。
+    const side = (flag, armor, count, team, faction) => ({ flagTex: flagTexture(flag), armor, count: TIER.weak ? Math.round(count * .6) : count, team, faction });
     const lc = (o) => rt.world.addClash({ rt, measuredMelee: true, play: (k, p, v) => rt.army.play(k, p, v), smoke: (x, y, z, fx, fz) => rt.army.smoke(x, y, z, fx, fz), ...o });
     F.footClash = [
       lc({ x: -68, z: 30, facing: Math.PI, w: 34, gap0: 18, closeSpeed: 2.6, seed: 15673, noRout: true, killRate: 0.1, A: side('inaba', 0x33302a, 150, 0, 'oda'), B: side('saito', 0x3a3a30, 110, 1, 'saito') }),
@@ -3888,39 +4032,43 @@ const inabayama = {
         F.footClash = null;
       }
       placeKaraGroup(rt, K, 16);
-      placePlayer(rt, KARA_FOOT.x + 2.2, KARA_FOOT.z + 12, 0);
+      { const q = karaSpot(12, 1.2); placePlayer(rt, q.x, q.z, KARA_BACK.heading); }
+      // 下の折り返しの守りは、暗転の間に列が退けた扱い（見えない所に立つだけの兵を残さない）。
+      for (const g of F.climbGuards) for (const u of g.units) if (u.alive && !u.gone) rt.army.despawn(u);
+      // 物見と見回りの組は、始まりの先の細道へ。斬り合いの数は減らさない。
+      for (const [g, at] of [[F.scout, KARA_SCOUT], [F.patrol, KARA_PATROL]]) if (g && !gone(g)) { g.anchor = { x: at.x, z: at.z }; placeGroup(rt, g, at.x, at.z); }
       roadApproach(rt.world, rt.player.u.pos, KARA_TRAIL, F.karaNext, F.karaGuide);
       let companionRow = 0;
       for (const u of rt.tomoUnits || []) if (u.alive && !u.gone && !u.woundOut) {
-        u.pos.x = KARA_FOOT.x + 2.2; u.pos.z = KARA_FOOT.z + Math.max(1, 10 - companionRow++ * 1.5);
+        const q = karaSpot(Math.max(1, 10 - companionRow++ * 1.5), 1.2); u.pos.x = q.x; u.pos.z = q.z;
         u.pos.y = rt.world.heightAt(u.pos.x, u.pos.z); u.mesh.position.copy(u.pos);
       }
       let row = 0;
       for (const q of rt.squadGroups || []) placeKaraGroup(rt, q, Math.max(5, 11 - row++ * 3));
       // 小六の手も切岸へ横並びにせず、同じ道の後列から登る。
       if (!F.hachi) {
-        F.hachi = allyGroup(rt, { fixed: true, name: '蜂須賀小六の手', anchor: { x: KARA_FOOT.x, z: KARA_FOOT.z + 6 }, facing: 0, width: 2, aggro: 10 },
+        F.hachi = allyGroup(rt, { fixed: true, name: '蜂須賀小六の手', anchor: karaSpot(6), facing: KARA_BACK.heading, width: 2, aggro: 10 },
           dress([{ type: 'samurai', n: 1, o: { name: '蜂須賀小六' } }, { type: 'ashigaru', n: 7 }], { flag: 'hachisuka' }));
         F.hachi.siegeAI = true; F.hachi.noRout = true;
         placeKaraGroup(rt, F.hachi, 6);
-        march(F.hachi, KARA_TRAIL.slice(0, -1), 'attack'); F.hachi.pathIdx = 1; F.hachi.speed = 3.2;
+        march(F.hachi, KARA_TRAIL.slice(0, -1), 'attack'); F.hachi.pathIdx = KARA_START + 1; F.hachi.speed = 3.2;
       }
       rt.banner('搦手へ（伝え）', '藤吉郎の手が山の裏道から登った、と伝わる');
       rt.say('', '――藤吉郎の手が山の裏道から登った、と伝わる', 4);
       // 搦手の別働隊の知らせ（本隊は大手、藤吉郎の手は裏から。本丸で挟む）
       rt.after(9, () => { if (!rt.over && !F.ending && F.step === 3) rt.say('使番', '殿の下知じゃ。大手の本隊は正面を押す。藤吉郎の手は別働隊として搦手から本丸を突け', 4); });
       rt.after(4, () => { if (!rt.over && !F.ending) rt.say(officer(rt), `${nm(rt)}、ついて来い。わしらは裏から登って、本丸の脇に火をつける`, 4); });
-      K.order = 'path'; K.path = KARA_TRAIL.slice(0, -1); K.pathIdx = 1; K.speed = 3.2; K.formation = 'column'; K.colW = 2; K.roadColumn = true; K.aggro = 6; K.holdFire = true; K.fire = false;   // 細道を登る間は鉄砲を撃たず列に付いて歩く
+      K.order = 'path'; K.path = KARA_TRAIL.slice(0, -1); K.pathIdx = KARA_START + 1; K.speed = 3.2; K.formation = 'column'; K.colW = 2; K.roadColumn = true; K.aggro = 6; K.holdFire = true; K.fire = false;   // 細道を登る間は鉄砲を撃たず列に付いて歩く
       K.onArrive = (g) => { g.order = 'hold'; g.anchor = { x: KARA[KARA.length - 2][0], z: KARA[KARA.length - 2][1] }; g.formation = 'yari'; g.aggro = 14; g.seekRange = 24; if (F.guardOn) g.order = 'attack'; };
       F.climbFriends = [K, F.hachi];
       F.climbSkirmishes = [F.scout, F.patrol, F.ambush, F.koshiGuard];
       F.climbFoes = [...F.climbGuards, F.scout, F.patrol, F.ambush, F.koshiGuard, F.kguard];
-    }, '山の裏へ回る\n藤吉郎の列と、裏道の登り口へ');
+    }, '山の裏へ');
     this.nextObj(rt, 'この先へ');
     // 印は進み具合と同じ的（搦手の木戸）に。藤吉郎の名札は頭の上に出る
     rt.marker('kido', { x: -30, z: -118 }, '搦手の木戸', { h: 3, guideAlways: true });
-    F.climbSpots = 0; F.karaNext = 1;
-    F.karaGuide = { x: KARA_TRAIL[1][0], z: KARA_TRAIL[1][1], returning: false };
+    F.climbSpots = 0; F.karaNext = KARA_START + 1; F.karaEntryShown = true;
+    F.karaGuide = { x: KARA_TRAIL[KARA_START + 1][0], z: KARA_TRAIL[KARA_START + 1][1], returning: false };
     rt.marker('karaGuide', () => F.karaGuide, () => F.karaGuide.returning ? '道の中央' : '次の曲がり角', { guideAlways: true, guideArea: 'move', guideRadius: 1.2, h: 0 });
     F.karaGuideMarked = true;
     // 大手には柴田・丹羽が残って押さえる
@@ -3937,7 +4085,8 @@ const inabayama = {
     const lead = F.kinoU.pos;
     // 折り返しは平面では近い。別の高さを通っただけで上の物見や伏兵を動かさない。
     const near = (i, r) => {
-      const [x, z] = KARA[i], y = rt.world.heightAt(x, z), rise = Math.max(4, r * 0.8);
+      // 物見の場所は、登り始めの先へ移した所で測る。
+      const [x, z] = i === 1 ? [KARA_SCOUT.x, KARA_SCOUT.z] : KARA[i], y = rt.world.heightAt(x, z), rise = Math.max(4, r * 0.8);
       return Math.hypot(p.x - x, p.z - z) < r && Math.abs(p.y - y) < rise
         || Math.hypot(lead.x - x, lead.z - z) < r && Math.abs(lead.y - y) < rise;
     };
@@ -4004,7 +4153,6 @@ const inabayama = {
     rt.uninteract('tabaPile'); rt.scene.remove(F.tabaPile);
     rt.addInteract('tabaSet', rt.player.u.pos, '竹束を据える', () => this.tabaSet(rt), { r: 3, hold: 1 });
     rt.obj('carry', '竹束を担いでいる。歩みが遅い。「竹束を据える」で置く', 'order');
-    rt.bark('竹束を担いだ。歩みが遅くなる。「竹束を据える」を長く押すと置ける', true);
   },
   tabaSet(rt) {
     const F = rt.flags, p = rt.player.u.pos;
@@ -4094,7 +4242,6 @@ const inabayama = {
       g.order = 'move'; g.dest = { x: F.keep.spot.x, z: F.keep.spot.z - 1.5 };
       g.onArrive = (q) => { q.order = 'hold'; q.anchor = q.dest; };
     }
-    rt.bark('近習が城主を守り、奥で退く支度をしている。組へ戻り、合図の火を守れ');
   },
   // 旗本を退けたら、合図の火
   lightSig(rt) {
@@ -4133,7 +4280,6 @@ const inabayama = {
       setRoute(F.oteYose1, R_NANA, F); setRoute(F.oteYose2, R_NANA, F); setRoute(F.sakuma, R_NANA, F);
       rt.after(5, () => rt.say('柴田勝家', '森と坂井が七曲りを押し上げる。木戸の前で城兵を引き付けるぞ', 3.5));
     }
-    rt.bark(`下知：${STRATS[s].short}へ寄せる`);
   },
 
   // 区域が落ちた（siege_zones の onFall）：知らせだけ。勝ち負けは筋（合図の火）と本丸で決める
@@ -4142,7 +4288,6 @@ const inabayama = {
     F.fell = F.fell || {};
     if (F.fell[id]) return;
     F.fell[id] = true;
-    if (id === 'hon') rt.bark('本丸の持ち場を確保した。旗本を退け、脇の小屋の合図を忘れるな');
     if (id === 'ote' && F.step < 4 && sightPoint(rt, OTE)) rt.say('柴田勝家', '大手の木戸を取ったぞ！　城兵は本丸へ退いた', 3);
     // 舟着きの占拠だけでは城主の退路全体を断ったと判断しない。
   },
@@ -4218,7 +4363,6 @@ const inabayama = {
       F.regroup = F.step > 0 && !(F.step === 4 && F.sig) && d > (F.regroup ? 24 : 40);
       if (F.regroup && !F.ending && !F.regroupSaid) {
         F.regroupSaid = true;
-        rt.bark(F.step === 3 ? '味方から離れた。曲がり角をたどり、藤吉郎の列へ戻れ' : '味方から離れた。矢印の先の藤吉郎の旗へ戻れ', true);
       }
     }
     // 崩れた隊の印は消す（古い印が「あちらじゃ」の行き先にならないように）
@@ -4228,7 +4372,8 @@ const inabayama = {
       F.budgetAt = rt.t + 1;
       let live = 0;
       for (const u of rt.army.units) if (u.alive && !u.isStruct) live++;
-      let room = Math.max(0, 235 - live);
+      // 弱い端末（device_tier.js）は遠い備の本物を少し早めに止める。目の前の乱戦の兵は減らさない（稲生 1）。
+      let room = Math.max(0, (TIER.weak ? 200 : 235) - live);
       for (const b of rt.butai || []) {
         if (b.noSwitch) continue;
         const have = b.realCount();
@@ -4250,14 +4395,12 @@ const inabayama = {
     if (!F.woundAdvice && rt.player.u.alive && rt.player.u.hp < rt.player.u.maxHp * 0.75) {
       F.woundAdvice = true;
       F.woundAdviceAt = rt.t;
-      rt.bark(F.step === 2 ? '傷が深い。下がれ！　鹿垣の内の味方へ退け' : '傷が深い。下がれ！　来た道から味方の後ろへ退け', true);
     }
     if (F.woundAdvice && !F.deepWoundAdvice && rt.t - F.woundAdviceAt >= 8 && rt.player.u.hp < rt.player.u.maxHp * 0.4) {
       F.deepWoundAdvice = true;
-      rt.bark('このままでは倒れる。敵を追わず、味方の後ろへ退け！', true);
     }
     // 層（Z0〜Z5）：自分が新しい層へ入ったら一度だけ知らせる（金華山を下から上へ登っている手応え）
-    { const p = rt.player.u.pos, L = LAYERS.find((q) => q.test(p.x, p.z)); if (L && L.id !== F.layer) { const first = !F.layerSeen[L.id]; F.layer = L.id; F.layerSeen[L.id] = true; if (first && L.id !== 'Z0') rt.bark(L.name); } }
+    { const p = rt.player.u.pos, L = LAYERS.find((q) => q.test(p.x, p.z)); if (L && L.id !== F.layer) { F.layer = L.id; F.layerSeen[L.id] = true; } }
     if (F.DA) F.DA.tick(dt);
     if (F.K) F.K.tick(dt);
     F.clashSeconds = F.step >= 3 ? (F.clashSeconds || 0) + dt : 0;
@@ -4344,23 +4487,52 @@ const inabayama = {
         else if (rt.t - m.t > 15) {
           m.t = rt.t;
           const kc2 = F.kino.center();
-          let broke = false;
           for (const g of [F.koshiGuard, F.ambush, F.ambushGun, F.towerArchers, F.scout, F.patrol, ...F.climbGuards]) {
             if (!g || gone(g)) continue;
             const c = g.center();
-            if (Math.hypot(c.x - kc2.x, c.z - kc2.z) < 30) { g.noRout = false; g.morale = 0; broke = true; }
+            if (Math.hypot(c.x - kc2.x, c.z - kc2.z) < 30) { g.noRout = false; g.morale = 0; }
           }
-          if (broke) rt.bark('藤吉郎の手が槍を入れた。道の守りが崩れて山上へ退く', true);
           for (const u of F.kino.units) if (u.alive && !u.atk) { u.target = null; u.moveTo = null; u.aiT = 0; }
         }
       }
       if (!F.koshiBroke && F.kino.order === 'path' && F.kino.pathIdx >= KARA_TRAIL.indexOf(KARA[4])) {
         F.koshiBroke = true;
         for (const g of [F.ambush, F.ambushGun, F.koshiGuard, F.towerArchers, F.scout]) if (g && !gone(g)) { g.noRout = false; g.morale = 0; }
-        rt.bark('腰曲輪の守りが背を取られて退いた。藤吉郎の旗を追い、木戸へ急げ', true);
       }
       // 縦列で登る間、遅れた一人（遠い的を狙う鉄砲など）を待ち続けて列が止まらないよう、的を外して列へ戻す
       if (F.kino.order === 'path' && (F.kino._waitT || 0) > 8) for (const u of F.kino.units) if (u.alive && !u.atk && Math.hypot(u.pos.x - F.kino.anchor.x, u.pos.z - F.kino.anchor.z) > 9) { u.target = null; u.moveTo = null; u.aiT = 0; }
+      // 折れの多い細道では、列の持ち場が道の曲がりに合わず、いつも「少し伸びた」扱いで三割の歩みになる。
+      // その間だけ先頭の歩みを倍にし、登りを七分の上限の内に収める（兵の歩く速さ・当たりは変えない）。
+      if (F.kino.order === 'path') F.kino.speed = (F.kino._tailLag || 0) > 5 ? 6.4 : 3.2;
+      // 遅れた一人が切岸や折れの外の持ち場へ寄れず、六秒動けない時は、その者を列の待ちに数えない。
+      // 先頭が進めば持ち場も道の先へ移り、遅れた者は自分の足で後を追う（位置は書き換えない）。
+      if (F.kino.order === 'path' && rt.t >= (F.kinoStuckAt || 0)) {
+        F.kinoStuckAt = rt.t + .25;
+        const K = F.kino, s = F.kinoStuck || (F.kinoStuck = { u: null, x: 0, z: 0, t: 0, skip: null });
+        let worst = null, wd = 9, rest = 0;
+        for (const u of K.units) {
+          if (!u.alive || u.fleeing || u.woundOut || u.rearWound || u.downed || u.noTarget) continue;
+          const home = K.slotPos(u.slot, K.initial), d = Math.hypot(home.x - u.pos.x, home.z - u.pos.z);
+          if (u === s.skip) { if (d < 6) s.skip = null; continue; }
+          if (d > wd) { wd = d; worst = u; }
+          rest = Math.max(rest, d);
+        }
+        if (!worst || s.u !== worst || Math.hypot(worst.pos.x - s.x, worst.pos.z - s.z) > 1) {
+          s.u = worst; s.t = rt.t; if (worst) { s.x = worst.pos.x; s.z = worst.pos.z; }
+        } else if ((K._waitT || 0) > 0 && rt.t - s.t > 6) { s.skip = worst; s.u = null; }
+        if (s.skip?.alive) { K._tailLag = rest; K._tailCheckAt = rt.army.time + .5; }
+        else s.skip = null;
+      }
+      // 深手で足の遅い者・道で引っかかった者が列を何分も止めると、自分だけが先へ登って迷う。
+      // 列が八秒待っても追いつかず、画面に映らない遅れた者だけ、後ろへ残った扱いで場から外す。斬り合い中の兵は外さない。
+      if (F.kino.order === 'path' && (F.kino._waitT || 0) > 8) {
+        const me = rt.player.u.pos;
+        for (const u of F.kino.units) {
+          if (!u.alive || u.atk || u.swing || u.target || u === F.kinoU || u.name) continue;
+          const home = F.kino.slotPos(u.slot, F.kino.initial);
+          if (Math.hypot(home.x - u.pos.x, home.z - u.pos.z) > 9 && Math.hypot(me.x - u.pos.x, me.z - u.pos.z) > 15 && !sightScreenUnit(rt, u)) rt.army.despawn(u);
+        }
+      }
       for (const g of F.climbGuards) if (!g.sent && !gone(g) && Math.hypot(p.x - g.anchor.x, p.z - g.anchor.z) < 16 && Math.abs(p.y - rt.world.heightAt(g.anchor.x, g.anchor.z)) < 8) {
         g.sent = true; g.sentAt = rt.t; g.noAI = false; g.order = 'attack'; g.seekRange = 24; g.aggro = 12;
         rt.marker(g.name, centerOf(g), g.name, { red: true, group: g });
@@ -4370,7 +4542,7 @@ const inabayama = {
       if (!F.guardOn) this.climbEvents(rt);
       if (!F.guardOn && (kd < 30 || Math.hypot(kc.x + 30, kc.z + 118) < 26)) this.guardFight(rt);
       // 木戸の守りと三十秒斬り合えば、裏を取られた守りは本丸へ退く（切岸の上に残る数人を探し続けさせない）
-      if (F.guardOn && !gone(F.kguard) && rt.t - F.guardT > 30 && !F.kguardBroke) { F.kguardBroke = true; F.kguard.noRout = false; F.kguard.morale = 0; rt.bark('搦手の守りが崩れた。本丸の旗本へ退いていく', true); }
+      if (F.guardOn && !gone(F.kguard) && rt.t - F.guardT > 30 && !F.kguardBroke) { F.kguardBroke = true; F.kguard.noRout = false; F.kguard.morale = 0; }
       if (F.guardOn && gone(F.kguard)) {
         // 先に守りが崩れても、藤吉郎の縦列は最後の曲がり角を通す。
         if (inabaAtWoodGate(rt) && (F.kino.order !== 'path' || Math.hypot(kc.x + 30, kc.z + 118) < 10 || rt.t - F.guardT > 20)) this.signal(rt);
@@ -4419,7 +4591,17 @@ const inabayama = {
 };
 
 // 両軍の総勢（織田 一万五千を仮置き、斎藤 四千を仮置き。数には諸説ある）
-inabayama.force = () => ({ a: 15000, a0: 15000, b: 4000, b0: 4000 });
+// 残りの人数（稲生の水準）：討ち取った数と、城の段の進みで目安の総数を減らす。入れ物は使い回す。
+// 町・麓・山上で実兵が入れ替わるため、生きている兵の数では数えない。
+const INABA_FORCE = { a: 15000, a0: 15000, b: 4000, b0: 4000 };
+inabayama.force = (rt) => {
+  const F = rt?.flags;
+  if (!F) return INABA_FORCE;
+  const ek = F.ek || 0, ak = F.ak || 0;
+  INABA_FORCE.a = Math.max(0, Math.round((15000 - ak * 12) / 10) * 10);
+  INABA_FORCE.b = Math.max(0, Math.round((4000 - ek * 20 - (F.step >= 4 ? 600 : F.step >= 3 ? 300 : 0)) / 10) * 10);
+  return INABA_FORCE;
+};
 inabayama.sides = { a: { name: '織田軍（出陣時の目安）', mon: 'oda' }, b: { name: '斎藤軍（出陣時の目安）', mon: 'saito' } };
 
 // 軍議（gungi.js）：金華山を回して見て、外の部隊の攻め口を三つから選ぶ（遊びの既定は七曲り）。
@@ -4539,6 +4721,8 @@ inabayama.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
       }
     }
   } else F.botBindUntil = 0;
+  // 登りは中腹の折れから始まる。後ろの折れへ戻らないよう、次の角から道をたどる。
+  if (F.step === 3 && !F.botKaraInit) { F.botKaraInit = true; b.botRoadPath = BOT_KARA; b.botRoadIndex = KARA_START + 1; }
   // 敵の前での退避は共通の survive に任せ、上役へ背を向けない。
   const c = F.kino.center();
   if (F.step === 0) {

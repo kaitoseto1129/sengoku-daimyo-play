@@ -760,7 +760,9 @@ function restoreLazy(g) {
   g._lazy = false; g._lazyRestored = true; LAZY_STAT.restored++;
   // 先に取り出し口（getter）を外して空の配列にしておく（作り直しの途中で共有の属性を読んでも、ここへ戻って回らない）
   const own = []; for (const k in g.attributes) own.push(g.attributes[k]); if (g.index) own.push(g.index);
-  for (const a of own) { const d = Object.getOwnPropertyDescriptor(a, 'array'); if (d && d.get) Object.defineProperty(a, 'array', { value: new (a._lazyCtor || Float32Array)(0), writable: true, configurable: true, enumerable: true }); }
+  //   外すのは自分が手放した配列だけ。共有の配列（_unitShared）の取り出し口は GPU から読み戻す口（main.js の gpuOnly）で、
+  //   ここで空にすると同じ形の兵全員の位置が 0 個になり、倒れた形の写しの囲みが NaN になっていた（森部 10/25）
+  for (const a of own) { const d = Object.getOwnPropertyDescriptor(a, 'array'); if (d && d.get && a._lazyDropped) Object.defineProperty(a, 'array', { value: new (a._lazyCtor || Float32Array)(0), writable: true, configurable: true, enumerable: true }); }
   const ck = g.userData && g.userData.ck;
   if (ck != null && geoCache.get(ck) === g) geoCache.delete(ck);   // 表の同じ物を返されないよう外してから作り直す
   let g2 = null;
@@ -3299,7 +3301,8 @@ function horseBodyHi(Q, st) {
   Q.push(P(at(back, 0, 1.56, -0.22, 0.35), st.saddle, { mk: MK.lac, reg: 'lacq' }));
   // 障泥：胴に沿って曲がる革の垂れ（左右）
   for (const sd of [1, -1]) {
-    const ao = surf(6, 4, (u, v) => [sd * (0.29 + Math.sin(v * Math.PI * 0.7) * 0.04 + v * Math.sin(u * Math.PI * 4) * 0.009), 1.5 - v * 0.4 + v * v * Math.cos(u * Math.PI * 2) * 0.012, (u - 0.5) * 0.52 + 0.02]);
+    // 裾の両端は短くして角を丸める（四角い板に見せない）
+    const ao = surf(6, 4, (u, v) => { const vv = v * (1 - 0.3 * Math.pow(Math.abs(2 * u - 1), 4)); return [sd * (0.29 + Math.sin(vv * Math.PI * 0.7) * 0.04 + vv * Math.sin(u * Math.PI * 4) * 0.009), 1.5 - vv * 0.4 + vv * vv * Math.cos(u * Math.PI * 2) * 0.012, (u - 0.5) * 0.52 + 0.02]; });
     const back = ao.clone(), ix = back.index;
     Q.push(P(ao, st.aori, { reg: 'cloth', mk: MK.cloth }));
     for (let j = 0; j < ix.count; j += 3) { const k = ix.getX(j); ix.setX(j, ix.getX(j + 1)); ix.setX(j + 1, k); }
@@ -3429,7 +3432,8 @@ export function horseStyleFor(seed, rank = 0, facKey = '') {
     saddle: 0x111010,
     rim: rank >= 2 ? 0xc9a24a : 0,
     cushion: F.cushion,
-    aori: rank >= 2 ? 0x241a12 : 0x3a2e22,
+    // 大将の障泥は濃い茶の革。ほぼ黒（0x241a12）だと、馬の腹の下に黒い四角が貼り付いて見えた（森部 10/25）
+    aori: rank >= 2 ? 0x5a3c24 : 0x3a2e22,
     tassels: rank >= 2 && facKey !== 'tokugawa' ? 0xc23a22 : F.tassels,
     big: rank >= 2 ? 1 : 0,
     armor: 0,

@@ -521,6 +521,76 @@ const JIN = [
   ], '信長公記巻八、岩村城の曲輪資料。各曲輪の守将・兵数は不明'),
 ];
 const iwamura = {
+  // 稲生と同じ入口で任務・地図・頭上の印・一時停止をそろえる。
+  missionSingleLine: true,
+  hideMissionDots: true, hideGuideSteps: true,
+  noPlayerFoot: true, quietMiss: true,
+  enemyTriangleSigns: true, nearbyAllySignLimit: 0, noDodgeCard: true,
+  missionPinCaption: '', missionDetail: () => '', missionStatus: () => '',
+  minutes: 7,
+  bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ/.test(text),
+  missions: ['篝火を焚け', '柵を守れ', '▼の敵を倒せ', '麓へ進め', '味方を待て', '麓を守れ'],
+  missionOf(rt) {
+    const F = rt.flags;
+    if (F.step < 2 && F.lit < POSTS.length && !F.scoutNear) return 0;
+    if (F.step < 3) return 1;
+    if (this.missionSignTarget(rt)) return 2;
+    if (!atFoot(F, rt.player.u.pos)) return 3;
+    return F.joinHold > 0 ? 5 : 4;
+  },
+  missionHeading(rt) { return this.missions[this.missionOf(rt)]; },
+  // 秋山は後日捕らえられる城将。目印を付けても、この夜の討取りの対象にはしない。
+  commanderSignTarget(rt) {
+    const u = rt.flags.keep?.lord;
+    return !rt.flags.ending && u?.alive && !u.gone && !u.dying && !u.woundOut ? u : null;
+  },
+  missionSignTarget(rt) {
+    const F = rt.flags, p = rt.player.u.pos;
+    if (F.ending || rt.over || !rt.player.u.alive) return null;
+    let nearest = null, best = Infinity;
+    const groups = F.step === 3 ? F.roadDefenders : F.contacts;
+    for (const g of groups || []) {
+      if (g.iwWithdraw || g.routed || F.step < 3 && !g.iwSent) continue;
+      for (const u of g.units) {
+        if (!chaseReady(u) || u.hp <= 0 || u.gone || u.dying || u.civ || u.isStruct || u.mesh?.visible === false) continue;
+        if (F.step === 3 && !roadEnemy(u, F.joinOrder || atFoot(F, p), F.footY)) continue;
+        const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
+        if (d < best) { best = d; nearest = u; }
+      }
+    }
+    return nearest;
+  },
+  missionPin(rt) {
+    const F = rt.flags, p = rt.player.u.pos;
+    if (F.ending || rt.over || !rt.player.u.alive) return null;
+    const q = F.goalPin || (F.goalPin = { x: 0, z: 0 });
+    q.unit = null; q.enemy = false; q.fire = false; q.marker = null;
+    q.route = false; q.waiting = false; q.arrived = false; q.defend = false;
+    q.r = q.hide = 5;
+    let pos;
+    if (this.missionOf(rt) === 0) {
+      const i = F.litPosts?.has(0) ? 1 : 0;
+      pos = POSTS[i]; q.fire = true;
+      q.marker = F.fireMarkers[i]; q.r = q.hide = 3;
+    } else if (F.step < 3) {
+      // 味方の槍組が並ぶ口に保つ。着いても守る場所を消さない。
+      pos = F.raidGuide || POSTS[0]; q.waiting = true;
+    } else {
+      const enemy = this.missionSignTarget(rt);
+      if (enemy && Math.abs(enemy.pos.y - p.y) < 3 &&
+          !rt.army.wallBetween(p, -1, enemy.pos) && !rt.army.terrainBlocks(p, enemy.pos)) {
+        pos = enemy.pos; q.unit = enemy; q.enemy = true; q.r = q.hide = 3;
+      } else if (atFoot(F, p)) {
+        pos = FOOT; q.waiting = true; q.r = q.hide = 8;
+      } else {
+        // 切岸を横切るピンにせず、通れる山道の次の折れへ渡す。
+        pos = F.chaseGuide; q.route = true; q.r = q.hide = 3;
+      }
+    }
+    q.x = pos.x; q.z = pos.z;
+    q.arrived = q.waiting && Math.hypot(p.x - q.x, p.z - q.z) < q.r;
+    return q;
+  },
   // 共通の民の仕組みで見物・兵や火からの避難を行い、兵数や戦功には加えない。
   civilianCrowd: { bands: PEOPLE_BANDS },
   jinkei: JIN,
@@ -702,6 +772,7 @@ const iwamura = {
   botOrders: true, // 追撃や手当ての道を、空馬への寄り道で上書きしない。
   spawn: { x: 6, z: 14, heading: Math.PI },
   world: {
+    noHaori: true, // 本の足軽・徒立ち武者にならい、胴と草摺を隠す陣羽織を外す。
     seed: 15755,
     blockedHint: () => '柵の内の左右へ。陣幕と小屋を回り、篝火へ進め',
     terrainTriangles: true, // 描く三角形と接地の高さをそろえ、坂で旗や足を浮かせない。
@@ -1043,6 +1114,7 @@ const iwamura = {
     F.step = 1; F.stepT = rt.t;
     rt.setPhase('prepare');
     F.litPosts = new Set();
+    F.fireMarkers = [{ id: 'p0' }, { id: 'p1' }];
     rt.unmark('kawa');
     rt.obj('main', HI(rt) ? '組を率い、左右の篝火を焚け' : '柵の左右に篝火を焚け', 'main', true);
     rt.objProgress('main', `篝火 0／${POSTS.length}。篝火の印で長押し`);
@@ -1099,10 +1171,11 @@ const iwamura = {
     // 時機と台詞は復元。既存の十人を歩かせ、兵を増やさない。
     send(0); send(1);
     rt.after(24, () => send(2));
-    // 初戦後は十五秒ごとに次の手を寄せ、敵のいない切れ目を短くする。
-    rt.after(30, () => send(3));
-    rt.after(45, () => send(4));
-    rt.after(60, () => send(5));
+    // 六手の人数と密度は保ち、先の手が戦う間に後続を重ねる。
+    // 支度四十四秒・夜討ち約二分・山道の追撃約一分半を目安にする。
+    rt.after(40, () => send(3));
+    rt.after(65, () => send(4));
+    rt.after(90, () => send(5));
   },
 
   // ③ 城の麓まで追う
@@ -2451,7 +2524,13 @@ function battleRoom(rt) {
 }
 function battleLook(rt, list, look) {
   let room = battleRoom(rt);
-  return dress(list.map((q) => { const n = Math.min(q.n, room); room -= n; return { ...q, n }; }), look);
+  // 本の足軽の写真：黒褐色の胴・紺の小袖・赤褐色の陣笠。
+  // 六組の既存の汚れと仕立ての差を残し、材質や兵の数は増やさない。
+  return dress(list.map((q) => {
+    const n = Math.min(q.n, room); room -= n;
+    const foot = q.type === 'ashigaru' || q.type === 'gun' || q.type === 'bow';
+    return { ...q, n, o: { ...(foot ? { armor: 0x302822, cloth: 0x263332, hatColor: 0x642c24 } : {}), ...q.o } };
+  }), look);
 }
 
 export { iwamura };
