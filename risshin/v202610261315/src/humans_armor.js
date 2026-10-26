@@ -196,13 +196,16 @@ function menpoMat(col) {
   if (!M.has(key)) {
     const m = armorMaterial({ map: KB.menpo.mc, normalMap: KB.menpo.mn, roughness: 0.42, metalness: 0.15, side: THREE.DoubleSide });
     const tint = c.clone().multiplyScalar(2.2);
+    // 色は uniform で渡す（色を描き方の字に書き込むと、武将ごとに別の program が乱戦の途中で組まれていた。10/26）
+    const tintU = { value: new THREE.Vector3(tint.r, tint.g, tint.b) };
     m.onBeforeCompile = (sh) => {
-      sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+      sh.uniforms.uMenpoTint = tintU;
+      sh.fragmentShader = 'uniform vec3 uMenpoTint;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
         { float lum = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11));
-          ${red ? 'diffuseColor.rgb = mix(vec3(lum), diffuseColor.rgb, 0.8) * 0.85;' : `diffuseColor.rgb = min(vec3(1.0), vec3(${tint.r.toFixed(3)}, ${tint.g.toFixed(3)}, ${tint.b.toFixed(3)}) * (0.35 + lum));`} }
+          ${red ? 'diffuseColor.rgb = mix(vec3(lum), diffuseColor.rgb, 0.8) * 0.85;' : 'diffuseColor.rgb = min(vec3(1.0), uMenpoTint * (0.35 + lum));'} }
         diffuseColor.rgb *= gl_FrontFacing ? 1.0 : 0.3;`);
     };
-    m.customProgramCacheKey = () => 'menpo|' + key;
+    m.customProgramCacheKey = () => 'menpo|' + (red ? 'red' : 'tint');
     M.set(key, m);
   }
   return M.get(key);

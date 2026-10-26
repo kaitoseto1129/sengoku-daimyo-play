@@ -31,7 +31,7 @@ export async function compileBattleSlice(renderer, group, camera, scene, current
   } finally { clearTimeout(timer); programs.clear(); }
 }
 
-export async function prepareBattlePrograms(renderer, battle, camera, current = () => true, { uploadTextures, offscreen = true } = {}) {
+export async function prepareBattlePrograms(renderer, battle, camera, current = () => true, { uploadTextures, offscreen = true, shadow = null } = {}) {
   const before = new Set(renderer.info.programs || []);
   const stats = battle.programPreparation = { before: before.size, after: before.size, created: 0, materials: 0, variants: 0, failed: 0, complete: false };
   if (!current()) return stats;
@@ -49,6 +49,8 @@ export async function prepareBattlePrograms(renderer, battle, camera, current = 
       renderer.setRenderTarget(target);
       renderer.setViewport(0, 0, 1, 1);
       renderer.setScissorTest(false);
+      // 戦の中と同じ影の有無で組む（待ちの間に題の絵が影を切っても、ここで戻す）
+      shadow?.();
       // 見本は同期の支度中だけ置く。待ち時間や通常の描画へ顔の見本を残さない。
       battle.scene.add(group);
       group.visible = true;
@@ -73,8 +75,9 @@ export async function prepareBattlePrograms(renderer, battle, camera, current = 
   // 順は「最初の一枚に映らない物」から：人の見本（姿の変種・目・歯・馬具）→ 兵と馬 → 舞台。
   // 舞台も含めて最後まで用意し、戦中へ時間切れの残りを渡さない。
   for (const o of humanProgramSamples(battle)) walk(o, true);
+  // 具足も人の一部として、倒れた時の描き方（fallenContour）まで用意する（乱戦で討たれた瞬間に組まれていた。10/26）
   for (const o of armorProgramSamples(renderer)) {
-    walk(o);
+    walk(o, true);
     await preparationFrame();
     if (!current()) return stats;
   }
@@ -157,7 +160,12 @@ export async function prepareBattlePrograms(renderer, battle, camera, current = 
         // 顔の形ごとに違う小さな部品（目玉・髷・元結）は BatchedMesh で描く。その描き方も作る
         if (ud?.humanBatch && hasMultiDraw() && source.geometry && source.geometry.attributes.position.count <= 1500) {
           const g = source.geometry, bm = new THREE.BatchedMesh(1, g.attributes.position.count, g.index ? g.index.count : 3, material);
-          try { bm.addGeometry(g); bm.receiveShadow = true; bm.castShadow = source.castShadow; if (!await prepare(bm, material)) return stats; } catch (e) { /* 入らない形は束にしない */ } finally { bm.dispose(); }
+          try {
+            bm.addGeometry(g); bm.receiveShadow = true; bm.castShadow = source.castShadow; if (!await prepare(bm, material)) return stats;
+            // 倒れた人の目・髪も同じ束で描く。その描き方も作る（討たれた瞬間に組まれていた）
+            const fm = fallenVariant(material);
+            if (fm !== material) { bm.material = fm; if (!await prepare(bm, fm)) return stats; }
+          } catch (e) { /* 入らない形は束にしない */ } finally { bm.dispose(); }
         }
         if (source.isBatchedMesh) continue;
         // 兵の遠い形・透過・倒れを総当たりで作らない。

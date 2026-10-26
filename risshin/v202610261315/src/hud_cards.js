@@ -483,7 +483,8 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
       }
       this.nextEnemyLabel = enemyLabel;
       if (enemy) this.nextEnemyUnit = enemy;
-      if (rt.t < this.nextEnemyUntil) headline = 'つぎの敵を たおせ';
+      // 森部の一般兵は誰を攻撃してもよい。一人ずつ指定された任務に見せない。
+      if (def.key !== 'moribe' && rt.t < this.nextEnemyUntil) headline = 'つぎの敵を たおせ';
     }
     // 話す任務と相手の頭上を、同じ吹き出しで結ぶ。札は増やさない。
     const talkSign = headline === 'この人と話そう';

@@ -15,7 +15,7 @@ import { addInterior } from './naka.js';
 import { sendOrder } from './denrei.js';
 import { nagashinojo } from './b_nagashinojo.js';
 import { sfx } from './audio.js';
-import { sightPoint, sightScreenUnit } from './battle_sight.js';
+import { sightPoint } from './battle_sight.js';
 import { revealName } from './battle_intel.js';
 import { gone as groupGone, seasonOf } from './b_shared.js';
 import { camp } from './b_mid.js';
@@ -45,10 +45,11 @@ const FORD_R = 4;
 // ピンと同じ岸まで進み、水から上がれば渡河済み。横へそれても小旗へ戻らせない。
 // 足の上下動や雨で濡れた土の水深に左右されず、描いた川面の北端を越えた瞬間に完了。
 // 横へそれた岸もその場の水際で判定し、ピンの奥行きまで歩き直させない。
-const atFordBank = (p, world) => p.z < nireZ(p.x) &&
-  distToPolyline(p.x, p.z, world.def.streams[1].pts) >= world.def.streams[1].w;
+const atFordBank = (p, world, foot = 0) => p.z < nireZ(p.x) &&
+  distToPolyline(p.x, p.z, world.def.streams[1].pts) >= world.def.streams[1].w - foot;
 // ピンへ近づいただけでは水中で終えない。ピンのある対岸へ足が着いた瞬間にそろえる。
-const playerAtFord = (p, world) => atFordBank(p, world);
+// 体の中心ではなく踏み出した足が岸へ着いた時に完了し、足元のピンまで来ても歩かせ続けない。
+const playerAtFord = (p, world) => atFordBank(p, world, .45);
 const FRONT2 = { x: 4, z: 20 };
 const ASSEMBLY2 = { x: 14, z: 10 };
 const RETREAT2 = { x: 24, z: 48 };
@@ -511,13 +512,13 @@ function moribeFord(rt) {
       float fordBand = 1.0 - smoothstep(4.5, 6.0, fordEdge);
       float fordGrain = texture2D(tMacro, vWPw.xz * 0.9).r;
       // 川底の小石は地面に固定。流れる白波と分け、浅さと歩いた分を絵で見せる。
-      vec2 fordCell = fract(vWPw.xz * 1.4 + vec2(fordGrain * 0.25, 0.0)) - 0.5;
+      vec2 fordCell = fract(vWPw.xz * 1.4 + vec2(fordGrain * 0.7, fordGrain * 0.6)) - 0.5;
       float fordPebble = 1.0 - smoothstep(0.22, 0.36, length(fordCell * vec2(1.0, 1.4)));
       float fordRipple = smoothstep(0.86, 0.98, sin(vWPw.z * 6.0 + fordGrain * 2.0 - uTime * 1.4));
       // 青い流れの中に砂底の帯を通し、入口から出口まで歩ける浅さを見せる。
       // 隣の流れは元の川色のまま。新しい形や描画は増やさない。
-      vec3 fordSand = mix(vec3(0.52, 0.43, 0.27), vec3(0.78, 0.70, 0.48), fordGrain);
-      fordSand = mix(fordSand, vec3(0.25, 0.32, 0.29), fordPebble * 0.65);
+      vec3 fordSand = mix(vec3(0.38, 0.43, 0.32), vec3(0.65, 0.62, 0.43), fordGrain);
+      fordSand = mix(fordSand, vec3(0.34, 0.39, 0.32), fordPebble * 0.25);
       diffuseColor.rgb = mix(diffuseColor.rgb, fordSand, fordBand * 0.95);
       // 濡れた砂底の明るさを保ち、暗い流れの中に渡れる帯を残す。
       totalEmissiveRadiance += fordSand * fordBand * 0.22;
@@ -1100,12 +1101,14 @@ const moribe = {
   missionSignTarget(rt) {
     const F = rt.flags, p = rt.player;
     if (F.ending || F.stage === 'assemble') return null;
+    // 渡る間の目標は対岸のピンだけ。敵の所属を示す小さな▼は残す。
+    if (!F.signal && !F.fordThreat) return null;
     // 討ち取りの段では、離れた一般兵へ印を乗り換えない。
     if (F.stage === 'press' && !F.pursuing) {
       const u = this.commanderTarget(rt);
       if (u) { F.signTarget = u; return u; }
     }
-    // 渡る前から対岸の先手にも同じ赤い▼を残し、味方と見分けられるようにする。
+    // 渡河中の所属の▼は残し、戦う一人の強調は開戦後だけにする。
     const vanguard = !F.signal || F.stage === 'contact' && !F.vBroken ? F.V : null;
     if (p.inRange && moribeFoeReady(p.rangeCueTarget, p) &&
         (!vanguard || p.rangeCueTarget.group === vanguard)) return p.rangeCueTarget;
@@ -1151,7 +1154,7 @@ const moribe = {
       return '仲間を待て';
     }
     // 守る段は稲生と同じ一行。守る所はピン、味方はその左右へ寄る。
-    if (F.stage === 'hold') return F.lineReturning ? '仲間と集まれ' : '耐えろ';
+    if (F.stage === 'hold') return F.lineReturning ? '仲間と集まれ' : '生き残れ';
     if (F.squadGuide && Math.hypot(p.x - F.squadGuide.pos.x, p.z - F.squadGuide.pos.z) >= 16 ||
         !F.signal && F.pointReached && !F.pointInside ||
         (F.stage === 'hold' || F.stage === 'contact' && F.vBroken) && F.lineReturning)
@@ -1234,25 +1237,16 @@ const moribe = {
     // 着いた後の足元や画面端へ、移動を促す印を残さない。
     q.waiting = false; q.arrived = false; q.crossing = false; q.progress = 0; q.guardArea = false;
     let pos = null, r = 6, hide = 6;
-    // 戦う段：敵は頭上の赤い▼。▼が見えない間だけ、残りの最寄りの敵へピンを向ける（稲生と同じ）。
-    if ((F.stage === 'contact' && !F.vBroken || F.stage === 'press') && !F.squadGuide) {
-      const foe = this.missionSignTarget(rt), pl = rt.player;
-      if (!moribeRemainFoe(foe) || pl.inRange && pl.rangeCueTarget === foe) return null;
-      if (rt.t >= (F.foeSeenAt || 0) || F.foeSeenUnit !== foe) {
-        F.foeSeenAt = rt.t + .25; F.foeSeenUnit = foe;
-        F.foeSeen = foe.mesh?.visible !== false && !foe.camHidden && sightScreenUnit(rt, foe);
-      }
-      if (F.foeSeen) return null;
-      pos = foe.pos; r = hide = 3;
+    // 黄色いピンは移動先だけ。見えない敵にも付けると渡河・集合の印と混同する。
+    if (F.signal && (F.stage === 'contact' && !F.vBroken || F.stage === 'press') && !F.squadGuide) {
+      return null;
     }
-    if (pos) {
-      // 見えない敵の方向（上で決めた）。
-    } else if (!F.signal) {
+    if (!F.signal) {
       if (F.pointDone) return null;
       pos = POINT2; r = FORD_R; hide = 0;
       // 渡り終えた満杯のピンを一拍残してから、仲間を待つ時計へ替える。
       q.arrived = !!(F.pointReached || F.pointInside || playerAtFord(rt.player.u.pos, rt.world));
-      q.waiting = q.arrived && rt.t - (F.fordArrivedAt ?? rt.t) >= .8;
+      q.waiting = q.arrived && rt.t - (F.fordArrivedAt ?? rt.t) >= 2.4;
       q.crossing = !q.waiting;
       // 渡った分を示し、到着の満杯を一拍残してから待機の進みに替える。
       q.progress = q.arrived ? q.waiting ? this.missionWaitProgress(rt) || 0 : 1 :
@@ -1552,7 +1546,7 @@ const moribe = {
       hemiSky: 0xb7c6ca, hemiGround: 0x514735 },   // 雲越しの斜光と土の照り返し。兵の見通しは同じ。
     unitCloudFill: .55,   // 共通の近景補光で、黒漆の胴・袖・威糸へ雲の柔らかな光を回す。
     closeCombatAssist: true,   // 初めて組を預かる槍戦の、近い相手への向き直り。
-    allyPersonalSpace: 1.2,   // 自分の六歩以内だけ、味方の肩が食い込まない間合い。
+    allyPersonalSpace: 1.6,   // 自分の六歩以内で肩と長柄の重なりを減らし、相手の振りとよろめきを見せる。
     playerMeleeFloor: 1 / 3,   // 無名の足軽は、三歩以内で三度当てれば倒れる。
     muddy: 0.5,
     patchyGround: true,   // 草の株と地肌を同じ不規則な群落へそろえる。

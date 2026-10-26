@@ -561,10 +561,11 @@ const okehazama = {
   jinkei: OKEHAZAMA_JIN,
   minutes: 7,
   nearbyAllySignLimit: 0,
+  noPlayerFoot: true, // 集合先のピンと紛らわしい白い足元の輪を出さない。
   // 右上はミッションの一行だけ。距離・向き・操作の字を見出しに出さない（kaito 10/23 49・50）。
   // 間合いと命中は頭上の▼で示し、別の距離案内は出さない。
   enemyOrder(rt, enemy) {
-    return enemy && enemy === rt.flags.yoshimoto ? '今川義元をたおせ' : '赤い三角の今川の兵を倒せ';
+    return enemy && enemy === rt.flags.yoshimoto ? '今川義元をたおせ' : '今川の兵を倒せ';
   },
   // 大将の印：義元を討つ段だけ、地図と戦場で大将の印を大きくする（稲生の型）。
   commanderTarget(rt) {
@@ -679,7 +680,7 @@ const okehazama = {
   missionSingleLine: true,
   hideGuideSteps: true,
   // 稲生の型：短い一行。兵は頭上の▼、大将は名で呼び、討った瞬間に次の一行へ替える。
-  missions: ['織田信長の組のピンに集まれ', 'ピンに集まれ', '雨がやむまで待て', '赤い三角の今川の兵を倒せ', '今川義元をたおせ', 'にげる敵を追え', '味方と集まれ'],
+  missions: ['ピンに集まれ', 'ピンに集まれ', '雨がやむまで待て', '今川の兵を倒せ', '今川義元をたおせ', 'にげる敵を追え', '味方と集まれ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -2390,7 +2391,7 @@ const okehazama = {
     const F = rt.flags;
     if (rt.over || F.ending || rt.phase !== 'wait') return;
     F.waitPinCompletePos = F.marchPinPos || this.squadFlagPosition(rt);
-    F.waitPinCompleteUntil = rt.t + .8;
+    F.waitPinCompleteUntil = rt.t + 2.4;
     rt.setPhase('assault'); rt.objRemove('col'); rt.objRemove('wait'); rt.objRemove('honjin0');
     rt.unmark('wait');
     F.quiet = false;

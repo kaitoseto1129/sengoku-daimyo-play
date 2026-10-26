@@ -228,7 +228,8 @@ function drawMissionPin(rt) {
     Math.hypot(destination.x - navMe.x, destination.z - navMe.z) > (destination.r ?? 6);
   const taskFirst = destination && (destination.fire || destination.treatment || destination.dodge ||
     destination.unit?.team === rt.player.u.team);
-  const enemyMarked = updateEnemyTarget(rt, (!moving || destination?.route) && !taskFirst);
+  // 森部は共通の頭上▼で間合い・命中まで示す。別の大きな▼と「敵」の札で覆わない。
+  const enemyMarked = updateEnemyTarget(rt, rt.def.key !== 'moribe' && (!moving || destination?.route) && !taskFirst);
   rt.hud.missionPinLabelShown = false;
   rt.hud.missionPinOutside = false;
   rt.hud.missionFlagFrame = null;
@@ -849,12 +850,25 @@ function updateEnemyTarget(rt, allowed = true) {
   hud.missionEnemyShown = false;
   hud.enemySignOffscreen = false;
   if (enemyTarget) enemyTarget.hidden = true;
+  // 森部は本人の赤い▼で間合い・命中を返す。固定の大きな▼と「敵」の札で覆わない。
+  if (rt.def.key === 'moribe') { rt.army.missionMarkedEnemy = null; return false; }
   const active = allowed && pinGuideOn(rt) && me?.alive && !rt.over && !rt.choice && !hud.introWaiting &&
     !rt.player.camShot && !hud.bigmap && !hud.root.classList.contains('photo') &&
     !hud.root.classList.contains('ending') && !hud.root.querySelector('#cine.on');
   if (!active) { rt.army.missionMarkedEnemy = null; return false; }
+  // 桶狭間は本人の頭上の▼だけ。画面端の「敵」や別の矢印へ誘わない。
+  if (rt.def.key === 'okehazama') {
+    rt.army.missionMarkedEnemy = markedEnemy(rt) || null;
+    return false;
+  }
   // 任務が選んだ本人を先にする。敵の選び直しと見通しは四分の一秒ごと。
   const assigned = markedEnemy(rt);
+  // 稲生は本人の頭上の▼に統一する。別の札で間合い・命中の変化を覆わない。
+  // 画面外の行き先は既存のピンに任せ、端の▼を別の兵へ重ねない。
+  if (rt.def.key === 'inou') {
+    rt.army.missionMarkedEnemy = assigned || null;
+    return false;
+  }
   if (hud.enemySignRt !== rt || hud.enemySignAt == null || rt.t >= hud.enemySignAt || rt.t < hud.enemySignAt - .25) {
     if (hud.enemySignRt !== rt) hud.enemySignUnit = null;
     hud.enemySignRt = rt; hud.enemySignAt = rt.t + .25;
@@ -989,21 +1003,33 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
   }
   el._simpleRing.setAttribute('transform', defend ? 'scale(1.6 2.4)' : '');
   el._routeEdge.style.scale = defend ? '1.6' : '';
-  // 行き先は地面に寝かせた輪だけ。画面外では方向矢印へ切り替える。
-  el._simpleRing.style.display = outside && !docked ? 'none' : '';
+  // 桶狭間は集合前にピン、集合後に待機の円。画面外では方向矢印へ切り替える。
+  el._simpleRing.style.display = (outside && !docked || oke && !joined) ? 'none' : '';
   el._routeEdge.style.display = outside && !docked ? '' : 'none';
   el._simpleRing.lastChild.setAttribute('stroke', want.arrived ? '#e4f2cb' : '#fff3ba');
   // 待機は任務の下で円に起こす。地面の薄い輪と区別し、残る時間を読める大きさにする。
-  el._simpleRing.setAttribute('transform', docked ? 'scale(1 3.2)' : '');
+  el._simpleRing.setAttribute('transform', oke ? 'translate(0 -40) scale(1 3.2)' : docked ? 'scale(1 3.2)' : '');
+  // 集合先は先端までつながったピン一本。丸と短い軸を離して描かない。
+  if (oke && !el._destinationStem) {
+    const stem = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const path = 'M0 0C-8-16-29-24-29-40A29 29 0 1 1 29-40C29-24 8-16 0 0Z';
+    stem.innerHTML = `<path d="${path}" fill="#14120f" stroke="#14120f" stroke-width="10" stroke-linejoin="round"/><path d="${path}" fill="none" stroke="#fff3ba" stroke-width="4" stroke-linejoin="round"/>`;
+    el._simplePin.appendChild(stem); el._destinationStem = stem;
+  }
+  if (el._destinationStem) el._destinationStem.style.display = oke && !joined && !outside ? '' : 'none';
   // 同じ輪の内側で接近・集合・待つ進みを示す。図形は作り直さない。
   if (oke && !el._joinCue) {
     const cue = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     cue.innerHTML = '<ellipse rx="22" ry="6.8" fill="none" stroke="#fff3ba" stroke-width="2" pathLength="1"/><path d="M-8 0L-2 5L9-6" fill="none" stroke="#e4f2cb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path fill="#fff3ba" transform="scale(1 .31)"/>';
     el._simplePin.appendChild(cue); el._joinCue = cue;
+    // 残る一秒を外周の一片にする。針だけの時計にせず、一片ずつ消して待ちの終わりを示す。
+    const dial = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    dial.innerHTML = '<path fill="none" stroke="#14120f" stroke-width="9"/><path fill="none" stroke="#fff3ba" stroke-width="5"/>';
+    el._simplePin.appendChild(dial); el._waitDial = dial;
   }
   if (el._joinCue) {
     const cue = el._joinCue, me = rt.player.u.pos;
-    cue.setAttribute('transform', docked ? 'scale(1 3.2)' : '');
+    cue.setAttribute('transform', oke ? 'translate(0 -40) scale(1 3.2)' : docked ? 'scale(1 3.2)' : '');
     const approach = Math.max(0, Math.min(.98, 1 - Math.max(0, Math.hypot(want.x - me.x, want.z - me.z) - want.r) / 12));
     cue.style.display = oke && want.area && (!outside || docked) ? '' : 'none';
     cue.firstChild.style.display = joined && !waiting ? 'none' : '';
@@ -1016,6 +1042,27 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
       ? 'M0-22A22 22 0 1 1 0 22A22 22 0 1 1 0-22'
       : progress > 0 ? `M0 0L0-22A22 22 0 ${progress > .5 ? 1 : 0} 1 ${Math.sin(angle) * 22} ${-Math.cos(angle) * 22}Z` : '');
     cue.lastChild.style.display = waiting && want.progress < 1 && rt.t - pinAt.arrivalAt >= .8 ? '' : 'none';
+    const dial = el._waitDial;
+    dial.style.display = waiting && progress < 1 ? '' : 'none';
+    dial.setAttribute('transform', 'translate(0 -40)');
+    if (waiting) {
+      const seconds = Math.max(1, Math.min(12, Math.ceil(want.waitDuration || 10)));
+      if (dial._seconds !== seconds) {
+        dial._seconds = seconds; dial._pieces = ['']; dial._left = -1;
+        let arcs = '';
+        for (let i = 0; i < seconds; i++) {
+          const a = (i + .12) * Math.PI * 2 / seconds;
+          const b = (i + .88) * Math.PI * 2 / seconds;
+          arcs += `M${Math.sin(a) * 27} ${-Math.cos(a) * 27}A27 27 0 ${b - a > Math.PI ? 1 : 0} 1 ${Math.sin(b) * 27} ${-Math.cos(b) * 27}`;
+          dial._pieces.push(arcs);
+        }
+        dial.firstChild.setAttribute('d', arcs);
+      }
+      const left = Math.ceil((1 - progress) * seconds);
+      if (dial._left !== left) {
+        dial._left = left; dial.lastChild.setAttribute('d', dial._pieces[left]);
+      }
+    }
   }
   if (outside && !docked) {
     rt.camera.getWorldDirection(goalDirection);
@@ -1039,6 +1086,19 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
   }
   // ついて行く組の旗は一つだけ囲む。行き先の輪は実際の移動先に残す。
   let outline = '';
+  // 集合ピンの地面の輪を、実際の到着半径に合わせる。輪の縁へ入れば集合できる。
+  // 投影用の点と既存の二本の線を使い回し、近い集合先だけ十六辺で描く。
+  if (oke && want.area && !joined && !outside && want.r > 0 &&
+      Math.hypot(want.x - rt.player.u.pos.x, want.z - rt.player.u.pos.z) <= want.r + 12) {
+    for (let i = 0; i < 16; i++) {
+      const angle = i * Math.PI / 8;
+      const px = want.x + Math.sin(angle) * want.r, pz = want.z + Math.cos(angle) * want.r;
+      goalPoint.set(px, groundAt(rt.world, px, pz, rt.player.u.pos.y) + .08, pz).project(rt.camera);
+      if (goalPoint.z < -1 || goalPoint.z > 1) { outline = ''; break; }
+      outline += `${i ? 'L' : 'M'}${((goalPoint.x + 1) * W / 2).toFixed(1)} ${((1 - goalPoint.y) * H / 2).toFixed(1)}`;
+    }
+    if (outline) outline += 'Z';
+  }
   if (rt.def.key === 'inou' && want.marker?.group) {
     const group = want.marker.group;
     const flag = rt.hud.goalFlagBounds(rt, want.marker, group.anchor);

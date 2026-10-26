@@ -10,8 +10,8 @@ import { nearCrowdMat } from './humans_crowd.js';
 import { DM, DOMARU, domaruMaterial } from './humans_armor.js';
 import { MHHAND, handGeo } from './humans_hands.js';
 import { EYE_MH, MOUTH_MH } from './humans_face_geometry.js';
-import { HR } from './humans_horse_model.js';
-import { TACK_GLOSS, TACK_MATTE, TACK_SILK, ROPE } from './humans_horse_tack.js';
+import { HR, HORSE } from './humans_horse_model.js';
+import { TACK_GLOSS, TACK_MATTE, TACK_SILK, ROPE, makeRealHorse } from './humans_horse_tack.js';
 import { gripPose, humans } from './humans_combat.js';
 import { warmFace } from './humans_face.js';
 import { faceOf } from './units_flags.js';
@@ -177,6 +177,8 @@ function humanProgramSamples(rt) {
     if (EYE_MH.mat && EYE_MH.geos.size) add(EYE_MH.geos.values().next().value, EYE_MH.mat, false);
     if (MOUTH_MH.teethM && MOUTH_MH.geos.size) add(MOUTH_MH.geos.values().next().value, MOUTH_MH.teethM, false);
   }
+  // 骨の入った馬がまだ一頭も無い（初めての戦は馬の作り置きを省く）時は、一頭だけ作って置き場へ入れ、その描き方を組む（戦の中で使い回す）
+  if (HR && HORSE.ready && !rt.def?.noHorse && !HR.pool.length) { try { HR.pool.push(makeRealHorse()); } catch (e) { /* 作れなければ戦の中で作る */ } }
   if (HR && !rt.def?.noHorse) for (const horse of HR.pool) samples.push(horse.holder, horse.extra);
   // 馬具（漆・革・絹：tack2g・tack2m・tacksilk）は乗り手が付いた馬にだけ出るので、見本にも入れる
   if (HR && !rt.def?.noHorse) for (const m of [TACK_GLOSS, TACK_MATTE, TACK_SILK]) { const o = new THREE.Mesh(ROPE, m); o.receiveShadow = true; samples.push(o); }
