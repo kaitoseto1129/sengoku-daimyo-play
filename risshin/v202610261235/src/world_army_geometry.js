@@ -83,10 +83,21 @@ function soldierGeo(armor, near) {
   // 中くらいの遠さ（14〜80m）でも人の形に見えるよう、遠い形も七角で蓋を閉じる（棒の束に見えないように）
   const P = [], s = near ? 10 : lo ? 5 : 7, s2 = lo ? 6 : s + 2, sp = lo ? 4 : s;
   const arm = new THREE.Color(armor), dark = arm.clone().multiplyScalar(0.72).getHex(), lite = arm.clone().lerp(new THREE.Color(0x8a8070), 0.18).getHex();
-  const cyl = (rt, rb, h, seg, x, y, z) => { const g = new THREE.CylinderGeometry(rt, rb, h, seg, 1, false); g.translate(x, y, z); return g; };
+  const cyl = (rt, rb, h, seg, x, y, z, covered = 0) => {
+    const g = new THREE.CylinderGeometry(rt, rb, h, seg, 1, !near && covered === 2);
+    // 遠い兵だけ、草摺の中にある腿の上蓋を外す。側面と膝側の蓋は残す。
+    // 首の両端は肩と頭の内側なので、最初から蓋を作らない。
+    if (!near && covered === 1) {
+      const kept = [];
+      for (const group of g.groups) if (group.materialIndex !== 1)
+        for (let i = group.start; i < group.start + group.count; i++) kept.push(g.index.getX(i));
+      g.setIndex(kept); g.clearGroups();
+    }
+    g.translate(x, y, z); return g;
+  };
   // 脚：袴の腿（ふくらむ）・脚絆の脛（細い）・足
   for (const [sx, pt] of [[-0.11, 8], [0.11, 9]]) {
-    armyPart(P, cyl(0.085, 0.07, 0.4, s, sx, 0.62, 0), 0x4c4438, pt);
+    armyPart(P, cyl(0.085, 0.07, 0.4, s, sx, 0.62, 0, 1), 0x4c4438, pt);
     armyPart(P, cyl(0.062, 0.05, 0.42, s, sx, 0.23, 0), 0x403a30, pt);
     const ft = new THREE.SphereGeometry(0.055, sp, lo ? 2 : 3); ft.scale(1, 0.5, 1.8); ft.translate(sx, 0.03, 0.05); armyPart(P, ft, 0x3a3228, pt);
   }
@@ -101,7 +112,7 @@ function soldierGeo(armor, near) {
   const dou = cyl(0.21, 0.175, 0.5, s2, 0, 1.33, 0); dou.scale(1, 1, 0.9); armyPart(P, dou, armor, 0);
   // 肩の丸み（胴の上を閉じる）と首
   const sh = new THREE.SphereGeometry(0.21, s2, lo ? 2 : 4, 0, Math.PI * 2, 0, Math.PI / 2); sh.scale(1, 0.4, 0.74); sh.translate(0, 1.57, 0); armyPart(P, sh, armor, 0);
-  armyPart(P, cyl(0.05, 0.055, 0.1, s, 0, 1.63, 0.01), 0x8a6a4e, 0);
+  armyPart(P, cyl(0.05, 0.055, 0.1, s, 0, 1.63, 0.01, 2), 0x8a6a4e, 0);
   // 袖（肩の板）：肩の丸みに沿って垂れる曲げた板（箱にしない）
   for (const sx of [-1, 1]) {
     const b = new THREE.CylinderGeometry(0.13, 0.15, 0.26, near ? 8 : lo ? 4 : 5, 1, true, sx > 0 ? -Math.PI * 0.1 : Math.PI * 0.9, Math.PI * 1.2);

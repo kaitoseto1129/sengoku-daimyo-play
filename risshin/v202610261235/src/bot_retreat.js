@@ -22,6 +22,18 @@ export function retreatThroughGap(b, inp, allowed, distance = 1.5, avoidBlades =
     step.x = u.pos.x + sx * stride; step.z = u.pos.z + sz * stride;
     if (b.army.wallBetween(u.pos, -1, step) || !b.world.walkable(step.x, step.z, u.pos.y) ||
         Math.abs(b.world.heightAt(step.x, step.z) - u.pos.y) > 1.5 || allowed && !allowed(b, step)) continue;
+    // 終点だけ安全な向きを選んだ後で止まると、横の通れる道を見落とす。
+    // 刃から走って退く時は、途中の半歩も候補を選ぶ前に調べる。
+    if (avoidBlades) {
+      let clear = true;
+      for (let n = 1; clear && n <= 3; n++) {
+        step.x = u.pos.x + sx * stride * n / 3;
+        step.z = u.pos.z + sz * stride * n / 3; step.y = u.pos.y;
+        clear = b.world.walkable(step.x, step.z, u.pos.y) &&
+          Math.abs(b.world.heightAt(step.x, step.z) - u.pos.y) <= 1.5 && (!allowed || allowed(b, step));
+      }
+      if (!clear) continue;
+    }
     let crowd = 0, unsafe = false;
     for (const o of b.army.units) {
       if (o === u || !o.alive || o.gone || o.downed || o.noTarget || o.isStruct || o.group?.hidden ||
@@ -68,15 +80,16 @@ export function retreatThroughGap(b, inp, allowed, distance = 1.5, avoidBlades =
 
 // 待ち場へ刃が届いたら、廃止された回避ではなく普段の駆け足で一歩離れる。
 // 向きは打ち手へ残す。気力を条件にせず、壁・火・切岸と兵の隙間を調べる。
-export function retreatRunFromBlade(b, inp, allowed) {
+export function retreatRunFromBlade(b, inp, allowed, direction = null) {
   const p = b.player, u = p.u, face = p.yaw;
   if (p.mounted || u.climb || p.knockT > 0) return false;
-  p.yaw = face + Math.PI;
+  // 道を移る途中は、その退路を優先する。待ち場では追手の反対側を探す。
+  p.yaw = direction ?? face + Math.PI;
   inp.k.add('KeyW');
   retreatThroughGap(b, inp, allowed, 1.5, true);
   const walk = p.yaw, moving = inp.k.has('KeyW');
   inp.k.delete('KeyW'); p.yaw = face;
-  if (!moving || Math.cos(walk - face) > .01) return false;
+  if (!moving || direction === null && Math.cos(walk - face) > .01) return false;
   // 終点だけが平らでも、途中の切岸や火を横切らない。
   const step = b._botRetreatRunPoint || (b._botRetreatRunPoint = { x: 0, y: 0, z: 0 });
   for (let i = 1; i <= 3; i++) {

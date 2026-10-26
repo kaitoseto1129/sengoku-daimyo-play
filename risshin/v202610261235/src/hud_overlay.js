@@ -22,11 +22,12 @@ export class HudOverlay {
     if (landmark || rt.def.routeGuidePriority?.(rt))
       return this.drawDestinationPin(g, x, y);
     if (rt.def.key !== 'moribe') return this.drawDestinationPin(g, x, y);
-    // 先端は判定地点へ固定。丸頭を脇へ寄せ、自分の頭上の印に見せない。
+    // 地図のピンと同じ、丸い頭から地面へ先細りになる形。先端は到着判定の地点。
     // 到着後の時計も同じ形を保ち、到着のチェックと待つ進みを区別する。
     const waiting = pin?.waiting && pin.arrived;
-    const radius = waiting ? 26 : 18;
-    const cx = x - 28, cy = y - 64;
+    const radius = waiting ? 32 : 18;
+    // 行き先は先端の真上にそろえ、到着後の大きな時計だけ任務の下の内側へ寄せる。
+    const cx = waiting ? x - 28 : x, cy = waiting ? y - 64 : y - 54;
     const progress = Math.max(0, Math.min(1, pin?.progress || 0));
     g.save(); g.lineJoin = 'round';
     // 移動中は地面の根元も描き、兵の頭上の印と区別する。
@@ -35,8 +36,8 @@ export class HudOverlay {
       g.strokeStyle = '#14120f'; g.lineWidth = 6; g.stroke();
       g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
     }
-    g.beginPath(); g.moveTo(x, y); g.lineTo(cx - 5, cy + radius - 2);
-    g.lineTo(cx + 5, cy + radius - 2); g.closePath();
+    g.beginPath(); g.moveTo(x, y); g.lineTo(cx - radius * .8, cy + radius * .55);
+    g.lineTo(cx + radius * .8, cy + radius * .55); g.closePath();
     g.strokeStyle = '#14120f'; g.lineWidth = 4; g.stroke();
     g.fillStyle = '#fff3ba'; g.fill();
     g.beginPath(); g.arc(cx, cy, radius + 3, 0, Math.PI * 2);
@@ -60,7 +61,12 @@ export class HudOverlay {
       g.closePath(); g.fillStyle = '#ffe28a'; g.fill();
     }
     if (waiting) {
-      // 同じピンの縁を十等分し、戦っていても待ちが進む時計として見せる。
+      // 同じピンの縁を十等分。満ちた分も太く残し、針だけで進みを読ませない。
+      if (progress > 0) {
+        g.beginPath();
+        g.arc(cx, cy, radius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+        g.strokeStyle = '#ffe28a'; g.lineWidth = 6; g.stroke();
+      }
       g.beginPath();
       for (let i = 0; i < 10; i++) {
         const angle = i * Math.PI / 5 - Math.PI / 2;

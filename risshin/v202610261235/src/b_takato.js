@@ -13,7 +13,7 @@ import { dirtTex } from './nature.js';
 import { nobori } from './props.js';
 import { NAKA, nakaFind, nakaRoomAt } from './naka.js';
 import { interiorWaypoint } from './interior_layouts.js';
-import { retreatThroughGap, retreatDodge, retreatRunFromBlade } from './bot_retreat.js';
+import { retreatThroughGap, retreatRunFromBlade } from './bot_retreat.js';
 
 const baseSetup = takato.setup;
 const baseUpdate = takato.update;
@@ -708,15 +708,11 @@ takato.botBrain = (rt, inp, helpers) => {
         // 遠い敵や順番待ちの兵だけなら、その場で手当てを待つ。
         const closing = foe.target === p.u && !foe.playerQueue && gap <= (foe.reach || 2.8) + 1;
         if (!moving && (imminent || closing) && retreatRunFromBlade(rt, inp, retreatDodgeAllowed)) return;
-        // 構えで受けきれない刃は、印へ退く向きに回避する。気力を使い切らず、
-        // 土橋の外・空堀・城兵の列を横切る先へは跳ばない。
-        // 深手では正面の刃にも回避を使い、構えを抜かれる一撃を待たない。
+        // 深手や挟み撃ちでは、印へ退く道の側で刃を避ける隙間を探す。
+        // 廃止された回避の気力を待たず、土橋・空堀・城兵を避けて駆ける。
         if ((crossed || uncovered || p.u.hp <= p.u.maxHp * .35) && soonest <= .35 && gap <= (foe.reach || 2.8) + .6 &&
-            !p.mounted && !p.u.climb && !(p.knockT > 0) && p.dodgeT <= -.3 &&
-            p.sta >= 20 + (p.u.hp <= p.u.maxHp * .35 || p.guardBroken > 0 ? 0 : p.maxSta * .4)) {
-          if (retreatDodge(rt, inp, moving ? walk : p.yaw + Math.PI, retreatDodgeAllowed)) {
-            inp.runHeld = true;
-          }
+            !p.mounted && !p.u.climb && !(p.knockT > 0)) {
+          retreatRunFromBlade(rt, inp, retreatDodgeAllowed, moving ? walk : null);
         }
       }
     }

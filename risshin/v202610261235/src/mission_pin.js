@@ -849,12 +849,25 @@ function updateEnemyTarget(rt, allowed = true) {
   hud.missionEnemyShown = false;
   hud.enemySignOffscreen = false;
   if (enemyTarget) enemyTarget.hidden = true;
+  // 森部は本人の赤い▼で間合い・命中を返す。固定の大きな▼と「敵」の札で覆わない。
+  if (rt.def.key === 'moribe') { rt.army.missionMarkedEnemy = null; return false; }
   const active = allowed && pinGuideOn(rt) && me?.alive && !rt.over && !rt.choice && !hud.introWaiting &&
     !rt.player.camShot && !hud.bigmap && !hud.root.classList.contains('photo') &&
     !hud.root.classList.contains('ending') && !hud.root.querySelector('#cine.on');
   if (!active) { rt.army.missionMarkedEnemy = null; return false; }
+  // 桶狭間は本人の頭上の▼だけ。画面端の「敵」や別の矢印へ誘わない。
+  if (rt.def.key === 'okehazama') {
+    rt.army.missionMarkedEnemy = markedEnemy(rt) || null;
+    return false;
+  }
   // 任務が選んだ本人を先にする。敵の選び直しと見通しは四分の一秒ごと。
   const assigned = markedEnemy(rt);
+  // 稲生は本人の頭上の▼に統一する。別の札で間合い・命中の変化を覆わない。
+  // 画面外の行き先は既存のピンに任せ、端の▼を別の兵へ重ねない。
+  if (rt.def.key === 'inou') {
+    rt.army.missionMarkedEnemy = assigned || null;
+    return false;
+  }
   if (hud.enemySignRt !== rt || hud.enemySignAt == null || rt.t >= hud.enemySignAt || rt.t < hud.enemySignAt - .25) {
     if (hud.enemySignRt !== rt) hud.enemySignUnit = null;
     hud.enemySignRt = rt; hud.enemySignAt = rt.t + .25;
@@ -994,16 +1007,34 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
   el._routeEdge.style.display = outside && !docked ? '' : 'none';
   el._simpleRing.lastChild.setAttribute('stroke', want.arrived ? '#e4f2cb' : '#fff3ba');
   // 待機は任務の下で円に起こす。地面の薄い輪と区別し、残る時間を読める大きさにする。
-  el._simpleRing.setAttribute('transform', docked ? 'scale(1 3.2)' : '');
+  el._simpleRing.setAttribute('transform', oke ? 'translate(0 -40) scale(1 3.2)' : docked ? 'scale(1 3.2)' : '');
+  // 丸を地面へ刺す軸で結び、頭上の印や自分の足元の輪と区別する。
+  if (oke && !el._destinationStem) {
+    const stem = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    stem.setAttribute('d', 'M-6-12L0 0L6-12M0-12V-8');
+    stem.setAttribute('fill', '#fff3ba'); stem.setAttribute('stroke', '#14120f');
+    stem.setAttribute('stroke-width', '4'); stem.setAttribute('stroke-linejoin', 'round');
+    el._simplePin.appendChild(stem); el._destinationStem = stem;
+  }
+  if (el._destinationStem) el._destinationStem.style.display = oke && !joined && !outside ? '' : 'none';
   // 同じ輪の内側で接近・集合・待つ進みを示す。図形は作り直さない。
   if (oke && !el._joinCue) {
     const cue = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     cue.innerHTML = '<ellipse rx="22" ry="6.8" fill="none" stroke="#fff3ba" stroke-width="2" pathLength="1"/><path d="M-8 0L-2 5L9-6" fill="none" stroke="#e4f2cb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path fill="#fff3ba" transform="scale(1 .31)"/>';
     el._simplePin.appendChild(cue); el._joinCue = cue;
+    // 時計の目盛りと針は一度だけ作る。満ちる扇形と同じ中心で待ちの進みを示す。
+    const dial = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    let ticks = '';
+    for (let i = 0; i < 12; i++) {
+      const angle = i * Math.PI / 6;
+      ticks += `M${Math.sin(angle) * 24} ${-Math.cos(angle) * 24}L${Math.sin(angle) * 28} ${-Math.cos(angle) * 28}`;
+    }
+    dial.innerHTML = `<path d="${ticks}" fill="none" stroke="#14120f" stroke-width="2"/><g><path d="M0 0V-19" stroke="#14120f" stroke-width="5"/><path d="M0 0V-19" stroke="#fff3ba" stroke-width="2"/></g>`;
+    el._simplePin.appendChild(dial); el._waitDial = dial;
   }
   if (el._joinCue) {
     const cue = el._joinCue, me = rt.player.u.pos;
-    cue.setAttribute('transform', docked ? 'scale(1 3.2)' : '');
+    cue.setAttribute('transform', oke ? 'translate(0 -40) scale(1 3.2)' : docked ? 'scale(1 3.2)' : '');
     const approach = Math.max(0, Math.min(.98, 1 - Math.max(0, Math.hypot(want.x - me.x, want.z - me.z) - want.r) / 12));
     cue.style.display = oke && want.area && (!outside || docked) ? '' : 'none';
     cue.firstChild.style.display = joined && !waiting ? 'none' : '';
@@ -1016,6 +1047,10 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
       ? 'M0-22A22 22 0 1 1 0 22A22 22 0 1 1 0-22'
       : progress > 0 ? `M0 0L0-22A22 22 0 ${progress > .5 ? 1 : 0} 1 ${Math.sin(angle) * 22} ${-Math.cos(angle) * 22}Z` : '');
     cue.lastChild.style.display = waiting && want.progress < 1 && rt.t - pinAt.arrivalAt >= .8 ? '' : 'none';
+    const dial = el._waitDial;
+    dial.style.display = waiting && progress < 1 ? '' : 'none';
+    dial.setAttribute('transform', 'translate(0 -40)');
+    dial.lastChild.setAttribute('transform', `rotate(${progress * 360})`);
   }
   if (outside && !docked) {
     rt.camera.getWorldDirection(goalDirection);

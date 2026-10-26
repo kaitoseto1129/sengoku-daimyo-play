@@ -11,6 +11,7 @@ export class StaticLight {
     this.structStates = new WeakMap();
     this.structureVersion = 0;
     this.structureAt = Infinity;
+    this.pending = null;
   }
   update(renderer, structs = null) {
     const w = this.world;
@@ -25,44 +26,99 @@ export class StaticLight {
     if ((w.time || 0) >= this.structureAt) { this.structureVersion++; this.structureAt = Infinity; }
     // 移ろいの途中を毎コマ焼かず、時刻の段と移ろいの完了で焼き直す。
     const stage = w.dayClock?.label, fading = !!w.fade, version = w.scene.userData.staticShadowVersion || 0;
+    const key = this.pending;
+    if (key && (key.timeKey !== w.timeKey || key.stage !== stage || key.fading !== fading || key.version !== version || key.structures !== this.structureVersion)) {
+      key.work.return(); this.pending = null;
+    }
     if (this.ready && this.timeKey === w.timeKey && this.stage === stage && this.fading === fading && this.version === version && this.bakedStructureVersion === this.structureVersion) return;
-    this.bake(renderer);
+    if (this.ready) {
+      const job = this.pending || (this.pending = { work: this.prepare(), timeKey: w.timeKey, stage, fading, version, structures: this.structureVersion });
+      // 直前の影を使いながら、景物の複製と囲みの集計を一コマ32節・約1msまでに分ける。
+      const start = performance.now();
+      try {
+        for (let n = 0; n < 32; n++) {
+          const step = job.work.next();
+          if (step.done) {
+            this.pending = null;
+            this.bake(renderer, step.value);
+            break;
+          }
+          if (performance.now() - start >= 1) return;
+          if (n === 31) return;
+        }
+      } catch (e) {
+        job.work.return(); this.pending = null; throw e;
+      }
+    } else this.bake(renderer);
     this.timeKey = w.timeKey; this.stage = stage; this.fading = fading; this.version = version; this.ready = true; this.bakedStructureVersion = this.structureVersion;
   }
-  bake(renderer) {
+  *prepare() {
     const w = this.world, scene = new THREE.Scene();
-    const sun = new THREE.DirectionalLight();
     const bounds = new THREE.Box3(), part = new THREE.Box3();
     const meshes = [], instances = [], originals = new Map();
-    // 視点による株の詰め替え・遠景の葉への交換を焼いた影へ持ち込まない。
-    for (const group of w.cullList || []) for (const source of group.orig) originals.set(source.m, source.mat);
-    w.scene.updateMatrixWorld(true);
-    const visit = o => {
-      const d = o.userData;
-      if (!o.visible && !originals.has(o)) return true;
-      if (o._armyUnit || o.isSkinnedMesh || o.isBone || d?.flag || d?.armyBatch || d?.unitShadowBatch ||
-          o.name === 'unitBatch' || o.material?.userData?.armyU || o.isPoints || o.isSprite) return true;
-      if (o.isMesh && (o.castShadow || o._sceneryCastShadow) && o !== w.terrain) {
-        const original = originals.get(o);
-        const count = original ? original.length / 16 : o.count;
-        const m = o.isInstancedMesh ? new THREE.InstancedMesh(o.geometry, o.material, count) : new THREE.Mesh(o.geometry, o.material);
-        if (o.isInstancedMesh) {
-          m.instanceMatrix.array.set(original || o.instanceMatrix.array.subarray(0, count * 16));
-          m.instanceMatrix.needsUpdate = true; m.count = count; instances.push(m);
+    let complete = false;
+    try {
+      // 視点による株の詰め替え・遠景の葉への交換を焼いた影へ持ち込まない。
+      for (const group of w.cullList || []) for (const source of group.orig) originals.set(source.m, source.mat);
+      w.scene.updateMatrixWorld(true);
+      const visit = o => {
+        const d = o.userData;
+        if (!o.visible && !originals.has(o)) return true;
+        if (o._armyUnit || o.isSkinnedMesh || o.isBone || d?.flag || d?.armyBatch || d?.unitShadowBatch ||
+            o.name === 'unitBatch' || o.material?.userData?.armyU || o.isPoints || o.isSprite) return true;
+        if (o.isMesh && (o.castShadow || o._sceneryCastShadow) && o !== w.terrain) {
+          const original = originals.get(o);
+          const count = original ? original.length / 16 : o.count;
+          const m = o.isInstancedMesh ? new THREE.InstancedMesh(o.geometry, o.material, count) : new THREE.Mesh(o.geometry, o.material);
+          if (o.isInstancedMesh) {
+            m.instanceMatrix.array.set(original || o.instanceMatrix.array.subarray(0, count * 16));
+            m.instanceMatrix.needsUpdate = true; m.count = count; instances.push(m);
+          }
+          m.matrixAutoUpdate = false; m.matrix.copy(o.matrixWorld);
+          m.castShadow = true; m.frustumCulled = false;
+          scene.add(m); meshes.push(o);
+          part.setFromObject(m); bounds.union(part);
         }
-        m.matrixAutoUpdate = false; m.matrix.copy(o.matrixWorld);
-        m.castShadow = true; m.frustumCulled = false;
-        scene.add(m); meshes.push(o);
-        part.setFromObject(m); bounds.union(part);
+        return false;
+      };
+      // 節ごとに再帰の生成器を作らず、三つの巡回用配列を使い回す。
+      const nodes = [], indices = [], moving = [];
+      for (const root of w.scene.children) {
+        nodes.push(root); indices.push(-1); moving.push(false);
+        while (nodes.length) {
+          const at = nodes.length - 1, o = nodes[at];
+          if (indices[at] < 0) {
+            yield;
+            moving[at] = visit(o); indices[at] = 0;
+          }
+          if (moving[at] !== true && indices[at] < o.children.length) {
+            nodes.push(o.children[indices[at]++]); indices.push(-1); moving.push(false);
+          } else {
+            const skipped = moving.pop();
+            nodes.pop(); indices.pop();
+            // 子に動く物があっても、残りの兄弟は引き続き調べる。
+            if (nodes.length && skipped) moving[nodes.length - 1] = 2;
+            else if (!nodes.length) root.userData.bakedShadowRoot = !skipped && !root.isLight && !root.isCamera;
+          }
+        }
       }
-      let moving = false;
-      for (const c of o.children) if (visit(c)) moving = true;
-      return moving;
-    };
-    for (const root of w.scene.children) {
-      const moving = visit(root);
-      root.userData.bakedShadowRoot = !moving && !root.isLight && !root.isCamera;
+      complete = true;
+      return { scene, bounds, meshes, instances };
+    } finally {
+      // 時刻の変更・戦の終了で途中の仕事を捨てても、共有する形と材質は返さない。
+      if (!complete) { for (const m of instances) m.dispose(); scene.clear(); }
     }
+  }
+  bake(renderer, prepared = null) {
+    // 開戦前は全景物をそろえる。遊んでいる間の焼き直しだけ分割する。
+    if (!prepared) {
+      const work = this.prepare();
+      let step;
+      do { step = work.next(); } while (!step.done);
+      prepared = step.value;
+    }
+    const w = this.world, { scene, bounds, meshes, instances } = prepared;
+    const sun = new THREE.DirectionalLight();
     const source = w.terrain.geometry;
     // 地面は画面外の面を省く前の格子で焼く。元の描画用の索引は触らない。
     // 山城で作り直した地形にも、格子の寸法ではなく実際の頂点と面を使う。
@@ -155,5 +211,5 @@ export class StaticLight {
       outgoingLight *= staticShade.x * staticShade.y;
       #include <opaque_fragment>`);
   }
-  dispose() { this.target?.dispose(); this.target = null; this.uniforms.tStaticLight.value = null; this.uniforms.uStaticReady.value = 0; this.ready = false; }
+  dispose() { this.pending?.work.return(); this.pending = null; this.target?.dispose(); this.target = null; this.uniforms.tStaticLight.value = null; this.uniforms.uStaticReady.value = 0; this.ready = false; }
 }
