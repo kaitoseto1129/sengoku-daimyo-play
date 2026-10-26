@@ -19,7 +19,7 @@ function make() {
   el.innerHTML = '<svg width="80" height="80" viewBox="0 0 80 80" aria-hidden="true"><g class="goal-ground" stroke-linejoin="round"><ellipse cx="40" cy="68" rx="30" ry="9" fill="none" stroke="#14120f" stroke-width="10"/><ellipse cx="40" cy="68" rx="30" ry="9" fill="none" stroke="#fff3ba" stroke-width="5"/><path d="M32 8H48V37H61L40 59L19 37H32Z" fill="#fff3ba" stroke="#14120f" stroke-width="4"/></g><path class="goal-edge" d="M12 31H43V17L69 40L43 63V49H12Z" fill="#fff3ba" stroke="#14120f" stroke-width="4" stroke-linejoin="round" style="display:none;transform-origin:40px 40px"/></svg>';
   el.style.cssText = 'position:absolute;left:0;top:0;width:80px;height:80px;pointer-events:none;z-index:3';
   const style = document.createElement('style');
-  style.textContent = '#hud.photo :is(#mission-goal,#mission-flag-frame,#mission-target-lines),#hud.ending :is(#mission-goal,#mission-flag-frame,#mission-target-lines),#hud:has(#bigmap:not([hidden])) :is(#mission-goal,#mission-flag-frame,#mission-target-lines),#hud:has(#cine.on) :is(#mission-goal,#mission-flag-frame,#mission-target-lines){display:none}' +
+  style.textContent = '#hud.photo :is(#mission-goal,#mission-flag-frame,#mission-target-lines),#hud.ending :is(#mission-goal,#mission-flag-frame,#mission-target-lines),#hud:has(#bigmap:not([hidden])) :is(#mission-goal,#mission-flag-frame,#mission-target-lines),#hud:has(#cine.on) :is(#mission-goal:not(.cine-keep),#mission-flag-frame,#mission-target-lines){display:none}' +
     '#hud.field-clean:has(#mission-goal.fire-action:not([hidden])) #prompt{display:none!important}' +
     '#mission-goal .goal-label{touch-action:none;user-select:none;box-sizing:border-box}' +
     '#mission-goal .goal-label:focus-visible{outline:3px solid #fff;outline-offset:3px}' +
@@ -158,7 +158,7 @@ export const pinGuideOn = (rt) => !!rt && !rt.def.town && !rt.def.dojo;
 const tmp = { x: 0, z: 0, r: 6 };
 export function missionTarget(rt) { return target(rt); }
 function target(rt) {
-  if (rt.def.missionPin) return rt.def.missionPin(rt);
+  if (rt.def.missionPin) { const own = rt.def.missionPin(rt); if (own !== undefined || !rt.def.missionPinFallback) return own; }
   const follow = missionFollowTarget(rt);
   if (follow) {
     tmp.unit = follow; tmp.x = follow.pos.x; tmp.z = follow.pos.z;
@@ -237,9 +237,22 @@ function drawMissionPin(rt) {
   if (rt.def.key === 'moribe') { if (pin) pin.hidden = true; return; }
   const want = pinGuideOn(rt) && !rt.over && !rt.choice && !rt.hud.introWaiting && rt.player?.u?.alive ? target(rt) : null;
   const closeEnemy = rt.missionGuide?.closeEnemy;
-  // 敵は頭上の▼と端の矢印だけ。見通せない時も足元のピンへ戻さない。
-  const inouEnemy = !!want?.unit && want.unit.team !== rt.player.u.team;
-  if (want?.enemy || inouEnemy) {
+  // 桶狭間も稲生と同じ：敵を指すピンは、本人が画面に見えない間だけ。
+  const inouEnemy = (rt.def.key === 'inou' || rt.def.key === 'okehazama') && want?.unit && want.unit.team !== rt.player.u.team;
+  // 本人が画面に見えている間は頭上の▼だけにする。
+  // 足元のピンが札を避けて画面端へ回り、別方向へ誘うのを防ぐ。
+  // 四十歩より遠い相手の▼は携帯では小さいので、足元のピンも残す（同じ相手なので別の所は指さない）。
+  if (inouEnemy && inouSignVisible(rt, want.unit) &&
+      Math.hypot(want.unit.pos.x - rt.player.u.pos.x, want.unit.pos.z - rt.player.u.pos.z) <= 40) {
+    const enemy = want.unit;
+    goalPoint.set(enemy.pos.x, enemy.pos.y + (enemy.mounted ? 3.05 : (enemy.bodyHeight || 1.72) + .47), enemy.pos.z).project(rt.camera);
+    if (goalPoint.z >= -1 && goalPoint.z <= 1 && Math.abs(goalPoint.x) < .9 && Math.abs(goalPoint.y) < .9) {
+      if (pin) pin.hidden = true;
+      return;
+    }
+  }
+  // 稲生・桶狭間以外は、敵を指すピンを出さない（▼に一本化）。
+  if (rt.def.key !== 'inou' && rt.def.key !== 'okehazama' && (want?.enemy || (want?.unit && want.unit.team !== rt.player.u.team))) {
     if (pin) pin.hidden = true;
     return;
   }
@@ -606,8 +619,8 @@ function drawMissionPin(rt) {
   // 方向は端の旗一本へまとめ、自分の足元には輪だけを残す。
   // 行き先の輪は足さず、自分の水色の足元印と役割を分ける。
   const groundRing = false;
-  if (pin._groundRing !== groundRing) {
-    pin._groundRing = groundRing;
+  if (pin._ringsOn !== groundRing) { // 地面のピンの _groundRing（輪の要素）と名を分ける。守る段→敵のピンで落ちていた。
+    pin._ringsOn = groundRing;
     for (const ring of pin._rings) ring.style.display = groundRing ? '' : 'none';
   }
   const arrow = pin.querySelector('.goal-edge');
@@ -840,8 +853,9 @@ function updateEnemyTarget(rt, allowed = true) {
     !rt.player.camShot && !hud.bigmap && !hud.root.classList.contains('photo') &&
     !hud.root.classList.contains('ending') && !hud.root.querySelector('#cine.on');
   if (!active) { rt.army.missionMarkedEnemy = null; return false; }
-  // 森部は描画側の本人の▼だけ。別の高さの▼と人物枠を重ねない。
-  if (rt.def.key === 'moribe') {
+  // 稲生・森部・桶狭間は描画側の本人の▼だけ。人物枠や画面端の矢印で別の兵を指さない。
+  // 見失った稲生の相手は行き先のピンで示す。
+  if (rt.def.key === 'inou' || rt.def.key === 'moribe' || rt.def.key === 'okehazama') {
     rt.army.missionMarkedEnemy = markedEnemy(rt);
     return false;
   }
@@ -890,6 +904,15 @@ function updateEnemyTarget(rt, allowed = true) {
     enemyTarget._symbol = enemyTarget.children[0];
     enemyTarget._direction = enemyTarget.children[1];
     enemyTarget._frame = enemyTarget.children[2];
+  }
+  // 稲生は画面外への案内も行き先のピン。頭上の赤い▼と同じ印にしない。
+  if (enemyTarget._inouPin !== inou) {
+    enemyTarget._inouPin = inou;
+    const shape = enemyTarget._direction.firstChild;
+    shape.setAttribute('d', inou
+      ? 'M42 24L23 11A15 15 0 1 0 23 37ZM12 19A5 5 0 1 1 12 29A5 5 0 1 1 12 19Z'
+      : 'M8 19H25V10L40 24L25 38V29H8Z');
+    shape.setAttribute('fill-rule', 'evenodd');
   }
   if (enemyTarget.parentNode !== hud.root) hud.root.appendChild(enemyTarget);
   const distance = Math.hypot(u.pos.x - me.pos.x, u.pos.z - me.pos.z);
@@ -955,9 +978,13 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     svg.style.overflow = 'visible';
     svg.innerHTML = '<g fill="none"><ellipse rx="29" ry="9" stroke="#14120f" stroke-width="9"/><ellipse rx="29" ry="9" stroke="#fff3ba" stroke-width="4"/></g><path d="M-15-5H3V-13L18 0L3 13V5H-15Z" fill="#fff3ba" stroke="#14120f" stroke-width="4" stroke-linejoin="round"/>';
     el.appendChild(svg); el._simplePin = svg;
-    el._groundRing = svg.firstChild; el._routeEdge = svg.lastChild;
+    el._simpleRing = svg.firstChild; el._routeEdge = svg.lastChild;
   }
   el._label.hidden = true;
+  // 稲生は見せ場の黒帯の間も、残りの敵へのピンを消さない（テスター 10/25「倒せが残るのに場所が分からない」）。
+  el.classList.toggle('cine-keep', rt.def.key === 'inou');
+  el._label.style.top = '-90px';
+  el._label.style.left = '0';
   el._work = null; el.classList.remove('fire-action');
   const W = VIEW.w, H = VIEW.h;
   const outside = hidden || x < 48 || x > W - 48 || y < 64 || y > H - 24 || !inouPinFree(x, y, rects);
@@ -978,12 +1005,14 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     y = Math.max(H * .35, Math.min(H * .58, y - 72));
     stem = `M${x} ${y}V${footY}`;
   }
-  el._groundRing.setAttribute('transform', defend ? 'scale(1.6 2.4)' : '');
+  el._simpleRing.setAttribute('transform', defend ? 'scale(1.6 2.4)' : '');
   el._routeEdge.style.scale = defend ? '1.6' : '';
   // 行き先は地面に寝かせた輪だけ。画面外では方向矢印へ切り替える。
-  el._groundRing.style.display = outside && !docked ? 'none' : '';
+  el._simpleRing.style.display = outside && !docked ? 'none' : '';
   el._routeEdge.style.display = outside && !docked ? '' : 'none';
-  el._groundRing.lastChild.setAttribute('stroke', want.arrived ? '#e4f2cb' : '#fff3ba');
+  el._simpleRing.lastChild.setAttribute('stroke', want.arrived ? '#e4f2cb' : '#fff3ba');
+  // 待機は任務の下で円に起こす。地面の薄い輪と区別し、残る時間を読める大きさにする。
+  el._simpleRing.setAttribute('transform', docked ? 'scale(1 3.2)' : '');
   // 同じ輪の内側で接近・集合・待つ進みを示す。図形は作り直さない。
   if (oke && !el._joinCue) {
     const cue = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -992,10 +1021,11 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
   }
   if (el._joinCue) {
     const cue = el._joinCue, me = rt.player.u.pos;
+    cue.setAttribute('transform', docked ? 'scale(1 3.2)' : '');
     const approach = Math.max(0, Math.min(.98, 1 - Math.max(0, Math.hypot(want.x - me.x, want.z - me.z) - want.r) / 12));
     cue.style.display = oke && want.area && (!outside || docked) ? '' : 'none';
     cue.firstChild.style.display = joined && !waiting ? 'none' : '';
-    cue.children[1].style.display = joined && (!waiting || rt.t - pinAt.arrivalAt < .8) ? '' : 'none';
+    cue.children[1].style.display = joined && (!waiting || want.progress >= 1 || rt.t - pinAt.arrivalAt < .8) ? '' : 'none';
     cue.firstChild.setAttribute('stroke-dasharray', '1');
     cue.firstChild.setAttribute('stroke-dashoffset', String(waiting ? 0 : 1 - approach));
     const progress = waiting ? Math.max(0, Math.min(1, want.progress)) : 0;
@@ -1003,7 +1033,7 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     cue.lastChild.setAttribute('d', progress >= 1
       ? 'M0-22A22 22 0 1 1 0 22A22 22 0 1 1 0-22'
       : progress > 0 ? `M0 0L0-22A22 22 0 ${progress > .5 ? 1 : 0} 1 ${Math.sin(angle) * 22} ${-Math.cos(angle) * 22}Z` : '');
-    cue.lastChild.style.display = waiting && rt.t - pinAt.arrivalAt >= .8 ? '' : 'none';
+    cue.lastChild.style.display = waiting && want.progress < 1 && rt.t - pinAt.arrivalAt >= .8 ? '' : 'none';
   }
   if (outside && !docked) {
     rt.camera.getWorldDirection(goalDirection);

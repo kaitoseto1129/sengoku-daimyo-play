@@ -102,7 +102,8 @@ function park(g) {
 
 // 深手で倒れた兵は生存中でも、追う相手・倒す残り人数には含めない。
 const fighting = (u) => !!u?.alive && u.hp > 0 && !u.gone && !u.dying && !u.downed && !u.woundOut && !u.rearWound && !u.fleeing;
-const advanceEnemy = (u) => fighting(u) && !u.noTarget && !u.isStruct && !u.civ && u.mesh?.visible !== false;
+// 画面外や遠くで軽い形（imp）・カメラ前の透かしに替わった兵も、残りの敵として追う（形を隠しただけで相手を失わない。テスター 10/25）。
+const advanceEnemy = (u) => fighting(u) && !u.noTarget && !u.isStruct && !u.civ && (u.mesh?.visible !== false || u.imp || u.camHidden || u.humanPending);
 function advanceOnArrival(g) {
   g.order = 'attack'; g.focus = null; g.fire = true; g.seekRange = 80;
   g.inouAdvance = true;
@@ -147,9 +148,26 @@ function approachUnit(rt) {
   F.approachGroup = group; F.approachUnit = chosen;
   return chosen;
 }
+// 「倒せ」の間に任務の相手がいない時の、最寄りの戦える敵（ピンの行き先。テスター 10/25「残りの敵の場所が分からない」）。
+//   四分の一秒ごとに選び直し、少しの前後では替えない。
+function nearestFoe(rt) {
+  const F = rt.flags, me = rt.player.u;
+  if (F.foeAt != null && rt.t >= F.foeAt && rt.t < F.foeAt + .25 && advanceEnemy(F.foeNear)) return F.foeNear;
+  F.foeAt = rt.t;
+  let chosen = null, best = Infinity;
+  for (const u of rt.army.units) {
+    if (u.team === me.team || !advanceEnemy(u)) continue;
+    const d = Math.hypot(u.pos.x - me.pos.x, u.pos.z - me.pos.z);
+    if (d < best) { chosen = u; best = d; }
+  }
+  const prev = F.foeNear;
+  if (advanceEnemy(prev) && Math.hypot(prev.pos.x - me.pos.x, prev.pos.z - me.pos.z) <= best + 3) chosen = prev;
+  F.foeNear = chosen;
+  return chosen;
+}
 // 目的は戦いの間ずっと保ち、間合いと命中は同じ本人の▼で示す。
 function inouEnemyOrder(rt, fallback) {
-  return fighting(rt.def.missionSignTarget(rt)) ? '▼の てきを たおせ' : fallback;
+  return fighting(rt.def.missionSignTarget(rt)) ? `${rt.def.missionEnemyLabel(rt)}を たおせ` : fallback;
 }
 // 兵本人ではなく頭上の▼を案内する。距離は槍が届く所までの歩数。
 function enemySteps(rt, enemy) {
@@ -236,10 +254,10 @@ const inou = {
   missions: ['▼の てきを たおせ', '▼の てきを たおせ', 'ここを まもれ', '▼の てきを たおせ', '味方と すすめ', 'おいすぎるな'],
   missionHeading(rt) {
     const F = rt.flags;
-    if (F.step === 0 || F.step === 2 || F.step === 3) return '▼の てきを たおせ';
+    if (F.step === 0 || F.step === 2 || F.step === 3) return `${this.missionEnemyLabel(rt)}を たおせ`;
     if (F.step === 1) {
       if (F.training === 11 && !F.flankReached) return '輪へ すすめ';
-      if (F.training === 12 && !gone(F.shiba1)) return '▼の てきを たおせ';
+      if (F.training === 12 && !gone(F.shiba1)) return '柴田の兵を たおせ';
       return 'ここを まもれ';
     }
     return this.missions[this.missionOf(rt)];
@@ -254,8 +272,8 @@ const inou = {
       approachUnit(rt) :
         rt.flags.step === 1 && rt.flags.training === 12 && !gone(rt.flags.shiba1) ? approachUnit(rt) :
           rt.flags.step === 3 ? rt.flags.hayaU : null,
-  missionEnemyLabel: (rt) => rt.flags.step === 3 ? '林美作守' : rt.flags.step === 1 ? '柴田の兵' :
-    rt.flags.training === 8 ? '林の隊長' : '林の兵',
+  missionEnemyLabel: (rt) => rt.flags.step === 3 ? '林美作守' : rt.flags.step === 1 || rt.flags.step === 2 ? '柴田の兵' :
+    rt.flags.training === 8 ? '林の隊長' : '林美作守の兵',
   missionEnemySteps: enemySteps,
   meleeResult(rt, target, result) {
     const F = rt.flags;
@@ -306,9 +324,14 @@ const inou = {
     const F = rt.flags;
     // 最初の林兵も同じ本人の頭上の▼へ案内し、見失った間だけピンで方向を示す。
     if (F.ending) return null;
-    const enemy = this.missionSignTarget(rt);
+    let enemy = this.missionSignTarget(rt);
+    // 「倒せ」が出ている間に任務の相手が見つからなければ、最寄りの残りの敵へ向ける（▼が画面外でも行き先を失わない）。
+    if (!fighting(enemy) && /倒せ|たおせ/.test(this.missionHeading(rt)) && !(F.step === 1 && F.training === 11 && !F.flankReached)) {
+      // 戦える敵が一人もいない間（大将が深手で退く途中など）は、任務の本人を指し続ける。
+      enemy = nearestFoe(rt) || (enemy?.alive && !enemy.gone && enemy.team !== rt.player.u.team ? enemy : null);
+    }
     // 見えない間も同じ相手へピンを向ける。
-    if (fighting(enemy)) {
+    if (enemy?.alive && !enemy.gone && enemy.team !== rt.player.u.team) {
       const p = rt.player;
       if (p.inRange && p.rangeCueTarget === enemy) return null;
       const pin = pinPoint(rt, enemy.pos, .2, .2, enemy);

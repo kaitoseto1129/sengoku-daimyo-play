@@ -73,7 +73,7 @@ const LINES = [
   { x: 2, z: 32, r: 9, name: '二の備（笙の川の南）', mark: '二の備' },
   { x: -22, z: 102, r: 11, name: '三の備（狭路）', mark: '三の備' },
 ];
-const RETREAT_T = 340;    // 主力が退ききるまでの秒（5〜6分の基準に合わせてさらに詰めた）
+const RETREAT_T = 300;    // 守備五分と最後の合流で、四〜七分を目安にする。
 const KUTSUKI = { x: -56, z: 150, r: 14 };    // 若狭へ向かう道（信長で遊ぶ時の退き先）                   // 主力が退ききるまでの秒（はじめから）
 
 // 道を外れた時はまず近い道へ戻し、道に乗ってから南の折れ点へ進む。
@@ -138,9 +138,28 @@ const ASAKURA = { armor: 0x33291f, lace: 0x7a5a2a, cloth: 0x66513b, flag: 'asaku
 const ODA = { cloth: 0x2a384a, flag: 'oda' };
 // 杉板の赤みを落とし、雨で灰茶に褪せた板と差し替えた明るい板を混ぜる。
 const KG_ROOF_COLORS = [0x756d5c, 0x696252, 0x8a7c65, 0x726655];
-const dress = (list, lk) => list.map((s) => ({ ...s, o: { ...lk, ...(s.o || {}) } }));
+// 本の着装写真：足軽の鎧下は藍、陣笠は赤茶の漆。形と材質は既存の貸し具足を使う。
+const dress = (list, lk) => list.map((s) => ({ ...s, o: { ...lk,
+  ...(['ashigaru', 'bow', 'gun'].includes(s.type) ? { cloth: 0x263b46, hatColor: 0x713c2c } : {}), ...(s.o || {}) } }));
 // 戦える残兵を、退き道・崩れの判定と同じ条件で数える。
 const kgActive = (u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.noTarget;
+// 持ち場へ来た残敵だけを選ぶ。守備のピンで城山や遠い控えへ追い出さない。
+function kgNearestFoe(rt) {
+  const F = rt.flags, L = LINES[F.line || 0], p = rt.player.u.pos;
+  if (rt.t < F.signNext && F.signLine === F.line && F.signStep === F.step &&
+      (!F.signTarget || kgActive(F.signTarget) && !F.signTarget.dying && !F.signTarget.downed &&
+      Math.hypot(F.signTarget.pos.x - L.x, F.signTarget.pos.z - L.z) < L.r + 8 && kgGuidePointAllowed(rt, F.signTarget.pos))) return F.signTarget;
+  F.signNext = rt.t + .25; F.signLine = F.line; F.signStep = F.step;
+  let chosen = null, best = Infinity;
+  for (const u of rt.army.units) {
+    if (u.team !== 1 || !kgActive(u) || u.dying || u.downed || u.isStruct || u.civ ||
+        Math.hypot(u.pos.x - L.x, u.pos.z - L.z) >= L.r + 8 || !kgGuidePointAllowed(rt, u.pos)) continue;
+    const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
+    if (d < best) { best = d; chosen = u; }
+  }
+  F.signTarget = chosen;
+  return chosen;
+}
 // 休む場所も回避先も、道沿いの歩ける足場から選ぶ。斜面の味方を追って山腹へ登らせない。
 function kgSafeFoot(rt, x, z) {
   const p = rt.player.u.pos, L = LINES[rt.flags.line || 0], W = rt.world;
@@ -838,6 +857,15 @@ function retreatNotices(rt) {
     .battle-retry.kg-retry [data-cause] { display:none; }
     .battle-retry.kg-retry .retry-reading > p:last-child {
       order:3; margin:0 !important; font-size:15px !important; line-height:1.4;
+    }
+    /* 以前の退却札の指定より優先し、任務は右上の一行へまとめる。 */
+    html:root body #hud.kg-retreat.prog-on #battle-notices#battle-notices:not(.choosing) #objectives#objectives:not(.expand),
+    html:root body #hud.kg-retreat.prog-on #battle-notices#battle-notices #battle-message#battle-message :is(#subtitle,.battle-notice),
+    html:root body #hud.kg-retreat.prog-on :is(#tutorial,#situation,#skiphint,.battle-action) {
+      display:none !important;
+    }
+    html:root body #hud.kg-retreat #h-prog .pg-st span {
+      white-space:nowrap !important; overflow-wrap:normal; word-break:keep-all;
     }
   `;
   document.head.appendChild(layout); root.classList.add('kg-retreat');
@@ -1572,6 +1600,70 @@ const KANEGASAKI_JIN = [
 ];
 
 const kanegasaki = {
+  // 稲生の型。下知・歩数を重ねず、任務一行とピンで持ち場を示す。
+  missionSingleLine: true,
+  hideMissionDots: true,
+  hideGuideSteps: true,
+  noPlayerFoot: true,
+  quietMiss: true,
+  noDodgeCard: true,
+  enemyTriangleSigns: true,
+  nearbyAllySignLimit: 0,
+  missionPinCaption: '',
+  missionDetail: () => '',
+  missionStatus: () => '',
+  bannerAllowed: (rt, title) => rt.over || !!rt.flags.ending || /重傷|討死|任務失敗/.test(title),
+  missions: ['旗へ進め', '仲間を待て', 'ここを守れ', '▼の敵を倒せ', '退き口へ退け'],
+  missionOf(rt) {
+    const F = rt.flags, L = rt.G.lord || F.fleeing ? KUTSUKI : LINES[F.line || 0];
+    const arrived = rt.distTo(L) < L.r;
+    if (rt.G.lord || F.fleeing) return arrived ? 1 : 4;
+    if (!arrived) return 0;
+    if (F.step === 0 || F.step === 2 || F.step === 4) return 1;
+    return kgNearestFoe(rt) ? 3 : 2;
+  },
+  missionHeading(rt) { return kanegasaki.missions[kanegasaki.missionOf(rt)]; },
+  // 総大将を補わず、この戦に既にいる朝倉の侍大将を地図と戦場で強調する。
+  commanderSignTarget(rt) {
+    const F = rt.flags;
+    if (rt.over || F.ending) return null;
+    if (F.commanderAt === rt.t && (!F.commander || kgActive(F.commander) && !F.commander.dying && !F.commander.downed)) return F.commander;
+    F.commanderAt = rt.t;
+    let chosen = null, best = Infinity;
+    const p = rt.player.u.pos;
+    for (const g of rt.army.groups) if (g.team === 1) for (const u of g.units) {
+      if (u.type !== 'busho' || !kgActive(u) || u.dying || u.downed) continue;
+      const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
+      if (d < best) { best = d; chosen = u; }
+    }
+    F.commander = chosen;
+    return chosen;
+  },
+  commanderTarget(rt) {
+    const u = kanegasaki.commanderSignTarget(rt);
+    return u && kanegasaki.missionOf(rt) === 3 && kgNearestFoe(rt) === u ? u : null;
+  },
+  namedGuideTarget(rt) { return kanegasaki.commanderSignTarget(rt); },
+  missionSignTarget(rt) { return kanegasaki.missionOf(rt) === 3 ? kgNearestFoe(rt) : null; },
+  missionPin(rt) {
+    const F = rt.flags;
+    if (rt.over || F.ending || !rt.player.u.alive) return null;
+    const q = F.missionPin || (F.missionPin = { x: 0, z: 0, r: 0, hide: 0 });
+    const stage = kanegasaki.missionOf(rt), enemy = stage === 3 ? kgNearestFoe(rt) : null;
+    q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false; q.route = false;
+    if (enemy) {
+      if (rt.player.inRange && rt.player.rangeCueTarget === enemy) return null;
+      q.x = enemy.pos.x; q.z = enemy.pos.z; q.r = q.hide = .5;
+      q.unit = enemy; q.enemy = true;
+      return q;
+    }
+    const L = rt.G.lord || F.fleeing ? KUTSUKI : LINES[F.line || 0];
+    const arrived = rt.distTo(L) < L.r;
+    const at = arrived ? L : retreatWay(rt, L);
+    q.x = at.x; q.z = at.z; q.r = q.hide = arrived ? L.r : .5;
+    q.waiting = arrived; q.arrived = arrived; q.route = !arrived;
+    return q;
+  },
   // 高画質の井楼は既存の垂直柱・交互の横木を使う。遠景も同じ輪郭にする。
   lookoutLogFrame: true,
   // 共通の見物・兵や火からの避難を使い、兵の名簿・兵数・戦功には入れない。
@@ -1784,6 +1876,7 @@ const kanegasaki = {
   // 列や建物の当たりを残し、組の脇の空いた所から始める。
   spawn: { x: LINES[0].x - 11, z: LINES[0].z + 8, heading: Math.PI },
   world: {
+    noHaori: true, // 本の足軽姿に合わせ、武将にも陣羽織を重ねない。
     blockedHint: () => '槍列の横へ回れ。退く時は南へ続く道を通れ',
     seed: 1570,
     // 天筒山の東端と主郭の北の切岸まで、城と同じ地面で支える。
@@ -2313,7 +2406,7 @@ const kanegasaki = {
     let k = F.breachT > 0 ? 0 : 1;
     // 段の後続・まだ出せない兵も含める。主力に敵が取り付いた間は進めない。
     if (!F.breachT && cleared && !F.pursuers.length && !F.dp?.cur?.waves?.length) k += 0.4;
-    if (F.kino.count < F.kino.initial * 0.45) k -= 0.35;   // 殿の備が崩されかけると、主力の退きが遅れる
+    if (F.kino.count < F.kino.initial * 0.45) k -= 0.15;   // 損害での遅れは抑え、最後の合流の時間を残す。
     F.prog = Math.min(RETREAT_T, F.prog + dt * Math.max(0, k));
   },
 

@@ -759,7 +759,7 @@ function pressureWarning(rt, line, interval = 8) {
   if (interval === 30 && (F.windupWarnT ?? -99) + 30 > rt.t) return;
   if (interval === 30) F.windupWarnT = rt.t;
   F.pressureWarnT = rt.t;
-  rt.bark(line, true);
+  // 稲生の水準：指図の字は出さない（危険は縁の矢印と敵の▼で示す）。
 }
 // 試遊では鉄砲より足軽・侍の傷が重なった。傷は変えず、実際の味方の列で追手を受ける。
 function coverRetreat(rt) {
@@ -899,7 +899,6 @@ function anegawaNotices(rt) {
     if (id === 'flank' && !rt.flags.flankFailedNotice) {
       rt.flags.flankFailedNotice = true;
       rt.flags.taskChangedAt = -10; rt.flags.taskAt = 0;
-      rt.bark('別手を止められなかった', true);
     }
   };
   // 任務の下に別の命令文を継ぎ足さない。
@@ -918,7 +917,6 @@ function anegawaNotices(rt) {
     }
     // この戦は手ほどきの後。危険は戦場の声で知らせ、操作の説明を字幕に混ぜない。
     if (!who && /押せば|押したまま|クリック/.test(line)) {
-      rt.bark(/後ろ|振り向/.test(line) ? '後ろから敵だ。振り向いて構えよ' : '槍を構え、味方の列へ退け', true);
       return;
     }
     say(who, line, dur);
@@ -1563,6 +1561,58 @@ function anegawaGuardLabel(rt, reached) {
   if (rt.phase !== 'brief' && F.nearEnemies > 0) return '近づく敵をたおそう';
   return '輪の中で待とう';
 }
+// ---- 稲生の水準（reports/inou-standard.md 10/25）----
+// 右上は任務の一行だけ。守る段は持ち場へピン（着いても残し、味方の槍列がそこに集まる）。
+// 倒す段はピンを一番近い残りの敵へ。磯野員昌が寄れば大将の印。手負い・退き太鼓は元の案内に任せる。
+const ANE_MISSIONS = ['ここを守れ', '敵をたおせ', '磯野員昌を退けよ', '川を渡れ', 'しんがりを倒せ'];
+const aneFoe = (u) => !!u?.alive && u.hp > 0 && !u.gone && !u.dying && !u.downed && !u.woundOut && !u.rearWound &&
+  !u.fleeing && !u.noTarget && !u.isStruct && !u.civ && u.team === 1 && !u.group?.routed && !u.group?.noAI &&
+  u.mesh?.visible !== false;
+// 元の案内（手負い・退却・東の別手・押し返し）に任せる時。
+function aneOwnGuide(rt) {
+  const F = rt.flags;
+  return !!(rt.over || F.ending || rt.withdrawal || F.taskHurt || F.retreatGuiding || rt.player.treating ||
+    F.step < 2 && (F.pushGuiding || F.flankPick === 0 && !F.flankDone));
+}
+// 守る持ち場（本陣が危ない時は本陣の前）。
+function anePost(rt) {
+  const F = rt.flags;
+  if (F.hqThreat || F.hqDefend) return (F.hqDefend ? F.hqDefensePos : F.hqGuardPos) || HQ;
+  return F.holdAt || POST;
+}
+// 一番近い残りの敵。半秒に一度だけ選び直し、三歩より近い別の兵が出た時だけ替える。
+function aneNearestFoe(rt) {
+  const F = rt.flags;
+  if (rt.t < (F.aneFoeAt || 0) && (F.aneFoe === null || aneFoe(F.aneFoe))) return F.aneFoe;
+  F.aneFoeAt = rt.t + .5;
+  const me = rt.player.u.pos, post = anePost(rt), pursuit = F.step === 2;
+  let best = null, bd = Infinity;
+  for (const u of rt.army.units) {
+    if (!aneFoe(u)) continue;
+    if (pursuit ? u.group !== F.rear && u.group !== F.counterChase
+      : Math.hypot(u.pos.x - post.x, u.pos.z - post.z) > 30 && Math.hypot(u.pos.x - me.x, u.pos.z - me.z) > 16) continue;
+    const d = Math.hypot(u.pos.x - me.x, u.pos.z - me.z);
+    if (d < bd) { bd = d; best = u; }
+  }
+  const prev = F.aneFoe;
+  if (best && prev && best !== prev && aneFoe(prev) && bd + 3 >= Math.hypot(prev.pos.x - me.x, prev.pos.z - me.z) &&
+      (!pursuit || prev.group === F.rear || prev.group === F.counterChase)) best = prev;
+  F.aneFoe = best;
+  return best;
+}
+// 磯野員昌が持ち場へ寄った時だけ、名と大きな▼をその人へ（深手で退けば印は消える）。
+function aneCommander(rt) {
+  const F = rt.flags, u = F.isoU;
+  if (F.step !== 1 || aneOwnGuide(rt) || !aneFoe(u)) return null;
+  return Math.hypot(u.pos.x - rt.player.u.pos.x, u.pos.z - rt.player.u.pos.z) < 26 ? u : null;
+}
+function aneMissionOf(rt) {
+  const F = rt.flags;
+  if (F.step === 2) return aneNearestFoe(rt) ? 4 : rt.player.u.pos.z >= BANK_N ? 3 : 0;
+  if (aneCommander(rt)) return 2;
+  return F.step === 1 && aneNearestFoe(rt) ? 1 : 0;
+}
+
 const anegawa = {
   // 共通の見物・避難を使い、軍の周りへの自動配置は止める。民は兵の名簿に入らない。
   civilianCrowd: { bounds: { minX: -420, maxX: 420, minZ: -420, maxZ: 420 }, bands: PEOPLE_BANDS },
@@ -1654,9 +1704,48 @@ const anegawa = {
   // 表示だけで使う相手。持ち場を離れる下知の間は敵の印を出さない。
   missionSignTarget(rt) {
     const F = rt.flags;
-    if (rt.phase === 'brief' || F.taskHurt || F.retreatGuiding || rt.withdrawal || F.step !== 1 ||
-        F.pushGuiding || F.flankPick === 0 && !F.flankDone || anegawaReturning(rt) || !F.atHold && !F.atHq) return null;
-    return F.hqThreat || F.hqDefend ? F.hqEnemy : F.nearEnemies > 0 ? F.aimEnemy || F.watchEnemy : null;
+    if (rt.phase === 'brief' || aneOwnGuide(rt)) return null;
+    const stage = aneMissionOf(rt);
+    return stage === 2 ? aneCommander(rt) : stage === 1 || stage === 4 ? aneNearestFoe(rt) : null;
+  },
+  commanderTarget: (rt) => aneCommander(rt),
+  namedGuideTarget: (rt) => aneCommander(rt),
+  // 稲生の水準：右上は任務の一行・段の丸なし・味方の小旗なし・避ける札なし・空振りは鳴らさない。
+  missions: ANE_MISSIONS,
+  missionOf: (rt) => aneMissionOf(rt),
+  missionSingleLine: true,
+  hideMissionDots: true,
+  nearbyAllySignLimit: 0,
+  noDodgeCard: true,
+  inouFeel: true,
+  missionPinCaption: '',
+  missionDetail: () => '',
+  missionStatus: () => '',
+  // 段の見出し（渡る・崩れる等）は出さない。勝ち負けの知らせだけ残す。
+  bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|崩れ|退く|果たせず/.test(t),
+  // 手負い・退却・東の別手・押し返しの間は undefined を返し、元の印へピンを任せる（mission_pin.js）。
+  missionPinFallback: true,
+  missionPin(rt) {
+    const F = rt.flags;
+    if (aneOwnGuide(rt)) return undefined;
+    if (!rt.player.u.alive) return null;
+    const q = F.anePin || (F.anePin = { x: 0, z: 0, r: 6, hide: 6 });
+    const me = rt.player.u.pos, stage = aneMissionOf(rt);
+    q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false; q.route = false; q.defend = false;
+    q.follow = false; q.fire = false; q.gate = false; q.footRing = false; q.treatment = false; q.passage = false;
+    if (stage === 1 || stage === 2 || stage === 4) {
+      const u = stage === 2 ? aneCommander(rt) : aneNearestFoe(rt);
+      // 槍が届いたら頭上の▼に任せ、ピンは消す。
+      if (!u || rt.player.inRange && rt.player.rangeCueTarget === u) return null;
+      q.unit = u; q.enemy = true; q.x = u.pos.x; q.z = u.pos.z; q.r = q.hide = 2;
+      return q;
+    }
+    // 守る段・渡る段：持ち場（または向こう岸）に刺したまま。味方の槍列もそこに並ぶ。
+    const at = stage === 3 ? { x: 24, z: -22 } : anePost(rt);
+    q.x = at.x; q.z = at.z; q.r = q.hide = stage === 3 ? 6 : 8;
+    q.waiting = q.defend = stage !== 3;
+    q.arrived = q.waiting && Math.hypot(me.x - at.x, me.z - at.z) < 8;
+    return q;
   },
   aimGuideTarget(rt) {
     return rt.flags.hqThreat || rt.flags.hqDefend ? rt.flags.hqEnemy : rt.flags.aimEnemy || rt.flags.watchEnemy;
@@ -1803,6 +1892,8 @@ const anegawa = {
   missionHeading(rt) {
     const text = currentObjective(rt)?.text || '';
     const F = rt.flags;
+    // 稲生の水準：毎回いまの戦場から決める。討った・着いた瞬間に次の一行へ替わる。
+    if (!aneOwnGuide(rt)) return ANE_MISSIONS[aneMissionOf(rt)];
     if (F.step < 2 && !rt.withdrawal && !F.taskHurt && !rt.player.treating &&
         !F.retreatGuiding && !F.pushGuiding && !(F.flankPick === 0 && !F.flankDone)) {
       if (F.hqThreat || F.hqDefend) return anegawaGuardLabel(rt, !anegawaReturning(rt));
@@ -2123,7 +2214,6 @@ const anegawa = {
       rt.hud.damageFrom(Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z) - rt.player.yaw);
       if ((F.gunAimWarnAt ?? -99) + 8 > rt.t) return;
       F.gunAimWarnAt = rt.t;
-      rt.bark('鉄砲が狙っている！　印の向きから身を隠せ', true);
     };
     // 後から来る控えと組の兵にも同じ近景の装備を着せる。作る時だけ、形と材質は共用。
     const addUnit = rt.army.addUnit.bind(rt.army);
@@ -2496,7 +2586,6 @@ const anegawa = {
     if (F.breach < 3) {
       g.order = 'move'; g.dest = { x: MORI.x, z: F.breach === 1 ? 260 / 5 : MORI.z + 4 };
       g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 24; };
-      rt.bark(F.breach === 1 ? '前の列が崩れた。次の味方の旗へ退け' : '次の列も崩れた。後ろの味方と槍を揃えよ', true);
     } else {
       // 本物の兵を増やさず、後ろの軽い二段も押し下げて、深い入り込みを見せる。
       for (const q of F.odaLayers) q.m.retreat(34, 12);
@@ -2769,7 +2858,6 @@ const anegawa = {
       // 接近の報せと、実際に守りを抜かれた危険を分ける。敗北直前まで無言にしない。
       if (F.hqLostT > 0 && (F.hqBreachWarnAt ?? -99) + 8 <= rt.t) {
         F.hqBreachWarnAt = rt.t;
-        rt.bark('本陣が破られる！ 幕の敵を止めよ', true);
       }
     }
     // 追手を受けた声にも、この更新で読んだ本陣の危険を使う。
@@ -2853,15 +2941,6 @@ const anegawa = {
       const spent = waves.every((e) => !e || (!e.anePending && (gone(e) || e.count <= 3)));
       // 二の手と東の別手が出た後、寄せを早く退けた働きで西の別手を早める。
       if (F.second && F.flankG && spent && !F.tkDone && !F.tkSoon) { F.tkSoon = true; rt.say('森可成', '敵の足が鈍ったぞ。残る旗を見張れ、西の知らせが来るまで動くな！', 3.5); rt.after(6, () => this.tokugawa(rt)); }
-      if (rt.t >= (F.waveNoticeAt || 0)) {
-        F.waveNoticeAt = rt.t + 8;
-        const pending = waves.find((g) => g?.anePending);
-        const leaving = waves.find((g) => g && !g.anePending && !gone(g) && g.count <= 3);
-        if (pending && sightPoint(rt, pending.aneSource || pending.anchor)) rt.bark('控えの旗から新手が前へ出る。槍の列を保て');
-        else if (leaving && sightPoint(rt, leaving.center())) {
-          rt.bark('残る浅井の兵が退き始めた。次の下知まで列を保て');
-        }
-      }
       if (F.third && gone(F.third)) rt.unmark('third');
       if (!iso.anePending && !iso.routed && iso.count <= 3 && !iso.fled) { iso.fled = true; iso.noRout = false; iso.morale = 0; rt.unmark('iso'); rt.banner('磯野員昌、退く', '浅井の先手、川向こうへ'); }
       // 東西の敵が実際に崩れたら追う。正面を守り切った時は、不要な横槍の到着を待たない。
@@ -2887,7 +2966,6 @@ const anegawa = {
       }
       if (!R.anePending && !F.pursueWarned && rt.t - (F.rearAt ?? F.stepT) > 120) {
         F.pursueWarned = true;
-        rt.bark(gone(R) ? '追い足を緩めるな！　森の旗と川向こうへ！' : '敵に立ち直る隙を与えるな！　しんがりを崩せ！', true);
       }
       // 敵が崩れ、本人も味方と渡河した時だけ追い討ちの手柄を付ける。
       if (gone(R) && p.z < BANK_N && !gone(F.mori)) {

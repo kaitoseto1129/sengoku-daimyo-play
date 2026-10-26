@@ -6,6 +6,43 @@ import { RADIAL, GROUP_NAME } from "./player.js";
 import { RANKS } from "./state.js";
 import { isTouch } from "./touch.js";
 
+// 大きな地図の×と拡大・縮小は、字の札が隠れる戦でも画面の右上に絵だけで残す（テスター 10/25「M でしか閉じられない」）。
+//   見える・隠れるは大きな地図と同じ（CSS の :has）。一度だけ作り、戦を入り直しても同じ物を使う。
+function closeBigmap(hud) {
+  if (window.__game?.toggleBigMap && window.__game.hud === hud) window.__game.toggleBigMap();
+  else hud.toggleMap();
+}
+function bigmapTools(hud) {
+  if (document.getElementById('bigmap-tools')) return;
+  const root = $('hud'); if (!root) return;
+  const el = document.createElement('div');
+  el.id = 'bigmap-tools';
+  const icon = (d) => `<svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><path d="${d}" stroke="#14120f" stroke-width="8" stroke-linecap="round" fill="none"/><path d="${d}" stroke="#fff3df" stroke-width="4" stroke-linecap="round" fill="none"/></svg>`;
+  el.innerHTML = `<button type="button" data-map-tool="close" aria-label="地図を閉じる">${icon('M6 6L22 22M22 6L6 22')}</button>` +
+    `<button type="button" data-map-tool="-200" aria-label="地図を拡大する">${icon('M5 14H23M14 5V23')}</button>` +
+    `<button type="button" data-map-tool="200" aria-label="地図を縮小する">${icon('M5 14H23')}</button>`;
+  const style = document.createElement('style');
+  style.textContent = '#bigmap-tools{display:none;position:absolute;right:calc(16px + env(safe-area-inset-right,0px));top:calc(16px + env(safe-area-inset-top,0px));z-index:60;flex-direction:column;gap:8px;pointer-events:auto}' +
+    '#hud:has(#bigmap:not([hidden])) #bigmap-tools{display:flex}' +
+    // 字の釦は絵の釦と重ねず一つにする。説明の札は絵の釦の左に収める。
+    '#hud #maphint .op:has([data-map-zoom]){display:none !important}' +
+    '#hud #maphint{right:calc(84px + env(safe-area-inset-right,0px)) !important}' +
+    '#bigmap-tools button{width:52px;height:52px;padding:0;display:grid;place-items:center;border-radius:50%;background:rgba(12,10,8,.88);border:2px solid #fff3df;cursor:pointer;touch-action:manipulation}' +
+    '#bigmap-tools button:focus-visible{outline:3px solid #fff;outline-offset:2px}';
+  el.appendChild(style);
+  // 戦場の指の操作（視点・移動）へ渡さず、押した絵だけを効かせる。
+  for (const type of ['pointerdown', 'touchstart', 'mousedown']) el.addEventListener(type, (e) => e.stopPropagation(), { passive: true });
+  el.addEventListener('keydown', (e) => e.stopPropagation());
+  el.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const b = e.target.closest('[data-map-tool]'); if (!b) return;
+    const h = window.__game?.hud || hud;
+    if (b.dataset.mapTool === 'close') closeBigmap(h);
+    else h.zoomBigmap(+b.dataset.mapTool);
+  });
+  root.appendChild(el);
+}
+
 export class HudMapControls {
 
 
@@ -13,6 +50,7 @@ export class HudMapControls {
     this.bigmap = !this.bigmap;
     if (this.bigmap) { this.bigC = null; this.bigUser = false; this.bigRange = null; }
     $('bigmap').hidden = !this.bigmap;
+    bigmapTools(this);
     const mh = $('maphint');
     mh.hidden = !this.bigmap;
     clearTimeout(this.mhT);
@@ -25,7 +63,7 @@ export class HudMapControls {
         e.stopPropagation(); const b = e.target.closest('button'); if (!b) return;
         if (b.dataset.mapZoom) this.zoomBigmap(+b.dataset.mapZoom);
         if (b.dataset.mapRange) { this.mmRange = +b.dataset.mapRange; mh.querySelectorAll('[data-map-range]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); }
-        if (b.id === 'map-close') this.toggleMap();
+        if (b.id === 'map-close') closeBigmap(this);
       };
     }
   }

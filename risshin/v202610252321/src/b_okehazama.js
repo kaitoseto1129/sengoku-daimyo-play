@@ -564,7 +564,7 @@ const okehazama = {
   // 右上はミッションの一行だけ。距離・向き・操作の字を見出しに出さない（kaito 10/23 49・50）。
   // 間合いと命中は頭上の▼で示し、別の距離案内は出さない。
   enemyOrder(rt, enemy) {
-    return enemy && enemy === rt.flags.yoshimoto ? '今川義元をたおせ' : '▼の兵をたおせ';
+    return enemy && enemy === rt.flags.yoshimoto ? '今川義元をたおせ' : '赤い三角の今川の兵を倒せ';
   },
   // 大将の印：義元を討つ段だけ、地図と戦場で大将の印を大きくする（稲生の型）。
   commanderTarget(rt) {
@@ -679,7 +679,7 @@ const okehazama = {
   missionSingleLine: true,
   hideGuideSteps: true,
   // 稲生の型：短い一行。兵は頭上の▼、大将は名で呼び、討った瞬間に次の一行へ替える。
-  missions: ['ピンに集まれ', 'ピンに集まれ', '雨上がりを待て', '▼の兵をたおせ', '今川義元をたおせ', 'にげる敵を追え', '味方と集まれ'],
+  missions: ['織田信長の組のピンに集まれ', 'ピンに集まれ', '雨がやむまで待て', '赤い三角の今川の兵を倒せ', '今川義元をたおせ', 'にげる敵を追え', '味方と集まれ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -688,11 +688,11 @@ const okehazama = {
   },
   missionHeading(rt) {
     // 合流済みの待ちは敵が寄っても続く。同じ丸と一行を雨上がりまで保つ。
-    if (rt.phase === 'wait') return '雨上がりを待て';
-    if (rt.phase === 'brief' && rt.flags.briefed) return 'ここで出発を待て';
-    if (rt.phase === 'march' && rt.flags.scoutFighting) return '▼の兵をたおせ';
+    if (rt.phase === 'wait') return '雨がやむまで待て';
+    if (rt.phase === 'brief' && rt.flags.briefed) return '出発を待て';
+    if (rt.phase === 'march' && rt.flags.scoutFighting) return this.missions[3];
     // 義元に深手を負わせた瞬間に「義元をたおせ」を下ろし、囲む旗本へ移す。
-    if (rt.phase === 'assault' && rt.flags.entered && !rt.flags.victory && (rt.flags.yoshiDown || this.objectiveEnemies(rt).length)) return '▼の兵をたおせ';
+    if (rt.phase === 'assault' && rt.flags.entered && !rt.flags.victory && (rt.flags.yoshiDown || this.objectiveEnemies(rt).length)) return this.missions[3];
     if (rt.phase === 'march') return this.squadFlagReached(rt) ? '味方を待て' : 'ピンに集まれ';
     return this.missions[this.missionOf(rt)];
   },
@@ -739,28 +739,24 @@ const okehazama = {
     // 未合流の接敵中も赤い▼だけ。集合直後の合図は消さない。
     if (F.scoutFighting && rt.phase !== 'assault' && !timedWait) return null;
     const pin = F.missionPinTarget || (F.missionPinTarget = { x: 0, z: 0, r: 8, hide: 8 });
-    // 稲生の型：戦う相手が画面に無い時は、最寄りの残りの敵の足元へピンを刺す（見えている間は頭上の▼だけ）。
-    const enemyPin = (enemy) => {
-      const P = rt.player;
-      if (!readyUnit(enemy) || P.inRange && P.rangeCueTarget === enemy) return null;
-      pin.x = enemy.pos.x; pin.z = enemy.pos.z; pin.r = .2; pin.hide = .2;
-      pin.unit = enemy; pin.enemy = true; pin.approach = true; pin.always = false;
-      pin.area = false; pin.arrived = false; pin.waiting = false; pin.progress = null; pin.arrivalProgress = null;
-      pin.footRing = false; pin.follow = false; pin.dodge = false; pin.key = 'enemy';
-      return pin;
-    };
-    if (F.scoutFighting && rt.phase !== 'assault' && !timedWait && !(F.waitPinCompleteUntil > rt.t)) return enemyPin(this.missionSignTarget(rt));
     pin.enemy = false; pin.dodge = false; pin.unit = null; pin.waiting = undefined; pin.always = false;
     pin.waitDuration = rt.phase === 'brief' ? DEPART_WAIT : RAIN_WAIT;
     pin.area = false; pin.arrived = false; pin.progress = null; pin.arrivalProgress = null; pin.footRing = false; pin.follow = false; pin.approach = false;
     // 任務札の更新で、同じ集合ピンの到着表示を初期化しない。
     pin.key = rt.phase;
+    // 雨がやんだ瞬間も、同じ円の完了を一拍残す。
+    if (rt.phase === 'assault' && F.waitPinCompleteUntil > rt.t && F.waitPinCompletePos) {
+      pin.x = F.waitPinCompletePos.x; pin.z = F.waitPinCompletePos.z;
+      pin.r = JOIN_RADIUS; pin.hide = 0; pin.key = 'wait';
+      pin.area = true; pin.arrived = true; pin.waiting = true; pin.always = true; pin.progress = 1;
+      return pin;
+    }
     // 戦う相手は頭上の赤い▼だけ。ピンは通れる幕の口だけに残す。
     if (rt.phase === 'assault' && !F.victory) {
       const entrance = !F.entered && F.roadStep >= F.road.length ||
         F.guardOpened && !F.mouthReached && !F.koshiLeft;
-      // 敵の位置は本人の頭上の赤い▼。画面に無い時だけ、最寄りの残りの敵へピンを刺す。
-      if (!entrance) return enemyPin(this.missionSignTarget(rt));
+      // 敵は頭上の赤い▼だけ。別の集合先に見える黄ピンは重ねない。
+      if (!entrance) return null;
       const pos = F.honjinPin || (F.honjinPin = fieldPoint(18, -100));
       pin.x = pos.x; pin.z = pos.z; pin.r = 0; pin.hide = 0;
       return pin;

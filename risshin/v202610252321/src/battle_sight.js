@@ -247,7 +247,7 @@ const inouSignCache = new WeakMap();
 // 先端は本人の笠のすぐ上。頭上の印・見通し・ピンで同じ高さを使う。
 export const inouSignHeight = (u) => u.mounted ? 3.17 : Math.max(2.1, (u.bodyHeight || 1.72) + .38);
 export function inouSignVisible(rt, u) {
-  if (!u?.alive || u.gone || u.dying || u.woundOut || u.rearWound || u.camHidden || u.mesh?.visible === false) return false;
+  if (!u?.alive || u.hp <= 0 || u.gone || u.dying || u.downed || u.woundOut || u.rearWound || u.fleeing || u.camHidden || u.mesh?.visible === false) return false;
   const p = u.pos, cam = rt.camera.position, fog = rt.scene.fog;
   // 兵の姿を描く距離まで所属の印を残す。印だけ先に消して味方に見せない。
   const range = Math.min(170, rt.world.vis ?? 170, fog?.far ?? 170);
