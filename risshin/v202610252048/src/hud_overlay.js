@@ -8,7 +8,7 @@ import { rainDanger } from "./arrow_rain.js";
 import { groundAt } from "./floors.js";
 import { enemyKnown } from "./battle_intel.js";
 import { GENERALS, FACTION } from "./units.js";
-import { pinGuideOn, markedEnemy } from "./mission_pin.js";
+import { pinGuideOn, markedEnemy, missionTarget } from "./mission_pin.js";
 
 // 共通の目標の輪・端の矢印・所属の形を使い、以前の案内を重ねない。
 const PIN_OFF = "AdvanceStep ApproachRoute CornerArrow DefendedFlag DefendedLocation DefenseArea DefenseBoundary DefenseLine DefenseOverview DefensePattern DestinationArea DestinationPointer DestinationSign DestinationStep DirectionChain DoorFloorGoal EdgeDestination EscortFlag FlagDestinationSign FlagGuide FlagLink FloorGoal FloorWaymark FootDirection FootRoute GoalArrivalRing GoalArrow GoalFlagFrame GroundGuide GuardPost GuardPostFrame GuideLink MarkedGoalFlag MoveFootprints MoveGoal MoveOrigin NamedDestination NamedGoal NavigationArrow OffscreenDirection PassageGuides PlaceFrame PlayerSign RaisedGoalFlag RetreatDestination RetreatRoute ReturnDestination RouteBend RouteFootsteps RoutePath RouteTurn SelectedGoalFlag SingleDestination SmallGoalFlag SmallGoalFlagPath SwipeArrow TargetFootRing TaskDestinationSign TravelGuide WaitFootprints WaitFrame TargetPointer FocusDiamond EnemyOutline EnemyContour TeamWord EnemySign SpearSign UnitContrast EnemyDirection CoverDirection CoverSign MoveGesture ReleaseGesture EnemyMoveGesture".split(" ").map((n) => "draw" + n);
@@ -87,6 +87,31 @@ export class HudOverlay {
   }
 
 
+  // 守備ピンの足元を、実際に守れる範囲まで広げる。地形と入れ物は使い回す。
+  drawBattleGuardPinBase(g, rt, pin) {
+    const base = this.guardPinBase || (this.guardPinBase = {
+      points: Array.from({ length: 33 }, () => ({ x: 0, y: 0, z: 0 })), projection: {},
+    });
+    if (base.world !== rt.world || base.x !== pin.x || base.z !== pin.z || base.r !== pin.r) {
+      base.world = rt.world; base.x = pin.x; base.z = pin.z; base.r = pin.r;
+      for (let i = 0; i <= 32; i++) {
+        const p = base.points[i], angle = i / 32 * Math.PI * 2;
+        p.x = pin.x + Math.cos(angle) * pin.r; p.z = pin.z + Math.sin(angle) * pin.r;
+        p.y = groundAt(rt.world, p.x, p.z, pin.y) + .08;
+      }
+    }
+    g.save(); g.beginPath();
+    let connected = false;
+    for (const p of base.points) {
+      const at = this.project(p, p.y, rt, base.projection);
+      if (at.behind) { connected = false; continue; }
+      if (connected) g.lineTo(at.x, at.y); else g.moveTo(at.x, at.y);
+      connected = true;
+    }
+    g.strokeStyle = '#14120f'; g.lineWidth = 5; g.stroke();
+    g.strokeStyle = '#ffe28a'; g.lineWidth = 2; g.stroke(); g.restore();
+  }
+
   // 全戦の今の目標を一つだけ示す。輪は実物に固定し、札だけ空いた所へ逃がす。
   drawBattleGoal(g, rt) {
     // 行き先はこの印一つ。合流済みの半径では消し、別の輪を重ねない。
@@ -105,6 +130,7 @@ export class HudOverlay {
     const pinTarget = rt.def.missionPin?.(rt);
     // 森部は任務が返したピン一本。敵や味方の位置で上書きしない。
     if (moribe && !pinTarget) return;
+    if (moribe && pinTarget.guardArea) this.drawBattleGuardPinBase(g, rt, pinTarget);
     // 到着後は同じピンを任務の下で満たす。足元や背後へ隠れて、終わりが見えなくなるのを防ぐ。
     // 移動する時だけ地面へ戻し、時計と行き先を同時に二本出さない。
     if (moribe && pinTarget.waiting && pinTarget.arrived && !pinTarget.unit) {
@@ -273,6 +299,17 @@ export class HudOverlay {
     this.drawRainDrops(g, W, H, rt); this.drawBrim(g, W, H, rt);
     // 雨粒も笠の縁も無いコマは、次のコマで消す仕事を省く。
     this.ovBlank = !(this.drops && this.drops.length) && !((rt.player.fpK || 0) > 0.7);
+    // 共通ピンが示す次の入口へ足あとをつなぐ。札や兵の描画物は増やさない。
+    if (rt.def.routeFootsteps && !rt.over && !rt.choice && !this.introWaiting &&
+        rt.player.u.alive && !rt.player.camShot && !this.bigmap) {
+      const goal = missionTarget(rt);
+      if (goal?.route) {
+        const point = this.missionRoutePoint || (this.missionRoutePoint = { x:0, y:0, z:0 });
+        point.x = goal.x; point.z = goal.z;
+        point.y = groundAt(rt.world, point.x, point.z, rt.player.u.pos.y);
+        this.drawRouteFootsteps(g, rt, point); this.ovBlank = false;
+      }
+    }
     // 森部のピンはこの描画経路で一本だけ出す。通常の案内描画には進まない。
     if (rt.def.key === 'moribe' && !rt.over && !rt.choice && !this.introWaiting &&
         rt.player.u.alive && !rt.player.camShot && !this.bigmap) {

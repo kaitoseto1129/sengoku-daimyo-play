@@ -148,8 +148,8 @@ function approachUnit(rt) {
   return chosen;
 }
 // 目的は戦いの間ずっと保ち、間合いと命中は同じ本人の▼で示す。
-function inouEnemyOrder(rt, fallback, name = rt.def.missionEnemyLabel(rt)) {
-  return fighting(rt.def.missionSignTarget(rt)) ? `${name}を倒せ` : fallback;
+function inouEnemyOrder(rt, fallback) {
+  return fighting(rt.def.missionSignTarget(rt)) ? '▼の てきを たおせ' : fallback;
 }
 // 兵本人ではなく頭上の▼を案内する。距離は槍が届く所までの歩数。
 function enemySteps(rt, enemy) {
@@ -233,21 +233,14 @@ const inou = {
   hideArmyPeek: true, // 初陣は行き先・敵の▼・任務一行に絞る。
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
   // 任務は短い一行。兵・隊長・待つ場所を区別し、頭上の▼と呼び方をそろえる。
-  missions: ['▼の兵をたおせ', '▼の兵をたおせ', 'ここを守れ', '林美作守をたおせ', '味方と進め', '深追いするな'],
+  missions: ['▼の てきを たおせ', '▼の てきを たおせ', 'ここを まもれ', '▼の てきを たおせ', '味方と すすめ', 'おいすぎるな'],
   missionHeading(rt) {
     const F = rt.flags;
-    if (F.step === 0) {
-      // 兵と小隊長を呼び分け、赤い▼と信勝方の所属をそろえる。増援で戻る人数は出さない。
-      const name = F.training === 8 ? '▼の林の小隊長' : '赤い▼の林の兵（信勝方）';
-      return `${name}を倒せ`;
-    }
+    if (F.step === 0 || F.step === 2 || F.step === 3) return '▼の てきを たおせ';
     if (F.step === 1) {
-      if (F.training === 11 && !F.flankReached) return '柴田の兵を倒せ';
-      if (F.training === 12 && !gone(F.shiba1)) return inouEnemyOrder(rt, '柴田の兵を倒せ');
-      return 'ここを守れ';
-    }
-    if (F.step === 2) {
-      return '▼の兵を倒せ';
+      if (F.training === 11 && !F.flankReached) return '輪へ すすめ';
+      if (F.training === 12 && !gone(F.shiba1)) return '▼の てきを たおせ';
+      return 'ここを まもれ';
     }
     return this.missions[this.missionOf(rt)];
   },
@@ -308,8 +301,7 @@ const inou = {
     }
     return signs;
   },
-  // 札・ピン・頭上の▼は同じ一人を使い、ピンは本人の足元へ固定する。
-  // 実際に槍が届いたら頭上の▼に任せる。
+  // 敵は共通の頭上▼と端の矢印、行き先は地面の輪で示す。
   missionPin(rt) {
     const F = rt.flags;
     // 最初の林兵も同じ本人の頭上の▼へ案内し、見失った間だけピンで方向を示す。
