@@ -25,7 +25,7 @@ export class HudOverlay {
     // 先端は判定地点へ固定。丸頭を脇へ寄せ、自分の頭上の印に見せない。
     // 到着後の時計も同じ形を保ち、到着のチェックと待つ進みを区別する。
     const waiting = pin?.waiting && pin.arrived;
-    const radius = 18;
+    const radius = waiting ? 26 : 18;
     const cx = x - 28, cy = y - 64;
     const progress = Math.max(0, Math.min(1, pin?.progress || 0));
     g.save(); g.lineJoin = 'round';
@@ -58,6 +58,21 @@ export class HudOverlay {
       g.beginPath(); g.moveTo(cx, cy);
       g.arc(cx, cy, radius - 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
       g.closePath(); g.fillStyle = '#ffe28a'; g.fill();
+    }
+    if (waiting) {
+      // 同じピンの縁を十等分し、戦っていても待ちが進む時計として見せる。
+      g.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const angle = i * Math.PI / 5 - Math.PI / 2;
+        g.moveTo(cx + Math.cos(angle) * (radius - 1), cy + Math.sin(angle) * (radius - 1));
+        g.lineTo(cx + Math.cos(angle) * (radius + 3), cy + Math.sin(angle) * (radius + 3));
+      }
+      g.strokeStyle = '#14120f'; g.lineWidth = 2; g.stroke();
+      const angle = progress * Math.PI * 2 - Math.PI / 2;
+      g.beginPath(); g.moveTo(cx, cy);
+      g.lineTo(cx + Math.cos(angle) * (radius - 6), cy + Math.sin(angle) * (radius - 6));
+      g.strokeStyle = '#14120f'; g.lineWidth = 5; g.stroke();
+      g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
     }
     g.restore();
   }
