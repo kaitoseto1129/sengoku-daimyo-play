@@ -679,7 +679,7 @@ const okehazama = {
   missionSingleLine: true,
   hideGuideSteps: true,
   // 稲生の型：短い一行。兵は頭上の▼、大将は名で呼び、討った瞬間に次の一行へ替える。
-  missions: ['ピンに集まれ', 'ピンに集まれ', 'ここで雨を待て', '▼の兵をたおせ', '今川義元をたおせ', 'にげる敵を追え', '味方と集まれ'],
+  missions: ['ピンに集まれ', 'ピンに集まれ', '雨上がりを待て', '▼の兵をたおせ', '今川義元をたおせ', 'にげる敵を追え', '味方と集まれ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -688,7 +688,7 @@ const okehazama = {
   },
   missionHeading(rt) {
     // 合流済みの待ちは敵が寄っても続く。同じ丸と一行を雨上がりまで保つ。
-    if (rt.phase === 'wait') return 'ここで雨を待て';
+    if (rt.phase === 'wait') return '雨上がりを待て';
     if (rt.phase === 'brief' && rt.flags.briefed) return 'ここで出発を待て';
     if (rt.phase === 'march' && rt.flags.scoutFighting) return '▼の兵をたおせ';
     // 義元に深手を負わせた瞬間に「義元をたおせ」を下ろし、囲む旗本へ移す。
@@ -735,9 +735,7 @@ const okehazama = {
     const F = rt.flags;
     if (F.ending || rt.hud.retreatGuide?.active && rt.hud.retreatGuide.valid) return null;
     const timedWait = rt.phase === 'wait' || rt.phase === 'brief' && F.briefed;
-    // 集合直後だけ同じピンに到着の形を残す。待つ時計や新しい行き先は足さない。
-    const joinedAt = rt.phase === 'wait' ? F.waitReadyAt - RAIN_WAIT : F.briefReadyAt - DEPART_WAIT;
-    if (timedWait && !(rt.t - joinedAt < 1.8)) return null;
+    // 待機中も同じピンを残し、穴が満ちるまでを見届けられるようにする。
     // 未合流の接敵中も赤い▼だけ。集合直後の合図は消さない。
     if (F.scoutFighting && rt.phase !== 'assault' && !timedWait) return null;
     const pin = F.missionPinTarget || (F.missionPinTarget = { x: 0, z: 0, r: 8, hide: 8 });
@@ -771,7 +769,8 @@ const okehazama = {
       const pos = rt.phase === 'wait' ? F.waitPos : this.squadFlagPosition(rt);
       if (!pos) return null;
       pin.x = pos.x; pin.z = pos.z; pin.r = JOIN_RADIUS; pin.hide = 0;
-      pin.area = true; pin.arrived = true; pin.waiting = false; pin.always = true;
+      pin.area = true; pin.arrived = true; pin.waiting = true; pin.always = true;
+      pin.progress = this.missionWaitProgress(rt);
       return pin;
     }
     if (rt.phase === 'brief' || rt.phase === 'march') {

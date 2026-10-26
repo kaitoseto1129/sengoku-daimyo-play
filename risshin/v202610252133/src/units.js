@@ -582,7 +582,7 @@ export class Army {
     look.flag = fieldLook.armyFlagKinds?.[look.flag] || look.flag;
     look.standard = fieldLook.armyFlagKinds?.[look.standard] || look.standard;
     // 全戦の武将は、背に垂れる母衣を外して袖なしの陣羽織を着る。
-    if ((u.type === 'busho' || gen.armor) && !look.kosode && !look.sohei) {
+    if ((u.type === 'busho' || gen.armor) && !look.kosode && !look.sohei && !fieldLook.noHaori) {
       look.haori = look.haori || look.horo || gen.haori || fac.haori || 0x34342e;
       look.horo = 0; look.longHoro = false;
     }

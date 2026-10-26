@@ -47,8 +47,8 @@ const FORD_R = 4;
 // 横へそれた岸もその場の水際で判定し、ピンの奥行きまで歩き直させない。
 const atFordBank = (p, world) => p.z < nireZ(p.x) &&
   distToPolyline(p.x, p.z, world.def.streams[1].pts) >= world.def.streams[1].w;
-// 自分の到着は、岸のピンの上に立った時も含める（ピンの丸と判定をそろえる。稲生と同じ）。
-const playerAtFord = (p, world) => atFordBank(p, world) || Math.hypot(p.x - POINT2.x, p.z - POINT2.z) < 3;
+// ピンへ近づいただけでは水中で終えない。ピンのある対岸へ足が着いた瞬間にそろえる。
+const playerAtFord = (p, world) => atFordBank(p, world);
 const FRONT2 = { x: 4, z: 20 };
 const ASSEMBLY2 = { x: 14, z: 10 };
 const RETREAT2 = { x: 24, z: 48 };
@@ -512,19 +512,19 @@ function moribeFord(rt) {
       float fordGrain = texture2D(tMacro, vWPw.xz * 0.9).r;
       // 川底の小石は地面に固定。流れる白波と分け、浅さと歩いた分を絵で見せる。
       vec2 fordCell = fract(vWPw.xz * 1.4 + vec2(fordGrain * 0.25, 0.0)) - 0.5;
-      float fordPebble = 1.0 - smoothstep(0.16, 0.29, length(fordCell * vec2(1.0, 1.4)));
+      float fordPebble = 1.0 - smoothstep(0.22, 0.36, length(fordCell * vec2(1.0, 1.4)));
       float fordRipple = smoothstep(0.86, 0.98, sin(vWPw.z * 6.0 + fordGrain * 2.0 - uTime * 1.4));
       // 青い流れの中に砂底の帯を通し、入口から出口まで歩ける浅さを見せる。
       // 隣の流れは元の川色のまま。新しい形や描画は増やさない。
       vec3 fordSand = mix(vec3(0.52, 0.43, 0.27), vec3(0.78, 0.70, 0.48), fordGrain);
       fordSand = mix(fordSand, vec3(0.25, 0.32, 0.29), fordPebble * 0.65);
-      diffuseColor.rgb = mix(diffuseColor.rgb, fordSand, fordBand * 0.85);
+      diffuseColor.rgb = mix(diffuseColor.rgb, fordSand, fordBand * 0.95);
       // 濡れた砂底の明るさを保ち、暗い流れの中に渡れる帯を残す。
       totalEmissiveRadiance += fordSand * fordBand * 0.22;
       // 浅瀬も水の色を保つ。両岸の細い白波を既存の川面へ描き、終点を土と分ける。
       float fordShore = smoothstep(7.5, 8.6, abs(vWPw.z - ${NIREMATA2.toFixed(1)}));
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.76, 0.85, 0.82),
-        max(fordRipple * 0.5, fordShore * (0.4 + fordGrain * 0.35)) * fordBand);
+        max(fordRipple * 0.18, fordShore * (0.2 + fordGrain * 0.15)) * fordBand);
     `);
   };
   waterMat.customProgramCacheKey = () => waterKey + '|森部の浅瀬';
@@ -1082,7 +1082,7 @@ const moribe = {
   // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は「何をするか」だけ（kaito 10/23 49・50）。段の総称で通し、向き・行き先の字は書かない。
-  missions: ['川を渡れ', '仲間を待て', '▼の敵を倒せ', 'ここを守れ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
+  missions: ['川を渡れ', '仲間を待て', '▼の敵を倒せ', '耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
   // ピン・▼・名前は同じ本人へ。描画の間引きで相手を替えない。
   commanderTarget(rt) {
     const F = rt.flags;
@@ -1151,7 +1151,7 @@ const moribe = {
       return '仲間を待て';
     }
     // 守る段は稲生と同じ一行。守る所はピン、味方はその左右へ寄る。
-    if (F.stage === 'hold') return F.lineReturning ? '仲間と集まれ' : 'ここを守れ';
+    if (F.stage === 'hold') return F.lineReturning ? '仲間と集まれ' : '耐えろ';
     if (F.squadGuide && Math.hypot(p.x - F.squadGuide.pos.x, p.z - F.squadGuide.pos.z) >= 16 ||
         !F.signal && F.pointReached && !F.pointInside ||
         (F.stage === 'hold' || F.stage === 'contact' && F.vBroken) && F.lineReturning)
@@ -1232,7 +1232,7 @@ const moribe = {
     // 人を追う印と地面の小旗を区別し、段が変わったら追う相手を消す。
     q.unit = null; q.enemy = false;
     // 着いた後の足元や画面端へ、移動を促す印を残さない。
-    q.waiting = false; q.arrived = false; q.crossing = false; q.progress = 0;
+    q.waiting = false; q.arrived = false; q.crossing = false; q.progress = 0; q.guardArea = false;
     let pos = null, r = 6, hide = 6;
     // 戦う段：敵は頭上の赤い▼。▼が見えない間だけ、残りの最寄りの敵へピンを向ける（稲生と同じ）。
     if ((F.stage === 'contact' && !F.vBroken || F.stage === 'press') && !F.squadGuide) {
@@ -1258,24 +1258,11 @@ const moribe = {
       q.progress = q.arrived ? q.waiting ? this.missionWaitProgress(rt) || 0 : 1 :
         // 横へずれても岸へ渡った分を示す。到着前は満杯にしない。
         Math.max(0, Math.min(.98, (START2.z - rt.player.u.pos.z) / (START2.z - POINT2.z)));
-      // 待っている本人へ同じピンを付ける。仲間が動いても別人へ毎コマ移さない。
-      if (q.waiting && !F.pointReady) {
-        let ally = F.fordWaitUnit;
-        if (!ally?.alive || ally.gone || ally.fleeing || ally.woundOut || ally.noTarget || ally.group?.routed || atFordBank(ally.pos, rt.world)) {
-          ally = null;
-          let best = Infinity;
-          for (const u of rt.squad) {
-            if (!u.alive || u.gone || u.fleeing || u.woundOut || u.noTarget || u.group?.routed || atFordBank(u.pos, rt.world)) continue;
-            const d = (u.pos.x - POINT2.x) ** 2 + (u.pos.z - POINT2.z) ** 2;
-            if (d < best) { best = d; ally = u; }
-          }
-          F.fordWaitUnit = ally;
-        }
-        if (ally) { q.unit = ally; pos = ally.pos; }
-      }
+      // 渡河後も対岸の同じ地点。仲間の頭へ移して敵の▼と混同させず、後続の兵を追って川へ戻らせない。
     } else if (F.stage === 'hold') {
       // 守備は動く仲間を追わせず、到着判定と同じ固定地点一本へ集める。
-      pos = F.linePoint; r = hide = 18;
+      pos = F.linePoint; r = hide = F.lineReturning || !F.lineReached ? 18 : 24;
+      q.guardArea = true;
       q.waiting = true; q.arrived = !F.lineReturning;
       q.progress = this.missionWaitProgress(rt) || 0;
     } else if (F.squadGuide) {
@@ -1821,9 +1808,9 @@ html body #hud.moribe-notices .bl #h-hp.hp em {
  font-size:max(15px, calc(15px * var(--text-scale, 1))) !important; line-height:1.5;
 }
 html body #hud.moribe-notices .bl #h-hp.hp em svg { width:18px; height:22px; }
-/* 手前の槍や旗を地図の道と取り違えないよう、和紙の裏まで不透明にする。 */
+/* 行き先はピン、敵は頭上の赤い▼。同じ意味の小地図の印を重ねない。 */
 html body #hud.moribe-notices #minimap,
-html body #hud.moribe-notices.lean.calm #minimap { background:#e8ddc2; opacity:1 !important; }
+html body #hud.moribe-notices.lean.calm #minimap { display:none !important; }
 html body #hud.moribe-notices #battle-notices #objectives.travel-retreat:not(.expand) li.cur .obj-now {
  font-size:max(18px, calc(18px * var(--text-scale, 1))) !important;
  line-height:1.4; white-space:normal !important; overflow-wrap:anywhere !important; word-break:normal !important;
@@ -2248,10 +2235,11 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         if (!t.alive || t.dying || t.downed || t.woundOut || t.rearWound) t.moribeDefeatUntil = rt.t + 1.8;
         // 命を減らした本人だけがよろめく。空振りや味方には反応を付けない。
         if (t.alive && !blocked) {
-          // 共通の膝を崩す動きは残り .7 秒超で始まる。構えを止めるだけにしない。
-          t.stagger = Math.max(t.stagger || 0, 1.1);
+          // 生きている敵は上体をのけぞらせて戻す。膝を落として討死に見せない。
+          t.flinchT = .32;
+          t.stagger = Math.max(t.stagger || 0, .65);
           // 突きの途中の姿を残さず、命中した本人のよろめきを見せる。
-          t.atk = null; t.swing = null; t.cd = Math.max(t.cd || 0, 1.1);
+          t.atk = null; t.swing = null; t.cd = Math.max(t.cd || 0, .65);
           // 当たった体を小さく押し戻し、重なった隣の兵と反応を見分ける。
           if (t.push && !t.mounted && !t.isStruct) {
             const dx = t.pos.x - src.pos.x, dz = t.pos.z - src.pos.z;
