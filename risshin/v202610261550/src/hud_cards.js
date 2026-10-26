@@ -481,7 +481,7 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
       this.nextEnemyLabel = enemyLabel;
       if (enemy) this.nextEnemyUnit = enemy;
       // 森部の一般兵は誰を攻撃してもよい。一人ずつ指定された任務に見せない。
-      if (def.key !== 'moribe' && def.key !== 'inou' && rt.t < this.nextEnemyUntil) headline = 'つぎの敵を たおせ';
+      if (def.key !== 'moribe' && def.key !== 'inou' && def.key !== 'okehazama' && rt.t < this.nextEnemyUntil) headline = 'つぎの敵を たおせ';
     }
     // 話す任務と相手の頭上を、同じ吹き出しで結ぶ。札は増やさない。
     const talkSign = headline === 'この人と話そう';
@@ -562,8 +562,8 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     // 待つ間（陣を敷く・寄せを待つ）の残りは、秒の字でなく満ちていく丸で（kaito 10/23 稲生 14）。
     const gm = rt.missionGuide?.marker, wu = gm?.waitUntil?.();
     const progress = def.missionWaitProgress?.(rt);
-    // 森部の待機は同じピンの丸だけを満たす。棒と時計を二重に出さない。
-    const waitFill = def.key === 'okehazama' && Number.isFinite(progress)
+    // 森部の守備は任務と同じ行の丸。渡河・集合の待機は到着先のピンだけ。
+    const waitFill = (def.key === 'okehazama' || def.key === 'moribe' && rt.flags.stage === 'hold') && Number.isFinite(progress)
       ? Math.round(Math.max(0, Math.min(1, progress)) * 100) : -1;
     const combatProgress = def.missionCombatProgress?.(rt);
     const combatFill = Number.isFinite(combatProgress)

@@ -24,14 +24,15 @@ export class HudOverlay {
     if (rt.def.key !== 'moribe') return this.drawDestinationPin(g, x, y);
     // 地図のピンと同じ、丸い頭から地面へ先細りになる形。先端は到着判定の地点。
     // 到着後の時計も同じ形を保ち、到着のチェックと待つ進みを区別する。
-    const waiting = pin?.waiting && pin.arrived;
+    // 守備中は戻る途中も同じピンの時計を見せる。到着すると任務の下へ移る。
+    const waiting = pin?.waiting && (pin.arrived || pin.guardArea);
     const radius = waiting ? 32 : 18;
     // 行き先は先端の真上にそろえ、到着後の大きな時計だけ任務の下の内側へ寄せる。
     const cx = waiting ? x - 28 : x, cy = waiting ? y - 64 : y - 54;
     const progress = Math.max(0, Math.min(1, pin?.progress || 0));
     g.save(); g.lineJoin = 'round';
     // 移動中は地面の根元も描き、兵の頭上の印と区別する。
-    if (!waiting) {
+    if (!waiting || !pin.arrived) {
       g.beginPath(); g.ellipse(x, y, 12, 4, 0, 0, Math.PI * 2);
       g.strokeStyle = '#14120f'; g.lineWidth = 6; g.stroke();
       g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();

@@ -813,7 +813,15 @@ export const ArmyAnim = {
       else if (a.kind === 'spinW') { lift = 0.55 * k; rx = rx * (1 - k) - 0.08 * k; slide = Math.min(slide, -1.1 * k); ext = -0.2 * k; }
       // 石突きの溜め：柄を前へ滑らせ、手元を体の前へ引き寄せる
       else if (a.kind === 'butt') { ext = 0.15 * k; slide = Math.min(slide, 0.5 * k); }
-      else { ext = -0.35 * k * big; u.spW = k * big; }
+      else {
+        // 初陣の敵は突く前に手元を引き、穂先を少し起こす。待機の構えと区別する。
+        // 攻撃の時刻・射程は保ち、既存の手と槍のばねだけを動かす。
+        const warning = this.world.def.key === 'inou' && !u.isPlayer && !u.mounted && a.target?.isPlayer
+          ? Math.sqrt(k) : 0;
+        ext = -0.35 * k * big - .16 * warning;
+        rx -= .22 * warning;
+        u.spW = k * big + .16 / .35 * warning;
+      }
       // 馬上の突きは片手：拳を肩の上へ引き上げ、穂先を下へ向けて溜める（上から突き下ろす）
       if (u.mounted && a.kind !== 'slam' && a.kind !== 'sweep' && a.kind !== 'spinW' && a.kind !== 'butt') { lift = 0.3 * k; rx += 0.18 * k; ext = -0.25 * k; }
     }

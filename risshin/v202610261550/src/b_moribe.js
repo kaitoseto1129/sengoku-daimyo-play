@@ -521,11 +521,14 @@ function moribeFord(rt) {
       fordSand = mix(fordSand, vec3(0.34, 0.39, 0.32), fordPebble * 0.25);
       diffuseColor.rgb = mix(diffuseColor.rgb, fordSand, fordBand * 0.95);
       // 濡れた砂底の明るさを保ち、暗い流れの中に渡れる帯を残す。
-      totalEmissiveRadiance += fordSand * fordBand * 0.22;
       // 浅瀬も水の色を保つ。両岸の細い白波を既存の川面へ描き、終点を土と分ける。
       float fordShore = smoothstep(7.5, 8.6, abs(vWPw.z - ${NIREMATA2.toFixed(1)}));
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.76, 0.85, 0.82),
         max(fordRipple * 0.18, fordShore * (0.2 + fordGrain * 0.15)) * fordBand);
+    `).replace('#include <emissivemap_fragment>', `
+      #include <emissivemap_fragment>
+      // 発光の変数を作った後で足す。携帯の軽い材質でも浅瀬を描けるようにする。
+      totalEmissiveRadiance += fordSand * fordBand * 0.22;
     `);
   };
   waterMat.customProgramCacheKey = () => waterKey + '|森部の浅瀬';
@@ -1082,7 +1085,7 @@ const moribe = {
     { id: 'moribe-hibino', name: '日比野下野守（ひびの しもつけのかみ）', note: 'もう一人の敵の大将。長井と日比野と守る兵を倒したら、新しく出る黄色い印へ仲間と戻る。' },
   ],
   enemyTriangleSigns: true, // 森部の敵は頭上の赤い三角で見分ける。
-  noPlayerFoot: true, // 別経路の白い足元輪も消し、行き先のピンと混同させない。
+  noPlayerFoot: true, // 本人は姿で示す。別経路の白い足元輪も消し、倒れた隣の兵や行き先のピンと混同させない。
   nearbyAllySignLimit: 0, // 味方の頭上に白い小旗を出さない。追う旗はピン一本、敵は赤い印で分ける。
   noDodgeCard: true, // 矢の雨で「〜をむこう」「にげる」の札を出さない（kaito 10/23 稲生 4）。
   hideMissionDots: true, // 任務の段数は見出しにある。仲間の人数と紛れる五つの丸は出さない。
@@ -1110,7 +1113,7 @@ const moribe = {
   // 頭上の▼一つを大きくして、まず戦う相手を示す。選び直しは四分の一秒に一度。
   missionSignTarget(rt) {
     const F = rt.flags, p = rt.player;
-    if (F.ending || F.stage === 'assemble') return null;
+    if (F.ending || F.stage === 'assemble' || F.stage === 'hold') return null;
     // 渡る間の目標は対岸のピンだけ。敵の所属を示す小さな▼は残す。
     if (!F.signal && !F.fordThreat) return null;
     // 討ち取りの段では、離れた一般兵へ印を乗り換えない。
@@ -1266,6 +1269,8 @@ const moribe = {
         Math.max(0, Math.min(.98, (START2.z - rt.player.u.pos.z) / (START2.z - POINT2.z)));
       // 渡河後も対岸の同じ地点。仲間の頭へ移して敵の▼と混同させず、後続の兵を追って川へ戻らせない。
     } else if (F.stage === 'hold') {
+      // 到着後は右上の任務の丸だけで時間を示す。足元のピンと時計を重ねない。
+      if (!F.lineReturning) return null;
       // 守備は動く仲間を追わせず、到着判定と同じ固定地点一本へ集める。
       pos = F.linePoint; r = hide = F.lineReturning || !F.lineReached ? 18 : 24;
       q.guardArea = true;
@@ -1294,7 +1299,8 @@ const moribe = {
     }
     if (!pos) return null;
     // 川と集合で同じ穴を満たす。中心ではなく実際の合流半径までを残りとする。
-    if (F.signal && !q.arrived) {
+    // 守る場所へ戻る間も時間は進む。同じピンに時間を残し、歩いた量へ替えない。
+    if (F.signal && !q.arrived && F.stage !== 'hold') {
       const key = F.squadGuide || F.gatherUnit || pos;
       const remaining = Math.max(0, Math.hypot(rt.player.u.pos.x - pos.x, rt.player.u.pos.z - pos.z) - r);
       if (F.pinApproachKey !== key) {
@@ -1726,17 +1732,22 @@ html:root body #hud.moribe-notices.field-clean.field-clean .bl #h-hp.hp :is(.hp-
  display:none !important;
 }
 html:root body #hud.moribe-notices.field-clean.field-clean .bl #h-hp.hp i {
- display:block !important; height:10px !important;
+ display:block !important; height:18px !important;
+}
+html:root body #hud.moribe-notices.field-clean.field-clean .bl #h-hp.hp i strong {
+ background:#d84c3d;
 }
 /* 次の一手と号令を右の任務札にまとめる。横持ちでも二行を切らない。 */
 #hud #h-prog[data-battle="moribe"] { width:min(320px, 38vw); }
 #hud #h-prog[data-battle="moribe"] .pg-st:not(.mission-combat) { background-image:none !important; }
-/* 耐える進みは任務の背景に残す。待つ進みは一本のピンにまとめる。 */
+/* 耐える間だけ任務と同じ行で丸が満ちる。場所を離れても時計を見失わない。 */
 #hud #h-prog[data-battle="moribe"] .pg-st.moribe-wait {
  flex-direction:row; align-items:center; justify-content:flex-end; gap:10px;
 }
 #hud #h-prog[data-battle="moribe"] .pg-st.moribe-wait::before {
- content:none;
+ content:''; display:block; flex:0 0 30px; width:30px; height:30px;
+ border:2px solid #fff3ba; border-radius:50%; box-sizing:border-box;
+ background:conic-gradient(#fff3ba calc(var(--wait-progress,0) * 1%), #393328 0);
 }
 /* 共通の一行省略より優先し、今することを最後まで読めるようにする。 */
 html:root body #hud.mission-only #h-prog[data-battle="moribe"] .pg-st span {
@@ -2242,7 +2253,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         t.moribeHitHp = hp;
         t.moribeDamageUntil = rt.t + 1.6;
         // 一撃ごとに伸び直す。本人の選択は残し、伸びだけ次の一撃までに戻す。
-        if (!blocked) { t.moribeHitUntil = rt.t + 3; t.moribeBlockUntil = 0; }
+        if (!blocked) { t.moribeHitUntil = rt.t + .8; t.moribeBlockUntil = 0; }
         if (!t.alive || t.dying || t.downed || t.woundOut || t.rearWound) t.moribeDefeatUntil = rt.t + 1.8;
         // 命を減らした本人だけがよろめく。空振りや味方には反応を付けない。
         if (t.alive && !blocked) {
@@ -2631,7 +2642,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         F.lineReturning = !F.lineReached;
         rt.setPhase('hold'); rt.banner('槍を打ち合わせる', '雨の中、両軍が押し合う');
         rt.obj('line', '印へ仲間と集まれ', 'main');
-        rt.marker('line', () => F.linePoint, () => F.lineT >= 25 ? '本備の横・列を支えた。控えに備えよ' : '守る印・仲間と守れ', { hideNear: 24, hideOnArrival: true }); rt.zone('line', F.linePoint.x, F.linePoint.z, 24);
+        rt.marker('line', () => F.linePoint, () => F.lineT >= 25 ? '本備の横・列を支えた。控えに備えよ' : '守る印・仲間と守れ', { hideNear: 24, hideOnArrival: true });
         orderSpeech(rt, '印へ集まれ。印に着いたら、その場で敵を迎え撃て', 5);
         for (const g of [F.M, F.N]) if (!gone(g)) { if (g.order !== 'move') g.order = 'attack'; g.seekRange = 30; }
       }

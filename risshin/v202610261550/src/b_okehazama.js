@@ -26,7 +26,7 @@ import { localPoint } from './army_local_way.js';
 // ======================================================================
 // 第1戦　桶狭間
 // ======================================================================
-// 紋を読まなくても、味方の黒と藍・横広の指物を敵の赤茶・縦長と見分ける。
+// 味方は横広の指物、敵は縦長の指物と頭上の赤い▼で見分ける。
 // 装束は生成時だけ指定し、名のある武将の私物は保つ。
 function allyGroup(rt, options, list) {
   return commonAllyGroup(rt, options, list.map((spec) => spec.o?.name ? spec : {
@@ -35,15 +35,15 @@ function allyGroup(rt, options, list) {
   }));
 }
 
-// 今川の貸し具足は赤茶の胴に朱・萌黄の威。名のある武将の私物は保つ。
+// 貸し具足を赤く塗り分けず、敵の所属は頭上の▼で示す。武将の私物は保つ。
 // 旗本の増援にも同じ仕立てを使い、人数・能力・進行条件は変えない。
 function enemyGroup(rt, options, list) {
   const dressed = [];
   for (const spec of list) {
     if (spec.o?.name) { dressed.push({ ...spec, o: { flag: 'imagawa', ...spec.o } }); continue; }
     for (let i = 0; i < spec.n; i++) dressed.push({ ...spec, n: 1,
-      o: { armor: i % 2 ? 0x493a28 : 0x542e25, lace: i % 2 ? 0x79934b : 0xad4932,
-        hatColor: i % 3 ? 0x493a28 : 0x302c28,
+      o: { armor: i % 2 ? 0x38372f : 0x302e2a, lace: i % 2 ? 0x62694b : 0x685b43,
+        hatColor: i % 3 ? 0x38372f : 0x302c28,
         ...(spec.type === 'ashigaru' ? { hat: i % 6 === 0 ? 'kabuto' : i % 3 === 0 ? 'jingasa_n' : 'jingasa' } : {}),
         flag: 'imagawa', mon: 'imagawa', ...spec.o, flagShape: 1 } });
   }
@@ -565,7 +565,7 @@ const okehazama = {
   // 右上はミッションの一行だけ。距離・向き・操作の字を見出しに出さない（kaito 10/23 49・50）。
   // 間合いと命中は頭上の▼で示し、別の距離案内は出さない。
   enemyOrder(rt, enemy) {
-    return enemy && enemy === rt.flags.yoshimoto ? '今川義元をたおせ' : '今川の兵を倒せ';
+    return enemy && enemy === rt.flags.yoshimoto ? '今川義元をたおせ' : '▼の敵をたおせ';
   },
   // 大将の印：義元を討つ段だけ、地図と戦場で大将の印を大きくする（稲生の型）。
   commanderTarget(rt) {
@@ -680,7 +680,7 @@ const okehazama = {
   missionSingleLine: true,
   hideGuideSteps: true,
   // 稲生の型：短い一行。兵は頭上の▼、大将は名で呼び、討った瞬間に次の一行へ替える。
-  missions: ['ピンに集まれ', 'ピンに集まれ', '雨がやむまで待て', '今川の兵を倒せ', '今川義元をたおせ', 'にげる敵を追え', '味方と集まれ'],
+  missions: ['ピンに集まれ', 'ピンに集まれ', '雨がやむまで待て', '▼の敵をたおせ', '今川義元をたおせ', 'にげる敵を追え', '味方と集まれ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -2127,8 +2127,8 @@ const okehazama = {
     rt.army.guideWayEnemy = this.missionSignTarget(rt);
     rt.army.guideWayAt = rt.army.time;
     this.horoDetail(rt);
-    if (rt.phase === 'brief' && !F.briefed && F.genpachi && readyUnit(F.genpachi) &&
-        this.squadFlagReached(rt)) this.brief(rt);
+    // 集合の輪へ入ったら到着。隊長の負傷や戦闘状態を隠れた追加条件にしない。
+    if (rt.phase === 'brief' && !F.briefed && this.squadFlagReached(rt)) this.brief(rt);
     nagashinojo.kit.backTick(rt);
     this.guideBack(rt);
     this.moveFar(rt, dt);

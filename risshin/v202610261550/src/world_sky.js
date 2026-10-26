@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { rng } from './world_common.js';
+import { skyPhotoKey, loadSkyPhoto } from './sky_photo.js';
 
 // 空の映り込み（漆や鉄に空が映る）を作るために、描画器を借りる
 let RENDERER = null;
@@ -18,10 +19,11 @@ export class WorldSky {
         sunDir: { value: new THREE.Vector3(0.4, 0.7, 0.3) }, sunCol: { value: new THREE.Color(0xfff0d8) }, time: { value: 0 }, cover: { value: 0.4 }, cloudDark: { value: 0.1 }, pall: { value: 0 },
         rain: { value: 0 }, age: { value: 0 },
         cloudTime: { value: 0 }, cloudShift: { value: new THREE.Vector2() }, lowDetail: { value: 0 },
+        tPhoto: { value: null }, photoK: { value: 0 }, photoSun: { value: 0.6 },
       },
       vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
       fragmentShader: `
-        uniform vec3 top, bottom, glow, sunCol, sunDir; uniform vec2 cloudShift; uniform float glowK, flash, time, cover, cloudDark, pall, rain, age, cloudTime, lowDetail; varying vec3 vP;
+        uniform vec3 top, bottom, glow, sunCol, sunDir; uniform vec2 cloudShift; uniform float glowK, flash, time, cover, cloudDark, pall, rain, age, cloudTime, lowDetail, photoK, photoSun; uniform sampler2D tPhoto; varying vec3 vP;
         float h(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
         float n(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h(i), h(i+vec2(1,0)), f.x), mix(h(i+vec2(0,1)), h(i+vec2(1,1)), f.x), f.y); }
         // 低でも雲の大きな形と縁は残す。細かい三段だけ省き、濃さをそろえる
@@ -53,8 +55,19 @@ export class WorldSky {
           c = mix(c, c * vec3(0.78, 0.84, 1.0), glowK * low * anti * exp(-abs(d.y) * 12.0) * 0.55);
           c += vec3(0.5, 0.3, 0.38) * glowK * low * anti * exp(-pow((d.y - 0.1) * 9.0, 2.0)) * 0.2 * (1.0 - cov * 0.5);
           c = mix(c, c * vec3(1.02, 0.93, 1.1), glowK * smoothstep(0.15, 0.9, d.y) * 0.5);
-          // 雲：空の丸天井に投影した雑音
-          if (d.y > 0.0) {
+          // 雲（写真）：CC0 の空の写真から雲の濃淡の比だけを借り、今の空の色に掛ける。日の位置は写真の日を今の日へ回して合わせる
+          if (d.y > 0.0 && photoK > 0.0) {
+            float az = atan(d.z, d.x) - atan(sunDir.z, sunDir.x);
+            vec2 puv = vec2(fract(az * 0.15915494 + photoSun + cloudTime * 0.00002), clamp(asin(clamp(d.y, 0.0, 1.0)) * 0.63661977, 0.004, 0.996));
+            vec3 pr = texture2D(tPhoto, puv).rgb;
+            pr = pr * pr * 4.0;
+            // 夜と雨は濃淡を控えめに（暗い空に白い雲の板を浮かせない）
+            float nk2 = 1.0 - smoothstep(0.015, 0.1, dot(top, vec3(0.2126, 0.7152, 0.0722)));
+            pr = mix(vec3(1.0), pr, mix(0.85, 0.55, max(nk2, rain)));
+            c = mix(c, c * pr, smoothstep(0.0, 0.1, d.y) * photoK);
+          }
+          // 雲：空の丸天井に投影した雑音（写真が無い時だけ）
+          if (d.y > 0.0 && photoK < 0.5) {
             vec2 uv = d.xz / (d.y + 0.12) * 1.3 - cloudShift;
             // 形を少し歪めて、もくもくした塊に。歪みはゆっくり別に動くので、雲は流れながら形を変える
             vec2 warp;
@@ -257,6 +270,19 @@ export class WorldSky {
     this.scene.add(this.mountains);
   }
 
+
+  // 空の写真を時間帯に合わせて差し替える（読み込みは戦ごとに一枚。届いたら映り込みも焼き直す）
+  setSkyPhoto(timeKey, mood) {
+    const key = skyPhotoKey(timeKey, mood);
+    if (this.skyPhotoKey === key) return;
+    this.skyPhotoKey = key;
+    loadSkyPhoto(key).then((t) => {
+      if (!t || this.skyPhotoKey !== key || !this.skyMat) return;
+      const U = this.skyMat.uniforms;
+      U.tPhoto.value = t; U.photoSun.value = t.userData.sun; U.photoK.value = 1;
+      if (this.envRT) this.updateEnv();
+    });
+  }
 
   // 空を小さく焼いて、映り込みの光にする（時間帯が変わるたびに作り直す）
   updateEnv() {

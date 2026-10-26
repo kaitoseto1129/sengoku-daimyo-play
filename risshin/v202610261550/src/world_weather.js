@@ -204,6 +204,7 @@ export class WorldWeather {
 
   applyLook(L) {
     this.look = L;
+    if (this.setSkyPhoto) this.setSkyPhoto(this.timeKey, this.mood);
     this.scene.userData.colorGrade = L.grade || gradeOf(this.timeKey, this.mood);
     this.scene.background.copy(L.sky);
     this.scene.fog.color.copy(L.fog);
