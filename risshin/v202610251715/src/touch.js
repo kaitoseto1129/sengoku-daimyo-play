@@ -1192,7 +1192,7 @@ export function touchFrame(dt) {
   tog(btn.atk, 'counter-ready', counterReady);
   // 押した時の一撃と、案内に対応する釦の名前を保つ。
   tog(btn.atk, 'holding', !!input.mouseL);
-  const attackLabel = gunW ? '撃つ' : bowW ? '射る' : b.def.key === 'inou' ? '攻撃' : p.weapon === 'sword' ? 'きる' : 'つく';
+  const attackLabel = gunW ? '撃つ' : bowW ? '射る' : b.def.key === 'inou' || b.def.key === 'okehazama' ? '攻撃' : p.weapon === 'sword' ? 'きる' : 'つく';
   setText(btn.atk.firstChild, attackLabel);
   const attackAria = attackLabel;
   if (btn.atk.getAttribute('aria-label') !== attackAria) btn.atk.setAttribute('aria-label', attackAria);
@@ -1201,7 +1201,7 @@ export function touchFrame(dt) {
   const blade = !gunW && !bowW;
   // 攻撃の押し方は実物の釦の中にまとめる。
   const teachB = allowCoach;
-  if (sub) setText(sub, blade ? b.def.key === 'inou' ? '攻撃' : '押す' : !teachB ? (gunW ? p.gunAmmo === 0 ? '弾がない' : p.gunLoaded ? '' : '弾込め中' : p.bowAmmo <= 0 ? '矢がない' : '') : gunW ? (p.gunLoaded ? '押して撃つ' : p.gunAmmo === 0 ? '弾がない' : p.knockT > 0 || p.staggerT > 0 ? '体勢を戻す' : '弾込め中') : p.bowAmmo <= 0 ? '矢がない' : p.draw > 0 ? '引き絞る' : '押して射る');
+  if (sub) setText(sub, blade ? b.def.key === 'inou' || b.def.key === 'okehazama' ? '攻撃' : '押す' : !teachB ? (gunW ? p.gunAmmo === 0 ? '弾がない' : p.gunLoaded ? '' : '弾込め中' : p.bowAmmo <= 0 ? '矢がない' : '') : gunW ? (p.gunLoaded ? '押して撃つ' : p.gunAmmo === 0 ? '弾がない' : p.knockT > 0 || p.staggerT > 0 ? '体勢を戻す' : '弾込め中') : p.bowAmmo <= 0 ? '矢がない' : p.draw > 0 ? '引き絞る' : '押して射る');
   tog(btn.atk, 'tech', false);
   tog(btn.atk, 'rl', gunW && !p.gunLoaded);
   tog(btn.atk, 'ready', gunW && p.gunLoaded && (p.aimK || 0) > 0.5);

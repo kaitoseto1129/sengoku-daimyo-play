@@ -28,7 +28,7 @@ export class HudCards {
       el.hidden = true; dock.insertBefore(el, dock.lastChild); this.controlsHelp = el;
     }
     if (!this.controlsHelp) return;
-    this.controlsHelp.hidden = !active || this.controlsElapsed > 12 || S.reduceGuidance || rt.def.key === 'inou';
+    this.controlsHelp.hidden = !active || this.controlsElapsed > 12 || S.reduceGuidance || rt.def.key === 'inou' || rt.def.key === 'okehazama';
     if (!this.controlsHelp.hidden) {
       const weapon = rt.player.weapon;
       const action = weapon === 'gun' ? '「撃つ」を押す' : weapon === 'bow' ? '「射る」を押す' : weapon === 'sword' ? '「きる」で刀をふる' : '「つく」で槍をつく';
@@ -400,10 +400,10 @@ html:root body #hud #h-prog .opening-controls-help[hidden] { display:none !impor
 #hud.ending #h-prog, #hud:has(#bigmap:not([hidden])) #h-prog { visibility:hidden; }
 /* 稲生は右上に短い任務を一行だけ置く。 */
 html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog {
- top:calc(72px + env(safe-area-inset-top, 0px)); width:max-content; max-width:min(440px, 54vw);
+ top:calc(12px + env(safe-area-inset-top, 0px)); width:max-content; max-width:calc(100% - 32px); padding:4px 8px;
 }
 html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog :is(.pg-st span,.pg-next) {
- white-space:pre-line !important; overflow:visible; text-overflow:clip; overflow-wrap:normal; word-break:keep-all;
+ white-space:nowrap !important; overflow:visible; text-overflow:clip; overflow-wrap:normal; word-break:keep-all;
 }
 /* 稲生の今の操作は任務の二行目に残す。共通の一行表示で隠さない。 */
 html:root body #hud.mission-only #h-prog[data-battle="inou"] > .pg-next:not([hidden]) {

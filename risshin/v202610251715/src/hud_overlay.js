@@ -22,81 +22,34 @@ export class HudOverlay {
     if (landmark || rt.def.routeGuidePriority?.(rt))
       return this.drawDestinationPin(g, x, y);
     if (rt.def.key !== 'moribe') return this.drawDestinationPin(g, x, y);
-    // 渡河中も丸頭と軸で岸に刺さるピン。人を指す下向き矢印にしない。
+    // 先端は判定地点へ固定。丸頭を脇へ寄せ、自分の頭上の印に見せない。
+    const waiting = pin?.waiting && pin.arrived;
+    const radius = waiting ? 22 : 18;
+    const cx = x - (waiting ? 0 : 28), cy = y - (waiting ? 30 : 64);
+    const progress = Math.max(0, Math.min(1, pin?.progress || 0));
     g.save(); g.lineJoin = 'round';
-    // 渡河の大きさと接地点は固定し、穴が満ちた時に岸への到着を示す。
-    // 渡河も長い軸で岸へ刺す。兵の頭上の▼と形を分け、接地点は動かさない。
-    // 待つ間は丸の面積を広げ、携帯でも満ちた分と残った分を見分けられる大きさにする。
-    const pinScale = pin?.unit ? .95 : pin?.waiting && pin.arrived ? 1.7 : pin?.waiting ? .95 : pin?.crossing ? 1.1 : 1.3;
-    g.translate(x, y); g.scale(pinScale, pinScale); x = 0; y = 0;
-    // 大きさが変わってもピンの接地点は岸から動かさない。
-    if (!pin?.waiting || !pin.arrived) {
-      g.beginPath(); g.ellipse(x, y + 1, 11, 3, 0, 0, Math.PI * 2);
-      g.fillStyle = 'rgba(20,18,15,.65)'; g.fill();
-    }
-    // 場所のピンは軸を長くし、兵の頭上の印と見分けられるよう地面までつなぐ。
-    // 到着したピンは軸を畳む。任務のそばで満ちる頭だけを残し、別の移動先に見せない。
-    const stem = pin?.waiting && pin.arrived ? 8 : 43;
-    if (!pin?.waiting || !pin.arrived) {
-      g.beginPath(); g.moveTo(x, y); g.lineTo(x - 4, y - stem);
-      g.lineTo(x + 4, y - stem); g.closePath();
+    if (!waiting) {
+      g.beginPath(); g.moveTo(x, y); g.lineTo(cx - 5, cy + radius - 2);
+      g.lineTo(cx + 5, cy + radius - 2); g.closePath();
       g.strokeStyle = '#14120f'; g.lineWidth = 4; g.stroke();
       g.fillStyle = '#fff3ba'; g.fill();
     }
-    g.translate(0, 13 - stem);
-    // 丸頭だけを拡大し、先端を同じ岸に保ったまま満ちた量を読みやすくする。
-    g.translate(0, -33); g.scale(1.5, 1.5); g.translate(0, 33);
-    g.beginPath(); g.moveTo(x, y - 10); g.lineTo(x - 13, y - 26);
-    g.bezierCurveTo(x - 27, y - 54, x + 27, y - 54, x + 13, y - 26);
-    g.closePath();
-    g.strokeStyle = '#14120f'; g.lineWidth = 7; g.stroke();
-    g.fillStyle = pin?.arrived ? '#14120f' : '#fff3ba'; g.fill();
-    if (pin?.arrived) {
-      g.strokeStyle = '#fff3ba'; g.lineWidth = 3; g.stroke();
-    }
-    // 移動先は常に穴の空いたピン。待機の進みも同じ中に示す。
-    g.beginPath(); g.arc(x, y - 33, 14, 0, Math.PI * 2);
+    g.beginPath(); g.arc(cx, cy, radius + 3, 0, Math.PI * 2);
+    g.strokeStyle = '#14120f'; g.lineWidth = 6; g.stroke();
+    g.fillStyle = '#fff3ba'; g.fill();
+    g.beginPath(); g.arc(cx, cy, radius - 3, 0, Math.PI * 2);
     g.fillStyle = '#14120f'; g.fill();
-    // 実際の到着半径へ入った時だけ、同じピンの内周を閉じる。
-    // 地点を踏み直す必要がないことを形で伝え、別の輪や札は足さない。
-    if (pin?.arrived) {
-      g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
-    }
-    // 待つ間は空の部分と満ちた部分の境を残す。終わりまでの進みをピンの穴だけで示す。
-    if (pin?.waiting && pin.arrived) {
-      g.beginPath(); g.arc(x, y - 33, 12, 0, Math.PI * 2);
-      g.fillStyle = '#655126'; g.fill();
-    }
+    // 移動は下から、待機は時計回りに満たす。針や別の時計は足さない。
     if (pin?.crossing) {
-      // 渡河の到着は同じ穴を下から満たす。待機の時計の扇形と区別する。
-      g.save(); g.beginPath(); g.arc(x, y - 33, 12, 0, Math.PI * 2); g.clip();
-      const level = Math.max(0, Math.min(1, pin.progress || 0));
-      g.fillStyle = '#ffe28a'; g.fillRect(x - 12, y - 21 - 24 * level, 24, 24 * level);
+      g.save(); g.beginPath(); g.arc(cx, cy, radius - 5, 0, Math.PI * 2); g.clip();
+      const diameter = (radius - 5) * 2;
+      g.fillStyle = '#ffe28a';
+      g.fillRect(cx - radius, cy + radius - 5 - diameter * progress, radius * 2, diameter * progress);
       g.restore();
-    } else if (pin?.progress > 0) {
-      // ピンの中だけを満たす。待ち時間の札や別の印は増やさない。
-      g.beginPath();
-      if (pin.crossing) {
-        // 渡河は下から満ちる形、待機は時計。同じピンの中で区別する。
-        g.arc(x, y - 33, 12, 0, Math.PI * 2); g.clip();
-        const height = 24 * Math.min(1, pin.progress);
-        g.fillStyle = '#ffe28a'; g.fillRect(x - 12, y - 21 - height, 24, height);
-      } else {
-        g.moveTo(x, y - 33);
-        g.arc(x, y - 33, 12, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, pin.progress));
-        g.closePath(); g.fillStyle = '#ffe28a'; g.fill();
-      }
-    }
-    // 待機中だけ時計の針を回す。移動先と待ち時間を同じ一本で伝える。
-    if (pin?.waiting && pin.arrived) {
-      const angle = -Math.PI / 2 + Math.PI * 2 * Math.min(1, pin.progress || 0);
-      // 十二時の目盛りと一本の針を離し、折れた完了の印に見せない。
-      g.beginPath(); g.moveTo(0, -47); g.lineTo(0, -43);
-      g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
-      g.beginPath(); g.moveTo(0, -33);
-      g.lineTo(Math.cos(angle) * 12, -33 + Math.sin(angle) * 12);
-      g.strokeStyle = '#14120f'; g.lineWidth = 5; g.stroke();
-      g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
+    } else if (progress > 0) {
+      g.beginPath(); g.moveTo(cx, cy);
+      g.arc(cx, cy, radius - 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+      g.closePath(); g.fillStyle = '#ffe28a'; g.fill();
     }
     g.restore();
   }
@@ -155,7 +108,7 @@ export class HudOverlay {
     // 到着後は同じピンを任務の下で満たす。足元や背後へ隠れて、終わりが見えなくなるのを防ぐ。
     // 移動する時だけ地面へ戻し、時計と行き先を同時に二本出さない。
     if (moribe && pinTarget.waiting && pinTarget.arrived && !pinTarget.unit) {
-      this.drawBattleGoalSign(g, rt, VIEW.w - 52, 220, false, pinTarget);
+      this.drawBattleGoalSign(g, rt, VIEW.w - 52, 132, false, pinTarget);
       return true;
     }
     // 到着後も同じピンの中を満たし、守備や集合が進んでいることを形で伝える。

@@ -221,10 +221,15 @@ function survive(b, inp) {
       for (let i = 0; choose && moving && i < 8; i++) {
         const turn = i === 0 ? 0 : Math.ceil(i / 2) * (i % 2 ? 1 : -1) * Math.PI / 4;
         const sx = Math.sin(walk + turn), sz = Math.cos(walk + turn);
-        step.x = u.pos.x + sx * 1.5; step.z = u.pos.z + sz * 1.5;
-        if (army.wallBetween(u.pos, -1, step) || !b.world.walkable(step.x, step.z, u.pos.y) ||
-            Math.abs(b.world.heightAt(step.x, step.z) - u.pos.y) > 1.5) continue;
-        if (b.def.botRetreatStepAllowed && !b.def.botRetreatStepAllowed(b, step)) continue;
+        // 終点だけ平らでも、途中の切岸や戦ごとの退路の外へ踏み込まない。
+        let clear = true;
+        for (let n = 1; n <= 3; n++) {
+          step.x = u.pos.x + sx * n * .5; step.z = u.pos.z + sz * n * .5;
+          if (army.wallBetween(u.pos, -1, step) || !b.world.walkable(step.x, step.z, u.pos.y) ||
+              Math.abs(b.world.heightAt(step.x, step.z) - u.pos.y) > 1.5 ||
+              b.def.botRetreatStepAllowed && !b.def.botRetreatStepAllowed(b, step)) { clear = false; break; }
+        }
+        if (!clear) continue;
         let danger = 0;
         for (const o of army.units) {
           if (o === u || !o.alive || o.gone || o.downed || o.group?.hidden || o.isStruct || o.noTarget ||
@@ -243,7 +248,12 @@ function survive(b, inp) {
           // 通り抜ける足もあるため、初めから遠ざかる向きだけ終点で測る。
           const clearance = forward <= 0 ? gap : Math.hypot(ox - sx * along, oz - sz * along);
           // 志賀の塀の向こうの兵は、こちらの退き口を体で塞がない。
-          if (clearance < 1.4 && !army.wallBetween(u.pos, -1, o.pos)) danger += (1.4 - clearance) * 6;
+          if (clearance < 1.4 && !army.wallBetween(u.pos, -1, o.pos)) {
+            // 狭い口では減点だけだと、全候補が塞がっていても肩へ走り続ける。
+            // 既に触れている兵から離れる足は残し、体へ近づく一歩だけ除く。
+            if (clearance + .01 < Math.hypot(ox, oz)) { clear = false; break; }
+            danger += (1.4 - clearance) * 6;
+          }
           if (o.team === u.team || o.fleeing || o.group?.routed) continue;
           // 順番待ちと打ち手は分け、刃の届く一歩にはさらに余裕を取る。
           if (o.playerQueue) {
@@ -252,6 +262,7 @@ function survive(b, inp) {
             danger += (reach - gap) * (o.target === u ? 2 : 1);
           }
         }
+        if (!clear) continue;
         const value = Math.cos(turn) * 2 - danger;
         if (value > best) { best = value; bx = sx; bz = sz; }
       }

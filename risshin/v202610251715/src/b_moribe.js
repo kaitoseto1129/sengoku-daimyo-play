@@ -502,7 +502,9 @@ function moribeFord(rt) {
   const waterKey = waterMat.customProgramCacheKey();
   waterMat.onBeforeCompile = function (sh, renderer) {
     waterCompile.call(this, sh, renderer);
-    sh.fragmentShader = sh.fragmentShader.replace('#include <lights_fragment_begin>', `
+    // 照明用の材質へ色が渡る前に浅瀬を描く。照明の直前では砂底の色が反映されない。
+    sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', `
+      #include <color_fragment>
       float fordEdge = abs(vWPw.x - ${START2.x.toFixed(1)}) + sin(vWPw.z * 1.7) * 0.22;
       float fordBand = 1.0 - smoothstep(4.5, 6.0, fordEdge);
       float fordGrain = texture2D(tMacro, vWPw.xz * 0.9).r;
@@ -521,7 +523,6 @@ function moribeFord(rt) {
       float fordShore = smoothstep(7.5, 8.6, abs(vWPw.z - ${NIREMATA2.toFixed(1)}));
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.76, 0.85, 0.82),
         max(fordRipple * 0.5, fordShore * (0.4 + fordGrain * 0.35)) * fordBand);
-      #include <lights_fragment_begin>
     `);
   };
   waterMat.customProgramCacheKey = () => waterKey + '|森部の浅瀬';
@@ -1169,18 +1170,8 @@ const moribe = {
   meleeHitFeedback: false, // 命中は本人の赤い▼とよろめきで示し、照準の印を重ねない。
   missionStatus() { return ''; }, // 行き先は黄色い矢印と輪だけで示す。
   tacticsCommandText: '', // 横へ回る助言に、操作のない「配下に命じて押せ」を足さない。
-  missionCombatProgress(rt) {
-    const F = rt.flags;
-    if (!F.signal || F.stage !== 'contact' || F.vBroken || !F.V) return null;
-    // 先手への傷と退きを任務の下地へまとめる。全滅の人数条件は足さない。
-    let remaining = 0;
-    for (const u of F.V.units)
-      if (u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget)
-        remaining += Math.max(0, u.hp);
-    F.contactProgress = Math.max(F.contactProgress || 0,
-      Math.min(.99, 1 - remaining / (F.vanguardHealth || 1)));
-    return F.contactProgress;
-  },
+  // 傷と討ち取りは本人の▼で示し、意味の重なる黄色い棒を出さない。
+  missionCombatProgress() { return null; },
   missionWaitProgress(rt) {
     const F = rt.flags;
     if (!F.signal && F.pointInside && !F.pointDone) {

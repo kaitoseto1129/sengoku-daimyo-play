@@ -95,12 +95,14 @@ function sightPointNow(rt, p, limit, distant, targetHeight) {
     const pe = rt.camera.projectionMatrix.elements;
     if (vz >= -rt.camera.near || Math.abs(vx * pe[0]) > -vz || Math.abs(vy * pe[5]) > -vz) return false;
   } else if (dx * Math.sin(rt.player.yaw) + dz * Math.cos(rt.player.yaw) < 0) return false;
-  const viaCam = !!rt.camera;
   const d = Math.hypot(dx, dz);
-  const forward = dx * Math.sin(rt.player.yaw) + dz * Math.cos(rt.player.yaw);
-  const side = dx * Math.cos(rt.player.yaw) - dz * Math.sin(rt.player.yaw);
-  const halfView = Math.atan(Math.tan((rt.camera?.fov || 60) * Math.PI / 360) * (rt.camera?.aspect || 1.8));
-  if (!viaCam && !distant && d > 0.2 && Math.abs(Math.atan2(side, forward)) > halfView) return false;
+  // カメラがある時は上の投影で判定済み。兵の印ごとに使わない三角関数を計算しない。
+  if (!rt.camera && !distant && d > 0.2) {
+    const forward = dx * Math.sin(rt.player.yaw) + dz * Math.cos(rt.player.yaw);
+    const side = dx * Math.cos(rt.player.yaw) - dz * Math.sin(rt.player.yaw);
+    const halfView = Math.atan(Math.tan(60 * Math.PI / 360) * 1.8);
+    if (Math.abs(Math.atan2(side, forward)) > halfView) return false;
+  }
   // 遠景も朝霧と距離で隠れる。描画を止める遠さを「見える遠さ」にしない。
   if (d > Math.min(limit, weatherSight(W), W.vis ?? 680) || !weatherSees(W, a, p)) return false;
   const ay = a.y + (fromCamera || distant ? 0 : 1.6), by = (p.y ?? W.heightAt(p.x, p.z)) + targetHeight;
@@ -131,11 +133,22 @@ function sightPointNow(rt, p, limit, distant, targetHeight) {
 const solidGrids = new WeakMap();
 export const SIGHT_DBG = { full: false };   // 確かめ用：true で升を使わず全部の壁を見る
 const SG_CELL = 24;
-function solidGrid(solids) {
+let solidStamp = 0;
+function solidGrid(solids, frame) {
   let G = solidGrids.get(solids);
-  if (G && G.n === solids.length) return G;
-  G = { n: solids.length, map: new Map(), rest: [], stamp: 0 };
-  for (const w of solids) {
+  if (!G || solids.length < G.length) {
+    G = { n: 0, length: solids.length, map: new Map(), rest: [], frame: null };
+    solidGrids.set(solids, G);
+  }
+  G.length = solids.length;
+  if (G.n === solids.length || G.frame === frame) return G;
+  G.frame = frame;
+  // 増えた壁だけ登録する。同じコマに何本の視線を調べても三十二個・半ミリ秒まで。
+  // 未登録の壁も呼び出し側で直接調べ、途中の升で壁を透視させない。
+  const end = Math.min(solids.length, G.n + 32), started = performance.now();
+  while (G.n < end) {
+    if (G.n % 4 === 0 && performance.now() - started >= 0.5) break;
+    const w = solids[G.n++];
     if (w.x0 == null || w.x1 == null || w.z0 == null || w.z1 == null) { G.rest.push(w); continue; }
     const cx0 = Math.floor(w.x0 / SG_CELL), cx1 = Math.floor(w.x1 / SG_CELL), cz0 = Math.floor(w.z0 / SG_CELL), cz1 = Math.floor(w.z1 / SG_CELL);
     if ((cx1 - cx0 + 1) * (cz1 - cz0 + 1) > 64) { G.rest.push(w); continue; }   // 広い物は常に調べる
@@ -144,7 +157,6 @@ function solidGrid(solids) {
       let a = G.map.get(k); if (!a) G.map.set(k, a = []); a.push(w);
     }
   }
-  solidGrids.set(solids, G);
   return G;
 }
 function wallCuts(w, a, p, ay, by) {
@@ -166,12 +178,13 @@ export function cameraWallBlocked(rt, a, p, ay = a.y, by = p.y, custom = true) {
   if (custom && rt.def?.sightBlocked?.(rt, a, p, ay, by)) return true;
   const solids = rt.army.solids;
   if (!solids || !solids.length) return false;
-  const G = solidGrid(solids);
+  const G = solidGrid(solids, rt.t);
   const x0 = Math.floor(Math.min(a.x, p.x) / SG_CELL), x1 = Math.floor(Math.max(a.x, p.x) / SG_CELL);
   const z0 = Math.floor(Math.min(a.z, p.z) / SG_CELL), z1 = Math.floor(Math.max(a.z, p.z) / SG_CELL);
   if (!SIGHT_DBG.full && (x1 - x0 + 1) * (z1 - z0 + 1) <= 36) {
+    for (let i = G.n; i < solids.length; i++) if (wallCuts(solids[i], a, p, ay, by)) return true;
     for (const w of G.rest) if (wallCuts(w, a, p, ay, by)) return true;
-    const stamp = ++G.stamp;
+    const stamp = ++solidStamp;
     for (let i = x0; i <= x1; i++) for (let j = z0; j <= z1; j++) {
       const list = G.map.get(i * 65536 + j);
       if (!list) continue;
@@ -232,7 +245,7 @@ export function sightScreenUnit(rt, u) {
 // 壁は透かさず、見通しは兵ごとに五分の一秒だけ覚える。
 const inouSignCache = new WeakMap();
 // 先端は本人の笠のすぐ上。頭上の印・見通し・ピンで同じ高さを使う。
-export const inouSignHeight = (u) => u.mounted ? 3.17 : Math.max(2.35, (u.bodyHeight || 1.72) + .38);
+export const inouSignHeight = (u) => u.mounted ? 3.17 : Math.max(2.1, (u.bodyHeight || 1.72) + .38);
 export function inouSignVisible(rt, u) {
   if (!u?.alive || u.gone || u.dying || u.woundOut || u.rearWound || u.camHidden || u.mesh?.visible === false) return false;
   const p = u.pos, cam = rt.camera.position, fog = rt.scene.fog;

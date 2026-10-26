@@ -2091,7 +2091,7 @@ const tedorigawa = {
       geo.rotateZ(Math.PI / 2);
       for (let i = 0; i < 7; i++) {
         const m = new THREE.Mesh(geo, mat);
-        const lg = { m, x: -200 + i * 62, dz: (i % 2 ? -1 : 1) * 10, sp: 2.2 + (i % 3) * 0.5, r: i * 0.7, dx: 0, dzStep: 0, alongX: 1, alongZ: 0, wrapped: false };
+        const lg = { m, x: -200 + i * 62, dz: (i % 2 ? -1 : 1) * 10, sp: 2.2 + (i % 3) * 0.5, r: i * 0.7, dx: 0, dzStep: 0, alongX: 1, alongZ: 0, wrapped: false, placed: false };
         rt.scene.add(m);
         F.logs.push(lg);
       }
@@ -2109,8 +2109,10 @@ const tedorigawa = {
       }
       lg.m.position.set(lg.x, rt.world.heightAt(lg.x, z + lg.dz) + rt.world.waterDepthAt(lg.x, z + lg.dz) - 0.1 + Math.sin(rt.t * 1.3 + lg.r) * 0.06, z + lg.dz);
       lg.m.rotation.y = yaw + Math.sin(rt.t * 0.5 + lg.r) * 0.3;
-      lg.dx = lg.wrapped ? 0 : lg.m.position.x - px;
-      lg.dzStep = lg.wrapped ? 0 : lg.m.position.z - pz;
+      // 初めの配置は流れた距離に数えない。つかまった兵を原点からの差だけ飛ばさない。
+      lg.dx = lg.wrapped || !lg.placed ? 0 : lg.m.position.x - px;
+      lg.dzStep = lg.wrapped || !lg.placed ? 0 : lg.m.position.z - pz;
+      lg.placed = true;
       lg.alongX = Math.cos(lg.m.rotation.y); lg.alongZ = -Math.sin(lg.m.rotation.y);
     }
     if (F.step < 1) return;

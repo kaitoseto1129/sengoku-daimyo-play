@@ -93,7 +93,7 @@ html body #hud.anegawa-notices #battle-notices:not(.choosing) #objectives:not(.e
 #hud #battle-message { display:flex; flex-direction:column; gap:8px; flex:0 0 auto; min-width:0; width:100%; }
 #hud #objectives #battle-log-entry { min-height:44px; margin-top:8px; padding:4px 0; border-width:0 0 1px; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:max(12px, calc(12px * var(--text-scale, 1))); }
 /* 一行の任務でも、一覧を開く押し場は携帯の指が収まる高さを保つ。 */
-#hud #objectives #obj-list { min-width:44px; min-height:44px; box-sizing:border-box; padding:9px 0; margin:0; }
+#hud #objectives #obj-list { min-width:44px !important; min-height:44px !important; height:auto !important; flex-shrink:0; box-sizing:border-box; padding:9px 0; margin:0; }
 #hud #objectives #obj-list + .battle-action:not([hidden]) { margin-top:8px; }
 /* 武将の札の幅は左右の端から決める。横向きの配置へ固定幅を持ち越さない。 */
 #hud #battle-notices #choice { pointer-events:auto; flex:1 1 auto; min-height:88px; max-height:none; overflow:auto; }
