@@ -564,7 +564,12 @@ const okehazama = {
   // 右上はミッションの一行だけ。距離・向き・操作の字を見出しに出さない（kaito 10/23 49・50）。
   // 間合いと命中は頭上の▼で示し、別の距離案内は出さない。
   enemyOrder(rt, enemy) {
-    return '今川の兵を倒せ';
+    return enemy && enemy === rt.flags.yoshimoto ? '今川義元をたおせ' : '▼の兵をたおせ';
+  },
+  // 大将の印：義元を討つ段だけ、地図と戦場で大将の印を大きくする（稲生の型）。
+  commanderTarget(rt) {
+    const F = rt.flags;
+    return rt.phase === 'assault' && F.entered && !F.victory && !F.yoshiDown && F.yoshimoto?.alive && !this.objectiveEnemies(rt).length ? F.yoshimoto : null;
   },
   missionSignTarget(rt) {
     const F = rt.flags, p = rt.player;
@@ -672,7 +677,9 @@ const okehazama = {
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は、今する動きを短くやさしく伝える。
   missionSingleLine: true,
-  missions: ['織田信長の組のピンに集まれ', '組のピンに集まれ', '雨がやむまで待て', '赤い三角の今川の兵を倒せ', 'いまがわよしもとを倒せ', 'にげる敵を追え', '仲間と集まれ'],
+  hideGuideSteps: true,
+  // 稲生の型：短い一行。兵は頭上の▼、大将は名で呼び、討った瞬間に次の一行へ替える。
+  missions: ['ピンに集まれ', 'ピンに集まれ', 'ここで雨を待て', '▼の兵をたおせ', '今川義元をたおせ', 'にげる敵を追え', '味方と集まれ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -681,11 +688,12 @@ const okehazama = {
   },
   missionHeading(rt) {
     // 合流済みの待ちは敵が寄っても続く。同じ丸と一行を雨上がりまで保つ。
-    if (rt.phase === 'wait') return '雨がやむまで待て';
-    if (rt.phase === 'brief' && rt.flags.briefed) return '組の出発を待て';
-    if (rt.phase === 'march' && rt.flags.scoutFighting) return '赤い三角の今川の兵を倒せ';
-    if (rt.phase === 'assault' && rt.flags.entered && !rt.flags.victory && this.objectiveEnemies(rt).length) return '赤い三角の今川の兵を倒せ';
-    if (rt.phase === 'march') return this.squadFlagReached(rt) ? '仲間を待て' : '組のピンに集まれ';
+    if (rt.phase === 'wait') return 'ここで雨を待て';
+    if (rt.phase === 'brief' && rt.flags.briefed) return 'ここで出発を待て';
+    if (rt.phase === 'march' && rt.flags.scoutFighting) return '▼の兵をたおせ';
+    // 義元に深手を負わせた瞬間に「義元をたおせ」を下ろし、囲む旗本へ移す。
+    if (rt.phase === 'assault' && rt.flags.entered && !rt.flags.victory && (rt.flags.yoshiDown || this.objectiveEnemies(rt).length)) return '▼の兵をたおせ';
+    if (rt.phase === 'march') return this.squadFlagReached(rt) ? '味方を待て' : 'ピンに集まれ';
     return this.missions[this.missionOf(rt)];
   },
   // 今の行き先と同じ旗持ちを示す。兵は増やさない。
@@ -726,46 +734,42 @@ const okehazama = {
   missionPin(rt) {
     const F = rt.flags;
     if (F.ending || rt.hud.retreatGuide?.active && rt.hud.retreatGuide.valid) return null;
-    // 未合流の接敵中は赤い▼だけ。合流後の時計は接敵しても消さない。
+    // 到着後は任務の一行だけ。待つ丸を新しい行き先や自分の印に見せない。
+    if (rt.phase === 'wait' || rt.phase === 'brief' && F.briefed ||
+        (rt.phase === 'brief' || rt.phase === 'march') && this.squadFlagReached(rt)) return null;
+    // 未合流の接敵中も赤い▼だけ。
+    if (F.scoutFighting && rt.phase !== 'assault') return null;
     const timedWait = rt.phase === 'wait' || rt.phase === 'brief' && F.briefed;
-    if (F.scoutFighting && rt.phase !== 'assault' && !timedWait && !(F.waitPinCompleteUntil > rt.t)) return null;
     const pin = F.missionPinTarget || (F.missionPinTarget = { x: 0, z: 0, r: 8, hide: 8 });
+    // 稲生の型：戦う相手が画面に無い時は、最寄りの残りの敵の足元へピンを刺す（見えている間は頭上の▼だけ）。
+    const enemyPin = (enemy) => {
+      const P = rt.player;
+      if (!readyUnit(enemy) || P.inRange && P.rangeCueTarget === enemy) return null;
+      pin.x = enemy.pos.x; pin.z = enemy.pos.z; pin.r = .2; pin.hide = .2;
+      pin.unit = enemy; pin.enemy = true; pin.approach = true; pin.always = false;
+      pin.area = false; pin.arrived = false; pin.waiting = false; pin.progress = null; pin.arrivalProgress = null;
+      pin.footRing = false; pin.follow = false; pin.dodge = false; pin.key = 'enemy';
+      return pin;
+    };
+    if (F.scoutFighting && rt.phase !== 'assault' && !timedWait && !(F.waitPinCompleteUntil > rt.t)) return enemyPin(this.missionSignTarget(rt));
     pin.enemy = false; pin.dodge = false; pin.unit = null; pin.waiting = undefined; pin.always = false;
     pin.waitDuration = rt.phase === 'brief' ? DEPART_WAIT : RAIN_WAIT;
     pin.area = false; pin.arrived = false; pin.progress = null; pin.arrivalProgress = null; pin.footRing = false; pin.follow = false; pin.approach = false;
     // 任務札の更新で、同じ集合ピンの到着表示を初期化しない。
     pin.key = rt.phase;
-    // 雨待ちの丸が満ちたことを一息見せてから、戦う相手の印へ切り替える。
-    if (F.waitPinCompleteUntil > rt.t && F.waitPinCompletePos) {
-      const pos = F.waitPinCompletePos;
-      pin.x = pos.x; pin.z = pos.z; pin.r = JOIN_RADIUS; pin.hide = 0;
-      pin.key = 'wait'; pin.always = true; pin.area = true;
-      pin.waiting = true; pin.arrived = true; pin.progress = 1;
-      return pin;
-    }
     // 戦う相手は頭上の赤い▼だけ。ピンは通れる幕の口だけに残す。
     if (rt.phase === 'assault' && !F.victory) {
       const entrance = !F.entered && F.roadStep >= F.road.length ||
         F.guardOpened && !F.mouthReached && !F.koshiLeft;
-      // 敵の位置は本人の頭上の赤い▼だけ。集合用の黄ピンを人や敵の手前に重ねない。
-      if (!entrance) return null;
+      // 敵の位置は本人の頭上の赤い▼。画面に無い時だけ、最寄りの残りの敵へピンを刺す。
+      if (!entrance) return enemyPin(this.missionSignTarget(rt));
       const pos = F.honjinPin || (F.honjinPin = fieldPoint(18, -100));
       pin.x = pos.x; pin.z = pos.z; pin.r = 0; pin.hide = 0;
-      return pin;
-    }
-    // 雨待ちは到着した時に始まる。少し歩いても時計は止まらず、集合をやり直させない。
-    if (rt.phase === 'wait') {
-      const pos = F.marchPinPos || this.squadFlagPosition(rt);
-      if (!pos) return null;
-      pin.x = pos.x; pin.z = pos.z; pin.r = JOIN_RADIUS; pin.hide = 0;
-      pin.area = true; pin.waiting = true; pin.arrived = true;
-      pin.progress = this.missionWaitProgress(rt);
       return pin;
     }
     if (rt.phase === 'brief' || rt.phase === 'march') {
       // 輪に入った時の到着判定を使い、共通描画の距離判定で先に消さない。
       pin.always = true;
-      if (F.scoutFighting && !timedWait) return null;
       // 歩く旗持ちではなく、実際に到着すると次の段へ進む集合地点へ刺す。
       if (rt.phase === 'march') {
         const pos = F.marchPinPos || this.squadFlagPosition(rt);
@@ -773,8 +777,7 @@ const okehazama = {
         pin.x = pos.x; pin.z = pos.z;
         // 集合先を地面へ固定する。札避けで近くの兵や別の場所を指さない。
         pin.area = true; pin.hide = 0; pin.r = JOIN_RADIUS;
-        pin.arrived = this.squadFlagReached(rt); pin.waiting = pin.arrived;
-        // 穴が満ちるのは待ち時間だけ。到着はチェックで示し、雨待ちの時計を先に満たさない。
+        // 到着したら次の更新で消える。時計やチェックへ形を替えない。
         return pin;
       }
       const pos = this.squadFlagPosition(rt);
@@ -783,12 +786,6 @@ const okehazama = {
       pin.r = JOIN_RADIUS;
       // ピンは到着判定と同じ地面の一点へ。人物への話しかけの印にしない。
       pin.hide = 0; pin.waiting = false; pin.area = true;
-      pin.arrived = rt.phase === 'brief' && F.briefed || this.squadFlagReached(rt);
-      // 出発前も同じピンの穴が満ちる。別の時計や人物の印へ切り替えない。
-      if (pin.arrived) {
-        pin.waiting = true;
-        pin.progress = this.missionWaitProgress(rt);
-      }
       return pin;
     }
     const guide = rt.missionGuide, marker = guide?.marker;
@@ -935,8 +932,8 @@ const okehazama = {
     const p = rt.player.u.pos;
     return at ? Math.hypot(at.x - p.x, at.z - p.z) : Infinity;
   },
-  // 屋外の集合は、描いた輪の中へ入れば到着。中心への視線を追加条件にしない。
-  // 槍や柵の判定が中心との間にあっても、輪の中で集合をやり直させない。
+  // ピンのそばで到着。中心への視線を追加条件にしない。
+  // 槍や柵の判定が中心との間にあっても、集合をやり直させない。
   squadFlagReached(rt) {
     return this.squadFlagDistance(rt) <= JOIN_RADIUS;
   },
@@ -1928,7 +1925,7 @@ const okehazama = {
     E.push(enemyGroup(rt, { fixed: true, noGuard: true, faction: 'imagawa', formation: 'yari', spacing: 1.5, width: 12, anchor: fieldPoint(-4, -134), facing: (0.2) + FIELD_TURN, morale: 85, fleeDir: fieldVector(-0.2, -1), aggro: 7 }, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 11 }, { type: 'bow', n: 2 }]));
     // 義元が刀で戦う姿は後世の伝承を借りた補い。武将の既定の騎乗を使わない。
     const H = enemyGroup(rt, { fixed: true, noGuard: true, faction: 'imagawa', name: '義元の旗本', formation: 'ring', yariRanks: 3, width: 12, anchor: fieldPoint(HONJIN.x, HONJIN.z + 2), facing: FIELD_TURN, morale: 100, fleeDir: fieldVector(0, -1), aggro: 6, noRout: true, spacing: 1.8 },
-      [{ type: 'busho', n: 1, o: { name: '今川義元', horse: false, invuln: true, noHead: true } }, { type: 'busho', n: 1, o: { name: '山田新右衛門', horse: false } }, { type: 'samurai', n: 5, o: { hp: 55, maxHp: 55 } }, { type: 'ashigaru', n: 24, o: { hp: 55, maxHp: 55 } }]);
+      [{ type: 'busho', n: 1, o: { name: '今川義元', horse: false, invuln: true, noHead: true, flagScale: 2.2 } }, { type: 'busho', n: 1, o: { name: '山田新右衛門', horse: false } }, { type: 'samurai', n: 5, o: { hp: 55, maxHp: 55 } }, { type: 'ashigaru', n: 24, o: { hp: 55, maxHp: 55 } }]);
     rt.flags.yoshimoto = H.units[0];
     // 義元は主人公だけでなく味方の槍でも傷つく。首を挙げる筋は毛利新介へ結ぶ。
     H.units[0].allyOk = true;
@@ -2079,8 +2076,8 @@ const okehazama = {
     rt.flags.briefReadyAt = rt.t + DEPART_WAIT;
     rt.uninteract('talk');
     rt.obj('talk', 'その場で組頭の出発を待とう', 'main', true);
-    // 満ちた丸を待機中に一拍見せ、集合の指示へ切り替える時には次のピンを示す。
-    rt.after(DEPART_WAIT + .4, () => this.startMarch(rt));
+    // ピンの時計が満ちる時に仲間も歩き出し、次の集合先へ切り替える。
+    rt.after(DEPART_WAIT, () => this.startMarch(rt));
   },
   startMarch(rt) {
     if (rt.over || rt.flags.ending || rt.phase !== 'brief') return;
@@ -2667,6 +2664,10 @@ const okehazama = {
     const reachMori = F.yoshiDown && rt.t - F.yoshiDownT > 25 ? 6 : 3;
     if (F.yoshiDown && rt.t - F.yoshiDownT >= 5 && (guards <= 10 || longDown) && hattoriDone && mor && mor.alive && !mor.woundOut && !mor.fleeing && !mor.noTarget && Math.hypot(mor.pos.x - y.pos.x, mor.pos.z - y.pos.z) < reachMori && !rt.army.wallBetween(mor.pos, 0, y.pos)) {
       y.invuln = false; rt.army.kill(y, mor);
+    }
+    // 深手から十二秒で首を挙げる。任務の一行と段を長く止めない（稲生の型）。
+    if (y.alive && F.yoshiDown && rt.t - F.yoshiDownT >= 12) {
+      y.invuln = false; rt.army.kill(y, mor?.alive ? mor : rt.player.u);
     }
     if (!y.alive) { this.returnHome(rt); return; }
     // 人数と任務の段が進まない時間を測る。敵が移動しただけでは数え直さない。

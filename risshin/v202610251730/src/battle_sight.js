@@ -95,12 +95,14 @@ function sightPointNow(rt, p, limit, distant, targetHeight) {
     const pe = rt.camera.projectionMatrix.elements;
     if (vz >= -rt.camera.near || Math.abs(vx * pe[0]) > -vz || Math.abs(vy * pe[5]) > -vz) return false;
   } else if (dx * Math.sin(rt.player.yaw) + dz * Math.cos(rt.player.yaw) < 0) return false;
-  const viaCam = !!rt.camera;
   const d = Math.hypot(dx, dz);
-  const forward = dx * Math.sin(rt.player.yaw) + dz * Math.cos(rt.player.yaw);
-  const side = dx * Math.cos(rt.player.yaw) - dz * Math.sin(rt.player.yaw);
-  const halfView = Math.atan(Math.tan((rt.camera?.fov || 60) * Math.PI / 360) * (rt.camera?.aspect || 1.8));
-  if (!viaCam && !distant && d > 0.2 && Math.abs(Math.atan2(side, forward)) > halfView) return false;
+  // カメラがある時は上の投影で判定済み。兵の印ごとに使わない三角関数を計算しない。
+  if (!rt.camera && !distant && d > 0.2) {
+    const forward = dx * Math.sin(rt.player.yaw) + dz * Math.cos(rt.player.yaw);
+    const side = dx * Math.cos(rt.player.yaw) - dz * Math.sin(rt.player.yaw);
+    const halfView = Math.atan(Math.tan(60 * Math.PI / 360) * 1.8);
+    if (Math.abs(Math.atan2(side, forward)) > halfView) return false;
+  }
   // 遠景も朝霧と距離で隠れる。描画を止める遠さを「見える遠さ」にしない。
   if (d > Math.min(limit, weatherSight(W), W.vis ?? 680) || !weatherSees(W, a, p)) return false;
   const ay = a.y + (fromCamera || distant ? 0 : 1.6), by = (p.y ?? W.heightAt(p.x, p.z)) + targetHeight;
@@ -243,7 +245,7 @@ export function sightScreenUnit(rt, u) {
 // 壁は透かさず、見通しは兵ごとに五分の一秒だけ覚える。
 const inouSignCache = new WeakMap();
 // 先端は本人の笠のすぐ上。頭上の印・見通し・ピンで同じ高さを使う。
-export const inouSignHeight = (u) => u.mounted ? 3.17 : Math.max(2.35, (u.bodyHeight || 1.72) + .38);
+export const inouSignHeight = (u) => u.mounted ? 3.17 : Math.max(2.1, (u.bodyHeight || 1.72) + .38);
 export function inouSignVisible(rt, u) {
   if (!u?.alive || u.gone || u.dying || u.woundOut || u.rearWound || u.camHidden || u.mesh?.visible === false) return false;
   const p = u.pos, cam = rt.camera.position, fog = rt.scene.fog;

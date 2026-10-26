@@ -72,8 +72,10 @@ export class HudMap {
     const Sz = cv.width;
     g.clearRect(0, 0, Sz, Sz);
     const p = rt.player.u;
-    const inou = rt.def.key === 'inou';
-    const ownGroup = inou ? rt.flags.hata : rt.hostGroup;
+    // 桶狭間も稲生と同じ小さな地図：名は自分の組と信長だけ、行き先は▼と大将の菱形。
+    const oke = rt.def.key === 'okehazama';
+    const inou = rt.def.key === 'inou' || oke;
+    const ownGroup = rt.def.key === 'inou' ? rt.flags.hata : rt.hostGroup;
     // 名前は自分の組と大将だけ。同じ場所の札を重ねない。
     const names = this._mapNameRects || (this._mapNameRects = []);
     let nameCount = 0;
@@ -394,7 +396,7 @@ export class HudMap {
         g.fillRect(a - r0 / 2, b - r0 / 2, r0, r0);
       }
     }
-    const missionEnemy = rt.def.key === 'inou' ? markedEnemy(rt) : null;
+    const missionEnemy = inou ? markedEnemy(rt) : null;
     // 名のある敵将は小さな地図でも菱形。点と同じ見通し判定で、文字は添えない。
     for (const u of rt.army.units) {
       if (u === missionEnemy || u.team === 0 || !u.name || !u.alive || u.gone || u.dying || u.woundOut || u.type === 'dummy') continue;
@@ -527,7 +529,7 @@ export class HudMap {
         g.fillStyle = col;
         // 字は要る時だけ：自分の組は隊の名、敵は乱れた時だけ（意気盛ん・平常は書かない）
         const report = grp.team === 0 && rt.allyOrders && rt.allyOrders.find((r) => r.g === grp && r.active);
-        const lbl = inou ? grp === ownGroup ? '自分の組' : grp === rt.flags.nobuGroup ? '織田信長' : '' : grp.isPlayerSquad ? ((rt.squadGroups.length > 1 ? GROUP_NAME[grp.kind] : '') || '自分の組') + (grp.morale < 50 ? ` ${moraleWord(grp.morale)}` : '') : grp.team !== 0 ? (grp.routed ? '潰走' : grp.morale < 50 ? moraleWord(grp.morale) : '') : report ? `${report.number} ${report.name}・${report.action}` : '';
+        const lbl = inou ? grp === ownGroup ? '自分の組' : grp === (oke ? rt.flags.nob : rt.flags.nobuGroup) ? '織田信長' : '' : grp.isPlayerSquad ? ((rt.squadGroups.length > 1 ? GROUP_NAME[grp.kind] : '') || '自分の組') + (grp.morale < 50 ? ` ${moraleWord(grp.morale)}` : '') : grp.team !== 0 ? (grp.routed ? '潰走' : grp.morale < 50 ? moraleWord(grp.morale) : '') : report ? `${report.number} ${report.name}・${report.action}` : '';
         if (report) g.font = `${Math.ceil(12 * px)}px sans-serif`;
         if (lbl) drawName(lbl, a + r0 * 4.6, b - 4);
       }
