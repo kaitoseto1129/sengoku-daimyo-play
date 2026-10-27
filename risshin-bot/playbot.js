@@ -2380,6 +2380,7 @@ async function playPersona(game, spec, aud, c) {
   rep.down = !!(b.result && b.result.down) || !P.alive;
   rep.hurt = Object.entries(hurt).sort((a, z) => z[1] - a[1]).map(([k, v]) => `${k} ${Math.round(v)}`).join('・');
   if (rep.down && hitLog.length) rep.hurt += `｜段 ${b.phase || '―'}・最後の傷 ${hitLog.join(' ')}｜跡 ${(b._trace || []).join(' ')}`;
+  else if (!rep.main) rep.hurt += `｜段 ${b.phase || '―'}｜訳 ${b.result?.failureReason || b.result?.outcomeReason || '―'}｜跡 ${(b._trace || []).join(' ')}`;   // 倒れずに任務を落とした時も、最後の四十秒の居場所を残す
   rep.lines = b.tracker.lines().map((l) => `${l.label} ${l.pts > 0 ? '+' : ''}${l.pts}`).join('、');
   rep.attacks = rep.attacks || 0;
   rep.cmds = c.cmdN || 0; c.cmdN = 0;
