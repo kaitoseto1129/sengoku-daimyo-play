@@ -133,12 +133,14 @@ export async function openChrome({ width = 1600, height = 900, port = 9400 + Mat
     if (!ws) throw new Error('Chrome が起きませんでした');
     await new Promise((r) => ws.addEventListener('open', r));
     let id = 0; const pend = new Map();
-    ws.addEventListener('message', (m) => { const d = JSON.parse(m.data); if (d.id && pend.has(d.id)) { pend.get(d.id)(d); pend.delete(d.id); } });
+    const evs = new Set();   // 知らせ（method のある便り）を受ける（Tracing など）
+    ws.addEventListener('message', (m) => { const d = JSON.parse(m.data); if (d.id && pend.has(d.id)) { pend.get(d.id)(d); pend.delete(d.id); } else if (d.method) for (const f of evs) f(d); });
     const send = (method, params = {}) => new Promise((r) => { const i = ++id; pend.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
     await send('Page.enable');
     await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
     return {
       send,
+      on(f) { evs.add(f); return () => evs.delete(f); },
       async goto(url, wait = 6000) { await send('Page.navigate', { url }); await sleep(wait); },
       async ev(expr) {
         const r = await send('Runtime.evaluate', { expression: `(async () => { ${expr} })()`, awaitPromise: true, returnByValue: true });
