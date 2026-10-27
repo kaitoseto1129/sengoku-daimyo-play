@@ -130,7 +130,7 @@ function ldBegin(keys, battle = '') {
   stage('戦いの準備をしています', keys[0]);
   ldIv = setInterval(ldTick, 150);
 }
-// 工程内は見込みの九割まで進め、実際に終わった分が多ければそちらを使う。
+// 工程内は所要時間の見込みで進め、実際に終わった分が多ければそちらを使う。
 // 遅い端末でも後戻りせず、完了前に満ち切らない。戦が始まったら更新は止める。
 function ldTick() {
   const P = ldPlan;
@@ -142,7 +142,10 @@ function ldTick() {
   }
   const current = P.est[P.cur] || 0;
   const elapsed = Math.max(0, performance.now() - P.t);
-  const within = Math.max(P.part, current ? .9 * elapsed / (elapsed + current) : 0);
+  // 覚えた所要時間で九割まで進む。見込みを超えた分はゆっくり進め、工程の完了を待つ。
+  const ratio = current ? elapsed / current : 0;
+  const estimated = ratio <= 1 ? .9 * ratio : .9 + .08 * (ratio - 1) / ratio;
+  const within = Math.max(P.part, estimated);
   P.progress = Math.max(P.progress, Math.min(.98, (done + current * within) / Math.max(1, total)));
   $('loading').style.setProperty('--ld-progress', `${P.progress * 100}%`);
   const left = $('ld-left');

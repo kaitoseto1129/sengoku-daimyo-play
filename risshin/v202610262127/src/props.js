@@ -2930,7 +2930,9 @@ export function tobira(world, x, z, w, rot = 0, o = {}) {
 }
 
 // 俵（兵糧）：藁の俵を積み、縄で縛る
-export function tawara(world, x, z, rot = 0, n = 6) {
+export function tawara(world, x, z, rot = 0, n = 6, o = {}) {
+  // 室内の調度として置く時は、間取り側で高さ付きの当たりを作る。
+  if (o.solid !== false) solidRect(x, z, 1.1, n > 3 ? 1.8 : 1.3, rot);
   const parts = [];
   let k = 0;
   for (let row = 0; row < 3 && k < n; row++) {
@@ -4035,7 +4037,7 @@ export function kobune(x, y, z, rot = 0, len = 7) {
 // 稲架（はさ）：刈った稲を掛けて干す木組み。刈田の畦に立てる。前は +z
 export function hasa(world, x, z, rot = 0, len = 8) {
   const parts = [];
-  solidRect(x, z, len + 0.4, 0.6, rot);
+  solidRect(x, z, len + 0.4, 0.6, rot).civilianSightTop = world.heightAt(x, z) + 2.1;
   const n = Math.max(2, Math.round(len / 2.2));
   for (let i = 0; i <= n; i++) {
     const lx = (i / n - 0.5) * len;
@@ -5365,6 +5367,7 @@ export function kuruwaBldg(world, kind, x, z, rot = 0, o = {}) {
   // 指定した山城だけ板の継ぎ目と押縁を作る。材質と描画の束は既存の木と共用。
   const boardRoof = o.ita && o.boardRoof === true && true;
   const timberStore = o.ita && o.timberStore === true && true;
+  const openStable = kind === 'umaya' && o.openStable === true && SETTINGS.quality === 'high';
   const roof = (ry, w, d, h) => {
     if (!o.ita) { ktile(B.tile, B.plaster, x, ry, z, w, d, h, rot, 0.4); return; }
     if (boardRoof) {
@@ -5429,20 +5432,71 @@ export function kuruwaBldg(world, kind, x, z, rot = 0, o = {}) {
   } else {
     // 厩：奥と妻は板壁、前は柱だけ（開け放ち）。仕切りの板、馬栓棒、飼い葉桶。板葺きの切妻
     const L = 10.8, D = 4.4, H = 2.6; fw = L; fd = D;
+    // 稲葉山の厩は中央二房を出入り口にする推定の納まり。
+    // 見える壁・柱・馬栓棒だけに当たりを付け、開いた正面を四角で塞がない。
+    const barrier = (ax, az, bx, bz, r, top) => {
+      if (!openStable) return;
+      const a = P(ax, az), b = P(bx, bz);
+      Object.assign(solidSeg(a[0], a[1], b[0], b[1], r), { yBot: y - .3, yTop: y + top });
+    };
     { const [bx, bz] = P(0, -D / 2); kbox(B.wood, 0x5e4a38, bx, y + H / 2, bz, L, H, 0.08, rot); }
+    barrier(-L / 2, -D / 2, L / 2, -D / 2, .04, H);
     for (const q of [-1, 1]) { const [sx, sz] = P(q * L / 2, 0); kbox(B.wood, 0x5e4a38, sx, y + H / 2, sz, 0.08, H, D, rot); }
+    for (const q of [-1, 1]) barrier(q * L / 2, -D / 2, q * L / 2, D / 2, .04, H);
     for (let i = 0; i <= 6; i++) {
       const lx = -L / 2 + i * L / 6;
       for (const lz of [-D / 2, D / 2]) { const [px, pz] = P(lx, lz); kbox(B.wood, 0x3a2c20, px, y + H / 2, pz, 0.18, H, 0.18, rot); }
-      if (i > 0 && i < 6) { const [qx, qz] = P(lx, -0.2); kbox(B.wood, 0x5a4634, qx, y + 0.8, qz, 0.06, 1.4, D - 0.6, rot); }
+      for (const lz of [-D / 2, D / 2]) barrier(lx, lz - .09, lx, lz + .09, .09, H);
+      if (i > 0 && i < 6 && !(openStable && i === 3)) {
+        const [qx, qz] = P(lx, -0.2); kbox(B.wood, 0x5a4634, qx, y + 0.8, qz, 0.06, 1.4, D - 0.6, rot);
+        barrier(lx, -D / 2 + .1, lx, D / 2 - .5, .03, 1.5);
+      }
     }
-    for (const hy of [0.8, 1.25]) { const [mx, mz] = P(0, D / 2 - 0.1); kbox(B.wood, 0x4a3a2a, mx, y + hy, mz, L - 0.2, 0.08, 0.08, rot); }
-    { const [tx, tz] = P(0, -D / 2 + 0.45); kbox(B.wood, 0x4a3a2a, tx, y + 0.65, tz, L - 0.4, 0.35, 0.5, rot); }
-    { const [px, pz] = P(0, 0); kbox(B.wood, 0x3e3226, px, y + H + 0.1, pz, L + 0.4, 0.2, D + 0.4, rot); }
+    const rails = openStable ? [[-L / 2 + .1, -L / 6], [L / 6, L / 2 - .1]] : [[-L / 2 + .1, L / 2 - .1]];
+    for (const [a, b] of rails) {
+      for (const hy of [0.8, 1.25]) { const [mx, mz] = P((a + b) / 2, D / 2 - 0.1); kbox(B.wood, 0x4a3a2a, mx, y + hy, mz, b - a, 0.08, 0.08, rot); }
+      barrier(a, D / 2 - .1, b, D / 2 - .1, .04, 1.29);
+    }
+    if (openStable) {
+      // 飼い葉桶は底・側板・木口と脚で組み、中を覗ける形にする。
+      const troughZ = -D / 2 + .45;
+      for (const [lz, width, height, depth, cy] of [[troughZ, L - .4, .06, .5, .505],
+        [troughZ - .22, L - .4, .29, .06, .68], [troughZ + .22, L - .4, .29, .06, .68]]) {
+        const [tx, tz] = P(0, lz); kbox(B.wood, 0x4a3a2a, tx, y + cy, tz, width, height, depth, rot);
+      }
+      for (const lx of [-L / 2 + .23, L / 2 - .23]) {
+        const [tx, tz] = P(lx, troughZ); kbox(B.wood, 0x4a3a2a, tx, y + .68, tz, .06, .29, .5, rot);
+      }
+      for (const lx of [-L / 3, 0, L / 3]) {
+        const [tx, tz] = P(lx, troughZ); kbox(B.wood, 0x3a2c20, tx, y + .24, tz, .12, .48, .44, rot);
+      }
+      barrier(-L / 2 + .2, troughZ, L / 2 - .2, troughZ, .25, .825);
+      // 平らな一枚天井を外し、柱上の桁と梁で板屋根を受ける。
+      for (const lz of [-D / 2, D / 2]) {
+        const [px, pz] = P(0, lz); kbox(B.wood, 0x3e3226, px, y + H + .32, pz, L + .2, .24, .18, rot);
+      }
+      kbox(B.wood, 0x3e3226, x, y + H + 1.12, z, L + .4, .16, .16, rot);
+      const halfRoof = (D + 1.4) / 2, slope = Math.atan2(1.1, halfRoof);
+      const rafter = new THREE.BoxGeometry(.08, .12, Math.hypot(halfRoof, 1.1));
+      for (let i = 0; i <= 6; i++) {
+        const lx = -L / 2 + i * L / 6, [px, pz] = P(lx, 0);
+        kbox(B.wood, 0x3e3226, px, y + H + .1, pz, .18, .2, D + .4, rot);
+        kbox(B.wood, 0x3e3226, px, y + H + .62, pz, .12, .84, .12, rot);
+        for (const sd of [-1, 1]) {
+          const g = rafter.clone(); g.rotateX(sd * slope);
+          g.translate(lx, H + .65, sd * halfRoof / 2);
+          g.rotateY(rot); g.translate(x, y, z); B.wood.push(paint(g, 0x5c5244));
+        }
+      }
+      rafter.dispose();
+    } else {
+      { const [tx, tz] = P(0, -D / 2 + 0.45); kbox(B.wood, 0x4a3a2a, tx, y + 0.65, tz, L - 0.4, 0.35, 0.5, rot); }
+      { const [px, pz] = P(0, 0); kbox(B.wood, 0x3e3226, px, y + H + 0.1, pz, L + 0.4, 0.2, D + 0.4, rot); }
+    }
     if (boardRoof) roof(y + H + .2, L + 1.2, D + 1.4, 1.1);
     else for (const sd of [-1, 1]) { const g = new THREE.BoxGeometry(L + 1.2, 0.1, D / 2 + 1.1); g.translate(0, 0, sd * (D / 4 + 0.35)); g.rotateX(sd * 0.36); g.translate(0, H + 0.75, 0); g.rotateY(rot); g.translate(x, y, z); B.wood.push(paint(g, 0x5c5244)); }
   }
-  solidRect(x, z, fw + 0.4, fd + 0.4, rot);
+  if (!openStable) solidRect(x, z, fw + 0.4, fd + 0.4, rot);
   if (o.one) {
     // 画質「低」：みな木の材質へ（瓦は暗い灰、漆喰は白の色で）
     const tint = { tile: 0x4a4846, plaster: 0xd8d0c0, shitami: 0x2e2c28, nozura: 0x8a857a, uchikomi: 0x8a857a, iron: 0x1a1816 };

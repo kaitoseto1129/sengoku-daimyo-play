@@ -4908,12 +4908,13 @@ honnoji.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   const guardMove = () => {
     // 道の点が見えても、戸口の兵の体で足が止まる。道へ戻れる横の隙間を通す。
     // 壁と火を横切らず、退路を引き返さない一歩だけを選ぶ。
+    // 深手や振りの直前だけでなく、退き始めから追手の刃へ近づく足を除く。
     // 火の中では隙間探しで止めず、従来の出口への歩みを保つ。
     const heat = F.heatZone;
     // 角の点を越えた壁まで調べると、まだ通れる戸口の手前から横へそれてしまう。
     if (!(heat && u.pos.x > heat.x0 && u.pos.x < heat.x1 && u.pos.z > heat.z0 && u.pos.z < heat.z1))
       retreatThroughGap(b, inp, honnoRetreatStepAllowed,
-        p._gtGoal ? Math.hypot(p._gtGoal.x - u.pos.x, p._gtGoal.z - u.pos.z) : 1.5);
+        p._gtGoal ? Math.hypot(p._gtGoal.x - u.pos.x, p._gtGoal.z - u.pos.z) : 1.5, true);
     const walk = p.yaw, moving = inp.k.has('KeyW');
     let face = null, soonest = Infinity;
     let firstAngle = null, leftAngle = 0, rightAngle = 0, crossed = false, imminent = false;

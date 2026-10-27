@@ -675,9 +675,10 @@ takato.botBrain = (rt, inp, helpers) => {
     else {
       // 調べた退路を歩き、列の肩が塞ぐ時だけ通れる一歩へよける。
       // 横へよけても印から大きく離れず、壁・切岸・城兵へ向かう足は選ばない。
+      // 命が残る間も、追手の刃へ近づく直進を候補から外す。
       p.yaw = Math.atan2(q.x - p.u.pos.x, q.z - p.u.pos.z);
       if (Math.hypot(p.u.pos.x - q.x, p.u.pos.z - q.z) >= 1.5) inp.k.add('KeyW');
-      retreatThroughGap(rt, inp, retreatGapAllowed);
+      retreatThroughGap(rt, inp, retreatGapAllowed, 1.5, true);
       if (!foe) {
         // 傷や気力で駆け足は制限されない。追手が離れた隙に印まで走る。
         // 息と手当ては、退く印へ着いて足を止めてから整える。

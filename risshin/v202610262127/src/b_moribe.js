@@ -1172,7 +1172,7 @@ const moribe = {
   // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // 右上の一行は「何をするか」だけ（kaito 10/23 49・50）。段の総称で通し、向き・行き先の字は書かない。
-  missions: ['川を渡れ', '仲間を待て', '▼の敵を倒せ', '耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
+  missions: ['川を渡れ', '仲間を待て', '▼の敵を倒せ', '生き延びろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '逃げる敵を追え', '仲間と集まれ'],
   // ピン・▼・名前は同じ本人へ。描画の間引きで相手を替えない。
   commanderTarget(rt) {
     const F = rt.flags;
@@ -1245,7 +1245,7 @@ const moribe = {
       return '仲間を待て';
     }
     // 守る段は稲生と同じ一行。守る所はピン、味方はその左右へ寄る。
-    if (F.stage === 'hold') return F.lineReturning ? '仲間と集まれ' : '耐えろ';
+    if (F.stage === 'hold') return F.lineReturning ? '仲間と集まれ' : '生き延びろ';
     if (F.squadGuide && Math.hypot(p.x - F.squadGuide.pos.x, p.z - F.squadGuide.pos.z) >= 16 ||
         !F.signal && F.pointReached && !F.pointInside ||
         (F.stage === 'hold' || F.stage === 'contact' && F.vBroken) && F.lineReturning)
@@ -1335,12 +1335,12 @@ const moribe = {
     if (!F.signal) {
       if (F.pointDone) return null;
       pos = POINT2; r = FORD_R; hide = 0;
-      // 渡り終えた満杯のピンを一拍残してから、仲間を待つ時計へ替える。
+      // 到着した瞬間から待機の時計。完了のチェックを挟まない。
       q.arrived = !!(F.pointReached || F.pointInside || playerAtFord(rt.player.u.pos, rt.world));
-      q.waiting = q.arrived && rt.t - (F.fordArrivedAt ?? rt.t) >= 2.4;
+      q.waiting = q.arrived;
       q.crossing = !q.waiting;
-      // 渡った分を示し、到着の満杯を一拍残してから待機の進みに替える。
-      q.progress = q.arrived ? q.waiting ? this.missionWaitProgress(rt) || 0 : 1 :
+      // 歩いた分と待った分を混ぜず、到着後は待機の扇形だけを満たす。
+      q.progress = q.arrived ? this.missionWaitProgress(rt) || 0 :
         // 横へずれても岸へ渡った分を示す。到着前は満杯にしない。
         Math.max(0, Math.min(.98, (START2.z - rt.player.u.pos.z) / (START2.z - POINT2.z)));
       // 渡河後も対岸の同じ地点。仲間の頭へ移して敵の▼と混同させず、後続の兵を追って川へ戻らせない。
@@ -1830,7 +1830,7 @@ html:root body #hud.moribe-notices.field-clean.field-clean .bl #h-hp.hp i strong
  flex-direction:row; align-items:center; justify-content:flex-end; gap:10px;
 }
 #hud #h-prog[data-battle="moribe"] .pg-st.moribe-wait::before {
- content:''; display:block; flex:0 0 30px; width:30px; height:30px;
+ content:''; display:block; flex:0 0 38px; width:38px; height:38px;
  border:2px solid #fff3ba; border-radius:50%; box-sizing:border-box;
  background:conic-gradient(#fff3ba calc(var(--wait-progress,0) * 1%), #393328 0);
 }
@@ -2337,8 +2337,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         // ▼の中で今回削った分だけを残し、続く一撃でも減りを見届けられるようにする。
         t.moribeHitHp = hp;
         t.moribeDamageUntil = rt.t + 1.6;
-        // 一撃ごとに伸び直す。本人の選択は残し、伸びだけ次の一撃までに戻す。
-        if (!blocked) { t.moribeHitUntil = rt.t + .8; t.moribeBlockUntil = 0; }
+        // 連打の合間にも命中を見届けられる余韻を残す。
+        if (!blocked) { t.moribeHitUntil = rt.t + 1.8; t.moribeBlockUntil = 0; }
         if (!t.alive || t.dying || t.downed || t.woundOut || t.rearWound) t.moribeDefeatUntil = rt.t + 1.8;
         // 命を減らした本人だけがよろめく。空振りや味方には反応を付けない。
         if (t.alive && !blocked) {

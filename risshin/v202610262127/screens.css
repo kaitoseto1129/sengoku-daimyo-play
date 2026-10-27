@@ -68,11 +68,6 @@ html #screen .ev2:has(.ek[aria-label="雑賀攻め・小雑賀川の戦功"]) .e
 html #screen .ev2:has(.ek[aria-label="雑賀攻め・小雑賀川の戦功"]) .ev-actbar {
   flex: none; max-height: 40%; overflow-y: auto; box-sizing: border-box;
 }
-#screen .ev2 .ev-body::before {
-  content: '下へ送ると、戦の詳しい記録が読めます'; display: block;
-  padding: 8px; margin-bottom: 8px; color: var(--washi); font-size: 13px; line-height: 1.6;
-  border-bottom: 1px solid var(--line);
-}
 #screen .ev2 .ev-actbar { position: static; margin: 0; background: var(--sumi); }
 /* 鳥取の結果札は上の戻る釦も高さに数え、昇進欄まで送れるようにする。 */
 html #screen:has(.ek[aria-label="鳥取城の戦いの戦功"]) > .topback {

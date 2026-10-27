@@ -43,7 +43,7 @@ function keepFrom(v, depth = 0) {
 // clock：戦の中の時計（秒。描く時に形へ gpuUse の印を押す：main.js の renderBufferDirect）。idle：iPhone でこの秒数描かれない送り済みの形は GPU から返す（次に描く時に送り直す）
 export const GPU_GC = { at: 0, every: MEM_TIGHT ? 6 : 12, last: { kept: 0, freed: 0, readback: 0, ms: 0 }, total: 0, clock: 0, idle: MEM_TIGHT ? 5 : 10, idleFreed: 0, idleMB: 0 };
 let gcWork = null;
-// 同期の読み戻しは一コマ一配列、返却は四つまで。候補の走査も六十四個で区切る。
+// 同期の読み戻しは一コマ一配列、返却は四つまで。候補の走査も六十四個・約半ミリ秒で区切る。
 function readOneGeometryArray(g) {
   for (const k in g.attributes) if (g.attributes[k]?._gpuRef) { void g.attributes[k].array; return true; }
   if (g.index?._gpuRef) { void g.index.array; return true; }
@@ -54,6 +54,9 @@ function gcStep() {
   let scanned = 0, freed = 0;
   w.frames++;
   while (scanned < 64 && freed < 4) {
+    // 返却や属性の調べが遅い端末では、個数の上限まで詰めず次のコマへ渡す。
+    // 単発の処理は中断できないので、毎回少なくとも一つは進める。
+    if ((scanned || freed) && performance.now() - t0 >= 0.5) break;
     if (w.pending) {
       const g = w.pending;
       // 巡回を始めてから再び描いた物は保つ。別の片付けで返した物も触らない。

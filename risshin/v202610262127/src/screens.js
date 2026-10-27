@@ -234,6 +234,7 @@ mobileScreenStyle.textContent = `
     #screen.has-back { --menu-top:calc(max(10px, env(safe-area-inset-top, 0px)) + 52px); padding-top:var(--menu-top); }
     html.touch.inframe #screen.has-back { --menu-top:calc(122px + env(safe-area-inset-top, 0px)); }
     #screen .wrap:has(#tt-home) { padding-top:8px; }
+    #screen #tt-home:has(.savebox) .tt-lead { display:none; }
     #screen #tt-home .title-act { position:fixed; inset:auto 0 0; margin:0; padding:8px max(16px, env(safe-area-inset-right, 0px)) var(--menu-bottom) max(16px, env(safe-area-inset-left, 0px)); background:var(--sumi); display:flex; gap:8px; border-top:1px solid var(--line); }
     #screen #tt-home .title-act > .btn { flex:1; }
     #screen #tt-home .tt-sub { flex-basis:100%; margin:0; padding:0; border:0; gap:8px; }
@@ -288,8 +289,8 @@ document.head.appendChild(mobileScreenStyle);
 // 戦の画面の上や下が窓の外に出て「札が見えない」元になる
 function scrollIn(el, where = 'nearest') {
   const screen = document.getElementById('screen');
-  const inner = el?.closest('#st-panel, .tw-content, .st-body');
-  const s = inner && /auto|scroll/.test(getComputedStyle(inner).overflowY) ? inner : el?.closest('#pause') || screen;
+  const inner = [el?.closest('#st-panel, .tw-content, .st-body'), el?.closest('.base > main')].find((x) => x && /auto|scroll/.test(getComputedStyle(x).overflowY));
+  const s = inner || el?.closest('#pause') || screen;
   if (!el || !s || !s.contains(el)) return;
   const r = el.getBoundingClientRect(), sr = s.getBoundingClientRect();
   // 左上の戻る（画面の上に浮いている）の下に隠れないよう、その高さぶん下で止める
@@ -1895,7 +1896,6 @@ export function evalScreen(G, r, actions) {
     </details>
     ${r.spoilHorse ? `<div class="histnote" style="border-color:var(--kin)"><b>分捕った馬</b><br>${esc(r.spoilHorse.who)}の馬。${spoilReplace ? `持ち帰ると前の馬（${esc(previousSpoil?.name || previousSpoil?.from || '分捕り馬')}）と入れ替わる。持ち帰る釦で決めるまでは前の馬を残す` : '持ち帰って城下の馬屋に並べる'}${ladderStep(G) < 2 ? '（乗れるのは足軽大将から）' : ''}。<div class="row" style="margin:6px 0 0"><button class="btn small" id="ev-spoil" aria-pressed="${spoilReplace}">${spoilReplace ? '持ち帰る' : '置いていく'}</button></div><div id="ev-spoil-confirm"></div></div>` : ''}
     <details class="ek-more" id="ek-more"><summary>手柄・褒美・組の記録</summary>
-    ${categoryHelp ? '<p class="note">戦功の四区分：武は自ら戦う働き。任は任務。将は組の指揮。忠は下知を守る働き。</p>' : ''}
     <p class="note">ほかの手柄 ${Math.max(0, ekAllDeeds.length - 3)}件と、評定の内訳を読めます。</p>
     ${(window.__game?.hud?.resultNotices || []).length ? `<div class="histnote"><b>戦で届いた大事な成果</b>${window.__game.hud.resultNotices.map((line) => `<p>${esc(line.text)}</p>`).join('')}</div>` : ''}
     ${gNote ? `<p class="ev-gnote">${esc(gNote)}${gTable}</p>` : ''}
@@ -2168,7 +2168,7 @@ export function promoScreen(Gbefore, G, r, onNext) {
     ${rankupDetailsHtml(Gbefore, G, r)}
     <div class="pc-ladder" role="img" aria-label="出世の道　${KANSUJI[sB]}の段 ／ 十段">${LADDER.map((L, i) => `<i class="${i < sB ? 'done' : i === sB ? 'now' : ''}" style="--i:${i}" title="${esc(L.name)}"></i>`).join('')}</div>
     <div class="pc-ladder-lbl">出世の道　${KANSUJI[sB]}の段 ／ 十段</div>
-    <div class="pc-road" aria-label="戦ごとの戦功">${road}<span class="sum"><small>保存枠の合計戦功</small><b>${r.meritAfter - r.total} → ${r.meritAfter}</b></span></div>
+    <div class="pc-road" aria-label="戦ごとの戦功">${road}<span class="sum"><small>累計戦功</small><b>${r.meritAfter - r.total} → ${r.meritAfter}</b></span></div>
     <div class="pc-band">
       <div><div class="pc-flags">${nNew ? `<div class="pc-squad" aria-label="組の旗 ${nNew}本">${small.join('')}</div>` : ''}</div>
         ${flagCap ? `<div class="pc-flagcap">${flagCap}</div>` : ''}</div>
@@ -2211,12 +2211,10 @@ export function deathScreen(G, battleName, onTitle, downInfo, last = {}) {
   show(`<div class="story"><div>
     <div class="year">${esc(battleName)}</div>
     <h2>討たれた。命を落とした</h2>
-    <p>負け：あなたが討たれた。<br>自分の手柄：倒した敵 ${last.stats?.kills ?? 0}人・指図 ${last.stats?.commands ?? 0}回</p>
+    <p>${esc(G.name)}（${esc(RANKS[G.rank].name)}）、この地に果てる。<br>倒した敵 ${last.stats?.kills ?? 0}人・累計戦功 ${G.merit}</p>
+    ${hit ? `<p>${esc(wounds)}</p>` : ''}
+    <button class="btn primary" id="b-dead" style="position:sticky;bottom:12px;z-index:2">題の画面へ</button>
     ${downHtml(downInfo)}
-    <p>${esc(G.name)}（${esc(RANKS[G.rank].name)}）、この地に果てる。<br>累計戦功 ${G.merit}。その名は、組の者たちだけが覚えていた。</p>
-    <p>最後の傷：${esc(wounds)}</p>
-    <p>最後の任務：${last.objectives?.length ? last.objectives.map((x) => `${esc(x.text)}（${x.state === 'done' ? '果たした' : x.state === 'fail' ? '果たせなかった' : '途中'}）`).join('・') : '記録なし'}${last.time != null ? `<br>戦っていた時間：${Math.floor(last.time / 60)}分${Math.floor(last.time % 60)}秒。` : ''}</p>
-    <button class="btn primary" id="b-dead">題の画面へ</button>
   </div></div>`, false, (e) => { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); onTitle(); } });
   $('b-dead').onclick = onTitle;   // 左上にも同じ釦を置かない（W048）
   $('b-dead').focus({ preventScroll: true });
@@ -3552,16 +3550,15 @@ export function recordsScreen(onBack, current = null) {
     .records .rc-zk { background: none; border: 1px solid var(--line); color: inherit; font: inherit; cursor: pointer; min-height: 44px; display: grid; justify-items: start; text-align: left; padding: 6px 10px; }
     .records { padding-bottom: 48px; } .records #rec-back { margin-top: 18px; } .records #rec-clear { margin-bottom: 16px; }
     .records .rc-zk:hover, .records .rc-zk:focus-visible { border-color: var(--kin); }
-  </style><div class="wrap"><div class="eyebrow">記録帳　・　保存枠ごとの戦歴</div><h2 style="font-family:var(--display);font-size:max(12px, calc(32px * var(--text-scale, 1)));letter-spacing:.1em;margin:8px 0 6px">これまでの戦い</h2>
-    <p class="note">戦功・討ち取り・受け流し・称号と年表は、保存枠ごとの記録です。図鑑・実績・稽古場の最高と延べの戦は、全保存記録共通です。合計には同じ人の複製も含みます。延べの戦は別の記録です。同じ戦をやり直すと、最後の結果を残します。勝ち負けは任務を果たせたかで決まります。古い保存で分からない所は「記録なし」と出ます。</p>
+  </style><div class="wrap"><div class="eyebrow">記録帳</div><h2 style="font-family:var(--display);font-size:max(12px, calc(32px * var(--text-scale, 1)));letter-spacing:.1em;margin:8px 0 6px">これまでの戦い</h2>
     <div class="records">
-      <div><b>${sum((g) => g.merit)}</b><small>保存枠の合計戦功</small></div>
-      <div><b>${sum((g) => g.life && g.life.kills)}</b><small>保存枠の合計討ち取り</small></div>
-      <div><b>${sum((g) => g.life && g.life.parries)}</b><small>保存枠の合計受け流し</small></div>
-      <div><b>${sum((g) => (g.history || []).filter(Boolean).length)}</b><small>保存枠の結果の件数</small></div>
-      <div><b>${titles.size}/${Object.keys(TITLES).length}</b><small>保存枠で得た称号</small></div>
-      <div><b>${dojoBest}</b><small>全保存記録共通・稽古場の最高${(() => { try { const d = readDojoDetail(); return d ? `（第${d.wave}陣・${Math.floor(d.time / 60)}分${String(d.time % 60).padStart(2, '0')}秒・${d.date != null && Number.isFinite(new Date(d.date).getTime()) ? new Date(d.date).toLocaleDateString('ja-JP') : '記録なし'}）` : ''; } catch (e) { return ''; } })()}</small></div>
-      ${(() => { try { const z = readZukanRaw(); const n = z.n || {}; return `<div><b>${n.battles || 0}</b><small>全保存記録共通・延べの戦</small></div><div><b>${n.kills || 0}</b><small>全保存記録共通・延べの討ち取り</small></div><button class="rc-zk" id="rec-zk"><b>${Object.keys(z.met || {}).length}</b><small>武将図鑑を開く</small></button><button class="rc-zk" id="rec-ach"><b>${Object.keys(z.ach || {}).length}</b><small>実績を開く</small></button>`; } catch (e) { return ''; } })()}
+      <div><b>${sum((g) => g.merit)}</b><small>戦功</small></div>
+      <div><b>${sum((g) => g.life && g.life.kills)}</b><small>討ち取り</small></div>
+      <div><b>${sum((g) => g.life && g.life.parries)}</b><small>受け流し</small></div>
+      <div><b>${sum((g) => (g.history || []).filter(Boolean).length)}</b><small>終えた戦</small></div>
+      <div><b>${titles.size}/${Object.keys(TITLES).length}</b><small>称号</small></div>
+      <div><b>${dojoBest}</b><small>稽古場の最高${(() => { try { const d = readDojoDetail(); return d ? `（第${d.wave}陣・${Math.floor(d.time / 60)}分${String(d.time % 60).padStart(2, '0')}秒・${d.date != null && Number.isFinite(new Date(d.date).getTime()) ? new Date(d.date).toLocaleDateString('ja-JP') : '記録なし'}）` : ''; } catch (e) { return ''; } })()}</small></div>
+      ${(() => { try { const z = readZukanRaw(); const n = z.n || {}; return `<div><b>${n.battles || 0}</b><small>延べの戦</small></div><div><b>${n.kills || 0}</b><small>延べの討ち取り</small></div><button class="rc-zk" id="rec-zk"><b>${Object.keys(z.met || {}).length}</b><small>武将図鑑を開く</small></button><button class="rc-zk" id="rec-ach"><b>${Object.keys(z.ach || {}).length}</b><small>実績を開く</small></button>`; } catch (e) { return ''; } })()}
     </div>
     ${all.map(slotRow).join('') || '<p class="note">まだ記録がありません。戦を終えると、ここに戦ごとの評定が並びます。</p>'}
     <details><summary style="min-height:44px;padding:8px;box-sizing:border-box;cursor:pointer">段ごとの稽古の最高を見る（全保存記録共通）</summary>${(() => { try { const best = JSON.parse(localStorage.getItem('sengoku-risshin-dojo-trial') || '{}'); return `<ul>${LADDER.map((l, i) => `<li>${esc(l.name)}：${best[i] != null ? best[i] + '人' : '記録なし'}</li>`).join('')}</ul>`; } catch (e) { return '<p>段の記録を読めませんでした。</p>'; } })()}</details>

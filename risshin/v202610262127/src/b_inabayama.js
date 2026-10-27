@@ -11,7 +11,7 @@ import { battleJin, buildBattleJin } from './b_jinkei_g1.js';
 import * as THREE from 'three';
 import { gradeOf, copyGrade } from './grade.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { kitFence, paintGeo, WOOD_MAT, SOLIDS } from './props.js';
+import { kitFence, paintGeo, WOOD_MAT, SOLIDS, solidRect } from './props.js';
 import { nobori, hut, dou, kabukimon, yagura, tawara, campfire, palisade, village, ishigaki, sakamogi, kagaribi, dorui, dobei, kuruwaBldg, makeKitBatch, finalizeKitBatch, makeSimpleBatch, finalizeSimpleBatch, solidSeg, carryTorches } from './props.js';
 import { flagTexture } from './textures.js';
 import { stoneTex, barkTex, dirtTex, mudTex, leafTex } from './nature.js';
@@ -63,6 +63,12 @@ const INABA_PATHS = CASTLE_PATHS.map((p) => p === KARA ? KARA_TRAIL : p);
 const INABA_CLIMB_MAP = [KARA_TRAIL];
 // 新しい折れが腰曲輪の柵を横切る口も、この戦の縄張りだけに足す。
 const INABAYAMA_PLAN = { ...INABAYAMA_BASE_PLAN, exactGapEdges: true,
+  // 主殿も館・本堂と同じく、表の中央から広間へ通る引き分け障子口にする推定。
+  // 狭く片寄った既定の戸口を使わず、外壁・上がり台・室内の障子を同じ幅と軸へ揃える。
+  // 共通室内へ寸法だけ渡し、引き溝・開閉の札・動く戸の当たりを使い回す。
+  lordSeat: { ...INABAYAMA_BASE_PLAN.lordSeat,
+    ...(S.quality === 'high' ? { doorX: 0, entryW: 2.4 } : {}),
+  },
   // 切岸に逆茂木を自動で並べると、地面の高低差で幹が巨大な黒い針になる。
   // 枝先まで支えられる緩い地面だけに置き、裏道の通り口も空ける。
   sakamogiMaxRise: 0.8,
@@ -823,6 +829,7 @@ function gradeCastleHomes(terrain) {
     [HON.x + 12, HON.z + 6, 7, 5],
     [HON.x - 12, HON.z - 9, 5, 4],
     [HON.x - 6, HON.z + 10, 9, 4],
+    [HON.x + 8, HON.z + 12, 3, 2],
     [NI.x - 5, NI.z + 2, 5, 4],
   ].map(([x, z, w, d]) => ({ x, z, w: w / 2 + 1.4, d: d / 2 + 1.4, y: terrain(x, z) }));
   return (x, z) => {
@@ -1632,8 +1639,8 @@ function inabaOpenFence(W, seg, o = {}) {
 }
 
 // 写真の屋敷前の低い囲いと木材置き場。建物の前に二歩の庭を取り、
-// 正面の戸口を一・八歩空ける。斎藤期の細部は推定、道と急な肩には設けない。
-function buildInabaServiceYard(rt, batch, k, x, z, w, d, rot) {
+// 正面の庭口は玄関の階段幅に揃える。斎藤期の細部は推定、道と急な肩には設けない。
+function buildInabaServiceYard(rt, batch, k, x, z, w, d, rot, entryW) {
   const W = rt.world, c = Math.cos(rot), s = Math.sin(rot);
   const point = (dx, dz) => [x + dx * c + dz * s, z - dx * s + dz * c];
   const side = w / 2 + .35, back = d / 2 + .35, front = back + 2;
@@ -1650,8 +1657,11 @@ function buildInabaServiceYard(rt, batch, k, x, z, w, d, rot) {
     g.scale(bw, bh, bd); g.rotateY(rot); g.translate(px, W.heightAt(px, pz) + h, pz);
     parts.push(paintGeo(g, color));
   };
+  // 階段の降り口に庭の柵を張り出させない。玄関幅に段の左右十五センチと
+  // 柵の当たり半径八センチを足し、見える口と通れる口を一緒に揃える。
+  const gateHalf = (entryW + .3) / 2 + .08;
   const rails = [[-side, back, -side, front], [side, front, side, back],
-    [-side, front, -.9, front], [.9, front, side, front]];
+    [-side, front, -gateHalf, front], [gateHalf, front, side, front]];
   for (const [ax, az, bx, bz] of rails) {
     const len = Math.hypot(bx - ax, bz - az), n = Math.ceil(len / 1.1);
     for (let i = 0; i <= n; i++) {
@@ -1673,9 +1683,11 @@ function buildInabaServiceYard(rt, batch, k, x, z, w, d, rot) {
   for (let row = 0; row < 3; row++) for (let i = 0; i < 3; i++)
     box(stockX + (i - 1) * .23, stockZ, .29 + row * .095, .21, .075, 1.1,
       (i + row) % 3 ? 0x8a795e : 0xa08b68);
-  // 板材と同じ場所に当たりを付け、見える囲い・置き場と歩ける所をそろえる。
-  const a = point(stockX - .44, stockZ), b = point(stockX + .44, stockZ);
-  solidSeg(a[0], a[1], b[0], b[1], .6);
+  // 太い線分の当たりでは両端が六十センチ膨らみ、番所・蔵の玄関前を狭める。
+  // 枕木の外寸（幅八十三センチ・奥行き一・二五歩）へ四角い当たりを揃える。
+  // 建物と同じ向きに回し、見える材木の脇から戸口へ通れるようにする。
+  const [stockWorldX, stockWorldZ] = point(stockX, stockZ);
+  solidRect(stockWorldX, stockWorldZ, .83, 1.25, rot);
   unit.dispose();
   const geo = mergeGeometries(parts); parts.forEach((g) => g.dispose());
   const mesh = kitFence(batch, geo, WOOD_MAT());
@@ -1696,9 +1708,15 @@ function buildInabaWardLife(rt, batch) {
     ['yakata', 'bansho', YAKATA.x - 10, YAKATA.z + 6, 0],
     ['yakata', 'kura', YAKATA.x + 10, YAKATA.z - 6, 0],
   ];
-  for (const [id, kind, x, z, rot] of places) {
+  for (const [id, kind, x, z, facing] of places) {
+    let rot = facing;
     const k = INABAYAMA_PLAN.kuruwa.find((q) => q.id === id);
     const w = kind === 'kura' ? 5.4 : 4.4, d = kind === 'kura' ? 4 : 3.4;
+    // 内寸から隅柱と引き先の余白を引き、内側の板戸と玄関の幅を揃える。
+    // 小番所は一・七五歩、蔵は二・一歩とし、荷を運ぶ口だけ細くしない。
+    const entryW = Math.min(2.1, (w - .9) / 2);
+    // 上がり台・階段は戸幅に三十センチを足す。両端の外にも足場を取る。
+    const entryHalf = (entryW + .3) / 2 + .1;
     const c = Math.cos(rot), s = Math.sin(rot), y = W.heightAt(x, z);
     let fits = true;
     for (const dx of [-w / 2 - .8, w / 2 + .8]) for (const dz of [-d / 2 - .8, d / 2 + .8]) {
@@ -1706,9 +1724,31 @@ function buildInabaWardLife(rt, batch) {
       if (!inPoly(k.poly, px, pz) || Math.abs(W.heightAt(px, pz) - y) > .65 || inabaPathDistance(px, pz) < 2) fits = false;
     }
     if (!fits || inabaPathDistance(x, z) < Math.hypot(w, d) / 2 + 2) continue;
-    const mesh = kuruwaBldg(W, kind, x, z, rot, { ita: true, boardRoof: true, timberStore: true, batch });
-    if (!mesh.isBatchedPart) rt.scene.add(mesh);
-    buildInabaServiceYard(rt, batch, k, x, z, w, d, rot);
+    // 小屋の四隅だけでは、玄関前の上がり台と階段が切岸へ出る。
+    // 共通室内の台一・三五歩＋階段一・一歩と、降りた先の足場まで調べる。
+    // 半回転なら建物の占める場所は同じ。庭と荷も採った玄関の向きへ揃える。
+    let entryFits = false;
+    for (let turn = 0; turn < 2; turn++) {
+      const direction = turn ? -1 : 1;
+      let clear = true;
+      for (let step = 0; step <= 7 && clear; step++) for (const dx of [-entryHalf, 0, entryHalf]) {
+        const dz = d / 2 - .15 + step * .4;
+        const px = x + direction * (dx * c + dz * s);
+        const pz = z + direction * (-dx * s + dz * c);
+        if (!inPoly(k.poly, px, pz) || Math.abs(W.heightAt(px, pz) - y) > .65) { clear = false; break; }
+      }
+      if (clear) { rot = facing + turn * Math.PI; entryFits = true; break; }
+    }
+    // どちらにも足場がない所へ、入れない飾りの小屋を建てない。
+    if (!entryFits) continue;
+    // 外形だけの小屋を重ねず、板間・梁・板戸を持つ共通の室内へつなぐ。
+    goten(rt, x, z, {
+      w, d, rot, tile: false, fieldFort: true, weatheredBoards: true, utilityBoardWalls: true,
+      name: `${k.name}の${kind === 'kura' ? '兵糧蔵' : '番所'}`, kind, team: 1,
+      naka: true, profile: 'inabayama', doorX: 0, entryW, doorFire: false, noTarget: true,
+    });
+    // 蔵の米俵は室内の間取りが板床と同じ高さへ置く。
+    buildInabaServiceYard(rt, batch, k, x, z, w, d, rot, entryW);
   }
   for (const [x, z] of [[NI.x + 7, NI.z - 6], [MATSU.x - 7, MATSU.z + 6],
     [UMAYA.x + 8, UMAYA.z - 5], [DEMARU.x - 8, DEMARU.z - 5], [YAKATA.x - 12, YAKATA.z - 8]]) {
@@ -2890,8 +2930,9 @@ const inabayama = {
     fireClearance: 10,
     // 強風の日の町の大火は遠巻きの民や南の里にも見えるとする推定。
     // 南の里の見物人は町から八十〜百三十歩ほど離れる。延焼を待たず、大火を見て退く。
-    // 小さな焚き火で里全体を逃がさず、退く一歩の安全判定は近い火だけを見る。
-    fireAlarm: { size: 2, radius: 140 },
+    // 町家の炎は一・四と一・七。二以上を待つと、町が燃えても里の者が見物を続ける。
+    // 焚き火（一・三）や松明（〇・四）とは分け、退く一歩の安全判定は近い火だけを見る。
+    fireAlarm: { size: 1.4, radius: 140 },
     // 路地を逃げる隣人の声が近くの戸口にも届く。距離は遊び上の推定。
     // 町・寺・里の者は兵を直に見るまで待たず、指定済みの南の道へ退く。
     neighborAlarmRadius: 18,
@@ -3433,7 +3474,9 @@ const inabayama = {
     // 本丸から出丸まで縁に土塁と柵。三の丸の大手だけ既存の喰違いの柵を使う。
     const castleLook = high ? {
       ...INABAYAMA_PLAN, year: 1567,
-      lordSeat: { ...INABAYAMA_PLAN.lordSeat, earth: 0xb1a085 },
+      // 主殿も山麓館と同じ中央の広い引き分け障子にし、縁側への出入りを揃える推定。
+      // 外壁・上がり口・動く戸は共通の入口指定から作る。
+      lordSeat: { ...INABAYAMA_PLAN.lordSeat, earth: 0xb1a085, doorX: 0, entryW: 2.4 },
       kuruwa: INABAYAMA_PLAN.kuruwa.map((k) => {
         if (['koshi1', 'koshi2', 'umaya'].includes(k.id))
           return { ...k, wallMesh: inabaOpenFence, wallOpt: { ...k.wallOpt, h: 2.1 } };
@@ -3476,7 +3519,14 @@ const inabayama = {
       return { x, z, m, i, entrance, approach, frontX: Math.sin(r), frontZ: Math.cos(r), mine: i < MINE };
     });
     buildTownGround(rt);
-    rt.scene.add(dou(W, TERA.x, TERA.z, 8, 6, 0));
+    // 堂の外形だけで塞がず、内陣・外陣と格子の引き戸を持つ共通の室内を使う。
+    // 本堂の正面は住居用の狭い戸口でなく、中央に広い引き分けの格子戸を構える推定。
+    // 外壁の開口・縁側からの上がり口・動く戸の幅は共通処理で一緒に揃える。
+    goten(rt, TERA.x, TERA.z, {
+      w: 8, d: 6, team: 1, name: '井口の寺の本堂', kind: 'hondo',
+      naka: true, profile: 'inabayama', templePaper: true, noTarget: true,
+      ...(high ? { doorX: 0, entryW: 2.4 } : {}),
+    });
     rt.scene.add(tawara(W, 12, 72, 0.3, 5), tawara(W, -2, 52, -0.4, 4));
     // 裏道の切岸は細分した地面そのもので表す。重ねた土の帯は
     // 折れの内外で別の高さを拾い、山腹へ浮く庇のように張り出す。
@@ -3499,25 +3549,56 @@ const inabayama = {
     // 主殿（板葺きの木造。天守・二重櫓は置かない）と、物見の櫓（木造）
     // 主殿は縄張り（castles/inabayama.js の lordSeat）から castle_plan.js が建てる：中に入れて、奥の間に龍興（kaito 10/2）
     // 山頂の曲輪：主殿のほかに、遠侍（板葺きの御殿）・兵糧蔵・長屋を構えて、御殿と蔵と詰所のある城らしくする（kaito 10/2 の見回り）
-    const BOOK_BOARDS = [0xb8a688, 0xa89678, 0xc4b292, 0xae9c7e];   // 本の CG の白茶けた板（黒く沈ませない）
-    goten(rt, HON.x + 12, HON.z + 6, { w: 7, d: 5, tile: false, team: 1, name: '遠侍', fieldFort: true, weatheredBoards: true, boardRoofColors: BOOK_BOARDS, kind: 'tamari', hp: 600, naka: true, profile: 'inabayama', noTarget: true });
-    // 主殿と遠侍・館の厚い檜皮屋根は残し、実務の小屋は浅い切妻板葺きと縦板壁にする。
+    const BOOK_BOARDS = [0xb8a688, 0xa89678, 0xc4b292, 0xae9c7e];   // 白茶けた古板の色を共用する。
+    // 遠侍の表口も取次へ通る障子口と同じ二・一歩幅にする推定の納まり。
+    // 外壁・上がり口・動く障子へ同じ幅を渡し、開いた戸も左右の壁幅へ収める。
+    goten(rt, HON.x + 12, HON.z + 6, {
+      w: 7, d: 5, tile: false, team: 1, name: '遠侍', kind: 'tamari',
+      fieldFort: true, weatheredBoards: true, boardRoofColors: BOOK_BOARDS,
+      ...(high ? { doorX: 0, entryW: 2.1 } : {}),
+      hp: 600, naka: true, profile: 'inabayama', noTarget: true,
+    });
+    // 遠侍・館は古板の外観と座敷を両立し、実務の小屋は縦板壁と連子窓にする。
     // 既存の部品の指定だけを使い、室内の床・戸口と建物の位置は保つ。
-    // 本の CG（春日山・岡崎・躑躅ヶ崎）の曲輪の建物：板葺きに縦板の古びた壁。白い漆喰は使わない
-    const serviceLook = high ? { fieldFort: true, weatheredBoards: true, boardRoofColors: BOOK_BOARDS } : {};
-    // 裏道の肩と床下が重ならないよう、蔵と中の俵を本丸の奥へ三歩寄せる。
+    // 小さな板倉・番所は玄関を中央へ寄せ、左右に引く板戸と敷居を壁幅へ収める。
+    // 五歩幅の小屋で従来の片寄った戸口を使うと、開いた右の戸が妻壁の外へ出る。
+    // 妻側まで板壁で揃える。居館用の障子面を残さず、裏の小さな連子窓で明かりを取る。
+    // 五歩幅の番所・兵糧蔵は、内側の板戸と同じ二・〇五歩の玄関口にする。
+    // 外壁・上がり台・開閉する板戸へ同じ幅を渡し、荷運びや出入りの口を細めない。
+    // 左右へ引いた戸と敷居は、内寸四・七歩の隅柱より内へ収める。
+    const serviceLook = high ? {
+      fieldFort: true, weatheredBoards: true, boardRoofColors: BOOK_BOARDS,
+      utilityBoardWalls: true, doorX: 0, entryW: 2.05,
+    } : {};
+    // 裏道から離した蔵の板床へ俵を載せ、入口の土間と通り道を空ける。
     const riceStore = goten(rt, HON.x - 12, HON.z - 9, { w: 5, d: 4, tile: false, team: 1, name: '兵糧蔵', kind: 'kura', ...serviceLook, oku: 0, naka: true, profile: 'inabayama', noTarget: true });
-    const rice = tawara(W, HON.x - 10.7, HON.z - 10.1, 0, 3);
-    rice.position.y = riceStore.naka.levels[0].y; rt.scene.add(rice);
-    goten(rt, HON.x - 6, HON.z + 10, { w: 9, d: 4, tile: false, team: 1, name: '兵の長屋', kind: 'nagaya', ...serviceLook, naka: true, profile: 'inabayama', noTarget: true });
+    if (!high) {
+      const rice = tawara(W, HON.x - 10.7, HON.z - 10.1, 0, 3);
+      const riceFloor = riceStore.naka.levels[0];
+      rice.position.y = riceFloor.y + (riceFloor.layout.rooms[0].y || 0); rt.scene.add(rice);
+    }
+    // 長屋の玄関は内側の板戸と同じ二・一歩の引き分け口にする推定。
+    // 外壁の開口・上がり台・動く板戸と当たりへ共通の幅を渡し、入口だけ細くしない。
+    goten(rt, HON.x - 6, HON.z + 10, { w: 9, d: 4, tile: false, team: 1, name: '兵の長屋', kind: 'nagaya', ...serviceLook, ...(high ? { entryW: 2.1 } : {}), naka: true, profile: 'inabayama', noTarget: true });
     // 番所・厩・小祠・山麓館は斎藤期の美濃から推定。信長の庭園や天守を先取りしない。
     goten(rt, NI.x - 5, NI.z + 2, { w: 5, d: 4, tile: false, team: 1, name: '二の丸の番所', kind: 'bansho', ...serviceLook, naka: true, profile: 'inabayama', noTarget: true });
-    goten(rt, MATSU.x + 6, MATSU.z - 5, { w: 4, d: 3, tile: false, team: 1, name: '小さな祠', kind: 'shrine', naka: true, profile: 'inabayama', noTarget: true });
+    // 小祠は内側の板壁と外側も揃え、塞がった妻壁の飾り障子を残さない。
+    // 裏の連子窓は外壁・内壁・当たりを同じ開口にし、格子の玄関と神前の引き戸は保つ。
+    // 玄関も神前の格子戸と同じ一・五歩幅にし、外の口だけ十センチ狭くしない。
+    // 外壁・上がり台・敷居と可動戸へ共通の幅を渡し、左右の引き先も内幅へ収める。
+    goten(rt, MATSU.x + 6, MATSU.z - 5, { w: 4, d: 3, tile: false, team: 1, name: '小さな祠', kind: 'shrine', ...(high ? { doorX: 0, entryW: 1.5, utilityBoardWalls: true } : {}), naka: true, profile: 'inabayama', noTarget: true });
     goten(rt, DEMARU.x - 6, DEMARU.z + 3, { w: 5, d: 4, tile: false, team: 1, name: '出丸の番所', kind: 'bansho', ...serviceLook, naka: true, profile: 'inabayama', noTarget: true });
-    goten(rt, YAKATA.x - 2, YAKATA.z - 5, { w: 12, d: 7, tile: false, team: 1, name: '斎藤の山麓館', fieldFort: true, weatheredBoards: true, boardRoofColors: BOOK_BOARDS, naka: true, profile: 'inabayama', noTarget: true });
+    // 館の表口は中央の広い引き分け障子とする推定。外壁・石段・玄関の戸と
+    // 広間への障子口を同じ軸へ揃え、片寄った狭い口から入らせない。
+    goten(rt, YAKATA.x - 2, YAKATA.z - 5, {
+      w: 12, d: 7, tile: false, team: 1, name: '斎藤の山麓館',
+      fieldFort: true, weatheredBoards: true, boardRoofColors: BOOK_BOARDS,
+      naka: true, profile: 'inabayama', noTarget: true,
+      ...(high ? { doorX: 0, entryW: 2.4 } : {}),
+    });
     const lifeBatch = makeKitBatch();
     // 厩を尾根に沿って向け、長い屋根を平場へ収めながら東側の通り道を空ける。
-    const stable = kuruwaBldg(W, 'umaya', UMAYA.x - (high ? 7 : 8), UMAYA.z, high ? Math.PI / 2 : 0, { batch: lifeBatch, ita: high, boardRoof: high });
+    const stable = kuruwaBldg(W, 'umaya', UMAYA.x - (high ? 7 : 8), UMAYA.z, high ? Math.PI / 2 : 0, { batch: lifeBatch, ita: high, boardRoof: high, openStable: high });
     if (!stable.isBatchedPart) rt.scene.add(stable);
     if (high) buildInabaWardLife(rt, lifeBatch);
     finalizeKitBatch(rt, lifeBatch);
@@ -3565,10 +3646,14 @@ const inabayama = {
       : [[HON.x - 4, HON.z + 10], [HON.x + 10, HON.z + 2], [OTE.x - 8, OTE.z - 6], [OTE.x + 8, OTE.z - 6], [-30, -120]];
     for (const [x, z] of wardFlags) rt.scene.add(nobori(W, x, z, 'saito', 5.5));
     // 中枢曲輪の道の上の小屋は置かず、番所は平場の脇へ寄せる。
-    rt.scene.add(hut(W, 22, -84, 6, 4, -0.3, high
-      ? { ita: true, boardRoof: true, weatheredBoards: true, wall: 0x786650,
-        boardRoofColors: [0x746650, 0x85745d, 0x6a604f, 0x958066, 0x7c705d] }
-      : { wall: 0x6a5238 }));
+    if (high) goten(rt, 22, -84, {
+      w: 6, d: 4, rot: -0.3, tile: false, fieldFort: true, weatheredBoards: true, utilityBoardWalls: true,
+      boardRoofColors: [0x746650, 0x85745d, 0x6a604f, 0x958066, 0x7c705d],
+      name: '中枢曲輪の番所', kind: 'bansho', team: 1, naka: true,
+      // 六歩幅の番所も、内側の板戸と玄関の開口を揃える。
+      profile: 'inabayama', doorX: 0, entryW: 2.1, doorFire: false, noTarget: true,
+    });
+    else rt.scene.add(hut(W, 22, -84, 6, 4, -0.3, { wall: 0x6a5238 }));
     // ---- 織田勢：木下藤吉郎の手（自分の持ち場）、柴田勝家の手、丹羽長秀の手 ----
     F.kino = allyGroup(rt, { fixed: true, name: '木下藤吉郎の手', anchor: { x: 28, z: 104 }, facing: Math.PI, width: 12, aggro: 8 },
       dress([{ type: 'busho', n: 1, o: { name: '木下藤吉郎', invuln: true } }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 2 }], ODA));
@@ -3670,8 +3755,16 @@ const inabayama = {
     for (const g of [F.town2, F.ote, F.ote2, F.kguard, F.scout, F.ambush, F.ambushGun]) { g.formation = 'yari'; g.yariRanks = Math.max(2, Math.ceil(g.count / 6)); g.aggro = Math.min(g.aggro, 10); }
     for (const g of [F.town, ...F.hata, F.tatsu]) { g.formation = 'yari'; g.yariRanks = Math.max(2, Math.ceil(g.count / 6)); }
     F.town2.sent = false; F.ote2.sent = false;
-    rt.scene.add(hut(W, HON.x + 8, HON.z + 12, 3, 2, 0,
-      high ? { ita: true, boardRoof: true, weatheredBoards: true, wall: 0x786650 } : {}));
+    // 合図の小屋も中へ入れる板倉にする推定復元。位置と外寸、外から火を付ける札は保つ。
+    // 小さな幅に合わせた板戸を左右へ引き、板床・梁・蓋箱は共通の室内で使い回す。
+    // 戸の重なりと当たりで狭まる分を見込み、荷を持って通る口に余裕を取る。
+    // 内幅二・七歩に、全開の戸二・三歩と左右二十センチの逃げを収める。
+    if (high) goten(rt, HON.x + 8, HON.z + 12, {
+      w: 3, d: 2, tile: false, fieldFort: true, weatheredBoards: true, utilityBoardWalls: true,
+      name: '本丸の小さな板倉', kind: 'kura', team: 1, naka: true, profile: 'inabayama',
+      doorX: 0, entryW: 1.15, doorFire: false, noTarget: true,
+    });
+    else rt.scene.add(hut(W, HON.x + 8, HON.z + 12, 3, 2, 0));
     // ---- 大軍（軽い作り）：瑞龍寺山の信長の本陣、美濃三人衆、城を囲む織田勢 ----
     const DA = (x, z, w, d, count, facing, armor, flag, seed) => W.addDistantArmy({ x, z, w, d, count, facing, armor, flagTex: flagTexture(flag), seed });
     // 瑞龍寺山の本陣：信長と旗本（控えは周りの大軍。信長で遊ぶ時は旗本だけ）
@@ -4011,6 +4104,7 @@ const inabayama = {
         for (const a of crowd.agents) { a.out = false; a.model = null; }
         for (const p of crowd.pool) { p.a = null; p.mesh.visible = false; }
         crowd.im.visible = false;
+        if (crowd.shade) crowd.shade.visible = false;
       }
       // 日をまたぐ暗転の中で町の乱戦を片付け、麓の戦と二重に数えない。
       if (F.townClash) {

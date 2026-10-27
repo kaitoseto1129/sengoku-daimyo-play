@@ -1035,7 +1035,8 @@ export function touchFrame(dt) {
     T.layoutGate = gateAvailable; T.layoutTreatment = treatment;
     layout();
   }
-  if (T.hintWeapon !== p.weapon) {
+  // 町では戦の手ほどきを出さない。槍・刀は押すだけなので教えない（溜めは教えない。kaito 10/23）
+  if (T.hintWeapon !== p.weapon && !town) {
     T.hintWeapon = p.weapon;
     T.showHint(p.weapon === 'gun' ? '攻撃の釦を一度押すと撃つ' : p.weapon === 'bow' ? '射るを一度押すと、矢を引いて射る' : '');
   }

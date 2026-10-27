@@ -40,8 +40,11 @@ function wallsNear(solids, x0, x1, z0, z1) {
     for (const w of solids) {
       if (w.ax == null) continue;
       const r = w.r || 0;
-      for (let cx = Math.floor((Math.min(w.ax, w.bx) - r) / 8); cx <= Math.floor((Math.max(w.ax, w.bx) + r) / 8); cx++)
-        for (let cz = Math.floor((Math.min(w.az, w.bz) - r) / 8); cz <= Math.floor((Math.max(w.az, w.bz) + r) / 8); cz++) {
+      // 引き戸は全移動範囲を区画へ登録し、絞り込みの後に現在の戸の位置で判定する。
+      const x0 = w.sweep?.x0 ?? Math.min(w.ax, w.bx), x1 = w.sweep?.x1 ?? Math.max(w.ax, w.bx);
+      const z0 = w.sweep?.z0 ?? Math.min(w.az, w.bz), z1 = w.sweep?.z1 ?? Math.max(w.az, w.bz);
+      for (let cx = Math.floor((x0 - r) / 8); cx <= Math.floor((x1 + r) / 8); cx++)
+        for (let cz = Math.floor((z0 - r) / 8); cz <= Math.floor((z1 + r) / 8); cz++) {
           const k = cx * 8192 + cz; let a = WG.grid.get(k); if (!a) WG.grid.set(k, a = []); a.push(w);
         }
     }
@@ -65,7 +68,10 @@ function interiorBox(solids) {
   for (const w of solids) {
     if (w.ax == null) continue;
     const r = (w.r || 0) + 1; any = true;
-    x0 = Math.min(x0, w.ax - r, w.bx - r); x1 = Math.max(x1, w.ax + r, w.bx + r); z0 = Math.min(z0, w.az - r, w.bz - r); z1 = Math.max(z1, w.az + r, w.bz + r);
+    x0 = Math.min(x0, (w.sweep?.x0 ?? Math.min(w.ax, w.bx)) - r);
+    x1 = Math.max(x1, (w.sweep?.x1 ?? Math.max(w.ax, w.bx)) + r);
+    z0 = Math.min(z0, (w.sweep?.z0 ?? Math.min(w.az, w.bz)) - r);
+    z1 = Math.max(z1, (w.sweep?.z1 ?? Math.max(w.az, w.bz)) + r);
   }
   for (const d of FL.decks) {
     if (!d.interior) continue;

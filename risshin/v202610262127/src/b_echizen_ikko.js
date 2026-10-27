@@ -1253,7 +1253,8 @@ function setRoute(b, pts, hold = false, facing = null) {
 // 行列の後ろが曲がり角を抜けるまでは、堂へ着いた先頭と同じ点へ瞬間移動させない。
 function mountainColumn(b) {
   const L = b.light;
-  if (!L) return;
+  // 視野の外の遠景は形を作らない（emptyDistantArmy）。部品の無い隊は沿わせない。
+  if (!L || !L.army?.parts?.body) return;
   const A = L.army, P = A.parts, base = new Float32Array(A.n * 16);
   const meshes = [P.body, P.flags, P.shade].filter(Boolean);   // 共通の隊に影の板は無いので、無い部品は更新しない。
   const m = new THREE.Matrix4(), turn = new THREE.Matrix4(), inv = new THREE.Matrix4(), p = new THREE.Vector3();
@@ -1996,13 +1997,13 @@ const echizen_ikko = {
     if (F.mode === 'defend') return 4;
     if (!F.step) return 0;
     const gate = F.step === 1 ? F.gateSomon : F.step === 2 ? F.gateSanmon : null;
-    if (gate?.struct.alive) return this.missionSignTarget(rt) ? 3 : F.step;
+    if (gate?.struct.alive) return rt.def.missionSignTarget(rt) ? 3 : F.step;
     if (F.step === 4) return 5;
     if (F.step <= 3) {
       const zone = F.SZ?.byId[TEMPLE_HALL_IDS[F.step - 1]];
       const p = rt.player.u.pos;
       if (!zone?.test(p.x, p.z)) return 0;
-      if (this.missionSignTarget(rt)) return 3;
+      if (rt.def.missionSignTarget(rt)) return 3;
     }
     return 4;
   },

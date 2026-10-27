@@ -50,7 +50,7 @@ function build(rt, root) {
   const colors = [];
   // 稲生・桶狭間は傷で中身が減っても赤い縁を残し、別の所属に見せない。
   // 白縁は実際に届く一人だけに使う。
-  for (const color of [compact ? 0xffffff : ['lesson', 'raid'].includes(rt.def.missionStyle) ? 0xb82a1a : 0x14120f, !!rt.def.missionStyle ? 0xff342e : 0xff634d]) {
+  for (const color of [compact ? 0xffffff : ['lesson', 'raid', 'ford'].includes(rt.def.missionStyle) ? 0xb82a1a : 0x14120f, !!rt.def.missionStyle ? 0xff342e : 0xff634d]) {
     const c = new THREE.Color(color);
     for (let i = 0; i < 3; i++) colors.push(c.r, c.g, c.b);
   }
@@ -73,9 +73,6 @@ function build(rt, root) {
       shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>',
         '#include <begin_vertex>\nif (position.z > 0.0) { transformed.xy = vec2(0.0, 0.065) + (position.xy - vec2(0.0, 0.065)) * signLife; }')
         .replace('#include <color_vertex>', '#include <color_vertex>\nvSignA = (signTone < 0.5 ? 0.55 : 1.0) * signFade;\nif (signTone > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(1.0);');
-      if (rt.def.missionStyle === 'lesson') shader.vertexShader = shader.vertexShader.replace(
-        '#include <project_vertex>',
-        'if (signTone > 16.0) vColor = position.z > 0.0 ? (mod(signTone, 8.0) > 1.5 ? vec3(1.0, 0.55, 0.35) : vec3(1.0, 0.06, 0.02)) : vec3(0.007, 0.006, 0.005);\n#include <project_vertex>');
       shader.fragmentShader = 'varying float vSignA;\n' + shader.fragmentShader.replace('vec4 diffuseColor = vec4( diffuse, opacity );', 'vec4 diffuseColor = vec4( diffuse, opacity * vSignA );');
       if (rt.def.missionStyle) {
         // 赤の高さが命の残り。小さな赤い点へ縮めず、黒い空きが増える▼にする。
@@ -122,7 +119,7 @@ function build(rt, root) {
           'vSignLevel = vec3(position.z > 0.0 ? 1.0 : 0.0, position.y, sqrt(signLife)); vSignLoss = signLoss;');
         shader.fragmentShader = 'varying float vSignLoss;\n' + shader.fragmentShader;
         shader.fragmentShader = shader.fragmentShader.replace(
-          rt.def.missionStyle === 'lesson' ? 'diffuseColor.rgb = vec3(0.035, 0.008, 0.005);' : 'diffuseColor.rgb = vec3(0.007, 0.006, 0.005);',
+          'diffuseColor.rgb = vec3(0.007, 0.006, 0.005);',
           // 稲生は今削った赤の部分を白く残して閉じる。空振り・防御では出さない。
           rt.def.missionStyle === 'lesson'
             ? 'diffuseColor.rgb = vSignLevel.y <= mix(0.03, 0.26, vSignLoss) ? vec3(1.0, 0.9, 0.8) : vec3(0.035, 0.008, 0.005);'
@@ -156,6 +153,7 @@ function build(rt, root) {
   rt.scene.add(marks, allies, bars, glow);
   const box = document.createElement('div');
   box.className = 'field-names'; box.setAttribute('aria-hidden', 'true');
+  box.hidden = true;
   // 透明な親枠を画面いっぱいに広げない。札を隠した時に命や任務との重なりとして残さない。
   // 名は頭上の投影位置に置き、実際の札との重なりは下の判定で避ける。
   box.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;pointer-events:none;overflow:visible';
@@ -241,6 +239,9 @@ export function fieldSignsTick(rt, root) {
   const quietSigns = !rt.def.missionStyle;
   const photo = root?.classList?.contains('photo') || rt.player.camShot;
   const hide = photo || rt.hud?.introWaiting;
+  // 稲生・森部は名を任務の一行に集める。空の親枠も隠し、命や任務の札に重ねない。
+  const hideNames = !!hide || rt.def.key === 'inou' || rt.def.key === 'moribe';
+  if (s.box.hidden !== hideNames) s.box.hidden = hideNames;
   // 間合い内の相手・狙う相手・すぐ近くの敵を先に示す。攻撃の判定は変えない。
   const reachableTarget = rt.player.inRange && rt.player.rangeCueTarget?.alive ? rt.player.rangeCueTarget : null;
   // 稲生も共通の頭上印を保ち、大きな札への置き換えや周囲の縮小をしない。
@@ -435,12 +436,11 @@ export function fieldSignsTick(rt, root) {
     // 頭上の先端は固定し、既存の形・材質・描画の束をそのまま使う。
     // 稲生は命中の形を少し保ってから戻す。連打の合間にも当たった本人が分かる。
     const hitLeft = ((raid ? u.okeHitUntil : lesson ? u.inouHitUntil : u.moribeHitUntil) || 0) - rt.t;
-    // 森部は一撃ごとの〇・八秒に合わせ、伸びを少し保ってから戻す。
-    // 最後の〇・三秒で戻し、連続で当てても毎回の反応が見える。
+    // 森部は命中を一・八秒残す。直後の伸びを戻した後も余韻で本人を示す。
     // 稲生・桶狭間は命中直後の形を保ち、間合いの横広がりと区別できる。
     const hit = foe && special
-      ? ford ? Math.min(1, Math.max(0, hitLeft / .3)) *
-          (.65 + .35 * Math.min(1, Math.max(0, (hitLeft - .5) / .3)))
+      ? ford ? Math.min(1, Math.max(0, hitLeft / .4)) *
+          (.55 + .45 * Math.min(1, Math.max(0, (hitLeft - 1.4) / .4)))
         : lesson ? Math.min(1, Math.max(0, hitLeft / .6)) *
           (.55 + .45 * Math.min(1, Math.max(0, (hitLeft - 1.8) / .6)))
         // 桶狭間は三秒のうち最後の六分の一だけ戻し、連打の合間にも命中を残す。
@@ -530,15 +530,16 @@ export function fieldSignsTick(rt, root) {
     // 森部は接近に応じて徐々に開き、命中の拡大は隣の頭を覆わない幅に収める。
     // 森部は届く瞬間に幅を倍以上に開く。近づくだけの変化と明確に分ける。
     // 命中では縦にも伸びる。空振りでは伸びず、防がれた時は縦に潰れる。
-    dummy.scale.set(raid ? okeScale * Math.max(reachable ? 2.8 : okeApproach, pulse > 0 ? 1 + 1.8 * pulse : 0) : ford ? k * Math.max(reachable || blocked || pulse > 0 ? 2.6 : moribeApproach, 1 + .7 * pulse) : lesson ? k * Math.max(inouWidth, blocked || pulse > 0 ? 2.6 : 0) : k * (1 + .5 * pulse),
+    dummy.scale.set(raid ? okeScale * Math.max(reachable ? 2.8 : okeApproach, pulse > 0 ? 1 + 1.8 * pulse : 0) : ford ? k * Math.max(reachable || blocked || pulse > 0 ? 1.7 : moribeApproach, 1 + .7 * pulse) : lesson ? k * Math.max(inouWidth, blocked || pulse > 0 ? 2.6 : 0) : k * (1 + .5 * pulse),
       raid || ford || lesson ? (raid ? okeScale : k) * (blocked ? .55 : 1 + (lesson ? .8 : 1) * pulse) : k, raid ? okeScale : k);
     // 森部の討ち取りと稲生の討ち取りは、それぞれの時間で同じ本人の印を閉じる。
     if (defeated) {
       const closing = Math.max(0, Math.min(1, (defeatUntil - rt.t) / (lesson ? 1 : .8)));
       // 稲生は倒れ始めた本人の空の赤い▼を一秒で閉じ、討ち取りを見届けられるようにする。
       if (lesson) {
-        dummy.scale.y *= still ? 1 : closing;
-        dummy.scale.x *= still ? 1 : .65 + .35 * closing;
+        // 命中の縦伸びを残さず、倒れた本人の▼を横に閉じて消す。
+        dummy.scale.x = k * 2.6;
+        dummy.scale.y = k * (still ? .2 : closing * closing);
       } else if (ford || raid) {
         // 撃破は横幅を残して縦に閉じる。命中後に小さく戻る動きと区別する。
         dummy.scale.x = (raid ? okeScale : k) * 2.2;

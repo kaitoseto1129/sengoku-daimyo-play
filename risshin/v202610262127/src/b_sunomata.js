@@ -2008,6 +2008,43 @@ const SUNOMATA_JIN = [
   ], '斎藤四千は仮の数。指揮した将の名は不明。龍興の出陣を断定しない。'),
 ];
 
+// 在所の外の見物場所と退路。同じ道を地面にも描き、木や草で塞がない。
+const SUNO_CIVILIAN_BANDS = [
+  // 控えの東端（x=-47）と二十四メートル以上空ける。
+  // x=-24 の道は列脇で二十三メートルとなり、民の警戒範囲に入り退路から逸れていた。
+  // 稲架（x=-30）の東を通り、川の西岸より内側の刈田から南へ退く。
+  { x: -36, z: 72, kinds: ['farmer', 'woman', 'child', 'elder'], route: [[-18, 92], [-18, 122], [-18, 172], [-18, 177.5]] },
+  // 南西の騎馬の控えからも三十四メートル空け、村西の道の脇で見物する。
+  // 西側の民は家並み越しに砦を見ず、村の北西にある西の寄せ道を見る。
+  // 寄せ道には砦の柵がないため、二十八メートル手前で見通しの確認を打ち切らない。
+  { x: -156, z: 132, watchAt: YOSE.nishi.far, watchTargetClearance: 0, kinds: ['townsman', 'merchant', 'monk', 'woman', 'child'], route: [[-162, 132], [-177.5, 132]] },
+  // 家並みの東西の外で見物。家の中や北の荷駄道から逃げ始めない。
+  // 南の控えの列端（南端は z=119）から三十四メートル以上離す。
+  // z=150 では全員が配置時に除かれる。稲架の南、家並みの東から刈田沿いに退く。
+  { x: -64, z: 160, kinds: ['farmer', 'woman', 'child'], route: [[-60, 170], [-60, 177.5]] },
+  { x: -138, z: 150, watchAt: YOSE.nishi.far, watchTargetClearance: 0, kinds: ['farmer', 'woman', 'elder'], route: [[-156, 150], [-177.5, 150]] },
+];
+
+// 村西の見物は林の中へ向けず、寄せ道まで細い見通しを残す。
+// 退路も道の線だけでなく家族がよけ合う畦幅を空ける。家や稲架の当たりはそのまま。
+// 区間は設営前に一度だけ作り、植生の配置判定では数値だけを使う。
+const SUNO_CIVILIAN_CLEAR = SUNO_CIVILIAN_BANDS.flatMap((b) => {
+  const points = [[b.x, b.z], ...b.route], segments = [];
+  for (let i = 1; i < points.length; i++) segments.push([points[i - 1], points[i], 4]);
+  const at = b.watchAt ?? { x: 0, z: 0 };
+  segments.push([points[0], [at.x, at.z], 7]);
+  return segments.map(([a, p, width]) => ({ x: a[0], z: a[1], dx: p[0] - a[0], dz: p[1] - a[1],
+    length2: (p[0] - a[0]) ** 2 + (p[1] - a[1]) ** 2, width2: width * width }));
+});
+function sunoCivilianClearing(x, z) {
+  for (const s of SUNO_CIVILIAN_CLEAR) {
+    const dx = x - s.x, dz = z - s.z;
+    const t = s.length2 ? Math.max(0, Math.min(1, (dx * s.dx + dz * s.dz) / s.length2)) : 0;
+    if ((dx - t * s.dx) ** 2 + (dz - t * s.dz) ** 2 < s.width2) return true;
+  }
+  return false;
+}
+
 const sunomata = {
   jinkei: SUNOMATA_JIN,
   // ---- 稲生の型（inou-standard）：右上は任務の一行・行き先はピン一本・敵は頭上の▼・大将は印 ----
@@ -2373,6 +2410,127 @@ const sunomata = {
     : g.isPlayerSquad ? '組の太鼓：進め' : '味方の隊が進む。自分の組は任務の印へ向かえ',
   // 南門へまっすぐ歩ける中央の道。北西の小屋と柵の間から始めない。
   spawn: { x: 2, z: 12, heading: Math.PI },
+  // 民の位置と道は復元。江戸期の墨俣宿・寺町や天守の城下を持ち込まない。
+  // 寺町の移転時期：大垣市 https://www.city.ogaki.lg.jp/0000019596.html
+  // 百姓は南西の在所、町人・商人と旅の僧は在所へ続く道の脇から見物する。
+  // 南の控え・荷駄道を横切らず、刈田の東側か村の西側を回って退く。寺町の位置は作らない。
+  // 村の周りも組と退路を明示し、共通処理で民家の脇へ退路のない百姓を足さない。
+  civilianCrowd: {
+    // 普請や荷運びの人足だけでは逃げない。兵の接近と火への警戒は保つ。
+    ignorePorters: true,
+    // 搬送などで戦場を離れた兵の古い位置を恐れず、畦や家族の合流場所を使えるようにする。
+    ignoreGoneSoldiers: true,
+    // 主人公の斬撃と短い発砲音を見落とさず、家並み越しでも近い戦いから退く。
+    watchPlayerCombat: true,
+    rememberSoldierCombat: true,
+    // 勝敗が決まっても、火の近くや畦の途中で家族を立ち止まらせない。
+    evacuateAfterBattle: true,
+    // 在所から見ているのは砦の普請。離れた控え兵の人数で視線を変えない。
+    watchAt: { x: 0, z: 0 },
+    // 在所の家や稲架越しを見物場所にせず、寄せ道へ見通せる村外れに立つ。
+    // 二十四メートルより先の家や稲架も調べる。砦の柵・土塁は見物の対象なので、
+    // 中心の二十八メートル手前で止め、在所からの見通し全体を確かめる。
+    watchTargetClearance: 28,
+    // 家だけでなく低い土手の向こうも見物場所にしない。子の低い目線でも判定する。
+    watchTerrainSight: true,
+    // 家並みや土手の向こうの遠い兵・火では見物を切り上げない。
+    // 十二メートル以内は足音や火の気配でも気付き、見えなくても逃げる。
+    noticeHearingDistance: 12,
+    // 家や土手で兵が隠れていても、近くの斬り合いの音には気付いて退く。
+    // 静かな控え兵や火は、これまでの見通しと十二メートルの気配で判断する。
+    fightingHearingDistance: 40,
+    // 見物中も退路と同じ間隔で見張り、走る兵や燃え広がる火への気付きを遅らせない。
+    dangerCheckInterval: 0.2,
+    // 村外れで隣の組が逃げ出したら、兵が目の前へ来るのを待たず畦へ退く。
+    // 遠い在所まで一斉に逃がさず、近くの人の逃げ始めだけを合図にする。
+    neighborAlarmDistance: 32,
+    neighborAlarmDuration: 3,
+    // 見物の間合い（三十四メートル）から兵が寄れば、槍際になる前に畦へ退く。
+    // 逃走中と家族待ちも同じ間合いで警戒し、道へ戻って兵へ近寄らない。
+    soldierNoticeDistance: 24,
+    // 配置時から逃走中まで乱戦には四十メートル空け、初めから危険な場所で見物させない。
+    fightingNoticeDistance: 40,
+    // 騎馬は徒歩兵より早く畦へ迫る。三十四メートルで気付き、家族で退き始める。
+    mountedNoticeDistance: 34,
+    // 家や稲架で姿が隠れても、走る馬の蹄の音で早めに家族を畦へ退かせる。
+    // 止まった控えの騎馬では見物を切り上げない。
+    mountedHearingDistance: 24,
+    // 気付く間合いの内へ、別の危険をよけるために踏み込まない。
+    // 徒歩の実兵・控えは二十四メートル、騎馬は三十四メートル空ける。
+    // 斬り合い中の兵は見物の警戒と同じ四十メートル、火は広がりを足して二十二メートル空ける。
+    escapeClearance: { soldiers: 24, troops: 24, mounted: 34, fighting: 40, fire: 22 },
+    // 子や年寄りが遅れても、その人へ迫る兵や火を見落とさない。
+    individualDanger: true,
+    // 逃げる向きも一人ずつ決め、安全な畦では子や年寄りに歩調を合わせる。
+    individualEscape: true,
+    sharedEscapePace: true,
+    // 後ろの子や年寄りへ危険が迫る間は、先の大人も畦で待たず道を空ける。
+    // 全員が兵や火から離れたら、再び歩調をそろえて合流する。
+    familyDangerResponse: true,
+    // 逃走中も大人と子の体の幅を空け、畦の曲がり角で重ならない。
+    keepPeopleApart: true,
+    // 曲がり角で離れた子や年寄りを安全な畦で待ち、外周からも一緒に退く。
+    keepFamiliesTogether: true,
+    // 家や水路をよける配置で大人が全員外れた組は、子だけで見物させない。
+    requireAdultCompanion: true,
+    // 到着判定の手前で止まる分も空け、出口で待つ家族の体を重ねない。
+    exitSpacing: 1.4,
+    // 共通の松明は大きさ〇・七。篝火より小さい火が畦へ迫っても逃げ、退路でもよける。
+    fireSize: 0.6,
+    // 炎が大きいほど早く気付き、逃げ道でも火の広がりから間隔を取る。
+    avoidFireSpread: true,
+    // 屋根や台の上で見える炎にも気付き、本人と退路の見張りをそろえる。
+    watchRaisedFire: true,
+    // 控えの旗列も兵のいる場所として避ける。実兵への入れ替え前も民を通さない。
+    avoidDistantTroops: true,
+    // 控えの列の角も途中でかすめず、畦への斜めの逃げ道全体で間合いを守る。
+    continuousTroopClearance: true,
+    // 見物の配置は実兵と同じ三十四メートル。逃走中の二十四メートルとは分ける。
+    distantWatchDistance: 34,
+    // 敗走する列も里の者には危険。退く兵が畦へ来た時も見物や家族待ちを続けない。
+    avoidRoutedTroops: true,
+    // 道中へ兵や火が来た時も調べ直す。近づかれた民は、その場に縛らず離れる方へ逃がす。
+    escapeCheckInterval: 0.2,
+    // 見物中も見通せる六十四メートル内の退路を見張り、畦を塞がれる前に退く。
+    watchRouteDistance: 64,
+    // 組の中心だけでなく、端の子や大人から畦へ出る道も見張る。
+    // 退路へ迫る兵や火も、本人への接近と同じ間隔で確かめる。
+    watchRouteFromPeople: true,
+    watchRouteCheckInterval: 0.2,
+    // 逃げ始めた後も残りの畦を見張り、先へ回り込む兵や火に気付いてよける。
+    watchEscapingRoute: true,
+    // 兵や火をよけて次の畦へ出た人を、通り過ぎた道標へ引き戻さない。
+    rejoinEscapeRoute: true,
+    // 兵や家族をよけて畦の脇へ出ても、空けてある四メートルの幅から先の道へ戻れる。
+    routeRejoinDistance: 4,
+    // 家並みの外の見物場所から、最初の道標まで水路や家を横切らず出られる所だけ使う。
+    requireRouteAccess: true,
+    // 最初の畦だけでなく、村外れの出口まで家・岸・水路で途切れない道を使う。
+    requireFullRouteAccess: true,
+    // 地面が通れても控え兵や火で塞がれた畦は使わず、出口の家族待ちの位置も確かめる。
+    requireSafeRouteAccess: true,
+    // 家の角や稲架は点の間でも通り抜けない。民だけの退路判定に使う。
+    continuousEscapeSolids: true,
+    // 大人の体の半幅は約〇・三六メートル。家や稲架にも岸と同じ余白を取り、
+    // 三十センチだけ空いた角へ肩が食い込む道を、配置時から退路に選ばない。
+    escapeSolidMargin: 0.4,
+    // 川・枝水路の縁は体の半幅も空ける。家族の退路と出口も同じ幅で確かめる。
+    escapeBankMargin: 0.4,
+    // 畦の曲がりを四メートル手前で省かず、稲架や家並みの外の道をたどる。
+    routeCornerRadius: 1,
+    // 家の角や稲架の脇では歩幅を詰めて曲がり、三メートル先が塞がれただけで止まらない。
+    shortEscapeSteps: true,
+    // 最後の道標は外周の出口。四メートル手前の刈田で姿を消さない。
+    routeArrivalRadius: 0.3,
+    // 近くの町人・商人もそれぞれの小袖で描く。百姓の形への代用を減らす。
+    // 既存の七人の枠は保ち、二人だけ初めに用意して使い回す。
+    modelKinds: ['farmer', 'farmer', 'woman', 'woman', 'child', 'monk', 'elder', 'townsman', 'merchant'],
+    // 子・年寄りと大人それぞれの背丈を、遠景から近くの姿へ替える時も保つ。
+    consistentModelScale: true,
+    // 子の小さな歩幅と年寄りの歩みを、畦で実際に進んだ距離に合わせる。
+    naturalEscapeGait: true,
+    bands: SUNO_CIVILIAN_BANDS,
+  },
   world: {
     // 共通の膝・腰・胸の踏ん張りを使い、柵を押す兵の装備の重さを見せる。
     infantryWeight: true,
@@ -2436,7 +2594,7 @@ const sunomata = {
     // 乾いた肩と湿った窪みを土色で分ける。既存の踏み跡だけを使い、
     // 普請砦の小道に荷車の轍を足さず、道と草の境をなだらかにつなぐ。
     wetFieldRuts: 'wear', softPathSoil: true,
-    paths: SUNOMATA_PATHS,
+    paths: [...SUNOMATA_PATHS, ...SUNO_CIVILIAN_BANDS.map((b) => [[b.x, b.z], ...b.route])],
     water: { x: 62, x2: 112, level: -0.7 },
     riverCross: true, // 舟以外は深みを歩いて渡れない。   // 長良川：向こう岸は 112 から
     waterSlow: true,   // 水が主役（spec first6 17〜24）：川の中は terrain_tags の 'water' で歩み・向き変えが鈍る
@@ -2472,8 +2630,12 @@ const sunomata = {
       }
     },
     // 林縁を四角く切らず、伐り開いた広場の外側へ大小の入り江を残す。
+    // 村西の見物場所も畦の脇の空き地にする。道の中心だけ空けると、
+    // 周りへ散らした女や子の立つ所に木や藪が生える。配置の最大の広がりも空ける。
     clear: (x, z) => (Math.abs(x) < 70 + 8 * Math.sin(z * .071) ** 2
-      && Math.abs(z) < 70 + 13 * Math.sin(x * .053 + 1) ** 2) || x > 45 || Math.hypot(x + 100, z - 150) < 34,
+      && Math.abs(z) < 70 + 13 * Math.sin(x * .053 + 1) ** 2) || x > 45 || Math.hypot(x + 100, z - 150) < 34
+      || SUNO_CIVILIAN_BANDS.some((b) => (x - b.x) ** 2 + (z - b.z) ** 2 < 49)
+      || sunoCivilianClearing(x, z),
     treeMix: { sugi: .18, matsu: .48 },
     // 整地した中央は踏み土、柵際と逆茂木の間は刈り残した草。緑一色にも砂一色にもしない。
     grassMix: (x, z, road) => {
@@ -2722,7 +2884,8 @@ const sunomata = {
     DA(-128, 90, 20, 14, 110, 2.0, KT.ARMOR.oda, 'oda', 23, 'cavalry');
     sunoSupplyScenery(rt);
     // 遠景の村（南西の在所。秋の柿）
-    KT.farVillage(rt, -100, 150, { rot: Math.PI, n: 6, fields: 8, seed: 5, autumn: true });
+    KT.farVillage(rt, -100, 150, { rot: Math.PI, n: 6, fields: 8, seed: 5, autumn: true, groundedHomes: true });
+    // 民は上の四組だけ。砦の兵舎や普請小屋には里の者を置かない。
     // 九月の刈田：畦に稲架を立て、刈った稲を干す
     for (const [x, z, r] of [[-70, 128, 0.1], [-52, 140, 0.05], [-88, 122, -0.1], [-30, 132, 0.2]]) rt.scene.add(hasa(W, x, z, r, 9));
     for (const [x, z] of [[-64, 100], [34, 94]]) rt.scene.add(nobori(W, x, z, 'oda', 5.5));

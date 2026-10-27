@@ -446,7 +446,7 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     let i, n, title;
     const of = def.missionOf || def.stageOf;
     if (list && of) {
-      n = list.length; i = Math.max(0, Math.min(n - 1, of(rt) | 0)); title = list[i];
+      n = list.length; i = Math.max(0, Math.min(n - 1, of.call(def, rt) | 0)); title = list[i];
     } else {
       // 段の無い戦も、主の任務の切り替わりを覚える。札には番号を出さない。
       if (this.progRt !== rt) { this.progRt = rt; this.progSeen = []; this.progStage = undefined; }

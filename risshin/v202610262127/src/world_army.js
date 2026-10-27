@@ -197,7 +197,7 @@ export class WorldArmy {
     const kd0 = o.kind || 'mixed';
     if (!o.people && o.host !== false && kd0 !== 'honjin' && kd0 !== 'cavalry' && N >= 60) {
       const h = this.armyHost({ x: o.x, z: o.z, facing, w: o.w || 20, d: o.d || 10, count: typeof o.host === 'number' ? o.host : Math.round(Math.max(40, Math.min(420, N * 0.8))), armor, flagTex, seed: (o.seed || 9) + 71, U });
-      grp.add(...h.meshes);
+      if (h.meshes.length) grp.add(...h.meshes);   // 近い視点（nearView）は空。空の add は three が誤りを出す
       A.hostD = h.depth; A.host = h;
     }
     // 逃げる兵は隊の外へ出るので、画面の外かどうかの判断をやめる
@@ -694,7 +694,7 @@ export class WorldArmy {
         const [hx, hz] = toW(0, -sgn * back);
         const h = this.armyHost({ x: hx, z: hz, facing: fs, w: W * 1.05, d: 0, count: typeof P.host === 'number' ? P.host : Math.round(Math.max(60, Math.min(480, (P.count || nb * cols * 8) * 0.7))), armor, flagTex, seed: (o.seed || 5) * 13 + (sgn > 0 ? 1 : 2), U: HU });
         const hg = new THREE.Group();
-        hg.add(...h.meshes);
+        if (h.meshes.length) hg.add(...h.meshes);
         for (const m of h.meshes) m.frustumCulled = false;
         grp.add(hg);
         S.host = { g: hg, U: HU, fx: Math.sin(fs), fz: Math.cos(fs) };

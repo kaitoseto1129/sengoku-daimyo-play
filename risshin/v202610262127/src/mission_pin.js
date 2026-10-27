@@ -859,7 +859,7 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     // 円だけでは待機と分からないため、同じピンの中に砂時計を置く。
     const hourglass = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     const glass = 'M-9-53H9V-48L0-40L9-32V-27H-9V-32L0-40L-9-48ZM-11-53H11M-11-27H11';
-    hourglass.innerHTML = `<path d="${glass}" fill="none" stroke="#fff3ba" stroke-width="7" stroke-linejoin="round"/><path d="${glass}" fill="none" stroke="#14120f" stroke-width="3" stroke-linejoin="round"/>`;
+    hourglass.innerHTML = `<path d="${glass}" fill="none" stroke="#fff3ba" stroke-width="7" stroke-linejoin="round"/><path d="${glass}" fill="none" stroke="#14120f" stroke-width="3" stroke-linejoin="round"/><path d="M-6-6H6L0 0Z" fill="#fff3ba"/><path d="M-6 0L0-6L6 0Z" fill="#fff3ba"/>`;
     el._simplePin.appendChild(hourglass); el._waitHourglass = hourglass;
   }
   if (el._joinCue) {
@@ -872,10 +872,18 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     cue.firstChild.setAttribute('stroke-dasharray', '1');
     cue.firstChild.setAttribute('stroke-dashoffset', String(waiting || joined ? 0 : 1 - approach));
     const progress = waiting ? Math.max(0, Math.min(1, want.progress)) : 0;
-    // 待つ間は一秒ずつ消える目盛りだけ。満ちる扇と逆の動きを重ねない。
+    // 満ちる扇は重ねず、残りを減らす目盛りと砂時計にそろえる。
     cue.lastChild.style.display = 'none';
     // 待機の意味は砂時計で示し、残り時間は外周の目盛りにそろえる。
     el._waitHourglass.style.display = waiting && progress < 1 && rt.t - pinAt.arrivalAt >= .8 ? '' : 'none';
+    // 目盛りだけでなく砂そのものを減らし、残りと終わりが同じ印で分かるようにする。
+    // 一秒の間にも進みが見える。部品は作り直さず、百分の一進んだ時だけ更新する。
+    const sand = Math.round(progress * 100);
+    if (el._waitHourglass._sand !== sand) {
+      el._waitHourglass._sand = sand;
+      el._waitHourglass.children[2].setAttribute('transform', `translate(0 -42) scale(1 ${1 - sand / 100})`);
+      el._waitHourglass.children[3].setAttribute('transform', `translate(0 -32) scale(1 ${sand / 100})`);
+    }
     const dial = el._waitDial;
     dial.style.display = waiting && progress < 1 ? '' : 'none';
     dial.setAttribute('transform', 'translate(0 -40)');

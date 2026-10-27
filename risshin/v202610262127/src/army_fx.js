@@ -14,7 +14,7 @@ function detailGround(W, x, z) {
 // Army の手法（units.js の class Army に足す）
 export const ArmyFx = {
 
-  // 跡の上限ぶんを開戦前に用意する。乱戦の一撃ごとに材質を作り捨てない。
+  // 初めて跡を置く時だけ上限ぶんを用意する。使わない戦では材質と形を確保しない。
   prepareStains() {
     if (!S.groundMarks || this.stainPool) return;
     this.stains = [];
@@ -45,6 +45,7 @@ export const ArmyFx = {
     if (!S.groundMarks || this.hideBlood) return null;
     const lv = bloodLv();
     if (lv === 0) return null;
+    this.prepareStains();
     const limit = 32;
     while (this.stains.length >= limit) {
       const old = this.stains.shift();
@@ -491,7 +492,6 @@ export const ArmyFx = {
   // ---------------- 粒子（血しぶき・土・布の埃）と火花 ----------------
   buildParticles() {
     if (this.points) return;
-    this.prepareStains();
     this.buildDebris();
     this.fxStats = { burstCalls: 0, burstEmitted: 0, burstParticles: 0, sparkCalls: 0, sparkEmitted: 0 };
     this.fxSphere = new THREE.Sphere(new THREE.Vector3(), 0);

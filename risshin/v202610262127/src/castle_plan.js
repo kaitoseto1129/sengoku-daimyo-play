@@ -717,7 +717,7 @@ export function buildCastlePlan(rt, plan, o = {}) {
       const I = NAKA.list[n0];
       C.seat = I ? { naka: I, spot: I.lordSpot, where: I.where, team } : null;
     } else {
-      const g = goten(rt, L.at[0], L.at[1], { team, w: L.w || 11, d: L.d || 7, rot: L.rot || 0, tile: L.tile ?? false, boardRoof: L.boardRoof === true, templeBoardRoof: L.templeBoardRoof === true, earth: L.earth, name: L.name || '主殿', naka: true, door: L.door ?? 1, oku: L.oku, profile: L.profile, where: L.where });
+      const g = goten(rt, L.at[0], L.at[1], { team, w: L.w || 11, d: L.d || 7, rot: L.rot || 0, tile: L.tile ?? false, boardRoof: L.boardRoof === true, templeBoardRoof: L.templeBoardRoof === true, earth: L.earth, name: L.name || '主殿', naka: true, door: L.door ?? 1, doorX: L.doorX, entryW: L.entryW, oku: L.oku, profile: L.profile, where: L.where });
       C.seat = { building: g, naka: g.naka, spot: g.naka.lordSpot, where: g.naka.where, team };
     }
     // 総大将（taisho.js）が城方なら、陣所でなくこの中に籠らせる（戦の定義が自分で城主を置く時は、その定義の makeLordKeep が使う）
