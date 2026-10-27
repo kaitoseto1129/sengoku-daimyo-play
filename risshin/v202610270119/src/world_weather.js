@@ -27,7 +27,14 @@ const MOOD_BY_SEED = { 57: 'morning' };
 // 元の画素の端数を保ち、太陽が動いても粗い格子へ影を吸着させない。
 THREE.ShaderChunk.shadowmap_pars_fragment = THREE.ShaderChunk.shadowmap_pars_fragment.replace(
   /(#elif defined\( SHADOWMAP_TYPE_PCF_SOFT \)\s+vec2 texelSize = )vec2\( 1\.0 \)/,
-  '$1vec2( max(1.0, shadowRadius) )');
+  '$1vec2( max(1.0, shadowRadius) )')
+  // 近くの影は一辺48メートル。範囲外で突然明るく戻すと、夜の地面に四角い境が出る。
+  // 最初の戻り値（平行光・投射光の影）だけを端の6メートルで薄める。
+  // 点光源の影と焼いた地面の影は変えず、的の大きさ・参照回数も増やさない。
+  .replace('return shadow;', `
+    vec2 shadowEdge = min(shadowCoord.xy, vec2(1.0) - shadowCoord.xy);
+    float shadowFade = smoothstep(0.0, 0.125, min(shadowEdge.x, shadowEdge.y));
+    return mix(1.0, shadow, shadowFade);`);
 
 // ---------------- 空気の遠近と雲の影（全ての材質に効く） ----------------
 // 霧：距離で指数的に霞み、低い所ほど濃く（谷の靄）、太陽の方は日の色に明るむ

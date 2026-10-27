@@ -722,7 +722,8 @@ export class Battle {
       const sound = this.battleSound.route(name, pos, vol);
       if (!sound) return;
       name = sound.name; pos = sound.pos; vol = sound.vol;
-      if (!sound.grouped) this.warSpeech.crowd(name, pos, vol);
+      // 日本語の鬨の声が鳴ったら、同じ鬨の合成は重ねない
+      if (!sound.grouped && this.warSpeech.crowd(name, pos, vol)) return;
       if (this.warVoices.play(name, pos, vol)) return;
       if (!pos) return play0(name, pos, vol);
       if (name === 'gun' || name === 'volley' || name === 'string') this.soldierCall('fire', pos);
@@ -957,7 +958,7 @@ export class Battle {
       sfx('sig_susume', 0.6);
       const P = this.player.u.pos;
       this.army.forNear(P.x, P.z, 25, (o) => { if (o.alive && o.team === 0 && !o.isPlayer) this.after(0.4 + Math.random() * 0.6, () => { if (o.alive && !o.atk) o.cheer = 0.8; }); });
-      this.after(0.8, () => this.warVoices.play('toki', this.player.u.pos, 0.5));
+      this.after(0.8, () => { if (!this.warSpeech.crowd('toki', this.player.u.pos, 0.6)) this.warVoices.play('toki', this.player.u.pos, 0.5); });
     }
     this.phase = p; this.pt = 0;
   }
@@ -969,7 +970,8 @@ export class Battle {
   }
   // 同じ文の間引きは、知らせと台詞に共通の仕組みで行う。
   say(sp, text, dur = 4) {
-    if (battleDialogueMuted(this)) return;
+    // 戦では字幕を出さない。名のある将の日本語の声が有る台詞だけ、声でその場に届く（字は足さない）
+    if (battleDialogueMuted(this)) { if (sp && text && !this.over) this.warSpeech?.line(sp, text); return; }
     text = cleanBattleSpeech(this, roughPeople(text));
     if (!text || !battleSpeechAllowed(this, sp, text)) return;
     // 武将の台詞に操作の名・キーの名を入れない。言い添えは小さな手ほどきの札へ。

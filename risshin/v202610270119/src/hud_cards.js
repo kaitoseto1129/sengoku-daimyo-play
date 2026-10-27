@@ -401,18 +401,18 @@ html:root body #hud #h-prog .opening-controls-help[hidden] { display:none !impor
 body.rm #hud #h-prog.pg-changing { animation:none; }
 @media (prefers-reduced-motion:reduce) { #hud #h-prog.pg-changing { animation:none; } }
 #hud.ending #h-prog, #hud:has(#bigmap:not([hidden])) #h-prog { visibility:hidden; }
-/* 稲生は右上に短い任務を一行だけ置く。 */
-html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog {
+/* 初めの二戦は右上の任務を横向きの画面の内側に収める。 */
+html:root body #hud:has(#h-prog:is([data-battle="inou"],[data-battle="okehazama"])) #h-prog {
  right:calc(16px + env(safe-area-inset-right, 0px));
  top:calc(12px + env(safe-area-inset-top, 0px)); width:max-content;
  max-width:calc(100% - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)); padding:4px 8px;
  animation:none; transform:none;
 }
-html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog :is(.pg-st span,.pg-next) {
+html:root body #hud:has(#h-prog:is([data-battle="inou"],[data-battle="okehazama"])) #h-prog :is(.pg-st span,.pg-next) {
  max-width:100%; white-space:normal !important; overflow:visible; text-overflow:clip; overflow-wrap:anywhere;
 }
 /* 稲生は小地図と任務の補足を出さず、本人の▼と一行の任務に絞る。 */
-html:root body #hud:has(#h-prog[data-battle="inou"]) :is(#minimap,#maphint,.pg-next,.pg-context) { display:none !important; }
+html:root body #hud:has(#h-prog:is([data-battle="inou"],[data-battle="okehazama"])) :is(#minimap,#maphint,.pg-next,.pg-context) { display:none !important; }
 html:root body #hud.prog-on:has(#h-prog[data-battle="inou"]) #battle-notices:not(.choosing):not(.pg-x) {
  left:calc(16px + env(safe-area-inset-left, 0px)) !important; right:auto !important;
  top:calc(104px + env(safe-area-inset-top, 0px)) !important; bottom:auto !important;

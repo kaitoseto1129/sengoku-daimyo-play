@@ -31,7 +31,9 @@ const NOTICE_SOUNDS = new Set(['ui', 'obj', 'merit', 'neg', 'victory', 'promote'
 const SOLDIER_SOUNDS = new Set(['jinchuWhisper', 'cry', 'shout', 'toki', 'eiei', 'eshout', 'umeki', 'far', 'siegeDistant', 'unitBreak']);
 // 日本語の肉声と確認できない兵声は、効果音・遠景・出来事からも鳴らさない。
 const MUTED_VOICES = new Set(['jinchuWhisper', 'cry', 'shout', 'toki', 'eiei', 'eshout', 'umeki', 'far', 'himei', 'fukusho', 'ou', 'roar']);
-const mutedVoice = (name) => name.startsWith('soldier_') || MUTED_VOICES.has(name);
+// 10/27：日本語の肉声で作った鬨（ElevenLabs の日本語の声を重ねた「えい、えい、おう」「おおーっ」）は、録音が読めた時だけ鳴らす
+const JA_CROWD = new Set(['toki', 'eiei', 'ou']);
+const mutedVoice = (name) => name.startsWith('soldier_') || MUTED_VOICES.has(name) && !(JA_CROWD.has(name) && REAL[name]);
 // 自分の馬の一完歩ごとの蹄・馬具の音。入口の間引き（同じ音は1.2秒に一度・三回で休み）を受けず、足並みのまま鳴る
 const FOOT_SOUNDS = new Set(['hoofWalk', 'hoofTrot', 'hoofCanter', 'hoofGallop', 'tack']);
 const HORSE_SOUNDS = new Set(['hoofWalk', 'hoofTrot', 'hoofCanter', 'hoofGallop', 'tack', 'gallop', 'hooves', 'hoovesWet', 'hoofBeat', 'neigh', 'snort', 'tramp']);
@@ -216,7 +218,7 @@ export function initAudio() {
     revIn = ctx.createGain(); revIn.connect(rev); rev.connect(rOut); rOut.connect(muffle);
   } catch (e) { revIn = null; }
   // 本物らしい音の元を、少し後から一つずつ焼く
-  setTimeout(bakeAll, 400);
+  setTimeout(() => { loadReal().finally(bakeAll); }, 400);
   syncAudioState();
   return audioPending;
 }
@@ -763,12 +765,44 @@ const BANK = {};
 const bankLast = Object.create(null);
 let revIn = null;              // 残響（野の広がり・山のこだま）への送り口
 let curD = 0, inFar = false, curLag = 0, spatialUntil = 0;   // 音の遠さ・遅れと、向きを付けた音が終わる時刻
-const has = (k) => !!(BANK[k] && BANK[k].length);
+// 本物の録音（asset_sfx.js。freesound の CC0 と ElevenLabs の鬨）。有る音は合成より先に使う
+const REAL = {};
+// 録音の大きさを合成の音に寄せる倍率。300Hz〜6kHz を通した山の 0.3 秒の強さの比（合成÷録音）を 0.6 乗した（10/27 に測った）。
+// 鉄砲と刃は録音の方が芯が張って聞こえるので、比のままにはせず少し大きく残す
+const REAL_LEVEL = { gunNear: 0.37, gunFar: 0.32, volley: 0.37, volleyFar: 0.51, gunScatter: 0.31, gunScatterFar: 0.34, clash: 0.63, parry: 0.65, hit: 0.58, neigh: 1.2, gallop: 0.71, hooves: 0.59, hora: 0.6, bonsho: 1, eiei: 1, toki: 1.19, ou: 1.25 };
+let realLoading = null;
+function loadReal() {
+  if (realLoading) return realLoading;
+  realLoading = import('./asset_sfx.js').then(async (m) => {
+    for (const [k, list] of Object.entries(m.SFX)) {
+      const bufs = [];
+      for (const b64 of list) {
+        if (!ctx) return;
+        const bin = atob(b64), bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        const buf = await new Promise((ok) => { try { const r = ctx.decodeAudioData(bytes.buffer, ok, () => ok(null)); if (r && r.catch) r.catch(() => ok(null)); } catch (e) { ok(null); } });
+        if (buf) bufs.push(trimHead(buf, REAL_LEVEL[k] ?? 1));
+      }
+      if (bufs.length) REAL[k] = bufs;
+    }
+  }).catch(() => { /* 録音が読めない時は合成のまま */ });
+  return realLoading;
+}
+// 頭の無音（AAC の前置き）を詰め、大きさをそろえる
+function trimHead(buf, k) {
+  const d = buf.getChannelData(0);
+  let a = 0; const lim = Math.min(d.length, Math.round(buf.sampleRate * 0.25));
+  while (a < lim && Math.abs(d[a]) < 0.003) a++;
+  const nb = ctx.createBuffer(1, d.length - a, buf.sampleRate), o = nb.getChannelData(0);
+  for (let i = 0; i < o.length; i++) o[i] = d[i + a] * k;
+  return nb;
+}
+const has = (k) => !!((REAL[k] && REAL[k].length) || (BANK[k] && BANK[k].length));
 // 焼いた音を鳴らす。o：{ t0 遅れ, wet 残響へ送る量, jit 高さの揺らぎ, rate, to 出口 }。鳴らせば true
 function play(k, vol, o = {}) {
   if (mutedVoice(k)) return false;
   if (!ctx || !has(k) || full(vol)) return false;
-  const b = BANK[k];
+  const b = REAL[k] || BANK[k];
   let variant = o.variant === undefined ? (Math.random() * b.length) | 0 : o.variant % b.length;
   if (o.variant === undefined && b.length > 1 && variant === bankLast[k]) variant = (variant + 1 + ((Math.random() * (b.length - 1)) | 0)) % b.length;
   bankLast[k] = variant;
@@ -1188,6 +1222,7 @@ async function bakeAll() {
     while (bakeNext < RECIPES.length && S.volume > 0 && !audioDucked) {
       const [k, dur, n, fn, opt] = RECIPES[bakeNext++];
       if (mutedVoice(k)) continue; // 鳴らさない声を焼かず、携帯の負荷とメモリも減らす。
+      if (REAL[k]) continue; // 録音が有る音は焼かない（携帯の手間を減らす）
       try { await bake(k, dur, n, fn, opt); } catch (e) { /* 焼けない音は合成のまま */ }
       await new Promise((r) => setTimeout(r, 30));
     }
@@ -1538,7 +1573,7 @@ function emitSfx(name, vol) {
     // 鬨の声：焼いた大軍の声の上に、近くの二、三人の生の声を重ねる
     case 'shout': through(muf, () => { if (!play('toki', 0.14 * vol, { rate: 1.06 + Math.random() * 0.06, wet: 0.12 })) crowd('toki', 2, vol * 0.8); }); break;
     case 'toki': through(muf, () => { if (!play('toki', 0.2 * vol, { wet: 0.16, jit: 0.1 })) crowd('toki', 3, vol); }); break;
-    case 'eiei': through(muf, () => crowd('eiei', 6, vol)); break;
+    case 'eiei': through(muf, () => { if (!play('eiei', 0.3 * vol, { wet: 0.2, jit: 0.04 })) crowd('eiei', 6, vol); }); break;
     // 582：号令の復唱
     case 'fukusho': through(muf, () => crowd('fukusho', 4, vol)); break;
     // 583：うめき声
@@ -1694,6 +1729,7 @@ function kane(vol, t0) {
   noise(0.03, 'highpass', 3000, 1, 0.08 * vol, t0);
 }
 function bonsho(vol, t0, len = 6) {
+  if (play('bonsho', (len < 6 ? 0.18 : 0.26) * vol, { t0, wet: 0.35, jit: 0.02 })) return;
   for (const [f, a, d] of [[82, 1, 1], [165, 0.55, 0.8], [221, 0.35, 0.6], [311, 0.25, 0.45], [452, 0.12, 0.3]]) tone('sine', f, f * 0.995, len * d, 0.09 * a * vol, t0);
   noise(0.05, 'lowpass', 700, 1, 0.12 * vol, t0);
 }
@@ -1880,6 +1916,19 @@ function horagai(vol, t0 = 0) {
   mark(t0 + 2.7, [o, lfo], [lg, f, g], vol);
 }
 
+// 環境の繰り返し音を本物の録音に差し替える。合成の雑音（同じ出口の音量）と同じ強さになる倍率を掛ける
+// 合成の雑音と録音の強さの比を 0.8 乗した倍率（10/27 に測った）
+const LOOP_LEVEL = { rain: 2.84, rainHeavy: 0.88, wind: 2.93, river: 2.74 };
+function realLoop(n, key, freq) {
+  if (!n || n.real || !REAL[key]) return;
+  const s = ctx.createBufferSource(); s.buffer = REAL[key][0]; s.loop = true;
+  const g = ctx.createGain(); g.gain.value = LOOP_LEVEL[key];
+  s.connect(g); g.connect(n.f); s.start(0, Math.random() * s.buffer.duration);
+  try { n.src.stop(); } catch (e) { /* もう止まっている */ }
+  n.src.disconnect(); n.src = s;
+  n.f.type = 'lowpass'; n.f.Q.value = 0.5; n.f.frequency.value = freq;
+  n.real = true; n.baked = true;
+}
 function loop(freq, type, q) {
   const src = ctx.createBufferSource();
   src.buffer = noiseBuf; src.loop = true;
@@ -1894,12 +1943,14 @@ function loop(freq, type, q) {
 export function setRain(level) {
   if (!ctx) return;
   if (!rainNode) rainNode = loop(2600, 'bandpass', 0.4);
+  realLoop(rainNode, 'rain', 9000);
   rainNode.g.gain.setTargetAtTime(0.28 * level, ctx.currentTime, 0.8);
   // 豪雨は低い唸り（地面と木々を叩く轟き）が重なり、雨音の山も下がって太くなる
   if (level > 0.35 || rainLow) {
     if (!rainLow) rainLow = loop(420, 'lowpass', 0.6);
+    realLoop(rainLow, 'rainHeavy', 6000);
     rainLow.g.gain.setTargetAtTime(0.2 * Math.max(0, level - 0.35), ctx.currentTime, 1.2);
-    rainNode.f.frequency.setTargetAtTime(2600 - Math.max(0, level - 0.5) * 1400, ctx.currentTime, 1.5);
+    if (!rainNode.real) rainNode.f.frequency.setTargetAtTime(2600 - Math.max(0, level - 0.5) * 1400, ctx.currentTime, 1.5);
   }
   scene.rainLv = level;
 }
@@ -2078,9 +2129,11 @@ export function ambience(dt, o, world = null, pos = null, wind = 1) {
   const cold = local ? !!world.def.snow : scene.cold;
   const windK = local ? (world.timeKey === 'storm' ? 1 : 0.3) * Math.max(0.3, Math.min(1.5, wind)) * (1 - woods * 0.35) : scene.wind;
   if (!windNode) windNode = loop(320, 'lowpass', 0.5);
+  realLoop(windNode, 'wind', 2400);
+  if (rainNode && scene.rainLv > 0) realLoop(rainNode, 'rain', 9000);
   // 587：風は強くなったり弱くなったり（突風）
   gustT -= dt;
-  if (gustT <= 0) { gustT = 3 + Math.random() * 7; gustV = 0.5 + Math.random() * 0.5; windNode.f.frequency.setTargetAtTime(240 + Math.random() * 320, now, 2); }
+  if (gustT <= 0) { gustT = 3 + Math.random() * 7; gustV = 0.5 + Math.random() * 0.5; windNode.f.frequency.setTargetAtTime(windNode.real ? 1200 + Math.random() * 2600 : 240 + Math.random() * 320, now, 2); }
   windNode.g.gain.setTargetAtTime((0.018 + rain * 0.03 + windK * 0.03) * gustV * (quiet ? 1.1 : 1), now, 1.2);   // kaito 9/30「風がうるさい」で半分より下に
   // 581：喧噪のうねり
   if (crowdNode) {
@@ -2124,8 +2177,9 @@ export function ambience(dt, o, world = null, pos = null, wind = 1) {
   // 川のせせらぎと、船べりへ寄せて引く波。雑音の出口は一つを使い回す。
   if (river > 0 || paddy > 0 || sea > 0 || riverNode) {
     if (!riverNode) riverNode = loop(1100, 'bandpass', 0.35);
+    if (sea <= 0) realLoop(riverNode, 'river', 7000);
     riverNode.g.gain.setTargetAtTime((0.07 * river + 0.018 * paddy + sea * (0.035 + 0.025 * Math.sin(now * 0.85))) * (1 - hot * 0.35), now, 1);
-    if (Math.random() < dt * 2) riverNode.f.frequency.setTargetAtTime(sea > 0 ? 450 + Math.random() * 300 : river > 0.1 ? 900 + Math.random() * 500 : 600 + Math.random() * 200, now, 0.5);
+    if (!riverNode.real && Math.random() < dt * 2) riverNode.f.frequency.setTargetAtTime(sea > 0 ? 450 + Math.random() * 300 : river > 0.1 ? 900 + Math.random() * 500 : 600 + Math.random() * 200, now, 0.5);
   }
   // 587：雨粒が笠や地面を打つ音（強さに応じて、多すぎないように）
   if (scene.rainLv > 0.2) {

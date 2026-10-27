@@ -1538,7 +1538,8 @@ export class Army {
           const keepSelfFlag = (this.world.def.battleKey === 'okehazama' || this.world.def.battleKey === 'inou') && u.isPlayer && f === u.flag;
           const fade = !keepSelfFlag && f.visible && (u.camD < 9 && flagBlocksView(f, cam, this.playerUnit?.pos) ||
             target?.alive && u !== target && u.camD < 28 && flagBlocksView(f, cam, target.pos, 0));
-          fadeViewFlag(f, !!fade);
+          // 稲生の視線よけは描く間だけ全体を避ける。半透明の四角を戦場へ残さない。
+          fadeViewFlag(f, this.world.def.battleKey !== 'inou' && !!fade);
         }
       }
       // 救助中は既にいる仲間を使い、判断・攻撃を止める。移動は負傷兵の側で一度だけ進める。

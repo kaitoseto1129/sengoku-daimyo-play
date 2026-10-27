@@ -797,9 +797,13 @@ export class PlayerView {
         }
       }
       const near = this.flagBlocksView(o.pos, 5, cam);
-      // 自分の金旗も、桶狭間で狙う敵を隠す間だけ避ける。体と攻撃は残す。
-      const blocksEnemy = D.missionStyle === 'raid' && o === this.u && focus?.alive &&
-        flagMeshBlocksView(o.flag, cam.position, focus.pos, .35);
+      // 自分の金旗は目印として残し、狙う敵の足元や胸を隠す間だけ避ける。
+      let blocksEnemy = false;
+      if (D.missionStyle === 'raid' && o === this.u && focus?.alive) {
+        _fpS.set(focus.pos.x, focus.pos.y + (focus.mounted ? 2.2 : 1.2), focus.pos.z);
+        blocksEnemy = flagMeshBlocksView(o.flag, cam.position, focus.pos, .35) ||
+          flagMeshBlocksView(o.flag, cam.position, _fpS, .35);
+      }
       const ownFlag = o === this.u && (D.key === 'inou' || D.key === 'okehazama') && !(this.fpK > .3) && !blocksEnemy;
       if (!ownFlag && (near || this.flagObstructs(o.flag, cam, flagRadius))) {
         this.fadeNearFlag(o.flag);
@@ -913,7 +917,7 @@ export class PlayerView {
     // 任務の地点だけでなく、矢印の先の敵の胸までの視線も空ける。
     const enemy = this.nearFlagEnemy || this.rt.hud?.outlinedEnemy || this.rt.guideEnemy || this.lock;
     if (enemy?.alive) {
-      _fpS.set(enemy.pos.x, enemy.pos.y + (enemy.mounted ? 1.2 : 0), enemy.pos.z);
+      _fpS.set(enemy.pos.x, enemy.pos.y + (this.rt.def.missionStyle === 'raid' ? enemy.mounted ? 2.2 : 1.2 : enemy.mounted ? 1.2 : 0), enemy.pos.z);
       if (flagMeshBlocksView(flag, cam.position, _fpS, .35)) return true;
       // 胸への線が空いていても、旗が笠と▼を覆うことがある。
       // 同じ本人の胸と頭上まで空け、赤い▼と体を結び付けられるようにする。
@@ -952,6 +956,8 @@ export class PlayerView {
   }
 
   fadeNearFlag(flag) {
+    // 初陣は布と竿を一緒に避け、透けた四角や浮いた竿を残さない。
+    if (this.rt.def.missionStyle === 'lesson') { this.hideNearFlag(flag); return; }
     if (flag?.visible) flag.traverse(this.nearFlagFadePart);
   }
 

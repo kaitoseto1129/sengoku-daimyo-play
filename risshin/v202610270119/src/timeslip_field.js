@@ -237,15 +237,15 @@ export function timeslipField(rt) {
   const wet = ts.wet ?? 0, dust = ts.dust ?? 0.5;
   M.mud.color.setHex(wet > 0.5 ? 0x8a7a68 : 0xa08c70);
   M.mud.roughness = wet > 0.5 ? 0.45 : 0.95;
-  M.mud.opacity = wet > 0.5 ? 1 : 0.55;   // 乾いた土では踏み跡を薄く（穴に見せない）
-  M.rut.color.copy(M.mud.color); M.rut.roughness = M.mud.roughness; M.rut.opacity = wet > 0.5 ? 1 : 0.7;
+  M.mud.opacity = ts.mudOpacity ?? (wet > 0.5 ? 1 : 0.55);   // 乾いた土では踏み跡を薄く（穴に見せない）。夜の戦は mudOpacity で薄く（月明かりで黒い穴に見せない）
+  M.rut.color.copy(M.mud.color); M.rut.roughness = M.mud.roughness; M.rut.opacity = ts.mudOpacity != null ? Math.min(1, ts.mudOpacity * 1.3) : wet > 0.5 ? 1 : 0.7;
   M.grass.color.setHex(ts.grass ?? 0x8a9a5a);
   M.puff.color.setHex(ts.hazeColor ?? (wet > 0.5 ? 0xc4cacc : 0xbaa686));   // 夜の戦は暗い靄（光る白い粒にしない）
   M.puff.size = wet > 0.5 ? 9 : 6;
   const P = {
     mud: pool(scene, G.mud, M.mud, CAP.mud),
     rut: pool(scene, G.rut, M.rut, CAP.rut),
-    pool: wet > 0.3 ? pool(scene, G.pool, M.pool, CAP.pool) : null,
+    pool: wet > 0.3 && (ts.pools ?? 1) > 0 ? pool(scene, G.pool, M.pool, CAP.pool) : null,
     spear: pool(scene, G.spear, M.solid, CAP.spear),
     arrow: pool(scene, G.arrow, M.solid, CAP.arrow),
     kasa: pool(scene, G.kasa, M.solid, CAP.kasa),
@@ -330,7 +330,7 @@ export function timeslipField(rt) {
       // 踏み荒らした泥（田の水面には置かない）
       if (pd < 0.4 && r(7) < trample) put(P.mud, lay(x, z, r(8) * 6.28, 2.4 + r(9) * 2.6, 1, 2 + r(10) * 2.4, 0.03));
       // 水たまり：雨の日の凹みと道
-      if (P.pool && pd < 0.4 && r(11) < wet * (onRoad ? 0.7 : 0.35)) {
+      if (P.pool && pd < 0.4 && r(11) < wet * (ts.pools ?? 1) * (onRoad ? 0.7 : 0.35)) {
         const px = (i + r(12)) * CELL, pz = (j + r(13)) * CELL;
         put(P.pool, lay(px, pz, r(14) * 6.28, 1 + r(15) * 2.2, 1, 0.8 + r(16) * 1.6, 0.04));
       }

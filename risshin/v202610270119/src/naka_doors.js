@@ -406,7 +406,7 @@ function poseHiei(d, open = d.open) {
       const track = j === 0 ? -.04 : .04;
       const lx = d.lx + (d.axisX ? track : along), lz = d.lz + (d.axisX ? along : track);
       P.set(I.x + lx * I.c + lz * I.s, d.y, I.z - lx * I.s + lz * I.c); M.compose(P, Q, S);
-      for (const m of meshes) m.setMatrixAt(index, M);
+      if (meshes) for (const m of meshes) m.setMatrixAt(index, M);   // 設営の始め（部品を配る前）は当たりだけ。比叡山の僧坊で読み込みが止まった（10/27）
       continue;
     }
     const left = j < d.n / 2;

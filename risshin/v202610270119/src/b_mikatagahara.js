@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { HISTORICAL_GENERALS } from './b_historical_generals.js';
 import { lostCauseNote } from './battle_lost_cause.js';
-import { retreatThroughGap, retreatDodge } from './bot_retreat.js';
+import { retreatThroughGap, retreatRunFromBlade } from './bot_retreat.js';
 import { contactLitter } from './army_ground.js';
 // ======================================================================
 // 織田家編　三方ヶ原の戦い（元亀三年十二月二十二日）
@@ -2119,6 +2119,7 @@ mikatagahara.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   const toCover = F.dpOn && F.dpB && F.dp?.on && F.dp.cur?.s.kind !== 'hold';
   if (F.dpOn && F.dp && F.dp.on && !toCover) { depthBot(b, inp, goTo); return; }
   if (toCover || F.step === 3) {
+    inp.axis = null;
     // 殿の下知を優先する。深手や気力切れで、元の本陣へ手当てを探しに戻らない。
     F.dpBack = false;
     // 追手は次々に来る。近くの敵を倒すまで待つと、いつまでも城へ退けない。
@@ -2137,7 +2138,6 @@ mikatagahara.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     // 並び順の最初の敵へ毎回振り向かず、本人へ迫る打ち込みを選ぶ。
     // 射手へ構えても弾は防げない。刃が来ない間は構えを解いて先へ進む。
     let threat = null, soonest = Infinity;
-    let strikeAngle = null, crossed = false;
     for (const e of b.army.units) {
       if (!e.alive || e.fleeing || e.gone || e.downed || e.woundOut || e.rearWound || e.noTarget || e.isStruct || e.team === u.team ||
           !e.sidearm && (e.type === 'gun' || e.type === 'bow') ||
@@ -2153,10 +2153,6 @@ mikatagahara.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
       // 背後や横からの追手には、指と体が向き直る時間も残す。
       // 正面の長い振りかぶりの間は、歩いて息を戻す。
       const toward = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
-      if (soon <= 1 && Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z) <= (e.reach || 2.8) + 1) {
-        if (strikeAngle === null) strikeAngle = toward;
-        else if (Math.cos(toward - strikeAngle) < 0.5) crossed = true;
-      }
       const turn = Math.abs(Math.atan2(Math.sin(toward - u.heading), Math.cos(toward - u.heading)));
       if (soon > (turn > Math.PI / 3 ? 1.3 : 0.7)) continue;
       if (soon < soonest || !threat) { threat = e; soonest = soon; }
@@ -2181,17 +2177,10 @@ mikatagahara.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
         const axis = b._mkRetreatAxis || (b._mkRetreatAxis = { x: 0, y: 0 });
         axis.x = side; axis.y = -fw; inp.axis = axis;
       }
-      // 交互の突きだけでなく、一本でも向き直りが間に合わない刃は退き道へ避ける。
-      // 構えが崩れた時も同じ。正面で受けられる間は回避の気力を使わない。
-      const uncovered = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z) <= (e.reach || 2.8) + 0.6 &&
-        (p.guardBroken > 0 || Math.cos(toward - u.heading) <= 0.25);
-      // 深手では正面の侍一人の突きでも倒れる。向きだけで安全とせず退路へ避ける。
-      const critical = u.hp <= u.maxHp * 0.35;
-      if ((crossed || uncovered || critical) && soonest <= 0.35 && !p.mounted && p.dodgeT <= -0.3 &&
-          !(p.knockT > 0) && !u.climb &&
-          p.sta >= 20 + (critical || p.guardBroken > 0 ? 0 : p.maxSta * 0.4)) {
-        // 殿の印で止まっても避ける。終点だけでなく三歩の途中の切岸と兵を調べる。
-        retreatDodge(b, inp, !atPost && walking ? walkYaw : toward + Math.PI);
+      // 侍の連続突きには、廃止済みの回避を押す代わりに普通の駆け足で離れる。
+      // 殿の印で止まっている時も気力を条件にせず、途中の兵と横槍まで調べる。
+      if (Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z) <= (e.reach || 2.8) + 0.8) {
+        retreatRunFromBlade(b, inp, null, !atPost && walking ? walkYaw : null);
       }
       // 使われない構え・回避入力だけに頼らず、確かめた退路への駆け足を保つ。
       inp.runHeld = !!inp.axis && Math.hypot(inp.axis.x, inp.axis.y) > .5;

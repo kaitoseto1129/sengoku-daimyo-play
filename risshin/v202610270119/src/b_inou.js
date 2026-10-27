@@ -696,9 +696,10 @@ const inou = {
           t.inouHitUntil = rt.t + 2.4;
           t.inouBlockUntil = 0;
         }
-        // 倒れた兵の▼はすぐ消す。命中の伸びを残して、まだ戦う相手に見せない。
+        // 討った本人の空の▼を短く閉じる。隣の兵へ命中の反応を移さない。
         if (t.hp < hp && (!t.alive || t.dying || t.hp <= 0 || t.downed || t.woundOut || t.rearWound)) {
           musicAccent();
+          t.inouDefeatUntil = rt.t + 1.2;
           t.inouHitUntil = 0;
           t.inouBlockUntil = 0;
           F.combatResult = '一人倒した。次の白縁の▼へ'; F.combatResultUntil = rt.t + 2;

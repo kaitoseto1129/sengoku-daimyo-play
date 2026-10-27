@@ -130,23 +130,18 @@ function ldBegin(keys, battle = '') {
   stage('戦いの準備をしています', keys[0]);
   ldIv = setInterval(ldTick, 150);
 }
-// 工程内は所要時間の見込みで進め、実際に終わった分が多ければそちらを使う。
+// 円を工程ごとに等分し、工程内は実際の完了数と控えめな時間の見込みで進める。
 // 遅い端末でも後戻りせず、完了前に満ち切らない。戦が始まったら更新は止める。
 function ldTick() {
   const P = ldPlan;
   if (!P || $('loading').hidden) return;
-  let total = 0, done = 0;
-  for (let i = 0; i < P.est.length; i++) {
-    total += P.est[i];
-    if (i < P.cur) done += P.est[i];
-  }
   const current = P.est[P.cur] || 0;
   const elapsed = Math.max(0, performance.now() - P.t);
-  // 覚えた所要時間で九割まで進む。見込みを超えた分はゆっくり進め、工程の完了を待つ。
+  // 一つの長い工程で円全体を満たさない。残りの工程の分は必ず空けておく。
   const ratio = current ? elapsed / current : 0;
-  const estimated = ratio <= 1 ? .9 * ratio : .9 + .08 * (ratio - 1) / ratio;
+  const estimated = .85 * ratio / (1 + ratio);
   const within = Math.max(P.part, estimated);
-  P.progress = Math.max(P.progress, Math.min(.98, (done + current * within) / Math.max(1, total)));
+  P.progress = Math.max(P.progress, Math.min(.98, (Math.max(0, P.cur) + within) / Math.max(1, P.keys.length)));
   $('loading').style.setProperty('--ld-progress', `${P.progress * 100}%`);
   const left = $('ld-left');
   if (left) left.textContent = '';
@@ -1837,6 +1832,7 @@ const game = {
     try { localStorage.setItem('risshin-lastbattle', BATTLES[i]?.id || String(i)); localStorage.setItem('risshin-lastbattle-at', String(Date.now())); } catch (e) { /* 保存できなければ記さない */ }
     if (isLocked(i)) return showPaywall(() => this.startBattle(i), () => this.base());
     const firstBattle = BATTLES[i]?.id === 'inou' && !this.G.practice && !this.G.lord && !this.G.history?.some(Boolean);
+    const quietDeparture = firstBattle || BATTLES[i]?.id === 'okehazama';
     $('loading').classList.toggle('first-battle', firstBattle);
     this.bg = null;
     this.freeTitle();
@@ -1849,7 +1845,7 @@ const game = {
     this.snapshot = JSON.stringify(this.G);
     const LB = this.G.lord && lordOf(BATTLES[i].id);
     // 読み込みの間：まず「いつ・どこ」を一行（永禄三年五月十九日 朝　尾張国 桶狭間）、その下に心得
-    $('tip').innerHTML = i === 0 && !LB && !this.G.practice && scenarioKey() === 'oda'
+    $('tip').innerHTML = quietDeparture ? '' : i === 0 && !LB && !this.G.practice && scenarioKey() === 'oda'
       ? `${BATTLES[0].name.replace(/の戦い$/, '')}へ出陣します。<br>味方の旗について進もう。操作は一つずつ案内します。`
       : `${BATTLES[i] && BATTLES[i].year ? `<b style="font-size:1.15em;letter-spacing:.08em">${BATTLES[i].year.replace(/（\d+）/, '')}　${BATTLES[i].place || ''}</b><br>` : ''}この戦の心得：${LB ? LB.tip : tipOf(i)}<br><span style="opacity:.7">${VIEW_TIP()}</span><br><span style="opacity:.7">${LB ? LORD_TIP() : TIPS[Math.floor(Math.random() * TIPS.length)]}</span>`;
     $('loading').hidden = false;
@@ -1866,7 +1862,7 @@ const game = {
     const keys = ['defs', 'assets', 'build', 'warm', 'compile', 'first'].filter((k) => (k !== 'defs' || !battleDefinition(i) || !BM) && (tool || isNorender() ? k === 'build' || k === 'first' || k === 'defs' : true));
     ldBegin(keys, BATTLES[i].id);
     const readingStory = LB ? { year: LB.year, title: LB.name, text: LB.goal ? [...LB.text, `任務：${LB.goal}`] : LB.text } : storyOf(i)(this.G);
-    const reader = this.loadingReader = loadingStory(BATTLES[i], readingStory, LB ? LB.tip : tipOf(i), this.G, firstBattle);
+    const reader = this.loadingReader = loadingStory(BATTLES[i], readingStory, LB ? LB.tip : tipOf(i), this.G, quietDeparture);
     // 開戦の確かめは、この戻り値を待ってから判定する。読み込み中に次の戦を予約すると、前の支度は取り消される。
     return new Promise((resolve) => setTimeout(() => guarded(async () => {
       if (my !== this.startSeq) return;
@@ -2918,14 +2914,14 @@ if (!memResumed) game.title();
 // 共有の入口は新しい練習だけ。保存の読み直し・上書き・削除はしない。
 const shared = !memResumed && sharedBattle(location.search, BATTLE_IDS);
 if (shared) {
-  setScenario(shared.scenario);
   const G = newGame('弥五郎', 'normal', shared.scenario);
   G.practice = true;
+  // 保存の時代と尾張の戦の並びをそろえてから、番号を引く。
+  game.G = G;
   const i = BATTLES.findIndex((b) => b.id === shared.id);
   if (i >= 0) {
-    G.battle = i; game.G = G; game.bg = null;
+    G.battle = i; game.bg = null;
     game.story(i);
-    notice('同じ戦の練習です。保存した記録は変わりません。');
   }
 }
 try { window.__bootDone && window.__bootDone(); } catch (e) { /* 題までの札（index.html）が無ければよい */ }

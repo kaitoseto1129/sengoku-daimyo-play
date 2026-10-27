@@ -1,6 +1,6 @@
 import { battleJin, installBattleJinkei } from './b_jinkei_layout.js';
 import { timeslipField } from './timeslip_field.js';
-import { retreatThroughGap, retreatDodge } from './bot_retreat.js';
+import { retreatThroughGap, retreatRunFromBlade } from './bot_retreat.js';
 // ======================================================================
 // 織田家編　志賀の陣・宇佐山城（元亀元年九月）
 // 信長が摂津の野田・福島に出ている間に、浅井・朝倉の三万が湖の西を下って坂本へ出てきた。
@@ -2731,6 +2731,7 @@ function retreatOnShigaRoad(b, step) {
 
 function retreatWithGuard(b, inp, goTo, x, z, r) {
   const p = b.player, u = p.u;
+  inp.axis = null; inp.runHeld = false;
   // 前の受けで使った後退・横歩きと狙いを残すと、次の前進と打ち消し合う。
   inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
   if (p.lock) inp.e.add('KeyQ');
@@ -2745,7 +2746,6 @@ function retreatWithGuard(b, inp, goTo, x, z, r) {
   inp.runHeld = inp.k.has('KeyW');
   inp.guardHold = false; inp.leftPressed = false; inp.chargeHold = false;
   let attacker = null, nearest = Infinity, impact = Infinity;
-  let strikeAngle = null, crossed = false;
   for (const o of b.army.units) {
     if (!o.alive || o.team === u.team || o.fleeing || o.gone || o.downed || o.woundOut || o.rearWound || o.noTarget || o.isStruct ||
         !o.sidearm && (o.type === 'gun' || o.type === 'bow') || Math.abs(o.pos.y - u.pos.y) >= 3) continue;
@@ -2762,11 +2762,6 @@ function retreatWithGuard(b, inp, goTo, x, z, r) {
         !b.army.wallBetween(u.pos, -1, o.pos, (o.wpnKind || o.lookWeapon) === 'spear')) {
       const soon = o.charging ? 0 : o.swing && !o.swing.done && o.swing.target === u
         ? Math.max(0, o.swing.dur * o.swing.at - o.swing.t) : o.atk?.target === u ? o.atk.t : Infinity;
-      if (soon <= 1 && d <= (o.reach || 2.8) + 1) {
-        const angle = Math.atan2(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
-        if (strikeAngle === null) strikeAngle = angle;
-        else if (Math.cos(angle - strikeAngle) < 0.5) crossed = true;
-      }
       if (soon < impact || soon === impact && d < nearest) { attacker = o; nearest = d; impact = soon; }
     }
   }
@@ -2781,15 +2776,10 @@ function retreatWithGuard(b, inp, goTo, x, z, r) {
     const axis = b._shigaRetreatAxis || (b._shigaRetreatAxis = { x: 0, y: 0 });
     axis.x = side; axis.y = -fw; inp.axis = axis;
   }
-  // 木戸の内や曲がり角で止まっても、深手のまま追手の刃を待たない。
-  // 回避の途中の肩と足場を調べ、塞がれた正面なら道の内側の斜めを探す。
-  const uncovered = nearest <= (attacker.reach || 2.8) + 0.6 &&
-    (p.guardBroken > 0 || Math.cos(toward - u.heading) <= 0.25);
-  const critical = u.hp <= u.maxHp * 0.35;
-  if ((crossed || uncovered || critical) && impact <= 0.35 && !p.mounted && p.dodgeT <= -0.3 &&
-      !(p.knockT > 0) && !u.climb &&
-      p.sta >= 20 + (critical || p.guardBroken > 0 ? 0 : p.maxSta * 0.4)) {
-    retreatDodge(b, inp, walking ? walkYaw : toward + Math.PI, retreatOnShigaRoad);
+  // 構え・回避は廃止済み。木戸で待つ間も、追手の間合いでは普通の駆け足で離れる。
+  // 坂へ進む一歩に横槍があれば別の隙間を探し、全方向が塞がれば棒も取り消す。
+  if (nearest <= (attacker.reach || 2.8) + 0.8) {
+    retreatRunFromBlade(b, inp, retreatOnShigaRoad, walking ? walkYaw : null);
   }
   // 追手への向きは保ち、打ち込みの前だけ構える。接近だけの追手に
   // 構え続けると坂で息が戻らず、背後の連続した突きで構えが崩れる。

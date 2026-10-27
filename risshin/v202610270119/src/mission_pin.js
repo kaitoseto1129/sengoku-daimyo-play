@@ -836,11 +836,11 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
   el._routeEdge.style.display = outside && !docked && !raid ? '' : 'none';
   el._simpleRing.lastChild.setAttribute('stroke', want.arrived ? '#e4f2cb' : '#fff3ba');
   // 待機は任務の下で円に起こす。地面の薄い輪と区別し、残る時間を読める大きさにする。
-  el._simpleRing.setAttribute('transform', raid ? 'translate(0 -40) scale(1 3.2)' : docked ? 'scale(1 3.2)' : '');
+  el._simpleRing.setAttribute('transform', raid ? 'translate(0 -30) scale(.72 2.3)' : docked ? 'scale(1 3.2)' : '');
   // 集合先は先端までつながったピン一本。丸と短い軸を離して描かない。
   if (raid && !el._destinationStem) {
     const stem = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    const path = 'M0 0C-8-16-29-24-29-40A29 29 0 1 1 29-40C29-24 8-16 0 0Z';
+    const path = 'M0 0C-6-12-21-18-21-30A21 21 0 1 1 21-30C21-18 6-12 0 0Z';
     stem.innerHTML = `<path d="${path}" fill="#14120f" stroke="#14120f" stroke-width="10" stroke-linejoin="round"/><path d="${path}" fill="none" stroke="#fff3ba" stroke-width="4" stroke-linejoin="round"/>`;
     el._simplePin.appendChild(stem); el._destinationStem = stem;
   }
@@ -857,7 +857,7 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     el._simplePin.appendChild(cue); el._joinCue = cue;
     // 残る待ち時間を外周で示す。入れ物は一度だけ作る。
     const dial = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    dial.innerHTML = '<path fill="none" stroke="#514a37" stroke-width="8" stroke-linecap="round"/><path fill="none" stroke="#fff3ba" stroke-width="8" stroke-linecap="round"/>';
+    dial.innerHTML = '<path fill="none" stroke="#514a37" stroke-width="8" stroke-linecap="round"/><path fill="none" stroke="#fff3ba" stroke-width="8" stroke-linecap="round"/><path fill="none" stroke="#14120f" stroke-width="3"/>';
     el._simplePin.appendChild(dial); el._waitDial = dial;
     // 円だけでは待機と分からないため、同じピンの中に砂時計を置く。
     const hourglass = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -895,7 +895,8 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
       // 残る時間を一本の円で減らす。秒の境でも止まらず、砂と同時に空になる。
       if (!dial._clockReady) {
         dial._clockReady = true;
-        for (const path of dial.children) {
+        for (let i = 0; i < 2; i++) {
+          const path = dial.children[i];
           path.setAttribute('d', 'M0-27A27 27 0 1 1 0 27A27 27 0 1 1 0-27');
           path.setAttribute('pathLength', '100');
           path.setAttribute('stroke-linecap', 'butt');
@@ -903,10 +904,24 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
       }
       if (dial._sand !== sand) {
         dial._sand = sand;
-        dial.lastChild.setAttribute('stroke-dasharray', `${100 - sand} 100`);
+        dial.children[1].setAttribute('stroke-dasharray', `${100 - sand} 100`);
+      }
+      // 一区切りが一秒。残る円の中だけに刻み、別の時計や数字を足さない。
+      const duration = Math.max(1, Math.min(60, Math.round(want.waitDuration || 10)));
+      const elapsed = Math.floor(progress * duration);
+      if (dial._duration !== duration || dial._elapsed !== elapsed) {
+        dial._duration = duration; dial._elapsed = elapsed;
+        let ticks = '';
+        for (let i = elapsed + 1; i < duration; i++) {
+          const angle = i * Math.PI * 2 / duration;
+          const sx = Math.sin(angle), sy = -Math.cos(angle);
+          ticks += `M${sx * 23} ${sy * 23}L${sx * 31} ${sy * 31}`;
+        }
+        dial.lastChild.setAttribute('d', ticks);
       }
     }
   }
+
   if (outside && !docked) {
     rt.camera.getWorldDirection(goalDirection);
     const yaw = Math.atan2(goalDirection.x, goalDirection.z), me = rt.player.u.pos;
@@ -932,30 +947,8 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
   // ついて行く組の旗は一つだけ囲む。行き先の輪は実際の移動先に残す。
   let outline = '';
   // 集合先はピン一本。到着はピン内のチェック、待ちは同じ穴の目盛りで返す。
-  // 集合ピンの地面の輪を、実際の到着半径に合わせる。輪の縁へ入れば集合できる。
-  // 輪の一部が視点の後ろへ回っても、見える境界を残す。到着直後も同じ場所で色を替える。
+  // 広い外周を別の目標に見せず、小さなピンを実際の集合地点へ固定する。
   const arrival = joined && rt.t - pinAt.arrivalAt < ARRIVAL_CUE_SECONDS;
-  if (raid && want.area && (!joined || arrival) && want.r > 0 &&
-      Math.hypot(want.x - rt.player.u.pos.x, want.z - rt.player.u.pos.z) <= want.r + 12) {
-    if (el._areaRt !== rt || el._areaX !== want.x || el._areaZ !== want.z || el._areaR !== want.r) {
-      el._areaRt = rt; el._areaX = want.x; el._areaZ = want.z; el._areaR = want.r;
-      for (let i = 0; i < el._areaPoints.length; i++) {
-        const angle = i * Math.PI * 2 / el._areaPoints.length;
-        const px = want.x + Math.sin(angle) * want.r, pz = want.z + Math.cos(angle) * want.r;
-        el._areaPoints[i].set(px, groundAt(rt.world, px, pz, rt.player.u.pos.y) + .08, pz);
-      }
-    }
-    const near = -rt.camera.near - .01;
-    for (let i = 0; i < el._areaPoints.length; i++) {
-      areaPoint.copy(el._areaPoints[i]).applyMatrix4(rt.camera.matrixWorldInverse);
-      areaEnd.copy(el._areaPoints[(i + 1) % el._areaPoints.length]).applyMatrix4(rt.camera.matrixWorldInverse);
-      if (areaPoint.z > near && areaEnd.z > near) continue;
-      if (areaPoint.z > near) areaPoint.lerp(areaEnd, (near - areaPoint.z) / (areaEnd.z - areaPoint.z));
-      if (areaEnd.z > near) areaEnd.lerp(areaPoint, (near - areaEnd.z) / (areaPoint.z - areaEnd.z));
-      areaPoint.applyMatrix4(rt.camera.projectionMatrix); areaEnd.applyMatrix4(rt.camera.projectionMatrix);
-      outline += `M${((areaPoint.x + 1) * W / 2).toFixed(1)} ${((1 - areaPoint.y) * H / 2).toFixed(1)}L${((areaEnd.x + 1) * W / 2).toFixed(1)} ${((1 - areaEnd.y) * H / 2).toFixed(1)}`;
-    }
-  }
   if (rt.def.missionStyle === 'lesson' && want.marker?.group) {
     const group = want.marker.group;
     const flag = rt.hud.goalFlagBounds(rt, want.marker, group.anchor);

@@ -10,6 +10,34 @@ const FLAME_U = { uNight: { value: 0 }, uT: { value: 0 }, uWind: { value: new TH
 let FLAME_MAT = null, FLAME_CORE_MAT = null, FLAME_GEO = null;
 const FLAME_LIKE = new WeakMap();
 let ROUND_FLAME_MAT = null, ROUND_FLAME_CORE = null;
+// 束ねる判定と板の行き先は使い回す。描くたびに集合・関数・検索用の字を作らない。
+function flameLike(mt) {
+  if (!mt) return false;
+  if (mt === FLAME_MAT || mt === FLAME_CORE_MAT || mt === ROUND_FLAME_MAT || mt === ROUND_FLAME_CORE) return true;
+  if (!mt.isShaderMaterial) return false;
+  let r = FLAME_LIKE.get(mt);
+  if (r === undefined) FLAME_LIKE.set(mt, r = !!mt.uniforms && mt.uniforms.uWind === FLAME_U.uWind && /flameWorld = modelMatrix \* instanceMatrix/.test(mt.vertexShader));
+  return r;
+}
+function visitFlame(world, m) {
+  if (!m || !m.isMesh || !m.layers.mask || !flameLike(m.material)) return;
+  for (let o = m; o; o = o.parent) if (!o.visible) { m.layers.mask = 1; return; }
+  let saved = world.flameSources.get(m);
+  if (!saved || saved.material !== m.material || saved.geometry !== m.geometry) {
+    const k = m.material.uuid + m.geometry.uuid;
+    let batch = world.flameInst.get(k);
+    if (!batch) {
+      const im = new THREE.InstancedMesh(m.geometry, m.material, 192);
+      im.frustumCulled = false; im.renderOrder = 2; im.count = 0; im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      world.scene.add(im); batch = { im, n: 0 }; world.flameInst.set(k, batch);
+    }
+    saved = { material: m.material, geometry: m.geometry, batch };
+    world.flameSources.set(m, saved);
+  }
+  const e = saved.batch;
+  if (e.n >= 192) { m.layers.mask = 1; return; }
+  e.im.setMatrixAt(e.n++, m.matrixWorld); m.layers.mask = 2;
+}
 function flameMat() {
   if (FLAME_MAT) return FLAME_MAT;
   FLAME_GEO = new THREE.PlaneGeometry(1, 1, 2, 10);
@@ -515,31 +543,11 @@ export class WorldFire {
   flameBatch() {
     // 全画質で束ねる（高でも燃える城や寺で炎の板を一枚ずつ描いて百回ほどになっていた）
     const M = this.flameInst || (this.flameInst = new Map());
+    this.flameSources ||= new WeakMap();
     for (const e of M.values()) e.n = 0;
     if (this.fires.length) {
-      const ok = new Set([FLAME_MAT, FLAME_CORE_MAT, ROUND_FLAME_MAT, ROUND_FLAME_CORE]);
       // 戦ごとに作り直した炎の材質（本能寺の火・重ねた舌など）も、共通の炎の値（FLAME_U）と同じ形の頂点の作りなら束ねる
-      const flameLike = (mt) => {
-        if (ok.has(mt)) return true;
-        if (!mt || !mt.isShaderMaterial) return false;
-        let r = FLAME_LIKE.get(mt);
-        if (r === undefined) FLAME_LIKE.set(mt, r = !!mt.uniforms && mt.uniforms.uWind === FLAME_U.uWind && /flameWorld = modelMatrix \* instanceMatrix/.test(mt.vertexShader));
-        return r;
-      };
-      const visit = (m) => {
-        if (!m || !m.isMesh || !m.layers.mask || !flameLike(m.material)) return;
-        for (let o = m; o; o = o.parent) if (!o.visible) { m.layers.mask = 1; return; }
-        const k = m.material.uuid + m.geometry.uuid;
-        let e = M.get(k);
-        if (!e) {
-          const im = new THREE.InstancedMesh(m.geometry, m.material, 192);
-          im.frustumCulled = false; im.renderOrder = 2; im.count = 0; im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-          this.scene.add(im); e = { im, n: 0 }; M.set(k, e);
-        }
-        if (e.n >= 192) { m.layers.mask = 1; return; }
-        e.im.setMatrixAt(e.n++, m.matrixWorld); m.layers.mask = 2;
-      };
-      for (const f of this.fires) { visit(f.flame); visit(f.inner); if (f.flame) for (const c of f.flame.children) visit(c); }
+      for (const f of this.fires) { visitFlame(this, f.flame); visitFlame(this, f.inner); if (f.flame) for (const c of f.flame.children) visitFlame(this, c); }
     } else if (this.flameInst.size) for (const f of this.fires) for (const m of [f.flame, f.inner, ...(f.flame ? f.flame.children : [])]) if (m && m.layers.mask === 2) m.layers.mask = 1;
     for (const e of M.values()) { e.im.count = e.n; e.im.visible = e.n > 0; if (e.n) e.im.instanceMatrix.needsUpdate = true; }
   }

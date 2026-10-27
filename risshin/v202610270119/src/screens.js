@@ -275,7 +275,7 @@ mobileScreenStyle.textContent = `
     #screen.jp-open .jp .jp-season { top:calc(max(10px, env(safe-area-inset-top, 0px)) + 52px); left:max(16px, env(safe-area-inset-left, 0px)); }
     #screen.jp-open .jp-side { padding-top:calc(max(10px, env(safe-area-inset-top, 0px)) + 52px); padding-right:max(16px, env(safe-area-inset-right, 0px)); padding-bottom:var(--menu-bottom); }
     #loading > div:not(#ld-slides) { max-width:720px; width:100%; text-align:center; }
-    #loading .ldmon { width:32px; height:32px; margin-bottom:8px; }
+    #loading .ldmon { width:64px; height:64px; margin-bottom:12px; }
     #loading .ld { font-size:20px; letter-spacing:.1em; }
     #loading p { margin-top:8px; line-height:1.6; }
     #loading #ld-lore { margin-top:8px; grid-template-columns:1fr 1fr; gap:16px; }

@@ -1460,6 +1460,11 @@ function moribeFord(rt) {
       #include <emissivemap_fragment>
       // 発光の変数を作った後で足す。携帯の軽い材質でも浅瀬を描けるようにする。
       totalEmissiveRadiance += fordSand * fordBand * 0.22;
+    `).replace('#include <opaque_fragment>', `
+      // 空の白い反射で砂底を隠さない。流れと岸の波を残し、渡れる帯だけ底を見せる。
+      outgoingLight = mix(outgoingLight, fordSand * (0.85 + fordRipple * 0.08),
+        fordBand * (1.0 - fordShore) * 0.75);
+      #include <opaque_fragment>
     `);
   };
   waterMat.customProgramCacheKey = () => waterKey + '|森部の浅瀬';
